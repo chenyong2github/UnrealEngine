@@ -364,9 +364,47 @@ bool FTypedElementList::NotifyPendingChanges()
 	return false;
 }
 
-void FTypedElementList::ClearPendingChanges()
+FTypedElementList::FScopedClearNewPendingChange::FScopedClearNewPendingChange(FTypedElementList& InTypeElementList)
 {
-	bHasPendingNotify = false;
+	bool bCanClearNewPendingChange = !InTypeElementList.bHasPendingNotify;
+
+	if (InTypeElementList.LegacySync)
+	{
+		bCanClearNewPendingChange &= !InTypeElementList.LegacySync->IsRunningBatchOperation();
+	}
+	
+	if (bCanClearNewPendingChange)
+	{
+		TypedElementList = &InTypeElementList;
+	}
+}
+
+
+FTypedElementList::FScopedClearNewPendingChange::FScopedClearNewPendingChange(FScopedClearNewPendingChange&& Other)
+	: TypedElementList(Other.TypedElementList)
+{
+	Other.TypedElementList = nullptr;
+}
+
+FTypedElementList::FScopedClearNewPendingChange& FTypedElementList::FScopedClearNewPendingChange::operator=(FScopedClearNewPendingChange&& Other)
+{
+	TypedElementList = Other.TypedElementList;
+	Other.TypedElementList = nullptr;
+
+	return *this;
+}
+
+FTypedElementList::FScopedClearNewPendingChange::~FScopedClearNewPendingChange()
+{
+	if (TypedElementList)
+	{
+		TypedElementList->bHasPendingNotify = false;
+	}
+}
+
+FTypedElementList::FScopedClearNewPendingChange FTypedElementList::GetScopedClearNewPendingChange()
+{
+	return FScopedClearNewPendingChange(*this);
 }
 
 void FTypedElementList::NoteListMayChange()

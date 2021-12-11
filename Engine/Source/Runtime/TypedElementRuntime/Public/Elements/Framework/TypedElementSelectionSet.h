@@ -495,11 +495,11 @@ public:
 	}
 
 	/**
-	 * Clear whether there are pending changes for OnChangedDelegate to notify for, without emitting a notification.
+	 * Get a scoped object that when destroyed it clear a pending change notification without emitting the notification if it happened during its lifecycle.
 	 */
-	void ClearPendingChanges()
+	FTypedElementList::FScopedClearNewPendingChange GetScopedClearNewPendingChange()
 	{
-		ElementList->ClearPendingChanges();
+		return ElementList->GetScopedClearNewPendingChange();
 	}
 
 	/**

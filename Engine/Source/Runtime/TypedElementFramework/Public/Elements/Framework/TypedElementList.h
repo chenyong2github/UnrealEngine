@@ -400,11 +400,22 @@ public:
 	 */
 	FORCEINLINE void Empty(const int32 InSlack = 0)
 	{
-		NoteListMayChange();
+		// Avoid creating unnecessary notifications
+		const bool bWasEmpty = ElementHandles.IsEmpty();
+		if (!bWasEmpty)
+		{
+			NoteListMayChange();
+		}
+
 		ElementCombinedIds.Empty(InSlack);
 		ElementHandles.Empty(InSlack);
 		ElementCounts.ClearCounters();
-		NoteListChanged(EChangeType::Cleared);
+
+		if (!bWasEmpty)
+		{
+			ElementCounts.ClearCounters();
+			NoteListChanged(EChangeType::Cleared);
+		}
 	}
 
 	/**
@@ -412,11 +423,15 @@ public:
 	 */
 	FORCEINLINE void Reset()
 	{
-		NoteListMayChange();
-		ElementCombinedIds.Reset();
-		ElementHandles.Reset();
-		ElementCounts.ClearCounters();
-		NoteListChanged(EChangeType::Cleared);
+		// Avoid creating unnecessary notifications
+		if (!ElementHandles.IsEmpty())
+		{
+			NoteListMayChange();
+			ElementCombinedIds.Reset();
+			ElementHandles.Reset();
+			ElementCounts.ClearCounters();
+			NoteListChanged(EChangeType::Cleared);
+		}
 	}
 
 	/**
@@ -615,9 +630,30 @@ public:
 	bool NotifyPendingChanges();
 
 	/**
-	 * Clear whether there are pending changes for OnChangedDelegate to notify for, without emitting a notification.
+	 * A utility struct that help to cancel any new pending notification that happened in a scope.
+	 * Note: it won't cancel a notification if there is a legacy batch operation ongoing
 	 */
-	void ClearPendingChanges();
+	struct TYPEDELEMENTFRAMEWORK_API FScopedClearNewPendingChange
+	{
+		FScopedClearNewPendingChange() = default;
+		FScopedClearNewPendingChange(FTypedElementList& InTypeElementList);
+
+		FScopedClearNewPendingChange(const FScopedClearNewPendingChange&) = delete;
+		FScopedClearNewPendingChange& operator=(const FScopedClearNewPendingChange&) = delete;
+
+		FScopedClearNewPendingChange(FScopedClearNewPendingChange&& Other);
+		FScopedClearNewPendingChange& operator=(FScopedClearNewPendingChange&& Other);
+
+		~FScopedClearNewPendingChange();
+
+	private:
+		FTypedElementList* TypedElementList = nullptr;
+	};
+
+	/**
+	 * Get a scoped object that when destroyed it clear a pending change notification without emitting the notification if it happened during its lifecycle.
+	 */
+	FScopedClearNewPendingChange GetScopedClearNewPendingChange();
 
 	/**
 	 * Access the interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
