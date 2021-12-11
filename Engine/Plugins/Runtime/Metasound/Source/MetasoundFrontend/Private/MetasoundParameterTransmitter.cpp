@@ -2,8 +2,9 @@
 
 #include "MetasoundParameterTransmitter.h"
 
-#include "IAudioGeneratorInterfaceRegistry.h"
+#include "IAudioParameterInterfaceRegistry.h"
 #include "MetasoundLog.h"
+#include "MetasoundSourceInterface.h"
 
 
 namespace Metasound
@@ -124,22 +125,16 @@ namespace Metasound
 					return FName();
 			}
 		}
-	}
-
-	const FVertexName& FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName()
-	{
-		static const FVertexName VarName = "TransmitterInstanceID";
-		return VarName;
-	}
+	} // namespace Frontend
 
 	FSendAddress FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment(const FMetasoundEnvironment& InEnvironment, const FVertexName& InVertexName, const FName& InTypeName)
 	{
-		const FVertexName IDVarName = GetInstanceIDEnvironmentVariableName();
-		uint64 InstanceID = -1;
+		using namespace Frontend;
 
-		if (ensure(InEnvironment.Contains<uint64>(IDVarName)))
+		uint64 InstanceID = -1;
+		if (ensure(InEnvironment.Contains<uint64>(SourceInterface::Environment::TransmitterID)))
 		{
-			InstanceID = InEnvironment.GetValue<uint64>(IDVarName);
+			InstanceID = InEnvironment.GetValue<uint64>(SourceInterface::Environment::TransmitterID);
 		}
 
 		return CreateSendAddressFromInstanceID(InstanceID, InVertexName, InTypeName);
@@ -176,13 +171,6 @@ namespace Metasound
 
 	bool FMetaSoundParameterTransmitter::SetParameter(FAudioParameter&& InParameter)
 	{
-		const FName ParamName = InParameter.ParamName;
-		return SetParameterWithLiteral(ParamName, Frontend::ConvertParameterToLiteral(MoveTemp(InParameter)));
-	}
-
-	bool FMetaSoundParameterTransmitter::SetParameter(FName InInterfaceName, FAudioParameter&& InParameter)
-	{
-		InParameter.ParamName = Audio::IGeneratorInterfaceRegistry::GetMemberFullName(InInterfaceName, InParameter.ParamName);
 		const FName ParamName = InParameter.ParamName;
 		return SetParameterWithLiteral(ParamName, Frontend::ConvertParameterToLiteral(MoveTemp(InParameter)));
 	}

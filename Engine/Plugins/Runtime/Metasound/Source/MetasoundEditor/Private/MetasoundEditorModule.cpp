@@ -122,7 +122,7 @@ namespace Metasound
 					Set("MetasoundEditor.Graph.Node.Class.Graph", new IMAGE_BRUSH_SVG(TEXT("Icons/graph_node"), Icon16));
 					Set("MetasoundEditor.Graph.Node.Class.Input", new IMAGE_BRUSH_SVG(TEXT("Icons/input_node"), FVector2D(16.0f, 13.0f)));
 					Set("MetasoundEditor.Graph.Node.Class.Output", new IMAGE_BRUSH_SVG(TEXT("Icons/output_node"), FVector2D(16.0f, 13.0f)));
-					Set("MetasoundEditor.Graph.Node.Class.Variable", new IMAGE_BRUSH_SVG(TEXT("Icons/variable_node"), FVector2D(8.0f, 16.0f)));
+					Set("MetasoundEditor.Graph.Node.Class.Variable", new IMAGE_BRUSH_SVG(TEXT("Icons/variable_node"), FVector2D(16.0f, 13.0f)));
 
 					Set("MetasoundEditor.Graph.Node.Math.Add", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_add_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Divide", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_divide_40x.png")), Icon40x40));
@@ -176,7 +176,7 @@ namespace Metasound
 					check(AssetSubsystem);
 
 					// Use the editor version of `RegisterGraphWithFrontend` so it re-registers any open MetaSound editors
-					AssetSubsystem->AddOrUpdateAsset(InAssetData, false /* bRegisterWithFrontend */);
+					AssetSubsystem->AddOrUpdateAsset(InAssetData);
 					
 					// Loading all assets necessary only in editor to register &
 					// populate potential graphs to reference in MetaSound editor.
@@ -230,7 +230,7 @@ namespace Metasound
 							check(AssetSubsystem);
 
 							// Use the editor version of UnregisterWithFrontend so it refreshes any open MetaSound editors
-							AssetSubsystem->RemoveAsset(*Pair.Key, false /* bUnregisterWithFrontend */);
+							AssetSubsystem->RemoveAsset(*Pair.Key);
 							FGraphBuilder::UnregisterGraphWithFrontend(*Pair.Key);
 						}
 					}
@@ -243,7 +243,7 @@ namespace Metasound
 							UMetaSoundAssetSubsystem* AssetSubsystem = GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
 							check(AssetSubsystem);
 							// Use the editor version of RegisterWithFrontend so it refreshes any open MetaSound editors
-							AssetSubsystem->AddOrUpdateAsset(*Pair.Value, false /* bRegisterWithFrontend */);
+							AssetSubsystem->AddOrUpdateAsset(*Pair.Value);
 							FGraphBuilder::RegisterGraphWithFrontend(*Pair.Value);
 						}
 					}
@@ -276,7 +276,7 @@ namespace Metasound
 					check(AssetSubsystem);
 
 					// Use the editor version of UnregisterWithFrontend so it refreshes any open MetaSound editors
-					AssetSubsystem->RemoveAsset(InAssetData, false /* bUnregisterWithFrontend */);
+					AssetSubsystem->RemoveAsset(InAssetData);
 					if (UObject* AssetObject = InAssetData.GetAsset())
 					{
 						FGraphBuilder::UnregisterGraphWithFrontend(*AssetObject);

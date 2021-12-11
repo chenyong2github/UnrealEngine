@@ -8,7 +8,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "IAudioGeneratorInterfaceRegistry.h"
+#include "IAudioParameterInterfaceRegistry.h"
 #include "IAudioParameterTransmitter.h"
 #include "IDetailGroup.h"
 #include "Input/Events.h"
@@ -253,7 +253,7 @@ namespace Metasound
 
 		FName FMetasoundDetailCustomization::GetInterfaceVersionsPath() const
 		{
-			return Metasound::Editor::BuildChildPath(DocumentPropertyName, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendDocument, InterfaceVersions));
+			return Metasound::Editor::BuildChildPath(DocumentPropertyName, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendDocument, Interfaces));
 		}
 
 		FName FMetasoundDetailCustomization::GetMetadataRootClassPath() const
@@ -276,8 +276,6 @@ namespace Metasound
 
 			if (const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get()))
 			{
-				const TArray<FMetasoundFrontendVersion>& ImplementedInterfaces = MetaSoundAsset->GetDocumentChecked().InterfaceVersions;
-
 				auto GetVersionName = [](const FMetasoundFrontendVersion& Version) { return Version.Name; };
 				auto IsTransmittableVersion = [](const FMetasoundFrontendVersion& Version)
 				{
@@ -292,13 +290,14 @@ namespace Metasound
 					return false;
 				};
 
+				const TSet<FMetasoundFrontendVersion>& ImplementedInterfaces = MetaSoundAsset->GetDocumentChecked().Interfaces;
 				Algo::TransformIf(ImplementedInterfaces, ImplementedInterfaceNames, IsTransmittableVersion, GetVersionName);
 
-				Audio::IGeneratorInterfaceRegistry::Get().IterateInterfaces([this](Audio::FGeneratorInterfacePtr Interface)
+				Audio::IAudioParameterInterfaceRegistry::Get().IterateInterfaces([this](Audio::FParameterInterfacePtr Interface)
 				{
-					if (!ImplementedInterfaceNames.Contains(Interface->Name))
+					if (!ImplementedInterfaceNames.Contains(Interface->GetName()))
 					{
-						FString Name = Interface->Name.ToString();
+						FString Name = Interface->GetName().ToString();
 						AddableInterfaceNames.Add(MakeShared<FString>(MoveTemp(Name)));
 					}
 				});

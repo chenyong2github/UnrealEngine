@@ -26,8 +26,7 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		FModuleManager::Get().LoadModuleChecked("AudioCodecEngine");
 
 		// Register interfaces
-		Metasound::Engine::RegisterInternalInterfaces();
-		Metasound::Engine::RegisterExternalInterfaces();
+		Metasound::Engine::RegisterInterfaces();
 
 		// Flush node registration queue
 		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();

@@ -2,7 +2,7 @@
 #include "MetasoundEditorGraph.h"
 
 #include "Algo/Transform.h"
-#include "AudioParameterInterface.h"
+#include "AudioParameterControllerInterface.h"
 #include "Components/AudioComponent.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -151,8 +151,8 @@ void UMetasoundEditorGraphVertex::SetMemberName(const FName& InNewName, bool bPo
 
 FText UMetasoundEditorGraphVertex::GetDisplayName() const
 {
-	
-	return Metasound::Editor::FGraphBuilder::GetDisplayName(*GetConstNodeHandle());
+	constexpr bool bIncludeNamespace = true;
+	return Metasound::Editor::FGraphBuilder::GetDisplayName(*GetConstNodeHandle(), bIncludeNamespace);
 }
 
 void UMetasoundEditorGraphVertex::SetDisplayName(const FText& InNewName, bool bPostTransaction)
@@ -323,14 +323,14 @@ bool UMetasoundEditorGraphVertex::CanRename(const FText& InNewName, FText& OutEr
 	}
 
 	bool bIsNameValid = true;
-	const FName NewFName = *InNewName.ToString();
+	const FString NewName = InNewName.ToString();
 	FConstNodeHandle NodeHandle = GetConstNodeHandle();
 	FConstGraphHandle GraphHandle = NodeHandle->GetOwningGraph();
 	GraphHandle->IterateConstNodes([&](FConstNodeHandle NodeToCompare)
 	{
 		if (NodeID != NodeToCompare->GetID())
 		{
-			if (NewFName == NodeToCompare->GetNodeName())
+			if (NewName == NodeToCompare->GetNodeName().ToString())
 			{
 				bIsNameValid = false;
 				OutError = FText::Format(LOCTEXT("GraphVertexRenameInvalid_NameTaken", "{0} is already in use"), InNewName);
@@ -344,6 +344,11 @@ bool UMetasoundEditorGraphVertex::CanRename(const FText& InNewName, FText& OutEr
 void UMetasoundEditorGraphInputLiteral::PostEditUndo()
 {
 	Super::PostEditUndo();
+
+	if (!IsValid(this))
+	{
+		return;
+	}
 
 	UpdateDocumentInputLiteral(false /* bPostTransaction */);
 }
@@ -384,7 +389,7 @@ void UMetasoundEditorGraphInputLiteral::UpdateDocumentInputLiteral(bool bPostTra
 		UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent();
 		check(PreviewComponent);
 
-		if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent)
+		if (TScriptInterface<IAudioParameterControllerInterface> ParamInterface = PreviewComponent)
 		{
 			Metasound::Frontend::FConstNodeHandle ConstNodeHandle = Input->GetConstNodeHandle();
 			Metasound::FVertexName VertexKey = NodeHandle->GetNodeName();
@@ -424,6 +429,11 @@ void UMetasoundEditorGraphInput::PostEditUndo()
 {
 	Super::PostEditUndo();
 
+	if (!IsValid(this))
+	{
+		return;
+	}
+
 	if (!Literal)
 	{
 		if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(GetOuter()))
@@ -442,6 +452,7 @@ void UMetasoundEditorGraphInput::PostEditUndo()
 		}
 		return;
 	}
+
 	Literal->UpdateDocumentInputLiteral(false /* bPostTransaction */);
 	UpdateEditorLiteralType();
 }
@@ -927,6 +938,11 @@ void UMetasoundEditorGraphVariable::UpdateDocumentVariable(bool bPostTransaction
 void UMetasoundEditorGraphVariable::PostEditUndo()
 {
 	Super::PostEditUndo();
+
+	if (!IsValid(this))
+	{
+		return;
+	}
 
 	if (!Literal)
 	{

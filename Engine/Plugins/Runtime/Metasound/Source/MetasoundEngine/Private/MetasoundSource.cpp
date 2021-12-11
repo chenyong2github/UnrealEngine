@@ -3,7 +3,7 @@
 
 #include "Algo/Transform.h"
 #include "AssetRegistryModule.h"
-#include "IAudioGeneratorInterfaceRegistry.h"
+#include "IAudioParameterInterfaceRegistry.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAudioFormats.h"
@@ -19,9 +19,11 @@
 #include "MetasoundGenerator.h"
 #include "MetasoundLog.h"
 #include "MetasoundOperatorSettings.h"
+#include "MetasoundOutputFormatInterfaces.h"
 #include "MetasoundParameterTransmitter.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundReceiveNode.h"
+#include "MetasoundSourceInterface.h"
 #include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundUObjectRegistry.h"
@@ -31,7 +33,7 @@
 #include "EdGraph/EdGraph.h"
 #endif // WITH_EDITORONLY_DATA
 
-#define LOCTEXT_NAMESPACE "MetaSoundSource"
+#define LOCTEXT_NAMESPACE "MetaSound"
 
 namespace MetaSoundSourcePrivate
 {
@@ -39,25 +41,28 @@ namespace MetaSoundSourcePrivate
 
 	const FFormatOutputVertexKeyMap& GetFormatOutputVertexKeys()
 	{
-		using namespace Metasound;
-		using namespace Metasound::Engine;
+		auto CreateVertexKeyMap = []()
+		{
+			using namespace Metasound::Frontend;
 
-		static const FFormatOutputVertexKeyMap Map
-		(
+			return FFormatOutputVertexKeyMap
 			{
 				{
 					EMetasoundSourceAudioFormat::Mono,
-					{ MetasoundSourceMono::GetAudioOutputName() }
+					{
+						OutputFormatMonoInterface::Outputs::MonoOut
+					}
 				},
 				{
 					EMetasoundSourceAudioFormat::Stereo,
 					{
-						MetasoundSourceStereo::GetLeftAudioOutputName(),
-						MetasoundSourceStereo::GetRightAudioOutputName()
+						OutputFormatStereoInterface::Outputs::LeftOut,
+						OutputFormatStereoInterface::Outputs::RightOut,
 					}
 				}
-			}
-		);
+			};
+		};
+		static const FFormatOutputVertexKeyMap Map = CreateVertexKeyMap();
 		return Map;
 	}
 }
@@ -122,8 +127,8 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 			case EMetasoundSourceAudioFormat::Mono:
 			{
 				bDidModifyDocument = FModifyRootGraphInterfaces(
-					{ MetasoundSourceStereo::GetVersion() },
-					{ MetasoundSourceMono::GetVersion() }
+					{ OutputFormatStereoInterface::GetVersion() },
+					{ OutputFormatMonoInterface::GetVersion() }
 				).Transform(GetDocumentHandle());
 			}
 			break;
@@ -131,8 +136,8 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 			case EMetasoundSourceAudioFormat::Stereo:
 			{
 				bDidModifyDocument = FModifyRootGraphInterfaces(
-					{ MetasoundSourceMono::GetVersion() },
-					{ MetasoundSourceStereo::GetVersion() }
+					{ OutputFormatMonoInterface::GetVersion() },
+					{ OutputFormatStereoInterface::GetVersion() }
 				).Transform(GetDocumentHandle());
 			}
 			break;
@@ -162,8 +167,9 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 
 bool UMetaSoundSource::ConformObjectDataToInterfaces()
 {
-	const TArray<FMetasoundFrontendVersion>& InterfaceVersions = GetDocumentHandle()->GetInterfaceVersions();
-	if (InterfaceVersions.Contains(Metasound::Engine::MetasoundSourceMono::GetVersion()))
+	using namespace Metasound::Frontend;
+
+	if (IsInterfaceDeclared(OutputFormatMonoInterface::GetVersion()))
 	{
 		if (OutputFormat != EMetasoundSourceAudioFormat::Mono || NumChannels != 1)
 		{
@@ -173,7 +179,7 @@ bool UMetaSoundSource::ConformObjectDataToInterfaces()
 		}
 	}
 
-	if (InterfaceVersions.Contains(Metasound::Engine::MetasoundSourceStereo::GetVersion()))
+	if (IsInterfaceDeclared(OutputFormatStereoInterface::GetVersion()))
 	{
 		if (OutputFormat != EMetasoundSourceAudioFormat::Stereo || NumChannels != 2)
 		{
@@ -426,27 +432,16 @@ bool UMetaSoundSource::SupportsSubtitles() const
 	return Super::SupportsSubtitles();
 }
 
-const FMetasoundFrontendVersion& UMetaSoundSource::GetDefaultArchetypeVersion() const
-{
-	static const FMetasoundFrontendVersion DefaultVersion = Metasound::Engine::MetasoundSourceMono::GetVersion();
-	return DefaultVersion;
-}
-
 float UMetaSoundSource::GetDuration()
 {
 	// eh? this is kind of a weird field anyways.
 	return Super::GetDuration();
 }
 
-bool UMetaSoundSource::ImplementsGeneratorInterface(Audio::FGeneratorInterfacePtr InInterface) const
+bool UMetaSoundSource::ImplementsParameterInterface(Audio::FParameterInterfacePtr InInterface) const
 {
-	const FMetasoundFrontendVersionNumber Number = FMetasoundFrontendVersionNumber{ InInterface->Version.Major, InInterface->Version.Minor };
-	auto ContainsInterface = [Name = InInterface->Name, &Number](FMetasoundFrontendVersion& InVersion)
-	{
-		return InVersion.Name == Name && InVersion.Number == Number;
-	};
-
-	return GetDocumentChecked().InterfaceVersions.ContainsByPredicate(ContainsInterface);
+	const FMetasoundFrontendVersion Version { InInterface->GetName(), { InInterface->GetVersion().Major, InInterface->GetVersion().Minor } };
+	return GetDocumentChecked().Interfaces.Contains(Version);
 }
 
 ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
@@ -477,9 +472,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		MetasoundGraph,
 		Environment,
 		GetName(),
-		GetAudioOutputVertexKeys(),
-		MetasoundSource::GetOnPlayInputName(),
-		MetasoundSource::GetIsFinishedOutputName()
+		GetAudioOutputVertexKeys()
 	};
 
 	return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
@@ -725,6 +718,7 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment() const
 {
 	using namespace Metasound;
 	using namespace Metasound::Engine;
+	using namespace Metasound::Frontend;
 
 	FMetasoundEnvironment Environment;
 	// Add audio device ID to environment.
@@ -747,8 +741,8 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment() const
 		}
 	}
 
-	Environment.SetValue<Audio::FDeviceId>(MetasoundSource::GetAudioDeviceIDVariableName(), AudioDeviceID);
-	Environment.SetValue<uint32>(MetasoundSource::GetSoundUniqueIdName(), GetUniqueID());
+	Environment.SetValue<Audio::FDeviceId>(SourceInterface::Environment::DeviceID, AudioDeviceID);
+	Environment.SetValue<uint32>(SourceInterface::Environment::SoundUniqueID, GetUniqueID());
 
 	return Environment;
 }
@@ -757,13 +751,14 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const FSoun
 {
 	using namespace Metasound;
 	using namespace Metasound::Engine;
+	using namespace Metasound::Frontend;
 
 	FMetasoundEnvironment Environment = CreateEnvironment();
-	Environment.SetValue<bool>(MetasoundSource::GetIsPreviewSoundName(), InParams.bIsPreviewSound);
-	Environment.SetValue<uint64>(MetasoundSource::GetInstanceIDName(), InParams.InstanceID);
-	
+	Environment.SetValue<bool>(SourceInterface::Environment::IsPreview, InParams.bIsPreviewSound);
+	Environment.SetValue<uint64>(SourceInterface::Environment::TransmitterID, InParams.InstanceID);
+
 #if WITH_METASOUND_DEBUG_ENVIRONMENT
-	Environment.SetValue<FString>(MetasoundSource::GetGraphName(), GetFullName());
+	Environment.SetValue<FString>(SourceInterface::Environment::GraphName, GetFullName());
 #endif // WITH_METASOUND_DEBUG_ENVIRONMENT
 
 	return Environment;
@@ -773,9 +768,10 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const Audio
 {
 	using namespace Metasound;
 	using namespace Metasound::Engine;
+	using namespace Metasound::Frontend;
 
 	FMetasoundEnvironment Environment = CreateEnvironment();
-	Environment.SetValue<uint64>(MetasoundSource::GetInstanceIDName(), InParams.InstanceID);
+	Environment.SetValue<uint64>(SourceInterface::Environment::TransmitterID, InParams.InstanceID);
 
 	return Environment;
 }
@@ -796,5 +792,4 @@ const TArray<Metasound::FVertexName>& UMetaSoundSource::GetAudioOutputVertexKeys
 		return Empty;
 	}
 }
-
-#undef LOCTEXT_NAMESPACE // MetaSoundSource
+#undef LOCTEXT_NAMESPACE // MetaSound
