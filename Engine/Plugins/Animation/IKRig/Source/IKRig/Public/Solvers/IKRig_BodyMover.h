@@ -13,7 +13,8 @@ class IKRIG_API UIKRig_BodyMoverEffector : public UObject
 	GENERATED_BODY()
 
 public:
-
+	UIKRig_BodyMoverEffector() { SetFlags(RF_Transactional); }
+	
 	UPROPERTY(VisibleAnywhere, Category = "Body Mover Effector")
 	FName GoalName;
 

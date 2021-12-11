@@ -118,9 +118,8 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	Settings.bAllowStretch = bAllowStretch;
 	Settings.MassMultiplier = MassMultiplier;
 	Settings.MinMassMultiplier = MinMassMultiplier;
-	Settings.bPinRoot = bPinRoot;
+	Settings.RootBehavior = RootBehavior;
 	Settings.bStartSolveFromInputPose = bStartSolveFromInputPose;
-	Settings.bPrePullRoot = bPrePullRoot;
 
 	// solve
 	Solver.Solve(Settings);
@@ -153,9 +152,8 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 		bAllowStretch = Settings->bAllowStretch;
 		MassMultiplier = Settings->MassMultiplier;
 		MinMassMultiplier = Settings->MinMassMultiplier;
-		bPinRoot = Settings->bPinRoot;
+		RootBehavior = Settings->RootBehavior;
 		bStartSolveFromInputPose = Settings->bStartSolveFromInputPose;
-		bPrePullRoot = Settings->bPrePullRoot;
 
 		// copy effector settings
 		for (const UIKRig_FBIKEffector* InEffector : Settings->Effectors)
@@ -238,6 +236,7 @@ void UIKRigPBIKSolver::RenameGoal(const FName& OldName, const FName& NewName)
 	}
 
 	// rename
+	Effectors[GoalIndex]->Modify();
 	Effectors[GoalIndex]->GoalName = NewName;
 }
 
@@ -251,6 +250,7 @@ void UIKRigPBIKSolver::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 	}
 
 	// rename
+	Effectors[GoalIndex]->Modify();
 	Effectors[GoalIndex]->BoneName = NewBoneName;
 }
 
