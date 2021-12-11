@@ -71,6 +71,48 @@ static FAutoConsoleVariableRef CVarNiagaraRenderTargetAllowReads(
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
 
+static bool GNiagaraRenderTargetOverrideFormatEnabled = false;
+static ETextureRenderTargetFormat GNiagaraRenderTargetOverrideFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
+
+static FAutoConsoleCommandWithWorldAndArgs GCommandNiagaraRenderTargetOverrideFormat(
+	TEXT("fx.Niagara.RenderTarget.OverrideFormat"),
+	TEXT("Optional global format override for all Niagara render targets"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+		[](const TArray<FString>& Args, UWorld*)
+		{
+			static UEnum* TextureRenderTargetFormatEnum = StaticEnum<ETextureRenderTargetFormat>();
+			if ( ensure(TextureRenderTargetFormatEnum) )
+			{
+				if (Args.Num() == 1)
+				{
+					const int32 EnumIndex = TextureRenderTargetFormatEnum->GetIndexByNameString(Args[0]);
+					if (EnumIndex != INDEX_NONE)
+					{
+						GNiagaraRenderTargetOverrideFormatEnabled = true;
+						GNiagaraRenderTargetOverrideFormat = ETextureRenderTargetFormat(EnumIndex);
+					}
+					else
+					{
+						GNiagaraRenderTargetOverrideFormatEnabled = false;
+					}
+				}
+				UE_LOG(LogNiagara, Log, TEXT("Niagara RenderTarget Override is '%s' with format '%s'."), GNiagaraRenderTargetOverrideFormatEnabled ? TEXT("Enabled") : TEXT("Disabled"), *TextureRenderTargetFormatEnum->GetNameStringByIndex(int32(GNiagaraRenderTargetOverrideFormat)));
+			}
+		}
+	)
+);
+
+ETextureRenderTargetFormat GetRenderTargetFormat(bool bOverrideFormat, ETextureRenderTargetFormat OverrideFormat)
+{
+	if (GNiagaraRenderTargetOverrideFormatEnabled)
+	{
+		return GNiagaraRenderTargetOverrideFormat;
+	}
+	return bOverrideFormat ? OverrideFormat : GetDefault<UNiagaraSettings>()->DefaultRenderTargetFormat.GetValue();
+}
+
+/*--------------------------------------------------------------------------------------------------------------------------*/
+
 struct FNDIRenderTarget2DFunctionVersion
 {
 	enum Type
@@ -554,7 +596,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 	InstanceData->Size.Y = FMath::Clamp<int>(int(float(Size.Y) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
 	InstanceData->MipMapGeneration = MipMapGeneration;
 	InstanceData->MipMapGenerationType = MipMapGenerationType;
-	InstanceData->Format = bOverrideFormat ? OverrideRenderTargetFormat : GetDefault<UNiagaraSettings>()->DefaultRenderTargetFormat;
+	InstanceData->Format = GetRenderTargetFormat(bOverrideFormat, OverrideRenderTargetFormat);
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
