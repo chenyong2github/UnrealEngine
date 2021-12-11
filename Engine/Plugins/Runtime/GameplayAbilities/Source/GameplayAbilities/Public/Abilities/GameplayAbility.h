@@ -585,12 +585,15 @@ protected:
 	// -------------------------------------
 	//	EndAbility
 	// -------------------------------------
-
-	/** Call from kismet to end the ability naturally */
-	UFUNCTION(BlueprintCallable, Category = Ability, DisplayName="EndAbility", meta=(ScriptName = "EndAbility"))
+	/** Call from blueprints to forcibly end the ability without canceling it. This will replicate the end ability to the client or server which can interrupt tasks */
+	UFUNCTION(BlueprintCallable, Category = Ability, DisplayName="End Ability", meta=(ScriptName = "EndAbility"))
 	virtual void K2_EndAbility();
 
-	/** Kismet event, will be called if an ability ends normally or abnormally */
+	/** Call from blueprints to end the ability naturally. This will only end predicted abilities locally, allowing it end naturally on the client or server */
+	UFUNCTION(BlueprintCallable, Category = Ability, DisplayName = "End Ability Locally", meta = (ScriptName = "EndAbilityLocally"))
+	virtual void K2_EndAbilityLocally();
+
+	/** Blueprint event, will be called if an ability ends normally or abnormally */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "OnEndAbility", meta=(ScriptName = "OnEndAbility"))
 	void K2_OnEndAbility(bool bWasCancelled);
 
