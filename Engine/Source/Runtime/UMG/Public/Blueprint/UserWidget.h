@@ -1142,6 +1142,8 @@ public:
 private:
 	static UUserWidget* CreateInstanceInternal(UObject* Outer, TSubclassOf<UUserWidget> UserWidgetClass, FName WidgetName, UWorld* World, ULocalPlayer* LocalPlayer);
 
+	void ClearStoppedSequencePlayers();
+
 public:
 	/** The color and opacity of this widget.  Tints all child widgets. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Appearance")
