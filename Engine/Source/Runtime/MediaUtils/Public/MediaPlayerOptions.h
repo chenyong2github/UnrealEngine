@@ -32,6 +32,18 @@ struct FMediaPlayerTrackOptions
 	{
 	}
 
+	/** Check if this Media Player Track Options is not equal to another one. */
+	bool operator!=(const FMediaPlayerTrackOptions& Other) const
+	{
+		return (Audio != Other.Audio
+			|| Caption != Other.Caption
+			|| Metadata != Other.Metadata
+			|| Script != Other.Script
+			|| Subtitle != Other.Subtitle
+			|| Text != Other.Text
+			|| Video != Other.Video);
+	}
+
 	UPROPERTY(BlueprintReadWrite, Category = "Tracks")
 	int32 Audio;
 
@@ -64,6 +76,15 @@ struct FMediaPlayerOptions
 		PlayOnOpen(EMediaPlayerOptionBooleanOverride::UseMediaPlayerSetting),
 		Loop(EMediaPlayerOptionBooleanOverride::UseMediaPlayerSetting)
 	{
+	}
+
+	/** Check if this Media Options is not equal to another one. */
+	bool operator!=(const FMediaPlayerOptions& Other) const
+	{
+		return (Tracks != Other.Tracks
+			|| SeekTime != Other.SeekTime
+			|| PlayOnOpen != Other.PlayOnOpen
+			|| Loop != Other.Loop);
 	}
 
 	UPROPERTY(BlueprintReadWrite, Category = "Tracks")
