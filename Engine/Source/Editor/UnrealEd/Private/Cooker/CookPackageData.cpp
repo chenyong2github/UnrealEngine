@@ -1842,6 +1842,11 @@ bool FPackageDatas::TryLookupFileNameOnDisk(FName PackageName, FString& OutFileN
 
 		if (Assets.Num() <= 0)
 		{
+			if (FPackageName::DoesPackageExist(PackageNameStr, &OutFileName, false /* InAllowTextFormats */))
+			{
+				UE_LOG(LogCook, Warning, TEXT("Package %s exists on disk but does not exist in the AssetRegistry"), *PackageNameStr);
+				return true;
+			}
 			return false;
 		}
 
