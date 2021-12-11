@@ -360,8 +360,7 @@ void FPerPlatformPropertyCustomNodeBuilder::GenerateChildContent(IDetailChildren
 
 FName FPerPlatformPropertyCustomNodeBuilder::GetName() const
 {
-	static const FName Name("FPerPlatformPropertyCustomNodeBuilder");
-	return Name;
+	return Args.Name;
 }
 
 void FPerPlatformPropertyCustomNodeBuilder::OnAddPlatformOverride(const FName PlatformName)

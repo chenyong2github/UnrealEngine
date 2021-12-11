@@ -32,7 +32,11 @@ struct FPerPlatformPropertyCustomNodeBuilderArgs
 
 	FOnPlatformOverrideAction OnRemovePlatformOverride;
 
+	/** Used for search box queries */
 	FText FilterText;
+
+	/** Used to identify the builder through GetName() */
+	FName Name;
 };
 
 class DETAILCUSTOMIZATIONS_API FPerPlatformPropertyCustomNodeBuilder : public IDetailCustomNodeBuilder, public TSharedFromThis<FPerPlatformPropertyCustomNodeBuilder>
