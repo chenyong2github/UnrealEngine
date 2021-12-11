@@ -461,8 +461,7 @@ FText UMetasoundEditorGraphNode::GetTooltipText() const
 
 FText UMetasoundEditorGraphNode::GetDisplayName() const
 {
-	constexpr bool bIncludeNamespace = true;
-	return Metasound::Editor::FGraphBuilder::GetDisplayName(*GetConstNodeHandle(), bIncludeNamespace);
+	return Metasound::Editor::FGraphBuilder::GetDisplayName(*GetConstNodeHandle());
 }
 
 FString UMetasoundEditorGraphNode::GetDocumentationExcerptName() const

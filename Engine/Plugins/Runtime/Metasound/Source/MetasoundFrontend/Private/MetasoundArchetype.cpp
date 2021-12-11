@@ -177,12 +177,10 @@ namespace Metasound
 
 		bool DeclaredInterfaceVersionsMatch(const FMetasoundFrontendDocument& InDocumentA, const FMetasoundFrontendDocument& InDocumentB)
 		{
-			if (InDocumentA.Interfaces.Num() != InDocumentB.Interfaces.Num())
-			{
-				return false;
-			}
+			using namespace MetasoundInterfaceIntrinsics;
 
-			return InDocumentA.Interfaces.Includes(InDocumentB.Interfaces);
+			auto IsLessThanVersion = [](const FMetasoundFrontendVersion& A, const FMetasoundFrontendVersion& B) { return A < B; };
+			return IsSetEquivalent(InDocumentA.InterfaceVersions, InDocumentB.InterfaceVersions, IsLessThanVersion);
 		}
 
 		int32 InputOutputDifferenceCount(const FMetasoundFrontendClass& InClass, const FMetasoundFrontendInterface& InInterface)

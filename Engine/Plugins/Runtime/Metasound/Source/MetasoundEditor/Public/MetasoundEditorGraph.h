@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 
-#include "AudioParameterControllerInterface.h"
+#include "AudioParameterInterface.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontendController.h"
@@ -41,7 +41,7 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInputLiteral : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual void UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+	virtual void UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 	{
 	}
 

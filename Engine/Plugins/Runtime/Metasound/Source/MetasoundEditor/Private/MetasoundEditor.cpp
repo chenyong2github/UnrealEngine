@@ -42,7 +42,6 @@
 #include "MetasoundUObjectRegistry.h"
 #include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
-#include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "SMetasoundActionMenu.h"
@@ -150,7 +149,6 @@ namespace Metasound
 		{
 		private:
 			TSharedPtr<FMetasoundGraphMemberSchemaAction> MetasoundAction;
-			FMetasoundFrontendVersion InterfaceVersion;
 
 		public:
 			SLATE_BEGIN_ARGS(SMetaSoundGraphPaletteItem)
@@ -164,11 +162,6 @@ namespace Metasound
 				TSharedPtr<FEdGraphSchemaAction> Action = InCreateData->Action;
 				MetasoundAction = StaticCastSharedPtr<FMetasoundGraphMemberSchemaAction>(Action);
 
-				if (UMetasoundEditorGraphVertex* GraphVertex = Cast<UMetasoundEditorGraphVertex>(MetasoundAction->GetGraphMember()))
-				{
-					InterfaceVersion = GraphVertex->GetInterfaceVersion();
-				}
-
 				SGraphPaletteItem::Construct(SGraphPaletteItem::FArguments(), InCreateData);
 			}
 
@@ -176,11 +169,6 @@ namespace Metasound
 			virtual void OnNameTextCommitted(const FText& InNewText, ETextCommit::Type InTextCommit) override
 			{
 				using namespace Frontend;
-
-				if (InterfaceVersion.IsValid())
-				{
-					return;
-				}
 
 				if (MetasoundAction.IsValid())
 				{
@@ -194,69 +182,6 @@ namespace Metasound
 						GraphMember->SetMemberName(FName(*InNewText.ToString()), bPostTransaction);
 					}
 				}
-			}
-
-			virtual TSharedRef<SWidget> CreateTextSlotWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> bIsReadOnly) override
-			{
-				TSharedRef<SWidget> TextWidget = SGraphPaletteItem::CreateTextSlotWidget(InCreateData, bIsReadOnly);
-
-				TSharedRef<SHorizontalBox> LayoutWidget = SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(InterfaceVersion.IsValid() ? "Icons.Lock" : "Icons.BulletPoint"))
-					.ToolTipText(InterfaceVersion.IsValid() ? FText::Format(LOCTEXT("InterfaceMemberToolTipFormat", "Cannot Add/Remove: Member of interface '{0}'"), FText::FromName(InterfaceVersion.Name)): FText())
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.DesiredSizeOverride(FVector2D(16, 16))
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(2, 0, 0, 0)
-				[
-					TextWidget
-				];
-
-				// TODO: Move to right-click menu. Currently, too easy to accidentally hit & clutters interface
-// 				if (!InterfaceVersion.IsValid())
-// 				{
-// 					LayoutWidget->AddSlot()
-// 					.AutoWidth()
-// 					.HAlign(HAlign_Left)
-// 					.VAlign(VAlign_Center)
-// 					.Padding(2, 0, 0, 0)
-// 					[
-// 						PropertyCustomizationHelpers::MakeDeleteButton(FSimpleDelegate::CreateLambda([this]()
-// 						{
-// 							UMetasoundEditorGraphMember* GraphMember = MetasoundAction->GetGraphMember();
-// 							if (ensure(GraphMember))
-// 							{
-// 								if (UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetasoundAction->Graph))
-// 								{
-// 									if (UObject* MetaSound = Graph->GetMetasound())
-// 									{
-// 										const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorDeleteOnClick", "Delete MetaSound Graph Member"));
-// 										MetaSound->Modify();
-// 										Graph->Modify();
-// 										Graph->RemoveMember(*GraphMember);
-// 
-// 										//Synchronize will update the interface
-// 										if (FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound))
-// 										{
-// 											MetasoundAsset->SetSynchronizationRequired();
-// 										}
-// 									}
-// 								}
-// 							}
-// 						}))
-// 					];
-// 				}
-
-				return LayoutWidget;
 			}
 
 			virtual bool OnNameTextVerifyChanged(const FText& InNewText, FText& OutErrorMessage) override
@@ -604,7 +529,7 @@ namespace Metasound
 			Args.NotifyHook = this;
 
 			SAssignNew(MetasoundInterfaceMenu, SGraphActionMenu, false)
-				.AlphaSortItems(true)
+				.AlphaSortItems(false)
 // 				.OnActionDoubleClicked(this, &FEditor::OnActionDoubleClicked)
 				.OnActionDragged(this, &FEditor::OnActionDragged)
 				.OnActionMatchesName(this, &FEditor::HandleActionMatchesName)
@@ -618,10 +543,6 @@ namespace Metasound
 				.OnGetFilterText(this, &FEditor::GetFilterText)
 				.OnGetSectionTitle(this, &FEditor::OnGetSectionTitle)
 				.OnGetSectionWidget(this, &FEditor::OnGetMenuSectionWidget)
-				.OnCreateCustomRowExpander_Lambda([](const FCustomExpanderData& InCustomExpanderData)
-				{
-					return SNew(SMetasoundActionMenuExpanderArrow, InCustomExpanderData);
-				})
 				.UseSectionStyling(true);
 
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -833,7 +754,7 @@ namespace Metasound
 			{
 				TSet<UClass*> ImportClasses;
 
-				for (const FMetasoundFrontendVersion& InterfaceVersion : MetasoundDoc.Interfaces)
+				for (const FMetasoundFrontendVersion& InterfaceVersion : MetasoundDoc.InterfaceVersions)
 				{
 					TArray<UClass*> InterfaceClasses = IMetasoundUObjectRegistry::Get().FindSupportedInterfaceClasses(InterfaceVersion);
 					ImportClasses.Append(MoveTemp(InterfaceClasses));
@@ -842,7 +763,7 @@ namespace Metasound
 				if (ImportClasses.Num() < 1)
 				{
 					TArray<FString> InterfaceNames;
-					Algo::Transform(MetasoundDoc.Interfaces, InterfaceNames, [] (const FMetasoundFrontendVersion& InterfaceVersion) { return InterfaceVersion.ToString(); });
+					Algo::Transform(MetasoundDoc.InterfaceVersions, InterfaceNames, [] (const FMetasoundFrontendVersion& InterfaceVersion) { return InterfaceVersion.ToString(); });
 					UE_LOG(LogMetaSound, Warning, TEXT("Cannot create UObject from MetaSound document. No UClass supports interface(s) \"%s\""), *FString::Join(InterfaceNames, TEXT(",")));
 				}
 				else
@@ -855,7 +776,7 @@ namespace Metasound
 						{
 							// TODO: Modal dialog to give user choice of import type.
 							TArray<FString> InterfaceNames;
-							Algo::Transform(MetasoundDoc.Interfaces, InterfaceNames, [](const FMetasoundFrontendVersion& InterfaceVersion) { return InterfaceVersion.ToString(); });
+							Algo::Transform(MetasoundDoc.InterfaceVersions, InterfaceNames, [](const FMetasoundFrontendVersion& InterfaceVersion) { return InterfaceVersion.ToString(); });
 							UE_LOG(LogMetaSound, Warning, TEXT("Duplicate UClass support interface(s) \"%s\" with UClass \"%s\""), *FString::Join(InterfaceNames, TEXT(",")), *ImportClass->GetName());
 						}
 					}
@@ -1381,7 +1302,7 @@ namespace Metasound
 				UMetasoundEditorGraphMember* NextToSelect = Graph.FindAdjacentMember(*GraphMember);
 
 				{
-					const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorDeleteSelectedNode", "Delete MetaSound Graph Member"));
+					const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorDeleteSelectedNode", "Delete MetaSound GraphMember"));
 					Metasound->Modify();
 					Graph.Modify();
 					Graph.RemoveMember(*GraphMember);
@@ -1981,7 +1902,7 @@ namespace Metasound
 			{
 				FName InterfaceName;
 				FName MemberName;
-				Audio::FParameterPath::SplitName(NodeHandle->GetNodeName(), InterfaceName, MemberName);
+				Audio::IGeneratorInterfaceRegistry::SplitMemberFullName(NodeHandle->GetNodeName(), InterfaceName, MemberName);
 
 				if (InterfaceName.IsNone())
 				{
@@ -1989,15 +1910,14 @@ namespace Metasound
 				}
 
 				FString CategoryString = InterfaceName.ToString();
-				CategoryString.ReplaceInline(*Audio::FParameterPath::NamespaceDelimiter, TEXT("|"));
+				CategoryString.ReplaceInline(*Audio::IGeneratorInterfaceRegistry::NamespaceDelimiter, TEXT("|"));
 				return FText::FromString(CategoryString);
 			};
 
 			FrontendGraph->IterateConstNodes([this, &GetVertexCategory, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Input)
 			{
-				constexpr bool bIncludeNamespace = false;
 				const FText Tooltip = Input->GetDescription();
-				const FText MenuDesc = FGraphBuilder::GetDisplayName(*Input, bIncludeNamespace);
+				const FText MenuDesc = FGraphBuilder::GetDisplayName(*Input);
 				const FGuid NodeID = Input->GetID();
 				const FText Category = GetVertexCategory(Input);
 
@@ -2020,10 +1940,8 @@ namespace Metasound
 
 			FrontendGraph->IterateConstNodes([this, &GetVertexCategory, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Output)
 			{
-				constexpr bool bIncludeNamespace = false;
-
 				const FText Tooltip = Output->GetDescription();
-				const FText MenuDesc = FGraphBuilder::GetDisplayName(*Output, bIncludeNamespace);
+				const FText MenuDesc = FGraphBuilder::GetDisplayName(*Output);
 				const FGuid NodeID = Output->GetID();
 				const FText Category = GetVertexCategory(Output);
 
@@ -2180,21 +2098,21 @@ namespace Metasound
 
 				FGraphBuilder::SynchronizeGraph(*Metasound);
 
-				if (MetasoundDetails.IsValid())
+				if (MetasoundDetails.IsValid() && bInterfacesUpdated)
 				{
-					// Only refresh the details panel if viewing the graph details of the object is no longer valid
-					auto ShouldRefreshDetails = [bInterfacesUpdated](TWeakObjectPtr<UObject> Obj)
+					// Only refresh the details panel if viewing the graph details
+					auto ContainsMetaSound = [](TWeakObjectPtr<UObject> Obj)
 					{
-						if (!Obj.IsValid() || !IsValid(Obj.Get()))
+						if (!Obj.IsValid())
 						{
-							return true;
+							return false;
 						}
-
-						return bInterfacesUpdated && IMetasoundUObjectRegistry::Get().IsRegisteredClass(Obj.Get());
+						
+						return IMetasoundUObjectRegistry::Get().IsRegisteredClass(Obj.Get());
 					};
 
-					const bool bShouldRefreshDetails = Algo::AnyOf(MetasoundDetails->GetSelectedObjects(), ShouldRefreshDetails);
-					if (bShouldRefreshDetails)
+					const bool bDetailsEditingGraph = Algo::AnyOf(MetasoundDetails->GetSelectedObjects(), ContainsMetaSound);
+					if (bDetailsEditingGraph)
 					{
 						RefreshDetails();
 					}

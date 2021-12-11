@@ -3,7 +3,8 @@
 
 #include "Algo/Count.h"
 #include "Algo/Transform.h"
-#include "AudioParameterControllerInterface.h"
+#include "AudioParameterInterface.h"
+#include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
 #include "GraphEditorSettings.h"
 #include "MetasoundDataReference.h"
@@ -55,7 +56,7 @@ FMetasoundFrontendClassName UMetasoundEditorGraphInputNode::GetClassName() const
 	return Super::GetClassName();
 }
 
-void UMetasoundEditorGraphInputNode::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputNode::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	if (Input)
 	{
@@ -129,7 +130,7 @@ void UMetasoundEditorGraphInputBool::SetFromLiteral(const FMetasoundFrontendLite
 	Metasound::Editor::InputPrivate::ConvertLiteral<bool>(InLiteral, Default.Value);
 }
 
-void UMetasoundEditorGraphInputBool::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputBool::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 	{
 		InParameterInterface->SetBoolParameter(InParameterName, Default.Value);
 	}
@@ -154,7 +155,7 @@ void UMetasoundEditorGraphInputBoolArray::SetFromLiteral(const FMetasoundFronten
 		Metasound::Editor::InputPrivate::ConvertLiteralToArray<bool, FMetasoundEditorGraphInputBoolRef>(InLiteral, Default);
 	}
 
-void UMetasoundEditorGraphInputBoolArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputBoolArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	TArray<bool> BoolArray;
 	Algo::Transform(Default, BoolArray, [](const FMetasoundEditorGraphInputBoolRef& InValue) { return InValue.Value; });
@@ -178,7 +179,7 @@ void UMetasoundEditorGraphInputInt::SetFromLiteral(const FMetasoundFrontendLiter
 	Metasound::Editor::InputPrivate::ConvertLiteral<int32>(InLiteral, Default.Value);
 }
 
-void UMetasoundEditorGraphInputInt::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputInt::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	InParameterInterface->SetIntParameter(InParameterName, Default.Value);
 }
@@ -204,7 +205,7 @@ void UMetasoundEditorGraphInputIntArray::SetFromLiteral(const FMetasoundFrontend
 	Metasound::Editor::InputPrivate::ConvertLiteralToArray<int32, FMetasoundEditorGraphInputIntRef>(InLiteral, Default);
 }
 
-void UMetasoundEditorGraphInputIntArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputIntArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	TArray<int32> IntArray;
 	Algo::Transform(Default, IntArray, [](const FMetasoundEditorGraphInputIntRef& InValue) { return InValue.Value; });
@@ -228,7 +229,7 @@ void UMetasoundEditorGraphInputFloat::SetFromLiteral(const FMetasoundFrontendLit
 	Metasound::Editor::InputPrivate::ConvertLiteral<float>(InLiteral, Default);
 }
 
-void UMetasoundEditorGraphInputFloat::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputFloat::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	InParameterInterface->SetFloatParameter(InParameterName, Default);
 }
@@ -319,7 +320,7 @@ void UMetasoundEditorGraphInputFloatArray::SetFromLiteral(const FMetasoundFronte
 	Metasound::Editor::InputPrivate::ConvertLiteralToArray<float>(InLiteral, Default);
 }
 
-void UMetasoundEditorGraphInputFloatArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputFloatArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	InParameterInterface->SetFloatArrayParameter(InParameterName, Default);
 }
@@ -341,7 +342,7 @@ void UMetasoundEditorGraphInputString::SetFromLiteral(const FMetasoundFrontendLi
 	Metasound::Editor::InputPrivate::ConvertLiteral<FString>(InLiteral, Default);
 }
 
-void UMetasoundEditorGraphInputString::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputString::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	InParameterInterface->SetStringParameter(InParameterName, Default);
 }
@@ -363,7 +364,7 @@ void UMetasoundEditorGraphInputStringArray::SetFromLiteral(const FMetasoundFront
 	Metasound::Editor::InputPrivate::ConvertLiteralToArray<FString>(InLiteral, Default);
 }
 
-void UMetasoundEditorGraphInputStringArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputStringArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	InParameterInterface->SetStringArrayParameter(InParameterName, Default);
 }
@@ -385,7 +386,7 @@ void UMetasoundEditorGraphInputObject::SetFromLiteral(const FMetasoundFrontendLi
 	ensure(InLiteral.TryGet(Default.Object));
 }
 
-void UMetasoundEditorGraphInputObject::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputObject::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	// TODO. We need proxy object here safely.
 }
@@ -413,7 +414,7 @@ void UMetasoundEditorGraphInputObjectArray::SetFromLiteral(const FMetasoundFront
 	Algo::Transform(ObjectArray, Default, [](UObject* InValue) { return FMetasoundEditorGraphInputObjectRef { InValue }; });
 }
 
-void UMetasoundEditorGraphInputObjectArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
+void UMetasoundEditorGraphInputObjectArray::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 {
 	TArray<UObject*> ObjectArray;
 	Algo::Transform(Default, ObjectArray, [](const FMetasoundEditorGraphInputObjectRef& InValue) { return InValue.Object; });

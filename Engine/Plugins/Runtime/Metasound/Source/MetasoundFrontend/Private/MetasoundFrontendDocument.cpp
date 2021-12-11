@@ -3,7 +3,6 @@
 #include "MetasoundFrontendDocument.h"
 
 #include "Algo/Transform.h"
-#include "IAudioParameterInterfaceRegistry.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundLog.h"
@@ -74,11 +73,6 @@ const FMetasoundFrontendVersion& FMetasoundFrontendVersion::GetInvalid()
 bool FMetasoundFrontendVertex::IsFunctionalEquivalent(const FMetasoundFrontendVertex& InLHS, const FMetasoundFrontendVertex& InRHS)
 {
 	return (InLHS.Name == InRHS.Name) && (InLHS.TypeName == InRHS.TypeName);
-}
-
-void FMetasoundFrontendClassVertex::SplitName(FName& OutNamespace, FName& OutParameterName) const
-{
-	Audio::FParameterPath::SplitName(Name, OutNamespace, OutParameterName);
 }
 
 bool FMetasoundFrontendClassVertex::IsFunctionalEquivalent(const FMetasoundFrontendClassVertex& InLHS, const FMetasoundFrontendClassVertex& InRHS)

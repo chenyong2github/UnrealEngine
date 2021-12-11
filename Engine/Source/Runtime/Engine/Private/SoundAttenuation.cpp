@@ -6,7 +6,6 @@
 #include "EngineDefines.h"
 #include "Internationalization/Internationalization.h"
 #include "Sound/SoundBase.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/AnimPhysObjectVersion.h"
 
 /*-----------------------------------------------------------------------------
@@ -145,94 +144,69 @@ USoundAttenuation::USoundAttenuation(const FObjectInitializer& ObjectInitializer
 {
 }
 
-#define LOCTEXT_NAMESPACE "AudioParameterInterface"
-#define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.Attenuation"
+#define LOCTEXT_NAMESPACE "AudioGeneratorInterface"
 namespace Audio
 {
-	namespace AttenuationInterface
+	const FName FAttenuationInterface::Name = "UE.Attenuation";
+	const FName FAttenuationInterface::FInputs::Distance = "Distance";
+
+	FAttenuationInterface::FAttenuationInterface()
+		: FGeneratorInterface(Name, USoundBase::StaticClass())
 	{
-		const FName Name = AUDIO_PARAMETER_INTERFACE_NAMESPACE;
-
-		namespace Inputs
+		Inputs =
 		{
-			const FName Distance = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("Distance");
-		} // namespace Inputs
-
-		Audio::FParameterInterfacePtr GetInterface()
-		{
-			struct FInterface : public Audio::FParameterInterface
 			{
-				FInterface()
-					: FParameterInterface(AttenuationInterface::Name, { 1, 0 }, *USoundBase::StaticClass())
-				{
-					Inputs =
-					{
-						{
-							FText(),
-							NSLOCTEXT("AudioGeneratorInterface_Attenuation", "DistanceDescription", "Distance between listener and sound location in game units."),
-							FName(),
-							{ Inputs::Distance, 0.0f }
-						}
-					};
-				}
-			};
-
-			static FParameterInterfacePtr InterfacePtr;
-			if (!InterfacePtr.IsValid())
-			{
-				InterfacePtr = MakeShared<FInterface>();
+				FText(),
+				NSLOCTEXT("AudioGeneratorInterface_Attenuation", "DistanceDescription", "Distance between listener and sound location in game units."),
+				FName(),
+				{ FInputs::Distance, 0.0f }
 			}
+		};
+	}
 
-			return InterfacePtr;
-		}
-	} // namespace AttenuationInterface
-#undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
+	const FName FSpatializationInterface::Name = "UE.Spatialization";
+	const FName FSpatializationInterface::FInputs::Azimuth = "Azimuth";
+	const FName FSpatializationInterface::FInputs::Elevation = "Elevation";
 
-#define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.Spatialization"
-	namespace SpatializationInterface
+	FSpatializationInterface::FSpatializationInterface()
+		: FGeneratorInterface(Name, USoundBase::StaticClass())
 	{
-		const FName Name = AUDIO_PARAMETER_INTERFACE_NAMESPACE;
-
-		namespace Inputs
+		Inputs =
 		{
-			const FName Azimuth = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("Azimuth");
-			const FName Elevation = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("Elevation");
-		} // namespace Inputs
-
-		Audio::FParameterInterfacePtr GetInterface()
-		{
-			struct FInterface : public Audio::FParameterInterface
 			{
-				FInterface()
-					: FParameterInterface(SpatializationInterface::Name, { 1, 0 }, *USoundBase::StaticClass())
-				{
-					Inputs =
-					{
-						{
-							FText(),
-							NSLOCTEXT("Spatialization", "AzimuthDescription", "Horizontal angle between listener forward and sound location in degrees."),
-							FName(),
-							{ Inputs::Azimuth, 0.0f }
-						},
-						{
-							FText(),
-							NSLOCTEXT("Spatialization", "ElevationDescription", "Vertical angle between listener forward and sound location in degrees."),
-							FName(),
-							{ Inputs::Elevation, 0.0f }
-						}
-					};
-				}
-			};
-
-			static FParameterInterfacePtr InterfacePtr;
-			if (!InterfacePtr.IsValid())
+				FText(),
+				NSLOCTEXT("Spatialization", "AzimuthDescription", "Horizontal angle between listener forward and sound location in degrees."),
+				FName(),
+				{ FInputs::Azimuth, 0.0f }
+			},
 			{
-				InterfacePtr = MakeShared<FInterface>();
+				FText(),
+				NSLOCTEXT("Spatialization", "ElevationDescription", "Vertical angle between listener forward and sound location in degrees."),
+				FName(),
+				{ FInputs::Elevation, 0.0f }
 			}
+		};
+	}
 
-			return InterfacePtr;
+	FGeneratorInterfacePtr GetAttenuationInterface()
+	{
+		static FGeneratorInterfacePtr InterfacePtr;
+		if (!InterfacePtr.IsValid())
+		{
+			InterfacePtr = MakeShared<FAttenuationInterface>();
 		}
-	} // namespace SpatializationInterface
-#undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
+		return InterfacePtr;
+	}
+
+	FGeneratorInterfacePtr GetSpatializationInterface()
+	{
+		static FGeneratorInterfacePtr InterfacePtr;
+		if (!InterfacePtr.IsValid())
+		{
+			InterfacePtr = MakeShared<FSpatializationInterface>();
+		}
+
+		return InterfacePtr;
+	}
 } // namespace Audio
 #undef LOCTEXT_NAMESPACE

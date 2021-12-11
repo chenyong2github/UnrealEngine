@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioParameterControllerInterface.h"
-#include "Containers/Array.h"
+#include "AudioParameterInterface.h"
+#include "CoreMinimal.h"
 #include "IAudioProxyInitializer.h"
 #include "Templates/UniquePtr.h"
 
-
-// Forward Declarations
-class UObject;
 
 namespace Audio
 {
@@ -55,6 +52,7 @@ namespace Audio
 
 			// Parameter Setters
 			virtual bool SetParameter(FAudioParameter&& InValue) = 0;
+			virtual bool SetParameter(FName InInterfaceName, FAudioParameter&& InValue) = 0;
 
 			// Create a copy of the instance transmitter.
 			virtual TUniquePtr<Audio::IParameterTransmitter> Clone() const = 0;

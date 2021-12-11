@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioParameterControllerInterface.h"
+#include "AudioParameterInterface.h"
 #include "IAudioParameterTransmitter.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundFrontendLiteral.h"
@@ -71,6 +71,9 @@ namespace Metasound
 
 		};
 
+		/** Returns the MetaSound environment variable name which contains the instance ID. */
+		static const FVertexName& GetInstanceIDEnvironmentVariableName();
+
 		/** Creates a unique send address using the given MetaSound environment. */
 		static FSendAddress CreateSendAddressFromEnvironment(const FMetasoundEnvironment& InEnvironment, const FVertexName& InVertexName, const FName& InTypeName);
 		
@@ -90,6 +93,7 @@ namespace Metasound
 		 * @param InParameter - Parameter to set.
 		 */
 		bool SetParameter(FAudioParameter&& InParameter) override;
+		bool SetParameter(FName InInterfaceName, FAudioParameter&& InParameter) override;
 
 		/** Set a parameter using a literal.
 		 *

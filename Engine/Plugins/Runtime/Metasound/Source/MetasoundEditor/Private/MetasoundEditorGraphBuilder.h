@@ -75,7 +75,7 @@ namespace Metasound
 
 			// Returns a display name for a node. If the node has an empty or whitespace
 			// only DisplayName, then the NodeName is used. 
-			static FText GetDisplayName(const Frontend::INodeController& InFrontendNode, bool bInIncludeNamespace);
+			static FText GetDisplayName(const Frontend::INodeController& InFrontendNode);
 
 			// Returns a display name for an input. If the input has an empty or whitespace
 			// only DisplayName, then the VertexName is used. 

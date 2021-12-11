@@ -33,278 +33,294 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		void SMetasoundActionMenuExpanderArrow::Construct(const FArguments& InArgs, const FCustomExpanderData& ActionMenuData)
+		// Custom expander to specify our desired padding
+		class SMetasoundActionMenuExpanderArrow : public SExpanderArrow
 		{
-			OwnerRowPtr = ActionMenuData.TableRow;
-			IndentAmount = InArgs._IndentAmount;
-			ActionPtr = ActionMenuData.RowAction;
-
-			if (ActionPtr.IsValid())
+			SLATE_BEGIN_ARGS(SMetasoundActionMenuExpanderArrow)
 			{
-				ChildSlot
-				.Padding(TAttribute<FMargin>(this, &SMetasoundActionMenuExpanderArrow::GetCustomIndentPadding))
-				[
-					SNullWidget::NullWidget
-					// TODO: Add favorites support
-					// SNew(SMetasoundActionFavoriteToggle, ActionMenuData)
-				];
+			}
+
+			SLATE_ATTRIBUTE(float, IndentAmount)
+				SLATE_END_ARGS()
+
+		public:
+			void Construct(const FArguments& InArgs, const FCustomExpanderData& ActionMenuData)
+			{
+				OwnerRowPtr = ActionMenuData.TableRow;
+				IndentAmount = InArgs._IndentAmount;
+				ActionPtr = ActionMenuData.RowAction;
+
+				if (ActionPtr.IsValid())
+				{
+					ChildSlot
+						.Padding(TAttribute<FMargin>(this, &SMetasoundActionMenuExpanderArrow::GetCustomIndentPadding))
+						[
+							SNullWidget::NullWidget
+							// TODO: Add favorites support
+							// SNew(SMetasoundActionFavoriteToggle, ActionMenuData)
+						];
+				}
+				else
+				{
+					SExpanderArrow::FArguments SuperArgs;
+					SuperArgs._IndentAmount = InArgs._IndentAmount;
+
+					SExpanderArrow::Construct(SuperArgs, ActionMenuData.TableRow);
+				}
+			}
+
+		private:
+			FMargin GetCustomIndentPadding() const
+			{
+				return SExpanderArrow::GetExpanderPadding();
+			}
+
+			TWeakPtr<FEdGraphSchemaAction> ActionPtr;
+		};
+	} // namespace Editor
+} // namespace Metasound
+
+
+SMetasoundActionMenu::~SMetasoundActionMenu()
+{
+	OnClosedCallback.ExecuteIfBound();
+	OnCloseReasonCallback.ExecuteIfBound(bActionExecuted, false, !DraggedFromPins.IsEmpty());
+}
+
+void SMetasoundActionMenu::Construct(const FArguments& InArgs)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	Graph = InArgs._Graph;
+	DraggedFromPins = InArgs._DraggedFromPins;
+	NewNodePosition = InArgs._NewNodePosition;
+	OnClosedCallback = InArgs._OnClosedCallback;
+	bAutoExpandActionMenu = InArgs._AutoExpandActionMenu;
+	OnCloseReasonCallback = InArgs._OnCloseReason;
+
+	FSlateColor TypeColor;
+	const FSlateBrush* PinBrush = nullptr;
+	if (!DraggedFromPins.IsEmpty())
+	{
+		if (const UEdGraphPin* Pin = DraggedFromPins[0])
+		{
+			FDataTypeRegistryInfo RegistryInfo;
+
+			const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+			if (Pin->Direction == EGPD_Input)
+			{
+				FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
+				IDataTypeRegistry::Get().GetDataTypeInfo(InputHandle->GetDataType(), RegistryInfo);
 			}
 			else
 			{
-				SExpanderArrow::FArguments SuperArgs;
-				SuperArgs._IndentAmount = InArgs._IndentAmount;
-
-				SExpanderArrow::Construct(SuperArgs, ActionMenuData.TableRow);
+				FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(Pin);
+				IDataTypeRegistry::Get().GetDataTypeInfo(OutputHandle->GetDataType(), RegistryInfo);
 			}
-		}
 
-		FMargin SMetasoundActionMenuExpanderArrow::GetCustomIndentPadding() const
-		{
-			return SExpanderArrow::GetExpanderPadding();
-		}
+			TypeColor = FGraphBuilder::GetPinCategoryColor(Pin->PinType);
 
-		SMetasoundActionMenu::~SMetasoundActionMenu()
-		{
-			OnClosedCallback.ExecuteIfBound();
-			OnCloseReasonCallback.ExecuteIfBound(bActionExecuted, false, !DraggedFromPins.IsEmpty());
-		}
-
-		void SMetasoundActionMenu::Construct(const FArguments& InArgs)
-		{
-			using namespace Metasound::Editor;
-			using namespace Metasound::Frontend;
-
-			Graph = InArgs._Graph;
-			DraggedFromPins = InArgs._DraggedFromPins;
-			NewNodePosition = InArgs._NewNodePosition;
-			OnClosedCallback = InArgs._OnClosedCallback;
-			bAutoExpandActionMenu = InArgs._AutoExpandActionMenu;
-			OnCloseReasonCallback = InArgs._OnCloseReason;
-
-			FSlateColor TypeColor;
-			const FSlateBrush* PinBrush = nullptr;
-			if (!DraggedFromPins.IsEmpty())
+			if (RegistryInfo.IsArrayType())
 			{
-				if (const UEdGraphPin* Pin = DraggedFromPins[0])
+				PinBrush = FEditorStyle::GetBrush("Graph.ArrayPin.Connected");
+			}
+			else if (Pin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
+			{
+				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 				{
-					FDataTypeRegistryInfo RegistryInfo;
-
-					const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-					if (Pin->Direction == EGPD_Input)
-					{
-						FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
-						IDataTypeRegistry::Get().GetDataTypeInfo(InputHandle->GetDataType(), RegistryInfo);
-					}
-					else
-					{
-						FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(Pin);
-						IDataTypeRegistry::Get().GetDataTypeInfo(OutputHandle->GetDataType(), RegistryInfo);
-					}
-
-					TypeColor = FGraphBuilder::GetPinCategoryColor(Pin->PinType);
-
-					if (RegistryInfo.IsArrayType())
-					{
-						PinBrush = FEditorStyle::GetBrush("Graph.ArrayPin.Connected");
-					}
-					else if (Pin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
-					{
-						if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
-						{
-							PinBrush = MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.TriggerPin.Connected"));
-						}
-					}
-
-					if (!PinBrush)
-					{
-						PinBrush = FEditorStyle::GetBrush("Graph.Pin.Connected");
-					}
+					PinBrush = MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.TriggerPin.Connected"));
 				}
 			}
 
-			SBorder::Construct(SBorder::FArguments()
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-				.Padding(5)
+			if (!PinBrush)
+			{
+				PinBrush = FEditorStyle::GetBrush("Graph.Pin.Connected");
+			}
+		}
+	}
+
+	SBorder::Construct(SBorder::FArguments()
+		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.Padding(5)
+		[
+			SNew(SBox)
+			.WidthOverride(400)
+			.HeightOverride(400)
+			[
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2, 2, 2, 5)
 				[
-					SNew(SBox)
-					.WidthOverride(400)
-					.HeightOverride(400)
-					[
-						SNew(SVerticalBox)
-						+SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(2, 2, 2, 5)
-						[
-							SNew(SHorizontalBox)
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							.Padding(0, 0, 5, 0)
-							[
-								SNew(SImage)
-								.ColorAndOpacity(TypeColor)
-								.Visibility_Lambda([this]()
-								{
-									return DraggedFromPins.IsEmpty() ? EVisibility::Hidden : EVisibility::Visible;
-								})
-								.Image(PinBrush)
-							]
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-								.Text_Lambda([this]()
-								{
-									if (DraggedFromPins.IsEmpty())
-									{
-										return LOCTEXT("ContextText", "All MetaSound Node Classes");
-									}
-
-									UEdGraphPin* Pin = DraggedFromPins[0];
-
-									if (DraggedFromPins[0]->Direction == EGPD_Input)
-									{
-										FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
-										return FText::Format(LOCTEXT("ContextTypeFilteredText_Output", "Classes with output of type '{0}'"), FText::FromName(InputHandle->GetDataType()));
-									}
-									else
-									{
-										FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(Pin);
-										return FText::Format(LOCTEXT("ContextTypeFilteredText_Input", "Classes with input of type '{0}'"), FText::FromName(OutputHandle->GetDataType()));
-									}
-								})
-								// TODO: Move to Metasound Style
-								.Font(FEditorStyle::GetFontStyle("BlueprintEditor.ActionMenu.ContextDescriptionFont"))
-								.ToolTip(IDocumentation::Get()->CreateToolTip(
-									LOCTEXT("ActionMenuContextTextTooltip", "Describes the current context of the action list"),
-									nullptr,
-									TEXT("Shared/Editors/MetasoundEditor"),
-									TEXT("MetasoundActionMenuContextText")))
-								.WrapTextAt(280)
-							]
-						]
-						+SVerticalBox::Slot()
-						[
-							SAssignNew(GraphActionMenu, SGraphActionMenu)
-								.OnActionSelected(this, &SMetasoundActionMenu::OnActionSelected)
-								.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(this, &SMetasoundActionMenu::OnCreateWidgetForAction))
-								.OnCollectAllActions(this, &SMetasoundActionMenu::CollectAllActions)
-								.OnCreateCustomRowExpander_Lambda([](const FCustomExpanderData& InCustomExpanderData)
-								{
-									return SNew(SMetasoundActionMenuExpanderArrow, InCustomExpanderData);
-								})
-								.DraggedFromPins(DraggedFromPins)
-								.GraphObj(Graph)
-								.AlphaSortItems(true)
-								.bAllowPreselectedItemActivation(true)
-						]
-					]
-				]
-			);
-		}
-
-		void SMetasoundActionMenu::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
-		{
-			if (!Graph)
-			{
-				return;
-			}
-
-			FGraphContextMenuBuilder MenuBuilder(Graph);
-			if (!DraggedFromPins.IsEmpty())
-			{
-				MenuBuilder.FromPin = DraggedFromPins[0];
-			}
-
-			// Cannot call GetGraphContextActions() during serialization and GC due to its use of FindObject()
-			if(!GIsSavingPackage && !IsGarbageCollecting())
-			{
-				if (const UMetasoundEditorGraphSchema* Schema = GetDefault<UMetasoundEditorGraphSchema>())
-				{
-					Schema->GetGraphContextActions(MenuBuilder);
-				}
-			}
-
-			OutAllActions.Append(MenuBuilder);
-		}
-
-		TSharedRef<SEditableTextBox> SMetasoundActionMenu::GetFilterTextBox()
-		{
-			return GraphActionMenu->GetFilterTextBox();
-		}
-
-		TSharedRef<SWidget> SMetasoundActionMenu::OnCreateWidgetForAction(FCreateWidgetForActionData* const InCreateData)
-		{
-			using namespace Metasound;
-			using namespace Metasound::Frontend;
-
-			check(InCreateData);
-			InCreateData->bHandleMouseButtonDown = false;
-
-			const FSlateBrush* IconBrush = nullptr;
-			FLinearColor IconColor;
-			TSharedPtr<FMetasoundGraphSchemaAction> Action = StaticCastSharedPtr<FMetasoundGraphSchemaAction>(InCreateData->Action);
-			if (Action.IsValid())
-			{
-				IconBrush = Action->GetIconBrush();
-				IconColor = Action->GetIconColor();
-			}
-
-			TSharedPtr<SHorizontalBox> WidgetBox = SNew(SHorizontalBox);
-			if (IconBrush)
-			{
-				WidgetBox->AddSlot()
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)
-					.Padding(5, 0, 0, 0)
+					.Padding(0, 0, 5, 0)
 					[
 						SNew(SImage)
-						.ColorAndOpacity(IconColor)
-						.Image(IconBrush)
-					];
-			}
+						.ColorAndOpacity(TypeColor)
+						.Visibility_Lambda([this]()
+						{
+							return DraggedFromPins.IsEmpty() ? EVisibility::Hidden : EVisibility::Visible;
+						})
+						.Image(PinBrush)
+					]
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text_Lambda([this]()
+						{
+							if (DraggedFromPins.IsEmpty())
+							{
+								return LOCTEXT("ContextText", "All MetaSound Node Classes");
+							}
 
-			WidgetBox->AddSlot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(0, 0, 0, 0)
+							UEdGraphPin* Pin = DraggedFromPins[0];
+
+							if (DraggedFromPins[0]->Direction == EGPD_Input)
+							{
+								FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
+								return FText::Format(LOCTEXT("ContextTypeFilteredText_Output", "Classes with output of type '{0}'"), FText::FromName(InputHandle->GetDataType()));
+							}
+							else
+							{
+								FOutputHandle OutputHandle = FGraphBuilder::GetOutputHandleFromPin(Pin);
+								return FText::Format(LOCTEXT("ContextTypeFilteredText_Input", "Classes with input of type '{0}'"), FText::FromName(OutputHandle->GetDataType()));
+							}
+						})
+						// TODO: Move to Metasound Style
+						.Font(FEditorStyle::GetFontStyle("BlueprintEditor.ActionMenu.ContextDescriptionFont"))
+						.ToolTip(IDocumentation::Get()->CreateToolTip(
+							LOCTEXT("ActionMenuContextTextTooltip", "Describes the current context of the action list"),
+							nullptr,
+							TEXT("Shared/Editors/MetasoundEditor"),
+							TEXT("MetasoundActionMenuContextText")))
+						.WrapTextAt(280)
+					]
+				]
+				+SVerticalBox::Slot()
 				[
-					SNew(SGraphPaletteItem, InCreateData)
-				];
+					SAssignNew(GraphActionMenu, SGraphActionMenu)
+						.OnActionSelected(this, &SMetasoundActionMenu::OnActionSelected)
+						.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(this, &SMetasoundActionMenu::OnCreateWidgetForAction))
+						.OnCollectAllActions(this, &SMetasoundActionMenu::CollectAllActions)
+						.OnCreateCustomRowExpander_Lambda([](const FCustomExpanderData& InCustomExpanderData)
+						{
+							return SNew(SMetasoundActionMenuExpanderArrow, InCustomExpanderData);
+						})
+						.DraggedFromPins(DraggedFromPins)
+						.GraphObj(Graph)
+						.AlphaSortItems(true)
+						.bAllowPreselectedItemActivation(true)
+				]
+			]
+		]
+	);
+}
 
-			return WidgetBox->AsShared();
-		}
+void SMetasoundActionMenu::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
+{
+	if (!Graph)
+	{
+		return;
+	}
 
-		void SMetasoundActionMenu::OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedAction, ESelectInfo::Type InSelectionType)
+	FGraphContextMenuBuilder MenuBuilder(Graph);
+	if (!DraggedFromPins.IsEmpty())
+	{
+		MenuBuilder.FromPin = DraggedFromPins[0];
+	}
+
+	// Cannot call GetGraphContextActions() during serialization and GC due to its use of FindObject()
+	if(!GIsSavingPackage && !IsGarbageCollecting())
+	{
+		if (const UMetasoundEditorGraphSchema* Schema = GetDefault<UMetasoundEditorGraphSchema>())
 		{
-			if (!Graph)
+			Schema->GetGraphContextActions(MenuBuilder);
+		}
+	}
+
+	OutAllActions.Append(MenuBuilder);
+}
+
+TSharedRef<SEditableTextBox> SMetasoundActionMenu::GetFilterTextBox()
+{
+	return GraphActionMenu->GetFilterTextBox();
+}
+
+TSharedRef<SWidget> SMetasoundActionMenu::OnCreateWidgetForAction(FCreateWidgetForActionData* const InCreateData)
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	check(InCreateData);
+	InCreateData->bHandleMouseButtonDown = false;
+
+	const FSlateBrush* IconBrush = nullptr;
+	FLinearColor IconColor;
+	TSharedPtr<FMetasoundGraphSchemaAction> Action = StaticCastSharedPtr<FMetasoundGraphSchemaAction>(InCreateData->Action);
+	if (Action.IsValid())
+	{
+		IconBrush = Action->GetIconBrush();
+		IconColor = Action->GetIconColor();
+	}
+
+	TSharedPtr<SHorizontalBox> WidgetBox = SNew(SHorizontalBox);
+	if (IconBrush)
+	{
+		WidgetBox->AddSlot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(5, 0, 0, 0)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(IconColor)
+				.Image(IconBrush)
+			];
+	}
+
+	WidgetBox->AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(0, 0, 0, 0)
+		[
+			SNew(SGraphPaletteItem, InCreateData)
+		];
+
+	return WidgetBox->AsShared();
+}
+
+void SMetasoundActionMenu::OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& SelectedAction, ESelectInfo::Type InSelectionType)
+{
+	if (!Graph)
+	{
+		return;
+	}
+
+	if (InSelectionType != ESelectInfo::OnMouseClick  && InSelectionType != ESelectInfo::OnKeyPress && !SelectedAction.IsEmpty())
+	{
+		return;
+	}
+
+	for (const TSharedPtr<FEdGraphSchemaAction>& Action : SelectedAction)
+	{
+		if (Action.IsValid() && Graph)
+		{
+			if (!bActionExecuted && (Action->GetTypeId() != FEdGraphSchemaAction_Dummy::StaticGetTypeId()))
 			{
-				return;
+				FSlateApplication::Get().DismissAllMenus();
+				bActionExecuted = true;
 			}
 
-			if (InSelectionType != ESelectInfo::OnMouseClick  && InSelectionType != ESelectInfo::OnKeyPress && !SelectedAction.IsEmpty())
+			if (UEdGraphNode* ResultNode = Action->PerformAction(Graph, DraggedFromPins, NewNodePosition))
 			{
-				return;
-			}
-
-			for (const TSharedPtr<FEdGraphSchemaAction>& Action : SelectedAction)
-			{
-				if (Action.IsValid() && Graph)
-				{
-					if (!bActionExecuted && (Action->GetTypeId() != FEdGraphSchemaAction_Dummy::StaticGetTypeId()))
-					{
-						FSlateApplication::Get().DismissAllMenus();
-						bActionExecuted = true;
-					}
-
-					if (UEdGraphNode* ResultNode = Action->PerformAction(Graph, DraggedFromPins, NewNodePosition))
-					{
-						NewNodePosition += Metasound::Frontend::DisplayStyle::NodeLayout::DefaultOffsetX;
-					}
-				}
+				NewNodePosition += Metasound::Frontend::DisplayStyle::NodeLayout::DefaultOffsetX;
 			}
 		}
-	} // namespace Editor
-} // namespace Metasound
+	}
+}
 #undef LOCTEXT_NAMESPACE

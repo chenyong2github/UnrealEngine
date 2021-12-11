@@ -10,8 +10,6 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundVertex.h"
 #include "Misc/Guid.h"
-#include "IAudioParameterInterfaceRegistry.h"
-#include "Templates/TypeHash.h"
 
 #include "MetasoundFrontendDocument.generated.h"
 
@@ -79,11 +77,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersionNumber
 	GENERATED_BODY()
 
 	// Major version number.
-	UPROPERTY(VisibleAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = General)
 	int32 Major = 1;
 
 	// Minor version number.
-	UPROPERTY(VisibleAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = General)
 	int32 Minor = 0;
 
 	static const FMetasoundFrontendVersionNumber& GetInvalid()
@@ -95,11 +93,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersionNumber
 	bool IsValid() const
 	{
 		return *this != GetInvalid();
-	}
-
-	Audio::FParameterInterface::FVersion ToInterfaceVersion() const
-	{
-		return Audio::FParameterInterface::FVersion { Major, Minor };
 	}
 
 	friend bool operator==(const FMetasoundFrontendVersionNumber& InLHS, const FMetasoundFrontendVersionNumber& InRHS)
@@ -158,11 +151,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersionNumber
 	}
 };
 
-FORCEINLINE uint32 GetTypeHash(const FMetasoundFrontendVersionNumber& InNumber)
-{
-	return HashCombineFast(GetTypeHash(InNumber.Major), GetTypeHash(InNumber.Minor));
-}
-
 // General purpose version info for Metasound Frontend objects.
 USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendVersion
@@ -170,11 +158,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersion
 	GENERATED_BODY()
 
 	// Name of version.
-	UPROPERTY(VisibleAnywhere, Category = CustomView)
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	FName Name;
 
 	// Version number.
-	UPROPERTY(VisibleAnywhere, Category = CustomView)
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendVersionNumber Number;
 
 	FString ToString() const;
@@ -234,10 +222,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersion
 	}
 };
 
-FORCEINLINE uint32 GetTypeHash(const FMetasoundFrontendVersion& InVersion)
-{
-	return HashCombineFast(GetTypeHash(InVersion.Name), GetTypeHash(InVersion.Number));
-}
 
 // An FMetasoundFrontendVertex provides a named connection point of a node.
 USTRUCT() 
@@ -252,7 +236,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVertex
 	FName Name;
 
 	// Data type name of the vertex.
-	UPROPERTY(VisibleAnywhere, Category = Parameters)
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FName TypeName;
 
 	// ID of vertex
@@ -270,10 +254,10 @@ struct FMetasoundFrontendVertexLiteral
 	GENERATED_BODY()
 
 	// ID of vertex.
-	UPROPERTY(VisibleAnywhere, Category = Parameters)
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FGuid VertexID = Metasound::FrontendInvalidID;
 
-	// Value to use when constructing input.
+	// Value to use when constructing input. 
 	UPROPERTY(EditAnywhere, Category = Parameters)
 	FMetasoundFrontendLiteral Value;
 };
@@ -589,9 +573,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassVertex : public FMetasoundFr
 	// Metadata associated with input.
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendVertexMetadata Metadata;
-
-	// Splits name into namespace & parameter name
-	void SplitName(FName& OutNamespace, FName& OutParameterName) const;
 
 	static bool IsFunctionalEquivalent(const FMetasoundFrontendClassVertex& InLHS, const FMetasoundFrontendClassVertex& InRHS);
 };
@@ -1157,9 +1138,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 	UPROPERTY()
 	FMetasoundFrontendEditorData EditorData;
 
-public:
-	UPROPERTY(VisibleAnywhere, Category = CustomView)
-	TSet<FMetasoundFrontendVersion> Interfaces;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "5.0 - ArchetypeVersion has been migrated to InterfaceVersions array."))
+	FMetasoundFrontendVersion ArchetypeVersion;
+
+	UPROPERTY(EditAnywhere, Category = CustomView, meta = (DisplayName = "Interfaces"))
+	TArray<FMetasoundFrontendVersion> InterfaceVersions;
 
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendGraphClass RootGraph;
@@ -1169,33 +1152,4 @@ public:
 
 	UPROPERTY()
 	TArray<FMetasoundFrontendClass> Dependencies;
-
-private:
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "5.0 - ArchetypeVersion has been migrated to InterfaceVersions array."))
-	FMetasoundFrontendVersion ArchetypeVersion;
-
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "5.0 - InterfaceVersions has been migrated to Interfaces set."))
-	TArray<FMetasoundFrontendVersion> InterfaceVersions;
-
-public:
-	// Data migration for 5.0 Early Access data. ArchetypeVersion/InterfaceVersions properties can be removed post 5.0 release
-	// and this fix-up can be removed post 5.0 release.
-	bool VersionInterfaces()
-	{
-		bool bDidEdit = false;
-		if (ArchetypeVersion.IsValid())
-		{
-			Interfaces.Add(ArchetypeVersion);
-			ArchetypeVersion = FMetasoundFrontendVersion::GetInvalid();
-			bDidEdit = true;
-		}
-		if (!InterfaceVersions.IsEmpty())
-		{
-			Interfaces.Append(InterfaceVersions);
-			InterfaceVersions.Reset();
-			bDidEdit = true;
-		}
-
-		return bDidEdit;
-	}
 };

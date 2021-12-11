@@ -80,7 +80,7 @@ namespace Metasound
 			virtual void AddAssetReferences(FMetasoundAssetBase& InAssetBase) = 0;
 
 			// Add or Update a MetaSound Asset's entry data
-			virtual void AddOrUpdateAsset(UObject& InObject) = 0;
+			virtual void AddOrUpdateAsset(UObject& InObject, bool bInRegisterWithFrontend = true) = 0;
 
 			// Whether or not the class is eligible for auto-update
 			virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const = 0;

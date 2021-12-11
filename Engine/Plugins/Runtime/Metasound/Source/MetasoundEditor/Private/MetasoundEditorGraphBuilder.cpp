@@ -86,26 +86,16 @@ namespace Metasound
 			}
 		} // namespace GraphBuilderPrivate
 
-		FText FGraphBuilder::GetDisplayName(const Frontend::INodeController& InFrontendNode, bool bInIncludeNamespace)
+		FText FGraphBuilder::GetDisplayName(const Frontend::INodeController& InFrontendNode)
 		{
-			FName Namespace;
-			FName ParameterName;
-			Audio::FParameterPath::SplitName(InFrontendNode.GetNodeName(), Namespace, ParameterName);
-
 			FText DisplayName = InFrontendNode.GetDisplayName();
 			if (DisplayName.IsEmptyOrWhitespace())
 			{
-				DisplayName = FText::FromName(ParameterName);
+				FName InterfaceName;
+				FName ParameterName;
+				Audio::IGeneratorInterfaceRegistry::Get().SplitMemberFullName(InFrontendNode.GetNodeName(), InterfaceName, ParameterName);
+				return FText::FromName(ParameterName);
 			}
-
-			if (bInIncludeNamespace)
-			{
-				if (!Namespace.IsNone())
-				{
-					return FText::Format(LOCTEXT("MemberDisplayNameWithNamespaceFormat", "{0} ({1})"), DisplayName, FText::FromName(Namespace));
-				}
-			}
-
 			return DisplayName;
 		}
 
@@ -1889,8 +1879,7 @@ namespace Metasound
 				{
 					if (bLogChanges)
 					{
-						constexpr bool bIncludeNamespace = true;
-						const FText NodeDisplayName = FGraphBuilder::GetDisplayName(*InNode, bIncludeNamespace);
+						FText NodeDisplayName = FGraphBuilder::GetDisplayName(*InNode);
 						UE_LOG(LogMetasoundEditor, Verbose, TEXT("Synchronizing Node '%s' Pins: Removing Excess Editor Pin '%s'"), *NodeDisplayName.ToString(), *Pin->GetName());
 					}
 					InEditorNode.RemovePin(Pin);
@@ -1906,9 +1895,8 @@ namespace Metasound
 				{
 					if (bLogChanges)
 					{
-						constexpr bool bIncludeNamespace = true;
-						const FText NodeDisplayName = FGraphBuilder::GetDisplayName(*InNode, bIncludeNamespace);
-						const FText InputDisplayName = FGraphBuilder::GetDisplayName(*InputHandle);
+						FText NodeDisplayName = FGraphBuilder::GetDisplayName(*InNode);
+						FText InputDisplayName = FGraphBuilder::GetDisplayName(*InputHandle);
 						UE_LOG(LogMetasoundEditor, Verbose, TEXT("Synchronizing Node '%s' Pins: Adding missing Editor Input Pin '%s'"), *NodeDisplayName.ToString(), *InputDisplayName.ToString());
 					}
 					AddPinToNode(InEditorNode, InputHandle);
@@ -1923,9 +1911,8 @@ namespace Metasound
 				{
 					if (bLogChanges)
 					{
-						constexpr bool bIncludeNamespace = true;
-						const FText NodeDisplayName = FGraphBuilder::GetDisplayName(*InNode, bIncludeNamespace);
-						const FText OutputDisplayName = FGraphBuilder::GetDisplayName(*OutputHandle);
+						FText NodeDisplayName = FGraphBuilder::GetDisplayName(*InNode);
+						FText OutputDisplayName = FGraphBuilder::GetDisplayName(*OutputHandle);
 						UE_LOG(LogMetasoundEditor, Verbose, TEXT("Synchronizing Node '%s' Pins: Adding missing Editor Output Pin '%s'"), *NodeDisplayName.ToString(), *OutputDisplayName.ToString());
 					}
 					AddPinToNode(InEditorNode, OutputHandle);
@@ -1991,8 +1978,7 @@ namespace Metasound
 
 				// Add an editor input if none exist for a frontend input.
 				Inputs.Add(Graph->FindOrAddInput(NodeHandle));
-				constexpr bool bIncludeNamespace = true;
-				FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);
+				FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle);
 				UE_LOG(LogMetasoundEditor, Verbose, TEXT("Synchronizing Inputs: Added missing input '%s'."), *NodeDisplayName.ToString());
 				bIsEditorGraphDirty = true;
 			}, EMetasoundFrontendClassType::Input);
@@ -2008,8 +1994,7 @@ namespace Metasound
 
 				// Add an editor output if none exist for a frontend output.
 				Outputs.Add(Graph->FindOrAddOutput(NodeHandle));
-				constexpr bool bIncludeNamespace = true;
-				FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);
+				FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle);
 				UE_LOG(LogMetasoundEditor, Verbose, TEXT("Synchronizing Outputs: Added missing output '%s'."), *NodeDisplayName.ToString());
 				bIsEditorGraphDirty = true;
 			}, EMetasoundFrontendClassType::Output);
@@ -2052,8 +2037,7 @@ namespace Metasound
 						const FName NewDataType = InputHandle->GetDataType();
 						if (Input->TypeName != NewDataType)
 						{
-							constexpr bool bIncludeNamespace = true;
-							FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);
+							FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle);
 							UE_LOG(LogMetasoundEditor, Verbose, TEXT("Synchronizing Input '%s': Updating DataType to '%s'."), *NodeDisplayName.ToString(), *NewDataType.ToString());
 
 							FMetasoundFrontendLiteral DefaultLiteral;
@@ -2091,8 +2075,7 @@ namespace Metasound
 						const FName NewDataType = OutputHandles[0]->GetDataType();
 						if (Output->TypeName != NewDataType)
 						{
-							constexpr bool bIncludeNamespace = true;
-							FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);
+							FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle);
 							UE_LOG(LogMetasoundEditor, Verbose, TEXT("Synchronizing Output '%s': Updating DataType to '%s'."), *NodeDisplayName.ToString(), *NewDataType.ToString());
 
 							Output->ClassName = NodeHandle->GetClassMetadata().GetClassName();

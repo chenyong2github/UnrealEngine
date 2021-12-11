@@ -8,7 +8,6 @@
 #include "MetasoundArrayNodes.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
-#include "MetasoundSourceInterface.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundTrigger.h"
 
@@ -191,12 +190,10 @@ namespace Metasound
 			, TriggerOnNext(FTriggerWriteRef::CreateNew(InParams.OperatorSettings))
 			, TriggerOnReset(FTriggerWriteRef::CreateNew(InParams.OperatorSettings))
 			, OutValue(TDataWriteReferenceFactory<ElementType>::CreateAny(InParams.OperatorSettings))
-		{
-			using namespace Frontend;
-
 #if WITH_METASOUND_DEBUG_ENVIRONMENT
-			GraphName = *InParams.Environment.GetValue<FString>(SourceInterface::Environment::GraphName);
+			, GraphName(*InParams.Environment.GetValue<FString>("GraphName"))
 #endif // WITH_METASOUND_DEBUG_ENVIRONMENT
+		{
 
 			// Check to see if this is a global shuffler or a local one. 
 			// Global shuffler will use a namespace to opt into it.
@@ -213,10 +210,10 @@ namespace Metasound
 				if (*bEnableSharedState)
 				{
 					// Get the environment variable for the unique ID of the sound
-					SharedStateUniqueId = InParams.Environment.GetValue<uint32>(SourceInterface::Environment::SoundUniqueID);
+					SharedStateUniqueId = InParams.Environment.GetValue<uint32>(TEXT("SoundUniqueId"));
 					check(SharedStateUniqueId != INDEX_NONE);
 
-					bIsPreviewSound = InParams.Environment.GetValue<bool>(SourceInterface::Environment::IsPreview);
+					bIsPreviewSound = InParams.Environment.GetValue<bool>(TEXT("IsPreviewSound"));
 
 					FSharedStateRandomGetManager& RGM = FSharedStateRandomGetManager::Get();
 
