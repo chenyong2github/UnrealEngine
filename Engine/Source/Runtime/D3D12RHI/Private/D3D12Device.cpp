@@ -104,7 +104,18 @@ void FD3D12Device::CreateCommandContexts()
 	check(CommandContextArray.Num() == 0);
 	check(AsyncComputeContextArray.Num() == 0);
 
-	const uint32 NumContexts = FTaskGraphInterface::Get().GetNumWorkerThreads() + 1;
+	uint32 WorkerThreadCount = FTaskGraphInterface::Get().GetNumWorkerThreads();
+
+#if PLATFORM_WINDOWS
+	bool bEnableReserveWorkers = true; // by default
+	GConfig->GetBool(TEXT("TaskGraph"), TEXT("EnableReserveWorkers"), bEnableReserveWorkers, GEngineIni);
+	if (bEnableReserveWorkers)
+	{
+		WorkerThreadCount *= 2;
+	}
+#endif
+
+	const uint32 NumContexts = WorkerThreadCount + 1;
 	const uint32 NumAsyncComputeContexts = GEnableAsyncCompute ? 1 : 0;
 	
 	// We never make the default context free for allocation by the context containers
