@@ -2980,7 +2980,7 @@ public:
 	
 	/** Find all Actors which are attached directly to a component in this actor */
 	UFUNCTION(BlueprintPure, Category = "Actor")
-	void GetAttachedActors(TArray<AActor*>& OutActors, bool bResetArray = true) const;
+	void GetAttachedActors(TArray<AActor*>& OutActors, bool bResetArray = true, bool bRecursivelyIncludeAttachedActors = false) const;
 
 	/**
 	 * Sets the ticking group for this actor.
