@@ -70,10 +70,13 @@ class GAMEPLAYABILITIESEDITOR_API FScalableFloatDetails : public IPropertyTypeCu
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+	static constexpr float DefaultMinPreviewLevel = 0.f;
+	static constexpr float DefaultMaxPreviewLevel = 30.f;
 
 	FScalableFloatDetails()
 		: PreviewLevel(0.f)
-		, MaxPreviewLevel(30.f) // This should perhaps be configurable per scalable float somehow
+		, MinPreviewLevel(DefaultMinPreviewLevel)
+		, MaxPreviewLevel(DefaultMaxPreviewLevel) 
 	{
 	}
 
@@ -82,7 +85,8 @@ protected:
 	virtual void CustomizeHeader( TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils ) override;
 	virtual void CustomizeChildren( TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils ) override;              
 
-	bool IsEditable( ) const;
+	bool IsEditable() const;
+	void UpdatePreviewLevels();
 
 	// Curve Table selector
 	TSharedRef<SWidget> CreateCurveTableWidget();
@@ -114,6 +118,7 @@ protected:
 	EVisibility GetRowNameVisibility() const;
 	FText GetRowNameComboBoxContentText() const;
 	FText GetRowNameComboBoxContentTooltip() const;
+	void OnRowNameChanged();
 
 	// Preview widgets
 	EVisibility GetPreviewVisibility() const;
@@ -138,6 +143,7 @@ protected:
 	TWeakPtr<IPropertyUtilities> PropertyUtilities;
 
 	float PreviewLevel;
+	float MinPreviewLevel;
 	float MaxPreviewLevel;
 	bool bSourceRefreshQueued;
 };
