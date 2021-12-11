@@ -131,6 +131,8 @@ public:
 
 #if WITH_EDITOR
 	TArray<FDirectoryPath>& GetDirectories() { return Directories; }
+
+	TArray<FSoftObjectPath>& GetSpecificAssets() { return SpecificAssets; }
 #endif //if WITH_EDITOR
 
 private:
