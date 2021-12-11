@@ -346,6 +346,21 @@ struct FLandscapeLayerComponentData
 {
 	GENERATED_USTRUCT_BODY()
 
+	FLandscapeLayerComponentData() = default;
+
+#if WITH_EDITOR
+	FLandscapeLayerComponentData(const FName& InDebugName)
+		: DebugName(InDebugName)
+	{}
+
+#endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+	// Edit layers are referenced by Guid, this name is just there to provide some insights as to what edit layer name this layer data corresponded to in case of a missing edit layer guid
+	UPROPERTY()
+	FName DebugName; 
+#endif // WITH_EDITORONLY_DATA
+
 	UPROPERTY()
 	FHeightmapData HeightmapData;
 

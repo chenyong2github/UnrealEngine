@@ -867,13 +867,22 @@ void ULandscapeComponent::PostLoad()
 		ReparentObject(MobileWeightmapTexture);
 	}
 
-	for (const auto& ItPair : LayersData)
+	for (auto& ItPair : LayersData)
 	{
-		const FLandscapeLayerComponentData& LayerComponentData = ItPair.Value;
+		FLandscapeLayerComponentData& LayerComponentData = ItPair.Value;
 		ReparentObject(LayerComponentData.HeightmapData.Texture);
 		for (UTexture2D* WeightmapTexture : LayerComponentData.WeightmapData.Textures)
 		{
 			ReparentObject(WeightmapTexture);
+		}
+
+		// Fixup missing/mismatching edit layer names :
+		if (const FLandscapeLayer* EditLayer = GetLandscapeActor() ? GetLandscapeActor()->GetLayer(ItPair.Key) : nullptr)
+		{
+			if (LayerComponentData.DebugName != EditLayer->Name)
+			{
+				LayerComponentData.DebugName = EditLayer->Name;
+			}
 		}
 	}
 
@@ -1762,7 +1771,8 @@ void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TA
 
 	if (LayerData == nullptr || !LayerData->IsInitialized())
 	{
-		FLandscapeLayerComponentData NewData;
+		const FLandscapeLayer* EditLayer = GetLandscapeActor() ? GetLandscapeActor()->GetLayer(InLayerGuid) : nullptr;
+		FLandscapeLayerComponentData NewData(EditLayer ? EditLayer->Name : FName());
 
 		// Setup Heightmap data
 		UTexture2D** LayerHeightmap = InOutCreatedHeightmapTextures.Find(ComponentHeightmap);
@@ -2159,6 +2169,15 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		for (ULandscapeComponent* LandscapeComponent : LandscapeComponents)
 		{
 			Landscape->ClearDirtyData(LandscapeComponent);
+
+			// Make sure edit layer debug names are synchronized upon save :
+			LandscapeComponent->ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
+			{
+				if (const FLandscapeLayer* EditLayer = Landscape->GetLayer(LayerGuid))
+				{
+					LayerData.DebugName = EditLayer->Name;
+				}
+			});
 		}
 	}
 #endif // WITH_EDITOR
@@ -2564,8 +2583,9 @@ void ALandscapeProxy::PostLoad()
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("LandscapeName"), FText::FromString(GetPathName()));
-		FMessageLog("MapCheck").Warning()
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_FixedUpInvalidLandscapeMaterialInstances", "{LandscapeName} : Fixed up invalid landscape material instances. Please re-save the landscape package."), Arguments)))
+		Arguments.Add(TEXT("ProxyPackage"), FText::FromString(GetOutermost()->GetName()));
+		FMessageLog("MapCheck").Info()
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_FixedUpInvalidLandscapeMaterialInstances", "{LandscapeName} : Fixed up invalid landscape material instances. Please re-save {ProxyPackage}."), Arguments)))
 			->AddToken(FMapErrorToken::Create(FMapErrors::FixedUpInvalidLandscapeMaterialInstances));
 	}
 
