@@ -1872,6 +1872,15 @@ void FNiagaraVariableMetaDataCustomization::CustomizeChildren(TSharedRef<IProper
 
 	for (const TSharedRef<IPropertyHandle>& ChildPropertyHandle : ChildPropertyHandles)
 	{
+		/** The customized flag is used for hiding properties.
+		 *  The script variable's customization which contains meta data is hiding these properties already,
+		 *  but the meta data customization would stomp these by readding them. Hence, we skip them here if they were marked as customized.
+		*/
+		if(ChildPropertyHandle->IsCustomized())
+		{
+			continue;
+		}
+		
 		const FProperty* ChildProperty = ChildPropertyHandle->GetProperty();
 		const FName ChildPropertyName = ChildProperty->GetFName();
 
