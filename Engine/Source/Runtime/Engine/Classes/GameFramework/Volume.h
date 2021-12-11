@@ -37,6 +37,7 @@ public:
 	* for any potential errors and register them with map check dialog.
 	*/
 	virtual void CheckForErrors() override;
+	virtual bool ShouldCheckCollisionComponentForErrors() const { return true; }
 #endif // WITH_EDITOR
 	
 	virtual bool IsLevelBoundsRelevant() const override;

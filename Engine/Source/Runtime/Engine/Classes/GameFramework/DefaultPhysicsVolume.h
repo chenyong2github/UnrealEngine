@@ -21,6 +21,10 @@ UCLASS(notplaceable, transient, MinimalAPI)
 class ADefaultPhysicsVolume : public APhysicsVolume
 {
 	GENERATED_UCLASS_BODY()
+
+#if WITH_EDITOR
+		virtual bool ShouldCheckCollisionComponentForErrors() const override { return false; }
+#endif // WITH_EDITOR
 };
 
 
