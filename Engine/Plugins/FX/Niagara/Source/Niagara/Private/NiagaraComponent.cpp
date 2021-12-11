@@ -3357,7 +3357,10 @@ void UNiagaraComponent::SetAllowScalability(bool bAllow)
 	bAllowScalability = bAllow; 
 	if (bAllow)
 	{
-		RegisterWithScalabilityManager();
+		if ( IsActive() )
+		{
+			RegisterWithScalabilityManager();
+		}
 	}
 	else
 	{
