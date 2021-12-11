@@ -11,7 +11,7 @@
 * Used to store variable data and metadata per graph. 
 */
 UCLASS()
-class UNiagaraScriptVariable : public UObject
+class NIAGARAEDITOR_API UNiagaraScriptVariable : public UObject
 {
 public:
 	GENERATED_UCLASS_BODY()

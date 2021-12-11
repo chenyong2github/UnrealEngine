@@ -15,7 +15,7 @@
 #include "NiagaraScriptVariable.h"
 #include "NiagaraTypes.h"
 #include "SDropTarget.h"
-#include "SNiagaraPinTypeSelector.h"
+#include "Widgets/SNiagaraPinTypeSelector.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "Widgets/SToolTip.h"

@@ -7,6 +7,7 @@
 #include "Misc/SecureHash.h"
 #include "UObject/GCObject.h"
 #include "UObject/UnrealType.h"
+#include "Engine/Texture2D.h"
 
 #include "NiagaraTypes.generated.h"
 
@@ -302,6 +303,7 @@ class NIAGARA_API FNiagaraTypeHelper
 {
 public:
 	static FString ToString(const uint8* ValueData, const UObject* StructOrEnum);
+	static FString ToStringCosmetic(const uint8* ValueData, const UObject* StructOrEnum);
 	static UScriptStruct* FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct);
 	static bool IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct);
 };
@@ -610,6 +612,21 @@ public:
 	TArray<FString> TargetValues;
 };
 
+/** Defines override data for enum parameters displayed in the UI. */
+USTRUCT()
+struct NIAGARA_API FNiagaraEnumParameterMetaData
+{
+	GENERATED_BODY()
+	
+	/** If specified, this name will be used for the given enum entry. Useful for shortening names. */
+	UPROPERTY(EditAnywhere, Category="Enum Override")
+	FName OverrideName;
+
+	/** If specified, this icon will be used for the given enum entry. If OverrideName isn't empty, the icon takes priority. */
+	UPROPERTY(EditAnywhere, Category="Enum Override")
+	UTexture2D* IconOverride;
+};
+
 USTRUCT()
 struct NIAGARA_API FNiagaraVariableMetaData
 {
@@ -617,6 +634,10 @@ struct NIAGARA_API FNiagaraVariableMetaData
 
 	FNiagaraVariableMetaData()
 		: bAdvancedDisplay(false)
+		, bDisplayInOverviewStack(false)
+		, InlineParameterSortPriority(0)
+		, bOverrideColor(false)
+		, InlineParameterColorOverride(FLinearColor(EForceInit::ForceInit))
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
 		, bIsStaticSwitch_DEPRECATED(false)
@@ -633,6 +654,22 @@ struct NIAGARA_API FNiagaraVariableMetaData
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
 	bool bAdvancedDisplay;
 
+	/** Declares that this parameter's value will be shown in the overview node if it's set to a local value. */
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
+	bool bDisplayInOverviewStack;
+
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (EditCondition="bDisplayInOverviewStack", ToolTip = "Affects the sort order for parameters shown inline in the overview. Use a smaller number to push it to the top. Defaults to zero.", SkipForCompileHash = "true"))
+	int32 InlineParameterSortPriority;
+
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (InlineEditConditionToggle, ToolTip = "The color used to display a parameter in the overview. If no color is specified, the type color is used.", SkipForCompileHash = "true"))
+	bool bOverrideColor;
+	
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (EditCondition="bOverrideColor", ToolTip = "The color used to display a parameter in the overview. If no color is specified, the type color is used.", SkipForCompileHash = "true"))
+	FLinearColor InlineParameterColorOverride;
+
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (EditCondition="bDisplayInOverviewStack", ToolTip = "The index of the entry maps to the index of an enum value. Useful for overriding how an enum parameter is displayed in the overview.", SkipForCompileHash = "true"))
+	TArray<FNiagaraEnumParameterMetaData> InlineParameterEnumOverrides; 
+	
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (ToolTip = "Affects the sort order in the editor stacks. Use a smaller number to push it to the top. Defaults to zero.", SkipForCompileHash = "true"))
 	int32 EditorSortPriority;
 
@@ -985,6 +1022,16 @@ public:
 			return TEXT("(null)");
 		}
 		return FNiagaraTypeHelper::ToString(ValueData, ClassStructOrEnum);
+	}
+
+	FString ToStringCosmetic(const uint8* ValueData)const
+	{
+		checkf(IsValid(), TEXT("Type definition is not valid."));
+		if (ValueData == nullptr)
+		{
+			return TEXT("(null)");
+		}
+		return FNiagaraTypeHelper::ToStringCosmetic(ValueData, ClassStructOrEnum);
 	}
 
 	static bool TypesAreAssignable(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB);

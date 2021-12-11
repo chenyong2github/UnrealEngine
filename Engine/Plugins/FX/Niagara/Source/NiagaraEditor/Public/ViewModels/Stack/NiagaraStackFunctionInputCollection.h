@@ -11,6 +11,26 @@ class UNiagaraStackFunctionInput;
 class UNiagaraClipboardFunctionInput;
 class UEdGraphPin;
 
+struct NIAGARAEDITOR_API FNiagaraLocalInputValueData
+{
+	FNiagaraLocalInputValueData(TSharedPtr<const FStructOnScope> InLocalData, TMulticastDelegate<void()>& InOnValueChanged) :
+	LocalData(InLocalData), OnValueChanged(InOnValueChanged)
+	{}
+	TSharedPtr<const FStructOnScope> LocalData;
+	TMulticastDelegate<void()>& OnValueChanged;
+	TArray<UNiagaraStackEntry::FStackSearchItem> StackSearchItems;
+};
+
+struct NIAGARAEDITOR_API FNiagaraDataInterfaceInput
+{
+	FNiagaraDataInterfaceInput(TWeakObjectPtr<const UNiagaraDataInterface> InDataInterface, TMulticastDelegate<void()>& InOnValueChanged) :
+	DataInterface(InDataInterface), OnValueChanged(InOnValueChanged)
+	{}
+	TWeakObjectPtr<const UNiagaraDataInterface> DataInterface;
+	TMulticastDelegate<void()>& OnValueChanged;
+	TArray<UNiagaraStackEntry::FStackSearchItem> StackSearchItems;
+};
+
 
 
 UCLASS()
@@ -98,6 +118,12 @@ public:
 	void SetValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
 
 	void GetChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult) const;
+
+	void GetFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult) const;
+
+	TOptional<FNiagaraLocalInputValueData> GetLocalInput(FNiagaraVariable InputParameter, bool bFiltered = false) const;
+
+	TOptional<FNiagaraDataInterfaceInput> GetDataInterfaceForInput(FNiagaraVariable InputParameter, bool bFiltered = false) const;
 
 protected:
 	virtual void FinalizeInternal() override;

@@ -212,6 +212,15 @@ void UNiagaraStackViewModel::ResetSearchText()
 	bRestartSearch = true;	
 }
 
+void UNiagaraStackViewModel::SetSearchTextExternal(const FText& NewSearchText)
+{
+	if(!CurrentSearchText.EqualTo(NewSearchText))
+	{
+		// this will forward a change in search text in a search box in a widget that registered itself, which in turn will call OnSearchTextChanged
+		OnChangeSearchTextExternalDelegate.ExecuteIfBound(NewSearchText);
+	}
+}
+
 void UNiagaraStackViewModel::OnSearchTextChanged(const FText& SearchText)
 {
 	if (RootEntry && !CurrentSearchText.EqualTo(SearchText))
@@ -482,6 +491,11 @@ UNiagaraStackEntry* UNiagaraStackViewModel::GetRootEntry()
 TArray<UNiagaraStackEntry*>& UNiagaraStackViewModel::GetRootEntryAsArray()
 {
 	return RootEntries;
+}
+
+UNiagaraStackViewModel::FOnChangeSearchTextExternal& UNiagaraStackViewModel::OnChangeSearchTextExternal()
+{
+	return OnChangeSearchTextExternalDelegate;
 }
 
 UNiagaraStackViewModel::FOnExpansionChanged& UNiagaraStackViewModel::OnExpansionChanged()

@@ -332,6 +332,21 @@ public:
 		}
 	}
 
+	template<typename T>
+	void GetFilteredChildrenOfType(TArray<T*>& OutFilteredChildrenOfType) const
+	{
+		TArray<UNiagaraStackEntry*> OutFilteredChildren;
+		GetFilteredChildren(OutFilteredChildren);
+		for (UNiagaraStackEntry* UnfilteredChild : OutFilteredChildren)
+		{
+			T* UnfilteredChildOfType = Cast<T>(UnfilteredChild);
+			if (UnfilteredChildOfType != nullptr)
+			{
+				OutFilteredChildrenOfType.Add(UnfilteredChildOfType);
+			}
+		}
+	}
+
 	FOnExpansionChanged& OnExpansionChanged();
 
 	FOnExpansionChanged& OnExpansionInOverviewChanged();
