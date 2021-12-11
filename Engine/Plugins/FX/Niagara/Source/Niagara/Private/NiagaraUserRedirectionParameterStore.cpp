@@ -105,7 +105,7 @@ void FNiagaraUserRedirectionParameterStore::SanityCheckData(bool bInitInterfaces
 		int32 Offset = IndexOf(Var);
 		if (Offset == -1)
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("User parameter redirect exists but no real value! Param: %s Owner:%s"), *Var.GetName().ToString(), GetOwner() != nullptr ? *GetOwner()->GetPathName() : TEXT("Unknown owner"));
+			UE_LOG(LogNiagara, Log, TEXT("User parameter redirect exists but no real value! Param: %s Owner:%s"), *Var.GetName().ToString(), GetOwner() != nullptr ? *GetOwner()->GetPathName() : TEXT("Unknown owner"));
 		}
 	}
 }
