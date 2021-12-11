@@ -60,6 +60,7 @@ public:
 	void EnteredWaterBody(UWaterBodyComponent* WaterBodyComponent);
 	void ExitedWaterBody(UWaterBodyComponent* WaterBodyComponent);
 
+	UFUNCTION(BlueprintCallable, Category = Buoyancy)
 	const TArray<UWaterBodyComponent*>& GetCurrentWaterBodyComponents() const { return CurrentWaterBodyComponents; }
 	TArray<UWaterBodyComponent*>& GetCurrentWaterBodyComponents() { return CurrentWaterBodyComponents; }
 
