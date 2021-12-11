@@ -25,8 +25,8 @@
 	#endif
 #endif
 
-int64 FAndroidAffinity::GameThreadMask = FPlatformAffinity::GetNoAffinityMask();
-int64 FAndroidAffinity::RenderingThreadMask = FPlatformAffinity::GetNoAffinityMask();
+uint64 FAndroidAffinity::GameThreadMask = FPlatformAffinity::GetNoAffinityMask();
+uint64 FAndroidAffinity::RenderingThreadMask = FPlatformAffinity::GetNoAffinityMask();
 
 void* FAndroidPlatformProcess::GetDllHandle(const TCHAR* Filename)
 {
