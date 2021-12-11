@@ -98,8 +98,9 @@ namespace SkeletalSimplifier
 		/**
 		* Remove vertices that aren't referenced by the index buffer.
 		* Also rebuilds the index buffer to account for the removals.
+		* Optionally, VertexRemap will map the compact vert index to the original vert index
 		*/
-		void Compact()
+		void Compact(TArray<int32>* VertexRemap = nullptr)
 		{
 			if (IndexBuffer == NULL)
 			{
@@ -126,9 +127,23 @@ namespace SkeletalSimplifier
 				RequiredVertCount += Mask[i];
 			}
 
+
+			if (VertexRemap)
+			{
+				VertexRemap->Empty();
+				VertexRemap->SetNumUninitialized(RequiredVertCount);
+			}
+
 			// If all the verts are being used, there is nothing to do
 			if (RequiredVertCount == NumVerts)
 			{
+				if (VertexRemap)
+				{
+					for (int32 i = 0; i < RequiredVertCount; ++i)
+					{
+						(*VertexRemap)[i] = i;
+					}
+				}
 				delete[] Mask;
 				return;
 			}
@@ -158,6 +173,10 @@ namespace SkeletalSimplifier
 					checkSlow(j < RequiredVertCount);
 
 					VertexBuffer[j] = OldVertexBuffer[i];
+					if (VertexRemap)
+					{
+						(*VertexRemap)[j] = i;
+					}
 					j++;
 				}
 
