@@ -2387,6 +2387,12 @@ void ULevel::ReleaseRenderingResources()
 	}
 }
 
+void ULevel::ResetRouteActorInitializationState()
+{
+	 RouteActorInitializationState = ERouteActorInitializationState::Preinitialize;
+	 RouteActorInitializationIndex = 0;
+}
+
 void ULevel::RouteActorInitializeOld()
 {
 	// Send PreInitializeComponents and collect volumes.
@@ -2435,7 +2441,7 @@ void ULevel::RouteActorInitializeOld()
 		Actor->DispatchBeginPlay(/*bFromLevelStreaming*/ true);
 	}
 
-	bAlreadyRoutedActorInitialize = true;
+	RouteActorInitializationState = ERouteActorInitializationState::Finished;
 }
 
 void ULevel::RouteActorInitialize(int32 NumActorsToProcess)
@@ -2527,10 +2533,7 @@ void ULevel::RouteActorInitialize(int32 NumActorsToProcess)
 				}
 			}
 
-			// Should only have to clean up once, so do it at the end of this phase in case this method gets called again after we're done
 			RouteActorInitializationState = ERouteActorInitializationState::Finished;
-			RouteActorInitializationIndex = 0;
-			bAlreadyRoutedActorInitialize = true;
 		}
 
 		// Intentional fall-through if we're done
