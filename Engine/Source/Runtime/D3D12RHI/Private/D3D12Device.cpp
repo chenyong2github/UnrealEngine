@@ -596,3 +596,8 @@ bool FD3D12DynamicRHI::RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat)
 {
 	return EnumHasAnyFlags(GPixelFormats[PixelFormat].Capabilities, EPixelFormatCapabilities::TypedUAVLoad);
 }
+
+bool FD3D12DynamicRHI::RHIIsTypedUAVStoreSupported(EPixelFormat PixelFormat)
+{
+	return EnumHasAnyFlags(GPixelFormats[PixelFormat].Capabilities, EPixelFormatCapabilities::TypedUAVStore);
+}
