@@ -43,6 +43,13 @@ namespace UnrealBuildTool
 		public string ExcludedIncludePaths = "";
 
 		/// <summary>
+		/// Semi-colon separated list of paths that should not be added to the projects. Useful for omitting third-party files
+		/// (e.g ThirdParty/WebRTC) from intellisense suggestions and reducing memory footprints.
+		/// </summary>
+		[XmlConfigFile(Category = "VCProjectFileGenerator")]
+		public string ExcludedFilePaths = "";
+
+		/// <summary>
 		/// Whether to write a solution option (suo) file for the sln.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]

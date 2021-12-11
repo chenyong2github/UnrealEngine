@@ -740,14 +740,15 @@ namespace UnrealBuildTool
 		}
 
 		private string[]? FilteredList = null;
+		private string[]? FilteredPathsLis = null;
 
-		bool IncludePathIsFilteredOut(DirectoryReference IncludePath)
+		bool PathIsFilteredOut(DirectoryReference InPath, ref string[] FilteredList)
 		{
 			// Turn the filter string into an array, remove whitespace, and normalize any path statements the first time
 			// we are asked to check a path.
 			if (FilteredList == null)
 			{
-				IEnumerable<string> CleanPaths = Settings.ExcludedIncludePaths.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+				IEnumerable<string> CleanPaths = Settings.ExcludedFilePaths.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
 					.Select(P => P.Trim())
 					.Select(P => P.Replace('/', Path.DirectorySeparatorChar));
 
@@ -759,14 +760,14 @@ namespace UnrealBuildTool
 			// we'll compare to our list so we can Contains and EndsWith to catch:
 			// <Path>\Foo\Dir
 			// <Path>\Foo
-			string IncludePathWithSeparator = IncludePath.FullName + Path.DirectorySeparatorChar;
+			string PathWithSeparator = InPath.FullName + Path.DirectorySeparatorChar;
 
 			if (FilteredList.Length > 0)
 			{
 				foreach (string Entry in FilteredList)
 				{
-					if (IncludePathWithSeparator.Contains(Entry, StringComparison.OrdinalIgnoreCase)
-						|| IncludePathWithSeparator.EndsWith(Entry, StringComparison.OrdinalIgnoreCase))
+					if (PathWithSeparator.Contains(Entry, StringComparison.OrdinalIgnoreCase)
+						|| PathWithSeparator.EndsWith(Entry, StringComparison.OrdinalIgnoreCase))
 					{
 						return true;
 					}
@@ -774,6 +775,16 @@ namespace UnrealBuildTool
 			}
 
 			return false;
+		}
+
+		bool IncludePathIsFilteredOut(DirectoryReference IncludePath)
+		{
+			return PathIsFilteredOut(IncludePath, ref FilteredIncludeList);
+		}
+
+		bool FilePathIsFilteredOut(DirectoryReference InPath)
+		{
+			return PathIsFilteredOut(InPath, ref FilteredPathsList);
 		}
 
 		bool TryGetBuildEnvironment(DirectoryReference BaseDir, [NotNullWhen(true)] out BuildEnvironment? OutBuildEnvironment)
@@ -1160,6 +1171,12 @@ namespace UnrealBuildTool
 					// if the filetype is an include and its path is filtered out, skip it entirely (should we do this for any type of
 					// file? Possibly, but not today due to potential fallout)
 					if (VCFileType == "ClInclude" && IncludePathIsFilteredOut(new DirectoryReference(AliasedFile.FileSystemPath)))
+					{
+						continue;
+					}
+
+					// Allow filtering of any type of file
+					if (FilePathIsFilteredOut(new DirectoryReference(AliasedFile.FileSystemPath)))
 					{
 						continue;
 					}
