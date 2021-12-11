@@ -228,9 +228,17 @@ struct FViewMatrices
 	FViewMatrices()
 	{
 		ProjectionMatrix.SetIdentity();
+		ProjectionNoAAMatrix.SetIdentity();
+		InvProjectionMatrix.SetIdentity();
 		ViewMatrix.SetIdentity();
+		InvViewMatrix.SetIdentity();
+		ViewProjectionMatrix.SetIdentity();
+		InvViewProjectionMatrix.SetIdentity();
 		HMDViewMatrixNoRoll.SetIdentity();
 		TranslatedViewMatrix.SetIdentity();
+		InvTranslatedViewMatrix.SetIdentity();
+		OverriddenTranslatedViewMatrix.SetIdentity();
+		OverriddenInvTranslatedViewMatrix.SetIdentity();
 		TranslatedViewProjectionMatrix.SetIdentity();
 		InvTranslatedViewProjectionMatrix.SetIdentity();
 		PreViewTranslation = FVector::ZeroVector;

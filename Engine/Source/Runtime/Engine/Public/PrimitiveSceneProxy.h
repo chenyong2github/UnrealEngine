@@ -1324,7 +1324,7 @@ private:
 	FBoxSphereBounds Bounds;
 
 	/** The primitive's local space bounds. */
-	FBoxSphereBounds LocalBounds;
+	FBoxSphereBounds LocalBounds = FBoxSphereBounds(ForceInit);
 
 	/** The component's actor's position. */
 	FVector ActorPosition;

@@ -26,11 +26,6 @@ namespace Math
 template<typename T>
 FORCEINLINE TMatrix<T>::TMatrix()
 {
-#if ENABLE_NAN_DIAGNOSTIC
-	// TODO: Remove? Rendering code performs basic (throw away) operations on uninitialized matrices 
-	// making diagnostic ensure ineffective without this.
-	FMemory::Memzero(this, sizeof(*this));
-#endif
 }
 
 template<typename T>

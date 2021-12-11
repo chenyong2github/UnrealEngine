@@ -406,7 +406,7 @@ struct FCompressedTransform
 	uint16		Scale_SharedExp[4];	// 1B padding if SignMantissaBits == 16
 
 	FORCEINLINE FCompressedTransform() {}
-	FORCEINLINE FCompressedTransform( const FRenderTransform& In )
+	FORCEINLINE_DEBUGGABLE FCompressedTransform( const FRenderTransform& In )
 	{
 		Translation = In.Origin;
 
@@ -416,7 +416,7 @@ struct FCompressedTransform
 		{
 			Axis[i] = In.TransformRows[i];
 			Scale[i] = Axis[i].Size();
-			Axis[i] /= Scale[i];
+			Axis[i] /= Scale[i] ? Scale[i] : 1.f;
 		}
 
 		// Rotation
