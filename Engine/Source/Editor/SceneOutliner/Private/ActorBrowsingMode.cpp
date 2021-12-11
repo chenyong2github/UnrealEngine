@@ -646,11 +646,11 @@ void FActorBrowsingMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeIt
 		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "ClickingOnActors", "Clicking on Actors"), !bAnyInPIE);
 		GEditor->GetSelectedActors()->Modify();
 
-		// Clear the selection.
-		GEditor->SelectNone(false, true, true);
-
 		// We'll batch selection changes instead by using BeginBatchSelectOperation()
 		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
+
+		// Clear the selection.
+		GEditor->SelectNone(false, true, true);
 
 		const bool bShouldSelect = true;
 		const bool bNotifyAfterSelect = false;

@@ -418,6 +418,12 @@ void UUnrealEdEngine::SelectGroup(AGroupActor* InGroupActor, bool bForceSelectio
 
 	if (UTypedElementSelectionSet* SelectionSet = ActorSelection->GetElementSelectionSet())
 	{
+		FTypedElementList::FScopedClearNewPendingChange ClearNewPendingChange;
+		if (!bNotify)
+		{
+			ClearNewPendingChange = SelectionSet->GetScopedClearNewPendingChange();
+		}
+
 		const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
 			.SetWarnIfLocked(true)
 			.SetAllowGroups(false)
@@ -454,10 +460,6 @@ void UUnrealEdEngine::SelectGroup(AGroupActor* InGroupActor, bool bForceSelectio
 			if (bNotify)
 			{
 				SelectionSet->NotifyPendingChanges();
-			}
-			else
-			{
-				SelectionSet->ClearPendingChanges();
 			}
 		}
 	}
@@ -497,6 +499,12 @@ void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify,
 
 	if (UTypedElementSelectionSet* SelectionSet = ActorSelection->GetElementSelectionSet())
 	{
+		FTypedElementList::FScopedClearNewPendingChange ClearNewPendingChange;
+		if (!bNotify)
+		{
+			ClearNewPendingChange = SelectionSet->GetScopedClearNewPendingChange();
+		}
+
 		const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
 			.SetAllowHidden(bSelectEvenIfHidden)
 			.SetWarnIfLocked(true)
@@ -511,10 +519,6 @@ void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify,
 			if (bNotify)
 			{
 				SelectionSet->NotifyPendingChanges();
-			}
-			else
-			{
-				SelectionSet->ClearPendingChanges();
 			}
 		}
 		else if (bNotify || bForceRefresh)
@@ -536,6 +540,12 @@ void UUnrealEdEngine::SelectComponent(UActorComponent* Component, bool bInSelect
 
 	if (UTypedElementSelectionSet* SelectionSet = ComponentSelection->GetElementSelectionSet())
 	{
+		FTypedElementList::FScopedClearNewPendingChange ClearNewPendingChange;
+		if (!bNotify)
+		{
+			ClearNewPendingChange = SelectionSet->GetScopedClearNewPendingChange();
+		}
+
 		const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
 			.SetAllowHidden(bSelectEvenIfHidden)
 			.SetWarnIfLocked(true)
@@ -550,10 +560,6 @@ void UUnrealEdEngine::SelectComponent(UActorComponent* Component, bool bInSelect
 			if (bNotify)
 			{
 				SelectionSet->NotifyPendingChanges();
-			}
-			else
-			{
-				SelectionSet->ClearPendingChanges();
 			}
 		}
 	}
@@ -667,8 +673,14 @@ void UUnrealEdEngine::SelectNone(bool bNoteSelectionChange, bool bDeselectBSPSur
 	USelection* ActorSelection = GetSelectedActors();
 	UTypedElementSelectionSet* SelectionSet = ActorSelection->GetElementSelectionSet();
 
+	FTypedElementList::FScopedClearNewPendingChange ClearNewPendingChange;
+
 	if (SelectionSet)
 	{
+		if (!bNoteSelectionChange)
+		{ 
+			ClearNewPendingChange = SelectionSet->GetScopedClearNewPendingChange();
+		}
 		bSelectionChanged |= SelectionSet->ClearSelection(FTypedElementSelectionOptions().SetAllowLegacyNotifications(false));
 	}
 
@@ -686,10 +698,6 @@ void UUnrealEdEngine::SelectNone(bool bNoteSelectionChange, bool bDeselectBSPSur
 			if (bNoteSelectionChange)
 			{
 				SelectionSet->NotifyPendingChanges();
-			}
-			else
-			{
-				SelectionSet->ClearPendingChanges();
 			}
 		}
 	}

@@ -3660,7 +3660,9 @@ void UEditorEngine::PasteSelectedActorsFromClipboard( UWorld* InWorld, const FTe
 
 		const FScopedTransaction Transaction( TransDescription );
 
-		SelectNone( true, false );
+		const bool bNoteSelectionChange = false;
+		const bool bDeselectBSPSurfs = false;
+		SelectNone( bNoteSelectionChange, bDeselectBSPSurfs );
 		ABrush::SetSuppressBSPRegeneration(true);
 		edactPasteSelected( InWorld, false, false, true );
 		ABrush::SetSuppressBSPRegeneration(false);
