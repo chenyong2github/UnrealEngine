@@ -259,7 +259,7 @@ protected:
 	}
 
 
-	const UScriptStruct* ScriptStruct = nullptr; \
+	const UScriptStruct* ScriptStruct = nullptr;
 	const uint8* StructMemory = nullptr;
 };
 
