@@ -697,6 +697,11 @@ void UUserWidget::OnAnimationFinishedPlaying(UUMGSequencePlayer& Player)
 	if ( Player.GetPlaybackStatus() == EMovieScenePlayerStatus::Stopped )
 	{
 		StoppedSequencePlayers.Add(&Player);
+
+		if (AnimationTickManager)
+		{
+			AnimationTickManager->AddLatentAction(FMovieSceneSequenceLatentActionDelegate::CreateUObject(this, &UUserWidget::ClearStoppedSequencePlayers));
+		}
 	}
 
 	UpdateCanTick();
@@ -1458,14 +1463,7 @@ void UUserWidget::TickActionsAndAnimation(float InDeltaTime)
 
 void UUserWidget::PostTickActionsAndAnimation(float InDeltaTime)
 {
-	// The process of ticking the players above can stop them so we remove them after all players have ticked
-	for (UUMGSequencePlayer* StoppedPlayer : StoppedSequencePlayers)
-	{
-		ActiveSequencePlayers.RemoveSwap(StoppedPlayer);
-		StoppedPlayer->TearDown();
-	}
-
-	StoppedSequencePlayers.Empty();
+	ClearStoppedSequencePlayers();
 }
 
 void UUserWidget::FlushAnimations()
@@ -2045,6 +2043,18 @@ UUserWidget* UUserWidget::CreateInstanceInternal(UObject* Outer, TSubclassOf<UUs
 	return NewWidget;
 }
 
+
+void UUserWidget::ClearStoppedSequencePlayers()
+{
+	// after all players have ticked, remove and tear down stopped players
+	for (UUMGSequencePlayer* StoppedPlayer : StoppedSequencePlayers)
+	{
+		ActiveSequencePlayers.RemoveSwap(StoppedPlayer);
+		StoppedPlayer->TearDown();
+	}
+
+	StoppedSequencePlayers.Empty();
+}
 
 void UUserWidget::OnLatentActionsChanged(UObject* ObjectWhichChanged, ELatentActionChangeType ChangeType)
 {
