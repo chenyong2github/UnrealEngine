@@ -9,6 +9,7 @@ UMovieSceneNiagaraSystemSpawnSection::UMovieSceneNiagaraSystemSpawnSection()
 	SectionEvaluateBehavior = ENiagaraSystemSpawnSectionEvaluateBehavior::ActivateIfInactive;
 	SectionEndBehavior = ENiagaraSystemSpawnSectionEndBehavior::SetSystemInactive;
 	AgeUpdateMode = ENiagaraAgeUpdateMode::TickDeltaTime;
+	bAllowScalability = false;
 }
 
 ENiagaraSystemSpawnSectionStartBehavior UMovieSceneNiagaraSystemSpawnSection::GetSectionStartBehavior() const
@@ -31,4 +32,7 @@ ENiagaraAgeUpdateMode UMovieSceneNiagaraSystemSpawnSection::GetAgeUpdateMode() c
 	return AgeUpdateMode;
 }
 
-
+bool UMovieSceneNiagaraSystemSpawnSection::GetAllowScalability()const
+{
+	return bAllowScalability;
+}

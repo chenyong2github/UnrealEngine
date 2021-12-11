@@ -17,6 +17,7 @@ struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 		bool bInComponentRenderingEnabled,
 		TOptional<ENiagaraExecutionState> InSystemInstanceExecutionState,
 		ENiagaraAgeUpdateMode InComponentAgeUpdateMode,
+		bool bInComponentAllowScalability,
 		float InComponentSeekDelta,
 		float InComponentDesiredAge,
 		bool bInComponentLockDesiredAgeDeltaTimeToSeekDelta
@@ -26,6 +27,7 @@ struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 		, bComponentRenderingEnabled(bInComponentRenderingEnabled)
 		, SystemInstanceExecutionState(InSystemInstanceExecutionState)
 		, ComponentAgeUpdateMode(InComponentAgeUpdateMode)
+		, bComponentAllowScalability(bInComponentAllowScalability)
 		, ComponentSeekDelta(InComponentSeekDelta)
 		, ComponentDesiredAge(InComponentDesiredAge)
 		, bComponentLockDesiredAgeDeltaTimeToSeekDelta(bInComponentLockDesiredAgeDeltaTimeToSeekDelta)
@@ -50,8 +52,10 @@ struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 		NiagaraComponent->SetForceSolo(bComponentForceSolo);
 		NiagaraComponent->SetRenderingEnabled(bComponentRenderingEnabled);
 		NiagaraComponent->SetAgeUpdateMode(ComponentAgeUpdateMode);
+		NiagaraComponent->SetAllowScalability(bComponentAllowScalability);
 		NiagaraComponent->SetSeekDelta(ComponentSeekDelta);
 		NiagaraComponent->SetDesiredAge(ComponentDesiredAge);
+		NiagaraComponent->SetAllowScalability(bComponentAllowScalability);
 		NiagaraComponent->SetLockDesiredAgeDeltaTimeToSeekDelta(bComponentLockDesiredAgeDeltaTimeToSeekDelta);
 
 		// TODO: When this action is ACTUALLY deferred, just expose it to the component		
@@ -70,6 +74,7 @@ struct FPreAnimatedNiagaraComponentToken : IMovieScenePreAnimatedToken
 	bool bComponentRenderingEnabled;
 	TOptional<ENiagaraExecutionState> SystemInstanceExecutionState;
 	ENiagaraAgeUpdateMode ComponentAgeUpdateMode;
+	bool bComponentAllowScalability;
 	float ComponentSeekDelta;
 	float ComponentDesiredAge;
 	bool bComponentLockDesiredAgeDeltaTimeToSeekDelta;
@@ -88,6 +93,7 @@ struct FPreAnimatedNiagaraComponentTokenProducer : IMovieScenePreAnimatedTokenPr
 			NiagaraComponent->GetRenderingEnabled(),
 			SystemInstanceController.IsValid() ? SystemInstanceController->GetRequestedExecutionState() : TOptional<ENiagaraExecutionState>(),
 			NiagaraComponent->GetAgeUpdateMode(),
+			NiagaraComponent->GetAllowScalability(),
 			NiagaraComponent->GetSeekDelta(),
 			NiagaraComponent->GetDesiredAge(),
 			NiagaraComponent->GetLockDesiredAgeDeltaTimeToSeekDelta());
@@ -99,13 +105,14 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 	FNiagaraSystemUpdateDesiredAgeExecutionToken(
 		FFrameNumber InSpawnSectionStartFrame, FFrameNumber InSpawnSectionEndFrame,
 		ENiagaraSystemSpawnSectionStartBehavior InSpawnSectionStartBehavior, ENiagaraSystemSpawnSectionEvaluateBehavior InSpawnSectionEvaluateBehavior,
-		ENiagaraSystemSpawnSectionEndBehavior InSpawnSectionEndBehavior, ENiagaraAgeUpdateMode InAgeUpdateMode)
+		ENiagaraSystemSpawnSectionEndBehavior InSpawnSectionEndBehavior, ENiagaraAgeUpdateMode InAgeUpdateMode, bool bInAllowScalability)
 		: SpawnSectionStartFrame(InSpawnSectionStartFrame)
 		, SpawnSectionEndFrame(InSpawnSectionEndFrame)
 		, SpawnSectionStartBehavior(InSpawnSectionStartBehavior)
 		, SpawnSectionEvaluateBehavior(InSpawnSectionEvaluateBehavior)
 		, SpawnSectionEndBehavior(InSpawnSectionEndBehavior)
 		, AgeUpdateMode(InAgeUpdateMode)
+		, bAllowScalability(bInAllowScalability)
 	{}
 
 	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) override
@@ -124,6 +131,7 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 
 			NiagaraComponent->SetForceSolo(true);
 			NiagaraComponent->SetAgeUpdateMode(AgeUpdateMode);
+			NiagaraComponent->SetAllowScalability(bAllowScalability);
 
 			UMovieSceneSequence* MovieSceneSequence = Player.GetEvaluationTemplate().GetSequence(Operand.SequenceID);
 			if (MovieSceneSequence != nullptr)
@@ -235,18 +243,20 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 	ENiagaraSystemSpawnSectionEvaluateBehavior SpawnSectionEvaluateBehavior;
 	ENiagaraSystemSpawnSectionEndBehavior SpawnSectionEndBehavior;
 	ENiagaraAgeUpdateMode AgeUpdateMode;
+	bool bAllowScalability;
 };
 
 FMovieSceneNiagaraSystemTrackImplementation::FMovieSceneNiagaraSystemTrackImplementation(
 	FFrameNumber InSpawnSectionStartFrame, FFrameNumber InSpawnSectionEndFrame,
 	ENiagaraSystemSpawnSectionStartBehavior InSpawnSectionStartBehavior, ENiagaraSystemSpawnSectionEvaluateBehavior InSpawnSectionEvaluateBehavior,
-	ENiagaraSystemSpawnSectionEndBehavior InSpawnSectionEndBehavior, ENiagaraAgeUpdateMode InAgeUpdateMode)
+	ENiagaraSystemSpawnSectionEndBehavior InSpawnSectionEndBehavior, ENiagaraAgeUpdateMode InAgeUpdateMode, bool bInAllowScalability)
 	: SpawnSectionStartFrame(InSpawnSectionStartFrame)
 	, SpawnSectionEndFrame(InSpawnSectionEndFrame)
 	, SpawnSectionStartBehavior(InSpawnSectionStartBehavior)
 	, SpawnSectionEvaluateBehavior(InSpawnSectionEvaluateBehavior)
 	, SpawnSectionEndBehavior(InSpawnSectionEndBehavior)
 	, AgeUpdateMode(InAgeUpdateMode)
+	, bAllowScalability(bInAllowScalability)
 
 {
 }
@@ -258,6 +268,7 @@ FMovieSceneNiagaraSystemTrackImplementation::FMovieSceneNiagaraSystemTrackImplem
 	, SpawnSectionEvaluateBehavior(ENiagaraSystemSpawnSectionEvaluateBehavior::None)
 	, SpawnSectionEndBehavior(ENiagaraSystemSpawnSectionEndBehavior::SetSystemInactive)
 	, AgeUpdateMode(ENiagaraAgeUpdateMode::TickDeltaTime)
+	, bAllowScalability(false)
 {
 }
 
@@ -267,5 +278,5 @@ void FMovieSceneNiagaraSystemTrackImplementation::Evaluate(const FMovieSceneEval
 	ExecutionTokens.Add(FNiagaraSystemUpdateDesiredAgeExecutionToken(
 		SpawnSectionStartFrame, SpawnSectionEndFrame,
 		SpawnSectionStartBehavior, SpawnSectionEvaluateBehavior,
-		SpawnSectionEndBehavior, AgeUpdateMode));
+		SpawnSectionEndBehavior, AgeUpdateMode, bAllowScalability));
 }
