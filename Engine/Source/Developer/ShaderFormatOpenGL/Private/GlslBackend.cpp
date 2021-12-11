@@ -597,6 +597,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 
 	// depthbuffer fetch is in use
 	bool bUsesDepthbufferFetch;
+	bool bHasGeneratedDepthTargetInput;
 
 	// Mask for indicies using FBF
 	uint32 FramebufferFetchMask;
@@ -1247,6 +1248,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 					layout = ralloc_asprintf(nullptr, "layout(location=%d) ", var->location);
 				}
 				
+				const bool bIsDepthTarget = var->name && bUsesDepthbufferFetch && strncmp(var->name, "out_Target1", 11) == 0;
 				const bool bNeedsFBFOutput = (bUsesFrameBufferFetch || bUsesDepthbufferFetch) && var->name && (strncmp(var->name, "out_Target0", 11) == 0);
 				const char* StorageQualifier = bNeedsFBFOutput ? FBF_StorageQualifier : mode_str[var->mode];
 
@@ -1260,6 +1262,11 @@ class ir_gen_glsl_visitor : public ir_visitor
 					patch_constant_str[var->is_patch_constant],
 					StorageQualifier
 					);
+
+				if (bIsDepthTarget)
+				{
+					bHasGeneratedDepthTargetInput = true;
+				}
 
 				if (bUseGlobalUniformBufferWrapper)
 				{
@@ -1347,6 +1354,10 @@ class ir_gen_glsl_visitor : public ir_visitor
 				ralloc_asprintf_append(buffer, "\n#ifdef GL_ARM_shader_framebuffer_fetch_depth_stencil\n");
 				ralloc_asprintf_append(buffer, "  float DepthbufferFetchES2() { return gl_LastFragDepthARM; }\n");
 				ralloc_asprintf_append(buffer, "#elif defined(GL_EXT_shader_framebuffer_fetch)\n");
+				if (!bHasGeneratedDepthTargetInput)
+				{
+					ralloc_asprintf_append(buffer, "  layout(location=1) inout float out_Target1;\n");
+				}
 				ralloc_asprintf_append(buffer, "  float DepthbufferFetchES2() { return out_Target1.r; }\n");
 				ralloc_asprintf_append(buffer, "#else\n");
 				ralloc_asprintf_append(buffer, "  float DepthbufferFetchES2() { return 0.0; }\n");
@@ -3362,6 +3373,7 @@ public:
 		, bDefaultPrecisionIsHalf(bInDefaultPrecisionIsHalf)
 		, bUsesFrameBufferFetch(bInUsesFrameBufferFetch)
 		, bUsesDepthbufferFetch(bInUsesDepthbufferFetch)
+		, bHasGeneratedDepthTargetInput(false)
 		, FramebufferFetchMask(InFramebufferFetchMask)
 		, FramebufferFetchWriteMask(InFramebufferFetchWriteMask)
 		, bUsesExternalTexture(bInUsesExternalTexture)
