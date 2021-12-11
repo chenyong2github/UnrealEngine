@@ -2198,24 +2198,28 @@ void UDynamicMeshSculptTool::IncreaseBrushRadiusAction()
 {	
 	BrushProperties->BrushSize.IncreaseRadius(false);
 	NotifyOfPropertyChangeByTool(BrushProperties);
+	CalculateBrushRadius();
 }
 
 void UDynamicMeshSculptTool::DecreaseBrushRadiusAction()
 {
 	BrushProperties->BrushSize.DecreaseRadius(false);
 	NotifyOfPropertyChangeByTool(BrushProperties);
+	CalculateBrushRadius();
 }
 
 void UDynamicMeshSculptTool::IncreaseBrushRadiusSmallStepAction()
 {
 	BrushProperties->BrushSize.IncreaseRadius(true);
 	NotifyOfPropertyChangeByTool(BrushProperties);
+	CalculateBrushRadius();
 }
 
 void UDynamicMeshSculptTool::DecreaseBrushRadiusSmallStepAction()
 {
 	BrushProperties->BrushSize.DecreaseRadius(true);
 	NotifyOfPropertyChangeByTool(BrushProperties);
+	CalculateBrushRadius();
 }
 
 void UDynamicMeshSculptTool::IncreaseBrushSpeedAction()
