@@ -11,7 +11,6 @@
 #include "Engine/Brush.h"
 #include "GameFramework/Volume.h"
 #include "UObject/Package.h"
-#include "GameFramework/DefaultPhysicsVolume.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
@@ -190,28 +189,27 @@ void AVolume::CheckForErrors()
 {
 	Super::CheckForErrors();
 
-	// The default physics volume can have zero area; it's extents aren't used, only the physics properties
-	if (IsA(ADefaultPhysicsVolume::StaticClass()))
+	// Some volumes do not need a valid collision component; for example:
+	// the default physics volume only uses the physics properties and not the extents - so it will have an area of zero
+	if (ShouldCheckCollisionComponentForErrors())
 	{
-		return;
-	}
-
-	if (GetRootComponent() == NULL)
-	{
-		FMessageLog("MapCheck").Warning()
-			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(LOCTEXT( "MapCheck_Message_VolumeActorCollisionComponentNULL", "Volume actor has NULL collision component - please delete")))
-			->AddToken(FMapErrorToken::Create(FMapErrors::VolumeActorCollisionComponentNULL));
-	}
-	else
-	{
-		if (GetRootComponent()->Bounds.SphereRadius <= SMALL_NUMBER)
+		if (GetRootComponent() == NULL)
 		{
-			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("ActorName"), FText::FromString(GetName()));
 			FMessageLog("MapCheck").Warning()
 				->AddToken(FUObjectToken::Create(this))
-				->AddToken(FTextToken::Create(LOCTEXT( "MapCheck_Message_VolumeActorZeroRadius", "Volume actor has a collision component with 0 radius - please delete")));
+				->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_VolumeActorCollisionComponentNULL", "Volume actor has NULL collision component - please delete")))
+				->AddToken(FMapErrorToken::Create(FMapErrors::VolumeActorCollisionComponentNULL));
+		}
+		else
+		{
+			if (GetRootComponent()->Bounds.SphereRadius <= SMALL_NUMBER)
+			{
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("ActorName"), FText::FromString(GetName()));
+				FMessageLog("MapCheck").Warning()
+					->AddToken(FUObjectToken::Create(this))
+					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_VolumeActorZeroRadius", "Volume actor has a collision component with 0 radius - please delete")));
+			}
 		}
 	}
 }
