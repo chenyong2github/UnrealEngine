@@ -11,6 +11,11 @@
 #include "MLOperatorAuthorImpl.h"
 #include "core/providers/dml/OperatorAuthorHelper/MLOperatorAuthorPrivate.h"
 
+#include "ThirdPartyWarningDisabler.h"
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
+
 using namespace Microsoft::WRL;
 
 namespace Windows::AI::MachineLearning::Adapter
@@ -2072,3 +2077,5 @@ std::tuple<std::unique_ptr<std::byte[]>, size_t> UnpackTensor(const onnx::Tensor
   return std::make_tuple(std::move(unpackedTensor), tensorByteSize);
 }
 }  // namespace winrt::Windows::AI::MachineLearning::implementation
+
+NNI_THIRD_PARTY_INCLUDES_END
