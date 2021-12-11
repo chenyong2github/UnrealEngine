@@ -20,6 +20,7 @@
 #include "LegacyScreenPercentageDriver.h"
 #include "CanvasTypes.h"
 #include "EngineModule.h"
+#include "SceneViewExtension.h"
 
 namespace TrackEditorThumbnailConstants
 {
@@ -461,6 +462,13 @@ void FTrackEditorThumbnailCache::DrawViewportThumbnail(FTrackEditorThumbnail& Tr
 
 	FCanvas Canvas(TrackEditorThumbnail.GetRenderTarget(), nullptr, FGameTime::GetTimeSinceAppStart(), World->Scene->GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Transparent);
+
+	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(World->Scene));
+	for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
+	{
+		Extension->SetupViewFamily(ViewFamily);
+		Extension->SetupView(ViewFamily, *NewView);
+	}
 
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
 }
