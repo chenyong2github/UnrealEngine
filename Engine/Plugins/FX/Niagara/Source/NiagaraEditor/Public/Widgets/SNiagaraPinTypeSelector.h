@@ -33,7 +33,7 @@ private:
 	TSharedPtr<SComboButton> SelectorButton;
 };
 
-class SNiagaraIconWidget : public SGraphPaletteItem
+class NIAGARAEDITOR_API SNiagaraIconWidget : public SGraphPaletteItem
 {
 public:
 
