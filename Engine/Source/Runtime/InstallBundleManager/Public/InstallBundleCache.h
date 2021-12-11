@@ -80,7 +80,7 @@ public:
 	// Hint to the cache that this bundle is requested, and we should prefer to evict non-requested bundles if possible
 	void HintRequested(FName BundleName, bool bRequested);
 
-	FInstallBundleCacheStats GetStats(bool bDumpToLog = false) const;
+	FInstallBundleCacheStats GetStats(bool bDumpToLog = false, bool bVerbose = false) const;
 
 private:
 	uint64 GetFreeSpaceInternal(uint64 UsedSize) const;
@@ -133,11 +133,31 @@ private:
 		}
 	};
 
+	struct FCacheSortPredicate
+	{
+		bool operator()(const FBundleCacheInfo& A, const FBundleCacheInfo& B) const
+		{
+			if (A.IsHintRequested() == B.IsHintRequested())
+			{
+				FTimespan AgeA = (Now > A.TimeStamp) ? Now - A.TimeStamp : FTimespan(0);
+				FTimespan AgeB = (Now > B.TimeStamp) ? Now - B.TimeStamp : FTimespan(0);
+
+				return AgeA * A.AgeScalar > AgeB * B.AgeScalar;
+			}
+
+			return !A.IsHintRequested() && B.IsHintRequested();
+		};
+
+	private:
+		FDateTime Now = FDateTime::UtcNow();
+	};
+
 private:
 
 	TMap<FName, TMap<EInstallBundleSourceType, FPerSourceBundleCacheInfo>> PerSourceCacheInfo;
 
-	TMap<FName, FBundleCacheInfo> CacheInfo;
+	// mutable to allow sorting in const contexts
+	mutable TMap<FName, FBundleCacheInfo> CacheInfo;
 
 	uint64 TotalSize = 0;
 
