@@ -1870,6 +1870,86 @@ namespace EpicGames.Perforce
 
 		#endregion
 
+		#region p4 files
+
+		/// <summary>
+		/// Execute the 'files' command
+		/// </summary>
+		/// <param name="Connection">Connection to the Perforce server</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of response objects</returns>
+		public static async Task<List<FilesRecord>> FilesAsync(this IPerforceConnection Connection, FilesOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		{
+			return (await TryFilesAsync(Connection, Options, -1, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'files' command
+		/// </summary>
+		/// <param name="Connection">Connection to the Perforce server</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of response objects</returns>
+		public static Task<PerforceResponseList<FilesRecord>> TryFilesAsync(this IPerforceConnection Connection, FilesOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		{
+			return TryFilesAsync(Connection, Options, -1, FileSpecs, CancellationToken);
+		}
+
+		/// <summary>
+		/// Execute the 'files' command
+		/// </summary>
+		/// <param name="Connection">Connection to the Perforce server</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="MaxFiles">Maximum number of results to return. Ignored if less than or equal to zero.</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of response objects</returns>
+		public static async Task<List<FilesRecord>> FilesAsync(this IPerforceConnection Connection, FilesOptions Options, int MaxFiles, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		{
+			return (await TryFilesAsync(Connection, Options, MaxFiles, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'files' command
+		/// </summary>
+		/// <param name="Connection">Connection to the Perforce server</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="MaxFiles">Maximum number of results to return. Ignored if less than or equal to zero.</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of response objects</returns>
+		public static Task<PerforceResponseList<FilesRecord>> TryFilesAsync(this IPerforceConnection Connection, FilesOptions Options, int MaxFiles, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		{
+			List<string> Arguments = new List<string>();
+			if ((Options & FilesOptions.AllRevisions) != 0)
+			{
+				Arguments.Add("-a");
+			}
+			if ((Options & FilesOptions.LimitToArchiveDepots) != 0)
+			{
+				Arguments.Add("-A");
+			}
+			if ((Options & FilesOptions.ExcludeDeleted) != 0)
+			{
+				Arguments.Add("-e");
+			}
+			if ((Options & FilesOptions.IgnoreCase) != 0)
+			{
+				Arguments.Add("-i");
+			}
+			if (MaxFiles > 0)
+			{
+				Arguments.Add($"-m{MaxFiles}");
+			}
+
+			return BatchedCommandAsync<FilesRecord>(Connection, "files", Arguments, FileSpecs.List, null, CancellationToken);
+		}
+
+		#endregion
+
 		#region p4 fstat
 
 		/// <summary>
