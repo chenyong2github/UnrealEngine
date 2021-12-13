@@ -858,11 +858,9 @@ void FPakFileDerivedDataBackend::GetCacheContent(
 	FPayload& InOutPayload,
 	EStatus& InOutStatus)
 {
-	const FIoHash& RawHash = InOutPayload.GetRawHash();
-
 	if (!EnumHasAnyFlags(Policy, ECachePolicy::Query) || (EnumHasAnyFlags(Policy, SkipFlag) && InOutPayload.HasData()))
 	{
-		InOutPayload = FPayload(InOutPayload.GetId(), RawHash, InOutPayload.GetRawSize());
+		InOutPayload = InOutPayload.RemoveData();
 		return;
 	}
 
@@ -870,6 +868,8 @@ void FPakFileDerivedDataBackend::GetCacheContent(
 	{
 		return;
 	}
+
+	const FIoHash& RawHash = InOutPayload.GetRawHash();
 
 	TStringBuilder<256> Path;
 	FPathViews::Append(Path, TEXT("Content"), RawHash);

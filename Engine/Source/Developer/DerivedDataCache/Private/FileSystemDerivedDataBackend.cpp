@@ -1996,19 +1996,12 @@ FPayload FFileSystemCacheStore::GetCacheContent(
 {
 	if (!EnumHasAnyFlags(Policy, ECachePolicy::Query))
 	{
-		return FPayload(Payload.GetId(), Payload.GetRawHash(), Payload.GetRawSize());
+		return Payload.RemoveData();
 	}
 
 	if (Payload.HasData())
 	{
-		if (EnumHasAnyFlags(Policy, SkipFlag))
-		{
-			return FPayload(Payload.GetId(), Payload.GetRawHash(), Payload.GetRawSize());
-		}
-		else
-		{
-			return Payload;
-		}
+		return EnumHasAnyFlags(Policy, SkipFlag) ? Payload.RemoveData() : Payload;
 	}
 
 	const FIoHash& RawHash = Payload.GetRawHash();
