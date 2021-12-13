@@ -130,9 +130,9 @@ struct FPropertyAccessIndirection
 private:
 	friend struct ::FPropertyAccessSystem;
 
-	// Array property if this is an array indirection
+	// Property of this indirection. Used for arrays and functions (holds the return value property for functions)
 	UPROPERTY()
-	TFieldPath<FArrayProperty> ArrayProperty;
+	TFieldPath<FProperty> Property;
 
 	// Function if this is a script of native function indirection
 	UPROPERTY()
