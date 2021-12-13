@@ -272,6 +272,20 @@ void UBakeMeshAttributeVertexTool::Setup()
 
 	// Setup tool property sets
 
+	Settings = NewObject<UBakeMeshAttributeVertexToolProperties>(this);
+	Settings->RestoreProperties(this);
+	AddToolPropertySource(Settings);
+
+	Settings->WatchProperty(Settings->OutputMode, [this](EBakeVertexOutput) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputType, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeR, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeG, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeB, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeA, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->PreviewMode, [this](EBakeVertexChannel) { UpdateVisualization(); });
+	Settings->WatchProperty(Settings->bSplitAtNormalSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->bSplitAtUVSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
+
 	InputMeshSettings = NewObject<UBakeInputMeshProperties>(this);
 	InputMeshSettings->RestoreProperties(this);
 	AddToolPropertySource(InputMeshSettings);
@@ -287,20 +301,6 @@ void UBakeMeshAttributeVertexTool::Setup()
 	InputMeshSettings->SourceNormalMap = nullptr;
 	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
 	InputMeshSettings->WatchProperty(InputMeshSettings->bProjectionInWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });
-	
-	Settings = NewObject<UBakeMeshAttributeVertexToolProperties>(this);
-	Settings->RestoreProperties(this);
-	AddToolPropertySource(Settings);
-
-	Settings->WatchProperty(Settings->OutputMode, [this](EBakeVertexOutput) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputType, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputTypeR, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputTypeG, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputTypeB, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputTypeA, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->PreviewMode, [this](EBakeVertexChannel) { UpdateVisualization(); });
-	Settings->WatchProperty(Settings->bSplitAtNormalSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
-	Settings->WatchProperty(Settings->bSplitAtUVSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
 
 	OcclusionSettings = NewObject<UBakeOcclusionMapToolProperties>(this);
 	OcclusionSettings->RestoreProperties(this);
@@ -649,12 +649,14 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 	const FImageDimensions Dimensions(NumColorElements, 1);
 	if (CachedBakeSettings.OutputMode == EBakeVertexOutput::RGBA)
 	{
-		switch(BakeSettings.OutputType)
+		switch(CachedBakeSettings.OutputType)
 		{
 		case EBakeMapType::TangentSpaceNormal:
 			OpState |= UpdateResult_Normal(Dimensions);
 			break;
 		case EBakeMapType::AmbientOcclusion:
+			OpState |= UpdateResult_Occlusion(Dimensions);
+			break;
 		case EBakeMapType::BentNormal:
 			OpState |= UpdateResult_Occlusion(Dimensions);
 			break;
@@ -676,6 +678,8 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 		default:
 			break;
 		}
+
+		OpState |= UpdateResult_TargetMeshTangents(CachedBakeSettings.OutputType);
 	}
 	else // CachedBakeSettings.VertexMode == EBakeVertexOutput::PerChannel
 	{

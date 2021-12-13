@@ -23,6 +23,42 @@ FDynamicMeshTangents::FDynamicMeshTangents(const FDynamicMesh3* MeshIn)
 }
 
 
+bool FDynamicMeshTangents::HasValidTangents(const bool bCheckValues /*=false*/) const
+{
+	if (!Mesh || !Tangents || !Bitangents)
+	{
+		return false;
+	}
+
+	if (!bCheckValues)
+	{
+		// If not checking values, then we are done. Overlays are valid. 
+		return true;
+	}
+
+	for (const int TriId : Mesh->TriangleIndicesItr())
+	{
+		if (!Tangents->IsSetTriangle(TriId))
+		{
+			return false;
+		}
+		
+		for (int TriVtxId = 0; TriVtxId < 2; ++TriVtxId)
+		{
+			FVector3f T, B;
+			Tangents->GetTriElement(TriId, TriVtxId, T);
+			Bitangents->GetTriElement(TriId, TriVtxId, B);
+			if (T.IsNearlyZero() || T.ContainsNaN() || B.IsNearlyZero() || B.ContainsNaN())
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+
+
 void FDynamicMeshTangents::GetTangentFrame(int32 TriangleID, int32 TriVertexIndex, FVector3f& Normal, FVector3f& Tangent, FVector3f& Bitangent) const
 {
 	if (Normals && Normals->IsSetTriangle(TriangleID))
