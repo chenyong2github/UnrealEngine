@@ -2014,6 +2014,29 @@ void FAnimBlueprintCompilerContext::ProcessFoldedPropertyRecords()
 
 	BuildAnimNodeData(ConstantPropertyRecords, NumConstantProperties);
 	BuildAnimNodeData(MutablePropertyRecords, NumMutableProperties);
+
+	const int32 NumNodes = AllocatedAnimNodeIndices.Num();
+	
+	// Patch anim node data flags
+	for(const TPair<UAnimGraphNode_Base*, int32>& GraphNodeIndexPair : AllocatedAnimNodeIndices)
+	{
+		UAnimGraphNode_Base* AnimGraphNode = GraphNodeIndexPair.Key;
+		const int32 NodeIndex = NumNodes - 1 - GraphNodeIndexPair.Value;
+		FAnimNodeData& NodeData = NewAnimBlueprintClass->AnimNodeData[NodeIndex];
+		UClass* ClassToUse = AnimGraphNode->GetBlueprintClassFromNode();
+		if(AnimGraphNode->InitialUpdateFunction.ResolveMember<UFunction>(ClassToUse))
+		{
+			NodeData.SetNodeFlags(EAnimNodeDataFlags::HasInitialUpdateFunction);
+		}
+		if(AnimGraphNode->UpdateFunction.ResolveMember<UFunction>(ClassToUse))
+		{
+			NodeData.SetNodeFlags(EAnimNodeDataFlags::HasUpdateFunction);
+		}
+		if(AnimGraphNode->BecomeRelevantFunction.ResolveMember<UFunction>(ClassToUse))
+		{
+			NodeData.SetNodeFlags(EAnimNodeDataFlags::HasBecomeRelevantFunction);
+		}
+	}
 }
 
 bool FAnimBlueprintCompilerContext::IsAnimGraphNodeFolded(UAnimGraphNode_Base* InNode) const

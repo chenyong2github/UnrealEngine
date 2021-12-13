@@ -66,6 +66,25 @@ private:
 
 } }	// namespace UE::Anim
 
+// The flags field of FAnimNodeData
+// Primarily this is used to prevent the extra work asscicated with recovering folded properties for anim node functions
+UENUM()
+enum class EAnimNodeDataFlags : uint32
+{
+	None						= 0x00000000,
+	
+	// This node binds its initial update function
+	HasInitialUpdateFunction	= 0x00000001,
+
+	// This node binds its become relevant function
+	HasBecomeRelevantFunction	= 0x00000002,
+
+	// This node binds its update function
+	HasUpdateFunction			= 0x00000004,
+};
+
+ENUM_CLASS_FLAGS(EAnimNodeDataFlags);
+
 // Any constant/folded class data an anim node can be accessed via this struct
 USTRUCT(BlueprintInternalUseOnly)
 struct ENGINE_API FAnimNodeData
@@ -99,10 +118,16 @@ public:
 	/** Get the node index for this constant data block. */
 	int32 GetNodeIndex() const { return NodeIndex; }
 
+	/** Check whether the node has the specified flags */
+	bool HasNodeAnyFlags(EAnimNodeDataFlags InFlags) const { return EnumHasAnyFlags<EAnimNodeDataFlags>(Flags, InFlags); }
+	
 private:
 	friend class FAnimBlueprintCompilerContext;
 	friend struct UE::Anim::FNodeDataId;
 
+	/** Set whether the node has the specified flags */
+	void SetNodeFlags(EAnimNodeDataFlags InFlags) { return EnumAddFlags<EAnimNodeDataFlags>(Flags, InFlags); }
+	
 	/** The class we are part of */
 	UPROPERTY()
 	TScriptInterface<IAnimClassInterface> AnimClassInterface = nullptr;
@@ -120,6 +145,10 @@ private:
 	 */
 	UPROPERTY()
 	int32 NodeIndex = INDEX_NONE;
+
+	/** Common flags for this node */
+	UPROPERTY()
+	EAnimNodeDataFlags Flags = EAnimNodeDataFlags::None;
 };
 
 /**

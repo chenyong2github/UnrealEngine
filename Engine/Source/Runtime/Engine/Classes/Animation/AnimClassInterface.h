@@ -22,6 +22,7 @@ struct FAnimBlueprintConstantData;
 struct FAnimBlueprintMutableData;
 struct FAnimNode_Base;
 struct FAnimNodeData;
+enum class EAnimNodeDataFlags : uint32;
 namespace UE { namespace Anim { struct FNodeDataId; } }
 
 /** Describes the input and output of an anim blueprint 'function' */
@@ -227,7 +228,10 @@ public:
 		check(Subsystem);
 		return static_cast<const SubsystemType&>(*Subsystem);
 	}
-	
+
+	// Check whether a node at the specified index has the specified flags
+	static bool HasNodeAnyFlags(IAnimClassInterface* InAnimClassInterface, int32 InNodeIndex, EAnimNodeDataFlags InNodeDataFlags);
+
 protected:
 	// These direct accessors are here to allow internal access that doesnt redirect to the root class
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines_Direct() const = 0;
@@ -297,6 +301,21 @@ public:
 
 	// Get the object ptr given an anim node
 	static const UObject* GetObjectPtrFromAnimNode(const IAnimClassInterface* InAnimClassInterface, const FAnimNode_Base* InNode);
+
+	// Get an anim node of the specified type given the object & node index
+	// Asserts if InObject is nullptr
+	// @return nullptr if the node index was out of bounds or the incorrect type
+	static const FAnimNode_Base* GetAnimNodeFromObjectPtr(const UObject* InObject, int32 InNodeIndex, UScriptStruct* InNodeType);
+
+	// Get an anim node of the specified type given the object & node index
+	// Asserts if InObject is nullptr, the node index is out of bounds or the node is the incorrect type
+	template<typename NodeType>
+	static const NodeType& GetAnimNodeFromObjectPtrChecked(const UObject* InObject, int32 InNodeIndex)
+	{
+		const FAnimNode_Base* NodePtr = GetAnimNodeFromObjectPtr(InObject, InNodeIndex, NodeType::StaticStruct());
+		check(NodePtr);
+		return static_cast<NodeType&>(*NodePtr);
+	}
 	
 	UE_DEPRECATED(4.23, "Please use GetAnimBlueprintFunctions()")
 	virtual int32 GetRootAnimNodeIndex() const { return INDEX_NONE; }

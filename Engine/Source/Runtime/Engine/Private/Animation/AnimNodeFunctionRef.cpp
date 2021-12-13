@@ -97,7 +97,7 @@ static void CallFunctionHelper(const FAnimNodeFunctionRef& InFunction, ContextTy
 
 void FNodeFunctionCaller::InitialUpdate(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
 {
-	if(InNode.NodeData != nullptr)
+	if(InNode.NodeData != nullptr && InNode.NodeData->HasNodeAnyFlags(EAnimNodeDataFlags::HasInitialUpdateFunction))
 	{
 		const FAnimNodeFunctionRef& Function = InNode.GetInitialUpdateFunction();
 		if(Function.IsValid())
@@ -114,7 +114,7 @@ void FNodeFunctionCaller::InitialUpdate(const FAnimationUpdateContext& InContext
 	
 void FNodeFunctionCaller::BecomeRelevant(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
 {
-	if(InNode.NodeData != nullptr)
+	if(InNode.NodeData != nullptr && InNode.NodeData->HasNodeAnyFlags(EAnimNodeDataFlags::HasBecomeRelevantFunction))
 	{
 		const FAnimNodeFunctionRef& Function = InNode.GetBecomeRelevantFunction();
 		if(Function.IsValid())
@@ -131,7 +131,7 @@ void FNodeFunctionCaller::BecomeRelevant(const FAnimationUpdateContext& InContex
 	
 void FNodeFunctionCaller::Update(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
 {
-	if(InNode.NodeData != nullptr)
+	if(InNode.NodeData != nullptr && InNode.NodeData->HasNodeAnyFlags(EAnimNodeDataFlags::HasUpdateFunction))
 	{
 		CallFunctionHelper<FAnimUpdateContext>(InNode.GetUpdateFunction(), InContext, InNode);
 	}
