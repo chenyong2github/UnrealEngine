@@ -167,7 +167,7 @@ public:
 	 * @return The property handle for exposed property.
 	 */
 	TSharedPtr<IRemoteControlPropertyHandle> GetPropertyHandle() const;
-	
+
 	/**
 	 * Enable the edit condition for the underlying property on the owner objects.
 	 */

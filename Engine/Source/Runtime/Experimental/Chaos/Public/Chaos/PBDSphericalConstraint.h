@@ -132,33 +132,33 @@ namespace Chaos
 
 			if (bEnabled)
 			{
-			if (bUseLegacyBackstop)
-			{
-				// SphereOffsetDistances includes the sphere radius
-				// This is harder to author, and does not follow the NvCloth specs.
-				// However, this is how it's been done in the Unreal Engine PhysX cloth implementation.
-				if (bRealTypeCompatibleWithISPC && bChaos_Spherical_ISPC_Enabled)
+				if (bUseLegacyBackstop)
 				{
-					ApplyLegacyHelperISPC(Particles, Dt);
+					// SphereOffsetDistances includes the sphere radius
+					// This is harder to author, and does not follow the NvCloth specs.
+					// However, this is how it's been done in the Unreal Engine PhysX cloth implementation.
+					if (bRealTypeCompatibleWithISPC && bChaos_Spherical_ISPC_Enabled)
+					{
+						ApplyLegacyHelperISPC(Particles, Dt);
+					}
+					else
+					{
+						ApplyLegacyHelper(Particles, Dt);
+					}
 				}
 				else
 				{
-					ApplyLegacyHelper(Particles, Dt);
+					// SphereOffsetDistances doesn't include the sphere radius
+					if (bRealTypeCompatibleWithISPC && bChaos_Spherical_ISPC_Enabled)
+					{
+						ApplyHelperISPC(Particles, Dt);
+					}
+					else
+					{
+						ApplyHelper(Particles, Dt);
+					}
 				}
 			}
-			else
-			{
-				// SphereOffsetDistances doesn't include the sphere radius
-				if (bRealTypeCompatibleWithISPC && bChaos_Spherical_ISPC_Enabled)
-				{
-					ApplyHelperISPC(Particles, Dt);
-				}
-				else
-				{
-					ApplyHelper(Particles, Dt);
-				}
-			}
-		}
 		}
 
 		void SetSphereRadiiMultiplier(const FReal InSphereRadiiMultiplier)

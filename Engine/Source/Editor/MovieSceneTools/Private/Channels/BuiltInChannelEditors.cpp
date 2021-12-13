@@ -134,7 +134,7 @@ FKeyHandle AddOrUpdateKeyImpl(ChannelType* Channel, UMovieSceneSection* SectionT
 			}
 			else
 			{
-			Interrogator.ImportTrack(TrackToKey, FInterrogationChannel::Default());
+				Interrogator.ImportTrack(TrackToKey, FInterrogationChannel::Default());
 			}
 
 			// Interrogate!

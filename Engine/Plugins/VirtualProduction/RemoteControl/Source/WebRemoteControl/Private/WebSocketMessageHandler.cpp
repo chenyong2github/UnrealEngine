@@ -360,9 +360,9 @@ void FWebSocketMessageHandler::HandleWebSocketPresetUnregister(const FRemoteCont
 	{
 		if (TArray<FGuid>* RegisteredClients = WebSocketNotificationMap.Find(Preset->GetPresetId()))
 		{
-		RegisteredClients->Remove(WebSocketMessage.ClientId);
+			RegisteredClients->Remove(WebSocketMessage.ClientId);
+		}
 	}
-}
 }
 
 void FWebSocketMessageHandler::ProcessChangedProperties()
@@ -473,14 +473,14 @@ void FWebSocketMessageHandler::OnPresetExposedPropertiesModified(URemoteControlP
 			// that a client deliberatly wishes to ignore.
 			if (!PropertiesManuallyNotifiedThisFrame.Contains(ModifiedPropertyId))
 			{
-		for (const FGuid& Client : *SubscribedClients)
-		{
+				for (const FGuid& Client : *SubscribedClients)
+				{
 					if (Client != ActingClientId || !ClientConfigMap.FindChecked(Client).bIgnoreRemoteChanges)
-			{
-				EventsForClient.FindOrAdd(Client).Append(ModifiedPropertyIds);
+					{
+						EventsForClient.FindOrAdd(Client).Append(ModifiedPropertyIds);
+					}
+				}
 			}
-		}
-	}
 			else
 			{
 				// Remove the property after encountering it here since we can't remove it on end frame

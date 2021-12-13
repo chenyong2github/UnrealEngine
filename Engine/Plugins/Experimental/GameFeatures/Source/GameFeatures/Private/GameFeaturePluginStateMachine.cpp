@@ -972,14 +972,14 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 					return;
 				}
 
-					FAssetRegistryState PluginAssetRegistryState;
-					FMemoryReader Ar(SerializedAssetData);
-					PluginAssetRegistryState.Load(Ar);
+				FAssetRegistryState PluginAssetRegistryState;
+				FMemoryReader Ar(SerializedAssetData);
+				PluginAssetRegistryState.Load(Ar);
 
-					IAssetRegistry& AssetRegistry = UAssetManager::Get().GetAssetRegistry();
-					AssetRegistry.AppendState(PluginAssetRegistryState);
-				}
+				IAssetRegistry& AssetRegistry = UAssetManager::Get().GetAssetRegistry();
+				AssetRegistry.AppendState(PluginAssetRegistryState);
 			}
+		}
 
 		StateStatus.SetTransition(EGameFeaturePluginState::WaitingForDependencies);
 	}

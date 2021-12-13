@@ -378,19 +378,19 @@ bool D3D12RHI::FD3DGPUProfiler::CheckGpuHeartbeat() const
 					{
 						GFSDK_Aftermath_ContextData& ContextData = ContextDataOut[ContextIdx];
 						uint32 NumMarkers = ContextData.markerSize / sizeof(uint32);
-							uint32* Data = (uint32*)ContextData.markerData;
+						uint32* Data = (uint32*)ContextData.markerData;
 
 						const TCHAR* StatusNames[] = { TEXT("NotStarted"), TEXT("Executing"), TEXT("Finished"), TEXT("Invalid") };
 						const TCHAR* ContextStatusName = ContextData.status < UE_ARRAY_COUNT(StatusNames) ? StatusNames[ContextData.status] : TEXT("UNKNOWN");
 						UE_LOG(LogRHI, Error, TEXT("[Aftermath] Context %d, command list %016llX, status %s, %u markers. Begin GPU Stack Dump"), ContextIdx, AftermathCommandLists[ContextIdx], ContextStatusName, NumMarkers);
 						for (uint32 MarkerIdx = 0; MarkerIdx < NumMarkers; ++MarkerIdx)
-							{
+						{
 							const FString* MarkerName = CachedEventStrings.Find(Data[MarkerIdx]);
 							UE_LOG(LogRHI, Error, TEXT("[Aftermath] %d: %s"), MarkerIdx, MarkerName ? *(*MarkerName) : TEXT("NULL"));
-								}
-								UE_LOG(LogRHI, Error, TEXT("[Aftermath] End GPU Stack Dump"));
-							}
 						}
+						UE_LOG(LogRHI, Error, TEXT("[Aftermath] End GPU Stack Dump"));
+					}
+				}
 				else
 				{
 					UE_LOG(LogRHI, Error, TEXT("[Aftermath] Failed to get Aftermath stack data"));

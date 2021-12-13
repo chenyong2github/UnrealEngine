@@ -427,7 +427,7 @@ FNiagaraRenderer* UNiagaraComponentRendererProperties::CreateEmitterRenderer(ERH
 {
 	if (IsSetterMappingDirty.exchange(false))
 	{
-	UpdateSetterFunctions();
+		UpdateSetterFunctions();
 	}
 	EmitterPtr = Emitter->GetCachedEmitter();
 

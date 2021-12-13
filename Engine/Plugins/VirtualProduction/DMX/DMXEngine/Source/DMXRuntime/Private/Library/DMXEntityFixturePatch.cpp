@@ -806,7 +806,7 @@ bool UDMXEntityFixturePatch::SendMatrixCellValue(const FIntPoint& CellCoordinate
 					}
 
 					return true;
-}
+				}
 
 				AttributeOffset += CellAttribute.GetNumChannels();
 			}
@@ -1062,8 +1062,8 @@ bool UDMXEntityFixturePatch::GetAllMatrixCells(TArray<FDMXCell>& Cells)
 		
 		for (int32 CellIndexY = 0; CellIndexY < NumYCells; CellIndexY++)
 		{
-		for (int32 CellIndexX = 0; CellIndexX < NumXCells; CellIndexX++)
-		{
+			for (int32 CellIndexX = 0; CellIndexX < NumXCells; CellIndexX++)
+			{
 				FIntPoint CellCoordinate;
 				CellCoordinate.X = CellIndexX;
 				CellCoordinate.Y = CellIndexY;

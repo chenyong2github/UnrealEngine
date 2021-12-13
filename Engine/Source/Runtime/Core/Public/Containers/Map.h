@@ -1252,7 +1252,7 @@ public:
 		Super::Pairs.Remove(PairId);
 		return true;
 	}
-	
+
 	/**
 	 * Find a pair with the specified key, removes it from the map, and returns the value part of the pair.
 	 *

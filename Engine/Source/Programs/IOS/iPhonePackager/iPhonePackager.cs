@@ -1047,7 +1047,7 @@ namespace iPhonePackager
 						MobileProvision.CleanMobileProvisions();
 						break;
 
-                    default:
+					default:
                         // Commands by themself default to packaging for the device
                         if (CheckArguments())
                         {

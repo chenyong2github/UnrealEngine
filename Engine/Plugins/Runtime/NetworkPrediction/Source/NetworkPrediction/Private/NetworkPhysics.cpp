@@ -890,7 +890,7 @@ void UNetworkPhysicsManager::PostNetRecv()
 						{
 							CalculatedLOD = FMath::Max(CalculatedLOD, 1);
 						}
-					
+
 						if (PhysicsState->LocalLOD != CalculatedLOD)
 						{
 							PhysicsState->LocalLOD = CalculatedLOD;

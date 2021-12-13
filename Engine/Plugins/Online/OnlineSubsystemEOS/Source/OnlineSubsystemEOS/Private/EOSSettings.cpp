@@ -157,7 +157,7 @@ const FEOSSettings& UEOSSettings::ManualGetSettings()
 		GConfig->GetBool(INI_SECTION, TEXT("bMirrorStatsToEOS"), CachedSettings->bMirrorStatsToEOS, GEngineIni);
 		GConfig->GetBool(INI_SECTION, TEXT("bMirrorAchievementsToEOS"), CachedSettings->bMirrorAchievementsToEOS, GEngineIni);
 		GConfig->GetBool(INI_SECTION, TEXT("bMirrorPresenceToEAS"), CachedSettings->bMirrorPresenceToEAS, GEngineIni);
-	// Artifacts explicitly skipped
+		// Artifacts explicitly skipped
 		GConfig->GetArray(INI_SECTION, TEXT("TitleStorageTags"), CachedSettings->TitleStorageTags, GEngineIni);
 	}
 
@@ -212,14 +212,14 @@ bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEO
 	{
 		CachedArtifactSettings.Emplace();
 
-	TArray<FString> Artifacts;
-	GConfig->GetArray(INI_SECTION, TEXT("Artifacts"), Artifacts, GEngineIni);
-	for (const FString& Line : Artifacts)
-	{
-		FEOSArtifactSettings Artifact;
-		Artifact.ParseRawArrayEntry(Line);
+		TArray<FString> Artifacts;
+		GConfig->GetArray(INI_SECTION, TEXT("Artifacts"), Artifacts, GEngineIni);
+		for (const FString& Line : Artifacts)
+		{
+			FEOSArtifactSettings Artifact;
+			Artifact.ParseRawArrayEntry(Line);
 			CachedArtifactSettings->Add(Artifact);
-	}
+		}
 	}
 
 	FString ArtifactNameOverride;

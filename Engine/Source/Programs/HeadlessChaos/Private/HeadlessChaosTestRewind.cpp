@@ -182,9 +182,9 @@ namespace ChaosTest {
 		}
 
 		virtual int32 TriggerRewindIfNeeded_Internal(int32 PhysStep) override
-		{
+			{
 			return bRewound ? INDEX_NONE : TriggerRewindFunc(PhysStep);
-			}
+		}
 
 		virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
 		{
@@ -476,9 +476,9 @@ namespace ChaosTest {
 							{
 								EXPECT_NEAR(OldV, -Time, 1e-2);
 							}
-							else if(Time <= 4)	//we set velocity at time = 4, so rewind data will not see it until frame 5
+						else if (Time <= 4)	//we set velocity at time = 4, so rewind data will not see it until frame 5
 							{
-								if(SimDt > 2)	//if SimDt is this large, the reset of zero at time 2 is swallowed by first step so we don't really know about it
+							if (SimDt > 2)	//if SimDt is this large, the reset of zero at time 2 is swallowed by first step so we don't really know about it
 								{
 									EXPECT_NEAR(OldV, -Time, 1e-2);
 								}
@@ -728,7 +728,7 @@ namespace ChaosTest {
 
 					if (bHasResimmed)
 						{
-							
+
 
 							if (Proxy->GetPhysicsThreadAPI()->V()[2] == 1)
 							{
@@ -1136,10 +1136,10 @@ namespace ChaosTest {
 					{
 						if (bIsResimming)
 						{
-							if (PhysicsStep >= ResimStartFrame+2)
+						if (PhysicsStep >= ResimStartFrame + 2)
 							{
 								Proxy->GetPhysicsThreadAPI()->SetObjectState(EObjectStateType::Sleeping, false, false);
-								ExpectedSleepFrame = ResimStartFrame+3;
+							ExpectedSleepFrame = ResimStartFrame + 3;
 							}
 							else
 							{
@@ -1158,9 +1158,9 @@ namespace ChaosTest {
 							}
 							else
 							{
-								EXPECT_EQ(OldState, EObjectStateType::Dynamic);								
-							}
+							EXPECT_EQ(OldState, EObjectStateType::Dynamic);
 						}
+					}
 				};
 
 				auto& Particle = Proxy->GetGameThreadAPI();
@@ -1491,10 +1491,10 @@ namespace ChaosTest {
 								EXPECT_EQ(PostPushState.Acceleration()[2], 1);	//GT always sets force of 1
 								EXPECT_EQ(PostPushState.AngularAcceleration()[2], 0);	//GT never sets torque
 							}
-							
-						}
-				};
 
+					}
+				};
+				
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Particle.SetGravityEnabled(false);
 
@@ -2399,7 +2399,7 @@ namespace ChaosTest {
 
 			InitSolverSettings(Solver);
 
-			Solver->EnableRewindCapture(5 , !!Optimization);
+			Solver->EnableRewindCapture(5, !!Optimization);
 
 			// Make particles
 			auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());

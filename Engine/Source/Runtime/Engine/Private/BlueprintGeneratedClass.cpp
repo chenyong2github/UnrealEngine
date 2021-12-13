@@ -263,7 +263,7 @@ void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& O
 	{
 		GetEditorTags(EditorTags);
 		EditorTagsToAdd = &EditorTags;
-}
+	}
 
 	for (const auto& EditorTag : *EditorTagsToAdd)
 	{
@@ -2062,6 +2062,7 @@ FGuid UBlueprintGeneratedClass::FindPropertyGuidFromName(const FName InName) con
 #endif // WITH_EDITORONLY_DATA
 	return PropertyGuid;
 }
+
 #if WITH_EDITORONLY_DATA
 void UBlueprintGeneratedClass::GetEditorTags(FEditorTags& Tags) const
 {

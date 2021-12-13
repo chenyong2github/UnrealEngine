@@ -540,8 +540,8 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 
 				FPhysicsCommand::ExecuteWrite(PhysScene, [&]()
 				{
-				bool bImmediateAccelStructureInsertion = true;
-				PhysScene->AddActorsToScene_AssumesLocked(Actors, bImmediateAccelStructureInsertion);
+					bool bImmediateAccelStructureInsertion = true;
+					PhysScene->AddActorsToScene_AssumesLocked(Actors, bImmediateAccelStructureInsertion);
 				});
 
 				PhysScene->AddToComponentMaps(this, PhysHandle);
@@ -1700,7 +1700,7 @@ struct FMeshCollisionInitHelper
 
 		FPhysicsCommand::ExecuteWrite(PhysScene, [&]()
 		{
-		PhysScene->AddActorsToScene_AssumesLocked(Actors, true);
+			PhysScene->AddActorsToScene_AssumesLocked(Actors, true);
 		});
 		PhysScene->AddToComponentMaps(Component, ActorHandle);
 

@@ -495,7 +495,7 @@ public:
 	/** If this system is exposed to the library, or should be explicitly hidden. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable, meta = (SkipSystemResetOnChange = "true"))
 	ENiagaraScriptLibraryVisibility LibraryVisibility = ENiagaraScriptLibraryVisibility::Unexposed;
-
+	
 	/** Deprecated template asset bool. Use the TemplateSpecification enum instead. */
 	UPROPERTY()
 	bool bIsTemplateAsset_DEPRECATED;
@@ -693,7 +693,7 @@ public:
 	bool bRequireCurrentFrameData = true;
 
 	bool HasSystemScriptDIsWithPerInstanceData() const;
-	FORCEINLINE bool HasDIsWithPostSimulateTick()const{ return bHasDIsWithPostSimulateTick; }
+	FORCEINLINE bool HasDIsWithPostSimulateTick() const { return bHasDIsWithPostSimulateTick; }
 	FORCEINLINE bool AllDIsPostSimulateCanOverlapFrames() const { return bAllDIsPostSimulateCanOverlapFrames; }
 	FORCEINLINE bool HasAnyGPUEmitters()const{ return bHasAnyGPUEmitters; }
 	FORCEINLINE bool NeedsGPUContextInitForDataInterfaces() const { return bNeedsGPUContextInitForDataInterfaces; }
