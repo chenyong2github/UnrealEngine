@@ -7,6 +7,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Async/ParallelFor.h"
 #include "Util/ProgressCancel.h"
+#include "Operations/UniformTesselate.h"
 
 using namespace UE::Geometry;
 
@@ -33,21 +34,6 @@ namespace FPNTrianglesLocals
 	{
 		TArray<FEdgeControlPoints> OnEdges; // Map edge ID to the edge control points
 		TArray<FTriangleControlPoint> OnTriangles; // Map triangle ID to the triangle center control point
-	};
-
-	// Used to save just the connectivity information of a mesh
-	struct FMeshConnectivity
-	{
-		FMeshConnectivity(FDynamicMesh3& Mesh) 
-		{
-			Triangles = Mesh.GetTrianglesBuffer();
-			Edges = Mesh.GetEdgesBuffer();
-			TriangleEdges = Mesh.GetTriangleEdges();
-		}
-		
-		TDynamicVector<FIndex3i> Triangles;
-		TDynamicVector<FDynamicMesh3::FEdge> Edges;
-		TDynamicVector<FIndex3i> TriangleEdges;
 	};
 
 	/**
@@ -223,15 +209,17 @@ namespace FPNTrianglesLocals
 	 * @param Level How many times we are recursively subdividing the Mesh.
 	 * @param ProgressCancel Set this to be able to cancel running operation.
 	 * @param OutNewVertices Array of tuples of the new vertex ID and the original triangle ID the vertex belongs to.
+	 * @param OutMesh Result of the tesselation.
 	 * 
 	 * @return true if the operation succeeded, false if it failed or was canceled by the user.
 	 */
-	bool TesselateMesh(FDynamicMesh3& Mesh, 
+	bool TesselateMesh(const FDynamicMesh3& Mesh, 
+					   const int32 Level, 
+					   FProgressCancel* ProgressCancel,
 					   TArray<FIndex2i>& OutNewVertices,
-					   const int Level, 
-					   FProgressCancel* ProgressCancel) 
+					   FDynamicMesh3& OutMesh) 
 	{
-		check(Level >= 0);
+		checkSlow(Level >= 0);
 
 		if (Level < 0) 
 		{
@@ -242,96 +230,34 @@ namespace FPNTrianglesLocals
 			return true; // nothing to do
 		}
 
-		// Compute the number of new vertices we will generate with tesselation
-		int NumEdgeSegments = 1 << Level; // Number of the edges each original edge is split into
-		int NumEdgeVert = NumEdgeSegments + 1; // Number of the vertices along the edge after the tesselation
-		int NumNewEdgeVert = NumEdgeSegments - 1; // Number of the new vertices added per edge
-		// Triangular number series (n(n+1)/2) minus the 3 original vertices and new edge vertices
-		int NumNewTriangleVert = NumEdgeVert*(NumEdgeVert + 1)/2 - 3 - 3*NumNewEdgeVert;
-		int NumNewVertices = NumNewEdgeVert * Mesh.EdgeCount() + NumNewTriangleVert* Mesh.TriangleCount(); 
-		OutNewVertices.Reserve(NumNewVertices);
-
-		// The number of the new triangle IDs created with Level number of subdivisions 
-		int NumNewTrianglesIDs = (NumEdgeSegments * NumEdgeSegments - 1) * Mesh.TriangleCount();
-		
-		// When we perform edge splits, we want to keep track of the original triangles that 
-		// the new added triangles belong to (i.e parent triangle). 
-		TArray<int> ParentTriangles;
-		ParentTriangles.Init(FDynamicMesh3::InvalidID, Mesh.MaxTriangleID() + NumNewTrianglesIDs);
-		for (int TID : Mesh.TriangleIndicesItr()) 
-		{ 
-			ParentTriangles[TID] = TID; // Original triangles are parents of themselves.
-		}
-
-		// Recursively subdivide the mesh Level number of times, while keeping track of new 
-		// vertices added and which original triangles they belong to.
-		for (int CurLevel = 0; CurLevel < Level; ++CurLevel) 
+		FUniformTesselate Tesselator(&Mesh, &OutMesh);
+		Tesselator.TesselationNum = Level;
+		Tesselator.bComputeMappings = true;
+		if (Tesselator.Validate() != EOperationValidationResult::Ok)
 		{
-			TArray<int> EdgesToProcess;
-			EdgesToProcess.Reserve(Mesh.EdgeCount());
-			for (int EID : Mesh.EdgeIndicesItr())
-			{
-				EdgesToProcess.Add(EID);
-			} 
-
-			int MaxTriangleID = Mesh.MaxTriangleID();
-
-			TArray<int> EdgesToFlip;
-			EdgesToFlip.Init(FDynamicMesh3::InvalidID, MaxTriangleID);
-
-			for (int EID : EdgesToProcess)
-			{
-				FIndex2i EdgeTris = Mesh.GetEdgeT(EID);
-
-				FDynamicMesh3::FEdgeSplitInfo SplitInfo;
-				EMeshResult Result = Mesh.SplitEdge(EID, SplitInfo);
-
-				if (Result == EMeshResult::Ok) 
-				{	  
-					ParentTriangles[SplitInfo.NewTriangles.A] = ParentTriangles[SplitInfo.OriginalTriangles.A]; 
-					if (SplitInfo.OriginalTriangles.B != FDynamicMesh3::InvalidID) 
-					{
-						ParentTriangles[SplitInfo.NewTriangles.B] = ParentTriangles[SplitInfo.OriginalTriangles.B]; 
-					}
-
-					OutNewVertices.Add(FIndex2i(SplitInfo.NewVertex, ParentTriangles[SplitInfo.OriginalTriangles.A]));
-
-					if (EdgeTris.A < MaxTriangleID && EdgesToFlip[EdgeTris.A] == FDynamicMesh3::InvalidID)
-					{
-						EdgesToFlip[EdgeTris.A] = SplitInfo.NewEdges.B;
-					}
-					if (EdgeTris.B != FDynamicMesh3::InvalidID)
-					{
-						if (EdgeTris.B < MaxTriangleID && EdgesToFlip[EdgeTris.B] == FDynamicMesh3::InvalidID)
-						{
-							EdgesToFlip[EdgeTris.B] = SplitInfo.NewEdges.C;
-						}
-					}
-				}   
-
-			  	if (ProgressCancel && ProgressCancel->Cancelled())    
-				{
-					return false;
-				}
-			}
-
-			for (int EID : EdgesToFlip)
-			{
-				if (EID != FDynamicMesh3::InvalidID)
-				{
-					FDynamicMesh3::FEdgeFlipInfo FlipInfo;
-					Mesh.FlipEdge(EID, FlipInfo);
-
-					if (ProgressCancel && ProgressCancel->Cancelled()) 
-					{
-						return false;
-					}
-				}
-			}
+			return false;
 		}
 
-		checkSlow(OutNewVertices.Num() == NumNewVertices);
-		checkSlow(ParentTriangles.Num() == Mesh.MaxTriangleID());
+		if (Tesselator.Compute() == false) 
+		{
+			return false;
+		} 
+
+		const int32 NewVertCount = Tesselator.VertexEdgeMap.Num() + Tesselator.VertexTriangleMap.Num();
+		OutNewVertices.Reserve(NewVertCount);
+
+		for (auto It = Tesselator.VertexEdgeMap.CreateConstIterator(); It; ++It)
+		{
+			FIndex2i EdgeTri = It.Value();
+			OutNewVertices.Add(FIndex2i(It.Key(), EdgeTri.A));
+		}
+
+		for (auto It = Tesselator.VertexTriangleMap.CreateConstIterator(); It; ++It)
+		{
+			OutNewVertices.Add(FIndex2i(It.Key(), It.Value()));
+		}
+
+		checkSlow(OutNewVertices.Num() == NewVertCount);
 
 		return true;
 	}
@@ -340,22 +266,22 @@ namespace FPNTrianglesLocals
 	 * Displace the vertices created from the tesselation using the cubic patch formula based on their barycentric 
 	 * coordinates.
 	 * 
-	 * @param Mesh The tessellated mesh whose vertices we are displacing.
+	 * @param OriginalMesh The original mesh (before tesselation).
 	 * @param FControlPoints PN Triangle control points.
 	 * @param VerticesToDisplace Array of vertices into the Mesh that we are displacing.
 	 * @param bComputePNNormals Should we be computing quadratically varying normals using control points.
-	 * @param OriginalConnectivity Connectivity of the original mesh (before tesselation).
 	 * @param ProgressCancel Set this to be able to cancel running operation.
+	 * @param Mesh The tessellated mesh whose vertices we are displacing.
 	 * 
 	 * @return true if the operation succeeded, false if it failed or was canceled by the user.
 	 */
 
-	bool DisplaceAndSetNormals(FDynamicMesh3& Mesh,
+	bool DisplaceAndSetNormals(const FDynamicMesh3& OriginalMesh,
 					           const FControlPoints& FControlPoints,
 					           const TArray<FIndex2i>& VerticesToDisplace,
 					           const bool bComputePNNormals,
-					           const FMeshConnectivity& OriginalConnectivity,
-					           FProgressCancel* ProgressCancel) 
+							   FProgressCancel* ProgressCancel,
+							   FDynamicMesh3& Mesh)
 	{
 		bool bHasVertexNormals = Mesh.HasVertexNormals();
 		bool bHasAttributes = Mesh.HasAttributes();
@@ -373,8 +299,8 @@ namespace FPNTrianglesLocals
 			int OriginalTriangleID = NewVtx[1]; // ID of the original triangle new vertex belongs to
 			
 			// Get the topology information of the original triangle
-			FIndex3i TriVertex = OriginalConnectivity.Triangles[OriginalTriangleID];
-			FIndex3i TriEdges = OriginalConnectivity.TriangleEdges[OriginalTriangleID];
+			FIndex3i TriVertex = OriginalMesh.GetTriangle(OriginalTriangleID);
+			FIndex3i TriEdges = OriginalMesh.GetTriEdges(OriginalTriangleID);
 
 			FVector3d Bary = VectorUtil::BarycentricCoords(Mesh.GetVertexRef(VertexID), Mesh.GetVertexRef(TriVertex.A), 
 														   Mesh.GetVertexRef(TriVertex.B), Mesh.GetVertexRef(TriVertex.C));
@@ -390,7 +316,7 @@ namespace FPNTrianglesLocals
 			for (int EIDX = 0; EIDX < 3; ++EIDX) 
 			{   
 				int EID = TriEdges[EIDX];
-				FIndex2i EdgeV = OriginalConnectivity.Edges[EID].Vert;
+				FIndex2i EdgeV = OriginalMesh.GetEdgeRef(EID).Vert;
 				const FEdgeControlPoints& ControlPnts = FControlPoints.OnEdges[EID];
 
 				// Check that the orientation of the edge is consistent so we use the correct barycentric values
@@ -467,8 +393,8 @@ bool FPNTriangles::Compute()
 
 	// Compute per-vertex normals if no normals exist
 	FMeshNormals Normals;
-	bool bHasNormals = Mesh->HasVertexNormals() || Mesh->HasAttributes();
-	if (!bHasNormals)
+	bool bHasNormals = Mesh->HasVertexNormals() || (Mesh->HasAttributes() && Mesh->Attributes()->PrimaryNormals() != nullptr);
+	if (bHasNormals == false)
 	{
 		Normals = FMeshNormals(Mesh);
 		Normals.ComputeVertexNormals();
@@ -482,24 +408,24 @@ bool FPNTriangles::Compute()
 	{
 		return false;
 	}
-
-	// Save the topology information of the original mesh before we change it with tesselation
-	FMeshConnectivity OriginalConnectivity(*Mesh);
 	
 	// Tesselate the original mesh
 	TArray<FIndex2i> NewVertices;
-	bOk = TesselateMesh(*Mesh, NewVertices, TesselationLevel, Progress);
+	FDynamicMesh3 ResultMesh;
+	bOk = TesselateMesh(*Mesh, TesselationLevel, Progress, NewVertices, ResultMesh);
 	if (bOk == false) 
 	{
 		return false;
 	}
 
 	// Compute displacement and normals
-	bOk = DisplaceAndSetNormals(*Mesh, FControlPoints, NewVertices, bComputePNNormals, OriginalConnectivity, Progress);
+	bOk = DisplaceAndSetNormals(*Mesh, FControlPoints, NewVertices, bComputePNNormals, Progress, ResultMesh);
 	if (bOk == false) 
 	{
 		return false;
 	}
+
+	Mesh->Copy(ResultMesh);
 
 	return true;
 }
