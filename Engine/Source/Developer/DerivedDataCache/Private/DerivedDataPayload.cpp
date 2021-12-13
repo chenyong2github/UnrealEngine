@@ -2,6 +2,7 @@
 
 #include "DerivedDataPayload.h"
 
+#include "Compression/OodleDataCompression.h"
 #include "Containers/StringConv.h"
 #include "Hash/xxhash.h"
 #include "Serialization/CompactBinary.h"
@@ -9,6 +10,9 @@
 
 namespace UE::DerivedData
 {
+
+constexpr ECompressedBufferCompressor GDefaultCompressor = ECompressedBufferCompressor::Mermaid;
+constexpr ECompressedBufferCompressionLevel GDefaultCompressionLevel = ECompressedBufferCompressionLevel::VeryFast;
 
 FPayloadId::FPayloadId(const FMemoryView Id)
 {
@@ -33,7 +37,7 @@ FPayloadId FPayloadId::FromHash(const FIoHash& Hash)
 	return FPayloadId(MakeMemoryView(Hash.GetBytes()).Left(sizeof(ByteArray)));
 }
 
-FPayloadId FPayloadId::FromName(const FAnsiStringView Name)
+FPayloadId FPayloadId::FromName(const FUtf8StringView Name)
 {
 	checkf(!Name.IsEmpty(), TEXT("FPayloadId requires a non-empty name."));
 	uint8 HashBytes[16];
@@ -44,6 +48,16 @@ FPayloadId FPayloadId::FromName(const FAnsiStringView Name)
 FPayloadId FPayloadId::FromName(const FWideStringView Name)
 {
 	return FPayloadId::FromName(FTCHARToUTF8(Name));
+}
+
+FCompressedBuffer FPayload::Compress(const FCompositeBuffer& Buffer, const uint64 BlockSize)
+{
+	return FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel, BlockSize);
+}
+
+FCompressedBuffer FPayload::Compress(const FSharedBuffer& Buffer, const uint64 BlockSize)
+{
+	return FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel, BlockSize);
 }
 
 } // UE::DerivedData

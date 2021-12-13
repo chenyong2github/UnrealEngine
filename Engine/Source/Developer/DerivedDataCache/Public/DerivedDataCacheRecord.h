@@ -50,12 +50,12 @@ class ICacheRecordBuilderInternal
 public:
 	virtual ~ICacheRecordBuilderInternal() = default;
 	virtual void SetMeta(FCbObject&& Meta) = 0;
-	virtual FPayloadId SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id) = 0;
-	virtual FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id) = 0;
-	virtual FPayloadId SetValue(const FPayload& Payload) = 0;
-	virtual FPayloadId AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id) = 0;
-	virtual FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id) = 0;
-	virtual FPayloadId AddAttachment(const FPayload& Payload) = 0;
+	virtual void SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) = 0;
+	virtual void SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) = 0;
+	virtual void SetValue(const FPayload& Payload) = 0;
+	virtual void AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) = 0;
+	virtual void AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) = 0;
+	virtual void AddAttachment(const FPayload& Payload) = 0;
 	virtual FCacheRecord Build() = 0;
 	virtual void BuildAsync(IRequestOwner& Owner, FOnCacheRecordComplete&& OnComplete) = 0;
 };
@@ -161,18 +161,19 @@ public:
 	/**
 	 * Set the value for the cache record.
 	 *
-	 * @param Buffer   The value, which is compressed by the builder, and cloned if not owned.
-	 * @param Id       An ID for the value that is unique within this cache record. When omitted,
-	 *                 the buffer will be hashed to create an ID.
+	 * @param Buffer      The value, which is compressed by the builder, and cloned if not owned.
+	 * @param Id          An ID for the value that is unique within this cache record.
+	 *                    When omitted, the hash of the buffer will be used as the ID.
+	 * @param BlockSize   The power-of-two block size to encode raw data in. 0 is default.
 	 * @return The ID that was provided or created.
 	 */
-	inline FPayloadId SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id = FPayloadId())
+	inline void SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id = FPayloadId(), const uint64 BlockSize = 0)
 	{
-		return RecordBuilder->SetValue(Buffer, Id);
+		return RecordBuilder->SetValue(Buffer, Id, BlockSize);
 	}
-	inline FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
+	inline void SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId(), const uint64 BlockSize = 0)
 	{
-		return RecordBuilder->SetValue(Buffer, Id);
+		return RecordBuilder->SetValue(Buffer, Id, BlockSize);
 	}
 
 	/**
@@ -181,7 +182,7 @@ public:
 	 * @param Payload   The payload, which must have data unless it is known to be in the cache.
 	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
-	inline FPayloadId SetValue(const FPayload& Payload)
+	inline void SetValue(const FPayload& Payload)
 	{
 		return RecordBuilder->SetValue(Payload);
 	}
@@ -189,18 +190,19 @@ public:
 	/**
 	 * Add an attachment to the cache record.
 	 *
-	 * @param Buffer   The attachment, which is compressed by the builder, and cloned if not owned.
-	 * @param Id       An ID for the attachment that is unique within this cache record. When omitted,
-	 *                 the buffer will be hashed to create an ID.
+	 * @param Buffer      The attachment, which is compressed by the builder, and cloned if not owned.
+	 * @param Id          An ID for the attachment that is unique within this cache record.
+	 *                    When omitted, the hash of the buffer will be used as the ID.
+	 * @param BlockSize   The power-of-two block size to encode raw data in. 0 is default.
 	 * @return The ID that was provided or created.
 	 */
-	inline FPayloadId AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id = FPayloadId())
+	inline void AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id = FPayloadId(), const uint64 BlockSize = 0)
 	{
-		return RecordBuilder->AddAttachment(Buffer, Id);
+		return RecordBuilder->AddAttachment(Buffer, Id, BlockSize);
 	}
-	inline FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
+	inline void AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId(), const uint64 BlockSize = 0)
 	{
-		return RecordBuilder->AddAttachment(Buffer, Id);
+		return RecordBuilder->AddAttachment(Buffer, Id, BlockSize);
 	}
 
 	/**
@@ -209,7 +211,7 @@ public:
 	 * @param Payload   The payload, which must have data unless it is known to be in the cache.
 	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
-	inline FPayloadId AddAttachment(const FPayload& Payload)
+	inline void AddAttachment(const FPayload& Payload)
 	{
 		return RecordBuilder->AddAttachment(Payload);
 	}

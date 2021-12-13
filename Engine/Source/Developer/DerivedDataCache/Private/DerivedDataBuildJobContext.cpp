@@ -9,7 +9,6 @@
 #include "DerivedDataBuildTypes.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataPayload.h"
-#include "DerivedDataPayloadPrivate.h"
 #include "DerivedDataRequestOwner.h"
 #include "Hash/Blake3.h"
 #include "Misc/StringBuilder.h"
@@ -111,20 +110,19 @@ void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCompressedBuffer&
 	AddPayload(FPayload(Id, Buffer));
 }
 
-void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCompositeBuffer& Buffer)
+void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCompositeBuffer& Buffer, const uint64 BlockSize)
 {
-	AddPayload(FPayload(Id, FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel)));
+	AddPayload(FPayload(Id, FPayload::Compress(Buffer, BlockSize)));
 }
 
-void FBuildJobContext::AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer)
+void FBuildJobContext::AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer, const uint64 BlockSize)
 {
-	AddPayload(FPayload(Id, FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel)));
+	AddPayload(FPayload(Id, FPayload::Compress(Buffer, BlockSize)));
 }
 
 void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCbObject& Object)
 {
-	const FCompositeBuffer& Buffer = Object.GetBuffer();
-	AddPayload(FPayload(Id, FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel)));
+	AddPayload(FPayload(Id, FPayload::Compress(Object.GetBuffer())));
 }
 
 void FBuildJobContext::BeginBuild(IRequestOwner& InOwner, TUniqueFunction<void ()>&& InOnEndBuild)

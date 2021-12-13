@@ -6,7 +6,6 @@
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataPayload.h"
-#include "DerivedDataPayloadPrivate.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
@@ -29,13 +28,13 @@ public:
 
 	void SetMeta(FCbObject&& Meta) final;
 
-	FPayloadId SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id) final;
-	FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id) final;
-	FPayloadId SetValue(const FPayload& Payload) final;
+	void SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) final;
+	void SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) final;
+	void SetValue(const FPayload& Payload) final;
 
-	FPayloadId AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id) final;
-	FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id) final;
-	FPayloadId AddAttachment(const FPayload& Payload) final;
+	void AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) final;
+	void AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) final;
+	void AddAttachment(const FPayload& Payload) final;
 
 	FCacheRecord Build() final;
 	void BuildAsync(IRequestOwner& Owner, FOnCacheRecordComplete&& OnComplete) final;
@@ -196,49 +195,47 @@ void FCacheRecordBuilderInternal::SetMeta(FCbObject&& InMeta)
 	Meta.MakeOwned();
 }
 
-FPayloadId FCacheRecordBuilderInternal::SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id)
+void FCacheRecordBuilderInternal::SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id, const uint64 BlockSize)
 {
-	FCompressedBuffer Compressed = FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel);
+	FCompressedBuffer Compressed = FPayload::Compress(Buffer, BlockSize);
 	const FPayloadId ValueId = GetOrCreatePayloadId(Id, Compressed);
 	return SetValue(FPayload(ValueId, MoveTemp(Compressed)));
 }
 
-FPayloadId FCacheRecordBuilderInternal::SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id)
+void FCacheRecordBuilderInternal::SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id, const uint64 BlockSize)
 {
-	FCompressedBuffer Compressed = FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel);
+	FCompressedBuffer Compressed = FPayload::Compress(Buffer, BlockSize);
 	const FPayloadId ValueId = GetOrCreatePayloadId(Id, Compressed);
 	return SetValue(FPayload(ValueId, MoveTemp(Compressed)));
 }
 
-FPayloadId FCacheRecordBuilderInternal::SetValue(const FPayload& Payload)
+void FCacheRecordBuilderInternal::SetValue(const FPayload& Payload)
 {
 	checkf(Payload, TEXT("Failed to set value on %s because the payload is null."), *WriteToString<96>(Key));
-	const FPayloadId& Id = Payload.GetId();
 	checkf(Value.IsNull(),
 		TEXT("Failed to set value on %s with ID %s because it has an existing value with ID %s."),
-		*WriteToString<96>(Key), *WriteToString<32>(Id), *WriteToString<32>(Value.GetId()));
-	checkf(Algo::BinarySearchBy(Attachments, Id, &FPayload::GetId) == INDEX_NONE,
+		*WriteToString<96>(Key), *WriteToString<32>(Payload.GetId()), *WriteToString<32>(Value.GetId()));
+	checkf(Algo::BinarySearchBy(Attachments, Payload.GetId(), &FPayload::GetId) == INDEX_NONE,
 		TEXT("Failed to set value on %s with ID %s because it has an existing attachment with that ID."),
-		*WriteToString<96>(Key), *WriteToString<32>(Id));
+		*WriteToString<96>(Key), *WriteToString<32>(Payload.GetId()));
 	Value = Payload;
-	return Id;
 }
 
-FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id)
+void FCacheRecordBuilderInternal::AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id, const uint64 BlockSize)
 {
-	FCompressedBuffer Compressed = FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel);
+	FCompressedBuffer Compressed = FPayload::Compress(Buffer, BlockSize);
 	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, Compressed);
 	return AddAttachment(FPayload(AttachmentId, MoveTemp(Compressed)));
 }
 
-FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id)
+void FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id, const uint64 BlockSize)
 {
-	FCompressedBuffer Compressed = FCompressedBuffer::Compress(Buffer, GDefaultCompressor, GDefaultCompressionLevel);
+	FCompressedBuffer Compressed = FPayload::Compress(Buffer, BlockSize);
 	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, Compressed);
 	return AddAttachment(FPayload(AttachmentId, MoveTemp(Compressed)));
 }
 
-FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FPayload& Payload)
+void FCacheRecordBuilderInternal::AddAttachment(const FPayload& Payload)
 {
 	checkf(Payload, TEXT("Failed to add attachment on %s because the payload is null."), *WriteToString<96>(Key));
 	const FPayloadId& Id = Payload.GetId();
@@ -247,7 +244,6 @@ FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FPayload& Payload)
 		TEXT("Failed to add attachment on %s with ID %s because it has an existing attachment or value with that ID."),
 		*WriteToString<96>(Key), *WriteToString<32>(Id));
 	Attachments.Insert(Payload, Index);
-	return Id;
 }
 
 FCacheRecord FCacheRecordBuilderInternal::Build()
