@@ -161,6 +161,7 @@ void FIKRetargetBatchOperation::RetargetAssets(
 		// replace references to other animation
 		AssetToRetarget->ReplaceReferredAnimations(RemappedAnimAssets);
 		AssetToRetarget->SetSkeleton(NewSkeleton);
+		AssetToRetarget->PostEditChange();
 		AssetToRetarget->MarkPackageDirty();
 	}
 
