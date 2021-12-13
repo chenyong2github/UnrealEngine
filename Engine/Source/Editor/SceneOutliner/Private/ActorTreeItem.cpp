@@ -20,6 +20,7 @@
 #include "LevelInstance/LevelInstanceActor.h"
 #include "WorldPartition/WorldPartition.h"
 #include "ToolMenu.h"
+#include "Engine/Level.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorTreeItem"
 
@@ -381,6 +382,28 @@ bool FActorTreeItem::CanInteract() const
 TSharedRef<SWidget> FActorTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 {
 	return SNew(SActorTreeLabel, *this, Outliner, InRow);
+}
+
+bool FActorTreeItem::ShouldShowPinnedState() const
+{
+	if (const AActor* ActorPtr = Actor.Get())
+	{
+		const ULevel* Level = ActorPtr->GetLevel();
+		return !!Level->GetWorldPartition();
+	}
+
+	return false;
+}
+
+bool FActorTreeItem::ShouldShowVisibilityState() const
+{
+	if (const AActor* ActorPtr = Actor.Get())
+	{
+		const ULevel* Level = ActorPtr->GetLevel();
+		return Level->IsPersistentLevel() || !Level->IsInstancedLevel();
+	}
+
+	return false;
 }
 
 void FActorTreeItem::OnVisibilityChanged(const bool bNewVisibility)
