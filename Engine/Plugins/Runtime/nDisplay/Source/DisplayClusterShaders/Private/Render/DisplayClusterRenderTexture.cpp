@@ -13,13 +13,13 @@ public:
 	FDisplayClusterResourceBulkData(const void* InData, uint32_t InDataSize)
 		: Data(InData)
 		, DataSize(InDataSize)
-{ }
+	{ }
 
 public:
 	virtual const void* GetResourceBulkData() const
-{
+	{
 		return Data;
-}
+	}
 
 	virtual uint32 GetResourceBulkDataSize() const
 	{
@@ -75,7 +75,7 @@ void FDisplayClusterRenderTextureResource::ReleaseTextureData()
 		PixelFormat = PF_Unknown;
 		bHasCPUAccess = false;
 	}
-	}
+}
 
 void FDisplayClusterRenderTextureResource::InitRHI()
 {

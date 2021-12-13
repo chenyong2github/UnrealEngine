@@ -128,7 +128,7 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 
 #if CHROMAKEY_MARKER
 	float4 ChromakeyMarkerTextureColor = GetChromakeyMarkerColor(IN.UV_Chromakey.xy);
-	
+
 	// Blend marker color with chromakey
 	OverlayChromakeyColor.xyz = lerp(OverlayChromakeyColor.xyz, ChromakeyMarkerTextureColor.xyz, ChromakeyMarkerTextureColor.w);
 #endif

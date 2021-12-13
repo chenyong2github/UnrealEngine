@@ -548,16 +548,16 @@ void USceneCaptureComponent2D::TickComponent(float DeltaTime, enum ELevelTick Ti
 		return;
 	}
 
-		if (bCaptureEveryFrame)
-		{
-			TileID++;
-			TileID %= NumTiles;
-		}
+	if (bCaptureEveryFrame)
+	{
+		TileID++;
+		TileID %= NumTiles;
+	} 
 	else if (TileID < NumTiles)
-		{
-			TileID++;
-		}
+	{
+		TileID++;
 	}
+}
 
 void USceneCaptureComponent2D::ResetOrthographicTilingCounter()
 {
@@ -767,10 +767,10 @@ int32 USceneCaptureComponent2D::GetNumXTiles() const
 	{
 		return NumXTiles;
 	}
-
+	
 	int32 NumXTilesLocal = CVarSCOrthographicNumXTiles->GetInt();
 	return FMath::Clamp(NumXTilesLocal, 1, 64);
-	}
+}
 
 int32 USceneCaptureComponent2D::GetNumYTiles() const
 {
@@ -778,7 +778,7 @@ int32 USceneCaptureComponent2D::GetNumYTiles() const
 	{
 		return NumYTiles;
 	}
-	
+
 	int32 NumYTilesLocal = CVarSCOrthographicNumYTiles->GetInt();
 	return FMath::Clamp(NumYTilesLocal, 1, 64);
 }

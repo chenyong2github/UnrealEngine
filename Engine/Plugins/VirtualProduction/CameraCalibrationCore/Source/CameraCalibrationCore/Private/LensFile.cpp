@@ -1271,29 +1271,29 @@ const FBaseLensTable* ULensFile::GetDataTable(ELensDataCategory InDataCategory) 
 {
 	switch(InDataCategory)
 	{
-	case ELensDataCategory::Distortion:
+		case ELensDataCategory::Distortion:
 		{
 			return &DistortionTable;
 		}
-	case ELensDataCategory::ImageCenter:
+		case ELensDataCategory::ImageCenter:
 		{
 			return &ImageCenterTable;
 		}
-	case ELensDataCategory::Zoom:
+		case ELensDataCategory::Zoom:
 		{
 			return &FocalLengthTable;
 		}
-	case ELensDataCategory::STMap:
+		case ELensDataCategory::STMap:
 		{
 			return &STMapTable;
 		}
-	case ELensDataCategory::NodalOffset:
+		case ELensDataCategory::NodalOffset:
 		{
 			return &NodalOffsetTable;
 		}
 		case ELensDataCategory::Focus:
 		case ELensDataCategory::Iris:
-	default:
+		default:
 		{
 			// No base table for now.
 			return nullptr;

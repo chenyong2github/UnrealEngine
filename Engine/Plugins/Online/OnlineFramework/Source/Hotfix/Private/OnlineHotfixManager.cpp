@@ -1505,7 +1505,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 
 					if (PatchableAssetClass->GetFName().IsEqual(It.Key()))
 					{
-					AssetClass = PatchableAssetClass;
+						AssetClass = PatchableAssetClass;
 					}
 				}
 			}
@@ -1603,12 +1603,12 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 				{
 					UE_LOG(LogHotfixManager, Warning, TEXT("[Item: %d] Empty value given for '%s' entry!"), TotalPatchableAssets, *It.Key().ToString());
 				}
-					}
+			}
 			else
 			{
 				UE_LOG(LogHotfixManager, Error, TEXT("[Item: %d] Invalid patchable asset type '%s' - supported types: %s"), TotalPatchableAssets, *It.Key().ToString(), *PatchableAssetClassesStr);
 			}
-				}
+		}
 
 		for (UDataTable* Table : ChangedTables)
 		{
@@ -1621,15 +1621,15 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 
 	if (TotalPatchableAssets == 0)
 	{
-		UE_LOG(LogHotfixManager, Display, TEXT("No assets were found in the 'AssetHotfix' section in the Game .ini file.  No patching needed."));
+		UE_LOG(LogHotfixManager, Display, TEXT("No assets were found in the 'AssetHotfix' section in the Game .ini file. No patching needed."));
 	}
 	else if (TotalPatchableAssets == AssetsHotfixedFromIniFiles.Num())
 	{
-		UE_LOG(LogHotfixManager, Display, TEXT("Successfully patched all %i assets from the 'AssetHotfix' section in the Game .ini file.  These assets will be forced to remain loaded."), AssetsHotfixedFromIniFiles.Num());
+		UE_LOG(LogHotfixManager, Display, TEXT("Successfully patched all %i assets from the 'AssetHotfix' section in the Game .ini file. These assets will be forced to remain loaded."), AssetsHotfixedFromIniFiles.Num());
 	}
 	else
 	{
-		UE_LOG(LogHotfixManager, Error, TEXT("Only %i of %i assets were successfully patched from 'AssetHotfix' section in the Game .ini file.  The patched assets will be forced to remain loaded.  Any assets that failed to patch may be left in an invalid state!"), AssetsHotfixedFromIniFiles.Num(), TotalPatchableAssets);
+		UE_LOG(LogHotfixManager, Error, TEXT("Only %i of %i assets were successfully patched from 'AssetHotfix' section in the Game .ini file. The patched assets will be forced to remain loaded. Any assets that failed to patch may be left in an invalid state!"), AssetsHotfixedFromIniFiles.Num(), TotalPatchableAssets);
 	}
 }
 
@@ -1783,8 +1783,8 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 		{
 			if (ChangedTables == nullptr)
 			{
-			DataTable->HandleDataTableChanged();
-		}
+				DataTable->HandleDataTableChanged();
+			}
 			else
 			{
 				ChangedTables->Add(DataTable);

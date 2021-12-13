@@ -180,7 +180,7 @@
 	 * @param FileName filename written to cloud
 	 */
 	void OnWriteUserCloudFileComplete(bool bWasSuccessful, const FUniqueNetId& UserId, const FString& FileName);
-	
+
 	/**
 	 *	Delegate triggered for each user cloud file write cancellation
 	 * @param bWasSuccessful did the operation complete successfully

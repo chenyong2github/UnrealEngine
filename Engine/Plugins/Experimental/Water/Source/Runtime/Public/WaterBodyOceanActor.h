@@ -35,7 +35,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UDEPRECATED_OceanGenerator* OceanGenerator_DEPRECATED;
-
+	
 	UPROPERTY()
 	FVector CollisionExtents_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA

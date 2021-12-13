@@ -1352,7 +1352,7 @@ public:
 	 * @return Access token which is provided to user once authenticated by the online service
 	 */
 	virtual FString GetAccessToken() const = 0;
-	/** 
+	/**
 	 * Tests if token has exceeded its time-to-live, when applicable.  Default is true, i.e. always expire.
 	 * @return True, if access token has expired.
 	 */

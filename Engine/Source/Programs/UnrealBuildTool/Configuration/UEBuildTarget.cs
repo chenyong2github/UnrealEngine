@@ -3681,7 +3681,7 @@ namespace UnrealBuildTool
 			if (Rules.bForceDisableAutomationTests)
 			{
 				bCompileDevTests = bCompilePerfTests = false;
-				}
+			}
 
 			GlobalCompileEnvironment.Definitions.Add("WITH_DEV_AUTOMATION_TESTS=" + (bCompileDevTests ? "1" : "0"));
 			GlobalCompileEnvironment.Definitions.Add("WITH_PERF_AUTOMATION_TESTS=" + (bCompilePerfTests ? "1" : "0"));

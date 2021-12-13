@@ -318,7 +318,7 @@ namespace Audio
 		FSoundfieldSpeakerPositionalData GetDefaultPositionalDataForAudioDevice();
 
 	protected:
-		// Initialize the submix internal 
+		// Initialize the submix internal
 		void InitInternal();
 
 		// Down mix the given buffer to the desired down mix channel count

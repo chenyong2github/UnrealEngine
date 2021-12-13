@@ -20,7 +20,7 @@ void FWaterBodyManager::Deinitialize()
 }
 
 int32 FWaterBodyManager::AddWaterBodyComponent(UWaterBodyComponent* InWaterBodyComponent)
-	{
+{
 	int32 Index = INDEX_NONE;
 	if (UnusedWaterBodyIndices.Num())
 	{

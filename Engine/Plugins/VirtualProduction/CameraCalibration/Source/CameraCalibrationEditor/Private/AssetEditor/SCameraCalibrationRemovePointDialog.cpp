@@ -453,7 +453,7 @@ void SCameraCalibrationRemovePointDialog::RefreshRemoveItemsTree()
 {
 	// Empty the array of data model
 	RemoveItems.Empty();
-
+	
 	const FBaseLensTable* const BaseDataTable = WeakLensFile.Get()->GetDataTable(Category);
 	if (!ensure(BaseDataTable))
 	{

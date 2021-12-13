@@ -62,11 +62,11 @@ namespace Gauntlet
 				}
 			}
 
-			if(!bFoundAnyReporters)
+			if (!bFoundAnyReporters)
 			{
 				Gauntlet.Log.VeryVerbose("Skipped reporting DeviceUsage event - no reporter implementations found!");
 			}
-			else if(!bFoundEnabledReporters)
+			else if (!bFoundEnabledReporters)
 			{
 				Gauntlet.Log.VeryVerbose("Skipped reporting DeviceUsage event - reporter implementations were found, but none were enabled!");
 			}

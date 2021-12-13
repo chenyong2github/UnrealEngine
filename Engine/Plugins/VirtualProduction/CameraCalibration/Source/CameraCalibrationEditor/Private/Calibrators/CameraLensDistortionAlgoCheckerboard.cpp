@@ -418,7 +418,7 @@ bool UCameraLensDistortionAlgoCheckerboard::ValidateNewRow(TSharedPtr<FCalibrati
 		OutErrorMessage = LOCTEXT("InvalidCameraData", "Invalid CameraData");
 		return false;
 	}
-
+	
 	// FZ inputs are always valid, no need to verify them. They could be coming from LiveLink or fallback to a default one
 
 	// Valid image dimensions

@@ -494,16 +494,16 @@ void WriteDateTimeToBuffer(FString& Buffer, const TCHAR* TokenMarker, const FDat
 	}
 	else
 	{
-	if (DateStylePtr)
-	{
-		Buffer += TEXT(", ");
-		WriteDateTimeStyle(Buffer, *DateStylePtr);
-	}
-	if (TimeStylePtr)
-	{
-		Buffer += TEXT(", ");
-		WriteDateTimeStyle(Buffer, *TimeStylePtr);
-	}
+		if (DateStylePtr)
+		{
+			Buffer += TEXT(", ");
+			WriteDateTimeStyle(Buffer, *DateStylePtr);
+		}
+		if (TimeStylePtr)
+		{
+			Buffer += TEXT(", ");
+			WriteDateTimeStyle(Buffer, *TimeStylePtr);
+		}
 	}
 	if (!bIsInvariantTz)
 	{
@@ -604,25 +604,25 @@ const TCHAR* ReadDateTimeFromBuffer(const TCHAR* Buffer, const FString& TokenMar
 		}
 		else
 		{
-		if (OutDateStylePtr)
-		{
-			// Skip whitespace before the comma, then step over it
-			TEXT_STRINGIFICATION_SKIP_WHITESPACE_AND_CHAR(',');
+			if (OutDateStylePtr)
+			{
+				// Skip whitespace before the comma, then step over it
+				TEXT_STRINGIFICATION_SKIP_WHITESPACE_AND_CHAR(',');
 
-			// Skip any whitespace before the value, and then read the date style
-			TEXT_STRINGIFICATION_SKIP_WHITESPACE();
-			TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(ReadDateTimeStyle, *OutDateStylePtr);
-		}
+				// Skip any whitespace before the value, and then read the date style
+				TEXT_STRINGIFICATION_SKIP_WHITESPACE();
+				TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(ReadDateTimeStyle, *OutDateStylePtr);
+			}
 
-		if (OutTimeStylePtr)
-		{
-			// Skip whitespace before the comma, then step over it
-			TEXT_STRINGIFICATION_SKIP_WHITESPACE_AND_CHAR(',');
+			if (OutTimeStylePtr)
+			{
+				// Skip whitespace before the comma, then step over it
+				TEXT_STRINGIFICATION_SKIP_WHITESPACE_AND_CHAR(',');
 
-			// Skip any whitespace before the value, and then read the time style
-			TEXT_STRINGIFICATION_SKIP_WHITESPACE();
-			TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(ReadDateTimeStyle, *OutTimeStylePtr);
-		}
+				// Skip any whitespace before the value, and then read the time style
+				TEXT_STRINGIFICATION_SKIP_WHITESPACE();
+				TEXT_STRINGIFICATION_FUNC_MODIFY_BUFFER_AND_VALIDATE(ReadDateTimeStyle, *OutTimeStylePtr);
+			}
 		}
 
 		if (OutTimeZone.IsEmpty())
@@ -2102,7 +2102,7 @@ FTextHistory_AsDateTime::FTextHistory_AsDateTime(FString&& InDisplayString, FDat
 	if (TimeStyle == EDateTimeStyle::Custom)
 	{
 		TimeStyle = EDateTimeStyle::Default;
-}
+	}
 }
 
 FTextHistory_AsDateTime::FTextHistory_AsDateTime(FString&& InDisplayString, FDateTime InSourceDateTime, FString InCustomPattern, FString InTimeZone, FCulturePtr InTargetCulture)

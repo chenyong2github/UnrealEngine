@@ -183,14 +183,14 @@ public:
 		FString MPCIDIFileFullPath = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(InMPCDIFileName);
 
 		if (!FPaths::FileExists(MPCIDIFileFullPath))
-	{
+		{
 			UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("File not found: %s"), *MPCIDIFileFullPath);
-	return false;
-}
+			return false;
+		}
 
 		Profile = mpcdi::Profile::CreateProfile();
 
-	{
+		{
 			// Read profile data from mpcdi file using mpcdi lib:
 			mpcdi::Reader* Reader = mpcdi::Reader::CreateReader();
 
@@ -203,50 +203,50 @@ public:
 			mpcdi::MPCDI_Error mpcdi_err = Reader->Read(TCHAR_TO_ANSI(*MPCIDIFileFullPath), Profile);
 			delete Reader;
 
-	if (MPCDI_FAILED(mpcdi_err))
-	{
-		UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Error %d reading MPCDI file"), int32(mpcdi_err));
+			if (MPCDI_FAILED(mpcdi_err))
+			{
+				UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Error %d reading MPCDI file"), int32(mpcdi_err));
 				Release();
-		return false;
-	}
+				return false;
+			}
 		}
 
 		// Read mpcdi profile type
 		ProfileType = ImplGetProfileType(Profile);
 
-	// Find desired region:
+		// Find desired region:
 		for (mpcdi::Display::BufferIterator itBuffer = Profile->GetDisplay()->GetBufferBegin(); itBuffer != Profile->GetDisplay()->GetBufferEnd(); ++itBuffer)
-	{
-		mpcdi::Buffer* mpcdiBuffer = itBuffer->second;
-
-		FString BufferId(mpcdiBuffer->GetId().c_str());
-			if (InBufferId.Equals(BufferId, ESearchCase::IgnoreCase))
 		{
-			for (mpcdi::Buffer::RegionIterator it = mpcdiBuffer->GetRegionBegin(); it != mpcdiBuffer->GetRegionEnd(); ++it)
+			mpcdi::Buffer* mpcdiBuffer = itBuffer->second;
+
+			FString BufferId(mpcdiBuffer->GetId().c_str());
+			if (InBufferId.Equals(BufferId, ESearchCase::IgnoreCase))
 			{
-				mpcdi::Region* mpcdiRegion = it->second;
-				FString RegionId(mpcdiRegion->GetId().c_str());
+				for (mpcdi::Buffer::RegionIterator it = mpcdiBuffer->GetRegionBegin(); it != mpcdiBuffer->GetRegionEnd(); ++it)
+				{
+					mpcdi::Region* mpcdiRegion = it->second;
+					FString RegionId(mpcdiRegion->GetId().c_str());
 
 					if (InRegionId.Equals(RegionId, ESearchCase::IgnoreCase))
-				{
+					{
 						FMPCDIRegionLoader RegionLoader;
 						if (!RegionLoader.LoadRegion(ProfileType, mpcdiRegion))
-					{
+						{
 							UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Can't load region '%s' buffer '%s' from mpcdi file '%s'"), *InRegionId, *InBufferId, *InMPCDIFileName);
-						return false;
-					}
+							return false;
+						}
 
-					//ok, Create and initialize warpblend interface
+						//ok, Create and initialize warpblend interface
 						OutWarpBlend = RegionLoader.CreateWarpBlendInterface();
 						return true;
+					}
 				}
 			}
 		}
-	}
 
 		UE_LOG(LogDisplayClusterWarpBlend, Error, TEXT("Can't find region '%s' buffer '%s' inside mpcdi file '%s'"), *InRegionId, *InBufferId, *InMPCDIFileName);
-	return false;
-}
+		return false;
+	}
 
 	void Release()
 	{

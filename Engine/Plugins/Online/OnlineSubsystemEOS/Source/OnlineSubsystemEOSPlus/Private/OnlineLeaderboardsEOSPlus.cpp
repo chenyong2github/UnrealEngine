@@ -91,7 +91,7 @@ bool FOnlineLeaderboardsEOSPlus::ReadLeaderboardsForFriends(int32 LocalUserNum, 
 	if (BaseLeaderboardsInterface.IsValid())
 	{
 		bResult = BaseLeaderboardsInterface->ReadLeaderboardsForFriends(LocalUserNum, ReadObject);
-}
+	}
 	else
 	{
 		UE_LOG_ONLINE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::ReadLeaderboardsForFriends] Unable to call method in base interface. Base interface not valid."));
@@ -161,7 +161,7 @@ void FOnlineLeaderboardsEOSPlus::FreeStats(FOnlineLeaderboardRead& ReadObject)
 	else
 	{
 		UE_LOG_ONLINE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::FreeStats] Unable to call method in base interface. Base interface not valid."));
-}
+	}
 }
 
 bool FOnlineLeaderboardsEOSPlus::WriteLeaderboards(const FName& SessionName, const FUniqueNetId& Player, FOnlineLeaderboardWrite& WriteObject)
@@ -176,7 +176,7 @@ bool FOnlineLeaderboardsEOSPlus::WriteLeaderboards(const FName& SessionName, con
 		if (bIsBaseNetIdValid && bIsBaseLeaderboardsInterfaceValid)
 		{
 			bResult = BaseLeaderboardsInterface->WriteLeaderboards(SessionName, *NetIdPlus->GetBaseNetId(), WriteObject);
-}
+		}
 		else
 		{
 			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::WriteLeaderboards] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseLeaderboardsInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBaseLeaderboardsInterfaceValid));
@@ -197,7 +197,7 @@ bool FOnlineLeaderboardsEOSPlus::FlushLeaderboards(const FName& SessionName)
 	if (BaseLeaderboardsInterface.IsValid())
 	{
 		bResult = BaseLeaderboardsInterface->FlushLeaderboards(SessionName);
-}
+	}
 	else
 	{
 		UE_LOG_ONLINE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::FlushLeaderboards] Unable to call method in base interface. Base interface not valid."));
@@ -225,6 +225,7 @@ bool FOnlineLeaderboardsEOSPlus::WriteOnlinePlayerRatings(const FName& SessionNa
 
 	return bResult;
 }
+
 void FOnlineLeaderboardsEOSPlus::OnLeaderboardReadComplete(bool bWasSuccessful)
 {
 	TriggerOnLeaderboardReadCompleteDelegates(bWasSuccessful);

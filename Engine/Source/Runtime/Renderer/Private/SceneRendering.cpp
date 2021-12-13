@@ -1846,7 +1846,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	// Offset the selected sample index for each frame and add an additional offset each time we iterate over a full virtual texture feedback tile to ensure we get full coverage of sample indices over time.
 	const uint32 NumPixelsInTile = FMath::Square(VirtualTextureFeedbackScale);
 	ViewUniformShaderParameters.VirtualTextureFeedbackSampleOffset = (FrameIndex % NumPixelsInTile) + (FrameIndex / NumPixelsInTile);
-	
+
 	ViewUniformShaderParameters.RuntimeVirtualTextureMipLevel = FVector4f(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTexturePackHeight = FVector2D(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTextureDebugParams = FVector4f(ForceInitToZero);
@@ -3379,7 +3379,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}
-						
+
 						if (bMobileMissingSkyMaterial)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "MobileMissingSkyMaterial", "On mobile the SkyAtmosphere component needs a mesh with a material tagged as IsSky and using the SkyAtmosphere nodes to visualize the Atmosphere.");
@@ -3826,7 +3826,7 @@ static FAutoConsoleVariableRef CVarSceneRenderCleanUpMode(
 );
 
 enum class ESceneRenderCleanUpMode
-{
+	{
 	Immediate,
 	Deferred,
 	DeferredAndAsync
@@ -4066,7 +4066,7 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_TotalSceneRenderingTime);
-
+	
 		{
 			const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
 

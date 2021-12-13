@@ -156,7 +156,7 @@ namespace DatasmithRevitExporter
 			{
 				InToActor.SetLabel(InFromActor.GetLabel());
 
-					float X, Y, Z, W;
+				float X, Y, Z, W;
 				InFromActor.GetTranslation(out X, out Y, out Z);
 				InToActor.SetTranslation(X, Y, Z);
 				InFromActor.GetScale(out X, out Y, out Z);
@@ -167,17 +167,17 @@ namespace DatasmithRevitExporter
 				InToActor.SetLayer(InFromActor.GetLayer());
 
 				for (int TagIndex = 0; TagIndex < InFromActor.GetTagsCount(); ++TagIndex)
-					{
+				{
 					InToActor.AddTag(InFromActor.GetTag(TagIndex));
-					}
+				}
 
 				InToActor.SetIsComponent(InFromActor.IsComponent());
 				InToActor.SetVisibility(InFromActor.GetVisibility());
 
 				for (int ChildIndex = 0; ChildIndex < InFromActor.GetChildrenCount(); ++ChildIndex)
-					{
+				{
 					InToActor.AddChild(InFromActor.GetChild(ChildIndex));
-					}
+				}
 
 				ElementMetaData?.SetAssociatedElement(InToActor);
 			}
@@ -1178,28 +1178,28 @@ namespace DatasmithRevitExporter
 						{
 							if (ElementData.ChildElements.Count > 0)
 							{
-							List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
+								List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
 					
-							for(int ChildIndex = 0; ChildIndex < ElementData.ChildElements.Count; ++ChildIndex)
-							{
-								FBaseElementData ChildElement = ElementData.ChildElements[ChildIndex];
-
-								bool bIsFamilyIntance = 
-									((ChildElement as FElementData) == null) && 
-									ChildElement.ElementActor.IsComponent();
-
-								if (bIsFamilyIntance)
+								for(int ChildIndex = 0; ChildIndex < ElementData.ChildElements.Count; ++ChildIndex)
 								{
-									ChildrenToRemove.Add(ChildElement);
+									FBaseElementData ChildElement = ElementData.ChildElements[ChildIndex];
+
+									bool bIsFamilyIntance = 
+										((ChildElement as FElementData) == null) && 
+										ChildElement.ElementActor.IsComponent();
+
+									if (bIsFamilyIntance)
+									{
+										ChildrenToRemove.Add(ChildElement);
+									}
+								}
+
+								foreach (FBaseElementData Child in ChildrenToRemove)
+								{
+									ExistingActor.RemoveChild(Child.ElementActor);
+									ElementData.ChildElements.Remove(Child);
 								}
 							}
-
-							foreach (FBaseElementData Child in ChildrenToRemove)
-							{
-								ExistingActor.RemoveChild(Child.ElementActor);
-								ElementData.ChildElements.Remove(Child);
-							}
-						}
 
 							ExistingActor.ResetTags();
 							(ExistingActor as FDatasmithFacadeActorMesh)?.SetMesh(null);

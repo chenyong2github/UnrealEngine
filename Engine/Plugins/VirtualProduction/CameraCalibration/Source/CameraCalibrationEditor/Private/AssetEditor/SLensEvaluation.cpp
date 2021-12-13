@@ -119,13 +119,13 @@ void SLensEvaluation::CacheLiveLinkData()
 		{
 			CachedLiveLinkData.RawZoom = LensFileEvalData.Input.Zoom;
 
-				FFocalLengthInfo FocalLength;
+			FFocalLengthInfo FocalLength;
 			if (LensFile->EvaluateFocalLength(LensFileEvalData.Input.Focus, LensFileEvalData.Input.Zoom, FocalLength))
-				{
-					CachedLiveLinkData.EvaluatedZoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
-				}
+			{
+				CachedLiveLinkData.EvaluatedZoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
 			}
 		}
+	}
 	else
 	{
 		bCameraControllerExists = false;
@@ -143,7 +143,7 @@ void SLensEvaluation::CacheLensFileData()
 		bCouldEvaluateImageCenter = LensFile->EvaluateImageCenterParameters(Focus, Zoom, CachedImageCenter);
 		bCouldEvaluateNodalOffset = LensFile->EvaluateNodalPointOffset(Focus, Zoom, CachedNodalOffset);
 	}
-	}
+}
 
 TSharedRef<SWidget> SLensEvaluation::MakeTrackingWidget()
 {

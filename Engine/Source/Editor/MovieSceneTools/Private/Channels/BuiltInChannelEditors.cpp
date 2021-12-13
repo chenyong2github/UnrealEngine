@@ -134,7 +134,7 @@ FKeyHandle AddOrUpdateKeyImpl(ChannelType* Channel, UMovieSceneSection* SectionT
 			}
 			else
 			{
-			Interrogator.ImportTrack(TrackToKey, FInterrogationChannel::Default());
+				Interrogator.ImportTrack(TrackToKey, FInterrogationChannel::Default());
 			}
 
 			// Interrogate!
@@ -1136,9 +1136,9 @@ struct TCurveChannelSectionMenuExtension : FExtender, TSharedFromThis<TCurveChan
 
 		USequencerSettings* Settings = Sequencer->GetSequencerSettings();
 		if (!Settings)
-			{
+		{
 			return;
-			}
+		}
 
 		// Menu entry for key area height
 		auto OnKeyAreaHeightChanged = [=](int32 NewValue) { Settings->SetKeyAreaHeightWithCurves((float)NewValue); };
@@ -1176,7 +1176,7 @@ struct TCurveChannelSectionMenuExtension : FExtender, TSharedFromThis<TCurveChan
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);	
-
+		
 		FString KeyAreaName;
 		TArray<const IKeyArea*> SelectedKeyAreas;
 		Sequencer->GetSelectedKeyAreas(SelectedKeyAreas);

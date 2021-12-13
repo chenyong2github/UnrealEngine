@@ -2311,11 +2311,11 @@ void AActor::ForceNetUpdate()
 
 			if (NetDormancy > DORM_Awake)
 			{
-				FlushNetDormancy(); 
+				FlushNetDormancy();
 			}
 		}
 	}
-	
+
 	// Even if not authority, other drivers (like the demo net driver) may need to ForceNetUpdate
 	if (UWorld* MyWorld = GetWorld())
 	{
@@ -2327,9 +2327,9 @@ void AActor::ForceNetUpdate()
 				{
 					Driver.NetDriver->ForceNetUpdate(this);
 				}
+			}
 		}
 	}
-}
 }
 
 bool AActor::IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer)
@@ -2353,8 +2353,8 @@ void AActor::SetNetDormancy(ENetDormancy NewDormancy)
 		return;
 	}
 
-			ENetDormancy OldDormancy = NetDormancy;
-			NetDormancy = NewDormancy;
+	ENetDormancy OldDormancy = NetDormancy;
+	NetDormancy = NewDormancy;
 	const bool bDormancyChanged = (OldDormancy != NewDormancy);
 
 	if (UWorld* MyWorld = GetWorld())
@@ -2370,7 +2370,7 @@ void AActor::SetNetDormancy(ENetDormancy NewDormancy)
 					{
 						Driver.NetDriver->NotifyActorDormancyChange(this, OldDormancy);
 					}
-			}
+				}
 			}
 
 			// If not dormant, flush actor from NetDriver's dormant list
@@ -2435,12 +2435,12 @@ void AActor::FlushNetDormancy()
 
 void AActor::ForcePropertyCompare()
 {
-	if ( IsNetMode( NM_Client ) )
+	if (IsNetMode(NM_Client))
 	{
 		return;
 	}
 
-	if ( !bReplicates )
+	if (!bReplicates)
 	{
 		return;
 	}
@@ -2610,16 +2610,16 @@ void AActor::TearOff()
 		{
 			if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(MyWorld))
 			{
-			for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
-			{
-				if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
+				for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 				{
-					Driver.NetDriver->NotifyActorTearOff(this);
+					if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
+					{
+						Driver.NetDriver->NotifyActorTearOff(this);
+					}
 				}
 			}
 		}
 	}
-}
 }
 
 void AActor::TornOff() {}
@@ -4629,15 +4629,15 @@ bool AActor::CallRemoteFunction( UFunction* Function, void* Parameters, FOutParm
 	{
 		if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(MyWorld))
 		{
-		for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
-		{
-			if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateFunction(this, Function))
+			for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 			{
-				Driver.NetDriver->ProcessRemoteFunction(this, Function, Parameters, OutParms, Stack, nullptr);
-				bProcessed = true;
+				if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateFunction(this, Function))
+				{
+					Driver.NetDriver->ProcessRemoteFunction(this, Function, Parameters, OutParms, Stack, nullptr);
+					bProcessed = true;
+				}
 			}
 		}
-	}
 	}
 
 	return bProcessed;
@@ -5532,7 +5532,7 @@ void AActor::PostRename(UObject* OldOuter, const FName OldName)
 				{
 					Driver.NetDriver->NotifyActorRenamed(this, OldName);
 				}
-		}
+			}
 		}
 	}
 }

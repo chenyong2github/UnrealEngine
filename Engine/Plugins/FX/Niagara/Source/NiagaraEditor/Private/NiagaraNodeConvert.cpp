@@ -267,9 +267,9 @@ void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)
 
 				if(bCanConnect)
 				{
-				ConnectPin->MakeLinkTo(FromPin);
+					ConnectPin->MakeLinkTo(FromPin);
 					bConnectionMade = true;
-			}
+				}
 			}
 
 			TArray<FName> SrcPath;
@@ -284,7 +284,7 @@ void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)
 				UEdGraphPin* NewPin = RequestNewTypedPin(Dir, PropType, *Property->GetDisplayNameText().ToString());
 
 				if (Dir == EGPD_Input)
-				{
+				{					
 					if(FromPin && FromPin->Direction == EGPD_Output && bConnectionMade == false)
 					{
 						FNiagaraTypeDefinition FromPinType = UEdGraphSchema_Niagara::PinToTypeDefinition(FromPin);

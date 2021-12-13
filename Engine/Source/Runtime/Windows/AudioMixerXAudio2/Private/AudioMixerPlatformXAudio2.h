@@ -102,11 +102,11 @@ namespace Audio
 		virtual void OnDeviceRemoved(const FString& DeviceId, bool bIsRenderDevice) override;
 		virtual void OnDeviceStateChanged(const FString& DeviceId, const EAudioDeviceState InState, bool bIsRenderDevice) override;
 		virtual void OnSessionDisconnect(Audio::IAudioMixerDeviceChangedListener::EDisconnectReason InReason) override;
-		virtual FString GetDeviceId() const override;
+		virtual FString GetDeviceId() const override;		
 		//~ End IAudioMixerDeviceChangedListener
 
 	private:
-
+	
 		struct FXAudio2AsyncCreateResult
 		{
 			IXAudio2* XAudio2System = nullptr;

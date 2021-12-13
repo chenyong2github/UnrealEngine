@@ -3310,7 +3310,7 @@ void FFbxExporter::ExportLevelSequenceBaked3DTransformTrack(IAnimTrackAdapter& A
 
 		RelativeTransforms.Add(RelativeTransform);
 	}
-
+		
 	// Reset 
 	AnimTrackAdapter.UpdateAnimation(LocalStartFrame);
 

@@ -269,7 +269,7 @@ struct FLandscapeComponentGrassData
 	// Grass data was updated but not saved yet
 	bool bIsDirty = false;
 #endif
-
+	
 	static constexpr int32 UnknownNumElements = -1;
 	// Elements per contiguous array: for validation and also to indicate whether the grass data is valid (NumElements >= 0, meaning 0 elements is valid but the grass data is all zero and 
 	//  therefore empty) or not known yet (== UnknownNumElements)

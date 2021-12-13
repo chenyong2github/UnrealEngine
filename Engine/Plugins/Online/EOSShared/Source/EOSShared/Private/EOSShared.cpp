@@ -5,6 +5,7 @@
 #include "eos_friends_types.h"
 
 DEFINE_LOG_CATEGORY(LogEOSSDK);
+
 FString LexToString(const EOS_ProductUserId UserId)
 {
 	FString Result;

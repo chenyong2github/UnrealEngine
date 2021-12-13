@@ -825,7 +825,7 @@ public:
 		// Quantized event data
 		Audio::FQuartzQuantizedRequestData QuantizedRequestData;
 	};
-
+	
 private:
 
 	uint64 AudioComponentID;

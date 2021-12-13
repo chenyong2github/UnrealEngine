@@ -138,7 +138,7 @@ int32 UAudioCaptureComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 				float* CaptureDataPtr = CaptureAudioData.GetData();
 				if (!(ReadSampleIndex + NumSamples > MaxBufferSize - 1))
 				{
-				FMemory::Memcpy(OutAudio, &CaptureDataPtr[ReadSampleIndex], SamplesLeft * sizeof(float));
+					FMemory::Memcpy(OutAudio, &CaptureDataPtr[ReadSampleIndex], SamplesLeft * sizeof(float));
 				}
 				else
 				{
@@ -162,7 +162,7 @@ int32 UAudioCaptureComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 			float* CaptureDataPtr = CaptureAudioData.GetData();
 			if (!(ReadSampleIndex + NumSamplesToCopy > MaxBufferSize - 1))
 			{
-			FMemory::Memcpy(&OutAudio[OutputSamplesGenerated], &CaptureDataPtr[ReadSampleIndex], NumSamplesToCopy * sizeof(float));
+				FMemory::Memcpy(&OutAudio[OutputSamplesGenerated], &CaptureDataPtr[ReadSampleIndex], NumSamplesToCopy * sizeof(float));
 			}
 			else
 			{

@@ -123,6 +123,7 @@ private:
 	FORCEINLINE bool operator==(const TComponentIterator& Other) const { return CompIndex == Other.CompIndex; }
 	FORCEINLINE bool operator!=(const TComponentIterator& Other) const { return CompIndex != Other.CompIndex; }
 };
+
 /**
  * Const iterator for registered components on an actor
  */

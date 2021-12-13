@@ -212,7 +212,7 @@ FString UFontFace::GetCookedFilename() const
 	FString PackageName = GetOutermost()->GetName();
 	if (!GIsEditor)
 	{
-	PackageName = FPackageName::GetLocalizedPackagePath(PackageName);
+		PackageName = FPackageName::GetLocalizedPackagePath(PackageName);
 	}
 	
 	// Note: This must match the replacement logic in UFontFace::CookAdditionalFiles

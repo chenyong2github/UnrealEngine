@@ -26,7 +26,7 @@ void UMoviePipelineInProcessExecutor::Start(const UMoviePipelineExecutorJob* InJ
 			OnIndividualPipelineFinished(nullptr);
 			return;
 		}
-		
+
 		if (World != InJob->Map.ResolveObject())
 		{
 			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Current map '%s' does not match job's map: '%s'. Rendering may happen on a different map than expected and produce incorrect results."), *GetNameSafe(World), *InJob->Map.GetAssetPathName().ToString());

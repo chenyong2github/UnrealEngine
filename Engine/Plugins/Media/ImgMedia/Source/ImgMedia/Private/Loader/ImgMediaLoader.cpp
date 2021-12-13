@@ -168,7 +168,7 @@ TSharedPtr<FImgMediaTextureSample, ESPMode::ThreadSafe> FImgMediaLoader::GetFram
 	const FTimespan NextStartTime = FrameNumberToTime(FrameIndex + 1);
 
 	auto Sample = MakeShared<FImgMediaTextureSample, ESPMode::ThreadSafe>();
-	
+
 	ImgMediaLoader::CheckAndUpdateImgDimensions(SequenceDim, Frame->Get()->Info.Dim);
 
 	if (!Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameStartTime, 0), NextStartTime - FrameStartTime, GetNumMipLevels()))
@@ -855,7 +855,7 @@ void FImgMediaLoader::FindMips(const FString& SequencePath)
 			{
 				FString TempChop = MipLevelStringWidth.RightChop(IndexLeft);
 				if (!FCString::IsNumeric(*TempChop))
-		{
+				{
 					break;
 				}
 			}

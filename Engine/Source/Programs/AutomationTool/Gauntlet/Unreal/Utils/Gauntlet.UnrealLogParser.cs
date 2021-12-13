@@ -68,7 +68,7 @@ namespace Gauntlet
 				else
 				{
 					return string.Format("{0}{1}: {2}: {3}", Prefix, Category, Level, Message);
-			}
+				}
 			}
 
 			/// <summary>

@@ -123,12 +123,12 @@ void FSequencerSelection::AddToSelection(const FSequencerSelectedKey& Key)
 		OnKeySelectionChanged.Broadcast();
 		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
 
-	// Deselect any outliner nodes that aren't within the trunk of this key
+		// Deselect any outliner nodes that aren't within the trunk of this key
 		TArray<UMovieSceneSection*> Sections;
 		Sections.Add(Key.Section);
 
 		EmptySelectedOutlinerNodesWithoutSections(Sections);
-}
+	}
 	else
 	{	
 		bEmptySelectedOutlinerNodesWithSectionsPending = true;
@@ -145,15 +145,15 @@ void FSequencerSelection::AddToSelection(UMovieSceneSection* Section)
 		OnSectionSelectionChanged.Broadcast();
 		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
 
-	// Deselect any outliner nodes that aren't within the trunk of this section
-	if (Section)
-	{
+		// Deselect any outliner nodes that aren't within the trunk of this section
+		if (Section)
+		{
 			TArray<UMovieSceneSection*> Sections;
 			Sections.Add(Section);
 		
 			EmptySelectedOutlinerNodesWithoutSections(Sections);
+		}
 	}
-}
 	else
 	{	
 		bEmptySelectedOutlinerNodesWithSectionsPending = true;

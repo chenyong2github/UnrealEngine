@@ -1161,7 +1161,7 @@ void FWinHttpConnectionHttp::HandleRequestError(const uint32 ErrorApiId, const u
 	if (ErrorCode == ERROR_WINHTTP_OPERATION_CANCELLED)
 	{
 		ReleasePayloadData();
-}
+	}
 }
 
 void FWinHttpConnectionHttp::HandleHandleClosing()

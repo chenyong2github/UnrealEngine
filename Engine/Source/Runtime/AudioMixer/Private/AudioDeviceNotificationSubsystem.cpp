@@ -56,7 +56,7 @@ void UAudioDeviceNotificationSubsystem::OnDeviceAdded(const FString& DeviceId, b
 {
 	// We currently ignore changes in non-render devices
 	if (!bIsRenderDevice)
-{
+	{
 		return;
 	}
 
@@ -75,7 +75,7 @@ void UAudioDeviceNotificationSubsystem::OnDeviceRemoved(const FString& DeviceId,
 {
 	// We currently ignore changes in non-render devices
 	if (!bIsRenderDevice)
-{
+	{
 		return;
 	}
 	

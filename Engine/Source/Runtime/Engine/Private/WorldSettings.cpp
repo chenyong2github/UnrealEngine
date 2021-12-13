@@ -681,7 +681,7 @@ void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 
 	const FName PropName = PropertyChangedEvent.GetPropertyName();
 	if (PropName == GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableAISystem)
-		|| PropName == GET_MEMBER_NAME_CHECKED(AWorldSettings, AISystemClass))
+	|| PropName == GET_MEMBER_NAME_CHECKED(AWorldSettings, AISystemClass))
 	{
 		if (World)
 		{

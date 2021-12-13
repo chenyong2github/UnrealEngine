@@ -1470,23 +1470,23 @@ namespace AutomationTool
 
 			if (InternalUtils.SafeDirectoryExists(Source))
 			{
-			foreach (var SourceSubDirectory in Directory.GetDirectories(Source))
-			{
-				string DestPath = Dest + GetPathSeparatorChar(PathSeparator.Default) + GetLastDirectoryName(SourceSubDirectory + GetPathSeparatorChar(PathSeparator.Default));
-				if (!CopyDirectory_NoExceptions(SourceSubDirectory, DestPath, bQuiet))
+				foreach (var SourceSubDirectory in Directory.GetDirectories(Source))
 				{
-					return false;
+					string DestPath = Dest + GetPathSeparatorChar(PathSeparator.Default) + GetLastDirectoryName(SourceSubDirectory + GetPathSeparatorChar(PathSeparator.Default));
+					if (!CopyDirectory_NoExceptions(SourceSubDirectory, DestPath, bQuiet))
+					{
+						return false;
+					}
 				}
-			}
-			foreach (var SourceFile in Directory.GetFiles(Source))
-			{
-				int FilenameStart = SourceFile.LastIndexOf(GetPathSeparatorChar(PathSeparator.Default));
-				string DestPath = Dest + SourceFile.Substring(FilenameStart);
-				if (!CopyFile_NoExceptions(SourceFile, DestPath, bQuiet))
+				foreach (var SourceFile in Directory.GetFiles(Source))
 				{
-					return false;
+					int FilenameStart = SourceFile.LastIndexOf(GetPathSeparatorChar(PathSeparator.Default));
+					string DestPath = Dest + SourceFile.Substring(FilenameStart);
+					if (!CopyFile_NoExceptions(SourceFile, DestPath, bQuiet))
+					{
+						return false;
+					}
 				}
-			}
 			}
 
 			return true;

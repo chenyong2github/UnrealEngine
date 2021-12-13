@@ -168,6 +168,7 @@ private:
 	UPROPERTY()
 	TWeakObjectPtr<ULensFile> LensFile;
 };
+
 template<>
 struct TStructOpsTypeTraits<FBaseLensTable> : public TStructOpsTypeTraitsBase2<FBaseLensTable>
 {

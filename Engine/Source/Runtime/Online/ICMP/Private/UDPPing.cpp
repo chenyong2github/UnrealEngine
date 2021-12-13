@@ -603,9 +603,9 @@ bool FUdpPingWorker::SendPings(ISocketSubsystem& SocketSub)
 					{
 						// actually kick in the wait timer if we did anything on the network this time
 						bSentLastPing = true;
-					LastSendActivityTimeCycles = FPlatformTime::Cycles64();
+						LastSendActivityTimeCycles = FPlatformTime::Cycles64();
 					}
-
+					
 					// Advance to next send target address.
 					++ItSend;
 				}

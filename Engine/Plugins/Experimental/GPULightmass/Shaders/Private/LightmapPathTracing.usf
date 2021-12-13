@@ -1186,10 +1186,10 @@ void VolumetricLightmapPathTracingMainRG()
 		
 		AmbientVector[VoxelPos].w = asfloat(SampleCount + 1);
 	}
-
+	
 	// 32 samples for single sample stationary directional light shadowing
 	if (FrameNumber < 32 && length(LightShaderParametersArray[0].Direction) > 0)
-{
+	{
 		FLightShaderParameters LightParameters;
 		LightShaderParametersArray[0].FillLightShaderParameters(LightParameters);
 
@@ -1210,9 +1210,9 @@ void VolumetricLightmapPathTracingMainRG()
 			/* out */ Ray.TMax);
 			
 		Ray.Origin += Ray.Direction * 0.01f;
-	
+			
 		if (bIsValidRay)
-	{
+		{
 			uint RayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 	
 			FMinimalPayload MinimalPayload = TraceVisibilityRay(
@@ -1225,7 +1225,7 @@ void VolumetricLightmapPathTracingMainRG()
 			DirectionalLightShadowing[VoxelPos] += (MinimalPayload.IsMiss() ? 1 : 0) / 32.0f;
 		}
 	}
-	}
+}
 
 Buffer<int> LightTypeArray;
 Buffer<int> ChannelIndexArray;

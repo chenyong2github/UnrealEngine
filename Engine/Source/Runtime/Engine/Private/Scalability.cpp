@@ -794,8 +794,8 @@ void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce/* = false
 		SetQualityLevelCVar(CVarFoliageQuality, ClampedLevels.FoliageQuality, GScalabilityQualityLevelsOverride.FoliageQuality, bForce);
 		SetQualityLevelCVar(CVarShadingQuality, ClampedLevels.ShadingQuality, GScalabilityQualityLevelsOverride.ShadingQuality, bForce);
 
-	OnScalabilitySettingsChanged.Broadcast(ClampedLevels);
-}
+		OnScalabilitySettingsChanged.Broadcast(ClampedLevels);
+	}
 }
 
 FQualityLevels GetQualityLevels()

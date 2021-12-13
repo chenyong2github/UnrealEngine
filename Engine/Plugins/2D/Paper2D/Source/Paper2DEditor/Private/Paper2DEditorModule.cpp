@@ -222,17 +222,17 @@ public:
 
 		if (!IsRunningCommandlet())
 		{
-		// Register Paper2D tutorial category with the tutorial browser
-		FTutorialCategory Paper2DCategory = FTutorialCategory();
-		Paper2DCategory.Identifier = "Paper2D";
-		Paper2DCategory.Title = NSLOCTEXT("TutorialCategories", "Paper2DTitle", "Paper2D");
-		Paper2DCategory.Description = NSLOCTEXT("TutorialCategories", "Paper2DDescription", "Tutorials covering the usage of the Unreal Engine 4 2D game tool: Paper2D.");
-		Paper2DCategory.Icon = "ClassThumbnail.PaperSprite";
-		Paper2DCategory.Texture = FSoftObjectPath("/Paper2D/Tutorial/Paper2D/TutorialAssets/Paper2DSprite_TutorialIcon.Paper2DSprite_TutorialIcon");
-		Paper2DCategory.SortOrder = 500;
+			// Register Paper2D tutorial category with the tutorial browser
+			FTutorialCategory Paper2DCategory = FTutorialCategory();
+			Paper2DCategory.Identifier = "Paper2D";
+			Paper2DCategory.Title = NSLOCTEXT("TutorialCategories", "Paper2DTitle", "Paper2D");
+			Paper2DCategory.Description = NSLOCTEXT("TutorialCategories", "Paper2DDescription", "Tutorials covering the usage of the Unreal Engine 4 2D game tool: Paper2D.");
+			Paper2DCategory.Icon = "ClassThumbnail.PaperSprite";
+			Paper2DCategory.Texture = FSoftObjectPath("/Paper2D/Tutorial/Paper2D/TutorialAssets/Paper2DSprite_TutorialIcon.Paper2DSprite_TutorialIcon");
+			Paper2DCategory.SortOrder = 500;
 
-		IIntroTutorials& IntroTutorials = FModuleManager::GetModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
-		IntroTutorials.RegisterCategory(Paper2DCategory);
+			IIntroTutorials& IntroTutorials = FModuleManager::GetModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
+			IntroTutorials.RegisterCategory(Paper2DCategory);
 		}
 
 		//

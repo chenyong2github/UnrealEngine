@@ -42,8 +42,8 @@ float UDMXFixtureComponentSingle::GetDMXInterpolatedStep() const
 {
 	if (CurrentCell && CurrentCell->ChannelInterpolation.Num() == 1)
 	{
-	return (CurrentCell->ChannelInterpolation[0].CurrentSpeed * CurrentCell->ChannelInterpolation[0].Direction);
-}
+		return (CurrentCell->ChannelInterpolation[0].CurrentSpeed * CurrentCell->ChannelInterpolation[0].Direction);
+	}
 
 	return 0.f;
 }
@@ -52,8 +52,8 @@ float UDMXFixtureComponentSingle::GetDMXInterpolatedValue() const
 {
 	if (CurrentCell && CurrentCell->ChannelInterpolation.Num() == 1)
 	{
-	return CurrentCell->ChannelInterpolation[0].CurrentValue;
-}
+		return CurrentCell->ChannelInterpolation[0].CurrentValue;
+	}
 
 	return 0.f;
 }
@@ -62,8 +62,8 @@ float UDMXFixtureComponentSingle::GetDMXTargetValue() const
 {
 	if (CurrentCell && CurrentCell->ChannelInterpolation.Num() == 1)
 	{
-	return CurrentCell->ChannelInterpolation[0].TargetValue;
-}
+		return CurrentCell->ChannelInterpolation[0].TargetValue;
+	}
 
 	return 0.f;
 }
@@ -72,8 +72,8 @@ bool UDMXFixtureComponentSingle::IsDMXInterpolationDone() const
 {
 	if (CurrentCell && CurrentCell->ChannelInterpolation.Num() == 1)
 	{
-	return CurrentCell->ChannelInterpolation[0].IsInterpolationDone();
-}
+		return CurrentCell->ChannelInterpolation[0].IsInterpolationDone();
+	}
 
 	return true;
 }
@@ -85,7 +85,7 @@ float UDMXFixtureComponentSingle::NormalizedToAbsoluteValue(float Alpha) const
 		const float AbsoluteValue = FMath::Lerp(DMXChannel.MinValue, DMXChannel.MaxValue, Alpha);
 
 		return AbsoluteValue;
-}
+	}
 
 	return 0.f;
 }
@@ -94,8 +94,8 @@ bool UDMXFixtureComponentSingle::IsTargetValid(float Target)
 {
 	if (CurrentCell && CurrentCell->ChannelInterpolation.Num() == 1)
 	{
-	return CurrentCell->ChannelInterpolation[0].IsTargetValid(Target, SkipThreshold);
-}
+		return CurrentCell->ChannelInterpolation[0].IsTargetValid(Target, SkipThreshold);
+	}
 
 	return false;
 }
@@ -107,27 +107,27 @@ void UDMXFixtureComponentSingle::SetTargetValue(float AbsoluteValue)
 		IsTargetValid(AbsoluteValue))
 	{
 		if (bUseInterpolation)
-	{
-			if (CurrentCell->ChannelInterpolation[0].bFirstValueWasSet)
 		{
+			if (CurrentCell->ChannelInterpolation[0].bFirstValueWasSet)
+			{
 				// Only 'Push' the next value into interpolation. BPs will read the resulting value on tick.
 				CurrentCell->ChannelInterpolation[0].Push(AbsoluteValue);
-		}
-		else
-		{
+			}
+			else
+			{
 				// Jump to the first value if it never was set
 				CurrentCell->ChannelInterpolation[0].SetValueNoInterp(AbsoluteValue);
 				CurrentCell->ChannelInterpolation[0].bFirstValueWasSet = true;
 
 				SetValueNoInterp(AbsoluteValue);
+			}
 		}
-	}
 		else
 		{
 			CurrentCell->ChannelInterpolation[0].SetValueNoInterp(AbsoluteValue);
 
 			// Raise BP Event
 			SetValueNoInterp(AbsoluteValue);
-}
-}
+		}
+	}
 }

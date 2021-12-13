@@ -49,7 +49,7 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 
 		UWaterSubsystem::ForEachWaterBodyComponent(WorldPtr.Get(), [&WaterIndirectionBuffer, &WaterDataBuffer](UWaterBodyComponent* WaterBodyComponent)
 		{
-		// Some max value
+			// Some max value
 			constexpr int32 MaxWavesPerWaterBody = 4096;
 			constexpr int32 NumFloat4PerWave = 2;
 

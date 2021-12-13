@@ -232,7 +232,7 @@ public:
 		}
 		
 		return false;
-			}
+	}
 
 
 	bool PrePreSimFilter(const void* SimData) const
@@ -244,7 +244,7 @@ public:
 				return PrePreSimFilterImp(*SimFilterData, UnionSimFilterData);
 			}
 		}
-		
+
 		return false;
 	}
 
@@ -2881,8 +2881,8 @@ template <typename TParticle>
 		OutQueryFilterData.Word2 |= ShapeQueryData.Word2;
 		OutQueryFilterData.Word3 |= ShapeQueryData.Word3;
 	}
-	}
-	
+}
+
 template <typename TParticle>
 /* static */ void FAccelerationStructureHandle::ComputeParticleSimFilterDataFromShapes(const TParticle& Particle, FCollisionFilterData& OutSimFilterData)
 {

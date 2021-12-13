@@ -1256,7 +1256,7 @@ void APlayerCameraManager::DisplayDebug(class UCanvas* Canvas, const FDebugDispl
 	for (UCameraModifier* Modifier : ModifierList)
 	{
 		Modifier->DisplayDebug(Canvas, DebugDisplay, YL, YPos);
-}
+	}
 }
 
 void APlayerCameraManager::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)

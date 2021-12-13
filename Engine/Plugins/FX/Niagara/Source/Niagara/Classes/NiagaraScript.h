@@ -332,7 +332,7 @@ struct NIAGARA_API FNiagaraScriptAsyncOptimizeTaskState
 	FNiagaraVMExecutableByteCode OptimizedByteCode;
 
 	TArray<uint8, TInlineAllocator<32>> ExternalFunctionRegisterCounts;
-
+	
 	bool bShouldOptimizeByteCode = false;
 	bool bShouldFreeSourceByteCodeOnCooked = false;
 	bool bOptimizationComplete = false;

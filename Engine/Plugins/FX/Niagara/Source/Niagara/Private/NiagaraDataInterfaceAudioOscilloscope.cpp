@@ -90,7 +90,7 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateSubmix(USoundSubmix* Submix
 	}
 
 	SubmixRegisteredTo = Submix;
-	
+
 	RegisterToAllAudioDevices();
 	
 }
@@ -415,9 +415,9 @@ void UNiagaraDataInterfaceAudioOscilloscope::PostInitProperties()
 	}
 	else if (!HasAnyFlags(RF_NeedLoad) && !HasAnyFlags(RF_Transactional))
 	{
-	GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateResampling(Resolution, ScopeInMilliseconds);
-	GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateSubmix(Submix);
-}
+		GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateResampling(Resolution, ScopeInMilliseconds);
+		GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->OnUpdateSubmix(Submix);
+	}
 }
 
 void FNiagaraDataInterfaceProxyOscilloscope::OnBeginDestroy()

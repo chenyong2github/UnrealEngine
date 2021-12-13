@@ -72,7 +72,7 @@ public:
 			UE_LOG(LogNiagara, Warning, TEXT("Invalid world reference in audio player DI, skipping play"));
 			return;
 		}
-
+		
 		USoundBase* Sound = WeakSound.Get();
 		if (Sound == nullptr)
 		{

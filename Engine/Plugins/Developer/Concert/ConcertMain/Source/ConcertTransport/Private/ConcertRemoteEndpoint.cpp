@@ -58,7 +58,7 @@ void FConcertRemoteEndpoint::QueueMessageToSend(const TSharedRef<IConcertMessage
 	// Assign a message index to allow ordering
 	SetMessageOrderIndex(Message, NextMessageIndexToSend++);
 	SetMessageChannelId(Message, ReliableChannelIdToSend);
-	
+
 	PendingMessages.Add(Message);
 }
 
@@ -83,7 +83,7 @@ void FConcertRemoteEndpoint::QueueMessageToReceive(const FConcertMessageContext&
 			return;
 		}
 
-		// Do not process messages multiple time 
+		// Do not process messages multiple time
 		RecentlyReceivedMessages.Add(Context.Message->MessageId, Context.UtcNow);
 	}
 
@@ -193,7 +193,7 @@ void FConcertRemoteEndpoint::HandleAcknowledgement(const FConcertMessageContext&
 	for (auto It = PendingMessages.CreateIterator(); It; ++It)
 	{
 		TSharedRef<IConcertMessage> PendingMessage = It->ToSharedRef();
-		
+
 		if (PendingMessage->GetState() == EConcertMessageState::Pending)
 		{
 			PendingMessage->Acknowledge(Context);

@@ -26,9 +26,9 @@ public:
 
 		ExecuteOnRHIThread([this]()
 		{
-		void* NativeResource = TextureRHI->GetNativeResource();
-		check(NativeResource);
-		TextureId = *reinterpret_cast<uint32*>(NativeResource);
+			void* NativeResource = TextureRHI->GetNativeResource();
+			check(NativeResource);
+			TextureId = *reinterpret_cast<uint32*>(NativeResource);
 		});
 		
 		FExternalTextureRegistry::Get().RegisterExternalTexture(ExternalTextureGuid, TextureRHI, SamplerStateRHI);

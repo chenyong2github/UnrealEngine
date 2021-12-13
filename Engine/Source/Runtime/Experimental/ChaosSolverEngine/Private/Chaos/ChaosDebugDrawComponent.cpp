@@ -266,8 +266,8 @@ void UChaosDebugDrawComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 			}
 			else
 			{
-			FDebugDrawQueue::GetInstance().SetRegionOfInterest(World->ViewLocationsRenderedLastFrame[0], ChaosDebugDraw_Radius);
-		}
+				FDebugDrawQueue::GetInstance().SetRegionOfInterest(World->ViewLocationsRenderedLastFrame[0], ChaosDebugDraw_Radius);
+			}
 		}
 
 		FDebugDrawQueue::GetInstance().SetMaxCost(ChaosDebugDraw_MaxElements);

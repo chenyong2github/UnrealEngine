@@ -776,23 +776,23 @@ inline FChaosArchive& operator<<(FChaosArchive& Ar,FMaterialData& Data)
 /** Helper struct to let us know how many proxies are dirty per type,
   * as well as how to go from a contiguous index into a per bucket index */
 struct FDirtyProxiesBucketInfo
-		{
+{
 	int32 Num[(uint32)(EPhysicsProxyType::Count)] = {};
 	int32 TotalNum = 0;
 
 	void Reset()
-		{
+	{
 		for (int32 Idx = 0; Idx < (uint32)EPhysicsProxyType::Count; ++Idx) { Num[Idx] = 0; }
 		TotalNum = 0;
-		}
+	}
 
 	void GetBucketIdx(int32 Idx, int32& OutBucketIdx, int32& InnerIdx) const
-		{
+	{
 		int32 Remaining = Idx;
 		for (int32 BucketIdx = 0; BucketIdx < (uint32)EPhysicsProxyType::Count; ++BucketIdx)
 		{
 			if (Remaining < Num[BucketIdx])
-		{
+			{
 				InnerIdx = Remaining;
 				OutBucketIdx = BucketIdx;
 				return;

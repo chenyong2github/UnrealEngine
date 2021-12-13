@@ -33,7 +33,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UDEPRECATED_RiverGenerator* RiverGenerator_DEPRECATED;
-
+	
 	/** Material used when a river is overlapping a lake. */
 	UPROPERTY()
 	UMaterialInterface* LakeTransitionMaterial_DEPRECATED;

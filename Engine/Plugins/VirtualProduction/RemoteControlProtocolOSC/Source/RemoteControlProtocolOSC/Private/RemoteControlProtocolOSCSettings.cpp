@@ -5,7 +5,7 @@
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IRemoteControlProtocolModule.h"
 #include "OSCManager.h"
-#include "RemoteControlProtocolOSC.h"
+#include "RemoteControlProtocolOSC.h" 
 #include "UObject/UnrealType.h"
 
 void FRemoteControlOSCServerSettings::InitOSCServer()

@@ -157,7 +157,7 @@ bool UEditorBrushBuilder::EndBrush( UWorld* InWorld, ABrush* InBrush )
 	Brush->BuildBound();
 
 	GEditor->RedrawLevelEditingViewports();
-	GEditor->SetPivot( BuilderBrush->GetActorLocation(), false, true );
+	GEditor->SetPivot(BuilderBrush->GetActorLocation(), false, true);
 
 	BuilderBrush->ReregisterAllComponents();
 

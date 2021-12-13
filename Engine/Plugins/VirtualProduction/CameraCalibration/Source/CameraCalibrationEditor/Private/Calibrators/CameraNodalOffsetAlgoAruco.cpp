@@ -169,15 +169,15 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 					if (!DictionaryInfo.Dict.empty())
 					{
 						break;
-			}
+					}
 				}
 
-			if (!DictionaryInfo.Dict.empty())
-			{
-				break;
+				if (!DictionaryInfo.Dict.empty())
+				{
+					break;
+				}
 			}
 		}
-	}
 	}
 
 	if (DictionaryInfo.Dict.empty())
@@ -292,14 +292,14 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 
 			if (!ValidateNewRow(Row, OutErrorMessage))
 			{
-					// Notify the ListView of the new data
-					if (CalibrationListView.IsValid())
-					{
-						CalibrationListView->RequestListRefresh();
-					}
-
-					return false;
+				// Notify the ListView of the new data
+				if (CalibrationListView.IsValid())
+				{
+					CalibrationListView->RequestListRefresh();
 				}
+
+				return false;
+			}
 
 			CalibrationRows.Add(Row);
 		}

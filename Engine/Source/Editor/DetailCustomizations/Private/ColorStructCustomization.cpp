@@ -80,7 +80,7 @@ void FColorStructCustomization::MakeHeaderRow(TSharedRef<class IPropertyHandle>&
 
 FColorStructCustomization::~FColorStructCustomization()
 {
-	}
+}
 
 TSharedRef<SWidget> FColorStructCustomization::CreateColorWidget(TWeakPtr<IPropertyHandle> StructWeakHandlePtr)
 {
@@ -325,10 +325,10 @@ void FColorStructCustomization::ResetColors()
 		// ensure(StructPropertyHandle->SetPerObjectValues(PerObjectColors, EPropertyValueSetFlags::NotTransactable) == FPropertyAccess::Success);
 		StructPropertyHandle->SetPerObjectValues(PerObjectColors, EPropertyValueSetFlags::NotTransactable);
 	}
-	}
+}
 
 void FColorStructCustomization::OnColorPickerCancelled(FLinearColor OriginalColor)
-	{
+{
 	ResetColors();
 	LastPickerColorString.Reset();
 

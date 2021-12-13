@@ -45,7 +45,7 @@ public:
 
 	/** Sets the target value. Interpolates to the value if bUseInterpolation is true. Expects the value to be in value range of the component */
 	void SetTargetValue(float AbsoluteValue);
-
+	
 	/** Called to set the value. When interpolation is enabled this function is called by the plugin until the target value is reached, else just once. */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX Component")
 	void SetValueNoInterp(float NewValue);

@@ -19,7 +19,7 @@ bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
 {
 	auto TestText = [this](const TCHAR* const Desc, const FText& A, const FText& B)
 	{
-		if( !A.EqualTo(B) )
+		if (!A.EqualTo(B))
 		{
 			AddError(FString::Printf(TEXT("%s - A=%s B=%s"), Desc, *A.ToString(), *B.ToString()));
 		}
@@ -30,29 +30,29 @@ bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
 		if (!A.Equals(B))
 		{
 			AddError(FString::Printf(TEXT("%s - A=%s B=%s"), Desc, *A, *B));
-	}
+		}
 	};
 
 	FInternationalization& I18N = FInternationalization::Get();
 
 #if UE_ENABLE_ICU
-{
-	FInternationalization::FCultureStateSnapshot OriginalCultureState;
-	I18N.BackupCultureState(OriginalCultureState);
-
-	const FDateTime UnixEpoch = FDateTime::FromUnixTimestamp(0);
-	const FDateTime UnixBillennium = FDateTime::FromUnixTimestamp(1000000000);
-	const FDateTime UnixOnes = FDateTime::FromUnixTimestamp(1111111111);
-	const FDateTime UnixDecimalSequence = FDateTime::FromUnixTimestamp(1234567890);
-	const FDateTime YearOne( 1, 1, 1, 00, 00, 00, 000 );
-	const FDateTime TestDateTime( 1990, 6, 13, 12, 34, 56, 789 );
-
-	const FDateTime LocalTime = FDateTime::Now();
-	const FDateTime UtcTime = FDateTime::UtcNow();
-
-	if (I18N.SetCurrentCulture("en-US"))
 	{
-		// Unix Time Values via Date Time
+		FInternationalization::FCultureStateSnapshot OriginalCultureState;
+		I18N.BackupCultureState(OriginalCultureState);
+
+		const FDateTime UnixEpoch = FDateTime::FromUnixTimestamp(0);
+		const FDateTime UnixBillennium = FDateTime::FromUnixTimestamp(1000000000);
+		const FDateTime UnixOnes = FDateTime::FromUnixTimestamp(1111111111);
+		const FDateTime UnixDecimalSequence = FDateTime::FromUnixTimestamp(1234567890);
+		const FDateTime YearOne(1, 1, 1, 00, 00, 00, 000);
+		const FDateTime TestDateTime(1990, 6, 13, 12, 34, 56, 789);
+
+		const FDateTime LocalTime = FDateTime::Now();
+		const FDateTime UtcTime = FDateTime::UtcNow();
+
+		if (I18N.SetCurrentCulture("en-US"))
+		{
+			// Unix Time Values via Date Time
 			TestText(TEXT("Testing Unix Epoch"), FText::AsDateTime(UnixEpoch, EDateTimeStyle::Short, EDateTimeStyle::Short, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1/1/70, 12:00 AM")));
 			TestText(TEXT("Testing Unix Epoch"), FText::AsDateTime(UnixEpoch, EDateTimeStyle::Medium, EDateTimeStyle::Medium, FText::GetInvariantTimeZone()), FText::FromString(TEXT("Jan 1, 1970, 12:00:00 AM")));
 			TestText(TEXT("Testing Unix Epoch"), FText::AsDateTime(UnixEpoch, EDateTimeStyle::Long, EDateTimeStyle::Long, FText::GetInvariantTimeZone()), FText::FromString(TEXT("January 1, 1970 at 12:00:00 AM GMT")));
@@ -78,23 +78,23 @@ bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
 			TestText(TEXT("Testing Year One"), FText::AsDateTime(YearOne, EDateTimeStyle::Long, EDateTimeStyle::Long, FText::GetInvariantTimeZone()), FText::FromString(TEXT("January 1, 1 at 12:00:00 AM GMT")));
 			TestText(TEXT("Testing Year One"), FText::AsDateTime(YearOne, EDateTimeStyle::Full, EDateTimeStyle::Full, FText::GetInvariantTimeZone()), FText::FromString(TEXT("Saturday, January 1, 1 at 12:00:00 AM GMT")));
 
-		// Date Time
+			// Date Time
 			TestText(TEXT("Testing Date-Time"), FText::AsDateTime(TestDateTime, EDateTimeStyle::Short, EDateTimeStyle::Short, FText::GetInvariantTimeZone()), FText::FromString(TEXT("6/13/90, 12:34 PM")));
 			TestText(TEXT("Testing Date-Time"), FText::AsDateTime(TestDateTime, EDateTimeStyle::Medium, EDateTimeStyle::Medium, FText::GetInvariantTimeZone()), FText::FromString(TEXT("Jun 13, 1990, 12:34:56 PM")));
 			TestText(TEXT("Testing Date-Time"), FText::AsDateTime(TestDateTime, EDateTimeStyle::Long, EDateTimeStyle::Long, FText::GetInvariantTimeZone()), FText::FromString(TEXT("June 13, 1990 at 12:34:56 PM GMT")));
 			TestText(TEXT("Testing Date-Time"), FText::AsDateTime(TestDateTime, EDateTimeStyle::Full, EDateTimeStyle::Full, FText::GetInvariantTimeZone()), FText::FromString(TEXT("Wednesday, June 13, 1990 at 12:34:56 PM GMT")));
 
-		// Checks that the default ICU timezone is set correctly (including DST)
+			// Checks that the default ICU timezone is set correctly (including DST)
 			TestText(TEXT("Testing Local Time"), FText::AsDateTime(UtcTime, EDateTimeStyle::Short, EDateTimeStyle::Short), FText::AsDateTime(LocalTime, EDateTimeStyle::Short, EDateTimeStyle::Short, FText::GetInvariantTimeZone()));
-	}
-	else
-	{
-		AddWarning(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("en-US")));
-	}
+		}
+		else
+		{
+			AddWarning(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("en-US")));
+		}
 
-	if (I18N.SetCurrentCulture("ja-JP"))
-	{
-		// Unix Time Values via Date Time
+		if (I18N.SetCurrentCulture("ja-JP"))
+		{
+			// Unix Time Values via Date Time
 			TestText(TEXT("Testing Unix Epoch"), FText::AsDateTime(UnixEpoch, EDateTimeStyle::Short, EDateTimeStyle::Short, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1970/01/01 0:00")));
 			TestText(TEXT("Testing Unix Epoch"), FText::AsDateTime(UnixEpoch, EDateTimeStyle::Medium, EDateTimeStyle::Medium, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1970/01/01 0:00:00")));
 			TestText(TEXT("Testing Unix Epoch"), FText::AsDateTime(UnixEpoch, EDateTimeStyle::Long, EDateTimeStyle::Long, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1970\x5E74") TEXT("1\x6708") TEXT("1\x65E5") TEXT(" 0:00:00 GMT")));
@@ -120,21 +120,21 @@ bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
 			TestText(TEXT("Testing Year One"), FText::AsDateTime(YearOne, EDateTimeStyle::Long, EDateTimeStyle::Long, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1\x5E74") TEXT("1\x6708") TEXT("1\x65E5") TEXT(" 0:00:00 GMT")));
 			TestText(TEXT("Testing Year One"), FText::AsDateTime(YearOne, EDateTimeStyle::Full, EDateTimeStyle::Full, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1\x5E74") TEXT("1\x6708") TEXT("1\x65E5\x571F\x66DC\x65E5") TEXT(" ") TEXT("0\x6642") TEXT("00\x5206") TEXT("00\x79D2 GMT")));
 
-		// Date Time
+			// Date Time
 			TestText(TEXT("Testing Date-Time"), FText::AsDateTime(TestDateTime, EDateTimeStyle::Short, EDateTimeStyle::Short, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1990/06/13 12:34")));
 			TestText(TEXT("Testing Date-Time"), FText::AsDateTime(TestDateTime, EDateTimeStyle::Medium, EDateTimeStyle::Medium, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1990/06/13 12:34:56")));
 			TestText(TEXT("Testing Date-Time"), FText::AsDateTime(TestDateTime, EDateTimeStyle::Long, EDateTimeStyle::Long, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1990\x5E74") TEXT("6\x6708") TEXT("13\x65E5") TEXT(" 12:34:56 GMT")));
 			TestText(TEXT("Testing Date-Time"), FText::AsDateTime(TestDateTime, EDateTimeStyle::Full, EDateTimeStyle::Full, FText::GetInvariantTimeZone()), FText::FromString(TEXT("1990\x5E74") TEXT("6\x6708") TEXT("13\x65E5\x6C34\x66DC\x65E5") TEXT(" ") TEXT("12\x6642") TEXT("34\x5206") TEXT("56\x79D2 GMT")));
 
-		// Checks that the default ICU timezone is set correctly (including DST)
+			// Checks that the default ICU timezone is set correctly (including DST)
 			TestText(TEXT("Testing Local Time"), FText::AsDateTime(UtcTime, EDateTimeStyle::Short, EDateTimeStyle::Short), FText::AsDateTime(LocalTime, EDateTimeStyle::Short, EDateTimeStyle::Short, FText::GetInvariantTimeZone()));
-	}
-	else
-	{
-		AddWarning(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("ja-JP")));
-	}
+		}
+		else
+		{
+			AddWarning(FString::Printf(TEXT("Internationalization data for %s missing - test is partially disabled."), TEXT("ja-JP")));
+		}
 
-	I18N.RestoreCultureState(OriginalCultureState);
+		I18N.RestoreCultureState(OriginalCultureState);
 	}
 #else
 	AddWarning("ICU is disabled thus locale-aware date/time formatting is disabled.");

@@ -2052,7 +2052,7 @@ bool FReplayHelper::ShouldSaveCheckpoint() const
 	const double CHECKPOINT_DELAY = CVarCheckpointUploadDelayInSeconds.GetValueOnAnyThread();
 
 	return (bPendingCheckpointRequest || ((DemoCurrentTime - LastCheckpointTime) > CHECKPOINT_DELAY));
-	}
+}
 
 float FReplayHelper::GetCheckpointSaveMaxMSPerFrame() const
 {
@@ -2179,6 +2179,7 @@ const TCHAR* LexToString(EReplayHeaderFlags Flag)
 		return TEXT("Unknown");
 	}
 }
+
 void FReplayHelper::RequestCheckpoint()
 {
 	bPendingCheckpointRequest = true;

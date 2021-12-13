@@ -28,6 +28,7 @@ FBackgroundHttpResponsePtr FAndroidFetchPlatformBackgroundHttp::ConstructBackgro
 {
 	return MakeShared<FAndroidPlatformBackgroundHttpResponse, ESPMode::ThreadSafe>(ResponseCode, TempFilePath);
 }
+
 bool FAndroidFetchPlatformBackgroundHttp::CheckRequirementsSupported()
 {
 	return FAndroidPlatformBackgroundHttpManager::HandleRequirementsCheck();

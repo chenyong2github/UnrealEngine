@@ -574,7 +574,7 @@ TSharedPtr< IDatasmithMeshElement > FElement2StaticMesh::CreateMesh()
 		}
 
 #if DUMP_GEOMETRY
-	DumpMeshElement(*MeshElement);
+        DumpMeshElement(*MeshElement);
 #endif
 	}
 

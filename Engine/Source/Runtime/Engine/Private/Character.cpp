@@ -291,7 +291,7 @@ bool ACharacter::JumpIsAllowedInternal() const
 			// B) The jump limit has been met AND we were already jumping
 			const bool bJumpKeyHeld = (bPressedJump && JumpKeyHoldTime < GetJumpMaxHoldTime());
 			bJumpIsAllowed = bJumpKeyHeld &&
-						((JumpCurrentCount < JumpMaxCount) || (bWasJumping && JumpCurrentCount == JumpMaxCount));
+				((JumpCurrentCount < JumpMaxCount) || (bWasJumping && JumpCurrentCount == JumpMaxCount));
 		}
 	}
 

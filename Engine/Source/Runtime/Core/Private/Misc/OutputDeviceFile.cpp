@@ -183,12 +183,12 @@ FAsyncWriter::FAsyncWriter(FArchive& InAr, FAsyncWriter::EThreadNameOption NameO
 			if (NameOption == EThreadNameOption::FileName)
 			{
 				WriterName = FString::Printf(TEXT("FAsyncWriter_%s"), *FPaths::GetBaseFilename(Ar.GetArchiveName()));
-	}
+			}
 			else if (NameOption == EThreadNameOption::Sequential)
 			{
 				static std::atomic<uint64> AsyncWriterCount(0);
 				WriterName = FString::Printf(TEXT("FAsyncWriter_%llu"), ++AsyncWriterCount);
-}
+			}
 
 			FPlatformAtomics::InterlockedExchangePtr((void**)&Thread, FForkProcessHelper::CreateForkableThread(this, *WriterName, 0, TPri_BelowNormal));
 		}

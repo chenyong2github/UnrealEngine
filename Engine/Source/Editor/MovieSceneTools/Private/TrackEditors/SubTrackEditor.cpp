@@ -63,7 +63,7 @@ public:
 	{
 		return SubTrackEditorConstants::TrackHeight;
 	}
-
+	
 	virtual void BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding) override
 	{
 		ISequencerSection::BuildSectionContextMenu(MenuBuilder, ObjectBinding);

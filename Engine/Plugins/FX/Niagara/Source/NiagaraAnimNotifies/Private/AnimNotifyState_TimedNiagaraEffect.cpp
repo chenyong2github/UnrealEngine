@@ -168,8 +168,8 @@ void UAnimNotifyState_TimedNiagaraEffectAdvanced::NotifyTick(USkeletalMeshCompon
 	if (UFXSystemComponent* FXComponent = GetSpawnedEffect(MeshComp))
 	{
 		//send the notify progress to the FX Component
-	if (bEnableNormalizedNotifyProgress && !NotifyProgressUserParameter.IsNone())
-	{ 
+		if (bEnableNormalizedNotifyProgress && !NotifyProgressUserParameter.IsNone())
+		{
 			FXComponent->SetFloatParameter(NotifyProgressUserParameter, GetNotifyProgress(MeshComp));
 		}
 		//Send anim curve data to the FX Component
@@ -185,7 +185,7 @@ void UAnimNotifyState_TimedNiagaraEffectAdvanced::NotifyTick(USkeletalMeshCompon
 					{
 						float CurveValue = 0.0f;
 						if (AnimInst->GetCurveValue(CurveName, CurveValue))
-		{
+						{
 							FXComponent->SetFloatParameter(NiagaraUserVariableName, CurveValue);
 						}
 					}

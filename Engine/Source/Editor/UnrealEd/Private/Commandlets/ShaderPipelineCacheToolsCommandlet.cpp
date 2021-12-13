@@ -1210,17 +1210,17 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 	}
 
 	const FString& OutputFilename = Tokens.Last();
-	
+
 	if (OutputFilename.EndsWith(STABLE_CSV_COMPRESSED_EXT) || OutputFilename.EndsWith(STABLE_CSV_EXT))
 	{
 		UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("Using a deprecated stablepc format %s, please replace with %s"), *OutputFilename, ShaderStablePipelineFileExtWildcard);
-	
+
 		return SaveStablePipelineCacheDeprecated(OutputFilename, StableResults, StableShaderKeyIndexTable) ? 0 : 1;
 	}
 
 	return UE::PipelineCacheUtilities::SaveStablePipelineCacheFile(OutputFilename, StableResults, StableShaderKeyIndexTable) ? 0 : 1;
-	}
-	
+}
+
 template <uint32 InlineSize>
 static void ParseQuoteComma(const FStringView& InLine, TArray<FStringView, TInlineAllocator<InlineSize>>& OutParts)
 {
@@ -1957,7 +1957,7 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 		else if (!bHaveBinaryStableCacheFormat && Tokens[Index].EndsWith(ShaderStablePipelineFileExt))
 		{
 			bHaveBinaryStableCacheFormat = true;
-	}
+		}
 		else if (Tokens[Index].EndsWith(STABLE_CSV_EXT) || Tokens[Index].EndsWith(STABLE_CSV_COMPRESSED_EXT))
 		{
 			bHaveDeprecatedCSVFormat = true;
@@ -2011,37 +2011,37 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 	// Check if we had any of the stable caches in the old textual format and process them the old way
 	if (bHaveDeprecatedCSVFormat)
 	{
-	for (int32 FileIndex = 0; FileIndex < StablePipelineCacheFiles.Num(); ++FileIndex)
-	{
-			if (StablePipelineCacheFiles[FileIndex].EndsWith(STABLE_CSV_EXT) || StablePipelineCacheFiles[FileIndex].EndsWith(STABLE_CSV_COMPRESSED_EXT))
+		for (int32 FileIndex = 0; FileIndex < StablePipelineCacheFiles.Num(); ++FileIndex)
 		{
+			if (StablePipelineCacheFiles[FileIndex].EndsWith(STABLE_CSV_EXT) || StablePipelineCacheFiles[FileIndex].EndsWith(STABLE_CSV_COMPRESSED_EXT))
+			{
 				LoadPSOTasks[FileIndex] = FFunctionGraphTask::CreateAndDispatchWhenReady([&StableCSV = StableCSVs[FileIndex], &FileName = StablePipelineCacheFiles[FileIndex]]
 					{
-			if (!LoadStableCSV(FileName, StableCSV))
-			{
+						if (!LoadStableCSV(FileName, StableCSV))
+						{
 							UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Could not load %s"), *FileName);
-			}
+						}
 					}, TStatId());
-	}
+			}
 		}
 
-	// Parse the stable PSO sets in parallel once both the stable shaders and the corresponding read are complete.
-	for (int32 FileIndex = 0; FileIndex < StablePipelineCacheFiles.Num(); ++FileIndex)
-	{
+		// Parse the stable PSO sets in parallel once both the stable shaders and the corresponding read are complete.
+		for (int32 FileIndex = 0; FileIndex < StablePipelineCacheFiles.Num(); ++FileIndex)
+		{
 			if (StablePipelineCacheFiles[FileIndex].EndsWith(STABLE_CSV_EXT) || StablePipelineCacheFiles[FileIndex].EndsWith(STABLE_CSV_COMPRESSED_EXT))
 			{
-		const FGraphEventArray PreReqs{StableMapTask, LoadPSOTasks[FileIndex]};
+				const FGraphEventArray PreReqs{ StableMapTask, LoadPSOTasks[FileIndex] };
 				ParsePSOTasks[FileIndex] = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[&PSOs = PSOsByFile[FileIndex],
-			 &FileName = StablePipelineCacheFiles[FileIndex],
-			 &StableCSV = StableCSVs[FileIndex],
-			 &StableMap,
-			 &TargetPlatform = TargetPlatformByFile[FileIndex]]
-			{
-				int32 PSOsRejected = 0, PSOsMerged = 0;
-				PSOs = ParseStableCSV(FileName, StableCSV, StableMap, TargetPlatform, PSOsRejected, PSOsMerged);
-				StableCSV.Empty();
-				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loaded %d PSO lines from %s. %d lines rejected, %d lines merged"), PSOs.Num(), *FileName, PSOsRejected, PSOsMerged);
+					[&PSOs = PSOsByFile[FileIndex],
+					&FileName = StablePipelineCacheFiles[FileIndex],
+					&StableCSV = StableCSVs[FileIndex],
+					&StableMap,
+					&TargetPlatform = TargetPlatformByFile[FileIndex]]
+					{
+						int32 PSOsRejected = 0, PSOsMerged = 0;
+						PSOs = ParseStableCSV(FileName, StableCSV, StableMap, TargetPlatform, PSOsRejected, PSOsMerged);
+						StableCSV.Empty();
+						UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loaded %d PSO lines from %s. %d lines rejected, %d lines merged"), PSOs.Num(), *FileName, PSOsRejected, PSOsMerged);
 					}, TStatId(), & PreReqs);
 			}
 		}

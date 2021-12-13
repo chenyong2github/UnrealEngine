@@ -1118,7 +1118,7 @@ ECheckBoxState FColorGradingCustomBuilder::OnGetChangeColorMode(ColorModeType Mo
 
 void FColorGradingCustomBuilder::OnColorGradingPickerChanged(FVector4& NewValue, bool ShouldCommitValueChanges)
 {
-	FScopedTransaction Transaction(LOCTEXT("ColorGradingMainValue", "Color Grading Main Value"),ShouldCommitValueChanges);
+	FScopedTransaction Transaction(LOCTEXT("ColorGradingMainValue", "Color Grading Main Value"), ShouldCommitValueChanges);
 
 	if (ColorGradingPropertyHandle.IsValid())
 	{

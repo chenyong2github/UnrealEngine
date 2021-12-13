@@ -50,10 +50,10 @@ void UDMXFixtureComponentColor::SetTargetColor(const FLinearColor& NewColor)
 		IsColorValid(NewColor))
 	{
 		// Never interpolated
-	CurrentTargetColorRef->R = NewColor.R;
-	CurrentTargetColorRef->G = NewColor.G;
-	CurrentTargetColorRef->B = NewColor.B;
-	CurrentTargetColorRef->A = NewColor.A;
+		CurrentTargetColorRef->R = NewColor.R;
+		CurrentTargetColorRef->G = NewColor.G;
+		CurrentTargetColorRef->B = NewColor.B;
+		CurrentTargetColorRef->A = NewColor.A;
 
 		SetColorNoInterp(NewColor);
 	}

@@ -217,15 +217,15 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 			Row->CameraData = LastCameraData;
 
 			if (!ValidateNewRow(Row, OutErrorMessage))
+			{
+				// Notify the ListView of the new data
+				if (CalibrationListView.IsValid())
 				{
-					// Notify the ListView of the new data
-					if (CalibrationListView.IsValid())
-					{
-						CalibrationListView->RequestListRefresh();
-					}
-
-					return false;
+					CalibrationListView->RequestListRefresh();
 				}
+
+				return false;
+			}
 
 			CalibrationRows.Add(Row);
 		}

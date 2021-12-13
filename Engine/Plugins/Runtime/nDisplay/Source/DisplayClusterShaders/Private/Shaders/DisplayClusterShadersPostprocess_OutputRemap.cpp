@@ -70,7 +70,7 @@ public:
 IMPLEMENT_SHADER_TYPE(, FOutputRemapPS, OutputRemapShaderFileName, TEXT("OutputRemap_PS"), SF_Pixel);
 
 class FOutputRemapVS : public FGlobalShader
-{
+	{
 public:
 	DECLARE_GLOBAL_SHADER(FOutputRemapVS);
 	SHADER_USE_PARAMETER_STRUCT(FOutputRemapVS, FGlobalShader);

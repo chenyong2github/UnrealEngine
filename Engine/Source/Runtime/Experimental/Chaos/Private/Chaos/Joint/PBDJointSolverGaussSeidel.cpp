@@ -1026,7 +1026,7 @@ namespace Chaos
 				Axis2.SafeNormalize();
 				ApplyAngularVelocityConstraint(SwingStiffness, Axis2);
 			}
-	}
+		}
 	}
 
 
@@ -1295,7 +1295,7 @@ namespace Chaos
 		if (AngularHardLambdaIndex >= 0)
 		{
 			AngularHardLambda[AngularHardLambdaIndex] += DR;
-	}
+		}
 	}
 
 
@@ -2540,11 +2540,11 @@ namespace Chaos
 			if (InvM(0) > SMALL_NUMBER)
 			{
 				M0 = Utilities::ComputeJointFactorMatrix(ConnectorXs[0] - P(0), InvI(0), InvM(0));
-		}
+			}
 			if (InvM(1) > SMALL_NUMBER)
 			{
 				M1 = Utilities::ComputeJointFactorMatrix(ConnectorXs[1] - P(1), InvI(1), InvM(1));
-	}
+			}
 			FMatrix33 MI = (M0 + M1).Inverse();
 			const FVec3 Impulse = Stiffness * Utilities::Multiply(MI, CV);
 

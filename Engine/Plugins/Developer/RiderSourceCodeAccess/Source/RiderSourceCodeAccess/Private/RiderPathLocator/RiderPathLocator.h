@@ -54,7 +54,7 @@ struct FInstallInfo
 		Beta,
 		Release			
 	};
-	
+
 	enum class EInstallType
 	{
 		Installed,
@@ -84,14 +84,14 @@ struct FInstallInfo
 		FPaths::NormalizeFilename(InputPath);
 		return !(*this < InstallInfo) && !(InstallInfo < *this) && (LocalPath == InputPath);
 	}
-		
-	friend FORCEINLINE uint32 GetTypeHash(const FInstallInfo& InstallInfo)
-	{
+    
+    friend FORCEINLINE uint32 GetTypeHash(const FInstallInfo& InstallInfo)
+    {
 		FString LocalPath = InstallInfo.Path;
 		LocalPath.ReplaceInline(TEXT("\\\\"), TEXT("/"), ESearchCase::CaseSensitive);
 		FPaths::NormalizeFilename(LocalPath);
         return GetTypeHash(LocalPath);
-	}
+    }
 };
 
 class FRiderPathLocator

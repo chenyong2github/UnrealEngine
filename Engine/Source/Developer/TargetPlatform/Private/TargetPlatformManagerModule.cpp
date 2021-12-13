@@ -623,7 +623,7 @@ public:
 		//}
 
 		return GetFormatsWithHints<IShaderFormat, IShaderFormatModule, FShaderHintHelper>();
-			}
+	}
 
 	virtual const IShaderFormat* FindShaderFormat(FName Name) override
 	{
@@ -1224,7 +1224,7 @@ protected:
 			if (Info.bEnabledForUse)
 			{
 				bTPInitialized = InitializeSinglePlatform(PlatformName, Info.AutoSDKPath);
-		}
+			}
 		}
 		else
 		{

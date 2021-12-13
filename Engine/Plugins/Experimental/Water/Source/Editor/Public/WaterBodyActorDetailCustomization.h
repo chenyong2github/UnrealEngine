@@ -46,11 +46,11 @@ private:
 				{
 					if (!WaterBodyComponent->IsWaveSupported())
 					{
-					bWaveSupported = false;
-					break;
+						bWaveSupported = false;
+						break;
+					}
 				}
 			}
-		}
 		}
 		return bWaveSupported;
 	}

@@ -37,7 +37,7 @@ public:
 
 	/** Removes a tracked Widget for all tags. */
 	void RemoveTrackedWidget(const SWidget* WidgetToStopTracking);
-
+	
 	/** Returns an event that gets called when widgets tagged with the passed tag are added or removed from the tracker. */
 	FTrackedWidgetsChangedEvent& OnTrackedWidgetsChanged(const FName& Tag);
 
@@ -46,13 +46,13 @@ public:
 	void ForEachTrackedWidget(FName Tag, Predicate Pred)
 	{
 		if (TArray<const SWidget*>* Widgets = TrackedWidgets.Find(Tag))
-	{
+		{
 			for (const SWidget* Widget : *Widgets)
-	{
+			{
 				Pred(Widget);
-				}
 			}
 		}
+	}
 
 private:
 

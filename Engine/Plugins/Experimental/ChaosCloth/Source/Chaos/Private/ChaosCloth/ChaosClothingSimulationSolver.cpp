@@ -760,19 +760,19 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 			}
 			else
 			{
-			PhysicsParallelFor(RangeSize,
-				[this, &ParticleGroupIds, &DeltaLocalSpaceLocation, &Particles, Offset](int32 i)
-				{
-					const int32 Index = Offset + i;
-					const FRigidTransform3& GroupSpaceTransform = PreSimulationTransforms[ParticleGroupIds[Index]];
+				PhysicsParallelFor(RangeSize,
+					[this, &ParticleGroupIds, &DeltaLocalSpaceLocation, &Particles, Offset](int32 i)
+					{
+						const int32 Index = Offset + i;
+						const FRigidTransform3& GroupSpaceTransform = PreSimulationTransforms[ParticleGroupIds[Index]];
 
-					// Update initial state for particles
-					Particles.P(Index) = Particles.X(Index) = GroupSpaceTransform.TransformPositionNoScale(Particles.X(Index)) - DeltaLocalSpaceLocation;
-					Particles.V(Index) = GroupSpaceTransform.TransformVector(Particles.V(Index));
+						// Update initial state for particles
+						Particles.P(Index) = Particles.X(Index) = GroupSpaceTransform.TransformPositionNoScale(Particles.X(Index)) - DeltaLocalSpaceLocation;
+						Particles.V(Index) = GroupSpaceTransform.TransformVector(Particles.V(Index));
 
-					// Update anim initial state (target updated by skinning)
-					OldAnimationPositions[Index] = GroupSpaceTransform.TransformPositionNoScale(OldAnimationPositions[Index]) - DeltaLocalSpaceLocation;
-				}, RangeSize < ChaosClothSolverMinParallelBatchSize);
+						// Update anim initial state (target updated by skinning)
+						OldAnimationPositions[Index] = GroupSpaceTransform.TransformPositionNoScale(OldAnimationPositions[Index]) - DeltaLocalSpaceLocation;
+					}, RangeSize < ChaosClothSolverMinParallelBatchSize);
 			}
 		}, /*bForceSingleThreaded =*/ !bChaosClothSolverParallelClothPreUpdate);
 
@@ -969,11 +969,11 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 		else
 #endif
 		{
-		ParticlesActiveView.SequentialFor(
-			[&BoundingBox](FPBDParticles& Particles, int32 Index)
-			{
-				BoundingBox.GrowToInclude(Particles.X(Index));
-			});
+			ParticlesActiveView.SequentialFor(
+				[&BoundingBox](FPBDParticles& Particles, int32 Index)
+				{
+					BoundingBox.GrowToInclude(Particles.X(Index));
+				});
 		}
 
 		// Calculate (squared) radius
@@ -997,11 +997,11 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 		}
 		else
 		{
-		ParticlesActiveView.SequentialFor(
-			[&SquaredRadius, &Center](FPBDParticles& Particles, int32 Index)
-			{
-				SquaredRadius = FMath::Max(SquaredRadius, (Particles.X(Index) - Center).SizeSquared());
-			});
+			ParticlesActiveView.SequentialFor(
+				[&SquaredRadius, &Center](FPBDParticles& Particles, int32 Index)
+				{
+					SquaredRadius = FMath::Max(SquaredRadius, (Particles.X(Index) - Center).SizeSquared());
+				});
 		}
 
 		// Update bounds with this cloth

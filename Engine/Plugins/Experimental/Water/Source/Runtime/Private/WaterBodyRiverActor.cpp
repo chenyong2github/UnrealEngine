@@ -25,22 +25,22 @@ void AWaterBodyRiver::PostLoad()
 
 #if WITH_EDITORONLY_DATA
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyComponentRefactor)
-{
+	{
 		UWaterBodyRiverComponent* RiverComponent = CastChecked<UWaterBodyRiverComponent>(WaterBodyComponent);
 		RiverComponent->SetLakeTransitionMaterial(LakeTransitionMaterial_DEPRECATED);
 		RiverComponent->SetOceanTransitionMaterial(OceanTransitionMaterial_DEPRECATED);
 		if (RiverGenerator_DEPRECATED)
-	{
+		{
 			RiverComponent->SplineMeshComponents = MoveTemp(RiverGenerator_DEPRECATED->SplineMeshComponents);
 			for (USplineMeshComponent* SplineMeshComponent : RiverComponent->SplineMeshComponents)
-{
+			{
 				if (SplineMeshComponent)
-	{
+				{
 					SplineMeshComponent->SetupAttachment(RiverComponent);
+				}
+			}
+		}
 	}
-}
-}
-}
 #endif // WITH_EDITORONLY_DATA
 }
 

@@ -547,7 +547,7 @@ FSpatializationParams FSoundSource::GetSpatializationParams()
 		if (Buffer->NumChannels == 2)
 		{
 			Params.LeftChannelPosition = AudioDevice->GetListenerTransformedDirection(LeftChannelSourceLocation, nullptr);
-			Params.RightChannelPosition = AudioDevice->GetListenerTransformedDirection(RightChannelSourceLocation, nullptr);
+			Params.RightChannelPosition = AudioDevice->GetListenerTransformedDirection(RightChannelSourceLocation, nullptr);			
 
 		}
 	}

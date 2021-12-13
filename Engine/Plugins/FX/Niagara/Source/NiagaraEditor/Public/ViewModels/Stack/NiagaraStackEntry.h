@@ -291,7 +291,7 @@ public:
 	virtual bool GetShouldShowInStack() const;
 
 	void GetFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren) const;
-
+	
 	void GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutUnfilteredChildren) const;
 
 	void GetFilteredChildrenOfTypes(TArray<UNiagaraStackEntry*>& OutFilteredChildren, const TSet<UClass*>& AllowedClasses) const
@@ -497,7 +497,7 @@ private:
 	void ChildStructureChanged(ENiagaraStructureChangedFlags Info);
 
 	void ChildExpansionChanged();
-	
+
 	void ChildExpansionInOverviewChanged();
 	
 	void ChildDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
@@ -546,7 +546,7 @@ private:
 	FString StackEditorDataKey;
 
 	FOnExpansionChanged ExpansionChangedDelegate;
-	
+
 	FOnExpansionChanged ExpansionInOverviewChangedDelegate;
 	
 	FOnStructureChanged StructureChangedDelegate;

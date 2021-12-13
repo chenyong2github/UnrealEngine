@@ -66,7 +66,7 @@ void SDMXIPAddressEditWidget::OnIPAddressTextCommmited(const FText&, ETextCommit
 {
 	OnIPAddressSelectedDelegate.ExecuteIfBound();
 }
-	
+
 TSharedRef<SWidget> SDMXIPAddressEditWidget::GenerateLocalAdapterAddressComboBoxEntry(TSharedPtr<FString> InAddress)
 {
 	return

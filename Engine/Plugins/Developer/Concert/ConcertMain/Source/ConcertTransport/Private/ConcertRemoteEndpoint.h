@@ -63,7 +63,7 @@ public:
 	 * Handle an acknowledgment received from this remote endpoint
 	 */
 	void HandleAcknowledgement(const FConcertMessageContext& Context);
-	
+
 	/**
 	 * Handle a response to a request made to this remote endpoint
 	 */
@@ -100,7 +100,7 @@ public:
 
 	/** Get the next message to handle from the queued list, if any. */
 	TSharedPtr<FConcertMessageCapturedContext> GetNextMessageToReceive(const FDateTime& UtcNow);
-	
+
 	/** Forces the resend pending messages flag to be set for this endpoint. This if for debugging use only. */
 	void MarkForResend()
 	{
@@ -136,7 +136,7 @@ private:
 
 	/** Map of reliable messages that are pending receipt because they arrived out-of-order ((channel id + message order index) -> data) */
 	TMap<FChannelIdAndOrderIndex, TSharedPtr<FConcertMessageCapturedContext>> QueuedOutOfOrderMessagesToReceive;
-	
+
 	/** Array of messages that are pending receipt */
 	TArray<TSharedPtr<FConcertMessageCapturedContext>> QueuedMessagesToReceive;
 

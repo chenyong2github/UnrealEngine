@@ -31,13 +31,13 @@ void AWaterBodyCustom::PostLoad()
 
 #if WITH_EDITORONLY_DATA
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyComponentRefactor)
-{
+	{
 		UWaterBodyCustomComponent* CustomComponent = CastChecked<UWaterBodyCustomComponent>(WaterBodyComponent);
 		if (CustomGenerator_DEPRECATED)
-	{
+		{
 			CustomComponent->MeshComp =	CustomGenerator_DEPRECATED->MeshComp;
+		}
 	}
-}
 #endif // WITH_EDITORONLY_DATA
 }
 

@@ -76,7 +76,7 @@ bool FDisplayClusterViewportPostProcessManager::HandleStartScene()
 			{
 				It->HandleStartScene(&ViewportManager);
 			}
-}
+		}
 	}
 
 	return false;
@@ -95,7 +95,7 @@ void FDisplayClusterViewportPostProcessManager::HandleEndScene()
 }
 
 const TArray<FString> FDisplayClusterViewportPostProcessManager::GetPostprocess() const
-	{
+{
 	check(IsInGameThread());
 
 	TArray<FString> ExistPostProcess;
@@ -104,8 +104,8 @@ const TArray<FString> FDisplayClusterViewportPostProcessManager::GetPostprocess(
 		if (It.IsValid())
 		{
 			ExistPostProcess.Add(It->GetId());
+		}
 	}
-}
 
 	return ExistPostProcess;
 }
@@ -134,10 +134,10 @@ bool FDisplayClusterViewportPostProcessManager::CreatePostprocess(const FString&
 			if (ViewportManager.IsSceneOpened())
 			{
 				PostProcessInstance->HandleStartScene(&ViewportManager);
-}
+			}
 
 			for (int32 Order = 0; Order < Postprocess.Num(); Order++)
-{
+			{
 				if (Postprocess[Order].IsValid() && Postprocess[Order]->GetOrder() > PostProcessInstance->GetOrder())
 				{
 					// Add sorted
@@ -153,7 +153,7 @@ bool FDisplayClusterViewportPostProcessManager::CreatePostprocess(const FString&
 			return true;
 		}
 		else
-	{
+		{
 			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Invalid PostProcess '%s', type '%s' : Can't create postprocess"), *InConfigurationPostprocess->Type, *InPostprocessId);
 		}
 	}
@@ -166,12 +166,12 @@ bool FDisplayClusterViewportPostProcessManager::CreatePostprocess(const FString&
 }
 
 bool FDisplayClusterViewportPostProcessManager::RemovePostprocess(const FString& InPostprocessId)
-		{
+{
 	check(IsInGameThread());
 
 	TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> DesiredPP = ImplFindPostProcess(InPostprocessId);
 	if (DesiredPP.IsValid())
-			{
+	{
 		Postprocess.Remove(DesiredPP);
 
 		return true;
@@ -189,7 +189,7 @@ bool FDisplayClusterViewportPostProcessManager::UpdatePostprocess(const FString&
 }
 
 TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> FDisplayClusterViewportPostProcessManager::ImplFindPostProcess(const FString& InPostprocessId) const
-				{
+{
 	check(IsInGameThread());
 
 	// Ok, we have a request for a particular viewport. Let's find it.
@@ -240,13 +240,13 @@ bool FDisplayClusterViewportPostProcessManager::IsAnyPostProcessRequired(const T
 
 	if (IsPostProcessViewAfterWarpBlendRequired(PostprocessInstance))
 	{
-					return true;
-				}
+		return true;
+	}
 
 	if (IsPostProcessFrameAfterWarpBlendRequired(PostprocessInstance))
 	{
 		return true;
-			}
+	}
 
 	return (OutputRemap.IsValid() && OutputRemap->IsEnabled());
 }

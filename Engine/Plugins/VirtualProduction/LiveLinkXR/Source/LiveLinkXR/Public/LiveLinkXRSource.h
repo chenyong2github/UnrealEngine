@@ -118,7 +118,7 @@ private:
 
 		// Device type
 		EXRTrackedDeviceType DeviceType = EXRTrackedDeviceType::Invalid;
-
+		
 		// Subject name of this device
 		FName SubjectName;
 	};

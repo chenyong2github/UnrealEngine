@@ -214,28 +214,28 @@ void FPrestonMDRMessageThread::BuildStaticMessages()
 
 		DataRequestMessage.Reserve(FMDRProtocol::DataMessageLength);
 
-	DataRequestMessage.Add(FMDRProtocol::STX);
+		DataRequestMessage.Add(FMDRProtocol::STX);
 
-	FAsciiByte DataCommand = HexToAscii(static_cast<const uint8>(EMDRCommand::Data));
-	DataRequestMessage.Add(DataCommand.ByteHigh);
-	DataRequestMessage.Add(DataCommand.ByteLow);
+		FAsciiByte DataCommand = HexToAscii(static_cast<const uint8>(EMDRCommand::Data));
+		DataRequestMessage.Add(DataCommand.ByteHigh);
+		DataRequestMessage.Add(DataCommand.ByteLow);
 
-	constexpr uint8 NumDataBytesInDataRequest = 1;
-	FAsciiByte NumDataBytes = HexToAscii(NumDataBytesInDataRequest);
-	DataRequestMessage.Add(NumDataBytes.ByteHigh);
-	DataRequestMessage.Add(NumDataBytes.ByteLow);
+		constexpr uint8 NumDataBytesInDataRequest = 1;
+		FAsciiByte NumDataBytes = HexToAscii(NumDataBytesInDataRequest);
+		DataRequestMessage.Add(NumDataBytes.ByteHigh);
+		DataRequestMessage.Add(NumDataBytes.ByteLow);
 
-	// The data description and checksum bytes can be updated in place at a later time if the settings change
-	// The default message uses the default settings, and thus is still a valid message to send to the MDR
-	FAsciiByte DataDescription = HexToAscii(GetDataDescritionSettings());
-	DataRequestMessage.Add(DataDescription.ByteHigh);
-	DataRequestMessage.Add(DataDescription.ByteLow);
+		// The data description and checksum bytes can be updated in place at a later time if the settings change
+		// The default message uses the default settings, and thus is still a valid message to send to the MDR
+		FAsciiByte DataDescription = HexToAscii(GetDataDescritionSettings());
+		DataRequestMessage.Add(DataDescription.ByteHigh);
+		DataRequestMessage.Add(DataDescription.ByteLow);
 
-	FAsciiByte DataChecksum = HexToAscii(ComputeChecksum(DataRequestMessage.GetData(), DataRequestMessage.Num()));
-	DataRequestMessage.Add(DataChecksum.ByteHigh);
-	DataRequestMessage.Add(DataChecksum.ByteLow);
+		FAsciiByte DataChecksum = HexToAscii(ComputeChecksum(DataRequestMessage.GetData(), DataRequestMessage.Num()));
+		DataRequestMessage.Add(DataChecksum.ByteHigh);
+		DataRequestMessage.Add(DataChecksum.ByteLow);
 
-	DataRequestMessage.Add(FMDRProtocol::ETX);
+		DataRequestMessage.Add(FMDRProtocol::ETX);
 	}
 	// End Data Message
 
@@ -293,15 +293,15 @@ void FPrestonMDRMessageThread::UpdateDataDescriptionMessage_AnyThread()
 
 	if (DataRequestMessage.Num() == FMDRProtocol::DataMessageLength)
 	{
-	constexpr uint32 DataDescriptionByte = FMDRProtocol::FirstPayloadByte - 1;
-	FAsciiByte DataDescription = HexToAscii(GetDataDescritionSettings());
-	DataRequestMessage[DataDescriptionByte + 0] = DataDescription.ByteHigh;
-	DataRequestMessage[DataDescriptionByte + 1] = DataDescription.ByteLow;
+		constexpr uint32 DataDescriptionByte = FMDRProtocol::FirstPayloadByte - 1;
+		FAsciiByte DataDescription = HexToAscii(GetDataDescritionSettings());
+		DataRequestMessage[DataDescriptionByte + 0] = DataDescription.ByteHigh;
+		DataRequestMessage[DataDescriptionByte + 1] = DataDescription.ByteLow;
 
-	FAsciiByte DataChecksum = HexToAscii(ComputeChecksum(DataRequestMessage.GetData(), DataRequestMessage.Num() - FMDRProtocol::FooterSize));
-	DataRequestMessage[DataRequestMessage.Num() + FMDRProtocol::ChecksumByte + 0] = DataChecksum.ByteHigh;
-	DataRequestMessage[DataRequestMessage.Num() + FMDRProtocol::ChecksumByte + 1] = DataChecksum.ByteLow;
-}
+		FAsciiByte DataChecksum = HexToAscii(ComputeChecksum(DataRequestMessage.GetData(), DataRequestMessage.Num() - FMDRProtocol::FooterSize));
+		DataRequestMessage[DataRequestMessage.Num() + FMDRProtocol::ChecksumByte + 0] = DataChecksum.ByteHigh;
+		DataRequestMessage[DataRequestMessage.Num() + FMDRProtocol::ChecksumByte + 1] = DataChecksum.ByteLow;
+	}
 }
 
 void FPrestonMDRMessageThread::InitializeCommandQueue()

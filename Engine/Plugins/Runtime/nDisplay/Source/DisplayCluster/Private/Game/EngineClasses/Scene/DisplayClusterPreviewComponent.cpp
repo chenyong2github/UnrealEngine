@@ -155,9 +155,9 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh(bool bRestoreOriginalMat
 			{
 				UpdatePreviewMeshMaterial(true);
 
-					// Forget old mesh ptr
-					PreviewMesh = nullptr;
-				}
+				// Forget old mesh ptr
+				PreviewMesh = nullptr;
+			}
 
 			if (PreviewMesh == nullptr)
 			{

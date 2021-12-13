@@ -17,7 +17,7 @@ class FDMXOutputPort;
 class IDMXSender;
 
 
-/**
+/**  
  * Serves as a higher level abstraction of a specific protocol such as Art-Net or sACN with the purpose to hide its complexity. 
  * 
  * By that the commonly expected responsability of the implementation is to:
@@ -34,11 +34,11 @@ class IDMXSender;
  * Startup:
  *
  *  1. All DMX Modules should be set to load in the Predefault loading phase and bind to FDMXProtocolModule::GetOnRequestProtocolRegistration().
- *
+ * 
  *  2. At the end of the Pre-Default loading phase DMXProtocol Broadcasts GetOnRequestProtocolRegistration.
  *     Protocol should now provide their Name and DMXProtocolFactory.
  *     All protocols registered can be selected in Project Settings -> Plugins -> DMX -> Communication settings
- *
+ * 
  *  3. When a Input Port of a specific Protocol is created in Project Settings:
  *		a) The input Port calls IDMXProtocol::RegisterInputPort. 
  *         If the Protocol cannot handle the Input Port, e.g. because the network interface is not reachable, the protocol needs to return false.
@@ -48,7 +48,7 @@ class IDMXSender;
  *	   When an Output port of a specific Protocol is created in Project Settings:
  *		a) The protocol needs to return an object that implements IDMXSender for each registered OutputPort.
  *         If the Protocol cannot handle the Output Port, e.g. because the network interface is not reachable, the protocol needs to return nullptr.
- *
+ *		
  *	See DMXProtocolArtNet for an example of a Protocol implementation.
  *
  */

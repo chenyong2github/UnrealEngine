@@ -491,7 +491,7 @@ void UFractureEditorMode::HandlePackageReloaded(const EPackageReloadPhase InPack
 		{
 			ReferencedRestCollections.Add(TPair<const UGeometryCollection*, UGeometryCollectionComponent*>(ExistingSelection->GetRestCollection(), ExistingSelection));
 		}
-		
+
 		// refresh outliner if reloaded package contains a referenced RestCollection
 		for (const auto& RepointedObjectPair : InPackageReloadedEvent->GetRepointedObjects())
 		{

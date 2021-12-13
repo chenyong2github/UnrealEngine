@@ -126,9 +126,9 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 				RootActor = CurrentWorld->SpawnActor<ADisplayClusterRootActor>(ADisplayClusterRootActor::StaticClass(), StartLocation, StartRotation, FActorSpawnParameters());
 				if (RootActor)
 				{
-			RootActor->InitializeFromConfig(ConfigData);
-		}
-	}
+					RootActor->InitializeFromConfig(ConfigData);
+				}
+			}
 		}
 	}
 

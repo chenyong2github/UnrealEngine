@@ -464,14 +464,14 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt, const bool bSmoothDt)
 			}
 			else
 			{
-			MParticlesActiveView.ParallelFor(
-				[Dt](FPBDParticles& Particles, int32 Index)
-				{
-					Particles.V(Index) = (Particles.P(Index) - Particles.X(Index)) / Dt;
-					Particles.X(Index) = Particles.P(Index);
-				}, MinParallelBatchSize);
+				MParticlesActiveView.ParallelFor(
+					[Dt](FPBDParticles& Particles, int32 Index)
+					{
+						Particles.V(Index) = (Particles.P(Index) - Particles.X(Index)) / Dt;
+						Particles.X(Index) = Particles.P(Index);
+					}, MinParallelBatchSize);
+			}
 		}
-	}
 	}
 
 	// The following is not currently been used by the cloth solver implementation at the moment

@@ -290,9 +290,9 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 					if (TargetValuePtr)
 					{
 						const float RemappedValue = SingleComponent->NormalizedToAbsoluteValue(*TargetValuePtr);
-								SingleComponent->SetTargetValue(RemappedValue);
-							}
-							}
+						SingleComponent->SetTargetValue(RemappedValue);
+					}
+				}
 				else if (UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent))
 				{	
 					// DoubleChannel Component
@@ -303,7 +303,7 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 
 						constexpr int32 FirstChannelIndex = 0;
 						DoubleComponent->SetTargetValue(FirstChannelIndex, *FirstTargetValuePtr);
-							}
+					}
 
 					const float* SecondTargetValuePtr = ValuePerAttribute.Map.Find(DoubleComponent->DMXChannel2.Name);
 					if (SecondTargetValuePtr)
@@ -312,8 +312,8 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 
 						constexpr int32 SecondChannelIndex = 1;
 						DoubleComponent->SetTargetValue(SecondChannelIndex, *SecondTargetValuePtr);
-							}
 					}
+				}
 				else if(UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
 				{
 					// Color Component
@@ -334,10 +334,10 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 						if (ColorComponent->IsColorValid(NewTargetColor))
 						{
 							ColorComponent->SetTargetColor(NewTargetColor);
+						}
+					}
 				}
 			}
 		}
-	}
-}
 	}
 }

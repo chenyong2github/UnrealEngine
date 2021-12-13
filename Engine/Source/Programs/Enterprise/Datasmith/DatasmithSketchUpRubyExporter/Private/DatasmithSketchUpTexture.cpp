@@ -86,8 +86,8 @@ void FTextureCollection::UnregisterMaterial(FMaterial* Material)
 	// Remove texture that is not used by its material
 	// todo: remove in descturtor?
 	ReleaseImage(*Texture);
-		TexturesMap.Remove(Texture->TextureId);
-	}
+	TexturesMap.Remove(Texture->TextureId);
+}
 
 bool FTexture::GetTextureUseAlphaChannel()
 {

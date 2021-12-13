@@ -175,23 +175,23 @@ void UHLODEngineSubsystem::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext
 		{
 			if (ALODActor* LODActor = Cast<ALODActor>(Actor))
 			{
-			if (LODActor->WasBuiltFromHLODDesc())
-			{
-				EObjectFlags TransientFlags = EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient;
-				if (LODActor->HasAnyFlags(TransientFlags))
+				if (LODActor->WasBuiltFromHLODDesc())
 				{
-					LODActor->ClearFlags(TransientFlags);
-
-					const bool bIncludeNestedObjects = true;
-					ForEachObjectWithOuter(LODActor, [TransientFlags](UObject* Subobject)
+					EObjectFlags TransientFlags = EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient;
+					if (LODActor->HasAnyFlags(TransientFlags))
 					{
-						Subobject->ClearFlags(TransientFlags);
-					}, bIncludeNestedObjects);
+						LODActor->ClearFlags(TransientFlags);
+
+						const bool bIncludeNestedObjects = true;
+						ForEachObjectWithOuter(LODActor, [TransientFlags](UObject* Subobject)
+						{
+							Subobject->ClearFlags(TransientFlags);
+						}, bIncludeNestedObjects);
+					}
 				}
 			}
 		}
 	}
-}
 }
 
 #endif // WITH_EDITOR

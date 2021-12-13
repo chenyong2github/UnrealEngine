@@ -93,31 +93,31 @@ void FDMXInputPortConfig::MakeValid()
 
 	if (Protocol.IsValid())
 	{
-	// If the extern universe ID is out of the protocol's supported range, mend it.
-	ExternUniverseStart = Protocol->MakeValidUniverseID(ExternUniverseStart);
+		// If the extern universe ID is out of the protocol's supported range, mend it.
+		ExternUniverseStart = Protocol->MakeValidUniverseID(ExternUniverseStart);
 
-	// Only Local universes > 1 are supported, even if the protocol supports universes < 1.
-	LocalUniverseStart = LocalUniverseStart < 1 ? 1 : LocalUniverseStart;
+		// Only Local universes > 1 are supported, even if the protocol supports universes < 1.
+		LocalUniverseStart = LocalUniverseStart < 1 ? 1 : LocalUniverseStart;
 
-	// Limit the num universes to the max num universes of the protocol
-	const int32 MaxNumUniverses = Protocol->GetMaxUniverseID() - Protocol->GetMinUniverseID() + 1;
-	NumUniverses = FMath::Min(NumUniverses, MaxNumUniverses);
+		// Limit the num universes to the max num universes of the protocol
+		const int32 MaxNumUniverses = Protocol->GetMaxUniverseID() - Protocol->GetMinUniverseID() + 1;
+		NumUniverses = FMath::Min(NumUniverses, MaxNumUniverses);
 
-	// Fix the communication type if it is not supported by the protocol
-	TArray<EDMXCommunicationType> CommunicationTypes = Protocol->GetInputPortCommunicationTypes();
-	if (!CommunicationTypes.Contains(CommunicationType))
-	{
-		if (CommunicationTypes.Num() > 0)
+		// Fix the communication type if it is not supported by the protocol
+		TArray<EDMXCommunicationType> CommunicationTypes = Protocol->GetInputPortCommunicationTypes();
+		if (!CommunicationTypes.Contains(CommunicationType))
 		{
-			CommunicationType = CommunicationTypes[0];
+			if (CommunicationTypes.Num() > 0)
+			{
+				CommunicationType = CommunicationTypes[0];
+			}
+			else
+			{
+				// The protocol can specify none to suggest internal only
+				CommunicationType = EDMXCommunicationType::InternalOnly;
+			}
 		}
-		else
-		{
-			// The protocol can specify none to suggest internal only
-			CommunicationType = EDMXCommunicationType::InternalOnly;
-		}
-	}	
-}
+	}
 }
 
 FString FDMXInputPortConfig::GetDeviceAddress() const

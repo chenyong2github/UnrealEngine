@@ -274,7 +274,7 @@ public:
 	FSystemInterrogator();
 	~FSystemInterrogator();
 
-
+	
 	/**
 	 * Allocate a new interrogation channel that relates to a specific object
 	 */

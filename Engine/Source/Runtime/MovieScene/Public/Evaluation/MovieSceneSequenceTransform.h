@@ -559,8 +559,8 @@ inline FMovieSceneSequenceTransform operator*(const FMovieSceneSequenceTransform
 				const FMovieSceneNestedSequenceTransform& LastNested = RHS.NestedTransforms[NumNestedTransforms - 1];
 				if (LastNested.IsWarping())
 				{
-				Result.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(LHS.LinearTransform));
-			}
+					Result.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(LHS.LinearTransform));
+				}
 				else
 				{
 					Result.NestedTransforms[NumNestedTransforms - 1] = LHS.LinearTransform * LastNested.LinearTransform;

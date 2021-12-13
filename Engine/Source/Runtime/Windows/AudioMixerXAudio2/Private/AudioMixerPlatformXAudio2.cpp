@@ -933,11 +933,11 @@ namespace Audio
 
 			WaveFormatEx = (WAVEFORMATEX*)DeviceFormat.blob.pBlobData;
 			if (!ensure(DeviceFormat.blob.pBlobData))
-		{
-			// Force an error if we failed to get a WaveFormat back from the data blob.
-			Result = E_FAIL;
-			XAUDIO2_GOTO_CLEANUP_ON_FAIL(Result);
-		}
+			{
+				// Force an error if we failed to get a WaveFormat back from the data blob.
+				Result = E_FAIL;
+				XAUDIO2_GOTO_CLEANUP_ON_FAIL(Result);
+			}
 		}
 		
 		OutInfo.DeviceId = FString(DeviceId);
@@ -1533,7 +1533,7 @@ namespace Audio
 
 		if (XAudio2System)
 		{
-		XAudio2System->StopEngine();
+			XAudio2System->StopEngine();
 		}
 
 		if (OutputAudioStreamSourceVoice)
@@ -1671,7 +1671,7 @@ namespace Audio
 			!DeviceID.IsEmpty() ? *DeviceID : TEXT("[System Default]"), InstanceID );
 		return false;
 	}
-
+		
 	bool FMixerPlatformXAudio2::MoveAudioStreamToNewAudioDevice(const FString& InNewDeviceId)
 	{
 		bool bDidStopGeneratingAudio = false;
@@ -1813,22 +1813,22 @@ namespace Audio
 			{
 				SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_MoveAudioStreamToNewAudioDevice_CreateMaster, FColor::Blue);
 
-			// open up on the default device
-			Result = XAudio2System->CreateMasteringVoice(
-				&OutputAudioStreamMasteringVoice,
-				AudioStreamInfo.DeviceInfo.NumChannels,
-				AudioStreamInfo.DeviceInfo.SampleRate,
-				0,
-				*AudioStreamInfo.DeviceInfo.DeviceId,
-				nullptr,
-				AudioCategory_GameEffects);
-			if (FAILED(Result))
-			{
-				XAUDIO2_LOG_RESULT("XAudio2System->CreateMasteringVoice", Result);
-				// Switch to running null device by setting OutputAudioStreamMasteringVoice to null.
-				// Will default to null device when calling `ResumePlaybackOnNewDevice()`
-				OutputAudioStreamMasteringVoice = nullptr;
-			}
+				// open up on the default device
+				Result = XAudio2System->CreateMasteringVoice(
+					&OutputAudioStreamMasteringVoice,
+					AudioStreamInfo.DeviceInfo.NumChannels,
+					AudioStreamInfo.DeviceInfo.SampleRate,
+					0,
+					*AudioStreamInfo.DeviceInfo.DeviceId,
+					nullptr,
+					AudioCategory_GameEffects);
+				if (FAILED(Result))
+				{
+					XAUDIO2_LOG_RESULT("XAudio2System->CreateMasteringVoice", Result);
+					// Switch to running null device by setting OutputAudioStreamMasteringVoice to null.
+					// Will default to null device when calling `ResumePlaybackOnNewDevice()`
+					OutputAudioStreamMasteringVoice = nullptr;
+				}			
 				UE_CLOG(SUCCEEDED(Result), LogAudioMixer, Display, TEXT("XAudio2 CreateMasterVoice Channels=%u SampleRate=%u DeviceId=%s Name=%s"),
 					AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, *AudioStreamInfo.DeviceInfo.DeviceId, *AudioStreamInfo.DeviceInfo.Name
 				);
@@ -1847,15 +1847,15 @@ namespace Audio
 			{				
 				SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_MoveAudioStreamToNewAudioDevice_CreateSource, FColor::Blue);
 
-			// Create the output source voice
-			Result = XAudio2System->CreateSourceVoice(&OutputAudioStreamSourceVoice, &Format, XAUDIO2_VOICE_NOPITCH, 2.0f, &OutputVoiceCallback);
-			if (FAILED(Result))
-			{
-				XAUDIO2_LOG_RESULT("XAudio2System->CreateSourceVoice", Result);
-				// Switch to running null device by setting OutputAudioStreamSourceVoice to null.
-				// Will default to null device when calling `ResumePlaybackOnNewDevice()`
-				OutputAudioStreamSourceVoice = nullptr;
-			}
+				// Create the output source voice
+				Result = XAudio2System->CreateSourceVoice(&OutputAudioStreamSourceVoice, &Format, XAUDIO2_VOICE_NOPITCH, 2.0f, &OutputVoiceCallback);
+				if (FAILED(Result))
+				{
+					XAUDIO2_LOG_RESULT("XAudio2System->CreateSourceVoice", Result);
+					// Switch to running null device by setting OutputAudioStreamSourceVoice to null.
+					// Will default to null device when calling `ResumePlaybackOnNewDevice()`
+					OutputAudioStreamSourceVoice = nullptr;
+				}
 			}
 
 			// Reinitialize the output circular buffer to match the buffer math of the new audio device.
@@ -2116,11 +2116,11 @@ namespace Audio
 	}
 
 	Audio::IAudioPlatformDeviceInfoCache* FMixerPlatformXAudio2::GetDeviceInfoCache() const
-		{
+	{
 		if (IAudioMixer::ShouldUseDeviceInfoCache())
-			{
+		{
 			return DeviceInfoCache.Get();
-			}
+		}
 		// Disabled.
 		return nullptr;
 	}

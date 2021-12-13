@@ -39,7 +39,7 @@ public:
 
 	UPROPERTY(meta = (ClampMin = 0.2f, ClampMax = 0.92f))
 	float SomeClampedFloat = 0.25f;
-	
+
 	UPROPERTY(meta = (UIMin = 0.26f, UIMax = 0.72f))
 	float SomeUIClampedFloat = 0.38f;
 

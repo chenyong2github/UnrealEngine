@@ -519,7 +519,7 @@ bool FSkeletalMeshLODRenderData::IsLODInlined(const ITargetPlatform* TargetPlatf
 		TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 	}
 	check(TargetPlatform);
-
+	
 	if (!SkeletalMesh->GetEnableLODStreaming(TargetPlatform))
 	{
 		return true;

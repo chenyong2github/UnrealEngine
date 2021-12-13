@@ -466,20 +466,20 @@ void FConcertLocalEndpoint::HandleInboundMessages(const FDateTime& UtcNow)
 {
 	TSharedPtr<IMessageContext, ESPMode::ThreadSafe> InContext;
 	while(InboundMessages.Dequeue(InContext))
-{
-		const TSharedRef<IMessageContext, ESPMode::ThreadSafe> Context = InContext.ToSharedRef();
-	const UScriptStruct* MessageTypeInfo = Context->GetMessageTypeInfo().Get();
-
-	// Setup Context
-	const FConcertMessageData* Message = (const FConcertMessageData*)Context->GetMessage();
-	const FConcertMessageContext ConcertContext(Message->ConcertEndpointId, UtcNow, Message, MessageTypeInfo, Context->GetAnnotations());
-	Logger.LogMessageReceived(ConcertContext, EndpointContext.EndpointId);
-
-	// Special endpoint discovery message handling, process discovery before passing down the message
-	if (MessageTypeInfo->IsChildOf(FConcertEndpointDiscoveryEvent::StaticStruct()))
 	{
-		ProcessEndpointDiscovery(ConcertContext, Context->GetSender());
-	}
+		const TSharedRef<IMessageContext, ESPMode::ThreadSafe> Context = InContext.ToSharedRef();
+		const UScriptStruct* MessageTypeInfo = Context->GetMessageTypeInfo().Get();
+
+		// Setup Context
+		const FConcertMessageData* Message = (const FConcertMessageData*)Context->GetMessage();
+		const FConcertMessageContext ConcertContext(Message->ConcertEndpointId, UtcNow, Message, MessageTypeInfo, Context->GetAnnotations());
+		Logger.LogMessageReceived(ConcertContext, EndpointContext.EndpointId);
+
+		// Special endpoint discovery message handling, process discovery before passing down the message
+		if (MessageTypeInfo->IsChildOf(FConcertEndpointDiscoveryEvent::StaticStruct()))
+		{
+			ProcessEndpointDiscovery(ConcertContext, Context->GetSender());
+		}
 
 		if (MessageTypeInfo->IsChildOf(FConcertSendResendPending::StaticStruct()))
 		{
@@ -487,10 +487,10 @@ void FConcertLocalEndpoint::HandleInboundMessages(const FDateTime& UtcNow)
 			continue;
 		}
 
-	// Special reliable handshake message handling, process then discard
-	if (MessageTypeInfo->IsChildOf(FConcertReliableHandshakeData::StaticStruct()))
-	{
-		ProcessReliableHandshake(ConcertContext);
+		// Special reliable handshake message handling, process then discard
+		if (MessageTypeInfo->IsChildOf(FConcertReliableHandshakeData::StaticStruct()))
+		{
+			ProcessReliableHandshake(ConcertContext);
 			continue;
 		}
 

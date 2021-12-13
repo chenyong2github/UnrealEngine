@@ -105,7 +105,7 @@ private:
 
 	/** Used to keep same selected data point when rebuilding tree */
 	void UpdateDataSelection(const TSharedPtr<FLensDataListItem>& PreviousSelection);
-	
+
 private:
 	
 	/** Data category TreeView */

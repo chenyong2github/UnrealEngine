@@ -110,13 +110,13 @@ void SLensDataViewer::Construct(const FArguments& InArgs, ULensFile* InLensFile,
 	const UCameraCalibrationEditorSettings* EditorSettings = GetDefault<UCameraCalibrationEditorSettings>();
 	
 	LensFile = TStrongObjectPtr<ULensFile>(InLensFile);
-
+		
 	//Setup curve editor
 	CurveEditor = MakeShared<FCameraCalibrationCurveEditor>();
 	const FCurveEditorInitParams InitParams;
 	CurveEditor->InitCurveEditor(InitParams);
 	CurveEditor->GridLineLabelFormatXAttribute = LOCTEXT("GridXLabelFormat", "{0}");
-
+	
 	TUniquePtr<ICurveEditorBounds> EditorBounds;
 
 	// We need to keep Time Slider outside the scope in order to be valid whe it passed to CurveEditorPanel
@@ -130,7 +130,7 @@ void SLensDataViewer::Construct(const FArguments& InArgs, ULensFile* InLensFile,
 	else
 	{
 		EditorBounds = MakeUnique<FStaticCurveEditorBounds>();
-	EditorBounds->SetInputBounds(0.05, 1.05);
+		EditorBounds->SetInputBounds(0.05, 1.05);
 	}
 	CurveEditor->SetBounds(MoveTemp(EditorBounds));
 

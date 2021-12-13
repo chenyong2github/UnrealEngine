@@ -220,12 +220,12 @@ bool UDisplayClusterConfiguratorReimportFactory::CanReimport(UObject* Obj, TArra
 		if(UDisplayClusterConfigurationData* ConfigData = Blueprint->GetConfig())
 		{
 			const FString& Path = ConfigData->ImportedPath;
-		if (!Path.IsEmpty())
-		{
-			OutFilenames.Add(Path);
-			return true;
+			if (!Path.IsEmpty())
+			{
+				OutFilenames.Add(Path);
+				return true;
+			}
 		}
-	}
 	}
 	return false;
 }

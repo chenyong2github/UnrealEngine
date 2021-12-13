@@ -724,7 +724,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Fence.Wait();
 
 		ThreadCount++;
-
+		
 		if (GCVarSuspendAudioThread != 0)
 		{
 			SuspendAudioThread();

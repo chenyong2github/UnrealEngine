@@ -1170,7 +1170,7 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 							IVoiceChatUser* User = &UserRef.Get();
 							if (UsersCreatedByConsoleCommand.RemoveSwap(User))
 							{
-							EOS_EXEC_LOG(TEXT("EOS RELEASEUSER releasing UserIndex=%d..."), UserIndex);
+								EOS_EXEC_LOG(TEXT("EOS RELEASEUSER releasing UserIndex=%d..."), UserIndex);
 								ReleaseUser(User);
 							}
 							else

@@ -200,7 +200,7 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 				);
 
 				continue;
-		}
+			}
 
 			UDisplayClusterConfigurationClusterNode* CurrentNode = *CurrentNodePtr;
 			check(CurrentNode);

@@ -198,9 +198,9 @@ FReply SCameraCalibrationCurveEditorView::OnMouseButtonUp(const FGeometry& MyGeo
 		// Note: In the future, we need to expose the context menu from the base curve editor view to support customization and avoid creating two menus.
 		if (FSlateApplication::Get().AnyMenusVisible())
 		{
-		CreateContextMenu(MyGeometry, MouseEvent);	
-		return FReply::Handled();
-	}
+			CreateContextMenu(MyGeometry, MouseEvent);
+			return FReply::Handled();
+		}
 	}
 
 	return Reply;

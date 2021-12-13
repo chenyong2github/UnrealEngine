@@ -87,7 +87,7 @@ public:
 
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 	}
-	
+
 };
 
 

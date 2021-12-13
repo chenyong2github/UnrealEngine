@@ -571,8 +571,8 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 		if (FromPin)
 		{
 			PinType = PinToTypeDefinition(FromPin);
-			}
-
+		}
+		
 		/** Make & Break */
 		if (PinType.GetScriptStruct())
 		{
@@ -609,12 +609,12 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 				
 				if(!CandidateType.IsValid() || CandidateType.IsUObject() || NoMakeAllowed.Contains(CandidateType))
 				{
-							continue;
-						}
-
+					continue;
+				}
+				
 				// if we have a "from pin", we generally only want applicable make types
 				if(FromPin)
-						{
+				{
 					// if our "from pin" is an output pin, we require at least one input pin type of the candidate type to be the same or assignable
 					if(FromPin->Direction == EGPD_Output)
 					{
@@ -626,17 +626,17 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 							{
 								bAddMake = true;
 								break;
+							}								
 						}
 					}
-				}
 					else
-				{
+					{
 						// if our "from pin" is an input pin, we generally only allow that exact type for making, with some exceptions like NiagaraGenerics
 						if(PinType == CandidateType)
-					{
+						{
 							bAddMake = true;
 						}
-
+						
 						if(PinType == FNiagaraTypeDefinition::GetGenericNumericDef() && FNiagaraTypeDefinition::IsValidNumericInput(CandidateType))
 						{
 							bAddMake = true;
@@ -644,8 +644,8 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 					}
 				}
 				// if we don't, just generally allow make types. We are stricter about break types however
-			else
-			{
+				else
+				{
 					bAddMake = true;
 				}
 
@@ -653,8 +653,8 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 				{
 					MakeBreakType(CandidateType, true);
 				}
-				}
-				
+			}
+			
 			// Break for the current "from pin"
 			{
 				// Don't break scalars. Allow makes for now as a convenient method of getting internal script constants when dealing with numeric pins.
@@ -662,12 +662,12 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 				if (FromPin && !PinType.IsInternalType() && !PinType.IsUObject() && !FNiagaraTypeDefinition::IsScalarDefinition(PinType) && PinType != FNiagaraTypeDefinition::GetGenericNumericDef() && PinType != FNiagaraTypeDefinition::GetParameterMapDef())
 				{
 					if(FromPin->Direction == EGPD_Output)
-				{
+					{
 						MakeBreakType(PinType, false);
+					}					
 				}
-				}
-			}
-
+			}				
+			
 
 			//Always add generic convert as an option.
 			FText Desc = LOCTEXT("NiagaraConvert", "Convert");

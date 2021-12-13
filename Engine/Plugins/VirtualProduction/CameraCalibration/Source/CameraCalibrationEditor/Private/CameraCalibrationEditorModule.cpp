@@ -146,7 +146,7 @@ void FCameraCalibrationEditorModule::RegisterPlacementModeItems()
 				TOptional<FLinearColor>(),
 				TOptional<int32>(),
 				NSLOCTEXT("PlacementMode", "TrackerV3", "TrackerV3")
-			)));
+				)));
 		}
 	};
 

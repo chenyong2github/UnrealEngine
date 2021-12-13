@@ -47,13 +47,13 @@ class FTaskCalledFromEventLoop
 template < typename Functor > class TFunctorCalledFromEventLoop : public FTaskCalledFromEventLoop
 {
   public:
-    // Constructor
+	// Constructor
 	TFunctorCalledFromEventLoop(Functor InFunctor)
 		: TheFunctor(InFunctor)
 	{
 	}
 
-    // Execute the functor
+	// Execute the functor
 	virtual void Run() override { TheFunctor(); }
 
   private:

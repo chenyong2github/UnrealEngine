@@ -149,7 +149,7 @@ bool FUdpMessageProcessor::EnqueueOutboundMessage(const TSharedRef<IMessageConte
 	{
 		return false;
 	}
-	
+
 	TMap<uint8, TArray<FGuid>> RecipientPerVersions = GetRecipientsPerProtocolVersion(Recipients);
 	for (const auto& RecipientVersion : RecipientPerVersions)
 	{
@@ -248,13 +248,13 @@ uint32 FUdpMessageProcessor::Run()
 
 		do
 		{
-		FDateTime LastTime = CurrentTime;
-		CurrentTime = FDateTime::UtcNow();
-		DeltaTime = CurrentTime - LastTime;
+			FDateTime LastTime = CurrentTime;
+			CurrentTime = FDateTime::UtcNow();
+			DeltaTime = CurrentTime - LastTime;
 
 			ConsumeInboundSegments();
 			ConsumeOutboundMessages();
-		UpdateKnownNodes();
+			UpdateKnownNodes();
 			UpdateNetworkStatistics();
 		} while ((!InboundSegments.IsEmpty() || MoreToSend()) && !bStopping);
 	}
@@ -416,7 +416,7 @@ void FUdpMessageProcessor::ConsumeInboundSegments()
 				ProcessByeSegment(Segment, NodeInfo);
 				break;
 
-			case EUdpMessageSegments::Data:			
+			case EUdpMessageSegments::Data:
 				ProcessDataSegment(Segment, NodeInfo);
 				break;
 
@@ -498,8 +498,8 @@ bool FUdpMessageProcessor::ConsumeOneOutboundMessage(const FOutboundMessage& Out
 
 			RecipientNodeInfo->WorkQueue.Enqueue(LastSentMessage);
 			SendSegmenterStatsToListeners(LastSentMessage, RecipientNodeInfo->NodeId, Segmenter);
+		}
 	}
-}
 
 	// Return true that it was consumed or not reliable. Unreliable messages can be discarded.
 	return bCanConsume || !bIsReliable;
@@ -518,17 +518,17 @@ void FUdpMessageProcessor::ConsumeOutboundMessages()
 	};
 
 	if (DeferredOutboundMessage)
-		{
+	{
 		if (ConsumeOneOutboundMessage(DeferredOutboundMessage.GetValue()))
-			{
+		{
 			DeferredOutboundMessage.Reset();
-			}
-			else
-			{
+		}
+		else
+		{
 			CannotConsumeMsg();
 			return ;
-			}
 		}
+	}
 
 	while (OutboundMessages.Dequeue(OutboundMessage))
 	{
@@ -537,8 +537,8 @@ void FUdpMessageProcessor::ConsumeOutboundMessages()
 			CannotConsumeMsg();
 			DeferredOutboundMessage = OutboundMessage;
 			return ;
+		}
 	}
-}
 }
 
 bool FUdpMessageProcessor::FilterSegment(const FUdpMessageSegment::FHeader& Header)
@@ -598,7 +598,7 @@ void FUdpMessageProcessor::ProcessAcknowledgeSegmentsSegment(FInboundSegment& Se
 	UE_LOG(LogUdpMessaging, Verbose, TEXT("Received AcknowledgeSegments for %d from %s"), AcknowledgeChunk.MessageId, *NodeInfo.NodeId.ToString());
 
 	NodeInfo.MarkAcks(AcknowledgeChunk.MessageId, AcknowledgeChunk.Segments, CurrentTime);
-		}
+}
 
 
 void FUdpMessageProcessor::ProcessByeSegment(FInboundSegment& Segment, FNodeInfo& NodeInfo)
@@ -617,7 +617,7 @@ void FUdpMessageProcessor::ProcessDataSegment(FInboundSegment& Segment, FNodeInf
 {
 	FUdpMessageSegment::FDataChunk DataChunk;
 	DataChunk.Serialize(*Segment.Data, NodeInfo.ProtocolVersion);
-	
+
 	if (Segment.Data->IsError())
 	{
 		UE_LOG(LogUdpMessaging, Warning, TEXT("FUdpMessageProcessor::ProcessDataSegment: Failed to serialize DataChunk. Sender=%s"),
@@ -653,8 +653,8 @@ void FUdpMessageProcessor::ProcessDataSegment(FInboundSegment& Segment, FNodeInf
 	}
 
 	UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::ProcessDataSegment: Reassembled %d bytes message %s with %d for %s (%s)"),
-		ReassembledMessage->GetData().Num(), 
-		*ReassembledMessage->Describe(), 
+		ReassembledMessage->GetData().Num(),
+		*ReassembledMessage->Describe(),
 		DataChunk.MessageId,
 		*NodeInfo.NodeId.ToString(),
 		*NodeInfo.Endpoint.ToString());
@@ -686,7 +686,7 @@ void FUdpMessageProcessor::ProcessPingSegment(FInboundSegment& Segment, FNodeInf
 	{
 		NodeInfo.ResetIfRestarted(RemoteNodeId);
 	}
-	
+
 	// The protocol version we are going to use to communicate to this node is the smallest between its version and our own
 	uint8 ProtocolVersion = FMath::Min<uint8>(NodeProtocolVersion, UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION);
 
@@ -782,10 +782,10 @@ void FUdpMessageProcessor::DeliverMessage(const TSharedPtr<FUdpReassembledMessag
 		return;
 	}
 
-		if (NodeInfo.NodeId.IsValid())
-		{
-			MessageReassembledDelegate.ExecuteIfBound(*ReassembledMessage, nullptr, NodeInfo.NodeId);
-		}
+	if (NodeInfo.NodeId.IsValid())
+	{
+		MessageReassembledDelegate.ExecuteIfBound(*ReassembledMessage, nullptr, NodeInfo.NodeId);
+	}
 
 	// Mark the message delivered but do not remove it from the list yet, this is to prevent the double delivery of reliable message
 	ReassembledMessage->MarkDelivered();
@@ -830,13 +830,13 @@ void FUdpMessageProcessor::RemoveDeadNodes()
 }
 
 bool FUdpMessageProcessor::MoreToSend()
-	{
+{
 	for (auto& KnownNodePair : KnownNodes)
 	{
 		if (KnownNodePair.Value.CanSendSegments() && KnownNodePair.Value.HasSegmenterThatCanSend(CurrentTime))
 		{
 			return true;
-	}
+		}
 	}
 	return false;
 }
@@ -851,16 +851,16 @@ void FUdpMessageProcessor::UpdateKnownNodes()
 	Beacon->SetEndpointCount(KnownNodes.Num() + 1);
 
 	bool bSuccess = true;
-		for (auto& KnownNodePair : KnownNodes)
-		{
+	for (auto& KnownNodePair : KnownNodes)
+	{
 		int32 NodeByteSent = UpdateSegmenters(KnownNodePair.Value);
-			// if NodByteSent is negative, there is a socket error, continuing is useless
-			bSuccess = NodeByteSent >= 0;
-			if (!bSuccess)
-			{
-				UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateKnownNodes received negative NodeByteSent (%d) from socket."), NodeByteSent);
-				break;
-			}
+		// if NodByteSent is negative, there is a socket error, continuing is useless
+		bSuccess = NodeByteSent >= 0;
+		if (!bSuccess)
+		{
+			UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateKnownNodes received negative NodeByteSent (%d) from socket sender."), NodeByteSent);
+			break;
+		}
 
 		bSuccess = UpdateReassemblers(KnownNodePair.Value);
 		// if there is a socket error, continuing is useless
@@ -883,7 +883,7 @@ TSharedPtr<FUdpMessageSegmenter>* FUdpMessageProcessor::GetInitializedSegmenter(
 {
 	TSharedPtr<FUdpMessageSegmenter>* FoundSegmenter = NodeInfo.Segmenters.Find(MessageId);
 	if (!FoundSegmenter)
-{
+	{
 		// It's possible that a segmenter was fully ack and removed from the segmenter list.
 		return nullptr;
 	}
@@ -905,20 +905,20 @@ TSharedPtr<FUdpMessageSegmenter>* FUdpMessageProcessor::GetInitializedSegmenter(
 }
 
 FUdpMessageSegment::FDataChunk FUdpMessageProcessor::GetDataChunk(FNodeInfo& NodeInfo, TSharedPtr<FUdpMessageSegmenter>& Segmenter, int32 MessageId)
-		{
-			FUdpMessageSegment::FDataChunk DataChunk;
+{
+	FUdpMessageSegment::FDataChunk DataChunk;
 
-			// Track the segments we sent as we'll update the segmenter to keep track
+	// Track the segments we sent as we'll update the segmenter to keep track
 	TConstSetBitIterator<> BIt(Segmenter->GetPendingSendSegments());
-				Segmenter->GetPendingSegment(BIt.GetIndex(), DataChunk.Data);
-				DataChunk.SegmentNumber = BIt.GetIndex();
+	Segmenter->GetPendingSegment(BIt.GetIndex(), DataChunk.Data);
+	DataChunk.SegmentNumber = BIt.GetIndex();
 
 	DataChunk.MessageId = MessageId;
-				DataChunk.MessageFlags = Segmenter->GetMessageFlags();
-				DataChunk.MessageSize = Segmenter->GetMessageSize();
-				DataChunk.SegmentOffset = UDP_MESSAGING_SEGMENT_SIZE * DataChunk.SegmentNumber;
+	DataChunk.MessageFlags = Segmenter->GetMessageFlags();
+	DataChunk.MessageSize = Segmenter->GetMessageSize();
+	DataChunk.SegmentOffset = UDP_MESSAGING_SEGMENT_SIZE * DataChunk.SegmentNumber;
 	DataChunk.Sequence = 0; // This should be kept 0 for legacy support.
-				DataChunk.TotalSegments = Segmenter->GetSegmentCount();
+	DataChunk.TotalSegments = Segmenter->GetSegmentCount();
 	return DataChunk;
 }
 
@@ -938,27 +938,27 @@ FSentSegmentInfo FUdpMessageProcessor::SendNextSegmentForMessageId(FNodeInfo& No
 	{
 		FUdpMessageSegment::FDataChunk DataChunk = GetDataChunk(NodeInfo, Segmenter, MessageId);
 
-				// validate with are sending message in the proper protocol version
-				check(Header.ProtocolVersion == Segmenter->GetProtocolVersion());
+		// validate with are sending message in the proper protocol version
+		check(Header.ProtocolVersion == Segmenter->GetProtocolVersion());
 
-				TSharedRef<FArrayWriter, ESPMode::ThreadSafe> Writer = MakeShared<FArrayWriter, ESPMode::ThreadSafe>();
-				{
-					*Writer << Header;
-					DataChunk.Serialize(*Writer, Header.ProtocolVersion);
-				}
+		TSharedRef<FArrayWriter, ESPMode::ThreadSafe> Writer = MakeShared<FArrayWriter, ESPMode::ThreadSafe>();
+		{
+			*Writer << Header;
+			DataChunk.Serialize(*Writer, Header.ProtocolVersion);
+		}
 
 		UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Sending msg %d as segment %d/%d of %d bytes to %s"),
-					DataChunk.MessageId, 
-					DataChunk.SegmentNumber + 1, 
-					DataChunk.TotalSegments, 
-					Segmenter->GetMessageSize(), 
-					*NodeInfo.NodeId.ToString());
+			   DataChunk.MessageId,
+			   DataChunk.SegmentNumber + 1,
+			   DataChunk.TotalSegments,
+			   Segmenter->GetMessageSize(),
+			   *NodeInfo.NodeId.ToString());
 
-				if (!SocketSender->Send(Writer, NodeInfo.Endpoint))
-				{
+		if (!SocketSender->Send(Writer, NodeInfo.Endpoint))
+		{
 			SentInfo.bSendSocketError = true;
 			return MoveTemp(SentInfo);
- 				}
+		}
 
 		Segmenter->MarkAsSent(DataChunk.SegmentNumber);
 
@@ -977,25 +977,25 @@ FSentSegmentInfo FUdpMessageProcessor::SendNextSegmentForMessageId(FNodeInfo& No
 		SendSegmenterStatsToListeners(MessageId, NodeInfo.NodeId, Segmenter);
 
 		if (Segmenter->IsSendingComplete() && !SentInfo.bIsReliable)
-			{
+		{
 			// Not reliably sent so we don't need to wait for acks.
-					UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Finished with message segmenter for %s"), *NodeInfo.NodeId.ToString());
+			UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Finished with message segmenter for %s"), *NodeInfo.NodeId.ToString());
 			NodeInfo.Segmenters.Remove(MessageId);
-				}
-			}
-			else
-			{
+		}
+	}
+	else
+	{
 		SentInfo.bRequiresRequeue = true;
-			}
+	}
 
 	NodeInfo.Statistics.BytesSent += SentInfo.BytesSent;
 	NodeInfo.Statistics.IpAddress = NodeInfo.Endpoint;
 	NodeInfo.Statistics.SegmentsInFlight = NodeInfo.InflightSegments.Num();
 	return MoveTemp(SentInfo);
-		}
+}
 
 int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo)
-		{
+{
 	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_UpdateSegmenters);
 	FUdpMessageSegment::FHeader Header
 	{
@@ -1029,7 +1029,7 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo)
 	for (int32 RequeueMessageId : MessagesForRequeue)
 	{
 		NodeInfo.WorkQueue.Enqueue(RequeueMessageId);
-}
+	}
 	return BytesSent;
 }
 
@@ -1067,7 +1067,7 @@ bool FUdpMessageProcessor::UpdateReassemblers(FNodeInfo& NodeInfo)
 			TSharedRef<FArrayWriter, ESPMode::ThreadSafe> Writer = MakeShared<FArrayWriter, ESPMode::ThreadSafe>();
 			{
 				*Writer << Header;
-				AcknowledgeChunk.Serialize(*Writer, Header.ProtocolVersion);				
+				AcknowledgeChunk.Serialize(*Writer, Header.ProtocolVersion);
 			}
 			BytesSent += Writer->Num();
 
@@ -1079,10 +1079,10 @@ bool FUdpMessageProcessor::UpdateReassemblers(FNodeInfo& NodeInfo)
 
 				return false;
 			}
-			
-			UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateReassemblers: sending acknowledgement for reliable msg %d from %s"), 
-				It.Key(), 
-				*NodeInfo.NodeId.ToString());			
+
+			UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateReassemblers: sending acknowledgement for reliable msg %d from %s"),
+				It.Key(),
+				*NodeInfo.NodeId.ToString());
 		}
 
 		// Try to deliver completed message that couldn't be delivered the first time around
@@ -1096,9 +1096,9 @@ bool FUdpMessageProcessor::UpdateReassemblers(FNodeInfo& NodeInfo)
 			(!EnumHasAnyFlags(ReassembledMessage->GetFlags(), EMessageFlags::Reliable) || ReassembledMessage->IsDelivered()))
 		{
 			if (!ReassembledMessage->IsDelivered())
-			{ 
+			{
 				const int ReceivedSegments = ReassembledMessage->GetTotalSegmentsCount() - ReassembledMessage->GetPendingSegmentsCount();
-				UE_LOG(LogUdpMessaging, Warning, TEXT("FUdpMessageProcessor::UpdateReassemblers Discarding %d/%d of stale message segements from %s"), 
+				UE_LOG(LogUdpMessaging, Warning, TEXT("FUdpMessageProcessor::UpdateReassemblers Discarding %d/%d of stale message segements from %s"),
 					ReceivedSegments,
 					ReassembledMessage->GetTotalSegmentsCount(),
 					*ReassembledMessage->Describe());

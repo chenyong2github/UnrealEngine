@@ -154,14 +154,14 @@ private:
 
 	UPROPERTY()
 	TMap<FString, bool> StackEntryKeyToExpandedOverviewMap;
-	
+
 	/* Marking those FTexts explicitly as editoronly_data will make localization not pick these up.
 	 * This is a workaround. EditorDataBase in system & emitter is already flagged as editor only, but it doesn't propagate properly */
 #if WITH_EDITORONLY_DATA
 	
 	UPROPERTY()
 	TMap<FString, FText> StackEntryKeyToDisplayName;
-
+	
 #endif
 	
 	bool bShowAllAdvanced;

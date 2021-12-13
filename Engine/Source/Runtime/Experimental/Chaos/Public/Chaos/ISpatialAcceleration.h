@@ -659,7 +659,7 @@ typename TEnableIf<!TIsPointer<TPayload>::Value, bool>::Type PrePreFilterHelper(
 	if (const void* SimData = Visitor.GetSimData())
 	{
 		return Payload.PrePreSimFilter(SimData);
-}
+	}
 	return false;
 }
 

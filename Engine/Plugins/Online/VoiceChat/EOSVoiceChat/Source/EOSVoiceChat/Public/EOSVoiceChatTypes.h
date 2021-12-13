@@ -20,5 +20,6 @@ struct FEOSVoiceChatChannelCredentials
 		JSON_SERIALIZE("participant_token", ParticipantToken);
 	END_JSON_SERIALIZER
 };
+
 UE_DEPRECATED(4.27, "FEOSVoiceChannelConnectionInfo renamed to FEOSVoiceChatChannelCredentials")
 typedef FEOSVoiceChatChannelCredentials FEOSVoiceChannelConnectionInfo;

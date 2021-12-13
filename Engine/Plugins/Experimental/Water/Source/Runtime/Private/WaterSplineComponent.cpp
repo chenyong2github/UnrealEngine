@@ -74,7 +74,7 @@ USplineMetadata* UWaterSplineComponent::GetSplinePointsMetadata()
 
 const USplineMetadata* UWaterSplineComponent::GetSplinePointsMetadata() const
 {
-	if(AWaterBody* OwningBody = GetTypedOuter<AWaterBody>())
+	if (AWaterBody* OwningBody = GetTypedOuter<AWaterBody>())
 	{
 		// This function may be called before the water body actor has initialized the component
 		return OwningBody->GetWaterBodyComponent() ? OwningBody->GetWaterBodyComponent()->GetWaterSplineMetadata() : nullptr;

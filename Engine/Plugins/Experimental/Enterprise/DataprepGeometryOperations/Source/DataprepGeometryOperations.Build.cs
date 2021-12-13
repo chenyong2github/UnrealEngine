@@ -40,7 +40,7 @@ namespace UnrealBuildTool.Rules
 
 				PrivateDependencyModuleNames.AddRange(
 					new string[] {
-					"ProxyLODMeshReduction",
+						"ProxyLODMeshReduction",
 					}
 				);
 			}

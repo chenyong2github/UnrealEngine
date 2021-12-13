@@ -1522,15 +1522,15 @@ void AMatineeActor::SaveActorVisibility( AActor* Actor )
 
 	if( IsValid(Actor) )
 	{
-			const uint8* SavedVisibility = SavedActorVisibilities.Find( Actor );
-			if ( !SavedVisibility )
-			{
-				// Save both bHidden and bHiddenEdTemporary to make it work properly in the editor
-				uint8 bSaveHidden = (Actor->IsHidden() ? 1 : 0) | (Actor->IsTemporarilyHiddenInEditor() ? 2 : 0);
-				SavedActorVisibilities.Add( Actor, bSaveHidden );
-			}
+		const uint8* SavedVisibility = SavedActorVisibilities.Find( Actor );
+		if ( !SavedVisibility )
+		{
+			// Save both bHidden and bHiddenEdTemporary to make it work properly in the editor
+			uint8 bSaveHidden = (Actor->IsHidden() ? 1 : 0) | (Actor->IsTemporarilyHiddenInEditor() ? 2 : 0);
+			SavedActorVisibilities.Add( Actor, bSaveHidden );
 		}
 	}
+}
 
 void AMatineeActor::ConditionallySaveActorState( UInterpGroupInst* InGroupInst, AActor* Actor )
 {

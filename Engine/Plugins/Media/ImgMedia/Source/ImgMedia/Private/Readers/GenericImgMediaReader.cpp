@@ -117,24 +117,24 @@ bool FGenericImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImg
 			// Load image.
 			const FString& ImagePath = Loader->GetImagePath(FrameId, CurrentMipLevel);
 
-	TArray64<uint8> InputBuffer;
+			TArray64<uint8> InputBuffer;
 			FImgMediaFrameInfo Info;
 			TSharedPtr<IImageWrapper> ImageWrapper = LoadImage(ImagePath, ImageWrapperModule, InputBuffer, Info);
 
-	if (!ImageWrapper.IsValid())
-	{
-		UE_LOG(LogImgMedia, Warning, TEXT("FGenericImgMediaReader: Failed to load image %s"), *ImagePath);
-		return false;
-	}
+			if (!ImageWrapper.IsValid())
+			{
+				UE_LOG(LogImgMedia, Warning, TEXT("FGenericImgMediaReader: Failed to load image %s"), *ImagePath);
+				return false;
+			}
 
-	TArray64<uint8> RawData;
-	if (!ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
-	{
-		UE_LOG(LogImgMedia, Warning, TEXT("FGenericImgMediaReader: Failed to get image data for %s"), *ImagePath);
-		return false;
-	}
+			TArray64<uint8> RawData;
+			if (!ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
+			{
+				UE_LOG(LogImgMedia, Warning, TEXT("FGenericImgMediaReader: Failed to get image data for %s"), *ImagePath);
+				return false;
+			}
 
-	const int64 RawNum = RawData.Num();
+			const int64 RawNum = RawData.Num();
 			// Create buffer for data.
 			if (Buffer == nullptr)
 			{
@@ -146,9 +146,9 @@ bool FGenericImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImg
 				}
 				Buffer = FMemory::Malloc(AllocSize);
 				OutFrame->Info = Info;
-	OutFrame->Data = MakeShareable(Buffer, [](void* ObjectToDelete) { FMemory::Free(ObjectToDelete); });
-	OutFrame->Format = EMediaTextureSampleFormat::CharBGRA;
-	OutFrame->Stride = OutFrame->Info.Dim.X * 4;
+				OutFrame->Data = MakeShareable(Buffer, [](void* ObjectToDelete) { FMemory::Free(ObjectToDelete); });
+				OutFrame->Format = EMediaTextureSampleFormat::CharBGRA;
+				OutFrame->Stride = OutFrame->Info.Dim.X * 4;
 			}
 
 			// Copy data to our buffer

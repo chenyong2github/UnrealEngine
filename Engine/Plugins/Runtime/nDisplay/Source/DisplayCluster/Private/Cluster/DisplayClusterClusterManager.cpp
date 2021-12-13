@@ -323,8 +323,8 @@ void FDisplayClusterClusterManager::AddClusterEventListener(TScriptInterface<IDi
 	FScopeLock Lock(&ClusterEventListenersCS);
 	if (Listener.GetObject() && IsValidChecked(Listener.GetObject()) && !Listener.GetObject()->IsUnreachable())
 	{
-	ClusterEventListeners.Add(Listener);
-}
+		ClusterEventListeners.Add(Listener);
+	}
 }
 
 void FDisplayClusterClusterManager::RemoveClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener> Listener)

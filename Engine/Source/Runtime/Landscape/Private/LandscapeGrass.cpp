@@ -591,7 +591,7 @@ public:
 
 		AddSimpleMeshPass(GraphBuilder, PassParameters, SceneInterface->GetRenderScene(), *View, nullptr, RDG_EVENT_NAME("LandscapeGrass"), View->UnscaledViewRect,
 			[&View, this](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-		{
+			{
 				FLandscapeGrassWeightMeshProcessor PassMeshProcessor(
 					nullptr,
 					View,

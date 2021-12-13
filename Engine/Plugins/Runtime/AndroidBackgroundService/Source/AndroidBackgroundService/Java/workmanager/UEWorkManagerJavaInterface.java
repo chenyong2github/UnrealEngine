@@ -199,8 +199,8 @@ public class UEWorkManagerJavaInterface
 	{
 		try 
 		{
-		WorkManager.getInstance(AppContext.getApplicationContext()).cancelUniqueWork(TaskID);
-	}
+			WorkManager.getInstance(AppContext.getApplicationContext()).cancelUniqueWork(TaskID);
+		}
 		catch(Exception exp)
 		{
 			exp.printStackTrace();

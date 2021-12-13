@@ -288,7 +288,7 @@ public:
 		{
 			return S_OK;
 		}
-
+		
 		bool bIsRender = IsRenderDevice(pwstrDeviceId);
 		FString DeviceString(pwstrDeviceId);
 		FReadScopeLock ReadLock(ListenersSetRwLock);
@@ -326,7 +326,7 @@ public:
 		{
 			return S_OK;
 		}
-
+		
 		bool bIsRender = IsRenderDevice(pwstrDeviceId);
 		if (dwNewState == DEVICE_STATE_ACTIVE || dwNewState == DEVICE_STATE_DISABLED || dwNewState == DEVICE_STATE_UNPLUGGED || dwNewState == DEVICE_STATE_NOTPRESENT)
 		{
@@ -363,12 +363,12 @@ public:
 		TCHAR KeyString[PKEYSTR_MAX];
 		HRESULT HR = PSStringFromPropertyKey(Key, KeyString, ARRAYSIZE(KeyString));
 		if(SUCCEEDED(HR))
-				{
+		{
 			return FString(KeyString);
-				}
+		}
 #endif //!NO_LOGGING
 		return TEXT("Unknown");
-			}
+	}
 
 	FString GetFriendlyName(const FString InDeviceID)
 	{
@@ -398,7 +398,7 @@ public:
 
 			// Get friendly name.
 			if (SUCCEEDED(Hr) && PropStore)
-	{
+			{
 				PROPVARIANT PropString;
 				PropVariantInit(&PropString);
 
@@ -408,7 +408,7 @@ public:
 				{
 					// Copy friendly name.
 					if (PropString.pwszVal)
-		{
+					{
 						FriendlyName = PropString.pwszVal;
 					}
 				}
@@ -417,7 +417,7 @@ public:
 			}
 		}
 		return FriendlyName;
-		}
+	}
 
 	TComPtr<IMMDevice> GetDevice(const FString InDeviceID) const
 	{
@@ -431,7 +431,7 @@ public:
 		
 		// Fail.
 		return {};
-		}
+	}
 
 	HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPERTYKEY key)
 	{
@@ -480,7 +480,7 @@ public:
 			}
 		}
 		return S_OK;
-			}
+	}
 
 	HRESULT STDMETHODCALLTYPE QueryInterface(const IID& IId, void** UnknownPtrPtr) override
 	{
@@ -505,14 +505,14 @@ public:
 		{
 			*UnknownPtrPtr = (IMMNotificationClient*)(this);
 			AddRef();
-		return S_OK;
-	}
+			return S_OK;
+		}
 		else if (IId == __uuidof(IAudioSessionEvents))
-	{
+		{
 			*UnknownPtrPtr = (IAudioSessionEvents*)this;
 			AddRef();
-		return S_OK;
-	}
+			return S_OK;
+		}
 
 
 		// This method returns S_OK if the interface is supported, and E_NOINTERFACE otherwise.
@@ -548,7 +548,7 @@ public:
 		FWriteScopeLock Lock(ListenersSetRwLock);
 		Listeners.Remove(DeviceChangedListener);
 	}
-
+	
 	// Begin IAudioSessionEvents
 	HRESULT STDMETHODCALLTYPE OnDisplayNameChanged(
 		LPCWSTR NewDisplayName,
@@ -693,7 +693,7 @@ namespace Audio
 			mutable FRWLock MutationLock;
 
 			FCacheEntry& operator=(const FCacheEntry& InOther)
-{
+			{
 				// Copy everything but the lock. 
 				DeviceId = InOther.DeviceId;
 				FriendlyName = InOther.FriendlyName;
@@ -1393,7 +1393,7 @@ namespace Audio
 	{
 		// Ignore changes in capture device.
 		if (!bIsRenderDevice)
-	{
+		{
 			return;
 		}
 		
@@ -1449,7 +1449,7 @@ namespace Audio
 	{
 		// Ignore changes in capture device.
 		if (!bIsRenderDevice)
-	{
+		{
 			return;
 		}
 		
