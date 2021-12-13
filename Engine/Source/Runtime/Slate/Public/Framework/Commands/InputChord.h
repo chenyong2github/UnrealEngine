@@ -42,7 +42,7 @@ struct SLATE_API FInputChord
 	  * The ways two chords can be related to each other. A chord is considered masking 
 	  * when it has all the same modifier keys as another chord plus more.
 	  */
-	enum ERelationshipType
+	enum class ERelationshipType
 	{
 		None,
 		Same,

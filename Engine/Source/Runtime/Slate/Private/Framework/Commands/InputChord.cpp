@@ -89,7 +89,7 @@ FText FInputChord::GetModifierText(TOptional<FText> ModifierAppender) const
 
 FInputChord::ERelationshipType FInputChord::GetRelationship( const FInputChord& OtherChord ) const
 {
-	ERelationshipType Relationship = None;
+	ERelationshipType Relationship = ERelationshipType::None;
 
 	if (Key == OtherChord.Key)
 	{
@@ -98,21 +98,21 @@ FInputChord::ERelationshipType FInputChord::GetRelationship( const FInputChord& 
 			(bShift == OtherChord.bShift) &&
 			(bCmd == OtherChord.bCmd))
 		{
-			Relationship = Same;
+			Relationship = ERelationshipType::Same;
 		}
 		else if ((bAlt || !OtherChord.bAlt) &&
 				(bCtrl || !OtherChord.bCtrl) &&
 				(bShift || !OtherChord.bShift) &&
 				(bCmd || !OtherChord.bCmd))
 		{
-			Relationship = Masks;
+			Relationship = ERelationshipType::Masks;
 		}
 		else if ((!bAlt || OtherChord.bAlt) &&
 				(!bCtrl || OtherChord.bCtrl) &&
 				(!bShift || OtherChord.bShift) &&
 				(!bCmd || OtherChord.bCmd))
 		{
-			Relationship = Masked;
+			Relationship = ERelationshipType::Masked;
 		}
 	}
 
