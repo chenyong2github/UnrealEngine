@@ -170,11 +170,14 @@ namespace
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 		FTexture2DRHIRef Texture;
-#if PLATFORM_WINDOWS
-		Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
-#else
-		Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared, ERHIAccess::Present, CreateInfo);
-#endif
+		FString RHIName = GDynamicRHI->GetName();
+
+		if(RHIName == TEXT("Vulkan")) {
+			Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable | TexCreate_External, ERHIAccess::Present, CreateInfo);
+		} else
+		{
+			Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
+		}
 	    return Texture;
 	}
 }
