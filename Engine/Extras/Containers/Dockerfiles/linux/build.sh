@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Determine which release of the Unreal Engine we will be building container images for
-UNREAL_ENGINE_RELEASE="4.27"
+UNREAL_ENGINE_RELEASE="5.0"
 if [[ ! -z "$1" ]]; then
 	UNREAL_ENGINE_RELEASE="$1"
 fi
@@ -20,6 +20,12 @@ if [[ ! -z "$2" ]]; then
 	GIT_REPO="$2"
 fi
 
+# Determine whether the user specified a changelist number to set in Build.version
+CHANGELIST_OVERRIDE=""
+if [[ ! -z "$3" ]]; then
+	CHANGELIST_OVERRIDE="$3"
+fi
+
 # Verify that the user has placed their GitHub username in the file `username.txt`
 if [ ! -f ./username.txt ]; then
 	echo 'Please place your GitHub username in a text file called `username.txt` in the current directory.'
@@ -36,10 +42,10 @@ fi
 
 # Assemble the common arguments to pass to the `docker buildx build` command
 args=(
-	--build-arg 'BASEIMAGE=nvidia/cudagl:11.1.1-devel-ubuntu18.04'
+	--build-arg 'BASEIMAGE=nvidia/opengl:1.0-glvnd-devel-ubuntu18.04'
 	--build-arg "GIT_REPO=${GIT_REPO}"
 	--build-arg "GIT_BRANCH=${GIT_BRANCH}"
-	--build-arg 'BUILD_DDC=true'
+	--build-arg "CHANGELIST=${CHANGELIST_OVERRIDE}"
 	--secret id=username,src=username.txt
 	--secret id=password,src=password.txt
 	--progress=plain
@@ -65,8 +71,6 @@ docker build -t 'ghcr.io/epicgames/unreal-engine:runtime-pixel-streaming' ./runt
 echo '[build.sh] Building the `unreal-engine` image for Unreal Engine release' "${UNREAL_ENGINE_RELEASE}..."
 docker buildx build \
 	-t "ghcr.io/epicgames/unreal-engine:dev-${UNREAL_ENGINE_RELEASE}" \
-	--build-arg 'EXCLUDE_DEBUG=0' \
-	--build-arg 'EXCLUDE_TEMPLATES=0' \
 	"${args[@]}" \
 	./dev
 
@@ -74,10 +78,8 @@ docker buildx build \
 echo '[build.sh] Building the `unreal-engine` image for Unreal Engine release' "${UNREAL_ENGINE_RELEASE}..."
 docker buildx build \
 	-t "ghcr.io/epicgames/unreal-engine:dev-slim-${UNREAL_ENGINE_RELEASE}" \
-	--build-arg 'EXCLUDE_DEBUG=1' \
-	--build-arg 'EXCLUDE_TEMPLATES=1' \
 	"${args[@]}" \
-	./dev
+	./dev-slim
 
 # Build the container image for the Pixel Streaming signalling server, which pulls files from our other images
 docker build \
