@@ -339,6 +339,11 @@ namespace Chaos
 				{
 					ensure(false);
 				}
+				// We should not copy dynamic trees here
+				if (Result->IsTreeDynamic())
+				{
+					Result = nullptr;
+				}
 			}
 			return Result;
 		};
@@ -836,10 +841,10 @@ namespace Chaos
 				check(ExternalAccelerationSubStructure->IsTreeDynamic());
 				*ExternalAccelerationSubStructure = *AsyncInternalAccelerationSubStructure;
 			}
-
-			// ToDo: We should be able to change this copy to a swap if we remove the copy in the async task
-			*InternalAccelerationSubStructure = *AsyncInternalAccelerationSubStructure;
-			//AsyncInternalAcceleration->SwapSubstructure(*InternalAcceleration, SpatialIdx);
+			
+			InternalAcceleration->SwapSubstructure(*AsyncInternalAcceleration, SpatialIdx);
+			//AsyncInternalAcceleration->GetSubstructure(SpatialIdx)->Reset(); // No need to reset
+			
 		}
 	}
 

@@ -467,7 +467,11 @@ public:
 		check(Buckets[Idx.Bucket].Objects.Num() > Idx.InnerIdx);
 		check(Other->Buckets[Idx.Bucket].Objects.Num() > Idx.InnerIdx);
 
-		std::swap(Buckets[Idx.Bucket].Objects[Idx.InnerIdx].Acceleration, Other->Buckets[Idx.Bucket].Objects[Idx.InnerIdx].Acceleration);
+		TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>> OtherSubStructure = Other->RemoveSubstructure(Idx);
+		TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>> ThisSubStructure = RemoveSubstructure(Idx);
+
+		Other->AddSubstructure(MoveTemp(ThisSubStructure), Idx.Bucket, Idx.InnerIdx);
+		AddSubstructure(MoveTemp(OtherSubStructure), Idx.Bucket, Idx.InnerIdx);
 	}
 	
 	virtual void Reset() override
