@@ -225,7 +225,7 @@ namespace ChaosTest {
 	{
 		ChaosTest::SingleParticleProxySingleThreadTest();
 		ChaosTest::SingleParticleProxyWakeEventPropagationTest();
-		ChaosTest::SingleParticleProxyNoUniqueIndexLeaks();
+		//ChaosTest::SingleParticleProxyNoUniqueIndexLeaks();
 		ChaosTest::JointProxySolverInitTest();
 	}
 }
