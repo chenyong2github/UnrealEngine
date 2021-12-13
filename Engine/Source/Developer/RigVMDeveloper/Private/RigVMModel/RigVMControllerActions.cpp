@@ -32,7 +32,11 @@ FString FRigVMActionWrapper::ExportText()
 	FString ExportedText;
 	if (Data.Num() > 0 && ScriptStruct != nullptr)
 	{
-		ScriptStruct->ExportText(ExportedText, GetAction(), nullptr, nullptr, PPF_None, nullptr);
+		TArray<uint8, TAlignedHeapAllocator<16>> DefaultStructData;
+		DefaultStructData.AddZeroed(ScriptStruct->GetStructureSize());
+		ScriptStruct->InitializeDefaultValue(DefaultStructData.GetData());
+		
+		ScriptStruct->ExportText(ExportedText, GetAction(), DefaultStructData.GetData(), nullptr, PPF_None, nullptr);
 	}
 	return ExportedText;
 }

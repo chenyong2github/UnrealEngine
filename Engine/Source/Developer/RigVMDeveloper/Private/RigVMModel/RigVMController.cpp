@@ -8765,7 +8765,7 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariable(const FName& I
 		{
 			if (VariableName == VariableNode->GetVariableName())
 			{
-				RefreshVariableNode(VariableNode->GetFName(), VariableName, InCPPType, InCPPTypeObject, bSetupUndoRedo);
+				RefreshVariableNode(VariableNode->GetFName(), VariableName, InCPPType, InCPPTypeObject, bSetupUndoRedo, false);
 			}
 		}
 	}
@@ -8905,7 +8905,7 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 					{
 						if (VariablePin->GetDefaultValue() == VarNameStr)
 						{
-							RefreshVariableNode(VariableNode->GetFName(), ExternalVariableToSwitch.Name, ExternalVariableToSwitch.TypeName.ToString(), ExternalVariableToSwitch.TypeObject, bSetupUndoRedo);
+							RefreshVariableNode(VariableNode->GetFName(), ExternalVariableToSwitch.Name, ExternalVariableToSwitch.TypeName.ToString(), ExternalVariableToSwitch.TypeObject, bSetupUndoRedo, false);
 							continue;
 						}
 					}
@@ -9077,10 +9077,11 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
+	FRigVMBaseAction BaseAction;
 	if (bSetupUndoRedo)
 	{
-		FRigVMInverseAction InverseAction;
-		InverseAction.Title = FString::Printf(TEXT("Change Local Variable type %s to %s"), *InVariableName.ToString(), *InCPPType);
+		BaseAction.Title = FString::Printf(TEXT("Change Local Variable type %s to %s"), *InVariableName.ToString(), *InCPPType);
+		ActionStack->BeginAction(BaseAction);
 
 		ActionStack->AddAction(FRigVMChangeLocalVariableTypeAction(LocalVariables[FoundIndex], InCPPType, InCPPTypeObject));
 	}	
@@ -9110,7 +9111,7 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 			{
 				if (VariablePin->GetDefaultValue() == InVariableName.ToString())
 				{
-					RefreshVariableNode(Node->GetFName(), InVariableName, InCPPType, InCPPTypeObject, bSetupUndoRedo);
+					RefreshVariableNode(Node->GetFName(), InVariableName, InCPPType, InCPPTypeObject, bSetupUndoRedo, false);
 					continue;
 				}
 			}
@@ -9124,6 +9125,11 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 				UnbindPinFromVariable(Pin, bSetupUndoRedo);
 			}
 		}
+	}
+
+	if (bSetupUndoRedo)
+	{
+		ActionStack->EndAction(BaseAction);
 	}
 
 	if (bPrintPythonCommand)
