@@ -118,44 +118,16 @@ class FormLayoutRowVisibility:
 
 
 class SettingsSearch:
-    def __init__(self, searched_widgets: List[QtWidgets.QWidget], scroll_area: QtWidgets.QScrollArea):
-        self.reset_search_bar_height = 0
-        self.last_search_string_len = 0
-        
+    def __init__(self, searched_widgets: List[QtWidgets.QWidget]):
         self.searched_widgets = searched_widgets
-        self.scroll_area = scroll_area
         
         form_layout_handlers: Dict[QtWidgets.QFormLayout, FormLayoutRowVisibility] = {}
         self.form_layout_handlers = form_layout_handlers
         
     def search(self, search_string: str):
-        # The first time something is typed, save scroll height to restore later
-        self._take_scroll_snapshot(search_string)
-        
         search_term_list = search_string.split()
         for widget in self.searched_widgets:
             self._update_widget_visibility(widget, search_term_list)
-
-        # Restore scroll bar height when search is over
-        self._restore_scroll_snapshot(search_string)
-
-    def _take_scroll_snapshot(self, search_string: str):
-        just_started_search = self.last_search_string_len == 0
-        if just_started_search:
-            self.reset_search_bar_height = self.scroll_area.verticalScrollBar().value()
-            
-            self.scroll_area.verticalScrollBar().setValue(0)
-
-    def _restore_scroll_snapshot(self, search_string: str):
-        len_search = len(search_string)
-        is_search_empty = len_search < self.last_search_string_len and len_search == 0
-        if is_search_empty:
-            # Need to wait for UI to update layout...
-            QtCore.QTimer.singleShot(
-                25,
-                lambda height=self.reset_search_bar_height: self.scroll_area.verticalScrollBar().setValue(height)
-            )
-        self.last_search_string_len = len_search
 
     def _update_widget_visibility(self, widget: QtWidgets.QWidget, search_term_list):
         # We only search labels for search terms

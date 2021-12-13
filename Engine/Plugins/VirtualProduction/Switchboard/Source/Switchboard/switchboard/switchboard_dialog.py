@@ -840,6 +840,8 @@ class SwitchboardDialog(QtCore.QObject):
             device_instances = self.device_manager.devices_of_type(plugin_name)
             device_settings = [(device.name, device.device_settings(), device.setting_overrides()) for device in device_instances]
             settings_dialog.add_section_for_plugin(plugin_name, self.device_manager.plugin_settings(plugin_name), device_settings)
+        
+        settings_dialog.select_all_tab()
 
         # avoid saving the config all the time while in the settings dialog
         CONFIG.push_saving_allowed(False)
