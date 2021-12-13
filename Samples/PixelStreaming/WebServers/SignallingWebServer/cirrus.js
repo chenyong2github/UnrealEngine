@@ -283,9 +283,9 @@ function logOutgoing(destName, msgType, msg) {
 }
 
 // normal peer to peer signalling goes to streamer. SFU streaming signalling goes to the sfu
-function sendMessageToController(msg) {
+function sendMessageToController(msg, skipSFU) {
 	const rawMsg = JSON.stringify(msg);
-	if (sfu && sfu.readyState == 1) {
+	if (sfu && sfu.readyState == 1 && !skipSFU) {
 		logOutgoing("SFU", msg.type, rawMsg);
 		sfu.send(rawMsg);
 	} else if (streamer && streamer.readyState == 1) {
@@ -395,7 +395,7 @@ streamerServer.on('connection', function (ws, req) {
 	streamer.send(JSON.stringify(clientConfig));
 
 	if (sfuIsConnected()) {
-		const msg = { type: "playerConnected", playerId: SFUPlayerId, dataChannel: false };
+		const msg = { type: "playerConnected", playerId: SFUPlayerId, dataChannel: false, sfu: true };
 		streamer.send(JSON.stringify(msg));
 	}
 });
@@ -461,10 +461,12 @@ sfuServer.on('connection', function (ws, req) {
 	console.logColor(logging.Green, `SFU (${req.connection.remoteAddress}) connected `);
 
 	if (streamer && streamer.readyState == 1) {
-		const msg = { type: "playerConnected", playerId: SFUPlayerId, dataChannel: false };
+		const msg = { type: "playerConnected", playerId: SFUPlayerId, dataChannel: false, sfu: true };
 		streamer.send(JSON.stringify(msg));
 	}
 });
+
+let playerCount = 0;
 
 console.logColor(logging.Green, `WebSocket listening for Players connections on :${httpPort}`);
 let playerServer = new WebSocket.Server({ server: config.UseHTTPS ? https : http});
@@ -475,6 +477,11 @@ playerServer.on('connection', function (ws, req) {
 		return;
 	}
 
+	const urlParams = new URLSearchParams(req.url.substring(2));
+	const useDirect = urlParams.get("UseDirect");
+	const skipSFU = useDirect != null && (useDirect == '' || (useDirect != 'false' && useDirect != '0'));
+
+	++playerCount;
 	let playerId = (++nextPlayerId).toString();
 	console.logColor(logging.Green, `player ${playerId} (${req.connection.remoteAddress}) connected`);
 	players.set(playerId, { ws: ws, id: playerId });
@@ -501,10 +508,10 @@ playerServer.on('connection', function (ws, req) {
 
 		if (msg.type == 'answer') {
 			msg.playerId = playerId;
-			sendMessageToController(msg);
+			sendMessageToController(msg, skipSFU);
 		} else if (msg.type == 'iceCandidate') {
 			msg.playerId = playerId;
-			sendMessageToController(msg);
+			sendMessageToController(msg, skipSFU);
 		} else if (msg.type == 'stats') {
 			console.log(`player ${playerId}: stats\n${msg.data}`);
 		} else if (msg.type == 'kick') {
@@ -524,8 +531,9 @@ playerServer.on('connection', function (ws, req) {
 
 	function onPlayerDisconnected() {
 		try {
+			--playerCount;
 			players.delete(playerId);
-			sendMessageToController({ type: 'playerDisconnected', playerId: playerId });
+			sendMessageToController({ type: 'playerDisconnected', playerId: playerId }, skipSFU);
 			sendPlayerDisconnectedToFrontend();
 			sendPlayerDisconnectedToMatchmaker();
 			sendPlayersCount();
@@ -553,7 +561,7 @@ playerServer.on('connection', function (ws, req) {
 
 	ws.send(JSON.stringify(clientConfig));
 
-	sendMessageToController({ type: "playerConnected", playerId: playerId, dataChannel: true });
+	sendMessageToController({ type: "playerConnected", playerId: playerId, dataChannel: true, sfu: false }, skipSFU);
 	sendPlayersCount();
 });
 
