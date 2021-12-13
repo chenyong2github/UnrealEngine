@@ -248,9 +248,6 @@ void ClusteredShadingPixelShader(
 
 	uint PixelShadingModelID = GetScreenSpaceData(ScreenUV).GBuffer.ShadingModelID;
 
-	// TODO: This is how it was in TiledDeferred
-	//const float Dither = 0.5f;
-	// BUT: this is how it is in trad. deferred, assumed better:
 	const float Dither = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
 
 	// ?
@@ -412,9 +409,6 @@ void ClusteredShadingPixelShader(
 		ScreenSpaceData.GBuffer.PerObjectGBufferData = 0;
 	}
 
-	// TODO: This is how it was in TiledDeferred
-	//const float Dither = 0.5f;
-	// BUT: this is how it is in trad. deferred, assumed better:
 	const float Dither = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
 
 	const uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SceneDepth);

@@ -717,7 +717,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 					// In the forward case one directional light gets put into its own variables, and in the deferred case it gets a full-screen pass.
 					// Usually it'll have shadows and stuff anyway.
 					// Rect lights are not supported as the performance impact is significant even if not used, for now, left for trad. deferred.
-					const bool bTiledOrClusteredDeferredSupported =
+					const bool bClusteredDeferredSupported =
 						!SortedLightInfo->SortKey.Fields.bTextureProfile &&
 						(!SortedLightInfo->SortKey.Fields.bShadowed || bShadowedLightsInClustered) &&
 						!SortedLightInfo->SortKey.Fields.bLightFunction &&
@@ -728,11 +728,8 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 					// One pass projection is supported for lights with only virtual shadow maps
 					// TODO: Exclude lights that also have non-virtual shadow maps
 					bool bHasVirtualShadowMap = VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&Views[ViewIndex]) != INDEX_NONE;
-					SortedLightInfo->SortKey.Fields.bDoesNotWriteIntoPackedShadowMask = !bTiledOrClusteredDeferredSupported || !bHasVirtualShadowMap;
-
-					SortedLightInfo->SortKey.Fields.bTiledDeferredNotSupported = !(bTiledOrClusteredDeferredSupported && LightSceneInfo->Proxy->IsTiledDeferredLightingSupported());
-
-					SortedLightInfo->SortKey.Fields.bClusteredDeferredNotSupported = !bTiledOrClusteredDeferredSupported;
+					SortedLightInfo->SortKey.Fields.bDoesNotWriteIntoPackedShadowMask = !bClusteredDeferredSupported || !bHasVirtualShadowMap;
+					SortedLightInfo->SortKey.Fields.bClusteredDeferredNotSupported = !bClusteredDeferredSupported;
 					break;
 				}
 			}
@@ -763,7 +760,6 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 		SortedLightInfo->SortKey.Fields.bIsNotSimpleLight = 0;
 
 		// Simple lights are ok to use with tiled and clustered deferred lighting
-		SortedLightInfo->SortKey.Fields.bTiledDeferredNotSupported = 0;
 		SortedLightInfo->SortKey.Fields.bClusteredDeferredNotSupported = 0;
 	}
 
@@ -779,7 +775,6 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 
 	// Scan and find ranges.
 	OutSortedLights.SimpleLightsEnd = SortedLights.Num();
-	OutSortedLights.TiledSupportedEnd = SortedLights.Num();
 	OutSortedLights.ClusteredSupportedEnd = SortedLights.Num();
 	OutSortedLights.UnbatchedLightStart = SortedLights.Num();
 
@@ -798,12 +793,6 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 			OutSortedLights.SimpleLightsEnd = LightIndex;
 		}
 
-		if (SortedLightInfo.SortKey.Fields.bTiledDeferredNotSupported && OutSortedLights.TiledSupportedEnd == SortedLights.Num())
-		{
-			// Mark the first index to not support tiled deferred
-			OutSortedLights.TiledSupportedEnd = LightIndex;
-		}
-
 		if (SortedLightInfo.SortKey.Fields.bClusteredDeferredNotSupported && OutSortedLights.ClusteredSupportedEnd == SortedLights.Num())
 		{
 			// Mark the first index to not support clustered deferred
@@ -813,15 +802,14 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 		if( (bDrawShadows || bDrawLightFunction || bLightingChannels) && SortedLightInfo.SortKey.Fields.bClusteredDeferredNotSupported )
 		{
 			// Once we find an unbatched shadowed light, we can exit the loop
-			check(SortedLightInfo.SortKey.Fields.bTiledDeferredNotSupported);
+			check(SortedLightInfo.SortKey.Fields.bClusteredDeferredNotSupported);
 			OutSortedLights.UnbatchedLightStart = LightIndex;
 			break;
 		}
 	}
 
 	// Make sure no obvious things went wrong!
-	check(OutSortedLights.TiledSupportedEnd >= OutSortedLights.SimpleLightsEnd);
-	check(OutSortedLights.ClusteredSupportedEnd >= OutSortedLights.TiledSupportedEnd);
+	check(OutSortedLights.ClusteredSupportedEnd >= OutSortedLights.SimpleLightsEnd);
 	check(OutSortedLights.UnbatchedLightStart >= OutSortedLights.ClusteredSupportedEnd);
 }
 
@@ -917,28 +905,6 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				bRenderSimpleLightsStandardDeferred = false;
 
 				AddClusteredDeferredShadingPass(GraphBuilder, SceneTextures, SortedLightSet, ShadowMaskBits, HairStrandsShadowMaskBits);
-			}
-			else if (CanUseTiledDeferred())
-			{
-				bool bAnyViewIsStereo = false;
-				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-				{
-					if (IStereoRendering::IsStereoEyeView(Views[ViewIndex]))
-					{
-						bAnyViewIsStereo = true;
-						break;
-					}
-				}
-
-				// Use tiled deferred shading on any unshadowed lights without a texture light profile
-				if (ShouldUseTiledDeferred(SortedLightSet.TiledSupportedEnd) && !bAnyViewIsStereo)
-				{
-					// Update the range that needs to be processed by standard deferred to exclude the lights done with tiled
-					StandardDeferredStart = SortedLightSet.TiledSupportedEnd;
-					bRenderSimpleLightsStandardDeferred = false;
-
-					RenderTiledDeferredLighting(GraphBuilder, SceneTextures, SortedLights, SortedLightSet.SimpleLightsEnd, SortedLightSet.TiledSupportedEnd, SimpleLights);
-				}
 			}
 
 			if (bRenderSimpleLightsStandardDeferred)
