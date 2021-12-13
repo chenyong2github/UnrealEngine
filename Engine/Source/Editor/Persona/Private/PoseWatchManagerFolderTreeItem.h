@@ -7,6 +7,7 @@
 #include "IPoseWatchManagerTreeItem.h"
 
 class UPoseWatch;
+class UPoseWatchFolder;
 
 struct FPoseWatchManagerFolderTreeItem : IPoseWatchManagerTreeItem
 {
