@@ -826,6 +826,22 @@ public:
 	}
 
 	/**
+	 * Sets the components to the 'additive' identity transform:
+	 *   Rotation = (0,0,0,1)
+	 *   Translation = (0,0,0)
+	 *   Scale3D = (0,0,0)
+	 */
+	FORCEINLINE void SetIdentityZeroScale()
+	{
+		// Rotation = {0,0,0,1)
+		Rotation = GlobalVectorConstants::Float0001; //VectorSet_W1( VectorZero() );
+		// Translation = {0,0,0,0)
+		Translation = GlobalVectorConstants::FloatZero;
+		// Scale3D = {0,0,0,0);
+		Scale3D = GlobalVectorConstants::FloatZero;
+	}
+	
+	/**
 	 * Scales the Scale3D component by a new factor
 	 * @param Scale3DMultiplier The value to multiply Scale3D with
 	 */
