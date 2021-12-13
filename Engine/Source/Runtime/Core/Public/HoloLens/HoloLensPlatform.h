@@ -73,6 +73,7 @@ typedef FHoloLensTypes FPlatformTypes;
 #define PLATFORM_COMPILER_HAS_EXPLICIT_OPERATORS			1
 //#define EXCEPTION_EXECUTE_HANDLER                           1
 //#define PLATFORM_COMPILER_HAS_DEFAULT_FUNCTION_TEMPLATE_ARGUMENTS	1
+#define PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION			0  // GenericWidePlatformString will fail on HoloLens in UE5
 
 #define PLATFORM_BREAK() (__nop(), __debugbreak())
 
