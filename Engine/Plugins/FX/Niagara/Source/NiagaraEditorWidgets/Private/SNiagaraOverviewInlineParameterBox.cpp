@@ -110,7 +110,7 @@ void SNiagaraOverviewInlineParameterBox::ConstructChildren()
 	}
 
 	SetVisibility(ParameterWidgets.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed);
-	Container->SetEnabled(ModuleItem->GetIsEnabled());
+	Container->SetEnabled(ModuleItem->GetIsEnabledAndOwnerIsEnabled());
 }
 
 TArray<TSharedRef<SWidget>> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgets()
