@@ -255,23 +255,21 @@ public:
 	}
 
 	virtual void Put(
-		TConstArrayView<FCacheRecord> Records,
+		TConstArrayView<FCachePutRequest> Requests,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
-		return InnerBackend->Put(Records, Context, Policy, Owner, MoveTemp(OnComplete));
+		return InnerBackend->Put(Requests, Context, Owner, MoveTemp(OnComplete));
 	}
 
 	virtual void Get(
-		TConstArrayView<FCacheKey> Keys,
+		TConstArrayView<FCacheGetRequest> Requests,
 		FStringView Context,
-		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
-		return InnerBackend->Get(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
+		return InnerBackend->Get(Requests, Context, Owner, MoveTemp(OnComplete));
 	}
 
 	virtual void GetChunks(

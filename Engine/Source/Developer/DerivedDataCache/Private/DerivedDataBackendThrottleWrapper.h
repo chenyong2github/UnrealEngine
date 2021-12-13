@@ -178,9 +178,8 @@ public:
 	}
 
 	virtual void Put(
-		TConstArrayView<FCacheRecord> Records,
+		TConstArrayView<FCachePutRequest> Requests,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
@@ -190,13 +189,13 @@ public:
 			uint64 Size;
 		};
 		TArray<FRecordSize, TInlineAllocator<1>> RecordSizes;
-		RecordSizes.Reserve(Records.Num());
-		Algo::Transform(Records, RecordSizes, [](const FCacheRecord& Record) -> FRecordSize
+		RecordSizes.Reserve(Requests.Num());
+		Algo::Transform(Requests, RecordSizes, [](const FCachePutRequest& Request) -> FRecordSize
 		{
-			return {Record.GetKey(), Private::GetCacheRecordCompressedSize(Record)};
+			return {Request.Record.GetKey(), Private::GetCacheRecordCompressedSize(Request.Record)};
 		});
 
-		InnerBackend->Put(Records, Context, Policy, Owner,
+		InnerBackend->Put(Requests, Context, Owner,
 			[this, RecordSizes = MoveTemp(RecordSizes), State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCachePutCompleteParams&& Params)
 			{
 				const FRecordSize* Size = Algo::FindBy(RecordSizes, Params.Key, &FRecordSize::Key);
@@ -209,13 +208,12 @@ public:
 	}
 
 	virtual void Get(
-		TConstArrayView<FCacheKey> Keys,
+		TConstArrayView<FCacheGetRequest> Requests,
 		FStringView Context,
-		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
-		InnerBackend->Get(Keys, Context, Policy, Owner,
+		InnerBackend->Get(Requests, Context, Owner,
 			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheGetCompleteParams&& Params)
 			{
 				CloseThrottlingScope(State, FThrottlingState(this, Private::GetCacheRecordCompressedSize(Params.Record)));

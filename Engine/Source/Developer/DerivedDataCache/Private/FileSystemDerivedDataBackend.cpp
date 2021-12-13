@@ -748,15 +748,13 @@ public:
 	// ICacheStore Interface
 
 	void Put(
-		TConstArrayView<FCacheRecord> Records,
+		TConstArrayView<FCachePutRequest> Requests,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) final;
 	void Get(
-		TConstArrayView<FCacheKey> Keys,
+		TConstArrayView<FCacheGetRequest> Requests,
 		FStringView Context,
-		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) final;
 	void GetChunks(
@@ -769,7 +767,7 @@ private:
 	uint64 MeasureCompressedCacheRecord(const FCacheRecord& Record) const;
 	uint64 MeasureRawCacheRecord(const FCacheRecord& Record) const;
 
-	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy);
+	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, const FCacheRecordPolicy& Policy);
 	bool PutCacheContent(const FCompressedBuffer& Content, const FStringView Context) const;
 
 	FOptionalCacheRecord GetCacheRecordOnly(
@@ -1566,18 +1564,18 @@ bool FFileSystemCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 }
 
 void FFileSystemCacheStore::Put(
-	const TConstArrayView<FCacheRecord> Records,
+	const TConstArrayView<FCachePutRequest> Requests,
 	const FStringView Context,
-	const ECachePolicy Policy,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
-	for (const FCacheRecord& Record : Records)
+	for (const FCachePutRequest& Request : Requests)
 	{
+		const FCacheRecord& Record = Request.Record;
 		TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Put);
 		TRACE_COUNTER_INCREMENT(FileSystemDDC_Put);
 		COOK_STAT(auto Timer = UsageStats.TimePut());
-		if (PutCacheRecord(Record, Context, Policy))
+		if (PutCacheRecord(Record, Context, Request.Policy))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache put complete for %s from '%.*s'"),
 				*CachePath, *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
@@ -1586,7 +1584,7 @@ void FFileSystemCacheStore::Put(
 			COOK_STAT(Timer.AddHit(MeasureRawCacheRecord(Record)));
 			if (OnComplete)
 			{
-				OnComplete({Record.GetKey(), EStatus::Ok});
+				OnComplete({Record.GetKey(), Request.UserData, EStatus::Ok});
 			}
 		}
 		else
@@ -1594,42 +1592,41 @@ void FFileSystemCacheStore::Put(
 			COOK_STAT(Timer.AddMiss(MeasureRawCacheRecord(Record)));
 			if (OnComplete)
 			{
-				OnComplete({Record.GetKey(), EStatus::Error});
+				OnComplete({Record.GetKey(), Request.UserData, EStatus::Error});
 			}
 		}
 	}
 }
 
 void FFileSystemCacheStore::Get(
-	const TConstArrayView<FCacheKey> Keys,
+	const TConstArrayView<FCacheGetRequest> Requests,
 	const FStringView Context,
-	const FCacheRecordPolicy Policy,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
-	for (const FCacheKey& Key : Keys)
+	for (const FCacheGetRequest& Request : Requests)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Get);
 		TRACE_COUNTER_INCREMENT(FileSystemDDC_Get);
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
 		EStatus Status = EStatus::Ok;
-		if (FOptionalCacheRecord Record = GetCacheRecord(Key, Context, Policy, Status))
+		if (FOptionalCacheRecord Record = GetCacheRecord(Request.Key, Context, Request.Policy, Status))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
-				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+				*CachePath, *WriteToString<96>(Request.Key), Context.Len(), Context.GetData());
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
 			TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, MeasureCompressedCacheRecord(Record.Get()));
 			COOK_STAT(Timer.AddHit(MeasureRawCacheRecord(Record.Get())));
 			if (OnComplete)
 			{
-				OnComplete({MoveTemp(Record).Get(), Status});
+				OnComplete({MoveTemp(Record).Get(), Request.UserData, Status});
 			}
 		}
 		else
 		{
 			if (OnComplete)
 			{
-				OnComplete({FCacheRecordBuilder(Key).Build(), Status});
+				OnComplete({FCacheRecordBuilder(Request.Key).Build(), Request.UserData, Status});
 			}
 		}
 	}
@@ -1696,14 +1693,14 @@ void FFileSystemCacheStore::GetChunks(
 				}
 				const EStatus ChunkStatus = bExistsOnly || Buffer.GetSize() == RawSize ? EStatus::Ok : EStatus::Error;
 				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
-					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), ChunkStatus});
+					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Chunk.UserData, ChunkStatus});
 			}
 			continue;
 		}
 
 		if (OnComplete)
 		{
-			OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error});
+			OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error});
 		}
 	}
 }
@@ -1727,7 +1724,7 @@ uint64 FFileSystemCacheStore::MeasureRawCacheRecord(const FCacheRecord& Record) 
 bool FFileSystemCacheStore::PutCacheRecord(
 	const FCacheRecord& Record,
 	const FStringView Context,
-	const ECachePolicy Policy)
+	const FCacheRecordPolicy& Policy)
 {
 	if (!IsWritable())
 	{
@@ -1738,9 +1735,13 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	}
 
 	const FCacheKey& Key = Record.GetKey();
+	const ECachePolicy CombinedPayloadPolicy = Algo::TransformAccumulate(
+		Policy.GetPayloadPolicies(), &FCachePayloadPolicy::Policy, Policy.GetDefaultPayloadPolicy(), UE_PROJECTION(operator|));
+	const ECachePolicy CombinedPolicy = Policy.GetRecordPolicy() | CombinedPayloadPolicy;
 
 	// Skip the request if storing to the cache is disabled.
-	if (!EnumHasAnyFlags(Policy, SpeedClass == ESpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote))
+	const ECachePolicy StoreFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote;
+	if (!EnumHasAnyFlags(CombinedPolicy, StoreFlag))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
 			*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
@@ -1759,7 +1760,7 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	FCbPackage ExistingPackage;
 	TStringBuilder<256> Path;
 	BuildCacheRecordPath(Key, Path);
-	if (EnumHasAllFlags(Policy, ECachePolicy::SkipValue | ECachePolicy::SkipAttachments))
+	if (EnumHasAllFlags(CombinedPayloadPolicy, ECachePolicy::SkipValue | ECachePolicy::SkipAttachments))
 	{
 		bRecordExists = FileExists(Path);
 	}

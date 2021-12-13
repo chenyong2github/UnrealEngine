@@ -553,17 +553,17 @@ bool FZenDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
 }
 
 void FZenDerivedDataBackend::Put(
-	TConstArrayView<FCacheRecord> Records,
-	FStringView Context,
-	ECachePolicy Policy,
+	const TConstArrayView<FCachePutRequest> Requests,
+	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::PutCachedRecord);
 
-	for (const FCacheRecord& Record : Records)
+	for (const FCachePutRequest& Request : Requests)
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
+		const FCacheRecord& Record = Request.Record;
 		bool bResult;
 		if (ShouldSimulateMiss(Record.GetKey()))
 		{
@@ -572,7 +572,7 @@ void FZenDerivedDataBackend::Put(
 			bResult = false;
 		}
 
-		bResult = PutCacheRecord(Record, Context, Policy);
+		bResult = PutCacheRecord(Record, Context, Request.Policy);
 
 		if (bResult)
 		{
@@ -581,7 +581,7 @@ void FZenDerivedDataBackend::Put(
 			COOK_STAT(Timer.AddHit(MeasureCacheRecord(Record)));
 			if (OnComplete)
 			{
-				OnComplete({ Record.GetKey(), EStatus::Ok });
+				OnComplete({ Record.GetKey(), Request.UserData, EStatus::Ok });
 			}
 		}
 		else
@@ -589,26 +589,25 @@ void FZenDerivedDataBackend::Put(
 			COOK_STAT(Timer.AddMiss(MeasureCacheRecord(Record)));
 			if (OnComplete)
 			{
-				OnComplete({ Record.GetKey(), EStatus::Error });
+				OnComplete({ Record.GetKey(), Request.UserData, EStatus::Error });
 			}
 		}
 	}
 }
 
 void FZenDerivedDataBackend::Get(
-	TConstArrayView<FCacheKey> Keys,
-	FStringView Context,
-	FCacheRecordPolicy Policy,
+	const TConstArrayView<FCacheGetRequest> Requests,
+	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::GetCacheRecord);
-	TRACE_COUNTER_ADD(ZenDDC_CacheRecordRequestCount, int64(Keys.Num()));
+	TRACE_COUNTER_ADD(ZenDDC_CacheRecordRequestCount, int64(Requests.Num()));
 
 	int32 TotalCompleted = 0;
 
-	ForEachBatch(CacheRecordBatchSize, Keys.Num(),
-		[this, &Keys, &Context, &Policy, &Owner, &OnComplete, &TotalCompleted](int32 BatchFirst, int32 BatchLast)
+	ForEachBatch(CacheRecordBatchSize, Requests.Num(),
+		[this, &Requests, &Context, &Owner, &OnComplete, &TotalCompleted](int32 BatchFirst, int32 BatchLast)
 	{
 		TRACE_COUNTER_ADD(ZenDDC_Get, int64(BatchLast) - int64(BatchFirst) + 1);
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
@@ -622,7 +621,7 @@ void FZenDerivedDataBackend::Get(
 				BatchRequest.BeginArray("CacheKeys"_ASV);
 				for (int32 KeyIndex = BatchFirst; KeyIndex <= BatchLast; KeyIndex++)
 				{
-					const FCacheKey& Key = Keys[KeyIndex];
+					const FCacheKey& Key = Requests[KeyIndex].Key;
 
 					BatchRequest.BeginObject();
 					BatchRequest << "Bucket"_ASV << Key.Bucket.ToString();
@@ -631,6 +630,8 @@ void FZenDerivedDataBackend::Get(
 				}
 				BatchRequest.EndArray();
 
+				// TODO: The policy needs to be sent with each key.
+				const FCacheRecordPolicy& Policy = Requests[BatchFirst].Policy;
 				BatchRequest.BeginObject("Policy"_ASV);
 				{
 					BatchRequest << "RecordPolicy"_ASV << static_cast<uint32>(Policy.GetRecordPolicy());
@@ -671,7 +672,8 @@ void FZenDerivedDataBackend::Get(
 			int32 KeyIndex = BatchFirst;
 			for (FCbFieldView RecordView : ResponseObj["Result"_ASV])
 			{
-				const FCacheKey& Key = Keys[KeyIndex++];
+				const FCacheGetRequest& Request = Requests[KeyIndex++];
+				const FCacheKey& Key = Request.Key;
 				
 				FOptionalCacheRecord Record;
 
@@ -700,7 +702,7 @@ void FZenDerivedDataBackend::Get(
 
 					if (OnComplete)
 					{
-						OnComplete({ MoveTemp(Record).Get(), EStatus::Ok });
+						OnComplete({ MoveTemp(Record).Get(), Request.UserData, EStatus::Ok });
 					}
 				}
 				else
@@ -710,7 +712,7 @@ void FZenDerivedDataBackend::Get(
 					
 					if (OnComplete)
 					{
-						OnComplete({ FCacheRecordBuilder(Key).Build(), EStatus::Error });
+						OnComplete({ FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error });
 					}
 				}
 				
@@ -721,14 +723,15 @@ void FZenDerivedDataBackend::Get(
 		{
 			for (int32 KeyIndex = BatchFirst; KeyIndex <= BatchLast; KeyIndex++)
 			{
-				const FCacheKey& Key = Keys[KeyIndex];
+				const FCacheGetRequest& Request = Requests[KeyIndex];
+				const FCacheKey& Key = Request.Key;
 
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss for '%s' from '%.*s'"),
 					*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
 					
 				if (OnComplete)
 				{
-					OnComplete({ FCacheRecordBuilder(Key).Build(), EStatus::Error });
+					OnComplete({ FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error });
 				}
 				
 				TotalCompleted++;
@@ -736,8 +739,8 @@ void FZenDerivedDataBackend::Get(
 		}
 	});
 	
-	UE_CLOG(TotalCompleted != Keys.Num(), LogDerivedDataCache, Warning, TEXT("Only '%d/%d' cache record request(s) completed"), TotalCompleted, Keys.Num());
-	TRACE_COUNTER_SUBTRACT(ZenDDC_CacheRecordRequestCount, int64(Keys.Num()));
+	UE_CLOG(TotalCompleted != Requests.Num(), LogDerivedDataCache, Warning, TEXT("Only '%d/%d' cache record request(s) completed"), TotalCompleted, Requests.Num());
+	TRACE_COUNTER_SUBTRACT(ZenDDC_CacheRecordRequestCount, int64(Requests.Num()));
 }
 
 void FZenDerivedDataBackend::GetChunks(
@@ -815,7 +818,7 @@ void FZenDerivedDataBackend::GetChunks(
 					
 					if (OnComplete)
 					{
-						OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error });
+						OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error });
 					}
 				}
 				else if (const FCbAttachment* Attachment = BatchResponse.FindAttachment(HashView.AsHash()))
@@ -833,7 +836,7 @@ void FZenDerivedDataBackend::GetChunks(
 					
 					if (OnComplete)
 					{
-						OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, RawSize, CompressedBuffer.GetRawHash(), MoveTemp(Buffer), EStatus::Ok});
+						OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, RawSize, CompressedBuffer.GetRawHash(), MoveTemp(Buffer), Chunk.UserData, EStatus::Ok});
 					}
 				}
 				else
@@ -843,7 +846,7 @@ void FZenDerivedDataBackend::GetChunks(
 					
 					if (OnComplete)
 					{
-						OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error });
+						OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error });
 					}
 				}
 
@@ -861,7 +864,7 @@ void FZenDerivedDataBackend::GetChunks(
 				
 				if (OnComplete)
 				{
-					OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error });
+					OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error });
 				}
 				
 				TotalCompleted++;
@@ -873,7 +876,7 @@ void FZenDerivedDataBackend::GetChunks(
 	TRACE_COUNTER_SUBTRACT(ZenDDC_ChunkRequestCount, int64(Chunks.Num()));
 }
 
-bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy)
+bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringView Context, const FCacheRecordPolicy& Policy)
 {
 	const FCacheKey& Key = Record.GetKey();
 	FCbPackage Package = Record.Save();
@@ -882,7 +885,7 @@ bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringV
 	FCompositeBuffer Buffer = FCompositeBuffer(FSharedBuffer::MakeView(Ar.GetData(), Ar.Num()));
 	TStringBuilder<256> Uri;
 	AppendZenUri(Record.GetKey(), Uri);
-	AppendPolicyQueryString(Policy, Uri);
+	AppendPolicyQueryString(Policy.GetRecordPolicy(), Uri);
 	if (PutZenData(Uri.ToString(), Buffer, Zen::EContentType::CbPackage)
 		!= FDerivedDataBackendInterface::EPutStatus::Cached)
 	{

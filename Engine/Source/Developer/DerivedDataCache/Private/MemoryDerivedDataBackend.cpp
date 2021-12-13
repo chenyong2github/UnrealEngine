@@ -467,21 +467,21 @@ int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecor
 }
 
 void FMemoryDerivedDataBackend::Put(
-	TConstArrayView<FCacheRecord> Records,
-	FStringView Context,
-	ECachePolicy Policy,
+	const TConstArrayView<FCachePutRequest> Requests,
+	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
-	for (const FCacheRecord& Record : Records)
+	for (const FCachePutRequest& Request : Requests)
 	{
+		const FCacheRecord& Record = Request.Record;
 		const FCacheKey& Key = Record.GetKey();
 		EStatus Status = EStatus::Error;
 		ON_SCOPE_EXIT
 		{
 			if (OnComplete)
 			{
-				OnComplete({Key, Status});
+				OnComplete({Key, Request.UserData, Status});
 			}
 		};
 
@@ -541,14 +541,15 @@ void FMemoryDerivedDataBackend::Put(
 }
 
 void FMemoryDerivedDataBackend::Get(
-	TConstArrayView<FCacheKey> Keys,
-	FStringView Context,
-	FCacheRecordPolicy Policy,
+	const TConstArrayView<FCacheGetRequest> Requests,
+	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
-	for (const FCacheKey& Key : Keys)
+	for (const FCacheGetRequest& Request : Requests)
 	{
+		const FCacheKey& Key = Request.Key;
+		const FCacheRecordPolicy& Policy = Request.Policy;
 		const bool bExistsOnly = EnumHasAllFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipData);
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
 		FOptionalCacheRecord Record;
@@ -595,22 +596,22 @@ void FMemoryDerivedDataBackend::Get(
 			COOK_STAT(Timer.AddHit(CalcRawCacheRecordSize(Record.Get())));
 			if (OnComplete)
 			{
-				OnComplete({MoveTemp(Record).Get(), Status});
+				OnComplete({MoveTemp(Record).Get(), Request.UserData, Status});
 			}
 		}
 		else
 		{
 			if (OnComplete)
 			{
-				OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Error});
+				OnComplete({FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error});
 			}
 		}
 	}
 }
 
 void FMemoryDerivedDataBackend::GetChunks(
-	TConstArrayView<FCacheChunkRequest> Chunks,
-	FStringView Context,
+	const TConstArrayView<FCacheChunkRequest> Chunks,
+	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCacheGetChunkComplete&& OnComplete)
 {
@@ -651,14 +652,14 @@ void FMemoryDerivedDataBackend::GetChunks(
 				}
 				const EStatus Status = bExistsOnly || Buffer ? EStatus::Ok : EStatus::Error;
 				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
-					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Status});
+					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Chunk.UserData, Status});
 			}
 		}
 		else
 		{
 			if (OnComplete)
 			{
-				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error});
+				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error});
 			}
 		}
 	}
