@@ -61,7 +61,7 @@ FChaosScene::FChaosScene(
 	, SceneSolver(nullptr)
 	, Owner(OwnerPtr)
 {
-	LLM_SCOPE(ELLMTag::Chaos);
+	LLM_SCOPE(ELLMTag::ChaosScene);
 
 	ChaosModule = FChaosSolversModule::GetModule();
 	check(ChaosModule);

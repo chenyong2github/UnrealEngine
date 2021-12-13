@@ -100,7 +100,7 @@ namespace Chaos
 
 	FMaterialHandle FPhysicalMaterialManager::Create()
 	{
-		LLM_SCOPE(ELLMTag::Chaos);
+		LLM_SCOPE(ELLMTag::ChaosMaterial);
 
 		check(IsInGameThread());
 		FMaterialHandle OutHandle;
@@ -124,7 +124,7 @@ namespace Chaos
 
 	void FPhysicalMaterialManager::Destroy(FMaterialHandle InHandle)
 	{
-		LLM_SCOPE(ELLMTag::Chaos);
+		LLM_SCOPE(ELLMTag::ChaosMaterial);
 
 		check(IsInGameThread());
 		if(InHandle.InnerHandle.IsValid())

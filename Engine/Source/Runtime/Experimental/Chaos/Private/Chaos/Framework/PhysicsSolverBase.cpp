@@ -98,7 +98,7 @@ namespace Chaos
 	{
 		using namespace Chaos;
 
-		LLM_SCOPE(ELLMTag::Chaos);
+		LLM_SCOPE(ELLMTag::ChaosUpdate);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver);

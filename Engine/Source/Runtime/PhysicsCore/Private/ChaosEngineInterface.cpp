@@ -148,7 +148,6 @@ const FQuat& FPhysicsShapeAdapter_Chaos::GetGeomOrientation() const
 
 void FChaosEngineInterface::AddActorToSolver(FPhysicsActorHandle& Handle,Chaos::FPhysicsSolver* Solver)
 {
-	LLM_SCOPE(ELLMTag::Chaos);
 	Solver->RegisterObject(Handle);
 }
 
@@ -959,7 +958,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 		{
 			if(InActorRef1->GetSolverBase() && InActorRef2->GetSolverBase())
 			{
-				LLM_SCOPE(ELLMTag::Chaos);
+				LLM_SCOPE(ELLMTag::ChaosConstraint);
 
 				auto* JointConstraint = new Chaos::FJointConstraint();
 				ConstraintRef.Constraint = JointConstraint;
@@ -974,7 +973,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 		}
 		else if (InActorRef1 != nullptr || InActorRef2 != nullptr)
 		{
-			LLM_SCOPE(ELLMTag::Chaos);
+			LLM_SCOPE(ELLMTag::ChaosConstraint);
 
 			FPhysicsActorHandle ValidParticle = InActorRef1;
 			bool bSwapped = false;
@@ -1045,7 +1044,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateSuspension(const FPhysicsA
 		{
 			if (InActorRef->GetSolverBase())
 			{
-				LLM_SCOPE(ELLMTag::Chaos);
+				LLM_SCOPE(ELLMTag::ChaosConstraint);
 
 				auto* SuspensionConstraint = new Chaos::FSuspensionConstraint();
 				ConstraintRef.Constraint = SuspensionConstraint;
@@ -1078,7 +1077,6 @@ void FChaosEngineInterface::ReleaseConstraint(FPhysicsConstraintHandle& InConstr
 	using namespace Chaos;
 	if (bEnableChaosJointConstraints)
 	{
-		LLM_SCOPE(ELLMTag::Chaos);
 		if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 		{
 			if (FJointConstraint* Constraint = static_cast<FJointConstraint*>(InConstraintRef.Constraint))
@@ -1614,7 +1612,7 @@ int32 FChaosEngineInterface::GetAllShapes_AssumedLocked(const FPhysicsActorHandl
 
 void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPhysicsActorHandle& Handle)
 {
-	LLM_SCOPE(ELLMTag::Chaos);
+	LLM_SCOPE(ELLMTag::ChaosActor);
 	using namespace Chaos;
 
 	TUniquePtr<FGeometryParticle> Particle;
@@ -1662,7 +1660,6 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 
 void FChaosEngineInterface::ReleaseActor(FPhysicsActorHandle& Handle,FChaosScene* InScene,bool bNeverDerferRelease)
 {
-	LLM_SCOPE(ELLMTag::Chaos);
 	if(!Handle)
 	{
 		UE_LOG(LogChaos,Warning,TEXT("Attempting to release an actor with a null handle"));
