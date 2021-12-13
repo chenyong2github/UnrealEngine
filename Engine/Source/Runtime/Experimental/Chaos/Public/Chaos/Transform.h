@@ -207,6 +207,35 @@ namespace Chaos
 				return RotatedNormal;
 			}
 		}
+
+		/**
+		 * @brief Equivalent to (A * B) but assuming both have unit scale
+		*/
+		static TRigidTransform<FReal, 3> MultiplyNoScale(const TRigidTransform<FReal, 3>& A, const TRigidTransform<FReal, 3>& B)
+		{
+			TRigidTransform<FReal, 3> Result;
+
+#if ENABLE_VECTORIZED_TRANSFORM
+			const TransformVectorRegister QuatA = A.Rotation;
+			const TransformVectorRegister QuatB = B.Rotation;
+			const TransformVectorRegister TranslateA = A.Translation;
+			const TransformVectorRegister TranslateB = B.Translation;
+
+			const TransformVectorRegister Rotation = VectorQuaternionMultiply2(QuatB, QuatA);
+			const TransformVectorRegister RotatedTranslate = VectorQuaternionRotateVector(QuatB, TranslateA);
+			const TransformVectorRegister Translation = VectorAdd(RotatedTranslate, TranslateB);
+
+			Result.Rotation = Rotation;
+			Result.Translation = Translation;
+			Result.Scale3D = VectorOne();
+#else
+			Result.Rotation = B.Rotation * A.Rotation;
+			Result.Translation = B.Rotation * A.Translation + B.Translation;
+			Result.Scale3D = FVector::OneVector;
+#endif
+
+			return Result;
+		}
 	};
 }
 
