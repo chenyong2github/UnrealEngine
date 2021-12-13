@@ -18,7 +18,11 @@ UCLASS(collapsecategories, hidecategories=Object, editinlinenew, MinimalAPI)
 class UDrawFrustumComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
-	
+
+	// Enable or disable frustum visualization for this camera
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = DrawFrustumComponent)
+	bool bFrustumEnabled = true;
+
 	/** Color to draw the wireframe frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=DrawFrustumComponent)
 	FColor FrustumColor;

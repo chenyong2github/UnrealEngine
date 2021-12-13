@@ -55,7 +55,7 @@ FString ImplGetNameICVFX(const FString& InViewportId, const FString& InResourceI
 	return FString::Printf(TEXT("%s_%s_%s"), DisplayClusterViewportStrings::icvfx::prefix, *InViewportId, *InResourceId);
 }
 
-static FDisplayClusterViewport* ImplFindViewport(ADisplayClusterRootActor& RootActor, const FString& InViewportId, const FString& InResourceId)
+FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::ImplFindViewport(ADisplayClusterRootActor& RootActor, const FString& InViewportId, const FString& InResourceId)
 {
 	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
 	if (ViewportManager)
@@ -291,7 +291,7 @@ bool FDisplayClusterViewportConfigurationHelpers_ICVFX::GetCameraContext(UDispla
 
 	// Get camera pos-rot-prj from policy
 	const float WorldToMeters = 100.f;
-	const float CfgNCP = 1.f;
+	const float CfgNCP = 1.0f;
 	const FVector ViewOffset = FVector::ZeroVector;
 
 	if (CameraProjectionPolicy->CalculateView(nullptr, 0, OutCameraContext.ViewLocation, OutCameraContext.ViewRotation, ViewOffset, WorldToMeters, CfgNCP, CfgNCP) &&

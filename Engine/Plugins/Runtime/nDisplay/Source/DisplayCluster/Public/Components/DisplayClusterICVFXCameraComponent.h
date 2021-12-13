@@ -60,11 +60,23 @@ public:
 	UCameraComponent* GetCameraComponent();
 	void GetDesiredView(FMinimalViewInfo& DesiredView);
 
+	// UActorComponent interface
+	virtual void OnRegister() override;
 	
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Details Panel Property Referencers
 //////////////////////////////////////////////////////////////////////////////////////////////
 #if WITH_EDITORONLY_DATA
+public:
+	// update the status of the Editor's ICVFX preview elements
+	void UpdateICVFXPreviewState();
+
+	// saves the value of external camera reference
+	TSoftObjectPtr<ACineCameraActor> ExternalCameraCachedValue;
+
+	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 private:
 	friend class FDisplayClusterICVFXCameraComponentDetailsCustomization;
 	

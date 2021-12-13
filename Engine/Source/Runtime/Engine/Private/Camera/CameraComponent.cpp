@@ -133,6 +133,7 @@ void UCameraComponent::OnRegister()
 			DrawFrustum->SetupAttachment(this);
 			DrawFrustum->SetIsVisualizationComponent(true);
 			DrawFrustum->CreationMethod = CreationMethod;
+			DrawFrustum->bFrustumEnabled = bDrawFrustumAllowed;
 			DrawFrustum->RegisterComponentWithWorld(GetWorld());
 		}
 	}

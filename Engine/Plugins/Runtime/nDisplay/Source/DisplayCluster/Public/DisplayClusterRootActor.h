@@ -301,6 +301,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1", EditCondition = "bPreviewEnable"))
 	float PreviewRenderTargetRatioMult = 0.25;
 
+	/** Render ICVFX Frustums */
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "ICVFX Camera Frustums", EditCondition = "bPreviewEnable"))
+	bool bPreviewICVFXFrustums = false;
+
+	/** Render ICVFX Frustums */
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "ICVFX Camera Frustums Distance", EditCondition = "bPreviewEnable"))
+	float PreviewICVFXFrustumsFarDistance = 1000.0f;
+
 private:
 	UPROPERTY(Transient)
 	TMap<FString, UDisplayClusterPreviewComponent*> PreviewComponents;
@@ -361,6 +369,9 @@ protected:
 	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
 	void RenderPreview_Editor();
 	bool UpdatePreviewConfiguration_Editor(bool bUpdateAllViewports);
+	
+	void RenderPreviewFrustums();
+	void RenderPreviewFrustum(const FMatrix ProjectionMatrix, const FMatrix ViewMatrix, const FVector ViewOrigin);
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
@@ -369,6 +380,9 @@ private:
 	/** The number of times to update the render target via deferred update. */
 	int32 PreviewRenderTargetUpdatesRequired = 0;
 	bool bIsSelectedInEditor = false;
+
+	// Preview frustum vertices
+	FVector PreviewFrustumVerts[8];
 	
 private:
 	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
