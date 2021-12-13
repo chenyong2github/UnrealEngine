@@ -595,8 +595,6 @@ public:
 	}
 };
 
-void SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, bool bCameraInsideLightGeometry);
-
 enum class FLightOcclusionType : uint8
 {
 	Shadowmap,
