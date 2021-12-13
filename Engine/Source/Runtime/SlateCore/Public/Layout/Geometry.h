@@ -67,9 +67,9 @@ public:
 		FSlateLayoutTransform AccumulatedLayoutTransform = Concatenate(LocalLayoutTransform, ParentAccumulatedLayoutTransform);
 		AccumulatedRenderTransform = TransformCast<FSlateRenderTransform>(AccumulatedLayoutTransform);
 		// HACK to allow us to make FGeometry public members immutable to catch misuse.
-		const_cast<FVector2D&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
 		const_cast<float&>( Scale ) = AccumulatedLayoutTransform.GetScale();
-		const_cast<FVector2D&>( Position ) = LocalLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( Position ) = LocalLayoutTransform.GetTranslation();
 	}
 
 private:
@@ -110,9 +110,9 @@ private:
 	{
 		FSlateLayoutTransform AccumulatedLayoutTransform = Concatenate(InLocalLayoutTransform, ParentAccumulatedLayoutTransform);
 		// HACK to allow us to make FGeometry public members immutable to catch misuse.
-		const_cast<FVector2D&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
 		const_cast<float&>( Scale ) = AccumulatedLayoutTransform.GetScale();
-		const_cast<FVector2D&>( Position ) = InLocalLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( Position ) = InLocalLayoutTransform.GetTranslation();
 	}
 
 	/**
@@ -137,9 +137,9 @@ private:
 	{
 		FSlateLayoutTransform AccumulatedLayoutTransform = Concatenate(InLocalLayoutTransform, ParentAccumulatedLayoutTransform);
 		// HACK to allow us to make FGeometry public members immutable to catch misuse.
-		const_cast<FVector2D&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
 		const_cast<float&>( Scale ) = AccumulatedLayoutTransform.GetScale();
-		const_cast<FVector2D&>( Position ) = InLocalLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( Position ) = InLocalLayoutTransform.GetTranslation();
 	}
 
 public:
@@ -523,7 +523,7 @@ public:
 	{
 		FSlateLayoutTransform AccumulatedLayoutTransform = ::Concatenate(GetAccumulatedLayoutTransform(), LayoutTransform);
 		AccumulatedRenderTransform = ::Concatenate(AccumulatedRenderTransform, LayoutTransform);
-		const_cast<FVector2D&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
+		const_cast<FVector2f&>( AbsolutePosition ) = AccumulatedLayoutTransform.GetTranslation();
 		const_cast<float&>( Scale ) = AccumulatedLayoutTransform.GetScale();
 	}
 
@@ -608,7 +608,7 @@ public:
 	 * 
 	 * Absolute coordinates could be either desktop or window space depending on what space the root of the widget hierarchy is in.
 	 */
-	const FVector2D AbsolutePosition;	
+	const FVector2f AbsolutePosition;	
 
 	/** 
 	 * !!! DEPRECATED !!! 
@@ -617,7 +617,7 @@ public:
 	 * If you know your children have no additional scale applied to them, you can use this as the Local->Parent layout transform. If your children
 	 * DO have additional scale applied, there is no way to determine the actual Local->Parent layout transform, since the scale is accumulated.
 	 */
-	const FVector2D /*Local*/Position;
+	const FVector2f /*Local*/Position;
 
 private:
 

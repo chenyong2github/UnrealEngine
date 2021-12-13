@@ -107,17 +107,17 @@ void FSlateClippingZone::InitializeFromArbitraryPoints(const FVector2D& InTopLef
 		const float Top = FMath::Min(RoundedAxisAlignedRect.Top, RoundedAxisAlignedRect.Bottom);
 		const float Bottom = FMath::Max(RoundedAxisAlignedRect.Top, RoundedAxisAlignedRect.Bottom);
 
-		TopLeft = FVector2D(Left, Top);
-		TopRight = FVector2D(Right, Top);
-		BottomLeft = FVector2D(Left, Bottom);
-		BottomRight = FVector2D(Right, Bottom);
+		TopLeft = FVector2f(Left, Top);
+		TopRight = FVector2f(Right, Top);
+		BottomLeft = FVector2f(Left, Bottom);
+		BottomRight = FVector2f(Right, Bottom);
 	}
 	else
 	{
-		TopLeft = InTopLeft;
-		TopRight = InTopRight;
-		BottomLeft = InBottomLeft;
-		BottomRight = InBottomRight;
+		TopLeft = FVector2f(InTopLeft);
+		TopRight = FVector2f(InTopRight);
+		BottomLeft = FVector2f(InBottomLeft);
+		BottomRight = FVector2f(InBottomRight);
 	}
 }
 
@@ -144,7 +144,7 @@ FSlateClippingZone FSlateClippingZone::Intersect(const FSlateClippingZone& Other
 
 FSlateRect FSlateClippingZone::GetBoundingBox() const
 {
-	FVector2D Points[4] =
+	FVector2f Points[4] =
 	{
 		TopLeft,
 		TopRight,

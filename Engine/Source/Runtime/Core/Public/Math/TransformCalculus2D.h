@@ -42,7 +42,8 @@ namespace Math
 {
 
 /** Specialization for concatenating two 2D Translations. */
-inline FVector2D Concatenate(const FVector2D& LHS, const FVector2D& RHS)
+template<typename T>
+inline UE::Math::TVector2<T> Concatenate(const UE::Math::TVector2<T>& LHS, const UE::Math::TVector2<T>& RHS)
 {
 	return LHS + RHS;
 }
@@ -51,7 +52,8 @@ inline FVector2D Concatenate(const FVector2D& LHS, const FVector2D& RHS)
 }	// namespace UE
 
 /** Specialization for inverting a 2D translation. */
-inline FVector2D Inverse(const FVector2D& Transform)
+template<typename T>
+inline UE::Math::TVector2<T> Inverse(const UE::Math::TVector2<T>& Transform)
 {
 	return -Transform;
 }
@@ -592,7 +594,7 @@ public:
 	 */
 	FVector2D TransformPoint(const FVector2D& Point) const
 	{
-		return ::TransformPoint(Trans, ::TransformPoint(M, Point));
+		return ::TransformPoint(GetTranslation(), ::TransformPoint(M, Point));
 	}
 
 	/**
@@ -648,7 +650,7 @@ public:
 	FTransform2D Inverse() const
 	{
 		FMatrix2x2 InvM = ::Inverse(M);
-		FVector2D InvTrans = ::TransformPoint(InvM, ::Inverse(Trans));
+		FVector2D InvTrans = ::TransformPoint(InvM, ::Inverse(GetTranslation()));
 		return FTransform2D(InvM, InvTrans);
 	}
 	
@@ -667,7 +669,7 @@ public:
 	/** Access to the 2x2 transform */
 	const FMatrix2x2& GetMatrix() const { return M; }
 	/** Access to the translation */
-	const FVector2D& GetTranslation() const { return Trans; }
+	const FVector2D GetTranslation() const { return FVector2D(Trans); }
 
 	void SetTranslation(const FVector2D& InTrans) { Trans = InTrans; }
 
@@ -697,7 +699,7 @@ public:
 
 private:
 	FMatrix2x2 M;
-	FVector2D Trans;
+	FVector2f Trans;
 };
 
 template<> struct TIsPODType<FTransform2D> { enum { Value = true }; };

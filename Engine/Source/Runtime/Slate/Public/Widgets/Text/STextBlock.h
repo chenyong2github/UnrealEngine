@@ -348,7 +348,7 @@ private:
 	TSlateAttribute<float> MinDesiredWidth;
 
 	/** If this is enabled, text shaping, wrapping, justification are disabled in favor of much faster text layout and measurement. */
-	mutable TOptional<FVector2D> CachedSimpleDesiredSize;
+	mutable TOptional<FVector2f> CachedSimpleDesiredSize;
 
 	/** Flags used to check if the SlateAttribute is set. */
 	union

@@ -29,7 +29,7 @@ struct SLATECORE_API FPaintGeometry
 	 *
 	 * 
 	 */
-	FVector2D DrawPosition;
+	FVector2f DrawPosition;
 
 	/**
 	 * !!! DEPRECATED!!! Drawing should only happen in local space to ensure render transforms work.
@@ -63,7 +63,7 @@ struct SLATECORE_API FPaintGeometry
 
 private:
 	// Mutable to support legacy constructors. Doesn't account for render transforms.
-	mutable FVector2D DrawSize;
+	mutable FVector2f DrawSize;
 
 	// Mutable to support legacy constructors.
 	mutable FVector2D LocalSize;

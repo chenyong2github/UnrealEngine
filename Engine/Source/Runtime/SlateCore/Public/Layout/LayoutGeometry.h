@@ -16,7 +16,7 @@ public:
 
 	explicit FLayoutGeometry(const FSlateLayoutTransform& InLocalToParent, const FVector2D& SizeInLocalSpace)
 		: LocalToParent(InLocalToParent)
-		, LocalSize(SizeInLocalSpace)
+		, LocalSize(FVector2f(SizeInLocalSpace))
 	{
 	}
 
@@ -25,7 +25,7 @@ public:
 		return LocalToParent; 
 	}
 
-	const FVector2D& GetSizeInLocalSpace() const
+	FVector2D GetSizeInLocalSpace() const
 	{
 		return LocalSize;
 	}
@@ -73,6 +73,6 @@ public:
 
 private:
 	FSlateLayoutTransform LocalToParent;
-	FVector2D LocalSize;
+	FVector2f LocalSize;
 };
 

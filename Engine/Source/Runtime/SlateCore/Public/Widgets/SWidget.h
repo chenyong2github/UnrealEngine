@@ -1831,7 +1831,7 @@ private:
 	TArray<TSharedRef<FActiveTimerHandle>> ActiveTimers;
 
 	/** Stores the ideal size this widget wants to be. */
-	TOptional<FVector2D> DesiredSize;
+	TOptional<FVector2f> DesiredSize;
 
 	/** Is this widget visible, hidden or collapsed */
 	TSlateAttribute<EVisibility> VisibilityAttribute;
