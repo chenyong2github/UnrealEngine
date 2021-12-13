@@ -14,6 +14,7 @@
 #include "PixelStreamingSettings.h"
 #include "TimerManager.h"
 #include "PixelStreamerDelegates.h"
+#include "PlayerSession.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
@@ -521,8 +522,10 @@ void FSignallingServerConnection::OnPlayerConnected(const FJsonObjectPtr& Json)
 	{
 		HANDLE_SS_ERROR(TEXT("Failed to get `playerId` from `join` message\n%s"), *ToString(Json));
 	}
-	const bool SupportsDataChannel = Json->GetBoolField(TEXT("dataChannel"));
-	Observer.OnPlayerConnected(PlayerId, SupportsDataChannel);
+	int Flags = 0;
+	Flags |= Json->GetBoolField(TEXT("dataChannel")) ? FNewPlayerFlags::SupportsDataChannel : 0;
+	Flags |= Json->GetBoolField(TEXT("sfu")) ? FNewPlayerFlags::IsSFU : 0;
+	Observer.OnPlayerConnected(PlayerId, Flags);
 }
 
 void FSignallingServerConnection::OnPlayerDisconnected(const FJsonObjectPtr& Json)

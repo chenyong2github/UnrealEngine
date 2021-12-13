@@ -45,9 +45,7 @@ public:
 	virtual std::unique_ptr<webrtc::VideoEncoder> CreateVideoEncoder(const webrtc::SdpVideoFormat& format) override;
 
 	void ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder);
-	void RemoveStaleEncoders();
 	void ForceKeyFrame();
-	double GetLatestQP();
 
 	using FHardwareEncoderId = uint64;
 	FHardwareEncoderId GetOrCreateHardwareEncoder(int Width, int Height, int MaxBitrate, int TargetBitrate, int MaxFramerate);
@@ -55,14 +53,17 @@ public:
 
 	void OnEncodedImage(FHardwareEncoderId SourceEncoderId, const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation);
 
+	int GetLatestQP() const { return 0; }
+
 private:
-	// Each encoder is associated with a particular player (peer).
-	TArray<FPixelStreamingVideoEncoder*> ActiveEncoders;
-	FCriticalSection ActiveEncodersGuard;
-	
 	// Used for checks such as whether a given player id is associated with the quality controlling player.
 	IPixelStreamingSessions* PixelStreamingSessions;
 
+	// These are the actual hardware encoders serving multiple pixelstreaming encoders
 	TMap<FHardwareEncoderId, TUniquePtr<FPixelStreamingRealEncoder>> HardwareEncoders;
 	FCriticalSection HardwareEncodersGuard;
+
+	// Encoders assigned to each peer. Each one of these will be assigned to one of the hardware encoders
+	TArray<FPixelStreamingVideoEncoder*> ActiveEncoders;
+	FCriticalSection ActiveEncodersGuard;
 };

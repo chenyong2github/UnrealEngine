@@ -14,6 +14,8 @@ public:
 
 	uint64 GetId() const { return Id; }
 
+	void SetForceNextKeyframe() { ForceNextKeyframe = true; }
+
 	void Encode(const webrtc::VideoFrame& WebRTCFrame, bool Keyframe);
 
 	AVEncoder::FVideoEncoder::FLayerConfig& GetCurrentConfig() { return EncoderConfig; }
@@ -25,4 +27,5 @@ private:
 	FPixelStreamingEncoderFrameFactory FrameFactory;
 	TUniquePtr<AVEncoder::FVideoEncoder> Encoder;
 	AVEncoder::FVideoEncoder::FLayerConfig EncoderConfig;
+	bool ForceNextKeyframe = false;
 };

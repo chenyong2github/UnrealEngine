@@ -3,13 +3,17 @@
 #pragma once
 
 #include "WebRTCIncludes.h"
+#include "PlayerId.h"
 
 // each connected player has a single source. it is fed by FVideoSource and feeds the encoder
 class FPlayerVideoSource : public rtc::AdaptedVideoTrackSource
 {
 public:
-	FPlayerVideoSource();
+	FPlayerVideoSource(FPlayerId InPlayerId);
 	virtual ~FPlayerVideoSource();
+
+	FPlayerId GetPlayerId() const {	return PlayerId; }
+	bool IsInitialised() const { return Initialised; }
 
 	void AddRef() const override
 	{
@@ -54,4 +58,6 @@ private:
 	webrtc::MediaSourceInterface::SourceState CurrentState;
 
 	mutable int32 RefCount;
+	FPlayerId PlayerId;
+	bool Initialised = false;
 };

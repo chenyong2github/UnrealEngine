@@ -57,7 +57,7 @@ public:
 
 private:
 
-	webrtc::PeerConnectionInterface* CreateSession(FPlayerId PlayerId, bool SupportsDataChannel);
+	webrtc::PeerConnectionInterface* CreateSession(FPlayerId PlayerId, int Flags);
 	webrtc::AudioProcessing* SetupAudioProcessingModule();
 
 	// Procedure for WebRTC inter-thread communication
@@ -68,7 +68,7 @@ private:
 	virtual void OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override;
 	virtual void OnSessionDescription(FPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) override;
 	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp) override;
-	virtual void OnPlayerConnected(FPlayerId PlayerId, bool SupportsDataChannel) override;
+	virtual void OnPlayerConnected(FPlayerId PlayerId, int Flags) override;
 	virtual void OnPlayerDisconnected(FPlayerId PlayerId) override;
 	virtual void OnSignallingServerDisconnected() override;
 	
@@ -76,9 +76,9 @@ private:
 	void ModifyAudioTransceiverDirection(webrtc::PeerConnectionInterface* PeerConnection);
 	void DeletePlayerSession(FPlayerId PlayerId);
 	void DeleteAllPlayerSessions();
-	void AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection);
-	void SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel);
-	void SetupAudioTrack(webrtc::PeerConnectionInterface* PeerConnection, FString const AudioStreamId, FString const AudioTrackLabel);
+	void AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, int Flags);
+	void SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel, int Flags);
+	void SetupAudioTrack(webrtc::PeerConnectionInterface* PeerConnection, const FString AudioStreamId, const FString AudioTrackLabel);
 	void HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp);
 	void OnDataChannelOpen(FPlayerId PlayerId, webrtc::DataChannelInterface* DataChannel);
 	void OnQualityControllerChanged(FPlayerId PlayerId);

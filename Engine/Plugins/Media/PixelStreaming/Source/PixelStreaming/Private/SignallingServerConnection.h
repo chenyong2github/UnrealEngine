@@ -30,7 +30,7 @@ public:
 	// Streamer-only
 	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
 	{ unimplemented(); }
-	virtual void OnPlayerConnected(FPlayerId PlayerId, bool SupportsDataChannel)
+	virtual void OnPlayerConnected(FPlayerId PlayerId, int Flags)
 	{ unimplemented(); }
 	virtual void OnPlayerDisconnected(FPlayerId PlayerId)
 	{ unimplemented(); }

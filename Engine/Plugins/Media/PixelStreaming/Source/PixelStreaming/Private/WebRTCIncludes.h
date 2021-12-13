@@ -41,24 +41,6 @@ THIRD_PARTY_INCLUDES_START
 #include "api/video/i420_buffer.h"
 #include "api/video/video_sink_interface.h"
 
-#if PLATFORM_WINDOWS
-// some code in the simulcast adaptor has trouble finding the windows versions of these
-// functions. these are here to redirect them properly
-template<class T>
-T InterlockedIncrement(volatile T* i) {
-	return ::_InterlockedIncrement(i);
-}
-template<class T>
-T InterlockedDecrement(volatile T* i) {
-	return ::_InterlockedDecrement(i);
-}
-template<class T, class U>
-T InterlockedCompareExchange(volatile T* i, U old_value, U new_value) {
-	return ::_InterlockedCompareExchange(i, new_value, old_value);
-}
-#endif
-
-#include "rtc_base/atomic_ops.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_adapter.h"
