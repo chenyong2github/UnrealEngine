@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/SimpleSuspension.h"
+#include "Chaos/Real.h"
 
 void FSimpleSuspension::Setup(const FSimpleSuspensionParams& InSuspensionParams)
 {
