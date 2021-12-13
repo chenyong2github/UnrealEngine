@@ -2232,11 +2232,6 @@ FVersionedNiagaraScript FVersionedNiagaraScriptWeakPtr::Pin()
 	return FVersionedNiagaraScript();
 }
 
-FVersionedNiagaraScriptWeakPtr::~FVersionedNiagaraScriptWeakPtr()
-{
-	CleanupDefinitionsSubscriptions();
-}
-
 TArray<UNiagaraScriptSourceBase*> FVersionedNiagaraScriptWeakPtr::GetAllSourceScripts()
 {
 	if (Script.IsValid())
@@ -2249,11 +2244,6 @@ TArray<UNiagaraScriptSourceBase*> FVersionedNiagaraScriptWeakPtr::GetAllSourceSc
 FString FVersionedNiagaraScriptWeakPtr::GetSourceObjectPathName() const
 {
 	return Script.IsValid() ? Script.Get()->GetPathName() : FString();
-}
-
-FVersionedNiagaraScript::~FVersionedNiagaraScript()
-{
-	CleanupDefinitionsSubscriptions();
 }
 
 TArray<UNiagaraScriptSourceBase*> FVersionedNiagaraScript::GetAllSourceScripts()
