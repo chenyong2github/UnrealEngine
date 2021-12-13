@@ -4045,7 +4045,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE_FourParams(FWorldPostDuplicateEvent, UWorld* /*World*/, bool /*bDuplicateForPIE*/, FReplacementMap& /*ReplacementMap*/, TArray<UObject*>& /*ObjectsToFixReferences*/);
 
 #if WITH_EDITOR
-	DECLARE_MULTICAST_DELEGATE_FiveParams(FWorldRenameEvent, UWorld* /*World*/, const TCHAR* /*InName*/, UObject* /*NewOuter*/, ERenameFlags /*Flags*/, bool& /*bShouldFailRename*/);
+	DECLARE_MULTICAST_DELEGATE_FiveParams(FWorldPreRenameEvent, UWorld* /*World*/, const TCHAR* /*InName*/, UObject* /*NewOuter*/, ERenameFlags /*Flags*/, bool& /*bShouldFailRename*/);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPostRenameEvent, UWorld*);
 #endif // WITH_EDITOR
 
 	// Delegate type for level change events
@@ -4078,7 +4079,10 @@ public:
 
 #if WITH_EDITOR
 	// Callback for world rename event (pre)
-	static FWorldRenameEvent OnPreWorldRename;
+	static FWorldPreRenameEvent OnPreWorldRename;
+
+	// Callback for world rename event (post)
+	static FWorldPostRenameEvent OnPostWorldRename;
 #endif // WITH_EDITOR
 
 	// Post duplication event.

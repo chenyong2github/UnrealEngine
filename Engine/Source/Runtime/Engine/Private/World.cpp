@@ -335,7 +335,8 @@ FWorldDelegates::FWorldEvent FWorldDelegates::OnPostWorldCreation;
 FWorldDelegates::FWorldInitializationEvent FWorldDelegates::OnPreWorldInitialization;
 FWorldDelegates::FWorldInitializationEvent FWorldDelegates::OnPostWorldInitialization;
 #if WITH_EDITOR
-FWorldDelegates::FWorldRenameEvent FWorldDelegates::OnPreWorldRename;
+FWorldDelegates::FWorldPreRenameEvent FWorldDelegates::OnPreWorldRename;
+FWorldDelegates::FWorldPostRenameEvent FWorldDelegates::OnPostWorldRename;
 #endif // WITH_EDITOR
 FWorldDelegates::FWorldPostDuplicateEvent FWorldDelegates::OnPostDuplicate;
 FWorldDelegates::FWorldCleanupEvent FWorldDelegates::OnWorldCleanup;
@@ -758,6 +759,11 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 		ObjectTools::DeleteObjectsUnchecked(DeleteObjects);		
 	}
 	
+
+	if (!bTestRename)
+	{
+		FWorldDelegates::OnPostWorldRename.Broadcast(this);
+	}
 
 	return true;
 }

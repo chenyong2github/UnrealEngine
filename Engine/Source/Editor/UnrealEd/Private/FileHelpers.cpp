@@ -847,19 +847,6 @@ static bool SaveWorld(UWorld* World,
 			{
 				bSuccess = SaveExternalPackages(Package, /*bCheckDirty*/true);
 			}
-			// If we are dealing with a renamed partitioned world we need to uninit the existing partition as it is pointing to the wrong path and also make sure 
-			// we create a duplicate so that any code pointing to the old partition doesn't get broken until we send out a OnWorldPartitionCreated later in this method.
-			if (bSuccess && bRenamedWorldPartition && !DuplicatedWorld)
-			{
-				UWorldPartition* WorldPartition = SaveWorld->GetWorldPartition();
-				check(WorldPartition);
-				// If we don't have a DuplicatedWorld, create a new world partition object to invalidate any existing pointers to the previous object.
-				WorldPartition->Uninitialize();
-				UWorldPartition* DuplicatedPartition = DuplicateObject<UWorldPartition>(WorldPartition, WorldPartition->GetOuter());
-				WorldPartition->MarkAsGarbage();
-
-				SaveWorld->GetWorldSettings()->SetWorldPartition(DuplicatedPartition);
-			}
 		}
 				
 		SlowTask.EnterProgressFrame(50);
@@ -891,18 +878,6 @@ static bool SaveWorld(UWorld* World,
 
 				// Save Snapshot of loaded Editor Cells
 				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(SaveWorld, LoadedEditorCells);
-
-				// No need to initialize if we have a DuplicatedWorld since the map will get loaded by a subsequent LoadMap call
-				if (!DuplicatedWorld)
-				{
-					UWorldPartition* WorldPartition = SaveWorld->GetWorldPartition();
-					check(WorldPartition);
-					WorldPartition->Initialize(SaveWorld, FTransform::Identity);
-					check(WorldPartition->GetContainerPackage() == FName(*NewPackageName));
-
-					IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-					WorldPartitionEditorModule.OnWorldPartitionCreated().Broadcast(SaveWorld);
-				}
 			}
 		}
 
