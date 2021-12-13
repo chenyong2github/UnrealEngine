@@ -217,6 +217,8 @@ namespace Metasound
 			: InputValue(InInputValue)
 			, OutputValue(TDataWriteReferenceFactory<ToType>::CreateAny(InSettings))
 		{
+			using namespace MetasoundConversionNodePrivate;
+			TConversionNodeSpecialization<FromType, ToType>::GetConvertedValue(*InputValue, *OutputValue);
 		}
 
 		virtual ~TConversionOperator() = default;
