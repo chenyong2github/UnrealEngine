@@ -40,7 +40,7 @@ public:
 	[[nodiscard]] UE_API static FPayloadId FromHash(const FIoHash& Hash);
 
 	/** Construct an ID from a non-empty name. */
-	[[nodiscard]] UE_API static FPayloadId FromName(FAnsiStringView Name);
+	[[nodiscard]] UE_API static FPayloadId FromName(FUtf8StringView Name);
 	[[nodiscard]] UE_API static FPayloadId FromName(FWideStringView Name);
 
 	/** Returns a reference to the raw byte array for the ID. */

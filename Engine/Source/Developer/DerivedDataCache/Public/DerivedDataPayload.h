@@ -7,6 +7,11 @@
 #include "DerivedDataPayloadId.h"
 #include "IO/IoHash.h"
 
+#define UE_API DERIVEDDATACACHE_API
+
+class FCompositeBuffer;
+class FSharedBuffer;
+
 namespace UE::DerivedData
 {
 
@@ -19,6 +24,15 @@ namespace UE::DerivedData
 class FPayload
 {
 public:
+	/**
+	 * Compress the buffer using the default payload compression parameters.
+	 *
+	 * @param RawData     The raw data to be compressed.
+	 * @param BlockSize   The power-of-two block size to encode raw data in. 0 is default.
+	 */
+	UE_API static FCompressedBuffer Compress(const FCompositeBuffer& RawData, uint64 BlockSize = 0);
+	UE_API static FCompressedBuffer Compress(const FSharedBuffer& RawData, uint64 BlockSize = 0);
+
 	/** Construct a null payload. */
 	FPayload() = default;
 
@@ -118,3 +132,5 @@ inline bool operator<(const FPayload& A, const FPayload& B)
 }
 
 } // UE::DerivedData
+
+#undef UE_API
