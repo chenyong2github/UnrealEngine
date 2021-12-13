@@ -393,6 +393,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	const bool bIsGame = IsRunningGame();
 	const bool bIsEditor = !World->IsGameWorld();
 	const bool bIsCooking = IsRunningCookCommandlet();
+	const bool bIsDedicatedServer = IsRunningDedicatedServer();
 
 	UE_LOG(LogWorldPartition, Log, TEXT("UWorldPartition::Initialize(IsEditor=%d, IsGame=%d, IsCooking=%d)"), bIsEditor ? 1 : 0, bIsGame ? 1 : 0, bIsCooking ? 1 : 0);
 
@@ -416,7 +417,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	// Did we travel into a WP map in PIE (null StreamingPolicy means GenerateStreaming wasn't called)
 	const bool bPIEWorldTravel = World->WorldType == EWorldType::PIE && !StreamingPolicy;
 
-	if (bIsEditor || bIsGame || bPIEWorldTravel)
+	if (bIsEditor || bIsGame || bPIEWorldTravel || bIsDedicatedServer)
 	{
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
 		const FName PackageName = LevelPackage->GetLoadedPath().GetPackageFName();
@@ -504,7 +505,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 #if WITH_EDITOR
 	if (!bIsEditor)
 	{
-		if (bIsGame || bPIEWorldTravel)
+		if (bIsGame || bPIEWorldTravel || bIsDedicatedServer)
 		{
 			OnBeginPlay();
 		}
