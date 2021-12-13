@@ -2207,6 +2207,59 @@ void FPropertyInstanceInfo::PopulateChildren(FPropertyInstance PropertyInstance,
 	}
 }
 
+
+TSharedPtr<FPropertyInstanceInfo> FPropertyInstanceInfo::ResolvePathToProperty(const TArray<FName>& InPathToProperty)
+{
+	const auto FindChildInPropertyInfo = [](FPropertyInstanceInfo* InPropertyInfo, const FName& InChildName) -> TSharedPtr<FPropertyInstanceInfo>*
+	{
+		if (InPropertyInfo)
+		{
+			const FString ChildNameStr = InChildName.ToString();
+			FProperty* Property = InPropertyInfo->Property.Get();
+
+			if (Property->IsA<FSetProperty>() || Property->IsA<FArrayProperty>() || Property->IsA<FMapProperty>())
+			{
+				return InPropertyInfo->Children.FindByPredicate(
+					[&ChildNameStr](const TSharedPtr<FPropertyInstanceInfo>& Child)
+					{
+						// Display name for Container Element Properties is just their index
+						return Child->DisplayName.ToString() == ChildNameStr;
+					}
+				);
+			}
+			else
+			{
+				return InPropertyInfo->Children.FindByPredicate(
+					[&ChildNameStr](const TSharedPtr<FPropertyInstanceInfo>& Child)
+					{
+						return Child->Property->GetAuthoredName() == ChildNameStr;
+					}
+				);
+			}
+		}
+		return nullptr;
+	};
+
+	TSharedPtr<FPropertyInstanceInfo> ThisDebugInfo = nullptr;
+	for (const FName& ChildName : InPathToProperty)
+	{
+		TSharedPtr<FPropertyInstanceInfo>* FoundChild = ThisDebugInfo.IsValid() ? FindChildInPropertyInfo(ThisDebugInfo.Get(), ChildName) : FindChildInPropertyInfo(this, ChildName);
+
+		if (FoundChild)
+		{
+			ThisDebugInfo = *FoundChild;
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	return ThisDebugInfo;
+}
+
+
+
 FText FKismetDebugUtilities::GetAndClearLastExceptionMessage()
 {
 	FKismetDebugUtilitiesData& Data = FKismetDebugUtilitiesData::Get();

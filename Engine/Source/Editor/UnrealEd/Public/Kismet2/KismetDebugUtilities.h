@@ -77,6 +77,9 @@ struct FPropertyInstanceInfo
 	*/
 	void PopulateChildren(FPropertyInstance PropertyInstance,
 		TMap<FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>> &VisitedNodes);
+
+	/** Resolves the PathToProperty treating this PropertyInstance as the head of the path */
+	UNREALED_API TSharedPtr<FPropertyInstanceInfo> ResolvePathToProperty(const TArray<FName>& InPathToProperty);
 	
 	FText Name;
 	FText DisplayName;
