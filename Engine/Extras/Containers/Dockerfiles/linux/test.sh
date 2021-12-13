@@ -10,6 +10,9 @@ function runTests {
 	# Checkout the source code of a demo Unreal project in the container
 	docker exec 'unrealtest' git clone --progress --depth=1 'https://gitlab.com/ue4-test-projects/4.26/firstpersoncxx.git' /home/ue4/project
 	
+	# Enable the WebBrowserWidget plugin, to ensure we test the ability to package projects that use CEF
+	docker exec 'unrealtest' sed -i 's|"Modules"|"Plugins": [{"Name": "WebBrowserWidget", "Enabled": true}],\n\t"Modules"|' /home/ue4/project/FirstPersonCxx.uproject
+	
 	# Test that we can build the demo Unreal project in the container
 	docker exec 'unrealtest' /home/ue4/UnrealEngine/Engine/Build/BatchFiles/Linux/Build.sh \
 		FirstPersonCxxEditor Linux Development \

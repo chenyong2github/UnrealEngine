@@ -6,7 +6,7 @@
 # - disable_all_patches: true
 # - disable_labels: true
 # - enable_dso_patch: true
-# - excluded_components: {"ddc": false, "debug": false, "templates": false}
+# - excluded_components: {"ddc": false, "debug": true, "templates": true}
 # 
 # This Dockerfile combines the steps for the following images:
 # 
@@ -152,8 +152,6 @@ FROM prerequisites as minimal
 # Copy the Installed Build files from the builder image
 COPY --from=builder --chown=ue4:ue4 /home/ue4/UnrealEngine/LocalBuilds/Engine/Linux /home/ue4/UnrealEngine
 COPY --from=builder --chown=ue4:ue4 /home/ue4/UnrealEngine/Components/DDC /home/ue4/UnrealEngine
-COPY --from=builder --chown=ue4:ue4 /home/ue4/UnrealEngine/Components/DebugSymbols /home/ue4/UnrealEngine
-COPY --from=builder --chown=ue4:ue4 /home/ue4/UnrealEngine/Components/TemplatesAndSamples /home/ue4/UnrealEngine
 WORKDIR /home/ue4/UnrealEngine
 
 # Perform first-run setup for Mono, UnrealBuildTool and AutomationTool, which makes it possible to build Unreal projects and plugins as users other than `ue4`
