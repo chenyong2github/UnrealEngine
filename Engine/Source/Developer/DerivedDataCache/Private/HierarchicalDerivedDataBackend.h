@@ -478,9 +478,8 @@ public:
 	}
 
 	virtual void Put(
-		TConstArrayView<FCacheRecord> Records,
+		TConstArrayView<FCachePutRequest> Requests,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
@@ -488,7 +487,7 @@ public:
 		FRequestBarrier AsyncBarrier(AsyncOwner);
 		AsyncOwner.KeepAlive();
 
-		TSet<FCacheKey> RecordsOk;
+		TSet<FCacheKey> RequestsOk;
 
 		{
 			FReadScopeLock LockScope(Lock);
@@ -498,16 +497,16 @@ public:
 				if (InnerBackends[PutCacheIndex]->IsWritable())
 				{
 					// Every record must put synchronously before switching to async calls.
-					if (RecordsOk.Num() < Records.Num())
+					if (RequestsOk.Num() < Requests.Num())
 					{
 						FRequestOwner BlockingOwner(EPriority::Blocking);
-						InnerBackends[PutCacheIndex]->Put(Records, Context, Policy, BlockingOwner,
-							[&OnComplete, &RecordsOk](FCachePutCompleteParams&& Params)
+						InnerBackends[PutCacheIndex]->Put(Requests, Context, BlockingOwner,
+							[&OnComplete, &RequestsOk](FCachePutCompleteParams&& Params)
 							{
 								if (Params.Status == EStatus::Ok)
 								{
 									bool bIsAlreadyInSet = false;
-									RecordsOk.FindOrAdd(Params.Key, &bIsAlreadyInSet);
+									RequestsOk.FindOrAdd(Params.Key, &bIsAlreadyInSet);
 									if (OnComplete && !bIsAlreadyInSet)
 									{
 										OnComplete(MoveTemp(Params));
@@ -518,54 +517,44 @@ public:
 					}
 					else
 					{
-						AsyncPutInnerBackends[PutCacheIndex]->Put(Records, Context, Policy, AsyncOwner);
+						AsyncPutInnerBackends[PutCacheIndex]->Put(Requests, Context, AsyncOwner);
 					}
 				}
 			}
 		}
 
-		if (OnComplete && RecordsOk.Num() < Records.Num())
+		if (OnComplete && RequestsOk.Num() < Requests.Num())
 		{
-			for (const FCacheRecord& Record : Records)
+			for (const FCachePutRequest& Request : Requests)
 			{
-				if (!RecordsOk.Contains(Record.GetKey()))
+				if (!RequestsOk.Contains(Request.Record.GetKey()))
 				{
-					OnComplete({Record.GetKey(), EStatus::Error});
+					OnComplete({Request.Record.GetKey(), Request.UserData, EStatus::Error});
 				}
 			}
 		}
 	}
 
 	virtual void Get(
-		TConstArrayView<FCacheKey> Keys,
+		TConstArrayView<FCacheGetRequest> Requests,
 		FStringView Context,
-		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
-		const bool bQueryLocal = bHasLocalBackends && EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::QueryLocal);
-		const bool bStoreLocal = bHasWritableLocalBackends && EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::StoreLocal);
-		const bool bQueryRemote = bHasRemoteBackends && EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::QueryRemote);
-		const bool bStoreRemote = bHasWritableRemoteBackends && EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::StoreRemote);
-		const bool bStoreLocalCopy = bStoreLocal && bHasMultipleLocalBackends;
-
-		TArray<FCacheKey, TInlineAllocator<16>> RemainingKeys(Keys);
+		TArray<FCacheGetRequest, TInlineAllocator<16>> RemainingRequests(Requests);
 
 		{
 			FReadScopeLock LockScope(Lock);
 			TSet<FCacheKey> KeysOk;
 
-			bool bHadLocalMiss = false;
-			bool bHadRemoteMiss = false;
+			bool bHadMiss = false;
 
-			for (int32 GetCacheIndex = 0; GetCacheIndex < InnerBackends.Num() && !RemainingKeys.IsEmpty(); ++GetCacheIndex)
+			for (int32 GetCacheIndex = 0; GetCacheIndex < InnerBackends.Num() && !RemainingRequests.IsEmpty(); ++GetCacheIndex)
 			{
-				const bool bIsLocalGet = InnerBackends[GetCacheIndex]->GetSpeedClass() >= ESpeedClass::Fast;
-
 				// Block on this because backends in this hierarchy are not expected to be asynchronous.
 				FRequestOwner BlockingOwner(EPriority::Blocking);
-				InnerBackends[GetCacheIndex]->Get(RemainingKeys, Context, Policy, BlockingOwner,
-					[this, Context, GetCacheIndex, bStoreLocal, bStoreRemote, bStoreLocalCopy, bIsLocalGet, &Owner, &OnComplete, &KeysOk](FCacheGetCompleteParams&& Params)
+				InnerBackends[GetCacheIndex]->Get(RemainingRequests, Context, BlockingOwner,
+					[this, Context, GetCacheIndex, &Owner, &OnComplete, &KeysOk](FCacheGetCompleteParams&& Params)
 					{
 						if (Params.Status == EStatus::Ok)
 						{
@@ -576,11 +565,7 @@ public:
 							{
 								if (GetCacheIndex != FillCacheIndex)
 								{
-									const bool bIsLocalFill = InnerBackends[FillCacheIndex]->GetSpeedClass() >= ESpeedClass::Fast;
-									if (bIsLocalFill ? bStoreLocal : bStoreRemote)
-									{
-										AsyncPutInnerBackends[FillCacheIndex]->Put({Params.Record}, Context, ECachePolicy::Default, AsyncOwner);
-									}
+									AsyncPutInnerBackends[FillCacheIndex]->Put({{Params.Record, ECachePolicy::Default}}, Context, AsyncOwner);
 								}
 							}
 
@@ -593,35 +578,37 @@ public:
 					});
 				BlockingOwner.Wait();
 
-				RemainingKeys.RemoveAll([&KeysOk](const FCacheKey& Key) { return KeysOk.Contains(Key); });
+				RemainingRequests.RemoveAll([&KeysOk](const FCacheGetRequest& Request) { return KeysOk.Contains(Request.Key); });
 
-				bool& bHadMiss = bIsLocalGet ? bHadLocalMiss : bHadRemoteMiss;
-				if (!bHadMiss && !RemainingKeys.IsEmpty() && InnerBackends[GetCacheIndex]->IsWritable())
+				if (!bHadMiss && !RemainingRequests.IsEmpty() && InnerBackends[GetCacheIndex]->IsWritable())
 				{
 					bHadMiss = true;
-					const auto ConvertPolicy = [bIsLocalGet](ECachePolicy P) -> ECachePolicy
+					const auto ConvertPolicy = [](ECachePolicy P) -> ECachePolicy
 					{
-						if (EnumHasAnyFlags(P, bIsLocalGet ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote))
+						if (EnumHasAnyFlags(P, ECachePolicy::Store))
 						{
 							EnumRemoveFlags(P, ECachePolicy::SkipData);
 						}
 						return P;
 					};
-					FCacheRecordPolicyBuilder Builder(ConvertPolicy(Policy.GetDefaultPayloadPolicy()));
-					for (const FCachePayloadPolicy& PayloadPolicy : Policy.GetPayloadPolicies())
+					for (FCacheGetRequest& Request : RemainingRequests)
 					{
-						Builder.AddPayloadPolicy(PayloadPolicy.Id, ConvertPolicy(PayloadPolicy.Policy));
+						FCacheRecordPolicyBuilder Builder(ConvertPolicy(Request.Policy.GetDefaultPayloadPolicy()));
+						for (const FCachePayloadPolicy& PayloadPolicy : Request.Policy.GetPayloadPolicies())
+						{
+							Builder.AddPayloadPolicy(PayloadPolicy.Id, ConvertPolicy(PayloadPolicy.Policy));
+						}
+						Request.Policy = Builder.Build();
 					}
-					Policy = Builder.Build();
 				}
 			}
 		}
 
 		if (OnComplete)
 		{
-			for (const FCacheKey& Key : RemainingKeys)
+			for (const FCacheGetRequest& Request : RemainingRequests)
 			{
-				OnComplete({FCacheRecordBuilder(Key).Build(), EStatus::Error});
+				OnComplete({FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Error});
 			}
 		}
 	}
@@ -671,7 +658,7 @@ public:
 		{
 			for (const FCacheChunkRequest& Chunk : RemainingChunks)
 			{
-				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error});
+				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error});
 			}
 		}
 	}

@@ -77,16 +77,14 @@ public:
 	void SetSpeedClass(ESpeedClass InSpeedClass) { SpeedClass = InSpeedClass; }
 
 	virtual void Put(
-		TConstArrayView<FCacheRecord> Records,
+		TConstArrayView<FCachePutRequest> Requests,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override;
 
 	virtual void Get(
-		TConstArrayView<FCacheKey> Keys,
+		TConstArrayView<FCacheGetRequest> Requests,
 		FStringView Context,
-		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override;
 

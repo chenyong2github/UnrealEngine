@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "DerivedDataCacheKey.h"
+#include "DerivedDataCacheRecord.h"
 #include "DerivedDataPayloadId.h"
 #include "DerivedDataRequestTypes.h"
 #include "Math/NumericLimits.h"
@@ -14,14 +15,14 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
-namespace UE::DerivedData { class FCacheRecord; }
-namespace UE::DerivedData { class FCacheRecordPolicy; }
 namespace UE::DerivedData { class ICacheStoreMaintainer; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FCacheChunkRequest; }
 namespace UE::DerivedData { struct FCacheGetChunkCompleteParams; }
 namespace UE::DerivedData { struct FCacheGetCompleteParams; }
+namespace UE::DerivedData { struct FCacheGetRequest; }
 namespace UE::DerivedData { struct FCachePutCompleteParams; }
+namespace UE::DerivedData { struct FCachePutRequest; }
 namespace UE::DerivedData::Private { class ICacheRecordPolicyShared; }
 
 namespace UE::DerivedData
@@ -235,16 +236,14 @@ public:
 	 * must reference an existing copy of the payload in the store, if available, and must otherwise
 	 * be stored as a partial record that can attempt recovery of missing payloads when fetched.
 	 *
-	 * @param Records      The cache records to store. Must have a key.
+	 * @param Requests     Requests with the cache records to store. Records must have a key.
 	 * @param Context      A description of the request. An object path is typically sufficient.
-	 * @param Policy       Flags to control the behavior of the request. See ECachePolicy.
 	 * @param Owner        The owner to execute the request within.
 	 * @param OnComplete   A callback invoked for every record as it completes or is canceled.
 	 */
 	virtual void Put(
-		TConstArrayView<FCacheRecord> Records,
+		TConstArrayView<FCachePutRequest> Requests,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete = FOnCachePutComplete()) = 0;
 
@@ -261,16 +260,14 @@ public:
 	 * cache store must produce a partial record with the available payloads when the policy flag
 	 * PartialOnError is set for the missing payloads.
 	 *
-	 * @param Keys         The keys identifying the cache records to query.
+	 * @param Requests     Requests with the keys identifying the cache records to query.
 	 * @param Context      A description of the request. An object path is typically sufficient.
-	 * @param Policy       Flags to control the behavior of the request. See FCacheRecordPolicy.
 	 * @param Owner        The owner to execute the request within.
 	 * @param OnComplete   A callback invoked for every key as it completes or is canceled.
 	 */
 	virtual void Get(
-		TConstArrayView<FCacheKey> Keys,
+		TConstArrayView<FCacheGetRequest> Requests,
 		FStringView Context,
-		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) = 0;
 
@@ -308,6 +305,59 @@ class ICache : public ICacheStore
 public:
 	virtual ~ICache() = default;
 
+	using ICacheStore::Put;
+	using ICacheStore::Get;
+
+	/**
+	 * Asynchronous request to put cache records according to the policy.
+	 *
+	 * The callback will always be called for every key, and may be called from an arbitrary thread.
+	 * Records may finish storing in any order, and from multiple threads concurrently.
+	 *
+	 * A cache store is free to interpret a record containing only a key as a request to delete that
+	 * record from the store. Records may contain payloads that do not have data, and these payloads
+	 * must reference an existing copy of the payload in the store, if available, and must otherwise
+	 * be stored as a partial record that can attempt recovery of missing payloads when fetched.
+	 *
+	 * @param Records      The cache records to store. Must have a key.
+	 * @param Context      A description of the request. An object path is typically sufficient.
+	 * @param Policy       Flags to control the behavior of the request. See ECachePolicy.
+	 * @param Owner        The owner to execute the request within.
+	 * @param OnComplete   A callback invoked for every record as it completes or is canceled.
+	 */
+	UE_API void Put(
+		TConstArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		IRequestOwner& Owner,
+		FOnCachePutComplete&& OnComplete = FOnCachePutComplete());
+
+	/**
+	 * Asynchronous request to get cache records according to the policy.
+	 *
+	 * The callback will always be called for every key, and may be called from an arbitrary thread.
+	 * Records may become available in any order, and from multiple threads concurrently.
+	 *
+	 * Records may propagate into other cache stores, in accordance with the policy. A propagated
+	 * record may be a partial record, with some payloads missing data, depending on the policy.
+	 *
+	 * When payloads are required by the policy, but not available, the status must be Error. The
+	 * cache store must produce a partial record with the available payloads when the policy flag
+	 * PartialOnError is set for the missing payloads.
+	 *
+	 * @param Keys         The keys identifying the cache records to query.
+	 * @param Context      A description of the request. An object path is typically sufficient.
+	 * @param Policy       Flags to control the behavior of the request. See FCacheRecordPolicy.
+	 * @param Owner        The owner to execute the request within.
+	 * @param OnComplete   A callback invoked for every key as it completes or is canceled.
+	 */
+	UE_API void Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		FCacheRecordPolicy Policy,
+		IRequestOwner& Owner,
+		FOnCacheGetComplete&& OnComplete);
+
 	/**
 	 * Cancel all queued and active cache requests and invoke their callbacks.
 	 *
@@ -325,14 +375,43 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/** Parameters to request to put a cache record. */
+struct FCachePutRequest
+{
+	/** The cache record to put. */
+	FCacheRecord Record;
+
+	/** Flags to control the behavior of the request. See FCacheRecordPolicy. */
+	FCacheRecordPolicy Policy;
+
+	/** A value that will be returned in the completion callback. */
+	uint64 UserData = 0;
+};
+
 /** Parameters for the completion callback for cache put requests. */
 struct FCachePutCompleteParams
 {
 	/** Key for the part of the put request that completed or was canceled. */
 	FCacheKey Key;
 
+	/** A copy of the value from the request. */
+	uint64 UserData = 0;
+
 	/** Status of the cache request. */
 	EStatus Status = EStatus::Error;
+};
+
+/** Parameters to request a cache record. */
+struct FCacheGetRequest
+{
+	/** The key identifying the cache record to fetch. */
+	FCacheKey Key;
+
+	/** Flags to control the behavior of the request. See FCacheRecordPolicy. */
+	FCacheRecordPolicy Policy;
+
+	/** A value that will be returned in the completion callback. */
+	uint64 UserData = 0;
 };
 
 /** Parameters for the completion callback for cache get requests. */
@@ -347,6 +426,9 @@ struct FCacheGetCompleteParams
 	 * or attachment has been skipped, it will have a payload but its data will be null.
 	 */
 	FCacheRecord&& Record;
+
+	/** A copy of the value from the request. */
+	uint64 UserData = 0;
 
 	/** Status of the cache request. */
 	EStatus Status = EStatus::Error;
@@ -367,8 +449,14 @@ struct FCacheChunkRequest
 	/** The maximum number of raw bytes of the payload to fetch, starting from the offset. */
 	uint64 RawSize = MAX_uint64;
 
+	/** The raw hash of the entire payload to fetch, if available, otherwise zero. */
+	FIoHash RawHash;
+
 	/** Flags to control the behavior of the request. See ECachePolicy. */
 	ECachePolicy Policy = ECachePolicy::Default;
+
+	/** A value that will be returned in the completion callback. */
+	uint64 UserData = 0;
 };
 
 /** Parameters for the completion callback for cache chunk requests. */
@@ -391,6 +479,9 @@ struct FCacheGetChunkCompleteParams
 
 	/** Data for the subset of the payload that was fetched when Status is Ok, otherwise null. */
 	FSharedBuffer&& RawData;
+
+	/** A copy of the value from the request. */
+	uint64 UserData = 0;
 
 	/** Status of the cache request. */
 	EStatus Status = EStatus::Error;

@@ -261,6 +261,38 @@ FCacheRecordPolicy FCacheRecordPolicyBuilder::Build()
 	return Policy;
 }
 
+void ICache::Put(
+	const TConstArrayView<FCacheRecord> Records,
+	const FStringView Context,
+	const ECachePolicy Policy,
+	IRequestOwner& Owner,
+	FOnCachePutComplete&& OnComplete)
+{
+	TArray<FCachePutRequest, TInlineAllocator<16>> Requests;
+	Requests.Reserve(Records.Num());
+	for (const FCacheRecord& Record : Records)
+	{
+		Requests.Add({Record, Policy});
+	}
+	return Put(Requests, Context, Owner, MoveTemp(OnComplete));
+}
+
+void ICache::Get(
+	const TConstArrayView<FCacheKey> Keys,
+	const FStringView Context,
+	const FCacheRecordPolicy Policy,
+	IRequestOwner& Owner,
+	FOnCacheGetComplete&& OnComplete)
+{
+	TArray<FCacheGetRequest, TInlineAllocator<16>> Requests;
+	Requests.Reserve(Keys.Num());
+	for (const FCacheKey& Key : Keys)
+	{
+		Requests.Add({Key, Policy});
+	}
+	return Get(Requests, Context, Owner, MoveTemp(OnComplete));
+}
+
 } // UE::DerivedData
 
 namespace UE::DerivedData::Private
@@ -807,26 +839,24 @@ private:
 	FOnDDCNotification DDCNotificationEvent;
 
 public:
-	// ICache Interface
+	// ICacheStore Interface
 
 	void Put(
-		TConstArrayView<FCacheRecord> Records,
+		TConstArrayView<FCachePutRequest> Requests,
 		FStringView Context,
-		ECachePolicy Policy,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) final
 	{
-		return FDerivedDataBackend::Get().GetRoot().Put(Records, Context, Policy, Owner, MoveTemp(OnComplete));
+		return FDerivedDataBackend::Get().GetRoot().Put(Requests, Context, Owner, MoveTemp(OnComplete));
 	}
 
 	void Get(
-		TConstArrayView<FCacheKey> Keys,
+		TConstArrayView<FCacheGetRequest> Requests,
 		FStringView Context,
-		FCacheRecordPolicy Policy,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) final
 	{
-		return FDerivedDataBackend::Get().GetRoot().Get(Keys, Context, Policy, Owner, MoveTemp(OnComplete));
+		return FDerivedDataBackend::Get().GetRoot().Get(Requests, Context, Owner, MoveTemp(OnComplete));
 	}
 
 	void GetChunks(
@@ -837,6 +867,8 @@ public:
 	{
 		return FDerivedDataBackend::Get().GetRoot().GetChunks(Chunks, Context, Owner, MoveTemp(OnComplete));
 	}
+
+	// ICache Interface
 
 	void CancelAll() final
 	{

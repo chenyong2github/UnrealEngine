@@ -482,24 +482,24 @@ TSharedRef<FDerivedDataCacheStatsNode> FPakFileDerivedDataBackend::GatherUsageSt
 }
 
 void FPakFileDerivedDataBackend::Put(
-	const TConstArrayView<FCacheRecord> Records,
+	const TConstArrayView<FCachePutRequest> Requests,
 	const FStringView Context,
-	const ECachePolicy Policy,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
-	for (const FCacheRecord& Record : Records)
+	for (const FCachePutRequest& Request : Requests)
 	{
+		const FCacheRecord& Record = Request.Record;
 		TRACE_CPUPROFILER_EVENT_SCOPE(PakFileDDC_Put);
 		COOK_STAT(auto Timer = UsageStats.TimePut());
-		if (PutCacheRecord(Record, Context, Policy))
+		if (PutCacheRecord(Record, Context, Request.Policy))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache put complete for %s from '%.*s'"),
 				*CachePath, *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
 			COOK_STAT(Timer.AddHit(MeasureRawCacheRecord(Record)));
 			if (OnComplete)
 			{
-				OnComplete({Record.GetKey(), EStatus::Ok});
+				OnComplete({Record.GetKey(), Request.UserData, EStatus::Ok});
 			}
 		}
 		else
@@ -507,39 +507,38 @@ void FPakFileDerivedDataBackend::Put(
 			COOK_STAT(Timer.AddMiss(MeasureRawCacheRecord(Record)));
 			if (OnComplete)
 			{
-				OnComplete({Record.GetKey(), EStatus::Error});
+				OnComplete({Record.GetKey(), Request.UserData, EStatus::Error});
 			}
 		}
 	}
 }
 
 void FPakFileDerivedDataBackend::Get(
-	const TConstArrayView<FCacheKey> Keys,
+	const TConstArrayView<FCacheGetRequest> Requests,
 	const FStringView Context,
-	const FCacheRecordPolicy Policy,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
-	for (const FCacheKey& Key : Keys)
+	for (const FCacheGetRequest& Request : Requests)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PakFileDDC_Get);
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
 		EStatus Status = EStatus::Ok;
-		if (FOptionalCacheRecord Record = GetCacheRecord(Key, Context, Policy, Status))
+		if (FOptionalCacheRecord Record = GetCacheRecord(Request.Key, Context, Request.Policy, Status))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
-				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+				*CachePath, *WriteToString<96>(Request.Key), Context.Len(), Context.GetData());
 			COOK_STAT(Timer.AddHit(MeasureRawCacheRecord(Record.Get())));
 			if (OnComplete)
 			{
-				OnComplete({MoveTemp(Record).Get(), Status});
+				OnComplete({MoveTemp(Record).Get(), Request.UserData, Status});
 			}
 		}
 		else
 		{
 			if (OnComplete)
 			{
-				OnComplete({FCacheRecordBuilder(Key).Build(), Status});
+				OnComplete({FCacheRecordBuilder(Request.Key).Build(), Request.UserData, Status});
 			}
 		}
 	}
@@ -590,7 +589,7 @@ void FPakFileDerivedDataBackend::GetChunks(
 						Buffer = Reader.Decompress(RawOffset, RawSize);
 					}
 					OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
-						RawSize, Payload.GetRawHash(), MoveTemp(Buffer), PayloadStatus});
+						RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Chunk.UserData, PayloadStatus});
 				}
 				continue;
 			}
@@ -598,7 +597,7 @@ void FPakFileDerivedDataBackend::GetChunks(
 
 		if (OnComplete)
 		{
-			OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, EStatus::Error});
+			OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error});
 		}
 	}
 }
@@ -622,7 +621,7 @@ uint64 FPakFileDerivedDataBackend::MeasureRawCacheRecord(const FCacheRecord& Rec
 bool FPakFileDerivedDataBackend::PutCacheRecord(
 	const FCacheRecord& Record,
 	const FStringView Context,
-	const ECachePolicy Policy)
+	const FCacheRecordPolicy& Policy)
 {
 	if (!IsWritable())
 	{
@@ -632,7 +631,7 @@ bool FPakFileDerivedDataBackend::PutCacheRecord(
 	const FCacheKey& Key = Record.GetKey();
 
 	// Skip the request if storing to the cache is disabled.
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::StoreLocal))
+	if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::StoreLocal))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
 			*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
@@ -651,7 +650,9 @@ bool FPakFileDerivedDataBackend::PutCacheRecord(
 	FCbPackage ExistingPackage;
 	TStringBuilder<256> Path;
 	FPathViews::Append(Path, TEXT("Buckets"), Key);
-	if (EnumHasAllFlags(Policy, ECachePolicy::SkipValue | ECachePolicy::SkipAttachments))
+	const ECachePolicy CombinedPayloadPolicy = Algo::TransformAccumulate(
+		Policy.GetPayloadPolicies(), &FCachePayloadPolicy::Policy, Policy.GetDefaultPayloadPolicy(), UE_PROJECTION(operator|));
+	if (EnumHasAllFlags(CombinedPayloadPolicy, ECachePolicy::SkipValue | ECachePolicy::SkipAttachments))
 	{
 		bRecordExists = FileExists(Path);
 	}
