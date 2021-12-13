@@ -109,7 +109,6 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                // TODO: Do we want to keep fields? we have no real need for it now
                 (ObjectRecord objectRecord, BlobContents? blob) = await _objectService.Get(ns, bucket, key, fields);
 
                 if (blob == null)

@@ -77,7 +77,6 @@ namespace Horde.Storage.Implementation
                 throw new ObjectNotFoundException(ns, bucket, name);
 
             o.ThrowIfRequiredFieldsAreMissing();
-            // TODO: Check returned values for null
             return new ObjectRecord(new NamespaceId(o.Namespace!), new BucketId(o.Bucket!), new IoHashKey(o.Name!), o.LastAccessTime, o.InlinePayload, o.PayloadHash!.AsBlobIdentifier(), o.IsFinalized!.Value);
         }
 
@@ -151,7 +150,7 @@ namespace Horde.Storage.Implementation
 
             await updateObjectTracking;*/
 
-            await _mapper.UpdateAsync<ScyllaObject>("SET last_access_time = ? WHERE namespace = ? AND bucket = ? AND name = ?", lastAccessTime, ns.ToString(), bucket.ToString(), name.ToString());
+            await _mapper.UpdateIfAsync<ScyllaObject>("SET last_access_time = ? WHERE namespace = ? AND bucket = ? AND name = ? IF EXISTS", lastAccessTime, ns.ToString(), bucket.ToString(), name.ToString());
 
             
         }
