@@ -1374,7 +1374,7 @@ bool FInitBodiesHelperBase::CreateShapesAndActors()
 void FInitBodiesHelperBase::InitBodies()
 {
 #if WITH_CHAOS
-	LLM_SCOPE(ELLMTag::Chaos);
+	LLM_SCOPE(ELLMTag::ChaosBody);
 #else
 	LLM_SCOPE(ELLMTag::PhysX);
 #endif

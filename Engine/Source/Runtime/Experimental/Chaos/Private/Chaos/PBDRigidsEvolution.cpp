@@ -343,8 +343,6 @@ namespace Chaos
 			return Result;
 		};
 
-		LLM_SCOPE(ELLMTag::ChaosAcceleration);
-
 		uint8 ActiveBucketsMask = SpatialCollectionFactory.GetActiveBucketsMask();
 		TArray<TSOAView<FSpatialAccelerationCache>> ViewsPerBucket[FSpatialAccelerationIdx::MaxBuckets];
 		TArray<FSpatialAccelerationIdx> TimeSlicedBucketsToCreate;
