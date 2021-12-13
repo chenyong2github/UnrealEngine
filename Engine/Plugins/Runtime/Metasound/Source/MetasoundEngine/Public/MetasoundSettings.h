@@ -46,11 +46,11 @@ public:
 
 	/** List of native MetaSound classes whose node references should not be AutoUpdated. */
 	UPROPERTY(EditAnywhere, config, Category = AutoUpdate, meta = (DisplayName = "DenyList", EditCondition = "bAutoUpdateEnabled"))
-	TArray<FMetasoundFrontendClassName> AutoUpdateBlacklist;
+	TArray<FMetasoundFrontendClassName> AutoUpdateDenylist;
 
 	/** List of MetaSound assets whose node references should not be AutoUpdated. */
 	UPROPERTY(EditAnywhere, config, Category = AutoUpdate, meta = (DisplayName = "Asset DenyList", EditCondition = "bAutoUpdateEnabled"))
-	TArray<FDefaultMetaSoundAssetAutoUpdateSettings> AutoUpdateAssetBlacklist;
+	TArray<FDefaultMetaSoundAssetAutoUpdateSettings> AutoUpdateAssetDenylist;
 
 	/** Directories to scan & automatically register MetaSound post initial asset scan on engine start-up.
 	  * May speed up subsequent calls to playback MetaSounds post asset scan but increases application load time.
