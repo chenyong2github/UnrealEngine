@@ -47,7 +47,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Map of module manifest filenames to their location on disk.
 		/// </summary>
-		public Dictionary<FileReference, ModuleManifest> FileToManifest = new Dictionary<FileReference, ModuleManifest>();
+		public Dictionary<FileReference, ModuleManifest> FileToManifest;
 
 		/// <summary>
 		/// Constructor
@@ -57,13 +57,15 @@ namespace UnrealBuildTool
 		/// <param name="Version"></param>
 		/// <param name="ReceiptFile"></param>
 		/// <param name="Receipt"></param>
-		public WriteMetadataTargetInfo(FileReference? ProjectFile, FileReference? VersionFile, BuildVersion? Version, FileReference? ReceiptFile, TargetReceipt? Receipt)
+		/// <param name="FileToManifest"></param>
+		public WriteMetadataTargetInfo(FileReference? ProjectFile, FileReference? VersionFile, BuildVersion? Version, FileReference? ReceiptFile, TargetReceipt? Receipt, Dictionary<FileReference, ModuleManifest> FileToManifest)
 		{
 			this.ProjectFile = ProjectFile;
 			this.VersionFile = VersionFile;
 			this.Version = Version;
 			this.ReceiptFile = ReceiptFile;
 			this.Receipt = Receipt;
+			this.FileToManifest = FileToManifest;
 		}
 	}
 
