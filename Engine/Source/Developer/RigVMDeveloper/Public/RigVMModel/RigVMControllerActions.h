@@ -50,7 +50,12 @@ struct FRigVMActionKey
 		UScriptStruct* ScriptStruct = ActionType::StaticStruct();
 		FRigVMActionKey Key;
 		ScriptStructPath = ScriptStruct->GetPathName();
-		ScriptStruct->ExportText(ExportedText, &InAction, nullptr, nullptr, PPF_None, nullptr);
+		
+		TArray<uint8, TAlignedHeapAllocator<16>> DefaultStructData;
+		DefaultStructData.AddZeroed(ScriptStruct->GetStructureSize());
+		ScriptStruct->InitializeDefaultValue(DefaultStructData.GetData());
+		
+		ScriptStruct->ExportText(ExportedText, &InAction, DefaultStructData.GetData(), nullptr, PPF_None, nullptr);
 	}
 };
 
