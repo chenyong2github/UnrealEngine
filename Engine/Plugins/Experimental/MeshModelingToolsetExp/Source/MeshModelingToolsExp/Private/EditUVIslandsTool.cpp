@@ -112,6 +112,13 @@ void UEditUVIslandsTool::Setup()
 
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
+	const FDynamicMesh3* TargetMesh = DynamicMeshComponent->GetMesh();
+	TArray<FString> UVChannelNamesList;
+	for (int32 k = 0; k < TargetMesh->Attributes()->NumUVLayers(); ++k)
+	{
+		UVChannelNamesList.Add(FString::Printf(TEXT("UV %d"), k));
+	}
+	MaterialSettings->UpdateUVChannels(0, UVChannelNamesList);
 	MaterialSettings->RestoreProperties(this);
 	AddToolPropertySource(MaterialSettings);
 	MaterialSettings->GetOnModified().AddLambda([this](UObject*, FProperty*)
