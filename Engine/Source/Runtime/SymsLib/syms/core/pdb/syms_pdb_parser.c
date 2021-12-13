@@ -4239,7 +4239,7 @@ syms_pdb_stripped_from_unit(SYMS_Arena *arena, SYMS_String8 data, SYMS_PdbDbgAcc
       }
       
       // fill stripped info
-      info_ptr->name = name;
+      info_ptr->name = syms_push_string_copy(arena, name);
       info_ptr->voff = voff;
     }
     

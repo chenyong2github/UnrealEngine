@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DWARF_C
 #define _SYMS_META_DWARF_C
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1039
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1135
 SYMS_API SYMS_Language
 syms_dw_base_language_from_dw_language(SYMS_DwLanguage v){
 SYMS_Language result = SYMS_Language_Null;
@@ -558,5 +558,5 @@ case SYMS_DwAccess_Protected: result = SYMS_MemVisibility_Protected; break;
 return(result);
 }
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1489
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1591
 #endif

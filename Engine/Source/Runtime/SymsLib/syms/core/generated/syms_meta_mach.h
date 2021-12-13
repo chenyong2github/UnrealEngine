@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_MACH_H
 #define _SYMS_META_MACH_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:774
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
 typedef SYMS_S32 SYMS_MachCpuType;
 enum{
 SYMS_MachCpuType_ANY = 0xFFFFFFFF,
@@ -226,6 +226,7 @@ SYMS_MachLoadCommandType_SUB_LIBRARY = 0x15,
 SYMS_MachLoadCommandType_TWOLEVEL_HINTS = 0x16,
 SYMS_MachLoadCommandType_PREBIND_CHKSUM = 0x17,
 SYMS_MachLoadCommandType_LOAD_WEAK_DYLIB = 0x80000018,
+//  dylib is allowed to be missing
 SYMS_MachLoadCommandType_SEGMENT_64 = 0x19,
 SYMS_MachLoadCommandType_ROUTINES_64 = 0x1A,
 SYMS_MachLoadCommandType_UUID = 0x1B,
@@ -577,31 +578,31 @@ SYMS_U64 n_value;
 } SYMS_MachNList64;
 #pragma pack(pop)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_Arch syms_mach_arch_from_cputype(SYMS_MachCpuType v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
 SYMS_C_LINKAGE_BEGIN
-SYMS_API void syms_mach_lcstr_endian_swap_in_place(SYMS_MachLCStr *v);
-SYMS_API void syms_mach_uuid_endian_swap_in_place(SYMS_MachUUID *v);
-SYMS_API void syms_mach_dylib_endian_swap_in_place(SYMS_MachDylib *v);
-SYMS_API void syms_mach_dylib_command_endian_swap_in_place(SYMS_MachDylibCommand *v);
-SYMS_API void syms_mach_dyld_info_command_endian_swap_in_place(SYMS_MachDyldInfoCommand *v);
-SYMS_API void syms_mach_load_command_endian_swap_in_place(SYMS_MachLoadCommand *v);
-SYMS_API void syms_mach_fat_header_endian_swap_in_place(SYMS_MachFatHeader *v);
-SYMS_API void syms_mach_fat_arch_endian_swap_in_place(SYMS_MachFatArch *v);
-SYMS_API void syms_mach_header32_endian_swap_in_place(SYMS_MachHeader32 *v);
-SYMS_API void syms_mach_header64_endian_swap_in_place(SYMS_MachHeader64 *v);
-SYMS_API void syms_mach_segment_command32_endian_swap_in_place(SYMS_MachSegmentCommand32 *v);
-SYMS_API void syms_mach_segment_command64_endian_swap_in_place(SYMS_MachSegmentCommand64 *v);
-SYMS_API void syms_mach_section32_endian_swap_in_place(SYMS_MachSection32 *v);
-SYMS_API void syms_mach_section64_endian_swap_in_place(SYMS_MachSection64 *v);
-SYMS_API void syms_mach_symtab_command_endian_swap_in_place(SYMS_MachSymtabCommand *v);
-SYMS_API void syms_mach_dy_symtab_command_endian_swap_in_place(SYMS_MachDySymtabCommand *v);
-SYMS_API void syms_mach_nlist32_endian_swap_in_place(SYMS_MachNList32 *v);
-SYMS_API void syms_mach_nlist64_endian_swap_in_place(SYMS_MachNList64 *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachLCStr(SYMS_MachLCStr *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachUUID(SYMS_MachUUID *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachDylib(SYMS_MachDylib *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachDylibCommand(SYMS_MachDylibCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachDyldInfoCommand(SYMS_MachDyldInfoCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachLoadCommand(SYMS_MachLoadCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachFatHeader(SYMS_MachFatHeader *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachFatArch(SYMS_MachFatArch *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachHeader32(SYMS_MachHeader32 *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachHeader64(SYMS_MachHeader64 *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSegmentCommand32(SYMS_MachSegmentCommand32 *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSegmentCommand64(SYMS_MachSegmentCommand64 *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSection32(SYMS_MachSection32 *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSection64(SYMS_MachSection64 *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSymtabCommand(SYMS_MachSymtabCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachDySymtabCommand(SYMS_MachDySymtabCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachNList32(SYMS_MachNList32 *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachNList64(SYMS_MachNList64 *v);
 SYMS_C_LINKAGE_END
 
 #endif

@@ -41,6 +41,22 @@
 #define SYMS_GLOBAL static
 #define SYMS_LOCAL  static
 
+#ifndef SYMS_READ_ONLY
+# if SYMS_COMPILER_CL || (SYMS_COMPILER_CLANG && SYMS_OS_WINDOWS)
+#  pragma section(".roglob", read)
+#  define SYMS_READ_ONLY __declspec(allocate(".roglob"))
+# elif (SYMS_COMPILER_CLANG && SYMS_OS_LINUX)
+#  define SYMS_READ_ONLY __attribute__((section(".rodata")))
+# else
+// NOTE(rjf): I don't know of a useful way to do this in GCC land.
+// __attribute__((section(".rodata"))) looked promising, but it introduces a
+// strange warning about malformed section attributes, and it doesn't look
+// like writing to that section reliably produces access violations, strangely
+// enough. (It does on Clang)
+#  define SYMS_READ_ONLY
+# endif
+#endif
+
 #if SYMS_COMPILER_CL
 # define SYMS_THREAD_LOCAL __declspec(thread)
 #elif SYMS_COMPILER_CLANG || SYMS_COMPILER_GCC
@@ -400,6 +416,7 @@ SYMS_API SYMS_U64 syms_hash_u64(SYMS_U64 x);
 #define syms_serial_type(name) (_syms_serial_type_##name)
 #define syms_string_from_enum_value(enum_type, value) \
 (syms_serial_value_from_enum_value(&syms_serial_type(enum_type), value)->name)
+#define syms_bswap_in_place(type, ptr) syms_bswap_in_place__##type(ptr)
 
 SYMS_API SYMS_SerialField* syms_serial_first_field(SYMS_SerialType *type);
 SYMS_API SYMS_SerialValue* syms_serial_first_value(SYMS_SerialType *type);

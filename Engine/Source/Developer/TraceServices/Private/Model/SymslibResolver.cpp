@@ -736,18 +736,10 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 			SYMS_SymbolIDArray* ProcArray = syms_group_proc_sid_array_from_uid(Group, UnitID);
 			SYMS_U64 ProcCount = ProcArray->count;
 
-			uint32 UnitSymbolCount = 0;
-
 			FSymsSymbol* Symbols = syms_push_array(Arena, FSymsSymbol, ProcCount);
 			for (SYMS_U64 ProcIndex = 0; ProcIndex < ProcCount; ProcIndex++)
 			{
 				SYMS_SymbolID SymbolID = ProcArray->ids[ProcIndex];
-
-				SYMS_SymbolKind Kind = syms_group_symbol_kind_from_sid(Group, UnitAccel, SymbolID);
-				if (Kind == SYMS_SymbolKind_Procedure)
-				{
-					UnitSymbolCount++;
-				}
 
 				SYMS_String8 Name = syms_group_symbol_name_from_sid(Arena, Group, UnitAccel, SymbolID);
 				Symbols[ProcIndex].Name = reinterpret_cast<char*>(Name.str);
@@ -764,7 +756,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 
 			syms_release_scratch(Scratch);
 
-			SymbolCount += UnitSymbolCount;
+			SymbolCount += ProcCount;
 		});
 		syms_group_end_multilane(Group);
 
@@ -776,24 +768,19 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 	// store stripped format symbols
 	{
 		SYMS_StrippedInfoArray StrippedInfo = syms_group_stripped_info(Group);
-		SYMS_SpatialMap1D* StrippedMap = syms_group_stripped_info_map(Group);
 
 		FSymsSymbol* StrippedSymbols = syms_push_array(Arena, FSymsSymbol, StrippedInfo.count);
+		for (SYMS_U64 Index = 0; Index < StrippedInfo.count; Index++)
 		{
-			SYMS_StrippedInfo* InfoPtr = StrippedInfo.info;
-			FSymsSymbol* StrippedSymbolPtr = StrippedSymbols;
-			for (SYMS_U64 Index = 0; Index < StrippedInfo.count; Index++)
-			{
-				SYMS_String8 Name = syms_push_string_copy(Arena, InfoPtr->name);
-				StrippedSymbolPtr->Name = reinterpret_cast<char*>(Name.str);
-				++StrippedSymbolPtr;
-				++InfoPtr;
-			}
+			SYMS_StrippedInfo* Info = &StrippedInfo.info[Index];
+			FSymsSymbol* StrippedSymbol = &StrippedSymbols[Index];
+
+			SYMS_String8 Name = syms_push_string_copy(Arena, Info->name);
+			StrippedSymbol->Name = reinterpret_cast<char*>(Name.str);
 		}
 
-		Instance->StrippedMap = syms_spatial_map_1d_copy(Arena, StrippedMap);
+		Instance->StrippedMap = syms_spatial_map_1d_copy(Arena, syms_group_stripped_info_map(Group));
 		Instance->StrippedSymbols = StrippedSymbols;
-		Instance->StrippedCount = StrippedInfo.count;
 
 		SymbolCount += StrippedInfo.count;
 	}
@@ -862,7 +849,7 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	uint32 SourceFileLine = 0;
 
 	SYMS_UnitID UnitID = syms_spatial_map_1d_value_from_point(&Instance->UnitMap, VirtualOffset);
-	if (UnitID > 0 && UnitID <= Instance->Units.Num())
+	if (UnitID)
 	{
 		FSymsUnit* Unit = &Instance->Units[UnitID - 1];
 
@@ -875,7 +862,7 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 			if (SeqNumber)
 			{
 				SYMS_Line Line = syms_line_from_sequence_voff(&Unit->LineTable, SeqNumber, VirtualOffset);
-				if (Line.src_coord.file_id > 0 && Line.src_coord.file_id <= Unit->FileTable.count)
+				if (Line.src_coord.file_id)
 				{
 					SYMS_String8 FileName = Unit->FileTable.strings[Line.src_coord.file_id - 1];
 
@@ -894,10 +881,9 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	{
 		// try lookup into stripped format symbols
 		SYMS_U64 Value = syms_spatial_map_1d_value_from_point(&Instance->StrippedMap, VirtualOffset);
-		if (Value > 0 && Value <= Instance->StrippedCount)
+		if (Value)
 		{
-			SYMS_U64 Index = Value - 1;
-			SymsSymbol = &Instance->StrippedSymbols[Index];
+			SymsSymbol = &Instance->StrippedSymbols[Value - 1];
 
 			// use module name as filename
 			SourceFilePersistent = StringAllocator.Store(Module->Name);

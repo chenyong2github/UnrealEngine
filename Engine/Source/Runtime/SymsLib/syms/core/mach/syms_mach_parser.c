@@ -48,14 +48,14 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
       SYMS_MachHeader32 header32 = {0};
       after_header_off = syms_based_range_read_struct(base, range, 0, &header32);
       if (is_swapped){
-        syms_mach_header32_endian_swap_in_place(&header32);
+        syms_bswap_in_place(SYMS_MachHeader32, &header32);
       }
       syms_mach_header64_from_header32(&header, &header32);
     }
     else{
       after_header_off = syms_based_range_read_struct(base, range, 0, &header);
       if (is_swapped){
-        syms_mach_header64_endian_swap_in_place(&header);
+        syms_bswap_in_place(SYMS_MachHeader64, &header);
       }
     }
     
@@ -70,12 +70,15 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
     SYMS_MachSectionNode *section_last = 0;
     SYMS_U32 section_count = 0;
     
-    SYMS_U64Range regular_bind_range = syms_make_u64_range(0,0);
-    SYMS_U64Range lazy_bind_range    = syms_make_u64_range(0,0);
-    SYMS_U64Range weak_bind_range    = syms_make_u64_range(0,0);
-    SYMS_U64Range export_range       = syms_make_u64_range(0,0);
+    SYMS_U64Range bind_ranges[SYMS_MachBindTable_COUNT]; syms_memzero_struct(&bind_ranges[0]);
+    SYMS_U64Range export_range = syms_make_u64_range(0,0);
     
     SYMS_MachDylibList dylib_list; syms_memzero_struct(&dylib_list);
+    
+    { // push null dylib
+      SYMS_MachDylib dylib; syms_memzero_struct(&dylib);
+      syms_mach_dylib_list_push(scratch.arena, &dylib_list, &dylib, syms_make_u64_range(0,0));
+    }
     
     SYMS_U64 next_cmd_off = after_header_off;
     for (SYMS_U32 i = 0; i < header.ncmds; i += 1){
@@ -100,7 +103,7 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
           SYMS_MachSegmentCommand64 segment_command64 = {0};
           syms_based_range_read_struct(base, range, cmd_off, &segment_command64);
           if (is_swapped){
-            syms_mach_segment_command64_endian_swap_in_place(&segment_command64);
+            syms_bswap_in_place(SYMS_MachSegmentCommand64, &segment_command64);
           }
           SYMS_U64 after_seg_off = cmd_off + sizeof(SYMS_MachSegmentCommand64);
           
@@ -119,7 +122,7 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
             SYMS_MachSection64 section64 = {0};
             syms_based_range_read_struct(base, range, sec_off, &section64);
             if (is_swapped){
-              syms_mach_section64_endian_swap_in_place(&section64);
+              syms_bswap_in_place(SYMS_MachSection64, &section64);
             }
             next_sec_off = sec_off + sizeof(SYMS_MachSection64);
             
@@ -136,28 +139,29 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
           SYMS_MachDyldInfoCommand dyld;
           syms_based_range_read_struct(base, range, cmd_off, &dyld);
           if (is_swapped){
-            syms_mach_dyld_info_command_endian_swap_in_place(&dyld);
+            syms_bswap_in_place(SYMS_MachDyldInfoCommand, &dyld);
           }
           
-          regular_bind_range = syms_make_u64_inrange(range, dyld.bind_off, dyld.bind_size);
-          lazy_bind_range    = syms_make_u64_inrange(range, dyld.lazy_bind_off, dyld.lazy_bind_size);
-          weak_bind_range    = syms_make_u64_inrange(range, dyld.weak_bind_off, dyld.weak_bind_size);
-          export_range       = syms_make_u64_inrange(range, dyld.export_off, dyld.export_size);
+          bind_ranges[SYMS_MachBindTable_REGULAR] = syms_make_u64_inrange(range, dyld.bind_off, dyld.bind_size);
+          bind_ranges[SYMS_MachBindTable_LAZY]    = syms_make_u64_inrange(range, dyld.lazy_bind_off, dyld.lazy_bind_size);
+          bind_ranges[SYMS_MachBindTable_WEAK]    = syms_make_u64_inrange(range, dyld.weak_bind_off, dyld.weak_bind_size);
+          export_range = syms_make_u64_inrange(range, dyld.export_off, dyld.export_size);
         }break;
         
-        case SYMS_MachLoadCommandType_ID_DYLIB:
+        case SYMS_MachLoadCommandType_LOAD_WEAK_DYLIB:
         case SYMS_MachLoadCommandType_LOAD_DYLIB: 
+        case SYMS_MachLoadCommandType_LOAD_UPWARD_DYLIB:
+        case SYMS_MachLoadCommandType_LAZY_LOAD_DYLIB:
         {
           SYMS_MachDylibCommand cmd; syms_memzero_struct(&cmd);
           syms_based_range_read_struct(base, range, cmd_off, &cmd);
           SYMS_MachDylib *dylib = &cmd.dylib;
           if (is_swapped){
-            syms_mach_dylib_endian_swap_in_place(dylib);
+            syms_bswap_in_place(SYMS_MachDylib, dylib);
           }
-          
-          SYMS_U64 name_offset = cmd_off + dylib->name.offset;
-          SYMS_U64Range name = syms_make_u64_inrange(range, name_offset, (cmd_off + lc.size) - name_offset);
-          syms_mach_dylib_list_push(scratch.arena, &dylib_list, dylib, name);
+          SYMS_U64      name_offset = cmd_off + dylib->name.offset;
+          SYMS_U64Range name_range  = syms_make_u64_inrange(range, name_offset, (cmd_off + lc.size) - name_offset);
+          syms_mach_dylib_list_push(scratch.arena, &dylib_list, dylib, name_range);
         }break;
       }
       
@@ -187,17 +191,15 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
     }
     
     //- fill result
-    result                     = syms_push_array(arena, SYMS_MachBinAccel, 1);
-    result->format             = SYMS_FileFormat_MACH;
-    result->arch               = syms_mach_arch_from_cputype(header.cputype);
-    result->segment_count      = segment_count;
-    result->segments           = segments;
-    result->section_count      = section_count;
-    result->sections           = sections;
-    result->regular_bind_range = regular_bind_range;
-    result->lazy_bind_range    = lazy_bind_range;
-    result->weak_bind_range    = weak_bind_range;
-    result->export_range       = export_range;
+    result                = syms_push_array(arena, SYMS_MachBinAccel, 1);
+    result->format        = SYMS_FileFormat_MACH;
+    result->arch          = syms_mach_arch_from_cputype(header.cputype);
+    result->segment_count = segment_count;
+    result->segments      = segments;
+    result->section_count = section_count;
+    result->sections      = sections;
+    syms_memmove(&result->bind_ranges[0], &bind_ranges[0], sizeof(bind_ranges));
+    result->export_range  = export_range;
     { // convert dylib list to array
       result->dylib_count = 0;
       result->dylibs = syms_push_array(arena, SYMS_MachParsedDylib, dylib_list.count);
@@ -297,7 +299,7 @@ syms_mach_bin_list_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_Ma
     SYMS_MachFatHeader fat_header = {0};
     read_offset += syms_based_range_read_struct(base, range, read_offset, &fat_header);
     if (is_swapped){
-      syms_mach_fat_header_endian_swap_in_place(&fat_header);
+      syms_bswap_in_place(SYMS_MachFatHeader, &fat_header);
     }
     
     SYMS_U64 fat_count = fat_header.nfat_arch;
@@ -307,7 +309,7 @@ syms_mach_bin_list_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_Ma
     for (SYMS_U32 i = 0; i < fat_count; i += 1, fat_ptr += 1){
       read_offset += syms_based_range_read_struct(base, range, read_offset, fat_ptr);
       if (is_swapped){
-        syms_mach_fat_arch_endian_swap_in_place(fat_ptr);
+        syms_bswap_in_place(SYMS_MachFatArch, fat_ptr);
       }
     }
     
@@ -476,15 +478,21 @@ syms_mach_binds_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range ran
       } break;
       case SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_ULEB:
       {
-        SYMS_ASSERT_PARANOID(!"TODO: DO_BIND_ADD_ADDR_ULEB");
+        SYMS_U64 addend = 0;
+        read_offset += syms_based_range_read_uleb128(base, range, read_offset, &addend);
+        state.segment_offset += addend;
       } goto do_bind;
       case SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_IMM_SCALED:
       {
-        SYMS_ASSERT_PARANOID(!"TODO: DO_BIND_ADD_ADDR_IMM_SCALED");
+        state.segment_offset += imm;
       } goto do_bind;
       case SYMS_MachBindOpcode_DO_BIND_ULEB_TIMES_SKIPPING_ULEB:
       {
-        SYMS_ASSERT_PARANOID(!"TODO: DO_BIND_ULEB_TIMES_SKIPPING_ULEB");
+        SYMS_U64 count = 0, skip = 0;
+        read_offset += syms_based_range_read_uleb128(base, range, read_offset, &count);
+        read_offset += syms_based_range_read_uleb128(base, range, read_offset, &skip);
+        
+        state.segment_offset += skip * address_size;
       } goto do_bind;
       case SYMS_MachBindOpcode_DO_BIND:
       {
@@ -517,7 +525,7 @@ syms_mach_binds_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range ran
 SYMS_API SYMS_ImportArray
 syms_mach_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAccel *bin){
   SYMS_ArenaTemp scratch = syms_get_scratch(&arena, 1);
-
+  
   // read and copy library names
   SYMS_String8 *dylib_names = syms_push_array(scratch.arena, SYMS_String8, bin->dylib_count);
   for (SYMS_U32 i = 0; i < bin->dylib_count; ++i){
@@ -525,17 +533,16 @@ syms_mach_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAcc
     dylib_names[i] = syms_push_string_copy(arena, name);
   }
   
+  // build binds
   SYMS_U64 address_size = syms_address_size_from_arch(bin->arch);
-  SYMS_MachBindList binds[3];
-  binds[SYMS_MachBindTable_REGULAR] = syms_mach_binds_from_base_range(scratch.arena, (void*)data.str, bin->regular_bind_range, address_size, SYMS_MachBindTable_REGULAR);
-  binds[SYMS_MachBindTable_LAZY]    = syms_mach_binds_from_base_range(scratch.arena, (void*)data.str, bin->lazy_bind_range, address_size, SYMS_MachBindTable_LAZY);
-  binds[SYMS_MachBindTable_WEAK]    = syms_mach_binds_from_base_range(scratch.arena, (void*)data.str, bin->weak_bind_range, address_size, SYMS_MachBindTable_WEAK);
-  
   SYMS_U64 total_bind_count = 0;
+  SYMS_MachBindList binds[SYMS_MachBindTable_COUNT];
   for (SYMS_U32 i = 0; i < SYMS_ARRAY_SIZE(binds); ++i){
+    binds[i] = syms_mach_binds_from_base_range(scratch.arena, (void*)data.str, bin->bind_ranges[i], address_size, (SYMS_MachBindTable)i);
     total_bind_count += binds[i].count;
   }
-
+  
+  // convert mach binds to syms imports
   SYMS_ImportArray import_array; 
   import_array.count = 0;
   import_array.imports = syms_push_array(arena, SYMS_Import, total_bind_count);
@@ -560,18 +567,22 @@ syms_mach_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAcc
 static SYMS_MachExport *
 syms_mach_parse_export_node(SYMS_Arena *arena, void *base, SYMS_U64Range range, SYMS_String8 name, SYMS_U64 read_offset){
   SYMS_MachExport *node = 0;
-  
   SYMS_U64 export_size = 0;
   SYMS_U64 read_size = syms_based_range_read_uleb128(base, range, read_offset, &export_size);
-  read_offset += read_size;
-  
   if (read_size > 0){
+    read_offset += read_size;
+    
+    // push new node
     node = syms_push_array_zero(arena, SYMS_MachExport, 1);
     node->name = name;
+    node->is_export_info = export_size != 0;
     
-    SYMS_B32 is_export_info = export_size != 0;
-    if (is_export_info){
-      SYMS_U64Range export_range = syms_make_u64_inrange(range, read_offset, export_size);
+    // read export discriminator
+    SYMS_U64Range export_range = syms_make_u64_inrange(range, read_offset, export_size);
+    read_offset += export_size;
+    
+    // parse export info
+    if (node->is_export_info){
       SYMS_U64 export_read_offset = 0;
       export_read_offset += syms_based_range_read_uleb128(base, export_range, export_read_offset, &node->flags);
       if (node->flags & SYMS_MachExportSymbolFlags_REEXPORT){
@@ -586,6 +597,7 @@ syms_mach_parse_export_node(SYMS_Arena *arena, void *base, SYMS_U64Range range, 
       }
     }
     
+    // read child info
     read_offset += syms_based_range_read_struct(base, range, read_offset, &node->child_count);
     if (node->child_count > 0){
       node->children = syms_push_array(arena, SYMS_MachExport *, node->child_count);
@@ -611,7 +623,7 @@ syms_build_mach_export_trie(SYMS_Arena *arena, void *base, SYMS_U64Range range){
 SYMS_API SYMS_ExportArray
 syms_mach_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAccel *bin){
   SYMS_ArenaTemp scratch = syms_get_scratch(&arena, 1);
-
+  
   // read and copy library names
   SYMS_String8 *dylib_names = syms_push_array(scratch.arena, SYMS_String8, bin->dylib_count);
   for (SYMS_U32 i = 0; i < bin->dylib_count; ++i){
@@ -619,7 +631,10 @@ syms_mach_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAcc
     dylib_names[i] = syms_push_string_copy(arena, name);
   }
   
+  // build export trie
   SYMS_MachExport *root_export = syms_build_mach_export_trie(scratch.arena, (void*)data.str, bin->export_range);
+  
+  // traverse trie
   SYMS_ExportNode *first_export = 0;
   SYMS_ExportNode *last_export = 0;
   SYMS_U32 export_count = 0;
@@ -631,9 +646,11 @@ syms_mach_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAcc
     frame->node = root_export;
     SYMS_StackPush(stack, frame);
     
-    for (;;){
-      if (frame->child_idx >= frame->node->child_count){
-        if (frame->node->child_count == 0){ // leaf
+    for (; stack != 0; ){
+      SYMS_B32 pop_frame = frame->child_idx >= frame->node->child_count;
+      if (pop_frame){
+        if (frame->node->is_export_info){
+          // append strings from nodes on the stack
           SYMS_ArenaTemp temp = syms_arena_temp_begin(scratch.arena);
           SYMS_String8List name_parts; syms_memzero_struct(&name_parts);
           for (SYMS_MachExportFrame *f = frame; f != 0; f = f->next){
@@ -644,8 +661,12 @@ syms_mach_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAcc
           syms_arena_temp_end(temp);
           
           SYMS_ExportNode *export_node = syms_push_array(scratch.arena, SYMS_ExportNode, 1); 
+          
+          // add export to the list
           SYMS_QueuePush(first_export, last_export, export_node);
           export_count += 1;
+          
+          // initialize export
           SYMS_Export *exp = &export_node->data;
           if (frame->node->flags & SYMS_MachExportSymbolFlags_REEXPORT){
             // TODO(nick): need dylib with reexports to test this code path
@@ -666,18 +687,16 @@ syms_mach_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAcc
             exp->forwarder_import_name = syms_str8(0,0);
           }
         }
+        
         // pop current frame 
         SYMS_MachExportFrame *to_free = frame;
         frame = SYMS_StackPop(stack);
+        
         // push frame to free list for later reuse
         to_free->next = 0;
         SYMS_StackPush(free_frames, to_free);
-        if (frame == 0){
-          break; // we traversed entire trie, leave
-        }
-      }
-      if (frame->child_idx < frame->node->child_count){
-        // push frame with child node
+      } else{
+        // push frame
         SYMS_MachExportFrame *new_frame = free_frames;
         if (new_frame){
           SYMS_StackPop(free_frames);

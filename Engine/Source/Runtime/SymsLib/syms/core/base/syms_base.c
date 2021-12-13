@@ -64,8 +64,8 @@ syms_hash_u64(SYMS_U64 x){
 ////////////////////////////////
 //~ rjf: Serial Information Functions
 
-SYMS_GLOBAL SYMS_SerialValue syms_null_serial_value;
-SYMS_GLOBAL SYMS_SerialFlag syms_null_serial_flag;
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_SerialValue syms_null_serial_value;
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_SerialFlag syms_null_serial_flag;
 
 SYMS_API SYMS_SerialField*
 syms_serial_first_field(SYMS_SerialType *type){
@@ -326,7 +326,7 @@ syms_string_list_join(SYMS_Arena *arena, SYMS_String8List *list, SYMS_StringJoin
   if (list->node_count >= 2){
     result.size += (list->node_count - 1)*join.sep.size;
   }
-  result.str = syms_push_array(arena, SYMS_U8, result.size);
+  result.str = syms_push_array(arena, SYMS_U8, result.size + 1);
   
   // fill
   SYMS_U8 *ptr = result.str;
@@ -345,6 +345,7 @@ syms_string_list_join(SYMS_Arena *arena, SYMS_String8List *list, SYMS_StringJoin
   }
   syms_memmove(ptr, join.post.str, join.post.size);
   ptr += join.post.size;
+  *ptr = 0;
   
   return(result);
 }

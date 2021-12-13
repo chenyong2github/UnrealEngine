@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_CV_H
 #define _SYMS_META_CV_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:774
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
 #pragma pack(push,1)
 typedef struct SYMS_CvGuid{
 SYMS_U32 data1;
@@ -2795,7 +2795,7 @@ SYMS_U32 extra_file_count;
 } SYMS_CvInlineeSourceLineEx;
 #pragma pack(pop)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_RegID syms_reg_from_pdb_reg_x86(SYMS_CvRegx86 v);
 SYMS_API SYMS_RegID syms_reg_from_pdb_reg_x64(SYMS_CvRegx64 v);
@@ -2803,7 +2803,7 @@ SYMS_API SYMS_Language syms_cv_base_language_from_cv_language(SYMS_CvLanguage v)
 SYMS_API SYMS_MemVisibility syms_mem_visibility_from_member_access(SYMS_CvMemberAccess v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 

@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_REGS_X64_H
 #define _SYMS_META_REGS_X64_H
-//~ generated from code at src/metaprogram/metaprogram_regs.c:315
+//~ generated from code at syms/metaprogram/syms_metaprogram_regs.c:322
 typedef struct SYMS_RegX64{
 SYMS_Reg64 rax;
 SYMS_Reg64 rcx;
@@ -81,7 +81,7 @@ SYMS_Reg16 es;
 SYMS_Reg16 fs;
 SYMS_Reg16 gs;
 } SYMS_RegX64;
-//~ generated from code at src/metaprogram/metaprogram_regs.c:334
+//~ generated from code at syms/metaprogram/syms_metaprogram_regs.c:341
 typedef enum SYMS_RegX64Code
 {
 SYMS_RegX64Code_Null,
@@ -243,7 +243,7 @@ SYMS_RegX64Code_mm6,
 SYMS_RegX64Code_mm7,
 SYMS_RegX64Code_COUNT
 } SYMS_RegX64Code;
-//~ generated from code at src/metaprogram/metaprogram_regs.c:360
+//~ generated from code at syms/metaprogram/syms_metaprogram_regs.c:367
 static SYMS_RegMetadata reg_metadata_X64[SYMS_RegX64Code_COUNT] = {
 {0, 0, {(SYMS_U8*)"<nil>", 5}, 0, 0},
 {0, 8, {(SYMS_U8*)"rax", 3}, REG_ClassX86X64_GPR, 0},
