@@ -24,7 +24,7 @@ public class ThirdPartyHelperAndDLLLoader : ModuleRules
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
-				"DirectML_180",
+				"DirectML_1_8_0",
 				"Projects"
 			}
 		);

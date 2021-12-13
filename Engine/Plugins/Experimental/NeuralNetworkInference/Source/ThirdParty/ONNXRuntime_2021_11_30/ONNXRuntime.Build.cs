@@ -80,7 +80,7 @@ public class ONNXRuntime : ModuleRules
 			PrivateDependencyModuleNames.AddRange
 				(
 				new string[] {
-					"DirectML_180",
+					"DirectML_1_8_0",
 					"DX12"
 				}
 			);
