@@ -74,6 +74,7 @@ struct FPropertyAccessSystem
 				}
 
 				Indirection.Function = Segment.Function;
+				Indirection.Property = Segment.Function->GetReturnProperty();
 				Indirection.ReturnBufferSize = Segment.Property.Get()->GetSize();
 				Indirection.ReturnBufferAlignment = Segment.Property.Get()->GetMinAlignment();
 			}
@@ -127,7 +128,7 @@ struct FPropertyAccessSystem
 
 					Indirection.Offset = GetPropertyOffset(Segment.Property.Get());
 					Indirection.Type = EPropertyAccessIndirectionType::Array;
-					Indirection.ArrayProperty = CastFieldChecked<FArrayProperty>(Segment.Property.Get());
+					Indirection.Property = CastFieldChecked<FArrayProperty>(Segment.Property.Get());
 					Indirection.ArrayIndex = ArrayIndex;
 					if(UnmodifiedFlags == EPropertyAccessSegmentFlags::ArrayOfObjects)
 					{
@@ -139,7 +140,7 @@ struct FPropertyAccessSystem
 							ExtraIndirection.Offset = 0;
 							ExtraIndirection.Type = EPropertyAccessIndirectionType::Object;
 
-							FProperty* InnerProperty = Indirection.ArrayProperty.Get()->Inner;
+							FProperty* InnerProperty = CastFieldChecked<FArrayProperty>(Indirection.Property.Get())->Inner;
 							if(FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InnerProperty))
 							{
 								ExtraIndirection.ObjectType = EPropertyAccessObjectType::Object;
@@ -395,8 +396,15 @@ struct FPropertyAccessSystem
 		InFunction->Invoke(InObject, Stack, OutRetValue);
 	}
 
-	static void IterateAccess(void* InContainer, const FPropertyAccessLibrary& InLibrary, const FPropertyAccessIndirectionChain& InAccess, TFunctionRef<void(void*)> InAddressFunction)
+	// Gets the address that corresponds to a property access.
+	// Forwards the address onto the passed-in function. This callback-style approach is used because in some cases 
+	// (e.g. functions), the address may be memory allocated on the stack.
+	template<typename PredicateType>
+	static void GetAccessAddress(void* InContainer, const FPropertyAccessLibrary& InLibrary, const FPropertyAccessIndirectionChain& InAccess, PredicateType InAddressFunction)
 	{
+		// Buffer for function return values
+		TArray<uint8, TNonRelocatableInlineAllocator<64>> ArrayBuffer;
+	
 		void* Address = InContainer;
 
 		for(int32 IndirectionIndex = InAccess.IndirectionStartIndex; Address != nullptr && IndirectionIndex < InAccess.IndirectionEndIndex; ++IndirectionIndex)
@@ -439,7 +447,7 @@ struct FPropertyAccessSystem
 			}
 			case EPropertyAccessIndirectionType::Array:
 			{
-				if(FArrayProperty* ArrayProperty = Indirection.ArrayProperty.Get())
+				if(FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(Indirection.Property.Get()))
 				{
 					FScriptArrayHelper Helper(ArrayProperty, static_cast<uint8*>(Address) + Indirection.Offset);
 					if(Helper.IsValidIndex(Indirection.ArrayIndex))
@@ -464,12 +472,14 @@ struct FPropertyAccessSystem
 				{
 					UObject* CalleeObject = static_cast<UObject*>(Address);
 
-					// Allocate an aligned buffer for the return value
-					Address = (uint8*)FMemStack::Get().Alloc(Indirection.ReturnBufferSize, Indirection.ReturnBufferAlignment);
+					// Allocate buffer + alignment slack for the return value
+					ArrayBuffer.SetNumUninitialized(Indirection.ReturnBufferSize + Indirection.ReturnBufferAlignment, false);
+					Address = Align(ArrayBuffer.GetData(), Indirection.ReturnBufferAlignment);
 
 					// Init value
 					check(Indirection.Function->GetReturnProperty());
-					Indirection.Function->GetReturnProperty()->InitializeValue(Address);
+					check(Indirection.Function->GetReturnProperty() == Indirection.Property.Get());
+					Indirection.Property.Get()->InitializeValue(Address);
 
 					if(Indirection.Type == EPropertyAccessIndirectionType::NativeFunction)
 					{
@@ -523,14 +533,6 @@ struct FPropertyAccessSystem
 			InAddressFunction(Address);
 		}
 	}
-	
-	// Gets the address that corresponds to a property access.
-	// Forwards the address onto the passed-in function. This callback-style approach is used because in some cases 
-	// (e.g. functions), the address may be memory allocated on the stack.
-	static void GetAccessAddress(void* InContainer, const FPropertyAccessLibrary& InLibrary, const FPropertyAccessIndirectionChain& InAccess, TFunctionRef<void(void*)> InAddressFunction)
-	{
-		IterateAccess(InContainer, InLibrary, InAccess, InAddressFunction);
-	}
 
 	// Process a single copy
 	static void ProcessCopy(UStruct* InStruct, void* InContainer, const FPropertyAccessLibrary& InLibrary, int32 InCopyIndex, int32 InBatchId, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation)
@@ -566,8 +568,6 @@ struct FPropertyAccessSystem
 	{
 		if(InLibrary.bHasBeenPostLoaded)
 		{
-			FMemMark Mark(FMemStack::Get());
-
 			if(InLibrary.CopyBatchArray.IsValidIndex(InBatchId))
 			{
 				// Copy all valid properties

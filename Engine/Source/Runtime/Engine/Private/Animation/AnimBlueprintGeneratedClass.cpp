@@ -327,7 +327,7 @@ UAnimBlueprintGeneratedClass::UAnimBlueprintGeneratedClass(const FObjectInitiali
 const void* UAnimBlueprintGeneratedClass::GetConstantNodeValueRaw(int32 InIndex) const
 {
 	const FProperty* Property = ConstantProperties[InIndex];
-	check(Property->GetOwner<UStruct>() && GetSparseClassDataStruct()->IsChildOf(Property->GetOwner<UStruct>()));
+	checkSlow(Property->GetOwner<UStruct>() && GetSparseClassDataStruct()->IsChildOf(Property->GetOwner<UStruct>()));
 	const void* ConstantData = GetConstantNodeData();
 	check(ConstantData);
 	return Property->ContainerPtrToValuePtr<void>(static_cast<const void*>(ConstantData));
@@ -336,7 +336,7 @@ const void* UAnimBlueprintGeneratedClass::GetConstantNodeValueRaw(int32 InIndex)
 const void* UAnimBlueprintGeneratedClass::GetMutableNodeValueRaw(int32 InIndex, const UObject* InObject) const
 {
 	const FProperty* Property = MutableProperties[InIndex];
-	check(Property->GetOwner<UStruct>() && Property->GetOwner<UStruct>()->IsChildOf(FAnimBlueprintMutableData::StaticStruct()));
+	checkSlow(Property->GetOwner<UStruct>() && Property->GetOwner<UStruct>()->IsChildOf(FAnimBlueprintMutableData::StaticStruct()));
 	const FAnimBlueprintMutableData* MutableData = GetMutableNodeData(InObject);
 	check(MutableData);	
 	return Property->ContainerPtrToValuePtr<void>(static_cast<const void*>(MutableData));
@@ -346,8 +346,8 @@ FAnimBlueprintMutableData* UAnimBlueprintGeneratedClass::GetMutableNodeData(UObj
 {
 	if(MutableNodeDataProperty != nullptr)
 	{
-		check(MutableNodeDataProperty->Struct->IsChildOf(FAnimBlueprintMutableData::StaticStruct()));
-		check(MutableNodeDataProperty->GetOwner<UClass>() && InObject->GetClass()->IsChildOf(MutableNodeDataProperty->GetOwner<UClass>()));
+		checkSlow(MutableNodeDataProperty->Struct->IsChildOf(FAnimBlueprintMutableData::StaticStruct()));
+		checkSlow(MutableNodeDataProperty->GetOwner<UClass>() && InObject->GetClass()->IsChildOf(MutableNodeDataProperty->GetOwner<UClass>()));
 		return MutableNodeDataProperty->ContainerPtrToValuePtr<FAnimBlueprintMutableData>(InObject);
 	}
 
@@ -358,8 +358,8 @@ const FAnimBlueprintMutableData* UAnimBlueprintGeneratedClass::GetMutableNodeDat
 {
 	if(MutableNodeDataProperty != nullptr)
 	{
-		check(MutableNodeDataProperty->Struct->IsChildOf(FAnimBlueprintMutableData::StaticStruct()));
-		check(MutableNodeDataProperty->GetOwner<UClass>() && InObject->GetClass()->IsChildOf(MutableNodeDataProperty->GetOwner<UClass>()));
+		checkSlow(MutableNodeDataProperty->Struct->IsChildOf(FAnimBlueprintMutableData::StaticStruct()));
+		checkSlow(MutableNodeDataProperty->GetOwner<UClass>() && InObject->GetClass()->IsChildOf(MutableNodeDataProperty->GetOwner<UClass>()));
 		return MutableNodeDataProperty->ContainerPtrToValuePtr<FAnimBlueprintMutableData>(InObject);
 	}
 
@@ -376,7 +376,7 @@ void UAnimBlueprintGeneratedClass::ForEachSubsystem(TFunctionRef<EAnimSubsystemE
 	for(int32 SubsystemIndex = 0; SubsystemIndex < ConstantSubsystemProperties.Num(); ++SubsystemIndex)
 	{
 		FStructProperty* ConstantSubsystemProperty = ConstantSubsystemProperties[SubsystemIndex];
-		check(ConstantSubsystemProperty->GetOwner<UStruct>() && GetSparseClassDataStruct()->IsChildOf(ConstantSubsystemProperty->GetOwner<UStruct>()));
+		checkSlow(ConstantSubsystemProperty->GetOwner<UStruct>() && GetSparseClassDataStruct()->IsChildOf(ConstantSubsystemProperty->GetOwner<UStruct>()));
 		FAnimSubsystem& Subsystem = *ConstantSubsystemProperty->ContainerPtrToValuePtr<FAnimSubsystem>(const_cast<void*>(GetConstantNodeData()));
 
 		if(InFunction(FAnimSubsystemContext(Subsystem, ConstantSubsystemProperty->Struct)) == EAnimSubsystemEnumeration::Stop)
@@ -395,10 +395,10 @@ void UAnimBlueprintGeneratedClass::ForEachSubsystem(UObject* InObject, TFunction
 		FStructProperty* ConstantSubsystemProperty = ConstantSubsystemProperties[SubsystemIndex];
 		FStructProperty* MutableSubsystemProperty = MutableSubsystemProperties[SubsystemIndex];
 		
-		check(ConstantSubsystemProperty->GetOwner<UStruct>() && GetSparseClassDataStruct()->IsChildOf(ConstantSubsystemProperty->GetOwner<UStruct>()));
+		checkSlow(ConstantSubsystemProperty->GetOwner<UStruct>() && GetSparseClassDataStruct()->IsChildOf(ConstantSubsystemProperty->GetOwner<UStruct>()));
 		const FAnimSubsystem& Subsystem = *ConstantSubsystemProperty->ContainerPtrToValuePtr<FAnimSubsystem>(GetConstantNodeData());
 
-		check(MutableSubsystemProperty->GetOwner<UClass>() && InObject->GetClass()->IsChildOf(MutableSubsystemProperty->GetOwner<UClass>()));
+		checkSlow(MutableSubsystemProperty->GetOwner<UClass>() && InObject->GetClass()->IsChildOf(MutableSubsystemProperty->GetOwner<UClass>()));
 		FAnimSubsystemInstance& SubsystemInstance = *MutableSubsystemProperty->ContainerPtrToValuePtr<FAnimSubsystemInstance>(InObject);
 		
 		if(InFunction(FAnimSubsystemInstanceContext(Subsystem, ConstantSubsystemProperty->Struct, SubsystemInstance, MutableSubsystemProperty->Struct)) == EAnimSubsystemEnumeration::Stop)
