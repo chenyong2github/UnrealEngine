@@ -20,6 +20,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioParameterTransmitter.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
@@ -5794,12 +5795,17 @@ void FAudioDevice::UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSo
 		{
 			for (int32 i = ActiveSoundsInComponent->Num() - 1; i >= 0; --i)
 			{
-				const FActiveSound* ActiveSound = (*ActiveSoundsInComponent)[i];
-				
+				FActiveSound* ActiveSound = (*ActiveSoundsInComponent)[i];
 				if (ensure(ActiveSound))
 				{
 					if (ActiveSound->GetInstanceID() == InActiveSound.GetInstanceID())
 					{
+						// Reset the transmitter prior to unlinking to avoid associated
+						// state potentially kept in plugins to not become stale.
+						if (Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter())
+						{
+							Transmitter->Reset();
+						}
 						ActiveSoundsInComponent->RemoveAtSwap(i, 1, false);
 						break;
 					}

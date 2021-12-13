@@ -111,7 +111,7 @@ namespace Metasound
 							FModifyRootGraphInterfaces ModifyTransform({ }, { InterfaceToAdd });
 							ModifyTransform.SetDefaultNodeLocations(false); // Don't automatically add nodes to ed graph
 							ModifyTransform.Transform(DocumentHandle);
-							MetaSoundAsset->SetInterfacesUpdatedOnSynchronization();
+							MetaSoundAsset->SetUpdateDetailsOnSynchronization();
 						}
 
 						UpdateInterfaceNames();
@@ -170,7 +170,7 @@ namespace Metasound
 
 					UpdateInterfaceNames();
 					InterfaceComboBox->RefreshOptions();
-					MetaSoundAsset->SetInterfacesUpdatedOnSynchronization();
+					MetaSoundAsset->SetUpdateDetailsOnSynchronization();
 					MetaSoundAsset->SetSynchronizationRequired();
 				}), LOCTEXT("RemoveInterfaceTooltip", "Removes all interfaces from the given MetaSound."))
 			];
@@ -215,7 +215,7 @@ namespace Metasound
 
 					UpdateInterfaceNames();
 					InterfaceComboBox->RefreshOptions();
-					MetaSoundAsset->SetInterfacesUpdatedOnSynchronization();
+					MetaSoundAsset->SetUpdateDetailsOnSynchronization();
 					MetaSoundAsset->SetSynchronizationRequired();
 				}), LOCTEXT("RemoveInterfaceTooltip", "Removes the associated interface from the MetaSound."));
 

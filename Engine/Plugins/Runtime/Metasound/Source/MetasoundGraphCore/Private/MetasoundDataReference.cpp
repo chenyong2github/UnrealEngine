@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundDataReference.h"
+#include "MetasoundDataReferenceMacro.h"
 
 namespace Metasound
 {
@@ -13,4 +14,16 @@ namespace Metasound
 	const void* const TDataReferenceTypeInfo<void>::TypeId = static_cast<const void* const>(TDataReferenceTypeInfo<void>::TypePtr);
 
 	const FName IDataReference::RouterName = "DataReference";
+
+	FName CreateArrayTypeNameFromElementTypeName(const FName InTypeName)
+	{
+		return FName(InTypeName.ToString() + TEXT(METASOUND_DATA_TYPE_NAME_ARRAY_TYPE_SPECIFIER));
+	}
+
+	FName CreateElementTypeNameFromArrayTypeName(const FName InArrayTypeName)
+	{
+		auto GetSuffixLength = []() { return FString(TEXT(METASOUND_DATA_TYPE_NAME_ARRAY_TYPE_SPECIFIER)).Len(); };
+		static const int32 SuffixLength = GetSuffixLength();
+		return *InArrayTypeName.ToString().LeftChop(SuffixLength);
+	}
 }

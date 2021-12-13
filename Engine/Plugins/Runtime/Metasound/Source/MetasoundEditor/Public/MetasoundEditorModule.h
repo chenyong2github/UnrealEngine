@@ -14,7 +14,7 @@
 
 
 class UMetasoundEditorGraph;
-class UMetasoundEditorGraphInputLiteral;
+class UMetasoundEditorGraphMemberDefaultLiteral;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMetasoundEditor, Log, All);
 
@@ -37,20 +37,20 @@ namespace Metasound
 			}
 		};
 
-		class METASOUNDEDITOR_API IMetaSoundInputLiteralCustomization
+		class METASOUNDEDITOR_API IMemberDefaultLiteralCustomization
 		{
 		public:
-			virtual ~IMetaSoundInputLiteralCustomization() = default;
+			virtual ~IMemberDefaultLiteralCustomization() = default;
 
-			virtual void CustomizeLiteral(UMetasoundEditorGraphInputLiteral& InLiteral, TSharedPtr<IPropertyHandle> InDefaultValueHandle) = 0;
+			virtual void CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, TSharedPtr<IPropertyHandle> InDefaultValueHandle) = 0;
 		};
 
-		class METASOUNDEDITOR_API IMetaSoundInputLiteralCustomizationFactory
+		class METASOUNDEDITOR_API IMemberDefaultLiteralCustomizationFactory
 		{
 		public:
-			virtual ~IMetaSoundInputLiteralCustomizationFactory() = default;
+			virtual ~IMemberDefaultLiteralCustomizationFactory() = default;
 
-			virtual TUniquePtr<IMetaSoundInputLiteralCustomization> CreateLiteralCustomization(IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;
+			virtual TUniquePtr<IMemberDefaultLiteralCustomization> CreateLiteralCustomization(IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;
 		};
 
 		class METASOUNDEDITOR_API IMetasoundEditorModule : public IModuleInterface
@@ -73,9 +73,9 @@ namespace Metasound
 
 			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const = 0;
 
-			virtual TUniquePtr<IMetaSoundInputLiteralCustomization> CreateInputLiteralCustomization(UClass& InClass, IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;
+			virtual TUniquePtr<IMemberDefaultLiteralCustomization> CreateMemberDefaultLiteralCustomization(UClass& InClass, IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;
 
-			virtual const TSubclassOf<UMetasoundEditorGraphInputLiteral> FindInputLiteralClass(EMetasoundFrontendLiteralType InLiteralType) const = 0;
+			virtual const TSubclassOf<UMetasoundEditorGraphMemberDefaultLiteral> FindDefaultLiteralClass(EMetasoundFrontendLiteralType InLiteralType) const = 0;
 		};
 	} // namespace Editor
 } // namespace Metasound

@@ -8,7 +8,7 @@
 #include "Templates/UniquePtr.h"
 
 class IDetailLayoutBuilder;
-class IMetaSoundInputLiteralCustomization;
+class IMemberDefaultLiteralCustomization;
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
@@ -16,22 +16,21 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		class FMetasoundVariableDetailCustomization : public TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphVariable>
+		class FMetasoundVariableDetailCustomization : public TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphVariable, FMetasoundVariableDetailCustomization>
 		{
 		public:
-			FMetasoundVariableDetailCustomization();
+			static const FText MemberNameText;
+
+			FMetasoundVariableDetailCustomization()
+				: TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphVariable, FMetasoundVariableDetailCustomization>()
+			{
+			}
+
 			virtual ~FMetasoundVariableDetailCustomization() = default;
 
 			// IDetailCustomization interface
 			virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 			// End of IDetailCustomization interface
-
-		private:
-			void SetDefaultPropertyMetaData(TSharedRef<IPropertyHandle> InDefaultPropertyHandle) const;
-
-			FName GetLiteralDataType() const;
-
-			TUniquePtr<IMetaSoundInputLiteralCustomization> LiteralCustomization;
 		};
 	} // namespace Editor
 } // namespace Metasound

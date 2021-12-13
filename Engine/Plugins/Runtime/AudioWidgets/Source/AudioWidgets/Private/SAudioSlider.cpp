@@ -22,6 +22,7 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 {
 	Style = InArgs._Style;
 	OnValueChanged = InArgs._OnValueChanged;
+	OnValueCommitted = InArgs._OnValueCommitted;
 	ValueAttribute = InArgs._Value;
 	SliderBackgroundColor = InArgs._SliderBackgroundColor;
 	SliderBarColor = InArgs._SliderBarColor;
@@ -59,19 +60,24 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 			OnValueChanged.ExecuteIfBound(Value);
 			const float OutputValue = GetOutputValue(Value);
 			Label->SetValueText(OutputValue);
+		})
+		.OnMouseCaptureEnd_Lambda([this]()
+		{
+			OnValueCommitted.ExecuteIfBound(ValueAttribute.Get());
 		});
 
 	// Text label
 	SAssignNew(Label, SAudioTextBox)
 		.Style(&Style->TextBoxStyle)
 		.OnValueTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
-			{
-				const float OutputValue = FCString::Atof(*Text.ToString());
-				const float LinValue = GetLinValue(OutputValue);
-				ValueAttribute.Set(LinValue);
-				Slider->SetValue(LinValue);
-				OnValueChanged.ExecuteIfBound(LinValue);
-			});
+		{
+			const float OutputValue = FCString::Atof(*Text.ToString());
+			const float LinValue = GetLinValue(OutputValue);
+			ValueAttribute.Set(LinValue);
+			Slider->SetValue(LinValue);
+			OnValueChanged.ExecuteIfBound(LinValue);
+			OnValueCommitted.ExecuteIfBound(LinValue);
+		});
 
 	ChildSlot
 	[

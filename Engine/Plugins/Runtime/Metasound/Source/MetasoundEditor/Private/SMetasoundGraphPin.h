@@ -9,11 +9,13 @@
 #include "KismetPins/SGraphPinString.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorGraphMemberDefaults.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontendController.h"
 #include "SGraphPin.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
@@ -72,10 +74,44 @@ namespace Metasound
 				return IInputController::GetInvalidHandle();
 			}
 
+			bool ShowDefaultValueWidget() const
+			{
+				UEdGraphPin* Pin = ParentPinType::GetPinObj();
+				if (!Pin)
+				{
+					return true;
+				}
+
+				UMetasoundEditorGraphMemberNode* Node = Cast<UMetasoundEditorGraphMemberNode>(Pin->GetOwningNode());
+				if (!Node)
+				{
+					return true;
+				}
+
+				UMetasoundEditorGraphMember* Member = Node->GetMember();
+				if (!Member)
+				{
+					return true;
+				}
+
+				UMetasoundEditorGraphMemberDefaultFloat* DefaultFloat = Cast<UMetasoundEditorGraphMemberDefaultFloat>(Member->GetLiteral());
+				if (!DefaultFloat)
+				{
+					return true;
+				}
+
+				return DefaultFloat->WidgetType == EMetasoundMemberDefaultWidget::None;
+			}
+
 			virtual TSharedRef<SWidget> GetDefaultValueWidget() override
 			{
 				using namespace Frontend;
 				TSharedRef<SWidget> DefaultWidget = ParentPinType::GetDefaultValueWidget();
+
+				if (!ShowDefaultValueWidget())
+				{
+					return SNullWidget::NullWidget;
+				}
 
 				// For now, arrays do not support literals.
 				// TODO: Support array literals by displaying
@@ -123,22 +159,38 @@ namespace Metasound
 
 							if (UEdGraphPin* Pin = ParentPinType::GetPinObj())
 							{
-								if (UEdGraphNode* Node = Pin->GetOwningNode())
+								if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin->GetOwningNode()))
 								{
 									if (UMetasoundEditorGraph* MetaSoundGraph = CastChecked<UMetasoundEditorGraph>(Node->GetGraph()))
 									{
 										UObject& MetaSound = MetaSoundGraph->GetMetasoundChecked();
 
 										{
-											const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorSetLiteralToClassDefault", "Set Literal to Class Default"));
+											const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorResetToClassDefault", "Reset to Class Default"));
 											MetaSound.Modify();
 											MetaSoundGraph->Modify();
 
-											FInputHandle InputHandle = GetInputHandle();
-											InputHandle->ClearLiteral();
+											if (UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(Node))
+											{
+												UMetasoundEditorGraphMember* Member = MemberNode->GetMember();
+												if (ensure(Member))
+												{
+													Member->ResetToClassDefault();
+												}
+											}
+											else
+											{
+												FInputHandle InputHandle = GetInputHandle();
+												InputHandle->ClearLiteral();
+											}
 										}
 
-										FGraphBuilder::SynchronizePinLiteral(*Pin);
+										// Mark node for refresh in case non-pin widget on node needs updating (ex. sliders, knobs)
+										Node->bRefreshNode = true;
+
+										// Full node synchronization required as custom
+										// node-level widgets may need to be refreshed
+										MetaSoundGraph->SetSynchronizationRequired();
 									}
 								}
 							}

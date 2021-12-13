@@ -472,6 +472,54 @@ FString UMetasoundEditorGraphNode::GetDocumentationExcerptName() const
 	return FString::Printf(TEXT("%s%s"), UMetaSound::StaticClass()->GetPrefixCPP(), *UMetaSound::StaticClass()->GetName());
 }
 
+void UMetasoundEditorGraphOutputNode::PinDefaultValueChanged(UEdGraphPin* InPin)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (InPin && InPin->Direction == EGPD_Input)
+	{
+		GetMetasoundChecked().Modify();
+
+		FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(InPin);
+		if (InputHandle->IsValid())
+		{
+			FMetasoundFrontendLiteral LiteralValue;
+			if (FGraphBuilder::GetPinLiteral(*InPin, LiteralValue))
+			{
+				InputHandle->SetLiteral(LiteralValue);
+			}
+
+			if (Output)
+			{
+				UMetasoundEditorGraphMemberDefaultLiteral* Literal = Output->GetLiteral();
+				if (ensure(Literal))
+				{
+					Literal->SetFromLiteral(LiteralValue);
+				}
+
+				constexpr bool bPostTransaction = false;
+				Output->UpdateFrontendDefaultLiteral(bPostTransaction);
+			}
+		}
+	}
+}
+
+bool UMetasoundEditorGraphOutputNode::EnableInteractWidgets() const
+{
+	using namespace Metasound::Frontend;
+
+	bool bEnabled = true;
+	GetConstNodeHandle()->IterateConstInputs([bIsEnabled = &bEnabled](FConstInputHandle InputHandle)
+	{
+		if (InputHandle->IsConnectionUserModifiable())
+		{
+			*bIsEnabled &= !InputHandle->IsConnected();
+		}
+	});
+	return bEnabled;
+}
+
 FMetasoundFrontendClassName UMetasoundEditorGraphOutputNode::GetClassName() const
 {
 	if (ensure(Output))
@@ -513,10 +561,14 @@ FLinearColor UMetasoundEditorGraphOutputNode::GetNodeTitleColor() const
 	return Super::GetNodeTitleColor();
 }
 
+UMetasoundEditorGraphMember* UMetasoundEditorGraphOutputNode::GetMember() const
+{
+	return Output;
+}
+
 FSlateIcon UMetasoundEditorGraphOutputNode::GetNodeTitleIcon() const
 {
-	static const FName NativeIconName = "MetasoundEditor.Graph.Node.Class.Output";
-	return FSlateIcon("MetaSoundStyle", NativeIconName);
+	return FSlateIcon("MetaSoundStyle", "MetasoundEditor.Graph.Node.Class.Output");
 }
 
 bool UMetasoundEditorGraphExternalNode::RefreshPinMetadata()
@@ -896,16 +948,48 @@ FSlateIcon UMetasoundEditorGraphExternalNode::GetNodeTitleIcon() const
 {
 	if (bIsClassNative)
 	{
-		static const FName NativeIconName = "MetasoundEditor.Graph.Node.Class.Native";
-		return FSlateIcon("MetaSoundStyle", NativeIconName);
+		return FSlateIcon("MetaSoundStyle", "MetasoundEditor.Graph.Node.Class.Native");
 	}
 	else
 	{
-		static const FName GraphRefIconName = "MetasoundEditor.Graph.Node.Class.Graph";
-		return FSlateIcon("MetasoundStyle", GraphRefIconName);
+		return FSlateIcon("MetasoundStyle", "MetasoundEditor.Graph.Node.Class.Graph");
 	}
 }
 
+UMetasoundEditorGraphMember* UMetasoundEditorGraphVariableNode::GetMember() const
+{
+	return Variable;
+}
+
+bool UMetasoundEditorGraphVariableNode::EnableInteractWidgets() const
+{
+	using namespace Metasound::Frontend;
+
+	bool bEnabled = false;
+
+	if (Variable)
+	{
+		FConstVariableHandle VariableHandle = Variable->GetConstVariableHandle();
+		FConstNodeHandle MutatorNode = VariableHandle->FindMutatorNode();
+		if (MutatorNode->IsValid())
+		{
+			if (MutatorNode->GetID() == NodeID)
+			{
+				bEnabled = true;
+				MutatorNode->IterateConstInputs([bIsEnabled = &bEnabled](FConstInputHandle InputHandle)
+				{
+					if (InputHandle->IsConnectionUserModifiable())
+					{
+						// Don't enable if variable input is connected
+						*bIsEnabled &= !InputHandle->IsConnected();
+					}
+				});
+			}
+		}
+	}
+
+	return bEnabled;
+}
 
 FMetasoundFrontendClassName UMetasoundEditorGraphVariableNode::GetClassName() const
 {
@@ -915,6 +999,44 @@ FMetasoundFrontendClassName UMetasoundEditorGraphVariableNode::GetClassName() co
 FGuid UMetasoundEditorGraphVariableNode::GetNodeID() const
 {
 	return NodeID;
+}
+
+void UMetasoundEditorGraphVariableNode::PinDefaultValueChanged(UEdGraphPin* Pin)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (Pin && Pin->Direction == EGPD_Input)
+	{
+		GetMetasoundChecked().Modify();
+
+		FInputHandle InputHandle = FGraphBuilder::GetInputHandleFromPin(Pin);
+		if (InputHandle->IsValid())
+		{
+			FMetasoundFrontendLiteral LiteralValue;
+			if (FGraphBuilder::GetPinLiteral(*Pin, LiteralValue))
+			{
+				InputHandle->SetLiteral(LiteralValue);
+			}
+
+			// If this is the mutator node, synchronize the variable default literal with this default.
+			FNodeHandle MutatorNode = Variable->GetVariableHandle()->FindMutatorNode();
+			if (MutatorNode->IsValid())
+			{
+				if (MutatorNode->GetID() == NodeID)
+				{
+					UMetasoundEditorGraphMemberDefaultLiteral* Literal = Variable->GetLiteral();
+					if (ensure(Literal))
+					{
+						Literal->SetFromLiteral(LiteralValue);
+					}
+
+					constexpr bool bPostTransaction = false;
+					Variable->UpdateFrontendDefaultLiteral(bPostTransaction);
+				}
+			}
+		}
+	}
 }
 
 FLinearColor UMetasoundEditorGraphVariableNode::GetNodeTitleColor() const
@@ -929,13 +1051,11 @@ FLinearColor UMetasoundEditorGraphVariableNode::GetNodeTitleColor() const
 
 FSlateIcon UMetasoundEditorGraphVariableNode::GetNodeTitleIcon() const
 {
-	static const FName NativeIconName = "MetasoundEditor.Graph.Node.Class.Variable";
-	return FSlateIcon("MetaSoundStyle", NativeIconName);
+	return FSlateIcon("MetaSoundStyle", "MetasoundEditor.Graph.Node.Class.Variable");
 }
 
 void UMetasoundEditorGraphVariableNode::SetNodeID(FGuid InNodeID)
 {
 	NodeID = InNodeID;
 }
-
 #undef LOCTEXT_NAMESPACE
