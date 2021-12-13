@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DWARF_EXPR_H
 #define _SYMS_META_DWARF_EXPR_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:774
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
 typedef enum SYMS_DwRegX86{
 SYMS_DwRegX86_EAX = 0,
 SYMS_DwRegX86_ECX = 1,
@@ -287,7 +287,7 @@ SYMS_DwOp_HI_USER = 0xff,
 SYMS_DwOp_COUNT = 167
 } SYMS_DwOp;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_RegID syms_reg_from_dw_reg_x86(SYMS_DwRegX86 v);
 SYMS_API SYMS_RegID syms_reg_from_dw_reg_x64(SYMS_DwRegX64 v);
@@ -295,7 +295,7 @@ SYMS_API SYMS_DwVersion syms_dw_version_from_op_code(SYMS_DwOp v);
 SYMS_API SYMS_U64 syms_dw_num_operands_from_op_code(SYMS_DwOp v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 

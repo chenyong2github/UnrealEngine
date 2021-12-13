@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_REGS_CLASSES_H
 #define _SYMS_META_REGS_CLASSES_H
-//~ generated from code at src/metaprogram/metaprogram_regs.c:270
+//~ generated from code at syms/metaprogram/syms_metaprogram_regs.c:277
 typedef enum REG_ClassX86X64{
 REG_ClassX86X64_Null,
 REG_ClassX86X64_GPR,

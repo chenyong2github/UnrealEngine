@@ -27,6 +27,15 @@ typedef struct SYMS_MachSectionNode{
   SYMS_MachSection64 data;
 } SYMS_MachSectionNode;
 
+enum
+{
+  SYMS_MachBindTable_REGULAR,
+  SYMS_MachBindTable_LAZY,
+  SYMS_MachBindTable_WEAK,
+  SYMS_MachBindTable_COUNT
+};
+typedef SYMS_U32 SYMS_MachBindTable;
+
 typedef struct SYMS_MachBinAccel{
   SYMS_FileFormat format;
   
@@ -38,9 +47,7 @@ typedef struct SYMS_MachBinAccel{
   SYMS_MachSection64 *sections;
   SYMS_U32 section_count;
 
-  SYMS_U64Range regular_bind_range;
-  SYMS_U64Range lazy_bind_range;
-  SYMS_U64Range weak_bind_range;
+  SYMS_U64Range bind_ranges[SYMS_MachBindTable_COUNT];
   SYMS_U64Range export_range;
 
   SYMS_U32 dylib_count;
@@ -72,14 +79,6 @@ typedef struct
 
 ////////////////////////////////
 // Binds
-
-enum
-{
-  SYMS_MachBindTable_REGULAR,
-  SYMS_MachBindTable_LAZY,
-  SYMS_MachBindTable_WEAK
-};
-typedef SYMS_U32 SYMS_MachBindTable;
 
 typedef struct
 {
@@ -113,6 +112,8 @@ typedef struct SYMS_MachExport
   struct SYMS_MachExport **children;
   SYMS_U8 child_count;
   
+  SYMS_B32 is_export_info;
+
   SYMS_String8 name;
   SYMS_U64 flags;
   SYMS_U64 address;

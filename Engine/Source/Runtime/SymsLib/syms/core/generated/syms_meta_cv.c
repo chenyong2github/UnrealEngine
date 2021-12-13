@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_CV_C
 #define _SYMS_META_CV_C
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1039
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1135
 SYMS_API SYMS_RegID
 syms_reg_from_pdb_reg_x86(SYMS_CvRegx86 v){
 SYMS_RegID result = 0;
@@ -247,5 +247,5 @@ case SYMS_CvMemberAccess_PUBLIC: result = SYMS_MemVisibility_Public; break;
 return(result);
 }
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1489
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1591
 #endif

@@ -350,7 +350,7 @@ typedef struct SYMS_EnumInfoArray{
 ////////////////////////////////
 // NOTE(allen): Nil For Accelerators
 
-SYMS_GLOBAL SYMS_FileFormat syms_format_nil = SYMS_FileFormat_Null;
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_FileFormat syms_format_nil = SYMS_FileFormat_Null;
 
 ////////////////////////////////
 //~ NOTE(allen): Symbol Helper Functions
@@ -365,6 +365,9 @@ SYMS_API SYMS_USID    syms_make_usid(SYMS_UnitID uid, SYMS_SymbolID sid);
 SYMS_API SYMS_TypeKind syms_type_kind_fwd_from_main(SYMS_TypeKind type_kind);
 SYMS_API SYMS_TypeKind syms_type_kind_main_from_fwd(SYMS_TypeKind type_kind);
 SYMS_API SYMS_B32      syms_type_kind_is_basic(SYMS_TypeKind kind);
+SYMS_API SYMS_B32      syms_type_kind_is_integer(SYMS_TypeKind kind);
+SYMS_API SYMS_B32      syms_type_kind_is_signed(SYMS_TypeKind kind);
+SYMS_API SYMS_B32      syms_type_kind_is_complex(SYMS_TypeKind kind);
 SYMS_API SYMS_B32      syms_type_kind_is_user_defined(SYMS_TypeKind kind);
 
 SYMS_API SYMS_SymbolIDArray syms_sid_array_from_list(SYMS_Arena *arena, SYMS_SymbolIDList *list);

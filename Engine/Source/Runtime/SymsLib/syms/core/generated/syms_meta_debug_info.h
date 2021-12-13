@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DEBUG_INFO_H
 #define _SYMS_META_DEBUG_INFO_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:774
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
 typedef SYMS_U32 SYMS_UnitFeatures;
 enum{
 SYMS_UnitFeature_CompilationUnit = (1 << 0),
@@ -94,12 +94,12 @@ SYMS_MemVisibility_Protected,
 SYMS_MemVisibility_COUNT = 4
 } SYMS_MemVisibility;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U32 syms_bit_size_from_type_kind(SYMS_TypeKind v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 

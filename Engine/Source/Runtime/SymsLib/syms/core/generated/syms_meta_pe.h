@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_PE_H
 #define _SYMS_META_PE_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:774
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
 #pragma pack(push,1)
 typedef struct SYMS_DosHeader{
 SYMS_U16 magic;
@@ -196,7 +196,7 @@ SYMS_U32 file_offset;
 } SYMS_PeDebugDirectory;
 #pragma pack(pop)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 

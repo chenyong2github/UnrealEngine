@@ -2,5 +2,5 @@
 // generated
 #ifndef _SYMS_META_DWARF_CFI_C
 #define _SYMS_META_DWARF_CFI_C
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1489
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1591
 #endif

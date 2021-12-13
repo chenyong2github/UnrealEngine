@@ -1503,15 +1503,6 @@ syms_line_to_addr_line_sort__rec(SYMS_FileToLineToAddrLooseLine **array, SYMS_U6
 ////////////////////////////////
 // NOTE(allen): Syms Group Type Graph Functions
 
-SYMS_GLOBAL SYMS_TypeNode syms_type_graph_nil = {
-  SYMS_TypeKind_Null,     // kind
-  {(SYMS_U8*)"(nil)", 5}, // name
-  0,                      // byte_size
-  0,                      // src_coord
-  &syms_type_graph_nil,   // direct_type
-  &syms_type_graph_nil,   // this_type
-};
-
 SYMS_API SYMS_TypeNode*
 syms_group_type_from_usid(SYMS_Group *group, SYMS_USID usid){
   SYMS_ProfBegin("syms_group_type_from_usid");

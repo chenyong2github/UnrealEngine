@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DWARF_EXPR_C
 #define _SYMS_META_DWARF_EXPR_C
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1039
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1135
 SYMS_API SYMS_RegID
 syms_reg_from_dw_reg_x86(SYMS_DwRegX86 v){
 SYMS_RegID result = 0;
@@ -463,5 +463,5 @@ case SYMS_DwOp_REINTERPRET: result = 1; break;
 return(result);
 }
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1489
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1591
 #endif

@@ -222,13 +222,22 @@ typedef struct SYMS_Group{
 ////////////////////////////////
 // NOTE(allen): Data Structure Nils
 
-SYMS_GLOBAL SYMS_SymbolIDArray syms_sid_array_nil = {0};
-SYMS_GLOBAL SYMS_String8Array syms_string_array_nil = {0};
-SYMS_GLOBAL SYMS_LineParseOut syms_line_parse_nil = {0};
-SYMS_GLOBAL SYMS_SpatialMap1D syms_spatial_map_1d_nil = {0};
-SYMS_GLOBAL SYMS_LineToAddrMap syms_line_to_addr_map_nil = {0};
-SYMS_GLOBAL SYMS_TypeMemberArray syms_type_member_array_nil = {0};
-SYMS_GLOBAL SYMS_EnumInfoArray syms_enum_info_array_nil = {0};
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_SymbolIDArray syms_sid_array_nil = {0};
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_String8Array syms_string_array_nil = {0};
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_LineParseOut syms_line_parse_nil = {0};
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_SpatialMap1D syms_spatial_map_1d_nil = {0};
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_LineToAddrMap syms_line_to_addr_map_nil = {0};
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_TypeMemberArray syms_type_member_array_nil = {0};
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_EnumInfoArray syms_enum_info_array_nil = {0};
+
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_TypeNode syms_type_graph_nil = {
+  SYMS_TypeKind_Null,     // kind
+  {(SYMS_U8*)"(nil)", 5}, // name
+  0,                      // byte_size
+  0,                      // src_coord
+  &syms_type_graph_nil,   // direct_type
+  &syms_type_graph_nil,   // this_type
+};
 
 
 ////////////////////////////////

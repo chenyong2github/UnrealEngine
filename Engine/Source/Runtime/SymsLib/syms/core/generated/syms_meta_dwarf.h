@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DWARF_H
 #define _SYMS_META_DWARF_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:774
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
 typedef enum SYMS_DwMode{
 SYMS_DwMode_Null,
 SYMS_DwMode_32Bit,
@@ -490,7 +490,7 @@ SYMS_DwRngListEntryKind_StartLength = 0x07,
 SYMS_DwRngListEntryKind_COUNT = 8
 } SYMS_DwRngListEntryKind;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_Language syms_dw_base_language_from_dw_language(SYMS_DwLanguage v);
 SYMS_API SYMS_DwVersion syms_dw_version_from_form_kind(SYMS_DwFormKind v);
@@ -502,7 +502,7 @@ SYMS_API SYMS_CallConvention syms_dw_base_call_convention_from_dw_calling_conven
 SYMS_API SYMS_MemVisibility syms_dw_mem_visibility_from_access(SYMS_DwAccess v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 

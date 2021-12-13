@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_BASE_H
 #define _SYMS_META_BASE_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:774
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
 typedef enum SYMS_Arch{
 SYMS_Arch_Null,
 SYMS_Arch_X64,
@@ -107,12 +107,12 @@ SYMS_ChecksumAlgorithm_CRC32_IEEE_802_3,
 SYMS_ChecksumAlgorithm_COUNT = 5
 } SYMS_ChecksumAlgorithm;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U32 syms_address_size_from_arch(SYMS_Arch v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 

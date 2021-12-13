@@ -6,7 +6,7 @@
 ////////////////////////////////
 #if defined(SYMS_ENABLE_BASE_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_arch - skipped identity mapping
 // syms_enum_index_from_operating_system - skipped identity mapping
@@ -15,7 +15,7 @@ SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_checksum_algorithm - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S8;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S16;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S32;
@@ -44,7 +44,7 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ChecksumAlgorithm;
 ////////////////////////////////
 #if defined(SYMS_ENABLE_COFF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:937
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1033
 typedef enum SYMS_CoffHeaderMember{
 SYMS_CoffHeaderMember_machine,
 SYMS_CoffHeaderMember_section_count,
@@ -69,7 +69,7 @@ SYMS_CoffSectionMember_flags,
 SYMS_CoffSectionMember_COUNT
 } SYMS_CoffSectionMember;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U64 syms_enum_index_from_coffmachinetype(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_coffsectionalign(SYMS_U64 v);
@@ -86,7 +86,7 @@ SYMS_API SYMS_U64 syms_enum_index_from_coff_weak_ext_type(SYMS_U64 v);
 // syms_enum_index_from_coff_import_header_name_type - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffFlags;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffMachineType;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffHeader;
@@ -111,7 +111,7 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderNameType;
 ////////////////////////////////
 #if defined(SYMS_ENABLE_CV_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:937
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1033
 typedef enum SYMS_CvGuidMember{
 SYMS_CvGuidMember_data1,
 SYMS_CvGuidMember_data2,
@@ -822,7 +822,7 @@ SYMS_CvInlineeSourceLineExMember_extra_file_id,
 SYMS_CvInlineeSourceLineExMember_COUNT
 } SYMS_CvInlineeSourceLineExMember;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_cvbasicpointerkind - skipped identity mapping
 SYMS_API SYMS_U64 syms_enum_index_from_cvarch(SYMS_U64 v);
@@ -855,14 +855,14 @@ SYMS_API SYMS_U64 syms_enum_index_from_cvsubsectionkind(SYMS_U64 v);
 // syms_enum_index_from_cv_inlinee_source_line_sig - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_SerialType* syms_reg_type_from_arch(SYMS_CvArch v);
 SYMS_API SYMS_SerialType* syms_type_info_from_sym_kind(SYMS_CvSymKind v);
 SYMS_API SYMS_SerialType* syms_type_info_from_cv_leaf(SYMS_CvLeaf v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvGuid;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvBasicPointerKind;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvArch;
@@ -1029,13 +1029,13 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvInlineeSourceLineEx;
 ////////////////////////////////
 #if defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_symbol_kind - skipped identity mapping
 // syms_enum_index_from_mem_visibility - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_UnitFeatures;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_SymbolKind;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_TypeModifiers;
@@ -1047,7 +1047,7 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MemVisibility;
 ////////////////////////////////
 #if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_dw_mode - skipped identity mapping
 // syms_enum_index_from_dw_version - skipped identity mapping
@@ -1066,7 +1066,7 @@ SYMS_API SYMS_U64 syms_enum_index_from_dw_attrib_type_encoding(SYMS_U64 v);
 // syms_enum_index_from_dw_rng_list_entry_kind - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwMode;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwVersion;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwSectionKind;
@@ -1090,13 +1090,13 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRngListEntryKind;
 ////////////////////////////////
 #if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U64 syms_enum_index_from_dw_c_f_a_detail(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_dw_c_f_a_mask(SYMS_U64 v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwCFADetail;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwCFAMask;
 
@@ -1106,14 +1106,14 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwCFAMask;
 ////////////////////////////////
 #if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U64 syms_enum_index_from_dwregx86(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_dwregx64(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_dw_op(SYMS_U64 v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegX86;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegX64;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwOp;
@@ -1124,7 +1124,7 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwOp;
 ////////////////////////////////
 #if defined(SYMS_ENABLE_ELF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_elf_class - skipped identity mapping
 SYMS_API SYMS_U64 syms_enum_index_from_elf_os_abi(SYMS_U64 v);
@@ -1143,7 +1143,7 @@ SYMS_API SYMS_U64 syms_enum_index_from_elf_sym_type(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_elf_reloc_i386(SYMS_U64 v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfClass;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfOsAbi;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfVersion;
@@ -1171,7 +1171,7 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfExternalVerFlag;
 ////////////////////////////////
 #if defined(SYMS_ENABLE_MACH_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:937
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1033
 typedef enum SYMS_MachLCStrMember{
 SYMS_MachLCStrMember_offset,
 SYMS_MachLCStrMember_COUNT
@@ -1352,7 +1352,7 @@ SYMS_MachNList64Member_n_value,
 SYMS_MachNList64Member_COUNT
 } SYMS_MachNList64Member;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_type(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_family(SYMS_U64 v);
@@ -1377,7 +1377,7 @@ SYMS_API SYMS_U64 syms_enum_index_from_mach_stab_type(SYMS_U64 v);
 // syms_enum_index_from_mach_export_symbol_kind - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuType;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuFamily;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtype;
@@ -1427,7 +1427,7 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachNList64;
 ////////////////////////////////
 #if defined(SYMS_ENABLE_PE_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:937
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1033
 typedef enum SYMS_DosHeaderMember{
 SYMS_DosHeaderMember_magic,
 SYMS_DosHeaderMember_last_page_size,
@@ -1532,14 +1532,14 @@ SYMS_PeDebugDirectoryMember_file_offset,
 SYMS_PeDebugDirectoryMember_COUNT
 } SYMS_PeDebugDirectoryMember;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1053
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U64 syms_enum_index_from_pe_windows_subsystem(SYMS_U64 v);
 // syms_enum_index_from_pe_data_directory_index - skipped identity mapping
 SYMS_API SYMS_U64 syms_enum_index_from_pe_debug_directory_type(SYMS_U64 v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1293
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DosHeader;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeWindowsSubsystem;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ImageFileCharacteristics;

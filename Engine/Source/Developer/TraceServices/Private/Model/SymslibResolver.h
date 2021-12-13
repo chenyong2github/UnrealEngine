@@ -56,7 +56,6 @@ private:
 		SYMS_SpatialMap1D   UnitMap;
 		SYMS_SpatialMap1D   StrippedMap;
 		FSymsSymbol*        StrippedSymbols;
-		uint64              StrippedCount;
 		uint64              DefaultBase;
 	};
 

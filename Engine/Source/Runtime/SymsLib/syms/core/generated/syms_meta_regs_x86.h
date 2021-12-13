@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_REGS_X86_H
 #define _SYMS_META_REGS_X86_H
-//~ generated from code at src/metaprogram/metaprogram_regs.c:315
+//~ generated from code at syms/metaprogram/syms_metaprogram_regs.c:322
 typedef struct SYMS_RegX86{
 SYMS_Reg32 eax;
 SYMS_Reg32 ecx;
@@ -65,7 +65,7 @@ SYMS_Reg16 es;
 SYMS_Reg16 fs;
 SYMS_Reg16 gs;
 } SYMS_RegX86;
-//~ generated from code at src/metaprogram/metaprogram_regs.c:334
+//~ generated from code at syms/metaprogram/syms_metaprogram_regs.c:341
 typedef enum SYMS_RegX86Code
 {
 SYMS_RegX86Code_Null,
@@ -167,7 +167,7 @@ SYMS_RegX86Code_mm6,
 SYMS_RegX86Code_mm7,
 SYMS_RegX86Code_COUNT
 } SYMS_RegX86Code;
-//~ generated from code at src/metaprogram/metaprogram_regs.c:360
+//~ generated from code at syms/metaprogram/syms_metaprogram_regs.c:367
 static SYMS_RegMetadata reg_metadata_X86[SYMS_RegX86Code_COUNT] = {
 {0, 0, {(SYMS_U8*)"<nil>", 5}, 0, 0},
 {0, 4, {(SYMS_U8*)"eax", 3}, REG_ClassX86X64_GPR, 0},

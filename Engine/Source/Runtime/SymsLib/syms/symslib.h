@@ -8,6 +8,7 @@
 extern "C" {
 #endif
 
+#define SYMS_READ_ONLY
 #include "syms/overrides/syms_crt_overrides.h"
 #include "syms/syms_inc.h"
 

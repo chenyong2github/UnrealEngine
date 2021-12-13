@@ -62,6 +62,24 @@ syms_type_kind_is_basic(SYMS_TypeKind kind){
 }
 
 SYMS_API SYMS_B32
+syms_type_kind_is_integer(SYMS_TypeKind kind){
+  SYMS_B32 result = (SYMS_TypeKind_Int8 <= kind && kind <= SYMS_TypeKind_UInt128);
+  return(result);
+}
+
+SYMS_API SYMS_B32
+syms_type_kind_is_signed(SYMS_TypeKind kind){
+  SYMS_B32 result = (SYMS_TypeKind_Int8 <= kind && kind <= SYMS_TypeKind_Int128);
+  return(result);
+}
+
+SYMS_API SYMS_B32
+syms_type_kind_is_complex(SYMS_TypeKind kind){
+  SYMS_B32 result = (SYMS_TypeKind_Complex32 <= kind && kind <= SYMS_TypeKind_Complex128);
+  return(result);
+}
+
+SYMS_API SYMS_B32
 syms_type_kind_is_user_defined(SYMS_TypeKind kind){
   SYMS_B32 result = (SYMS_TypeKind_Struct <= kind && kind <= SYMS_TypeKind_ForwardEnum);
   return(result);
