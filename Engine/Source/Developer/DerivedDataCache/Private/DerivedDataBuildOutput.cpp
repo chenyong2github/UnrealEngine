@@ -194,7 +194,7 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	: Name(InName)
 	, Function(InFunction)
 	, Meta(InOutput.GetMeta())
-	, Output(InOutput.GetValue())
+	, Output(InOutput.GetValue().GetData().Decompress())
 	, Payloads(InOutput.GetAttachmentPayloads())
 {
 	checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));

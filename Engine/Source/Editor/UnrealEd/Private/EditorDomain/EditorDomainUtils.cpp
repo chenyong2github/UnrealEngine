@@ -11,6 +11,7 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 #include "Editor.h"
 #include "HAL/FileManager.h"
@@ -1313,7 +1314,7 @@ void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, T
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
 		{
 			bool bOk = Params.Status == EStatus::Ok;
-			InnerCallback(bOk ? Params.Record.GetValue() : FSharedBuffer());
+			InnerCallback(bOk ? Params.Record.GetValue().GetData().Decompress() : FSharedBuffer());
 		});
 }
 
@@ -1384,7 +1385,7 @@ void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::Derive
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
 	{
 		bool bOk = Params.Status == EStatus::Ok;
-		InnerCallback(bOk ? Params.Record.GetValue() : FSharedBuffer());
+		InnerCallback(bOk ? Params.Record.GetValue().GetData().Decompress() : FSharedBuffer());
 	});
 }
 

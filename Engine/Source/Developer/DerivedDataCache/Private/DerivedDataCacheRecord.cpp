@@ -6,9 +6,7 @@
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataPayload.h"
-#include "HAL/CriticalSection.h"
 #include "Misc/ScopeExit.h"
-#include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
@@ -57,14 +55,9 @@ public:
 
 	const FCacheKey& GetKey() const final;
 	const FCbObject& GetMeta() const final;
-
-	FSharedBuffer GetValue() const final;
-	const FPayload& GetValuePayload() const final;
-
-	FSharedBuffer GetAttachment(const FPayloadId& Id) const final;
-	const FPayload& GetAttachmentPayload(const FPayloadId& Id) const final;
-	TConstArrayView<FPayload> GetAttachmentPayloads() const final;
-
+	const FPayload& GetValue() const final;
+	const FPayload& GetAttachment(const FPayloadId& Id) const final;
+	TConstArrayView<FPayload> GetAttachments() const final;
 	const FPayload& GetPayload(const FPayloadId& Id) const final;
 
 	inline void AddRef() const final
@@ -85,9 +78,6 @@ private:
 	FCbObject Meta;
 	FPayload Value;
 	TArray<FPayload> Attachments;
-	mutable FRWLock CacheLock;
-	mutable FSharedBuffer ValueCache;
-	mutable TArray<FSharedBuffer> AttachmentsCache;
 	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
@@ -118,68 +108,25 @@ const FCbObject& FCacheRecordInternal::GetMeta() const
 	return Meta;
 }
 
-FSharedBuffer FCacheRecordInternal::GetValue() const
-{
-	if (Value.IsNull())
-	{
-		return FSharedBuffer();
-	}
-	if (FReadScopeLock Lock(CacheLock); ValueCache)
-	{
-		return ValueCache;
-	}
-	FWriteScopeLock Lock(CacheLock);
-	if (ValueCache)
-	{
-		return ValueCache;
-	}
-	ValueCache = Value.GetData().Decompress();
-	return ValueCache;
-}
-
-const FPayload& FCacheRecordInternal::GetValuePayload() const
+const FPayload& FCacheRecordInternal::GetValue() const
 {
 	return Value;
 }
 
-FSharedBuffer FCacheRecordInternal::GetAttachment(const FPayloadId& Id) const
-{
-	const int32 Index = Algo::BinarySearchBy(Attachments, Id, &FPayload::GetId);
-	if (Attachments.IsValidIndex(Index))
-	{
-		if (FReadScopeLock Lock(CacheLock); AttachmentsCache.IsValidIndex(Index) && AttachmentsCache[Index])
-		{
-			return AttachmentsCache[Index];
-		}
-		FWriteScopeLock Lock(CacheLock);
-		if (AttachmentsCache.IsEmpty())
-		{
-			AttachmentsCache.SetNum(Attachments.Num());
-		}
-		FSharedBuffer& Cache = AttachmentsCache[Index];
-		if (Cache.IsNull())
-		{
-			Cache = Attachments[Index].GetData().Decompress();
-		}
-		return Cache;
-	}
-	return FSharedBuffer();
-}
-
-const FPayload& FCacheRecordInternal::GetAttachmentPayload(const FPayloadId& Id) const
+const FPayload& FCacheRecordInternal::GetAttachment(const FPayloadId& Id) const
 {
 	const int32 Index = Algo::BinarySearchBy(Attachments, Id, &FPayload::GetId);
 	return Attachments.IsValidIndex(Index) ? Attachments[Index] : FPayload::Null;
 }
 
-TConstArrayView<FPayload> FCacheRecordInternal::GetAttachmentPayloads() const
+TConstArrayView<FPayload> FCacheRecordInternal::GetAttachments() const
 {
 	return Attachments;
 }
 
 const FPayload& FCacheRecordInternal::GetPayload(const FPayloadId& Id) const
 {
-	return Value.GetId() == Id ? Value : GetAttachmentPayload(Id);
+	return Value.GetId() == Id ? Value : GetAttachment(Id);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
