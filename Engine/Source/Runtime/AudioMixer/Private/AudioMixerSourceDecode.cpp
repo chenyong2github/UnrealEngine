@@ -199,7 +199,7 @@ public:
 	{
 		if (Task)
 		{
-			Task->EnsureCompletion();
+			Task->EnsureCompletion(/*bIsLatencySensitive =*/ true);
 			delete Task;
 		}
 	}
@@ -217,7 +217,7 @@ public:
 	{
 		if (Task)
 		{
-			Task->EnsureCompletion();
+			Task->EnsureCompletion(/*bIsLatencySensitive =*/ true);
 		}
 	}
 
@@ -228,7 +228,7 @@ public:
 			// If Cancel returns false, it means we weren't able to cancel. So lets then fallback to ensure complete.
 			if (!Task->Cancel())
 			{
-				Task->EnsureCompletion();
+				Task->EnsureCompletion(/*bIsLatencySensitive =*/ true);
 			}
 		}
 	}
