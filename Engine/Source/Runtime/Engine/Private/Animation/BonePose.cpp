@@ -41,8 +41,7 @@ void FCompactPose::ResetToAdditiveIdentity()
 	{
 		for (FTransform& Bone : this->Bones)
 		{
-			Bone.SetIdentity();
-			Bone.SetScale3D(FVector::ZeroVector);
+			Bone.SetIdentityZeroScale();
 		}
 	}
 }
@@ -78,8 +77,7 @@ void FCompactHeapPose::ResetToAdditiveIdentity()
 	{
 		for (FTransform& Bone : this->Bones)
 		{
-			Bone.SetIdentity();
-			Bone.SetScale3D(FVector::ZeroVector);
+			Bone.SetIdentityZeroScale();
 		}
 	}
 }

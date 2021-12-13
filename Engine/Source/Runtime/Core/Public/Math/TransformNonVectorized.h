@@ -771,6 +771,19 @@ public:
 	}
 
 	/**
+	* Sets the components to the 'additive' identity transform:
+	*   Rotation = (0,0,0,1)
+	*   Translation = (0,0,0)
+	*   Scale3D = (0,0,0)
+	*/
+	FORCEINLINE void SetIdentityZeroScale()
+	{
+		Rotation = TQuat<T>::Identity;
+		Translation = TVector<T>::ZeroVector;
+		Scale3D = TVector<T>::ZeroVector;
+	}
+	
+	/**
 	* Scales the Scale3D component by a new factor
 	* @param Scale3DMultiplier The value to multiply Scale3D with
 	*/

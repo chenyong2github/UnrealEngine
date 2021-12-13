@@ -247,13 +247,8 @@ public:
 	// Sets this pose to the supplied BoneContainers ref pose
 	void ResetToRefPose(const FBoneContainer& RequiredBones)
 	{
-		const int32 CompactPoseBoneCount = RequiredBones.GetCompactPoseNumBones();
-		this->Bones.Reset(CompactPoseBoneCount);
-		for (int32 CompactBoneIndex = 0; CompactBoneIndex < CompactPoseBoneCount; ++CompactBoneIndex)
-		{
-			this->Bones.Add(RequiredBones.GetRefPoseTransform(FCompactPoseBoneIndex(CompactBoneIndex)));
-		}
-		
+		RequiredBones.FillWithCompactRefPose(this->Bones);
+
 		this->BoneContainer = &RequiredBones;
 
 		// If retargeting is disabled, copy ref pose from Skeleton, rather than mesh.
@@ -283,8 +278,7 @@ public:
 	{
 		for (FTransform& Bone : this->Bones)
 		{
-			Bone.SetIdentity();
-			Bone.SetScale3D(FVector::ZeroVector);
+			Bone.SetIdentityZeroScale();
 		}
 	}
 

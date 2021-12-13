@@ -360,6 +360,27 @@ public:
 		return CompactPoseParentBones;
 	}
 
+	// Fill the supplied buffer with the compact pose reference pose
+	template<typename ArrayType>
+	void FillWithCompactRefPose(ArrayType& OutTransforms) const
+	{
+		const int32 CompactPoseBoneCount = GetCompactPoseNumBones();
+		OutTransforms.Reset(CompactPoseBoneCount);
+		if (RefPoseOverride.IsValid())
+		{
+			OutTransforms.Append(RefPoseOverride->RefBonePoses);
+		}
+		else
+		{
+			OutTransforms.SetNumUninitialized(CompactPoseBoneCount);
+			const TArray<FTransform>& RefPoseTransforms = RefSkeleton->GetRefBonePose();
+			for (int32 CompactBoneIndex = 0; CompactBoneIndex < CompactPoseBoneCount; ++CompactBoneIndex)
+			{
+				OutTransforms[CompactBoneIndex] = RefPoseTransforms[BoneIndicesArray[CompactBoneIndex]];
+			}
+		}
+	}
+	
 	const FTransform& GetRefPoseTransform(const FCompactPoseBoneIndex& BoneIndex) const
 	{
 		if (RefPoseOverride.IsValid())
