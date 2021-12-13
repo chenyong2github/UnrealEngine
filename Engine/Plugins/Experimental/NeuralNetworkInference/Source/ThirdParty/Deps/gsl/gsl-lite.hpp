@@ -1928,14 +1928,22 @@ namespace detail {
 
 
 #if gsl_HAVE( EXCEPTIONS )
+#ifndef __clang__ // WITH_UE
 gsl_NORETURN inline void fail_fast_throw( char const * message )
+#else
+inline void fail_fast_throw(char const* message)
+#endif
 {
 #ifndef __clang__ // WITH_UE
 	throw fail_fast(message);
 #endif
 }
 #endif // gsl_HAVE( EXCEPTIONS )
+#ifndef __clang__ // WITH_UE
 gsl_NORETURN inline void fail_fast_terminate() gsl_noexcept
+#else
+inline void fail_fast_terminate() gsl_noexcept
+#endif
 {
     std::terminate();
 }
@@ -1943,7 +1951,7 @@ gsl_NORETURN inline void fail_fast_terminate() gsl_noexcept
 gsl_NORETURN inline void fail_fast_abort() gsl_noexcept
 #else
 inline void fail_fast_abort() gsl_noexcept
-#endif   
+#endif
 {
 	std::abort();
 }
