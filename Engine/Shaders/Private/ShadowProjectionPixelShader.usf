@@ -314,7 +314,7 @@ void Main(
 
 				// For non-profile version, use default transmission parameters (only NormalScale & ExtinctionScale are used)
 				FTransmissionProfileParams TransmissionParams = InitTransmissionProfileParams();
-				if (HasSubsurfaceProfile(StrataHeader))
+				if (SSSData.bIsProfile)
 				{
 					TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
 				}
