@@ -253,6 +253,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, WorldPartitionEditor(nullptr)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
+	, bIsPIE(false)
 #endif
 	, InitState(EWorldPartitionInitState::Uninitialized)
 	, StreamingPolicy(nullptr)
@@ -313,18 +314,42 @@ void UWorldPartition::OnGCPostReachabilityAnalysis()
 
 void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 {
-	OnBeginPlay(true);
+	check(!bIsPIE);
+	bIsPIE = true;
+
+	check(IsMainWorldPartition());
+
+	OnBeginPlay();
 }
 
-void UWorldPartition::OnBeginPlay(bool bIsPIE)
+void UWorldPartition::OnPrePIEEnded(bool bWasSimulatingInEditor)
 {
-	GenerateStreaming(nullptr, bIsPIE);
+	check(bIsPIE);
+	bIsPIE = false;
+}
+
+void UWorldPartition::OnBeginPlay()
+{
+	GenerateStreaming();
 	RuntimeHash->OnBeginPlay();
 }
 
 void UWorldPartition::OnCancelPIE()
 {
-	PostDuplicateWorldForPIE();
+	// No check here since CancelPIE can be called after PrePIEEnded
+	bIsPIE = false;
+	// Call OnEndPlay here since EndPlayMapDelegate is not called when cancelling PIE
+	OnEndPlay();
+}
+
+void UWorldPartition::OnEndPlay()
+{
+	check(IsMainWorldPartition());
+
+	RuntimeHash->FlushStreaming();
+	RuntimeHash->OnEndPlay();
+
+	StreamingPolicy = nullptr;
 }
 
 FName UWorldPartition::GetWorldPartitionEditorName() const
@@ -357,6 +382,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	UWorld* OuterWorld = GetTypedOuter<UWorld>();
 	check(OuterWorld);
+
+	check(IsMainWorldPartition());
 
 	RegisterDelegates();
 
@@ -479,7 +506,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		if (bIsGame || bPIEWorldTravel)
 		{
-			OnBeginPlay(false);
+			OnBeginPlay();
 		}
 
 		// Apply remapping of Persistent Level's SoftObjectPaths
@@ -531,7 +558,11 @@ void UWorldPartition::Uninitialize()
 			GEditor->OnEditorClose().RemoveAll(this);
 		}
 
-		if (!World->IsGameWorld())
+		if (World->IsGameWorld())
+		{
+			OnEndPlay();
+		}
+		else
 		{
 			if (!IsEngineExitRequested())
 			{
@@ -560,6 +591,12 @@ bool UWorldPartition::IsInitialized() const
 	return InitState == EWorldPartitionInitState::Initialized;
 }
 
+bool UWorldPartition::IsMainWorldPartition() const
+{
+	check(World);
+	return World == GetTypedOuter<UWorld>();
+}
+
 void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot)
 {
 #if WITH_EDITOR
@@ -580,7 +617,9 @@ void UWorldPartition::RegisterDelegates()
 	if (GEditor && !IsTemplate() && !World->IsGameWorld())
 	{
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
+		FEditorDelegates::PrePIEEnded.AddUObject(this, &UWorldPartition::OnPrePIEEnded);
 		FEditorDelegates::CancelPIE.AddUObject(this, &UWorldPartition::OnCancelPIE);
+		FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
 
 		FCoreUObjectDelegates::PostReachabilityAnalysis.AddUObject(this, &UWorldPartition::OnGCPostReachabilityAnalysis);
 
@@ -606,7 +645,9 @@ void UWorldPartition::UnregisterDelegates()
 	if (GEditor && !IsTemplate() && !World->IsGameWorld())
 	{
 		FEditorDelegates::PreBeginPIE.RemoveAll(this);
+		FEditorDelegates::PrePIEEnded.RemoveAll(this);
 		FEditorDelegates::CancelPIE.RemoveAll(this);
+		FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
 
 		if (!IsEngineExitRequested())
 		{
@@ -1203,14 +1244,6 @@ EWorldPartitionStreamingPerformance UWorldPartition::GetStreamingPerformance() c
 }
 
 #if WITH_EDITOR
-void UWorldPartition::PostDuplicateWorldForPIE()
-{
-	RuntimeHash->FlushStreaming();
-	RuntimeHash->OnEndPlay();
-
-	StreamingPolicy = nullptr;
-}
-
 void UWorldPartition::DrawRuntimeHashPreview()
 {
 	RuntimeHash->DrawPreview();
