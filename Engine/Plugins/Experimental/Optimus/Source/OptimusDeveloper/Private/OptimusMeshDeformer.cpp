@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OptimusMeshDeformer.h"
+#include "Components/MeshComponent.h"
 
 UMeshDeformerInstance* UOptimusMeshDeformer::CreateInstance(UMeshComponent* InMeshComponent)
 {
