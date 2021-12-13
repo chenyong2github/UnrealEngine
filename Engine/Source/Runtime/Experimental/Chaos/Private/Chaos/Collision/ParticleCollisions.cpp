@@ -14,28 +14,42 @@ namespace Chaos
 	{
 	}
 
-	void FParticleCollisions::Reset()
+	void FParticleCollisions::AddMidPhase(FGeometryParticleHandle* InParticle, FParticlePairMidPhase* InMidPhase)
 	{
-		ParticlePairs.Reset();
+		// Double add?
+		check(InMidPhase->GetParticleCollisionsIndex(InParticle) == INDEX_NONE);
+
+		const int32 Index = MidPhases.Emplace(typename FContainerType::ElementType(InMidPhase->GetKey().GetKey(), InMidPhase));
+
+		// Set the cookie for the midphase for fast removal
+		InMidPhase->SetParticleCollisionsIndex(InParticle, Index);
 	}
 
-	void FParticleCollisions::AddParticlePair(FParticlePairMidPhase* MidPhase)
+	void FParticleCollisions::RemoveMidPhase(FGeometryParticleHandle* InParticle, FParticlePairMidPhase* InMidPhase)
 	{
-		ParticlePairs.Add(MidPhase);
+		// Retrieve the cookie from the midphase
+		const int32 Index = InMidPhase->GetParticleCollisionsIndex(InParticle);
+
+		// Double remove?
+		check(Index != INDEX_NONE);
+		
+		MidPhases.RemoveAtSwap(Index);
+		InMidPhase->SetParticleCollisionsIndex(InParticle, INDEX_NONE);
+
+		// Update the cookie of the midphase that moved
+		if (Index < MidPhases.Num())
+		{
+			MidPhases[Index].Value->SetParticleCollisionsIndex(InParticle, Index);
+		}
 	}
 
-	void FParticleCollisions::RemoveParticlePair(FParticlePairMidPhase* MidPhase)
-	{
-		// @todo(chaos): store the index on the midphase (need one index for each particle)
-		ParticlePairs.Remove(MidPhase);
-	}
 
 	void FParticleCollisions::VisitCollisions(const FPBDCollisionVisitor& Visitor) const
 	{
-		for (FParticlePairMidPhase* MidPhase : ParticlePairs)
-		{
-			MidPhase->VisitCollisions(Visitor);
-		}
+		VisitConstMidPhases([&Visitor](const FParticlePairMidPhase& MidPhase)
+			{
+				MidPhase.VisitCollisions(Visitor);
+			});
 	}
 
 }

@@ -328,6 +328,38 @@ namespace Chaos
 		*/
 		void VisitCollisions(const FPBDCollisionVisitor& Visitor) const;
 
+		/**
+		 * @brief Cookie for use by FParticleCollisions
+		*/
+		int32 GetParticleCollisionsIndex(FGeometryParticleHandle* InParticle) const
+		{
+			check((InParticle == Particle0) || (InParticle == Particle1));
+			if (InParticle == Particle0)
+			{
+				return ParticleCollisionsIndex0;
+			}
+			else
+			{
+				return ParticleCollisionsIndex1;
+			}
+		}
+
+		/**
+		 * @brief Cookie for use by FParticleCollisions
+		*/
+		void SetParticleCollisionsIndex(FGeometryParticleHandle* InParticle, const int32 InIndex)
+		{
+			check((InParticle == Particle0) || (InParticle == Particle1));
+			if (InParticle == Particle0)
+			{
+				ParticleCollisionsIndex0 = InIndex;
+			}
+			else
+			{
+				ParticleCollisionsIndex1 = InIndex;
+			}
+		}
+
 	private:
 		/**
 		 * @brief Set up the midphase based on the SHapesArrays of the two particles
@@ -372,6 +404,10 @@ namespace Chaos
 		FGeometryParticleHandle* Particle0;
 		FGeometryParticleHandle* Particle1;
 		FCollisionParticlePairKey Key;
+
+		// Indices into the arrays of collisions on the particles. This is a cookie for use by FParticleCollisions
+		int32 ParticleCollisionsIndex0;
+		int32 ParticleCollisionsIndex1;
 
 		TArray<FSingleShapePairCollisionDetector, TInlineAllocator<1>> ShapePairDetectors;
 		TArray<FMultiShapePairCollisionDetector> MultiShapePairDetectors;

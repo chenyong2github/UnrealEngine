@@ -699,6 +699,8 @@ namespace Chaos
 		: Particle0(InParticle0)
 		, Particle1(InParticle1)
 		, Key(InKey)
+		, ParticleCollisionsIndex0(INDEX_NONE)
+		, ParticleCollisionsIndex1(INDEX_NONE)
 		, ShapePairDetectors()
 		, MultiShapePairDetectors()
 		, CollisionAllocator(&InCollisionAllocator)
