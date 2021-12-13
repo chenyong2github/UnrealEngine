@@ -20,6 +20,10 @@
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "SPositiveActionButton.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Modules/ModuleManager.h"
+#include "ClassViewerModule.h"
+#include "ClassViewerFilter.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "ComponentClassCombo"
 
@@ -50,6 +54,17 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 	OnComponentClassSelected = InArgs._OnComponentClassSelected;
 	OnSubobjectClassSelected = InArgs._OnSubobjectClassSelected;
 	TextFilter = MakeShared<FTextFilterExpressionEvaluator>(ETextFilterExpressionEvaluatorMode::BasicString);
+	
+	if(InArgs._CustomClassFilters.Num() > 0)
+	{
+		ComponentClassFilterData = MakeUnique<FComponentClassFilterData>();
+
+		ComponentClassFilterData->InitOptions = MakeShared<FClassViewerInitializationOptions>();
+		ComponentClassFilterData->InitOptions->ClassFilters.Append(InArgs._CustomClassFilters);
+
+		ComponentClassFilterData->ClassFilter = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassFilter(*ComponentClassFilterData->InitOptions);
+		ComponentClassFilterData->FilterFuncs = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateFilterFuncs();
+	}
 
 	FComponentTypeRegistry::Get().SubscribeToComponentList(ComponentClassList).AddRaw(this, &SComponentClassCombo::UpdateComponentClassList);
 
@@ -88,7 +103,29 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 						.Padding(1.f)
 						.AutoHeight()
 						[
-							SearchBox.ToSharedRef()
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							[
+								SearchBox.ToSharedRef()
+							]
+							+SHorizontalBox::Slot()
+							.AutoWidth()
+							.Padding(2.0f, 2.0f)
+							[
+								SNew(SComboButton)
+								.ContentPadding(0)
+								.ForegroundColor(FSlateColor::UseForeground())
+								.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+								.HasDownArrow(false)
+								.Visibility(this, &SComponentClassCombo::GetFilterOptionsButtonVisibility)
+								.OnGetMenuContent(this, &SComponentClassCombo::GetFilterOptionsMenuContent)
+								.ButtonContent()
+								[
+									SNew(SImage)
+									.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+									.ColorAndOpacity(FSlateColor::UseForeground())
+								]
+							]
 						]
 						+SVerticalBox::Slot()
 						.MaxHeight(400)
@@ -131,7 +168,10 @@ void SComponentClassCombo::ClearSelection()
 
 void SComponentClassCombo::GenerateFilteredComponentList()
 {
-	if ( TextFilter->GetFilterText().IsEmpty() )
+	const bool bNoClassFilter = !ComponentClassFilterData.IsValid();
+	const bool bHasFilterText = !TextFilter->GetFilterText().IsEmpty();
+
+	if (bNoClassFilter && !bHasFilterText)
 	{
 		FilteredComponentClassList = *ComponentClassList;
 	}
@@ -142,6 +182,9 @@ void SComponentClassCombo::GenerateFilteredComponentList()
 		int32 LastHeadingIndex = INDEX_NONE;
 		FComponentClassComboEntryPtr* LastHeadingPtr = nullptr;
 
+		int32 LastSeparatorIndex = INDEX_NONE;
+		FComponentClassComboEntryPtr* LastSeparatorPtr = nullptr;
+
 		for (int32 ComponentIndex = 0; ComponentIndex < ComponentClassList->Num(); ComponentIndex++)
 		{
 			FComponentClassComboEntryPtr& CurrentEntry = (*ComponentClassList)[ComponentIndex];
@@ -151,11 +194,28 @@ void SComponentClassCombo::GenerateFilteredComponentList()
 				LastHeadingIndex = FilteredComponentClassList.Num();
 				LastHeadingPtr = &CurrentEntry;
 			}
-			else if (CurrentEntry->IsClass() && CurrentEntry->IsIncludedInFilter())
+			else if (CurrentEntry->IsSeparator())
 			{
-				FString FriendlyComponentName = GetSanitizedComponentName( CurrentEntry );
+				LastSeparatorIndex = FilteredComponentClassList.Num();
+				LastSeparatorPtr = &CurrentEntry;
+			}
+			else if(CurrentEntry->IsClass())
+			{
+				// Disallow class entries that are not to be seen when searching via text.
+				bool bAllowEntry = !bHasFilterText || CurrentEntry->IsIncludedInFilter();
+				if(bAllowEntry)
+				{
+					// Disallow class entries that don't match the custom class filter, if set.
+					bAllowEntry = bNoClassFilter || IsComponentClassAllowed(CurrentEntry);
+					if (bAllowEntry && bHasFilterText)
+					{
+						// Finally, disallow class entries that don't match the search box text.
+						FString FriendlyComponentName = GetSanitizedComponentName(CurrentEntry);
+						bAllowEntry = TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(FriendlyComponentName));
+					}
+				}
 
-				if ( TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(FriendlyComponentName)) )
+				if (bAllowEntry)
 				{
 					// Add the heading first if it hasn't already been added
 					if (LastHeadingPtr && LastHeadingIndex != INDEX_NONE)
@@ -165,19 +225,30 @@ void SComponentClassCombo::GenerateFilteredComponentList()
 						LastHeadingPtr = nullptr;
 					}
 
+					// Add the separator next so that it will precede the heading
+					if (LastSeparatorPtr && LastSeparatorIndex != INDEX_NONE)
+					{
+						FilteredComponentClassList.Insert(*LastSeparatorPtr, LastSeparatorIndex);
+						LastSeparatorIndex = INDEX_NONE;
+						LastSeparatorPtr = nullptr;
+					}
+
 					// Add the class
-					FilteredComponentClassList.Add( CurrentEntry );
+					FilteredComponentClassList.Add(CurrentEntry);
 				}
 			}
 		}
 
-		// Select the first non-category item that passed the filter
-		for (FComponentClassComboEntryPtr& TestEntry : FilteredComponentClassList)
+		if (ComponentClassListView.IsValid())
 		{
-			if (TestEntry->IsClass())
+			// Select the first non-category item that passed the filter
+			for (FComponentClassComboEntryPtr& TestEntry : FilteredComponentClassList)
 			{
-				ComponentClassListView->SetSelection(TestEntry, ESelectInfo::OnNavigation);
-				break;
+				if (TestEntry->IsClass())
+				{
+					ComponentClassListView->SetSelection(TestEntry, ESelectInfo::OnNavigation);
+					break;
+				}
 			}
 		}
 	}
@@ -193,11 +264,7 @@ void SComponentClassCombo::OnSearchBoxTextChanged( const FText& InSearchText )
 	TextFilter->SetFilterText(InSearchText);
 	SearchBox->SetError(TextFilter->GetFilterErrorText());
 
-	// Generate a filtered list
-	GenerateFilteredComponentList();
-
-	// Ask the combo to update its contents on next tick
-	ComponentClassListView->RequestListRefresh();
+	UpdateComponentClassList();
 }
 
 void SComponentClassCombo::OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
@@ -373,7 +440,14 @@ TSharedRef<ITableRow> SComponentClassCombo::GenerateAddComponentRow( FComponentC
 
 void SComponentClassCombo::UpdateComponentClassList()
 {
+	// Regenerate the filtered list
 	GenerateFilteredComponentList();
+
+	// Ask the combo to update its contents on next tick
+	if (ComponentClassListView.IsValid())
+	{
+		ComponentClassListView->RequestListRefresh();
+	}
 }
 
 FText SComponentClassCombo::GetFriendlyComponentName(FComponentClassComboEntryPtr Entry) const
@@ -495,6 +569,113 @@ TSharedRef<SToolTip> SComponentClassCombo::GetComponentToolTip(FComponentClassCo
 	// Fallback for components that don't currently have a loaded class
 	return SNew(SToolTip)
 		.Text(FText::FromString(Entry->GetClassName()));
+}
+
+bool SComponentClassCombo::IsComponentClassAllowed(FComponentClassComboEntryPtr Entry) const
+{
+	if (Entry.IsValid() && Entry->IsClass() && ComponentClassFilterData.IsValid())
+	{
+		check(ComponentClassFilterData->InitOptions.IsValid());
+		check(ComponentClassFilterData->ClassFilter.IsValid());
+		check(ComponentClassFilterData->FilterFuncs.IsValid());
+
+		if (const UClass* ComponentClass = Entry->GetComponentClass())
+		{
+			return ComponentClassFilterData->ClassFilter->IsClassAllowed(*ComponentClassFilterData->InitOptions, ComponentClass, ComponentClassFilterData->FilterFuncs.ToSharedRef());
+		}
+		else
+		{
+			TSharedPtr<IUnloadedBlueprintData> UnloadedBlueprintData = Entry->GetUnloadedBlueprintData();
+			if (UnloadedBlueprintData.IsValid())
+			{
+				return ComponentClassFilterData->ClassFilter->IsUnloadedClassAllowed(*ComponentClassFilterData->InitOptions, UnloadedBlueprintData.ToSharedRef(), ComponentClassFilterData->FilterFuncs.ToSharedRef());
+			}
+		}
+	}
+
+	// Allow all entries to otherwise pass by default.
+	return true;
+}
+
+void SComponentClassCombo::GetComponentClassFilterOptions(TArray<TSharedRef<FClassViewerFilterOption>>& OutFilterOptions) const
+{
+	if (ComponentClassFilterData.IsValid() && ComponentClassFilterData->InitOptions.IsValid())
+	{
+		TArray<TSharedRef<FClassViewerFilterOption>> FilterOptions;
+		if(ComponentClassFilterData->ClassFilter.IsValid())
+		{
+			ComponentClassFilterData->ClassFilter->GetFilterOptions(FilterOptions);
+			OutFilterOptions.Append(FilterOptions);
+		}
+
+		for (const TSharedRef<IClassViewerFilter>& ClassFilter : ComponentClassFilterData->InitOptions->ClassFilters)
+		{
+			FilterOptions.Reset();
+			ClassFilter->GetFilterOptions(FilterOptions);
+
+			OutFilterOptions.Append(FilterOptions);
+		}
+	}
+}
+
+TSharedRef<SWidget> SComponentClassCombo::GetFilterOptionsMenuContent()
+{
+	const bool bCloseSelfOnly = true;
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, /* InCommandList = */nullptr, /* InExtender = */nullptr, bCloseSelfOnly);
+
+	TArray<TSharedRef<FClassViewerFilterOption>> ClassFilterOptions;
+	GetComponentClassFilterOptions(ClassFilterOptions);
+
+	if (ClassFilterOptions.Num() > 0)
+	{
+		MenuBuilder.BeginSection("ClassFilterOptions", LOCTEXT("ClassFilterOptionsHeading", "Class Filters"));
+		{
+			for (const TSharedRef<FClassViewerFilterOption>& ClassFilterOption : ClassFilterOptions)
+			{
+				MenuBuilder.AddMenuEntry(
+					ClassFilterOption->LabelText,
+					ClassFilterOption->ToolTipText,
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SComponentClassCombo::ToggleFilterOption, ClassFilterOption),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &SComponentClassCombo::IsFilterOptionEnabled, ClassFilterOption)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+			}
+		}
+		MenuBuilder.EndSection();
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SComponentClassCombo::ToggleFilterOption(TSharedRef<FClassViewerFilterOption> FilterOption)
+{
+	FilterOption->bEnabled = !FilterOption->bEnabled;
+
+	if (FilterOption->OnOptionChanged.IsBound())
+	{
+		FilterOption->OnOptionChanged.Execute(FilterOption->bEnabled);
+	}
+
+	UpdateComponentClassList();
+}
+
+bool SComponentClassCombo::IsFilterOptionEnabled(TSharedRef<FClassViewerFilterOption> FilterOption) const
+{
+	return FilterOption->bEnabled;
+}
+
+EVisibility SComponentClassCombo::GetFilterOptionsButtonVisibility() const
+{
+	TArray<TSharedRef<FClassViewerFilterOption>> FilterOptions;
+	GetComponentClassFilterOptions(FilterOptions);
+
+	return FilterOptions.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

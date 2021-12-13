@@ -3515,6 +3515,14 @@ void SSubobjectEditor::Utils::PopulateHandlesArray(const TArray<FSubobjectEditor
     }
 }
 
+void SSubobjectEditor::RefreshComponentTypesList()
+{
+	if (ComponentClassCombo.IsValid())
+	{
+		ComponentClassCombo->UpdateComponentClassList();
+	}
+}
+
 TArray<UObject*> USubobjectEditorMenuContext::GetSelectedObjects() const
 {
 	TArray<UObject*> Result;

@@ -99,4 +99,12 @@ namespace FEditorClassUtils
 	 * @return					UClass pointer if it exists
 	 */
 	UNREALED_API UClass* GetClassFromString(const FString& ClassName);
+
+	/**
+	 * Fetches the set of interface class object paths from an asset data entry containing the appropriate asset tag(s).
+	 * 
+	 * @param	InAssetData		Reference to an asset data entry.
+	 * @param	OutClassPaths	One or more interface class object paths, or empty if the corresponding asset tag(s) were not found.
+	 */
+	UNREALED_API void GetImplementedInterfaceClassPathsFromAsset(const struct FAssetData& InAssetData, TArray<FString>& OutClassPaths);
 };

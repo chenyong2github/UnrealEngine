@@ -557,6 +557,9 @@ public:
 
 	/** SubobjectHandle of the current object that is represented by the subobject editor */
 	FSubobjectDataHandle GetObjectContextHandle() const;
+
+	/** Refresh the type list presented by the add component button when clicked */
+	void RefreshComponentTypesList();
 	
 protected:
 
@@ -610,6 +613,9 @@ protected:
 
 	/** The tools buttons box */
 	TSharedPtr<SHorizontalBox> ButtonBox;
+
+	/** The add component button / type selector */
+	TSharedPtr<SComponentClassCombo> ComponentClassCombo;
 
 	/** Gate to prevent changing the selection while selection change is being broadcast. */
 	bool bUpdatingSelection;

@@ -19,8 +19,228 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "SComponentClassCombo.h"
 #include "Settings/ClassViewerSettings.h"
+#include "ClassViewerFilter.h"
+#include "EditorClassUtils.h"
 
 #define LOCTEXT_NAMESPACE "ComponentTypeRegistry"
+
+namespace UE::Editor::ComponentTypeRegistry::Private
+{
+	class FUnloadedBlueprintData : public IUnloadedBlueprintData
+	{
+	public:
+		FUnloadedBlueprintData(const FAssetData& InAssetData)
+			:ClassPath(NAME_None)
+			,ParentClassPath(NAME_None)
+			,ClassFlags(CLASS_None)
+			,bIsNormalBlueprintType(false)
+		{
+			ClassName = MakeShared<FString>(InAssetData.AssetName.ToString());
+
+			FString GeneratedClassPath;
+			const UClass* AssetClass = InAssetData.GetClass();
+			if (AssetClass && AssetClass->IsChildOf(UBlueprintGeneratedClass::StaticClass()))
+			{
+				ClassPath = InAssetData.ObjectPath;
+			}
+			else if (InAssetData.GetTagValue(FBlueprintTags::GeneratedClassPath, GeneratedClassPath))
+			{
+				ClassPath = FName(*FPackageName::ExportTextPathToObjectPath(GeneratedClassPath));
+			}
+
+			FString ParentClassPathString;
+			if (InAssetData.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassPathString))
+			{
+				ParentClassPath = FName(*FPackageName::ExportTextPathToObjectPath(ParentClassPathString));
+			}
+
+			FEditorClassUtils::GetImplementedInterfaceClassPathsFromAsset(InAssetData, ImplementedInterfaces);
+		}
+
+		virtual ~FUnloadedBlueprintData()
+		{
+		}
+
+		// Begin IUnloadedBlueprintData interface
+		virtual bool HasAnyClassFlags(uint32 InFlagsToCheck) const
+		{
+			return (ClassFlags & InFlagsToCheck) != 0;
+		}
+
+		virtual bool HasAllClassFlags(uint32 InFlagsToCheck) const
+		{
+			return ((ClassFlags & InFlagsToCheck) == InFlagsToCheck);
+		}
+
+		virtual void SetClassFlags(uint32 InFlags)
+		{
+			ClassFlags = InFlags;
+		}
+
+		virtual bool ImplementsInterface(const UClass* InInterface) const
+		{
+			FString InterfacePath = InInterface->GetPathName();
+			for (const FString& ImplementedInterface : ImplementedInterfaces)
+			{
+				if (ImplementedInterface == InterfacePath)
+				{
+					return true;
+				}
+			}
+
+			FComponentClassComboEntryPtr CurrentEntry = FComponentTypeRegistry::Get().FindClassEntryForObjectPath(ParentClassPath);
+			while (CurrentEntry.IsValid())
+			{
+				if (const UClass* CurrentClass = CurrentEntry->GetComponentClass())
+				{
+					return CurrentClass->ImplementsInterface(InInterface);
+				}
+
+				TSharedPtr<FUnloadedBlueprintData> UnloadedBlueprintData = StaticCastSharedPtr<FUnloadedBlueprintData>(CurrentEntry->GetUnloadedBlueprintData());
+				if (UnloadedBlueprintData.IsValid())
+				{
+					for (const FString& ImplementedInterface : UnloadedBlueprintData->ImplementedInterfaces)
+					{
+						if (ImplementedInterface == InterfacePath)
+						{
+							return true;
+						}
+					}
+
+					CurrentEntry = FComponentTypeRegistry::Get().FindClassEntryForObjectPath(UnloadedBlueprintData->ParentClassPath);
+				}
+				else
+				{
+					CurrentEntry.Reset();
+				}
+			}
+
+			return false;
+		}
+
+		virtual bool IsChildOf(const UClass* InClass) const
+		{
+			FComponentClassComboEntryPtr CurrentEntry = FComponentTypeRegistry::Get().FindClassEntryForObjectPath(ParentClassPath);
+			while (CurrentEntry.IsValid())
+			{
+				if (const UClass* CurrentClass = CurrentEntry->GetComponentClass())
+				{
+					return CurrentClass->IsChildOf(InClass);
+				}
+
+				TSharedPtr<FUnloadedBlueprintData> UnloadedBlueprintData = StaticCastSharedPtr<FUnloadedBlueprintData>(CurrentEntry->GetUnloadedBlueprintData());
+				if (UnloadedBlueprintData.IsValid())
+				{
+					CurrentEntry = FComponentTypeRegistry::Get().FindClassEntryForObjectPath(UnloadedBlueprintData->ParentClassPath);
+				}
+				else
+				{
+					CurrentEntry.Reset();
+				}
+			}
+
+			return false;
+		}
+
+		virtual bool IsA(const UClass* InClass) const
+		{
+			// Unloaded blueprint classes should always be a BPGC, so this just checks against the expected type.
+			return UBlueprintGeneratedClass::StaticClass()->UObject::IsA(InClass);
+		}
+
+		virtual const UClass* GetClassWithin() const
+		{
+			FComponentClassComboEntryPtr CurrentEntry = FComponentTypeRegistry::Get().FindClassEntryForObjectPath(ParentClassPath);
+			while (CurrentEntry.IsValid())
+			{
+				if (const UClass* CurrentClass = CurrentEntry->GetComponentClass())
+				{
+					return CurrentClass->ClassWithin;
+				}
+
+				TSharedPtr<FUnloadedBlueprintData> UnloadedBlueprintData = StaticCastSharedPtr<FUnloadedBlueprintData>(CurrentEntry->GetUnloadedBlueprintData());
+				if (UnloadedBlueprintData.IsValid())
+				{
+					CurrentEntry = FComponentTypeRegistry::Get().FindClassEntryForObjectPath(UnloadedBlueprintData->ParentClassPath);
+				}
+				else
+				{
+					CurrentEntry.Reset();
+				}
+			}
+
+			return nullptr;
+		}
+
+		virtual const UClass* GetNativeParent() const
+		{
+			const UClass* CurrentClass = nullptr;
+			FComponentClassComboEntryPtr CurrentEntry = FComponentTypeRegistry::Get().FindClassEntryForObjectPath(ParentClassPath);
+			while (CurrentEntry.IsValid() || CurrentClass)
+			{
+				if (!CurrentClass)
+				{
+					CurrentClass = CurrentEntry->GetComponentClass();
+				}
+
+				if (CurrentClass)
+				{
+					if (CurrentClass->HasAnyClassFlags(CLASS_Native))
+					{
+						return CurrentClass;
+					}
+					else
+					{
+						CurrentClass = CurrentClass->GetSuperClass();
+					}
+				}
+				else
+				{
+					TSharedPtr<FUnloadedBlueprintData> UnloadedBlueprintData = StaticCastSharedPtr<FUnloadedBlueprintData>(CurrentEntry->GetUnloadedBlueprintData());
+					if (UnloadedBlueprintData.IsValid())
+					{
+						CurrentEntry = FComponentTypeRegistry::Get().FindClassEntryForObjectPath(UnloadedBlueprintData->ParentClassPath);
+					}
+					else
+					{
+						CurrentEntry.Reset();
+					}
+				}
+			}
+
+			return nullptr;
+		}
+
+		virtual void SetNormalBlueprintType(bool bInNormalBPType)
+		{
+			bIsNormalBlueprintType = bInNormalBPType;
+		}
+
+		virtual bool IsNormalBlueprintType() const
+		{
+			return bIsNormalBlueprintType;
+		}
+
+		virtual TSharedPtr<FString> GetClassName() const
+		{
+			return ClassName;
+		}
+
+		virtual FName GetClassPath() const
+		{
+			return ClassPath;
+		}
+		// End IUnloadedBlueprintData interface
+
+	private:
+		TSharedPtr<FString> ClassName;
+		FName ClassPath;
+		FName ParentClassPath;
+		uint32 ClassFlags;
+		TArray<FString> ImplementedInterfaces;
+		bool bIsNormalBlueprintType;
+	};
+}
 
 //////////////////////////////////////////////////////////////////////////
 // FComponentTypeRegistryData
@@ -58,6 +278,7 @@ public:
 	TArray<FComponentClassComboEntryPtr> ComponentClassList;
 	TArray<FComponentTypeEntry> ComponentTypeList;
 	TArray<FAssetData> PendingAssetData;
+	TMap<FName, int32> ClassPathToClassListIndexMap;
 	FOnComponentTypeListChanged ComponentListChanged;
 	bool bNeedsRefreshNextTick;
 };
@@ -213,6 +434,7 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 	bNeedsRefreshNextTick = false;
 	ComponentClassList.Empty();
 	ComponentTypeList.Empty();
+	ClassPathToClassListIndexMap.Empty();
 
 	struct SortComboEntry
 	{
@@ -370,7 +592,23 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 					const UClass* BlueprintIconClass = FClassIconFinder::GetIconClassForAssetData(AssetData);
 
 					const bool bIncludeInFilter = true;
-					FComponentClassComboEntryPtr NewEntry(new FComponentClassComboEntry(BlueprintComponents, FixedString, AssetData.ObjectPath, BlueprintIconClass, bIncludeInFilter));
+					FComponentClassComboEntryPtr NewEntry = MakeShared<FComponentClassComboEntry>(BlueprintComponents, FixedString, AssetData.ObjectPath, BlueprintIconClass, bIncludeInFilter);
+					
+					// Create an unloaded blueprint data object to assist with class filtering
+					TSharedPtr<IUnloadedBlueprintData> UnloadedBlueprintData;
+					{
+						using namespace UE::Editor::ComponentTypeRegistry;
+						UnloadedBlueprintData = MakeShared<Private::FUnloadedBlueprintData>(AssetData);
+
+						const uint32 ClassFlags = AssetData.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags);
+						UnloadedBlueprintData->SetClassFlags(ClassFlags);
+
+						const FString BlueprintType = AssetData.GetTagValueRef<FString>(FBlueprintTags::BlueprintType);
+						UnloadedBlueprintData->SetNormalBlueprintType(BlueprintType == TEXT("BPType_Normal"));
+
+						NewEntry->SetUnloadedBlueprintData(UnloadedBlueprintData);
+					}
+					
 					SortedClassList.Add(NewEntry);
 				}
 			}
@@ -401,7 +639,11 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 				PreviousHeading = CurrentHeadingText;
 			}
 
-			ComponentClassList.Add(CurrentEntry);
+			int32 EntryIndex = ComponentClassList.Add(CurrentEntry);
+			if (CurrentEntry->IsClass())
+			{
+				ClassPathToClassListIndexMap.FindOrAdd(FName(*CurrentEntry->GetComponentPath()), EntryIndex);
+			}
 		}
 	}
 
@@ -517,5 +759,18 @@ void FComponentTypeRegistry::InvalidateClass(TSubclassOf<UActorComponent> /*Clas
 	Data->Invalidate();
 }
 
+FComponentClassComboEntryPtr FComponentTypeRegistry::FindClassEntryForObjectPath(FName InObjectPath) const
+{
+	if (int32* ClassListIndexPtr = Data->ClassPathToClassListIndexMap.Find(InObjectPath))
+	{
+		const int32 ClassListIndex = *ClassListIndexPtr;
+		if (Data->ComponentClassList.IsValidIndex(ClassListIndex))
+		{
+			return Data->ComponentClassList[ClassListIndex];
+		}
+	}
+
+	return nullptr;
+}
 
 #undef LOCTEXT_NAMESPACE
