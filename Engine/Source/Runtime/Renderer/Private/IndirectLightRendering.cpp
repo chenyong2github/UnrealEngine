@@ -230,7 +230,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 			PermutationVector.Set<FSkyShadowing>(false);
 		}
 
-		if (PermutationVector.Get<FStrataFastPath>() && (!Strata::IsStrataEnabled() || !Strata::IsClassificationEnabled()))
+		if (PermutationVector.Get<FStrataFastPath>() && !Strata::IsStrataEnabled())
 		{
 			PermutationVector.Set<FStrataFastPath>(false);
 		}
@@ -249,7 +249,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		PermutationVector.Set<FDynamicSkyLight>(bEnableDynamicSkyLight);
 		PermutationVector.Set<FSkyShadowing>(bApplySkyShadowing);
 		PermutationVector.Set<FRayTracedReflections>(bRayTracedReflections);
-		PermutationVector.Set<FStrataFastPath>(Strata::IsStrataEnabled() && Strata::IsClassificationEnabled() && bStrataFastPath);
+		PermutationVector.Set<FStrataFastPath>(Strata::IsStrataEnabled() && bStrataFastPath);
 
 		return RemapPermutation(PermutationVector);
 	}
@@ -1162,9 +1162,7 @@ static void AddSkyReflectionPass(
 	bool bSkyLight, 
 	bool bDynamicSkyLight, 
 	bool bApplySkyShadowing,
-	bool bEnableStrataStencilTest,
-	bool bEnableStrataTiledPass,
-	uint32 StrataTileMaterialType)	// 0 simple material, 1 all/complex material. Does not matter when strata is disabled. See EStrataTileMaterialType
+	EStrataTileMaterialType StrataTileMaterialType)
 {
 	// Render the reflection environment with tiled deferred culling
 	bool bHasBoxCaptures = (View.NumBoxReflectionCaptures > 0);
@@ -1267,10 +1265,6 @@ static void AddSkyReflectionPass(
 	}
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
-	if (bEnableStrataStencilTest)
-	{		
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextureParameters.SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
-	}
 
 	// Bind hair data
 	const bool bCheckerboardSubsurfaceRendering = IsSubsurfaceCheckerboardFormat(SceneColorTexture.Target->Desc.Format);
@@ -1296,34 +1290,27 @@ static void AddSkyReflectionPass(
 	TShaderMapRef<Strata::FStrataTilePassVS> StrataTilePassVertexShader(View.ShaderMap, VSPermutationVector);
 	PassParameters->VS.TileIndirectBuffer = nullptr;
 	PassParameters->VS.TileListBuffer = nullptr;
-	if (bEnableStrataTiledPass)
+	const bool bStrataEnabled = Strata::IsStrataEnabled();
+	if (bStrataEnabled)
 	{
-		Strata::FillUpTiledPassData((EStrataTileMaterialType)StrataTileMaterialType, View, PassParameters->VS, StrataTilePrimitiveType);
+		check(StrataTileMaterialType != EStrataTileMaterialType::ECount);
+		Strata::FillUpTiledPassData(StrataTileMaterialType, View, PassParameters->VS, StrataTilePrimitiveType);
 		ClearUnusedGraphResources(StrataTilePassVertexShader, &PassParameters->VS);
 	}
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("ReflectionEnvironmentAndSky %dx%d StrataMat=%s", 
+		RDG_EVENT_NAME("ReflectionEnvironmentAndSky(%dx%d,StrataMat=%s)", 
 			View.ViewRect.Width(), View.ViewRect.Height(), 
-			Strata::IsStrataEnabled() ? ToString(EStrataTileMaterialType(StrataTileMaterialType)) : TEXT("Off")),
+			bStrataEnabled ? ToString(StrataTileMaterialType) : TEXT("Off")),
 		PassParameters,
 		ERDGPassFlags::Raster,
 		[PassParameters, &View, PixelShader, bCheckerboardSubsurfaceRendering, 
-		bEnableStrataStencilTest, bEnableStrataTiledPass, StrataTilePassVertexShader, StrataTileMaterialType, StrataTilePrimitiveType](FRHICommandList& InRHICmdList)
+		StrataTilePassVertexShader, bStrataEnabled, StrataTilePrimitiveType](FRHICommandList& InRHICmdList)
 	{
 		InRHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		FPixelShaderUtils::InitFullscreenPipelineState(InRHICmdList, View.ShaderMap, PixelShader, GraphicsPSOInit);
-
-		if (bEnableStrataStencilTest)
-		{
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
-				false, CF_Always, 
-				true,  CF_Equal, SO_Keep, SO_Keep, SO_Keep, 
-				false, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-				Strata::StencilBit, Strata::StencilBit>::GetRHI();
-		}
 
 		extern int32 GAOOverwriteSceneColor;
 		if (GetReflectionEnvironmentCVar() == 2 || GAOOverwriteSceneColor)
@@ -1352,23 +1339,23 @@ static void AddSkyReflectionPass(
 			InRHICmdList.SetDepthBounds(Values.MinDepth, Values.MaxDepth);
 		}
 
-		if (bEnableStrataTiledPass)
+		if (bStrataEnabled)
 		{
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = StrataTilePassVertexShader.GetVertexShader();
 			GraphicsPSOInit.PrimitiveType = StrataTilePrimitiveType;
 		}
 
-		SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, bEnableStrataStencilTest && StrataTileMaterialType == EStrataTileMaterialType::ESimple ? Strata::StencilBit : 0x0);
+		SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0x0);
 		SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
-		if (!bEnableStrataTiledPass)
-		{
-			FPixelShaderUtils::DrawFullscreenTriangle(InRHICmdList);
-		}
-		else
+		if (bStrataEnabled)
 		{
 			SetShaderParameters(InRHICmdList, StrataTilePassVertexShader, StrataTilePassVertexShader.GetVertexShader(), PassParameters->VS);
 			InRHICmdList.DrawPrimitiveIndirect(PassParameters->VS.TileIndirectBuffer->GetIndirectRHICallBuffer(), 0);
+		}
+		else
+		{
+			FPixelShaderUtils::DrawFullscreenTriangle(InRHICmdList);
 		}
 	});
 }
@@ -1593,14 +1580,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		{
 			RDG_GPU_STAT_SCOPE(GraphBuilder, ReflectionEnvironment);
 
-			const bool bStrataClassificationEnabled = Strata::IsStrataEnabled() && Strata::IsClassificationEnabled();
-			const bool bTilePassesReadingStrataEnabled = Strata::ShouldPassesReadingStrataBeTiled(Scene->GetFeatureLevel());
-
-			if (bStrataClassificationEnabled && bTilePassesReadingStrataEnabled)
+			if (Strata::IsStrataEnabled())
 			{
-				const bool bEnableStrataTiledPass = true;
-				const bool bEnableStrataStencilTest = false;
-
 				AddSkyReflectionPass(
 					GraphBuilder,
 					View,
@@ -1613,8 +1594,6 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
-					bEnableStrataStencilTest,
-					bEnableStrataTiledPass,
 					EStrataTileMaterialType::ESimple);
 
 				AddSkyReflectionPass(
@@ -1629,15 +1608,10 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
-					bEnableStrataStencilTest,
-					bEnableStrataTiledPass,
 					EStrataTileMaterialType::EComplex);
 			}
 			else
 			{
-				const bool bEnableStrataTiledPass = false;
-				const bool bEnableStrataStencilTest = bStrataClassificationEnabled;
-
 				// Typical path uses when Strata is not enabled
 				AddSkyReflectionPass(
 					GraphBuilder,
@@ -1651,27 +1625,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bSkyLight,
 					bDynamicSkyLight,
 					bApplySkyShadowing,
-					bEnableStrataStencilTest,
-					bEnableStrataTiledPass,
-					EStrataTileMaterialType::EComplex);
-				if (bStrataClassificationEnabled && !bTilePassesReadingStrataEnabled)
-				{
-					AddSkyReflectionPass(
-						GraphBuilder,
-						View,
-						Scene,
-						SceneTextures,
-						DynamicBentNormalAOTexture,
-						ReflectionsColor,
-						RayTracingReflectionOptions,
-						SceneTextureParameters,
-						bSkyLight,
-						bDynamicSkyLight,
-						bApplySkyShadowing,
-						bEnableStrataStencilTest,
-						bEnableStrataTiledPass,
-						EStrataTileMaterialType::ESimple);
-				}
+					EStrataTileMaterialType::ECount);
 			}
 		}
 

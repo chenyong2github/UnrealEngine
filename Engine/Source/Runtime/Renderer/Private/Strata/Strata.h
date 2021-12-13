@@ -83,11 +83,10 @@ struct FStrataSceneData
 
 namespace Strata
 {
-constexpr uint32 StencilBit = 0x80; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_FASTPATH)
+constexpr uint32 StencilBit_Complex= 0x00; // No stencil bit
+constexpr uint32 StencilBit_Fast   = 0x80; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_FASTPATH)
 
 bool IsStrataEnabled();
-bool IsClassificationEnabled();
-bool ShouldPassesReadingStrataBeTiled(ERHIFeatureLevel::Type FeatureLevel);
 
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder);
 

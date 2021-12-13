@@ -858,8 +858,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 		RDG_EVENT_SCOPE(GraphBuilder, "DirectLighting");
 
 		// STRATA_TODO move right after stencil clear so that it is also common with EnvLight pass
-		if (ViewFamily.EngineShowFlags.DirectLighting &&
-			Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+		if (ViewFamily.EngineShowFlags.DirectLighting && Strata::IsStrataEnabled())
 		{
 			// Update the stencil buffer, marking simple/complex strata material only once for all the following passes.
 			Strata::AddStrataStencilPass(GraphBuilder, Views, SceneTextures);
@@ -1668,8 +1667,7 @@ void FDeferredShadingSceneRenderer::RenderStationaryLightOverlap(
 	}
 }
 
-/** Sets up rasterizer and depth state for rendering bounding geometry in a deferred pass. */
-void SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, bool bCameraInsideLightGeometry)
+static void InternalSetBoundingGeometryRasterizerState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, bool bCameraInsideLightGeometry)
 {
 	if (bCameraInsideLightGeometry)
 	{
@@ -1681,29 +1679,46 @@ void SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitialize
 		// Render frontfaces with depth tests on to get the speedup from HiZ since the camera is outside the light geometry
 		GraphicsPSOInit.RasterizerState = View.bReverseCulling ? TStaticRasterizerState<FM_Solid, CM_CCW>::GetRHI() : TStaticRasterizerState<FM_Solid, CM_CW>::GetRHI();
 	}
+}
 
-	if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+template<ECompareFunction CompareFunction>
+static uint32 InternalSetBoundingGeometryDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, EStrataTileMaterialType TileType)
+{
+	// bCameraInsideLightGeometry = true  -> CompareFunction = Always
+	// bCameraInsideLightGeometry = false -> CompareFunction = CF_DepthNearOrEqual
+	uint32 StencilRef = 0u;
+	if (Strata::IsStrataEnabled())
 	{
-		GraphicsPSOInit.DepthStencilState =
-		bCameraInsideLightGeometry
-		? TStaticDepthStencilState<
-			false, CF_Always,
-			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-			Strata::StencilBit, 0x0>::GetRHI()
-		: TStaticDepthStencilState<
-			false, CF_DepthNearOrEqual,
-			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-			Strata::StencilBit, 0x0>::GetRHI();
+		check(TileType != EStrataTileMaterialType::ECount);
+		switch (TileType)
+		{
+		case EStrataTileMaterialType::ESimple : StencilRef = Strata::StencilBit_Fast;    GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CompareFunction, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, Strata::StencilBit_Fast, 0x0>::GetRHI(); break;
+		case EStrataTileMaterialType::EComplex: StencilRef = Strata::StencilBit_Complex; GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CompareFunction, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, 0x0, 0x0>::GetRHI(); break;
+		}
 	}
 	else
 	{
-		GraphicsPSOInit.DepthStencilState =
-			bCameraInsideLightGeometry
-			? TStaticDepthStencilState<false, CF_Always>::GetRHI()
-			: TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+		check(TileType == EStrataTileMaterialType::ECount);
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CompareFunction>::GetRHI();
 	}
+	return StencilRef;
+}
+
+/** Sets up rasterizer and depth state for rendering bounding geometry in a deferred pass. */
+static uint32 SetBoundingGeometryRasterizerAndDepthState(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, bool bCameraInsideLightGeometry, EStrataTileMaterialType TileType)
+{
+	uint32 StencilRef = 0u;
+	InternalSetBoundingGeometryRasterizerState(GraphicsPSOInit, View, bCameraInsideLightGeometry);
+	if (bCameraInsideLightGeometry)
+	{
+		StencilRef = InternalSetBoundingGeometryDepthState<CF_Always>(GraphicsPSOInit, TileType);
+	}
+	else
+	{
+		StencilRef = InternalSetBoundingGeometryDepthState<CF_DepthNearOrEqual>(GraphicsPSOInit, TileType);
+	}
+
+	return StencilRef;
 }
 
 // Use DBT to allow work culling on shadow lights
@@ -1824,24 +1839,15 @@ static void InternalRenderLight(
 	const TCHAR* ShaderName)
 {
 	const FLightSceneProxy* RESTRICT LightProxy = LightSceneInfo->Proxy;
-	const uint32 StencilRef = StrataTileMaterialType == EStrataTileMaterialType::ESimple ? Strata::StencilBit : 0u;
 	const bool bTransmission = LightProxy->Transmission();
 	const FSphere LightBounds = LightProxy->GetBoundingSphere();
 	const ELightComponentType LightType = (ELightComponentType)LightProxy->GetLightType();
 
-	const TCHAR* PermationName = nullptr;
-	switch (StrataTileMaterialType)
-	{
-	case EStrataTileMaterialType::ESimple : TEXT("(Strata,Simple)"); break;
-	case EStrataTileMaterialType::EComplex: TEXT("(Strata,Complex)"); break;
-	case EStrataTileMaterialType::ECount  : TEXT(""); break;
-	}
-
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("%s%s", ShaderName, PermationName),
+		RDG_EVENT_NAME("%s", ShaderName),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[Scene, &View, PixelShader, LightSceneInfo, PassParameters, StencilRef, LightBounds, LightType, StrataTileMaterialType](FRHICommandList& RHICmdList)
+		[Scene, &View, PixelShader, LightSceneInfo, PassParameters, LightBounds, LightType, StrataTileMaterialType](FRHICommandList& RHICmdList)
 	{
 
 		const bool bIsRadial = LightType != LightType_Directional;
@@ -1855,19 +1861,6 @@ static void InternalRenderLight(
 
 		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-		if (bEnableStrataStencilTest)
-		{
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
-				false, CF_Always,
-				true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-				true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-				Strata::StencilBit, 0x0>::GetRHI();
-		}
-		else
-		{
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-		}
 
 		if (LightType == LightType_Directional)
 		{
@@ -1886,11 +1879,12 @@ static void InternalRenderLight(
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = bEnableStrataTiledPass ? TileVertexShader.GetVertexShader() : VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();		
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0x0);
 
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
-			if (bEnableStrataTiledPass)
+			if (Strata::IsStrataEnabled())
 			{
 				Strata::FStrataTilePassVS::FParameters VSParameters;
 				Strata::FillUpTiledPassData(StrataTileMaterialType, View, VSParameters, GraphicsPSOInit.PrimitiveType);
@@ -1932,12 +1926,11 @@ static void InternalRenderLight(
 				//@todo - accurate ortho camera / light intersection
 				|| !View.IsPerspectiveProjection();
 
-			SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, bCameraInsideLightGeometry);
-
+			const uint32 StencilRef = SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, bCameraInsideLightGeometry, StrataTileMaterialType);
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);			
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
 			FDeferredLightVS::FParameters VSParameters2 = FDeferredLightVS::GetParameters(View, LightSceneInfo);
@@ -2050,7 +2043,8 @@ static void RenderLight(
 		PermutationVector.Set<FDeferredLightOverlapPS::FRadialAttenuation>(bIsRadial);
 		TShaderMapRef<FDeferredLightOverlapPS> PixelShader(View.ShaderMap, PermutationVector);
 		
-		InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::ECount, TEXT("StandardDeferredOverlap"));
+		// STRATA_TODO: fix overlap debug mode for strata (simple/complex tile rendering)
+		InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::ECount, TEXT("Light::StandardDeferred(Overlap)"));
 	}
 	// Lighting shader
 	else
@@ -2068,7 +2062,7 @@ static void RenderLight(
 			PassParameters->VS = FDeferredLightVS::GetParameters(View, false);
 		}
 		// VS - Strata tile parameters
-		if (Strata::ShouldPassesReadingStrataBeTiled(View.Family->GetFeatureLevel()))
+		if (Strata::IsStrataEnabled())
 		{
 			PassParameters->TileListBufferSimple = View.StrataSceneData->ClassificationTileListBufferSRV[EStrataTileMaterialType::ESimple];
 			PassParameters->TileListBufferComplex = View.StrataSceneData->ClassificationTileListBufferSRV[EStrataTileMaterialType::EComplex];
@@ -2115,26 +2109,26 @@ static void RenderLight(
 		// * if the light is directional, then dispatch a set of rect tiles
 		// * if the light is radial/local, then dispatch a light geometry with stencil test. The stencil buffer has been prefilled with the tile result (simple/complex) 
 		//   so that the geometry get correctly stencil culled on complex/simple part of the screen
-		if (Strata::IsStrataEnabled() && Strata::IsClassificationEnabled())
+		if (Strata::IsStrataEnabled())
 		{
 			// Simple tiles
 			{
 				PermutationVector.Set< FDeferredLightPS::FStrataFastPath>(true);
 				TShaderMapRef< FDeferredLightPS > PixelShader(View.ShaderMap, PermutationVector);
-				InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::ESimple, TEXT("StandardDeferredLight"));
+				InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::ESimple, TEXT("Light::StandardDeferred(Simple)"));
 			}
 			// Complex tiles
 			{
 				PermutationVector.Set< FDeferredLightPS::FStrataFastPath>(false);
 				TShaderMapRef< FDeferredLightPS > PixelShader(View.ShaderMap, PermutationVector);
-				InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::EComplex, TEXT("StandardDeferredLight"));
+				InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::EComplex, TEXT("Light::StandardDeferred(Complex)"));
 			}
 		}
 		else
 		{
 			PermutationVector.Set< FDeferredLightPS::FStrataFastPath>(false);
 			TShaderMapRef< FDeferredLightPS > PixelShader(View.ShaderMap, PermutationVector);
-			InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::ECount, TEXT("StandardDeferredLight"));
+			InternalRenderLight(GraphBuilder, Scene, View, LightSceneInfo, PixelShader, PassParameters, EStrataTileMaterialType::ECount, TEXT("Light::StandardDeferred"));
 		}
 	}
 }
@@ -2417,11 +2411,14 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 		PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(true);
 		TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVectorVS);
 
+		// STRATA_TODO: add simple/complex tile support for simple lights
+		const EStrataTileMaterialType TileType = Strata::IsStrataEnabled() ? EStrataTileMaterialType::EComplex : EStrataTileMaterialType::ECount;
+
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("StandardDeferredSimpleLights"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View, &SimpleLights, ViewIndex, NumViews, PassParameters, PixelShader, VertexShader](FRHICommandList& RHICmdList)
+			[this, &View, &SimpleLights, ViewIndex, NumViews, PassParameters, PixelShader, VertexShader, TileType](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -2446,7 +2443,7 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 								//@todo - accurate ortho camera / light intersection
 								|| !View.IsPerspectiveProjection();
 
-				SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, bCameraInsideLightGeometry);
+				SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, bCameraInsideLightGeometry, TileType);
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
@@ -2464,7 +2461,7 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 
 				// Apply the point or spot light with some approximately bounding geometry,
 				// So we can get speedups from depth testing and not processing pixels outside of the light's influence.
-				StencilingGeometry::DrawSphere(RHICmdList);				
+				StencilingGeometry::DrawSphere(RHICmdList);
 			}
 		});
 	}

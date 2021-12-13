@@ -34,22 +34,11 @@ static TAutoConsoleVariable<int32> CVarStrataBytePerPixel(
 	TEXT("Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarStrataClassification(
-	TEXT("r.Strata.Classification"),
-	1,
-	TEXT("Enable strata classification to speed up lighting pass."),
-	ECVF_RenderThreadSafe); 
 
 static TAutoConsoleVariable<int32> CVarStrataClassificationDebug(
 	TEXT("r.Strata.Classification.Debug"),
 	0,
 	TEXT("Enable strata classification visualization: 1 shows simple material tiles in green and complex material tiles in red."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarStrataClassificationPassesReadingStrataAreTiled(
-	TEXT("r.Strata.Classification.PassesReadingStrataAreTiled"),
-	1,
-	TEXT("Enable the tiling of passes reading strata material (when possible) instead of doing multiple full screen passes testing stencil."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarStrataRoughDiffuse(
@@ -130,16 +119,6 @@ bool IsStrataEnabled()
 	return CVarStrata.GetValueOnAnyThread() > 0;
 }
 
-bool IsClassificationEnabled()
-{
-	return CVarStrataClassification.GetValueOnAnyThread() > 0;
-}
-
-bool ShouldPassesReadingStrataBeTiled(ERHIFeatureLevel::Type FeatureLevel)
-{
-	return IsStrataEnabled() && IsClassificationEnabled() && FeatureLevel >= ERHIFeatureLevel::SM5 && CVarStrataClassificationPassesReadingStrataAreTiled.GetValueOnAnyThread() > 0;
-}
-
 uint32 GetStrataBufferTileSize()
 {
 	return 8;
@@ -176,15 +155,21 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 			const int32 TileInPixel = GetStrataBufferTileSize();
 			const FIntPoint TileResolution(FMath::DivideAndRoundUp(SceneTextureExtent.X, TileInPixel), FMath::DivideAndRoundUp(SceneTextureExtent.Y, TileInPixel));
 
+			const TCHAR* StrataTileResourceNames[EStrataTileMaterialType::ECount][2] =
+			{
+				{ TEXT("Strata.StrataTileListBuffer(Simple)"),	TEXT("Strata.StrataTileIndirectBuffer(Simple)") },
+				{ TEXT("Strata.StrataTileListBuffer(Complex)"),	TEXT("Strata.StrataTileIndirectBuffer(Complex)")}
+			};
+
 			// As of today we allocate one index+indirect buffer for each EStrataTileMaterialType.
 			// This is fine for two types, later we might want to have a single list and indirect buffer with offsets.
 			for (uint32 i = 0; i < EStrataTileMaterialType::ECount; ++i)
 			{
-				StrataSceneData.ClassificationTileListBuffer[i] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TileResolution.X * TileResolution.Y), i==EStrataTileMaterialType::ESimple ? TEXT("Strata.SimpleStrataTileListBuffer") : TEXT("Strata.ComplexStrataTileListBuffer"));
+				StrataSceneData.ClassificationTileListBuffer[i] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), TileResolution.X * TileResolution.Y), StrataTileResourceNames[i][0]);
 				StrataSceneData.ClassificationTileListBufferSRV[i] = GraphBuilder.CreateSRV(StrataSceneData.ClassificationTileListBuffer[i], PF_R32_UINT);
 				StrataSceneData.ClassificationTileListBufferUAV[i] = GraphBuilder.CreateUAV(StrataSceneData.ClassificationTileListBuffer[i], PF_R32_UINT);
 
-				StrataSceneData.ClassificationTileIndirectBuffer[i] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), i == EStrataTileMaterialType::ESimple ? TEXT("Strata.SimpleStrataTileIndirectBuffer") : TEXT("Strata.ComplexStrataTileIndirectBuffer"));
+				StrataSceneData.ClassificationTileIndirectBuffer[i] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), StrataTileResourceNames[i][1]);
 				StrataSceneData.ClassificationTileIndirectBufferSRV[i] = GraphBuilder.CreateSRV(StrataSceneData.ClassificationTileIndirectBuffer[i], PF_R32_UINT);
 				StrataSceneData.ClassificationTileIndirectBufferUAV[i] = GraphBuilder.CreateUAV(StrataSceneData.ClassificationTileIndirectBuffer[i], PF_R32_UINT);
 
@@ -605,12 +590,12 @@ static void AddStrataInternalClassificationTilePass(
 					false, CF_Always, 
 					true,  CF_Always, SO_Keep, SO_Keep, SO_Replace,
 					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					0xFF, StencilBit>::GetRHI();
+					0xFF, StencilBit_Fast>::GetRHI();
 			}
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.PrimitiveType = StrataTilePrimitiveType;
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilBit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilBit_Fast);
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersPS->VS);
 			if (bDebug)
 			{
@@ -755,7 +740,6 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 		const FViewInfo& View = Views[i];
 		
 		// Tile reduction
-		if (IsClassificationEnabled())
 		{
 			bool bWaveOps = GRHISupportsWaveOperations && FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(View.GetShaderPlatform());
 		#if PLATFORM_WINDOWS
@@ -825,7 +809,7 @@ bool ShouldRenderStrataDebugPasses(const FViewInfo& View)
 	return IsStrataEnabled() &&
 		(
 		   (FVisualizeMaterialPS::CanRunStrataVizualizeMaterial(View.GetShaderPlatform()) && View.Family && View.Family->EngineShowFlags.VisualizeStrataMaterial)
-		|| (IsClassificationEnabled() && CVarStrataClassificationDebug.GetValueOnAnyThread() > 0)
+		|| (CVarStrataClassificationDebug.GetValueOnAnyThread() > 0)
 		);
 }
 
@@ -841,7 +825,7 @@ FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewIn
 	}
 
 	const int32 StrataClassificationDebug = CVarStrataClassificationDebug.GetValueOnAnyThread();
-	if (IsClassificationEnabled() && StrataClassificationDebug > 0)
+	if (StrataClassificationDebug > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Strata::VisualizeClassification");
 		const bool bDebugPass = true;
