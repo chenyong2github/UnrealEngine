@@ -270,7 +270,7 @@ public:
 		for (int32 ElementIndex = Num() - 1; ElementIndex >= 0; --ElementIndex)
 		{
 			GetElementAt(ElementIndex, TempElement);
-			if (TempElement && Predicate(ElementToReturn))
+			if (TempElement && Predicate(TempElement))
 			{
 				ElementToReturn = MoveTemp(TempElement);
 				break;
