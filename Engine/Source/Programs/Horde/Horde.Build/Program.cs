@@ -269,9 +269,16 @@ namespace HordeServer
 		/// <returns>Custom certificate to use for Grpc endpoints, or null for the default.</returns>
 		public static X509Certificate2? ReadGrpcCertificate(ServerSettings HordeSettings)
 		{
+			string Base64Prefix = "base64:";
+			
 			if (HordeSettings.ServerPrivateCert == null)
 			{
 				return null;
+			}
+			else if (HordeSettings.ServerPrivateCert.StartsWith(Base64Prefix))
+			{
+				byte[] CertData = Convert.FromBase64String(HordeSettings.ServerPrivateCert.Replace(Base64Prefix, "", StringComparison.Ordinal));
+				return new X509Certificate2(CertData);
 			}
 			else
 			{
