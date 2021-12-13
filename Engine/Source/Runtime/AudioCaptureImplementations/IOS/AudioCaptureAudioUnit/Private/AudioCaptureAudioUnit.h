@@ -38,5 +38,7 @@ namespace Audio
 		int32 SampleRate;
 		TArray<uint8> CaptureBuffer;
 		int BufferSize = 0;
+		bool bIsStreamOpen;
+		bool bHasCaptureStarted;
 	};
 }
