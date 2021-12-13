@@ -69,6 +69,8 @@ public:
 		}
 	}
 
+	virtual TSharedPtr<SWidget> CreateContextMenu() override;
+
 private:
 	void OnActorLabelChanged(AActor* InChangedActor)
 	{
