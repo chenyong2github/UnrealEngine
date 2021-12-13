@@ -95,6 +95,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy);
 
+	/**
+	* Set the text overflow policy for this text block.
+	* @param InOverflowPolicy the new text overflow policy.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
+
 	/** 
 	 * Wholesale override of the currently established default text style
 	 * @param InDefaultTextStyle The new text style to apply to all default (i.e. undecorated) text in the block
@@ -199,6 +206,10 @@ protected:
 	/** The text transformation policy to apply to this text block */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=(DisplayName="Transform Policy"))
 	ETextTransformPolicy TextTransformPolicy;
+
+	/** Sets what happens to text that is clipped and doesn't fit within the clip rect for this widget */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clipping, AdvancedDisplay, meta = (DisplayName = "Overflow Policy"))
+	ETextOverflowPolicy TextOverflowPolicy;
 
 	UPROPERTY(Transient)
 	FTextBlockStyle DefaultTextStyle;
