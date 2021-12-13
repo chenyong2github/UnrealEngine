@@ -4149,6 +4149,9 @@ void UClass::FinishDestroy()
 
 	ClassDefaultObject = nullptr;
 
+	CleanupSparseClassData();
+	SparseClassDataStruct = nullptr;
+
 #if WITH_EDITORONLY_DATA
 	// If for whatever reason there's still properties that have not been destroyed in PurgeClass, destroy them now
 	DestroyPropertiesPendingDestruction();
@@ -4206,15 +4209,13 @@ void UClass::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 	{
 		OutDeps.Add(SparseClassDataStruct);
 
-		// make sure we always have a sparse class data struct to get the dependencies from
-		GetOrCreateSparseClassData();
-
+		const void* SparseClassDataToUse = GetSparseClassData(EGetSparseClassDataMethod::ArchetypeIfNull);
 		if (UScriptStruct::ICppStructOps* CppStructOps = SparseClassDataStruct->GetCppStructOps())
 		{
-			CppStructOps->GetPreloadDependencies(SparseClassData, OutDeps);
+			CppStructOps->GetPreloadDependencies(const_cast<void*>(SparseClassDataToUse), OutDeps);
 		}
 		// The iterator will recursively loop through all structs in structs/containers too.
-		for (TPropertyValueIterator<FStructProperty> It(SparseClassDataStruct, SparseClassData); It; ++It)
+		for (TPropertyValueIterator<FStructProperty> It(SparseClassDataStruct, SparseClassDataToUse); It; ++It)
 		{
 			const UScriptStruct* StructType = It.Key()->Struct;
 			if (UScriptStruct::ICppStructOps* CppStructOps = StructType->GetCppStructOps())
@@ -4741,14 +4742,9 @@ void UClass::Serialize( FArchive& Ar )
 
 	if (!Ar.IsLoading() && !Ar.IsSaving())
 	{
-		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+		Ar << SparseClassDataStruct;
 
-		if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SparseClassDataStructSerialization)
-		{
-			Ar << SparseClassDataStruct;
-		}
-
-		if (GetSparseClassDataStruct() != nullptr)
+		if (SparseClassDataStruct && SparseClassData)
 		{
 			SerializeSparseClassData(FStructuredArchiveFromArchive(Ar).GetSlot());
 		}
@@ -4858,11 +4854,11 @@ void UClass::SerializeSparseClassData(FStructuredArchive::FSlot Slot)
 	}
 	else if (UnderlyingArchive.GetPortFlags() != 0)
 	{
-		SparseClassDataStruct->SerializeBinEx(Slot, (uint8*)SparseClassData, SparseClassDataStruct, GetSparseClassDataArchetypeStruct());
+		SparseClassDataStruct->SerializeBinEx(Slot, SparseClassData, GetArchetypeForSparseClassData(), GetSparseClassDataArchetypeStruct());
 	}
 	else
 	{
-		SparseClassDataStruct->SerializeBin(Slot, (uint8*)SparseClassData);
+		SparseClassDataStruct->SerializeBin(Slot, SparseClassData);
 	}
 }
 
@@ -4876,16 +4872,26 @@ FArchive& operator<<(FArchive& Ar, FImplementedInterface& A)
 	return Ar;
 }
 
-void* UClass::GetArchetypeForSparseClassData() const
+const void* UClass::GetArchetypeForSparseClassData() const
 {
 	UClass* SuperClass = GetSuperClass();
-	return SuperClass ? SuperClass->GetOrCreateSparseClassData() : nullptr;
+	return SuperClass ? SuperClass->GetSparseClassData(EGetSparseClassDataMethod::ArchetypeIfNull) : nullptr;
 }
 
 UScriptStruct* UClass::GetSparseClassDataArchetypeStruct() const
 {
 	UClass* SuperClass = GetSuperClass();
 	return SuperClass ? SuperClass->GetSparseClassDataStruct() : nullptr;
+}
+
+bool UClass::OverridesSparseClassDataArchetype() const
+{
+	if (SparseClassDataStruct && SparseClassData)
+	{
+		return SparseClassDataStruct != GetSparseClassDataArchetypeStruct()
+			|| SparseClassDataStruct->CompareScriptStruct(SparseClassData, GetArchetypeForSparseClassData(), 0) == false;
+	}
+	return false;
 }
 
 UObject* UClass::GetArchetypeForCDO() const
@@ -5162,7 +5168,7 @@ void* UClass::CreateSparseClassData()
 	if (SparseClassData)
 	{
 		// initialize per class data from the archetype if we have one
-		void* SparseArchetypeData = GetArchetypeForSparseClassData();
+		const void* SparseArchetypeData = GetArchetypeForSparseClassData();
 		UStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
 
 		if (SparseArchetypeData)
@@ -5185,6 +5191,31 @@ void UClass::CleanupSparseClassData()
 		FMemory::Free(SparseClassData);
 		SparseClassData = nullptr;
 	}
+}
+
+const void* UClass::GetSparseClassData(const EGetSparseClassDataMethod GetMethod)
+{
+	if (SparseClassData)
+	{
+		return SparseClassData;
+	}
+
+	switch (GetMethod)
+	{
+	case EGetSparseClassDataMethod::CreateIfNull:
+		return CreateSparseClassData();
+
+	case EGetSparseClassDataMethod::ArchetypeIfNull:
+		// Use the archetype data only when it's the expected type, otherwise the result may be cast to an incorrect type by the caller
+		return SparseClassDataStruct == GetSparseClassDataArchetypeStruct()
+			? GetArchetypeForSparseClassData()
+			: CreateSparseClassData();
+
+	default:
+		break;
+	}
+
+	return nullptr;
 }
 
 UScriptStruct* UClass::GetSparseClassDataStruct() const

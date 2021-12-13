@@ -482,15 +482,35 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 	bool bSkipSparseClassDataSerialization = false;
 	if(UnderlyingArchive.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SparseClassDataStructSerialization)
 	{
-		UnderlyingArchive << SparseClassDataStruct;
-
-		if(UnderlyingArchive.IsLoading() && SparseClassDataStruct == nullptr && Object->GetLinker())
+		if (UnderlyingArchive.IsSaving())
 		{
-			// Missing or failed to load sparse class data struct - possible that the parent class was deleted, or regenerated on load
-			// so seek past where this CDO was serialized as we cannot read the serialized sparse class data any more.
-			// Note this happens in majority of cases with classes that have no sparse class data attached too. In that case 
-			// this 'skip' over the remaining part of the archive should have no ill effects as the seek should effectively be zero
-			bSkipSparseClassDataSerialization = true;
+			UScriptStruct* SerializedSparseClassDataStruct = SparseClassDataStruct;
+			if (!OverridesSparseClassDataArchetype())
+			{
+				// If this class doesn't override the sparse class data of its archetype, then we can skip saving it 
+				// since it can be lazily regenerated from the archetype data on load
+				SerializedSparseClassDataStruct = nullptr;
+				bSkipSparseClassDataSerialization = true;
+			}
+			UnderlyingArchive << SerializedSparseClassDataStruct;
+		}
+		else if (UnderlyingArchive.IsLoading())
+		{
+			UScriptStruct* SerializedSparseClassDataStruct = nullptr;
+			UnderlyingArchive << SerializedSparseClassDataStruct;
+			if (SparseClassDataStruct != SerializedSparseClassDataStruct)
+			{
+				CleanupSparseClassData();
+				SparseClassDataStruct = SerializedSparseClassDataStruct;
+			}
+			if (!SparseClassDataStruct)
+			{
+				// Missing or failed to load sparse class data struct - possible that the parent class was deleted, or regenerated on load
+				// so seek past where this CDO was serialized as we cannot read the serialized sparse class data any more.
+				// Note this happens in majority of cases with classes that have no sparse class data attached too. In that case 
+				// this 'skip' over the remaining part of the archive should have no ill effects as the seek should effectively be zero
+				bSkipSparseClassDataSerialization = true;
+			}
 		}
 	}
 
@@ -501,14 +521,32 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 		if(bSkipSparseClassDataSerialization)
 		{
 			// Seek to after sparse class data rather than load it.
-			const FLinkerLoad* Linker = Object->GetLinker();
-			const int32 LinkerIndex = Object->GetLinkerIndex();
-			const FObjectExport& Export = Linker->ExportMap[LinkerIndex];
-			UnderlyingArchive.Seek(Export.SerialOffset + Export.SerialSize);
+			if (UnderlyingArchive.IsLoading())
+			{
+				if (const FLinkerLoad* Linker = Object->GetLinker())
+				{
+					const int32 LinkerIndex = Object->GetLinkerIndex();
+					const FObjectExport& Export = Linker->ExportMap[LinkerIndex];
+					UnderlyingArchive.Seek(Export.SerialOffset + Export.SerialSize);
+				}
+			}
 		}
-		else if (Object->GetSparseClassDataStruct())
+		else if (SparseClassDataStruct)
 		{
 			SerializeSparseClassData(FStructuredArchiveFromArchive(UnderlyingArchive).GetSlot());
+		}
+	}
+
+	if (UnderlyingArchive.IsLoading())
+	{
+		if (SparseClassDataStruct)
+		{
+			// TODO: We should make sure that this instance conforms to its archetype (keeping data where possible, potentially via 
+			// an explicit upgrade path for sparse data), as it may have changed since this BPGC was saved (UE-127121)
+		}
+		else
+		{
+			SparseClassDataStruct = GetSparseClassDataArchetypeStruct();
 		}
 	}
 }

@@ -627,7 +627,7 @@ public:
 	virtual FString GetDesc() { return TEXT( "" ); }
 
 	/** Return the UStruct corresponding to the sidecar data structure that stores data that is constant for all instances of this class. */
-	virtual UScriptStruct* GetSparseClassDataStruct() const;
+	UScriptStruct* GetSparseClassDataStruct() const;
 
 #if WITH_EDITOR
 	virtual void MoveDataToSparseClassDataStruct() const {}

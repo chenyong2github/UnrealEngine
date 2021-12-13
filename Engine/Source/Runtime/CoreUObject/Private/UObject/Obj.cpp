@@ -1464,9 +1464,19 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 		}
 
 		// Keep track of sparse class data for undo/redo
-		if (UnderlyingArchive.IsTransacting() && HasAnyFlags(RF_ClassDefaultObject) && ObjClass->GetSparseClassDataStruct())
+		if (UnderlyingArchive.IsTransacting() && HasAnyFlags(RF_ClassDefaultObject))
 		{
-			ObjClass->SerializeSparseClassData(Record.EnterField(SA_FIELD_NAME(TEXT("SparseClassData"))));
+			UScriptStruct* SerializedSparseClassDataStruct = ObjClass->GetSparseClassDataStruct();
+			if (UnderlyingArchive.IsSaving() && !ObjClass->GetSparseClassData(EGetSparseClassDataMethod::ReturnIfNull))
+			{
+				SerializedSparseClassDataStruct = nullptr;
+			}
+			Record << SA_VALUE(TEXT("SparseClassDataStruct"), SerializedSparseClassDataStruct);
+
+			if (SerializedSparseClassDataStruct)
+			{
+				ObjClass->SerializeSparseClassData(Record.EnterField(SA_FIELD_NAME(TEXT("SparseClassData"))));
+			}
 		}
 
 		// Memory counting (with proper alignment to match C++)
@@ -1933,7 +1943,7 @@ static void GetAssetRegistryTagsFromSearchableProperties(const UObject* Object, 
 	UScriptStruct* SparseClassDataStruct = Object->GetClass()->GetSparseClassDataStruct();
 	if (SparseClassDataStruct)
 	{
-		void* SparseClassData = Object->GetClass()->GetOrCreateSparseClassData();
+		const void* SparseClassData = Object->GetClass()->GetSparseClassData(EGetSparseClassDataMethod::ArchetypeIfNull);
 		for (TFieldIterator<FProperty> FieldIt(SparseClassDataStruct); FieldIt; ++FieldIt)
 		{
 			GetAssetRegistryTagFromProperty(SparseClassData, Object, CastField<FProperty>(*FieldIt), OutTags);

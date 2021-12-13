@@ -2104,12 +2104,8 @@ DEFINE_FUNCTION(UObject::execClassSparseDataVariable)
 	}
 	else
 	{
-		void* SparseDataBaseAddress = P_THIS->GetClass()->GetOrCreateSparseClassData();
+		void* SparseDataBaseAddress = const_cast<void*>(P_THIS->GetClass()->GetSparseClassData(EGetSparseClassDataMethod::ArchetypeIfNull));
 		Stack.MostRecentPropertyAddress = VarProperty->ContainerPtrToValuePtr<uint8>(SparseDataBaseAddress);
-
-		// SPARSEDATA_TODO: remove these two lines once we're sure the math is right
-		int32 Offset = VarProperty->GetOffset_ForInternal();
-		check((uint8*)SparseDataBaseAddress + Offset == Stack.MostRecentPropertyAddress);
 
 		if (RESULT_PARAM)
 		{

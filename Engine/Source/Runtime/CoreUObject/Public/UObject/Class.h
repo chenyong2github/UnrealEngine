@@ -2723,6 +2723,17 @@ struct FClassFunctionLinkInfo
 };
 
 
+enum class EGetSparseClassDataMethod : uint8
+{
+	/** Create a new instance when this class doesn't have any sparse data of its own */
+	CreateIfNull,
+	/** Use the archetype instance (if possible) when this class doesn't have any sparse data of its own */
+	ArchetypeIfNull,
+	/** Return null when this class doesn't have any sparse data of its own */
+	ReturnIfNull,
+};
+
+
 /**
  * An object class.
  */
@@ -2828,23 +2839,27 @@ public:
 
 protected:
 	/** This is where we store the data that is only changed per class instead of per instance */
-	UPROPERTY()
 	void* SparseClassData;
 
 	/** The struct used to store sparse class data. */
-	UPROPERTY()
 	UScriptStruct* SparseClassDataStruct;
 
 public:
 	/**
+	 * Returns a pointer to the sidecar data structure, based on the EGetSparseClassDataMethod.
+	 * @note It is only safe to mutate this data when using "CreateIfNull", as others may return archetype/default data; consider GetOrCreateSparseClassData for this use-case.
+	 */
+	const void* GetSparseClassData(const EGetSparseClassDataMethod GetMethod);
+
+	/**
 	 * Returns a pointer to the sidecar data structure. This function will create an instance of the data structure if one has been specified and it has not yet been created.
 	 */
-	void* GetOrCreateSparseClassData() { return SparseClassData ? SparseClassData : CreateSparseClassData(); }
+	void* GetOrCreateSparseClassData() { return const_cast<void*>(GetSparseClassData(EGetSparseClassDataMethod::CreateIfNull)); }
 
 	/**
 	 * Returns a pointer to the type of the sidecar data structure if one is specified.
 	 */
-	virtual UScriptStruct* GetSparseClassDataStruct() const;
+	UScriptStruct* GetSparseClassDataStruct() const;
 
 	void SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct);
 
@@ -2861,11 +2876,12 @@ public:
 	}
 #endif // WITH_EDITOR
 
-private:
+protected:
 	void* CreateSparseClassData();
 
 	void CleanupSparseClassData();
 
+private:
 #if WITH_EDITOR
 	/** Provides access to attributes of the underlying C++ class. Should never be unset. */
 	TOptional<FCppClassTypeInfo> CppTypeInfo;
@@ -3346,10 +3362,13 @@ public:
 	virtual UObject* GetArchetypeForCDO() const;
 
 	/** Returns archetype for sparse class data */
-	virtual void* GetArchetypeForSparseClassData() const;
+	const void* GetArchetypeForSparseClassData() const;
 
 	/** Returns the struct used by the sparse class data archetype */
 	UScriptStruct* GetSparseClassDataArchetypeStruct() const;
+
+	/** Returns whether the sparse class data on this instance overrides that of its archetype (in type or value) */
+	bool OverridesSparseClassDataArchetype() const;
 
 	/**
 	* Returns all objects that should be preloaded before the class default object is serialized at load time. Only used by the EDL.
