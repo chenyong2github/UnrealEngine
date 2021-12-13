@@ -103,6 +103,8 @@ namespace Chaos
 		const FPerShapeData* Shape0;
 		const FPerShapeData* Shape1;
 		EContactShapesType ShapePairType;
+		FReal SphereBoundsCheckSize;
+		bool bEnableAABBCheck;
 		bool bEnableOBBCheck0;
 		bool bEnableOBBCheck1;
 		bool bEnableManifoldCheck;
@@ -261,25 +263,29 @@ namespace Chaos
 		~FParticlePairMidPhase();
 
 
-		FGeometryParticleHandle* GetParticle0() { return Particle0; }
+		inline FGeometryParticleHandle* GetParticle0() { return Particle0; }
 
-		FGeometryParticleHandle* GetParticle1() { return Particle1; }
+		inline FGeometryParticleHandle* GetParticle1() { return Particle1; }
 
-		const FCollisionParticlePairKey& GetKey() const { return Key; }
+		inline const FCollisionParticlePairKey& GetKey() const { return Key; }
 
-		FCollisionConstraintAllocator& GetCollisionAllocator() { return *CollisionAllocator; }
+		inline FCollisionConstraintAllocator& GetCollisionAllocator() { return *CollisionAllocator; }
 
-		bool IsValid() const { return (Particle0 != nullptr) && (Particle1 != nullptr); }
+		inline bool IsValid() const { return (Particle0 != nullptr) && (Particle1 != nullptr); }
 
 		/**
 		 * @brief Have we run collision detection since this Epoch (inclusive)
 		*/
-		bool IsUsedSince(const int32 Epoch) const;
+		inline bool IsUsedSince(const int32 Epoch) const
+		{
+			return (LastUsedEpoch >= Epoch);
+		}
+
 
 		/**
 		 * @brief Whether the particle pair is sleeping and therefore contacts should not be culled (they will be reused on wake)
 		*/
-		bool IsSleeping() const { return bIsSleeping; }
+		inline bool IsSleeping() const { return bIsSleeping; }
 
 		/**
 		 * @brief Update the sleeping state
