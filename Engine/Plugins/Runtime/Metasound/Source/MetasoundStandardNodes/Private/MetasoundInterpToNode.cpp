@@ -81,6 +81,8 @@ namespace Metasound
 		BlockTimeDelta = 1.0f / BlockRate;
 
 		PreviousTargetValue = *TargetValue;
+
+		*ValueOutput = *TargetValue;
 	}
 
 	FDataReferenceCollection FInterpToOperator::GetInputs() const
