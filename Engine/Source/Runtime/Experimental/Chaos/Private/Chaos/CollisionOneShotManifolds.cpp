@@ -214,8 +214,8 @@ namespace Chaos
 				FVec3 EdgePos2 = Box2Transform.TransformPosition(ShapeEdgePos2);
 				FReal EdgePhi = FVec3::DotProduct(EdgePos1 - EdgePos2, GJKContactPoint.Normal);
 
-				GJKContactPoint.ShapeContactPoints[0] = EdgePos1;
-				GJKContactPoint.ShapeContactPoints[1] = EdgePos2;
+				GJKContactPoint.ShapeContactPoints[0] = ShapeEdgePos1;
+				GJKContactPoint.ShapeContactPoints[1] = ShapeEdgePos2;
 				GJKContactPoint.Phi = EdgePhi;
 				GJKContactPoint.Location = 0.5f * (EdgePos1 + EdgePos2);
 
