@@ -389,7 +389,7 @@ static FMetalCompilerToolchain::EMetalToolchainStatus ParseCompilerVersionAndTar
 		char AppleToolName[PATH_MAX] = { '\0' };
 		NumResults = sscanf(TCHAR_TO_ANSI(*Version), "Apple %s version %d.%d.%d", AppleToolName, &Major, &Minor, &Patch);
 #else
-		TCHAR AppleToolName[WINDOWS_MAX_PATH] = TEXT("");
+		TCHAR AppleToolName[WINDOWS_MAX_PATH] = { '\0' };
 		NumResults = swscanf_s(*Version, TEXT("Apple %ls version %d.%d.%d"), AppleToolName, WINDOWS_MAX_PATH, &Major, &Minor, &Patch);
 #endif
 		PackedVersionNumber.Major = Major;
