@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
-
 #include "MetasoundFrontendDataTypeRegistry.h"
+
 
 namespace Metasound
 {
@@ -463,6 +462,8 @@ namespace Metasound
 				virtual bool GetDataTypeInfo(const UObject* InObject, FDataTypeRegistryInfo& OutInfo) const override;
 				virtual bool GetDataTypeInfo(const FName& InDataType, FDataTypeRegistryInfo& OutInfo) const override;
 
+				virtual void IterateDataTypeInfo(TFunctionRef<void(const FDataTypeRegistryInfo&)> InFunction) const override;
+
 				// Return the enum interface for a data type. If the data type does not have 
 				// an enum interface, returns a nullptr.
 				virtual TSharedPtr<const IEnumDataTypeInterface> GetEnumInterfaceForDataType(const FName& InDataType) const override;
@@ -591,6 +592,14 @@ namespace Metasound
 					return true;
 				}
 				return false;
+			}
+
+			void FDataTypeRegistry::IterateDataTypeInfo(TFunctionRef<void(const FDataTypeRegistryInfo&)> InFunction) const
+			{
+				for (const TPair<FName, TUniquePtr<IDataTypeRegistryEntry>>& Entry : RegisteredDataTypes)
+				{
+					InFunction(Entry.Value->GetDataTypeInfo());
+				}
 			}
 
 			bool FDataTypeRegistry::IsRegistered(const FName& InDataType) const

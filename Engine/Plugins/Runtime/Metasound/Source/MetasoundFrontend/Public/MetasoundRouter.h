@@ -493,13 +493,6 @@ namespace Metasound
 			: IReceiver(InDataChannel, GetDataTypeName())
 			, OperatorSettings(InitParams.OperatorSettings)
 		{
-			// Executable DataTypes (currently just triggers) do not
-			// sync to past state provided by the data channel,
-			// so mark them as up-to-date.
-			if (TExecutableDataType<TDataType>::bIsExecutable)
-			{
-				LastPayloadID = InDataChannel->GetPayloadID();
-			}
 		}
 
 		void PushPayload(int64 InPayloadID, const TDataType& InDataPayload)

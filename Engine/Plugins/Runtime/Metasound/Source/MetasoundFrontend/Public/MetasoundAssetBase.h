@@ -127,12 +127,15 @@ public:
 	bool VersionAsset();
 
 #if WITH_EDITORONLY_DATA
-	bool GetSynchronizationPending() const;
+	// TODO: These flags & associated functions are highly UE editor-specific.
+	// Split synchronization requirement flag into synchronization required &
+	// object type refresh or checking frontend class guids when synchronizing.
+	bool GetSynchronizationRequired() const;
 	bool GetSynchronizationClearUpdateNotes() const;
-	bool GetSynchronizationInterfacesUpdated() const;
+	bool GetSynchronizationUpdateDetails() const;
 	void ResetSynchronizationState();
 	void SetClearNodeNotesOnSynchronization();
-	void SetInterfacesUpdatedOnSynchronization();
+	void SetUpdateDetailsOnSynchronization();
 	void SetSynchronizationRequired();
 #endif // WITH_EDITORONLY_DATA
 
@@ -175,7 +178,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	bool bSynchronizationRequired = true;
 	bool bSynchronizationClearUpdateNotes = false;
-	bool bSynchronizationInterfacesUpdated = false;
+	bool bSynchronizationUpdateDetails = false;
 #endif // WITH_EDITORONLY_DATA
 
 private:

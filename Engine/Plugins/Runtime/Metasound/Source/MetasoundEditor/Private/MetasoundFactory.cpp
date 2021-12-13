@@ -3,7 +3,9 @@
 
 #include "Kismet/KismetSystemLibrary.h"
 #include "Metasound.h"
+#include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorGraphSchema.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundSource.h"
 
@@ -16,6 +18,7 @@ namespace Metasound
 		T* CreateNewMetaSoundObject(UObject* InParent, FName InName, EObjectFlags InFlags, UObject* InReferencedMetaSoundObject)
 		{
 			using namespace Editor;
+			using namespace Frontend;
 
 			T* MetaSoundObject = NewObject<T>(InParent, InName, InFlags);
 			check(MetaSoundObject);
@@ -27,7 +30,21 @@ namespace Metasound
 				FGraphBuilder::InitMetaSoundPreset(*InReferencedMetaSoundObject, *MetaSoundObject);
 			}
 
-			FGraphBuilder::InitGraph(*MetaSoundObject);
+			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSoundObject);
+			check(MetaSoundAsset);
+
+			// Initial graph generation is not something to be managed by the transaction
+			// stack, so don't track dirty state until after initial setup if necessary.
+			UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetaSoundAsset->GetGraph());
+			if (!Graph)
+			{
+				Graph = NewObject<UMetasoundEditorGraph>(MetaSoundObject, FName(), RF_Transactional);
+				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
+				MetaSoundAsset->SetGraph(Graph);
+
+				// Has to be done inline to have valid graph initially when opening editor for the first time
+				FGraphBuilder::SynchronizeGraph(*MetaSoundObject);
+			}
 
 			return MetaSoundObject;
 		}

@@ -390,7 +390,7 @@ bool FMetasoundAssetBase::VersionAsset()
 }
 
 #if WITH_EDITORONLY_DATA
-bool FMetasoundAssetBase::GetSynchronizationPending() const
+bool FMetasoundAssetBase::GetSynchronizationRequired() const
 {
 	return bSynchronizationRequired;
 }
@@ -400,9 +400,9 @@ bool FMetasoundAssetBase::GetSynchronizationClearUpdateNotes() const
 	return bSynchronizationClearUpdateNotes;
 }
 
-bool FMetasoundAssetBase::GetSynchronizationInterfacesUpdated() const
+bool FMetasoundAssetBase::GetSynchronizationUpdateDetails() const
 {
-	return bSynchronizationInterfacesUpdated;
+	return bSynchronizationUpdateDetails;
 }
 
 void FMetasoundAssetBase::SetSynchronizationRequired()
@@ -413,17 +413,19 @@ void FMetasoundAssetBase::SetSynchronizationRequired()
 void FMetasoundAssetBase::SetClearNodeNotesOnSynchronization()
 {
 	bSynchronizationClearUpdateNotes = true;
+	bSynchronizationRequired = true;
 }
 
-void FMetasoundAssetBase::SetInterfacesUpdatedOnSynchronization()
+void FMetasoundAssetBase::SetUpdateDetailsOnSynchronization()
 {
-	bSynchronizationInterfacesUpdated = true;
+	bSynchronizationUpdateDetails = true;
+	bSynchronizationRequired = true;
 }
 
 void FMetasoundAssetBase::ResetSynchronizationState()
 {
 	bSynchronizationClearUpdateNotes = false;
-	bSynchronizationInterfacesUpdated = false;
+	bSynchronizationUpdateDetails = false;
 	bSynchronizationRequired = false;
 }
 #endif // WITH_EDITORONLY_DATA

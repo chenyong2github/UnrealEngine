@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "AssetData.h"
 #include "ConnectionDrawingPolicy.h"
-#include "CoreMinimal.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphUtilities.h"
 #include "MetasoundFrontend.h"
@@ -116,7 +114,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FMetaso
 
 /** Promotes an input to a graph input, using its respective literal value as the default value */
 USTRUCT()
-struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToInput : public FMetasoundGraphSchemaAction_NewInput
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToInput : public FMetasoundGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -155,7 +153,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FMetas
 
 /** Promotes a node output to a graph output */
 USTRUCT()
-struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToOutput : public FMetasoundGraphSchemaAction_NewOutput
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToOutput : public FMetasoundGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -192,10 +190,11 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewVariableNode : public 
 	//~ End FMetasoundGraphSchemaAction Interface
 	
 protected:
-
 	// Derived classes should override this method to create the desired frontend node.
-	virtual Metasound::Frontend::FNodeHandle CreateFrontendVariableNode(const Metasound::Frontend::FGraphHandle& InFrontendGraph, const FGuid& InVariableID) const { return Metasound::Frontend::INodeController::GetInvalidHandle(); }
-
+	virtual Metasound::Frontend::FNodeHandle CreateFrontendVariableNode(const Metasound::Frontend::FGraphHandle& InFrontendGraph, const FGuid& InVariableID) const
+	{
+		return Metasound::Frontend::INodeController::GetInvalidHandle();
+	}
 };
 
 /** Adds a variable node to the graph */
@@ -246,6 +245,46 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewVariableMutatorNode : 
 protected:
 	virtual Metasound::Frontend::FNodeHandle CreateFrontendVariableNode(const Metasound::Frontend::FGraphHandle& InFrontendGraph, const FGuid& InVariableID) const override;
 };
+
+/** Promotes an input to a graph variable & respective getter node, using its respective literal value as the default value */
+USTRUCT()
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode : public FMetasoundGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode();
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
+
+/** Promotes an output to a graph variable & respective setter node, using its respective literal value as the default value */
+USTRUCT()
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToVariable_MutatorNode : public FMetasoundGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	FMetasoundGraphSchemaAction_PromoteToVariable_MutatorNode();
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
+
+/** Promotes an input to a graph variable & respective deferred getter node, using its respective literal value as the default value */
+USTRUCT()
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToVariable_DeferredAccessorNode : public FMetasoundGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	FMetasoundGraphSchemaAction_PromoteToVariable_DeferredAccessorNode();
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
+
 
 /** Action to add a node to the graph */
 USTRUCT()

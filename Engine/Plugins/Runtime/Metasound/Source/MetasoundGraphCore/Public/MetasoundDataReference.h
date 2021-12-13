@@ -39,7 +39,6 @@ namespace Metasound
 		static_assert(TSpecializationHelper<DataType>::Value, "TDataReferenceTypeInfo is not specialized.  Use macro DECLARE_METASOUND_DATA_REFERENCE_TYPES to declare a new type, or ensure that an existing DECLARE_METASOUND_DATA_REFERENCE_TYPES exists in the include path.");
 	};
 
-
 	/** Return the data type FName for a registered data type. */
 	template<typename DataType>
 	const FName& GetMetasoundDataTypeName()
@@ -74,6 +73,12 @@ namespace Metasound
 	{
 		return TDataReferenceTypeInfo<std::decay_t<DataType>>::TypeId;
 	}
+
+	/** Returns array type associated with the base datatype provided(ex. 'Float:Array' if 'Float' is provided) */
+	METASOUNDGRAPHCORE_API FName CreateArrayTypeNameFromElementTypeName(const FName InTypeName);
+
+	/** Returns the base data type with the array extension(ex. 'Float' if 'Float:Array' is provided) */
+	METASOUNDGRAPHCORE_API FName CreateElementTypeNameFromArrayTypeName(const FName InArrayTypeName);
 
 	/** Specialize void data type for internal use. */
 	template<>

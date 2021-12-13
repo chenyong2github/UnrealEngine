@@ -359,6 +359,13 @@ namespace Metasound
 						SetNode = AddNode(SetNodeClass.Metadata, FGuid::NewGuid());
 						if (SetNode->IsValid())
 						{
+							// Initialize set default literal value to that of the variable
+							FInputHandle InputHandle = SetNode->GetInputWithVertexName(VariableNames::GetInputDataName());
+							if (ensure(InputHandle->IsValid()))
+							{
+								InputHandle->SetLiteral(Variable->Literal);
+							}
+
 							Variable->MutatorNodeID = SetNode->GetID();
 							FGuid SourceVariableNodeID = Variable->VariableNodeID;
 

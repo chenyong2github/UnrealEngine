@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
+#include "Containers/Array.h"
 #include "MetasoundEnum.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundLiteral.h"
+#include "Misc/Optional.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+
 
 namespace Metasound
 {
@@ -197,15 +204,22 @@ namespace Metasound
 			 */
 			virtual bool RegisterDataType(TUniquePtr<IDataTypeRegistryEntry>&& InEntry) = 0;
 
+			/** Provides all names of registered DataTypes. */
 			virtual void GetRegisteredDataTypeNames(TArray<FName>& OutNames) const = 0;
 
+			/** Returns DataType info associated with the provided object. */
 			virtual bool GetDataTypeInfo(const UObject* InObject, FDataTypeRegistryInfo& OutInfo) const = 0;
+
+			/** Returns DataType info associated with the provided DataType name. */
 			virtual bool GetDataTypeInfo(const FName& InDataType, FDataTypeRegistryInfo& OutInfo) const = 0;
 
+			/** Iterates all registered data type info */
+			virtual void IterateDataTypeInfo(TFunctionRef<void(const FDataTypeRegistryInfo&)> InFunction) const = 0;
+
+			/** Returns whether or not a DataType is registered with the given name. */
 			virtual bool IsRegistered(const FName& InDataType) const = 0;
 
-			// Return the enum interface for a data type. If the data type does not have 
-			// an enum interface, returns a nullptr.
+			/** Return the enum interface for a data type. If the data type does not have an enum interface, returns a nullptr. */
 			virtual TSharedPtr<const IEnumDataTypeInterface> GetEnumInterfaceForDataType(const FName& InDataType) const = 0;
 
 			virtual ELiteralType GetDesiredLiteralType(const FName& InDataType) const = 0;

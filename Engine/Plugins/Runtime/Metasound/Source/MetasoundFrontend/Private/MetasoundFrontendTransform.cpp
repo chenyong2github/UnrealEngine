@@ -482,7 +482,7 @@ namespace Metasound
 				FMetasoundFrontendVersionNumber UpdateVersion = NodeHandle->FindHighestMinorVersionInRegistry();
 				if (UpdateVersion.IsValid() && UpdateVersion > ClassMetadata.GetVersion())
 				{
-					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating node class '%s': Newer minor version '%s' found."), *ClassMetadata.GetDisplayName().ToString(), *UpdateVersion.ToString());
+					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating node class '%s': Newer version '%s' found."), *ClassMetadata.GetDisplayName().ToString(), *UpdateVersion.ToString());
 				}
 				else if (InterfaceUpdates.ContainsChanges())
 				{

@@ -114,6 +114,9 @@ namespace Metasound
 			virtual TStatId GetStatId() const override;
 			virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
 
+			virtual void Play() override;
+			virtual void Stop() override;
+
 			/** Whether pasting the currently selected nodes is permissible */
 			bool CanPasteNodes();
 
@@ -241,8 +244,6 @@ namespace Metasound
 
 			/** Toolbar command methods */
 			void ExecuteNode();
-			void Play();
-			void Stop();
 
 			/** Whether we can play the current selection of nodes */
 			bool CanExecuteNode() const;

@@ -71,6 +71,9 @@ public:
 		/** Called when the value is changed by slider or typing */
 		SLATE_EVENT(FOnFloatValueChanged, OnValueChanged)
 
+		/** Called when the value is committed by mouse capture ending */
+		SLATE_EVENT(FOnFloatValueChanged, OnValueCommitted)
+
 	SLATE_END_ARGS()
 
 	SAudioSliderBase();
@@ -78,6 +81,9 @@ public:
 
 	// Holds a delegate that is executed when the slider's value changed.
 	FOnFloatValueChanged OnValueChanged;
+
+	// Holds a delegate that is executed when the slider's value is committed (mouse capture ends).
+	FOnFloatValueChanged OnValueCommitted;
 
 	/**
 	 * Construct the widget.

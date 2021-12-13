@@ -27,6 +27,7 @@
 #include "MetasoundEditorCommands.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorGraphInputNode.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorGraphValidation.h"
@@ -934,6 +935,7 @@ namespace Metasound
 							SetPreviewID(INDEX_NONE);
 							PlayTime = 0.0;
 							PlayTimeWidget->SetText(FText::GetEmpty());
+
 							return EActiveTimerReturnType::Stop;
 						}
 					})
@@ -1345,6 +1347,10 @@ namespace Metasound
 				else if (UMetasoundEditorGraphOutputNode* OutputNode = Cast<UMetasoundEditorGraphOutputNode>(NodeObject))
 				{
 					Selection.Add(OutputNode->Output);
+				}
+				else if (UMetasoundEditorGraphVariableNode* VariableNode = Cast<UMetasoundEditorGraphVariableNode>(NodeObject))
+				{
+					Selection.Add(VariableNode->Variable);
 				}
 				else
 				{
@@ -2173,28 +2179,30 @@ namespace Metasound
 			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			check(MetasoundAsset);
 
-			if (MetasoundAsset->GetSynchronizationPending())
+			if (MetasoundAsset->GetSynchronizationRequired())
 			{
 				// Capture before synchronizing as the flag is cleared therein.
-				const bool bInterfacesUpdated = MetasoundAsset->GetSynchronizationInterfacesUpdated();
-
+				const bool bShouldRefreshDetails = MetasoundAsset->GetSynchronizationUpdateDetails();
 				FGraphBuilder::SynchronizeGraph(*Metasound);
 
-				if (MetasoundDetails.IsValid())
+				if (bShouldRefreshDetails)
 				{
-					// Only refresh the details panel if viewing the graph details of the object is no longer valid
-					auto ShouldRefreshDetails = [bInterfacesUpdated](TWeakObjectPtr<UObject> Obj)
+					RefreshDetails();
+				}
+				else
+				{
+					// Also refresh if the object in the panel has gone invalid
+					auto ShouldRefreshDetails = [](TWeakObjectPtr<UObject> Obj)
 					{
 						if (!Obj.IsValid() || !IsValid(Obj.Get()))
 						{
 							return true;
 						}
 
-						return bInterfacesUpdated && IMetasoundUObjectRegistry::Get().IsRegisteredClass(Obj.Get());
+						return IMetasoundUObjectRegistry::Get().IsRegisteredClass(Obj.Get());
 					};
 
-					const bool bShouldRefreshDetails = Algo::AnyOf(MetasoundDetails->GetSelectedObjects(), ShouldRefreshDetails);
-					if (bShouldRefreshDetails)
+					if (Algo::AnyOf(MetasoundDetails->GetSelectedObjects(), ShouldRefreshDetails))
 					{
 						RefreshDetails();
 					}

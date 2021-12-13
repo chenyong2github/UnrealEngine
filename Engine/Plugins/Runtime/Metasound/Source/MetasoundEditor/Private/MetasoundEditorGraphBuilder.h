@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EdGraph/EdGraph.h"
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphPin.h"
-#include "MetasoundEditorGraphInputNodes.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/NoExportTypes.h"
 
 
 // Forward Declarations
@@ -16,10 +15,15 @@ class SGraphEditor;
 class UEdGraphNode;
 class UEdGraphPin;
 class UMetaSound;
+class UMetasoundEditorGraphExternalNode;
 class UMetasoundEditorGraphNode;
+class UMetasoundEditorGraphInputNode;
+class UMetasoundEditorGraphOutputNode;
+class UMetasoundEditorGraphVariableNode;
 
 struct FEdGraphPinType;
 struct FMetasoundFrontendNodeStyle;
+struct FMetasoundFrontendLiteral;
 
 
 namespace Metasound
@@ -63,9 +67,6 @@ namespace Metasound
 			// Convenience functions for retrieving the editor for the given MetaSound/EdGraph
 			static TSharedPtr<FEditor> GetEditorForMetasound(const UObject& MetaSound);
 			static TSharedPtr<FEditor> GetEditorForGraph(const UEdGraph& EdGraph);
-
-			// Initializes editor graph for given MetaSound
-			static bool InitGraph(UObject& InMetaSound);
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			static void RegisterGraphWithFrontend(UObject& InMetaSound);
