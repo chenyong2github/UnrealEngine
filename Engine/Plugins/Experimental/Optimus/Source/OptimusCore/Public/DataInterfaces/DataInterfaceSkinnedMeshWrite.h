@@ -7,6 +7,9 @@
 #include "DataInterfaceSkinnedMeshWrite.generated.h"
 
 class USkinnedMeshComponent;
+class FSkeletalMeshObject;
+class FRDGBuffer;
+class FRDGBufferUAV;
 
 /** Compute Framework Data Interface for writing skinned mesh. */
 UCLASS(Category = ComputeFramework)
