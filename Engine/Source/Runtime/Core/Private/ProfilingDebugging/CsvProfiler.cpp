@@ -179,6 +179,9 @@ bool GCsvProfilerNamedEventsExclusive = false;
 bool GCsvProfilerNamedEventsTiming = false;
 #endif //CSV_PROFILER_SUPPORT_NAMED_EVENTS
 
+
+static TMap<uint32, TArray<FString>>* GCsvFrameExecCmds = NULL;
+
 bool IsContinuousWriteEnabled(bool bGameThread)
 {
 	int CVarValue = -1;
@@ -508,6 +511,21 @@ int32 FCsvProfiler::RegisterCategory(const FString& CategoryName, bool bEnableBy
 {
 	return FCsvCategoryData::Get()->RegisterCategory(CategoryName, bEnableByDefault, bIsGlobal);
 }
+
+void FCsvProfiler::GetFrameExecCommands(TArray<FString>& OutFrameCommands) const
+{
+	check(IsInGameThread());
+	OutFrameCommands.Empty();
+	if (GCsvProfilerIsCapturing && GCsvFrameExecCmds)
+	{
+		TArray<FString>* FrameCommands = GCsvFrameExecCmds->Find(CaptureFrameNumber);
+		if (FrameCommands)
+		{
+			OutFrameCommands = *FrameCommands;
+		}
+	}
+}
+
 
 
 bool IsInCsvProcessingThread()
@@ -3461,7 +3479,7 @@ void FCsvProfiler::Init()
 	}
 
 	FString CsvMetadataStr;
-	if (FParse::Value(FCommandLine::Get(), TEXT("csvMetadata="), CsvMetadataStr))
+	if (FParse::Value(FCommandLine::Get(), TEXT("csvMetadata="), CsvMetadataStr, false))
 	{ 
 		TArray<FString> CsvMetadataList;
 		CsvMetadataStr.ParseIntoArray(CsvMetadataList, TEXT(","), true);
@@ -3522,6 +3540,35 @@ void FCsvProfiler::Init()
 		}
 	}
 	GCsvABTest.InitFromCommandline();
+
+	// Handle -csvExeccmds
+	FString CsvExecCommandsStr;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-csvExecCmds="), CsvExecCommandsStr, false))
+	{
+		GCsvFrameExecCmds = new TMap<uint32, TArray<FString>>();
+
+		TArray<FString> CsvExecCommandsList;
+		if (CsvExecCommandsStr.ParseIntoArray(CsvExecCommandsList, TEXT(","), true) > 0)
+		{
+			for (FString FrameAndCommand : CsvExecCommandsList)
+			{
+				int32 ColonIndex = -1;
+				if (FrameAndCommand.FindChar(TEXT(':'), ColonIndex))
+				{
+					FString FrameStr = FrameAndCommand.Mid(0,ColonIndex);
+					FString CommandStr = FrameAndCommand.Mid(ColonIndex+1);
+					uint32 Frame = FCString::Atoi(*FrameStr);
+					if (!GCsvFrameExecCmds->Find(Frame))
+					{
+						GCsvFrameExecCmds->Add(Frame, TArray<FString>());
+					}
+					(*GCsvFrameExecCmds)[Frame].Add(CommandStr);
+					UE_LOG(LogCsvProfiler, Display, TEXT("Added CsvExecCommand - frame %d : %s"), Frame, *CommandStr);
+				}
+			}
+		}
+	}
+
 #endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
 
 	// Always disable the CSV profiling thread if the platform does not support threading.
