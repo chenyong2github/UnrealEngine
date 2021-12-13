@@ -4,9 +4,9 @@ using System;
 using System.IO;
 using UnrealBuildTool;
 
-public class DirectML_180 : ModuleRules
+public class DirectML_1_8_0 : ModuleRules
 {
-    public DirectML_180(ReadOnlyTargetRules Target) : base(Target)
+    public DirectML_1_8_0(ReadOnlyTargetRules Target) : base(Target)
     {
 		Type = ModuleType.External;
 		// Win64
@@ -36,7 +36,7 @@ public class DirectML_180 : ModuleRules
 			// PublicDefinitions
 			PublicDefinitions.Add("DIRECTML_USE_DLLS");
 			PublicDefinitions.Add("WITH_DIRECTML");
-			PublicDefinitions.Add("DIRECTML_PLATFORM_PATH=Source/ThirdParty/DirectML_180/bin/" + PlatformDir);
+			PublicDefinitions.Add("DIRECTML_PLATFORM_PATH=Source/ThirdParty/DirectML_1_8_0/bin/" + PlatformDir);
 			PublicDefinitions.Add("DIRECTML_DLL_NAME=" + DLLFileName);
 		}
 	}

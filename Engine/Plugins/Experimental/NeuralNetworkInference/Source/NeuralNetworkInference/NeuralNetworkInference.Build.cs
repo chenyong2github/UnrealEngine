@@ -75,7 +75,7 @@ public class NeuralNetworkInference : ModuleRules
 					(
 					new string[] {
 						"D3D12RHI",
-						"DirectML_180"
+						"DirectML_1_8_0"
 					}
 				);
 
