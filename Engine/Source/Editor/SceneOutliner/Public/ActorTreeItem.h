@@ -46,7 +46,8 @@ public:
 	virtual void OnVisibilityChanged(const bool bNewVisibility) override;
 	virtual bool HasVisibilityInfo() const override { return true; }
 	virtual bool GetVisibility() const override;
-	virtual bool ShouldShowPinnedState() const override { return true; }
+	virtual bool ShouldShowPinnedState() const override;
+	virtual bool ShouldShowVisibilityState() const override;
 	virtual bool HasPinnedStateInfo() const override { return true; };
 	virtual bool GetPinnedState() const override;
 	virtual void OnLabelChanged() override;

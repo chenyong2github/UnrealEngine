@@ -85,6 +85,7 @@ public:
 	virtual bool HasVisibilityInfo() const override { return true; }
 	virtual bool GetVisibility() const override;
 	virtual bool ShouldShowPinnedState() const override { return true; }
+	virtual bool ShouldShowVisibilityState() const override { return false; }
 	virtual bool HasPinnedStateInfo() const override { return true; }
 	virtual bool GetPinnedState() const override;
 	/* End ISceneOutlinerTreeItem Implementation */
