@@ -48,6 +48,7 @@ URichTextBlock::URichTextBlock(const FObjectInitializer& ObjectInitializer)
 {
 	Visibility = ESlateVisibility::SelfHitTestInvisible;
 	TextTransformPolicy = ETextTransformPolicy::None;
+	TextOverflowPolicy = ETextOverflowPolicy::Clip;
 }
 
 void URichTextBlock::ReleaseSlateResources(bool bReleaseChildren)
@@ -80,11 +81,16 @@ void URichTextBlock::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
-	MyRichTextBlock->SetText(Text);
-	MyRichTextBlock->SetTransformPolicy(TextTransformPolicy);
-	MyRichTextBlock->SetMinDesiredWidth(MinDesiredWidth);
+	if (MyRichTextBlock.IsValid())
+	{
+		MyRichTextBlock->SetText(Text);
+		MyRichTextBlock->SetTransformPolicy(TextTransformPolicy);
+		MyRichTextBlock->SetMinDesiredWidth(MinDesiredWidth);
 
-	Super::SynchronizeTextLayoutProperties( *MyRichTextBlock );
+		MyRichTextBlock->SetOverflowPolicy(TextOverflowPolicy);
+
+		Super::SynchronizeTextLayoutProperties(*MyRichTextBlock);
+	}
 }
 
 void URichTextBlock::UpdateStyleData()
@@ -347,6 +353,16 @@ void URichTextBlock::SetTextTransformPolicy(ETextTransformPolicy InTransformPoli
 	if (MyRichTextBlock.IsValid())
 	{
 		MyRichTextBlock->SetTransformPolicy(TextTransformPolicy);
+	}
+}
+
+void URichTextBlock::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
+{
+	TextOverflowPolicy = InOverflowPolicy;
+
+	if (MyRichTextBlock.IsValid())
+	{
+		MyRichTextBlock->SetOverflowPolicy(TextOverflowPolicy);
 	}
 }
 

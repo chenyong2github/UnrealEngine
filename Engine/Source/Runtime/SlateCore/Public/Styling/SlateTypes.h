@@ -289,7 +289,7 @@ struct TStructOpsTypeTraits<FCheckBoxStyle> : public TStructOpsTypeTraitsBase2<F
 #endif
 
 /**
- * The different methods that can be used if a word is too long to be broken by the default line-break iterator.
+ * Text transformation policy that can be applied to the text before displaying it.
  */
 UENUM(BlueprintType)
 enum class ETextTransformPolicy : uint8

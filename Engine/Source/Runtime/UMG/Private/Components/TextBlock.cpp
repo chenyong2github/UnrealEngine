@@ -25,6 +25,7 @@ UTextBlock::UTextBlock(const FObjectInitializer& ObjectInitializer)
 	ShadowColorAndOpacity = FLinearColor::Transparent;
 	bAutoWrapText_DEPRECATED = false;
 	TextTransformPolicy = ETextTransformPolicy::None;
+	TextOverflowPolicy = ETextOverflowPolicy::Clip;
 
 	if (!IsRunningDedicatedServer())
 	{
