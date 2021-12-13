@@ -79,6 +79,13 @@ void UMeshInspectorTool::Setup()
 	AddToolPropertySource(Settings);
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
+	const FDynamicMesh3* TargetMesh = PreviewMesh->GetPreviewDynamicMesh();
+	TArray<FString> UVChannelNamesList;
+	for (int32 k = 0; k < TargetMesh->Attributes()->NumUVLayers(); ++k)
+	{
+		UVChannelNamesList.Add(FString::Printf(TEXT("UV %d"), k));
+	}
+	MaterialSettings->UpdateUVChannels(0, UVChannelNamesList);
 	MaterialSettings->RestoreProperties(this);
 	AddToolPropertySource(MaterialSettings);
 
