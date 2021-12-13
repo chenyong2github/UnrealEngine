@@ -60,7 +60,7 @@ namespace Horde.Storage.Implementation
                 DateTime cutoff = DateTime.Now.AddMinutes(-60);
                 await foreach ((BlobIdentifier blob, DateTime lastModified) in _blobService.ListObjects(@namespace).WithCancellation(cancellationToken))
                 {
-                    if (lastModified < cutoff)
+                    if (lastModified > cutoff)
                         continue;
                     
                     if (cancellationToken.IsCancellationRequested)
