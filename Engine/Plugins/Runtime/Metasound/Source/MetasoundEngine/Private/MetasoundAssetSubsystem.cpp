@@ -252,12 +252,12 @@ void UMetaSoundAssetSubsystem::RebuildDenyListCache(const UAssetManager& InAsset
 
 	AutoUpdateDenyListCache.Reset();
 
-	for (const FMetasoundFrontendClassName& ClassName : Settings->AutoUpdateBlacklist)
+	for (const FMetasoundFrontendClassName& ClassName : Settings->AutoUpdateDenylist)
 	{
 		AutoUpdateDenyListCache.Add(ClassName.GetFullName());
 	}
 
-	for (const FDefaultMetaSoundAssetAutoUpdateSettings& UpdateSettings : Settings->AutoUpdateAssetBlacklist)
+	for (const FDefaultMetaSoundAssetAutoUpdateSettings& UpdateSettings : Settings->AutoUpdateAssetDenylist)
 	{
 		if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
 		{
