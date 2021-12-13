@@ -112,9 +112,12 @@ namespace Horde.Storage.Controllers
                 // TODO: Do we want to keep fields? we have no real need for it now
                 (ObjectRecord objectRecord, BlobContents? blob) = await _objectService.Get(ns, bucket, key, fields);
 
+                if (blob == null)
+                    throw new InvalidOperationException($"Blob was null when attempting to fetch {ns} {bucket} {key}");
+
                 if (!objectRecord.IsFinalized)
                 {
-                    // we do not considered un-finalized objects are valid
+                    // we do not consider un-finalized objects as valid
                     return BadRequest(new ProblemDetails { Title = $"Object {objectRecord.Bucket} {objectRecord.Name} is not finalized." });
                 }
 

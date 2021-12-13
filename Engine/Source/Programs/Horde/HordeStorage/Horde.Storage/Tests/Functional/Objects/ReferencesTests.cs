@@ -324,7 +324,7 @@ namespace Horde.Storage.FunctionalTests.References
             {
                 BucketId bucket = new BucketId("bucket");
 
-                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key);
+                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key, IReferencesStore.FieldFlags.IncludePayload);
 
                 Assert.IsTrue(objectRecord.IsFinalized);
                 Assert.AreEqual(key, objectRecord.Name);
@@ -480,7 +480,7 @@ namespace Horde.Storage.FunctionalTests.References
             {
                 BucketId bucket = new BucketId("bucket");
 
-                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key);
+                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key, IReferencesStore.FieldFlags.IncludePayload);
 
                 Assert.IsTrue(objectRecord.IsFinalized);
                 Assert.AreEqual(key, objectRecord.Name);
@@ -645,7 +645,7 @@ namespace Horde.Storage.FunctionalTests.References
             {
                 BucketId bucket = new BucketId("bucket");
 
-                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key);
+                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key, IReferencesStore.FieldFlags.IncludePayload);
 
                 Assert.IsTrue(objectRecord.IsFinalized);
                 Assert.AreEqual(key, objectRecord.Name);
@@ -898,7 +898,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             // check that actual internal representation
             {
-                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key);
+                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key, IReferencesStore.FieldFlags.IncludePayload);
 
                 Assert.IsFalse(objectRecord.IsFinalized);
                 Assert.AreEqual(key, objectRecord.Name);
@@ -935,7 +935,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             // check that actual internal representation has updated its state
             {
-                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key);
+                ObjectRecord objectRecord = await ReferencesStore.Get(TestNamespace, bucket, key, IReferencesStore.FieldFlags.None);
 
                 Assert.IsTrue(objectRecord.IsFinalized);
                 Assert.AreEqual(key, objectRecord.Name);

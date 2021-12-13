@@ -20,11 +20,11 @@ namespace Horde.Storage.Implementation
 
         }
 
-        public Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey key)
+        public Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey key, IReferencesStore.FieldFlags flags)
         {
             if (_objects.TryGetValue(BuildKey(ns, bucket, key), out MemoryStoreObject? o))
             {
-                return Task.FromResult(o.ToObjectRecord());
+                return Task.FromResult(o.ToObjectRecord(flags));
             }
 
             throw new ObjectNotFoundException(ns, bucket, key);
@@ -180,9 +180,10 @@ namespace Horde.Storage.Implementation
             LastAccessTime = lastAccessTime;
         }
 
-        public ObjectRecord ToObjectRecord()
+        public ObjectRecord ToObjectRecord(IReferencesStore.FieldFlags fieldFlags)
         {
-            return new ObjectRecord(Namespace, Bucket, Name, LastAccessTime, Blob, BlobHash, IsFinalized);
+            bool includePayload = (fieldFlags & IReferencesStore.FieldFlags.IncludePayload) != 0;
+            return new ObjectRecord(Namespace, Bucket, Name, LastAccessTime, includePayload ? Blob : null, BlobHash, IsFinalized);
         }
 
     }

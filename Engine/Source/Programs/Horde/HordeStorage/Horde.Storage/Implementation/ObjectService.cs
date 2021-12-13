@@ -15,7 +15,7 @@ namespace Horde.Storage.Implementation
 {
     public interface IObjectService
     {
-        Task<(ObjectRecord, BlobContents)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[] fields);
+        Task<(ObjectRecord, BlobContents?)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[] fields);
         Task<PutObjectResult> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload);
         Task<BlobIdentifier[]> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash);
 
@@ -45,22 +45,40 @@ namespace Horde.Storage.Implementation
             _lastAccessTracker = lastAccessTracker;
         }
 
-        public async Task<(ObjectRecord, BlobContents)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[]? fields = null)
+        public async Task<(ObjectRecord, BlobContents?)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[]? fields = null)
         {
             // we do not wait for the last access tracking as it does not matter when it completes
             Task lastAccessTask = _lastAccessTracker.TrackUsed(new LastAccessRecord(ns, bucket, key));
 
-            ObjectRecord o = await _referencesStore.Get(ns, bucket, key);
+            // if no field filtering is being used we assume everything is needed
+            IReferencesStore.FieldFlags flags = IReferencesStore.FieldFlags.All;
+            if (fields != null)
+            {
+                // empty array means fetch all fields
+                if (fields.Length == 0)
+                    flags = IReferencesStore.FieldFlags.All;
+                else
+                {
+                    flags = fields.Contains("payload")
+                        ? IReferencesStore.FieldFlags.IncludePayload
+                        : IReferencesStore.FieldFlags.None;
+                }
+            }
+            ObjectRecord o = await _referencesStore.Get(ns, bucket, key, flags);
 
-            BlobContents blobContents;
-            if (o.InlinePayload != null && o.InlinePayload.Length != 0)
+            BlobContents? blobContents = null;
+            if ((flags & IReferencesStore.FieldFlags.IncludePayload) != 0)
             {
-                blobContents = new BlobContents(o.InlinePayload);
+                if (o.InlinePayload != null && o.InlinePayload.Length != 0)
+                {
+                    blobContents = new BlobContents(o.InlinePayload);
+                }
+                else
+                {
+                    blobContents = await _blobService.GetObject(ns, o.BlobIdentifier);
+                }
             }
-            else
-            {
-                blobContents = await _blobService.GetObject(ns, o.BlobIdentifier);
-            }
+
             return (o, blobContents);
         }
 
@@ -108,7 +126,9 @@ namespace Horde.Storage.Implementation
 
         public async Task<BlobIdentifier[]> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash)
         {
-            (ObjectRecord o, BlobContents blob) = await Get(ns, bucket, key);
+            (ObjectRecord o, BlobContents? blob) = await Get(ns, bucket, key);
+            if (blob == null)
+                throw new InvalidOperationException("No blob when attempting to finalize");
             byte[] blobContents = await blob.Stream.ToByteArray();
             CompactBinaryObject payload = CompactBinaryObject.Load(blobContents);
 

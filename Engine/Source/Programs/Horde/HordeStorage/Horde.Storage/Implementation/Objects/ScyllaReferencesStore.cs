@@ -57,11 +57,21 @@ namespace Horde.Storage.Implementation
 
         }
 
-        public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey name)
+        public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey name, IReferencesStore.FieldFlags flags)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.get");
 
-            ScyllaObject? o = await _mapper.SingleOrDefaultAsync<ScyllaObject>("WHERE namespace = ? AND bucket = ? AND name = ?", ns.ToString(), bucket.ToString(), name.ToString());
+            ScyllaObject? o;
+            bool includePayload = (flags & IReferencesStore.FieldFlags.IncludePayload) != 0;
+            if (includePayload)
+            {
+                o = await _mapper.SingleOrDefaultAsync<ScyllaObject>("WHERE namespace = ? AND bucket = ? AND name = ?", ns.ToString(), bucket.ToString(), name.ToString());
+            }
+            else
+            {
+                // fetch everything except for the inline blob which is quite large
+                o = await _mapper.SingleOrDefaultAsync<ScyllaObject>("SELECT namespace, bucket, name , payload_hash, is_finalized, last_access_time FROM objects WHERE namespace = ? AND bucket = ? AND name = ?", ns.ToString(), bucket.ToString(), name.ToString());
+            }
 
             if (o == null)
                 throw new ObjectNotFoundException(ns, bucket, name);
@@ -240,7 +250,7 @@ namespace Horde.Storage.Implementation
             ObjectRecord record;
             try
             {
-                record = await Get(ns, bucket, key);
+                record = await Get(ns, bucket, key, IReferencesStore.FieldFlags.None);
             }
             catch (ObjectNotFoundException)
             {

@@ -9,7 +9,16 @@ namespace Horde.Storage.Implementation
 {
     public interface IReferencesStore
     {
-        Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey key);
+        Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey key, FieldFlags flags);
+
+        [Flags]
+        public enum FieldFlags
+        {
+            None = 0,
+            IncludePayload = 1,
+            All = IncludePayload
+        }
+
         Task Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[] blob, bool isFinalized);
         Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key);
 
