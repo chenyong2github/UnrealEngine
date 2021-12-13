@@ -449,7 +449,7 @@ FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode::FMetasoundGraphSchem
 	: FMetasoundGraphSchemaAction(
 		FText(),
 		LOCTEXT("PromoteToVariableGetterName", "Promote To Graph Variable"),
-		LOCTEXT("PromoteToInputTooltip", "Promotes node input to graph variable and creates a setter node"),
+		LOCTEXT("PromoteToInputTooltip", "Promotes node input to graph variable and creates a getter node"),
 		Metasound::Editor::EPrimaryContextGroup::Common)
 {
 }
