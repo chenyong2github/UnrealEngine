@@ -1130,7 +1130,7 @@ namespace AutomationTool
 						{
 							if (UnzipFileAttempts == 0)
 							{
-								Log.TraceError("All retries exhausted attempting to unzip entries from '{0}'. Terminating.");
+								Log.TraceError("All retries exhausted attempting to unzip entries from '{0}'. Terminating.", ZipFile.FullName);
 								throw;
 							}
 
