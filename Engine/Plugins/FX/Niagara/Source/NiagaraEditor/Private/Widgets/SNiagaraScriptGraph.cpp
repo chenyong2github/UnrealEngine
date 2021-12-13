@@ -342,7 +342,7 @@ FReply SNiagaraScriptGraph::OnSpawnGraphNodeByShortcut(FInputChord InChord, cons
 
 	for (int32 i = 0; i < Settings->GraphCreationShortcuts.Num(); i++)
 	{
-		if (Settings->GraphCreationShortcuts[i].Input.GetRelationship(InChord) == FInputChord::Same)
+		if (Settings->GraphCreationShortcuts[i].Input.GetRelationship(InChord) == FInputChord::ERelationshipType::Same)
 		{
 			const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 

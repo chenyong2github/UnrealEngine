@@ -836,12 +836,12 @@ void UPlayerInput::GetChordsForKeyMapping(const FInputActionKeyMapping& KeyMappi
 		{
 			FInputChord::ERelationshipType ChordRelationship = Chord.GetRelationship(FoundChords[ChordIndex].Chord);
 
-			if (ChordRelationship == FInputChord::Masks)
+			if (ChordRelationship == FInputChord::ERelationshipType::Masks)
 			{
 				// If we mask the found one, then remove it from the list
 				FoundChords.RemoveAtSwap(ChordIndex, 1, false);
 			}
-			else if (ChordRelationship == FInputChord::Masked)
+			else if (ChordRelationship == FInputChord::ERelationshipType::Masked)
 			{
 				bAddDelegate = false;
 				break;
@@ -955,12 +955,12 @@ void UPlayerInput::GetChordForKey(const FInputKeyBinding& KeyBinding, const bool
 				{
 					FInputChord::ERelationshipType ChordRelationship = KeyBinding.Chord.GetRelationship(FoundChords[ChordIndex].Chord);
 
-					if (ChordRelationship == FInputChord::Masks)
+					if (ChordRelationship == FInputChord::ERelationshipType::Masks)
 					{
 						// If we mask the found one, then remove it from the list
 						FoundChords.RemoveAtSwap(ChordIndex, 1, false);
 					}
-					else if (ChordRelationship == FInputChord::Masked)
+					else if (ChordRelationship == FInputChord::ERelationshipType::Masked)
 					{
 						bAddDelegate = false;
 						break;
