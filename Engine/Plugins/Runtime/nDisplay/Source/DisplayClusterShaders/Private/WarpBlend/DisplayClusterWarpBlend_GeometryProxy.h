@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "WarpBlend/DisplayClusterWarpEnums.h"
 #include "Render/Containers/DisplayClusterRender_MeshComponent.h"
+#include "Render/IDisplayClusterRenderTexture.h"
 
 class IDisplayClusterRenderTexture;
 class FDisplayClusterRender_MeshComponentProxy;
