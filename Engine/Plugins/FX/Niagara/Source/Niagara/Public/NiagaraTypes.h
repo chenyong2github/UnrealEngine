@@ -629,7 +629,7 @@ struct NIAGARA_API FNiagaraEnumParameterMetaData
 	bool bUseColorOverride = false;
 	
 	UPROPERTY(EditAnywhere, Category="Enum Override", meta=(EditCondition="bUseColorOverride"))
-	FLinearColor ColorOverride;
+	FLinearColor ColorOverride = FLinearColor::White;
 };
 
 UENUM()
