@@ -134,7 +134,9 @@ void UWorldPartitionSubsystem::PostInitialize()
 
 #if WITH_EDITOR
 	if (IsRunningConvertWorldPartitionCommandlet())
+	{
 		return;
+	}
 #endif
 
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
