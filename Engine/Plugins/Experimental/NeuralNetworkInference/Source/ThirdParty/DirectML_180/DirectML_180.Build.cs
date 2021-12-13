@@ -36,7 +36,7 @@ public class DirectML_180 : ModuleRules
 			// PublicDefinitions
 			PublicDefinitions.Add("DIRECTML_USE_DLLS");
 			PublicDefinitions.Add("WITH_DIRECTML");
-			PublicDefinitions.Add("DIRECTML_PLATFORM_PATH=Source/ThirdParty/DirectML/bin/" + PlatformDir);
+			PublicDefinitions.Add("DIRECTML_PLATFORM_PATH=Source/ThirdParty/DirectML_180/bin/" + PlatformDir);
 			PublicDefinitions.Add("DIRECTML_DLL_NAME=" + DLLFileName);
 		}
 	}
