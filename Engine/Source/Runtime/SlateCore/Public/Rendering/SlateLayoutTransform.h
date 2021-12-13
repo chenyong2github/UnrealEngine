@@ -21,21 +21,21 @@ public:
 	/** Ctor from a scale followed by translate. Shortcut to Concatenate(InScale, InTranslation). */
 	explicit FSlateLayoutTransform(float InScale = 1.0f, const FVector2D& InTranslation = FVector2D(ForceInit))
 		:Scale(InScale)
-		,Translation(InTranslation)
+		,Translation(FVector2f(InTranslation))
 	{
 	}
 
 	/** Ctor from a 2D translation followed by a scale. Shortcut to Concatenate(InTranslation, InScale). While this is the opposite order we internally store them, we can represent this correctly. */
 	explicit FSlateLayoutTransform(const FVector2D& InTranslation/*, float InScale = 1.0f*/)
 		:Scale(1.0f/*InScale*/)
-		,Translation(InTranslation/**InScale*/)
+		,Translation(FVector2f(InTranslation)/**InScale*/)
 	{
 	}
 
 	/** Access to the 2D translation */
-	const FVector2D& GetTranslation() const
+	FVector2D GetTranslation() const
 	{
-		return Translation;
+		return FVector2D(Translation);
 	}
 
 	/** Access to the scale. */
@@ -55,13 +55,13 @@ public:
 	/** 2D transform support. */
 	FVector2D TransformPoint(const FVector2D& Point) const
 	{
-		return ::TransformPoint(Translation, ::TransformPoint(Scale, Point));
+		return ::TransformPoint(GetTranslation(), ::TransformPoint(Scale, Point));
 	}
 
 	/** 2D transform support. */
 	FVector2D TransformVector(const FVector2D& Vector) const
 	{
-		return ::TransformVector(Translation, ::TransformVector(Scale, Vector));
+		return ::TransformVector(GetTranslation(), ::TransformVector(Scale, Vector));
 	}
 
 	/**
@@ -75,7 +75,7 @@ public:
 	{
 		// New Translation is essentially: RHS.TransformPoint(TransformPoint(FVector2D::ZeroVector))
 		// Since Zero through LHS -> Translation we optimize it slightly to skip the zero multiplies.
-		return FSlateLayoutTransform(::Concatenate(Scale, RHS.Scale), RHS.TransformPoint(Translation));
+		return FSlateLayoutTransform(::Concatenate(Scale, RHS.Scale), RHS.TransformPoint(GetTranslation()));
 	}
 
 	/** Invert the transform/scale. */
@@ -98,7 +98,7 @@ public:
 
 private:
 	float Scale;
-	FVector2D Translation;
+	FVector2f Translation;
 };
 
 /** Specialization for concatenating a uniform scale and 2D Translation. */

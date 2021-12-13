@@ -278,8 +278,8 @@ FVector2D STextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
 		const FVector2D ComputedOutlineSize(LocalOutlineSize * 2.f, LocalOutlineSize);
 		const FVector2D TextSize = FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->Measure(BoundText.Get(), GetFont()) + ComputedOutlineSize + LocalShadowOffset;
 
-		CachedSimpleDesiredSize = FVector2D(FMath::Max(MinDesiredWidth.Get(), TextSize.X), TextSize.Y);
-		return CachedSimpleDesiredSize.GetValue();
+		CachedSimpleDesiredSize = FVector2f(FMath::Max(MinDesiredWidth.Get(), TextSize.X), TextSize.Y);
+		return FVector2D(CachedSimpleDesiredSize.GetValue());
 	}
 	else
 	{

@@ -127,7 +127,7 @@ private:
 
 	ECursorMoveGranularity Granularity;
 	ECursorMoveMethod Method;
-	FVector2D DirectionOrPosition;
+	FVector2f DirectionOrPosition;
 	ECursorAction Action;
 	float GeometryScale;
 };

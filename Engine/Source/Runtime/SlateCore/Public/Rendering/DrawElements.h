@@ -269,9 +269,9 @@ public:
 
 	FORCEINLINE const FSlateRenderTransform& GetRenderTransform() const { return RenderTransform; }
 	FORCEINLINE void SetRenderTransform(const FSlateRenderTransform& InRenderTransform) { RenderTransform = InRenderTransform; }
-	FORCEINLINE const FVector2D& GetPosition() const { return Position; }
+	FORCEINLINE FVector2D GetPosition() const { return FVector2D(Position); }
 	FORCEINLINE void SetPosition(const FVector2D& InPosition) { Position = InPosition; }
-	FORCEINLINE const FVector2D& GetLocalSize() const { return LocalSize; }
+	FORCEINLINE FVector2D GetLocalSize() const { return FVector2D(LocalSize); }
 	FORCEINLINE float GetScale() const { return Scale; }
 	FORCEINLINE ESlateDrawEffect GetDrawEffects() const { return DrawEffects; }
 	FORCEINLINE ESlateBatchDrawFlag GetBatchFlags() const { return BatchFlags; }
@@ -316,8 +316,8 @@ private:
 private:
 	FSlateDataPayload* DataPayload;
 	FSlateRenderTransform RenderTransform;
-	FVector2D Position;
-	FVector2D LocalSize;
+	FVector2f Position;
+	FVector2f LocalSize;
 	int32 LayerId;
 	FClipStateHandle ClipStateHandle;
 	float Scale;

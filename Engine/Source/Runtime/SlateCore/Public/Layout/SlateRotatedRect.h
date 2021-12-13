@@ -37,11 +37,11 @@ public:
 public:
 
 	/** transformed Top-left corner. */
-	FVector2D TopLeft;
+	FVector2f TopLeft;
 	/** transformed X extent (right-left). */
-	FVector2D ExtentX;
+	FVector2f ExtentX;
 	/** transformed Y extent (bottom-top). */
-	FVector2D ExtentY;
+	FVector2f ExtentY;
 
 public:
 	bool operator == (const FSlateRotatedRect& Other) const
@@ -86,8 +86,8 @@ FSlateRotatedRect TransformRect(const TransformType& Transform, const FSlateRota
 {
 	return FSlateRotatedRect
 	(
-		TransformPoint(Transform, Rect.TopLeft),
-		TransformVector(Transform, Rect.ExtentX),
-		TransformVector(Transform, Rect.ExtentY)
+		TransformPoint(Transform, FVector2D(Rect.TopLeft)),
+		TransformVector(Transform, FVector2D(Rect.ExtentX)),
+		TransformVector(Transform, FVector2D(Rect.ExtentY))
 	);
 }

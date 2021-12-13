@@ -324,9 +324,9 @@ public:
 	 *
 	 * @return UV region
 	 */
-	const FBox2D& GetUVRegion() const
+	FBox2D GetUVRegion() const
 	{
-		return UVRegion;
+		return FBox2D(UVRegion);
 	}
 
 	/**
@@ -336,7 +336,7 @@ public:
 	 */
 	void SetUVRegion(const FBox2D& InUVRegion)
 	{
-		UVRegion = InUVRegion;
+		UVRegion = FBox2f(InUVRegion);
 	}
 
 	/**
@@ -436,7 +436,7 @@ protected:
 	 *  When valid - overrides UV region specified in resource proxy
 	 */
 	UPROPERTY()
-	FBox2D UVRegion;
+	FBox2f UVRegion;
 
 public:
 	/** How to draw the image */

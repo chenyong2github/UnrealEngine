@@ -61,10 +61,10 @@ class SLATECORE_API FSlateClippingZone
 {
 public:
 
-	FVector2D TopLeft;
-	FVector2D TopRight;
-	FVector2D BottomLeft;
-	FVector2D BottomRight;
+	FVector2f TopLeft;
+	FVector2f TopRight;
+	FVector2f BottomLeft;
+	FVector2f BottomRight;
 
 	explicit FSlateClippingZone(const FShortRect& AxisAlignedRect);
 	explicit FSlateClippingZone(const FSlateRect& AxisAlignedRect);

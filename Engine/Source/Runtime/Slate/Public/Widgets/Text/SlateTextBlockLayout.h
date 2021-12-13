@@ -203,7 +203,7 @@ private:
 	TSharedPtr<ISlateRunRenderer> TextHighlighter;
 
 	/** The last known size of the layout from the previous OnPaint, used to guess at an auto-wrapping width in ComputeDesiredSize */
-	FVector2D CachedSize;
+	FVector2f CachedSize;
 
 	/** Cache where to wrap text at? */
 	float CachedWrapTextAt;
