@@ -285,6 +285,7 @@ public:
 
 	CORE_API static bool IsWaitTrackingEnabledOnCurrentThread();
 
+	CORE_API void GetFrameExecCommands(TArray<FString>& OutFrameCommands) const;
 
 	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileStart);
 	FOnCSVProfileStart& OnCSVProfileStart() { return OnCSVProfileStartDelegate; }
