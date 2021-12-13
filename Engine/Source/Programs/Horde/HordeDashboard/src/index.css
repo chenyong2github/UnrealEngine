@@ -35,14 +35,10 @@ code {
 
 .job-item:hover {
   background:rgb(243, 242, 241);
-  user-select: none;
-  cursor: pointer;
 }
 
 .job-item.selected {
   background:rgb(243, 242, 241);
-  user-select: none;
-  cursor: pointer;
 }
 
 

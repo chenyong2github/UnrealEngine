@@ -75,11 +75,17 @@ export enum JobStepBatchState {
 	// Waiting for dependencies of at least one jobstep to complete
 	Waiting = "Waiting",
 
+	// Getting ready to execute
+	Starting = "Starting",
+
 	// Ready to execute
 	Ready = "Ready",
 
 	// Currently running
 	Running = "Running",
+
+	// Getting ready to execute
+	Stopping = "Stopping",
 
 	// All steps have finished executing
 	Complete = "Complete"

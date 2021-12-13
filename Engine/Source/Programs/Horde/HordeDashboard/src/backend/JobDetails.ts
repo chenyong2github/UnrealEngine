@@ -1076,6 +1076,15 @@ export const getBatchSummaryMarkdown = (jobDetails: JobDetails, batchId: string)
 
     if (!summaryText) {
         summaryText = getBatchText({ batch: batch, agentId: batch?.agentId, agentType: agentType, agentPool: agentPool }) ?? "";
+
+        if (summaryText && batch.state === JobStepBatchState.Starting) {
+            summaryText += " batch is the starting state";
+        }
+
+        if (summaryText && batch.state === JobStepBatchState.Stopping) {
+            summaryText += " batch is the stopping state";
+        }
+
         if (!summaryText) {
             summaryText = batch?.agentId ?? (batch?.state ?? "Batch is unassigned");
         }
