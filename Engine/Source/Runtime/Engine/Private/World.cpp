@@ -3422,13 +3422,6 @@ UWorld* UWorld::GetDuplicatedWorldForPIE(UWorld* InWorld, UPackage* InPIEackage,
 
 	DuplicatedWorld->StreamingLevelsPrefix = UWorld::BuildPIEPackagePrefix(PIEInstanceID);
 
-#if WITH_EDITOR
-	if (UWorldPartition* WorldPartition = InWorld->GetWorldPartition())
-	{
-		WorldPartition->PostDuplicateWorldForPIE();
-	}
-#endif
-
 	return DuplicatedWorld;
 }
 
