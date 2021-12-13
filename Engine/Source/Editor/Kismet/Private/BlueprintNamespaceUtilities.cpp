@@ -85,16 +85,25 @@ FString FBlueprintNamespaceUtilities::GetObjectNamespace(const UObject* InObject
 		}
 		else
 		{
-			Namespace = GetObjectNamespace(Field->GetPackage());
+			const UBlueprint* Blueprint = nullptr;
+			if (const UClass* Class = Cast<UClass>(Field))
+			{
+				Blueprint = UBlueprint::GetBlueprintFromClass(Class);
+			}
+
+			if (Blueprint)
+			{
+				Namespace = GetObjectNamespace(Blueprint);
+			}
+			else
+			{
+				Namespace = GetObjectNamespace(Field->GetPackage());
+			}
 		}
 	}
 	else if (const UBlueprint* Blueprint = Cast<UBlueprint>(InObject))
 	{
-		if (Blueprint->GeneratedClass)
-		{
-			Namespace = GetObjectNamespace(Blueprint->GeneratedClass);
-		}
-		else if (!Blueprint->BlueprintNamespace.IsEmpty())
+		if (!Blueprint->BlueprintNamespace.IsEmpty())
 		{
 			Namespace = Blueprint->BlueprintNamespace;
 		}

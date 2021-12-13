@@ -162,3 +162,43 @@ UClass* FEditorClassUtils::GetClassFromString(const FString& ClassName)
 	}
 	return Class;
 }
+
+void FEditorClassUtils::GetImplementedInterfaceClassPathsFromAsset(const struct FAssetData& InAssetData, TArray<FString>& OutClassPaths)
+{
+	if (!InAssetData.IsValid())
+	{
+		return;
+	}
+
+	const FString ImplementedInterfaces = InAssetData.GetTagValueRef<FString>(FBlueprintTags::ImplementedInterfaces);
+	if (!ImplementedInterfaces.IsEmpty())
+	{
+		// Parse string like "((Interface=Class'"/Script/VPBookmark.VPBookmarkProvider"'),(Interface=Class'"/Script/VPUtilities.VPContextMenuProvider"'))"
+		// We don't want to actually resolve the hard ref so do some manual parsing
+
+		FString FullInterface;
+		FString CurrentString = *ImplementedInterfaces;
+		while (CurrentString.Split(TEXT("Interface="), nullptr, &FullInterface))
+		{
+			// Cutoff at next )
+			int32 RightParen = INDEX_NONE;
+			if (FullInterface.FindChar(TCHAR(')'), RightParen))
+			{
+				// Keep parsing
+				CurrentString = FullInterface.Mid(RightParen);
+
+				// Strip class name
+				FullInterface = *FPackageName::ExportTextPathToObjectPath(FullInterface.Left(RightParen));
+
+				// Handle quotes
+				FString InterfacePath;
+				const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(*FullInterface, InterfacePath, true);
+
+				if (NewBuffer)
+				{
+					OutClassPaths.Add(InterfacePath);
+				}
+			}
+		}
+	}
+}

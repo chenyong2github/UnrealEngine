@@ -42,6 +42,12 @@ struct UNREALED_API FComponentTypeRegistry
 	 * Called when a specific class has been updated and should force the component type registry to update as well
 	 */
 	void InvalidateClass(TSubclassOf<UActorComponent> ClassToUpdate);
+
+	/**
+	 * Attempts to locate the class entry corresponding to the given object path.
+	 */
+	FComponentClassComboEntryPtr FindClassEntryForObjectPath(FName InObjectPath) const;
+
 private:
 	void OnReloadComplete(EReloadCompleteReason Reason);
 

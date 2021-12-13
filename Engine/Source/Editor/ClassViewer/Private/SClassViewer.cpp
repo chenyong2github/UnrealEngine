@@ -1362,36 +1362,12 @@ void FClassHierarchy::SetAssetDataFields(TSharedPtr<FClassViewerNode>& InOutClas
 	const uint32 ClassFlags = InAssetData.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags);
 	InOutClassViewerNode->UnloadedBlueprintData->SetClassFlags(ClassFlags);
 
-	const FString ImplementedInterfaces = InAssetData.GetTagValueRef<FString>(FBlueprintTags::ImplementedInterfaces);
-	if(!ImplementedInterfaces.IsEmpty())
+	// Get interface class paths.
+	TArray<FString> ImplementedInterfaces;
+	FEditorClassUtils::GetImplementedInterfaceClassPathsFromAsset(InAssetData, ImplementedInterfaces);
+	for (const FString& InterfacePath : ImplementedInterfaces)
 	{
-		// Parse string like "((Interface=Class'"/Script/VPBookmark.VPBookmarkProvider"'),(Interface=Class'"/Script/VPUtilities.VPContextMenuProvider"'))"
-		// We don't want to actually resolve the hard ref so do some manual parsing
-
-		FString FullInterface;
-		FString CurrentString = *ImplementedInterfaces;
-		while(CurrentString.Split(TEXT("Interface="), nullptr, &FullInterface))
-		{
-			// Cutoff at next )
-			int32 RightParen = INDEX_NONE;			
-			if (FullInterface.FindChar(TCHAR(')'), RightParen))
-			{
-				// Keep parsing
-				CurrentString = FullInterface.Mid(RightParen);
-
-				// Strip class name
-				FullInterface = *FPackageName::ExportTextPathToObjectPath(FullInterface.Left(RightParen));
-
-				// Handle quotes
-				FString InterfacePath;
-				const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(*FullInterface, InterfacePath, true);
-
-				if (NewBuffer)
-				{
-					UnloadedBlueprintData->AddImplementedInterface(InterfacePath);
-				}
-			}
-		}
+		UnloadedBlueprintData->AddImplementedInterface(InterfacePath);
 	}
 }
 
@@ -1524,8 +1500,8 @@ void SClassViewer::Construct(const FArguments& InArgs, const FClassViewerInitial
 		CustomFilter->GetFilterOptions(FilterOptions);
 		CustomClassFilterOptions.Append(FilterOptions);
 
-		// Clear out the temp array for the next pass.
-		FilterOptions.Empty();
+		// Reset the temp array for the next pass.
+		FilterOptions.Reset();
 	}
 
 	TSharedRef<SWidget> FiltersWidget = SNullWidget::NullWidget;
@@ -2049,8 +2025,6 @@ TSharedRef<SWidget> SClassViewer::GetViewButtonContent()
 
 	}
 	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
 
 	return MenuBuilder.MakeWidget();
 }

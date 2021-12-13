@@ -27,6 +27,8 @@
 #include "Kismet2/ChildActorComponentEditorUtils.h"
 #include "ObjectTools.h"						// ThumbnailTools::CacheEmptyThumbnail
 #include "K2Node_ComponentBoundEvent.h"
+#include "BlueprintEditorSettings.h"
+#include "BlueprintNamespaceUtilities.h"
 
 #define LOCTEXT_NAMESPACE "SSubobjectBlueprintEditor"
 
@@ -44,6 +46,7 @@ void SSubobjectBlueprintEditor::Construct(const FArguments& InArgs)
 	OnSelectionUpdated = InArgs._OnSelectionUpdated;
 	OnItemDoubleClicked = InArgs._OnItemDoubleClicked;
 	OnHighlightPropertyInDetailsView = InArgs._OnHighlightPropertyInDetailsView;
+	OnImportNamespaceToEditorContext = InArgs._OnImportNamespaceToEditorContext;
 	AllowEditing = InArgs._AllowEditing;
 	HideComponentClassCombo = InArgs._HideComponentClassCombo;
 	bAllowTreeUpdates = true;
@@ -84,6 +87,7 @@ void SSubobjectBlueprintEditor::Construct(const FArguments& InArgs)
 		.OnSubobjectClassSelected(this, &SSubobjectBlueprintEditor::PerformComboAddClass)
 		.ToolTipText(LOCTEXT("AddComponent_Tooltip", "Adds a new component to this actor"))
 		.IsEnabled(true)
+		.CustomClassFilters(InArgs._SubobjectClassListFilters)
 	]
 	+ SHorizontalBox::Slot()
 	.VAlign(VAlign_Center)
@@ -514,6 +518,12 @@ TSharedPtr<SWidget> SSubobjectBlueprintEditor::BuildSceneRootDropActionMenu(FSub
 
 FSubobjectDataHandle SSubobjectBlueprintEditor::AddNewSubobject(const FSubobjectDataHandle& ParentHandle, UClass* NewClass, UObject* AssetOverride, FText& OutFailReason, TUniquePtr<FScopedTransaction> InOngoingTransaction)
 {
+	if(GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+	{
+		// If bound, invoke the delegate to import the namespace associated with the given class.
+		OnImportNamespaceToEditorContext.ExecuteIfBound(FBlueprintNamespaceUtilities::GetObjectNamespace(NewClass));
+	}
+
 	FAddNewSubobjectParams Params;
     Params.ParentHandle = ParentHandle;
     Params.NewClass = NewClass;

@@ -298,13 +298,16 @@ namespace BlueprintEditorImpl
 				return;
 			}
 
-			TSharedRef<FClassViewerFilterOption> FilterOption = MakeShared<FClassViewerFilterOption>();
-			FilterOption->bEnabled = bIsFilterEnabled;
-			FilterOption->LabelText = LOCTEXT("ClassViewerNamespaceFilterMenuOptionLabel", "Show Only Imported Types");
-			FilterOption->ToolTipText = LOCTEXT("ClassViewerNamespaceFilterMenuOptionToolTip", "Don't include non-imported class types.");
-			FilterOption->OnOptionChanged = FOnClassViewerFilterOptionChanged::CreateSP(this, &FImportedClassViewerFilter::OnFilterOptionChanged);
+			if (!ToggleFilterOption.IsValid())
+			{
+				ToggleFilterOption = MakeShared<FClassViewerFilterOption>();
+				ToggleFilterOption->bEnabled = bIsFilterEnabled;
+				ToggleFilterOption->LabelText = LOCTEXT("ClassViewerNamespaceFilterMenuOptionLabel", "Show Only Imported Types");
+				ToggleFilterOption->ToolTipText = LOCTEXT("ClassViewerNamespaceFilterMenuOptionToolTip", "Don't include non-imported class types.");
+				ToggleFilterOption->OnOptionChanged = FOnClassViewerFilterOptionChanged::CreateSP(this, &FImportedClassViewerFilter::OnFilterOptionChanged);
+			}
 
-			OutFilterOptions.Add(FilterOption);
+			OutFilterOptions.Add(ToggleFilterOption.ToSharedRef());
 		}
 
 	protected:
@@ -316,6 +319,9 @@ namespace BlueprintEditorImpl
 	private:
 		/** Class viewer filters (one per edited BP asset). */
 		TArray<TSharedRef<IClassViewerFilter>> ClassViewerFilters;
+
+		/** Filter option for the class viewer settings menu. */
+		TSharedPtr<FClassViewerFilterOption> ToggleFilterOption;
 
 		/** Whether or not the filter is enabled. */
 		bool bIsFilterEnabled;
@@ -957,6 +963,7 @@ void FBlueprintEditor::RefreshEditors(ERefreshBlueprintEditorReason::Type Reason
 
 	if(SubobjectEditor.IsValid())
 	{
+		SubobjectEditor->RefreshComponentTypesList();
 		SubobjectEditor->UpdateTree();
 
 		// Note: Don't pass 'true' here because we don't want the preview actor to be reconstructed until after Blueprint modification is complete.
@@ -2696,12 +2703,20 @@ void FBlueprintEditor::CreateDefaultTabContents(const TArray<UBlueprint*>& InBlu
 
 void FBlueprintEditor::CreateSubobjectEditors()
 {
+	TArray<TSharedRef<IClassViewerFilter>> ClassFilters;
+	if (ImportedClassViewerFilter.IsValid())
+	{
+		ClassFilters.Add(ImportedClassViewerFilter.ToSharedRef());
+	}
+
 	SubobjectEditor = SAssignNew(SubobjectEditor, SSubobjectBlueprintEditor)
 		.ObjectContext(this, &FBlueprintEditor::GetSubobjectEditorObjectContext)
 		.PreviewActor(this, &FBlueprintEditor::GetPreviewActor)
 		.AllowEditing(this, &FBlueprintEditor::InEditingMode)
 		.OnSelectionUpdated(this, &FBlueprintEditor::OnSelectionUpdated)
-		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked);
+		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked)
+		.OnImportNamespaceToEditorContext(this, &FBlueprintEditor::ImportNamespace)
+		.SubobjectClassListFilters(ClassFilters);
 	
 	SubobjectViewport = SAssignNew(SubobjectViewport, SSCSEditorViewport)
 		.BlueprintEditor(SharedThis(this));

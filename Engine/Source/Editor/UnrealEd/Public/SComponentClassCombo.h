@@ -15,6 +15,11 @@
 class FComponentClassComboEntry;
 class SToolTip;
 class FTextFilterExpressionEvaluator;
+class IClassViewerFilter;
+class IUnloadedBlueprintData;
+class FClassViewerFilterFuncs;
+class FClassViewerFilterOption;
+class FClassViewerInitializationOptions;
 
 typedef TSharedPtr<class FComponentClassComboEntry> FComponentClassComboEntryPtr;
 
@@ -154,6 +159,16 @@ public:
 	int32 GetSortPriority() const { return CustomizationArgs.SortPriority; }
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
+
+	// If the component type is not loaded, this stores data that can be used for class filtering.
+	TSharedPtr<IUnloadedBlueprintData> GetUnloadedBlueprintData() const { return UnloadedBlueprintData; }
+
+	// Can optionally be called to set unloaded component type data to assist with class filtering.
+	void SetUnloadedBlueprintData(TSharedPtr<IUnloadedBlueprintData> InUnloadedBlueprintData)
+	{
+		UnloadedBlueprintData = InUnloadedBlueprintData;
+	}
+
 private:
 	TSubclassOf<UActorComponent> ComponentClass;
 	const UClass* IconClass;
@@ -166,6 +181,7 @@ private:
 	bool bIncludedInFilter;
 	EComponentCreateAction::Type ComponentCreateAction;
 	FComponentEntryCustomizationArgs CustomizationArgs;
+	TSharedPtr<IUnloadedBlueprintData> UnloadedBlueprintData;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -178,8 +194,9 @@ public:
 	{}
 
 		SLATE_ATTRIBUTE(bool, IncludeText)
-		SLATE_EVENT( FComponentClassSelected, OnComponentClassSelected )
-		SLATE_EVENT( FSubobjectClassSelected, OnSubobjectClassSelected )
+		SLATE_EVENT(FComponentClassSelected, OnComponentClassSelected)
+		SLATE_EVENT(FSubobjectClassSelected, OnSubobjectClassSelected)
+		SLATE_ARGUMENT(TArray<TSharedRef<IClassViewerFilter>>, CustomClassFilters)
 
 	SLATE_END_ARGS()
 
@@ -189,11 +206,6 @@ public:
 
 	/** Clear the current combo list selection */
 	void ClearSelection();
-
-	/**
-	 * Updates the filtered list of component names.
-	 */
-	void GenerateFilteredComponentList();
 
 	FText GetCurrentSearchString() const;
 
@@ -216,11 +228,37 @@ public:
 	/** Returns a component name without the substring "Component" and sanitized for display */
 	static FString GetSanitizedComponentName(FComponentClassComboEntryPtr Entry);
 
-private:
+protected:
+	/** Internal data used to facilitate component class filtering */
+	struct FComponentClassFilterData
+	{
+		TSharedPtr<FClassViewerInitializationOptions> InitOptions;
+		TSharedPtr<IClassViewerFilter> ClassFilter;
+		TSharedPtr<FClassViewerFilterFuncs> FilterFuncs;
+	};
 
+	/**
+	 * Updates the filtered list of component names.
+	 */
+	void GenerateFilteredComponentList();
+
+private:
+	
 	FText GetFriendlyComponentName(FComponentClassComboEntryPtr Entry) const;
 
 	TSharedRef<SToolTip> GetComponentToolTip(FComponentClassComboEntryPtr Entry) const;
+
+	bool IsComponentClassAllowed(FComponentClassComboEntryPtr Entry) const;
+
+	void GetComponentClassFilterOptions(TArray<TSharedRef<FClassViewerFilterOption>>& OutFilterOptions) const;
+
+	TSharedRef<SWidget> GetFilterOptionsMenuContent();
+
+	void ToggleFilterOption(TSharedRef<FClassViewerFilterOption> FilterOption);
+
+	bool IsFilterOptionEnabled(TSharedRef<FClassViewerFilterOption> FilterOption) const;
+
+	EVisibility GetFilterOptionsButtonVisibility() const;
 	
 	FComponentClassSelected OnComponentClassSelected;
 
@@ -243,6 +281,9 @@ private:
 
 	/** The component list control - part of the combo drop down */
 	TSharedPtr< SListView<FComponentClassComboEntryPtr> > ComponentClassListView;
+
+	/** Internal data that facilitates custom class filtering */
+	TUniquePtr<FComponentClassFilterData> ComponentClassFilterData;
 
 	/** Cached selection index used to skip over unselectable items */
 	int32 PrevSelectedIndex;

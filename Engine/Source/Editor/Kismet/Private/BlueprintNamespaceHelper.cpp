@@ -78,7 +78,7 @@ static void UpdateNamespaceFeatureSettingsCVarSinkFunction()
 					if (AssetEditorPtr.IsValid() && AssetEditorPtr->IsBlueprintEditor())
 					{
 						TSharedPtr<IBlueprintEditor> BlueprintEditorPtr = StaticCastSharedPtr<IBlueprintEditor>(AssetEditorPtr);
-						BlueprintEditorPtr->RefreshMyBlueprint();
+						BlueprintEditorPtr->RefreshEditors();
 						BlueprintEditorPtr->RefreshInspector();
 					}
 				}
