@@ -3395,7 +3395,6 @@ FSoundWaveProxy::FSoundWaveProxy(USoundWave* InWave)
 
 	if (InWave->SoundWaveDataPtr->RunningPlatformData.NumChunks > 0)
 	{
-		check(SoundWaveDataPtr->LoadingBehavior != ESoundWaveLoadingBehavior::ForceInline);
 		NumChunks = InWave->GetNumChunks();
 	}
 
