@@ -130,6 +130,10 @@ protected:
 
 	bool bIsBakeToSelf = false;
 
+	bool ValidDetailMeshTangents();
+	bool bCheckDetailMeshTangents = true;
+	bool bValidDetailMeshTangents = false;
+	
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> DetailMeshTangents;
@@ -139,6 +143,8 @@ protected:
 	void UpdateOnModeChange();
 
 	void InvalidateResults();
+
+	EBakeOpState UpdateResult_DetailMeshTangents(EBakeMapType BakeType);
 
 	FDetailMeshSettings CachedDetailMeshSettings;
 	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedDetailNormalMap;

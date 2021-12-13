@@ -26,8 +26,14 @@ public:
 
 	FDynamicMeshTangents(const FDynamicMesh3* MeshIn);
 
-	/** @return true if the mesh has valid tangents */
-	bool HasValidTangents() const { return Tangents != nullptr && Bitangents != nullptr; }
+	/**
+	 * Checks the mesh for valid tangents. When bCheckValues == true,
+	 * inspects the tangents for invalid values (ex. zero, NaN).
+	 * 
+	 * @param bCheckValues inspect tangent values for zero/NaN
+	 * @return true if the mesh has valid tangents
+	 */
+	bool HasValidTangents(bool bCheckValues=false) const;
 
 	/**
 	 * If tangents are available in the overlays, returns them. If only Normal is available, computes orthogonal basis. Falls back to unit axes if no overlays are available.

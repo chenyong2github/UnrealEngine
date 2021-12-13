@@ -23,6 +23,30 @@ void UBakeMeshAttributeTool::Setup()
 }
 
 
+bool UBakeMeshAttributeTool::ValidTargetMeshTangents()
+{
+	if (bCheckTargetMeshTangents)
+	{
+		bValidTargetMeshTangents = TargetMeshTangents ? FDynamicMeshTangents(&TargetMesh).HasValidTangents(true) : false;
+		bCheckTargetMeshTangents = false;
+	}
+	return bValidTargetMeshTangents;
+}
+
+
+EBakeOpState UBakeMeshAttributeTool::UpdateResult_TargetMeshTangents(EBakeMapType BakeType)
+{
+	EBakeOpState ResultState = EBakeOpState::Clean;
+	const bool bNeedTargetMeshTangents = (bool)(BakeType & (EBakeMapType::TangentSpaceNormal | EBakeMapType::BentNormal));
+	if (bNeedTargetMeshTangents && !ValidTargetMeshTangents())
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidTargetTangentsWarning", "The Target Mesh does not have valid tangents."), EToolMessageLevel::UserWarning);
+		ResultState = EBakeOpState::Invalid;
+	}
+	return ResultState;
+}
+
+
 EBakeOpState UBakeMeshAttributeTool::UpdateResult_Normal(const FImageDimensions& Dimensions)
 {
 	EBakeOpState ResultState = EBakeOpState::Clean;

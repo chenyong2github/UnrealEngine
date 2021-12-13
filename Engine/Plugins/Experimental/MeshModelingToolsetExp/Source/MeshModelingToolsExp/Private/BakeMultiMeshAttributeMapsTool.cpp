@@ -587,13 +587,10 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 	// Clear our invalid bitflag to check again for valid inputs.
 	OpState &= ~EBakeOpState::Invalid;
 
+	OpState |= UpdateResult_TargetMeshTangents(CachedBakeSettings.BakeMapTypes);
+
 	// Update map type settings
 	OpState |= UpdateResult_DetailMeshes();
-
-	if ((bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::TangentSpaceNormal))
-	{
-		OpState |= UpdateResult_Normal(CachedBakeSettings.Dimensions);
-	}
 
 	// Early exit if op input parameters are invalid.
 	if (static_cast<bool>(OpState & EBakeOpState::Invalid))

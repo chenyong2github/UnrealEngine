@@ -487,6 +487,21 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 }
 
 
+bool UBakeMeshAttributeMapsTool::ValidDetailMeshTangents()
+{
+	if (!DetailMesh)
+	{
+		return false;
+	}
+	if (bCheckDetailMeshTangents)
+	{
+		bValidDetailMeshTangents = FDynamicMeshTangents(DetailMesh.Get()).HasValidTangents(true);
+		bCheckDetailMeshTangents = false;
+	}
+	return bValidDetailMeshTangents;
+}
+
+
 void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 {
 	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
@@ -577,6 +592,8 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	// Clear our invalid bitflag to check again for valid inputs.
 	OpState &= ~EBakeOpState::Invalid;
 
+	OpState |= UpdateResult_TargetMeshTangents(CachedBakeSettings.BakeMapTypes);
+
 	OpState |= UpdateResult_DetailNormalMap();
 
 	// Update map type settings
@@ -623,6 +640,19 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 }
 
 
+EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailMeshTangents(EBakeMapType BakeType)
+{
+	EBakeOpState ResultState = EBakeOpState::Clean;
+	const bool bNeedDetailMeshTangents = (bool)(BakeType & (EBakeMapType::TangentSpaceNormal | EBakeMapType::BentNormal)); 
+	if (bNeedDetailMeshTangents && !ValidDetailMeshTangents())
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidSourceTangentsWarning", "The Source Mesh does not have valid tangents."), EToolMessageLevel::UserWarning);
+		ResultState = EBakeOpState::Invalid;
+	}
+	return ResultState;
+}
+
+
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 {
 	EBakeOpState ResultState = EBakeOpState::Clean;
@@ -631,19 +661,21 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(DetailUVLayer);
 	if (UVOverlay == nullptr)
 	{
-		GetToolManager()->DisplayMessage(LOCTEXT("InvalidUVWarning", "The Detail Mesh does not have the selected UV layer"), EToolMessageLevel::UserWarning);
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidUVWarning", "The Source Mesh does not have the selected UV layer"), EToolMessageLevel::UserWarning);
 		return EBakeOpState::Invalid;
 	}
 	
-	UTexture2D* DetailMeshNormalMap = InputMeshSettings->SourceNormalMap; 
-	if (DetailMeshNormalMap)
+	if (UTexture2D* DetailMeshNormalMap = InputMeshSettings->SourceNormalMap)
 	{
 		CachedDetailNormalMap = MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>();
 		if (!UE::AssetUtils::ReadTexture(DetailMeshNormalMap, *CachedDetailNormalMap, bPreferPlatformData))
 		{
 			// Report the failed texture read as a warning, but permit the bake to continue.
-			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the detail normal map texture"), EToolMessageLevel::UserWarning);
+			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source normal map texture"), EToolMessageLevel::UserWarning);
 		}
+
+		// Validate detail mesh tangents for detail normal map
+		ResultState |= UpdateResult_DetailMeshTangents(CachedBakeSettings.BakeMapTypes);
 	}
 	else
 	{
@@ -656,7 +688,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 	if (!(CachedDetailMeshSettings == DetailMeshSettings))
 	{
 		CachedDetailMeshSettings = DetailMeshSettings;
-		ResultState = EBakeOpState::Evaluate;
+		ResultState |= EBakeOpState::Evaluate;
 	}
 	return ResultState;
 }

@@ -129,10 +129,23 @@ protected:
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> TargetMeshTangents;
 	UE::Geometry::FDynamicMeshAABBTree3 TargetSpatial;
 
+	/**
+	 * Compute validity of the Target Mesh tangents. Only checks validity
+	 * once and then caches the result for successive calls.
+	 * 
+	 * @return true if the TargetMesh tangents are valid
+	 */
+	bool ValidTargetMeshTangents();
+	bool bCheckTargetMeshTangents = true;
+	bool bValidTargetMeshTangents = false;
+
 	//
 	// Bake results update management
 	//
 	const bool bPreferPlatformData = false;
+
+	/** Update the OpState based on the validity of the target mesh tangents */
+	EBakeOpState UpdateResult_TargetMeshTangents(EBakeMapType BakeType);
 	
 	EBakeOpState UpdateResult_Normal(const FImageDimensions& Dimensions);
 	FNormalMapSettings CachedNormalMapSettings;
