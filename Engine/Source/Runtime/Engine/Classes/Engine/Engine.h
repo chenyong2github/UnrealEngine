@@ -1737,6 +1737,11 @@ public:
 	*/
 	void LoadDefaultBloomTexture();
 
+	/** Delay loading this texture until it is needed by the renderer.
+	* The texture is uncompressed and contains no mips so it can't be streamed.
+	*/
+	void LoadBlueNoiseTexture();
+
 	/** Delay loading this texture until it is needed by the renderer. */
 	void LoadDefaultFilmGrainTexture();
 

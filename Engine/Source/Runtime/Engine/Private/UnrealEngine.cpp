@@ -2999,9 +2999,6 @@ void UEngine::InitializeObjectReferences()
 	LoadEngineTexture(MiniFontTexture, *MiniFontTextureName.ToString());
 	LoadEngineTexture(WeightMapPlaceholderTexture, *WeightMapPlaceholderTextureName.ToString());
 	LoadEngineTexture(LightMapDensityTexture, *LightMapDensityTextureName.ToString());
-#if 1/*RHI_RAYTRACING*/
-	LoadEngineTexture(BlueNoiseTexture, *BlueNoiseTextureName.ToString());
-#endif
 
 #if WITH_EDITOR
 	// Avoid breaking some engine textures that might be cached very early (i.e. BlueNoise)
@@ -3144,6 +3141,14 @@ void UEngine::LoadDefaultBloomTexture()
 	if (DefaultBloomKernelTexture == nullptr)
 	{
 		LoadEngineTexture(DefaultBloomKernelTexture, *DefaultBloomKernelTextureName.ToString());
+	}
+}
+
+void UEngine::LoadBlueNoiseTexture()
+{
+	if (BlueNoiseTexture == nullptr)
+	{
+		LoadEngineTexture(BlueNoiseTexture, *BlueNoiseTextureName.ToString());
 	}
 }
 

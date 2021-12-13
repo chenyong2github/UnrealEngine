@@ -52,7 +52,7 @@ bool Lumen::UseHardwareRayTracing()
 #if RHI_RAYTRACING
 	// As of 2021-11-24, Lumen can only run in full RT pipeline mode.
 	// It will be able to run using inline ray tracing mode in the future.
-	return (IsRayTracingEnabled() && GRHISupportsRayTracingShaders && CVarLumenUseHardwareRayTracing.GetValueOnRenderThread() != 0);
+	return (IsRayTracingEnabled() && GRHISupportsRayTracingShaders && CVarLumenUseHardwareRayTracing.GetValueOnAnyThread() != 0);
 #else
 	return false;
 #endif
