@@ -18,6 +18,9 @@ public:
 		return 0;
 	}
 
+	/** Remap a given key to something else if necessary. */
+	FORCEINLINE static FKey RemapKey(FKey Key) { return Key; }
+
 	static FKey GetGamepadAcceptKey()
 	{
 		return EKeys::Gamepad_FaceButton_Bottom;

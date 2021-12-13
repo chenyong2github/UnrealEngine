@@ -4,6 +4,7 @@
 #include "CommonUIPrivatePCH.h"
 #include "ICommonInputModule.h"
 #include "CommonInputSettings.h"
+#include "HAL/PlatformInput.h"
 
 FScrollBoxStyle CommonUI::EmptyScrollBoxStyle = FScrollBoxStyle();
 
@@ -17,21 +18,7 @@ FCommonInputTypeInfo::FCommonInputTypeInfo()
 
 FKey FCommonInputTypeInfo::GetKey() const
 {
-	FKey ReturnKey = Key;
-#if PLATFORM_PS4
-	if (EKeys::Virtual_Accept == EKeys::Gamepad_FaceButton_Right)
-	{
-		if (ReturnKey == EKeys::Gamepad_FaceButton_Bottom)
-		{
-			ReturnKey = EKeys::Gamepad_FaceButton_Right;
-		}
-		else if (ReturnKey == EKeys::Gamepad_FaceButton_Right)
-		{
-			ReturnKey = EKeys::Gamepad_FaceButton_Bottom;
-		}
-	}
-#endif
-	return ReturnKey;
+	return FPlatformInput::RemapKey(Key);
 }
 
 FCommonInputActionDataBase::FCommonInputActionDataBase()
