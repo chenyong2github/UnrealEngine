@@ -23,6 +23,7 @@
 #include "IDocumentation.h"
 #include "TutorialMetaData.h"
 #include "Widgets/Layout/SBox.h"
+#include "BlueprintEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "SGraphNodeK2Base"
 
@@ -538,55 +539,112 @@ void SGraphNodeK2Base::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGrap
 		// Display pinned watches
 		if (K2Context->WatchedNodeSet.Contains(GraphNode))
 		{
+			const UBlueprintEditorSettings* BlueprintEditorSettings = GetDefault<UBlueprintEditorSettings>();
 			UBlueprint* Blueprint = K2Context->SourceBlueprint;
 			const UEdGraphSchema* Schema = GraphNode->GetSchema();
 
-			FString PinnedWatchText;
-			int32 ValidWatchCount = 0;
-			for (int32 PinIndex = 0; PinIndex < GraphNode->Pins.Num(); ++PinIndex)
+			const FPerBlueprintSettings* FoundSettings = BlueprintEditorSettings->PerBlueprintSettings.Find(Blueprint->GetPathName());
+			if (FoundSettings)
 			{
-				UEdGraphPin* WatchPin = GraphNode->Pins[PinIndex];
-				if (K2Context->WatchedPinSet.Contains(WatchPin))
+				FString PinnedWatchText;
+				int32 ValidWatchCount = 0;
+				TMap<const UEdGraphPin*, TSharedPtr<FPropertyInstanceInfo>> CachedPinInfo;
+				for (const FBlueprintWatchedPin& WatchedPin : FoundSettings->WatchedPins)
 				{
-					if (ValidWatchCount > 0)
+					const UEdGraphPin* WatchPin = WatchedPin.Get();
+					if (WatchPin && WatchPin->GetOwningNode() == GraphNode)
 					{
-						PinnedWatchText += TEXT("\n");
+						if (ValidWatchCount > 0)
+						{
+							PinnedWatchText += TEXT("\n");
+						}
+						TSharedPtr<FPropertyInstanceInfo> PinInfo;
+						if (CachedPinInfo.Find(WatchPin))
+						{
+							PinInfo = CachedPinInfo[WatchPin];
+						}
+						else
+						{
+							const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(CachedPinInfo.Add(WatchPin), Blueprint, ActiveObject, WatchPin);
+
+							if (WatchStatus == FKismetDebugUtilities::EWTR_Valid)
+							{
+								PinInfo = CachedPinInfo[WatchPin];
+							}
+							else
+							{
+								FString PinName = UEdGraphSchema_K2::TypeToText(WatchPin->PinType).ToString();
+								PinName += TEXT(" ");
+								PinName += Schema->GetPinDisplayName(WatchPin).ToString();
+
+								switch (WatchStatus)
+								{
+								case FKismetDebugUtilities::EWTR_Valid:
+									break;
+
+								case FKismetDebugUtilities::EWTR_NotInScope:
+									PinnedWatchText += FText::Format(LOCTEXT("WatchingWhenNotInScopeFmt", "Watching {0}\n\t(not in scope)"), FText::FromString(PinName)).ToString();
+									break;
+
+								case FKismetDebugUtilities::EWTR_NoProperty:
+									PinnedWatchText += FText::Format(LOCTEXT("WatchingUnknownPropertyFmt", "Watching {0}\n\t(no debug data)"), FText::FromString(PinName)).ToString();
+									break;
+
+								default:
+								case FKismetDebugUtilities::EWTR_NoDebugObject:
+									PinnedWatchText += FText::Format(LOCTEXT("WatchingNoDebugObjectFmt", "Watching {0}"), FText::FromString(PinName)).ToString();
+									break;
+								}
+							}
+						}
+
+						if (PinInfo.IsValid())
+						{
+							FString WatchName;
+							FString WatchText;
+							if (WatchedPin.GetPathToProperty().IsEmpty())
+							{
+								WatchName = UEdGraphSchema_K2::TypeToText(WatchPin->PinType).ToString();
+								WatchName += TEXT(" ");
+								WatchName += Schema->GetPinDisplayName(WatchPin).ToString();
+
+								WatchText = PinInfo->Value.ToString();
+							}
+							else
+							{
+								TSharedPtr<FPropertyInstanceInfo> PropWatch = PinInfo->ResolvePathToProperty(WatchedPin.GetPathToProperty());
+								if (PropWatch.IsValid())
+								{
+									WatchName = UEdGraphSchema_K2::TypeToText(PropWatch->Property.Get()).ToString();
+									WatchName += TEXT(" ");
+
+									WatchText = PropWatch->Value.ToString();
+								}
+								else
+								{
+									WatchText = LOCTEXT("NoDebugData", "(no debug data)").ToString();
+								}
+								
+								WatchName += Schema->GetPinDisplayName(WatchPin).ToString();
+
+								for (const FName& PathName : WatchedPin.GetPathToProperty())
+								{
+									WatchName += TEXT("/");
+									WatchName += PathName.ToString();
+								}
+							}
+
+							PinnedWatchText += FText::Format(LOCTEXT("WatchingAndValidFmt", "Watching {0}\n\t{1}"), FText::FromString(WatchName), FText::FromString(WatchText)).ToString();
+						}
+
+						ValidWatchCount++;
 					}
-
-					FString PinName = UEdGraphSchema_K2::TypeToText(WatchPin->PinType).ToString();
-					PinName += TEXT(" ");
-					PinName += Schema->GetPinDisplayName(WatchPin).ToString();
-
-					FString WatchText;
-					const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetWatchText(/*inout*/ WatchText, Blueprint, ActiveObject, WatchPin);
-
-					switch (WatchStatus)
-					{
-					case FKismetDebugUtilities::EWTR_Valid:
-						PinnedWatchText += FText::Format(LOCTEXT("WatchingAndValidFmt", "Watching {0}\n\t{1}"), FText::FromString(PinName), FText::FromString(WatchText)).ToString();//@TODO: Print out object being debugged name?
-						break;
-
-					case FKismetDebugUtilities::EWTR_NotInScope:
-						PinnedWatchText += FText::Format(LOCTEXT("WatchingWhenNotInScopeFmt", "Watching {0}\n\t(not in scope)"), FText::FromString(PinName)).ToString();
-						break;
-
-					case FKismetDebugUtilities::EWTR_NoProperty:
-						PinnedWatchText += FText::Format(LOCTEXT("WatchingUnknownPropertyFmt", "Watching {0}\n\t(no debug data)"), FText::FromString(PinName)).ToString();
-						break;
-
-					default:
-					case FKismetDebugUtilities::EWTR_NoDebugObject:
-						PinnedWatchText += FText::Format(LOCTEXT("WatchingNoDebugObjectFmt", "Watching {0}"), FText::FromString(PinName)).ToString();
-						break;
-					}
-
-					ValidWatchCount++;
 				}
-			}
 
-			if (ValidWatchCount)
-			{
-				new (Popups) FGraphInformationPopupInfo(NULL, PinnedWatchColor, PinnedWatchText);
+				if (ValidWatchCount)
+				{
+					new (Popups) FGraphInformationPopupInfo(nullptr, PinnedWatchColor, PinnedWatchText);
+				}
 			}
 		}
 	}

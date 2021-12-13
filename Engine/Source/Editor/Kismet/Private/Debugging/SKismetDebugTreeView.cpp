@@ -1368,9 +1368,6 @@ protected:
 
 	void OnNavigateToWatchLocation();
 
-	// Finds the DebugInfo for the property pointed to by PathToProperty from the Pin's debuginfo
-	TSharedPtr<FPropertyInstanceInfo> GetWatchedPropertyDebugInfo(const TSharedPtr<FPropertyInstanceInfo>& InPinInfo) const;
-
 private:
 	void AddWatch() const
 	{
@@ -1811,52 +1808,6 @@ void FWatchLineItem::OnNavigateToWatchLocation()
 	}
 }
 
-TSharedPtr<FPropertyInstanceInfo> FWatchLineItem::GetWatchedPropertyDebugInfo(const TSharedPtr<FPropertyInstanceInfo>& InPinInfo) const
-{
-	// Drill down to the actual property being watched if necessary
-	TSharedPtr<FPropertyInstanceInfo> ThisDebugInfo = InPinInfo;
-	for (const FName& ChildName : PathToProperty)
-	{
-		if (ThisDebugInfo.IsValid())
-		{
-			const FString ChildNameStr = ChildName.ToString();
-			FProperty* Property = ThisDebugInfo->Property.Get();
-
-			TSharedPtr<FPropertyInstanceInfo>* FoundChild;
-			
-			if (Property->IsA<FSetProperty>() || Property->IsA<FArrayProperty>() || Property->IsA<FMapProperty>())
-			{
-				FoundChild = ThisDebugInfo->Children.FindByPredicate(
-					[&ChildNameStr](const TSharedPtr<FPropertyInstanceInfo>& Child)
-					{
-						return Child->DisplayName.ToString() == ChildNameStr;
-					}
-				);
-			}
-			else
-			{
-				FoundChild = ThisDebugInfo->Children.FindByPredicate(
-					[&ChildNameStr](const TSharedPtr<FPropertyInstanceInfo>& Child)
-					{
-						return Child->Property->GetAuthoredName() == ChildNameStr;
-					}
-				);
-			}
-
-			if (FoundChild)
-			{
-				ThisDebugInfo = *FoundChild;
-			}
-			else
-			{
-				ThisDebugInfo.Reset();
-			}
-		}
-	}
-
-	return ThisDebugInfo;
-}
-
 TSharedPtr<FPropertyInstanceInfo> FWatchLineItem::GetPropertyInfo() const
 {
 	if (CachedPropertyInfo.IsValid())
@@ -1880,7 +1831,14 @@ TSharedPtr<FPropertyInstanceInfo> FWatchLineItem::GetPropertyInfo() const
 			case FKismetDebugUtilities::EWTR_Valid:
 			{
 					check(DebugInfo);
-					CachedPropertyInfo = GetWatchedPropertyDebugInfo(DebugInfo);
+					if (PathToProperty.IsEmpty())
+					{
+						CachedPropertyInfo = DebugInfo;
+					}
+					else
+					{
+						CachedPropertyInfo = DebugInfo->ResolvePathToProperty(PathToProperty);
+					}
 					return CachedPropertyInfo;
 			}
 
