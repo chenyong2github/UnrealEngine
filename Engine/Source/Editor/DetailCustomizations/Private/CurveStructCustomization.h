@@ -16,7 +16,7 @@ struct FRuntimeFloatCurve;
 /**
  * Customizes a RuntimeFloatCurve struct to display a Curve Editor
  */
-class FCurveStructCustomization : public IPropertyTypeCustomization, public FCurveOwnerInterface
+class FCurveStructCustomization : public IPropertyTypeCustomization, public FCurveOwnerInterface, public FEditorUndoClient
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
@@ -38,6 +38,10 @@ public:
 	virtual void MakeTransactional() override;
 	virtual void OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos) override;
 	virtual bool IsValidCurve( FRichCurveEditInfo CurveInfo ) override;
+
+	//~ FEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
 private:
 	/**
