@@ -80,19 +80,14 @@ namespace Chaos
 	class CHAOS_API FManifoldPointSavedData
 	{
 	public:
-		FManifoldPointSavedData()
-		{
-		}
-
 		/**
 		 * @brief Copy the ManifoldPoint data needed for static friction next tick
 		*/
-		inline void Save(const FManifoldPoint& ManifoldPoint)
+		FManifoldPointSavedData(const FManifoldPoint& ManifoldPoint)
 		{
 			ShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
 			ShapeContactPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
 			StaticFrictionMax = ManifoldPoint.StaticFrictionMax;
-			bInsideStaticFrictionCone = ManifoldPoint.bInsideStaticFrictionCone;
 		}
 
 		/**
@@ -121,7 +116,6 @@ namespace Chaos
 		FVec3 ShapeContactPoints[2];
 		FVec3 NetPushOut;
 		FReal StaticFrictionMax;
-		bool bInsideStaticFrictionCone;
 	};
 
 	/*
@@ -460,6 +454,36 @@ namespace Chaos
 
 		const FManifoldPointSavedData* FindManifoldPointSavedData(const FManifoldPoint& ManifoldPoint) const;
 
+		/**
+		 * @brief Called before SetSolverResults() to reset accumulators
+		*/
+		void ResetSolverResults()
+		{
+			ManifoldPointsSavedData.Reset();
+			AccumulatedImpulse = FVec3(0);
+		}
+
+		/**
+		 * @brief Store the data (from the solver) that is retained between ticks for the specified manifold point
+		*/
+		void SetSolverResults(const int32 ManifoldPointIndex, const FVec3& NetPushOut, const FVec3& NetImpulse, const bool bInsideStaticFrictionCone, const FReal StaticFrictionMax, const FReal Dt)
+		{
+			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+
+			ManifoldPoint.NetPushOut = NetPushOut;
+			ManifoldPoint.NetImpulse = NetImpulse;
+			ManifoldPoint.bInsideStaticFrictionCone = bInsideStaticFrictionCone;
+			ManifoldPoint.StaticFrictionMax = StaticFrictionMax;
+
+			AccumulatedImpulse += NetImpulse + (NetPushOut / Dt);
+
+			// If are still satisfying the static friction condition, save off the state required for next tick
+			if (bInsideStaticFrictionCone && !NetPushOut.IsNearlyZero() && (ManifoldPointsSavedData.Num() < ManifoldPointsSavedData.Max()))
+			{
+				ManifoldPointsSavedData.Emplace(FManifoldPointSavedData(ManifoldPoint));
+			}
+		}
+
 	public:
 		const FPBDCollisionConstraintHandle* GetConstraintHandle() const { return this; }
 		FPBDCollisionConstraintHandle* GetConstraintHandle() { return this; }
@@ -498,11 +522,6 @@ namespace Chaos
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
 
 		/**
-		 * @brief Move the current manifold to the previous manifold, and reset the current manifold ready for it to be rebuilt
-		*/
-		void SaveManifold();
-
-		/**
 		 * @brief Restore data used for static friction from the previous point(s) to the current
 		*/
 		void TryRestoreFrictionData(const int32 ManifoldPointIndex);
@@ -525,6 +544,10 @@ namespace Chaos
 		FReal Stiffness;
 
 		TArray<FManifoldPoint> ManifoldPoints;
+
+		// The manifold points from the previous tick when we don't reuse the manifold. Used by static friction.
+		TFixedArray<FManifoldPointSavedData, MaxManifoldPoints> ManifoldPointsSavedData;
+
 		FReal CullDistance;
 
 		// The margins to use during collision detection. We don't always use the margins on the shapes directly.
@@ -543,10 +566,6 @@ namespace Chaos
 
 		// Simplex data from the last call to GJK, used to warm-start GJK
 		FGJKSimplexData GJKWarmStartData;
-
-		// The manifold points from the previous tick when we don't reuse the manifold. Used by static friction.
-		FManifoldPointSavedData ManifoldPointSavedData[MaxManifoldPoints];
-		int32 NumSavedManifoldPoints;
 
 		FRigidTransform3 ShapeWorldTransform0;
 		FRigidTransform3 ShapeWorldTransform1;

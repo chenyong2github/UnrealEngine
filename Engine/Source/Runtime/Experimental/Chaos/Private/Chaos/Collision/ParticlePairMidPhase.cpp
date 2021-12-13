@@ -270,16 +270,11 @@ namespace Chaos
 			// NOTE: these are not used by CCD which continuously moves the particles
 			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
-			// If the constraint was not used last frame, it needs to be reset. 
-			// If it was used last frame, its data can be used for static friction etc. (unless CCD is enabled)
 			Constraint->SetCCDEnabled(bUseCCD);
-			if (bWasUpdatedLastTick && !bUseCCD)
-			{
-				// Copy manifold data used for static friction - we are about to overwrite the manifold points
-				// NOTE: does not clear the current manifold points
-				Constraint->SaveManifold();
-			}
-			else
+
+			// If the constraint was not used last frame, it needs to be reset. 
+			// Otherwise we will try to reuse it below
+			if (!bWasUpdatedLastTick || bUseCCD)
 			{
 				// Clear all manifold data
 				Constraint->ResetManifold();

@@ -368,7 +368,11 @@ namespace Chaos
 				if ((MidPhase != nullptr) && !MidPhase->IsUsedSince(CurrentEpoch) && !MidPhase->IsSleeping())
 				{
 					DetachParticlePairMidPhase(MidPhase.Get());
-					ParticlePairMidPhases.RemoveAtSwap(Index);
+
+					// This array can get very large so we allow it to shrink when possible
+					constexpr bool bAllowShrink = true;
+					ParticlePairMidPhases.RemoveAtSwap(Index, 1, bAllowShrink);
+
 					--Index;
 					--NumParticlePairMidPhases;
 				}

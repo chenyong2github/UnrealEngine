@@ -144,6 +144,8 @@ namespace Chaos
 		, TimeOfImpact(0)
 		, CCDType(ECollisionCCDType::Disabled)
 		, Stiffness(FReal(1))
+		, ManifoldPoints()
+		, ManifoldPointsSavedData()
 		, CullDistance(TNumericLimits<FReal>::Max())
 		, CollisionMargins{ 0, 0 }
 		, CollisionTolerance(0)
@@ -151,8 +153,6 @@ namespace Chaos
 		, bUseIncrementalManifold(false)
 		, SolverBodies{ nullptr, nullptr }
 		, GJKWarmStartData()
-		, ManifoldPointSavedData{}
-		, NumSavedManifoldPoints(0)
 		, ShapeWorldTransform0()
 		, ShapeWorldTransform1()
 		, LastShapeWorldTransform0()
@@ -182,6 +182,8 @@ namespace Chaos
 		, TimeOfImpact(0)
 		, CCDType(ECollisionCCDType::Disabled)
 		, Stiffness(FReal(1))
+		, ManifoldPoints()
+		, ManifoldPointsSavedData()
 		, CullDistance(TNumericLimits<FReal>::Max())
 		, CollisionMargins{ 0, 0 }
 		, CollisionTolerance(0)
@@ -189,8 +191,6 @@ namespace Chaos
 		, bUseIncrementalManifold(false)
 		, SolverBodies{ nullptr, nullptr }
 		, GJKWarmStartData()
-		, ManifoldPointSavedData{}
-		, NumSavedManifoldPoints(0)
 		, ShapeWorldTransform0()
 		, ShapeWorldTransform1()
 		, LastShapeWorldTransform0()
@@ -530,7 +530,7 @@ namespace Chaos
 
 	void FPBDCollisionConstraint::ResetManifold()
 	{
-		NumSavedManifoldPoints = 0;
+		ManifoldPointsSavedData.Reset();
 		ResetActiveManifoldContacts();
 	}
 
@@ -539,26 +539,6 @@ namespace Chaos
 		ManifoldPoints.Reset();
 		Manifold.Reset();
 		ExpectedNumManifoldPoints = 0;
-		bWasManifoldRestored = false;
-	}
-
-	void FPBDCollisionConstraint::SaveManifold()
-	{
-		check(ManifoldPoints.Num() <= MaxManifoldPoints);
-
-		// Save off the previous data for use by static friction
-		NumSavedManifoldPoints = 0;
-		const int32 NumManifoldPoints = ManifoldPoints.Num();
-		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < NumManifoldPoints; ++ManifoldPointIndex)
-		{
-			// Only save points that actually produced a response and are holding static friction
-			const FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
-			if (ManifoldPoint.bInsideStaticFrictionCone && !ManifoldPoint.NetPushOut.IsNearlyZero())
-			{
-				ManifoldPointSavedData[NumSavedManifoldPoints++].Save(ManifoldPoint);
-			}
-		}
-
 		bWasManifoldRestored = false;
 	}
 
@@ -606,10 +586,9 @@ namespace Chaos
 
 		const FRigidTransform3 Shape0ToShape1Transform = ShapeWorldTransform0.GetRelativeTransformNoScale(ShapeWorldTransform1);
 
-		// Update and prune manifold points.
+		// Update or prune manifold points.
 		TArray<int32, TInlineAllocator<4>> ManifoldPointsToRemove;
-		const int32 NumManifoldPoints = ManifoldPoints.Num();
-		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < NumManifoldPoints; ++ManifoldPointIndex)
+		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < ManifoldPoints.Num(); ++ManifoldPointIndex)
 		{
 			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
 
@@ -631,22 +610,7 @@ namespace Chaos
 				// @todo(chaos): we should reproject the contact on the plane owner
 				const FVec3 ShapeContactPoint1 = Contact0In1 - ContactPhi * ContactNormalIn1;
 				ManifoldPoint.ContactPoint.ShapeContactPoints[1] = ShapeContactPoint1;
-
-				// Restore friction anchors if possible
-				TryRestoreFrictionData(ManifoldPointIndex);
-
-				// Update world-space contact locations
-				UpdateManifoldPointFromContact(ManifoldPointIndex);
-				ManifoldPoint.ContactPoint.Location = FReal(0.5) * (ManifoldPoint.WorldContactPoints[0] + ManifoldPoint.WorldContactPoints[1]);
 				ManifoldPoint.ContactPoint.Phi = ContactPhi;
-
-				ManifoldPoint.bWasRestored = true;
-
-				if (ContactPhi < Manifold.Phi)
-				{
-					// Update closest point
-					SetActiveContactPoint(ManifoldPoint.ContactPoint);
-				}
 			}
 			else
 			{
@@ -654,9 +618,44 @@ namespace Chaos
 			}
 		}
 
+		// If we removed more than 1 point, we are going to rebuild the manifold anyway, so we're done
+		if (ManifoldPointsToRemove.Num() > 1)
+		{
+			ResetActiveManifoldContacts();
+			return false;
+		}
+
+		// Remove points - process in reverse order for simpler index handling and faster removal of multiple elements
+		for (int32 RemoveArrayIndex = ManifoldPointsToRemove.Num() - 1; RemoveArrayIndex >= 0; --RemoveArrayIndex)
+		{
+			constexpr bool bAllowShrink = false;
+			ManifoldPoints.RemoveAt(ManifoldPointsToRemove[RemoveArrayIndex], 1, bAllowShrink);
+		}
+
+		// Update world-space state for the points we kept
+		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < ManifoldPoints.Num(); ++ManifoldPointIndex)
+		{
+			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+
+			// Restore friction anchors if we have them for this point
+			TryRestoreFrictionData(ManifoldPointIndex);
+
+			// Update world-space contact locations
+			UpdateManifoldPointFromContact(ManifoldPointIndex);
+			ManifoldPoint.ContactPoint.Location = FReal(0.5) * (ManifoldPoint.WorldContactPoints[0] + ManifoldPoint.WorldContactPoints[1]);
+
+			ManifoldPoint.bWasRestored = true;
+
+			if (ManifoldPoint.ContactPoint.Phi < Manifold.Phi)
+			{
+				// Update closest point
+				SetActiveContactPoint(ManifoldPoint.ContactPoint);
+			}
+		}
+
+		// If we did not remove any contact points and we have not moved or rotated much we may reuse the manifold as-is.
 		if ((ManifoldPointsToRemove.Num() == 0) && (ShapePositionTolerance > 0) && (ShapeRotationThreshold > 0))
 		{
-			// If we did not remove any contact points and we have not moved or rotated much we can reuse the manifold as-is.
 			// The transform check is necessary regardless of how many points we have left in the manifold because
 			// as a body moves/rotates we may have to change which faces/edges are colliding. We can't know if the face/edge
 			// will change until we run the closest-point checks (GJK) in the narrow phase.
@@ -673,12 +672,6 @@ namespace Chaos
 					return true;
 				}
 			}
-		}
-
-		// We removed some points - process in reverse order for simpler index handling and faster removal of multiple elements
-		for (int32 RemoveArrayIndex = ManifoldPointsToRemove.Num() - 1; RemoveArrayIndex >= 0; --RemoveArrayIndex)
-		{
-			ManifoldPoints.RemoveAt(ManifoldPointsToRemove[RemoveArrayIndex]);
 		}
 
 		return false;
@@ -899,10 +892,10 @@ namespace Chaos
 		if (bChaos_Manifold_EnableFrictionRestore)
 		{
 			const FReal DistanceToleranceSq = FMath::Square(Chaos_Manifold_FrictionPositionTolerance);
-			for (int32 PrevManifoldPointIndex = 0; PrevManifoldPointIndex < NumSavedManifoldPoints; ++PrevManifoldPointIndex)
+			for (int32 PrevManifoldPointIndex = 0; PrevManifoldPointIndex < ManifoldPointsSavedData.Num(); ++PrevManifoldPointIndex)
 			{
-				const FManifoldPointSavedData& PrevManifoldPoint = ManifoldPointSavedData[PrevManifoldPointIndex];
-				if (PrevManifoldPoint.bInsideStaticFrictionCone && PrevManifoldPoint.IsMatch(ManifoldPoint, DistanceToleranceSq))
+				const FManifoldPointSavedData& PrevManifoldPoint = ManifoldPointsSavedData[PrevManifoldPointIndex];
+				if (PrevManifoldPoint.IsMatch(ManifoldPoint, DistanceToleranceSq))
 				{
 					return &PrevManifoldPoint;
 				}
