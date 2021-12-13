@@ -6,11 +6,9 @@
 #include "Compression/CompressedBuffer.h"
 #include "DerivedDataPayloadId.h"
 #include "IO/IoHash.h"
+#include "Memory/MemoryFwd.h"
 
 #define UE_API DERIVEDDATACACHE_API
-
-class FCompositeBuffer;
-class FSharedBuffer;
 
 namespace UE::DerivedData
 {
@@ -60,6 +58,9 @@ public:
 
 	/** Whether the compressed buffer for the payload is available. */
 	inline bool HasData() const { return !!Data; }
+
+	/** Create a copy of the payload with the data removed. */
+	[[nodiscard]] inline FPayload RemoveData() const { return FPayload(Id, RawHash, RawSize); }
 
 	/** Whether this is null. */
 	inline bool IsNull() const { return Id.IsNull(); }
