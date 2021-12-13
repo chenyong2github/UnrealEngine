@@ -25,6 +25,7 @@ public:
 
 #if WITH_EDITOR
 	// Events
+	virtual void OnWorldRenamed(UWorld* RenamedWorld);
 	virtual void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
 	virtual void OnPackageDeleted(UPackage* Package);
 	virtual void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);

@@ -9,6 +9,7 @@
 #include "Misc/Base64.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/CoreRedirects.h"
+#include "Engine/World.h"
 #endif
 
 UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitializer)
@@ -162,6 +163,16 @@ void UActorDescContainer::BeginDestroy()
 }
 
 #if WITH_EDITOR
+
+void UActorDescContainer::OnWorldRenamed(UWorld* RenamedWorld)
+{
+	if (GetWorld() == RenamedWorld)
+	{
+		// Update container package
+		ContainerPackageName = RenamedWorld->GetPackage()->GetFName();
+	}
+}
+
 bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 {
 	return Actor && Actor->IsMainPackageActor() && (Actor->GetLevel() != nullptr) && (Actor->GetLevel()->GetPackage()->GetFName() == ContainerPackageName);
@@ -299,6 +310,7 @@ void UActorDescContainer::RegisterEditorDelegates()
 {
 	if (GEditor && !IsTemplate() && World && !World->IsGameWorld())
 	{
+		FWorldDelegates::OnPostWorldRename.AddUObject(this, &UActorDescContainer::OnWorldRenamed);
 		FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &UActorDescContainer::OnObjectPreSave);
 		FEditorDelegates::OnPackageDeleted.AddUObject(this, &UActorDescContainer::OnPackageDeleted);
 		FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UActorDescContainer::OnObjectsReplaced);
@@ -309,6 +321,7 @@ void UActorDescContainer::UnregisterEditorDelegates()
 {
 	if (GEditor && !IsTemplate() && World && !World->IsGameWorld())
 	{
+		FWorldDelegates::OnPostWorldRename.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
 		FEditorDelegates::OnPackageDeleted.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
