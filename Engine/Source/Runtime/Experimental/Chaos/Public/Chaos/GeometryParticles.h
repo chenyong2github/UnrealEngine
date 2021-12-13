@@ -78,11 +78,11 @@ namespace Chaos
 
 		void UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
 		{
-			if (GetGeometry()->HasBoundingBox())
+			LeafWorldTransform = FRigidTransform3::MultiplyNoScale(LeafRelativeTransform, WorldTransform);
+			if ((LeafGeometry != nullptr) && LeafGeometry->HasBoundingBox())
 			{
-				UpdateShapeBounds(WorldTransform, BoundsExpansion);
+				WorldSpaceInflatedShapeBounds = LeafGeometry->CalculateTransformedBounds(LeafWorldTransform).ThickenSymmetrically(BoundsExpansion);;
 			}
-			LeafWorldTransform = LeafRelativeTransform * WorldTransform;
 		}
 
 		// The leaf shape (with transformed and implicit wrapper removed)

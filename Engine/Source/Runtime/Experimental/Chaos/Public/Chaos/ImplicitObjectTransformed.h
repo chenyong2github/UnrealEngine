@@ -243,6 +243,12 @@ public:
 
 	virtual const TAABB<T, d> BoundingBox() const override { return MLocalBoundingBox; }
 
+	// Calculate the tight-fitting world-space bounding box
+	virtual FAABB3 CalculateTransformedBounds(const FRigidTransform3& InTransform) const
+	{
+		return MObject->CalculateTransformedBounds(FRigidTransform3::MultiplyNoScale(MTransform ,InTransform));
+	}
+
 	const FReal GetVolume() const
 	{
 		// TODO: More precise volume!
