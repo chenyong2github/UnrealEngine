@@ -169,6 +169,9 @@ public:
 	/** Locks the Viewport aspect ratio for easier resizing */
 	UPROPERTY(EditAnywhere, Category = "Configuration")
 	bool bFixedAspectRatio;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Preview", meta = (DisplayName = "Preview Frustum"))
+	bool bAllowPreviewFrustumRendering = false;
 #endif
 	
 	/** Define the Viewport 2D coordinates */
