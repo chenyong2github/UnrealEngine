@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	TiledDeferredLightRendering.cpp: Implementation of tiled deferred shading
+	ClusteredDeferredShadingPass.cpp: Implementation of tiled deferred shading
 =============================================================================*/
 
 #include "CoreMinimal.h"

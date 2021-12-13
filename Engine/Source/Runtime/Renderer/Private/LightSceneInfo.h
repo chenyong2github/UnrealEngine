@@ -85,8 +85,6 @@ struct FSortedLightSceneInfo
 			uint32 bShadowed : 1;
 			/** Whether the light is NOT a simple light - they always support tiled/clustered but may want to be selected separately. */
 			uint32 bIsNotSimpleLight : 1;
-			/** True if the light doesn't support tiled deferred, logic is inverted so that lights that DO support tiled deferred will sort first in list */
-			uint32 bTiledDeferredNotSupported : 1;
 			/* We want to sort the lights that write into the packed shadow mask (when enabled) to the front of the list so we don't waste slots in the packed shadow mask. */
 			uint32 bDoesNotWriteIntoPackedShadowMask : 1;
 			/** 
@@ -123,13 +121,12 @@ struct FSortedLightSceneInfo
 /** 
  * Stores info about sorted lights and ranges. 
  * The sort-key in FSortedLightSceneInfo gives rise to the following order:
- *  [SimpleLights,Tiled/Clustered,UnbatchedLights]
+ *  [SimpleLights,Clustered,UnbatchedLights]
  * Note that some shadowed lights can be included in the clustered pass when virtual shadow maps and one pass projection are used.
  */
 struct FSortedLightSetSceneInfo
 {
 	int SimpleLightsEnd;
-	int TiledSupportedEnd;
 	int ClusteredSupportedEnd;
 
 	/** First light with shadow map or */

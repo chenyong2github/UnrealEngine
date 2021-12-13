@@ -545,16 +545,9 @@ private:
 	/** Mark time line for gathering Lumen virtual surface cache feedback. */
 	void BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries);
-	 
-	/** Whether tiled deferred is supported and can be used at all. */
-	bool CanUseTiledDeferred() const;
-
-	/** Whether to use tiled deferred shading given a number of lights that support it. */
-	bool ShouldUseTiledDeferred(int32 NumTiledDeferredLights) const;
-
+	
 	/** 
 	 * True if the 'r.UseClusteredDeferredShading' flag is 1 and sufficient feature level. 
-	 * NOTE: When true it takes precedence over the TiledDeferred path, since they handle the same lights.
 	 */
 	bool ShouldUseClusteredDeferredShading() const;
 
@@ -571,15 +564,6 @@ private:
 		const FSortedLightSetSceneInfo& SortedLightsSet,
 		FRDGTextureRef ShadowMaskBits,
 		FRDGTextureRef HairStrandsShadowMaskBits);
-
-	/** Renders the lights in SortedLights in the range [TiledDeferredLightsStart, TiledDeferredLightsEnd) using tiled deferred shading. */
-	void RenderTiledDeferredLighting(
-		FRDGBuilder& GraphBuilder,
-		FMinimalSceneTextures& SceneTextures,
-		const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights,
-		int32 TiledDeferredLightsStart,
-		int32 TiledDeferredLightsEnd,
-		const FSimpleLightArray& SimpleLights);
 
 	/** Renders the scene's lighting. */
 	void RenderLights(

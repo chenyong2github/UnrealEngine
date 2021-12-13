@@ -158,8 +158,6 @@ DEFINE_STAT(STAT_NumShadowedLights);
 DEFINE_STAT(STAT_NumLightFunctionOnlyLights);
 DEFINE_STAT(STAT_NumBatchedLights);
 DEFINE_STAT(STAT_NumLightsInjectedIntoTranslucency);
-DEFINE_STAT(STAT_NumLightsUsingTiledDeferred);
-DEFINE_STAT(STAT_NumLightsUsingSimpleTiledDeferred);
 DEFINE_STAT(STAT_NumLightsUsingStandardDeferred);
 
 DEFINE_STAT(STAT_LightShaftsLights);

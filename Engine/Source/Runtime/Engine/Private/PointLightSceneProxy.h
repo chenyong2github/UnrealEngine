@@ -39,9 +39,6 @@ public:
 	,	bInverseSquared(Component->bUseInverseSquaredFalloff)
 	{
 		UpdateRadius(Component->AttenuationRadius);
-
-		// tiled deferred only supported for point/spot lights with 0 length
-		bTiledDeferredLightingSupported = (SourceLength == 0.0f);
 	}
 
 	virtual float GetSourceRadius() const override

@@ -1525,7 +1525,6 @@ public:
 	inline bool UseRayTracedDistanceFieldShadows() const { return bUseRayTracedDistanceFieldShadows; }
 	inline bool UseVirtualShadowMaps() const { return bUseVirtualShadowMaps; }
 	inline float GetRayStartOffsetDepthScale() const { return RayStartOffsetDepthScale; }
-	inline bool IsTiledDeferredLightingSupported() const { return bTiledDeferredLightingSupported;  }
 	inline uint8 GetLightType() const { return LightType; }
 	inline uint8 GetLightingChannelMask() const { return LightingChannelMask; }
 	inline FName GetComponentFName() const { return ComponentName; }
@@ -1754,9 +1753,6 @@ protected:
 
 	/** Whether to render csm shadows for movable objects only (mobile). */
 	uint8 bUseWholeSceneCSMForMovableObjects : 1;
-
-	/** Whether the light supports rendering in tiled deferred pass */
-	uint8 bTiledDeferredLightingSupported : 1;
 
 	/** The index of the atmospheric light. Multiple lights can be considered when computing the sky/atmospheric scattering. */
 	const uint8 AtmosphereSunLightIndex;
