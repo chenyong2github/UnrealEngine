@@ -190,7 +190,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 			check(CellLevelPackage);
 			check(UWorld::FindWorldInPackage(CellLevelPackage));
 			check(RuntimeLevel->OwningWorld);
-			check(RuntimeLevel->OwningWorld->WorldType == EWorldType::PIE || (IsRunningGame() && RuntimeLevel->OwningWorld->WorldType == EWorldType::Game));
+			check(RuntimeLevel->OwningWorld->WorldType == EWorldType::PIE || ((IsRunningGame() || IsRunningDedicatedServer()) && RuntimeLevel->OwningWorld->WorldType == EWorldType::Game));
 	
 			if (IssueLoadRequests())
 			{
@@ -346,7 +346,7 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 		}
 		else if (OuterWorld->IsGameWorld())
 		{
-			check(IsRunningGame());
+			check(IsRunningGame() || IsRunningDedicatedServer());
 			// Remap Runtime Level's SoftObjectPaths
 			FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(RuntimeLevel, OuterWorldPartition.Get());
 		}
