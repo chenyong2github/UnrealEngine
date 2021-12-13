@@ -192,7 +192,7 @@ namespace Chaos
 	}
 
 
-	FContactPoint SphereSphereContactPoint(const TSphere<FReal, 3>& Sphere1, const FRigidTransform3& Sphere1Transform, const TSphere<FReal, 3>& Sphere2, const FRigidTransform3& Sphere2Transform, const FReal ShapePadding)
+	FContactPoint SphereSphereContactPoint(const TSphere<FReal, 3>& Sphere1, const FRigidTransform3& Sphere1Transform, const TSphere<FReal, 3>& Sphere2, const FRigidTransform3& Sphere2Transform, const FReal CullDistance, const FReal ShapePadding)
 	{
 		FContactPoint Result;
 
@@ -203,17 +203,21 @@ namespace Chaos
 		const FVec3 Center1 = Sphere1Transform.TransformPosition(Sphere1.GetCenter());
 		const FVec3 Center2 = Sphere2Transform.TransformPosition(Sphere2.GetCenter());
 		const FVec3 Direction = Center1 - Center2;
-		const FReal Size = Direction.Size();
-		const FVec3 Normal = Size > SMALL_NUMBER ? Direction / Size : FVec3(0, 0, 1);
-		const FReal NewPhi = Size - (R1 + R2);
+		const FReal SizeSq = Direction.SizeSquared();
+		const FReal CullDistanceSq = FMath::Square(CullDistance + R1 + R2);
+		if (SizeSq < CullDistanceSq)
+		{
+			const FReal Size = FMath::Sqrt(SizeSq);
+			const FVec3 Normal = Size > SMALL_NUMBER ? Direction / Size : FVec3(0, 0, 1);
+			const FReal NewPhi = Size - (R1 + R2);
 
-		Result.ShapeContactPoints[0] = Sphere1.GetCenter() - Sphere1Transform.InverseTransformVector(R1 * Normal);
-		Result.ShapeContactPoints[1] = Sphere2.GetCenter() + Sphere2Transform.InverseTransformVector(R2 * Normal);
-		Result.ShapeContactNormal = Sphere2Transform.InverseTransformVector(Normal);
-		Result.Phi = NewPhi;
-		Result.Normal = Normal;
-		Result.Location = Center2 + R2 * Result.Normal;
-
+			Result.ShapeContactPoints[0] = Sphere1.GetCenter() - Sphere1Transform.InverseTransformVector(R1 * Normal);
+			Result.ShapeContactPoints[1] = Sphere2.GetCenter() + Sphere2Transform.InverseTransformVector(R2 * Normal);
+			Result.ShapeContactNormal = Sphere2Transform.InverseTransformVector(Normal);
+			Result.Phi = NewPhi;
+			Result.Normal = Normal;
+			Result.Location = Center2 + R2 * Result.Normal;
+		}
 		return Result;
 	}
 
@@ -288,7 +292,7 @@ namespace Chaos
 			Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);
 			Result.Phi = NewPhi;
 			Result.Normal = Normal;
-			Result.Location = 0.5f * (LocationA + LocationB);
+			Result.Location = FReal(0.5) * (LocationA + LocationB);
 		}
 
 		return Result;
@@ -418,7 +422,7 @@ namespace Chaos
 			Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);
 			Result.Phi = NewPhi;
 			Result.Normal = Normal;
-			Result.Location = 0.5f * (LocationA + LocationB);
+			Result.Location = FReal(0.5) * (LocationA + LocationB);
 		}
 
 		return Result;

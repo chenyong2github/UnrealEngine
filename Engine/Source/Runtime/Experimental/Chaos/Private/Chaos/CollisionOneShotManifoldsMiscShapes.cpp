@@ -43,7 +43,7 @@ namespace Chaos
 			// @todo(chaos): support manifold maintenance
 			Constraint.ResetManifold();
 
-			FContactPoint ContactPoint = SphereSphereContactPoint(SphereA, SphereATransform, SphereB, SphereBTransform, Constraint.Manifold.RestitutionPadding);
+			FContactPoint ContactPoint = SphereSphereContactPoint(SphereA, SphereATransform, SphereB, SphereBTransform, Constraint.GetCullDistance(), Constraint.Manifold.RestitutionPadding);
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
 			{
 				Constraint.AddOneshotManifoldContact(ContactPoint);

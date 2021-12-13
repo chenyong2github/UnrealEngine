@@ -25,7 +25,7 @@ namespace Chaos
 	class CHAOS_API FContactPoint
 	{
 	public:
-		// Shape-space contact points on the two bodies, without the margin added (i.e., contact point on the core shape)
+		// Shape-space contact points on the two bodies
 		FVec3 ShapeContactPoints[2];
 
 		// Shape-space contact normal on the second shape with direction that points away from shape 1
