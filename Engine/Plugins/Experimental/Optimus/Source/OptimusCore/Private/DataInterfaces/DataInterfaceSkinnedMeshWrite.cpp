@@ -231,11 +231,7 @@ void FSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBui
 
 	// Set to vertex factories
 	const int32 NumSections = LodRenderData->RenderSections.Num();
-	for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
-	{
-		FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIndex];
-		FSkeletalMeshDeformerHelpers::SetVertexFactoryBufferOverrides(SkeletalMeshObject, LodIndex, FSkeletalMeshDeformerHelpers::EOverrideType::Partial, PositionBufferExternal, TangentBufferExternal, ColorBufferExternal);
-	}
+	FSkeletalMeshDeformerHelpers::SetVertexFactoryBufferOverrides(SkeletalMeshObject, LodIndex, FSkeletalMeshDeformerHelpers::EOverrideType::Partial, PositionBufferExternal, TangentBufferExternal, ColorBufferExternal);
 }
 
 void FSkinnedMeshWriteDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
