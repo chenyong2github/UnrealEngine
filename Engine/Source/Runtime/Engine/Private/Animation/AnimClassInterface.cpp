@@ -150,3 +150,25 @@ const UObject* IAnimClassInterface::GetObjectPtrFromAnimNode(const IAnimClassInt
 	FStructProperty* NodeProperty = InAnimClassInterface->GetAnimNodeProperties()[NodeIndex];
 	return ValuePtrToContainerUObjectPtr(NodeProperty, InNode, 0);
 }
+
+const FAnimNode_Base* IAnimClassInterface::GetAnimNodeFromObjectPtr(const UObject* InObject, int32 InNodeIndex, UScriptStruct* InNodeType)
+{
+	if(IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(InObject->GetClass()))
+	{
+		check(AnimClassInterface->GetAnimNodeProperties()[InNodeIndex]);
+		FStructProperty* NodeProperty = AnimClassInterface->GetAnimNodeProperties()[InNodeIndex];
+		if(NodeProperty->Struct->IsChildOf(InNodeType))
+		{
+			return NodeProperty->ContainerPtrToValuePtr<const FAnimNode_Base>(InObject);
+		}
+	}
+
+	return nullptr;
+}
+
+bool IAnimClassInterface::HasNodeAnyFlags(IAnimClassInterface* InAnimClassInterface, int32 InNodeIndex, EAnimNodeDataFlags InNodeDataFlags)
+{
+	const TArrayView<const FAnimNodeData> AnimNodeData = InAnimClassInterface->GetNodeData();
+	check(AnimNodeData.IsValidIndex(InNodeIndex));
+	return AnimNodeData[InNodeIndex].HasNodeAnyFlags(InNodeDataFlags);
+}
