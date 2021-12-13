@@ -5,10 +5,11 @@
 #include "PixelStreamingSettings.h"
 #include "PixelStreamingFrameSource.h"
 #include "PixelStreamingFrameBuffer.h"
+#include "PlayerSession.h"
 
 FPixelStreamingFramePump::FPixelStreamingFramePump(FPixelStreamingFrameSource* InFrameSource)
 :FrameSource(InFrameSource)
-,QualityControllerEvent(FPlatformProcess::GetSynchEventFromPool(false))
+,PlayersChangedEvent(FPlatformProcess::GetSynchEventFromPool(false))
 ,NextPumpEvent(FPlatformProcess::GetSynchEventFromPool(false))
 {
 	const int32 FPS = PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
@@ -19,30 +20,53 @@ FPixelStreamingFramePump::FPixelStreamingFramePump(FPixelStreamingFrameSource* I
 FPixelStreamingFramePump::~FPixelStreamingFramePump()
 {
     bThreadRunning = false;
-    QualityControllerEvent->Trigger();
+    PlayersChangedEvent->Trigger();
     NextPumpEvent->Trigger();
     PumpThread->Join();
 }
 
-FPlayerVideoSource* FPixelStreamingFramePump::CreatePlayerVideoSource(FPlayerId PlayerId)
+FPlayerVideoSource* FPixelStreamingFramePump::CreatePlayerVideoSource(FPlayerId PlayerId, int Flags)
 {
-	FScopeLock Guard(&SourcesGuard);
-	PlayerVideoSources.Add(PlayerId, MakeUnique<FPlayerVideoSource>());
-	QualityControllerEvent->Trigger();
-	return PlayerVideoSources[PlayerId].Get();
+	FPlayerVideoSource* NewSource = nullptr;
+
+	if (PlayerVideoSources.Num() != 0)
+	{
+		FScopeLock Guard(&ExtraSourcesGuard);
+		ExtraVideoSources.Add(MakeUnique<FPlayerVideoSource>(PlayerId));
+		NewSource = ExtraVideoSources[ExtraVideoSources.Num() - 1].Get();
+	}
+	else
+	{
+		FScopeLock Guard(&SourcesGuard);
+		PlayerVideoSources.Add(PlayerId, MakeUnique<FPlayerVideoSource>(PlayerId));
+		NewSource = PlayerVideoSources[PlayerId].Get();
+	}
+
+	if ((Flags & FNewPlayerFlags::IsSFU) != 0)
+	{
+		ElevatedPlayerId = PlayerId;
+	}
+
+	PlayersChangedEvent->Trigger();
+	return NewSource;
 }
 
 void FPixelStreamingFramePump::RemovePlayerVideoSource(FPlayerId PlayerId)
 {
 	FScopeLock Guard(&SourcesGuard);
 	PlayerVideoSources.Remove(PlayerId);
+
+	if (PlayerId == ElevatedPlayerId)
+	{
+		ElevatedPlayerId = INVALID_PLAYER_ID;
+	}
 }
 
 void FPixelStreamingFramePump::SetQualityController(FPlayerId PlayerId)
 {
 	FScopeLock Guard(&SourcesGuard);
 	QualityControllerId = PlayerId;
-	QualityControllerEvent->Trigger();
+	PlayersChangedEvent->Trigger();
 }
 
 void FPixelStreamingFramePump::PumpLoop()
@@ -51,11 +75,46 @@ void FPixelStreamingFramePump::PumpLoop()
 
 	while (bThreadRunning)
 	{
-		bool IdleSleep = QualityControllerId == INVALID_PLAYER_ID;
-		if (!IdleSleep)
+		bool IdleSleep = true;
+
+		if (FrameSource->IsAvailable())
+		{
+			if (ExtraVideoSources.Num() > 0)
+			{
+				FScopeLock Guard0(&ExtraSourcesGuard);
+				FScopeLock Guard1(&SourcesGuard);
+
+				const int64 TimestampUs = rtc::TimeMicros();
+
+				// build a frame to pass to the quality controller source
+				rtc::scoped_refptr<FPixelStreamingInitializeFrameBuffer> EncoderFrameBuffer = new rtc::RefCountedObject<FPixelStreamingInitializeFrameBuffer>(FrameSource);
+
+				webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder()
+					.set_video_frame_buffer(EncoderFrameBuffer)
+					.set_timestamp_us(TimestampUs)
+					.set_rotation(webrtc::VideoRotation::kVideoRotation_0)
+					.set_id(0)
+					.build();
+
+				for (auto& ExtraSource : ExtraVideoSources)
+				{
+					ExtraSource->OnFrameReady(Frame);
+					if (ExtraSource->IsInitialised())
+					{
+						PlayerVideoSources.Add(ExtraSource->GetPlayerId(), MoveTemp(ExtraSource));
+					}
+				}
+
+				ExtraVideoSources.RemoveAll([](auto& ExtraSource) { return !ExtraSource; });
+			}
+		}
+
+		const FPlayerId PumpPlayerId = (ElevatedPlayerId != INVALID_PLAYER_ID) ? ElevatedPlayerId : QualityControllerId;
+
+		if (PumpPlayerId != INVALID_PLAYER_ID)
 		{
 			FScopeLock Guard(&SourcesGuard); // lock here so the quality controller cant be removed after the check
-			if (PlayerVideoSources.Contains(QualityControllerId))
+			if (PlayerVideoSources.Contains(PumpPlayerId))
 			{
 				if (FrameSource->IsAvailable()) // dont trigger a sleep if this fails since we dont trigger the event for this changing
 				{
@@ -73,19 +132,15 @@ void FPixelStreamingFramePump::PumpLoop()
 						.build();
 					
 					// only send to quality controller (if it still exists. it might have been removed since the last check)
-					PlayerVideoSources[QualityControllerId]->OnFrameReady(Frame);
+					PlayerVideoSources[PumpPlayerId]->OnFrameReady(Frame);
 				}
-			}
-			else
-			{
-				// Quality controller doesn't exist. Idle.
-				IdleSleep = true;
+				IdleSleep = false;
 			}
 		}
 
 		if (IdleSleep)
 		{
-			QualityControllerEvent->Wait();
+			PlayersChangedEvent->Wait();
 		}
 		else
 		{

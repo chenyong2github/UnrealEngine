@@ -63,10 +63,9 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	}
 
 	bool Keyframe = false;
-	if ((frame_types && (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) || ForceNextKeyframe)
+	if ((frame_types && (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey))
 	{
 		Keyframe = true;
-		ForceNextKeyframe = false;
 	}
 
 	FPixelStreamingRealEncoder* Encoder = Factory.GetHardwareEncoder(HardwareEncoderId);
@@ -172,7 +171,20 @@ void FPixelStreamingVideoEncoder::SendEncodedImage(uint64 SourceEncoderId, webrt
 		return;
 	}
 
-	// Dump H264 frames to file for debugging if CVar is turned on.
+	if (FirstKeyframeCountdown > 0)
+	{
+		// ideally we want to make the first frame of new peers a keyframe but we
+		// dont know when webrtc will decide to start sending out frames. this is
+		// the next best option. its a count beause when it was the very next frame
+		// it still didnt seem to work. delaying it a few frames seems to have worked.
+		--FirstKeyframeCountdown;
+		if (FirstKeyframeCountdown == 0)
+		{
+			Factory.ForceKeyFrame();
+		}
+	}
+
+	// Dump H264 frames to file for debugging if CVar is turned 5on.
 	if (PixelStreamingSettings::CVarPixelStreamingDebugDumpFrame.GetValueOnAnyThread())
 	{
 		static IFileHandle* FileHandle = nullptr;
@@ -192,19 +204,4 @@ void FPixelStreamingVideoEncoder::SendEncodedImage(uint64 SourceEncoderId, webrt
 	{
 		OnEncodedImageCallback->OnEncodedImage(encoded_image, codec_specific_info, fragmentation);
 	}
-}
-
-bool FPixelStreamingVideoEncoder::IsRegisteredWithWebRTC()
-{
-	return OnEncodedImageCallback != nullptr;
-}
-
-int32_t FPixelStreamingVideoEncoder::GetSmoothedAverageQP() const
-{
-	return 0;
-	// if(this->Context == nullptr)
-	// {
-	// 	return -1;
-	// }
-	// return (int32_t)this->Context->SmoothedAvgQP.Get();
 }

@@ -9,8 +9,6 @@
 #include "Misc/Optional.h"
 
 class IPixelStreamingSessions;
-class FPlayerSession;
-struct FEncoderContext;
 class FPixelStreamingVideoEncoderFactory;
 
 // Implementation that is a WebRTC video encoder that allows us tie to our actually underlying non-WebRTC video encoder.
@@ -36,11 +34,6 @@ public:
 	// End WebRTC Interface.
 
 	void SendEncodedImage(uint64 SourceEncoderId, webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation);
-	bool IsRegisteredWithWebRTC();
-
-	void ForceKeyFrame() { ForceNextKeyframe = true; }
-	int32_t GetSmoothedAverageQP() const;
-	
 
 private:
 	void UpdateConfig();
@@ -58,9 +51,11 @@ private:
 
 	webrtc::EncodedImageCallback* OnEncodedImageCallback = nullptr;
 
-	bool ForceNextKeyframe = true;
-
 	// WebRTC may request a bitrate/framerate change using SetRates(), we only respect this if this encoder is actually encoding
 	// so we use this optional object to store a rate change and act upon it when this encoder does its next call to Encode().
 	TOptional<RateControlParameters> PendingRateChange;
+
+	// Used to send an initial keyframe
+	// see notes in SendEncodedImage implementation
+	int FirstKeyframeCountdown = 2;
 };

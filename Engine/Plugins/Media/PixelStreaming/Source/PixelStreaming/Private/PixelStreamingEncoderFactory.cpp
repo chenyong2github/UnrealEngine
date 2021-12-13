@@ -32,15 +32,13 @@ FPixelStreamingSimulcastEncoderFactory::CodecInfo FPixelStreamingSimulcastEncode
 
 std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingSimulcastEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat& format)
 {
-	return std::make_unique<PixelStreamingSimulcastEncoderAdapter>(RealFactory.Get(), nullptr, format);
+	return std::make_unique<PixelStreamingSimulcastEncoderAdapter>(RealFactory.Get(), format);
 }
 
 FPixelStreamingVideoEncoderFactory* FPixelStreamingSimulcastEncoderFactory::GetRealFactory() const
 {
 	return RealFactory.Get();
 }
-
-
 
 FPixelStreamingVideoEncoderFactory::FPixelStreamingVideoEncoderFactory(IPixelStreamingSessions* InPixelStreamingSessions)
 	: PixelStreamingSessions(InPixelStreamingSessions)
@@ -90,37 +88,15 @@ std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingVideoEncoderFactory::Create
 	}
 }
 
-void FPixelStreamingVideoEncoderFactory::RemoveStaleEncoders()
-{
-	// Lock during removing stale encoders
-	FScopeLock Lock(&ActiveEncodersGuard);
-
-	// Iterate backwards so we can remove invalid encoders along the way
-	for (int32 Index = ActiveEncoders.Num()-1; Index >= 0; --Index)
-	{
-		FPixelStreamingVideoEncoder* Encoder = ActiveEncoders[Index];
-		if(!Encoder->IsRegisteredWithWebRTC())
-		{
-			ActiveEncoders.RemoveAt(Index);
-		}
-	}
-}
-
 void FPixelStreamingVideoEncoderFactory::OnEncodedImage(FHardwareEncoderId SourceEncoderId, const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation)
 {
-	// Before sending encoded image to each encoder's callback, check if all encoders we have are still relevant.
-	RemoveStaleEncoders();
-
 	// Lock as we send encoded image to each encoder.
 	FScopeLock Lock(&ActiveEncodersGuard);
 
 	// Go through each encoder and send our encoded image to its callback
 	for (FPixelStreamingVideoEncoder* Encoder : ActiveEncoders)
 	{
-		if (Encoder->IsRegisteredWithWebRTC())
-		{
-			Encoder->SendEncodedImage(SourceEncoderId, encoded_image, codec_specific_info, fragmentation);
-		}
+		Encoder->SendEncodedImage(SourceEncoderId, encoded_image, codec_specific_info, fragmentation);
 	}
 }
 
@@ -135,19 +111,10 @@ void FPixelStreamingVideoEncoderFactory::ForceKeyFrame()
 {
 	FScopeLock Lock(&ActiveEncodersGuard);
 	// Go through each encoder and send our encoded image to its callback
-	for(FPixelStreamingVideoEncoder* Encoder : ActiveEncoders)
+	for(auto& KeyAndEncoder : HardwareEncoders)
 	{
-		if(Encoder->IsRegisteredWithWebRTC())
-		{
-			Encoder->ForceKeyFrame();
-		}
+		KeyAndEncoder.Value->SetForceNextKeyframe();
 	}
-}
-
-double FPixelStreamingVideoEncoderFactory::GetLatestQP()
-{
-	return 0;
-	//return this->EncoderContext.SmoothedAvgQP.Get();
 }
 
 namespace

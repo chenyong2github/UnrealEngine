@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "PlayerVideoSource.h"
 
-FPlayerVideoSource::FPlayerVideoSource()
+FPlayerVideoSource::FPlayerVideoSource(FPlayerId InPlayerId)
+	:PlayerId(InPlayerId)
 {
 	CurrentState = webrtc::MediaSourceInterface::SourceState::kInitializing;
 }
@@ -28,6 +29,8 @@ void FPlayerVideoSource::OnFrameReady(const webrtc::VideoFrame& Frame)
 	}
 
 	OnFrame(Frame);
+
+	Initialised = true;
 }
 
 bool FPlayerVideoSource::AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolution)

@@ -9,6 +9,13 @@
 #include "PlayerId.h"
 #include "PixelStreamingDataChannelObserver.h"
 
+enum FNewPlayerFlags
+{
+	None = 0,
+	SupportsDataChannel = 1,
+	IsSFU = 2,
+};
+
 class FSignallingServerConnection;
 class IPixelStreamingSessions;
 

@@ -150,8 +150,13 @@ FPixelStreamingRealEncoder::~FPixelStreamingRealEncoder()
 
 void FPixelStreamingRealEncoder::Encode(const webrtc::VideoFrame& WebRTCFrame, bool Keyframe)
 {
-	FPixelStreamingLayerFrameBuffer* FrameBuffer = static_cast<FPixelStreamingLayerFrameBuffer*>(WebRTCFrame.video_frame_buffer().get());
-	FTexture2DRHIRef SourceTexture = FrameBuffer->GetFrame();
+	FTexture2DRHIRef SourceTexture;
+
+	FPixelStreamingFrameBuffer* FrameBuffer = static_cast<FPixelStreamingFrameBuffer*>(WebRTCFrame.video_frame_buffer().get());
+	check(FrameBuffer->GetFrameBufferType() == FPixelStreamingFrameBufferType::Layer);
+	FPixelStreamingLayerFrameBuffer* LayerFrameBuffer = static_cast<FPixelStreamingLayerFrameBuffer*>(FrameBuffer);
+	SourceTexture = LayerFrameBuffer->GetFrame();
+
 	if (SourceTexture)
 	{
 		AVEncoder::FVideoEncoderInputFrame* EncoderInputFrame = FrameFactory.GetFrameAndSetTexture(EncoderConfig.Width, EncoderConfig.Height, SourceTexture);
@@ -162,7 +167,8 @@ void FPixelStreamingRealEncoder::Encode(const webrtc::VideoFrame& WebRTCFrame, b
 			EncoderInputFrame->SetFrameID(WebRTCFrame.id());
 
 			AVEncoder::FVideoEncoder::FEncodeOptions Options;
-			Options.bForceKeyFrame = Keyframe;
+			Options.bForceKeyFrame = Keyframe || ForceNextKeyframe;
+			ForceNextKeyframe = false;
 
 			Encoder->Encode(EncoderInputFrame, Options);
 		}

@@ -64,7 +64,6 @@ void FStreamer::StartWebRtcSignallingThread()
 	PeerConnectionConfig = {};
 
 	std::unique_ptr<FPixelStreamingSimulcastEncoderFactory> videoEncoderFactory = std::make_unique<FPixelStreamingSimulcastEncoderFactory>(this);
-	//std::unique_ptr<FPixelStreamingVideoEncoderFactory> videoEncoderFactory = std::make_unique<FPixelStreamingVideoEncoderFactory>(this);
 	VideoEncoderFactory = videoEncoderFactory->GetRealFactory();
 
 	bool bUseLegacyAudioDeviceModule = PixelStreamingSettings::CVarPixelStreamingWebRTCUseLegacyAudioDevice.GetValueOnAnyThread();
@@ -157,7 +156,7 @@ void FStreamer::OnDataChannelOpen(FPlayerId PlayerId, webrtc::DataChannelInterfa
 	}
 }
 
-webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, bool SupportsDataChannel)
+webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, int Flags)
 {
 	webrtc::PeerConnectionInterface* PeerConnection = PlayerSessions.CreatePlayerSession(PlayerId, 
 		PeerConnectionFactory, 
@@ -166,7 +165,7 @@ webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, bo
 	
 	if (PeerConnection != nullptr)
 	{
-		if (SupportsDataChannel)
+		if ((Flags & FNewPlayerFlags::SupportsDataChannel) != 0)
 		{
 			webrtc::DataChannelInit DataChannelConfig;
 			DataChannelConfig.reliable = true;
@@ -181,7 +180,7 @@ webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, bo
 			DataChannelObserver->Register(DataChannel);
 		}
 
-		AddStreams(PlayerId, PeerConnection);
+		AddStreams(PlayerId, PeerConnection, Flags);
 	}
 
 	return PeerConnection;
@@ -191,7 +190,7 @@ void FStreamer::OnSessionDescription(FPlayerId PlayerId, webrtc::SdpType Type, c
 {
 	if (Type == webrtc::SdpType::kOffer)
 	{
-		if (webrtc::PeerConnectionInterface* PeerConnection = CreateSession(PlayerId, true))
+		if (webrtc::PeerConnectionInterface* PeerConnection = CreateSession(PlayerId, FNewPlayerFlags::SupportsDataChannel))
 		{
 			webrtc::SdpParseError Error;
 			std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc = webrtc::CreateSessionDescription(Type, to_string(Sdp), &Error);
@@ -357,10 +356,10 @@ void FStreamer::OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpM
 	this->PlayerSessions.OnRemoteIceCandidate(PlayerId, SdpMid, SdpMLineIndex, Sdp);
 }
 
-void FStreamer::OnPlayerConnected(FPlayerId PlayerId, bool SupportsDataChannel)
+void FStreamer::OnPlayerConnected(FPlayerId PlayerId, int Flags)
 {
 	// create peer connection
-	if (webrtc::PeerConnectionInterface* PlayerSession = CreateSession(PlayerId, SupportsDataChannel))
+	if (webrtc::PeerConnectionInterface* PlayerSession = CreateSession(PlayerId, Flags))
 	{
 		// make them send only
 		std::vector<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> Transceivers = PlayerSession->GetTransceivers();
@@ -482,16 +481,16 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 	}
 }
 
-void FStreamer::AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection)
+void FStreamer::AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, int Flags)
 {
 	check(PeerConnection);
 
 	bool bSyncVideoAndAudio = !PixelStreamingSettings::CVarPixelStreamingWebRTCDisableAudioSync.GetValueOnAnyThread();
 	
-	FString const AudioStreamId = bSyncVideoAndAudio ? TEXT("pixelstreaming_av_stream_id") : TEXT("pixelstreaming_audio_stream_id");
-	FString const VideoStreamId = bSyncVideoAndAudio ? TEXT("pixelstreaming_av_stream_id") : TEXT("pixelstreaming_video_stream_id");
-	FString const AudioTrackLabel = TEXT("pixelstreaming_audio_track_label");
-	FString const VideoTrackLabel = TEXT("pixelstreaming_video_track_label");
+	const FString AudioStreamId = bSyncVideoAndAudio ? TEXT("pixelstreaming_av_stream_id") : TEXT("pixelstreaming_audio_stream_id");
+	const FString VideoStreamId = bSyncVideoAndAudio ? TEXT("pixelstreaming_av_stream_id") : TEXT("pixelstreaming_video_stream_id");
+	const FString AudioTrackLabel = TEXT("pixelstreaming_audio_track_label");
+	const FString VideoTrackLabel = TEXT("pixelstreaming_video_track_label");
 
 	if (!PeerConnection->GetSenders().empty())
 	{
@@ -501,14 +500,14 @@ void FStreamer::AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* 
 	// Use PeerConnection's transceiver API to add create audio/video tracks will correct directionality.
 	// These tracks are only thin wrappers around the underlying sources (the sources are shared among all peer's tracks).
 	// As per the WebRTC source: "The same source can be used by multiple VideoTracks."
-	this->SetupVideoTrack(PlayerId, PeerConnection, VideoStreamId, VideoTrackLabel);
+	this->SetupVideoTrack(PlayerId, PeerConnection, VideoStreamId, VideoTrackLabel, Flags);
 	this->SetupAudioTrack(PeerConnection, AudioStreamId, AudioTrackLabel);
 }
 
-void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel)
+void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, const FString VideoStreamId, const FString VideoTrackLabel, int Flags)
 {
 	// Create a video source for this player
-	FPlayerVideoSource* PlayerVideoSource = FramePump.CreatePlayerVideoSource(PlayerId);
+	FPlayerVideoSource* PlayerVideoSource = FramePump.CreatePlayerVideoSource(PlayerId, Flags);
 
 	// Create video track
 	rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack = PeerConnectionFactory->CreateVideoTrack(TCHAR_TO_UTF8(*VideoTrackLabel), PlayerVideoSource);

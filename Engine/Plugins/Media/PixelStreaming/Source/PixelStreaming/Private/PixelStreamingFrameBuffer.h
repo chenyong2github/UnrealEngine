@@ -9,71 +9,87 @@
 class FPixelStreamingFrameSource;
 class FPixelStreamingLayerFrameSource;
 
-class FPixelStreamingSimulcastFrameBuffer : public webrtc::VideoFrameBuffer
+enum FPixelStreamingFrameBufferType
+{
+	Initialize,
+	Simulcast,
+	Layer
+};
+
+class FPixelStreamingFrameBuffer : public webrtc::VideoFrameBuffer
 {
 public:
-	FPixelStreamingSimulcastFrameBuffer(FPixelStreamingFrameSource* InFrameSource);
+	virtual ~FPixelStreamingFrameBuffer() {}
 
-	virtual ~FPixelStreamingSimulcastFrameBuffer();
+	virtual FPixelStreamingFrameBufferType GetFrameBufferType() const = 0;
 
-	FPixelStreamingLayerFrameSource* GetLayerFrameSource(int LayerIndex) const;
+	// Begin webrtc::VideoFrameBuffer interface
+	virtual webrtc::VideoFrameBuffer::Type type() const override
+	{
+		return webrtc::VideoFrameBuffer::Type::kNative;
+	}
 
-    // Begin webrtc::VideoFrameBuffer interface
-    virtual webrtc::VideoFrameBuffer::Type type() const override
-    {
-        return webrtc::VideoFrameBuffer::Type::kNative;
-    }
+	virtual int width() const = 0;
+	virtual int height() const = 0;
+
+	virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override
+	{
+		unimplemented();
+		return nullptr;
+	}
+
+	virtual const webrtc::I420BufferInterface* GetI420() const override
+	{
+		unimplemented();
+		return nullptr;
+	}
+	// End webrtc::VideoFrameBuffer interface
+};
+
+// We use this frame to force webrtc to create encoders that will siphon off other streams
+// but never get frames directly pumped to them.
+class FPixelStreamingInitializeFrameBuffer : public FPixelStreamingFrameBuffer
+{
+public:
+	FPixelStreamingInitializeFrameBuffer(FPixelStreamingFrameSource* InFrameSource);
+	virtual ~FPixelStreamingInitializeFrameBuffer();
+
+	virtual FPixelStreamingFrameBufferType GetFrameBufferType() const { return Initialize; }
 
 	virtual int width() const override;
-    virtual int height() const override;
-
-    virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override
-    {
-    	unimplemented();
-    	return nullptr;
-    }
-
-    virtual const webrtc::I420BufferInterface* GetI420() const override
-    {
-    	unimplemented();
-        return nullptr;
-    }
-    // End webrtc::VideoFrameBuffer interface
+	virtual int height() const override;
 
 private:
 	FPixelStreamingFrameSource* FrameSource = nullptr;
 };
 
-class FPixelStreamingLayerFrameBuffer : public webrtc::VideoFrameBuffer
+class FPixelStreamingSimulcastFrameBuffer : public FPixelStreamingFrameBuffer
+{
+public:
+	FPixelStreamingSimulcastFrameBuffer(FPixelStreamingFrameSource* InFrameSource);
+	virtual ~FPixelStreamingSimulcastFrameBuffer();
+
+	virtual FPixelStreamingFrameBufferType GetFrameBufferType() const { return Simulcast; }
+	FPixelStreamingLayerFrameSource* GetLayerFrameSource(int LayerIndex) const;
+
+    virtual int width() const override;
+    virtual int height() const override;
+
+private:
+	FPixelStreamingFrameSource* FrameSource = nullptr;
+};
+
+class FPixelStreamingLayerFrameBuffer : public FPixelStreamingFrameBuffer
 {
 public:
 	FPixelStreamingLayerFrameBuffer(FPixelStreamingLayerFrameSource* InLayerFrameSource);
-
 	virtual ~FPixelStreamingLayerFrameBuffer();
 
+	virtual FPixelStreamingFrameBufferType GetFrameBufferType() const { return Layer; }
 	FTexture2DRHIRef GetFrame() const;
-
-    // Begin webrtc::VideoFrameBuffer interface
-    virtual webrtc::VideoFrameBuffer::Type type() const override
-    {
-        return webrtc::VideoFrameBuffer::Type::kNative;
-    }
 
 	virtual int width() const override;
     virtual int height() const override;
-
-    virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override
-    {
-    	unimplemented();
-    	return nullptr;
-    }
-
-    virtual const webrtc::I420BufferInterface* GetI420() const override
-    {
-    	unimplemented();
-        return nullptr;
-    }
-    // End webrtc::VideoFrameBuffer interface
 
 private:
 	FPixelStreamingLayerFrameSource* LayerFrameSource = nullptr;

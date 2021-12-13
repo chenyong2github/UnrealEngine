@@ -2,6 +2,27 @@
 #include "PixelStreamingFrameBuffer.h"
 #include "PixelStreamingFrameSource.h"
 
+FPixelStreamingInitializeFrameBuffer::FPixelStreamingInitializeFrameBuffer(FPixelStreamingFrameSource* InFrameSource)
+	:FrameSource(InFrameSource)
+{
+
+}
+
+FPixelStreamingInitializeFrameBuffer::~FPixelStreamingInitializeFrameBuffer()
+{
+
+}
+
+int FPixelStreamingInitializeFrameBuffer::width() const
+{
+	return FrameSource->GetSourceWidth();
+}
+
+int FPixelStreamingInitializeFrameBuffer::height() const
+{
+	return FrameSource->GetSourceHeight();
+}
+
 FPixelStreamingSimulcastFrameBuffer::FPixelStreamingSimulcastFrameBuffer(FPixelStreamingFrameSource* InFrameSource)
 :FrameSource(InFrameSource)
 {
