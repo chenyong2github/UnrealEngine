@@ -65,11 +65,6 @@ namespace Jupiter.Implementation
                     if (opState != OpState.OK || opState == OpState.Exists || contentHash == null || blob == null)
                         continue;
 
-                    if (blob.Length == 0)
-                    {
-                        _logger.Error("0 byte blob encountered for hash {ContentHash} state was {OpState}. Skipping", contentHash.ToString(), opState);
-                    }
-
                     await outStream.WriteAsync(contentHash.HashData);
                     await outStream.WriteAsync(BitConverter.GetBytes((ulong) blob.Length));
                     await blob.Stream.CopyToAsync(outStream);
