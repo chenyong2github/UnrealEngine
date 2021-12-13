@@ -759,7 +759,7 @@ void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterMeshRebuild)
 	 	const bool bIsWaterRenderingEnabled = FWaterUtils::IsWaterEnabled(/*bIsRenderThread = */false);
 	 
 		bool bIsRenderedByWaterMesh = ShouldGenerateWaterMeshTile();
-		bool bLocalVisible = bIsWaterRenderingEnabled && !bIsRenderedByWaterMesh && IsVisible();
+		bool bLocalVisible = bIsWaterRenderingEnabled && !bIsRenderedByWaterMesh && GetVisibleFlag();
 		bool bLocalHiddenInGame = !bIsWaterRenderingEnabled || bIsRenderedByWaterMesh || bHiddenInGame;
 
 	 	for (UPrimitiveComponent* Component : GetStandardRenderableComponents())
