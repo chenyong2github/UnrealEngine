@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Operations/UniformTesselate.h"
-#include "IndexTypes.h"
 #include "VectorTypes.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshNormals.h"
@@ -281,11 +280,7 @@ namespace UniformTesselateLocals
 					return;
 				}
 
-				if (InMesh->IsEdge(EdgeID) == false) 
-				{
-					checkSlow(false); // Mesh must be compact
-					return;
-				}
+				checkSlow(InMesh->IsEdge(EdgeID));
 
 				const FIndex2i EdgeV = InMesh->GetEdgeV(EdgeID);
 				const FIndex2i EdgeTri = InMesh->GetEdgeT(EdgeID);
@@ -347,11 +342,7 @@ namespace UniformTesselateLocals
 					return;
 				}
 
-				if (InMesh->IsTriangle(TriangleID) == false) 
-				{
-					checkSlow(false); // Mesh must be compact
-					return;
-				}
+				checkSlow(InMesh->IsTriangle(TriangleID));
 
 				const FIndex3i TriVertices = InMesh->GetTriangle(TriangleID);
 				const FIndex3i TriEdges = InMesh->GetTriEdges(TriangleID);
@@ -688,12 +679,8 @@ namespace UniformTesselateLocals
 					return;
 				}
 
-				if (InMesh->IsTriangle(TriangleID) == false)
- 				{
-					 checkSlow(false); // Mesh must be compact
-					 return;
-				}
-
+				checkSlow(InMesh->IsTriangle(TriangleID));
+ 				
 				const FIndex3i TriVertices = InMesh->GetTriangle(TriangleID);
 				const FIndex3i TriEdges = InMesh->GetTriEdges(TriangleID);
 
@@ -839,11 +826,7 @@ namespace UniformTesselateLocals
 					return;
 				}
 
-				if (InMesh->IsEdge(EdgeID) == false) 
-				{
-					checkSlow(false); // Mesh must be compact
-					return;
-				}
+				checkSlow(InMesh->IsEdge(EdgeID));
 
 				const FIndex2i EdgeV = InMesh->GetEdgeV(EdgeID);
 				const FIndex2i EdgeTri = InMesh->GetEdgeT(EdgeID);
@@ -959,10 +942,23 @@ namespace UniformTesselateLocals
 		using BaseType::OutEdgeElementCount; 
 		using BaseType::OutInnerElementCount;
 		using BaseType::OutTriangleCount;
+
+		// Map vertex IDs inserted along the edges to the input mesh triangle ID(s) that share that edge.
+  		TMap<int32, FIndex2i>* VertexEdgeMap; 
+
+		// Map vertex IDs to IDs of the triangles those vertices inserted into.
+  		TMap<int32, int32>* VertexTriangleMap;
 		
-		FMeshVerticesGenerator(const FDynamicMesh3* Mesh, const int TesselationNum, FProgressCancel* InProgress, const bool bUseParallel) 
+		FMeshVerticesGenerator(const FDynamicMesh3* Mesh, 
+							   const int TesselationNum, 
+							   FProgressCancel* InProgress, 
+  							   TMap<int32, FIndex2i>* VertexEdgeMap,
+  							   TMap<int32, int32>* VertexTriangleMap,
+  							   const bool bUseParallel) 
 		:
-		FTrianglesGenerator<RealType, 3>(Mesh, TesselationNum, InProgress, bUseParallel)
+		FTrianglesGenerator<RealType, 3>(Mesh, TesselationNum, InProgress, bUseParallel), 
+  		VertexEdgeMap(VertexEdgeMap),
+  		VertexTriangleMap(VertexTriangleMap)
 		{
 		}
 			
@@ -986,6 +982,16 @@ namespace UniformTesselateLocals
 			{
 				GetInputMeshElementValue(VertexID, Value);
 				this->SetElement(VertexID, Value);
+			}
+
+			if (VertexEdgeMap) 
+			{
+				VertexEdgeMap->Reserve(OutEdgeElementCount);
+			}
+			
+			if (VertexTriangleMap) 
+			{
+				VertexTriangleMap->Reserve(OutInnerElementCount*InMesh->TriangleCount());
 			}
 		}
 
@@ -1027,6 +1033,51 @@ namespace UniformTesselateLocals
 			GetInputMeshElementValue(VertexID, Value);
 		}
 
+		/** Compute the mappings between vertices and triangles of the input and the output meshes. */
+		bool ComputeTopologyMappings() 
+		{	
+			if (VertexEdgeMap) 
+			{
+				for (int32 EdgeID = 0; EdgeID < InMesh->MaxEdgeID(); ++EdgeID)
+				{
+					checkSlow(InMesh->IsEdge(EdgeID));
+					
+					const FIndex2i EdgeTri = InMesh->GetEdgeT(EdgeID);
+
+					for (int VertexOffset = 0; VertexOffset < TesselationNum; ++VertexOffset)
+					{	
+						const int VertexID = this->GetElementIDOnEdge(EdgeID, EdgeTri.A, VertexOffset);
+						VertexEdgeMap->Add(VertexID, EdgeTri);
+					}
+				}
+			}
+
+			if (this->Cancelled()) 
+			{
+				return false;
+			}
+
+			if (VertexTriangleMap) 
+			{			
+				for (int32 TriangleID = 0; TriangleID < InMesh->MaxTriangleID(); ++TriangleID)
+				{
+					checkSlow(InMesh->IsTriangle(TriangleID));
+					
+					int VertexIDCounter = 0;
+					for (int Level = 1; Level < TesselationNum; ++Level)
+					{
+						for (int VertexOffset = 0; VertexOffset < Level; ++VertexOffset, ++VertexIDCounter) 
+						{
+							const int VertexID = this->GetElementIDOnTriangle(TriangleID, VertexIDCounter);
+							VertexTriangleMap->Add(VertexID, TriangleID);
+						}
+					}
+				}
+			}
+			
+			return true;
+		}
+
 		virtual bool Generate() override
 		{	
 			if (this->Validate() == false) 
@@ -1047,6 +1098,11 @@ namespace UniformTesselateLocals
 			}
 			
 			if (this->GenerateTriangles() == false) 
+			{
+				return false;
+			}
+
+			if (ComputeTopologyMappings() == false) 
 			{
 				return false;
 			}
@@ -1455,11 +1511,7 @@ namespace UniformTesselateLocals
 					return;
 				}
 
-				if (InMesh->IsEdge(EdgeID) == false) 
-				{
-					checkSlow(false); // Mesh must be compact
-					return;
-				}
+				checkSlow(InMesh->IsEdge(EdgeID));
 
 				const FIndex2i EdgeV = InMesh->GetEdgeV(EdgeID);
 		
@@ -1499,11 +1551,7 @@ namespace UniformTesselateLocals
 					return;
 				}
 
-				if (InMesh->IsTriangle(TriangleID) == false) 
-				{
-					checkSlow(false); // Mesh must be compact
-					return;
-				}
+				checkSlow(InMesh->IsTriangle(TriangleID));
 
 				const FIndex3i TriVertices = InMesh->GetTriangle(TriangleID);
 				const FIndex3i TriEdges = InMesh->GetTriEdges(TriangleID);
@@ -1574,11 +1622,17 @@ namespace UniformTesselateLocals
 		}
 	};
 
-	bool Tesselate(const FDynamicMesh3* InMesh, const int TesselationNum, FProgressCancel* Progress, const bool bUseParallel, FDynamicMesh3* OutMesh) 
+	bool Tesselate(const FDynamicMesh3* InMesh, 
+				   const int TesselationNum, 
+				   FProgressCancel* Progress, 
+				   const bool bUseParallel,
+				   TMap<int32, FIndex2i>* OutVertexEdgeMap,
+				   TMap<int32, int32>* OutVertexTriangleMap, 
+				   FDynamicMesh3* OutMesh) 
 	{	
 		OutMesh->Clear();
 
-		FMeshVerticesGenerator<double> FTrianglesGenerator(InMesh, TesselationNum, Progress, bUseParallel);
+		FMeshVerticesGenerator<double> FTrianglesGenerator(InMesh, TesselationNum, Progress, OutVertexEdgeMap, OutVertexTriangleMap, bUseParallel);
 		if (FTrianglesGenerator.Generate() == false) 
 		{
 			return false;
@@ -1767,6 +1821,23 @@ namespace UniformTesselateLocals
 
 }
 
+int32 FUniformTesselate::ExpectedNumVertices(const FDynamicMesh3& Mesh, const int32 TesselationNum)
+{
+	int32 EdgeVertCount = TesselationNum * Mesh.EdgeCount();
+	int32 TriangleNumber = TesselationNum + 2; // plus 2 corner vertices on the edge ends
+	int32 InnerTriangleVertCount = UniformTesselateLocals::TriangularPatternUtils::NumInnerVertices(TriangleNumber);
+	int32 TotalVertCount = Mesh.VertexCount() + EdgeVertCount + InnerTriangleVertCount* Mesh.TriangleCount();
+	return TotalVertCount; 	
+}
+	
+int32 FUniformTesselate::ExpectedNumTriangles(const FDynamicMesh3& Mesh, const int32 TesselationNum)
+{
+	int32 TriangleNumber = TesselationNum + 2; // plus 2 corner vertices on the edge ends
+	int32 InnerTriangleCount = UniformTesselateLocals::TriangularPatternUtils::NumTriangles(TriangleNumber);
+	int32 TotalTriangleCount = InnerTriangleCount * Mesh.TriangleCount();
+	return TotalTriangleCount;
+}
+
 bool FUniformTesselate::Cancelled()
 {
 	return (Progress == nullptr) ? false : Progress->Cancelled();
@@ -1774,37 +1845,147 @@ bool FUniformTesselate::Cancelled()
 
 bool FUniformTesselate::Compute()
 {	
-	if (TesselationNum < 0 || Mesh == nullptr || ResultMesh == nullptr) 
-	{ 
+	if (Validate() != EOperationValidationResult::Ok) 
+	{
 		return false;
 	}
 
-	ResultMesh->Clear();
-
-	if (TesselationNum == 0 || Mesh->TriangleCount() == 0)
+	if (TesselationNum == 0)
 	{
-		ResultMesh->Copy(*Mesh); // Nothing to do. Copy the mesh over.
 		return true; 
 	}
+
+	// Check for the empty meshes
+	if (bInPlace && ResultMesh->TriangleCount() == 0) 
+	{
+		return true;
+	}
+
+	if (bInPlace == false && Mesh->TriangleCount() == 0) 
+	{
+		return true;
+	}
+
+	// Make a copy of the mesh since we are tesselating in place. 
+	// The copy will be used to restore the mesh to its original state in case the user cancelled the operation.
+	FDynamicMesh3 ResultMeshCopy;
+	if (bInPlace) 
+	{
+		ResultMeshCopy.Copy(*ResultMesh);
+		Mesh = &ResultMeshCopy;
+	}
+
+	ResultMesh->Clear();
+	VertexMap.Empty();
+	VertexEdgeMap.Empty();
+	VertexTriangleMap.Empty();
 	
 	bool bIsValidMesh = false;
 
 	if (Mesh->IsCompact()) 
 	{
-		bIsValidMesh = UniformTesselateLocals::Tesselate(Mesh, TesselationNum, Progress, bUseParallel, ResultMesh);
+		bIsValidMesh = UniformTesselateLocals::Tesselate(Mesh, 
+														 TesselationNum, 
+														 Progress, 
+														 bUseParallel, 
+														 bComputeMappings ? &VertexEdgeMap : nullptr, 
+														 bComputeMappings ? &VertexTriangleMap : nullptr, 
+														 ResultMesh);
+
+		if (bIsValidMesh && bComputeMappings) 
+		{
+			VertexMap.SetNumUninitialized(Mesh->MaxVertexID());
+			for (int32 VertexID = 0; VertexID < Mesh->MaxVertexID(); ++VertexID)
+			{
+				VertexMap[VertexID] = VertexID; 
+			}
+		}
 	}
 	else 
 	{
 		FDynamicMesh3 CompactMesh;
-		CompactMesh.CompactCopy(*Mesh);
-		bIsValidMesh = UniformTesselateLocals::Tesselate(&CompactMesh, TesselationNum, Progress, bUseParallel, ResultMesh);
+		FCompactMaps CompactInfo;
+		CompactMesh.CompactCopy(*Mesh, true, true, true, true, &CompactInfo);
+
+		bIsValidMesh = UniformTesselateLocals::Tesselate(&CompactMesh, 
+														 TesselationNum, 
+														 Progress, 
+														 bUseParallel, 
+														 bComputeMappings ? &VertexEdgeMap : nullptr, 
+														 bComputeMappings ? &VertexTriangleMap : nullptr, 
+														 ResultMesh);
+
+
+		if (bIsValidMesh && bComputeMappings) 
+		{	
+			VertexMap.SetNumUninitialized(Mesh->MaxVertexID());
+			for (int32 VertexID = 0; VertexID < Mesh->MaxVertexID(); ++VertexID)
+			{
+				VertexMap[VertexID] = CompactInfo.GetVertexMapping(VertexID); 
+			}
+			
+			// Compute an additional mapping from the compact mesh triangles to the input mesh triangles 
+			// i.e the inverse of the FCompactMaps
+			TMap<int32, int32> CompactToInputTriangles;
+			CompactToInputTriangles.Reserve(CompactMesh.TriangleCount());
+			for (int32 TriangleID : Mesh->TriangleIndicesItr()) 
+			{
+				const int32 CompactTriangleID = CompactInfo.GetTriangleMapping(TriangleID);
+				if (CompactTriangleID != FCompactMaps::InvalidID)
+				{
+					CompactToInputTriangles.Add(CompactTriangleID, TriangleID);
+				}
+			}
+			checkSlow(CompactToInputTriangles.Num() == CompactMesh.TriangleCount());
+				
+			// Chage the mapping [tesselated triangles --> compact mesh triangles]
+			// to the mapping [tesselated triangles --> input mesh triangles (before compacting)]
+			for (TMap<int32, FIndex2i>::TIterator It = VertexEdgeMap.CreateIterator(); It; ++It)
+			{
+				FIndex2i& EdgeTri = It.Value();
+				
+				// We should always be able to find the correct match, but double check in case the Tesselate method
+				// failed to return the correct mapping
+				int32* TID1= CompactToInputTriangles.Find(EdgeTri.A);
+				ensure(TID1 != nullptr);
+				EdgeTri.A = TID1 != nullptr ? *TID1 : EdgeTri.A;
+				
+				if (EdgeTri.B != FDynamicMesh3::InvalidID) 
+				{
+					int32* TID2 = CompactToInputTriangles.Find(EdgeTri.B);
+					ensure(TID2 != nullptr);
+					EdgeTri.B = TID2 != nullptr ? *TID2 : EdgeTri.B;
+				}
+			}
+
+			for (TMap<int32, int32>::TIterator It = VertexTriangleMap.CreateIterator(); It; ++It)
+			{
+				int32& CompactTriID = It.Value();
+				int32* TID1 = CompactToInputTriangles.Find(CompactTriID);
+				ensure(TID1 != nullptr);
+				CompactTriID = TID1 != nullptr ? *TID1 : CompactTriID;
+			}
+		}
 	}
 
-	if (!bIsValidMesh) 
+	if (bIsValidMesh == false || Cancelled()) 
 	{
+		if (bInPlace) 
+		{ 
+			// Restore the input mesh
+			ResultMesh->Copy(ResultMeshCopy);
+		}
+		else 
+		{
+			ResultMesh->Clear();
+		}
+
+		VertexMap.Empty();
+		VertexEdgeMap.Empty();
+		VertexTriangleMap.Empty();
+		
 		return false;
 	}
 	
-	return Cancelled() == false;
+	return true;
 }
-

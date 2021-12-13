@@ -28,7 +28,7 @@ public:
 	// Input & Output
 	//
 
-	/** The mesh that we are modifying */
+	/** The mesh that we are modifying. If the operator fails or is canceled by the user, the mesh will not be changed. */
 	FDynamicMesh3* Mesh = nullptr;
 
 	//
@@ -39,7 +39,7 @@ public:
 	FProgressCancel* Progress = nullptr;
 	
 	/** How many times we are recursively subdividing triangles (loop style subdivision). */
-	int TesselationLevel = 1;
+	int32 TesselationLevel = 1;
 
 	/**
 	 * If true, use the quadratically varying normal computation. 
@@ -51,7 +51,10 @@ public:
 	FPNTriangles(FDynamicMesh3* Mesh) : Mesh(Mesh)
 	{
 	}
-	virtual ~FPNTriangles() {}
+
+	virtual ~FPNTriangles() 
+	{
+	}
 
 	/**
 	 * @return EOperationValidationResult::Ok if we can apply operation, or error code if we cannot.
