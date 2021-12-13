@@ -48,7 +48,7 @@ namespace P4VUtils.Commands
 			NewChangeRecord.Description = $"[Backout] - CL{Change}\n#fyi {ExistingChangeRecord.User}\nOriginal CL Desc\n-----------------------------------------------------------------\n{ExistingChangeRecord.Description.TrimEnd()}\n";
 			NewChangeRecord = await Perforce.CreateChangeAsync(NewChangeRecord, CancellationToken.None);
 			
-			Logger.LogInformation("Created pending changelist {0}", NewChangeRecord.Number);
+			Logger.LogInformation("Created pending changelist {Change}", NewChangeRecord.Number);
 
 			// Undo the passed in CL
 			PerforceResponseList<UndoRecord> UndoResponses = await Perforce.TryUndoChangeAsync(Change, NewChangeRecord.Number, CancellationToken.None);
@@ -59,10 +59,10 @@ namespace P4VUtils.Commands
 			// if the original CL and the new CL differ in file count then an error occurs, abort and clean up
 			if (RefreshNewRecord.Files.Count != ExistingChangeRecord.Files.Count)
 			{
-				Logger.LogError("Undo on CL {0} failed", Change);
+				Logger.LogError("Undo on CL {Change} failed", Change);
 				foreach (PerforceResponse Response in UndoResponses)
 				{
-					Logger.LogError("  {0}", Response.ToString())	;
+					Logger.LogError("  {Response}", Response.ToString())	;
 				}
 
 				// revert files in the new CL
@@ -73,14 +73,14 @@ namespace P4VUtils.Commands
 				}
 
 				// delete the new CL
-				Logger.LogError("  Deleting newly created CL {0}", NewChangeRecord.Number);
+				Logger.LogError("  Deleting newly created CL {Change}", NewChangeRecord.Number);
 				await Perforce.DeleteChangeAsync(DeleteChangeOptions.None, RefreshNewRecord.Number, CancellationToken.None);
 
 				return 1;
 			}
 			else
 			{
-				Logger.LogInformation("Undo of {0} created CL {1}", Change, NewChangeRecord.Number);
+				Logger.LogInformation("Undo of {Change} created CL {NewChange}", Change, NewChangeRecord.Number);
 			}
 
 			// Convert the undo CL over to an edit.

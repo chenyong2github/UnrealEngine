@@ -152,7 +152,9 @@ namespace P4VUtils.Commands
 			using (ManagedProcessGroup Group = new ManagedProcessGroup())
 			using (ManagedProcess Process = new ManagedProcess(Group, ShellFileName, ShellArguments, null, null, System.Diagnostics.ProcessPriorityClass.Normal))
 			{
+#pragma warning disable CA2000 // Dispose objects before losing scope
 				await Process.CopyToAsync(Console.OpenStandardOutput(), CancellationToken.None);
+#pragma warning restore CA2000 // Dispose objects before losing scope
 			}
 
 			return true;

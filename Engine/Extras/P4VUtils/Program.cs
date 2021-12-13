@@ -23,7 +23,7 @@ namespace P4VUtils
 		public bool ShowConsole { get; set; }
 		public bool RefreshUI { get; set; } = true;
 		public string Shortcut { get; set; } = "";
-		public bool PromptForArgument { get; set; } = false;
+		public bool PromptForArgument { get; set; }
 		public string PromptText { get; set; } = "";
 
 		public CustomToolInfo(string Name, string Arguments)
@@ -128,9 +128,9 @@ namespace P4VUtils
 				PrintHelp(Logger);
 				return 0;
 			}
-			else if (Args[0].StartsWith("-"))
+			else if (Args[0].StartsWith("-", StringComparison.Ordinal))
 			{
-				Console.WriteLine("Missing command name");
+				Logger.LogInformation("Missing command name");
 				PrintHelp(Logger);
 				return 1;
 			}
@@ -158,7 +158,7 @@ namespace P4VUtils
 			}
 			else
 		{
-				Console.WriteLine("Unknown command: {0}", Args[0]);
+				Logger.LogError("Unknown command: {Command}", Args[0]);
 				PrintHelp(Logger);
 				return 1;
 			}
@@ -182,7 +182,7 @@ namespace P4VUtils
 				string[] Lines = File.ReadAllLines(SourcePath);
 				foreach (string Line in Lines)
 				{
-					int EqualsIdx = Line.IndexOf('=');
+					int EqualsIdx = Line.IndexOf('=', StringComparison.Ordinal);
 					if (EqualsIdx != -1)
 					{
 						string Key = Line.Substring(0, EqualsIdx).Trim();
@@ -235,7 +235,7 @@ namespace P4VUtils
 							string[] Arguments = CommandLineArguments.Split(ArgumentsElement.InnerText);
 							if (Arguments.Length > 0 && new FileReference(Arguments[0]) == AssemblyLocation)
 							{
-								Logger.LogInformation("Removing Tool {0}", GetToolName(ChildElement));
+								Logger.LogInformation("Removing Tool {ToolName}", GetToolName(ChildElement));
 								RootNode.RemoveChild(ChildElement);
 								ToolsRemoved++;
 							}
@@ -359,7 +359,7 @@ namespace P4VUtils
 						{
 							FolderNameString = FolderNameNode.InnerText;
 						}
-						Logger.LogInformation("Removing Tools from folder {0}", FolderNameString);
+						Logger.LogInformation("Removing Tools from folder {Folder}", FolderNameString);
 						RemoveFolder = RemoveCustomToolsFromNode(FolderRoot, DotNetLocation, AssemblyLocation, Logger);
 					}
 

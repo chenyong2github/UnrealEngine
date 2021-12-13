@@ -23,7 +23,7 @@ namespace P4VUtils.Commands
 
 			if (FileLogRecords.Count == 0)
 			{
-				Logger.LogWarning("Could not find any p4 change record for {0}", FilePath);
+				Logger.LogWarning("Could not find any p4 change record for {File}", FilePath);
 				return 1;
 			}
 
@@ -93,7 +93,7 @@ namespace P4VUtils.Commands
 					string Depot = SplitPath[0];
 					string Stream = SplitPath[1];
 
-					Logger.LogInformation("Last edit in //{0}/{1} by '{2}' in CL '{3}', revision #{4} ({5})",
+					Logger.LogInformation("Last edit in //{Depot}/{Stream} by '{User}' in CL '{Change}', revision #{Revision} ({Action})",
 						Depot, Stream, RevisionRecord.UserName, RevisionRecord.ChangeNumber, RevisionRecord.RevisionNumber, RevisionRecord.Action.ToString());
 
 					return 0;
@@ -115,13 +115,13 @@ namespace P4VUtils.Commands
 
 			// %d is 'selected file or folder', picked that over %f so I don't have to run p4 where to 
 			// convert workspace path to depot path
-			if ( FileName.EndsWith("...") )
+			if ( FileName.EndsWith("...", StringComparison.Ordinal) )
 			{
 				Logger.LogError("It looks like you selected a Folder, please select a File and run the tool again");
 				return 1;
 			}
 
-			Logger.LogInformation("Inspecting revision records for file '{0}'", FileName);
+			Logger.LogInformation("Inspecting revision records for file '{File}'", FileName);
 
 			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 

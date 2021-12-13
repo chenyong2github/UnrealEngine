@@ -18,11 +18,11 @@ namespace P4VUtils.Commands
 	abstract class DataCommandBase : Command
 	{
 
-		protected async Task<int> MakeDataFilesLocalWritable(List<(string, string)> FilesInfo, ILogger Logger)
+		protected static async Task<int> MakeDataFilesLocalWritable(List<(string, string)> FilesInfo, ILogger Logger)
 		{
 			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 
-			List<string> FilesToMakeLocalWritable = FilesInfo.Where(t => t.Item2.StartsWith("binary")).Select(t => t.Item1).ToList();
+			List<string> FilesToMakeLocalWritable = FilesInfo.Where(t => t.Item2.StartsWith("binary", StringComparison.Ordinal)).Select(t => t.Item1).ToList();
 			List<RevertRecord> Results = await Perforce.RevertAsync(-1, null, RevertOptions.KeepWorkspaceFiles, FilesToMakeLocalWritable, CancellationToken.None);
 
 			return 0;

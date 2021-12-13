@@ -24,7 +24,7 @@ namespace P4VUtils.Commands
 
 		static public string StripReviewFyiHashTags(string InString)
 		{
-			return InString.Replace("#review", "-review").Replace("#codereview", "-codereview").Replace("#fyi", "-fyi");
+			return InString.Replace("#review", "-review", StringComparison.Ordinal).Replace("#codereview", "-codereview", StringComparison.Ordinal).Replace("#fyi", "-fyi", StringComparison.Ordinal);
 		}
 		public override string Description => "Runs a preflight of the given changelist on Horde";
 
@@ -58,7 +58,7 @@ namespace P4VUtils.Commands
 
 			if (OpenedRecords.Count > 0)
 			{
-				Logger.LogInformation("Shelving changelist {0}", Change);
+				Logger.LogInformation("Shelving changelist {Change}", Change);
 				await Perforce.ShelveAsync(Change, ShelveOptions.Overwrite, new[] { "//..." }, CancellationToken.None);
 			}
 				
@@ -91,14 +91,14 @@ namespace P4VUtils.Commands
 					NewChangeRecord.Description = $"{StripReviewFyiHashTags(Describe[0].Description.TrimEnd())}\n#p4v-preflight-copy {Change}";
 					NewChangeRecord = await Perforce.CreateChangeAsync(NewChangeRecord, CancellationToken.None);
 
-					Logger.LogInformation("Created pending changelist {0}", NewChangeRecord.Number);
+					Logger.LogInformation("Created pending changelist {Change}", NewChangeRecord.Number);
 
 					foreach (FStatRecord OpenedRecord in OpenedRecords)
 					{
 						if (OpenedRecord.ClientFile != null)
 						{
 							await Perforce.ReopenAsync(NewChangeRecord.Number, OpenedRecord.Type, OpenedRecord.ClientFile!, CancellationToken.None);
-							Logger.LogInformation("moving opened {file} to CL {CL}", OpenedRecord.ClientFile.ToString(), NewChangeRecord.Number);
+							Logger.LogInformation("moving opened {File} to CL {CL}", OpenedRecord.ClientFile.ToString(), NewChangeRecord.Number);
 						}
 					}
 				}
@@ -166,7 +166,7 @@ namespace P4VUtils.Commands
 
 		public virtual bool IsSubmit() { return false; }
 
-		void OpenUrl(string Url)
+		static void OpenUrl(string Url)
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{

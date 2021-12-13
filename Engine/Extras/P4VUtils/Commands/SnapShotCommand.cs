@@ -63,7 +63,7 @@ namespace P4VUtils.Commands
 				NewChangeRecord.Description = $"{PreflightCommand.StripReviewFyiHashTags(ExistingChangeRecord.Description.TrimEnd())}\n[snapshot CL{Change} - {DateNow}]";
 				NewChangeRecord = await Perforce.CreateChangeAsync(NewChangeRecord, CancellationToken.None);
 
-				Logger.LogInformation("Created pending changelist {0}", NewChangeRecord.Number);
+				Logger.LogInformation("Created pending changelist {Change}", NewChangeRecord.Number);
 
 				// Move the files to the new CL
 				foreach (FStatRecord OpenedRecord in OpenedRecords)
@@ -71,7 +71,7 @@ namespace P4VUtils.Commands
 					if (OpenedRecord.ClientFile != null)
 					{
 						await Perforce.ReopenAsync(NewChangeRecord.Number, OpenedRecord.Type, OpenedRecord.ClientFile!, CancellationToken.None);
-						Logger.LogInformation("moving opened {file} to CL {CL}", OpenedRecord.ClientFile.ToString(), NewChangeRecord.Number);
+						Logger.LogInformation("moving opened {File} to CL {CL}", OpenedRecord.ClientFile.ToString(), NewChangeRecord.Number);
 					}
 				}
 
@@ -84,7 +84,7 @@ namespace P4VUtils.Commands
 					if (OpenedRecord.ClientFile != null)
 					{
 						await Perforce.ReopenAsync(Change, OpenedRecord.Type, OpenedRecord.ClientFile!, CancellationToken.None);
-						Logger.LogInformation("moving opened {file} to CL {CL}", OpenedRecord.ClientFile.ToString(), Change);
+						Logger.LogInformation("moving opened {File} to CL {CL}", OpenedRecord.ClientFile.ToString(), Change);
 					}
 				}
 			}

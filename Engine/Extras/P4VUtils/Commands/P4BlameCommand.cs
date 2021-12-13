@@ -36,7 +36,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			Logger.LogInformation("Finding last edit for line {0} in {1}", LineNumber, FileName);
+			Logger.LogInformation("Finding last edit for line {Line} in {File}", LineNumber, FileName);
 
 			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 
@@ -46,7 +46,7 @@ namespace P4VUtils.Commands
 
 				if (LineNumber >= Results.Count)
 				{
-					Logger.LogError("Please enter a valid line number (this file only has {0} lines in P4)", Results.Count);
+					Logger.LogError("Please enter a valid line number (this file only has {NumLines} lines in P4)", Results.Count);
 					return 1;
 				}
 
@@ -54,11 +54,11 @@ namespace P4VUtils.Commands
 				AnnotateRecord LineResult = Results[LineNumber];
 				string EscapedString = Regex.Escape(LineResult.Data);
 
-				Logger.LogInformation(@"Change {1} by {2} on [{3}]:'{4}'", LineResult.LowerCL, LineResult.UserName, LineResult.Time, EscapedString);
+				Logger.LogInformation(@"Change {Change} by {User} on [{Time}]:'{Description}'", LineResult.LowerCL, LineResult.UserName, LineResult.Time, EscapedString);
 			}
 			catch (PerforceException Exception)
 			{
-				Logger.LogError(Exception.Message);
+				Logger.LogError(Exception, "{Message}", Exception.Message);
 			}
 
 			return 0;
