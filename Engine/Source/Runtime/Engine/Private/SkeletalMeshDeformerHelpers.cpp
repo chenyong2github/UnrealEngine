@@ -5,7 +5,6 @@
 #include "SkeletalMeshDeformerHelpers.h"
 
 #include "GPUSkinVertexFactory.h"
-#include "RenderGraphResources.h"
 #include "SkeletalRenderGPUSkin.h"
 
 FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(

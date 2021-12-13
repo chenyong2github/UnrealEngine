@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RenderGraphResources.h"
 
 class FSkeletalMeshObject;
 class FRDGPooledBuffer;
+class FRHIShaderResourceView;
 
 /** Functions that expose some functionality of FSkeletalMeshObject required by MeshDeformer systems. */
 class FSkeletalMeshDeformerHelpers
