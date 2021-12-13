@@ -43,6 +43,9 @@ namespace Chaos
 	};
 
 	template<typename T, int32 N>
+	using TFixedArray = TArray<T, TFixedAllocator<N>>;
+
+	template<typename T, int32 N>
 	using TUncheckedFixedArray = TArray<T, TUncheckedFixedAllocator<N>>;
 
 	template<typename T>

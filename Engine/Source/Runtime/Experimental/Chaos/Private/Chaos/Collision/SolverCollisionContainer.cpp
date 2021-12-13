@@ -130,28 +130,23 @@ namespace Chaos
 		/**
 		 * @brief Send all solver results to the constraint
 		*/
-		void ScatterOutput(
-			const FReal Dt)
+		void ScatterOutput(const FReal Dt)
 		{
 			FVec3 AccumulatedImpulse = FVec3(0);
+
+			Constraint->ResetSolverResults();
+			Constraint->SetNumActivePositionIterations(Solver.NumPositionSolves());
 
 			for (int32 PointIndex = 0; PointIndex < Solver.NumManifoldPoints(); ++PointIndex)
 			{
 				const FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = Solver.GetManifoldPoint(PointIndex);
-
-				TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
-				FManifoldPoint& ManifoldPoint = ManifoldPoints[PointIndex];
-
-				ManifoldPoint.NetPushOut = SolverManifoldPoint.NetPushOut;
-				ManifoldPoint.NetImpulse = SolverManifoldPoint.NetImpulse;
-				ManifoldPoint.bInsideStaticFrictionCone = SolverManifoldPoint.bInsideStaticFrictionCone;
-				ManifoldPoint.StaticFrictionMax = SolverManifoldPoint.StaticFrictionMax;
-
-				AccumulatedImpulse += SolverManifoldPoint.NetImpulse + (SolverManifoldPoint.NetPushOut / Dt);
+				Constraint->SetSolverResults(PointIndex, 
+					SolverManifoldPoint.NetPushOut, 
+					SolverManifoldPoint.NetImpulse, 
+					SolverManifoldPoint.bInsideStaticFrictionCone,
+					SolverManifoldPoint.StaticFrictionMax,
+					Dt);
 			}
-
-			Constraint->AccumulatedImpulse = AccumulatedImpulse;
-			Constraint->SetNumActivePositionIterations(Solver.NumPositionSolves());
 
 			Constraint->SetSolverBodies(nullptr, nullptr);
 			Constraint = nullptr;
