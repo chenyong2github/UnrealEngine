@@ -15,6 +15,7 @@
 #include "Serialization/CompactBinarySerialization.h"
 #include "Memory/SharedBuffer.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "HAL/FileManager.h"
 
 #if !UE_BUILD_SHIPPING
 
