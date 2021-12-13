@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MLAdapterSession.h"
+#include "Sessions/MLAdapterSession.h"
 #include "MLAdapterTypes.h"
+#include "MLAdapterSettings.h"
 #include "EngineUtils.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/GameMode.h"
 #include "GameFramework/GameStateBase.h"
 #include "Agents/MLAdapterAgent.h"
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 
 
 void UMLAdapterSession::PostInitProperties()
@@ -325,8 +326,11 @@ FMLAdapter::FAgentID UMLAdapterSession::AddAgent()
 {
 	FScopeLock Lock(&AgentOpCS);
 
-	// mz@todo support different classes, or [in]config
-	UMLAdapterAgent* NewAgent = FMLAdapter::NewObject<UMLAdapterAgent>(this);
+	UClass* AgentClass = UMLAdapterSettings::GetAgentClass().Get()
+		? UMLAdapterSettings::GetAgentClass().Get()
+		: UMLAdapterAgent::StaticClass();
+
+	UMLAdapterAgent* NewAgent = FMLAdapter::NewObject<UMLAdapterAgent>(this, AgentClass);
 
 	NewAgent->SetAgentID(Agents.Add(NewAgent));
 	NewAgent->Configure(NewAgent->GetConfig());

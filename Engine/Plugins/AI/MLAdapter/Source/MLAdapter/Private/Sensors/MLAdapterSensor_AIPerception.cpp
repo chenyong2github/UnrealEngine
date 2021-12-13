@@ -5,7 +5,7 @@
 #include "GameFramework/Controller.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Debug/DebugHelpers.h"
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "MLAdapterSpace.h"
 

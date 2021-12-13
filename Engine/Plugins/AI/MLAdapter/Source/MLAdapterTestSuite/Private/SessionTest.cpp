@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AITestsCommon.h"
-#include "MLAdapterManager.h"
-#include "MLAdapterSession.h"
+#include "Managers/MLAdapterManager.h"
+#include "Sessions/MLAdapterSession.h"
 #include "Agents/MLAdapterAgent.h"
 #include "AIController.h"
 #include "GameFramework/Pawn.h"

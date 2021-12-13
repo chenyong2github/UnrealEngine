@@ -3,7 +3,7 @@
 #include "Sensors/MLAdapterSensor.h"
 #include "Agents/MLAdapterAgent.h"
 #include "MLAdapterTypes.h"
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 
 
 namespace

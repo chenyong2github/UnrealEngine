@@ -6,7 +6,7 @@
 #include "Actuators/MLAdapterActuator.h"
 #include "Agents/MLAdapterAgent.h"
 #include "UObject/UObjectHash.h"
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 
 
 namespace FLibrarianHelper

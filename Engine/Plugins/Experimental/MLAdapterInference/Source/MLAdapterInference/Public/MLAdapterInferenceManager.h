@@ -3,7 +3,7 @@
 #pragma once 
 
 #include "CoreMinimal.h"
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 #include "MLAdapterInferenceManager.generated.h"
 
 /**

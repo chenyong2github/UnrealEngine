@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 #include "MLAdapterTypes.h"
 #include "MLAdapterAsync.h"
-#include "MLAdapterSession.h"
+#include "Sessions/MLAdapterSession.h"
 #include "MLAdapterScribe.h"
 #include "MLAdapterSpace.h"
 #include "Agents/MLAdapterAgent.h"

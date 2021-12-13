@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "AITestsCommon.h"
 #include "Misc/App.h"
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 
 
 #if WITH_RPCLIB

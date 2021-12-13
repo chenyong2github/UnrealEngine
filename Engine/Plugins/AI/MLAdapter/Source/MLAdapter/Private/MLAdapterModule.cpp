@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLAdapterModule.h"
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 #if WITH_GAMEPLAY_DEBUGGER
 #include "GameplayDebugger.h"
 #include "Debug/GameplayDebuggerCategory_MLAdapter.h"

@@ -5,7 +5,7 @@
 #include "MLAdapterInferenceSettings.h"
 #include "MLAdapterInferenceTypes.h"
 #include "NeuralNetwork.h"
-#include "MLAdapterSession.h"
+#include "Sessions/MLAdapterSession.h"
 
 
 #if WITH_EDITORONLY_DATA

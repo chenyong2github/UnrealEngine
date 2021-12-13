@@ -8,7 +8,7 @@
 #include "Logging/LogMacros.h"
 #include "Tickable.h"
 #include "Engine/World.h"
-#include "MLAdapterSession.h"
+#include "Sessions/MLAdapterSession.h"
 #include "MLAdapterLibrarian.h"
 #include "MLAdapterManager.generated.h"
 

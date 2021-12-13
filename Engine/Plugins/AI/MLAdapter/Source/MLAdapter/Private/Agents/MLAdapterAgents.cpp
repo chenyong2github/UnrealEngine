@@ -2,7 +2,7 @@
 
 #include "Agents/MLAdapterAgent.h"
 #include "Sensors/MLAdapterSensor.h"
-#include "MLAdapterSession.h"
+#include "Sessions/MLAdapterSession.h"
 #include "MLAdapterSpace.h"
 #include "MLAdapterLibrarian.h"
 #include "GenericPlatform/GenericPlatformMath.h"

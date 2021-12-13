@@ -4,7 +4,7 @@
 #include "Agents/MLAdapterAgent.h"
 #include "AIController.h"
 #include "GameFramework/Pawn.h"
-#include "MLAdapterSession.h"
+#include "Sessions/MLAdapterSession.h"
 
 #define LOCTEXT_NAMESPACE "AITestSuite_MLAdapterTest"
 

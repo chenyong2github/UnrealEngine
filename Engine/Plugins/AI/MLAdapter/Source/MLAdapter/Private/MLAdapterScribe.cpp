@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLAdapterScribe.h"
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 #include "MLAdapterLibrarian.h"
 
 #define FSTRING_TO_STD(a) (std::string(TCHAR_TO_UTF8(*a)))

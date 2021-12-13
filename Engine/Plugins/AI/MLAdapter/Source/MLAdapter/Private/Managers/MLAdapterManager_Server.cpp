@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 #include "CoreGlobals.h"
 #include "Misc/CoreDelegates.h"
 #include "Engine/Engine.h"
 #include "GameFramework/GameModeBase.h"
 #include "MLAdapterTypes.h"
 #include "MLAdapterAsync.h"
-#include "MLAdapterSession.h"
+#include "Sessions/MLAdapterSession.h"
 #include "MLAdapterJson.h"
 #include "Agents/MLAdapterAgent.h"
 #include "Sensors/MLAdapterSensor.h"

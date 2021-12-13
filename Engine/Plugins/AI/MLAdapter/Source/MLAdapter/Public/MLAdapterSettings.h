@@ -4,8 +4,8 @@
 
 #include "Engine/DeveloperSettings.h"
 #include "Agents/MLAdapterAgent.h"
-#include "MLAdapterSession.h"
-#include "MLAdapterManager.h"
+#include "Sessions/MLAdapterSession.h"
+#include "Managers/MLAdapterManager.h"
 #include "MLAdapterSettings.generated.h"
 
 
@@ -40,7 +40,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, config, Category = MLAdapter, meta = (MetaClass = "MLAdapterSession"))
 	FSoftClassPath SessionClass;
-	
+
 	UPROPERTY(EditAnywhere, config, Category = MLAdapter, meta = (MetaClass = "MLAdapterAgent"))
 	FSoftClassPath DefaultAgentClass;
 

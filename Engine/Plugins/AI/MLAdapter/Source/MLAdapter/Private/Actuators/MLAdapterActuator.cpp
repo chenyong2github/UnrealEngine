@@ -2,7 +2,7 @@
 
 #include "Actuators/MLAdapterActuator.h"
 #include "MLAdapterTypes.h"
-#include "MLAdapterManager.h"
+#include "Managers/MLAdapterManager.h"
 
 
 namespace

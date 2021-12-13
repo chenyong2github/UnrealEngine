@@ -59,7 +59,7 @@ public:
 	virtual void Open();
 	virtual void Close();
 
-	void Tick(float DeltaTime);
+	virtual void Tick(float DeltaTime);
 
 	/** This is where Session can add Authority-side-specific functions by calling 
 	 *	UMLAdapterManager::Get().AddServerFunctionBind */
