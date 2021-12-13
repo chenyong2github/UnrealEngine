@@ -10,6 +10,7 @@
 #include "DerivedDataCache.h"
 #include "EditorDomain/EditorDomain.h"
 #include "HAL/CriticalSection.h"
+#include "Memory/MemoryFwd.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/EnumClassFlags.h"
 #include "Serialization/CustomVersion.h"
@@ -21,7 +22,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomainSave, Log, All);
 class FAssetPackageData;
 class FBlake3;
 class FPackagePath;
-class FSharedBuffer;
 class IAssetRegistry;
 class UPackage;
 

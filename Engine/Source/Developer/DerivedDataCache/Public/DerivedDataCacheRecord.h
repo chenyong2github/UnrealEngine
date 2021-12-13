@@ -4,7 +4,7 @@
 
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataPayloadId.h"
-#include "Memory/SharedBuffer.h"
+#include "Memory/MemoryFwd.h"
 #include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
@@ -33,11 +33,9 @@ public:
 	virtual ~ICacheRecordInternal() = default;
 	virtual const FCacheKey& GetKey() const = 0;
 	virtual const FCbObject& GetMeta() const = 0;
-	virtual FSharedBuffer GetValue() const = 0;
-	virtual const FPayload& GetValuePayload() const = 0;
-	virtual FSharedBuffer GetAttachment(const FPayloadId& Id) const = 0;
-	virtual const FPayload& GetAttachmentPayload(const FPayloadId& Id) const = 0;
-	virtual TConstArrayView<FPayload> GetAttachmentPayloads() const = 0;
+	virtual const FPayload& GetValue() const = 0;
+	virtual const FPayload& GetAttachment(const FPayloadId& Id) const = 0;
+	virtual TConstArrayView<FPayload> GetAttachments() const = 0;
 	virtual const FPayload& GetPayload(const FPayloadId& Id) const = 0;
 	virtual void AddRef() const = 0;
 	virtual void Release() const = 0;
@@ -91,20 +89,21 @@ public:
 	/** Returns the metadata. Null when requested with ECachePolicy::SkipMeta. */
 	inline const FCbObject& GetMeta() const { return Record->GetMeta(); }
 
-	/** Returns the value. Null if no value or requested with ECachePolicy::SkipValue. */
-	inline FSharedBuffer GetValue() const { return Record->GetValue(); }
+	/** Returns the value. Data is null if skipped by the policy on request. */
+	inline const FPayload& GetValue() const { return Record->GetValue(); }
 
-	/** Returns the value payload. Null if no value. Data is null if value was skipped. */
-	inline const FPayload& GetValuePayload() const { return Record->GetValuePayload(); }
+	/** Returns the value payload. Null if no value. Data is null if skipped by the policy on request. */
+	inline const FPayload& GetValuePayload() const { return Record->GetValue(); }
 
-	/** Returns the attachment matching the ID. Null if no match or requested with ECachePolicy::SkipAttachments. */
-	inline FSharedBuffer GetAttachment(const FPayloadId& Id) const { return Record->GetAttachment(Id); }
+	/** Returns the attachment matching the ID. Data is null if skipped by the policy on request. */
+	inline const FPayload& GetAttachment(const FPayloadId& Id) const { return Record->GetAttachment(Id); }
 
-	/** Returns the attachment payload matching the ID. Null if no match. Data is null if attachments were skipped. */
-	inline const FPayload& GetAttachmentPayload(const FPayloadId& Id) const { return Record->GetAttachmentPayload(Id); }
+	/** Returns the attachment payload matching the ID. Null if no match. Data is null if skipped by the policy on request. */
+	inline const FPayload& GetAttachmentPayload(const FPayloadId& Id) const { return Record->GetAttachment(Id); }
 
-	/** Returns a view of the attachments. Always available, but data may be skipped. */
-	inline TConstArrayView<FPayload> GetAttachmentPayloads() const { return Record->GetAttachmentPayloads(); }
+	/** Returns a view of the attachments. Always available, but data may be skipped if skipped. */
+	inline TConstArrayView<FPayload> GetAttachments() const { return Record->GetAttachments(); }
+	inline TConstArrayView<FPayload> GetAttachmentPayloads() const { return Record->GetAttachments(); }
 
 	/** Returns the payload matching the ID, whether value or attachment. Null if no match. Data is null if skipped. */
 	inline const FPayload& GetPayload(const FPayloadId& Id) const { return Record->GetPayload(Id); }
