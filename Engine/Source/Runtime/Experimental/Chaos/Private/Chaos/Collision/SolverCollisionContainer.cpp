@@ -81,7 +81,7 @@ namespace Chaos
 
 			GatherManifoldPoints(Dt);
 
-			// We should try to remove this - the Constraint should need to know about solver objects
+			// We should try to remove this - the Constraint should not need to know about solver objects
 			Constraint->SetSolverBodies(Body0, Body1);
 		}
 
@@ -184,7 +184,6 @@ namespace Chaos
 	void FPBDCollisionSolverContainer::Reset(const int32 MaxCollisions)
 	{
 		CollisionSolvers.Reset(MaxCollisions);
-		SweptCollisionSolvers.Reset();
 	}
 
 	void FPBDCollisionSolverContainer::AddConstraintSolver(FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer)
@@ -196,12 +195,6 @@ namespace Chaos
 		const int32 SolverCollisionIndex = CollisionSolvers.AddDefaulted();
 
 		CollisionSolvers[SolverCollisionIndex].GatherInput(Dt, Constraint, Particle0Level, Particle1Level, SolverBodyContainer);
-
-		// Keep a list of CCD contacts - they will get resolved before we move on to the main solver loop
-		if (Constraint.GetCCDType() == ECollisionCCDType::Enabled)
-		{
-			SweptCollisionSolvers.Add(SolverCollisionIndex);
-		}
 	}
 
 	void FPBDCollisionSolverContainer::UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex)
@@ -240,14 +233,6 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionSolverContainer::SolveSwept(const FReal Dt)
-	{
-		for (int32 SweptSolverCollisionIndex : SweptCollisionSolvers)
-		{
-			SolveSwept(Dt, *CollisionSolvers[SweptSolverCollisionIndex].GetConstraint(), CollisionSolvers[SweptSolverCollisionIndex].GetSolver());
-		}
-	}
-
 	bool FPBDCollisionSolverContainer::SolvePositionSerial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex)
 	{
 		return SolvePositionImpl(Dt, It, NumIts, BeginIndex, EndIndex, false);
@@ -266,19 +251,6 @@ namespace Chaos
 	bool FPBDCollisionSolverContainer::SolveVelocityParallel(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex)
 	{
 		return SolveVelocityImpl(Dt, It, NumIts, BeginIndex, EndIndex, true);
-	}
-
-	void FPBDCollisionSolverContainer::SolveSwept(const FReal Dt, FPBDCollisionConstraint& Constraint, FPBDCollisionSolver& CollisionSolver)
-	{
-		// @todo(chaos): Fix CCD. This "solution" just rewinds the CCD object to the first contact and will result in lost momentum
-		if (Constraint.TimeOfImpact < FReal(1))
-		{
-			Collisions::UpdateSwept(Constraint, Dt);
-
-			// Just rewind the body to the impact. This is not good at all, but it will prevent penetration for now
-			FSolverBody& Body0 = CollisionSolver.SolverBody0().SolverBody();
-			Body0.SetP(FMath::Lerp(Body0.X(), Body0.P(), Constraint.TimeOfImpact));
-		}
 	}
 
 	bool FPBDCollisionSolverContainer::SolvePositionImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const bool bParallel)
