@@ -3,6 +3,7 @@
 using EpicGames.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace EpicGames.Perforce.Managed
@@ -10,7 +11,7 @@ namespace EpicGames.Perforce.Managed
 	/// <summary>
 	/// Base file type
 	/// </summary>
-	public enum FileTypeBase : uint
+	public enum FileTypeBase : int
 	{
 		/// <summary>
 		/// Text file
@@ -57,7 +58,7 @@ namespace EpicGames.Perforce.Managed
 	/// Modifiers on top of the base filetype
 	/// </summary>
 	[Flags]
-	public enum FileTypeModifiers : uint
+	public enum FileTypeModifiers : int
 	{
 		/// <summary>
 		/// File is always writable on the client
@@ -113,7 +114,7 @@ namespace EpicGames.Perforce.Managed
 	/// <summary>
 	/// Indicates the type of a file
 	/// </summary>
-	public struct FileType
+	public struct FileType : IEquatable<FileType>
 	{
 		/// <summary>
 		/// Size of the object when serialized to memory
@@ -338,9 +339,15 @@ namespace EpicGames.Perforce.Managed
 		}
 
 		/// <inheritdoc/>
-		public override bool Equals(object? obj)
+		public override bool Equals(object? Obj)
 		{
-			return (obj is FileType Type) && Type.Encoded == Encoded;
+			return (Obj is FileType Other) && Equals(Other);
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(FileType Other)
+		{
+			return Encoded == Other.Encoded;
 		}
 
 		/// <inheritdoc/>

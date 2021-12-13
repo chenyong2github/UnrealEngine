@@ -84,7 +84,7 @@ namespace EpicGames.Perforce
 			FullArguments.AddRange(Arguments);
 
 			string FullArgumentList = CommandLineArguments.Join(FullArguments);
-			Logger.LogDebug("Running {0} {1}", PerforceFileName, FullArgumentList);
+			Logger.LogDebug("Running {Executable} {Arguments}", PerforceFileName, FullArgumentList);
 
 			Scope = TraceSpan.Create(Command, Service: "perforce");
 			Scope.AddMetadata("arguments", FullArgumentList);
@@ -185,7 +185,7 @@ namespace EpicGames.Perforce
 		/// <returns>Exit code and output from the process</returns>
 		public async Task<Tuple<bool, string>> TryReadToEndAsync(CancellationToken CancellationToken)
 		{
-			MemoryStream Stream = new MemoryStream();
+			using MemoryStream Stream = new MemoryStream();
 
 			while (await ReadAsync(CancellationToken))
 			{

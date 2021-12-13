@@ -55,19 +55,19 @@ namespace EpicGames.Perforce
 		/// The severity of this error
 		/// </summary>
 		[PerforceTagAttribute("severity")]
-		public PerforceSeverityCode Severity;
+		public PerforceSeverityCode Severity { get; set; }
 
 		/// <summary>
 		/// The generic error code associated with this message
 		/// </summary>
 		[PerforceTagAttribute("generic")]
-		public PerforceGenericCode Generic;
+		public PerforceGenericCode Generic { get; set; }
 
 		/// <summary>
 		/// The message text
 		/// </summary>
 		[PerforceTagAttribute("data")]
-		public string Data;
+		public string Data { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

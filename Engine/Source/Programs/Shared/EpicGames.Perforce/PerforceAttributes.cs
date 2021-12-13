@@ -11,18 +11,18 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Attributes for fields that should be deserialized from P4 tags
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Field)]
-	public class PerforceTagAttribute : Attribute
+	[AttributeUsage(AttributeTargets.Property)]
+	public sealed class PerforceTagAttribute : Attribute
 	{
 		/// <summary>
 		/// The tag name
 		/// </summary>
-		public string Name;
+		public string Name { get; }
 
 		/// <summary>
 		/// Whether this tag is required for a valid record
 		/// </summary>
-		public bool Optional = false;
+		public bool Optional { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -38,12 +38,12 @@ namespace EpicGames.Perforce
 	/// Specifies the name of an enum when converted into a P4 string
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Field)]
-	public class PerforceEnumAttribute : Attribute
+	public sealed class PerforceEnumAttribute : Attribute
 	{
 		/// <summary>
 		/// Name of the enum value
 		/// </summary>
-		public string Name;
+		public string Name { get; }
 
 		/// <summary>
 		/// Constructor
@@ -58,8 +58,8 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// When attached to a list field, indicates that a list of structures can be included in the record
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Field)]
-	public class PerforceRecordListAttribute : Attribute
+	[AttributeUsage(AttributeTargets.Property)]
+	public sealed class PerforceRecordListAttribute : Attribute
 	{
 	}
 }

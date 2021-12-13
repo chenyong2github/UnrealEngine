@@ -18,49 +18,49 @@ namespace EpicGames.Perforce
 		/// The current user according to the Perforce environment
 		/// </summary>
 		[PerforceTag("userName", Optional = true)]
-		public string? UserName;
+		public string? UserName { get; set; }
 
 		/// <summary>
 		/// The current client
 		/// </summary>
 		[PerforceTag("clientName", Optional = true)]
-		public string? ClientName;
+		public string? ClientName { get; set; }
 
 		/// <summary>
 		/// The current host
 		/// </summary>
 		[PerforceTag("clientHost", Optional = true)]
-		public string? ClientHost;
+		public string? ClientHost { get; set; }
 
 		/// <summary>
 		/// Root directory for the current client
 		/// </summary>
 		[PerforceTag("clientRoot", Optional = true)]
-		public string? ClientRoot;
+		public string? ClientRoot { get; set; }
 
 		/// <summary>
 		/// Selected stream in the current client
 		/// </summary>
 		[PerforceTag("clientStream", Optional = true)]
-		public string? ClientStream;
+		public string? ClientStream { get; set; }
 
 		/// <summary>
 		/// Address of the Perforce server
 		/// </summary>
 		[PerforceTag("serverAddress", Optional = true)]
-		public string? ServerAddress;
+		public string? ServerAddress { get; set; }
 
 		/// <summary>
 		/// Date and time on the server
 		/// </summary>
 		[PerforceTag("serverDate", Optional = true)]
-		public DateTimeOffset? ServerDate;
+		public DateTimeOffset? ServerDate { get; set; }
 
 		/// <summary>
 		/// Case handling setting on the server
 		/// </summary>
 		[PerforceTag("caseHandling", Optional = true)]
-		public string? CaseHandling;
+		public string? CaseHandling { get; set; }
 
 		/// <summary>
 		/// How to compare paths on this server
@@ -81,12 +81,12 @@ namespace EpicGames.Perforce
 		/// List of services provided by this server
 		/// </summary>
 		[PerforceTag("serverServices", Optional = true)]
-		public string? Services;
+		public string? Services { get; set; }
 
 		/// <summary>
 		/// The server unique id
 		/// </summary>
 		[PerforceTag("ServerID", Optional = true)]
-		public string? ServerID;
+		public string? ServerID { get; set; }
 	}
 }

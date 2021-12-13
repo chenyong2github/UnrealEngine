@@ -17,7 +17,7 @@ namespace EpicGames.Perforce
 		/// Submitted changelist number
 		/// </summary>
 		[PerforceTag("change", Optional = true)]
-		public int ChangeNumber = -1;
+		public int ChangeNumber { get; set; } = -1;
 
 		/// <summary>
 		/// Format this record for display in the debugger

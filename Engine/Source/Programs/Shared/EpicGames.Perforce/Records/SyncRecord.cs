@@ -17,49 +17,49 @@ namespace EpicGames.Perforce
 		/// Path to the file in the depot
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public string DepotFile;
+		public string DepotFile { get; set; }
 
 		/// <summary>
 		/// Path to the file in the workspace
 		/// </summary>
 		[PerforceTag("clientFile")]
-		public string ClientFile;
+		public string ClientFile { get; set; }
 
 		/// <summary>
 		/// The revision number of the file that was synced
 		/// </summary>
 		[PerforceTag("rev")]
-		public int Revision;
+		public int Revision { get; set; }
 
 		/// <summary>
 		/// Action taken when syncing the file
 		/// </summary>
 		[PerforceTag("action")]
-		public string Action;
+		public string Action { get; set; }
 
 		/// <summary>
 		/// Size of the file
 		/// </summary>
 		[PerforceTag("fileSize", Optional = true)]
-		public long FileSize;
+		public long FileSize { get; set; }
 
 		/// <summary>
 		/// Stores the total size of all files that are being synced (only set for the first sync record)
 		/// </summary>
 		[PerforceTag("totalFileSize", Optional = true)]
-		public long TotalFileSize;
+		public long TotalFileSize { get; set; }
 
 		/// <summary>
 		/// Stores the total number of files that will be synced (only set for the first sync record)
 		/// </summary>
 		[PerforceTag("totalFileCount", Optional = true)]
-		public long TotalFileCount;
+		public long TotalFileCount { get; set; }
 
 		/// <summary>
 		/// Change that modified the file
 		/// </summary>
 		[PerforceTag("change", Optional = true)]
-		public int Change;
+		public int Change { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

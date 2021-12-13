@@ -35,7 +35,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// The raw data for the value, including type, size, and payload
 		/// </summary>
-		public readonly ReadOnlyMemory<byte> Data;
+		public ReadOnlyMemory<byte> Data { get; }
 
 		/// <summary>
 		/// Constructor

@@ -42,9 +42,9 @@ namespace EpicGames.Perforce
 		public bool Optional;
 
 		/// <summary>
-		/// The field containing the value of this data.
+		/// The property containing the value of this data.
 		/// </summary>
-		public FieldInfo Field;
+		public PropertyInfo Property;
 
 		/// <summary>
 		/// Parser for this field type
@@ -66,13 +66,13 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Name"></param>
 		/// <param name="Optional"></param>
-		/// <param name="Field"></param>
+		/// <param name="Property"></param>
 		/// <param name="RequiredTagBitMask"></param>
-		public CachedTagInfo(Utf8String Name, bool Optional, FieldInfo Field, ulong RequiredTagBitMask)
+		public CachedTagInfo(Utf8String Name, bool Optional, PropertyInfo Property, ulong RequiredTagBitMask)
 		{
 			this.Name = Name;
 			this.Optional = Optional;
-			this.Field = Field;
+			this.Property = Property;
 			this.RequiredTagBitMask = RequiredTagBitMask;
 			this.SetFromInteger = (Obj, Value) => throw new PerforceException($"Field {Name} was not expecting an integer value.");
 			this.SetFromString = (Obj, String) => throw new PerforceException($"Field {Name} was not expecting a string value.");
@@ -126,9 +126,9 @@ namespace EpicGames.Perforce
 		public CachedRecordInfo? SubElementRecordInfo;
 
 		/// <summary>
-		/// Field containing subelements
+		/// Property containing subelements
 		/// </summary>
-		public FieldInfo? SubElementField;
+		public PropertyInfo? SubElementProperty;
 
 		/// <summary>
 		/// Constructor
@@ -398,15 +398,15 @@ namespace EpicGames.Perforce
 				Record = new CachedRecordInfo(RecordType);
 
 				// Get all the fields for this type
-				FieldInfo[] Fields = RecordType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+				PropertyInfo[] Properties = RecordType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
 				// Build the map of all tags for this record
-				foreach (FieldInfo Field in Fields)
+				foreach (PropertyInfo Property in Properties)
 				{
-					PerforceTagAttribute? TagAttribute = Field.GetCustomAttribute<PerforceTagAttribute>();
+					PerforceTagAttribute? TagAttribute = Property.GetCustomAttribute<PerforceTagAttribute>();
 					if (TagAttribute != null)
 					{
-						string TagName = TagAttribute.Name ?? Field.Name;
+						string TagName = TagAttribute.Name ?? Property.Name;
 
 						ulong RequiredTagBitMask = 0;
 						if (!TagAttribute.Optional)
@@ -419,53 +419,53 @@ namespace EpicGames.Perforce
 							Record.RequiredTagsBitMask |= RequiredTagBitMask;
 						}
 
-						CachedTagInfo TagInfo = new CachedTagInfo(new Utf8String(TagName), TagAttribute.Optional, Field, RequiredTagBitMask);
+						CachedTagInfo TagInfo = new CachedTagInfo(new Utf8String(TagName), TagAttribute.Optional, Property, RequiredTagBitMask);
 
-						Type FieldType = Field.FieldType;
+						Type FieldType = Property.PropertyType;
 
-						FieldInfo FieldCopy = Field;
+						PropertyInfo PropertyCopy = Property;
 						if (FieldType == typeof(DateTime))
 						{
-							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, ParseStringAsDateTime(String));
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, ParseStringAsDateTime(String));
 						}
 						else if (FieldType == typeof(bool))
 						{
-							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, ParseStringAsBool(String));
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, ParseStringAsBool(String));
 						}
 						else if (FieldType == typeof(Nullable<bool>))
 						{
-							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, ParseStringAsNullableBool(String));
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, ParseStringAsNullableBool(String));
 						}
 						else if (FieldType == typeof(int))
 						{
-							TagInfo.SetFromInteger = (Obj, Int) => FieldCopy.SetValue(Obj, Int);
-							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, ParseStringAsInt(String));
+							TagInfo.SetFromInteger = (Obj, Int) => PropertyCopy.SetValue(Obj, Int);
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, ParseStringAsInt(String));
 						}
 						else if (FieldType == typeof(long))
 						{
-							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, ParseStringAsLong(String));
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, ParseStringAsLong(String));
 						}
 						else if (FieldType == typeof(string))
 						{
-							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, ParseString(String));
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, ParseString(String));
 						}
 						else if (FieldType == typeof(Utf8String))
 						{
-							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, String.Clone());
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, String.Clone());
 						}
 						else if (FieldType.IsEnum)
 						{
 							CachedEnumInfo EnumInfo = GetCachedEnumInfo(FieldType);
-							TagInfo.SetFromInteger = (Obj, Int) => FieldCopy.SetValue(Obj, EnumInfo.ParseInteger(Int));
-							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, EnumInfo.ParseString(String));
+							TagInfo.SetFromInteger = (Obj, Int) => PropertyCopy.SetValue(Obj, EnumInfo.ParseInteger(Int));
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, EnumInfo.ParseString(String));
 						}
 						else if (FieldType == typeof(DateTimeOffset?))
 						{
-							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, ParseStringAsNullableDateTimeOffset(String));
+							TagInfo.SetFromString = (Obj, String) => PropertyCopy.SetValue(Obj, ParseStringAsNullableDateTimeOffset(String));
 						}
 						else if (FieldType == typeof(List<string>))
 						{
-							TagInfo.SetFromString = (Obj, String) => ((List<string>)FieldCopy.GetValue(Obj)!).Add(String.ToString());
+							TagInfo.SetFromString = (Obj, String) => ((List<string>)PropertyCopy.GetValue(Obj)!).Add(String.ToString());
 						}
 						else
 						{
@@ -477,11 +477,11 @@ namespace EpicGames.Perforce
 
 					Record.NameToInfo = Record.Fields.ToDictionary(x => x.Name, x => x);
 
-					PerforceRecordListAttribute? SubElementAttribute = Field.GetCustomAttribute<PerforceRecordListAttribute>();
+					PerforceRecordListAttribute? SubElementAttribute = Property.GetCustomAttribute<PerforceRecordListAttribute>();
 					if (SubElementAttribute != null)
 					{
-						Record.SubElementField = Field;
-						Record.SubElementType = Field.FieldType.GenericTypeArguments[0];
+						Record.SubElementProperty = Property;
+						Record.SubElementType = Property.PropertyType.GenericTypeArguments[0];
 						Record.SubElementRecordInfo = GetCachedRecordInfo(Record.SubElementType);
 					}
 				}

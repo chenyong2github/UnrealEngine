@@ -17,13 +17,13 @@ namespace EpicGames.Perforce
 		/// Path to the file in the depot
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public string DepotPath;
+		public string DepotPath { get; set; }
 
 		/// <summary>
 		/// Revisions of this file
 		/// </summary>
 		[PerforceRecordList]
-		public List<RevisionRecord> Revisions = new List<RevisionRecord>();
+		public List<RevisionRecord> Revisions { get; } = new List<RevisionRecord>();
 
 		/// <summary>
 		/// Private constructor for serialization

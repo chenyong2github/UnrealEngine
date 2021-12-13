@@ -21,10 +21,10 @@ namespace EpicGames.Perforce
 		static public string EscapePath(string Path)
 		{
 			string NewPath = Path;
-			NewPath = NewPath.Replace("%", "%25");
-			NewPath = NewPath.Replace("*", "%2A");
-			NewPath = NewPath.Replace("#", "%23");
-			NewPath = NewPath.Replace("@", "%40");
+			NewPath = NewPath.Replace("%", "%25", StringComparison.Ordinal);
+			NewPath = NewPath.Replace("*", "%2A", StringComparison.Ordinal);
+			NewPath = NewPath.Replace("#", "%23", StringComparison.Ordinal);
+			NewPath = NewPath.Replace("@", "%40", StringComparison.Ordinal);
 			return NewPath;
 		}
 
@@ -34,11 +34,11 @@ namespace EpicGames.Perforce
 		static public string UnescapePath(string Path)
 		{
 			string NewPath = Path;
-			NewPath = NewPath.Replace("%40", "@");
-			NewPath = NewPath.Replace("%23", "#");
-			NewPath = NewPath.Replace("%2A", "*");
-			NewPath = NewPath.Replace("%2a", "*");
-			NewPath = NewPath.Replace("%25", "%");
+			NewPath = NewPath.Replace("%40", "@", StringComparison.Ordinal);
+			NewPath = NewPath.Replace("%23", "#", StringComparison.Ordinal);
+			NewPath = NewPath.Replace("%2A", "*", StringComparison.Ordinal);
+			NewPath = NewPath.Replace("%2a", "*", StringComparison.Ordinal);
+			NewPath = NewPath.Replace("%25", "%", StringComparison.Ordinal);
 			return NewPath;
 		}
 

@@ -17,31 +17,31 @@ namespace EpicGames.Perforce
 		/// Path to the file in the depot
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public string DepotFile;
+		public string DepotFile { get; set; }
 
 		/// <summary>
 		/// Path to the file in the workspace
 		/// </summary>
 		[PerforceTag("clientFile")]
-		public string ClientFile;
+		public string ClientFile { get; set; }
 
 		/// <summary>
 		/// The revision number that is now in the workspace
 		/// </summary>
 		[PerforceTag("haveRev")]
-		public int HaveRevision;
+		public int HaveRevision { get; set; }
 
 		/// <summary>
 		/// The previous action that the file was opened as
 		/// </summary>
 		[PerforceTag("oldAction")]
-		public string OldAction;
+		public string OldAction { get; set; }
 
 		/// <summary>
 		/// Action taken to revert the file
 		/// </summary>
 		[PerforceTag("action")]
-		public string Action;
+		public string Action { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

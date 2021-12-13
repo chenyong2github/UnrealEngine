@@ -11,6 +11,7 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Options for the UpdateChange command
 	/// </summary>
+	[Flags]
 	public enum UpdateChangeOptions
 	{
 		/// <summary>

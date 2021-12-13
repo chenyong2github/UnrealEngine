@@ -78,11 +78,11 @@ namespace EpicGames.Perforce
 					{
 						if (Data[Idx] == '\t')
 						{
-							Result.Append("\t");
+							Result.Append('\t');
 						}
 						else if (Data[Idx] == '\\')
 						{
-							Result.Append("\\");
+							Result.Append('\\');
 						}
 						else if (Data[Idx] >= 0x20 && Data[Idx] <= 0x7f)
 						{
@@ -567,10 +567,10 @@ namespace EpicGames.Perforce
 					if (TagInfo != null)
 					{
 						// Get the list field
-						System.Collections.IList? List = (System.Collections.IList?)TagInfo.Field.GetValue(NewRecord);
+						System.Collections.IList? List = (System.Collections.IList?)TagInfo.Property.GetValue(NewRecord);
 						if (List == null)
 						{
-							throw new PerforceException($"Empty list for {TagInfo.Field.Name}");
+							throw new PerforceException($"Empty list for {TagInfo.Property.Name}");
 						}
 
 						// Check the suffix matches the index of the next element
@@ -586,16 +586,16 @@ namespace EpicGames.Perforce
 							return false;
 						}
 					}
-					else if (RecordInfo.SubElementField != null)
+					else if (RecordInfo.SubElementProperty != null)
 					{
 						// Move back to the start of this tag
 						BufferPos = StartBufferPos;
 
 						// Get the list field
-						System.Collections.IList? List = (System.Collections.IList?)RecordInfo.SubElementField.GetValue(NewRecord);
+						System.Collections.IList? List = (System.Collections.IList?)RecordInfo.SubElementProperty.GetValue(NewRecord);
 						if (List == null)
 						{
-							throw new PerforceException($"Invalid field for {RecordInfo.SubElementField.Name}");
+							throw new PerforceException($"Invalid field for {RecordInfo.SubElementProperty.Name}");
 						}
 
 						// Check the suffix matches the index of the next element

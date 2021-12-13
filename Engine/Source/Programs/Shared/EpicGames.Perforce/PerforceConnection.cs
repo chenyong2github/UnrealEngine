@@ -195,7 +195,7 @@ namespace EpicGames.Perforce
 
 				string FullArgumentList = CommandLineArguments.Join(Arguments);
 
-				Logger.LogDebug("Running {0} {1}", Executable, FullArgumentList);
+				Logger.LogDebug("Running {Executable} {Arguments}", Executable, FullArgumentList);
 				using (ManagedProcess ChildProcess = new ManagedProcess(ChildProcessGroup, Executable, FullArgumentList, null, null, PasswordBytes, ProcessPriorityClass.Normal))
 				{
 					StringBuilder Lines = new StringBuilder("Unable to log in: ");
@@ -255,7 +255,7 @@ namespace EpicGames.Perforce
 		public async Task<Tuple<bool, string>> TrySetAsync(string Name, string Value, CancellationToken CancellationToken = default)
 		{
 			List<string> Arguments = new List<string>();
-			Arguments.Append($"{Name}={Value}");
+			Arguments.Add($"{Name}={Value}");
 
 			using (PerforceChildProcess ChildProcess = new PerforceChildProcess("set", Arguments, null, null, GetGlobalArguments(), Logger))
 			{
@@ -289,7 +289,7 @@ namespace EpicGames.Perforce
 					}
 				}
 
-				Logger.LogDebug($"Unable to get '{Name}' variable: {Response.Item2}");
+				Logger.LogDebug("Unable to get '{Name}' variable: {Response}", Name, Response.Item2);
 				return null;
 			}
 		}
@@ -2394,69 +2394,6 @@ namespace EpicGames.Perforce
 			Arguments.Add(OutputFile);
 			Arguments.Add(FileSpec);
 			return SingleResponseCommandAsync<PrintRecord>(Connection, "print", Arguments, null, CancellationToken);
-		}
-
-		class PrintHandler : IDisposable
-		{
-			Dictionary<string, string> DepotFileToLocalFile;
-			FileStream? OutputStream;
-
-			public PrintHandler(Dictionary<string, string> DepotFileToLocalFile)
-			{
-				this.DepotFileToLocalFile = DepotFileToLocalFile;
-			}
-
-			public void Dispose()
-			{
-				CloseStream();
-			}
-
-			private void OpenStream(string FileName)
-			{
-				CloseStream();
-				Directory.CreateDirectory(Path.GetDirectoryName(FileName));
-				OutputStream = File.Open(FileName, FileMode.Create, FileAccess.Write, FileShare.None);
-			}
-
-			private void CloseStream()
-			{
-				if(OutputStream != null)
-				{
-					OutputStream.Dispose();
-					OutputStream = null;
-				}
-			}
-
-			public void HandleRecord(List<KeyValuePair<string, object>> Fields)
-			{
-				if(Fields[0].Key != "code")
-				{
-					throw new Exception("Missing code field");
-				}
-
-				string Value = (string)Fields[0].Value;
-				if(Value == "stat")
-				{
-					string DepotFile = Fields.First(x => x.Key == "depotFile").Value.ToString() ?? String.Empty;
-
-					string? LocalFile;
-					if(!DepotFileToLocalFile.TryGetValue(DepotFile, out LocalFile))
-					{
-						throw new PerforceException("Depot file '{0}' not found in input dictionary", DepotFile);
-					}
-
-					OpenStream(LocalFile);
-				}
-				else if(Value == "binary" || Value == "text")
-				{
-					byte[] Data = (byte[])Fields.First(x => x.Key == "data").Value;
-					OutputStream!.Write(Data, 0, Data.Length);
-				}
-				else
-				{
-					throw new Exception("Unexpected record type");
-				}
-			}
 		}
 
 		#endregion

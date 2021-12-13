@@ -15,7 +15,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// User default options
 		/// </summary>
-		Default = 0,
+		None = 0,
 
 		/// <summary>
 		/// Edited files: Find files in the workspace that have been modified and restore them to the last file version that has synced from the depot.

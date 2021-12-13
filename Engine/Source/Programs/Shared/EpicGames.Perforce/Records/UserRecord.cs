@@ -17,49 +17,49 @@ namespace EpicGames.Perforce
 		/// The name for the user
 		/// </summary>
 		[PerforceTag("User")]
-		public string UserName;
+		public string UserName { get; set; }
 
 		/// <summary>
 		/// Registered email address for reviews
 		/// </summary>
 		[PerforceTag("Email")]
-		public string Email;
+		public string Email { get; set; }
 
 		/// <summary>
 		/// Last time the user's information was updated
 		/// </summary>
 		[PerforceTag("Update", Optional = true)]
-		public DateTime Update;
+		public DateTime Update { get; set; }
 
 		/// <summary>
 		/// Last time the user's information was accessed
 		/// </summary>
 		[PerforceTag("Access", Optional = true)]
-		public DateTime Access;
+		public DateTime Access { get; set; }
 
 		/// <summary>
 		/// The user's full name
 		/// </summary>
 		[PerforceTag("FullName")]
-		public string FullName;
+		public string FullName { get; set; }
 
 		/// <summary>
 		/// Paths which the user is watching
 		/// </summary>
 		[PerforceTag("Reviews", Optional = true)]
-		public List<string> Reviews = new List<string>();
+		public List<string> Reviews { get; } = new List<string>();
 
 		/// <summary>
 		/// The type of user
 		/// </summary>
 		[PerforceTag("Type", Optional = true)]
-		public string? Type;
+		public string? Type { get; set; }
 
 		/// <summary>
 		/// Method used to authenticate
 		/// </summary>
 		[PerforceTag("AuthMethod")]
-		public string? AuthMethod;
+		public string? AuthMethod { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

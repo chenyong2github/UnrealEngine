@@ -17,55 +17,55 @@ namespace EpicGames.Perforce
 		/// The changelist number
 		/// </summary>
 		[PerforceTag("change")]
-		public int Number;
+		public int Number { get; set; }
 
 		/// <summary>
 		/// The user that owns or submitted the change
 		/// </summary>
 		[PerforceTag("user")]
-		public string User;
+		public string User { get; set; }
 
 		/// <summary>
 		/// The workspace that contains or submitted the change
 		/// </summary>
 		[PerforceTag("client")]
-		public string Client;
+		public string Client { get; set; }
 
 		/// <summary>
 		/// Time at which the change was submitted
 		/// </summary>
 		[PerforceTag("time")]
-		public DateTime Time;
+		public DateTime Time { get; set; }
 
 		/// <summary>
 		/// The changelist description
 		/// </summary>
 		[PerforceTag("desc")]
-		public string Description;
+		public string Description { get; set; }
 
 		/// <summary>
 		/// The change status (submitted, pending, etc...)
 		/// </summary>
 		[PerforceTag("status")]
-		public ChangeStatus Status;
+		public ChangeStatus Status { get; set; }
 
 		/// <summary>
 		/// Whether the change is restricted or not
 		/// </summary>
 		[PerforceTag("changeType")]
-		public ChangeType Type;
+		public ChangeType Type { get; set; }
 
 		/// <summary>
 		/// Narrowest path which contains all files affected by this change
 		/// </summary>
 		[PerforceTag("path", Optional = true)]
-		public string? Path;
+		public string? Path { get; set; }
 
 		/// <summary>
 		/// The files affected by this change
 		/// </summary>
 		[PerforceRecordList]
-		public List<DescribeFileRecord> Files = new List<DescribeFileRecord>();
+		public List<DescribeFileRecord> Files { get; } = new List<DescribeFileRecord>();
 
 		/// <summary>
 		/// Private constructor for serialization

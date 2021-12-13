@@ -14,61 +14,61 @@ namespace EpicGames.Perforce
 		/// The revision number of this file
 		/// </summary>
 		[PerforceTag("rev", Optional = true)]
-		public readonly int RevisionNumber;
+		public int RevisionNumber { get; set; }
 
 		/// <summary>
 		/// The changelist responsible for this revision of the file
 		/// </summary>
 		[PerforceTag("change", Optional = true)]
-		public readonly int ChangeNumber;
+		public int ChangeNumber { get; set; }
 
 		/// <summary>
 		/// Type of the file
 		/// </summary>
 		[PerforceTag("type", Optional = true)]
-		public readonly string Type;
+		public string Type { get; set; }
 
 		/// <summary>
 		/// The upper changelist 
 		/// </summary>
 		[PerforceTag("upper", Optional = true)]
-		public readonly string UpperCL;
+		public string UpperCL { get; set; }
 
 		/// <summary>
 		/// The lower changelist 
 		/// </summary>
 		[PerforceTag("lower", Optional = true)]
-		public readonly string LowerCL;
+		public string LowerCL { get; set; }
 
 		/// <summary>
 		/// Author of the changelist
 		/// </summary>
 		[PerforceTag("user", Optional = true)]
-		public readonly string UserName;
+		public string UserName { get; set; }
 
 		/// <summary>
 		/// Timestamp of this modification
 		/// </summary>
 		[PerforceTag("time", Optional = true)]
-		public readonly DateTime Time;
+		public DateTime Time { get; set; }
 
 		/// <summary>
 		/// Client that submitted this changelist
 		/// </summary>
 		[PerforceTag("client", Optional = true)]
-		public readonly string ClientName;
+		public string ClientName { get; set; }
 
 		/// <summary>
 		/// The actual line
 		/// </summary>
 		[PerforceTag("data", Optional = true)]
-		public readonly string Data;
+		public string Data { get; set; }
 		
 		/// <summary>
 		/// 
 		/// </summary>
 		[PerforceRecordList]
-		public List<AnnotateLineRecord> LineRecord = new List<AnnotateLineRecord>();
+		public List<AnnotateLineRecord> LineRecord { get; } = new List<AnnotateLineRecord>();
 
 		/// <summary>
 		/// Private constructor for serialization

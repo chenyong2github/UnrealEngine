@@ -16,7 +16,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Stores the response data
 		/// </summary>
-		protected object InternalData;
+		protected object InternalData { get; }
 
 		/// <summary>
 		/// Constructor

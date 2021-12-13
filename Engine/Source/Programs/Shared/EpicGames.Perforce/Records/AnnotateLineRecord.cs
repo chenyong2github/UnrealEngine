@@ -13,25 +13,25 @@ namespace EpicGames.Perforce
 		/// 
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public readonly string DepotFile;
+		public string DepotFile { get; set; }
 
 		/// <summary>
 		/// The upper changelist 
 		/// </summary>
 		[PerforceTag("upper")]
-		public readonly int UpperRev;
+		public int UpperRev { get; set; }
 
 		/// <summary>
 		/// The lower changelist 
 		/// </summary>
 		[PerforceTag("lower")]
-		public readonly int LowerRev;
+		public int LowerRev { get; set; }
 
 		/// <summary>
 		/// Timestamp of this modification
 		/// </summary>
 		[PerforceTag("time", Optional = true)]
-		public readonly DateTime Time;
+		public DateTime Time { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

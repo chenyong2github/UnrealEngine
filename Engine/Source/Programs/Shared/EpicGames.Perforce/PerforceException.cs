@@ -16,7 +16,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// For errors returned by the server, contains the error record
 		/// </summary>
-		public PerforceError? Error;
+		public PerforceError? Error { get; set; }
 
 		/// <summary>
 		/// Constructor

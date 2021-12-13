@@ -17,19 +17,19 @@ namespace EpicGames.Perforce
 		/// Path to the file in the depot
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public string DepotFile;
+		public string DepotFile { get; set; }
 
 		/// <summary>
 		/// The revision number of the file
 		/// </summary>
 		[PerforceTag("rev")]
-		public int Revision;
+		public int Revision { get; set; }
 
 		/// <summary>
 		/// Open action for the file
 		/// </summary>
 		[PerforceTag("action")]
-		public string Action;
+		public string Action { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

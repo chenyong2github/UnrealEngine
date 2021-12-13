@@ -17,13 +17,13 @@ namespace EpicGames.Perforce
 		/// The severity level
 		/// </summary>
 		[PerforceTag("level")]
-		public int Level;
+		public int Level { get; set; }
 
 		/// <summary>
 		/// Message data
 		/// </summary>
 		[PerforceTag("data")]
-		public string Data;
+		public string Data { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

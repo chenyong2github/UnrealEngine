@@ -15,30 +15,30 @@ namespace EpicGames.Perforce
 		/// Depot path of the file, according to the workspace mapping
 		/// </summary>
 		[PerforceTag("depotFile", Optional = true)]
-		public string? DepotFile;
+		public string? DepotFile { get; set; }
 
 		/// <summary>
 		/// Client path to the file (in local path syntax)
 		/// </summary>
 		[PerforceTag("clientFile", Optional = true)]
-		public string? ClientFile;
+		public string? ClientFile { get; set; }
 
 		/// <summary>
 		/// Path to the file in local syntax
 		/// </summary>
 		[PerforceTag("localFile", Optional = true)]
-		public string? LocalFile;
+		public string? LocalFile { get; set; }
 
 		/// <summary>
 		/// Revision of the file
 		/// </summary>
 		[PerforceTag("rev", Optional = true)]
-		public string? Revision;
+		public string? Revision { get; set; }
 
 		/// <summary>
 		/// Action to be taken to the file
 		/// </summary>
 		[PerforceTag("action", Optional = true)]
-		public FileAction Action;
+		public FileAction Action { get; set; }
 	}
 }

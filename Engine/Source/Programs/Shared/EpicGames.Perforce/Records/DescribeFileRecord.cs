@@ -17,37 +17,37 @@ namespace EpicGames.Perforce
 		/// Path to the modified file in depot syntax
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public string DepotFile;
+		public string DepotFile { get; set; }
 
 		/// <summary>
 		/// The action performed on this file
 		/// </summary>
 		[PerforceTag("action")]
-		public FileAction Action;
+		public FileAction Action { get; set; }
 
 		/// <summary>
 		/// The file type after this change
 		/// </summary>
 		[PerforceTag("type")]
-		public string Type;
+		public string Type { get; set; }
 
 		/// <summary>
 		/// The revision number for this file
 		/// </summary>
 		[PerforceTag("rev")]
-		public int Revision;
+		public int Revision { get; set; }
 
 		/// <summary>
 		/// Size of the file, or -1 if not specified
 		/// </summary>
 		[PerforceTag("fileSize", Optional = true)]
-		public readonly long FileSize;
+		public long FileSize { get; set; }
 
 		/// <summary>
 		/// Digest of the file, or null if not specified
 		/// </summary>
 		[PerforceTag("digest", Optional = true)]
-		public readonly string? Digest;
+		public string? Digest { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

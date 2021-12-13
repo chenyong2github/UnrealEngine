@@ -17,25 +17,25 @@ namespace EpicGames.Perforce
 		/// The changelist containing the shelved file
 		/// </summary>
 		[PerforceTag("change", Optional = true)]
-		public int Change;
+		public int Change { get; set; }
 
 		/// <summary>
 		/// Path to the file in the depot
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public string DepotFile;
+		public string DepotFile { get; set; }
 
 		/// <summary>
 		/// The revision number of the file that was shelved
 		/// </summary>
 		[PerforceTag("rev")]
-		public int Revision;
+		public int Revision { get; set; }
 
 		/// <summary>
 		/// The action to be applied to the file
 		/// </summary>
 		[PerforceTag("action")]
-		public string Action;
+		public string Action { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

@@ -17,25 +17,25 @@ namespace EpicGames.Perforce
 		/// Path to the file in the depot
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public string DepotFile;
+		public string DepotFile { get; set; }
 
 		/// <summary>
 		/// Path to the file in client syntax
 		/// </summary>
 		[PerforceTag("clientFile")]
-		public string ClientFile;
+		public string ClientFile { get; set; }
 
 		/// <summary>
 		/// Path to the file on dist
 		/// </summary>
 		[PerforceTag("path")]
-		public string Path;
+		public string Path { get; set; }
 
 		/// <summary>
 		/// Indicates that the given file or path is being unmapped from the workspace
 		/// </summary>
 		[PerforceTag("unmap", Optional = true)]
-		public bool Unmap;
+		public bool Unmap { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization

@@ -6,6 +6,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -17,7 +18,7 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Experimental implementation of <see cref="IPerforceConnection"/> which wraps the native C++ API.
 	/// </summary>
-	public class NativePerforceConnection : IPerforceConnection, IDisposable
+	public sealed class NativePerforceConnection : IPerforceConnection, IDisposable
 	{
 		const string NativeDll = "EpicGames.Perforce.Native";
 
@@ -44,6 +45,7 @@ namespace EpicGames.Perforce
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
+		[SuppressMessage("Compiler", "CA1812")]
 		class NativeReadBuffer
 		{
 			public IntPtr Data;
@@ -221,7 +223,7 @@ namespace EpicGames.Perforce
 				// If we've read everything from the next buffer, return it to the write list
 				if (NextBufferPos == NextBufferLen)
 				{
-					Outer.WriteBuffers.Add(NextBuffer);
+					Outer.WriteBuffers.Add(NextBuffer, Token);
 
 					NextBuffer = null;
 					NextBufferPos = 0;
@@ -472,7 +474,7 @@ namespace EpicGames.Perforce
 		public async Task LoginAsync(string Password, CancellationToken CancellationToken = default)
 		{
 			await using Response Response = new Response(this);
-			Requests.Add((() => Client_Login(Client, Password), Response));
+			Requests.Add((() => Client_Login(Client, Password), Response), CancellationToken);
 
 			List<PerforceResponse> Records = await ((IPerforceOutput)Response).ReadResponsesAsync(null, default);
 			if (Records.Count != 1)
