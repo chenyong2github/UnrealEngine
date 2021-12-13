@@ -6,6 +6,8 @@
 
 #include "GeneratedDynamicMeshActor.generated.h"
 
+class AStaticMeshActor;
+
 
 /**
  * AGeneratedDynamicMeshActor is an Editor-only subclass of ADynamicMeshActor that provides 
@@ -47,6 +49,26 @@ public:
 	 * marked for a pending rebuild (eg via OnConstruction)
 	 */
 	virtual void ExecuteRebuildGeneratedMeshIfPending();
+
+
+public:
+
+	/** 
+	 * Attempt to copy Actor Properties to a StaticMeshActor. Optionally copy DynamicMeshComponent material list to the StaticMeshComponent.
+	 * This function is useful when (eg) swapping from a DynamicMeshActor to a StaticMeshActor as it will allow
+	 * many configured Actor settings to be preserved (like assigned DataLayers, etc)
+	 */
+	UFUNCTION(BlueprintCallable, Category = DynamicMeshActor)
+	void CopyPropertiesToStaticMesh(AStaticMeshActor* StaticMeshActor, bool bCopyComponentMaterials = false);
+
+	/**
+	 * Attempt to copy Actor Properties from a StaticMeshActor. Optionally copy DynamicMeshComponent material list to the StaticMeshComponent.
+	 * This function is useful when (eg) swapping from a StaticMeshActor to a DynamicMeshActor as it will allow
+	 * many configured Actor settings to be preserved (like assigned DataLayers, etc) 
+	 */
+	UFUNCTION(BlueprintCallable, Category = DynamicMeshActor)
+	void CopyPropertiesFromStaticMesh(AStaticMeshActor* StaticMeshActor, bool bCopyComponentMaterials = false);
+
 
 
 public:

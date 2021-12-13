@@ -3,6 +3,9 @@
 #include "GeometryActors/GeneratedDynamicMeshActor.h"
 #include "GeometryActors/EditorGeometryGenerationSubsystem.h"
 
+#include "Editor/EditorEngine.h" // for CopyPropertiesForUnrelatedObjects
+#include "Engine/StaticMeshActor.h"
+
 #define LOCTEXT_NAMESPACE "AGeneratedDynamicMeshActor"
 
 
@@ -91,6 +94,55 @@ void AGeneratedDynamicMeshActor::ExecuteRebuildGeneratedMeshIfPending()
 			DynamicMeshComponent->SetDeferredCollisionUpdatesEnabled(false, true);
 		}
 	}
+}
+
+
+
+
+void AGeneratedDynamicMeshActor::CopyPropertiesToStaticMesh(AStaticMeshActor* StaticMeshActor, bool bCopyComponentMaterials)
+{
+	StaticMeshActor->Modify();
+	StaticMeshActor->UnregisterAllComponents();
+	UEditorEngine::CopyPropertiesForUnrelatedObjects(this, StaticMeshActor);
+
+	if (bCopyComponentMaterials)
+	{
+		if (UStaticMeshComponent* SMComponent = StaticMeshActor->GetStaticMeshComponent())
+		{
+			if (UDynamicMeshComponent* DMComponent = this->GetDynamicMeshComponent())
+			{
+				TArray<UMaterialInterface*> Materials = DMComponent->GetMaterials();
+				for (int32 k = 0; k < Materials.Num(); ++k)
+				{
+					SMComponent->SetMaterial(k, Materials[k]);
+				}
+			}
+		}
+	}
+
+	StaticMeshActor->ReregisterAllComponents();
+}
+
+
+void AGeneratedDynamicMeshActor::CopyPropertiesFromStaticMesh(AStaticMeshActor* StaticMeshActor, bool bCopyComponentMaterials)
+{
+	this->Modify();
+	this->UnregisterAllComponents();
+	UEditorEngine::CopyPropertiesForUnrelatedObjects(StaticMeshActor, this);
+
+	if (bCopyComponentMaterials)
+	{
+		if (UStaticMeshComponent* SMComponent = StaticMeshActor->GetStaticMeshComponent())
+		{
+			if (UDynamicMeshComponent* DMComponent = this->GetDynamicMeshComponent())
+			{
+				TArray<UMaterialInterface*> Materials = SMComponent->GetMaterials();
+				DMComponent->ConfigureMaterialSet(Materials);
+			}
+		}
+	}
+
+	this->ReregisterAllComponents();
 }
 
 
