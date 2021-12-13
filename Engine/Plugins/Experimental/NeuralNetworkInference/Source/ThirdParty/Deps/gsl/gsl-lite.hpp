@@ -1934,9 +1934,7 @@ gsl_NORETURN inline void fail_fast_throw( char const * message )
 inline void fail_fast_throw(char const* message)
 #endif
 {
-#ifndef __clang__ // WITH_UE
 	throw fail_fast(message);
-#endif
 }
 #endif // gsl_HAVE( EXCEPTIONS )
 #ifndef __clang__ // WITH_UE
