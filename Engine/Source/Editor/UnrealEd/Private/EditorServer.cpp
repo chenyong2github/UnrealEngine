@@ -1706,9 +1706,6 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 	FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::MapRebuild);
 	GEngine->BroadcastLevelActorListChanged();
 	
-	// Need to reinitialize world subsystems since they are torn down as part of the lighting build
-	GWorld->InitializeSubsystems();
-
 	GWarn->EndSlowTask();
 }
 
