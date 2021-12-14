@@ -71,6 +71,8 @@ public:
 		return TangentZPrecision;
 	}
 
+	static bool IsPlatformShaderSupported(EShaderPlatform ShaderPlatform);
+
 	FBufferRHIRef MorphDataBuffer;
 	FShaderResourceViewRHIRef MorphDataSRV;
 

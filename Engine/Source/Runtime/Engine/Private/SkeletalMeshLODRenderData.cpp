@@ -669,7 +669,7 @@ void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkeletalMe
 			for (FName ShaderFormat : ShaderFormats)
 			{
 				const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormat);
-				if (IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5))
+				if (FMorphTargetVertexInfoBuffers::IsPlatformShaderSupported(ShaderPlatform))
 				{
 					MorphTargetShaderPlatform = ShaderPlatform;
 					bSerializeCompressedMorphTargets = true;
@@ -698,16 +698,19 @@ void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkeletalMe
 				{
 					TargetMorphTargetVertexInfoBuffers = &MorphTargetVertexInfoBuffers;
 					TargetMorphTargetVertexInfoBuffers->InitMorphResources(MorphTargetShaderPlatform, RenderSections, MorphTargets, StaticVertexBuffers.StaticMeshVertexBuffer.GetNumVertices(), LODIdx, SkeletalMeshLODInfo->MorphTargetPositionErrorTolerance);
+					check(TargetMorphTargetVertexInfoBuffers->IsMorphCPUDataValid());
 				}
 				else if (MorphTargetVertexInfoBuffers.IsMorphCPUDataValid() && !MorphTargetVertexInfoBuffers.IsRHIIntialized())
 				{
 					TargetMorphTargetVertexInfoBuffers = &MorphTargetVertexInfoBuffers;
+					check(TargetMorphTargetVertexInfoBuffers->IsMorphCPUDataValid());
 				}
 				else
 				{
 					// Fallback for when the RHI data has already been created.  Create a local version of the morph data, and serialize that
 					TargetMorphTargetVertexInfoBuffers = &LocalMorphTargetVertexInfoBuffers;
 					TargetMorphTargetVertexInfoBuffers->InitMorphResources(MorphTargetShaderPlatform, RenderSections, MorphTargets, StaticVertexBuffers.StaticMeshVertexBuffer.GetNumVertices(), LODIdx, SkeletalMeshLODInfo->MorphTargetPositionErrorTolerance);
+					check(TargetMorphTargetVertexInfoBuffers->IsMorphCPUDataValid());
 				}
 
 				Ar << *TargetMorphTargetVertexInfoBuffers;
