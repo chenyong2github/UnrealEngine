@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using Amazon.Runtime.Internal.Util;
+using HordeCommon;
 using HordeServer.Models;
 using HordeServer.Utilities;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
@@ -31,7 +32,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Service which manages the downtime schedule
 	/// </summary>
-	public class DowntimeService : TickedBackgroundService, IDowntimeService
+	public sealed class DowntimeService : IDowntimeService, IHostedService, IDisposable
 	{
 		/// <summary>
 		/// Whether the server is currently in downtime
@@ -43,32 +44,44 @@ namespace HordeServer.Services
 		}
 
 		DatabaseService DatabaseService;
+		ITicker Ticker;
 		IOptionsMonitor<ServerSettings> Settings;
-		ILogger<DowntimeService> Logger;
+		ILogger Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="DatabaseService">The database service instance</param>
+		/// <param name="Clock"></param>
 		/// <param name="Settings">The server settings</param>
 		/// <param name="Logger">Logger instance</param>
-		public DowntimeService(DatabaseService DatabaseService, IOptionsMonitor<ServerSettings> Settings, ILogger<DowntimeService> Logger)
-			: base(TimeSpan.FromMinutes(1.0), Logger)
+		public DowntimeService(DatabaseService DatabaseService, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<DowntimeService> Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.Settings = Settings;
 			this.Logger = Logger;
 
 			// Ensure the initial value to be correct
-			TickAsync(CancellationToken.None).Wait();
+			TickAsync(CancellationToken.None).AsTask().Wait();
+
+			Ticker = Clock.CreateTicker(TimeSpan.FromMinutes(1.0), TickAsync, Logger);
 		}
+
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken CancellationToken) => Ticker.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken CancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Ticker.Dispose();
 
 		/// <summary>
 		/// Periodically called tick function
 		/// </summary>
 		/// <param name="StoppingToken">Token indicating that the service should stop</param>
 		/// <returns>Async task</returns>
-		protected override async Task TickAsync(CancellationToken StoppingToken)
+		async ValueTask TickAsync(CancellationToken StoppingToken)
 		{
 			Globals Globals = await DatabaseService.GetGlobalsAsync();
 

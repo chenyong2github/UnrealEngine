@@ -46,7 +46,7 @@ namespace HordeServerTests
 		        "test");
 	        
 	        Assert.IsTrue(AgentService.AuthorizeSession(Agent, GetUser(Agent)));
-	        Clock.Advance(TimeSpan.FromMinutes(20));
+	        await Clock.AdvanceAsync(TimeSpan.FromMinutes(20));
 	        Assert.IsFalse(AgentService.AuthorizeSession(Agent, GetUser(Agent)));
         }
 

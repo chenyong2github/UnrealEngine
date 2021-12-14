@@ -32,6 +32,7 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 using Stream = System.IO.Stream;
 using OpenTracing.Util;
 using OpenTracing;
+using Microsoft.Extensions.Hosting;
 
 namespace HordeServer.Services
 {
@@ -279,7 +280,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Wraps functionality for manipulating logs
 	/// </summary>
-	public class LogFileService : TickedBackgroundService, ILogFileService
+	public sealed class LogFileService : IHostedService, ILogFileService, IDisposable
 	{
 		/// <summary>
 		/// Information Logger
@@ -494,23 +495,43 @@ namespace HordeServer.Services
 			public override void Write(byte[] buffer, int offset, int count) => throw new NotImplementedException();
 		}
 
+		ITicker Ticker;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="LogFiles">The log file collection</param>
-		/// <param name="LogEvents">The log events collection</param>
-		/// <param name="Builder">The log builder</param>
-		/// <param name="Storage">THe log storage hierarchy</param>
-		/// <param name="Logger">Log interface</param>
-		public LogFileService(ILogFileCollection LogFiles, ILogEventCollection LogEvents, ILogBuilder Builder, ILogStorage Storage, ILogger<LogFileService> Logger)
-			: base(TimeSpan.FromSeconds(30.0), Logger)
+		public LogFileService(ILogFileCollection LogFiles, ILogEventCollection LogEvents, ILogBuilder Builder, ILogStorage Storage, IClock Clock, ILogger<LogFileService> Logger)
 		{
 			this.LogFiles = LogFiles;
 			this.LogEvents = LogEvents;
-			this.Logger = Logger;
 			this.LogFileCache = new MemoryCache(new MemoryCacheOptions());
 			this.Builder = Builder;
 			this.Storage = Storage;
+			this.Ticker = Clock.CreateTicker(TimeSpan.FromSeconds(30.0), TickAsync, Logger);
+			this.Logger = Logger;
+		}
+
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken CancellationToken) => Ticker.StartAsync();
+
+		/// <inheritdoc/>
+		public async Task StopAsync(CancellationToken CancellationToken)
+		{
+			Logger.LogInformation("Stopping log file service");
+			if (Builder.FlushOnShutdown)
+			{
+				await FlushAsync();
+			}
+			await Ticker.StopAsync();
+			Logger.LogInformation("Log service stopped");
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			LogFileCache.Dispose();
+			Storage.Dispose();
+			Ticker.Dispose();
 		}
 
 		/// <inheritdoc/>
@@ -990,7 +1011,7 @@ namespace HordeServer.Services
 		/// Executes a background task
 		/// </summary>
 		/// <param name="StoppingToken">Cancellation token</param>
-		protected override async Task TickAsync(CancellationToken StoppingToken)
+		async ValueTask TickAsync(CancellationToken StoppingToken)
 		{
 			lock (WriteLock)
 			{
@@ -1005,15 +1026,7 @@ namespace HordeServer.Services
 			}
 			await IncrementalFlush();
 		}
-		
-		/// <summary>
-		/// Executes a background task. Publicly exposed for tests.
-		/// </summary>
-		public async Task TickOnlyForTestingAsync()
-		{
-			await TickAsync(new CancellationToken());
-		}
-		
+				
 		/// <summary>
 		/// Flushes complete chunks to the storage provider
 		/// </summary>
@@ -1034,21 +1047,6 @@ namespace HordeServer.Services
 			WriteCompleteChunks(FlushChunks, true);
 		}
 
-		/// <summary>
-		/// Called when the service is shutting down
-		/// </summary>
-		/// <param name="CancellationToken"></param>
-		/// <returns></returns>
-		[SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-		public override async Task StopAsync(CancellationToken CancellationToken)
-		{
-			Logger.LogInformation("Stopping log file service");
-			if (Builder.FlushOnShutdown)
-			{
-				await FlushAsync();
-			}
-			Logger.LogInformation("Log service stopped");
-		}
 
 		/// <summary>
 		/// Flushes the write cache

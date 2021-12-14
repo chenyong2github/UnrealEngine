@@ -6,39 +6,47 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using StatsdClient;
+using Microsoft.Extensions.Hosting;
+using HordeCommon;
 
 namespace HordeServer.Services
 {
 	/// <summary>
 	/// Periodically send metrics for the CLR and other services that cannot be collected on a per-request basis
 	/// </summary>
-	public class MetricService : TickedBackgroundService
+	public sealed class MetricService : IHostedService, IDisposable
 	{
-		/// <summary>
-		/// DogStatsd instance
-		/// </summary>
-		private readonly IDogStatsd DogStatsd;
+		IDogStatsd DogStatsd;
+		ITicker Ticker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DogStatsd"></param>
-		/// <param name="Logger">Logger instance</param>
-		public MetricService(IDogStatsd DogStatsd, ILogger<MetricService> Logger) : base(TimeSpan.FromSeconds(20.0), Logger)
+		public MetricService(IDogStatsd DogStatsd, IClock Clock, ILogger<MetricService> Logger)
 		{
 			this.DogStatsd = DogStatsd;
+			this.Ticker = Clock.CreateTicker(TimeSpan.FromSeconds(20.0), TickAsync, Logger);
 		}
+
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Ticker.Dispose();
 
 		/// <summary>
 		/// Execute the background task
 		/// </summary>
 		/// <param name="StoppingToken">Cancellation token for the async task</param>
 		/// <returns>Async task</returns>
-		protected override Task TickAsync(CancellationToken StoppingToken)
+		ValueTask TickAsync(CancellationToken StoppingToken)
 		{
 			ReportGcMetrics();
 			ReportThreadMetrics();
-			return Task.CompletedTask;
+			return new ValueTask();
 		}
 
 		private void ReportThreadMetrics()

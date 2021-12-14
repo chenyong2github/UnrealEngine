@@ -90,7 +90,7 @@ namespace HordeServerTests
 			Schedule.Files = Files.ToList();
 			await SetScheduleAsync(Schedule);
 
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 
 			return await GetNewJobs();
@@ -194,7 +194,7 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs1.Count);
 
 			// Trigger a job
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -221,7 +221,7 @@ namespace HordeServerTests
 			Assert.AreEqual(0, Jobs1.Count);
 
 			// Trigger a job
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -235,7 +235,7 @@ namespace HordeServerTests
 			Assert.AreEqual(Clock.UtcNow, Schedule2.LastTriggerTime);
 
 			// Trigger another job
-			Clock.Advance(TimeSpan.FromHours(0.5));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(0.5));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
@@ -268,7 +268,7 @@ namespace HordeServerTests
 			PerforceService.AddChange("//UE5/Main", 105, Bob, "", new string[] { "foo.uasset" });
 			PerforceService.AddChange("//UE5/Main", 106, Bob, "", new string[] { "foo.cpp" });
 
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -305,7 +305,7 @@ namespace HordeServerTests
 			PerforceService.AddChange("//UE5/Main", 105, Bob, "", new string[] { "foo.uasset" });
 			PerforceService.AddChange("//UE5/Main", 106, Bob, "", new string[] { "foo.cpp" });
 
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -330,7 +330,7 @@ namespace HordeServerTests
 			await SetScheduleAsync(Schedule);
 
 			// Trigger a job
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -339,7 +339,7 @@ namespace HordeServerTests
 			Assert.AreEqual(100, Jobs2[0].CodeChange);
 
 			// Test that another job does not trigger
-			Clock.Advance(TimeSpan.FromHours(0.5));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(0.5));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
@@ -349,7 +349,7 @@ namespace HordeServerTests
 			await JobService.UpdateJobAsync(Jobs2[0], AbortedByUserId: KnownUsers.System);
 
 			// Test that another job does not trigger
-			Clock.Advance(TimeSpan.FromHours(0.5));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(0.5));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs4 = await GetNewJobs();
@@ -370,7 +370,7 @@ namespace HordeServerTests
 			IStream Stream = await SetScheduleAsync(Schedule);
 
 			// Trigger a job
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
@@ -379,7 +379,7 @@ namespace HordeServerTests
 			Assert.AreEqual(100, Jobs2[0].CodeChange);
 
 			// Check another job does not trigger due to the change above
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
@@ -433,7 +433,7 @@ namespace HordeServerTests
 			await GetNewJobs();
 
 			// Tick the schedule and make sure it doesn't trigger
-			Clock.Advance(TimeSpan.FromMinutes(30.0));
+			await Clock.AdvanceAsync(TimeSpan.FromMinutes(30.0));
 			await ScheduleService.TickForTestingAsync();
 			List<IJob> Jobs3 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs3.Count);
@@ -466,7 +466,7 @@ namespace HordeServerTests
 			Schedule.MaxActive = 2;
 			await SetScheduleAsync(Schedule);
 
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs1 = await GetNewJobs();
@@ -503,15 +503,15 @@ namespace HordeServerTests
 
 			IStreamCollection StreamCollection = ServiceProvider.GetRequiredService<IStreamCollection>();
 			await StreamCollection.TryUpdatePauseStateAsync(Stream, NewPausedUntil: StartTime.AddHours(5), NewPauseComment: "testing");
-			
+
 			// Try trigger a job. No job should be scheduled as the stream is paused
-			Clock.Advance(TimeSpan.FromHours(1.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(1.25));
 			await ScheduleService.TickForTestingAsync();
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs2.Count);
 
 			// Advance time beyond the pause period. A build should now trigger
-			Clock.Advance(TimeSpan.FromHours(5.25));
+			await Clock.AdvanceAsync(TimeSpan.FromHours(5.25));
 			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();

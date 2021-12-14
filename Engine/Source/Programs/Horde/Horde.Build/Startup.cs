@@ -569,7 +569,9 @@ namespace HordeServer
 
 			// Task sources. Order of registration is important here; it dictates the priority in which sources are served.
 			Services.AddSingleton<JobTaskSource>();
+			Services.AddHostedService<JobTaskSource>(Provider => Provider.GetRequiredService<JobTaskSource>());
 			Services.AddSingleton<ConformTaskSource>();
+			Services.AddHostedService<ConformTaskSource>(Provider => Provider.GetRequiredService<ConformTaskSource>());
 			Services.AddSingleton<IComputeService, ComputeService>();
 
 			Services.AddSingleton<ITaskSource, UpgradeTaskSource>();

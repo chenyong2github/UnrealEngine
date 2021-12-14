@@ -31,7 +31,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Wraps funtionality for manipulating agents
 	/// </summary>
-	public sealed class AgentService : TickedBackgroundService
+	public sealed class AgentService : IHostedService, IDisposable
 	{
 		/// <summary>
 		/// Maximum time between updates for an agent to be considered online
@@ -48,14 +48,7 @@ namespace HordeServer.Services
 		/// </summary>
 		public static readonly TimeSpan SessionRenewTime = TimeSpan.FromSeconds(50);
 
-		/// <summary>
-		/// The ACL service instance
-		/// </summary>
 		AclService AclService;
-
-		/// <summary>
-		/// The downtime service instance
-		/// </summary>
 		IDowntimeService DowntimeService;
 
 		/// <summary>
@@ -63,61 +56,28 @@ namespace HordeServer.Services
 		/// </summary>
 		public IAgentCollection Agents { get; }
 
-		/// <summary>
-		/// Collection of lease documents
-		/// </summary>
 		ILeaseCollection Leases;
-
-		/// <summary>
-		/// Collection of session documents
-		/// </summary>
 		ISessionCollection Sessions;
-
-		/// <summary>
-		/// DogStatsD metric client
-		/// </summary>
 		IDogStatsd DogStatsd;
-
-		/// <summary>
-		/// List of task sources
-		/// </summary>
 		ITaskSource[] TaskSources;
-
-		/// <summary>
-		/// The application lifetime instance
-		/// </summary>
 		IHostApplicationLifetime ApplicationLifetime;
+		IClock Clock;
+		ILogger Logger;
+		ITicker Ticker;
 
-		/// <summary>
-		/// Log output writer
-		/// </summary>
-		ILogger<AgentService> Logger;
-		
-		/// <summary>
-		/// Clock
-		/// </summary>
-		readonly IClock Clock;
-
-		/// <summary>
-		/// Lazily updated list of current pools
-		/// </summary>
+		// Lazily updated list of current pools
 		AsyncCachedValue<List<IPool>> PoolsList;
 
-		/// <summary>
-		/// All the agents currently performing a long poll for work on this server
-		/// </summary>
+		// All the agents currently performing a long poll for work on this server
 		Dictionary<AgentId, CancellationTokenSource> WaitingAgents = new Dictionary<AgentId, CancellationTokenSource>();
 
-		/// <summary>
-		/// Subscription for update events
-		/// </summary>
+		// Subscription for update events
 		IDisposable Subscription;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, IHostApplicationLifetime ApplicationLifetime, ILogger<AgentService> Logger, IClock Clock)
-			: base(TimeSpan.FromSeconds(30.0), Logger)
+		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, IHostApplicationLifetime ApplicationLifetime, IClock Clock, ILogger<AgentService> Logger)
 		{
 			this.Agents = Agents;
 			this.Leases = Leases;
@@ -128,17 +88,24 @@ namespace HordeServer.Services
 			this.DogStatsd = DogStatsd;
 			this.TaskSources = TaskSources.ToArray();
 			this.ApplicationLifetime = ApplicationLifetime;
-			this.Logger = Logger;
 			this.Clock = Clock;
+			this.Ticker = Clock.CreateTicker(TimeSpan.FromSeconds(30.0), TickAsync, Logger);
+			this.Logger = Logger;
 
 			Subscription = Agents.SubscribeToUpdateEventsAsync(OnAgentUpdate).Result;
 		}
 
 		/// <inheritdoc/>
-		public override void Dispose()
+		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose()
 		{
-			base.Dispose();
 			Subscription.Dispose();
+			Ticker.Dispose();
 		}
 
 		/// <summary>
@@ -802,7 +769,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="StoppingToken">Token indicating the service is shutting down</param>
 		/// <returns>Async task</returns>
-		protected override async Task TickAsync(CancellationToken StoppingToken)
+		async ValueTask TickAsync(CancellationToken StoppingToken)
 		{
 			while (!StoppingToken.IsCancellationRequested)
 			{

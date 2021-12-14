@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -9,6 +10,7 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using HordeCommon;
 using HordeServer;
 using HordeServer.Api;
 using HordeServer.Collections.Impl;
@@ -38,6 +40,7 @@ namespace HordeServerTests
 	[TestClass]
     public class LogFileServiceTest : DatabaseIntegrationTest
     {
+		private readonly FakeClock Clock;
         private readonly LogFileService LogFileService;
 
         public LogFileServiceTest()
@@ -52,7 +55,8 @@ namespace HordeServerTests
 
 			ILogBuilder LogBuilder = new RedisLogBuilder(GetRedisConnectionPool(), NullLogger.Instance);
 			ILogStorage LogStorage = new PersistentLogStorage(new TransientStorageBackend().ForType<PersistentLogStorage>(), NullLogger<PersistentLogStorage>.Instance);
-			LogFileService = new LogFileService(LogFileCollection, null!, LogBuilder, LogStorage, Logger);
+			Clock = new FakeClock();
+			LogFileService = new LogFileService(LogFileCollection, null!, LogBuilder, LogStorage, Clock, Logger);
         }
 
 		[TestMethod]
@@ -116,7 +120,7 @@ namespace HordeServerTests
 	        return new StreamReader(Stream).ReadToEnd();
         }
         
-        public static async Task WriteLogLifecycle(ILogFileService Lfs, int MaxChunkLength)
+        public async Task WriteLogLifecycle(ILogFileService Lfs, int MaxChunkLength)
         {
 			JobId JobId = JobId.GenerateNewId();
             ILogFile LogFile = await Lfs.CreateLogFileAsync(JobId, null, LogType.Text);
@@ -131,8 +135,7 @@ namespace HordeServerTests
 
             // First write with flush. Will become chunk #1
             LogFile = (await Lfs.WriteLogDataAsync(LogFile, Offset, LineIndex, Encoding.ASCII.GetBytes(Str1), true, MaxChunkLength))!;
-            await (Lfs as LogFileService)!.TickOnlyForTestingAsync();
-            await Task.Delay(2000);
+			await Clock.AdvanceAsync(TimeSpan.FromSeconds(2.0));
             Assert.AreEqual(Str1, await ReadLogFile(Lfs, LogFile, 0, Str1.Length));
             Assert.AreEqual(Str1, await ReadLogFile(Lfs, LogFile, 0, Str1.Length + 100)); // Reading too far is valid?
             await AssertMetadata(Lfs, LogFile, Str1.Length, 1);
@@ -146,9 +149,8 @@ namespace HordeServerTests
             Offset += Str1.Length;
             LineIndex += Str1.Count(f => f == '\n');
             LogFile = (await Lfs.WriteLogDataAsync(LogFile, Offset, LineIndex, Encoding.ASCII.GetBytes(Str2), false, MaxChunkLength))!;
-            await (Lfs as LogFileService)!.TickOnlyForTestingAsync();
-            await Task.Delay(2000);
-            Assert.AreEqual(Str1 + Str2, await ReadLogFile(Lfs, LogFile, 0, Str1.Length + Str2.Length));
+			await Clock.AdvanceAsync(TimeSpan.FromSeconds(2.0));
+			Assert.AreEqual(Str1 + Str2, await ReadLogFile(Lfs, LogFile, 0, Str1.Length + Str2.Length));
             await AssertMetadata(Lfs, LogFile, Str1.Length + Str2.Length, 3); // FIXME: what are max line index?
             await AssertChunk(Lfs, LogFile.Id, 2, 0, 0, Str1.Length, 0);
             await AssertChunk(Lfs, LogFile.Id, 2, 1, Str1.Length, 0, 1); // Last chunk have length zero as it's being written
@@ -161,9 +163,8 @@ namespace HordeServerTests
             Offset += Str2.Length;
             LineIndex += Str3.Count(f => f == '\n');
             LogFile = (await Lfs.WriteLogDataAsync(LogFile, Offset, LineIndex, Encoding.ASCII.GetBytes(Str3), false, MaxChunkLength))!;
-            await (Lfs as LogFileService)!.TickOnlyForTestingAsync();
-            await Task.Delay(2000);
-            Assert.AreEqual(Str1 + Str2 + Str3, await ReadLogFile(Lfs, LogFile, 0, Str1.Length + Str2.Length + Str3.Length));
+			await Clock.AdvanceAsync(TimeSpan.FromSeconds(2.0));
+			Assert.AreEqual(Str1 + Str2 + Str3, await ReadLogFile(Lfs, LogFile, 0, Str1.Length + Str2.Length + Str3.Length));
             //await AssertMetadata(Lfs, LogFile, Str1.Length + Str2.Length + Str3.Length, 8);
             // Since no flush has happened, chunks should be identical to last write
             await AssertChunk(Lfs, LogFile.Id, 2, 0, 0, Str1.Length, 0);
@@ -178,9 +179,8 @@ namespace HordeServerTests
             Offset += Str3.Length;
             LineIndex += Str4.Count(f => f == '\n');
             LogFile = (await Lfs.WriteLogDataAsync(LogFile, Offset, LineIndex, Encoding.ASCII.GetBytes(Str4), true, MaxChunkLength))!;
-            await (Lfs as LogFileService)!.TickOnlyForTestingAsync();
-            await Task.Delay(2000);
-            Assert.AreEqual(Str1 + Str2 + Str3 + Str4,
+			await Clock.AdvanceAsync(TimeSpan.FromSeconds(2.0));
+			Assert.AreEqual(Str1 + Str2 + Str3 + Str4,
                 await ReadLogFile(Lfs, LogFile, 0, Str1.Length + Str2.Length + Str3.Length + Str4.Length));
             Assert.AreEqual(Str3 + Str4,
                 await ReadLogFile(Lfs, LogFile, Str1.Length + Str2.Length, Str3.Length + Str4.Length));
@@ -210,10 +210,9 @@ namespace HordeServerTests
             // Dividing it in two like this will work however
             LogFile = (await Lfs.WriteLogDataAsync(LogFile, Offset, LineIndex, Encoding.ASCII.GetBytes(A), false, MaxChunkLength))!;
 			LogFile = (await Lfs.WriteLogDataAsync(LogFile, Offset + A.Length, LineIndex + 1, Encoding.ASCII.GetBytes(B), true, MaxChunkLength))!;
-            
-            await (Lfs as LogFileService)!.TickOnlyForTestingAsync();
-            await Task.Delay(2000);
-            await AssertMetadata(Lfs, LogFile, Str1.Length + Str2.Length + Str3.Length + Str4.Length + Str5.Length, 9);
+
+			await Clock.AdvanceAsync(TimeSpan.FromSeconds(2.0));
+			await AssertMetadata(Lfs, LogFile, Str1.Length + Str2.Length + Str3.Length + Str4.Length + Str5.Length, 9);
             await AssertChunk(Lfs, LogFile.Id, 4, 0, 0, Str1.Length, 0);
             await AssertChunk(Lfs, LogFile.Id, 4, 1, Str1.Length, Str2.Length + Str3.Length + Str4.Length, 1);
             await AssertChunk(Lfs, LogFile.Id, 4, 2, Offset, A.Length, 7);

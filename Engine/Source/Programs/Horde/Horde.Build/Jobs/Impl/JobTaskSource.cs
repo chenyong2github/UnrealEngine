@@ -42,7 +42,7 @@ namespace HordeServer.Tasks.Impl
 	/// <summary>
 	/// Background service to dispatch pending work to agents in priority order.
 	/// </summary>
-	public sealed class JobTaskSource : TaskSourceBase<ExecuteJobTask>, IDisposable
+	public sealed class JobTaskSource : TaskSourceBase<ExecuteJobTask>, IHostedService, IDisposable
 	{
 		/// <inheritdoc/>
 		public override string Type => "Job";
@@ -188,133 +188,49 @@ namespace HordeServer.Tasks.Impl
 			}
 		}
 
-		/// <summary>
-		/// The database service instance
-		/// </summary>
 		DatabaseService DatabaseService;
-
-		/// <summary>
-		/// The stream service instance
-		/// </summary>
 		StreamService StreamService;
-
-		/// <summary>
-		/// The log file service instance
-		/// </summary>
 		ILogFileService LogFileService;
-
-		/// <summary>
-		/// Collection of agent documents
-		/// </summary>
 		IAgentCollection AgentsCollection;
-
-		/// <summary>
-		/// Collection of job documents
-		/// </summary>
 		IJobCollection Jobs;
-
-		/// <summary>
-		/// Collection of jobstepref documents
-		/// </summary>
 		IJobStepRefCollection JobStepRefs;
-
-		/// <summary>
-		/// Collection of graph documents
-		/// </summary>
 		IGraphCollection Graphs;
-
-		/// <summary>
-		/// Collection of pool documents
-		/// </summary>
 		IPoolCollection PoolCollection;
-
-		/// <summary>
-		/// Collection of UGS metadata documents
-		/// </summary>
 		IUgsMetadataCollection UgsMetadataCollection;
-
-		/// <summary>
-		/// The Perforce load balancer
-		/// </summary>
 		PerforceLoadBalancer PerforceLoadBalancer;
-
-		/// <summary>
-		/// The application lifetime
-		/// </summary>
 		IHostApplicationLifetime ApplicationLifetime;
-
-		/// <summary>
-		/// Settings instance
-		/// </summary>
 		IOptionsMonitor<ServerSettings> Settings;
-
-		/// <summary>
-		/// Log writer
-		/// </summary>
 		ILogger<JobTaskSource> Logger;
+		ITicker Ticker;
 
-		/// <summary>
-		/// Object used for ensuring mutual exclusion to the queues
-		/// </summary>
+		// Object used for ensuring mutual exclusion to the queues
 		object LockObject = new object();
 
-		/// <summary>
-		/// List of items waiting to be executed
-		/// </summary>
+		// List of items waiting to be executed
 		SortedSet<QueueItem> Queue = new SortedSet<QueueItem>(new QueueItemComparer());
 
-		/// <summary>
-		/// Map from batch id to the corresponding queue item
-		/// </summary>
+		// Map from batch id to the corresponding queue item
 		Dictionary<(JobId, SubResourceId), QueueItem> BatchIdToQueueItem = new Dictionary<(JobId, SubResourceId), QueueItem>();
 
-		/// <summary>
-		/// Set of long-poll tasks waiting to be satisfied 
-		/// </summary>
+		// Set of long-poll tasks waiting to be satisfied 
 		HashSet<QueueWaiter> Waiters = new HashSet<QueueWaiter>();
 
-		/// <summary>
-		/// During a background queue refresh operation, any updated batches are added to this dictionary for merging into the updated queue.
-		/// </summary>
+		// During a background queue refresh operation, any updated batches are added to this dictionary for merging into the updated queue.
 		List<QueueItem>? NewQueueItemsDuringUpdate;
 
-		/// <summary>
-		/// Cache of pools
-		/// </summary>
+		// Cache of pools
 		Dictionary<PoolId, IPool> CachedPoolIdToInstance = new Dictionary<PoolId, IPool>();
 
-		/// <summary>
-		/// Cache of stream objects. Used to resolve agent types.
-		/// </summary>
+		// Cache of stream objects. Used to resolve agent types.
 		private Dictionary<StreamId, IStream> Streams = new Dictionary<StreamId, IStream>();
 
-		/// <summary>
-		/// Background tick registration
-		/// </summary>
-		BackgroundTick Ticker;
-
-		/// <summary>
-		/// Interval between querying the database for jobs to execute
-		/// </summary>
+		// Interval between querying the database for jobs to execute
 		static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(5.0);
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">The database service instance</param>
-		/// <param name="Agents">The agents collection</param>
-		/// <param name="Jobs">The jobs collection</param>
-		/// <param name="JobStepRefs">Collection of jobstepref documents</param>
-		/// <param name="Graphs">The graphs collection</param>
-		/// <param name="Pools">The pools collection</param>
-		/// <param name="UgsMetadataCollection">Ugs metadata collection</param>
-		/// <param name="StreamService">The stream service instance</param>
-		/// <param name="LogFileService">The log file service instance</param>
-		/// <param name="PerforceLoadBalancer">Perforce load balancer</param>
-		/// <param name="ApplicationLifetime">Application lifetime interface</param>
-		/// <param name="Settings">Settings for the server</param>
-		/// <param name="Logger">Log writer</param>
-		public JobTaskSource(DatabaseService DatabaseService, IAgentCollection Agents, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, IGraphCollection Graphs, IPoolCollection Pools, IUgsMetadataCollection UgsMetadataCollection, StreamService StreamService, ILogFileService LogFileService, PerforceLoadBalancer PerforceLoadBalancer, IHostApplicationLifetime ApplicationLifetime, IOptionsMonitor<ServerSettings> Settings, ILogger<JobTaskSource> Logger)
+		public JobTaskSource(DatabaseService DatabaseService, IAgentCollection Agents, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, IGraphCollection Graphs, IPoolCollection Pools, IUgsMetadataCollection UgsMetadataCollection, StreamService StreamService, ILogFileService LogFileService, PerforceLoadBalancer PerforceLoadBalancer, IHostApplicationLifetime ApplicationLifetime, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<JobTaskSource> Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.AgentsCollection = Agents;
@@ -327,7 +243,7 @@ namespace HordeServer.Tasks.Impl
 			this.LogFileService = LogFileService;
 			this.PerforceLoadBalancer = PerforceLoadBalancer;
 			this.ApplicationLifetime = ApplicationLifetime;
-			this.Ticker = new BackgroundTick(TickAsync, RefreshInterval, Logger);
+			this.Ticker = Clock.CreateTicker(RefreshInterval, TickAsync, Logger);
 			this.Settings = Settings;
 			this.Logger = Logger;
 
@@ -335,16 +251,13 @@ namespace HordeServer.Tasks.Impl
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask DisposeAsync()
-		{
-			await Ticker.DisposeAsync();
-		}
+		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
 
 		/// <inheritdoc/>
-		public void Dispose()
-		{
-			Ticker.Dispose();
-		}
+		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Ticker.Dispose();
 
 		/// <summary>
 		/// Gets an object containing the stats of the queue for diagnostic purposes.
@@ -392,7 +305,7 @@ namespace HordeServer.Tasks.Impl
 		/// </summary>
 		/// <param name="StoppingToken">Token that indicates that the service should shut down</param>
 		/// <returns>Async task</returns>
-		async Task TickAsync(CancellationToken StoppingToken)
+		async ValueTask TickAsync(CancellationToken StoppingToken)
 		{
 			// Set the NewBatchIdToQueueItem member, so we capture any updated jobs during the DB query.
 			lock (LockObject)

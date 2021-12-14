@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using HordeCommon;
 using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Utilities;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -17,45 +19,39 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Periodically updates pool documents to contain the correct workspaces
 	/// </summary>
-	public class PoolUpdateService : TickedBackgroundService
+	public sealed class PoolUpdateService : IHostedService, IDisposable
 	{
-		/// <summary>
-		/// Collection of pool documents
-		/// </summary>
 		IPoolCollection Pools;
-
-		/// <summary>
-		/// Collection of stream documents
-		/// </summary>
 		IStreamCollection Streams;
-
-		/// <summary>
-		/// The logger instance for this service
-		/// </summary>
 		ILogger<PoolService> Logger;
+		ITicker Ticker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Pools">Collection of pool documents</param>
-		/// <param name="Streams">Collection of stream documents</param>
-		/// <param name="Logger">Logger instance</param>
-		public PoolUpdateService(IPoolCollection Pools, IStreamCollection Streams, ILogger<PoolService> Logger)
-			: base(TimeSpan.FromSeconds(30.0), Logger)
+		public PoolUpdateService(IPoolCollection Pools, IStreamCollection Streams, IClock Clock, ILogger<PoolService> Logger)
 		{
 			this.Pools = Pools;
 			this.Streams = Streams;
 			this.Logger = Logger;
+			this.Ticker = Clock.CreateTicker(TimeSpan.FromSeconds(30.0), UpdatePoolsAsync, Logger);
 		}
 
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken CancellationToken) => Ticker.StartAsync();
 
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken CancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Ticker.Dispose();
 
 		/// <summary>
 		/// Execute the background task
 		/// </summary>
 		/// <param name="StoppingToken">Cancellation token for the async task</param>
 		/// <returns>Async task</returns>
-		protected override async Task TickAsync(CancellationToken StoppingToken)
+		async ValueTask UpdatePoolsAsync(CancellationToken StoppingToken)
 		{
 			// Capture the start time for this operation. We use this to attempt to sequence updates to agents, and prevent overriding another server's updates.
 			DateTime StartTime = DateTime.UtcNow;

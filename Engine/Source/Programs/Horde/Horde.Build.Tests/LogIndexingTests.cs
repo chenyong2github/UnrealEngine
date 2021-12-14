@@ -22,6 +22,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using HordeServer.Collections.Impl;
+using HordeCommon;
 
 namespace HordeServerTests
 {
@@ -49,7 +50,7 @@ namespace HordeServerTests
 
 			ILogBuilder LogBuilder = new LocalLogBuilder();
 			ILogStorage LogStorage = new LocalLogStorage(20, new NullLogStorage());
-			LogFileService = new LogFileService(LogFileCollection, null!, LogBuilder, LogStorage, Logger);
+			LogFileService = new LogFileService(LogFileCollection, null!, LogBuilder, LogStorage, new FakeClock(), Logger);
 		}
 
 		[TestMethod]

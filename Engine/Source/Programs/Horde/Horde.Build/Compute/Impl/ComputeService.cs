@@ -129,17 +129,16 @@ namespace HordeServer.Compute.Impl
 	/// <summary>
 	/// Dispatches remote actions. Does not implement any cross-pod communication to satisfy leases; only agents connected to this server instance will be stored.
 	/// </summary>
-	class ComputeService : TaskSourceBase<ComputeTaskMessage>, IComputeService, IDisposable
+	class ComputeService : TaskSourceBase<ComputeTaskMessage>, IComputeService, IHostedService, IDisposable
 	{
 		public override string Type => "Compute";
 
 		public static NamespaceId DefaultNamespaceId { get; } = new NamespaceId("default");
 
 		IObjectCollection ObjectCollection;
-		IPoolCollection PoolCollection;
 		ITaskScheduler<IoHash, ComputeTaskInfo> TaskScheduler;
 		RedisMessageQueue<ComputeTaskStatus> MessageQueue;
-		BackgroundTick ExpireTasksTicker;
+		ITicker ExpireTasksTicker;
 		IMemoryCache RequirementsCache;
 		LazyCachedValue<Task<List<IPool>>> CachedPools;
 		ILogger Logger;
@@ -147,17 +146,12 @@ namespace HordeServer.Compute.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Redis">Redis instance</param>
-		/// <param name="ObjectCollection"></param>
-		/// <param name="PoolCollection">Collection of pool documents</param>
-		/// <param name="Logger">The logger instance</param>
-		public ComputeService(IDatabase Redis, IObjectCollection ObjectCollection, IPoolCollection PoolCollection, ILogger<ComputeService> Logger)
+		public ComputeService(IDatabase Redis, IObjectCollection ObjectCollection, IPoolCollection PoolCollection, IClock Clock, ILogger<ComputeService> Logger)
 		{
 			this.ObjectCollection = ObjectCollection;
-			this.PoolCollection = PoolCollection;
 			this.TaskScheduler = new RedisTaskScheduler<IoHash, ComputeTaskInfo>(Redis, "compute/tasks/", Logger);
 			this.MessageQueue = new RedisMessageQueue<ComputeTaskStatus>(Redis, "compute/messages/");
-			this.ExpireTasksTicker = new BackgroundTick(ExpireTasksAsync, TimeSpan.FromMinutes(2.0), Logger);
+			this.ExpireTasksTicker = Clock.CreateTicker(TimeSpan.FromMinutes(2.0), ExpireTasksAsync, Logger);
 			this.RequirementsCache = new MemoryCache(new MemoryCacheOptions());
 			this.CachedPools = new LazyCachedValue<Task<List<IPool>>>(() => PoolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
 			this.Logger = Logger;
@@ -165,12 +159,18 @@ namespace HordeServer.Compute.Impl
 			OnLeaseStartedProperties.Add(x => x.Task);
 		}
 
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken Token) => ExpireTasksTicker.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken Token) => ExpireTasksTicker.StopAsync();
+
 		/// <summary>
 		/// Expire tasks that are in inactive queues (ie. no machines can execute them)
 		/// </summary>
 		/// <param name="CancellationToken"></param>
 		/// <returns></returns>
-		async Task ExpireTasksAsync(CancellationToken CancellationToken)
+		async ValueTask ExpireTasksAsync(CancellationToken CancellationToken)
 		{
 			List<IoHash> RequirementsHashes = await TaskScheduler.GetInactiveQueuesAsync();
 			foreach (IoHash RequirementsHash in RequirementsHashes)
