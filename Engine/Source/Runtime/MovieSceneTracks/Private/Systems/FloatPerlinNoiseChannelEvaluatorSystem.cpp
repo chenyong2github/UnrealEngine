@@ -53,7 +53,7 @@ UFloatPerlinNoiseChannelEvaluatorSystem::UFloatPerlinNoiseChannelEvaluatorSystem
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// Allow writing to all the possible channels
-		for (int32 i = 0; i < sizeof(BuiltInComponents->FloatResult); ++i)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->FloatResult); ++i)
 		{
 			DefineComponentProducer(UFloatPerlinNoiseChannelEvaluatorSystem::StaticClass(), BuiltInComponents->FloatResult[i]);
 		}
@@ -70,7 +70,7 @@ void UFloatPerlinNoiseChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& In
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
 
-	for (int32 i = 0; i < sizeof(BuiltInComponents->FloatResult); ++i)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->FloatResult); ++i)
 	{
 		FEntityTaskBuilder()
 			.Read(TrackComponents->FloatPerlinNoiseChannel)

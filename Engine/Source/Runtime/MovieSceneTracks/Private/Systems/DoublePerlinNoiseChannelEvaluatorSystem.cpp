@@ -53,7 +53,7 @@ UDoublePerlinNoiseChannelEvaluatorSystem::UDoublePerlinNoiseChannelEvaluatorSyst
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// Allow writing to all the possible channels
-		for (int32 i = 0; i < sizeof(BuiltInComponents->DoubleResult); ++i)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->DoubleResult); ++i)
 		{
 			DefineComponentProducer(UDoublePerlinNoiseChannelEvaluatorSystem::StaticClass(), BuiltInComponents->DoubleResult[i]);
 		}
@@ -70,7 +70,7 @@ void UDoublePerlinNoiseChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& I
 	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
 
-	for (int32 i = 0; i < sizeof(BuiltInComponents->DoubleResult); ++i)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(BuiltInComponents->DoubleResult); ++i)
 	{
 		FEntityTaskBuilder()
 			.Read(TrackComponents->DoublePerlinNoiseChannel)
