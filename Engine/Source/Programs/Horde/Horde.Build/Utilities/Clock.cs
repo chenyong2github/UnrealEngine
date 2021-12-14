@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Redis.Utility;
+using HordeServer.Services;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -44,7 +47,17 @@ namespace HordeCommon
 		/// <param name="TickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
 		/// <param name="Logger">Logger for error messages</param>
 		/// <returns>Handle to the event</returns>
-		ITicker CreateTicker(TimeSpan Interval, Func<CancellationToken, ValueTask<TimeSpan?>> TickAsync, ILogger Logger);
+		ITicker AddTicker(TimeSpan Interval, Func<CancellationToken, ValueTask<TimeSpan?>> TickAsync, ILogger Logger);
+
+		/// <summary>
+		/// Create a ticker shared between all server pods
+		/// </summary>
+		/// <param name="Name">Name of the event</param>
+		/// <param name="Interval">Time after which the event will trigger</param>
+		/// <param name="TickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
+		/// <param name="Logger">Logger for error messages</param>
+		/// <returns>New ticker instance</returns>
+		ITicker AddSharedTicker(string Name, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger);
 	}
 
 	/// <summary>
@@ -60,7 +73,7 @@ namespace HordeCommon
 		/// <param name="TickAsync">Trigger callback</param>
 		/// <param name="Logger">Logger for any error messages</param>
 		/// <returns>Handle to the event</returns>
-		public static ITicker CreateTicker(this IClock Clock, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger)
+		public static ITicker AddTicker(this IClock Clock, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger)
 		{
 			Func<CancellationToken, ValueTask<TimeSpan?>> WrappedTrigger = async Token =>
 			{
@@ -68,8 +81,18 @@ namespace HordeCommon
 				await TickAsync(Token);
 				return Interval - Timer.Elapsed;
 			};
-			return Clock.CreateTicker(Interval, WrappedTrigger, Logger);
+			return Clock.AddTicker(Interval, WrappedTrigger, Logger);
 		}
+
+		/// <summary>
+		/// Create a ticker shared between all server pods
+		/// </summary>
+		/// <param name="Clock">Clock to schedule the event on</param>
+		/// <param name="Interval">Time after which the event will trigger</param>
+		/// <param name="TickAsync">Callback for the tick. Returns the time interval until the next tick, or null to cancel the tick.</param>
+		/// <param name="Logger">Logger for error messages</param>
+		/// <returns>New ticker instance</returns>
+		public static ITicker AddSharedTicker<T>(this IClock Clock, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger) => Clock.AddSharedTicker(typeof(T).Name, Interval, TickAsync, Logger);
 	}
 
 	/// <summary>
@@ -151,22 +174,44 @@ namespace HordeCommon
 			}
 		}
 
+		RedisService Redis;
+
 		/// <inheritdoc/>
 		public DateTime UtcNow => DateTime.UtcNow;
 
 		/// <summary>
-		/// Create an event that will trigger after the given time for one agent in the cluster
+		/// Constructor
 		/// </summary>
-		/// <param name="Delay">Time after which the event will trigger</param>
-		/// <param name="TriggerAsync">Callback for the event triggering</param>
-		/// <param name="Logger">Logger for error messages</param>
-		/// <returns>Handle to the event</returns>
-		public ITicker CreateTicker(TimeSpan Delay, Func<CancellationToken, ValueTask<TimeSpan?>> TriggerAsync, ILogger Logger)
+		public Clock(RedisService Redis)
 		{
-			return new TickerImpl(Delay, TriggerAsync, Logger);
+			this.Redis = Redis;
+		}
+
+		/// <inheritdoc/>
+		public ITicker AddTicker(TimeSpan Delay, Func<CancellationToken, ValueTask<TimeSpan?>> TickAsync, ILogger Logger)
+		{
+			return new TickerImpl(Delay, TickAsync, Logger);
+		}
+
+		/// <inheritdoc/>
+		public ITicker AddSharedTicker(string Name, TimeSpan Delay, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger)
+		{
+			RedisKey Key = new RedisKey($"tick/{Name}");
+			return ClockExtensions.AddTicker(this, Delay / 4, Token => TriggerSharedAsync(Key, Delay, TickAsync, Token), Logger);
+		}
+
+		async ValueTask TriggerSharedAsync(RedisKey Key, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, CancellationToken CancellationToken)
+		{
+			using (RedisLock Lock = new RedisLock(Redis.Database, Key))
+			{
+				if (await Lock.AcquireAsync(Interval, false))
+				{
+					await TickAsync(CancellationToken);
+				}
+			}
 		}
 	}
-	
+
 	/// <summary>
 	/// Fake clock that doesn't advance by wall block time
 	/// Requires manual ticking to progress. Used in tests.
@@ -263,9 +308,15 @@ namespace HordeCommon
 		}
 
 		/// <inheritdoc/>
-		public ITicker CreateTicker(TimeSpan Interval, Func<CancellationToken, ValueTask<TimeSpan?>> TriggerAsync, ILogger Logger)
+		public ITicker AddTicker(TimeSpan Interval, Func<CancellationToken, ValueTask<TimeSpan?>> TickAsync, ILogger Logger)
 		{
-			return new TickerImpl(this, Interval, TriggerAsync);
+			return new TickerImpl(this, Interval, TickAsync);
+		}
+
+		/// <inheritdoc/>
+		public ITicker AddSharedTicker(string Name, TimeSpan Interval, Func<CancellationToken, ValueTask> TickAsync, ILogger Logger)
+		{
+			return AddTicker(Interval, async Token => { await TickAsync(Token); return Interval; }, Logger);
 		}
 	}
 }

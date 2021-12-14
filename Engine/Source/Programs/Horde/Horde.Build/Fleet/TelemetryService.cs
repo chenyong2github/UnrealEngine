@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Google.Protobuf.WellKnownTypes;
+using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Utilities;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
@@ -20,57 +22,43 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Service which updates telemetry periodically
 	/// </summary>
-	public class TelemetryService : ElectedBackgroundService
+	public sealed class TelemetryService : IHostedService, IDisposable
 	{
-		/// <summary>
-		/// Collection of telemetry documents
-		/// </summary>
 		ITelemetryCollection TelemetryCollection;
-
-		/// <summary>
-		/// Collection of agent documents
-		/// </summary>
 		IAgentCollection AgentCollection;
-
-		/// <summary>
-		/// Collection of lease documents
-		/// </summary>
 		ILeaseCollection LeaseCollection;
-
-		/// <summary>
-		/// Collection of pool documents
-		/// </summary>
 		IPoolCollection PoolCollection;
-
-		/// <summary>
-		/// Logger for diagnostic messages
-		/// </summary>
+		IClock Clock;
+		ITicker Tick;
 		ILogger Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService"></param>
-		/// <param name="TelemetryCollection"></param>
-		/// <param name="AgentCollection"></param>
-		/// <param name="LeaseCollection"></param>
-		/// <param name="PoolCollection"></param>
-		/// <param name="Logger"></param>
-		public TelemetryService(DatabaseService DatabaseService, ITelemetryCollection TelemetryCollection, IAgentCollection AgentCollection, ILeaseCollection LeaseCollection, IPoolCollection PoolCollection, ILogger<TelemetryService> Logger)
-			: base(DatabaseService, new ObjectId("600082cb9b822d7afee6f0d1"), Logger)
+		public TelemetryService(ITelemetryCollection TelemetryCollection, IAgentCollection AgentCollection, ILeaseCollection LeaseCollection, IPoolCollection PoolCollection, IClock Clock, ILogger<TelemetryService> Logger)
 		{
 			this.TelemetryCollection = TelemetryCollection;
 			this.AgentCollection = AgentCollection;
 			this.LeaseCollection = LeaseCollection;
 			this.PoolCollection = PoolCollection;
+			this.Clock = Clock;
+			this.Tick = Clock.AddSharedTicker<TelemetryService>(TimeSpan.FromMinutes(10.0), TickLeaderAsync, Logger);
 			this.Logger = Logger;
 		}
 
 		/// <inheritdoc/>
-		protected override async Task<DateTime> TickLeaderAsync(CancellationToken StoppingToken)
+		public Task StartAsync(CancellationToken CancellationToken) => Tick.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken CancellationToken) => Tick.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Tick.Dispose();
+
+		/// <inheritdoc/>
+		async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
 		{
-			DateTime CurrentTime = DateTime.UtcNow;
-			DateTime NextTickTime = CurrentTime + TimeSpan.FromMinutes(10.0);
+			DateTime CurrentTime = Clock.UtcNow;
 
 			// Find the last time that we need telemetry for
 			DateTime MaxTime = CurrentTime.Date + TimeSpan.FromHours(CurrentTime.Hour);
@@ -138,8 +126,6 @@ namespace HordeServer.Services
 
 				BucketMinTime = BucketMaxTime;
 			}
-
-			return NextTickTime;
 		}
 	}
 }

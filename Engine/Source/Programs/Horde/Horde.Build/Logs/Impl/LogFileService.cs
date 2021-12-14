@@ -507,7 +507,7 @@ namespace HordeServer.Services
 			this.LogFileCache = new MemoryCache(new MemoryCacheOptions());
 			this.Builder = Builder;
 			this.Storage = Storage;
-			this.Ticker = Clock.CreateTicker(TimeSpan.FromSeconds(30.0), TickAsync, Logger);
+			this.Ticker = Clock.AddTicker(TimeSpan.FromSeconds(30.0), TickAsync, Logger);
 			this.Logger = Logger;
 		}
 

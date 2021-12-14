@@ -34,7 +34,7 @@ namespace HordeServer.Services
 			this.Pools = Pools;
 			this.Streams = Streams;
 			this.Logger = Logger;
-			this.Ticker = Clock.CreateTicker(TimeSpan.FromSeconds(30.0), UpdatePoolsAsync, Logger);
+			this.Ticker = Clock.AddTicker(TimeSpan.FromSeconds(30.0), UpdatePoolsAsync, Logger);
 		}
 
 		/// <inheritdoc/>

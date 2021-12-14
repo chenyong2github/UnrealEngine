@@ -243,7 +243,7 @@ namespace HordeServer.Tasks.Impl
 			this.LogFileService = LogFileService;
 			this.PerforceLoadBalancer = PerforceLoadBalancer;
 			this.ApplicationLifetime = ApplicationLifetime;
-			this.Ticker = Clock.CreateTicker(RefreshInterval, TickAsync, Logger);
+			this.Ticker = Clock.AddTicker(RefreshInterval, TickAsync, Logger);
 			this.Settings = Settings;
 			this.Logger = Logger;
 

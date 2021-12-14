@@ -29,6 +29,7 @@ using EpicGames.Redis;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.IO;
+using HordeCommon;
 
 namespace HordeServer.Commits.Impl
 {
@@ -73,16 +74,15 @@ namespace HordeServer.Commits.Impl
 		IStreamCollection StreamCollection;
 		IPerforceService PerforceService;
 		IUserCollection UserCollection;
-		ISingletonDocument<Globals> GlobalsDocument;
 		ILogger<CommitService> Logger;
-		ElectedTick UpdateCommitsTicker;
+		ITicker UpdateCommitsTicker;
 
 		const int MaxBackgroundTasks = 2;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitService(IDatabase Redis, ICommitCollection CommitCollection, IBlobCollection BlobCollection, IObjectCollection ObjectCollection, IRefCollection RefCollection, IStreamCollection StreamCollection, IPerforceService PerforceService, IUserCollection UserCollection, DatabaseService DatabaseService, ILogger<CommitService> Logger)
+		public CommitService(IDatabase Redis, ICommitCollection CommitCollection, IBlobCollection BlobCollection, IObjectCollection ObjectCollection, IRefCollection RefCollection, IStreamCollection StreamCollection, IPerforceService PerforceService, IUserCollection UserCollection, IClock Clock, ILogger<CommitService> Logger)
 		{
 			this.Redis = Redis;
 			this.RedisDirtyStreams = new RedisSet<StreamId>(Redis, RedisBaseKey.Append("streams"));
@@ -95,23 +95,19 @@ namespace HordeServer.Commits.Impl
 			this.StreamCollection = StreamCollection;
 			this.PerforceService = PerforceService;
 			this.UserCollection = UserCollection;
-			this.GlobalsDocument = new SingletonDocument<Globals>(DatabaseService);
 			this.Logger = Logger;
-			this.UpdateCommitsTicker = new ElectedTick(DatabaseService, new ObjectId("60f866c49e7268f71803b6ef"), UpdateCommitsAsync, TimeSpan.FromSeconds(30.0), Logger);
+			this.UpdateCommitsTicker = Clock.AddSharedTicker<CommitService>(TimeSpan.FromSeconds(30.0), UpdateCommitsAsync, Logger);
 		}
 
 		/// <inheritdoc/>
-		public void Dispose()
-		{
-			UpdateCommitsTicker.Dispose();
-		}
+		public void Dispose() => UpdateCommitsTicker.Dispose();
 
 		/// <inheritdoc/>
 		public async Task StartAsync(CancellationToken CancellationToken)
 		{
 			if (EnableUpdates)
 			{
-				UpdateCommitsTicker.Start();
+				await UpdateCommitsTicker.StartAsync();
 				await StartTreeUpdatesAsync();
 			}
 		}
@@ -133,7 +129,7 @@ namespace HordeServer.Commits.Impl
 		/// </summary>
 		/// <param name="CancellationToken"></param>
 		/// <returns></returns>
-		async Task UpdateCommitsAsync(CancellationToken CancellationToken)
+		async ValueTask UpdateCommitsAsync(CancellationToken CancellationToken)
 		{
 			List<IStream> Streams = await StreamCollection.FindAllAsync();
 			foreach (IGrouping<string, IStream> Group in Streams.GroupBy(x => x.ClusterName, StringComparer.OrdinalIgnoreCase))

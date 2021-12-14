@@ -4,6 +4,7 @@ using HordeCommon;
 using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Utilities;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using System;
@@ -19,36 +20,40 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Service which checks the database for consistency and fixes up any errors
 	/// </summary>
-	class ConsistencyService : ElectedBackgroundService
+	class ConsistencyService : IHostedService, IDisposable
 	{
 		ISessionCollection SessionCollection;
 		ILeaseCollection LeaseCollection;
+		ITicker Ticker;
 		ILogger<ConsistencyService> Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">Database service</param>
-		/// <param name="SessionCollection"></param>
-		/// <param name="LeaseCollection"></param>
-		/// <param name="Logger">Logging device</param>
-		public ConsistencyService(DatabaseService DatabaseService, ISessionCollection SessionCollection, ILeaseCollection LeaseCollection, ILogger<ConsistencyService> Logger)
-			: base(DatabaseService, new ObjectId("5fdb9d9f39b1291512821ef8"), Logger)
+		public ConsistencyService(ISessionCollection SessionCollection, ILeaseCollection LeaseCollection, IClock Clock, ILogger<ConsistencyService> Logger)
 		{
 			this.SessionCollection = SessionCollection;
 			this.LeaseCollection = LeaseCollection;
+			this.Ticker = Clock.AddSharedTicker<ConsistencyService>(TimeSpan.FromMinutes(20.0), TickLeaderAsync, Logger);
 			this.Logger = Logger;
 		}
+
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Ticker.Dispose();
 
 		/// <summary>
 		/// Poll for inconsistencies in the database
 		/// </summary>
 		/// <param name="StoppingToken">Stopping token</param>
 		/// <returns>Async task</returns>
-		protected override async Task<DateTime> TickLeaderAsync(CancellationToken StoppingToken)
+		async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
 		{
-			DateTime NextTickTime = DateTime.UtcNow + TimeSpan.FromMinutes(20.0);
-
 			List<ISession> Sessions = await SessionCollection.FindActiveSessionsAsync();
 			Dictionary<SessionId, ISession> SessionIdToInstance = Sessions.ToDictionary(x => x.Id, x => x);
 
@@ -64,8 +69,6 @@ namespace HordeServer.Services
 					await LeaseCollection.TrySetOutcomeAsync(Lease.Id, FinishTime, LeaseOutcome.Cancelled, null);
 				}
 			}
-
-			return NextTickTime;
 		}
 	}
 }

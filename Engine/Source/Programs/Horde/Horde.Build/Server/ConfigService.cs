@@ -24,13 +24,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Reflection;
 
-using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 using System.Globalization;
 using HordeServer.Storage;
 using System.Text.Json.Serialization;
+using HordeCommon;
+using Microsoft.Extensions.Hosting;
 
 namespace HordeServer.Services
 {
+	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
 	using NamespaceId = StringId<INamespace>;
@@ -39,7 +41,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Polls Perforce for stream config changes
 	/// </summary>
-	public class ConfigService : ElectedBackgroundService
+	public sealed class ConfigService : IHostedService, IDisposable
 	{
 		const string FileScheme = "file";
 		const string PerforceScheme = "p4-cluster";
@@ -49,77 +51,23 @@ namespace HordeServer.Services
 		/// </summary>
 		const int Version = 5;
 
-		/// <summary>
-		/// Database service
-		/// </summary>
 		DatabaseService DatabaseService;
-
-		/// <summary>
-		/// Project service
-		/// </summary>
 		ProjectService ProjectService;
-
-		/// <summary>
-		/// Stream service
-		/// </summary>
 		StreamService StreamService;
-
-		/// <summary>
-		/// Instance of the perforce service
-		/// </summary>
 		IPerforceService PerforceService;
-
-		/// <summary>
-		/// Load balancer instance
-		/// </summary>
-		private PerforceLoadBalancer PerforceLoadBalancer;
-
-		/// <summary>
-		/// Instance of the notification service
-		/// </summary>
+		PerforceLoadBalancer PerforceLoadBalancer;
 		INotificationService NotificationService;
-
-		/// <summary>
-		/// The namespace collection
-		/// </summary>
 		INamespaceCollection NamespaceCollection;
-
-		/// <summary>
-		/// The bucket collection
-		/// </summary>
 		IBucketCollection BucketCollection;
-
-		/// <summary>
-		/// Singleton instance of the pool service
-		/// </summary>
-		private readonly PoolService PoolService;
-
-		/// <summary>
-		/// The server settings
-		/// </summary>
+		PoolService PoolService;
 		IOptionsMonitor<ServerSettings> Settings;
-
-		/// <summary>
-		/// Logging device
-		/// </summary>
+		ITicker Ticker;
 		ILogger Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService"></param>
-		/// <param name="PerforceService"></param>
-		/// <param name="PerforceLoadBalancer"></param>
-		/// <param name="ProjectService"></param>
-		/// <param name="StreamService"></param>
-		/// <param name="NotificationService"></param>
-		/// <param name="NamespaceCollection"></param>
-		/// <param name="BucketCollection"></param>
-		/// <param name="PoolService"></param>
-		/// <param name="Settings"></param>
-		/// <param name="Logger"></param>
-		public ConfigService(DatabaseService DatabaseService, IPerforceService PerforceService, ProjectService ProjectService, StreamService StreamService, INotificationService NotificationService, INamespaceCollection NamespaceCollection, IBucketCollection BucketCollection, PoolService PoolService, PerforceLoadBalancer PerforceLoadBalancer, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigService> Logger)
-			: base(DatabaseService, new ObjectId("5ff60549e7632b15e64ac2f7"), Logger)
+		public ConfigService(DatabaseService DatabaseService, IPerforceService PerforceService, ProjectService ProjectService, StreamService StreamService, INotificationService NotificationService, INamespaceCollection NamespaceCollection, IBucketCollection BucketCollection, PoolService PoolService, PerforceLoadBalancer PerforceLoadBalancer, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigService> Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.PerforceService = PerforceService;
@@ -131,11 +79,22 @@ namespace HordeServer.Services
 			this.BucketCollection = BucketCollection;
 			this.PoolService = PoolService;
 			this.Settings = Settings;
+			this.Ticker = Clock.AddSharedTicker<ConfigService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, Logger);
 			this.Logger = Logger;
 
 			// This will trigger if the local Horde.json user configuration is changed
 			this.Settings.OnChange(OnUserConfigUpdated);
 		}
+
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Ticker.Dispose();
+
 
 		GlobalConfig? CachedGlobalConfig;
 		string? CachedGlobalConfigRevision;
@@ -501,7 +460,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		protected override async Task<DateTime> TickLeaderAsync(CancellationToken StoppingToken)
+		async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
 		{
 
 			Uri? ConfigUri = null;
@@ -521,8 +480,6 @@ namespace HordeServer.Services
 			{
 				await UpdateConfigAsync(ConfigUri);
 			}
-		
-			return DateTime.UtcNow + TimeSpan.FromMinutes(1.0);
 		}
 
 		//

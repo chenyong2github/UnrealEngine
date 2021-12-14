@@ -25,6 +25,7 @@ using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
 using StatsdClient;
+using Microsoft.Extensions.Hosting;
 
 namespace HordeServer.Services
 {
@@ -33,7 +34,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Service for managing the autoscaling of agent pools
 	/// </summary>
-	public class AutoscaleService : ElectedBackgroundService
+	public sealed class AutoscaleService : IHostedService, IDisposable
 	{
 		const int NumSamples = 10;
 		const int NumSamplesForResult = 9;
@@ -97,27 +98,38 @@ namespace HordeServer.Services
 		ILeaseCollection LeaseCollection;
 		IFleetManager FleetManager;
 		IDogStatsd DogStatsd;
+		IClock Clock;
+		ITicker Ticker;
 		ILogger<AutoscaleService> Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AutoscaleService(DatabaseService DatabaseService, IAgentCollection AgentCollection, IPoolCollection PoolCollection, ILeaseCollection LeaseCollection, IFleetManager FleetManager, IDogStatsd DogStatsd, ILogger<AutoscaleService> Logger)
-			: base(DatabaseService, new ObjectId("5fdbadf968de915b2cac0d15"), Logger)
+		public AutoscaleService(IAgentCollection AgentCollection, IPoolCollection PoolCollection, ILeaseCollection LeaseCollection, IFleetManager FleetManager, IDogStatsd DogStatsd, IClock Clock, ILogger<AutoscaleService> Logger)
 		{
 			this.AgentCollection = AgentCollection;
 			this.PoolCollection = PoolCollection;
 			this.LeaseCollection = LeaseCollection;
 			this.FleetManager = FleetManager;
 			this.DogStatsd = DogStatsd;
+			this.Clock = Clock;
+			this.Ticker = Clock.AddSharedTicker<AutoscaleService>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, Logger);
 			this.Logger = Logger;
 		}
 
 		/// <inheritdoc/>
-		protected override async Task<DateTime> TickLeaderAsync(CancellationToken StoppingToken)
+		public Task StartAsync(CancellationToken CancellationToken) => Ticker.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken CancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Ticker.Dispose();
+
+		/// <inheritdoc/>
+		async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
 		{
-			DateTime UtcNow = DateTime.UtcNow;
-			DateTime NextTickTime = UtcNow + TimeSpan.FromMinutes(5.0);
+			DateTime UtcNow = Clock.UtcNow;
 
 			Logger.LogInformation("Autoscaling pools...");
 			Stopwatch Stopwatch = Stopwatch.StartNew();
@@ -129,7 +141,7 @@ namespace HordeServer.Services
 				List<IAgent> Agents = await AgentCollection.FindAsync(Status: AgentStatus.Ok);
 
 				// Query leases in last interval
-				DateTime MaxTime = DateTime.UtcNow;
+				DateTime MaxTime = Clock.UtcNow;
 				DateTime MinTime = MaxTime - (SampleTime * NumSamples);
 				List<ILease> Leases = await LeaseCollection.FindLeasesAsync(MinTime, MaxTime);
 
@@ -253,8 +265,6 @@ namespace HordeServer.Services
 			
 			Stopwatch.Stop();
 			Logger.LogInformation("Autoscaling pools took {ElapsedTime} ms", Stopwatch.ElapsedMilliseconds);
-			
-			return NextTickTime;
 		}
 
 		/// <summary>

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Google.Protobuf.WellKnownTypes;
+using HordeCommon;
 using HordeCommon.Rpc.Tasks;
 using HordeServer.Collections;
 using HordeServer.Models;
@@ -140,43 +141,28 @@ namespace HordeServer.Services
 		SingletonDocument<PerforceServerList> ServerListSingleton;
 		Random Random = new Random();
 		ILogger Logger;
-		ElectedTick Ticker;
-		Task InternalTickTask = Task.CompletedTask;
+		ITicker Ticker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService"></param>
-		/// <param name="LeaseCollection"></param>
-		/// <param name="Logger"></param>
-		public PerforceLoadBalancer(DatabaseService DatabaseService, ILeaseCollection LeaseCollection, ILogger<PerforceLoadBalancer> Logger)
+		public PerforceLoadBalancer(DatabaseService DatabaseService, ILeaseCollection LeaseCollection, IClock Clock, ILogger<PerforceLoadBalancer> Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.LeaseCollection = LeaseCollection;
 			this.ServerListSingleton = new SingletonDocument<PerforceServerList>(DatabaseService);
 			this.Logger = Logger;
-			this.Ticker = new ElectedTick(DatabaseService, new ObjectId("603fb20536e999974fd6ff6b"), TickAsync, TimeSpan.FromMinutes(1.0), Logger);
+			this.Ticker = Clock.AddSharedTicker<PerforceLoadBalancer>(TimeSpan.FromMinutes(1.0), TickInternalAsync, Logger);
 		}
 
 		/// <inheritdoc/>
-		public void Dispose()
-		{
-			Ticker.Dispose();
-		}
+		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken)
-		{
-			Ticker.Start();
-			return Task.CompletedTask;
-		}
+		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
 
 		/// <inheritdoc/>
-		public async Task StopAsync(CancellationToken cancellationToken)
-		{
-			await Ticker.StopAsync();
-			await InternalTickTask;
-		}
+		public void Dispose() => Ticker.Dispose();
 
 		/// <summary>
 		/// Get the current server list
@@ -327,30 +313,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		Task TickAsync(CancellationToken StoppingToken)
-		{
-			if (InternalTickTask.IsCompleted)
-			{
-				InternalTickTask = Task.Run(() => TickInternalGuardedAsync());
-			}
-			return Task.CompletedTask;
-		}
-
-		/// <inheritdoc/>
-		async Task TickInternalGuardedAsync()
-		{
-			try
-			{
-				await TickInternalAsync();
-			}
-			catch (Exception Ex)
-			{
-				Logger.LogError(Ex, "Error updating server state");
-			}
-		}
-
-		/// <inheritdoc/>
-		async Task TickInternalAsync()
+		async ValueTask TickInternalAsync(CancellationToken CancellationToken)
 		{
 			Globals Globals = await DatabaseService.GetGlobalsAsync();
 

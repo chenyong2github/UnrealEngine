@@ -64,7 +64,7 @@ namespace HordeServer.Services
 			// Ensure the initial value to be correct
 			TickAsync(CancellationToken.None).AsTask().Wait();
 
-			Ticker = Clock.CreateTicker(TimeSpan.FromMinutes(1.0), TickAsync, Logger);
+			Ticker = Clock.AddTicker(TimeSpan.FromMinutes(1.0), TickAsync, Logger);
 		}
 
 		/// <inheritdoc/>

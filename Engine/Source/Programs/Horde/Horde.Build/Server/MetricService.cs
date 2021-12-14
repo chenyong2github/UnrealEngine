@@ -25,7 +25,7 @@ namespace HordeServer.Services
 		public MetricService(IDogStatsd DogStatsd, IClock Clock, ILogger<MetricService> Logger)
 		{
 			this.DogStatsd = DogStatsd;
-			this.Ticker = Clock.CreateTicker(TimeSpan.FromSeconds(20.0), TickAsync, Logger);
+			this.Ticker = Clock.AddTicker(TimeSpan.FromSeconds(20.0), TickAsync, Logger);
 		}
 
 		/// <inheritdoc/>

@@ -17,6 +17,7 @@ using System.Diagnostics.CodeAnalysis;
 using HordeServer.Notifications;
 using System.Linq;
 using HordeServer.Api;
+using Microsoft.Extensions.Hosting;
 
 namespace HordeServer.Services
 {
@@ -88,7 +89,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Device management service
 	/// </summary>
-	public class DeviceService : TickedBackgroundService
+	public sealed class DeviceService : IHostedService, IDisposable
 	{
 		/// <summary>
 		/// The ACL service instance
@@ -99,7 +100,6 @@ namespace HordeServer.Services
 		/// Instance of the notification service
 		/// </summary>
 		INotificationService NotificationService;
-
 
 		/// <summary>
 		/// Singleton instance of the job service
@@ -126,6 +126,8 @@ namespace HordeServer.Services
 		/// </summary>
 		IDeviceCollection Devices;
 
+		ITicker Ticker;
+
 		/// <summary>
 		/// Platform map V1 singleton
 		/// </summary>
@@ -134,8 +136,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Device service constructor
 		/// </summary>
-		public DeviceService(IDeviceCollection Devices, ISingletonDocument<DevicePlatformMapV1> PlatformMapSingleton, JobService JobService, ProjectService ProjectService, StreamService StreamService, AclService AclService, INotificationService NotificationService, ILogger<DeviceService> Logger)
-			: base(TimeSpan.FromMinutes(1.0), Logger)
+		public DeviceService(IDeviceCollection Devices, ISingletonDocument<DevicePlatformMapV1> PlatformMapSingleton, JobService JobService, ProjectService ProjectService, StreamService StreamService, AclService AclService, INotificationService NotificationService, IClock Clock, ILogger<DeviceService> Logger)
 		{
 			this.Devices = Devices;
             this.JobService = JobService;
@@ -143,16 +144,26 @@ namespace HordeServer.Services
             this.StreamService = StreamService;
             this.AclService = AclService;
             this.NotificationService = NotificationService;
+			this.Ticker = Clock.AddSharedTicker<DeviceService>(TimeSpan.FromMinutes(1.0), TickAsync, Logger);
             this.Logger = Logger;
 			
 			this.PlatformMapSingleton = PlatformMapSingleton;
 
 		}
 
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Ticker.Dispose();
+
 		/// <summary>
 		/// Ticks service
 		/// </summary>
-		protected override async Task TickAsync(CancellationToken StoppingToken)
+		async ValueTask TickAsync(CancellationToken StoppingToken)
 		{
 
 			if (!StoppingToken.IsCancellationRequested)

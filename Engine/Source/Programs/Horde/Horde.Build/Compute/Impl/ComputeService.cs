@@ -151,7 +151,7 @@ namespace HordeServer.Compute.Impl
 			this.ObjectCollection = ObjectCollection;
 			this.TaskScheduler = new RedisTaskScheduler<IoHash, ComputeTaskInfo>(Redis, "compute/tasks/", Logger);
 			this.MessageQueue = new RedisMessageQueue<ComputeTaskStatus>(Redis, "compute/messages/");
-			this.ExpireTasksTicker = Clock.CreateTicker(TimeSpan.FromMinutes(2.0), ExpireTasksAsync, Logger);
+			this.ExpireTasksTicker = Clock.AddTicker(TimeSpan.FromMinutes(2.0), ExpireTasksAsync, Logger);
 			this.RequirementsCache = new MemoryCache(new MemoryCacheOptions());
 			this.CachedPools = new LazyCachedValue<Task<List<IPool>>>(() => PoolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
 			this.Logger = Logger;

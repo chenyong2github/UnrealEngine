@@ -130,7 +130,7 @@ namespace HordeServer.Services.Impl
 	/// <summary>
 	/// Wraps funtionality for manipulating build health issues
 	/// </summary>
-	public class IssueService : ElectedBackgroundService, IIssueService
+	public sealed class IssueService : IIssueService, IHostedService, IDisposable
 	{
 		/// <summary>
 		/// Maximum number of changes to query from Perforce in one go
@@ -145,6 +145,8 @@ namespace HordeServer.Services.Impl
 		IUserCollection UserCollection;
 		IPerforceService Perforce;
 		ILogFileService LogFileService;
+		IClock Clock;
+		ITicker Ticker;
 
 		/// <summary>
 		/// 
@@ -184,8 +186,7 @@ namespace HordeServer.Services.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssueService(DatabaseService DatabaseService, RedisService RedisService, IIssueCollection IssueCollection, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, StreamService Streams, IUserCollection UserCollection, IPerforceService Perforce, ILogFileService LogFileService, ILogger<IssueService> Logger)
-			: base(DatabaseService, ObjectId.Parse("609542152fb0794700a6c3df"), Logger)
+		public IssueService(RedisService RedisService, IIssueCollection IssueCollection, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, StreamService Streams, IUserCollection UserCollection, IPerforceService Perforce, ILogFileService LogFileService, IClock Clock, ILogger<IssueService> Logger)
 		{
 			this.RedisService = RedisService;
 
@@ -203,6 +204,8 @@ namespace HordeServer.Services.Impl
 			this.UserCollection = UserCollection;
 			this.Perforce = Perforce;
 			this.LogFileService = LogFileService;
+			this.Clock = Clock;
+			this.Ticker = Clock.AddSharedTicker<IssueService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, Logger);
 			this.Logger = Logger;
 
 			// Create all the issue factories
@@ -221,14 +224,23 @@ namespace HordeServer.Services.Impl
 			TypeToHandler = Matchers.ToDictionary(x => x.Type, x => x, StringComparer.Ordinal);
 		}
 
+		/// <inheritdoc/>
+		public Task StartAsync(CancellationToken cancellationToken) => Ticker.StartAsync();
+
+		/// <inheritdoc/>
+		public Task StopAsync(CancellationToken cancellationToken) => Ticker.StopAsync();
+
+		/// <inheritdoc/>
+		public void Dispose() => Ticker.Dispose();
+
 		/// <summary>
 		/// Periodically update the list of cached open issues
 		/// </summary>
 		/// <param name="StoppingToken">Token to indicate that the service should stop</param>
 		/// <returns>Async task</returns>
-		protected override async Task<DateTime> TickLeaderAsync(CancellationToken StoppingToken)
+		async ValueTask TickLeaderAsync(CancellationToken StoppingToken)
 		{
-			DateTime UtcNow = DateTime.UtcNow;
+			DateTime UtcNow = Clock.UtcNow;
 
 			Dictionary<StreamId, HashSet<TemplateRefId>> NewCachedDesktopAlerts = new Dictionary<StreamId, HashSet<TemplateRefId>>();
 
@@ -263,8 +275,6 @@ namespace HordeServer.Services.Impl
 				NewCachedOpenIssues.Add(await GetIssueDetailsAsync(OpenIssue));
 			}
 			CachedIssues = NewCachedOpenIssues;
-
-			return UtcNow + TimeSpan.FromMinutes(1.0);
 		}
 
 		/// <inheritdoc/>

@@ -89,7 +89,7 @@ namespace HordeServer.Services
 			this.TaskSources = TaskSources.ToArray();
 			this.ApplicationLifetime = ApplicationLifetime;
 			this.Clock = Clock;
-			this.Ticker = Clock.CreateTicker(TimeSpan.FromSeconds(30.0), TickAsync, Logger);
+			this.Ticker = Clock.AddTicker(TimeSpan.FromSeconds(30.0), TickAsync, Logger);
 			this.Logger = Logger;
 
 			Subscription = Agents.SubscribeToUpdateEventsAsync(OnAgentUpdate).Result;
