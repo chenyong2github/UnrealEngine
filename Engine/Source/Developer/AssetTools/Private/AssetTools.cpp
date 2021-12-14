@@ -632,7 +632,7 @@ UObject* UAssetToolsImpl::PerformDuplicateAsset(const FString& AssetName, const 
 		return nullptr;
 	}
 
-	const FString PackageName = PackagePath + TEXT("/") + AssetName;
+	const FString PackageName = PackagePath / AssetName;
 
 	// Make sure we can create the asset without conflicts
 	if ( !CanCreateAsset(AssetName, PackageName, LOCTEXT("DuplicateAnObject", "Duplicate an object")) )
