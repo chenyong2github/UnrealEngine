@@ -13,16 +13,26 @@
 UENUM()
 enum class ENeuralDataType : uint8
 {
-	Float, /* 32-bit floating number. */
-	//Double, /* 64-bit floating number. */
-	//Int8, /* 8-bit signed integer. */
-	//Int16, /* 16-bit signed integer. */
-	Int32, /* 32-bit signed integer. */
-	Int64, /* 64-bit signed integer. */
-	//UInt8, /* 8-bit unsigned integer. */
-	UInt32, /* 32-bit unsigned integer. */
-	UInt64, /* 64-bit unsigned integer. */
-	None /* To be used in special cases, e.g., if the data type is unknown yet. */
+	/** 32-bit floating number. */
+	Float,
+	/** 64-bit floating number. */
+	//Double,
+	/** 8-bit signed integer. */
+	//Int8,
+	/** 16-bit signed integer. */
+	//Int16,
+	/** 32-bit signed integer. */
+	Int32,
+	/** 64-bit signed integer. */
+	Int64,
+	/** 8-bit unsigned integer. */
+	//UInt8,
+	/** 32-bit unsigned integer. */
+	UInt32,
+	/** 64-bit unsigned integer. */
+	UInt64,
+	/** To be used in special cases, e.g., if the data type is unknown yet. */
+	None
 };
 
 /**
@@ -31,8 +41,10 @@ enum class ENeuralDataType : uint8
 UENUM()
 enum class ENeuralDeviceType : uint8
 {
-	CPU, /* The operation will occur on the CPU. */
-	GPU /* The operation will occur on the GPU. */
+	/** The operation will occur on the CPU. */
+	CPU,
+	/** The operation will occur on the GPU. */
+	GPU
 };
 
 /**

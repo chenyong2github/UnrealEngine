@@ -69,17 +69,23 @@ private:
 	TUniquePtr<Ort::Session> Session;
 	TUniquePtr<Ort::AllocatorWithDefaultOptions> Allocator;
 	TUniquePtr<Ort::SessionOptions> SessionOptions;
-	/** Tensor-related variables */
-	TUniquePtr<Ort::MemoryInfo> AllocatorInfo; /* Memory allocator information */
+	/** Tensor-related variable: Memory allocator information */
+	TUniquePtr<Ort::MemoryInfo> AllocatorInfo;
 #ifdef PLATFORM_WIN64
 	const OrtDmlApi* DmlApi;
-	TUniquePtr<Ort::MemoryInfo> DmlGPUMemoryInfo; /* DirectML GPU memory information */
-	TArray<void*> DmlGPUResources; /* Shared D3D12 resources with DirectML GPU execution provider */
+	/** DirectML GPU memory information */
+	TUniquePtr<Ort::MemoryInfo> DmlGPUMemoryInfo;
+	/** Shared D3D12 resources with DirectML GPU execution provider */
+	TArray<void*> DmlGPUResources;
 #endif
-	TArray<Ort::Value> InputOrtTensors; /* Actual ONNXRuntime tensors */
-	TArray<const char*> InputTensorNames; /* Tensor names */
-	TArray<Ort::Value> OutputOrtTensors; /* Actual ONNXRuntime tensors */
-	TArray<const char*> OutputTensorNames; /* Tensor names */
+	/** Actual ONNXRuntime tensors */
+	TArray<Ort::Value> InputOrtTensors;
+	/** Tensor names */
+	TArray<const char*> InputTensorNames;
+	/** Actual ONNXRuntime tensors */
+	TArray<Ort::Value> OutputOrtTensors;
+	/** Tensor names */
+	TArray<const char*> OutputTensorNames;
 	
 	// Helper class to run session as an async task
 	class FNeuralNetworkAsyncTask : public FNonAbandonableTask

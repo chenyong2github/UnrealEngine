@@ -11,10 +11,14 @@ class NEURALNETWORKINFERENCE_API FConvBaseOperator : public FNeuralOperator
 public:
 	enum class EAutoPad : uint8
 	{
-		NotSet, /* Explicit padding is used */
-		SameUpper, /* Auto-padding the input so that input and output match in size (if odd number, extra padding at the beginning) */
-		SameLower, /* Auto-padding the input so that input and output match in size (if odd number, extra padding at the end) */
-		Valid /* No padding is used */
+		/** Explicit padding is used */
+		NotSet,
+		/** Auto-padding the input so that input and output match in size (if odd number, extra padding at the beginning) */
+		SameUpper,
+		/** Auto-padding the input so that input and output match in size (if odd number, extra padding at the end) */
+		SameLower,
+		/** No padding is used */
+		Valid
 	};
 
 	virtual ~FConvBaseOperator();
