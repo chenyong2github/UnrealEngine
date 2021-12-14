@@ -85,7 +85,10 @@ void UDisplayClusterICVFXCameraComponent::OnRegister()
 
 #if WITH_EDITORONLY_DATA
 	// disable frustum for icvfx camera component
-	DrawFrustum->bFrustumEnabled = false;
+	if (DrawFrustum != nullptr)
+	{
+		DrawFrustum->bFrustumEnabled = false;
+	}
 
 	// Update ExternalCineactor behaviour
 	UpdateICVFXPreviewState();
