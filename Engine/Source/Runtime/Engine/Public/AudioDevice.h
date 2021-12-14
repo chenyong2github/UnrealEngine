@@ -1331,6 +1331,20 @@ public:
 		return false;
 	}
 
+	bool IsSourceDataOverridePluginEnabled() const
+	{
+		return bSourceDataOverrideInterfaceEnabled;
+	}
+
+	static bool IsSourceDataOverridePluginLoaded()
+	{
+		if (FAudioDeviceHandle MainAudioDevice = GEngine->GetMainAudioDevice())
+		{
+			return MainAudioDevice->bSourceDataOverrideInterfaceEnabled;
+		}
+		return false;
+	}
+
 	/** Returns if this is the multi-platform audio mixer. */
 	bool IsAudioMixerEnabled() const
 	{
@@ -2086,6 +2100,7 @@ private:
 	uint8 bSpatializationInterfaceEnabled:1;
 	uint8 bOcclusionInterfaceEnabled:1;
 	uint8 bReverbInterfaceEnabled:1;
+	uint8 bSourceDataOverrideInterfaceEnabled:1;
 	uint8 bModulationInterfaceEnabled:1;
 
 	/** Whether or not we've initialized plugin listeners array. */

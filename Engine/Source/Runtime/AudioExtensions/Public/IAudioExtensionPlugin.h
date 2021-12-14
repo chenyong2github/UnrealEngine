@@ -367,6 +367,14 @@ public:
 	}
 };
 
+
+/** This is a class which should be overridden to provide users with settings to use for individual sounds */
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
+class AUDIOEXTENSIONS_API USourceDataOverridePluginSourceSettingsBase : public UObject
+{
+	GENERATED_BODY()
+};
+
 /************************************************************************/
 /* IAudioSourceDataOverrideFactory										*/
 /* Implement this modular feature to make your SourceDataOverride plugin*/
@@ -395,6 +403,14 @@ public:
 	}
 	/* End IAudioPluginWithMetadata implementation */
 
+		/**
+	* @return the UClass type of your settings for source data overrides. This allows us to only pass in user settings for your plugin.
+	*/
+	virtual UClass* GetCustomSourceDataOverrideSettingsClass() const
+	{
+		return nullptr;
+	}
+
 	/**
 	* @return a new instance of your source data override plugin, owned by a shared pointer.
 	*/
@@ -417,7 +433,7 @@ public:
 	}
 
 	/** Called when a source is assigned to a voice. */
-	virtual void OnInitSource(const uint32 SourceId)
+	virtual void OnInitSource(const uint32 SourceId, const FName& AudioComponentUserId, USourceDataOverridePluginSourceSettingsBase* InSettings)
 	{
 	}
 

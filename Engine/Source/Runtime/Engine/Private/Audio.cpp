@@ -154,7 +154,10 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 
 		case EAudioPlugin::SOURCEDATAOVERRIDE:
 		{
-			return nullptr;
+			if (IAudioSourceDataOverrideFactory* Factory = AudioPluginUtilities::GetDesiredSourceDataOverridePlugin())
+			{
+				return Factory->GetCustomSourceDataOverrideSettingsClass();
+			}		
 		}
 		break;
 
@@ -810,6 +813,7 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, SpatializationPluginSettings(nullptr)
 	, OcclusionPluginSettings(nullptr)
 	, ReverbPluginSettings(nullptr)
+	, SourceDataOverridePluginSettings(nullptr)
 	, OutputTarget(EAudioOutputTarget::Speaker)
 	, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
 	, SoundClassFilterFrequency(MAX_FILTER_FREQUENCY)
@@ -969,6 +973,16 @@ float FWaveInstance::GetActualVolume() const
 float FWaveInstance::GetDistanceAndOcclusionAttenuation() const
 {
 	return DistanceAttenuation * OcclusionAttenuation;
+}
+
+float FWaveInstance::GetDistanceAttenuation() const
+{
+	return DistanceAttenuation;
+}
+
+float FWaveInstance::GetOcclusionAttenuation() const
+{
+	return OcclusionAttenuation;
 }
 
 float FWaveInstance::GetDynamicVolume() const

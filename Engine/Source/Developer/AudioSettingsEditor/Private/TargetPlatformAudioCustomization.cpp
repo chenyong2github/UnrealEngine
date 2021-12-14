@@ -306,7 +306,7 @@ void FAudioPluginWidgetManager::BuildAudioCategory(IDetailLayoutBuilder& DetailL
 			MakeAudioPluginSelectorWidget(AudioOcclusionPropertyHandle, EAudioPlugin::OCCLUSION, PlatformName)
 		];
 		
-		TSharedPtr<IPropertyHandle> AudioPropagationPropertyHandle = DetailLayout.GetProperty("PropagationPlugin", ClassOuterMost);
+		TSharedPtr<IPropertyHandle> AudioPropagationPropertyHandle = DetailLayout.GetProperty("SourceDataOverridePlugin", ClassOuterMost);
 		IDetailPropertyRow& AudioPropagationPropertyRow = AudioCategory.AddProperty(AudioPropagationPropertyHandle);
 
 		AudioPropagationPropertyRow.CustomWidget()

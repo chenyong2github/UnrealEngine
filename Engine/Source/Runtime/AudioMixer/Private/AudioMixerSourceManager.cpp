@@ -271,6 +271,7 @@ namespace Audio
 			SourceInfo.bUseHRTFSpatializer = false;
 			SourceInfo.bUseOcclusionPlugin = false;
 			SourceInfo.bUseReverbPlugin = false;
+			SourceInfo.bUseSourceDataOverridePlugin = false;
 			SourceInfo.bHasStarted = false;
 			SourceInfo.bEnableBusSends = false;
 			SourceInfo.bEnableBaseSubmix = false;
@@ -533,6 +534,11 @@ namespace Audio
 			MixerDevice->ReverbPluginInterface->OnReleaseSource(SourceId);
 		}
 
+		if (SourceInfo.bUseSourceDataOverridePlugin)
+		{
+			MixerDevice->SourceDataOverridePluginInterface->OnReleaseSource(SourceId);
+		}
+
 		// Delete the source effects
 		SourceInfo.SourceEffectChainId = INDEX_NONE;
 		ResetSourceEffectChain(SourceId);
@@ -596,6 +602,7 @@ namespace Audio
 		SourceInfo.bIsExternalSend = false;
 		SourceInfo.bUseOcclusionPlugin = false;
 		SourceInfo.bUseReverbPlugin = false;
+		SourceInfo.bUseSourceDataOverridePlugin = false;
 		SourceInfo.bHasStarted = false;
 		SourceInfo.bEnableBusSends = false;
 		SourceInfo.bEnableBaseSubmix = false;
@@ -853,6 +860,12 @@ namespace Audio
 			// Optional Source Buffer listener.
 			SourceInfo.SourceBufferListener = InitParams.SourceBufferListener;
 			SourceInfo.bShouldSourceBufferListenerZeroBuffer = InitParams.bShouldSourceBufferListenerZeroBuffer;
+
+			if (InitParams.SourceDataOverridePluginSettings != nullptr)
+			{
+				MixerDevice->SourceDataOverridePluginInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.SourceDataOverridePluginSettings);
+				SourceInfo.bUseSourceDataOverridePlugin = true;
+			}
 
 			// Default all sounds to not consider effect chain tails when playing
 			SourceInfo.bEffectTailsDone = true;

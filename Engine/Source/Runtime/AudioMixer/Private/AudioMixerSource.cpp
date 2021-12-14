@@ -570,6 +570,9 @@ namespace Audio
 			// Grab the source's reverb plugin settings
 			InitParams.ReverbPluginSettings = UseReverbPlugin() ? WaveInstance->ReverbPluginSettings : nullptr;
 
+			// Grab the source's source data override plugin settings
+			InitParams.SourceDataOverridePluginSettings = UseSourceDataOverridePlugin() ? WaveInstance->SourceDataOverridePluginSettings : nullptr;
+
 			// Update the buffer sample rate to the wave instance sample rate in case it was serialized incorrectly
 			MixerBuffer->InitSampleRate(WaveData->GetSampleRateForCurrentPlatform());
 
@@ -613,7 +616,7 @@ namespace Audio
 				if (AudioDevice->SourceDataOverridePluginInterface)
 				{
 					uint32 SourceId = MixerSourceVoice->GetSourceId();
-					AudioDevice->SourceDataOverridePluginInterface->OnInitSource(SourceId);
+					AudioDevice->SourceDataOverridePluginInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.SourceDataOverridePluginSettings);
 				}
 
 				InitializationState = EMixerSourceInitializationState::Initialized;
@@ -758,7 +761,7 @@ namespace Audio
 		++TickCount;
 
 		// Allow plugins to override any data in a waveinstance
-		if (AudioDevice->SourceDataOverridePluginInterface)
+		if (AudioDevice->SourceDataOverridePluginInterface && WaveInstance->bEnableSourceDataOverride)
 		{
 			uint32 SourceId = MixerSourceVoice->GetSourceId();
 			int32 ListenerIndex = WaveInstance->ActiveSound->GetClosestListenerIndex();
@@ -1745,5 +1748,12 @@ namespace Audio
 		return (Buffer->NumChannels == 1 || Buffer->NumChannels == 2) &&
 			AudioDevice->IsReverbPluginEnabled() &&
 			WaveInstance->ReverbPluginSettings != nullptr;
+	}
+
+	bool FMixerSource::UseSourceDataOverridePlugin() const
+	{
+		return (Buffer->NumChannels == 1 || Buffer->NumChannels == 2) &&
+			AudioDevice->IsSourceDataOverridePluginEnabled() &&
+			WaveInstance->SourceDataOverridePluginSettings != nullptr;
 	}
 }

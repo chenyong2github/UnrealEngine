@@ -274,6 +274,9 @@ public:
 	/** Whether or not to enable Submix Sends in addition to the Main Submix*/
 	uint32 bEnableSubmixSends : 1;
 
+	/** Whether or not to use source data overrides */
+	uint32 bEnableSourceDataOverride : 1;
+
 	/** Set to true if the sound nodes state that the radio filter should be applied */
 	uint32 bApplyRadioFilter:1;
 
@@ -335,6 +338,9 @@ public:
 
 	/** The occlusion plugin settings to use for the wave instance. */
 	UReverbPluginSourceSettingsBase* ReverbPluginSettings;
+
+	/** The source data override plugin settings to use for the wave instance. */
+	USourceDataOverridePluginSourceSettingsBase* SourceDataOverridePluginSettings;
 
 	/** Which output target the sound should play on. */
 	EAudioOutputTarget::Type OutputTarget;
@@ -447,8 +453,14 @@ public:
 	/** Returns the volume of the sound including distance attenuation. */
 	float GetVolumeWithDistanceAndOcclusionAttenuation() const;
 
-	/** Returns the distance attenuation of the source voice. */
+	/** Returns the combined distance and occlusion attenuation of the source voice. */
 	float GetDistanceAndOcclusionAttenuation() const;
+
+	/** Returns the distance attenuation of the source voice */
+	float GetDistanceAttenuation() const;
+
+	/** Returns the occlusion attenuation of the source voice */
+	float GetOcclusionAttenuation() const;
 
 	/** Returns the dynamic volume of the sound */
 	float GetDynamicVolume() const;

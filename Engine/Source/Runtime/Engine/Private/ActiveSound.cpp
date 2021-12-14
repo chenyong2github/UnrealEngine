@@ -1742,6 +1742,22 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		}
 	}
 
+	if (Settings->PluginSettings.SourceDataOverridePluginSettingsArray.Num() > 0)
+	{
+		UClass* PluginClass = GetAudioPluginCustomSettingsClass(EAudioPlugin::SOURCEDATAOVERRIDE);
+		if (PluginClass)
+		{
+			for (USourceDataOverridePluginSourceSettingsBase* SettingsBase : Settings->PluginSettings.SourceDataOverridePluginSettingsArray)
+			{
+				if (SettingsBase != nullptr && SettingsBase->IsA(PluginClass))
+				{
+					ParseParams.SourceDataOverridePluginSettings = SettingsBase;
+					break;
+				}
+			}
+		}
+	}
+
 	// Attenuate with the absorption filter if necessary
 	if (Settings->bAttenuateWithLPF)
 	{
@@ -1768,6 +1784,7 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 	ParseParams.StereoSpread = Settings->StereoSpread;
 	ParseParams.bApplyNormalizationToStereoSounds = Settings->bApplyNormalizationToStereoSounds;
 	ParseParams.bUseSpatialization |= Settings->bSpatialize;
+	ParseParams.bEnableSourceDataOverride |= Settings->bEnableSourceDataOverride;
 
 	// Check the binaural radius to determine if we're going to HRTF spatialize
 	if (ListenerData.ListenerToSoundDistance < Settings->BinauralRadius)
