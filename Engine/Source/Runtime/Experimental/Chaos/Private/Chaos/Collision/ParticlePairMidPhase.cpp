@@ -17,6 +17,9 @@ namespace Chaos
 {
 	namespace CVars
 	{
+		bool bChaos_Collision_MidPhase_EnableBoundsChecks = true;
+		FAutoConsoleVariableRef CVarChaos_Collision_EnableBoundsChecks(TEXT("p.Chaos.Collision.EnableBoundsChecks"), bChaos_Collision_MidPhase_EnableBoundsChecks, TEXT(""));
+
 		bool bChaos_Collision_EnableManifoldRestore = true;
 		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_NoContact_Position = 0.005f;	// About 0.5cm for a meter cube
 		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_NoContact_Rotation = 0.1f;		// About 10deg
@@ -124,12 +127,12 @@ namespace Chaos
 		const bool bIsSphere0 = (ImplicitType0 == ImplicitObjectType::Sphere);
 		const bool bIsSphere1 = (ImplicitType1 == ImplicitObjectType::Sphere);
 
-		bEnableAABBCheck = !bIsSphere0 || !bIsSphere1;
-		bEnableOBBCheck0 = Chaos_Collision_NarrowPhase_AABBBoundsCheck && !bIsSphere0;
-		bEnableOBBCheck1 = Chaos_Collision_NarrowPhase_AABBBoundsCheck && !bIsSphere1;
+		bEnableAABBCheck = bChaos_Collision_MidPhase_EnableBoundsChecks && (!bIsSphere0 || !bIsSphere1);
+		bEnableOBBCheck0 = bChaos_Collision_MidPhase_EnableBoundsChecks && !bIsSphere0;
+		bEnableOBBCheck1 = bChaos_Collision_MidPhase_EnableBoundsChecks && !bIsSphere1;
 		bEnableManifoldCheck = bChaos_Collision_EnableManifoldUpdate && !bIsSphere0 && !bIsSphere1;
 
-		if (bIsSphere0 && bIsSphere1)
+		if (bIsSphere0 && bIsSphere1 && bChaos_Collision_MidPhase_EnableBoundsChecks)
 		{
 			SphereBoundsCheckSize = Shape0->GetLeafGeometry()->GetMargin() + Shape1->GetLeafGeometry()->GetMargin();
 		}
