@@ -10,6 +10,8 @@
 #include "UVToolContextObjects.h"
 #include "ContextObjectStore.h"
 #include "MeshOpPreviewHelpers.h"
+#include "UVEditorToolAnalyticsUtils.h"
+#include "EngineAnalytics.h"
 
 using namespace UE::Geometry;
 
@@ -41,6 +43,8 @@ UInteractiveTool* UUVEditorRecomputeUVsToolBuilder::BuildTool(const FToolBuilder
 
 void UUVEditorRecomputeUVsTool::Setup()
 {
+	ToolStartTimeAnalytics = FDateTime::UtcNow();
+	
 	UInteractiveTool::Setup();
 
 	// initialize our properties
@@ -82,6 +86,9 @@ void UUVEditorRecomputeUVsTool::Setup()
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool_Regions", "Generate UVs for PolyGroups or existing UV islands of the mesh using various strategies."),
 		EToolMessageLevel::UserNotification);
+	
+	// Analytics
+	InputTargetAnalytics = UVEditorAnalytics::CollectTargetAnalytics(Targets);
 }
 
 
@@ -128,6 +135,9 @@ void UUVEditorRecomputeUVsTool::Shutdown(EToolShutdownType ShutdownType)
 		}
 
 		ChangeAPI->EndUndoTransaction();
+
+		// Analytics
+		RecordAnalytics();
 	}
 	else
 	{
@@ -148,6 +158,14 @@ void UUVEditorRecomputeUVsTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 	Settings = nullptr;
 	Targets.Empty();
+}
+
+void UUVEditorRecomputeUVsTool::OnTick(float DeltaTime)
+{
+	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+	{
+		Target->AppliedPreview->Tick(DeltaTime);
+	}
 }
 
 void UUVEditorRecomputeUVsTool::Render(IToolsContextRenderAPI* RenderAPI)
@@ -195,5 +213,75 @@ void UUVEditorRecomputeUVsTool::UpdateActiveGroupLayer()
 	}
 }
 
+
+void UUVEditorRecomputeUVsTool::RecordAnalytics()
+{
+	using namespace UVEditorAnalytics;
+	
+	if (!FEngineAnalytics::IsAvailable())
+	{
+		return;
+	}
+
+	TArray<FAnalyticsEventAttribute> Attributes;
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Timestamp"), FDateTime::UtcNow().ToString()));
+
+	// Tool inputs
+	InputTargetAnalytics.AppendToAttributes(Attributes, "Input");
+
+	// Tool outputs	
+	const FTargetAnalytics OutputTargetAnalytics = CollectTargetAnalytics(Targets);
+	OutputTargetAnalytics.AppendToAttributes(Attributes, "Output");
+	
+	// Tool stats
+	if (CanAccept())
+	{
+		TArray<double> PerAssetValidResultComputeTimes;
+		for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+		{
+			// Note: This would log -1 if the result was invalid, but checking CanAccept above ensures results are valid
+			PerAssetValidResultComputeTimes.Add(Target->AppliedPreview->GetValidResultComputeTime());
+		}
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.PerAsset.ComputeTimeSeconds"), PerAssetValidResultComputeTimes));
+	}
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.ToolActiveDuration"), (FDateTime::UtcNow() - ToolStartTimeAnalytics).ToString()));
+	
+	// Tool settings chosen by the user (Volatile! Sync with EditCondition meta-tags in URecomputeUVsToolProperties)
+	
+	Attributes.Add(AnalyticsEventAttributeEnum(TEXT("Settings.IslandGeneration"), Settings->IslandGeneration));
+	Attributes.Add(AnalyticsEventAttributeEnum(TEXT("Settings.AutoRotation"), Settings->AutoRotation));
+	
+	Attributes.Add(AnalyticsEventAttributeEnum(TEXT("Settings.UnwrapType"), Settings->UnwrapType));
+	if (Settings->UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging || Settings->UnwrapType == ERecomputeUVsPropertiesUnwrapType::ExpMap)
+	{
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.SmoothingSteps"), Settings->SmoothingSteps));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.SmoothingAlpha"), Settings->SmoothingAlpha));
+	}
+	if (Settings->UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging)
+	{
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MergingDistortionLimit"), Settings->MergingDistortionLimit));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MergingAngleLimit"), Settings->MergingAngleLimit));
+	}
+	
+	Attributes.Add(AnalyticsEventAttributeEnum(TEXT("Settings.LayoutType"), Settings->LayoutType));
+	if (Settings->LayoutType == ERecomputeUVsPropertiesLayoutType::Repack)
+	{
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.TextureResolution"), Settings->TextureResolution));
+	}
+	if (Settings->LayoutType == ERecomputeUVsPropertiesLayoutType::NormalizeToBounds || Settings->LayoutType == ERecomputeUVsPropertiesLayoutType::NormalizeToWorld)
+	{
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.NormalizeScale"), Settings->NormalizeScale));
+	}
+
+	FEngineAnalytics::GetProvider().RecordEvent(UVEditorAnalyticsEventName(TEXT("UnwrapTool")), Attributes);
+
+	if constexpr (false)
+	{
+		for (const FAnalyticsEventAttribute& Attr : Attributes)
+		{
+			UE_LOG(LogGeometry, Log, TEXT("Debug %s.UnwrapTool.%s = %s"), *UVEditorAnalyticsPrefix, *Attr.GetName(), *Attr.GetValue());
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

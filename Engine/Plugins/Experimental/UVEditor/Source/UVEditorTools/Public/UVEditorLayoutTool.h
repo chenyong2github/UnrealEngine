@@ -6,6 +6,7 @@
 
 #include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"
+#include "UVEditorToolAnalyticsUtils.h"
 
 #include "UVEditorLayoutTool.generated.h"
 
@@ -65,4 +66,12 @@ protected:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVLayoutOperatorFactory>> Factories;
+
+	//
+	// Analytics
+	//
+
+	UE::Geometry::UVEditorAnalytics::FTargetAnalytics InputTargetAnalytics;
+	FDateTime ToolStartTimeAnalytics;
+	void RecordAnalytics();
 };

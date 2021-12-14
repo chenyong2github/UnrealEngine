@@ -12,6 +12,7 @@
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "UVToolContextObjects.h"
 #include "ContextObjectStore.h"
+#include "EngineAnalytics.h"
 
 using namespace UE::Geometry;
 
@@ -43,6 +44,8 @@ UInteractiveTool* UUVEditorParameterizeMeshToolBuilder::BuildTool(const FToolBui
 void UUVEditorParameterizeMeshTool::Setup()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorParameterizeMeshTool_Setup);
+	
+	ToolStartTimeAnalytics = FDateTime::UtcNow();
 
 	check(Targets.Num() >= 1);
 
@@ -94,6 +97,9 @@ void UUVEditorParameterizeMeshTool::Setup()
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool_Global", "Automatically partition the selected Mesh into UV islands, flatten, and pack into a single UV chart"),
 		EToolMessageLevel::UserNotification);
+
+	// Analytics
+	InputTargetAnalytics = UVEditorAnalytics::CollectTargetAnalytics(Targets);
 }
 
 void UUVEditorParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
@@ -160,6 +166,9 @@ void UUVEditorParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		}
 
 		ChangeAPI->EndUndoTransaction();
+
+		// Analytics
+		RecordAnalytics();
 	}
 	else
 	{
@@ -187,6 +196,10 @@ void UUVEditorParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UUVEditorParameterizeMeshTool::OnTick(float DeltaTime)
 {
+	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+	{
+		Target->AppliedPreview->Tick(DeltaTime);
+	}
 }
 
 bool UUVEditorParameterizeMeshTool::CanAccept() const
@@ -199,6 +212,78 @@ bool UUVEditorParameterizeMeshTool::CanAccept() const
 		}
 	}
 	return true;
+}
+
+void UUVEditorParameterizeMeshTool::RecordAnalytics()
+{
+	using namespace UVEditorAnalytics;
+	
+	if (!FEngineAnalytics::IsAvailable())
+	{
+		return;
+	}
+	
+	TArray<FAnalyticsEventAttribute> Attributes;
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Timestamp"), FDateTime::UtcNow().ToString()));
+	
+	// Tool inputs
+	InputTargetAnalytics.AppendToAttributes(Attributes, "Input");
+
+	// Tool outputs
+	const FTargetAnalytics OutputTargetAnalytics = CollectTargetAnalytics(Targets);
+	OutputTargetAnalytics.AppendToAttributes(Attributes, "Output");
+
+	// Tool stats
+	if (CanAccept())
+	{
+		TArray<double> PerAssetValidResultComputeTimes;
+		for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+		{
+			// Note: This would log -1 if the result was invalid, but checking CanAccept above ensures results are valid
+			PerAssetValidResultComputeTimes.Add(Target->AppliedPreview->GetValidResultComputeTime());
+		}
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.PerAsset.ComputeTimeSeconds"), PerAssetValidResultComputeTimes));
+	}
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.ToolActiveDuration"), (FDateTime::UtcNow() - ToolStartTimeAnalytics).ToString()));
+
+	// Tool settings chosen by the user (Volatile! Sync with EditCondition meta-tags in *Properties members)
+	const FString MethodName = StaticEnum<EParameterizeMeshUVMethod>()->GetNameStringByIndex(static_cast<int>(Settings->Method));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Method"), MethodName));
+	switch (Settings->Method)
+	{
+		case EParameterizeMeshUVMethod::PatchBuilder:
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.InitialPatches"), *MethodName), PatchBuilderProperties->InitialPatches));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.CurvatureAlignment"), *MethodName), PatchBuilderProperties->CurvatureAlignment));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MergingThreshold"), *MethodName), PatchBuilderProperties->MergingThreshold));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MaxAngleDeviation"), *MethodName), PatchBuilderProperties->MaxAngleDeviation));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.SmoothingSteps"), *MethodName), PatchBuilderProperties->SmoothingSteps));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.SmoothingAlpha"), *MethodName), PatchBuilderProperties->SmoothingAlpha));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.AutoPack"), *MethodName), PatchBuilderProperties->bAutoPack));
+			if (PatchBuilderProperties->bAutoPack)
+			{
+				Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.TextureResolution"), *MethodName), PatchBuilderProperties->TextureResolution));
+			}
+			break;
+		case EParameterizeMeshUVMethod::UVAtlas:
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.ChartStretch"), *MethodName), UVAtlasProperties->ChartStretch));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.NumCharts"), *MethodName), UVAtlasProperties->NumCharts));
+			break;
+		case EParameterizeMeshUVMethod::XAtlas:
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MaxIterations"), *MethodName), XAtlasProperties->MaxIterations));
+			break;
+		default:
+			break;
+	}
+	
+	FEngineAnalytics::GetProvider().RecordEvent(UVEditorAnalyticsEventName(TEXT("AutoUVTool")), Attributes);
+
+	if constexpr (false)
+	{
+		for (const FAnalyticsEventAttribute& Attr : Attributes)
+		{
+			UE_LOG(LogGeometry, Log, TEXT("Debug %s.AutoUVTool.%s = %s"), *UVEditorAnalyticsPrefix, *Attr.GetName(), *Attr.GetValue());
+		}
+	}
 }
 
 

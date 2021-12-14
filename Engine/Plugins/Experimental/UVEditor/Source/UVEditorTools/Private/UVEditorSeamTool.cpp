@@ -17,6 +17,7 @@
 #include "ToolSceneQueriesUtil.h"
 #include "UVEditorUXSettings.h"
 #include "UVToolContextObjects.h"
+#include "EngineAnalytics.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorSeamTool"
 
@@ -286,6 +287,8 @@ void UUVEditorSeamTool::SetTargets(const TArray<TObjectPtr<UUVEditorToolMeshInpu
 void UUVEditorSeamTool::Setup()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_Setup);
+	
+	ToolStartTimeAnalytics = FDateTime::UtcNow();
 
 	using namespace UVEditorSeamToolLocals;
 
@@ -463,6 +466,9 @@ void UUVEditorSeamTool::Setup()
 	}
 
 	UpdateToolMessage();
+
+	// Analytics
+	InputTargetAnalytics = UVEditorAnalytics::CollectTargetAnalytics(Targets);
 }
 
 void UUVEditorSeamTool::ReconstructExistingSeamsVisualization()
@@ -589,6 +595,9 @@ void UUVEditorSeamTool::Shutdown(EToolShutdownType ShutdownType)
 
 	Spatials2D.Reset();
 	Spatials3D.Reset();
+
+	// Analytics
+	RecordAnalytics();
 }
 
 void UUVEditorSeamTool::OnTick(float DeltaTime)
@@ -1171,6 +1180,39 @@ bool UUVEditorSeamTool::ExecuteNestedAcceptCommand()
 		return true;
 	}
 	return false;
+}
+
+void UUVEditorSeamTool::RecordAnalytics()
+{
+	using namespace UVEditorAnalytics;
+	
+	if (!FEngineAnalytics::IsAvailable())
+	{
+		return;
+	}
+	
+	TArray<FAnalyticsEventAttribute> Attributes;
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Timestamp"), FDateTime::UtcNow().ToString()));
+	
+	// Tool inputs
+	InputTargetAnalytics.AppendToAttributes(Attributes, "Input");
+
+	// Tool outputs
+	const FTargetAnalytics OutputTargetAnalytics = CollectTargetAnalytics(Targets);
+	OutputTargetAnalytics.AppendToAttributes(Attributes, "Output");
+
+	// Tool stats
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.ToolActiveDuration"), (FDateTime::UtcNow() - ToolStartTimeAnalytics).ToString()));
+	
+	FEngineAnalytics::GetProvider().RecordEvent(UVEditorAnalyticsEventName(TEXT("SeamTool")), Attributes);
+
+	if constexpr (false)
+	{
+		for (const FAnalyticsEventAttribute& Attr : Attributes)
+		{
+			UE_LOG(LogGeometry, Log, TEXT("Debug %s.SeamTool.%s = %s"), *UVEditorAnalyticsPrefix, *Attr.GetName(), *Attr.GetValue());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

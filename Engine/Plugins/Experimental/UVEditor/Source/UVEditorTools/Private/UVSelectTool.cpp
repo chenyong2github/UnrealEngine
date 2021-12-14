@@ -21,6 +21,7 @@
 #include "Selection/DynamicMeshSelection.h"
 #include "ToolSetupUtil.h"
 #include "UVEditorUXSettings.h"
+#include "EngineAnalytics.h"
 
 #include "UVSeamSewAction.h"
 #include "UVIslandConformalUnwrapAction.h"
@@ -284,6 +285,8 @@ void USelectToolActionPropertySet::PostAction(ESelectToolAction Action)
 void UUVSelectTool::Setup()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVSelectTool_Setup);
+	
+	ToolStartTimeAnalytics = FDateTime::UtcNow();
 
 	using namespace UVSelectToolLocals;
 
@@ -484,6 +487,9 @@ void UUVSelectTool::Setup()
 	GetToolManager()->DisplayMessage(LOCTEXT("SelectToolStatusBarMessage", 
 		"Select elements in the viewport and then transform them or use one of the action buttons."), 
 		EToolMessageLevel::UserNotification);
+
+	// Analytics
+	InputTargetAnalytics = UVEditorAnalytics::CollectTargetAnalytics(Targets);
 }
 
 void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
@@ -535,6 +541,9 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	ViewportButtonsAPI = nullptr;
 	EmitChangeAPI = nullptr;
 	ChangeRouter = nullptr;
+
+	// Analytics
+	RecordAnalytics();
 }
 
 void UUVSelectTool::SetSelection(const FDynamicMeshSelection& NewSelection)
@@ -964,12 +973,26 @@ void UUVSelectTool::RequestAction(ESelectToolAction ActionType)
 
 void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 {
+	auto MaybeAddAnalyticsActionHistoryItem = [this, &ActionType](FDynamicMeshSelection::EType ExpectedType)
+	{
+		if (!SelectionMechanic->GetCurrentSelection().IsEmpty() && (SelectionMechanic->GetCurrentSelection().Type == ExpectedType))
+		{
+			FActionHistoryItem ActionHistoryItem;
+			ActionHistoryItem.Timestamp = FDateTime::UtcNow();
+			ActionHistoryItem.NumOperands = SelectionMechanic->GetCurrentSelection().SelectedIDs.Num();
+			ActionHistoryItem.ActionType = ActionType;
+			AnalyticsActionHistory.Add(ActionHistoryItem);
+		}
+	};
+	
 	switch (ActionType)
 	{
 	case ESelectToolAction::Sew:
 		if (SewAction)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ApplyAction_Sew);
+	
+			MaybeAddAnalyticsActionHistoryItem(FDynamicMeshSelection::EType::Edge);
 
 			const FText TransactionName(LOCTEXT("SewCompleteTransactionName", "Sew Edges"));
 			EmitChangeAPI->BeginUndoTransaction(TransactionName);
@@ -984,6 +1007,8 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 		if (IslandConformalUnwrapAction)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ApplyAction_IslandConformalUnwrap);
+			
+			MaybeAddAnalyticsActionHistoryItem(FDynamicMeshSelection::EType::Triangle);
 
 			const FText TransactionName(LOCTEXT("ConformalUnwrapCompleteTransactionName", "Conformal Unwrap Islands"));
 			EmitChangeAPI->BeginUndoTransaction(TransactionName);
@@ -995,6 +1020,9 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 		}
 		break;
 	case ESelectToolAction::Split:
+		
+		MaybeAddAnalyticsActionHistoryItem(FDynamicMeshSelection::EType::Edge);
+		
 		ApplySplit();
 	default:
 		break;
@@ -1160,6 +1188,70 @@ void UUVSelectTool::ApplySplitBowtieVertices()
 	SelectionMechanic->SetSelection(NewSelection, true, true); // both broadcast and emit undo
 
 	EmitChangeAPI->EndUndoTransaction();
+}
+
+void UUVSelectTool::RecordAnalytics()
+{
+	using namespace UVEditorAnalytics;
+	
+	if (!FEngineAnalytics::IsAvailable())
+	{
+		return;
+	}
+	
+	TArray<FAnalyticsEventAttribute> Attributes;
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Timestamp"), FDateTime::UtcNow().ToString()));
+	
+	// Tool inputs
+	InputTargetAnalytics.AppendToAttributes(Attributes, "Input");
+
+	// Tool outputs
+	const FTargetAnalytics OutputTargetAnalytics = CollectTargetAnalytics(Targets);
+	OutputTargetAnalytics.AppendToAttributes(Attributes, "Output");
+
+	// Tool stats
+	auto MaybeAppendActionStatsToAttributes = [this, &Attributes](ESelectToolAction ActionType, const FString& OperandName)
+	{
+		int32 NumActions = 0;
+		float MeanNumOperands = 0;
+		int32 MinNumOperands = TNumericLimits<int32>::Max();
+		int32 MaxNumOperands = TNumericLimits<int32>::Min();
+			
+		for (const FActionHistoryItem& Item : AnalyticsActionHistory)
+		{
+			if (Item.ActionType == ActionType)
+			{
+				NumActions += 1;
+				MeanNumOperands += static_cast<float>(Item.NumOperands);
+				MinNumOperands = FGenericPlatformMath::Min(MinNumOperands, Item.NumOperands);
+				MaxNumOperands = FGenericPlatformMath::Max(MaxNumOperands, Item.NumOperands);
+			}
+		}
+		
+		if (NumActions > 0)
+		{
+			MeanNumOperands /= NumActions;
+			const FString ActionName = StaticEnum<ESelectToolAction>()->GetNameStringByIndex(static_cast<int>(ActionType));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Stats.%sAction.NumActions"), *ActionName), NumActions));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Stats.%sAction.MinNum%s"), *ActionName, *OperandName), MinNumOperands));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Stats.%sAction.MaxNum%s"), *ActionName, *OperandName), MaxNumOperands));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Stats.%sAction.MeanNum%s"), *ActionName, *OperandName), MeanNumOperands));
+		}
+	};
+	MaybeAppendActionStatsToAttributes(ESelectToolAction::IslandConformalUnwrap, TEXT("Triangles"));
+	MaybeAppendActionStatsToAttributes(ESelectToolAction::Split, TEXT("Edges"));
+	MaybeAppendActionStatsToAttributes(ESelectToolAction::Sew, TEXT("Edges"));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.ToolActiveDuration"), (FDateTime::UtcNow() - ToolStartTimeAnalytics).ToString()));
+	
+	FEngineAnalytics::GetProvider().RecordEvent(UVEditorAnalyticsEventName(TEXT("EditTool")), Attributes);
+
+	if constexpr (false)
+	{
+		for (const FAnalyticsEventAttribute& Attr : Attributes)
+		{
+			UE_LOG(LogGeometry, Log, TEXT("Debug %s.EditTool.%s = %s"), *UVEditorAnalyticsPrefix, *Attr.GetName(), *Attr.GetValue());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -11,6 +11,7 @@
 #include "InteractiveToolBuilder.h"
 #include "TargetInterfaces/UVUnwrapDynamicMesh.h"
 #include "UVToolContextObjects.h"
+#include "UVEditorToolAnalyticsUtils.h"
 #include "IndexTypes.h"
 
 #include "UVSelectTool.generated.h"
@@ -210,6 +211,26 @@ protected:
 	void ApplySplitBowtieVertices();
 
 
+
+	//
+	// Analytics
+	//
+
+	struct FActionHistoryItem
+	{
+		FDateTime Timestamp;
+		ESelectToolAction ActionType;
+		
+		// if ActionType == IslandConformalUnwrap then NumOperands is #triangles in island selection
+		// if ActionType == Split                 then NumOperands is #edges in selection
+		// if ActionType == Sew                   then NumOperands is #edges in selection
+		int32 NumOperands = -1;
+	};
+	
+	TArray<FActionHistoryItem> AnalyticsActionHistory;
+	UE::Geometry::UVEditorAnalytics::FTargetAnalytics InputTargetAnalytics;
+	FDateTime ToolStartTimeAnalytics;
+	void RecordAnalytics();
 };
 
 /**
