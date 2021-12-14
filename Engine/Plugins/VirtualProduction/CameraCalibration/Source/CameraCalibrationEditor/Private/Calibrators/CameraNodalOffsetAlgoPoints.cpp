@@ -21,6 +21,7 @@
 #include "Math/Vector.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
+#include "OpenCVHelper.h"
 #include "PropertyCustomizationHelpers.h"
 #include "UI/SFilterableActorPicker.h"
 #include "ScopedTransaction.h"
@@ -32,7 +33,6 @@
 #include <vector>
 
 #if WITH_OPENCV
-#include "OpenCVHelper.h"
 OPENCV_INCLUDES_START
 #undef check 
 #include "opencv2/opencv.hpp"
@@ -239,7 +239,7 @@ public:
 			FTransform OptimalCameraPose = NodalOffsetCandidate * ExistingNodalOffsetInverse * CameraView.CameraPose;
 
 			// Convert the optimal camera pose to opencv's coordinate system
-			FCameraCalibrationUtils::ConvertUnrealToOpenCV(OptimalCameraPose);
+			FOpenCVHelper::ConvertUnrealToOpenCV(OptimalCameraPose);
 
 			// Compute the reprojection error for this view and add it to the running total
 			double ViewError = FOpenCVHelper::ComputeReprojectionError(OptimalCameraPose, CameraMatrix, CameraView.Points3d, CameraView.Points2d);
@@ -394,7 +394,7 @@ double UCameraNodalOffsetAlgoPoints::MinimizeReprojectionError(FTransform& InOut
 			Transform.SetIdentity();
 			Transform.SetLocation(Row->CalibratorPointData.Location);
 
-			FCameraCalibrationUtils::ConvertUnrealToOpenCV(Transform);
+			FOpenCVHelper::ConvertUnrealToOpenCV(Transform);
 
 			// Calibrator 3d points
 			Points3d.push_back(cv::Point3f(
@@ -466,7 +466,7 @@ double UCameraNodalOffsetAlgoPoints::ComputeReprojectionError(const FTransform& 
 		Transform.SetIdentity();
 		Transform.SetLocation(Row->CalibratorPointData.Location);
 
-		FCameraCalibrationUtils::ConvertUnrealToOpenCV(Transform);
+		FOpenCVHelper::ConvertUnrealToOpenCV(Transform);
 
 		// Calibrator 3d points
 		Points3d.push_back(cv::Point3f(
@@ -514,7 +514,7 @@ double UCameraNodalOffsetAlgoPoints::ComputeReprojectionError(const FTransform& 
 	FTransform OptimalCameraPose = NodalOffset * ExistingOffset.Inverse() * CameraPose;
 
 	// Convert the optimal camera pose to opencv's coordinate system
-	FCameraCalibrationUtils::ConvertUnrealToOpenCV(OptimalCameraPose);
+	FOpenCVHelper::ConvertUnrealToOpenCV(OptimalCameraPose);
 
 	// Compute the reprojection error for this view
 	return FOpenCVHelper::ComputeReprojectionError(OptimalCameraPose, CameraMatrix, Points3d, Points2d);
@@ -1049,7 +1049,7 @@ bool UCameraNodalOffsetAlgoPoints::CalculatedOptimalCameraComponentPose(
 		Transform.SetIdentity();
 		Transform.SetLocation(Row->CalibratorPointData.Location);
 
-		FCameraCalibrationUtils::ConvertUnrealToOpenCV(Transform);
+		FOpenCVHelper::ConvertUnrealToOpenCV(Transform);
 
 		// Calibrator 3d points
 		Points3d.push_back(cv::Point3f(
@@ -1139,7 +1139,7 @@ bool UCameraNodalOffsetAlgoPoints::CalculatedOptimalCameraComponentPose(
 	M.M[3][2] = Tcam.at<double>(2);
 
 	OutDesiredCameraTransform.SetFromMatrix(M);
-	FCameraCalibrationUtils::ConvertOpenCVToUnreal(OutDesiredCameraTransform);
+	FOpenCVHelper::ConvertOpenCVToUnreal(OutDesiredCameraTransform);
 
 	return true;
 

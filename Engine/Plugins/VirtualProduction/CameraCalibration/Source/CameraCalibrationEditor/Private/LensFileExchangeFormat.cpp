@@ -3,14 +3,13 @@
 #include "LensFileExchangeFormat.h"
 
 #include "CameraCalibrationEditorLog.h"
-#include "CameraCalibrationUtils.h"
 #include "JsonObjectConverter.h"
 #include "LensData.h"
 #include "LensFile.h"
 #include "Misc/FeedbackContext.h"
 #include "Models/LensModel.h"
 #include "Models/SphericalLensModel.h"
-
+#include "OpenCVHelper.h"
 
 #define LOCTEXT_NAMESPACE "LensFileExchange"
 
@@ -517,7 +516,7 @@ void FLensFileExchange::ExtractNodalOffsetTable(const ULensFile* LensFile)
 			if (NodalOffsetFocusPoint.GetPoint(Zoom, NodalOffsetInfo))
 			{
 				FTransform NodalOffsetTransform{ NodalOffsetInfo.RotationOffset, NodalOffsetInfo.LocationOffset };
-				FCameraCalibrationUtils::ConvertUnrealToOpenCV(NodalOffsetTransform);
+				FOpenCVHelper::ConvertUnrealToOpenCV(NodalOffsetTransform);
 
 				const FQuat RotationOffset = NodalOffsetTransform.GetRotation();
 				const FVector LocationOffset = NodalOffsetTransform.GetTranslation();
@@ -823,7 +822,7 @@ void FLensFileExchange::PopulateNodalOffsetTable(ULensFile& OutLensFile, const F
 
 			if (Metadata.NodalOffsetCoordinateSystem == ENodalOffsetCoordinateSystem::OpenCV)
 			{
-				FCameraCalibrationUtils::ConvertUnrealToOpenCV(NodalOffsetTransform);
+				FOpenCVHelper::ConvertUnrealToOpenCV(NodalOffsetTransform);
 			}
 
 			FNodalPointOffset NodalPointOffset;
