@@ -8,7 +8,7 @@ print_parameters
 
 Push-Location $PSScriptRoot
 
-Start-Process -FilePath "PowerShell" -ArgumentList ".\Start_TURNServer.ps1 --turn $global:TurnServer" -WorkingDirectory "$PSScriptRoot"
+Start-Process -FilePath "PowerShell" -ArgumentList ".\Start_TURNServer.ps1" -WorkingDirectory "$PSScriptRoot"
 
 $peerConnectionOptions = "{ \""iceServers\"": [{\""urls\"": [\""stun:" + $global:StunServer + "\"",\""turn:" + $global:TurnServer + "\""], \""username\"": \""PixelStreamingUser\"", \""credential\"": \""AnotherTURNintheroad\""}] }"
 
