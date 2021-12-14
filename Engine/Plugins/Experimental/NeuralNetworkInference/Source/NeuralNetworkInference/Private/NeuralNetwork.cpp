@@ -155,6 +155,25 @@ void UNeuralNetwork::SetDeviceType(const ENeuralDeviceType InDeviceType, const E
 	}
 }
 
+bool UNeuralNetwork::IsGPUSupported() const
+{
+	// UEAndORT
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+	{
+		return FImplBackEndUEAndORT::IsGPUSupported();
+	}
+
+	// UEOnly
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
+	{
+		return true;
+	}
+
+	// Unknown
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::IsGPUSupported(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+	return false;
+}
+
 ENeuralSynchronousMode UNeuralNetwork::GetSynchronousMode() const
 {
 	return SynchronousMode;
@@ -187,25 +206,6 @@ void UNeuralNetwork::ResetStats()
 {
 	ComputeStatsModule.ResetStats();
 	InputMemoryTransferStatsModule.ResetStats();
-}
-
-bool UNeuralNetwork::IsGPUSupported() const
-{
-	// UEAndORT
-	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
-	{
-		return FImplBackEndUEAndORT::IsGPUSupported();
-	}
-
-	// UEOnly
-	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
-	{
-		return true;
-	}
-
-	// Unknown
-	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::IsGPUSupported(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
-	return false;
 }
 
 #define GET_TENSOR_CODE(InTensorIndex, UEAndORTOnly_GetIndexes, UEOnly_GetTensorsFunction, UEOnly_Tensors) \
@@ -637,10 +637,17 @@ void UNeuralNetwork::ReimportAssetFromEditorData()
 		// Ensure that the file provided by the path exists
 		if (IFileManager::Get().FileSize(*ImportedFilename) != INDEX_NONE)
 		{
-			UE_LOG(LogNeuralNetworkInference, Display, TEXT("Performing atomic reimport of [%s]"), *ImportedFilename);
+			UE_LOG(LogNeuralNetworkInference, Display, TEXT("Performing atomic reimport of [%s]..."), *ImportedFilename);
 			Load(ImportedFilename);
 		}
 	}
+}
+
+void UNeuralNetwork::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	UE_LOG(LogNeuralNetworkInference, Display, TEXT("UNeuralNetwork property changed, reloading network..."));
+	Load();
 }
 #endif // WITH_EDITOR
 
