@@ -1400,10 +1400,6 @@ void DeclResultIdMapper::createGlobalsCBuffer(const VarDecl *var) {
   // UE Change End: Always apply GLSLStd140 layout rules to global
   // constants
 
-  resourceVars.emplace_back(globals, /*decl*/ nullptr, SourceLocation(),
-                            nullptr, nullptr, nullptr, /*isCounterVar*/ false,
-                            /*isGlobalsCBuffer*/ true);
-
   uint32_t index = 0;
   for (const auto *decl : collectDeclsInDeclContext(context)) {
     // UE Change Begin: Threadgroup variables should not be put in globals
