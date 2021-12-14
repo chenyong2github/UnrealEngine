@@ -141,6 +141,7 @@ const FName FBlueprintMetadata::MD_WorldContext(TEXT("WorldContext"));
 const FName FBlueprintMetadata::MD_CallableWithoutWorldContext(TEXT("CallableWithoutWorldContext"));
 const FName FBlueprintMetadata::MD_DevelopmentOnly(TEXT("DevelopmentOnly"));
 const FName FBlueprintMetadata::MD_AutoCreateRefTerm(TEXT("AutoCreateRefTerm"));
+const FName FBlueprintMetadata::MD_HideAssetPicker(TEXT("HideAssetPicker"));
 
 const FName FBlueprintMetadata::MD_ShowWorldContextPin(TEXT("ShowWorldContextPin"));
 const FName FBlueprintMetadata::MD_Private(TEXT("BlueprintPrivate"));
@@ -4892,10 +4893,28 @@ bool UEdGraphSchema_K2::ShouldShowAssetPickerForPin(UEdGraphPin* Pin) const
 			{
 				if (UK2Node_CallFunction* CallFunctionNode = Cast<UK2Node_CallFunction>(Pin->GetOwningNode()))
 				{
-					if ( UFunction* FunctionRef = CallFunctionNode->GetTargetFunction() )
+					if (UFunction* FunctionRef = CallFunctionNode->GetTargetFunction())
 					{
 						const UEdGraphPin* WorldContextPin = CallFunctionNode->FindPin(FunctionRef->GetMetaData(FBlueprintMetadata::MD_WorldContext));
 						bShow = ( WorldContextPin != Pin );
+
+						// Check if we have explictly marked this pin as hiding the asset picker
+						const FString& HideAssetPickerMetaData = FunctionRef->GetMetaData(FBlueprintMetadata::MD_HideAssetPicker);
+						if(!HideAssetPickerMetaData.IsEmpty())
+						{
+							TArray<FString> PinNames;
+							HideAssetPickerMetaData.ParseIntoArray(PinNames, TEXT(","), true);
+							const FString PinName = Pin->GetName();
+							for(FString& ParamNameToHide : PinNames)
+							{
+								ParamNameToHide.TrimStartAndEndInline();
+								if(ParamNameToHide == PinName)
+								{
+									bShow = false;
+									break;
+								}
+							}
+						}
 					}
 				}
 				else if (Cast<UK2Node_CreateDelegate>( Pin->GetOwningNode())) 

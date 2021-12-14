@@ -167,6 +167,9 @@ public:
 	/** If true, an unconnected pin will generate a UPROPERTY under the hood to connect as the input, which will be set to the literal value for the pin.  Only valid for reference parameters. */
 	static const FName MD_AutoCreateRefTerm;
 
+	/** The specified parameter should hide the asset picker on the pin, even if it is a valid UObject Asset. */
+	static const FName MD_HideAssetPicker;
+
 	/** If true, the hidden world context pin will be visible when the function is placed in a child blueprint of the class. */
 	static const FName MD_ShowWorldContextPin;
 
