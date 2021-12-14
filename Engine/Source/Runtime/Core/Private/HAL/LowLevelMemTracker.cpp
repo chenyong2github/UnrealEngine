@@ -1476,7 +1476,7 @@ UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName
 			const TCHAR* End = FCString::Strstr(Start, TEXT("///"));
 			if (End)
 			{
-				DisplayName = FName(FStringView(Start, static_cast<FStringView::SizeType>(End - Start)));
+				DisplayName = FName(FStringView(Start, UE_PTRDIFF_TO_INT32(End - Start)));
 			}
 		}
 	}
@@ -1501,7 +1501,7 @@ UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName
 		LLMCheckf(LeafStart[0] != '\0', TEXT("Invalid LLM custom name tag '%s'. Tag names must not end with /."), NameBuffer.ToString());
 		if (LeafStart != NameBuffer.ToString())
 		{
-			FName ParsedParentName = FName(FStringView(NameBuffer.ToString(), static_cast<FStringView::SizeType>(LeafStart - 1 - NameBuffer.ToString())));
+			FName ParsedParentName = FName(FStringView(NameBuffer.ToString(), UE_PTRDIFF_TO_INT32(LeafStart - 1 - NameBuffer.ToString())));
 			if (!ParentName.IsNone() && ParentName != ParsedParentName)
 			{
 				TStringBuilder<128> ParentBuffer;

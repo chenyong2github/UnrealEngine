@@ -10,7 +10,7 @@
 namespace UE::String
 {
 
-enum class EParseLinesOptions
+enum class EParseLinesOptions : uint32
 {
 	/** Use the default options when parsing lines. */
 	None = 0,

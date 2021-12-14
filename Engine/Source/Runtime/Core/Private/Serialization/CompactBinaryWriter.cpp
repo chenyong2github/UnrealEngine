@@ -206,8 +206,7 @@ FUtf8StringView FCbWriter::GetActiveName() const
 		const uint8* const EncodedName = Data.GetData() + State.Offset + sizeof(ECbFieldType);
 		uint32 NameLenByteCount;
 		const uint64 NameLen = ReadVarUInt(EncodedName, NameLenByteCount);
-		using NameLenSizeType = FUtf8StringView::SizeType;
-		const NameLenSizeType ClampedNameLen = NameLenSizeType(FMath::Clamp<uint64>(NameLen, 0, ~NameLenSizeType(0)));
+		const int32 ClampedNameLen = int32(FMath::Clamp<uint64>(NameLen, 0, MAX_int32));
 		return FUtf8StringView(reinterpret_cast<const UTF8CHAR*>(EncodedName + NameLenByteCount), ClampedNameLen);
 	}
 	return FUtf8StringView();

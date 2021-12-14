@@ -269,7 +269,7 @@ FServiceSettings::ReadFromURL(FStringView InstanceURL)
 		InstanceURL.RightChopInline(7);
 	}
 
-	FStringView::SizeType PortDelimIndex = INDEX_NONE;
+	int32 PortDelimIndex = INDEX_NONE;
 	InstanceURL.FindChar(TEXT(':'), PortDelimIndex);
 	if (PortDelimIndex != INDEX_NONE)
 	{

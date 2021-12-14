@@ -52,7 +52,7 @@ inline static void ParseTokens1Delim1Char(
 				++ViewIt;
 				continue;
 			}
-			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, UE_PTRDIFF_TO_INT32(ViewIt - NextToken)));
 			NextToken = ++ViewIt;
 		}
 	}
@@ -69,12 +69,12 @@ inline static void ParseTokens1Delim1Char(
 				++ViewIt;
 				continue;
 			}
-			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, UE_PTRDIFF_TO_INT32(ViewIt - NextToken)));
 			NextToken = ++ViewIt;
 		}
 	}
 
-	ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+	ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, UE_PTRDIFF_TO_INT32(ViewIt - NextToken)));
 }
 
 /** Parse tokens with multiple single-character Basic Latin delimiters. */
@@ -117,11 +117,11 @@ inline static void ParseTokensNDelim1CharBasicLatin(
 			++ViewIt;
 			continue;
 		}
-		ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+		ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, UE_PTRDIFF_TO_INT32(ViewIt - NextToken)));
 		NextToken = ++ViewIt;
 	}
 
-	ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+	ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, UE_PTRDIFF_TO_INT32(ViewIt - NextToken)));
 }
 
 /** Parse tokens with multiple single-character delimiters in the Basic Multilingual Plane. */
@@ -155,7 +155,7 @@ inline static void ParseTokensNDelim1Char(
 				++ViewIt;
 				continue;
 			}
-			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, UE_PTRDIFF_TO_INT32(ViewIt - NextToken)));
 			NextToken = ++ViewIt;
 		}
 	}
@@ -172,12 +172,12 @@ inline static void ParseTokensNDelim1Char(
 				++ViewIt;
 				continue;
 			}
-			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, UE_PTRDIFF_TO_INT32(ViewIt - NextToken)));
 			NextToken = ++ViewIt;
 		}
 	}
 
-	ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+	ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, UE_PTRDIFF_TO_INT32(ViewIt - NextToken)));
 }
 
 /** Parse tokens with multiple multi-character delimiters. */
@@ -191,11 +191,11 @@ inline static void ParseTokensNDelimNChar(
 	// If this function becomes a bottleneck, it can be specialized separately for one and many delimiters.
 	// There are algorithms for each are linear or sub-linear in the length of string to search.
 
-	const FStringView::SizeType ViewLen = View.Len();
-	FStringView::SizeType NextTokenIndex = 0;
+	const int32 ViewLen = View.Len();
+	int32 NextTokenIndex = 0;
 
 	const ESearchCase::Type SearchCase = EnumHasAnyFlags(Options, EParseTokensOptions::IgnoreCase) ? ESearchCase::IgnoreCase : ESearchCase::CaseSensitive;
-	for (FStringView::SizeType ViewIndex = 0; ViewIndex != ViewLen;)
+	for (int32 ViewIndex = 0; ViewIndex != ViewLen;)
 	{
 		const FStringView RemainingView(View.GetData() + ViewIndex, ViewLen - ViewIndex);
 		auto MatchDelimiter = [RemainingView, SearchCase](FStringView Delimiter) { return RemainingView.StartsWith(Delimiter, SearchCase); };

@@ -60,7 +60,7 @@ public:
 	
 	void AddDomain(TSharedPtr<FDomainData> Domain, FStringView RemainingPath)
 	{
-		FStringView::SizeType DirectorySeparatorIndex;
+		int32 DirectorySeparatorIndex;
 		if (RemainingPath.FindChar(TEXT('/'), /*out*/ DirectorySeparatorIndex))
 		{
 			check(DirectorySeparatorIndex > 0);

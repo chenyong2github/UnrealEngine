@@ -165,7 +165,7 @@ FStringView FPathViews::GetPath(const FStringView& InPath)
 {
 	if (const TCHAR* EndPos = Algo::FindLastByPredicate(InPath, UE4PathViews_Private::IsSlashOrBackslash))
 	{
-		return InPath.Left((FStringView::SizeType)(EndPos - InPath.GetData()));
+		return InPath.Left(UE_PTRDIFF_TO_INT32(EndPos - InPath.GetData()));
 	}
 	return FStringView();
 }
@@ -175,7 +175,7 @@ FStringView FPathViews::GetExtension(const FStringView& InPath, bool bIncludeDot
 	if (const TCHAR* Dot = Algo::FindLast(GetCleanFilename(InPath), TEXT('.')))
 	{
 		const TCHAR* Extension = bIncludeDot ? Dot : Dot + 1;
-		return FStringView(Extension, (FStringView::SizeType)(InPath.GetData() + InPath.Len() - Extension));
+		return FStringView(Extension, UE_PTRDIFF_TO_INT32(InPath.GetData() + InPath.Len() - Extension));
 	}
 	return FStringView();
 }
@@ -185,7 +185,7 @@ FStringView FPathViews::GetPathLeaf(const FStringView& InPath)
 	if (const TCHAR* EndPos = Algo::FindLastByPredicate(InPath, UE4PathViews_Private::IsNotSlashOrBackslash))
 	{
 		++EndPos;
-		return GetCleanFilename(InPath.Left((FStringView::SizeType)(EndPos - InPath.GetData())));
+		return GetCleanFilename(InPath.Left(UE_PTRDIFF_TO_INT32(EndPos - InPath.GetData())));
 	}
 	return FStringView();
 }
@@ -199,7 +199,7 @@ bool FPathViews::IsPathLeaf(FStringView InPath)
 	{
 		return true;
 	}
-	if (Algo::FindByPredicate(InPath.RightChop((FStringView::SizeType)(FirstSlash - InPath.GetData())), IsNotSlashOrBackslash) == nullptr)
+	if (Algo::FindByPredicate(InPath.RightChop(UE_PTRDIFF_TO_INT32(FirstSlash - InPath.GetData())), IsNotSlashOrBackslash) == nullptr)
 	{
 		// The first slash is after the last non-slash
 		// This means it is either required for e.g. // or D:/ or /, or it is a redundant terminating slash D:/Foo/
@@ -219,7 +219,7 @@ void FPathViews::Split(const FStringView& InPath, FStringView& OutPath, FStringV
 {
 	const FStringView CleanName = GetCleanFilename(InPath);
 	const TCHAR* DotPos = Algo::FindLast(CleanName, TEXT('.'));
-	const FStringView::SizeType NameLen = DotPos ? (FStringView::SizeType)(DotPos - CleanName.GetData()) : CleanName.Len();
+	const int32 NameLen = DotPos ? UE_PTRDIFF_TO_INT32(DotPos - CleanName.GetData()) : CleanName.Len();
 	OutPath = InPath.LeftChop(CleanName.Len() + 1);
 	OutName = CleanName.Left(NameLen);
 	OutExt = CleanName.RightChop(NameLen + 1);
@@ -231,7 +231,7 @@ FString FPathViews::ChangeExtension(const FStringView& InPath, const FStringView
 	const TCHAR* PathEndPos = Algo::FindLastByPredicate(InPath, UE4PathViews_Private::IsSlashOrBackslashOrPeriod);
 	if (PathEndPos != nullptr && *PathEndPos == TEXT('.'))
 	{
-		const FStringView::SizeType Pos = FStringView::SizeType(PathEndPos - InPath.GetData());
+		const int32 Pos = UE_PTRDIFF_TO_INT32(PathEndPos - InPath.GetData());
 		const FStringView FileWithoutExtension = InPath.Left(Pos);
 
 		if (!InNewExtension.IsEmpty() && !InNewExtension.StartsWith(TEXT('.')))
@@ -379,7 +379,7 @@ bool FPathViews::IsRelativePath(FStringView InPath)
 
 	if (const TCHAR* EndPos = Algo::FindByPredicate(InPath, IsSlashOrBackslash))
 	{
-		FStringView::SizeType FirstLen = static_cast<FStringView::SizeType>(EndPos - InPath.GetData());
+		const int32 FirstLen = UE_PTRDIFF_TO_INT32(EndPos - InPath.GetData());
 		if (FirstLen == 0)
 		{
 			// Path starts with /; it may be either /Foo or //Foo
@@ -593,7 +593,7 @@ void FPathViews::SplitFirstComponent(FStringView InPath, FStringView& OutFirstCo
 
 	if (const TCHAR* EndPos = Algo::FindByPredicate(InPath, IsSlashOrBackslash))
 	{
-		FStringView::SizeType FirstLen = static_cast<FStringView::SizeType>(EndPos - InPath.GetData());
+		const int32 FirstLen = UE_PTRDIFF_TO_INT32(EndPos - InPath.GetData());
 		if (FirstLen == 0)
 		{
 			// Path starts with /; it may be either /Foo or //Foo

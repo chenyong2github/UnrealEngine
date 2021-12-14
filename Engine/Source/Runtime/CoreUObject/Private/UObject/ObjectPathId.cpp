@@ -168,10 +168,10 @@ FName FObjectPathId::MakeImportPathIdAndPackageName(const FObjectImport& Import,
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-template <typename T>
+template <typename CharType>
 struct TStringViewNamePathProducer
 {
-	TStringViewNamePathProducer(T StringPath)
+	TStringViewNamePathProducer(TStringView<CharType> StringPath)
 	: CurrentStringView(StringPath)
 	{}
 
@@ -182,7 +182,7 @@ struct TStringViewNamePathProducer
 			return NAME_None;
 		}
 
-		typename T::SizeType FoundIndex = INDEX_NONE;
+		int32 FoundIndex = INDEX_NONE;
 		if (!FindLastSeparator(FoundIndex))
 		{
 			FName RetVal(CurrentStringView);
@@ -195,27 +195,27 @@ struct TStringViewNamePathProducer
 		return RetVal;
 	}
 private:
-	static inline bool IsPathIdSeparator(typename T::ElementType Char) { return Char == '.' || Char == ':'; }
+	static inline bool IsPathIdSeparator(CharType Char) { return Char == '.' || Char == ':'; }
 
-	bool FindLastSeparator(typename T::SizeType& OutIndex)
+	bool FindLastSeparator(int32& OutIndex)
 	{
-		if (const typename T::ElementType* Separator = Algo::FindLastByPredicate(CurrentStringView, IsPathIdSeparator))
+		if (const CharType* Separator = Algo::FindLastByPredicate(CurrentStringView, IsPathIdSeparator))
 		{
-			OutIndex = static_cast<typename T::SizeType>(Separator - CurrentStringView.GetData());
+			OutIndex = UE_PTRDIFF_TO_INT32(Separator - CurrentStringView.GetData());
 			return true;
 		}
 		OutIndex = INDEX_NONE;
 		return false;
 	}
 
-	T CurrentStringView;
+	TStringView<CharType> CurrentStringView;
 };
 
 FObjectPathId::FObjectPathId(FWideStringView StringPath)
 {
 	// @TODO: OBJPTR: Need to handle redirects.  FCoreRedirectObjectName could be used, but it doesn't fit
 	//		conveniently with the FName walk approach that is currently here.
-	TStringViewNamePathProducer<FWideStringView> NamePathProducer(StringPath);
+	TStringViewNamePathProducer<WIDECHAR> NamePathProducer(StringPath);
 
 	StoreObjectPathId(NamePathProducer, static_cast<uint64>(EPathId::FlagSimple), PathId);
 }
@@ -224,7 +224,7 @@ FObjectPathId::FObjectPathId(FAnsiStringView StringPath)
 {
 	// @TODO: OBJPTR: Need to handle redirects.  FCoreRedirectObjectName could be used, but it doesn't fit
 	//		conveniently with the FName walk approach that is currently here.
-	TStringViewNamePathProducer<FAnsiStringView> NamePathProducer(StringPath);
+	TStringViewNamePathProducer<ANSICHAR> NamePathProducer(StringPath);
 
 	StoreObjectPathId(NamePathProducer, static_cast<uint64>(EPathId::FlagSimple), PathId);
 }

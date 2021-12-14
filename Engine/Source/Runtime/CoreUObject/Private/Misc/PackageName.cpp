@@ -811,7 +811,7 @@ bool FPackageName::DoesPackageNameContainInvalidCharacters(FStringView InLongPac
 	TStringBuilder<32> MatchedInvalidChars;
 	for (const TCHAR* InvalidCharacters = INVALID_LONGPACKAGE_CHARACTERS; *InvalidCharacters; ++InvalidCharacters)
 	{
-		FStringView::SizeType OutIndex;
+		int32 OutIndex;
 		if (InLongPackageName.FindChar(*InvalidCharacters, OutIndex))
 		{
 			MatchedInvalidChars += *InvalidCharacters;
