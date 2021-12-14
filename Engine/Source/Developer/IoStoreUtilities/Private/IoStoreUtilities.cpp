@@ -251,9 +251,9 @@ static void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 				UE_LOG(LogIoStore, Fatal, TEXT("AES encryption key must be a pure ANSI string!"));
 			}
 
-			ANSICHAR* AsAnsi = TCHAR_TO_ANSI(*EncryptionKeyString);
-			check(TCString<ANSICHAR>::Strlen(AsAnsi) == RequiredKeyLength);
-			FMemory::Memcpy(NewKey.Key.Key, AsAnsi, RequiredKeyLength);
+			const auto AsAnsi = StringCast<ANSICHAR>(*EncryptionKeyString);
+			check(AsAnsi.Length() == RequiredKeyLength);
+			FMemory::Memcpy(NewKey.Key.Key, AsAnsi.Get(), RequiredKeyLength);
 			OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
 			UE_LOG(LogIoStore, Display, TEXT("Parsed AES encryption key from command line."));
 		}
