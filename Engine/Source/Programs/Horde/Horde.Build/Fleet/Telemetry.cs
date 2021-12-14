@@ -37,6 +37,11 @@ namespace HordeServer.Models
 		public IReadOnlyList<IPoolUtilizationTelemetry> Pools { get; }
 
 		/// <summary>
+		/// Amount of time that agents were hibernating
+		/// </summary>
+		public double HibernatingTime { get; }
+
+		/// <summary>
 		/// Total time spent running administrative tasks (conform, etc...)
 		/// </summary>
 		public double AdminTime { get; }
@@ -61,6 +66,9 @@ namespace HordeServer.Models
 		IReadOnlyList<IPoolUtilizationTelemetry> IUtilizationTelemetry.Pools => Pools;
 
 		Dictionary<PoolId, NewPoolUtilizationTelemetry> PoolsLookup { get; set; } = new Dictionary<PoolId, NewPoolUtilizationTelemetry>();
+
+		/// <inheritdoc/>
+		public double HibernatingTime { get; set; }
 
 		/// <inheritdoc/>
 		public double AdminTime { get; set; }
@@ -115,9 +123,14 @@ namespace HordeServer.Models
 		public IReadOnlyList<IStreamUtilizationTelemetry> Streams { get; }
 
 		/// <summary>
-		/// Admount of time spent running 
+		/// Amount of time spent running 
 		/// </summary>
 		public double AdminTime { get; }
+
+		/// <summary>
+		/// Amount of time that agents were hibernating
+		/// </summary>
+		public double HibernatingTime { get; }
 
 		/// <summary>
 		/// Amount of time spent by agents in this pool servicing other pools
@@ -144,6 +157,9 @@ namespace HordeServer.Models
 
 		/// <inheritdoc/>
 		public double AdminTime { get; set; }
+
+		/// <inheritdoc/>
+		public double HibernatingTime { get; set; }
 
 		/// <inheritdoc/>
 		public double OtherTime { get; set; }

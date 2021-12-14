@@ -34,6 +34,7 @@ namespace HordeServer.Collections.Impl
 			IReadOnlyList<IPoolUtilizationTelemetry> IUtilizationTelemetry.Pools => Pools;
 
 			public double AdminTime { get; set; }
+			public double HibernatingTime { get; set; }
 			public int UpdateIndex { get; set; }
 
 			[BsonConstructor]
@@ -48,6 +49,7 @@ namespace HordeServer.Collections.Impl
 				this.FinishTime = Other.FinishTime;
 				this.NumAgents = Other.NumAgents;
 				this.Pools = Other.Pools.ConvertAll(x => new PoolUtilizationDocument(x));
+				this.HibernatingTime = Other.HibernatingTime;
 				this.AdminTime = Other.AdminTime;
 			}
 		}
@@ -61,6 +63,7 @@ namespace HordeServer.Collections.Impl
 			IReadOnlyList<IStreamUtilizationTelemetry> IPoolUtilizationTelemetry.Streams => Streams;
 
 			public double AdminTime { get; set; }
+			public double HibernatingTime { get; set; }
 			public double OtherTime { get; set; }
 
 			[BsonConstructor]
@@ -75,6 +78,7 @@ namespace HordeServer.Collections.Impl
 				this.NumAgents = Other.NumAgents;
 				this.Streams = Other.Streams.ConvertAll(x => new StreamUtilizationDocument(x));
 				this.AdminTime = Other.AdminTime;
+				this.HibernatingTime = Other.HibernatingTime;
 				this.OtherTime = Other.OtherTime;
 			}
 		}
