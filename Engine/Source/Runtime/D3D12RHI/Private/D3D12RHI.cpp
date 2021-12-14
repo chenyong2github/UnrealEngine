@@ -286,6 +286,14 @@ void FD3D12DynamicRHI::Shutdown()
 	FMemory::Free(ZeroBuffer);
 	ZeroBuffer = NULL;
 	ZeroBufferSize = 0;
+
+#if D3D12RHI_SUPPORTS_WIN_PIX
+	if (WinPixGpuCapturerHandle)
+	{
+		FPlatformProcess::FreeDllHandle(WinPixGpuCapturerHandle);
+		WinPixGpuCapturerHandle = nullptr;
+	}
+#endif
 }
 
 FD3D12CommandContext* FD3D12DynamicRHI::CreateCommandContext(FD3D12Device* InParent, ED3D12CommandQueueType InQueueType, bool InIsDefaultContext)
