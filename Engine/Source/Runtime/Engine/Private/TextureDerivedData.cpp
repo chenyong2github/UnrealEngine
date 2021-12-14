@@ -206,6 +206,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	//	CompressionQuality
 	//	OodleEncodeEffort
 	//	OodleUniversalTiling
+	//  OodleTextureSdkVersion
 }
 
 /**
@@ -626,6 +627,32 @@ static ETextureEncodeSpeed GetDesiredEncodeSpeed()
 	return FThreadSafeInitializer.CachedEncodeSpeedOption;
 }
 
+
+static FName ConditionalRemapOodleTextureSdkVersion(FName InOodleTextureSdkVersion, const ITargetPlatform* TargetPlatform)
+{
+#if WITH_EDITOR
+
+	// optionally remap InOodleTextureSdkVersion
+
+	if ( InOodleTextureSdkVersion.IsNone() )
+	{
+		//	new (optional) pref : OodleTextureSdkVersionToUseIfNone
+
+		FString OodleTextureSdkVersionToUseIfNone;
+		if ( TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("OodleTextureSdkVersionToUseIfNone"), OodleTextureSdkVersionToUseIfNone, GEngineIni) )
+		{
+			return FName(OodleTextureSdkVersionToUseIfNone);
+		}
+	}
+
+	// @todo Oodle : possibly also remap non-none versions
+	//	so you could set up mapping tables like "if it was 2.9.4, now use 2.9.6"
+
+#endif
+
+	return InOodleTextureSdkVersion;
+}
+
 /**
  * Sets texture build settings.
  * @param Texture - The texture for which to build compressor settings.
@@ -643,6 +670,7 @@ static void GetTextureBuildSettings(
 	FTexturePlatformData::FTextureEncodeResultMetadata* OutBuildResultMetadata // can be nullptr if not needed
 	)
 {
+	// pretty sure the "CurrentPlatform" here is actually "TargetPlatform"
 	const bool bPlatformSupportsTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
 	const bool bPlatformSupportsVirtualTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
 
@@ -745,6 +773,9 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.ChromaKeyThreshold = Texture.ChromaKeyThreshold;
 	OutBuildSettings.CompressionQuality = Texture.CompressionQuality - 1; // translate from enum's 0 .. 5 to desired compression (-1 .. 4, where -1 is default while 0 .. 4 are actual quality setting override)
 	
+	// do remap here before we send to TBW's which may not have access to config :
+	OutBuildSettings.OodleTextureSdkVersion = ConditionalRemapOodleTextureSdkVersion(Texture.OodleTextureSdkVersion,&CurrentPlatform);
+
 	// if LossyCompressionAmount is Default, inherit from LODGroup :
 	const FTextureLODGroup& LODGroup = TextureLODSettings.GetTextureLODGroup(Texture.LODGroup);
 	if ( OutBuildSettings.LossyCompressionAmount == TLCA_Default )

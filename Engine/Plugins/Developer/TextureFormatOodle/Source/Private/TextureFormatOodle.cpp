@@ -722,9 +722,15 @@ public:
 	FTextureFormatOodleConfig GlobalFormatConfig;
 	TArray<FOodleTextureVTable> VTables;
 	FName OodleTextureVersionLatest;
+	FName OodleTextureSdkVersionToUseIfNone;
 
-	FTextureFormatOodle() : OodleTextureVersionLatest(OodleTextureVersion)
+	FTextureFormatOodle() : OodleTextureVersionLatest(OodleTextureVersion),
+		OodleTextureSdkVersionToUseIfNone("2.9.5")
 	{
+		// OodleTextureSdkVersionToUseIfNone is the fallback version to use if none is in the Texture uasset
+		//	and also no remap pref is set
+		// it should not be latest; it should be oldest (2.9.5)
+		//  OodleTextureSdkVersionToUseIfNone should never be changed
 	}
 
 
@@ -771,6 +777,7 @@ public:
 		GlobalFormatConfig.ImportFromConfigCache();
 
 		// load ALL Oodle DLL versions we support :
+		// !! add new versions of Oodle here !!
 		VTables.SetNum(1);
 
 		VTables[0].LoadDynamicLib( FString(TEXT("2.9.5")) );
@@ -807,6 +814,11 @@ public:
 		return Prefix;
 	}
 
+	virtual FName GetLatestSdkVersion() const override
+	{
+		return OodleTextureVersionLatest;
+	}
+
 	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings) const override
 	{
 		// return all parameters that affect our output Texture
@@ -839,6 +851,23 @@ public:
 		if (RDOUniversalTiling != OodleTex_RDO_UniversalTiling_Disable)
 		{
 			DDCString += FString::Printf(TEXT("_UT%d"), (int)RDOUniversalTiling);
+		}
+
+		// OodleTextureSdkVersion was added ; keys where OodleTextureSdkVersion is none are unchanged
+		if ( ! InBuildSettings.OodleTextureSdkVersion.IsNone() )
+		{
+			DDCString += TEXT("_V");
+
+			// concatenate VersionString without . characters which are illegal in DDC
+			// version is something like "2.9.5" , we'll add something like "_V295"
+			FString VersionString = InBuildSettings.OodleTextureSdkVersion.ToString();
+			for(int32 i=0;i<VersionString.Len();i++)
+			{
+				if ( VersionString[i] != TEXT('.') )
+				{
+					DDCString += VersionString[i];					
+				}
+			}
 		}
 
 		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
@@ -879,10 +908,25 @@ public:
 		check(InImage.SizeY > 0);
 		check(InImage.NumSlices > 0);
 
-		// @todo Oodle - get desired version from InBuildSettings
-		FName CompressOodleTextureVersion(OodleTextureVersion);
+		FName CompressOodleTextureVersion(InBuildSettings.OodleTextureSdkVersion);
+
+		if ( CompressOodleTextureVersion.IsNone() )
+		{
+			// legacy texture without version, and no remap is set up in prefs
+			// use default:
+			CompressOodleTextureVersion = OodleTextureSdkVersionToUseIfNone;
+		}
+
 		const FOodleTextureVTable * VTable = GetOodleTextureVTable(CompressOodleTextureVersion);
-		check(VTable != nullptr);
+		if (VTable == nullptr)
+		{
+			UE_LOG(LogTextureFormatOodle,Error,
+				TEXT("Unsupported OodleTextureSdkVersion: %s"),
+				*CompressOodleTextureVersion.ToString()
+				);
+			
+			return false;
+		}
 
 		// InImage always comes in as F32 in linear light
 		//	(Unreal has just made mips in that format)
@@ -1232,12 +1276,18 @@ public:
 
 			if (bImageDump)
 			{
+				// @todo Oodle CB : factor out the two copies of this
+
 				OodleDDS::EDXGIFormat DebugFormat = DXGIFormatFromOodlePF(OodlePF);
 				if (DebugFormat != OodleDDS::EDXGIFormat::UNKNOWN)
 				{
 					OodleDDS::FDDSFile* DDS = OodleDDS::FDDSFile::CreateEmpty2D(Image.SizeX, Image.SizeY, 1, DebugFormat, OodleDDS::FDDSFile::CREATE_FLAG_NONE);
+
+					// @todo Oodle CB : if sizes aren't equal, warn? maybe memset?
+					check( DDS->Mips[0].DataSize >= InBytesPerSlice );
 					FMemory::Memcpy(DDS->Mips[0].Data, InSurf.pixels, InBytesPerSlice);
 
+					// @todo Oodle CB : this does not work for VT tiles, they all get the same name
 					FString InputFileName = FString::Printf(TEXT("%.*s_%dx%d_Slice%d_IN.dds"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), Image.SizeX, Image.SizeY, Slice);
 
 					// Object paths a) can contain slashes as its a path, and we dont want a hierarchy and b) can have random characters we don't want
@@ -1277,6 +1327,7 @@ public:
 				if (bImageDump)
 				{
 					OodleDDS::FDDSFile* DDS = OodleDDS::FDDSFile::CreateEmpty2D(Image.SizeX, Image.SizeY, 1, DXGIFormatFromOodleBC(OodleBCN), OodleDDS::FDDSFile::CREATE_FLAG_NONE);
+					check( DDS->Mips[0].DataSize >= OutBytesPerSlice );
 					FMemory::Memcpy(DDS->Mips[0].Data, OutSlicePtr, OutBytesPerSlice);
 
 					FString OutputFileName = FString::Printf(TEXT("%.*s_%dx%d_Slice%d_OUT.dds"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), Image.SizeX, Image.SizeY, Slice);

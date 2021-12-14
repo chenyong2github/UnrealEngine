@@ -91,6 +91,8 @@ ENGINE_API bool GDisableAutomaticTextureMaterialUpdateDependencies = false;
 
 UTexture::FOnTextureSaved UTexture::PreSaveEvent;
 
+static FName CachedGetLatestOodleSdkVersion();
+
 UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PrivateResource(nullptr)
@@ -384,6 +386,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		static const FName SourceColorSpaceName = GET_MEMBER_NAME_CHECKED(FTextureSourceColorSettings, ColorSpace);
 		static const FName MaxTextureSizeName = GET_MEMBER_NAME_CHECKED(UTexture, MaxTextureSize);
 		static const FName CompressionQualityName = GET_MEMBER_NAME_CHECKED(UTexture, CompressionQuality);
+		static const FName OodleTextureSdkVersionName = GET_MEMBER_NAME_CHECKED(UTexture, OodleTextureSdkVersion);
 #endif //WITH_EDITORONLY_DATA
 
 		const FName PropertyName = PropertyThatChanged->GetFName();
@@ -445,6 +448,16 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		else if (PropertyName == VirtualTextureStreamingName)
 		{
 			RequiresNotifyMaterials = true;
+		}
+		else if (PropertyName == OodleTextureSdkVersionName)
+		{
+			// if you write "latest" in editor it becomes the number of the latest version
+			static const FName NameLatest("latest");
+			static const FName NameCurrent("current");
+			if ( OodleTextureSdkVersion == NameLatest || OodleTextureSdkVersion == NameCurrent )
+			{
+				OodleTextureSdkVersion = CachedGetLatestOodleSdkVersion();
+			}
 		}
 #endif //WITH_EDITORONLY_DATA
 	}
@@ -609,6 +622,10 @@ void UTexture::PostInitProperties()
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad))
 	{
 		AssetImportData = NewObject<UAssetImportData>(this, TEXT("AssetImportData"));
+
+		// OodleTextureSdkVersion = get latest sdk version
+		//	this needs to get the actual version number so it will be IO'd frozen (not just "latest")
+		OodleTextureSdkVersion = CachedGetLatestOodleSdkVersion();
 	}
 #endif
 	Super::PostInitProperties();
@@ -2134,11 +2151,56 @@ int64 UTexture::GetBuildRequiredMemory() const
 
 #endif // #if WITH_EDITOR
 
-static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITargetPlatform* TargetPlatform)
+static FName GetLatestOodleTextureSdkVersion()
+{
+
+#if WITH_EDITOR
+	// don't use AlternateTextureCompression pref
+	//	just explicitly ask for new Oodle
+	// in theory we could look for a "TextureCompressionFormatWithVersion" setting
+	//	but to do that we need a target platform, since it could defer by target and not be set for current at all
+	// and here we need something global, not per-target
+	const TCHAR * TextureCompressionFormat = TEXT("TextureFormatOodle");
+
+	ITextureFormatModule * TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(TextureCompressionFormat);
+
+	// TextureFormatModule can be null if TextureFormatOodle is disabled in this project
+	//  then we will return None, which is correct
+
+	if ( TextureFormatModule )
+	{
+		ITextureFormat* TextureFormat = TextureFormatModule->GetTextureFormat();
+					
+		FName LatestSdkVersion = TextureFormat->GetLatestSdkVersion();
+			
+		return LatestSdkVersion;
+	}
+#endif
+
+	return NAME_None;
+}
+
+static FName CachedGetLatestOodleSdkVersion()
+{
+	static struct DoOnceGetLatestSdkVersion
+	{
+		FName Value;
+
+		DoOnceGetLatestSdkVersion() : Value( GetLatestOodleTextureSdkVersion() )
+		{
+		}
+	} Once;
+
+	return Once.Value;
+}
+
+static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITargetPlatform* TargetPlatform, bool bOodleTextureSdkVersionIsNone)
 {
 #if WITH_EDITOR
 
 	// Prepend a texture format to allow a module to override the compression (Ex: this allows you to replace TextureFormatDXT with a different compressor)
+
+	// TextureCompressionFormat is required, TextureCompressionFormatWithVersion is optional
 
 	FString TextureCompressionFormat;
 	bool bHasFormat = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat, GEngineIni);
@@ -2146,6 +2208,35 @@ static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITarget
 	
 	if ( bHasFormat )
 	{
+		//	new (optional) pref : TextureCompressionFormatWithVersion
+		//	 if TextureCompressionFormatWithVersion is not set, TextureCompressionFormat is used for both cases (with version & without)
+		if ( ! bOodleTextureSdkVersionIsNone )
+		{
+			FString TextureCompressionFormatWithVersion;
+			bool bHasFormatWithVersion = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormatWithVersion"), TextureCompressionFormatWithVersion, GEngineIni);
+			bHasFormatWithVersion = bHasFormatWithVersion && ! TextureCompressionFormatWithVersion.IsEmpty();
+			if ( bHasFormatWithVersion )
+			{
+				TextureCompressionFormat = TextureCompressionFormatWithVersion;
+			}
+			else
+			{
+				// if TextureCompressionFormatWithVersion is not set,
+				// TextureCompressionFormatWithVersion is automatically set to "TextureFormatOodle"
+				// new textures with version field will use TFO (if "TextureCompressionFormat" field exists)
+
+				TextureCompressionFormat = TEXT("TextureFormatOodle");
+
+				static bool LogOnce = true;
+				// not a thread-safe atomic ONCE but no big deal here
+				if ( LogOnce )
+				{
+					LogOnce = false;
+					UE_LOG(LogTexture, Display, TEXT("AlternateTextureCompression/TextureCompressionFormatWithVersion not specified, using %s."), *TextureCompressionFormat);
+				}
+			}
+		}
+
 		ITextureFormatModule * TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
 
 		if ( TextureFormatModule )
@@ -2174,6 +2265,7 @@ static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITarget
 FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize )
 {
 	FName TextureFormatName = NAME_None;
+	bool bOodleTextureSdkVersionIsNone = true;
 
 	/**
 	 * IF you add a format to this function don't forget to update GetAllDefaultTextureFormatNames 
@@ -2365,10 +2457,11 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 			TextureFormatName = NameBGRA8;
 		}
 	}
-
+	
+	bOodleTextureSdkVersionIsNone = Texture->OodleTextureSdkVersion == NAME_None;
 #endif //WITH_EDITOR
 
-	return ConditionalGetPrefixedFormat(TextureFormatName, TargetPlatform);
+	return ConditionalGetPrefixedFormat(TextureFormatName, TargetPlatform, bOodleTextureSdkVersionIsNone);
 }
 
 void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize)
@@ -2426,7 +2519,8 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	int NumBaseFormats = OutFormats.Num();
 	for (int Index = 0; Index < NumBaseFormats; Index++)
 	{
-		OutFormats.AddUnique(ConditionalGetPrefixedFormat(OutFormats[Index], TargetPlatform));
+		OutFormats.AddUnique(ConditionalGetPrefixedFormat(OutFormats[Index], TargetPlatform, true));
+		OutFormats.AddUnique(ConditionalGetPrefixedFormat(OutFormats[Index], TargetPlatform, false));
 	}
 #endif
 }

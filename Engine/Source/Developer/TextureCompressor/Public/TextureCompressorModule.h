@@ -178,6 +178,9 @@ struct FTextureBuildSettings
 	// ETextureLossyCompressionAmount - oodle resolves this to RDO lambda during fast/final resolution.
 	int32 LossyCompressionAmount;
 
+	// which version of Oodle Texture to encode with
+	FName OodleTextureSdkVersion;
+
 	/** Encoding settings resolved from fast/final.
 	* Enums aren't accessible from this module:
 	* ETextureEncodeEffort, ETextureUniversalTiling. */	
@@ -260,6 +263,7 @@ struct FTextureBuildSettings
 		, ChromaKeyThreshold(1.0f / 255.0f)
 		, CompressionQuality(-1)
 		, LossyCompressionAmount(0 /* TLCA_Default */)
+		, OodleTextureSdkVersion() // FName() == NAME_None
 		, OodleRDO(30)
 		, OodleEncodeEffort(0 /* ETextureEncodeEffort::Default */)
 		, OodleUniversalTiling(0 /* ETextureUniversalTiling::Disabled */)

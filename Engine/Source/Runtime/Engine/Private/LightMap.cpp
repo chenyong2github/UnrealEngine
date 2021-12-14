@@ -1869,6 +1869,9 @@ void FLightMapPendingTexture::StartEncoding(ULevel* LightingScenario, ITextureCo
 			VirtualTexture->CompressionNone = !GCompressLightmaps;
 			VirtualTexture->LossyCompressionAmount = CVarVTEnableLossyCompressLightmaps.GetValueOnAnyThread() ? TLCA_Default : TLCA_None;
 
+			// VirtualTexture->OodleTextureSdkVersion will be set to latest by default constructor
+			//  dynamic/generated textures use latest OodleTextureSdkVersion
+
 			FTextureFormatSettings DefaultFormatSettings;
 			VirtualTexture->GetDefaultFormatSettings(DefaultFormatSettings);
 			VirtualTexture->LayerFormatSettings.Init(DefaultFormatSettings, NumVirtualTextureLayers[CoefficientIndex]);
