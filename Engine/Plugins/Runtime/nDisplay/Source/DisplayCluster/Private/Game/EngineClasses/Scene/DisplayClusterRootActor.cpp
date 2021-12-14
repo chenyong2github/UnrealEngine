@@ -43,6 +43,12 @@
 
 #include "Game/EngineClasses/Scene/DisplayClusterRootActorInitializer.h"
 
+#if WITH_EDITOR
+#include "IConcertSyncClientModule.h"
+#include "IConcertClientWorkspace.h"
+#include "IConcertSyncClient.h"
+#endif
+
 ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, OperationMode(EDisplayClusterOperationMode::Disabled)
@@ -827,10 +833,33 @@ static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, U
 		{
 			if (const UObject* InstancedObject = *InstancedObjectPtr)
 			{
-				if (ensure(DefaultObject == InstancedObject->GetArchetype()))
+				const bool bArchetypeCorrect = DefaultObject == InstancedObject->GetArchetype();
+				
+				// The archetype should always match the new default. There are edge cases with MU
+				// where the instance may be updated prior to the CDO and should be corrected once
+				// the BP is saved. If this occurs outside of MU there could be a serious problem.
+				if (!bArchetypeCorrect)
 				{
-					continue;
+					const ADisplayClusterRootActor* RootActor =
+					CastChecked<ADisplayClusterRootActor>(InstancedObject->GetTypedOuter(ADisplayClusterRootActor::StaticClass()));
+#if WITH_EDITOR
+					if (GEditor)
+					{
+						bool bIsMultiUserSession = false;
+						TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser"));
+						if (ConcertSyncClient.IsValid())
+						{
+							TSharedPtr<IConcertClientWorkspace> Workspace = ConcertSyncClient->GetWorkspace();
+							bIsMultiUserSession = Workspace.IsValid();
+						}
+
+						ensure(bArchetypeCorrect || bIsMultiUserSession);
+					}
+#endif
+					UE_LOG(LogDisplayClusterBlueprint, Warning, TEXT("Archetype mismatch on nDisplay config %s. Make sure the config is compiled and saved. Property: %s, Instance: %s, Archetype: %s, Default %s."),
+						*RootActor->GetName(), *MapProperty->GetName(), *InstancedObject->GetName(), *InstancedObject->GetArchetype()->GetName(), *DefaultObject->GetName());
 				}
+				continue;
 			}
 		}
 		
@@ -848,18 +877,17 @@ static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, U
 		
 		if (!MapDefaultsHelper.FindValueFromHash(Key))
 		{
-			UObject** InstanceObjectPtr = MapProperty->ValueProp->ContainerPtrToValuePtr<UObject*>(InstancePairPtr);
-			if (InstanceObjectPtr)
+			if (UObject** InstanceObjectPtr = MapProperty->ValueProp->ContainerPtrToValuePtr<UObject*>(InstancePairPtr))
 			{
-				UObject* InstanceObject = *InstanceObjectPtr;
-				check(InstanceObject);
-				
-				// Trash the object -- default propagation won't handle this any more.
-				// RemoveAt below will remove the reference to it. This transaction can still be undone.
-				// Rename to transient package now so the same name is available immediately.
-				// It's possible a new object needs to be created with this outer using the same name.
-				InstanceObject->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
-				InstanceObject->SetFlags(RF_Transient);
+				if (UObject* InstanceObject = *InstanceObjectPtr)
+				{
+					// Trash the object -- default propagation won't handle this any more.
+					// RemoveAt below will remove the reference to it. This transaction can still be undone.
+					// Rename to transient package now so the same name is available immediately.
+					// It's possible a new object needs to be created with this outer using the same name.
+					InstanceObject->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+					InstanceObject->SetFlags(RF_Transient);
+				}
 			}
 			
 			MapInstanceHelper.RemoveAt(*InstanceIt);

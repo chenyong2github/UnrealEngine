@@ -81,20 +81,20 @@ void FDisplayClusterConfiguratorKismetCompilerContext::PreCompile()
 void FDisplayClusterConfiguratorKismetCompilerContext::SaveSubObjectsFromCleanAndSanitizeClass(
 	FSubobjectCollection& SubObjectsToSave, UBlueprintGeneratedClass* ClassToClean)
 {
-	SavedSubObjects.Empty();
+	OldSubObjects.Empty();
 	FKismetCompilerContext::SaveSubObjectsFromCleanAndSanitizeClass(SubObjectsToSave, ClassToClean);
 
-	UDisplayClusterBlueprint* DCBlueprint = CastChecked<UDisplayClusterBlueprint>(Blueprint);
+	const UDisplayClusterBlueprint* DCBlueprint = CastChecked<UDisplayClusterBlueprint>(Blueprint);
 	if (UDisplayClusterConfigurationData* ConfigData = DCBlueprint->GetConfig())
 	{
 		SubObjectsToSave.AddObject(ConfigData);
 
-		// Find all subobjects owned by this object.. same as how `AddObject` above works.
+		// Find all subobjects owned by this object. Same as how `AddObject` above works.
 		{
-			SavedSubObjects.Add(ConfigData);
+			OldSubObjects.AddUnique(ConfigData);
 			ForEachObjectWithOuter(ConfigData, [this](UObject* Child)
 			{
-				SavedSubObjects.Add(Child);
+				OldSubObjects.AddUnique(Child);
 			});
 		}
 	}
@@ -109,71 +109,108 @@ void FDisplayClusterConfiguratorKismetCompilerContext::CopyTermDefaultsToDefault
 	{
 		return;
 	}
-	
+
+	ADisplayClusterRootActor* RootActor = CastChecked<ADisplayClusterRootActor>(DefaultObject);
 	if (Blueprint->bIsNewlyCreated)
 	{
-		ADisplayClusterRootActor* RootActor = CastChecked<ADisplayClusterRootActor>(DefaultObject);
 		RootActor->PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 	}
-
-	auto GetCorrectOuter = [this](UObject* InObject)
+	
+	// Restore the old config data back to the CDO to preserve transaction history.
+	// Ideally transaction history would persist through sub-object re-instancing, but that requires
+	// the sub-objects are marked as default sub objects which is incompatible for our use.
+	if (OldSubObjects.Num() > 0)
 	{
-		check (InObject);
-		
-		UObject* InOuter = InObject->GetOuter();
-		check(InOuter);
+		UDisplayClusterConfigurationData* OldConfigData = CastChecked<UDisplayClusterConfigurationData>(OldSubObjects[0]);
+		UDisplayClusterConfigurationData* NewConfigData = RootActor->CurrentConfigData;
 
-		// Find the saved sub-object outer.
-		if (const TArray<UObject*>::ElementType* FoundSavedOuter = SavedSubObjects.FindByPredicate([InOuter](const UObject* SubObject)
+		TMap<UObject*, UObject*> NewToOldSubObjects;
 		{
-			check(SubObject);
-			return InOuter->GetName() == SubObject->GetName();
-		}))
-		{
-			return *FoundSavedOuter;
+			NewToOldSubObjects.Reserve(OldSubObjects.Num());
+			NewToOldSubObjects.Add(NewConfigData, OldConfigData);
+			
+			ForEachObjectWithOuter(NewConfigData, [&](UObject* NewSubObject)
+			{
+				if (UObject** MatchingOldSubObject = OldSubObjects.FindByPredicate([NewSubObject](const UObject* OldSubObject)
+				{
+					return OldSubObject->GetName() == NewSubObject->GetName() &&
+						OldSubObject->GetClass() == NewSubObject->GetClass();
+				}))
+				{
+					NewToOldSubObjects.Add(NewSubObject, *MatchingOldSubObject);
+					NewSubObject->SetFlags(RF_Transient);
+					NewSubObject->ClearFlags(RF_Transactional);
+					FLinkerLoad::InvalidateExport(NewSubObject);
+				}
+			});
 		}
 		
-		// Fallback to original outer.
-		return InOuter;
-	};
+		const ERenameFlags RenFlags = REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty | REN_ForceNoResetLoaders;
 
-	// Restore all saved sub-objects to their original locations. The sub-objects are dynamically added and
-	// already correct by this point. They need to be restored so transaction history can be preserved and undos
-	// function after a compile. If we ever add in compile modification of sub-objects under
-	// CopyTermDefaultsToDefaultObject then we'll need to adjust this logic.
-	for (UObject* SavedSubObject : SavedSubObjects)
-	{
-		if (UObject* NewObject = static_cast<UObject*>(FindObjectWithOuter(DefaultObject, SavedSubObject->GetClass(), *SavedSubObject->GetName())))
+		// Rename our new config data (along with all new sub-objects) to the transient package.
 		{
-			const ERenameFlags RenFlags = REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional | REN_DoNotDirty;
+			NewConfigData->Rename(nullptr, GetTransientPackage(), RenFlags);
+			NewConfigData->SetFlags(RF_Transient);
+			NewConfigData->ClearFlags(RF_Transactional);
+			FLinkerLoad::InvalidateExport(NewConfigData);
+		}
+
+		// Rename our old config data (along with all sub-objects) to our new CDO.
+		{
+			OldConfigData->Rename(nullptr, DefaultObject, RenFlags);
+
+			// Set the property value directly to avoid going through our custom load logic.
+			const FObjectProperty* CurrentConfigProperty =
+				CastFieldChecked<FObjectProperty>(RootActor->GetClass()->FindPropertyByName(RootActor->GetCurrentConfigDataMemberName()));
+
+			void* PropertyAddress = CurrentConfigProperty->ContainerPtrToValuePtr<UObject>(DefaultObject);
+			CurrentConfigProperty->SetObjectPropertyValue(PropertyAddress, OldConfigData);
+		}
+		
+		if (GEditor)
+		{
+			GEditor->NotifyToolsOfObjectReplacement(NewToOldSubObjects);
+		}
+
+		// Validate
+		for (UObject* OldSubObject : OldSubObjects)
+		{
+			if (OldSubObject->GetTypedOuter(ADisplayClusterRootActor::StaticClass()) != DefaultObject)
+			{
+				MessageLog.Error(TEXT("Could not preserve original sub-object @@. Transaction history may be lost."), OldSubObject);
+			}
+		}
+
+		// Fix/hack for UE-136629: Containers (specifically hash based) may need to be reset.
+		// The internal index of the CDO container may mismatch the instanced index because we aren't re-instantiating our
+		// sub-objects so we can maintain transaction history. Once in this state it takes an asset reload to correct.
+		// 
+		// If the index is off and a user adds a new element, it may inadvertently overwrite the wrong index on the instance.
+		// This occurs when we delete a cluster node, compile, then add a new cluster node in. The map is modified via handle,
+		// AddItem() is called, then the keypair value is set. AddItem() will add the value to the CDO, but in the wrong index.
+		// When UE propagates this to the instances, it will add it there in the correct index. When the value is set later the wrong
+		// index of the instance is used since it propagates based on the CDO index.
+		//
+		// It's not clear if this issue would be better solved in the engine's internal map/set propagation or if there
+		// is a better approach for switching out sub-objects on the CDO before the compile process finishes.
+
+		for (UObject* OldSubObject : OldSubObjects)
+		{
+			for (const FProperty* Property : TFieldRange<FProperty>(OldSubObject->GetClass()))
+			{
+				// Is container
+				if (Property->IsA<FArrayProperty>() ||
+					Property->IsA<FSetProperty>() ||
+					Property->IsA<FMapProperty>())
+				{
+					void* PropertyValue = Property->ContainerPtrToValuePtr<void*>(OldSubObject);
 			
-			const bool bSubObjectIsNew = NewObject != SavedSubObject;
-			ensure(bSubObjectIsNew);
-
-			UObject* DesiredOuter = GetCorrectOuter(NewObject);
-			check(DesiredOuter != GetTransientPackage());
-			
-			if (bSubObjectIsNew)
-			{
-				// Invalidate the newly created sub-object.
-				NewObject->Rename(nullptr, GetTransientPackage(), RenFlags);
-				NewObject->SetFlags(RF_Transient);
-				FLinkerLoad::InvalidateExport(NewObject);
+					FString Value;
+					Property->ExportTextItem(Value, PropertyValue, nullptr, nullptr, 0, nullptr);
+					Property->ImportText(*Value, PropertyValue, 0, OldSubObject);
+				}
 			}
-
-			if (DesiredOuter != SavedSubObject->GetOuter())
-			{
-				// Restore the original sub-object.
-				SavedSubObject->Rename(nullptr, DesiredOuter, RenFlags);
-			}
-
-			if (bSubObjectIsNew)
-			{
-				// Update all properties to point to the original sub-object.
-				TArray<UObject*> ObjectsToReplace { NewObject };
-				ObjectTools::ForceReplaceReferences(SavedSubObject, ObjectsToReplace);
-			}
-		}		
+		}
 	}
 }
 

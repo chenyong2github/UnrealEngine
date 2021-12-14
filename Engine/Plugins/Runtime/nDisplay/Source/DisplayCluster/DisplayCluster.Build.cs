@@ -56,6 +56,15 @@ public class DisplayCluster : ModuleRules
 			PrivateDependencyModuleNames.Add("LevelEditor");
 		}
 
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"ConcertSyncClient"
+				});
+		}
+
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PrivateDependencyModuleNames.AddRange(
