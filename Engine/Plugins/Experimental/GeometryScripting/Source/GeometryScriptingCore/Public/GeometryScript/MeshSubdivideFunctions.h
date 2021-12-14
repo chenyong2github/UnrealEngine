@@ -20,15 +20,14 @@ public:
 	bool bRecomputeNormals = true;
 };
 
-
-
 UCLASS(meta = (ScriptName = "GeometryScript_MeshSubdivide"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshSubdivideFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Subdivide", meta=(ScriptMethod))
+	UE_DEPRECATED(5.2, "Use 'Apply PN Tessellation' instead; this deprecated version recursively subdivided the mesh NumIterations times while the new version splits every triangle into (TessellationLevel+1)^2 smaller triangles.")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Subdivide", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage = "Use 'Apply PN Tessellation' instead; this deprecated version recursively subdivided the mesh NumIterations times while the new version splits every triangle into (TessellationLevel+1)^2 smaller triangles."))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyRecursivePNTessellation(
 		UDynamicMesh* TargetMesh,
@@ -36,4 +35,18 @@ public:
 		int NumIterations = 3,
 		UGeometryScriptDebug* Debug = nullptr );
 
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Subdivide", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyPNTessellation(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptPNTessellateOptions Options,
+		int TessellationLevel = 3,
+		UGeometryScriptDebug* Debug = nullptr );
+	
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Subdivide", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyUniformTessellation(
+		UDynamicMesh* TargetMesh,
+		int TessellationLevel = 3,
+		UGeometryScriptDebug* Debug = nullptr );
 };
