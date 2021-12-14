@@ -58,10 +58,10 @@ public:
 	virtual bool CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override { return false; }
 
 	// IMeshDescriptionProvider implementation
-	const FMeshDescription* GetMeshDescription() override;
+	virtual const FMeshDescription* GetMeshDescription(const FGetMeshParameters& GetMeshParams = FGetMeshParameters()) override;
 
 	// IMeshDescritpionCommitter implementation
-	virtual void CommitMeshDescription(const FCommitter& Committer) override;
+	virtual void CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitMeshParams = FCommitMeshParameters()) override;
 	using IMeshDescriptionCommitter::CommitMeshDescription; // unhide the other overload
 
 	// IPhysicsDataSource implementation

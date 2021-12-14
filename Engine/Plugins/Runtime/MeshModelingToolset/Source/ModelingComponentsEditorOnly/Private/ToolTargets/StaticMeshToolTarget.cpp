@@ -28,28 +28,28 @@ namespace StaticMeshToolTargetLocals
 	}
 }
 
-void UStaticMeshToolTarget::SetEditingLOD(EStaticMeshEditingLOD RequestedEditingLOD)
+void UStaticMeshToolTarget::SetEditingLOD(EMeshLODIdentifier RequestedEditingLOD)
 {
 	EditingLOD = GetValidEditingLOD(StaticMesh, RequestedEditingLOD);
 }
 
-EStaticMeshEditingLOD UStaticMeshToolTarget::GetValidEditingLOD(const UStaticMesh* StaticMeshIn, 
-	EStaticMeshEditingLOD RequestedEditingLOD)
+EMeshLODIdentifier UStaticMeshToolTarget::GetValidEditingLOD(const UStaticMesh* StaticMeshIn, 
+	EMeshLODIdentifier RequestedEditingLOD)
 {
 	using namespace StaticMeshToolTargetLocals;
 
-	EStaticMeshEditingLOD ValidEditingLOD = EStaticMeshEditingLOD::LOD0;
+	EMeshLODIdentifier ValidEditingLOD = EMeshLODIdentifier::LOD0;
 
 	if (ensure(StaticMeshIn != nullptr))
 	{
-		if (RequestedEditingLOD == EStaticMeshEditingLOD::MaxQuality)
+		if (RequestedEditingLOD == EMeshLODIdentifier::MaxQuality)
 		{
-			ValidEditingLOD = StaticMeshIn->IsHiResMeshDescriptionValid() ? EStaticMeshEditingLOD::HiResSource : EStaticMeshEditingLOD::LOD0;
+			ValidEditingLOD = StaticMeshIn->IsHiResMeshDescriptionValid() ? EMeshLODIdentifier::HiResSource : EMeshLODIdentifier::LOD0;
 		}
-		else if (RequestedEditingLOD == EStaticMeshEditingLOD::HiResSource)
+		else if (RequestedEditingLOD == EMeshLODIdentifier::HiResSource)
 		{
-			ValidEditingLOD = StaticMeshIn->IsHiResMeshDescriptionValid() ? EStaticMeshEditingLOD::HiResSource : EStaticMeshEditingLOD::LOD0;
-			if (ValidEditingLOD != EStaticMeshEditingLOD::HiResSource)
+			ValidEditingLOD = StaticMeshIn->IsHiResMeshDescriptionValid() ? EMeshLODIdentifier::HiResSource : EMeshLODIdentifier::LOD0;
+			if (ValidEditingLOD != EMeshLODIdentifier::HiResSource)
 			{
 				DisplayCriticalWarningMessage(FString(TEXT("HiRes Source selected but not available - Falling Back to LOD0")));
 			}
@@ -61,7 +61,7 @@ EStaticMeshEditingLOD UStaticMeshToolTarget::GetValidEditingLOD(const UStaticMes
 			if ((int32)ValidEditingLOD > MaxExistingLOD)
 			{
 				DisplayCriticalWarningMessage(FString::Printf(TEXT("LOD%d Requested but not available - Falling Back to LOD%d"), (int32)ValidEditingLOD, MaxExistingLOD));
-				ValidEditingLOD = (EStaticMeshEditingLOD)MaxExistingLOD;
+				ValidEditingLOD = (EMeshLODIdentifier)MaxExistingLOD;
 			}
 		}
 	}
@@ -75,14 +75,14 @@ bool UStaticMeshToolTarget::IsValid() const
 	return IsValid(StaticMesh, EditingLOD);
 }
 
-bool UStaticMeshToolTarget::IsValid(const UStaticMesh* StaticMeshIn, EStaticMeshEditingLOD EditingLODIn)
+bool UStaticMeshToolTarget::IsValid(const UStaticMesh* StaticMeshIn, EMeshLODIdentifier EditingLODIn)
 {
 	if (!StaticMeshIn || !IsValidChecked(StaticMeshIn) || StaticMeshIn->IsUnreachable() || !StaticMeshIn->IsValidLowLevel())
 	{
 		return false;
 	}
 
-	if (EditingLODIn == EStaticMeshEditingLOD::HiResSource)
+	if (EditingLODIn == EMeshLODIdentifier::HiResSource)
 	{
 		if (StaticMeshIn->IsHiResMeshDescriptionValid() == false)
 		{
@@ -184,7 +184,7 @@ bool UStaticMeshToolTarget::CommitMaterialSetUpdate(UStaticMesh* StaticMeshIn,
 	return true;
 }
 
-const FMeshDescription* UStaticMeshToolTarget::GetMeshDescription()
+const FMeshDescription* UStaticMeshToolTarget::GetMeshDescription(const FGetMeshParameters& GetMeshParams)
 {
 	static FMeshDescription EmptyMeshDescription;
 	static bool bFirst = true;
@@ -197,34 +197,39 @@ const FMeshDescription* UStaticMeshToolTarget::GetMeshDescription()
 
 	if (ensure(IsValid()))
 	{
-		FMeshDescription* MeshDescription = (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
-			StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)EditingLOD);
-
-		if (!MeshDescription)
+		EMeshLODIdentifier UseLOD = EditingLOD;
+		if (GetMeshParams.bHaveRequestLOD)
 		{
-			return &EmptyMeshDescription;
+			UseLOD = UStaticMeshToolTarget::GetValidEditingLOD(StaticMesh, GetMeshParams.RequestLOD);
+			ensure(UseLOD == GetMeshParams.RequestLOD);		// probably a bug somewhere if this is not true
 		}
 
-		return MeshDescription;
+		FMeshDescription* FoundMeshDescription = (UseLOD == EMeshLODIdentifier::HiResSource) ?
+			StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)UseLOD);
+
+		return (FoundMeshDescription != nullptr) ? FoundMeshDescription : &EmptyMeshDescription;
 	}
 	return nullptr;
 }
 
-void UStaticMeshToolTarget::CommitMeshDescription(const FCommitter& Committer)
+void UStaticMeshToolTarget::CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitParams)
 {
 	if (ensure(IsValid()) == false) return;
 
-	FMeshDescription* UpdateMeshDescription = (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
-		StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)EditingLOD);
+	EMeshLODIdentifier WriteToLOD = (CommitParams.bHaveTargetLOD && CommitParams.TargetLOD != EMeshLODIdentifier::Default) ? CommitParams.TargetLOD : EditingLOD;
 
-	CommitMeshDescription(StaticMesh, UpdateMeshDescription, Committer, EditingLOD);
+	CommitMeshDescription(StaticMesh, Committer, WriteToLOD);
 }
 
-void UStaticMeshToolTarget::CommitMeshDescription(UStaticMesh* StaticMeshIn, FMeshDescription* MeshDescription,
-	const FCommitter& Committer, EStaticMeshEditingLOD EditingLODIn)
+void UStaticMeshToolTarget::CommitMeshDescription(UStaticMesh* StaticMeshIn, const FCommitter& Committer, EMeshLODIdentifier EditingLODIn)
 {
 	using namespace StaticMeshToolTargetLocals;
 
+	if ( ! ensure(EditingLODIn != EMeshLODIdentifier::Default && EditingLODIn != EMeshLODIdentifier::MaxQuality) )
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("UStaticMeshToolTarget::CommitMeshDescription: invalid Target LOD, must specify explicit LOD"));
+		return;
+	}
 	if (StaticMeshIn->GetPathName().StartsWith(TEXT("/Engine/")))
 	{
 		DisplayCriticalWarningMessage(FString::Printf(TEXT("CANNOT MODIFY BUILT-IN ENGINE ASSET %s"), *StaticMeshIn->GetPathName()));
@@ -236,15 +241,43 @@ void UStaticMeshToolTarget::CommitMeshDescription(UStaticMesh* StaticMeshIn, FMe
 
 	// make sure transactional flag is on for this asset
 	StaticMeshIn->SetFlags(RF_Transactional);
+	// mark as modified
+	StaticMeshIn->Modify();
 
-	verify(StaticMeshIn->Modify());
+	FMeshDescription* UpdateMeshDescription = nullptr;
+	if (EditingLODIn == EMeshLODIdentifier::HiResSource)
+	{
+		UpdateMeshDescription = StaticMeshIn->GetHiResMeshDescription();
+		if (UpdateMeshDescription == nullptr)
+		{
+			UpdateMeshDescription = StaticMeshIn->CreateHiResMeshDescription();
+		}
+	}
+	else
+	{
+		int32 UseLODIndex = static_cast<int32>(EditingLODIn);
+		if (StaticMeshIn->GetNumSourceModels() < UseLODIndex+1)
+		{
+			StaticMeshIn->SetNumSourceModels(UseLODIndex+1);
+		}
+
+		UpdateMeshDescription = StaticMeshIn->GetMeshDescription(UseLODIndex);
+		if (UpdateMeshDescription == nullptr)
+		{
+			UpdateMeshDescription = StaticMeshIn->CreateMeshDescription(UseLODIndex);
+		}
+	}
 
 	// disable auto-generated normals StaticMesh build setting
 	UE::MeshDescription::FStaticMeshBuildSettingChange SettingsChange;
 	SettingsChange.AutoGeneratedNormals = UE::MeshDescription::EBuildSettingBoolChange::Disable;
-	UE::MeshDescription::ConfigureBuildSettings(StaticMeshIn, 0, SettingsChange);
+	if (static_cast<int32>(EditingLODIn) <= (int32)EMeshLODIdentifier::LOD7)
+	{
+		UE::MeshDescription::ConfigureBuildSettings(StaticMeshIn, static_cast<int32>(EditingLODIn), SettingsChange);
+	}
+	// do we need to configure build settings for highres LOD?
 
-	if (EditingLODIn == EStaticMeshEditingLOD::HiResSource)
+	if (EditingLODIn == EMeshLODIdentifier::HiResSource)
 	{
 		verify(StaticMeshIn->ModifyHiResMeshDescription());
 	}
@@ -254,17 +287,22 @@ void UStaticMeshToolTarget::CommitMeshDescription(UStaticMesh* StaticMeshIn, FMe
 	}
 
 	FCommitterParams CommitterParams;
-	CommitterParams.MeshDescriptionOut = MeshDescription;
+	CommitterParams.MeshDescriptionOut = UpdateMeshDescription;
 
 	Committer(CommitterParams);
 
-	if (EditingLODIn == EStaticMeshEditingLOD::HiResSource)
+	if (EditingLODIn == EMeshLODIdentifier::HiResSource)
 	{
 		StaticMeshIn->CommitHiResMeshDescription();
 	}
 	else
 	{
 		StaticMeshIn->CommitMeshDescription((int32)EditingLODIn);
+
+		// configure build settings to prevent the standard static mesh reduction from running and replacing the render LOD.
+		FStaticMeshSourceModel& ThisSourceModel = StaticMeshIn->GetSourceModel((int32)EditingLODIn);
+		ThisSourceModel.ReductionSettings.PercentTriangles = 1.f;
+		ThisSourceModel.ReductionSettings.PercentVertices = 1.f;
 	}
 
 	StaticMeshIn->PostEditChange();
@@ -308,7 +346,7 @@ UToolTarget* UStaticMeshToolTargetFactory::BuildTarget(UObject* SourceObject, co
 }
 
 
-void UStaticMeshToolTargetFactory::SetActiveEditingLOD(EStaticMeshEditingLOD NewEditingLOD)
+void UStaticMeshToolTargetFactory::SetActiveEditingLOD(EMeshLODIdentifier NewEditingLOD)
 {
 	EditingLOD = NewEditingLOD;
 }

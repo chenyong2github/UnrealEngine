@@ -265,14 +265,14 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 		.OptionsSource(&AssetLODModes)
 		.OnSelectionChanged_Lambda([&](TSharedPtr<FString> String, ESelectInfo::Type)
 	{
-		EStaticMeshEditingLOD NewSelectedLOD = EStaticMeshEditingLOD::LOD0;
+		EMeshLODIdentifier NewSelectedLOD = EMeshLODIdentifier::LOD0;
 		if (*String == *AssetLODModes[0])
 		{
-			NewSelectedLOD = EStaticMeshEditingLOD::MaxQuality;
+			NewSelectedLOD = EMeshLODIdentifier::MaxQuality;
 		}
 		else if (*String == *AssetLODModes[1])
 		{
-			NewSelectedLOD = EStaticMeshEditingLOD::HiResSource;
+			NewSelectedLOD = EMeshLODIdentifier::HiResSource;
 		}
 		else
 		{
@@ -280,7 +280,7 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 			{
 				if (*String == *AssetLODModes[k])
 				{
-					NewSelectedLOD = (EStaticMeshEditingLOD)(k - 2);
+					NewSelectedLOD = (EMeshLODIdentifier)(k - 2);
 					break;
 				}
 			}

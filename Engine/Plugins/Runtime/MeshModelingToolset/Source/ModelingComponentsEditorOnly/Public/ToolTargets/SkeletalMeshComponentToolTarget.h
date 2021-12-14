@@ -34,19 +34,19 @@ class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentReadOnlyToolTarget 
 
 public:
 	// IMeshDescriptionProvider implementation
-	const FMeshDescription* GetMeshDescription() override;
+	virtual const FMeshDescription* GetMeshDescription(const FGetMeshParameters& GetMeshParams = FGetMeshParameters()) override;
 
 	// IMaterialProvider implementation
-	int32 GetNumMaterials() const override;
-	UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
-	void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const override;
-	bool CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;
+	virtual int32 GetNumMaterials() const override;
+	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
+	virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const override;
+	virtual bool CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;
 
 	// IDynamicMeshProvider
 	virtual UE::Geometry::FDynamicMesh3 GetDynamicMesh() override;
 
 	// ISkeletalMeshBackedTarget implementation
-	USkeletalMesh* GetSkeletalMesh() const override;
+	virtual USkeletalMesh* GetSkeletalMesh() const override;
 
 protected:
 	// So that the tool target factory can poke into Component.
@@ -72,7 +72,7 @@ class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentToolTarget :
 
 public:
 	// IMeshDescriptionCommitter implementation
-	void CommitMeshDescription(const FCommitter& Committer) override;
+	virtual void CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitParams = FCommitMeshParameters()) override;
 	using IMeshDescriptionCommitter::CommitMeshDescription; // unhide the other overload
 
 	// IDynamicMeshCommitter
@@ -93,9 +93,9 @@ class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentReadOnlyToolTargetF
 
 public:
 
-	bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) const override;
+	virtual bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) const override;
 
-	UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) override;
+	virtual UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) override;
 };
 
 
@@ -107,7 +107,7 @@ class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentToolTargetFactory :
 
 public:
 
-	bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) const override;
+	virtual bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) const override;
 
-	UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) override;
+	virtual UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) override;
 };

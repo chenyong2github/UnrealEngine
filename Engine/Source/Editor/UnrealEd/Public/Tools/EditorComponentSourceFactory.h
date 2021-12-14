@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ComponentSourceInterfaces.h"
+#include "TargetInterfaces/MeshTargetInterfaceTypes.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 
@@ -13,7 +14,7 @@ class UNREALED_API FStaticMeshComponentTargetFactory : public FComponentTargetFa
 {
 public:
 	// new FStaticMeshComponentTargets returned by Build() will be requested for this LOD
-	EStaticMeshEditingLOD CurrentEditingLOD = EStaticMeshEditingLOD::MaxQuality;
+	EMeshLODIdentifier CurrentEditingLOD = EMeshLODIdentifier::MaxQuality;
 
 	bool CanBuild( UActorComponent* Candidate ) override;
 	TUniquePtr<FPrimitiveComponentTarget> Build( UPrimitiveComponent* PrimitiveComponent ) override;
@@ -25,7 +26,7 @@ class UNREALED_API FStaticMeshComponentTarget : public FPrimitiveComponentTarget
 {
 public:
 
-	FStaticMeshComponentTarget(UPrimitiveComponent* Component, EStaticMeshEditingLOD EditingLOD = EStaticMeshEditingLOD::LOD0);
+	FStaticMeshComponentTarget(UPrimitiveComponent* Component, EMeshLODIdentifier EditingLOD = EMeshLODIdentifier::LOD0);
 
 	virtual bool IsValid() const override;
 
@@ -42,7 +43,7 @@ public:
 
 protected:
 	// LOD to edit, default is to edit LOD0
-	EStaticMeshEditingLOD EditingLOD = EStaticMeshEditingLOD::LOD0;
+	EMeshLODIdentifier EditingLOD = EMeshLODIdentifier::LOD0;
 };
 
 

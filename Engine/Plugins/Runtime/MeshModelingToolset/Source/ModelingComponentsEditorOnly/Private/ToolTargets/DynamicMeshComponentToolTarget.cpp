@@ -93,10 +93,12 @@ bool UDynamicMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMa
 }
 
 
-const FMeshDescription* UDynamicMeshComponentToolTarget::GetMeshDescription()
+const FMeshDescription* UDynamicMeshComponentToolTarget::GetMeshDescription(const FGetMeshParameters& GetMeshParams)
 {
 	if (ensure(IsValid()))
 	{
+		ensure(GetMeshParams.bHaveRequestLOD == false);	// not supported yet, just returning default LOD
+
 		if (bHaveMeshDescription)
 		{
 			return ConvertedMeshDescription.Get();
@@ -118,9 +120,11 @@ const FMeshDescription* UDynamicMeshComponentToolTarget::GetMeshDescription()
 }
 
 
-void UDynamicMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Committer)
+void UDynamicMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitMeshParams)
 {
 	if (ensure(IsValid()) == false) return;
+
+	ensure(CommitMeshParams.bHaveTargetLOD == false);		// not supporting this yet
 
 	UDynamicMesh* DynamicMesh = GetDynamicMeshContainer();
 	TUniquePtr<FDynamicMesh3> CurrentMesh = DynamicMesh->ExtractMesh();

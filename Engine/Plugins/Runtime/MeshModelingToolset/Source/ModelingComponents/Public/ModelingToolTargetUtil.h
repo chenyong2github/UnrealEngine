@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "TargetInterfaces/MeshTargetInterfaceTypes.h"
 #include "TargetInterfaces/MaterialProvider.h" // FComponentMaterialSet
 #include "MeshConversionOptions.h"
 
@@ -90,14 +91,17 @@ MODELINGCOMPONENTS_API bool CommitMaterialSetUpdate(
 /**
  * @return the MeshDescription underlying a ToolTarget, if it has such a mesh. May be generated internally by the ToolTarget. May be nullptr if the Target does not have a mesh.
  */
-MODELINGCOMPONENTS_API const FMeshDescription* GetMeshDescription(UToolTarget* Target);
+MODELINGCOMPONENTS_API const FMeshDescription* GetMeshDescription(
+	UToolTarget* Target,
+	const FGetMeshParameters& GetMeshParams = FGetMeshParameters());
 
 /**
- * @return a copy of the MeshDescription underlying a ToolTarget
- * @param bWantMeshTangents if true, tangents will be returned if the target has them available. This may require that they be auto-calculated in some cases (which may be expensive)
+ * Return a copy of the MeshDescription underlying a ToolTarget
  * @return a new MeshDescription, which may be empty if the Target doesn't have a mesh  
  */
-MODELINGCOMPONENTS_API FMeshDescription GetMeshDescriptionCopy(UToolTarget* Target, bool bWantMeshTangents = false);
+MODELINGCOMPONENTS_API FMeshDescription GetMeshDescriptionCopy(
+	UToolTarget* Target, 
+	const FGetMeshParameters& GetMeshParams = FGetMeshParameters());
 
 /**
  * Fetch a DynamicMesh3 representing the given ToolTarget. This may be a conversion of the output of GetMeshDescription().
