@@ -65,6 +65,14 @@ public:
 	//--------------------------
 	// Low Level Static Helpers
 	//--------------------------
+	
+	/**
+	 * Returns true if character is valid in a DDC cache key without escaping 
+	**/
+	static bool IsValidCacheChar(const TCHAR C)
+	{
+		return FChar::IsAlnum(C) || FChar::IsUnderscore(C) || C == TEXT('$');
+	}
 
 	/** 
 	 * Static function to make sure a cache key contains only legal characters by using an escape
@@ -80,7 +88,7 @@ public:
 
 		for (int32 i = 0; i < Input.Len(); i++)
 		{
-			if (FChar::IsAlnum(Input[i]) || FChar::IsUnderscore(Input[i]))
+			if ( IsValidCacheChar(Input[i]) )
 			{
 				NumValid++;
 			}
