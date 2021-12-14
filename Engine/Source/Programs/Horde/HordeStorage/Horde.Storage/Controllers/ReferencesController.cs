@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -121,7 +122,7 @@ namespace Horde.Storage.Controllers
                 }
 
                 Response.Headers[CommonHeaders.HashHeaderName] = objectRecord.BlobIdentifier.ToString();
-                Response.Headers[CommonHeaders.LastAccessHeaderName] = objectRecord.LastAccess.ToString();
+                Response.Headers[CommonHeaders.LastAccessHeaderName] = objectRecord.LastAccess.ToString(CultureInfo.InvariantCulture);
 
                 async Task WriteBody(BlobContents blobContents, string contentType)
                 {
