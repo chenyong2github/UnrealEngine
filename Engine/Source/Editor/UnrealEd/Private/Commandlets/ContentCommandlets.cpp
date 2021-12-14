@@ -340,7 +340,10 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 	// This option will filter the package list and only save packages that are redirectors, or that reference redirectors
 	const bool bFixupRedirects = (Switches.Contains(TEXT("FixupRedirects")) || Switches.Contains(TEXT("FixupRedirectors")));
 
-	if (bResaveDirectRefsAndDeps || bFixupRedirects || bOnlyMaterials)
+	// This option allows the dependency graph and soft object path redirect map to be populated. This is useful if you want soft object references to redirectors to be followed to the destination asset at save time.
+	const bool bSearchAllAssets = Switches.Contains(TEXT("SearchAllAssets"));
+
+	if (bResaveDirectRefsAndDeps || bFixupRedirects || bOnlyMaterials || bSearchAllAssets)
 	{
 		AssetRegistry.SearchAllAssets(true);
 
