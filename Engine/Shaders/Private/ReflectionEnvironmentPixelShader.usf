@@ -105,6 +105,15 @@ FSkyLightVisibilityData GetSkyLightVisibilityData(float3 SkyLightingNormal, cons
 
 #if STRATA_ENABLED
 #define STRATA_INLINE_SHADING 0
+#if STRATA_TILETYPE == 0
+	#define STRATA_FASTPATH 1
+#elif STRATA_TILETYPE == 1
+	#define STRATA_SINGLEPATH 1
+#elif STRATA_TILETYPE == 2
+	// COMPLEX PATH
+#else
+	#error Strata tile type non-implemented
+#endif
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataEnvironmentLighting.ush"
 #endif

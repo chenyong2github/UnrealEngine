@@ -26,6 +26,7 @@
 #define STENCIL_RECEIVE_DECAL_BIT_ID		7
 // Used only during the lighting pass - alias/reuse decal bit
 #define STENCIL_STRATA_FASTPATH				7 
+#define STENCIL_STRATA_SINGLEPATH			1
 
 // Outputs a compile-time constant stencil's bit mask ready to be used
 // in TStaticDepthStencilState<> template parameter. It also takes care
