@@ -824,7 +824,7 @@ private:
 
 	static void ValidateCacheKey(const TCHAR* CacheKey)
 	{
-		checkf(Algo::AllOf(FStringView(CacheKey), [](TCHAR C) { return FChar::IsAlnum(C) || FChar::IsUnderscore(C) || C == TEXT('$'); }),
+		checkf(Algo::AllOf(FStringView(CacheKey), IsValidCacheChar),
 			TEXT("Invalid characters in cache key %s. Use SanitizeCacheKey or BuildCacheKey to create valid keys."), CacheKey);
 	}
 
