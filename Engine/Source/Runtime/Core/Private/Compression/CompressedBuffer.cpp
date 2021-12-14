@@ -575,10 +575,11 @@ inline FCompositeBuffer ValidBufferOrEmpty(BufferType&& CompressedData)
 
 bool FHeader::IsValid(const FCompositeBuffer& CompressedData)
 {
-	if (sizeof(FHeader) <= CompressedData.GetSize())
+	const uint64 CompressedDataSize = CompressedData.GetSize();
+	if (sizeof(FHeader) <= CompressedDataSize)
 	{
 		const FHeader Header = Read(CompressedData);
-		if (Header.Magic == FHeader::ExpectedMagic)
+		if (Header.Magic == FHeader::ExpectedMagic && Header.TotalCompressedSize <= CompressedDataSize)
 		{
 			if (const FDecoder* const Decoder = GetDecoder(Header.Method))
 			{

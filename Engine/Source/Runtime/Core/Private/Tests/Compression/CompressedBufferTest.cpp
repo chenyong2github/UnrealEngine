@@ -209,6 +209,15 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
 			ValidateData(Values, ExpectedValues, OffsetCount);
 		}
+
+		// Short Buffer
+		{
+			const FCompressedBuffer CompressedShort =
+				FCompressedBuffer::FromCompressed(Compressed.GetCompressed().Mid(0, Compressed.GetCompressedSize() - 128));
+			Reader.SetSource(CompressedShort);
+			const FSharedBuffer Uncompressed = Reader.Decompress();
+			TestTrue(TEXT("FCompressedBufferReader::Decompress(Oodle, Short)"), Uncompressed.IsNull());
+		}
 	}
 
 	// Only one block
@@ -266,6 +275,15 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
 			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
 			ValidateData(Values, ExpectedValues, OffsetCount);
+		}
+
+		// Short Buffer
+		{
+			const FCompressedBuffer CompressedShort =
+				FCompressedBuffer::FromCompressed(Compressed.GetCompressed().Mid(0, Compressed.GetCompressedSize() - 128));
+			Reader.SetSource(CompressedShort);
+			const FSharedBuffer Uncompressed = Reader.Decompress();
+			TestTrue(TEXT("FCompressedBufferReader::Decompress(None, Short)"), Uncompressed.IsNull());
 		}
 	}
 
