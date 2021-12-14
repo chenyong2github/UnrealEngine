@@ -286,6 +286,15 @@ public:
 	{
 		return FString();
 	}
+	
+	/**
+	 * Identify the latest sdk version for this texture encoder
+	 *   (note the SdkVersion is different than the TextureFormat Version)
+	 */
+	virtual FName GetLatestSdkVersion() const
+	{
+		return FName();
+	}
 
 public:
 
