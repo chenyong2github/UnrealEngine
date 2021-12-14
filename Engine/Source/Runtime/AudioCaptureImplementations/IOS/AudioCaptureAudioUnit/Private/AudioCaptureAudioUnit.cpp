@@ -9,7 +9,7 @@ Audio::FAudioCaptureAudioUnitStream::FAudioCaptureAudioUnitStream()
 	: NumChannels(0)
 	, SampleRate(0)
 	, bIsStreamOpen(false)
-	, bWasStreamStarted(false)
+	, bHasCaptureStarted(false)
 {
 }
 
