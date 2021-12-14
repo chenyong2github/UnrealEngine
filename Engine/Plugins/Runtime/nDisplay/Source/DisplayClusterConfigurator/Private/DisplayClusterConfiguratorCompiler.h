@@ -41,5 +41,5 @@ protected:
 private:
 	class UDisplayClusterBlueprintGeneratedClass* DCGeneratedBP;
 	/** Sub-objects which should survive a compile. */
-	TArray<UObject*> SavedSubObjects;
+	TArray<UObject*> OldSubObjects;
 };

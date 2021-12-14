@@ -6,6 +6,7 @@
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfiguratorUtils.h"
 #include "DisplayClusterConfiguratorPropertyUtils.h"
+#include "DisplayClusterConfiguratorLog.h"
 #include "DisplayClusterConfiguratorPolicyParameterCustomization.h"
 #include "Views/Details/Widgets/SDisplayClusterConfigurationSearchableComboBox.h"
 
@@ -341,7 +342,11 @@ void FDisplayClusterConfiguratorProjectionCustomization::BuildParametersForPolic
 	}
 	
 	UDisplayClusterBlueprint* Blueprint = FDisplayClusterConfiguratorUtils::FindBlueprintFromObject(EditingObject.Get());
-	check(Blueprint);
+	if (Blueprint == nullptr)
+	{
+		UE_LOG(DisplayClusterConfiguratorLog, Warning, TEXT("Details policy selection blueprint invalid."));
+		return;
+	}
 
 	const FString PolicyLower = Policy.ToLower();
 	/*

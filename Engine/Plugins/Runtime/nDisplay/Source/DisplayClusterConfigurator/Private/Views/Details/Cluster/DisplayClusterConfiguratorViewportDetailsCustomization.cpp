@@ -6,6 +6,7 @@
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfigurationTypes_Viewport.h"
 #include "DisplayClusterProjectionStrings.h"
+#include "DisplayClusterConfiguratorLog.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Views/Details/Widgets/SDisplayClusterConfigurationSearchableComboBox.h"
 
@@ -23,7 +24,11 @@ void FDisplayClusterConfiguratorViewportDetailsCustomization::CustomizeDetails(I
 
 	// Set config data pointer
 	UDisplayClusterConfigurationData* ConfigurationData = GetConfigData();
-	check(ConfigurationData != nullptr);
+	if (ConfigurationData == nullptr)
+	{
+		UE_LOG(DisplayClusterConfiguratorLog, Warning, TEXT("Details panel config data invalid."));
+		return;
+	}
 
 	ConfigurationDataPtr = ConfigurationData;
 

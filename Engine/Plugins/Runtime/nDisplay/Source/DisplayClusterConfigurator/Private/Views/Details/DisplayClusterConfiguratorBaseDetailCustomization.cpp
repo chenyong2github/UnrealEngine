@@ -5,6 +5,7 @@
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfiguratorUtils.h"
+#include "DisplayClusterConfiguratorLog.h"
 
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
@@ -41,7 +42,12 @@ void FDisplayClusterConfiguratorBaseDetailCustomization::CustomizeDetails(IDetai
 		}
 	}
 
-	check(RootActorPtr.IsValid() || ToolkitPtr.IsValid());
+	if (!(RootActorPtr.IsValid() || ToolkitPtr.IsValid()))
+	{
+		// Possible to hit if details panel selected during undo/redo.
+		UE_LOG(DisplayClusterConfiguratorLog, Warning, TEXT("Details panel root actor and toolkit invalid."));
+		return;
+	}
 
 	// Iterate over all of the properties in the object being edited and process any custom metadata that the properties may have
 	{
@@ -129,6 +135,5 @@ UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBaseDetailCustomiza
 		ConfigData = RootActorPtr->GetConfigData();
 	}
 
-	check(ConfigData);
 	return ConfigData;
 }
