@@ -2462,6 +2462,9 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	WaveInstance->SpatializationPluginSettings = ParseParams.SpatializationPluginSettings;
 	WaveInstance->OcclusionPluginSettings = ParseParams.OcclusionPluginSettings;
 	WaveInstance->ReverbPluginSettings = ParseParams.ReverbPluginSettings;
+	WaveInstance->SourceDataOverridePluginSettings = ParseParams.SourceDataOverridePluginSettings;
+
+	WaveInstance->bEnableSourceDataOverride = ParseParams.bEnableSourceDataOverride;
 
 	if (WaveInstance->IsPlaying())
 	{

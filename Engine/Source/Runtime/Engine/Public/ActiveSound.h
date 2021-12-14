@@ -165,6 +165,9 @@ struct FSoundParseParameters
 	// What reverb plugin source settings to use
 	UReverbPluginSourceSettingsBase* ReverbPluginSettings;
 
+	// What source data override plugin source settings to use
+	USourceDataOverridePluginSourceSettingsBase* SourceDataOverridePluginSettings;
+
 	// What source effect chain to use
 	USoundEffectSourcePresetChain* SourceEffectChain;
 
@@ -191,6 +194,8 @@ struct FSoundParseParameters
 
 	/** Whether or not to enable Submix Sends in addition to the Main Submix*/
 	uint32 bEnableSubmixSends : 1;
+
+	uint32 bEnableSourceDataOverride : 1;
 
 	// Whether the sound should be spatialized
 	uint8 bUseSpatialization:1;
@@ -241,6 +246,7 @@ struct FSoundParseParameters
 		, SpatializationPluginSettings(nullptr)
 		, OcclusionPluginSettings(nullptr)
 		, ReverbPluginSettings(nullptr)
+		, SourceDataOverridePluginSettings(nullptr)
 		, SourceEffectChain(nullptr)
 		, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
 		, AttenuationLowpassFilterFrequency(MAX_FILTER_FREQUENCY)
@@ -250,6 +256,7 @@ struct FSoundParseParameters
 		, bEnableBusSends(false)
 		, bEnableBaseSubmix(false)
 		, bEnableSubmixSends(false)
+		, bEnableSourceDataOverride(false)
 		, bUseSpatialization(false)
 		, bLooping(false)
 		, bEnableLowPassFilter(false)

@@ -109,6 +109,9 @@ namespace Audio
 		/** Whether or not to use the reverb plugin. */
 		bool UseReverbPlugin() const;
 
+		/** Whether or not to use the source data override plugin */
+		bool UseSourceDataOverridePlugin() const;
+
 	private:
 
 		FMixerDevice* MixerDevice;

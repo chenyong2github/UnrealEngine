@@ -35,7 +35,7 @@ FORCEINLINE const TCHAR* GetPluginConfigName(EAudioPlugin PluginType)
 			return TEXT("ModulationPlugin");
 
 		case EAudioPlugin::SOURCEDATAOVERRIDE:
-			return TEXT("PropagationPlugin");
+			return TEXT("SourceDataOverridePlugin");
 			
 		default:
 			checkf(false, TEXT("Undefined audio plugin type."));
