@@ -827,7 +827,7 @@ void FDatasmithFBXFileImporter::AddCurvesForProperty(FbxProperty InProperty, Fbx
 {
 	if (InProperty.IsValid())
 	{
-		auto PropertyName = ANSI_TO_TCHAR(InProperty.GetNameAsCStr());
+		auto PropertyName = StringCast<ANSICHAR>(InProperty.GetNameAsCStr());
 
 		FbxAnimCurveNode* CurveNode = InProperty.GetCurveNode(InLayer);
 
@@ -837,7 +837,7 @@ void FDatasmithFBXFileImporter::AddCurvesForProperty(FbxProperty InProperty, Fbx
 			for (uint8 Channel = 0; Channel < CurveNode->GetChannelsCount(); Channel++)
 			{
 				uint32 CurveCount = CurveNode->GetCurveCount(Channel);
-				UE_LOG(LogDatasmithFBXImport, Verbose, TEXT("\tFound %d curves for property %s, channel %d"), CurveCount, PropertyName, Channel);
+				UE_LOG(LogDatasmithFBXImport, Verbose, TEXT("\tFound %d curves for property %s, channel %d"), CurveCount, PropertyName.Get(), Channel);
 
 				for (uint32 CurveIndex = 0; CurveIndex < CurveCount; CurveIndex++)
 				{

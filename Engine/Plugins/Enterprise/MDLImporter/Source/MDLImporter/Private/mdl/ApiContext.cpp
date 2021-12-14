@@ -208,8 +208,7 @@ namespace Mdl
 		}
 
 		const FString AbsolutePath = NormalizeDirectoryPathForMdl(*ModulesPath);
-		const char*   PathANSI           = TCHAR_TO_ANSI(*AbsolutePath);
-		MDL_CHECK_RESULT()               = ConfigHandle->add_mdl_path(PathANSI);
+		MDL_CHECK_RESULT() = ConfigHandle->add_mdl_path(TCHAR_TO_ANSI(*AbsolutePath));
 	}
 
 	void FApiContext::RemoveSearchPath(const FString& ModulesPath)
@@ -220,8 +219,7 @@ namespace Mdl
 		}
 
 		const FString AbsolutePath = NormalizeDirectoryPathForMdl(*ModulesPath);
-		const char*   PathANSI           = TCHAR_TO_ANSI(*AbsolutePath);
-		MDL_CHECK_RESULT()               = ConfigHandle->remove_mdl_path(PathANSI);
+		MDL_CHECK_RESULT() = ConfigHandle->remove_mdl_path(TCHAR_TO_ANSI(*AbsolutePath));
 	}
 
 	void FApiContext::AddResourceSearchPath(const FString& ResourcesPath)
@@ -232,8 +230,7 @@ namespace Mdl
 		}
 
 		const FString AbsolutePath = NormalizeDirectoryPathForMdl(*ResourcesPath);
-		const char*   PathANSI     = TCHAR_TO_ANSI(*AbsolutePath);
-		MDL_CHECK_RESULT()         = ConfigHandle->add_resource_path(PathANSI);
+		MDL_CHECK_RESULT() = ConfigHandle->add_resource_path(TCHAR_TO_ANSI(*AbsolutePath));
 	}
 
 	void FApiContext::RemoveResourceSearchPath(const FString& ResourcesPath)
@@ -244,8 +241,7 @@ namespace Mdl
 		}
 
 		const FString AbsolutePath = NormalizeDirectoryPathForMdl(*ResourcesPath);
-		const char*   PathANSI     = TCHAR_TO_ANSI(*AbsolutePath);
-		MDL_CHECK_RESULT()         = ConfigHandle->remove_resource_path(PathANSI);
+		MDL_CHECK_RESULT() = ConfigHandle->remove_resource_path(TCHAR_TO_ANSI(*AbsolutePath));
 	}
 
 	bool FApiContext::LoadModule(const FString& InModuleName, FMaterialCollection& OutMaterials)
