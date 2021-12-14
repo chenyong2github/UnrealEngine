@@ -17,7 +17,7 @@ class USoundBase;
 class UCameraShakeBase;
 class UCameraAnim;
 class UCameraAnimInst;
-class AEmitterCameraLensEffectBase;
+class ICameraLensEffectInterface;
 class UForceFeedbackEffect;
 class UForceFeedbackAttenuation;
 class UForceFeedbackComponent;
@@ -291,7 +291,7 @@ public:
 
 	// List of camera len effects spawned.  There will be one camera lens effect per local player controller if the effect is played in world.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
-	TArray<AEmitterCameraLensEffectBase*> CameraLensEffects;
+	TArray<TScriptInterface<ICameraLensEffectInterface>> CameraLensEffects;
 
 	// Force feedback component that was spawned.  This is only valid when force feedback is set to play in world.
 	UPROPERTY(BlueprintReadOnly, Transient, Category = GameplayCueNotify)
@@ -589,8 +589,8 @@ public:
 	FGameplayCueNotify_PlacementInfo PlacementInfoOverride;
 
 	// Camera lens effect to play.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
-	TSubclassOf<AEmitterCameraLensEffectBase> CameraLensEffect;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (MustImplement = "CameraLensEffectInterface"))
+	TSubclassOf<AActor> CameraLensEffect;
 
 	// If enabled, use the spawn condition override and not the default one.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (InlineEditConditionToggle))

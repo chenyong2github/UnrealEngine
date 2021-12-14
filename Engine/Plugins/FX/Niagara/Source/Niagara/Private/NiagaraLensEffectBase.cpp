@@ -3,6 +3,7 @@
 #include "NiagaraLensEffectBase.h"
 
 #include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 #include "Camera/PlayerCameraManager.h"
 
 
@@ -109,4 +110,14 @@ void ANiagaraLensEffectBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		OwningCameraManager->RemoveGenericCameraLensEffect(this);
 	}
+}
+
+bool ANiagaraLensEffectBase::IsLooping() const
+{
+	if (UNiagaraSystem* System = GetNiagaraComponent()->GetAsset())
+	{
+		return System->IsLooping();
+	}
+
+	return false;
 }

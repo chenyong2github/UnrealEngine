@@ -73,6 +73,7 @@ public:
 	virtual bool ShouldAllowMultipleInstances() const override;
 	virtual bool ResetWhenTriggered() const override;
 	virtual bool ShouldTreatEmitterAsSame(TSubclassOf<AActor> OtherEmitter) const override;
+	virtual bool IsLooping() const override;
 
 	virtual void AdjustBaseFOV(float NewFOV);
 
@@ -97,8 +98,6 @@ public:
 	UE_DEPRECATED(5.0, "ICameraLensEffectInterface::GetAttachedEmitterTransform is favored now")
 	static FTransform GetAttachedEmitterTransform(AEmitterCameraLensEffectBase const* Emitter, const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg);
 
-	/** Returns true if either particle system would loop forever when played */
-	bool IsLooping() const;
 private:
 	/** UE_DEPRECATED(4.11) */
 	UPROPERTY()
