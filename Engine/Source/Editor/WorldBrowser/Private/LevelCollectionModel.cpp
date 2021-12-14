@@ -737,12 +737,8 @@ void FLevelCollectionModel::UnloadLevels(const FLevelModelList& InLevelList)
 					ThisWorld->RemoveStreamingLevel(*StreamingLevel);
 				}
 			}
-			
-			// Unload sub-level
-			{
-				FUnmodifiableObject ImmuneWorld(CurrentWorld.Get());
-				EditorLevelUtils::RemoveLevelFromWorld(Level);
-			}
+
+			EditorLevelUtils::RemoveLevelFromWorld(Level);
 		}
 		else if (ULevelStreaming* StreamingLevel = Cast<ULevelStreaming>(LevelModel->GetNodeObject()))
 		{
