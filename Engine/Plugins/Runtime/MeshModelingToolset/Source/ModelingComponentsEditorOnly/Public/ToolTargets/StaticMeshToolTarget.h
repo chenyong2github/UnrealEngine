@@ -11,7 +11,7 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
-#include "ComponentSourceInterfaces.h"  // for EStaticMeshEditingLOD
+#include "ComponentSourceInterfaces.h"  // for EMeshLODIdentifier
 
 #include "StaticMeshToolTarget.generated.h"
 
@@ -38,19 +38,19 @@ public:
 	 * Configure active LOD to edit. Can only call this after Component is configured in base UPrimitiveComponentToolTarget.
 	 * If requested LOD does not exist, fall back to one that does.
 	 */
-	virtual void SetEditingLOD(EStaticMeshEditingLOD RequestedEditingLOD);
+	virtual void SetEditingLOD(EMeshLODIdentifier RequestedEditingLOD);
 
 	/** @return current editing LOD */
-	virtual EStaticMeshEditingLOD GetEditingLOD() const { return EditingLOD; }
+	virtual EMeshLODIdentifier GetEditingLOD() const { return EditingLOD; }
 
 	// UToolTarget
 	virtual bool IsValid() const override;
 
 	// IMeshDescriptionProvider implementation
-	const FMeshDescription* GetMeshDescription() override;
+	virtual const FMeshDescription* GetMeshDescription(const FGetMeshParameters& GetMeshParams = FGetMeshParameters()) override;
 
 	// IMeshDescritpionCommitter implementation
-	virtual void CommitMeshDescription(const FCommitter& Committer) override;
+	virtual void CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitParams = FCommitMeshParameters()) override;
 	using IMeshDescriptionCommitter::CommitMeshDescription; // unhide the other overload
 
 	// IDynamicMeshProvider
@@ -61,31 +61,31 @@ public:
 	using IDynamicMeshCommitter::CommitDynamicMesh; // unhide the other overload
 
 	// IMaterialProvider implementation
-	int32 GetNumMaterials() const override;
-	UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
-	void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const override;
+	virtual int32 GetNumMaterials() const override;
+	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
+	virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const override;
 	virtual bool CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;	
 
 	// IStaticMeshBackedTarget
-	UStaticMesh* GetStaticMesh() const override;
+	virtual UStaticMesh* GetStaticMesh() const override;
 
 	// Rest provided by parent class
 
 protected:
 	UStaticMesh* StaticMesh = nullptr;
 
-	EStaticMeshEditingLOD EditingLOD = EStaticMeshEditingLOD::LOD0;
+	EMeshLODIdentifier EditingLOD = EMeshLODIdentifier::LOD0;
 
 	friend class UStaticMeshToolTargetFactory;
 
 	friend class UStaticMeshComponentToolTarget;
 
-	static bool IsValid(const UStaticMesh* StaticMesh, EStaticMeshEditingLOD EditingLOD);
-	static EStaticMeshEditingLOD GetValidEditingLOD(const UStaticMesh* StaticMesh, 
-		EStaticMeshEditingLOD RequestedEditingLOD);
-	static void CommitMeshDescription(UStaticMesh* SkeletalMesh, FMeshDescription* MeshDescription,
-		const FCommitter& Committer, EStaticMeshEditingLOD EditingLODIn);
-	static void GetMaterialSet(const UStaticMesh* SkeletalMesh, 
+	static bool IsValid(const UStaticMesh* StaticMesh, EMeshLODIdentifier EditingLOD);
+	static EMeshLODIdentifier GetValidEditingLOD(const UStaticMesh* StaticMesh, 
+		EMeshLODIdentifier RequestedEditingLOD);
+	static void CommitMeshDescription(UStaticMesh* StaticMesh, 
+		const FCommitter& Committer, EMeshLODIdentifier EditingLODIn);
+	static void GetMaterialSet(const UStaticMesh* StaticMesh, 
 		FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials);
 	static bool CommitMaterialSetUpdate(UStaticMesh* SkeletalMesh, 
 		const FComponentMaterialSet& MaterialSet, bool bApplyToAsset);
@@ -107,10 +107,10 @@ public:
 
 
 public:
-	virtual EStaticMeshEditingLOD GetActiveEditingLOD() const { return EditingLOD; }
-	virtual void SetActiveEditingLOD(EStaticMeshEditingLOD NewEditingLOD);
+	virtual EMeshLODIdentifier GetActiveEditingLOD() const { return EditingLOD; }
+	virtual void SetActiveEditingLOD(EMeshLODIdentifier NewEditingLOD);
 
 protected:
 	// LOD to edit, default is to edit LOD0
-	EStaticMeshEditingLOD EditingLOD = EStaticMeshEditingLOD::LOD0;
+	EMeshLODIdentifier EditingLOD = EMeshLODIdentifier::LOD0;
 };

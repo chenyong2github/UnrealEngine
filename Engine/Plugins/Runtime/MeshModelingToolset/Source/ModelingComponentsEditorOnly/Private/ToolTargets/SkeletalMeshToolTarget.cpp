@@ -107,12 +107,13 @@ bool USkeletalMeshReadOnlyToolTarget::CommitMaterialSetUpdate(USkeletalMesh* Ske
 	return true;
 }
 
-const FMeshDescription* USkeletalMeshReadOnlyToolTarget::GetMeshDescription()
+const FMeshDescription* USkeletalMeshReadOnlyToolTarget::GetMeshDescription(const FGetMeshParameters& GetMeshParams)
 {
 	if (!ensure(IsValid()))
 	{
 		return nullptr;
 	}
+	ensure(GetMeshParams.bHaveRequestLOD == false);	// not supported yet, just returning default LOD
 
 	if (!CachedMeshDescription.IsValid())
 	{
@@ -161,7 +162,7 @@ USkeletalMesh* USkeletalMeshReadOnlyToolTarget::GetSkeletalMesh() const
 // USkeletalMeshToolTarget
 //
 
-void USkeletalMeshToolTarget::CommitMeshDescription(const FCommitter& Committer)
+void USkeletalMeshToolTarget::CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitMeshParams)
 {
 	if (ensure(IsValid()) == false) return;
 

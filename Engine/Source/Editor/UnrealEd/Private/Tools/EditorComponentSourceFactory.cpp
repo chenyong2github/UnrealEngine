@@ -21,10 +21,10 @@ static void DisplayCriticalWarningMessage(const FString& Message)
 }
 
 
-FStaticMeshComponentTarget::FStaticMeshComponentTarget(UPrimitiveComponent* Component, EStaticMeshEditingLOD EditingLODIn)
+FStaticMeshComponentTarget::FStaticMeshComponentTarget(UPrimitiveComponent* Component, EMeshLODIdentifier EditingLODIn)
 	: FPrimitiveComponentTarget(Cast<UStaticMeshComponent>(Component))
 {
-	EditingLOD = EStaticMeshEditingLOD::LOD0;
+	EditingLOD = EMeshLODIdentifier::LOD0;
 
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 	if (ensure(StaticMeshComponent != nullptr))
@@ -32,14 +32,14 @@ FStaticMeshComponentTarget::FStaticMeshComponentTarget(UPrimitiveComponent* Comp
 		UStaticMesh* StaticMeshAsset = StaticMeshComponent->GetStaticMesh();
 		if (ensure(StaticMeshAsset != nullptr))
 		{
-			if (EditingLODIn == EStaticMeshEditingLOD::MaxQuality)
+			if (EditingLODIn == EMeshLODIdentifier::MaxQuality)
 			{
-				EditingLOD = StaticMeshAsset->IsHiResMeshDescriptionValid() ? EStaticMeshEditingLOD::HiResSource : EStaticMeshEditingLOD::LOD0;
+				EditingLOD = StaticMeshAsset->IsHiResMeshDescriptionValid() ? EMeshLODIdentifier::HiResSource : EMeshLODIdentifier::LOD0;
 			}
-			else if (EditingLODIn == EStaticMeshEditingLOD::HiResSource)
+			else if (EditingLODIn == EMeshLODIdentifier::HiResSource)
 			{
-				EditingLOD = StaticMeshAsset->IsHiResMeshDescriptionValid() ? EStaticMeshEditingLOD::HiResSource : EStaticMeshEditingLOD::LOD0;
-				if (EditingLOD != EStaticMeshEditingLOD::HiResSource)
+				EditingLOD = StaticMeshAsset->IsHiResMeshDescriptionValid() ? EMeshLODIdentifier::HiResSource : EMeshLODIdentifier::LOD0;
+				if (EditingLOD != EMeshLODIdentifier::HiResSource)
 				{
 					DisplayCriticalWarningMessage(FString(TEXT("HiRes Source selected but not available - Falling Back to LOD0")));
 				}
@@ -51,7 +51,7 @@ FStaticMeshComponentTarget::FStaticMeshComponentTarget(UPrimitiveComponent* Comp
 				if (WantLOD > MaxExistingLOD)
 				{
 					DisplayCriticalWarningMessage(FString::Printf(TEXT("LOD%d Requested but not available - Falling Back to LOD%d"), WantLOD, MaxExistingLOD));
-					EditingLOD = (EStaticMeshEditingLOD)MaxExistingLOD;
+					EditingLOD = (EMeshLODIdentifier)MaxExistingLOD;
 				}
 			}
 		}
@@ -78,7 +78,7 @@ bool FStaticMeshComponentTarget::IsValid() const
 		return false;
 	}
 
-	if (EditingLOD == EStaticMeshEditingLOD::HiResSource)
+	if (EditingLOD == EMeshLODIdentifier::HiResSource)
 	{
 		if (StaticMesh->IsHiResMeshDescriptionValid() == false)
 		{
@@ -98,7 +98,7 @@ FMeshDescription* FStaticMeshComponentTarget::GetMesh()
 	if (ensure(IsValid()))
 	{
 		UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
-		return (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
+		return (EditingLOD == EMeshLODIdentifier::HiResSource) ?
 			StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)EditingLOD);
 	}
 	return nullptr;
@@ -227,7 +227,7 @@ void FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 	StaticMesh->SetFlags(RF_Transactional);
 
 	verify(StaticMesh->Modify());
-	if (EditingLOD == EStaticMeshEditingLOD::HiResSource)
+	if (EditingLOD == EMeshLODIdentifier::HiResSource)
 	{
 		verify(StaticMesh->ModifyHiResMeshDescription());
 	}
@@ -241,7 +241,7 @@ void FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 
 	Committer(CommitParams);
 
-	if (EditingLOD == EStaticMeshEditingLOD::HiResSource)
+	if (EditingLOD == EMeshLODIdentifier::HiResSource)
 	{
 		StaticMesh->CommitHiResMeshDescription();
 	}

@@ -106,7 +106,7 @@ void UVolumeComponentToolTarget::CommitDynamicMesh(const UE::Geometry::FDynamicM
 	Volume->PostEditChange();
 }
 
-const FMeshDescription* UVolumeComponentToolTarget::GetMeshDescription()
+const FMeshDescription* UVolumeComponentToolTarget::GetMeshDescription(const FGetMeshParameters& GetMeshParams)
 {
 	if (!ConvertedMeshDescription.IsValid())
 	{
@@ -126,8 +126,9 @@ const FMeshDescription* UVolumeComponentToolTarget::GetMeshDescription()
 	return ConvertedMeshDescription.Get();
 }
 
-void UVolumeComponentToolTarget::CommitMeshDescription(const FCommitter& Committer)
+void UVolumeComponentToolTarget::CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitMeshParams)
 {
+	// no LODs so LODIdentifier is ignored
 	check(IsValid());
 
 	// Let the user fill our mesh description with the Committer

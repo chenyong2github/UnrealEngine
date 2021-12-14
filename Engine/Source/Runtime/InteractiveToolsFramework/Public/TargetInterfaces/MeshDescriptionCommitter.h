@@ -6,6 +6,7 @@
 
 #include "MeshDescription.h"
 #include "UObject/Interface.h"
+#include "TargetInterfaces/MeshTargetInterfaceTypes.h"
 
 #include "MeshDescriptionCommitter.generated.h"
 
@@ -24,7 +25,7 @@ public:
 	/**
 	 * Commits the given FMeshDescription.
 	 */
-	virtual bool CommitMeshDescription(const FMeshDescription& Mesh)
+	virtual bool CommitMeshDescription(const FMeshDescription& Mesh, const FCommitMeshParameters& CommitParams = FCommitMeshParameters() )
 	{
 		// It seems reasonable to have this function, but we'll go ahead and give a default implementation
 		// if users want to just implement the other one.
@@ -36,7 +37,7 @@ public:
 				*CommitParams.MeshDescriptionOut = Mesh;
 				bSuccess = true;
 			}
-		});
+		}, CommitParams);
 		return bSuccess;
 	}
 
@@ -44,7 +45,7 @@ public:
 	/**
 	 * Commits the given FMeshDescription.
 	 */
-	virtual bool CommitMeshDescription(FMeshDescription&& Mesh)
+	virtual bool CommitMeshDescription(FMeshDescription&& Mesh, const FCommitMeshParameters& CommitParams = FCommitMeshParameters())
 	{
 		// It seems reasonable to have this function, but we'll go ahead and give a default implementation
 		// if users want to just implement the other one.
@@ -56,7 +57,7 @@ public:
 				*CommitParams.MeshDescriptionOut = MoveTemp(Mesh);
 				bSuccess = true;
 			}
-		});
+		}, CommitParams);
 		return bSuccess;
 	}
 
@@ -81,6 +82,6 @@ protected:
 	* @param Committer A function that takes in const IMeshDescriptionCommitter::FCommitParams&
 	*  and populates the FMeshDescription pointed to by the MeshDescription pointer inside.
 	*/
-	virtual void CommitMeshDescription(const FCommitter& Committer) = 0;
+	virtual void CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitParams = FCommitMeshParameters()) = 0;
 
 };

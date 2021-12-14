@@ -6,7 +6,11 @@
 #include "ToolTargetManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
+#include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "ModelingToolTargetUtil.h"
+#include "Engine/StaticMesh.h"
 
 using namespace UE::Geometry;
 
@@ -42,6 +46,63 @@ void UTransferMeshTool::Setup()
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Copy Mesh from Source object to Target object"),
 		EToolMessageLevel::UserNotification);
+
+	// currently we can only query available LODs via the UStaticMesh, improvements TBD
+#if WITH_EDITOR
+	if (IStaticMeshBackedTarget* StaticMeshTarget = Cast<IStaticMeshBackedTarget>(Targets[0]))
+	{
+		if (UStaticMesh* StaticMesh = StaticMeshTarget->GetStaticMesh())
+		{
+			BasicProperties->bIsStaticMeshSource = true;
+			int32 NumSourceModels = StaticMesh->GetNumSourceModels();
+			for (int32 si = 0; si < NumSourceModels; ++si)
+			{
+				if (StaticMesh->IsMeshDescriptionValid(si))
+				{
+					BasicProperties->SourceLODNamesList.Add(FString::Printf(TEXT("LOD %d"), si));
+					BasicProperties->SourceLODEnums.Add(static_cast<EMeshLODIdentifier>(si));
+				}
+			}
+
+			// hires LOD slot
+			if (StaticMesh->IsHiResMeshDescriptionValid())
+			{
+				BasicProperties->SourceLODNamesList.Add(TEXT("HiRes"));
+				BasicProperties->SourceLODEnums.Add(EMeshLODIdentifier::HiResSource);
+			}
+
+			BasicProperties->SourceLOD = BasicProperties->SourceLODNamesList[0];
+		}
+	}	
+
+	if (IStaticMeshBackedTarget* StaticMeshTarget = Cast<IStaticMeshBackedTarget>(Targets[1]))
+	{
+		if (UStaticMesh* StaticMesh = StaticMeshTarget->GetStaticMesh())
+		{
+			BasicProperties->bIsStaticMeshTarget = true;
+			int32 NumSourceModels = StaticMesh->GetNumSourceModels();
+			for (int32 si = 0; si < NumSourceModels; ++si)
+			{
+				BasicProperties->TargetLODNamesList.Add( FString::Printf(TEXT("LOD %d"), si) );
+				BasicProperties->TargetLODEnums.Add(static_cast<EMeshLODIdentifier>(si));
+			}
+
+			// option to add one additional lod
+			if (NumSourceModels <= 7)
+			{
+				BasicProperties->TargetLODNamesList.Add(FString::Printf(TEXT("LOD %d (New)"), NumSourceModels));
+				BasicProperties->TargetLODEnums.Add(static_cast<EMeshLODIdentifier>(NumSourceModels));
+			}
+
+			// hires LOD slot
+			BasicProperties->TargetLODNamesList.Add(TEXT("HiRes"));
+			BasicProperties->TargetLODEnums.Add(EMeshLODIdentifier::HiResSource);
+
+			BasicProperties->TargetLOD = BasicProperties->TargetLODNamesList[0];
+		}
+	}
+#endif
+
 }
 
 bool UTransferMeshTool::CanAccept() const
@@ -57,14 +118,65 @@ void UTransferMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("TransferMeshToolTransactionName", "Transfer Mesh"));
 
-		const FMeshDescription* SourceMesh = UE::ToolTarget::GetMeshDescription(Targets[0]);
-
 		FComponentMaterialSet Materials = UE::ToolTarget::GetMaterialSet(Targets[0]);
 		const FComponentMaterialSet* TransferMaterials = (BasicProperties->bTransferMaterials) ? &Materials : nullptr;
 
-		if (ensure(SourceMesh))
+		FMeshDescription SourceMesh;
+
+		FGetMeshParameters GetMeshParams;
+		GetMeshParams.bWantMeshTangents = true;
+
+		if (IMeshDescriptionProvider* MeshDescriptionProvider = Cast<IMeshDescriptionProvider>(Targets[0]))
 		{
-			UE::ToolTarget::CommitMeshDescriptionUpdate(Targets[1], SourceMesh, TransferMaterials);
+			FString SelectedLOD = BasicProperties->SourceLOD;
+			if (SelectedLOD.StartsWith(TEXT("HiRes")))
+			{
+				GetMeshParams.bHaveRequestLOD = true;
+				GetMeshParams.RequestLOD = EMeshLODIdentifier::HiResSource;
+			}
+			else
+			{
+				int32 FoundIndex = BasicProperties->SourceLODNamesList.IndexOfByKey(BasicProperties->SourceLOD);
+				if (FoundIndex != INDEX_NONE)
+				{
+					GetMeshParams.bHaveRequestLOD = true;
+					GetMeshParams.RequestLOD =  BasicProperties->SourceLODEnums[FoundIndex];
+				}
+			}
+		}
+		SourceMesh = UE::ToolTarget::GetMeshDescriptionCopy(Targets[0], GetMeshParams);
+
+
+		IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Targets[1]);
+		if (BasicProperties->bIsStaticMeshTarget && MeshDescriptionCommitter)
+		{
+			FCommitMeshParameters CommitParams;
+			FString SelectedLOD = BasicProperties->TargetLOD;
+			if (SelectedLOD.StartsWith(TEXT("HiRes")))
+			{
+				CommitParams.bHaveTargetLOD = true;
+				CommitParams.TargetLOD = EMeshLODIdentifier::HiResSource;
+			}
+			else
+			{
+				int32 FoundIndex = BasicProperties->TargetLODNamesList.IndexOfByKey(BasicProperties->TargetLOD);
+				if (FoundIndex != INDEX_NONE)
+				{
+					CommitParams.bHaveTargetLOD = true;
+					CommitParams.TargetLOD =  BasicProperties->TargetLODEnums[FoundIndex];
+				}
+			}
+
+			if (TransferMaterials)
+			{
+				UE::ToolTarget::CommitMaterialSetUpdate(Targets[1], *TransferMaterials, true);
+			}
+
+			MeshDescriptionCommitter->CommitMeshDescription(MoveTemp(SourceMesh), CommitParams);
+		}
+		else 
+		{
+			UE::ToolTarget::CommitMeshDescriptionUpdate(Targets[1], &SourceMesh, TransferMaterials);
 		}
 
 		GetToolManager()->EndUndoTransaction();
