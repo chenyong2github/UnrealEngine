@@ -81,6 +81,15 @@ public:
 };
 
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptSetSimpleCollisionOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bEmitTransaction = true;
+};
+
 
 
 UCLASS(meta = (ScriptName = "GeometryScript_Collision"))
@@ -97,6 +106,18 @@ public:
 		UStaticMesh* ToStaticMeshAsset, 
 		FGeometryScriptCollisionFromMeshOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Copy the Simple Collision Geometry from the SourceComponent to the StaticMeshAsset
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Collision")
+	static void 
+	SetStaticMeshCollisionFromComponent(
+		UStaticMesh* StaticMeshAsset, 
+		UPrimitiveComponent* SourceComponent,
+		FGeometryScriptSetSimpleCollisionOptions Options = FGeometryScriptSetSimpleCollisionOptions(),
+		UGeometryScriptDebug* Debug = nullptr);
+
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Collision")
 	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 

@@ -49,7 +49,6 @@ void ComputeCollisionFromMesh(
 
 	TArray<FDynamicMesh3> Submeshes;
 	TArray<const FDynamicMesh3*> SubmeshPointers;
-	SubmeshPointers.SetNum(NumComponents);
 
 	if (NumComponents == 1)
 	{
@@ -119,6 +118,80 @@ void ComputeCollisionFromMesh(
 	GeneratedCollision = NewCollision.AggGeom;
 }
 
+
+
+static void SetStaticMeshSimpleCollision(UStaticMesh* StaticMeshAsset, const FKAggregateGeom& NewSimpleCollision, bool bEmitTransaction)
+{
+#if WITH_EDITOR
+	if (bEmitTransaction)
+	{
+		GEditor->BeginTransaction(LOCTEXT("UpdateStaticMesh", "Set Simple Collision"));
+	}
+
+	StaticMeshAsset->Modify();
+#endif
+
+	UBodySetup* BodySetup = StaticMeshAsset->GetBodySetup();
+	if (BodySetup != nullptr)
+	{
+		// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
+#if WITH_EDITOR
+		if (bEmitTransaction)
+		{
+			BodySetup->Modify();
+		}
+#endif
+
+		// clear existing simple collision. This will call BodySetup->InvalidatePhysicsData()
+		BodySetup->RemoveSimpleCollision();
+
+		// set new collision geometry
+		BodySetup->AggGeom = NewSimpleCollision;
+
+		// update collision type
+		//BodySetup->CollisionTraceFlag = (ECollisionTraceFlag)(int32)Settings->SetCollisionType;
+
+		// rebuild physics meshes
+		BodySetup->CreatePhysicsMeshes();
+
+		// rebuild nav collision (? StaticMeshEditor does this)
+		StaticMeshAsset->CreateNavCollision(/*bIsUpdate=*/true);
+
+		// update physics state on all components using this StaticMesh
+		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		{
+			UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
+			if (SMComponent->GetStaticMesh() == StaticMeshAsset)
+			{
+				if (SMComponent->IsPhysicsStateCreated())
+				{
+					SMComponent->RecreatePhysicsState();
+				}
+			}
+		}
+
+		// do we need to do a post edit change here??
+
+		// mark static mesh as dirty so it gets resaved?
+		StaticMeshAsset->MarkPackageDirty();
+
+#if WITH_EDITORONLY_DATA
+		// mark the static mesh as having customized collision so it is not regenerated on reimport
+		StaticMeshAsset->bCustomizedCollision = true;
+#endif // WITH_EDITORONLY_DATA
+	}
+
+#if WITH_EDITOR
+	if (bEmitTransaction)
+	{
+		GEditor->EndTransaction();
+	}
+#endif
+
+}
+
+
+
 }		// end namespace UELocal
 
 
@@ -145,77 +218,40 @@ UDynamicMesh* UGeometryScriptLibrary_CollisionFunctions::SetStaticMeshCollisionF
 		UELocal::ComputeCollisionFromMesh(ReadMesh, NewCollision, Options);
 	});
 
-#if WITH_EDITOR
-	if (Options.bEmitTransaction)
-	{
-		GEditor->BeginTransaction(LOCTEXT("UpdateStaticMesh", "Set Simple Collision"));
-	}
-
-	ToStaticMeshAsset->Modify();
-#endif
-
-	UBodySetup* BodySetup = ToStaticMeshAsset->GetBodySetup();
-	if (BodySetup != nullptr)
-	{
-		// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
-#if WITH_EDITOR
-		if (Options.bEmitTransaction)
-		{
-			BodySetup->Modify();
-		}
-#endif
-
-		// clear existing simple collision. This will call BodySetup->InvalidatePhysicsData()
-		BodySetup->RemoveSimpleCollision();
-
-		// set new collision geometry
-		BodySetup->AggGeom = NewCollision;
-
-		// update collision type
-		//BodySetup->CollisionTraceFlag = (ECollisionTraceFlag)(int32)Settings->SetCollisionType;
-
-		// rebuild physics meshes
-		BodySetup->CreatePhysicsMeshes();
-
-		// rebuild nav collision (? StaticMeshEditor does this)
-		ToStaticMeshAsset->CreateNavCollision(/*bIsUpdate=*/true);
-
-		// update physics state on all components using this StaticMesh
-		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
-		{
-			UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
-			if (SMComponent->GetStaticMesh() == ToStaticMeshAsset)
-			{
-				if (SMComponent->IsPhysicsStateCreated())
-				{
-					SMComponent->RecreatePhysicsState();
-				}
-			}
-		}
-
-		// do we need to do a post edit change here??
-
-		// mark static mesh as dirty so it gets resaved?
-		ToStaticMeshAsset->MarkPackageDirty();
-
-#if WITH_EDITORONLY_DATA
-		// mark the static mesh as having customized collision so it is not regenerated on reimport
-		ToStaticMeshAsset->bCustomizedCollision = true;
-#endif // WITH_EDITORONLY_DATA
-	}
-
-#if WITH_EDITOR
-	if (Options.bEmitTransaction)
-	{
-		GEditor->EndTransaction();
-	}
-#endif
-
+	UELocal::SetStaticMeshSimpleCollision(ToStaticMeshAsset, NewCollision, Options.bEmitTransaction);
 
 	return FromDynamicMesh;
 }
 
 
+
+
+void UGeometryScriptLibrary_CollisionFunctions::SetStaticMeshCollisionFromComponent(
+	UStaticMesh* UpdateStaticMeshAsset, 
+	UPrimitiveComponent* SourceComponent,
+	FGeometryScriptSetSimpleCollisionOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	if (UpdateStaticMeshAsset == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetStaticMeshCollisionFromComponent_InvalidStaticMesh", "SetStaticMeshCollisionFromComponent: UpdateStaticMeshAsset is Null"));
+		return;
+	}
+	if (SourceComponent == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetStaticMeshCollisionFromComponent_InvalidSourceComponent", "SetStaticMeshCollisionFromComponent: SourceComponent is Null"));
+		return;
+	}
+
+	const UBodySetup* BodySetup = SourceComponent->GetBodySetup();
+	if (BodySetup == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetStaticMeshCollisionFromComponent_InvalidBodySetup", "SetStaticMeshCollisionFromComponent: SourceComponent BodySetup is Null"));
+		return;
+	}
+
+	UELocal::SetStaticMeshSimpleCollision(UpdateStaticMeshAsset, BodySetup->AggGeom, Options.bEmitTransaction);
+}
 
 
 
