@@ -82,8 +82,8 @@ void FSteamVRHMD::UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool 
 	if (bIsValid && Layer.OverlayHandle == vr::k_ulOverlayHandleInvalid)
 	{
 		FString OverlayName = FString::Printf(TEXT("StereoLayer:%u"), LayerId);
-		const char* OverlayNameAnsiStr = TCHAR_TO_ANSI(*OverlayName);
-		OVR_VERIFY(VROverlay->CreateOverlay(OverlayNameAnsiStr, OverlayNameAnsiStr, &Layer.OverlayHandle));
+		const auto OverlayNameAnsiStr = StringCast<ANSICHAR>(*OverlayName);
+		OVR_VERIFY(VROverlay->CreateOverlay(OverlayNameAnsiStr.Get(), OverlayNameAnsiStr.Get(), &Layer.OverlayHandle));
 		OVR_VERIFY(VROverlay->HideOverlay(Layer.OverlayHandle));
 		Layer.bUpdateTexture = true;
 	}
