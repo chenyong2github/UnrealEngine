@@ -166,6 +166,9 @@ bool FDMXProtocolSACNSender::IsCausingLoopback() const
 
 void FDMXProtocolSACNSender::SendDMXSignal(const FDMXSignalSharedRef& DMXSignal)
 {
+	// This may be called from multiple threads, so calls need be synchronized here
+	const FScopeLock SendDMXLock(&SendDMXCriticalSection);
+
 	TArray<uint8> Packet;
 
 	FDMXProtocolE131RootLayerPacket RootLayer;
@@ -176,9 +179,10 @@ void FDMXProtocolSACNSender::SendDMXSignal(const FDMXSignalSharedRef& DMXSignal)
 
 	int32 UniverseID = DMXSignal->ExternUniverseID;
 
+	check(UniverseID > 0 && UniverseID <= TNumericLimits<uint16>::Max());
 	FDMXProtocolE131FramingLayerPacket FramingLayer;
 	FramingLayer.Universe = UniverseID;
-	FramingLayer.SequenceNumber = UniverseIDToSequenceNumberMap.FindOrAdd(UniverseID, -1)++; // Init to max, let it wrap over to 0 at first
+	FramingLayer.SequenceNumber = UniverseIDToSequenceNumberMap.FindOrAdd(UniverseID, TNumericLimits<uint8>::Max())++; // Init to max, let it wrap over to 0 at first
 	FramingLayer.Priority = DMXSignal->Priority;
 	Packet.Append(*FramingLayer.Pack(ACN_DMX_SIZE));
 

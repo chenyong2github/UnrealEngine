@@ -7,6 +7,7 @@
 #include "Interfaces/IDMXSender.h"
 
 #include "CoreMinimal.h"
+#include "Misc/ScopeLock.h"
 #include "Serialization/ArrayWriter.h"
 
 enum class EDMXCommunicationType : uint8;
@@ -89,6 +90,9 @@ private:
 
 	/** Holds the network socket used to sender packages. */
 	FSocket* Socket = nullptr;
+
+	/** Critical section to be used during SendDMXSignal, as it may be called concurrently from many threads */
+	FCriticalSection SendDMXCriticalSection;
 
 	/** The network interface internet addr */
 	TSharedPtr<FInternetAddr> NetworkInterfaceInternetAddr;

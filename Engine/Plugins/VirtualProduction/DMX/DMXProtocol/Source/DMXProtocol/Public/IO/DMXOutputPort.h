@@ -193,8 +193,11 @@ private:
 	/** Buffer of the signals that are to be sent in the next frame */
 	TQueue<TSharedPtr<FDMXSignalFragment, ESPMode::ThreadSafe>> SignalFragments;
 
-	/** Map that holds the latest Signal per Universe */
-	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap;
+	/** Map that holds the latest Signal per Universe on the Game Thread */
+	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap_GameThread;
+
+	/** Map that holds the latest Signal per Universe on the Port Thread */
+	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap_PortThread;
 
 	/** The Destination Address to send to, can be irrelevant, e.g. for art-net broadcast */
 	TArray<FDMXOutputPortDestinationAddress> DestinationAddresses;
@@ -219,9 +222,6 @@ private:
 
 	/** The frame rate of the delay */
 	FFrameRate DelayFrameRate;
-
-	/** Critical section required to be used when the SignalFragments are accessed across threads */
-	FCriticalSection AccessExternUniverseToLatestSignalMapCriticalSection;
 
 	/** Critical section required to be used when clearing buffers */
 	FCriticalSection ClearBuffersCriticalSection;
