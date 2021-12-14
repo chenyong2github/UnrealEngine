@@ -16,46 +16,6 @@ OPENCV_INCLUDES_END
 #endif
 
 
-#if WITH_OPENCV
-cv::Mat FOpenCVLensDistortionParameters::ConvertToOpenCVDistortionCoefficients() const
-{
-	if (bUseFisheyeModel)
-	{
-		cv::Mat DistortionCoefficients(1, 4, CV_64F);
-		DistortionCoefficients.at<double>(0) = K1;
-		DistortionCoefficients.at<double>(1) = K2;
-		DistortionCoefficients.at<double>(2) = K3;
-		DistortionCoefficients.at<double>(3) = K4;
-		return DistortionCoefficients;
-	}
-	else
-	{
-		cv::Mat DistortionCoefficients(1, 8, CV_64F);
-		DistortionCoefficients.at<double>(0) = K1;
-		DistortionCoefficients.at<double>(1) = K2;
-		DistortionCoefficients.at<double>(2) = P1;
-		DistortionCoefficients.at<double>(3) = P2;
-		DistortionCoefficients.at<double>(4) = K3;
-		DistortionCoefficients.at<double>(5) = K4;
-		DistortionCoefficients.at<double>(6) = K5;
-		DistortionCoefficients.at<double>(7) = K6;
-		return DistortionCoefficients;
-	}
-}
-#endif
-
-#if WITH_OPENCV
-cv::Mat FOpenCVLensDistortionParameters::CreateOpenCVCameraMatrix(const FVector2D& InImageSize) const
-{
-	cv::Mat CameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-	CameraMatrix.at<double>(0, 0) = F.X * InImageSize.X;
-	CameraMatrix.at<double>(1, 1) = F.Y * InImageSize.Y;
-	CameraMatrix.at<double>(0, 2) = C.X * InImageSize.X;
-	CameraMatrix.at<double>(1, 2) = C.Y * InImageSize.Y;
-	return CameraMatrix;
-}
-#endif
-
 UTexture2D* FOpenCVLensDistortionParameters::CreateUndistortUVDisplacementMap(const FIntPoint& InImageSize, const float InCroppingFactor, FOpenCVCameraViewInfo& OutCameraViewInfo) const
 {
 #if WITH_OPENCV
