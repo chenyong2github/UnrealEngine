@@ -293,6 +293,7 @@ function setupHtmlEvents() {
         };
     }
 
+    // Todo: This should be removed or updated for UE5.
     let latencyButton = document.getElementById('test-latency-button');
     if (latencyButton) {
         latencyButton.onclick = () => {
