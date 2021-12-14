@@ -517,12 +517,12 @@ namespace HordeServer.Services
 				// write out the projects
 				foreach (KeyValuePair<string, string> Project in Request.ProjectsJson)
 				{
-					FileReference.WriteAllText(FileReference.Combine(GlobalConfigDirectory, Project.Key), Project.Value);
+					await FileReference.WriteAllTextAsync(FileReference.Combine(GlobalConfigDirectory, Project.Key), Project.Value);
 
 					if (Request.ProjectLogo != null)
 					{
 						Byte[] bytes = Convert.FromBase64String(Request.ProjectLogo);
-						FileReference.WriteAllBytes(FileReference.Combine(GlobalConfigDirectory, Project.Key.Replace(".json", ".png", StringComparison.OrdinalIgnoreCase)), bytes);
+						await FileReference.WriteAllBytesAsync(FileReference.Combine(GlobalConfigDirectory, Project.Key.Replace(".json", ".png", StringComparison.OrdinalIgnoreCase)), bytes);
 					}
 				}
 
@@ -536,7 +536,7 @@ namespace HordeServer.Services
 				// write out the streams
 				foreach (KeyValuePair<string, string> Stream in Request.StreamsJson)
 				{
-					FileReference.WriteAllText(FileReference.Combine(GlobalConfigDirectory, Stream.Key), Stream.Value);
+					await FileReference.WriteAllTextAsync(FileReference.Combine(GlobalConfigDirectory, Stream.Key), Stream.Value);
 				}
 			}
 
@@ -545,7 +545,7 @@ namespace HordeServer.Services
 			{
 				ConfigDirty = true;
 
-				FileReference.WriteAllText(GlobalConfigFile, Request.GlobalsJson);
+				await FileReference.WriteAllTextAsync(GlobalConfigFile, Request.GlobalsJson);
 			}
 
 			if (ConfigDirty == true)
@@ -634,14 +634,14 @@ namespace HordeServer.Services
 					if (Property == null)
 					{
 						Response.Errors.Add($"Horde configuration property {Pair.Key} does not exist when reading server settings");
-						Logger.LogError(Response.Errors.Last());
+						Logger.LogError("Horde configuration property {Key} does not exist when reading server settings", Pair.Key);
 						continue;
 					}
 
 					if (Property.SetMethod == null)
 					{
 						Response.Errors.Add($"Horde configuration property {Pair.Key} does not have a set method");
-						Logger.LogError(Response.Errors.Last());
+						Logger.LogError("Horde configuration property {Key} does not have a set method", Pair.Key);
 						continue;
 					}
 
@@ -725,7 +725,7 @@ namespace HordeServer.Services
 					if (Property == null)
 					{
 						Response.Errors.Add($"Horde configuration property {Name} does not exist when writing server settings");
-						Logger.LogError(Response.Errors.Last());
+						Logger.LogError("Horde configuration property {Name} does not exist when writing server settings", Name);
 
 						continue;
 					}
@@ -733,7 +733,7 @@ namespace HordeServer.Services
 					if (Property.GetMethod == null)
 					{
 						Response.Errors.Add($"Horde configuration property {Name} does not have a get method");
-						Logger.LogError(Response.Errors.Last());
+						Logger.LogError("Horde configuration property {Name} does not have a get method", Name);
 						continue;
 					}
 
@@ -742,7 +742,7 @@ namespace HordeServer.Services
 					if (Result == null)
 					{
 						Response.Errors.Add($"Horde configuration property {Name} was null while writing and should have already been filtered out");
-						Logger.LogError(Response.Errors.Last());
+						Logger.LogError("Horde configuration property {Name} was null while writing and should have already been filtered out", Name);
 						continue;
 					}
 

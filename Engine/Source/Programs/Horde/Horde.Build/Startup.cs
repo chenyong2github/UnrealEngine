@@ -159,7 +159,9 @@ namespace HordeServer
 				}
 				catch (StructuredRpcException Ex)
 				{
+#pragma warning disable CA2254 // Template should be a static expression
 					Logger.LogError(Ex, Ex.Format, Ex.Args);
+#pragma warning restore CA2254 // Template should be a static expression
 					throw;
 				}
 				catch (Exception Ex)

@@ -134,7 +134,7 @@ namespace HordeServer.Collections.Impl
             {
                 for (; ; )
                 {
-					int BytesRead = ChunkStream.Read(Buffer, 0, ChunkSize);
+					int BytesRead = await ChunkStream.ReadAsync(Buffer, 0, ChunkSize);
 					Chunks.Add(new ChunkDocument(ObjectId.GenerateNewId().ToString(), Version, Buffer.Take(BytesRead).ToArray()));
 					TotalRead += BytesRead;
 					if (TotalRead == Data.Length)

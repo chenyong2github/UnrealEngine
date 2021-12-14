@@ -706,7 +706,6 @@ namespace HordeServer.Controllers
 			List<IDevicePool> Pools = await DeviceService.GetPoolsAsync();
 			List<IDevicePlatform> Platforms = await DeviceService.GetPlatformsAsync();
 
-			string Message;
 			string? PoolId = Request.PoolId;
 
 			// @todo: Remove this once all streams are updated to provide jobid
@@ -725,8 +724,8 @@ namespace HordeServer.Controllers
 
 			if (string.IsNullOrEmpty(PoolId))
 			{
-				Message = $"No pool specified, defaulting to UE4" + Details;
-				Logger.LogError(Message + $" JobId: {Request.JobId}, StepId: {Request.StepId}");
+				Logger.LogError("No pool specified, defaulting to UE4 {Details} JobId: {JobId}, StepId: {StepId}", Details, Request.JobId, Request.StepId);
+				string Message = $"No pool specified, defaulting to UE4" + Details;
 				await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
 				PoolId = "ue4";
 				//return BadRequest(Message);
@@ -736,8 +735,8 @@ namespace HordeServer.Controllers
 			IDevicePool? Pool = Pools.FirstOrDefault(x => x.Id == PoolIdValue);
 			if (Pool == null)
 			{
-				Message = $"Unknown pool {PoolId} " + Details;
-				Logger.LogError(Message);
+				Logger.LogError("Unknown pool {PoolId} {Details}", PoolId, Details);
+				string Message = $"Unknown pool {PoolId} " + Details;
 				await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
 				return BadRequest(Message);
 			}
@@ -752,7 +751,7 @@ namespace HordeServer.Controllers
 				string PlatformName = DeviceType;
 				string PerfSpecName = "Unspecified";
 
-				if (DeviceType.Contains(":", StringComparison.OrdinalIgnoreCase))
+				if (DeviceType.Contains(':', StringComparison.Ordinal))
 				{
 					string[] Tokens = DeviceType.Split(":");
 					PlatformName = Tokens[0];
@@ -767,8 +766,8 @@ namespace HordeServer.Controllers
 
 				if (!MapV1.PlatformMap.TryGetValue(PlatformName, out PlatformId))
 				{
-					Message = $"Unknown platform {PlatformName}" + Details;
-					Logger.LogError(Message);
+					string Message = $"Unknown platform {PlatformName}" + Details;
+					Logger.LogError("Unknown platform {PlatformName} {Details}", PlatformName, Details);
 					await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
 					return BadRequest(Message);
 				}
@@ -777,8 +776,8 @@ namespace HordeServer.Controllers
 
 				if (Platform == null)
 				{
-					Message = $"Unknown platform {PlatformId}" + Details;
-					Logger.LogError(Message);
+					string Message = $"Unknown platform {PlatformId}" + Details;
+					Logger.LogError("Unknown platform {PlatformId} {Details}", PlatformId, Details);
 					await DeviceService.NotifyDeviceServiceAsync(Message, null, Request.JobId, Request.StepId);
 					return BadRequest(Message);
 				}
@@ -843,7 +842,7 @@ namespace HordeServer.Controllers
 
 			if (Reservation == null)
 			{
-				Logger.LogError($"Unable to find reservation for legacy guid {ReservationGuid}");
+				Logger.LogError("Unable to find reservation for legacy guid {ReservationGuid}", ReservationGuid);
 				return BadRequest();
 			}
 
@@ -851,7 +850,7 @@ namespace HordeServer.Controllers
 
 			if (!Updated)
 			{
-				Logger.LogError($"Unable to find reservation for reservation {Reservation.Id}");
+				Logger.LogError("Unable to find reservation for reservation {ReservationId}", Reservation.Id);
 				return BadRequest();
 			}
 
@@ -978,7 +977,7 @@ namespace HordeServer.Controllers
 
 			if (Device == null)
 			{
-				Logger.LogError($"Device error reported for unknown device {DeviceName}");
+				Logger.LogError("Device error reported for unknown device {DeviceName}", DeviceName);
 				return BadRequest($"Unknown device {DeviceName}");
 			}
 
@@ -1008,7 +1007,7 @@ namespace HordeServer.Controllers
 				}
 			}
 
-			Logger.LogError(Message);
+			Logger.LogError("{DeviceError}", Message);
 
 			await DeviceService.NotifyDeviceServiceAsync(Message, Device.Id, JobId, StepId);
 

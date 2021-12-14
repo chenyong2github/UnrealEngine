@@ -12,72 +12,75 @@ using HordeServer;
 using HordeServer.Controllers;
 using Microsoft.Extensions.Options;
 
-/// <summary>	
-/// Dashboard authorization challenge controller	
-/// </summary>	
-[ApiController]
-[Route("[controller]")]
-public class DashboardChallengeController : Controller
+namespace Horde.Build
 {
-	/// <summary>
-	/// Authentication scheme in use
-	/// </summary>
-	string AuthenticationScheme;
-
-	/// <summary>
-	/// Constructor
-	/// </summary>
-	/// <param name="ServerSettings">Server settings</param>
-	public DashboardChallengeController(IOptionsMonitor<ServerSettings> ServerSettings)
-	{
-		AuthenticationScheme = AccountController.GetAuthScheme(ServerSettings.CurrentValue.AuthMethod);
-	}
-	
 	/// <summary>	
-	/// Challenge endpoint for the dashboard, using cookie authentication scheme	
+	/// Dashboard authorization challenge controller	
 	/// </summary>	
-	/// <returns>Ok on authorized, otherwise will 401</returns>	
-	[HttpGet]
-	[Authorize]
-	[Route("/api/v1/dashboard/challenge")]
-	public StatusCodeResult GetChallenge()
+	[ApiController]
+	[Route("[controller]")]
+	public class DashboardChallengeController : Controller
 	{
-		return Ok();
-	}
+		/// <summary>
+		/// Authentication scheme in use
+		/// </summary>
+		string AuthenticationScheme;
 
-	/// <summary>
-	/// Login to server, redirecting to the specified URL on success
-	/// </summary>
-	/// <param name="Redirect"></param>
-	/// <returns></returns>
-	[HttpGet]
-	[Route("/api/v1/dashboard/login")]
-	public IActionResult Login([FromQuery] string? Redirect)
-	{
-		return new ChallengeResult(AuthenticationScheme, new AuthenticationProperties { RedirectUri = Redirect ?? "/" });
-	}
-
-	/// <summary>
-	/// Logout of the current account
-	/// </summary>
-	/// <returns></returns>
-	[HttpGet]
-	[Route("/api/v1/dashboard/logout")]
-	public async Task<StatusCodeResult> Logout()
-	{
-		await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-		try
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="ServerSettings">Server settings</param>
+		public DashboardChallengeController(IOptionsMonitor<ServerSettings> ServerSettings)
 		{
-			await HttpContext.SignOutAsync(AuthenticationScheme);
+			AuthenticationScheme = AccountController.GetAuthScheme(ServerSettings.CurrentValue.AuthMethod);
 		}
+
+		/// <summary>	
+		/// Challenge endpoint for the dashboard, using cookie authentication scheme	
+		/// </summary>	
+		/// <returns>Ok on authorized, otherwise will 401</returns>	
+		[HttpGet]
+		[Authorize]
+		[Route("/api/v1/dashboard/challenge")]
+		public StatusCodeResult GetChallenge()
+		{
+			return Ok();
+		}
+
+		/// <summary>
+		/// Login to server, redirecting to the specified URL on success
+		/// </summary>
+		/// <param name="Redirect"></param>
+		/// <returns></returns>
+		[HttpGet]
+		[Route("/api/v1/dashboard/login")]
+		public IActionResult Login([FromQuery] string? Redirect)
+		{
+			return new ChallengeResult(AuthenticationScheme, new AuthenticationProperties { RedirectUri = Redirect ?? "/" });
+		}
+
+		/// <summary>
+		/// Logout of the current account
+		/// </summary>
+		/// <returns></returns>
+		[HttpGet]
+		[Route("/api/v1/dashboard/logout")]
+		public async Task<StatusCodeResult> Logout()
+		{
+			await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+			try
+			{
+				await HttpContext.SignOutAsync(AuthenticationScheme);
+			}
 #pragma warning disable CA1031 // Do not catch general exception types
-		catch
-#pragma warning restore CA1031 
-		{
+			catch
+#pragma warning restore CA1031
+			{
+			}
+
+			return Ok();
 		}
 
-		return Ok();
+
 	}
-
-
 }

@@ -36,7 +36,7 @@ namespace HordeServer.Models
 		/// Constructor
 		/// </summary>
 		/// <param name="Title">Title of this page</param>
-		public StreamTab(string Title)
+		protected StreamTab(string Title)
 		{
 			this.Title = Title;
 		}
@@ -45,7 +45,7 @@ namespace HordeServer.Models
 		/// Constructor
 		/// </summary>
 		/// <param name="Request">Public request object</param>
-		public StreamTab(CreateStreamTabRequest Request)
+		protected StreamTab(CreateStreamTabRequest Request)
 		{
 			Title = Request.Title;
 		}
@@ -103,7 +103,7 @@ namespace HordeServer.Models
 		/// </summary>
 		/// <param name="Heading">Heading for this column</param>
 		/// <param name="RelativeWidth">Relative width of this column.</param>
-		public JobsTabColumn(string Heading, int? RelativeWidth)
+		protected JobsTabColumn(string Heading, int? RelativeWidth)
 		{
 			this.Heading = Heading;
 			this.RelativeWidth = RelativeWidth;
@@ -113,7 +113,7 @@ namespace HordeServer.Models
 		/// Constructor
 		/// </summary>
 		/// <param name="Request">Public request object</param>
-		public JobsTabColumn(CreateJobsTabColumnRequest Request)
+		protected JobsTabColumn(CreateJobsTabColumnRequest Request)
 		{
 			this.Heading = Request.Heading;
 			this.RelativeWidth = Request.RelativeWidth;

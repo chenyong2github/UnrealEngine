@@ -26,7 +26,7 @@ namespace HordeServer.Utilities
 		public static bool TryGetBearerToken(HttpRequest Request, string BearerPrefix, [NotNullWhen(true)] out string? Token)
 		{
 			// Get the authorization header
-			string? Authorization = Request.Headers["Authorization"];
+			string? Authorization = Request.Headers.Authorization;
 			if (String.IsNullOrEmpty(Authorization))
 			{
 				Token = null;

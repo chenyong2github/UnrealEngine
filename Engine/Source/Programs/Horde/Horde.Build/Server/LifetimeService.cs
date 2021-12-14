@@ -108,9 +108,9 @@ namespace HordeServer.Services
 			StoppingTaskCompletionSource.TrySetResult(true);
 
 			int ShutdownDelayMs = 30 * 1000;
-			Logger.LogInformation($"Delaying shutdown by sleeping {ShutdownDelayMs} ms...");
+			Logger.LogInformation("Delaying shutdown by sleeping {ShutdownDelayMs} ms...", ShutdownDelayMs);
 			Thread.Sleep(ShutdownDelayMs);
-			Logger.LogInformation($"Server process now shutting down...");
+			Logger.LogInformation("Server process now shutting down...");
 			
 			/*
 			if (PreStoppingTaskCompletionSource.TrySetResult(true))

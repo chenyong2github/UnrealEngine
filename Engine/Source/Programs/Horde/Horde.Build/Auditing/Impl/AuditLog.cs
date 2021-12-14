@@ -85,10 +85,12 @@ namespace HordeServer.Collections.Impl
 				AuditLogMessage Message = new AuditLogMessage(Subject, Time, LogLevel, Data);
 				Outer.MessageChannel.Writer.TryWrite(Message);
 
+#pragma warning disable CA2254 // Template should be a static expression
 				using (IDisposable _ = Outer.Logger.BeginScope($"Subject: {{{Outer.SubjectProperty}}}", Subject))
 				{
 					Outer.Logger.Log(LogLevel, EventId, State, Exception, Formatter);
 				}
+#pragma warning restore CA2254 // Template should be a static expression
 			}
 
 			public IAsyncEnumerable<IAuditLogMessage> FindAsync(DateTime? MinTime, DateTime? MaxTime, int? Index, int? Count) => Outer.FindAsync(Subject, MinTime, MaxTime, Index, Count);

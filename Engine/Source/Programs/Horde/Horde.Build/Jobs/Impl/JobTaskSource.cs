@@ -507,6 +507,7 @@ namespace HordeServer.Tasks.Impl
 		/// </summary>
 		/// <param name="Item">The queue item</param>
 		/// <returns></returns>
+		[SuppressMessage("Maintainability", "CA1508:Avoid dead conditional code", Justification = "<Pending>")]
 		void AssignQueueItemToAnyWaiter(QueueItem Item)
 		{
 			if (Item.AssignTask == null && Item.Batch.SessionId == null)
@@ -630,9 +631,9 @@ namespace HordeServer.Tasks.Impl
 			lock (LockObject)
 			{
 				AssignAnyQueueItemToWaiter(Waiter);
-				if (Waiter.LeaseSource.Task.IsCompleted)
+				if (Waiter.LeaseSource.Task.TryGetResult(out AgentLease? Result))
 				{
-					return Waiter.Task.Result;
+					return Result;
 				}
 				Waiters.Add(Waiter);
 			}

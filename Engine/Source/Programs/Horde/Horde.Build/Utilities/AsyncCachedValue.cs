@@ -114,7 +114,7 @@ namespace HordeServer.Utilities
 			if (CurrentState.Next != null && CurrentState.Next.IsCompleted)
 			{
 				_ = Interlocked.CompareExchange(ref Current, CurrentState.Next, CurrentCopy);
-				return CurrentState.Next.Result.Value;
+				return (await CurrentState.Next).Value;
 			}
 
 			return CurrentState.Value;

@@ -24,6 +24,27 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Attempts to get the result of a task, if it has finished
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="Task"></param>
+		/// <param name="Result"></param>
+		/// <returns></returns>
+		public static bool TryGetResult<T>(this Task<T> Task, out T Result)
+		{
+			if (Task.IsCompleted)
+			{
+				Result = Task.Result;
+				return true;
+			}
+			else
+			{
+				Result = default!;
+				return false;
+			}
+		}
+
+		/// <summary>
 		/// Waits for a time period to elapse or the task to be cancelled, without throwing an cancellation exception
 		/// </summary>
 		/// <param name="Time">Time to wait</param>

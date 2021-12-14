@@ -1081,7 +1081,7 @@ namespace HordeServer.Commits.Impl
 
 			foreach ((Utf8String Name, StreamFile File) in Tree.NameToFile)
 			{
-				Logger.LogInformation($"{Prefix}/{Name} = {File.Path}#{File.Revision}");
+				Logger.LogInformation("{Prefix}/{Name} = {Path}#{Revision}", Prefix, Name, File.Path, File.Revision);
 			}
 			foreach ((Utf8String Name, StreamTreeRef ChildTreeRef) in Tree.NameToTree)
 			{

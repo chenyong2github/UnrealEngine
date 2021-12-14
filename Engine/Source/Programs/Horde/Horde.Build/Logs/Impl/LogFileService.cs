@@ -228,7 +228,7 @@ namespace HordeServer.Services
 				while(Length > 0)
 				{
 					// Add more data to the buffer
-					int ReadBytes = await Stream.ReadAsync(ReadBuffer, ReadBufferLength, ReadBuffer.Length - ReadBufferLength);
+					int ReadBytes = await Stream.ReadAsync(ReadBuffer.AsMemory(ReadBufferLength, ReadBuffer.Length - ReadBufferLength));
 					ReadBufferLength += ReadBytes;
 
 					// Copy as many lines as possible to the output
@@ -248,7 +248,7 @@ namespace HordeServer.Services
 						if (Offset < WriteBufferLength)
 						{
 							int WriteLength = (int)Math.Min((long)WriteBufferLength - Offset, Length);
-							await OutputStream.WriteAsync(WriteBuffer, (int)Offset, WriteLength);
+							await OutputStream.WriteAsync(WriteBuffer.AsMemory((int)Offset, WriteLength));
 							Length -= WriteLength;
 						}
 						Offset = Math.Max(Offset - WriteBufferLength, 0);
@@ -434,14 +434,20 @@ namespace HordeServer.Services
 			/// <inheritdoc/>
 			public override async Task<int> ReadAsync(byte[] Buffer, int Offset, int Length, CancellationToken CancellationToken)
 			{
+				return await ReadAsync(Buffer.AsMemory(Offset, Length), CancellationToken);
+			}
+
+			/// <inheritdoc/>
+			public override async ValueTask<int> ReadAsync(Memory<byte> Buffer, CancellationToken CancellationToken)
+			{
 				int ReadBytes = 0;
 				while (ReadBytes < Length)
 				{
 					if (SourcePos < SourceEnd)
 					{
 						// Try to copy from the current buffer
-						int BlockSize = Math.Min(SourceEnd - SourcePos, Length - ReadBytes);
-						SourceBuffer.Slice(SourcePos, BlockSize).Span.CopyTo(Buffer.AsSpan(Offset + ReadBytes));
+						int BlockSize = Math.Min(SourceEnd - SourcePos, Buffer.Length - ReadBytes);
+						SourceBuffer.Slice(SourcePos, BlockSize).Span.CopyTo(Buffer.Slice(ReadBytes).Span);
 						CurrentOffset += BlockSize;
 						ReadBytes += BlockSize;
 						SourcePos += BlockSize;

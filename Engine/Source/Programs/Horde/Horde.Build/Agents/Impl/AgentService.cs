@@ -361,15 +361,14 @@ namespace HordeServer.Services
 
 						for (int Idx = 0; Idx < Tasks.Count; Idx++)
 						{
-							Task<(ITaskSource, AgentLease)?> Task = Tasks[Idx];
-							if (!Task.IsCompleted)
+							(ITaskSource, AgentLease)? TaskResult;
+							if (!Tasks[Idx].TryGetResult(out TaskResult))
 							{
 								continue;
 							}
 
 							Tasks.RemoveAt(Idx--);
 
-							(ITaskSource, AgentLease)? TaskResult = Task.Result;
 							if (!TaskResult.HasValue)
 							{
 								continue;

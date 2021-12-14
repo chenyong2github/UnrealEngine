@@ -203,7 +203,7 @@ namespace HordeServer.Services
 				}
 				if (Line.Length > 0)
 				{
-					RedisLogger.Log(LogLevel.Information, Line);
+					RedisLogger.Log(LogLevel.Information, "{Output}", Line);
 				}
 			}
 			RedisLogger.LogInformation("Exit code {ExitCode}", RedisProcess.ExitCode);

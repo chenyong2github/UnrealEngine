@@ -15,7 +15,7 @@ namespace HordeServer.Utilities
 	/// Attribute specifying the unique id for a singleton document
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class)]
-	public class SingletonDocumentAttribute : Attribute
+	public sealed class SingletonDocumentAttribute : Attribute
 	{
 		/// <summary>
 		/// Unique id for the singleton document

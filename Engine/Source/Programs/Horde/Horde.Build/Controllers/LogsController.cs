@@ -221,7 +221,7 @@ namespace HordeServer.Controllers
 							}
 							else if (Result[Offset] == (byte)'\n')
 							{
-								Stream.Write(Result, StartOffset, Offset - StartOffset);
+								await Stream.WriteAsync(Result.AsMemory(StartOffset, Offset - StartOffset));
 								Offset++;
 								break;
 							}

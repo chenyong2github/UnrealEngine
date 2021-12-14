@@ -149,7 +149,9 @@ namespace HordeServer.Tasks
 			{
 				Arguments[Idx + 2] = OnLeaseStartedProperties.Accessors[Idx](Payload);
 			}
+#pragma warning disable CA2254 // Template should be a static expression
 			Logger.LogInformation($"Lease {{LeaseId}} started (Type={{Type}}{OnLeaseStartedProperties.FormatString})", Arguments);
+#pragma warning restore CA2254 // Template should be a static expression
 			return Task.CompletedTask;
 		}
 

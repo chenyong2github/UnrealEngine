@@ -313,7 +313,7 @@ namespace HordeServer.Utilities
 			StringBuilder Builder = new StringBuilder();
 			if (!Include)
 			{
-				Builder.Append("-");
+				Builder.Append('-');
 			}
 			Builder.Append(CultureInfo.InvariantCulture, $"{SourcePrefix}{Wildcard}{SourceSuffix} {TargetPrefix}{Wildcard}{TargetSuffix}");
 			return Builder.ToString();

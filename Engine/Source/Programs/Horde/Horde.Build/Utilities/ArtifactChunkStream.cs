@@ -89,8 +89,14 @@ namespace HordeServer.Utilities
 		/// <inheritdoc/>
 		public override async Task<int> ReadAsync(byte[] Buffer, int Offset, int Count, CancellationToken CancellationToken)
 		{
+			return await ReadAsync(Buffer.AsMemory(Offset, Count), CancellationToken);
+		}
+
+		/// <inheritdoc/>
+		public override async ValueTask<int> ReadAsync(Memory<byte> Buffer, CancellationToken CancellationToken)
+		{
 			int BytesRead = 0;
-			while (BytesRead < Count && StreamPosition < StreamLength)
+			while (BytesRead < Buffer.Length && StreamPosition < StreamLength)
 			{
 				if (Request == null || RequestPos == Request.Data.Length)
 				{
@@ -106,8 +112,8 @@ namespace HordeServer.Utilities
 				else
 				{
 					// Copy data from the current request object
-					int NumBytesToCopy = Math.Min(Count - BytesRead, Request.Data.Length - RequestPos);
-					Request.Data.Span.Slice(RequestPos, NumBytesToCopy).CopyTo(Buffer.AsSpan(BytesRead, NumBytesToCopy));
+					int NumBytesToCopy = Math.Min(Buffer.Length - BytesRead, Request.Data.Length - RequestPos);
+					Request.Data.Span.Slice(RequestPos, NumBytesToCopy).CopyTo(Buffer.Slice(BytesRead, NumBytesToCopy).Span);
 					RequestPos += NumBytesToCopy;
 					BytesRead += NumBytesToCopy;
 					StreamPosition += NumBytesToCopy;

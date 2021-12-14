@@ -404,7 +404,7 @@ namespace HordeServer.Services
 			}
 			catch (Exception Ex)
 			{
-                Logger.LogError($"Error on device notification {Ex.Message}");
+                Logger.LogError(Ex, "Error on device notification {Message}", Ex.Message);
             }
         }
 
@@ -454,7 +454,7 @@ namespace HordeServer.Services
 
 				if (Projects.Where(x => x.Id == ProjectId).FirstOrDefault() == null)
 				{
-					Logger.LogWarning($"Device pool authorization references missing project id {ProjectId}");
+					Logger.LogWarning("Device pool authorization references missing project id {ProjectId}", ProjectId);
 					continue;
 				}
 

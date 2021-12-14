@@ -133,7 +133,7 @@ namespace HordeServer.Api
 		/// Constructor
 		/// </summary>
 		/// <param name="Title">Title of this page</param>
-		public GetStreamTabResponse(string Title)//, StreamPageType Type)
+		protected GetStreamTabResponse(string Title)//, StreamPageType Type)
 		{
 			this.Title = Title;
 		}
@@ -160,7 +160,7 @@ namespace HordeServer.Api
 		/// </summary>
 		/// <param name="Heading">Heading for this column</param>
 		/// <param name="RelativeWidth">Relative width of this column</param>
-		public GetJobsTabColumnResponse(string Heading, int? RelativeWidth)
+		protected GetJobsTabColumnResponse(string Heading, int? RelativeWidth)
 		{
 			this.Heading = Heading;
 			this.RelativeWidth = RelativeWidth;

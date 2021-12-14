@@ -234,7 +234,7 @@ namespace HordeServer.Services
 			}
 			if(MongoProcessGroup != null)
 			{
-				MongoProcessGroup?.Dispose();
+				MongoProcessGroup.Dispose();
 				MongoProcessGroup = null;
 			}
 		}
@@ -345,11 +345,11 @@ namespace HordeServer.Services
 							ChannelLogger = LoggerFactory.CreateLogger($"MongoDB.{Match.Groups[2].Value}");
 							ChannelLoggers.Add(Match.Groups[2].Value, ChannelLogger);
 						}
-						ChannelLogger.Log(ParseMongoLogLevel(Match.Groups[1].Value), Match.Groups[3].Value.TrimEnd());
+						ChannelLogger.Log(ParseMongoLogLevel(Match.Groups[1].Value), "{Message}", Match.Groups[3].Value.TrimEnd());
 					}
 					else
 					{
-						MongoLogger.Log(LogLevel.Information, Line);
+						MongoLogger.Log(LogLevel.Information, "{Message}", Line);
 					}
 				}
 			}
@@ -390,7 +390,9 @@ namespace HordeServer.Services
 				}
 			}
 
+#pragma warning disable CA2254 // Template should be a static expression
 			Logger.LogTrace($"MongoDB: {String.Join(", ", Params)}", Values.ToArray());
+#pragma warning restore CA2254 // Template should be a static expression
 		}
 
 		/// <summary>

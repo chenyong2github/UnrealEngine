@@ -1290,7 +1290,7 @@ namespace HordeServer.Notifications.Impl
 			using FormUrlEncodedContent Content = new FormUrlEncodedContent(Array.Empty<KeyValuePair<string?, string?>>());
 			HttpResponseMessage Response = await Client.PostAsync(new Uri("https://slack.com/api/apps.connections.open"), Content, StoppingToken);
 
-			byte[] ResponseData = await Response.Content.ReadAsByteArrayAsync();
+			byte[] ResponseData = await Response.Content.ReadAsByteArrayAsync(StoppingToken);
 
 			SocketResponse SocketResponse = JsonSerializer.Deserialize<SocketResponse>(ResponseData)!;
 			if (!SocketResponse.Ok)

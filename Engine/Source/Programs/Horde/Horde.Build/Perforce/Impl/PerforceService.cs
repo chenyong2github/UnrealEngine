@@ -1383,7 +1383,7 @@ namespace HordeServer.Services
 				}
 				catch
 				{
-					Logger.LogError($"Unable to delete client {ClientName}");
+					Logger.LogError("Unable to delete client {ClientName}", ClientName);
 				}
 
 			}

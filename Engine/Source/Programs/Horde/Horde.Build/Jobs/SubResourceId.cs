@@ -77,8 +77,7 @@ namespace HordeServer.Models
 		/// <inheritdoc/>
 		public override bool Equals(object? Other)
 		{
-			SubResourceId? OtherId = Other as SubResourceId?;
-			return OtherId != null && Equals(OtherId.Value);
+			return Other is SubResourceId OtherId && Equals(OtherId);
 		}
 
 		/// <inheritdoc/>

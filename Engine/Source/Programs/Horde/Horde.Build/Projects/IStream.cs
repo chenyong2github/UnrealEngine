@@ -459,7 +459,7 @@ namespace HordeServer.Models
 			}
 			else if (ChangeTemplateRefId != null)
 			{
-				ChangeRequest = new ChangeQueryRequest { TemplateId = ChangeTemplateRefId?.ToString() };
+				ChangeRequest = new ChangeQueryRequest { TemplateId = ChangeTemplateRefId.ToString() };
 			}
 
 			return new DefaultPreflightRequest { TemplateId = TemplateRefId?.ToString(), Change = ChangeRequest, ChangeTemplateId = ChangeRequest?.TemplateId };
@@ -612,7 +612,7 @@ namespace HordeServer.Models
 
 				// Get the workspace identifier
 				string Identifier;
-				if (WorkspaceType.Identifier != null && !String.IsNullOrEmpty(WorkspaceType.Identifier))
+				if (WorkspaceType.Identifier != null)
 				{
 					Identifier = WorkspaceType.Identifier;
 				}

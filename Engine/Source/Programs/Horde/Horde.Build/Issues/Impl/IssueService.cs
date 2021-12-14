@@ -212,11 +212,8 @@ namespace HordeServer.Services.Impl
 			Type[] MatcherTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssueHandler).IsAssignableFrom(x)).ToArray();
 			foreach (Type MatcherType in MatcherTypes)
 			{
-				IIssueHandler? Matcher = (IIssueHandler?)Activator.CreateInstance(MatcherType);
-				if (Matcher != null)
-				{
-					Matchers.Add(Matcher);
-				}
+				IIssueHandler Matcher = (IIssueHandler)Activator.CreateInstance(MatcherType)!;
+				Matchers.Add(Matcher);
 			}
 			Matchers.SortBy(x => -x.Priority);
 

@@ -260,7 +260,7 @@ namespace HordeServer.Collections.Impl
 
 			if (Name == null)
 			{
-				Update = Update.SetOnInsert(x => x.Name, Name ?? Login);
+				Update = Update.SetOnInsert(x => x.Name, Login);
 			}
 			else
 			{

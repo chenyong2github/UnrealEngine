@@ -339,9 +339,9 @@ namespace HordeServer.Services
 				DirectoryReference.CreateDirectory(AgentHashFile.Directory);
 			}
 
-			FileReference.WriteAllText(AgentHashFile, AgentHash);
+			await FileReference.WriteAllTextAsync(AgentHashFile, AgentHash);
 
-			Logger.LogInformation($"Updated default agent software to {AgentHash}");
+			Logger.LogInformation("Updated default agent software to {AgentHash}", AgentHash);
 
 		}
 	}
