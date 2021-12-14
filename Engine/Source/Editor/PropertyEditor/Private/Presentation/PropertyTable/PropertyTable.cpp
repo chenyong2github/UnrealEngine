@@ -480,11 +480,21 @@ void FPropertyTable::PasteTextAtCell( const FString& Text, const TSharedRef< IPr
 
 	// Parse into row strings
 	TArray<FString> RowStrings;
-	Text.ParseIntoArray(RowStrings,LINE_TERMINATOR, true);
+	Text.ParseIntoArray(RowStrings,LINE_TERMINATOR, false);
+	if (RowStrings.Num() == 0)
+	{
+		// Pasted an empty string, ParseIntoArray didn't create empty entry, so create that now
+		RowStrings.Emplace(TEXT(""));
+	}
 
 	// Parse row strings into individual cell strings
 	TArray<FString> CellStrings;
 	RowStrings[CurrentRowIdx++].ParseIntoArray(CellStrings, TEXT("\t"), false);
+	if (CellStrings.Num() == 0)
+	{
+		// Pasted an empty string, ParseIntoArray didn't create empty entry, so create that now
+		CellStrings.Emplace(TEXT(""));
+	}
 
 	// Get the maximum paste operations before displaying the slow task
 	int32 NumPasteOperationsBeforeWarning = GetDefault<UEditorPerProjectUserSettings>()->PropertyMatrix_NumberOfPasteOperationsBeforeWarning;
@@ -528,6 +538,11 @@ void FPropertyTable::PasteTextAtCell( const FString& Text, const TSharedRef< IPr
 					CurrentColumnIdx = 0;
 					FirstCellInRow = TargetCell;
 					RowStrings[CurrentRowIdx++].ParseIntoArray(CellStrings, TEXT("\t"), false);
+					if (CellStrings.Num() == 0)
+					{
+						// Tried to parse an empty row string, create an empty cell string
+						CellStrings.Emplace(TEXT(""));
+					}
 				
 					if ( bShowProgressDialog )
 					{
