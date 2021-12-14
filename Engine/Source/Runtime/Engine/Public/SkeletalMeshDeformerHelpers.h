@@ -38,4 +38,14 @@ public:
 
 	/** Reset all buffer overrides that were applied through SetVertexFactoryBufferOverrides. */
 	ENGINE_API static void ResetVertexFactoryBufferOverrides_GameThread(FSkeletalMeshObject* MeshObject, int32 LODIndex);
+
+#if RHI_RAYTRACING
+
+	/** Update ray tracing geometry with new position vertex buffer. */
+	ENGINE_API static void UpdateRayTracingGeometry(
+		FSkeletalMeshObject* MeshObject,
+		int32 LODIndex,
+		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer);
+
+#endif // RHI_RAYTRACING
 };

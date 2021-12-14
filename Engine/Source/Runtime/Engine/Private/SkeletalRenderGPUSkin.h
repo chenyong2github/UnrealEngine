@@ -20,6 +20,7 @@
 #include "Rendering/SkeletalMeshLODRenderData.h"
 
 class FGPUSkinCache;
+class FRayTracingSkinnedGeometryUpdateQueue;
 
 /** 
 * Stores the updated matrices needed to skin the verts.
@@ -336,6 +337,7 @@ public:
 	FRayTracingGeometry RayTracingGeometry;
 	FRayTracingAccelerationStructureSize RayTracingGeometryStructureSize;
 	FRWBuffer RayTracingDynamicVertexBuffer;
+	FRayTracingSkinnedGeometryUpdateQueue* RayTracingUpdateQueue;
 
 	virtual FRayTracingGeometry* GetRayTracingGeometry() { return &RayTracingGeometry; }
 	virtual const FRayTracingGeometry* GetRayTracingGeometry() const { return &RayTracingGeometry; }
@@ -354,6 +356,15 @@ public:
 			return 0;
 		}
 	}
+
+	/** 
+	 * Directly update ray tracing geometry. 
+	 * This is quicker than the generic dynamic VSinCS path. 
+	 * VSinCS path is still required for world position offset materials but this can still use 
+	 * the updated vertex buffers from here with a passthrough vertex factory.
+	 */
+	void UpdateRayTracingGeometry(FSkeletalMeshLODRenderData& LODModel, TArray<FBufferRHIRef>& VertexBufffers);
+
 #endif // RHI_RAYTRACING
 
 	virtual int32 GetLOD() const override
@@ -391,15 +402,6 @@ public:
 		}
 	}
 	//~ End FSkeletalMeshObject Interface
-
-	bool DoesAnySegmentUsesWorldPositionOffset() const
-	{
-#if RHI_RAYTRACING
-		return DynamicData ? DynamicData->bAnySegmentUsesWorldPositionOffset : false;
-#else
-		return false;
-#endif
-	}
 
 	FSkinWeightVertexBuffer* GetSkinWeightVertexBuffer(int32 LODIndex) const;
 

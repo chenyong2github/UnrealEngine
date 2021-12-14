@@ -144,13 +144,8 @@ public:
 	{
 		FGPUSkinCacheEntry* SkinCacheEntry = nullptr;
 		FSkeletalMeshLODRenderData* LODModel = nullptr;
-
 		uint32 RevisionNumber = 0;
-
-		// Section is a uint32, but steal 2 bits since its impossible to have over 1 billion sections
-		uint32 Section : 30;	
-		uint32 bRequireRecreatingRayTracingGeometry : 1;
-		uint32 bAnySegmentUsesWorldPositionOffset : 1;
+		uint32 Section = 0;	
 	};
 
 	FGPUSkinCache() = delete;
@@ -201,10 +196,6 @@ public:
 		}
 		return nullptr;
 	}
-
-#if RHI_RAYTRACING
-	static void GetRayTracingSegmentVertexBuffers(const FGPUSkinCacheEntry& SkinCacheEntry, TArrayView<FRayTracingGeometrySegment> OutSegments);
-#endif // RHI_RAYTRACING
 
 	static bool IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Section);
 
@@ -429,24 +420,7 @@ public:
 	ENGINE_API FRHIShaderResourceView* GetBoneBuffer(uint32 ComponentId, uint32 SectionIndex) const;
 
 #if RHI_RAYTRACING
-	void AddRayTracingGeometryToUpdate(FRayTracingGeometry* InRayTracingGeometry, const FRayTracingAccelerationStructureSize& StructureSize, EAccelerationStructureBuildMode InBuildMode);
-	ENGINE_API uint32 ComputeRayTracingGeometryScratchBufferSize();
-	ENGINE_API void CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RHICmdList, FRHIBuffer* ScratchBuffer);
-	void RemoveRayTracingGeometryUpdate(FRayTracingGeometry* RayTracingGeometry)
-	{
-		if (RayTracingGeometriesToUpdate.Find(RayTracingGeometry) != nullptr)
-		{
-			RayTracingGeometriesToUpdate.Remove(RayTracingGeometry);
-		}
-	}
-
-	void ProcessRayTracingGeometryToUpdate(
-		FRHICommandListImmediate& RHICmdList,
-		FGPUSkinCacheEntry* SkinCacheEntry,
-		FSkeletalMeshLODRenderData& LODModel,
-		bool bRequireRecreatingRayTracingGeometry,
-		bool bAnySegmentUsesWorldPositionOffset
-		);
+	void ProcessRayTracingGeometryToUpdate(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, FSkeletalMeshLODRenderData& LODModel);
 #endif // RHI_RAYTRACING
 
 	void BeginBatchDispatch(FRHICommandListImmediate& RHICmdList);
@@ -460,16 +434,6 @@ protected:
 	void GetBufferUAVs(const TArray<FSkinCacheRWBuffer*>& InBuffers, TArray<FRHIUnorderedAccessView*>& OutUAVs);
 
 	TSet<FSkinCacheRWBuffer*> BuffersToTransitionToRead;
-#if RHI_RAYTRACING
-	struct FRayTracingUpdateInfo
-	{
-		EAccelerationStructureBuildMode BuildMode;
-		uint32 ScratchSize;
-	};
-	TMap<FRayTracingGeometry*, FRayTracingUpdateInfo> RayTracingGeometriesToUpdate;
-	uint64 RayTracingGeometryMemoryPendingRelease = 0;
-#endif // RHI_RAYTRACING
-
 	TArray<FRWBuffersAllocation*> Allocations;
 	TArray<FGPUSkinCacheEntry*> Entries;
 	TArray<FDispatchEntry> BatchDispatches;

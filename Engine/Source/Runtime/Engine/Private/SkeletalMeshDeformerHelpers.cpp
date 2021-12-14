@@ -69,3 +69,33 @@ void FSkeletalMeshDeformerHelpers::ResetVertexFactoryBufferOverrides_GameThread(
 		SetVertexFactoryBufferOverrides(MeshObject, LODIndex, EOverrideType::All, nullptr, nullptr, nullptr);
 	});
 }
+
+#if RHI_RAYTRACING
+
+void FSkeletalMeshDeformerHelpers::UpdateRayTracingGeometry(
+	FSkeletalMeshObject* MeshObject,
+	int32 LODIndex,
+	TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer)
+{
+	if (MeshObject->IsCPUSkinned())
+	{
+		return;
+	}
+
+	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(MeshObject);
+	FSkeletalMeshRenderData& SkelMeshRenderData = MeshObjectGPU->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData& LODModel = SkelMeshRenderData.LODRenderData[LODIndex];
+
+	const int32 NumSections = MeshObject->GetRenderSections(LODIndex).Num();
+
+	TArray<FBufferRHIRef> VertexBufffers;
+	VertexBufffers.SetNum(NumSections);
+	for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+	{
+		VertexBufffers[SectionIndex] = PositionBuffer->GetRHI();
+	}
+
+	MeshObjectGPU->UpdateRayTracingGeometry(LODModel, VertexBufffers);
+}
+
+#endif // RHI_RAYTRACING

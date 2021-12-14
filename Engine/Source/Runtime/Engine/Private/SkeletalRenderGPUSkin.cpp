@@ -9,6 +9,7 @@
 #include "SceneUtils.h"
 #include "SkeletalRender.h"
 #include "GPUSkinCache.h"
+#include "RayTracingSkinnedGeometry.h"
 #include "Animation/MorphTarget.h"
 #include "ClearQuad.h"
 #include "ShaderParameterUtils.h"
@@ -267,6 +268,10 @@ FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectGPUSkin(USkinnedMeshComponent* In
 	}
 
 	InitResources(InMeshComponent);
+
+#if RHI_RAYTRACING
+	RayTracingUpdateQueue = InMeshComponent->GetScene()->GetRayTracingSkinnedGeometryUpdateQueue();
+#endif
 }
 
 
@@ -347,9 +352,20 @@ void FSkeletalMeshObjectGPUSkin::ReleaseResources()
 	}
 
 	// Only enqueue when intialized
-	if (RayTracingDynamicVertexBuffer.NumBytes > 0)
+	if (RayTracingUpdateQueue != nullptr || RayTracingDynamicVertexBuffer.NumBytes > 0)
 	{
-		ENQUEUE_RENDER_COMMAND(ReleaseRayTracingDynamicVertexBuffer)([&RayTracingDynamicVertexBuffer = RayTracingDynamicVertexBuffer](FRHICommandListImmediate& RHICmdList) mutable { RayTracingDynamicVertexBuffer.Release(); });
+		ENQUEUE_RENDER_COMMAND(ReleaseRayTracingDynamicVertexBuffer)(
+			[RayTracingUpdateQueue = RayTracingUpdateQueue, RayTracingGeometryPtr = &RayTracingGeometry, &RayTracingDynamicVertexBuffer = RayTracingDynamicVertexBuffer](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				if (RayTracingUpdateQueue != nullptr)
+				{
+					RayTracingUpdateQueue->Remove(RayTracingGeometryPtr);
+				}
+				if (RayTracingDynamicVertexBuffer.NumBytes > 0)
+				{
+					RayTracingDynamicVertexBuffer.Release();
+				}
+			});
 	}
 #endif // RHI_RAYTRACING
 }
@@ -511,7 +527,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 	bRequireRecreatingRayTracingGeometry = (DynamicData == nullptr || RayTracingGeometry.Initializer.Segments.Num() == 0 || // Newly created
 		(DynamicData != nullptr && DynamicData->RayTracingLODIndex != InDynamicData->RayTracingLODIndex) || // LOD level changed
 		bHiddenMaterialVisibilityDirtyForRayTracing ||
-		GetSkinCacheEntryForRayTracing() == nullptr);
+		(DynamicData->bIsSkinCacheAllowed && GetSkinCacheEntryForRayTracing() == nullptr));
 
 	bHiddenMaterialVisibilityDirtyForRayTracing = false;
 	
@@ -571,7 +587,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 		if (GetSkinCacheEntryForRayTracing())
 		{
 			FSkeletalMeshLODRenderData& LODModel = this->SkeletalMeshRenderData->LODRenderData[DynamicData->RayTracingLODIndex];
-			GPUSkinCache->ProcessRayTracingGeometryToUpdate(RHICmdList, GetSkinCacheEntryForRayTracing(), LODModel, bRequireRecreatingRayTracingGeometry, DynamicData->bAnySegmentUsesWorldPositionOffset);
+			GPUSkinCache->ProcessRayTracingGeometryToUpdate(RHICmdList, GetSkinCacheEntryForRayTracing(), LODModel);
 		}
 		else
 		{
@@ -790,6 +806,124 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 		LOD.MorphVertexBufferPool.EnableDoubleBuffer();
 	}
 }
+
+#if RHI_RAYTRACING
+
+void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRenderData& LODModel, TArray<FBufferRHIRef>& VertexBufffers)
+{
+	check(IsInRenderingThread());
+
+	if (IsRayTracingEnabled() && bSupportRayTracing)
+	{
+		const bool bAnySegmentUsesWorldPositionOffset = DynamicData != nullptr ? DynamicData->bAnySegmentUsesWorldPositionOffset : false;
+
+		if (bRequireRecreatingRayTracingGeometry)
+		{
+			uint32 MemoryEstimation = 0;
+
+			FBufferRHIRef IndexBufferRHI = LODModel.MultiSizeIndexContainer.GetIndexBuffer()->IndexBufferRHI;
+			MemoryEstimation += IndexBufferRHI->GetSize();
+			uint32 VertexBufferStride = LODModel.StaticVertexBuffers.PositionVertexBuffer.GetStride();
+			MemoryEstimation += LODModel.StaticVertexBuffers.PositionVertexBuffer.VertexBufferRHI->GetSize();
+
+			//#dxr_todo: do we need support for separate sections in FRayTracingGeometryData?
+			uint32 TrianglesCount = 0;
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.RenderSections.Num(); SectionIndex++)
+			{
+				const FSkelMeshRenderSection& Section = LODModel.RenderSections[SectionIndex];
+				TrianglesCount += Section.NumTriangles;
+			}
+
+			FRayTracingGeometryInitializer Initializer;
+
+#if !UE_BUILD_SHIPPING
+			if (DebugName.IsValid())
+			{
+				Initializer.DebugName = DebugName;
+			}
+			else
+#endif
+			{
+				static const FName DefaultDebugName("FSkeletalMeshObjectGPUSkin");
+				static int32 DebugNumber = 0;
+				Initializer.DebugName = FName(DefaultDebugName, DebugNumber++);
+			}
+
+			Initializer.IndexBuffer = IndexBufferRHI;
+			Initializer.TotalPrimitiveCount = TrianglesCount;
+			Initializer.GeometryType = RTGT_Triangles;
+			Initializer.bFastBuild = true;
+			Initializer.bAllowUpdate = true;
+
+			Initializer.Segments.Reserve(LODModel.RenderSections.Num());
+			const int32 LODIndex = GetLOD();
+
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.RenderSections.Num(); ++SectionIndex)
+			{
+				const FSkelMeshRenderSection& Section = LODModel.RenderSections[SectionIndex];
+
+				FRayTracingGeometrySegment Segment;
+				Segment.VertexBuffer = VertexBufffers[SectionIndex];
+				Segment.VertexBufferElementType = VET_Float3;
+				Segment.VertexBufferStride = VertexBufferStride;
+				Segment.VertexBufferOffset = 0;
+				Segment.MaxVertices = Section.GetNumVertices();
+				Segment.FirstPrimitive = Section.BaseIndex / 3;
+				Segment.NumPrimitives = Section.NumTriangles;
+
+				// TODO: If we are at a dropped LOD, route material index through the LODMaterialMap in the LODInfo struct.
+				Segment.bEnabled = !IsMaterialHidden(LODIndex, Section.MaterialIndex) && !Section.bDisabled && Section.bVisibleInRayTracing;
+				Initializer.Segments.Add(Segment);
+			}
+
+			if (RayTracingGeometry.RayTracingGeometryRHI.IsValid())
+			{
+				// RayTracingGeometry.ReleaseRHI() releases the old RT geometry, however due to the deferred deletion nature of RHI resources
+				// they will not be released until the end of the frame. We may get OOM in the middle of batched updates if not flushing.
+				// We pass MemoryEstimation, based on vertex & index buffer size, to the update queue so that it can schedule flushes if necessary.
+
+				// Release the old data (make sure it's not pending build anymore either)
+				RayTracingUpdateQueue->Remove(&RayTracingGeometry, MemoryEstimation);
+				RayTracingGeometry.ReleaseRHI();
+			}
+
+			Initializer.SourceGeometry = LODModel.SourceRayTracingGeometry.RayTracingGeometryRHI;
+
+			// Update the new init data
+			RayTracingGeometry.SetInitializer(Initializer);
+
+			// Get the scratch sizes used for build & update
+			RayTracingGeometryStructureSize = RHICalcRayTracingGeometrySize(Initializer);
+
+			// Only create RHI object but enqueue actual BLAS creation so they can be accumulated
+			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
+		}
+		else if (!bAnySegmentUsesWorldPositionOffset)
+		{
+			// Refit BLAS with new vertex buffer data
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.RenderSections.Num(); ++SectionIndex)
+			{
+				FRayTracingGeometrySegment& Segment = RayTracingGeometry.Initializer.Segments[SectionIndex];
+				Segment.VertexBuffer = VertexBufffers[SectionIndex];
+				Segment.VertexBufferOffset = 0;
+			}
+		}
+
+		// If we are not using world position offset in material, handle BLAS build/refit here
+		if (!bAnySegmentUsesWorldPositionOffset)
+		{
+			EAccelerationStructureBuildMode BuildMode = bRequireRecreatingRayTracingGeometry ? EAccelerationStructureBuildMode::Build : EAccelerationStructureBuildMode::Update;
+			RayTracingUpdateQueue->Add(&RayTracingGeometry, RayTracingGeometryStructureSize, BuildMode);
+			RayTracingGeometry.bRequiresBuild = false;
+		}
+		else
+		{
+			// Otherwise, we will run the dynamic ray tracing geometry path, i.e. running VSinCS and build/refit geometry there, so do nothing here
+		}
+	}
+}
+
+#endif // RHI_RAYTRACING
 
 void FSkeletalMeshObjectGPUSkin::UpdateMorphVertexBuffer(FRHICommandListImmediate& RHICmdList, EGPUSkinCacheEntryMode Mode, FSkeletalMeshObjectLOD& LOD, const FSkeletalMeshLODRenderData& LODData, FMorphVertexBuffer& MorphVertexBuffer)
 {
@@ -1215,6 +1349,12 @@ const FVertexFactory* FSkeletalMeshObjectGPUSkin::GetSkinVertexFactory(const FSc
 	const FSkelMeshObjectLODInfo& MeshLODInfo = LODInfo[LODIndex];
 	const FSkeletalMeshObjectLOD& LOD = LODs[LODIndex];
 
+	// If a mesh deformer cache was used, return the passthrough vertex factory
+	if (DynamicData->bHasMeshDeformer)
+	{
+		return LOD.GPUSkinVertexFactories.PassthroughVertexFactories[ChunkIdx].Get();
+	}
+
 #if RHI_RAYTRACING
 	// Return the passthrough vertex factory if it is requested (by ray tracing)
 	if (VFMode == ESkinVertexFactoryMode::RayTracing)
@@ -1225,12 +1365,6 @@ const FVertexFactory* FSkeletalMeshObjectGPUSkin::GetSkinVertexFactory(const FSc
 		return LOD.GPUSkinVertexFactories.PassthroughVertexFactories[ChunkIdx].Get();
 	}
 #endif
-
-	// If a mesh deformer cache was used, return the passthrough vertex factory
-	if (DynamicData->bHasMeshDeformer)
-	{
-		return LOD.GPUSkinVertexFactories.PassthroughVertexFactories[ChunkIdx].Get();
-	}
 
 	// If the GPU skinning cache was used, return the passthrough vertex factory
 	if (SkinCacheEntry && FGPUSkinCache::IsEntryValid(SkinCacheEntry, ChunkIdx) && DynamicData->bIsSkinCacheAllowed)

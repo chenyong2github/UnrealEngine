@@ -3021,6 +3021,7 @@ public:
 
 #if RHI_RAYTRACING
 	class FRayTracingDynamicGeometryCollection* RayTracingDynamicGeometryCollection;
+	class FRayTracingSkinnedGeometryUpdateQueue* RayTracingSkinnedGeometryUpdateQueue;
 #endif
 
 	/** Initialization constructor. */
@@ -3213,6 +3214,10 @@ public:
 	virtual FRayTracingDynamicGeometryCollection* GetRayTracingDynamicGeometryCollection() override
 	{
 		return RayTracingDynamicGeometryCollection;
+	}
+	virtual FRayTracingSkinnedGeometryUpdateQueue* GetRayTracingSkinnedGeometryUpdateQueue() override
+	{
+		return RayTracingSkinnedGeometryUpdateQueue;
 	}
 #endif
 

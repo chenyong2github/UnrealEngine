@@ -544,6 +544,7 @@ public:
 #if RHI_RAYTRACING
 	virtual void UpdateCachedRayTracingState(class FPrimitiveSceneProxy* SceneProxy) {}
 	virtual class FRayTracingDynamicGeometryCollection* GetRayTracingDynamicGeometryCollection() { return nullptr; }
+	virtual class FRayTracingSkinnedGeometryUpdateQueue* GetRayTracingSkinnedGeometryUpdateQueue() { return nullptr; }
 #endif
 
 protected:
