@@ -16,7 +16,6 @@ echo "TURN port: ${turnport}"
 echo ""
 
 pushd "$( dirname "${BASH_SOURCE[0]}" )"
-bash Install_CoTurn.sh
 
 # Hmm, plain text
 turnusername="PixelStreamingUser"
