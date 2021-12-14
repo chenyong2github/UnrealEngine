@@ -1656,24 +1656,25 @@ struct FPackageExportTagger
 	}
 };
 
-[[nodiscard]] ESavePackageResult BuildAndWriteTrailer(FLinkerSave* Linker, FStructuredArchive::FRecord& StructuredArchiveRoot, bool bTextFormat)
+[[nodiscard]] ESavePackageResult BuildAndWriteTrailer(UPackage* Package, FLinkerSave* Linker, FStructuredArchive::FRecord& StructuredArchiveRoot, IPackageWriter* PackageWriter, bool bTextFormat)
 {
+	check(Package != nullptr);
 	check(Linker != nullptr);
+	
+	if (Linker->PackageTrailerBuilder.IsValid())
+	{
+		checkf(PackageWriter == nullptr, TEXT("Attempting to build a package trailer with a package writer '%s', this is not supported!"), *Package->GetName());
+		checkf(bTextFormat == false, TEXT("Attempting to build a package trailer for text based asset '%s', this is not supported!"), *Package->GetName());
 
-	if (bTextFormat)
-	{
-		// We shouldn't have any data in the trailer as text based assets should store 
-		// all payloads inline at the moment.
-		checkf(Linker->PackageTrailerBuilder.IsEmpty(), TEXT("Attempting to build a package trailer for text based asset, this is not supported!"));
-		Linker->Summary.PayloadTocOffset = INDEX_NONE;
-	}
-	else
-	{
 		Linker->Summary.PayloadTocOffset = Linker->Tell();
-		if (!Linker->PackageTrailerBuilder.BuildAndAppendTrailer(Linker, *Linker))
+		if (!Linker->PackageTrailerBuilder->BuildAndAppendTrailer(Linker, *Linker))
 		{
 			return ESavePackageResult::Error;
 		}
+	}
+	else
+	{
+		Linker->Summary.PayloadTocOffset = INDEX_NONE;
 	}
 
 	return ESavePackageResult::Success;
@@ -2149,6 +2150,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 					}
 					Linker->bProceduralSave = ObjectSaveContext.bProceduralSave;
 					Linker->bUpdatingLoadedPath = ObjectSaveContext.bUpdatingLoadedPath;
+
+					if (UE::FPackageTrailer::IsEnabled())
+					{
+						Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(InOuter);
+					}
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 					if (bTextFormat)
@@ -3853,13 +3859,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 					// Now that the package is written out we can write the package trailer that is appended
 					// to the file. This should be the last thing written to the file!
 					SlowTask.EnterProgressFrame();
-					if (UE::FPackageTrailer::IsEnabled())
+					ESavePackageResult TrailerResult = BuildAndWriteTrailer(InOuter, Linker.Get(), StructuredArchiveRoot, PackageWriter, bTextFormat);
+					if (TrailerResult != ESavePackageResult::Success)
 					{
-						ESavePackageResult TrailerResult = BuildAndWriteTrailer(Linker.Get(), StructuredArchiveRoot, bTextFormat);
-						if (TrailerResult != ESavePackageResult::Success)
-						{
-							return TrailerResult;
-						}
+						return TrailerResult;
 					}
 				}
 

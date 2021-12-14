@@ -1521,7 +1521,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageTrailer()
 
 	check(PackageTrailer == nullptr);
 
-	if (UE::FPackageTrailer::IsEnabled() && Summary.PayloadTocOffset != INDEX_NONE)
+	if (UE::FPackageTrailer::IsEnabled() && Summary.PayloadTocOffset > 0)
 	{
 		int64 CurPos = Tell();
 		Seek(Summary.PayloadTocOffset);

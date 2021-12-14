@@ -435,6 +435,9 @@ private:
 	 */
 	FText GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) const;
 
+	/** Returns true if we should use legacy serialization instead of the FPackageTrailer system. This can be removed when UE_ENABLE_VIRTUALIZATION_TOGGLE is removed. */
+	bool ShouldUseLegacySerialization(FLinkerSave& LinkerSave) const;
+
 	/** Unique identifier for the bulkdata object itself */
 	FGuid BulkDataId;
 

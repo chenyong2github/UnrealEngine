@@ -141,7 +141,7 @@ bool IsValid(const FVirtualizedUntypedBulkData& BulkData, const FCompressedBuffe
 }
 
 /** Utility for finding the FLinkerLoad associated with a given UObject */
-FLinkerLoad* GetLinkerLoadFromOwner(UObject* Owner)
+const FLinkerLoad* GetLinkerLoadFromOwner(UObject* Owner)
 {
 	if (Owner != nullptr)
 	{
@@ -156,9 +156,10 @@ FLinkerLoad* GetLinkerLoadFromOwner(UObject* Owner)
 	}
 }
 
-FPackageTrailer* GetTrailerFromOwner(UObject* Owner)
+/** Utility for finding the FPackageTrailer associated with a given UObject */
+const FPackageTrailer* GetTrailerFromOwner(UObject* Owner)
 {
-	FLinkerLoad* Linker = GetLinkerLoadFromOwner(Owner);
+	const FLinkerLoad* Linker = GetLinkerLoadFromOwner(Owner);
 	if (Linker != nullptr)
 	{
 		return Linker->GetPackageTrailer();
@@ -167,6 +168,18 @@ FPackageTrailer* GetTrailerFromOwner(UObject* Owner)
 	{
 		return nullptr;
 	}
+}
+
+/** Utility for updating an existing entry in an Archive before returning the archive to it's original seek position */
+template<typename DataType>
+void UpdateArchiveData(FArchive& Ar, int64 DataPosition, DataType& Data)
+{
+	const int64 OriginalPosition = Ar.Tell();
+
+	Ar.Seek(DataPosition);
+	Ar << Data;
+
+	Ar.Seek(OriginalPosition);
 }
 
 /** Utility for accessing IVirtualizationSourceControlUtilities from the modular feature system. */
@@ -477,18 +490,6 @@ void FVirtualizedUntypedBulkData::CreateLegacyUniqueIdentifier(UObject* Owner)
 	}
 }
 
-/** Utility for updating an existing entry in an Archive before returning the archive to it's original seek position */
-template<typename DataType>
-void UpdateArchiveData(FArchive& Ar, int64 DataPosition, DataType& Data)
-{
-	int64 OriginalPosition = Ar.Tell();
-
-	Ar.Seek(DataPosition);
-	Ar << Data;
-
-	Ar.Seek(OriginalPosition);
-}
-
 void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegister)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::Serialize);
@@ -611,10 +612,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			// TODO: Not a huge fan of this, might be better to find a way to build the flags during serialization and potential callbacks 
 			// later then go back and update the flags in the Ar. Applying the updated flags only if we are saving a package to disk
 			// and the save succeeds continues to make sense.
-			const int64 RestorePos = Ar.Tell();
-			Ar.Seek(SavedFlagsPos);
-			Ar << UpdatedFlags;
-			Ar.Seek(RestorePos);
+			UpdateArchiveData(Ar, SavedFlagsPos, UpdatedFlags);
 
 			// Write out required extra data if we're saving by reference
 			bool bWriteOutPayload = true;
@@ -675,12 +673,8 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 				// If we do not have a linker OR the linker is in text format then we should just serialize
 				// the payload directly to the archive.
 				if (LinkerSave != nullptr && !LinkerSave->IsTextFormat())
-				{	
-#if UE_ENABLE_VIRTUALIZATION_TOGGLE
-					if (FPackageTrailer::IsEnabled() == false || bSkipVirtualization == true)
-#else
-					if (FPackageTrailer::IsEnabled() == false)
-#endif //UE_ENABLE_VIRTUALIZATION_TOGGLE
+				{
+					if (ShouldUseLegacySerialization(*LinkerSave))
 					{
 						// Legacy path, will save the payload data to the package
 						SerializeToLegacyPath(*LinkerSave, OffsetPos, PayloadToSerialize, UpdatedFlags, Owner);
@@ -699,15 +693,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 
 					SerializeData(Ar, PayloadToSerialize, UpdatedFlags);
 					
-					// Record the current archive offset to return to (probably EOF but we cannot be sure)
-					const int64 ReturnPos = Ar.Tell();
-
-					// Update the offset entry that we set up earlier
-					Ar.Seek(OffsetPos);
-					Ar << DataStartOffset;
-
-					// Restore the archive's offset
-					Ar.Seek(ReturnPos);
+					UpdateArchiveData(Ar, OffsetPos, DataStartOffset);
 				}
 			}
 
@@ -719,7 +705,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 		}
 		else if (Ar.IsLoading())
 		{
-			FPackageTrailer* Trailer = GetTrailerFromOwner(Owner);
+			const FPackageTrailer* Trailer = GetTrailerFromOwner(Owner);
 
 			if (Trailer != nullptr && Trailer->FindPayloadStatus(PayloadContentId) == EPayloadStatus::StoredVirtualized)
 			{
@@ -1192,7 +1178,7 @@ FPackagePath FVirtualizedUntypedBulkData::GetPackagePathFromOwner(UObject* Owner
 {
 	OutPackageSegment = EPackageSegment::Header;
 
-	FLinkerLoad* Linker = GetLinkerLoadFromOwner(Owner);
+	const FLinkerLoad* Linker = GetLinkerLoadFromOwner(Owner);
 
 	if (Linker != nullptr)
 	{
@@ -1286,14 +1272,7 @@ void FVirtualizedUntypedBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave,
 
 		SerializeData(DataArchive, PayloadToSerialize, UpdatedFlags);
 
-		// Record the current archive offset (probably EOF but we cannot be sure)
-		const int64 ReturnPos = ExportsArchive.Tell();
-
-		// Update the offset/size entries that we set up during ::Serialize
-		ExportsArchive.Seek(OffsetPos);
-		ExportsArchive << DataStartOffset;
-		// Restore the archive's offset
-		ExportsArchive.Seek(ReturnPos);
+		UpdateArchiveData(ExportsArchive, OffsetPos, DataStartOffset);
 
 		// If we are saving the package to disk (we have access to FLinkerSave and its filepath is valid) 
 		// then we should register a callback to be received once the package has actually been saved to 
@@ -1347,11 +1326,11 @@ void FVirtualizedUntypedBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave,
 
 void FVirtualizedUntypedBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, int64 OffsetPos, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner)
 {
-	auto OnPayloadWritten = [this, OffsetPos, UpdatedFlags](FLinkerSave& LinkerSave) mutable
+	auto OnPayloadWritten = [this, OffsetPos, UpdatedFlags](FLinkerSave& LinkerSave, FPackageTrailer& Trailer) mutable
 	{
 		checkf(LinkerSave.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
 
-		int64 PayloadOffset = LinkerSave.PackageTrailerBuilder.FindPayloadOffset(PayloadContentId);
+		int64 PayloadOffset = Trailer.FindPayloadOffsetInFile(PayloadContentId);
 
 		UpdateArchiveData(LinkerSave, OffsetPos, PayloadOffset);
 
@@ -1387,7 +1366,7 @@ void FVirtualizedUntypedBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerS
 		}
 	};
 
-	LinkerSave.PackageTrailerBuilder.AddPayload(PayloadContentId, MoveTemp(PayloadToSerialize), MoveTemp(OnPayloadWritten));
+	LinkerSave.PackageTrailerBuilder->AddPayload(PayloadContentId, MoveTemp(PayloadToSerialize), MoveTemp(OnPayloadWritten));
 }
 
 void FVirtualizedUntypedBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID)
@@ -1744,6 +1723,15 @@ FText FVirtualizedUntypedBulkData::GetCorruptedPayloadErrorMsgForSave(FLinkerSav
 		return FText::Format(	NSLOCTEXT("Core", "Virtualization_InvalidPayloadPath", "Attempting to save bulkdata {0} with an invalid payload, source unknown"),
 								GuidID);
 	}
+}
+
+bool FVirtualizedUntypedBulkData::ShouldUseLegacySerialization(FLinkerSave& LinkerSave) const
+{
+#if UE_ENABLE_VIRTUALIZATION_TOGGLE
+	return !LinkerSave.PackageTrailerBuilder.IsValid() || bSkipVirtualization == true;
+#else
+	return !LinkerSave.PackageTrailerBuilder.IsValid();
+#endif //UE_ENABLE_VIRTUALIZATION_TOGGLE
 }
 	
 FArchive& operator<<(FArchive& Ar, FTocEntry& Entry)
