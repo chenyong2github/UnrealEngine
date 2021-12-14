@@ -4,8 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EngineAnalytics.h"
-
-class UUVEditorToolMeshInput;
+#include "ToolTargets/UVEditorToolMeshInput.h"
 
 namespace UE
 {

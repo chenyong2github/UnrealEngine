@@ -3,7 +3,7 @@
 #include "UVEditorToolAnalyticsUtils.h"
 
 #include "UObject/ObjectPtr.h"
-#include "ToolTargets/UVEditorToolMeshInput.h"
+
 
 namespace UE
 {
