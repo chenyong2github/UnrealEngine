@@ -552,6 +552,7 @@ namespace
 			int32 ArrLen = ArrayValue.Num();
 
 			FScriptSetHelper Helper(SetProperty, OutValue);
+			Helper.EmptyElements(ArrLen);
 
 			// set the property values
 			for (int32 i = 0; i < ArrLen; ++i)
