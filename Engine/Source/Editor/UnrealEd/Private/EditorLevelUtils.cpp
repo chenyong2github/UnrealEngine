@@ -682,6 +682,24 @@ UWorld* GetWorldForNewStreamingLevel(UWorld* InTemplateWorld)
 
 ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWorld, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename /* = TEXT( "" ) */, bool bMoveSelectedActorsIntoNewLevel /* = false */, UWorld* InTemplateWorld /* = nullptr */)
 {
+	TArray<AActor*> ActorsToMove;
+	if (bMoveSelectedActorsIntoNewLevel)
+	{
+		ActorsToMove.Reserve(GEditor->GetSelectedActorCount());
+		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+		{
+			if (AActor* Actor = Cast<AActor>(*It))
+			{
+				ActorsToMove.Add(Actor);
+			}
+		}
+	}
+
+	return CreateNewStreamingLevelForWorld(InWorld, LevelStreamingClass, /*bUseExternalActors=*/false, DefaultFilename, &ActorsToMove, InTemplateWorld);
+}
+
+ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWorld, TSubclassOf<ULevelStreaming> LevelStreamingClass, bool bUseExternalActors, const FString& DefaultFilename /* = TEXT("") */, const TArray<AActor*>* ActorsToMove /* = nullptr */, UWorld* InTemplateWorld /* = nullptr */)
+{
 	// Editor modes cannot be active when any level saving occurs.
 	if (!IsRunningCommandlet())
 	{
@@ -695,6 +713,11 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 	// This is the new streaming level's world not the persistent level world
 	UWorld* NewLevelWorld = GetWorldForNewStreamingLevel(InTemplateWorld);
 	ULevel* PersistentLevel = GetPersistentLevelForNewStreamingLevel(NewLevelWorld, InTemplateWorld);
+	if (bUseExternalActors)
+	{
+		PersistentLevel->ConvertAllActorsToPackaging(true);
+		PersistentLevel->bUseExternalActors = true;
+	}
 
 	bool bNewWorldSaved = false;
 	FString NewPackageName = DefaultFilename;
@@ -723,9 +746,9 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 		{
 			NewLevel = NewStreamingLevel->GetLoadedLevel();
 			// If we are moving the selected actors to the new level move them now
-			if (bMoveSelectedActorsIntoNewLevel)
+			if (ActorsToMove)
 			{
-				MoveSelectedActorsToLevel(NewStreamingLevel);
+				MoveActorsToLevel(*ActorsToMove, NewLevel);
 			}
 
 			// Finally make the new level the current one

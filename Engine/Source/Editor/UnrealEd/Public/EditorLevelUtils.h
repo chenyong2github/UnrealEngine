@@ -85,11 +85,42 @@ public:
 	 */
 	static UNREALED_API void MakeLevelCurrent(ULevel* InLevel, bool bEvenIfLocked = false);
 
-	
+	/**
+	 * Move provided actors to destination level.
+	 *
+	 * @param	ActorsToMove						Actors to move.
+	 * @param	DestLevel							Destination level to move the actors to.
+	 * @param	bWarnAboutReferences				Whether or not to show a modal warning about referenced actors that may no longer function after being moved.
+	 * @param	bWarnAboutRenaming					Whether or not to show a model warning for asset rename.
+	 * @param	bMoveAllOrFail						Whether operation should fail if any of the actors fails to be moved.
+	 * @param	OutActors							Optional, if not null the array will be filled with the newly moved actors.
+	 *
+	 * @return	Returns the number of actors moved.
+	 */
 	static UNREALED_API int32 MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences = true, bool bWarnAboutRenaming = true, bool bMoveAllOrFail = false, TArray<AActor*>* OutActors = nullptr);
 
+	/**
+	 * Copy provided actors to destination level.
+	 *
+	 * @param	ActorsToMove						Actors to copy.
+	 * @param	DestLevel							Destination level to copy the actors to.
+	 * @param	bWarnAboutReferences				Whether or not to show a modal warning about referenced actors that may no longer function after being copied.
+	 * @param	bWarnAboutRenaming					Whether or not to show a model warning for asset rename.
+	 * @param	bMoveAllOrFail						Whether operation should fail if any of the actors fails to be copied.
+	 * @param	OutActors							Optional, if not null the array will be filled with the newly copied actors.
+	 *
+	 * @return	Returns the number of actors copied.
+	 */
 	static UNREALED_API int32 CopyActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences = true, bool bWarnAboutRenaming = true, bool bMoveAllOrFail = false, TArray<AActor*>* OutActors = nullptr);
 
+	/**
+	 * Move selected actors to destination level.
+	 *
+	 * @param	DestLevel							Destination level to move the actors to.
+	 * @param	bWarnAboutReferences				Whether or not to show a modal warning about referenced actors that may no longer function after being copied.
+	 *
+	 * @return	Returns the number of actors copied.
+	 */
 	static UNREALED_API int32 MoveSelectedActorsToLevel(ULevel* DestLevel, bool bWarnAboutReferences = true);
 
 	/** 
@@ -97,7 +128,7 @@ public:
 	*/
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FCanMoveActorToLevelDelegate, const AActor* /* ActorToMove */, const ULevel* /* DestLevel */, bool& /* bOutCanMove */);
 	static UNREALED_API FCanMoveActorToLevelDelegate CanMoveActorToLevelDelegate;
-
+		
 	/**
 	 * Creates a new streaming level and adds it to a world
 	 *
@@ -111,6 +142,19 @@ public:
 	 */
 	static UNREALED_API ULevelStreaming* CreateNewStreamingLevelForWorld(UWorld& World, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename = TEXT(""), bool bMoveSelectedActorsIntoNewLevel = false, UWorld* InTemplateWorld = nullptr);
 
+	/**
+	 * Creates a new streaming level and adds it to a world
+	 *
+	 * @param	InWorld								The world to add the streaming level to
+	 * @param	LevelStreamingClass					The streaming class type instead to use for the level.
+	 * @param	bUseExternalActors					If level should use external actors.
+	 * @param	DefaultFilename						file name for level.  If empty, the user will be prompted during the save process.
+	 * @param	ActorsToMove						Optional, move provided actors into the new level.
+	 * @param	InTemplateWorld						If valid, the new level will be a copy of the template world.
+	 *
+	 * @return	Returns the newly created level, or NULL on failure
+	 */
+	static UNREALED_API ULevelStreaming* CreateNewStreamingLevelForWorld(UWorld& World, TSubclassOf<ULevelStreaming> LevelStreamingClass, bool bUseExternalActors, const FString& DefaultFilename, const TArray<AActor*>* ActorsToMove = nullptr, UWorld* InTemplateWorld = nullptr);
 
 	/**
 	 * Adds the named level packages to the world.  Does nothing if all the levels already exist in the world.

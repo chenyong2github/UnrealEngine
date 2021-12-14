@@ -811,20 +811,6 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		LevelFilename = FPackageName::LongPackageNameToFilename(CreationParams.LevelPackageName, FPackageName::GetMapPackageExtension());
 	}
 
-	ULevelStreamingLevelInstanceEditor* LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), LevelFilename, false, CreationParams.TemplateWorld));
-	if (!LevelStreaming)
-	{
-		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to create new Level Instance level"));
-		return nullptr;
-	}
-
-	ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel();
-	check(LoadedLevel);
-
-	const bool bWarnAboutReferences = true;
-	const bool bWarnAboutRenaming = false;
-	const bool bMoveAllOrFail = true;
-
 	TSet<FName> DirtyPackages;
 
 	// Capture Packages before Moving actors as they can get GCed in the process
@@ -837,20 +823,17 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		}
 	}
 
-	if (!EditorLevelUtils::MoveActorsToLevel(ActorsToMove, LoadedLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail))
+	ULevelStreamingLevelInstanceEditor* LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(
+		*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), CreationParams.UseExternalActors(), LevelFilename, &ActorsToMove, CreationParams.TemplateWorld));
+	if (!LevelStreaming)
 	{
-		ULevelStreamingLevelInstanceEditor::Unload(LevelStreaming);
-		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to create Level Instance because some actors couldn't be moved"));
+		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to create new Level"));
 		return nullptr;
 	}
-	
-	// Convert to OFPA
-	if (CreationParams.UseExternalActors())
-	{
-		LoadedLevel->ConvertAllActorsToPackaging(true);
-		LoadedLevel->bUseExternalActors = true;
-	}
-
+		
+	ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel();
+	check(LoadedLevel);
+		
 	// Take all actors out of any folders they may have been in since we don't support folders inside of level instances
 	for (AActor* Actor : LoadedLevel->Actors)
 	{
@@ -865,6 +848,9 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	ALevelInstance* NewLevelInstanceActor = nullptr;
 	TSoftObjectPtr<UWorld> WorldPtr(LoadedLevel->GetTypedOuter<UWorld>());
 	
+	// Make sure newly created level asset gets scanned
+	ULevel::ScanLevelAssets(LoadedLevel->GetPackage()->GetName());
+
 	if (CreationParams.Type == ELevelInstanceCreationType::LevelInstance)
 	{
 		NewLevelInstanceActor = GetWorld()->SpawnActor<ALevelInstance>(ALevelInstance::StaticClass(), SpawnParams);
@@ -903,7 +889,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	NewLevelInstanceActor->SetWorldAsset(WorldPtr);
 	NewLevelInstanceActor->SetActorLocation(LevelInstanceLocation);
 	
-	// Actors were moved and kept their World positions so when saving we want their positions to actually be relative to the FounationActor/LevelTransform
+	// Actors were moved and kept their World positions so when saving we want their positions to actually be relative to the LevelInstance Actor
 	// so we set the LevelTransform and we mark the level as having moved its actors. 
 	// On Level save FLevelUtils::RemoveEditorTransform will fixup actor transforms to make them relative to the LevelTransform.
 	LevelStreaming->LevelTransform = NewLevelInstanceActor->GetActorTransform();
@@ -1656,9 +1642,7 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<
 
 	if (bChangesCommitted)
 	{
-		// Sync the AssetData so that the updated instances have the latest Actor Registry Data
-		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		AssetRegistry.ScanPathsSynchronous({ EditPackage }, true);
+		ULevel::ScanLevelAssets(EditPackage);
 	}
 	
 	// Backup ID on Commit in case Actor gets recreated

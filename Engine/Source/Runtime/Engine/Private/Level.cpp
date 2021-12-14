@@ -1948,8 +1948,7 @@ namespace LevelAssetRegistryHelper
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 		if (AssetRegistry.IsLoadingAssets() || IsRunningGame())
 		{
-			const FString PackagePath = FPackageName::GetLongPackagePath(LevelPackage.ToString());
-			AssetRegistry.ScanPathsSynchronous({ PackagePath });
+			AssetRegistry.ScanFilesSynchronous({ LevelPackage.ToString()});
 		}
 
 		TArray<FAssetData> LevelPackageAssets;
@@ -1965,6 +1964,17 @@ namespace LevelAssetRegistryHelper
 		}
 
 		return false;
+	}
+
+	static void ScanLevelAssets(const FString& LevelPackage)
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.ScanModifiedAssetFiles({ LevelPackage });
+
+		if (ULevel::GetIsLevelUsingExternalActorsFromPackage(FName(*LevelPackage)))
+		{
+			AssetRegistry.ScanPathsSynchronous({ ULevel::GetExternalActorsPath(LevelPackage) }, /*bForceRescan=*/true);
+		}
 	}
 }
 
@@ -2694,6 +2704,11 @@ FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& I
 	// We can't use the Package->FileName here because it might be a duplicated a package
 	// We can't use the package short name directly in some cases either (PIE, instanced load) as it may contain pie prefix or not reflect the real actor location
 	return GetExternalActorsPath(InLevelPackage->GetName(), InPackageShortName);
+}
+
+void ULevel::ScanLevelAssets(const FString& InLevelPackageName)
+{
+	LevelAssetRegistryHelper::ScanLevelAssets(InLevelPackageName);
 }
 
 const TCHAR* ULevel::GetExternalActorsFolderName()
