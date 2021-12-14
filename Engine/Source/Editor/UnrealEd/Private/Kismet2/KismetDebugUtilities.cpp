@@ -1413,6 +1413,21 @@ bool FKismetDebugUtilities::IsPinBeingWatched(const UBlueprint* Blueprint, const
 	return false;
 }
 
+bool FKismetDebugUtilities::DoesPinHaveWatches(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
+{
+	if (TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(Blueprint))
+	{
+		for (const FBlueprintWatchedPin& WatchedPin : *WatchedPins)
+		{
+			if (WatchedPin.Get() == Pin)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 bool FKismetDebugUtilities::RemovePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty)
 {
 	return RemovePinPropertyWatchesByPredicate(

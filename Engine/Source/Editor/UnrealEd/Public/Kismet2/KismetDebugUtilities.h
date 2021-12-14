@@ -317,12 +317,56 @@ public:
 	// Notifies listeners when a watched pin is added or removed
 	static FOnWatchedPinsListChanged WatchedPinsListChangedEvent;
 
+	/**
+	 * Returns whether a pin property can be watched
+	 * @param Blueprint The blueprint that owns the pin
+	 * @param Pin The Pin to check if it can be watched
+	 * @param InPathToProperty Path to the property on the pin to watch
+	 */
 	static bool CanWatchPin(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty = TArray<FName>());
+
+	/** 
+	 * Returns whether a pin property is being watched
+	 * @param Blueprint The blueprint that owns the pin
+	 * @param Pin The Pin to check if it's being watched
+	 * @param InPathToProperty Path to the property on the pin to watch
+	 */
 	static bool IsPinBeingWatched(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty = TArray<FName>());
+	
+	/**
+	 * Returns whether there are any watched properties for a given pin 
+	 * @param Blueprint The blueprint that owns the pin
+	 * @param Pin The Pin to check if it has any watches
+	 */
+	static bool DoesPinHaveWatches(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
+
+	/**
+	 * Toggles whether a pin is being watched 
+	 * @param Blueprint The blueprint that owns the pin
+	 * @param Pin The Pin to watch
+	 */
 	static void TogglePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
+
+	/**
+	 * Removes a pin property Watch 
+	 * @param Blueprint The blueprint that owns the pin
+	 * @param Pin The Pin to stop watching
+	 * @param InPathToProperty Path to the property on the pin to stop watching
+	 * @return true if a watch was found and removed
+	 */
 	static bool RemovePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin, const TArray<FName>& InPathToProperty = TArray<FName>());
+
+	/** 
+	 * Adds a pin property watch 
+	 * @param Blueprint The blueprint that owns the pin
+	 * @param WatchedPin The Pin to watch
+	 */
 	static void AddPinWatch(const UBlueprint* Blueprint, FBlueprintWatchedPin&& WatchedPin);
+
+	/** Removes all Watched pins from a blueprint */
 	static void ClearPinWatches(const UBlueprint* Blueprint);
+
+	/** Returns whether any pins are watched for a Blueprint */
 	static bool BlueprintHasPinWatches(const UBlueprint* Blueprint);
 
 	/**
