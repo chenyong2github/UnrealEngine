@@ -1216,6 +1216,7 @@ bool FTexturePlatformData::IsUsingNewDerivedData()
 			{
 				GConfig->GetBool(TEXT("TextureBuild"), TEXT("NewTextureBuilds"), bUseNewDerivedData, GEditorIni);
 			}
+			UE_CLOG(bUseNewDerivedData, LogTexture, Log, TEXT("Using new texture derived data builds."));
 		}
 		bool bUseNewDerivedData;
 	};
