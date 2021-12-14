@@ -148,11 +148,11 @@ TArray<uint8> FModelProtoStringParser::GetModelProtoCharAsUInt8Array(const TMap<
 	const FString RawDataString = FModelProtoStringParser::GetModelProtoStringOrEmpty(InProtoMap, InKey);
 	if (!RawDataString.IsEmpty())
 	{
-		const char* const RawDataCharPtr = TCHAR_TO_ANSI(*RawDataString);
+		const auto RawDataAnsiString = StringCast<ANSICHAR>(*RawDataString);
 		// Allocate memory
 		ProtoCharAsUint8Array.SetNumUninitialized(RawDataString.Len());
 		// Copy memory
-		FMemory::Memcpy(ProtoCharAsUint8Array.GetData(), RawDataCharPtr, ProtoCharAsUint8Array.Num());
+		FMemory::Memcpy(ProtoCharAsUint8Array.GetData(), RawDataAnsiString.Get(), ProtoCharAsUint8Array.Num());
 	}
 	// Return array
 	return ProtoCharAsUint8Array;
