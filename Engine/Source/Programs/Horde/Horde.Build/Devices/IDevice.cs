@@ -71,6 +71,12 @@ namespace HordeServer.Models
 		public List<DeviceId> Devices { get; }
 
 		/// <summary>
+		/// The requested device platforms for reservation, which may differ from IDevice platform due to devices that support more than one platform, or legacy platforms
+		/// </summary>
+		public List<string> RequestedDevicePlatforms { get; }
+
+
+		/// <summary>
 		/// The legacy reservation system guid, to be removed once can update Gauntlet client in all streams
 		/// </summary>
 		public string LegacyGuid { get; }

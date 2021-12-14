@@ -567,7 +567,7 @@ namespace HordeServer.Controllers
 
 				}					
 
-				RequestedDevices.Add(new DeviceRequestData(PlatformIdValue, DeviceRequest.IncludeModels, DeviceRequest.ExcludeModels));
+				RequestedDevices.Add(new DeviceRequestData(PlatformIdValue, PlatformIdValue.ToString(), DeviceRequest.IncludeModels, DeviceRequest.ExcludeModels));
 
 			}
 
@@ -805,7 +805,7 @@ namespace HordeServer.Controllers
 				}
 
 
-				RequestedDevices.Add(new DeviceRequestData(PlatformId, IncludeModels, ExcludeModels));
+				RequestedDevices.Add(new DeviceRequestData(PlatformId, PlatformName, IncludeModels, ExcludeModels));
 
 			}
 
@@ -908,18 +908,39 @@ namespace HordeServer.Controllers
 				return BadRequest($"Unknown device {DeviceName}");
 			}
 
+			IDeviceReservation? Reservation = await DeviceService.TryGetDeviceReservation(Device.Id);
+
+			string? PlatformName = null;
+
+			if (Reservation != null && Reservation.Devices.Count == Reservation.RequestedDevicePlatforms.Count)
+			{
+				for (int i = 0; i < Reservation.Devices.Count; i++)
+				{
+					if (Reservation.Devices[i] == Device.Id)
+					{
+						PlatformName = Reservation.RequestedDevicePlatforms[i];
+					}
+				}
+			}
+
 			DevicePlatformMapV1 MapV1 = await DeviceService.GetPlatformMapV1();
 
-			string? Platform;
-			if (!MapV1.PlatformReverseMap.TryGetValue(Device.PlatformId, out Platform))
-			{
-				return BadRequest($"Unable to map platform for {DeviceName} : {Device.PlatformId}");
+			if (string.IsNullOrEmpty(PlatformName))
+			{				
+				if (!MapV1.PlatformReverseMap.TryGetValue(Device.PlatformId, out PlatformName))
+				{
+					return BadRequest($"Unable to map platform for {DeviceName} : {Device.PlatformId}");
+				}
+			}
+
+			if (string.IsNullOrEmpty(PlatformName)) {
+				return BadRequest($"Unable to get platform for {DeviceName} from reservation or mapping : {Device.PlatformId}");
 			}
 
 			GetLegacyDeviceResponse Response = new GetLegacyDeviceResponse();
 
 			Response.Name = Device.Name;
-			Response.Type = Platform;
+			Response.Type = PlatformName;
 			Response.IPOrHostName = Device.Address ?? "";
 			Response.AvailableStartTime = "00:00:00";
 			Response.AvailableEndTime = "00:00:00";

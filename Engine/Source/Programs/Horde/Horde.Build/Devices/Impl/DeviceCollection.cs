@@ -130,9 +130,11 @@ namespace HordeServer.Collections.Impl
 			public string? ReservationDetails { get; set; }
 
 			/// <summary>
-			/// 
+			/// DeviceIds in the reservation
 			/// </summary>
 			public List<DeviceId> Devices { get; set; } = new List<DeviceId>();
+
+			public List<string> RequestedDevicePlatforms { get; set; } = new List<string>();
 
 			public DateTime CreateTimeUtc { get; set; }
 
@@ -147,11 +149,12 @@ namespace HordeServer.Collections.Impl
 
 			}
 
-			public DeviceReservationDocument(ObjectId Id, DevicePoolId PoolId, List<DeviceId> Devices, DateTime CreateTimeUtc, string? Hostname, string? ReservationDetails, string? JobId, string? StepId)
+			public DeviceReservationDocument(ObjectId Id, DevicePoolId PoolId, List<DeviceId> Devices, List<string> RequestedDevicePlatforms, DateTime CreateTimeUtc, string? Hostname, string? ReservationDetails, string? JobId, string? StepId)
 			{
 				this.Id = Id;
 				this.PoolId = PoolId;
 				this.Devices = Devices;
+				this.RequestedDevicePlatforms = RequestedDevicePlatforms;
 				this.CreateTimeUtc = CreateTimeUtc;
 				this.UpdateTimeUtc = CreateTimeUtc;
 				this.Hostname = Hostname;
@@ -541,6 +544,7 @@ namespace HordeServer.Collections.Impl
             }
 			
 			HashSet<DeviceId> Allocated = new HashSet<DeviceId>();
+			Dictionary<DeviceId, string> PlatformRequestMap = new Dictionary<DeviceId, string>();
 
 			List<DeviceReservationDocument> PoolReservations = await Reservations.Find(x => x.PoolId == PoolId).ToListAsync();
 
@@ -613,6 +617,7 @@ namespace HordeServer.Collections.Impl
 				}
 
 				Allocated.Add(Device.Id);
+				PlatformRequestMap.Add(Device.Id, Data.RequestedPlatform);
 			}
 
 			// update reservation time and utilization for allocated devices 
@@ -644,8 +649,11 @@ namespace HordeServer.Collections.Impl
 				await Devices.FindOneAndUpdateAsync<DeviceDocument>(x => x.Id == Id, DeviceBuilder.Combine(DeviceUpdates));
 			}
 
+			List<DeviceId> DeviceIds = Allocated.ToList();
+			List<string> RequestedPlatforms = DeviceIds.Select(x => PlatformRequestMap[x]).ToList();
+
 			// Create new reservation
-			DeviceReservationDocument NewReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), PoolId, Allocated.ToList(), ReservationTimeUtc, Hostname, ReservationDetails, JobId, StepId);
+			DeviceReservationDocument NewReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), PoolId, DeviceIds, RequestedPlatforms, ReservationTimeUtc, Hostname, ReservationDetails, JobId, StepId);
 			await Reservations.InsertOneAsync(NewReservation);
 
 			return NewReservation;
