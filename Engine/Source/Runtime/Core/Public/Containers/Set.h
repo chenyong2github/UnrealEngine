@@ -756,6 +756,16 @@ public:
 		return ElementId;
 	}
 
+	template<typename ViewSizeType>
+	void Append(const TArrayView<ElementType, ViewSizeType>& InElements)
+	{
+		Reserve(Elements.Num() + InElements.Num());
+		for (const ElementType& Element : InElements)
+		{
+			Add(Element);
+		}
+	}
+
 	template<typename ArrayAllocator>
 	void Append(const TArray<ElementType, ArrayAllocator>& InElements)
 	{
