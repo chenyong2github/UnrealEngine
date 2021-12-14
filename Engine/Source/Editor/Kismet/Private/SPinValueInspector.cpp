@@ -257,6 +257,7 @@ TWeakPtr<FPinValueInspectorTooltip> FPinValueInspectorTooltip::SummonTooltip(FEd
 
 			Instance = MakeShared<FPinValueInspectorTooltip>();
 			TooltipWindow->ShowWindow();
+			TooltipWindow->SetAllowFastUpdate(true);
 			TooltipWidget->SetContentWidget(SAssignNew(Instance->ValueInspectorWidget, SPinValueInspector, InPinRef));
 			return Instance;
 		}
@@ -293,6 +294,7 @@ void FPinValueInspectorTooltip::DismissTooltip()
 	}
 	TooltipWidget->ResetContentWidget();
 	TooltipWindow->HideWindow();
+	TooltipWindow->SetAllowFastUpdate(false);
 	Instance.Reset();
 }
 
