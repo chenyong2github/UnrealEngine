@@ -372,7 +372,10 @@ void RenderingThreadMain( FEvent* TaskGraphBoundSyncEvent )
 
 	FCoreDelegates::PostRenderingThreadCreated.Broadcast();
 	check(GIsThreadedRendering);
-	FTaskGraphInterface::Get().ProcessThreadUntilRequestReturn(RenderThread);
+	{
+		FTaskTagScope Scope(ETaskTag::ERenderingThread);
+		FTaskGraphInterface::Get().ProcessThreadUntilRequestReturn(RenderThread);
+	}
 	FPlatformMisc::MemoryBarrier();
 	check(!GIsThreadedRendering);
 	FCoreDelegates::PreRenderingThreadDestroyed.Broadcast();
