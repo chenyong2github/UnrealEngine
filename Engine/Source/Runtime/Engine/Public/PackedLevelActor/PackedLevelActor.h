@@ -60,11 +60,11 @@ public:
 	virtual void RerunConstructionScripts() override;
 
 	template<class T>
-	T* AddPackedComponent()
+	T* AddPackedComponent(TSubclassOf<T> ComponentClass)
 	{
 		Modify();
-		FName NewComponentName = *FComponentEditorUtils::GenerateValidVariableName(T::StaticClass(), this);
-		T* NewComponent = NewObject<T>(this, NewComponentName, RF_Transactional);
+		FName NewComponentName = *FComponentEditorUtils::GenerateValidVariableName(ComponentClass, this);
+		T* NewComponent = NewObject<T>(this, ComponentClass, NewComponentName, RF_Transactional);
 		AddInstanceComponent(NewComponent);
 		NewComponent->ComponentTags.Add(GetPackedComponentTag());
 		return NewComponent;
@@ -72,9 +72,6 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = Packed, meta = (DisplayName = "ISM Component Class"))
-	TSubclassOf<UInstancedStaticMeshComponent> ISMComponentClass;
-
 	UPROPERTY(VisibleAnywhere, Category = Packed)
 	TSoftObjectPtr<UBlueprint> BlueprintAsset;
 
