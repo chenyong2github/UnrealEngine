@@ -5,6 +5,7 @@
 #include "ConsoleVariablesAsset.h"
 #include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_SourceText.h"
 #include "ConsoleVariablesEditorModule.h"
+#include "ConsoleVariablesEditorProjectSettings.h"
 #include "SConsoleVariablesEditorListRow.h"
 
 #include "Algo/Find.h"
@@ -163,7 +164,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorList::BuildShowOptionsMenu()
 {
 	FMenuBuilder ShowOptionsMenuBuilder = FMenuBuilder(true, nullptr);
 
-	ShowOptionsMenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowOptionsShowSectionHeading", "Show"));
+	ShowOptionsMenuBuilder.BeginSection("", LOCTEXT("ShowOptions_ShowSectionHeading", "Show"));
 	{
 		// Add mode filters
 		auto AddFiltersLambda = [this, &ShowOptionsMenuBuilder](const TSharedRef<IConsoleVariablesEditorListFilter>& InFilter)
@@ -196,7 +197,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorList::BuildShowOptionsMenu()
 	}
 	ShowOptionsMenuBuilder.EndSection();
 	
-	ShowOptionsMenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("SortHeading", "Sort"));
+	ShowOptionsMenuBuilder.BeginSection("", LOCTEXT("ShowOptions_SortSectionHeading", "Sort"));
 	{
 		// Add commands
 
@@ -217,6 +218,41 @@ TSharedRef<SWidget> SConsoleVariablesEditorList::BuildShowOptionsMenu()
 			FUIAction(FExecuteAction::CreateRaw(this, &SConsoleVariablesEditorList::SetSortOrder)),
 			NAME_None,
 			EUserInterfaceActionType::Button
+		);
+	}
+	ShowOptionsMenuBuilder.EndSection();
+	
+	ShowOptionsMenuBuilder.BeginSection("", LOCTEXT("ShowOptions_OptionsSectionHeading", "Options"));
+	{
+		ShowOptionsMenuBuilder.AddMenuEntry(
+			LOCTEXT("TrackAllVariableChanges", "Track All Variable Changes"),
+			LOCTEXT("ConsoleVariablesEditorList_TrackAllVariableChanges_Tooltip",
+				"When variables are changed outside the Console Variables Editor, this option will add the variables to the current preset. Does not apply to console commands like 'r.SetNearClipPlane' or 'stat fps'."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([]()
+				{
+					if (UConsoleVariablesEditorProjectSettings* ProjectSettingsPtr =
+						GetMutableDefault<UConsoleVariablesEditorProjectSettings>())
+					{
+						ProjectSettingsPtr->bAddAllChangedConsoleVariablesToCurrentPreset =
+							!ProjectSettingsPtr->bAddAllChangedConsoleVariablesToCurrentPreset;
+					}
+				}),
+			   FCanExecuteAction(),
+			   FIsActionChecked::CreateLambda( []()
+				{
+					if (const UConsoleVariablesEditorProjectSettings* ProjectSettingsPtr =
+						GetMutableDefault<UConsoleVariablesEditorProjectSettings>())
+					{
+						return ProjectSettingsPtr->bAddAllChangedConsoleVariablesToCurrentPreset;
+					}
+
+			   		return false;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 	ShowOptionsMenuBuilder.EndSection();
@@ -276,6 +312,9 @@ void SConsoleVariablesEditorList::RefreshList()
 
 		// Show/Hide rows based on SetBy changes and filter settings
 		EvaluateIfRowsPassFilters();
+
+		// Refresh the header's check state
+		OnListItemCheckBoxStateChange(ECheckBoxState::Undetermined);
 
 		TreeViewPtr->RequestTreeRefresh();
 	}
@@ -343,9 +382,19 @@ void SConsoleVariablesEditorList::GenerateTreeView()
 
 	for (const FConsoleVariablesEditorAssetSaveData& SavedCommand : EditableAsset->GetSavedCommands())
 	{
-		// Get corresponding CommandInfo for tracking
-		if (TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
-			ConsoleVariablesEditorModule.FindCommandInfoByName(SavedCommand.CommandName); CommandInfo.IsValid())
+		// Get corresponding CommandInfo for tracking or make one if the command is non-value
+		TSharedPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
+			ConsoleVariablesEditorModule.FindCommandInfoByName(SavedCommand.CommandName).Pin();
+
+		if (!CommandInfo.IsValid())
+		{
+			CommandInfo = MakeShared<FConsoleVariablesEditorCommandInfo>(SavedCommand.CommandName);
+
+			FConsoleVariablesEditorModule::Get().AddConsoleObjectCommandInfoToMasterReference(
+				CommandInfo.ToSharedRef());
+		}
+		
+		if (CommandInfo.IsValid())
 		{
 			const ECheckBoxState NewCheckedState =
 				SavedCommand.CheckedState == ECheckBoxState::Unchecked ?
@@ -353,15 +402,16 @@ void SConsoleVariablesEditorList::GenerateTreeView()
 			
 			// If the row is checked and the saved value differs from the current value,
 			// execute the command with the saved value 
-			if ( NewCheckedState == ECheckBoxState::Checked &&
-				CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(SavedCommand.CommandValueAsString))
+			if (CommandInfo->ObjectType == FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Command ||
+				(NewCheckedState == ECheckBoxState::Checked &&
+				CommandInfo->IsCurrentValueDifferentFromInputValue(SavedCommand.CommandValueAsString)))
 			{
-				CommandInfo.Pin()->ExecuteCommand(SavedCommand.CommandValueAsString);
+				CommandInfo->ExecuteCommand(SavedCommand.CommandValueAsString);
 			}
 		
 			FConsoleVariablesEditorListRowPtr NewRow = 
 				MakeShared<FConsoleVariablesEditorListRow>(
-						CommandInfo.Pin(), SavedCommand.CommandValueAsString,
+						CommandInfo, SavedCommand.CommandValueAsString,
 						FConsoleVariablesEditorListRow::SingleCommand, 
 						NewCheckedState, SharedThis(this), TreeViewRootObjects.Num(), nullptr);
 		
@@ -407,7 +457,11 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 					
 					for (const FConsoleVariablesEditorListRowPtr& Object : TreeViewRootObjects)
 					{
-						Object->SetWidgetCheckedState(NewState);
+						if (Object->GetCommandInfo().Pin()->ObjectType ==
+							FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Variable)
+						{
+							Object->SetWidgetCheckedState(NewState);
+						}
 					}
 				})
 			]
@@ -538,7 +592,9 @@ bool SConsoleVariablesEditorList::DoesListHaveCheckedMembers() const
 {
 	for (const TSharedPtr<FConsoleVariablesEditorListRow>& Row : TreeViewRootObjects)
 	{
-		if (Row->GetWidgetCheckedState() == ECheckBoxState::Checked)
+		if (Row->GetCommandInfo().Pin()->ObjectType ==
+			FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Variable &&
+			Row->GetWidgetCheckedState() == ECheckBoxState::Checked)
 		{
 			return true;
 		}
@@ -551,7 +607,9 @@ bool SConsoleVariablesEditorList::DoesListHaveUncheckedMembers() const
 {
 	for (const TSharedPtr<FConsoleVariablesEditorListRow>& Row : TreeViewRootObjects)
 	{
-		if (Row->GetWidgetCheckedState() == ECheckBoxState::Unchecked)
+		if (Row->GetCommandInfo().Pin()->ObjectType ==
+			FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Variable &&
+			Row->GetWidgetCheckedState() == ECheckBoxState::Unchecked)
 		{
 			return true;
 		}

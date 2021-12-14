@@ -79,12 +79,11 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 						TSharedPtr<IToolTip> ToolTip;
 
 						if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> MatchingCommand =
-							ConsoleVariablesEditorModule.FindCommandInfoByName(SanitizedText);
-							MatchingCommand.IsValid() && MatchingCommand.Pin()->ConsoleVariablePtr)
+							ConsoleVariablesEditorModule.FindCommandInfoByName(SanitizedText); MatchingCommand.IsValid())
 						{
 							ToolTip = SConsoleVariablesEditorTooltipWidget::MakeTooltip(
 								SanitizedText,
-								MatchingCommand.Pin()->ConsoleVariablePtr->GetHelp());
+								MatchingCommand.Pin()->GetHelpText());
 						}
 
 						return
@@ -217,11 +216,6 @@ void SConsoleVariablesEditorCustomConsoleInputBox::OnTextChanged(const FText& In
 			}
 #endif // (UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if (CVar->TestFlags(ECVF_Unregistered))
-			{
-				return;
-			}
-
-			if (!CVar->AsVariable())
 			{
 				return;
 			}

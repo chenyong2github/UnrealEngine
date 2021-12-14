@@ -68,11 +68,6 @@ void SConsoleVariablesEditorListRow::Construct(
 	
 	check (PinnedCommand.IsValid());
 
-	if (!PinnedCommand->ConsoleVariablePtr)
-	{
-		return;
-	}
-
 	// Set up flash animation
 	FlashAnimation = FCurveSequence(0.f, FlashAnimationDuration, ECurveEaseFunction::QuadInOut);
 
@@ -355,6 +350,9 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 					SNew(SCheckBox)
 					.IsChecked_Raw(this, &SConsoleVariablesEditorListRow::GetCheckboxState)
 					.OnCheckStateChanged_Raw(this, &SConsoleVariablesEditorListRow::OnCheckboxStateChange)
+					.Visibility(Item.Pin()->GetCommandInfo().Pin()->ObjectType ==
+						FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Variable ?
+						EVisibility::Visible : EVisibility::Collapsed)
 				];
 	}
 	if (InColumnName.IsEqual(SConsoleVariablesEditorList::VariableNameColumnName))
@@ -363,7 +361,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 		{
 			HoverToolTip = SConsoleVariablesEditorTooltipWidget::MakeTooltip(
 							PinnedItem->GetCommandInfo().Pin()->Command,
-							PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr->GetHelp());
+							PinnedItem->GetCommandInfo().Pin()->GetHelpText());
 		}
 		return  SNew(STextBlock)
 				.Visibility(EVisibility::Visible)
@@ -405,6 +403,13 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 
 ECheckBoxState SConsoleVariablesEditorListRow::GetCheckboxState() const
 {
+	//Non-variable types always checked
+	if (Item.Pin()->GetCommandInfo().Pin()->ObjectType !=
+		FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Variable)
+	{
+		return ECheckBoxState::Checked;
+	}
+	
 	if (ensure(Item.IsValid()))
 	{
 		return Item.Pin()->GetWidgetCheckedState();
@@ -446,7 +451,7 @@ void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState 
 
 TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateValueCellWidget(const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem)
 {
-	if (PinnedItem->GetCommandInfo().IsValid() && PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr)
+	if (PinnedItem->GetCommandInfo().IsValid())
 	{
 		ValueChildInputWidget = SConsoleVariablesEditorListValueInput::GetInputWidget(Item);
 		const TSharedRef<SHorizontalBox> FinalValueWidget =

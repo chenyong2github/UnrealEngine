@@ -2,12 +2,12 @@
 
 #pragma once
 
+#include "ConsoleVariablesEditorCommandInfo.h"
+
 #include "CoreMinimal.h"
 #include "Widgets/Input/SCheckBox.h"
 
 #include "ConsoleVariablesAsset.generated.h"
-
-struct FConsoleVariablesEditorCommandInfo;
 
 /** Data that will be serialized with this asset */
 USTRUCT()
@@ -27,7 +27,7 @@ struct FConsoleVariablesEditorAssetSaveData
 	FString CommandValueAsString;
 
 	UPROPERTY()
-	// If Undetermined, we can assume this data was not previously saved
+	/** If Undetermined, we can assume this data was not previously saved */
 	ECheckBoxState CheckedState = ECheckBoxState::Undetermined;
 };
 
@@ -66,7 +66,7 @@ public:
 	bool FindSavedDataByCommandString(const FString& InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const;
 
 	/** Set the value of a saved console variable if the name matches; add a new console variable to the list if a match is not found. */
-	void AddOrSetConsoleVariableSavedData(const FConsoleVariablesEditorAssetSaveData& InData);
+	void AddOrSetConsoleObjectSavedData(const FConsoleVariablesEditorAssetSaveData& InData);
 
 	/** Returns true if the element was found and successfully removed. */
 	bool RemoveConsoleVariable(const FString& InCommandString);

@@ -47,21 +47,12 @@ void FConsoleVariablesEditorModule::ShutdownModule()
 	
 	MainPanel.Reset();
 
-	ConsoleVariablesMasterReference.Empty();
+	ConsoleObjectsMasterReference.Empty();
 
 	// Unregister project settings
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
 		SettingsModule.UnregisterSettings("Project", "Plugins", "Console Variables Editor");
-	}
-
-	// Remove all OnChanged delegates
-	for (TSharedPtr<FConsoleVariablesEditorCommandInfo> CommandInfo : ConsoleVariablesMasterReference)
-	{
-		if (CommandInfo.IsValid() && CommandInfo->ConsoleVariablePtr)
-		{
-			CommandInfo->ConsoleVariablePtr->OnChangedDelegate().Remove(CommandInfo->OnVariableChangedCallbackHandle);
-		}
 	}
 }
 
@@ -80,9 +71,9 @@ void FConsoleVariablesEditorModule::OpenConsoleVariablesDialogWithAssetSelected(
 
 void FConsoleVariablesEditorModule::QueryAndBeginTrackingConsoleVariables()
 {
-	const int32 VariableCount = ConsoleVariablesMasterReference.Num();
+	const int32 VariableCount = ConsoleObjectsMasterReference.Num();
 	
-	ConsoleVariablesMasterReference.Empty(VariableCount);
+	ConsoleObjectsMasterReference.Empty(VariableCount);
 	
 	IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda(
 		[this] (const TCHAR* Key, IConsoleObject* ConsoleObject)
@@ -92,15 +83,20 @@ void FConsoleVariablesEditorModule::QueryAndBeginTrackingConsoleVariables()
 				return;
 			}
 
+			const TSharedRef<FConsoleVariablesEditorCommandInfo> Info =
+				MakeShared<FConsoleVariablesEditorCommandInfo>(Key);
+			
+			Info->StartupSource = Info->GetSource();
+			Info->OnDetectConsoleObjectUnregisteredHandle = Info->OnDetectConsoleObjectUnregistered.AddRaw(
+				this, &FConsoleVariablesEditorModule::OnDetectConsoleObjectUnregistered);
+
 			if (IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
 			{
-				const FDelegateHandle Handle =
-					AsVariable->OnChangedDelegate().AddRaw(this, &FConsoleVariablesEditorModule::OnConsoleVariableChanged);
-				const TSharedRef<FConsoleVariablesEditorCommandInfo> Info =
-					MakeShared<FConsoleVariablesEditorCommandInfo>(Key, AsVariable, Handle);
-				Info->StartupSource = Info->GetSource();
-				ConsoleVariablesMasterReference.Add(Info);
+				Info->OnVariableChangedCallbackHandle = AsVariable->OnChangedDelegate().AddRaw(
+					this, &FConsoleVariablesEditorModule::OnConsoleVariableChanged);
 			}
+			
+			AddConsoleObjectCommandInfoToMasterReference(Info);
 		}),
 		TEXT(""));
 }
@@ -108,7 +104,7 @@ void FConsoleVariablesEditorModule::QueryAndBeginTrackingConsoleVariables()
 TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorModule::FindCommandInfoByName(const FString& NameToSearch, ESearchCase::Type InSearchCase)
 {
 	TSharedPtr<FConsoleVariablesEditorCommandInfo>* Match = Algo::FindByPredicate(
-		ConsoleVariablesMasterReference,
+		ConsoleObjectsMasterReference,
 		[&NameToSearch, InSearchCase](const TSharedPtr<FConsoleVariablesEditorCommandInfo> Comparator)
 		{
 			return Comparator->Command.Equals(NameToSearch, InSearchCase);
@@ -117,13 +113,14 @@ TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorModule::Find
 	return Match ? *Match : nullptr;
 }
 
-TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorModule::FindCommandInfoByConsoleVariableReference(IConsoleVariable* InVariableReference)
+TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorModule::FindCommandInfoByConsoleObjectReference(
+	IConsoleObject* InConsoleObjectReference)
 {
 	TSharedPtr<FConsoleVariablesEditorCommandInfo>* Match = Algo::FindByPredicate(
-	ConsoleVariablesMasterReference,
-	[InVariableReference](const TSharedPtr<FConsoleVariablesEditorCommandInfo> Comparator)
+	ConsoleObjectsMasterReference,
+	[InConsoleObjectReference](const TSharedPtr<FConsoleVariablesEditorCommandInfo> Comparator)
 	{
-		return Comparator->ConsoleVariablePtr == InVariableReference;
+		return Comparator->GetConsoleObjectPtr() == InConsoleObjectReference;
 	});
 
 	return Match ? *Match : nullptr;
@@ -186,7 +183,7 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 	check(EditingAsset);
 
 	if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
-		FindCommandInfoByConsoleVariableReference(ChangedVariable); CommandInfo.IsValid())
+		FindCommandInfoByConsoleObjectReference(ChangedVariable); CommandInfo.IsValid())
 	{
 		const TSharedPtr<FConsoleVariablesEditorCommandInfo>& PinnedCommand = CommandInfo.Pin();
 		const FString& Key = PinnedCommand->Command;
@@ -203,7 +200,11 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 			{
 				if (MainPanel.IsValid())
 				{
-					MainPanel->AddConsoleVariable(Key, ChangedVariable->GetString());
+					MainPanel->AddConsoleObjectToPreset(
+						Key,
+						ChangedVariable->GetString(),
+						true
+					);
 				}
 
 				SendMultiUserConsoleVariableChange(Key, ChangedVariable->GetString());
@@ -218,6 +219,24 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 			
 			SendMultiUserConsoleVariableChange(Key, ChangedVariable->GetString());
 		}
+	}
+}
+
+void FConsoleVariablesEditorModule::OnDetectConsoleObjectUnregistered(FString CommandName)
+{
+	check(EditingAsset);
+
+	EditingAsset->RemoveConsoleVariable(CommandName);
+
+	if (MainPanel.IsValid())
+	{
+		MainPanel->RefreshList();
+	}
+
+	if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
+		FindCommandInfoByName(CommandName); CommandInfo.IsValid())
+	{
+		ConsoleObjectsMasterReference.Remove(CommandInfo.Pin());
 	}
 }
 

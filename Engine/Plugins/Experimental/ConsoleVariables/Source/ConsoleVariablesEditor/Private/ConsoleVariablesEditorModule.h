@@ -33,11 +33,22 @@ public:
 	/** Find all console variables and cache their startup values */
 	void QueryAndBeginTrackingConsoleVariables();
 
-	/** Find a tracked console variable by the command string with optional case sensitivity. */
-	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByName(const FString& NameToSearch, ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase);
+	void AddConsoleObjectCommandInfoToMasterReference(TSharedRef<FConsoleVariablesEditorCommandInfo> InCommandInfo)
+	{
+		ConsoleObjectsMasterReference.Add(InCommandInfo);
+	}
 
-	/** Find a tracked console variable by its variable reference. */
-	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByConsoleVariableReference(IConsoleVariable* InVariableReference);
+	/** Find a tracked console variable by the command string with optional case sensitivity. */
+	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByName(
+		const FString& NameToSearch, ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase);
+
+	/**
+	 *Find a tracked console variable by its console object reference.
+	 *Note that some commands do not have an associated console object (such as 'stat unit') and will not be found with this method.
+	 *It's normally safer to use FindCommandInfoByName() instead.
+	 */
+	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByConsoleObjectReference(
+		IConsoleObject* InConsoleObjectReference);
 	
 	[[nodiscard]] TObjectPtr<UConsoleVariablesAsset> GetEditingAsset() const;
 	void SetEditingAsset(const TObjectPtr<UConsoleVariablesAsset> InEditingAsset);
@@ -53,6 +64,8 @@ private:
 	void RegisterProjectSettings();
 
 	void OnConsoleVariableChanged(IConsoleVariable* ChangedVariable);
+	/** In the event a console object is unregistered, this failsafe callback will clean up the associated list item and command info object. */
+	void OnDetectConsoleObjectUnregistered(FString CommandName);
 
 	TObjectPtr<UConsoleVariablesAsset> AllocateTransientPreset();
 
@@ -69,5 +82,5 @@ private:
 	TObjectPtr<UConsoleVariablesAsset> EditingAsset = nullptr;
 
 	/** All tracked variables and their default, startup, and current values */
-	TArray<TSharedPtr<FConsoleVariablesEditorCommandInfo>> ConsoleVariablesMasterReference;
+	TArray<TSharedPtr<FConsoleVariablesEditorCommandInfo>> ConsoleObjectsMasterReference;
 };

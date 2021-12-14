@@ -7,15 +7,23 @@
 #include "ConsoleVariablesEditorLog.h"
 #include "Editor.h"
 #include "Engine/GameEngine.h"
+#include "HAL/IConsoleManager.h"
 
-#include "ConsoleVariablesEditorCommandInfo.generated.h"
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDetectConsoleObjectUnregistered, FString)
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
-USTRUCT()
 struct FConsoleVariablesEditorCommandInfo
 {
-	GENERATED_BODY()
+	enum class EConsoleObjectType
+	{
+		// A console command that has no associated console object but is parsed externally, e.g. 'stat unit'
+		NullObject,
+		// A console command with an associated console object, like 'r.SetNearClipPlane'
+		Command,
+		// A console variable such as 'r.ScreenPercentage'
+		Variable
+	};
 
 	struct FStaticConsoleVariableFlagInfo
 	{
@@ -23,31 +31,87 @@ struct FConsoleVariablesEditorCommandInfo
 		FText DisplayText;
 	};
 
-	FConsoleVariablesEditorCommandInfo()
+	FConsoleVariablesEditorCommandInfo(const FString& InCommand)
+	: Command(InCommand)
 	{
-		ConsoleVariablePtr = nullptr;
+		if (GetConsoleObjectPtr())
+		{
+			ObjectType = EConsoleObjectType::Command;
+			
+			if (const IConsoleVariable* AsVariable = GetConsoleVariablePtr())
+			{
+				ObjectType = EConsoleObjectType::Variable;
+				StartupValueAsString = AsVariable->GetString();
+				StartupSource = GetSource();
+			}
+		}
 	}
 
-	FConsoleVariablesEditorCommandInfo(
-		const FString& InCommand, IConsoleVariable* InVariablePtr, const FDelegateHandle& InOnVariableChangedCallbackHandle)
-	: Command(InCommand)
-	, ConsoleVariablePtr(InVariablePtr)
-	, OnVariableChangedCallbackHandle(InOnVariableChangedCallbackHandle)
+	~FConsoleVariablesEditorCommandInfo()
 	{
-		StartupValueAsString = ConsoleVariablePtr->GetString();
-		StartupSource = GetSource();
+		OnDetectConsoleObjectUnregistered.Remove(OnDetectConsoleObjectUnregisteredHandle);
+
+		if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
+		{
+			AsVariable->OnChangedDelegate().Remove(OnVariableChangedCallbackHandle);
+		}
 	}
 
 	FORCEINLINE bool operator==(const FConsoleVariablesEditorCommandInfo& Comparator) const
 	{
-		return ConsoleVariablePtr && Comparator.ConsoleVariablePtr &&
-			ConsoleVariablePtr == Comparator.ConsoleVariablePtr &&
-			Command.Equals(Comparator.Command);
+		return Command.Equals(Comparator.Command);
 	}
 
 	void ExecuteCommand(const FString& NewValueAsString) const
 	{
-		GEngine->Exec(GetCurrentWorld(), *FString::Printf(TEXT("%s %s"), *Command, *NewValueAsString));
+		GEngine->Exec(GetCurrentWorld(),
+			*FString::Printf(TEXT("%s %s"), *Command, *NewValueAsString).TrimStartAndEnd());
+	}
+
+	/** Get a reference to the cached console object. May return nullptr if unregistered. */
+	IConsoleObject* GetConsoleObjectPtr()
+	{
+		// If the console object ptr goes stale or is older than the specified threshold, try to refresh it
+		// May return nullptr if unregistered
+		if (!ConsoleObjectPtr ||
+			(FDateTime::UtcNow() - TimeOfLastConsoleObjectRefresh).GetTotalSeconds() > ConsoleObjectRefreshThreshold)
+		{
+			ConsoleObjectPtr = IConsoleManager::Get().FindConsoleObject(*Command);
+			TimeOfLastConsoleObjectRefresh = FDateTime::UtcNow();
+		}
+
+		// If the console object turns out to be unregistered, let interested parties know
+		if (ConsoleObjectPtr && ConsoleObjectPtr->TestFlags(ECVF_Unregistered))
+		{
+			OnDetectConsoleObjectUnregistered.Broadcast(Command);
+		}
+
+		return ConsoleObjectPtr;
+	}
+
+	/** Return the console object as a console variable object if applicable. May return nullptr if unregistered. */
+	IConsoleVariable* GetConsoleVariablePtr()
+	{
+		if (IConsoleObject* ObjectPtr = GetConsoleObjectPtr())
+		{
+			return ObjectPtr->AsVariable();
+		}
+		
+		return nullptr;
+	}
+
+	/**
+	 *Return the console object as a console command object if applicable.
+	 *Does not consider externally parsed console commands, as they have no associated objects.
+	 */
+	IConsoleCommand* GetConsoleCommandPtr()
+	{
+		if (IConsoleObject* ObjectPtr = GetConsoleObjectPtr())
+		{
+			return ObjectPtr->AsCommand();
+		}
+		
+		return nullptr;
 	}
 	
 	static UWorld* GetCurrentWorld()
@@ -64,31 +128,47 @@ struct FConsoleVariablesEditorCommandInfo
 		return CurrentWorld;
 	}
 
-	EConsoleVariableFlags GetSource() const
+	FString GetHelpText()
 	{
-		if (ConsoleVariablePtr)
+		if (const IConsoleVariable* AsVariable = GetConsoleVariablePtr())
 		{
-			return (EConsoleVariableFlags)((uint32)ConsoleVariablePtr->GetFlags() & ECVF_SetByMask);
+			return FString(AsVariable->GetHelp());
+		}
+
+		return "";
+	}
+
+	EConsoleVariableFlags GetSource()
+	{
+		if (const IConsoleObject* ConsoleObject = GetConsoleObjectPtr())
+		{
+			return (EConsoleVariableFlags)((uint32)ConsoleObject->GetFlags() & ECVF_SetByMask);
 		}
 
 		return ECVF_Default;
 	}
 
-	void ClearSourceFlags() const
+	void ClearSourceFlags()
 	{
-		for (const FStaticConsoleVariableFlagInfo& StaticConsoleVariableFlagInfo : SupportedFlags)
+		if (IConsoleObject* ConsoleObject = GetConsoleObjectPtr())
 		{
-			ConsoleVariablePtr->ClearFlags(StaticConsoleVariableFlagInfo.Flag);
+			for (const FStaticConsoleVariableFlagInfo& StaticConsoleVariableFlagInfo : SupportedFlags)
+			{
+				ConsoleObject->ClearFlags(StaticConsoleVariableFlagInfo.Flag);
+			}
 		}
 	}
 
-	void SetSourceFlag(const EConsoleVariableFlags InSource) const
+	void SetSourceFlag(const EConsoleVariableFlags InSource)
 	{
-		ClearSourceFlags();
-		ConsoleVariablePtr->SetFlags((EConsoleVariableFlags)InSource);
+		if (IConsoleObject* ConsoleObject = GetConsoleObjectPtr())
+		{
+			ClearSourceFlags();
+			ConsoleObject->SetFlags((EConsoleVariableFlags)InSource);
+		}
 	}
 
-	FText GetSourceAsText() const
+	FText GetSourceAsText()
 	{
 		return ConvertConsoleVariableSetByFlagToText(GetSource());
 	}
@@ -97,7 +177,8 @@ struct FConsoleVariablesEditorCommandInfo
 	{
 		FText ReturnValue = LOCTEXT("UnknownSource", "<UNKNOWN>"); 
 
-		if (const FStaticConsoleVariableFlagInfo* Match = Algo::FindByPredicate(SupportedFlags,
+		if (const FStaticConsoleVariableFlagInfo* Match = Algo::FindByPredicate(
+			SupportedFlags,
 				[InFlag](const FStaticConsoleVariableFlagInfo& Comparator)
 				{
 					return Comparator.Flag == InFlag;
@@ -109,29 +190,51 @@ struct FConsoleVariablesEditorCommandInfo
 		return ReturnValue;
 	}
 
-	bool IsCurrentValueDifferentFromInputValue(const FString& InValueToCompare) const
+	bool IsCurrentValueDifferentFromInputValue(const FString& InValueToCompare)
 	{
-		if (ConsoleVariablePtr)
+		if (const IConsoleVariable* AsVariable = GetConsoleVariablePtr())
 		{
-			return !ConsoleVariablePtr->GetString().Equals(InValueToCompare);
+			// Floats sometimes return true erroneously because they can be stringified as e.g '1' or '1.0' by different functions.
+			if (AsVariable->IsVariableFloat())
+			{
+				const float A = AsVariable->GetFloat();
+				const float B = FCString::Atof(*InValueToCompare);
+
+				return !FMath::IsNearlyEqual(A, B);
+			}
+			
+			return !AsVariable->GetString().Equals(InValueToCompare);
 		}
 
 		return false;
 	}
 
-	/** The actual string command to execute */
+	/** The actual string key or name */
 	UPROPERTY()
 	FString Command;
 
-	IConsoleVariable* ConsoleVariablePtr;
+	EConsoleObjectType ObjectType = EConsoleObjectType::NullObject;
 
-	/** The value of this command when the module started in this session after it may have been set by an ini file. */
-	FString StartupValueAsString;
-	/** The source of this variable last setting as recorded when the plugin was loaded. */
-	EConsoleVariableFlags StartupSource;
+	/** This object is periodically refreshed to mitigate the occurrence of stale pointers. */
+	IConsoleObject* ConsoleObjectPtr;
+	FDateTime TimeOfLastConsoleObjectRefresh;
+
+	double ConsoleObjectRefreshThreshold = 1.0;
 	
+	/** The value of this variable (if Variable object type) when the module started in this session after it may have been set by an ini file. */
+	FString StartupValueAsString;
+	
+	/** The source of this variable's (if Variable object type) last setting as recorded when the plugin was loaded. */
+	EConsoleVariableFlags StartupSource = ECVF_Default;
+
+	/** When variables change, this callback is executed. */
 	FDelegateHandle OnVariableChangedCallbackHandle;
 
+	/** When commands are unregistered change, this callback is broadcasted. */
+	FOnDetectConsoleObjectUnregistered OnDetectConsoleObjectUnregistered;
+	FDelegateHandle OnDetectConsoleObjectUnregisteredHandle;
+
+	/** A mapping of SetBy console variable flags to information like the associated display text. */
 	static const inline TArray<FStaticConsoleVariableFlagInfo> SupportedFlags =
 	{
 		{ EConsoleVariableFlags::ECVF_SetByConstructor, LOCTEXT("SetByConstructor", "Constructor") },

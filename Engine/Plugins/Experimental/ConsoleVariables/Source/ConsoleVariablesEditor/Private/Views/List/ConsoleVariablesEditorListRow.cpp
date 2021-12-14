@@ -122,10 +122,15 @@ bool FConsoleVariablesEditorListRow::MatchSearchTokensToSearchTerms(const TArray
 
 	if (!bMatchFound)
 	{
-		TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedInfo = CommandInfo.Pin();
+		const TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedInfo = CommandInfo.Pin();
 		
-		const FString SearchTerms = PinnedInfo->Command + PinnedInfo->GetSourceAsText().ToString() +
-			(PinnedInfo->ConsoleVariablePtr ? PinnedInfo->ConsoleVariablePtr->GetString() + PinnedInfo->ConsoleVariablePtr->GetHelp() : "");
+		FString SearchTerms = PinnedInfo->Command + PinnedInfo->GetSourceAsText().ToString();
+
+		if (const IConsoleVariable* AsVariable = PinnedInfo->GetConsoleVariablePtr())
+		{
+			// Add ValueAsString and HelpText to SearchTerms
+			SearchTerms += AsVariable->GetString() + PinnedInfo->GetHelpText();
+		}
 
 		bMatchFound = Algo::AnyOf(InTokens,
 			[&SearchTerms](const FString& Token)

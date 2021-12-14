@@ -2,8 +2,6 @@
 
 #include "ConsoleVariablesAsset.h"
 
-#include "ConsoleVariablesEditorCommandInfo.h"
-
 #include "Algo/Find.h"
 
 void UConsoleVariablesAsset::SetVariableCollectionDescription(const FString& InVariableCollectionDescription)
@@ -32,7 +30,7 @@ bool UConsoleVariablesAsset::FindSavedDataByCommandString(const FString& InComma
 	return false;
 }
 
-void UConsoleVariablesAsset::AddOrSetConsoleVariableSavedData(const FConsoleVariablesEditorAssetSaveData& InData)
+void UConsoleVariablesAsset::AddOrSetConsoleObjectSavedData(const FConsoleVariablesEditorAssetSaveData& InData)
 {
 	RemoveConsoleVariable(InData.CommandName);
 	SavedCommands.Add(InData);

@@ -62,32 +62,58 @@ void SConsoleVariablesEditorMainPanel::Construct(
 
 SConsoleVariablesEditorMainPanel::~SConsoleVariablesEditorMainPanel()
 {
-
+	MainPanel.Reset();
+	ToolbarHBox.Reset();
+	ConcertButtonPtr.Reset();
+	MultiUserDetailsBox.Reset();
 }
 
 FReply SConsoleVariablesEditorMainPanel::ValidateConsoleInput(const FText& CommittedText)
 {
-	FString CommandString = CommittedText.ToString().TrimStartAndEnd();
+	const FString CommandString = CommittedText.ToString().TrimStartAndEnd();
+	FString CommandKey;
 	FString ValueString;
 	
 	if (CommandString.Contains(" "))
 	{
-		CommandString.Split(TEXT(" "), &CommandString, &ValueString);
+		CommandString.Split(TEXT(" "), &CommandKey, &ValueString);
 	}
 
-	if (IConsoleVariable* AsVariable = IConsoleManager::Get().FindConsoleVariable(*CommandString))
+	if (IConsoleObject* ConsoleObject = IConsoleManager::Get().FindConsoleObject(*CommandKey)) 
 	{
-		MainPanel.Pin()->AddConsoleVariable(
-			CommandString, ValueString.IsEmpty() ? AsVariable->GetString() : ValueString, true);
+		FString InValue = ValueString;
+
+		if (InValue.IsEmpty())
+		{
+			if (const IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
+			{
+				InValue = AsVariable->GetString();
+			}
+		}
+		
+		MainPanel.Pin()->AddConsoleObjectToPreset(
+			CommandKey,
+			InValue,
+			true
+		);
 	}
 	else if (CommandString.IsEmpty())
 	{
-		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("hs: Input is blank."), __FUNCTION__);
+		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Input is blank."), __FUNCTION__);
+	}
+	// Try to execute the whole command. Some commands are not registered, but are parsed externally so they won't be found by IConsoleManager::FindConsoleObject
+	else if (GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(), *CommandString))
+	{
+		MainPanel.Pin()->AddConsoleObjectToPreset(
+			CommandString,
+			"",
+			true
+			);
 	}
 	else
 	{
 		UE_LOG(LogConsoleVariablesEditor, Warning,
-			TEXT("%hs: Input %s is not a recognized console variable. Note that only console variables are supported, not console commands."),
+			TEXT("%hs: Input '%s' is not a recognized console variable or command."),
 			__FUNCTION__, *CommandString);
 	}
 
