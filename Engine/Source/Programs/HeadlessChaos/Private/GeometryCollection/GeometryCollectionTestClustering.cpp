@@ -1665,11 +1665,11 @@ namespace GeometryCollectionTest
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 		const auto& ParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
+		const TArrayCollectionArray<FRigidTransform3>& ChildToParent = Clustering.GetChildToParentMap();
 
-		//FCollisionFilterData FilterData;
-		//FilterData.Word1 = 0xFFFF;
-		//FilterData.Word3 = 0xFFFF;
-		//ParticleHandles.Handle(6)->ShapesArray()[0]->SetQueryData(FilterData);
+		FVector TestOffset;
+		FVector InitialRootPosition;
+		FVector RelativeChildOffsets[4];
 
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
 		{
@@ -1697,6 +1697,43 @@ namespace GeometryCollectionTest
 			EXPECT_EQ(ClusterMap.Num(), 1);
 			EXPECT_TRUE(ClusterMapContains(ClusterMap, Root, { CollectionParticles[0],CollectionParticles[1], CollectionParticles2[0], CollectionParticles2[1] }));
 
+			//
+			// TEST
+			// Validate that the relative translations stay the same
+			// for the union clustered children, and that the root actually
+			// moves. 
+			//
+			if (Frame == 0)
+			{
+				InitialRootPosition = Root->X();
+				RelativeChildOffsets[0] = CollectionParticles[0]->X() - Root->X();
+				RelativeChildOffsets[1] = CollectionParticles[1]->X() - Root->X();
+				RelativeChildOffsets[2] = CollectionParticles2[0]->X() - Root->X();
+				RelativeChildOffsets[3] = CollectionParticles2[1]->X() - Root->X();
+			}
+			else
+			{
+				FTransform RootTransform(Root->R(), Root->X());
+
+				TArray<FTransform> GlobalTransform1;
+				GeometryCollectionAlgo::GlobalMatrices(DynamicCollection->Transform, DynamicCollection->Parent, GlobalTransform1);
+
+				TArray<FTransform> GlobalTransform2;
+				GeometryCollectionAlgo::GlobalMatrices(DynamicCollection2->Transform, DynamicCollection2->Parent, GlobalTransform2);
+
+				EXPECT_TRUE(!InitialRootPosition.Equals(Root->X())); // root moves
+
+				EXPECT_TRUE(RelativeChildOffsets[0].Equals(GlobalTransform1[0].GetRelativeTransform(RootTransform).GetTranslation()));
+				EXPECT_TRUE(RelativeChildOffsets[1].Equals(GlobalTransform1[1].GetRelativeTransform(RootTransform).GetTranslation()));
+				EXPECT_TRUE(RelativeChildOffsets[2].Equals(GlobalTransform2[0].GetRelativeTransform(RootTransform).GetTranslation()));
+				EXPECT_TRUE(RelativeChildOffsets[3].Equals(GlobalTransform2[1].GetRelativeTransform(RootTransform).GetTranslation()));
+			}
+
+			//
+			// TEST
+			// Validate that the children have been removed from the 
+			// parenting hierarchy.
+			//
 			EXPECT_TRUE(DynamicCollection->Parent[0] == INDEX_NONE);
 			EXPECT_TRUE(DynamicCollection->Parent[1] == INDEX_NONE);
 			EXPECT_TRUE(DynamicCollection->Parent[2] == INDEX_NONE);
@@ -1705,17 +1742,6 @@ namespace GeometryCollectionTest
 			EXPECT_TRUE(DynamicCollection2->Parent[1] == INDEX_NONE);
 			EXPECT_TRUE(DynamicCollection2->Parent[2] == INDEX_NONE);
 		}
-
-		TArray<FTransform> GlobalTransform;
-		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection->Transform, DynamicCollection->Parent, GlobalTransform);
-
-		TArray<FTransform> GlobalTransform2;
-		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection2->Transform, DynamicCollection2->Parent, GlobalTransform2);
-
-		EXPECT_TRUE(GlobalTransform[0].GetTranslation().Z > 0.0f);
-		EXPECT_TRUE(GlobalTransform[1].GetTranslation().Z > 0.0f);
-		EXPECT_TRUE(GlobalTransform2[0].GetTranslation().Z > 0.0f);
-		EXPECT_TRUE(GlobalTransform2[1].GetTranslation().Z > 0.0f);
 	}
 	
 
