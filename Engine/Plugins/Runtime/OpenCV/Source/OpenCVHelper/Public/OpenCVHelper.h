@@ -3,6 +3,9 @@
 #pragma once
 #include "CoreMinimal.h"
 #include <vector>
+
+#include <type_traits>
+
 /*
 Like many third party headers, OpenCV headers require some care when importing.
 
@@ -55,11 +58,46 @@ namespace cv
 	typedef Point_<float> Point2f;
 	typedef Point3_<float> Point3f;
 };
+#endif	// WITH_OPENCV
+
 
 class OPENCVHELPER_API FOpenCVHelper
 {
 public:
+	/** Enumeration to specify any cartesian axis in positive or negative directions */
+	enum class EAxis
+	{
+		X, Y, Z,
+		Xn, Yn, Zn,
+	};
 
+	// These axes must match the order in which they are declared in EAxis
+	inline static const TArray<FVector> UnitVectors =
+	{
+		{  1,  0,  0 }, //  X
+		{  0,  1,  0 }, //  Y
+		{  0,  0,  1 }, //  Z
+		{ -1,  0,  0 }, // -X
+		{  0, -1,  0 }, // -Y
+		{  0,  0, -1 }, // -Z
+	};
+
+	static const FVector& UnitVectorFromAxisEnum(const EAxis Axis)
+	{
+		return UnitVectors[std::underlying_type_t<EAxis>(Axis)];
+	};
+
+	/** Converts in-place the coordinate system of the given FTransform by specifying the source axes in terms of the destionation axes */
+	static void ConvertCoordinateSystem(FTransform& Transform, const EAxis DstXInSrcAxis, const EAxis DstYInSrcAxis, const EAxis DstZInSrcAxis);
+
+	/** Converts in-place an FTransform in Unreal coordinates to OpenCV coordinates */
+	static void ConvertUnrealToOpenCV(FTransform& Transform);
+
+	/** Converts in-place an FTransform in OpenCV coordinates to Unreal coordinates */
+	static void ConvertOpenCVToUnreal(FTransform& Transform);
+
+#if WITH_OPENCV
+public:
 	/**
 	 * Creates a Texture from the given Mat, if its properties (e.g. pixel format) are supported.
 	 * 
@@ -73,9 +111,8 @@ public:
 	static UTexture2D* TextureFromCvMat(cv::Mat& Mat, UTexture2D* InTexture);
 
 	static double ComputeReprojectionError(const FTransform& CameraPose, const cv::Mat& CameraIntrinsicMatrix, const std::vector<cv::Point3f>& Points3d, const std::vector<cv::Point2f>& Points2d);
+#endif	// WITH_OPENCV
 };
-
-#endif //WITH_OPENCV
 
 /**
  * Mathematic camera model for lens distortion/undistortion.
