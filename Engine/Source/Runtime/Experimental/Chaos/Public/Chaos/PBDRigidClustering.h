@@ -253,12 +253,6 @@ public:
 	*/
 	TArrayCollectionArray<int32>& GetClusterGroupIndexArray() { return MParticles.ClusterGroupIndexArray(); }
 
-	/** Indicates if the child geometry is approximated by a single proxy */
-	const TArrayCollectionArray<FMultiChildProxyId>& GetMultiChildProxyIdArray() const { return MParticles.MultiChildProxyIdArray(); }
-
-	/** If multi child proxy is used, this is the data needed */
-	const TArrayCollectionArray<TUniquePtr<TMultiChildProxyData<FReal, 3>>>& GetMultiChildProxyDataArray() const { return MParticles.MultiChildProxyDataArray(); }
-
 	void AddToClusterUnion(int32 ClusterID, FPBDRigidClusteredParticleHandle* Handle)
 	{
 		if(ClusterID <= 0)

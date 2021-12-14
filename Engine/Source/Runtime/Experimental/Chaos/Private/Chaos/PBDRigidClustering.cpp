@@ -68,9 +68,6 @@ namespace Chaos
 	int32 DeactivateClusterChildren = 0;
 	FAutoConsoleVariableRef CVarDeactivateClusterChildren(TEXT("p.DeactivateClusterChildren"), DeactivateClusterChildren, TEXT("If children should be decativated when broken and put into another cluster."));
 
-	int32 MassPropertiesFromMultiChildProxy = 1;
-	FAutoConsoleVariableRef CVarMassPropertiesFromMultiChildProxy(TEXT("p.MassPropertiesFromMultiChildProxy"), MassPropertiesFromMultiChildProxy, TEXT(""));
-
 	//==========================================================================
 	// Free helper functions
 	//==========================================================================
@@ -194,8 +191,8 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateClusterMassProperties()"), STAT_UpdateClusterMassProperties, STATGROUP_Chaos);
 	void UpdateClusterMassProperties(
-		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
-		TSet<FPBDRigidParticleHandle*>& Children, 
+		Chaos::FPBDRigidClusteredParticleHandle* Parent,
+		TSet<FPBDRigidParticleHandle*>& Children,
 		const FRigidTransform3* ForceMassOrientation)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterMassProperties);
@@ -212,42 +209,16 @@ namespace Chaos
 		bool bHasProxyChild = false;
 		for (FPBDRigidParticleHandle* OriginalChild : Children)
 		{
-			FMultiChildProxyId MultiChildProxyId; // sizeof(FMultiChildProxyId) = sizeof(void*), so copy
-			TMultiChildProxyData<FReal, 3>* ProxyData = nullptr;
-			if (FPBDRigidClusteredParticleHandle* ClusteredOriginalChild = OriginalChild->CastToClustered())
-			{
-				MultiChildProxyId = ClusteredOriginalChild->MultiChildProxyId();
-				ProxyData = ClusteredOriginalChild->MultiChildProxyData().Get();
-			}
-
-			//int32 Child;
 			FPBDRigidParticleHandle* Child;
 			FVec3 ChildPosition;
 			FRotation3 ChildRotation;
-			if (MultiChildProxyId.Id == nullptr)
-			{
-				Child = OriginalChild;
-				ChildPosition = Child->X();
-				ChildRotation = Child->R();
-			}
-			else if (ProxyData->KeyChild == OriginalChild)
-			{
-				Child = MultiChildProxyId.Id;
 
-				const FRigidTransform3 ProxyWorldTM =
-					ProxyData->RelativeToKeyChild *
-					FRigidTransform3(
-						OriginalChild->X(), OriginalChild->R());
-				ChildPosition = ProxyWorldTM.GetLocation();
-				ChildRotation = ProxyWorldTM.GetRotation();
-			}
-			else
-			{
-				continue; //using a proxy but we are not the key child
-			}
+			Child = OriginalChild;
+			ChildPosition = Child->X();
+			ChildRotation = Child->R();
 
 			const FReal ChildMass = Child->M();
-			const FMatrix33 ChildWorldSpaceI = 
+			const FMatrix33 ChildWorldSpaceI =
 				(ChildRotation * FMatrix::Identity) * Child->I() * (ChildRotation * FMatrix::Identity).GetTransposed();
 			if (ChildWorldSpaceI.ContainsNaN())
 			{
@@ -325,48 +296,27 @@ namespace Chaos
 		Parent->P() = Parent->X();
 		for (FPBDRigidParticleHandle* OriginalChild : Children)
 		{
-			FMultiChildProxyId MultiChildProxyId; // sizeof(FMultiChildProxyId) = sizeof(void*), so copy
-			TMultiChildProxyData<FReal, 3>* ProxyData = nullptr;
-			if (FPBDRigidClusteredParticleHandle* ClusteredOriginalChild = OriginalChild->CastToClustered())
-			{
-				MultiChildProxyId = ClusteredOriginalChild->MultiChildProxyId();
-				ProxyData = ClusteredOriginalChild->MultiChildProxyData().Get();
-			}
-
 			FPBDRigidParticleHandle* Child;
 			FVec3 ChildPosition;
-			if (MultiChildProxyId.Id == nullptr)
-			{
-				Child = OriginalChild;
-				ChildPosition = Child->X();
-			}
-			else if (ProxyData && ProxyData->KeyChild == OriginalChild)
-			{
-				Child = MultiChildProxyId.Id;
-				const FRigidTransform3 ProxyWorldTM = 
-					ProxyData->RelativeToKeyChild * FRigidTransform3(OriginalChild->X(), OriginalChild->R());
-				ChildPosition = ProxyWorldTM.GetLocation();
-			}
-			else
-			{
-				continue; //using a proxy but we are not the key child
-			}
+
+			Child = OriginalChild;
+			ChildPosition = Child->X();
 
 			FVec3 ParentToChild = ChildPosition - Parent->X();
 
 			const FReal ChildMass = Child->M();
 			// taking v from original child since we are not actually simulating the proxy child
-			Parent->W() += 
-				FVec3::CrossProduct(ParentToChild, 
+			Parent->W() +=
+				FVec3::CrossProduct(ParentToChild,
 					OriginalChild->V() * ChildMass);
 			{
 				const FReal& p0 = ParentToChild[0];
 				const FReal& p1 = ParentToChild[1];
 				const FReal& p2 = ParentToChild[2];
 				const FReal& m = ChildMass;
-				Parent->I() += 
+				Parent->I() +=
 					FMatrix33(
-						m * (p1 * p1 + p2 * p2), -m * p1 * p0, -m * p2 * p0, 
+						m * (p1 * p1 + p2 * p2), -m * p1 * p0, -m * p2 * p0,
 						m * (p2 * p2 + p0 * p0), -m * p2 * p1, m * (p1 * p1 + p0 * p0));
 			}
 		}
@@ -395,13 +345,14 @@ namespace Chaos
 
 		if (Parent->R().ContainsNaN())
 		{
-			InertiaTensor = PMatrix<FReal, 3,3>(1.f, 1.f, 1.f);
-			Parent->R() = TRotation<FReal,3>(FMatrix::Identity);
+			InertiaTensor = PMatrix<FReal, 3, 3>(1.f, 1.f, 1.f);
+			Parent->R() = TRotation<FReal, 3>(FMatrix::Identity);
 		}
 
 		Parent->Q() = Parent->R();
 		Parent->InvI() = Parent->I().Inverse();
 	}
+
 
 	//==========================================================================
 	// TPBDRigidClustering
@@ -588,12 +539,6 @@ namespace Chaos
 		return NewParticle;
 	}
 
-	int32 UseMultiChildProxy = 1;
-	FAutoConsoleVariableRef CVarUseMultiChildProxy(TEXT("p.UseMultiChildProxy"), UseMultiChildProxy, TEXT("Whether to merge multiple children into a single collision proxy when one is available"));
-
-	int32 MinChildrenForMultiProxy = 1;
-	FAutoConsoleVariableRef CVarMinChildrenForMultiProxy(TEXT("p.MinChildrenForMultiProxy"), MinChildrenForMultiProxy, TEXT("Min number of children needed for multi child proxy optimization"));
-
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UnionClusterGroups"), STAT_UnionClusterGroups, STATGROUP_Chaos);
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UnionClusterGroups()
@@ -719,9 +664,6 @@ namespace Chaos
 			MEvolution.EnableParticle(Child, ClusteredParticle);
 			TopLevelClusterParents.Add(ClusteredChild);
 
-			//make sure to remove multi child proxy if it exists
-			ClusteredChild->MultiChildProxyData().Reset();
-			ClusteredChild->MultiChildProxyId().Id = nullptr;
 			ClusteredChild->SetClusterId(ClusterId(nullptr, ClusteredChild->ClusterIds().NumChildren)); // clear Id but retain number of children
 
 			const FRigidTransform3 ChildFrame = ClusteredChild->ChildToParent() * PreSolveTM;
@@ -881,7 +823,7 @@ namespace Chaos
 					int32 NumNewClusters = 0;
 					for (TArray<FPBDRigidParticleHandle*>& ConnectedPieces : ConnectedPiecesArray)
 					{
-						if (ConnectedPieces.Num() == 1) //need to break single pieces first in case multi child proxy needs to be invalidated
+						if (ConnectedPieces.Num() == 1) //need to break single pieces first
 						{
 							FPBDRigidParticleHandle* Child = ConnectedPieces[0];
 							RemoveChildLambda(Child);
@@ -999,9 +941,6 @@ namespace Chaos
 			MEvolution.EnableParticle(Child, ClusteredParticle);
 			TopLevelClusterParents.Add(ClusteredChild);
 
-			//make sure to remove multi child proxy if it exists
-			ClusteredChild->MultiChildProxyData().Reset();
-			ClusteredChild->MultiChildProxyId().Id = nullptr;
 			ClusteredChild->SetClusterId(ClusterId(nullptr, ClusteredChild->ClusterIds().NumChildren)); // clear Id but retain number of children
 
 			const FRigidTransform3 ChildFrame = ClusteredChild->ChildToParent() * PreSolveTM;
@@ -1162,7 +1101,7 @@ namespace Chaos
 					int32 NumNewClusters = 0;
 					for (TArray<FPBDRigidParticleHandle*>& ConnectedPieces : ConnectedPiecesArray)
 					{
-						if (ConnectedPieces.Num() == 1) //need to break single pieces first in case multi child proxy needs to be invalidated
+						if (ConnectedPieces.Num() == 1) //need to break single pieces first
 						{
 							FPBDRigidParticleHandle* Child = ConnectedPieces[0];
 							RemoveChildLambda(Child);
@@ -1651,12 +1590,11 @@ namespace Chaos
 		const FRigidTransform3 ClusterWorldTM(Parent->X(), Parent->R());
 
 		TArray<FVec3> OriginalPoints;
-		TArray<FPBDRigidParticleHandle*> GeomToOriginalParticlesHack;
-		GeomToOriginalParticlesHack.Reserve(Children.Num());
+		TArray<FPBDRigidParticleHandle*> ChildParticleHandles;
+		ChildParticleHandles.Reserve(Children.Num());
 
 		const bool bUseCollisionPoints = (ProxyGeometry || Parameters.bCopyCollisionParticles) && !Parameters.CollisionParticles;
 		bool bUseParticleImplicit = false;
-		bool bUsingMultiChildProxy = false;
 
 		// Need to extract a filter off one of the cluster children 
 		FCollisionFilterData Filter;
@@ -1704,29 +1642,9 @@ namespace Chaos
 				FPBDRigidParticleHandle* UsedGeomChild = Child;
 				if (Child->Geometry())
 				{
-					FPBDRigidClusteredParticleHandle* ClusteredChild = Child->CastToClustered();
-
-					const FMultiChildProxyId MultiChildProxyId = 
-						ClusteredChild ? ClusteredChild->MultiChildProxyId() : FMultiChildProxyId();
-					const TUniquePtr<TMultiChildProxyData<FReal,3>>& MultiChildProxyData = ClusteredChild->MultiChildProxyData();
-
-					if (UseLevelsetCollision || MultiChildProxyId.Id == nullptr || !MultiChildProxyData)
-					{
-						Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame)));
-						Objects2.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame)));
-						GeomToOriginalParticlesHack.Add(Child);
-					}
-					else if (MultiChildProxyData->KeyChild == Child)
-					{
-						//using multi child proxy and this child is the key
-						const FRigidTransform3 ProxyWorldTM = MultiChildProxyData->RelativeToKeyChild * ChildWorldTM;
-						const FRigidTransform3 ProxyRelativeTM = ProxyWorldTM.GetRelativeTransform(ClusterWorldTM);
-						Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<FReal, 3>(MultiChildProxyId.Id->Geometry(), ProxyRelativeTM)));
-						Objects2.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<FReal, 3>(MultiChildProxyId.Id->Geometry(), ProxyRelativeTM)));
-						UsedGeomChild = MultiChildProxyId.Id;
-						GeomToOriginalParticlesHack.Add(UsedGeomChild);
-						bUsingMultiChildProxy = true;
-					}
+					Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame)));
+					Objects2.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame)));
+					ChildParticleHandles.Add(Child);
 				}
 
 				ensure(Child->Disabled() == true);
@@ -1757,7 +1675,7 @@ namespace Chaos
 			TUniquePtr<FImplicitObjectUnionClustered>& ChildrenSpatial = Parent->ChildrenSpatial();
 			ChildrenSpatial.Reset(
 				Objects2.Num() ? 
-				new Chaos::FImplicitObjectUnionClustered(MoveTemp(Objects2), GeomToOriginalParticlesHack) : 
+				new Chaos::FImplicitObjectUnionClustered(MoveTemp(Objects2), ChildParticleHandles) : 
 				nullptr);
 		}
 
@@ -1840,20 +1758,15 @@ namespace Chaos
 			}
 			else // !UseLevelsetCollision
 			{
-				if (!bUsingMultiChildProxy && Objects.Num() == 1)
+				if (Objects.Num() == 1)
 				{
-					// @coverage:{confidence tests}
-					//ensureMsgf(false, TEXT("Checking no proxy, not level set, a single object"));
 					Parent->SetDynamicGeometry(MoveTemp(Objects[0]));
 				}
 				else
 				{
-					QUICK_SCOPE_CYCLE_COUNTER(UnionBVH);
-					// @coverage : { confidence tests}
-					//ensureMsgf(false, TEXT("Checking no proxy, not levelset, and multiple objects"));
 					Parent->SetDynamicGeometry(
 						MakeUnique<FImplicitObjectUnionClustered>(
-							MoveTemp(Objects), GeomToOriginalParticlesHack));
+							MoveTemp(Objects), ChildParticleHandles));
 				}
 			}
 		}
@@ -1973,33 +1886,7 @@ namespace Chaos
 					{
 						if (TPBDRigidClusteredParticleHandle<FReal, 3>*ClusteredChild = Child->CastToClustered())
 						{
-							const TUniquePtr<TMultiChildProxyData<FReal, 3>>& ProxyData = ClusteredChild->MultiChildProxyData();
-							const FPBDRigidParticleHandle* KeyChild = ProxyData ? ProxyData->KeyChild : nullptr;
-							const FPBDRigidClusteredParticleHandle* ClusteredKeyChild = KeyChild ? KeyChild->CastToClustered() : nullptr;
-							if (ClusteredKeyChild)
-							{
-								//multi child so get its children
-								const FRigidTransform3 ProxyToCluster = ProxyData->RelativeToKeyChild * ClusteredKeyChild->ChildToParent();
-								const FVec3 ContactLocationProxyLocal = ProxyToCluster.InverseTransformPosition(ContactLocationClusterLocal);
-								FAABB3 ContactBoxProxy(ContactLocationProxyLocal, ContactLocationProxyLocal);
-								ContactBoxProxy.Thicken(ClusterDistanceThreshold);
-								if (ClusteredChild->ChildrenSpatial())
-								{
-									const TArray<FPBDRigidParticleHandle*> SubIntersections =
-										ClusteredChild->ChildrenSpatial()->FindAllIntersectingChildren(ContactBoxProxy);
-									for (FPBDRigidParticleHandle* SubChild : SubIntersections)
-									{
-										if (FPBDRigidClusteredParticleHandle* ClusteredSubChild = SubChild->CastToClustered())
-										{
-											ClusteredSubChild->CollisionImpulses() += ContactHandle->GetAccumulatedImpulse().Size();
-										}
-									}
-								}
-							}
-							else
-							{
-								ClusteredChild->CollisionImpulses() += ContactHandle->GetAccumulatedImpulse().Size();
-							}
+							ClusteredChild->CollisionImpulses() += ContactHandle->GetAccumulatedImpulse().Size();
 						}
 					}
 				}
@@ -2231,7 +2118,6 @@ namespace Chaos
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters)
 	{
-		// @todo(investigate) : This is trying to set multiple connections and throwing a warning in ConnectNodes
 		SCOPE_CYCLE_COUNTER(STAT_FixConnectivityGraphUsingDelaunayTriangulation);
 
 		const TArray<FPBDRigidParticleHandle*>& Children = MChildren[Parent];
@@ -2418,28 +2304,6 @@ namespace Chaos
 			}
 		}
 	}
-
-	//template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	//void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::AddUniqueConnection(uint32 Index1, uint32 Index2, T Strain)
-	//{
-	//	if (Index1 != Index2)
-	//	{
-	//		//todo(pref): This can be removed if we are sure there are no duplicate connections generated.
-	//		for (int32 i = 0; i < MParticles.ConnectivityEdges(Index1).Num(); i++)
-	//		{
-	//			if (MParticles.ConnectivityEdges(Index1)[i].Sibling == Index2)
-	//			{
-	//				// @todo(duplication connection) : re-enable post GDC.  
-	//				// FixConnectivityGraphUsingDelaunayTriangulation attempts to add multiple connections.
-	//				// so commenting out this msg to remove the noise from the confidence test. 
-	//				// ensureMsgf(false, TEXT("Duplicate graph connection."));
-	//				return;
-	//			}
-	//		}
-	//
-	//		MParticles.ConnectivityEdges(Index1).Add({ Index2, Strain });
-	//	}
-	//}
 
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::ConnectNodes(
