@@ -59,6 +59,7 @@
 	#define ASYNC_DEFERRED_DELETION					1
 	#define PIPELINE_STATE_FILE_LOCATION			FPaths::ProjectSavedDir()
 	#define USE_PIX									WITH_PIX_EVENT_RUNTIME
+	#define D3D12RHI_SUPPORTS_WIN_PIX				USE_PIX
 #else
 	#include "D3D12RHIPlatformPublic.h"
 #endif

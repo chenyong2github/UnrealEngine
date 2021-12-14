@@ -1075,6 +1075,10 @@ protected:
 
 	TArray<TSharedPtr<FD3D12Adapter>> ChosenAdapters;
 
+#if D3D12RHI_SUPPORTS_WIN_PIX
+	void* WinPixGpuCapturerHandle = nullptr;
+#endif
+
 	/** Can pix events be used */
 	bool bPixEventEnabled = false;
 
@@ -1180,9 +1184,10 @@ public:
 
 private:
 
-#if USE_PIX && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if D3D12RHI_SUPPORTS_WIN_PIX
 	void* WindowsPixDllHandle = nullptr;
-#endif // USE_PIX && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+	void* WinPixGpuCapturerHandle = nullptr;
+#endif
 
 	TArray<TSharedPtr<FD3D12Adapter>> ChosenAdapters;
 
