@@ -21,7 +21,9 @@ public:
 	static FConsoleVariablesEditorModule& GetConsoleVariablesModule();
 	static TObjectPtr<UConsoleVariablesAsset> GetEditingAsset();
 
-	void AddConsoleVariable(const FString& InConsoleCommand, const FString& InValue, const bool bScrollToNewRow = false) const;
+	void AddConsoleObjectToPreset(
+		const FString& InConsoleCommand, const FString& InValue,
+		const bool bScrollToNewRow = false) const;
 
 	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
 	void RebuildList(const FString& InConsoleCommandToScrollTo = "") const;

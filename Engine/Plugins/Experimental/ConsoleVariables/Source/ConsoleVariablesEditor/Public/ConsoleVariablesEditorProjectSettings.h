@@ -22,14 +22,19 @@ public:
 		bAddAllChangedConsoleVariablesToCurrentPreset = true;
 	}
 
-	/** If true, any console variable changes will be added to the current preset as long as the plugin is loaded. */
+	/**
+	 *When variables are changed outside the Console Variables Editor, this option will add the variables to the current preset.
+	 *Does not apply to console commands like 'r.SetNearClipPlane' or 'stat fps'
+	 */
 	UPROPERTY(Config, EditAnywhere, Category="Console Variables")
 	bool bAddAllChangedConsoleVariablesToCurrentPreset;
 
-	/** When a row is unchecked, its associated variable's value will be set to the value recorded when the plugin was loaded.
+	/**
+	 *When a row is unchecked, its associated variable's value will be set to the value recorded when the plugin was loaded.
 	 *The value displayed to the user can be configured with this setting, but will not affect the actual applied value.
 	 *ShowCurrentValue displays the actual value currently applied to the variable.
-	 *ShowLastEnteredValue displays the value that will be applied when the row is checked. */
+	 *ShowLastEnteredValue displays the value that will be applied when the row is checked.
+	 */
 	UPROPERTY(Config, EditAnywhere, Category="Console Variables")
 	EConsoleVariablesEditorRowDisplayType UncheckedRowDisplayType;
 };

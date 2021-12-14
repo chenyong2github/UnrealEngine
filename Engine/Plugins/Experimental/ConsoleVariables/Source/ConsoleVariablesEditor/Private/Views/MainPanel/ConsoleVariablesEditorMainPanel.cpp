@@ -51,7 +51,7 @@ TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorMainPanel::GetEditingA
 	return GetConsoleVariablesModule().GetEditingAsset();
 }
 
-void FConsoleVariablesEditorMainPanel::AddConsoleVariable(
+void FConsoleVariablesEditorMainPanel::AddConsoleObjectToPreset(
 	const FString& InConsoleCommand, const FString& InValue, const bool bScrollToNewRow) const
 {
 	const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
@@ -60,7 +60,7 @@ void FConsoleVariablesEditorMainPanel::AddConsoleVariable(
 	{
 		UConsoleVariablesAsset* Asset = EditingAsset.Get();
 
-		Asset->AddOrSetConsoleVariableSavedData(
+		Asset->AddOrSetConsoleObjectSavedData(
 			{
 				InConsoleCommand,
 				InValue,
@@ -160,7 +160,8 @@ void FConsoleVariablesEditorMainPanel::ImportPreset(const FAssetData& InPresetAs
 	}
 }
 
-bool FConsoleVariablesEditorMainPanel::ImportPreset_Impl(const FAssetData& InPresetAsset, const TObjectPtr<UConsoleVariablesAsset> EditingAsset)
+bool FConsoleVariablesEditorMainPanel::ImportPreset_Impl(
+	const FAssetData& InPresetAsset, const TObjectPtr<UConsoleVariablesAsset> EditingAsset)
 {
 	if (UConsoleVariablesAsset* Preset = CastChecked<UConsoleVariablesAsset>(InPresetAsset.GetAsset()))
 	{

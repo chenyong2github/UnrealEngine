@@ -126,3 +126,26 @@ private:
 	TSharedPtr<SButton> InputWidget;
 	TSharedPtr<STextBlock> ButtonText;
 };
+
+class SConsoleVariablesEditorListValueInput_Command : public SConsoleVariablesEditorListValueInput
+{
+public:
+	
+	SLATE_BEGIN_ARGS(SConsoleVariablesEditorListValueInput_Command)
+	{}
+
+	SLATE_END_ARGS()
+
+	void Construct(
+		const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow, const FString& InSavedText);
+	
+	virtual void SetInputValue(const FString& InValueAsString) override;
+	virtual FString GetInputValueAsString() override;
+
+	FString GetInputValue();
+
+private:
+	
+	TSharedPtr<SButton> InputWidget;
+	TSharedPtr<SEditableText> InputText;
+};
