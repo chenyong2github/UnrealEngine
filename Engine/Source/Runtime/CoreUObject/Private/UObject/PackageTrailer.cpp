@@ -72,7 +72,7 @@ FArchive& operator<<(FArchive& Ar, FLookupTableEntry& Entry)
 
 } // namespace Private
 
-FPackageTrailerBuilder FPackageTrailerBuilder::Create(const FPackageTrailer& Trailer, FArchive& Ar, const FPackagePath& PackagePath)
+FPackageTrailerBuilder FPackageTrailerBuilder::CreateFromTrailer(const FPackageTrailer& Trailer, FArchive& Ar, const FPackagePath& PackagePath)
 {
 	FPackageTrailerBuilder Builder(PackagePath.GetPackageFName());
 
@@ -109,8 +109,6 @@ FPackageTrailerBuilder::FPackageTrailerBuilder(FName InPackageName)
 
 void FPackageTrailerBuilder::AddPayload(const Virtualization::FPayloadId& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback)
 {
-	checkf(TrailerPositionInFile == INDEX_NONE, TEXT("Attempting to add payloads after the trailer has been built. Package '%s'"), *PackageName.ToString());
-
 	Callbacks.Emplace(MoveTemp(Callback));
 
 	if (Identifier.IsValid())
@@ -121,92 +119,91 @@ void FPackageTrailerBuilder::AddPayload(const Virtualization::FPayloadId& Identi
 
 bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive)
 {
-	checkf(TrailerPositionInFile == INDEX_NONE, TEXT("Attempting to build the same FPackageTrailer multiple times. Package '%s'"), *PackageName.ToString());
-
 	// Note that we do not serialize containers directly as we want a file format that is 
 	// 100% under our control. This will allow people to create external scripts that can
 	// parse and manipulate the trailer without needing to worry that we might change how
 	// our containers serialize. 
-	TrailerPositionInFile = DataArchive.Tell();
+	FPackageTrailer Trailer;
+	
+	Trailer.TrailerPositionInFile = DataArchive.Tell();
 
-	uint64 HeaderTag = FPackageTrailer::FHeader::HeaderTag;
-	DataArchive << HeaderTag;
+	Trailer.Header.Tag = FPackageTrailer::FHeader::HeaderTag;
+	Trailer.Header.Version = (int32)EPackageTrailerVersion::AUTOMATIC_VERSION;
 
-	EPackageTrailerVersion Version = EPackageTrailerVersion::AUTOMATIC_VERSION;
-	DataArchive << Version;
+	DataArchive << Trailer.Header.Tag;
+	DataArchive << Trailer.Header.Version;
 
 	const uint32 DynamicHeaderSizeOnDisk = ((LocalEntries.Num() + VirtualizedEntries.Num()) * Private::FLookupTableEntry::SizeOnDisk); // Add the length of the lookup table
 	
-	uint32 HeaderSizeOnDisk = FPackageTrailer::FHeader::StaticHeaderSizeOnDisk + DynamicHeaderSizeOnDisk;
-	DataArchive << HeaderSizeOnDisk;
+	Trailer.Header.HeaderLength = FPackageTrailer::FHeader::StaticHeaderSizeOnDisk + DynamicHeaderSizeOnDisk;
+	DataArchive << Trailer.Header.HeaderLength;
 
-	int64 PayloadsDataLength = 0;
-	PayloadLookupTable.Reserve(LocalEntries.Num() + VirtualizedEntries.Num());
+	Trailer.Header.PayloadsDataLength = 0;
+	Trailer.Header.PayloadLookupTable.Reserve(LocalEntries.Num() + VirtualizedEntries.Num());
 
 	for (const TPair<Virtualization::FPayloadId, LocalEntry>& It : LocalEntries)
 	{
 		checkf(It.Key.IsValid(), TEXT("PackageTrailer should not contain invalid FPayloadIds. Package '%s'"), *PackageName.ToString());
 
-		Private::FLookupTableEntry& Entry = PayloadLookupTable.AddDefaulted_GetRef();
+		Private::FLookupTableEntry& Entry = Trailer.Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
-		Entry.OffsetInFile = PayloadsDataLength;
+		Entry.OffsetInFile = Trailer.Header.PayloadsDataLength;
 		Entry.CompressedSize = It.Value.Payload.GetCompressedSize();
 		Entry.RawSize = It.Value.Payload.GetRawSize();
 
-		PayloadsDataLength += It.Value.Payload.GetCompressedSize();
+		Trailer.Header.PayloadsDataLength += It.Value.Payload.GetCompressedSize();
 	}
 
 	for (const TPair<Virtualization::FPayloadId, VirtualizedEntry>& It : VirtualizedEntries)
 	{
 		checkf(It.Key.IsValid(), TEXT("PackageTrailer should not contain invalid FPayloadIds. Package '%s'"), *PackageName.ToString());
 
-		Private::FLookupTableEntry& Entry = PayloadLookupTable.AddDefaulted_GetRef();
+		Private::FLookupTableEntry& Entry = Trailer.Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
 		Entry.OffsetInFile = INDEX_NONE;
 		Entry.CompressedSize = It.Value.CompressedSize;
 		Entry.RawSize = It.Value.RawSize;
 	}
 
-	DataArchive << PayloadsDataLength;
+	DataArchive << Trailer.Header.PayloadsDataLength;
 
-	// Currently we only support relative access!
-	// Referenced access will come with the editor domain support.
-	EPayloadAccessMode AccessMode = EPayloadAccessMode::Relative;
-	DataArchive << AccessMode;
+	Trailer.Header.AccessMode = AccessMode;
+	DataArchive << Trailer.Header.AccessMode;
 
-	int32 NumPayloads = PayloadLookupTable.Num();
+	int32 NumPayloads = Trailer.Header.PayloadLookupTable.Num();
 	DataArchive << NumPayloads;
 
-	for (Private::FLookupTableEntry& Entry : PayloadLookupTable)
+	for (Private::FLookupTableEntry& Entry : Trailer.Header.PayloadLookupTable)
 	{
 		DataArchive << Entry;
 	}
 
-	checkf((TrailerPositionInFile + HeaderSizeOnDisk) == DataArchive.Tell(), TEXT("Header length was calculated as %d bytes but we wrote %" INT64_FMT " bytes!"), HeaderSizeOnDisk, DataArchive.Tell() - TrailerPositionInFile);
+	checkf((Trailer.TrailerPositionInFile + Trailer.Header.HeaderLength) == DataArchive.Tell(), TEXT("Header length was calculated as %d bytes but we wrote %" INT64_FMT " bytes!"), Trailer.Header.HeaderLength, DataArchive.Tell() - Trailer.TrailerPositionInFile);
 
-	PayloadPosInFile = DataArchive.Tell();
+	const int64 PayloadPosInFile = DataArchive.Tell();
 
 	for (TPair<Virtualization::FPayloadId, LocalEntry>& It : LocalEntries)
 	{
 		DataArchive << It.Value.Payload;
 	}
 
-	checkf((PayloadPosInFile + PayloadsDataLength) == DataArchive.Tell(), TEXT("Total payload length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), PayloadsDataLength, DataArchive.Tell() - PayloadPosInFile);
+	checkf((PayloadPosInFile + Trailer.Header.PayloadsDataLength) == DataArchive.Tell(), TEXT("Total payload length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), Trailer.Header.PayloadsDataLength, DataArchive.Tell() - PayloadPosInFile);
 
-	uint64 FooterTag = FPackageTrailer::FFooter::FooterTag;
-	DataArchive << FooterTag;
-
-	int64 TrailerLength = HeaderSizeOnDisk + PayloadsDataLength + FPackageTrailer::FFooter::SizeOnDisk;
-	DataArchive << TrailerLength;
+	FPackageTrailer::FFooter Footer;
 	
-	uint32 PackageTag = PACKAGE_FILE_TAG;
-	DataArchive << PackageTag;
+	Footer.Tag = FPackageTrailer::FFooter::FooterTag;
+	Footer.TrailerLength = Trailer.Header.HeaderLength + Trailer.Header.PayloadsDataLength + FPackageTrailer::FFooter::SizeOnDisk;
+	Footer.PackageTag = PACKAGE_FILE_TAG;
+	
+	DataArchive << Footer.Tag;
+	DataArchive << Footer.TrailerLength;
+	DataArchive << Footer.PackageTag;
 
-	checkf((TrailerPositionInFile + TrailerLength) == DataArchive.Tell(), TEXT("Trailer length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), TrailerLength, DataArchive.Tell() - TrailerPositionInFile);
+	checkf((Trailer.TrailerPositionInFile + Footer.TrailerLength) == DataArchive.Tell(), TEXT("Trailer length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), Footer.TrailerLength, DataArchive.Tell() - Trailer.TrailerPositionInFile);
 
 	for (const AdditionalDataCallback& Callback : Callbacks)
 	{
-		Callback(*Linker);
+		Callback(*Linker, Trailer);
 	}
 
 	return !DataArchive.IsError();
@@ -215,26 +212,6 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 bool FPackageTrailerBuilder::IsEmpty() const
 {
 	return LocalEntries.IsEmpty() && VirtualizedEntries.IsEmpty();
-}
-
-int64 FPackageTrailerBuilder::FindPayloadOffset(const Virtualization::FPayloadId& Identifier) const
-{
-	check(TrailerPositionInFile != INDEX_NONE);
-	check(PayloadPosInFile != INDEX_NONE);
-	check(PayloadLookupTable.Num() == LocalEntries.Num() + VirtualizedEntries.Num());
-
-	if (Identifier.IsValid())
-	{
-		for (const Private::FLookupTableEntry& Entry : PayloadLookupTable)
-		{
-			if (Entry.Identifier == Identifier)
-			{
-				return PayloadPosInFile + Entry.OffsetInFile;
-			}
-		}
-	}
-
-	return INDEX_NONE;
 }
 
 bool FPackageTrailer::IsEnabled()
@@ -355,7 +332,7 @@ bool FPackageTrailer::TryLoadBackwards(FArchive& Ar)
 	return TryLoad(Ar);
 }
 
-FCompressedBuffer FPackageTrailer::LoadPayload(Virtualization::FPayloadId Id, FArchive& Ar) const
+FCompressedBuffer FPackageTrailer::LoadPayload(const Virtualization::FPayloadId& Id, FArchive& Ar) const
 {
 	const Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
 		{
@@ -378,7 +355,7 @@ FCompressedBuffer FPackageTrailer::LoadPayload(Virtualization::FPayloadId Id, FA
 	return Payload;
 }
 
-bool FPackageTrailer::UpdatePayloadAsVirtualized(Virtualization::FPayloadId Identifier)
+bool FPackageTrailer::UpdatePayloadAsVirtualized(const Virtualization::FPayloadId& Identifier)
 {
 	Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Identifier](const Private::FLookupTableEntry& Entry)->bool
 		{
@@ -396,7 +373,7 @@ bool FPackageTrailer::UpdatePayloadAsVirtualized(Virtualization::FPayloadId Iden
 	}
 }
 
-EPayloadStatus FPackageTrailer::FindPayloadStatus(Virtualization::FPayloadId Id) const
+EPayloadStatus FPackageTrailer::FindPayloadStatus(const Virtualization::FPayloadId& Id) const
 {
 	const Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
 		{
@@ -409,6 +386,28 @@ EPayloadStatus FPackageTrailer::FindPayloadStatus(Virtualization::FPayloadId Id)
 	}
 
 	return Entry->IsVirtualized() ? EPayloadStatus::StoredVirtualized : EPayloadStatus::StoredLocally;
+}
+
+int64 FPackageTrailer::FindPayloadOffsetInFile(const Virtualization::FPayloadId& Id) const
+{
+	if (Id.IsValid())
+	{
+		const Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
+			{
+				return Entry.Identifier == Id;
+			});
+
+		//TODO Better way to return an error?
+		check(TrailerPositionInFile != INDEX_NONE);
+		check(Header.PayloadsDataLength != INDEX_NONE);
+		check(Entry != nullptr);
+
+		return TrailerPositionInFile + Header.HeaderLength + Entry->OffsetInFile;
+	}
+	else
+	{
+		return INDEX_NONE;
+	}
 }
 
 int64 FPackageTrailer::GetTrailerLength() const
@@ -474,6 +473,11 @@ int32 FPackageTrailer::GetNumPayloads(EPayloadFilter Type) const
 	}
 	
 	return Count;
+}
+
+EPayloadAccessMode FPackageTrailer::GetAccessMode() const
+{
+	return Header.AccessMode;
 }
 
 bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter Filter, TArray<Virtualization::FPayloadId>& OutPayloadIds)

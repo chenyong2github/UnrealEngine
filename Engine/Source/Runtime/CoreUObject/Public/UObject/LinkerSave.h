@@ -115,8 +115,8 @@ public:
 	/** Used by FVirtualizedUntypedBulkData to add payloads to be added to the payload sidecar file (currently an experimental feature) */
 	TArray<FSidecarStorageInfo> SidecarDataToAppend;
 	
-	/** Gathers all payloads while save the package, so that they can be stored ina  single data structure @see FPackageTrailer */
-	UE::FPackageTrailerBuilder PackageTrailerBuilder;
+	/** Gathers all payloads while save the package, so that they can be stored in a single data structure @see FPackageTrailer */
+	TUniquePtr<UE::FPackageTrailerBuilder> PackageTrailerBuilder;
 
 	/** 
 	 * Array of callbacks that will be invoked when the package has successfully saved to disk.

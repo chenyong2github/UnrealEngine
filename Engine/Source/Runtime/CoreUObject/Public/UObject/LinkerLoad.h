@@ -167,7 +167,7 @@ public:
 		return InstancingContext;
 	}
 
-	UE::FPackageTrailer* GetPackageTrailer() const
+	const UE::FPackageTrailer* GetPackageTrailer() const
 	{
 		return PackageTrailer.Get();
 	}

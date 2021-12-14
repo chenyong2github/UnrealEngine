@@ -805,6 +805,11 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 		SaveContext.Linker->bUpdatingLoadedPath = SaveContext.IsUpdatingLoadedPath();
 		SaveContext.Linker->bProceduralSave = SaveContext.IsProceduralSave();
 
+		if (UE::FPackageTrailer::IsEnabled())
+		{
+			SaveContext.Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(SaveContext.GetPackage());
+		}
+
 #if WITH_TEXT_ARCHIVE_SUPPORT
 		if (SaveContext.IsTextFormat())
 		{
@@ -1715,20 +1720,20 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 
 [[nodiscard]] ESavePackageResult BuildAndWriteTrailer(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
 {
-	if (SaveContext.IsTextFormat())
+	if (SaveContext.Linker->PackageTrailerBuilder.IsValid())
 	{
-		// We shouldn't have any data in the trailer as text based assets should store 
-		// all payloads inline at the moment.
-		checkf(SaveContext.Linker->PackageTrailerBuilder.IsEmpty(), TEXT("Attempting to build a package trailer for text based asset '%s', this is not supported!"), *SaveContext.GetPackage()->GetName());
-		SaveContext.Linker->Summary.PayloadTocOffset = INDEX_NONE;
-	}
-	else
-	{
+		checkf(SaveContext.GetPackageWriter() == nullptr, TEXT("Attempting to build a package trailer with a package writer '%s', this is not supported!"), *SaveContext.GetPackage()->GetName());
+		checkf(SaveContext.IsTextFormat() == false, TEXT("Attempting to build a package trailer for text based asset '%s', this is not supported!"), *SaveContext.GetPackage()->GetName());
+
 		SaveContext.Linker->Summary.PayloadTocOffset = SaveContext.Linker->Tell();
-		if (!SaveContext.Linker->PackageTrailerBuilder.BuildAndAppendTrailer(SaveContext.Linker.Get(), *SaveContext.Linker.Get()))
+		if (!SaveContext.Linker->PackageTrailerBuilder->BuildAndAppendTrailer(SaveContext.Linker.Get(), *SaveContext.Linker.Get()))
 		{
 			return ESavePackageResult::Error;
 		}
+	}
+	else
+	{	
+		SaveContext.Linker->Summary.PayloadTocOffset = INDEX_NONE;
 	}
 
 	return ESavePackageResult::Success;
@@ -2166,14 +2171,11 @@ ESavePackageResult SaveHarvestedRealms(FSaveContext& SaveContext, ESaveRealm Har
 	// Now that the package is written out we can write the package trailer that is appended
 	// to the file. This should be the last thing written to the file!
 	SlowTask.EnterProgressFrame();
-	if (UE::FPackageTrailer::IsEnabled() && PackageWriter == nullptr)
+	SaveContext.Result = BuildAndWriteTrailer(StructuredArchiveRoot, SaveContext);
+	if (SaveContext.Result != ESavePackageResult::Success)
 	{
-		SaveContext.Result = BuildAndWriteTrailer(StructuredArchiveRoot, SaveContext);
-		if (SaveContext.Result != ESavePackageResult::Success)
-		{
-			return SaveContext.Result;
-		}	
-	}
+		return SaveContext.Result;
+	}	
 
 	int64 ExportsSize = SaveContext.Linker->Tell();
 	if (PackageWriter)
