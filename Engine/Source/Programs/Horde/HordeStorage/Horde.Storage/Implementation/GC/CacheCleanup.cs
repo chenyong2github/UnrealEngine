@@ -55,17 +55,17 @@ namespace Horde.Storage.Implementation
         private async Task<List<OldRecord>> CleanNamespace(NamespaceId ns, CancellationToken cancellationToken)
         {
             List<OldRecord> deletedRecords = new List<OldRecord>();
-            DateTime cutoffTime = DateTime.Now.Add(_settings.CurrentValue.LastAccessCutoff);
+            DateTime cutoffTime = DateTime.Now.AddSeconds(-1 * _settings.CurrentValue.LastAccessCutoff.TotalSeconds);
             int consideredCount = 0;
             await foreach ((BucketId bucket, IoHashKey name, DateTime lastAccessTime) in _referencesStore.GetRecords(ns).WithCancellation(cancellationToken))
             {
-                _logger.Information("Considering object in {Namespace} {Bucket} {Name} for deletion, was last updated {LastAccessTime}", ns, bucket, name, lastAccessTime);
+                _logger.Debug("Considering object in {Namespace} {Bucket} {Name} for deletion, was last updated {LastAccessTime}", ns, bucket, name, lastAccessTime);
                 Interlocked.Increment(ref consideredCount);
 
                 if (lastAccessTime > cutoffTime)
                     continue;
 
-                _logger.Debug("Attempting to delete object {Namespace} {Bucket} {Name}.", ns, bucket, name);
+                _logger.Information("Attempting to delete object {Namespace} {Bucket} {Name} as it was last updated {LastAccessTime} which is older then {CutoffTime}", ns, bucket, name, lastAccessTime, cutoffTime);
                 using Scope scope = Tracer.Instance.StartActive("refCleanup.delete_record");
                 scope.Span.ResourceName = $"{ns}:{bucket}.{name}";
                 // delete the old record from the ref refs
