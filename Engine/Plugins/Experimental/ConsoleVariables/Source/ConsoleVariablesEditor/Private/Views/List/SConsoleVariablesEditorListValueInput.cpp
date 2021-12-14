@@ -188,6 +188,10 @@ void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InAr
 	{
 		InputWidget->SetMinSliderValue(0);
 		InputWidget->SetMaxSliderValue(2);
+
+		const int32 PresetValue = FCString::Atoi(*Item.Pin()->GetPresetValue());
+
+		Item.Pin()->SetPresetValue(FString::FromInt(FMath::Clamp(PresetValue, 0, 2)));
 	}
 	
 	Item.Pin()->SetCachedValue(GetInputValueAsString());
