@@ -2454,7 +2454,7 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 								//@todo - accurate ortho camera / light intersection
 								|| !View.IsPerspectiveProjection();
 
-				SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, bCameraInsideLightGeometry, EStrataTileMaterialType::EComplex);
+				SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, bCameraInsideLightGeometry, TileType);
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
