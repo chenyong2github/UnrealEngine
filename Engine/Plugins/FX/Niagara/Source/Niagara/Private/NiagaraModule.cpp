@@ -1100,7 +1100,7 @@ bool FNiagaraTypeDefinition::TypesAreAssignable(const FNiagaraTypeDefinition& Ty
 	bool bIsSupportedConversion = false;
 	if (IsScalarDefinition(TypeA) && IsScalarDefinition(TypeB))
 	{
-		bIsSupportedConversion = (TypeA == IntDef && TypeB == FloatDef) || (TypeB == IntDef && TypeA == FloatDef);
+		bIsSupportedConversion = (TypeA == IntDef && TypeB == FloatDef) || (TypeB == IntDef && TypeA == FloatDef) || (TypeA == IntDef && TypeB == BoolDef) || (TypeB == IntDef && TypeA == BoolDef);
 	}
 	else
 	{
