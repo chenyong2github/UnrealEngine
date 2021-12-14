@@ -36,8 +36,9 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 enum EStrataTileMaterialType : uint32
 {
-	ESimple = 0,
-	EComplex = 1,
+	ESimple  = 0,
+	ESingle  = 1,
+	EComplex = 2,
 	ECount
 };
 
@@ -84,6 +85,7 @@ struct FStrataSceneData
 namespace Strata
 {
 constexpr uint32 StencilBit_Complex= 0x00; // No stencil bit
+constexpr uint32 StencilBit_Single = 0x02; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_SINGLEPATH)
 constexpr uint32 StencilBit_Fast   = 0x80; // In sync with SceneRenderTargets.h - GET_STENCIL_BIT_MASK(STENCIL_STRATA_FASTPATH)
 
 bool IsStrataEnabled();

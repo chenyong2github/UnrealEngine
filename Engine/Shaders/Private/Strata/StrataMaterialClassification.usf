@@ -28,13 +28,18 @@ int2 ViewResolution;
 uint MaxBytesPerPixel;
 Texture2D<uint> TopLayerTexture;
 Texture2DArray<uint> MaterialTextureArray;
+// Fast/Simple
 RWBuffer<uint> SimpleTileIndirectDataBuffer;
 RWBuffer<uint> SimpleTileListDataBuffer;
+// Single
+RWBuffer<uint> SingleTileIndirectDataBuffer;
+RWBuffer<uint> SingleTileListDataBuffer;
+// Complex
 RWBuffer<uint> ComplexTileIndirectDataBuffer;
 RWBuffer<uint> ComplexTileListDataBuffer;
 
 #if !PERMUTATION_WAVE_OPS
-groupshared uint s_IsComplexIsMaterialTile[GROUP_THREAD_COUNT];
+groupshared uint s_TileFlags[GROUP_THREAD_COUNT];
 #endif
 
 #if PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION
@@ -47,6 +52,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	if (all(DispatchThreadId == 0))
 	{
 		SimpleTileIndirectDataBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
+		SingleTileIndirectDataBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
 		ComplexTileIndirectDataBuffer[0] = bRectPrimitive > 0 ? 4 : 6;
 	}
 
@@ -55,16 +61,21 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 
 	// Pixels outside of the view area are considered simple to enable screen borders to receive the simple permutation when not aligned to shader group size.
 	bool bContainsComplexMaterial = false;
-	bool bContainsStrataMaterial = false;
+	bool bContainsSimpleMaterial  = false;
+	bool bContainsSingleMaterial  = false;
+	bool bContainsStrataMaterial  = false;
 	bool bHasScreenSpaceSubsurfaceScattering = false;
 	if (all(PixelCoord < uint2(ViewResolution)))
 	{
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialTextureArray, StrataAddressing, TopLayerTexture);
 
-		const bool bIsSimple = IsSimpleMaterial(StrataPixelHeader) || StrataPixelHeader.BSDFCount == 0; // BSDFCount == 0 ensures that non-strata pixel, like sky pixels, won't make a simple tile flagged as complex
+		const bool bIsSimple =  IsSimpleMaterial(StrataPixelHeader) || StrataPixelHeader.BSDFCount == 0; // BSDFCount == 0 ensures that non-strata pixel, like sky pixels, won't make a simple tile flagged as complex
+		const bool bIsSingle = !IsSimpleMaterial(StrataPixelHeader) && IsSingleMaterial(StrataPixelHeader);
 		bContainsStrataMaterial  = StrataPixelHeader.BSDFCount > 0;
-		bContainsComplexMaterial = !bIsSimple;
+		bContainsSimpleMaterial  = bIsSimple;
+		bContainsSingleMaterial  = bIsSingle;
+		bContainsComplexMaterial = !bIsSingle & !bIsSimple;
 		bHasScreenSpaceSubsurfaceScattering = HasSubsurface(StrataPixelHeader);
 	}
 
@@ -79,9 +90,53 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 #endif
 
 #if PERMUTATION_WAVE_OPS
-
 	const bool bHasAnyStrata  = WaveActiveAnyTrue(bContainsStrataMaterial);
+//	const bool bHasAnySimple  = WaveActiveAnyTrue(bContainsSimpleMaterial);
+	const bool bHasAnySingle  = WaveActiveAnyTrue(bContainsSingleMaterial);
 	const bool bHasAnyComplex = WaveActiveAnyTrue(bContainsComplexMaterial);
+#else // PERMUTATION_WAVE_OPS
+
+	s_TileFlags[LinearIndex] = 
+		(bContainsStrataMaterial  ? 0x1u : 0u) | 
+//		(bContainsSimpleMaterial  ? 0x2u : 0u) | 
+		(bContainsSingleMaterial  ? 0x4u : 0u) | 
+		(bContainsComplexMaterial ? 0x8u : 0u);
+
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 32)
+	{
+		s_TileFlags[LinearIndex] = s_TileFlags[LinearIndex] | s_TileFlags[LinearIndex + 32];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 16)
+	{
+		s_TileFlags[LinearIndex] = s_TileFlags[LinearIndex] | s_TileFlags[LinearIndex + 16];
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	if (LinearIndex < 8)
+	{
+		s_TileFlags[LinearIndex] = s_TileFlags[LinearIndex] | s_TileFlags[LinearIndex + 8];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 4)
+	{
+		s_TileFlags[LinearIndex] = s_TileFlags[LinearIndex] | s_TileFlags[LinearIndex + 4];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 2)
+	{
+		s_TileFlags[LinearIndex] = s_TileFlags[LinearIndex] | s_TileFlags[LinearIndex + 2];
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	const uint FinalTileFlags = s_TileFlags[LinearIndex] | s_TileFlags[LinearIndex + 1];
+
+	const bool bHasAnyStrata  = (FinalTileFlags & 0x1u) > 0;
+//	const bool bHasAnySimple  = (FinalTileFlags & 0x2u) > 0;
+	const bool bHasAnySingle  = (FinalTileFlags & 0x4u) > 0;
+	const bool bHasAnyComplex = (FinalTileFlags & 0x8u) > 0;
+#endif // PERMUTATION_WAVE_OPS
 
 	if (LinearIndex < 1 && bHasAnyStrata)
 	{
@@ -91,66 +146,19 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 			InterlockedAdd(ComplexTileIndirectDataBuffer[1], 1, WriteToIndex);
 			ComplexTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
 		}
-		else
+		else if (bHasAnySingle)
+		{
+			uint WriteToIndex;
+			InterlockedAdd(SingleTileIndirectDataBuffer[1], 1, WriteToIndex);
+			SingleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
+		}
+		else // (bHasAnySimple)
 		{
 			uint WriteToIndex;
 			InterlockedAdd(SimpleTileIndirectDataBuffer[1], 1, WriteToIndex);
 			SimpleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
 		}
 	}
-
-#else // PERMUTATION_WAVE_OPS
-
-	s_IsComplexIsMaterialTile[LinearIndex] = (bContainsComplexMaterial ? 1 : 0) | (bContainsStrataMaterial ? 2 : 0);
-
-	GroupMemoryBarrierWithGroupSync();
-	if (LinearIndex < 32)
-	{
-		s_IsComplexIsMaterialTile[LinearIndex] = s_IsComplexIsMaterialTile[LinearIndex] | s_IsComplexIsMaterialTile[LinearIndex + 32];
-	}
-	GroupMemoryBarrierWithGroupSync();
-	if (LinearIndex < 16)
-	{
-		s_IsComplexIsMaterialTile[LinearIndex] = s_IsComplexIsMaterialTile[LinearIndex] | s_IsComplexIsMaterialTile[LinearIndex + 16];
-	}
-	GroupMemoryBarrierWithGroupSync();
-
-	if (LinearIndex < 8)
-	{
-		s_IsComplexIsMaterialTile[LinearIndex] = s_IsComplexIsMaterialTile[LinearIndex] | s_IsComplexIsMaterialTile[LinearIndex + 8];
-	}
-	GroupMemoryBarrierWithGroupSync();
-	if (LinearIndex < 4)
-	{
-		s_IsComplexIsMaterialTile[LinearIndex] = s_IsComplexIsMaterialTile[LinearIndex] | s_IsComplexIsMaterialTile[LinearIndex + 4];
-	}
-	GroupMemoryBarrierWithGroupSync();
-	if (LinearIndex < 2)
-	{
-		s_IsComplexIsMaterialTile[LinearIndex] = s_IsComplexIsMaterialTile[LinearIndex] | s_IsComplexIsMaterialTile[LinearIndex + 2];
-	}
-	GroupMemoryBarrierWithGroupSync();
-
-	const uint FinalIsSimpleIsMaterialTile = s_IsComplexIsMaterialTile[LinearIndex] | s_IsComplexIsMaterialTile[LinearIndex + 1];
-	bContainsComplexMaterial = (FinalIsSimpleIsMaterialTile & 1) > 0;
-	bContainsStrataMaterial = (FinalIsSimpleIsMaterialTile & 2) > 0;
-
-	if (LinearIndex < 1 && bContainsStrataMaterial)
-	{
-		if (bContainsComplexMaterial)
-		{
-			uint WriteToIndex;
-			InterlockedAdd(ComplexTileIndirectDataBuffer[1], 1, WriteToIndex);
-			ComplexTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
-		}
-		else
-		{
-			uint WriteToIndex;
-			InterlockedAdd(SimpleTileIndirectDataBuffer[1], 1, WriteToIndex);
-			SimpleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
-		}
-	}
-#endif // PERMUTATION_WAVE_OPS
 }
 #endif // SHADER_TILE_CATEGORIZATION
 

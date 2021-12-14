@@ -204,7 +204,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FSkyShadowing : SHADER_PERMUTATION_BOOL("APPLY_SKY_SHADOWING");
 	class FRayTracedReflections : SHADER_PERMUTATION_BOOL("RAY_TRACED_REFLECTIONS");
-	class FStrataFastPath : SHADER_PERMUTATION_BOOL("STRATA_FASTPATH");
+	class FStrataTileType : SHADER_PERMUTATION_INT("STRATA_TILETYPE", 3);
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FHasBoxCaptures,
@@ -214,7 +214,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		FDynamicSkyLight,
 		FSkyShadowing,
 		FRayTracedReflections,
-		FStrataFastPath>;
+		FStrataTileType>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
@@ -230,15 +230,15 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 			PermutationVector.Set<FSkyShadowing>(false);
 		}
 
-		if (PermutationVector.Get<FStrataFastPath>() && !Strata::IsStrataEnabled())
+		if (PermutationVector.Get<FStrataTileType>() && !Strata::IsStrataEnabled())
 		{
-			PermutationVector.Set<FStrataFastPath>(false);
+			PermutationVector.Set<FStrataTileType>(0);
 		}
 
 		return PermutationVector;
 	}
 
-	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bBoxCapturesOnly, bool bSphereCapturesOnly, bool bSupportDFAOIndirectOcclusion, bool bEnableSkyLight, bool bEnableDynamicSkyLight, bool bApplySkyShadowing, bool bRayTracedReflections, bool bStrataFastPath)
+	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bBoxCapturesOnly, bool bSphereCapturesOnly, bool bSupportDFAOIndirectOcclusion, bool bEnableSkyLight, bool bEnableDynamicSkyLight, bool bApplySkyShadowing, bool bRayTracedReflections, EStrataTileMaterialType TileType)
 	{
 		FPermutationDomain PermutationVector;
 
@@ -249,8 +249,12 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		PermutationVector.Set<FDynamicSkyLight>(bEnableDynamicSkyLight);
 		PermutationVector.Set<FSkyShadowing>(bApplySkyShadowing);
 		PermutationVector.Set<FRayTracedReflections>(bRayTracedReflections);
-		PermutationVector.Set<FStrataFastPath>(Strata::IsStrataEnabled() && bStrataFastPath);
-
+		PermutationVector.Set<FStrataTileType>(0);
+		if (Strata::IsStrataEnabled())
+		{
+			check(EStrataTileMaterialType::ECount != TileType);
+			PermutationVector.Set<FStrataTileType>(TileType);
+		}
 		return RemapPermutation(PermutationVector);
 	}
 
@@ -1278,7 +1282,7 @@ static void AddSkyReflectionPass(
 		View, bHasBoxCaptures, bHasSphereCaptures, DynamicBentNormalAO != 0.0f,
 		bSkyLight, bDynamicSkyLight, bApplySkyShadowing,
 		bRequiresSpecializedReflectionEnvironmentShader,
-		StrataTileMaterialType == EStrataTileMaterialType::ESimple);
+		StrataTileMaterialType);
 
 	TShaderMapRef<FReflectionEnvironmentSkyLightingPS> PixelShader(View.ShaderMap, PermutationVector);
 	ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
@@ -1595,6 +1599,20 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 					bDynamicSkyLight,
 					bApplySkyShadowing,
 					EStrataTileMaterialType::ESimple);
+
+				AddSkyReflectionPass(
+					GraphBuilder,
+					View,
+					Scene,
+					SceneTextures,
+					DynamicBentNormalAOTexture,
+					ReflectionsColor,
+					RayTracingReflectionOptions,
+					SceneTextureParameters,
+					bSkyLight,
+					bDynamicSkyLight,
+					bApplySkyShadowing,
+					EStrataTileMaterialType::ESingle);
 
 				AddSkyReflectionPass(
 					GraphBuilder,

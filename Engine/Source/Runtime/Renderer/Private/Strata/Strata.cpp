@@ -93,6 +93,7 @@ const TCHAR* ToString(EStrataTileMaterialType Type)
 	switch (Type)
 	{
 	case EStrataTileMaterialType::ESimple:		return TEXT("Simple");
+	case EStrataTileMaterialType::ESingle:		return TEXT("Single");
 	case EStrataTileMaterialType::EComplex:		return TEXT("Complex");
 	}
 	return TEXT("Unknown");
@@ -155,9 +156,10 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 			const int32 TileInPixel = GetStrataBufferTileSize();
 			const FIntPoint TileResolution(FMath::DivideAndRoundUp(SceneTextureExtent.X, TileInPixel), FMath::DivideAndRoundUp(SceneTextureExtent.Y, TileInPixel));
 
-			const TCHAR* StrataTileResourceNames[EStrataTileMaterialType::ECount][2] =
+			const TCHAR* StrataTileResourceNames[EStrataTileMaterialType::ECount][3] =
 			{
 				{ TEXT("Strata.StrataTileListBuffer(Simple)"),	TEXT("Strata.StrataTileIndirectBuffer(Simple)") },
+				{ TEXT("Strata.StrataTileListBuffer(Single)"), 	TEXT("Strata.StrataTileIndirectBuffer(Single)") },
 				{ TEXT("Strata.StrataTileListBuffer(Complex)"),	TEXT("Strata.StrataTileIndirectBuffer(Complex)")}
 			};
 
@@ -427,6 +429,8 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2DArray<uint>, MaterialTextureArray)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SimpleTileIndirectDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SimpleTileListDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SingleTileIndirectDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SingleTileListDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileIndirectDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileListDataBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, SSSTextureUAV)
@@ -516,12 +520,6 @@ static void AddStrataInternalClassificationTilePass(
 	EStrataTileMaterialType TileMaterialType,
 	const bool bDebug = false)
 {
-	// We cannot early exit due to the fact that the local light are still rendered as mesh volumes (so cannot be tiled as such)
-	//if (ShouldPassesReadingStrataBeTiled())
-	//{
-	//	return;
-	//}
-
 	EPrimitiveType StrataTilePrimitiveType = PT_TriangleList;
 	const FIntPoint OutputResolution = View.ViewRect.Size();
 	FVector4f OutputResolutionAndInv = FVector4f(OutputResolution.X, OutputResolution.Y, 1.0f / float(OutputResolution.X), 1.0f / float(OutputResolution.Y));
@@ -542,14 +540,10 @@ static void AddStrataInternalClassificationTilePass(
 		ParametersPS->RenderTargets[0] = FRenderTargetBinding(*ColorTexture, ERenderTargetLoadAction::ELoad);
 		switch (TileMaterialType)
 		{
-		case EStrataTileMaterialType::ESimple:
-			ParametersPS->DebugTileColor = FVector4f(0.0f, 1.0f, 0.0f, 1.0);
-			break;
-		case EStrataTileMaterialType::EComplex:
-			ParametersPS->DebugTileColor = FVector4f(1.0f, 0.0f, 0.0f, 1.0);
-			break;
-		default:
-			check(false);
+		case EStrataTileMaterialType::ESimple: ParametersPS->DebugTileColor = FVector4f(0.0f, 1.0f, 0.0f, 1.0); break;
+		case EStrataTileMaterialType::ESingle: ParametersPS->DebugTileColor = FVector4f(1.0f, 1.0f, 0.0f, 1.0); break;
+		case EStrataTileMaterialType::EComplex: ParametersPS->DebugTileColor = FVector4f(1.0f, 0.0f, 0.0f, 1.0); break;
+		default: check(false);
 		}
 	}
 	else
@@ -564,9 +558,7 @@ static void AddStrataInternalClassificationTilePass(
 	}
 	
 	GraphBuilder.AddPass(
-		bDebug ? 
-		RDG_EVENT_NAME("Strata::DebugClassificationPass") :
-		RDG_EVENT_NAME("Strata::StencilClassificationPass"),
+		RDG_EVENT_NAME("Strata::%sClassificationPass(%s)", bDebug ? TEXT("Debug") : TEXT("Stencil"), ToString(TileMaterialType)),
 		ParametersPS,
 		ERDGPassFlags::Raster,
 		[ParametersPS, VertexShader, PixelShader, OutputResolution, StrataTilePrimitiveType, bDebug](FRHICommandList& RHICmdList)
@@ -614,6 +606,7 @@ void AddStrataStencilPass(
 	const FMinimalSceneTextures& SceneTextures)
 {
 	AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESimple);
+	AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESingle);
 }
 
 void AddStrataStencilPass(
@@ -625,6 +618,7 @@ void AddStrataStencilPass(
 	{
 		const FViewInfo& View = Views[i];
 		AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESimple);
+		AddStrataInternalClassificationTilePass(GraphBuilder, View, &SceneTextures.Depth.Target, nullptr, EStrataTileMaterialType::ESingle);
 	}
 }
 
@@ -759,11 +753,16 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			PassParameters->MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
 			PassParameters->TopLayerTexture = View.StrataSceneData->TopLayerTexture;
 			PassParameters->MaterialTextureArray = View.StrataSceneData->MaterialTextureArraySRV;
+			PassParameters->SSSTextureUAV = View.StrataSceneData->SSSTextureUAV;
+			// Simple
 			PassParameters->SimpleTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::ESimple];
 			PassParameters->SimpleTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::ESimple];
+			// Single
+			PassParameters->SingleTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::ESingle];
+			PassParameters->SingleTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::ESingle];
+			// Complex
 			PassParameters->ComplexTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::EComplex];
 			PassParameters->ComplexTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::EComplex];
-			PassParameters->SSSTextureUAV = View.StrataSceneData->SSSTextureUAV;
 
 			const uint32 GroupSize = 8;
 			FComputeShaderUtils::AddPass(
@@ -829,10 +828,9 @@ FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewIn
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Strata::VisualizeClassification");
 		const bool bDebugPass = true;
-		AddStrataInternalClassificationTilePass(
-			GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::ESimple, bDebugPass);
-		AddStrataInternalClassificationTilePass(
-			GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::EComplex, bDebugPass);
+		AddStrataInternalClassificationTilePass(GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::ESimple, bDebugPass);
+		AddStrataInternalClassificationTilePass(GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::ESingle, bDebugPass);
+		AddStrataInternalClassificationTilePass(GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::EComplex, bDebugPass);
 	}
 
 	return MoveTemp(ScreenPassSceneColor);

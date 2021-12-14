@@ -8,6 +8,10 @@
 #define STRATA_FASTPATH 0
 #endif
 
+#ifndef STRATA_SINGLEPATH 
+#define STRATA_SINGLEPATH 0
+#endif
+
 // Analytical lighting evaluation for strata material.
 // Unpack BSDF on-the-fly
 float4 StrataDeferredLighting(
@@ -25,7 +29,7 @@ float4 StrataDeferredLighting(
 	FLightAccumulator Out = (FLightAccumulator)0;
 	const bool bForceFullyRough = false;
 
-#if STRATA_FASTPATH == 0
+#if STRATA_FASTPATH == 0 && STRATA_SINGLEPATH == 0
 	LOOP
 	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 #endif
