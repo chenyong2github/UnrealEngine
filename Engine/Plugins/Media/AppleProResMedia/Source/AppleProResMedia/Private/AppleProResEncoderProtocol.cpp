@@ -97,12 +97,12 @@ bool UAppleProResEncoderProtocol::CreateFile(const FString& InFilename)
 		return false;
 	}
 
-	ANSICHAR *Filename = TCHAR_TO_ANSI(*FPaths::ConvertRelativePathToFull(InFilename));
+	const auto Filename = StringCast<ANSICHAR>(*FPaths::ConvertRelativePathToFull(InFilename));
 
 	Encoder = PROpenEncoder(NumberOfEncodingThreads, nullptr);
 
 	PRStatus status = 0;
-	status = ProResFileWriterCreate(Filename, &FileWriter);
+	status = ProResFileWriterCreate(Filename.Get(), &FileWriter);
 
 	if (status != 0)
 	{

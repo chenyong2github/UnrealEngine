@@ -96,7 +96,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString
 		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay EasyBlend::Initialize);
 
 		// Initialize EasyBlend data for each view
-		const char* const FileName = TCHAR_TO_ANSI(*File);
+		const auto FileName = StringCast<ANSICHAR>(*File);
 		for (FViewData& It : Views)
 		{
 			// Initialize the mesh data
@@ -104,7 +104,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString
 				FScopeLock lock(&DllAccessCS);
 
 				check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc);
-				const EasyBlendSDKDXError Result = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc(FileName, It.EasyBlendMeshData.Get());
+				const EasyBlendSDKDXError Result = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendInitializeFunc(FileName.Get(), It.EasyBlendMeshData.Get());
 				if (!EasyBlendSDKDX_SUCCEEDED(Result))
 				{
 					UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend internals"));
