@@ -39,6 +39,7 @@
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracing/RayTracingScene.h"
 #include "RayTracingDynamicGeometryCollection.h"
+#include "RayTracingSkinnedGeometry.h"
 #include "SceneTextureParameters.h"
 #include "ScreenSpaceDenoise.h"
 #include "ScreenSpaceRayTracing.h"
@@ -1460,10 +1461,6 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 	return true;
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FGPUSkinCacheBLASUpdateParams, )
-	RDG_BUFFER_ACCESS(SharedScratchBuffer, ERHIAccess::UAVCompute)
-END_SHADER_PARAMETER_STRUCT()
-
 bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder, FRDGBufferRef& OutDynamicGeometryScratchBuffer)
 {
 	OutDynamicGeometryScratchBuffer = nullptr;
@@ -1486,33 +1483,11 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	// Make sure there are no pending skin cache builds and updates anymore:
 	// FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread could have enqueued build operations which might not have
-	// been processed by CommitRayTracingGeometryUpdates. All pending builds should be done before adding them to the 
-	// top level BVH
-	if (FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache())
+	// been processed by CommitRayTracingGeometryUpdates. 
+	// All pending builds should be done before adding them to the top level BVH.
+	if (FRayTracingSkinnedGeometryUpdateQueue* RayTracingSkinnedGeometryUpdateQueue = Scene->GetRayTracingSkinnedGeometryUpdateQueue())
 	{
-		// Find out the total BLAS scratch size and allocate RDG buffer which will be transient allocated then
-		uint32 BLASScratchSize = GPUSkinCache->ComputeRayTracingGeometryScratchBufferSize();
-		FRDGBufferRef SharedScratchBuffer = nullptr;
-		if (BLASScratchSize > 0)
-		{
-			const uint32 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
-			FRDGBufferDesc ScratchBufferDesc;
-			ScratchBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
-			ScratchBufferDesc.Usage = BUF_UnorderedAccess;
-			ScratchBufferDesc.BytesPerElement = ScratchAlignment;
-			ScratchBufferDesc.NumElements = FMath::DivideAndRoundUp(BLASScratchSize, ScratchAlignment);
-
-			SharedScratchBuffer = GraphBuilder.CreateBuffer(ScratchBufferDesc, TEXT("GPUSkinCache.BLASSharedScratchBuffer"));			
-		}
-
-		FGPUSkinCacheBLASUpdateParams* BLASUpdateParams = GraphBuilder.AllocParameters<FGPUSkinCacheBLASUpdateParams>();
-		BLASUpdateParams->SharedScratchBuffer = SharedScratchBuffer;
-
-		GraphBuilder.AddPass(RDG_EVENT_NAME("CommitRayTracingGeometryUpdates"), BLASUpdateParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[this, SharedScratchBuffer](FRHICommandListImmediate& RHICmdList)
-			{
-				Scene->GetGPUSkinCache()->CommitRayTracingGeometryUpdates(RHICmdList, SharedScratchBuffer ? SharedScratchBuffer->GetRHI() : nullptr);
-			});
+		RayTracingSkinnedGeometryUpdateQueue->Commit(GraphBuilder);
 	}
 
 	GRayTracingGeometryManager.ProcessBuildRequests(GraphBuilder.RHICmdList);

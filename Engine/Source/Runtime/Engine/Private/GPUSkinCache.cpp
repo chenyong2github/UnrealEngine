@@ -19,6 +19,7 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 #include "RenderGraphResources.h"
 #include "Algo/Unique.h"
 #include "HAL/IConsoleManager.h"
+#include "RayTracingSkinnedGeometry.h"
 
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumChunks);
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumVertices);
@@ -144,33 +145,6 @@ static FAutoConsoleVariableRef CVarGPUSkinCacheNumDispatchesToCapture(
 	TEXT("Trigger a render capture for the next skin cache dispatches."));
 
 static int32 GGPUSkinCacheFlushCounter = 0;
-
-#if RHI_RAYTRACING
-static int32 GMemoryLimitForBatchedRayTracingGeometryUpdates = 512;
-FAutoConsoleVariableRef CVarGPUSkinCacheMemoryLimitForBatchedRayTracingGeometryUpdates(
-	TEXT("r.SkinCache.MemoryLimitForBatchedRayTracingGeometryUpdates"),
-	GMemoryLimitForBatchedRayTracingGeometryUpdates,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
-static int32 GRayTracingUseTransientForScratch = 0;
-FAutoConsoleVariableRef CVarGPUSkinCacheRayTracingUseTransientForScratch(
-	TEXT("r.SkinCache.RayTracingUseTransientForScratch"),
-	GRayTracingUseTransientForScratch,
-	TEXT("Use Transient memory for BLAS scratch allocation to reduce memory footprint and allocation overhead."),
-	ECVF_RenderThreadSafe
-);
-
-static int32 GMaxRayTracingPrimitivesPerCmdList = -1;
-FAutoConsoleVariableRef CVarGPUSkinCacheMaxRayTracingPrimitivesPerCmdList(
-	TEXT("r.SkinCache.MaxRayTracingPrimitivesPerCmdList"),
-	GMaxRayTracingPrimitivesPerCmdList,
-	TEXT("Maximum amount of primitives which are batched together into a single command list to fix potential TDRs."),
-	ECVF_RenderThreadSafe
-);
-
-#endif // RHI_RAYTRACING
 
 const float MBSize = 1048576.f; // 1024 x 1024 bytes
 
@@ -316,30 +290,30 @@ public:
 
 		FSectionDispatchData() = default;
 
-		inline FGPUSkinCache::FSkinCacheRWBuffer* GetPreviousPositionRWBuffer()
+		inline FGPUSkinCache::FSkinCacheRWBuffer* GetPreviousPositionRWBuffer() const
 		{
 			check(PreviousPositionBuffer);
 			return PreviousPositionBuffer;
 		}
 
-		inline FGPUSkinCache::FSkinCacheRWBuffer* GetPositionRWBuffer()
+		inline FGPUSkinCache::FSkinCacheRWBuffer* GetPositionRWBuffer() const
 		{
 			check(PositionBuffer);
 			return PositionBuffer;
 		}
 
-		inline FGPUSkinCache::FSkinCacheRWBuffer* GetTangentRWBuffer()
+		inline FGPUSkinCache::FSkinCacheRWBuffer* GetTangentRWBuffer() const
 		{
 			return TangentBuffer;
 		}
 
-		FGPUSkinCache::FSkinCacheRWBuffer* GetActiveTangentRWBuffer()
+		FGPUSkinCache::FSkinCacheRWBuffer* GetActiveTangentRWBuffer() const
 		{
 			// This is the buffer containing tangent results from the skinning CS pass
 			return (IndexBuffer && IntermediateTangentBuffer) ? IntermediateTangentBuffer : TangentBuffer;
 		}
 
-		inline FGPUSkinCache::FSkinCacheRWBuffer* GetIntermediateAccumulatedTangentBuffer()
+		inline FGPUSkinCache::FSkinCacheRWBuffer* GetIntermediateAccumulatedTangentBuffer() const
 		{
 			check(IntermediateAccumulatedTangentBuffer);
 			return IntermediateAccumulatedTangentBuffer;
@@ -510,19 +484,12 @@ public:
 	}
 
 #if RHI_RAYTRACING
-	void GetRayTracingSegmentVertexBuffers(TArrayView<FRayTracingGeometrySegment> OutSegments) const
+	void GetRayTracingSegmentVertexBuffers(TArray<FBufferRHIRef>& OutVertexBuffers) const
 	{
-		check(OutSegments.Num() == DispatchData.Num());
-
+		OutVertexBuffers.SetNum(DispatchData.Num());
 		for (int32 SectionIdx = 0; SectionIdx < DispatchData.Num(); SectionIdx++)
 		{
-			const FSectionDispatchData& SectionData = DispatchData[SectionIdx];
-			FRayTracingGeometrySegment& Segment = OutSegments[SectionIdx];
-
-			Segment.VertexBuffer = SectionData.PositionBuffer->Buffer.Buffer;
-			Segment.VertexBufferOffset = 0;
-
-			check(SectionData.Section->NumTriangles == Segment.NumPrimitives);
+			OutVertexBuffers[SectionIdx] = DispatchData[SectionIdx].PositionBuffer->Buffer.Buffer;
 		}
 	}
 #endif // RHI_RAYTRACING
@@ -810,141 +777,6 @@ void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList)
 		BuffersToTransitionToRead.Empty(BuffersToTransitionToRead.Num());
 	}
 }
-
-#if RHI_RAYTRACING
-
-void FGPUSkinCache::AddRayTracingGeometryToUpdate(FRayTracingGeometry* InRayTracingGeometry, const FRayTracingAccelerationStructureSize& StructureSize, EAccelerationStructureBuildMode InBuildMode)
-{
-	FRayTracingUpdateInfo* CurrentUpdateInfo = RayTracingGeometriesToUpdate.Find(InRayTracingGeometry);
-	if (CurrentUpdateInfo == nullptr)
-	{
-		FRayTracingUpdateInfo UpdateInfo;
-		UpdateInfo.BuildMode = InBuildMode;
-		UpdateInfo.ScratchSize = InBuildMode == EAccelerationStructureBuildMode::Build ? StructureSize.BuildScratchSize : StructureSize.UpdateScratchSize;
-		RayTracingGeometriesToUpdate.Add(InRayTracingGeometry, UpdateInfo);
-	}
-	// If currently updating but need full rebuild then update the stored build mode
-	else if (CurrentUpdateInfo->BuildMode == EAccelerationStructureBuildMode::Update && InBuildMode == EAccelerationStructureBuildMode::Build)
-	{
-		CurrentUpdateInfo->BuildMode = InBuildMode;
-		CurrentUpdateInfo->ScratchSize = StructureSize.BuildScratchSize;
-	}
-}
-
-uint32 FGPUSkinCache::ComputeRayTracingGeometryScratchBufferSize()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FGPUSkinCache::ComputeRayTracingGeometryScratchBufferSize);
-
-	const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
-	uint32 ScratchBLASSize = 0;
-
-	if (RayTracingGeometriesToUpdate.Num() && GRayTracingUseTransientForScratch > 0)
-	{
-		for (TMap<FRayTracingGeometry*, FRayTracingUpdateInfo>::TRangedForIterator Iter = RayTracingGeometriesToUpdate.begin(); Iter != RayTracingGeometriesToUpdate.end(); ++Iter)
-		{			
-			FRayTracingUpdateInfo& UpdateInfo = Iter.Value();
-			ScratchBLASSize = Align(ScratchBLASSize + UpdateInfo.ScratchSize, ScratchAlignment);
-		}
-	}
-
-	return ScratchBLASSize;
-}
-
-DECLARE_GPU_STAT(GPUSkinCacheBuildBLAS);
-DECLARE_GPU_STAT(GPUSkinCacheUpdateBLAS);
-void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RHICmdList, FRHIBuffer* ScratchBuffer)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FGPUSkinCache::CommitRayTracingGeometryUpdates);
-
-	if (RayTracingGeometriesToUpdate.Num())
-	{
-		// If we have more deferred deleted data than set limit then force flush to make sure all pending releases have actually been freed
-		// before reallocating a lot of new BLAS data
-		if (RayTracingGeometryMemoryPendingRelease >= GMemoryLimitForBatchedRayTracingGeometryUpdates * 1024ull * 1024ull)
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-			UE_LOG(LogSkinCache, Display, TEXT("Flushing RHI resource pending deletes due to %d MB limit"), GMemoryLimitForBatchedRayTracingGeometryUpdates);
-		}
-				
-		// Track the amount of primitives which need to be build/updated in a single batch
-		uint64 PrimitivesToUpdates = 0;
-		TArray<FRayTracingGeometryBuildParams> BatchedBuildParams;
-		TArray<FRayTracingGeometryBuildParams> BatchedUpdateParams;
-
-		BatchedBuildParams.Reserve(RayTracingGeometriesToUpdate.Num());
-		BatchedUpdateParams.Reserve(RayTracingGeometriesToUpdate.Num());
-
-		auto KickBatch = [&RHICmdList, &BatchedBuildParams, &BatchedUpdateParams, &PrimitivesToUpdates]()
-		{
-			if (BatchedBuildParams.Num())
-			{
-				SCOPED_GPU_STAT(RHICmdList, GPUSkinCacheBuildBLAS);
-				SCOPED_DRAW_EVENT(RHICmdList, GPUSkinCacheBuildBLAS);
-				RHICmdList.BuildAccelerationStructures(BatchedBuildParams);
-				BatchedBuildParams.Empty(BatchedBuildParams.Max());
-			}
-
-			if (BatchedUpdateParams.Num())
-			{
-				SCOPED_GPU_STAT(RHICmdList, GPUSkinCacheUpdateBLAS);
-				SCOPED_DRAW_EVENT(RHICmdList, GPUSkinCacheUpdateBLAS);
-				RHICmdList.BuildAccelerationStructures(BatchedUpdateParams);
-				BatchedUpdateParams.Empty(BatchedUpdateParams.Max());
-			}
-
-			PrimitivesToUpdates = 0;
-		};
-
-		const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
-		uint32 ScratchBLASOffset = 0;
-
-		// Iterate all the geometries which need an update
-		for (TMap<FRayTracingGeometry*, FRayTracingUpdateInfo>::TRangedForIterator Iter = RayTracingGeometriesToUpdate.begin(); Iter != RayTracingGeometriesToUpdate.end(); ++Iter)
-		{
-			FRayTracingGeometry* RayTracingGeometry = Iter.Key();
-			FRayTracingUpdateInfo& UpdateInfo = Iter.Value();
-
-			FRayTracingGeometryBuildParams BuildParams;
-			BuildParams.Geometry	= RayTracingGeometry->RayTracingGeometryRHI;
-			BuildParams.BuildMode   = UpdateInfo.BuildMode;
-			BuildParams.Segments	= RayTracingGeometry->Initializer.Segments;
-			BuildParams.ScratchBuffer = ScratchBuffer;
-			BuildParams.ScratchBufferOffset = ScratchBLASOffset;
-
-			// Update the offset
-			ScratchBLASOffset = Align(ScratchBLASOffset + UpdateInfo.ScratchSize, ScratchAlignment);
-
-			// Make 'Build' 10 times more expensive than 1 'Update' of the BVH
-			uint32 PrimitiveCount = RayTracingGeometry->Initializer.TotalPrimitiveCount;
-			if (BuildParams.BuildMode == EAccelerationStructureBuildMode::Build)
-			{
-				PrimitiveCount *= 10;
-				BatchedBuildParams.Add(BuildParams);
-			}
-			else
-			{
-				BatchedUpdateParams.Add(BuildParams);
-			}
-
-			PrimitivesToUpdates += PrimitiveCount;
-
-			// Flush batch when limit is reached
-			if (GMaxRayTracingPrimitivesPerCmdList > 0 && PrimitivesToUpdates >= GMaxRayTracingPrimitivesPerCmdList)
-			{
-				KickBatch();
-				RHICmdList.SubmitCommandsHint();
-			}
-		}
-
-		// Enqueue the last batch
-		KickBatch();
-
-		// Clear working data
-		RayTracingGeometriesToUpdate.Empty(RayTracingGeometriesToUpdate.Num());
-		RayTracingGeometryMemoryPendingRelease = 0;
-	}
-}
-#endif // RHI_RAYTRACING
 
 /** base of the FRecomputeTangentsPerTrianglePassCS class */
 class FBaseRecomputeTangentsPerTriangleShader : public FGlobalShader
@@ -1717,18 +1549,7 @@ bool FGPUSkinCache::ProcessEntry(
 
 	if (bShouldBatchDispatches)
 	{
-		BatchDispatches.Add({
-			InOutEntry,
-			&LodData,
-			RevisionNumber,
-			uint32(Section),
-#if RHI_RAYTRACING
-			Skin->bRequireRecreatingRayTracingGeometry,
-#else
-			false,
-#endif
-			Skin->DoesAnySegmentUsesWorldPositionOffset()
-			});
+		BatchDispatches.Add({ InOutEntry, &LodData, RevisionNumber, uint32(Section) });
 	}
 	else
 	{
@@ -1751,123 +1572,23 @@ bool FGPUSkinCache::IsGPUSkinCacheRayTracingSupported()
 
 #if RHI_RAYTRACING
 
-void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
-	FRHICommandListImmediate& RHICmdList,
-	FGPUSkinCacheEntry* SkinCacheEntry,
-	FSkeletalMeshLODRenderData& LODModel,
-	bool bRequireRecreatingRayTracingGeometry,
-	bool bAnySegmentUsesWorldPositionOffset
-	)
+void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, FSkeletalMeshLODRenderData& LODModel)
 {
-	if (IsGPUSkinCacheRayTracingSupported() && SkinCacheEntry && SkinCacheEntry->GPUSkin->bSupportRayTracing)
+	if (IsGPUSkinCacheRayTracingSupported() && SkinCacheEntry && SkinCacheEntry->GPUSkin && SkinCacheEntry->GPUSkin->bSupportRayTracing)
 	{
-		FRayTracingGeometry& RayTracingGeometry = SkinCacheEntry->GPUSkin->RayTracingGeometry;
-
-		if (bRequireRecreatingRayTracingGeometry)
+		if (SkinCacheEntry->GPUSkin->bRequireRecreatingRayTracingGeometry)
 		{
-			uint32 MemoryEstimation = 0;
-
-			FBufferRHIRef IndexBufferRHI = LODModel.MultiSizeIndexContainer.GetIndexBuffer()->IndexBufferRHI;
-			MemoryEstimation += IndexBufferRHI->GetSize();
-			uint32 VertexBufferStride = LODModel.StaticVertexBuffers.PositionVertexBuffer.GetStride();
-			MemoryEstimation += LODModel.StaticVertexBuffers.PositionVertexBuffer.VertexBufferRHI->GetSize();
-
-			//#dxr_todo: do we need support for separate sections in FRayTracingGeometryData?
-			uint32 TrianglesCount = 0;
-			for (int32 SectionIndex = 0; SectionIndex < LODModel.RenderSections.Num(); SectionIndex++)
-			{
-				const FSkelMeshRenderSection& Section = LODModel.RenderSections[SectionIndex];
-				TrianglesCount += Section.NumTriangles;
-			}
-
-			FRayTracingGeometryInitializer Initializer;
-			
-		#if !UE_BUILD_SHIPPING
-			FName OwnerName = SkinCacheEntry->GPUSkin->DebugName;
-			if (OwnerName.IsValid())
-			{
-				Initializer.DebugName = OwnerName;
-			}
-			else
-		#endif
-			{
-				static const FName DefaultDebugName("FSkeletalMeshObjectGPUSkin");
-				static int32 DebugNumber = 0;
-				Initializer.DebugName = FName(DefaultDebugName, DebugNumber++);
-			}
-
-			Initializer.IndexBuffer = IndexBufferRHI;
-			Initializer.TotalPrimitiveCount = TrianglesCount;
-			Initializer.GeometryType = RTGT_Triangles;
-			Initializer.bFastBuild = true;
-			Initializer.bAllowUpdate = true;
-
-			Initializer.Segments.Reserve(LODModel.RenderSections.Num());
-			const int32 LODIndex = SkinCacheEntry->GPUSkin->GetLOD();
-
-			for (const FSkelMeshRenderSection& Section : LODModel.RenderSections)
-			{
-				FRayTracingGeometrySegment Segment;
-				Segment.VertexBuffer = nullptr;
-				Segment.VertexBufferElementType = VET_Float3;
-				Segment.VertexBufferStride = VertexBufferStride;
-				Segment.VertexBufferOffset = 0;
-				Segment.MaxVertices = Section.GetNumVertices();
-				Segment.FirstPrimitive = Section.BaseIndex / 3;
-				Segment.NumPrimitives = Section.NumTriangles;
-
-				// TODO: If we are at a dropped LOD, route material index through the LODMaterialMap in the LODInfo struct.
-				Segment.bEnabled = !SkinCacheEntry->GPUSkin->IsMaterialHidden(LODIndex, Section.MaterialIndex) && !Section.bDisabled && Section.bVisibleInRayTracing;
-				Initializer.Segments.Add(Segment);
-			}
-
-			FGPUSkinCache::GetRayTracingSegmentVertexBuffers(*SkinCacheEntry, Initializer.Segments);
-
-			// Flush pending resource barriers before BVH is built for the first time
+			// We will need to build a new BVH so flush pending skin cache resource barriers.
 			TransitionAllToReadable(RHICmdList);
-
-			if (RayTracingGeometry.RayTracingGeometryRHI.IsValid())
-			{
-				// RayTracingGeometry.ReleaseRHI() releases the old RT geometry, however due to the deferred deletion nature of RHI resources
-				// they will not be released until the end of the frame. We may get OOM in the middle of batched updates if not flushing.
-				// This memory size is an estimation based on vertex & index buffer size. In reality the flush happens at 2-3x of the number specified.
-				RayTracingGeometryMemoryPendingRelease += MemoryEstimation;
-
-				// Release the old data (make sure it's not pending build anymore either)
-				RemoveRayTracingGeometryUpdate(&RayTracingGeometry);
-				RayTracingGeometry.ReleaseRHI();
-			}
-
-			Initializer.SourceGeometry = LODModel.SourceRayTracingGeometry.RayTracingGeometryRHI;
-
-			// Update the new init data
-			RayTracingGeometry.SetInitializer(Initializer);
-
-			// Get the scratch sizes used for build & update
-			SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize = RHICalcRayTracingGeometrySize(Initializer);
-
-			// Only create RHI object but enqueue actual BLAS creation so they can be accumulated
-			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
-		}
-		else if (!bAnySegmentUsesWorldPositionOffset)
-		{
-			// Refit BLAS with new vertex buffer data
-			FGPUSkinCache::GetRayTracingSegmentVertexBuffers(*SkinCacheEntry, RayTracingGeometry.Initializer.Segments);
 		}
 
-		// If we are not using world position offset in material, handle BLAS build/refit here
-		if (!bAnySegmentUsesWorldPositionOffset)
-		{
-			EAccelerationStructureBuildMode BuildMode = bRequireRecreatingRayTracingGeometry ? EAccelerationStructureBuildMode::Build : EAccelerationStructureBuildMode::Update;
-			AddRayTracingGeometryToUpdate(&RayTracingGeometry, SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize, BuildMode);
-			RayTracingGeometry.bRequiresBuild = false;
-		}
-		else
-		{
-			// Otherwise, we will run the dynamic ray tracing geometry path, i.e. runnning VSinCS and build/refit geometry there, so do nothing here
-		}
+ 		TArray<FBufferRHIRef> VertexBufffers;
+ 		SkinCacheEntry->GetRayTracingSegmentVertexBuffers(VertexBufffers);
+
+ 		SkinCacheEntry->GPUSkin->UpdateRayTracingGeometry(LODModel, VertexBufffers);
 	}
 }
+
 #endif
 
 void FGPUSkinCache::BeginBatchDispatch(FRHICommandListImmediate& RHICmdList)
@@ -1907,7 +1628,7 @@ void FGPUSkinCache::EndBatchDispatch(FRHICommandListImmediate& RHICmdList)
 
 			SkinCacheEntriesProcessed.Add(SkinCacheEntry);
 
-			ProcessRayTracingGeometryToUpdate(RHICmdList, SkinCacheEntry, LODModel, DispatchItem.bRequireRecreatingRayTracingGeometry, DispatchItem.bAnySegmentUsesWorldPositionOffset);
+			ProcessRayTracingGeometryToUpdate(RHICmdList, SkinCacheEntry, LODModel);
 		}
 	}
 #endif
@@ -2223,9 +1944,6 @@ void FGPUSkinCache::FRWBuffersAllocation::RemoveAllFromTransitionArray(TSet<FSki
 void FGPUSkinCache::ReleaseSkinCacheEntry(FGPUSkinCacheEntry* SkinCacheEntry)
 {
 	FGPUSkinCache* SkinCache = SkinCacheEntry->SkinCache;
-#if RHI_RAYTRACING
-	SkinCache->RemoveRayTracingGeometryUpdate(&SkinCacheEntry->GPUSkin->RayTracingGeometry);
-#endif // RHI_RAYTRACING
 
 	for (FGPUSkinCacheEntry::FSectionDispatchData& SectionData : SkinCacheEntry->GetDispatchData())
 	{
@@ -2250,13 +1968,6 @@ void FGPUSkinCache::ReleaseSkinCacheEntry(FGPUSkinCacheEntry* SkinCacheEntry)
 	SkinCache->Entries.RemoveSingleSwap(SkinCacheEntry, false);
 	delete SkinCacheEntry;
 }
-
-#if RHI_RAYTRACING
-void FGPUSkinCache::GetRayTracingSegmentVertexBuffers(const FGPUSkinCacheEntry& SkinCacheEntry, TArrayView<FRayTracingGeometrySegment> OutSegments)
-{
-	SkinCacheEntry.GetRayTracingSegmentVertexBuffers(OutSegments);
-}
-#endif // RHI_RAYTRACING
 
 bool FGPUSkinCache::IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Section)
 {

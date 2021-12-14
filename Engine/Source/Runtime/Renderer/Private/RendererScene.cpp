@@ -63,6 +63,7 @@
 
 #if RHI_RAYTRACING
 #include "RayTracingDynamicGeometryCollection.h"
+#include "RayTracingSkinnedGeometry.h"
 #include "RayTracing/RayTracingScene.h"
 #endif
 #include "RHIGPUReadback.h"
@@ -1064,6 +1065,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	ReadOnlyCVARCache(FReadOnlyCVARCache::Get())
 #if RHI_RAYTRACING
 ,	RayTracingDynamicGeometryCollection(nullptr)
+,	RayTracingSkinnedGeometryUpdateQueue(nullptr)
 #endif
 ,	NumVisibleLights_GameThread(0)
 ,	NumEnabledSkylights_GameThread(0)
@@ -1106,6 +1108,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	if (IsRayTracingEnabled())
 	{
 		RayTracingDynamicGeometryCollection = new FRayTracingDynamicGeometryCollection();
+		RayTracingSkinnedGeometryUpdateQueue = new FRayTracingSkinnedGeometryUpdateQueue();
 	}
 #endif
 
@@ -1166,6 +1169,8 @@ FScene::~FScene()
 #if RHI_RAYTRACING
 	delete RayTracingDynamicGeometryCollection;
 	RayTracingDynamicGeometryCollection = nullptr;
+	delete RayTracingSkinnedGeometryUpdateQueue;
+	RayTracingSkinnedGeometryUpdateQueue = nullptr;
 #endif // RHI_RAYTRACING
 
 	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("Leaking %d FPrimitiveSceneInfo instances."), RemovedPrimitiveSceneInfos.Num()); // Ensure UpdateAllPrimitiveSceneInfos() is called before destruction.

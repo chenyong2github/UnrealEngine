@@ -182,7 +182,8 @@ void FSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBui
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
 	const int32 NumVertices = LodRenderData->GetNumVertices();
 
-	// We will extract buffers from RDG (could be better to do this after RDG execute?)
+	// We will extract buffers from RDG.
+	// It could be better to for memory to use QueueBufferExtraction instead of ConvertToExternalBuffer but that will require an extra hook after graph execution.
 	TRefCountPtr<FRDGPooledBuffer> PositionBufferExternal;
 	TRefCountPtr<FRDGPooledBuffer> TangentBufferExternal;
 	TRefCountPtr<FRDGPooledBuffer> ColorBufferExternal;
@@ -232,6 +233,12 @@ void FSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBui
 	// Set to vertex factories
 	const int32 NumSections = LodRenderData->RenderSections.Num();
 	FSkeletalMeshDeformerHelpers::SetVertexFactoryBufferOverrides(SkeletalMeshObject, LodIndex, FSkeletalMeshDeformerHelpers::EOverrideType::Partial, PositionBufferExternal, TangentBufferExternal, ColorBufferExternal);
+
+#if RHI_RAYTRACING
+	// This can create RHI resources but it queues and doesn't actually build ray tracing structures. Not sure if we need to put inside a render graph pass?
+	// Also note that for ray tracing we may want to support a second graph execution if ray tracing LOD needs to be different to render LOD.
+	FSkeletalMeshDeformerHelpers::UpdateRayTracingGeometry(SkeletalMeshObject, LodIndex, PositionBufferExternal);
+#endif
 }
 
 void FSkinnedMeshWriteDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
