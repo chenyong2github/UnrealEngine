@@ -10,7 +10,6 @@
 	"DocsURL": "https://help.quixel.com/hc/en-us/sections/360005846137-Quixel-Bridge-for-Unreal-Engine-5",
 	"MarketplaceURL": "",
 	"SupportURL": "support@quixel.com",
-	"EngineVersion": "5.0.0",
 	"CanContainContent": true,
 	"EnabledByDefault": true,
 	"SupportedTargetPlatforms": [
