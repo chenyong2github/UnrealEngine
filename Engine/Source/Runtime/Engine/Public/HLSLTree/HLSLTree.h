@@ -35,8 +35,8 @@ class FNode;
 class FScope;
 class FExpressionLocalPHI;
 class FRequestedType;
-struct FEmitShaderValue;
-struct FEmitShaderResult;
+struct FEmitShaderCode;
+struct FEmitShaderValues;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
 
@@ -82,13 +82,65 @@ enum class ECastFlags : uint32
 };
 ENUM_CLASS_FLAGS(ECastFlags);
 
-using FEmitShaderValueDependencies = TArray<FEmitShaderValue*, TInlineAllocator<8>>;
-
-struct FEmitShaderValueContext
+struct FEmitShaderCode
 {
-	FEmitShaderValueDependencies Dependencies;
-	FEmitShaderValueDependencies DerivativeDependencies;
+	FEmitShaderCode(FScope* InScope, const Shader::FType& InType) : Scope(InScope), Type(InType) {}
+
+	inline bool IsInline() const { return Value == nullptr; }
+
+	FScope* Scope = nullptr;
+	const TCHAR* Reference = nullptr;
+	const TCHAR* Value = nullptr;
+	Shader::FType Type;
+	TArrayView<FEmitShaderCode*> Dependencies;
+	FSHAHash Hash;
 };
+
+struct FEmitShaderValues
+{
+	FEmitShaderCode* Code = nullptr;
+	FEmitShaderCode* CodeDdx = nullptr;
+	FEmitShaderCode* CodeDdy = nullptr;
+
+	bool HasDerivatives() const { return (bool)CodeDdx && (bool)CodeDdy; }
+};
+
+using FEmitShaderValueDependencies = TArray<FEmitShaderCode*, TInlineAllocator<8>>;
+
+enum class EFormatArgType : uint8
+{
+	Void,
+	ShaderValue,
+	String,
+	Int,
+};
+
+struct FFormatArgVariant
+{
+	FFormatArgVariant() {}
+	FFormatArgVariant(FEmitShaderCode* InValue) : Type(EFormatArgType::ShaderValue), ShaderValue(InValue) { check(InValue); }
+	FFormatArgVariant(const TCHAR* InValue) : Type(EFormatArgType::String), String(InValue) { check(InValue); }
+	FFormatArgVariant(int32 InValue) : Type(EFormatArgType::Int), Int(InValue) {}
+
+	EFormatArgType Type = EFormatArgType::Void;
+	union
+	{
+		FEmitShaderCode* ShaderValue;
+		const TCHAR* String;
+		int32 Int;
+	};
+};
+
+using FFormatArgList = TArray<FFormatArgVariant, TInlineAllocator<8>>;
+
+inline void BuildFormatArgList(FFormatArgList&) {}
+
+template<typename Type, typename... Types>
+inline void BuildFormatArgList(FFormatArgList& OutList, Type Arg, Types... Args)
+{
+	OutList.Add(Arg);
+	BuildFormatArgList(OutList, Forward<Types>(Args)...);
+}
 
 /** Tracks shared state while emitting HLSL code */
 class FEmitContext
@@ -102,16 +154,45 @@ public:
 	/** Get a unique local variable name */
 	const TCHAR* AcquireLocalDeclarationCode();
 
-	FEmitShaderValue* AcquireShader(FScope* Scope, const Shader::FType& Type, FStringView Code, bool bInline, TArrayView<FEmitShaderValue*> Dependencies);
-	FEmitShaderValue* AcquirePreshaderOrConstant(const FRequestedType& RequestedType, FScope* Scope, FExpression* Expression);
-	FEmitShaderValue* AcquireConstantZero(FScope* Scope, const Shader::FType& Type);
+	FEmitShaderCode* EmitCodeInternal(const Shader::FType& Type, FStringView Code, bool bInline, TArrayView<FEmitShaderCode*> Dependencies);
+	FEmitShaderCode* EmitFormatCodeInternal(const Shader::FType& Type, const TCHAR* Format, bool bInline, const FFormatArgList& ArgList);
 
-	FEmitShaderValue* CastShaderValue(FNode* Node, FScope* Scope, FEmitShaderValue* ShaderValue, const Shader::FType& DestType);
+	template<typename FormatType, typename... Types>
+	FEmitShaderCode* EmitCode(const Shader::FType& Type, const FormatType& Format, Types... Args)
+	{
+		FFormatArgList ArgList;
+		BuildFormatArgList(ArgList, Forward<Types>(Args)...);
+		return EmitFormatCodeInternal(Type, Format, false, ArgList);
+	}
+
+	template<typename FormatType, typename... Types>
+	FEmitShaderCode* EmitInlineCode(const Shader::FType& Type, const FormatType& Format, Types... Args)
+	{
+		FFormatArgList ArgList;
+		BuildFormatArgList(ArgList, Forward<Types>(Args)...);
+		return EmitFormatCodeInternal(Type, Format, true, ArgList);
+	}
+
+	
+	FEmitShaderCode* EmitPreshaderOrConstant(const FRequestedType& RequestedType, FExpression* Expression);
+	FEmitShaderCode* EmitConstantZero(const Shader::FType& Type);
+
+	FEmitShaderCode* EmitCast(FEmitShaderCode* ShaderValue, const Shader::FType& DestType);
+	FEmitShaderValues EmitCast(FEmitShaderValues ShaderValue, const Shader::FType& DestType);
+
+	FEmitShaderCode* EmitBinaryOp(EBinaryOp Op, FEmitShaderCode* Lhs, FEmitShaderCode* Rhs);
+	FEmitShaderValues EmitBinaryOp(EBinaryOp Op, FEmitShaderValues Lhs, FEmitShaderValues Rhs, EExpressionDerivative Derivative);
+
+	template<typename T> inline T EmitAdd(T Lhs, T Rhs) { return EmitBinaryOp(EBinaryOp::Add, Lhs, Rhs); }
+	template<typename T> inline T EmitSub(T Lhs, T Rhs) { return EmitBinaryOp(EBinaryOp::Sub, Lhs, Rhs); }
+	template<typename T> inline T EmitMul(T Lhs, T Rhs) { return EmitBinaryOp(EBinaryOp::Mul, Lhs, Rhs); }
+	template<typename T> inline T EmitDiv(T Lhs, T Rhs) { return EmitBinaryOp(EBinaryOp::Div, Lhs, Rhs); }
 
 	FMemStackBase* Allocator = nullptr;
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
-	TMap<FSHAHash, FEmitShaderValue*> ShaderValueMap;
-	TMap<FSHAHash, FEmitShaderValue*> PreshaderValueMap;
+	TArray<FScope*, TInlineAllocator<16>> ScopeStack;
+	TMap<FSHAHash, FEmitShaderCode*> ShaderValueMap;
+	TMap<FSHAHash, FEmitShaderCode*> PreshaderValueMap;
 	TArray<const FExpressionLocalPHI*> LocalPHIs;
 	FErrors Errors;
 
@@ -120,8 +201,6 @@ public:
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
-	TArray<FScope*, TInlineAllocator<16>> ScopeStack;
-	TArray<FEmitShaderValueContext, TInlineAllocator<16>> ShaderValueStack;
 	uint32 UniformPreshaderOffset = 0u;
 	bool bReadMaterialNormal = false;
 
@@ -298,6 +377,7 @@ public:
 	FPreparedData GetComponentData(int32 Index) const;
 
 	inline EExpressionEvaluation GetEvaluation(const FRequestedType& RequestedType) const { return GetData(RequestedType).Evaluation; }
+	inline EExpressionDerivative GetDerivative(const FRequestedType& RequestedType) const { return GetData(RequestedType).Derivative; }
 
 	void SetComponentData(int32 Index, const FPreparedData& Data);
 	void MergeComponentData(int32 Index, EComponentRequest Request, const FPreparedData& Data);
@@ -311,21 +391,6 @@ public:
 };
 
 FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& Rhs);
-
-struct FEmitShaderResult
-{
-	FEmitShaderResult(FStringBuilderBase& InCode, FStringBuilderBase& InCodeDdx, FStringBuilderBase& InCodeDdy)
-		: Code(InCode)
-		, CodeDdx(InCodeDdx)
-		, CodeDdy(InCodeDdy)
-	{}
-
-	FStringBuilderBase& Code;
-	FStringBuilderBase& CodeDdx;
-	FStringBuilderBase& CodeDdy;
-	Shader::FType Type;
-	bool bInline = false;
-};
 
 class FPrepareValueResult
 {
@@ -351,29 +416,6 @@ private:
 	friend class FExpression;
 };
 
-struct FEmitShaderValue
-{
-	FEmitShaderValue(FScope* InScope, const Shader::FType& InType) : Scope(InScope), Type(InType) {}
-
-	inline bool IsInline() const { return Value == nullptr; }
-
-	FScope* Scope = nullptr;
-	const TCHAR* Reference = nullptr;
-	const TCHAR* Value = nullptr;
-	Shader::FType Type;
-	TArrayView<FEmitShaderValue*> Dependencies;
-	FSHAHash Hash;
-};
-
-struct FShaderValue
-{
-	const TCHAR* Code = nullptr;
-	const TCHAR* CodeDdx = nullptr;
-	const TCHAR* CodeDdy = nullptr;
-	Shader::FType Type;
-	bool bHasDerivatives = false;
-};
-
 /**
  * Represents an HLSL expression.  This is a piece of code that evaluates to a value, but has no side effects.
  * Unlike statements, expressions are not expected to execute in any particular order.  They may be cached (or not) in generated code, without the underlying implementation needing to care.
@@ -387,21 +429,22 @@ public:
 	FRequestedType GetRequestedType() const { return PrepareValueResult.PreparedType.GetRequestedType(); }
 	Shader::FType GetType() const { return PrepareValueResult.PreparedType.GetType(); }
 	EExpressionEvaluation GetEvaluation(const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetEvaluation(RequestedType); }
+	EExpressionDerivative GetDerivative(const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetDerivative(RequestedType); }
 
 	virtual void Reset() override;
 
 	friend const FPreparedType& PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
 
-	FShaderValue GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType, const Shader::FType& ResultType);
+	FEmitShaderValues GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType, const Shader::FType& ResultType);
 	void GetValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader);
 	Shader::FValue GetValueConstant(FEmitContext& Context, const FRequestedType& RequestedType);
 
-	FShaderValue GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType);
-	FShaderValue GetValueShader(FEmitContext& Context);
+	FEmitShaderValues GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType);
+	FEmitShaderValues GetValueShader(FEmitContext& Context);
 
 protected:
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderResult& OutShader) const;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const;
 
 private:
@@ -422,7 +465,7 @@ class FExpressionLocalPHI final : public FExpression
 {
 public:
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderResult& OutShader) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
 
 	FName LocalName;
 	FScope* Scopes[MaxNumPreviousScopes];

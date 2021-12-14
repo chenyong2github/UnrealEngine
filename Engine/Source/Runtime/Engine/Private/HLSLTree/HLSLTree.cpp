@@ -112,135 +112,9 @@ const TCHAR* FEmitContext::AcquireLocalDeclarationCode()
 	return MemStack::AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
 }
 
-FEmitShaderValue* FEmitContext::CastShaderValue(FNode* Node, FScope* Scope, FEmitShaderValue* ShaderValue, const Shader::FType& DestType)
-{
-	if (ShaderValue->Type == DestType)
-	{
-		return ShaderValue;
-	}
-
-	const Shader::FValueTypeDescription SourceTypeDesc = Shader::GetValueTypeDescription(ShaderValue->Type);
-	const Shader::FValueTypeDescription DestTypeDesc = Shader::GetValueTypeDescription(DestType);
-
-	TStringBuilder<1024> FormattedCode;
-	Shader::FType IntermediateType = DestType;
-
-	if (SourceTypeDesc.NumComponents > 0 && DestTypeDesc.NumComponents > 0)
-	{
-		const bool bIsSourceLWC = SourceTypeDesc.ComponentType == Shader::EValueComponentType::Double;
-		const bool bIsLWC = DestTypeDesc.ComponentType == Shader::EValueComponentType::Double;
-
-		if (bIsLWC != bIsSourceLWC)
-		{
-			if (bIsLWC)
-			{
-				// float->LWC
-				ShaderValue = CastShaderValue(Node, Scope, ShaderValue, Shader::MakeValueType(Shader::EValueComponentType::Float, DestTypeDesc.NumComponents));
-				FormattedCode.Appendf(TEXT("LWCPromote(%s)"), ShaderValue->Reference);
-			}
-			else
-			{
-				//LWC->float
-				FormattedCode.Appendf(TEXT("LWCToFloat(%s)"), ShaderValue->Reference);
-				IntermediateType = Shader::MakeValueType(Shader::EValueComponentType::Float, SourceTypeDesc.NumComponents);
-			}
-		}
-		else
-		{
-			const bool bReplicateScalar = (SourceTypeDesc.NumComponents == 1);
-
-			int32 NumComponents = 0;
-			bool bNeedClosingParen = false;
-			if (bIsLWC)
-			{
-				FormattedCode.Append(TEXT("MakeLWCVector("));
-				bNeedClosingParen = true;
-			}
-			else
-			{
-				if (SourceTypeDesc.NumComponents == 1 || SourceTypeDesc.NumComponents == DestTypeDesc.NumComponents)
-				{
-					NumComponents = DestTypeDesc.NumComponents;
-					// Cast the scalar to the correct type, HLSL language will replicate the scalar if needed when performing this cast
-					FormattedCode.Appendf(TEXT("((%s)%s)"), DestTypeDesc.Name, ShaderValue->Reference);
-				}
-				else
-				{
-					NumComponents = FMath::Min(SourceTypeDesc.NumComponents, DestTypeDesc.NumComponents);
-					if (NumComponents < DestTypeDesc.NumComponents)
-					{
-						FormattedCode.Appendf(TEXT("%s("), DestTypeDesc.Name);
-						bNeedClosingParen = true;
-					}
-					if (NumComponents == SourceTypeDesc.NumComponents && SourceTypeDesc.ComponentType == DestTypeDesc.ComponentType)
-					{
-						// If we're taking all the components from the source, can avoid adding a swizzle
-						FormattedCode.Append(ShaderValue->Reference);
-					}
-					else
-					{
-						// Use a cast to truncate the source to the correct number of types
-						const Shader::EValueType LocalType = Shader::MakeValueType(DestTypeDesc.ComponentType, NumComponents);
-						FormattedCode.Appendf(TEXT("((%s)%s)"), Shader::GetValueTypeDescription(LocalType).Name, ShaderValue->Reference);
-					}
-				}
-			}
-
-			if (bNeedClosingParen)
-			{
-				const Shader::FValue ZeroValue(DestTypeDesc.ComponentType, 1);
-				for (int32 ComponentIndex = NumComponents; ComponentIndex < DestTypeDesc.NumComponents; ++ComponentIndex)
-				{
-					if (ComponentIndex > 0u)
-					{
-						FormattedCode.Append(TEXT(","));
-					}
-					if (bIsLWC)
-					{
-						if (!bReplicateScalar && ComponentIndex >= SourceTypeDesc.NumComponents)
-						{
-							FormattedCode.Append(TEXT("LWCPromote(0.0f)"));
-						}
-						else
-						{
-							FormattedCode.Appendf(TEXT("LWCGetComponent(%s, %d)"), ShaderValue->Reference, bReplicateScalar ? 0 : ComponentIndex);
-						}
-					}
-					else
-					{
-						// Non-LWC case should only be zero-filling here, other cases should have already been handled
-						check(!bReplicateScalar);
-						check(ComponentIndex >= SourceTypeDesc.NumComponents);
-						ZeroValue.ToString(Shader::EValueStringFormat::HLSL, FormattedCode);
-					}
-				}
-				NumComponents = DestTypeDesc.NumComponents;
-				FormattedCode.Append(TEXT(")"));
-			}
-
-			check(NumComponents == DestTypeDesc.NumComponents);
-		}
-	}
-	else
-	{
-		Errors.AddErrorf(Node, TEXT("Cannot cast between non-numeric types %s to %s."), SourceTypeDesc.Name, DestTypeDesc.Name);
-		FormattedCode.Appendf(TEXT("((%s)0)"), DestType.GetName());
-	}
-
-	check(IntermediateType != ShaderValue->Type);
-	const bool bInline = true;
-	ShaderValue = AcquireShader(Scope, IntermediateType, FormattedCode.ToView(), bInline, MakeArrayView(&ShaderValue, 1));
-	if (ShaderValue->Type != DestType)
-	{
-		// May need to cast through multiple intermediate types to reach our destination type
-		ShaderValue = CastShaderValue(Node, Scope, ShaderValue, DestType);
-	}
-	return ShaderValue;
-}
-
 namespace Private
 {
-void MoveToScope(FEmitShaderValue* ShaderValue, FScope* Scope)
+void MoveToScope(FEmitShaderCode* ShaderValue, FScope* Scope)
 {
 	if (ShaderValue->Scope != Scope)
 	{
@@ -248,30 +122,77 @@ void MoveToScope(FEmitShaderValue* ShaderValue, FScope* Scope)
 		check(NewScope);
 
 		ShaderValue->Scope = NewScope;
-		for (FEmitShaderValue* Dependency : ShaderValue->Dependencies)
+		for (FEmitShaderCode* Dependency : ShaderValue->Dependencies)
 		{
 			MoveToScope(Dependency, NewScope);
 		}
 	}
 }
+
+void FormatArg_ShaderValue(FEmitShaderCode* ShaderValue, FEmitShaderValueDependencies& OutDependencies, FStringBuilderBase& OutCode)
+{
+	OutDependencies.Add(ShaderValue);
+	OutCode.Append(ShaderValue->Reference);
 }
 
-FEmitShaderValue* FEmitContext::AcquireShader(FScope* Scope, const Shader::FType& Type, FStringView Code, bool bInline, TArrayView<FEmitShaderValue*> Dependencies)
+} // namespace Private
+
+FEmitShaderCode* FEmitContext::EmitFormatCodeInternal(const Shader::FType& Type, const TCHAR* Format, bool bInline, const FFormatArgList& ArgList)
 {
-	FEmitShaderValue* ShaderValue = nullptr;
+	check(!Type.IsVoid());
+
+	TStringBuilder<1024> FormattedCode;
+	FEmitShaderValueDependencies Dependencies;
+	int32 ArgIndex = 0;
+	while (true)
+	{
+		const TCHAR Char = *Format++;
+		if (Char == 0)
+		{
+			break;
+		}
+		else if (Char == TEXT('%'))
+		{
+			const FFormatArgVariant& Arg = ArgList[ArgIndex++];
+			switch (Arg.Type)
+			{
+			case EFormatArgType::ShaderValue: Private::FormatArg_ShaderValue(Arg.ShaderValue, Dependencies, FormattedCode); break;
+			case EFormatArgType::String: FormattedCode.Append(Arg.String); break;
+			case EFormatArgType::Int: FormattedCode.Appendf(TEXT("%d"), Arg.Int); break;
+			default:
+				checkNoEntry();
+				break;
+			}
+		}
+		else
+		{
+			FormattedCode.Append(Char);
+		}
+	}
+	checkf(ArgIndex == ArgList.Num(), TEXT("%d args were provided, but %d were used"), ArgList.Num(), ArgIndex);
+
+	return EmitCodeInternal(Type, FormattedCode.ToView(), bInline, Dependencies);
+}
+
+FEmitShaderCode* FEmitContext::EmitCodeInternal(const Shader::FType& Type, FStringView Code, bool bInline, TArrayView<FEmitShaderCode*> Dependencies)
+{
+	FScope* CurrentScope = ScopeStack.Last();
+	check(IsScopeLive(CurrentScope));
+
+	FEmitShaderCode* ShaderValue = nullptr;
 
 	// Check to see if we've already generated code for an equivalent expression
 	const FSHAHash ShaderHash = HashString(Code);
-	FEmitShaderValue** const PrevShaderValue = ShaderValueMap.Find(ShaderHash);
+	FEmitShaderCode** const PrevShaderValue = ShaderValueMap.Find(ShaderHash);
 	if (PrevShaderValue)
 	{
 		ShaderValue = *PrevShaderValue;
 		check(ShaderValue->Type == Type);
-		Private::MoveToScope(ShaderValue, Scope);
+		Private::MoveToScope(ShaderValue, CurrentScope);
 	}
 	else
 	{
-		ShaderValue = new(*Allocator) FEmitShaderValue(Scope, Type);
+		ShaderValue = new(*Allocator) FEmitShaderCode(CurrentScope, Type);
 		ShaderValue->Hash = ShaderHash;
 		ShaderValue->Dependencies = MemStack::AllocateArrayView(*Allocator, Dependencies);
 		if (bInline)
@@ -349,7 +270,7 @@ void WriteMaterialUniformAccess(Shader::EValueComponentType ComponentType, uint3
 }
 } // namespace Private
 
-FEmitShaderValue* FEmitContext::AcquirePreshaderOrConstant(const FRequestedType& RequestedType, FScope* Scope, FExpression* Expression)
+FEmitShaderCode* FEmitContext::EmitPreshaderOrConstant(const FRequestedType& RequestedType, FExpression* Expression)
 {
 	Shader::FPreshaderData LocalPreshader;
 	Expression->EmitValuePreshader(*this, RequestedType, LocalPreshader);
@@ -360,12 +281,15 @@ FEmitShaderValue* FEmitContext::AcquirePreshaderOrConstant(const FRequestedType&
 	Hasher.Update((uint8*)&Type, sizeof(Type));
 	LocalPreshader.AppendHash(Hasher);
 	const FSHAHash Hash = Hasher.Finalize();
-	FEmitShaderValue* const* PrevShaderValue = PreshaderValueMap.Find(Hash);
+	FEmitShaderCode* const* PrevShaderValue = PreshaderValueMap.Find(Hash);
 	if (PrevShaderValue)
 	{
-		FEmitShaderValue* ShaderValue = *PrevShaderValue;
+		FScope* CurrentScope = ScopeStack.Last();
+		check(IsScopeLive(CurrentScope));
+
+		FEmitShaderCode* ShaderValue = *PrevShaderValue;
 		check(ShaderValue->Type == Type);
-		Private::MoveToScope(ShaderValue, Scope);
+		Private::MoveToScope(ShaderValue, CurrentScope);
 		return ShaderValue;
 	}
 
@@ -548,27 +472,25 @@ FEmitShaderValue* FEmitContext::AcquirePreshaderOrConstant(const FRequestedType&
 	}
 
 	const bool bInline = !Type.IsStruct(); // struct declarations can't be inline, due to HLSL syntax
-	FEmitShaderValue* ShaderValue = AcquireShader(Scope, Type, FormattedCode.ToView(), bInline, TArrayView<FEmitShaderValue*>());
+	FEmitShaderCode* ShaderValue = EmitCodeInternal(Type, FormattedCode.ToView(), bInline, TArrayView<FEmitShaderCode*>());
 	PreshaderValueMap.Add(Hash, ShaderValue);
 
 	return ShaderValue;
 }
 
-FEmitShaderValue* FEmitContext::AcquireConstantZero(FScope* Scope, const Shader::FType& Type)
+FEmitShaderCode* FEmitContext::EmitConstantZero(const Shader::FType& Type)
 {
-	TStringBuilder<256> FormattedCode;
-	FormattedCode.Appendf(TEXT("((%s)0)"), Type.GetName());
-	return AcquireShader(Scope, Type, FormattedCode.ToView(), true, TArrayView<FEmitShaderValue*>());
+	return EmitInlineCode(Type, TEXT("((%)0)"), Type.GetName());
 }
 
 namespace Private
 {
-void EmitShaderValue(FEmitContext& Context, FEmitShaderValue* ShaderValue)
+void EmitShaderValue(FEmitContext& Context, FEmitShaderCode* ShaderValue)
 {
 	if (ShaderValue->Scope)
 	{
 		// Emit dependencies first
-		for (FEmitShaderValue* Dependency : ShaderValue->Dependencies)
+		for (FEmitShaderCode* Dependency : ShaderValue->Dependencies)
 		{
 			EmitShaderValue(Context, Dependency);
 		}
@@ -588,8 +510,6 @@ void EmitShaderValue(FEmitContext& Context, FEmitShaderValue* ShaderValue)
 void FEmitContext::Finalize()
 {
 	check(ScopeStack.Num() == 0);
-	check(ShaderValueStack.Num() == 0);
-
 	for (const auto& It : ShaderValueMap)
 	{
 		Private::EmitShaderValue(*this, It.Value);
@@ -727,7 +647,7 @@ void FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 	}
 }
 
-void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderResult& OutShader) const
+void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const
 {
 	int32 LocalPHIIndex = Context.LocalPHIs.Find(this);
 	if (LocalPHIIndex == INDEX_NONE)
@@ -758,7 +678,7 @@ void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, const FRequeste
 			check(IsScopeLive(ValueScope));
 
 			Context.ScopeStack.Add(ValueScope);
-			const FShaderValue ShaderValue = Values[i]->GetValueShader(Context, LocalType);
+			const FEmitShaderValues ShaderValue = Values[i]->GetValueShader(Context, LocalType);
 			Context.ScopeStack.Pop();
 
 			if (ValueScope == DeclarationScope)
@@ -766,17 +686,17 @@ void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, const FRequeste
 				ValueScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%d = %s;"),
 					LocalType.GetName(),
 					LocalPHIIndex,
-					ShaderValue.Code);
+					ShaderValue.Code->Reference);
 				if (Derivative == EExpressionDerivative::Valid)
 				{
 					ValueScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%dDdx = %s;"),
 						LocalDerivativeType.GetName(),
 						LocalPHIIndex,
-						ShaderValue.CodeDdx);
+						ShaderValue.CodeDdx->Reference);
 					ValueScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%dDdy = %s;"),
 						LocalDerivativeType.GetName(),
 						LocalPHIIndex,
-						ShaderValue.CodeDdy);
+						ShaderValue.CodeDdy->Reference);
 				}
 
 				bNeedToAddDeclaration = false;
@@ -785,15 +705,15 @@ void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, const FRequeste
 			{
 				ValueScope->EmitStatementf(Context, TEXT("LocalPHI%d = %s;"),
 					LocalPHIIndex,
-					ShaderValue.Code);
+					ShaderValue.Code->Reference);
 				if (Derivative == EExpressionDerivative::Valid)
 				{
 					ValueScope->EmitStatementf(Context, TEXT("LocalPHI%dDdx = %s;"),
 						LocalPHIIndex,
-						ShaderValue.CodeDdx);
+						ShaderValue.CodeDdx->Reference);
 					ValueScope->EmitStatementf(Context, TEXT("LocalPHI%dDdy = %s;"),
 						LocalPHIIndex,
-						ShaderValue.CodeDdy);
+						ShaderValue.CodeDdy->Reference);
 				}
 			}
 		}
@@ -816,11 +736,14 @@ void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, const FRequeste
 		}
 	}
 
-	OutShader.Code.Appendf(TEXT("LocalPHI%d"), LocalPHIIndex);
-	OutShader.CodeDdx.Appendf(TEXT("LocalPHI%dDdx"), LocalPHIIndex);
-	OutShader.CodeDdy.Appendf(TEXT("LocalPHI%dDdy"), LocalPHIIndex);
-	OutShader.Type = GetType();
-	OutShader.bInline = true;
+	const Shader::FType LocalType = GetType();
+	OutResult.Code = Context.EmitInlineCode(LocalType, TEXT("LocalPHI%"), LocalPHIIndex);
+	if (GetDerivative(RequestedType) == EExpressionDerivative::Valid)
+	{
+		const Shader::FType LocalDerivativeType = LocalType.GetDerivativeType();
+		OutResult.CodeDdx = Context.EmitInlineCode(LocalDerivativeType, TEXT("LocalPHI%Ddx"), LocalPHIIndex);
+		OutResult.CodeDdy = Context.EmitInlineCode(LocalDerivativeType, TEXT("LocalPHI%Ddy"), LocalPHIIndex);
+	}
 }
 
 void FStatement::Reset()
@@ -1324,7 +1247,7 @@ void FPrepareValueResult::SetForwardValue(FEmitContext& Context, const FRequeste
 	}
 }
 
-void FExpression::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderResult& OutShader) const
+void FExpression::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const
 {
 	check(false);
 }
@@ -1334,7 +1257,7 @@ void FExpression::EmitValuePreshader(FEmitContext& Context, const FRequestedType
 	check(false);
 }
 
-FShaderValue FExpression::GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType, const Shader::FType& ResultType)
+FEmitShaderValues FExpression::GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType, const Shader::FType& ResultType)
 {
 	if (PrepareValueResult.ForwardValue)
 	{
@@ -1344,108 +1267,46 @@ FShaderValue FExpression::GetValueShader(FEmitContext& Context, const FRequested
 	const FPreparedData Data = PrepareValueResult.PreparedType.GetData(RequestedType);
 	check(Data.IsValid());
 
-	FScope* CurrentScope = Context.ScopeStack.Last();
-	check(IsScopeLive(CurrentScope));
-
-	const EExpressionDerivative Derivative = Data.Derivative;
-	FEmitShaderValue* ShaderValue = nullptr;
-	FEmitShaderValue* ShaderValueDdx = nullptr;
-	FEmitShaderValue* ShaderValueDdy = nullptr;
+	FEmitShaderValues Result;
 	if (Data.Evaluation == EExpressionEvaluation::Constant || Data.Evaluation == EExpressionEvaluation::Preshader)
 	{
-		ShaderValue = Context.AcquirePreshaderOrConstant(RequestedType, CurrentScope, this);
-		check(Derivative != EExpressionDerivative::Valid); // If a constant has a valid derivative, it should be 'Zero'
+		Result.Code = Context.EmitPreshaderOrConstant(RequestedType, this);
+		check(Data.Derivative != EExpressionDerivative::Valid); // If a constant has a valid derivative, it should be 'Zero'
+		check(!Result.HasDerivatives());
 	}
 	else
 	{
 		check(Data.Evaluation == EExpressionEvaluation::Shader);
-
-		TStringBuilder<512> FormattedCode;
-		TStringBuilder<512> FormattedCodeDdx;
-		TStringBuilder<512> FormattedCodeDdy;
-		FEmitShaderResult ShaderResult(FormattedCode, FormattedCodeDdx, FormattedCodeDdy);
-		FEmitShaderValueDependencies Dependencies;
+		EmitValueShader(Context, RequestedType, Result);
+		if (Result.HasDerivatives())
 		{
-			FEmitShaderValueContext& ValueContext = Context.ShaderValueStack.AddDefaulted_GetRef();
-
-			EmitValueShader(Context, RequestedType, ShaderResult);
-			check(!ShaderResult.Type.IsVoid());
-
-			Dependencies = MoveTemp(ValueContext.Dependencies);
-			if (Derivative == EExpressionDerivative::Valid)
-			{
-				Dependencies.Append(MoveTemp(ValueContext.DerivativeDependencies));
-			}
-			Context.ShaderValueStack.Pop(false);
+			checkf(Data.Derivative == EExpressionDerivative::Valid, TEXT("Expression emitted derivatives, but didn't request them during PrepareValue"));
 		}
-		
-		ShaderValue = Context.AcquireShader(CurrentScope, ShaderResult.Type, ShaderResult.Code, ShaderResult.bInline, Dependencies);
-		if (Derivative == EExpressionDerivative::Valid)
+		else
 		{
-			check(ShaderResult.CodeDdx.Len() > 0);
-			check(ShaderResult.CodeDdy.Len() > 0);
-			const Shader::FType DerivativeResultType = ShaderResult.Type.GetDerivativeType();
-			check(!DerivativeResultType.IsVoid());
-			ShaderValueDdx = Context.AcquireShader(CurrentScope, DerivativeResultType, ShaderResult.CodeDdx, ShaderResult.bInline, Dependencies);
-			ShaderValueDdy = Context.AcquireShader(CurrentScope, DerivativeResultType, ShaderResult.CodeDdy, ShaderResult.bInline, Dependencies);
+			checkf(Data.Derivative != EExpressionDerivative::Valid, TEXT("Expression requested derivatives during PrepareValue, but didn't emit them"));
 		}
 	}
 
-	const Shader::FType DerivativeResultType = ResultType.GetDerivativeType();
-	check(ShaderValue);
-	ShaderValue = Context.CastShaderValue(this, CurrentScope, ShaderValue, ResultType);
-	bool bHasDerivatives = false;
-	if (Derivative == EExpressionDerivative::Valid)
+	Result = Context.EmitCast(Result, ResultType);
+	if (Data.Derivative == EExpressionDerivative::Zero)
 	{
+		const Shader::FType DerivativeResultType = ResultType.GetDerivativeType();
 		check(!DerivativeResultType.IsVoid());
-		ShaderValueDdx = Context.CastShaderValue(this, CurrentScope, ShaderValueDdx, DerivativeResultType);
-		ShaderValueDdy = Context.CastShaderValue(this, CurrentScope, ShaderValueDdy, DerivativeResultType);
-		bHasDerivatives = true;
-	}
-	else if (Derivative == EExpressionDerivative::Zero)
-	{
-		check(!DerivativeResultType.IsVoid());
-		ShaderValueDdx = Context.AcquireConstantZero(CurrentScope, DerivativeResultType);
-		ShaderValueDdy = ShaderValueDdx;
-		bHasDerivatives = true;
+		check(!Result.HasDerivatives());
+		Result.CodeDdx = Context.EmitConstantZero(DerivativeResultType);
+		Result.CodeDdy = Result.CodeDdx;
 	}
 
-	if (Context.ShaderValueStack.Num() > 0)
-	{
-		FEmitShaderValueContext& PrevValueContext = Context.ShaderValueStack.Last();
-		PrevValueContext.Dependencies.Add(ShaderValue);
-		if (bHasDerivatives)
-		{
-			check(ShaderValueDdx && ShaderValueDdy); // must have both
-			if (ShaderValueDdx != ShaderValue)
-			{
-				PrevValueContext.DerivativeDependencies.Add(ShaderValueDdx);
-				if (ShaderValueDdy != ShaderValueDdx)
-				{
-					PrevValueContext.DerivativeDependencies.Add(ShaderValueDdy);
-				}
-			}
-		}
-	}
-
-	FShaderValue Result;
-	Result.Type = ShaderValue->Type;
-	Result.Code = ShaderValue->Reference;
-	Result.bHasDerivatives = bHasDerivatives;
-	if (bHasDerivatives)
-	{
-		Result.CodeDdx = ShaderValueDdx->Reference;
-		Result.CodeDdy = ShaderValueDdy->Reference;
-	}
 	return Result;
 }
 
-FShaderValue FExpression::GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType)
+FEmitShaderValues FExpression::GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType)
 {
 	return GetValueShader(Context, RequestedType, RequestedType.GetType());
 }
 
-FShaderValue FExpression::GetValueShader(FEmitContext& Context)
+FEmitShaderValues FExpression::GetValueShader(FEmitContext& Context)
 {
 	return GetValueShader(Context, GetRequestedType());
 }
