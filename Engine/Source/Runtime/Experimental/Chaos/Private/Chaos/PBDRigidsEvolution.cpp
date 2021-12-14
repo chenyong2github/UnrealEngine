@@ -340,7 +340,7 @@ namespace Chaos
 					ensure(false);
 				}
 				// We should not copy dynamic trees here
-				if (Result->IsTreeDynamic())
+				else if (Result->IsTreeDynamic())
 				{
 					Result = nullptr;
 				}
