@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/ArrayView.h"
-#include "Containers/StringView.h"
+#include "Containers/StringFwd.h"
 
 namespace UE::String
 {
