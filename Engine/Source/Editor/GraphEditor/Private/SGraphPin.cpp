@@ -1133,7 +1133,7 @@ const FSlateBrush* SGraphPin::GetPinStatusIcon() const
 		{
 			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(GraphNode);
 
-			if (FKismetDebugUtilities::IsPinBeingWatched(Blueprint, WatchedPin))
+			if (FKismetDebugUtilities::DoesPinHaveWatches(Blueprint, WatchedPin))
 			{
 				return FEditorStyle::GetBrush(TEXT("Graph.WatchedPinIcon_Pinned"));
 			}
@@ -1151,10 +1151,16 @@ EVisibility SGraphPin::GetPinStatusIconVisibility() const
 		return EVisibility::Collapsed;
 	}
 
+	UEdGraphNode* GraphNode = GraphPin->GetOwningNode();
+	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(GraphNode);
+	if (!Blueprint)
+	{
+		return EVisibility::Collapsed;
+	}
+
 	UEdGraphPin const* WatchedPin = ((GraphPin->Direction == EGPD_Input) && (GraphPin->LinkedTo.Num() > 0)) ? GraphPin->LinkedTo[0] : GraphPin;
 
-	UEdGraphSchema const* Schema = GraphPin->GetSchema();
-	return Schema && Schema->IsPinBeingWatched(WatchedPin) ? EVisibility::Visible : EVisibility::Collapsed;
+	return FKismetDebugUtilities::DoesPinHaveWatches(Blueprint, WatchedPin) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply SGraphPin::ClickedOnPinStatusIcon()
