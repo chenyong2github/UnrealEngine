@@ -280,3 +280,8 @@ const FString& FConsoleVariablesEditorListRow::GetPresetValue() const
 {
 	return PresetValue;
 }
+
+void FConsoleVariablesEditorListRow::SetPresetValue(const FString& InPresetValue)
+{
+	PresetValue = InPresetValue;
+}

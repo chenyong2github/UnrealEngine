@@ -72,6 +72,7 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 	void ResetToStartupValueAndSource() const;
 	
 	[[nodiscard]] const FString& GetPresetValue() const;
+	void SetPresetValue(const FString& InPresetValue);
 
 	/* If bMatchAnyTokens is false, only nodes that match all terms will be returned. */
 	bool MatchSearchTokensToSearchTerms(const TArray<FString> InTokens, const bool bMatchAnyTokens = false);
