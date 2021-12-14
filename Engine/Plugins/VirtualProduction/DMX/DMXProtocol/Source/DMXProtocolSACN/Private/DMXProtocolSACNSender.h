@@ -7,8 +7,8 @@
 #include "Interfaces/IDMXSender.h"
 
 #include "CoreMinimal.h"
+#include "Misc/ScopeLock.h" 
 #include "Serialization/ArrayWriter.h"
-
 
 struct FDMXProtocolSACNRDM;
 
@@ -87,13 +87,16 @@ private:
 	TSet<TSharedPtr<FDMXOutputPort, ESPMode::ThreadSafe>> AssignedOutputPorts;
 
 	/** Map of universes with their current sequence number */
-	TMap<uint16 /** Universe ID */, uint16 /** Sequence Number */> UniverseIDToSequenceNumberMap;
+	TMap<int32 /** Universe ID */, uint8 /** Sequence Number */> UniverseIDToSequenceNumberMap;
 
 	/** The sACN protocol instance */
 	TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> Protocol;
 
 	/** Holds the network socket used to sender packages. */
 	FSocket* Socket = nullptr;
+
+	/** Critical section to be used during SendDMXSignal, as it may be called concurrently from many threads */
+	FCriticalSection SendDMXCriticalSection;
 
 	/** The network interface internet addr */
 	TSharedPtr<FInternetAddr> NetworkInterfaceInternetAddr;

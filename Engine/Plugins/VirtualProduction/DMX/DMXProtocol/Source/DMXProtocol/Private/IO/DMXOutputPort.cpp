@@ -507,15 +507,20 @@ const FGuid& FDMXOutputPort::GetPortGuid() const
 
 void FDMXOutputPort::ClearBuffers()
 {
+	check(IsInGameThread());
+
 	for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 	{
 		RawListener->ClearBuffer();
 	}
 
-	FScopeLock LockClearBuffers(&ClearBuffersCriticalSection);
+	// Clear gamethread buffer
+	ExternUniverseToLatestSignalMap_GameThread.Reset();
 
+	// Clear port thread buffers
+	FScopeLock LockClearBuffers(&ClearBuffersCriticalSection);
 	SignalFragments.Empty();
-	ExternUniverseToLatestSignalMap.Reset();
+	ExternUniverseToLatestSignalMap_PortThread.Reset();
 }
 
 bool FDMXOutputPort::IsLoopbackToEngine() const
@@ -537,17 +542,14 @@ TArray<FString> FDMXOutputPort::GetDestinationAddresses() const
 
 bool FDMXOutputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSharedPtr& OutDMXSignal, bool bEvenIfNotLoopbackToEngine)
 {
-#if UE_BUILD_DEBUG
 	check(IsInGameThread());
-#endif // UE_BUILD_DEBUG
 
 	const bool bNeedsLoopbackToEngine = CommunicationDeterminator.NeedsLoopbackToEngine();
 	if (bNeedsLoopbackToEngine || bEvenIfNotLoopbackToEngine)
 	{
 		int32 ExternUniverseID = ConvertLocalToExternUniverseID(LocalUniverseID);
 
-		FScopeLock LockExternUniverseToLatestSignalMap(&AccessExternUniverseToLatestSignalMapCriticalSection);
-		const FDMXSignalSharedPtr* SignalPtr = ExternUniverseToLatestSignalMap.Find(ExternUniverseID);
+		const FDMXSignalSharedPtr* SignalPtr = ExternUniverseToLatestSignalMap_GameThread.Find(ExternUniverseID);
 		if (SignalPtr)
 		{
 			OutDMXSignal = *SignalPtr;
@@ -561,15 +563,12 @@ bool FDMXOutputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSha
 bool FDMXOutputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr& OutDMXSignal, int32 RemoteUniverseID, bool bEvenIfNotLoopbackToEngine)
 {
 	// DEPRECATED 4.27
-#if UE_BUILD_DEBUG
 	check(IsInGameThread());
-#endif // UE_BUILD_DEBUG
 
 	const bool bNeedsLoopbackToEngine = CommunicationDeterminator.NeedsLoopbackToEngine();
 	if (bNeedsLoopbackToEngine || bEvenIfNotLoopbackToEngine)
 	{
-		FScopeLock LockExternUniverseToLatestSignalMap(&AccessExternUniverseToLatestSignalMapCriticalSection);
-		const FDMXSignalSharedPtr* SignalPtr = ExternUniverseToLatestSignalMap.Find(RemoteUniverseID);
+		const FDMXSignalSharedPtr* SignalPtr = ExternUniverseToLatestSignalMap_GameThread.Find(RemoteUniverseID);
 		if (SignalPtr)
 		{
 			OutDMXSignal = *SignalPtr;
@@ -613,9 +612,7 @@ void FDMXOutputPort::RemoveRawListener(TSharedRef<FDMXRawListener> InRawListener
 
 void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& ChannelToValueMap)
 {
-#if UE_BUILD_DEBUG
 	check(IsInGameThread());
-#endif // UE_BUILD_DEBUG
 
 	if (IsLocalUniverseInPortRange(LocalUniverseID))
 	{
@@ -628,9 +625,28 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 			const int32 ExternUniverseID = ConvertLocalToExternUniverseID(LocalUniverseID);
 
 			const double SendTime = FPlatformTime::Seconds() + DelaySeconds;
-			const TSharedPtr<FDMXSignalFragment> Fragment = MakeShared<FDMXSignalFragment>(ExternUniverseID, ChannelToValueMap, SendTime);
 
+			// Enqueue for this port's thread
+			const TSharedPtr<FDMXSignalFragment> Fragment = MakeShared<FDMXSignalFragment>(ExternUniverseID, ChannelToValueMap, SendTime);
 			SignalFragments.Enqueue(Fragment);
+
+			if (bNeedsLoopbackToEngine)
+			{
+				// Write the fragment to the game thread's buffer
+				const FDMXSignalSharedPtr& Signal = ExternUniverseToLatestSignalMap_GameThread.FindOrAdd(ExternUniverseID, MakeShared<FDMXSignal, ESPMode::ThreadSafe>());
+
+				for (const TTuple<int32, uint8>& ChannelValueKvp : ChannelToValueMap)
+				{
+					int32 ChannelIndex = ChannelValueKvp.Key - 1;
+
+					// Filter invalid indicies so we can send bp calls here without testing them first.
+					if (Signal->ChannelData.IsValidIndex(ChannelIndex))
+					{
+						Signal->Timestamp = SendTime;
+						Signal->ChannelData[ChannelIndex] = ChannelValueKvp.Value;
+					}
+				}
+			}
 		}
 	}
 }
@@ -638,9 +654,7 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelToValueMap, int32 RemoteUniverse)
 {
 	// DEPRECATED 4.27
-#if UE_BUILD_DEBUG
 	check(IsInGameThread());
-#endif // UE_BUILD_DEBUG
 
 	if (IsExternUniverseInPortRange(RemoteUniverse))
 	{
@@ -651,9 +665,28 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 		if (bNeedsSendDMX || bNeedsLoopbackToEngine)
 		{
 			const double SendTime = FPlatformTime::Seconds() + DelaySeconds;
-			const TSharedPtr<FDMXSignalFragment> Fragment = MakeShared<FDMXSignalFragment>(RemoteUniverse, ChannelToValueMap, SendTime);
 
+			// Enqueue for this port's thread
+			const TSharedPtr<FDMXSignalFragment> Fragment = MakeShared<FDMXSignalFragment>(RemoteUniverse, ChannelToValueMap, SendTime);
 			SignalFragments.Enqueue(Fragment);
+
+			if (bNeedsLoopbackToEngine)
+			{
+				// Write the fragment to the game thread's buffer
+				const FDMXSignalSharedPtr& Signal = ExternUniverseToLatestSignalMap_GameThread.FindOrAdd(RemoteUniverse, MakeShared<FDMXSignal, ESPMode::ThreadSafe>());
+
+				for (const TTuple<int32, uint8>& ChannelValueKvp : ChannelToValueMap)
+				{
+					int32 ChannelIndex = ChannelValueKvp.Key - 1;
+
+					// Filter invalid indicies so we can send bp calls here without testing them first.
+					if (Signal->ChannelData.IsValidIndex(ChannelIndex))
+					{
+						Signal->Timestamp = SendTime;
+						Signal->ChannelData[ChannelIndex] = ChannelValueKvp.Value;
+					}
+				}
+			}
 		}
 	}
 }
@@ -776,16 +809,9 @@ void FDMXOutputPort::ProcessSendDMX()
 			{
 				if (OldestFragment->SendTime <= Now)
 				{
-					FDMXSignalSharedPtr* SignalPtr = ExternUniverseToLatestSignalMap.Find(OldestFragment->ExternUniverseID);
-					if (!SignalPtr)
-					{
-						FScopeLock LockExternUniverseToLatestSignalMap(&AccessExternUniverseToLatestSignalMapCriticalSection);
-						SignalPtr = &ExternUniverseToLatestSignalMap.Add(OldestFragment->ExternUniverseID, MakeShared<FDMXSignal, ESPMode::ThreadSafe>());
-					}
-					checkf(SignalPtr, TEXT("Cannot find or add a DMX signal to the DMX Output Port buffer"));
+					const FDMXSignalSharedPtr& Signal = ExternUniverseToLatestSignalMap_PortThread.FindOrAdd(OldestFragment->ExternUniverseID, MakeShared<FDMXSignal, ESPMode::ThreadSafe>());
 
 					// Write the fragment & meta data 
-					FDMXSignalSharedPtr& Signal = *SignalPtr;
 					for (const TTuple<int32, uint8>& ChannelValueKvp : OldestFragment->ChannelToValueMap)
 					{
 						int32 ChannelIndex = ChannelValueKvp.Key - 1;
@@ -815,7 +841,7 @@ void FDMXOutputPort::ProcessSendDMX()
 
 	// Send new and alive DMX Signals
 	const bool bNeedsSendDMX = CommunicationDeterminator.NeedsSendDMX();
-	for (const TTuple<int32, FDMXSignalSharedPtr>& UniverseToSignalPair : ExternUniverseToLatestSignalMap)
+	for (const TTuple<int32, FDMXSignalSharedPtr>& UniverseToSignalPair : ExternUniverseToLatestSignalMap_PortThread)
 	{
 		if (UniverseToSignalPair.Value->Timestamp <= Now)
 		{

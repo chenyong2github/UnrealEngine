@@ -155,6 +155,9 @@ bool FDMXProtocolArtNetSender::IsCausingLoopback() const
 
 void FDMXProtocolArtNetSender::SendDMXSignal(const FDMXSignalSharedRef& DMXSignal)
 {
+	// This may be called from multiple threads, so calls need be synchronized
+	const FScopeLock SendDMXLock(&SendDMXCriticalSection);
+
 	FDMXProtocolArtNetDMXPacket ArtNetDMXPacket;
 	FMemory::Memcpy(ArtNetDMXPacket.Data, DMXSignal->ChannelData.GetData(), ARTNET_DMX_LENGTH);
 

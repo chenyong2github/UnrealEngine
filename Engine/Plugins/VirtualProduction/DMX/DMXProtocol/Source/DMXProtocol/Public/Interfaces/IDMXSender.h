@@ -16,7 +16,7 @@ public:
 	virtual ~IDMXSender()
 	{}
 
-	/** Sends the DMX signal. Note, this is called from a worker thread, not the game thread. */
+	/** Sends the DMX signal. Note, this may called concurrently from various threads */
 	virtual void SendDMXSignal(const FDMXSignalSharedRef& DMXSignal) = 0;
 
 	/** DEPRECATED 5.0 */
