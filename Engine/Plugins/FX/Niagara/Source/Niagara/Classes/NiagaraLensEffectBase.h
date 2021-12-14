@@ -75,6 +75,7 @@ protected:
 	virtual void NotifyRetriggered() override;
 	virtual void ActivateLensEffect() override;
 	virtual void DeactivateLensEffect() override;
+	virtual bool IsLooping() const override;
 	//~ End ICameraLensEffectInterface interface
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

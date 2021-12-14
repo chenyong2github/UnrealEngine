@@ -2,7 +2,7 @@
 
 #include "GameplayCueNotifyTypes.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Particles/EmitterCameraLensEffectBase.h"
+#include "Camera/CameraLensEffectInterface.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -785,7 +785,7 @@ bool FGameplayCueNotify_CameraLensEffectInfo::PlayCameraLensEffect(const FGamepl
 				continue;
 			}
 
-			AEmitterCameraLensEffectBase* CameraLensEffectInstance = PC->PlayerCameraManager->AddCameraLensEffect(CameraLensEffect);
+			TScriptInterface<ICameraLensEffectInterface> CameraLensEffectInstance = PC->PlayerCameraManager->AddGenericCameraLensEffect(CameraLensEffect);
 			OutSpawnResult.CameraLensEffects.Add(CameraLensEffectInstance);
 		}
 	}
@@ -796,7 +796,7 @@ bool FGameplayCueNotify_CameraLensEffectInfo::PlayCameraLensEffect(const FGamepl
 
 		if (TargetPC && TargetPC->PlayerCameraManager)
 		{
-			AEmitterCameraLensEffectBase* CameraLensEffectInstance = TargetPC->PlayerCameraManager->AddCameraLensEffect(CameraLensEffect);
+			TScriptInterface<ICameraLensEffectInterface> CameraLensEffectInstance = TargetPC->PlayerCameraManager->AddGenericCameraLensEffect(CameraLensEffect);
 			OutSpawnResult.CameraLensEffects.Add(CameraLensEffectInstance);
 		}
 	}
@@ -809,14 +809,16 @@ void FGameplayCueNotify_CameraLensEffectInfo::ValidateBurstAssets(UObject* Conta
 #if WITH_EDITORONLY_DATA
 	if (CameraLensEffect != nullptr)
 	{
-		AEmitterCameraLensEffectBase* CameraLensEffectCDO = CameraLensEffect->GetDefaultObject<AEmitterCameraLensEffectBase>();
-		if (CameraLensEffectCDO->IsLooping())
+		if (ICameraLensEffectInterface* CameraLensEffectCDO = Cast<ICameraLensEffectInterface>(CameraLensEffect->GetDefaultObject<AActor>()))
 		{
-			ValidationErrors.Add(FText::Format(
-				LOCTEXT("CameraLensEffect_ShouldNotLoop", "Camera lens effect [{0}] used in slot [{1}] for asset [{2}] is set to looping, but the slot is a one-shot (the instance will leak)."),
-				FText::AsCultureInvariant(CameraLensEffect->GetPathName()),
-				FText::AsCultureInvariant(Context),
-				FText::AsCultureInvariant(ContainingAsset->GetPathName())));
+			if (CameraLensEffectCDO->IsLooping())
+			{
+				ValidationErrors.Add(FText::Format(
+					LOCTEXT("CameraLensEffect_ShouldNotLoop", "Camera lens effect [{0}] used in slot [{1}] for asset [{2}] is set to looping, but the slot is a one-shot (the instance will leak)."),
+					FText::AsCultureInvariant(CameraLensEffect->GetPathName()),
+					FText::AsCultureInvariant(Context),
+					FText::AsCultureInvariant(ContainingAsset->GetPathName())));
+			}
 		}
 	}
 #endif // #if WITH_EDITORONLY_DATA
@@ -1140,7 +1142,7 @@ void FGameplayCueNotify_LoopingEffects::StopEffects(FGameplayCueNotify_SpawnResu
 	}
 
 	// Stop the camera lens effect.
-	for (AEmitterCameraLensEffectBase* CameraLensEffect : SpawnResult.CameraLensEffects)
+	for (TScriptInterface<ICameraLensEffectInterface> CameraLensEffect : SpawnResult.CameraLensEffects)
 	{
 		if (CameraLensEffect)
 		{

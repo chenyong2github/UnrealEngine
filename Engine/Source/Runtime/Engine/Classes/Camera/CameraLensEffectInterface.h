@@ -59,6 +59,9 @@ public:
 	virtual void AdjustBaseFOV(float NewFOV) = 0;
 
 	static FTransform GetAttachedEmitterTransform(const AActor* Emitter, const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg);
+
+	/** Returns true if any associated particle system is set to looping */
+	virtual bool IsLooping() const = 0;
 };
 
 //~ Engineering Note: You can validate assets to see if they have any TSubclassOf<AEmitterCameraLensEffectBase> [or other lens effect bases] and issue warnings where they do! Suggest this type instead!
