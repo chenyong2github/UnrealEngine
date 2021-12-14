@@ -10,7 +10,6 @@
 APackedLevelActor::APackedLevelActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
-	, ISMComponentClass(UInstancedStaticMeshComponent::StaticClass())
 	, bChildChanged(false)
 #endif
 {
