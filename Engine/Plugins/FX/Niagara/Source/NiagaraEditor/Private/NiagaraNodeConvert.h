@@ -62,21 +62,31 @@ struct FNiagaraConvertConnection
 	UPROPERTY()
 	TArray<FName> DestinationPath;
 
+	// Optional Guids for storing the property's Guid within a struct to help with determining if a rename has occurred.
+	UPROPERTY()
+	FGuid SourcePropertyId;
+
+	UPROPERTY()
+	FGuid DestinationPropertyId;
+
 	FNiagaraConvertConnection()
 	{
 	}
 
-	FNiagaraConvertConnection(FGuid InSourcePinId, const TArray<FName>& InSourcePath, FGuid InDestinationPinId, const TArray<FName>& InDestinationPath)
+	FNiagaraConvertConnection(FGuid InSourcePinId, const TArray<FName>& InSourcePath, FGuid InDestinationPinId, const TArray<FName>& InDestinationPath, FGuid InSourcePropertyId = FGuid(), FGuid InDestinationPropertyId = FGuid())
 		: SourcePinId(InSourcePinId)
 		, SourcePath(InSourcePath)
 		, DestinationPinId(InDestinationPinId)
 		, DestinationPath(InDestinationPath)
+		, SourcePropertyId(InSourcePropertyId)
+		, DestinationPropertyId(InDestinationPropertyId)
 	{
 	}
 
+	bool operator ==(const FNiagaraConvertConnection& B) { return SourcePinId == B.SourcePinId && DestinationPinId == B.DestinationPinId && DestinationPath == B.DestinationPath && SourcePath == B.SourcePath; }
+
 	FString ToString() const;
 };
-
 
 /** A node which allows the user to build a set of arbitrary output types from an arbitrary set of input types by connecting their inner components. */
 UCLASS()
@@ -96,6 +106,8 @@ public:
 
 	//~ UNiagaraNode interface
 	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
+
+	virtual bool RefreshFromExternalChanges() override;
 
 	/** Gets the nodes inner connection. */
 	TArray<FNiagaraConvertConnection>& GetConnections();
