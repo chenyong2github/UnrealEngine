@@ -20,13 +20,19 @@ static_assert(TIsContiguousContainer<FStringView>::Value, "FStringView must be a
 static_assert(TIsContiguousContainer<FAnsiStringView>::Value, "FAnsiStringView must be a contiguous container.");
 static_assert(TIsContiguousContainer<FWideStringView>::Value, "FWideStringView must be a contiguous container.");
 
-static_assert(StringViewPrivate::TIsConvertibleToStringView<FString>::Value, "FString must be convertible to FStringView.");
-static_assert(StringViewPrivate::TIsConvertibleToStringView<FAnsiStringBuilderBase>::Value, "FAnsiStringBuilderBase must be convertible to FAnsiStringView.");
-static_assert(StringViewPrivate::TIsConvertibleToStringView<FWideStringBuilderBase>::Value, "FWideStringBuilderBase must be convertible to FWideStringView.");
+namespace UE::String::Private::TestArgumentDependentLookup
+{
 
-static_assert(TIsSame<FStringView, typename StringViewPrivate::TCompatibleStringViewType<FString>::Type>::Value, "FString must be convertible to FStringView.");
-static_assert(TIsSame<FAnsiStringView, typename StringViewPrivate::TCompatibleStringViewType<FAnsiStringBuilderBase>::Type>::Value, "FAnsiStringBuilderBase must be convertible to FAnsiStringView.");
-static_assert(TIsSame<FWideStringView, typename StringViewPrivate::TCompatibleStringViewType<FWideStringBuilderBase>::Type>::Value, "FWideStringBuilderBase must be convertible to FWideStringView.");
+struct FTestType
+{
+	using ElementType = TCHAR;
+};
+
+const TCHAR* GetData(const FTestType&) { return TEXT("ABC"); }
+int32 GetNum(const FTestType&) { return 3; }
+} // UE::String::Private::TestArgumentDependentLookup
+
+template <> struct TIsContiguousContainer<UE::String::Private::TestArgumentDependentLookup::FTestType> { static constexpr bool Value = true; };
 
 #define TEST_NAME_ROOT "System.Core.StringView"
 constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter;
@@ -123,6 +129,13 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 	{
 		FString String(TEXT("Test"));
 		TStringView ViewString(String);
+	}
+
+	// Verify that argument-dependent lookup is working for GetData and GetNum
+	{
+		UE::String::Private::TestArgumentDependentLookup::FTestType Test;
+		FStringView View(Test);
+		TestTrue(TEXT("StringView ADL"), View.Equals(TEXTVIEW("ABC")));
 	}
 
 	return true;
