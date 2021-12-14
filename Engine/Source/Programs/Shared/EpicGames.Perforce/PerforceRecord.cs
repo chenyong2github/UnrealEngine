@@ -215,12 +215,12 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Low-overhead record type for generic responses
 	/// </summary>
-	public struct PerforceRecord
+	public class PerforceRecord
 	{
 		/// <summary>
 		/// The rows in this record
 		/// </summary>
-		public List<KeyValuePair<Utf8String, PerforceValue>> Rows;
+		public List<KeyValuePair<Utf8String, PerforceValue>> Rows { get; } = new List<KeyValuePair<Utf8String, PerforceValue>>();
 
 		/// <summary>
 		/// Copy this record into the given array of values. This method is O(n) if every record key being in the list of keys in the same order, but O(n^2) if not.

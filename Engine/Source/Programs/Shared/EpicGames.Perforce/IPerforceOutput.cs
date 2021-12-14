@@ -284,9 +284,6 @@ namespace EpicGames.Perforce
 		public static async Task ReadRecordsAsync(this IPerforceOutput Perforce, Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken)
 		{
 			PerforceRecord Record = new PerforceRecord();
-			Record.Rows = new List<KeyValuePair<Utf8String, PerforceValue>>();
-
-			// Read all the records into a list
 			while (await Perforce.ReadAsync(CancellationToken))
 			{
 				// Start a read to add more data
