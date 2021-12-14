@@ -146,7 +146,7 @@ void FMorphTargetVertexInfoBuffers::InitMorphResources(EShaderPlatform ShaderPla
 	bResourcesInitialized = true;
 
 	// UseGPUMorphTargets() can be toggled only on SM5 atm
-	if (!IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) || MorphTargets.Num() == 0)
+	if (!IsPlatformShaderSupported(ShaderPlatform) || MorphTargets.Num() == 0)
 	{
 		return;
 	}
@@ -446,4 +446,9 @@ void FMorphTargetVertexInfoBuffers::InitMorphResources(EShaderPlatform ShaderPla
 	// UE_LOG(LogStaticMesh, Log, TEXT("Morph compression time: [%.2fs]"), FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - StartTime) / 1000.0f);
 
 	ValidateVertexBuffers(true);
+}
+
+bool FMorphTargetVertexInfoBuffers::IsPlatformShaderSupported(EShaderPlatform ShaderPlatform)
+{
+	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5);
 }
