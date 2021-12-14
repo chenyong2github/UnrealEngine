@@ -11,6 +11,7 @@
 #include "MeshOpPreviewHelpers.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Properties/MeshUVChannelProperties.h"
+#include "UVEditorToolAnalyticsUtils.h"
 
 #include "UVEditorParameterizeMeshTool.generated.h"
 
@@ -89,5 +90,13 @@ protected:
 	TArray<TObjectPtr<UParameterizeMeshOperatorFactory>> Factories;
 
 	void OnMethodTypeChanged();
+
+	//
+	// Analytics
+	//
+	
+	UE::Geometry::UVEditorAnalytics::FTargetAnalytics InputTargetAnalytics;
+	FDateTime ToolStartTimeAnalytics;
+	void RecordAnalytics();
 };
 

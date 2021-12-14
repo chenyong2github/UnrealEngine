@@ -11,6 +11,8 @@
 #include "Properties/UVLayoutProperties.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "UVToolContextObjects.h"
+#include "EngineAnalytics.h"
+#include "UVEditorToolAnalyticsUtils.h"
 
 using namespace UE::Geometry;
 
@@ -36,6 +38,8 @@ UInteractiveTool* UUVEditorLayoutToolBuilder::BuildTool(const FToolBuilderState&
 void UUVEditorLayoutTool::Setup()
 {
 	check(Targets.Num() > 0);
+	
+	ToolStartTimeAnalytics = FDateTime::UtcNow();
 
 	UInteractiveTool::Setup();
 
@@ -64,6 +68,9 @@ void UUVEditorLayoutTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "UV Layout"));
 	GetToolManager()->DisplayMessage(LOCTEXT("OnStartUVLayoutTool", "Translate, rotate or scale existing UV Charts using various strategies"),
 		EToolMessageLevel::UserNotification);
+
+	// Analytics
+	InputTargetAnalytics = UVEditorAnalytics::CollectTargetAnalytics(Targets);
 }
 
 void UUVEditorLayoutTool::Shutdown(EToolShutdownType ShutdownType)
@@ -101,6 +108,9 @@ void UUVEditorLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 		}
 
 		ChangeAPI->EndUndoTransaction();
+
+		// Analytics
+		RecordAnalytics();
 	}
 	else
 	{
@@ -128,6 +138,10 @@ void UUVEditorLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UUVEditorLayoutTool::OnTick(float DeltaTime)
 {
+	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+	{
+		Target->AppliedPreview->Tick(DeltaTime);
+	}
 }
 
 
@@ -150,6 +164,53 @@ bool UUVEditorLayoutTool::CanAccept() const
 		}
 	}
 	return true;
+}
+
+void UUVEditorLayoutTool::RecordAnalytics()
+{
+	using namespace UVEditorAnalytics;
+	
+	if (!FEngineAnalytics::IsAvailable())
+	{
+		return;
+	}
+	
+	TArray<FAnalyticsEventAttribute> Attributes;
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Timestamp"), FDateTime::UtcNow().ToString()));
+
+	// Tool inputs
+	InputTargetAnalytics.AppendToAttributes(Attributes, "Input");
+
+	// Tool stats
+	if (CanAccept())
+	{
+		TArray<double> PerAssetValidResultComputeTimes;
+		for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+		{
+			// Note: This would log -1 if the result was invalid, but checking CanAccept above ensures results are valid
+			PerAssetValidResultComputeTimes.Add(Target->AppliedPreview->GetValidResultComputeTime());
+		}
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.PerAsset.ComputeTimeSeconds"), PerAssetValidResultComputeTimes));
+	}
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.ToolActiveDuration"), (FDateTime::UtcNow() - ToolStartTimeAnalytics).ToString()));
+
+	// Tool settings chosen by the user
+	Attributes.Add(AnalyticsEventAttributeEnum(TEXT("Settings.LayoutType"), Settings->LayoutType));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.TextureResolution"), Settings->TextureResolution));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Scale"), Settings->Scale));
+	const TArray<FVector2D::FReal> TranslationArray({Settings->Translation.X, Settings->Translation.Y});
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Translation"), TranslationArray));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.AllowFlips"), Settings->bAllowFlips));
+
+	FEngineAnalytics::GetProvider().RecordEvent(UVEditorAnalyticsEventName(TEXT("LayoutTool")), Attributes);
+
+	if constexpr (false)
+	{
+		for (const FAnalyticsEventAttribute& Attr : Attributes)
+		{
+			UE_LOG(LogGeometry, Log, TEXT("Debug %s.LayoutTool.%s = %s"), *UVEditorAnalyticsPrefix, *Attr.GetName(), *Attr.GetValue());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -10,6 +10,7 @@
 #include "InteractiveToolBuilder.h"
 #include "InteractiveToolQueryInterfaces.h" // IInteractiveToolNestedAcceptCancelAPI
 #include "GeometryBase.h"
+#include "UVEditorToolAnalyticsUtils.h"
 
 #include "UVEditorSeamTool.generated.h"
 
@@ -145,4 +146,12 @@ protected:
 	// When true, the entire path is changed to the "completion" color to show
 	// that the next click will complete the path.
 	bool bCompletionColorOverride = false;
+	
+	//
+	// Analytics
+	//
+	
+	UE::Geometry::UVEditorAnalytics::FTargetAnalytics InputTargetAnalytics;
+	FDateTime ToolStartTimeAnalytics;
+	void RecordAnalytics();
 };

@@ -143,6 +143,7 @@ protected:
 
 	double AccumTime = 0;
 	double LastStartTime = 0;
+	mutable double LastEndTime = 0; // mutable because it must be set in CheckStatus, which is const
 	double LastInvalidateTime = 0;
 
 	void StartNewCompute();
@@ -173,10 +174,24 @@ public:
 	 */
 	void NotifyActiveComputeInvalidated();
 
+	struct FStatus
+	{
+		EBackgroundComputeTaskStatus TaskStatus = EBackgroundComputeTaskStatus::NotComputing;
+
+		// if TaskStatus == ValidResultAvailable then this is the time spent computing the (valid) result
+		// if TaskStatus == DirtyResultAvailable then this is the time spent computing the (dirty) result
+		// if TaskStatus == Aborted              then this is the time spent computing the result before the task was aborted
+		// if TaskStatus == InProgress           then this is the time spent computing the result so far
+		// if TaskStatus == NotComputing         then this is the time spent not computing anything
+		double ElapsedTime = -1;
+	};
+
 	/**
 	 * Return status of the active background computation.
+	 * Warning: Status.ElapsedTime may not be accurate because Tick is not called with the correct DeltaTime argument in
+	 * Development builds when the user is interacting with a slider (as of 13th Dec 2021)
 	 */
-	EBackgroundComputeTaskStatus CheckStatus() const;
+	FStatus CheckStatus() const;
 
 	/**
 	 * @return The last computed Operator. This may only be called once, the caller then owns the Operator.
@@ -247,11 +262,10 @@ void TBackgroundModelingComputeSource<OpType, OpTypeFactory>::StartNewCompute()
 template<typename OpType, typename OpTypeFactory>
 void TBackgroundModelingComputeSource<OpType, OpTypeFactory>::NotifyActiveComputeInvalidated()
 {
-	LastInvalidateTime = AccumTime;
-
 	// switch to waiting-to-cancel state
 	if (TaskState == EBackgroundComputeTaskState::ComputingResult)
 	{
+		LastInvalidateTime = AccumTime;
 		TaskState = EBackgroundComputeTaskState::WaitingToCancel;
 	}
 
@@ -267,26 +281,41 @@ void TBackgroundModelingComputeSource<OpType, OpTypeFactory>::NotifyActiveComput
 
 
 template<typename OpType, typename OpTypeFactory>
-EBackgroundComputeTaskStatus TBackgroundModelingComputeSource<OpType, OpTypeFactory>::CheckStatus() const
+typename TBackgroundModelingComputeSource<OpType, OpTypeFactory>::FStatus
+TBackgroundModelingComputeSource<OpType, OpTypeFactory>::CheckStatus() const
 {
+	FStatus Status;
+
 	if (ActiveBackgroundTask == nullptr)
 	{
-		return EBackgroundComputeTaskStatus::NotComputing;
+		Status.TaskStatus = EBackgroundComputeTaskStatus::NotComputing;
+		Status.ElapsedTime = AccumTime - LastInvalidateTime;
 	}
 	else if (!ActiveBackgroundTask->IsDone())
 	{
-		return EBackgroundComputeTaskStatus::InProgress;
+		Status.TaskStatus = EBackgroundComputeTaskStatus::InProgress;
+		Status.ElapsedTime = AccumTime - LastStartTime;
 	}
 	else if (ActiveBackgroundTask->GetTask().IsAborted())
 	{
-		return EBackgroundComputeTaskStatus::Aborted;
+		Status.TaskStatus = EBackgroundComputeTaskStatus::Aborted;
+		Status.ElapsedTime = LastInvalidateTime - LastStartTime;
 	}
 	else
 	{
+		if (TaskState == EBackgroundComputeTaskState::ComputingResult)
+		{
+			LastEndTime = AccumTime;
+		}
+
 		// Task is done and not aborted, but we may be waiting to start a new one
-		return TaskState == EBackgroundComputeTaskState::WaitingToCancel ? EBackgroundComputeTaskStatus::DirtyResultAvailable
-			: EBackgroundComputeTaskStatus::ValidResultAvailable;
+		Status.TaskStatus = (TaskState == EBackgroundComputeTaskState::WaitingToCancel ?
+			EBackgroundComputeTaskStatus::DirtyResultAvailable :
+			EBackgroundComputeTaskStatus::ValidResultAvailable);
+		Status.ElapsedTime = LastEndTime - LastStartTime;
 	}
+
+	return Status;
 }
 
 

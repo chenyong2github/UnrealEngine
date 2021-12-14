@@ -108,8 +108,14 @@ void UMeshOpPreviewWithBackgroundCompute::Tick(float DeltaTime)
 
 void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 {
-	LastComputeStatus = BackgroundCompute ? BackgroundCompute->CheckStatus()
-		: EBackgroundComputeTaskStatus::NotComputing;
+	if (BackgroundCompute == nullptr)
+	{
+		LastComputeStatus = EBackgroundComputeTaskStatus::NotComputing;
+		return;
+	}
+
+	FBackgroundDynamicMeshComputeSource::FStatus Status = BackgroundCompute->CheckStatus();	
+	LastComputeStatus = Status.TaskStatus; 
 
 	if (LastComputeStatus == EBackgroundComputeTaskStatus::ValidResultAvailable
 		|| (bAllowDirtyResultUpdates && LastComputeStatus == EBackgroundComputeTaskStatus::DirtyResultAvailable))
@@ -129,6 +135,7 @@ void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 
 		PreviewMesh->SetVisible(bVisible);
 		bResultValid = (LastComputeStatus == EBackgroundComputeTaskStatus::ValidResultAvailable);
+		ValidResultComputeTimeSeconds = Status.ElapsedTime;
 
 		OnMeshUpdated.Broadcast(this);
 	}

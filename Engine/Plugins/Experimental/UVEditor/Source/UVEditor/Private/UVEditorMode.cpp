@@ -35,6 +35,7 @@
 #include "UVEditorSubsystem.h"
 #include "UVToolContextObjects.h"
 #include "UVEditorBackgroundPreview.h"
+#include "UVEditorToolAnalyticsUtils.h"
 #include "Editor.h"
 #include "UVEditorUXSettings.h"
 
@@ -170,7 +171,7 @@ void UUVEditorMode::Enter()
 		TArray<FAnalyticsEventAttribute> Attributes;
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Timestamp"), AnalyticsLastStartTimestamp.ToString()));
 
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.UVEditor.Enter"), Attributes);
+		FEngineAnalytics::GetProvider().RecordEvent(UVEditorAnalytics::UVEditorAnalyticsEventName(TEXT("Enter")), Attributes);
 	}
 
 	bIsActive = true;
@@ -337,7 +338,7 @@ void UUVEditorMode::Exit()
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Timestamp"), Now.ToString()));
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("Duration.Seconds"), static_cast<float>(ModeUsageDuration.GetTotalSeconds())));
 
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.UVEditor.Exit"), Attributes);
+		FEngineAnalytics::GetProvider().RecordEvent(UVEditorAnalytics::UVEditorAnalyticsEventName(TEXT("Exit")), Attributes);
 	}
 
 	// ToolsContext->EndTool only shuts the tool on the next tick, and ToolsContext->DeactivateActiveTool is

@@ -110,6 +110,15 @@ public:
 	 */
 	bool HaveValidResult() const { return bResultValid; }
 
+	double GetValidResultComputeTime() const
+	{
+		if (HaveValidResult())
+		{
+			return ValidResultComputeTimeSeconds;
+		}
+		return -1;
+	}
+
 
 	/**
 	 * @return true if current PreviewMesh result is valid (no update actively being computed) and that mesh has at least one triangle
@@ -227,6 +236,7 @@ public:
 protected:
 	// state flag, if true then we have valid result
 	bool bResultValid = false;
+	double ValidResultComputeTimeSeconds = -1;
 
 	// Stored status of last compute, mainly so that we know when we should
 	// show the "busy" material.
@@ -381,7 +391,7 @@ protected:
 		check(BackgroundCompute);
 		if (BackgroundCompute)
 		{
-			UE::Geometry::EBackgroundComputeTaskStatus Status = BackgroundCompute->CheckStatus();
+			UE::Geometry::EBackgroundComputeTaskStatus Status = BackgroundCompute->CheckStatus().TaskStatus;
 			if (Status == UE::Geometry::EBackgroundComputeTaskStatus::ValidResultAvailable)
 			{
 				TUniquePtr<OperatorType> ResultOp = BackgroundCompute->ExtractResult();

@@ -9,6 +9,7 @@
 #include "Properties/RecomputeUVsProperties.h"
 #include "Polygroups/PolygroupSet.h"
 #include "Drawing/UVLayoutPreview.h"
+#include "UVEditorToolAnalyticsUtils.h"
 
 #include "UVEditorRecomputeUVsTool.generated.h"
 
@@ -49,6 +50,8 @@ class UVEDITORTOOLS_API UUVEditorRecomputeUVsTool : public UInteractiveTool
 public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	
+	virtual void OnTick(float DeltaTime) override;
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
@@ -83,4 +86,12 @@ protected:
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
 	void OnSelectedGroupLayerChanged();
 	void UpdateActiveGroupLayer();
+
+	//
+	// Analytics
+	//
+	
+	UE::Geometry::UVEditorAnalytics::FTargetAnalytics InputTargetAnalytics;
+	FDateTime ToolStartTimeAnalytics;
+	void RecordAnalytics();
 };

@@ -6,6 +6,7 @@
 
 #include "InteractiveTool.h"
 #include "InteractiveToolBuilder.h"
+#include "UVEditorToolAnalyticsUtils.h"
 
 #include "UVEditorLayerEditTool.generated.h"
 
@@ -228,4 +229,30 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UUVToolEmitChangeAPI> EmitChangeAPI = nullptr;
 
+	//
+	// Analytics
+	//
+
+	struct FActionHistoryItem
+	{
+		FDateTime Timestamp;
+		EChannelEditToolAction ActionType = EChannelEditToolAction::NoAction;
+
+		// if ActionType == Add    then FirstOperandIndex is the index of the added UV layer
+		// if ActionType == Delete then FirstOperandIndex is the index of the deleted UV layer
+		// if ActionType == Copy   then FirstOperandIndex is the index of the source UV layer
+		int32 FirstOperandIndex = -1;
+		
+		// if ActionType == Add    then SecondOperandIndex is unused
+		// if ActionType == Delete then SecondOperandIndex is unused
+		// if ActionType == Copy   then SecondOperandIndex is the index of the target UV layer
+		int32 SecondOperandIndex = -1;
+
+		bool bDeleteActionWasActuallyClear = false;
+	};
+	
+	TArray<FActionHistoryItem> AnalyticsActionHistory;
+	UE::Geometry::UVEditorAnalytics::FTargetAnalytics InputTargetAnalytics;
+	FDateTime ToolStartTimeAnalytics;
+	void RecordAnalytics();
 };

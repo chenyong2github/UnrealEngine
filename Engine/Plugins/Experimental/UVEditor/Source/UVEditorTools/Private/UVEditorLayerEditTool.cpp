@@ -14,6 +14,8 @@
 #include "UVToolContextObjects.h"
 #include "ModelingToolTargetUtil.h"
 #include "Components.h"
+#include "UVEditorToolAnalyticsUtils.h"
+#include "EngineAnalytics.h"
 
 using namespace UE::Geometry;
 
@@ -462,6 +464,8 @@ void UUVEditorChannelEditToolActionPropertySet::PostAction(EChannelEditToolActio
 void UUVEditorChannelEditTool::Setup()
 {
 	check(Targets.Num() > 0);
+	
+	ToolStartTimeAnalytics = FDateTime::UtcNow();
 
 	UInteractiveTool::Setup();
 
@@ -509,6 +513,9 @@ void UUVEditorChannelEditTool::Setup()
 			UpdateChannelSelectionProperties(i);
 		});
 	}
+
+	// Analytics
+	InputTargetAnalytics = UVEditorAnalytics::CollectTargetAnalytics(Targets);
 }
 
 void UUVEditorChannelEditTool::Shutdown(EToolShutdownType ShutdownType)
@@ -519,6 +526,9 @@ void UUVEditorChannelEditTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 
 	Targets.Empty();
+
+	// Analytics
+	RecordAnalytics();
 }
 
 void UUVEditorChannelEditTool::UpdateChannelSelectionProperties(int32 ChangingAsset)
@@ -617,6 +627,12 @@ void UUVEditorChannelEditTool::AddChannel()
 
 	if (NewChannelIndex != -1)
 	{
+		// Analytics
+		FActionHistoryItem Item;
+		Item.ActionType = EChannelEditToolAction::Add;
+		Item.FirstOperandIndex = NewChannelIndex;
+		AnalyticsActionHistory.Add(Item);
+
 		Targets[ActiveAsset]->AppliedPreview->PreviewMesh->UpdatePreview(Targets[ActiveAsset]->AppliedCanonical.Get());
 
 		EmitChangeAPI->BeginUndoTransaction(UUVEditorChannelEditLocals::UVChannelAddTransactionName);
@@ -639,6 +655,13 @@ void UUVEditorChannelEditTool::AddChannel()
 
 void UUVEditorChannelEditTool::CopyChannel()
 {
+	// Analytics
+	FActionHistoryItem Item;
+	Item.ActionType = EChannelEditToolAction::Copy;
+	Item.FirstOperandIndex = ReferenceChannel;
+	Item.SecondOperandIndex = ActiveChannel;
+	AnalyticsActionHistory.Add(Item);
+
 	EmitChangeAPI->EmitToolIndependentChange(this,
 		MakeUnique<UUVEditorChannelEditLocals::FInputObjectUVChannelCopy>(Targets[ActiveAsset], ReferenceChannel, ActiveChannel, 
 			*Targets[ActiveAsset]->AppliedCanonical->Attributes()->GetUVLayer(ActiveChannel)),
@@ -657,6 +680,13 @@ void UUVEditorChannelEditTool::DeleteChannel()
 
 	int32 TotalLayerCount = Targets[ActiveAsset]->AppliedCanonical->Attributes()->NumUVLayers();
 	bool bClearInstead = TotalLayerCount == 1;
+	
+	// Analytics
+	FActionHistoryItem Item;
+	Item.ActionType = EChannelEditToolAction::Delete;
+	Item.FirstOperandIndex = ActiveChannel;
+	Item.bDeleteActionWasActuallyClear = bClearInstead;
+	AnalyticsActionHistory.Add(Item);
 
 	EmitChangeAPI->EmitToolIndependentChange(this,
 		MakeUnique<UUVEditorChannelEditLocals::FInputObjectUVChannelDelete>(Targets[ActiveAsset], ActiveChannel, 
@@ -667,6 +697,56 @@ void UUVEditorChannelEditTool::DeleteChannel()
 
 	SourceChannelProperties->Initialize(Targets, false);
 	SourceChannelProperties->TargetChannel = SourceChannelProperties->GetUVChannelNames()[Targets[ActiveAsset]->UVLayerIndex];
+}
+
+void UUVEditorChannelEditTool::RecordAnalytics()
+{
+	using namespace UVEditorAnalytics;
+	
+	if (!FEngineAnalytics::IsAvailable())
+	{
+		return;
+	}
+	
+	TArray<FAnalyticsEventAttribute> Attributes;
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Timestamp"), FDateTime::UtcNow().ToString()));
+	
+	// Tool inputs
+	InputTargetAnalytics.AppendToAttributes(Attributes, "Input");
+
+	// Tool stats
+	auto MaybeAppendStatsToAttributes = [this, &Attributes](EChannelEditToolAction ActionType)
+	{
+		// For now we only care about the number of times actions were issued
+		int32 NumActions = 0;
+		
+		for (const FActionHistoryItem& Item : AnalyticsActionHistory)
+		{
+			if (Item.ActionType == ActionType) {
+				NumActions += 1;
+			}
+		}
+		
+		if (NumActions > 0)
+		{
+			const FString ActionName = StaticEnum<EChannelEditToolAction>()->GetNameStringByIndex(static_cast<int>(ActionType));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Stats.%sAction.NumActions"), *ActionName), NumActions));
+		}
+	};
+	MaybeAppendStatsToAttributes(EChannelEditToolAction::Add);
+	MaybeAppendStatsToAttributes(EChannelEditToolAction::Delete);
+	MaybeAppendStatsToAttributes(EChannelEditToolAction::Copy);
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Stats.ToolActiveDuration"), (FDateTime::UtcNow() - ToolStartTimeAnalytics).ToString()));
+	
+	FEngineAnalytics::GetProvider().RecordEvent(UVEditorAnalyticsEventName(TEXT("ChannelEditTool")), Attributes);
+
+	if constexpr (false)
+	{
+		for (const FAnalyticsEventAttribute& Attr : Attributes)
+		{
+			UE_LOG(LogGeometry, Log, TEXT("Debug %s.ChannelEditTool.%s = %s"), *UVEditorAnalyticsPrefix, *Attr.GetName(), *Attr.GetValue());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
