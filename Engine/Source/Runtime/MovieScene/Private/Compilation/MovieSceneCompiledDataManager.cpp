@@ -612,6 +612,11 @@ void UMovieSceneCompiledDataManager::DestroyTemplate(FMovieSceneCompiledDataID D
 
 bool UMovieSceneCompiledDataManager::IsDirty(const FMovieSceneCompiledDataEntry& Entry) const
 {
+	if (!Entry.GetSequence())
+	{
+		return false;
+	}
+
 	if (Entry.CompiledSignature != Entry.GetSequence()->GetSignature())
 	{
 		return true;
