@@ -236,7 +236,7 @@ void FDMXProtocolArtNetReceiver::HandleDataPacket(const TSharedRef<FArrayReader>
 		FDMXSignalSharedRef DMXSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>(FPlatformTime::Seconds(), UniverseID, Priority, TArray<uint8>(ArtNetDMXPacket.Data, DMX_UNIVERSE_SIZE));
 		for (const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort : AssignedInputPorts)
 		{				
-			InputPort->SingleProducerInputDMXSignal(DMXSignal);
+			InputPort->InputDMXSignal(DMXSignal);
 		}
 
 		INC_DWORD_STAT(STAT_ArtNetPackagesReceived);

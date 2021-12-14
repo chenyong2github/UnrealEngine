@@ -69,7 +69,11 @@ public:
 	/** Clears all buffers */
 	void ClearBuffers();
 
+	/** Thread-safe: Pushes a DMX Signal into the buffer */
+	void InputDMXSignal(const FDMXSignalSharedRef& DMXSignal);
+
 	/** Single Producer thread-safe: Pushes a DMX Signal into the buffer (For protocol only) */
+	UE_DEPRECATED(5.0, "Input ports now support multiple producers. Use InputDMXSignal instead.")
 	void SingleProducerInputDMXSignal(const FDMXSignalSharedRef& DMXSignal);
 
 	/** Gets the last signal received in specified local universe. Returns false if no signal was received. Game-Thread only */
@@ -104,7 +108,7 @@ private:
 	void OnSetReceiveDMXEnabled(bool bEnabled);
 
 	/** The default buffer, which is being read on tick */
-	TQueue<FDMXSignalSharedPtr> DefaultInputQueue;
+	TQueue<FDMXSignalSharedPtr, EQueueMode::Mpsc> DefaultInputQueue;
 
 	/** According to DMXProtcolSettings, true if DMX should be received */
 	bool bReceiveDMXEnabled = false;
