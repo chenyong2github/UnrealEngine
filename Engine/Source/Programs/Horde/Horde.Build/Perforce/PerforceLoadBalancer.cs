@@ -345,7 +345,7 @@ namespace HordeServer.Services
 			List<Task> Tasks = new List<Task>();
 			foreach (PerforceServerEntry Entry in List.Servers)
 			{
-				Tasks.Add(Task.Run(() => UpdateHealthAsync(Entry)));
+				Tasks.Add(Task.Run(() => UpdateHealthAsync(Entry), CancellationToken.None));
 			}
 			await Task.WhenAll(Tasks);
 		}
