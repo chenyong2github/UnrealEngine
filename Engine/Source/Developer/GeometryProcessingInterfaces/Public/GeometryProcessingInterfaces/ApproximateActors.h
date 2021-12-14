@@ -75,7 +75,8 @@ public:
 	enum class EUVGenerationPolicy : uint8
 	{
 		PreferUVAtlas = 0,
-		PreferXAtlas = 1
+		PreferXAtlas = 1,
+		PreferPatchBuilder = 2
 	};
 
 	enum class ETextureSizePolicy : uint8
@@ -139,6 +140,10 @@ public:
 
 		EUVGenerationPolicy UVPolicy = EUVGenerationPolicy::PreferXAtlas;
 		double UVAtlasStretchTarget = 0.1;
+		int32 PatchBuilderInitialPatchCount = 250;
+		double PatchBuilderCurvatureAlignment = 1.0;
+		double PatchBuilderMergingThreshold = 1.5;
+		double PatchBuilderMaxNormalDeviationDeg = 45.0;
 
 		//
 		// Material approximation settings
