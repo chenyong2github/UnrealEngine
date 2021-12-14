@@ -9,11 +9,11 @@
 #include "PlayerId.h"
 #include "PixelStreamingDataChannelObserver.h"
 
-enum FNewPlayerFlags
+enum FPixelStreamingPlayerFlags
 {
-	None = 0,
-	SupportsDataChannel = 1,
-	IsSFU = 2,
+	PSPFlag_None = 0,
+	PSPFlag_SupportsDataChannel = 1,
+	PSPFlag_IsSFU = 2,
 };
 
 class FSignallingServerConnection;

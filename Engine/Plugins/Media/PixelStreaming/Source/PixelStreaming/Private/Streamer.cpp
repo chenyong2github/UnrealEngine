@@ -165,7 +165,7 @@ webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, in
 	
 	if (PeerConnection != nullptr)
 	{
-		if ((Flags & FNewPlayerFlags::SupportsDataChannel) != 0)
+		if ((Flags & PSPFlag_SupportsDataChannel) != 0)
 		{
 			webrtc::DataChannelInit DataChannelConfig;
 			DataChannelConfig.reliable = true;
@@ -190,7 +190,7 @@ void FStreamer::OnSessionDescription(FPlayerId PlayerId, webrtc::SdpType Type, c
 {
 	if (Type == webrtc::SdpType::kOffer)
 	{
-		if (webrtc::PeerConnectionInterface* PeerConnection = CreateSession(PlayerId, FNewPlayerFlags::SupportsDataChannel))
+		if (webrtc::PeerConnectionInterface* PeerConnection = CreateSession(PlayerId, PSPFlag_SupportsDataChannel))
 		{
 			webrtc::SdpParseError Error;
 			std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc = webrtc::CreateSessionDescription(Type, to_string(Sdp), &Error);
