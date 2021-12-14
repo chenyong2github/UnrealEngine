@@ -12,6 +12,14 @@ namespace UE
 namespace HLSLTree
 {
 
+FUnaryOpDescription::FUnaryOpDescription()
+	: Name(nullptr), Operator(nullptr), PreshaderOpcode(Shader::EPreshaderOpcode::Nop)
+{}
+
+FUnaryOpDescription::FUnaryOpDescription(const TCHAR* InName, const TCHAR* InOperator, Shader::EPreshaderOpcode InOpcode)
+	: Name(InName), Operator(InOperator), PreshaderOpcode(InOpcode)
+{}
+
 FBinaryOpDescription::FBinaryOpDescription()
 	: Name(nullptr), Operator(nullptr), PreshaderOpcode(Shader::EPreshaderOpcode::Nop)
 {}
@@ -19,6 +27,16 @@ FBinaryOpDescription::FBinaryOpDescription()
 FBinaryOpDescription::FBinaryOpDescription(const TCHAR* InName, const TCHAR* InOperator, Shader::EPreshaderOpcode InOpcode)
 	: Name(InName), Operator(InOperator), PreshaderOpcode(InOpcode)
 {}
+
+FUnaryOpDescription GetUnaryOpDesription(EUnaryOp Op)
+{
+	switch (Op)
+	{
+	case EUnaryOp::None: return FUnaryOpDescription(TEXT("None"), TEXT(""), Shader::EPreshaderOpcode::Nop); break;
+	case EUnaryOp::Rcp: return FUnaryOpDescription(TEXT("Rcp"), TEXT("/"), Shader::EPreshaderOpcode::Rcp); break;
+	default: checkNoEntry(); return FUnaryOpDescription();
+	}
+}
 
 FBinaryOpDescription GetBinaryOpDesription(EBinaryOp Op)
 {
@@ -173,6 +191,45 @@ FEmitShaderValues FEmitContext::EmitCast(FEmitShaderValues ShaderValue, const Sh
 		Result.CodeDdx = EmitCast(ShaderValue.CodeDdx, DerivativeType);
 		Result.CodeDdy = EmitCast(ShaderValue.CodeDdy, DerivativeType);
 	}
+	return Result;
+}
+
+FEmitShaderCode* FEmitContext::EmitUnaryOp(EUnaryOp Op, FEmitShaderCode* Input)
+{
+	const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(Input->Type);
+	const Shader::EValueComponentType InputComponentType = InputTypeDesc.ComponentType;
+	const int8 NumComponents = InputTypeDesc.NumComponents;
+	Shader::EValueType ResultType = Input->Type;
+
+	FEmitShaderCode* Result = nullptr;
+	switch (Op)
+	{
+	case EUnaryOp::Rcp:
+		if (InputComponentType == Shader::EValueComponentType::Double)
+		{
+			ResultType = Shader::MakeValueType(Shader::EValueComponentType::Float, NumComponents);
+			Result = EmitCode(ResultType, TEXT("LWCRcp(%)"), Input);
+		}
+		else
+		{
+			Result = EmitCode(ResultType, TEXT("rcp(%)"), Input);
+		}
+		break;
+	default:
+		checkNoEntry();
+	}
+	return Result;
+}
+
+FEmitShaderValues FEmitContext::EmitUnaryOp(EUnaryOp Op, FEmitShaderValues Input, EExpressionDerivative Derivative)
+{
+	FEmitShaderValues Result;
+	Result.Code = EmitUnaryOp(Op, Input.Code);
+	if (Derivative == EExpressionDerivative::Valid && Input.HasDerivatives())
+	{
+		
+	}
+
 	return Result;
 }
 

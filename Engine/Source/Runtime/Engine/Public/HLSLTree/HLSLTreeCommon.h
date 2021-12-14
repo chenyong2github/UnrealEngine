@@ -180,6 +180,22 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
+class FExpressionUnaryOp : public FExpression
+{
+public:
+	FExpressionUnaryOp(EUnaryOp InOp, FExpression* InInput)
+		: Op(InOp)
+		, Input(InInput)
+	{}
+
+	EUnaryOp Op;
+	FExpression* Input;
+
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
+};
+
 class FExpressionBinaryOp : public FExpression
 {
 public:

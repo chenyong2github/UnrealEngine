@@ -62,6 +62,24 @@ enum class EExpressionDerivative : uint8
 
 EExpressionDerivative CombineDerivatives(EExpressionDerivative Lhs, EExpressionDerivative Rhs);
 
+enum class EUnaryOp : uint8
+{
+	None,
+	Rcp,
+};
+
+struct FUnaryOpDescription
+{
+	FUnaryOpDescription();
+	FUnaryOpDescription(const TCHAR* InName, const TCHAR* InOperator, Shader::EPreshaderOpcode InOpcode);
+
+	const TCHAR* Name;
+	const TCHAR* Operator;
+	Shader::EPreshaderOpcode PreshaderOpcode;
+};
+
+FUnaryOpDescription GetUnaryOpDesription(EUnaryOp Op);
+
 enum class EBinaryOp : uint8
 {
 	None,
