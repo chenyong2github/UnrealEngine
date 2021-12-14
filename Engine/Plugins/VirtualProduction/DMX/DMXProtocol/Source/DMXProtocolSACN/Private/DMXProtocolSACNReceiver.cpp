@@ -346,7 +346,7 @@ void FDMXProtocolSACNReceiver::HandleDataPacket(uint16 UniverseID, const TShared
 		{
 			continue;
 		}
-		InputPort->SingleProducerInputDMXSignal(DMXSignal);
+		InputPort->InputDMXSignal(DMXSignal);
 	}
 
 	INC_DWORD_STAT(STAT_SACNPackagesReceived);

@@ -478,8 +478,30 @@ void FDMXInputPort::ClearBuffers()
 	ExternUniverseToLatestSignalMap.Reset();
 }
 
+void FDMXInputPort::InputDMXSignal(const FDMXSignalSharedRef& DMXSignal)
+{
+	if (IsReceiveDMXEnabled())
+	{
+		int32 ExternUniverseID = DMXSignal->ExternUniverseID;
+		if (IsExternUniverseInPortRange(ExternUniverseID))
+		{
+			for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
+			{
+				RawListener->EnqueueSignal(this, DMXSignal);
+			}
+
+			if (bUseDefaultInputQueue)
+			{
+				DefaultInputQueue.Enqueue(DMXSignal);
+			}
+		}
+	}
+}
+
 void FDMXInputPort::SingleProducerInputDMXSignal(const FDMXSignalSharedRef& DMXSignal)
 {
+	// DERECATED 5.0
+
 	if (IsReceiveDMXEnabled())
 	{
 		int32 ExternUniverseID = DMXSignal->ExternUniverseID;
