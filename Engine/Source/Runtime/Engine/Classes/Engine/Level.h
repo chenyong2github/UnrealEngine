@@ -1088,6 +1088,11 @@ public:
 	static ENGINE_API FString GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName = FString());
 
 	/**
+	 * Scans/Updates all Level Assets (level package and external packages)
+	 */
+	static ENGINE_API void ScanLevelAssets(const FString& InLevelPackageName);
+
+	/**
 	 * Get the folder name from which all external actors paths are created
 	 * @return folder name
 	 */
