@@ -33,6 +33,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Selection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SComponentClassCombo.h"
@@ -734,16 +735,13 @@ TSharedRef<SWidget> SSubobject_RowWidget::GenerateWidgetForColumn(const FName& C
 	
 	if (Node->IsSeperator())
 	{
-		static const FLinearColor Debug(1.0f, 0.0f, 0.0f);
-		return SNew(SSpacer);
-		// return SNew(SBox)
-		// 	.Padding(1.f)
-		// 	[
-		// 		SNew(SBorder)
-		// 		.Padding(FEditorStyle::GetMargin(TEXT("Menu.Separator.Padding")))
-		// 		.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Separator")))
-		// 		.ColorAndOpacity(Debug)
-		// 	];
+		return SNew(SBox)
+			.Padding(1.f)
+			[
+				SNew(SSeparator)
+				.SeparatorImage(FAppStyle::Get().GetBrush("Menu.Separator"))
+				.Thickness(1.f)
+		 	];
 	}
 
 	FSubobjectData* Data = Node->GetDataSource();
@@ -2473,10 +2471,6 @@ void SSubobjectEditor::UpdateTree(bool bRegenerateTreeNodes /* = true */)
 			RootNodes.Add(Node);
 			AddedNodes.Add(Node->GetDataHandle(), Node);
 			CachedRootHandle = Node->GetDataHandle();
-
-			SeperatorNode = MakeShareable<FSubobjectEditorTreeNode>(
-				new FSubobjectEditorTreeNode(FSubobjectDataHandle::InvalidHandle, /** bIsSeperator */true));
-			RootNodes.Add(SeperatorNode);
 			
 			TreeWidget->SetItemExpansion(Node, true);
 			TreeWidget->SetItemExpansion(SeperatorNode, true);
@@ -2503,6 +2497,16 @@ void SSubobjectEditor::UpdateTree(bool bRegenerateTreeNodes /* = true */)
 				check(ParentNode);
 				ParentNode->AddChild(NewNode);
 				TreeWidget->SetItemExpansion(ParentNode, true);			
+
+				// Add a seperator after the default scene root, but only if there are more items below it
+				if (Data->IsDefaultSceneRoot() && Data->IsInheritedComponent() && SubobjectData.Find(Handle) < SubobjectData.Num() - 1)
+				{
+					SeperatorNode = MakeShareable<FSubobjectEditorTreeNode>(
+						new FSubobjectEditorTreeNode(FSubobjectDataHandle::InvalidHandle, /** bIsSeperator */true));
+					AddedNodes.Add(SeperatorNode->GetDataHandle(), SeperatorNode);
+					ParentNode->AddChild(SeperatorNode);
+				}
+				
 			}
 			TreeWidget->SetItemExpansion(NewNode, true);
 		}
