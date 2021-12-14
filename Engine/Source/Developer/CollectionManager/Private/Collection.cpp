@@ -105,7 +105,7 @@ bool FCollection::Load(FText& OutError)
 			break;
 		}
 
-		FStringView::SizeType Offset;
+		int32 Offset;
 		if (Line.FindChar(TEXT(':'), Offset))
 		{
 			FString Key(Line.Left(Offset));

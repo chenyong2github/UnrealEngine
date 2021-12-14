@@ -35,7 +35,7 @@ void ParseLines(
 			}
 		}
 
-		FStringView Line(LineStart, static_cast<FStringView::SizeType>(LineEnd - LineStart));
+		FStringView Line(LineStart, UE_PTRDIFF_TO_INT32(LineEnd - LineStart));
 		if (EnumHasAnyFlags(Options, EParseLinesOptions::Trim))
 		{
 			Line = Line.TrimStartAndEnd();

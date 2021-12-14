@@ -250,7 +250,7 @@ FORCEINLINE FCbCustomByName FCbValue::AsCustomByName() const
 	FCbCustomByName Value;
 	Value.Name = FUtf8StringView(
 		reinterpret_cast<const UTF8CHAR*>(Bytes),
-		static_cast<FUtf8StringView::SizeType>(TypeNameLen));
+		static_cast<int32>(TypeNameLen));
 	Value.Data = MakeMemoryView(Bytes + TypeNameLen, DataSize - TypeNameLen - TypeNameLenByteCount);
 	return Value;
 }

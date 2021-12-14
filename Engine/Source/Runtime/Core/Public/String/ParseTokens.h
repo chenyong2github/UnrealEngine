@@ -11,7 +11,7 @@
 namespace UE::String
 {
 
-enum class EParseTokensOptions
+enum class EParseTokensOptions : uint32
 {
 	/** Use the default options when parsing tokens. */
 	None = 0,
