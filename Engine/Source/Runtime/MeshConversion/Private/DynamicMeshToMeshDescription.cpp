@@ -381,6 +381,30 @@ void FDynamicMeshToMeshDescription::Convert(const FDynamicMesh3* MeshIn, FMeshDe
 	}
 }
 
+
+bool FDynamicMeshToMeshDescription::HaveMatchingElementCounts(const FDynamicMesh3* DynamicMesh, const FMeshDescription* MeshDescription, bool bVerticesOnly, bool bAttributesOnly)
+{
+	bool bVerticesMatch = DynamicMesh->IsCompactV() && DynamicMesh->VertexCount() == MeshDescription->Vertices().Num();
+	bool bTrianglesMatch = DynamicMesh->IsCompactT() && DynamicMesh->TriangleCount() == MeshDescription->Triangles().Num();
+	if (bVerticesOnly || (bAttributesOnly && !DynamicMesh->HasAttributes()))
+	{
+		return bVerticesMatch;
+	}
+	else if (bAttributesOnly && DynamicMesh->HasAttributes())
+	{
+		return bTrianglesMatch;
+	}
+	return bVerticesMatch && bTrianglesMatch;
+}
+
+
+bool FDynamicMeshToMeshDescription::HaveMatchingElementCounts(const FDynamicMesh3* DynamicMesh, const FMeshDescription* MeshDescription)
+{
+	bool bUpdateAttributes = ConversionOptions.bUpdateNormals || ConversionOptions.bUpdateUVs;
+	return HaveMatchingElementCounts(DynamicMesh, MeshDescription, !bUpdateAttributes, !ConversionOptions.bUpdatePositions);
+}
+
+
 void FDynamicMeshToMeshDescription::UpdateUsingConversionOptions(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
 {
 	// See if we can do a buffer update without having to alter triangles.
