@@ -2195,8 +2195,8 @@ private:
 	friend class FSoundConcurrencyManager;
 	FSoundConcurrencyManager ConcurrencyManager;
 
-	/** Inverse listener transformation, used for spatialization */
-	FMatrix InverseListenerTransform;
+	/** Inverse listener transformations, used for spatialization */
+	TArray<FMatrix> InverseListenerTransforms;
 
 	/** A count of the number of one-shot active sounds. */
 	uint32 OneShotCount;
