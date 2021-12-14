@@ -278,25 +278,25 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 
 	// Force the entire tree collapsed to start
 	SetTagTreeItemExpansion(false);
-	 
+
 	LoadSettings();
 
 	VerifyAssetTagValidity();
 }
 
 void SGameplayTagWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-	{
+{
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
 	if (bDelayRefresh)
-{
+	{
 		RefreshTags();
 		bDelayRefresh = false;
-}
 	}
+}
 
 FVector2D SGameplayTagWidget::ComputeDesiredSize(float LayoutScaleMultiplier) const
-	{
+{
 	FVector2D WidgetSize = SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier);
 
 	FVector2D TagTreeContainerSize = TagTreeContainerWidget->GetDesiredSize();
