@@ -4335,14 +4335,12 @@ void FSteamVRInputDevice::RegisterApplication(FString ManifestPath)
 
 			GenerateAppManifest(ManifestPath, GameFileName, AppKey, AppManifestPath);
 
-			char* SteamVRAppKey = TCHAR_TO_UTF8(*AppKey);
-
 			// Load application manifest
 			EVRApplicationError AppError = VRApplications()->AddApplicationManifest(TCHAR_TO_UTF8(*IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*AppManifestPath)), true);
 			UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Registering Application Manifest %s : %s"), *AppManifestPath, *FString(UTF8_TO_TCHAR(VRApplications()->GetApplicationsErrorNameFromEnum(AppError))));
 
 			// Set AppKey for this Editor Session
-			AppError = VRApplications()->IdentifyApplication(AppProcessId, SteamVRAppKey);
+			AppError = VRApplications()->IdentifyApplication(AppProcessId, TCHAR_TO_UTF8(*AppKey));
 			UE_LOG(LogSteamVRInputDevice, Display, TEXT("[STEAMVR INPUT] Editor Application [%d][%s] identified to SteamVR: %s"), AppProcessId, *AppKey, *FString(UTF8_TO_TCHAR(VRApplications()->GetApplicationsErrorNameFromEnum(AppError))));
 		}
 #endif

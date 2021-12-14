@@ -783,7 +783,8 @@ UPrimitiveComponent* FSteamVRAssetManager::CreateRenderComponent(const int32 Dev
 				LoadHandler.BindRaw(this, &FSteamVRAssetManager::OnModelFullyLoaded, ModelName);
 				NewMeshLoader->SetLoaderFinishedCallback(LoadHandler);
 
-				const char* RawModelName = TCHAR_TO_UTF8(*ModelName);
+				const auto RawModelNameConvert = TStringConversion<FTCHARToUTF8_Convert>(*ModelName);
+				const char* RawModelName = RawModelNameConvert.Get();
 				const uint32 SubMeshCount = VRModelManager->GetComponentCount(RawModelName);
 
 				if (SubMeshCount > 0)
