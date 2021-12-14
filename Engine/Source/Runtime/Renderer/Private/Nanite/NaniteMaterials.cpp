@@ -881,7 +881,7 @@ struct FLumenMeshCaptureMaterialPass
 	uint64 SortKey = 0;
 	int32 CommandStateBucketId = INDEX_NONE;
 	uint32 ViewIndexBufferOffset = 0;
-	int32 NumViewIndices = 0;
+	TArray<uint16, TInlineAllocator<64>> ViewIndices;
 
 	inline float GetMaterialDepth() const
 	{
@@ -1015,10 +1015,6 @@ void DrawLumenMeshCapturePass(
 		TArray<FLumenMeshCaptureMaterialPass, SceneRenderingAllocator> MaterialPasses;
 		MaterialPasses.Reserve(CardPagesToRender.Num());
 
-		using FMaterialPassViewIndices = TArray<uint16, TInlineAllocator<64>>;
-		TArray<FMaterialPassViewIndices> ViewIndicesPerMaterialPass;
-		ViewIndicesPerMaterialPass.Reserve(CardPagesToRender.Num());
-
 		// Build list of unique materials
 		{
 			FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo = ExtractRenderTargetsInfo(FRDGParameterStruct(PassParameters, FNaniteEmitGBufferParameters::FTypeInfo::GetStructMetadata()));
@@ -1044,11 +1040,9 @@ void DrawLumenMeshCapturePass(
 						MaterialPass.CommandStateBucketId = CommandInfo.GetStateBucketId();
 						MaterialPass.ViewIndexBufferOffset = 0;
 						MaterialPasses.Add(MaterialPass);
-
-						ViewIndicesPerMaterialPass.AddDefaulted();
 					}
 
-					ViewIndicesPerMaterialPass[PassIndex.Index].Add(CardPageIndex);
+					MaterialPasses[PassIndex.Index].ViewIndices.Add(CardPageIndex);
 					++NumMaterialQuads;
 				}
 			}
@@ -1064,12 +1058,14 @@ void DrawLumenMeshCapturePass(
 		TArray<uint32, SceneRenderingAllocator> ViewIndices;
 		ViewIndices.Reserve(NumMaterialQuads);
 
-		for (int32 Index = 0; Index < MaterialPasses.Num(); Index++)
+		for (FLumenMeshCaptureMaterialPass& MaterialPass : MaterialPasses)
 		{
-			MaterialPasses[Index].ViewIndexBufferOffset = ViewIndices.Num();
-			MaterialPasses[Index].NumViewIndices = ViewIndicesPerMaterialPass[Index].Num();
+			MaterialPass.ViewIndexBufferOffset = ViewIndices.Num();
 
-			ViewIndices.Append(ViewIndicesPerMaterialPass[Index]);
+			for (int32 ViewIndex : MaterialPass.ViewIndices)
+			{
+				ViewIndices.Add(ViewIndex);
+			}
 		}
 		ensure(ViewIndices.Num() > 0);
 
@@ -1199,7 +1195,7 @@ void DrawLumenMeshCapturePass(
 				for (const FLumenMeshCaptureMaterialPass& MaterialPass : MaterialPassArray)
 				{
 					// One instance per card page
-					const uint32 InstanceFactor = MaterialPass.NumViewIndices;
+					const uint32 InstanceFactor = MaterialPass.ViewIndices.Num();
 					const uint32 InstanceBaseOffset = MaterialPass.ViewIndexBufferOffset;
 
 					FNaniteMaterialCommands::FCommandId CommandId(MaterialPass.CommandStateBucketId);
