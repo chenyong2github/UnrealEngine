@@ -99,7 +99,8 @@ protected:
 	const int32 Version;
 	const TSet<uint32> PotentiallyInlinedTensors;
 	int32 InlinedTensor;
-	TArray<FNeuralTensor*> AuxiliaryTensors; /* Only for some operators that might need them (e.g., FConvOperator and FConvTransposeOperator). */
+	/** Only for some operators that might need them (e.g., FConvOperator and FConvTransposeOperator). */
+	TArray<FNeuralTensor*> AuxiliaryTensors;
 
 	/**
 	 * 2 cases:
@@ -147,8 +148,10 @@ protected:
 	virtual const TArray<FNeuralTensor*>& GetOutputTensorsConst() const final;
 
 private:
-	TArray<FNeuralTensor*> PrivateInputTensors; /* Const for non-inlined operators. */
-	TArray<FNeuralTensor*> PrivateOutputTensors; /* Only for non-inlined operators. */
+	/** Const for non-inlined operators. */
+	TArray<FNeuralTensor*> PrivateInputTensors;
+	/** Only for non-inlined operators. */
+	TArray<FNeuralTensor*> PrivateOutputTensors;
 };
 
 
