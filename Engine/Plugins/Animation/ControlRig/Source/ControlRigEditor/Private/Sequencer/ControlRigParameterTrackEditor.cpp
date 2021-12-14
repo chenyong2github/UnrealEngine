@@ -3373,6 +3373,128 @@ void FControlRigParameterTrackEditor::SelectFKBonesToAnimate(UFKControlRig* Auto
 	//reconstruct all channel proxies TODO or not to do that is the question
 }
 
+void FControlRigParameterSection::CollapseAllLayers()
+{
+	FScopedTransaction Transaction(LOCTEXT("CollapseAllSections", "CollapseAllSections"));
+
+	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
+	if (ParameterSection && ParameterSection->GetControlRig())
+	{
+		UControlRig* ControlRig = ParameterSection->GetControlRig();
+		TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+		TRange<FFrameNumber> Range = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
+		FFrameNumber StartFrame = Range.GetLowerBoundValue();
+		FFrameNumber EndFrame = Range.GetUpperBoundValue();
+		const FFrameRate& FrameRate = SequencerPtr->GetFocusedDisplayRate();
+		const FFrameRate& TickResolution = SequencerPtr->GetFocusedTickResolution();
+
+		FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
+		TArray<FFrameNumber> Frames;
+		for (FFrameNumber& Frame = StartFrame; Frame <= EndFrame; Frame += FrameRateInFrameNumber)
+		{
+			Frames.Add(Frame);
+		}
+		//Store transforms
+		TArray<TPair<FName, TArray<FTransform>>> ControlLocalTransforms;
+		TArray<FRigControlElement*> Controls;
+		ControlRig->GetControlsInOrder(Controls);
+
+		for (FRigControlElement* ControlElement : Controls)
+		{
+			if (!ControlElement->Settings.bAnimatable)
+			{
+				continue;
+			}
+			TPair<FName, TArray<FTransform>> NameTransforms;
+			NameTransforms.Key = ControlElement->GetName();
+			NameTransforms.Value.SetNum(Frames.Num());
+			ControlLocalTransforms.Add(NameTransforms);
+		}
+
+		//get all of the local 
+		int32 Index = 0;
+		for (Index = 0; Index < Frames.Num(); ++Index)
+		{
+			const FFrameNumber& FrameNumber = Frames[Index];
+			FFrameTime GlobalTime(FrameNumber);
+
+			FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), SequencerPtr->GetPlaybackStatus()).SetHasJumped(true);
+
+			SequencerPtr->GetEvaluationTemplate().Evaluate(Context, *SequencerPtr);
+			ControlRig->Evaluate_AnyThread();
+			for (TPair<FName, TArray<FTransform>>& TrailControlTransform : ControlLocalTransforms)
+			{
+				TrailControlTransform.Value[Index] = ControlRig->GetControlLocalTransform(TrailControlTransform.Key);
+			}
+		}
+		//delete other sections
+		UMovieSceneTrack* OwnerTrack = ParameterSection->GetTypedOuter<UMovieSceneTrack>();
+		OwnerTrack->Modify();
+		const TArray<UMovieSceneSection*>& Sections = OwnerTrack->GetAllSections();
+		for (Index = Sections.Num() - 1; Index >= 0; --Index)
+		{
+			if (Sections[Index] != ParameterSection)
+			{
+				OwnerTrack->RemoveSectionAt(Index);
+			}
+		}
+
+		ParameterSection->RemoveAllKeys(false); //remove all keys but the space keys.
+		FRigControlModifiedContext Context;
+		Context.SetKey = EControlRigSetKey::Always;
+
+		Index = 0;
+		for (Index = 0; Index < Frames.Num(); ++Index)
+		{
+			const FFrameNumber& FrameNumber = Frames[Index];
+			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(FrameNumber));
+			//need to do the twice hack since controls aren't really in order
+			for (int32 TwiceHack = 0; TwiceHack < 2; ++TwiceHack)
+			{
+				for (TPair<FName, TArray<FTransform>>& TrailControlTransform : ControlLocalTransforms)
+				{
+					ControlRig->SetControlLocalTransform(TrailControlTransform.Key, TrailControlTransform.Value[Index],true,Context,false);
+				}
+			}
+		}
+
+		//reset everything back
+		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+		/*
+			const FFrameTime StartTime = SequencerPtr->GetLocalTime().Time;
+			FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(StartTime, TickResolution), SequencerPtr->GetPlaybackStatus()).SetHasJumped(true);
+			SequencerPtr->GetEvaluationTemplate().Evaluate(Context, *SequencerPtr);
+			ControlRig->Evaluate_AnyThread();
+			*/
+	}
+
+}
+void FControlRigParameterSection::KeyZeroValue()
+{
+	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
+	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+	FScopedTransaction Transaction(LOCTEXT("KeyZeroValue", "Key Zero Value"));
+	ParameterSection->Modify();
+	FFrameTime Time = SequencerPtr->GetLocalTime().Time;
+	ParameterSection->KeyZeroValue(Time.GetFrame(),true);
+	SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+}
+void FControlRigParameterSection::KeyWeightValue(float Val)
+{
+	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
+	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+	FScopedTransaction Transaction(LOCTEXT("KeyWeightZero", "Key Weight Zero"));
+	ParameterSection->Modify();
+	EMovieSceneTransformChannel Channels = ParameterSection->GetTransformMask().GetChannels();
+	if ((Channels & EMovieSceneTransformChannel::Weight) == EMovieSceneTransformChannel::None)
+	{
+		ParameterSection->SetTransformMask(ParameterSection->GetTransformMask().GetChannels() | EMovieSceneTransformChannel::Weight);
+		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+	}
+	FFrameTime Time = SequencerPtr->GetLocalTime().Time;
+	ParameterSection->KeyWeightValue(Time.GetFrame(), Val);
+	SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+}
 
 void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& InObjectBinding)
 {
@@ -3515,6 +3637,52 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 							})
 						);
 		};
+		UMovieSceneControlRigParameterTrack* Track = ParameterSection->GetTypedOuter<UMovieSceneControlRigParameterTrack>();
+		if (Track)
+		{
+			TArray<UMovieSceneSection*> Sections = Track->GetAllSections();
+			//If Base Absolute section 
+			if (ParameterSection->GetBlendType().Get() == EMovieSceneBlendType::Absolute && Sections[0] == ParameterSection)
+			{
+				MenuBuilder.BeginSection(NAME_None, LOCTEXT("AnimationLayers", "Animation Layers"));
+				{
+					MenuBuilder.AddMenuEntry(
+						LOCTEXT("MergeAllSections", "Merge All Sections"),
+						LOCTEXT("MergeAllSections_ToolTip", "Merge all sections to this"),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda([=] { CollapseAllLayers(); }))
+					);
+				}
+			}
+			if (ParameterSection->GetBlendType().Get() == EMovieSceneBlendType::Additive)
+			{
+
+				MenuBuilder.BeginSection(NAME_None, LOCTEXT("AnimationLayers", "Animation Layers"));
+				{
+					MenuBuilder.AddMenuEntry(
+						LOCTEXT("KeyZeroValue", "Key Zero Value"),
+						LOCTEXT("KeyZeroValue_Tooltip", "Set zero key on all controls in this section"),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda([=] { KeyZeroValue(); }))
+					);
+				}
+				
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("KeyWeightZero", "Key Weight Zero"),
+					LOCTEXT("KeyWeightZero_Tooltip", "Key a zero value on the Weight channel"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateLambda([=] { KeyWeightValue(0.0f); }))
+				);
+				
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("KeyWeightOne", "Key Weight One"),
+					LOCTEXT("KeyWeightOne_Tooltip", "Key a one value on the Weight channel"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateLambda([=] { KeyWeightValue(1.0f); }))
+				);
+				
+			}
+		}
 		MenuBuilder.BeginSection(NAME_None, LOCTEXT("RigSectionActiveChannels", "Active Channels"));
 		{
 			MenuBuilder.AddMenuEntry(

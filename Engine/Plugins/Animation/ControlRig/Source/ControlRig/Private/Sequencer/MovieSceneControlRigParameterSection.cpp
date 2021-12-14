@@ -1915,6 +1915,81 @@ float UMovieSceneControlRigParameterSection::GetTotalWeightValue(FFrameTime InTi
 	return WeightVal;
 }
 
+void UMovieSceneControlRigParameterSection::KeyZeroValue(FFrameNumber InFrame, bool bSelectedControls)
+{
+	TArray<FName> SelectedControls;
+	if (bSelectedControls && ControlRig)
+	{
+		SelectedControls = ControlRig->CurrentControlSelection();
+	}
+	/* Don't set zero values on these doesn't make sense
+	
+	for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
+	for (FEnumParameterNameAndCurve& Enum : GetEnumParameterNamesAndCurves())
+	for (FIntegerParameterNameAndCurve& Integer : GetIntegerParameterNamesAndCurves())
+
+	*/
+	for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
+	{
+		if (SelectedControls.Num() == 0 || SelectedControls.Contains(Scalar.ParameterName))
+		{
+			Scalar.ParameterCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			Scalar.ParameterCurve.AutoSetTangents();
+		}
+	}
+	for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
+	{
+		if (SelectedControls.Num() == 0 || SelectedControls.Contains(Vector2D.ParameterName))
+		{
+			Vector2D.XCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			Vector2D.XCurve.AutoSetTangents();
+			Vector2D.YCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			Vector2D.YCurve.AutoSetTangents();
+		}
+	}
+	for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
+	{
+		if (SelectedControls.Num() == 0 || SelectedControls.Contains(Vector.ParameterName))
+		{
+			Vector.XCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			Vector.XCurve.AutoSetTangents();
+			Vector.YCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			Vector.YCurve.AutoSetTangents();
+			Vector.ZCurve.AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+			Vector.ZCurve.AutoSetTangents();
+		}
+	}
+	for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
+	{
+		if (SelectedControls.Num() == 0 || SelectedControls.Contains(Transform.ParameterName))
+		{
+			for (int32 Index = 0; Index < 3; ++Index)
+			{
+				Transform.Translation[Index].AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+				Transform.Translation[Index].AutoSetTangents();
+				Transform.Rotation[Index].AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+				Transform.Rotation[Index].AutoSetTangents();
+				if (GetBlendType() == EMovieSceneBlendType::Additive)
+				{
+					Transform.Scale[Index].AddCubicKey(InFrame, 0.0f, ERichCurveTangentMode::RCTM_Auto);
+				}
+				else
+				{
+					Transform.Scale[Index].AddCubicKey(InFrame, 1.0f, ERichCurveTangentMode::RCTM_Auto);
+				}
+				Transform.Scale[Index].AutoSetTangents();
+
+			}
+		}
+	}
+}
+
+void UMovieSceneControlRigParameterSection::KeyWeightValue(FFrameNumber InFrame, float InVal)
+{
+	Weight.AddCubicKey(InFrame, InVal, ERichCurveTangentMode::RCTM_Auto);
+	Weight.AutoSetTangents();
+}
+
 void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlRig* InControlRig, bool bSetDefault)
 {
 	bool bSameControlRig = (ControlRig == InControlRig);
@@ -2609,7 +2684,97 @@ void UMovieSceneControlRigParameterSection::ClearAllParameters()
 	TransformParameterNamesAndCurves.SetNum(0);
 	EnumParameterNamesAndCurves.SetNum(0);
 	IntegerParameterNamesAndCurves.SetNum(0);
+	SpaceChannels.SetNum(0);
 }
+void UMovieSceneControlRigParameterSection::RemoveAllKeys(bool bIncludeSpaceKeys)
+{
+	TArray<FFrameNumber> KeyTimes;
+	TArray<FKeyHandle> Handles;
+	if (bIncludeSpaceKeys)
+	{
+		for (FSpaceControlNameAndChannel& Space : SpaceChannels)
+		{
+			KeyTimes.SetNum(0);
+			Handles.SetNum(0);
+			Space.SpaceCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+			Space.SpaceCurve.DeleteKeys(Handles);
+		}
+	}
+	for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
+	{
+		KeyTimes.SetNum(0);
+		Handles.SetNum(0);
+		Bool.ParameterCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+		Bool.ParameterCurve.DeleteKeys(Handles);
+	}
+	for (FEnumParameterNameAndCurve& Enum : GetEnumParameterNamesAndCurves())
+	{
+		KeyTimes.SetNum(0);
+		Handles.SetNum(0);
+		Enum.ParameterCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+		Enum.ParameterCurve.DeleteKeys(Handles);
+	}
+	for (FIntegerParameterNameAndCurve& Integer : GetIntegerParameterNamesAndCurves())
+	{
+		KeyTimes.SetNum(0);
+		Handles.SetNum(0);
+		Integer.ParameterCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+		Integer.ParameterCurve.DeleteKeys(Handles);
+	}
+
+	for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
+	{
+		KeyTimes.SetNum(0);
+		Handles.SetNum(0);
+		Scalar.ParameterCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+		Scalar.ParameterCurve.DeleteKeys(Handles);
+	}
+	for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
+	{
+		KeyTimes.SetNum(0);
+		Handles.SetNum(0);
+		Vector2D.XCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+		Vector2D.XCurve.DeleteKeys(Handles);
+		KeyTimes.SetNum(0);
+		Handles.SetNum(0);
+		Vector2D.YCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+		Vector2D.YCurve.DeleteKeys(Handles);
+	}
+	for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
+	{
+		KeyTimes.SetNum(0);
+		Handles.SetNum(0);
+		Vector.XCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+		Vector.XCurve.DeleteKeys(Handles);
+		KeyTimes.SetNum(0);
+		Handles.SetNum(0);
+		Vector.YCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+		Vector.YCurve.DeleteKeys(Handles);
+		KeyTimes.SetNum(0);
+		Handles.SetNum(0);
+		Vector.ZCurve.GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+		Vector.ZCurve.DeleteKeys(Handles);
+	}
+	for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
+	{
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			KeyTimes.SetNum(0);
+			Handles.SetNum(0);
+			Transform.Translation[Index].GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+			Transform.Translation[Index].DeleteKeys(Handles);
+			KeyTimes.SetNum(0);
+			Handles.SetNum(0);
+			Transform.Rotation[Index].GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+			Transform.Rotation[Index].DeleteKeys(Handles);
+			KeyTimes.SetNum(0);
+			Handles.SetNum(0);
+			Transform.Scale[Index].GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+			Transform.Scale[Index].DeleteKeys(Handles);
+		}
+	}
+}
+
 
 int32 UMovieSceneControlRigParameterSection::GetActiveCategoryIndex(FName ControlName) const
 {

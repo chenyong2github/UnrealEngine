@@ -278,6 +278,10 @@ protected:
 	/** Show all control channels*/
 	void ShowAllControlsChannels();
 
+	void KeyZeroValue();
+	void KeyWeightValue(float Val);
+	void CollapseAllLayers();
+
 	/** The sequencer which is controlling this section. */
 	TWeakPtr<ISequencer> WeakSequencer;
 
