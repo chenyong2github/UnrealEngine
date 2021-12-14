@@ -2783,6 +2783,8 @@ export type GetUtilizationTelemetryPool = {
 
 	otherTime: number;
 
+	hibernatingTime?: number | undefined;
+
 	streams: GetUtilizationTelemetryStream[];
 }
 
