@@ -256,16 +256,6 @@ public:
 	}
 
 	/**
-	 * Whether the compressor uses the FTaskGraph API.
-	 * 
-	 * @returns true if FTaskGraph is used, false otherwise
-	 */
-	virtual bool UsesTaskGraph() const
-	{
-		return false;
-	}
-
-	/**
 	 * Obtains the current global format config object for this texture format.
 	 * 
 	 * This is only ever called during task creation - never in a build worker
@@ -294,6 +284,13 @@ public:
 	virtual FName GetLatestSdkVersion() const
 	{
 		return FName();
+	}
+	
+	UE_DEPRECATED(5.0, "Legacy API - do not use")
+	virtual bool UsesTaskGraph() const
+	{
+		unimplemented();
+		return true;
 	}
 
 public:

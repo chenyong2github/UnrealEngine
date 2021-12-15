@@ -754,16 +754,6 @@ public:
 		return OodleName;
 	}
 	
-	virtual bool UsesTaskGraph() const override
-	{
-		// @todo the UsesTaskGraph function should go away entirely from ITextureFormat
-		//	it's only being used by VirtualTextureDataBuilder
-		//	it's none of his business
-		//	if that's a deadlock, there should be a better solution
-		//	like let me ask if I'm being called from a ParallelFor
-		return true;
-	}
-
 	virtual FCbObject ExportGlobalFormatConfig(const FTextureBuildSettings& BuildSettings) const override
 	{
 		return GlobalFormatConfig.ExportToCb(BuildSettings);
@@ -1138,6 +1128,7 @@ public:
 		if ( bDebugColor )
 		{
 			// fill Texture with solid color based on which BCN we would have output
+			//   checker board if RDO
 			// lets you visually identify BCN textures in the Editor or game
 			const bool IsRDO = RDOLambda != 0;
 			constexpr SSIZE_T CheckerSizeBits = 4;
@@ -1156,6 +1147,7 @@ public:
 
 				if (IsRDO)
 				{
+					// debug color with checker board
 					for (SSIZE_T Slice = 0; Slice < NumSlices; Slice++)
 					{
 						float* LineBase = (float*)(ImageBasePtr + InBytesPerSlice * Slice);
@@ -1222,6 +1214,7 @@ public:
 
 				if (IsRDO)
 				{
+					// debug color with checker board
 					for (SSIZE_T Slice = 0; Slice < NumSlices; Slice++)
 					{
 						uint8* LineBase = ImageBasePtr + InBytesPerSlice * Slice;;
@@ -1289,16 +1282,12 @@ public:
 		int CurJobifyNumThreads = OodleJobifyNumThreads;
 		void* CurJobifyUserPointer = OodleJobifyUserPointer;
 
-
-		// @todo check its safe to do TaskGraph waits from inside TaskGraph threads?
-		//	see also VirtualTextureDataBuilder.cpp UsesTaskGraph
-		//const bool bVTDisableInternalThreading = false; // false = DO use internal threads on VT
-		const bool bVTDisableInternalThreading = true; // true = DO NOT use internal threads on VT
-
-		if (bIsVT && bVTDisableInternalThreading)
+		if (bIsVT)
 		{
 			// VT runs its tiles in a ParallelFor on the TaskGraph
-			// if we use TaskGraph internally there's a chance of deadlock (?)
+			//   We internally also make tasks on TaskGraph
+			//   it should not deadlock to do tasks from tasks, but it's not handled well
+			//   parallelism at the VT tile level only works better
 			// disable our own internal threading for VT tiles :
 			CurJobifyNumThreads = OODLETEX_JOBS_DISABLE;
 			CurJobifyUserPointer = nullptr;
