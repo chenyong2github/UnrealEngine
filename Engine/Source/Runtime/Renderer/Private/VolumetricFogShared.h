@@ -36,94 +36,19 @@ struct FVolumetricFogIntegrationParameterData
 	FRDGTextureUAV* LightScatteringUAV;
 };
 
-class FVolumetricFogIntegrationParameters
-{
-	DECLARE_TYPE_LAYOUT(FVolumetricFogIntegrationParameters, NonVirtual);
-public:
+BEGIN_SHADER_PARAMETER_STRUCT(FVolumetricFogIntegrationParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FVolumetricFogGlobalData, VolumetricFog)
+	SHADER_PARAMETER(FMatrix44f, UnjitteredClipToTranslatedWorld)
+	SHADER_PARAMETER(FMatrix44f, UnjitteredPrevWorldToClip)
+	SHADER_PARAMETER_ARRAY(FVector4f, FrameJitterOffsets, [16])
+	SHADER_PARAMETER(float, HistoryWeight)
+	SHADER_PARAMETER(uint32, HistoryMissSuperSampleCount)
+END_SHADER_PARAMETER_STRUCT()
 
-	void Bind(const FShaderParameterMap& ParameterMap)
-	{
-		VBufferA.Bind(ParameterMap, TEXT("VBufferA"));
-		VBufferB.Bind(ParameterMap, TEXT("VBufferB"));
-		LightScattering.Bind(ParameterMap, TEXT("LightScattering"));
-		IntegratedLightScattering.Bind(ParameterMap, TEXT("IntegratedLightScattering"));
-		IntegratedLightScatteringSampler.Bind(ParameterMap, TEXT("IntegratedLightScatteringSampler"));
-		VolumetricFogData.Bind(ParameterMap, TEXT("VolumetricFog"));
-		UnjitteredClipToTranslatedWorld.Bind(ParameterMap, TEXT("UnjitteredClipToTranslatedWorld")); 
-		UnjitteredPrevWorldToClip.Bind(ParameterMap, TEXT("UnjitteredPrevWorldToClip")); 
-		FrameJitterOffsets.Bind(ParameterMap, TEXT("FrameJitterOffsets")); 
-		HistoryWeight.Bind(ParameterMap, TEXT("HistoryWeight"));
-		HistoryMissSuperSampleCount.Bind(ParameterMap, TEXT("HistoryMissSuperSampleCount")); 
-	}
-
-	template<typename ShaderRHIParamRef>
-	void Set(
-		FRHICommandList& RHICmdList, 
-		const ShaderRHIParamRef& ShaderRHI, 
-		const FViewInfo& View, 
-		const FVolumetricFogIntegrationParameterData& IntegrationData) const
-	{
-		SetSamplerParameter(RHICmdList, ShaderRHI, IntegratedLightScatteringSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		
-		if (VolumetricFogData.IsBound())
-		{
-			SetUniformBufferParameter(RHICmdList, ShaderRHI, VolumetricFogData, View.VolumetricFogResources.VolumetricFogGlobalData);
-		}
-
-		if (UnjitteredClipToTranslatedWorld.IsBound())
-		{
-			FMatrix44f UnjitteredInvTranslatedViewProjectionMatrix = View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed();
-			SetShaderValue(RHICmdList, ShaderRHI, UnjitteredClipToTranslatedWorld, UnjitteredInvTranslatedViewProjectionMatrix);
-		}
-
-		if (UnjitteredPrevWorldToClip.IsBound())
-		{
-			FMatrix44f UnjitteredViewProjectionMatrix = View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix();
-			SetShaderValue(RHICmdList, ShaderRHI, UnjitteredPrevWorldToClip, UnjitteredViewProjectionMatrix);
-		}
-
-		if (FrameJitterOffsets.IsBound())
-		{
-			SetShaderValueArray(RHICmdList, ShaderRHI, FrameJitterOffsets, IntegrationData.FrameJitterOffsetValues.GetData(), IntegrationData.FrameJitterOffsetValues.Num());
-		}
-
-		extern float GVolumetricFogHistoryWeight;
-		SetShaderValue(RHICmdList, ShaderRHI, HistoryWeight, IntegrationData.bTemporalHistoryIsValid ? GVolumetricFogHistoryWeight : 0.0f);
-
-		extern int32 GVolumetricFogHistoryMissSupersampleCount;
-		SetShaderValue(RHICmdList, ShaderRHI, HistoryMissSuperSampleCount, FMath::Clamp(GVolumetricFogHistoryMissSupersampleCount, 1, 16));
-	}
-
-	/** Serializer. */
-	friend FArchive& operator<<(FArchive& Ar,FVolumetricFogIntegrationParameters& P)
-	{
-		Ar << P.VBufferA;
-		Ar << P.VBufferB;
-		Ar << P.LightScattering;
-		Ar << P.IntegratedLightScattering;
-		Ar << P.IntegratedLightScatteringSampler;
-		Ar << P.VolumetricFogData;
-		Ar << P.UnjitteredClipToTranslatedWorld;
-		Ar << P.UnjitteredPrevWorldToClip;
-		Ar << P.FrameJitterOffsets;
-		Ar << P.HistoryWeight;
-		Ar << P.HistoryMissSuperSampleCount;
-		return Ar;
-	}
-
-private:
-	LAYOUT_FIELD(FRWShaderParameter, VBufferA)
-	LAYOUT_FIELD(FRWShaderParameter, VBufferB)
-	LAYOUT_FIELD(FRWShaderParameter, LightScattering)
-	LAYOUT_FIELD(FRWShaderParameter, IntegratedLightScattering)
-	LAYOUT_FIELD(FShaderResourceParameter, IntegratedLightScatteringSampler)
-	LAYOUT_FIELD(FShaderUniformBufferParameter, VolumetricFogData)
-	LAYOUT_FIELD(FShaderParameter, UnjitteredClipToTranslatedWorld)
-	LAYOUT_FIELD(FShaderParameter, UnjitteredPrevWorldToClip)
-	LAYOUT_FIELD(FShaderParameter, FrameJitterOffsets)
-	LAYOUT_FIELD(FShaderParameter, HistoryWeight)
-	LAYOUT_FIELD(FShaderParameter, HistoryMissSuperSampleCount)
-};
+void SetupVolumetricFogIntegrationParameters(
+	FVolumetricFogIntegrationParameters& Out,
+	FViewInfo& View,
+	const FVolumetricFogIntegrationParameterData& IntegrationData);
 
 inline int32 ComputeZSliceFromDepth(float SceneDepth, FVector GridZParams)
 {
