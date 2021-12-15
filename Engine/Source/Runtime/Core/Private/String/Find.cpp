@@ -5,6 +5,7 @@
 #include "Algo/AllOf.h"
 #include "Algo/Find.h"
 #include "Algo/NoneOf.h"
+#include "Containers/StringView.h"
 
 namespace UE::String::Private
 {
