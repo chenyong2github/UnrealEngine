@@ -363,13 +363,27 @@ namespace Chaos
 	}
 
 	void FPBDCollisionSolverManifoldPoint::InitMaterial(
-		const FReal InWorldContactVelocityTargetNormal,
+		const FConstraintSolverBody& Body0,
+		const FConstraintSolverBody& Body1,
+		const FReal InRestitution,
+		const FReal InRestitutionVelocityThreshold,
 		const bool bInEnableStaticFriction,
 		const FReal InStaticFrictionMax)
 	{
 		StaticFrictionMax = InStaticFrictionMax;
 		bInsideStaticFrictionCone = bInEnableStaticFriction;
-		WorldContactVelocityTargetNormal = InWorldContactVelocityTargetNormal;
+		WorldContactVelocityTargetNormal = FReal(0);
+
+		if (InRestitution > FReal(0))
+		{
+			const FVec3 ContactVelocity = CalculateContactVelocity(Body0, Body1);
+			const FReal ContactVelocityNormal = FVec3::DotProduct(ContactVelocity, WorldContactNormal);
+			if (ContactVelocityNormal < -InRestitutionVelocityThreshold)
+			{
+				WorldContactVelocityTargetNormal = -InRestitution * ContactVelocityNormal;
+			}
+		}
+
 	}
 
 	inline void FPBDCollisionSolverManifoldPoint::UpdateContact(
@@ -550,11 +564,15 @@ namespace Chaos
 
 	void FPBDCollisionSolver::InitMaterial(
 		const int32 ManifoldPoiontIndex,
-		const FReal InWorldContactVelocityTargetNormal,
+		const FReal InRestitution,
+		const FReal InRestitutionVelocityThreshold,
 		const bool bInEnableStaticFriction,
 		const FReal InStaticFrictionMax)
 	{
-		State.ManifoldPoints[ManifoldPoiontIndex].InitMaterial(InWorldContactVelocityTargetNormal, bInEnableStaticFriction, InStaticFrictionMax);
+		State.ManifoldPoints[ManifoldPoiontIndex].InitMaterial(State.SolverBodies[0], State.SolverBodies[1], InRestitution, InRestitutionVelocityThreshold, bInEnableStaticFriction, InStaticFrictionMax);
+
+		// Track if any points have restitution enabled. See SolveVelocity
+		State.bHaveRestitution = State.bHaveRestitution || (State.ManifoldPoints[ManifoldPoiontIndex].WorldContactVelocityTargetNormal > 0);
 	}
 
 	void FPBDCollisionSolver::UpdateContact(
@@ -629,6 +647,71 @@ namespace Chaos
 		return !State.bIsSolved;
 	}
 
+	void FPBDCollisionSolver::SolveVelocityAverage(const FReal Dt)
+	{
+		FConstraintSolverBody& Body0 = SolverBody0();
+		FConstraintSolverBody& Body1 = SolverBody1();
+
+		// Generate a new contact point at the average of all the active contacts
+		int32 NumActiveManifoldPoints = 0;
+		FVec3 WorldContactPosition = FVec3(0);
+		FVec3 WorldContactNormal = FVec3(0);
+		FVec3 NetPushOut = FVec3(0);
+		FReal WorldContactVelocityTargetNormal = FReal(0);
+		for (int32 PointIndex = 0; PointIndex < State.NumManifoldPoints; ++PointIndex)
+		{
+			FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
+			if (!SolverManifoldPoint.NetPushOut.IsNearlyZero())
+			{
+				WorldContactPosition += SolverManifoldPoint.WorldContactPosition;
+				WorldContactVelocityTargetNormal += SolverManifoldPoint.WorldContactVelocityTargetNormal;
+				WorldContactNormal = SolverManifoldPoint.WorldContactNormal;	// Take last value - should all be similar
+				++NumActiveManifoldPoints;
+			}
+		}
+
+		// Solve for velocity at the new conatct point
+		// We only do this if we have multiple active contacts
+		if (NumActiveManifoldPoints > 1)
+		{
+			const FReal DynamicFriction = FReal(0);
+			const FReal Scale = FReal(1) / FReal(NumActiveManifoldPoints);
+
+			FPBDCollisionSolverManifoldPoint AverageManifoldPoint;
+			AverageManifoldPoint.WorldContactPosition = WorldContactPosition * Scale;
+			AverageManifoldPoint.WorldContactNormal = WorldContactNormal;
+
+			const FMatrix33 ContactMassInv =
+				(Body0.IsDynamic() ? Collisions::ComputeFactorMatrix3(AverageManifoldPoint.WorldContactPosition - Body0.P(), Body0.InvI(), Body0.InvM()) : FMatrix33(0)) +
+				(Body1.IsDynamic() ? Collisions::ComputeFactorMatrix3(AverageManifoldPoint.WorldContactPosition - Body1.P(), Body1.InvI(), Body1.InvM()) : FMatrix33(0));
+			const FReal ContactMassInvNormal = FVec3::DotProduct(AverageManifoldPoint.WorldContactNormal, Utilities::Multiply(ContactMassInv, AverageManifoldPoint.WorldContactNormal));
+			const FReal ContactMassNormal = (ContactMassInvNormal > FReal(SMALL_NUMBER)) ? FReal(1) / ContactMassInvNormal : FReal(0);
+			AverageManifoldPoint.WorldContactMass = FMatrix33(0);
+			AverageManifoldPoint.WorldContactMassNormal = ContactMassNormal;
+
+			AverageManifoldPoint.WorldContactDelta = FVec3(0);
+			AverageManifoldPoint.WorldContactVelocityTargetNormal = WorldContactVelocityTargetNormal * Scale;
+			AverageManifoldPoint.NetPushOut = FVec3(0);
+			AverageManifoldPoint.NetImpulse = FVec3(0);
+			AverageManifoldPoint.StaticFrictionMax = FReal(0);
+			AverageManifoldPoint.bInsideStaticFrictionCone = false;
+
+			FVec3 ContactVelocityDelta;
+			FReal ContactVelocityDeltaNormal;
+			AverageManifoldPoint.CalculateContactVelocityError(Body0, Body1, DynamicFriction, Dt, ContactVelocityDelta, ContactVelocityDeltaNormal);
+
+			ApplyVelocityCorrection(
+				State.Stiffness,
+				Dt,
+				DynamicFriction,
+				ContactVelocityDelta,
+				ContactVelocityDeltaNormal,
+				AverageManifoldPoint,
+				Body0,
+				Body1);
+		}
+	}
+
 	bool FPBDCollisionSolver::SolveVelocity(const FReal Dt, const bool bApplyDynamicFriction)
 	{
 		if (!bChaos_PBDCollisionSolver_Velocity_SolveEnabled)
@@ -636,28 +719,30 @@ namespace Chaos
 			return false;
 		}
 
+		// Apply restitution at the average contact point
+		// This means we don't need to run as many iterations to get stable bouncing
+		if (State.bHaveRestitution && (State.NumManifoldPoints > 1))
+		{
+			SolveVelocityAverage(Dt);
+		}
+
 		FConstraintSolverBody& Body0 = SolverBody0();
 		FConstraintSolverBody& Body1 = SolverBody1();
 
-		// Only apply friction for 1 iteration (the last one) because the solver is iteration-count sensitive
-		// @todo(chaos): use xpbd dynamic friction in QuasiPBD Solver
+		// NOTE: this dynamic friction implementation is iteration-count sensitive
+		// @todo(chaos): fix iteration count dependence of dynamic friction
 		const FReal DynamicFriction = (bApplyDynamicFriction && bChaos_PBDCollisionSolver_Velocity_DynamicFrictionEnabled) ? State.DynamicFriction : (FReal)0.0f;
-		const FReal Stiffness = State.Stiffness;
 
 		for (int32 PointIndex = 0; PointIndex < State.NumManifoldPoints; ++PointIndex)
 		{
 			FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
-
-			//SolverManifoldPoint.UpdateContactPoint(Body0, Body1, State.Constraint->GetManifoldPoints()[PointIndex]);
-			//SolverManifoldPoint.UpdateContactMass(Body0, Body1);
-
 			if (!SolverManifoldPoint.NetPushOut.IsNearlyZero())
 			{
 				FVec3 ContactVelocityDelta;
 				FReal ContactVelocityDeltaNormal;
 				SolverManifoldPoint.CalculateContactVelocityError(Body0, Body1, DynamicFriction, Dt, ContactVelocityDelta, ContactVelocityDeltaNormal);
 				ApplyVelocityCorrection(
-					Stiffness,
+					State.Stiffness,
 					Dt,
 					DynamicFriction,
 					ContactVelocityDelta,
