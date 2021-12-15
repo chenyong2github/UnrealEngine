@@ -67,7 +67,14 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 	// Lumen probe
 	float3 Random = 0;
 	float ConeHalfAngle = 0;
-	return SampleRadianceCacheInterpolated(AbsoluteWorldPosition, RayDirection, ConeHalfAngle, Random);
+	FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(AbsoluteWorldPosition, RayDirection, .5f);
+
+	if (Coverage.bValid)
+	{
+		return SampleRadianceCacheInterpolated(Coverage, AbsoluteWorldPosition, RayDirection, ConeHalfAngle);
+	}
+	
+	return 0;
 #else
 	const float IndirectIrradiance = 1;
 	const int SingleCaptureIndex = 0;

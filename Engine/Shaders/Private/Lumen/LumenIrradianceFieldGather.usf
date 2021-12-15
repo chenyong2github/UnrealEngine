@@ -55,7 +55,7 @@ void MarkRadianceProbesUsedByGBufferCS(
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
-	uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition);
+	uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition, InterleavedGradientNoise(DispatchThreadId.xy, View.StateFrameIndexMod8));
 
 	if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
 	{
@@ -85,7 +85,7 @@ void IrradianceFieldGatherCS(
 		{
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 			float3 V = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
-			uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
+			uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition, InterleavedGradientNoise(DispatchThreadId, View.StateFrameIndexMod8));
 
 			float3 DiffuseLighting = 0;
 

@@ -410,7 +410,7 @@ void MarkRadianceProbesUsedByScreenProbesCS(
 
 		if (SceneDepth > 0)
 		{
-			uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition);
+			uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition, InterleavedGradientNoise(ScreenProbeAtlasCoord.xy, GENERAL_TEMPORAL_INDEX));
 
 			if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
 			{
@@ -471,8 +471,8 @@ void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchT
 		const float3 MinAABB    = min(P0, P1);
 		const float3 MaxAABB    = max(P0, P1);
 
-		const FRadianceProbeCoord MinAABBProbe = GetRadianceProbeCoord(MinAABB);
-		const FRadianceProbeCoord MaxAABBProbe = GetRadianceProbeCoord(MaxAABB);
+		const FRadianceProbeCoord MinAABBProbe = GetRadianceProbeCoord(MinAABB, .01f);
+		const FRadianceProbeCoord MaxAABBProbe = GetRadianceProbeCoord(MaxAABB, .01f);
 
 		// If AABB is withing the same interpolated probes
 		if (all(MinAABBProbe.ProbeMinCoord == MaxAABBProbe.ProbeMinCoord) && MinAABBProbe.ClipmapIndex == MaxAABBProbe.ClipmapIndex)

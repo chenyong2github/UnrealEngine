@@ -114,6 +114,7 @@ namespace LumenRadianceCache
 		FRadianceCacheInputs RadianceCacheInputs;
 		RadianceCacheInputs.CalculateIrradiance = 0;
 		RadianceCacheInputs.IrradianceProbeResolution = 0;
+		RadianceCacheInputs.InvClipmapFadeSize = 1.0f;
 		return RadianceCacheInputs;
 	}
 
@@ -133,6 +134,8 @@ namespace LumenRadianceCache
 		OutParameters.ProbeWorldOffset = nullptr;
 		OutParameters.OverrideCacheOcclusionLighting = GRadianceCacheOverrideCacheOcclusionLighting;
 		OutParameters.ShowBlackRadianceCacheLighting = GRadianceCacheShowBlackRadianceCacheLighting;
+		OutParameters.ProbeAtlasResolutionModuloMask = (1u << FMath::FloorLog2(RadianceCacheInputs.ProbeAtlasResolutionInProbes.X)) - 1;
+		OutParameters.ProbeAtlasResolutionDivideShift = FMath::FloorLog2(RadianceCacheInputs.ProbeAtlasResolutionInProbes.X);
 
 		for (int32 ClipmapIndex = 0; ClipmapIndex < RadianceCacheState.Clipmaps.Num(); ++ClipmapIndex)
 		{
@@ -187,10 +190,66 @@ namespace LumenRadianceCache
 
 		MarkParameters.RadianceProbeClipmapResolutionForMark = RadianceCacheInputs.RadianceProbeClipmapResolution;
 		MarkParameters.NumRadianceProbeClipmapsForMark = RadianceCacheInputs.NumRadianceProbeClipmaps;
+		MarkParameters.InvClipmapFadeSizeForMark = RadianceCacheInputs.InvClipmapFadeSize;
 
 		return MarkParameters;
 	}
 };
+
+class FMarkRadianceProbesUsedByVisualizeCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FMarkRadianceProbesUsedByVisualizeCS)
+	SHADER_USE_PARAMETER_STRUCT(FMarkRadianceProbesUsedByVisualizeCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
+		END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static uint32 GetGroupSize()
+	{
+		return 8;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByVisualizeCS, "/Engine/Private/Lumen/LumenRadianceCache.usf", "MarkRadianceProbesUsedByVisualizeCS", SF_Compute);
+
+void MarkUsedProbesForVisualize(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
+{
+	extern int32 GVisualizeLumenSceneTraceRadianceCache;
+
+	if (View.Family->EngineShowFlags.VisualizeLumenScene && GVisualizeLumenSceneTraceRadianceCache != 0)
+	{
+		FMarkRadianceProbesUsedByVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByVisualizeCS::FParameters>();
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->RadianceCacheMarkParameters = RadianceCacheMarkParameters;
+
+		auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByVisualizeCS>(0);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("MarkRadianceProbes(Visualize)"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1));
+	}
+}
 
 class FClearProbeFreeList : public FGlobalShader
 {
@@ -1004,7 +1063,8 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		Clipmap.VolumeUVOffset = FVector(0.0f, 0.0f, 0.0f);
 		Clipmap.CellSize = CellSize;
 
-		const FVector ClipmapMin = Clipmap.Center - Clipmap.Extent;
+		// Shift the clipmap grid down so that probes align with other clipmaps
+		const FVector ClipmapMin = Clipmap.Center - Clipmap.Extent - 0.5f * Clipmap.CellSize;
 
 		Clipmap.ProbeCoordToWorldCenterBias = ClipmapMin + 0.5f * Clipmap.CellSize;
 		Clipmap.ProbeCoordToWorldCenterScale = Clipmap.CellSize;

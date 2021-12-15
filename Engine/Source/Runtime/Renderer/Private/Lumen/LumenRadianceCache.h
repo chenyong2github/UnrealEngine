@@ -16,6 +16,7 @@ namespace LumenRadianceCache
 		SHADER_PARAMETER_ARRAY(FVector4f, PackedRadianceProbeCoordToWorldPosition, [MaxClipmaps])
 		SHADER_PARAMETER(uint32, RadianceProbeClipmapResolutionForMark)
 		SHADER_PARAMETER(uint32, NumRadianceProbeClipmapsForMark)
+		SHADER_PARAMETER(float, InvClipmapFadeSizeForMark)
 	END_SHADER_PARAMETER_STRUCT()
 }
 
@@ -68,3 +69,5 @@ extern void RenderLumenHardwareRayTracingRadianceCache(
 	FRDGBufferRef RadianceCacheHardwareRayTracingIndirectArgs,
 	FRDGTextureUAVRef RadianceProbeAtlasTextureUAV,
 	FRDGTextureUAVRef DepthProbeTextureUAV);
+
+extern void MarkUsedProbesForVisualize(FRDGBuilder& GraphBuilder, const FViewInfo& View, const class LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters);

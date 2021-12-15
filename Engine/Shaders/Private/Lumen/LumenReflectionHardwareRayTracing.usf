@@ -169,7 +169,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 			TraceResult.Lighting = 0;
 			TraceResult.Transparency = 1;
 
-			SampleRadianceCacheAndApply(WorldPosition, RayData.Direction, RayData.ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+			FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, RayData.Direction, InterleavedGradientNoise(TraceCoord, View.StateFrameIndexMod8));
+			SampleRadianceCacheAndApply(Coverage, WorldPosition, RayData.Direction, RayData.ConeHalfAngle, TraceResult.Lighting, TraceResult.Transparency);
 			Result.TraceHitDistance = RayData.TraceDistance;
 			Result.Radiance = TraceResult.Lighting;
 

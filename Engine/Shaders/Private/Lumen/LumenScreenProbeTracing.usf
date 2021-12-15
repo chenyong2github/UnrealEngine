@@ -5,6 +5,7 @@
 #include "LumenCardCommon.ush"
 #define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
 #include "LumenTracingCommon.ush"
+#define RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX 1
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenScreenProbeCommon.ush"
 #include "LumenVisualizeTraces.ush"
@@ -98,7 +99,7 @@ void ScreenProbeTraceScreenTexturesCS(
 				float TraceDistance = MaxTraceDistance;
 				bool bCoveredByRadianceCache = false;
 				#if RADIANCE_CACHE
-					FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+					FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection, InterleavedGradientNoise(ScreenTileCoord, GENERAL_TEMPORAL_INDEX));
 
 					if (Coverage.bValid)
 					{
@@ -550,7 +551,7 @@ void TraceVoxels(
 			FRadianceCacheCoverage Coverage;
 			Coverage.bValid = false;
 #if RADIANCE_CACHE
-			Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+			Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection, InterleavedGradientNoise(ScreenTileCoord, GENERAL_TEMPORAL_INDEX));
 
 			if (Coverage.bValid)
 			{
@@ -602,7 +603,7 @@ void TraceVoxels(
 					TraceHitDistance = MaxTraceDistance;
 				}
 
-				SampleRadianceCacheAndApply(WorldPosition, WorldConeDirection, ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+				SampleRadianceCacheAndApply(Coverage, WorldPosition, WorldConeDirection, ConeHalfAngle, TraceResult.Lighting, TraceResult.Transparency);
 			}
 			else
 #endif

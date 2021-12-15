@@ -67,7 +67,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 			Coverage.bValid = false;
 
 			#if USE_RADIANCE_CACHE
-				Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+				Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection, .5f);
 				
 				if (Coverage.bValid)
 				{
@@ -105,7 +105,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 #if USE_RADIANCE_CACHE
 				if (Coverage.bValid)
 				{
-					SampleRadianceCacheAndApply(WorldPosition, WorldConeDirection, ConeHalfAngle, float3(0, 0, 0), TraceLightingResult.Radiance, Transparency);
+					SampleRadianceCacheAndApply(Coverage, WorldPosition, WorldConeDirection, ConeHalfAngle, TraceLightingResult.Radiance, Transparency);
 				}
 				else
 #endif

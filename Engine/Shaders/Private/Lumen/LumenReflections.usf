@@ -264,7 +264,7 @@ void ReflectionGenerateRaysCS(
 
 			if (ConeAngle > RadianceCacheConeHalfAngle)
 			{
-				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverageWithUncertainCoverage(WorldPosition, RayDirection);
+				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverageWithUncertainCoverage(WorldPosition, RayDirection, InterleavedGradientNoise(ReflectionTracingCoord, View.StateFrameIndexMod8));
 				bUseRadianceCache = Coverage.bValid;
 				if (bUseRadianceCache)
 				{

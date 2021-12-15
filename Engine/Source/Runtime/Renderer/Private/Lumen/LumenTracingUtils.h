@@ -237,3 +237,4 @@ namespace LumenIrradianceFieldGather
 {
 	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
 }
+

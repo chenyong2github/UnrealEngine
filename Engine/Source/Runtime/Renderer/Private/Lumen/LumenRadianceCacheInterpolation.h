@@ -18,6 +18,7 @@ namespace LumenRadianceCache
 		SHADER_PARAMETER(float, ReprojectionRadiusScale)
 		SHADER_PARAMETER(float, ClipmapWorldExtent)
 		SHADER_PARAMETER(float, ClipmapDistributionBase)
+		SHADER_PARAMETER(float, InvClipmapFadeSize)
 		SHADER_PARAMETER(FIntPoint, ProbeAtlasResolutionInProbes)
 		SHADER_PARAMETER(uint32, RadianceProbeClipmapResolution)
 		SHADER_PARAMETER(uint32, NumRadianceProbeClipmaps)
@@ -49,6 +50,8 @@ namespace LumenRadianceCache
 		SHADER_PARAMETER(FVector2f, InvProbeDepthAtlasResolution)
 		SHADER_PARAMETER(uint32, OverrideCacheOcclusionLighting)
 		SHADER_PARAMETER(uint32, ShowBlackRadianceCacheLighting)
+		SHADER_PARAMETER(uint32, ProbeAtlasResolutionModuloMask)
+		SHADER_PARAMETER(uint32, ProbeAtlasResolutionDivideShift)
 	END_SHADER_PARAMETER_STRUCT()
 
 	// Packed in vector to satisfy 16 byte array element alignment :
