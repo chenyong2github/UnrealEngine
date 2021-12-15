@@ -71,9 +71,12 @@ namespace HordeServerTests
 				}
 			}
 
-			protected override void WriteFormattedEvent(LogLevel Level, byte[] Line)
+			protected override void WriteFormattedEvent(LogLevel Level, int LineIndex, int LineCount, byte[] Line)
 			{
-				Events.Add((Level, Line));
+				if (LineIndex == 0)
+				{
+					Events.Add((Level, Line));
+				}
 			}
 
 			private async Task WriteAsync(LogLevel Level, byte[] Line)

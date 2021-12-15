@@ -63,7 +63,7 @@ namespace HordeAgent.Utility
 
 			if(State is JsonLogEvent JsonEvent)
 			{
-				WriteFormattedEvent(LogLevel, JsonEvent.Data.ToArray());
+				WriteFormattedEvent(LogLevel, JsonEvent.LineIndex, JsonEvent.LineCount, JsonEvent.Data.ToArray());
 				return;
 			}
 
@@ -72,15 +72,17 @@ namespace HordeAgent.Utility
 			{
 				Event = LogEvent.FromState(LogLevel, EventId, State, Exception, Formatter);
 			}
-			WriteFormattedEvent(Event.Level, Event.ToJsonBytes());
+			WriteFormattedEvent(Event.Level, Event.LineIndex, Event.LineCount, Event.ToJsonBytes());
 		}
 
 		/// <summary>
 		/// Writes a formatted event
 		/// </summary>
 		/// <param name="Level">The log level</param>
+		/// <param name="LineIndex">Index of the current line within this event</param>
+		/// <param name="LineCount">Number of lines in this event</param>
 		/// <param name="Line">Utf-8 encoded JSON line data</param>
-		protected abstract void WriteFormattedEvent(LogLevel Level, byte[] Line);
+		protected abstract void WriteFormattedEvent(LogLevel Level, int LineIndex, int LineCount, byte[] Line);
 
 		/// <summary>
 		/// Callback to write a systemic event

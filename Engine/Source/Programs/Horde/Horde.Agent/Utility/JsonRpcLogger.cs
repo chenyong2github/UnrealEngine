@@ -82,7 +82,7 @@ namespace HordeAgent.Parser
 			this.Outcome = JobStepOutcome.Success;
 		}
 
-		protected override void WriteFormattedEvent(LogLevel Level, byte[] Line)
+		protected override void WriteFormattedEvent(LogLevel Level, int LineIndex, int LineCount, byte[] Line)
 		{
 			// Update the state of this job if this is an error status
 			if (Level == LogLevel.Error || Level == LogLevel.Critical)
@@ -96,9 +96,12 @@ namespace HordeAgent.Parser
 
 			// If we want an event for this log event, create one now
 			CreateEventRequest? Event = null;
-			if (Level == LogLevel.Warning || Level == LogLevel.Error || Level == LogLevel.Critical)
+			if (LineIndex == 0)
 			{
-				Event = CreateEvent(Level, 1);
+				if (Level == LogLevel.Warning || Level == LogLevel.Error || Level == LogLevel.Critical)
+				{
+					Event = CreateEvent(Level, LineCount);
+				}
 			}
 
 			// Write the data to the output channel

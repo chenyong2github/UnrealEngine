@@ -62,7 +62,7 @@ namespace HordeAgentTests
 			{
 			}
 
-			protected override void WriteFormattedEvent(LogLevel Level, byte[] Line)
+			protected override void WriteFormattedEvent(LogLevel Level, int LineIndex, int LineCount, byte[] Line)
 			{
 				Lines.Add(LogEvent.Read(Line));
 			}

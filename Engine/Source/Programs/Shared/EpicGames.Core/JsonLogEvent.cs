@@ -15,6 +15,8 @@ namespace EpicGames.Core
 	{
 		static Utf8String LevelString { get; } = new Utf8String("Level");
 		static Utf8String PropertiesString { get; } = new Utf8String("Properties");
+		static Utf8String LineIndexString { get; } = new Utf8String("Line");
+		static Utf8String LineCountString { get; } = new Utf8String("LineCount");
 		static Utf8String EventIdString { get; } = new Utf8String("EventId");
 		static Utf8String IdString { get; } = new Utf8String("Id");
 		static Utf8String RenderedMessageString { get; } = new Utf8String("RenderedMessage");
@@ -30,6 +32,16 @@ namespace EpicGames.Core
 		public EventId EventId { get; }
 
 		/// <summary>
+		/// Index of this line within the current event
+		/// </summary>
+		public int LineIndex { get; }
+
+		/// <summary>
+		/// Number of lines in the current event
+		/// </summary>
+		public int LineCount { get; }
+
+		/// <summary>
 		/// The utf-8 encoded JSON event
 		/// </summary>
 		public ReadOnlyMemory<byte> Data { get; }
@@ -37,10 +49,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JsonLogEvent(LogLevel Level, EventId EventId, ReadOnlyMemory<byte> Data)
+		public JsonLogEvent(LogLevel Level, EventId EventId, int LineIndex, int LineCount, ReadOnlyMemory<byte> Data)
 		{
 			this.Level = Level;
 			this.EventId = EventId;
+			this.LineIndex = LineIndex;
+			this.LineCount = LineCount;
 			this.Data = Data;
 		}
 
@@ -52,10 +66,13 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public static bool TryParse(ReadOnlyMemory<byte> Data, out JsonLogEvent Event)
 		{
+			Utf8StringComparer StringComparer = Utf8StringComparer.OrdinalIgnoreCase;
 			try
 			{
 				LogLevel Level = LogLevel.None;
 				int EventId = 0;
+				int LineIndex = 0;
+				int LineCount = 1;
 
 				Utf8JsonReader Reader = new Utf8JsonReader(Data.Span);
 				if (Reader.Read() && Reader.TokenType == JsonTokenType.StartObject)
@@ -63,22 +80,30 @@ namespace EpicGames.Core
 					ReadOnlySpan<byte> PropertyName;
 					for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
 					{
-						if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, LevelString.Span))
+						if (StringComparer.Equals(PropertyName, LevelString.Span))
 						{
 							if (!Enum.TryParse(Reader.GetString(), out Level))
 							{
 								break;
 							}
 						}
-						else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, PropertiesString.Span) && Reader.TokenType == JsonTokenType.StartObject)
+						else if (StringComparer.Equals(PropertyName, LineIndexString.Span))
+						{
+							LineIndex = Reader.GetInt32();
+						}
+						else if (StringComparer.Equals(PropertyName, LineCountString.Span))
+						{
+							LineCount = Reader.GetInt32();
+						}
+						else if (StringComparer.Equals(PropertyName, PropertiesString.Span) && Reader.TokenType == JsonTokenType.StartObject)
 						{
 							for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
 							{
-								if (Utf8StringComparer.OrdinalIgnoreCase.Equals(EventIdString.Span, PropertyName) && Reader.TokenType == JsonTokenType.StartObject)
+								if (StringComparer.Equals(EventIdString.Span, PropertyName) && Reader.TokenType == JsonTokenType.StartObject)
 								{
 									for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
 									{
-										if (Utf8StringComparer.OrdinalIgnoreCase.Equals(IdString.Span, PropertyName) && Reader.TryGetInt32(out int NewEventId))
+										if (StringComparer.Equals(IdString.Span, PropertyName) && Reader.TryGetInt32(out int NewEventId))
 										{
 											EventId = NewEventId;
 										}
@@ -91,7 +116,7 @@ namespace EpicGames.Core
 
 				if (Reader.TokenType == JsonTokenType.EndObject && Level != LogLevel.None && Reader.BytesConsumed == Data.Length)
 				{
-					Event = new JsonLogEvent(Level, new EventId(EventId), Data);
+					Event = new JsonLogEvent(Level, new EventId(EventId), LineIndex, LineCount, Data);
 					return true;
 				}
 			}
