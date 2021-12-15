@@ -365,7 +365,7 @@ namespace Chaos
 					AsItem->NextFree = FreeList;
 				}
 
-				FreeList = IndexInBlock;
+				FreeList = (int32)IndexInBlock;
 				++NumFree;
 			}
 

@@ -475,9 +475,7 @@ namespace Chaos
 
 	void FPBDCollisionConstraint::InitManifoldPoint(const int32 ManifoldPointIndex)
 	{
-		FConstGenericParticleHandle Particle0 = Particle[0];
-		FConstGenericParticleHandle Particle1 = Particle[1];
-		if (!Particle0.IsValid() || !Particle1.IsValid())
+		if ((Particle[0] == nullptr) || (Particle[1] == nullptr))
 		{
 			// @todo(chaos): This is just for unit tests testing one-shot manifolds - remove it somehow... 
 			// maybe ConstructConvexConvexOneShotManifold should not take a Constraint
