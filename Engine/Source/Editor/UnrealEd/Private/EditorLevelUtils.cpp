@@ -1241,7 +1241,7 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 				}
 				if (bReflectVisibilityToGame)
 				{
-					Actor->SetHidden(Actor->bHiddenEdLevel);
+					Actor->SetActorHiddenInGame(Actor->bHiddenEdLevel);
 				}
 			}
 		}
