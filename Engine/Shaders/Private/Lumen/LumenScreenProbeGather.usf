@@ -1080,6 +1080,7 @@ void ScreenProbeIntegrateCS(
 					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, DiffuseMipLevel, StochasticScreenProbeSample);
 
 					#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+						// GetDiffuseIndirectSampleOcclusion in BasePassPixelShader encodes visibility bit using the same ComputeIndirectLightingSampleE
 						bool bIsBentNormalOccluded = (GBufferData.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0;
 						float DirectionVisibility = bIsBentNormalOccluded ? 0 : 1;
 					#else
@@ -1173,6 +1174,10 @@ void ScreenProbeIntegrateCS(
 			}
 #endif
 			bool bLightingIsValid = dot(StochasticScreenProbeSample.Weights, 1) > 1.0f - Epsilon;
+
+			#if !GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+				DiffuseLighting *= AOMultiBounce(GBufferData.BaseColor, GBufferData.GBufferAO);
+			#endif
 
 			#if SCREEN_SPACE_BENT_NORMAL
 			{

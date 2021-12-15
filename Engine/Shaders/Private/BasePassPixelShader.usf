@@ -811,6 +811,49 @@ void ApplyBentNormal(
 #endif
 }
 
+uint GetDiffuseIndirectSampleOcclusion(FGBufferData GBuffer, FMaterialPixelParameters MaterialParameters, float2 SvPosition, float MaterialAO)
+{
+	uint DiffuseIndirectSampleOcclusion = 0;
+#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !MATERIAL_SHADINGMODEL_UNLIT
+	if (MaterialAO < 1.0f)
+	{
+		#if NUM_MATERIAL_OUTPUTS_GETBENTNORMAL > 0
+			#if MATERIAL_TANGENTSPACENORMAL
+				float3 BentNormal = normalize(TransformTangentVectorToWorld(MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters)));
+			#else
+				float3 BentNormal = GetBentNormalZero(MaterialParameters);
+			#endif
+		#else
+			float3 BentNormal = MaterialParameters.WorldNormal;
+		#endif
+
+		FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(MaterialParameters.WorldNormal);
+		FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(BentNormal, MaterialAO);
+		float VisibilityThreshold = InterleavedGradientNoise(SvPosition, View.StateFrameIndexMod8);
+
+		uint OcclusionMask = 0x0;
+
+		for (uint TracingRayIndex = 0; TracingRayIndex < INDIRECT_SAMPLE_COUNT; TracingRayIndex++)
+		{
+			const uint TermMask = SHADING_TERM_DIFFUSE | SHADING_TERM_HAIR_R | SHADING_TERM_HAIR_TT | SHADING_TERM_HAIR_TRT;
+
+			float4 E = ComputeIndirectLightingSampleE(SvPosition, TracingRayIndex, INDIRECT_SAMPLE_COUNT);
+
+			FBxDFSample BxDFSample = SampleBxDF(TermMask, GBuffer, MaterialParameters.CameraVector, E);
+
+			// Integrate what is visible over the maximum visibility for the normal.
+			float LVisibility = saturate(Evaluate(VisibleSG, BxDFSample.L) / Evaluate(HemisphereSG, BxDFSample.L));
+			bool bIsBentNormalOccluded = LVisibility < VisibilityThreshold;
+
+			OcclusionMask |= bIsBentNormalOccluded ? (1 << TracingRayIndex) : 0;
+		}
+
+		DiffuseIndirectSampleOcclusion = OcclusionMask;
+	}
+#endif
+	return DiffuseIndirectSampleOcclusion;
+}
+
 #if USES_GBUFFER
 
 // The selective output mask can only depend on defines, since the shadow will not export the data.
@@ -1211,44 +1254,7 @@ void FPixelShaderInOut_MainPS(
 	// FIXME: ALLOW_STATIC_LIGHTING == 0 expects this to be AO
 	GBuffer.GBufferAO = AOMultiBounce( Luminance( GBuffer.SpecularColor ), SpecOcclusion ).g;
 
-	#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !MATERIAL_SHADINGMODEL_UNLIT && NUM_MATERIAL_OUTPUTS_GETBENTNORMAL > 0
-	{
-		float3 V = normalize(PrimaryView.TranslatedWorldCameraOrigin - MaterialParameters.WorldPosition_CamRelative);
-		float3 N = GBuffer.WorldNormal;
-
-		#if MATERIAL_TANGENTSPACENORMAL
-			float3 BentNormal = normalize(TransformTangentVectorToWorld(MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters)));
-		#else
-			float3 BentNormal = GetBentNormalZero(MaterialParameters);
-		#endif
-
-		float VisibleCosAngle = sqrt(1 - MaterialAO);
-		FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(MaterialParameters.WorldNormal);
-		FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(BentNormal, MaterialAO);
-
-		uint OcclusionMask = 0x0;
-		UNROLL_N(INDIRECT_SAMPLE_COUNT)
-		for (uint TracingRayIndex = 0; TracingRayIndex < INDIRECT_SAMPLE_COUNT; TracingRayIndex++)
-		{
-			const uint TermMask = SHADING_TERM_DIFFUSE | SHADING_TERM_HAIR_R | SHADING_TERM_HAIR_TT | SHADING_TERM_HAIR_TRT;
-
-			float4 E = ComputeIndirectLightingSampleE(In.SvPosition.xy, TracingRayIndex, INDIRECT_SAMPLE_COUNT);
-
-			FBxDFSample BxDFSample = SampleBxDF(TermMask, GBuffer, V, E);
-
-			// Integrate what is visible over the maximum vibility for the normal.
-			float LVisibility = saturate(Evaluate(VisibleSG, BxDFSample.L) / Evaluate(HemisphereSG, BxDFSample.L));
-
-			float VisibilityThreshold = InterleavedGradientNoise(In.SvPosition.xy, View.StateFrameIndexMod8);
-
-			bool bIsBentNormalOccluded = LVisibility < VisibilityThreshold;
-
-			OcclusionMask |= bIsBentNormalOccluded ? (1 << TracingRayIndex) : 0;
-		}
-
-		GBuffer.DiffuseIndirectSampleOcclusion = OcclusionMask;
-	}
-	#endif
+	GBuffer.DiffuseIndirectSampleOcclusion = GetDiffuseIndirectSampleOcclusion(GBuffer, MaterialParameters, In.SvPosition.xy, MaterialAO);
 
 #endif // !STRATA_ENABLED
 
