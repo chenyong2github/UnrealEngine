@@ -13,9 +13,15 @@ DEVICE_WIDGET_HIDE_IP_ADDRESS_WIDTH = 500
 
 
 class NonScrollableComboBox(QtWidgets.QComboBox):
+    onHoverScrollBox = QtCore.Signal()
+    
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.installEventFilter(self)
+        
+    def enterEvent(self, event):
+        self.onHoverScrollBox.emit()
+        super().enterEvent(event)
 
     def eventFilter(self, obj, event):
         if obj == self and event.type() == QtCore.QEvent.Wheel:
