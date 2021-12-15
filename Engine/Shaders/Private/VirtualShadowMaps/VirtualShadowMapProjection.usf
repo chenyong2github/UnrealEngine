@@ -68,9 +68,11 @@ MAX_OCCUPENCY
 // Returns hit distance or negative if miss
 float VirtualShadowMapScreenRayCast(
 	float3 RayOriginTranslatedWorld, float3 RayDirection, float RayLength,
-	int NumSteps, float StepOffset)
+	int NumSteps, float Dither)
 {
-	bool bHitCastContactShadow = true;
+	float StepOffset = Dither - 0.5f;
+
+	bool bHitCastContactShadow = false;
 	float HitDistance = ShadowRayCast(
 		RayOriginTranslatedWorld, RayDirection, RayLength,
 		NumSteps, StepOffset, bHitCastContactShadow);
@@ -252,7 +254,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 			if (ContactShadowLengthWorld > 0.0f)
 			{
 				half ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, L, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, Noise);
-				if (ContactShadowHitDistance >= 0.0f)
+				if (ContactShadowHitDistance > 0.0f)
 				{
 					Result.ShadowFactor = 0.0f;
 					Result.OccluderDistance = ContactShadowHitDistance;

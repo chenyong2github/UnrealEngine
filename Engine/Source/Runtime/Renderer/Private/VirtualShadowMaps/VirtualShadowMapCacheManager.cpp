@@ -84,11 +84,6 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	}
 
 	bool bRadiusMatches = (ViewRadiusZ == Clipmap.ViewRadiusZ);
-	if (!bRadiusMatches)
-	{
-		// These really should be exact by construction currently
-		UE_LOG(LogRenderer, Warning, TEXT("Invalidated clipmap level (VSM %d) due to Z radius mismatch"), VirtualShadowMapId);
-	}
 
 	if (bCacheValid && bRadiusMatches)
 	{
@@ -96,6 +91,12 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	}
 	else
 	{
+		if (bCacheValid && !bRadiusMatches)
+		{
+			// These really should be exact by construction currently
+			UE_LOG(LogRenderer, Warning, TEXT("Invalidated clipmap level (VSM %d) due to Z radius mismatch"), VirtualShadowMapId);
+		}
+
 		// New cached level
 		PrevVirtualShadowMapId = INDEX_NONE;
 		Clipmap.WorldToLight = WorldToLight;

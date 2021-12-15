@@ -200,7 +200,7 @@ float3 EncodeSubsurfaceProfile(float SubsurfaceProfile)
 // Derive density from a heuristic using opacity, tweaked for useful falloff ranges and to give a linear depth falloff with opacity
 float SubsurfaceDensityFromOpacity(float Opacity)
 {
-	return (-0.05f * log(1.0f - min(Opacity, 0.999f)));
+	return (-0.05f * log(1.0f - min(Opacity, 0.99f)));
 }
 
 float EncodeIndirectIrradiance(float IndirectIrradiance)
