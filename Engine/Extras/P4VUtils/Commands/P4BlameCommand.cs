@@ -38,7 +38,7 @@ namespace P4VUtils.Commands
 
 			Logger.LogInformation("Finding last edit for line {Line} in {File}", LineNumber, FileName);
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 
 			try
 			{

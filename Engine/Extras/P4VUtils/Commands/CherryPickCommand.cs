@@ -32,7 +32,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, null, Logger);
 			int NewChange = await MergeAsync(Perforce, Change, Logger);
 			return (NewChange > 0) ? 0 : 1;
 		}

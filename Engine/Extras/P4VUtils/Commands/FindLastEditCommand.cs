@@ -123,7 +123,7 @@ namespace P4VUtils.Commands
 
 			Logger.LogInformation("Inspecting revision records for file '{File}'", FileName);
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 
 			int Result = await FindLastEditInFileHistory(Perforce, FileName, Logger);
 

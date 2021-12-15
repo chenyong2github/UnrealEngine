@@ -561,7 +561,7 @@ namespace HordeServer.Commits.Impl
 				return;
 			}
 
-			NativePerforceConnection? Perforce = await PerforceService.GetServiceUserConnection(Stream.ClusterName);
+			using IPerforceConnection? Perforce = await PerforceService.GetServiceUserConnection(Stream.ClusterName);
 			if (Perforce == null)
 			{
 				return;

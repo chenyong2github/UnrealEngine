@@ -67,7 +67,7 @@ namespace HordeServerTests.Stubs.Services
 			this.UserCollection = UserCollection;
 		}
 
-		public Task<NativePerforceConnection?> GetServiceUserConnection(string? ClusterName)
+		public Task<IPerforceConnection?> GetServiceUserConnection(string? ClusterName)
 		{
 			throw new NotImplementedException();
 		}

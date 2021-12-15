@@ -35,7 +35,7 @@ namespace P4VUtils.Commands
 
 			bool Debug = Args.Any(x => x.Equals("-Debug", StringComparison.OrdinalIgnoreCase));
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 			if(!await ConvertToEditAsync(Perforce, Change, Debug, Logger))
 			{
 				return 1;

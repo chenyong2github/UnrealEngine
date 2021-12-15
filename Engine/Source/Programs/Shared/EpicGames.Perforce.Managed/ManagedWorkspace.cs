@@ -43,7 +43,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// The Perforce connection
 		/// </summary>
-		public PerforceClientConnection PerforceClient;
+		public IPerforceConnection PerforceClient;
 
 		/// <summary>
 		/// Stream to sync it to
@@ -61,7 +61,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="PerforceClient">The perforce connection</param>
 		/// <param name="StreamName">Stream to be synced</param>
 		/// <param name="View">List of filters for the stream</param>
-		public PopulateRequest(PerforceClientConnection PerforceClient, string StreamName, IReadOnlyList<string> View)
+		public PopulateRequest(IPerforceConnection PerforceClient, string StreamName, IReadOnlyList<string> View)
 		{
 			this.PerforceClient = PerforceClient;
 			this.StreamName = StreamName;
@@ -567,7 +567,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Cleans the current workspace
 		/// </summary>
-		public async Task RevertAsync(PerforceClientConnection PerforceClient, CancellationToken CancellationToken)
+		public async Task RevertAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
 		{
 			Stopwatch Timer = Stopwatch.StartNew();
 
@@ -625,7 +625,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="PerforceClient">The Perforce connection</param>
 		/// <param name="StreamName">Name of the stream</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		public async Task SetupAsync(PerforceClientConnection PerforceClient, string StreamName, CancellationToken CancellationToken)
+		public async Task SetupAsync(IPerforceConnection PerforceClient, string StreamName, CancellationToken CancellationToken)
 		{
 			await UpdateClientAsync(PerforceClient, StreamName, CancellationToken);
 		}
@@ -633,7 +633,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Prints stats showing coherence between different streams
 		/// </summary>
-		public async Task StatsAsync(PerforceClientConnection PerforceClient, List<string> StreamNames, List<string> View, CancellationToken CancellationToken)
+		public async Task StatsAsync(IPerforceConnection PerforceClient, List<string> StreamNames, List<string> View, CancellationToken CancellationToken)
 		{
 			Logger.LogInformation("Finding stats for {NumStreams} streams", StreamNames.Count);
 			using (Logger.BeginIndentScope("  "))
@@ -647,7 +647,7 @@ namespace EpicGames.Perforce.Managed
 
 					using (Logger.BeginIndentScope("  "))
 					{
-						CreatedClients.Remove(PerforceClient.ClientName); // Force the client to be updated
+						CreatedClients.Remove(PerforceClient.Settings.ClientName!); // Force the client to be updated
 
 						await UpdateClientAsync(PerforceClient, StreamName, CancellationToken);
 
@@ -775,7 +775,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="Perforce"></param>
 		/// <returns></returns>
-		public async Task<bool> LogFortniteStatsInfoAsync(PerforceClientConnection Perforce)
+		public async Task<bool> LogFortniteStatsInfoAsync(IPerforceConnection Perforce)
 		{
 			bool bError = false;
 			FileReference LocalFile = FileReference.Combine(WorkspaceDir, "FortniteGame", "Content", "Backend", "StatsV2.json");
@@ -819,7 +819,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="bFakeSync">Whether to simulate the syncing operation rather than actually getting files from the server</param>
 		/// <param name="CacheFile">If set, uses the given file to cache the contents of the workspace. This can improve sync times when multiple machines sync the same workspace.</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		public async Task SyncAsync(PerforceClientConnection Perforce, string StreamName, int ChangeNumber, IReadOnlyList<string> View, bool bRemoveUntracked, bool bFakeSync, FileReference? CacheFile, CancellationToken CancellationToken)
+		public async Task SyncAsync(IPerforceConnection Perforce, string StreamName, int ChangeNumber, IReadOnlyList<string> View, bool bRemoveUntracked, bool bFakeSync, FileReference? CacheFile, CancellationToken CancellationToken)
 		{
 			Stopwatch Timer = Stopwatch.StartNew();
 			if(ChangeNumber == -1)
@@ -887,7 +887,7 @@ namespace EpicGames.Perforce.Managed
 		/// Replays the effects of unshelving a changelist, but clobbering files in the workspace rather than actually unshelving them (to prevent problems with multiple machines locking them)
 		/// </summary>
 		/// <returns>Async task</returns>
-		public async Task UnshelveAsync(PerforceClientConnection Perforce, string StreamName, int UnshelveChangelist, CancellationToken CancellationToken)
+		public async Task UnshelveAsync(IPerforceConnection Perforce, string StreamName, int UnshelveChangelist, CancellationToken CancellationToken)
 		{
 			// Need to mark those files as dirty - update the workspace with those files 
 			// Delete is fine, but need to flag anything added
@@ -1003,9 +1003,9 @@ namespace EpicGames.Perforce.Managed
 			// Revert all changes in each of the unique clients
 			foreach (PopulateRequest Request in Requests)
 			{
-				PerforceConnection Perforce = Request.PerforceClient.WithoutClient();
+				using IPerforceConnection Perforce = await Request.PerforceClient.WithoutClientAsync();
 
-				PerforceResponse<ClientRecord> Response = await Perforce.TryGetClientAsync(Request.PerforceClient.ClientName, CancellationToken);
+				PerforceResponse<ClientRecord> Response = await Perforce.TryGetClientAsync(Request.PerforceClient.Settings.ClientName!, CancellationToken);
 				if (Response.Succeeded)
 				{
 					await RevertInternalAsync(Request.PerforceClient, CancellationToken);
@@ -1130,19 +1130,19 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="PerforceClient">The Perforce connection</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>Async task</returns>
-		public async Task DeleteClientAsync(PerforceClientConnection PerforceClient, CancellationToken CancellationToken)
+		public async Task DeleteClientAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
 		{
-			PerforceResponse Response = await PerforceClient.TryDeleteClientAsync(DeleteClientOptions.None, PerforceClient.ClientName, CancellationToken);
+			PerforceResponse Response = await PerforceClient.TryDeleteClientAsync(DeleteClientOptions.None, PerforceClient.Settings.ClientName!, CancellationToken);
 			if (Response.Error != null && Response.Error.Generic != PerforceGenericCode.Unknown)
 			{
 				if(Response.Error.Generic == PerforceGenericCode.NotYet)
 				{
 					await RevertInternalAsync(PerforceClient, CancellationToken);
-					Response = await PerforceClient.TryDeleteClientAsync(DeleteClientOptions.None, PerforceClient.ClientName, CancellationToken);
+					Response = await PerforceClient.TryDeleteClientAsync(DeleteClientOptions.None, PerforceClient.Settings.ClientName!, CancellationToken);
 				}
 				Response.EnsureSuccess();
 			}
-			CreatedClients.Remove(PerforceClient.ClientName);
+			CreatedClients.Remove(PerforceClient.Settings.ClientName!);
 		}
 
 		/// <summary>
@@ -1151,42 +1151,42 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="PerforceClient">The Perforce connection</param>
 		/// <param name="StreamName">New stream for the client</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task UpdateClientAsync(PerforceClientConnection PerforceClient, string StreamName, CancellationToken CancellationToken)
+		private async Task UpdateClientAsync(IPerforceConnection PerforceClient, string StreamName, CancellationToken CancellationToken)
 		{
 			// Create or update the client if it doesn't exist already
 			ClientRecord? Client;
-			if(!CreatedClients.TryGetValue(PerforceClient.ClientName, out Client) || Client.Stream != StreamName)
+			if(!CreatedClients.TryGetValue(PerforceClient.Settings.ClientName!, out Client) || Client.Stream != StreamName)
 			{
 				using (Trace("UpdateClient"))
 				using (ILoggerProgress Status = Logger.BeginProgressScope("Updating client..."))
 				{
 					Stopwatch Timer = Stopwatch.StartNew();
 
-					Client = new ClientRecord(PerforceClient.ClientName, PerforceClient.UserName!, WorkspaceDir.FullName);
+					Client = new ClientRecord(PerforceClient.Settings.ClientName!, PerforceClient.Settings.UserName!, WorkspaceDir.FullName);
 					Client.Host = HostName;
 					Client.Stream = StreamName;
 					Client.Type = "partitioned";
 
-					PerforceConnection Perforce = PerforceClient.WithoutClient();
+					using IPerforceConnection Perforce = await PerforceClient.WithoutClientAsync();
 
 					PerforceResponse Response = await Perforce.TryCreateClientAsync(Client, CancellationToken);
 					if (!Response.Succeeded)
 					{
-						await PerforceClient.TryDeleteClientAsync(DeleteClientOptions.None, PerforceClient.ClientName, CancellationToken);
+						await PerforceClient.TryDeleteClientAsync(DeleteClientOptions.None, PerforceClient.Settings.ClientName!, CancellationToken);
 						await PerforceClient.CreateClientAsync(Client, CancellationToken);
 					}
 
 					Status.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
 				}
-				CreatedClients[PerforceClient.ClientName] = Client;
+				CreatedClients[PerforceClient.Settings.ClientName!] = Client;
 			}
 
 			// Update the config file with the name of the client
 			FileReference ConfigFile = FileReference.Combine(BaseDir, "p4.ini");
 			using(StreamWriter Writer = new StreamWriter(ConfigFile.FullName))
 			{
-				Writer.WriteLine("P4PORT={0}", PerforceClient.ServerAndPort);
-				Writer.WriteLine("P4CLIENT={0}", PerforceClient.ClientName);
+				Writer.WriteLine("P4PORT={0}", PerforceClient.Settings.ServerAndPort);
+				Writer.WriteLine("P4CLIENT={0}", PerforceClient.Settings.ClientName);
 			}
 		}
 
@@ -1197,7 +1197,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="StreamName">The stream to sync</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>The latest changelist number</returns>
-		public async Task<int> GetLatestChangeAsync(PerforceClientConnection PerforceClient, string StreamName, CancellationToken CancellationToken)
+		public async Task<int> GetLatestChangeAsync(IPerforceConnection PerforceClient, string StreamName, CancellationToken CancellationToken)
 		{
 			// Update the client to the current stream
 			await UpdateClientAsync(PerforceClient, StreamName, CancellationToken);
@@ -1212,7 +1212,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="PerforceClient">The perforce client connection</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>The latest submitted change number</returns>
-		private async Task<int> GetLatestClientChangeAsync(PerforceClientConnection PerforceClient, CancellationToken CancellationToken)
+		private async Task<int> GetLatestClientChangeAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
 		{
 			int ChangeNumber;
 			using (Trace("FindChange"))
@@ -1220,7 +1220,7 @@ namespace EpicGames.Perforce.Managed
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
 
-				List<ChangesRecord> Changes = await PerforceClient.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, new[] { String.Format("//{0}/...", PerforceClient.ClientName) }, CancellationToken);
+				List<ChangesRecord> Changes = await PerforceClient.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, new[] { String.Format("//{0}/...", PerforceClient.Settings.ClientName) }, CancellationToken);
 				ChangeNumber = Changes[0].Number;
 
 				Status.Progress = String.Format("CL {0} ({1:0.0}s)", ChangeNumber, Timer.Elapsed.TotalSeconds);
@@ -1233,7 +1233,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="PerforceClient">The current client connection</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task RevertInternalAsync(PerforceClientConnection PerforceClient, CancellationToken CancellationToken)
+		private async Task RevertInternalAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
 		{
 			using (Trace("Revert"))
 			using (ILoggerProgress Status = Logger.BeginProgressScope("Reverting changes..."))
@@ -1241,7 +1241,7 @@ namespace EpicGames.Perforce.Managed
 				Stopwatch Timer = Stopwatch.StartNew();
 
 				// Get a list of open files
-				List<FStatRecord> OpenedFilesResponse = await PerforceClient.GetOpenFilesAsync(OpenedOptions.ShortOutput, -1, PerforceClient.ClientName, null, 1, new string[0], CancellationToken);
+				List<FStatRecord> OpenedFilesResponse = await PerforceClient.GetOpenFilesAsync(OpenedOptions.ShortOutput, -1, PerforceClient.Settings.ClientName!, null, 1, new string[0], CancellationToken);
 
 				// If there are any files, revert them
 				if(OpenedFilesResponse.Any())
@@ -1250,7 +1250,7 @@ namespace EpicGames.Perforce.Managed
 				}
 
 				// Find all the open changes
-				List<ChangesRecord> Changes = await PerforceClient.GetChangesAsync(ChangesOptions.None, PerforceClient.ClientName, -1, ChangeStatus.Pending, null, new string[0], CancellationToken);
+				List<ChangesRecord> Changes = await PerforceClient.GetChangesAsync(ChangesOptions.None, PerforceClient.Settings.ClientName!, -1, ChangeStatus.Pending, null, new string[0], CancellationToken);
 
 				// Delete the changelist
 				foreach(ChangesRecord Change in Changes)
@@ -1278,13 +1278,13 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="PerforceClient">The client connection</param>
 		/// <param name="CancellationToken">The cancellation token</param>
-		private async Task ClearClientHaveTableAsync(PerforceClientConnection PerforceClient, CancellationToken CancellationToken)
+		private async Task ClearClientHaveTableAsync(IPerforceConnection PerforceClient, CancellationToken CancellationToken)
 		{
 			using (Trace("ClearHaveTable"))
 			using (ILoggerProgress Scope = Logger.BeginProgressScope("Clearing have table..."))
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
-				await PerforceClient.SyncQuietAsync(SyncOptions.KeepWorkspaceFiles, -1, new[] { String.Format("//{0}/...#0", PerforceClient.ClientName) }, CancellationToken);
+				await PerforceClient.SyncQuietAsync(SyncOptions.KeepWorkspaceFiles, -1, new[] { String.Format("//{0}/...#0", PerforceClient.Settings.ClientName!) }, CancellationToken);
 				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 		}
@@ -1296,7 +1296,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="ChangeNumber">The change number to sync. May be -1, for latest.</param>
 		/// <param name="View">View of the stream. Each entry should be a path relative to the stream root, with an optional '-'prefix.</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task UpdateClientHaveTableAsync(PerforceClientConnection PerforceClient, int ChangeNumber, IReadOnlyList<string> View, CancellationToken CancellationToken)
+		private async Task UpdateClientHaveTableAsync(IPerforceConnection PerforceClient, int ChangeNumber, IReadOnlyList<string> View, CancellationToken CancellationToken)
 		{
 			using (Trace("UpdateHaveTable"))
 			using (ILoggerProgress Scope = Logger.BeginProgressScope("Updating have table..."))
@@ -1306,11 +1306,11 @@ namespace EpicGames.Perforce.Managed
 				// Sync an initial set of files. Either start with a full workspace and remove files, or start with nothing and add files.
 				if (View.Count == 0 || View[0].StartsWith("-"))
 				{
-					await UpdateHaveTablePathAsync(PerforceClient, $"//{PerforceClient.ClientName}/...@{ChangeNumber}", CancellationToken);
+					await UpdateHaveTablePathAsync(PerforceClient, $"//{PerforceClient.Settings.ClientName}/...@{ChangeNumber}", CancellationToken);
 				}
 				else
 				{
-					await UpdateHaveTablePathAsync(PerforceClient, $"//{PerforceClient.ClientName}/...#0", CancellationToken);
+					await UpdateHaveTablePathAsync(PerforceClient, $"//{PerforceClient.Settings.ClientName}/...#0", CancellationToken);
 				}
 
 				// Update with the contents of each filter
@@ -1319,11 +1319,11 @@ namespace EpicGames.Perforce.Managed
 					string SyncPath;
 					if(Filter.StartsWith("-"))
 					{
-						SyncPath = String.Format("//{0}/{1}#0", PerforceClient.ClientName, RemoveLeadingSlash(Filter.Substring(1)));
+						SyncPath = String.Format("//{0}/{1}#0", PerforceClient.Settings.ClientName, RemoveLeadingSlash(Filter.Substring(1)));
 					}
 					else
 					{
-						SyncPath = String.Format("//{0}/{1}@{2}", PerforceClient.ClientName, RemoveLeadingSlash(Filter), ChangeNumber);
+						SyncPath = String.Format("//{0}/{1}@{2}", PerforceClient.Settings.ClientName, RemoveLeadingSlash(Filter), ChangeNumber);
 					}
 					await UpdateHaveTablePathAsync(PerforceClient, SyncPath, CancellationToken);
 				}
@@ -1339,7 +1339,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="SyncPath">Path to sync</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>Async task</returns>
-		private async Task UpdateHaveTablePathAsync(PerforceClientConnection PerforceClient, string SyncPath, CancellationToken CancellationToken)
+		private async Task UpdateHaveTablePathAsync(IPerforceConnection PerforceClient, string SyncPath, CancellationToken CancellationToken)
 		{
 			PerforceResponseList<SyncSummaryRecord> ResponseList = await PerforceClient.TrySyncQuietAsync(SyncOptions.KeepWorkspaceFiles, -1, new[] { SyncPath }, CancellationToken);
 			foreach (PerforceResponse<SyncSummaryRecord> Response in ResponseList)
@@ -1413,7 +1413,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="ChangeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
 		/// <param name="bFakeSync">Whether this is for a fake sync. Poisons the file type to ensure that the cache is not corrupted.</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task<StreamSnapshotFromMemory> FindClientContentsAsync(PerforceClientConnection PerforceClient, int ChangeNumber, bool bFakeSync, CancellationToken CancellationToken)
+		private async Task<StreamSnapshotFromMemory> FindClientContentsAsync(IPerforceConnection PerforceClient, int ChangeNumber, bool bFakeSync, CancellationToken CancellationToken)
 		{
 			StreamTreeBuilder Builder = new StreamTreeBuilder();
 
@@ -1423,7 +1423,7 @@ namespace EpicGames.Perforce.Managed
 				Stopwatch Timer = Stopwatch.StartNew();
 
 				// Get the expected prefix for any paths in client syntax
-				Utf8String ClientPrefix = $"//{PerforceClient.ClientName}/";
+				Utf8String ClientPrefix = $"//{PerforceClient.Settings.ClientName}/";
 
 				// List of the last path fragments. Since file records that are returned are typically sorted by their position in the tree, we can save quite a lot of processing by
 				// reusing as many fragemnts as possible.
@@ -1528,7 +1528,7 @@ namespace EpicGames.Perforce.Managed
 				Arguments.Add("-Rh");
 				Arguments.Add("-T");
 				Arguments.Add(String.Join(",", FStatIndexedRecord.FieldNames));
-				Arguments.Add($"//{PerforceClient.ClientName}/...@{ChangeNumber}");
+				Arguments.Add($"//{PerforceClient.Settings.ClientName}/...@{ChangeNumber}");
 				await PerforceClient.RecordCommandAsync("fstat", Arguments, null, HandleRecord, CancellationToken);
 
 				// Output the elapsed time
@@ -1571,7 +1571,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="CacheFile">Location of the file to save the cached contents</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(PerforceClientConnection PerforceClient, Utf8String BasePath, int ChangeNumber, bool bFakeSync, FileReference CacheFile, CancellationToken CancellationToken)
+		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection PerforceClient, Utf8String BasePath, int ChangeNumber, bool bFakeSync, FileReference CacheFile, CancellationToken CancellationToken)
 		{
 			StreamSnapshotFromMemory Contents = await FindClientContentsAsync(PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
 
@@ -1734,7 +1734,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="Stream">Contents of the stream</param>
 		/// <param name="bFakeSync">Whether to simulate the sync operation, rather than actually syncing files</param>
 		/// <param name="CancellationToken">Cancellation token</param>
-		private async Task AddFilesToWorkspaceAsync(PerforceClientConnection Client, StreamSnapshot Stream, bool bFakeSync, CancellationToken CancellationToken)
+		private async Task AddFilesToWorkspaceAsync(IPerforceConnection Client, StreamSnapshot Stream, bool bFakeSync, CancellationToken CancellationToken)
 		{
 			// Make sure the repair flag is reset
 			await RunOptionalRepairAsync(CancellationToken);
@@ -1918,7 +1918,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="bFakeSync">Whether to fake a sync</param>
 		/// <param name="CancellationToken">Cancellation token for the request</param>
 		/// <returns>Async task</returns>
-		async Task SyncBatch(PerforceClientConnection Client, WorkspaceFileToSync[] FilesToSync, int BeginIdx, int EndIdx, bool bFakeSync, CancellationToken CancellationToken)
+		async Task SyncBatch(IPerforceConnection Client, WorkspaceFileToSync[] FilesToSync, int BeginIdx, int EndIdx, bool bFakeSync, CancellationToken CancellationToken)
 		{
 			if (bFakeSync)
 			{
@@ -1950,7 +1950,7 @@ namespace EpicGames.Perforce.Managed
 					await LogFortniteStatsInfoAsync(Client);
 				}
 
-				PerforceConnection ClientWithFileList = new PerforceConnection(Client);
+				using PerforceConnection ClientWithFileList = new PerforceConnection(Client.Settings, Client.Logger);
 				ClientWithFileList.GlobalOptions.Add($"-x\"{SyncFileName}\"");
 				if (StatsFile != null)
 				{
@@ -1985,7 +1985,7 @@ namespace EpicGames.Perforce.Managed
 								Logger.LogInformation("SyncList: {Line}", Line);
 							}
 
-							string Connection = $"-p {Client.ServerAndPort} -u {Client.UserName} -c {Client.ClientName}";
+							string Connection = $"-p {Client.Settings.ServerAndPort} -u {Client.Settings.UserName} -c {Client.Settings.ClientName}";
 							await LogPerforceCommandAsync($"{Connection} protects -M {LocalFile}", Logger);
 							await LogPerforceCommandAsync($"{Connection} protects -M {LocalFile.FullName.ToLower()}", Logger);
 							await LogPerforceCommandAsync($"{Connection} protects -M {LocalFile.FullName.Replace('\\', '/')}", Logger);

@@ -107,7 +107,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="ClusterName"></param>
 		/// <returns></returns>
-		public Task<NativePerforceConnection?> GetServiceUserConnection(string? ClusterName);
+		public Task<IPerforceConnection?> GetServiceUserConnection(string? ClusterName);
 
 		/// <summary>
 		/// Gets the definition of a stream

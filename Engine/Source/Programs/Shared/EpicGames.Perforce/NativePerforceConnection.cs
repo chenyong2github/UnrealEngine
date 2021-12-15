@@ -29,13 +29,13 @@ namespace EpicGames.Perforce
 			public string? ServerAndPort;
 
 			[MarshalAs(UnmanagedType.LPStr)]
-			public string? User;
+			public string? UserName;
 
 			[MarshalAs(UnmanagedType.LPStr)]
 			public string? Password;
 
 			[MarshalAs(UnmanagedType.LPStr)]
-			public string? Client;
+			public string? ClientName;
 
 			[MarshalAs(UnmanagedType.LPStr)]
 			public string? AppName;
@@ -270,25 +270,31 @@ namespace EpicGames.Perforce
 		ManualResetEvent ResponseCompleteEvent;
 
 		/// <inheritdoc/>
+		public IPerforceSettings Settings { get; }
+
+		/// <inheritdoc/>
 		public ILogger Logger { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="Settings">Settings for the connection</param>
 		/// <param name="Logger">Logger for messages</param>
-		public NativePerforceConnection(ILogger Logger)
-			: this(2, 64 * 1024, Logger)
+		public NativePerforceConnection(IPerforceSettings Settings, ILogger Logger)
+			: this(Settings, 2, 64 * 1024, Logger)
 		{
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="Settings">Settings for the connection</param>
 		/// <param name="BufferCount">Number of buffers to create for streaming response data</param>
 		/// <param name="BufferSize">Size of each buffer</param>
 		/// <param name="Logger">Logger for messages</param>
-		public NativePerforceConnection(int BufferCount, int BufferSize, ILogger Logger)
+		public NativePerforceConnection(IPerforceSettings Settings, int BufferCount, int BufferSize, ILogger Logger)
 		{
+			this.Settings = Settings;
 			this.Logger = Logger;
 
 			Buffers = new PinnedBuffer[BufferCount];
@@ -305,6 +311,20 @@ namespace EpicGames.Perforce
 
 			BackgroundThread = new Thread(BackgroundThreadProc);
 			BackgroundThread.Start();
+		}
+
+		/// <summary>
+		/// Create an instance of the native client
+		/// </summary>
+		/// <param name="Settings"></param>
+		/// <param name="Logger"></param>
+		/// <returns></returns>
+		public static async Task<NativePerforceConnection> CreateAsync(IPerforceSettings Settings, ILogger Logger)
+		{
+			NativePerforceConnection Connection = new NativePerforceConnection(Settings, Logger);
+			await Connection.ConnectAsync();
+			return Connection;
+
 		}
 
 		void GetNextWriteBuffer(NativeWriteBuffer NativeWriteBuffer)
@@ -358,9 +378,9 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Initializes the connection, throwing an error on failure
 		/// </summary>
-		public async Task ConnectAsync(PerforceSettings? Settings)
+		private async Task ConnectAsync()
 		{
-			PerforceError? Error = await TryConnectAsync(Settings);
+			PerforceError? Error = await TryConnectAsync();
 			if (Error != null)
 			{
 				throw new PerforceException(Error);
@@ -371,7 +391,7 @@ namespace EpicGames.Perforce
 		/// Tries to initialize the connection
 		/// </summary>
 		/// <returns>Error returned when attempting to connect</returns>
-		public async Task<PerforceError?> TryConnectAsync(PerforceSettings? Settings)
+		private async Task<PerforceError?> TryConnectAsync()
 		{
 			await using Response Response = new Response(this);
 
@@ -380,9 +400,9 @@ namespace EpicGames.Perforce
 			{
 				NativeSettings = new NativeSettings();
 				NativeSettings.ServerAndPort = Settings.ServerAndPort;
-				NativeSettings.User = Settings.User;
+				NativeSettings.UserName = Settings.UserName;
 				NativeSettings.Password = Settings.Password;
-				NativeSettings.Client = Settings.Client;
+				NativeSettings.ClientName = Settings.ClientName;
 				NativeSettings.AppName = Settings.AppName;
 				NativeSettings.AppVersion = Settings.AppVersion;
 			}

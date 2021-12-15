@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -20,9 +21,133 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Stores settings for communicating with a Perforce server.
 	/// </summary>
-	public class PerforceConnection : IPerforceConnection
+	public sealed class PerforceConnection : IPerforceConnection
 	{
-		#region Plumbing
+		/// <summary>
+		/// Create a new Perforce connection
+		/// </summary>
+		/// <param name="Logger"></param>
+		/// <returns></returns>
+		public static Task<IPerforceConnection> CreateAsync(ILogger Logger)
+		{
+			return CreateAsync(PerforceSettings.Default, Logger);
+		}
+
+		/// <summary>
+		/// Create a new Perforce connection
+		/// </summary>
+		/// <param name="ServerAndPort">The server address and port</param>
+		/// <param name="UserName">The user name</param>
+		/// <param name="Logger">Interface for logging</param>
+		/// <returns></returns>
+		public static Task<IPerforceConnection> CreateAsync(string? ServerAndPort, string? UserName, ILogger Logger)
+		{
+			return CreateAsync(CombineSettings(ServerAndPort, UserName), Logger);
+		}
+
+		/// <summary>
+		/// Create a new Perforce connection
+		/// </summary>
+		/// <param name="ServerAndPort">The server address and port</param>
+		/// <param name="UserName">The user name</param>
+		/// <param name="ClientName">The client name</param>
+		/// <param name="Logger">Interface for logging</param>
+		/// <returns></returns>
+		public static Task<IPerforceConnection> CreateAsync(string? ServerAndPort, string? UserName, string? ClientName, ILogger Logger)
+			{
+			return CreateAsync(CombineSettings(ServerAndPort, UserName, ClientName), Logger);
+		}
+
+		/// <summary>
+		/// Create a new Perforce connection
+		/// </summary>
+		/// <param name="ServerAndPort">The server address and port</param>
+		/// <param name="UserName">The user name</param>
+		/// <param name="ClientName">The client name</param>
+		/// <param name="AppName"></param>
+		/// <param name="AppVersion"></param>
+		/// <param name="Logger">Interface for logging</param>
+		/// <returns></returns>
+		public static Task<IPerforceConnection> CreateAsync(string? ServerAndPort, string? UserName, string? ClientName, string? AppName, string? AppVersion, ILogger Logger)
+		{
+			return CreateAsync(CombineSettings(ServerAndPort, UserName, ClientName, AppName, AppVersion), Logger);
+		}
+
+		/// <summary>
+		/// Create a new Perforce connection
+		/// </summary>
+		/// <param name="Settings">Settings for the connection</param>
+		/// <param name="Logger"></param>
+		/// <returns></returns>
+		public static async Task<IPerforceConnection> CreateAsync(IPerforceSettings Settings, ILogger Logger)
+		{
+			if (Settings.PreferNativeClient && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+			{
+				return await NativePerforceConnection.CreateAsync(Settings, Logger);
+			}
+			else
+		{
+				return new PerforceConnection(Settings, Logger);
+			}
+		}
+
+		static PerforceSettings CombineSettings(string? ServerAndPort, string? UserName, string? ClientName = null, string? AppName = null, string? AppVersion = null)
+		{
+			PerforceSettings Settings = new PerforceSettings(PerforceSettings.Default);
+			if (ServerAndPort != null)
+			{
+				Settings.ServerAndPort = ServerAndPort;
+			}
+			if (UserName != null)
+			{
+				Settings.UserName = UserName;
+			}
+			if (ClientName != null)
+			{
+				Settings.ClientName = ClientName;
+			}
+			if (AppName != null)
+			{
+				Settings.AppName = AppName;
+			}
+			if (AppVersion != null)
+			{
+				Settings.AppVersion = AppVersion;
+			}
+			return Settings;
+		}
+
+		#region Legacy implementation
+
+		/// <inheritdoc/>
+		public IPerforceSettings Settings
+		{
+			get
+			{
+				PerforceSettings Settings = new PerforceSettings(PerforceEnvironment.Default);
+				if (ServerAndPort != null)
+				{
+					Settings.ServerAndPort = ServerAndPort;
+				}
+				if (UserName != null)
+				{
+					Settings.UserName = UserName;
+				}
+				if (ClientName != null)
+				{
+					Settings.ClientName = ClientName;
+				}
+				if (AppName != null)
+				{
+					Settings.AppName = AppName;
+				}
+				if(AppVersion != null)
+				{
+					Settings.AppVersion = AppVersion;
+				}
+				return Settings;
+			}
+		}
 
 		/// <summary>
 		/// The current server and port
@@ -132,6 +257,16 @@ namespace EpicGames.Perforce
 		}
 
 		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Settings"></param>
+		/// <param name="Logger"></param>
+		public PerforceConnection(IPerforceSettings Settings, ILogger Logger)
+			: this(Settings.ServerAndPort, Settings.UserName, Settings.ClientName, Settings.AppName, Settings.AppVersion, Logger)
+		{
+		}
+
+		/// <summary>
 		/// Constructor 
 		/// </summary>
 		/// <param name="Other">Connection to copy settings from</param>
@@ -139,6 +274,11 @@ namespace EpicGames.Perforce
 			: this(Other.ServerAndPort, Other.UserName, Other.ClientName, Other.AppName, Other.AppVersion, Other.Logger)
 		{
 			GlobalOptions.AddRange(Other.GlobalOptions);
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
 		}
 
 		List<string> GetGlobalArguments()
@@ -173,8 +313,6 @@ namespace EpicGames.Perforce
 		{
 			return Task.FromResult<IPerforceOutput>(new PerforceChildProcess(Command, Arguments, FileArguments, InputData, GetGlobalArguments(), Logger));
 		}
-
-		#region p4 login
 
 		/// <summary>
 		/// Execute the 'login' command
@@ -225,10 +363,6 @@ namespace EpicGames.Perforce
 			}
 		}
 
-		#endregion
-
-		#region p4 set
-
 		/// <summary>
 		/// Sets an environment variable
 		/// </summary>
@@ -263,37 +397,6 @@ namespace EpicGames.Perforce
 			}
 		}
 
-		/// <summary>
-		/// Gets the setting of a Perforce variable
-		/// </summary>
-		/// <param name="Name">Name of the variable to get</param>
-		/// <param name="CancellationToken">Cancellation token for the request</param>
-		/// <returns>Value of the variable</returns>
-		public async Task<string?> TryGetSettingAsync(string Name, CancellationToken CancellationToken = default)
-		{
-			using (PerforceChildProcess ChildProcess = new PerforceChildProcess("set", new List<string> { $"{Name}=" }, null, null, GetGlobalArguments(), Logger))
-			{
-				Tuple<bool, string> Response = await ChildProcess.TryReadToEndAsync(CancellationToken);
-				if (Response.Item1)
-				{
-					string TrimResponse = Response.Item2.Trim();
-					if (TrimResponse.Length == 0)
-					{
-						return null;
-					}
-
-					string Prefix = Name + "=";
-					if (TrimResponse.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
-					{
-						return TrimResponse.Substring(Prefix.Length);
-					}
-				}
-
-				Logger.LogDebug("Unable to get '{Name}' variable: {Response}", Name, Response.Item2);
-				return null;
-			}
-		}
-
 		#endregion
 	}
 
@@ -302,6 +405,30 @@ namespace EpicGames.Perforce
 	/// </summary>
 	public static class PerforceConnectionExtensions
 	{
+		/// <summary>
+		/// Create a new connection with a different client
+		/// </summary>
+		/// <param name="Perforce"></param>
+		/// <param name="ClientName"></param>
+		/// <returns></returns>
+		public static Task<IPerforceConnection> WithClientAsync(this IPerforceConnection Perforce, string? ClientName)
+		{
+			PerforceSettings Settings = new PerforceSettings(Perforce.Settings) { ClientName = ClientName };
+			return PerforceConnection.CreateAsync(Settings, Perforce.Logger);
+		}
+
+		/// <summary>
+		/// Create a new connection with a different client
+		/// </summary>
+		/// <param name="Perforce"></param>
+		/// <returns></returns>
+		public static Task<IPerforceConnection> WithoutClientAsync(this IPerforceConnection Perforce)
+		{
+			return WithClientAsync(Perforce, null);
+		}
+
+		#region Command wrappers
+
 		/// <summary>
 		/// Execute a command and parse the response
 		/// </summary>

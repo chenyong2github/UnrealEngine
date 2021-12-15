@@ -45,7 +45,7 @@ namespace P4VUtils.Commands
 			}
 
 			string? ClientName = Environment.GetEnvironmentVariable("P4CLIENT");
-			PerforceConnection Perforce = new PerforceConnection(null, null, ClientName, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, ClientName, Logger);
 
 			ClientRecord Client = await Perforce.GetClientAsync(ClientName, CancellationToken.None);
 			if(Client.Stream == null)

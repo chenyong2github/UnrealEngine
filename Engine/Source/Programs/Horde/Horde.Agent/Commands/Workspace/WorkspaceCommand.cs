@@ -21,11 +21,11 @@ namespace HordeAgent.Commands.Workspace
 	{
 		[CommandLine("-Server")]
 		[Description("Specifies the Perforce server and port")]
-		protected string? ServerAndPort = null;
+		protected string ServerAndPort = PerforceSettings.Default.ServerAndPort;
 
 		[CommandLine("-User")]
 		[Description("Specifies the Perforce username")]
-		protected string? UserName = null;
+		protected string UserName = PerforceSettings.Default.UserName;
 
 		[CommandLine("-BaseDir", Required = true)]
 		[Description("Base directory to use for syncing workspaces")]
@@ -34,8 +34,6 @@ namespace HordeAgent.Commands.Workspace
 		[CommandLine("-Overwrite")]
 		[Description("")]
 		protected bool bOverwrite = false;
-
-		protected PerforceConnection Perforce = null!;
 
 		public override void Configure(CommandLineArguments Arguments, ILogger Logger)
 		{
@@ -61,17 +59,18 @@ namespace HordeAgent.Commands.Workspace
 
 		public override async Task<int> ExecuteAsync(ILogger Logger)
 		{
-			Perforce = new PerforceConnection(ServerAndPort, UserName, null, Logger);
+			using (IPerforceConnection Perforce = await PerforceConnection.CreateAsync(new PerforceSettings(ServerAndPort, UserName), Logger))
+			{
+				InfoRecord Info = await Perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken.None);
 
-			InfoRecord Info = await Perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken.None);
-
-			ILogger RepoLogger = new Logging.HordeLoggerProvider().CreateLogger("Repository");
-			ManagedWorkspace Repo = await ManagedWorkspace.LoadOrCreateAsync(Info.ClientHost!, BaseDir, bOverwrite, RepoLogger, CancellationToken.None);
-			await ExecuteAsync(Repo, Logger);
+				ILogger RepoLogger = new Logging.HordeLoggerProvider().CreateLogger("Repository");
+				ManagedWorkspace Repo = await ManagedWorkspace.LoadOrCreateAsync(Info.ClientHost!, BaseDir, bOverwrite, RepoLogger, CancellationToken.None);
+				await ExecuteAsync(Perforce, Repo, Logger);
+			}
 			return 0;
 		}
 
-		protected abstract Task ExecuteAsync(ManagedWorkspace Repo, ILogger Logger);
+		protected abstract Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger);
 
 		protected static long ParseSize(string Size)
 		{

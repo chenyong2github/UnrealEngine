@@ -20,7 +20,7 @@ namespace P4VUtils.Commands
 
 		protected static async Task<int> MakeDataFilesLocalWritable(List<(string, string)> FilesInfo, ILogger Logger)
 		{
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 
 			List<string> FilesToMakeLocalWritable = FilesInfo.Where(t => t.Item2.StartsWith("binary", StringComparison.Ordinal)).Select(t => t.Item1).ToList();
 			List<RevertRecord> Results = await Perforce.RevertAsync(-1, null, RevertOptions.KeepWorkspaceFiles, FilesToMakeLocalWritable, CancellationToken.None);
@@ -49,7 +49,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 			List<DescribeRecord> Describe = await Perforce.DescribeAsync(DescribeOptions.Shelved, -1, new int[] { ChangeNumber }, CancellationToken.None);
 			List<(string, string)> FilesInfo = Describe[0].Files.Select(d => (d.DepotFile, d.Type)).ToList();
 
@@ -71,7 +71,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 			List<FStatRecord> StatRecords = await Perforce.FStatAsync(Args.Skip(1).ToList(), CancellationToken.None);
 			List<(string, string)> FilesInfo = StatRecords.Select(r => (r.DepotFile!, r.Type!)).ToList();
 

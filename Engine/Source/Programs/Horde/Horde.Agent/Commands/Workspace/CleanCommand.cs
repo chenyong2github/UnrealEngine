@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using EpicGames.Core;
 using EpicGames.Perforce.Managed;
+using EpicGames.Perforce;
 
 namespace HordeAgent.Commands.Workspace
 {
@@ -20,7 +21,7 @@ namespace HordeAgent.Commands.Workspace
 		[Description("Performs an incremental sync, without removing intermediates")]
 		public bool bIncrementalSync = false;
 
-		protected override Task ExecuteAsync(ManagedWorkspace Repo, ILogger Logger)
+		protected override Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
 		{
 			return Repo.CleanAsync(!bIncrementalSync, CancellationToken.None);
 		}

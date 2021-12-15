@@ -26,7 +26,7 @@ namespace HordeAgent.Utility
 		/// <summary>
 		/// The perforce connection
 		/// </summary>
-		public PerforceClientConnection PerforceClient
+		public IPerforceConnection PerforceClient
 		{
 			get;
 		}
@@ -36,7 +36,7 @@ namespace HordeAgent.Utility
 		/// </summary>
 		public string ServerAndPort
 		{
-			get { return PerforceClient.ServerAndPort!; }
+			get { return PerforceClient.Settings.ServerAndPort!; }
 		}
 
 		/// <summary>
@@ -44,7 +44,7 @@ namespace HordeAgent.Utility
 		/// </summary>
 		public string ClientName
 		{
-			get { return PerforceClient.ClientName!; }
+			get { return PerforceClient.Settings.ClientName!; }
 		}
 
 		/// <summary>
@@ -52,7 +52,7 @@ namespace HordeAgent.Utility
 		/// </summary>
 		public string UserName
 		{
-			get { return PerforceClient.UserName!; }
+			get { return PerforceClient.Settings.UserName!; }
 		}
 
 		/// <summary>
@@ -122,19 +122,11 @@ namespace HordeAgent.Utility
 		/// <param name="View">View for files to be synced</param>
 		/// <param name="bRemoveUntrackedFiles">Whether to remove untracked files when syncing</param>
 		/// <param name="Repository">The repository instance</param>
-		public WorkspaceInfo(PerforceClientConnection Perforce, string HostName, string StreamName, DirectoryReference MetadataDir, DirectoryReference WorkspaceDir, IList<string>? View, bool bRemoveUntrackedFiles, ManagedWorkspace Repository)
+		public WorkspaceInfo(IPerforceConnection Perforce, string HostName, string StreamName, DirectoryReference MetadataDir, DirectoryReference WorkspaceDir, IList<string>? View, bool bRemoveUntrackedFiles, ManagedWorkspace Repository)
 		{
 			this.PerforceClient = Perforce;
 
-			if (Perforce.ServerAndPort == null)
-			{
-				throw new ArgumentException("Perforce connection does not have valid server and port");
-			}
-			if (Perforce.UserName == null)
-			{
-				throw new ArgumentException("PerforceConnection does not have valid username");
-			}
-			if (Perforce.ClientName == null)
+			if (Perforce.Settings.ClientName == null)
 			{
 				throw new ArgumentException("PerforceConnection does not have valid client name");
 			}
@@ -163,8 +155,20 @@ namespace HordeAgent.Utility
 			string? UserName = String.IsNullOrEmpty(Workspace.UserName)? null : Workspace.UserName;
 			string? Password = String.IsNullOrEmpty(Workspace.Password)? null : Workspace.Password;
 
+			if (ServerAndPort == null)
+			{
+				ServerAndPort = PerforceSettings.Default.ServerAndPort;
+				Logger.LogInformation("Using locally configured Perforce server: '{ServerAndPort}'", ServerAndPort);
+			}
+
+			if (UserName == null)
+			{
+				UserName = PerforceSettings.Default.UserName;
+				Logger.LogInformation("Using locally configured and logged in Perforce user: '{UserName}'", UserName);
+			}
+
 			// Create the connection
-			PerforceConnection Perforce = new PerforceConnection(ServerAndPort, UserName, Logger);
+			IPerforceConnection Perforce = await PerforceConnection.CreateAsync(new PerforceSettings(ServerAndPort, UserName), Logger);
 			if (UserName != null)
 			{
 				if (Password != null)
@@ -191,22 +195,10 @@ namespace HordeAgent.Utility
 		/// <param name="Logger">Logger output</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>New workspace info</returns>
-		public static async Task<WorkspaceInfo> SetupWorkspaceAsync(PerforceConnection Perforce, string StreamName, string Identifier, IList<string> View, bool bRemoveUntrackedFiles, DirectoryReference RootDir, ILogger Logger, CancellationToken CancellationToken)
+		public static async Task<WorkspaceInfo> SetupWorkspaceAsync(IPerforceConnection Perforce, string StreamName, string Identifier, IList<string> View, bool bRemoveUntrackedFiles, DirectoryReference RootDir, ILogger Logger, CancellationToken CancellationToken)
 		{
 			// Get the host name, and fill in any missing metadata about the connection
 			InfoRecord Info = await Perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
-
-			if (Perforce.ServerAndPort == null)
-			{
-				Perforce.ServerAndPort = await Perforce.TryGetSettingAsync("p4port", CancellationToken) ?? "perforce:1666";
-				Logger.LogInformation($"Using locally configured Perforce server: '{Perforce.ServerAndPort}'");
-			}
-
-			if (Perforce.UserName == null)
-			{
-				Perforce.UserName = Info.UserName;
-				Logger.LogInformation("Using locally configured and logged in Perforce user: '{UserName}'", Perforce.UserName);
-			}
 
 			string? HostName = Info.ClientHost;
 			if(HostName == null)
@@ -235,7 +227,7 @@ namespace HordeAgent.Utility
 			string ClientName = $"Horde+{GetNormalizedHostName(HostName)}+{Identifier}{EdgeSuffix}";
 
 			// Create the client Perforce connection
-			PerforceClientConnection PerforceClient = new PerforceClientConnection(Perforce.ServerAndPort, Perforce.UserName, ClientName, Perforce.Logger);
+			IPerforceConnection PerforceClient = await Perforce.WithClientAsync(ClientName);
 
 			// get the workspace names
 			DirectoryReference MetadataDir = DirectoryReference.Combine(RootDir, Identifier);
@@ -360,10 +352,10 @@ namespace HordeAgent.Utility
 		/// <summary>
 		/// Revert all files in a workspace
 		/// </summary>
-		public static async Task RevertAllChangesAsync(PerforceConnection Perforce, ILogger Logger, CancellationToken CancellationToken)
+		public static async Task RevertAllChangesAsync(IPerforceConnection Perforce, ILogger Logger, CancellationToken CancellationToken)
 		{
 			// Make sure the client name is set
-			if(Perforce.ClientName == null)
+			if(Perforce.Settings.ClientName == null)
 			{
 				throw new ArgumentException("RevertAllChangesAsync() requires PerforceConnection with client");
 			}
@@ -376,7 +368,7 @@ namespace HordeAgent.Utility
 			}
 
 			// enumerate all the pending changelists
-			List<ChangesRecord> PendingChanges = await Perforce.GetChangesAsync(ChangesOptions.None, Perforce.ClientName, -1, ChangeStatus.Pending, null, FileSpecList.Empty, CancellationToken);
+			List<ChangesRecord> PendingChanges = await Perforce.GetChangesAsync(ChangesOptions.None, Perforce.Settings.ClientName, -1, ChangeStatus.Pending, null, FileSpecList.Empty, CancellationToken);
 			foreach (ChangesRecord PendingChange in PendingChanges)
 			{
 				// delete any shelved files if there are any

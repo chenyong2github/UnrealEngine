@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Perforce;
 
 namespace HordeAgent.Commands.Workspace
 {
@@ -18,7 +19,7 @@ namespace HordeAgent.Commands.Workspace
 		[CommandLine("-Size=")]
 		string? SizeParam = null;
 
-		protected override Task ExecuteAsync(ManagedWorkspace Repo, ILogger Logger)
+		protected override Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
 		{
 			long Size = 0;
 			if (SizeParam != null)

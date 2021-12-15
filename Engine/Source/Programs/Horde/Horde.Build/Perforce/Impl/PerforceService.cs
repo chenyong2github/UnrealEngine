@@ -205,7 +205,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="ClusterName"></param>
 		/// <returns></returns>
-		public async Task<NativePerforceConnection?> GetServiceUserConnection(string? ClusterName)
+		public async Task<IPerforceConnection?> GetServiceUserConnection(string? ClusterName)
 		{
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetServiceUserConnection").StartActive();
 			Scope.Span.SetTag("ClusterName", ClusterName);
@@ -227,16 +227,13 @@ namespace HordeServer.Services
 
 			IPerforceServer Server = await SelectServer(Cluster);
 
-			PerforceSettings Settings = new PerforceSettings();
-			Settings.ServerAndPort = Server.ServerAndPort;
-			Settings.User = UserName;
+			PerforceSettings Settings = new PerforceSettings(Server.ServerAndPort, UserName);
 			Settings.Password = Password;
 			Settings.AppName = "Horde.Build";
-			Settings.Client = "__DOES_NOT_EXIST__";
+			Settings.ClientName = "__DOES_NOT_EXIST__";
+			Settings.PreferNativeClient = true;
 
-			NativePerforceConnection NativeConnection = new NativePerforceConnection(Logger);
-			await NativeConnection.ConnectAsync(Settings);
-			return NativeConnection;
+			return await PerforceConnection.CreateAsync(Settings, Logger);
 		}
 
 		async Task<P4.Repository> GetServiceUserConnection(PerforceCluster Cluster)

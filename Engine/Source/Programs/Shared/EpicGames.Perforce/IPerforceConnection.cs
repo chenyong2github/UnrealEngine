@@ -12,8 +12,13 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Base interface for Perforce clients
 	/// </summary>
-	public interface IPerforceConnection
+	public interface IPerforceConnection : IDisposable
 	{
+		/// <summary>
+		/// Connection settings
+		/// </summary>
+		IPerforceSettings Settings { get; }
+
 		/// <summary>
 		/// Logger for this connection
 		/// </summary>
@@ -45,13 +50,5 @@ namespace EpicGames.Perforce
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
 		Task SetAsync(string Name, string Value, CancellationToken CancellationToken = default);
-
-		/// <summary>
-		/// Gets the setting of a Perforce variable
-		/// </summary>
-		/// <param name="Name">Name of the variable to get</param>
-		/// <param name="CancellationToken">Cancellation token for the request</param>
-		/// <returns>Value of the variable</returns>
-		Task<string?> TryGetSettingAsync(string Name, CancellationToken CancellationToken = default);
 	}
 }

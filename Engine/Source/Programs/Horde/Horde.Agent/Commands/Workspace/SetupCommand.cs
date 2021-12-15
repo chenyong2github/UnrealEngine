@@ -25,10 +25,10 @@ namespace HordeAgent.Commands.Workspace
 		[Description("Name of the stream to configure")]
 		string StreamName = null!;
 
-		protected override Task ExecuteAsync(ManagedWorkspace Repo, ILogger Logger)
+		protected override async Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
 		{
-			PerforceClientConnection PerforceClient = new PerforceClientConnection(Perforce, ClientName);
-			return Repo.SetupAsync(PerforceClient, StreamName, CancellationToken.None);
+			using IPerforceConnection PerforceClient = await Perforce.WithClientAsync(ClientName);
+			await Repo.SetupAsync(PerforceClient, StreamName, CancellationToken.None);
 		}
 	}
 }

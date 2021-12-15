@@ -35,7 +35,7 @@ namespace P4VUtils.Commands
 
 			bool Debug = Args.Any(x => x.Equals("-Debug", StringComparison.OrdinalIgnoreCase));
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, null, Logger);
 
 			int MergedChange = await CherryPickCommand.MergeAsync(Perforce, Change, Logger);
 			if (MergedChange <= 0)

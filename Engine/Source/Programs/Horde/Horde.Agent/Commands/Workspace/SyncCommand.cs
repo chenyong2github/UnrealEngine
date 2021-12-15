@@ -49,12 +49,12 @@ namespace HordeAgent.Commands.Workspace
 		[Description("Simulates the sync without actually fetching any files")]
 		public bool bFakeSync = false;
 
-		protected override async Task ExecuteAsync(ManagedWorkspace Repo, ILogger Logger)
+		protected override async Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
 		{
 			int ChangeNumber = ParseChangeNumberOrLatest(Change);
 			List<string> ExpandedFilters = ExpandFilters(Filters);
 
-			PerforceClientConnection PerforceClient = new PerforceClientConnection(Perforce, ClientName);
+			using IPerforceConnection PerforceClient = await Perforce.WithClientAsync(ClientName);
 			await Repo.SyncAsync(PerforceClient, StreamName, ChangeNumber, ExpandedFilters, !bIncrementalSync, bFakeSync, CacheFile, CancellationToken.None);
 
 			if (PreflightChange != -1)

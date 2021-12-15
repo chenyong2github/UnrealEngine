@@ -29,10 +29,10 @@ namespace HordeAgent.Commands.Workspace
 		[Description("Filters for the files to sync, in P4 syntax (eg. /Engine/...)")]
 		List<string> Filters = new List<string>();
 
-		protected override Task ExecuteAsync(ManagedWorkspace Repo, ILogger Logger)
+		protected override async Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
 		{
-			PerforceClientConnection PerforceClient = new PerforceClientConnection(Perforce, TempClientName);
-			return Repo.StatsAsync(PerforceClient, StreamNames, Filters, CancellationToken.None);
+			using IPerforceConnection PerforceClient = await Perforce.WithClientAsync(TempClientName);
+			await Repo.StatsAsync(PerforceClient, StreamNames, Filters, CancellationToken.None);
 		}
 	}
 }

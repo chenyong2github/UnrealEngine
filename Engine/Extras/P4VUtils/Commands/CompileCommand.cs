@@ -34,7 +34,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, null, Logger);
 			bool Result = await BuildAsync(Perforce, Change, Args.Skip(2), Logger);
 			return Result ? 0 : 1;
 		}

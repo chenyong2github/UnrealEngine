@@ -20,7 +20,7 @@ namespace P4VUtils.Commands
 
 		protected static async Task<int> UnshelveFiles(List<(string, string, int)> FilesInfoToUnshelve, bool bMakeDataWritable, int ChangeNumber, int IntoChangeNumber, ILogger Logger)
 		{
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 
 			List<string> FileSpecs = FilesInfoToUnshelve.Select(t => t.Item1).ToList();
 			List<FStatRecord> StatRecords = await Perforce.FStatAsync(FileSpecs, CancellationToken.None);
@@ -98,7 +98,7 @@ namespace P4VUtils.Commands
 
 		protected static async Task<int> UnshelveChangeList(int ChangeNumber, bool bMakeDataWritable, ILogger Logger)
 		{
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 			List<DescribeRecord> Describe = await Perforce.DescribeAsync(DescribeOptions.Shelved, -1, new int[] { ChangeNumber }, CancellationToken.None);
 
 			int IntoChangeNumber = -1;

@@ -32,7 +32,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
+			using PerforceConnection Perforce = new PerforceConnection(null, null, Logger);
 			DescribeRecord DescribeRecord = await Perforce.DescribeAsync(Change, CancellationToken.None);
 
 			foreach (string Line in DescribeRecord.Description.Split('\n'))

@@ -29,7 +29,7 @@ namespace HordeAgent.Commands.Workspace
 		[Description("Simulates the sync without actually fetching any files")]
 		bool bFakeSync = false;
 
-		protected override Task ExecuteAsync(ManagedWorkspace Repo, ILogger Logger)
+		protected override async Task ExecuteAsync(IPerforceConnection Perforce, ManagedWorkspace Repo, ILogger Logger)
 		{
 			List<string> ExpandedFilters = ExpandFilters(Filters);
 
@@ -42,11 +42,11 @@ namespace HordeAgent.Commands.Workspace
 					throw new FatalErrorException("Expected -ClientAndStream=<ClientName>:<StreamName>");
 				}
 
-				PerforceClientConnection PerforceClient = new PerforceClientConnection(Perforce, ClientAndStreamParam.Substring(0, Idx));
+				using IPerforceConnection PerforceClient = await Perforce.WithClientAsync(ClientAndStreamParam.Substring(0, Idx));
 				PopulateRequests.Add(new PopulateRequest(PerforceClient, ClientAndStreamParam.Substring(Idx + 1), ExpandedFilters));
 			}
 
-			return Repo.PopulateAsync(PopulateRequests, bFakeSync, CancellationToken.None);
+			await Repo.PopulateAsync(PopulateRequests, bFakeSync, CancellationToken.None);
 		}
 	}
 }
