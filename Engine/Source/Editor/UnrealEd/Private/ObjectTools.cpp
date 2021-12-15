@@ -4395,7 +4395,7 @@ namespace ObjectTools
 	{
 		check(InClass);
 
-		const bool bIsPlaceable = !InClass->HasAllClassFlags(CLASS_NotPlaceable) && (InClass->IsChildOf(AActor::StaticClass()) || InClass->IsChildOf(ABrush::StaticClass()) || InClass->IsChildOf(AVolume::StaticClass()));
+		const bool bIsPlaceable = !InClass->HasAllClassFlags(CLASS_NotPlaceable);
 		const bool bIsAbstractOrDeprecated = InClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists);
 		const bool bIsSkeletonClass = FKismetEditorUtilities::IsClassABlueprintSkeleton(InClass);
 

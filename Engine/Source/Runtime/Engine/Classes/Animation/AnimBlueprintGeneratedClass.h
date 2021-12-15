@@ -362,7 +362,7 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	TArray<FBakedAnimationStateMachine> BakedStateMachines;
 
 	/** Target skeleton for this blueprint class */
-	UPROPERTY()
+	UPROPERTY(AssetRegistrySearchable)
 	TObjectPtr<USkeleton> TargetSkeleton;
 
 	/** A list of anim notifies that state machines (or anything else) may reference */
