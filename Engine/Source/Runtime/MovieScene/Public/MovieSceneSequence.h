@@ -17,6 +17,7 @@ class UMovieSceneEntitySystemLinker;
 
 struct FMovieScenePossessable;
 struct FMovieSceneObjectCache;
+struct FMovieSceneTimecodeSource;
 
 enum class ETrackSupport
 {
@@ -215,6 +216,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence")
 	MOVIESCENE_API const TArray<FMovieSceneObjectBindingID>& FindBindingsByTag(FName InBindingName) const;
+
+	/**
+	 * Get the earliest timecode source out of all of the movie scene sections contained within this sequence's movie scene.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence")
+	MOVIESCENE_API FMovieSceneTimecodeSource GetEarliestTimecodeSource() const;
 
 public:
 

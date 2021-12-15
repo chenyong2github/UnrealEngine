@@ -43,7 +43,7 @@ struct FMovieSceneExpansionState
 	bool bExpanded;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FMovieSceneTimecodeSource
 {
 	GENERATED_BODY()
@@ -68,7 +68,7 @@ struct FMovieSceneTimecodeSource
 public:
 
 	/** The global timecode at which this target is based (ie. the timecode at the beginning of the movie scene section when it was recorded) */
-	UPROPERTY(EditAnywhere, Category="Timecode")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Timecode")
 	FTimecode Timecode;
 };
 
@@ -853,6 +853,11 @@ public:
 		ClockSource = EUpdateClockSource::Custom;
 		CustomClockSourcePath = InNewClockSource;
 	}
+
+	/**
+	 * Get the earliest timecode source out of all of the movie scene sections contained within this movie scene.
+	 */
+	FMovieSceneTimecodeSource GetEarliestTimecodeSource() const;
 
 	/*
 	* Replace an existing binding with another 

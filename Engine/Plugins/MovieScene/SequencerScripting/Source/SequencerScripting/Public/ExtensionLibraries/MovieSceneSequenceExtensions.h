@@ -341,7 +341,8 @@ public:
 	 * @param Sequence        The sequence within which to get the timecode source
 	 * @return Timecode source of this sequence
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
+	UE_DEPRECATED(5.0, "GetTimecodeSource() is no longer supported for movie scene sequences. Please use GetEarliestTimecodeSource() instead.")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage = "GetTimecodeSource() is no longer supported for movie scene sequences. Please use GetEarliestTimecodeSource() instead."))
 	static FTimecode GetTimecodeSource(UMovieSceneSequence* Sequence);
 
 	/**

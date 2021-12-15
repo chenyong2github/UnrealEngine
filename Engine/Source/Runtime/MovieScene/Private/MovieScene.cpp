@@ -4,6 +4,7 @@
 
 #include "MovieSceneTrack.h"
 #include "MovieSceneFolder.h"
+#include "MovieSceneSection.h"
 #include "MovieSceneSequence.h"
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
@@ -11,6 +12,7 @@
 #include "Evaluation/IMovieSceneCustomClockSource.h"
 #include "CommonFrameRates.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "Misc/FrameRate.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 
@@ -1406,6 +1408,49 @@ void UMovieScene::MoveBindingContents(const FGuid& SourceBindingId, const FGuid&
 TSharedPtr<FMovieSceneTimeController> UMovieScene::MakeCustomTimeController(UObject* PlaybackContext)
 {
 	return MakeShared<FMovieSceneTimeController_Custom>(CustomClockSourcePath, PlaybackContext);
+}
+
+FMovieSceneTimecodeSource UMovieScene::GetEarliestTimecodeSource() const
+{
+	FMovieSceneTimecodeSource EarliestTimecodeSource;
+
+#if WITH_EDITORONLY_DATA
+
+	const TArray<UMovieSceneSection*> MovieSceneSections = GetAllSections();
+
+	// Find the first non-default timecode source.
+	const FMovieSceneTimecodeSource DefaultTimecodeSource;
+	int32 Index = 0;
+	while (Index < MovieSceneSections.Num() && EarliestTimecodeSource == DefaultTimecodeSource)
+	{
+		if (MovieSceneSections[Index])
+		{
+			EarliestTimecodeSource = MovieSceneSections[Index]->TimecodeSource;
+		}
+
+		++Index;
+	}
+
+	// Continue searching through the sections where we left off looking for any earlier timecodes.
+	// Any subsequently found default timecode source could be considered earlier.
+	for (; Index < MovieSceneSections.Num(); ++Index)
+	{
+		if (!MovieSceneSections[Index])
+		{
+			continue;
+		}
+
+		const FMovieSceneTimecodeSource SectionTimecodeSource = MovieSceneSections[Index]->TimecodeSource;
+		const FFrameRate ComparisonFrameRate;
+		if (SectionTimecodeSource.Timecode.ToFrameNumber(ComparisonFrameRate) < EarliestTimecodeSource.Timecode.ToFrameNumber(ComparisonFrameRate))
+		{
+			EarliestTimecodeSource = SectionTimecodeSource;
+		}
+	}
+
+#endif
+
+	return EarliestTimecodeSource;
 }
 
 void UMovieScene::SetMarkedFrame(int32 InMarkIndex, FFrameNumber InFrameNumber)

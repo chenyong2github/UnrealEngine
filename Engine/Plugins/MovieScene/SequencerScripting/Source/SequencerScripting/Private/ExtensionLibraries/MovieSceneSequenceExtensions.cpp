@@ -442,17 +442,12 @@ EUpdateClockSource UMovieSceneSequenceExtensions::GetClockSource(UMovieSceneSequ
 FTimecode UMovieSceneSequenceExtensions::GetTimecodeSource(UMovieSceneSequence* Sequence)
 {
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
-	if (MovieScene)
-	{
-#if WITH_EDITORONLY_DATA
-		return MovieScene->TimecodeSource.Timecode;
-#endif
-		return FTimecode();
-	}
-	else
+	if (!MovieScene)
 	{
 		return FTimecode();
 	}
+
+	return MovieScene->GetEarliestTimecodeSource().Timecode;
 }
 
 FSequencerBindingProxy UMovieSceneSequenceExtensions::FindBindingByName(UMovieSceneSequence* Sequence, FString Name)

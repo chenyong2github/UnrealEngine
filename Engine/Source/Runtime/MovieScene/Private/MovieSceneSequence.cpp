@@ -341,3 +341,14 @@ const TArray<FMovieSceneObjectBindingID>& UMovieSceneSequence::FindBindingsByTag
 	static TArray<FMovieSceneObjectBindingID> EmptyBindings;
 	return EmptyBindings;
 }
+
+FMovieSceneTimecodeSource UMovieSceneSequence::GetEarliestTimecodeSource() const
+{
+	const UMovieScene* MovieScene = GetMovieScene();
+	if (!MovieScene)
+	{
+		return FMovieSceneTimecodeSource();
+	}
+
+	return MovieScene->GetEarliestTimecodeSource();
+}
