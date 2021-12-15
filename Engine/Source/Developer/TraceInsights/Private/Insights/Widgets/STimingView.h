@@ -380,6 +380,8 @@ public:
 
 	void CloseQuickFindTab();
 
+	TSharedPtr<Insights::FFilterConfigurator> GetFilterConfigurator() { return FilterConfigurator; }
+
 protected:
 	virtual FVector2D ComputeDesiredSize(float) const override
 	{
@@ -709,6 +711,7 @@ protected:
 	TArray<TUniquePtr<ITimingEventRelation>> CurrentRelations;
 
 	TSharedPtr<Insights::FQuickFind> QuickFindVm;
+	TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator;
 	static uint32 TimingViewId;
 	const FName QuickFindTabId;
 	

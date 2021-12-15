@@ -11,6 +11,9 @@
 #include "Insights/ContextSwitches/ViewModels/ContextSwitchesSharedState.h"
 #include "Insights/ContextSwitches/ViewModels/ContextSwitchTimingEvent.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/ViewModels/FilterConfigurator.h"
+#include "Insights/ViewModels/Filters.h"
+#include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
@@ -45,52 +48,10 @@ void FCpuCoreTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Bui
 
 	const FTimingTrackViewport& Viewport = Context.GetViewport();
 
-	ContextSwitchesProvider->EnumerateCpuCoreEvents(CoreNumber, Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder, ContextSwitchesProvider](const TraceServices::FCpuCoreEvent& CpuCoreEvent)
+	ContextSwitchesProvider->EnumerateCpuCoreEvents(CoreNumber, Viewport.GetStartTime(), Viewport.GetEndTime(), 
+		[&Builder, ContextSwitchesProvider, this](const TraceServices::FCpuCoreEvent& CpuCoreEvent)
 		{
-			constexpr uint32 EventDepth = 0;
-			const uint32 EventColor = FTimingEvent::ComputeEventColor(CpuCoreEvent.SystemThreadId);
-			const uint32 SystemThreadId = CpuCoreEvent.SystemThreadId;
-
-			Builder.AddEvent(CpuCoreEvent.Start, CpuCoreEvent.End, EventDepth, EventColor,
-				[SystemThreadId, &CpuCoreEvent](float Width) -> const FString
-				{
-					const TCHAR* ThreadName = nullptr;
-
-					TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-					if (Session.IsValid())
-					{
-						TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-						const TraceServices::IContextSwitchesProvider* ContextSwitchesProvider = TraceServices::ReadContextSwitchesProvider(*Session.Get());
-						if (ContextSwitchesProvider)
-						{
-							uint32 ThreadId;
-							if (ContextSwitchesProvider->GetThreadId(SystemThreadId, ThreadId))
-							{
-								const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
-								ThreadName = ThreadProvider.GetThreadName(ThreadId);
-							}
-						}
-					}
-
-					FString EventName;
-
-					if (ThreadName)
-					{
-						EventName = ThreadName;
-					}
-					else
-					{
-						EventName = FString::Printf(TEXT("Unknown %d"), SystemThreadId);
-					}
-
-					if (Width > EventName.Len() * 4.0f + 32.0f)
-					{
-						const double Duration = CpuCoreEvent.End - CpuCoreEvent.Start;
-						FTimingEventsTrackDrawStateBuilder::AppendDurationToEventName(EventName, Duration);
-					}
-
-					return EventName;
-				});
+			this->AddCoreTimingEvent(Builder, CpuCoreEvent);
 
 			return TraceServices::EContextSwitchEnumerationResult::Continue;
 		});
@@ -123,47 +84,15 @@ void FCpuCoreTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuil
 
 			if (bFilterOnlyByEventType)
 			{
-				ContextSwitchesProvider->EnumerateCpuCoreEvents(CoreNumber, Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder, ContextSwitchesProvider, FilterEventType](const TraceServices::FCpuCoreEvent& CpuCoreEvent)
+				ContextSwitchesProvider->EnumerateCpuCoreEvents(CoreNumber, Viewport.GetStartTime(), Viewport.GetEndTime(), 
+					[&Builder, ContextSwitchesProvider, FilterEventType, this](const TraceServices::FCpuCoreEvent& CpuCoreEvent)
 					{
 						if (CpuCoreEvent.SystemThreadId != FilterEventType)
 						{
 							return TraceServices::EContextSwitchEnumerationResult::Continue;
 						}
 
-						constexpr uint32 EventDepth = 0;
-						const uint32 EventColor = FTimingEvent::ComputeEventColor(CpuCoreEvent.SystemThreadId);
-						const uint32 SystemThreadId = CpuCoreEvent.SystemThreadId;
-
-						Builder.AddEvent(CpuCoreEvent.Start, CpuCoreEvent.End, EventDepth, EventColor,
-							[SystemThreadId](float Width) -> const FString
-							{
-								const TCHAR* ThreadName = nullptr;
-
-								TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-								if (Session.IsValid())
-								{
-									TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-									const TraceServices::IContextSwitchesProvider* ContextSwitchesProvider = TraceServices::ReadContextSwitchesProvider(*Session.Get());
-									if (ContextSwitchesProvider)
-									{
-										uint32 ThreadId;
-										if (ContextSwitchesProvider->GetThreadId(SystemThreadId, ThreadId))
-										{
-											const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
-											ThreadName = ThreadProvider.GetThreadName(ThreadId);
-										}
-									}
-								}
-
-								if (ThreadName)
-								{
-									return FString(ThreadName);
-								}
-								else
-								{
-									return FString::Printf(TEXT("Unknown %d"), SystemThreadId);
-								}
-							});
+						this->AddCoreTimingEvent(Builder, CpuCoreEvent);
 
 						return TraceServices::EContextSwitchEnumerationResult::Continue;
 					});
@@ -174,6 +103,103 @@ void FCpuCoreTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuil
 			}
 		}
 	}
+
+	if (HasCustomFilter())
+	{
+		STimingView* TimingView = SharedState.GetTimingView();
+		if (!TimingView)
+		{
+			return;
+		}
+
+		TSharedPtr<FFilterConfigurator> FilterConfigurator = TimingView->GetFilterConfigurator();
+		if (!FilterConfigurator.IsValid())
+		{
+			return;
+		}
+
+		FFilterContext FilterContext;
+		FilterContext.SetReturnValueForUnsetFilters(false);
+
+		FilterContext.AddFilterData<double>(static_cast<int32>(EFilterField::StartTime), 0.0f);
+		FilterContext.AddFilterData<double>(static_cast<int32>(EFilterField::EndTime), 0.0f);
+		FilterContext.AddFilterData<double>(static_cast<int32>(EFilterField::Duration), 0.0f);
+		FilterContext.AddFilterData<FString>(static_cast<int32>(EFilterField::TrackName), this->GetName());
+		FilterContext.AddFilterData<int64>(static_cast<int32>(EFilterField::CoreEventName), 0);
+
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::IContextSwitchesProvider* ContextSwitchesProvider = TraceServices::ReadContextSwitchesProvider(*Session.Get());
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
+
+		ContextSwitchesProvider->EnumerateCpuCoreEvents(CoreNumber, Viewport.GetStartTime(), Viewport.GetEndTime(), 
+			[&Builder, ContextSwitchesProvider, &FilterContext, &FilterConfigurator, this](const TraceServices::FCpuCoreEvent& CpuCoreEvent)
+			{
+				FilterContext.SetFilterData<double>(static_cast<int32>(EFilterField::StartTime), CpuCoreEvent.Start);
+				FilterContext.SetFilterData<double>(static_cast<int32>(EFilterField::EndTime), CpuCoreEvent.End);
+				FilterContext.SetFilterData<double>(static_cast<int32>(EFilterField::Duration), CpuCoreEvent.End - CpuCoreEvent.Start);
+				FilterContext.SetFilterData<int64>(static_cast<int32>(EFilterField::CoreEventName), CpuCoreEvent.SystemThreadId);
+
+				if (!FilterConfigurator->ApplyFilters(FilterContext))
+				{
+					return TraceServices::EContextSwitchEnumerationResult::Continue;
+				}
+
+				this->AddCoreTimingEvent(Builder, CpuCoreEvent);
+
+				return TraceServices::EContextSwitchEnumerationResult::Continue;
+			});
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FCpuCoreTimingTrack::AddCoreTimingEvent(ITimingEventsTrackDrawStateBuilder& Builder, const TraceServices::FCpuCoreEvent& CpuCoreEvent)
+{
+	constexpr uint32 EventDepth = 0;
+	const uint32 EventColor = FTimingEvent::ComputeEventColor(CpuCoreEvent.SystemThreadId);
+	const uint32 SystemThreadId = CpuCoreEvent.SystemThreadId;
+
+	Builder.AddEvent(CpuCoreEvent.Start, CpuCoreEvent.End, EventDepth, EventColor,
+		[SystemThreadId, &CpuCoreEvent](float Width) -> const FString
+		{
+			const TCHAR* ThreadName = nullptr;
+
+			TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+			if (Session.IsValid())
+			{
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+				const TraceServices::IContextSwitchesProvider* ContextSwitchesProvider = TraceServices::ReadContextSwitchesProvider(*Session.Get());
+				if (ContextSwitchesProvider)
+				{
+					uint32 ThreadId;
+					if (ContextSwitchesProvider->GetThreadId(SystemThreadId, ThreadId))
+					{
+						const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
+						ThreadName = ThreadProvider.GetThreadName(ThreadId);
+					}
+				}
+			}
+
+			FString EventName;
+
+			if (ThreadName)
+			{
+				EventName = ThreadName;
+			}
+			else
+			{
+				EventName = FString::Printf(TEXT("Unknown %d"), SystemThreadId);
+			}
+
+			if (Width > EventName.Len() * 4.0f + 32.0f)
+			{
+				const double Duration = CpuCoreEvent.End - CpuCoreEvent.Start;
+				FTimingEventsTrackDrawStateBuilder::AppendDurationToEventName(EventName, Duration);
+			}
+
+			return EventName;
+		});
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -305,6 +331,20 @@ void FCpuCoreTimingTrack::BuildContextMenu(FMenuBuilder& InOutMenuBuilder)
 			InOutMenuBuilder.EndSection();
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FCpuCoreTimingTrack::HasCustomFilter() const
+{
+	STimingView* TimingView = SharedState.GetTimingView();
+	if (!TimingView)
+	{
+		return false;
+	}
+
+	TSharedPtr<FFilterConfigurator> FilterConfigurator = TimingView->GetFilterConfigurator();
+	return FilterConfigurator.IsValid() && FilterConfigurator->GetRootNode().IsValid() && FilterConfigurator->GetRootNode()->GetChildren().Num() > 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

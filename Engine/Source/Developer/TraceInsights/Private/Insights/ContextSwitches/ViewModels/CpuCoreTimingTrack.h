@@ -11,6 +11,11 @@
 
 class FThreadTrackEvent;
 
+namespace TraceServices
+{
+	struct FCpuCoreEvent;
+};
+
 namespace Insights
 {
 
@@ -45,6 +50,10 @@ public:
 
 protected:
 	virtual const TSharedPtr<const ITimingEvent> GetEvent(double InTime, double SecondsPerPixel, int32 Depth) const override;
+
+	virtual bool HasCustomFilter() const override;
+
+	void AddCoreTimingEvent(ITimingEventsTrackDrawStateBuilder& Builder, const TraceServices::FCpuCoreEvent& CpuCoreEvent);
 
 private:
 	FContextSwitchesSharedState& SharedState;

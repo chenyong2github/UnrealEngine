@@ -4825,8 +4825,8 @@ void STimingView::QuickFind_Execute()
 
 	if (!QuickFindVm.IsValid())
 	{
-		TSharedPtr<FFilterConfigurator> FilterConfigurator = MakeShared<FFilterConfigurator>();
-		TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = FilterConfigurator->GetAvailableFilters();
+		TSharedPtr<FFilterConfigurator> NewFilterConfigurator = MakeShared<FFilterConfigurator>();
+		TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = NewFilterConfigurator->GetAvailableFilters();
 
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::StartTime), LOCTEXT("StartTime", "Start Time"), LOCTEXT("StartTime", "Start Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EndTime), LOCTEXT("EndTime", "End Time"), LOCTEXT("EndTime", "End Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
@@ -4855,7 +4855,12 @@ void STimingView::QuickFind_Execute()
 
 		AvailableFilters->Add(TimerNameFilter);
 
-		QuickFindVm = MakeShared<FQuickFind>(FilterConfigurator);
+		for (Insights::ITimingViewExtender* Extender : GetExtenders())
+		{
+			Extender->AddQuickFindFilters(NewFilterConfigurator);
+		}
+
+		QuickFindVm = MakeShared<FQuickFind>(NewFilterConfigurator);
 		QuickFindVm->GetOnFindFirstEvent().AddSP(this, &STimingView::FindFirstEvent);
 		QuickFindVm->GetOnFindPreviousEvent().AddSP(this, &STimingView::FindPrevEvent);
 		QuickFindVm->GetOnFindNextEvent().AddSP(this, &STimingView::FindNextEvent);
@@ -5105,7 +5110,9 @@ void STimingView::FilterAllTracks()
 {
 	for (auto& Entry : AllTracks)
 	{
+		FilterConfigurator = MakeShared<Insights::FFilterConfigurator>(*QuickFindVm->GetFilterConfigurator());
 		Entry.Value->SetFilterConfigurator(QuickFindVm->GetFilterConfigurator());
+		Entry.Value->SetDirtyFlag();
 	}
 }
 
@@ -5115,7 +5122,9 @@ void STimingView::ClearFilters()
 {
 	for (auto& Entry : AllTracks)
 	{
+		FilterConfigurator.Reset();
 		Entry.Value->SetFilterConfigurator(nullptr);
+		Entry.Value->SetDirtyFlag();
 	}
 }
 
@@ -5164,14 +5173,14 @@ void STimingView::PopulateTimerNameSuggestionList(const FString& Text, TArray<FS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::EnumerateFilteredTracks(TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator, EnumerateFilteredTracksCallback Callback)
+void STimingView::EnumerateFilteredTracks(TSharedPtr<Insights::FFilterConfigurator> InFilterConfigurator, EnumerateFilteredTracksCallback Callback)
 {
 	Insights::FFilterContext FilterContext;
 	FilterContext.AddFilterData(static_cast<int32>(EFilterField::TrackName), FString());
 	for (auto& Entry : AllTracks)
 	{
 		FilterContext.SetFilterData(static_cast<int32>(EFilterField::TrackName), Entry.Value->GetName());
-		if (FilterConfigurator->ApplyFilters(FilterContext))
+		if (InFilterConfigurator->ApplyFilters(FilterContext))
 		{
 			Callback(Entry.Value);
 		}

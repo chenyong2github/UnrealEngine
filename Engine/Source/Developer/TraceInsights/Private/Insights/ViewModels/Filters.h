@@ -269,8 +269,12 @@ public:
 		return DataMap.Contains(Key);
 	}
 
+	bool GetReturnValueForUnsetFilters() const { return bReturnValueForUnsetFilters;	}
+	void SetReturnValueForUnsetFilters(bool InValue) { bReturnValueForUnsetFilters = InValue; }
+
 private:
 	TMap<int32, ContextData> DataMap;
+	bool bReturnValueForUnsetFilters = true;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

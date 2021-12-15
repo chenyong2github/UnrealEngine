@@ -40,6 +40,9 @@ public:
 	/** Extension hook for the context menu for all tracks
 	@return True if any menu option was added and False if no option was added */ 
 	virtual bool ExtendGlobalContextMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) { return false; }
+
+	/** Allows extender to add filters to the Quick Find widget. */
+	virtual void AddQuickFindFilters(TSharedPtr<class FFilterConfigurator> FilterConfigurator) {}
 };
 
 } // namespace Insights

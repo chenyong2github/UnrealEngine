@@ -264,8 +264,8 @@ bool FFilterConfiguratorNode::ApplyFilters(const FFilterContext& Context) const
 	{
 		if (!Context.HasFilterData(SelectedFilter->Key))
 		{
-			// If data is not set for this filter we consider it passed the test.
-			return true;
+			// If data is not set for this filter return the value specified in the Context.
+			return Context.GetReturnValueForUnsetFilters();
 		}
 
 		switch (SelectedFilter->DataType)
