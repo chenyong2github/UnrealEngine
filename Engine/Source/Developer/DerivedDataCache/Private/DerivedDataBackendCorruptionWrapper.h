@@ -6,65 +6,80 @@
 #include "DerivedDataBackendInterface.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "DerivedDataCacheUsageStats.h"
+#include "Memory/MemoryView.h"
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore
 {
 
-/** 
+/**
  * Helper class for placing a footer at the end of of a cache file.
  * No effort is made to byte-swap this as we assume local format.
-**/
+ */
 struct FDerivedDataTrailer
 {
-	enum
-	{
-		/** Arbitrary number used to identify corruption **/
-		MagicConstant = 0x1e873d89
-	};
+	/** Arbitrary number used to identify corruption */
+	static constexpr inline uint32 MagicConstant = 0x1e873d89;
 
-	/** Arbitrary number used to identify corruption **/
-	uint32 Magic;
-	/** Version of the backend, for future use **/
-	uint32 Version;
-	/** CRC of the payload, used to detect corruption **/
-	uint32 CRCofPayload;
-	/** Size of the payload, used to detect corruption **/
-	uint32 SizeOfPayload;
+	/** Arbitrary number used to identify corruption */
+	uint32 Magic = 0;
+	/** Version of the trailer */
+	uint32 Version = 0;
+	/** CRC of the payload, used to detect corruption */
+	uint32 CRCofPayload = 0;
+	/** Size of the payload, used to detect corruption */
+	uint32 SizeOfPayload = 0;
 
-	/** Constructor that zeros everything. This is never valid because even the magic number is wrong **/
-	FDerivedDataTrailer() 
-		: Magic(0)
-		, Version(0)
-		, CRCofPayload(0)
-		, SizeOfPayload(0)
-	{
-	}
+	FDerivedDataTrailer() = default;
 
-	/**
-		* Constructor that sets the data properly for a given buffer of data
-		* @param	Data	Buffer of data to setup this trailer for
-		*/
-	FDerivedDataTrailer(const TArray<uint8>& Data)
+	explicit FDerivedDataTrailer(const FMemoryView Data)
 		: Magic(MagicConstant)
 		, Version(1)
-		, CRCofPayload(FCrc::MemCrc_DEPRECATED(Data.GetData(), Data.Num()))
-		, SizeOfPayload(Data.Num())
+		, CRCofPayload(FCrc::MemCrc_DEPRECATED(Data.GetData(), IntCastChecked<int32>(Data.GetSize())))
+		, SizeOfPayload(uint32(Data.GetSize()))
 	{
 	}
-	/**
-		* Comparison operator
-		* @param	Other	trailer to compare "this" to
-		* @return			true if all elements of the trailer match exactly
-		*/
-	bool operator==(const FDerivedDataTrailer& Other)
+
+	bool operator==(const FDerivedDataTrailer& Other) const
 	{
-		return Magic == Other.Magic &&
-			Version == Other.Version &&
-			CRCofPayload == Other.CRCofPayload &&
-			SizeOfPayload == Other.SizeOfPayload;
+		return Magic == Other.Magic
+			&& Version == Other.Version
+			&& CRCofPayload == Other.CRCofPayload
+			&& SizeOfPayload == Other.SizeOfPayload;
 	}
 };
 
+class FCorruptionWrapper
+{
+public:
+	static bool ReadTrailer(TArray<uint8>& Data, const TCHAR* CacheName, const TCHAR* CacheKey)
+	{
+		if (Data.Num() < sizeof(FDerivedDataTrailer))
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Corrupted file (short), ignoring and deleting %s."), CacheName, CacheKey);
+			return false;
+		}
+
+		FDerivedDataTrailer Trailer;
+		FMemory::Memcpy(&Trailer, &Data[Data.Num() - sizeof(FDerivedDataTrailer)], sizeof(FDerivedDataTrailer));
+		Data.RemoveAt(Data.Num() - sizeof(FDerivedDataTrailer), sizeof(FDerivedDataTrailer), /*bAllowShrinking*/ false);
+		FDerivedDataTrailer RecomputedTrailer(MakeMemoryView(Data));
+		if (!(Trailer == RecomputedTrailer))
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Corrupted file, ignoring and deleting %s."), CacheName, CacheKey);
+			return false;
+		}
+
+		return true;
+	}
+
+	static void WriteTrailer(FArchive& Ar, TConstArrayView<uint8> Data, const TCHAR* CacheName, const TCHAR* CacheKey)
+	{
+		checkf(Ar.TotalSize() + sizeof(FDerivedDataTrailer) <= MAX_int32,
+			TEXT("%s: Appending the trailer makes the data exceed 2 GiB for %s"), CacheName, CacheKey);
+		FDerivedDataTrailer Trailer(MakeMemoryView(Data));
+		Ar.Serialize(&Trailer, sizeof(FDerivedDataTrailer));
+	}
+};
 
 /** 
  * A backend wrapper that adds a footer to the data to check the CRC, length, etc.
@@ -165,7 +180,7 @@ public:
 				FDerivedDataTrailer Trailer;
 				FMemory::Memcpy(&Trailer,&OutData[OutData.Num() - sizeof(FDerivedDataTrailer)], sizeof(FDerivedDataTrailer));
 				OutData.RemoveAt(OutData.Num() - sizeof(FDerivedDataTrailer),sizeof(FDerivedDataTrailer), false);
-				FDerivedDataTrailer RecomputedTrailer(OutData);
+				FDerivedDataTrailer RecomputedTrailer(MakeMemoryView(OutData));
 				if (Trailer == RecomputedTrailer)
 				{
 					UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("FDerivedDataBackendCorruptionWrapper: cache hit, footer is ok %s"),CacheKey);
@@ -214,7 +229,7 @@ public:
 		Data.Reset( InData.Num() + sizeof(FDerivedDataTrailer) );
 		Data.AddUninitialized(InData.Num());
 		FMemory::Memcpy(&Data[0], &InData[0], InData.Num());
-		FDerivedDataTrailer Trailer(Data);
+		FDerivedDataTrailer Trailer(MakeMemoryView(Data));
 		Data.AddUninitialized(sizeof(FDerivedDataTrailer));
 		FMemory::Memcpy(&Data[Data.Num() - sizeof(FDerivedDataTrailer)], &Trailer, sizeof(FDerivedDataTrailer));
 		return InnerBackend->PutCachedData(CacheKey, Data, bPutEvenIfExists);
@@ -291,4 +306,4 @@ private:
 	FDerivedDataBackendInterface* InnerBackend;
 };
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore
