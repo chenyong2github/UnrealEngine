@@ -514,6 +514,9 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			{
 				GPUExecContext->CombinedParamStore.Bind(&RendererBindings);
 			}
+
+			// Handle populating static variable values into the list
+			CachedEmitter->RendererBindings.Bind(&RendererBindings);
 		}
 	}	
 

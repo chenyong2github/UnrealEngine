@@ -143,7 +143,9 @@ void UNiagaraNodeConvert::Compile(class FHlslNiagaraTranslator* Translator, TArr
 	for(UEdGraphPin* InputPin : InputPins)
 	{
 		if (InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType || 
-			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryEnum)
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryEnum || 
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticType ||
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticEnum)
 		{
 			int32 CompiledInput = Translator->CompilePin(InputPin);
 			if (CompiledInput == INDEX_NONE)
@@ -574,7 +576,7 @@ void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)
 						FNiagaraTypeDefinition FromPinType = UEdGraphSchema_Niagara::PinToTypeDefinition(FromPin);
 						FNiagaraTypeDefinition InputPinType = UEdGraphSchema_Niagara::PinToTypeDefinition(NewPin);
 
-						if(FNiagaraTypeDefinition::TypesAreAssignable(FromPinType, InputPinType) && GetSchema()->CanCreateConnection(FromPin, NewPin).Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
+						if(FNiagaraTypeDefinition::TypesAreAssignable(InputPinType, FromPinType) && GetSchema()->CanCreateConnection(FromPin, NewPin).Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
 						{
 							FromPin->MakeLinkTo(NewPin);
 							bConnectionMade = true;

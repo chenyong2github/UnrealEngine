@@ -215,9 +215,18 @@ public:
 	//~ FGraphPanelPinFactory interface
 	virtual TSharedPtr<class SGraphPin> CreatePin(class UEdGraphPin* InPin) const override
 	{
+		TSharedPtr<class SGraphPin> OutPin = InternalCreatePin(InPin);
+
+		if (OutPin.IsValid() && UEdGraphSchema_Niagara::IsStaticPin(InPin))
+			OutPin->SetCustomPinIcon(FNiagaraEditorStyle::Get().GetBrush(TEXT("NiagaraEditor.Pins.StaticConnected")), FNiagaraEditorStyle::Get().GetBrush(TEXT("NiagaraEditor.Pins.StaticDisconnected")));
+		return OutPin;
+	}
+
+	TSharedPtr<class SGraphPin> InternalCreatePin(class UEdGraphPin* InPin) const
+	{
 		if (const UEdGraphSchema_Niagara* NSchema = Cast<UEdGraphSchema_Niagara>(InPin->GetSchema()))
 		{
-			if (InPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType)
+			if (InPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType || InPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticType)
 			{
 				if (InPin->PinType.PinSubCategoryObject != nullptr && InPin->PinType.PinSubCategoryObject->IsA<UScriptStruct>())
 				{
@@ -241,7 +250,7 @@ public:
 					return CreatePin(InPin);
 				}
 			}
-			else if (InPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryEnum)
+			else if (InPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryEnum || InPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticEnum)
 			{
 				const UEnum* Enum = Cast<const UEnum>(InPin->PinType.PinSubCategoryObject.Get());
 				if (Enum == nullptr)
@@ -974,7 +983,9 @@ void FNiagaraEditorModule::StartupModule()
 	EnumTypeUtilities = MakeShareable(new FNiagaraEditorEnumTypeUtilities());
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetFloatDef(), MakeShareable(new FNiagaraEditorFloatTypeUtilities()));
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetIntDef(), MakeShareable(new FNiagaraEditorIntegerTypeUtilities()));
+	RegisterTypeUtilities(FNiagaraTypeDefinition::GetIntDef().ToStaticDef(), MakeShareable(new FNiagaraEditorIntegerTypeUtilities()));
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetBoolDef(), MakeShareable(new FNiagaraEditorBoolTypeUtilities()));
+	RegisterTypeUtilities(FNiagaraTypeDefinition::GetBoolDef().ToStaticDef(), MakeShareable(new FNiagaraEditorBoolTypeUtilities()));
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetVec2Def(), MakeShareable(new FNiagaraEditorVector2TypeUtilities()));
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetVec3Def(), MakeShareable(new FNiagaraEditorVector3TypeUtilities()));
 	RegisterTypeUtilities(FNiagaraTypeDefinition::GetVec4Def(), MakeShareable(new FNiagaraEditorVector4TypeUtilities()));
@@ -1088,6 +1099,12 @@ void FNiagaraEditorModule::StartupModule()
 		return PrecompileDuplicate(OwningSystemRequestData, OwningSystem, OwningEmitter, TargetScript, Version);
 	}));
 
+	GraphCacheTraversalHandle = NiagaraModule.RegisterGraphTraversalCacher(INiagaraModule::FOnCacheGraphTraversal::CreateLambda([this](const UObject* InObj, FGuid Version)
+		{
+			return CacheGraphTraversal(InObj, Version);
+		}));
+
+
 	TestCompileScriptCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("fx.TestCompileNiagaraScript"),
 		TEXT("Compiles the specified script on disk for the niagara vector vm"),
@@ -1197,6 +1214,8 @@ void FNiagaraEditorModule::ShutdownModule()
 		NiagaraModule->UnregisterScriptCompiler(ScriptCompilerHandle);
 		NiagaraModule->UnregisterCompileResultDelegate(CompileResultHandle);
 		NiagaraModule->UnregisterPrecompiler(PrecompilerHandle);
+		NiagaraModule->UnregisterPrecompileDuplicator(PrecompileDuplicatorHandle);
+		NiagaraModule->UnregisterGraphTraversalCacher(GraphCacheTraversalHandle);
 	}
 
 	// Verify that we've cleaned up all the view models in the world.

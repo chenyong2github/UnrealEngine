@@ -37,6 +37,9 @@ struct FStaticSwitchTypeData
 	UPROPERTY()
 	bool bAutoRefreshEnabled = false;
 
+	UPROPERTY()
+	bool bExposeAsPin = false;
+
 	FStaticSwitchTypeData() : SwitchType(ENiagaraStaticSwitchType::Bool), Enum(nullptr)
 	{ }
 };
@@ -51,7 +54,7 @@ public:
 	UPROPERTY()
 	FName InputParameterName;
 	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "HiddenMetaData")
 	FStaticSwitchTypeData SwitchTypeData;
 
 	FNiagaraTypeDefinition GetInputType() const;
@@ -66,6 +69,9 @@ public:
 	bool IsSetByCompiler() const;
 
 	bool IsDebugSwitch() const;
+
+	bool IsSetByPin() const;
+	UEdGraphPin* GetSelectorPin() const;
 
 	/** This is a hack used in the translator to check for inconsistencies with old static switches before auto refresh was a thing */
 	void CheckForOutdatedEnum(FHlslNiagaraTranslator* Translator);
@@ -84,14 +90,20 @@ public:
 	//~ Begin UNiagaraNode Interface
 	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
 	virtual bool SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin) override;
-	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation) const override;
-	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive, bool bFilterForCompilation) const;
+	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace = nullptr) const override;
+	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive, bool bFilterForCompilation, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace = nullptr) const;
 	virtual UEdGraphPin* GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin, ENiagaraScriptUsage MasterUsage) const override;
 	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const override;
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 	virtual void AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBox) override;
 	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
+	virtual void ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool bSetInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache) override;
+	virtual ENiagaraNumericOutputTypeSelectionMode GetNumericOutputTypeSelectionMode() const override;
 	//~ End UNiagaraNode Interface
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 
 protected:
 	//~ Begin UNiagaraNodeUsageSelector Interface

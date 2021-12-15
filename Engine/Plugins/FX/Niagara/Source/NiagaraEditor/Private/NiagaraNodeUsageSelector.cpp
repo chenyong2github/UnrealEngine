@@ -429,7 +429,8 @@ void UNiagaraNodeUsageSelector::BuildParameterMapHistory(FNiagaraParameterMapHis
 
 			for (int32 i = 0; i < OutputVars.Num(); i++)
 			{
-				OutHistory.VisitInputPin(InputPins[VarIdx + i], this, bFilterForCompilation);
+				//OutHistory.VisitInputPin(InputPins[VarIdx + i], this, bFilterForCompilation);
+				RegisterPassthroughPin(OutHistory, InputPins[VarIdx + i], GetOutputPin(i), bFilterForCompilation, true);
 			}
 		}
 	}

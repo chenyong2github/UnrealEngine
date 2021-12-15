@@ -449,6 +449,18 @@ bool UNiagaraNodeCustomHlsl::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinit
 		return false;
 }
 
+bool UNiagaraNodeCustomHlsl::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType, EEdGraphPinDirection InDirection) const
+{
+	if (AllowNiagaraTypeForAddPin(InType))
+	{
+		if (InType.IsStatic() && InDirection == EEdGraphPinDirection::EGPD_Output)
+			return false;
+		else
+			return true;
+	}
+	return false;
+}
+
 bool UNiagaraNodeCustomHlsl::ReferencesVariable(const FNiagaraVariableBase& InVar) const
 {
 	// for now we'll just do a text search through the non-comment code strings to see if we can find

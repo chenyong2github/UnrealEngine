@@ -293,6 +293,35 @@ void UNiagaraNodeOutput::Compile(FHlslNiagaraTranslator *Translator, TArray<int3
 	}
 }
 
+void UNiagaraNodeOutput::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
+{
+	Super::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	for (const UEdGraphPin* Pin : Pins)
+	{
+		if (Pin && Pin->Direction == EGPD_Input)
+		{
+			FNiagaraTypeDefinition InputType = Schema->PinToTypeDefinition(Pin);
+			if (InputType.IsStatic())
+			{
+				OutHistory.RegisterConstantFromInputPin(Pin);
+			}
+			else if (InputType == FNiagaraTypeDefinition::GetParameterMapDef())
+			{
+				if (Pin->LinkedTo.Num() != 0)
+				{
+					int32 ParamMapIdx = OutHistory.TraceParameterMapOutputPin(Pin->LinkedTo[0]);			
+					if (UNiagaraScript::LogCompileStaticVars > 0)
+					{
+						UE_LOG(LogNiagaraEditor, Log, TEXT("Build Parameter Map History: %s %s PMapIdx: %d"), *GetClass()->GetName(), *GetNodeTitle(ENodeTitleType::FullTitle).ToString(), ParamMapIdx);
+					}
+					OutHistory.RegisterParameterMapPin(ParamMapIdx, Pin);
+				}
+			}
+		}
+	}
+}
+
 
 void UNiagaraNodeOutput::PostLoad()
 {

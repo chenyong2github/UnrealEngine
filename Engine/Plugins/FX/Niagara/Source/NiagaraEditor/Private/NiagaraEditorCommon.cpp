@@ -131,6 +131,22 @@ void FNiagaraOpInfo::Init()
 		Op->bSupportsAddedInputs = true;
 		Op->AddedInputTypeRestrictions.Add(Type);
 		Op->AddedInputFormatting = TEXT("{A} + {B}");
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+			{
+				if (InPinValues.Num() == 0)
+					return 0;
+				if (InPinValues.Num() == 1)
+					return InPinValues[0];
+
+				int32 Return = InPinValues[0];
+				for (int32 i = 1; i < InPinValues.Num(); i++)
+				{
+					Return = Return + InPinValues[i];
+				}
+
+				return Return;
+			});
 		OpInfoMap.Add(Op->Name) = Idx;
 
 		Idx = OpInfos.AddDefaulted();
@@ -146,6 +162,22 @@ void FNiagaraOpInfo::Init()
 		Op->bSupportsAddedInputs = true;
 		Op->AddedInputTypeRestrictions.Add(Type);
 		Op->AddedInputFormatting = TEXT("{A} - {B}");
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+			{
+				if (InPinValues.Num() == 0)
+					return 0;
+				if (InPinValues.Num() == 1)
+					return InPinValues[0];
+
+				int32 Return = InPinValues[0];
+				for (int32 i = 1; i < InPinValues.Num(); i++)
+				{
+					Return = Return - InPinValues[i];
+				}
+
+				return Return;
+			});
 		OpInfoMap.Add(Op->Name) = Idx;
 
 		Idx = OpInfos.AddDefaulted();
@@ -161,6 +193,22 @@ void FNiagaraOpInfo::Init()
 		Op->bSupportsAddedInputs = true;
 		Op->AddedInputTypeRestrictions.Add(Type);
 		Op->AddedInputFormatting = TEXT("{A} * {B}");
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+			{
+				if (InPinValues.Num() == 0)
+					return 0;
+				if (InPinValues.Num() == 1)
+					return InPinValues[0];
+
+				int32 Return = InPinValues[0];
+				for (int32 i = 1; i < InPinValues.Num(); i++)
+				{
+					Return = Return * InPinValues[i];
+				}
+
+				return Return;
+			});
 		OpInfoMap.Add(Op->Name) = Idx;
 
 		Idx = OpInfos.AddDefaulted();
@@ -173,6 +221,25 @@ void FNiagaraOpInfo::Init()
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, Type, ResultText, ResultText, DefaultStr_One, TEXT("{0} / {1}")));
 		Op->BuildName(TEXT("Div"), CategoryName);
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+			{
+				if (InPinValues.Num() == 0)
+					return 0;
+				if (InPinValues.Num() == 1)
+					return InPinValues[0];
+
+				int32 Return = InPinValues[0];
+				for (int32 i = 1; i < InPinValues.Num(); i++)
+				{
+					if (InPinValues[i] != 0)
+						Return = Return / InPinValues[i];
+					else
+						Return = 0;
+				}
+
+				return Return;
+			});
 		OpInfoMap.Add(Op->Name) = Idx;
 
 		Idx = OpInfos.AddDefaulted();
@@ -251,6 +318,14 @@ void FNiagaraOpInfo::Init()
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, Type, AText, AText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, Type, ResultText, ResultText, DefaultStr_One, TEXT("1 - {0}")));
 		Op->BuildName(TEXT("OneMinus"), CategoryName);
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+			{
+				if (InPinValues.Num() == 1)
+					return 1 - InPinValues[0];
+				else
+					return 0;
+			});
 		OpInfoMap.Add(Op->Name) = Idx;
 
 		Idx = OpInfos.AddDefaulted();
@@ -261,6 +336,14 @@ void FNiagaraOpInfo::Init()
 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, Type, AText, AText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, Type, ResultText, ResultText, DefaultStr_One, TEXT("-({0})")));
 		Op->BuildName(TEXT("Negate"), CategoryName);
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+			{
+				if (InPinValues.Num() == 1)
+					return -InPinValues[0];
+				else
+					return 0;
+			});
 		OpInfoMap.Add(Op->Name) = Idx;
 
 		Idx = OpInfos.AddDefaulted();
@@ -922,7 +1005,18 @@ void FNiagaraOpInfo::Init()
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} < {1})")));
 		Op->BuildName(TEXT("CmpLT"), CategoryName);
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+		{
+			if (InPinValues.Num() != 2)
+				return 0;
+
+			int32 Return = InPinValues[0] < InPinValues[1];
+			return Return;
+		});
 		OpInfoMap.Add(Op->Name) = Idx;
+
+		
 
 		Idx = OpInfos.AddDefaulted();
 		Op = &OpInfos[Idx];
@@ -934,7 +1028,17 @@ void FNiagaraOpInfo::Init()
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} <= {1})")));
 		Op->BuildName(TEXT("CmpLE"), CategoryName);
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+		{
+			if (InPinValues.Num() != 2)
+				return 0;
+
+			int32 Return = InPinValues[0] <= InPinValues[1];
+			return Return;
+		});
 		OpInfoMap.Add(Op->Name) = Idx;
+
 
 		Idx = OpInfos.AddDefaulted();
 		Op = &OpInfos[Idx];
@@ -946,6 +1050,15 @@ void FNiagaraOpInfo::Init()
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} > {1})")));
 		Op->BuildName(TEXT("CmpGT"), CategoryName);
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+		{
+			if (InPinValues.Num() != 2)
+				return 0;
+
+			int32 Return = InPinValues[0] > InPinValues[1];
+			return Return;
+		});
 		OpInfoMap.Add(Op->Name) = Idx;
 
 		Idx = OpInfos.AddDefaulted();
@@ -958,6 +1071,15 @@ void FNiagaraOpInfo::Init()
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} >= {1})")));
 		Op->BuildName(TEXT("CmpGE"), CategoryName);
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+		{
+			if (InPinValues.Num() != 2)
+				return 0;
+
+			int32 Return = InPinValues[0] >= InPinValues[1];
+			return Return;
+		});
 		OpInfoMap.Add(Op->Name) = Idx;
 
 		Idx = OpInfos.AddDefaulted();
@@ -970,6 +1092,17 @@ void FNiagaraOpInfo::Init()
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} == {1})")));
 		Op->BuildName(TEXT("CmpEQ"), CategoryName);
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+		{
+			if (InPinValues.Num() != 2)
+				return 0;
+
+			int32 Return = InPinValues[0] == InPinValues[1];
+			return Return;
+		});
+		OpInfoMap.Add(Op->Name) = Idx;
+
 		OpInfoMap.Add(Op->Name) = Idx;
 		
 		Idx = OpInfos.AddDefaulted();
@@ -982,6 +1115,18 @@ void FNiagaraOpInfo::Init()
 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, Type, BText, BText, DefaultStr_One));
 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetBoolDef(), ResultText, ResultText, DefaultStr_One, TEXT("NiagaraAll({0} != {1})")));
 		Op->BuildName(TEXT("CmpNEQ"), CategoryName);
+		Op->bSupportsStaticResolution = true;
+		Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+		{
+			if (InPinValues.Num() != 2)
+				return 0;
+
+			int32 Return = InPinValues[0] != InPinValues[1];
+			return Return;
+		});
+		OpInfoMap.Add(Op->Name) = Idx;
+
+		
 		OpInfoMap.Add(Op->Name) = Idx;
 	}
 
@@ -1101,6 +1246,24 @@ void FNiagaraOpInfo::Init()
 	Op->bSupportsAddedInputs = true;
 	Op->AddedInputTypeRestrictions.Add(BoolType);
 	Op->AddedInputFormatting = TEXT("{A} && {B}");
+	Op->bSupportsStaticResolution = true;
+	Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+	{
+			if (InPinValues.Num() == 0)
+				return 0;
+			if (InPinValues.Num() == 1)
+				return InPinValues[0];
+
+			int32 Return = InPinValues[0];
+			for (int32 i = 1; i < InPinValues.Num(); i++)
+			{
+				Return = Return && InPinValues[i];
+			}
+
+			return Return;
+	});
+	OpInfoMap.Add(Op->Name) = Idx;
+
 	OpInfoMap.Add(Op->Name) = Idx;
 
 	Idx = OpInfos.AddDefaulted();
@@ -1116,7 +1279,25 @@ void FNiagaraOpInfo::Init()
 	Op->bSupportsAddedInputs = true;
 	Op->AddedInputTypeRestrictions.Add(BoolType);
 	Op->AddedInputFormatting = TEXT("{A} || {B}");
+	Op->bSupportsStaticResolution = true;
+	Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+	{
+		if (InPinValues.Num() == 0)
+			return 0;
+		if (InPinValues.Num() == 1)
+			return InPinValues[0];
+
+		int32 Return = InPinValues[0];
+		for (int32 i = 1; i < InPinValues.Num(); i++)
+		{
+			Return = Return || InPinValues[i];
+		}
+
+		return Return;
+	});
 	OpInfoMap.Add(Op->Name) = Idx;
+
+	
 
 	Idx = OpInfos.AddDefaulted();
 	Op = &OpInfos[Idx];
@@ -1127,7 +1308,17 @@ void FNiagaraOpInfo::Init()
 	Op->Inputs.Add(FNiagaraOpInOutInfo(A, BoolType, AText, AText, Default_BoolOne));
 	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, BoolType, ResultText, ResultText, Default_BoolOne, TEXT("!{0}")));
 	Op->BuildName(TEXT("LogicNot"), BoolCategoryName);
+	Op->bSupportsStaticResolution = true;
+	Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+	{
+		if (InPinValues.Num() != 1)
+			return 0;
+
+		int32 Return = !InPinValues[0];
+		return Return;
+	});
 	OpInfoMap.Add(Op->Name) = Idx;
+
 
 	Idx = OpInfos.AddDefaulted();
 	Op = &OpInfos[Idx];
@@ -1139,6 +1330,15 @@ void FNiagaraOpInfo::Init()
 	Op->Inputs.Add(FNiagaraOpInOutInfo(B, BoolType, BText, BText, Default_BoolOne));
 	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, BoolType, ResultText, ResultText, Default_BoolOne, TEXT("NiagaraAll({0} == {1})")));
 	Op->BuildName(TEXT("LogicEq"), BoolCategoryName);
+	Op->bSupportsStaticResolution = true;
+	Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+	{
+		if (InPinValues.Num() != 2)
+			return 0;
+
+		int32 Return = InPinValues[0] == InPinValues[1];
+		return Return;
+	});
 	OpInfoMap.Add(Op->Name) = Idx;
 
 	Idx = OpInfos.AddDefaulted();
@@ -1151,7 +1351,18 @@ void FNiagaraOpInfo::Init()
 	Op->Inputs.Add(FNiagaraOpInOutInfo(B, BoolType, BText, BText, Default_BoolOne));
 	Op->Outputs.Add(FNiagaraOpInOutInfo(Result, BoolType, ResultText, ResultText, Default_BoolOne, TEXT("NiagaraAll({0} != {1})")));
 	Op->BuildName(TEXT("LogicNEq"), BoolCategoryName);
+	Op->bSupportsStaticResolution = true;
+	Op->StaticVariableResolveFunction.BindLambda([=](const TArray<int32>& InPinValues)
+	{
+		if (InPinValues.Num() != 2)
+			return 0;
+
+		int32 Return = InPinValues[0] != InPinValues[1];
+		return Return;
+	});
 	OpInfoMap.Add(Op->Name) = Idx;
+
+
 
 	//////////////////////////////////////////////////////////////////////////
 	//Matrix only ops

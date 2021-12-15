@@ -10,6 +10,7 @@
 #include "Templates/SharedPointer.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraDebuggerCommon.h"
+#include "NiagaraScript.h"
 #include "Templates/PimplPtr.h"
 
 class FNiagaraWorldManager;
@@ -36,10 +37,13 @@ public:
 #if WITH_EDITOR
 	typedef TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> CompileRequestPtr;
 	typedef TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> CompileRequestDuplicatePtr;
+	typedef TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> GraphCachedDataPtr;
+
 	DECLARE_DELEGATE_RetVal_ThreeParams(int32, FScriptCompiler, const FNiagaraCompileRequestDataBase*, const FNiagaraCompileRequestDuplicateDataBase*, const FNiagaraCompileOptions&);
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FNiagaraVMExecutableData>, FCheckCompilationResult, int32, bool);
 	DECLARE_DELEGATE_RetVal_TwoParams(CompileRequestPtr, FOnPrecompile, UObject*, FGuid);
 	DECLARE_DELEGATE_RetVal_FiveParams(CompileRequestDuplicatePtr, FOnPrecompileDuplicate, const FNiagaraCompileRequestDataBase* /*OwningSystemRequestData*/, UNiagaraSystem* /*OwningSystem*/, UNiagaraEmitter* /*OwningEmitter*/, UNiagaraScript* /*TargetScript*/, FGuid /*Version*/);
+	DECLARE_DELEGATE_RetVal_TwoParams(GraphCachedDataPtr, FOnCacheGraphTraversal, const UObject*, FGuid);
 #endif
 	DECLARE_DELEGATE_RetVal(void, FOnProcessQueue);
 
@@ -95,6 +99,10 @@ public:
 	void UnregisterPrecompiler(FDelegateHandle DelegateHandle);
 	FDelegateHandle RegisterPrecompileDuplicator(FOnPrecompileDuplicate PreCompileDuplicator);
 	void UnregisterPrecompileDuplicator(FDelegateHandle DelegateHandle);
+
+	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CacheGraphTraversal(const UObject* InObj, FGuid Version);
+	FDelegateHandle RegisterGraphTraversalCacher(FOnCacheGraphTraversal PreCompiler);
+	void UnregisterGraphTraversalCacher(FDelegateHandle DelegateHandle);
 
 	void OnAssetLoaded(UObject* Asset);
 
@@ -229,6 +237,7 @@ public:
 	FCheckCompilationResult CompilationResultDelegate;
 	FOnPrecompile PrecompileDelegate;
 	FOnPrecompileDuplicate PrecompileDuplicateDelegate;
+	FOnCacheGraphTraversal GraphTraversalCacheDelegate;
 #endif
 
 	static int32 EngineEffectsQuality;

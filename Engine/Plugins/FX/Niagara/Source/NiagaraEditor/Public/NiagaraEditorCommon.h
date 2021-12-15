@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraCommon.h"
+#include "Delegates/Delegate.h"
 #include "NiagaraEditorCommon.generated.h"
 
 NIAGARAEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogNiagaraEditor, Log, All);
@@ -26,6 +27,7 @@ public:
 		, bSupportsAddedInputs(false)
 		, bNumericsCanBeIntegers(true)
 		, bNumericsCanBeFloats(true)
+		, bSupportsStaticResolution(false)
 	{}
 
 	FName Name;
@@ -36,6 +38,7 @@ public:
 	ENiagaraNumericOutputTypeSelectionMode NumericOuputTypeSelectionMode;
 	TArray<FNiagaraOpInOutInfo> Inputs;
 	TArray<FNiagaraOpInOutInfo> Outputs;
+
 
 	/** If true then this operation supports a variable number of inputs */
 	bool bSupportsAddedInputs;
@@ -68,6 +71,13 @@ public:
 	void BuildName(FString InName, FString InCategory);
 
 	bool CreateHlslForAddedInputs(int32 InputCount, FString& HlslResult) const;
+
+	DECLARE_DELEGATE_RetVal_OneParam(int32, FStaticVariableResolve, const TArray<int32>& );
+
+	FStaticVariableResolve StaticVariableResolveFunction;
+
+	/** Whether or not you can upgrade type to static on connection.*/
+	bool bSupportsStaticResolution;
 };
 
 /** Interface for struct representing information about where to focus in a Niagara Script Graph after opening the editor for it. */

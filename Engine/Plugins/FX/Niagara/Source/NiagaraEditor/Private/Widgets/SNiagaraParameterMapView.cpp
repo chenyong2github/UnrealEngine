@@ -987,7 +987,7 @@ void SNiagaraParameterMapView::GetAllGraphsInSystem(TArray<UNiagaraGraph*>& OutR
 
 	for (int i = 0; i < CachedSystem->GetNumEmitters(); i++)
 	{
-		FNiagaraEmitterHandle Handle = CachedSystem->GetEmitterHandle(i);
+		const FNiagaraEmitterHandle& Handle = CachedSystem->GetEmitterHandle(i);
 		UNiagaraScriptSource* EmitterSource = Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource);
 		OutResult.Add(EmitterSource->NodeGraph);
 	}

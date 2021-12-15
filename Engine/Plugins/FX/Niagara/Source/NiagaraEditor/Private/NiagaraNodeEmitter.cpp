@@ -363,6 +363,11 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 			ChildBuilder.ConstantResolver = OutHistory.ConstantResolver;
 			ChildBuilder.RegisterEncounterableVariables(OutHistory.GetEncounterableVariables());
 			ChildBuilder.EnableScriptAllowList(true, GetUsage());
+
+			TArray<FNiagaraVariable> LocalStaticVars;
+			FNiagaraParameterUtilities::FilterToRelevantStaticVariables(OutHistory.StaticVariables, LocalStaticVars, *EmitterUniqueName, TEXT("Emitter"), true);
+			ChildBuilder.RegisterExternalStaticVariables(LocalStaticVars);
+
 			FString LocalEmitterName = TEXT("Emitter");
 			ChildBuilder.EnterEmitter(LocalEmitterName, Graph, this);
 			for (UNiagaraNodeOutput* OutputNode : OutputNodes)
@@ -392,10 +397,16 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 					OutHistory.Histories[ParamMapIdx].PerVariableReadHistory[ExistingIdx].Append(History.PerVariableReadHistory[SrcVarIdx]);
 					OutHistory.Histories[ParamMapIdx].PerVariableWriteHistory[ExistingIdx].Append(History.PerVariableWriteHistory[SrcVarIdx]);
 					OutHistory.Histories[ParamMapIdx].PerVariableWarnings[ExistingIdx].Append(History.PerVariableWarnings[SrcVarIdx]);	
+					for (int32 PerConstantIdx = 0; PerConstantIdx < History.PerVariableConstantValue[SrcVarIdx].Num(); PerConstantIdx++)
+					{	
+						const FString& ConstantStr = History.PerVariableConstantValue[SrcVarIdx][PerConstantIdx];
+						OutHistory.Histories[ParamMapIdx].PerVariableConstantValue[ExistingIdx].AddUnique(ConstantStr);	
+					}
 				}
 				OutHistory.Histories[ParamMapIdx].ParameterCollections.Append(History.ParameterCollections);
 				OutHistory.Histories[ParamMapIdx].ParameterCollectionNamespaces.Append(History.ParameterCollectionNamespaces);
 				OutHistory.Histories[ParamMapIdx].ParameterCollectionVariables.Append(History.ParameterCollectionVariables);
+				OutHistory.Histories[ParamMapIdx].PinToConstantValues.Append(History.PinToConstantValues);
 			}
 		}
 

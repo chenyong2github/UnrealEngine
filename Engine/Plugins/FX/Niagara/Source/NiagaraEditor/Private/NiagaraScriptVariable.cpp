@@ -130,6 +130,7 @@ void UNiagaraScriptVariable::SetIsOverridingParameterDefinitionsDefaultValue(boo
 	bOverrideParameterDefinitionsDefaultValue = bInOverridingParameterDefinitionsDefaultValue;
 }
 
+
 bool UNiagaraScriptVariable::DefaultsAreEquivalent(const UNiagaraScriptVariable* ScriptVarA, const UNiagaraScriptVariable* ScriptVarB)
 {
 	if (ScriptVarA->DefaultMode != ScriptVarB->DefaultMode)

@@ -296,7 +296,9 @@ void FNiagaraConvertNodeViewModel::RefreshPinViewModels()
 	for (UEdGraphPin* InputPin : InputPins)
 	{
 		if (InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType || 
-			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryEnum)
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticType || 
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryEnum || 
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticEnum)
 		{
 			InputPinViewModels.Add(MakeShareable(new FNiagaraConvertPinViewModel(this->AsShared(), *InputPin)));
 		}
@@ -304,9 +306,11 @@ void FNiagaraConvertNodeViewModel::RefreshPinViewModels()
 
 	for (UEdGraphPin* OutputPin : OutputPins)
 	{
-		if (OutputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType ||
+		if (OutputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticType ||
+			OutputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticEnum || 
+			OutputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType ||
 			OutputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryEnum)
-		{
+		{																			 
 			OutputPinViewModels.Add(MakeShareable(new FNiagaraConvertPinViewModel(this->AsShared(), *OutputPin)));
 		}
 	}

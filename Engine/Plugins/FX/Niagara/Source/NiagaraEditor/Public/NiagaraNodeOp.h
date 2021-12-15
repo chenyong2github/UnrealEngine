@@ -44,6 +44,9 @@ public:
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	TArray<FAddedPinData> AddedPins;
 
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	bool bAllStatic;
+
 	//~ Begin UObject interface
 	virtual void PostLoad() override;
 	//~ End UObject interface
@@ -60,11 +63,15 @@ public:
 	virtual bool RefreshFromExternalChanges() override;
 	virtual ENiagaraNumericOutputTypeSelectionMode GetNumericOutputTypeSelectionMode() const override;
 	virtual bool GenerateCompileHashForClassMembers(const UClass* InClass, FNiagaraCompileHashVisitor* InVisitor) const override;
+	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const;
+
 	//~ End UNiagaraNode Interface
 
 	//~ Begin UNiagaraNodeWithDynamicPins Interface
 	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const override;
+	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	//~ End UNiagaraNodeWithDynamicPins Interface
+
 
 protected:
 	//~ Begin EdGraphNode Interface
@@ -78,6 +85,11 @@ protected:
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
 	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override;
 	//~ End UNiagaraNodeWithDynamicPins Interface
+
+	virtual void OnPostSynchronizationInReallocatePins() override;
+
+	void HandleStaticInputPinUpgrade(UEdGraphPin* InputPin);
+	void HandleStaticOutputPinUpgrade();
 	
 private:
 	FName GetUniqueAdditionalPinName() const;

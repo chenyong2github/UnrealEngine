@@ -38,6 +38,7 @@ public:
 	static uint32 ReplaceExactMatchTokens(TArray<FString>& Tokens, const FString& SrcString, const FString& ReplaceString, bool bAllowNamespaceSeparation);
 	static FNiagaraVariable StripVariableToBaseType(const FNiagaraVariable& InVar);
 	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const;
+	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType, EEdGraphPinDirection InDirection) const;
 
 	virtual bool ReferencesVariable(const FNiagaraVariableBase& InVar) const;
 

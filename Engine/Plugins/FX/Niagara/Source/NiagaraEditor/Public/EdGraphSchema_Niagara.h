@@ -90,6 +90,11 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	static const FName PinCategoryMisc;
 	static const FName PinCategoryClass;
 	static const FName PinCategoryEnum;
+	static const FName PinCategoryStaticType;
+	static const FName PinCategoryStaticClass;
+	static const FName PinCategoryStaticEnum;
+
+	static bool IsStaticPin(const UEdGraphPin* Pin);
 
 	//~ Begin EdGraphSchema Interface
 	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
@@ -164,6 +169,8 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	static const FLinearColor NodeTitleColor_Event; 
 	static const FLinearColor NodeTitleColor_TranslatorConstant;
 	static const FLinearColor NodeTitleColor_RapidIteration;
+
+	bool PinTypesValidForNumericConversion(FEdGraphPinType AType, FEdGraphPinType BType) const;
 	
 private:
 	void GetNumericConversionToSubMenuActions(class UToolMenu* Menu, const FName SectionName, UEdGraphPin* InGraphPin);

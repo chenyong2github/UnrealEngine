@@ -254,6 +254,8 @@ public:
 
 	/** Helper method for binding the notifications needed for proper editor integration. */
 	NIAGARA_API void BindNotifications();
+
+	NIAGARA_API void GatherStaticVariables(TArray<FNiagaraVariable>& OutVars) const;
 #endif
 	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const override;
 	void Serialize(FArchive& Ar)override;
@@ -277,6 +279,9 @@ public:
 	/** Get All adapters to editor only script vars owned directly by this subscriber. */
 	virtual TArray<UNiagaraEditorParametersAdapterBase*> GetEditorOnlyParametersAdapters() override;
 	//~ End INiagaraParameterDefinitionsSubscriber Interface
+
+	/** Get the cached parameter map traversal for this emitter.  */
+	NIAGARA_API const TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe>& GetCachedTraversalData() const;
 #endif
 
 	bool IsEnabledOnPlatform(const FString& PlatformName)const;
@@ -325,6 +330,7 @@ public:
 	    Used in conjunction with UNiagaraSystem::bTrimAttributes */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
 	TArray<FString> AttributesToPreserve;
+
 #endif
 
 	UPROPERTY(EditAnywhere, Category = "Emitter")
@@ -590,6 +596,11 @@ public:
 
 	TConstArrayView<TUniquePtr<FNiagaraBoundsCalculator>> GetBoundsCalculators() const { return MakeArrayView(BoundsCalculators); }
 
+	UPROPERTY()
+	FNiagaraParameterStore RendererBindings;
+
+	void RebuildRendererBindings();
+
 protected:
 	virtual void BeginDestroy() override;
 
@@ -613,6 +624,7 @@ private:
 
 	void PersistentEditorDataChanged();
 
+	mutable TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalData;
 private:
 	/** Adjusted every time that we compile this emitter. Lets us know that we might differ from any cached versions.*/
 	UPROPERTY()

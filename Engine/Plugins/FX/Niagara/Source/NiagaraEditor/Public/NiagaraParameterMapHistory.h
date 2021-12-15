@@ -6,6 +6,7 @@
 #include "NiagaraCommon.h"
 #include "Templates/Tuple.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "NiagaraScript.h"
 
 class UNiagaraNodeOutput;
 class UEdGraphPin;
@@ -57,6 +58,48 @@ struct FModuleScopedPin
 	FName ModuleName = NAME_None;
 };
 
+struct FGraphTraversalHandle
+{
+public:
+	FGraphTraversalHandle() {}
+	FGraphTraversalHandle(const TArray<FGuid>& InputPath, TArray<FString> InFriendlyPath) : Path(InputPath), FriendlyPath(InFriendlyPath) {}
+
+	void Append(const FGuid& Guid, const FString& FriendlyName)
+	{
+		FriendlyPath.Add(FriendlyName);
+		Path.Add(Guid);
+	}
+
+	void Push(const UEdGraphNode* Node);
+	void Push(const UEdGraphPin* Pin);
+	void Pop();
+
+	bool operator==(const FGraphTraversalHandle& Rhs) const
+	{
+		return Path == Rhs.Path;
+	}
+
+	friend uint32 GetTypeHash(const FGraphTraversalHandle& Ref)
+	{
+		uint32 Value = 0;
+		for (int32 i = 0; i < Ref.Path.Num(); i++)
+			Value = HashCombine(Value, GetTypeHash(Ref.Path[i]));
+		return Value;
+	}
+
+	FString ToString() const
+	{
+		FString Output;
+		for (const FString& Str : FriendlyPath)
+			Output += TEXT("/") + Str;
+		return Output;
+	}
+private:
+	TArray<FGuid > Path;
+	TArray<FString> FriendlyPath;
+};
+
+
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 
 * 	This class is meant to aid in UI and compilation of the graph. There are several main script types and each one interacts
 *	slightly differently with the history depending on context.
@@ -73,6 +116,9 @@ public:
 
 	/** The metadata associated with each variable identified during the traversal. Only gathered by FNiagaraParameterMapHistoryWithMetaDataBuilder. */
 	TArray<FNiagaraVariableMetaData> VariableMetaData;
+
+	TArray<TArray<FString> > PerVariableConstantValue;
+	TArray<TArray<FString> > PerVariableConstantDefaultValue;
 
 	TArray<FNiagaraVariable> VariablesWithOriginalAliasesIntact;
 
@@ -117,8 +163,9 @@ public:
 	/** List of additional DataSets to be written that were encountered during traversal. */
 	TArray<FNiagaraDataSetID> AdditionalDataSetWrites;
 
-	/** Flag indicating that the history building skipped processing parameter collections */
+	TMap<FGraphTraversalHandle, FString> PinToConstantValues;
 	bool bParameterCollectionsSkipped = false;
+	void RegisterConstantPin(const FGraphTraversalHandle& InTraversalPath, const UEdGraphPin* InPin, const FString& InValue);
 
 	bool IsVariableFromCustomIterationNamespaceOverride(const FNiagaraVariable& InVar) const;
 	
@@ -126,6 +173,8 @@ public:
 	* Called in a depth-first traversal to identify a given Niagara Parameter Map pin that was touched during traversal.
 	*/
 	int32 RegisterParameterMapPin(const UEdGraphPin* Pin);
+
+	void RegisterConstantVariableWrite(const FString& InValue, int32 InVarIdx, bool bIsSettingDefault);
 
 	uint32 BeginNodeVisitation(const UNiagaraNode* Node);
 	void EndNodeVisitation(uint32 IndexFromBeginNode);
@@ -215,8 +264,8 @@ public:
 	static bool IsValidNamespaceForReading(ENiagaraScriptUsage InScriptUsage, int32 InUsageBitmask, FString Namespace);
 
 	/** Called to determine if a given variable should be output from a script. It is not static as it requires the overall context to include emitter namespaces visited for system scripts.*/
-	bool IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, const UNiagaraScript* InScript,   bool bAllowDataInterfaces = false) const;
-	bool IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, bool bAllowDataInterfaces = false) const;
+	bool IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, const UNiagaraScript* InScript,   bool bAllowDataInterfaces = false,  bool bAllowStatics = false) const;
+	bool IsPrimaryDataSetOutput(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, bool bAllowDataInterfaces = false, bool bAllowStatics = false) const;
 	static bool IsWrittenToScriptUsage(const FNiagaraVariable& InVar, ENiagaraScriptUsage InUsage, bool bAllowDataInterfaces);
 
 	/** Are we required to export this variable as an external constant?*/
@@ -306,6 +355,17 @@ public:
 	/** Important. Must be called for each routing of the parameter map. This feeds the list used by TraceParameterMapOutputPin.*/
 	int32 RegisterParameterMapPin(int32 WhichParameterMap, const UEdGraphPin* Pin);
 
+	int32 RegisterConstantPin(int32 WhichConstant, const UEdGraphPin* Pin);
+	int32 RegisterConstantVariableWrite(int32 WhichParamMapIdx, int32 WhichConstant, int32 WhichVarIdx, bool bIsSettingDefault);
+
+	int32  RegisterConstantFromInputPin(const UEdGraphPin* InputPin);
+
+	int32 GetConstantFromInputPin(const UEdGraphPin* InputPin) const;
+	int32 GetConstantFromOutputPin(const UEdGraphPin* OutputPin) const;
+	int32 GetConstantFromVariableRead(const FNiagaraVariableBase& InVar);
+	int32 AddOrGetConstantFromValue(const FString& Value);
+	FString GetConstant(int32 InIndex);
+
 	/** Records a write to a DataSet in the appropriate parameter map history */
 	void RegisterDataSetWrite(int32 WhichParameterMap, const FNiagaraDataSetID& DataSet);
 
@@ -328,6 +388,9 @@ public:
 
 	void BeginUsage(ENiagaraScriptUsage InUsage, FName InStageName = FName());
 	void EndUsage();
+
+
+	FGraphTraversalHandle ActivePath;
 
 	/**
 	* Record that we have entered a new function scope.
@@ -411,6 +474,8 @@ public:
 	/** Helper method to identify any matching input nodes from the calling context node to the input variable.*/
 	int32 FindMatchingParameterMapFromContextInputs(const FNiagaraVariable& InVar) const;
 
+	int32 FindMatchingStaticFromContextInputs(const FNiagaraVariable& InVar) const;
+
 	/** In some cases, we don't want all the variables encountered in a traversal. In this case, you can filter 
 	*  the map history to only include variables that are relevant to the specific script type. For instance, a System 
 	*  script doesn't really care about the Particles namespace.
@@ -432,10 +497,18 @@ public:
 	void RegisterEncounterableVariables(const TArray<FNiagaraVariable>& Variables);
 	const TArray<FNiagaraVariable>& GetEncounterableVariables() const {	return EncounterableExternalVariables;}
 
+	void RegisterExternalStaticVariables(const TArray<FNiagaraVariable>& Variables);
+
 	FCompileConstantResolver ConstantResolver;
 
 	bool bShouldBuildSubHistories = true;
 
+
+	void SetConstantByStaticVariable(int32& OutValue, const UEdGraphPin* InDefaultPin);
+	void SetConstantByStaticVariable(int32& OutValue, const FNiagaraVariable& Var);
+
+
+	TArray<FNiagaraVariable> StaticVariables;
 protected:
 	/**
 	* Generate the internal alias map from the current traversal state.
@@ -454,6 +527,10 @@ protected:
 	/** Contains the hierarchy of graphs leading to and including the current graph being processed. Is not in sync with CallingContext as there is an additional 0th entry for the NodeGraphDeepCopy. */
 	TArray<const UNiagaraGraph*> CallingGraphContext;
 
+	TArray< TMap<const UEdGraphPin*, int32> > PinToConstantIndices;
+	TArray<FString> Constants;
+	TArray< TMap<FNiagaraVariableBase, int32> > VariableToConstantIndices;
+
 	/** Tracker for each context level of the parameter map index associated with a given pin. Used to trace parameter maps through the graph.*/
 	TArray<TMap<const UEdGraphPin*, int32> > PinToParameterMapIndices;
 	/** List of previously visited nodes per context. Note that the same node may be visited multiple times across all graph traversals, but only one time per context level.*/
@@ -470,6 +547,7 @@ protected:
 
 	TArray<TArray<FString> > EncounteredFunctionNames;
 	TArray<FString> EncounteredEmitterNames;
+
 	
 	/** Whether or not the script allow list is active.*/
 	bool bFilterByScriptAllowList;
@@ -495,4 +573,12 @@ public:
 	* Virtual wrapper to call correct AddVariable method on the target ParameterMapHistory.
 	*/
 	virtual int32 AddVariableToHistory(FNiagaraParameterMapHistory& History, const FNiagaraVariable& InVar, const FNiagaraVariable& InAliasedVar, const UEdGraphPin* InPin);
+};
+
+struct FNiagaraGraphCachedBuiltHistory : public FNiagaraGraphCachedDataBase
+{
+	virtual ~FNiagaraGraphCachedBuiltHistory() {};
+	virtual void GetStaticVariables(TArray<FNiagaraVariable>& OutVars) { OutVars = StaticVariables; }
+
+	TArray<FNiagaraVariable> StaticVariables;
 };

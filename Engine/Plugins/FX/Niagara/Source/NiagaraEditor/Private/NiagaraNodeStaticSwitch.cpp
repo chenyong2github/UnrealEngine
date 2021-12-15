@@ -77,6 +77,20 @@ FString UNiagaraNodeStaticSwitch::GetInputCaseName(int32 Case) const
 	return TEXT("");
 }
 
+#if WITH_EDITOR
+void UNiagaraNodeStaticSwitch::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName MemberPropertyName = (PropertyChangedEvent.MemberProperty != nullptr) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+	
+	if (MemberPropertyName != NAME_None)
+	{
+		ReallocatePins();
+	}
+}
+#endif
+
 TArray<int32> UNiagaraNodeStaticSwitch::GetOptionValues() const
 {
 	TArray<int32> OptionValues;
@@ -182,7 +196,7 @@ void UNiagaraNodeStaticSwitch::SetSwitchValue(int Value)
 
 void UNiagaraNodeStaticSwitch::SetSwitchValue(const FCompileConstantResolver& ConstantResolver)
 {
-	if (!IsSetByCompiler())
+	if (!IsSetByCompiler() && !IsSetByPin())
 	{
 		return;
 	}
@@ -216,6 +230,12 @@ bool UNiagaraNodeStaticSwitch::IsSetByCompiler() const
 {
 	return !SwitchTypeData.SwitchConstant.IsNone();
 }
+
+bool UNiagaraNodeStaticSwitch::IsSetByPin() const
+{
+	return SwitchTypeData.bExposeAsPin && !IsSetByCompiler() && !IsDebugSwitch();
+}
+
 
 bool UNiagaraNodeStaticSwitch::IsDebugSwitch() const
 {
@@ -256,7 +276,15 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 	}
 		
 	GetNiagaraGraph()->AddParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
-	
+
+	if (IsSetByPin())
+	{		
+		FNiagaraTypeDefinition Type = GetInputType().ToStaticDef();
+		UEdGraphPin* NewPin  = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Type), TEXT("Selector"));
+		if (SelectorGuid.IsValid() == false)
+			SelectorGuid = FGuid::NewGuid();
+		NewPin->PersistentGuid = SelectorGuid;
+	}
 	// create the output pins
 	for (int32 Index = 0; Index < OutputVars.Num(); Index++)
 	{
@@ -282,8 +310,63 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 	return GetVarIndex(Translator, InputPinCount, SwitchValue, VarIndexOut);
 }
 
+UEdGraphPin* UNiagaraNodeStaticSwitch::GetSelectorPin() const
+{
+	if (IsSetByPin() == false)
+		return nullptr;
+
+	for (int32 i = 0; i < Pins.Num(); i++)
+	{
+		if (Pins[i]->PersistentGuid == SelectorGuid)
+		{
+			return  Pins[i];
+		}
+	}
+
+	return nullptr;
+}
+
+
 void UNiagaraNodeStaticSwitch::UpdateCompilerConstantValue(FHlslNiagaraTranslator* Translator)
 {
+	if (IsSetByPin() && Translator)
+	{
+		ClearSwitchValue();
+
+		const UEdGraphPin* SelectorPin = nullptr;
+		for (int32 i = 0; i < Pins.Num(); i++)
+		{
+			if (Pins[i]->PersistentGuid == SelectorGuid)
+			{
+				SelectorPin = Pins[i];
+				break;
+			}
+		}
+
+		if (SelectorPin)
+		{
+			// Use the default value if disconnected...
+			if (SelectorPin->LinkedTo.Num() == 0)
+			{
+				Translator->FillVariableWithDefaultValue(SwitchValue, SelectorPin);
+				IsValueSet = true;
+			}
+			else 
+			{
+				Translator->SetConstantByStaticVariable(SwitchValue, SelectorPin);
+				IsValueSet = true;
+			}
+
+			if (UNiagaraScript::LogCompileStaticVars != 0)
+			{
+				UE_LOG(LogNiagaraEditor, Log, TEXT("Static Switch Value: %d  Name: \"%s\""), SwitchValue, *GetPathName());
+			}
+			return;
+		}
+	}
+
+
+
 	if (!IsSetByCompiler() || IsDebugSwitch() || !Translator)
 	{
 		return;
@@ -420,13 +503,14 @@ void UNiagaraNodeStaticSwitch::CheckForOutdatedEnum(FHlslNiagaraTranslator* Tran
 		}
 
 		// this checks the current, possibly outdated, state for consistency. Should never be unequal but we are making sure.
-		if (InputPins.Num() != NumOptionsPerVariable * OutputVars.Num())
+		int NumChoices = IsSetByPin() ? InputPins.Num() - 1 : InputPins.Num();
+		if (NumChoices != NumOptionsPerVariable * OutputVars.Num())
 		{
 			Translator->Message(FNiagaraCompileEventSeverity::Error, LOCTEXT("InternalCalculationPinCountError", "An internal calculation error has occured. Please refresh the node."), this, nullptr);
 		}
 
 		// this checks the new, up to date pin count against the old pin count
-		if(NewPinNames.Num() != InputPins.Num())
+		if(NewPinNames.Num() != NumChoices)
 		{
 			if(NewPinNames.Num() == 0)
 			{
@@ -459,9 +543,88 @@ void UNiagaraNodeStaticSwitch::CheckForOutdatedEnum(FHlslNiagaraTranslator* Tran
 
 void UNiagaraNodeStaticSwitch::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {	
-	UNiagaraNode::Compile(Translator, Outputs);
+	FPinCollectorArray InputPins;
+	GetInputPins(InputPins);
+	int32 SelectorValue = SwitchValue;
+
+	if (IsSetByPin())
+	{
+		UEdGraphPin* SelectorPin = GetSelectorPin();	
+		if (SelectorPin)
+		{
+			Translator->CompilePin(SelectorPin);
+		}
+	}
+	FPinCollectorArray OutputPins;
+	GetOutputPins(OutputPins);
+
+	// Initialize the outputs to invalid values.
+	check(Outputs.Num() == 0);
+	Outputs.Reserve(OutputPins.Num());
+	for (int32 i = 0; i < OutputPins.Num(); i++)
+	{
+		Outputs.Add(INDEX_NONE);
+	}
+
+	for (int i = 0; i < OutputPins.Num(); i++)
+	{
+		UEdGraphPin* OutPin = OutputPins[i];
+		if (IsAddPin(OutPin))
+		{
+			continue;
+		}
+		int32 VarIdx;
+		int NumChoices = IsSetByPin() ? InputPins.Num() - 1 : InputPins.Num();
+		if (GetVarIndex(nullptr, NumChoices, SelectorValue, VarIdx))
+		{
+			UEdGraphPin* InputPin = InputPins[VarIdx + i];
+			if (InputPin)
+			{
+				int32 CompiledInput = Translator->CompilePin(InputPin);
+				Outputs[i] = CompiledInput;
+			}
+		}		
+	}
 }
 
+ENiagaraNumericOutputTypeSelectionMode UNiagaraNodeStaticSwitch::GetNumericOutputTypeSelectionMode() const
+{
+	return ENiagaraNumericOutputTypeSelectionMode::Largest;
+}
+
+void UNiagaraNodeStaticSwitch::ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool bSetInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache)
+{	
+	FPinCollectorArray MasterInputPins;
+	GetInputPins(MasterInputPins);
+	FPinCollectorArray MasterOutputPins;
+	GetOutputPins(MasterOutputPins);
+
+	TArray<int32> OptionValues = GetOptionValues();
+	int32 VarIdx = 0;
+	for (int i = 0; i < MasterOutputPins.Num(); i++)
+	{
+		UEdGraphPin* OutPin = MasterOutputPins[i];
+		if (IsAddPin(OutPin))
+		{
+			continue;
+		}
+
+		// Fix up numeric input pins and keep track of numeric types to decide the output type.
+		TArray<UEdGraphPin*> InputPins;
+		TArray<UEdGraphPin*> OutputPins; 
+		
+		for (int32 j = 0; j < OptionValues.Num(); j++)
+		{
+			UEdGraphPin* InputPin = MasterInputPins[OutputVars.Num()*j + VarIdx];
+			InputPins.Add(InputPin);
+		}
+
+		OutputPins.Add(OutPin);
+
+		NumericResolutionByPins(Schema, InputPins, OutputPins, bSetInline, PinCache);
+		VarIdx++;
+	}
+}
 bool UNiagaraNodeStaticSwitch::SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin)
 {
 	// if we compile the standalone module or function we don't have any valid input yet, so we just take the first option to satisfy the compiler
@@ -491,7 +654,8 @@ bool UNiagaraNodeStaticSwitch::SubstituteCompiledPin(FHlslNiagaraTranslator* Tra
 	{
 		UEdGraphPin* OutPin = OutputPins[i];
 		int32 VarIdx;
-		if (OutPin == *LocallyOwnedPin && GetVarIndex(Translator, InputPins.Num(), IsDryRun ? 0 : SwitchValue, VarIdx))
+		int NumChoices = IsSetByPin() ? InputPins.Num() - 1 : InputPins.Num();
+		if (OutPin == *LocallyOwnedPin && GetVarIndex(Translator, NumChoices, IsDryRun ? 0 : SwitchValue, VarIdx))
 		{
 			UEdGraphPin* InputPin = InputPins[VarIdx + i];
 			if (InputPin->LinkedTo.Num() == 1)
@@ -572,15 +736,15 @@ void UNiagaraNodeStaticSwitch::PostLoad()
 		{
 			RefreshFromExternalChanges();
 		}
-	}
+	}	
 }
 
-UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation) const
+UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace) const
 {
-	return GetTracedOutputPin(LocallyOwnedOutputPin, true, bFilterForCompilation);
+	return GetTracedOutputPin(LocallyOwnedOutputPin, true, bFilterForCompilation, OutNodesVisitedDuringTrace);
 }
 
-UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive, bool bFilterForCompilation) const
+UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive, bool bFilterForCompilation, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace) const
 {
 	if (!bFilterForCompilation)
 	{
@@ -593,6 +757,11 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOw
 	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
+	if (OutNodesVisitedDuringTrace != nullptr && IsSetByPin())
+	{
+		OutNodesVisitedDuringTrace->Add(this);
+	}
+
 	for (int i = 0; i < OutputPins.Num(); i++)
 	{
 		UEdGraphPin* OutPin = OutputPins[i];
@@ -601,12 +770,13 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOw
 			continue;
 		}
 		int32 VarIdx;
-		if (OutPin == LocallyOwnedOutputPin && GetVarIndex(nullptr, InputPins.Num(), SwitchValue, VarIdx))
+		int NumChoices = IsSetByPin() ? InputPins.Num() - 1 : InputPins.Num();
+		if (OutPin == LocallyOwnedOutputPin && GetVarIndex(nullptr, NumChoices, SwitchValue, VarIdx))
 		{
 			UEdGraphPin* InputPin = InputPins[VarIdx + i];
 			if (InputPin->LinkedTo.Num() == 1)
 			{
-				return bRecursive ? UNiagaraNode::TraceOutputPin(InputPin->LinkedTo[0], bFilterForCompilation) : InputPin->LinkedTo[0];
+				return bRecursive ? UNiagaraNode::TraceOutputPin(InputPin->LinkedTo[0], bFilterForCompilation, OutNodesVisitedDuringTrace) : InputPin->LinkedTo[0];
 			}
 		}
 	}
@@ -625,7 +795,70 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetPassThroughPin(const UEdGraphPin* Loca
 
 void UNiagaraNodeStaticSwitch::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
-	UNiagaraNode::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
+	FPinCollectorArray InputPins;
+	GetInputPins(InputPins);
+	int32 SelectorValue = SwitchValue;
+
+	if (!bFilterForCompilation)
+	{
+		UNiagaraNode::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
+	}
+	else
+	{
+		if (IsSetByPin())
+		{
+			UEdGraphPin* SelectorPin = GetSelectorPin();
+			OutHistory.VisitInputPin(SelectorPin, this, bFilterForCompilation);
+
+			OutHistory.SetConstantByStaticVariable(SelectorValue, SelectorPin);
+
+			if (UNiagaraScript::LogCompileStaticVars != 0)
+			{
+				UE_LOG(LogNiagaraEditor, Log, TEXT("Static Switch Value: %d  Name: \"%s\"  SwitchInputParameterName:\"%s\""), SelectorValue, *GetPathName(), *InputParameterName.ToString());
+			}
+		}
+	}
+
+	FPinCollectorArray OutputPins;
+	GetOutputPins(OutputPins);
+
+	for (int i = 0; i < OutputPins.Num(); i++)
+	{
+		UEdGraphPin* OutPin = OutputPins[i];
+		if (IsAddPin(OutPin))
+		{
+			continue;
+		}
+		int32 VarIdx;
+		int NumChoices = IsSetByPin() ? InputPins.Num() - 1 : InputPins.Num();
+		if (bFilterForCompilation && GetVarIndex(nullptr, NumChoices, SelectorValue, VarIdx))
+		{
+			UEdGraphPin* InputPin = InputPins[VarIdx + i];
+			RegisterPassthroughPin(OutHistory, InputPin, OutPin, bFilterForCompilation, true);
+			/*if (InputPin->LinkedTo.Num() == 1)
+			{
+				return bRecursive ? UNiagaraNode::TraceOutputPin(InputPin->LinkedTo[0], bFilterForCompilation, OutNodesVisitedDuringTrace) : InputPin->LinkedTo[0];
+			}*/
+		}
+		else if (!bFilterForCompilation && InputPins.Num() > 0)
+		{
+			const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
+
+			FNiagaraTypeDefinition OutDef = Schema->PinToTypeDefinition(OutPin);
+			if (OutDef != FNiagaraTypeDefinition::GetParameterMapDef())
+				continue;
+
+			for (UEdGraphPin* InputPin : InputPins)
+			{
+				FNiagaraTypeDefinition InDef = Schema->PinToTypeDefinition(InputPin);
+				if (InDef == FNiagaraTypeDefinition::GetParameterMapDef())
+				{
+					RegisterPassthroughPin(OutHistory, InputPin, OutPin, bFilterForCompilation, false);
+					return;
+				}
+			}			
+		}
+	}
 }
 
 void UNiagaraNodeStaticSwitch::AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBox)
@@ -733,6 +966,8 @@ FText UNiagaraNodeStaticSwitch::GetTooltipText() const
 
 FText UNiagaraNodeStaticSwitch::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
+	if (IsSetByPin())
+		return LOCTEXT("NiagaraStaticSwitchNodePinName", "Static Switch");
 	return FText::FormatOrdered(LOCTEXT("StaticSwitchTitle", "Static Switch ({0})"), FText::FromName(IsSetByCompiler() ? SwitchTypeData.SwitchConstant : InputParameterName));
 }
 

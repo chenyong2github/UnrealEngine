@@ -104,7 +104,7 @@ bool FNiagaraStackFunctionInputCondition::GetConditionIsEnabled() const
 
 bool FNiagaraStackFunctionInputCondition::CanSetConditionIsEnabled() const
 {
-	return IsValid() && InputBinder.GetInputType() == FNiagaraTypeDefinition::GetBoolDef();
+	return IsValid() && InputBinder.GetInputType().IsSameBaseDefinition(FNiagaraTypeDefinition::GetBoolDef());
 }
 
 void FNiagaraStackFunctionInputCondition::SetConditionIsEnabled(bool bInIsEnabled)
