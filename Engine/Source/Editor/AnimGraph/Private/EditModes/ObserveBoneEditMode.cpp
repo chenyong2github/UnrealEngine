@@ -59,6 +59,11 @@ UE::Widget::EWidgetMode FObserveBoneEditMode::GetWidgetMode() const
 	return UE::Widget::WM_Translate;
 }
 
+bool FObserveBoneEditMode::UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const
+{
+	return InWidgetMode == UE::Widget::WM_Translate;
+}
+
 FName FObserveBoneEditMode::GetSelectedBone() const
 {
 	return GraphNode->Node.BoneToObserve.BoneName;

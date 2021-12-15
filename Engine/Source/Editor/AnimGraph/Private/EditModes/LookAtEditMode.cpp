@@ -39,6 +39,11 @@ UE::Widget::EWidgetMode FLookAtEditMode::GetWidgetMode() const
 	return UE::Widget::WM_Translate;
 }
 
+bool FLookAtEditMode::UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const
+{
+	return InWidgetMode == UE::Widget::WM_Translate;
+}
+
 FName FLookAtEditMode::GetSelectedBone() const
 {
 	return RuntimeNode->LookAtTarget.GetTargetSetup();

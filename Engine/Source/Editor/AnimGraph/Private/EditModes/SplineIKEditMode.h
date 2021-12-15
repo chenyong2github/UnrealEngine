@@ -23,6 +23,7 @@ public:
 	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
 	virtual UE::Widget::EWidgetMode ChangeToNextWidgetMode(UE::Widget::EWidgetMode CurWidgetMode) override;
 	virtual bool SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode) override;
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const override;
 	virtual FName GetSelectedBone() const override;
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	virtual void DoTranslation(FVector& InTranslation) override;

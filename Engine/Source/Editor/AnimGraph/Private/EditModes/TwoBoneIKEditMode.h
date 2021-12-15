@@ -30,6 +30,7 @@ public:
 	virtual void ExitMode() override;
 	virtual FVector GetWidgetLocation() const override;
 	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const override;
 	FBoneSocketTarget GetSelectedTarget() const;
 	virtual void DoTranslation(FVector& InTranslation) override;
 

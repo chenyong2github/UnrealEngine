@@ -15,6 +15,7 @@ public:
 	virtual FVector GetWidgetLocation() const override;
 	virtual ECoordSystem GetWidgetCoordinateSystem() const override;
 	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const override;
 	virtual FName GetSelectedBone() const override;
 	virtual void DoTranslation(FVector& InTranslation) override;
 	virtual bool ShouldDrawWidget() const override;

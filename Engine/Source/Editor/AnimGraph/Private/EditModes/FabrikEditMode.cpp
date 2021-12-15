@@ -38,6 +38,11 @@ UE::Widget::EWidgetMode FFabrikEditMode::GetWidgetMode() const
 	return UE::Widget::WM_Translate;
 }
 
+bool FFabrikEditMode::UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const
+{
+	return InWidgetMode == UE::Widget::WM_Translate;
+}
+
 void FFabrikEditMode::DoTranslation(FVector& InTranslation)
 {
 	USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();

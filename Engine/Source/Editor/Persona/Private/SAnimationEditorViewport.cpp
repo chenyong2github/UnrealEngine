@@ -215,7 +215,18 @@ bool SAnimationEditorViewportTabBody::CanUseGizmos() const
 			return true;
 		}
 	}
-
+	
+	if (LevelViewportClient.IsValid())
+	{
+		if(const FEditorModeTools* ModeTools = LevelViewportClient->GetModeTools())
+		{
+			if(ModeTools->UsesTransformWidget())
+			{
+				return true;
+			}
+		}
+	}
+	
 	return false;
 }
 

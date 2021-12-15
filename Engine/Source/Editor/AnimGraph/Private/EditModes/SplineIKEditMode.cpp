@@ -164,6 +164,11 @@ bool FSplineIKEditMode::SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode)
 	return true;
 }
 
+bool FSplineIKEditMode::UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const
+{
+	return FindValidWidgetMode(InWidgetMode) == InWidgetMode;
+}
+
 FName FSplineIKEditMode::GetSelectedBone() const
 {
 	return NAME_None;
