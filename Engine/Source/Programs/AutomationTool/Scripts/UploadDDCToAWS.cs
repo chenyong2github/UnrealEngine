@@ -645,7 +645,7 @@ namespace AutomationTool
 				if (Info.Exists)
 				{
 					string Key = new FileReference(Info).MakeRelativeTo(BaseDir).Replace('\\', '/');
-					Files.Add(new DerivedDataFile(Info, Path));
+					Files.Add(new DerivedDataFile(Info, Key));
 				}
 			}
 			catch (Exception Ex)
