@@ -473,6 +473,8 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 
 void FZenStoreWriter::BeginCook()
 {
+	PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
+
 	if (CookMode == ICookedPackageWriter::FCookInfo::CookOnTheFlyMode)
 	{
 		FCbPackage Pkg;
