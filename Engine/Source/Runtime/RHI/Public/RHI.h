@@ -753,6 +753,9 @@ extern RHI_API bool GRHISupportsShaderTimestamp;
 
 extern RHI_API bool GRHISupportsEfficientUploadOnResourceCreation;
 
+/** true if the RHI supports RLM_WriteOnly_NoOverwrite */
+extern RHI_API bool GRHISupportsMapWriteNoOverwrite;
+
 /** Tables of all MSAA sample offset for all MSAA supported. Use GetMSAASampleOffsets() to read it. */
 extern RHI_API FVector2f GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16];
 

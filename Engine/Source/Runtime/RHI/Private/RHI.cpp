@@ -1464,6 +1464,8 @@ bool GRHISupportsShaderTimestamp = false;
 
 bool GRHISupportsEfficientUploadOnResourceCreation = false;
 
+bool GRHISupportsMapWriteNoOverwrite = false;
+
 FVertexElementTypeSupportInfo GVertexElementTypeSupport;
 
 RHI_API int32 volatile GCurrentTextureMemorySize = 0;

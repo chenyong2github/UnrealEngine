@@ -501,6 +501,17 @@ void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 		UE_LOG(LogD3D11RHI, Log, TEXT("Async texture creation disabled: %s"),
 			D3D11RHI_ShouldAllowAsyncResourceCreation() ? TEXT("no driver support") : TEXT("disabled by user"));
 	}
+	{
+		D3D11_FEATURE_DATA_D3D11_OPTIONS Data;
+		if (const HRESULT Result = Direct3DDevice->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS, &Data, sizeof(Data)); SUCCEEDED(Result))
+		{
+			GRHISupportsMapWriteNoOverwrite = Data.MapNoOverwriteOnDynamicBufferSRV;
+			if (GRHISupportsMapWriteNoOverwrite)
+			{
+				UE_LOG(LogD3D11RHI, Log, TEXT("D3D11_MAP_WRITE_NO_OVERWRITE for dynamic buffer SRVs is supported"));
+			}
+		}
+	}
 
 	{
 #if 0

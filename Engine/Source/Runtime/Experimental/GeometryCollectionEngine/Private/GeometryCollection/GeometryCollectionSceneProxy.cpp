@@ -108,7 +108,7 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 	, NumIndices(0)
 	, VertexFactory(GetScene().GetFeatureLevel())
 	, bSupportsManualVertexFetch(VertexFactory.SupportsManualVertexFetch(GetScene().GetFeatureLevel()))
-	, bSupportsTripleBufferVertexUpload(!IsMetalPlatform(GetScene().GetShaderPlatform()) && !IsVulkanPlatform(GetScene().GetShaderPlatform()))
+	, bSupportsTripleBufferVertexUpload(GRHISupportsMapWriteNoOverwrite)
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	, SubSections()
 	, SubSectionHitProxies()
