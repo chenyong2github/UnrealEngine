@@ -438,6 +438,7 @@ namespace SteamAudio
 			ReverbSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), *DefaultSubmixName);
 			ReverbSubmix->bMuteWhenBackgrounded = true;
 		}
+		ReverbSubmix->bAutoDisable = false;
 
 		bool bFoundPreset = false;
 		for (USoundEffectSubmixPreset* Preset : ReverbSubmix->SubmixEffectChain)
