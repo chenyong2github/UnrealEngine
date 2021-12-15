@@ -49,6 +49,10 @@ TSharedRef<FTokenizedMessage> FNiagaraMessageCompileEvent::GenerateTokenizedMess
 	case FNiagaraCompileEventSeverity::Warning:
 		MessageSeverity = EMessageSeverity::Warning;
 		break;
+	case FNiagaraCompileEventSeverity::Display:
+		MessageSeverity = EMessageSeverity::Info;
+		break;
+	// log is still treated like an info
 	case FNiagaraCompileEventSeverity::Log:
 		MessageSeverity = EMessageSeverity::Info;
 		break;
@@ -153,7 +157,7 @@ FText FNiagaraMessageCompileEvent::GenerateMessageTitle() const
 	case FNiagaraCompileEventSeverity::Warning:
 		StackIssueSeverity = EStackIssueSeverity::Warning;
 		break;
-	case FNiagaraCompileEventSeverity::Log:
+	case FNiagaraCompileEventSeverity::Display:
 		StackIssueSeverity = EStackIssueSeverity::Info;
 		break;
 	default:

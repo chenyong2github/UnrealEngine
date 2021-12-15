@@ -16,7 +16,5 @@ namespace FNiagaraMessageUtilities
 
 	UNiagaraStackEntry::FStackIssue StackMessageToStackIssue(const FNiagaraStackMessage& InMessage, FString InStackEditorDataKey, const TArray<FLinkNameAndDelegate>& InLinks);
 
-	void GetCompileMessageData(TSharedRef<const FNiagaraMessageCompileEvent> InMessage, bool& bOutDismissable, FText& OutShortDescription);
-
 	FText GetShortDescriptionFromSeverity(EStackIssueSeverity Severity);
 }

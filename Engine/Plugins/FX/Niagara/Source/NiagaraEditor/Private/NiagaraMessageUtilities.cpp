@@ -202,45 +202,6 @@ UNiagaraStackEntry::FStackIssue FNiagaraMessageUtilities::StackMessageToStackIss
 		FixLinks);
 }
 
-void FNiagaraMessageUtilities::GetCompileMessageData(TSharedRef<const FNiagaraMessageCompileEvent> InMessage, bool& bOutDismissable, FText& OutShortDescription)
-{
-	TSharedRef<FTokenizedMessage> TokenizedMessage = InMessage->GenerateTokenizedMessage();
-	EStackIssueSeverity StackIssueSeverity;
-	switch (TokenizedMessage->GetSeverity())
-	{
-	case EMessageSeverity::CriticalError:
-	case EMessageSeverity::Error:
-		StackIssueSeverity = EStackIssueSeverity::Error;
-		break;
-	case EMessageSeverity::PerformanceWarning:
-	case EMessageSeverity::Warning:
-		StackIssueSeverity = EStackIssueSeverity::Warning;
-		break;
-	case EMessageSeverity::Info:
-		StackIssueSeverity = EStackIssueSeverity::Info;
-		break;
-	default:
-		StackIssueSeverity = EStackIssueSeverity::Info;
-		break;
-	}
-
-	const FName& MessageTopic = InMessage->GetMessageTopic();
-
-	if ((int32)EStackIssueSeverity::None >= (int32)InMessage->GetCompileEvent().Severity)
-	{
-		if (!InMessage->GetCompileEvent().ShortDescription.IsEmpty())
-		{
-			OutShortDescription = FText::FromString(InMessage->GetCompileEvent().ShortDescription);
-		}
-		else if (MessageTopic == FNiagaraMessageTopics::CompilerTopicName)
-		{
-			OutShortDescription = GetShortDescriptionFromSeverity(StackIssueSeverity);
-		}
-	}
-
-	bOutDismissable = InMessage->GetCompileEvent().bDismissable;
-}
-
 FText FNiagaraMessageUtilities::GetShortDescriptionFromSeverity(EStackIssueSeverity Severity)
 {
 	if(Severity == EStackIssueSeverity::Error)

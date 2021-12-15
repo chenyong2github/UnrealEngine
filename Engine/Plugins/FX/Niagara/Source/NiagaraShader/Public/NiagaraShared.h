@@ -39,8 +39,9 @@ UENUM()
 enum class FNiagaraCompileEventSeverity : uint8
 {
 	Log = 0,
-	Warning = 1,
-	Error = 2
+	Display = 1,
+	Warning = 2,
+	Error = 3
 };
 
 UENUM()
@@ -58,7 +59,7 @@ struct FNiagaraCompileEvent
 public:
 	FNiagaraCompileEvent()
 	{
-		Severity = FNiagaraCompileEventSeverity::Log;
+		Severity = FNiagaraCompileEventSeverity::Display;
 		Message = FString();
 		ShortDescription = FString();
 		bDismissable = true;
