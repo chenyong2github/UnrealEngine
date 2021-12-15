@@ -44,7 +44,12 @@ half GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 		GBufferData.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN ||
 		GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
 	{
-		Opacity = GBufferData.CustomData.a;
+		// This clamp aligns with SubsurfaceDensityFromOpacity
+		// Various engine paths treat these subsurface materials differently
+		// even when they have Opacity = 1 in the material shader, so this is
+		// important to avoid things like backface transmission being shadowed by
+		// contact shadows and so on.
+		Opacity = min(GBufferData.CustomData.a, 0.99f);
 	}
 #endif // STRATA_ENABLED
 
