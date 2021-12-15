@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Experimental/Containers/HazardPointer.h"
+#include "Misc/App.h"
 #include "Misc/ScopeLock.h"
 
 FHazardPointerCollection::~FHazardPointerCollection()
 {
-	for (TArray<HazardPointer_Impl::FHazardDeleter>* Deleters : AllTlsVariables)
+	for (FTlsData* Deleters : AllTlsVariables)
 	{
-		for (HazardPointer_Impl::FHazardDeleter& Deleter : *Deleters)
-		{
-			Deleter.Delete();
-		}
 		delete Deleters;
 	}
 	FPlatformTLS::FreeTlsSlot(CollectablesTlsSlot);
@@ -51,24 +48,27 @@ template CORE_API FHazardPointerCollection::FHazardRecord* FHazardPointerCollect
 
 void FHazardPointerCollection::Delete(const HazardPointer_Impl::FHazardDeleter& Ptr, int32 CollectLimit)
 {
-	TArray<HazardPointer_Impl::FHazardDeleter>* Collectables = (TArray<HazardPointer_Impl::FHazardDeleter>*)FPlatformTLS::GetTlsValue(CollectablesTlsSlot);
+	FTlsData* Collectables = (FTlsData*)FPlatformTLS::GetTlsValue(CollectablesTlsSlot);
 	if (Collectables == nullptr)
 	{
 		FScopeLock Lock(&AllTlsVariablesCS);
-		Collectables = new TArray<HazardPointer_Impl::FHazardDeleter>();
+		Collectables = new FTlsData();
 		AllTlsVariables.Add(Collectables);
 		FPlatformTLS::SetTlsValue(CollectablesTlsSlot, Collectables);
 	}
-	checkSlow(!Collectables->Contains(Ptr));
+	checkSlow(!Collectables->ReclamationList.Contains(Ptr));
 
 	//add to be deleted pointer to thread local List
-	Collectables->Add(Ptr);
+	Collectables->ReclamationList.Add(Ptr);
 
 	//maybe scan the list
-	int32 DeleteMetric = CollectLimit <= 0 ? ((5 * TotalNumHazardRecords) / 4) : CollectLimit;
-	if (Collectables->Num() >= DeleteMetric)
+	const double CurrentTime = FApp::GetGameTime();
+	const bool TimeLimit = (CurrentTime - Collectables->TimeOfLastCollection) > 1.0;
+	const int32 DeleteMetric = CollectLimit <= 0 ? ((5 * TotalNumHazardRecords) / 4) : CollectLimit;
+	if (TimeLimit || Collectables->ReclamationList.Num() >= DeleteMetric)
 	{
-		Collect(*Collectables);
+		Collectables->TimeOfLastCollection = CurrentTime;
+		Collect(Collectables->ReclamationList);
 	}
 }
 

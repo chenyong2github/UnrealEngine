@@ -53,6 +53,21 @@ class FHazardPointerCollection
 	template<typename, bool>
 	friend class THazardPointer;
 
+	struct FTlsData
+	{
+		TArray<HazardPointer_Impl::FHazardDeleter> ReclamationList;
+		double TimeOfLastCollection = .0;
+
+		~FTlsData()
+		{
+			for (HazardPointer_Impl::FHazardDeleter& Deleter : ReclamationList)
+			{
+				Deleter.Delete();
+			}
+			ReclamationList.Empty();
+		}
+	};
+
 	class alignas(PLATFORM_CACHE_LINE_SIZE * 2) FHazardRecord
 	{
 		friend class FHazardPointerCollection;
@@ -125,7 +140,7 @@ class FHazardPointerCollection
 
 	FCriticalSection AllTlsVariablesCS;
 	FCriticalSection HazardRecordBlocksCS;
-	TArray<TArray<HazardPointer_Impl::FHazardDeleter>*> AllTlsVariables;
+	TArray<FTlsData*> AllTlsVariables;
 	TArray<FHazardRecordChunk*> HazardRecordBlocks;
 
 	uint32 CollectablesTlsSlot = 0;
