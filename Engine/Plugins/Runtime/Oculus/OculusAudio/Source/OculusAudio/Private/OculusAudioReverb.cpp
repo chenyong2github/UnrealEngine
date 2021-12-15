@@ -120,6 +120,7 @@ USoundSubmix* OculusAudioReverb::GetSubmix()
 		ReverbSubmix = NewObject<USoundSubmix>(USoundSubmix::StaticClass(), *DefaultSubmixName);
 		ReverbSubmix->bMuteWhenBackgrounded = true;
 	}
+	ReverbSubmix->bAutoDisable = false;
 
 	return ReverbSubmix;
 }

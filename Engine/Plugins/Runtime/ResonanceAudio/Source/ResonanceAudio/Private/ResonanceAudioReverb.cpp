@@ -189,6 +189,8 @@ namespace ResonanceAudio
 			ReverbSubmix->bMuteWhenBackgrounded = true;
 		}
 
+		ReverbSubmix->bAutoDisable = false;
+
 		// SubmixEffect is required to be initialized for ReverbPluginPreset to be set
 		if (!SubmixEffect.IsValid())
 		{

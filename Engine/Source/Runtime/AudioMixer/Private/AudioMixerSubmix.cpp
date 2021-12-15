@@ -1067,6 +1067,12 @@ namespace Audio
 
 	bool FMixerSubmix::IsRenderingAudio() const
 	{
+		// If we're told to not auto-disable we act as if we're always rendering audio
+		if (!bAutoDisable)
+		{
+			return true;
+		}
+
 		// If this submix is not rendering any sources directly and silence has been detected, we need to check it's children submixes
 		if (MixerSourceVoices.Num() == 0 && SilenceTimeStartSeconds >= 0.0)
 		{
