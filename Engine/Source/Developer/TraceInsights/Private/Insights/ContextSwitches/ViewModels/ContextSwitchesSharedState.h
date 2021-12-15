@@ -67,6 +67,7 @@ public:
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
 	virtual void Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) override;
 	virtual void ExtendCpuTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
+	virtual void AddQuickFindFilters(TSharedPtr<class FFilterConfigurator> FilterConfigurator) override;
 
 	//////////////////////////////////////////////////
 
@@ -148,6 +149,8 @@ private:
 
 	void Command_DockCpuCoreTrackToTop_Execute();
 	bool Command_DockCpuCoreTrackToTop_CanExecute() const { return AreContextSwitchesAvailable() && AreCoreTracksVisible() && IsValidContextSwitchEventSelected(); }
+
+	void PopulateCoreEventNameSuggestionList(const FString& Text, TArray<FString>& OutSuggestions);
 
 private:
 	STimingView* TimingView;

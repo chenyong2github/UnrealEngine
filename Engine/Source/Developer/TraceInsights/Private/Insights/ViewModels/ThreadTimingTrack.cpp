@@ -943,6 +943,7 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 						FilterContexts.AddDefaulted(NumTasks);
 						for (FFilterContext& Context : FilterContexts)
 						{
+							Context.SetReturnValueForUnsetFilters(false);
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::StartTime), 0.0f);
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::EndTime), 0.0f);
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::Duration), 0.0f);
@@ -1515,6 +1516,7 @@ bool FThreadTimingTrack::FindTimingProfilerEvent(const FThreadTrackEvent& InTimi
 bool FThreadTimingTrack::FindTimingProfilerEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const TraceServices::FTimingProfilerEvent&)> InFoundPredicate) const
 {
 	FFilterContext FilterConfiguratorContext;
+	FilterConfiguratorContext.SetReturnValueForUnsetFilters(false);
 	FilterConfiguratorContext.AddFilterData<double>(static_cast<int32>(EFilterField::StartTime), 0.0f);
 	FilterConfiguratorContext.AddFilterData<double>(static_cast<int32>(EFilterField::EndTime), 0.0f);
 	FilterConfiguratorContext.AddFilterData<double>(static_cast<int32>(EFilterField::Duration), 0.0f);

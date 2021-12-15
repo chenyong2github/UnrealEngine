@@ -109,7 +109,8 @@ enum class EFilterField : int32
 	Duration = 2,
 	TrackName = 3,
 	TimerId = 4,
-	TimerName = 5
+	TimerName = 5,
+	CoreEventName = 6,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

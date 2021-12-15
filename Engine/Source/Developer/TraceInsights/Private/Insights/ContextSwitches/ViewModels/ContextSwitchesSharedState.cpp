@@ -9,6 +9,7 @@
 
 // Insights
 #include "Insights/ContextSwitches/ContextSwitchesProfilerManager.h"
+#include "Insights/ContextSwitches/ViewModels/ContextSwitchesFilterConverters.h"
 #include "Insights/ContextSwitches/ViewModels/ContextSwitchesTimingTrack.h"
 #include "Insights/ContextSwitches/ViewModels/ContextSwitchTimingEvent.h"
 #include "Insights/ContextSwitches/ViewModels/CpuCoreTimingTrack.h"
@@ -16,6 +17,7 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/FilterConfigurator.h"
 #include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
@@ -251,6 +253,45 @@ void FContextSwitchesSharedState::BuildSubMenu(FMenuBuilder& InMenuBuilder)
 		InMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_ShowExtendedLines);
 	}
 	InMenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::AddQuickFindFilters(TSharedPtr<class FFilterConfigurator> FilterConfigurator)
+{
+	TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& AvailableFilters = FilterConfigurator->GetAvailableFilters();
+
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> CoreEventNameFilterOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
+	CoreEventNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Eq, TEXT("Is"), [](int64 lhs, int64 rhs) { return lhs == rhs; })));
+
+	TSharedPtr<FFilterWithSuggestions> TimerNameFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(EFilterField::CoreEventName), LOCTEXT("CoreEventName", "Core Event Name"), LOCTEXT("CoreEventName", "Core Event Name"), EFilterDataType::StringInt64Pair, CoreEventNameFilterOperators);
+	TimerNameFilter->Callback = [this](const FString& Text, TArray<FString>& OutSuggestions)
+	{
+		this->PopulateCoreEventNameSuggestionList(Text, OutSuggestions);
+	};
+
+	TimerNameFilter->Converter = MakeShared<FCoreEventNameFilterValueConverter>();
+
+	AvailableFilters->Add(TimerNameFilter);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::PopulateCoreEventNameSuggestionList(const FString& Text, TArray<FString>& OutSuggestions)
+{
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
+		ThreadProvider.EnumerateThreads([&Text, &OutSuggestions](const TraceServices::FThreadInfo& ThreadInfo)
+			{
+				if (FCString::Stristr(ThreadInfo.Name, *Text))
+				{
+					OutSuggestions.Add(ThreadInfo.Name);
+				}
+			});
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
