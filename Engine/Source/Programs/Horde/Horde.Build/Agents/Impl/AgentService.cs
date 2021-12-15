@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using Google.Protobuf;
+using EpicGames.Redis;
+using EpicGames.Serialization;
 using Google.Protobuf.WellKnownTypes;
 using HordeCommon;
 using HordeServer.Collections;
@@ -12,6 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using StackExchange.Redis;
 using StatsdClient;
 using System;
 using System.Collections.Generic;
@@ -27,6 +29,19 @@ namespace HordeServer.Services
 	using LeaseId = ObjectId<ILease>;
 	using PoolId = StringId<IPool>;
 	using SessionId = ObjectId<ISession>;
+
+	/// <summary>
+	/// Singleton used to store agent costs
+	/// </summary>
+	[RedisConverter(typeof(RedisCbConverter<>))]
+	public class AgentRateTable
+	{
+		/// <summary>
+		/// List of costs for different agent types
+		/// </summary>
+		[CbField]
+		public List<AgentRateConfig> Entries { get; set; } = new List<AgentRateConfig>();
+	}
 
 	/// <summary>
 	/// Wraps funtionality for manipulating agents
@@ -65,29 +80,38 @@ namespace HordeServer.Services
 		ILogger Logger;
 		ITicker Ticker;
 
+		RedisString<AgentRateTable> AgentRateTableData;
+		RedisService RedisService;
+
+		// Lazily updated costs for different agent types
+		AsyncCachedValue<AgentRateTable> AgentRateTable;
+
 		// Lazily updated list of current pools
 		AsyncCachedValue<List<IPool>> PoolsList;
 
 		// All the agents currently performing a long poll for work on this server
 		Dictionary<AgentId, CancellationTokenSource> WaitingAgents = new Dictionary<AgentId, CancellationTokenSource>();
-
+		
 		// Subscription for update events
 		IDisposable Subscription;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, IHostApplicationLifetime ApplicationLifetime, IClock Clock, ILogger<AgentService> Logger)
+		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, RedisService RedisService, IHostApplicationLifetime ApplicationLifetime, IClock Clock, ILogger<AgentService> Logger)
 		{
 			this.Agents = Agents;
 			this.Leases = Leases;
 			this.Sessions = Sessions;
 			this.AclService = AclService;
 			this.DowntimeService = DowntimeService;
+			this.AgentRateTableData = new RedisString<AgentRateTable>(RedisService.Database, "agent-rates");
+			this.AgentRateTable = new AsyncCachedValue<AgentRateTable>(() => AgentRateTableData.GetAsync(), TimeSpan.FromSeconds(2.0));//.FromMinutes(5.0));
 			this.PoolsList = new AsyncCachedValue<List<IPool>>(() => PoolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
 			this.DogStatsd = DogStatsd;
 			this.TaskSources = TaskSources.ToArray();
 			this.ApplicationLifetime = ApplicationLifetime;
+			this.RedisService = RedisService;
 			this.Clock = Clock;
 			this.Ticker = Clock.AddTicker(TimeSpan.FromSeconds(30.0), TickAsync, Logger);
 			this.Logger = Logger;
@@ -761,6 +785,67 @@ namespace HordeServer.Services
 		public Task<List<ISession>> FindSessionsAsync(AgentId AgentId, DateTime? StartTime, DateTime? FinishTime, int Index, int Count)
 		{
 			return Sessions.FindAsync(AgentId, StartTime, FinishTime, Index, Count);
+		}
+
+		/// <summary>
+		/// Update the rate table for different agent types
+		/// </summary>
+		/// <param name="Entries">New entries for the rate table</param>
+		/// <returns></returns>
+		public async Task UpdateRateTableAsync(List<AgentRateConfig> Entries)
+		{
+			await AgentRateTableData.SetAsync(new AgentRateTable { Entries = Entries });
+		}
+
+		/// <summary>
+		/// Gets the rate for the given agent
+		/// </summary>
+		/// <param name="AgentId">Agent id to query</param>
+		/// <returns>Hourly rate of running the given agent</returns>
+		public async ValueTask<double?> GetRateAsync(AgentId AgentId)
+		{
+			RedisKey Key = $"agent-rate/{AgentId}";
+
+			// Try to get the current value
+			RedisValue Value = await RedisService.Database.StringGetAsync(Key);
+			if (!Value.IsNull)
+			{
+				double Rate = (double)Value;
+				if (Rate == 0.0)
+				{
+					return null;
+				}
+				else
+				{
+					return Rate;
+				}
+			}
+			else
+			{
+				double Rate = 0.0;
+
+				// Get the rate table
+				AgentRateTable RateTable = await AgentRateTable.GetAsync();
+				if (RateTable.Entries.Count > 0)
+				{
+					IAgent? Agent = await GetAgentAsync(AgentId);
+					if (Agent != null)
+					{
+						foreach (AgentRateConfig Config in RateTable.Entries)
+						{
+							if (Config.Condition != null && Config.Condition.Evaluate(x => Agent.GetPropertyValues(x)))
+							{
+								Rate = Config.Rate;
+								break;
+							}
+						}
+					}
+				}
+
+				// Cache it for future reference
+				await RedisService.Database.StringSetAsync(Key, Rate, TimeSpan.FromMinutes(5.0), flags: CommandFlags.FireAndForget);
+				return Rate;
+			}
 		}
 
 		/// <summary>

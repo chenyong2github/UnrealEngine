@@ -98,8 +98,9 @@ namespace HordeServer.Controllers
 			List<object> Responses = new List<object>();
 			foreach (IAgent Agent in Agents)
 			{
+				double? Rate = await AgentService.GetRateAsync(Agent.Id);
 				bool bIncludeAcl = await AgentService.AuthorizeAsync(Agent, AclAction.ViewPermissions, User, PermissionsCache);
-				Responses.Add(new GetAgentResponse(Agent, bIncludeAcl).ApplyFilter(Filter));
+				Responses.Add(new GetAgentResponse(Agent, Rate, bIncludeAcl).ApplyFilter(Filter));
 			}
 
 			return Responses;
@@ -123,8 +124,9 @@ namespace HordeServer.Controllers
 			}
 
 			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
+			double? Rate = await AgentService.GetRateAsync(Agent.Id);
 			bool bIncludeAcl = await AgentService.AuthorizeAsync(Agent, AclAction.ViewPermissions, User, Cache);
-			return new GetAgentResponse(Agent, bIncludeAcl).ApplyFilter(Filter);
+			return new GetAgentResponse(Agent, Rate, bIncludeAcl).ApplyFilter(Filter);
 		}
 
 		/// <summary>

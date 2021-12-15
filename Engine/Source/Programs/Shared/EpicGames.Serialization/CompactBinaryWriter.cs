@@ -522,6 +522,27 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Writes an unnamed double field
+		/// </summary>
+		/// <param name="Value">Value to be written</param>
+		public void WriteDoubleValue(double Value)
+		{
+			WriteFieldHeader(CbFieldType.Float64);
+			BinaryPrimitives.WriteInt64BigEndian(Allocate(sizeof(double)).Span, BitConverter.DoubleToInt64Bits(Value));
+		}
+
+		/// <summary>
+		/// Writes a named double field
+		/// </summary>
+		/// <param name="Name">Name of the field</param>
+		/// <param name="Value">Value to be written</param>
+		public void WriteDouble(Utf8String Name, double Value)
+		{
+			WriteFieldHeader(CbFieldType.Float64, Name);
+			BinaryPrimitives.WriteInt64BigEndian(Allocate(sizeof(double)).Span, BitConverter.DoubleToInt64Bits(Value));
+		}
+
+		/// <summary>
 		/// Writes the payload for a <see cref="DateTime"/> value
 		/// </summary>
 		/// <param name="DateTime">The value to write</param>

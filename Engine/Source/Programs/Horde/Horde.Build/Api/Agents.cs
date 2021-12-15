@@ -328,6 +328,11 @@ namespace HordeServer.Api
 		public bool Enabled { get; set; }
 
 		/// <summary>
+		/// Cost estimate per-hour for this agent
+		/// </summary>
+		public double? Rate { get; set; }
+
+		/// <summary>
 		/// The current session id
 		/// </summary>
 		public string? SessionId { get; set; }
@@ -441,12 +446,14 @@ namespace HordeServer.Api
 		/// Constructor
 		/// </summary>
 		/// <param name="Agent">The agent to construct from</param>
+		/// <param name="Rate">Rate for this agent</param>
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetAgentResponse(IAgent Agent, bool bIncludeAcl)
+		public GetAgentResponse(IAgent Agent, double? Rate, bool bIncludeAcl)
 		{
 			this.Id = Agent.Id.ToString();
 			this.Name = Agent.Id.ToString();
 			this.Enabled = Agent.Enabled;
+			this.Rate = Rate;
 			this.Properties = new List<string>(Agent.Properties);
 			this.Resources = new Dictionary<string, int>(Agent.Resources);
 			this.SessionId = Agent.SessionId?.ToString();

@@ -51,12 +51,13 @@ namespace HordeServer.Controllers
 		private readonly IArtifactCollection ArtifactCollection;
 		private readonly IUserCollection UserCollection;
 		private readonly INotificationService NotificationService;
+		private readonly AgentService AgentService;
 		private ILogger<JobsController> Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JobsController(AclService AclService, IGraphCollection Graphs, IPerforceService Perforce, StreamService StreamService, JobService JobService, ITemplateCollection TemplateCollection, IArtifactCollection ArtifactCollection, IUserCollection UserCollection, INotificationService NotificationService, ILogger<JobsController> Logger)
+		public JobsController(AclService AclService, IGraphCollection Graphs, IPerforceService Perforce, StreamService StreamService, JobService JobService, ITemplateCollection TemplateCollection, IArtifactCollection ArtifactCollection, IUserCollection UserCollection, INotificationService NotificationService, AgentService AgentService, ILogger<JobsController> Logger)
 		{
 			this.AclService = AclService;
 			this.Graphs = Graphs;
@@ -67,6 +68,7 @@ namespace HordeServer.Controllers
 			this.ArtifactCollection = ArtifactCollection;
 			this.UserCollection = UserCollection;
 			this.NotificationService = NotificationService;
+			this.AgentService = AgentService;
 			this.Logger = Logger;
 		}
 
@@ -478,7 +480,14 @@ namespace HordeServer.Controllers
 			{
 				Steps.Add(await CreateStepResponseAsync(Step));
 			}
-			return new GetBatchResponse(Batch, Steps);
+
+			double? AgentRate = null;
+			if (Batch.AgentId != null)
+			{
+				AgentRate = await AgentService.GetRateAsync(Batch.AgentId.Value);
+			}
+
+			return new GetBatchResponse(Batch, Steps, AgentRate);
 		}
 
 		/// <summary>

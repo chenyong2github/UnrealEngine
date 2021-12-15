@@ -728,6 +728,11 @@ namespace HordeServer.Api
 		public string? AgentId { get; set; }
 
 		/// <summary>
+		/// Rate for using this agent (per hour)
+		/// </summary>
+		public double? AgentRate { get; set; }
+
+		/// <summary>
 		/// The agent session holding this lease
 		/// </summary>
 		public string? SessionId { get; set; }
@@ -753,12 +758,18 @@ namespace HordeServer.Api
 		public DateTimeOffset? FinishTime { get; set; }
 
 		/// <summary>
+		/// Estimated cost of running this batch
+		/// </summary>
+		public double? Cost { get; set; }
+
+		/// <summary>
 		/// Converts this batch into a public response object
 		/// </summary>
 		/// <param name="Batch">The batch to construct from</param>
 		/// <param name="Steps">Steps in this batch</param>
+		/// <param name="AgentRate">Rate for this agent</param>
 		/// <returns>Response instance</returns>
-		public GetBatchResponse(IJobStepBatch Batch, List<GetStepResponse> Steps)
+		public GetBatchResponse(IJobStepBatch Batch, List<GetStepResponse> Steps, double? AgentRate)
 		{
 			this.Id = Batch.Id.ToString();
 			this.LogId = Batch.LogId?.ToString();
@@ -767,6 +778,7 @@ namespace HordeServer.Api
 			this.Error = Batch.Error;
 			this.Steps = Steps;
 			this.AgentId = Batch.AgentId?.ToString();
+			this.AgentRate = AgentRate;
 			this.SessionId = Batch.SessionId?.ToString();
 			this.LeaseId = Batch.LeaseId?.ToString();
 			this.WeightedPriority = Batch.SchedulePriority;

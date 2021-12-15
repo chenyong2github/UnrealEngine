@@ -11,6 +11,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace EpicGames.Horde.Common
@@ -32,7 +34,9 @@ namespace EpicGames.Horde.Common
 		Gte,
 		Lparen,
 		Rparen,
-		Regex
+		Regex,
+		True,
+		False,
 	}
 
 	class TokenReader
@@ -143,7 +147,22 @@ namespace EpicGames.Horde.Common
 						{
 							EndIdx++;
 						}
-						SetCurrent(EndIdx - Offset, TokenType.Identifier);
+
+						TokenType Type;
+						if (EndIdx == Offset + 4 && String.Compare(Input, Offset, "true", 0, 4, StringComparison.OrdinalIgnoreCase) == 0)
+						{
+							Type = TokenType.True;
+						}
+						else if (EndIdx == Offset + 5 && String.Compare(Input, Offset, "false", 0, 5, StringComparison.OrdinalIgnoreCase) == 0)
+						{
+							Type = TokenType.False;
+						}
+						else
+						{
+							Type = TokenType.Identifier;
+						}
+
+						SetCurrent(EndIdx - Offset, Type);
 						return;
 					default:
 						SetCurrent(1, TokenType.Error, $"Invalid character at offset {Offset}: '{Input[Offset]}'");
@@ -290,6 +309,7 @@ namespace EpicGames.Horde.Common
 	[JsonSchemaString]
 	[TypeConverter(typeof(ConditionTypeConverter))]
 	[CbConverter(typeof(ConditionCbConverter))]
+	[JsonConverter(typeof(ConditionJsonConverter))]
 	public class Condition
 	{
 		[DebuggerDisplay("{Type}")]
@@ -393,6 +413,11 @@ namespace EpicGames.Horde.Common
 					return ParseSubExpr(Reader);
 				case TokenType.Lparen:
 					return ParseSubExpr(Reader);
+				case TokenType.True:
+				case TokenType.False:
+					Tokens.Add(new Token(Reader.Type, 0));
+					Reader.MoveNext();
+					return null;
 				default:
 					return ParseComparisonExpr(Reader);
 			}
@@ -483,6 +508,10 @@ namespace EpicGames.Horde.Common
 			Token Token = Tokens[Idx++];
 			switch (Token.Type)
 			{
+				case TokenType.True:
+					return true;
+				case TokenType.False:
+					return false;
 				case TokenType.Not:
 					return !EvaluateCondition(ref Idx, GetPropertyValues);
 				case TokenType.Eq:
@@ -584,7 +613,7 @@ namespace EpicGames.Horde.Common
 	}
 
 	/// <summary>
-	/// Type converter from strings to PropertyFilter objects
+	/// Type converter from strings to condition objects
 	/// </summary>
 	sealed class ConditionTypeConverter : TypeConverter
 	{
@@ -599,5 +628,24 @@ namespace EpicGames.Horde.Common
 
 		/// <inheritdoc/>
 		public override object? ConvertTo(ITypeDescriptorContext Context, CultureInfo Culture, object Value, Type DestinationType) => ((Condition)Value).Text;
+	}
+
+	/// <summary>
+	/// Type converter from Json strings to condition objects
+	/// </summary>
+	sealed class ConditionJsonConverter : JsonConverter<Condition>
+	{
+		/// <inheritdoc/>
+		public override bool CanConvert(Type typeToConvert) => typeToConvert == typeof(Condition);
+
+		public override Condition Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			return Condition.Parse(reader.GetString());
+		}
+
+		public override void Write(Utf8JsonWriter writer, Condition value, JsonSerializerOptions options)
+		{
+			writer.WriteStringValue(value.ToString());
+		}
 	}
 }

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Common;
+using EpicGames.Serialization;
 using HordeServer.Api;
 using HordeServer.Utilities;
 using System;
@@ -40,6 +42,11 @@ namespace HordeServer.Models
 		/// List of Perforce clusters
 		/// </summary>
 		public List<PerforceCluster> PerforceClusters { get; set; } = new List<PerforceCluster>();
+
+		/// <summary>
+		/// List of costs of a particular agent type
+		/// </summary>
+		public List<AgentRateConfig> Rates { get; set; } = new List<AgentRateConfig>();
 
 		/// <summary>
 		/// Maximum number of conforms to run at once
@@ -252,6 +259,24 @@ namespace HordeServer.Models
 		/// Identifier for the bucket
 		/// </summary>
 		public string Id { get; set; } = String.Empty;
+	}
+
+	/// <summary>
+	/// Describes the monetary cost of agents matching a particular criteris
+	/// </summary>
+	public class AgentRateConfig
+	{
+		/// <summary>
+		/// Condition string
+		/// </summary>
+		[CbField("c")]
+		public Condition? Condition { get; set; }
+
+		/// <summary>
+		/// Rate for this agent
+		/// </summary>
+		[CbField("r")]
+		public double Rate { get; set; }
 	}
 }
 

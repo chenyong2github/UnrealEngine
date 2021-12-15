@@ -1073,11 +1073,17 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Access the field as a double.
+		/// </summary>
+		/// <returns>Value of the field</returns>
+		public double AsDouble() => AsDouble(0.0);
+
+		/// <summary>
 		/// Access the field as a double. Returns the provided default on error.
 		/// </summary>
 		/// <param name="Default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public double AsDouble(double Default = 0.0f)
+		public double AsDouble(double Default)
 		{
 			switch (GetType())
 			{

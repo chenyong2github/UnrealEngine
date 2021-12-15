@@ -59,6 +59,7 @@ namespace HordeServer.Services
 		INotificationService NotificationService;
 		INamespaceCollection NamespaceCollection;
 		IBucketCollection BucketCollection;
+		AgentService AgentService;
 		PoolService PoolService;
 		IOptionsMonitor<ServerSettings> Settings;
 		ITicker Ticker;
@@ -67,7 +68,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigService(DatabaseService DatabaseService, IPerforceService PerforceService, ProjectService ProjectService, StreamService StreamService, INotificationService NotificationService, INamespaceCollection NamespaceCollection, IBucketCollection BucketCollection, PoolService PoolService, PerforceLoadBalancer PerforceLoadBalancer, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigService> Logger)
+		public ConfigService(DatabaseService DatabaseService, IPerforceService PerforceService, ProjectService ProjectService, StreamService StreamService, INotificationService NotificationService, INamespaceCollection NamespaceCollection, IBucketCollection BucketCollection, PoolService PoolService, AgentService AgentService, PerforceLoadBalancer PerforceLoadBalancer, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigService> Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.PerforceService = PerforceService;
@@ -78,6 +79,7 @@ namespace HordeServer.Services
 			this.NamespaceCollection = NamespaceCollection;
 			this.BucketCollection = BucketCollection;
 			this.PoolService = PoolService;
+			this.AgentService = AgentService;
 			this.Settings = Settings;
 			this.Ticker = Clock.AddSharedTicker<ConfigService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, Logger);
 			this.Logger = Logger;
@@ -150,6 +152,9 @@ namespace HordeServer.Services
 					break;
 				}
 			}
+
+			// Update the agent rate table
+			await AgentService.UpdateRateTableAsync(GlobalConfig.Rates);
 
 			// Projects to remove
 			List<IProject> Projects = await ProjectService.GetProjectsAsync();
