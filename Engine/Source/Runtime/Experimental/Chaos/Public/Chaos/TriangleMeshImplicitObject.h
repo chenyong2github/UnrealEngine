@@ -305,6 +305,8 @@ namespace Chaos
 
 		void VisitTriangles(const FAABB3& InQueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const;
 
+		void VisitTriangle(int32 TriangleIndex, const TFunction<void(const FTriangle& Triangle)>& Visitor) const;
+
 	private:
 		void RebuildBV();
 
