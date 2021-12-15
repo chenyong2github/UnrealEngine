@@ -9,7 +9,7 @@
 #include "ARTraceResult.h"
 #include "DefaultSpectatorScreenController.h"
 #include "UObject/SoftObjectPath.h"
-
+#include "GenericPlatform/IInputInterface.h"
 #include <openxr/openxr.h>
 
 class IOpenXRCustomAnchorSupport
@@ -364,7 +364,11 @@ public:
 	virtual void PostSyncActions(XrSession InSession)
 	{
 	}
-
+	
+	virtual void OnSetDeviceProperty(XrSession InSession, int32 ControllerId, const FInputDeviceProperty* Property)
+	{
+	}
+	
 	/**
 	 * Start the AR system.
 	 *

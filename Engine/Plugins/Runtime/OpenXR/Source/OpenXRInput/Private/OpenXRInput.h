@@ -71,7 +71,7 @@ public:
 		virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 		virtual void SetChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
 		virtual void SetChannelValues(int32 ControllerId, const FForceFeedbackValues &values) override;
-
+		virtual void SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property) override;
 		// IMotionController overrides
 		virtual FName GetMotionControllerDeviceTypeName() const override;
 		virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;
