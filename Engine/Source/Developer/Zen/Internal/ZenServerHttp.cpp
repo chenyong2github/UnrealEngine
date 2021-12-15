@@ -12,7 +12,9 @@
 #	include "Windows/AllowWindowsPlatformTypes.h"
 #endif
 
-#include "curl/curl.h"
+#if !defined(PLATFORM_CURL_INCLUDE)
+	#include "curl/curl.h"
+#endif
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #	include "Windows/HideWindowsPlatformTypes.h"
