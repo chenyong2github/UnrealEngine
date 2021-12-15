@@ -45,6 +45,11 @@ UE::Widget::EWidgetMode FCCDIKEditMode::GetWidgetMode() const
 	return UE::Widget::WM_None;
 }
 
+bool FCCDIKEditMode::UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const
+{
+	return InWidgetMode == UE::Widget::WM_Translate;
+}
+
 void FCCDIKEditMode::DoTranslation(FVector& InTranslation)
 {
 	USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();

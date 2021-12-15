@@ -15,6 +15,7 @@ public:
 	virtual ECoordSystem GetWidgetCoordinateSystem() const override;
 	virtual FVector GetWidgetLocation() const override;
 	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const override;
 	virtual FName GetSelectedBone() const override;
 
 private:

@@ -139,6 +139,11 @@ UE::Widget::EWidgetMode FTwoBoneIKEditMode::GetWidgetMode() const
 	return UE::Widget::WM_None;
 }
 
+bool FTwoBoneIKEditMode::UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const
+{
+	return InWidgetMode == UE::Widget::WM_Translate;
+}
+
 FBoneSocketTarget FTwoBoneIKEditMode::GetSelectedTarget() const
 {
 	// should return mesh bone index

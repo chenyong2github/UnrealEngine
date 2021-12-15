@@ -206,6 +206,11 @@ bool FModifyBoneEditMode::SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode)
 	return false;
 }
 
+bool FModifyBoneEditMode::UsesTransformWidget(UE::Widget::EWidgetMode InWidgetMode) const
+{
+	return FindValidWidgetMode(InWidgetMode) == InWidgetMode;
+}
+
 FName FModifyBoneEditMode::GetSelectedBone() const
 {
 	return GraphNode->Node.BoneToModify.BoneName;
