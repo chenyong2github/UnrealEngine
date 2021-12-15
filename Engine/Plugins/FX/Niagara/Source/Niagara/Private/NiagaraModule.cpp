@@ -552,6 +552,12 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> INiagar
 	return PrecompileDuplicateDelegate.Execute(OwningSystemRequestData, OwningSystem, OwningEmitter, TargetScript, TargetVersion);
 }
 
+TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> INiagaraModule::CacheGraphTraversal(const UObject* Obj, FGuid Version)
+{
+	checkf(GraphTraversalCacheDelegate.IsBound(), TEXT("GraphTraversalCache delegate not bound."));
+	return GraphTraversalCacheDelegate.Execute(Obj, Version);
+}
+
 FDelegateHandle INiagaraModule::RegisterPrecompiler(FOnPrecompile PreCompiler)
 {
 	checkf(PrecompileDelegate.IsBound() == false, TEXT("Only one handler is allowed for the Precompiler delegate"));
@@ -566,6 +572,8 @@ void INiagaraModule::UnregisterPrecompiler(FDelegateHandle DelegateHandle)
 	PrecompileDelegate.Unbind();
 }
 
+
+
 FDelegateHandle INiagaraModule::RegisterPrecompileDuplicator(FOnPrecompileDuplicate PreCompileDuplicator)
 {
 	checkf(PrecompileDuplicateDelegate.IsBound() == false, TEXT("Only one handler is allowed for the PrecompileDuplicator delegate"));
@@ -579,6 +587,23 @@ void INiagaraModule::UnregisterPrecompileDuplicator(FDelegateHandle DelegateHand
 	checkf(PrecompileDuplicateDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the PrecompileDuplicator delegate with the handle it was registered with."));
 	PrecompileDuplicateDelegate.Unbind();
 }
+
+
+FDelegateHandle INiagaraModule::RegisterGraphTraversalCacher(FOnCacheGraphTraversal GraphTraversalCacher)
+{
+	checkf(GraphTraversalCacheDelegate.IsBound() == false, TEXT("Only one handler is allowed for the GraphTraversalCacher delegate"));
+	GraphTraversalCacheDelegate = GraphTraversalCacher;
+	return GraphTraversalCacheDelegate.GetHandle();
+}
+
+void INiagaraModule::UnregisterGraphTraversalCacher(FDelegateHandle DelegateHandle)
+{
+	checkf(GraphTraversalCacheDelegate.IsBound(), TEXT("ObjectGraphTraversalCacher is not registered"));
+	checkf(GraphTraversalCacheDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the GraphTraversalCacher delegate with the handle it was registered with."));
+	GraphTraversalCacheDelegate.Unbind();
+}
+
+
 
 void INiagaraModule::OnAssetLoaded(UObject* Asset)
 {
@@ -876,11 +901,21 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 		InVisitor->UpdateString(TEXT("\tTDName"), InvalidStr);
 	}
 
+	InVisitor->UpdatePOD(TEXT("\tFlags"), Flags);
+
 	return true;
 #else
 	return false;
 #endif
 }
+
+FNiagaraTypeDefinition FNiagaraTypeDefinition::ToStaticDef() const
+{
+	FNiagaraTypeDefinition Def(*this);
+	Def.Flags |= TF_Static;
+	return Def;
+}
+
 
 #if WITH_EDITORONLY_DATA
 bool FNiagaraTypeDefinition::IsInternalType() const
@@ -922,6 +957,12 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(PositionDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(QuatDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(Matrix4Def, ParamFlags);
+
+	// Register static versions
+	ENiagaraTypeRegistryFlags StaticParamFlags = ENiagaraTypeRegistryFlags::AllowSystemVariable | ENiagaraTypeRegistryFlags::AllowEmitterVariable | ENiagaraTypeRegistryFlags::AllowParticleVariable | ENiagaraTypeRegistryFlags::AllowParameter;
+	FNiagaraTypeRegistry::Register(IntDef.ToStaticDef(), StaticParamFlags);
+	FNiagaraTypeRegistry::Register(BoolDef.ToStaticDef(), StaticParamFlags);
+
 	// @todo wildcard shouldn't be available for parameters etc., so just don't register here?
 	//FNiagaraTypeRegistry::Register(WildcardDef, VarFlags);
 
@@ -1040,7 +1081,9 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 					{
 						Flags |= ENiagaraTypeRegistryFlags::AllowPayload;
 					}
-					FNiagaraTypeRegistry::Register(Enum, Flags);
+					FNiagaraTypeDefinition Def(Enum);
+					FNiagaraTypeRegistry::Register(Def, Flags);
+					FNiagaraTypeRegistry::Register(Def.ToStaticDef(), StaticParamFlags);
 				}
 
 				UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
@@ -1064,58 +1107,70 @@ bool FNiagaraTypeDefinition::IsScalarDefinition(const FNiagaraTypeDefinition& Ty
 	return ScalarStructs.Contains(Type.GetScriptStruct()) || (Type.GetScriptStruct() == IntStruct && Type.GetEnum() != nullptr);
 }
 
-bool FNiagaraTypeDefinition::TypesAreAssignable(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB)
+bool FNiagaraTypeDefinition::TypesAreAssignable(const FNiagaraTypeDefinition& TypeInput, const FNiagaraTypeDefinition& TypeOutput)
 {
-	if (const UClass* AClass = TypeA.GetClass())
+	if (const UClass* AClass = TypeInput.GetClass())
 	{
-		if (const UClass* BClass = TypeB.GetClass())
+		if (const UClass* BClass = TypeOutput.GetClass())
 		{
 			return AClass == BClass;
 			return true;
 		}
 	}
 	
-	if (const UClass* BClass = TypeB.GetClass())
+	if (const UClass* BClass = TypeOutput.GetClass())
 	{
 		return false;
 	}
 
-	if (const UClass* AClass = TypeA.GetClass())
+	if (const UClass* AClass = TypeInput.GetClass())
 	{
 		return false;
 	}
 
 	// Make sure that enums are not assignable to enums of different types or just plain ints
-	if (TypeA.GetStruct() == TypeB.GetStruct() &&
-		TypeA.GetEnum() != TypeB.GetEnum())
+	if (TypeInput.GetStruct() == TypeOutput.GetStruct() &&
+		TypeInput.GetEnum() != TypeOutput.GetEnum())
 	{
 		return false;
 	}
 
-	if (TypeA.GetStruct() == TypeB.GetStruct())
+
+	// Static can go to static or static can go to nonstatic, but nonstatic can't go to static
+	if (((!TypeInput.IsStatic() && TypeOutput.IsStatic()) || (TypeInput.IsStatic() && TypeOutput.IsStatic())) && TypeInput.GetStruct() == TypeOutput.GetStruct() && TypeInput.GetEnum() == TypeOutput.GetEnum())
+	{
+		return true;
+	}
+	else if ((TypeInput.IsStatic() || TypeOutput.IsStatic()) && TypeInput.GetStruct() == TypeOutput.GetStruct() && TypeInput.GetEnum() == TypeOutput.GetEnum())
+	{
+		return false;
+	}
+
+	if (TypeInput.GetStruct() == TypeOutput.GetStruct())
 	{
 		return true;
 	}
 
 	bool bIsSupportedConversion = false;
-	if (IsScalarDefinition(TypeA) && IsScalarDefinition(TypeB))
+	if (IsScalarDefinition(TypeInput) && IsScalarDefinition(TypeOutput))
 	{
-		bIsSupportedConversion = (TypeA == IntDef && TypeB == FloatDef) || (TypeB == IntDef && TypeA == FloatDef) || (TypeA == IntDef && TypeB == BoolDef) || (TypeB == IntDef && TypeA == BoolDef);
+		bIsSupportedConversion = (TypeInput == IntDef && TypeOutput == FloatDef) || (TypeOutput == IntDef && TypeInput == FloatDef) || (TypeInput == IntDef && TypeOutput == BoolDef) || (TypeOutput == IntDef && TypeInput == BoolDef);
 	}
 	else
 	{
-		bIsSupportedConversion = (TypeA == ColorDef && TypeB == Vec4Def) || (TypeB == ColorDef && TypeA == Vec4Def);
+		bIsSupportedConversion = (TypeInput == ColorDef && TypeOutput == Vec4Def) || (TypeOutput == ColorDef && TypeInput == Vec4Def);
 	}
 
-if (bIsSupportedConversion)
-{
-	return true;
-}
+	if (bIsSupportedConversion)
+	{
+		return true;
+	}
 
-return	(TypeA == NumericDef && NumericStructs.Contains(TypeB.GetScriptStruct())) ||
-(TypeB == NumericDef && NumericStructs.Contains(TypeA.GetScriptStruct())) ||
-(TypeA == NumericDef && (TypeB.GetStruct() == GetIntStruct()) && TypeB.GetEnum() != nullptr) ||
-(TypeB == NumericDef && (TypeA.GetStruct() == GetIntStruct()) && TypeA.GetEnum() != nullptr);
+
+	return	(TypeInput == NumericDef && NumericStructs.Contains(TypeOutput.GetScriptStruct())) ||
+		(TypeOutput == NumericDef && NumericStructs.Contains(TypeInput.GetScriptStruct())) ||
+		(TypeInput == NumericDef && (TypeOutput.GetStruct() == GetIntStruct()) && TypeOutput.GetEnum() != nullptr) ||
+		(TypeOutput == NumericDef && (TypeInput.GetStruct() == GetIntStruct()) && TypeInput.GetEnum() != nullptr);
 }
 
 bool FNiagaraTypeDefinition::IsLossyConversion(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB)

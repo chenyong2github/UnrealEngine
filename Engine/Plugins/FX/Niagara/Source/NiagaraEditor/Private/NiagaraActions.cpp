@@ -584,11 +584,11 @@ void FNiagaraParameterGraphDragOperation::MakeStaticSwitch(FNiagaraParameterNode
 	SwitchNode->InputParameterName = InParams.Parameter.GetName();
 	const FNiagaraTypeDefinition& Type = InParams.Parameter.GetType();
 	
-	if (Type == FNiagaraTypeDefinition::GetBoolDef())
+	if (Type.IsSameBaseDefinition(FNiagaraTypeDefinition::GetBoolDef()))
 	{
 		SwitchNode->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Bool;
 	}
-	else if (Type == FNiagaraTypeDefinition::GetIntDef())
+	else if (Type.IsSameBaseDefinition(FNiagaraTypeDefinition::GetIntDef()))
 	{
 		SwitchNode->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Integer;
 	}

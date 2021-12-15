@@ -120,7 +120,7 @@ void FNiagaraMatrixCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> 
 	}
 }
 
-TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNiagaraEmitter* InEmitter, bool bSystem, bool bEmitter, bool bParticles, bool bUser)
+TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNiagaraEmitter* InEmitter, bool bSystem, bool bEmitter, bool bParticles, bool bUser, bool bAllowStatic)
 {
 	TArray<FNiagaraVariableBase> Bindings;
 	TArray<FNiagaraParameterMapHistory> Histories;
@@ -150,6 +150,9 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 	{
 		for (const FNiagaraVariable& Var : History.Variables)
 		{
+			if (Var.GetType().IsStatic() && !bAllowStatic)
+				continue;
+
 			if (FNiagaraParameterMapHistory::IsAttribute(Var) && bParticles)
 			{
 				Bindings.AddUnique(Var);
@@ -265,13 +268,19 @@ TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(UNiagaraEm
 	bool bEmitter = true;
 	bool bParticles = true;
 	bool bUser = true;
-	TArray<FNiagaraVariableBase> Vars = FNiagaraStackAssetAction_VarBind::FindVariables(InEmitter, bSystem, bEmitter, bParticles, bUser);
+	bool bAllowStatic = true;
+	TArray<FNiagaraVariableBase> Vars = FNiagaraStackAssetAction_VarBind::FindVariables(InEmitter, bSystem, bEmitter, bParticles, bUser, bAllowStatic);
 	for (const FNiagaraVariableBase& Var : Vars)
 	{
-		if ( Var.GetType() != TargetVariableBinding->GetType() )
+		if (!bAllowStatic && Var.GetType() != TargetVariableBinding->GetType() )
 		{
 			continue;
 		}
+		else if (bAllowStatic && !Var.GetType().IsSameBaseDefinition(TargetVariableBinding->GetType()))
+		{
+			continue;
+		}
+
 		if ( RenderProps && RenderProps->IsSupportedVariableForBinding(Var, *PropertyHandle->GetProperty()->GetName()) )
 		{
 			Names.AddUnique(Var.GetName());
@@ -828,7 +837,8 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 		bool bEmitter = true;
 		bool bParticles = false;
 		bool bUser = true;
-		BaseVars = FNiagaraStackAssetAction_VarBind::FindVariables(BaseEmitter, bSystem, bEmitter, bParticles, bUser);
+		bool bStatic = false;
+		BaseVars = FNiagaraStackAssetAction_VarBind::FindVariables(BaseEmitter, bSystem, bEmitter, bParticles, bUser, bStatic);
 
 		TArray<UNiagaraScript*> Scripts;
 		Scripts.Add(BaseSystem->GetSystemUpdateScript());

@@ -666,6 +666,14 @@ void UNiagaraSystem::PostInitProperties()
 	ResolveScalabilitySettings();
 	UpdateDITickFlags();
 	UpdateHasGPUEmitters();
+
+#if WITH_EDITORONLY_DATA
+	if (SystemSpawnScript && SystemSpawnScript->GetLatestSource() != nullptr)
+	{
+		ensure(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
+		SystemSpawnScript->GetLatestSource()->OnChanged().AddUObject(this, &UNiagaraSystem::GraphSourceChanged);
+	}
+#endif
 }
 
 bool UNiagaraSystem::IsLooping() const
@@ -700,6 +708,15 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 		return;
 	}
 	bFullyLoaded = true;
+
+#if WITH_EDITORONLY_DATA
+	if (SystemSpawnScript)
+	{
+		ensure(SystemSpawnScript->GetLatestSource() != nullptr);
+		ensure(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
+		SystemSpawnScript->GetLatestSource()->OnChanged().AddUObject(this, &UNiagaraSystem::GraphSourceChanged);
+	}
+#endif
 
 	for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
 	{
@@ -890,6 +907,12 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 }
 
 #if WITH_EDITORONLY_DATA
+
+void UNiagaraSystem::GraphSourceChanged()
+{
+	InvalidateCachedData();
+}
+
 bool UNiagaraSystem::UsesScript(const UNiagaraScript* Script) const
 {
 	EnsureFullyLoaded();
@@ -899,7 +922,7 @@ bool UNiagaraSystem::UsesScript(const UNiagaraScript* Script) const
 		return true;
 	}
 
-	for (FNiagaraEmitterHandle EmitterHandle : GetEmitterHandles())
+	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
 	{
 		if (EmitterHandle.GetInstance() && EmitterHandle.GetInstance()->UsesScript(Script))
 		{
@@ -2642,7 +2665,12 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 				}
 
 				const FScriptCompileResultValidationInfo& TestInfo = ScriptCompilesToValidate[TestIndex];
-				if (TestInfo.CompileResults->AttributesWritten.Contains(TestVar))
+				if (TestVar.GetType().IsStatic() && TestInfo.CompileResults->StaticVariablesWritten.Contains(TestVar))
+				{
+					bDependencyMet = true;
+					break;
+				}
+				else if (TestInfo.CompileResults->AttributesWritten.Contains(TestVar))
 				{
 					bDependencyMet = true;
 					break;
@@ -3007,6 +3035,22 @@ void UNiagaraSystem::PrepareRapidIterationParametersForCompilation()
 		}
 	}
 	FNiagaraUtilities::PrepareRapidIterationParameters(Scripts, ScriptDependencyMap, ScriptToEmitterMap);
+}
+
+
+const TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe>& UNiagaraSystem::GetCachedTraversalData() const
+{
+	if (CachedTraversalData.IsValid())
+		return CachedTraversalData;
+
+	INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
+	CachedTraversalData = NiagaraModule.CacheGraphTraversal(this, FGuid());
+	return CachedTraversalData;
+}
+
+void UNiagaraSystem::InvalidateCachedData()
+{
+	CachedTraversalData.Reset();
 }
 
 bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* OptionalUpdateContext)
@@ -3483,6 +3527,54 @@ void UNiagaraSystem::SetEffectType(UNiagaraEffectType* InEffectType)
 		FNiagaraSystemUpdateContext UpdateCtx;
 		UpdateCtx.Add(this, true);
 	}	
+}
+
+
+void UNiagaraSystem::GatherStaticVariables(TArray<FNiagaraVariable>& OutVars, TArray<FNiagaraVariable>& OutEmitterVars) const
+{
+	TArray<UNiagaraScript*> OutScripts;
+	OutScripts.Add(SystemSpawnScript);
+	OutScripts.Add(SystemUpdateScript);
+
+	auto GatherFromScripts = [&](TArray<UNiagaraScript*> Scripts, TArray<FNiagaraVariable>& Vars)
+	{
+		for (UNiagaraScript* Script : Scripts)
+		{
+			TArray<FNiagaraVariable> StoreParams;
+			Script->RapidIterationParameters.GetParameters(StoreParams);
+
+			for (int32 i = 0; i < StoreParams.Num(); i++)
+			{
+				if (StoreParams[i].GetType().IsStatic())
+				{
+					const int32* Index = Script->RapidIterationParameters.FindParameterOffset(StoreParams[i]);
+					if (Index != nullptr)
+					{
+						StoreParams[i].SetData(Script->RapidIterationParameters.GetParameterData(*Index)); // This will memcopy the data in.
+						Vars.AddUnique(StoreParams[i]);
+
+						//UE_LOG(LogNiagara, Log, TEXT("UNiagaraSystem::GatherStaticVariables Added %s"), *StoreParams[i].ToString());
+					}
+				}
+			}
+		}
+	};
+
+	GatherFromScripts(OutScripts, OutVars);
+
+	TArray<UNiagaraScript*> EmitterScripts; 
+	//const TArray<FNiagaraEmitterHandle>& EmitterHandles = GetEmitterHandles();
+	for (int32 i = 0; i < EmitterHandles.Num(); i++)
+	{
+		const FNiagaraEmitterHandle& Handle = EmitterHandles[i];
+		if (Handle.GetInstance() && Handle.GetIsEnabled())
+		{
+			EmitterScripts.Add(Handle.GetInstance()->EmitterSpawnScriptProps.Script);
+			EmitterScripts.Add(Handle.GetInstance()->EmitterUpdateScriptProps.Script);
+		}		
+	}
+
+	GatherFromScripts(EmitterScripts, OutEmitterVars);
 }
 #endif
 

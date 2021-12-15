@@ -1186,20 +1186,27 @@ UNiagaraNodeOutput* UNiagaraGraph::FindEquivalentOutputNode(ENiagaraScriptUsage 
 
 void BuildTraversalHelper(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiagaraNode* CurrentNode, bool bEvaluateStaticSwitches)
 {
-	if (CurrentNode == nullptr || (bEvaluateStaticSwitches && CurrentNode->IsA<UNiagaraNodeStaticSwitch>()))
-	{
-		return;
-	}
-
-	for (UEdGraphPin* Pin : CurrentNode->GetAllPins())
-	{
+	auto VisitPin = [](const UEdGraphPin* Pin, TArray<class UNiagaraNode*>& OutNodesTraversed, bool bEvaluateStaticSwitches) {
 		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && Pin->LinkedTo.Num() > 0)
 		{
 			for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
 			{
-				UEdGraphPin* TracedPin = bEvaluateStaticSwitches ? UNiagaraNode::TraceOutputPin(LinkedPin) : LinkedPin;
+				bool bFilterForCompilation = true;
+				TArray<const UNiagaraNode*> NodesVisitedDuringTrace;
+
+				UEdGraphPin* TracedPin = bEvaluateStaticSwitches ? UNiagaraNode::TraceOutputPin(LinkedPin, bFilterForCompilation,  &NodesVisitedDuringTrace) : LinkedPin;
 				if (TracedPin != nullptr)
 				{
+					// Deal with static switches driven by a pin...
+					for (const UNiagaraNode* VisitedNode : NodesVisitedDuringTrace)
+					{
+						if (OutNodesTraversed.Contains(VisitedNode))
+						{
+							continue;
+						}
+						BuildTraversalHelper(OutNodesTraversed, (UNiagaraNode * )VisitedNode, bEvaluateStaticSwitches);
+					}
+
 					UNiagaraNode* Node = Cast<UNiagaraNode>(TracedPin->GetOwningNode());
 					if (OutNodesTraversed.Contains(Node))
 					{
@@ -1209,6 +1216,33 @@ void BuildTraversalHelper(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiaga
 				}
 			}
 		}
+	};
+
+
+	if (CurrentNode == nullptr)
+	{
+		return;
+	}
+
+	if (bEvaluateStaticSwitches)
+	{
+		UNiagaraNodeStaticSwitch* StaticSwitch = Cast< UNiagaraNodeStaticSwitch>(CurrentNode);
+		if (StaticSwitch && StaticSwitch->IsSetByPin())
+		{
+			// The selector pin is never traversed directly below by the TracedPin route, so we explicitly visit it here.
+			UEdGraphPin* Pin = StaticSwitch->GetSelectorPin();
+			if (Pin)
+				VisitPin(Pin, OutNodesTraversed, bEvaluateStaticSwitches);
+		}
+		else if (StaticSwitch)
+		{
+			return;
+		}
+	}
+
+	for (UEdGraphPin* Pin : CurrentNode->GetAllPins())
+	{
+		VisitPin(Pin, OutNodesTraversed, bEvaluateStaticSwitches);
 	}
 
 	OutNodesTraversed.Add(CurrentNode);
@@ -1322,7 +1356,7 @@ TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOn
 	for (UEdGraphNode* Node : NodesToProcess)
 	{
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
-		if (SwitchNode && !SwitchNode->IsSetByCompiler())
+		if (SwitchNode && !SwitchNode->IsSetByCompiler() && !SwitchNode->IsSetByPin())
 		{
 			FNiagaraVariable Variable(SwitchNode->GetInputType(), SwitchNode->InputParameterName);
 			Result.AddUnique(Variable);
@@ -2718,13 +2752,16 @@ void UNiagaraGraph::ResolveNumerics(TMap<UNiagaraNode*, bool>& VisitedNodes, UEd
 			{
 				for (int32 j = 0; j < InputPins[i]->LinkedTo.Num(); j++)
 				{
-					UNiagaraNode* FoundNode = Cast<UNiagaraNode>(InputPins[i]->LinkedTo[j]->GetOwningNode());
-					if (!FoundNode || VisitedNodes.Contains(FoundNode))
+					if (InputPins[i]->LinkedTo[j])
 					{
-						continue;
+						UNiagaraNode* FoundNode = Cast<UNiagaraNode>(InputPins[i]->LinkedTo[j]->GetOwningNode());
+						if (!FoundNode || VisitedNodes.Contains(FoundNode))
+						{
+							continue;
+						}
+						VisitedNodes.Add(FoundNode, true);
+						ResolveNumerics(VisitedNodes, FoundNode);
 					}
-					VisitedNodes.Add(FoundNode, true);
-					ResolveNumerics(VisitedNodes, FoundNode);
 				}
 			}
 		}
@@ -2961,7 +2998,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		}
 
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
-		if (SwitchNode && !SwitchNode->IsSetByCompiler())
+		if (SwitchNode && !SwitchNode->IsSetByCompiler() && !SwitchNode->IsSetByPin())
 		{
 			FNiagaraVariable Variable(SwitchNode->GetInputType(), SwitchNode->InputParameterName);
 			AddStaticParameterReference(Variable, SwitchNode);

@@ -316,6 +316,11 @@ bool FNiagaraScriptInputCollectionViewModel::SupportsType(const FNiagaraTypeDefi
 		return false;
 	}
 
+	if (Type.IsStatic())
+	{
+		return true;
+	}
+
 	if (Type.IsInternalType())
 	{
 		return false;

@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "NiagaraModule.h"
+#include "NiagaraScript.h"
 #include "NiagaraEmitterHandle.generated.h"
 
 class UNiagaraSystem;
@@ -107,6 +108,7 @@ private:
 
 	UPROPERTY(Transient)
 	bool bIsolated;
+
 #endif
 
 	/** The copied instance of the emitter this handle references. */

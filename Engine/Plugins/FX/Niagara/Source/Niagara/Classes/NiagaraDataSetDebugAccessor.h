@@ -29,7 +29,7 @@ struct FNiagaraDataSetDebugAccessor
 		}
 		else if (IsInt())
 		{
-			if (NiagaraType == FNiagaraTypeDefinition::GetBoolDef())
+			if (NiagaraType.IsSameBaseDefinition(FNiagaraTypeDefinition::GetBoolDef()))
 			{
 				const TCHAR* TrueText = TEXT("true");
 				const TCHAR* FalseText = TEXT("false");

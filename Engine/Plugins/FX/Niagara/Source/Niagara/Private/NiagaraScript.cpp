@@ -86,6 +86,14 @@ static FAutoConsoleVariableRef CVarNiagaraDelayScriptAsyncOptimization(
 	ECVF_Default
 );
 
+int32 UNiagaraScript::LogCompileStaticVars =0;
+static FAutoConsoleVariableRef CVarLogCompileIdGeneration(
+	TEXT("fx.LogCompileStaticVars"),
+	UNiagaraScript::LogCompileStaticVars,
+	TEXT("If > 0 all compile id generation dealing with static variables will be logged.  \n"),
+	ECVF_Default
+);
+
 FNiagaraScriptDebuggerInfo::FNiagaraScriptDebuggerInfo() : bWaitForGPU(false), FrameLastWriteId(-1), bWritten(false)
 {
 }
@@ -800,15 +808,25 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 	Id.bRequiresPersistentIDs = false;
 	Id.ScriptVersionID = IsVersioningEnabled() ? (VersionGuid.IsValid() ? VersionGuid : ExposedVersion) : FGuid();
 	
+	TArray<FNiagaraVariable> ReferencedStaticVars;
+	TArray<const uint8*> ReferencedStaticVarValues;
 	ENiagaraSimTarget SimTargetToBuild = ENiagaraSimTarget::CPUSim;
 	// Ideally we wouldn't want to do this but rather than push the data down
 	// from the emitter.  Checking all outers here to pick up simulation stages too.
 	UNiagaraEmitter* OuterEmitter = GetTypedOuter<UNiagaraEmitter>();
+	int32 SystemSpawnIdx = INDEX_NONE;
+	int32 SystemUpdateIdx = INDEX_NONE;
+	TArray<UNiagaraScript*> Scripts;
+
 	if (OuterEmitter != nullptr)
 	{
 		UNiagaraEmitter* Emitter = OuterEmitter;
+
 		if (UNiagaraSystem* EmitterOwner = Cast<UNiagaraSystem>(Emitter->GetOuter()))
 		{
+			SystemSpawnIdx = Scripts.Add(EmitterOwner->GetSystemSpawnScript());
+			SystemUpdateIdx = Scripts.Add(EmitterOwner->GetSystemUpdateScript());
+
 			if (EmitterOwner->bBakeOutRapidIteration)
 			{
 				Id.bUsesRapidIterationParams = false;
@@ -916,6 +934,9 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			ComputeVMCompilationId_EmitterShared(Id, Emitter, EmitterOwner, ENiagaraRendererSourceDataMode::Particles);
 		}
 
+		// Gather up the scripts we will use to iterate for static rapid iteration vars later...
+		Emitter->GetScripts(Scripts, false, true);
+
 		if ((Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript) ||
 			(Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleSpawnScript) ||
 			Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated)
@@ -985,6 +1006,9 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 	UObject* Obj = GetOuter();
 	if (UNiagaraSystem* System = Cast<UNiagaraSystem>(Obj))
 	{
+		SystemSpawnIdx = Scripts.Add(System->GetSystemSpawnScript());
+		SystemUpdateIdx = Scripts.Add(System->GetSystemUpdateScript());
+
 		if (System->bBakeOutRapidIteration)
 		{
 			Id.bUsesRapidIterationParams = false;
@@ -1030,33 +1054,106 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 	}
 
 
+	for (int32 ScriptIdx = 0; ScriptIdx < Scripts.Num(); ScriptIdx++)
+	{
+		UNiagaraScript* Script = Scripts[ScriptIdx];
+		TArray<FNiagaraVariable> Vars;
+		Script->RapidIterationParameters.GetParameters(Vars);		
+		bool bIsThisEmitterUsage = UNiagaraScript::IsEmitterScript(Usage);
+		bool bIsThisParticleUsage = UNiagaraScript::IsParticleScript(Usage);
+	
+		bool bIsOtherSystemUsage = UNiagaraScript::IsSystemScript(Script->Usage);
+		bool bIsOtherParticleUsage = UNiagaraScript::IsParticleScript(Script->Usage);
+		bool bIsOtherEmitterUsage = UNiagaraScript::IsEmitterScript(Script->Usage);
+
+		// Emitter scripts don't depend on static variables from particle scripts.
+		if (bIsThisEmitterUsage && bIsOtherParticleUsage)
+			continue;
+
+		for (const FNiagaraVariable& Var : Vars)
+		{
+			if (Var.GetType().IsStatic())
+			{
+				if ((bIsThisEmitterUsage || bIsThisParticleUsage) && bIsOtherSystemUsage)
+				{
+					TArray<FString> SplitName;
+					Var.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
+
+					// Only include System based rapid iteration static variables if we're an emitter/particle script as system scripts can contain the amalgam of 
+					// it's own and any child emitter script rapid iteration variables.
+					if (SplitName.Num() == 3)
+					{
+						//Constants.Module.Variable input, this would match up for system inputs to modules that could produce new outputs that are static.
+					}
+					else if (SplitName.Num() > 3 && SplitName[SplitName.Num()-2] == TEXT("System"))
+					{
+						// Example: Constants.SetVariables_C872846946BD27D8655B60892D599F11.System.New bool
+					}
+					else
+					{
+						continue;
+					}
+				}
+				ReferencedStaticVars.Add(Var);
+				ReferencedStaticVarValues.Add(Script->RapidIterationParameters.GetParameterData(Var));
+			}
+		}
+	}
+
 	// If we aren't using rapid iteration parameters, we need to bake them into the hashstate for the compile id. This
 	// makes their values part of the lookup.
-	if (false == Id.bUsesRapidIterationParams)
+	
 	{
 		FSHA1 HashState;
-		TArray<FNiagaraVariable> Vars;
-		RapidIterationParameters.GetParameters(Vars);
-		//UE_LOG(LogNiagara, Display, TEXT("AreScriptAndSourceSynchronized %s ======================== "), *GetFullName());
-		for (int32 i = 0; i < Vars.Num(); i++)
+		if (false == Id.bUsesRapidIterationParams)
 		{
-			if (Vars[i].IsDataInterface() || Vars[i].IsUObject())
+			TArray<FNiagaraVariable> Vars;
+			RapidIterationParameters.GetParameters(Vars);
+			//UE_LOG(LogNiagara, Display, TEXT("AreScriptAndSourceSynchronized %s ======================== "), *GetFullName());
+			for (int32 i = 0; i < Vars.Num(); i++)
 			{
-				// Skip these types as they don't bake out, just normal parameters get baked.
-			}
-			else
-			{
-				// Hash the name, type, and value of each parameter..
-				FString VarName = Vars[i].GetName().ToString();
-				FString VarTypeName = Vars[i].GetType().GetName();
-				HashState.UpdateWithString(*VarName, VarName.Len());
-				HashState.UpdateWithString(*VarTypeName, VarTypeName.Len());
-				const uint8* VarData = RapidIterationParameters.GetParameterData(Vars[i]);
-				if (VarData)
+				if (Vars[i].IsDataInterface() || Vars[i].IsUObject())
 				{
-					//UE_LOG(LogNiagara, Display, TEXT("Param %s %s %s"), *VarTypeName, *VarName, *ByteStr);
-					HashState.Update(VarData, Vars[i].GetType().GetSize());
+					// Skip these types as they don't bake out, just normal parameters get baked.
 				}
+				else
+				{
+					// Hash the name, type, and value of each parameter..
+					FString VarName = Vars[i].GetName().ToString();
+					FString VarTypeName = Vars[i].GetType().GetName();
+					HashState.UpdateWithString(*VarName, VarName.Len());
+					HashState.UpdateWithString(*VarTypeName, VarTypeName.Len());
+					const uint8* VarData = RapidIterationParameters.GetParameterData(Vars[i]);
+					if (VarData)
+					{
+						//UE_LOG(LogNiagara, Display, TEXT("Param %s %s %d"), *VarTypeName, *VarName, (uint32)VarData[0]);
+						HashState.Update(VarData, Vars[i].GetType().GetSize());
+					}
+				}
+			}
+		}
+
+		for (int32 i = 0; i < ReferencedStaticVars.Num(); i++)
+		{
+			if (i == 0 && UNiagaraScript::LogCompileStaticVars > 0)
+			{
+				UE_LOG(LogNiagara, Display, TEXT("***** Referenced Static Vars %d %s"), (int32)Usage, *GetPathName());
+			}
+
+			// Hash the name, type, and value of each parameter..
+			FString VarName = ReferencedStaticVars[i].GetName().ToString();
+			FString VarTypeName = ReferencedStaticVars[i].GetType().GetName();
+			HashState.UpdateWithString(*VarName, VarName.Len());
+			HashState.UpdateWithString(*VarTypeName, VarTypeName.Len());
+			const uint8* VarData = ReferencedStaticVarValues[i];
+
+			if (VarData)
+			{
+				if (UNiagaraScript::LogCompileStaticVars > 0)
+				{
+					UE_LOG(LogNiagara, Display, TEXT("Param %s %s %d"), *VarTypeName, *VarName, (uint32)VarData[0]);
+				}
+				HashState.Update(VarData, ReferencedStaticVars[i].GetType().GetSize());
 			}
 		}
 		HashState.Final();
@@ -2924,6 +3021,7 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 		RapidIterationParameters.GetParameters(Params);
 		for (FNiagaraVariable Var : Params)
 		{
+
 			FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
 			if (NewVar.GetName() != Var.GetName())
 			{

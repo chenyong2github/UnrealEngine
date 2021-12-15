@@ -17,6 +17,9 @@ public:
 	UPROPERTY()
 	TArray<FGuid> OutputVarGuids;
 
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	FGuid SelectorGuid;
+
 	UPROPERTY()
 	int32 NumOptionsPerVariable = 0;
 	

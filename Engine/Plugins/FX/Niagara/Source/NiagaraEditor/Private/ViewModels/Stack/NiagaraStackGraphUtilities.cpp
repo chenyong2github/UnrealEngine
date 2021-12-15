@@ -763,7 +763,27 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(UNiagara
 	FNiagaraParameterMapHistoryBuilder Builder;
 	Builder.SetIgnoreDisabled(bIgnoreDisabled);
 	Builder.ConstantResolver = ConstantResolver;
-	
+
+	UNiagaraEmitter* Emitter = FunctionCallNode.GetTypedOuter<UNiagaraEmitter>();
+	UNiagaraSystem* System = FunctionCallNode.GetTypedOuter<UNiagaraSystem>();
+
+	TArray<FNiagaraVariable> StaticVars;
+	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalData;
+	if (Emitter)
+	{
+		CachedTraversalData = Emitter->GetCachedTraversalData();
+	}
+	else if (System)
+	{
+		CachedTraversalData = System->GetCachedTraversalData();
+	}
+	if (CachedTraversalData.IsValid())
+	{
+		CachedTraversalData.Get()->GetStaticVariables(StaticVars);
+	}
+
+	Builder.RegisterExternalStaticVariables(StaticVars);
+
 	FunctionCallNode.BuildParameterMapHistory(Builder, false, false);
 	
 	if (Builder.Histories.Num() == 1)
@@ -773,6 +793,8 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(UNiagara
 		FNiagaraParameterMapHistoryBuilder BuilderCompiled;
 		BuilderCompiled.ConstantResolver = ConstantResolver;
 		BuilderCompiled.SetIgnoreDisabled(bIgnoreDisabled);
+		BuilderCompiled.RegisterExternalStaticVariables(StaticVars);
+
 		FunctionCallNode.BuildParameterMapHistory(BuilderCompiled, false, true);
 		TArray<const UEdGraphPin*> CompilationPins;
 		if (BuilderCompiled.Histories.Num() == 1)
@@ -780,6 +802,8 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(UNiagara
 			ExtractInputPinsFromHistory(BuilderCompiled.Histories[0], FunctionCallNode.GetCalledGraph(), Options, CompilationPins);
 		}
 
+		//UE_LOG(LogNiagaraEditor, Log, TEXT("OutInputPins:"));
+		int32 Idx = 0;
 		for (const UEdGraphPin* Pin : OutInputPins)
 		{
 			bool bFoundPin = false;
@@ -796,6 +820,9 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(UNiagara
 			{
 				OutHiddenPins.Add(Pin);
 			}
+
+			//UE_LOG(LogNiagaraEditor, Log, TEXT("[%d]:%s %s"), Idx, *Pin->PinName.ToString(), bFoundPin ? TEXT("") : TEXT("HIDDEN"));
+			++Idx;
 		}
 	}
 }
@@ -1782,7 +1809,9 @@ void GetFunctionNamesForOutputNode(UNiagaraNodeOutput& OutputNode, TArray<FStrin
 bool FNiagaraStackGraphUtilities::IsRapidIterationType(const FNiagaraTypeDefinition& InputType)
 {
 	checkf(InputType.IsValid(), TEXT("Type is invalid."));
-	return InputType != FNiagaraTypeDefinition::GetBoolDef() && !InputType.IsEnum() &&
+	if (InputType.IsStatic())
+		return true;
+	return InputType != FNiagaraTypeDefinition::GetBoolDef() && (!InputType.IsEnum()) &&
 		InputType != FNiagaraTypeDefinition::GetParameterMapDef() && !InputType.IsUObject();
 }
 

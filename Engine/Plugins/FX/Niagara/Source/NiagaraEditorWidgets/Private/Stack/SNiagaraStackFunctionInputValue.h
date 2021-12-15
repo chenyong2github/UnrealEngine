@@ -134,6 +134,14 @@ private:
 
 	FSlateColor GetInputIconColor() const;
 
+	EVisibility GetTypeModifierIconVisibility() const;
+
+	FText GetTypeModifierIconText() const;
+
+	FText GetTypeModifierIconToolTip() const;
+
+	FSlateColor GetTypeModifierIconColor() const;
+
 	FReply OnFunctionInputDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 
 	bool OnFunctionInputAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);

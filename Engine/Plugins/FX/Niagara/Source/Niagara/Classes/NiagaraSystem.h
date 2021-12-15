@@ -708,6 +708,9 @@ public:
 
 	FORCEINLINE bool GetOverrideScalabilitySettings()const { return bOverrideScalabilitySettings; }
 	FORCEINLINE void SetOverrideScalabilitySettings(bool bOverride) { bOverrideScalabilitySettings = bOverride; }
+
+
+	void GatherStaticVariables(TArray<FNiagaraVariable>& OutVars, TArray<FNiagaraVariable>& OutEmitterVars) const;
 #endif
 	UNiagaraEffectType* GetEffectType()const;
 	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings()const { return CurrentScalabilitySettings; }
@@ -745,10 +748,17 @@ public:
 	UNiagaraBakerSettings* GetBakerSettings();
 	const UNiagaraBakerSettings* GetBakerGeneratedSettings() const { return BakerGeneratedSettings; }
 	void SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings) { BakerGeneratedSettings = Settings; }
+
+
+	/** Get the cached parameter map traversal for this emitter.  */
+	const TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe>& GetCachedTraversalData() const;
+	void InvalidateCachedData();
+	void GraphSourceChanged();
 #endif
 
 private:
 #if WITH_EDITORONLY_DATA
+
 
 	/** Since the shader compilation is done in another process, this is used to check if the result for any ongoing compilations is done.
 	*   If bWait is true then this *blocks* the game thread (and ui) until all shader compilations are finished.
@@ -774,6 +784,7 @@ private:
 	/** Helper for filling in attribute datasets per emitter. */
 	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const UNiagaraEmitter* InAssociatedEmitter, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
 	void PrepareRapidIterationParametersForCompilation();
+
 #endif
 
 	void ResolveScalabilitySettings();
@@ -814,6 +825,8 @@ protected:
 
 	UPROPERTY(Transient)
 	TArray<FNiagaraSystemCompileRequest> ActiveCompilations;
+
+	mutable TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalData;
 #endif
 
 	/** The script which defines the System parameters, and which generates the bindings from System

@@ -1083,6 +1083,10 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, TAr
 			{
 				SwitchNode->SetSwitchValue(ConstantResolver);
 			}
+			else if (SwitchNode->IsSetByPin())
+			{
+				SwitchNode->SetSwitchValue(ConstantResolver);
+			}
 			else
 			{
 				FEdGraphPinType VarType = Schema->TypeDefinitionToPinType(SwitchNode->GetInputType());
@@ -1168,7 +1172,7 @@ bool FNiagaraEditorUtilities::ResolveConstantValue(UEdGraphPin* Pin, int32& Valu
 
 TSharedPtr<FStructOnScope> FNiagaraEditorUtilities::StaticSwitchDefaultIntToStructOnScope(int32 InStaticSwitchDefaultValue, FNiagaraTypeDefinition InSwitchType)
 {
-	if (InSwitchType == FNiagaraTypeDefinition::GetBoolDef())
+	if (InSwitchType.IsSameBaseDefinition(FNiagaraTypeDefinition::GetBoolDef()))
 	{
 		checkf(FNiagaraBool::StaticStruct()->GetStructureSize() == InSwitchType.GetSize(), TEXT("Value to type def size mismatch."));
 
@@ -1180,7 +1184,7 @@ TSharedPtr<FStructOnScope> FNiagaraEditorUtilities::StaticSwitchDefaultIntToStru
 
 		return StructValue;
 	}
-	else if (InSwitchType == FNiagaraTypeDefinition::GetIntDef() || InSwitchType.IsEnum())
+	else if (InSwitchType.IsSameBaseDefinition(FNiagaraTypeDefinition::GetIntDef()) || InSwitchType.IsEnum())
 	{
 		checkf(FNiagaraInt32::StaticStruct()->GetStructureSize() == InSwitchType.GetSize(), TEXT("Value to type def size mismatch."));
 
@@ -2012,7 +2016,7 @@ TArray<UNiagaraComponent*> FNiagaraEditorUtilities::GetComponentsThatReferenceSy
 		UNiagaraComponent* Component = *ComponentIt;
 		if (Component && Component->GetAsset())
 		{
-			for (auto EmitterHandle : ReferencedSystemViewModel.GetSystem().GetEmitterHandles())
+			for (const auto& EmitterHandle : ReferencedSystemViewModel.GetSystem().GetEmitterHandles())
 			{
 				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetInstance()->GetParent()))
 				{
@@ -3509,6 +3513,37 @@ bool FNiagaraParameterUtilities::TestCanRenameWithMessage(FName ParameterName, F
 		}
 	}
 	return false;
+}
+
+void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(const TArray<FNiagaraVariable>& InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased)
+{
+	FNiagaraAliasContext RenameContext(ENiagaraScriptUsage::ParticleSpawnScript);
+	RenameContext.ChangeEmitterName(InOldEmitterAlias.ToString(), InNewEmitterAlias.ToString());
+
+	for (const FNiagaraVariable& InVar : InVars)
+	{
+		if (InVar.GetType().IsStatic())
+		{
+			if (bFilterByEmitterAliasAndConvertToUnaliased)
+			{
+				FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(InVar, RenameContext);
+
+				if (NewVar.GetName() != InVar.GetName())
+				{
+					NewVar.SetData(InVar.GetData());
+					OutVars.AddUnique(NewVar);
+				}
+				else
+				{
+					OutVars.AddUnique(InVar);
+				}
+			}
+			else
+			{
+				OutVars.AddUnique(InVar);
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

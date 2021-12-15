@@ -90,6 +90,7 @@ struct FNiagaraPosition : public FVector3f
 #endif
 };
 
+
 USTRUCT(meta = (DisplayName = "Half", NiagaraInternalType = "true"))
 struct FNiagaraHalf
 {
@@ -786,11 +787,17 @@ struct NIAGARA_API FNiagaraTypeDefinition
 		UT_Enum
 	};
 
+	enum FTypeFlags
+	{
+		TF_None = 0,
+		TF_Static
+	};
+
 public:
 
 	// Construct blank raw type definition 
 	FORCEINLINE FNiagaraTypeDefinition(UClass *ClassDef)
-		: ClassStructOrEnum(ClassDef), UnderlyingType(UT_Class), Size(INDEX_NONE), Alignment(INDEX_NONE)
+		: ClassStructOrEnum(ClassDef), UnderlyingType(UT_Class), Flags(TF_None), Size(INDEX_NONE), Alignment(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
@@ -799,7 +806,7 @@ public:
 	}
 
 	FORCEINLINE FNiagaraTypeDefinition(UEnum *EnumDef)
-		: ClassStructOrEnum(EnumDef), UnderlyingType(UT_Enum), Size(INDEX_NONE), Alignment(INDEX_NONE)
+		: ClassStructOrEnum(EnumDef), UnderlyingType(UT_Enum), Flags(TF_None), Size(INDEX_NONE), Alignment(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
@@ -809,7 +816,7 @@ public:
 
 	enum class EAllowUnfriendlyStruct : uint8 { Deny, Allow };
 	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct* StructDef, EAllowUnfriendlyStruct AllowUnfriendlyStruct)
-		: ClassStructOrEnum(StructDef), UnderlyingType(UT_Struct), Size(INDEX_NONE), Alignment(INDEX_NONE)
+		: ClassStructOrEnum(StructDef), UnderlyingType(UT_Struct), Flags(TF_None), Size(INDEX_NONE), Alignment(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
@@ -820,7 +827,7 @@ public:
 	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct* StructDef) : FNiagaraTypeDefinition(StructDef, EAllowUnfriendlyStruct::Deny) {}
 
 	FORCEINLINE FNiagaraTypeDefinition(const FNiagaraTypeDefinition &Other)
-		: ClassStructOrEnum(Other.ClassStructOrEnum), UnderlyingType(Other.UnderlyingType), Size(INDEX_NONE), Alignment(INDEX_NONE)
+		: ClassStructOrEnum(Other.ClassStructOrEnum), UnderlyingType(Other.UnderlyingType), Flags(Other.Flags), Size(INDEX_NONE), Alignment(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
@@ -829,7 +836,7 @@ public:
 
 	// Construct a blank raw type definition
 	FORCEINLINE FNiagaraTypeDefinition()
-		: ClassStructOrEnum(nullptr), UnderlyingType(UT_None), Size(INDEX_NONE), Alignment(INDEX_NONE)
+		: ClassStructOrEnum(nullptr), UnderlyingType(UT_None), Flags(TF_None), Size(INDEX_NONE), Alignment(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
@@ -842,6 +849,11 @@ public:
 
 	FORCEINLINE bool operator == (const FNiagaraTypeDefinition &Other) const
 	{
+		return ClassStructOrEnum == Other.ClassStructOrEnum && UnderlyingType == Other.UnderlyingType && Flags == Other.Flags;
+	}
+
+	FORCEINLINE bool IsSameBaseDefinition(const FNiagaraTypeDefinition& Other) const
+	{
 		return ClassStructOrEnum == Other.ClassStructOrEnum && UnderlyingType == Other.UnderlyingType;
 	}
 
@@ -852,13 +864,32 @@ public:
 			return NSLOCTEXT("NiagaraTypeDefinition", "InvalidNameText", "Invalid (null type)");
 		}
 
+		FText NameText;
 #if WITH_EDITOR
 		if ( UnderlyingType != UT_Enum )
 		{
-			return GetStruct()->GetDisplayNameText();
+			NameText = GetStruct()->GetDisplayNameText();
 		}
+		else
 #endif
-		return FText::FromString(ClassStructOrEnum->GetName());
+		{
+			NameText = FText::FromString(ClassStructOrEnum->GetName());
+		}
+
+		if (Flags != 0)
+		{
+			if (IsStatic())
+			{
+				NameText = FText::Format(NSLOCTEXT("NiagaraTypeDefinition", "FlagFormatNameText", "Static {0}"), NameText);
+			}
+			else
+			{
+				NameText = FText::Format(NSLOCTEXT("NiagaraTypeDefinition", "UnknownNameText", "Unknown Flag Type {0}"), NameText);
+			}
+		}
+		
+		return NameText;
+		
 	}
 
 	FName GetFName() const
@@ -909,7 +940,21 @@ public:
 
 	bool IsEnum() const { return UnderlyingType == UT_Enum; }
 
+	bool IsStatic() const {
+		return (GetFlags() & TF_Static) != 0;
+	}
+
+	void SetFlags(FTypeFlags InFlags)
+	{
+		Flags = InFlags;
+	}
+
+	uint32 GetFlags()const { return Flags; }
+	
+
 	bool IsIndexWildcard() const { return ClassStructOrEnum == FNiagaraTypeDefinition::GetWildcardStruct(); }
+
+	FNiagaraTypeDefinition ToStaticDef() const;
 	
 	int32 GetSize() const
 	{
@@ -982,6 +1027,9 @@ public:
 	void PostSerialize(const FArchive& Ar);
 
 private:
+	UPROPERTY(EditAnywhere, Category = Type)
+	uint8 Flags;
+
 	mutable int16 Size;
 	mutable int16 Alignment;
 
@@ -1193,7 +1241,9 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraTypeDefinition& Type)
 {
-	return HashCombine(GetTypeHash(Type.GetStruct()), GetTypeHash(Type.GetEnum()));
+	uint32 Result= HashCombine(GetTypeHash(Type.GetStruct()), GetTypeHash(Type.GetEnum()));
+	Result = HashCombine(Result, GetTypeHash(Type.GetFlags()));
+	return Result;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1382,6 +1432,20 @@ public:
 		}
 	}
 
+	static bool IsStaticPossible(const FNiagaraTypeDefinition& InSrc) 
+	{
+		if (InSrc.IsStatic())
+			return true;
+
+		for (const FNiagaraTypeDefinition& TypeDef : Get().RegisteredTypes)
+		{
+			if (InSrc.IsSameBaseDefinition(TypeDef) && TypeDef.IsStatic())
+				return true;
+		}
+
+		return false;
+	}
+
 	static int32 RegisterIndexed(const FNiagaraTypeDefinition& NewType)
 	{
 		FNiagaraTypeRegistry& Registry = Get();
@@ -1446,6 +1510,11 @@ struct FNiagaraTypeDefinitionHandle
 	bool operator!=(const FNiagaraTypeDefinitionHandle& Other) const
 	{
 		return RegisteredTypeIndex != Other.RegisteredTypeIndex;
+	}
+
+	bool IsSameBase(const FNiagaraTypeDefinition& Other) const
+	{
+		return Resolve().IsSameBaseDefinition(Other);
 	}
 
 	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
@@ -1812,7 +1881,7 @@ struct TStructOpsTypeTraits<FNiagaraVariable> : public TStructOpsTypeTraitsBase2
 template<>
 inline bool FNiagaraVariable::GetValue<bool>() const
 {
-	check(*TypeDefHandle == FNiagaraTypeDefinition::GetBoolDef());
+	check(TypeDefHandle.IsSameBase(FNiagaraTypeDefinition::GetBoolDef()));
 	check(IsDataAllocated());
 	FNiagaraBool* BoolStruct = (FNiagaraBool*)GetData();
 	return BoolStruct->GetValue();
@@ -1821,7 +1890,7 @@ inline bool FNiagaraVariable::GetValue<bool>() const
 template<>
 inline void FNiagaraVariable::SetValue<bool>(const bool& Data)
 {
-	check(*TypeDefHandle == FNiagaraTypeDefinition::GetBoolDef());
+	check(TypeDefHandle.IsSameBase(FNiagaraTypeDefinition::GetBoolDef()));
 	AllocateData();
 	FNiagaraBool* BoolStruct = (FNiagaraBool*)GetData();
 	BoolStruct->SetValue(Data);

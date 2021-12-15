@@ -10,7 +10,7 @@
 #define LOCTEXT_NAMESPACE "NiagaraNodeOp"
 
 UNiagaraNodeOp::UNiagaraNodeOp(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	: Super(ObjectInitializer), bAllStatic(false)
 {
 }
 
@@ -62,6 +62,7 @@ void UNiagaraNodeOp::AllocateDefaultPins()
 	{
 		CreateAddPin(EGPD_Input);
 	}
+
 }
 
 FText UNiagaraNodeOp::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -71,6 +72,14 @@ FText UNiagaraNodeOp::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	{
 		FString Strn = "Unknown";
 		return FText::FromString(Strn);
+	}
+
+	if (OpInfo && OpInfo->StaticVariableResolveFunction.IsBound() && OpInfo->bSupportsStaticResolution && bAllStatic)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("OpName"), OpInfo->FriendlyName);
+		FText Format = LOCTEXT("OpNodeNameStatic", "{OpName} (Static)");
+		return FText::Format(Format, Args);
 	}
 	return OpInfo->FriendlyName;
 }
@@ -83,6 +92,14 @@ FText UNiagaraNodeOp::GetTooltipText()const
 		FString Strn = "Unknown";
 		return FText::FromString(Strn);
 	}
+
+	if (OpInfo && OpInfo->StaticVariableResolveFunction.IsBound() && OpInfo->bSupportsStaticResolution && bAllStatic)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("OpDesc"), OpInfo->Description);
+		FText Format = LOCTEXT("OpNodeDescStatic", "{OpDesc}\r\n(To convert into a static version, connect all input pins to other static pins.)");
+		return FText::Format(Format, Args);
+	}
 	return OpInfo->Description;
 }
 
@@ -90,6 +107,30 @@ FLinearColor UNiagaraNodeOp::GetNodeTitleColor() const
 {
 	return GetDefault<UGraphEditorSettings>()->FunctionCallNodeTitleColor;
 }
+
+void UNiagaraNodeOp::OnPostSynchronizationInReallocatePins() 
+{
+	FPinCollectorArray InputPins;
+	GetInputPins(InputPins);
+
+	bool bOutputPinsNeedUpdate = false;
+	for (int32 i = 0; i < InputPins.Num(); ++i)
+	{
+		UEdGraphPin* Pin = InputPins[i];
+
+		FEdGraphPinType StartType = Pin->PinType;
+		HandleStaticInputPinUpgrade(Pin);
+
+		// Type was changed... now make sure that we can fix up the output pin.
+		if (StartType != Pin->PinType)
+		{
+			bOutputPinsNeedUpdate = true;
+		}
+	}
+
+	HandleStaticOutputPinUpgrade();		
+}
+
 
 void UNiagaraNodeOp::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {
@@ -208,6 +249,7 @@ void UNiagaraNodeOp::PostLoad()
 	}
 }
 
+
 bool UNiagaraNodeOp::RefreshFromExternalChanges()
 {
 	// TODO - Leverage code in reallocate pins to determine if any pins have changed...
@@ -258,7 +300,15 @@ bool UNiagaraNodeOp::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InT
 	{
 		return true;
 	}
-	return OpInfo->AddedInputTypeRestrictions.Contains(InType);
+
+	auto FindPredicate = [=](const FNiagaraTypeDefinition& PinType)
+	{
+		if (bAllStatic)
+			return PinType.ToStaticDef() == InType;
+		else 
+			return PinType == InType;
+	};
+	return OpInfo->AddedInputTypeRestrictions.IndexOfByPredicate(FindPredicate) != INDEX_NONE;
 }
 
 void UNiagaraNodeOp::OnPinRemoved(UEdGraphPin* PinToRemove)
@@ -286,6 +336,14 @@ void UNiagaraNodeOp::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 	PinData.PinName = UniqueName;
 	NewPin->PinName = UniqueName;
 	AddedPins.Add(PinData);
+
+	if (bAllStatic)
+	{
+		const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+		FNiagaraTypeDefinition PinType = Schema->PinToTypeDefinition(NewPin);
+		if (PinType.IsStatic() == false)
+			NewPin->PinType = Schema->TypeDefinitionToPinType(PinType.ToStaticDef());
+	}
 }
 
 void UNiagaraNodeOp::OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName)
@@ -352,4 +410,246 @@ FName UNiagaraNodeOp::GetUniqueAdditionalPinName() const
 	return FNiagaraUtilities::GetUniqueName(*Name, ExistingNames);
 }
 
+void UNiagaraNodeOp::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
+{
+	if (bRecursive)
+	{
+		OutHistory.VisitInputPins(this, bFilterForCompilation);
+	}
+
+	if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())
+	{
+		RouteParameterMapAroundMe(OutHistory, bRecursive);
+		return;
+	}
+	else 
+	{		
+		const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
+		if (OpInfo && OpInfo->StaticVariableResolveFunction.IsBound())
+		{
+			const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+			TArray<UEdGraphPin*> InputPins;
+			GetInputPins(InputPins);
+			
+			bool bAllPinsStatic = true;
+			UEdGraphPin* OutputPin = nullptr;
+			{
+				for (int32 PinIdx = 0; PinIdx < Pins.Num(); PinIdx++)
+				{
+					if (IsAddPin(Pins[PinIdx]))
+						continue;
+					FNiagaraTypeDefinition InputType = Schema->PinToTypeDefinition(Pins[PinIdx]);
+					if (!InputType.IsStatic())
+						bAllPinsStatic = false;
+
+					if (OutputPin == nullptr && Pins[PinIdx]->Direction == EEdGraphPinDirection::EGPD_Output)
+					{
+						OutputPin = Pins[PinIdx];
+					}
+				}
+			}
+
+			if (bAllPinsStatic)
+			{
+				TArray<int32> Vars;
+
+				for (int32 InputIdx = 0; InputIdx < InputPins.Num(); InputIdx++)
+				{
+					if (IsAddPin(InputPins[InputIdx]))
+						continue;
+
+					FNiagaraTypeDefinition InputType = Schema->PinToTypeDefinition(InputPins[InputIdx]);
+					if (!InputType.IsStatic())
+					{
+						return;
+					}
+					int32 Value = 0;
+					OutHistory.SetConstantByStaticVariable(Value, InputPins[InputIdx]);
+					Vars.Add(Value);
+				}
+
+				if (Vars.Num() > 0)
+				{
+					int32 Result = OpInfo->StaticVariableResolveFunction.Execute(Vars);
+					int32 ConstantIdx = OutHistory.AddOrGetConstantFromValue(FString::FromInt(Result));
+
+					if (UNiagaraScript::LogCompileStaticVars > 0)
+					{
+						UE_LOG(LogNiagaraEditor, Log, TEXT("Inputs Static Node Op: %s"), *GetNodeTitle(ENodeTitleType::FullTitle).ToString());
+						for (int32 i = 0; i < Vars.Num(); i++)
+						{
+							UE_LOG(LogNiagaraEditor, Log, TEXT("[%d] %d"), i, Vars[i]);
+						}
+						UE_LOG(LogNiagaraEditor, Log, TEXT("Result: %d"), Result);
+					}
+
+					OutHistory.RegisterConstantPin(ConstantIdx, OutputPin);
+				}
+			}
+		}
+	}
+}
+
+void UNiagaraNodeOp::PinConnectionListChanged(UEdGraphPin* Pin)
+{
+	Super::PinConnectionListChanged(Pin);
+
+	FEdGraphPinType StartType = Pin->PinType;
+	HandleStaticInputPinUpgrade(Pin);
+
+	// Type was changed... now make sure that we can fix up the output pin.
+	if (StartType != Pin->PinType)
+	{
+		HandleStaticOutputPinUpgrade();
+	}
+}
+
+void UNiagaraNodeOp::HandleStaticInputPinUpgrade(UEdGraphPin* Pin)
+{
+	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
+	if (Pin && OpInfo && OpInfo->StaticVariableResolveFunction.IsBound() && OpInfo->bSupportsStaticResolution)
+	{
+		const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+		FNiagaraVariable PinVar = Schema->PinToNiagaraVariable(Pin);
+
+		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && !IsAddPin(Pin))
+		{
+			// Handle linkage...
+			bool bHandled = false;
+			if (Pin->LinkedTo.Num() > 0)
+			{
+				FNiagaraTypeDefinition LinkedPinType = Schema->PinToTypeDefinition(Pin->LinkedTo[0]);
+				Pin->PinType = Schema->TypeDefinitionToPinType(LinkedPinType);
+			}
+			else // Handle unlinkage...
+			{
+				// Downcast if the types don't match...
+				if (OpInfo->bSupportsAddedInputs && OpInfo->Inputs.Num() > 0)
+				{
+					if (PinVar.GetType() != OpInfo->Inputs[0].DataType && OpInfo->Inputs[0].DataType != FNiagaraTypeDefinition::GetGenericNumericDef())
+					{
+						Pin->PinType = Schema->TypeDefinitionToPinType(OpInfo->Inputs[0].DataType);
+					}
+				}
+				else
+				{
+					for (int32 i = 0; i < OpInfo->Inputs.Num(); i++)
+					{
+						if (OpInfo->Inputs[i].Name == PinVar.GetName())
+						{
+							if (PinVar.GetType() != OpInfo->Inputs[i].DataType && OpInfo->Inputs[0].DataType != FNiagaraTypeDefinition::GetGenericNumericDef())
+							{
+								Pin->PinType = Schema->TypeDefinitionToPinType(OpInfo->Inputs[i].DataType);
+								break;
+							}
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void UNiagaraNodeOp::HandleStaticOutputPinUpgrade()
+{
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
+	if (OpInfo)
+	{
+		bAllStatic = false;
+
+		bool bAllInputStatic = true;
+		bool bAnyInputStatic = false;
+		for (int32 i = 0; i < Pins.Num(); i++)
+		{
+			if (IsAddPin(Pins[i]) || Pins[i]->Direction != EEdGraphPinDirection::EGPD_Input)
+				continue;
+
+			FNiagaraTypeDefinition PinType = Schema->PinToTypeDefinition(Pins[i]);
+			if (PinType.IsStatic())
+			{
+				bAnyInputStatic = true;
+			}
+			else
+			{
+				bAllInputStatic = false;
+				continue;
+			}
+		}
+
+		if (OpInfo->StaticVariableResolveFunction.IsBound() && OpInfo->bSupportsStaticResolution)
+		{
+			// Synchronize the output pin either way...
+			bool bAllOutputStatic = true;
+			bool bAnyOutputStatic = false;
+			for (int32 PinIdx = 0; PinIdx < Pins.Num(); PinIdx++)
+			{
+				if (Pins[PinIdx]->Direction == EEdGraphPinDirection::EGPD_Output)
+				{
+					FNiagaraVariable PinVar = Schema->PinToNiagaraVariable(Pins[PinIdx]);
+
+					if (IsAddPin(Pins[PinIdx]))
+						continue;
+
+					if (!PinVar.GetType().IsStatic())
+					{
+						bAllOutputStatic = false;
+					}
+					else
+					{
+						bAnyOutputStatic = true;
+					}
+				}
+			}
+
+			bool bCanAutoConvertOutputs = bAllInputStatic;
+			for (int32 OutputIdx = 0; OutputIdx < OpInfo->Outputs.Num(); OutputIdx++)
+			{
+				if (!FNiagaraTypeRegistry::IsStaticPossible(OpInfo->Outputs[OutputIdx].DataType))
+				{
+					bCanAutoConvertOutputs = false;
+				}
+			}
+
+			if (bCanAutoConvertOutputs)
+			{
+				for (int32 PinIdx = 0; PinIdx < Pins.Num(); PinIdx++)
+				{
+					if (IsAddPin(Pins[PinIdx]))
+						continue;
+
+					if (Pins[PinIdx]->Direction == EEdGraphPinDirection::EGPD_Output)
+					{
+						FNiagaraTypeDefinition PinStaticType = Schema->PinToTypeDefinition(Pins[PinIdx]).ToStaticDef();
+						Pins[PinIdx]->PinType = Schema->TypeDefinitionToPinType(PinStaticType);
+					}
+				}
+				bAllOutputStatic = true;
+			}
+
+			if (bAllOutputStatic && bAllInputStatic)
+			{
+				bAllStatic = true;
+				NodeUpgradeMessage = FText();
+			}
+			else if (bAnyOutputStatic && !bAllInputStatic)
+			{
+				NodeUpgradeMessage = LOCTEXT("AllStaticInvalidInput", "All inputs must be static to have static outputs. Static will not be preserved.");
+				MarkNodeRequiresSynchronization(__FUNCTION__, true);
+			}
+			else if (bAnyInputStatic && !bAllOutputStatic)
+			{
+				NodeUpgradeMessage = LOCTEXT("AllStaticInvalidOutput", "All outputs must be static to have static inputs. Static will not be preserved.");
+				MarkNodeRequiresSynchronization(__FUNCTION__, true);
+			}
+			
+		}
+		else if (bAllStatic)
+		{
+			NodeUpgradeMessage = LOCTEXT("AllStaticNotSupported", "This op doesn't fully support static outputs. Static will not be preserved.");
+			MarkNodeRequiresSynchronization(__FUNCTION__, true);
+		}
+	}
+}
 #undef LOCTEXT_NAMESPACE

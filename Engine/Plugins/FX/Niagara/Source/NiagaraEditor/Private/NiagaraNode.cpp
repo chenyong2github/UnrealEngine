@@ -311,6 +311,8 @@ bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 		}
 	}
 
+	OnPostSynchronizationInReallocatePins();
+
 	//GetGraph()->NotifyGraphChanged();
 	if (bMarkNeedsResynchronizeOnChange && !bAllSame)
 	{
@@ -435,7 +437,7 @@ bool UNiagaraNode::ConvertNumericPinToType(UEdGraphPin* InGraphPin, FNiagaraType
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 	check(Schema);
 	FEdGraphPinType PinType = Schema->TypeDefinitionToPinType(TypeDef);
-	if (PinType == InGraphPin->PinType)
+	if (!Schema->PinTypesValidForNumericConversion(PinType, InGraphPin->PinType))
 	{
 		return false;
 	}
@@ -736,13 +738,14 @@ void UNiagaraNode::NumericResolutionByPins(const UEdGraphSchema_Niagara* Schema,
 	for (UEdGraphPin* InputPin : InputPins)
 	{
 		FNiagaraTypeDefinition InputPinType = Schema->PinToTypeDefinition(InputPin);
-		if (InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType)
+		if (InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType ||
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticType)
 		{
 
 			// If the input pin is the generic numeric type set it to the type of the linked output pin which should have been processed already.
 			if (InputPinType == FNiagaraTypeDefinition::GetGenericNumericDef() && InputPin->LinkedTo.Num() == 1)
 			{
-				UEdGraphPin* InputPinLinkedPin = UNiagaraNode::TraceOutputPin(InputPin->LinkedTo[0]);
+				UEdGraphPin* InputPinLinkedPin = InputPin->LinkedTo[0];
 				FNiagaraTypeDefinition InputPinLinkedPinType = Schema->PinToTypeDefinition(InputPinLinkedPin);
 				if (InputPinLinkedPinType.IsValid())
 				{
@@ -814,12 +817,12 @@ void UNiagaraNode::NumericResolutionByPins(const UEdGraphSchema_Niagara* Schema,
 
 void UNiagaraNode::ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool bSetInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache)
 {
-	// Fix up numeric input pins and keep track of numeric types to decide the output type.
-	FPinCollectorArray InputPins;
-	GetInputPins(InputPins);
-	FPinCollectorArray OutputPins;
-	GetOutputPins(OutputPins);
-	NumericResolutionByPins(Schema, InputPins, OutputPins, bSetInline, PinCache);
+// Fix up numeric input pins and keep track of numeric types to decide the output type.
+FPinCollectorArray InputPins;
+GetInputPins(InputPins);
+FPinCollectorArray OutputPins;
+GetOutputPins(OutputPins);
+NumericResolutionByPins(Schema, InputPins, OutputPins, bSetInline, PinCache);
 }
 
 void UNiagaraNode::GetWildcardPinHoverConnectionTextAddition(const UEdGraphPin* WildcardPin, const UEdGraphPin* OtherPin, ECanCreateConnectionResponse ConnectionResponse, FString& OutString) const
@@ -832,7 +835,7 @@ ENiagaraNumericOutputTypeSelectionMode UNiagaraNode::GetNumericOutputTypeSelecti
 	return ENiagaraNumericOutputTypeSelectionMode::None;
 }
 
-UEdGraphPin* UNiagaraNode::TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation)
+UEdGraphPin* UNiagaraNode::TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace)
 {
 	if (LocallyOwnedOutputPin == nullptr)
 	{
@@ -840,8 +843,18 @@ UEdGraphPin* UNiagaraNode::TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bo
 	}
 
 	UNiagaraNode* LinkedNode = CastChecked<UNiagaraNode>(LocallyOwnedOutputPin->GetOwningNode());
-	return LinkedNode->GetTracedOutputPin(LocallyOwnedOutputPin, bFilterForCompilation);
+	return LinkedNode->GetTracedOutputPin(LocallyOwnedOutputPin, bFilterForCompilation, OutNodesVisitedDuringTrace);
 }
+
+UEdGraphPin* UNiagaraNode::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace) const
+{
+	if (OutNodesVisitedDuringTrace != nullptr)
+	{
+		OutNodesVisitedDuringTrace->Add(this);
+	}
+	return LocallyOwnedOutputPin;
+}
+
 
 bool UNiagaraNode::SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin)
 {
@@ -882,6 +895,41 @@ void UNiagaraNode::RouteParameterMapAroundMe(FNiagaraParameterMapHistoryBuilder&
 	{
 		int32 PMIdx = OutHistory.TraceParameterMapOutputPin(InputPin->LinkedTo[0]);
 		OutHistory.RegisterParameterMapPin(PMIdx, OutputPin);
+	}
+}
+
+void UNiagaraNode::RegisterPassthroughPin(FNiagaraParameterMapHistoryBuilder& OutHistory, UEdGraphPin* InputPin, UEdGraphPin* OutputPin, bool bFilterForCompilation, bool bVisitInputPin) const
+{
+	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
+	if (bVisitInputPin)
+		OutHistory.VisitInputPin(InputPin, this, bFilterForCompilation);
+
+	FNiagaraTypeDefinition InDef = Schema->PinToTypeDefinition(InputPin);
+	FNiagaraTypeDefinition OutDef = Schema->PinToTypeDefinition(OutputPin);
+
+	if (InputPin && InDef == FNiagaraTypeDefinition::GetParameterMapDef() && OutDef == FNiagaraTypeDefinition::GetParameterMapDef() && InputPin->LinkedTo.Num() > 0)
+	{
+		int32 PMIdx = OutHistory.TraceParameterMapOutputPin(InputPin->LinkedTo[0]);
+		OutHistory.RegisterParameterMapPin(PMIdx, OutputPin);
+	}
+	else if (InputPin && InDef.IsStatic() && InputPin->LinkedTo.Num() > 0)
+	{
+		int32 ConstantIdx = OutHistory.GetConstantFromOutputPin(InputPin->LinkedTo[0]);
+		OutHistory.RegisterConstantPin(ConstantIdx, InputPin);
+
+		if (OutputPin && OutDef == InDef)
+		{
+			OutHistory.RegisterConstantPin(ConstantIdx, OutputPin);
+		}
+	}
+	else if (InputPin && InDef.IsStatic() && InputPin->LinkedTo.Num() == 0)
+	{
+		int32 ConstantIdx = OutHistory.AddOrGetConstantFromValue(InputPin->DefaultValue);
+		OutHistory.RegisterConstantPin(ConstantIdx, InputPin);
+		if (OutputPin && OutDef == InDef)
+		{
+			OutHistory.RegisterConstantPin(ConstantIdx, OutputPin);
+		}
 	}
 }
 

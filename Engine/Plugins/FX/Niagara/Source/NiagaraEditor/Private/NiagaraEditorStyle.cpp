@@ -127,6 +127,8 @@ void InitAssetPicker(TSharedRef< FSlateStyleSet > Style)
 	Style->Set("NiagaraEditor.NewAssetDialog.ActiveOptionBorderColor", FLinearColor(FColor(96, 96, 96)));
 
 	Style->Set("NiagaraEditor.NewAssetDialog.SubBorder", new BOX_CORE_BRUSH("Common/GroupBorderLight", FMargin(4.0f / 16.0f)));
+
+
 }
 
 void InitActionMenu(TSharedRef< FSlateStyleSet > Style)
@@ -278,6 +280,13 @@ void InitParameters(TSharedRef< FSlateStyleSet > Style)
 	Style->Set("NiagaraEditor.ParameterName.TypeText", FTextBlockStyle(NormalText)
 		.SetFont(DEFAULT_FONT("Regular", 8))
 		.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.5f)));
+
+
+	Style->Set("NiagaraEditor.StaticIcon", new IMAGE_PLUGIN_BRUSH("Icons/staticpill_16x", Icon16x16));
+	Style->Set("NiagaraEditor.Pins.StaticConnected", new IMAGE_PLUGIN_BRUSH("Icons/StaticPin_Connected", Icon16x16));
+	Style->Set("NiagaraEditor.Pins.StaticDisconnected", new IMAGE_PLUGIN_BRUSH("Icons/StaticPin_Disconnected", Icon16x16));
+	Style->Set("NiagaraEditor.Pins.StaticConnectedHovered", new IMAGE_BRUSH("Icons/StaticPin_Connected", Icon16x16, FLinearColor(0.8f, 0.8f, 0.8f)));
+	Style->Set("NiagaraEditor.Pins.StaticDisconnectedHovered", new IMAGE_BRUSH("Icons/StaticPin_Disconnected", Icon16x16, FLinearColor(0.8f, 0.8f, 0.8f)));
 }
 
 void InitParameterMapView(TSharedRef< FSlateStyleSet > Style)

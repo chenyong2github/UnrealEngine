@@ -45,6 +45,8 @@ public:
 	virtual bool IncludeParentNodeContextMenu() const { return true; }
 	//~ End EdGraphNode Interface
 
+	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
+
 	/** Notifies the node that it's output variables have been modified externally. */
 	void NotifyOutputVariablesChanged();
 

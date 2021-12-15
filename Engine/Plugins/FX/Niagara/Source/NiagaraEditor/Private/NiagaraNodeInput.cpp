@@ -105,6 +105,15 @@ void UNiagaraNodeInput::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuil
 			OutHistory.RegisterParameterMapPin(ParamMapIdx, GetOutputPin(0));
 		}
 	}
+	else if (Input.GetType().IsStatic())
+	{
+		int32 ConstantIdx = OutHistory.FindMatchingStaticFromContextInputs(Input);
+
+		if (ConstantIdx != INDEX_NONE)
+		{
+			OutHistory.RegisterConstantPin(ConstantIdx, GetOutputPin(0));
+		}
+	}
 }
 
 void UNiagaraNodeInput::AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType)

@@ -106,7 +106,32 @@ bool UNiagaraNodeReroute::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinInd
 
 void UNiagaraNodeReroute::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {
-	Super::Compile(Translator, Outputs);
+	FPinCollectorArray InputPins;
+	GetInputPins(InputPins);
+
+	FPinCollectorArray OutputPins;
+	GetOutputPins(OutputPins);
+
+	// Initialize the outputs to invalid values.
+	check(Outputs.Num() == 0);
+	Outputs.Reserve(OutputPins.Num());
+	for (int32 i = 0; i < OutputPins.Num(); i++)
+	{
+		if (InputPins.IsValidIndex(i))
+		{
+			int32 CompiledInput = Translator->CompilePin(InputPins[i]);
+			Outputs.Add(CompiledInput);
+		}
+		else
+		{
+			Outputs.Add(INDEX_NONE);
+		}
+	}
+
+	if (InputPins.Num() != OutputPins.Num())
+	{
+		Translator->Error(LOCTEXT("IncorrectNumOutputsError", "Input and Output pin counts must match."), this, nullptr);
+	}
 }
 
 bool UNiagaraNodeReroute::RefreshFromExternalChanges()
@@ -124,12 +149,11 @@ void UNiagaraNodeReroute::PinConnectionListChanged(UEdGraphPin* Pin)
 
 void UNiagaraNodeReroute::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
-	// Should never hit here...
-	check(false);
+	RegisterPassthroughPin(OutHistory, GetInputPin(0), GetOutputPin(0), bFilterForCompilation, true);
 }
 
 /** Traces one of this node's output pins to its source output pin if it is a reroute node output pin.*/
-UEdGraphPin* UNiagaraNodeReroute::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation) const
+UEdGraphPin* UNiagaraNodeReroute::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace) const
 {
 	check(Pins.Contains(LocallyOwnedOutputPin) && LocallyOwnedOutputPin->Direction == EGPD_Output);
 	UEdGraphPin* InputPin = GetInputPin(0);
@@ -137,7 +161,7 @@ UEdGraphPin* UNiagaraNodeReroute::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOu
 	{
 		UEdGraphPin* LinkedPin = InputPin->LinkedTo[0];
 		UNiagaraNode* LinkedNode = CastChecked<UNiagaraNode>(LinkedPin->GetOwningNode());
-		return LinkedNode->GetTracedOutputPin(LinkedPin, bFilterForCompilation);
+		return LinkedNode->GetTracedOutputPin(LinkedPin, bFilterForCompilation, OutNodesVisitedDuringTrace);
 	}
 	return nullptr;
 }

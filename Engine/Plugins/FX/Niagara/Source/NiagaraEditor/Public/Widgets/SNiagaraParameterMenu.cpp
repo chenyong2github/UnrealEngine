@@ -804,7 +804,7 @@ void SNiagaraAddParameterFromPinMenu::CollectAllActions(FGraphActionListBuilderB
 	for (const FNiagaraTypeDefinition& RegisteredType : Types)
 	{
 		bool bAllowType = false;
-		bAllowType = NiagaraNode->AllowNiagaraTypeForAddPin(RegisteredType);
+		bAllowType = NiagaraNode->AllowNiagaraTypeForAddPin(RegisteredType, bIsParameterReadNode ? EEdGraphPinDirection::EGPD_Output : EEdGraphPinDirection::EGPD_Input) ;
 
 		if (bAllowType)
 		{

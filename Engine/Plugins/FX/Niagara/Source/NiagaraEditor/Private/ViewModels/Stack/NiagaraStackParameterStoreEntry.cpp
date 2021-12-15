@@ -191,7 +191,7 @@ TArray<UEdGraphPin*> UNiagaraStackParameterStoreEntry::GetOwningPins()
 
 	// search emitter graphs
 	auto EmitterHandles = GetSystemViewModel()->GetSystem().GetEmitterHandles();
-	for (FNiagaraEmitterHandle Handle : EmitterHandles)
+	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
 		UNiagaraGraph* EmitterGraph = CastChecked<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource)->NodeGraph;
 		GraphsToCheck.Add(EmitterGraph);

@@ -30,6 +30,8 @@
 #include "NiagaraTrace.h"
 #include "Serialization/MemoryReader.h"
 #include "../../Niagara/Private/NiagaraPrecompileContainer.h"
+#include "Modules/ModuleManager.h"
+#include "NiagaraEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
@@ -65,6 +67,14 @@ static FAutoConsoleVariableRef CVarForceNiagaraVMBinaryDump(
 	TEXT("fx.ForceNiagaraVMBinaryDump"),
 	GbForceNiagaraVMBinaryDump,
 	TEXT("If > 0 all translation generated binary text will be dumped \n"),
+	ECVF_Default
+);
+
+static int32 GbForceNiagaraCacheDump = 0;
+static FAutoConsoleVariableRef CVarForceNiagaraCacheDump(
+	TEXT("fx.ForceNiagaraCacheDump"),
+	GbForceNiagaraCacheDump,
+	TEXT("If > 0 all cached graph traversal data will be dumped \n"),
 	ECVF_Default
 );
 
@@ -442,8 +452,49 @@ void FNiagaraCompileRequestDuplicateData::ReleaseCompilationCopies()
 	SourceDeepCopy = nullptr;
 }
 
-void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>& EncounterableVariables, FCompileConstantResolver ConstantResolver, const TArray<ENiagaraScriptUsage>& UsagesToProcess, const TArray<class UNiagaraSimulationStageBase*>* SimStages, const TArray<FString> EmitterNames)
+void FNiagaraCompileRequestData::CompareAgainst(FNiagaraGraphCachedBuiltHistory* InCachedDataBase)
 {
+	if (InCachedDataBase)
+	{
+		bool bDumpVars = false;
+		if (StaticVariables.Num() != InCachedDataBase->StaticVariables.Num())
+		{
+			UE_LOG(LogNiagaraEditor, Warning, TEXT("FNiagaraCompileRequestData::CompareAgainst> StaticVariables.Num() != InCachedDataBase->StaticVariables.Num()"));
+			bDumpVars = true;
+		}
+		
+		for (const FNiagaraVariable& Var : StaticVariables)
+		{
+			bool bFound = false;
+			for (const FNiagaraVariable& OtherVar : InCachedDataBase->StaticVariables)
+			{
+				if (OtherVar == Var)
+				{
+					bFound = true;
+					break;
+				}
+			}
+
+			if (!bFound)
+			{
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("FNiagaraCompileRequestData::CompareAgainst> Could not find %s"), *Var.ToString());
+				bDumpVars = true;
+			}
+		}
+
+		if (bDumpVars)
+		{
+			for (const FNiagaraVariable& Var : InCachedDataBase->StaticVariables)
+			{
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("%s"), *Var.ToString());
+			}
+		}
+	}
+}
+
+void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>& EncounterableVariables, const TArray<FNiagaraVariable>& InStaticVariables, FCompileConstantResolver ConstantResolver, const TArray<ENiagaraScriptUsage>& UsagesToProcess, const TArray<class UNiagaraSimulationStageBase*>* SimStages, const TArray<FString> EmitterNames)
+{
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 	{
 		ENiagaraScriptCompileStatusEnum = StaticEnum<ENiagaraScriptCompileStatus>();
 		ENiagaraScriptUsageEnum = StaticEnum<ENiagaraScriptUsage>();
@@ -453,6 +504,18 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 		{
 			Source->NodeGraph->FindOutputNodes(OutputNodes);
 		}
+
+		bool bFilterByEmitterAlias = true;
+		for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
+		{
+			if (UNiagaraScript::IsSystemScript(FoundOutputNode->GetUsage()))
+			{
+				bFilterByEmitterAlias = false;
+			}
+		}
+		
+		// Only use the static variables that match up with our expectations for this script. IE for emitters, filter things out for resolution.
+		FNiagaraParameterUtilities::FilterToRelevantStaticVariables(InStaticVariables, StaticVariables, *GetUniqueEmitterName(), TEXT("Emitter"), bFilterByEmitterAlias);
 
 		int32 NumSimStageNodes = 0;
 		for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
@@ -489,8 +552,9 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 				Builder.ConstantResolver = ConstantResolver;
 				Builder.AddGraphToCallingGraphContextStack(Source->NodeGraph);
 				Builder.RegisterEncounterableVariables(EncounterableVariables);
+				Builder.RegisterExternalStaticVariables(StaticVariables);
 
-				FString TranslationName = TEXT("Emitter");
+				FString TranslationName = TEXT("Emitter");// Note that this cannot be GetUniqueEmitterName() as it would break downstream logic for some reason for data interfaces.
 				Builder.BeginTranslation(TranslationName);
 				Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
 				Builder.EnableScriptAllowList(true, FoundOutputNode->GetUsage());
@@ -502,19 +566,44 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 				for (FNiagaraParameterMapHistory& History : Builder.Histories)
 				{
 					History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
-					for (FNiagaraVariable& Var : History.Variables)
+					for (int32 i = 0; i < History.Variables.Num(); i++)
 					{
+						FNiagaraVariable& Var = History.Variables[i];
 						EncounteredVariables.AddUnique(Var);
 						if (Var.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
 						{
 							UE_LOG(LogNiagaraEditor, Log, TEXT("Invalid numeric parameter found! %s"), *Var.GetName().ToString())
 						}
+
+						if (Var.GetType().IsStatic())
+						{
+							if (History.PerVariableConstantValue[i].Num() > 1)
+							{
+								StaticVariablesWithMultipleWrites.AddUnique(Var);
+							}
+						}
 					}
+					PinToConstantValues.Append(History.PinToConstantValues);
 				}
 
 				if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
 				{
 					NumSimStageNodes++;
+				}
+
+				if (UNiagaraScript::LogCompileStaticVars > 0)
+				{
+					UE_LOG(LogNiagaraEditor, Log, TEXT("Builder.StaticVariables After Param Map Traversal............................"));
+				}
+
+				for (const FNiagaraVariable& Var : Builder.StaticVariables)
+				{
+					StaticVariables.AddUnique(Var);
+
+					if (UNiagaraScript::LogCompileStaticVars > 0)
+					{
+						UE_LOG(LogNiagaraEditor, Log, TEXT("%s"), *Var.ToString());
+					}
 				}
 
 				Builder.EndTranslation(TranslationName);
@@ -607,9 +696,12 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 	}
 }
 
-void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray<FNiagaraVariable>& EncounterableVariables, FCompileConstantResolver ConstantResolver, const TArray<class UNiagaraSimulationStageBase*>* SimStages)
+void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray<FNiagaraVariable>& EncounterableVariables, const TArray<FNiagaraVariable>& InStaticVariables, FCompileConstantResolver ConstantResolver, const TArray<class UNiagaraSimulationStageBase*>* SimStages, const TArray<FNiagaraVariable>& InParamStore)
 {
+
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 	PrecompiledHistories.Empty();
+
 
 	TArray<UNiagaraNodeOutput*> OutputNodes;
 	if (NodeGraphDeepCopy.IsValid())
@@ -646,6 +738,7 @@ void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray
 			Builder.ConstantResolver = ConstantResolver;
 			Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy.Get());
 			Builder.RegisterEncounterableVariables(EncounterableVariables);
+			Builder.RegisterExternalStaticVariables(InStaticVariables);
 
 			FString TranslationName = TEXT("Emitter");
 			Builder.BeginTranslation(TranslationName);
@@ -659,8 +752,9 @@ void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray
 			for (FNiagaraParameterMapHistory& History : Builder.Histories)
 			{
 				History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
-				for (FNiagaraVariable& Var : History.Variables)
+				for (int32 VarIdx = 0; VarIdx < History.Variables.Num(); VarIdx++)
 				{
+					const FNiagaraVariable& Var = History.Variables[VarIdx];
 					if (Var.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
 					{
 						UE_LOG(LogNiagaraEditor, Log, TEXT("Invalid numeric parameter found! %s"), *Var.GetName().ToString())
@@ -754,10 +848,15 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		const TArray<FNiagaraVariable> EncounterableVariables;
 		const TArray<ENiagaraScriptUsage> ValidUsages = { ENiagaraScriptUsage::Function, ENiagaraScriptUsage::Module, ENiagaraScriptUsage::DynamicInput };
 		const TArray<FString> EmitterNames;
-		BasePtr->FinishPrecompile(EncounterableVariables, EmptyResolver, ValidUsages, nullptr, EmitterNames);
+		TArray<FNiagaraVariable> StaticVars;
+		BasePtr->FinishPrecompile(EncounterableVariables, StaticVars, EmptyResolver, ValidUsages, nullptr, EmitterNames);
+		
 	}
 	else if (System)
 	{
+
+		TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalSystemData = System->GetCachedTraversalData();
+
 		check(System->GetSystemSpawnScript()->GetLatestSource() == System->GetSystemUpdateScript()->GetLatestSource());
 		BasePtr->Source = Cast<UNiagaraScriptSource>(System->GetSystemSpawnScript()->GetLatestSource());
 		BasePtr->bUseRapidIterationParams = !System->bBakeOutRapidIteration;
@@ -790,11 +889,15 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		}
 
 		// Now deep copy the system graphs, skipping traversal into any emitter references.
+		TArray<FNiagaraVariable> StaticVariablesFromSystem = ((FNiagaraGraphCachedBuiltHistory*)CachedTraversalSystemData.Get())->StaticVariables;
 		{
 			FCompileConstantResolver ConstantResolver(System, ENiagaraScriptUsage::SystemSpawnScript);
 			UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(System->GetSystemSpawnScript()->GetLatestSource());
 			static TArray<ENiagaraScriptUsage> SystemUsages = { ENiagaraScriptUsage::SystemSpawnScript, ENiagaraScriptUsage::SystemUpdateScript };
-			BasePtr->FinishPrecompile(EncounterableVars, ConstantResolver, SystemUsages, nullptr, EmitterNames);
+			
+			BasePtr->FinishPrecompile(EncounterableVars, StaticVariablesFromSystem, ConstantResolver, SystemUsages, nullptr, EmitterNames);
+
+			BasePtr->CompareAgainst(((FNiagaraGraphCachedBuiltHistory*)CachedTraversalSystemData.Get()));
 		}
 
 		// Add the User and System variables that we did encounter to the list that emitters might also encounter.
@@ -813,6 +916,10 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			FCompileConstantResolver ConstantResolver(Handle.GetInstance(), ENiagaraScriptUsage::EmitterSpawnScript);
 			if (Handle.GetIsEnabled()) // Don't pull in the emitter if it isn't going to be used.
 			{
+				TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalEmitterData = Handle.GetInstance()->GetCachedTraversalData();
+				TArray<FNiagaraVariable> StaticVariablesFromEmitter = StaticVariablesFromSystem;
+				StaticVariablesFromEmitter.Append(((FNiagaraGraphCachedBuiltHistory*)CachedTraversalEmitterData.Get())->StaticVariables);
+
 				TArray<UNiagaraScript*> EmitterScripts;
 				Handle.GetInstance()->GetScripts(EmitterScripts, false, true);
 
@@ -824,9 +931,11 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 						ScriptToEmitterMap.Add(EmitterScripts[ScriptIdx], Handle.GetInstance());
 					}
 				}
-				// First finish the precompile for the emitters so that the encountered emitter variables can be found.
 				static TArray<ENiagaraScriptUsage> EmitterUsages = { ENiagaraScriptUsage::EmitterSpawnScript, ENiagaraScriptUsage::EmitterUpdateScript };
-				BasePtr->EmitterData[i]->FinishPrecompile(EncounterableVars, ConstantResolver, EmitterUsages, nullptr, EmitterNames);
+
+				BasePtr->EmitterData[i]->FinishPrecompile(EncounterableVars, StaticVariablesFromEmitter, ConstantResolver, EmitterUsages, nullptr, EmitterNames);
+				BasePtr->EmitterData[i]->CompareAgainst(((FNiagaraGraphCachedBuiltHistory*)CachedTraversalEmitterData.Get()));
+				
 
 				// Then finish the precompile for the particle scripts once we've gathered the emitter vars which might be referenced.
 				TArray<FNiagaraVariable> ParticleEncounterableVars = EncounterableVars;
@@ -838,7 +947,9 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 					ENiagaraScriptUsage::ParticleEventScript,
 					ENiagaraScriptUsage::ParticleGPUComputeScript,
 					ENiagaraScriptUsage::ParticleSimulationStageScript };
-				BasePtr->EmitterData[i]->FinishPrecompile(ParticleEncounterableVars, ConstantResolver, ParticleUsages, &Handle.GetInstance()->GetSimulationStages(), EmitterNames);
+
+				TArray<FNiagaraVariable> OldStaticVars = BasePtr->EmitterData[i]->StaticVariables;
+				BasePtr->EmitterData[i]->FinishPrecompile(ParticleEncounterableVars, OldStaticVars, ConstantResolver, ParticleUsages, &Handle.GetInstance()->GetSimulationStages(), EmitterNames);
 			}
 		}
 
@@ -1047,11 +1158,12 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 		BasePtr->DeepCopyGraphs(Source, TargetScript->GetUsage(), EmptyResolver);
 		TArray<FNiagaraVariable> EncounterableScriptVariables;
 		OwningSystemRequestData->GatherPreCompiledVariables(FString(), EncounterableScriptVariables);
-		BasePtr->FinishPrecompileDuplicate(EncounterableScriptVariables, EmptyResolver, nullptr);
+		BasePtr->FinishPrecompileDuplicate(EncounterableScriptVariables, TArray<FNiagaraVariable>(), EmptyResolver, nullptr, ((FNiagaraCompileRequestData*)OwningSystemRequestData)->RapidIterationParams);
 		CollectDataInterfaceClasses(EncounterableScriptVariables);
 	}
 	else
 	{
+		TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalSystemData = OwningSystem->GetCachedTraversalData();
 		GetUsagesToDuplicate(TargetScript->GetUsage(), BasePtr->ValidUsages);
 
 		check(OwningSystem->GetSystemSpawnScript()->GetLatestSource() == OwningSystem->GetSystemUpdateScript()->GetLatestSource());
@@ -1077,6 +1189,7 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 		}
 
 		// Now deep copy the system graphs, skipping traversal into any emitter references.
+		TArray<FNiagaraVariable> StaticVariablesFromSystem = ((FNiagaraGraphCachedBuiltHistory*)CachedTraversalSystemData.Get())->StaticVariables;
 		{
 			UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(OwningSystem->GetSystemSpawnScript()->GetLatestSource());
 
@@ -1088,7 +1201,7 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 			{
 				FCompileConstantResolver ConstantResolver(OwningSystem, ENiagaraScriptUsage::SystemSpawnScript);
 				BasePtr->DeepCopyGraphs(Source, ENiagaraScriptUsage::SystemSpawnScript, ConstantResolver);
-				BasePtr->FinishPrecompileDuplicate(EncounterableSystemVariables, ConstantResolver, nullptr);
+				BasePtr->FinishPrecompileDuplicate(EncounterableSystemVariables, StaticVariablesFromSystem, ConstantResolver, nullptr, ((FNiagaraCompileRequestData*)OwningSystemRequestData)->RapidIterationParams);
 			}
 
 			CollectDataInterfaceClasses(EncounterableSystemVariables);
@@ -1099,13 +1212,19 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 		{
 			const FNiagaraEmitterHandle& Handle = OwningSystem->GetEmitterHandle(i);
 
+
 			TArray<FNiagaraVariable> EncounterableEmitterVariables;
 			OwningSystemRequestData->GetDependentRequest(i)->GatherPreCompiledVariables(FString(), EncounterableEmitterVariables);
 
 			if (Handle.GetIsEnabled() && (OwningEmitter == nullptr || OwningEmitter == Handle.GetInstance()))
 			{
+				TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CachedTraversalEmitterData = Handle.GetInstance()->GetCachedTraversalData();
+				TArray<FNiagaraVariable> StaticVariablesFromEmitter = StaticVariablesFromSystem;
+				StaticVariablesFromEmitter.Append(((FNiagaraGraphCachedBuiltHistory*)CachedTraversalEmitterData.Get())->StaticVariables);
+
 				FCompileConstantResolver ConstantResolver(Handle.GetInstance(), ENiagaraScriptUsage::EmitterSpawnScript);
-				BasePtr->EmitterData[i]->FinishPrecompileDuplicate(EncounterableEmitterVariables, ConstantResolver, &Handle.GetInstance()->GetSimulationStages());
+				BasePtr->EmitterData[i]->FinishPrecompileDuplicate(EncounterableEmitterVariables, StaticVariablesFromEmitter, ConstantResolver, &Handle.GetInstance()->GetSimulationStages(), ((FNiagaraCompileRequestData*)OwningSystemRequestData)->EmitterData[i]->RapidIterationParams);
+
 			}
 
 			CollectDataInterfaceClasses(EncounterableEmitterVariables);
@@ -1176,6 +1295,145 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 	ActiveCompilations.Add(JobID, Compiler);
 	return JobID;
 	
+}
+
+TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModule::CacheGraphTraversal(const UObject* Obj, FGuid Version)
+{
+	TSharedPtr<FNiagaraGraphCachedBuiltHistory, ESPMode::ThreadSafe> CachedPtr = MakeShared<FNiagaraGraphCachedBuiltHistory>();
+
+	const UNiagaraSystem* System = Cast<UNiagaraSystem>(Obj);
+	const UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Obj);
+
+	/*
+	* const TArray<FNiagaraVariable>& EncounterableVariables, const TArray<FNiagaraVariable>& InStaticVariables, FCompileConstantResolver ConstantResolver, const TArray<ENiagaraScriptUsage>& UsagesToProcess, const 
+	*/
+	const TArray<class UNiagaraSimulationStageBase*>* SimStages = nullptr;
+	const UNiagaraScriptSource* ScriptSource = nullptr;
+	FCompileConstantResolver ConstantResolver;
+	TArray<FNiagaraVariable> EncounterableVariables;
+	TArray<FNiagaraVariable> StaticVariablesFromSystem;
+	TArray<FNiagaraVariable> StaticVariablesFromSystemAndEmitters;
+	TArray<FNiagaraVariable> SrcStaticVariables;
+	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> ParentCachedData;
+	FString SrcUniqueEmitterName;
+
+	if (System)
+	{
+		ScriptSource = CastChecked<UNiagaraScriptSource>(System->GetSystemSpawnScript()->GetLatestSource());
+		ConstantResolver = FCompileConstantResolver(System, ENiagaraScriptUsage::SystemSpawnScript);
+		System->GatherStaticVariables(StaticVariablesFromSystem, StaticVariablesFromSystemAndEmitters);
+
+		SrcStaticVariables = StaticVariablesFromSystem;
+
+		for (const FNiagaraVariable& Var : StaticVariablesFromSystemAndEmitters)
+			SrcStaticVariables.AddUnique(Var);
+	}
+	else if (Emitter)
+	{
+		UNiagaraSystem* SysParent = Cast<UNiagaraSystem>(Emitter->GetOuter());
+		if (SysParent)
+		{
+			ParentCachedData = SysParent->GetCachedTraversalData();
+
+			if (ParentCachedData.IsValid())
+			{
+				SrcStaticVariables = ((FNiagaraGraphCachedBuiltHistory*)ParentCachedData.Get())->StaticVariables;
+			}
+			/*for (const FNiagaraEmitterHandle& Handle : SysParent->GetEmitterHandles())
+			{
+				if (Handle.GetInstance() == Emitter)
+				{
+					SrcUniqueEmitterName = Handle.GetUniqueEmitterName().ToString();
+				}
+			}*/
+		}
+		SrcUniqueEmitterName = Emitter->GetUniqueEmitterName();
+		Emitter->GatherStaticVariables(SrcStaticVariables);
+
+		ScriptSource = CastChecked<UNiagaraScriptSource>(Emitter->GraphSource);
+		SimStages = &Emitter->GetSimulationStages();
+		ConstantResolver = FCompileConstantResolver(Emitter, ENiagaraScriptUsage::EmitterSpawnScript);
+	}
+
+
+	TArray<UNiagaraNodeOutput*> OutputNodes;
+	if (ScriptSource != nullptr && ScriptSource->NodeGraph != nullptr)
+	{
+		ScriptSource->NodeGraph->FindOutputNodes(OutputNodes);
+	}
+
+	bool bFilterByEmitterAlias = true;
+	for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
+	{
+		if (UNiagaraScript::IsSystemScript(FoundOutputNode->GetUsage()))
+		{
+			bFilterByEmitterAlias = false;
+		}
+	}
+
+	// Only use the static variables that match up with our expectations for this script. IE for emitters, filter things out for resolution.
+	TArray<FNiagaraVariable> StaticVariables;
+	FNiagaraParameterUtilities::FilterToRelevantStaticVariables(SrcStaticVariables, StaticVariables, *SrcUniqueEmitterName, TEXT("Emitter"), bFilterByEmitterAlias);
+
+	int32 NumSimStageNodes = 0;
+	for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
+	{
+		FName SimStageName;
+		bool bStageEnabled = true;
+		if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages)
+		{
+			// Find the simulation stage for this output node.
+			const FGuid& UsageId = FoundOutputNode->GetUsageId();
+			UNiagaraSimulationStageBase* const* MatchingStagePtr = SimStages->FindByPredicate([UsageId](UNiagaraSimulationStageBase* SimStage)
+				{
+					return SimStage != nullptr && SimStage->Script != nullptr && SimStage->Script->GetUsageId() == UsageId;
+				});
+
+			// Set whether or not the stage is enabled, and get the iteration source name if available.
+			bStageEnabled = MatchingStagePtr != nullptr && (*MatchingStagePtr)->bEnabled;
+			if (bStageEnabled && (*MatchingStagePtr)->IsA<UNiagaraSimulationStageGeneric>())
+			{
+				UNiagaraSimulationStageGeneric* GenericStage = CastChecked<UNiagaraSimulationStageGeneric>(*MatchingStagePtr);
+				SimStageName = GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
+			}
+		}
+
+		if (bStageEnabled)
+		{
+
+			// Map all for this output node
+			FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
+			Builder.ConstantResolver = ConstantResolver;
+			Builder.AddGraphToCallingGraphContextStack(ScriptSource->NodeGraph);
+			Builder.RegisterEncounterableVariables(EncounterableVariables);
+			Builder.RegisterExternalStaticVariables(StaticVariables);
+
+			FString TranslationName = TEXT("Emitter");
+			Builder.BeginTranslation(TranslationName);
+			Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
+			Builder.EnableScriptAllowList(true, FoundOutputNode->GetUsage());
+			Builder.BuildParameterMaps(FoundOutputNode, true);
+			Builder.EndUsage();
+
+			for (const FNiagaraVariable& Var : Builder.StaticVariables)
+				StaticVariables.AddUnique(Var);
+		}
+	}
+
+
+	CachedPtr->StaticVariables = StaticVariables;
+	if (GbForceNiagaraCacheDump != 0 && Obj )
+	{
+		UE_LOG(LogNiagaraEditor, Log, TEXT("==================================================================\nCacheGraphTraversal %s\n=================================================================="), *Obj->GetPathName());
+		int32 i = 0;
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Static Variables: %d"), StaticVariables.Num());
+		for (const FNiagaraVariable& Var : StaticVariables)
+		{
+			UE_LOG(LogNiagaraEditor, Log, TEXT("[%d] %s"), i, *Var.ToString());
+			++i;
+		}
+	}
+	return CachedPtr;
 }
 
 TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::GetCompilationResult(int32 JobID, bool bWait)

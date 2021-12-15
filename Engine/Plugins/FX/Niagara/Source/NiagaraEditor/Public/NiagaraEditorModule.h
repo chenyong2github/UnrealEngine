@@ -121,6 +121,7 @@ public:
 		UNiagaraEmitter* OwningEmitter,
 		UNiagaraScript* TargetScript,
 		FGuid TargetVersion);
+	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CacheGraphTraversal(const UObject* Obj, FGuid Version);
 
 
 	/** Gets the extensibility managers for outside entities to extend static mesh editor's menus and toolbars */
@@ -290,6 +291,7 @@ private:
 	FDelegateHandle CompileResultHandle;
 	FDelegateHandle PrecompilerHandle;
 	FDelegateHandle PrecompileDuplicatorHandle;
+	FDelegateHandle GraphCacheTraversalHandle;
 
 	FDelegateHandle DeviceProfileManagerUpdatedHandle;
 

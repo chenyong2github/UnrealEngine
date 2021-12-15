@@ -118,7 +118,7 @@ private:
 template<>
 inline bool FNiagaraStackFunctionInputBinder::GetValue<bool>() const
 {
-	check(InputType == FNiagaraTypeDefinition::GetBoolDef());
+	check(InputType.IsSameBaseDefinition(FNiagaraTypeDefinition::GetBoolDef()));
 	TArray<uint8> ValueData = GetData();
 	FNiagaraBool* BoolStruct = (FNiagaraBool*)ValueData.GetData();
 	return BoolStruct->GetValue();
@@ -127,7 +127,7 @@ inline bool FNiagaraStackFunctionInputBinder::GetValue<bool>() const
 template<>
 inline void FNiagaraStackFunctionInputBinder::SetValue<bool>(const bool& bInValue)
 {
-	check(InputType == FNiagaraTypeDefinition::GetBoolDef());
+	check(InputType.IsSameBaseDefinition(FNiagaraTypeDefinition::GetBoolDef()));
 	FNiagaraBool BoolStruct(bInValue);
 	SetData((uint8*)(&BoolStruct), sizeof(FNiagaraBool));
 }

@@ -436,7 +436,9 @@ void UNiagaraNodeParameterMapGet::Compile(class FHlslNiagaraTranslator* Translat
 		UEdGraphPin* InputPin = InputPins[i];
 
 		if (InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType || 
-			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryEnum)
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticType ||
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryEnum || 
+			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticEnum )
 		{
 			int32 CompiledInput = INDEX_NONE;
 			if (i == 0) // Only the zeroth item is not an default value pin.

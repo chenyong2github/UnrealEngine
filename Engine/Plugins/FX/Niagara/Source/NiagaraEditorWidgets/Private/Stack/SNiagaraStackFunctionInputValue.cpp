@@ -50,7 +50,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Input/SSpinBox.h"
-
+#include "NiagaraCommon.h"
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
 const float TextIconSize = 16;
@@ -94,6 +94,23 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					.Text(this, &SNiagaraStackFunctionInputValue::GetInputIconText)
 					.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetInputIconToolTip)
 					.ColorAndOpacity(this, &SNiagaraStackFunctionInputValue::GetInputIconColor)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(0, 0, 3, 0)
+			[
+				// Type Modifier Icon
+				SNew(SBox)
+				.WidthOverride(TextIconSize)
+				.VAlign(VAlign_Center)
+				.Visibility(this, &SNiagaraStackFunctionInputValue::GetTypeModifierIconVisibility)
+				[
+					SNew(STextBlock)
+					.Text(this, &SNiagaraStackFunctionInputValue::GetTypeModifierIconText)
+					.ToolTipText(this, &SNiagaraStackFunctionInputValue::GetTypeModifierIconToolTip)
+					.ColorAndOpacity(this, &SNiagaraStackFunctionInputValue::GetTypeModifierIconColor)
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -776,6 +793,26 @@ FText SNiagaraStackFunctionInputValue::GetInputIconToolTip() const
 FSlateColor SNiagaraStackFunctionInputValue::GetInputIconColor() const
 {
 	return FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForInputMode(FunctionInput->GetValueMode()));
+}
+
+EVisibility SNiagaraStackFunctionInputValue::GetTypeModifierIconVisibility() const
+{
+	return FunctionInput->GetInputType().IsStatic() ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+FText SNiagaraStackFunctionInputValue::GetTypeModifierIconText() const
+{
+	return FText::FromString(FString(TEXT("S")));
+}
+
+FText SNiagaraStackFunctionInputValue::GetTypeModifierIconToolTip() const
+{
+	return LOCTEXT("TypeModifierTooltip", "Static variables can only be set once in the graph and are meant to communicate inputs to static switches across the emitter.");
+}
+
+FSlateColor SNiagaraStackFunctionInputValue::GetTypeModifierIconColor() const
+{
+	return UEdGraphSchema_Niagara::GetTypeColor(FunctionInput->GetInputType());
 }
 
 FReply SNiagaraStackFunctionInputValue::OnFunctionInputDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)

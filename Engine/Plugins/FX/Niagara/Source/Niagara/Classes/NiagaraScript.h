@@ -474,6 +474,10 @@ public:
 	UPROPERTY()
 	TArray<FNiagaraVariableBase> AttributesWritten;
 
+	/** List of all attributes explicitly written by this VM script graph. Used to verify external dependencies.*/
+	UPROPERTY()
+	TArray<FNiagaraVariable> StaticVariablesWritten;
+
 	UPROPERTY()
 	FString ErrorMsg;
 
@@ -502,6 +506,12 @@ public:
 #if WITH_EDITORONLY_DATA
 	void BakeScriptLiterals(TArray<uint8>& OutLiterals) const;
 #endif
+};
+
+struct NIAGARA_API FNiagaraGraphCachedDataBase
+{
+	virtual ~FNiagaraGraphCachedDataBase() {}
+	virtual void GetStaticVariables(TArray<FNiagaraVariable>& OutVars) {}
 };
 
 /** Struct containing all of the data that can be different between different script versions.*/
@@ -866,6 +876,8 @@ public:
 	static bool IsSystemSpawnScript(ENiagaraScriptUsage Usage) { return Usage == ENiagaraScriptUsage::SystemSpawnScript; }
 	static bool IsSystemUpdateScript(ENiagaraScriptUsage Usage) { return Usage == ENiagaraScriptUsage::SystemUpdateScript; }
 	static bool IsSystemScript(ENiagaraScriptUsage Usage) { return IsSystemSpawnScript(Usage) || IsSystemUpdateScript(Usage);}
+
+	static bool IsEmitterScript(ENiagaraScriptUsage Usage) { return IsEmitterSpawnScript(Usage) || IsEmitterUpdateScript(Usage); }
 	static bool IsEmitterSpawnScript(ENiagaraScriptUsage Usage) { return Usage == ENiagaraScriptUsage::EmitterSpawnScript; }
 	static bool IsEmitterUpdateScript(ENiagaraScriptUsage Usage) { return Usage == ENiagaraScriptUsage::EmitterUpdateScript; }
 	static bool IsStandaloneScript(ENiagaraScriptUsage Usage)  { return IsDynamicInputScript(Usage) || IsFunctionScript(Usage) || IsModuleScript(Usage); }
@@ -1084,6 +1096,8 @@ private:
 public:
 	/** Kicks off an async job to convert the ByteCode into an optimized version for the platform we are running on. */
 	FGraphEventRef HandleByteCodeOptimization(bool bShouldForceNow = false);
+
+	static int32 NIAGARA_API LogCompileStaticVars;
 
 private:
 	/** Generates all of the function bindings for DI that don't require user data */
