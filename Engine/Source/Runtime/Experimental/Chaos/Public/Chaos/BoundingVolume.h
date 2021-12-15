@@ -294,6 +294,13 @@ public:
 
 	}
 
+	inline int32 GetElementCount()
+	{
+		// Not implemented 
+		check(false);
+		return 0;
+	}
+
 	
 	// Begin ISpatialAcceleration interface
 	virtual TArray<TPayloadType> FindAllIntersections(const FAABB3& Box) const override { return FindAllIntersectionsImp(Box); }
