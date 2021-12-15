@@ -107,7 +107,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionStaticSwitch::GenerateHLSLExpress
 
 EMaterialGenerateHLSLStatus UMaterialExpressionGetLocal::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	OutExpression = Generator.AcquireLocalValue(Scope, LocalName);
+	OutExpression = Generator.GetTree().AcquireLocal(Scope, LocalName);
 	if (!OutExpression)
 	{
 		return Generator.Error(TEXT("Local accessed before assigned"));
@@ -140,14 +140,14 @@ EMaterialGenerateHLSLStatus UMaterialExpressionStaticBoolParameter::GenerateHLSL
 }
 EMaterialGenerateHLSLStatus UMaterialExpressionWorldPosition::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	UE::HLSLTree::EExternalInputType InputType = UE::HLSLTree::EExternalInputType::None;
+	UE::HLSLTree::EExternalInput InputType = UE::HLSLTree::EExternalInput::None;
 
 	switch (WorldPositionShaderOffset)
 	{
-	case WPT_Default: InputType = UE::HLSLTree::EExternalInputType::WorldPosition; break;
-	case WPT_ExcludeAllShaderOffsets: InputType = UE::HLSLTree::EExternalInputType::WorldPosition_NoOffsets; break;
-	case WPT_CameraRelative: InputType = UE::HLSLTree::EExternalInputType::TranslatedWorldPosition; break;
-	case WPT_CameraRelativeNoOffsets: InputType = UE::HLSLTree::EExternalInputType::TranslatedWorldPosition_NoOffsets; break;
+	case WPT_Default: InputType = UE::HLSLTree::EExternalInput::WorldPosition; break;
+	case WPT_ExcludeAllShaderOffsets: InputType = UE::HLSLTree::EExternalInput::WorldPosition_NoOffsets; break;
+	case WPT_CameraRelative: InputType = UE::HLSLTree::EExternalInput::TranslatedWorldPosition; break;
+	case WPT_CameraRelativeNoOffsets: InputType = UE::HLSLTree::EExternalInput::TranslatedWorldPosition_NoOffsets; break;
 	default: checkNoEntry(); break;
 	}
 
@@ -178,15 +178,18 @@ EMaterialGenerateHLSLStatus UMaterialExpressionTextureObjectParameter::GenerateH
 
 EMaterialGenerateHLSLStatus UMaterialExpressionTextureSample::GenerateHLSLExpressionBase(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FTextureParameterDeclaration* TextureDeclaration, UE::HLSLTree::FExpression*& OutExpression)
 {
+	using namespace UE::HLSLTree;
 	if (!TextureDeclaration)
 	{
 		return Generator.Error(TEXT("Missing input texture"));
 	}
 
-	UE::HLSLTree::FExpression* TexCoordExpression = Coordinates.GetTracedInput().Expression ? Coordinates.AcquireHLSLExpression(Generator, Scope) : Generator.NewTexCoord(ConstCoordinate);
-	UE::HLSLTree::FExpressionTextureSample* ExpressionTextureSample = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionTextureSample>(TextureDeclaration, TexCoordExpression);
+	FExpression* TexCoordExpression = Coordinates.GetTracedInput().Expression ? Coordinates.AcquireHLSLExpression(Generator, Scope) : Generator.NewTexCoord(ConstCoordinate);
+	FExpressionTextureSample* ExpressionTextureSample = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureDeclaration, TexCoordExpression);
 	ExpressionTextureSample->SamplerSource = SamplerSource;
 	ExpressionTextureSample->MipValueMode = MipValueMode;
+	ExpressionTextureSample->TexCoordDerivatives = Generator.GetTree().GetAnalyticDerivatives(TexCoordExpression);
+
 	OutExpression = ExpressionTextureSample;
 	return EMaterialGenerateHLSLStatus::Success;
 }
@@ -389,7 +392,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionSetLocal::GenerateHLSLStatements(
 		return Generator.Error(TEXT("Missing value connection"));
 	}
 
-	Generator.GenerateAssignLocal(Scope, LocalName, ValueExpression);
+	Generator.GetTree().AssignLocal(Scope, LocalName, ValueExpression);
 	Exec.GenerateHLSLStatements(Generator, Scope);
 	return EMaterialGenerateHLSLStatus::Success;
 }
@@ -463,7 +466,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLExpression(F
 		return Generator.Error(TEXT("For loop index accessed outside loop scope"));
 	}
 
-	OutExpression = Generator.AcquireLocalValue(Scope, ExpressionData->LocalName);
+	OutExpression = Generator.GetTree().AcquireLocal(Scope, ExpressionData->LocalName);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
@@ -492,7 +495,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLStatements(F
 
 	UE::HLSLTree::FExpression* StepExpression = IndexStep.GetTracedInput().Expression ? IndexStep.AcquireHLSLExpression(Generator, Scope) : Generator.NewConstant(1);
 
-	Generator.GenerateAssignLocal(Scope, ExpressionData->LocalName, StartExpression);
+	Generator.GetTree().AssignLocal(Scope, ExpressionData->LocalName, StartExpression);
 
 	UE::HLSLTree::FStatementLoop* LoopStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementLoop>(Scope);
 	LoopStatement->LoopScope = Generator.NewOwnedScope(*LoopStatement);
@@ -507,13 +510,13 @@ EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLStatements(F
 
 	Generator.GetTree().NewStatement<UE::HLSLTree::FStatementBreak>(*IfStatement->ElseScope);
 
-	UE::HLSLTree::FExpression* LocalExpression = Generator.AcquireLocalValue(*LoopStatement->LoopScope, ExpressionData->LocalName);
+	UE::HLSLTree::FExpression* LocalExpression = Generator.GetTree().AcquireLocal(*LoopStatement->LoopScope, ExpressionData->LocalName);
 
 	IfStatement->ConditionExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionBinaryOp>(UE::HLSLTree::EBinaryOp::Less, LocalExpression, EndExpression);
 	LoopBody.GenerateHLSLStatements(Generator, *IfStatement->ThenScope);
 
-	UE::HLSLTree::FExpression* NewLocalExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionBinaryOp>(UE::HLSLTree::EBinaryOp::Add, Generator.AcquireLocalValue(*IfStatement->ThenScope, ExpressionData->LocalName), StepExpression);
-	Generator.GenerateAssignLocal(*IfStatement->ThenScope, ExpressionData->LocalName, NewLocalExpression);
+	UE::HLSLTree::FExpression* NewLocalExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionBinaryOp>(UE::HLSLTree::EBinaryOp::Add, Generator.GetTree().AcquireLocal(*IfStatement->ThenScope, ExpressionData->LocalName), StepExpression);
+	Generator.GetTree().AssignLocal(*IfStatement->ThenScope, ExpressionData->LocalName, NewLocalExpression);
 
 	Completed.GenerateHLSLStatements(Generator, *LoopStatement->NextScope);
 

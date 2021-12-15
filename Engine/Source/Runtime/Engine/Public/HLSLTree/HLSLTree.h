@@ -36,7 +36,6 @@ class FScope;
 class FExpressionLocalPHI;
 class FRequestedType;
 struct FEmitShaderCode;
-struct FEmitShaderValues;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
 
@@ -94,15 +93,6 @@ struct FEmitShaderCode
 	Shader::FType Type;
 	TArrayView<FEmitShaderCode*> Dependencies;
 	FSHAHash Hash;
-};
-
-struct FEmitShaderValues
-{
-	FEmitShaderCode* Code = nullptr;
-	FEmitShaderCode* CodeDdx = nullptr;
-	FEmitShaderCode* CodeDdy = nullptr;
-
-	bool HasDerivatives() const { return (bool)CodeDdx && (bool)CodeDdy; }
 };
 
 using FEmitShaderValueDependencies = TArray<FEmitShaderCode*, TInlineAllocator<8>>;
@@ -176,24 +166,8 @@ public:
 	
 	FEmitShaderCode* EmitPreshaderOrConstant(const FRequestedType& RequestedType, FExpression* Expression);
 	FEmitShaderCode* EmitConstantZero(const Shader::FType& Type);
-
 	FEmitShaderCode* EmitCast(FEmitShaderCode* ShaderValue, const Shader::FType& DestType);
-	FEmitShaderValues EmitCast(FEmitShaderValues ShaderValue, const Shader::FType& DestType);
-
-	FEmitShaderCode* EmitUnaryOp(EUnaryOp Op, FEmitShaderCode* Input);
-	FEmitShaderValues EmitUnaryOp(EUnaryOp Op, FEmitShaderValues Input, EExpressionDerivative Derivative);
-
-	FEmitShaderCode* EmitBinaryOp(EBinaryOp Op, FEmitShaderCode* Lhs, FEmitShaderCode* Rhs);
-	FEmitShaderValues EmitBinaryOp(EBinaryOp Op, FEmitShaderValues Lhs, FEmitShaderValues Rhs, EExpressionDerivative Derivative);
-
-	template<typename T> inline T EmitNeg(T Input) { return EmitUnaryOp(EUnaryOp::Neg, Input); }
-	template<typename T> inline T EmitRcp(T Input) { return EmitUnaryOp(EUnaryOp::Rcp, Input); }
-
-	template<typename T> inline T EmitAdd(T Lhs, T Rhs) { return EmitBinaryOp(EBinaryOp::Add, Lhs, Rhs); }
-	template<typename T> inline T EmitSub(T Lhs, T Rhs) { return EmitBinaryOp(EBinaryOp::Sub, Lhs, Rhs); }
-	template<typename T> inline T EmitMul(T Lhs, T Rhs) { return EmitBinaryOp(EBinaryOp::Mul, Lhs, Rhs); }
-	template<typename T> inline T EmitDiv(T Lhs, T Rhs) { return EmitBinaryOp(EBinaryOp::Div, Lhs, Rhs); }
-
+	
 	FMemStackBase* Allocator = nullptr;
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
 	TArray<FScope*, TInlineAllocator<16>> ScopeStack;
@@ -239,15 +213,6 @@ public:
 	bool bEmitShader = false;
 };
 
-enum class EComponentRequest : uint8
-{
-	None,
-	Requested,
-	RequestedWithDerivative,
-};
-inline bool IsRequested(EComponentRequest InRequest) { return InRequest != EComponentRequest::None; }
-inline bool IsDerivativeRequested(EComponentRequest InRequest) { return InRequest == EComponentRequest::RequestedWithDerivative; }
-
 /**
  * Like Shader::FType, but tracks which individual components are needed
  */
@@ -255,9 +220,9 @@ class FRequestedType
 {
 public:
 	FRequestedType() = default;
-	FRequestedType(int32 NumComponents, EComponentRequest DefaultRequest = EComponentRequest::Requested);
-	FRequestedType(const Shader::FType& InType, EComponentRequest DefaultRequest = EComponentRequest::Requested);
-	FRequestedType(const Shader::EValueType& InType, EComponentRequest DefaultRequest = EComponentRequest::Requested);
+	FRequestedType(int32 NumComponents, bool bDefaultRequest = true);
+	FRequestedType(const Shader::FType& InType, bool bDefaultRequest = true);
+	FRequestedType(const Shader::EValueType& InType, bool bDefaultRequest = true);
 	
 	const TCHAR* GetName() const { return GetType().GetName(); }
 	bool IsStruct() const { return StructType != nullptr; }
@@ -266,25 +231,22 @@ public:
 
 	int32 GetNumComponents() const;
 	bool IsComponentRequested(int32 Index) const { return RequestedComponents.IsValidIndex(Index) ? (bool)RequestedComponents[Index] : false; }
-	bool IsComponentDerivativeRequested(int32 Index) const { return RequestedComponentDerivatives.IsValidIndex(Index) ? (bool)RequestedComponentDerivatives[Index] : false; }
 	bool IsVoid() const { return RequestedComponents.Find(true) == INDEX_NONE; }
 
-	EComponentRequest GetComponentRequest(int32 Index) const;
-	void SetComponentRequest(int32 Index, EComponentRequest Request = EComponentRequest::Requested);
+	void SetComponentRequest(int32 Index, bool bRequest = true);
 
 	void Reset()
 	{
 		StructType = nullptr;
 		ValueComponentType = Shader::EValueComponentType::Void;
 		RequestedComponents.Reset();
-		RequestedComponentDerivatives.Reset();
 	}
 
 	/** Marks the given field as requested (or not) */
-	void SetFieldRequested(const Shader::FStructField* Field, EComponentRequest Request = EComponentRequest::Requested);
+	void SetFieldRequested(const Shader::FStructField* Field, bool bRequest = true);
 	void ClearFieldRequested(const Shader::FStructField* Field)
 	{
-		SetFieldRequested(Field, EComponentRequest::None);
+		SetFieldRequested(Field, false);
 	}
 
 	/** Marks the given field as requested, based on the input request type (which should match the field type) */
@@ -302,56 +264,9 @@ public:
 
 	/** 1 bit per component, a value of 'true' means the specified component is requsted */
 	TBitArray<> RequestedComponents;
-	TBitArray<> RequestedComponentDerivatives;
 };
 
 FRequestedType MakeRequestedType(Shader::EValueComponentType ComponentType, const FRequestedType& RequestedComponents);
-
-struct FPreparedData
-{
-	FPreparedData() = default;
-
-	FPreparedData(EExpressionEvaluation InEvaluation, EExpressionDerivative InDerivative = EExpressionDerivative::Invalid)
-		: Evaluation(InEvaluation)
-	{
-		switch (InEvaluation)
-		{
-		case EExpressionEvaluation::None:
-			Derivative = EExpressionDerivative::None;
-			break;
-		case EExpressionEvaluation::Constant:
-		case EExpressionEvaluation::Preshader:
-			Derivative = EExpressionDerivative::Zero;
-			break;
-		default:
-			Derivative = InDerivative;
-			break;
-		}
-	}
-
-	bool IsValid() const { return Evaluation != EExpressionEvaluation::None; }
-
-	EComponentRequest GetRequest() const
-	{
-		if (Evaluation != EExpressionEvaluation::None)
-		{
-			if (Derivative == EExpressionDerivative::Valid || Derivative == EExpressionDerivative::Zero)
-			{
-				return  EComponentRequest::RequestedWithDerivative;
-			}
-			return  EComponentRequest::Requested;
-		}
-		return EComponentRequest::None;
-	}
-
-	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
-	EExpressionDerivative Derivative = EExpressionDerivative::None;
-};
-
-inline FPreparedData CombinePreparedData(const FPreparedData& Lhs, const FPreparedData& Rhs)
-{
-	return FPreparedData(CombineEvaluations(Lhs.Evaluation, Rhs.Evaluation), CombineDerivatives(Lhs.Derivative, Rhs.Derivative));
-}
 
 /**
  * Like FRequestedType, but tracks an EExpressionEvaluation per component, rather than a simple requested flag
@@ -365,7 +280,6 @@ public:
 	FPreparedType(const Shader::FType& InType);
 
 	void SetEvaluation(EExpressionEvaluation Evaluation);
-	void SetDerivative(EExpressionDerivative Derivative);
 
 	void SetField(const Shader::FStructField* Field, const FPreparedType& FieldType);
 	FPreparedType GetFieldType(const Shader::FStructField* Field) const;
@@ -378,23 +292,20 @@ public:
 	bool IsInitialized() const { return StructType != nullptr || ValueComponentType != Shader::EValueComponentType::Void; }
 	bool IsVoid() const;
 
-	FPreparedData GetData() const;
-	FPreparedData GetData(const FRequestedType& RequestedType) const;
-	FPreparedData GetFieldData(int32 ComponentIndex, int32 NumComponents) const;
-	FPreparedData GetComponentData(int32 Index) const;
+	EExpressionEvaluation GetEvaluation() const;
+	EExpressionEvaluation GetEvaluation(const FRequestedType& RequestedType) const;
+	EExpressionEvaluation GetFieldEvaluation(int32 ComponentIndex, int32 NumComponents) const;
+	EExpressionEvaluation GetComponentEvaluation(int32 Index) const;
 
-	inline EExpressionEvaluation GetEvaluation(const FRequestedType& RequestedType) const { return GetData(RequestedType).Evaluation; }
-	inline EExpressionDerivative GetDerivative(const FRequestedType& RequestedType) const { return GetData(RequestedType).Derivative; }
-
-	void SetComponentData(int32 Index, const FPreparedData& Data);
-	void MergeComponentData(int32 Index, EComponentRequest Request, const FPreparedData& Data);
+	void SetComponentEvaluation(int32 Index, EExpressionEvaluation Evaluation);
+	void MergeComponentEvaluation(int32 Index, EExpressionEvaluation Evaluation);
 
 	/** Unlike FRequestedType, one of these should be set */
 	const Shader::FStructType* StructType = nullptr;
 	Shader::EValueComponentType ValueComponentType = Shader::EValueComponentType::Void;
 
 	/** Evaluation type for each component, may be 'None' for components that are unused */
-	TArray<FPreparedData, TInlineAllocator<16>> PreparedComponents;
+	TArray<EExpressionEvaluation, TInlineAllocator<16>> PreparedComponents;
 };
 
 FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& Rhs);
@@ -404,13 +315,8 @@ class FPrepareValueResult
 public:
 	const FPreparedType& GetPreparedType() const { return PreparedType; }
 
-	void SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedData& Data, const Shader::FType& Type);
+	void SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& Type);
 	void SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& Type);
-
-	void SetTypeWithDerivative(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& Type)
-	{
-		SetType(Context, RequestedType, FPreparedData(Evaluation, EExpressionDerivative::Valid), Type);
-	}
 
 	void SetForwardValue(FEmitContext& Context, const FRequestedType& RequestedType, FExpression* InValue);
 
@@ -421,6 +327,27 @@ private:
 	FPreparedType PreparedType;
 
 	friend class FExpression;
+};
+
+struct FEmitValueShaderResult
+{
+	FEmitShaderCode* Code = nullptr;
+};
+
+enum class EDerivativeCoordinate : uint8
+{
+	Ddx,
+	Ddy,
+};
+
+struct FExpressionDerivatives
+{
+	FExpression* ExpressionDdx = nullptr;
+	FExpression* ExpressionDdy = nullptr;
+
+	FExpression* Get(EDerivativeCoordinate Coord) const { return (Coord == EDerivativeCoordinate::Ddx) ? ExpressionDdx : ExpressionDdy; }
+
+	bool IsValid() const { return (bool)ExpressionDdx && (bool)ExpressionDdy; }
 };
 
 /**
@@ -436,30 +363,58 @@ public:
 	FRequestedType GetRequestedType() const { return PrepareValueResult.PreparedType.GetRequestedType(); }
 	Shader::FType GetType() const { return PrepareValueResult.PreparedType.GetType(); }
 	EExpressionEvaluation GetEvaluation(const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetEvaluation(RequestedType); }
-	EExpressionDerivative GetDerivative(const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetDerivative(RequestedType); }
 
 	virtual void Reset() override;
 
 	friend const FPreparedType& PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
 
-	FEmitShaderValues GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType, const Shader::FType& ResultType);
+	FEmitShaderCode* GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType, const Shader::FType& ResultType);
 	void GetValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader);
 	Shader::FValue GetValueConstant(FEmitContext& Context, const FRequestedType& RequestedType);
 
-	FEmitShaderValues GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType);
-	FEmitShaderValues GetValueShader(FEmitContext& Context);
+	FEmitShaderCode* GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType);
+	FEmitShaderCode* GetValueShader(FEmitContext& Context);
 
 protected:
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const;
 
 private:
+	FExpressionDerivatives Derivatives;
 	FRequestedType CurrentRequestedType;
 	FPrepareValueResult PrepareValueResult;
 	bool bReentryFlag = false;
+	bool bComputedDerivatives = false;
 
+	friend class FTree;
 	friend class FEmitContext;
+	friend class FExpressionReentryScope;
+};
+
+class FExpressionReentryScope
+{
+public:
+	FExpressionReentryScope(FExpression* InExpression) : Expression(InExpression)
+	{
+		if (Expression)
+		{
+			check(!Expression->bReentryFlag);
+			Expression->bReentryFlag = true;
+		}
+	}
+
+	~FExpressionReentryScope()
+	{
+		if (Expression)
+		{
+			check(Expression->bReentryFlag);
+			Expression->bReentryFlag = false;
+		}
+	}
+
+	FExpression* Expression;
 };
 
 
@@ -471,13 +426,18 @@ private:
 class FExpressionLocalPHI final : public FExpression
 {
 public:
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	FExpressionLocalPHI() = default;
+	FExpressionLocalPHI(const FExpressionLocalPHI* Source, EDerivativeCoordinate Coord);
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+
+	TArray<EDerivativeCoordinate, TInlineAllocator<8>> DerivativeChain;
 	FName LocalName;
 	FScope* Scopes[MaxNumPreviousScopes];
 	FExpression* Values[MaxNumPreviousScopes];
-	int32 NumValues;
+	int32 NumValues = 0;
 };
 
 /**
@@ -595,6 +555,7 @@ private:
 	FScope* ParentScope = nullptr;
 	FStatement* ContainedStatement = nullptr;
 	FScope* PreviousScope[MaxNumPreviousScopes];
+	TMap<FName, FExpression*> LocalMap;
 	FCodeList Declarations;
 	FCodeList Statements;
 	int32 NumPreviousScopes = 0;
@@ -636,6 +597,8 @@ public:
 
 	void ResetNodes();
 
+	bool Finalize();
+
 	bool EmitShader(FEmitContext& Context, FStringBuilderBase& OutCode) const;
 
 	FScope& GetRootScope() const { return *RootScope; }
@@ -656,8 +619,25 @@ public:
 		return Statement;
 	}
 
+	void AssignLocal(FScope& Scope, const FName& LocalName, FExpression* Value);
+	FExpression* AcquireLocal(FScope& Scope, const FName& LocalName);
+
+	const FExpressionDerivatives& GetAnalyticDerivatives(FExpression* InExpression);
+
 	FScope* NewScope(FScope& Scope);
 	FScope* NewOwnedScope(FStatement& Owner);
+
+	FExpression* NewConstant(const Shader::FValue& Value);
+	FExpression* NewUnaryOp(EUnaryOp Op, FExpression* Input);
+	FExpression* NewBinaryOp(EBinaryOp Op, FExpression* Lhs, FExpression* Rhs);
+
+	FExpression* NewNeg(FExpression* Input) { return NewUnaryOp(EUnaryOp::Neg, Input); }
+	FExpression* NewRcp(FExpression* Input) { return NewUnaryOp(EUnaryOp::Rcp, Input); }
+
+	FExpression* NewAdd(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Add, Lhs, Rhs); }
+	FExpression* NewSub(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Sub, Lhs, Rhs); }
+	FExpression* NewMul(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Mul, Lhs, Rhs); }
+	FExpression* NewDiv(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Div, Lhs, Rhs); }
 
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
 
@@ -677,6 +657,9 @@ private:
 	FMemStackBase* Allocator = nullptr;
 	FNode* Nodes = nullptr;
 	FScope* RootScope = nullptr;
+	TArray<FExpressionLocalPHI*> PHIExpressions;
+
+	friend class FExpressionLocalPHI;
 };
 
 //Shader::EValueType RequestExpressionType(FEmitContext& Context, FExpression* InExpression, int8 InRequestedNumComponents); // friend of FExpression

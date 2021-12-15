@@ -45,23 +45,6 @@ enum class EExpressionEvaluation : uint8
 
 EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionEvaluation Rhs);
 
-enum class EExpressionDerivative : uint8
-{
-	/** Uninitialized/unknown */
-	None,
-
-	/** Derivative is not valid */
-	Invalid,
-
-	/** Derivative is known to be 0 */
-	Zero,
-
-	/** Derivative is valid */
-	Valid,
-};
-
-EExpressionDerivative CombineDerivatives(EExpressionDerivative Lhs, EExpressionDerivative Rhs);
-
 enum class EUnaryOp : uint8
 {
 	None,

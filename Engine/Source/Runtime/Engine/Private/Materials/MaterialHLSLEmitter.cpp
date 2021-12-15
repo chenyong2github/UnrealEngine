@@ -786,7 +786,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		}
 
 		// Prepare code for just the normal
-		FRequestedType RequestedMaterialNormal(Generator.GetMaterialAttributesType(), EComponentRequest::None);
+		FRequestedType RequestedMaterialNormal(Generator.GetMaterialAttributesType(), false);
 		RequestedMaterialNormal.SetFieldRequested(NormalField);
 		PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialNormal);
 

@@ -20,6 +20,7 @@ public:
 
 	Shader::FValue Value;
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
@@ -35,13 +36,15 @@ public:
 	Shader::FValue DefaultValue;
 	EMaterialParameterType ParameterType;
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
-enum class EExternalInputType : uint8
+enum class EExternalInput : uint8
 {
 	None,
+
 	TexCoord0,
 	TexCoord1,
 	TexCoord2,
@@ -50,55 +53,77 @@ enum class EExternalInputType : uint8
 	TexCoord5,
 	TexCoord6,
 	TexCoord7,
+
+	TexCoord0_Ddx,
+	TexCoord1_Ddx,
+	TexCoord2_Ddx,
+	TexCoord3_Ddx,
+	TexCoord4_Ddx,
+	TexCoord5_Ddx,
+	TexCoord6_Ddx,
+	TexCoord7_Ddx,
+
+	TexCoord0_Ddy,
+	TexCoord1_Ddy,
+	TexCoord2_Ddy,
+	TexCoord3_Ddy,
+	TexCoord4_Ddy,
+	TexCoord5_Ddy,
+	TexCoord6_Ddy,
+	TexCoord7_Ddy,
+
 	WorldPosition,
 	WorldPosition_NoOffsets,
 	TranslatedWorldPosition,
 	TranslatedWorldPosition_NoOffsets,
+
+	WorldPosition_Ddx,
+	WorldPosition_Ddy,
 };
 static constexpr int32 NumTexCoords = 8;
 
-inline bool IsTexCoord(EExternalInputType Type)
+struct FExternalInputDescription
 {
-	return FMath::IsWithin((int32)Type, (int32)EExternalInputType::TexCoord0, (int32)EExternalInputType::TexCoord0 + NumTexCoords);
-}
+	FExternalInputDescription(const TCHAR* InName, Shader::EValueType InType, EExternalInput InDdx = EExternalInput::None, EExternalInput InDdy = EExternalInput::None)
+		: Name(InName), Type(InType), Ddx(InDdx), Ddy(InDdy)
+	{}
 
-inline Shader::EValueType GetInputExpressionType(EExternalInputType Type)
+	const TCHAR* Name;
+	Shader::EValueType Type;
+	EExternalInput Ddx;
+	EExternalInput Ddy;
+};
+
+FExternalInputDescription GetExternalInputDescription(EExternalInput Input);
+
+inline bool IsTexCoord(EExternalInput Type)
 {
-	if (IsTexCoord(Type))
-	{
-		return Shader::EValueType::Float2;
-	}
-
-	switch (Type)
-	{
-	case EExternalInputType::None:
-		return Shader::EValueType::Void;
-	case EExternalInputType::WorldPosition:
-	case EExternalInputType::WorldPosition_NoOffsets:
-		return Shader::EValueType::Double3;
-	case EExternalInputType::TranslatedWorldPosition:
-	case EExternalInputType::TranslatedWorldPosition_NoOffsets:
-		return Shader::EValueType::Float3;
-	default:
-		checkNoEntry();
-		return Shader::EValueType::Void;
-	}
+	return FMath::IsWithin((int32)Type, (int32)EExternalInput::TexCoord0, (int32)EExternalInput::TexCoord0 + NumTexCoords);
 }
-inline EExternalInputType MakeInputTexCoord(int32 Index)
+inline bool IsTexCoord_Ddx(EExternalInput Type)
+{
+	return FMath::IsWithin((int32)Type, (int32)EExternalInput::TexCoord0_Ddx, (int32)EExternalInput::TexCoord0_Ddx + NumTexCoords);
+}
+inline bool IsTexCoord_Ddy(EExternalInput Type)
+{
+	return FMath::IsWithin((int32)Type, (int32)EExternalInput::TexCoord0_Ddy, (int32)EExternalInput::TexCoord0_Ddy + NumTexCoords);
+}
+inline EExternalInput MakeInputTexCoord(int32 Index)
 {
 	check(Index >= 0 && Index < NumTexCoords);
-	return (EExternalInputType)((int32)EExternalInputType::TexCoord0 + Index);
+	return (EExternalInput)((int32)EExternalInput::TexCoord0 + Index);
 }
 
 class FExpressionExternalInput : public FExpression
 {
 public:
-	FExpressionExternalInput(EExternalInputType InInputType) : InputType(InInputType) {}
+	FExpressionExternalInput(EExternalInput InInputType) : InputType(InInputType) {}
 
-	EExternalInputType InputType;
+	EExternalInput InputType;
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 };
 
 class FExpressionTextureSample : public FExpression
@@ -113,11 +138,12 @@ public:
 
 	FTextureParameterDeclaration* Declaration;
 	FExpression* TexCoordExpression;
+	FExpressionDerivatives TexCoordDerivatives;
 	ESamplerSourceMode SamplerSource;
 	ETextureMipValueMode MipValueMode;
 
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 };
 
 class FExpressionGetStructField : public FExpression
@@ -135,8 +161,9 @@ public:
 	const Shader::FStructField* Field;
 	FExpression* StructExpression;
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
@@ -157,8 +184,9 @@ public:
 	FExpression* StructExpression;
 	FExpression* FieldExpression;
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
@@ -176,7 +204,7 @@ public:
 	FExpression* FalseExpression;
 
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
@@ -191,8 +219,9 @@ public:
 	EUnaryOp Op;
 	FExpression* Input;
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
@@ -209,8 +238,9 @@ public:
 	FExpression* Lhs;
 	FExpression* Rhs;
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
@@ -238,8 +268,9 @@ public:
 	FSwizzleParameters Parameters;
 	FExpression* Input;
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
@@ -254,8 +285,9 @@ public:
 	FExpression* Lhs;
 	FExpression* Rhs;
 
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
@@ -263,7 +295,7 @@ class FExpressionReflectionVector : public FExpression
 {
 public:
 	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitShaderValues& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 };
 
 class FStatementReturn : public FStatement

@@ -125,23 +125,7 @@ bool FMaterialHLSLGenerator::Finalize()
 		return false;
 	}
 
-	// Resolve values for any PHI nodes that were generated
-	// Resolving a PHI may produce additional PHIs
-	while(PHIExpressions.Num() > 0)
-	{
-		UE::HLSLTree::FExpressionLocalPHI* Expression = PHIExpressions.Pop(false);
-		for (int32 i = 0; i < Expression->NumValues; ++i)
-		{
-			Expression->Values[i] = InternalAcquireLocalValue(*Expression->Scopes[i], Expression->LocalName);
-			if (!Expression->Values[i])
-			{
-				Errorf(TEXT("Local %s is not assigned on all control paths"), *Expression->LocalName.ToString());
-				return false;
-			}
-		}
-	}
-
-	return true;
+	return HLSLTree->Finalize();
 }
 
 EMaterialGenerateHLSLStatus FMaterialHLSLGenerator::Error(const FString& Message)
@@ -367,50 +351,6 @@ UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextu
 		Declaration = HLSLTree->NewTextureParameterDeclaration(Name, DefaultValue);
 	}
 	return Declaration;
-}
-
-bool FMaterialHLSLGenerator::GenerateAssignLocal(UE::HLSLTree::FScope& Scope, const FName& LocalName, UE::HLSLTree::FExpression* Value)
-{
-	const FLocalKey Key(&Scope, LocalName);
-	LocalMap.Add(Key, Value);
-	return true;
-}
-
-UE::HLSLTree::FExpression* FMaterialHLSLGenerator::InternalAcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName)
-{
-	const FLocalKey Key(&Scope, LocalName);
-	UE::HLSLTree::FExpression** FoundExpression = LocalMap.Find(Key);
-	if (FoundExpression)
-	{
-		return *FoundExpression;
-	}
-
-	const TArrayView<UE::HLSLTree::FScope*> PreviousScopes = Scope.GetPreviousScopes();
-	if (PreviousScopes.Num() > 1)
-	{
-		UE::HLSLTree::FExpressionLocalPHI* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionLocalPHI>();
-		Expression->LocalName = LocalName;
-		Expression->NumValues = PreviousScopes.Num();
-		for (int32 i = 0; i < PreviousScopes.Num(); ++i)
-		{
-			Expression->Scopes[i] = PreviousScopes[i];
-		}
-		PHIExpressions.Add(Expression);
-		LocalMap.Add(Key, Expression);
-		return Expression;
-	}
-
-	if (PreviousScopes.Num() == 1)
-	{
-		return InternalAcquireLocalValue(*PreviousScopes[0], LocalName);
-	}
-
-	return nullptr;
-}
-
-UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireLocalValue(UE::HLSLTree::FScope& Scope, const FName& LocalName)
-{
-	return InternalAcquireLocalValue(Scope, LocalName);
 }
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex)

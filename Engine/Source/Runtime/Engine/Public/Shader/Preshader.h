@@ -8,6 +8,7 @@
 
 class FUniformExpressionSet;
 struct FMaterialRenderContext;
+class FMaterial;
 
 namespace UE
 {
