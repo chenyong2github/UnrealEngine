@@ -37,6 +37,11 @@ struct FOpenCVArucoDetectedMarker
 {
 	GENERATED_BODY()
 
+	FOpenCVArucoDetectedMarker()
+		: Id(-1)
+	{
+	}
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OpenCV | ArUco")
 	int32 Id;
 
