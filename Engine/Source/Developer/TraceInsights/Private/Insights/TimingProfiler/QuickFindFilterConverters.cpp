@@ -4,7 +4,7 @@
 
 #include "Insights/InsightsManager.h"
 
-#define LOCTEXT_NAMESPACE "Insights::FMemoryFilterValueConverter"
+#define LOCTEXT_NAMESPACE "Insights::QuickFindFilterConverters"
 
 namespace Insights
 {
