@@ -242,6 +242,11 @@ void UCommonActionWidget::UpdateActionWidget()
 					{
 						MyIcon->SetImage(&Icon);
 
+						if (GetVisibility() != ESlateVisibility::Collapsed)
+						{
+							MyIcon->Invalidate(EInvalidateWidgetReason::LayoutAndVolatility);
+						}
+
 						if (InputActionData->GetCurrentInputTypeInfo(CommonInputSubsystem).bActionRequiresHold)
 						{
 							MyProgressImage->SetVisibility(EVisibility::SelfHitTestInvisible);
