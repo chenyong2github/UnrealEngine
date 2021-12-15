@@ -147,12 +147,14 @@ public:
 			{
 				CurrentPage = TimestampIterator.PrevPage();
 			}
+			check(CurrentPage != nullptr);
 			uint64 PageInsertionIndex = Algo::LowerBound(*CurrentPage, Timestamp);
 #if USE_VARIABLE_PAGED_ARRAY
-			InsertionIndex = TimestampIterator.GetCurrentItemIndex() + PageInsertionIndex;
+			InsertionIndex = TimestampIterator.GetCurrentItemIndex() + PageInsertionIndex + 1 - CurrentPage->ItemCount;
 #else
 			InsertionIndex = TimestampIterator.GetCurrentPageIndex() * Timestamps.GetPageSize() + PageInsertionIndex;
 #endif
+			check(InsertionIndex <= Timestamps.Num());
 		}
 		Timestamps.Insert(InsertionIndex) = Timestamp;
 		OpTypes.Insert(InsertionIndex) = OpType;
