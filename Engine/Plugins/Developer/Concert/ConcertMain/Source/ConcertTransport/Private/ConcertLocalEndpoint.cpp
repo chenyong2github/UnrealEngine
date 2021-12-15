@@ -372,7 +372,7 @@ void FConcertLocalEndpoint::SendAck(const FGuid& AcknowledgmentToSend, const FCo
 		return;
 	}
 
-	FConcertAckData* Ack = new FConcertAckData();
+	FConcertAckData* Ack = FMessageEndpoint::MakeMessage<FConcertAckData>();
 	Ack->ConcertEndpointId = EndpointContext.EndpointId;
 	Ack->MessageId = FGuid::NewGuid();
 	Ack->AckSendTimeTicks = UtcNow.GetTicks();
@@ -400,7 +400,7 @@ void FConcertLocalEndpoint::SendEndpointClosed(const FConcertRemoteEndpointRef& 
 		return;
 	}
 
-	FConcertEndpointClosedData* EndpointClosed = new FConcertEndpointClosedData();
+	FConcertEndpointClosedData* EndpointClosed = FMessageEndpoint::MakeMessage<FConcertEndpointClosedData>();
 	EndpointClosed->ConcertEndpointId = EndpointContext.EndpointId;
 	EndpointClosed->MessageId = FGuid::NewGuid();
 
@@ -569,7 +569,7 @@ void FConcertLocalEndpoint::ProcessEndpointDiscovery(const FConcertMessageContex
 		// Negotiate a reliable channel
 		if (MessageEndpoint.IsValid())
 		{
-			FConcertReliableHandshakeData* InitialHandshake = new FConcertReliableHandshakeData();
+			FConcertReliableHandshakeData* InitialHandshake = FMessageEndpoint::MakeMessage<FConcertReliableHandshakeData>();
 			InitialHandshake->ConcertEndpointId = EndpointContext.EndpointId;
 			InitialHandshake->MessageId = FGuid::NewGuid();
 			InitialHandshake->EndpointTimeoutTick = FTimespan(0, 0, Settings.RemoteEndpointTimeoutSeconds).GetTicks();
@@ -603,29 +603,33 @@ void FConcertLocalEndpoint::ProcessReliableHandshake(const FConcertMessageContex
 
 	Logger.LogReceiveReliableHandshake(*Message, EndpointContext.EndpointId, ConcertContext.UtcNow);
 
-	TUniquePtr<FConcertReliableHandshakeData> HandshakeResponse = MakeUnique<FConcertReliableHandshakeData>();
+	FConcertReliableHandshakeData* HandshakeResponse = FMessageEndpoint::MakeMessage<FConcertReliableHandshakeData>();
 	HandshakeResponse->ConcertEndpointId = EndpointContext.EndpointId;
 	HandshakeResponse->MessageId = FGuid::NewGuid();
 	HandshakeResponse->EndpointTimeoutTick = FTimespan(0, 0, Settings.RemoteEndpointTimeoutSeconds).GetTicks();
-	if (RemoteEndpoint->HandleReliableHandshake(*Message, *HandshakeResponse) && MessageEndpoint.IsValid())
+	if (!RemoteEndpoint->HandleReliableHandshake(*Message, *HandshakeResponse) || !MessageEndpoint.IsValid())
 	{
-		Logger.LogSendReliableHandshake(*HandshakeResponse, Message->ConcertEndpointId, ConcertContext.UtcNow);
-
-		// Update the last sent message time to this endpoint
-		RemoteEndpoint->SetLastSentMessageTime(ConcertContext.UtcNow);
-
-		MessageEndpoint->Send(
-			HandshakeResponse.Release(), // Should be deleted by MessageBus
-			EMessageFlags::Reliable,
-			nullptr, // No Attachment
-			TArrayBuilder<FMessageAddress>().Add(RemoteEndpoint->GetAddress()),
-			FTimespan::Zero(), // No Delay
-			FDateTime::MaxValue() // No Expiration
-		);
-
-		// (Re)send any pending reliable messages
-		SendPendingMessages(RemoteEndpoint.ToSharedRef(), ConcertContext.UtcNow);
+		HandshakeResponse->~FConcertReliableHandshakeData();
+		FMemory::Free(HandshakeResponse);
+		return;
 	}
+
+	Logger.LogSendReliableHandshake(*HandshakeResponse, Message->ConcertEndpointId, ConcertContext.UtcNow);
+
+	// Update the last sent message time to this endpoint
+	RemoteEndpoint->SetLastSentMessageTime(ConcertContext.UtcNow);
+
+	MessageEndpoint->Send(
+		HandshakeResponse, // Should be deleted by MessageBus
+		EMessageFlags::Reliable,
+		nullptr, // No Attachment
+		TArrayBuilder<FMessageAddress>().Add(RemoteEndpoint->GetAddress()),
+		FTimespan::Zero(), // No Delay
+		FDateTime::MaxValue() // No Expiration
+	);
+
+	// (Re)send any pending reliable messages
+	SendPendingMessages(RemoteEndpoint.ToSharedRef(), ConcertContext.UtcNow);
 }
 
 void FConcertLocalEndpoint::HandleMessage(const FConcertMessageContext& ConcertContext)

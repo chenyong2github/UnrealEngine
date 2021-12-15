@@ -413,9 +413,7 @@ void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InM
 		const FString& PlatformName = DefaultDevice->GetTargetPlatform().PlatformName();
 		const PlatformInfo::FTargetPlatformInfo* VanillaInfo = DefaultDevice->GetTargetPlatform().GetTargetPlatformInfo().VanillaInfo;
 
-		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
-		void* Memory = FMemory::Malloc(sizeof(FTargetDeviceServicePong), alignof(FTargetDeviceServicePong));
-		FTargetDeviceServicePong* Message = new(Memory) FTargetDeviceServicePong();
+		FTargetDeviceServicePong* Message = FMessageEndpoint::MakeMessage<FTargetDeviceServicePong>();
 
 		Message->Name = DefaultDevice->GetName();
 		Message->Type = TargetDeviceTypes::ToString(DefaultDevice->GetDeviceType());

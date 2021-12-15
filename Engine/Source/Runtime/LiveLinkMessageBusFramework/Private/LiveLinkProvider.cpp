@@ -156,7 +156,7 @@ private:
 	// Send hierarchy data for named subject
 	void SendSubject(FName SubjectName, const FTrackedSubject& Subject)
 	{
-		FLiveLinkSubjectDataMessage* SubjectData = new FLiveLinkSubjectDataMessage;
+		FLiveLinkSubjectDataMessage* SubjectData = FMessageEndpoint::MakeMessage<FLiveLinkSubjectDataMessage>();
 		SubjectData->RefSkeleton = Subject.RefSkeleton;
 		SubjectData->SubjectName = SubjectName;
 
@@ -174,7 +174,7 @@ private:
 	// Send frame data for named subject
 	void SendSubjectFrame(FName SubjectName, const FTrackedSubject& Subject)
 	{
-		FLiveLinkSubjectFrameMessage* SubjectFrame = new FLiveLinkSubjectFrameMessage;
+		FLiveLinkSubjectFrameMessage* SubjectFrame = FMessageEndpoint::MakeMessage<FLiveLinkSubjectFrameMessage>();
 		SubjectFrame->Transforms = Subject.Transforms;
 		SubjectFrame->SubjectName = SubjectName;
 		SubjectFrame->Curves = Subject.Curves;
@@ -258,8 +258,7 @@ private:
 			MessageAddresses.Add(Address.Address);
 		}
 
-		FLiveLinkClearSubject* ClearSubject = new FLiveLinkClearSubject(SubjectName);
-		MessageEndpoint->Send(ClearSubject, EMessageFlags::Reliable, nullptr, MessageAddresses, FTimespan::Zero(), FDateTime::MaxValue());
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FLiveLinkClearSubject>(SubjectName), EMessageFlags::Reliable, nullptr, MessageAddresses, FTimespan::Zero(), FDateTime::MaxValue());
 	}
 
 public:

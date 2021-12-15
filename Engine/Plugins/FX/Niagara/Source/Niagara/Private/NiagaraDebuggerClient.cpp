@@ -284,7 +284,7 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 	OutlinerCountdown = 0;
 	if(ensure(Connection.IsValid()))
 	{
-		FNiagaraDebuggerOutlinerUpdate* Message = new FNiagaraDebuggerOutlinerUpdate();
+		FNiagaraDebuggerOutlinerUpdate* Message = FMessageEndpoint::MakeMessage<FNiagaraDebuggerOutlinerUpdate>();
 	
 		//Gather all high level state data to pass to the outliner in the debugger.
 		//TODO: Move out to somewhere neater and add more info.
