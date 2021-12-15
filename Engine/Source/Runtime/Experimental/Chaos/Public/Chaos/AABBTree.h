@@ -31,6 +31,9 @@ struct CHAOS_API FAABBTreeCVars
 
 	static float DynamicTreeBoundingBoxPadding;
 	static FAutoConsoleVariableRef CVarDynamicTreeBoundingBoxPadding;
+
+	static int32 DynamicTreeLeafCapacity;
+	static FAutoConsoleVariableRef CVarDynamicTreeLeafCapacity;
 };
 
 struct CHAOS_API FAABBTreeDirtyGridCVars
@@ -1076,8 +1079,13 @@ public:
 		return(WhichChildAmI(NodeIdx) ^ 1);
 	}
 
-	int32 FindBestSibling(const TAABB<T, 3>& InNewBounds)
+	int32 FindBestSibling(const TAABB<T, 3>& InNewBounds, bool& bOutAddToLeaf)
 	{
+		bOutAddToLeaf = false;
+		if (RootNode == INDEX_NONE)
+		{
+			return INDEX_NONE;
+		}
 		
 		TAABB<T, 3> NewBounds = InNewBounds;
 		NewBounds.Thicken(FAABBTreeCVars::DynamicTreeBoundingBoxPadding);
@@ -1119,22 +1127,35 @@ public:
 			//SumDeltaCostQ.SetNumUninitialized(SumDeltaCostQ.Num() - 1);
 
 			// TestSibling bounds union with new bounds
+			bool bAddToLeaf = false;
 			WorkingAABB = Nodes[TestSibling].ChildrenBounds[0];
 			if (!Nodes[TestSibling].bLeaf)
 			{
 				WorkingAABB.GrowToInclude(Nodes[TestSibling].ChildrenBounds[1]);
+			}
+			else
+			{
+				int32 LeafIdx = Nodes[TestSibling].ChildrenNodes[0];
+				bAddToLeaf = Leaves[LeafIdx].GetElementCount() < FAABBTreeCVars::DynamicTreeLeafCapacity;
 			}
 			FReal TestSiblingArea = WorkingAABB.GetArea();
 			WorkingAABB.GrowToInclude(NewBounds);
 
 			FReal NewPotentialNodeArea = WorkingAABB.GetArea();
 			FReal CostForChoosingNode = NewPotentialNodeArea + SumDeltaCost;
+			if (bAddToLeaf)
+			{
+				// No new node is added (we can experiment with this cost function
+				// It is faster overall if we don't subtract here
+				//CostForChoosingNode -= TestSiblingArea;
+			}
 			FReal NewDeltaCost = NewPotentialNodeArea - TestSiblingArea;
 			// Did we get a better cost?
 			if (CostForChoosingNode < BestCost)
 			{
 				BestCost = CostForChoosingNode;
 				BestSiblingIdx = TestSibling;
+				bOutAddToLeaf = bAddToLeaf;
 			}
 
 			// Lower bound of Children costs
@@ -1231,6 +1252,24 @@ public:
 		//	DynamicTreeDebugStats();
 		//}
 
+		// Find the best sibling
+		bool bAddToLeaf;
+		int32 BestSibling = FindBestSibling(NewBounds, bAddToLeaf);
+
+		if (bAddToLeaf)
+		{
+			int32 LeafIdx = Nodes[BestSibling].ChildrenNodes[0];
+			Leaves[LeafIdx].AddElement(TPayloadBoundsElement<TPayloadType, T>{Payload, NewBounds});
+			Leaves[LeafIdx].RecomputeBounds();
+			TAABB<T, 3> ExpandedBounds = Leaves[LeafIdx].GetBounds();
+			ExpandedBounds.Thicken(FAABBTreeCVars::DynamicTreeBoundingBoxPadding);
+			Nodes[BestSibling].ChildrenBounds[0] = ExpandedBounds;
+			UpdateAncestorBounds(BestSibling, true);
+			FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
+			*PayloadInfo = FAABBTreePayloadInfo{ INDEX_NONE, INDEX_NONE, LeafIdx, INDEX_NONE, BestSibling };
+			return;
+		}
+
 		int32 NewLeafNode = AllocateLeafNodeAndLeaf(Payload, NewBounds);
 
 		// New tree?
@@ -1239,9 +1278,6 @@ public:
 			RootNode = NewLeafNode;
 			return;
 		}
-
-		// Find the best sibling
-		int32 BestSibling = FindBestSibling(NewBounds);
 
 		// New internal parent node
 		int32 oldParent = Nodes[BestSibling].ParentNode;
@@ -1304,8 +1340,21 @@ public:
 		}
 	}
 
-	void RemoveLeafNode(int32 LeafNodeIdx)
+	void RemoveLeafNode(int32 LeafNodeIdx, const TPayloadType& Payload)
 	{
+		int32 LeafIdx = Nodes[LeafNodeIdx].ChildrenNodes[0];
+
+		if (Leaves[LeafIdx].GetElementCount() > 1)
+		{
+			Leaves[LeafIdx].RemoveElement(Payload);
+			Leaves[LeafIdx].RecomputeBounds();
+			TAABB<T, 3> ExpandedBounds = Leaves[LeafIdx].GetBounds();
+			ExpandedBounds.Thicken(FAABBTreeCVars::DynamicTreeBoundingBoxPadding);
+			Nodes[LeafNodeIdx].ChildrenBounds[0] = ExpandedBounds;
+			UpdateAncestorBounds(LeafNodeIdx);
+			return;
+		}
+
 		int32 ParentNodeIdx = Nodes[LeafNodeIdx].ParentNode;
 
 		if (ParentNodeIdx != INDEX_NONE)
@@ -1372,7 +1421,7 @@ public:
 				{
 					if (bDynamicTree)
 					{
-						RemoveLeafNode(PayloadInfo->NodeIdx);
+						RemoveLeafNode(PayloadInfo->NodeIdx, Payload);
 					}
 					else
 					{
@@ -1441,7 +1490,7 @@ public:
 
 					if (bDynamicTree)
 					{
-						RemoveLeafNode(PayloadInfo->NodeIdx);
+						RemoveLeafNode(PayloadInfo->NodeIdx, Payload);
 						PayloadInfo->LeafIdx = INDEX_NONE;
 						PayloadInfo->NodeIdx = INDEX_NONE;
 					}
