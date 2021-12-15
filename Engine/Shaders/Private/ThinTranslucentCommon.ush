@@ -9,8 +9,9 @@
 #define THIN_TRANSLUCENT_ACCURATE_FRESNEL 1
 
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-void AccumulateThinTranslucentModel(inout float3 DualBlendColorAdd,
-								inout float3 DualBlendColorMul,
+void AccumulateThinTranslucentModel(inout float3 DualBlendSurfaceLuminancePostCoverage,
+								inout float3 DualBlendSurfaceTransmittancePreCoverage,
+								inout float DualBlendSurfaceCoverage,
 								FMaterialPixelParameters MaterialParams,
 								FGBufferData GBuffer,
 								float3 DiffuseColor,
@@ -70,8 +71,10 @@ void AccumulateThinTranslucentModel(inout float3 DualBlendColorAdd,
 
 	SurfaceColor += SpecularColor;
 
-	DualBlendColorAdd = SurfaceColor;
-	DualBlendColorMul = Transmittance;
+	// Luminance and transmitance assumin a full coverage of 1.
+	DualBlendSurfaceCoverage = 1.0f;
+	DualBlendSurfaceLuminancePostCoverage = SurfaceColor * DualBlendSurfaceCoverage;
+	DualBlendSurfaceTransmittancePreCoverage = Transmittance;
 }
 #endif
 
