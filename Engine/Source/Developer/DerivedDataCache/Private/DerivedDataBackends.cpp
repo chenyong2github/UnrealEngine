@@ -634,7 +634,7 @@ public:
 				FString WriteAccessLog;
 				bool bPromptIfMissing = false;
 
-				FParse::Value( Entry, TEXT("WriteAccessLog="), WriteAccessLog );		
+				FParse::Value(Entry, TEXT("WriteAccessLog="), WriteAccessLog);
 				FParse::Bool(Entry, TEXT("PromptIfMissing="), bPromptIfMissing);
 
 				if (!bShared || IFileManager::Get().DirectoryExists(*Path))
@@ -645,8 +645,8 @@ public:
 				if (InnerFileSystem)
 				{
 					bUsingSharedDDC |= bShared;
-	
-					DataCache = new FDerivedDataBackendCorruptionWrapper(InnerFileSystem);
+
+					DataCache = InnerFileSystem;
 					UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s data cache path %s: %s"), NodeName, *Path, !InnerFileSystem->IsWritable() ? TEXT("ReadOnly") : TEXT("Writable"));
 					Directories.AddUnique(Path);
 				}
@@ -666,8 +666,6 @@ public:
 				}
 			} while (RetryOnFailure);
 		}
-
-
 
 		return DataCache;
 	}
@@ -738,7 +736,7 @@ public:
 
 		// Insert the backend corruption wrapper. Since the filesystem already uses this, and we're recycling the data with the trailer intact, we need to use it for the S3 cache too.
 		FS3DerivedDataBackend* Backend = new FS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *CachePath);
-		return new FDerivedDataBackendCorruptionWrapper(Backend);
+		return new CacheStore::FDerivedDataBackendCorruptionWrapper(Backend);
 #else
 		UE_LOG(LogDerivedDataCache, Log, TEXT("S3 backend is not supported on the current platform."));
 		return nullptr;
