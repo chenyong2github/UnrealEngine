@@ -115,8 +115,9 @@ protected:
 	virtual ETriggerState UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime);
 
 public:
+	// Point at which this trigger fires
 	UPROPERTY(EditAnywhere, Config, BlueprintReadWrite, Category = "Trigger Settings")
-	float ActuationThreshold = 0.5f;	// Point at which this trigger fires
+	float ActuationThreshold = 0.5f;
 
 	/*
 	* Is the value passed in sufficiently large to be of interest to the trigger.
@@ -171,8 +172,9 @@ class UInputTriggerTimedBase : public UInputTrigger
 
 protected:
 
+	// How long have we been actuating this trigger?
 	UPROPERTY(BlueprintReadWrite, Category = "Trigger Settings")
-	float HeldDuration = 0.0f;			// How long have we been actuating this trigger? // TODO: Annoying given the action mapping is already tracking this.
+	float HeldDuration = 0.0f;			 // TODO: Annoying given the action mapping is already tracking this.
 
 	// Transitions to Ongoing on actuation. Never triggers.
 	virtual ETriggerState UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime) override;
@@ -367,8 +369,9 @@ public:
 
 // Chorded actions
 
-/** UInputTriggerChordAction
-	Applies a chord action that must be triggering for this trigger's action to trigger
+/**
+ * UInputTriggerChordAction
+ * Applies a chord action that must be triggering for this trigger's action to trigger
 */
 UCLASS(NotBlueprintable, MinimalAPI, meta = (DisplayName = "Chorded Action", NotInputConfigurable = "true"))
 class UInputTriggerChordAction : public UInputTrigger
@@ -382,6 +385,7 @@ protected:
 	virtual ETriggerState UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime) override;
 public:
 
+	// The action that must be triggering for this trigger's action to trigger
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
 	const class UInputAction* ChordAction = nullptr;
 };

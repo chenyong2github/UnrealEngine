@@ -168,14 +168,18 @@ protected:
 
 	// TODO: Smoothing variants. Configuration options. e.g. smooth over a set time/frame count.
 
-	float ZeroTime = 0.f; /** How long input has been zero. */
+	/** How long input has been zero. */
+	float ZeroTime = 0.f;
 
-	FInputActionValue AverageValue; /** Current average input/sample */
+	/** Current average input/sample */
+	FInputActionValue AverageValue;
 
-	int32 Samples = 0; /** Number of samples since input  has been zero */
+	/** Number of samples since input  has been zero */
+	int32 Samples = 0;
 
 #define SMOOTH_TOTAL_SAMPLE_TIME_DEFAULT (0.0083f)
-	float TotalSampleTime = SMOOTH_TOTAL_SAMPLE_TIME_DEFAULT;	/** Input sampling total time.  */
+	/** Input sampling total time. */
+	float TotalSampleTime = SMOOTH_TOTAL_SAMPLE_TIME_DEFAULT;
 
 	virtual FInputActionValue ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime) override;
 };
@@ -295,8 +299,9 @@ class UInputModifierSwizzleAxis final : public UInputModifier
 
 public:
 
+	// Default to XY swap, useful for binding 1D inputs to the Y axis.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	EInputAxisSwizzle Order = EInputAxisSwizzle::YXZ;	// Default to XY swap, useful for binding 1D inputs to the Y axis.
+	EInputAxisSwizzle Order = EInputAxisSwizzle::YXZ;
 
 protected:
 	virtual FInputActionValue ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime) override;
