@@ -117,6 +117,12 @@ public:
 protected:
 	virtual void OnItemsChanged(const TArray<UObject*>& AddedItems, const TArray<UObject*>& RemovedItems);
 
+	UFUNCTION()
+	void OnListItemEndPlayed(AActor* Item, EEndPlayReason::Type EndPlayReason);
+
+	UFUNCTION()
+	void OnListItemOuterEndPlayed(AActor* ItemOuter, EEndPlayReason::Type EndPlayReason);
+
 	virtual TSharedRef<STableViewBase> RebuildListWidget() override;
 	virtual void HandleListEntryHovered(UUserWidget& EntryWidget) override;
 	virtual void HandleListEntryUnhovered(UUserWidget& EntryWidget) override;
