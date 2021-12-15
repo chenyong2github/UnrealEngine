@@ -514,6 +514,7 @@ FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpression
 		case EPreshaderOpcode::Clamp: EvaluateTernaryOp(Stack, Clamp); break;
 		case EPreshaderOpcode::Dot: EvaluateBinaryOp(Stack, Dot); break;
 		case EPreshaderOpcode::Cross: EvaluateBinaryOp(Stack, Cross); break;
+		case EPreshaderOpcode::Neg: EvaluateUnaryOp(Stack, Neg); break;
 		case EPreshaderOpcode::Sqrt: EvaluateUnaryOp(Stack, Sqrt); break;
 		case EPreshaderOpcode::Rcp: EvaluateUnaryOp(Stack, Rcp); break;
 		case EPreshaderOpcode::Length: EvaluateUnaryOp(Stack, [](const FValue& Value) { return Sqrt(Dot(Value, Value)); }); break;

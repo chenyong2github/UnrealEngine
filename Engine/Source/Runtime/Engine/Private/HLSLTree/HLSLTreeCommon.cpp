@@ -584,6 +584,7 @@ void FExpressionBinaryOp::PrepareValue(FEmitContext& Context, const FRequestedTy
 	if (Op == EBinaryOp::Less)
 	{
 		ResultType.ValueComponentType = Shader::EValueComponentType::Bool;
+		ResultType.SetDerivative(EExpressionDerivative::Zero); // Comparisons result in 'zero' derivative...is this correct?
 	}
 
 	const FBinaryOpDescription OpDesc = GetBinaryOpDesription(Op);

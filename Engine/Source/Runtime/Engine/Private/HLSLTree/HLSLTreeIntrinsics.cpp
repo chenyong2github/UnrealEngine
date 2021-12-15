@@ -33,6 +33,7 @@ FUnaryOpDescription GetUnaryOpDesription(EUnaryOp Op)
 	switch (Op)
 	{
 	case EUnaryOp::None: return FUnaryOpDescription(TEXT("None"), TEXT(""), Shader::EPreshaderOpcode::Nop); break;
+	case EUnaryOp::Neg: return FUnaryOpDescription(TEXT("Neg"), TEXT("-"), Shader::EPreshaderOpcode::Neg); break;
 	case EUnaryOp::Rcp: return FUnaryOpDescription(TEXT("Rcp"), TEXT("/"), Shader::EPreshaderOpcode::Rcp); break;
 	default: checkNoEntry(); return FUnaryOpDescription();
 	}
@@ -204,6 +205,16 @@ FEmitShaderCode* FEmitContext::EmitUnaryOp(EUnaryOp Op, FEmitShaderCode* Input)
 	FEmitShaderCode* Result = nullptr;
 	switch (Op)
 	{
+	case EUnaryOp::Neg:
+		if (InputComponentType == Shader::EValueComponentType::Double)
+		{
+			Result = EmitCode(ResultType, TEXT("LWCNegate(%)"), Input);
+		}
+		else
+		{
+			Result = EmitInlineCode(ResultType, TEXT("(-%)"), Input);
+		}
+		break;
 	case EUnaryOp::Rcp:
 		if (InputComponentType == Shader::EValueComponentType::Double)
 		{
@@ -217,6 +228,7 @@ FEmitShaderCode* FEmitContext::EmitUnaryOp(EUnaryOp Op, FEmitShaderCode* Input)
 		break;
 	default:
 		checkNoEntry();
+		break;
 	}
 	return Result;
 }
@@ -227,9 +239,24 @@ FEmitShaderValues FEmitContext::EmitUnaryOp(EUnaryOp Op, FEmitShaderValues Input
 	Result.Code = EmitUnaryOp(Op, Input.Code);
 	if (Derivative == EExpressionDerivative::Valid && Input.HasDerivatives())
 	{
-		
+		switch (Op)
+		{
+		case EUnaryOp::Neg:
+			Result.CodeDdx = EmitNeg(Input.CodeDdx);
+			Result.CodeDdy = EmitNeg(Input.CodeDdy);
+			break;
+		case EUnaryOp::Rcp:
+		{
+			FEmitShaderCode* dFdA = EmitNeg(EmitMul(Result.Code, Result.Code));
+			Result.CodeDdx = EmitMul(dFdA, Input.CodeDdx);
+			Result.CodeDdy = EmitMul(dFdA, Input.CodeDdy);
+			break;
+		}
+		default:
+			checkNoEntry();
+			break;
+		}
 	}
-
 	return Result;
 }
 
@@ -313,6 +340,9 @@ FEmitShaderValues FEmitContext::EmitBinaryOp(EBinaryOp Op, FEmitShaderValues Lhs
 	Result.Code = EmitBinaryOp(Op, Lhs.Code, Rhs.Code);
 	if (Derivative == EExpressionDerivative::Valid && Lhs.HasDerivatives() && Rhs.HasDerivatives())
 	{
+		const Shader::FValueTypeDescription ResultTypeDesc = Shader::GetValueTypeDescription(Result.Code->Type);
+		const Shader::EValueType DerivativeType = Shader::MakeValueType(Shader::EValueComponentType::Float, ResultTypeDesc.NumComponents);
+
 		switch (Op)
 		{
 		case EBinaryOp::Add:
@@ -326,6 +356,18 @@ FEmitShaderValues FEmitContext::EmitBinaryOp(EBinaryOp Op, FEmitShaderValues Lhs
 		case EBinaryOp::Mul:
 			Result.CodeDdx = EmitAdd(EmitMul(Lhs.CodeDdx, Rhs.Code), EmitMul(Rhs.CodeDdx, Lhs.Code));
 			Result.CodeDdy = EmitAdd(EmitMul(Lhs.CodeDdy, Rhs.Code), EmitMul(Rhs.CodeDdy, Lhs.Code));
+			break;
+		case EBinaryOp::Div:
+		{
+			FEmitShaderCode* Denom = EmitRcp(EmitMul(Rhs.Code, Rhs.Code));
+			FEmitShaderCode* dFdA = EmitMul(Rhs.Code, Denom);
+			FEmitShaderCode* dFdB = EmitNeg(EmitMul(Lhs.Code, Denom));
+			Result.CodeDdx = EmitAdd(EmitMul(dFdA, Lhs.CodeDdx), EmitMul(dFdB, Rhs.CodeDdx));
+			Result.CodeDdy = EmitAdd(EmitMul(dFdA, Lhs.CodeDdy), EmitMul(dFdB, Rhs.CodeDdy));
+			break;
+		}
+		default:
+			checkNoEntry();
 			break;
 		}
 	}

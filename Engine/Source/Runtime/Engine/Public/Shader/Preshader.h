@@ -61,6 +61,7 @@ enum class EPreshaderOpcode : uint8
 	RuntimeVirtualTextureUniform,
 	GetField,
 	SetField,
+	Neg,
 };
 
 struct FPreshaderStructType

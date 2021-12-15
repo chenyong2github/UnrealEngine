@@ -400,6 +400,7 @@ inline bool operator!=(const FValue& Lhs, const FValue& Rhs) { return !operator=
 ENGINE_API uint32 GetTypeHash(const FType& Type);
 ENGINE_API uint32 GetTypeHash(const FValue& Value);
 
+ENGINE_API FValue Neg(const FValue& Value);
 ENGINE_API FValue Abs(const FValue& Value);
 ENGINE_API FValue Saturate(const FValue& Value);
 ENGINE_API FValue Floor(const FValue& Value);

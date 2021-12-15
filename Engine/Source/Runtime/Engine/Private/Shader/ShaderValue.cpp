@@ -894,6 +894,7 @@ struct FOpBaseNoInt : public FOpBase
 	static constexpr bool SupportsInt = false;
 };
 
+struct FOpNeg : public FOpBase { template<typename T> T operator()(T Value) const { return -Value; } };
 struct FOpAbs : public FOpBase { template<typename T> T operator()(T Value) const { return FMath::Abs(Value); } };
 struct FOpSign : public FOpBase { template<typename T> T operator()(T Value) const { return FMath::Sign(Value); } };
 struct FOpSaturate : public FOpBaseNoInt { template<typename T> T operator()(T Value) const { return FMath::Clamp(Value, (T)0, (T)1); } };
@@ -1084,6 +1085,11 @@ uint32 GetTypeHash(const FValue& Value)
 		Result = HashCombine(Result, ComponentHash);
 	}
 	return Result;
+}
+
+FValue Neg(const FValue& Value)
+{
+	return Private::UnaryOp(Private::FOpNeg(), Value);
 }
 
 FValue Abs(const FValue& Value)

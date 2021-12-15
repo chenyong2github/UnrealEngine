@@ -65,6 +65,7 @@ EExpressionDerivative CombineDerivatives(EExpressionDerivative Lhs, EExpressionD
 enum class EUnaryOp : uint8
 {
 	None,
+	Neg,
 	Rcp,
 };
 

@@ -1120,6 +1120,18 @@ void FPreparedType::SetEvaluation(EExpressionEvaluation Evaluation)
 	}
 }
 
+void FPreparedType::SetDerivative(EExpressionDerivative Derivative)
+{
+	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	{
+		FPreparedData& ComponentData = PreparedComponents[Index];
+		if (ComponentData.IsValid())
+		{
+			ComponentData.Derivative = Derivative;
+		}
+	}
+}
+
 void FPreparedType::SetField(const Shader::FStructField* Field, const FPreparedType& FieldType)
 {
 	for (int32 Index = 0; Index < Field->GetNumComponents(); ++Index)
