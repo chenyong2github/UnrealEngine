@@ -1933,13 +1933,23 @@ bool UNiagaraComponent::ResolveOwnerAllowsScalability(bool bRegister)
 	//Update manager registration if needed.
 	if (bRegister)
 	{
-		if (IsActive() && bOwnerAllowsScalabiltiy)
+		if (bOwnerAllowsScalabiltiy)
 		{
-			RegisterWithScalabilityManager();
+			if ( IsActive() )
+			{
+				RegisterWithScalabilityManager();
+			}
 		}
 		else if (!bOwnerAllowsScalabiltiy)
 		{
-			UnregisterWithScalabilityManager();
+			if (!IsActive() && bIsCulledByScalability)
+			{
+				ActivateInternal(false, true);
+			}
+			else
+			{
+				UnregisterWithScalabilityManager();
+			}
 		}
 	}
 	return bOwnerAllowsScalabiltiy;
