@@ -383,6 +383,9 @@ public:
 	 * for direct lighting visibility. */
 	uint32 bIncludeInScreenSpaceShadowMask : 1;
 
+	/** Whether the the shadow overlaps any nanite primitives */
+	uint32 bContainsNaniteSubjects : 1;
+
 	/** Used to fetch the correct cached static mesh draw commands */
 	EMeshPass::Type MeshPassTargetType = EMeshPass::CSMShadowDepth;
 
