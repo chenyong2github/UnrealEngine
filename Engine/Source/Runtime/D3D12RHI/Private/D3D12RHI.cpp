@@ -230,6 +230,8 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	GRHISupportsRayTracingAsyncBuildAccelerationStructure = true;
 
 	GRHISupportsPipelineFileCache = PLATFORM_WINDOWS;
+
+	GRHISupportsMapWriteNoOverwrite = true;
 }
 
 FD3D12DynamicRHI::~FD3D12DynamicRHI()

@@ -146,7 +146,7 @@ void* FD3D11DynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmd
 		// If the buffer is dynamic, map its memory for writing.
 		D3D11_MAPPED_SUBRESOURCE MappedSubresource;
 
-		D3D11_MAP MapType = (LockMode == RLM_WriteOnly)? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE_NO_OVERWRITE;
+		D3D11_MAP MapType = (LockMode == RLM_WriteOnly || !GRHISupportsMapWriteNoOverwrite) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE_NO_OVERWRITE;
 		VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(Buffer->Resource, 0, MapType, 0, &MappedSubresource), Direct3DDevice);
 
 		LockedData.SetData(MappedSubresource.pData);
