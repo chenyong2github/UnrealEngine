@@ -484,13 +484,6 @@ bool UNiagaraNodeSelect::CanRenamePin(const UEdGraphPin* Pin) const
 	return Super::CanRenamePin(Pin) && Pin->Direction == EGPD_Output && Pin->bOrphanedPin == false && !UEdGraphSchema_Niagara::IsPinWildcard(Pin);
 }
 
-bool UNiagaraNodeSelect::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const
-{
-	return InType.GetScriptStruct() != nullptr
-		&& InType != FNiagaraTypeDefinition::GetGenericNumericDef()
-		&& !InType.IsInternalType();
-}
-
 FString UNiagaraNodeSelect::GetInputCaseName(int32 Case) const
 {
 	if(SelectorPinType == FNiagaraTypeDefinition::GetBoolDef())

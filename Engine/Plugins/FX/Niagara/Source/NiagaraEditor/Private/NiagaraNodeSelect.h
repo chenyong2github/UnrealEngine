@@ -67,7 +67,6 @@ private:
 	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override;
 	virtual void MoveDynamicPin(UEdGraphPin* Pin, int32 DirectionToMove) override;
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override;
-	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const override;
 
 	/** UNiagaraNodeUsageSelector interface */
 	virtual FString GetInputCaseName(int32 Case) const override;
