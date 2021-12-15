@@ -542,6 +542,7 @@ bool FAudioDeviceManager::InitializeManager()
 		check(AudioSettings);
 
 		AudioSettings->LoadDefaultObjects();
+		AudioSettings->RegisterParameterInterfaces();
 
 		const bool bIsAudioMixerEnabled = AudioDeviceModule->IsAudioMixerModule();
 		AudioSettings->SetAudioMixerEnabled(bIsAudioMixerEnabled);
