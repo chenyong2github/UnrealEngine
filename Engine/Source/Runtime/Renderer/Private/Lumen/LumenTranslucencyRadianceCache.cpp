@@ -38,6 +38,14 @@ FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCacheReprojectionRadiusScal
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenTranslucencyVolumeRadianceCacheClipmapFadeSize = 4.0f;
+FAutoConsoleVariableRef CVarLumenTranslucencyVolumeRadianceCacheClipmapFadeSize(
+	TEXT("r.Lumen.TranslucencyReflections.ClipmapFadeSize"),
+	GLumenTranslucencyVolumeRadianceCacheClipmapFadeSize,
+	TEXT("Size in Radiance Cache probes of the dithered transition region between clipmaps"),
+	ECVF_RenderThreadSafe
+);
+
 namespace Lumen
 {
 	bool UseLumenTranslucencyReflections(const FViewInfo& View)
@@ -288,6 +296,7 @@ void LumenTranslucencyReflectionsMarkUsedProbes(
 		FLumenTranslucencyRadianceCacheMarkPassUniformParameters& MarkPassParameters = *GraphBuilder.AllocParameters<FLumenTranslucencyRadianceCacheMarkPassUniformParameters>();
 		SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::All, MarkPassParameters.SceneTextures);
 		MarkPassParameters.RadianceCacheMarkParameters = RadianceCacheMarkParameters;
+		MarkPassParameters.RadianceCacheMarkParameters.InvClipmapFadeSizeForMark = 1.0f / FMath::Clamp(GLumenTranslucencyVolumeRadianceCacheClipmapFadeSize, .001f, 16.0f);
 
 		MarkPassParameters.FurthestHZBTexture = View.HZB;
 		MarkPassParameters.ViewportUVToHZBBufferUV = FVector2D(

@@ -523,7 +523,8 @@ void TraceVoxels(
 #if RADIANCE_CACHE
 		if (RayData.TraceDistance < MaxTraceDistance * .99f)
 		{
-			SampleRadianceCacheAndApply(WorldPosition, RayData.Direction, RayData.ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+			FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, RayData.Direction, InterleavedGradientNoise(ReflectionTracingCoord, View.StateFrameIndexMod8));
+			SampleRadianceCacheAndApply(Coverage, WorldPosition, RayData.Direction, RayData.ConeHalfAngle, TraceResult.Lighting, TraceResult.Transparency);
 			TraceHitDistance = RayData.TraceDistance;
 		}
 		else

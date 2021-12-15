@@ -8,13 +8,13 @@
 
 #include "LumenRadianceCacheInterpolation.ush"
 
-FRadianceCacheCoverage GetRadianceCacheCoverageWithUncertainCoverage(float3 RayOrigin, float3 RayDirection)
+FRadianceCacheCoverage GetRadianceCacheCoverageWithUncertainCoverage(float3 RayOrigin, float3 RayDirection, float ClipmapDitherRandom)
 {
 	FRadianceCacheCoverage Coverage;
 	Coverage.bValid = false;
 	Coverage.MinTraceDistanceBeforeInterpolation = 10000000.0f;
 
-	uint ClipmapIndex = GetRadianceProbeClipmap(RayOrigin);
+	uint ClipmapIndex = GetRadianceProbeClipmap(RayOrigin, ClipmapDitherRandom);
 
 	if (ClipmapIndex < NumRadianceProbeClipmaps)
 	{

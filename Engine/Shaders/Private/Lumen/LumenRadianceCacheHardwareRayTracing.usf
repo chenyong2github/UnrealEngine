@@ -348,7 +348,7 @@ void SplatRadianceCacheIntoAtlasCS(
 	uint ProbeIndex;
 	GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
 
-	uint2 ProbeAtlasBaseCoord = RadianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
+	uint2 ProbeAtlasBaseCoord = RadianceProbeResolution * uint2(ProbeIndex & ProbeAtlasResolutionModuloMask, ProbeIndex >> ProbeAtlasResolutionDivideShift);
 
 	if (TraceResolution < RadianceProbeResolution)
 	{

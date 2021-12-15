@@ -25,6 +25,7 @@
 
 	#define NumRadianceProbeClipmapsForMark  RadianceCacheMark.NumRadianceProbeClipmapsForMark
 	#define RadianceProbeClipmapResolutionForMark  RadianceCacheMark.RadianceProbeClipmapResolutionForMark
+	#define InvClipmapFadeSizeForMark	RadianceCacheMark.InvClipmapFadeSizeForMark
 
 #else
 
@@ -38,6 +39,7 @@
 
 	uint NumRadianceProbeClipmapsForMark;
 	uint RadianceProbeClipmapResolutionForMark;
+	float InvClipmapFadeSizeForMark;
 #endif
 
 
@@ -53,7 +55,7 @@ bool IsValidRadianceCacheClipmapForMark(uint InClipmapIndex)
 	return InClipmapIndex < NumRadianceProbeClipmapsForMark;
 }
 
-FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition)
+FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition, float ClipmapDitherRandom)
 {
 	FRadianceProbeCoord Out = (FRadianceProbeCoord)0;
 	Out.ClipmapIndex = NumRadianceProbeClipmapsForMark;
@@ -62,6 +64,9 @@ FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition)
 	for (; ClipmapIndex < NumRadianceProbeClipmapsForMark; ++ClipmapIndex)
 	{
 		float3 ProbeCoordFloat = WorldSpacePosition * WorldPositionToRadianceProbeCoordScaleForMark(ClipmapIndex) + WorldPositionToRadianceProbeCoordBiasForMark(ClipmapIndex);
+		float3 BottomEdgeFades = saturate((ProbeCoordFloat - .5f) * InvClipmapFadeSizeForMark);
+		float3 TopEdgeFades = saturate(((float3)RadianceProbeClipmapResolutionForMark - .5f - ProbeCoordFloat) * InvClipmapFadeSizeForMark);
+		float EdgeFade = min(min3(BottomEdgeFades.x, BottomEdgeFades.y, BottomEdgeFades.z), min3(TopEdgeFades.x, TopEdgeFades.y, TopEdgeFades.z));
 
 		int3 ProbeMinCoord;
 		int3 ProbeMaxCoord;
@@ -69,7 +74,7 @@ FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition)
 		ProbeMinCoord = floor(ProbeCoordFloat - 0.5f);
 		ProbeMaxCoord = ProbeMinCoord + 1;
 
-		if (all(ProbeMinCoord >= 0) && all(ProbeMaxCoord < (int3)RadianceProbeClipmapResolutionForMark))
+		if (EdgeFade > ClipmapDitherRandom)
 		{
 			Out.ProbeMinCoord = ProbeMinCoord;
 			Out.ProbeMaxCoord = ProbeMaxCoord;
@@ -79,51 +84,17 @@ FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition)
 	}
 
 	return Out;
+}
+
+uint GetRadianceProbeClipmapForMark(float3 WorldSpacePosition, float ClipmapDitherRandom)
+{
+	FRadianceProbeCoord Cell = GetRadianceProbeCoord(WorldSpacePosition, ClipmapDitherRandom);
+	return Cell.ClipmapIndex;
 }
 
 uint GetRadianceProbeClipmapForMark(float3 WorldSpacePosition)
 {
-	FRadianceProbeCoord Cell = GetRadianceProbeCoord(WorldSpacePosition);
-	return Cell.ClipmapIndex;
-}
-
-FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition, float3 WorldSpaceExtent)
-{
-	FRadianceProbeCoord Out = (FRadianceProbeCoord)0;
-	Out.ClipmapIndex = NumRadianceProbeClipmapsForMark;
-
-	float3 WorldMin = WorldSpacePosition - WorldSpaceExtent;
-	float3 WorldMax = WorldSpacePosition + WorldSpaceExtent;
-
-	uint ClipmapIndex = 0;
-	for (; ClipmapIndex < NumRadianceProbeClipmapsForMark; ++ClipmapIndex)
-	{
-		float3 ProbeCoordMinFloat = WorldMin * WorldPositionToRadianceProbeCoordScaleForMark(ClipmapIndex) + WorldPositionToRadianceProbeCoordBiasForMark(ClipmapIndex);
-		float3 ProbeCoordMaxFloat = WorldMax * WorldPositionToRadianceProbeCoordScaleForMark(ClipmapIndex) + WorldPositionToRadianceProbeCoordBiasForMark(ClipmapIndex);
-
-		int3 ProbeMinCoord;
-		int3 ProbeMaxCoord;
-
-		// Trilinear footprint
-		ProbeMinCoord = floor(ProbeCoordMinFloat - 0.5f);
-		ProbeMaxCoord = floor(ProbeCoordMaxFloat - 0.5f) + 1.0f;
-
-		if (all(ProbeMinCoord >= 0) && all(ProbeMaxCoord < (int3)RadianceProbeClipmapResolutionForMark))
-		{
-			Out.ProbeMinCoord = ProbeMinCoord;
-			Out.ProbeMaxCoord = ProbeMaxCoord;
-			Out.ClipmapIndex  = ClipmapIndex;
-			return Out;
-		}
-	}
-
-	return Out;
-}
-
-uint GetRadianceProbeClipmapForMark(float3 WorldSpacePosition, float3 WorldSpaceExtent)
-{
-	FRadianceProbeCoord Cell = GetRadianceProbeCoord(WorldSpacePosition, WorldSpaceExtent);
-	return Cell.ClipmapIndex;
+	return GetRadianceProbeClipmapForMark(WorldSpacePosition, .01f);
 }
 
 void MarkProbeIndirectionTextureCoord(int3 ProbeCoord, uint ClipmapIndex)

@@ -10,6 +10,7 @@
 // This has the side effect that card tracing for detail traces in this file don't get blended
 #define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
 #include "LumenTracingCommon.ush"
+#define RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX 1
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenVisualizeTraces.ush"
 #include "../DeferredShadingCommon.ush"
@@ -57,7 +58,7 @@ void VisualizeQuadsCS(
 	bool bCoveredByRadianceCache = false;
 
 #if RADIANCE_CACHE
-	FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector);
+	FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, .5f);
 				
 	if (Coverage.bValid)
 	{
@@ -117,7 +118,7 @@ void VisualizeQuadsCS(
 #endif
 
 #if RADIANCE_CACHE
-	TraceResult.Lighting += SampleRadianceCacheInterpolated(LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, PreviewConeAngle, 0).xyz * TraceResult.Transparency;
+	TraceResult.Lighting += SampleRadianceCacheInterpolated(Coverage, LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, PreviewConeAngle).xyz * TraceResult.Transparency;
 	TraceResult.Transparency = 0.0f;
 #else
 

@@ -702,7 +702,6 @@ class FMarkRadianceProbesUsedByScreenProbesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
-		SHADER_PARAMETER(uint32, VisualizeLumenScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -739,7 +738,6 @@ class FMarkRadianceProbesUsedByHairStrandsCS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, HairStrandsResolution)
 		SHADER_PARAMETER(FVector2f, HairStrandsInvResolution)
 		SHADER_PARAMETER(uint32, HairStrandsMip)
-		SHADER_PARAMETER(uint32, VisualizeLumenScene)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
@@ -1006,7 +1004,7 @@ void InterpolateAndIntegrate(
 	FRDGTextureRef RoughSpecularIndirect)
 {
 	const bool bApplyScreenBentNormal = ScreenSpaceBentNormalParameters.UseScreenBentNormal != 0 && LumenScreenProbeGather::ApplyScreenBentNormalDuringIntegration();
-	const bool bUseTileClassification = GLumenScreenProbeIntegrationTileClassification != 0 && GLumenScreenProbeDiffuseIntegralMethod != 2;
+	const bool bUseTileClassification = GLumenScreenProbeIntegrationTileClassification != 0 && LumenScreenProbeGather::GetDiffuseIntegralMethod() != 2;
 
 	if (bUseTileClassification)
 	{
@@ -1344,7 +1342,6 @@ static void ScreenGatherMarkUsedProbes(
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 	PassParameters->ScreenProbeParameters = ScreenProbeParameters;
-	PassParameters->VisualizeLumenScene = View.Family->EngineShowFlags.VisualizeLumenScene != 0 ? 1 : 0;
 	PassParameters->RadianceCacheMarkParameters = RadianceCacheMarkParameters;
 
 	auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByScreenProbesCS>(0);
@@ -1377,7 +1374,6 @@ static void HairStrandsMarkUsedProbes(
 	PassParameters->HairStrandsInvResolution = FVector2D(1.f / float(TileResolution.X), 1.f / float(TileResolution.Y));
 	PassParameters->HairStrandsMip = TileMip;
 	PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
-	PassParameters->VisualizeLumenScene = View.Family->EngineShowFlags.VisualizeLumenScene != 0 ? 1 : 0;
 	PassParameters->RadianceCacheMarkParameters = RadianceCacheMarkParameters;
 	PassParameters->IndirectBufferArgs = View.HairStrandsViewData.VisibilityData.TileData.TilePerThreadIndirectDispatchBuffer;
 
@@ -1627,6 +1623,14 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	{
 		FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbesCallbacks;
 
+		MarkUsedRadianceCacheProbesCallbacks.AddLambda([](
+			FRDGBuilder& GraphBuilder, 
+			const FViewInfo& View, 
+			const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
+			{
+				MarkUsedProbesForVisualize(GraphBuilder, View, RadianceCacheMarkParameters);
+			});
+
 		// Mark radiance caches for screen probes
 		MarkUsedRadianceCacheProbesCallbacks.AddLambda([&SceneTextures, &ScreenProbeParameters](
 			FRDGBuilder& GraphBuilder, 
@@ -1693,7 +1697,9 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			View.LumenTranslucencyGIVolume.RadianceCacheInterpolationParameters = RadianceCacheParameters;
 
 			extern float GLumenTranslucencyReflectionsRadianceCacheReprojectionRadiusScale;
+			extern float GLumenTranslucencyVolumeRadianceCacheClipmapFadeSize;
 			View.LumenTranslucencyGIVolume.RadianceCacheInterpolationParameters.RadianceCacheInputs.ReprojectionRadiusScale = GLumenTranslucencyReflectionsRadianceCacheReprojectionRadiusScale;
+			View.LumenTranslucencyGIVolume.RadianceCacheInterpolationParameters.RadianceCacheInputs.InvClipmapFadeSize = 1.0f / FMath::Clamp(GLumenTranslucencyVolumeRadianceCacheClipmapFadeSize, .001f, 16.0f);
 		}
 	}
 

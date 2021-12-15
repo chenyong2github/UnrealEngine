@@ -72,7 +72,7 @@ void TranslucencyVolumeTraceVoxelsCS(
 			Coverage.bValid = false;
 
 #if USE_RADIANCE_CACHE
-			Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+			Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection, .5f);
 				
 			if (Coverage.bValid)
 			{
@@ -102,7 +102,7 @@ void TranslucencyVolumeTraceVoxelsCS(
 #if USE_RADIANCE_CACHE
 			if (Coverage.bValid)
 			{
-				SampleRadianceCacheAndApply(WorldPosition, WorldConeDirection, ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+				SampleRadianceCacheAndApply(Coverage, WorldPosition, WorldConeDirection, ConeHalfAngle, TraceResult.Lighting, TraceResult.Transparency);
 			}
 			else
 #endif

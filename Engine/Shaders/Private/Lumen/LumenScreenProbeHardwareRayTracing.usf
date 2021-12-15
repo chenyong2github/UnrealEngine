@@ -6,6 +6,7 @@
 
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
+#define RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX 1
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenScreenProbeCommon.ush"
 #include "LumenHardwareRayTracingPipelineCommon.ush"
@@ -196,7 +197,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 			bool bIsRadianceCacheHit = false;
 #if DIM_RADIANCE_CACHE
 			{
-				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(Ray.Origin, Ray.Direction);
+				float ClipmapDitherRandom = InterleavedGradientNoise(ScreenTileCoord, View.StateFrameIndexMod8);
+				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(Ray.Origin, Ray.Direction, ClipmapDitherRandom);
 				if (Coverage.bValid)
 				{
 					Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
