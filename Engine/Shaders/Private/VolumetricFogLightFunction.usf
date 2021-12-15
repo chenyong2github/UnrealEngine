@@ -6,13 +6,12 @@
 #include "/Engine/Generated/Material.ush"
 #include "LightFunctionCommon.ush"
 
-/** Fade distance in x, disabled brightness in y, output for preview shadows mask in z. */
-float3 LightFunctionParameters2;
-float2 LightFunctionTexelSize;
-
 float4x4 ShadowToWorld;
 
+/** Fade distance in x, disabled brightness in y, output for preview shadows mask in z. */
+float3 LightFunctionParameters2;
 float3 LightWorldPosition;
+float2 LightFunctionTexelSize;
 
 void Main(
 	in noperspective float4 UV : TEXCOORD0,
@@ -20,7 +19,6 @@ void Main(
 	out float4 OutColor : SV_Target0
 	)
 {
-	
 	float4 AbsoluteWorldPosition = float4(0,0,0,1);
 	float3 LightVector = float3(0,0,0);
 
