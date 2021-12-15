@@ -313,7 +313,14 @@ public:
 		// Print any diagnostic output
 		if (!(ResponseCode >= 200 && ResponseCode <= 299))
 		{
-			Log->Logf(ELogVerbosity::Error, TEXT("Download failed for %s (response %d):\n%s\n%s"), ANSI_TO_TCHAR(Url), ResponseCode, *CallbackData.ResponseHeader.ToWideString(), ANSI_TO_TCHAR((const ANSICHAR*)OutResponseBody.GetData()));
+			if (FAnsiStringView(Url).StartsWith("file://"))
+			{
+				ResponseCode = 200;
+			}
+			else
+			{
+				Log->Logf(ELogVerbosity::Error, TEXT("Download failed for %s (response %d):\n%s\n%s"), ANSI_TO_TCHAR(Url), ResponseCode, *CallbackData.ResponseHeader.ToWideString(), ANSI_TO_TCHAR((const ANSICHAR*)OutResponseBody.GetData()));
+			}
 		}
 		return ResponseCode;
 	}
@@ -786,22 +793,31 @@ FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, co
 	{
 		RequestPool.Reset(new FRequestPool(TCHAR_TO_ANSI(InRegion), TCHAR_TO_ANSI(*RootManifest.AccessKey), TCHAR_TO_ANSI(*RootManifest.SecretKey)));
 
+		FString LocalManifestPath;
+		if (RootManifest.Keys.Last().StartsWith(TEXT("file://")))
+		{
+			LocalManifestPath = FPaths::GetPath(RootManifest.Keys.Last());
+		}
+
 		// Test whether we can reach the canary URL
 		bool bCanaryValid = true;
-		if (GIsBuildMachine)
+		if (LocalManifestPath.IsEmpty())
 		{
-			UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling on build machine"));
-			bCanaryValid = false;
-		}
-		else if (CanaryObjectKey.Len() > 0)
-		{
-			TArray<uint8> Data;
-
-			FStringOutputDevice DummyOutputDevice;
-			if (!IsSuccessfulHttpResponse(RequestPool->Download(*(BaseUrl / CanaryObjectKey), nullptr, Data, &DummyOutputDevice)))
+			if (GIsBuildMachine)
 			{
-				UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Unable to download canary file. Disabling."));
+				UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Disabling on build machine"));
 				bCanaryValid = false;
+			}
+			else if (CanaryObjectKey.Len() > 0)
+			{
+				TArray<uint8> Data;
+
+				FStringOutputDevice DummyOutputDevice;
+				if (!IsSuccessfulHttpResponse(RequestPool->Download(*(BaseUrl / CanaryObjectKey), nullptr, Data, &DummyOutputDevice)))
+				{
+					UE_LOG(LogDerivedDataCache, Log, TEXT("S3DerivedDataBackend: Unable to download canary file. Disabling."));
+					bCanaryValid = false;
+				}
 			}
 		}
 
@@ -841,7 +857,8 @@ FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, co
 				{
 					if (!FPaths::FileExists(Bundle.LocalFile))
 					{
-						TSharedPtr<FBundleDownload> Download(new FBundleDownload(CriticalSection, Bundle, BaseUrl + Bundle.ObjectKey, *RequestPool.Get(), Context));
+						FString BundleUrl = LocalManifestPath.IsEmpty() ? BaseUrl + Bundle.ObjectKey : LocalManifestPath / Bundle.Name + TEXT(".gz");
+						TSharedPtr<FBundleDownload> Download(new FBundleDownload(CriticalSection, Bundle, BundleUrl, *RequestPool.Get(), Context));
 						Download->Event = FFunctionGraphTask::CreateAndDispatchWhenReady([Download]() { Download->Execute(); }, TStatId());
 						Downloads.Add(MoveTemp(Download));
 					}
@@ -1007,8 +1024,9 @@ bool FS3DerivedDataBackend::DownloadManifest(const FRootManifest& RootManifest, 
 	FString BundleManifestKey = RootManifest.Keys.Last();
 
 	// Download the bundle manifest
+	FString BundleManifestUrl = BundleManifestKey.StartsWith(TEXT("file://")) ? BundleManifestKey : BaseUrl + BundleManifestKey;
 	TArray<uint8> BundleManifestData;
-	long ResponseCode = RequestPool->Download(*(BaseUrl + BundleManifestKey), nullptr, BundleManifestData, Context);
+	long ResponseCode = RequestPool->Download(*BundleManifestUrl, nullptr, BundleManifestData, Context);
 	if (!IsSuccessfulHttpResponse(ResponseCode))
 	{
 		Context->Logf(ELogVerbosity::Warning, TEXT("Unable to download bundle manifest from %s (%d)"), *BundleManifestKey, (int)ResponseCode);
