@@ -88,6 +88,9 @@ public:
 
 	const uint32 GetMessageTopicBitflag() const;
 
+	/** Can optionally be overridden to allow a message to only be logged instead of appearing elsewhere, like the stack. */
+	virtual bool ShouldOnlyLog() const { return false; }
+
 protected:
 	const TArray<FObjectKey> AssociatedObjectKeys;
 	mutable uint32 MessageTopicBitflag;
@@ -115,7 +118,9 @@ public:
 	virtual void GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const override;
 
 	virtual const FName GetMessageTopic() const override { return FNiagaraMessageTopics::CompilerTopicName; };
- 
+
+	virtual bool ShouldOnlyLog() const override { return CompileEvent.Severity == FNiagaraCompileEventSeverity::Log; }
+	
 	const FNiagaraCompileEvent& GetCompileEvent() const { return CompileEvent; }
 private:
 	const FNiagaraCompileEvent CompileEvent;

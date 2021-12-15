@@ -34,7 +34,7 @@ public:
 	bool bEmitMessageOnFailure = true;
 
 	UPROPERTY(EditAnywhere, Category = Tag)
-	FNiagaraCompileEventSeverity FailureSeverity = FNiagaraCompileEventSeverity::Log;
+	FNiagaraCompileEventSeverity FailureSeverity = FNiagaraCompileEventSeverity::Display;
 
 protected:
 

@@ -1045,6 +1045,12 @@ void UNiagaraStackModuleItem::OnMessageManagerRefresh(const TArray<TSharedRef<co
 		MessageManagerIssues.Reset();
 		for (TSharedRef<const INiagaraMessage> Message : NewMessages)
 		{
+			// we skip issues that do not have relevance for the stack, such as notes that should only appear in the log despite being related to a module
+			if(Message->ShouldOnlyLog())
+			{
+				continue;
+			}
+			
 			// Sometimes compile errors with the same info are generated, so guard against duplicates here.
 			FStackIssue Issue = FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey());
 			if (MessageManagerIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
