@@ -58,7 +58,7 @@ private:
 	 * a color block that opens a color picker when clicked. Also contains add, delete and reset to default buttons to
 	 * quickly populate a vector parameter
 	 */
-	IDetailGroup* CreateVectorGroup(IDetailChildrenBuilder& ChildBuilder, uint8 PrimIdx, bool bDataEditable, int32 NumElements);
+	IDetailGroup* CreateVectorGroup(IDetailChildrenBuilder& ChildBuilder, uint8 PrimIdx, bool bDataEditable, int32 NumElements, IPropertyTypeCustomizationUtils& CustomizationUtils);
 
 	/**
 	 * Creates a row for the specified primitive index. Will create hyperlinks for each parameter, to take the user to the parameter's node.
@@ -67,7 +67,7 @@ private:
 	 * 
 	 * If the parameter doesn't have an element yet, provides an add button for the user to quickly add elements up until that parameter.
 	 */
-	void CreateParameterRow(IDetailChildrenBuilder& ChildBuilder, uint8 PrimIdx, TSharedPtr<IPropertyHandle> ElementHandle, int32 NumSelectedComponents, bool bDataEditable, IDetailGroup* VectorGroup, IPropertyTypeCustomizationUtils& CustomizationUtils);
+	void CreateParameterRow(IDetailChildrenBuilder& ChildBuilder, uint8 PrimIdx, TSharedPtr<IPropertyHandle> ElementHandle, bool bDataEditable, IDetailGroup* VectorGroup, IPropertyTypeCustomizationUtils& CustomizationUtils);
 
 	template<typename Predicate>
 	void ForEachSelectedComponent(Predicate Pred);
@@ -113,6 +113,9 @@ private:
 
 	/** Default widget that's used when a component is missing declared parameters for the specified primitive index */
 	TSharedRef<SWidget> GetUndeclaredParameterWidget(int32 PrimIdx, IPropertyTypeCustomizationUtils& CustomizationUtils) const;
+
+	/** Creates a widget wraps content with a warning icon, border and tooltip text */
+	TSharedRef<SWidget> CreateWarningWidget(TSharedRef<SWidget> Content, FText WarningText) const;
 
 	/** Get the number of elements and the access result of our primitive data array */
 	enum FPropertyAccess::Result GetNumElements(uint32& NumElements) const;
