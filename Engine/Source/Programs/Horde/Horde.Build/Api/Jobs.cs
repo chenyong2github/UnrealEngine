@@ -758,11 +758,6 @@ namespace HordeServer.Api
 		public DateTimeOffset? FinishTime { get; set; }
 
 		/// <summary>
-		/// Estimated cost of running this batch
-		/// </summary>
-		public double? Cost { get; set; }
-
-		/// <summary>
 		/// Converts this batch into a public response object
 		/// </summary>
 		/// <param name="Batch">The batch to construct from</param>
