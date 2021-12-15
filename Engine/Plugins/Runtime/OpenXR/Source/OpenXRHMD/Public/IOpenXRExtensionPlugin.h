@@ -322,11 +322,6 @@ public:
 	{
 	}
 
-	// OpenXRHMD::OnBeginRendering_RHIThread, before acquiring swapchain
-	virtual void OnAcquireSwapchainImage(XrSession InSession)
-	{
-	}
-
 	// OpenXRHMD::OnBeginRendering_RHIThread
 	virtual const void* OnBeginFrame(XrSession InSession, XrTime DisplayTime, const void* InNext)
 	{

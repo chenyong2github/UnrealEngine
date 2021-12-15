@@ -1847,17 +1847,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			Layer.bUpdateTexture = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
 		}, false);
 
-//TODO this is moving to OnBeginRendering_RHIThread
-#if 1
-		{
-			FReadScopeLock Lock(SessionHandleMutex);
-			for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-			{
-				Module->OnAcquireSwapchainImage(Session);
-			}
-		}
-#endif
-
 		FXRSwapChainPtr ColorSwapchain = PipelinedLayerStateRendering.ColorSwapchain;
 		FXRSwapChainPtr DepthSwapchain = PipelinedLayerStateRendering.DepthSwapchain;
 		RHICmdList.EnqueueLambda([this, FrameState = PipelinedFrameStateRendering, ColorSwapchain, DepthSwapchain](FRHICommandListImmediate& InRHICmdList)
@@ -2173,14 +2162,6 @@ void FOpenXRHMD::OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameS
 		// We need a new swapchain image unless we've already acquired one for rendering
 		if (!bIsRendering && ColorSwapchain)
 		{
-//TODO this is moving from OnBeginRendering_RenderThread
-#if 0
-			for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-			{
-				Module->OnAcquireSwapchainImage(Session);
-			}
-#endif
-
 			ColorSwapchain->IncrementSwapChainIndex_RHIThread();
 			ColorSwapchain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
 			if (bDepthExtensionSupported && DepthSwapchain)
