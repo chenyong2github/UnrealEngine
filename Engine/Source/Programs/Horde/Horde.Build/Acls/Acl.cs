@@ -160,7 +160,7 @@ namespace HordeServer.Models
 		DeleteAgent,
 
 		/// <summary>
-		/// View an available agents
+		/// View an agent
 		/// </summary>
 		ViewAgent,
 
@@ -381,12 +381,16 @@ namespace HordeServer.Models
 		/// </summary>
 		Impersonate,
 
+		/// <summary>
+		/// View estimated costs for particular operations
+		/// </summary>
+		ViewCosts,
 
 
 
 
 		//// PERMISSIONS ////
-		
+
 		/// <summary>
 		/// Ability to view permissions on an object
 		/// </summary>
