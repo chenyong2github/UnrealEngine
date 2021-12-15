@@ -44,16 +44,25 @@ enum class EDisplaceMeshToolDisplaceType : uint8
 };
 
 UENUM() 
-enum class ESubdivisionType : uint8  
+enum class EDisplaceMeshToolSubdivisionType : uint8  
 {
 	/** Subdivide the mesh using loop-style subdivision. */
-	Loop UMETA(DisplayName = "Loop"),
+	Flat UMETA(DisplayName = "Flat"),
 	
 	/** Subdivide the mesh using PN triangles which replace each original flat triangle by a curved shape that is 
 		retriangulated into a number of small subtriangles. The geometry of a PN triangle is defined as one cubic Bezier 
 		patch using control points. The patch matches the point and normal information at the vertices of the original 
 		flat triangle.*/
 	PNTriangles UMETA(DisplayName = "PN Triangles"),
+};
+
+UENUM() 
+enum class EDisplaceMeshToolChannelType : uint8  
+{
+	Red,
+	Green,
+	Blue,
+	Alpha
 };
 
 /** The basic set of properties shared by (more or less) all DisplacementTypes. */
@@ -79,7 +88,7 @@ public:
 
 	/** Type of the  mesh subdivision. */
 	UPROPERTY(EditAnywhere, Category = Options)
-	ESubdivisionType SubdivisionType = ESubdivisionType::Loop;
+	EDisplaceMeshToolSubdivisionType SubdivisionType = EDisplaceMeshToolSubdivisionType::PNTriangles;
 
 	/** Number of times to subdivide the mesh before displacing it. */
 	UPROPERTY(EditAnywhere, Category = Options,
@@ -119,10 +128,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	TObjectPtr<UTexture2D> DisplacementMap = nullptr;
 
-	//~ TODO: Consider making this an enum
-	/** Channel in the displacement map to use. 0-3 coresponding to the four channels (RGBA) */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (ClampMin = "0", ClampMax = "3"))
-	int32 Channel = 0;
+	/** Channel in the displacement map to use. */
+	UPROPERTY(EditAnywhere, Category = Options)
+	EDisplaceMeshToolChannelType Channel = EDisplaceMeshToolChannelType::Red;
 
 	/** The value in the texture map that corresponds to no displacement. For instance, if set to 0, then all
 	 displacement will be positive. If set to 0.5, displacement below 0.5 will be negative, and above will be
