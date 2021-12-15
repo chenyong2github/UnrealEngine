@@ -39,7 +39,10 @@ namespace Chaos
 		 * @brief Initialize the material related properties of the contact
 		*/
 		void InitMaterial(
-			const FReal InWorldContactVelocityTargetNormal,
+			const FConstraintSolverBody& Body0,
+			const FConstraintSolverBody& Body1,
+			const FReal InRestitution,
+			const FReal InRestitutionVelocityThreshold,
 			const bool bInEnableStaticFriction,
 			const FReal InStaticFrictionMax);
 
@@ -181,7 +184,8 @@ namespace Chaos
 
 		void InitMaterial(
 			const int32 ManifoldPoiontIndex,
-			const FReal InWorldContactVelocityTargetNormal,
+			const FReal InRestitution,
+			const FReal InRestitutionVelocityThreshold,
 			const bool bInEnableStaticFriction,
 			const FReal InStaticFrictionMax);
 
@@ -232,6 +236,14 @@ namespace Chaos
 		*/
 		bool SolveVelocity(const FReal Dt, const bool bApplyDynamicFriction);
 
+		/**
+		 * @brief Run a velocity solve on the average point from all the points that received a position impulse
+		 * This is used to enforce Restitution constraints without introducing rotation artefacts without
+		 * adding more velocity iterations.
+		 * This will only perform work if there is more than one active contact.
+		*/
+		void SolveVelocityAverage(const FReal Dt);
+
 	private:
 		/**
 		 * @brief Apply the inverse mass scale the body with the lower level
@@ -251,6 +263,7 @@ namespace Chaos
 				, BodyEpochs{ INDEX_NONE, INDEX_NONE }
 				, NumPositionSolves(0)
 				, NumVelocitySolves(0)
+				, bHaveRestitution(false)
 				, bIsSolved(false)
 			{
 			}
@@ -264,6 +277,7 @@ namespace Chaos
 			int32 BodyEpochs[MaxConstrainedBodies];
 			int32 NumPositionSolves;
 			int32 NumVelocitySolves;
+			bool bHaveRestitution;
 			bool bIsSolved;
 		};
 

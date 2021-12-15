@@ -106,22 +106,11 @@ namespace Chaos
 					ManifoldPoint.WorldContactPoints[1],
 					ManifoldPoint.ContactPoint.Normal);
 
-				// Calculate the target normal velocity based on restitution
-				FReal WorldContactVelocityTargetNormal = FReal(0);
-				if (Restitution > FReal(0))
-				{
-					const FVec3 ContactVelocity = Solver.GetManifoldPoint(ManifoldPointIndex).CalculateContactVelocity(Solver.SolverBody0(), Solver.SolverBody1());
-					const FReal ContactVelocityNormal = FVec3::DotProduct(ContactVelocity, ManifoldPoint.ContactPoint.Normal);
-					if (ContactVelocityNormal < -RestitutionVelocityThreshold)
-					{
-						WorldContactVelocityTargetNormal = -Restitution * ContactVelocityNormal;
-					}
-				}
-
 				// Initialize the material properties (restitution and friction related)
 				Solver.InitMaterial(
 					ManifoldPointIndex,
-					WorldContactVelocityTargetNormal,
+					Restitution,
+					RestitutionVelocityThreshold,
 					(Solver.StaticFriction() > 0),
 					ManifoldPoint.StaticFrictionMax);
 			}
