@@ -296,6 +296,8 @@ public:
 
 	virtual bool AllowsDynamicBinding() const override;
 
+	virtual bool SupportsInputEvents() const override;
+
 	virtual bool SupportedByDefaultBlueprintFactory() const override
 	{
 		return false;

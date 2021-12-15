@@ -935,6 +935,11 @@ bool UWidgetBlueprint::AllowsDynamicBinding() const
 	return true;
 }
 
+bool UWidgetBlueprint::SupportsInputEvents() const
+{
+	return true;
+}
+
 void UWidgetBlueprint::GatherDependencies(TSet<TWeakObjectPtr<UBlueprint>>& InDependencies) const
 {
 	Super::GatherDependencies(InDependencies);
