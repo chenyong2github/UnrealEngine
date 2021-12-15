@@ -713,7 +713,7 @@ void FAccessLogWriter::AppendPath(const FStringView Path)
 {
 	if (Path.StartsWith(BasePath))
 	{
-		const FTCHARToUTF8 PathUtf8(Path);
+		const FTCHARToUTF8 PathUtf8(Path.RightChop(BasePath.Len()));
 		Archive->Serialize(const_cast<ANSICHAR*>(PathUtf8.Get()), PathUtf8.Length());
 		Archive->Serialize(const_cast<ANSICHAR*>(LINE_TERMINATOR_ANSI), sizeof(LINE_TERMINATOR_ANSI) - 1);
 	}
