@@ -24,7 +24,6 @@ struct FBTMoveToTaskMemory
 
 	TWeakObjectPtr<UAITask_MoveTo> Task;
 
-	uint8 bWaitingForPath : 1;
 	uint8 bObserverCanFinishTask : 1;
 };
 
@@ -88,13 +87,9 @@ class AIMODULE_API UBTTask_MoveTo : public UBTTask_BlackboardBase
 	/** if set, move will use pathfinding. Not exposed on purpose, please use BTTask_MoveDirectlyToward */
 	uint32 bUsePathfinding : 1;
 
-	/** set automatically if move should use GameplayTasks */
-	uint32 bUseGameplayTasks : 1;
-
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
-	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 	virtual uint16 GetInstanceMemorySize() const override;
 	virtual void PostLoad() override;
 
