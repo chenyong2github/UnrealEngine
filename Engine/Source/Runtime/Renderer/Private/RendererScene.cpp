@@ -5198,6 +5198,7 @@ private:
 
 FSceneInterface* FRendererModule::AllocateScene(UWorld* World, bool bInRequiresHitProxies, bool bCreateFXSystem, ERHIFeatureLevel::Type InFeatureLevel)
 {
+	LLM_SCOPE(ELLMTag::SceneRender);
 	check(IsInGameThread());
 
 	// Create a full fledged scene if we have something to render.
