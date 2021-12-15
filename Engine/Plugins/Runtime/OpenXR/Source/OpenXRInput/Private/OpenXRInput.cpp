@@ -741,6 +741,14 @@ void FOpenXRInputPlugin::FOpenXRInput::SetChannelValues(int32 ControllerId, cons
 		rightHaptics);
 }
 
+void FOpenXRInputPlugin::FOpenXRInput::SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property)
+{
+	for (IOpenXRExtensionPlugin* Module : OpenXRHMD->GetExtensionPlugins())
+	{
+		Module->OnSetDeviceProperty(OpenXRHMD->GetSession(), ControllerId, Property);
+	}
+}
+
 FName FOpenXRInputPlugin::FOpenXRInput::GetMotionControllerDeviceTypeName() const
 {
 	return FName(TEXT("OpenXR"));
