@@ -731,7 +731,14 @@ FAxisAlignedBox3d UPolygonSelectionMechanic::GetSelectionBounds(bool bWorld) con
 	}
 	else 
 	{
-		return Mesh->GetBounds();
+		if (bWorld)
+		{
+			return FAxisAlignedBox3d(Mesh->GetBounds(), TargetTransform);
+		}
+		else
+		{
+			return Mesh->GetBounds();
+		}
 	}
 }
 

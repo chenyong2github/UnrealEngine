@@ -643,12 +643,12 @@ void UEditMeshPolygonsTool::UpdateGizmoFrame(const FFrame3d* UseFrame)
 
 FBox UEditMeshPolygonsTool::GetWorldSpaceFocusBox()
 {
-	if (SelectionMechanic && SelectionMechanic->HasSelection())
+	if (ensure(SelectionMechanic))
 	{
 		FAxisAlignedBox3d Bounds = SelectionMechanic->GetSelectionBounds(true);
 		return (FBox)Bounds;
 	}
-	return FBox();
+	return FBox(EForceInit::ForceInit);
 }
 
 bool UEditMeshPolygonsTool::GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut)
