@@ -3617,10 +3617,15 @@ bool FAutomationTestAttemptToFindUninitializedScriptStructMembers::RunTest(const
 {
 	// This test fails when running tests under UHT because there is no TestUninitializedScriptStructMembersTest, so just skip it in that config.
 #if !HACK_HEADER_GENERATOR
-	return FStructUtils::AttemptToFindUninitializedScriptStructMembers() == 0;
-#else
-	return true;
+	if (UObjectInitialized())
+	{
+		return FStructUtils::AttemptToFindUninitializedScriptStructMembers() == 0;
+	}
+	else
 #endif
+	{
+		return true;
+	}
 }
 
 #endif
