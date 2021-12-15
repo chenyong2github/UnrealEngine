@@ -506,7 +506,7 @@ void UNeuralNetwork::Run()
 	ComputeStatsModule.StoreSample(RunTimer.Toc());
 }
 
-float UNeuralNetwork::GetLastInferenceTime() const
+float UNeuralNetwork::GetLastInferenceTimeMSec() const
 {
 	return ComputeStatsModule.GetLastSample();
 }
