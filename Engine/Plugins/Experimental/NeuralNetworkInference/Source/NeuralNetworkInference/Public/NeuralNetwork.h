@@ -108,10 +108,10 @@ public:
 
 	/**
 	 * Getter and setter functions for DeviceType, InputDeviceType, and OutputDeviceType:
-	 * - GetDeviceType(): It returns DeviceType.
-	 * - GetInputDeviceType(): It returns InputDeviceType.
-	 * - GetOutputDeviceType(): It returns OutputDeviceType.
-	 * - SetDeviceType(): It sets DeviceType, InputDeviceType, and OutputDeviceType. If you are setting it to GPU, check IsGPUSupported() first.
+	 * - GetDeviceType() returns DeviceType.
+	 * - GetInputDeviceType() returns InputDeviceType.
+	 * - GetOutputDeviceType() returns OutputDeviceType.
+	 * - SetDeviceType() sets DeviceType, InputDeviceType, and OutputDeviceType. If you are setting it to GPU, check IsGPUSupported() first.
 	 * @see DeviceType, InputDeviceType, OutputDeviceType, and IsGPUSupported() for more details.
 	 */
 	ENeuralDeviceType GetDeviceType() const;
@@ -136,8 +136,8 @@ public:
 
 	/**
 	 * Getter and setter functions for SynchronousMode:
-	 * - GetDeviceType(): It returns SynchronousMode.
-	 * - SetDeviceType(): It sets SynchronousMode.
+	 * - GetDeviceType() returns SynchronousMode.
+	 * - SetDeviceType() sets SynchronousMode.
 	 * @see SynchronousMode and GetOnAsyncRunCompletedDelegate() for more details.
 	 */
 	ENeuralSynchronousMode GetSynchronousMode() const;
@@ -164,37 +164,43 @@ public:
 
 	/**
 	 * Getter and setter functions for ThreadModeDelegateForAsyncRunCompleted:
-	 * - GetThreadModeDelegateForAsyncRunCompleted(): It returns ThreadModeDelegateForAsyncRunCompleted.
-	 * - SetThreadModeDelegateForAsyncRunCompleted(): It sets ThreadModeDelegateForAsyncRunCompleted.
+	 * - GetThreadModeDelegateForAsyncRunCompleted() returns ThreadModeDelegateForAsyncRunCompleted.
+	 * - SetThreadModeDelegateForAsyncRunCompleted() sets ThreadModeDelegateForAsyncRunCompleted.
 	 * @see ThreadModeDelegateForAsyncRunCompleted and GetOnAsyncRunCompletedDelegate() for more details.
 	 */
 	ENeuralThreadMode GetThreadModeDelegateForAsyncRunCompleted() const;
 	void SetThreadModeDelegateForAsyncRunCompleted(const ENeuralThreadMode InThreadModeDelegateForAsyncRunCompleted);
 
-// CONTINUE HERE
 	/**
-	 * Functions to get/fill input.
-	 * These functions either take a TArray as input, return a modifiable void* to fill the data, or return a constant FNeuralTensor(s) to see input
-	 * properties (e.g., size or dimensions).
+	 * GetInputTensorNumber() and GetOutputTensorNumber() return the number of input or output tensors of this network, respectively.
+	 * @see GetInputTensor(), SetInputFromArrayCopy(), and GetInputDataPointerMutable() for other input-tensor-related functions.
+	 * @see GetOutputTensor() for other output-tensor-related functions.
+	 */
+	int64 GetInputTensorNumber() const;
+	int64 GetOutputTensorNumber() const;
+
+	/**
+	 * GetInputTensor() and GetOutputTensor() return a const (read-only) reference of the input or output FNeuralTensor(s) of the network,
+	 * respectively. They allow querying tensor properties, such as size, GetInputTensor().GetSize(), or dimensions, GetInputTensor().Num().
+	 * @param InTensorIndex The input/output index to query. By default (0), it queries the first input/output tensor. @see GetInputTensorNumber()
+	 * and GetOutputTensorNumber() for more details.
 	 */
 	const FNeuralTensor& GetInputTensor(const int32 InTensorIndex = 0) const;
-	void SetInputFromArrayCopy(const TArray<float>& InArray, const int32 InTensorIndex = 0);
-	void* GetInputDataPointerMutable(const int32 InTensorIndex = 0);
-	int64 GetInputTensorNumber() const;
-
-	/**
-	 * Slow functions (as they will copy every input/output FNeuralNetwork) only meant for debugging purposes.
-	 */
-	TArray<FNeuralTensor> CreateInputArrayCopy() const;
-	void SetInputFromArrayCopy(const TArray<FNeuralTensor>& InTensorDataArray);
-	TArray<FNeuralTensor> CreateOutputArrayCopy() const;
-
-	/**
-	 * Functions to get output. The returned FNeuralTensor(s) are constant to prevent the user from modifying the tensor properties (e.g., size or
-	 * dimensions).
-	 */
 	const FNeuralTensor& GetOutputTensor(const int32 InTensorIndex = 0) const;
-	int64 GetOutputTensorNumber() const;
+
+	/**
+	 * SetInputFromArrayCopy() and GetInputDataPointerMutable() are the only functions that allow modifing the network input tensor(s) values:
+	 * - SetInputFromArrayCopy() is very easy to use but less efficient (it requires an intermidiate and auxiliary TArray). This function copies the
+	 *   given InArray into the desired input FNeuralTensor.
+	 * - GetInputDataPointerMutable() is potentially more efficient because it avoids creating and copying from an intermediate TArray. This function
+	 *   returns a mutable void* pointer of the desired input FNeuralTensor that can be filled by the user on-the-fly.
+	 */
+	void SetInputFromArrayCopy(const TArray<float>& InArray, const int32 InTensorIndex = 0);
+// CONTINUE HERE
+	void SetInputFromVoidPointerCopy(const void* const InVoidPtr, const int32 InTensorIndex = 0);
+	void* GetInputDataPointerMutable(const int32 InTensorIndex = 0);
+
+// @todo: Move these 3 functions to NNIQA.
 
 	/**
 	 * Non-efficient functions meant to be used only for debugging purposes.
@@ -320,7 +326,11 @@ private:
 	bool Load();
 
 	/**
-	 * Private and mutable version of GetInputTensor()/GetOutputTensor().
+	 * GetInputTensorMutable() and GetOutputTensorMutable() are the private and mutable version of GetInputTensor() and GetOutputTensor(), respectively.
+	 * Most FNeuralTensor properties are considered constant and fixed after calling UNeuralNetwork::Load(), other than the actual data values
+	 * (i.e., UnderlyingUInt8ArrayData) and some GPU properties. Thus, use these 2 functions with extreme precaution and be sure not to modify any
+	 * other FNeuralNetwork properties.
+	 * @see GetInputTensor() and GetOutputTensor() for more details.
 	 */
 	FNeuralTensor& GetInputTensorMutable(const int32 InTensorIndex = 0);
 	FNeuralTensor& GetOutputTensorMutable(const int32 InTensorIndex = 0);

@@ -164,12 +164,13 @@ FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const void* const
 	// Sanity check
 	if (IsEmpty())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor(): GetVolume() = 0. Skipping array copy."));
+		UE_LOG(LogNeuralNetworkInference, Warning,
+			TEXT("FNeuralTensor(): GetVolume() = 0, skipping array copy. Use a different constructor if the volume is 0 to avoid this warning."));
 	}
 	// Memory filling
 	else
 	{
-		SetFromPointer(InValues, InSizeOfT, InValueNum);
+		SetFromVoidPointerCopy(InValues, InSizeOfT, InValueNum);
 	}
 }
 
@@ -304,6 +305,14 @@ void FNeuralTensor::SetFromUnderlyingUInt8ArrayCopy(const TArray<uint8>& InArray
 		return;
 	}
 	UnderlyingUInt8ArrayData = InArray;
+}
+
+void FNeuralTensor::SetFromVoidPointerCopy(const void* const InVoidPtr)
+{
+	if (InVoidPtr)
+	{
+		FMemory::Memcpy(UnderlyingUInt8ArrayData.GetData(), InVoidPtr, NumInBytes());
+	}
 }
 
 bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, const FString& InTensorName, const ENeuralTensorType InTensorType)
@@ -812,19 +821,19 @@ FString FNeuralTensor::ToString(const int64 InMaxNumberElementsToDisplay, const 
 /* FNeuralTensor private functions
  *****************************************************************************/
 
-void FNeuralTensor::SetFromPointer(const void* const InData, const int64 InSizeOfT, const int64 InDataSize)
+void FNeuralTensor::SetFromVoidPointerCopy(const void* const InVoidPtr, const int64 InSizeOfT, const int64 InDataSize)
 {
 	// Sanity checks
 	if (Num() != InDataSize || NumInBytes() != InSizeOfT * InDataSize)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::SetFromPointer: Num() == InDataSize failed, %d vs. %d, or"
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::SetFromVoidPointerCopy: Num() == InDataSize failed, %d vs. %d, or"
 			" NumInBytes() == sizeof(T) x InDataSize failed, %d vs. %d. If you want to modify the dimensions of FNeuralTensor, call"
 			" SetNumUninitialized() first."), *Name, Num(), InDataSize, NumInBytes(), InSizeOfT * InDataSize);
 	}
 	else
 	{
 		// Deep copy
-		FMemory::Memcpy(UnderlyingUInt8ArrayData.GetData(), InData, NumInBytes());
+		SetFromVoidPointerCopy(InVoidPtr);
 	}
 }
 
