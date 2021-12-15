@@ -241,5 +241,5 @@ struct FIoStoreTocResource
 
 	UE_NODISCARD static TIoStatusOr<uint64> Write(const TCHAR* TocFilePath, FIoStoreTocResource& TocResource, const FIoContainerSettings& ContainerSettings, const FIoStoreWriterSettings& WriterSettings);
 
-	static uint64 HashChunkIdWithSeed(int32 Seed, const FIoChunkId& ChunkId);
+	CORE_API static uint64 HashChunkIdWithSeed(int32 Seed, const FIoChunkId& ChunkId);
 };

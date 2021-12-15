@@ -8,7 +8,7 @@
 #include "HAL/Runnable.h"
 #include "Containers/Map.h"
 #include "IO/IoDispatcher.h"
-#include "IO/IoDispatcherFileBackendTypes.h"
+#include "IoDispatcherFileBackendTypes.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
 class FGenericFileIoStoreEventQueue

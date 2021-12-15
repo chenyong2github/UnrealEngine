@@ -19,7 +19,6 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Containers/Ticker.h"
 #include "IO/IoDispatcherBackend.h"
-#include "IO/IoDispatcherFileBackendTypes.h"
 #include "Hash/Blake3.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);

@@ -21,7 +21,7 @@
 
 class FChunkCacheWorker;
 class IAsyncReadFileHandle;
-struct IIoDispatcherFileBackend;
+class FFileIoStore;
 class FFilePackageStore;
 struct FIoContainerHeader;
 
@@ -2033,7 +2033,7 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	FString IniFileExtension;
 	/** The filename for the gameusersettings ini file, used for excluding ini files, but not gameusersettings */
 	FString GameUserSettingsIniFilename;
-	TSharedPtr<IIoDispatcherFileBackend> IoDispatcherFileBackend;
+	TSharedPtr<FFileIoStore> IoDispatcherFileBackend;
 	TSharedPtr<FFilePackageStore> FilePackageStore;
 
 	FTSTicker::FDelegateHandle RetireReadersHandle;
