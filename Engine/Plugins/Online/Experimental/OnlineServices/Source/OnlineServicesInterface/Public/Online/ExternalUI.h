@@ -9,6 +9,26 @@
 namespace UE::Online {
 
 class FOnlineError;
+class FAccountInfo;
+
+struct FExternalUIShowLoginUI
+{
+	static constexpr TCHAR Name[] = TEXT("ShowLoginUI");
+
+	struct Params
+	{
+		/** Platform user id logging in */
+		FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE;
+		/** Auth scopes to request */
+		TArray<FString> Scopes;
+	};
+
+	struct Result
+	{
+		/** The account info that was logged into */
+		TSharedRef<FAccountInfo> AccountInfo;
+	};
+};
 
 struct FExternalUIShowFriendsUI
 {
@@ -16,6 +36,7 @@ struct FExternalUIShowFriendsUI
 
 	struct Params
 	{
+		/** Local user id to show the friends UI for */
 		FOnlineAccountIdHandle LocalUserId;
 	};
 
@@ -28,13 +49,27 @@ class IExternalUI
 {
 public:
 	/**
-	 * Shows the friends tab of the EOS Overlay if enabled
+	 * Shows the online service's login UI
+	 */
+	virtual TOnlineAsyncOpHandle<FExternalUIShowLoginUI> ShowLoginUI(FExternalUIShowLoginUI::Params&& Params) = 0;
+
+	/**
+	 * Shows the online service's friends UI
 	 */
 	virtual TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> ShowFriendsUI(FExternalUIShowFriendsUI::Params&& Params) = 0;
 };
 
 namespace Meta {
 // TODO: Move to ExternalUI_Meta.inl file?
+
+BEGIN_ONLINE_STRUCT_META(FExternalUIShowLoginUI::Params)
+	ONLINE_STRUCT_FIELD(FExternalUIShowLoginUI::Params, PlatformUserId),
+	ONLINE_STRUCT_FIELD(FExternalUIShowLoginUI::Params, Scopes)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FExternalUIShowLoginUI::Result)
+	ONLINE_STRUCT_FIELD(FExternalUIShowLoginUI::Result, AccountInfo)
+END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FExternalUIShowFriendsUI::Params)
 	ONLINE_STRUCT_FIELD(FExternalUIShowFriendsUI::Params, LocalUserId)

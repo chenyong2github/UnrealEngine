@@ -18,7 +18,7 @@ void FAuthCommon::RegisterCommands()
 	RegisterCommand(&FAuthCommon::Login);
 	RegisterCommand(&FAuthCommon::Logout);
 	RegisterCommand(&FAuthCommon::GenerateAuth);
-	RegisterCommand(&FAuthCommon::GetAccountByLocalUserNum);
+	RegisterCommand(&FAuthCommon::GetAccountByPlatformUserId);
 	RegisterCommand(&FAuthCommon::GetAccountByAccountId);
 }
 
@@ -43,9 +43,9 @@ TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthCommon::GenerateAuth(FAuthGenerateA
 	return Operation->GetHandle();
 }
 
-TOnlineResult<FAuthGetAccountByLocalUserNum> FAuthCommon::GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params)
+TOnlineResult<FAuthGetAccountByPlatformUserId> FAuthCommon::GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params)
 {
-	return TOnlineResult<FAuthGetAccountByLocalUserNum>(Errors::NotImplemented());
+	return TOnlineResult<FAuthGetAccountByPlatformUserId>(Errors::NotImplemented());
 }
 
 TOnlineResult<FAuthGetAccountByAccountId> FAuthCommon::GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params)

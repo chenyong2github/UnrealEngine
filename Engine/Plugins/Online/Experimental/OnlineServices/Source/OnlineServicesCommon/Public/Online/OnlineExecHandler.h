@@ -142,6 +142,21 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint64& Value)
 	return true;
 }
 
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, FPlatformUserId& Value)
+{
+	int32 InternalId = -1;
+	if (ParseOnlineExecParams(Cmd, InternalId))
+	{
+		Value.CreateFromInternalId(InternalId);
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
+}
+
 template <typename T>
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TArray<T>& Array)
 {

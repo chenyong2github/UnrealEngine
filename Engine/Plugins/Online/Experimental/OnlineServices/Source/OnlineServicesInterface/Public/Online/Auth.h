@@ -10,7 +10,7 @@ namespace UE::Online {
 
 class FOnlineError;
 
-enum class ELoginStatus
+enum class ELoginStatus : uint8
 {
 	/** Player has not logged in or chosen a local profile */
 	NotLoggedIn,
@@ -26,11 +26,13 @@ class FAccountInfo
 {
 public:
 	/** Local user num */
-	int32 LocalUserNum;
+	FPlatformUserId PlatformUserId;
 	/** Account id */
 	FOnlineAccountIdHandle UserId;
 	/** Login status */
 	ELoginStatus LoginStatus;
+	/** Display name */
+	FString DisplayName;
 	// TODO: Other fields
 };
 
@@ -42,7 +44,7 @@ struct FAuthLogin
 
 	struct Params
 	{
-		int32 LocalUserNum;
+		FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE;
 		FString CredentialsType;
 		FString CredentialsId;
 		FCredentialsToken CredentialsToken;
@@ -86,13 +88,13 @@ struct FAuthGenerateAuth
 	};
 };
 
-struct FAuthGetAccountByLocalUserNum
+struct FAuthGetAccountByPlatformUserId
 {
-	static constexpr TCHAR Name[] = TEXT("GetAccountByLocalUserNum");
+	static constexpr TCHAR Name[] = TEXT("GetAccountByPlatformUserId");
 
 	struct Params
 	{
-		int32 LocalUserNum;
+		FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE;
 	};
 
 	struct Result
@@ -148,7 +150,7 @@ public:
 	/**
 	 * Get logged in user by local user num
 	 */ 
-	virtual TOnlineResult<FAuthGetAccountByLocalUserNum> GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params) = 0;
+	virtual TOnlineResult<FAuthGetAccountByPlatformUserId> GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params) = 0;
 
 	/**
 	 * Get logged in user by account id
@@ -166,13 +168,13 @@ namespace Meta {
 // TODO: Move to Auth_Meta.inl file?
 
 BEGIN_ONLINE_STRUCT_META(FAccountInfo)
-	ONLINE_STRUCT_FIELD(FAccountInfo, LocalUserNum),
+	ONLINE_STRUCT_FIELD(FAccountInfo, PlatformUserId),
 	ONLINE_STRUCT_FIELD(FAccountInfo, UserId),
 	ONLINE_STRUCT_FIELD(FAccountInfo, LoginStatus)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthLogin::Params)
-	ONLINE_STRUCT_FIELD(FAuthLogin::Params, LocalUserNum),
+	ONLINE_STRUCT_FIELD(FAuthLogin::Params, PlatformUserId),
 	ONLINE_STRUCT_FIELD(FAuthLogin::Params, CredentialsType),
 	ONLINE_STRUCT_FIELD(FAuthLogin::Params, CredentialsId),
 	ONLINE_STRUCT_FIELD(FAuthLogin::Params, CredentialsToken),
@@ -199,12 +201,12 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuth::Result)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByLocalUserNum::Params)
-	ONLINE_STRUCT_FIELD(FAuthGetAccountByLocalUserNum::Params, LocalUserNum)
+BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByPlatformUserId::Params)
+	ONLINE_STRUCT_FIELD(FAuthGetAccountByPlatformUserId::Params, PlatformUserId)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByLocalUserNum::Result)
-	ONLINE_STRUCT_FIELD(FAuthGetAccountByLocalUserNum::Result, AccountInfo)
+BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByPlatformUserId::Result)
+	ONLINE_STRUCT_FIELD(FAuthGetAccountByPlatformUserId::Result, AccountInfo)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByAccountId::Params)

@@ -10,6 +10,7 @@ class FString;
 namespace UE::Online {
 
 // Interfaces
+using IOnlineServicesPtr = TSharedPtr<class IOnlineServices>;
 using IAuthPtr = TSharedPtr<class IAuth>;
 using IFriendsPtr = TSharedPtr<class IFriends>;
 using IPresencePtr = TSharedPtr<class IPresence>;

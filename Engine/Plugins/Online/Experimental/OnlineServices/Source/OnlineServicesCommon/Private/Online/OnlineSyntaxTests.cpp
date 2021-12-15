@@ -448,8 +448,8 @@ void TestToLogStringSyntax()
 	ToLogString(UE::Online::FAuthLogout::Result());
 	ToLogString(UE::Online::FAuthGenerateAuth::Params());
 	ToLogString(UE::Online::FAuthGenerateAuth::Result());
-	ToLogString(UE::Online::FAuthGetAccountByLocalUserNum::Params());
-	ToLogString(UE::Online::FAuthGetAccountByLocalUserNum::Result());
+	ToLogString(UE::Online::FAuthGetAccountByPlatformUserId::Params());
+	ToLogString(UE::Online::FAuthGetAccountByPlatformUserId::Result());
 	ToLogString(UE::Online::FAuthGetAccountByAccountId::Params());
 	ToLogString(UE::Online::FAuthGetAccountByAccountId::Result());
 	ToLogString(UE::Online::FLoginStatusChanged());

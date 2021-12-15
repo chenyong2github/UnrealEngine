@@ -143,6 +143,11 @@ inline FString ToLogString(int64 Value)
 	return FString::Printf(TEXT("%lli"), Value);
 }
 
+inline FString ToLogString(FPlatformUserId PlatformUserId)
+{
+	return ToLogString(PlatformUserId.GetInternalId());
+}
+
 template<typename T>
 std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value)
 {

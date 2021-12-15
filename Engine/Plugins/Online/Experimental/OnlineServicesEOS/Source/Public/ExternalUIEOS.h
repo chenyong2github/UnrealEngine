@@ -12,6 +12,12 @@
 
 namespace UE::Online {
 
+struct FExternalUIEOSConfig
+{
+	/** Is ShowLoginUI enabled? */
+	bool bShowLoginUIEnabled = true;
+};
+
 class FOnlineServicesEOS;
 
 class ONLINESERVICESEOS_API FExternalUIEOS : public FExternalUICommon
@@ -21,11 +27,25 @@ public:
 
 	FExternalUIEOS(FOnlineServicesEOS& InOwningSubsystem);
 	virtual void Initialize() override;
+	virtual void LoadConfig() override;
 	virtual void PreShutdown() override;
+	virtual TOnlineAsyncOpHandle<FExternalUIShowLoginUI> ShowLoginUI(FExternalUIShowLoginUI::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> ShowFriendsUI(FExternalUIShowFriendsUI::Params&& Params) override;
 
 protected:
+	using Super::LoadConfig;
+	/** Handle to EOS UI */
 	EOS_HUI UIHandle;
+	/** Config */
+	FExternalUIEOSConfig Config;
 };
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FExternalUIEOSConfig)
+	ONLINE_STRUCT_FIELD(FExternalUIEOSConfig, bShowLoginUIEnabled)
+END_ONLINE_STRUCT_META()
+
+/* Meta */ }
 
 /* UE::Online */ }
