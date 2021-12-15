@@ -425,7 +425,8 @@ FStrataData StrataConvertLegacyMaterialStatic(
 
 	if (ShadingModel == SHADINGMODELID_UNLIT)
 	{
-		Out = GetStrataUnlitBSDF(Emissive, Ones /*TransnmittanceColor*/);
+		Out = GetStrataUnlitBSDF(Emissive, Zeros);
+		Out = StrataWeight(Out, Opacity);
 	}
 	else if (ShadingModel == SHADINGMODELID_HAIR)
 	{
