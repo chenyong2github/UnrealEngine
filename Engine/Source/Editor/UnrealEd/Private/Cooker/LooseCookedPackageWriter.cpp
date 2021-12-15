@@ -366,6 +366,7 @@ void FLooseCookedPackageWriter::Initialize(const FCookInfo& Info)
 
 void FLooseCookedPackageWriter::BeginCook()
 {
+	PackageStoreManifest.Load(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
 }
 
 void FLooseCookedPackageWriter::EndCook()
