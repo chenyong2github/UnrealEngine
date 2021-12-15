@@ -75,6 +75,14 @@ public:
 		LightFunctionParameters.Bind(ParameterMap,TEXT("LightFunctionParameters"));
 	}
 
+	static FVector4f GetLightFunctionSharedParameters(const FLightSceneInfo* LightSceneInfo, float ShadowFadeFraction)
+	{
+		const bool bIsSpotLight = LightSceneInfo->Proxy->GetLightType() == LightType_Spot;
+		const bool bIsPointLight = LightSceneInfo->Proxy->GetLightType() == LightType_Point;
+		const float TanOuterAngle = bIsSpotLight ? FMath::Tan(LightSceneInfo->Proxy->GetOuterConeAngle()) : 1.0f;
+		return FVector4f(TanOuterAngle, ShadowFadeFraction, bIsSpotLight ? 1.0f : 0.0f, bIsPointLight ? 1.0f : 0.0f);
+	}
+
 	template<typename ShaderRHIParamRef>
 	void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FLightSceneInfo* LightSceneInfo, float ShadowFadeFraction) const
 	{
@@ -86,7 +94,7 @@ public:
 			RHICmdList, 
 			ShaderRHI, 
 			LightFunctionParameters, 
-			FVector4f(TanOuterAngle, ShadowFadeFraction, bIsSpotLight ? 1.0f : 0.0f, bIsPointLight ? 1.0f : 0.0f));
+			GetLightFunctionSharedParameters(LightSceneInfo, ShadowFadeFraction));
 	}
 
 	/** Serializer. */ 
