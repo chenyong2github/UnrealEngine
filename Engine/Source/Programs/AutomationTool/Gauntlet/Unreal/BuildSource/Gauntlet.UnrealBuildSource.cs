@@ -516,6 +516,7 @@ namespace Gauntlet
 			}
 
 			// Cleanup the commandline
+			Log.Info("Processing CommandLine {0}", Config.CommandLine);
 			Config.CommandLine = GenerateProcessedCommandLine(Config.CommandLine);
 
 			// Now add the project (the above code doesn't handle arguments without a leading - so do this last

@@ -347,15 +347,22 @@ namespace Gauntlet
 			// TODO - Remove all Gauntlet logging and switch to UBT log?
 			CommandUtils.LogInformation(Message);
 
-			if (LogFile != null)
+			try
 			{
-				LogFile.WriteLine(Message);
-			}
+				if (LogFile != null)
+				{
+					LogFile.WriteLine(Message);
+				}
 
-			if (Callbacks != null)
-			{
-				Callbacks.ForEach(A => A(Message));
+				if (Callbacks != null)
+				{
+					Callbacks.ForEach(A => A(Message));
+				}
 			}
+			catch (Exception Ex)
+			{
+				CommandUtils.LogWarning("Exception logging '{0}'. {1}", Message, Ex.ToString());
+			}			
 		}	
 
 		static public void Verbose(string Format, params object[] Args)
