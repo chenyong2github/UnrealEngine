@@ -413,7 +413,7 @@ void FAutomationControllerManager::ProcessComparisonQueue()
 
 			// Send the message back to the automation worker letting it know the results of the comparison test.
 			{
-				FAutomationWorkerImageComparisonResults* Message = new FAutomationWorkerImageComparisonResults(
+				FAutomationWorkerImageComparisonResults* Message = FMessageEndpoint::MakeMessage<FAutomationWorkerImageComparisonResults>(
 					UniqueId,
 					Result.IsNew(),
 					Result.AreSimilar(),
@@ -1294,7 +1294,7 @@ void FAutomationControllerManager::HandleTestDataRequest(const FAutomationWorker
 		}
 	}
 
-	FAutomationWorkerTestDataResponse* ResponseMessage = new FAutomationWorkerTestDataResponse();
+	FAutomationWorkerTestDataResponse* ResponseMessage = FMessageEndpoint::MakeMessage<FAutomationWorkerTestDataResponse>();
 	ResponseMessage->bIsNew = bIsNew;
 	ResponseMessage->JsonData = ResponseJsonData;
 
@@ -1306,7 +1306,7 @@ void FAutomationControllerManager::HandlePerformanceDataRequest(const FAutomatio
 	//TODO Read/Performance data.
 	UE_LOG(LogAutomationController, Log, TEXT("Received PerformanceDataRequest from %s"), *Context->GetSender().ToString());
 
-	FAutomationWorkerPerformanceDataResponse* ResponseMessage = new FAutomationWorkerPerformanceDataResponse();
+	FAutomationWorkerPerformanceDataResponse* ResponseMessage = FMessageEndpoint::MakeMessage<FAutomationWorkerPerformanceDataResponse>();
 	ResponseMessage->bSuccess = true;
 	ResponseMessage->ErrorMessage = TEXT("");
 

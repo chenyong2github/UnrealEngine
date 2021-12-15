@@ -55,7 +55,7 @@ void FWidgetSnapshotService::HandleWidgetSnapshotRequestMessage(const FWidgetSna
 		FWidgetSnapshotData SnapshotData;
 		SnapshotData.TakeSnapshot(false);
 
-		FWidgetSnapshotResponse* WidgetSnapshotResponse = new FWidgetSnapshotResponse;
+		FWidgetSnapshotResponse* WidgetSnapshotResponse = FMessageEndpoint::MakeMessage<FWidgetSnapshotResponse>();
 		WidgetSnapshotResponse->SnapshotRequestId = Message.SnapshotRequestId;
 		SnapshotData.SaveSnapshotToBuffer(WidgetSnapshotResponse->SnapshotData);
 

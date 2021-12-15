@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "IMessageContext.h"
+#include "MessageEndpoint.h"
 #include "Async/IAsyncTask.h"
 #include "Async/AsyncResult.h"
 #include "IMessageRpcHandler.h"
@@ -46,7 +47,7 @@ class IMessageRpcServer
 			const TFuture<typename RpcType::FResult>& Future = Result.GetFuture();
 			check(Future.IsReady());
 
-			return new typename RpcType::FResponse(Future.Get());
+			return FMessageEndpoint::MakeMessage<typename RpcType::FResponse>(Future.Get());
 		}
 
 		virtual UScriptStruct* GetResponseTypeInfo() const override

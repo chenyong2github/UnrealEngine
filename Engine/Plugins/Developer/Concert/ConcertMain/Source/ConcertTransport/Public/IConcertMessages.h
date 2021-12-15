@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ConcertMessageContext.h"
+#include "MessageEndpoint.h"
 
 class IConcertLocalEndpoint;
 
@@ -201,7 +202,7 @@ public:
 	
 	virtual void* ConstructMessage() const override
 	{
-		return new MessageType(MessageTemplate);
+		return FMessageEndpoint::MakeMessage<MessageType>(MessageTemplate);
 	}
 
 	virtual UScriptStruct* GetMessageType() const override

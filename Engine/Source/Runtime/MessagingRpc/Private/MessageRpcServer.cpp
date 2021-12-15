@@ -126,7 +126,7 @@ void FMessageRpcServer::SendProgress(const FGuid& CallId, const FReturnInfo& Ret
 	const TSharedPtr<IAsyncTask>& Task = ReturnInfo.Task;
 
 	MessageEndpoint->Send(
-		new FMessageRpcProgress(
+		FMessageEndpoint::MakeMessage<FMessageRpcProgress>(
 			CallId,
 			Progress.IsValid() ? Progress->GetCompletion().Get(-1.0f) : -1.0f,
 			Progress.IsValid() ? Progress->GetStatusText() : FText::GetEmpty()

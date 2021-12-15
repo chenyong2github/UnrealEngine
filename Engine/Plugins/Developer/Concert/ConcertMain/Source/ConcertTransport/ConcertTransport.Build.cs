@@ -11,16 +11,10 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
+					"MessagingCommon",
 					"TraceLog",
                 }
 			);
-
-            PrivateIncludePathModuleNames.AddRange(
-				new string[] {
-					"MessagingCommon",
-				}
-			);
-
         }
     }
 }

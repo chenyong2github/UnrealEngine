@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MessageEndpoint.h"
 #include "Misc/Guid.h"
 #include "IMessageContext.h"
 #include "IMessageRpcCall.h"
@@ -136,7 +137,7 @@ class IMessageRpcClient
 
 		virtual void* ConstructMessage() const override
 		{
-			return new typename RpcType::FRequest(*MessageTemplate);
+			return FMessageEndpoint::MakeMessage<typename RpcType::FRequest>(*MessageTemplate);
 		}
 
 		TFuture<typename RpcType::FResult> GetFuture()

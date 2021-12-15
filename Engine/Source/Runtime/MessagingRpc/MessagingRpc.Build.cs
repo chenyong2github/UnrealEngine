@@ -17,13 +17,13 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
+					"MessagingCommon",
 				});
 
 			PrivateIncludePathModuleNames.AddRange(
 				new string[]
 				{
 					"Messaging",
-					"MessagingCommon",
 				});
 
 			PrivateIncludePaths.AddRange(
