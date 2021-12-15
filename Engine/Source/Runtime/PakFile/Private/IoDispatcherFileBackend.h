@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "IO/IoDispatcherFileBackendTypes.h"
+#include "IoDispatcherFileBackendTypes.h"
 #include "IO/IoDispatcher.h"
-#include "IO/IoDispatcherPrivate.h"
 #include "IO/IoStore.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
@@ -100,14 +99,14 @@ private:
 
 class FFileIoStore final
 	: public FRunnable
-	, public IIoDispatcherFileBackend
+	, public IIoDispatcherBackend
 {
 public:
 	FFileIoStore(TUniquePtr<IPlatformFileIoStore>&& PlatformImpl);
 	~FFileIoStore();
 	void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) override;
-	TIoStatusOr<FIoContainerHeader> Mount(const TCHAR* InTocPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) override;
-	bool Unmount(const TCHAR* InTocPath) override;
+	TIoStatusOr<FIoContainerHeader> Mount(const TCHAR* InTocPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey);
+	bool Unmount(const TCHAR* InTocPath);
 	bool Resolve(FIoRequestImpl* Request) override;
 	void CancelIoRequest(FIoRequestImpl* Request) override;
 	void UpdatePriorityForIoRequest(FIoRequestImpl* Request) override;
@@ -115,7 +114,7 @@ public:
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	FIoRequestImpl* GetCompletedRequests() override;
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options) override;
-	void ReopenAllFileHandles() override;
+	void ReopenAllFileHandles();
 
 	virtual bool Init() override;
 	virtual uint32 Run() override;
@@ -189,3 +188,5 @@ private:
 	FIoRequestImpl* CompletedRequestsTail = nullptr;
 	EAsyncIOPriorityAndFlags CurrentAsyncIOMinimumPriority = AIOP_MIN;
 };
+
+TSharedRef<FFileIoStore> CreateIoDispatcherFileBackend();

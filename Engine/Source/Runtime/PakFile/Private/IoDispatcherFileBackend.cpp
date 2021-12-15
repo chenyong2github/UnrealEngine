@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IO/IoDispatcherFileBackend.h"
+#include "IoDispatcherFileBackend.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Misc/ScopeRWLock.h"
@@ -8,7 +8,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "GenericPlatform/GenericPlatformIoDispatcher.h"
+#include "GenericPlatformIoDispatcher.h"
 #include "HAL/IConsoleManager.h"
 #include "Async/AsyncWork.h"
 #include "Async/MappedFileHandle.h"
@@ -2029,7 +2029,7 @@ uint32 FFileIoStore::Run()
 	return 0;
 }
 
-TSharedRef<IIoDispatcherFileBackend> CreateIoDispatcherFileBackend()
+TSharedRef<FFileIoStore> CreateIoDispatcherFileBackend()
 {
 	bool bCheckForPlatformImplementation = true;
 	if (!FGenericPlatformProcess::SupportsMultithreading())
