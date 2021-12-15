@@ -26,6 +26,15 @@ if [[ ! -z "$3" ]]; then
 	CHANGELIST_OVERRIDE="$3"
 fi
 
+# If the user specified a git commit hash instead of a release, branch or tag then automatically determine the changelist
+# number from the commit message, and tag the built container images with an abbreviated version of the commit hash
+COMMIT_HASH=$(echo "${UNREAL_ENGINE_RELEASE}" | grep -E -o '^[0-9a-f]{40}$')
+COMMIT_SHORT=$(echo "${COMMIT_HASH}" | grep -E -o '^[0-9a-f]{8}')
+if [[ ! -z "$COMMIT_HASH" ]]; then
+	UNREAL_ENGINE_RELEASE="$COMMIT_SHORT"
+	CHANGELIST_OVERRIDE="auto"
+fi
+
 # Verify that the user has placed their GitHub username in the file `username.txt`
 if [ ! -f ./username.txt ]; then
 	echo 'Please place your GitHub username in a text file called `username.txt` in the current directory.'
@@ -57,7 +66,8 @@ echo '-------------------'
 echo
 echo "Unreal Engine Release: ${UNREAL_ENGINE_RELEASE}"
 echo "Git Repository:        ${GIT_REPO}"
-echo "Git Branch/Tag:        ${GIT_BRANCH}"
+echo "Git Branch/Tag/Commit: ${GIT_BRANCH}"
+echo "Changelist Override:   ${CHANGELIST_OVERRIDE}"
 echo
 
 # Print commands as they are executed and halt immediately if any command fails
