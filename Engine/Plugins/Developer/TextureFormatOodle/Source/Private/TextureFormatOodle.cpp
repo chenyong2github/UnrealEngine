@@ -900,6 +900,43 @@ public:
 		return CompressedPixelFormat;
 	}
 
+	static void DebugDumpDDS(const FStringView & DebugTexturePathName,
+			int32 SizeX,int32 SizeY,int32 Slice, OodleDDS::EDXGIFormat DebugFormat, const TCHAR * InOrOut,
+			const void * PixelData, size_t PixelDataSize)
+	{
+		if (DebugFormat != OodleDDS::EDXGIFormat::UNKNOWN)
+		{
+			OodleDDS::FDDSFile* DDS = OodleDDS::FDDSFile::CreateEmpty2D(SizeX, SizeY, 1, DebugFormat, OodleDDS::FDDSFile::CREATE_FLAG_NONE);
+
+			if ( DDS->Mips[0].DataSize != PixelDataSize )
+			{
+				UE_LOG(LogTextureFormatOodle, Warning, TEXT("DebugDump mip sizes don't match %dx%d: %lld != %lld"), SizeX,SizeY, DDS->Mips[0].DataSize, PixelDataSize);
+			}
+			size_t MipCopySize = FMath::Min(PixelDataSize,(size_t)DDS->Mips[0].DataSize);
+			FMemory::Memcpy(DDS->Mips[0].Data, PixelData, MipCopySize);
+
+			FString FileName = FString::Printf(TEXT("%.*s_%dx%d_S%d_%s.dds"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), SizeX, SizeY, Slice, InOrOut);
+
+			// Object paths a) can contain slashes as its a path, and we dont want a hierarchy and b) can have random characters we don't want
+			FileName = FPaths::MakeValidFileName(FileName, TEXT('_'));
+			FileName = FPaths::ProjectSavedDir() + TEXT("OodleDebugImages/") + FileName;
+				
+			FArchive* Ar = IFileManager::Get().CreateFileWriter(*FileName);
+			if (Ar != nullptr)
+			{					
+				DDS->SerializeToArchive(Ar);
+				Ar->Close();
+				delete Ar;
+			}
+			else
+			{
+				UE_LOG(LogTextureFormatOodle, Error, TEXT("Failed to open DDS debug file: %s"), *FileName);
+			}
+
+			delete DDS;
+		}
+	}
+
 	virtual bool CompressImage(const FImage& InImage, const FTextureBuildSettings& InBuildSettings, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_CompressImage);
@@ -907,6 +944,17 @@ public:
 		check(InImage.SizeX > 0);
 		check(InImage.SizeY > 0);
 		check(InImage.NumSlices > 0);
+
+		if ( InImage.SizeX > OODLETEX_MAX_SURFACE_DIMENSION || InImage.SizeY > OODLETEX_MAX_SURFACE_DIMENSION )
+		{
+			UE_LOG(LogTextureFormatOodle,Error,
+				TEXT("Image larger than OODLETEX_MAX_SURFACE_DIMENSION : %dx%d > %d"),
+				InImage.SizeX,InImage.SizeY,
+				OODLETEX_MAX_SURFACE_DIMENSION
+				);
+			
+			return false;			
+		}
 
 		FName CompressOodleTextureVersion(InBuildSettings.OodleTextureSdkVersion);
 
@@ -1276,38 +1324,9 @@ public:
 
 			if (bImageDump)
 			{
-				// @todo Oodle CB : factor out the two copies of this
-
-				OodleDDS::EDXGIFormat DebugFormat = DXGIFormatFromOodlePF(OodlePF);
-				if (DebugFormat != OodleDDS::EDXGIFormat::UNKNOWN)
-				{
-					OodleDDS::FDDSFile* DDS = OodleDDS::FDDSFile::CreateEmpty2D(Image.SizeX, Image.SizeY, 1, DebugFormat, OodleDDS::FDDSFile::CREATE_FLAG_NONE);
-
-					// @todo Oodle CB : if sizes aren't equal, warn? maybe memset?
-					check( DDS->Mips[0].DataSize >= InBytesPerSlice );
-					FMemory::Memcpy(DDS->Mips[0].Data, InSurf.pixels, InBytesPerSlice);
-
-					// @todo Oodle CB : this does not work for VT tiles, they all get the same name
-					FString InputFileName = FString::Printf(TEXT("%.*s_%dx%d_Slice%d_IN.dds"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), Image.SizeX, Image.SizeY, Slice);
-
-					// Object paths a) can contain slashes as its a path, and we dont want a hierarchy and b) can have random characters we don't want
-					InputFileName = FPaths::MakeValidFileName(InputFileName, TEXT('_'));
-					InputFileName = FPaths::ProjectSavedDir() + TEXT("OodleDebugImages/") + InputFileName;
-				
-					FArchive* Ar = IFileManager::Get().CreateFileWriter(*InputFileName);
-					if (Ar != nullptr)
-					{					
-						DDS->SerializeToArchive(Ar);
-						Ar->Close();
-						delete Ar;
-					}
-					else
-					{
-						UE_LOG(LogTextureFormatOodle, Error, TEXT("Failed to open DDS debug input file: %s"), *InputFileName);
-					}
-
-					delete DDS;
-				}
+				DebugDumpDDS(DebugTexturePathName,InSurf.width,InSurf.height,Slice,
+					DXGIFormatFromOodlePF(OodlePF),TEXT("IN"),
+					InSurf.pixels, InBytesPerSlice);
 			}
 
 			// if RDOLambda == 0, does non-RDO encode :
@@ -1322,34 +1341,12 @@ public:
 				bCompressionSucceeded = false;
 				break;
 			}
-			else
+			
+			if (bImageDump)
 			{
-				if (bImageDump)
-				{
-					OodleDDS::FDDSFile* DDS = OodleDDS::FDDSFile::CreateEmpty2D(Image.SizeX, Image.SizeY, 1, DXGIFormatFromOodleBC(OodleBCN), OodleDDS::FDDSFile::CREATE_FLAG_NONE);
-					check( DDS->Mips[0].DataSize >= OutBytesPerSlice );
-					FMemory::Memcpy(DDS->Mips[0].Data, OutSlicePtr, OutBytesPerSlice);
-
-					FString OutputFileName = FString::Printf(TEXT("%.*s_%dx%d_Slice%d_OUT.dds"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), Image.SizeX, Image.SizeY, Slice);
-
-					// Object paths a) can contain slashes as its a path, and we dont want a hierarchy and b) can have random characters we don't want
-					OutputFileName = FPaths::MakeValidFileName(OutputFileName, TEXT('_'));
-					OutputFileName = FPaths::ProjectSavedDir() + TEXT("OodleDebugImages/") + OutputFileName;
-
-					FArchive* Ar = IFileManager::Get().CreateFileWriter(*OutputFileName);
-					if (Ar != nullptr)
-					{
-						DDS->SerializeToArchive(Ar);
-						Ar->Close();
-						delete Ar;
-					}
-					else
-					{
-						UE_LOG(LogTextureFormatOodle, Error, TEXT("Failed to open DDS debug output file: %s"), *OutputFileName);
-					}
-
-					delete DDS;
-				}
+				DebugDumpDDS(DebugTexturePathName,InSurf.width,InSurf.height,Slice,
+					DXGIFormatFromOodleBC(OodleBCN),TEXT("OUT"),
+					OutSlicePtr, OutBytesPerSlice);
 			}
 		}
 
