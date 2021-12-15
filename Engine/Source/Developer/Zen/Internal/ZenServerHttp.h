@@ -8,6 +8,22 @@
 #include "Containers/UnrealString.h"
 #include "Memory/MemoryFwd.h"
 
+// if there is a platform-specific include then it must be used in the header file in case it defines CURL_STRICTER
+#if defined(PLATFORM_CURL_INCLUDE)
+
+#if PLATFORM_MICROSOFT
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
+#endif
+
+#include PLATFORM_CURL_INCLUDE
+
+#if PLATFORM_MICROSOFT
+#include "Microsoft/HideMicrosoftPlatformTypes.h"
+#endif
+
+#endif //defined(PLATFORM_CURL_INCLUDE)
+
+
 class FCompositeBuffer;
 class FCbObjectView;
 class FCbPackage;
@@ -180,7 +196,11 @@ public:
 	ZEN_API bool GetHeader(const ANSICHAR* Header, FString& OutValue) const;
 
 private:
+#if defined(CURL_STRICTER)
+	CURL*					Curl = nullptr;
+#else
 	void* /* CURL */		Curl = nullptr;
+#endif
 	long /* CURLCode */		CurlResult;
 	long					ResponseCode = 0;
 	size_t					BytesSent = 0;
