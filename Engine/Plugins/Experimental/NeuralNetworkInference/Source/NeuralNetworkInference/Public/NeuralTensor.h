@@ -43,9 +43,9 @@ public:
 	 * @param InTensorType It sets TensorType. @see TensorType for more details.
 	 * @param InArray Alternative to InSizes/InVolume, and represents the input data to copy from. The template constructor that uses InArray is a
 	 *  simple (but not efficient) way of initializing a FNeuralTensor from the existing InArray TArray. It is equivalent to calling
-	 *  FNeuralTensor(..., InSizes/InVolume, ...) and then SetFromArrayCopy(InArray). It is not efficient because it makes a deep copy of the data
-	 *  of InArray. For maximum speed, rather than creating this intermediate InArray TArray, you can avoid the double copy by calling
-	 *  FNeuralTensor(..., InSizes/InVolume, ...) and then filling the tensor memory with GetData()/GetDataCasted().
+	 *  FNeuralTensor(..., InSizes/InVolume, ...) and then SetFromArrayCopy(InArray)/SetFromVoidPointerCopy(InVoidPtr). It is not efficient because
+	 *  it makes a deep copy of the data of InArray. For maximum speed, rather than creating this intermediate InArray TArray, you can avoid the
+	 *  double copy by calling FNeuralTensor(..., InSizes/InVolume, ...) and then filling the tensor memory with GetData()/GetDataCasted().
 	 *
 	 * In addition, UnderlyingUInt8ArrayData is preallocated from InDataType and InSizes/InVolume. @see UnderlyingUInt8ArrayData for more details.
 	 */
@@ -139,9 +139,9 @@ public:
 	FORCEINLINE void SetEnableGPU(const bool bInEnableGPU);
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
-	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
-	 * could result in undefined behavior in not used properly:
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized(), SetFromUnderlyingUInt8ArrayCopy(),
+	 * SetFromArrayCopy(), SetFromVoidPointerCopy(), SetTo(), SetFromTensorProto(), which represent all the functions that can access/modify the CPU
+	 * memory. Some of these functions could result in undefined behavior in not used properly:
 	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
 	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
@@ -157,9 +157,9 @@ public:
 	const T& At(const TInput InIndex) const;
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
-	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
-	 * could result in undefined behavior in not used properly:
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized(), SetFromUnderlyingUInt8ArrayCopy(),
+	 * SetFromArrayCopy(), SetFromVoidPointerCopy(), SetTo(), SetFromTensorProto(), which represent all the functions that can access/modify the CPU
+	 * memory. Some of these functions could result in undefined behavior in not used properly:
 	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
 	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
@@ -173,9 +173,9 @@ public:
 	FORCEINLINE const TArray<uint8>& GetUnderlyingUInt8ArrayRef() const;
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
-	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
-	 * could result in undefined behavior in not used properly:
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized(), SetFromUnderlyingUInt8ArrayCopy(),
+	 * SetFromArrayCopy(), SetFromVoidPointerCopy(), SetTo(), SetFromTensorProto(), which represent all the functions that can access/modify the CPU
+	 * memory. Some of these functions could result in undefined behavior in not used properly:
 	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
 	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
@@ -197,9 +197,9 @@ public:
 	FORCEINLINE const T* const GetDataCasted() const;
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
-	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
-	 * could result in undefined behavior in not used properly:
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized(), SetFromUnderlyingUInt8ArrayCopy(),
+	 * SetFromArrayCopy(), SetFromVoidPointerCopy(), SetTo(), SetFromTensorProto(), which represent all the functions that can access/modify the CPU
+	 * memory. Some of these functions could result in undefined behavior in not used properly:
 	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
 	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
@@ -218,16 +218,17 @@ public:
 	FORCEINLINE void SetNumUninitialized(const ENeuralDataType InDataType, const int64 InVolume, const bool bInAllowShrinking = true);
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
-	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
-	 * could result in undefined behavior in not used properly:
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized(), SetFromUnderlyingUInt8ArrayCopy(),
+	 * SetFromArrayCopy(), SetFromVoidPointerCopy(), SetTo(), SetFromTensorProto(), which represent all the functions that can access/modify the CPU
+	 * memory. Some of these functions could result in undefined behavior in not used properly:
 	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
 	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
 	 *
-	 * SetFromUnderlyingUInt8ArrayCopy/SetFromArrayCopy will replace the contents of the underlying CPU TArray with the input one, by deeply copying
-	 * the array (safer and easier to use). For maximum performance:
-	 * - If you are given an input TArray (or a FNeuralTensor with different Sizes) that cannot be moved, use SetFromArrayCopy().
+	 * SetFromUnderlyingUInt8ArrayCopy/SetFromArrayCopy/SetFromVoidPointerCopy will replace the contents of the underlying CPU TArray with the input
+	 * TArray or void pointer, by deeply copying the array/pointer (safer and easier to use). For maximum performance:
+	 * - If you are given an input TArray/pointer (or a FNeuralTensor with different Sizes) that cannot be moved, use SetFromArrayCopy() or
+	 *   SetFromVoidPointerCopy().
 	 * - If you are initializing the FNeuralTensor iteratively (and to avoid a copy), fill the tensor with GetData()/GetDataCasted<T>().
 	 * Modifying InArray after calling this function will not modify the data of this FNeuralTensor.
 	 * The size of InArray and this tensor must match, i.e., NumInBytes() must match TArray<uint8>::Num() or Num() match TArray<T>.Num().
@@ -235,11 +236,12 @@ public:
 	void SetFromUnderlyingUInt8ArrayCopy(const TArray<uint8>& InArray);
 	template<typename T>
 	void SetFromArrayCopy(const TArray<T>& InArray);
+	void SetFromVoidPointerCopy(const void* const InVoidPtr);
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
-	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
-	 * could result in undefined behavior in not used properly:
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized(), SetFromUnderlyingUInt8ArrayCopy(),
+	 * SetFromArrayCopy(), SetFromVoidPointerCopy(), SetTo(), SetFromTensorProto(), which represent all the functions that can access/modify the CPU
+	 * memory. Some of these functions could result in undefined behavior in not used properly:
 	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
 	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
@@ -251,9 +253,9 @@ public:
 	void SetTo(const TInput InValue);
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
-	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
-	 * could result in undefined behavior in not used properly:
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized(), SetFromUnderlyingUInt8ArrayCopy(),
+	 * SetFromArrayCopy(), SetFromVoidPointerCopy(), SetTo(), SetFromTensorProto(), which represent all the functions that can access/modify the CPU
+	 * memory. Some of these functions could result in undefined behavior in not used properly:
 	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
 	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
@@ -393,7 +395,7 @@ private:
 	 * Auxiliary function for the template SetFromArrayCopy().
 	 * It simply moves as much code as possible from the template function to the cpp file.
 	 */
-	void SetFromPointer(const void* const InData, const int64 InSizeOfT, const int64 InDataSize);
+	void SetFromVoidPointerCopy(const void* const InVoidPtr, const int64 InSizeOfT, const int64 InDataSize);
 
 	/**
 	 * Checks and warns whether the current data type T is the same than the one defined by DataType.
@@ -539,7 +541,7 @@ void FNeuralTensor::SetFromArrayCopy(const TArray<T>& InArray)
 {
 	if (CheckTAndDataTypeEquivalent<T>())
 	{
-		SetFromPointer(InArray.GetData(), sizeof(T), InArray.Num());
+		SetFromVoidPointerCopy(InArray.GetData(), sizeof(T), InArray.Num());
 	}
 }
 

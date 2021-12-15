@@ -139,7 +139,8 @@ void FOperatorTester::TestBatchNormalizationOperator(UNeuralNetworkInferenceQAAs
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d/%d FBatchNormalizationOperator"), InOperatorCounter, InOperatorTotal);
 	// Inout tensors (X != Mean to avoid Output = Bias; Variance positive to avoid NaN)
 	TArray<TArray<FNeuralTensor>> Tensors({
-		// ----------------------------------------------------------------- ONNX - https://github.com/onnx/onnx/blob/master/docs/TestCoverage.md#BatchNormalization -----------------------------------------------------------------
+		// ----------------------------------------------------------------- ONNX -----------------------------------------------------------------
+		// https://github.com/onnx/onnx/blob/master/docs/TestCoverage.md#BatchNormalization
 		{FNeuralTensor(TArray<float>({-1,0,1, 2,3,4}), TArray<int64>({1,2,1,3})),
 			FNeuralTensor(TArray<float>({1, 1.5}), TArray<int64>({2})),
 			FNeuralTensor(TArray<float>({0, 1}), TArray<int64>({2})),
@@ -240,7 +241,8 @@ void FOperatorTester::TestGemmOperator(UNeuralNetworkInferenceQAAsset* InOutNetw
 	});
 	for (int32 TensorTestsIndex = 0; TensorTestsIndex < GemmABCOutputTensorTests.Num(); ++TensorTestsIndex)
 	{
-		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- FGemmOperator #%d/%d"), TensorTestsIndex + 1, GemmABCOutputTensorTests.Num());
+		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- FGemmOperator #%d/%d"),
+			TensorTestsIndex + 1, GemmABCOutputTensorTests.Num());
 		TArray<TSharedPtr<FNeuralOperator>> Operators({
 			// A, B
 			MakeShared<FGemmOperator>(/*Alpha*/-0.5, /*Beta*/-10, /*bTransA*/false, /*bTransB*/false),// = AB + C
@@ -317,7 +319,8 @@ void FOperatorTester::TestConvOperator(UNeuralNetworkInferenceQAAsset* InOutNetw
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d/%d FConvOperator"), InOperatorCounter, InOperatorTotal);
 	// Inout tensors
 	TArray<TArray<FNeuralTensor>> Tensors({
-		// ----------------------------------------------------------------- ONNX - https://github.com/onnx/onnx/blob/master/docs/TestCoverage.md#Conv -----------------------------------------------------------------
+		// ----------------------------------------------------------------- ONNX -----------------------------------------------------------------
+		// https://github.com/onnx/onnx/blob/master/docs/TestCoverage.md#Conv
 		// conv
 		{FNeuralTensor(TArray<float>({0,1,2,3,4, 5,6,7,8,9, 10,11,12,13,14, 15,16,17,18,19, 20,21,22,23,24}), TArray<int64>({1,1,5,5})),
 			FNeuralTensor(TArray<float>({1,1,1, 1,1,1, 1,1,1}), TArray<int64>({1,1,3,3})),
@@ -634,15 +637,16 @@ void FOperatorTester::TestConvOperator(UNeuralNetworkInferenceQAAsset* InOutNetw
 		// Set FConvBaseOperator::EAutoPad - Hacky but simple way of getting this TArray
 		// Create and push FConvOperator
 		Operators.Push(MakeShared<FConvOperator>(AutoPad, Dilations, Group, /*KernelShape*/TArray<int64>(), Pads, Strides));
-		// Remove all non-required/auxiliary tensors from InputTensors to keep it in X, W, and B (if B exists). Otherwise, those would be used by the network and moved into GPU memory
+		// Remove all non-required/auxiliary tensors from InputTensors to keep it in X, W, and B (if B exists). Otherwise, those would be used by
+		// the network and moved into GPU memory
 		while (Tensors[TensorIndex].Num() > 4 || Tensors[TensorIndex].Last().Num() < 1)
 		{
 			Tensors[TensorIndex].Pop();
 		}
 		// TensorsIndex is no longer valid after this while loop!
 	}
-	TestOperator(InOutNetworkInferenceQAAsset, Tensors, InputTensors, OutputTensors, Operators, TEXT("FConvOperator"), InGroundTruthDirectory, InZeroThreshold,
-		/*bShouldOperatorsProvideSameResult*/false, /*bInShouldRunGPU*/true);
+	TestOperator(InOutNetworkInferenceQAAsset, Tensors, InputTensors, OutputTensors, Operators, TEXT("FConvOperator"), InGroundTruthDirectory,
+		InZeroThreshold, /*bShouldOperatorsProvideSameResult*/false, /*bInShouldRunGPU*/true);
 }
 
 void FOperatorTester::TestConvTransposeOperator(UNeuralNetworkInferenceQAAsset* InOutNetworkInferenceQAAsset, const TMap<int32, TArray<float>>& InInputTensorData, const TMap<int32, TArray<float>>& InInputTensorDataSmall,
@@ -651,7 +655,8 @@ void FOperatorTester::TestConvTransposeOperator(UNeuralNetworkInferenceQAAsset* 
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d/%d FConvTransposeOperator"), InOperatorCounter, InOperatorTotal);
 	// Inout tensors
 	TArray<TArray<FNeuralTensor>> Tensors({
-		// ----------------------------------------------------------------- ONNX - https://github.com/onnx/onnx/blob/master/docs/TestCoverage.md#ConvTranspose -----------------------------------------------------------------
+		// ----------------------------------------------------------------- ONNX -----------------------------------------------------------------
+		// https://github.com/onnx/onnx/blob/master/docs/TestCoverage.md#ConvTranspose
 		// convtranspose_1d
 		{FNeuralTensor(TArray<float>({0,1,2}), TArray<int64>({1,1,3})),
 			FNeuralTensor(TArray<float>({1,1,1, 1,1,1}), TArray<int64>({1,2,3})),
@@ -1017,36 +1022,49 @@ void FOperatorTester::TestReshapeOperator(UNeuralNetworkInferenceQAAsset* InOutN
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d/%d FReshapeOperator"), InOperatorCounter, InOperatorTotal);
 	// Inout tensors (X != Mean to avoid Output = Bias; Variance positive to avoid NaN)
 	TArray<TArray<FNeuralTensor>> Tensors({
-		// ----------------------------------------------------------------- ONNX - https://github.com/onnx/onnx/blob/master/docs/TestCoverage.md#Reshape -----------------------------------------------------------------
+		// ----------------------------------------------------------------- ONNX -----------------------------------------------------------------
+		// https://github.com/onnx/onnx/blob/master/docs/TestCoverage.md#Reshape
 		// reshape
-		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({4, 2, 3})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({4, 2, 3})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({2, 4, 3}))},
-		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({2, 12})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({2, 12})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({2, 3, 2, 2}))},
-		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({24})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({24})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({2, -1, 2}))},
-		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({-1, 2, 3, 4})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({-1, 2, 3, 4})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({2, 0, 4, 1}))},
-		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({2, 0, 1, -1})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(24), TArray<int64>({2, 3, 4})), FNeuralTensor(TArray<int64>({2, 0, 1, -1})),
+			/*Output*/FNeuralTensor()},
 		// allowzero
-		{FNeuralTensor(FNeuralTensor(ENeuralDataType::Float, TArray<int64>({0, 3, 4}))), FNeuralTensor(TArray<int64>({3, 4, 0})), /*Output*/FNeuralTensor(), /*AllowZero=true*/FNeuralTensor()},
+		{FNeuralTensor(FNeuralTensor(ENeuralDataType::Float, TArray<int64>({0, 3, 4}))), FNeuralTensor(TArray<int64>({3, 4, 0})),
+			/*Output*/FNeuralTensor(), /*AllowZero=true*/FNeuralTensor()},
 		// Scalars
-		{FNeuralTensor(InInputTensorData.FindChecked(1)), FNeuralTensor(TArray<int64>({1})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(1)), FNeuralTensor(TArray<int64>({1})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(1)), FNeuralTensor(TArray<int64>({1}))},
 		// 1-D
-		{FNeuralTensor(InInputTensorData.FindChecked(10)), FNeuralTensor(TArray<int64>({5, 2})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(10)), FNeuralTensor(TArray<int64>({5, 2})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(10)), FNeuralTensor(TArray<int64>({5, -1}))},
 		// 2-D
-		{FNeuralTensor(InInputTensorData.FindChecked(18), TArray<int64>({3, 6})), FNeuralTensor(TArray<int64>({-1, 3})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(18), TArray<int64>({3, 6})), FNeuralTensor(TArray<int64>({-1, 3})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(18), TArray<int64>({3, 6})), FNeuralTensor(TArray<int64>({6, 3}))},
 		// 3-D
-		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({3, 5, 2})), FNeuralTensor(TArray<int64>({30})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({3, 5, 2})), FNeuralTensor(TArray<int64>({30})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({3, 5, 2})), FNeuralTensor(TArray<int64>({-1}))},
 		// 4-D
-		{FNeuralTensor(InInputTensorData.FindChecked(300), TArray<int64>({3, 10, 5, 2})), FNeuralTensor(TArray<int64>({-1, 10, 15})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(300), TArray<int64>({3, 10, 5, 2})), FNeuralTensor(TArray<int64>({-1, 10, 15})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(300), TArray<int64>({3, 10, 5, 2})), FNeuralTensor(TArray<int64>({2, 0, 15}))},
 		// 5-D
-		{FNeuralTensor(InInputTensorData.FindChecked(300), TArray<int64>({2, 3, 5, 5, 2})), FNeuralTensor(TArray<int64>({2, 10, 15})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(300), TArray<int64>({2, 3, 5, 5, 2})), FNeuralTensor(TArray<int64>({2, 10, 15})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(300), TArray<int64>({2, 3, 5, 5, 2})), FNeuralTensor(TArray<int64>({0, -1, 15}))}
 		});
 	TArray<TArray<FNeuralTensor*>> InputTensors;
@@ -1068,49 +1086,68 @@ void FOperatorTester::TestReshapeOperator(UNeuralNetworkInferenceQAAsset* InOutN
 			Operators.Push(MakeShared<FReshapeOperator>(/*bIsInlinedTensor*/true, /*AllowZero*/0));
 		}
 	}
-	TestOperator(InOutNetworkInferenceQAAsset, Tensors, InputTensors, OutputTensors, Operators, TEXT("FReshapeOperator"), InGroundTruthDirectory, InZeroThreshold,
-		/*bShouldOperatorsProvideSameResult*/false, /*bInShouldRunGPU*/true);
+	TestOperator(InOutNetworkInferenceQAAsset, Tensors, InputTensors, OutputTensors, Operators, TEXT("FReshapeOperator"), InGroundTruthDirectory,
+		InZeroThreshold, /*bShouldOperatorsProvideSameResult*/false, /*bInShouldRunGPU*/true);
 }
 
-void FOperatorTester::TestSqueezeOperator(UNeuralNetworkInferenceQAAsset* InOutNetworkInferenceQAAsset, const TMap<int32, TArray<float>>& InInputTensorData,
-	const TMap<int32, TArray<float>>& InInputTensorDataPos, const float InZeroThreshold, const FString& InGroundTruthDirectory, const int32 InOperatorCounter, const int32 InOperatorTotal)
+void FOperatorTester::TestSqueezeOperator(UNeuralNetworkInferenceQAAsset* InOutNetworkInferenceQAAsset,
+	const TMap<int32, TArray<float>>& InInputTensorData, const TMap<int32, TArray<float>>& InInputTensorDataPos, const float InZeroThreshold,
+	const FString& InGroundTruthDirectory, const int32 InOperatorCounter, const int32 InOperatorTotal)
 {
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d/%d FSqueezeOperator"), InOperatorCounter, InOperatorTotal);
 	// Inout tensors (X != Mean to avoid Output = Bias; Variance positive to avoid NaN)
 	TArray<TArray<FNeuralTensor>> Tensors({
-		// ----------------------------------------------------------------- ONNX - https://github.com/onnx/onnx/blob/master/docs/Operators.md#Squeeze -----------------------------------------------------------------
+		// ----------------------------------------------------------------- ONNX -----------------------------------------------------------------
+		// https://github.com/onnx/onnx/blob/master/docs/Operators.md#Squeeze
 		// squeeze
-		{FNeuralTensor(InInputTensorData.FindChecked(60), TArray<int64>({1, 3, 4, 5})), FNeuralTensor(TArray<int64>({0})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(60), TArray<int64>({1, 3, 4, 5})), FNeuralTensor(TArray<int64>({0})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(60), TArray<int64>({1, 3, 4, 5})), FNeuralTensor(TArray<int64>({0}))},
 		// squeeze_negative_axis
-		{FNeuralTensor(InInputTensorData.FindChecked(15), TArray<int64>({1, 3, 1, 5})), FNeuralTensor(TArray<int64>({-2})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(15), TArray<int64>({1, 3, 1, 5})), FNeuralTensor(TArray<int64>({-2})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(15), TArray<int64>({1, 3, 1, 5})), FNeuralTensor(TArray<int64>({-2}))},
 		// 1-D
 		{FNeuralTensor(InInputTensorData.FindChecked(5)), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(), /*Output*/FNeuralTensor()},
 		// 2-D
-		{FNeuralTensor(InInputTensorData.FindChecked(60), TArray<int64>({12, 5})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(), /*Output*/FNeuralTensor()},
-		{FNeuralTensor(InInputTensorData.FindChecked(6), TArray<int64>({6, 1})), FNeuralTensor(TArray<int64>({1})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(60), TArray<int64>({12, 5})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(),
+			/*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(6), TArray<int64>({6, 1})), FNeuralTensor(TArray<int64>({1})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(6), TArray<int64>({6, 1})), FNeuralTensor(TArray<int64>({1}))},
 		{FNeuralTensor(InInputTensorData.FindChecked(6), TArray<int64>({6, 1}))},
-		{FNeuralTensor(InInputTensorData.FindChecked(6), TArray<int64>({6, 1})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(6), TArray<int64>({6, 1})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(),
+			/*Output*/FNeuralTensor()},
 		// 3-D
-		{FNeuralTensor(InInputTensorData.FindChecked(60), TArray<int64>({3, 4, 5})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(60), TArray<int64>({3, 4, 5})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({5, 1, 6})), FNeuralTensor(TArray<int64>({1}))},
-		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({5, 1, 6})), FNeuralTensor(TArray<int64>({-2})), /*Output*/FNeuralTensor()},
-		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({5, 1, 6})), FNeuralTensor(TArray<int64>({1})), /*Output*/FNeuralTensor()},
-		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({5, 1, 6})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({5, 1, 6})), FNeuralTensor(TArray<int64>({-2})),
+			/*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({5, 1, 6})), FNeuralTensor(TArray<int64>({1})),
+			/*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({5, 1, 6})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(30), TArray<int64>({5, 1, 6}))},
 		// 4-D
-		{FNeuralTensor(InInputTensorData.FindChecked(60), TArray<int64>({3, 2, 2, 5})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(), /*Output*/FNeuralTensor()},
-		{FNeuralTensor(InInputTensorData.FindChecked(16), TArray<int64>({2, 8, 1, 1})), FNeuralTensor(TArray<int64>({-1, 2})), /*Output*/FNeuralTensor()},
-		{FNeuralTensor(InInputTensorData.FindChecked(16), TArray<int64>({2, 8, 1, 1})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(60), TArray<int64>({3, 2, 2, 5})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(),
+			/*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(16), TArray<int64>({2, 8, 1, 1})), FNeuralTensor(TArray<int64>({-1, 2})),
+			/*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(16), TArray<int64>({2, 8, 1, 1})), /*Empty*/FNeuralTensor(), /*Empty*/FNeuralTensor(),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(16), TArray<int64>({2, 8, 1, 1}))},
-		{FNeuralTensor(InInputTensorData.FindChecked(16), TArray<int64>({2, 8, 1, 1})), FNeuralTensor(TArray<int64>({2})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(16), TArray<int64>({2, 8, 1, 1})), FNeuralTensor(TArray<int64>({2})),
+			/*Output*/FNeuralTensor()},
 		// 5-D
-		{FNeuralTensor(InInputTensorData.FindChecked(50), TArray<int64>({1, 5, 1, 5, 2})), FNeuralTensor(TArray<int64>({0, 2})), /*Output*/FNeuralTensor()},
-		{FNeuralTensor(InInputTensorData.FindChecked(50), TArray<int64>({1, 5, 1, 5, 2})), FNeuralTensor(TArray<int64>({-3, -5})), /*Output*/FNeuralTensor()},
-		{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({1, 3})), /*Output*/FNeuralTensor()},
-		{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({3, 1})), /*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(50), TArray<int64>({1, 5, 1, 5, 2})), FNeuralTensor(TArray<int64>({0, 2})),
+			/*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(50), TArray<int64>({1, 5, 1, 5, 2})), FNeuralTensor(TArray<int64>({-3, -5})),
+			/*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({1, 3})),
+			/*Output*/FNeuralTensor()},
+		{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({3, 1})),
+			/*Output*/FNeuralTensor()},
 		{FNeuralTensor(InInputTensorData.FindChecked(50), TArray<int64>({1, 5, 1, 5, 2}))}
 		//// Other tests (resulting in Warnings and/or unexpected behavior)
 		//// Scalars (undefined behavior: 0-d shape array for CPU and crash for GPU)
@@ -1119,10 +1156,14 @@ void FOperatorTester::TestSqueezeOperator(UNeuralNetworkInferenceQAAsset* InOutN
 		//{FNeuralTensor(InInputTensorData.FindChecked(1)), /*Output*/FNeuralTensor()},
 		//{FNeuralTensor(InInputTensorData.FindChecked(1))},
 		//// Duplicated axis (generating warnings)
-		//{FNeuralTensor(InInputTensorData.FindChecked(16), TArray<int64>({2, 8, 1, 1})), FNeuralTensor(TArray<int64>({-2, 2})),  /*Output*/FNeuralTensor()},
-		//{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({1, 1})), /*Output*/FNeuralTensor()},
-		//{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({-4, 1})), /*Output*/FNeuralTensor()},
-		//{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({1, -4})), /*Output*/FNeuralTensor()}
+		//{FNeuralTensor(InInputTensorData.FindChecked(16), TArray<int64>({2, 8, 1, 1})), FNeuralTensor(TArray<int64>({-2, 2})),
+		//	/*Output*/FNeuralTensor()},
+		//{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({1, 1})),
+		//	/*Output*/FNeuralTensor()},
+		//{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({-4, 1})),
+		//	/*Output*/FNeuralTensor()},
+		//{FNeuralTensor(InInputTensorData.FindChecked(27), TArray<int64>({3, 1, 3, 1, 3})), FNeuralTensor(TArray<int64>({1, -4})),
+		//	/*Output*/FNeuralTensor()}
 		});
 	TArray<TArray<FNeuralTensor*>> InputTensors;
 	TArray<TArray<FNeuralTensor*>> OutputTensors;
@@ -1159,8 +1200,8 @@ void FOperatorTester::TestSqueezeOperator(UNeuralNetworkInferenceQAAsset* InOutN
 			Operators.Push(MakeShared<FSqueezeOperator>(/*bIsInlinedTensor*/true));
 		}
 	}
-	TestOperator(InOutNetworkInferenceQAAsset, Tensors, InputTensors, OutputTensors, Operators, TEXT("FSqueezeOperator"), InGroundTruthDirectory, InZeroThreshold,
-		/*bShouldOperatorsProvideSameResult*/false, /*bInShouldRunGPU*/true);
+	TestOperator(InOutNetworkInferenceQAAsset, Tensors, InputTensors, OutputTensors, Operators, TEXT("FSqueezeOperator"), InGroundTruthDirectory,
+		InZeroThreshold, /*bShouldOperatorsProvideSameResult*/false, /*bInShouldRunGPU*/true);
 }
 
 /* FOperatorTester static private functions
@@ -1186,7 +1227,7 @@ void FOperatorTester::ResetOrCheckInput(UNeuralNetwork* InOutNetwork, const TArr
 {
 	if (bIsInlinedTensor)
 	{
-		InOutNetwork->SetInputFromArrayCopy(InInputTensorArray);
+		FNeuralNetworkInferenceQAUtils::SetInputFromArrayCopy(InOutNetwork, InInputTensorArray);
 	}
 	// Check input has not changed
 	else
@@ -1194,9 +1235,11 @@ void FOperatorTester::ResetOrCheckInput(UNeuralNetwork* InOutNetwork, const TArr
 		for (int32 InputIndex = 0; InputIndex < InOutNetwork->GetInputTensorNumber(); ++InputIndex)
 		{
 			const FNeuralTensor& InputTensor = InOutNetwork->GetInputTensor(InputIndex);
-			ensureMsgf(InInputTensorArray[InputIndex].Num() == InputTensor.Num(), TEXT("InInputTensorArray[InputIndex].Num() == InputTensor.Num() failed (%d != %d)."),
+			ensureMsgf(InInputTensorArray[InputIndex].Num() == InputTensor.Num(),
+				TEXT("InInputTensorArray[InputIndex].Num() == InputTensor.Num() failed (%d != %d)."),
 				InInputTensorArray[InputIndex].Num(), InputTensor.Num());
-			ensureMsgf(FNeuralNetworkInferenceQAUtils::EstimateTensorL1DiffError(InputTensor, InInputTensorArray[InputIndex], 0.f, TEXT("ResetOrCheckInput")), TEXT("ResetOrCheckInput() did not pass."));
+			ensureMsgf(FNeuralNetworkInferenceQAUtils::EstimateTensorL1DiffError(InputTensor, InInputTensorArray[InputIndex], 0.f,
+				TEXT("ResetOrCheckInput")), TEXT("ResetOrCheckInput() did not pass."));
 		}
 	}
 }
@@ -1204,12 +1247,12 @@ void FOperatorTester::ResetOrCheckInput(UNeuralNetwork* InOutNetwork, const TArr
 void FOperatorTester::NetworkGPUvsCPU(UNeuralNetwork* InOutNetwork, const bool bIsInlinedTensor, const float InZeroThreshold)
 {
 	// Create InputTensorDataArray
-	const TArray<FNeuralTensor> InputTensorArray = InOutNetwork->CreateInputArrayCopy();
+	const TArray<FNeuralTensor> InputTensorArray = FNeuralNetworkInferenceQAUtils::CreateInputArrayCopy(InOutNetwork);
 	// GPU
 	InOutNetwork->SetDeviceType(ENeuralDeviceType::GPU);
 	InOutNetwork->Run();
 	// Store GPU results
-	const TArray<FNeuralTensor> OutputTensorArray = InOutNetwork->CreateOutputArrayCopy();
+	const TArray<FNeuralTensor> OutputTensorArray = FNeuralNetworkInferenceQAUtils::CreateOutputArrayCopy(InOutNetwork);
 	// Reset memory / Check input has not changed
 	ResetOrCheckInput(InOutNetwork, InputTensorArray, bIsInlinedTensor);
 	// CPU
@@ -1222,7 +1265,8 @@ void FOperatorTester::NetworkGPUvsCPU(UNeuralNetwork* InOutNetwork, const bool b
 		const FNeuralTensor& OutputTensorGPU = InOutNetwork->GetOutputTensor(OutputIndex);
 		ensureMsgf(OutputTensorCPU.Num() == OutputTensorGPU.Num(), TEXT("OutputTensorCPU.Num() == OutputTensorGPU.Num(): %d vs. %d"),
 			OutputTensorCPU.Num(), OutputTensorGPU.Num());
-		ensureMsgf(FNeuralNetworkInferenceQAUtils::EstimateTensorL1DiffError(OutputTensorCPU, OutputTensorGPU, InZeroThreshold, TEXT("GPUvsCPU")), TEXT("CPU vs. GPU error has too high"));
+		ensureMsgf(FNeuralNetworkInferenceQAUtils::EstimateTensorL1DiffError(OutputTensorCPU, OutputTensorGPU, InZeroThreshold, TEXT("GPUvsCPU")),
+			TEXT("CPU vs. GPU error has too high"));
 	}
 	// Reset memory / Check input has not changed
 	ResetOrCheckInput(InOutNetwork, InputTensorArray, bIsInlinedTensor); // This is doing an unnecessary copy (it should move really)
@@ -1230,7 +1274,7 @@ void FOperatorTester::NetworkGPUvsCPU(UNeuralNetwork* InOutNetwork, const bool b
 
 void FOperatorTester::NetworkInputVsOutput(UNeuralNetwork* InOutNetwork, const int32 InInlinedTensorIndex)
 {
-	const TArray<FNeuralTensor> InputTensorArray = InOutNetwork->CreateInputArrayCopy();
+	const TArray<FNeuralTensor> InputTensorArray = FNeuralNetworkInferenceQAUtils::CreateInputArrayCopy(InOutNetwork);
 	// Run UNeuralNetwork
 	InOutNetwork->Run();
 	// Check input equals one of the outputs
@@ -1247,5 +1291,5 @@ void FOperatorTester::NetworkInputVsOutput(UNeuralNetwork* InOutNetwork, const i
 	}
 	ensureMsgf(bIsSomeInputAnOutput, TEXT("Input is not being used as an output."));
 	// Reset memory
-	InOutNetwork->SetInputFromArrayCopy(InputTensorArray); // This is doing an unnecessary copy (it should move really)
+	FNeuralNetworkInferenceQAUtils::SetInputFromArrayCopy(InOutNetwork, InputTensorArray); // This is doing an unnecessary copy (it should move)
 }
