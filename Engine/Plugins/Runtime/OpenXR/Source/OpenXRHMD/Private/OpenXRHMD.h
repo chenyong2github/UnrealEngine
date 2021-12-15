@@ -183,6 +183,8 @@ protected:
 	bool ReadNextEvent(XrEventDataBuffer* buffer);
 	void DestroySession();
 
+	void RequestExitApp();
+
 	void BuildOcclusionMeshes();
 	bool BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMDViewMesh& Mesh);
 
@@ -308,6 +310,7 @@ private:
 	TAtomic<bool>			bIsReady;
 	TAtomic<bool>			bIsRendering;
 	TAtomic<bool>			bIsSynchronized;
+	bool					bIsExitingSessionByxrRequestExitSession;
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;
 	bool					bViewConfigurationFovSupported;

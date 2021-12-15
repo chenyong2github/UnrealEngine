@@ -317,7 +317,12 @@ public:
 		return InNext;
 	}
 
-	// OpenXRHMD::OnBeginRendering_RenderThread, before acquiring swapchain
+	// OpenXRHMD::OnBeginRendering_RenderThread
+	virtual void OnBeginRendering_RenderThread(XrSession InSession)
+	{
+	}
+
+	// OpenXRHMD::OnBeginRendering_RHIThread, before acquiring swapchain
 	virtual void OnAcquireSwapchainImage(XrSession InSession)
 	{
 	}
