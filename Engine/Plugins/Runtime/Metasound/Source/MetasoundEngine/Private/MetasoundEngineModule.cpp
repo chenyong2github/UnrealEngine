@@ -10,6 +10,7 @@
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundWave.h"
 #include "Modules/ModuleManager.h"
+#include "Sound/AudioSettings.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundEngine);
 
@@ -24,6 +25,12 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		FModuleManager::Get().LoadModuleChecked("MetasoundStandardNodes");
 		FModuleManager::Get().LoadModuleChecked("MetasoundGenerator");
 		FModuleManager::Get().LoadModuleChecked("AudioCodecEngine");
+
+		// Register engine-level parameter interfaces if not done already.
+		// (Potentially not already called if plugin is loaded while cooking.)
+		UAudioSettings* AudioSettings = GetMutableDefault<UAudioSettings>();
+		check(AudioSettings);
+		AudioSettings->RegisterParameterInterfaces();
 
 		// Register interfaces
 		Metasound::Engine::RegisterInterfaces();

@@ -30,6 +30,7 @@ UAudioSettings::UAudioSettings(const FObjectInitializer& ObjectInitializer)
 	AddDefaultSettings();
 
 	bAllowPlayWhenSilent = true;
+	bParameterInterfacesRegistered = false;
 	bIsAudioMixerEnabled = false;
 
 	GlobalMinPitchScale = 0.4F;
@@ -259,10 +260,18 @@ void UAudioSettings::LoadDefaultObjects()
 	{
 		UE_LOG(LogAudio, Display, TEXT("No default SoundConcurrencyObject specified (or failed to load)."));
 	}
+}
 
-	Audio::IAudioParameterInterfaceRegistry& InterfaceRegistry = Audio::IAudioParameterInterfaceRegistry::Get();
-	InterfaceRegistry.RegisterInterface(Audio::AttenuationInterface::GetInterface());
-	InterfaceRegistry.RegisterInterface(Audio::SpatializationInterface::GetInterface());
+void UAudioSettings::RegisterParameterInterfaces()
+{
+	if (!bParameterInterfacesRegistered)
+	{
+		UE_LOG(LogAudio, Display, TEXT("Registering Engine Module Parameter Interfaces..."));
+		bParameterInterfacesRegistered = true;
+		Audio::IAudioParameterInterfaceRegistry& InterfaceRegistry = Audio::IAudioParameterInterfaceRegistry::Get();
+		InterfaceRegistry.RegisterInterface(Audio::AttenuationInterface::GetInterface());
+		InterfaceRegistry.RegisterInterface(Audio::SpatializationInterface::GetInterface());
+	}
 }
 
 USoundClass* UAudioSettings::GetDefaultMediaSoundClass() const
