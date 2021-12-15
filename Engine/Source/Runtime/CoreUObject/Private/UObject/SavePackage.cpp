@@ -2153,7 +2153,10 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 
 					if (UE::FPackageTrailer::IsEnabled())
 					{
-						Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(InOuter);
+						if (!bTextFormat) // The package trailer is not supported for text based assets yet
+						{
+							Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(InOuter);
+						}
 					}
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
