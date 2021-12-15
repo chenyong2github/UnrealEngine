@@ -166,9 +166,10 @@ protected:
 	void ClearHover();
 
 	// Support for selection
+	UPROPERTY()
+	TObjectPtr<URectangleMarqueeMechanic> MarqueeMechanic;
 	TSet<int32> SelectedPointIDs;
 	TSet<int32> PreDragSelection;
-	URectangleMarqueeMechanic* MarqueeMechanic;
 	TArray<int32> CurrentDragSelection;
 	void OnDragRectangleStarted();
 	void OnDragRectangleChanged(const FCameraRectangle& Rectangle);
