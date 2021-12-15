@@ -9,6 +9,7 @@
 #include "Online/AuthErrors.h"
 #include "Online/OnlineAsyncOp.h"
 #include "Online/OnlineErrorDefinitions.h"
+#include "Misc/CommandLine.h"
 
 #include "eos_auth.h"
 #include "eos_common.h"
@@ -17,6 +18,7 @@
 #include "eos_init.h"
 #include "eos_sdk.h"
 #include "eos_logging.h"
+#include "eos_userinfo.h"
 
 namespace UE::Online {
 
@@ -272,6 +274,22 @@ bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* const InStrin
 
 TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 {
+	// Is this auto-login?
+	if (Params.CredentialsId.IsEmpty() && Params.CredentialsType.IsEmpty() && Params.CredentialsToken.IsType<FString>() && Params.CredentialsToken.Get<FString>().IsEmpty())
+	{
+		FString	CommandLineAuthId;
+		FString	CommandLineAuthToken;
+		FString	CommandLineAuthType;
+		FParse::Value(FCommandLine::Get(), TEXT("AUTH_LOGIN="), CommandLineAuthId);
+		FParse::Value(FCommandLine::Get(), TEXT("AUTH_PASSWORD="), CommandLineAuthToken);
+		FParse::Value(FCommandLine::Get(), TEXT("AUTH_TYPE="), CommandLineAuthType);
+		if (!CommandLineAuthId.IsEmpty() && !CommandLineAuthToken.IsEmpty() && !CommandLineAuthType.IsEmpty())
+		{
+			Params.CredentialsId = MoveTemp(CommandLineAuthId);
+			Params.CredentialsToken.Emplace<FString>(MoveTemp(CommandLineAuthToken));
+			Params.CredentialsType = MoveTemp(CommandLineAuthType);
+		}
+	}
 	TOnlineAsyncOpRef<FAuthLogin> Op = GetOp<FAuthLogin>(MoveTemp(Params));
 
 	EOS_Auth_LoginOptions LoginOptions = { };
@@ -501,9 +519,27 @@ void FAuthEOS::ProcessSuccessfulLogin(TOnlineAsyncOp<FAuthLogin>& InAsyncOp)
 	UE_LOG(LogTemp, Verbose, TEXT("[FAuthEOS::Login] Successfully logged in as [%s]"), *ToLogString(LocalUserId));
 
 	TSharedRef<FAccountInfoEOS> AccountInfo = MakeShared<FAccountInfoEOS>();
-	AccountInfo->LocalUserNum = InAsyncOp.GetParams().LocalUserNum;
+	AccountInfo->PlatformUserId = InAsyncOp.GetParams().PlatformUserId;
 	AccountInfo->UserId = LocalUserId;
 	AccountInfo->LoginStatus = ELoginStatus::LoggedIn;
+
+	// Get display name
+	if (EOS_HUserInfo UserInfoHandle = EOS_Platform_GetUserInfoInterface(static_cast<FOnlineServicesEOS&>(GetServices()).GetEOSPlatformHandle()))
+	{
+		EOS_UserInfo_CopyUserInfoOptions Options = { };
+		Options.ApiVersion = EOS_USERINFO_COPYUSERINFO_API_LATEST;
+		Options.LocalUserId = EpicAccountId;
+		Options.TargetUserId = EpicAccountId;
+
+		EOS_UserInfo* UserInfo = nullptr;
+
+		EOS_EResult CopyResult = EOS_UserInfo_CopyUserInfo(UserInfoHandle, &Options, &UserInfo);
+		if (CopyResult == EOS_EResult::EOS_Success)
+		{
+			AccountInfo->DisplayName = UTF8_TO_TCHAR(UserInfo->DisplayName);
+			EOS_UserInfo_Release(UserInfo);
+		}
+	}
 
 	check(!AccountInfos.Contains(LocalUserId));
 	AccountInfos.Emplace(LocalUserId, AccountInfo);
@@ -592,17 +628,17 @@ TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthEOS::GenerateAuth(FAuthGenerateAuth
 	return AsyncOperation->GetHandle();
 }
 
-TOnlineResult<FAuthGetAccountByLocalUserNum> FAuthEOS::GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params)
+TOnlineResult<FAuthGetAccountByPlatformUserId> FAuthEOS::GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params)
 {
-	TResult<FOnlineAccountIdHandle, FOnlineError> LocalUserIdResult = GetAccountIdByLocalUserNum(Params.LocalUserNum);
-	if (LocalUserIdResult.IsOk())
+	TResult<FOnlineAccountIdHandle, FOnlineError> PlatformUserIdResult = GetAccountIdByPlatformUserId(Params.PlatformUserId);
+	if (PlatformUserIdResult.IsOk())
 	{
-		FAuthGetAccountByLocalUserNum::Result Result = { AccountInfos.FindChecked(LocalUserIdResult.GetOkValue()) };
-		return TOnlineResult<FAuthGetAccountByLocalUserNum>(Result);
+		FAuthGetAccountByPlatformUserId::Result Result = { AccountInfos.FindChecked(PlatformUserIdResult.GetOkValue()) };
+		return TOnlineResult<FAuthGetAccountByPlatformUserId>(Result);
 	}
 	else
 	{
-		return TOnlineResult<FAuthGetAccountByLocalUserNum>(LocalUserIdResult.GetErrorValue());
+		return TOnlineResult<FAuthGetAccountByPlatformUserId>(PlatformUserIdResult.GetErrorValue());
 	}
 }
 
@@ -627,11 +663,11 @@ bool FAuthEOS::IsLoggedIn(const FOnlineAccountIdHandle& AccountId) const
 	return AccountInfos.Contains(AccountId);
 }
 
-TResult<FOnlineAccountIdHandle, FOnlineError> FAuthEOS::GetAccountIdByLocalUserNum(int32 LocalUserNum) const
+TResult<FOnlineAccountIdHandle, FOnlineError> FAuthEOS::GetAccountIdByPlatformUserId(FPlatformUserId PlatformUserId) const
 {
 	for (const TPair<FOnlineAccountIdHandle, TSharedRef<FAccountInfoEOS>>& AccountPair : AccountInfos)
 	{
-		if (AccountPair.Value->LocalUserNum == LocalUserNum)
+		if (AccountPair.Value->PlatformUserId == PlatformUserId)
 		{
 			TResult<FOnlineAccountIdHandle, FOnlineError> Result(AccountPair.Key);
 			return Result;

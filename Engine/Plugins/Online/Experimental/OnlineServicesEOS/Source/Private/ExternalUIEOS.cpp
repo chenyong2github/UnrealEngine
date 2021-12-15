@@ -23,14 +23,60 @@ FExternalUIEOS::FExternalUIEOS(FOnlineServicesEOS& InServices)
 
 void FExternalUIEOS::Initialize()
 {
-	FExternalUICommon::Initialize();
+	Super::Initialize();
 
 	UIHandle = EOS_Platform_GetUIInterface(static_cast<FOnlineServicesEOS&>(GetServices()).GetEOSPlatformHandle());
 	check(UIHandle != nullptr);
 }
 
+void FExternalUIEOS::LoadConfig()
+{
+	Super::LoadConfig();
+	LoadConfig(Config);
+}
+
 void FExternalUIEOS::PreShutdown()
 {
+	Super::PreShutdown();
+}
+
+TOnlineAsyncOpHandle<FExternalUIShowLoginUI> FExternalUIEOS::ShowLoginUI(FExternalUIShowLoginUI::Params&& Params)
+{
+	TOnlineAsyncOpRef<FExternalUIShowLoginUI> Op = GetOp<FExternalUIShowLoginUI>(MoveTemp(Params));
+	if (Config.bShowLoginUIEnabled)
+	{
+		// Use account portal auth login
+		Op->Then([this](TOnlineAsyncOp<FExternalUIShowLoginUI>& InAsyncOp)
+		{
+			FAuthLogin::Params AuthLoginParams;
+			AuthLoginParams.PlatformUserId = InAsyncOp.GetParams().PlatformUserId;
+			AuthLoginParams.CredentialsType = TEXT("accountportal");
+			AuthLoginParams.Scopes = InAsyncOp.GetParams().Scopes;
+
+			TPromise<void>* TempPromise = new TPromise<void>;
+			GetServices().GetAuthInterface()->Login(MoveTemp(AuthLoginParams))
+				.OnComplete([Op = InAsyncOp.AsShared(), TempPromise](const TOnlineResult<FAuthLogin>& AuthLoginResult) mutable
+				{
+					if (AuthLoginResult.IsOk())
+					{
+						FExternalUIShowLoginUI::Result ExtUIShowLoginResult = { AuthLoginResult.GetOkValue().AccountInfo };
+						Op->SetResult(CopyTemp(ExtUIShowLoginResult));
+					}
+					else
+					{
+						Op->SetError(CopyTemp(AuthLoginResult.GetErrorValue()));
+					}
+					TempPromise->SetValue();
+					delete TempPromise;
+				});
+			return TempPromise->GetFuture();
+		}).Enqueue(GetSerialQueue());
+	}
+	else
+	{
+		Op->SetError(Errors::NotImplemented());
+	}
+	return Op->GetHandle();
 }
 
 TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> FExternalUIEOS::ShowFriendsUI(FExternalUIShowFriendsUI::Params&& Params)

@@ -18,6 +18,13 @@ void FExternalUICommon::RegisterCommands()
 	RegisterCommand(&FExternalUICommon::ShowFriendsUI);
 }
 
+TOnlineAsyncOpHandle<FExternalUIShowLoginUI> FExternalUICommon::ShowLoginUI(FExternalUIShowLoginUI::Params&& Params)
+{
+	TOnlineAsyncOpRef<FExternalUIShowLoginUI> Operation = GetOp<FExternalUIShowLoginUI>(MoveTemp(Params));
+	Operation->SetError(Errors::NotImplemented());
+	return Operation->GetHandle();
+}
+
 TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> FExternalUICommon::ShowFriendsUI(FExternalUIShowFriendsUI::Params&& Params)
 {
 	TOnlineAsyncOpRef<FExternalUIShowFriendsUI> Operation = GetOp<FExternalUIShowFriendsUI>(MoveTemp(Params));
