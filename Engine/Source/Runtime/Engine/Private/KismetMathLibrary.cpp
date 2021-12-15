@@ -968,6 +968,11 @@ FRotator UKismetMathLibrary::MakeRotationFromAxes(FVector Forward, FVector Right
 	return RotMatrix.Rotator();
 }
 
+FRotator UKismetMathLibrary::FindRelativeLookAtRotation(const FTransform& StartTransform, const FVector& TargetLocation)
+{
+	return NormalizedDeltaRotator(FindLookAtRotation(StartTransform.GetLocation(), TargetLocation), StartTransform.GetRotation().Rotator());
+}
+
 int32 UKismetMathLibrary::RandomIntegerFromStream(int32 Max, const FRandomStream& Stream)
 {
 	return Stream.RandHelper(Max);

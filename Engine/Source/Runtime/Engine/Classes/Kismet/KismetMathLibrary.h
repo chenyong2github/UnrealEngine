@@ -2301,6 +2301,13 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Math|Rotator", meta=(Keywords="rotation rotate"))
 	static FRotator FindLookAtRotation(const FVector& Start, const FVector& Target);
 
+	/** 
+	 * Find a local rotation (range of [-180, 180]) for an object with StartTransform to point at TargetLocation. 
+	 * Useful for getting LookAt Azimuth or Pawn Aim Offset.
+	*/
+	UFUNCTION(BlueprintPure, Category = "Math|Rotator", meta = (Keywords = "rotation rotate local azimuth"))
+	static FRotator FindRelativeLookAtRotation(const FTransform& StartTransform, const FVector& TargetLocation);
+
 	/** Breaks apart a rotator into {Roll, Pitch, Yaw} angles in degrees */
 	UFUNCTION(BlueprintPure, Category = "Math|Rotator", meta = (Keywords = "rotation rotate rotator breakrotator", NativeBreakFunc))
 	static void BreakRotator(
