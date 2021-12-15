@@ -89,12 +89,16 @@ namespace Chaos
 	private:
 		int32 GenerateCollisionImpl(const FReal CullDistance, const bool bUseCCD, const FReal Dt);
 
-		void CreateConstraint(const FReal CullDistance);
+		/**
+		 * @brief Whether the two shapes are separated by less than CullDistance (i.e., we should run the narrow phase).
+		 * Also returns true if bounds checking is disabled (globally or for this pair)
+		*/
+		bool DoBoundsOverlap(const FReal CullDistance);
 
 		/**
-		 * @brief Add the constraint to the scene's active list
+		 * @brief Create a constraint
 		*/
-		bool ActivateConstraint();
+		void CreateConstraint(const FReal CullDistance);
 
 		FParticlePairMidPhase& MidPhase;
 		TUniquePtr<FPBDCollisionConstraint> Constraint;
@@ -104,10 +108,19 @@ namespace Chaos
 		const FPerShapeData* Shape1;
 		EContactShapesType ShapePairType;
 		FReal SphereBoundsCheckSize;
-		bool bEnableAABBCheck;
-		bool bEnableOBBCheck0;
-		bool bEnableOBBCheck1;
-		bool bEnableManifoldCheck;
+		int32 LastUsedEpoch;
+		union FFlags
+		{
+			FFlags() : Bits(0) {}
+			struct 
+			{
+				uint32 bEnableAABBCheck : 1;
+				uint32 bEnableOBBCheck0 : 1;
+				uint32 bEnableOBBCheck1 : 1;
+				uint32 bEnableManifoldCheck : 1;
+			};
+			uint32 Bits;
+		} Flags;
 	};
 
 
@@ -252,16 +265,23 @@ namespace Chaos
 	class CHAOS_API FParticlePairMidPhase
 	{
 	public:
-		FParticlePairMidPhase(
-			FGeometryParticleHandle* InParticle0, 
-			FGeometryParticleHandle* InParticle1, 
-			const FCollisionParticlePairKey& InKey,
-			FCollisionConstraintAllocator& InCollisionAllocator);
+		FParticlePairMidPhase();
 
 		UE_NONCOPYABLE(FParticlePairMidPhase);
 
 		~FParticlePairMidPhase();
 
+		/**
+		 * @brief Set up the midphase based on the SHapesArrays of the two particles
+		 * Only intended to be called once right after constructor. We don't do this work in
+		 * the constructor so that we can reduce the time that the lock is held when allocating
+		 * new MidPhases.
+		*/
+		void Init(
+			FGeometryParticleHandle* InParticle0,
+			FGeometryParticleHandle* InParticle1,
+			const FCollisionParticlePairKey& InKey,
+			FCollisionConstraintAllocator& InCollisionAllocator);
 
 		inline FGeometryParticleHandle* GetParticle0() { return Particle0; }
 
@@ -285,7 +305,7 @@ namespace Chaos
 		/**
 		 * @brief Whether the particle pair is sleeping and therefore contacts should not be culled (they will be reused on wake)
 		*/
-		inline bool IsSleeping() const { return bIsSleeping; }
+		inline bool IsSleeping() const { return Flags.bIsSleeping; }
 
 		/**
 		 * @brief Update the sleeping state
@@ -362,11 +382,6 @@ namespace Chaos
 
 	private:
 		/**
-		 * @brief Set up the midphase based on the SHapesArrays of the two particles
-		*/
-		void Init();
-
-		/**
 		 * @brief Build the list of potentially colliding shape pairs.
 		 * This is all the shape pairs in the partilces' shapes arrays that pass the collision filter.
 		*/
@@ -405,20 +420,28 @@ namespace Chaos
 		FGeometryParticleHandle* Particle1;
 		FCollisionParticlePairKey Key;
 
-		// Indices into the arrays of collisions on the particles. This is a cookie for use by FParticleCollisions
-		int32 ParticleCollisionsIndex0;
-		int32 ParticleCollisionsIndex1;
-
 		TArray<FSingleShapePairCollisionDetector, TInlineAllocator<1>> ShapePairDetectors;
 		TArray<FMultiShapePairCollisionDetector> MultiShapePairDetectors;
 		FCollisionConstraintAllocator* CollisionAllocator;
 
-		bool bIsCCD;
-		bool bIsInitialized;
-		bool bRestorable;
-		bool bIsSleeping;
+		union FFlags
+		{
+			FFlags() : Bits(0) {}
+			struct
+			{
+				uint32 bIsCCD : 1;
+				uint32 bIsInitialized : 1;
+				uint32 bRestorable : 1;
+				uint32 bIsSleeping : 1;
+			};
+			uint32 Bits;
+		} Flags;
 		int32 LastUsedEpoch;
 		int32 NumActiveConstraints;
+
+		// Indices into the arrays of collisions on the particles. This is a cookie for use by FParticleCollisions
+		int32 ParticleCollisionsIndex0;
+		int32 ParticleCollisionsIndex1;
 
 		// The particle transforms the last time the collisions were updated (used to determine whether we can restore contacts)
 		FMidPhaseRestoreThresholds RestoreThresholdZeroContacts;
