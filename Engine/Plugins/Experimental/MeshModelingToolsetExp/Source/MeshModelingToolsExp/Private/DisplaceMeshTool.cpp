@@ -214,14 +214,14 @@ namespace DisplaceMeshToolLocals{
 	class FSubdivideMeshOp : public FDynamicMeshOperator
 	{
 	public:
-		FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, ESubdivisionType SubdivisionTypeIn, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap);
+		FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, EDisplaceMeshToolSubdivisionType SubdivisionTypeIn, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap);
 		void CalculateResult(FProgressCancel* Progress) final;
 	private:
-		ESubdivisionType SubdivisionType;
+		EDisplaceMeshToolSubdivisionType SubdivisionType;
 		int SubdivisionsCount;
 	};
 
-	FSubdivideMeshOp::FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, ESubdivisionType SubdivisionTypeIn, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap)
+	FSubdivideMeshOp::FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, EDisplaceMeshToolSubdivisionType SubdivisionTypeIn, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap)
 		: SubdivisionType(SubdivisionTypeIn), SubdivisionsCount(SubdivisionsCountIn)
 	{
 		ResultMesh->Copy(SourceMesh);
@@ -248,7 +248,7 @@ namespace DisplaceMeshToolLocals{
 
 	void FSubdivideMeshOp::CalculateResult(FProgressCancel* ProgressCancel)
 	{
-		if (SubdivisionType == ESubdivisionType::Loop) 
+		if (SubdivisionType == EDisplaceMeshToolSubdivisionType::Flat) 
 		{
 			FUniformTesselate Tesselator(ResultMesh.Get());
 			Tesselator.Progress = ProgressCancel;
@@ -259,7 +259,7 @@ namespace DisplaceMeshToolLocals{
 				Tesselator.Compute();
 			}
 		}
-		else if (SubdivisionType == ESubdivisionType::PNTriangles) 
+		else if (SubdivisionType == EDisplaceMeshToolSubdivisionType::PNTriangles) 
 		{
 			FPNTriangles PNTriangles(ResultMesh.Get());
 			PNTriangles.Progress = ProgressCancel;
@@ -281,15 +281,15 @@ namespace DisplaceMeshToolLocals{
 	{
 	public:
 		FSubdivideMeshOpFactory(FDynamicMesh3& SourceMeshIn,
-			ESubdivisionType SubdivisionTypeIn,
+			EDisplaceMeshToolSubdivisionType SubdivisionTypeIn,
 			int SubdivisionsCountIn,
 			TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMapIn)
 			: SourceMesh(SourceMeshIn), SubdivisionType(SubdivisionTypeIn), SubdivisionsCount(SubdivisionsCountIn), WeightMap(WeightMapIn)
 		{
 		}
 
-		void SetSubdivisionType(ESubdivisionType SubdivisionTypeIn);
-		ESubdivisionType GetSubdivisionType() const;
+		void SetSubdivisionType(EDisplaceMeshToolSubdivisionType SubdivisionTypeIn);
+		EDisplaceMeshToolSubdivisionType GetSubdivisionType() const;
 
 		void SetSubdivisionsCount(int SubdivisionsCountIn);
 		int  GetSubdivisionsCount() const;
@@ -302,17 +302,17 @@ namespace DisplaceMeshToolLocals{
 		}
 	private:
 		const FDynamicMesh3& SourceMesh;
-		ESubdivisionType SubdivisionType;
+		EDisplaceMeshToolSubdivisionType SubdivisionType;
 		int SubdivisionsCount;
 		TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap;
 	};
 
-	void FSubdivideMeshOpFactory::SetSubdivisionType(ESubdivisionType SubdivisionTypeIn) 
+	void FSubdivideMeshOpFactory::SetSubdivisionType(EDisplaceMeshToolSubdivisionType SubdivisionTypeIn) 
 	{
 		SubdivisionType = SubdivisionTypeIn;
 	}
 
-	ESubdivisionType FSubdivideMeshOpFactory::GetSubdivisionType() const
+	EDisplaceMeshToolSubdivisionType FSubdivideMeshOpFactory::GetSubdivisionType() const
 	{
 		return SubdivisionType;
 	}
@@ -1026,11 +1026,11 @@ void UDisplaceMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 				GetToolManager()->DisplayMessage(FText::GetEmpty(), EToolMessageLevel::UserWarning);
 			}
 
-			DisplacerDownCast->SetDisplacementMap(TextureMapProperties->DisplacementMap, TextureMapProperties->Channel);
+			DisplacerDownCast->SetDisplacementMap(TextureMapProperties->DisplacementMap, static_cast<int32>(TextureMapProperties->Channel));
 		}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTextureMapProperties, Channel))
 		{
-			DisplacerDownCast->SetDisplacementMap(TextureMapProperties->DisplacementMap, TextureMapProperties->Channel);
+			DisplacerDownCast->SetDisplacementMap(TextureMapProperties->DisplacementMap, static_cast<int32>(TextureMapProperties->Channel));
 		}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshTextureMapProperties, DisplacementMapBaseValue))
 		{
