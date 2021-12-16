@@ -32,6 +32,10 @@ namespace UnrealBuildTool.Rules
                         "Kismet",
                         "AnimGraph",
                         "BlueprintGraph",
+                        "Slate",
+                        "SlateCore",
+                        "EditorStyle",
+                        "Persona"
                     }
                 );
             }

@@ -51,7 +51,7 @@ public:
 	/** Range 0-1, default is 1. Blend between the input bone position (0.0) and the current goal position (1.0).*/
 	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float PositionAlpha = 1.0f;
-
+	
 	/** Range 0-1, default is 1. Blend between the input bone rotation (0.0) and the current goal rotation (1.0).*/
 	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float RotationAlpha = 1.0f;
@@ -63,7 +63,7 @@ public:
 	/** The initial transform of this Goal, as defined by the initial transform of the Goal's bone in the retarget pose.*/
 	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
 	FTransform InitialTransform;
-	
+
 	bool operator==(const UIKRigEffectorGoal& Other) const { return GoalName == Other.GoalName; }
 
 #if WITH_EDITORONLY_DATA
@@ -83,6 +83,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings",  meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "5.0"))
 	float ThicknessMultiplier = 0.7f;
 
+	/** Should position data be exposed in Blueprint */
+	UPROPERTY(EditAnywhere, Category = "Exposure")
+	bool bExposePosition = false;
+
+	/** Should rotation data be exposed in Blueprint */
+	UPROPERTY(EditAnywhere, Category = "Exposure")
+	bool bExposeRotation = false;
+	
 	virtual void PostLoad() override
 	{
 		Super::PostLoad();
@@ -193,7 +201,7 @@ public:
 	/** The controller responsible for managing this asset's data (all editor mutation goes through this) */
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> Controller;
-	
+
 #endif
 
 	virtual void Serialize(FArchive& Ar) override;
@@ -226,7 +234,7 @@ public:
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 	/** END IInterface_PreviewMeshProvider interface */
-
+	
 private:
 
 	/** goals, used as effectors by solvers that support them */

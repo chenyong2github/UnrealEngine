@@ -18,6 +18,7 @@ struct FGoalBone
 	
 	FName BoneName;
 	int32 BoneIndex;
+	int32 OptSourceIndex = INDEX_NONE;
 };
 
 UCLASS()

@@ -44,9 +44,12 @@ struct IKRIG_API FIKRigGoal
 	/** When TransformSource is set to "Bone" mode, the Position and Rotation will be driven by this Bone's input transform.
 	 * When using a Bone as the transform source, the Position and Rotation Alpha values can still be set as desired.
 	 * But the PositionSpace and RotationSpace are no longer relevant and will not be used.*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Goal, meta = (CustomWidget = "BoneName"))
-	FName OptionalSourceBone;
-
+	UPROPERTY(EditAnywhere, Category = Goal)
+	FBoneReference SourceBone;
+	
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Goal, meta = (CustomWidget = "BoneName"))
+	// FName OptionalSourceBone;
+	
 	/** Position of the IK goal in Component Space of target actor component. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Position, meta=(EditCondition="Source == EIKRigGoalSource::Manual"))
 	FVector Position;

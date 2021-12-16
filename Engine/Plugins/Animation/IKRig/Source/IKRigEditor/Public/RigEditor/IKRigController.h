@@ -200,5 +200,8 @@ private:
 	/** Lazy-generated map of Controllers to IK Rig Assets. Avoids duplicate controllers. */
 	static TMap<UIKRigDefinition*, UIKRigController*> AssetToControllerMap;
 
+	// broadcast changes within the asset goals array
+	void BroadcastGoalsChange() const;
+	
 	friend class UIKRigDefinition;
 };
