@@ -386,10 +386,19 @@ TSharedRef<ISlateStyle> FUMGCoreStyle::Create()
 	}
 
 	// SButton defaults...
+	FSlateRoundedBoxBrush ButtonNormal = { FUMGColor::Secondary, 4.0f, FUMGColor::InputOutline, InputFocusThickness, Icon32x32 };
+	FSlateRoundedBoxBrush ButtonHovered = { FUMGColor::Hover, 4.0f, FUMGColor::Hover, InputFocusThickness, Icon32x32 };
+	FSlateRoundedBoxBrush ButtonPressed = { FUMGColor::Header, 4.0f, FUMGColor::Hover, InputFocusThickness, Icon32x32 };
+
+	// For backward compatability, the default style's outlines should use the transparency of the brush itself
+	ButtonNormal.OutlineSettings.bUseBrushTransparency = true;
+	ButtonHovered.OutlineSettings.bUseBrushTransparency = true;
+	ButtonPressed.OutlineSettings.bUseBrushTransparency = true;
+
 	static const FButtonStyle Button = FButtonStyle()
-		.SetNormal(FSlateRoundedBoxBrush(FUMGColor::Secondary, 4.0f, FUMGColor::InputOutline, InputFocusThickness, Icon32x32))
-		.SetHovered(FSlateRoundedBoxBrush(FUMGColor::Hover, 4.0f, FUMGColor::Hover, InputFocusThickness, Icon32x32))
-		.SetPressed(FSlateRoundedBoxBrush(FUMGColor::Header, 4.0f, FUMGColor::Hover, InputFocusThickness, Icon32x32))
+		.SetNormal(ButtonNormal)
+		.SetHovered(ButtonHovered)
+		.SetPressed(ButtonPressed)
 		.SetNormalForeground(FUMGColor::ForegroundHover)
 		.SetHoveredForeground(FUMGColor::ForegroundHover)
 		.SetPressedForeground(FUMGColor::ForegroundHover)

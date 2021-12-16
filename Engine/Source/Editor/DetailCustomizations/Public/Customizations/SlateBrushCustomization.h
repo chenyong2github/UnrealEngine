@@ -23,6 +23,11 @@ public:
 
 private:
 	/**
+	 * Get the Slate Brush outline settings property row visibility
+	 */
+	EVisibility GetOutlineSettingsPropertyVisibility() const;
+
+	/**
 	 * Get the Slate Brush tiling property row visibility
 	 */
 	EVisibility GetTilingPropertyVisibility() const;

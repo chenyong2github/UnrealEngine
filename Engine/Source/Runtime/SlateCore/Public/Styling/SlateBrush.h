@@ -134,6 +134,7 @@ struct SLATECORE_API FSlateBrushOutlineSettings
 		, Color(FLinearColor::Transparent)
 		, Width(0.0)
 		, RoundingType(ESlateBrushRoundingType::HalfHeightRadius)
+		, bUseBrushTransparency(false)
 	{}
 
 	FSlateBrushOutlineSettings(float InUniformRadius)
@@ -141,6 +142,7 @@ struct SLATECORE_API FSlateBrushOutlineSettings
 		, Color(FLinearColor::Transparent)
 		, Width(0.0)
 		, RoundingType(ESlateBrushRoundingType::FixedRadius)
+		, bUseBrushTransparency(false)
 	{}
 
 	FSlateBrushOutlineSettings(FVector4 InRadius)
@@ -148,6 +150,7 @@ struct SLATECORE_API FSlateBrushOutlineSettings
 		, Color(FLinearColor::Transparent)
 		, Width(0.0)
 		, RoundingType(ESlateBrushRoundingType::FixedRadius)
+		, bUseBrushTransparency(false)
 	{}
 
 	FSlateBrushOutlineSettings(const FSlateColor& InColor, float InWidth)
@@ -155,6 +158,7 @@ struct SLATECORE_API FSlateBrushOutlineSettings
 		, Color(InColor)
 		, Width(InWidth)
 		, RoundingType(ESlateBrushRoundingType::HalfHeightRadius)
+		, bUseBrushTransparency(false)
 	{}
 
 	FSlateBrushOutlineSettings(float InUniformRadius, const FSlateColor& InColor, float InWidth)
@@ -162,6 +166,7 @@ struct SLATECORE_API FSlateBrushOutlineSettings
 		, Color(InColor)
 		, Width(InWidth)
 		, RoundingType(ESlateBrushRoundingType::FixedRadius)
+		, bUseBrushTransparency(false)
 	{}
 
 	FSlateBrushOutlineSettings(FVector4 InRadius, const FSlateColor& InColor, float InWidth)
@@ -169,6 +174,7 @@ struct SLATECORE_API FSlateBrushOutlineSettings
 		, Color(InColor)
 		, Width(InWidth)
 		, RoundingType(ESlateBrushRoundingType::FixedRadius)
+		, bUseBrushTransparency(false)
 	{}
 
 	/** Radius in Slate Units applied to the outline at each corner. X = Top Left, Y = Top Right, Z = Bottom Right, W = Bottom Left */
@@ -186,6 +192,10 @@ struct SLATECORE_API FSlateBrushOutlineSettings
 	/** The Rounding Type **/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
 	TEnumAsByte<enum ESlateBrushRoundingType::Type > RoundingType;
+
+	/** True if we should use the owning brush's transparency as our own **/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Brush)
+	bool bUseBrushTransparency;
 
 };
 

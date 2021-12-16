@@ -1345,6 +1345,7 @@ void FSlateBrushStructCustomization::CustomizeChildren( TSharedRef<IPropertyHand
 	TSharedPtr<IPropertyHandle> TilingProperty = StructPropertyHandle->GetChildHandle( TEXT("Tiling") );
 	TSharedPtr<IPropertyHandle> MarginProperty = StructPropertyHandle->GetChildHandle( TEXT("Margin") );
 	TSharedPtr<IPropertyHandle> TintProperty = StructPropertyHandle->GetChildHandle( TEXT("TintColor") );
+	TSharedPtr<IPropertyHandle> OutlineSettingsProperty = StructPropertyHandle->GetChildHandle(TEXT("OutlineSettings"));
 	ResourceObjectProperty = StructPropertyHandle->GetChildHandle( TEXT("ResourceObject") );
 	
 	FDetailWidgetRow& ResourceObjectRow = StructBuilder.AddProperty(ResourceObjectProperty.ToSharedRef()).CustomWidget();
@@ -1369,8 +1370,10 @@ void FSlateBrushStructCustomization::CustomizeChildren( TSharedRef<IPropertyHand
 		FResetToDefaultHandler::CreateSP(this, &FSlateBrushStructCustomization::OnImageSizeResetToDefault),
 		bOverrideDefaultOnVectorChildren));
 
-	StructBuilder.AddProperty(TintProperty.ToSharedRef());
+	StructBuilder.AddProperty( TintProperty.ToSharedRef() );
 	StructBuilder.AddProperty( DrawAsProperty.ToSharedRef() );
+	StructBuilder.AddProperty( OutlineSettingsProperty.ToSharedRef() )
+	.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP( this, &FSlateBrushStructCustomization::GetOutlineSettingsPropertyVisibility ) ) );
 	StructBuilder.AddProperty( TilingProperty.ToSharedRef() )
 	.Visibility( TAttribute<EVisibility>::Create( TAttribute<EVisibility>::FGetter::CreateSP( this, &FSlateBrushStructCustomization::GetTilingPropertyVisibility ) ) );
 	StructBuilder.AddProperty( MarginProperty.ToSharedRef() )
@@ -1421,6 +1424,14 @@ void FSlateBrushStructCustomization::CustomizeChildren( TSharedRef<IPropertyHand
 				];
 		}
 	}
+}
+
+EVisibility FSlateBrushStructCustomization::GetOutlineSettingsPropertyVisibility() const
+{
+	uint8 DrawAsType;
+	FPropertyAccess::Result Result = DrawAsProperty->GetValue(DrawAsType);
+
+	return (Result == FPropertyAccess::MultipleValues || DrawAsType == ESlateBrushDrawType::RoundedBox) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility FSlateBrushStructCustomization::GetTilingPropertyVisibility() const

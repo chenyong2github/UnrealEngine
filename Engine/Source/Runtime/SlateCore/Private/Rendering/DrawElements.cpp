@@ -102,7 +102,8 @@ static bool ShouldCull(const FSlateWindowElementList& ElementList, const FPaintG
 
 static bool ShouldCull(const FSlateWindowElementList& ElementList, const FPaintGeometry& PaintGeometry, const FSlateBrush* InBrush, const FLinearColor& InTint)
 {
-	if ((InTint.A == 0 && InBrush->OutlineSettings.Color.GetSpecifiedColor().A == 0) || ShouldCull(ElementList, PaintGeometry, InBrush))
+	bool bIsFullyTransparent = InTint.A == 0 && (InBrush->OutlineSettings.Color.GetSpecifiedColor().A == 0 || InBrush->OutlineSettings.bUseBrushTransparency);
+	if (bIsFullyTransparent || ShouldCull(ElementList, PaintGeometry, InBrush))
 	{
 		return true;
 	}
@@ -244,7 +245,16 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 			CornerRadii = FVector4(UniformRadius, UniformRadius, UniformRadius, UniformRadius);
 		}
 		RBoxPayload->SetRadius(CornerRadii);
-		RBoxPayload->SetOutline(InBrush->OutlineSettings.Color.GetSpecifiedColor(), InBrush->OutlineSettings.Width);
+
+		if (InBrush->OutlineSettings.bUseBrushTransparency)
+		{
+			FLinearColor Color = InBrush->OutlineSettings.Color.GetSpecifiedColor().CopyWithNewOpacity(InTint.A);
+			RBoxPayload->SetOutline(Color, InBrush->OutlineSettings.Width);
+		}
+		else
+		{
+			RBoxPayload->SetOutline(InBrush->OutlineSettings.Color.GetSpecifiedColor(), InBrush->OutlineSettings.Width);
+		}
 		BoxPayload = RBoxPayload;
 	}
 	else 
