@@ -79,13 +79,13 @@ namespace HordeServer.Services
 		IClock Clock;
 		ILogger Logger;
 		ITicker Ticker;
-
+		
 		RedisString<AgentRateTable> AgentRateTableData;
 		RedisService RedisService;
 
 		// Lazily updated costs for different agent types
-		AsyncCachedValue<AgentRateTable> AgentRateTable;
-
+		AsyncCachedValue<AgentRateTable?> AgentRateTable;
+		
 		// Lazily updated list of current pools
 		AsyncCachedValue<List<IPool>> PoolsList;
 
@@ -106,7 +106,7 @@ namespace HordeServer.Services
 			this.AclService = AclService;
 			this.DowntimeService = DowntimeService;
 			this.AgentRateTableData = new RedisString<AgentRateTable>(RedisService.Database, "agent-rates");
-			this.AgentRateTable = new AsyncCachedValue<AgentRateTable>(() => AgentRateTableData.GetAsync(), TimeSpan.FromSeconds(2.0));//.FromMinutes(5.0));
+			this.AgentRateTable = new AsyncCachedValue<AgentRateTable?>(() => AgentRateTableData.GetAsync(), TimeSpan.FromSeconds(2.0));//.FromMinutes(5.0));
 			this.PoolsList = new AsyncCachedValue<List<IPool>>(() => PoolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
 			this.DogStatsd = DogStatsd;
 			this.TaskSources = TaskSources.ToArray();
@@ -825,8 +825,8 @@ namespace HordeServer.Services
 				double Rate = 0.0;
 
 				// Get the rate table
-				AgentRateTable RateTable = await AgentRateTable.GetAsync();
-				if (RateTable.Entries.Count > 0)
+				AgentRateTable? RateTable = await AgentRateTable.GetAsync();
+				if (RateTable != null && RateTable.Entries.Count > 0)
 				{
 					IAgent? Agent = await GetAgentAsync(AgentId);
 					if (Agent != null)

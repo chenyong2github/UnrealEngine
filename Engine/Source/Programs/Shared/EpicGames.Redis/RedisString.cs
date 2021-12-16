@@ -32,13 +32,6 @@ namespace EpicGames.Redis
 			this.Key = Key;
 		}
 
-		/// <inheritdoc cref="IDatabaseAsync.StringGetAsync(RedisKey, CommandFlags)"/>
-		public async Task<TElement> GetAsync(CommandFlags Flags = CommandFlags.None)
-		{
-			RedisValue Value = await Database.StringGetAsync(Key, Flags);
-			return RedisSerializer.Deserialize<TElement>(Value);
-		}
-
 		/// <inheritdoc cref="IDatabaseAsync.StringLengthAsync(RedisKey, CommandFlags)"/>
 		public Task<long> LengthAsync(CommandFlags Flags = CommandFlags.None)
 		{
@@ -57,6 +50,28 @@ namespace EpicGames.Redis
 	/// </summary>
 	public static class RedisStringExtensions
 	{
+		/// <inheritdoc cref="IDatabaseAsync.StringGetAsync(RedisKey, CommandFlags)"/>
+		public static async Task<TElement?> GetAsync<TElement>(this RedisString<TElement> String, CommandFlags Flags = CommandFlags.None) where TElement : class
+		{
+			RedisValue Value = await String.Database.StringGetAsync(String.Key, Flags);
+			if (Value.IsNull)
+			{
+				return null;
+			}
+			return RedisSerializer.Deserialize<TElement>(RedisValue.Null);
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.StringGetAsync(RedisKey, CommandFlags)"/>
+		public static async Task<TElement?> GetValueAsync<TElement>(this RedisString<TElement> String, CommandFlags Flags = CommandFlags.None) where TElement : struct
+		{
+			RedisValue Value = await String.Database.StringGetAsync(String.Key, Flags);
+			if (Value.IsNull)
+			{
+				return default(TElement);
+			}
+			return RedisSerializer.Deserialize<TElement>(RedisValue.Null);
+		}
+
 		/// <inheritdoc cref="IDatabaseAsync.StringDecrementAsync(RedisKey, long, CommandFlags)"/>
 		public static Task<long> DecrementAsync(this RedisString<long> String, long Value = 1L, CommandFlags Flags = CommandFlags.None)
 		{
