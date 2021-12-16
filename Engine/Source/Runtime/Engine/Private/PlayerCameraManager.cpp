@@ -826,8 +826,11 @@ void APlayerCameraManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		{
 			AnimCameraActor->Destroy();
 		}
-		AnimCameraActor = NULL;
+		AnimCameraActor->SetOwner(nullptr);
+		AnimCameraActor = nullptr;
 	}
+	ActiveAnims.Empty();
+	ModifierList.Empty();
 	Super::EndPlay(EndPlayReason);
 }
 
