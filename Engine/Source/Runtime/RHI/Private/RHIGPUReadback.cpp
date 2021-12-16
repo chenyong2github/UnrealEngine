@@ -185,7 +185,7 @@ void* FRHIGPUTextureReadback::Lock(uint32 NumBytes)
 	}
 }
 
-void FRHIGPUTextureReadback::LockTexture(FRHICommandListImmediate& RHICmdList, void*& OutBufferPtr, int32& OutRowPitchInPixels)
+void* FRHIGPUTextureReadback::Lock(int32& OutRowPitchInPixels, int32 *OutBufferHeight)
 {
 	if (DestinationStagingTexture)
 	{
@@ -193,15 +193,27 @@ void FRHIGPUTextureReadback::LockTexture(FRHICommandListImmediate& RHICmdList, v
 
 		void* ResultsBuffer = nullptr;
 		int32 BufferWidth = 0, BufferHeight = 0;
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 		RHICmdList.MapStagingSurface(DestinationStagingTexture, Fence.GetReference(), ResultsBuffer, BufferWidth, BufferHeight, LastLockGPUIndex);
-		OutBufferPtr = ResultsBuffer;
+		if (OutBufferHeight)
+		{
+			*OutBufferHeight = BufferHeight;
+		}
 		OutRowPitchInPixels = BufferWidth;
+		return ResultsBuffer;
 	}
-	else
+
+	OutRowPitchInPixels = 0;
+	if (OutBufferHeight)
 	{
-		OutBufferPtr = nullptr;
-		OutRowPitchInPixels = 0;
+		*OutBufferHeight = 0;
 	}
+	return nullptr;
+}
+
+void FRHIGPUTextureReadback::LockTexture(FRHICommandListImmediate& RHICmdList, void*& OutBufferPtr, int32& OutRowPitchInPixels)
+{
+	OutBufferPtr = Lock(OutRowPitchInPixels);
 }
 
 void FRHIGPUTextureReadback::Unlock()

@@ -762,7 +762,8 @@ void FSceneViewState::FEyeAdaptationManager::UpdateLastExposureFromTexture()
 	if (ReadbackTexture)
 	{
 		// Read the last request results.
-		FVector4f* ReadbackData = (FVector4f*)ReadbackTexture->Lock(sizeof(FVector4f));
+		int32 RowPitch = 0;
+		FVector4f* ReadbackData = (FVector4f*)ReadbackTexture->Lock(RowPitch);
 		if (ReadbackData)
 		{
 			LastExposure = ReadbackData->X;

@@ -481,9 +481,9 @@ private:
 
 	TArray< FOcclusionPrimitive, SceneRenderingAllocator >	Primitives;
 
-	TRefCountPtr<IPooledRenderTarget>	ResultsTextureCPU;
 	const uint8*						ResultsBuffer;
-
+	int32								ResultsBufferRowPitch;
+	TUniquePtr<FRHIGPUTextureReadback>	ResultsReadback;
 
 	bool IsInvalidFrame() const;
 
@@ -491,7 +491,6 @@ private:
 	void SetInvalidFrameNumber();
 
 	uint32 ValidFrameNumber;
-	FGPUFenceRHIRef Fence;
 };
 
 DECLARE_STATS_GROUP(TEXT("Parallel Command List Markers"), STATGROUP_ParallelCommandListMarkers, STATCAT_Advanced);
