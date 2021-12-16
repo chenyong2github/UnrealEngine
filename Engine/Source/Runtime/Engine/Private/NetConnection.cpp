@@ -288,7 +288,6 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	HasDirtyAcks(0u)
 ,	bHasWarnedAboutChannelLimit(false)
 ,	bConnectionPendingCloseDueToSocketSendFailure(false)
-,	TotalOutOfOrderPackets(0)
 ,	PacketOrderCache()
 ,	PacketOrderCacheStartIdx(0)
 ,	PacketOrderCacheCount(0)
@@ -2522,14 +2521,23 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 					UE_LOG(LogNet, VeryVerbose, TEXT("'Out of Order' Packet Cache, caching sequence order '%i' (capacity: %i)"), LinearCacheIdx, CacheCapacity);
 
 					CurCachePacket = MakeUnique<FBitReader>(Reader);
+
 					PacketOrderCacheCount++;
+					TotalOutOfOrderPacketsRecovered++;
+					AnalyticsVars.IncreaseOutOfOrderPacketsRecoveredCount();
+					Driver->IncreaseTotalOutOfOrderPacketsRecovered();
 
 					ResetReaderMark.Pop(*CurCachePacket);
 				}
 				else
 				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					TotalOutOfOrderPackets++;
-					Driver->InOutOfOrderPackets++;
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+					TotalOutOfOrderPacketsDuplicate++;
+					AnalyticsVars.IncreaseOutOfOrderPacketsDuplicateCount();
+					Driver->IncreaseTotalOutOfOrderPacketsDuplicate();
 				}
 
 				return;
@@ -2550,14 +2558,19 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 		}
 		else
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			TotalOutOfOrderPackets++;
-			Driver->InOutOfOrderPackets++;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			TotalOutOfOrderPacketsLost++;
+			AnalyticsVars.IncreaseOutOfOrderPacketsLostCount();
+			Driver->IncreaseTotalOutOfOrderPacketsLost();
 
 			if (!PacketOrderCache.IsSet() && CVarNetDoPacketOrderCorrection.GetValueOnAnyThread() != 0)
 			{
 				int32 EnableThreshold = CVarNetPacketOrderCorrectionEnableThreshold.GetValueOnAnyThread();
 
-				if (TotalOutOfOrderPackets >= EnableThreshold)
+				if (TotalOutOfOrderPacketsLost >= EnableThreshold)
 				{
 					UE_LOG(LogNet, Verbose, TEXT("Hit threshold of %i 'out of order' packet sequences. Enabling out of order packet correction."), EnableThreshold);
 

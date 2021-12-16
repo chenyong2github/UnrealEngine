@@ -27,6 +27,9 @@ bool FNetConnAnalyticsVars::operator == (const FNetConnAnalyticsVars& A) const
 {
 	return OutAckOnlyCount == A.OutAckOnlyCount &&
 			OutKeepAliveCount == A.OutKeepAliveCount &&
+			OutOfOrderPacketsLostCount == A.OutOfOrderPacketsLostCount &&
+			OutOfOrderPacketsRecoveredCount == A.OutOfOrderPacketsRecoveredCount &&
+			OutOfOrderPacketsDuplicateCount == A.OutOfOrderPacketsDuplicateCount &&
 			/** Close results can't be shared - if either are set, equality comparison fails */
 			!CloseReason.IsValid() && !A.CloseReason.IsValid() &&
 			ClientCloseReasons == A.ClientCloseReasons &&
@@ -37,6 +40,9 @@ void FNetConnAnalyticsVars::CommitAnalytics(FNetConnAnalyticsVars& AggregatedDat
 {
 	AggregatedData.OutAckOnlyCount += OutAckOnlyCount;
 	AggregatedData.OutKeepAliveCount += OutKeepAliveCount;
+	AggregatedData.OutOfOrderPacketsLostCount += OutOfOrderPacketsLostCount;
+	AggregatedData.OutOfOrderPacketsRecoveredCount += OutOfOrderPacketsRecoveredCount;
+	AggregatedData.OutOfOrderPacketsDuplicateCount += OutOfOrderPacketsDuplicateCount;
 
 	for (TMap<FString, int32>::TConstIterator It(RecoveredFaults); It; ++It)
 	{
@@ -184,6 +190,9 @@ void FNetConnAnalyticsData::SendAnalytics()
 
 		UE_LOG(LogNet, Log, TEXT(" - OutAckOnlyCount: %llu"), OutAckOnlyCount);
 		UE_LOG(LogNet, Log, TEXT(" - OutKeepAliveCount: %llu"), OutKeepAliveCount);
+		UE_LOG(LogNet, Log, TEXT(" - OutOfOrderPacketsLostCount: %llu"), OutOfOrderPacketsLostCount);
+		UE_LOG(LogNet, Log, TEXT(" - OutOfOrderPacketsRecoveredCount: %llu"), OutOfOrderPacketsRecoveredCount);
+		UE_LOG(LogNet, Log, TEXT(" - OutOfOrderPacketsDuplicateCount: %llu"), OutOfOrderPacketsDuplicateCount);
 
 
 		UE_LOG(LogNet, Log, TEXT(" - CloseReasons:"));
@@ -233,6 +242,9 @@ void FNetConnAnalyticsData::SendAnalytics()
 		static const FString EZEventName = TEXT("Core.ServerNetConn");
 		static const FString EZAttrib_OutAckOnlyCount = TEXT("OutAckOnlyCount");
 		static const FString EZAttrib_OutKeepAliveCount = TEXT("OutKeepAliveCount");
+		static const FString EZAttrib_OutOfOrderPacketsLostCount = TEXT("OutOfOrderPacketsLostCount");
+		static const FString EZAttrib_OutOfOrderPacketsRecoveredCount = TEXT("OutOfOrderPacketsRecoveredCount");
+		static const FString EZAttrib_OutOfOrderPacketsDuplicateCount = TEXT("OutOfOrderPacketsDuplicateCount");
 		static const FString EZAttrib_CloseReasons = TEXT("CloseReasons");
 		static const FString EZAttrib_FullCloseReasons = TEXT("FullCloseReasons");
 		static const FString EZAttrib_ClientCloseReasons = TEXT("ClientCloseReasons");
@@ -349,6 +361,9 @@ void FNetConnAnalyticsData::SendAnalytics()
 		AnalyticsProvider->RecordEvent(EZEventName, MakeAnalyticsEventAttributeArray(
 			EZAttrib_OutAckOnlyCount, OutAckOnlyCount,
 			EZAttrib_OutKeepAliveCount, OutKeepAliveCount,
+			EZAttrib_OutOfOrderPacketsLostCount, OutOfOrderPacketsLostCount,
+			EZAttrib_OutOfOrderPacketsRecoveredCount, OutOfOrderPacketsRecoveredCount,
+			EZAttrib_OutOfOrderPacketsDuplicateCount, OutOfOrderPacketsDuplicateCount,
 			EZAttrib_CloseReasons, FJsonFragment(MoveTemp(CloseReasonsJsonStr)),
 			EZAttrib_FullCloseReasons, FJsonFragment(MoveTemp(FullCloseReasonsJsonStr)),
 			EZAttrib_ClientCloseReasons, FJsonFragment(MoveTemp(ClientCloseReasonsJsonStr)),
