@@ -77,7 +77,12 @@ namespace EngineTestMetasoundSourcePrivate
 		check(RootGraph->IsValid());
 
 		// Add default source & mono interface members (OnPlay, OnFinished & Mono Out)
-		FModifyRootGraphInterfaces InterfaceTransform({ SourceInterface::GetVersion(), OutputFormatMonoInterface::GetVersion() }, { });
+		FModifyRootGraphInterfaces InterfaceTransform(
+		{	
+			SourceInterface::GetVersion(), 
+			SourceOneShotInterface::GetVersion(),
+			OutputFormatMonoInterface::GetVersion() 
+		}, { });
 		InterfaceTransform.Transform(DocumentHandle);
 
 		// Input on Play
@@ -94,7 +99,7 @@ namespace EngineTestMetasoundSourcePrivate
 		check(FrequencyInputNode->IsValid());
 
 		// Output On Finished
-		FNodeHandle OnFinishedOutputNode = RootGraph->GetOutputNodeWithName(SourceInterface::Outputs::OnFinished);
+		FNodeHandle OnFinishedOutputNode = RootGraph->GetOutputNodeWithName(SourceOneShotInterface::Outputs::OnFinished);
 		check(OnFinishedOutputNode->IsValid());
 
 		// Output Audio

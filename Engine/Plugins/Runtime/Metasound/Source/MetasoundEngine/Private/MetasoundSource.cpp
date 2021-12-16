@@ -689,6 +689,14 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, cons
 	return bIsValid;
 }
 
+bool UMetaSoundSource::IsOneShot()
+{
+	using namespace Metasound::Frontend;
+
+	// If the metasound source implements the one-shot interface, then it's a one-shot metasound
+	return IsInterfaceDeclared(SourceOneShotInterface::GetVersion());
+}
+
 TUniquePtr<Audio::IParameterTransmitter> UMetaSoundSource::CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const
 {
 	Metasound::FMetaSoundParameterTransmitter::FInitParams InitParams(GetOperatorSettings(InParams.SampleRate), InParams.InstanceID);

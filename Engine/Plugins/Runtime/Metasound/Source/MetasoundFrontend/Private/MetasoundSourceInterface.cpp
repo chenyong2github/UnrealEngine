@@ -6,15 +6,59 @@
 #include "MetasoundTrigger.h"
 #include "UObject/Class.h"
 #include "Templates/SharedPointer.h"
-
+#include "AudioParameter.h"
 
 #define LOCTEXT_NAMESPACE "Metasound"
-#define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.Source"
+
 namespace Metasound
 {
 	namespace Frontend
 	{
-		namespace SourceInterface
+	
+#define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.Source.OneShot"
+
+		namespace SourceOneShotInterface
+		{
+			const FMetasoundFrontendVersion& GetVersion()
+			{
+				static const FMetasoundFrontendVersion Version = { AUDIO_PARAMETER_INTERFACE_NAMESPACE, { 1, 0 } };
+				return Version;
+			}
+
+			namespace Outputs
+			{
+				const FName OnFinished = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("OnFinished");
+			}
+
+			Audio::FParameterInterfacePtr CreateInterface(const UClass& InUClass)
+			{
+				struct FInterface : public Audio::FParameterInterface
+				{
+					FInterface(const UClass& InAssetClass)
+						: FParameterInterface(SourceOneShotInterface::GetVersion().Name, SourceOneShotInterface::GetVersion().Number.ToInterfaceVersion(), InAssetClass)
+					{
+						Outputs =
+						{
+							{
+								LOCTEXT("OnFinished", "On Finished"),
+								LOCTEXT("OnFinishedDescription", "Trigger executed to initiate stopping the source."),
+								GetMetasoundDataTypeName<FTrigger>(),
+								Outputs::OnFinished
+							}
+						};
+					}
+				};
+
+				return MakeShared<FInterface>(InUClass);
+			}
+		} // namespace SourceOneShotInterface
+
+#undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
+
+
+#define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.Source"
+
+		namespace SourceInterfaceV1_0
 		{
 			const FMetasoundFrontendVersion& GetVersion()
 			{
@@ -46,7 +90,7 @@ namespace Metasound
 				struct FInterface : public Audio::FParameterInterface
 				{
 					FInterface(const UClass& InAssetClass)
-						: FParameterInterface(SourceInterface::GetVersion().Name, SourceInterface::GetVersion().Number.ToInterfaceVersion(), InAssetClass)
+						: FParameterInterface(SourceInterfaceV1_0::GetVersion().Name, SourceInterfaceV1_0::GetVersion().Number.ToInterfaceVersion(), InAssetClass)
 					{
 						Inputs =
 						{
@@ -106,8 +150,128 @@ namespace Metasound
 
 				return MakeShared<FInterface>(InUClass);
 			}
-		} // namespace SourceInterface
+		} // namespace SourceInterfaceV1_0
+
+
+		namespace SourceInterface
+		{
+			const FMetasoundFrontendVersion& GetVersion()
+			{
+				static const FMetasoundFrontendVersion Version = { AUDIO_PARAMETER_INTERFACE_NAMESPACE, { 1, 1 } };
+				return Version;
+			}
+
+			namespace Inputs
+			{
+				const FName OnPlay = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("OnPlay");
+			}
+
+			namespace Environment
+			{
+				const FName DeviceID = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("AudioDeviceID");
+				const FName GraphName = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("GraphName");
+				const FName IsPreview = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("IsPreviewSound");
+				const FName SoundUniqueID = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("SoundUniqueID");
+				const FName TransmitterID = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("TransmitterID");
+			}
+
+			Audio::FParameterInterfacePtr CreateInterface(const UClass& InUClass)
+			{
+				struct FInterface : public Audio::FParameterInterface
+				{
+					FInterface(const UClass& InAssetClass)
+						: FParameterInterface(SourceInterface::GetVersion().Name, SourceInterface::GetVersion().Number.ToInterfaceVersion(), InAssetClass)
+					{
+						Inputs =
+						{
+							{
+								LOCTEXT("OnPlay", "On Play"),
+								LOCTEXT("OnPlayDescription", "Trigger executed when the source is played."),
+								GetMetasoundDataTypeName<FTrigger>(),
+								{ Inputs::OnPlay, false }
+							}
+						};
+
+						Environment =
+						{
+							{
+								LOCTEXT("AudioDeviceIDDisplayName", "Audio Device ID"),
+								LOCTEXT("AudioDeviceIDDescription", "ID of AudioDevice source is played from."),
+								FName(), // TODO: Align environment data types with environment (ex. this is actually set/get as a uint32)
+								Environment::DeviceID
+							},
+							{
+								LOCTEXT("GraphNameDisplayName", "Graph Name"),
+								LOCTEXT("AudioDeviceIDDescription", "Name of source graph (for debugging/logging)."),
+								GetMetasoundDataTypeName<FString>(),
+								Environment::GraphName
+							},
+							{
+								LOCTEXT("IsPreviewSoundDisplayName", "Is Preview Sound"),
+								LOCTEXT("IsPreviewSoundDescription", "Whether source is being played as a previewed sound."),
+								GetMetasoundDataTypeName<bool>(),
+								Environment::IsPreview
+							},
+							{
+								LOCTEXT("TransmitterIDDisplayName", "Transmitter ID"),
+								LOCTEXT("TransmitterIDDescription", "ID used by Transmission System to generate a unique send address for each source instance."),
+								FName(), // TODO: Align environment data types with environment (ex. this is actually set/get as a uint64)
+								Environment::TransmitterID
+							},
+							{
+								LOCTEXT("AudioDeviceIDDisplayName", "Sound Unique ID"),
+								LOCTEXT("AudioDeviceIDDescription", "ID of unique source instance."),
+								FName(), // TODO: Align environment data types with environment (ex. this is actually set/get as a uint32)
+								Environment::SoundUniqueID
+							}
+						};
+					}
+				};
+
+				return MakeShared<FInterface>(InUClass);
+			}
+
+			bool FUpdateInterface::Transform(Frontend::FDocumentHandle InDocument) const
+			{
+				using namespace Frontend;
+
+				// When upgrading, we only want to add the one-shot interface if the MetaSound actually has the OnFinished trigger connected.
+				bool bIsOnFinishedConnected = false;
+				InDocument->GetRootGraph()->IterateConstNodes([&](FConstNodeHandle NodeHandle)
+				{
+					NodeHandle->IterateConstInputs([&](FConstInputHandle InputHandle)
+					{
+						if (InputHandle->GetName() == SourceInterfaceV1_0::Outputs::OnFinished)
+						{
+							bIsOnFinishedConnected = InputHandle->IsConnected();
+						}
+					});
+				}, EMetasoundFrontendClassType::Output);
+
+				const TArray<FMetasoundFrontendVersion> InterfacesToRemove
+				{
+					SourceInterfaceV1_0::GetVersion()
+				};
+
+				TArray<FMetasoundFrontendVersion> InterfacesToAdd
+				{
+					SourceInterface::GetVersion()
+				};
+
+				if (bIsOnFinishedConnected)
+				{
+					InterfacesToAdd.Add(SourceOneShotInterface::GetVersion());
+				}
+
+				FModifyRootGraphInterfaces InterfaceTransform(InterfacesToRemove, InterfacesToAdd);
+				return InterfaceTransform.Transform(InDocument);
+			}
+
+} // namespace SourceInterface
+
+#undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
+
 	} // namespace Frontend
 } // namespace Metasound
-#undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
+
 #define LOCTEXT_NAMESPACE "Metasound"

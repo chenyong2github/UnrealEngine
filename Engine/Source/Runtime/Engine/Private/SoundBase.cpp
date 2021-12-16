@@ -96,6 +96,11 @@ float USoundBase::GetPitchMultiplier()
 	return 1.f;
 }
 
+bool USoundBase::IsOneShot()
+{
+	return !IsLooping();
+}
+
 bool USoundBase::IsLooping()
 {
 	return (GetDuration() >= INDEFINITELY_LOOPING_DURATION);
