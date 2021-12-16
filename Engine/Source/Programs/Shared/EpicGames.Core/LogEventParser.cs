@@ -197,7 +197,7 @@ namespace EpicGames.Core
 					return;
 				}
 			}
-			Buffer.AddLine(Encoding.UTF8.GetString(Data.Span));
+			Buffer.AddLine(StringUtils.ParseEscapeCodes(Encoding.UTF8.GetString(Data.Span)));
 		}
 
 		/// <summary>
