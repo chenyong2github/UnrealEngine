@@ -50,7 +50,7 @@ namespace HordeServer.Tasks.Impl
 		/// <summary>
 		/// An item in the queue to be executed
 		/// </summary>
-		class QueueItem
+		internal class QueueItem
 		{
 			/// <summary>
 			/// The stream for this job
@@ -305,7 +305,7 @@ namespace HordeServer.Tasks.Impl
 		/// </summary>
 		/// <param name="StoppingToken">Token that indicates that the service should shut down</param>
 		/// <returns>Async task</returns>
-		async ValueTask TickAsync(CancellationToken StoppingToken)
+		internal async ValueTask TickAsync(CancellationToken StoppingToken)
 		{
 			// Set the NewBatchIdToQueueItem member, so we capture any updated jobs during the DB query.
 			lock (LockObject)
@@ -348,6 +348,15 @@ namespace HordeServer.Tasks.Impl
 			// New list of queue items
 			SortedSet<QueueItem> NewQueue = new SortedSet<QueueItem>(Queue.Comparer);
 			Dictionary<(JobId, SubResourceId), QueueItem> NewBatchIdToQueueItem = new Dictionary<(JobId, SubResourceId), QueueItem>();
+			
+			bool HasAgentsOnline(PoolId PoolId)
+			{
+				IPool? Pool = Pools.Find(p => p.Id == PoolId);
+				bool IsPoolOnline = OnlinePools.Contains(PoolId);
+				bool IsPoolAutoScaled = ValidPools.Contains(PoolId) && Pool != null && Pool.EnableAutoscaling;
+				// If pool is auto-scaled, it will be considered online even if it has no agents online
+				return IsPoolOnline || IsPoolAutoScaled;
+			}
 
 			// Query for a new list of jobs for the queue
 			List<IJob> NewJobs = await Jobs.GetDispatchQueueAsync();
@@ -404,7 +413,7 @@ namespace HordeServer.Tasks.Impl
 					{
 						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.NoAgentsInPool);
 					}
-					else if (!OnlinePools.Contains(AgentType.Pool))
+					else if (!HasAgentsOnline(AgentType.Pool))
 					{
 						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.NoAgentsOnline);
 					}
@@ -473,6 +482,18 @@ namespace HordeServer.Tasks.Impl
 				await UpdateUgsBadges(NewJob, Graph, OldLabelStates, NewLabelStates);
 			}
 			return NewJob;
+		}
+
+		/// <summary>
+		/// Get the queue, for internal testing only
+		/// </summary>
+		/// <returns>A copy of the queue</returns>
+		internal SortedSet<QueueItem> GetQueueForTesting()
+		{
+			lock (LockObject)
+			{
+				return new SortedSet<QueueItem>(Queue);
+			}
 		}
 
 		/// <summary>

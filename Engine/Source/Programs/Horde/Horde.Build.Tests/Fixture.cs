@@ -35,6 +35,7 @@ namespace HordeServerTests
 		public string Job1ArtifactData { get; private set; } = null!;
 		public IAgent Agent1 { get; private set; } = null!;
 		public string Agent1Name { get; private set; } = null!;
+		public string PoolName = "TestingPool";
 
 		public static async Task<Fixture> Create(IGraphCollection GraphCollection, ITemplateCollection TemplateCollection, JobService JobService, IArtifactCollection ArtifactCollection, StreamService StreamService, AgentService AgentService, IPerforceService PerforceService)
 		{
@@ -69,6 +70,11 @@ namespace HordeServerTests
 			List<CreateStreamTabRequest> Tabs = new List<CreateStreamTabRequest>();
 			Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId1.ToString(), TemplateRefId2.ToString() } });
 
+			Dictionary<string, CreateAgentTypeRequest> AgentTypes = new()
+			{
+				{ "Win64", new() { Pool = PoolName} }
+			};
+
 			Stream = await StreamService.StreamCollection.GetAsync(new StreamId("ue5-main"));
 			Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(
 				new StreamId("ue5-main"),
@@ -76,7 +82,7 @@ namespace HordeServerTests
 				"",
 				"",
 				new ProjectId("does-not-exist"),
-				new StreamConfig { Name = "//UE5/Main", Tabs = Tabs, Templates = Templates }
+				new StreamConfig { Name = "//UE5/Main", Tabs = Tabs, Templates = Templates, AgentTypes = AgentTypes}
 			);
 			
 			Job1 = await JobService.CreateJobAsync(
