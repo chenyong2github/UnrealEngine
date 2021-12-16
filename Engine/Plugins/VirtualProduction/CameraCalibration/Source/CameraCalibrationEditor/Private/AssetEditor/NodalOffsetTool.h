@@ -33,6 +33,7 @@ public:
 	virtual void Shutdown() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual bool OnViewportInputKey(const FKey& InKey, const EInputEvent& InEvent) override;
 	virtual TSharedRef<SWidget> BuildUI() override;
 	virtual FName FriendlyName() const  override { return TEXT("Nodal Offset"); };
 	virtual bool DependsOnStep(UCameraCalibrationStep* Step) const override;

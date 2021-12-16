@@ -66,6 +66,21 @@ bool UNodalOffsetTool::OnViewportClicked(const FGeometry& MyGeometry, const FPoi
 	return NodalOffsetAlgo->OnViewportClicked(MyGeometry, MouseEvent);
 }
 
+bool UNodalOffsetTool::OnViewportInputKey(const FKey& InKey, const EInputEvent& InEvent)
+{
+	if (!bIsActive)
+	{
+		return false;
+	}
+
+	if (!NodalOffsetAlgo)
+	{
+		return false;
+	}
+
+	return NodalOffsetAlgo->OnViewportInputKey(InKey, InEvent);
+}
+
 TSharedRef<SWidget> UNodalOffsetTool::BuildUI()
 {
 	return SNew(SNodalOffsetToolPanel, this);
@@ -128,7 +143,8 @@ void UNodalOffsetTool::SetNodalOffsetAlgo(const FName& AlgoName)
 	NodalOffsetAlgo = NewObject<UCameraNodalOffsetAlgo>(
 		GetTransientPackage(),
 		AlgoClass,
-		MakeUniqueObjectName(GetTransientPackage(), AlgoClass));
+		MakeUniqueObjectName(GetTransientPackage(), AlgoClass),
+		RF_Transactional);
 
 	if (NodalOffsetAlgo)
 	{
