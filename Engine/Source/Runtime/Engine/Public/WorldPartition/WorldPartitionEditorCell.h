@@ -98,14 +98,14 @@ public:
 		return !Actors.Num();
 	}
 
-	FBox						Bounds;
+	FBox Bounds;
 
 private:
 	/** Tells if the cell is loaded in the editor */
-	bool						bLoaded : 1;
+	bool bLoaded : 1;
 
 	/** Tells if the cell loading state was changed by a user operation */
-	bool						bLoadedChangedByUserOperation : 1;
+	bool bLoadedChangedByUserOperation : 1;
 
 public:
 

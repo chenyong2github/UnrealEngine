@@ -3,14 +3,9 @@
 #pragma once
 
 #include "Subsystems/WorldSubsystem.h"
-#include "Templates/SubclassOf.h"
-#include "Misc/Optional.h"
-#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartitionSubsystem.generated.h"
 
 class UWorldPartition;
-class UWorldPartitionEditorCell;
-class FWorldPartitionActorDesc;
 
 enum class EWorldPartitionRuntimeCellState : uint8;
 
