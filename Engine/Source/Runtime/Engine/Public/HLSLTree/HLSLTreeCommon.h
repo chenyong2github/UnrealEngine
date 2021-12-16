@@ -170,6 +170,16 @@ public:
 class FExpressionSetStructField : public FExpression
 {
 public:
+	FExpressionSetStructField(const Shader::FStructType* InStructType, const Shader::FStructField* InField, FExpression* InStructExpression, FExpression* InFieldExpression)
+		: StructType(InStructType)
+		, Field(InField)
+		, StructExpression(InStructExpression)
+		, FieldExpression(InFieldExpression)
+	{
+		check(InStructType);
+		check(InField);
+	}
+
 	FExpressionSetStructField(const Shader::FStructType* InStructType, const TCHAR* InFieldName, FExpression* InStructExpression, FExpression* InFieldExpression)
 		: StructType(InStructType)
 		, Field(InStructType->FindFieldByName(InFieldName))

@@ -627,6 +627,7 @@ public:
 	FScope* NewScope(FScope& Scope);
 	FScope* NewOwnedScope(FStatement& Owner);
 
+	/** Shortcuts to create various common expression types */
 	FExpression* NewConstant(const Shader::FValue& Value);
 	FExpression* NewUnaryOp(EUnaryOp Op, FExpression* Input);
 	FExpression* NewBinaryOp(EBinaryOp Op, FExpression* Lhs, FExpression* Rhs);
@@ -638,6 +639,7 @@ public:
 	FExpression* NewSub(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Sub, Lhs, Rhs); }
 	FExpression* NewMul(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Mul, Lhs, Rhs); }
 	FExpression* NewDiv(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Div, Lhs, Rhs); }
+	FExpression* NewLess(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EBinaryOp::Less, Lhs, Rhs); }
 
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
 

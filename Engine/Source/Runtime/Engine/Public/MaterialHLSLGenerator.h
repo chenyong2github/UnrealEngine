@@ -30,10 +30,6 @@ namespace UE
 namespace HLSLTree
 {
 struct FSwizzleParameters;
-class FExpressionConstant;
-class FExpressionExternalInput;
-class FExpressionSwizzle;
-class FExpressionLocalPHI;
 }
 namespace Shader
 {
@@ -92,9 +88,9 @@ public:
 
 	UE::HLSLTree::FScope* NewJoinedScope(UE::HLSLTree::FScope& Scope);
 
-	UE::HLSLTree::FExpressionConstant* NewConstant(const UE::Shader::FValue& Value);
-	UE::HLSLTree::FExpressionExternalInput* NewTexCoord(int32 Index);
-	UE::HLSLTree::FExpressionSwizzle* NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input);
+	UE::HLSLTree::FExpression* NewConstant(const UE::Shader::FValue& Value);
+	UE::HLSLTree::FExpression* NewTexCoord(int32 Index);
+	UE::HLSLTree::FExpression* NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input);
 
 	/** Returns a declaration to access the given texture, with no parameter */
 	UE::HLSLTree::FTextureParameterDeclaration* AcquireTextureDeclaration(const UE::HLSLTree::FTextureDescription& Value);

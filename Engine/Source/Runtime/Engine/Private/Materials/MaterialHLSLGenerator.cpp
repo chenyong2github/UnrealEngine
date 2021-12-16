@@ -173,17 +173,20 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 	UMaterial* Material,
 	UE::HLSLTree::FExpression* AttributesExpression)
 {
-#if 0
-	UE::HLSLTree::FExpression* Expression = nullptr;
-	if (Material->IsPropertyActive(InputProperty))
+	using namespace UE::HLSLTree;
+
+	// We're only interesting in attributes that map to valid fields
+	const UE::Shader::FStructField* AttributeField = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(InputProperty));
+
+	FExpression* Expression = nullptr;
+	if (AttributeField && Material->IsPropertyActive(InputProperty))
 	{
 		FMaterialInputDescription InputDescription;
 		if (Material->GetExpressionInputDescription(InputProperty, InputDescription))
 		{
 			if (InputDescription.bUseConstant)
 			{
-				UE::Shader::FValue DefaultValue = FMaterialAttributeDefinitionMap::GetDefaultValue(InputProperty);
-				DefaultValue.NumComponents = UE::Shader::GetValueTypeDescription(InputDescription.Type).NumComponents;
+				UE::Shader::FValue DefaultValue = UE::Shader::Cast(FMaterialAttributeDefinitionMap::GetDefaultValue(InputProperty), InputDescription.Type);
 				if (InputDescription.ConstantValue != DefaultValue)
 				{
 					Expression = Generator.NewConstant(InputDescription.ConstantValue);
@@ -201,7 +204,7 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 					}
 					if (!Expression)
 					{
-						Expression = Generator.NewTexCoord(Scope, TexCoordIndex);
+						Expression = Generator.NewTexCoord(TexCoordIndex);
 					}
 				}
 				else
@@ -214,18 +217,21 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 
 	if (Expression)
 	{
-		UE::HLSLTree::FExpressionSetMaterialAttribute* SetAttributeExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionSetMaterialAttribute>(Scope);
-		SetAttributeExpression->AttributeID = FMaterialAttributeDefinitionMap::GetID(InputProperty);
-		SetAttributeExpression->AttributesExpression = AttributesExpression;
-		SetAttributeExpression->ValueExpression = Expression;
+		FExpressionSetStructField* SetAttributeExpression = Generator.GetTree().NewExpression<FExpressionSetStructField>(
+			Generator.GetMaterialAttributesType(),
+			AttributeField,
+			AttributesExpression,
+			Expression);
 		return SetAttributeExpression;
 	}
-#endif
+
 	return AttributesExpression;
 }
 
 bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 {
+	using namespace UE::HLSLTree;
+
 	bool bResult = false;
 	if (bGeneratedResult)
 	{
@@ -238,7 +244,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 
 		if (TargetMaterial)
 		{
-			UE::HLSLTree::FExpression* AttributesExpression = nullptr;
+			FExpression* AttributesExpression = nullptr;
 			if (TargetMaterial->bUseMaterialAttributes)
 			{
 				FMaterialInputDescription InputDescription;
@@ -250,7 +256,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 			}
 			else
 			{
-				AttributesExpression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionConstant>(MaterialAttributesDefaultValue);
+				AttributesExpression = HLSLTree->NewExpression<FExpressionConstant>(MaterialAttributesDefaultValue);
 				for (int32 PropertyIndex = 0; PropertyIndex < MP_MAX; ++PropertyIndex)
 				{
 					const EMaterialProperty Property = (EMaterialProperty)PropertyIndex;
@@ -260,7 +266,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 
 			if (AttributesExpression)
 			{
-				UE::HLSLTree::FStatementReturn* ReturnStatement = HLSLTree->NewStatement<UE::HLSLTree::FStatementReturn>(Scope);
+				FStatementReturn* ReturnStatement = HLSLTree->NewStatement<FStatementReturn>(Scope);
 				ReturnStatement->Expression = AttributesExpression;
 				ResultExpression = AttributesExpression;
 				ResultStatement = ReturnStatement;
@@ -301,22 +307,19 @@ UE::HLSLTree::FScope* FMaterialHLSLGenerator::NewJoinedScope(UE::HLSLTree::FScop
 	return NewScope;
 }
 
-UE::HLSLTree::FExpressionConstant* FMaterialHLSLGenerator::NewConstant(const UE::Shader::FValue& Value)
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewConstant(const UE::Shader::FValue& Value)
 {
-	UE::HLSLTree::FExpressionConstant* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionConstant>(Value);
-	return Expression;
+	return HLSLTree->NewConstant(Value);
 }
 
-UE::HLSLTree::FExpressionExternalInput* FMaterialHLSLGenerator::NewTexCoord(int32 Index)
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewTexCoord(int32 Index)
 {
-	UE::HLSLTree::FExpressionExternalInput* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionExternalInput>(UE::HLSLTree::MakeInputTexCoord(Index));
-	return Expression;
+	return HLSLTree->NewExpression<UE::HLSLTree::FExpressionExternalInput>(UE::HLSLTree::MakeInputTexCoord(Index));
 }
 
-UE::HLSLTree::FExpressionSwizzle* FMaterialHLSLGenerator::NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input)
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input)
 {
-	UE::HLSLTree::FExpressionSwizzle* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionSwizzle>(Params, Input);
-	return Expression;
+	return HLSLTree->NewExpression<UE::HLSLTree::FExpressionSwizzle>(Params, Input);
 }
 
 UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextureDeclaration(const UE::HLSLTree::FTextureDescription& Value)
