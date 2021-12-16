@@ -96,8 +96,10 @@ namespace HordeServer.Services
 					if (Pool.EnableAutoscaling)
 					{
 						int NumStoppedInstances = await FleetManager.GetNumStoppedInstancesAsync(Pool);
+						Telemetry.NumAgents += NumStoppedInstances;
 
 						NewPoolUtilizationTelemetry PoolTelemetry = Telemetry.FindOrAddPool(Pool.Id);
+						PoolTelemetry.NumAgents += NumStoppedInstances;
 						PoolTelemetry.HibernatingTime += Interval.TotalHours * NumStoppedInstances;
 					}
 				}
