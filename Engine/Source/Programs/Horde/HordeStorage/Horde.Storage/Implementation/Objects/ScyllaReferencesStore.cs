@@ -20,6 +20,8 @@ namespace Horde.Storage.Implementation
         private readonly IMapper _mapper;
         private readonly IOptionsMonitor<ScyllaSettings> _settings;
         private readonly ILogger _logger = Log.ForContext<ScyllaReferencesStore>();
+        private readonly PreparedStatement _getObjectsStatement;
+        private readonly PreparedStatement _getNamespacesStatement;
 
         public ScyllaReferencesStore(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings)
         {
@@ -57,6 +59,8 @@ namespace Horde.Storage.Implementation
             ));
 
 
+            _getObjectsStatement = _session.Prepare("SELECT bucket, name, last_access_time FROM objects WHERE namespace = ? ALLOW FILTERING");
+            _getNamespacesStatement = _session.Prepare("SELECT DISTINCT namespace FROM buckets");
         }
 
         public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey name, IReferencesStore.FieldFlags flags)
@@ -218,7 +222,7 @@ namespace Horde.Storage.Implementation
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.get_records");
 
-            RowSet rowSet = await _session.ExecuteAsync(new SimpleStatement("SELECT bucket, name, last_access_time FROM objects WHERE namespace = ? ALLOW FILTERING", ns.ToString()));
+            RowSet rowSet = await _session.ExecuteAsync(_getObjectsStatement.Bind(ns.ToString()));
             foreach (Row row in rowSet)
             {
                 if (rowSet.GetAvailableWithoutFetching() == 0)
@@ -238,7 +242,7 @@ namespace Horde.Storage.Implementation
         public async IAsyncEnumerable<NamespaceId> GetNamespaces()
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.get_namespaces");
-            RowSet rowSet = await _session.ExecuteAsync(new SimpleStatement("SELECT DISTINCT namespace FROM buckets"));
+            RowSet rowSet = await _session.ExecuteAsync(_getNamespacesStatement.Bind());
 
             foreach (Row row in rowSet)
             {

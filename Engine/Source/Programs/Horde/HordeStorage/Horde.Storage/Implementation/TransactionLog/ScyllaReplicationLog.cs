@@ -18,6 +18,7 @@ namespace Horde.Storage.Implementation
         private readonly IOptionsMonitor<ScyllaSettings> _settings;
         private readonly ISession _session;
         private readonly Mapper _mapper;
+        private readonly PreparedStatement _selectReplicationBucketStatement;
 
         public ScyllaReplicationLog(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings)
         {
@@ -51,6 +52,9 @@ namespace Horde.Storage.Implementation
                 PRIMARY KEY ((namespace))
             );"  
             ));
+
+            _selectReplicationBucketStatement = _session.Prepare(
+                "SELECT replication_bucket FROM replication_log WHERE namespace = ? PER PARTITION LIMIT 1 ALLOW FILTERING");
         }
 
         public async IAsyncEnumerable<NamespaceId> GetNamespaces()
@@ -173,7 +177,7 @@ namespace Horde.Storage.Implementation
                 SortedSet<long> buckets = new SortedSet<long>();
 
                 // fetch all the buckets that exists and sort them based on time
-                RowSet replicationBuckets = await _session.ExecuteAsync(new SimpleStatement("SELECT replication_bucket FROM replication_log WHERE namespace = ? PER PARTITION LIMIT 1 ALLOW FILTERING", ns.ToString()));
+                RowSet replicationBuckets = await _session.ExecuteAsync(_selectReplicationBucketStatement.Bind(ns.ToString()));
                 foreach (Row replicationBucket in replicationBuckets)
                 {
                     long bucketField = (long)replicationBucket["replication_bucket"];
