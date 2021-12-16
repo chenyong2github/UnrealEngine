@@ -35,7 +35,6 @@ namespace HordeServer.Collections.Impl
 			public List<AgentWorkspace> Workspaces { get; set; } = new List<AgentWorkspace>();
 			public bool UseAutoSdk { get; set; } = true;
 			public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
-			[BsonIgnoreIfDefault(true)]
 			public bool EnableAutoscaling { get; set; } = true;
 			public int? MinAgents { get; set; }
 			public int? NumReserveAgents { get; set; }
