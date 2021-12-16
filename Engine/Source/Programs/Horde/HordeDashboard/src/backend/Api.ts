@@ -1142,6 +1142,9 @@ export type GetBatchResponse = {
 	/**The agent assigned to execute this group */
 	agentId?: string;
 
+	/** The USD rate of an agent hour */
+	agentRate?: number;
+
 	/**The agent session holding this lease */
 	sessionId?: string;
 
