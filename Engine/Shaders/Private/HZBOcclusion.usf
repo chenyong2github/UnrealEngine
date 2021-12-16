@@ -8,8 +8,12 @@ SamplerState	BoundsCenterSampler;
 Texture2D		BoundsExtentTexture;
 SamplerState	BoundsExtentSampler;
 
-void HZBTestPS(float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
+float2 InvTestTargetSize;
+
+void HZBTestPS(in float4 SvPosition : SV_Position, out float4 OutColor : SV_Target0)
 {
+	float2 InUV = SvPosition.xy * InvTestTargetSize;
+
 	float4 BoundsCenter = BoundsCenterTexture.SampleLevel( BoundsCenterSampler, InUV, 0 );
 	float4 BoundsExtent = BoundsExtentTexture.SampleLevel( BoundsExtentSampler, InUV, 0 );
 	BoundsCenter.xyz += LWCHackToFloat(PrimaryView.PreViewTranslation);

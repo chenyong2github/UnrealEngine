@@ -351,9 +351,8 @@ namespace
 		FRHIGPUTextureReadback* Readback,
 		TArray<uint8>& OutPhysicalMaterialIds)
 	{
-		void* Data = nullptr;
-		int32 Pitch;
-		Readback->LockTexture(RHICmdList, Data, Pitch);
+		int32 Pitch = 0;
+		void* Data = Readback->Lock(Pitch);
 		check(Data && TargetSize.X <= Pitch);
 
 		OutPhysicalMaterialIds.Empty(TargetSize.X * TargetSize.Y);
