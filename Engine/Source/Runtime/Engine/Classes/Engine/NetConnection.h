@@ -1267,6 +1267,46 @@ public:
 	void FlushPacketOrderCache(bool bFlushWholeCache=false);
 
 	/**
+	 * Get the total number of out of order packets on this connection.
+	 *
+	 * @return The total number of out of order packets.
+	 */
+	int32 GetTotalOutOfOrderPackets() const
+	{
+		return TotalOutOfOrderPacketsLost + TotalOutOfOrderPacketsRecovered + TotalOutOfOrderPacketsDuplicate;
+	}
+
+	/**
+	 * Get the total number of out of order packets lost on this connection.
+	 *
+	 * @return The total number of out of order packets lost.
+	 */
+	int32 GetTotalOutOfOrderPacketsLost() const
+	{
+		return TotalOutOfOrderPacketsLost;
+	}
+
+	/**
+	 * Get the total number of out of order packets recovered on this connection.
+	 *
+	 * @return The total number of out of order packets recovered.
+	 */
+	int32 GetTotalOutOfOrderPacketsRecovered() const
+	{
+		return TotalOutOfOrderPacketsRecovered;
+	}
+
+	/**
+	 * Get the total number of out of order packets that were duplicates on this connection.
+	 *
+	 * @return The total number of out of order packets that were duplicates.
+	 */
+	int32 GetTotalOutOfOrderPacketsDuplicate() const
+	{
+		return TotalOutOfOrderPacketsDuplicate;
+	}
+
+	/**
 	 * Sets the OS/NIC level timestamp, for the last packet that was received
 	 *
 	 * @param InOSReceiveTime			The OS/NIC level timestamp, for the last packet that was received
@@ -1515,7 +1555,17 @@ private:
 	/** Out of order packet tracking/correction */
 
 	/** Stat tracking for the total number of out of order packets, for this connection */
-	int32 TotalOutOfOrderPackets;
+	UE_DEPRECATED(5.1, "Use GetTotalOutOfOrderPackets instead.")
+	int32 TotalOutOfOrderPackets = 0;
+
+	/** Stat tracking for the total number of out of order packets lost */
+	int32 TotalOutOfOrderPacketsLost = 0;
+
+	/** Stat tracking for the total number of out of order packets recovered */
+	int32 TotalOutOfOrderPacketsRecovered = 0;
+
+	/** Stat tracking for the total number of out of order packets that were duplicates */
+	int32 TotalOutOfOrderPacketsDuplicate = 0;
 
 	/** Buffer of partially read (post-PacketHandler) sequenced packets, which are waiting for a missing packet/sequence */
 	TOptional<TCircularBuffer<TUniquePtr<FBitReader>>> PacketOrderCache;

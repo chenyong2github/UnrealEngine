@@ -957,10 +957,10 @@ public:
 	uint32						OutPacketsLost;
 	/** Total packets lost that have been sent by the server since the net driver's creation  */
 	uint32						OutTotalPacketsLost;
-	/** todo document */
-	uint32						InOutOfOrderPackets;
-	/** todo document */
-	uint32						OutOutOfOrderPackets;
+	UE_DEPRECATED(5.1, "Use GetTotalOutOfOrderPackets instead.")
+	uint32						InOutOfOrderPackets = 0;
+	UE_DEPRECATED(5.1, "OutOutOfOrderPackets is not updated and is now deprecated.")
+	uint32						OutOutOfOrderPackets = 0;
 	/** Tracks the total number of voice packets sent */
 	uint32						VoicePacketsSent;
 	/** Tracks the total number of voice bytes sent */
@@ -1709,6 +1709,80 @@ public:
 	 */
 	inline void IncreaseOutTotalNotifiedPackets() { ++OutTotalNotifiedPackets; }
 
+	/**
+	 * Get the total number of out of order packets for all connections.
+	 *
+	 * @return The total number of out of order packets.
+	 */
+	int32 GetTotalOutOfOrderPackets() const
+	{
+		return TotalOutOfOrderPacketsLost + TotalOutOfOrderPacketsRecovered + TotalOutOfOrderPacketsDuplicate;
+	}
+
+	/**
+	 * Get the total number of out of order packets lost for all connections.
+	 *
+	 * @return The total number of out of order packets lost.
+	 */
+	int32 GetTotalOutOfOrderPacketsLost() const
+	{
+		return TotalOutOfOrderPacketsLost;
+	}
+
+	/**
+	 * Increase the value of TotalOutOfOrderPacketsLost.
+	 *
+	 * @param Count		The amount to add to TotalOutOfOrderPacketsLost
+	 */
+	void IncreaseTotalOutOfOrderPacketsLost(int32 Count=1)
+	{
+		TotalOutOfOrderPacketsLost += Count;
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		InOutOfOrderPackets += Count;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/**
+	 * Get the total number of out of order packets recovered for all connections.
+	 *
+	 * @return The total number of out of order packets recovered.
+	 */
+	int32 GetTotalOutOfOrderPacketsRecovered() const
+	{
+		return TotalOutOfOrderPacketsRecovered;
+	}
+
+	/**
+	 * Increase the value of TotalOutOfOrderPacketsRecovered.
+	 *
+	 * @param Count		The amount to add to TotalOutOfOrderPacketsRecovered
+	 */
+	void IncreaseTotalOutOfOrderPacketsRecovered(int32 Count=1)
+	{
+		TotalOutOfOrderPacketsRecovered += Count;
+	}
+
+	/**
+	 * Get the total number of out of order packets that were duplicates for all connections.
+	 *
+	 * @return The total number of out of order packets that were duplicates.
+	 */
+	int32 GetTotalOutOfOrderPacketsDuplicate() const
+	{
+		return TotalOutOfOrderPacketsDuplicate;
+	}
+
+	/**
+	 * Increase the value of TotalOutOfOrderPacketsDuplicate.
+	 *
+	 * @param Count		The amount to add to TotalOutOfOrderPacketsDuplicate
+	 */
+	void IncreaseTotalOutOfOrderPacketsDuplicate(int32 Count=1)
+	{
+		TotalOutOfOrderPacketsDuplicate += Count;
+	}
+
 	bool DidHitchLastFrame() const;
 
 	static bool IsDormInitialStartupActor(AActor* Actor);
@@ -1787,4 +1861,13 @@ private:
 
 	/** cache whether or not we have a replay connection, updated when a connection is added or removed */
 	bool bHasReplayConnection;
+
+	/** Stat tracking for the total number of out of order packets lost */
+	int32 TotalOutOfOrderPacketsLost = 0;
+
+	/** Stat tracking for the total number of out of order packets recovered */
+	int32 TotalOutOfOrderPacketsRecovered = 0;
+
+	/** Stat tracking for the total number of out of order packets that were duplicates */
+	int32 TotalOutOfOrderPacketsDuplicate = 0;
 };
