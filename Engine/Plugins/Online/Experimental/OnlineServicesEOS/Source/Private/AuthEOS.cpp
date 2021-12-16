@@ -22,6 +22,19 @@
 
 namespace UE::Online {
 
+struct FAuthEOSConfig
+{
+	FString DefaultExternalCredentialTypeStr;
+};
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FAuthEOSConfig)
+	ONLINE_STRUCT_FIELD(FAuthEOSConfig, DefaultExternalCredentialTypeStr)
+END_ONLINE_STRUCT_META()
+
+/* Meta*/ }
+
 static inline ELoginStatus ToELoginStatus(EOS_ELoginStatus InStatus)
 {
 	switch (InStatus)
@@ -241,10 +254,6 @@ bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* const InStrin
 	{
 		OutEnum = EOS_ELoginCredentialType::EOS_LCT_PersistentAuth;
 	}
-	//else if (FCString::Stricmp(InString, TEXT("DeviceCode")) == 0) // DeviceCode is deprecated
-	//{
-	//	OutEnum = EOS_ELoginCredentialType::EOS_LCT_DeviceCode;
-	//}
 	else if (FCString::Stricmp(InString, TEXT("Password")) == 0)
 	{
 		OutEnum = EOS_ELoginCredentialType::EOS_LCT_Password;
@@ -269,6 +278,45 @@ bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* const InStrin
 	{
 		return false;
 	}
+	return true;
+}
+
+bool LexFromString(EOS_EExternalCredentialType& OutEnum, const TCHAR* InString)
+{
+	if (FCString::Stricmp(InString, TEXT("Steam")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_STEAM_APP_TICKET;
+	}
+	else if (FCString::Stricmp(InString, TEXT("PSN")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_PSN_ID_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Xbox")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_XBL_XSTS_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Nintendo")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_NINTENDO_ID_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("NSA")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_NINTENDO_NSA_ID_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Apple")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_APPLE_ID_TOKEN;
+	}
+	else if (FCString::Stricmp(InString, TEXT("Google")) == 0)
+	{
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_GOOGLE_ID_TOKEN;
+	}
+	else
+	{
+		// Unknown means OpenID
+		OutEnum = EOS_EExternalCredentialType::EOS_ECT_OPENID_ACCESS_TOKEN;
+	}
+
 	return true;
 }
 
@@ -319,13 +367,37 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		LoginOptions.ScopeFlags = EOS_EAuthScopeFlags::EOS_AS_BasicProfile | EOS_EAuthScopeFlags::EOS_AS_FriendsList | EOS_EAuthScopeFlags::EOS_AS_Presence;
 	}	
 
+	// First, we'll check if any subtypes have been specified
+	FString CredentialTypeStr;
+	FString ExternalCredentialTypeStr;
+	Op->GetParams().CredentialsType.Split(FString(TEXT(":")), &CredentialTypeStr, &ExternalCredentialTypeStr);
+
+	// If no subtype was specified, we'll treat the string passed as the type
+	if (CredentialTypeStr.IsEmpty())
+	{
+		CredentialTypeStr = Op->GetParams().CredentialsType;
+	}
+
 	FEOSAuthCredentials Credentials;
-	if (LexFromString(Credentials.Type, *Op->GetParams().CredentialsType))
+	if (LexFromString(Credentials.Type, *CredentialTypeStr))
 	{
 		switch (Credentials.Type)
 		{
 		case EOS_ELoginCredentialType::EOS_LCT_ExternalAuth:
-			Credentials.SetExternalCredentialType(EOnlineServices::Steam, Op->GetParams().CredentialsId); // TODO: Will be GetServicesProvider() or something similar
+			// If an external credential type wasn't specified, we'll grab the platform default from the configuration values
+			if (ExternalCredentialTypeStr.IsEmpty())
+			{
+				FAuthEOSConfig AuthEOSConfig;
+				LoadConfig(AuthEOSConfig);
+				ExternalCredentialTypeStr = AuthEOSConfig.DefaultExternalCredentialTypeStr;
+			}			
+			
+			EOS_EExternalCredentialType ExternalType;
+			if (LexFromString(ExternalType, *ExternalCredentialTypeStr))
+			{
+				Credentials.ExternalType = ExternalType;
+			}
+
 			Credentials.SetToken(Op->GetParams().CredentialsToken);
 			break;
 		case EOS_ELoginCredentialType::EOS_LCT_ExchangeCode:
