@@ -188,6 +188,10 @@ bool FSimulcamEditorViewportClient::InputKey(FViewport* Viewport, int32 Controll
 
 		return SimulcamViewportWeakPtr.Pin()->OnViewportInputKey(Key, Event);
 	}
+	else if (Event == IE_Released)
+	{
+		return SimulcamViewportWeakPtr.Pin()->OnViewportInputKey(Key, Event);
+	}
 	else if (Event == IE_Repeat)
 	{
 		return SimulcamViewportWeakPtr.Pin()->OnViewportInputKey(Key, Event);
