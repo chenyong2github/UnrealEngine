@@ -5,6 +5,15 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
+UWorldPartitionEditorCell::UWorldPartitionEditorCell(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+#if WITH_EDITOR
+	, Bounds(ForceInitToZero)
+	, bLoaded(false)
+	, bLoadedChangedByUserOperation(false)
+#endif
+{}
+
 #if WITH_EDITOR
 void UWorldPartitionEditorCell::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
@@ -34,7 +43,7 @@ void UWorldPartitionEditorCell::AddReferencedObjects(UObject* InThis, FReference
 
 void UWorldPartitionEditorCell::BeginDestroy()
 {
-	// Release WorldPartition Actor Handles/References
+	// Release handles/references
 	Actors.Empty();
 	LoadedActors.Empty();
 	Super::BeginDestroy();
@@ -110,12 +119,3 @@ void UWorldPartitionEditorCell::RemoveActor(const FGuid& Source, const FWorldPar
 	}
 }
 #endif
-
-UWorldPartitionEditorCell::UWorldPartitionEditorCell(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-#if WITH_EDITOR
-	, Bounds(ForceInitToZero)
-	, bLoaded(false)
-	, bLoadedChangedByUserOperation(false)
-#endif
-{}
