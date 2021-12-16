@@ -50,7 +50,7 @@ class UPhysicsAssetEditorSkeletalMeshComponent : public UDebugSkelMeshComponent
 
 	/** UPrimitiveComponent interface */
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None, bool bVelChange = false) override;
+	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None) override;
 	virtual bool ShouldCreatePhysicsState() const override;
 
 	/** USkinnedMeshComponent interface */

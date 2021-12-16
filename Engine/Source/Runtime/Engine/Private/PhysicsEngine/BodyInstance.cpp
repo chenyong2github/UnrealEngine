@@ -3586,22 +3586,15 @@ void FBodyInstance::AddImpulse(const FVector& Impulse, bool bVelChange)
 	});
 }
 
-void FBodyInstance::AddImpulseAtPosition(const FVector& Impulse, const FVector& Position, bool bVelChange)
+void FBodyInstance::AddImpulseAtPosition(const FVector& Impulse, const FVector& Position)
 {
 	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+	{
+		if(FPhysicsInterface::IsRigidBody(Actor) && FPhysicsInterface::IsInScene(Actor) && !IsRigidBodyKinematic_AssumesLocked(Actor))
 		{
-			if (FPhysicsInterface::IsRigidBody(Actor) && FPhysicsInterface::IsInScene(Actor) && !IsRigidBodyKinematic_AssumesLocked(Actor))
-			{
-				if (bVelChange)
-				{
-					FPhysicsInterface::AddVelocityAtLocation_AssumesLocked(Actor, Impulse, Position);
-				}
-				else
-				{
-					FPhysicsInterface::AddImpulseAtLocation_AssumesLocked(Actor, Impulse, Position);
-				}
-			}
-		});
+			FPhysicsInterface::AddImpulseAtLocation_AssumesLocked(Actor, Impulse, Position);
+		}
+	});
 }
 
 void FBodyInstance::SetInstanceNotifyRBCollision(bool bNewNotifyCollision)

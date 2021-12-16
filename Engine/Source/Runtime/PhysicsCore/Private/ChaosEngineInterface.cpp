@@ -774,14 +774,6 @@ void FChaosEngineInterface::AddImpulseAtLocation_AssumesLocked(const FPhysicsAct
 	}
 }
 
-void FChaosEngineInterface::AddVelocityAtLocation_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InVelocityDelta, const FVector& InLocation)
-{
-	if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
-	{
-		AddImpulseAtLocation_AssumesLocked(InActorReference, InActorReference->GetGameThreadAPI().M() * InVelocityDelta, InLocation);
-	}
-}
-
 void FChaosEngineInterface::AddRadialImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InOrigin,float InRadius,float InStrength,ERadialImpulseFalloff InFalloff,bool bInVelChange)
 {
 	using namespace Chaos;

@@ -756,7 +756,7 @@ public:
 	/** Add an impulse to this body */
 	void AddImpulse(const FVector& Impulse, bool bVelChange);
 	/** Add an impulse to this body and a particular world position */
-	void AddImpulseAtPosition(const FVector& Impulse, const FVector& Position, bool bVelChange = false);
+	void AddImpulseAtPosition(const FVector& Impulse, const FVector& Position);
 	/** Set the linear velocity of this body */
 	void SetLinearVelocity(const FVector& NewVel, bool bAddToCurrent, bool bAutoWake = true);
 
