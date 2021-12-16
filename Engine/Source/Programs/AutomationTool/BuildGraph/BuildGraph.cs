@@ -18,6 +18,7 @@ using OpenTracing.Util;
 using UnrealBuildBase;
 using UnrealBuildTool;
 using System.Threading.Tasks;
+using EpicGames.BuildGraph.Expressions;
 
 namespace AutomationTool
 {
@@ -213,6 +214,26 @@ namespace AutomationTool
 	[Help("WriteToSharedStorage", "Allow writing to shared storage. If not set, but -SharedStorageDir is specified, build products will read but not written")]
 	public class BuildGraph : BuildCommand
 	{
+		class BgGraphConstants : IBgGraphConstants
+		{
+			public BgString Stream { get; set; }
+			public BgInt Change { get; }
+			public BgInt CodeChange { get; }
+			public BgBool IsBuildMachine { get; }
+			public (BgInt Major, BgInt Minor, BgInt Patch) EngineVersion { get; }
+
+			public BgGraphConstants(P4Environment P4Env)
+			{
+				this.Stream = P4Env?.Branch ?? "Unknown";
+				this.Change = P4Env?.Changelist ?? 0;
+				this.CodeChange = P4Env?.CodeChangelist ?? 0;
+				this.IsBuildMachine = CommandUtils.IsBuildMachine;
+
+				ReadOnlyBuildVersion Version = ReadOnlyBuildVersion.Current;
+				this.EngineVersion = (Version.MajorVersion, Version.MinorVersion, Version.PatchVersion);
+			}
+		}
+
 		/// <summary>
 		/// Context object for reading scripts and evaluating conditions
 		/// </summary>
@@ -224,6 +245,7 @@ namespace AutomationTool
 		public override async Task<ExitCode> ExecuteAsync()
 		{
 			// Parse the command line parameters
+			string ClassName = ParseParamValue("Class", null);
 			string ScriptFileName = ParseParamValue("Script", null);
 			string[] TargetNames = ParseParamValues("Target").SelectMany(x => x.Split(';', '+').Select(y => y.Trim()).Where(y => y.Length > 0)).ToArray();
 			string DocumentationFileName = ParseParamValue("Documentation", null);
@@ -369,56 +391,87 @@ namespace AutomationTool
 				return ExitCode.Success;
 			}
 
-			// Import schema if one is passed in
-			BgScriptSchema Schema;
-			if (ImportSchemaFileName != null)
+			// Create the graph
+			BgGraph Graph;
+			if (ClassName != null)
 			{
-				Schema = BgScriptSchema.Import(FileReference.FromString(ImportSchemaFileName));
+				// Find all the graph builders
+				Dictionary<string, Type> NameToType = new Dictionary<string, Type>();
+				FindAvailableGraphs(NameToType);
+
+				Type BuilderType;
+				if (!NameToType.TryGetValue(ClassName, out BuilderType))
+				{
+					Logger.LogError("Unable to find graph '{GraphName}'", ClassName);
+					Logger.LogInformation("");
+					Logger.LogInformation("Available graphs:");
+					foreach (string Name in NameToType.Keys.OrderBy(x => x))
+					{
+						Logger.LogInformation("  {GraphName}", Name);
+					}
+					return ExitCode.Error_Unknown;
+				}
+
+				BgGraphSpec GraphSpec = new BgGraphSpec(new BgGraphConstants(P4Enabled? P4Env : null));
+
+				BgGraphBuilder Builder = (BgGraphBuilder)Activator.CreateInstance(BuilderType);
+				Builder.SetupGraph(GraphSpec);
+
+				Graph = GraphSpec.CreateGraph(new HashSet<string>(), Arguments);
 			}
 			else
 			{
-				// Add any primitive types
-				List<(Type, ScriptSchemaStandardType)> PrimitiveTypes = new List<(Type, ScriptSchemaStandardType)>();
-				PrimitiveTypes.Add((typeof(FileReference), ScriptSchemaStandardType.BalancedString));
-				PrimitiveTypes.Add((typeof(DirectoryReference), ScriptSchemaStandardType.BalancedString));
-				PrimitiveTypes.Add((typeof(UnrealTargetPlatform), ScriptSchemaStandardType.BalancedString));
-				PrimitiveTypes.Add((typeof(MCPPlatform), ScriptSchemaStandardType.BalancedString));
-
-				// Create a schema for the given tasks
-				Schema = new BgScriptSchema(NameToTask.Values, PrimitiveTypes);
-				if (SchemaFileName != null)
+				// Import schema if one is passed in
+				BgScriptSchema Schema;
+				if (ImportSchemaFileName != null)
 				{
-					FileReference FullSchemaFileName = new FileReference(SchemaFileName);
-					LogInformation("Writing schema to {0}...", FullSchemaFileName.FullName);
-					Schema.Export(FullSchemaFileName);
-					if (ScriptFileName == null)
+					Schema = BgScriptSchema.Import(FileReference.FromString(ImportSchemaFileName));
+				}
+				else
+				{
+					// Add any primitive types
+					List<(Type, ScriptSchemaStandardType)> PrimitiveTypes = new List<(Type, ScriptSchemaStandardType)>();
+					PrimitiveTypes.Add((typeof(FileReference), ScriptSchemaStandardType.BalancedString));
+					PrimitiveTypes.Add((typeof(DirectoryReference), ScriptSchemaStandardType.BalancedString));
+					PrimitiveTypes.Add((typeof(UnrealTargetPlatform), ScriptSchemaStandardType.BalancedString));
+					PrimitiveTypes.Add((typeof(MCPPlatform), ScriptSchemaStandardType.BalancedString));
+
+					// Create a schema for the given tasks
+					Schema = new BgScriptSchema(NameToTask.Values, PrimitiveTypes);
+					if (SchemaFileName != null)
 					{
-						return ExitCode.Success;
+						FileReference FullSchemaFileName = new FileReference(SchemaFileName);
+						LogInformation("Writing schema to {0}...", FullSchemaFileName.FullName);
+						Schema.Export(FullSchemaFileName);
+						if (ScriptFileName == null)
+						{
+							return ExitCode.Success;
+						}
 					}
 				}
-			}
 
-			// Check there was a script specified
-			if(ScriptFileName == null)
-			{
-				LogError("Missing -Script= parameter for BuildGraph");
-				return ExitCode.Error_Unknown;
-			}
+				// Check there was a script specified
+				if (ScriptFileName == null)
+				{
+					LogError("Missing -Script= parameter for BuildGraph");
+					return ExitCode.Error_Unknown;
+				}
 
-			// Normalize the script filename
-			FileReference FullScriptFile = FileReference.Combine(Unreal.RootDirectory, ScriptFileName);
-			if (!FullScriptFile.IsUnderDirectory(Unreal.RootDirectory))
-			{
-				LogError("BuildGraph scripts must be under the UE root directory");
-				return ExitCode.Error_Unknown;
-			}
-			ScriptFileName = FullScriptFile.MakeRelativeTo(Unreal.RootDirectory).Replace('\\', '/');
+				// Normalize the script filename
+				FileReference FullScriptFile = FileReference.Combine(Unreal.RootDirectory, ScriptFileName);
+				if (!FullScriptFile.IsUnderDirectory(Unreal.RootDirectory))
+				{
+					LogError("BuildGraph scripts must be under the UE root directory");
+					return ExitCode.Error_Unknown;
+				}
+				ScriptFileName = FullScriptFile.MakeRelativeTo(Unreal.RootDirectory).Replace('\\', '/');
 
-			// Read the script from disk
-			BgGraph Graph = BgScriptReader.ReadAsync(Context, ScriptFileName, Arguments, DefaultProperties, Schema, Logger, SingleNodeName).Result;
-			if(Graph == null)
-			{
-				return ExitCode.Error_Unknown;
+				// Read the script from disk
+				Graph = BgScriptReader.ReadAsync(Context, ScriptFileName, Arguments, DefaultProperties, Schema, Logger, SingleNodeName).Result;
+				if (Graph == null)
+				{
+					return ExitCode.Error_Unknown;
+				}
 			}
 
 			// Export the graph for Horde
@@ -841,6 +894,31 @@ namespace AutomationTool
 		void OutputBindingError(BgTask Task, string Format, params object[] Args)
 		{
 			Logger.LogScriptError(Task.Location, Format, Args);
+		}
+
+		static void FindAvailableGraphs(Dictionary<string, Type> NameToType)
+		{
+			foreach (Assembly LoadedAssembly in ScriptManager.AllScriptAssemblies)
+			{
+				Type[] Types;
+				try
+				{
+					Types = LoadedAssembly.GetTypes();
+				}
+				catch (ReflectionTypeLoadException ex)
+				{
+					LogWarning("Exception {0} while trying to get types from assembly {1}. LoaderExceptions: {2}", ex, LoadedAssembly, string.Join("\n", ex.LoaderExceptions.Select(x => x.Message)));
+					continue;
+				}
+
+				foreach (Type Type in Types)
+				{
+					if (Type.IsSubclassOf(typeof(BgGraphBuilder)))
+					{
+						NameToType.Add(Type.Name, Type);
+					}
+				}
+			}
 		}
 
 		/// <summary>

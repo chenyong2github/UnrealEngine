@@ -264,7 +264,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Tests whether the given file or directory exists
 		/// </summary>
-		/// <param name="File">Path to a file</param>
+		/// <param name="Path">Path to a file</param>
 		/// <returns>True if the file exists</returns>
 		Task<bool> ExistsAsync(string Path);
 
@@ -409,7 +409,6 @@ namespace EpicGames.BuildGraph
 		/// Reads the contents of a graph
 		/// </summary>
 		/// <param name="Element">The parent element to read from</param>
-		/// <param name="Arguments">Arguments passed in to the graph on the command line</param>
 		async Task ReadGraphBodyAsync(XmlElement Element)
 		{
 			foreach (BgScriptElement ChildElement in Element.ChildNodes.OfType<BgScriptElement>())
@@ -747,7 +746,6 @@ namespace EpicGames.BuildGraph
 		/// Read the contents of an agent definition
 		/// </summary>
 		/// <param name="Element">Xml element to read the definition from</param>
-		/// <param name="ParentAgent">The agent to contain the definition</param>
 		protected async Task ReadAgentBodyAsync(BgScriptElement Element)
 		{
 			EnterScope();
@@ -1420,7 +1418,7 @@ namespace EpicGames.BuildGraph
 						// Create a new option object to store the settings
 						string Description = ReadAttribute(Element, "Description");
 						string DefaultValue = ReadAttribute(Element, "DefaultValue");
-						BgScriptOption Option = new BgScriptOption(Name, Description, DefaultValue);
+						BgOption Option = new BgOption(Name, Description, DefaultValue);
 						Graph.Options.Add(Option);
 
 						// Get the value of this property

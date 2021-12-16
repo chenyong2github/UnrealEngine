@@ -11,6 +11,8 @@ using System.Xml;
 using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
+using EpicGames.BuildGraph;
+using AutomationTool.Tasks;
 
 namespace AutomationTool.Tasks
 {
@@ -162,6 +164,26 @@ namespace AutomationTool.Tasks
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			yield break;
+		}
+	}
+
+	public static partial class StandardTasks
+	{
+		/// <summary>
+		/// Runs another UAT command
+		/// </summary>
+		/// <param name="State">The execution state</param>
+		/// <param name="Name">Name of the command to run</param>
+		/// <param name="Arguments">Arguments for the command</param>
+		/// <param name="MergeTelemetryWithPrefix">If non-null, instructs telemetry from the command to be merged into the telemetry for this UAT instance with the given prefix. May be an empty (non-null) string.</param>
+		public static async Task CommandAsync(this BgContext State, string Name, string Arguments = null, string MergeTelemetryWithPrefix = null)
+		{
+			CommandTaskParameters Parameters = new CommandTaskParameters();
+			Parameters.Name = Name;
+			Parameters.Arguments = Arguments ?? Parameters.Arguments;
+			Parameters.MergeTelemetryWithPrefix = MergeTelemetryWithPrefix ?? Parameters.MergeTelemetryWithPrefix;
+
+			await ExecuteAsync(new CommandTask(Parameters));
 		}
 	}
 }

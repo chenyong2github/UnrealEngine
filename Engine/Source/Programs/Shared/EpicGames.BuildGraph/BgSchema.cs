@@ -129,6 +129,7 @@ namespace EpicGames.BuildGraph
 		}
 	}
 
+#pragma warning disable CS1591
 	/// <summary>
 	/// Enumeration of standard types used in the schema. Avoids hard-coding names.
 	/// </summary>
@@ -168,6 +169,7 @@ namespace EpicGames.BuildGraph
 		Integer,
 		LabelChange
 	}
+#pragma warning restore CS1591
 
 	/// <summary>
 	/// Schema for build graph definitions. Stores information about the supported tasks, and allows validating an XML document.
@@ -257,7 +259,8 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InNameToTask">Mapping of task name to information about how to construct it</param>
+		/// <param name="Tasks">Set of known tasks</param>
+		/// <param name="PrimitiveTypes">Mapping of task name to information about how to construct it</param>
 		public BgScriptSchema(IEnumerable<BgScriptTask> Tasks, List<(Type, ScriptSchemaStandardType)> PrimitiveTypes)
 		{
 			// Create a lookup from standard types to their qualified names

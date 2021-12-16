@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using EpicGames.BuildGraph;
+using AutomationTool.Tasks;
 
 namespace AutomationTool.Tasks
 {
@@ -197,6 +199,34 @@ namespace AutomationTool.Tasks
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			yield break;
+		}
+	}
+
+	public static partial class StandardTasks
+	{
+		/// <summary>
+		/// Execute an external program
+		/// </summary>
+		/// <param name="State">Execution state</param>
+		/// <param name="Exe">Executable to spawn.</param>
+		/// <param name="Arguments">Arguments for the newly created process.</param>
+		/// <param name="WorkingDir">Working directory for spawning the new task.</param>
+		/// <param name="Environment">Environment variables to set.</param>
+		/// <param name="EnvironmentFile">File to read environment from.</param>
+		/// <param name="LogOutput">Write output to the log.</param>
+		/// <param name="ErrorLevel">The minimum exit code which is treated as an error.</param>
+		public static async Task SpawnAsync(string Exe, string Arguments = null, string WorkingDir = null, string Environment = null, string EnvironmentFile = null, bool? LogOutput = null, int? ErrorLevel = null)
+		{
+			SpawnTaskParameters Parameters = new SpawnTaskParameters();
+			Parameters.Exe = Exe;
+			Parameters.Arguments = Arguments;
+			Parameters.WorkingDir = WorkingDir;
+			Parameters.Environment = Environment;
+			Parameters.EnvironmentFile = EnvironmentFile;
+			Parameters.LogOutput = LogOutput ?? Parameters.LogOutput;
+			Parameters.ErrorLevel = ErrorLevel ?? Parameters.ErrorLevel;
+
+			await ExecuteAsync(new SpawnTask(Parameters));
 		}
 	}
 }

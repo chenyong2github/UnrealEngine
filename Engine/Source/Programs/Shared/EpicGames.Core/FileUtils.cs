@@ -435,7 +435,9 @@ namespace EpicGames.Core
 
 		static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
 
+		const int ERROR_FILE_NOT_FOUND = 2;
 		const int ERROR_PATH_NOT_FOUND = 3;
+		const int ERROR_ACCESS_DENIED = 5;
 
 		private static void ForceDeleteLongDirectoryContentsWin32(string DirName)
 		{
@@ -485,15 +487,12 @@ namespace EpicGames.Core
 			if (!RemoveDirectory(DirName))
 			{
 				int ErrorCode = Marshal.GetLastWin32Error();
-				if (ErrorCode != ERROR_PATH_NOT_FOUND)
+				if (ErrorCode != ERROR_FILE_NOT_FOUND && ErrorCode != ERROR_PATH_NOT_FOUND)
 				{
 					throw new WrappedFileOrDirectoryException(new Win32Exception(ErrorCode), "Unable to delete " + DirName);
 				}
 			}
 		}
-
-		const int ERROR_FILE_NOT_FOUND = 2;
-		const int ERROR_ACCESS_DENIED = 5;
 
 		[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
 		internal static extern int GetFileAttributesW(string lpFileName);

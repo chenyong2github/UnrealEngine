@@ -15,6 +15,8 @@ using System.Diagnostics;
 using Action = System.Action;
 using EpicGames.Core;
 using UnrealBuildBase;
+using EpicGames.BuildGraph;
+using AutomationTool.Tasks;
 
 namespace Win.Automation
 {
@@ -76,11 +78,14 @@ namespace Win.Automation
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			// Find the matching files
-			FileReference[] PdbFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.BinaryFiles, TagNameToFileSet).Where(x => x.HasExtension(".pdb")).ToArray();
-
-			// Find all the matching source files
+			FileReference[] BinaryFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.BinaryFiles, TagNameToFileSet).ToArray();
 			FileReference[] SourceFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.SourceFiles, TagNameToFileSet).ToArray();
+			Execute(BinaryFiles, SourceFiles, Parameters.Branch, Parameters.Change);
+		}
+
+		internal static void Execute(FileReference[] BinaryFiles, FileReference[] SourceFiles, string Branch, int Change)
+		{
+			FileReference[] PdbFiles = BinaryFiles.Where(x => x.HasExtension(".pdb")).ToArray();
 
 			// Get the PDBSTR.EXE path, using the latest SDK version we can find.
 			FileReference PdbStrExe = GetPdbStrExe();
@@ -98,8 +103,8 @@ namespace Win.Automation
 				Writer.WriteLine("SRCSRV: variables------------------------------------------");
 				Writer.WriteLine("SRCSRVTRG=%sdtrg%");
 				Writer.WriteLine("SRCSRVCMD=%sdcmd%");
-				Writer.WriteLine("SDCMD=p4.exe print -o %srcsrvtrg% \"{0}/%var2%@{1}\"", Parameters.Branch.TrimEnd('/'), Parameters.Change);
-				Writer.WriteLine("SDTRG=%targ%\\{0}\\{1}\\%fnbksl%(%var2%)", Parameters.Branch.Replace('/', '+'), Parameters.Change);
+				Writer.WriteLine("SDCMD=p4.exe print -o %srcsrvtrg% \"{0}/%var2%@{1}\"", Branch.TrimEnd('/'), Change);
+				Writer.WriteLine("SDTRG=%targ%\\{0}\\{1}\\%fnbksl%(%var2%)", Branch.Replace('/', '+'), Change);
 				Writer.WriteLine("SRCSRV: source files ---------------------------------------");
 				foreach (FileReference SourceFile in SourceFiles)
 				{
@@ -121,7 +126,7 @@ namespace Win.Automation
         /// <param name="SrcSrvIni">Ini file containing settings to embed</param>
         /// <param name="State">The current loop state</param>
         /// <returns>True if the tool executed succesfully</returns>
-        void ExecuteTool(FileReference PdbStrExe, FileReference PdbFile, FileReference SrcSrvIni, ParallelLoopState State)
+        static void ExecuteTool(FileReference PdbStrExe, FileReference PdbFile, FileReference SrcSrvIni, ParallelLoopState State)
         {
             using (Process Process = new Process())
             {
@@ -149,7 +154,7 @@ namespace Win.Automation
                     State.Break();
                 }
 
-                lock (this)
+                lock (State)
                 {
                     foreach (string Message in Messages)
                     {
@@ -219,6 +224,22 @@ namespace Win.Automation
 				}
 			}
 			throw new AutomationException("Unable to find a Windows SDK installation containing PDBSTR.EXE");
+		}
+	}
+
+	public static partial class BgStateExtensions
+	{
+		/// <summary>
+		/// Uploads symbols to a symbol server
+		/// </summary>
+		/// <param name="BinaryFiles">List of output files. PDBs will be extracted from this list.</param>
+		/// <param name="SourceFiles">List of source files to index and embed into the PDBs.</param>
+		/// <param name="Branch">Branch to base all the depot source files from.</param>
+		/// <param name="Change">Changelist to sync files from.</param>
+		/// <returns></returns>
+		public static void SrcSrv(this BgContext State, HashSet<FileReference> BinaryFiles, HashSet<FileReference> SourceFiles, string Branch, int Change)
+		{
+			SrcSrvTask.Execute(BinaryFiles.ToArray(), SourceFiles.ToArray(), Branch, Change);
 		}
 	}
 }

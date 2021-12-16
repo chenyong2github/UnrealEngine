@@ -332,4 +332,33 @@ namespace AutomationTool.Tasks
 			return FindTagNamesFromList(Parameters.Tag);
 		}
 	}
+
+	public static partial class StandardTasks
+	{
+		/// <summary>
+		/// Compiles a target
+		/// </summary>
+		/// <param name="Target">The target to compile</param>
+		/// <param name="Configuration">The configuration to compile</param>
+		/// <param name="Platform">The platform to compile for</param>
+		/// <param name="Project">The project to compile with</param>
+		/// <param name="Arguments">Additional arguments for UnrealBuildTool</param>
+		/// <param name="AllowXGE">Whether to allow using XGE for compilation</param>
+		/// <param name="AllowParallelExecutor">Whether to allow using the parallel executor for this compile</param>
+		/// <param name="Clean">Whether to allow cleaning this target. If unspecified, targets are cleaned if the -Clean argument is passed on the command line</param>
+		/// <returns>Build products from the compile</returns>
+		public static async Task<FileSet> CompileAsync(string Target, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, FileReference Project = null, string Arguments = null, bool AllowXGE = true, bool AllowParallelExecutor = true, bool? Clean = null)
+		{
+			CompileTaskParameters Parameters = new CompileTaskParameters();
+			Parameters.Target = Target;
+			Parameters.Platform = Platform;
+			Parameters.Configuration = Configuration;
+			Parameters.Project = Project?.FullName;
+			Parameters.Arguments = Arguments;
+			Parameters.AllowXGE = AllowXGE;
+			Parameters.AllowParallelExecutor = AllowParallelExecutor;
+			Parameters.Clean = Clean;
+			return await ExecuteAsync(new CompileTask(Parameters));
+		}
+	}
 }

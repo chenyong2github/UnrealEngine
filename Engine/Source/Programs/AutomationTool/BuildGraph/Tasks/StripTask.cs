@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using AutomationTool;
+using AutomationTool.Tasks;
 using EpicGames.BuildGraph;
 using System;
 using System.Collections.Generic;
@@ -140,6 +141,27 @@ namespace AutomationTool.Tasks
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			return FindTagNamesFromList(Parameters.Tag);
+		}
+	}
+
+	public static partial class StandardTasks
+	{
+		/// <summary>
+		/// Strips symbols from a set of files.
+		/// </summary>
+		/// <param name="Files"></param>
+		/// <param name="Platform">The platform toolchain to strip binaries.</param>
+		/// <param name="BaseDir">The directory to find files in.</param>
+		/// <param name="OutputDir">Output directory for the stripped files. Defaults to the input path, overwriting the input files.</param>
+		/// <returns></returns>
+		public static async Task<FileSet> StripAsync(FileSet Files, UnrealTargetPlatform Platform, DirectoryReference BaseDir = null, DirectoryReference OutputDir = null)
+		{
+			StripTaskParameters Parameters = new StripTaskParameters();
+			Parameters.Platform = Platform;
+			Parameters.BaseDir = BaseDir;
+			Parameters.Files = String.Join(";", Files.Flatten().Values.Select(x => x.FullName));
+			Parameters.OutputDir = OutputDir;
+			return await ExecuteAsync(new StripTask(Parameters));
 		}
 	}
 }

@@ -36,93 +36,6 @@ namespace EpicGames.BuildGraph
 	}
 
 	/// <summary>
-	/// Diagnostic message from the graph script. These messages are parsed at startup, then culled along with the rest of the graph nodes before output. Doing so
-	/// allows errors and warnings which are only output if a node is part of the graph being executed.
-	/// </summary>
-	public class BgGraphDiagnostic
-	{
-		/// <summary>
-		/// Location of the diagnostic
-		/// </summary>
-		public BgScriptLocation Location;
-
-		/// <summary>
-		/// The diagnostic event type
-		/// </summary>
-		public LogEventType EventType;
-
-		/// <summary>
-		/// The message to display
-		/// </summary>
-		public string Message;
-
-		/// <summary>
-		/// The node which this diagnostic is declared in. If the node is culled from the graph, the message will not be displayed.
-		/// </summary>
-		public BgNode? EnclosingNode;
-
-		/// <summary>
-		/// The agent that this diagnostic is declared in. If the entire agent is culled from the graph, the message will not be displayed.
-		/// </summary>
-		public BgAgent? EnclosingAgent;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public BgGraphDiagnostic(BgScriptLocation Location, LogEventType EventType, string Message, BgNode? EnclosingNode, BgAgent? EnclosingAgent)
-		{
-			this.Location = Location;
-			this.EventType = EventType;
-			this.Message = Message;
-			this.EnclosingNode = EnclosingNode;
-			this.EnclosingAgent = EnclosingAgent;
-		}
-	}
-
-	/// <summary>
-	/// Represents a graph option. These are expanded during preprocessing, but are retained in order to display help messages.
-	/// </summary>
-	public class BgScriptOption
-	{
-		/// <summary>
-		/// Name of this option
-		/// </summary>
-		public string Name;
-
-		/// <summary>
-		/// Description for this option
-		/// </summary>
-		public string Description;
-
-		/// <summary>
-		/// Default value for this option
-		/// </summary>
-		public string DefaultValue;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Name">The name of this option</param>
-		/// <param name="Description">Description of the option, for display on help pages</param>
-		/// <param name="DefaultValue">Default value for the option</param>
-		public BgScriptOption(string Name, string Description, string DefaultValue)
-		{
-			this.Name = Name;
-			this.Description = Description;
-			this.DefaultValue = DefaultValue;
-		}
-
-		/// <summary>
-		/// Returns a name of this option for debugging
-		/// </summary>
-		/// <returns>Name of the option</returns>
-		public override string ToString()
-		{
-			return Name;
-		}
-	}
-
-	/// <summary>
 	/// Definition of a graph.
 	/// </summary>
 	public class BgGraph
@@ -130,7 +43,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// List of options, in the order they were specified
 		/// </summary>
-		public List<BgScriptOption> Options = new List<BgScriptOption>();
+		public List<BgOption> Options = new List<BgOption>();
 
 		/// <summary>
 		/// List of agents containing nodes to execute
@@ -288,6 +201,17 @@ namespace EpicGames.BuildGraph
 			return false;
 		}
 
+		static void AddDependencies(BgNode Node, HashSet<BgNode> RetainNodes)
+		{
+			if (RetainNodes.Add(Node))
+			{
+				foreach(BgNode InputDependency in Node.InputDependencies)
+				{
+					AddDependencies(InputDependency, RetainNodes);
+				}
+			}
+		}
+
 		/// <summary>
 		/// Cull the graph to only include the given nodes and their dependencies
 		/// </summary>
@@ -295,10 +219,10 @@ namespace EpicGames.BuildGraph
 		public void Select(IEnumerable<BgNode> TargetNodes)
 		{
 			// Find this node and all its dependencies
-			HashSet<BgNode> RetainNodes = new HashSet<BgNode>(TargetNodes);
+			HashSet<BgNode> RetainNodes = new HashSet<BgNode>();
 			foreach (BgNode TargetNode in TargetNodes)
 			{
-				RetainNodes.UnionWith(TargetNode.InputDependencies);
+				AddDependencies(TargetNode, RetainNodes);
 			}
 
 			// Remove all the nodes which are not marked to be kept
@@ -715,7 +639,7 @@ namespace EpicGames.BuildGraph
 			{
 				// Get the list of messages
 				List<KeyValuePair<string, string>> Parameters = new List<KeyValuePair<string, string>>();
-				foreach (BgScriptOption Option in Options)
+				foreach (BgOption Option in Options)
 				{
 					string Name = String.Format("-set:{0}=...", Option.Name);
 

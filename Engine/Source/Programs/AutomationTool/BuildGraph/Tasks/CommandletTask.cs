@@ -143,4 +143,27 @@ namespace AutomationTool.Tasks
 			yield break;
 		}
 	}
+
+	public static partial class StandardTasks
+	{
+		/// <summary>
+		/// Task which runs a UE commandlet
+		/// </summary>
+		/// <param name="State"></param>
+		/// <param name="Name">The commandlet name to execute.</param>
+		/// <param name="Project">The project to run the editor with.</param>
+		/// <param name="Arguments">Arguments to be passed to the commandlet.</param>
+		/// <param name="EditorExe">The editor executable to use. Defaults to the development UnrealEditor executable for the current platform.</param>
+		/// <param name="ErrorLevel">The minimum exit code, which is treated as an error.</param>
+		public static async Task CommandletAsync(this BgContext State, string Name, FileReference Project = null, string Arguments = null, FileReference EditorExe = null, int ErrorLevel = 1)
+		{
+			CommandletTaskParameters Parameters = new CommandletTaskParameters();
+			Parameters.Name = Name;
+			Parameters.Project = Project?.FullName;
+			Parameters.Arguments = Arguments;
+			Parameters.EditorExe = EditorExe;
+			Parameters.ErrorLevel = ErrorLevel;
+			await ExecuteAsync(new CommandletTask(Parameters));
+		}
+	}
 }

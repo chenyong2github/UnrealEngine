@@ -57,13 +57,20 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Set the Engine directory
 			DirectoryReference EngineDir = Parameters.EngineDir ?? Unreal.EngineDirectory;
 
 			// Resolve the input list
 			IEnumerable<FileReference> TargetFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
+			await ExecuteAsync(TargetFiles, EngineDir);
+		}
+
+		public static Task ExecuteAsync(IEnumerable<FileReference> TargetFiles, DirectoryReference EngineDir)
+		{
+			EngineDir ??= Unreal.EngineDirectory;
+
 			foreach(FileReference TargetFile in TargetFiles)
 			{
 				// check all files are .target files
@@ -145,6 +152,20 @@ namespace AutomationTool.Tasks
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			return new string[0];
+		}
+	}
+
+	/// <summary>
+	/// Extension methods
+	/// </summary>
+	public static class SanitizeReceiptExtensions
+	{
+		/// <summary>
+		/// Sanitize the given receipt files, removing any files that don't exist in the current workspace
+		/// </summary>
+		public static async Task SanitizeReceiptsAsync(this FileSet TargetFiles, DirectoryReference EngineDir = null)
+		{
+			await SanitizeReceiptTask.ExecuteAsync(TargetFiles, EngineDir);
 		}
 	}
 }

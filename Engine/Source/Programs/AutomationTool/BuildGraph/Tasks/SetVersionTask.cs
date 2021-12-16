@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 namespace AutomationTool.Tasks
 {
@@ -132,6 +133,29 @@ namespace AutomationTool.Tasks
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			return FindTagNamesFromList(Parameters.Tag);
+		}
+	}
+
+	public static partial class StandardTasks
+	{
+		public static async Task<FileSet> ExecuteAsync(BgTaskImpl Task)
+		{
+			HashSet<FileReference> BuildProducts = new HashSet<FileReference>();
+			await Task.ExecuteAsync(new JobContext(null!), BuildProducts, new Dictionary<string, HashSet<FileReference>>());
+			return FileSet.FromFiles(Unreal.RootDirectory, BuildProducts);
+		}
+
+		public static async Task<FileSet> SetVersionAsync(int Change, string Branch, int? CompatibleChange = null, string Build = null, bool? Licensee = null, bool? Promoted = null, bool? SkipWrite = null)
+		{
+			SetVersionTaskParameters Parameters = new SetVersionTaskParameters();
+			Parameters.Change = Change;
+			Parameters.CompatibleChange = CompatibleChange ?? Parameters.CompatibleChange;
+			Parameters.Branch = Branch ?? Parameters.Branch;
+			Parameters.Branch = Build ?? Parameters.Build;
+			Parameters.Licensee = Licensee ?? Parameters.Licensee;
+			Parameters.Promoted = Promoted ?? Parameters.Promoted;
+			Parameters.SkipWrite = SkipWrite ?? Parameters.SkipWrite;
+			return await ExecuteAsync(new SetVersionTask(Parameters));
 		}
 	}
 }

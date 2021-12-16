@@ -12,6 +12,7 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace AutomationTool.Tasks
 {
@@ -83,7 +84,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Parse all the source patterns
 			FilePattern SourcePattern = new FilePattern(Unreal.RootDirectory, Parameters.From);
@@ -93,7 +94,7 @@ namespace AutomationTool.Tasks
 
 			// Apply the filter to the source files
 			HashSet<FileReference> Files = null;
-			if(!String.IsNullOrEmpty(Parameters.Files))
+			if (!String.IsNullOrEmpty(Parameters.Files))
 			{
 				SourcePattern = SourcePattern.AsDirectoryPattern();
 				Files = ResolveFilespec(SourcePattern.BaseDirectory, Parameters.Files, TagNameToFileSet);
@@ -102,8 +103,38 @@ namespace AutomationTool.Tasks
 			// Build the file mapping
 			Dictionary<FileReference, FileReference> TargetFileToSourceFile = FilePattern.CreateMapping(Files, ref SourcePattern, ref TargetPattern);
 
+			// Check we got some files
+			if (TargetFileToSourceFile.Count == 0)
+			{
+				if (Parameters.ErrorIfNotFound)
+				{
+					CommandUtils.LogError("No files found matching '{0}'", SourcePattern);
+				}
+				else
+				{
+					CommandUtils.LogInformation("No files found matching '{0}'", SourcePattern);
+				}
+				return;
+			}
+
+			// Run the copy
+			CommandUtils.LogInformation("Copying {0} file{1} from {2} to {3}...", TargetFileToSourceFile.Count, (TargetFileToSourceFile.Count == 1) ? "" : "s", SourcePattern.BaseDirectory, TargetPattern.BaseDirectory);
+			await ExecuteAsync(TargetFileToSourceFile, Parameters.Overwrite);
+
+			// Update the list of build products
+			BuildProducts.UnionWith(TargetFileToSourceFile.Keys);
+
+			// Apply the optional output tag to them
+			foreach (string TagName in FindTagNamesFromList(Parameters.Tag))
+			{
+				FindOrAddTagSet(TagNameToFileSet, TagName).UnionWith(TargetFileToSourceFile.Keys);
+			}
+		}
+
+		public static Task ExecuteAsync(Dictionary<FileReference, FileReference> TargetFileToSourceFile, bool Overwrite)
+		{
 			//  If we're not overwriting, remove any files where the destination file already exists.
-			if(!Parameters.Overwrite)
+			if (!Overwrite)
 			{
 				TargetFileToSourceFile = TargetFileToSourceFile.Where(File =>
 				{
@@ -114,20 +145,6 @@ namespace AutomationTool.Tasks
 					}
 					return true;
 				}).ToDictionary(Pair => Pair.Key, Pair => Pair.Value);
-			}
-
-			// Check we got some files
-			if(TargetFileToSourceFile.Count == 0)
-			{
-				if (Parameters.ErrorIfNotFound)
-				{
-					CommandUtils.LogError("No files found matching '{0}'", SourcePattern);
-				}
-				else
-				{
-					CommandUtils.LogInformation("No files found matching '{0}'", SourcePattern);
-				}
-				return Task.CompletedTask;
 			}
 
 			// If the target is on a network share, retry creating the first directory until it succeeds
@@ -171,21 +188,11 @@ namespace AutomationTool.Tasks
 
 			// Copy them all
 			KeyValuePair<FileReference, FileReference>[] FilePairs = TargetFileToSourceFile.ToArray();
-			CommandUtils.LogInformation("Copying {0} file{1} from {2} to {3}...", FilePairs.Length, (FilePairs.Length == 1)? "" : "s", SourcePattern.BaseDirectory, TargetPattern.BaseDirectory);
 			foreach(KeyValuePair<FileReference, FileReference> FilePair in FilePairs)
 			{
 				CommandUtils.LogLog("  {0} -> {1}", FilePair.Value, FilePair.Key);
 			}
 			CommandUtils.ThreadedCopyFiles(FilePairs.Select(x => x.Value.FullName).ToList(), FilePairs.Select(x => x.Key.FullName).ToList(), bQuiet: true, bRetry: true);
-
-			// Update the list of build products
-			BuildProducts.UnionWith(TargetFileToSourceFile.Keys);
-
-			// Apply the optional output tag to them
-			foreach(string TagName in FindTagNamesFromList(Parameters.Tag))
-			{
-				FindOrAddTagSet(TagNameToFileSet, TagName).UnionWith(TargetFileToSourceFile.Keys);
-			}
 			return Task.CompletedTask;
 		}
 
@@ -216,6 +223,29 @@ namespace AutomationTool.Tasks
 		public override IEnumerable<string> FindProducedTagNames()
 		{
 			return FindTagNamesFromList(Parameters.Tag);
+		}
+	}
+
+	public static partial class BgStateExtensions
+	{
+		/// <summary>
+		/// Copy files from one location to another
+		/// </summary>
+		/// <param name="Files">The files to copy</param>
+		/// <param name="TargetDir"></param>
+		/// <param name="Overwrite">Whether or not to overwrite existing files.</param>
+		public static async Task<FileSet> CopyToAsync(this FileSet Files, DirectoryReference TargetDir, bool? Overwrite = null)
+		{
+			// Run the copy
+			Dictionary<FileReference, FileReference> TargetFileToSourceFile = Files.Flatten(TargetDir);
+			if (TargetFileToSourceFile.Count == 0)
+			{
+				return FileSet.Empty;
+			}
+
+			Log.Logger.LogInformation("Copying {NumFiles} file(s) to {TargetDir}...", TargetFileToSourceFile.Count, TargetDir);
+			await CopyTask.ExecuteAsync(TargetFileToSourceFile, Overwrite ?? true);
+			return FileSet.FromFiles(TargetFileToSourceFile.Keys.Select(x => (x.MakeRelativeTo(TargetDir), x)));
 		}
 	}
 }
