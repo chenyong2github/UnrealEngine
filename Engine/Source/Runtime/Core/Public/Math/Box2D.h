@@ -287,6 +287,14 @@ public:
 	}
 
 	/**
+	 * Returns the overlap box of two boxes
+	 *
+	 * @param Other The bounding box to test overlap
+	 * @return the overlap box. Result will be invalid if they don't overlap
+	 */
+	TBox2<T> Overlap( const TBox2<T>& Other ) const;
+
+	/**
 	 * Checks whether the given box intersects this box.
 	 *
 	 * @param other bounding box to test intersection
@@ -461,6 +469,28 @@ FORCEINLINE TVector2<T> TBox2<T>::GetClosestPointTo( const TVector2<T>& Point ) 
 	}
 
 	return ClosestPoint;
+}
+
+template<typename T>
+TBox2<T> TBox2<T>::Overlap(const TBox2<T>& Other) const
+{
+	if (Intersect(Other) == false)
+	{
+		static TBox2<T> EmptyBox(ForceInit);
+		return EmptyBox;
+	}
+
+	// otherwise they overlap
+	// so find overlapping box
+	TVector2<T> MinVector, MaxVector;
+
+	MinVector.X = FMath::Max(Min.X, Other.Min.X);
+	MaxVector.X = FMath::Min(Max.X, Other.Max.X);
+
+	MinVector.Y = FMath::Max(Min.Y, Other.Min.Y);
+	MaxVector.Y = FMath::Min(Max.Y, Other.Max.Y);
+
+	return TBox2<T>(MinVector, MaxVector);
 }
 
 template<typename T>
