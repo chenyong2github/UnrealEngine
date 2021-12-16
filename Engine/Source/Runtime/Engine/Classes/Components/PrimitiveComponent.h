@@ -1380,10 +1380,9 @@ public:
 	 *	@param	Impulse		Magnitude and direction of impulse to apply.
 	 *	@param	Location	Point in world space to apply impulse at.
 	 *	@param	BoneName	If a SkeletalMeshComponent, name of bone to apply impulse to. 'None' indicates root body.
-	 *  @param	bVelChange	If true, the Strength is taken as a change in angular velocity instead of an impulse (ie. mass will have no effect).
 	 */
 	UFUNCTION(BlueprintCallable, Category="Physics", meta=(UnsafeDuringActorConstruction="true"))
-	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None, bool bVelChange = false);
+	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None);
 
 	/**
 	 * Add an impulse to all rigid bodies in this component, radiating out from the specified position.

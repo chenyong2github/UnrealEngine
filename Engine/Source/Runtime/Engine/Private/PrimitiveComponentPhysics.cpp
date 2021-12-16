@@ -134,12 +134,12 @@ void UPrimitiveComponent::AddAngularImpulseInRadians(FVector Impulse, FName Bone
 	}
 }
 
-void UPrimitiveComponent::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName, bool bVelChange)
+void UPrimitiveComponent::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
 {
 	if (FBodyInstance* BI = GetBodyInstance(BoneName))
 	{
 		WarnInvalidPhysicsOperations(LOCTEXT("AddImpulseAtLocation", "AddImpulseAtLocation"), BI, BoneName);
-		BI->AddImpulseAtPosition(Impulse, Location, bVelChange);
+		BI->AddImpulseAtPosition(Impulse, Location);
 	}
 }
 
