@@ -80,7 +80,7 @@ namespace EuropaUnit
             List<CompactBinaryField> payloadFields = payloads.GetFields().ToList();
             Assert.AreEqual(2, payloadFields.Count);
 
-            Assert.AreEqual("{\"Key\":{\"Bucket\":\"EditorDomainPackage\"},\"Meta\":{\"FileSize\":24789},\"Attachments\":[{\"Id\":\"000000000000000000000001\"}]}", o.ToJson());
+            Assert.AreEqual("{\"Key\":{\"Bucket\":\"EditorDomainPackage\",\"Hash\":\"37DBAA409EF30BA67F18C8FC2FAAF606636CB915\"},\"Meta\":{\"FileSize\":24789},\"Attachments\":[{\"Id\":\"000000000000000000000001\",\"RawHash\":\"DA6FC57E4B9F91377C9509EA0AD567BACB3796C5\",\"RawSize\":24789}]}", o.ToJson());
         }
 
 

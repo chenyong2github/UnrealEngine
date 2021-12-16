@@ -876,21 +876,15 @@ namespace Jupiter.Implementation
             if (field.IsObject())
             {
                 if (addPropertyName)
-                {
                     jsonWriter.WritePropertyName(field.Name);
-                }
                 jsonWriter.WriteStartObject();
-                CompactBinaryObject o = field.AsObject();
-                WriteField(o, jsonWriter);
-                jsonWriter.WriteEndObject();
-                /*jsonWriter.WritePropertyName(o.Name);
-                jsonWriter.WriteStartObject();
-                foreach (CompactBinaryField f in o.GetFields())
+                
+                foreach (CompactBinaryField f in field.GetFields())
                 {
                     WriteField(f, jsonWriter);
                 }
-                jsonWriter.WriteEndObject();*/
 
+                jsonWriter.WriteEndObject();
             }
             else if (field.IsArray())
             {
