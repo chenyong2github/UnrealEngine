@@ -44,8 +44,8 @@ void FOptimusEditorGraphExplorerCommands::RegisterCommands()
 {
 	UI_COMMAND(OpenGraph, "Open Graph", "Opens up this graph in the editor.", EUserInterfaceActionType::Button, FInputChord());
 
-	UI_COMMAND(CreateSetupGraph, "Add New Setup Graph", "Create a new setup graph and show it in the edior.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(CreateTriggerGraph, "Add New Trigger Graph", "Create a new external trigger graph and show it in the edior.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CreateSetupGraph, "Add New Setup Graph", "Create a new setup graph and show it in the editor.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CreateTriggerGraph, "Add New Trigger Graph", "Create a new external trigger graph and show it in the editor.", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(CreateResource, "Add New Resource", "Create a shader resource.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CreateVariable, "Add New Variable", "Create a variable on the asset.", EUserInterfaceActionType::Button, FInputChord());
