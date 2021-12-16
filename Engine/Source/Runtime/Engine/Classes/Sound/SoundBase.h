@@ -252,8 +252,11 @@ public:
 	*/
 	virtual class UCurveTable* GetCurveData() const { return nullptr; }
 
-	/** Returns whether or not this sound is looping. */
+	/** Returns whether or not this sound is looping. TODO: Deprecate this to only use IsOneshot() in a MetaSound world. */
 	bool IsLooping();
+
+	/** Query if it's one shot. One shot is defined as a sound which is intended to have a fixed duration. */
+	virtual bool IsOneShot();
 
 	/** Parses the Sound to generate the WaveInstances to play. */
 	virtual void Parse( class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) { }

@@ -88,7 +88,7 @@ namespace Metasound
 			// References must be cached before moving the operator to the InitParams
 			FDataReferenceCollection Inputs = GraphOperator->GetInputs();
 			FTriggerWriteRef PlayTrigger = Inputs.GetDataWriteReferenceOrConstruct<FTrigger>(SourceInterface::Inputs::OnPlay, InitParams.OperatorSettings, false);
-			FTriggerReadRef FinishTrigger = Outputs.GetDataReadReferenceOrConstruct<FTrigger>(SourceInterface::Outputs::OnFinished, InitParams.OperatorSettings, false);
+			FTriggerReadRef FinishTrigger = Outputs.GetDataReadReferenceOrConstruct<FTrigger>(SourceOneShotInterface::Outputs::OnFinished, InitParams.OperatorSettings, false);
 
 			FMetasoundGeneratorData GeneratorData
 			{

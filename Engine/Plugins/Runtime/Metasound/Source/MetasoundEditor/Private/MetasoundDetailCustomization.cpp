@@ -277,30 +277,34 @@ namespace Metasound
 			if (const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get()))
 			{
 				auto GetVersionName = [](const FMetasoundFrontendVersion& Version) { return Version.Name; };
-				auto IsTransmittableVersion = [](const FMetasoundFrontendVersion& Version)
+				auto CanAddOrRemoveInterface = [](const FMetasoundFrontendVersion& Version)
 				{
 					using namespace Metasound::Frontend;
 
 					const FInterfaceRegistryKey Key = GetInterfaceRegistryKey(Version);
 					if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key))
 					{
-						return Entry->GetRouterName() == Audio::IParameterTransmitter::RouterName;
+						return Entry->EditorCanAddOrRemove();
 					}
 
 					return false;
 				};
 
 				const TSet<FMetasoundFrontendVersion>& ImplementedInterfaces = MetaSoundAsset->GetDocumentChecked().Interfaces;
-				Algo::TransformIf(ImplementedInterfaces, ImplementedInterfaceNames, IsTransmittableVersion, GetVersionName);
+				Algo::TransformIf(ImplementedInterfaces, ImplementedInterfaceNames, CanAddOrRemoveInterface, GetVersionName);
 
-				Audio::IAudioParameterInterfaceRegistry::Get().IterateInterfaces([this](Audio::FParameterInterfacePtr Interface)
+				TArray<FMetasoundFrontendInterface> Interfaces = ISearchEngine::Get().FindAllInterfaces();
+				for (const FMetasoundFrontendInterface& Interface : Interfaces)
 				{
-					if (!ImplementedInterfaceNames.Contains(Interface->GetName()))
+					if (!ImplementedInterfaceNames.Contains(Interface.Version.Name))
 					{
-						FString Name = Interface->GetName().ToString();
-						AddableInterfaceNames.Add(MakeShared<FString>(MoveTemp(Name)));
+						if (CanAddOrRemoveInterface(Interface.Version))
+						{
+							FString Name = Interface.Version.Name.ToString();
+							AddableInterfaceNames.Add(MakeShared<FString>(MoveTemp(Name)));
+						}
 					}
-				});
+				}
 			}
 		}
 

@@ -28,6 +28,7 @@ namespace Metasound
 		struct FInterfaceRegistryOptions
 		{
 			bool bIsDefault = false;
+			bool bEditorCanAddOrRemove = true;
 			FName InputSystemName;
 			FName UClassName;
 		};
@@ -45,6 +46,11 @@ namespace Metasound
 				, UpdateTransform(MoveTemp(InUpdateTransform))
 				, Options(MoveTemp(InOptions))
 			{
+			}
+
+			virtual bool EditorCanAddOrRemove() const override
+			{
+				return Options.bEditorCanAddOrRemove;
 			}
 
 			virtual bool UClassIsSupported(FName InUClassName) const override
@@ -89,13 +95,14 @@ namespace Metasound
 		};
 
 		template <typename UClassType>
-		void RegisterInterface(const FMetasoundFrontendInterface& InInterface, TUniquePtr<Frontend::IDocumentTransform>&& InUpdateTransform, bool bInIsDefault, FName InRouterName)
+		void RegisterInterface(const FMetasoundFrontendInterface& InInterface, TUniquePtr<Frontend::IDocumentTransform>&& InUpdateTransform, bool bInIsDefault, bool bEditorCanAddOrRemove, FName InRouterName)
 		{
 			using namespace Frontend;
 
 			FInterfaceRegistryOptions Options
 			{
 				bInIsDefault,
+				bEditorCanAddOrRemove,
 				InRouterName,
 				UClassType::StaticClass()->GetFName()
 			};
@@ -104,7 +111,7 @@ namespace Metasound
 			IInterfaceRegistry::Get().RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(InInterface, MoveTemp(InUpdateTransform), MoveTemp(Options)));
 		}
 
-		void RegisterInterface(Audio::FParameterInterfacePtr Interface, TUniquePtr<Frontend::IDocumentTransform>&& InUpdateTransform, bool bInIsDefault, FName InRouterName)
+		void RegisterInterface(Audio::FParameterInterfacePtr Interface, TUniquePtr<Frontend::IDocumentTransform>&& InUpdateTransform, bool bInIsDefault, bool bEditorCanAddOrRemove, FName InRouterName)
 		{
 			using namespace Frontend;
 
@@ -170,7 +177,7 @@ namespace Metasound
 			const bool bInterfaceSupportsSource = SourceClass->IsChildOf(&Interface->GetType());
 			if (ensureAlwaysMsgf(bInterfaceSupportsSource, TEXT("Interfaces defined using Audio::FParameterInterface currently only supported by UMetaSoundSource asset type.")))
 			{
-				RegisterInterface<UMetaSoundSource>(FrontendInterface, MoveTemp(InUpdateTransform), bInIsDefault, InRouterName);
+				RegisterInterface<UMetaSoundSource>(FrontendInterface, MoveTemp(InUpdateTransform), bInIsDefault, bEditorCanAddOrRemove, InRouterName);
 				UE_LOG(LogMetaSound, Verbose, TEXT("Interface '%s' registered for asset type '%s'."), *Interface->GetName().ToString(), *SourceClass->GetName());
 			}
 		}
@@ -182,38 +189,48 @@ namespace Metasound
 			// Register Default Internal Interfaces (Not managed directly by end-user & added by default when creating new MetaSound assets).
 			{
 				constexpr bool bIsDefault = true;
-				RegisterInterface<UMetaSound>(MetasoundV1_0::GetInterface(), nullptr, bIsDefault, IDataReference::RouterName);
+				constexpr bool bEditorCanAddOrRemove = false;
+				RegisterInterface<UMetaSound>(MetasoundV1_0::GetInterface(), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
 
-				RegisterInterface(SourceInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, IDataReference::RouterName);
-				RegisterInterface(OutputFormatMonoInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, IDataReference::RouterName);
+				RegisterInterface(SourceInterface::CreateInterface(*UMetaSoundSource::StaticClass()), MakeUnique<SourceInterface::FUpdateInterface>(), bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
+				RegisterInterface(OutputFormatMonoInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
 			}
 
 			// Register Non-Default Internal Interfaces (Not managed directly by end-user & not added by default when creating new MetaSound assets).
 			{
 				constexpr bool bIsDefault = false;
+				constexpr bool bEditorCanAddOrRemove = false;
+				
+				// Added for upgrading old metasounds
+				RegisterInterface(SourceInterfaceV1_0::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
 
 				// Set default interface with unset version to use base UMetaSound class implementation (legacy requirement for 5.0 alpha).
-				RegisterInterface<UMetaSound>(FMetasoundFrontendInterface(), nullptr, bIsDefault, IDataReference::RouterName);
+				RegisterInterface<UMetaSound>(FMetasoundFrontendInterface(), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
 
-				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatStereoV1_0::GetInterface(), nullptr, bIsDefault, IDataReference::RouterName);
-				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatStereoV1_1::GetInterface(), MakeUnique<MetasoundOutputFormatStereoV1_1::FUpdateInterface>(), bIsDefault, IDataReference::RouterName);
-				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatStereoV1_2::GetInterface(), MakeUnique<MetasoundOutputFormatStereoV1_2::FUpdateInterface>(), bIsDefault, IDataReference::RouterName);
+				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatStereoV1_0::GetInterface(), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
+				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatStereoV1_1::GetInterface(), MakeUnique<MetasoundOutputFormatStereoV1_1::FUpdateInterface>(), bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
+				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatStereoV1_2::GetInterface(), MakeUnique<MetasoundOutputFormatStereoV1_2::FUpdateInterface>(), bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
 
-				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatMonoV1_0::GetInterface(), nullptr, bIsDefault, IDataReference::RouterName);
-				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatMonoV1_1::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_1::FUpdateInterface>(), bIsDefault, IDataReference::RouterName);
-				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatMonoV1_2::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_2::FUpdateInterface>(), bIsDefault, IDataReference::RouterName);
+				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatMonoV1_0::GetInterface(), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
+				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatMonoV1_1::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_1::FUpdateInterface>(), bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
+				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatMonoV1_2::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_2::FUpdateInterface>(), bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
 
-				RegisterInterface(OutputFormatStereoInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, IDataReference::RouterName);
+				RegisterInterface(OutputFormatStereoInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
+				
+				RegisterInterface(SourceOneShotInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, true, IDataReference::RouterName);
 			}
 
 			// Register External Interfaces (Interfaces defined externally & can be managed directly by end-user).
 			auto RegisterExternalInterface = [](Audio::FParameterInterfacePtr Interface)
 			{
 				// Currently, no externally defined interfaces can be added as default for protection against undesired
-				// interfaces automatically being added when creating a new MetaSound asset through the editor.
+				// interfaces automatically being added when creating a new MetaSound asset through the editor. Also,
+				// all parameter interfaces are enabled in the editor for addition/removal.
 				constexpr bool bIsDefault = false;
+				constexpr bool bEditorCanAddOrRemove = true;
+
 				TUniquePtr<Frontend::IDocumentTransform> NullTransform;
-				RegisterInterface(Interface, MoveTemp(NullTransform), bIsDefault, Audio::IParameterTransmitter::RouterName);
+				RegisterInterface(Interface, MoveTemp(NullTransform), bIsDefault, bEditorCanAddOrRemove, Audio::IParameterTransmitter::RouterName);
 			};
 
 			Audio::IAudioParameterInterfaceRegistry::Get().IterateInterfaces(RegisterExternalInterface);

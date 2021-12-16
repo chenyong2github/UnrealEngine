@@ -29,6 +29,9 @@ namespace Metasound
 			// asset of the supported UClass is created.
 			virtual bool IsDefault() const = 0;
 
+			// Whether or not the interface can be added or removed by the editor.
+			virtual bool EditorCanAddOrRemove() const = 0;
+
 			// Name of routing system used to update interface inputs (ex. ParameterInterface or DataReference).
 			virtual FName GetRouterName() const = 0;
 
