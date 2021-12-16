@@ -233,7 +233,7 @@ namespace HordeServer.Services
 
 							if (Delta > 0)
 							{
-								await FleetManager.ExpandPool(Pool, PoolData.Agents, Delta);
+								await FleetManager.ExpandPoolAsync(Pool, PoolData.Agents, Delta);
 								await PoolCollection.TryUpdateAsync(Pool, LastScaleUpTime: DateTime.UtcNow);
 							}
 
@@ -242,7 +242,7 @@ namespace HordeServer.Services
 								bool bShrinkIsOnCoolDown = Pool.LastScaleDownTime != null && Pool.LastScaleDownTime + ShrinkPoolCoolDown > DateTime.UtcNow;
 								if (!bShrinkIsOnCoolDown)
 								{
-									await FleetManager.ShrinkPool(Pool, PoolData.Agents, -Delta);
+									await FleetManager.ShrinkPoolAsync(Pool, PoolData.Agents, -Delta);
 									await PoolCollection.TryUpdateAsync(Pool, LastScaleDownTime: DateTime.UtcNow);
 								}
 								else

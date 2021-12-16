@@ -28,6 +28,7 @@ namespace HordeServer.Services
 		IAgentCollection AgentCollection;
 		ILeaseCollection LeaseCollection;
 		IPoolCollection PoolCollection;
+		IFleetManager FleetManager;
 		IClock Clock;
 		ITicker Tick;
 		ILogger Logger;
@@ -35,12 +36,13 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TelemetryService(ITelemetryCollection TelemetryCollection, IAgentCollection AgentCollection, ILeaseCollection LeaseCollection, IPoolCollection PoolCollection, IClock Clock, ILogger<TelemetryService> Logger)
+		public TelemetryService(ITelemetryCollection TelemetryCollection, IAgentCollection AgentCollection, ILeaseCollection LeaseCollection, IPoolCollection PoolCollection, IFleetManager FleetManager, IClock Clock, ILogger<TelemetryService> Logger)
 		{
 			this.TelemetryCollection = TelemetryCollection;
 			this.AgentCollection = AgentCollection;
 			this.LeaseCollection = LeaseCollection;
 			this.PoolCollection = PoolCollection;
+			this.FleetManager = FleetManager;
 			this.Clock = Clock;
 			this.Tick = Clock.AddSharedTicker<TelemetryService>(TimeSpan.FromMinutes(10.0), TickLeaderAsync, Logger);
 			this.Logger = Logger;
@@ -89,6 +91,16 @@ namespace HordeServer.Services
 
 				NewUtilizationTelemetry Telemetry = new NewUtilizationTelemetry(BucketMinTime, BucketMaxTime);
 				Telemetry.NumAgents = Agents.Count;
+				foreach (IPool Pool in Pools)
+				{
+					if (Pool.EnableAutoscaling)
+					{
+						int NumStoppedInstances = await FleetManager.GetNumStoppedInstancesAsync(Pool);
+
+						NewPoolUtilizationTelemetry PoolTelemetry = Telemetry.FindOrAddPool(Pool.Id);
+						PoolTelemetry.HibernatingTime += Interval.TotalHours * NumStoppedInstances;
+					}
+				}
 				foreach (PoolId PoolId in AgentToPoolIds.Values.SelectMany(x => x))
 				{
 					Telemetry.FindOrAddPool(PoolId).NumAgents++;

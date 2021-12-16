@@ -26,17 +26,20 @@ namespace HordeServer.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task ExpandPool(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
+		public Task ExpandPoolAsync(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
 		{
 			Logger.LogInformation("Expand pool {PoolId} by {Count} agents", Pool.Id, Count);
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task ShrinkPool(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
+		public Task ShrinkPoolAsync(IPool Pool, IReadOnlyList<IAgent> Agents, int Count)
 		{
 			Logger.LogInformation("Shrink pool {PoolId} by {Count} agents", Pool.Id, Count);
 			return Task.CompletedTask;
 		}
+
+		/// <inheritdoc/>
+		public Task<int> GetNumStoppedInstancesAsync(IPool Pool) => Task.FromResult(0);
 	}
 }
