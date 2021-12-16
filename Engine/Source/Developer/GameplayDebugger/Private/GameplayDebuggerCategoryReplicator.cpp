@@ -472,6 +472,8 @@ void AGameplayDebuggerCategoryReplicator::EndPlay(const EEndPlayReason::Type End
 {
 	Super::EndPlay(EndPlayReason);
 
+	SetReplicatorOwner(nullptr);
+
 	// Disable extensions to clear UI state
 	NotifyCategoriesToolState(false);
 	NotifyExtensionsToolState(false);
