@@ -219,6 +219,11 @@ private:
 			return FromExportBundleIndex == Other.FromExportBundleIndex &&
 				ToExportBundleIndex == Other.ToExportBundleIndex;
 		}
+
+		friend FORCEINLINE uint32 GetTypeHash(const FInternalArc& Arc)
+		{
+			return HashCombine(GetTypeHash(Arc.FromExportBundleIndex), GetTypeHash(Arc.ToExportBundleIndex));
+		}
 	};
 
 	struct FExternalArc
