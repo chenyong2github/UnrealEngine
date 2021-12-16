@@ -345,6 +345,13 @@ struct FGenericPlatformMath
 
 	RESOLVE_FLOAT_TO_TYPE_AMBIGUITY(CeilToInt, int32);
 
+	static FORCEINLINE int64 CeilToInt64(double F)
+	{
+		int64 I = (int64)F;
+		I += ((double)I < F);
+		return I;
+	}
+
 	/**
 	* Converts a float to the nearest greater or equal integer.
 	* @param F		Floating point value to convert

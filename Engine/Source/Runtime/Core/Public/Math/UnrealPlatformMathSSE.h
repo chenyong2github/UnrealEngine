@@ -256,6 +256,12 @@ struct TUnrealPlatformMathSSEBase : public Base
 	}
 
 	template<typename T>
+	static FORCEINLINE int64 CeilToInt64(T F)
+	{
+		return UE4::SSE::CeilToInt64(F);
+	}
+
+	template<typename T>
 	static FORCEINLINE T InvSqrt(T F)
 	{
 		return UE4::SSE::InvSqrt(F);
