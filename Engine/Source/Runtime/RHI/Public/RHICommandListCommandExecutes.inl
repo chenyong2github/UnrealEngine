@@ -109,10 +109,10 @@ template <> void FRHICommandBroadcastTemporalEffect<FRHIBuffer>::Execute(FRHICom
 	INTERNAL_DECORATOR(RHIBroadcastTemporalEffect)(EffectName, Resources);
 }
 
-void FRHICommandTransferTextures::Execute(FRHICommandListBase& CmdList)
+void FRHICommandTransferResources::Execute(FRHICommandListBase& CmdList)
 {
-	RHISTAT(TransferTextures);
-	INTERNAL_DECORATOR_COMPUTE(RHITransferTextures)(Params);
+	RHISTAT(TransferResources);
+	INTERNAL_DECORATOR_COMPUTE(RHITransferResources)(Params);
 }
 
 #endif // WITH_MGPU

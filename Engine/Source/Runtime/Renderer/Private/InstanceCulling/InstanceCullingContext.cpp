@@ -377,7 +377,10 @@ void FInstanceCullingContext::BuildRenderingCommands(
 
 
 	// Create buffer for indirect args and upload draw arg data, also clears the instance to zero
-	FRDGBufferRef DrawIndirectArgsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(IndirectArgsNumWords * IndirectArgs.Num()), TEXT("InstanceCulling.DrawIndirectArgsBuffer"));
+	FRDGBufferDesc IndirectArgsDesc = FRDGBufferDesc::CreateIndirectDesc(IndirectArgsNumWords * IndirectArgs.Num());
+	IndirectArgsDesc.Usage = EBufferUsageFlags(IndirectArgsDesc.Usage | BUF_MultiGPUGraphIgnore);
+
+	FRDGBufferRef DrawIndirectArgsRDG = GraphBuilder.CreateBuffer(IndirectArgsDesc, TEXT("InstanceCulling.DrawIndirectArgsBuffer"));
 	GraphBuilder.QueueBufferUpload(DrawIndirectArgsRDG, IndirectArgs.GetData(), IndirectArgs.GetTypeSize() * IndirectArgs.Num());
 
 	// Note: we redundantly clear the instance counts here as there is some issue with replays on certain consoles.

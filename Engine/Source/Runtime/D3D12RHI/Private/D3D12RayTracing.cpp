@@ -4258,7 +4258,7 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 			D3D12_GPU_VIRTUAL_ADDRESS ScratchBufferAddress;
 			if (P.ScratchBuffer)
 			{
-				FD3D12Buffer* ScratchBuffer = FD3D12DynamicRHI::ResourceCast(P.ScratchBuffer);
+				FD3D12Buffer* ScratchBuffer = FD3D12DynamicRHI::ResourceCast(P.ScratchBuffer, GPUIndex);
 
 				uint64 ScratchBufferRequiredSize = P.BuildMode == EAccelerationStructureBuildMode::Update ? Geometry->SizeInfo.UpdateScratchSize : Geometry->SizeInfo.BuildScratchSize;
 				checkf(ScratchBufferRequiredSize + P.ScratchBufferOffset <= ScratchBuffer->GetSize(),
@@ -4342,8 +4342,8 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 void FD3D12CommandContext::RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)
 {
 	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(SceneBuildParams.Scene);
-	FD3D12Buffer* ScratchBuffer = FD3D12DynamicRHI::ResourceCast(SceneBuildParams.ScratchBuffer);
-	FD3D12Buffer* InstanceBuffer = FD3D12DynamicRHI::ResourceCast(SceneBuildParams.InstanceBuffer);
+	FD3D12Buffer* ScratchBuffer = RetrieveObject<FD3D12Buffer>(SceneBuildParams.ScratchBuffer);
+	FD3D12Buffer* InstanceBuffer = RetrieveObject<FD3D12Buffer>(SceneBuildParams.InstanceBuffer);
 	Scene->BuildAccelerationStructure(
 		*this,
 		ScratchBuffer, SceneBuildParams.ScratchBufferOffset,

@@ -22,6 +22,14 @@
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
 
+int32 GDisplayClusterOverrideMultiGPUMode = -1;
+static FAutoConsoleVariableRef CVarDisplayClusterOverrideMultiGPUMode(
+	TEXT("DC.OverrideMultiGPUMode"),
+	GDisplayClusterOverrideMultiGPUMode,
+	TEXT("Override Multi GPU Mode setting from component (-1 == no override, or EDisplayClusterConfigurationRenderMGPUMode enum)"),
+	ECVF_RenderThreadSafe
+);
+
 ///////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfiguration
 ///////////////////////////////////////////////////////////////////
@@ -162,7 +170,10 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 	}
 
 	// Performance: Allow change global MGPU settings
-	switch (InRenderFrameConfiguration.MultiGPUMode)
+	int32 ModeOverride = FMath::Min(GDisplayClusterOverrideMultiGPUMode,
+		(int32)EDisplayClusterConfigurationRenderMGPUMode::Optimized_DisabledLockSteps);
+
+	switch (ModeOverride >= 0 ? (EDisplayClusterConfigurationRenderMGPUMode)ModeOverride : InRenderFrameConfiguration.MultiGPUMode)
 	{
 	case EDisplayClusterConfigurationRenderMGPUMode::None:
 		RenderFrameSettings.MultiGPUMode = EDisplayClusterMultiGPUMode::None;

@@ -1814,6 +1814,8 @@ void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene)
 {
 	if (bIsEnabled)
 	{
+		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
 		ensure(bInBeginEndBlock);
 		
 		UpdateInternal(GraphBuilder, Scene);

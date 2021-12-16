@@ -1815,6 +1815,11 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 			}
 			RHICmdList.BroadcastTemporalEffect(NameForTemporalEffect, BroadcastTexturesForTemporalEffect);
 		}
+
+		if (bForceCopyCrossGPU)
+		{
+			ForceCopyCrossGPU();
+		}
 	#endif
 
 		// Wait on the actual parallel execute tasks in the Execute call. When draining is okay to let them overlap with other graph setup.
@@ -3556,3 +3561,96 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 }
 
 #endif //! RDG_ENABLE_DEBUG
+
+#if WITH_MGPU
+void FRDGBuilder::ForceCopyCrossGPU()
+{
+	// Initialize set of external buffers
+	TSet<FRHIBuffer*> ExternalBufferSet;
+	ExternalBufferSet.Reserve(ExternalBuffers.Num());
+
+	for (auto ExternalBufferIt = ExternalBuffers.CreateConstIterator(); ExternalBufferIt; ++ExternalBufferIt)
+	{
+		ExternalBufferSet.Emplace(ExternalBufferIt.Value()->GetRHIUnchecked());
+	}
+
+	// Generate list of cross GPU resources from all passes, and the GPU mask where they were last written 
+	TMap<FRHIBuffer*, FRHIGPUMask> BuffersToTransfer;
+	TMap<FRHITexture*, FRHIGPUMask> TexturesToTransfer;
+
+	for (FRDGPassHandle PassHandle = GetProloguePassHandle(); PassHandle <= GetEpiloguePassHandle(); ++PassHandle)
+	{
+		FRDGPass* Pass = Passes[PassHandle];
+
+		for (int32 BufferIndex = 0; BufferIndex < Pass->BufferStates.Num(); BufferIndex++)
+		{
+			FRHIBuffer* BufferRHI = Pass->BufferStates[BufferIndex].Buffer->GetRHIUnchecked();
+
+			if (ExternalBufferSet.Contains(BufferRHI) &&
+				!EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_MultiGPUAllocate | BUF_MultiGPUGraphIgnore) &&
+				EnumHasAnyFlags(Pass->BufferStates[BufferIndex].State.Access, ERHIAccess::WritableMask))
+			{
+				BuffersToTransfer.Emplace(BufferRHI) = Pass->GPUMask;
+			}
+		}
+
+		for (int32 TextureIndex = 0; TextureIndex < Pass->TextureStates.Num(); TextureIndex++)
+		{
+			if (ExternalTextures.Contains(Pass->TextureStates[TextureIndex].Texture->GetRHIUnchecked()))
+			{
+				for (int32 StateIndex = 0; StateIndex < Pass->TextureStates[TextureIndex].State.Num(); StateIndex++)
+				{
+					FRHITexture* TextureRHI = Pass->TextureStates[TextureIndex].Texture->GetRHIUnchecked();
+
+					if (TextureRHI &&
+						!EnumHasAnyFlags(TextureRHI->GetFlags(), TexCreate_MultiGPUGraphIgnore) &&
+						EnumHasAnyFlags(Pass->TextureStates[TextureIndex].State[StateIndex].Access, ERHIAccess::WritableMask))
+					{
+						TexturesToTransfer.Emplace(Pass->TextureStates[TextureIndex].Texture->GetRHIUnchecked()) = Pass->GPUMask;
+					}
+				}
+			}
+		}
+	}
+
+	// Now that we've got the list of external resources, and the GPU they were last written to, make a list of what needs to
+	// be propagated to other GPUs.
+	TArray<FTransferResourceParams> Transfers;
+	const FRHIGPUMask AllGPUMask = FRHIGPUMask::All();
+	const bool bPullData = false;
+	const bool bLockstepGPUs = true;
+
+	for (auto BufferIt = BuffersToTransfer.CreateConstIterator(); BufferIt; ++BufferIt)
+	{
+		FRHIBuffer* Buffer = BufferIt.Key();
+		FRHIGPUMask GPUMask = BufferIt.Value();
+
+		for (uint32 GPUIndex : AllGPUMask)
+		{
+			if (!GPUMask.Contains(GPUIndex))
+			{
+				Transfers.Add(FTransferResourceParams(Buffer, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockstepGPUs));
+			}
+		}
+	}
+
+	for (auto TextureIt = TexturesToTransfer.CreateConstIterator(); TextureIt; ++TextureIt)
+	{
+		FRHITexture* Texture = TextureIt.Key();
+		FRHIGPUMask GPUMask = TextureIt.Value();
+
+		for (uint32 GPUIndex : AllGPUMask)
+		{
+			if (!GPUMask.Contains(GPUIndex))
+			{
+				Transfers.Add(FTransferResourceParams(Texture, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockstepGPUs));
+			}
+		}
+	}
+
+	if (Transfers.Num())
+	{
+		RHICmdList.TransferResources(Transfers);
+	}
+}
+#endif  // WITH_MGPU

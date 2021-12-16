@@ -560,6 +560,7 @@ private:
 	friend FRDGAllocator;
 	friend FPooledRenderTarget;
 	friend FRDGTrace;
+	friend FRDGTextureUAV;
 };
 
 /** Render graph tracked SRV. */
@@ -716,6 +717,14 @@ public:
 	FRDGTextureRef GetParent() const override
 	{
 		return Desc.Texture;
+	}
+
+	// Can be used instead of GetParent()->GetRHI() to access the underlying texture for a UAV resource in a Pass, without triggering
+	// validation errors.  The RDG validation logic only flags the UAV as accessible, not the parent texture.
+	FRHITexture* GetParentRHI() const
+	{
+		IF_RDG_ENABLE_DEBUG(ValidateRHIAccess());
+		return Desc.Texture->GetRHIUnchecked();
 	}
 
 	FRDGTextureSubresourceRange GetSubresourceRange() const;

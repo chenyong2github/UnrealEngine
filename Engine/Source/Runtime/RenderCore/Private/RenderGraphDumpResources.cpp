@@ -774,7 +774,15 @@ struct FRDGResourceDumpContext
 		void* Content = nullptr;
 		int32 RowPitchInPixels = 0;
 		int32 ColumnPitchInPixels = 0;
-		RHICmdList.MapStagingSurface(StagingTexture, Fence.GetReference(), Content, RowPitchInPixels, ColumnPitchInPixels);
+
+		// jhoerner_todo 12/9/2021:  pick arbitrary GPU out of mask to avoid assert.  Eventually want to dump results for all GPUs, but
+		// I need to understand how to modify the dumping logic, and this works for now (usually when debugging, the bugs happen on
+		// secondary GPUs, so I figure the last index is most useful if we need to pick one).  I also would like the dump to include
+		// information about the GPUMask for each pass, and perhaps have the dump include the final state of all external resources
+		// modified by the graph (especially useful for MGPU, where we are concerned about cross-view or cross-frame state).
+		uint32 GPUIndex = RHICmdList.GetGPUMask().GetLastIndex();
+
+		RHICmdList.MapStagingSurface(StagingTexture, Fence.GetReference(), Content, RowPitchInPixels, ColumnPitchInPixels, GPUIndex);
 
 		if (Content)
 		{
@@ -794,7 +802,7 @@ struct FRDGResourceDumpContext
 				FPlatformMemory::Memmove(DstPos, SrcPos, SIZE_T(SubresourceDumpDesc.SubResourceExtent.X) * BytePerPixel);
 			}
 
-			RHICmdList.UnmapStagingSurface(StagingTexture);
+			RHICmdList.UnmapStagingSurface(StagingTexture, GPUIndex);
 
 			DumpBinaryToFile(Array, DumpFilePath);
 		}

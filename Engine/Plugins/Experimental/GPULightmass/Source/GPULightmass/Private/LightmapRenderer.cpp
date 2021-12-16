@@ -2694,7 +2694,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 	// Pull results from other GPUs using batched transfer if realtime
 	if (!bInsideBackgroundTick)
 	{
-		TArray<FTransferTextureParams> Params;
+		TArray<FTransferResourceParams> Params;
 
 		for (const FLightmapTileRequest& Tile : PendingTileRequests)
 		{
@@ -2705,7 +2705,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					FIntRect GPURect;
 					GPURect.Min = LightmapTilePoolGPU.GetPositionFromLinearAddress(Tile.TileAddressInWorkingSet) * LightmapTilePoolGPU.LayerFormatAndTileSize[RenderTargetIndex].TileSize;
 					GPURect.Max = GPURect.Min + LightmapTilePoolGPU.LayerFormatAndTileSize[RenderTargetIndex].TileSize;
-					Params.Add(FTransferTextureParams(LightmapTilePoolGPU.PooledRenderTargets[RenderTargetIndex]->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, AssignedGPUIndex, 0, true, true));
+					Params.Add(FTransferResourceParams(LightmapTilePoolGPU.PooledRenderTargets[RenderTargetIndex]->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, AssignedGPUIndex, 0, true, true));
 				};
 
 				TransferTexture(0);
@@ -2723,9 +2723,9 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 			}
 		}
 
-		AddPass(GraphBuilder, RDG_EVENT_NAME("TransferTextures"), [LocalParams = MoveTemp(Params)](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("TransferResources"), [LocalParams = MoveTemp(Params)](FRHICommandList& RHICmdList)
 		{
-			RHICmdList.TransferTextures(LocalParams);
+			RHICmdList.TransferResources(LocalParams);
 		});
 	}
 

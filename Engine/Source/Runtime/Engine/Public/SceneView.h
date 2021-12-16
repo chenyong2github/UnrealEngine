@@ -1681,6 +1681,11 @@ public:
 	/** if true then each view is not rendered using the same GPUMask. */
 	bool bMultiGPUForkAndJoin;
 
+#if WITH_MGPU
+	/** Force a cross-GPU copy of all persistent resources after rendering this view family (except those marked MultiGPUGraphIgnore) */
+	bool bForceCopyCrossGPU;
+#endif
+
 	/** Whether this view is rendered in BeginRenderingViewFamily() immediately after another render. */
 	bool bIsRenderedImmediatelyAfterAnotherViewFamily = false;
 

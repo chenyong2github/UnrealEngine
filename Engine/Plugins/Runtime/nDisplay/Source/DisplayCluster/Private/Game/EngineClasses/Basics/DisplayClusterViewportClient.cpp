@@ -48,6 +48,16 @@
 #include "Config/DisplayClusterConfigManager.h"
 
 
+// Debug feature to synchronize and force all external resources to be transferred cross GPU at the end of graph execution.
+// May be useful for testing cross GPU synchronization logic.
+int32 GDisplayClusterForceCopyCrossGPU = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterForceCopyCrossGPU(
+	TEXT("DC.ForceCopyCrossGPU"),
+	GDisplayClusterForceCopyCrossGPU,
+	TEXT("Force cross GPU copy of all resources after each view render.  Bad for perf, but may be useful for debugging."),
+	ECVF_RenderThreadSafe
+);
+
 UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper)
 	: Super(Helper)
 {
@@ -530,6 +540,10 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				}
 
 				ViewFamily.bIsHDR = GetWindow().IsValid() ? GetWindow().Get()->GetIsHDR() : false;
+
+#if WITH_MGPU
+				ViewFamily.bForceCopyCrossGPU = GDisplayClusterForceCopyCrossGPU != 0;
+#endif
 
 				// Draw the player views.
 				if (!bDisableWorldRendering && PlayerViewMap.Num() > 0 && FSlateApplication::Get().GetPlatformApplication()->IsAllowedToRender()) //-V560

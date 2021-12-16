@@ -2992,8 +2992,8 @@ void FSceneRenderer::DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask 
 						{
 							if (!ViewInfo.GPUMask.Contains(RenderTargetGPUIndex))
 							{
-								FTransferTextureParams Param(static_cast<FRHITexture2D*>(ViewFamilyTexture->GetRHI()), TransferRect, ViewInfo.GPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, true);
-								RHICmdList.TransferTextures(TArrayView<const FTransferTextureParams>(&Param, 1));
+								FTransferResourceParams Param(static_cast<FRHITexture2D*>(ViewFamilyTexture->GetRHI()), TransferRect, ViewInfo.GPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, true);
+								RHICmdList.TransferResources(TArrayView<const FTransferResourceParams>(&Param, 1));
 							}
 						}
 					}
@@ -4078,6 +4078,13 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 				),
 				FSceneRenderer::GetRDGParalelExecuteFlags(FeatureLevel)
 			);
+
+#if WITH_MGPU
+			if (ViewFamily.bForceCopyCrossGPU)
+			{
+				GraphBuilder.EnableForceCopyCrossGPU();
+			}
+#endif
 
 			if (ViewFamily.EngineShowFlags.HitProxies)
 			{
