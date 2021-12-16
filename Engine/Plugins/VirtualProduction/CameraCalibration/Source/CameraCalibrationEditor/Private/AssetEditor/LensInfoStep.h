@@ -31,13 +31,13 @@ public:
 
 public:
 
-	/** Triggered when user click save data button */
-	void OnSaveLensInformation() const;
+	/** Triggered when user edits any of the LensInfo properties */
+	void OnSaveLensInformation();
 
-	/** Reapplied current value from LensFile in our temporary copy displayed in UI */
-	void ResetToDefault() const;
+	/** Reapply the original LensInfo to the LensFile */
+	void ResetToDefault();
 
-	/** Returns true if our LensInfo differs from the one in the LensFile being edited */
+	/** Returns true if our LensInfo differs from the original info when the tool was opened */
 	bool DiffersFromDefault() const;
 
 private:
@@ -48,6 +48,10 @@ private:
 	/** True if this tool is the active one in the panel */
 	bool bIsActive = false;
 
-	/** Lens information being edited in the panel */
-	TSharedPtr<TStructOnScope<FLensInfo>> EditedLensInfo;
+	/** Original LensInfo, used to reset the details back to default */
+	FLensInfo OriginalLensInfo;
+
+	/** Cached previous LensInfo, used to trigger correct transactions to allow for undo operations */
+	UPROPERTY(Transient)
+	FLensInfo CachedLensInfo;
 };
