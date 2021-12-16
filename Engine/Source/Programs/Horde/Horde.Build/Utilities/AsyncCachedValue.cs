@@ -85,12 +85,24 @@ namespace HordeServer.Utilities
 				TaskCompletionSource<State> NextTaskSource = new TaskCompletionSource<State>();
 				if (Interlocked.CompareExchange(ref UpdateTask, NextTaskSource.Task, null) == null)
 				{
-					Task.Run(async () => NextTaskSource.SetResult(new State(await Generator())));
+					Task.Run(() => GenerateNewValueAsync(NextTaskSource));
 					return NextTaskSource.Task;
 				}
 				CurrentTask = UpdateTask;
 			}
 			return CurrentTask;
+		}
+
+		async Task GenerateNewValueAsync(TaskCompletionSource<State> NextTaskSource)
+		{
+			try
+			{
+				NextTaskSource.SetResult(new State(await Generator()));
+			}
+			catch (Exception Ex)
+			{
+				NextTaskSource.SetException(Ex);
+			}
 		}
 
 		/// <summary>
