@@ -359,7 +359,12 @@ EMaterialGenerateHLSLStatus UMaterialExpressionReflectionVectorWS::GenerateHLSLE
 
 EMaterialGenerateHLSLStatus UMaterialExpressionFunctionInput::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	return Generator.Error(TEXT("Invalid"));
+	OutExpression = Generator.AcquireFunctionInputExpression(Scope, this);
+	if (OutExpression)
+	{
+		return EMaterialGenerateHLSLStatus::Success;
+	}
+	return Generator.Error("Invalid material function input");
 }
 
 EMaterialGenerateHLSLStatus UMaterialExpressionMaterialFunctionCall::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)

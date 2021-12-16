@@ -108,10 +108,12 @@ public:
 	 * Note that a given UMaterialExpression may only support 1 of these node types, attempting to access an invalid node type will generate an error
 	 */
 	UE::HLSLTree::FExpression* AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
+	UE::HLSLTree::FExpression* AcquireFunctionInputExpression(UE::HLSLTree::FScope& Scope, const UMaterialExpressionFunctionInput* MaterialExpression);
+
 	UE::HLSLTree::FTextureParameterDeclaration* AcquireTextureDeclaration(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
 	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
 
-	UE::HLSLTree::FExpression* GenerateFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* Function, TArrayView<const FFunctionExpressionInput> Inputs, int32 OutputIndex);
+	UE::HLSLTree::FExpression* GenerateFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* Function, TArrayView<const FFunctionExpressionInput> ConnectedInputs, int32 OutputIndex);
 
 	template<typename T, typename... ArgTypes>
 	T* NewExpressionData(const UMaterialExpression* MaterialExpression, ArgTypes... Args)
@@ -144,24 +146,7 @@ public:
 
 private:
 	static constexpr int32 MaxNumPreviousScopes = UE::HLSLTree::MaxNumPreviousScopes;
-	struct FExpressionKey
-	{
-		explicit FExpressionKey(UMaterialExpression* InExpression, int32 InOutputIndex = INDEX_NONE) : Expression(InExpression), OutputIndex(InOutputIndex) {}
-
-		UMaterialExpression* Expression;
-		int32 OutputIndex;
-
-		friend inline uint32 GetTypeHash(const FExpressionKey& Value)
-		{
-			return HashCombine(GetTypeHash(Value.Expression), GetTypeHash(Value.OutputIndex));
-		}
-
-		friend inline bool operator==(const FExpressionKey& Lhs, const FExpressionKey& Rhs)
-		{
-			return Lhs.Expression == Rhs.Expression && Lhs.OutputIndex == Rhs.OutputIndex;
-		}
-	};
-
+	
 	struct FExpressionDataKey
 	{
 		FExpressionDataKey(const FName& InTypeName, const UMaterialExpression* InMaterialExpression) : MaterialExpression(InMaterialExpression), TypeName(InTypeName) {}
@@ -180,10 +165,18 @@ private:
 		}
 	};
 
+	struct FFunctionInput
+	{
+		const UMaterialExpressionFunctionInput* FunctionInputExpression = nullptr;
+		UMaterialExpression* ConnectedExpression = nullptr;
+		int32 ConnectedOutputIndex = INDEX_NONE;
+	};
+	using FFunctionInputArray = TArray<FFunctionInput, TInlineAllocator<4>>;
+
 	struct FFunctionCallEntry
 	{
 		UMaterialFunctionInterface* Function = nullptr;
-		TMap<FExpressionKey, UE::HLSLTree::FExpression*> ExpressionMap;
+		FFunctionInputArray Inputs;
 	};
 
 	struct FStatementEntry
@@ -206,8 +199,8 @@ private:
 	UE::HLSLTree::FExpression* ResultExpression = nullptr;
 	UE::HLSLTree::FStatement* ResultStatement = nullptr;
 
-	TArray<FExpressionKey> ExpressionStack;
-	TArray<FFunctionCallEntry*> FunctionCallStack;
+	TArray<UMaterialExpression*> ExpressionStack;
+	TArray<FFunctionCallEntry*, TInlineAllocator<8>> FunctionCallStack;
 	TArray<UE::HLSLTree::FScope*> JoinedScopeStack;
 	TArray<FString> CompileErrors;
 	TArray<UMaterialExpression*> ErrorExpressions;
