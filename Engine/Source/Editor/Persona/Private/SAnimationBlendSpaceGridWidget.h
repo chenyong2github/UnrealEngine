@@ -218,6 +218,20 @@ protected:
 	void OnInputSliderBegin(const int32 ParameterIndex);
 	void OnInputSliderEnd(const float NewValue, const int32 ParameterIndex);
 
+	/** Binds commands to functions in this class */
+	void BindCommands();
+
+	/** Handlers for blend sample actions*/
+	void OnBlendSampleCut();
+	void OnBlendSampleCopy();
+	void OnBlendSamplePaste();
+	void OnBlendSampleDelete();
+
+	/** Returns whether or not the action is possible */
+	bool CanBlendSampleCutCopy();
+	bool CanBlendSamplePaste();
+	bool CanBlendSampleDelete();
+
 	/** Returns whether or not the sample tool tips should be visible */
 	EVisibility GetSampleToolTipVisibility() const;
 	EVisibility GetPreviewToolTipVisibility() const;
@@ -310,6 +324,9 @@ private:
 	FText ParameterYName;
 	TArray<FVector2D> CachedGridPoints;
 	TArray<FVector> CachedSamplePoints;
+
+	/** Commands that are bound to delegates */
+	TSharedPtr<class FUICommandList> UICommandList;
 
 	/** Whether or not the cached data should be refreshed on the next tick*/
 	bool bRefreshCachedData;
