@@ -659,6 +659,11 @@ void UPathFollowingComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 
 void UPathFollowingComponent::SetMovementComponent(UNavMovementComponent* MoveComp)
 {
+	if (!MoveComp && MovementComp && MovementComp->GetPathFollowingAgent() == this)
+	{
+		MovementComp->SetPathFollowingAgent(nullptr);
+	}
+
 	MovementComp = MoveComp;
 	MyNavData = nullptr;
 
