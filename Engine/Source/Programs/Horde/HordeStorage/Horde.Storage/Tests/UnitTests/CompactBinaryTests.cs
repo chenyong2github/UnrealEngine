@@ -64,6 +64,26 @@ namespace EuropaUnit
             Assert.AreEqual(new BlobIdentifier("c7a03f83c08cdca882110ecf2b5654ee3b09b11e"), payloadFields[2]["RawHash"]!.AsHash());
         }
 
+        [TestMethod]
+        public void compact_binary()
+        {
+            byte[] bytes = File.ReadAllBytes("CompactBinaryObjects/compact_binary");
+
+            BlobIdentifier bi = BlobIdentifier.FromBlob(bytes);
+            ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(bytes);
+            CompactBinaryObject o = CompactBinaryObject.Load(ref memory);
+
+            Assert.AreEqual("", o.Name);
+            List<CompactBinaryField> buildActionFields = o.GetFields().ToList();
+            Assert.AreEqual(3, buildActionFields.Count);
+            CompactBinaryField payloads = buildActionFields[0];
+            List<CompactBinaryField> payloadFields = payloads.GetFields().ToList();
+            Assert.AreEqual(2, payloadFields.Count);
+
+            Assert.AreEqual("{\"Key\":{\"Bucket\":\"EditorDomainPackage\"},\"Meta\":{\"FileSize\":24789},\"Attachments\":[{\"Id\":\"000000000000000000000001\"}]}", o.ToJson());
+        }
+
+
 
         [TestMethod]
         public void WriteArray()

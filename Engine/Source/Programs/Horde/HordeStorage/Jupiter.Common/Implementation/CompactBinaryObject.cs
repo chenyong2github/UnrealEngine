@@ -20,7 +20,7 @@ namespace Jupiter.Implementation
         private const CompactBinaryFieldType TypeMask              = (CompactBinaryFieldType)0b_0001_1111;
 
         private const CompactBinaryFieldType ObjectMask             = (CompactBinaryFieldType)0b_0001_1110;
-        private const CompactBinaryFieldType ObjectBase             = (CompactBinaryFieldType)0b_0001_0010;
+        private const CompactBinaryFieldType ObjectBase             = (CompactBinaryFieldType)0b_0000_0010;
         
         private const CompactBinaryFieldType ArrayMask             = (CompactBinaryFieldType)0b_0001_1110;
         private const CompactBinaryFieldType ArrayBase             = (CompactBinaryFieldType)0b_0000_0100;
@@ -56,6 +56,11 @@ namespace Jupiter.Implementation
         public static bool IsInteger(CompactBinaryFieldType type)
         {
             return (type & IntegerMask) == IntegerBase;
+        }
+
+        public static bool IsPositiveInteger(CompactBinaryFieldType type)
+        {
+            return IsInteger(type) && RemoveFlags(type) == CompactBinaryFieldType.IntegerPositive;
         }
 
         public static bool IsFloat(CompactBinaryFieldType type)
@@ -106,6 +111,11 @@ namespace Jupiter.Implementation
         public static bool IsBinary(CompactBinaryFieldType type)
         {
             return RemoveFlags(type) == CompactBinaryFieldType.Binary;
+        }
+
+        public static bool IsObjectId(CompactBinaryFieldType type)
+        {
+            return RemoveFlags(type) == CompactBinaryFieldType.ObjectId;
         }
 
         public static bool HasUniformFields(CompactBinaryFieldType type)
@@ -470,6 +480,18 @@ namespace Jupiter.Implementation
             return null;
         }
 
+        public uint? AsPositiveInteger()
+        {
+            if (CompactBinaryFieldUtils.IsPositiveInteger(_type))
+            {                
+                ReadOnlyMemory<byte> localPayload = _payload.Slice(0);
+                ulong integer = BitUtils.ReadVarUInt(ref localPayload, out int magnitudeByteCount);
+                return (uint)integer;
+            }
+
+            return null;
+        }
+
         public bool? AsBool()
         {
             if (CompactBinaryFieldUtils.IsBool(_type))
@@ -507,8 +529,12 @@ namespace Jupiter.Implementation
         
         public CompactBinaryObject AsObject()
         {
-            ReadOnlyMemory<byte> localMemory = _payload.Slice(0);
-            return CompactBinaryObject.Load(ref localMemory);
+            ReadOnlyMemory<byte> localPayload = _payload.Slice(0);
+
+            ulong payloadSize = BitUtils.ReadVarUInt(ref localPayload, out int payloadBytesRead);
+            localPayload = localPayload.Slice(payloadBytesRead);
+
+            return CompactBinaryObject.Load(ref localPayload);
         }
 
         public Guid AsUuid(Guid @default = default(Guid))
@@ -519,6 +545,11 @@ namespace Jupiter.Implementation
             }
 
             return @default;
+        }
+
+        public byte[]? AsObjectId()
+        {
+            return _payload.ToArray();
         }
 
         public bool IsObject()
@@ -535,7 +566,10 @@ namespace Jupiter.Implementation
         {
             return CompactBinaryFieldUtils.IsInteger(_type);
         }
-
+        public bool IsPositiveInteger()
+        {
+            return CompactBinaryFieldUtils.IsPositiveInteger(_type);
+        }
         public bool IsDateTime()
         {
             return CompactBinaryFieldUtils.IsDateTime(_type);
@@ -579,6 +613,11 @@ namespace Jupiter.Implementation
         public bool IsAttachment()
         {
             return CompactBinaryFieldUtils.IsAttachment(_type);
+        }
+
+        public bool IsObjectId()
+        {
+            return CompactBinaryFieldUtils.IsObjectId(_type);
         }
 
         public int GetObjectLength()
@@ -832,22 +871,39 @@ namespace Jupiter.Implementation
             return Encoding.UTF8.GetString(buffer.WrittenMemory.Span);
         }
 
-        private static void WriteField(CompactBinaryField field, Utf8JsonWriter jsonWriter)
+        private static void WriteField(CompactBinaryField field, Utf8JsonWriter jsonWriter, bool addPropertyName = true)
         {
             if (field.IsObject())
             {
+                if (addPropertyName)
+                {
+                    jsonWriter.WritePropertyName(field.Name);
+                }
                 jsonWriter.WriteStartObject();
                 CompactBinaryObject o = field.AsObject();
+                WriteField(o, jsonWriter);
+                jsonWriter.WriteEndObject();
+                /*jsonWriter.WritePropertyName(o.Name);
+                jsonWriter.WriteStartObject();
                 foreach (CompactBinaryField f in o.GetFields())
                 {
                     WriteField(f, jsonWriter);
                 }
-                jsonWriter.WriteEndObject();
+                jsonWriter.WriteEndObject();*/
+
             }
             else if (field.IsArray())
             {
-                jsonWriter.WriteStartArray();
+                jsonWriter.WriteStartArray(field.Name);
+                foreach (CompactBinaryField f in field.AsArray())
+                {
+                    WriteField(f, jsonWriter, addPropertyName: false);
+                }
                 jsonWriter.WriteEndArray();
+            }
+            else if (field.IsPositiveInteger())
+            {
+                jsonWriter.WriteNumber(field.Name, field.AsPositiveInteger()!.Value);
             }
             else if (field.IsInteger())
             {
@@ -872,6 +928,10 @@ namespace Jupiter.Implementation
             else if (field.IsString())
             {
                 jsonWriter.WriteString(field.Name, field.AsString());
+            }
+            else if (field.IsObjectId())
+            {
+                jsonWriter.WriteString(field.Name, StringUtils.FormatAsHexString(field.AsObjectId()!));
             }
             else
             {
