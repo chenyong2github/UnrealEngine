@@ -122,7 +122,12 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 	                {
 	                	if(ProtocolList.IsValid() && ProtocolList->GetSelectedProtocolName().IsValid())
 	                	{
-	                		ViewModel->AddBinding(*ProtocolList->GetSelectedProtocolName());
+	                		const FName& ProtocolName = *ProtocolList->GetSelectedProtocolName();
+	                		ViewModel->AddBinding(ProtocolName);
+	                		if (!IsProtocolShown(ProtocolName))
+	                		{
+	                			ToggleShowProtocol(ProtocolName);
+	                		}
 	                	}
                         return FReply::Handled();
 	                })
