@@ -573,13 +573,18 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RefreshBoneTransforms(FActorCompo
 	}
 }
 
-void UPhysicsAssetEditorSkeletalMeshComponent::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
+void UPhysicsAssetEditorSkeletalMeshComponent::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName, bool bVelChange)
 {
 #if !WITH_CHAOS
-	Super::AddImpulseAtLocation(Impulse, Location, BoneName);
+	Super::AddImpulseAtLocation(Impulse, Location, BoneName, bVelChange);
 #else
 	if (PreviewInstance != nullptr)
 	{
+		if (bVelChange)
+		{
+			ensureMsgf(false, TEXT("Velocity Change does not function in SkeletalMeshComponent."));
+		}
+
 		PreviewInstance->AddImpulseAtLocation(Impulse, Location, BoneName);
 	}
 #endif
