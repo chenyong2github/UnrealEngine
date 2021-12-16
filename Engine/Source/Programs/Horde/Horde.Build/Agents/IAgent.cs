@@ -610,7 +610,7 @@ namespace HordeServer.Models
 				if (Index < 0)
 				{
 					Index = ~Index;
-					while (Index < Agent.Properties.Count)
+					for (; Index < Agent.Properties.Count; Index++)
 					{
 						string Property = Agent.Properties[Index];
 						if (Property.Length <= Name.Length || !Property.StartsWith(Name, StringComparison.OrdinalIgnoreCase) || Property[Name.Length] != '=')
