@@ -3121,6 +3121,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		{
 			PassMask.Set(EMeshPass::BasePass);
 			View.NumVisibleDynamicMeshElements[EMeshPass::BasePass] += NumElements;
+			
+			if (ViewRelevance.bUsesSkyMaterial)
+			{
+				PassMask.Set(EMeshPass::SkyPass);
+				View.NumVisibleDynamicMeshElements[EMeshPass::SkyPass] += NumElements;
+			}
 
 			if (ViewRelevance.bUsesAnisotropy)
 			{
