@@ -42,7 +42,7 @@ public:
 	template <typename T>
 	typename TEnableIf<TModels<CGetTypeHashable, T>::Value, FHashBuilder&>::Type Append(const T& InData)
 	{
-		Hash = HashCombine(Hash, GetTypeHash(InData));
+		Hash = HashCombineFast(Hash, GetTypeHash(InData));
 		return *this;
 	}
 
