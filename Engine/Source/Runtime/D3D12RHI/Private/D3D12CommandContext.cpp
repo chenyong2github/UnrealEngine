@@ -1073,13 +1073,13 @@ void FD3D12CommandContextRedirector::RHIEndTransitions(TArrayView<const FRHITran
 	ContextRedirect(RHIEndTransitions(Transitions));
 }
 
-void FD3D12CommandContextRedirector::RHITransferTextures(const TArrayView<const FTransferTextureParams> Params)
+void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const FTransferResourceParams> Params)
 {
 #if WITH_MGPU
 	// Note that by default it is not empty, but GPU0
 	FRHIGPUMask SrcAndDestMask; 
 
-	for (const FTransferTextureParams& Param : Params)
+	for (const FTransferResourceParams& Param : Params)
 	{
 		FD3D12CommandContext* SrcContext = PhysicalContexts[Param.SrcGPUIndex];
 		FD3D12CommandContext* DestContext = PhysicalContexts[Param.DestGPUIndex];
@@ -1101,12 +1101,26 @@ void FD3D12CommandContextRedirector::RHITransferTextures(const TArrayView<const 
 			}
 		}
 
-		FD3D12TextureBase* SrcTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.SrcGPUIndex);
-		FD3D12TextureBase* DestTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.DestGPUIndex);
+		FD3D12Resource* SrcResource;
+		FD3D12Resource* DestResource;
 
-		FD3D12DynamicRHI::TransitionResource(SrcContext->CommandListHandle, SrcTexture->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
-		FD3D12DynamicRHI::TransitionResource(DestContext->CommandListHandle, DestTexture->GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
+		if (Param.Texture)
+		{
+			check(Param.Buffer == nullptr);
 
+			SrcResource = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.SrcGPUIndex)->GetResource();
+			DestResource = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.DestGPUIndex)->GetResource();
+		}
+		else
+		{
+			check(Param.Buffer != nullptr);
+
+			SrcResource = FD3D12DynamicRHI::ResourceCast(Param.Buffer.GetReference(), Param.SrcGPUIndex)->GetResource();
+			DestResource = FD3D12DynamicRHI::ResourceCast(Param.Buffer.GetReference(), Param.DestGPUIndex)->GetResource();
+		}
+
+		FD3D12DynamicRHI::TransitionResource(SrcContext->CommandListHandle, SrcResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
+		FD3D12DynamicRHI::TransitionResource(DestContext->CommandListHandle, DestResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
 	}
 
 	// Make sure to Submit any pending work before signaling the fence.
@@ -1122,7 +1136,7 @@ void FD3D12CommandContextRedirector::RHITransferTextures(const TArrayView<const 
 	else
 	{
 		GPUFence->Signal(ED3D12CommandQueueType::Direct);
-		for (const FTransferTextureParams& Param : Params)
+		for (const FTransferResourceParams& Param : Params)
 		{
 			if (Param.bPullData)
 			{
@@ -1132,7 +1146,7 @@ void FD3D12CommandContextRedirector::RHITransferTextures(const TArrayView<const 
 		}
 	}
 
-	for (const FTransferTextureParams& Param : Params)
+	for (const FTransferResourceParams& Param : Params)
 	{
 		FD3D12CommandContext* SrcContext = PhysicalContexts[Param.SrcGPUIndex];
 		FD3D12CommandContext* DestContext = PhysicalContexts[Param.DestGPUIndex];
@@ -1141,23 +1155,53 @@ void FD3D12CommandContextRedirector::RHITransferTextures(const TArrayView<const 
 			continue;
 		}
 
-		FD3D12TextureBase* SrcTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.SrcGPUIndex);
-		FD3D12TextureBase* DestTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.DestGPUIndex);
-
-		ensureMsgf(
-			Param.Min.X >= 0 && Param.Min.Y >= 0 && Param.Min.Z >= 0 &&
-			Param.Max.X >= 0 && Param.Max.Y >= 0 && Param.Max.Z >= 0,
-			TEXT("Invalid rect for texture transfer: %i, %i, %i, %i"), Param.Min.X, Param.Min.Y, Param.Min.Z, Param.Max.X, Param.Max.Y, Param.Max.Z);
-
-		D3D12_BOX Box = { (UINT)Param.Min.X, (UINT)Param.Min.Y, (UINT)Param.Min.Z, (UINT)Param.Max.X, (UINT)Param.Max.Y, (UINT)Param.Max.Z };
-
-		CD3DX12_TEXTURE_COPY_LOCATION SrcLocation(SrcTexture->GetResource()->GetResource(), 0);
-		CD3DX12_TEXTURE_COPY_LOCATION DestLocation(DestTexture->GetResource()->GetResource(), 0);
-
 		FD3D12CommandContext* CopyContext = Param.bPullData ? DestContext : SrcContext;
-		CopyContext->CommandListHandle->CopyTextureRegion(&DestLocation, Box.left, Box.top, Box.front, &SrcLocation, &Box);
+
+		if (Param.Texture)
+		{
+			FD3D12TextureBase* SrcTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.SrcGPUIndex);
+			FD3D12TextureBase* DestTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.DestGPUIndex);
+
+			// If the texture size is zero (Max.Z == 0, set in the constructor), copy the whole resource
+			if (Param.Max.Z == 0)
+			{
+				CopyContext->CommandListHandle->CopyResource(DestTexture->GetResource()->GetResource(), SrcTexture->GetResource()->GetResource());
+			}
+			else
+			{
+				// Must be a 2D texture for this code path
+				check(Param.Texture->GetTexture2D() != nullptr);
+
+				ensureMsgf(
+					Param.Min.X >= 0 && Param.Min.Y >= 0 && Param.Min.Z >= 0 &&
+					Param.Max.X >= 0 && Param.Max.Y >= 0 && Param.Max.Z >= 0,
+					TEXT("Invalid rect for texture transfer: %i, %i, %i, %i"), Param.Min.X, Param.Min.Y, Param.Min.Z, Param.Max.X, Param.Max.Y, Param.Max.Z);
+
+				D3D12_BOX Box = { (UINT)Param.Min.X, (UINT)Param.Min.Y, (UINT)Param.Min.Z, (UINT)Param.Max.X, (UINT)Param.Max.Y, (UINT)Param.Max.Z };
+
+				CD3DX12_TEXTURE_COPY_LOCATION SrcLocation(SrcTexture->GetResource()->GetResource(), 0);
+				CD3DX12_TEXTURE_COPY_LOCATION DestLocation(DestTexture->GetResource()->GetResource(), 0);
+
+				CopyContext->CommandListHandle->CopyTextureRegion(&DestLocation, Box.left, Box.top, Box.front, &SrcLocation, &Box);
+			}
+		}
+		else
+		{
+			FD3D12Resource* SrcResource = FD3D12DynamicRHI::ResourceCast(Param.Buffer.GetReference(), Param.SrcGPUIndex)->GetResource();
+			FD3D12Resource* DestResource = FD3D12DynamicRHI::ResourceCast(Param.Buffer.GetReference(), Param.DestGPUIndex)->GetResource();
+
+			CopyContext->CommandListHandle->CopyResource(DestResource->GetResource(), SrcResource->GetResource());
+		}
+
 		CopyContext->numCopies++;
 	}
+
+	// We need to do another submit after the texture transfers are added to the command list, to avoid issues with future RDG
+	// passes attempting barrier transitions on the texture in question.  Future passes don't know that we've changed the state
+	// of the textures, unless we bake that state into the resource, and you get validation errors due to this mismatch.
+	// Also, submitting any in-flight command lists is necessary in order to wait on the fence at the correct time (when
+	// bPullData is false).
+	RHISubmitCommandsHint();
 
 	if (SrcAndDestMask != FRHIGPUMask())
 	{
@@ -1167,12 +1211,12 @@ void FD3D12CommandContextRedirector::RHITransferTextures(const TArrayView<const 
 	else
 	{
 		GPUFence->Signal(ED3D12CommandQueueType::Direct);
-		for (const FTransferTextureParams& Param : Params)
+		for (const FTransferResourceParams& Param : Params)
 		{
 			if (!Param.bPullData)
 			{
-				// The source waits for the dest to be at this place in the frame before writing the data.
-				GPUFence->GpuWait(Param.SrcGPUIndex, ED3D12CommandQueueType::Direct, GPUFence->GetLastSignaledFence(), Param.DestGPUIndex);
+				// The dest waits for the src to be at this place in the frame before using the data.
+				GPUFence->GpuWait(Param.DestGPUIndex, ED3D12CommandQueueType::Direct, GPUFence->GetLastSignaledFence(), Param.SrcGPUIndex);
 			}
 		}
 	}

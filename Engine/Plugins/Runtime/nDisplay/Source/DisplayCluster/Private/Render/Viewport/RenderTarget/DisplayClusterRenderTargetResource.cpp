@@ -66,8 +66,8 @@ void FDisplayClusterTextureResource::ReleaseRHI()
 ///////////////////////////////////////////////////////////////////
 void FDisplayClusterRenderTargetResource::InitDynamicRHI()
 {
-	// create output render target if necessary
-	ETextureCreateFlags CreateFlags = (ResourceSettings.bShouldUseSRGB ? TexCreate_SRGB : TexCreate_None);
+	// create output render target if necessary -- we will be manually copying this cross GPU, tell render graph not to
+	ETextureCreateFlags CreateFlags = (ResourceSettings.bShouldUseSRGB ? TexCreate_SRGB : TexCreate_None) | TexCreate_MultiGPUGraphIgnore;
 
 	// Create the sampler state RHI resource.
 	FSamplerStateInitializerRHI SamplerStateInitializer

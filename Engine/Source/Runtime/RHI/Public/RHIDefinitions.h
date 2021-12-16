@@ -1581,6 +1581,16 @@ enum class EBufferUsageFlags : uint32
 	IndexBuffer             = 1 << 15,
 	StructuredBuffer        = 1 << 16,
 
+	/** Buffer memory is allocated independently for multiple GPUs, rather than shared via driver aliasing */
+	MultiGPUAllocate		= 1 << 17,
+
+	/**
+	 * Tells the render graph to not bother transferring across GPUs in multi-GPU scenarios.  Useful for cases where
+	 * a buffer is read back to the CPU (such as streaming request buffers), or written to each frame by CPU (such
+	 * as indirect arg buffers), and the other GPU doesn't actually care about the data.
+	*/
+	MultiGPUGraphIgnore		= 1 << 18,
+
 	// Helper bit-masks
 	AnyDynamic = (Dynamic | Volatile),
 };
@@ -1605,6 +1615,8 @@ ENUM_CLASS_FLAGS(EBufferUsageFlags);
 #define BUF_IndexBuffer            EBufferUsageFlags::IndexBuffer
 #define BUF_StructuredBuffer       EBufferUsageFlags::StructuredBuffer
 #define BUF_AnyDynamic             EBufferUsageFlags::AnyDynamic
+#define BUF_MultiGPUAllocate       EBufferUsageFlags::MultiGPUAllocate
+#define BUF_MultiGPUGraphIgnore    EBufferUsageFlags::MultiGPUGraphIgnore
 
 enum class EGpuVendorId
 {
@@ -1764,6 +1776,8 @@ enum class ETextureCreateFlags : uint64
     AtomicCompatible                  = 1ull << 33,
 	/** Texture should be allocated for external access. Vulkan only */
 	External                		  = 1ull << 34,
+	/** Don't automatically transfer across GPUs in multi-GPU scenarios.  For example, if you are transferring it yourself manually. */
+	MultiGPUGraphIgnore				  = 1ull << 35,
 };
 ENUM_CLASS_FLAGS(ETextureCreateFlags);
 
@@ -1804,6 +1818,7 @@ ENUM_CLASS_FLAGS(ETextureCreateFlags);
 #define TexCreate_Transient                      ETextureCreateFlags::Transient
 #define TexCreate_AtomicCompatible               ETextureCreateFlags::AtomicCompatible
 #define TexCreate_External               		 ETextureCreateFlags::External
+#define TexCreate_MultiGPUGraphIgnore            ETextureCreateFlags::MultiGPUGraphIgnore
 
 enum EAsyncComputePriority
 {

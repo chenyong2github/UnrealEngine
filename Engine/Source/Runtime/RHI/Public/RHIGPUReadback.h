@@ -22,6 +22,7 @@ public:
 	FRHIGPUMemoryReadback(FName RequestName)
 	{
 		Fence = RHICreateGPUFence(RequestName);
+		LastLockGPUIndex = 0;
 	}
 
 	virtual ~FRHIGPUMemoryReadback() {}
@@ -72,6 +73,13 @@ protected:
 
 	FGPUFenceRHIRef Fence;
 	FRHIGPUMask LastCopyGPUMask;
+
+	// We need to separately track which GPU buffer was last locked.  It's possible for a new copy operation to
+	// be enqueued (writing to LastCopyGPUMask) while the buffer is technically locked, with the unlock and enqueued
+	// copy on the GPU itself happening later, during pass execution in FRDGBuilder::Execute (for example, this
+	// happens with Nanite streaming).  It's not unsafe, because the operations are occurring in order on both the
+	// render thread and later pass Execute, but our locking logic needs to handle that scenario.
+	uint32 LastLockGPUIndex;
 };
 
 /** Buffer readback implementation. */
@@ -87,7 +95,12 @@ public:
 
 private:
 
-	FStagingBufferRHIRef DestinationStagingBuffer;
+	// RHI staging buffers are single GPU -- need to be branched when using multiple GPUs
+#if WITH_MGPU
+	FStagingBufferRHIRef DestinationStagingBuffers[MAX_NUM_GPUS];
+#else
+	FStagingBufferRHIRef DestinationStagingBuffers[1];
+#endif
 };
 
 

@@ -874,11 +874,11 @@ struct FRHICommandBroadcastTemporalEffect final	: public FRHICommand<FRHICommand
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandTransferTextures)
+FRHICOMMAND_MACRO(FRHICommandTransferResources)
 {
-	TArray<FTransferTextureParams, TInlineAllocator<4>> Params;
+	TArray<FTransferResourceParams, TInlineAllocator<4>> Params;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandTransferTextures(TArrayView<const FTransferTextureParams> InParams)
+	FORCEINLINE_DEBUGGABLE FRHICommandTransferResources(TArrayView<const FTransferResourceParams> InParams)
 		: Params(InParams)
 	{
 	}
@@ -2906,19 +2906,56 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void TransferTextures(const TArrayView<const FTransferTextureParams> Params)
+	FORCEINLINE_DEBUGGABLE void TransferResources(const TArrayView<const FTransferResourceParams> Params)
 	{
 #if WITH_MGPU
 		if (Bypass())
 		{
-			GetComputeContext().RHITransferTextures(Params);
+			GetComputeContext().RHITransferResources(Params);
 		}
 		else
 		{
-			ALLOC_COMMAND(FRHICommandTransferTextures)(Params);
+			ALLOC_COMMAND(FRHICommandTransferResources)(Params);
 		}
 #endif // WITH_MGPU
 	}
+
+#if WITH_MGPU
+	FORCEINLINE_DEBUGGABLE void WaitForTemporalEffect(const FName& EffectName)
+	{
+		//check(IsOutsideRenderPass());
+		if (Bypass())
+		{
+			GetContext().RHIWaitForTemporalEffect(EffectName);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandWaitForTemporalEffect)(EffectName);
+	}
+
+	FORCEINLINE_DEBUGGABLE void BroadcastTemporalEffect(const FName& EffectName, const TArrayView<FRHITexture*> Textures)
+	{
+		//check(IsOutsideRenderPass());
+		if (Bypass())
+		{
+			GetContext().RHIBroadcastTemporalEffect(EffectName, Textures);
+			return;
+		}
+
+		ALLOC_COMMAND(FRHICommandBroadcastTemporalEffect<FRHITexture>)(EffectName, AllocArray(Textures));
+	}
+
+	FORCEINLINE_DEBUGGABLE void BroadcastTemporalEffect(const FName& EffectName, const TArrayView<FRHIBuffer*> Buffers)
+	{
+		//check(IsOutsideRenderPass());
+		if (Bypass())
+		{
+			GetContext().RHIBroadcastTemporalEffect(EffectName, Buffers);
+			return;
+		}
+
+		ALLOC_COMMAND(FRHICommandBroadcastTemporalEffect<FRHIBuffer>)(EffectName, AllocArray(Buffers));
+	}
+#endif // WITH_MGPU
 
 #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
 	FORCEINLINE_DEBUGGABLE void RHIFlushTextureCacheBOP(FRHITexture* Texture)
@@ -3076,43 +3113,6 @@ public:
 		}
 		ALLOC_COMMAND(FRHICommandEndUpdateMultiFrameUAV)(UAV);
 	}
-
-#if WITH_MGPU
-	FORCEINLINE_DEBUGGABLE void WaitForTemporalEffect(const FName& EffectName)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIWaitForTemporalEffect(EffectName);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandWaitForTemporalEffect)(EffectName);
-	}
-
-	FORCEINLINE_DEBUGGABLE void BroadcastTemporalEffect(const FName& EffectName, const TArrayView<FRHITexture*> Textures)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIBroadcastTemporalEffect(EffectName, Textures);
-			return;
-		}
-
-		ALLOC_COMMAND(FRHICommandBroadcastTemporalEffect<FRHITexture>)(EffectName, AllocArray(Textures));
-	}
-
-	FORCEINLINE_DEBUGGABLE void BroadcastTemporalEffect(const FName& EffectName, const TArrayView<FRHIBuffer*> Buffers)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIBroadcastTemporalEffect(EffectName, Buffers);
-			return;
-		}
-
-		ALLOC_COMMAND(FRHICommandBroadcastTemporalEffect<FRHIBuffer>)(EffectName, AllocArray(Buffers));
-	}
-#endif // WITH_MGPU
 
 	using FRHIComputeCommandList::SetShaderUniformBuffer;
 
@@ -4265,7 +4265,27 @@ public:
 	{
 		GDynamicRHI->RHIUnlockBuffer(*this, Buffer);
 	}
-	
+
+	// LockBufferMGPU / UnlockBufferMGPU may ONLY be called for buffers with the EBufferUsageFlags::MultiGPUAllocate flag set!
+	// And buffers with that flag set may not call the regular (single GPU) LockBuffer / UnlockBuffer.  The single GPU version
+	// of LockBuffer uses driver mirroring to propagate the updated buffer to other GPUs, while the MGPU / MultiGPUAllocate
+	// version requires the caller to manually lock and initialize the buffer separately on each GPU.  This can be done by
+	// iterating over FRHIGPUMask::All() and calling LockBufferMGPU / UnlockBufferMGPU for each version.
+	//
+	// EBufferUsageFlags::MultiGPUAllocate is only needed for cases where CPU initialized data needs to be different per GPU,
+	// which is a rare edge case.  Currently, this is only used for the ray tracing acceleration structure address buffer,
+	// which contains virtual address references to other GPU resources, which may be in a different location on each GPU.
+	//
+	FORCEINLINE void* LockBufferMGPU(FRHIBuffer* Buffer, uint32 GPUIndex, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+	{
+		return GDynamicRHI->RHILockBufferMGPU(*this, Buffer, GPUIndex, Offset, SizeRHI, LockMode);
+	}
+
+	FORCEINLINE void UnlockBufferMGPU(FRHIBuffer* Buffer, uint32 GPUIndex)
+	{
+		GDynamicRHI->RHIUnlockBufferMGPU(*this, Buffer, GPUIndex);
+	}
+
 	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
 	{
 		LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateUnorderedAccessView"));
@@ -4533,22 +4553,22 @@ public:
 		GDynamicRHI->RHIReadSurfaceData(Texture, Rect, OutData, InFlags);
 	}
 	
-	FORCEINLINE void MapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight)
+	FORCEINLINE void MapStagingSurface(FRHITexture* Texture, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = INDEX_NONE)
 	{
 		LLM_SCOPE(ELLMTag::Textures);
-		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture, nullptr, OutData, OutWidth, OutHeight);
+		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture, GPUIndex, nullptr, OutData, OutWidth, OutHeight);
 	}
 
-	FORCEINLINE void MapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight)
+	FORCEINLINE void MapStagingSurface(FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex = INDEX_NONE)
 	{
 		LLM_SCOPE(ELLMTag::Textures);
-		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture, Fence, OutData, OutWidth, OutHeight);
+		GDynamicRHI->RHIMapStagingSurface_RenderThread(*this, Texture, GPUIndex, Fence, OutData, OutWidth, OutHeight);
 	}
 	
-	FORCEINLINE void UnmapStagingSurface(FRHITexture* Texture)
+	FORCEINLINE void UnmapStagingSurface(FRHITexture* Texture, uint32 GPUIndex = INDEX_NONE)
 	{
 		LLM_SCOPE(ELLMTag::Textures);
-		GDynamicRHI->RHIUnmapStagingSurface_RenderThread(*this, Texture);
+		GDynamicRHI->RHIUnmapStagingSurface_RenderThread(*this, Texture, GPUIndex);
 	}
 	
 	FORCEINLINE void ReadSurfaceFloatData(FRHITexture* Texture,FIntRect Rect,TArray<FFloat16Color>& OutData,ECubeFace CubeFace,int32 ArrayIndex,int32 MipIndex)

@@ -579,6 +579,19 @@ void FDynamicRHI::RHICheckViewportHDRStatus(FRHIViewport* Viewport)
 {
 }
 
+void* FDynamicRHI::RHILockBufferMGPU(FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 GPUIndex, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+{
+	// Fall through to single GPU case
+	check(GPUIndex == 0);
+	return RHILockBuffer(RHICmdList, Buffer, Offset, Size, LockMode);
+}
+
+void FDynamicRHI::RHIUnlockBufferMGPU(FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 GPUIndex)
+{
+	// Fall through to single GPU case
+	check(GPUIndex == 0);
+	RHIUnlockBuffer(RHICmdList, Buffer);
+}
 
 FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer, EPixelFormat InFormat, uint32 InStartOffsetBytes, uint32 InNumElements)
 	: BufferInitializer({ InBuffer, InStartOffsetBytes, InNumElements, InFormat }), Type(EType::VertexBufferSRV)

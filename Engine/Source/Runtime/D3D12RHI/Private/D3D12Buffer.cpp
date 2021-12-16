@@ -383,7 +383,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 			}
 #endif // NAME_OBJECTS
 
-			if (Device->GetGPUIndex() == FirstGPUIndex)
+			if ((Device->GetGPUIndex() == FirstGPUIndex) || EnumHasAnyFlags(InUsage, BUF_MultiGPUAllocate))
 			{
 				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, TransientMode, ResourceAllocator, InDebugName);
 				NewBuffer0 = NewBuffer;
@@ -441,21 +441,24 @@ void FD3D12Buffer::Rename(FD3D12ResourceLocation& NewLocation)
 
 void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 {
-	// Dynamic buffers use cross-node resources.
+	// Dynamic buffers use cross-node resources (with the exception of BUF_MultiGPUAllocate)
 	//ensure(GetUsage() & BUF_AnyDynamic);
 	Rename(NewLocation);
 
 	if (GNumExplicitGPUsForRendering > 1)
 	{
-		// This currently crashes at exit time because NewLocation isn't tracked in the right allocator.
-		ensure(IsHeadLink());
 		ensure(GetParentDevice() == NewLocation.GetParentDevice());
 
-		// Update all of the resources in the LDA chain to reference this cross-node resource
-		for (auto NextBuffer = ++FLinkedObjectIterator(this); NextBuffer; ++NextBuffer)
+		if (EnumHasAnyFlags(GetUsage(), BUF_MultiGPUAllocate) == false)
 		{
-			FD3D12ResourceLocation::ReferenceNode(NextBuffer->GetParentDevice(), NextBuffer->ResourceLocation, ResourceLocation);
-			NextBuffer->ResourceRenamed(&NextBuffer->ResourceLocation);
+			ensure(IsHeadLink());
+
+			// Update all of the resources in the LDA chain to reference this cross-node resource
+			for (auto NextBuffer = ++FLinkedObjectIterator(this); NextBuffer; ++NextBuffer)
+			{
+				FD3D12ResourceLocation::ReferenceNode(NextBuffer->GetParentDevice(), NextBuffer->ResourceLocation, ResourceLocation);
+				NextBuffer->ResourceRenamed(&NextBuffer->ResourceLocation);
+			}
 		}
 	}
 }
@@ -752,13 +755,39 @@ void FD3D12DynamicRHI::UnlockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12
 
 void* FD3D12DynamicRHI::RHILockBuffer(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
+	// If you hit this assert, you should be using LockBufferMGPU and iterating over FRHIGPUMask::All() to initialize the resource separately for each GPU.
+	// "MultiGPUAllocate" only makes sense if a buffer must vary per GPU, for example if it's a buffer that includes GPU specific virtual addresses for ray
+	// tracing acceleration structures.
+	check(!EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_MultiGPUAllocate));
+
 	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
+	return LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), Offset, Size, LockMode);
+}
+
+void* FD3D12DynamicRHI::RHILockBufferMGPU(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 GPUIndex, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+{
+	// If you hit this assert, you should be using LockBuffer to initialize the resource, rather than this function.  The MGPU version is only for resources
+	// with the MultiGPUAllocate flag, where it's necessary for the caller to initialize the buffer for each GPU.  The other LockBuffer call initializes the
+	// resource on all GPUs with one call, due to driver mirroring of the underlying resource.
+	check(EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_MultiGPUAllocate));
+
+	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI, GPUIndex);
 	return LockBuffer(&RHICmdList, Buffer, Buffer->GetSize(), Buffer->GetUsage(), Offset, Size, LockMode);
 }
 
 void FD3D12DynamicRHI::RHIUnlockBuffer(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI)
 {
+	check(!EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_MultiGPUAllocate));
+
 	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
+	UnlockBuffer(&RHICmdList, Buffer, Buffer->GetUsage());
+}
+
+void FD3D12DynamicRHI::RHIUnlockBufferMGPU(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint32 GPUIndex)
+{
+	check(EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_MultiGPUAllocate));
+
+	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI, GPUIndex);
 	UnlockBuffer(&RHICmdList, Buffer, Buffer->GetUsage());
 }
 

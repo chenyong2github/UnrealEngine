@@ -274,14 +274,14 @@ public:
 		RHI->UnlockStagingBuffer_RenderThread(RHICmdList, StagingBuffer);
 	}
 
-	virtual void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight)
+	virtual void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 GPUIndex, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight)
 	{
-		RHI->RHIMapStagingSurface_RenderThread(RHICmdList, Texture, Fence, OutData, OutWidth, OutHeight);
+		RHI->RHIMapStagingSurface_RenderThread(RHICmdList, Texture, GPUIndex, Fence, OutData, OutWidth, OutHeight);
 	}
 
-	virtual void RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture)
+	virtual void RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 GPUIndex)
 	{
-		RHI->RHIUnmapStagingSurface_RenderThread(RHICmdList, Texture);
+		RHI->RHIUnmapStagingSurface_RenderThread(RHICmdList, Texture, GPUIndex);
 	}
 
 	/**

@@ -314,6 +314,14 @@ public:
 	}
 #endif
 
+#if WITH_MGPU
+	/** Copy all cross GPU external resources (not marked MultiGPUGraphIgnore) at the end of execution (bad for perf, but useful for debugging). */
+	void EnableForceCopyCrossGPU()
+	{
+		bForceCopyCrossGPU = true;
+	}
+#endif
+
 	//////////////////////////////////////////////////////////////////////////
 	// Deprecated Functions
 	UE_DEPRECATED(5.0, "PreallocateTexture has been renamed to ConvertToExternalTexture")
@@ -433,6 +441,10 @@ private:
 		Function(BarriersToBegin);
 		Pass->GetEpilogueBarriersToEnd(Allocator).AddDependency(&BarriersToBegin);
 	}
+
+#if WITH_MGPU
+	void ForceCopyCrossGPU();
+#endif
 
 	/** Registry of graph objects. */
 	FRDGPassRegistry Passes;
@@ -602,6 +614,9 @@ private:
 
 	/** Whether we performed the wait for the temporal effect yet. */
 	bool bWaitedForTemporalEffect = false;
+
+	/** Copy all cross GPU external resources (not marked MultiGPUGraphIgnore) at the end of execution (bad for perf, but useful for debugging). */
+	bool bForceCopyCrossGPU = false;
 #endif
 
 	uint32 AsyncComputePassCount = 0;

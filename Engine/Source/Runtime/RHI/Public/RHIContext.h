@@ -115,18 +115,33 @@ private:
 UE_DEPRECATED(5.0, "Please rename to FUniformBufferStaticBindings")
 typedef FUniformBufferStaticBindings FUniformBufferGlobalBindings;
 
-/** Parameters for RHITransferTextures, used to copy memory between GPUs */
-struct FTransferTextureParams
+/** Parameters for RHITransferResources, used to copy memory between GPUs */
+struct FTransferResourceParams
 {
-	FTransferTextureParams() {}
+	FTransferResourceParams() {}
 
-	FTransferTextureParams(FRHITexture2D* InTexture, const FIntRect& InRect, uint32 InSrcGPUIndex, uint32 InDestGPUIndex, bool InPullData, bool InLockStepGPUs)
-		: Texture(InTexture), Min(InRect.Min.X, InRect.Min.Y, 0), Max(InRect.Max.X, InRect.Max.Y, 1), SrcGPUIndex(InSrcGPUIndex), DestGPUIndex(InDestGPUIndex), bPullData(InPullData), bLockStepGPUs(InLockStepGPUs)
+	FTransferResourceParams(FRHITexture2D* InTexture, const FIntRect& InRect, uint32 InSrcGPUIndex, uint32 InDestGPUIndex, bool InPullData, bool InLockStepGPUs)
+		: Texture(InTexture), Buffer(nullptr), Min(InRect.Min.X, InRect.Min.Y, 0), Max(InRect.Max.X, InRect.Max.Y, 1), SrcGPUIndex(InSrcGPUIndex), DestGPUIndex(InDestGPUIndex), bPullData(InPullData), bLockStepGPUs(InLockStepGPUs)
 	{
+		check(InTexture);
+	}
+
+	FTransferResourceParams(FRHITexture* InTexture, uint32 InSrcGPUIndex, uint32 InDestGPUIndex, bool InPullData, bool InLockStepGPUs)
+		: Texture(InTexture), Buffer(nullptr), Min(0, 0, 0), Max(0, 0, 0), SrcGPUIndex(InSrcGPUIndex), DestGPUIndex(InDestGPUIndex), bPullData(InPullData), bLockStepGPUs(InLockStepGPUs)
+	{
+		check(InTexture);
+	}
+
+	FTransferResourceParams(FRHIBuffer* InBuffer, uint32 InSrcGPUIndex, uint32 InDestGPUIndex, bool InPullData, bool InLockStepGPUs)
+		: Texture(nullptr), Buffer(InBuffer), Min(0, 0, 0), Max(0, 0, 0), SrcGPUIndex(InSrcGPUIndex), DestGPUIndex(InDestGPUIndex), bPullData(InPullData), bLockStepGPUs(InLockStepGPUs)
+	{
+		check(InBuffer);
 	}
 
 	// The texture which must be must be allocated on both GPUs 
-	FTexture2DRHIRef Texture;
+	FTextureRHIRef Texture;
+	// Or alternately, a buffer that's allocated on both GPUs
+	FBufferRHIRef Buffer;
 	// The min rect of the texture region to copy
 	FIntVector Min;
 	// The max rect of the texture region to copy
@@ -308,10 +323,10 @@ public:
 #endif // WITH_MGPU
 
 	/**
-	 * Synchronizes the content of a texture resource between two GPUs using a copy operation.
-	 * @param Params - the parameters for each texture region copied between GPUse.
+	 * Synchronizes the content of a resource between two GPUs using a copy operation.
+	 * @param Params - the parameters for each resource or texture region copied between GPUs.
 	 */
-	virtual void RHITransferTextures(const TArrayView<const FTransferTextureParams> Params)
+	virtual void RHITransferResources(const TArrayView<const FTransferResourceParams> Params)
 	{
 		/* empty default implementation */
 	}

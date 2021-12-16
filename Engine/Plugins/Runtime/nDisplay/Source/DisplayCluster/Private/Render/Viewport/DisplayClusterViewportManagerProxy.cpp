@@ -381,7 +381,7 @@ void FDisplayClusterViewportManagerProxy::DoCrossGPUTransfers_RenderThread(FRHIC
 	}
 
 	// Copy the view render results to all GPUs that are native to the viewport.
-	TArray<FTransferTextureParams> TransferResources;
+	TArray<FTransferResourceParams> TransferResources;
 
 	for (FDisplayClusterViewportProxy* ViewportProxy : ViewportProxies)
 	{
@@ -416,7 +416,7 @@ void FDisplayClusterViewportManagerProxy::DoCrossGPUTransfers_RenderThread(FRHIC
 						{
 							if (!ContextGPUMask.Contains(RenderTargetGPUIndex))
 							{
-								FTransferTextureParams ResourceParams(TextureRHI, TransferRect, ContextGPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, ViewportContext.bEnabledGPUTransferLockSteps);
+								FTransferResourceParams ResourceParams(TextureRHI, TransferRect, ContextGPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, ViewportContext.bEnabledGPUTransferLockSteps);
 								TransferResources.Add(ResourceParams);
 							}
 						}
@@ -428,7 +428,7 @@ void FDisplayClusterViewportManagerProxy::DoCrossGPUTransfers_RenderThread(FRHIC
 
 	if (TransferResources.Num() > 0)
 	{
-		RHICmdList.TransferTextures(TransferResources);
+		RHICmdList.TransferResources(TransferResources);
 	}
 
 #endif // WITH_MGPU
