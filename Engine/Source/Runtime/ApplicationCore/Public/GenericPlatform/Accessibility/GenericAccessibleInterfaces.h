@@ -502,17 +502,157 @@ public:
 	 */
 	virtual TSharedPtr<IAccessibleWidget> GetParent() = 0;
 	/**
+	 * Returns the first instance of an ancestor from a source widget that satisfies a search criteria.
+	 * If the passed in source widget does not have any ancestors or if there are no ancestors that satisfy the search criteria, nullptr is returned.
+	 * The search criteria can be either a functor or lambda that acts as a predicate. It must return a bool and take in a const TSharedRef<IAccessibleWidget>& as an argument.
+	 *
+	 * @param Source The accessible widget to start searching from.
+	 * @param SearchCriteria A predicate that takes a const TSharedRef<IAccessibleWidget>& as an argument and returns true if the passed in widget satisfies the search criteria. When an accessible widget that satisfies the SearchCriteria is found, it is returned by the function.
+	 * @return The first instance of an ancestor from the source widget that satisfies the search criteria.
+	 */
+	template<typename PredicateType>
+	static TSharedPtr<IAccessibleWidget> SearchForAncestorFrom(const TSharedRef<IAccessibleWidget>& Source, PredicateType Predicate)
+	{
+		TSharedPtr<IAccessibleWidget> Ancestor = Source->GetParent();
+		while (Ancestor)
+		{
+			if (Predicate(Ancestor.ToSharedRef()))
+			{
+				return Ancestor;
+			}
+			Ancestor = Ancestor->GetNextSibling();
+		}
+		return nullptr;
+	}
+	/**
 	 * Retrieves the widget after this one in the parent's list of children. This should return nullptr for the last widget.
 	 *
 	 * @return The next widget on the same level of the UI hierarchy.
 	 */
 	virtual TSharedPtr<IAccessibleWidget> GetNextSibling() = 0;
 	/**
+	 * Returns the first instance of a next sibling from a source widget that satisfies a search criteria.
+	 * If the passed in source widget does not have any next siblings or if there are no next siblings that satisfy the search criteria, nullptr is returned.
+	 * The search criteria can be either a functor or lambda that acts as a predicate. It must return a bool and take in a const TSharedRef<IAccessibleWidget>& as an argument.
+	 *
+	 * @param Source The accessible widget to start searching from.
+	 * @param SearchCriteria A predicate that takes a const TSharedRef<IAccessibleWidget>& as an argument and returns true if the passed in widget satisfies the search criteria. When an accessible widget that satisfies the SearchCriteria is found, it is returned by the function.
+	 * @return The first instance of a next sibling from the source widget that satisfies the search criteria.
+	 */
+	template<typename PredicateType>
+	static TSharedPtr<IAccessibleWidget> SearchForNextSiblingFrom(const TSharedRef<IAccessibleWidget>& Source, PredicateType Predicate)
+	{
+		TSharedPtr<IAccessibleWidget> NextSibling = Source->GetNextSibling();
+		while (NextSibling)
+		{
+			if (Predicate(NextSibling.ToSharedRef()))
+			{
+				return NextSibling;
+			}
+			NextSibling = NextSibling->GetNextSibling();
+		}
+		return nullptr;
+	}
+	/**
 	 * Retrieves the widget before this one in the parent's list of children. This should return nullptr for the first widget.
 	 *
 	 * @return The previous widget on the same level of the UI hierarchy.
 	 */
 	virtual TSharedPtr<IAccessibleWidget> GetPreviousSibling() = 0;
+	/**
+	 * Returns the first instance of a previous sibling from a source widget that satisfies a search criteria.
+	 * If the passed in source widget does not have any previous siblings or if there are no previous siblings that satisfy the search criteria, nullptr is returned.
+	 * The search criteria can be either a functor or lambda that acts as a predicate. It must return a bool and take in a const TSharedRef<IAccessibleWidget>& as an argument.
+	 *
+	 * @param Source The accessible widget to start searching from.
+	 * @param SearchCriteria A predicate that takes a const TSharedRef<IAccessibleWidget>& as an argument and returns true if the passed in widget satisfies the search criteria. When an accessible widget that satisfies the SearchCriteria is found, it is returned by the function.
+	 * @return The first instance of a previous sibling from the source widget that satisfies the search criteria.
+	 */
+	template<typename PredicateType>
+	static TSharedPtr<IAccessibleWidget> SearchForPreviousSiblingFrom(const TSharedRef<IAccessibleWidget>& Source, PredicateType Predicate)
+	{
+		TSharedPtr<IAccessibleWidget> PreviousSibling = Source->GetPreviousSibling();
+		while(PreviousSibling)
+		{
+			if (Predicate(PreviousSibling.ToSharedRef()))
+			{
+				return PreviousSibling;
+			}
+			PreviousSibling = PreviousSibling->GetPreviousSibling();
+		}
+		return nullptr;
+	}
+	/**
+	 * Retrieves the logical next widget in the accessible widget hierarchy from this widget.
+	 * This is conceptually similar to tab navigation with the keyboard.
+	 * This is primarily used for mobile devices to simulate the right swipe gesture for IOS Voiceover or Android Talkback.
+	 * An example algorithm to find the next widget in the accessible hierarchy is as follows:
+	 * 1. If the current widget has children, return the first child.
+	 * 2. If the current widget has no children, return the sibling of the current widget.
+	 * 3. If the current widget has no next sibling, search for the first ancestor from the current widget with a next sibling. Return that ancestor's next sibling.
+	 *
+	 * @return The logical next widget in the accessible widget hierarchy.
+	 */
+	virtual TSharedPtr<IAccessibleWidget> GetNextWidgetInHierarchy() = 0;
+	/**
+	 * Returns the first instance of a next widget in the accessible hierarchy from a source widget that satisfies a search criteria.
+	 * If the passed in source widget does not have any next widgets or if there are no next widgets that satisfy the search criteria, nullptr is returned.
+	 * The search criteria can be either a functor or lambda that acts as a predicate. It must return a bool and take in a const TSharedRef<IAccessibleWidget>& as an argument.
+	 *
+	 * @param Source The accessible widget to start searching from.
+	 * @param SearchCriteria A predicate that takes a const TSharedRef<IAccessibleWidget>& as an argument and returns true if the passed in widget satisfies the search criteria. When an accessible widget that satisfies the SearchCriteria is found, it is returned by the function.
+	 * @return The first instance of a next widget from the source widget that satisfies the search criteria.
+	 */
+	template<typename PredicateType>
+	static TSharedPtr<IAccessibleWidget> SearchForNextWidgetInHierarchyFrom(const TSharedRef<IAccessibleWidget>& Source, PredicateType Predicate)
+	{
+		TSharedPtr<IAccessibleWidget> NextWidget = Source->GetNextWidgetInHierarchy();
+		while(NextWidget)
+		{
+			if (Predicate(NextWidget.ToSharedRef()))
+			{
+				return NextWidget;
+			}
+			NextWidget = NextWidget->GetNextWidgetInHierarchy();
+		}
+		return nullptr;
+	}
+	/**
+	 * Retrieves the logical previous widget in the accessible widget hierarchy from this current widget.
+	 * This is conceptually similar to shift tab navigation with the keyboard.
+	 * This is primarily used for mobile devices to simulate the left swipe gesture for IOS Voiceover or Android Talkback.
+	 * An example algorithm to find the previous widget in the hierarchy is as follows:
+	 * 1. Find the previous sibling of the current widget and check if it has children.
+	 * 2. If the previous sibling has children, we will call the last child of the previous sibling C. Recursively take the last child from C until a leaf is found. Return the leaf.
+	 * 3. If the previous sibling has no children, return the previous sibling.
+	 * 4. If the current widget has no previous sibling, we return the parent of the current widget.
+	 *
+	 * @return The logical previous widget in the accessible widget hierarchy.
+	 */
+	virtual TSharedPtr<IAccessibleWidget> GetPreviousWidgetInHierarchy() = 0;
+	/**
+	 * Returns the first instance of a previous widget in the accessible hierarchy from a source widget that satisfies a search criteria.
+	 * If the passed in source widget does not have any previous widgets or if there are no previous widgets that satisfy the search criteria, nullptr is returned.
+	 * The search criteria can be either a functor or lambda that acts as a predicate. It must return a bool and take in a const TSharedRef<IAccessibleWidget>& as an argument.
+	 *
+	 * @param Source The accessible widget to start searching from.
+	 * @param SearchCriteria A predicate that takes a const TSharedRef<IAccessibleWidget>& as an argument and returns true if the passed in widget satisfies the search criteria. When an accessible widget that satisfies the SearchCriteria is found, it is returned by the function.
+	 * @return The first instance of a previous widget from the source widget that satisfies the search criteria.
+	 */
+	template<typename PredicateType>
+	static TSharedPtr<IAccessibleWidget> SearchForPreviousWidgetInHierarchyFrom(const TSharedRef<IAccessibleWidget>& Source, PredicateType Predicate)
+	{
+		TSharedPtr<IAccessibleWidget> PreviousWidget = Source->GetPreviousWidgetInHierarchy();
+		while(PreviousWidget)
+		{
+			if (Predicate(PreviousWidget.ToSharedRef()))
+			{
+				return PreviousWidget;
+			}
+			PreviousWidget = PreviousWidget->GetPreviousWidgetInHierarchy();
+		}
+		return nullptr;
+	}
 	/**
 	 * Retrieves the accessible child widget at a certain index. This should return nullptr if Index < 0 or Index >= GetNumberOfChildren().
 	 *
@@ -526,6 +666,34 @@ public:
 	 * @return The number of accessible children that exist for this widget.
 	 */
 	virtual int32 GetNumberOfChildren() = 0;
+	/**
+	 * Returns the first instance of a child from a source widget that satisfies a search criteria.
+	 * If the passed in source widget does not have any children or if there are no children that satisfy the search criteria, nullptr is returned.
+	 * The search criteria can be either a functor or lambda that acts as a predicate. It must return a bool and take in a const TSharedRef<IAccessibleWidget>& as an argument.
+	 *
+	 * @param Source The accessible widget to start searching from.
+	 * @param SearchCriteria A predicate that takes a const TSharedRef<IAccessibleWidget>& as an argument and returns true if the passed in widget satisfies the search criteria. When an accessible widget that satisfies the SearchCriteria is found, it is returned by the function.
+	 * @return The first child from the source widget that satisfies the search criteria.
+	 */
+	template<typename PredicateType>
+	static TSharedPtr<IAccessibleWidget> SearchForFirstChildFrom(const TSharedRef<IAccessibleWidget>& Source, PredicateType Predicate)
+	{
+		if (Source->GetNumberOfChildren() == 0)
+		{
+			return nullptr;
+		}
+		TSharedPtr<IAccessibleWidget> Child = nullptr;
+		int32 NumChildren = Source->GetNumberOfChildren();
+		for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+		{
+			Child = Source->GetChildAt(ChildIndex);
+			if (Child && Predicate(Child.ToSharedRef()))
+			{
+				return Child;
+			}
+		}
+		return nullptr;
+	}
 	/**
 	 * What type of accessible widget the underlying widget should be treated as. A widget may be capable of presenting itself
 	 * as multiple different types of widgets, but only one can be reported back to the platform.
@@ -552,6 +720,13 @@ public:
 	 * @return A more-detailed description of what the widget is or how its used.
 	 */
 	virtual FString GetHelpText() const = 0;
+	/** Returns a string representation of this widget. Primarily used for debugging. */
+	virtual FString ToString() const
+	{
+		TStringBuilder<256> Builder;
+		Builder.Appendf(TEXT("Label: %s. Role: %s."), *GetWidgetName(), *GetClassName());
+		return Builder.ToString();
+	}
 
 	/**
 	 * Whether the widget is enabled and can be interacted with.

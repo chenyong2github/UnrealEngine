@@ -189,8 +189,7 @@ bool FSlateAccessibleWidget::SetUserFocus(const FAccessibleUserIndex UserIndex)
 	// Most likely a mistake to set focus on a widget that cannot currently accept focus
 	if (!CanCurrentlyAcceptAccessibleFocus())
 	{
-		// @TODOAccessibility: Log information about the widget when we create a ToString() function.
-		UE_LOG(LogAccessibility, Warning, TEXT("Attempting to set accessible focus on an accessible widget that currently cannot be focused. Focus not changed."));
+		UE_LOG(LogAccessibility, Warning, TEXT("Accessible widget %s cannot currently be focused. Focus not changed."), *ToString());
 		return false;
 	}
 	if (SupportsFocus())
@@ -203,8 +202,15 @@ bool FSlateAccessibleWidget::SetUserFocus(const FAccessibleUserIndex UserIndex)
 			FWidgetPath WidgetPath;
 			if (FSlateWindowHelper::FindPathToWidget(WindowArray, Widget.Pin().ToSharedRef(), WidgetPath))
 			{
+				FSlateApplicationBase& SlateApp = FSlateApplicationBase::Get();
 				// Focus accessible events are already raised from this function call
-				return FSlateApplicationBase::Get().SetUserFocus(UserIndex, WidgetPath, EFocusCause::SetDirectly);
+				if (!SlateApp.SetUserFocus(UserIndex, WidgetPath, EFocusCause::SetDirectly))
+				{
+					// If the function returns false, it means the SWidget corresponding to the accessible widget is already focused by the application. We will need to
+					// manually raise a focus change event to sync the accessible focus and Slate focus
+					SlateApp.GetAccessibleMessageHandler()->OnWidgetEventRaised(FSlateAccessibleMessageHandler::FSlateWidgetAccessibleEventArgs(Widget.Pin().ToSharedRef(), EAccessibleEvent::FocusChange, false, true, UserIndex));
+				}
+				return true;
 			}
 		}
 	}
@@ -257,6 +263,69 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetPreviousSibling()
 		{
 			return SharedParent->Children[SiblingIndex - 1].Pin();
 		}
+	}
+	return nullptr;
+}
+
+TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetNextWidgetInHierarchy()
+{
+	// 1. if the current widget has children, return the first child
+	// 2. If the widget has no children, return the next sibling of the current widget.
+	// 3. If the widget has no sibling, find the first ancestor with a next sibling and return that ancestor's next sibling.
+	if (GetNumberOfChildren() > 0)
+	{
+		return GetChildAt(0);
+	}
+	else if (TSharedPtr<IAccessibleWidget> NextSibling = GetNextSibling())
+	{
+		return NextSibling;
+	}
+	else if (TSharedPtr<IAccessibleWidget> CurrentAncestor = GetParent())
+	{
+		TSharedPtr<IAccessibleWidget> FoundAncestorSibling;
+		while (CurrentAncestor)
+		{
+			FoundAncestorSibling = CurrentAncestor->GetNextSibling();
+			if (FoundAncestorSibling)
+			{
+				return FoundAncestorSibling;
+			}
+			// if we get here, the current ancestor has no next sibling, move up the tree and try again
+			CurrentAncestor = CurrentAncestor->GetParent();
+		}
+		// if we get here, we are the right most leaf of the tree. There is no next accessible widget
+	}
+		return nullptr;
+}
+
+TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetPreviousWidgetInHierarchy()
+{
+	// 1. Find the previous sibling and see if it has children
+	// 2. If the previous sibling has children, DFS down the right most child until you find the child that is a leaf
+	// 3. If the sibling has no children, just return the previous sibling
+	// 4. If there is no previous sibling, return the parent
+	if (TSharedPtr<IAccessibleWidget> PreviousSibling = GetPreviousSibling())
+	{
+		TSharedPtr<IAccessibleWidget> ReturnWidget = PreviousSibling;
+		while (ReturnWidget)
+		{
+			int32 ReturnWidgetChildrenCount = ReturnWidget->GetNumberOfChildren();
+			if (ReturnWidgetChildrenCount > 0)
+			{
+				// keep taking the last child until we get to the leaf
+				ReturnWidget = ReturnWidget->GetChildAt(ReturnWidgetChildrenCount - 1);
+			}
+			else
+			{
+				// we are at a leaf just return
+				return ReturnWidget;
+			}
+		}
+	}
+	else
+	{
+		// note that it is possible for this widget to be the root of the tree and for this to return nullptr
+		return GetParent();
 	}
 	return nullptr;
 }

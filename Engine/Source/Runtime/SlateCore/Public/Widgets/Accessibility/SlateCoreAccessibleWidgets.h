@@ -30,6 +30,8 @@ public:
 	virtual TSharedPtr<IAccessibleWidget> GetParent() override final;
 	virtual TSharedPtr<IAccessibleWidget> GetNextSibling() override final;
 	virtual TSharedPtr<IAccessibleWidget> GetPreviousSibling() override final;
+	virtual TSharedPtr<IAccessibleWidget> GetNextWidgetInHierarchy() override final;
+	virtual TSharedPtr<IAccessibleWidget> GetPreviousWidgetInHierarchy() override final;
 	virtual TSharedPtr<IAccessibleWidget> GetChildAt(int32 Index) override final;
 	virtual int32 GetNumberOfChildren() override final;
 	virtual FString GetClassName() const override final;
