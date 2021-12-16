@@ -123,7 +123,7 @@ namespace UnrealBuildTool
 					{
 						if (!String.IsNullOrWhiteSpace(File))
 						{
-							SpecificFilesToCompile.Add(new FileReference(File));
+							SpecificFilesToCompile.Add(FileReference.Combine(Unreal.RootDirectory, File));
 						}
 					}
 				}

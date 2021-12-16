@@ -1,4 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
+using EpicGames.Perforce;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -940,6 +942,7 @@ namespace AutomationTool
 	{
 		static private P4Connection PerforceConnection;
 		static private P4Environment PerforceEnvironment;
+		static private IPerforceSettings PerforceSettings;
 
 		static public P4Connection P4
 		{
@@ -965,6 +968,18 @@ namespace AutomationTool
 			}
 		}
 
+		static public IPerforceSettings P4Settings
+		{
+			get
+			{
+				if (PerforceSettings == null)
+				{
+					throw new AutomationException("Attempt to use P4Settings before it was initialized or P4 support is disabled.");
+				}
+				return PerforceSettings;
+			}
+		}
+
 		/// <summary>
 		/// Initializes build environment. If the build command needs a specific env-var mapping or
 		/// has an extended BuildEnvironment, it must implement this method accordingly.
@@ -973,6 +988,11 @@ namespace AutomationTool
 		{
 			// Temporary connection - will use only the currently set env vars to connect to P4
 			PerforceEnvironment = new P4Environment(CmdEnv);
+
+			PerforceSettings Settings = new PerforceSettings(PerforceEnvironment.ServerAndPort, PerforceEnvironment.User);
+			Settings.PreferNativeClient = true;
+			Settings.ClientName = PerforceEnvironment.Client;
+			PerforceSettings = Settings;
 		}
 
 		/// <summary>
