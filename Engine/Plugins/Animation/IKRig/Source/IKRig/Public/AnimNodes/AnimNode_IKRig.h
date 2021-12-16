@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "IKRigDataTypes.h"
-#include "Animation/AnimNodeBase.h"
+#include "Animation/AnimNode_CustomProperty.h"
 #include "AnimNode_IKRig.generated.h"
 
 class UIKRigProcessor;
@@ -14,7 +14,7 @@ class UIKRigDefinition;
 
 	
 USTRUCT(BlueprintInternalUseOnly)
-struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
+struct IKRIG_API FAnimNode_IKRig : public FAnimNode_CustomProperty
 {
 	GENERATED_BODY()
 
@@ -27,7 +27,7 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 	TObjectPtr<UIKRigDefinition> RigDefinitionAsset = nullptr;
 
 	/** The input goal transforms used by the IK Rig solvers.*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Goal, meta = (PinShownByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Goal, meta=(NeverAsPin, EditCondition=false, EditConditionHides))
 	TArray<FIKRigGoal> Goals;
 
 	/** optionally ignore the input pose and start from the reference pose each solve */
@@ -61,6 +61,10 @@ private:
 	
 	TMap<FCompactPoseBoneIndex, int32, FDefaultSetAllocator, TCompactPoseBoneIndexMapKeyFuncs<int32>> CompactPoseToRigIndices;
 
+	/** Cached functions used to update goals using custom properties to avoid looking for then when evaluating */
+	using UpdateFunction = std::function<void(const UObject*)>;
+	TArray<UpdateFunction> UpdateFunctions;
+	
 public:
 
 	// FAnimNode_Base interface
@@ -71,10 +75,19 @@ public:
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	virtual bool HasPreUpdate() const override { return true; }
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
+	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_Base interface
 
 	/** force reinitialization */
 	void SetProcessorNeedsInitialized();
+
+protected:
+
+	// FAnimNode_CustomProperty interface
+	virtual UClass* GetTargetClass() const override {return nullptr;}
+	virtual void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass) override;
+	virtual void PropagateInputProperties(const UObject* InSourceInstance) override;
 	
 private:
 	

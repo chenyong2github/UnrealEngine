@@ -317,42 +317,64 @@ void UIKRigProcessor::ResolveFinalGoalTransforms(const FTransform& WorldToCompon
 		FVector ComponentSpaceGoalPosition = Goal.Position;
 		FQuat ComponentSpaceGoalRotation = Goal.Rotation.Quaternion();
 
-		// put goal POSITION in Component Space
-		switch (Goal.PositionSpace)
+		// FIXME find a way to cache SourceBoneIndex to avoid calling Skeleton.GetBoneIndexFromName here
+		// we may use FGoalBone::OptSourceIndex for this
+		int SourceBoneIndex = INDEX_NONE;
+		if (Goal.TransformSource == EIKRigGoalTransformSource::Bone && Goal.SourceBone.BoneName != NAME_None)
 		{
-		case EIKRigGoalSpace::Additive:
-			// add position offset to bone position
-			ComponentSpaceGoalPosition = Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex].GetLocation() + Goal.Position;
-			break;
-		case EIKRigGoalSpace::Component:
-			// was already supplied in Component Space
-			break;
-		case EIKRigGoalSpace::World:
-			// convert from World Space to Component Space
-			ComponentSpaceGoalPosition = WorldToComponent.TransformPosition(Goal.Position);
-			break;
-		default:
-			checkNoEntry();
-			break;
+			SourceBoneIndex = Skeleton.GetBoneIndexFromName(Goal.SourceBone.BoneName);
+		}
+
+		if (SourceBoneIndex != INDEX_NONE)
+		{
+			ComponentSpaceGoalPosition = Skeleton.CurrentPoseGlobal[SourceBoneIndex].GetLocation();
+		}
+		else
+		{
+			// put goal POSITION in Component Space
+			switch (Goal.PositionSpace)
+			{
+			case EIKRigGoalSpace::Additive:
+				// add position offset to bone position
+				ComponentSpaceGoalPosition = Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex].GetLocation() + Goal.Position;
+				break;
+			case EIKRigGoalSpace::Component:
+				// was already supplied in Component Space
+				break;
+			case EIKRigGoalSpace::World:
+				// convert from World Space to Component Space
+				ComponentSpaceGoalPosition = WorldToComponent.TransformPosition(Goal.Position);
+				break;
+			default:
+				checkNoEntry();
+				break;
+			}
 		}
 		
 		// put goal ROTATION in Component Space
-		switch (Goal.RotationSpace)
+		if (SourceBoneIndex != INDEX_NONE)
 		{
-		case EIKRigGoalSpace::Additive:
-			// add rotation offset to bone rotation
-			ComponentSpaceGoalRotation = Goal.Rotation.Quaternion() * Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex].GetRotation();
-			break;
-		case EIKRigGoalSpace::Component:
-			// was already supplied in Component Space
-			break;
-		case EIKRigGoalSpace::World:
-			// convert from World Space to Component Space
-			ComponentSpaceGoalRotation = WorldToComponent.TransformRotation(Goal.Rotation.Quaternion());
-			break;
-		default:
-			checkNoEntry();
-			break;
+			ComponentSpaceGoalRotation = Skeleton.CurrentPoseGlobal[SourceBoneIndex].GetRotation();
+		}
+		else
+		{
+			switch (Goal.RotationSpace)
+			{
+			case EIKRigGoalSpace::Additive:
+				// add rotation offset to bone rotation
+				ComponentSpaceGoalRotation = Goal.Rotation.Quaternion() * Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex].GetRotation();
+				break;
+			case EIKRigGoalSpace::Component:
+				// was already supplied in Component Space
+				break;
+			case EIKRigGoalSpace::World:
+				// convert from World Space to Component Space
+				ComponentSpaceGoalRotation = WorldToComponent.TransformRotation(Goal.Rotation.Quaternion());
+				break;
+			default:
+				checkNoEntry();
+				break;
+			}
 		}
 
 		// blend by alpha from the input pose, to the supplied goal transform

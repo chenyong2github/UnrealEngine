@@ -7,7 +7,7 @@
 #include "ActorComponents/IKRigInterface.h"
 #include "Drawing/ControlRigDrawInterface.h"
 #include "Animation/AnimInstanceProxy.h"
-
+#include "Algo/ForEach.h"
 
 void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output) 
 {
@@ -176,8 +176,10 @@ void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 	if (!IKRigProcessor->IsInitialized())
 	{
 		const FReferenceSkeleton& RefSkeleton = InAnimInstance->GetSkelMeshComponent()->SkeletalMesh->GetRefSkeleton();
-		IKRigProcessor->Initialize(RigDefinitionAsset, RefSkeleton);
+ 		IKRigProcessor->Initialize(RigDefinitionAsset, RefSkeleton);
 	}
+
+	PropagateInputProperties(InAnimInstance);
 	
 	// cache list of goal creator components on the actor
 	// TODO tried doing this in Initialize_AnyThread but it would miss some GoalCreator components
@@ -204,6 +206,13 @@ void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 	{
 		GoalCreator->AddIKGoals_Implementation(GoalsFromGoalCreators);
 	}
+}
+
+void FAnimNode_IKRig::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
+{
+	Super::OnInitializeAnimInstance(InProxy, InAnimInstance);
+	
+	InitializeProperties(InAnimInstance, GetTargetClass());
 }
 
 void FAnimNode_IKRig::SetProcessorNeedsInitialized()
@@ -256,6 +265,92 @@ void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Co
 		FCompactPoseBoneIndex CPIndex = RequiredBones.MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshBone));
 		const FName Name = RefSkeleton.GetBoneName(MeshBone);
 		CompactPoseToRigIndices.Add(CPIndex) = IKRigProcessor->GetSkeleton().GetBoneIndexFromName(Name);
+	}
+}
+
+void FAnimNode_IKRig::InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass)
+{
+	static const FString AlphaPosPropStr = GET_MEMBER_NAME_CHECKED(FIKRigGoal, PositionAlpha).ToString();
+	static const FString AlphaRotPropStr = GET_MEMBER_NAME_CHECKED(FIKRigGoal, RotationAlpha).ToString();
+	static const FString PositionPropStr = GET_MEMBER_NAME_CHECKED(FIKRigGoal, Position).ToString();
+	static const FString RotationPropStr = GET_MEMBER_NAME_CHECKED(FIKRigGoal, Rotation).ToString();
+	
+	SourceProperties.Reset(SourcePropertyNames.Num());
+	DestProperties.Reset(SourcePropertyNames.Num());
+	UpdateFunctions.Reset(SourcePropertyNames.Num());
+
+	check(SourcePropertyNames.Num() == DestPropertyNames.Num());
+
+	UClass* SourceClass = InSourceInstance->GetClass();
+	for (int32 PropIndex = 0; PropIndex < SourcePropertyNames.Num(); ++PropIndex)
+	{
+		const FName& SourceName = SourcePropertyNames[PropIndex];
+		
+		FProperty* SourceProperty = FindFProperty<FProperty>(SourceClass, SourceName);
+		SourceProperties.Add(SourceProperty);
+		DestProperties.Add(nullptr);
+
+		if (SourceProperty)
+		{
+			// store update functions for later use in PropagateInputProperties to avoid looking for properties
+			// while evaluating
+			const FName& GoalPropertyName = DestPropertyNames[PropIndex];
+
+			// we use the goal name's hash value as described in UAnimGraphNode_IKRig::CreateCustomPinsFromValidAsset
+			const int32 GoalIndex = Goals.IndexOfByPredicate([&GoalPropertyName](const FIKRigGoal& InGoal)
+			{
+				return GetTypeHash(InGoal.Name) == GoalPropertyName.GetNumber();
+			});
+
+			if (Goals.IsValidIndex(GoalIndex))
+			{
+				FIKRigGoal& Goal = Goals[GoalIndex];
+
+				const FString GoalPropStr = GoalPropertyName.ToString();
+
+				if (GoalPropStr.StartsWith(AlphaPosPropStr))
+				{
+					UpdateFunctions.Add([&Goal, SourceProperty](const UObject* InSourceInstance)
+					{
+						const float* AlphaValue = SourceProperty->ContainerPtrToValuePtr<float>(InSourceInstance);
+						Goal.PositionAlpha = FMath::Clamp<float>(*AlphaValue, 0.f, 1.f);
+					});
+				}
+				else if (GoalPropStr.StartsWith(AlphaRotPropStr))
+				{
+					UpdateFunctions.Add([&Goal, SourceProperty](const UObject* InSourceInstance)
+					{
+						const float* AlphaValue = SourceProperty->ContainerPtrToValuePtr<float>(InSourceInstance);
+						Goal.RotationAlpha = FMath::Clamp<float>(*AlphaValue, 0.f, 1.f);
+					});
+				}
+				else if (GoalPropStr.StartsWith(PositionPropStr))
+				{
+					UpdateFunctions.Add([&Goal, SourceProperty](const UObject* InSourceInstance)
+					{
+						Goal.Position = *SourceProperty->ContainerPtrToValuePtr<FVector>(InSourceInstance);
+					});
+				}
+				else if (GoalPropStr.StartsWith(RotationPropStr))
+				{
+					UpdateFunctions.Add([&Goal, SourceProperty](const UObject* InSourceInstance)
+					{
+						Goal.Rotation = *SourceProperty->ContainerPtrToValuePtr<FRotator>(InSourceInstance);
+					});
+				}
+			}
+		}
+	}
+}
+
+void FAnimNode_IKRig::PropagateInputProperties(const UObject* InSourceInstance)
+{
+	if (InSourceInstance)
+	{
+		Algo::ForEach(UpdateFunctions, [InSourceInstance](const UpdateFunction& InFunc)
+		{
+		 	InFunc(InSourceInstance);
+		});
 	}
 }
 

@@ -610,8 +610,9 @@ UIKRigEffectorGoal* UIKRigController::AddNewGoal(const FName& GoalName, const FN
 	// set initial transform
 	NewGoal->InitialTransform = GetRefPoseTransformOfBone(NewGoal->BoneName);
 	NewGoal->CurrentTransform = NewGoal->InitialTransform;
-
+ 
 	BroadcastNeedsReinitialized();
+	BroadcastGoalsChange();
 	
 	return NewGoal;
 }
@@ -648,6 +649,7 @@ bool UIKRigController::RemoveGoal(const FName& GoalName) const
 	}
 
 	BroadcastNeedsReinitialized();
+	BroadcastGoalsChange();
 	
 	return true;
 }
@@ -695,6 +697,7 @@ FName UIKRigController::RenameGoal(const FName& OldName, const FName& PotentialN
 	}
 
 	BroadcastNeedsReinitialized();
+	BroadcastGoalsChange();
 
 	return NewName;
 }
@@ -925,6 +928,19 @@ FName UIKRigController::GetGoalName(const int32& GoalIndex) const
 	}
 
 	return Asset->Goals[GoalIndex]->GoalName;
+}
+
+void UIKRigController::BroadcastGoalsChange() const
+{
+	if (Asset)
+	{
+		static const FName GoalsPropName = GET_MEMBER_NAME_CHECKED(UIKRigDefinition, Goals);
+		if (FProperty* GoalProperty = UIKRigDefinition::StaticClass()->FindPropertyByName(GoalsPropName) )
+		{
+			FPropertyChangedEvent GoalPropertyChangedEvent(GoalProperty);
+			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Asset, GoalPropertyChangedEvent);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
