@@ -1884,20 +1884,36 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		UE_LOG(LogPakFile, Display, TEXT("%s"), *FormatLogLine);
 	}
 
-	TArray<FString> ExtensionsToNotUsePluginCompression;
-	GConfig->GetArray(TEXT("Pak"), TEXT("ExtensionsToNotUsePluginCompression"), ExtensionsToNotUsePluginCompression, GEngineIni);
-	TSet<FString> NoPluginCompressionExtensions;
-	for (const FString& Ext : ExtensionsToNotUsePluginCompression)
-	{
-		NoPluginCompressionExtensions.Add(Ext);
-	}
-	
-	TArray<FString> FileNamesToNotUsePluginCompression;
-	GConfig->GetArray(TEXT("Pak"), TEXT("FileNamesToNotUsePluginCompression"), FileNamesToNotUsePluginCompression, GEngineIni);
 	TSet<FString> NoPluginCompressionFileNames;
-	for (const FString& FileName : FileNamesToNotUsePluginCompression)
+	TSet<FString> NoPluginCompressionExtensions;
+	
+	// Oodle is built into the Engine now and can be used to decode startup phase files (ini,res,uplugin)
+	//	 which used to be forced to Zlib
+	//	 set bDoUseOodleDespiteNoPluginCompression = true to let Oodle compress those files
+	bool bDoUseOodleDespiteNoPluginCompression = false;
+	GConfig->GetBool(TEXT("Pak"), TEXT("bDoUseOodleDespiteNoPluginCompression"), bDoUseOodleDespiteNoPluginCompression, GEngineIni);
+
+	if ( bDoUseOodleDespiteNoPluginCompression && CompressionFormatsAndNone[0] == NAME_Oodle )
 	{
-		NoPluginCompressionFileNames.Add(FileName);
+		// NoPluginCompression sets are empty
+
+		UE_LOG(LogPakFile, Display, TEXT("Oodle enabled on 'NoPluginCompression' files"));
+	}
+	else
+	{
+		TArray<FString> ExtensionsToNotUsePluginCompression;
+		GConfig->GetArray(TEXT("Pak"), TEXT("ExtensionsToNotUsePluginCompression"), ExtensionsToNotUsePluginCompression, GEngineIni);
+		for (const FString& Ext : ExtensionsToNotUsePluginCompression)
+		{
+			NoPluginCompressionExtensions.Add(Ext);
+		}
+	
+		TArray<FString> FileNamesToNotUsePluginCompression;
+		GConfig->GetArray(TEXT("Pak"), TEXT("FileNamesToNotUsePluginCompression"), FileNamesToNotUsePluginCompression, GEngineIni);
+		for (const FString& FileName : FileNamesToNotUsePluginCompression)
+		{
+			NoPluginCompressionFileNames.Add(FileName);
+		}
 	}
 
 	struct FAsyncCompressor
