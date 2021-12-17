@@ -125,8 +125,7 @@ void FDMXProtocolArtNet::UnregisterInputPort(const FDMXInputPortSharedRef& Input
 	check(CachedInputPorts.Contains(InputPort));
 	CachedInputPorts.Remove(InputPort);
 
-	TSharedPtr<FDMXProtocolArtNetReceiver> UnusedReceiver;
-	for (const TSharedPtr<FDMXProtocolArtNetReceiver>& Receiver : Receivers)
+	for (const TSharedPtr<FDMXProtocolArtNetReceiver>& Receiver : TSet<TSharedPtr<FDMXProtocolArtNetReceiver>>(Receivers))
 	{
 		if (Receiver->ContainsInputPort(InputPort))
 		{
@@ -134,15 +133,9 @@ void FDMXProtocolArtNet::UnregisterInputPort(const FDMXInputPortSharedRef& Input
 
 			if (Receiver->GetNumAssignedInputPorts() == 0)
 			{
-				UnusedReceiver = Receiver;
+				Receivers.Remove(Receiver);
 			}
-			break;
 		}
-	}
-
-	if (UnusedReceiver.IsValid())
-	{
-		Receivers.Remove(UnusedReceiver);
 	}
 }
 
@@ -214,7 +207,6 @@ void FDMXProtocolArtNet::UnregisterOutputPort(const FDMXOutputPortSharedRef& Out
 	check(CachedOutputPorts.Contains(OutputPort));
 	CachedOutputPorts.Remove(OutputPort);
 
-	TArray<TSharedPtr<FDMXProtocolArtNetSender>> UnusedSenders;
 	for (const TSharedPtr<FDMXProtocolArtNetSender>& Sender : TSet<TSharedPtr<FDMXProtocolArtNetSender>>(Senders))
 	{
 		if (Sender->ContainsOutputPort(OutputPort))

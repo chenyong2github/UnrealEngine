@@ -224,6 +224,9 @@ private:
 	FFrameRate DelayFrameRate;
 
 	/** Critical section required to be used when clearing buffers */
+	FCriticalSection AccessSenderArrayCriticalSection;
+
+	/** Critical section required to be used when clearing buffers */
 	FCriticalSection ClearBuffersCriticalSection;
 
 	/** Holds the thread object. */
