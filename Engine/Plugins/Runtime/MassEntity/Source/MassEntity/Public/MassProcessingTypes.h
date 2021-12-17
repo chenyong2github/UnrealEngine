@@ -101,6 +101,9 @@ struct MASSENTITY_API FMassRuntimePipeline
 	/** Adds InProcessor to Processors without any additional checks */
 	void AppendProcessor(UMassProcessor& Processor);
 
+	/** Creates an instance of ProcessorClass and adds it to Processors without any additional checks */
+	void AppendProcessor(TSubclassOf<UMassProcessor> ProcessorClass, UObject& InOwner);
+
 	/** goes through Processor looking for a UMassCompositeProcessor instance which GroupName matches the one given as the parameter */
 	UMassCompositeProcessor* FindTopLevelGroupByName(const FName GroupName);
 
