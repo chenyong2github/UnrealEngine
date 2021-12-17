@@ -19,19 +19,23 @@ class REMOTECONTROLPROTOCOLDMX_API URemoteControlProtocolDMXSettings : public UO
 
 public:
 	//~ Begin UObject interface
-	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject interface
 
-	/** DMX Default Device */
-	UPROPERTY(Config, EditAnywhere, Category = Mapping)
-	FGuid DefaultInputPortId;
+	UFUNCTION(BlueprintGetter)
+	FGuid GetOrCreateDefaultInputPortId();
 
 	/** Returns a delegate broadcast whenever the Remote Control Protocol DMX Settings changed */
 	static FSimpleMulticastDelegate& GetOnRemoteControlProtocolDMXSettingsChanged();
 
+	static FName GetDefaultInputPortIdPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(URemoteControlProtocolDMXSettings, DefaultInputPortId); }
+
 private:
+	/** DMX Default Device */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Meta = (BlueprintGetter = GetOrCreateDefaultInputPortId, AllowPrivateAccess = true), Category = Mapping)
+	FGuid DefaultInputPortId;
+
 	static FSimpleMulticastDelegate OnRemoteControlProtocolDMXSettingsChangedDelegate;
 };

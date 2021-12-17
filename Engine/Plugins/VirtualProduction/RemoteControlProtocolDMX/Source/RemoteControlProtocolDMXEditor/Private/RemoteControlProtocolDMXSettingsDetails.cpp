@@ -28,7 +28,7 @@ TSharedRef<IDetailCustomization> FRemoteControlProtocolDMXSettingsDetails::MakeI
 void FRemoteControlProtocolDMXSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	// Customize the InputPortId property view
-	DefaultInputPortIdHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(URemoteControlProtocolDMXSettings, DefaultInputPortId));
+	DefaultInputPortIdHandle = DetailBuilder.GetProperty(URemoteControlProtocolDMXSettings::GetDefaultInputPortIdPropertyNameChecked());
 	if (!ensure(DefaultInputPortIdHandle.IsValid()))
 	{
 		return;

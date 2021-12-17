@@ -91,10 +91,10 @@ void FRemoteControlDMXProtocolEntity::UpdateInputPort()
 {
 	if (bUseDefaultInputPort || !InputPortId.IsValid() || !FDMXPortManager::Get().FindInputPortByGuid(InputPortId))
 	{
-		const URemoteControlProtocolDMXSettings* RemoteControlDMXSettings = GetDefault<URemoteControlProtocolDMXSettings>();
+		URemoteControlProtocolDMXSettings* RemoteControlDMXSettings = GetMutableDefault<URemoteControlProtocolDMXSettings>();
 		if (RemoteControlDMXSettings)
 		{
-			const FGuid& DefaultInputPortId = RemoteControlDMXSettings->DefaultInputPortId;
+			const FGuid& DefaultInputPortId = RemoteControlDMXSettings->GetOrCreateDefaultInputPortId();
 			FDMXInputPortSharedPtr DefaultInputPort = FDMXPortManager::Get().FindInputPortByGuid(DefaultInputPortId);
 			if (DefaultInputPort.IsValid())
 			{

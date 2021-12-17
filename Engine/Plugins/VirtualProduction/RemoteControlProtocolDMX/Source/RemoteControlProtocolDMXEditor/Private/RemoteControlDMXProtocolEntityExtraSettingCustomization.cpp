@@ -42,7 +42,7 @@ void FRemoteControlDMXProtocolEntityExtraSettingCustomization::CustomizeChildren
 	}
 
 	// Handle project setting changes
-	const URemoteControlProtocolDMXSettings* ProtocolDMXSettings = GetDefault<URemoteControlProtocolDMXSettings>();
+	URemoteControlProtocolDMXSettings* ProtocolDMXSettings = GetMutableDefault<URemoteControlProtocolDMXSettings>();
 	ProtocolDMXSettings->GetOnRemoteControlProtocolDMXSettingsChanged().AddSP(this, &FRemoteControlDMXProtocolEntityExtraSettingCustomization::OnInputPortChanged);
 
 	// Handle property changes
@@ -84,7 +84,7 @@ void FRemoteControlDMXProtocolEntityExtraSettingCustomization::CustomizeChildren
 		FGuid Result = GetPortGuid();
 		if (!Result.IsValid())
 		{
-			Result = ProtocolDMXSettings->DefaultInputPortId;
+			Result = ProtocolDMXSettings->GetOrCreateDefaultInputPortId();
 		}
 
 		return Result;
@@ -131,8 +131,8 @@ void FRemoteControlDMXProtocolEntityExtraSettingCustomization::OnInputPortChange
 	{
 		if (bUseDefaultInputPort)
 		{
-			const URemoteControlProtocolDMXSettings* ProtocolDMXSettings = GetDefault<URemoteControlProtocolDMXSettings>();
-			FGuid PortGuid = ProtocolDMXSettings->DefaultInputPortId;
+			URemoteControlProtocolDMXSettings* ProtocolDMXSettings = GetMutableDefault<URemoteControlProtocolDMXSettings>();
+			FGuid PortGuid = ProtocolDMXSettings->GetOrCreateDefaultInputPortId();
 
 			SetPortGuid(PortGuid);
 		}

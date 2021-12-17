@@ -7,20 +7,6 @@
 
 FSimpleMulticastDelegate URemoteControlProtocolDMXSettings::OnRemoteControlProtocolDMXSettingsChangedDelegate;
 
-void URemoteControlProtocolDMXSettings::PostLoad()
-{
-	Super::PostLoad();
-
-	if (!DefaultInputPortId.IsValid() || !FDMXPortManager::Get().FindInputPortByGuid(DefaultInputPortId))
-	{
-		const TArray<FDMXInputPortSharedRef> InputPorts = FDMXPortManager::Get().GetInputPorts();
-		if (InputPorts.Num() > 0)
-		{
-			DefaultInputPortId = InputPorts[0]->GetPortGuid();
-		}
-	}
-}
-
 #if WITH_EDITOR
 void URemoteControlProtocolDMXSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -32,6 +18,29 @@ void URemoteControlProtocolDMXSettings::PostEditChangeProperty(struct FPropertyC
 	}
 }
 #endif // WITH_EDITOR
+
+FGuid URemoteControlProtocolDMXSettings::GetOrCreateDefaultInputPortId()
+{
+	if (!DefaultInputPortId.IsValid() || !FDMXPortManager::Get().FindInputPortByGuid(DefaultInputPortId))
+	{
+		const TArray<FDMXInputPortSharedRef> InputPorts = FDMXPortManager::Get().GetInputPorts();
+		if (InputPorts.Num() > 0)
+		{
+#if WITH_EDITOR
+			Modify();
+			PreEditChange(URemoteControlProtocolDMXSettings::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URemoteControlProtocolDMXSettings, DefaultInputPortId)));
+#endif 
+
+			DefaultInputPortId = InputPorts[0]->GetPortGuid();
+
+#if WITH_EDITOR
+			PostEditChange();
+#endif
+		}
+	}
+
+	return DefaultInputPortId;
+}
 
 FSimpleMulticastDelegate& URemoteControlProtocolDMXSettings::GetOnRemoteControlProtocolDMXSettingsChanged()
 {
