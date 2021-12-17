@@ -5254,6 +5254,10 @@ void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 					SubClass->CleanupSparseClassData();
 					SubClassSparseClassDataStruct->SetSuperStruct(InSparseClassDataStruct);
 				}
+				else if (SubClassSparseClassDataStruct == SparseClassDataStruct)
+				{
+					SubClass->SetSparseClassDataStruct(InSparseClassDataStruct);
+				}
 			}
 		}
 		// the old type and new type may not match when we do a reload so get rid of the old data
