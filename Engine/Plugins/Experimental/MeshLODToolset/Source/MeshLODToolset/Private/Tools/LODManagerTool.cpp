@@ -45,6 +45,12 @@ const FToolTargetTypeRequirements& ULODManagerToolBuilder::GetTargetRequirements
 	return TypeRequirements;
 }
 
+bool ULODManagerToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	// disable multi-selection for now
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
+}
+
 UMultiSelectionMeshEditingTool* ULODManagerToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	return NewObject<ULODManagerTool>(SceneState.ToolManager);
@@ -73,45 +79,51 @@ void ULODManagerTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-
-	if (Targets.Num() == 1)
+	if (! ensure(Targets.Num() == 1) )
 	{
-		LODPreviewProperties = NewObject<ULODManagerPreviewLODProperties>(this);
-		AddToolPropertySource(LODPreviewProperties);
-		LODPreviewProperties->VisibleLOD = this->DefaultLODName;
-		LODPreviewProperties->WatchProperty(LODPreviewProperties->VisibleLOD, [this](FString NewLOD) { bPreviewLODValid = false; });
-		LODPreviewProperties->WatchProperty(LODPreviewProperties->bShowSeams, [this](bool bNewValue) { bPreviewLODValid = false; });
-
-		LODPreview = NewObject<UPreviewMesh>(this);
-		LODPreview->CreateInWorld(TargetWorld, (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
-		LODPreview->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
-		LODPreview->SetVisible(false);
-
-		LODPreviewLines = NewObject<UPreviewGeometry>(this);
-		LODPreviewLines->CreateInWorld(TargetWorld, (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
-
-		FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
-		LODPreview->SetMaterials(MaterialSet.Materials);
-
-		bLODInfoValid = false;
+		return;
 	}
 
 
-	HiResSourceModelActions = NewObject<ULODManagerHiResSourceModelActions>(this);
-	HiResSourceModelActions->Initialize(this);
-	AddToolPropertySource(HiResSourceModelActions);
+	LODPreviewProperties = NewObject<ULODManagerPreviewLODProperties>(this);
+	AddToolPropertySource(LODPreviewProperties);
+	LODPreviewProperties->VisibleLOD = this->DefaultLODName;
+	LODPreviewProperties->WatchProperty(LODPreviewProperties->VisibleLOD, [this](FString NewLOD) { bPreviewLODValid = false; });
+	LODPreviewProperties->WatchProperty(LODPreviewProperties->bShowSeams, [this](bool bNewValue) { bPreviewLODValid = false; });
+
+	LODPreview = NewObject<UPreviewMesh>(this);
+	LODPreview->CreateInWorld(TargetWorld, (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
+	LODPreview->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
+	LODPreview->SetVisible(false);
+
+	LODPreviewLines = NewObject<UPreviewGeometry>(this);
+	LODPreviewLines->CreateInWorld(TargetWorld, (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
+
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
+	LODPreview->SetMaterials(MaterialSet.Materials);
+
+	bLODInfoValid = false;
+
+	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[0])))
+	{
+		if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+		{
+			if (StaticMesh->IsHiResMeshDescriptionValid())
+			{
+				HiResSourceModelActions = NewObject<ULODManagerHiResSourceModelActions>(this);
+				HiResSourceModelActions->Initialize(this);
+				AddToolPropertySource(HiResSourceModelActions);
+			}
+		}
+	}
 
 	MaterialActions = NewObject<ULODManagerMaterialActions>(this);
 	MaterialActions->Initialize(this);
 	AddToolPropertySource(MaterialActions);
 
-
-	if (Targets.Num() == 1)
-	{
-		LODInfoProperties = NewObject<ULODManagerLODProperties>(this);
-		AddToolPropertySource(LODInfoProperties);
-		bLODInfoValid = false;
-	}
+	LODInfoProperties = NewObject<ULODManagerLODProperties>(this);
+	AddToolPropertySource(LODInfoProperties);
+	bLODInfoValid = false;
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Manage LODs"));
 	GetToolManager()->DisplayMessage(
