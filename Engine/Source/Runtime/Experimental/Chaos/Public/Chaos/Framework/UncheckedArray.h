@@ -18,6 +18,160 @@
 namespace Chaos
 {
 	/**
+	 * @brief A c-style array of objects with non-shipping bounds checking.
+	 * 
+	 * This behaves exactly like a C-style array, although it also keeps track of the number of
+	 * elements in the array. This element count is artficial - all elements in the array are 
+	 * default constructed and will not be destructed until the array itself is destroyed.
+	 * 
+	 * @note the element type must have a default constructor
+	*/
+	template<typename T, int32 N>
+	class TCArray
+	{
+	public:
+		static const int32 MaxElements = N;
+		using ElementType = T;
+
+		inline TCArray() : NumElements(0) {}
+
+		inline int32 Num() const { return NumElements; }
+		inline int32 Max() const { return MaxElements; }
+		inline bool IsEmpty() const { return NumElements == 0; }
+		inline bool IsFull() const { return NumElements == MaxElements; }
+
+		inline ElementType& operator[](const int32 Index)
+		{
+			check(Index < NumElements);
+			return Elements[Index];
+		}
+
+		inline const ElementType& operator[](const int32 Index) const
+		{
+			check(Index < NumElements);
+			return Elements[Index];
+		}
+
+		/**
+		 * @brief Set the number of elements in the array
+		 * @note Does not reset any added or removed elements, it only changes the number-of-elements counter
+		*/
+		inline void SetNum(const int32 InNum)
+		{
+			check(InNum < NumElements);
+			NumElements = InNum;
+		}
+
+		/**
+		 * @brief Set the number of elements to 0
+		 * @note Does not reset any elements
+		*/
+		inline void Reset()
+		{
+			NumElements = 0;
+		}
+
+		/**
+		 * @brief Set the number of elements to 0
+		 * @note Does not reset any elements
+		*/
+		inline void Empty()
+		{
+			NumElements = 0;
+		}
+
+		/**
+		 * @brief Increase the size of the array without re-initializing the new element
+		*/
+		inline int32 Add()
+		{
+			check(NumElements < MaxElements);
+			return NumElements++;
+		}
+
+		/**
+		 * @brief Copy the element to the end of the array
+		*/
+		inline int32 Add(const ElementType& V)
+		{
+			check(NumElements < MaxElements);
+			Elements[NumElements] = V;
+			return NumElements++;
+		}
+
+		/**
+		 * @brief Move the element to the end of the array
+		*/
+		inline int32 Add(ElementType&& V)
+		{
+			check(NumElements < MaxElements);
+			Elements[NumElements] = MoveTemp(V);
+			return NumElements++;
+		}
+
+		/**
+		 * @brief Move the element to the end of the array
+		*/
+		inline int32 Emplace(ElementType&& V)
+		{
+			return Add(MoveTemp(V));
+		}
+
+		/**
+		 * @brief Remove the element at the specified index
+		 * Moves all higher elements down to fill the gap
+		*/
+		inline void RemoveAt(const int32 Index)
+		{
+			check(Index < NumElements);
+			for (int32 MoveIndex = Index; MoveIndex < NumElements - 1; ++MoveIndex)
+			{
+				Elements[MoveIndex] = MoveTemp(Elements[MoveIndex + 1]);
+			}
+			--NumElements;
+		}
+
+		/**
+		 * @brief Remove the element at the specified index
+		 * Moves the last element into the gap.
+		*/
+		inline void RemoveAtSwap(const int32 Index)
+		{
+			check(Index < NumElements);
+			if (Index < NumElements - 1)
+			{
+				Elements[Index] = MoveTemp(Elements[NumElements - 1]);
+			}
+			--NumElements;
+		}
+
+		inline ElementType* begin()
+		{
+			return &Elements[0];
+		}
+
+		inline const ElementType* begin() const
+		{
+			return &Elements[0];
+		}
+
+		inline ElementType* end()
+		{
+			return &Elements[NumElements];
+		}
+
+		inline const ElementType* end() const
+		{
+			return &Elements[NumElements];
+		}
+
+	private:
+		ElementType Elements[MaxElements];
+		int32 NumElements;
+	};
+
+
+	/**
 	 * @brief A fixed allocator without array bounds checking except in Debug builds.
 	 *
 	 * In non-debug builds this offers no saftey at all - it is effectively a C-style array.
