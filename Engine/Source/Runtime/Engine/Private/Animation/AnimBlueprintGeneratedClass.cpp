@@ -700,7 +700,7 @@ void UAnimBlueprintGeneratedClass::InitializeAnimNodeData(UObject* DefaultObject
 #endif
 
 	// Link functions to their nodes
-	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
+	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num() && AnimNodeIndex < AnimNodeData.Num(); ++AnimNodeIndex)
 	{
 		FStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex];
 
