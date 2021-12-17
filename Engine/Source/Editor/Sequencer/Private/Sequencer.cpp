@@ -2307,6 +2307,8 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 	if (DataChangeType == EMovieSceneDataChangeType::RefreshTree)
 	{
 		bNeedTreeRefresh = true;
+		OnMovieSceneDataChangedDelegate.Broadcast(DataChangeType);
+		return;
 	}
 	else if ( DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemRemoved ||
 		DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemsChanged ||
@@ -2984,7 +2986,7 @@ FQualifiedFrameTime FSequencer::GetGlobalTime() const
 	return FQualifiedFrameTime(RootTime, PlayPosition.GetOutputRate());
 }
 
-void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode)
+void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode, bool bEvaluate)
 {
 	FFrameRate LocalResolution = GetFocusedTickResolution();
 
@@ -3024,11 +3026,11 @@ void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode)
 		NewTime = OnGetNearestKey(NewTime, NearestKeyOption);
 	}
 
-	SetLocalTimeDirectly(NewTime);
+	SetLocalTimeDirectly(NewTime, bEvaluate);
 }
 
 
-void FSequencer::SetLocalTimeDirectly(FFrameTime NewTime)
+void FSequencer::SetLocalTimeDirectly(FFrameTime NewTime, bool bEvaluate)
 {
 	TWeakPtr<SWidget> PreviousFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
 
@@ -3039,7 +3041,7 @@ void FSequencer::SetLocalTimeDirectly(FFrameTime NewTime)
 	}
 
 	// Transform the time to the root time-space
-	SetGlobalTime(NewTime * RootToLocalTransform.InverseFromWarp(RootToLocalLoopCounter));
+	SetGlobalTime(NewTime * RootToLocalTransform.InverseFromWarp(RootToLocalLoopCounter), bEvaluate);
 
 	if (PreviousFocusedWidget.IsValid())
 	{
@@ -3048,7 +3050,7 @@ void FSequencer::SetLocalTimeDirectly(FFrameTime NewTime)
 }
 
 
-void FSequencer::SetGlobalTime(FFrameTime NewTime)
+void FSequencer::SetGlobalTime(FFrameTime NewTime, bool bEvaluate)
 {
 	NewTime = ConvertFrameTime(NewTime, GetRootTickResolution(), PlayPosition.GetInputRate());
 	if (PlayPosition.GetEvaluationType() == EMovieSceneEvaluationType::FrameLocked)
@@ -3061,7 +3063,11 @@ void FSequencer::SetGlobalTime(FFrameTime NewTime)
 	TOptional<FFrameTime> CurrentPosition = PlayPosition.GetCurrentPosition();
 	if (PlayPosition.GetCurrentPosition() != NewTime)
 	{
-		EvaluateInternal(PlayPosition.JumpTo(NewTime));
+		FMovieSceneEvaluationRange EvalRange = PlayPosition.JumpTo(NewTime);
+		if (bEvaluate)
+		{
+			EvaluateInternal(EvalRange);
+		}
 	}
 
 	if (AutoScrubTarget.IsSet())
@@ -3129,7 +3135,6 @@ void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJ
 	bNeedsEvaluate = false;
 
 	UpdateCachedPlaybackContextAndClient();
-	
 	if (EventContextsAttribute.IsBound())
 	{
 		CachedEventContexts.Reset();
@@ -3165,6 +3170,7 @@ void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJ
 	{
 		OnGlobalTimeChangedDelegate.Broadcast();
 	}
+
 }
 
 void FSequencer::UpdateCachedPlaybackContextAndClient()
@@ -5150,7 +5156,7 @@ FFrameNumber FSequencer::OnGetNearestKey(FFrameTime InTime, ENearestKeyOption Ne
 	return NearestTime.IsSet() ? NearestTime.GetValue() : CurrentTime;
 }
 
-void FSequencer::OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScrubbing )
+void FSequencer::OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScrubbing , bool bEvaluate)
 {
 	if (PlaybackState == EMovieScenePlayerStatus::Scrubbing)
 	{
@@ -5176,7 +5182,7 @@ void FSequencer::OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScru
 	}
 	else
 	{
-		SetLocalTimeDirectly(NewScrubPosition);
+		SetLocalTimeDirectly(NewScrubPosition, bEvaluate);
 	}
 }
 

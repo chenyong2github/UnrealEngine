@@ -755,9 +755,9 @@ public:
 	virtual FQualifiedFrameTime GetLocalTime() const override;
 	virtual FQualifiedFrameTime GetGlobalTime() const override;
 	virtual uint32 GetLocalLoopIndex() const override;
-	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None) override;
-	virtual void SetLocalTimeDirectly(FFrameTime NewTime) override;
-	virtual void SetGlobalTime(FFrameTime Time) override;
+	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None, bool bEvaluate = true) override;
+	virtual void SetLocalTimeDirectly(FFrameTime NewTime, bool bEvaluate = true) override;
+	virtual void SetGlobalTime(FFrameTime Time, bool bEvaluate = true) override;
 	virtual void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams) override;
 	virtual void RestorePlaybackSpeed() override;
 	virtual void SnapToClosestPlaybackSpeed() override;
@@ -907,8 +907,10 @@ protected:
 	 * This will stop any playback from happening
 	 *
 	 * @param NewScrubPosition	The new scrub position
+	 * @param bScrubbing If scrubbing
+	 * @param bEvaluate  Do evaluate sequencer after changing time
 	 */
-	void OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScrubbing );
+	void OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScrubbing, bool bEvaluate);
 
 	/** Called when the user has begun scrubbing */
 	void OnBeginScrubbing();

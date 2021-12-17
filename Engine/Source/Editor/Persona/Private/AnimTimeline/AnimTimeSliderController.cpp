@@ -809,7 +809,7 @@ void FAnimTimeSliderController::CommitScrubPosition( FFrameTime NewValue, bool b
 		TimeSliderArgs.ScrubPosition.Set( NewValue );
 	}
 
-	TimeSliderArgs.OnScrubPositionChanged.ExecuteIfBound( NewValue, bIsScrubbing );
+	TimeSliderArgs.OnScrubPositionChanged.ExecuteIfBound( NewValue, bIsScrubbing, /*bEvaluate*/ true); //todo change if anim timeline needs to handle sequencer style middle mouse manipulation which changes time but doesn't evaluate
 }
 
 FReply FAnimTimeSliderController::OnMouseWheel( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
