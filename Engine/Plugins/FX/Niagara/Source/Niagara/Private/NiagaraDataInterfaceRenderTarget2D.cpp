@@ -112,7 +112,7 @@ bool GetRenderTargetFormat(bool bOverrideFormat, ETextureRenderTargetFormat Over
 	}
 
 	// If the format does not support typed store we need to find one that will
-	while ( GDynamicRHI->RHIIsTypedUAVStoreSupported(GetPixelFormatFromRenderTargetFormat(OutRenderTargetFormat)) == false )
+	while ( RHIIsTypedUAVStoreSupported(GetPixelFormatFromRenderTargetFormat(OutRenderTargetFormat)) == false )
 	{
 		static const TPair<ETextureRenderTargetFormat, ETextureRenderTargetFormat> FormatRemapTable[] =
 		{

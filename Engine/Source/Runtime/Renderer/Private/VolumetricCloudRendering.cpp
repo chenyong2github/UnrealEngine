@@ -231,7 +231,7 @@ static bool ShouldUseComputeForCloudTracing(const FStaticFeatureLevel InFeatureL
 	// So in this case, when capturing such a sky light, we must disabled the compute path.
 	const bool bMSAAEnabled = GetDefaultMSAACount(InFeatureLevel) > 1;
 
-	return !CVarVolumetricCloudDisableCompute.GetValueOnRenderThread() && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_FloatRGBA) && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_G16R16F) && !bMSAAEnabled;
+	return !CVarVolumetricCloudDisableCompute.GetValueOnRenderThread() && RHIIsTypedUAVLoadSupported(PF_FloatRGBA) && RHIIsTypedUAVLoadSupported(PF_G16R16F) && !bMSAAEnabled;
 }
 
 bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)

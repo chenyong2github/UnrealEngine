@@ -200,7 +200,7 @@ namespace MediaTextureResourceHelpers
 
 	bool SupportsComputeMipGen(EPixelFormat InFormat)
 	{
-		return RHIRequiresComputeGenerateMips() && GDynamicRHI->RHIIsTypedUAVLoadSupported(InFormat);
+		return RHIRequiresComputeGenerateMips() && RHIIsTypedUAVLoadSupported(InFormat);
 	}
 
 	EPixelFormat GetConvertedPixelFormat(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample)

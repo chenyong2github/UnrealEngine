@@ -1293,11 +1293,6 @@ void* FMetalDynamicRHI::RHIGetNativeInstance()
 	return nullptr;
 }
 
-bool FMetalDynamicRHI::RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat)
-{
-	return EnumHasAnyFlags(GPixelFormats[PixelFormat].Capabilities, EPixelFormatCapabilities::TypedUAVLoad);
-}
-
 uint16 FMetalDynamicRHI::RHIGetPlatformTextureMaxSampleCount()
 {
 	TArray<ECompositingSampleCount::Type> SamplesArray{ ECompositingSampleCount::Type::One, ECompositingSampleCount::Type::Two, ECompositingSampleCount::Type::Four, ECompositingSampleCount::Type::Eight };

@@ -185,8 +185,6 @@ public:
 
 	virtual void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents) final override;
 
-	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) override;
-
 	virtual uint16 RHIGetPlatformTextureMaxSampleCount() override;
 
 private:

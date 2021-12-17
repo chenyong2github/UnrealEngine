@@ -1240,11 +1240,6 @@ void* FAGXDynamicRHI::RHIGetNativeInstance()
 	return nullptr;
 }
 
-bool FAGXDynamicRHI::RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat)
-{
-	return EnumHasAnyFlags(GPixelFormats[PixelFormat].Capabilities, EPixelFormatCapabilities::TypedUAVLoad);
-}
-
 uint16 FAGXDynamicRHI::RHIGetPlatformTextureMaxSampleCount()
 {
 	TArray<ECompositingSampleCount::Type> SamplesArray{ ECompositingSampleCount::Type::One, ECompositingSampleCount::Type::Two, ECompositingSampleCount::Type::Four, ECompositingSampleCount::Type::Eight };
