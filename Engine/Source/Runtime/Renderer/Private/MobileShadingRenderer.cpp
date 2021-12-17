@@ -443,7 +443,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
 	const bool bPostProcessUsesSceneDepth = PostProcessUsesSceneDepth(Views[0]) || IsMobileDistortionActive(Views[0]);
 	const bool bRequireSeparateViewPass = Views.Num() > 1 && !Views[0].bIsMobileMultiViewEnabled;
-	const bool bIsSimulatedLDR = (!IsMobileHDR() && IsSimulatedPlatform(ShaderPlatform));
 	bRequiresMultiPass = RequiresMultiPass(RHICmdList, Views[0]);
 	bKeepDepthContent =
 		bRequiresMultiPass ||
@@ -456,13 +455,18 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		(bDeferredShading && bPostProcessUsesSceneDepth) ||
 		bShouldRenderVelocities ||
 		bRequireSeparateViewPass ||
-		bIsFullDepthPrepassEnabled ||
-        bIsSimulatedLDR;
+		bIsFullDepthPrepassEnabled;
 	// never keep MSAA depth if SceneDepthAux is enabled
 	bKeepDepthContent = ((NumMSAASamples > 1) && MobileRequiresSceneDepthAux(ShaderPlatform)) ? false : bKeepDepthContent;
 
 	// Depth is needed for Editor Primitives
 	if (bShouldCompositeEditorPrimitives)
+	{
+		bKeepDepthContent = true;
+	}
+
+	// In the editor RHIs may split a render-pass into several cmd buffer submissions, so all targets need to Store
+	if (IsSimulatedPlatform(ShaderPlatform))
 	{
 		bKeepDepthContent = true;
 	}
