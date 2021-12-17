@@ -26,4 +26,5 @@ public:
 protected:
 	void OnAssetSelectedFromPicker(const struct FAssetData& AssetData);
 	void OnPressedEnterOnAssetsInPicker(const TArray<struct FAssetData>& SelectedAssets);
+	void RequestCloseAssetPicker();
 };
