@@ -788,8 +788,50 @@ namespace UnrealBuildTool
 				RulesObject.bDisableLinking = true;
 			}
 
+			// If the files to compile contains headers, figure out the cpp files that include them
+			Func<FileReference, bool> IsHeader = x => x.HasExtension(".h") || x.HasExtension(".hpp") || x.HasExtension(".hxx");
+			List<FileReference> SpecificHeaderFiles = Descriptor.SpecificFilesToCompile.Where(IsHeader).ToList();
+			if (SpecificHeaderFiles.Count > 0)
+			{
+				List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
+				BaseDirs.Add(Unreal.EngineDirectory);
+
+				DirectoryReference CacheDir = Unreal.EngineDirectory;
+				if (RulesObject.ProjectFile != null)
+				{
+					BaseDirs.Add(RulesObject.ProjectFile.Directory);
+					CacheDir = RulesObject.ProjectFile.Directory;
+				}
+
+				FileReference IncludeCache = FileReference.Combine(CacheDir, "Intermediate", "HeaderLookup.dat");
+
+				Log.TraceInformation("Building dependency cache for specified headers");
+				foreach (FileReference HeaderFile in SpecificHeaderFiles)
+				{
+					Log.TraceLog("  {0}", HeaderFile);
+				}
+
+				CppIncludeLookup IncludeLookup = new CppIncludeLookup(IncludeCache);
+				IncludeLookup.Load();
+				IncludeLookup.Update(BaseDirs);
+				IncludeLookup.Save();
+
+				List<FileReference> NewFiles = IncludeLookup.FindFiles(Descriptor.SpecificFilesToCompile.Select(x => x.GetFileName())).Select(x => x.Location).ToList();
+				NewFiles.RemoveAll(x => IsHeader(x));
+				NewFiles = NewFiles.Except(Descriptor.SpecificFilesToCompile).ToList();
+
+				Log.TraceInformation("Found {0} source files", NewFiles.Count);
+				foreach (FileReference NewFile in NewFiles)
+				{
+					Log.TraceLog("  {0}", NewFile);
+				}
+
+				Descriptor.SpecificFilesToCompile.AddRange(NewFiles.Except(Descriptor.SpecificFilesToCompile));
+
+			}
+
 			// If we're compiling a plugin, and this target is monolithic, just create the object files
-			if(Descriptor.ForeignPlugin != null && RulesObject.LinkType == TargetLinkType.Monolithic)
+			if (Descriptor.ForeignPlugin != null && RulesObject.LinkType == TargetLinkType.Monolithic)
 			{
 				// Don't actually want an executable
 				RulesObject.bDisableLinking = true;

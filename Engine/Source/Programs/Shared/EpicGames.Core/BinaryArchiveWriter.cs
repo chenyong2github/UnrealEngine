@@ -263,7 +263,7 @@ namespace EpicGames.Core
 		/// Writes an array of shorts to the output
 		/// </summary>
 		/// <param name="Data">Data to write. May be null.</param>
-		public void WriteShortArray(short[] Data)
+		public void WriteShortArray(short[]? Data)
 		{
 			WritePrimitiveArray(Data, sizeof(short));
 		}
@@ -272,7 +272,7 @@ namespace EpicGames.Core
 		/// Writes an array of ints to the output
 		/// </summary>
 		/// <param name="Data">Data to write. May be null.</param>
-		public void WriteIntArray(int[] Data)
+		public void WriteIntArray(int[]? Data)
 		{
 			WritePrimitiveArray(Data, sizeof(int));
 		}
