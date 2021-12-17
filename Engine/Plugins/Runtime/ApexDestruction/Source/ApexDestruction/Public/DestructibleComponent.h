@@ -140,7 +140,7 @@ public:
 	virtual bool IsAnySimulatingPhysics() const override;
 
 	virtual void AddImpulse(FVector Impulse, FName BoneName = NAME_None, bool bVelChange = false) override;
-	virtual void AddImpulseAtLocation(FVector Impulse, FVector Position, FName BoneName = NAME_None, bool bVelChange = false) override;
+	virtual void AddImpulseAtLocation(FVector Impulse, FVector Position, FName BoneName = NAME_None) override;
 	virtual void AddForce(FVector Force, FName BoneName = NAME_None, bool bAccelChange = false) override;
 	virtual void AddForceAtLocation(FVector Force, FVector Location, FName BoneName = NAME_None) override;
 	virtual void AddForceAtLocationLocal(FVector Force, FVector Location, FName BoneName = NAME_None) override;
