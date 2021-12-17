@@ -17,7 +17,7 @@ enum class EVariantManagerTestEnum : uint8
 	ThirdOption = 45,
 };
 
-UCLASS(hideCategories=(Rendering, Physics, LOD, Activation, Input, Actor, Cooking))
+UCLASS(hideCategories=(Rendering, Physics, HLOD, Activation, Input, Actor, Cooking))
 class VARIANTMANAGERCONTENTEDITOR_API AVariantManagerTestActor : public AActor
 {
 public:

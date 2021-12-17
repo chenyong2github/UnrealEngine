@@ -14,7 +14,7 @@ class ULevelStreaming;
 /**
  * 
  */
-UCLASS(transient, notplaceable, hidecategories=(Rendering,Replication,Collision,Partition,Input,HLOD,Actor,LOD,Cooking))
+UCLASS(transient, notplaceable, hidecategories=(Rendering,Replication,Collision,Partition,Input,HLOD,Actor,Cooking))
 class ENGINE_API ALevelInstancePivot : public AActor
 {
 	GENERATED_UCLASS_BODY()

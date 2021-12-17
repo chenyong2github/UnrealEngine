@@ -19,7 +19,7 @@ class UMeshComponent;
 /**
  * AVPRootActor
  */
-UCLASS(meta = (DisplayName = "VP Root Actor"), hidecategories=(Actor, Collision, Input, LOD, Replication))
+UCLASS(meta = (DisplayName = "VP Root Actor"), hidecategories=(Actor, Collision, Input, HLOD, Replication))
 class VPUTILITIES_API AVPRootActor : public AActor
 {
 	GENERATED_BODY()
