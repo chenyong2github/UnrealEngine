@@ -472,6 +472,7 @@ struct INPUTCORE_API EKeys
 	static const FKey Gesture_Rotate;
 
 	// PS4-specific
+	UE_DEPRECATED(5.0, "This key has deprecated and will be removed. Use GamePad_Special_Left/Right instead.")
 	static const FKey PS4_Special;
 
 	// Steam Controller Specific
