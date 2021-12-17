@@ -115,4 +115,25 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponen
 }
 
 
+
+void UGeometryScriptLibrary_SceneUtilityFunctions::SetComponentMaterialList(
+	UPrimitiveComponent* Component,
+	const TArray<UMaterialInterface*>& MaterialList,
+	UGeometryScriptDebug* Debug)
+{
+	if (Component == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetComponentMaterialList_InvalidInput1", "SetComponentMaterialList: FromStaticMeshAsset is Null"));
+		return;
+	}
+
+	for (int32 k = 0; k < MaterialList.Num(); ++k)
+	{
+		Component->SetMaterial(k, MaterialList[k]);
+	}
+}
+
+
+
+
 #undef LOCTEXT_NAMESPACE
