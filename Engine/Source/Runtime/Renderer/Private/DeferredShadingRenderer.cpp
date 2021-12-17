@@ -2666,6 +2666,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 
 #if WITH_MGPU
+		if (SceneTextures.Depth.Resolve && SceneTextures.GBufferA)
 		{
 			FGBufferTemporalTextureParams* PassParameters = GraphBuilder.AllocParameters<FGBufferTemporalTextureParams>();
 
