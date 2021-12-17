@@ -606,7 +606,7 @@ class nDisplayMonitor(QAbstractTableModel):
 
     @QtCore.Slot()
     def on_soft_kill_clicked(self):
-        ''' Kills the cluster by sending a message to the master. '''
+        ''' Kills the cluster by sending a message to the primary. '''
         devices = [devicedata['device']
                    for devicedata in self.devicedatas.values()]
 
