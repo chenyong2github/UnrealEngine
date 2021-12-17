@@ -24,6 +24,7 @@ class MESHLODTOOLSET_API ULODManagerToolBuilder : public UMultiSelectionMeshEdit
 	GENERATED_BODY()
 
 public:
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 protected:
