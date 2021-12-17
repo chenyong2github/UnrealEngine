@@ -21,6 +21,7 @@ public:
 	virtual void OnExpansionChanged() override;
 	virtual void Delete(const FFolder& InNewParentFolder) override;
 	virtual TSharedRef<SWidget> GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow) override;
+	virtual bool ShouldShowPinnedState() const override;
 	/* End FFolderTreeItem Implementation */
 		
 	/* Begin FFolderTreeItem Implementation */
