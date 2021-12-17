@@ -208,6 +208,13 @@ protected:
 	float NotVisibleUpdateRate = 0.5f;
 };
 
+
+USTRUCT()
+struct FMassRepresentationDefaultDestructorTag : public FMassTag
+{
+	GENERATED_BODY()
+};
+
 UCLASS()
 class MASSREPRESENTATION_API UMassRepresentationFragmentDestructor : public UMassFragmentDestructor
 {

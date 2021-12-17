@@ -21,6 +21,9 @@ namespace UE::MassCrowd
 	};
 } // UE::MassCrowd
 
+//----------------------------------------------------------------------//
+// UMassCrowdVisualizationProcessor
+//----------------------------------------------------------------------//
 UMassCrowdVisualizationProcessor::UMassCrowdVisualizationProcessor()
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
@@ -79,10 +82,20 @@ void UMassCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsy
 	}
 }
 
+//----------------------------------------------------------------------//
+// UMassCrowdRepresentationFragmentDestructor
+//----------------------------------------------------------------------//
 void UMassCrowdRepresentationFragmentDestructor::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
 
 	// Override default representation subsystem by the crowd one to support parallelization
 	RepresentationSubsystem = UWorld::GetSubsystem<UMassCrowdRepresentationSubsystem>(Owner.GetWorld());
+}
+
+void UMassCrowdRepresentationFragmentDestructor::ConfigureQueries()
+{
+	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_Actor>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddTagRequirement<FMassCrowdRepresentationDestructorTag>(EMassFragmentPresence::All);
 }

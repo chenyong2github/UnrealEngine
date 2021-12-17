@@ -497,16 +497,19 @@ void UMassRepresentationFragmentDestructor::Initialize(UObject& Owner)
 	Super::Initialize(Owner);
 
 	RepresentationSubsystem = UWorld::GetSubsystem<UMassRepresentationSubsystem>(Owner.GetWorld());
+	check(RepresentationSubsystem);
 }
 
 void UMassRepresentationFragmentDestructor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FDataFragment_Actor>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddTagRequirement<FMassRepresentationDefaultDestructorTag>(EMassFragmentPresence::All);
 }
 
 void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
+	check(Context.ValidateAuxDataType<FMassRepresentationFragment>());
 	check(RepresentationSubsystem);
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
