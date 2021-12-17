@@ -196,6 +196,13 @@ void FMassRuntimePipeline::AppendProcessor(UMassProcessor& Processor)
 	Processors.Add(&Processor);
 }
 
+void FMassRuntimePipeline::AppendProcessor(TSubclassOf<UMassProcessor> ProcessorClass, UObject& InOwner)
+{
+	check(ProcessorClass);
+	UMassProcessor* ProcInstance = NewObject<UMassProcessor>(&InOwner, ProcessorClass);
+	AppendProcessor(*ProcInstance);
+}
+
 UMassCompositeProcessor* FMassRuntimePipeline::FindTopLevelGroupByName(FName GroupName)
 {
 	for (UMassProcessor* Processor : Processors)
