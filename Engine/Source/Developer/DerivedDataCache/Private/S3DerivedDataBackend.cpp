@@ -25,6 +25,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "Async/ParallelFor.h"
 #include "Serialization/MemoryReader.h"
+#include "DerivedDataBackendCorruptionWrapper.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataPayload.h"
 #include "Dom/JsonObject.h"
@@ -51,7 +52,7 @@
 #define S3DDC_MAX_ATTEMPTS 4
 #define S3DDC_MAX_BUFFER_RESERVE 104857600u
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::S3
 {
 
 TRACE_DECLARE_INT_COUNTER(S3DDC_Exist, TEXT("S3DDC Exist"));
@@ -959,7 +960,10 @@ bool FS3DerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& 
 			OutData.SetNum(BundleEntry->Length);
 			Reader->Seek(BundleEntry->Offset);
 			Reader->Serialize(OutData.GetData(), BundleEntry->Length);
-			return true;
+			if (FCorruptionWrapper::ReadTrailer(OutData, *BaseUrl, CacheKey))
+			{
+				return true;
+			}
 		}
 	}
 
@@ -1264,6 +1268,6 @@ void FS3DerivedDataBackend::GetChunks(
 	}
 }
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore::S3
 
 #endif
