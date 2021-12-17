@@ -12,6 +12,7 @@ class UMassEntitySubsystem;
 class UMassProcessor;
 class UMassSchematic;
 class UMassCompositeProcessor;
+struct FMassCommandBuffer;
 
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EProcessorExecutionFlags : uint8
@@ -44,6 +45,15 @@ struct MASSENTITY_API FMassProcessingContext
 	UPROPERTY()
 	FInstancedStruct AuxData;
 
+	/** 
+	 * If set to "true" the MassExecutor will flush commands at the end of given execution function. 
+	 * If "false" the caller is responsible for manually flushing the commands.
+	 */
+	UPROPERTY()
+	bool bFlushCommandBuffer = true; 
+		
+	TSharedPtr<FMassCommandBuffer> CommandBuffer;
+	
 	FMassProcessingContext() = default;
 	FMassProcessingContext(UMassEntitySubsystem& InEntities, const float InDeltaSeconds);
 };

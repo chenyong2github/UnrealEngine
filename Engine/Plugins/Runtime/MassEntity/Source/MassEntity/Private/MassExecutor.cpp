@@ -89,8 +89,12 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 	{
 		ExecutionContext.SetChunkCollection(*ChunkCollection);
 	}
-	// manually creating a new command buffer to let the default one still be used by code unaware of mass processing
-	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
+	
+	// if ProcessingContext points at a valid CommandBuffer use that one, otherwise manually create a new command buffer 
+	// to let the default one still be used by code unaware of mass processing
+	TSharedPtr<FMassCommandBuffer> CommandBuffer = ProcessingContext.CommandBuffer 
+		? ProcessingContext.CommandBuffer : MakeShareable(new FMassCommandBuffer());
+	ExecutionContext.SetDeferredCommandBuffer(CommandBuffer);
 	ExecutionContext.SetFlushDeferredCommands(false);
 	ExecutionContext.SetAuxData(ProcessingContext.AuxData);
 
@@ -105,6 +109,7 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 		}
 	}
 	
+	if (ProcessingContext.bFlushCommandBuffer)
 	{		
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Flush Deferred Commands")
 		
@@ -167,7 +172,9 @@ FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingCo
 
 	// not going through UMassEntitySubsystem::CreateExecutionContext on purpose - we do need a separate command buffer
 	FMassExecutionContext ExecutionContext(ProcessingContext.DeltaSeconds);
-	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
+	TSharedPtr<FMassCommandBuffer> CommandBuffer = ProcessingContext.CommandBuffer
+		? ProcessingContext.CommandBuffer : MakeShareable(new FMassCommandBuffer());
+	ExecutionContext.SetDeferredCommandBuffer(CommandBuffer);
 	ExecutionContext.SetFlushDeferredCommands(false);
 	ExecutionContext.SetAuxData(ProcessingContext.AuxData);
 
