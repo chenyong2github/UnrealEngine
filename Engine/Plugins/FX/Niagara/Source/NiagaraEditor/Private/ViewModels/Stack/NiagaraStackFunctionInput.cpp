@@ -1655,7 +1655,11 @@ bool UNiagaraStackFunctionInput::CanReset() const
 			switch (InputValues.Mode)
 			{
 			case EValueMode::Data:
-				bNewCanReset = InputValues.DataObject->Equals(DefaultInputValues.DataObject.Get()) == false;
+				// the DI could have been garbage collected at this point
+				if(InputValues.DataObject.IsValid())
+				{
+					bNewCanReset = InputValues.DataObject->Equals(DefaultInputValues.DataObject.Get()) == false;
+				}
 				break;
 			case EValueMode::Dynamic:
 				// For now assume that default dynamic inputs can always be reset to default since they're not currently supported properly.
