@@ -984,15 +984,10 @@ void FS3DerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransi
 
 TSharedRef<FDerivedDataCacheStatsNode> FS3DerivedDataBackend::GatherUsageStats() const
 {
-	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s @ %s"), TEXT("S3"), *BaseUrl));
+	TSharedRef<FDerivedDataCacheStatsNode> Usage =
+		MakeShared<FDerivedDataCacheStatsNode>(TEXT("S3"), BaseUrl, /*bIsLocal*/ false);
 	Usage->Stats.Add(TEXT(""), UsageStats);
-
 	return Usage;
-}
-
-FString FS3DerivedDataBackend::GetDisplayName() const
-{
-	return FString(TEXT("S3"));
 }
 
 FString FS3DerivedDataBackend::GetName() const

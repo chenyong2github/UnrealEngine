@@ -737,7 +737,6 @@ public:
 	// FDerivedDataBackendInterface Interface
 
 	FString GetName() const final { return CachePath; }
-	FString GetDisplayName() const final { return FString(TEXT("File System")); }
 	bool IsWritable() const final { return !bReadOnly && !bDisabled; }
 	ESpeedClass GetSpeedClass() const final { return SpeedClass; }
 
@@ -1519,7 +1518,7 @@ void FFileSystemCacheStore::RemoveCachedData(const TCHAR* const CacheKey, const 
 TSharedRef<FDerivedDataCacheStatsNode> FFileSystemCacheStore::GatherUsageStats() const
 {
 	TSharedRef<FDerivedDataCacheStatsNode> Usage =
-		MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s.%s"), TEXT("FileSystem"), *CachePath));
+		MakeShared<FDerivedDataCacheStatsNode>(TEXT("File System"), *CachePath, SpeedClass == ESpeedClass::Local);
 	Usage->Stats.Add(TEXT(""), UsageStats);
 	return Usage;
 }

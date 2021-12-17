@@ -85,8 +85,6 @@ public:
 	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
 	
 	virtual FString GetName() const override;
-	virtual FString GetDisplayName() const override;
-	virtual bool IsRemote() const override;
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
 

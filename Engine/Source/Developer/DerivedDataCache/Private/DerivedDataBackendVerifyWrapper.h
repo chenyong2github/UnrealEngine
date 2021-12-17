@@ -35,12 +35,6 @@ public:
 		check(InnerBackend);
 	}
 
-	/** Return a type for this interface */
-	virtual FString GetDisplayName() const override
-	{
-		return FString(TEXT("VerifyWrapper"));
-	}
-
 	/** Return a name for this interface */
 	virtual FString GetName() const override
 	{
@@ -50,11 +44,6 @@ public:
 	virtual bool IsWritable() const override
 	{
 		return true;
-	}
-
-	virtual bool IsWrapper() const override 
-	{ 
-		return true; 
 	}
 
 	virtual ESpeedClass GetSpeedClass() const override
@@ -147,7 +136,8 @@ public:
 
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
-		TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, TEXT("VerifyWrapper"));
+		TSharedRef<FDerivedDataCacheStatsNode> Usage =
+			MakeShared<FDerivedDataCacheStatsNode>(TEXT("VerifyWrapper"), TEXT(""), InnerBackend->GetSpeedClass() == ESpeedClass::Local);
 		Usage->Stats.Add(TEXT(""), UsageStats);
 
 		if (InnerBackend)

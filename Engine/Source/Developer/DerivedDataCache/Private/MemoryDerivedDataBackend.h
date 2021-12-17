@@ -25,9 +25,6 @@ public:
 	~FMemoryDerivedDataBackend();
 
 	/** Return a name for this interface */
-	virtual FString GetDisplayName() const override { return FString(TEXT("Memory")); }
-
-	/** Return a name for this interface */
 	virtual FString GetName() const override { return Name; }
 
 	/** return true if this cache is writable **/

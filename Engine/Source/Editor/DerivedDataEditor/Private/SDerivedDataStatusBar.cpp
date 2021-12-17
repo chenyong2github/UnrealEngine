@@ -7,7 +7,6 @@
 #include "SDerivedDataCacheSettings.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataCacheInterface.h"
-#include "DerivedDataBackendInterface.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Text/STextBlock.h"

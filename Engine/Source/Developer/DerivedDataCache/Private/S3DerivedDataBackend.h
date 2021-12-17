@@ -43,9 +43,6 @@ public:
 	/* S3 Cache cannot be written to*/
 	bool IsWritable() const override { return false; }
 
-	/* S3 Cache is always remote */
-	bool IsRemote() const override { return true; }
-
 	/* S3 Cache does not try to write back to lower caches (e.g. Shared DDC) */
 	bool BackfillLowerCacheLevels() const override { return false; }
 
@@ -56,7 +53,6 @@ public:
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 
 	FString GetName() const override;
-	FString GetDisplayName() const override;
 	ESpeedClass GetSpeedClass() const override;
 	bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Containers/BitArray.h"
 #include "DerivedDataCache.h"
 #include "Stats/Stats.h"
@@ -27,10 +27,10 @@ DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Exists Time"),STAT_DDC_ExistTime,STA
 
 
 
-/** 
- * Interface for cache server backends. 
+/**
+ * Interface for cache server backends.
  * The entire API should be callable from any thread (except the singleton can be assumed to be called at least once before concurrent access).
-**/
+ */
 class FDerivedDataBackendInterface : public UE::DerivedData::ICacheStore
 {
 public:
@@ -48,28 +48,28 @@ public:
 		Skipped,
 	};
 
-	/*
-		Speed classes. Higher values are faster so > / < comparisons make sense.
-	*/
+	/**
+	 * Speed classes. Higher values are faster so > / < comparisons make sense.
+	 */
 	enum class ESpeedClass
 	{
 		Unknown,		/* Don't know yet*/
 		Slow,			/* Slow, likely a remote drive. Some benefit but handle with care */
 		Ok,				/* Ok but not great.  */
 		Fast,			/* Fast but seek times still have an impact */
-		Local			/* Little to no impact from seek times and extremly fast reads */
+		Local			/* Little to no impact from seek times and extremely fast reads */
 	};
 
-	/* Debug options that can be applied to backends to simulate different behavior */
+	/** Debug options that can be applied to backends to simulate different behavior */
 	struct FBackendDebugOptions
 	{
-		/* Percentage of requests that should result in random misses */
+		/** Percentage of requests that should result in random misses */
 		int					RandomMissRate;
 
-		/* Apply behavior of this speed class */
-		ESpeedClass			SpeedClass;		
+		/** Apply behavior of this speed class */
+		ESpeedClass			SpeedClass;
 
-		/* Types of DDC entries that should always be a miss */
+		/** Types of DDC entries that should always be a miss */
 		TArray<FString>		SimulateMissTypes;
 
 		FBackendDebugOptions()
@@ -78,14 +78,14 @@ public:
 		{
 		}
 
-		/* Fill in the provided structure based on the name of the node (e.g. 'shared') and the provided token stream */
+		/** Fill in the provided structure based on the name of the node (e.g. 'shared') and the provided token stream */
 		static bool ParseFromTokens(FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InTokens);
 
-		/* 
-			Returns true if, according to the properties of this struct, the provided key should be treated as a miss.
-			Implementing that miss and accounting for any behaviour impact (e.g. skipping a subsequent put) is left to
-			each backend.
-		*/
+		/**
+		 * Returns true if, according to the properties of this struct, the provided key should be treated as a miss.
+		 * Implementing that miss and accounting for any behavior impact (e.g. skipping a subsequent put) is left to
+		 * each backend.
+		 */
 		bool ShouldSimulateMiss(const TCHAR* InCacheKey);
 		bool ShouldSimulateMiss(const UE::DerivedData::FCacheKey& InCacheKey);
 	};
@@ -97,22 +97,13 @@ public:
 	/** Return a name for this interface */
 	virtual FString GetName() const = 0;
 
-	/** Return a name for this interface */
-	virtual FString GetDisplayName() const { return GetName(); }
-
-	/** return true if this cache is writable **/
+	/** return true if this cache is writable */
 	virtual bool IsWritable() const = 0;
 
-	/** Is this interface remote */
-	virtual bool IsRemote() const { return false; }
-
-	/** Is this a wrapper */
-	virtual bool IsWrapper() const { return false; }
-
-	/** 
-	 * return true if hits on this cache should propagate to lower cache level. Typically false for a PAK file. 
-	 * Caution! This generally isn't propagated, so the thing that returns false must be a direct child of the heirarchical cache.
-	 **/
+	/**
+	 * Returns true if hits on this cache should propagate to lower cache level. Typically false for a PAK file.
+	 * Caution! This generally isn't propagated, so the thing that returns false must be a direct child of the hierarchical cache.
+	 */
 	virtual bool BackfillLowerCacheLevels() const
 	{
 		return true;
@@ -120,7 +111,7 @@ public:
 
 	/**
 	 * Returns a class of speed for this interface
-	 **/
+	 */
 	virtual ESpeedClass GetSpeedClass() const = 0;
 
 	/**
@@ -155,7 +146,8 @@ public:
 	 * @param	OutData		Buffer to receive the results, if any were found
 	 * @return				true if any data was found, and in this case OutData is non-empty
 	 */
-	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)=0;
+	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) = 0;
+
 	/**
 	 * Asynchronous, fire-and-forget placement of a cache item
 	 *
@@ -193,8 +185,8 @@ public:
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) = 0;
 
 	/**
-	 *  Ask a backend to apply debug behavior to simulate different conditions. Backends that don't support these options should return 
-		false which will result in a warning if an attempt is made to apply these options.
+	 * Ask a backend to apply debug behavior to simulate different conditions. Backends that don't support these options should return
+	 * false which will result in a warning if an attempt is made to apply these options.
 	 */
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) = 0;
 };
@@ -249,7 +241,7 @@ public:
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const = 0;
 };
 
-/* Lexical conversions from and to enums */
+/** Lexical conversions from and to enums */
 
 inline const TCHAR* LexToString(FDerivedDataBackendInterface::ESpeedClass SpeedClass)
 {

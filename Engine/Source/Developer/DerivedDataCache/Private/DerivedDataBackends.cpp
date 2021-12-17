@@ -1207,7 +1207,7 @@ public:
 			return RootCache->GatherUsageStats();
 		}
 
-		return MakeShared<FDerivedDataCacheStatsNode>(nullptr, TEXT(""));
+		return MakeShared<FDerivedDataCacheStatsNode>(TEXT(""), TEXT(""), /*bIsLocal*/ true);
 	}
 
 private:

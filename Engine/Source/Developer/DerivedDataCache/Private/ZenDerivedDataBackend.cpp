@@ -88,19 +88,9 @@ FZenDerivedDataBackend::~FZenDerivedDataBackend()
 {
 }
 
-FString FZenDerivedDataBackend::GetDisplayName() const
-{
-	return FString(TEXT("Zen"));
-}
-
 FString FZenDerivedDataBackend::GetName() const
 {
 	return ZenService.GetInstance().GetURL();
-}
-
-bool FZenDerivedDataBackend::IsRemote() const
-{
-	return bIsRemote;
 }
 
 bool FZenDerivedDataBackend::IsServiceReady()
@@ -512,7 +502,7 @@ TSharedRef<FDerivedDataCacheStatsNode> FZenDerivedDataBackend::GatherUsageStats(
 #endif
 
 	TSharedRef<FDerivedDataCacheStatsNode> LocalNode =
-		MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s.%s"), TEXT("ZenDDC"), *GetName()));
+		MakeShared<FDerivedDataCacheStatsNode>(TEXT("Zen"), ZenService.GetInstance().GetURL(), /*bIsLocal*/ true);
 	LocalNode->Stats.Add(TEXT(""), LocalStats);
 
 	if (ZenStats.UpstreamStats.EndPointStats.IsEmpty())
@@ -521,11 +511,11 @@ TSharedRef<FDerivedDataCacheStatsNode> FZenDerivedDataBackend::GatherUsageStats(
 	}
 
 	TSharedRef<FDerivedDataCacheStatsNode> RemoteNode =
-		MakeShared<FDerivedDataCacheStatsNode>(this, ZenStats.UpstreamStats.EndPointStats[0].Url);
+		MakeShared<FDerivedDataCacheStatsNode>(ZenStats.UpstreamStats.EndPointStats[0].Name, ZenStats.UpstreamStats.EndPointStats[0].Url, /*bIsLocal*/ false);
 	RemoteNode->Stats.Add(TEXT(""), RemoteStats);
 
 	TSharedRef<FDerivedDataCacheStatsNode> GroupNode =
-		MakeShared<FDerivedDataCacheStatsNode>(this, TEXT("Zen Group"));
+		MakeShared<FDerivedDataCacheStatsNode>(TEXT("Zen Group"), TEXT(""), /*bIsLocal*/ true);
 	GroupNode->Children.Add(LocalNode);
 	GroupNode->Children.Add(RemoteNode);
 	return GroupNode;
