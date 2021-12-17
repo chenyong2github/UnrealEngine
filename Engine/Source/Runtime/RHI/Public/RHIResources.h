@@ -17,6 +17,7 @@
 #include "RHIDefinitions.h"
 #include "Templates/RefCounting.h"
 #include "PixelFormat.h"
+#include "TextureProfiler.h"
 #include "Containers/LockFreeList.h"
 #include "Misc/SecureHash.h"
 #include "Hash/CityHash.h"
@@ -1358,6 +1359,10 @@ public:
 	void SetName(const FName& InName)
 	{
 		TextureName = InName;
+
+#if TEXTURE_PROFILER_ENABLED
+		FTextureProfiler::Get()->UpdateTextureName(this);
+#endif
 	}
 
 	FName GetName() const

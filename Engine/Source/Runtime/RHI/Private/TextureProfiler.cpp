@@ -209,7 +209,14 @@ void FTextureProfiler::RemoveTextureAllocation(FRHITexture* UniqueTexturePtr)
 void FTextureProfiler::UpdateTextureName(FRHITexture* UniqueTexturePtr)
 {
 	FScopeLock Lock(&TextureMapCS);
-	FTexureDetails& Details = TexturesMap[UniqueTexturePtr];
+
+	FTexureDetails* DetailsPtr = TexturesMap.Find(UniqueTexturePtr);
+	if (DetailsPtr == nullptr)
+	{
+		return;
+	}
+
+	FTexureDetails& Details = *DetailsPtr;
 	FName OldName = Details.GetTextureName();
 	Details.SetName(UniqueTexturePtr->GetName());
 
