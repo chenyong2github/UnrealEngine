@@ -74,6 +74,7 @@ public:
 
 	void SetInputValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
 
+	void GetParameterInputs(TArray<class UNiagaraStackFunctionInput*>& OutResult) const;
 	TArray<class UNiagaraStackFunctionInput*> GetInlineParameterInputs() const;
 
 	virtual bool SupportsCut() const override { return true; }

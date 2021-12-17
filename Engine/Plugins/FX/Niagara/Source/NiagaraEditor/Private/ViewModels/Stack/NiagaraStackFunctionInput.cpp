@@ -2013,6 +2013,16 @@ UNiagaraStackFunctionInput::FOnValueChanged& UNiagaraStackFunctionInput::OnValue
 	return ValueChangedDelegate;
 }
 
+TOptional<FNiagaraVariable> UNiagaraStackFunctionInput::GetEditConditionVariable() const
+{
+	if(GetHasEditCondition())
+	{
+		return FNiagaraVariable(EditCondition.GetConditionInputType(), EditCondition.GetConditionInputName());
+	}
+
+	return TOptional<FNiagaraVariable>();
+}
+
 bool UNiagaraStackFunctionInput::GetHasEditCondition() const
 {
 	return EditCondition.IsValid();
@@ -2395,10 +2405,11 @@ bool UNiagaraStackFunctionInput::IsScratchDynamicInput() const
 
 bool UNiagaraStackFunctionInput::ShouldDisplayInline() const
 {
+	// we only allow values to show up that are supposed to be visible
 	// we don't allow advanced values to be inlined as they can introduce problems with filtering
-	if(InputValues.Mode == EValueMode::Local && InputMetaData.IsSet() && !GetIsAdvanced() && InputMetaData->bDisplayInOverviewStack)
+	if(InputMetaData.IsSet() && InputMetaData->bDisplayInOverviewStack && InputValues.Mode == EValueMode::Local && GetShouldPassFilterForVisibleCondition())
 	{
-		return true;
+		return true;				
 	}
 
 	return false;

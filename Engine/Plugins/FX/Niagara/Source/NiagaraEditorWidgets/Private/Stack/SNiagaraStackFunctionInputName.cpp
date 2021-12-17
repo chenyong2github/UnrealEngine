@@ -15,6 +15,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
+#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputName"
 
@@ -32,15 +33,25 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 		.IsEnabled_UObject(FunctionInput, &UNiagaraStackEntry::GetOwnerIsEnabled)
 	];
 
+	TOptional<FNiagaraVariable> EditVariable = FunctionInput->GetEditConditionVariable();
+
+	TSharedRef<SCheckBox> InlineEnableToggle = SNew(SCheckBox)
+		.Visibility(this, &SNiagaraStackFunctionInputName::GetEditConditionCheckBoxVisibility)
+		.IsChecked(this, &SNiagaraStackFunctionInputName::GetEditConditionCheckState)
+		.OnCheckStateChanged(this, &SNiagaraStackFunctionInputName::OnEditConditionCheckStateChanged);
+		
+	if(FunctionInput->GetHasEditCondition() && EditVariable.IsSet())
+	{
+		TSharedRef<SToolTip> Tooltip = FNiagaraParameterUtilities::GetTooltipWidget(EditVariable.GetValue(), false);
+		InlineEnableToggle->SetToolTip(Tooltip);
+	}
+	
 	// Edit condition checkbox
 	NameBox->AddSlot()
 	.AutoWidth()
 	.Padding(0, 0, 3, 0)
 	[
-		SNew(SCheckBox)
-		.Visibility(this, &SNiagaraStackFunctionInputName::GetEditConditionCheckBoxVisibility)
-		.IsChecked(this, &SNiagaraStackFunctionInputName::GetEditConditionCheckState)
-		.OnCheckStateChanged(this, &SNiagaraStackFunctionInputName::OnEditConditionCheckStateChanged)
+		InlineEnableToggle
 	];
 	
 	// Name Label

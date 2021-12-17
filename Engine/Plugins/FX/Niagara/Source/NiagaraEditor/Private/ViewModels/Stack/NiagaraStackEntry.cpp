@@ -389,6 +389,27 @@ void UNiagaraStackEntry::GetFilteredChildren(TArray<UNiagaraStackEntry*>& OutFil
 	OutFilteredChildren.Append(FilteredChildren);
 }
 
+void UNiagaraStackEntry::GetCustomFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren, const TArray<FOnFilterChild>& CustomChildFilters) const
+{
+	for (UNiagaraStackEntry* Child : Children)
+	{
+		bool bPassesFilter = true;
+		for (const FOnFilterChild& ChildFilter : CustomChildFilters)
+		{
+			if (ChildFilter.Execute(*Child) == false)
+			{
+				bPassesFilter = false;
+				break;
+			}
+		}
+
+		if (bPassesFilter)
+		{
+			OutFilteredChildren.Add(Child);
+		}
+	}
+}
+
 void UNiagaraStackEntry::GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutUnfilteredChildren) const
 {
 	OutUnfilteredChildren.Append(ErrorChildren);

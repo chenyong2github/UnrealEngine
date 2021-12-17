@@ -145,13 +145,13 @@ void UNiagaraStackFunctionInputCollection::GetChildInputs(TArray<UNiagaraStackFu
 	}
 }
 
-void UNiagaraStackFunctionInputCollection::GetFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult) const
+void UNiagaraStackFunctionInputCollection::GetCustomFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult, const TArray<FOnFilterChild>& CustomFilters) const
 {
 	TArray<UNiagaraStackInputCategory*> ChildCategories;
-	GetFilteredChildrenOfType(ChildCategories);
+	GetUnfilteredChildrenOfType(ChildCategories);
 	for (UNiagaraStackInputCategory* ChildCategory : ChildCategories)
 	{
-		ChildCategory->GetFilteredChildrenOfType(OutResult);
+		ChildCategory->GetCustomFilteredChildrenOfType(OutResult, CustomFilters);
 	}
 }
 
@@ -160,7 +160,9 @@ TArray<UNiagaraStackFunctionInput*> UNiagaraStackFunctionInputCollection::GetInl
 	TArray<UNiagaraStackFunctionInput*> OutArray;
 	
 	TArray<UNiagaraStackFunctionInput*> FunctionInputs;
-	GetFilteredChildInputs(FunctionInputs);
+	TArray<FOnFilterChild> CustomChildFilters;
+	CustomChildFilters.Add(FOnFilterChild::CreateUObject(this, &UNiagaraStackFunctionInput::FilterHiddenChildren));
+	GetCustomFilteredChildInputs(FunctionInputs, CustomChildFilters);
 
 	for(UNiagaraStackFunctionInput* FunctionInput : FunctionInputs)
 	{

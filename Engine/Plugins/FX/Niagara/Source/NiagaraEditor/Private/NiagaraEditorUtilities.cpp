@@ -63,6 +63,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "UObject/TextProperty.h"
+#include "Widgets/SNiagaraPinTypeSelector.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 
@@ -3513,6 +3514,91 @@ bool FNiagaraParameterUtilities::TestCanRenameWithMessage(FName ParameterName, F
 		}
 	}
 	return false;
+}
+
+TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariable Variable, bool bShowValue)
+{
+	FNiagaraTypeDefinition Type = Variable.GetType();
+	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Type);
+	TSharedPtr<INiagaraEditorTypeUtilities> TypeUtilities = FNiagaraEditorModule::Get().GetTypeUtilities(Type);
+
+	FText			   IconToolTip = FText::GetEmpty();
+	FSlateBrush const* IconBrush = FAppStyle::Get().GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+	FSlateColor        IconColor = FSlateColor(TypeColor);
+	FString			   IconDocLink, IconDocExcerpt;
+	FSlateBrush const* SecondaryIconBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
+	FSlateColor        SecondaryIconColor = IconColor;
+
+
+	TSharedRef<SVerticalBox> TooltipContent = SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SNiagaraIconWidget)
+				.IconToolTip(IconToolTip)
+				.IconBrush(IconBrush)
+				.IconColor(IconColor)
+				.DocLink(IconDocLink)
+				.DocExcerpt(IconDocExcerpt)
+				.SecondaryIconBrush(SecondaryIconBrush) 
+				.SecondaryIconColor(SecondaryIconColor)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(3.f)
+			[
+				SNew(SNiagaraParameterNameTextBlock)
+				.IsReadOnly(true)
+				.ParameterText(FText::FromName(Variable.GetName()))
+			]
+		];
+
+	if(bShowValue && Variable.IsDataAllocated())
+	{
+		const FText ValueText = TypeUtilities->GetStackDisplayText(Variable);
+
+		TooltipContent->AddSlot()
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(3.f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ParameterTooltipText", "Value: "))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Padding(3.f)
+			[
+				SNew(STextBlock)
+				.Text(ValueText)
+			]
+		];
+	}
+	
+	
+	// we construct a tooltip widget that shows the parameter the value is associated with
+	TSharedRef<SToolTip> TooltipWidget = SNew(SToolTip)
+	.Content()
+	[
+		TooltipContent
+	];
+
+	return TooltipWidget;
 }
 
 void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(const TArray<FNiagaraVariable>& InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased)

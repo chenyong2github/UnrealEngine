@@ -1281,6 +1281,11 @@ void UNiagaraStackModuleItem::SetInputValuesFromClipboardFunctionInputs(const TA
 	InputCollection->SetValuesFromClipboardFunctionInputs(ClipboardFunctionInputs);
 }
 
+void UNiagaraStackModuleItem::GetParameterInputs(TArray<UNiagaraStackFunctionInput*>& OutResult) const
+{
+	return InputCollection->GetChildInputs(OutResult);
+}
+
 TArray<UNiagaraStackFunctionInput*> UNiagaraStackModuleItem::GetInlineParameterInputs() const
 {
 	return InputCollection->GetInlineParameterInputs();

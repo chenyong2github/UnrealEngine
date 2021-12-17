@@ -294,6 +294,8 @@ public:
 	
 	void GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutUnfilteredChildren) const;
 
+	void GetCustomFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren, const TArray<FOnFilterChild>& ChildFilters) const;
+
 	void GetFilteredChildrenOfTypes(TArray<UNiagaraStackEntry*>& OutFilteredChildren, const TSet<UClass*>& AllowedClasses) const
 	{
 		TArray<UNiagaraStackEntry*> FilteredChildrenTmp;
@@ -343,6 +345,31 @@ public:
 			if (UnfilteredChildOfType != nullptr)
 			{
 				OutFilteredChildrenOfType.Add(UnfilteredChildOfType);
+			}
+		}
+	}
+
+	template<typename T>
+	void GetCustomFilteredChildrenOfType(TArray<T*>& OutFilteredChildrenOfType, const TArray<FOnFilterChild>& CustomChildFilters) const
+	{
+		for (UNiagaraStackEntry* Child : Children)
+		{
+			if(T* CastChild = Cast<T>(Child))
+			{
+				bool bPassesFilter = true;
+				for (const FOnFilterChild& ChildFilter : CustomChildFilters)
+				{
+					if (ChildFilter.Execute(*CastChild) == false)
+					{
+						bPassesFilter = false;
+						break;
+					}
+				}
+
+				if (bPassesFilter)
+				{
+					OutFilteredChildrenOfType.Add(CastChild);
+				}				
 			}
 		}
 	}

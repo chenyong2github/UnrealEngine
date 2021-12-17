@@ -91,6 +91,7 @@ public:
 	// Returns true if this stack entry was changed by a user and differs from the default value
 	virtual bool HasOverridenContent() const;
 
+	bool FilterHiddenChildren(const UNiagaraStackEntry& Child) const;
 protected:
 	FString GetOwnerStackItemEditorDataKey() const;
 
@@ -98,8 +99,6 @@ protected:
 
 private:
 	bool FilterAdvancedChildren(const UNiagaraStackEntry& Child) const;
-
-	bool FilterHiddenChildren(const UNiagaraStackEntry& Child) const;
 
 private:
 	FString OwningStackItemEditorDataKey;
