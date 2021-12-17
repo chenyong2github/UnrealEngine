@@ -15,8 +15,6 @@
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
 Texture2D<taa_half3> FilteredInputTexture;
 Texture2D<taa_half3> FilteredPredictionSceneColorTexture;
-Texture2D<taa_half4> FilteredInterferenceSeedTexture;
-Texture2D<taa_half> InterferenceWeightTexture;
 
 RWTexture2D<taa_half> HistoryRejectionOutput;
 
@@ -52,15 +50,6 @@ void MainCS(
 	taa_half3 InputMaxColor;
 	taa_half3 InputCenterColor;
 	taa_half ParallaxRejectionMask;
-	taa_half InterferenceWeight;
-	
-	taa_half ClosestInterferenceSeedMin;
-	taa_half ClosestInterferenceSeedMax;
-	taa_half IntegratedInterferenceSeed;
-	taa_half IntegratedInterferenceSeedMin;
-	taa_half IntegratedInterferenceSeedMax;
-	taa_half MinInterferenceSeed;
-	taa_half MaxInterferenceSeed;
 
 	{
 		InputCenterColor = TransformColorForClampingBox(FilteredInputTexture[InputPixelPos]);
@@ -68,18 +57,6 @@ void MainCS(
 
 		InputMinColor = InputCenterColor;
 		InputMaxColor = InputCenterColor;
-		
-		InterferenceWeight = InterferenceWeightTexture[InputPixelPos];
-		
-		taa_half4 InterferenceSeed = FilteredInterferenceSeedTexture[InputPixelPos];
-		
-		ClosestInterferenceSeedMin = InterferenceSeed.x;
-		ClosestInterferenceSeedMax = InterferenceSeed.x; 
-		IntegratedInterferenceSeed = InterferenceSeed.y;
-		IntegratedInterferenceSeedMin = InterferenceSeed.y;
-		IntegratedInterferenceSeedMax = InterferenceSeed.y;
-		MinInterferenceSeed = InterferenceSeed.z;
-		MaxInterferenceSeed = InterferenceSeed.w;
 	}
 	
 	taa_half NeigborMaxInterferenceSeedGradient = 0.0;
@@ -98,67 +75,11 @@ void MainCS(
 			InputPixelPosMin, InputPixelPosMax);
 
 		taa_half3 Color = TransformColorForClampingBox(FilteredInputTexture[SampleInputPixelPos]);
-		taa_half4 InterferenceSeed = FilteredInterferenceSeedTexture[SampleInputPixelPos];
 
 		InputMinColor = min(InputMinColor, Color);
 		InputMaxColor = max(InputMaxColor, Color);
-		
-		taa_half InterferenceSeedGradient = InterferenceSeed.w - InterferenceSeed.z;
-		
-		ClosestInterferenceSeedMin = min(ClosestInterferenceSeedMin, InterferenceSeed.x);
-		ClosestInterferenceSeedMax = max(ClosestInterferenceSeedMax, InterferenceSeed.x); 
-		
-		// TODO(TSR): this is InterferenceSeed.w - InterferenceSeed.z
-		IntegratedInterferenceSeedMin = min(IntegratedInterferenceSeedMin, InterferenceSeed.y);
-		IntegratedInterferenceSeedMax = max(IntegratedInterferenceSeedMax, InterferenceSeed.y);
-		
-		NeigborMaxInterferenceSeedGradient = max(NeigborMaxInterferenceSeedGradient, InterferenceSeedGradient); 
 	}
 	
-	bool bIsInterference = false;
-	#if DIM_MOIRE_HEURISTIC
-	{
-		// Error due to the low bitdepth of the inteference seeds in the history.
-		const taa_half InterferenceSeedEncodingError = rcp(taa_half(SUPERRES_INTERFERENCE_BITMASK));
-
-		taa_half InputSeedMin = LumaToInterferenceSeed(InputMinColor.x);
-		taa_half InputSeedMax = LumaToInterferenceSeed(InputMaxColor.x);
-
-		// Measure the low frequency gradien in the seed. Needs to happen both on current frame input to avoid ghosting on
-		// current frame changes with high contrast geometric edges, and previous frames to avoid ghosting on area that had 
-		// high contrast geometric edges but no longer had in current frame due to shading change.
-		taa_half InterferenceSeedGradient = max(InputSeedMax - InputSeedMin, IntegratedInterferenceSeedMax - IntegratedInterferenceSeedMin);
-		//taa_half InterferenceSeedGradient = InputSeedMax - InputSeedMin;
-
-		// Detect if there is any inteference based on any subpixel detail range from the lowest LDR to highest LDR.
-		bool bRejectInterferenceSeedWithGradient = (
-			1 && (MinInterferenceSeed < ClosestInterferenceSeedMin - InterferenceSeedEncodingError - InterferenceSeedGradient) ||
-			1 && (MaxInterferenceSeed > ClosestInterferenceSeedMax + InterferenceSeedEncodingError + InterferenceSeedGradient));
-			
-		bool bRejectInterferenceSeed = (
-			(MinInterferenceSeed < ClosestInterferenceSeedMin - InterferenceSeedEncodingError) ||
-			(MaxInterferenceSeed > ClosestInterferenceSeedMax + InterferenceSeedEncodingError));
-
-		// Detect interference solely based on the inteference seed, but need to take into account low frequency
-		// gradien that there may be in the neighborhood to avoid ghosting on high contrast geometric edges.
-		//bIsInterference = bRejectInterferenceSeed;
-		bIsInterference = bRejectInterferenceSeedWithGradient;
-
-		Debug.r = bIsInterference ? 1.0 : 0.0;
-		Debug.g = InputSeedMax - InputSeedMin;
-		Debug.b = ClosestInterferenceSeedMax;
-		Debug.a = MaxInterferenceSeed;
-		
-		Debug.b = ClosestInterferenceSeedMax;
-		Debug.a = MinInterferenceSeed;
-
-		//FLATTEN
-		//if (bOffScreen)
-		//{
-		//	bIsInterference = false;
-		//}
-	}
-	#endif
 
 	taa_half3 PrevColor = TransformColorForClampingBox(FilteredPredictionSceneColorTexture[InputPixelPos]);
 
@@ -173,19 +94,6 @@ void MainCS(
 			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevColor[0], ClampedPrevColor[0])));
 		
 		//Debug.rgb = abs(YCoCgToRGB(PrevColor - ClampedPrevColor)) / max3(YCoCgToRGB(InputMaxColor), YCoCgToRGB(InputCenterColor), 0.01);
-	}
-	#endif
-	
-	#if DIM_MOIRE_HEURISTIC
-	{
-		if (bIsInterference)
-		{
-			InterferenceWeight = 0.0;
-		}
-		 
-		Rejection = saturate(Rejection + 1.0 - InterferenceWeight);
-		
-		Debug.r = InterferenceWeight;
 	}
 	#endif
 

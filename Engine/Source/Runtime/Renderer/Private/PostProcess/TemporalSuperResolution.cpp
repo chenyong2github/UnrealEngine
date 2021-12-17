@@ -45,17 +45,6 @@ TAutoConsoleVariable<int32> CVarTSRRejectionAntiAliasingQuality(
 	TEXT("Controls the quality of spatial anti-aliasing on history rejection (default=1)."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarTSRMoireEnable(
-	TEXT("r.TSR.Moire"), 0,
-	TEXT("Enable heuristic to detect moire pattern in the input scene color caused by geometric interference between input ")
-	TEXT("pixel grid alignement and structured geometry."),
-	ECVF_RenderThreadSafe);
-
-TAutoConsoleVariable<float> CVarTSRMoireSeedExposure(
-	TEXT("r.TSR.Moire.SeedExposure"), 0.125f,
-	TEXT("Exposure of the interference seed. Lower value will allow to detect interference more towards the shadows."),
-	ECVF_RenderThreadSafe);
-
 TAutoConsoleVariable<float> CVarTSRTranslucencyHighlightLuminance(
 	TEXT("r.TSR.Translucency.HighlightLuminance"), -1.0f,
 	TEXT("Sets the liminance at which translucency is considered an highlights (default=-1.0)."),
@@ -113,7 +102,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTSRCommonParameters, )
 
 	SHADER_PARAMETER(FVector2f, InputJitter)
 	SHADER_PARAMETER(int32, bCameraCut)
-	SHADER_PARAMETER(float, MoireInvExposure)
 	SHADER_PARAMETER(FVector2f, ScreenVelocityToInputPixelVelocity)
 	SHADER_PARAMETER(FVector2f, InputPixelVelocityToScreenVelocity)
 
@@ -127,9 +115,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SubpixelDetails)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Translucency)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TranslucencyAlpha)
-	
-	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, LowResTextures, [1])
-	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, SuperResTextures, [2])
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistoryUAVs, )
@@ -139,9 +124,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistoryUAVs, )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SubpixelDetails)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Translucency)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TranslucencyAlpha)
-
-	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, LowResTextures, [1])
-	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, SuperResTextures, [2])
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTSRPrevHistoryParameters, )
@@ -162,24 +144,8 @@ FTSRHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTSRHistoryTextures&
 		UAVs.Translucency = GraphBuilder.CreateUAV(Textures.Translucency);
 		UAVs.TranslucencyAlpha = GraphBuilder.CreateUAV(Textures.TranslucencyAlpha);
 	}
-
-	if (Textures.LowResTextures[0])
-	{
-		UAVs.LowResTextures[0] = GraphBuilder.CreateUAV(Textures.LowResTextures[0]);
-	}
-	if (Textures.SuperResTextures[0])
-	{
-		UAVs.SuperResTextures[0] = GraphBuilder.CreateUAV(Textures.SuperResTextures[0]);
-	}
-	if (Textures.SuperResTextures[1])
-	{
-		UAVs.SuperResTextures[1] = GraphBuilder.CreateUAV(Textures.SuperResTextures[1]);
-	}
-
 	return UAVs;
 }
-
-class FTSRMoireHeuristic : SHADER_PERMUTATION_BOOL("DIM_MOIRE_HEURISTIC");
 
 class FTSRShader : public FGlobalShader
 {
@@ -255,7 +221,7 @@ class FTSRDecimateHistoryCS : public FTSRShader
 
 	class FOutputHalfRes : SHADER_PERMUTATION_BOOL("DIM_OUTPUT_HALF_RES");
 
-	using FPermutationDomain = TShaderPermutationDomain<FOutputHalfRes, FTSRMoireHeuristic>;
+	using FPermutationDomain = TShaderPermutationDomain<FOutputHalfRes>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
@@ -278,7 +244,6 @@ class FTSRDecimateHistoryCS : public FTSRShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HalfResParallaxRejectionMaskOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PredictionSceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ParallaxRejectionMaskOutput)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, InterferenceSeedOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 }; // class FTSRDecimateHistoryCS
@@ -307,29 +272,6 @@ class FTSRCompareTranslucencyCS : public FTSRShader
 	END_SHADER_PARAMETER_STRUCT()
 }; // class FTSRCompareTranslucencyCS
 
-class FTSRDetectInterferenceCS : public FTSRShader
-{
-	DECLARE_GLOBAL_SHADER(FTSRDetectInterferenceCS);
-	SHADER_USE_PARAMETER_STRUCT(FTSRDetectInterferenceCS, FTSRShader);
-	
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
-
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PredictionSceneColorTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceSeedTexture)
-
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRPrevHistoryParameters, PrevHistoryParameters)
-		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, PrevHistory)
-
-		SHADER_PARAMETER_STRUCT(FTSRHistoryUAVs, HistoryOutput)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, InterferenceWeightOutput)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-	END_SHADER_PARAMETER_STRUCT()
-}; // class FTSRDetectInterferenceCS
-
 class FTSRHoleFillVelocityCS : public FTSRShader
 {
 	DECLARE_GLOBAL_SHADER(FTSRHoleFillVelocityCS);
@@ -356,7 +298,7 @@ class FTSRFilterFrequenciesCS : public FTSRShader
 
 	class FOutputAALumaDim : SHADER_PERMUTATION_BOOL("DIM_OUTPUT_ANTI_ALIASING_LUMA");
 
-	using FPermutationDomain = TShaderPermutationDomain<FOutputAALumaDim, FTSRMoireHeuristic>;
+	using FPermutationDomain = TShaderPermutationDomain<FOutputAALumaDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
@@ -365,12 +307,9 @@ class FTSRFilterFrequenciesCS : public FTSRShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PredictionSceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceSeedTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceWeightTexture)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredInputOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredPredictionSceneColorOutput)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredInterferenceSeedOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, InputSceneColorLdrLumaOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
@@ -382,15 +321,13 @@ class FTSRCompareHistoryCS : public FTSRShader
 	SHADER_USE_PARAMETER_STRUCT(FTSRCompareHistoryCS, FTSRShader);
 
 	class FOutputHalfRes : SHADER_PERMUTATION_BOOL("DIM_OUTPUT_HALF_RES");
-	using FPermutationDomain = TShaderPermutationDomain<FOutputHalfRes, FTSRMoireHeuristic>;
+	using FPermutationDomain = TShaderPermutationDomain<FOutputHalfRes>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredInputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredPredictionSceneColorTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredInterferenceSeedTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceWeightTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HistoryRejectionOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
@@ -476,26 +413,6 @@ class FTSRFilterAntiAliasingCS : public FTSRShader
 	END_SHADER_PARAMETER_STRUCT()
 }; // class FTSRFilterAntiAliasingCS
 
-class FTSRUpdateSuperResHistoryCS : public FTSRShader
-{
-	DECLARE_GLOBAL_SHADER(FTSRUpdateSuperResHistoryCS);
-	SHADER_USE_PARAMETER_STRUCT(FTSRUpdateSuperResHistoryCS, FTSRShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
-
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
-
-		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRPrevHistoryParameters, PrevHistoryParameters)
-		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, PrevHistory)
-
-		SHADER_PARAMETER_STRUCT(FTSRHistoryUAVs, HistoryOutput)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-	END_SHADER_PARAMETER_STRUCT()
-}; // class FTSRUpdateSuperResHistoryCS
-
 class FTSRUpdateHistoryCS : public FTSRShader
 {
 	DECLARE_GLOBAL_SHADER(FTSRUpdateHistoryCS);
@@ -504,7 +421,7 @@ class FTSRUpdateHistoryCS : public FTSRShader
 	class FRejectionAADim : SHADER_PERMUTATION_BOOL("DIM_REJECTION_ANTI_ALIASING");
 	class FSeparateTranslucencyDim : SHADER_PERMUTATION_BOOL("DIM_SEPARATE_TRANSLUCENCY");
 
-	using FPermutationDomain = TShaderPermutationDomain<FRejectionAADim, FSeparateTranslucencyDim, FTSRMoireHeuristic>;
+	using FPermutationDomain = TShaderPermutationDomain<FRejectionAADim, FSeparateTranslucencyDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
@@ -512,7 +429,6 @@ class FTSRUpdateHistoryCS : public FTSRShader
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputSceneStencilTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneTranslucencyTexture)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceWeightTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TranslucencyRejectionTexture)
 
@@ -570,14 +486,12 @@ IMPLEMENT_GLOBAL_SHADER(FTSRDilateVelocityCS,        "/Engine/Private/TemporalSu
 IMPLEMENT_GLOBAL_SHADER(FTSRDecimateHistoryCS,       "/Engine/Private/TemporalSuperResolution/TSRDecimateHistory.usf",       "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRCompareTranslucencyCS,   "/Engine/Private/TemporalSuperResolution/TSRCompareTranslucency.usf",   "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRHoleFillVelocityCS,      "/Engine/Private/TemporalSuperResolution/TSRHoleFillVelocity.usf",      "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTSRDetectInterferenceCS,    "/Engine/Private/TemporalSuperResolution/TSRDetectInterference.usf",    "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRFilterFrequenciesCS,     "/Engine/Private/TemporalSuperResolution/TSRFilterFrequencies.usf",     "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRCompareHistoryCS,        "/Engine/Private/TemporalSuperResolution/TSRCompareHistory.usf",        "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRPostfilterRejectionCS,   "/Engine/Private/TemporalSuperResolution/TSRPostfilterRejection.usf",   "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRDilateRejectionCS,       "/Engine/Private/TemporalSuperResolution/TSRDilateRejection.usf",       "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRSpatialAntiAliasingCS,   "/Engine/Private/TemporalSuperResolution/TSRSpatialAntiAliasing.usf",   "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRFilterAntiAliasingCS,    "/Engine/Private/TemporalSuperResolution/TSRFilterAntiAliasing.usf",    "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTSRUpdateSuperResHistoryCS, "/Engine/Private/TemporalSuperResolution/TSRUpdateSuperResHistory.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRUpdateHistoryCS,         "/Engine/Private/TemporalSuperResolution/TSRUpdateHistory.usf",         "MainCS", SF_Compute);
 
 #if COMPILE_TSR_DEBUG_PASSES
@@ -610,8 +524,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	bool bCameraCut = !InputHistory.IsValid() || View.bCameraCut;
 
 	bool bHalfResLowFrequency = CVarTSRHalfResShadingRejection.GetValueOnRenderThread() != 0;
-
-	bool bEnableMoireHeuristic = CVarTSRMoireEnable.GetValueOnRenderThread() != 0;
 
 	bool bIsSeperateTranslucyTexturesValid = PassInputs.SeparateTranslucencyTextures != nullptr && PassInputs.SeparateTranslucencyTextures->IsColorValid();
 
@@ -719,7 +631,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		CommonParameters.InputJitter = View.TemporalJitterPixels;
 		CommonParameters.bCameraCut = bCameraCut;
-		CommonParameters.MoireInvExposure = 1.0f / CVarTSRMoireSeedExposure.GetValueOnRenderThread();
 		CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	}
 
@@ -872,11 +783,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		DummyHistory.TranslucencyAlpha = WhiteDummy;
 
 		DummyHistory.SubpixelDetails = BlackUintDummy;
-
-		DummyHistory.LowResTextures[0] = BlackDummy;
-
-		DummyHistory.SuperResTextures[0] = BlackUintDummy;
-		DummyHistory.SuperResTextures[1] = BlackUintDummy;
 	}
 
 	// Setup the previous frame history
@@ -892,17 +798,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		// Register non-filterable history
 		PrevHistory.SubpixelDetails = GraphBuilder.RegisterExternalTexture(InputHistory.SubpixelDetails);
-
-		PrevHistory.LowResTextures[0] = InputHistory.LowResTextures[0].IsValid()
-			? GraphBuilder.RegisterExternalTexture(InputHistory.LowResTextures[0])
-			: DummyHistory.LowResTextures[0];
-
-		PrevHistory.SuperResTextures[0] = InputHistory.SuperResTextures[0].IsValid()
-			? GraphBuilder.RegisterExternalTexture(InputHistory.SuperResTextures[0])
-			: DummyHistory.SuperResTextures[0];
-		PrevHistory.SuperResTextures[1] = InputHistory.SuperResTextures[1].IsValid()
-			? GraphBuilder.RegisterExternalTexture(InputHistory.SuperResTextures[1])
-			: DummyHistory.SuperResTextures[1];
 	}
 	else
 	{
@@ -928,17 +823,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 	// Create new history.
 	FTSRHistoryTextures History;
-	if (bEnableMoireHeuristic)
-	{
-		FRDGTextureDesc LowResDesc = FRDGTextureDesc::Create2D(
-			InputExtent,
-			PF_R8,
-			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV);
-
-		History.LowResTextures[0] = GraphBuilder.CreateTexture(LowResDesc, TEXT("TSR.History.LowResMetadata[0]"));
-	}
-
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			HistoryExtent,
@@ -965,27 +849,12 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		History.SubpixelDetails = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.SubpixelInfo"));
 	}
 
-	if (bEnableMoireHeuristic)
-	{
-		FRDGTextureDesc SuperResDesc = FRDGTextureDesc::Create2D(
-			HistoryExtent * 2,
-			PF_R16_UINT,
-			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV);
-
-		History.SuperResTextures[0] = GraphBuilder.CreateTexture(SuperResDesc, TEXT("TSR.History.SuperResMetadata[0]"));
-		//
-		SuperResDesc.Format = PF_R8_UINT;
-		History.SuperResTextures[1] = GraphBuilder.CreateTexture(SuperResDesc, TEXT("TSR.History.SuperResMetadata[1]"));
-	}
-
 	// Decimate input to flicker at same frequency as input.
 	FRDGTextureRef HalfResInputSceneColorTexture = nullptr;
 	FRDGTextureRef HalfResPredictionSceneColorTexture = nullptr;
 	FRDGTextureRef HalfResParallaxRejectionMaskTexture = nullptr;
 	FRDGTextureRef PredictionSceneColorTexture = nullptr;
 	FRDGTextureRef ParallaxRejectionMaskTexture = nullptr;
-	FRDGTextureRef InterferenceSeedTexture = nullptr;
 	{
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
@@ -995,10 +864,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
 			ParallaxRejectionMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.ParallaxRejectionMask"));
-
-			// TODO(TSR): can compress to the history seed's 4bit per pixel
-			Desc.Format = PF_R8G8B8A8;
-			InterferenceSeedTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.Moire.Seed"));
 		}
 
 		FTSRDecimateHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRDecimateHistoryCS::FParameters>();
@@ -1062,12 +927,10 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		}
 
 		PassParameters->ParallaxRejectionMaskOutput = GraphBuilder.CreateUAV(ParallaxRejectionMaskTexture);
-		PassParameters->InterferenceSeedOutput = GraphBuilder.CreateUAV(InterferenceSeedTexture);
 		PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TSR.DecimateHistory"));
 
 		FTSRDecimateHistoryCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FTSRDecimateHistoryCS::FOutputHalfRes>(bHalfResLowFrequency);
-		PermutationVector.Set<FTSRMoireHeuristic>(bEnableMoireHeuristic);
 
 		TShaderMapRef<FTSRDecimateHistoryCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
@@ -1137,54 +1000,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
 	}
 
-	// Detect interference between geometry and alignement of input texel centers. It is not about awnser whether an
-	// interference has happened in the past, because interference change based on input resolution or camera position.
-	// So to remain stable on camera movement and input resolution change, it is about awnsering the question on whether
-	// an interference is possible.
-	// TODO(TSR): Could sample the interference seed in the DilateVelocity and detect interference in the decimate.
-	FRDGTextureRef InterferenceWeightTexture;
-	if (bEnableMoireHeuristic)
-	{
-		{
-			// TODO(TSR): Compress to 1bit per pixel
-			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				InputExtent,
-				PF_R8,
-				FClearValueBinding::None,
-				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
-
-			InterferenceWeightTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.Moire.Weight"));
-		}
-
-		FTSRDetectInterferenceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRDetectInterferenceCS::FParameters>();
-		PassParameters->CommonParameters = CommonParameters;
-
-		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
-		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
-		PassParameters->PredictionSceneColorTexture = PredictionSceneColorTexture;
-		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
-		PassParameters->InterferenceSeedTexture = InterferenceSeedTexture;
-
-		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
-		PassParameters->PrevHistory = PrevHistory;
-
-		PassParameters->HistoryOutput = CreateUAVs(GraphBuilder, History);
-		PassParameters->InterferenceWeightOutput = GraphBuilder.CreateUAV(InterferenceWeightTexture);
-		PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TSR.DetectInterference"));
-
-		TShaderMapRef<FTSRDetectInterferenceCS> ComputeShader(View.ShaderMap);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("TSR DetectInterference %dx%d", InputRect.Width(), InputRect.Height()),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
-	}
-	else
-	{
-		InterferenceWeightTexture = WhiteDummy;
-	}
-
 	FRDGTextureRef HoleFilledVelocityMaskTexture = BlackDummy;
 	if (bHoleFillVelocity)
 	{
@@ -1232,7 +1047,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		// Filter out the high frquencies
 		FRDGTextureRef FilteredInputTexture;
 		FRDGTextureRef FilteredPredictionSceneColorTexture;
-		FRDGTextureRef FilteredInterferenceSeedTexture = nullptr;
 		{
 			{
 				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
@@ -1256,16 +1070,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 				InputSceneColorLdrLumaTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.SceneColorLdrLuma"));
 			}
 
-			{
-				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-					LowFrequencyExtent,
-					PF_R8G8B8A8,
-					FClearValueBinding::None,
-					/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
-
-				FilteredInterferenceSeedTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.Moire.FilteredSeeds"));
-			}
-
 			FTSRFilterFrequenciesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRFilterFrequenciesCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
 			PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(FilteredInputTexture->Desc.Format);
@@ -1281,19 +1085,15 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 				PassParameters->InputTexture = PassInputs.SceneColorTexture;
 				PassParameters->PredictionSceneColorTexture = PredictionSceneColorTexture;
 				PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
-				PassParameters->InterferenceSeedTexture = InterferenceSeedTexture;
-				PassParameters->InterferenceWeightTexture = InterferenceWeightTexture;
 			}
 
 			PassParameters->FilteredInputOutput = GraphBuilder.CreateUAV(FilteredInputTexture);
 			PassParameters->FilteredPredictionSceneColorOutput = GraphBuilder.CreateUAV(FilteredPredictionSceneColorTexture);
-			PassParameters->FilteredInterferenceSeedOutput = GraphBuilder.CreateUAV(FilteredInterferenceSeedTexture);
 			PassParameters->InputSceneColorLdrLumaOutput = InputSceneColorLdrLumaTexture ? GraphBuilder.CreateUAV(InputSceneColorLdrLumaTexture) : nullptr;
 			PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TSR.FilterFrequencies"));
 
 			FTSRFilterFrequenciesCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FTSRFilterFrequenciesCS::FOutputAALumaDim>(RejectionAntiAliasingQuality > 0);
-			PermutationVector.Set<FTSRMoireHeuristic>(bEnableMoireHeuristic);
 
 			TShaderMapRef<FTSRFilterFrequenciesCS> ComputeShader(View.ShaderMap, PermutationVector);
 			FComputeShaderUtils::AddPass(
@@ -1325,15 +1125,12 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
 			PassParameters->FilteredInputTexture = FilteredInputTexture;
 			PassParameters->FilteredPredictionSceneColorTexture = FilteredPredictionSceneColorTexture;
-			PassParameters->FilteredInterferenceSeedTexture = FilteredInterferenceSeedTexture;
-			PassParameters->InterferenceWeightTexture = InterferenceWeightTexture;
 
 			PassParameters->HistoryRejectionOutput = GraphBuilder.CreateUAV(HistoryRejectionTexture);
 			PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TSR.CompareHistory"));
 
 			FTSRCompareHistoryCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FTSRCompareHistoryCS::FOutputHalfRes>(bOutputHalfRes);
-			PermutationVector.Set<FTSRMoireHeuristic>(bEnableMoireHeuristic);
 
 			TShaderMapRef<FTSRCompareHistoryCS> ComputeShader(View.ShaderMap, PermutationVector);
 			FComputeShaderUtils::AddPass(
@@ -1462,29 +1259,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			FComputeShaderUtils::GetGroupCount(RejectionRect.Size(), 8));
 	}
 
-	if (bEnableMoireHeuristic)
-	{
-		FTSRUpdateSuperResHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRUpdateSuperResHistoryCS::FParameters>();
-		PassParameters->CommonParameters = CommonParameters;
-		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
-		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
-		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
-
-		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
-		PassParameters->PrevHistory = PrevHistory;
-
-		PassParameters->HistoryOutput = CreateUAVs(GraphBuilder, History);
-		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent * 2, TEXT("Debug.TSR.UpdateSuperResHistory"));
-
-		TShaderMapRef<FTSRUpdateSuperResHistoryCS> ComputeShader(View.ShaderMap);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("TSR UpdateSuperResHistory %dx%d", HistorySize.X * 2, HistorySize.Y * 2),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(HistorySize * 2, 8));
-	}
-
 	FRDGTextureRef SceneColorOutputTexture;
 	{
 		// Allocate output
@@ -1505,7 +1279,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->InputSceneStencilTexture = GraphBuilder.CreateSRV(
 			FRDGTextureSRVDesc::CreateWithPixelFormat(PassInputs.SceneDepthTexture, PF_X24_G8));
 		PassParameters->InputSceneTranslucencyTexture = SeparateTranslucencyTexture;
-		PassParameters->InterferenceWeightTexture = InterferenceWeightTexture;
 		PassParameters->HistoryRejectionTexture = DilatedHistoryRejectionTexture;
 		PassParameters->TranslucencyRejectionTexture = TranslucencyRejectionTexture ? TranslucencyRejectionTexture : BlackDummy;
 
@@ -1552,7 +1325,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		FTSRUpdateHistoryCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FTSRUpdateHistoryCS::FRejectionAADim>(RejectionAntiAliasingQuality > 0);
 		PermutationVector.Set<FTSRUpdateHistoryCS::FSeparateTranslucencyDim>(bAccumulateSeparateTranslucency);
-		PermutationVector.Set<FTSRMoireHeuristic>(bEnableMoireHeuristic);
 
 		TShaderMapRef<FTSRUpdateHistoryCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
@@ -1623,13 +1395,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		{
 			GraphBuilder.QueueTextureExtraction(
 				SeparateTranslucencyTexture, &View.ViewState->PrevFrameViewInfo.SeparateTranslucency);
-		}
-
-		if (bEnableMoireHeuristic)
-		{
-			GraphBuilder.QueueTextureExtraction(History.LowResTextures[0], &OutputHistory.LowResTextures[0]);
-			GraphBuilder.QueueTextureExtraction(History.SuperResTextures[0], &OutputHistory.SuperResTextures[0]);
-			GraphBuilder.QueueTextureExtraction(History.SuperResTextures[1], &OutputHistory.SuperResTextures[1]);
 		}
 
 		// Extract the output for next frame SSR so that separate translucency shows up in SSR.
