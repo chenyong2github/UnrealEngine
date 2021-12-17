@@ -13,6 +13,8 @@ class UQosEvaluator;
 
 #define UNREACHABLE_PING 9999
 
+#define DEBUG_SUBCOMPARE_BY_SUBSPACE 0
+
 /** Enum for single region QoS return codes */
 UENUM()
 enum class EQosDatacenterResult : uint8
@@ -61,6 +63,72 @@ inline const TCHAR* LexToString(EQosCompletionResult Result)
 		default: return TEXT("Unknown");
 	}
 }
+
+/**
+ * Parameters to control the rules-based comparison of subspace vs non-subspace datacenter QoS results.
+ * 
+ * @see FDatacenterQosInstance::IsNonSubspaceRecommended(const FDatacenterQosInstance&, const FDatacenterQosInstance&, const FQosSubspaceComparisonParams&)
+ */
+USTRUCT()
+struct FQosSubspaceComparisonParams
+{
+	GENERATED_USTRUCT_BODY()
+
+	/**
+	 * Maximum allowed ping of the non-subspace.
+	 * If greater than this value, it is too slow, so fails to qualify.
+	 * Set to zero or less to disable checks against this field.
+	 */
+	UPROPERTY()
+	int32 MaxNonSubspacePingMs;
+
+	/**
+	 * Minimum allowed ping of the subspace.
+	 * If below this value, it should not be overridden by the non-subspace.
+	 * Set to zero or less to disable checks against this field.
+	 */
+	UPROPERTY()
+	int32 MinSubspacePingMs;
+
+	/**
+	 * Maximum allowed difference between the subspace and non-subspace's ping values in milliseconds.
+	 * If greater than this value, the non-subspace is too slow, so fails to qualify.
+	 * Set to zero or less to disable checks against this field.
+	 */
+	UPROPERTY()
+	int32 ConstantMaxToleranceMs;
+
+	/**
+	 * Maximum allowed difference between the subspace and non-subspace's ping values,
+	 * which scales as a proportion of the non-subspace's ping, so will differ between
+	 * comparisons when sorting a single list of datacenters.
+	 * If greater than the scaled difference, the non-subspace is too slow, so fails to qualify. 
+	 * Set to zero or less to disable checks against this field.
+	 */
+	UPROPERTY()
+	float ScaledMaxTolerancePct;
+
+	FQosSubspaceComparisonParams()
+		: MaxNonSubspacePingMs(0)
+		, MinSubspacePingMs(0)
+		, ConstantMaxToleranceMs(0)
+		, ScaledMaxTolerancePct(0.0f)
+	{
+	}
+
+	FQosSubspaceComparisonParams(int32 InMaxNonSubspacePingMs, int32 InMinSubspacePingMs, int32 InConstantMaxToleranceMs, float InScaledMaxTolerancePct)
+		: MaxNonSubspacePingMs(InMaxNonSubspacePingMs)
+		, MinSubspacePingMs(InMinSubspacePingMs)
+		, ConstantMaxToleranceMs(InConstantMaxToleranceMs)
+		, ScaledMaxTolerancePct(InScaledMaxTolerancePct)
+	{
+	}
+
+	float CalcScaledMaxToleranceMs(int32 PingMs) const
+	{
+		return 0.01f * ScaledMaxTolerancePct * PingMs;
+	}
+};
 
 /**
  * Individual ping server details
@@ -114,6 +182,11 @@ struct FQosDatacenterInfo
 		return bEnabled && IsValid();
 	}
 
+	bool IsSubspace(const TCHAR* const SubspaceDelimiter) const
+	{
+		return Id.Contains(SubspaceDelimiter, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+	}
+
 	FString ToDebugString() const
 	{
 		return FString::Printf(TEXT("[%s][%s]"), *RegionId, *Id);
@@ -143,11 +216,18 @@ struct FQosRegionInfo
 	/** Can this region be considered for auto detection */
 	UPROPERTY()
 	bool bAutoAssignable;
+	/** Enable biased sorting algorithm on results for this region, which prefers non-subspaces over subspaces */
+	UPROPERTY()
+	bool bAllowSubspaceBias;
+	/** Granular settings for biased subspace-based sorting algorithm, if enabled for this region */
+	UPROPERTY()
+	FQosSubspaceComparisonParams SubspaceBiasParams;
 
 	FQosRegionInfo()
 		: bEnabled(true)
 		, bVisible(true)
 		, bAutoAssignable(true)
+		, bAllowSubspaceBias(false)
 	{
 	}
 
@@ -232,6 +312,67 @@ struct QOS_API FDatacenterQosInstance
 		LastCheckTimestamp = FDateTime(0);
 		bUsable = false;
 	}
+
+	/**
+	 * Compares the avg ping of two datacenters, handling cases where one is a subspace
+	 * and the other is not, and like-for-like.
+	 * 
+	 * When comparing subspace vs non-subspace, this will bias towards the non-subspace,
+	 * as long as it satisfies the series of qualifying rules.
+	 * When comparing like-for-like, average ping is compared, as usual.
+	 * 
+	 * @param A - Left-hand datacenter QoS data to compare
+	 * @param B - Right-hand datacenter QoS data to compare
+	 * @param ComparisonParams - Rules settings for subspace vs non-subspace comparison
+	 * @param SubspaceDelimiter - Search term to look for in datacenter ID; if found, implies that it is a subspace
+	 * @return True if left-hand datacenter is "better", otherwise false (right-hand datacenter is "better")
+	 * 
+	 * @see FDatacenterQosInstance::IsNonSubspaceRecommended(const FDatacenterQosInstance&, const FDatacenterQosInstance&, const FQosSubspaceComparisonParams&)
+	 */
+	static bool IsLessWhenBiasedTowardsNonSubspace(const FDatacenterQosInstance& A, const FDatacenterQosInstance& B,
+		const FQosSubspaceComparisonParams& ComparisonParams, const TCHAR* const SubspaceDelimiter);
+
+	/**
+	 * Compares a subspace datacenter and a non-subspace datacenter, applying the qualifying
+	 * rules to bias non-subspaces, configured via the supplied comparison parameters.
+	 * 
+	 * @param NonSubspace - The non-subspace datacenter QoS data (must be already known to not be a subspace)
+	 * @param Subspace - The subspace datacenter QoS data (must be already known to be a subspace)
+	 * @param ComparisonParams - Granulator adjustments to the comparison rules
+	 * @return True if the NonSubspace is "better" (i.e. passes the qualifying rules), otherwise false.
+	 */
+	static bool IsNonSubspaceRecommended(const FDatacenterQosInstance& NonSubspace, const FDatacenterQosInstance& Subspace,
+		const FQosSubspaceComparisonParams& ComparisonParams);
+
+	/**
+	 * Compares a subspace datacenter and a non-subspace datacenter, applying the qualifying
+	 * rules to bias non-subspaces, configured via the supplied comparison parameters.
+	 *
+	 * @param NonSubspace - The non-subspace datacenter QoS data (must be already known to not be a subspace)
+	 * @param Subspace - The subspace datacenter QoS data (must be already known to be a subspace)
+	 * @param ComparisonParams - Granulator adjustments to the comparison rules
+	 * @return A reference to the input datacenter that is considered "better" after rules-based comparison.
+	 *
+	 * @see FDatacenterQosInstance::IsNonSubspaceRecommended(const FDatacenterQosInstance&, const FDatacenterQosInstance&, const FQosSubspaceComparisonParams&)
+	 */
+	static const FDatacenterQosInstance& CompareBiasedTowardsNonSubspace(
+		const FDatacenterQosInstance& NonSubspace, const FDatacenterQosInstance& Subspace,
+		const FQosSubspaceComparisonParams& ComparisonParams);
+
+	/**
+	 * Compares a subspace datacenter and a non-subspace datacenter, applying the qualifying
+	 * rules to bias non-subspaces, configured via the supplied comparison parameters.
+	 *
+	 * @param NonSubspace - The non-subspace datacenter QoS data (must be already known to not be a subspace)
+	 * @param Subspace - The subspace datacenter QoS data (must be already known to be a subspace)
+	 * @param ComparisonParams - Granulator adjustments to the comparison rules
+	 * @return A pointer to the input datacenter that is considered "better" after rules-based comparison.
+	 *
+	 * @see FDatacenterQosInstance::IsNonSubspaceRecommended(const FDatacenterQosInstance&, const FDatacenterQosInstance&, const FQosSubspaceComparisonParams&)
+	 */
+	static const FDatacenterQosInstance* const CompareBiasedTowardsNonSubspace(
+		const FDatacenterQosInstance* const NonSubspace, const FDatacenterQosInstance* const Subspace,
+		const FQosSubspaceComparisonParams& ComparisonParams);
 };
 
 USTRUCT()
@@ -277,12 +418,31 @@ struct QOS_API FRegionQosInstance
 
 	/** @return the result of this region ping request */
 	EQosDatacenterResult GetRegionResult() const;
+
 	/** @return the ping recorded in the best sub region */
 	int32 GetBestAvgPing() const;
+
 	/** @return the subregion with the best ping */
 	FString GetBestSubregion() const;
+
 	/** @return sorted list of subregions by best ping */
 	void GetSubregionPreferences(TArray<FString>& OutSubregions) const;
+
+	/** Sort the list of datacenter options into ascending order of average ping */
+	void SortDatacenterOptionsByAvgPingAsc();
+
+	/**
+	 * Sort the list of datacenter options into ascending order, using rules-based comparison
+	 * for cases where a subspace is being compared to a non-subspace; non-subspace will be
+	 * favoured if it passes the rules check.
+	 * Like-for-like comparisons are favour lower average ping.
+	 * 
+	 * @param ComparisonParams - Granulator adjustments to the comparison rules
+	 * @param SubspaceDelimiter - Search term to look for in datacenter ID; if found, implies that it is a subspace
+	 *
+	 * @see FDatacenterQosInstance::IsLessWhenBiasedTowardsNonSubspace(const FDatacenterQosInstance&, const FDatacenterQosInstance&, const FQosSubspaceComparisonParams&, const TCHAR*);
+	 */
+	void SortDatacenterSubspacesByRecommended(const FQosSubspaceComparisonParams& ComparisonParams, const TCHAR* const SubspaceDelimiter);
 };
 
 /**
@@ -401,6 +561,36 @@ public:
 private:
 
 	/**
+	 * Get the delimiter string used to split primary subspace ID from a subregion ID.
+	 */
+	const TCHAR* GetSubspaceDelimiter() const;
+
+	/**
+	 * Finds the QOS region result that matches the given region ID from an array of region results.
+	 * 
+	 * @return pointer the the region result if found, otherwise nullptr
+	 */
+	static const FRegionQosInstance* FindQosRegionById(const TArray<FRegionQosInstance>& Regions, const FString& RegionId);
+
+	/**
+	 * Finds the QOS region result that has the "best" ping result.
+	 * Assumes that the datacenter results within each region result are pre-sorted,
+	 * e.g. by average ping, or via a recommendation bias algorithm.
+	 * 
+	 * @return pointer to the "best" region result, determined by a previous sort of region datacenters, otherwise nullptr if no results exist.
+	 */
+	static const FRegionQosInstance* FindBestQosRegion(const TArray<FRegionQosInstance>& Regions);
+
+#ifdef DEBUG_SUBCOMPARE_BY_SUBSPACE
+	// Test methods for debugging datacenter comparisons that use special rules when dealing with subspaces.
+	static bool TestCompareDatacentersBySubspace();
+	static bool TestSortDatacenterSubspacesByRecommended();
+	static FRegionQosInstance TestCreateExampleRegionResult();
+#endif // DEBUG_SUBCOMPARE_BY_SUBSPACE
+
+private:
+
+	/**
 	 * Double check assumptions based on current region/datacenter definitions
 	 */
 	void SanityCheckDefinitions() const;
@@ -417,6 +607,28 @@ private:
 	 */
 	int32 GetMaxPingMs() const;
 
+	/**
+	 * Should datacenter QoS results be sorted using rules-based comparison where subspaces are encountered?
+	 * 
+	 * Determined via bEnableSubspaceBiasOrder engine configuration param for QosRegionManager.
+	 * Global enable/disable may be overridden by `qossubspacebias=true|false` command-line arg.
+	 * 
+	 * @return True if rules-based sorting (when dealing with subspaces) is enabled, otherwise false.
+	 */
+	bool IsSubspaceBiasOrderEnabled() const;
+
+	/**
+	 * Should datacenter QoS results be sorted using rules-based comparison where subspaces are encountered
+	 * for the given region's QoS data?
+	 * 
+	 * Determined via bEnableSubspaceBiasOrder engine configuration param for QosRegionManager,
+	 * and the specific region's RegionDefinition entry.
+	 * Global enable/disable may be overridden by `qossubspacebias=true|false` command-line arg.
+	 *
+	 * @return True if rules-based sorting (when dealing with subspaces) is enabled, otherwise false.
+	 */
+	bool IsSubspaceBiasOrderEnabled(const FQosRegionInfo& RegionDefinition) const;
+
 	/** Number of times to ping a given region using random sampling of available servers */
 	UPROPERTY(Config)
 	int32 NumTestsPerRegion;
@@ -424,6 +636,20 @@ private:
 	/** Timeout value for each ping request */
 	UPROPERTY(Config)
 	float PingTimeout;
+
+	/**
+	 * Global switch to enable/disable sorting of QoS datacenter results using rules-based comparison,
+	 * where subspaces are encountered.
+	 */
+	UPROPERTY(Config)
+	bool bEnableSubspaceBiasOrder;
+
+	/**
+	 * Delimiter string that identifies a subspace datacenter ID.
+	 * e.g. "DE_S" would be a subspace of the "DE" subregion, using "_" as the delimiter.
+	 */
+	UPROPERTY(Config)
+	FString SubspaceDelimiter;
 
 	/** Metadata about existing regions */
 	UPROPERTY(Config)
@@ -459,5 +685,7 @@ private:
 	FOnQosEvalCompleteDelegate OnQosEvalCompleteDelegate;
 
 	FSimpleDelegate OnQoSSettingsChangedDelegate;
+
+	static const TCHAR* SubspaceDelimiterDefault;
 };
 
