@@ -56,7 +56,7 @@ static FAutoConsoleCommand GDMXSetOutputPortProtocolCommand(
 
 static FAutoConsoleCommand GDMXSetOutputPortCommunicationTypeCommand(
 	TEXT("DMX.SetOutputPortCommunicationType"),
-	TEXT("DMX.SetOutputPortCommunicationType [PortName][CommunicationType (1 = Broadcast, 2 = Multicast, 3 = Unicast)]. Sets the communication type of an output port. Example: DMX.SetOutputPortCommunicationType MyOutputPort 2"),
+	TEXT("DMX.SetOutputPortCommunicationType [PortName][CommunicationType (0 = Broadcast, 1 = Unicast, 2 = Multicast)]. Sets the communication type of an output port. Example: DMX.SetOutputPortCommunicationType MyOutputPort 2"),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
@@ -139,7 +139,7 @@ static FAutoConsoleCommand GDMXSetOutputPortOutputPortDestinationAddressesComman
 
 static FAutoConsoleCommand GDMXSetOutputPortLoopbackToEngineCommand(
 	TEXT("DMX.SetOutputPortInputIntoEngine"),
-	TEXT("DMX.SetOutputSetInputIntoEngine [PortName][Flag]. Sets if the Output Port is input into the engine directly. Example: DMX.SetOutputPortInputIntoEngine MyOutputPort 1"),
+	TEXT("DMX.SetOutputPortInputIntoEngine [PortName][Flag]. Sets if the Output Port is input into the engine directly. Example: DMX.SetOutputPortInputIntoEngine MyOutputPort 1"),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
@@ -695,6 +695,7 @@ bool FDMXOutputPort::Register()
 {
 	if (Protocol.IsValid() && IsValidPortSlow() && CommunicationDeterminator.IsSendDMXEnabled() && !FDMXPortManager::Get().AreProtocolsSuspended())
 	{
+		FScopeLock LockAccessSenderArray(&AccessSenderArrayCriticalSection);
 		DMXSenderArray = Protocol->RegisterOutputPort(SharedThis(this));
 
 		if (DMXSenderArray.Num() > 0)
@@ -717,6 +718,7 @@ void FDMXOutputPort::Unregister()
 			Protocol->UnregisterOutputPort(SharedThis(this));
 		}
 
+		FScopeLock LockAccessSenderArray(&AccessSenderArrayCriticalSection);
 		DMXSenderArray.Reset();
 	}
 
@@ -852,6 +854,7 @@ void FDMXOutputPort::ProcessSendDMX()
 			// Send via the protocol's sender
 			if (bNeedsSendDMX)
 			{
+				FScopeLock LockAccessSenderArray(&AccessSenderArrayCriticalSection);
 				for (const TSharedPtr<IDMXSender>& DMXSender : DMXSenderArray)
 				{
 					DMXSender->SendDMXSignal(UniverseToSignalPair.Value.ToSharedRef());
