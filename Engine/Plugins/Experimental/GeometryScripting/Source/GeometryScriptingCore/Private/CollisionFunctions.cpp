@@ -126,9 +126,9 @@ static void SetStaticMeshSimpleCollision(UStaticMesh* StaticMeshAsset, const FKA
 	if (bEmitTransaction)
 	{
 		GEditor->BeginTransaction(LOCTEXT("UpdateStaticMesh", "Set Simple Collision"));
-	}
 
-	StaticMeshAsset->Modify();
+		StaticMeshAsset->Modify();
+	}
 #endif
 
 	UBodySetup* BodySetup = StaticMeshAsset->GetBodySetup();
@@ -284,9 +284,9 @@ UDynamicMesh* UGeometryScriptLibrary_CollisionFunctions::SetDynamicMeshCollision
 	if (Options.bEmitTransaction)
 	{
 		GEditor->BeginTransaction(LOCTEXT("UpdateDynamicMesh", "Set Simple Collision"));
-	}
 
-	DynamicMeshComponent->Modify();
+		DynamicMeshComponent->Modify();
+	}
 #endif
 
 	UBodySetup* BodySetup = DynamicMeshComponent->GetBodySetup();
