@@ -6,6 +6,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -54,7 +55,7 @@ FReply SGlobalOpenAssetDialog::OnPreviewKeyDown(const FGeometry& MyGeometry, con
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
-		FSlateApplication::Get().DismissAllMenus();
+		RequestCloseAssetPicker();
 		return FReply::Handled();
 	}
 
@@ -67,6 +68,8 @@ void SGlobalOpenAssetDialog::OnAssetSelectedFromPicker(const FAssetData& AssetDa
 	{
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectToEdit);
 	}
+
+	RequestCloseAssetPicker();
 }
 
 void SGlobalOpenAssetDialog::OnPressedEnterOnAssetsInPicker(const TArray<FAssetData>& SelectedAssets)
@@ -78,7 +81,18 @@ void SGlobalOpenAssetDialog::OnPressedEnterOnAssetsInPicker(const TArray<FAssetD
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectToEdit);
 		}
 	}
+
+	RequestCloseAssetPicker();
 }
+
+void SGlobalOpenAssetDialog::RequestCloseAssetPicker()
+{
+	if (TSharedPtr<SDockTab> AssetPickerTab = FGlobalTabmanager::Get()->FindExistingLiveTab(FTabId("GlobalAssetPicker")))
+	{
+		AssetPickerTab->RequestCloseTab();
+	}
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 
