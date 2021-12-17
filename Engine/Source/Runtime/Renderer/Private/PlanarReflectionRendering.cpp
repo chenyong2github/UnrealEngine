@@ -189,7 +189,7 @@ void PrefilterPlanarReflection(
 		const float FilterWidth = View.ViewRect.Width();
 
 		auto* PassParameters = GraphBuilder.AllocParameters<typename FPrefilterPlanarReflectionPS::FParameters>();
-		PassParameters->View = GetShaderBinding(View.ViewUniformBuffer);
+		PassParameters->View = View.ViewUniformBuffer;
 
 		{
 			FPlanarReflectionUniformParameters PlanarReflectionUniformParameters;
@@ -815,7 +815,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 	PassParameters->SceneTextures.GBufferFTexture = SceneTextures.GBufferFTexture;
 	PassParameters->SceneTextures.GBufferVelocityTexture = SceneTextures.GBufferVelocityTexture;
 
-	PassParameters->ViewUniformBuffer = GetShaderBinding(View.ViewUniformBuffer);
+	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(
 		ReflectionsOutputTexture, bClearReflectionsOutputTexture ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 
