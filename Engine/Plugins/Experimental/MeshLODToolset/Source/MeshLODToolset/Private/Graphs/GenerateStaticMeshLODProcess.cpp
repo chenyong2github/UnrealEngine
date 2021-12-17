@@ -23,7 +23,7 @@
 #include "AssetRegistryModule.h"
 #include "IAssetTools.h"
 #include "FileHelpers.h"
-#include "UObject/Metadata.h"
+#include "UObject/MetaData.h"
 
 #include "Engine/Engine.h"
 #include "Editor.h"

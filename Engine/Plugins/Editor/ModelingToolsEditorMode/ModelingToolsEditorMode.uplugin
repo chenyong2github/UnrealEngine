@@ -17,8 +17,7 @@
 		{
 			"Name": "ModelingToolsEditorMode",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
