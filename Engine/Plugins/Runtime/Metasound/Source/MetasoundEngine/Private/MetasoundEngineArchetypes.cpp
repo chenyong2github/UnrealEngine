@@ -518,7 +518,7 @@ namespace Metasound
 
 				const TArray<FMetasoundFrontendVersion> InterfacesToAdd
 				{
-					SourceInterface::GetVersion(),
+					SourceInterfaceV1_0::GetVersion(),
 					OutputFormatMonoInterface::GetVersion()
 				};
 
@@ -555,7 +555,7 @@ namespace Metasound
 
 				const TArray<FMetasoundFrontendVersion> InterfacesToAdd
 				{
-					SourceInterface::GetVersion(),
+					SourceInterfaceV1_0::GetVersion(),
 					OutputFormatStereoInterface::GetVersion()
 				};
 
