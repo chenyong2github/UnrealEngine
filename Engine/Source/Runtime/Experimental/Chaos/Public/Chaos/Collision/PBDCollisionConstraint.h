@@ -2,8 +2,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "Chaos/Core.h"
+
+#include "Chaos/BVHParticles.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Collision/CollisionKeys.h"
 #include "Chaos/Collision/ContactPoint.h"
@@ -13,7 +14,6 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Vector.h"
-#include "Chaos/BVHParticles.h"
 
 namespace Chaos
 {
@@ -80,10 +80,19 @@ namespace Chaos
 	class CHAOS_API FManifoldPointSavedData
 	{
 	public:
+		FManifoldPointSavedData()
+		{
+		}
+
+		FManifoldPointSavedData(const FManifoldPoint& ManifoldPoint)
+		{
+			Save(ManifoldPoint);
+		}
+
 		/**
 		 * @brief Copy the ManifoldPoint data needed for static friction next tick
 		*/
-		FManifoldPointSavedData(const FManifoldPoint& ManifoldPoint)
+		inline void Save(const FManifoldPoint& ManifoldPoint)
 		{
 			ShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
 			ShapeContactPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
@@ -126,7 +135,6 @@ namespace Chaos
 	public:
 		FCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const FBVHParticles* InSimplicial0 = nullptr, const FImplicitObject* InImplicit1 = nullptr, const FBVHParticles* InSimplicial1 = nullptr)
 			: bDisabled(false)
-			, bUseAccumalatedImpulseInSolve(true)
 			, Normal(0)
 			, Location(0)
 			, Phi(FLT_MAX)
@@ -139,7 +147,6 @@ namespace Chaos
 			, InvMassScale1(1.f)
 			, InvInertiaScale0(1.f)
 			, InvInertiaScale1(1.f)
-			, ContactMoveSQRDistance(0)
 			, ShapesType(EContactShapesType::Unknown)
 		{
 			Implicit[0] = InImplicit0;
@@ -149,7 +156,6 @@ namespace Chaos
 		}
 
 		bool bDisabled;
-		bool bUseAccumalatedImpulseInSolve; // Accumulated Impulse will only be used when the contact did not move significantly during iterations (This will reduce jitter)
 
 		FVec3 Normal;
 		FVec3 Location;
@@ -164,7 +170,6 @@ namespace Chaos
 		FReal InvMassScale1;
 		FReal InvInertiaScale0;
 		FReal InvInertiaScale1;
-		FReal ContactMoveSQRDistance; // How much the contact position moved after the last update
 		EContactShapesType ShapesType;
 
 		void Reset()
@@ -376,9 +381,9 @@ namespace Chaos
 		FReal GetCullDistance() const { return CullDistance; }
 		void SetCullDistance(FReal InCullDistance) { CullDistance = InCullDistance; }
 
-		bool GetUseManifold() const { return bUseManifold; }
+		bool GetUseManifold() const { return Flags.bUseManifold; }
 		
-		bool GetUseIncrementalCollisionDetection() const { return !bUseManifold || bUseIncrementalManifold; }
+		bool GetUseIncrementalCollisionDetection() const { return !Flags.bUseManifold || Flags.bUseIncrementalManifold; }
 
 		void SetNumActivePositionIterations(const int32 InNumActivePositionIterations) { NumActivePositionIterations = InNumActivePositionIterations; }
 		int32 GetNumActivePositionIterations() const { return NumActivePositionIterations; }
@@ -388,13 +393,13 @@ namespace Chaos
 		*/
 		void ResetManifold();
 
-		TArrayView<FManifoldPoint> GetManifoldPoints() { return MakeArrayView(ManifoldPoints); }
-		TArrayView<const FManifoldPoint> GetManifoldPoints() const { return MakeArrayView(ManifoldPoints); }
+		// @todo(chaos): remove array view and provide per-point accessor
+		TArrayView<FManifoldPoint> GetManifoldPoints() { return MakeArrayView(ManifoldPoints.begin(), ManifoldPoints.Num()); }
+		TArrayView<const FManifoldPoint> GetManifoldPoints() const { return MakeArrayView(ManifoldPoints.begin(), ManifoldPoints.Num()); }
 
 		void AddIncrementalManifoldContact(const FContactPoint& ContactPoint);
 		void AddOneshotManifoldContact(const FContactPoint& ContactPoint);
 		void UpdateManifoldContacts();
-		void ClearManifold();
 
 		const FRigidTransform3& GetShapeRelativeTransform0() const { return ImplicitTransform[0]; }
 		const FRigidTransform3& GetShapeRelativeTransform1() const { return ImplicitTransform[1]; }
@@ -411,7 +416,14 @@ namespace Chaos
 		bool TryInsertManifoldContact(const FContactPoint& ContactPoint);
 
 		//@ todo(chaos): These are for the collision forwarding system - this should use the collision modifier system (which should be extended to support adding collisions)
-		void SetManifoldPoints(const TArray<FManifoldPoint>& InManifoldPoints) { ManifoldPoints = InManifoldPoints; }
+		void SetManifoldPoints(const TArray<FManifoldPoint>& InManifoldPoints)
+		{ 
+			ManifoldPoints.SetNum(FMath::Min(MaxManifoldPoints, InManifoldPoints.Num()));
+			for (int32 ManifoldPointIndex = 0; ManifoldPoints.Num(); ++ManifoldPointIndex)
+			{
+				ManifoldPoints[ManifoldPointIndex] = InManifoldPoints[ManifoldPointIndex];
+			}
+		}
 		void UpdateManifoldPointFromContact(const int32 ManifoldPointIndex);
 
 		// The GJK warm-start data. This is updated directly in the narrow phase
@@ -437,7 +449,7 @@ namespace Chaos
 		/**
 		 * @brief Whether this constraint was fully restored from a previous tick, and the manifold should be reused as-is
 		*/
-		bool WasManifoldRestored() const { return bWasManifoldRestored; }
+		bool WasManifoldRestored() const { return Flags.bWasManifoldRestored; }
 
 		/**
 		 * @brief Restore the contact manifold (assumes relative motion of the two bodies is small)
@@ -459,7 +471,7 @@ namespace Chaos
 		*/
 		void ResetSolverResults()
 		{
-			ManifoldPointsSavedData.Reset();
+			SavedManifoldPoints.Reset();
 			AccumulatedImpulse = FVec3(0);
 		}
 
@@ -478,9 +490,10 @@ namespace Chaos
 			AccumulatedImpulse += NetImpulse + (NetPushOut / Dt);
 
 			// If are still satisfying the static friction condition, save off the state required for next tick
-			if (bInsideStaticFrictionCone && !NetPushOut.IsNearlyZero() && (ManifoldPointsSavedData.Num() < ManifoldPointsSavedData.Max()))
+			if (bInsideStaticFrictionCone && !NetPushOut.IsNearlyZero() && !SavedManifoldPoints.IsFull())
 			{
-				ManifoldPointsSavedData.Emplace(FManifoldPointSavedData(ManifoldPoint));
+				const int32 SavedIndex = SavedManifoldPoints.Add();
+				SavedManifoldPoints[SavedIndex].Save(ManifoldPoint);
 			}
 		}
 
@@ -543,11 +556,10 @@ namespace Chaos
 		ECollisionCCDType CCDType;
 		FReal Stiffness;
 
-		TFixedArray<FManifoldPoint, MaxManifoldPoints> ManifoldPoints;
+		TCArray<FManifoldPoint, MaxManifoldPoints> ManifoldPoints;
 
 		// The manifold points from the previous tick when we don't reuse the manifold. Used by static friction.
-		TFixedArray<FManifoldPointSavedData, MaxManifoldPoints> ManifoldPointsSavedData;
-
+		TCArray<FManifoldPointSavedData, MaxManifoldPoints> SavedManifoldPoints;
 		FReal CullDistance;
 
 		// The margins to use during collision detection. We don't always use the margins on the shapes directly.
@@ -558,10 +570,19 @@ namespace Chaos
 		// margins of the two shapes, as well as their types
 		FReal CollisionTolerance;
 
-		bool bUseManifold;
-		bool bUseIncrementalManifold;
+		union FFlags
+		{
+			FFlags() : Bits(0) {}
+			struct
+			{
+				bool bUseManifold;
+				bool bUseIncrementalManifold;
+				bool bWasManifoldRestored;
+			};
+			uint32 Bits;
+		} Flags;
 
-		// These are only needed here while we still have thge lgacy solvers (not QuasiPBD)
+		// These are only needed here while we still have the legacy solvers (not QuasiPBD)
 		FSolverBody* SolverBodies[2];
 
 		// Simplex data from the last call to GJK, used to warm-start GJK
@@ -572,8 +593,6 @@ namespace Chaos
 		FRigidTransform3 LastShapeWorldTransform0;
 		FRigidTransform3 LastShapeWorldTransform1;
 		int32 ExpectedNumManifoldPoints;
-		bool bWasManifoldRestored;
-
 		int32 NumActivePositionIterations;
 	};
 

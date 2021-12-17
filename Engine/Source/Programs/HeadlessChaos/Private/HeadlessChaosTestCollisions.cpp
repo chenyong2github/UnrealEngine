@@ -504,7 +504,6 @@ namespace ChaosTest {
 
 		Collisions.GatherInput(Dt);
 
-		Collisions.UpdateLevelsetConstraint(Constraint);
 		EXPECT_EQ(Constraint.Particle[0], DynamicCube);
 		EXPECT_EQ(Constraint.Particle[1], StaticCube);
 		EXPECT_NEAR(Constraint.GetNormal().Z, FReal(1), KINDA_SMALL_NUMBER);

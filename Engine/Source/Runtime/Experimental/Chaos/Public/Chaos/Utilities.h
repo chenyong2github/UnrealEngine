@@ -235,27 +235,23 @@ namespace Chaos
 		 * Multiple a vector by a matrix: C = L.R
 		 * If L is a rotation matrix, then this will return R rotated by that rotation.
 		 */
-		inline FVec3 Multiply(const FMatrix33& LIn, const FVec3& R)
+		inline FVec3 Multiply(const FMatrix33& L, const FVec3& R)
 		{
-			// @todo(ccaulfield): optimize: remove transposes and use simd etc
-			FMatrix33 L = LIn.GetTransposed();
-
+			// @todo(chaos): optimize: use simd
 			return FVec3(
-			    L.M[0][0] * R.X + L.M[0][1] * R.Y + L.M[0][2] * R.Z,
-			    L.M[1][0] * R.X + L.M[1][1] * R.Y + L.M[1][2] * R.Z,
-			    L.M[2][0] * R.X + L.M[2][1] * R.Y + L.M[2][2] * R.Z);
+			    L.M[0][0] * R.X + L.M[1][0] * R.Y + L.M[2][0] * R.Z,
+			    L.M[0][1] * R.X + L.M[1][1] * R.Y + L.M[2][1] * R.Z,
+			    L.M[0][2] * R.X + L.M[1][2] * R.Y + L.M[2][2] * R.Z);
 		}
 
-		inline FVec4 Multiply(const FMatrix44& LIn, const FVec4& R)
+		inline FVec4 Multiply(const FMatrix44& L, const FVec4& R)
 		{
-			// @todo(ccaulfield): optimize: remove transposes and use simd etc
-			FMatrix44 L = LIn.GetTransposed();
-
+			// @todo(chaos): optimize: use simd
 			return FVec4(
-				L.M[0][0] * R.X + L.M[0][1] * R.Y + L.M[0][2] * R.Z + L.M[0][3] * R.W,
-				L.M[1][0] * R.X + L.M[1][1] * R.Y + L.M[1][2] * R.Z + L.M[1][3] * R.W,
-				L.M[2][0] * R.X + L.M[2][1] * R.Y + L.M[2][2] * R.Z + L.M[2][3] * R.W,
-				L.M[3][0] * R.X + L.M[3][1] * R.Y + L.M[3][2] * R.Z + L.M[3][3] * R.W
+				L.M[0][0] * R.X + L.M[1][0] * R.Y + L.M[2][0] * R.Z + L.M[3][0] * R.W,
+				L.M[0][1] * R.X + L.M[1][1] * R.Y + L.M[2][1] * R.Z + L.M[3][1] * R.W,
+				L.M[0][2] * R.X + L.M[1][2] * R.Y + L.M[2][2] * R.Z + L.M[3][2] * R.W,
+				L.M[0][3] * R.X + L.M[1][3] * R.Y + L.M[2][3] * R.Z + L.M[3][3] * R.W
 				);
 		}
 
