@@ -224,7 +224,7 @@ bool IsPlayerInSessionImpl(IOnlineSession* SessionInt, FName SessionName, const 
 	FNamedOnlineSession* Session = SessionInt->GetNamedSession(SessionName);
 	if (Session != NULL)
 	{
-		const bool bIsSessionOwner = *Session->OwningUserId == UniqueId;
+		const bool bIsSessionOwner = Session->OwningUserId.IsValid()  && *Session->OwningUserId == UniqueId;
 
 		FUniqueNetIdMatcher PlayerMatch(UniqueId);
 		if (bIsSessionOwner || 
