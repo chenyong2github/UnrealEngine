@@ -222,6 +222,15 @@ void DatasmithMaxLogger::AddObjectList(TArray< INode* > ObjectList, HWND Handle,
 	}
 }
 
+FString DatasmithMaxLogger::GetLightDescription(INode* LightNode)
+{
+	ObjectState State = LightNode->EvalWorldState(0);
+	LightObject *Light = (LightObject*)State.obj;
+	MSTR Classname;
+	Light->GetClassName(Classname);
+	return FString::Printf(TEXT("\"%s\" of type %s (0x%08x-0x%08x)"), LightNode->GetName(), Classname.ToBSTR(), Light->ClassID().PartA(), Light->ClassID().PartB());
+}
+
 void DatasmithMaxLogger::Show(HWND Handle)
 {
 	ShowMessage = TEXT("");
@@ -343,11 +352,7 @@ void DatasmithMaxLogger::Show(HWND Handle)
 
 		for (int i = 0; i < UnsupportedLight.Num(); i++)
 		{
-			ObjectState State = UnsupportedLight[i]->EvalWorldState(0);
-			LightObject *Light = (LightObject*)State.obj;
-			MSTR Classname;
-			Light->GetClassName(Classname);
-			FString Msg = FString::Printf(TEXT("\"%s\" of type %s (0x%08x-0x%08x)"), UnsupportedLight[i]->GetName(), Classname.ToBSTR(), Light->ClassID().PartA(), Light->ClassID().PartB());
+			FString Msg = GetLightDescription(UnsupportedLight[i]);
 			AddItem(*Msg, Handle, ShowMessage);
 		}
 		AddItem(TEXT("\n\n"), Handle, ShowMessage);

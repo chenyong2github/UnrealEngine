@@ -427,15 +427,23 @@ bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshEl
 	if (DatasmithAttributes && DatasmithAttributes->GetExportMode() == EStaticMeshExportMode::BoundingBox)
 	{
 		FDatasmithMesh DatasmithMesh;
-		FillDatasmithMeshFromBoundingBox(DatasmithMesh, Node, FTransform::Identity);
-		Scene.AddMeshElement(DatasmithMeshElement, DatasmithMesh, nullptr);
-		return true;
+		if (FillDatasmithMeshFromBoundingBox(DatasmithMesh, Node, FTransform::Identity))
+		{
+			Scene.AddMeshElement(DatasmithMeshElement, DatasmithMesh, nullptr);
+			return true;
+		}
+		else
+		{
+			LogWarningDialog(FString(TEXT("Invalid object: ")) + Node->GetName());
+			return false;
+		}
 	}
 
 	FDatasmithMesh DatasmithMesh;
 	TMap<int32, int32> UVChannelsMap;
 	if (!CreateDatasmithMeshFromMaxMesh(DatasmithMesh, Node, MeshName, RenderMesh, SupportedChannels, UVChannelsMap))
 	{
+		LogWarningDialog(FString(TEXT("Invalid object: ")) + Node->GetName());
 		return false;
 	}
 
@@ -453,7 +461,7 @@ bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshEl
 		}
 		else if (SelectedLightmapUVChannel != DefaultValue)
 		{
-			DatasmithMaxLogger::Get().AddGeneralError(*FString::Printf(TEXT("%s won't use the channel %i for its lightmap because it's not supported by the mesh. A new channel will be generated.")
+			LogWarningDialog(*FString::Printf(TEXT("%s won't use the channel %i for its lightmap because it's not supported by the mesh. A new channel will be generated.")
 				, static_cast<const TCHAR*>(Node->GetName())
 				, SelectedLightmapUVChannel));
 		}

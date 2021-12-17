@@ -508,10 +508,8 @@ void FNotifications::On3dsMaxNotification(void* param, NotifyInfo* info)
 	case NOTIFY_MTL_REFDELETED:
 		break;
 
-		// This one crashes when calling LogInfo
-	case NOTIFY_PLUGINS_PRE_SHUTDOWN:
-		Exporter->Shutdown();
-		break;
+	case NOTIFY_PLUGINS_PRE_SHUTDOWN: // This one crashes when calling LogInfo
+		return;
 	default:
 		LOG_DEBUG_HEAVY(FString(TEXT("Notify: ")) + NotificationsHandler.ConvertNotificationCodeToString(info->intcode));
 	};
