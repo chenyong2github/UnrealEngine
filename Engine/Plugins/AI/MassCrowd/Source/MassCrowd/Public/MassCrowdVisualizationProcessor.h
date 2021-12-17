@@ -29,10 +29,17 @@ protected:
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 };
 
+USTRUCT()
+struct FMassCrowdRepresentationDestructorTag : public FMassTag
+{
+	GENERATED_BODY()
+};
+
 UCLASS()
 class MASSCROWD_API UMassCrowdRepresentationFragmentDestructor : public UMassRepresentationFragmentDestructor
 {
 	GENERATED_BODY()
 protected:
 	virtual void Initialize(UObject& Owner) override;
+	virtual void ConfigureQueries() override;
 };
