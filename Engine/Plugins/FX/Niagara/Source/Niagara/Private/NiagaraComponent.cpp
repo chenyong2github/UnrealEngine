@@ -1667,6 +1667,19 @@ void UNiagaraComponent::OnComponentCreated()
 #endif
 }
 
+// for handling cases where niagara components are stored in blueprints we can get into situations where
+// the instancing code will get confused with objects stored in the different parameter override variables
+// (TemplateParameterOverrides, InstanceParameterOverrides, OverrideParameters), so we make sure that
+// the outers are properly fixed up
+void UNiagaraComponent::PostApplyToComponent()
+{
+	Super::PostApplyToComponent();
+
+#if WITH_EDITOR
+	FixDataInterfaceOuters();
+#endif
+}
+
 void UNiagaraComponent::OnUnregister()
 {
 	Super::OnUnregister();
