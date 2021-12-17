@@ -126,16 +126,7 @@ void FDerivedDataEditorModule::ShowResourceUsageTab()
 
 TSharedPtr<SWidget> FDerivedDataEditorModule::CreateCacheStatisticsDialog()
 {
-#if UE_WITH_ZEN
-	if (FDerivedDataInformation::GetHasZenCache())
-	{
-		return SNew(SZenCacheStatisticsDialog);
-	}
-	else
-#endif
-	{
-		return SNew(SDerivedDataCacheStatisticsDialog);
-	}
+	return SNew(SDerivedDataCacheStatisticsDialog);
 }
 
 
