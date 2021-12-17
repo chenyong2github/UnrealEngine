@@ -152,7 +152,8 @@ void FCameraCalibrationStepsController::CreateSteps()
 		UCameraCalibrationStep* const Step = NewObject<UCameraCalibrationStep>(
 			GetTransientPackage(),
 			StepClass,
-			MakeUniqueObjectName(GetTransientPackage(), StepClass));
+			MakeUniqueObjectName(GetTransientPackage(), StepClass),
+			RF_Transactional);
 
 		check(Step);
 
