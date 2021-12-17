@@ -13,7 +13,7 @@
 
 #if WITH_S3_DDC_BACKEND
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::S3
 {
 
 /**
@@ -118,6 +118,6 @@ private:
 	TSet<FName> DebugMissedKeys;
 };
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore::S3
 
 #endif
