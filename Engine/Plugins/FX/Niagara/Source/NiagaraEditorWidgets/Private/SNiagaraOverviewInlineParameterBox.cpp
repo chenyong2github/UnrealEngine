@@ -221,7 +221,7 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 			DisplayedText = !BoolParameterMetaData.OverrideNameTrue.IsNone() ? FText::FromName(BoolParameterMetaData.OverrideNameTrue) : DisplayedText;			
 			Icon = BoolParameterMetaData.IconOverrideTrue;
 		}
-		else if(bParameterValue == false)
+		else
 		{
 			DisplayedText = !BoolParameterMetaData.OverrideNameFalse.IsNone() ? FText::FromName(BoolParameterMetaData.OverrideNameFalse) : DisplayedText;			
 			Icon = BoolParameterMetaData.IconOverrideFalse;
