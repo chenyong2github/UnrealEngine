@@ -23,6 +23,9 @@ namespace Chaos
 		extern int32 Chaos_PBDCollisionSolver_Position_ShockPropagationIterations;
 
 		extern int32 Chaos_PBDCollisionSolver_Velocity_ShockPropagationIterations;
+
+		extern bool bChaos_PBDCollisionSolver_Position_SolveEnabled;
+		extern bool bChaos_PBDCollisionSolver_Velocity_SolveEnabled;
 	}
 	using namespace CVars;
 
@@ -161,6 +164,7 @@ namespace Chaos
 	FPBDCollisionSolverContainer::FPBDCollisionSolverContainer()
 		: FConstraintSolverContainer()
 		, MaxPushOutVelocity(0)
+		, bRequiresIncrementalCollisionDetection(false)
 	{
 	}
 
@@ -182,6 +186,8 @@ namespace Chaos
 		const int32 SolverCollisionIndex = CollisionSolvers.AddDefaulted();
 
 		CollisionSolvers[SolverCollisionIndex].GatherInput(Dt, Constraint, Particle0Level, Particle1Level, SolverBodyContainer);
+
+		bRequiresIncrementalCollisionDetection |= CollisionSolvers[SolverCollisionIndex].IsIncrementalManifold();
 	}
 
 	void FPBDCollisionSolverContainer::UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex)
@@ -240,9 +246,14 @@ namespace Chaos
 		return SolveVelocityImpl(Dt, It, NumIts, BeginIndex, EndIndex, true);
 	}
 
+	// @todo(chaos): parallel version of SolvePosition
 	bool FPBDCollisionSolverContainer::SolvePositionImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const bool bParallel)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
+		if (!bChaos_PBDCollisionSolver_Position_SolveEnabled)
+		{
+			return false;
+		}
 
 		UpdatePositionShockPropagation(Dt, It, NumIts, BeginIndex, EndIndex);
 
@@ -251,28 +262,74 @@ namespace Chaos
 		const FReal MaxPushOut = (MaxPushOutVelocity > 0) ? (MaxPushOutVelocity * Dt) / FReal(NumIts) : 0;
 
 		// Apply the position correction
-		// @todo(chaos): parallel version of SolvePosition
+		if (bRequiresIncrementalCollisionDetection)
+		{
+			return SolvePositionIncrementalImpl(Dt, BeginIndex, EndIndex, MaxPushOut, bApplyStaticFriction);
+		}
+		else if (bApplyStaticFriction)
+		{
+			return SolvePositionWithFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut);
+		}
+		else
+		{
+			return SolvePositionNoFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut);
+		}
+	}
+
+	// Solve position including support for incremental collision detection
+	bool FPBDCollisionSolverContainer::SolvePositionIncrementalImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut, const bool bApplyStaticFriction)
+	{
 		bool bNeedsAnotherIteration = false;
 		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
 		{
 			FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
-
-			// @todo(chaos): remove this when we no longer need to support incremental manifolds - this prevents us from fully optimizing the solver loop
 			if (CollisionSolver.IsIncrementalManifold())
 			{
 				Collisions::Update(*CollisionSolver.GetConstraint(), Dt);
 				CollisionSolver.GatherManifoldPoints(Dt);
 			}
+			if (bApplyStaticFriction)
+			{
+				bNeedsAnotherIteration |= CollisionSolver.GetSolver().SolvePositionWithFriction(Dt, MaxPushOut);
+			}
+			else
+			{
+				bNeedsAnotherIteration |= CollisionSolver.GetSolver().SolvePositionNoFriction(Dt, MaxPushOut);
+			}
 
-			bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].GetSolver().SolvePosition(Dt, MaxPushOut, bApplyStaticFriction);
 		}
+		return bNeedsAnotherIteration;
+	}
 
+	// Solve position with friction (last few iterations each tick)
+	bool FPBDCollisionSolverContainer::SolvePositionWithFrictionImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut)
+	{
+		bool bNeedsAnotherIteration = false;
+		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+		{
+			bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].GetSolver().SolvePositionWithFriction(Dt, MaxPushOut);
+		}
+		return bNeedsAnotherIteration;
+	}
+
+	// Solve position without friction (first few iterations each tick)
+	bool FPBDCollisionSolverContainer::SolvePositionNoFrictionImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut)
+	{
+		bool bNeedsAnotherIteration = false;
+		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+		{
+			bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].GetSolver().SolvePositionNoFriction(Dt, MaxPushOut);
+		}
 		return bNeedsAnotherIteration;
 	}
 
 	bool FPBDCollisionSolverContainer::SolveVelocityImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const bool bParallel)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
+		if (!bChaos_PBDCollisionSolver_Velocity_SolveEnabled)
+		{
+			return false;
+		}
 
 		UpdateVelocityShockPropagation(Dt, It, NumIts, BeginIndex, EndIndex);
 
