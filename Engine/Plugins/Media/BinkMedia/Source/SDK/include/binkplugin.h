@@ -265,7 +265,7 @@ PLUG_IN_FUNC_DEC( void ) BinkPluginCloseImage( BINKIMAGE * bnki );
 typedef struct BINKPLUGINFRAMEINFO
 {
   // (Metal), id<MTLCommandBuffer>
-  // (PS4), Gnmx::LightweightGfxContext *
+  // (GNM), Gnmx::LightweightGfxContext *
   // (NVN), NVNcommandBuffer *
   // (AGC), DrawCommandBuffer *
   void * cmdBuf; 
