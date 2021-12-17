@@ -3,7 +3,6 @@
 #include "MassAgentTraits.h"
 #include "MassCommonTypes.h"
 #include "MassMovementFragments.h"
-#include "MassTranslatorRegistry.h"
 #include "MassEntityTemplate.h"
 #include "MassEntityTemplateRegistry.h"
 #include "Translators/MassCapsuleComponentTranslators.h"
