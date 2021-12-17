@@ -303,7 +303,7 @@ bool FBackChannelOSCConnection::SendPacket(FBackChannelOSCPacket& Packet)
 
 	// todo : differentiate between UDP & TCP : for now we assume TCP which requires
 	// the buffer size at the start of the array
-
+	
 	TArray<uint8> Data;
 
 	// This int32 will hold the number of bytes added to the array by Packet.WriteToBuffer()

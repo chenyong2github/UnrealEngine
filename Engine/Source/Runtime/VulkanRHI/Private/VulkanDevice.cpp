@@ -199,8 +199,8 @@ FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 	// Has been added to UE5, but need this workaround on 4.27.1 since we can't modify enum at this point.
 	if (GpuProps.vendorID != 0x10005)
 	{
-	ensure(VendorId != EGpuVendorId::Unknown);
-}
+		ensure(VendorId != EGpuVendorId::Unknown);
+	}
 }
 
 FVulkanDevice::~FVulkanDevice()

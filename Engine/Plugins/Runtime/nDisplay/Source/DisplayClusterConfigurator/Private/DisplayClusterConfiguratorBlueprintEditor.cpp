@@ -933,7 +933,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnPostCompiled(UBlueprint* InBl
 	for (const TWeakObjectPtr<UObject>& Object : SelectedObjects)
 	{
 		if (!Object.IsValid())
-	{
+		{
 			continue;
 		}
 

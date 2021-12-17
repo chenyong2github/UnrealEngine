@@ -916,14 +916,14 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 			}
 		}
 
-			AddCopyToResolveTargetPass(GraphBuilder, ForwardScreenSpaceShadowMask.Target, ForwardScreenSpaceShadowMask.Resolve, FResolveParams());
-			OutForwardScreenSpaceShadowMask = ForwardScreenSpaceShadowMask.Resolve;
-			if (bIsHairEnable)
-			{
-				AddCopyToResolveTargetPass(GraphBuilder, ForwardScreenSpaceShadowMaskSubPixel.Target, ForwardScreenSpaceShadowMaskSubPixel.Resolve, FResolveParams());
-				OutForwardScreenSpaceShadowMaskSubPixel = ForwardScreenSpaceShadowMaskSubPixel.Resolve;
-			}
+		AddCopyToResolveTargetPass(GraphBuilder, ForwardScreenSpaceShadowMask.Target, ForwardScreenSpaceShadowMask.Resolve, FResolveParams());
+		OutForwardScreenSpaceShadowMask = ForwardScreenSpaceShadowMask.Resolve;
+		if (bIsHairEnable)
+		{
+			AddCopyToResolveTargetPass(GraphBuilder, ForwardScreenSpaceShadowMaskSubPixel.Target, ForwardScreenSpaceShadowMaskSubPixel.Resolve, FResolveParams());
+			OutForwardScreenSpaceShadowMaskSubPixel = ForwardScreenSpaceShadowMaskSubPixel.Resolve;
 		}
 	}
+}
 
 #undef CHANGE_LIGHTINDEXTYPE_SIZE

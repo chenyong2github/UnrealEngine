@@ -21,7 +21,7 @@ UWaterRuntimeSettings::UWaterRuntimeSettings()
 	, WaterBodyOceanComponentClass(UWaterBodyOceanComponent::StaticClass())
 	, WaterBodyCustomComponentClass(UWaterBodyCustomComponent::StaticClass())
 {
-
+	
 }
 
 FName UWaterRuntimeSettings::GetCategoryName() const

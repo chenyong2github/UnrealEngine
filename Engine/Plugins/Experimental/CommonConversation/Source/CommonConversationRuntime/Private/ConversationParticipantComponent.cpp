@@ -361,6 +361,7 @@ void UConversationParticipantComponent::ServerAbortAllConversations()
 }
 
 #endif
+
 #if WITH_SERVER_CODE
 void UConversationParticipantComponent::ServerForAllConversationsRefreshTaskChoiceData(const FConversationNodeHandle& Handle, UConversationInstance* IgnoreConversation /*= nullptr*/)
 {

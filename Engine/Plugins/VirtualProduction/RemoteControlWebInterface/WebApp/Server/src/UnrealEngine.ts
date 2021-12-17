@@ -234,7 +234,7 @@ export namespace UnrealEngine {
           await refreshPreset(message.PresetId, message.PresetName);
           await refreshView(message.PresetId, message.Metadata.view);
           break;
-      }
+        }
 
         case UnrealApi.PresetEvent.LayoutModified: {
           const preset = populatePreset(message.Preset as IPreset);
@@ -361,7 +361,7 @@ export namespace UnrealEngine {
       allPayloads = {...payloads, ...allPayloads };
       if (bInitial || !equal(payloads, allPayloads)) {
         payloads = allPayloads;
-        Notify.emit('payloads', payloads );
+        Notify.emit('payloads', payloads);
       }
 
     } catch (error) {
@@ -407,23 +407,23 @@ export namespace UnrealEngine {
     preset.Exposed = {};
 
     for (const Group of preset.Groups) {
-        for (const Property of Group.ExposedProperties) {
-          Property.Type = Property.UnderlyingProperty.Type;
+      for (const Property of Group.ExposedProperties) {
+        Property.Type = Property.UnderlyingProperty.Type;
         preset.Exposed[Property.ID] = Property;
-        }
+      }
 
-        for (const Function of Group.ExposedFunctions) {
-          if (!Function.Metadata)
-            Function.Metadata = {};
+      for (const Function of Group.ExposedFunctions) {
+        if (!Function.Metadata)
+          Function.Metadata = {};
 
-          Function.Type = PropertyType.Function;
-          Function.Metadata.Widget = WidgetTypes.Button;
+        Function.Type = PropertyType.Function;
+        Function.Metadata.Widget = WidgetTypes.Button;
         preset.Exposed[Function.ID] = Function;
-        }
+      }
 
       preset.ExposedProperties.push(...Group.ExposedProperties);
       preset.ExposedFunctions.push(...Group.ExposedFunctions);
-      }
+    }
 
     return preset;
   }
@@ -483,7 +483,7 @@ export namespace UnrealEngine {
           for (const child of children) {
             if (!child.id)
               child.id = crypto.randomBytes(16).toString('hex');
-
+  
             setWidgetsId(child.widgets);
           }          
           break;
@@ -498,7 +498,7 @@ export namespace UnrealEngine {
           break;
         }
       }
-    }
+   }
   }
 
   function equal(a: any, b: any): boolean {

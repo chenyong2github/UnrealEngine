@@ -1214,7 +1214,7 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffsetSinglePose(
 	const TArray<TSharedPtr<FCalibrationRowData>>& Rows, 
 	FText& OutErrorMessage) const
 {
-	const FCameraCalibrationStepsController* StepsController; 
+	const FCameraCalibrationStepsController* StepsController;
 	const ULensFile* LensFile;
 
 	if (!ensure(GetStepsControllerAndLensFile(&StepsController, &LensFile)))
@@ -1684,7 +1684,7 @@ bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibrator()
 
 	// Solve each group independently
 	for (const auto& SamePoseRowGroup : SamePoseRowGroups)
-		{
+	{
 		FSinglePoseResult SinglePoseResult;
 
 		const bool bSucceeded = CalcCalibratorPoseForSingleCamPose(*SamePoseRowGroup, SinglePoseResult.Transform, ErrorMessage);
@@ -1701,14 +1701,14 @@ bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibrator()
 	}
 
 	if (!SinglePoseResults.Num())
-		{
+	{
 		ErrorMessage = LOCTEXT("NoSinglePoseResults",
 			"There were no valid single pose results. See Output Log for additional details.");
-			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
 
-			return false;
-		}
-	
+		return false;
+	}
+
 	FTransform DesiredCalibratorPose;
 
 	if (!AverageSinglePoseResults(SinglePoseResults, DesiredCalibratorPose))
@@ -1819,7 +1819,7 @@ bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToTrackingOrigin()
 		return false;
 	}
 
-	const TSharedPtr<FCalibrationRowData>& LastRow = CalibrationRows[CalibrationRows.Num()-1];
+	const TSharedPtr<FCalibrationRowData>& LastRow = CalibrationRows[CalibrationRows.Num() - 1];
 	check(LastRow.IsValid());
 
 	if (LastRow->CameraData.ParentUniqueId != ParentActor->GetUniqueID())
@@ -2018,21 +2018,21 @@ bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibratorParent()
 	{
 		ErrorMessage = LOCTEXT("NoSinglePoseResults",
 			"There were no valid single pose results. See Output Log for additional details.");
-			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
 
-			return false;
-		}
+		return false;
+	}
 
 	FTransform DesiredCalibratorPose;
 
 	if (!AverageSinglePoseResults(SinglePoseResults, DesiredCalibratorPose))
-		{
+	{
 		ErrorMessage = LOCTEXT("CouldNotAverageSinglePoseResults",
 			"There was an error when averaging the single pose results");
-			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
 
-			return false;
-		}
+		return false;
+	}
 
 	const TSharedPtr<FCalibrationRowData>& LastRow = CalibrationRows[CalibrationRows.Num() - 1];
 	check(LastRow.IsValid());

@@ -319,7 +319,7 @@ namespace DataprepGeometryOperationsUtils
 		FVector MergedMeshWorldLocation;
 		TArray<UObject*> CreatedAssets;
 		const float ScreenAreaSize = TNumericLimits<float>::Max();
-		
+	
 		MeshUtilities.MergeComponentsToStaticMesh( PrimitiveComponentsToMerge, nullptr, MergeSettings, nullptr, GetTransientPackage(), FString(), CreatedAssets, MergedMeshWorldLocation, ScreenAreaSize, true );
 
 		UStaticMesh* MergedMesh = nullptr;

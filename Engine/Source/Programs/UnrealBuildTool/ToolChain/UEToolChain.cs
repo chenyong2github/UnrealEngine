@@ -658,8 +658,8 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-					Arguments.Add("-g -O0");
-				}
+						Arguments.Add("-g -O0");
+					}
 				}
 				else
 				{

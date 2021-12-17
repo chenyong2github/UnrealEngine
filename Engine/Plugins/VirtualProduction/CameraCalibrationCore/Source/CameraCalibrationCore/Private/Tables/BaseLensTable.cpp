@@ -109,14 +109,14 @@ bool FBaseLensTable::HasLinkedZoomValues(const float InFocus, const float InZoom
 }
 
 bool FBaseLensTable::IsFocusBetweenNeighbor(const float InFocusPoint, const float InFocusValueToEvaluate) const
-		{
+{
 	const int32 PointNum = GetFocusPointNum();
 
 	// Return true if there is no neighbor and only one focus point
 	if (PointNum == 1)
 	{
-			return true;
-		}
+		return true;
+	}
 
 	TOptional<float> MinValue;
 	TOptional<float> MaxValue;
@@ -173,7 +173,7 @@ bool FBaseLensTable::IsFocusBetweenNeighbor(const float InFocusPoint, const floa
 	{
 		return true;
 	}
-
+	
 	return false;
 }
 

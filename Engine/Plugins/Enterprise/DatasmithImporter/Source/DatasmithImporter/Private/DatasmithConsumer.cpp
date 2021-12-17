@@ -279,7 +279,7 @@ void UDatasmithConsumer::PostLoad()
 
 			bMarkDirty = true;
 		}
-
+		
 		if(OutputLevelObjectPath.Len() == 0)
 		{
 			OutputLevelObjectPath = FPaths::Combine(TargetContentFolder, LevelName) + "." + LevelName;

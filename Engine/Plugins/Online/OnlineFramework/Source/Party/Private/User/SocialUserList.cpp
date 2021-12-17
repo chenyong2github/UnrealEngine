@@ -696,7 +696,7 @@ void FSocialUserList::HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMe
 		if (bUpdateNow)
 		{
 			UpdateNow();
-	}
+		}
 	}
 }
 

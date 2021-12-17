@@ -991,8 +991,8 @@ void FSkeletalMeshEditor::OnCreateClothingAssetMenuItemClicked(FSkeletalMeshClot
 		if (Params.bRemoveFromMesh)  // Remove section prior to importing, otherwise the UsedBoneIndices won't be reflecting the loss of the section in the sub LOD
 		{
 			// Force the rebuilding of the render data at the end of this scope to update the used bone array
-		FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(Mesh);
-
+			FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(Mesh);
+	
 			// User doesn't want the section anymore as a renderable, get rid of it
 			Mesh->RemoveMeshSection(Params.LodIndex, Params.SourceSection);
 		}

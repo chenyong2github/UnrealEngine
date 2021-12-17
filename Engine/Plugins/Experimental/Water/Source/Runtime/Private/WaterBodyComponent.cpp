@@ -851,7 +851,7 @@ void UWaterBodyComponent::OnPostEditChangeProperty(FPropertyChangedEvent& Proper
 		FVector Scale = GetRelativeScale3D();
 		Scale.Z = 1.f;
 		SetRelativeScale3D(Scale);
-}
+	}
 }
 
 TArray<TSharedRef<FTokenizedMessage>> UWaterBodyComponent::CheckWaterBodyStatus() const

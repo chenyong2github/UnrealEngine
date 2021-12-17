@@ -5503,12 +5503,12 @@ bool UNetDriver::NetObjectIsDynamic(const UObject *Object) const
 	return true;
 }
 
-void UNetDriver::AddClientConnection(UNetConnection * NewConnection)
+void UNetDriver::AddClientConnection(UNetConnection* NewConnection)
 {
 	SCOPE_CYCLE_COUNTER(Stat_NetDriverAddClientConnection);
 
 	UE_CLOG(!DDoS.CheckLogRestrictions(), LogNet, Log, TEXT("AddClientConnection: Added client connection: %s"),
-			*NewConnection->Describe());
+		*NewConnection->Describe());
 
 	ClientConnections.Add(NewConnection);
 

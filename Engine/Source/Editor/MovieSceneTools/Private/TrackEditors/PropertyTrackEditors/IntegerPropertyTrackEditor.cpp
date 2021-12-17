@@ -25,26 +25,26 @@ bool FIntegerPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject 
 
 	if (IntegerTrack)
 	{
-	FSystemInterrogator Interrogator;
+		FSystemInterrogator Interrogator;
 
 		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
 
 		const FInterrogationChannel InterrogationChannel = Interrogator.AllocateChannel(Object, IntegerTrack->GetPropertyBinding());
 		Interrogator.ImportTrack(Track, InterrogationChannel);
-	Interrogator.AddInterrogation(KeyTime);
+		Interrogator.AddInterrogation(KeyTime);
 
-	Interrogator.Update();
+		Interrogator.Update();
 
-	const FMovieSceneTracksComponentTypes* ComponentTypes = FMovieSceneTracksComponentTypes::Get();
-	TArray<int32> InterrogatedValues;
+		const FMovieSceneTracksComponentTypes* ComponentTypes = FMovieSceneTracksComponentTypes::Get();
+		TArray<int32> InterrogatedValues;
 		Interrogator.QueryPropertyValues(ComponentTypes->Integer, InterrogationChannel, InterrogatedValues);
 
-	int32 CurValue = InterrogatedValues[0];
-	FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
-	GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurValue, Weight);
+		int32 CurValue = InterrogatedValues[0];
+		FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
+		GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurValue, Weight);
 
-	return true;
-}
+		return true;
+	}
 
 	return false;
 }

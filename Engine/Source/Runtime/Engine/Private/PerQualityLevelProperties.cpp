@@ -38,18 +38,18 @@ namespace QualityLevelProperty
 	static FCriticalSection MappingCriticalSection;
 
 	FSupportedQualityLevelArray PerPlatformOverrideMapping(FString& InPlatformName)
-{
-		FSupportedQualityLevelArray* CachedMappingQualitLevelInfo = nullptr;
 	{
+		FSupportedQualityLevelArray* CachedMappingQualitLevelInfo = nullptr;
+		{
 			FScopeLock ScopeLock(&MappingCriticalSection);
 			CachedMappingQualitLevelInfo = CachedPerPlatformToQualityLevels.Find(InPlatformName);
 			if (CachedMappingQualitLevelInfo)
-		{
+			{
 				return *CachedMappingQualitLevelInfo;
+			}
 		}
-	}
 
-	// Platform (group) names
+		// Platform (group) names
 		const TArray<FName>& PlatformGroupNameArray = PlatformInfo::GetAllPlatformGroupNames();
 		TArray<FName> EnginePlatforms;
 
@@ -76,7 +76,7 @@ namespace QualityLevelProperty
 			}
 
 			EnginePlatforms.AddUnique(FName(*InPlatformName));
-			}
+		}
 
 		FSupportedQualityLevelArray QualityLevels;
 
@@ -88,7 +88,7 @@ namespace QualityLevelProperty
 
 			FString MappingStr;
 			if (EngineSettings.GetString(TEXT("SystemSettings"), *QualityLevelMappingStr, MappingStr))
-	{
+			{
 				int32 Value = FNameToQualityLevel(FName(*MappingStr));
 				if (Value == INDEX_NONE)
 				{
@@ -101,16 +101,16 @@ namespace QualityLevelProperty
 			{
 				UE_LOG(LogCore, Warning, TEXT("Didnt found QualityLevelMapping in the %sEngine.ini. Need to define QualityLevelMapping under the [SystemSettings] section. All perplatform MinLOD will not be converted to PerQuality"), *EnginePlatformName.ToString());
 			}
-	}
-	
+		}
+
 		// Cache the Scalability setting for this platform
-	{
+		{
 			FScopeLock ScopeLock(&MappingCriticalSection);
 			CachedMappingQualitLevelInfo = &CachedPerPlatformToQualityLevels.Add(InPlatformName, QualityLevels);
-	}
+		}
 
 		return *CachedMappingQualitLevelInfo;
-}
+	}
 #endif
 }
 

@@ -447,18 +447,18 @@ void FStreamableHandle::GetRequestedAssets(TArray<FSoftObjectPath>& AssetList, b
 
 	if (bIncludeChildren)
 	{
-	for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
-	{
-		TArray<FSoftObjectPath> ChildAssetList;
-
-		ChildHandle->GetRequestedAssets(ChildAssetList);
-
-		for (const FSoftObjectPath& ChildRef : ChildAssetList)
+		for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
 		{
-			AssetList.AddUnique(ChildRef);
+			TArray<FSoftObjectPath> ChildAssetList;
+
+			ChildHandle->GetRequestedAssets(ChildAssetList);
+
+			for (const FSoftObjectPath& ChildRef : ChildAssetList)
+			{
+				AssetList.AddUnique(ChildRef);
+			}
 		}
 	}
-}
 }
 
 UObject* FStreamableHandle::GetLoadedAsset() const
@@ -1741,8 +1741,8 @@ TSharedPtr<FStreamableHandle> FStreamableManager::CreateCombinedHandle(const TCo
 			}
 			else
 			{
-			return nullptr;
-		}
+				return nullptr;
+			}
 		}
 
 		ensure(ChildHandle->OwningManager == this);

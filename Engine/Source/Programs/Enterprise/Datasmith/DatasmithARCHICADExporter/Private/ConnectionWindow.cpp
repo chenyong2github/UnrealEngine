@@ -404,7 +404,7 @@ FConnectionDialog::FConnectionDialog()
 	ConnectionsListBox.SetHeaderItemText(kDestinationColumn, GS::UniString("Destination"));
     ConnectionsListBox.SetHelpStyle(ConnectionsListBox.HSForItem);
 
-	ConnectionsListBox.Hide();
+    ConnectionsListBox.Hide();
 #if AC_VERSION >= 24
     ConnectionsListBox.onToolTipRequested += [this](const DG::Item& inItem, DG::HelpEventArg& EventArgs) -> short
     {

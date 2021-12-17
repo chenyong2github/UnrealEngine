@@ -139,7 +139,7 @@ UWaterEditorSettings::UWaterEditorSettings()
 	, DefaultBlurEdgesMaterial(FSoftObjectPath(TEXT("/Landmass/DistanceFields/Materials/BlurEdges.BlurEdges")))
 	, DefaultFindEdgesMaterial(FSoftObjectPath(TEXT("/Landmass/DistanceFields/Materials/DetectEdges.DetectEdges")))
 	, DefaultDrawCanvasMaterial(FSoftObjectPath(TEXT("/Water/Materials/Brushes/CanvasDrawing.CanvasDrawing")))
-	, DefaultRenderRiverSplineDepthsMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/RenderSplineDepths.RenderSplineDepths"))) 
+	, DefaultRenderRiverSplineDepthsMaterial(FSoftObjectPath(TEXT("/Landmass/Landscape/BlueprintBrushes/Materials/RenderSplineDepths.RenderSplineDepths")))
 {
 
 	// Ideally, this should be done in FWaterBodyLakeDefaults but we need CreateEditorOnlyDefaultSubobject, which is only available in a UObject : 

@@ -59,7 +59,7 @@ namespace DisplayClusterProjectionStrings
 			{
 				static constexpr auto Matrix = TEXT("Matrix");
 				static constexpr auto Angles = TEXT("Angles");
-		}
+			}
 			namespace RenderingType
 			{
 				static constexpr auto Mono = TEXT("Mono");

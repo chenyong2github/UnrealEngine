@@ -53,16 +53,16 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 		for (const FClassPickerDefaults& DefaultObj : GUnrealEd->GetUnrealEdOptions()->GetNewAssetDefaultClasses())
 		{
 			{
-			UClass* AssetType = LoadClass<UObject>(NULL, *DefaultObj.AssetClass, NULL, LOAD_None, NULL);
+				UClass* AssetType = LoadClass<UObject>(NULL, *DefaultObj.AssetClass, NULL, LOAD_None, NULL);
 
 				if (!InArgs._AssetType->IsChildOf(AssetType))
-			{
+				{
 					continue;
 				}
 
-				if (InArgs._Options.bEditorClassesOnly && !IsEditorOnlyObject(AssetType))
-				{
-					// Don't add if we are looking for editor classes only and this isn't an editor only class
+					if (InArgs._Options.bEditorClassesOnly && !IsEditorOnlyObject(AssetType))
+					{
+						// Don't add if we are looking for editor classes only and this isn't an editor only class
 					continue;
 				}
 			}
@@ -76,8 +76,8 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 				}
 			}
 
-				AssetDefaultClasses.Add(MakeShareable(new FClassPickerDefaults(DefaultObj)));
-			}
+			AssetDefaultClasses.Add(MakeShareable(new FClassPickerDefaults(DefaultObj)));
+		}
 
 		for (UClass* CommonClass : InArgs._Options.ExtraPickerCommonClasses)
 		{
@@ -88,7 +88,7 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 
 			TSharedPtr<FClassPickerDefaults> PickerDefault = MakeShareable(new FClassPickerDefaults());
 			PickerDefault->AssetClass = InArgs._AssetType->GetPathName();
-			PickerDefault->ClassName = CommonClass->GetPathName();
+			PickerDefault->ClassName  = CommonClass->GetPathName();
 
 			AssetDefaultClasses.Add(PickerDefault);
 		}

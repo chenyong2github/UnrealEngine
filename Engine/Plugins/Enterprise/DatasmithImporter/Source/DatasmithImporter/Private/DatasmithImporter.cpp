@@ -1846,7 +1846,7 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 					{
 						FinalizableFunctions.Add(MaterialFunctionInfo.Function);
 					}
-					}
+				}
 
 				for (UMaterialFunctionInterface* Function : FinalizableFunctions)
 				{

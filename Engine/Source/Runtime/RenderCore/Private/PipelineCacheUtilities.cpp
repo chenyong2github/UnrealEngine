@@ -256,9 +256,9 @@ namespace Private
 				checkf(Perm.Slots[Idx] < TotalNumberOfShaderKeys, TEXT("Slot %d contains impossible stable shader key index %lld (more than %lld we have)"),
 					Idx, Perm.Slots[Idx], TotalNumberOfShaderKeys);
 				WriteVarIntToArchive(Ar, Perm.Slots[Idx]);
-}
-}
-}
+			}
+		}
+	}
 
 	void LoadPermutation(FArchive& Ar, const FPermsPerPSO& PermDescriptor, UE::PipelineCacheUtilities::FPermutation& Perm, int64 TotalNumberOfShaderKeys)
 	{
@@ -421,7 +421,7 @@ bool UE::PipelineCacheUtilities::SaveStableKeysFile(const FStringView& Filename,
 		*Archive << Item.VFType;
 		*Archive << Item.PermutationId;
 
-		uint64 PipelineHashIdx = static_cast<uint64>(*HashToIndex.Find(Item.PipelineHash))	;
+		uint64 PipelineHashIdx = static_cast<uint64>(*HashToIndex.Find(Item.PipelineHash));
 		WriteVarUIntToArchive(*Archive, PipelineHashIdx);
 		uint64 OutputHashIdx = static_cast<uint64>(*HashToIndex.Find(Item.OutputHash));
 		WriteVarUIntToArchive(*Archive, OutputHashIdx);

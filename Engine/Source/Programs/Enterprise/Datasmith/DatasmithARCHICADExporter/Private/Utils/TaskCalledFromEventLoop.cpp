@@ -70,10 +70,10 @@ GSErrCode FTaskCalledFromEventLoop::DoTasks(GSHandle ParamHandle)
 			return APIERR_BADPARS;
 		}
 		--SPendingTaskCount;
-			if (TaskPtr.IsValid())
-			{
-				TaskPtr->Run();
-			}
+		if (TaskPtr.IsValid())
+		{
+			TaskPtr->Run();
+		}
 		return NoError;
 	}
 	return ErrParam;
@@ -81,7 +81,7 @@ GSErrCode FTaskCalledFromEventLoop::DoTasks(GSHandle ParamHandle)
 
 // Run the task if it's not already deleted
 GSErrCode FTaskCalledFromEventLoop::DoTasksCallBack(GSHandle ParamHandle, GSPtr /* OutResultData */,
-												   bool /* bSilentMode */)
+													bool /* bSilentMode */)
 {
 	GSErrCode GSErr = TryFunctionCatchAndLog("DoTasks", [&ParamHandle]() -> GSErrCode { return DoTasks(ParamHandle); });
 	return GSErr;
@@ -89,7 +89,7 @@ GSErrCode FTaskCalledFromEventLoop::DoTasksCallBack(GSHandle ParamHandle, GSPtr 
 
 // Schedule InTask to be executed on next event.
 void FTaskCalledFromEventLoop::CallTaskFromEventLoop(const TSharedRef< FTaskCalledFromEventLoop >& InTask,
-												   ERetainType									InRetainType)
+													 ERetainType								   InRetainType)
 {
 	GSHandle  ParamHandle = nullptr;
 	GSErrCode GSErr = ACAPI_Goodies(APIAny_InitMDCLParameterListID, &ParamHandle);
@@ -107,44 +107,44 @@ void FTaskCalledFromEventLoop::CallTaskFromEventLoop(const TSharedRef< FTaskCall
 			Param.name = "TaskWeakPtr";
 			Param.ptr_par = new TWeakPtr< FTaskCalledFromEventLoop >(InTask);
 		}
-	++SPendingTaskCount;
+		++SPendingTaskCount;
 		Param.type = MDCLPar_pointer;
 		GSErr = ACAPI_Goodies(APIAny_AddMDCLParameterID, ParamHandle, &Param);
 		if (GSErr == NoError)
 		{
-	API_ModulID mdid;
-	Zap(&mdid);
-	mdid.developerID = kEpicGamesDevId;
-	mdid.localID = kDatasmithExporterId;
+			API_ModulID mdid;
+			Zap(&mdid);
+			mdid.developerID = kEpicGamesDevId;
+			mdid.localID = kDatasmithExporterId;
 			GSErr = ACAPI_Command_CallFromEventLoop(&mdid, UEDirectLinkTask, CmdDoTask, ParamHandle, false, nullptr);
 			if (GSErr == NoError)
-	{
+			{
 				ParamHandle = nullptr;
-	}
-	else
-	{
+			}
+			else
+			{
 				UE_AC_DebugF(
 					"FTaskCalledFromEventLoop::CallTaskFromEventLoop - ACAPI_Command_CallFromEventLoop error %s\n",
 					GetErrorName(GSErr));
-	}
+			}
 		}
 		else
-	{
+		{
 			UE_AC_DebugF("FTaskCalledFromEventLoop::CallTaskFromEventLoop - APIAny_AddMDCLParameterID error %s\n",
 						 GetErrorName(GSErr));
 		}
 
 		if (ParamHandle != nullptr)
 		{
-		// Clean up
+			// Clean up
 			if (InRetainType == kSharedRef)
 			{
 				delete reinterpret_cast< TSharedRef< FTaskCalledFromEventLoop >* >(Param.ptr_par);
-	}
+			}
 			else
 			{
 				delete reinterpret_cast< TWeakPtr< FTaskCalledFromEventLoop >* >(Param.ptr_par);
-}
+			}
 			--SPendingTaskCount;
 
 			GSErr = ACAPI_Goodies(APIAny_FreeMDCLParameterListID, &ParamHandle);

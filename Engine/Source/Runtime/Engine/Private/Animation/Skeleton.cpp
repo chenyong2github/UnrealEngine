@@ -1029,8 +1029,8 @@ int32 USkeleton::GetMeshLinkupIndex(const USkeletalMesh* InSkelMesh)
 
 	{
 		FScopeLock ScopeLock(&LinkupCacheLock);
-	// make sure it's not out of range
-	check (LinkupIndex < LinkupCache.Num());
+		// make sure it's not out of range
+		check(LinkupIndex < LinkupCache.Num());
 	}
 
 	return LinkupIndex;
@@ -1110,8 +1110,8 @@ int32 USkeleton::BuildLinkup(const USkeletalMesh* InSkelMesh)
 	{
 		FScopeLock ScopeLock(&LinkupCacheLock);
 		NewIndex = LinkupCache.Add(NewMeshLinkup);
-	check (NewIndex != INDEX_NONE);
-	SkelMesh2LinkupCache.Add(MakeWeakObjectPtr(const_cast<USkeletalMesh*>(InSkelMesh)), NewIndex);
+		check(NewIndex != INDEX_NONE);
+		SkelMesh2LinkupCache.Add(MakeWeakObjectPtr(const_cast<USkeletalMesh*>(InSkelMesh)), NewIndex);
 	}
 	return NewIndex;
 }
@@ -1353,9 +1353,9 @@ int32 USkeleton::GetSkeletonBoneIndexFromMeshBoneIndex(const USkeletalMesh* InSk
 	//LinkupCache lock scope
 	{
 		FScopeLock ScopeLock(&LinkupCacheLock);
-	const FSkeletonToMeshLinkup& LinkupTable = LinkupCache[LinkupCacheIdx];
-	return LinkupTable.MeshToSkeletonTable[MeshBoneIndex];
-}
+		const FSkeletonToMeshLinkup& LinkupTable = LinkupCache[LinkupCacheIdx];
+		return LinkupTable.MeshToSkeletonTable[MeshBoneIndex];
+	}
 }
 
 
@@ -1367,9 +1367,9 @@ int32 USkeleton::GetMeshBoneIndexFromSkeletonBoneIndex(const USkeletalMesh* InSk
 	//LinkupCache lock scope
 	{
 		FScopeLock ScopeLock(&LinkupCacheLock);
-	const FSkeletonToMeshLinkup& LinkupTable = LinkupCache[LinkupCacheIdx];
-	return LinkupTable.SkeletonToMeshTable[SkeletonBoneIndex];
-}
+		const FSkeletonToMeshLinkup& LinkupTable = LinkupCache[LinkupCacheIdx];
+		return LinkupTable.SkeletonToMeshTable[SkeletonBoneIndex];
+	}
 }
 
 

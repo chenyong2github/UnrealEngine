@@ -477,11 +477,11 @@ namespace Audio
 			NullDeviceCallback->Resume(ThrowAwayBuffer, BufferDuration);
 		}
 
-			bIsUsingNullDevice = true;
-		}
+		bIsUsingNullDevice = true;
+	}
 
 	void IAudioMixerPlatformInterface::StopRunningNullDevice()
-	{
+	{		
 		UE_LOG(LogAudioMixer, Verbose, TEXT("StopRunningNullDevice() called, InstanceID=%d"), InstanceID);
 		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_StopRunningNullDevice, FColor::Blue);
 
@@ -493,7 +493,7 @@ namespace Audio
 			}
 			else
 			{
-			NullDeviceCallback.Reset();
+				NullDeviceCallback.Reset();
 			}
 			bIsUsingNullDevice = false;
 		}
@@ -637,7 +637,7 @@ namespace Audio
 	}
 
 	void IAudioMixerPlatformInterface::StopGeneratingAudio()
-	{
+	{		
 		SCOPED_NAMED_EVENT(IAudioMixerPlatformInterface_StopGeneratingAudio, FColor::Blue);
 
 		// Stop the FRunnable thread
@@ -657,7 +657,7 @@ namespace Audio
 		{
 			{
 				SCOPED_NAMED_EVENT(IAudioMixerPlatformInterface_StopGeneratingAudio_KillRenderThread, FColor::Blue);
-			AudioRenderThread->Kill();
+				AudioRenderThread->Kill();
 			}
 
 			// WaitForCompletion will complete right away when single threaded, and AudioStreamInfo.StreamState will never be set to stopped

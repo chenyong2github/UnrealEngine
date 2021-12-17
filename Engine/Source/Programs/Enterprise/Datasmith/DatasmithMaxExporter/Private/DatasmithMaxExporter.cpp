@@ -313,7 +313,7 @@ int FDatasmithMaxExporter::ExportScene(FDatasmithSceneExporter* DatasmithSceneEx
 			{
 				LastDisplayedProgress = ProgressPct;
 				FString ProgressText = InSceneParser.GetNode(i)->GetName();
-			ProgressManager->ProgressEvent(ProgressRatio, *ProgressText);
+				ProgressManager->ProgressEvent(ProgressRatio, *ProgressText);
 			}
 
 			// Export to file

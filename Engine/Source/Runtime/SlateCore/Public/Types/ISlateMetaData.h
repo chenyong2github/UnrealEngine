@@ -18,7 +18,7 @@ public:
 	}
 
 	/** Virtual destructor. */
-	virtual ~ISlateMetaData() { }
+	virtual ~ISlateMetaData() {}
 
 protected:
 	/**

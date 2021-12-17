@@ -183,7 +183,7 @@ void FDefaultGameMoviePlayer::Initialize(FSlateRenderer& InSlateRenderer, TShare
 		ShaderMapIds.Add(GlobalShaderMapId);
 		GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
 	}
-	
+
 	// Add a delegate to start playing movies when we start loading a map
 	FCoreUObjectDelegates::PreLoadMap.AddRaw( this, &FDefaultGameMoviePlayer::OnPreLoadMap );
 	
@@ -628,10 +628,10 @@ void FDefaultGameMoviePlayer::BlockingStarted()
 {
 	if ((bIsPlayOnBlockingEnabled) && (bIsSlateThreadAllowed))
 	{
-	UE_LOG(LogMoviePlayer, Verbose, TEXT("BlockingStarted %d"), BlockingRefCount);
-	BlockingRefCount++;
-	PlayMovie();
-}
+		UE_LOG(LogMoviePlayer, Verbose, TEXT("BlockingStarted %d"), BlockingRefCount);
+		BlockingRefCount++;
+		PlayMovie();
+	}
 }
 
 void FDefaultGameMoviePlayer::BlockingTick()

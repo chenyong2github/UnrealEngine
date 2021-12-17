@@ -1161,8 +1161,8 @@ namespace UnrealBuildTool
 				SSHProcess.StartInfo.Arguments = String.Format("{0} {1}", String.Join(" ", CommonSshArguments), FullCommand);
 				if (!bSilent)
 				{
-				SSHProcess.OutputDataReceived += OutputHandler;
-				SSHProcess.ErrorDataReceived += ErrorHandler;
+					SSHProcess.OutputDataReceived += OutputHandler;
+					SSHProcess.ErrorDataReceived += ErrorHandler;
 				}
 
 				Log.TraceLog("[SSH] {0} {1}", Utils.MakePathSafeToUseWithCommandLine(SSHProcess.StartInfo.FileName), SSHProcess.StartInfo.Arguments);

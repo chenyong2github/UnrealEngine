@@ -147,7 +147,7 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 					DataPack.SupportedAgents = FString::Printf(TEXT("%s%s%s"), *DataPack.SupportedAgents, DataPack.SupportedAgents.IsEmpty() ? TEXT("") : TEXT(" | "), *NavigationData.Name.ToString());
 				}
 			}
-
+			
 			NumNavData = NavSys->NavDataSet.Num();
 			
 			APawn* DebugActorAsPawn = Cast<APawn>(DebugActor);

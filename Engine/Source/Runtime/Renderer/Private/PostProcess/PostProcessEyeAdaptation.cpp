@@ -968,11 +968,11 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 		bUpdateLastExposure = true;
 	}
 
-		// Mobile LDR does not support post-processing but still can apply Exposure during basepass
-		if (bMobilePlatform && !IsMobileHDR())
-		{
-			PreExposure = GetEyeAdaptationFixedExposure(View);
-		}
+	// Mobile LDR does not support post-processing but still can apply Exposure during basepass
+	if (bMobilePlatform && !IsMobileHDR())
+	{
+		PreExposure = GetEyeAdaptationFixedExposure(View);
+	}
 
 	// Update the pre-exposure value on the actual view
 	View.PreExposure = PreExposure;

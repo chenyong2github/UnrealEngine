@@ -2274,25 +2274,25 @@ void FCsvStreamWriter::Process(FCsvProcessThreadDataStats& OutStats)
 
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(CSVProfiler_Writer_GetDataProcessors);
-	for (FCsvProfilerThreadData::FSharedPtr Data : TlsData)
-	{
-		if (!Data->DataProcessor)
+		for (FCsvProfilerThreadData::FSharedPtr Data : TlsData)
 		{
-			DataProcessors.Add(new FCsvProfilerThreadDataProcessor(Data, this, RenderThreadId, RHIThreadId));
+			if (!Data->DataProcessor)
+			{
+				DataProcessors.Add(new FCsvProfilerThreadDataProcessor(Data, this, RenderThreadId, RHIThreadId));
+			}
 		}
 	}
-	}
-
+	
 
 	int32 MinFrameNumberProcessed = MAX_int32;
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(CSVProfiler_Writer_ProcessDataProcessors);
-	for (FCsvProfilerThreadDataProcessor* DataProcessor : DataProcessors)
-	{
-		DataProcessor->Process(OutStats, MinFrameNumberProcessed);
+		for (FCsvProfilerThreadDataProcessor* DataProcessor : DataProcessors)
+		{
+			DataProcessor->Process(OutStats, MinFrameNumberProcessed);
+		}
 	}
-	}
-
+	
 
 	if (bContinuousWrites && MinFrameNumberProcessed < MAX_int32)
 	{
@@ -2434,172 +2434,172 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfilerThreadData_TimingMarkers);
 
-	// Process timing markers
-	FCsvTimingMarker InsertedMarker;
-	bool bAllowExclusiveMarkerInsertion = true;
-	for (int i = 0; i < ThreadMarkers.Num(); i++)
-	{
-		FCsvTimingMarker* MarkerPtr = &ThreadMarkers[i];
-
-		// Handle exclusive markers. This may insert an additional marker before this one
-		bool bInsertExtraMarker = false;
-		if (bAllowExclusiveMarkerInsertion && MarkerPtr->IsExclusiveMarker())
+		// Process timing markers
+		FCsvTimingMarker InsertedMarker;
+		bool bAllowExclusiveMarkerInsertion = true;
+		for (int i = 0; i < ThreadMarkers.Num(); i++)
 		{
-			if (MarkerPtr->IsBeginMarker())
-			{
-				if (ExclusiveMarkerStack.Num() > 0)
-				{
-					// Insert an artificial end marker to end the previous marker on the stack at the same timestamp
-					InsertedMarker = ExclusiveMarkerStack.Last();
-					InsertedMarker.Flags &= (~FCsvStatBase::FFlags::TimestampBegin);
-					InsertedMarker.Flags |= FCsvStatBase::FFlags::IsExclusiveInsertedMarker;
-					InsertedMarker.Timestamp = MarkerPtr->Timestamp;
+			FCsvTimingMarker* MarkerPtr = &ThreadMarkers[i];
 
-					bInsertExtraMarker = true;
-				}
-				ExclusiveMarkerStack.Add(*MarkerPtr);
-			}
-			else
+			// Handle exclusive markers. This may insert an additional marker before this one
+			bool bInsertExtraMarker = false;
+			if (bAllowExclusiveMarkerInsertion && MarkerPtr->IsExclusiveMarker())
 			{
-				if (ExclusiveMarkerStack.Num() > 0)
+				if (MarkerPtr->IsBeginMarker())
 				{
-					ExclusiveMarkerStack.Pop(false);
 					if (ExclusiveMarkerStack.Num() > 0)
 					{
-						// Insert an artificial begin marker to resume the marker on the stack at the same timestamp
+						// Insert an artificial end marker to end the previous marker on the stack at the same timestamp
 						InsertedMarker = ExclusiveMarkerStack.Last();
-						InsertedMarker.Flags |= FCsvStatBase::FFlags::TimestampBegin;
+						InsertedMarker.Flags &= (~FCsvStatBase::FFlags::TimestampBegin);
 						InsertedMarker.Flags |= FCsvStatBase::FFlags::IsExclusiveInsertedMarker;
 						InsertedMarker.Timestamp = MarkerPtr->Timestamp;
 
 						bInsertExtraMarker = true;
 					}
+					ExclusiveMarkerStack.Add(*MarkerPtr);
 				}
-			}
-		}
-
-		if (bInsertExtraMarker)
-		{
-			// Insert an extra exclusive marker this iteration and decrement the loop index.
-			MarkerPtr = &InsertedMarker;
-			i--;
-		}
-		// Prevent a marker being inserted on the next run if we just inserted one
-		bAllowExclusiveMarkerInsertion = !bInsertExtraMarker;
-
-		FCsvTimingMarker& Marker = *MarkerPtr;
-		int32 FrameNumber = GFrameBoundaries.GetFrameNumberForTimestamp(Timeline, Marker.GetTimestamp());
-		OutMinFrameNumberProcessed = FMath::Min(FrameNumber, OutMinFrameNumberProcessed);
-		if (Marker.IsBeginMarker())
-		{
-			MarkerStack.Push(Marker);
-		}
-		else
-		{
-			// Markers might not match up if they were truncated mid-frame, so we need to be robust to that
-			if (MarkerStack.Num() > 0)
-			{
-				// Find the start marker (might not actually be top of the stack, e.g if begin/end for two overlapping stats are independent)
-				bool bFoundStart = false;
-#if REPAIR_MARKER_STACKS
-				FCsvTimingMarker StartMarker;
-				// Prevent spurious MSVC warning about this being used uninitialized further down. Alternative is to implement a ctor, but that would add overhead
-				StartMarker.Init(0, 0, 0, 0);
-
-				for (int j = MarkerStack.Num() - 1; j >= 0; j--)
+				else
 				{
-					if (MarkerStack[j].RawStatID == Marker.RawStatID) // Note: only works with scopes!
+					if (ExclusiveMarkerStack.Num() > 0)
 					{
-						StartMarker = MarkerStack[j];
-						MarkerStack.RemoveAt(j,1,false);
-						bFoundStart = true;
-						break; 
+						ExclusiveMarkerStack.Pop(false);
+						if (ExclusiveMarkerStack.Num() > 0)
+						{
+							// Insert an artificial begin marker to resume the marker on the stack at the same timestamp
+							InsertedMarker = ExclusiveMarkerStack.Last();
+							InsertedMarker.Flags |= FCsvStatBase::FFlags::TimestampBegin;
+							InsertedMarker.Flags |= FCsvStatBase::FFlags::IsExclusiveInsertedMarker;
+							InsertedMarker.Timestamp = MarkerPtr->Timestamp;
+
+							bInsertExtraMarker = true;
+						}
 					}
 				}
-#else
-				FCsvTimingMarker StartMarker = MarkerStack.Pop();
-				bFoundStart = true;
-#endif
-				// TODO: if bFoundStart is false, this stat _never_ gets processed. Could we add it to a persistent list so it's considered next time?
-				// Example where this could go wrong: staggered/overlapping exclusive stats ( e.g Abegin, Bbegin, AEnd, BEnd ), where processing ends after AEnd
-				// AEnd would be missing 
-				if (FrameNumber >= 0 && bFoundStart)
+			}
+
+			if (bInsertExtraMarker)
+			{
+				// Insert an extra exclusive marker this iteration and decrement the loop index.
+				MarkerPtr = &InsertedMarker;
+				i--;
+			}
+			// Prevent a marker being inserted on the next run if we just inserted one
+			bAllowExclusiveMarkerInsertion = !bInsertExtraMarker;
+
+			FCsvTimingMarker& Marker = *MarkerPtr;
+			int32 FrameNumber = GFrameBoundaries.GetFrameNumberForTimestamp(Timeline, Marker.GetTimestamp());
+			OutMinFrameNumberProcessed = FMath::Min(FrameNumber, OutMinFrameNumberProcessed);
+			if (Marker.IsBeginMarker())
+			{
+				MarkerStack.Push(Marker);
+			}
+			else
+			{
+				// Markers might not match up if they were truncated mid-frame, so we need to be robust to that
+				if (MarkerStack.Num() > 0)
 				{
-#if !UE_BUILD_SHIPPING
-					ensure(Marker.RawStatID == StartMarker.RawStatID);
-					ensure(Marker.GetTimestamp() >= StartMarker.GetTimestamp());
-#endif
-					if (Marker.GetTimestamp() > StartMarker.GetTimestamp())
+					// Find the start marker (might not actually be top of the stack, e.g if begin/end for two overlapping stats are independent)
+					bool bFoundStart = false;
+#if REPAIR_MARKER_STACKS
+					FCsvTimingMarker StartMarker;
+					// Prevent spurious MSVC warning about this being used uninitialized further down. Alternative is to implement a ctor, but that would add overhead
+					StartMarker.Init(0, 0, 0, 0);
+
+					for (int j = MarkerStack.Num() - 1; j >= 0; j--)
 					{
-						uint64 ElapsedCycles = Marker.GetTimestamp() - StartMarker.GetTimestamp();
-
-						// Add the elapsed time to the table entry for this frame/stat
-						FCsvStatSeries* Series = FindOrCreateStatSeries(Marker, FCsvStatSeries::EType::TimerData, false);
-						Series->SetTimerValue(FrameNumber, ElapsedCycles);
-
-						// Add the COUNT/ series if enabled. Ignore artificial markers (inserted above)
-						if (GCsvStatCounts && !Marker.IsExclusiveArtificialMarker() )
+						if (MarkerStack[j].RawStatID == Marker.RawStatID) // Note: only works with scopes!
 						{
-							FCsvStatSeries* CountSeries = FindOrCreateStatSeries(Marker, FCsvStatSeries::EType::CustomStatInt, true);
-							CountSeries->SetCustomStatValue_Int(FrameNumber, ECsvCustomStatOp::Accumulate, 1);
+							StartMarker = MarkerStack[j];
+							MarkerStack.RemoveAt(j, 1, false);
+							bFoundStart = true;
+							break;
+						}
+					}
+#else
+					FCsvTimingMarker StartMarker = MarkerStack.Pop();
+					bFoundStart = true;
+#endif
+					// TODO: if bFoundStart is false, this stat _never_ gets processed. Could we add it to a persistent list so it's considered next time?
+					// Example where this could go wrong: staggered/overlapping exclusive stats ( e.g Abegin, Bbegin, AEnd, BEnd ), where processing ends after AEnd
+					// AEnd would be missing 
+					if (FrameNumber >= 0 && bFoundStart)
+					{
+#if !UE_BUILD_SHIPPING
+						ensure(Marker.RawStatID == StartMarker.RawStatID);
+						ensure(Marker.GetTimestamp() >= StartMarker.GetTimestamp());
+#endif
+						if (Marker.GetTimestamp() > StartMarker.GetTimestamp())
+						{
+							uint64 ElapsedCycles = Marker.GetTimestamp() - StartMarker.GetTimestamp();
+
+							// Add the elapsed time to the table entry for this frame/stat
+							FCsvStatSeries* Series = FindOrCreateStatSeries(Marker, FCsvStatSeries::EType::TimerData, false);
+							Series->SetTimerValue(FrameNumber, ElapsedCycles);
+
+							// Add the COUNT/ series if enabled. Ignore artificial markers (inserted above)
+							if (GCsvStatCounts && !Marker.IsExclusiveArtificialMarker())
+							{
+								FCsvStatSeries* CountSeries = FindOrCreateStatSeries(Marker, FCsvStatSeries::EType::CustomStatInt, true);
+								CountSeries->SetCustomStatValue_Int(FrameNumber, ECsvCustomStatOp::Accumulate, 1);
+							}
 						}
 					}
 				}
 			}
 		}
 	}
-	}
 
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfilerThreadData_CustomStats);
-	// Process the custom stats
-	for (int i = 0; i < CustomStats.Num(); i++)
-	{
-		FCsvCustomStat& CustomStat = CustomStats[i];
-		int32 FrameNumber = GFrameBoundaries.GetFrameNumberForTimestamp(Timeline, CustomStat.GetTimestamp());
-		OutMinFrameNumberProcessed = FMath::Min(FrameNumber, OutMinFrameNumberProcessed);
-		if (FrameNumber >= 0)
+		// Process the custom stats
+		for (int i = 0; i < CustomStats.Num(); i++)
 		{
-			bool bIsInteger = CustomStat.IsInteger();
-			FCsvStatSeries* Series = FindOrCreateStatSeries(CustomStat, bIsInteger ? FCsvStatSeries::EType::CustomStatInt : FCsvStatSeries::EType::CustomStatFloat, false);
-			if (bIsInteger)
+			FCsvCustomStat& CustomStat = CustomStats[i];
+			int32 FrameNumber = GFrameBoundaries.GetFrameNumberForTimestamp(Timeline, CustomStat.GetTimestamp());
+			OutMinFrameNumberProcessed = FMath::Min(FrameNumber, OutMinFrameNumberProcessed);
+			if (FrameNumber >= 0)
 			{
-				Series->SetCustomStatValue_Int(FrameNumber, CustomStat.GetCustomStatOp(), CustomStat.Value.AsInt);
-			}
-			else
-			{
-				Series->SetCustomStatValue_Float(FrameNumber, CustomStat.GetCustomStatOp(), CustomStat.Value.AsFloat);
-			}
+				bool bIsInteger = CustomStat.IsInteger();
+				FCsvStatSeries* Series = FindOrCreateStatSeries(CustomStat, bIsInteger ? FCsvStatSeries::EType::CustomStatInt : FCsvStatSeries::EType::CustomStatFloat, false);
+				if (bIsInteger)
+				{
+					Series->SetCustomStatValue_Int(FrameNumber, CustomStat.GetCustomStatOp(), CustomStat.Value.AsInt);
+				}
+				else
+				{
+					Series->SetCustomStatValue_Float(FrameNumber, CustomStat.GetCustomStatOp(), CustomStat.Value.AsFloat);
+				}
 
-			// Add the COUNT/ series if enabled
-			if (GCsvStatCounts)
-			{
-				FCsvStatSeries* CountSeries = FindOrCreateStatSeries(CustomStat, FCsvStatSeries::EType::CustomStatInt, true);
-				CountSeries->SetCustomStatValue_Int(FrameNumber, ECsvCustomStatOp::Accumulate, 1);
+				// Add the COUNT/ series if enabled
+				if (GCsvStatCounts)
+				{
+					FCsvStatSeries* CountSeries = FindOrCreateStatSeries(CustomStat, FCsvStatSeries::EType::CustomStatInt, true);
+					CountSeries->SetCustomStatValue_Int(FrameNumber, ECsvCustomStatOp::Accumulate, 1);
+				}
 			}
 		}
-	}
 	}
 
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfilerThreadData_Events);
 
-	// Process Events
-	for (int i = 0; i < Events.Num(); i++)
-	{
-		FCsvEvent& Event = Events[i];
-		int32 FrameNumber = GFrameBoundaries.GetFrameNumberForTimestamp(Timeline, Event.Timestamp);
-		OutMinFrameNumberProcessed = FMath::Min(FrameNumber, OutMinFrameNumberProcessed);
-		if (FrameNumber >= 0)
+		// Process Events
+		for (int i = 0; i < Events.Num(); i++)
 		{
-			FCsvProcessedEvent ProcessedEvent;
-			ProcessedEvent.EventText = Event.EventText;
-			ProcessedEvent.FrameNumber = FrameNumber;
-			ProcessedEvent.CategoryIndex = Event.CategoryIndex;
-			Writer->PushEvent(ProcessedEvent);
+			FCsvEvent& Event = Events[i];
+			int32 FrameNumber = GFrameBoundaries.GetFrameNumberForTimestamp(Timeline, Event.Timestamp);
+			OutMinFrameNumberProcessed = FMath::Min(FrameNumber, OutMinFrameNumberProcessed);
+			if (FrameNumber >= 0)
+			{
+				FCsvProcessedEvent ProcessedEvent;
+				ProcessedEvent.EventText = Event.EventText;
+				ProcessedEvent.FrameNumber = FrameNumber;
+				ProcessedEvent.CategoryIndex = Event.CategoryIndex;
+				Writer->PushEvent(ProcessedEvent);
+			}
 		}
 	}
-}
 }
 
 
@@ -3012,7 +3012,7 @@ void FCsvProfiler::OnEndFramePostFork()
 	GGameThreadIsCsvProcessingThread = !GCsvUseProcessingThread;
 	// Make sure no one called BeginCapture() before forking, as the runnable doesn't fully support the transition
 	checkf(ProcessingThread == nullptr, TEXT("CSV profiling should not be started pre-fork"));
-	}
+}
 
 /** Per-frame update */
 void FCsvProfiler::BeginFrameRT()

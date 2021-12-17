@@ -530,8 +530,8 @@ void SDMXFader::OnMaxValueCommitted(const FText& MaxValueText, ETextCommit::Type
 
 		const float NewValue = FMath::Clamp(FaderSpinBox->GetValue(), static_cast<float>(MinValue), static_cast<float>(MaxValue));
 		FaderSpinBox->SetValue(NewValue);
-		}
 	}
+}
 
 void SDMXFader::OnMinValueCommitted(const FText& MinValueText, ETextCommit::Type InCommit)
 {

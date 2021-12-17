@@ -276,28 +276,28 @@ TSharedRef<SWidget> SDataprepPalette::CreateBackground(const TAttribute<FSlateCo
 		];
 }
 
- FText SDataprepPalette::OnGetSectionTitle(int32 InSection)
- {
-	 FText SectionTitle;
+FText SDataprepPalette::OnGetSectionTitle(int32 InSection) 
+{
+	FText SectionTitle;
 
-	 switch (InSection)
-	 {
-		 case DataprepMenuActionCollectorUtils::EDataprepMenuActionCategory::Filter:
-			 SectionTitle = LOCTEXT("FilterTitle", "Filter");
-			 break;
-		 case DataprepMenuActionCollectorUtils::EDataprepMenuActionCategory::SelectionTransform:
-			 SectionTitle = LOCTEXT("SelectionTransformTitle", "Selection Transform");
-			 break;
+	switch (InSection) 
+	{
+		case DataprepMenuActionCollectorUtils::EDataprepMenuActionCategory::Filter:
+			SectionTitle = LOCTEXT("FilterTitle", "Filter");
+			break;
+		case DataprepMenuActionCollectorUtils::EDataprepMenuActionCategory::SelectionTransform:
+			SectionTitle = LOCTEXT("SelectionTransformTitle", "Selection Transform");
+			break;
 		case DataprepMenuActionCollectorUtils::EDataprepMenuActionCategory::Operation:
-			 SectionTitle = LOCTEXT("OperationTitle", "Operation");
-			 break;
-	 };
+			SectionTitle = LOCTEXT("OperationTitle", "Operation");
+			break;
+	};
 
-	 check(!SectionTitle.IsEmpty());
+	check(!SectionTitle.IsEmpty());
 
-	 return SectionTitle;
- }
- 
+	return SectionTitle;
+}
+
 FSlateColor SDataprepPalette::OnGetWidgetColor(FLinearColor InDefaultColor, FIsSelected InIsActionSelectedDelegate)
 {
 	if (InIsActionSelectedDelegate.IsBound() && InIsActionSelectedDelegate.Execute())

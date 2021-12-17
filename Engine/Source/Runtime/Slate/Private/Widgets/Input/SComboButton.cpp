@@ -138,10 +138,10 @@ FReply SComboButton::OnButtonClicked()
 		}
 	}
 
-		if (WidgetToFocus.IsValid())
-		{
-			ButtonClickedReply.SetUserFocus(WidgetToFocus.ToSharedRef(), EFocusCause::SetDirectly);
-		}
+	if (WidgetToFocus.IsValid())
+	{
+		ButtonClickedReply.SetUserFocus(WidgetToFocus.ToSharedRef(), EFocusCause::SetDirectly);
+	}
 
 	return ButtonClickedReply;
 }

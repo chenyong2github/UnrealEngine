@@ -315,16 +315,16 @@ bool SRCProtocolBindingList::Refresh(bool bNavigateToEnd)
 		if(!CanAddProtocol())
 		{
 			return false;
-		}			
-		
+		}
+
 		
 		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([bNavigateToEnd, WeakListPtr = TWeakPtr<SRCProtocolBindingList>(StaticCastSharedRef<SRCProtocolBindingList>(AsShared()))]()
 		{
 			if (TSharedPtr<SRCProtocolBindingList> ListPtr = WeakListPtr.Pin())
 			{
 				ListPtr->BindingList->RequestListRefresh();
-			if(bNavigateToEnd)
-			{
+				if(bNavigateToEnd)
+				{
 					ListPtr->BindingList->ScrollToBottom();	
 				}
 			}

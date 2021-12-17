@@ -1398,7 +1398,7 @@ public:
 		// restore the source texture, do not allow the texture to become evicted, the aliasing texture cannot re-create the resource.
 		if (Texture->IsEvicted())
 		{
-		Texture->RestoreEvictedGLResource(false);
+			Texture->RestoreEvictedGLResource(false);
 		}
 		Resource = Texture->Resource;
 		SRVResource = Texture->SRVResource;

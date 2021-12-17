@@ -70,11 +70,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Ge
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureFilter> MipsSamplerFilter = TF_Trilinear;
 
-	/**  AutoGenerateMips sampler address mode for U channel. Defaults to clamp. */
+	/** AutoGenerateMips sampler address mode for U channel. Defaults to clamp. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureAddress> MipsAddressU = TA_Clamp;
 
-	/**  AutoGenerateMips sampler address mode for V channel. Defaults to clamp. */
+	/** AutoGenerateMips sampler address mode for V channel. Defaults to clamp. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureAddress> MipsAddressV = TA_Clamp;
 

@@ -21,7 +21,7 @@ typedef TSharedRef<FConcertRemoteEndpoint, ESPMode::ThreadSafe> FConcertRemoteEn
 /**
  * Implements a local endpoint for Concert
  */
-class FConcertLocalEndpoint 
+class FConcertLocalEndpoint
 	: public IConcertLocalEndpoint
 {
 	friend class FConcertLocalEndpointKeepAliveRunnable;
@@ -97,7 +97,7 @@ private:
 
 	/** Process a concert event using a registered event handler */
 	void ProcessEvent(const FConcertMessageContext& ConcertContext);
-	
+
 	/** Process a concert request using a registered request handler */
 	void ProcessRequest(const FConcertMessageContext& ConcertContext);
 
@@ -121,7 +121,7 @@ private:
 
 	/** Timeout remote endpoint from which we haven't received a message or keep alive in a while */
 	void TimeoutRemoteEndpoints(const FDateTime& UtcNow);
-	
+
 	/** Process messages that have been received out of order */
 	void ProcessQueuedReceivedMessages(const FDateTime& UtcNow);
 

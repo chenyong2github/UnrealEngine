@@ -531,7 +531,7 @@ const FName UCommonInputSubsystem::GetCurrentGamepadName() const
 	return GamepadInputType;
 }
  
-void UCommonInputSubsystem::SetGamepadInputType(const FName InGamepadInputType)
+void UCommonInputSubsystem::SetGamepadInputType(const FName InGamepadInputType) 
 {
 	if (ensure(UCommonInputPlatformSettings::Get()->CanChangeGamepadType()))
 	{

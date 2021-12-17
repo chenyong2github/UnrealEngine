@@ -143,14 +143,14 @@ private:
 	// Find actor new object ptr by name and save to ActorPtr
 	bool UpdateActorClassPtr() const
 	{
-			UClass* ActorClass = ActorClassName.IsEmpty() ? nullptr : StaticLoadClass(UObject::StaticClass(), nullptr, *ActorClassName, NULL, LOAD_None, NULL);
-			if (!ActorClass)
-			{
-				ActorClassPtr.Reset();
-				return false;
-			}
+		UClass* ActorClass = ActorClassName.IsEmpty() ? nullptr : StaticLoadClass(UObject::StaticClass(), nullptr, *ActorClassName, NULL, LOAD_None, NULL);
+		if (!ActorClass)
+		{
+			ActorClassPtr.Reset();
+			return false;
+		}
 
-			ActorClassPtr = TWeakObjectPtr<UClass>(ActorClass);
+		ActorClassPtr = TWeakObjectPtr<UClass>(ActorClass);
 
 		return true;
 	}

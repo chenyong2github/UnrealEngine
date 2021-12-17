@@ -141,7 +141,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaTexture")
 	void SetMediaPlayer(UMediaPlayer* NewMediaPlayer);
-
+	
 	/**
 	 * Creates a new resource for the texture, and updates any cached references to the resource.
 	 * This obviously is just an override to expose to blueprints.

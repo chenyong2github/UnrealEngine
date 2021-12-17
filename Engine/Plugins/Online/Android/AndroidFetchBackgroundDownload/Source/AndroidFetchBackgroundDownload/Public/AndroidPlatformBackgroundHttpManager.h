@@ -152,7 +152,7 @@ protected:
 
 		void InitFromIniSettings(const FString& ConfigFileName);
 
-private:
+	private:
 		//Fills out a FPolyglotTextData with data from the supplied text entry parsed from the config.ini
 		void ParsePolyglotTextItem(FPolyglotTextData& TextDataOut, const FString& LocTextKey, TArray<FString>& TextEntryList);
 		

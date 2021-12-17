@@ -96,13 +96,13 @@ void FWidgetGFNActionZone::ClearActionZone()
 	if (bHasActionZone)
 	{
 		bHasActionZone = false;
-	GfnRuntimeError GfnResult = GeForceNOWWrapper::Get().SetActionZone(gfnEditBox, GetID(), nullptr);
-	if (GfnResult != GfnError::gfnSuccess)
-	{
+		GfnRuntimeError GfnResult = GeForceNOWWrapper::Get().SetActionZone(gfnEditBox, GetID(), nullptr);
+		if (GfnResult != GfnError::gfnSuccess)
+		{
 			bHasActionZone = true;
 			UE_LOG(LogGFNActionZoneProcessor, Warning, TEXT("[GFNWidgetActionZone::ClearActionZone] Failed to Remove Action Zone. | Error Code : %i"), GfnResult);
+		}
 	}
-}
 }
 
 unsigned int FWidgetGFNActionZone::GetID() const
@@ -117,17 +117,17 @@ bool GeForceNOWActionZoneProcessor::Initialize()
 {
 	if (FSlateWidgetTracker::Get().IsEnabled())
 	{
-	if (GeForceNOWWrapper::Get().IsRunningInGFN() || bForceProcessGFNWidgetActionZones)
-	{
+		if (GeForceNOWWrapper::Get().IsRunningInGFN() || bForceProcessGFNWidgetActionZones)
+		{
 			FSlateWidgetTracker::Get().OnTrackedWidgetsChanged(GeForceNowTrackedWidgetTags::EditableTextTag).AddSP(this, &GeForceNOWActionZoneProcessor::HandleTrackedWidgetChanges);
 
 			FSlateWidgetTracker::Get().ForEachTrackedWidget(GeForceNowTrackedWidgetTags::EditableTextTag, [this](const SWidget* Widget)
-			{
-				HandleEditableTextWidgetRegistered(Widget);
+															{
+																HandleEditableTextWidgetRegistered(Widget);
 															});
 			return true;
-			}
 		}
+	}
 	else
 	{
 		UE_LOG(LogGFNActionZoneProcessor, Warning, TEXT("SlateWidgetTracker is not initialized. GeForceNOWActionZoneProcessor will not function."));
@@ -145,7 +145,7 @@ void GeForceNOWActionZoneProcessor::Terminate()
 			StopProcess();
 
 			for (int32 i = GFNWidgetActionZones.Num() - 1; i >= 0; i--)
-	{
+			{
 				GFNWidgetActionZones[i].ClearActionZone();
 				GFNWidgetActionZones.RemoveAt(i);
 			}

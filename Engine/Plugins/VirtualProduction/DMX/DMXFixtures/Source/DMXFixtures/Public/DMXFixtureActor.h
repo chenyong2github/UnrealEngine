@@ -76,7 +76,7 @@ public:
 	/** Pushes DMX Values to the Fixture. Expects normalized values in the range of 0.0f - 1.0f */
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttributeMap);
-
+	
 public:
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void InterpolateDMXComponents(float DeltaSeconds);

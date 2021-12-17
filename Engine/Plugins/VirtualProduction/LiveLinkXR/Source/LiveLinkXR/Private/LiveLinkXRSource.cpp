@@ -164,9 +164,9 @@ void FLiveLinkXRSource::EnumerateTrackedDevices()
 				FTrackedDeviceInfo NewDevice(AllTrackedDevices[TrackerIndex], GEngine->XRSystem->GetTrackedDeviceType(AllTrackedDevices[TrackerIndex]), SubjectName);
 				UE_LOG(LogLiveLinkXR, Log, TEXT("LiveLinkXRSource: Found a tracked device with DeviceId %d and named it %s"), NewDevice.DeviceId, *SubjectStringId);
 				TrackedDevices.Add(MoveTemp(NewDevice));
+			}
 		}
 	}
-}
 }
 
 // FRunnable interface

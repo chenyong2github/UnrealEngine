@@ -219,7 +219,7 @@ public class DownloadNotificationDescription
 	public String NotificationChannelID = null;
 	public String NotificationChannelName = null;
 	public int NotificationChannelImportance = NotificationManager.IMPORTANCE_DEFAULT;
-			
+	
 	public int NotificationID = 0;
 
 	public String TitleText = null;

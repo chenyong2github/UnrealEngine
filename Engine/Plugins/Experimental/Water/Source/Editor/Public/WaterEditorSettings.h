@@ -35,7 +35,7 @@ struct WATEREDITOR_API FWaterBrushActorDefaults
 
 	UPROPERTY(EditAnywhere, config, Category = Terrain)
 	TMap<FName, FWaterBodyWeightmapSettings> LayerWeightmapSettings;
-}; 
+};
 
 USTRUCT()
 struct WATEREDITOR_API FWaterZoneActorDefaults

@@ -59,7 +59,7 @@ FDMXInputPortReference SDMXInputPortReferenceGraphPin::GetPinValue() const
 
 	return PortReference;
 }
-
+	
 void SDMXInputPortReferenceGraphPin::SetPinValue(const FDMXInputPortReference& InputPortReference, bool bMarkAsModified) const
 {
 	FString ValueString;

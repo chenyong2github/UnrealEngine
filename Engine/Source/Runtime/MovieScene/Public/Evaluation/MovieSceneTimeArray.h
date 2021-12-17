@@ -155,8 +155,8 @@ private:
 			// If StepTransform is warping, we need to add the loop index for it.
 			if (Step.Warping.IsValid())
 			{
-			LoopCounter.AddWarpingLevel(Step.WarpCounter);
-		}
+				LoopCounter.AddWarpingLevel(Step.WarpCounter);
+			}
 		}
 
 		CachedInverseTransform = RootToLocalTransform.InverseFromWarp(LoopCounter);

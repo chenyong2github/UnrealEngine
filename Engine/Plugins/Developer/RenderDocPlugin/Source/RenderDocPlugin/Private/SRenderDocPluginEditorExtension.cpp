@@ -60,9 +60,9 @@ FRenderDocPluginEditorExtension::FRenderDocPluginEditorExtension(FRenderDocPlugi
 	: ToolbarExtension()
 	, ExtensionManager()
 	, ToolbarExtender()
-	{
-		Initialize(ThePlugin);
-	}
+{
+	Initialize(ThePlugin);
+}
 
 FRenderDocPluginEditorExtension::~FRenderDocPluginEditorExtension()
 {
@@ -113,19 +113,19 @@ void FRenderDocPluginEditorExtension::Initialize(FRenderDocPluginModule* ThePlug
 
 		//Register the editor hotkeys
 		FPlayWorldCommands::GlobalPlayWorldActions->MapAction(FRenderDocPluginCommands::Get().CaptureFrameCommand,
-			FExecuteAction::CreateLambda([]() 
-			{	
-				FRenderDocPluginModule& PluginModule = FModuleManager::GetModuleChecked<FRenderDocPluginModule>("RenderDocPlugin");
-				PluginModule.CaptureFrame(nullptr, IRenderCaptureProvider::ECaptureFlags_Launch, FString()); 
-			}),
+			FExecuteAction::CreateLambda([]()
+		{
+			FRenderDocPluginModule& PluginModule = FModuleManager::GetModuleChecked<FRenderDocPluginModule>("RenderDocPlugin");
+			PluginModule.CaptureFrame(nullptr, IRenderCaptureProvider::ECaptureFlags_Launch, FString());
+		}),
 			FCanExecuteAction());
 
-	const URenderDocPluginSettings* Settings = GetDefault<URenderDocPluginSettings>();
-	if (Settings->bShowHelpOnStartup)
-	{
-		GEditor->EditorAddModalWindow(SNew(SRenderDocPluginHelpWindow));
+		const URenderDocPluginSettings* Settings = GetDefault<URenderDocPluginSettings>();
+		if (Settings->bShowHelpOnStartup)
+		{
+			GEditor->EditorAddModalWindow(SNew(SRenderDocPluginHelpWindow));
+		}
 	}
-}
 }
 
 void FRenderDocPluginEditorExtension::AddToolbarExtension(FToolBarBuilder& ToolbarBuilder, FRenderDocPluginModule* ThePlugin)

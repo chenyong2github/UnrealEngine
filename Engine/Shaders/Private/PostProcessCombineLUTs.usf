@@ -219,7 +219,7 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	// Decode log values
 	else
 	{
-		LinearColor = LogToLin( LUTEncodedColor ) - LogToLin( 0 );
+		LinearColor = LogToLin(LUTEncodedColor) - LogToLin(0);
 	}
 
 #if !SKIP_TEMPERATURE

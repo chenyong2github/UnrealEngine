@@ -114,7 +114,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 		// Send HDR meta data to enable
 		D3DRHI->EnableHDR();
 	}
-
+	
 	DXGI_FORMAT SwapChainFormat = GetRenderTargetFormat(PixelFormat);
 
 	// Skip swap chain creation in off-screen rendering mode

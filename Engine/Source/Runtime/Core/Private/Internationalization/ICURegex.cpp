@@ -14,7 +14,7 @@ public:
 	{
 		uint32_t OutFlags = 0;
 		if (EnumHasAnyFlags(Flags, ERegexPatternFlags::CaseInsensitive))
-	{
+		{
 			OutFlags |= UREGEX_CASE_INSENSITIVE;
 		}
 

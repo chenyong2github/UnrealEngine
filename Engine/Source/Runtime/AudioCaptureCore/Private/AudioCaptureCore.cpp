@@ -197,8 +197,8 @@ namespace Audio
 					//Avoid reading outside of buffer boundaries
 					if (!(AudioCaptureData.Num() + NumSamples > MaxBufferSize))
 					{
-					FMemory::Memcpy(&AudioCaptureDataPtr[Index], AudioData, NumSamples * sizeof(float));
-				}
+						FMemory::Memcpy(&AudioCaptureDataPtr[Index], AudioData, NumSamples * sizeof(float));
+					}
 					else
 					{
 						UE_LOG(LogAudioCaptureCore, Warning, TEXT("Attempt to write past end of buffer in OpenDefaultStream [%u]"), AudioCaptureData.Num() + NumSamples);
@@ -280,7 +280,7 @@ namespace Audio
 			//Check bounds of buffer
 			if (!(OutIndex > MaxBufferSize))
 			{
-			FMemory::Memcpy(&OutDataPtr[OutIndex], AudioCaptureData.GetData(), CaptureDataSamples * sizeof(float));
+				FMemory::Memcpy(&OutDataPtr[OutIndex], AudioCaptureData.GetData(), CaptureDataSamples * sizeof(float));
 			}
 			else
 			{

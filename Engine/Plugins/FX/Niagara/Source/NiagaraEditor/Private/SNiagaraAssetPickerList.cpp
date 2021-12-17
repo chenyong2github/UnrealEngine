@@ -178,7 +178,7 @@ TArray<FText> SNiagaraAssetPickerList::OnGetCategoriesForItem(const FAssetData& 
 	};
 
 	auto AddLibraryCategory = [&Categories, &Item, this]() {
-
+		
 		bool bInLibrary = FNiagaraEditorUtilities::IsScriptAssetInLibrary(Item);
 
 		if (bInLibrary)

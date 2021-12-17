@@ -343,7 +343,7 @@ private:
 
 	/** Delegate handle for the global sequencer created event registered with the sequencer module */
 	FDelegateHandle OnSequencerCreatedHandle;
-	
+
 	/** Weak pointer to the client session with which to send events. May be null or stale. */
 	TWeakPtr<IConcertClientSession> WeakSession;
 

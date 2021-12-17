@@ -895,7 +895,7 @@ bool FSyncData::FElement::AddTags(FSyncDatabase* IOSyncDatabase)
 				default:
 					UE_AC_Assert(false);
 					break;
-	}
+			}
 			FLibPartInfo* LibPartInfo = IOSyncDatabase->GetLibPartInfo(LibPartIndex);
 			if (LibPartInfo != nullptr)
 			{
@@ -909,22 +909,22 @@ bool FSyncData::FElement::AddTags(FSyncDatabase* IOSyncDatabase)
 				Tags.Push(PrefixLibPartName + LibPartInfo->Name);
 			}
 
-	if (TypeID == API_ObjectID || TypeID == API_LampID)
-	{
+			if (TypeID == API_ObjectID || TypeID == API_LampID)
+			{
 				UE_AC_Assert(offsetof(API_Element, object.reflected) == offsetof(API_Element, lamp.reflected));
 				if (APIElement.object.useObjMaterials)
-		{
+				{
 					static const GS::UniString TagUseObjectMaterial("Archicad.Element.UseObjectMaterial");
 					Tags.Push(TagUseObjectMaterial);
 				}
 				if (APIElement.object.reflected)
-			{
+				{
 					static const GS::UniString TagObjectReflected("Archicad.Element.Reflected");
 					Tags.Push(TagObjectReflected);
 				}
 			}
 			else if (TypeID == API_WindowID || TypeID == API_DoorID)
-				{
+			{
 				UE_AC_Assert(offsetof(API_Element, window.openingBase) == offsetof(API_Element, door.openingBase));
 				if (APIElement.window.openingBase.reflected)
 				{
@@ -960,7 +960,7 @@ bool FSyncData::FElement::ProcessMetaData(FSyncDatabase* IOSyncDatabase)
 	if (bMetadataProcessed)
 	{
 		return false;
-}
+	}
 
 	bMetadataProcessed = true;
 	return AddTags(IOSyncDatabase) | UpdateMetaData(&IOSyncDatabase->GetScene().Get());

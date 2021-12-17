@@ -75,7 +75,7 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InLayoutBuilder.GetSelectedObjects();
 	bMultipleObjectsSelected = SelectedObjects.Num() > 1;
-	
+
 	ForcePropertyWindowRebuildHandle = FEditorSupportDelegates::ForcePropertyWindowRebuild.AddSP(this, &FDisplayClusterRootActorDetailsCustomization::OnForcePropertyWindowRebuild);
 
 	InLayoutBuilder.SortCategories(DisplayClusterRootActorDetailsCustomizationUtils::SortCategories);

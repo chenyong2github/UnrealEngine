@@ -1792,8 +1792,8 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event, bool bIsBroadcastAllowe
 
 	if (bIsBroadcastAllowed)
 	{
-	MediaEvent.Broadcast(Event);
-}
+		MediaEvent.Broadcast(Event);
+	}
 	else
 	{
 		QueuedEventBroadcasts.Enqueue(Event);

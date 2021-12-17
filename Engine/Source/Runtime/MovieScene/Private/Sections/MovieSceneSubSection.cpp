@@ -193,8 +193,8 @@ void UMovieSceneSubSection::SetSequence(UMovieSceneSequence* Sequence)
 
 UMovieSceneSequence* UMovieSceneSubSection::GetSequence() const
 {
-		return SubSequence;
-	}
+	return SubSequence;
+}
 
 #if WITH_EDITOR
 void UMovieSceneSubSection::PreEditChange(FProperty* PropertyAboutToChange)

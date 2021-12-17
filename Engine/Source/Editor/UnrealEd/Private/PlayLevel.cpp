@@ -371,7 +371,7 @@ void UEditorEngine::EndPlayMap()
 		// Occasionally during seamless travel the Levels array won't yet be populated so mark this world first
 		// then pick up the sub-levels via the level iterator
 		World->MarkObjectsPendingKill();
-		
+
 		for (auto LevelIt(World->GetLevelIterator()); LevelIt; ++LevelIt)
 		{
 			if (const ULevel* Level = *LevelIt)

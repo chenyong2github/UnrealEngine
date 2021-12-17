@@ -252,7 +252,7 @@ void FBackChannelOSCMessage::WriteToBuffer(TArray<uint8>& OutBuffer) const
 	OutBuffer.AddUninitialized(kRequiredSize);
 
 	ANSICHAR* pOutBuffer = (ANSICHAR*)OutBuffer.GetData() + kBufferOffset;
-
+	
 	const int32 kAddressLength = GetPath().Len()+1;
 	const FString FinalTagString = FString::Printf(TEXT(",%s"), *GetTags());
 	const int32 kTagLength = FinalTagString.Len() + 1;

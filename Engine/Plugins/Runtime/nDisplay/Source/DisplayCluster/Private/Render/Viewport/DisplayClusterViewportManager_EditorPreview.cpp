@@ -139,15 +139,15 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 
 				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamiliesIt.Views)
 				{
-						FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
+					FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
 
-						check(ViewportPtr != nullptr);
-						check(ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num());
+					check(ViewportPtr != nullptr);
+					check(ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num());
 
-						// Calculate the player's view information.
-						FVector  ViewLocation;
-						FRotator ViewRotation;
-						FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
+					// Calculate the player's view information.
+					FVector  ViewLocation;
+					FRotator ViewRotation;
+					FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
 
 					if (View && ViewIt.bDisableRender)
 					{
@@ -157,12 +157,12 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 						View = nullptr;
 					}
 
-						if (View)
-						{
-							// Apply viewport context settings to view (crossGPU, visibility, etc)
-							ViewIt.Viewport->SetupSceneView(ViewIt.ContextNum, PreviewScene->GetWorld(), ViewFamily , *View);
-						}
+					if (View)
+					{
+						// Apply viewport context settings to view (crossGPU, visibility, etc)
+						ViewIt.Viewport->SetupSceneView(ViewIt.ContextNum, PreviewScene->GetWorld(), ViewFamily, *View);
 					}
+				}
 
 				if (ViewFamily.Views.Num() > 0)
 				{

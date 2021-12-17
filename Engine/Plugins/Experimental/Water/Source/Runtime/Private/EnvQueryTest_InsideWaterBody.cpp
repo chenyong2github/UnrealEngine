@@ -49,7 +49,7 @@ void UEnvQueryTest_InsideWaterBody::RunTest(FEnvQueryInstance& QueryInstance) co
 			{
 				bInside = true;
 				return false;
-			}
+		}
 
 			return true;
 		});

@@ -82,6 +82,7 @@ float3x3 NiagaraFindRotationBetweenNormals(float3 A, float3 B)
 
 	return NiagaraQuatTo3x3(Quat);
 }
+
 float4 NiagaraQuatSLerp(float4 Quat1, float4 Quat2, float Slerp)
 {
 	const float RawCosom = dot(Quat1, Quat2);

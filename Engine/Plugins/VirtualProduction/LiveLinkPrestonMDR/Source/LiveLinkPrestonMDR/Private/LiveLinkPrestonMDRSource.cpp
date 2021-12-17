@@ -144,11 +144,11 @@ bool FLiveLinkPrestonMDRSource::RequestSourceShutdown()
 
 	{
 		FScopeLock Lock(&PrestonSourceCriticalSection);
-	if (Socket)
-	{
-		SocketSubsystem->DestroySocket(Socket);
-		Socket = nullptr;
-	}
+		if (Socket)
+		{
+			SocketSubsystem->DestroySocket(Socket);
+			Socket = nullptr;
+		}
 	}
 
 	return true;
@@ -192,10 +192,10 @@ void FLiveLinkPrestonMDRSource::OpenConnection()
 	}
 
 	uint16 PortNumber = ConnectionSettings.PortNumber;
-	
+
 	FIPv4Endpoint Endpoint = FIPv4Endpoint(IPAddr, PortNumber);
 	TSharedRef<FInternetAddr> Addr = Endpoint.ToInternetAddr();
-	
+
 	UE_LOG(LogPrestonMDRSource, VeryVerbose, TEXT("Connecting to the MDR server at %s:%d..."), *IPAddr.ToString(), PortNumber);
 
 	if (!Socket->Connect(*Addr))
@@ -220,15 +220,15 @@ void FLiveLinkPrestonMDRSource::OnConnectionLost()
 
 	{
 		FScopeLock Lock(&PrestonSourceCriticalSection);
-	// There was an unrecoverable connection loss, so we need to destroy the current socket and open a new one
-	if (Socket)
-	{
-		SocketSubsystem->DestroySocket(Socket);
-		Socket = nullptr;
-	}
+		// There was an unrecoverable connection loss, so we need to destroy the current socket and open a new one
+		if (Socket)
+		{
+			SocketSubsystem->DestroySocket(Socket);
+			Socket = nullptr;
+		}
 
-	// Attempt to re-open the connection to the MDR server
-	OpenConnection();
+		// Attempt to re-open the connection to the MDR server
+		OpenConnection();
 	}
 
 	if (MessageThread && Socket)

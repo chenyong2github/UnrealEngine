@@ -15,14 +15,14 @@ if ($release -ne "")
 }
 else
 {
-# Retrieve the Windows release number (e.g. 1903, 1909, 2004, 20H2, etc.)
-$displayVersion = (Get-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name DisplayVersion -ErrorAction SilentlyContinue)
-if ($displayVersion) {
-	$windowsRelease = $displayVersion.DisplayVersion
-} else {
-	$windowsRelease = (Get-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name ReleaseId).ReleaseId
-}
-
+	# Retrieve the Windows release number (e.g. 1903, 1909, 2004, 20H2, etc.)
+	$displayVersion = (Get-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name DisplayVersion -ErrorAction SilentlyContinue)
+	if ($displayVersion) {
+		$windowsRelease = $displayVersion.DisplayVersion
+	} else {
+		$windowsRelease = (Get-ItemProperty -Path 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name ReleaseId).ReleaseId
+	}
+	
 	# Use process isolation mode for improved performance
 	$isolation = "process"
 	

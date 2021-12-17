@@ -34,7 +34,7 @@ public class DownloadDescription
 	public int IndividualURLRetryCount = 0;
 	//If our download has been completed and thus shouldn't be redownloaded
 	public boolean bHasCompleted = false;
-	
+
 	//
 	//Non-serialized members -- Used to track download information
 	//
@@ -212,7 +212,7 @@ public class DownloadDescription
 			if (false == jObject.isNull(bHasCompletedKey))
 			{
 				ReturnedDescription.bHasCompleted = jObject.optBoolean(bHasCompletedKey);
-		}
+			}
 		}
 		catch( JSONException e )
 		{

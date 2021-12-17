@@ -1368,8 +1368,8 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 
 		InMenuBuilder.AddMenuEntry(Commands.CopyBodies);
 		InMenuBuilder.AddMenuEntry(Commands.PasteBodies);
-		InMenuBuilder.AddMenuEntry( Commands.CopyProperties );
-		InMenuBuilder.AddMenuEntry( Commands.PasteProperties );
+		InMenuBuilder.AddMenuEntry(Commands.CopyProperties);
+		InMenuBuilder.AddMenuEntry(Commands.PasteProperties);
 		InMenuBuilder.AddMenuEntry( Commands.DeleteBody );
 		InMenuBuilder.AddMenuEntry( Commands.DeleteAllBodiesBelow );
 		InMenuBuilder.AddMenuEntry( Commands.Mirror );

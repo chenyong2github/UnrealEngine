@@ -1221,7 +1221,7 @@ void FNiagaraDataBuffer::Dump(int32 StartIndex, int32 InNumInstances, const FStr
 	else
 	{
 		for (TPair<float, FString>& Str : Lines)
-		{
+	{
 			UE_LOG(LogNiagara, Log, TEXT("%s"), *Str.Value);
 		}
 	}

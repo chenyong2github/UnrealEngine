@@ -132,7 +132,7 @@ void FStackTracker::CaptureStackTrace(int32 EntriesToIgnore, void* UserData, int
 	else if (UserData)
 	{
 		DeleteUserDataFn(UserData);
-}
+	}
 }
 
 /**

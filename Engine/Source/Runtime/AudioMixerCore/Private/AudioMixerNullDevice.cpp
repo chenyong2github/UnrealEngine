@@ -45,7 +45,7 @@ namespace Audio
 			{
 				SCOPED_NAMED_EVENT(FMixerNullCallback_Run_Working, FColor::Blue);
 
-			Callback();
+				Callback();
 
 				// Clamp to Maximum of 200ms.
 				float SleepTimeClampedMs = FMath::Clamp<float>(SleepTime * 1000.f, 0.f, 200.f);
@@ -54,13 +54,13 @@ namespace Audio
 				bool bTriggered = SleepEvent->Wait((int32)SleepTimeClampedMs);
 				SleepEvent->Reset();
 
-			AudioClock += CallbackTime;
-			double RealClock = FPlatformTime::Seconds();
-			double AudioVsReal = RealClock - AudioClock;
+				AudioClock += CallbackTime;
+				double RealClock = FPlatformTime::Seconds();
+				double AudioVsReal = RealClock - AudioClock;
 
-			// For the next sleep, we adjust the sleep duration to try and keep the audio clock as close
-			// to the real time clock as possible
-			SleepTime = CallbackTime - AudioVsReal;
+				// For the next sleep, we adjust the sleep duration to try and keep the audio clock as close
+				// to the real time clock as possible
+				SleepTime = CallbackTime - AudioVsReal;
 
 #if !NO_LOGGING
 				// Warn if there's any crazy deltas (limit to every 30s).
@@ -93,7 +93,7 @@ namespace Audio
 
 		// If we are marked to pause on startup, make sure the event is in a waitable state.
 		if (bStartPaused)
-	{
+		{
 			WakeupEvent->Reset();
 		}
 		else
@@ -103,7 +103,7 @@ namespace Audio
 		
 		CallbackThread.Reset(FRunnableThread::Create(this, TEXT("AudioMixerNullCallbackThread"), 0, ThreadPriority, FPlatformAffinity::GetAudioThreadMask()));
 	}
-
+		
 	void FMixerNullCallback::Stop()
 	{
 		SCOPED_NAMED_EVENT(FMixerNullCallback_Stop, FColor::Blue);

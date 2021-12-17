@@ -744,7 +744,7 @@ public class DeploymentContext //: ProjectParams
 		{
 			OutputFile = new StagedFileReference(InputFile.MakeRelativeTo(DLCRoot));
 		}
-        else
+		else
         {
 			throw new AutomationException("Can't deploy {0} because it doesn't start with {1} or {2}", InputFile, ProjectRoot, LocalRoot);
 		}

@@ -138,10 +138,10 @@ FShapedGlyphSequence::FShapedGlyphSequence(TArray<FShapedGlyphEntry> InGlyphsToR
 		// Skip if index is invalid or hidden
 		if (!SourceIndexToGlyphData)
 		{
-		// Track reverse look-up data
+			// Track reverse look-up data
 			UE_LOG(LogSlate, Warning, TEXT("No Gylph! Index %i. Valid %i, %i, Valid Glyph %i, Visible %i, Num %i, Grapheme %i, Dir %u"),
-			CurrentGlyph.SourceIndex,
-			SourceIndicesToGlyphData.GetSourceTextStartIndex(),
+				CurrentGlyph.SourceIndex,
+				SourceIndicesToGlyphData.GetSourceTextStartIndex(),
 				SourceIndicesToGlyphData.GetSourceTextEndIndex(),
 				CurrentGlyph.HasValidGlyph(),
 				CurrentGlyph.bIsVisible,

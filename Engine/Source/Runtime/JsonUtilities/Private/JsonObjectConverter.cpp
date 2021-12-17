@@ -699,7 +699,7 @@ namespace
 			return false;
 		}
 	}
-		else if (FObjectProperty *ObjectProperty = CastField<FObjectProperty>(Property))
+	else if (FObjectProperty *ObjectProperty = CastField<FObjectProperty>(Property))
 		{
 			if (JsonValue->Type == EJson::Object)
 			{

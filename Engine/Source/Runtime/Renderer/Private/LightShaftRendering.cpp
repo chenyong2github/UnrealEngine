@@ -600,7 +600,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 								{
 									TemporalHistory = new FTemporalAAHistory;
 									ViewState->LightShaftBloomHistoryRTs.Emplace(LightSceneProxy.GetLightComponent(), TemporalHistory);
-							}
+								}
 								else
 								{
 									TemporalHistory = Entry->Get();

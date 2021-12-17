@@ -1348,9 +1348,9 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 	{
 		if (bHasValidSize)
 		{
-		UpdateBodySetup(true);
-		RecreatePhysicsState();
-	}
+			UpdateBodySetup(true);
+			RecreatePhysicsState();
+		}
 		else
 		{
 			DestroyPhysicsState();

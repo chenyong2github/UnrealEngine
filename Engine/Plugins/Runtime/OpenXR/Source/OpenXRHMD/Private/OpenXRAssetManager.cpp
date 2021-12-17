@@ -108,7 +108,7 @@ void FOpenXRAssetDirectory::LoadForCook()
 	for (const OpenXRAssetManager_Impl::FRenderableDevice& RenderableDevice : OpenXRAssetManager_Impl::RenderableDevices)
 	{
 		AssetRepo.LoadAndAdd(RenderableDevice.MeshAssetRef);
-}
+	}
 
 	// Query all extension plugins for controller models
 	TArray<IOpenXRExtensionPlugin*> ExtModules = IModularFeatures::Get().GetModularFeatureImplementations<IOpenXRExtensionPlugin>(IOpenXRExtensionPlugin::GetModularFeatureName());
@@ -154,7 +154,7 @@ FOpenXRAssetManager::FOpenXRAssetManager(XrInstance Instance, FOpenXRHMD* InHMD)
 		TPair<XrPath, XrPath> ProfileDevicePair;
 		XR_ENSURE(xrStringToPath(Instance, RenderableDevice.InteractionProfile, &ProfileDevicePair.Key));
 		XR_ENSURE(xrStringToPath(Instance, RenderableDevice.UserPath, &ProfileDevicePair.Value));
-
+		
 		DeviceMeshes.Add(ProfileDevicePair, RenderableDevice.MeshAssetRef);
 	}
 
@@ -243,14 +243,14 @@ UPrimitiveComponent* FOpenXRAssetManager::CreateRenderComponent(const int32 Devi
 			}
 			else
 			{
-		TPair<XrPath, XrPath> Key(Profile.interactionProfile, DevicePath);
+				TPair<XrPath, XrPath> Key(Profile.interactionProfile, DevicePath);
 				DeviceMeshPtr = DeviceMeshes.Find(Key);
 			}
 
-		if (!DeviceMeshPtr)
-		{
-			return nullptr;
-		}
+			if (!DeviceMeshPtr)
+			{
+				return nullptr;
+			}
 			DeviceMeshPath = *DeviceMeshPtr;
 		}
 

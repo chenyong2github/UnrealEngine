@@ -443,7 +443,7 @@ public:
 	/** If this emitter is exposed to the library, or should be explicitly hidden. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Asset Options", AssetRegistrySearchable)
 	ENiagaraScriptLibraryVisibility LibraryVisibility = ENiagaraScriptLibraryVisibility::Unexposed;
-	
+
 	/** Deprecated template asset bool. Use the TemplateSpecification enum instead. */
 	UPROPERTY()
 	bool bIsTemplateAsset_DEPRECATED;

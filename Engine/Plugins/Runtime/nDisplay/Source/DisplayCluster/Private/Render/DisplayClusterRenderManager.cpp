@@ -415,7 +415,7 @@ bool FDisplayClusterRenderManager::RegisterPostProcessFactory(const FString& InP
 	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registering factory for postprocess type: %s"), *InPostProcessType);
 
 	if (!InFactory.IsValid())
-{
+	{
 		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Invalid factory object"));
 		return false;
 	}
@@ -450,12 +450,12 @@ bool FDisplayClusterRenderManager::UnregisterPostProcessFactory(const FString& I
 		}
 
 		PostProcessFactories.Remove(InPostProcessType);
-		}
+	}
 
 	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistered factory for postprocess: %s"), *InPostProcessType);
 
 	return true;
-	}
+}
 
 TSharedPtr<IDisplayClusterPostProcessFactory> FDisplayClusterRenderManager::GetPostProcessFactory(const FString& InPostProcessType)
 {

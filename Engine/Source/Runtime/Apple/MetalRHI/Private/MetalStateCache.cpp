@@ -512,7 +512,7 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 				{
 					ConditionalUpdateBackBuffer(*ResolveSurface);
 				}
-	
+					
 				BoundTargets |= 1 << RenderTargetIndex;
             
 #if !PLATFORM_MAC

@@ -914,8 +914,8 @@ namespace Chaos
 					// this may get the wrong edge path, but way more roibust than not testing this
 					if (HorizonEdges.Num() == 0 || Edge->Vertex == HorizonEdges[HorizonEdges.Num()-1]->Next->Vertex)
 					{
-					HorizonEdges.Add(Edge);
-				}
+						HorizonEdges.Add(Edge);
+					}
 					else
 					{
 #if DEBUG_HULL_GENERATION

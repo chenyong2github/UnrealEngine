@@ -428,7 +428,7 @@ void FDMXInputPort::Unregister()
 	{
 		if (Protocol.IsValid())
 		{
-		Protocol->UnregisterInputPort(SharedThis(this));
+			Protocol->UnregisterInputPort(SharedThis(this));
 		}
 
 		bRegistered = false;

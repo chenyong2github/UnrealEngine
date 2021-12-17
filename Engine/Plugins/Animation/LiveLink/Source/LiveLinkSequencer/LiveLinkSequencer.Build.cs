@@ -17,7 +17,7 @@ namespace UnrealBuildTool.Rules
 					"LiveLinkInterface",
 					"LiveLinkMovieScene",
 					"MovieScene",
-				    "TakeTrackRecorders",
+					"TakeTrackRecorders",
 				}
 			);
 

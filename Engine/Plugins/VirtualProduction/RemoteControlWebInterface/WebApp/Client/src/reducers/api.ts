@@ -118,7 +118,7 @@ export const _api = {
     select: (preset?: IPreset) => {
       _api.presets.load(preset?.ID);
       _dispatch(API.PRESET_SELECT(preset?.ID));
-  },
+    },
   },
   views: {
     get: async(preset: string): Promise<IView> => {

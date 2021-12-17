@@ -571,7 +571,7 @@ UObject* UAssetToolsImpl::CreateAssetWithDialog(const FString& AssetName, const 
 			bool bCreateAsset = true;
 			if (bCallConfigureProperties)
 			{
-			FEditorDelegates::OnConfigureNewAssetProperties.Broadcast(Factory);
+				FEditorDelegates::OnConfigureNewAssetProperties.Broadcast(Factory);
 				bCreateAsset = Factory->ConfigureProperties();
 			}
 

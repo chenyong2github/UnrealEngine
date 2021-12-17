@@ -1126,10 +1126,10 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 		if (Section)
 		{
 			UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
-		if (FirstRowIndex != Section->GetRowIndex())
-		{
-			bSectionsAreOnDifferentRows = true;
-		}
+			if (FirstRowIndex != Section->GetRowIndex())
+			{
+				bSectionsAreOnDifferentRows = true;
+			}
 			if (FirstTrack)
 			{
 				if (FirstTrack != Track)

@@ -710,29 +710,29 @@ void UAudioMixerBlueprintLibrary::GetAvailableAudioOutputDevices(const UObject* 
 		if (Audio::IAudioMixerPlatformInterface* MixerPlatform = AudioMixerDevice->GetAudioMixerPlatform())
 		{
 			if (Audio::IAudioPlatformDeviceInfoCache* DeviceInfoCache = MixerPlatform->GetDeviceInfoCache())
-		{
+			{
 				TArray<Audio::FAudioPlatformDeviceInfo> AllDevices = DeviceInfoCache->GetAllActiveOutputDevices();
 				Algo::Transform(AllDevices, OutputDeviceInfos, [](auto& i) -> FAudioOutputDeviceInfo { return { i }; });
 			}
 			else 
 			{
-			uint32 NumOutputDevices = 0;
-			MixerPlatform->GetNumOutputDevices(NumOutputDevices);
-			OutputDeviceInfos.Reserve(NumOutputDevices);
-			FAudioOutputDeviceInfo CurrentOutputDevice = MixerPlatform->GetPlatformDeviceInfo();
+				uint32 NumOutputDevices = 0;
+				MixerPlatform->GetNumOutputDevices(NumOutputDevices);
+				OutputDeviceInfos.Reserve(NumOutputDevices);
+				FAudioOutputDeviceInfo CurrentOutputDevice = MixerPlatform->GetPlatformDeviceInfo();
 
-			for (uint32 i = 0; i < NumOutputDevices; ++i)
-			{
-				Audio::FAudioPlatformDeviceInfo DeviceInfo;
-				MixerPlatform->GetOutputDeviceInfo(i, DeviceInfo);
+				for (uint32 i = 0; i < NumOutputDevices; ++i)
+				{
+					Audio::FAudioPlatformDeviceInfo DeviceInfo;
+					MixerPlatform->GetOutputDeviceInfo(i, DeviceInfo);
 
-				FAudioOutputDeviceInfo NewInfo(DeviceInfo);
-				NewInfo.bIsCurrentDevice = (NewInfo.DeviceId == CurrentOutputDevice.DeviceId);
+					FAudioOutputDeviceInfo NewInfo(DeviceInfo);
+					NewInfo.bIsCurrentDevice = (NewInfo.DeviceId == CurrentOutputDevice.DeviceId);
 
-				OutputDeviceInfos.Emplace(MoveTemp(NewInfo));
+					OutputDeviceInfos.Emplace(MoveTemp(NewInfo));
+				}
 			}
 		}
-	}
 	}
 
 	//Send data through delegate on game thread

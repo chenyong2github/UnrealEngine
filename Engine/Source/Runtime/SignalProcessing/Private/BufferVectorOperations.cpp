@@ -440,7 +440,7 @@ namespace Audio
 				VectorRegister4Float Input = VectorLoadAligned(&InFloatBuffer[i]);
 				VectorRegister4Float Output = VectorLoadAligned(&BufferToSumTo[i]);
 				Output = VectorMultiplyAdd(Input, Gain, Output);
-				
+
 				VectorStoreAligned(Output, &BufferToSumTo[i]);
 
 				Gain = VectorAdd(Gain, Delta);

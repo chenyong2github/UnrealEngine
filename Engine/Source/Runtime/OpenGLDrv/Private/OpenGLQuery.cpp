@@ -1242,19 +1242,19 @@ FOpenGLGPUFence::FOpenGLGPUFence(FName InName)
 FOpenGLGPUFence::~FOpenGLGPUFence()
 {
 	RunOnGLRenderContextThread([Proxy = Proxy]()
-		{
-			VERIFY_GL_SCOPE();
-			delete Proxy;
-		});
+	{
+		VERIFY_GL_SCOPE();
+		delete Proxy;
+	});
 }
 
 void FOpenGLGPUFence::Clear()
 {
 	RunOnGLRenderContextThread([Proxy = Proxy]()
-			{
-				VERIFY_GL_SCOPE();
-				delete Proxy;
-			});
+	{
+		VERIFY_GL_SCOPE();
+		delete Proxy;
+	});
 
 	Proxy = new FOpenGLGPUFenceProxy();
 }
@@ -1267,17 +1267,17 @@ bool FOpenGLGPUFence::Poll() const
 	}
 
 	RunOnGLRenderContextThread([Proxy = Proxy]()
-		{
-			VERIFY_GL_SCOPE();
-			check(Proxy != nullptr);
+	{
+		VERIFY_GL_SCOPE();
+		check(Proxy != nullptr);
 		Proxy->Poll();
-		});
+	});
 
 	return Proxy->bIsSignaled;
 }
 
 void FOpenGLGPUFence::WriteInternal()
 {
-			VERIFY_GL_SCOPE();
+	VERIFY_GL_SCOPE();
 	Proxy->Write();
 }

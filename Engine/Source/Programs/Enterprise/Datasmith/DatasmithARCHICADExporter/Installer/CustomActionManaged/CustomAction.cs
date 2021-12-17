@@ -201,14 +201,14 @@ namespace CustomActionManaged
 
 								// Property has been no need to look ay further
 								if (bKeyEntryFound == true)
-				{
+								{
 									break;
 								}
 							}
 
 							// Property has been no need to look ay further
 							if (bKeyEntryFound == true)
-					{
+							{
 								break;
 							}
 						}

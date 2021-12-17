@@ -180,7 +180,7 @@ namespace Audio
 
 		/** Called by FWindowsMMNotificationClient to toggle logging for audio device changes: */
 		AUDIOMIXERCORE_API static bool ShouldLogDeviceSwaps();
-
+		
 		/** Called by AudioMixer to see if we should do a multithreaded device swap */
 		AUDIOMIXERCORE_API static bool ShouldUseThreadedDeviceSwap();
 
@@ -206,7 +206,7 @@ namespace Audio
 	public:
 		// Pure Interface. 
 		virtual ~IAudioPlatformDeviceInfoCache() = default;
-
+			
 		virtual TOptional<FAudioPlatformDeviceInfo> FindActiveOutputDevice(FName InDeviceID) const = 0;
 		virtual TArray<FAudioPlatformDeviceInfo> GetAllActiveOutputDevices() const = 0;
 		virtual TOptional<FAudioPlatformDeviceInfo> FindDefaultOutputDevice() const = 0;
@@ -648,7 +648,7 @@ namespace Audio
 
 		/** When called, terminates the null device. */
 		void StopRunningNullDevice();
-
+		
 		/** Called by platform specific logic to pre-create or create the null renderer thread  */
 		void CreateNullDeviceThread(const TFunction<void()> InCallback, float InBufferDuration, bool bShouldPauseOnStart);
 

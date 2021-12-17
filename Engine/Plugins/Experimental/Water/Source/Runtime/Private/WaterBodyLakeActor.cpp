@@ -27,21 +27,21 @@ void AWaterBodyLake::PostLoad()
 
 #if WITH_EDITORONLY_DATA
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyComponentRefactor)
-{
+	{
 		UWaterBodyLakeComponent* LakeComponent = CastChecked<UWaterBodyLakeComponent>(WaterBodyComponent);
 		if (LakeGenerator_DEPRECATED)
-	{
+		{
 			LakeComponent->LakeMeshComp = LakeGenerator_DEPRECATED->LakeMeshComp;
 			if (LakeComponent->LakeMeshComp)
-{
+			{
 				LakeComponent->LakeMeshComp->SetupAttachment(LakeComponent);
-	}
+			}
 			LakeComponent->LakeCollision = LakeGenerator_DEPRECATED->LakeCollision;
 			if (LakeComponent->LakeCollision)
-{
+			{
 				LakeComponent->LakeCollision->SetupAttachment(LakeComponent);
-}
-	}
+			}
+		}
 	}
 #endif // WITH_EDITORONLY_DATA
 }
@@ -50,5 +50,5 @@ void AWaterBodyLake::PostLoad()
 
 UDEPRECATED_LakeGenerator::UDEPRECATED_LakeGenerator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-		{
+{
 }

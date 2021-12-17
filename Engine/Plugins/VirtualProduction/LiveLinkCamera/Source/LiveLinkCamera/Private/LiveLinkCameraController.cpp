@@ -371,14 +371,14 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 			if (SelectedLensFile)
 			{
 				if (SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
-			{
-				UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
-					, *SelectedLensFile->GetName()
-					, *CineCameraComponent->GetName()
-					, *this->GetName());
+				{
+					UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
+						, *SelectedLensFile->GetName()
+						, *CineCameraComponent->GetName()
+						, *this->GetName());
+				}
 			}
 		}
-	}
 
 		//When LensFile is changed, force update Table verification
 		LastLensTableVerificationTimestamp = 0;
@@ -426,7 +426,7 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 			{
 				CineCameraComponent->CurrentAperture = LensFileEvalData.Input.Iris;
 			}
-			
+
 			// Update the minimum and maximum aperture of the camera (if needed)
 			CineCameraComponent->LensSettings.MinFStop = FMath::Min(CineCameraComponent->LensSettings.MinFStop, CineCameraComponent->CurrentAperture);
 			CineCameraComponent->LensSettings.MaxFStop = FMath::Max(CineCameraComponent->LensSettings.MaxFStop, CineCameraComponent->CurrentAperture);

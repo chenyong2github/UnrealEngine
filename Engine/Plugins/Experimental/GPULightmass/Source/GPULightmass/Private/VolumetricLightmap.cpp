@@ -478,7 +478,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 int32 FVolumetricLightmapRenderer::GetGISamplesMultiplier()
 {
 	return Scene->Settings->VolumetricLightmapQualityMultiplier;
-	}
+}
 
 void FVolumetricLightmapRenderer::BackgroundTick()
 {

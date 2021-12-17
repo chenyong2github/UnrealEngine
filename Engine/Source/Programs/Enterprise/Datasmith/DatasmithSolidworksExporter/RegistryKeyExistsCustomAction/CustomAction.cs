@@ -39,12 +39,12 @@ namespace RegistryKeyExistsCustomAction
 					else
 					{
 						session.Log("*ERROR* SOLIDWORKS FILES NOT FOUND");
-				}
+					}
 				}
 				else
 				{
 					session.Log("*ERROR* SOLIDWORKS INSTALL FOLDER REGISTRY INFORMATION NOT FOUND");
-			}
+				}
 			}
 			else
 			{

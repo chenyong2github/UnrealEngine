@@ -47,13 +47,13 @@ void FDisplayClusterConfiguratorAssetTypeActions::GetResolvedSourceFilePaths(con
 			if (UDisplayClusterConfigurationData* ConfigData = EditingObject->GetConfig())
 			{
 				const FString& Path = ConfigData->ImportedPath;
-			if (!Path.IsEmpty())
-			{
-				OutSourceFilePaths.Add(Path);
+				if (!Path.IsEmpty())
+				{
+					OutSourceFilePaths.Add(Path);
+				}
 			}
 		}
 	}
-}
 }
 
 UClass* FDisplayClusterConfiguratorActorAssetTypeActions::GetSupportedClass() const

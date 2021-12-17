@@ -13,7 +13,7 @@ class FSteamSocket : public FSocket
 {
 PACKAGE_SCOPE:
 #if !PLATFORM_MAC
-	HSteamNetPollGroup PollGroup; 
+	HSteamNetPollGroup PollGroup;
 #endif // PLATFORM_MAC
 	HSteamNetConnection InternalHandle;
 	// Binding address to determine the Steam Socket protocol we'll be using

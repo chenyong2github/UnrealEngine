@@ -40,7 +40,7 @@
 			# AndroidBackgroundService UPL Additions -- START
 
 			# Android Background Services Classes with native calls ...
-			
+
 			-keep class com.epicgames.unreal.workmanager.UEWorker {
 			public *;
 			}

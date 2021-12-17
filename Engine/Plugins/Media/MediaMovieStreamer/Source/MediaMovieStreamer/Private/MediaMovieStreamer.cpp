@@ -86,8 +86,8 @@ void FMediaMovieStreamer::OnMediaEnd()
 	// Do we control the media?
 	if (bIsMediaControlledExternally == false)
 	{
-	bIsPlaying = false;
-}
+		bIsPlaying = false;
+	}
 }
 
 bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<EMoviePlaybackType> InPlaybackType)
@@ -97,14 +97,14 @@ bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<
 	// Do we control the media?
 	if (bIsMediaControlledExternally == false)
 	{
-	// Play source.
-	if ((MediaPlayer.IsValid()) && (MediaSource.IsValid()))
-	{
-		bIsPlaying = true;
-		MediaPlayer->OpenSource(MediaSource.Get());
+		// Play source.
+		if ((MediaPlayer.IsValid()) && (MediaSource.IsValid()))
+		{
+			bIsPlaying = true;
+			MediaPlayer->OpenSource(MediaSource.Get());
 
-		Texture = MakeShareable(new FSlateTexture2DRHIRef(nullptr, 0, 0));
-	}
+			Texture = MakeShareable(new FSlateTexture2DRHIRef(nullptr, 0, 0));
+		}
 	}
 	
 	// Set time source as the normal one does not update when the game thread is blocked.
@@ -129,37 +129,37 @@ bool FMediaMovieStreamer::Tick(float DeltaTime)
 	// Do we control the media?
 	if (bIsMediaControlledExternally == false)
 	{
-	// Get media texture.
-	if (MediaTexture != nullptr)
-	{
-		FTextureResource* TextureResource = MediaTexture->GetResource();
-		if (TextureResource != nullptr)
+		// Get media texture.
+		if (MediaTexture != nullptr)
 		{
-			FRHITexture2D* RHITexture2D = TextureResource->GetTexture2DRHI();
-			if (RHITexture2D != nullptr)
+			FTextureResource* TextureResource = MediaTexture->GetResource();
+			if (TextureResource != nullptr)
 			{
-				// Get slate texture.
-				FSlateTexture2DRHIRef* CurrentTexture = Texture.Get();
-				if (CurrentTexture)
+				FRHITexture2D* RHITexture2D = TextureResource->GetTexture2DRHI();
+				if (RHITexture2D != nullptr)
 				{
-					if (!CurrentTexture->IsInitialized())
+					// Get slate texture.
+					FSlateTexture2DRHIRef* CurrentTexture = Texture.Get();
+					if (CurrentTexture)
 					{
-						CurrentTexture->InitResource();
-					}
+						if (!CurrentTexture->IsInitialized())
+						{
+							CurrentTexture->InitResource();
+						}
 
-					// Update the slate texture.
-					FTexture2DRHIRef ref = RHITexture2D;
-					CurrentTexture->SetRHIRef(ref, MediaTexture->GetWidth(), MediaTexture->GetHeight());
+						// Update the slate texture.
+						FTexture2DRHIRef ref = RHITexture2D;
+						CurrentTexture->SetRHIRef(ref, MediaTexture->GetWidth(), MediaTexture->GetHeight());
 
-					// Update viewport.
-					if (MovieViewport->GetViewportRenderTargetTexture() == nullptr)
-					{
-						MovieViewport->SetTexture(Texture);
+						// Update viewport.
+						if (MovieViewport->GetViewportRenderTargetTexture() == nullptr)
+						{
+							MovieViewport->SetTexture(Texture);
+						}
 					}
 				}
 			}
 		}
-	}
 	}
 
 	return !bIsPlaying;
@@ -190,34 +190,34 @@ void FMediaMovieStreamer::Cleanup()
 	// Do we control the media?
 	if (bIsMediaControlledExternally == false && !IsEngineExitRequested())
 	{
-	// Remove our hold on the assets.
-	UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
-	if (MovieAssets != nullptr)
-	{
-		MovieAssets->SetMediaPlayer(nullptr, nullptr);
-			MovieAssets->SetMediaSoundComponent(nullptr);
-		MovieAssets->SetMediaSource(nullptr);
-	}
-
-	MediaPlayer.Reset();
-		MediaSoundComponent.Reset();
-	MediaSource.Reset();
-
-	MovieViewport->SetTexture(NULL);
-	
-	FSlateTexture2DRHIRef* CurrentTexture = Texture.Get();
-	if (CurrentTexture != nullptr)
-	{
-		// Remove any reference to UMediaTexture so we can let MediaFramework release it.
-		ENQUEUE_RENDER_COMMAND(ResetMovieTexture)(
-		[CurrentTexture](FRHICommandListImmediate& RHICmdList)
+		// Remove our hold on the assets.
+		UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
+		if (MovieAssets != nullptr)
 		{
-			CurrentTexture->SetRHIRef(nullptr, 0, 0);
-		});
-		BeginReleaseResource(CurrentTexture);
-		FlushRenderingCommands();
-		Texture.Reset();
-	}
+			MovieAssets->SetMediaPlayer(nullptr, nullptr);
+			MovieAssets->SetMediaSoundComponent(nullptr);
+			MovieAssets->SetMediaSource(nullptr);
+		}
+
+		MediaPlayer.Reset();
+		MediaSoundComponent.Reset();
+		MediaSource.Reset();
+
+		MovieViewport->SetTexture(NULL);
+
+		FSlateTexture2DRHIRef* CurrentTexture = Texture.Get();
+		if (CurrentTexture != nullptr)
+		{
+			// Remove any reference to UMediaTexture so we can let MediaFramework release it.
+			ENQUEUE_RENDER_COMMAND(ResetMovieTexture)(
+				[CurrentTexture](FRHICommandListImmediate& RHICmdList)
+			{
+				CurrentTexture->SetRHIRef(nullptr, 0, 0);
+			});
+			BeginReleaseResource(CurrentTexture);
+			FlushRenderingCommands();
+			Texture.Reset();
+		}
 	}
 
 	// Restore previous time source.

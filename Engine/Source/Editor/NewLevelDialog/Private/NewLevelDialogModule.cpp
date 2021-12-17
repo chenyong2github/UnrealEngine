@@ -545,7 +545,7 @@ bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const 
 	{
 		WindowClientSize = FVector2D(NewLevelDialogDefs::LargeWindowWidth, NewLevelDialogDefs::LargeWindowHeight);
 	}
-	
+
 	TSharedPtr<SWindow> NewLevelWindow =
 		SNew(SWindow)
 		.Title(Title)

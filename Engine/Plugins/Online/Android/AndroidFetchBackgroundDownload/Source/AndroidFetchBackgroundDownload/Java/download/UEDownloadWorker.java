@@ -97,7 +97,7 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 		//Set this as an important task so that it continues even when the app closes, etc.
 		//Do this immediately as we only have limited time to call this after worker start
 		setForegroundAsync(CreateForegroundInfo(NotificationDescription));
-		
+
 		super.OnWorkerStart(WorkID);
 		
 		if (mFetchManager == null)

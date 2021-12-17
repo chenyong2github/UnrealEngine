@@ -71,7 +71,7 @@ void FProtocolRangeViewModel::Initialize()
 void FProtocolRangeViewModel::UpdateInputValueRange()
 {
 	check(IsValid());
-	
+
 	// Early out if not yet initialized or stale
 	if(!InputProxyPropertyContainer.IsValid())
 	{

@@ -56,7 +56,7 @@ FString FAndroidPlatformBackgroundHttpRequest::ToJSon() const
 		Writer->WriteValue(RequestPriorityKey, GetPriorityAsAndroidPriority());
 		Writer->WriteValue(MaxRetryCountKey, NumberOfTotalRetries);
 		Writer->WriteValue(DestinationLocationKey, GetDestinationLocation());
-						
+		
 		//Write this bool as either true/false so it can be parsed in JSON as a java Boolean object
 		const bool bIsCompletedCopy = FPlatformAtomics::AtomicRead(&bIsCompleted);
 		const FString HasCompletedString = bIsCompletedCopy ? TEXT("true") : TEXT("false");

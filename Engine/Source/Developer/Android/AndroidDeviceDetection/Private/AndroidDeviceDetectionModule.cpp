@@ -417,16 +417,16 @@ private:
 				// Find the device model
 				FParse::Value(*DeviceString, TEXT("model:"), NewDeviceInfo.Model);
 				// find the product model (this must match java's android.os.build.model)
-					FString ModelCommand = FString::Printf(TEXT("-s %s %s ro.product.model"), *NewDeviceInfo.SerialNumber, *GetPropCommand);
-					FString RoProductModel;
+				FString ModelCommand = FString::Printf(TEXT("-s %s %s ro.product.model"), *NewDeviceInfo.SerialNumber, *GetPropCommand);
+				FString RoProductModel;
 				if( ExecuteAdbCommand(*ModelCommand, &RoProductModel, nullptr) )
 				{
 					if(!RoProductModel.IsEmpty())
 					{
 						NewDeviceInfo.Model = RoProductModel.TrimStartAndEnd();
+					}
 				}
-				}
-
+				
 				// Find the build ID
 				FString BuildNumberString;
 				const FString BuildNumberCommand = FString::Printf(TEXT("-s %s %s ro.build.display.id"), *NewDeviceInfo.SerialNumber, *GetPropCommand);

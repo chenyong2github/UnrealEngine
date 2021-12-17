@@ -673,7 +673,7 @@ void FAndroidPlatformBackgroundHttpManager::Java_OnAllDownloadsComplete(jobject 
 	const bool bShouldRespondToDelegate = FPlatformAtomics::AtomicRead(&bHasManagerScheduledBGWork);
 	if (bShouldRespondToDelegate)
 	{
-	UE_LOG(LogBackgroundHttpManager, Log, TEXT("OnAllDownloadComplete... bWasSuccess:%d"), (int)bDidAllRequestsSucceed);
+		UE_LOG(LogBackgroundHttpManager, Log, TEXT("OnAllDownloadComplete... bWasSuccess:%d"), (int)bDidAllRequestsSucceed);
 	
 		//Mark the worker as Sucess or Failure now so that the worker terminates work instead of retrying.
 		//NOTE: We don't want to auto-retry as we have an FAndroidPlatformBackgroundHttpManager spun up if we get this far
@@ -686,7 +686,7 @@ void FAndroidPlatformBackgroundHttpManager::Java_OnAllDownloadsComplete(jobject 
 		else
 		{
 			FUEWorkManagerNativeWrapper::SetWorkResultOnWorker(UnderlyingWorker, FUEWorkManagerNativeWrapper::EAndroidBackgroundWorkResult::Failure);
-	}
+		}
 
 		//Our underlying worker has finished all work, so mark all as complete and error if any still were waiting on complete
 		ForceCompleteAllUnderlyingJavaActiveRequestsWithError();
@@ -702,89 +702,89 @@ void FAndroidPlatformBackgroundHttpManager::Java_OnTick(JNIEnv* Env, jobject Und
 	const bool bShouldRespondToDelegate = FPlatformAtomics::AtomicRead(&bHasManagerScheduledBGWork);
 	if (bShouldRespondToDelegate)
 	{
-	//None of our CHECK_JNI_RESULT macros should think their results are optional
-	const bool bIsOptional = false;
+		//None of our CHECK_JNI_RESULT macros should think their results are optional
+		const bool bIsOptional = false;
 
-	if (ensureAlwaysMsgf((nullptr != Env), TEXT("Invalid JNIEnv for Java_OnTick!")))
-	{
-		//Get worker class so we can query for java methods we need to call
-		jclass UnderlyingWorkerClass = Env->GetObjectClass(UnderlyingWorker);
-		CHECK_JNI_RESULT(UnderlyingWorkerClass);
-
-		//Handle Pause Requests
+		if (ensureAlwaysMsgf((nullptr != Env), TEXT("Invalid JNIEnv for Java_OnTick!")))
 		{
-			const bool bIsThreadsafeToHandle = !FPlatformAtomics::InterlockedExchange(&bIsModifyingPauseList, true);
-			if (bIsThreadsafeToHandle)
+			//Get worker class so we can query for java methods we need to call
+			jclass UnderlyingWorkerClass = Env->GetObjectClass(UnderlyingWorker);
+			CHECK_JNI_RESULT(UnderlyingWorkerClass);
+
+			//Handle Pause Requests
 			{
-				//GetPauseMethod from UnderlyingWorker
-				jmethodID PauseMethod = Env->GetMethodID(UnderlyingWorkerClass, "PauseRequest", "(Ljava/lang/String;)V");
-				CHECK_JNI_RESULT(PauseMethod);
-
-				for (const FString& RequestID : RequestsToPauseByID_Java)
+				const bool bIsThreadsafeToHandle = !FPlatformAtomics::InterlockedExchange(&bIsModifyingPauseList, true);
+				if (bIsThreadsafeToHandle)
 				{
-					//Get java version of our RequestID
-					FScopedJavaObject<jstring> ConvertedRequestID = FJavaHelper::ToJavaString(Env, RequestID);
+					//GetPauseMethod from UnderlyingWorker
+					jmethodID PauseMethod = Env->GetMethodID(UnderlyingWorkerClass, "PauseRequest", "(Ljava/lang/String;)V");
+					CHECK_JNI_RESULT(PauseMethod);
 
-					//Call pause method on RequestID
-					FJavaWrapper::CallVoidMethod(Env, UnderlyingWorker, PauseMethod, *ConvertedRequestID);
+					for (const FString& RequestID : RequestsToPauseByID_Java)
+					{
+						//Get java version of our RequestID
+						FScopedJavaObject<jstring> ConvertedRequestID = FJavaHelper::ToJavaString(Env, RequestID);
+
+						//Call pause method on RequestID
+						FJavaWrapper::CallVoidMethod(Env, UnderlyingWorker, PauseMethod, *ConvertedRequestID);
+					}
+
+					RequestsToPauseByID_Java.Empty();
+
+					const bool bSanityCheck = FPlatformAtomics::InterlockedExchange(&bIsModifyingPauseList, false);
+					ensureAlwaysMsgf(bSanityCheck, TEXT("Error in bIsModifyingPauseList! Was false when we expected it to still be true from our lock!"));
 				}
-
-				RequestsToPauseByID_Java.Empty();
-
-				const bool bSanityCheck = FPlatformAtomics::InterlockedExchange(&bIsModifyingPauseList, false);
-				ensureAlwaysMsgf(bSanityCheck, TEXT("Error in bIsModifyingPauseList! Was false when we expected it to still be true from our lock!"));
 			}
-		}
 
-		//Handle resume requests
-		{
-			const bool bIsThreadsafeToHandle = !FPlatformAtomics::InterlockedExchange(&bIsModifyingResumeList, true);
-			if (bIsThreadsafeToHandle)
+			//Handle resume requests
 			{
-				//GetPauseMethod from UnderlyingWorker
-				jmethodID ResumeMethod = Env->GetMethodID(UnderlyingWorkerClass, "ResumeRequest", "(Ljava/lang/String;)V");
-				CHECK_JNI_RESULT(ResumeMethod);
-
-				for (const FString& RequestID : RequestsToResumeByID_Java)
+				const bool bIsThreadsafeToHandle = !FPlatformAtomics::InterlockedExchange(&bIsModifyingResumeList, true);
+				if (bIsThreadsafeToHandle)
 				{
-					//Get java version of our RequestID
-					FScopedJavaObject<jstring> ConvertedRequestID = FJavaHelper::ToJavaString(Env, RequestID);
+					//GetPauseMethod from UnderlyingWorker
+					jmethodID ResumeMethod = Env->GetMethodID(UnderlyingWorkerClass, "ResumeRequest", "(Ljava/lang/String;)V");
+					CHECK_JNI_RESULT(ResumeMethod);
 
-					//Call pause method on RequestID
-					FJavaWrapper::CallVoidMethod(Env, UnderlyingWorker, ResumeMethod, *ConvertedRequestID);
+					for (const FString& RequestID : RequestsToResumeByID_Java)
+					{
+						//Get java version of our RequestID
+						FScopedJavaObject<jstring> ConvertedRequestID = FJavaHelper::ToJavaString(Env, RequestID);
+
+						//Call pause method on RequestID
+						FJavaWrapper::CallVoidMethod(Env, UnderlyingWorker, ResumeMethod, *ConvertedRequestID);
+					}
+
+					RequestsToResumeByID_Java.Empty();
+
+					const bool bSanityCheck = FPlatformAtomics::InterlockedExchange(&bIsModifyingResumeList, false);
+					ensureAlwaysMsgf(bSanityCheck, TEXT("Error in bIsModifyingResumeList! Was false when we expected it to still be true from our lock!"));
 				}
-
-				RequestsToResumeByID_Java.Empty();
-
-				const bool bSanityCheck = FPlatformAtomics::InterlockedExchange(&bIsModifyingResumeList, false);
-				ensureAlwaysMsgf(bSanityCheck, TEXT("Error in bIsModifyingResumeList! Was false when we expected it to still be true from our lock!"));
 			}
-		}
 
-		//Handle cancel requests
-		{
-			const bool bIsThreadsafeToHandle = !FPlatformAtomics::InterlockedExchange(&bIsModifyingCancelList, true);
-			if (bIsThreadsafeToHandle)
+			//Handle cancel requests
 			{
-				jmethodID CancelMethod = Env->GetMethodID(UnderlyingWorkerClass, "CancelRequest", "(Ljava/lang/String;)V");
-
-				for (const FString& RequestID : RequestsToCancelByID_Java)
+				const bool bIsThreadsafeToHandle = !FPlatformAtomics::InterlockedExchange(&bIsModifyingCancelList, true);
+				if (bIsThreadsafeToHandle)
 				{
-					//Get java version of our RequestID
-					FScopedJavaObject<jstring> ConvertedRequestID = FJavaHelper::ToJavaString(Env, RequestID);
+					jmethodID CancelMethod = Env->GetMethodID(UnderlyingWorkerClass, "CancelRequest", "(Ljava/lang/String;)V");
 
-					// Call cancel method on RequestID
-					FJavaWrapper::CallVoidMethod(Env, UnderlyingWorker, CancelMethod, *ConvertedRequestID);
+					for (const FString& RequestID : RequestsToCancelByID_Java)
+					{
+						//Get java version of our RequestID
+						FScopedJavaObject<jstring> ConvertedRequestID = FJavaHelper::ToJavaString(Env, RequestID);
+
+						// Call cancel method on RequestID
+						FJavaWrapper::CallVoidMethod(Env, UnderlyingWorker, CancelMethod, *ConvertedRequestID);
+					}
+
+					RequestsToCancelByID_Java.Empty();
+
+					const bool bSanityCheck = FPlatformAtomics::InterlockedExchange(&bIsModifyingCancelList, false);
+					ensureAlwaysMsgf(bSanityCheck, TEXT("Error in bIsModifyingCancelList! Was false when we expected it to still be true from our lock!"));
 				}
-
-				RequestsToCancelByID_Java.Empty();
-
-				const bool bSanityCheck = FPlatformAtomics::InterlockedExchange(&bIsModifyingCancelList, false);
-				ensureAlwaysMsgf(bSanityCheck, TEXT("Error in bIsModifyingCancelList! Was false when we expected it to still be true from our lock!"));
 			}
 		}
 	}
-}
 }
 
 void FAndroidPlatformBackgroundHttpManager::ForceCompleteAllUnderlyingJavaActiveRequestsWithError()
@@ -1037,32 +1037,32 @@ JNI_METHOD void Java_com_epicgames_unreal_download_UEDownloadWorker_nativeAndroi
 
 JNI_METHOD void Java_com_epicgames_unreal_download_UEDownloadWorker_nativeAndroidBackgroundDownloadOnProgress(JNIEnv* jenv, jobject thiz, jstring TaskID, jlong BytesWrittenSinceLastCall, jlong TotalBytesWritten)
 {
-		FString RequestID = FJavaHelper::FStringFromParam(jenv, TaskID);
-		int64_t ConvertedBytesWrittenSinceLastCall = static_cast<uint64_t>(BytesWrittenSinceLastCall);
-		int64_t ConvertedTotalBytesWritten = static_cast<uint64_t>(TotalBytesWritten);
+	FString RequestID = FJavaHelper::FStringFromParam(jenv, TaskID);
+	int64_t ConvertedBytesWrittenSinceLastCall = static_cast<uint64_t>(BytesWrittenSinceLastCall);
+	int64_t ConvertedTotalBytesWritten = static_cast<uint64_t>(TotalBytesWritten);
 
-		FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnProgress.Broadcast(thiz, RequestID, ConvertedBytesWrittenSinceLastCall, ConvertedTotalBytesWritten);
-	}
+	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnProgress.Broadcast(thiz, RequestID, ConvertedBytesWrittenSinceLastCall, ConvertedTotalBytesWritten);
+}
 
 JNI_METHOD void Java_com_epicgames_unreal_download_UEDownloadWorker_nativeAndroidBackgroundDownloadOnComplete(JNIEnv* jenv, jobject thiz, jstring TaskID, jstring CompleteLocation, jboolean bWasSuccess)
 {
-		FString RequestID = FJavaHelper::FStringFromParam(jenv, TaskID);
-		FString ConvertedCompleteLocation = FJavaHelper::FStringFromParam(jenv, CompleteLocation);
-		bool ConvertedbWasSuccess = static_cast<bool>(bWasSuccess);
+	FString RequestID = FJavaHelper::FStringFromParam(jenv, TaskID);
+	FString ConvertedCompleteLocation = FJavaHelper::FStringFromParam(jenv, CompleteLocation);
+	bool ConvertedbWasSuccess = static_cast<bool>(bWasSuccess);
 
-		FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnComplete.Broadcast(thiz, RequestID, ConvertedCompleteLocation, ConvertedbWasSuccess);
-	}
+	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnComplete.Broadcast(thiz, RequestID, ConvertedCompleteLocation, ConvertedbWasSuccess);
+}
 
 JNI_METHOD void Java_com_epicgames_unreal_download_UEDownloadWorker_nativeAndroidBackgroundDownloadOnAllComplete(JNIEnv* jenv, jobject thiz, jboolean bDidAllRequestsSucceed)
 {
-		bool ConvertedbDidAllRequestsSucceed = static_cast<bool>(bDidAllRequestsSucceed);
-		FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnAllComplete.Broadcast(thiz, bDidAllRequestsSucceed);
-	}
+	bool ConvertedbDidAllRequestsSucceed = static_cast<bool>(bDidAllRequestsSucceed);
+	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnAllComplete.Broadcast(thiz, bDidAllRequestsSucceed);
+}
 
 JNI_METHOD void Java_com_epicgames_unreal_download_UEDownloadWorker_nativeAndroidBackgroundDownloadOnTick(JNIEnv* jenv, jobject thiz)
 {
-		FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnTickWorkerThread.Broadcast(jenv, thiz);
-	}
+	FAndroidBackgroundDownloadDelegates::AndroidBackgroundDownload_OnTickWorkerThread.Broadcast(jenv, thiz);
+}
 
 
 #undef LOCTEXT_NAMESPACE

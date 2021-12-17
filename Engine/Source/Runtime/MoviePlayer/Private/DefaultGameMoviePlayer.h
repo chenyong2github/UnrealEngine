@@ -101,7 +101,7 @@ public:
 	virtual FOnMoviePlaybackTick& OnMoviePlaybackTick() override { return OnMoviePlaybackTickDelegate; }
 	virtual FOnMoviePlaybackFinished& OnMoviePlaybackFinished() override { return OnMoviePlaybackFinishedDelegate; }
 	virtual FOnMovieClipFinished& OnMovieClipFinished() override { return OnMovieClipFinishedDelegate; }
-
+	
 	/** IMoviePlayerProxyServer interface. */
 	virtual void BlockingStarted() override;
 	virtual void BlockingTick() override;

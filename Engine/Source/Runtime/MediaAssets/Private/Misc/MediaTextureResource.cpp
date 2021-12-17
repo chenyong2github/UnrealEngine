@@ -345,7 +345,7 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 #endif
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+		
 		const uint8 NumMips = bEnableGenMips ? Params.NumMips : 1;
 
 		// If real "external texture" support is in place and no mips are used the image will "bypass" any of this processing via the GUID-based lookup for "ExternalTextures" and will

@@ -42,7 +42,7 @@
 				"Android",
 				"HoloLens"
 			]
-		},	
+		},
 		{
 			"Name": "OpenXRAR",
 			"Type": "Runtime",

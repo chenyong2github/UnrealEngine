@@ -1316,11 +1316,11 @@ void FAndroidInputInterface::JoystickAxisEvent(int32 deviceId, int32 axisId, flo
 	auto RemapTriggerFunction = [](const float Minimum, const float Value)
 	{
 		if(Minimum != 0.0f)
-	{
+		{
 			const float AdjustMin = Minimum;
-		const float AdjustMax = 1.0f - AdjustMin;
+			const float AdjustMax = 1.0f - AdjustMin;
 			return FMath::Clamp(Value - AdjustMin, 0.0f, AdjustMax) / AdjustMax;
-	}
+		}
 		return Value;
 	};
 

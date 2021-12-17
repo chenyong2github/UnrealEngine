@@ -295,8 +295,8 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		return;
 	}
 
-		const bool bIsNewFrame = GFrameNumberRenderThread != RealTimeSlicedReflectionCaptureFrameNumber;
-		RealTimeSlicedReflectionCaptureFrameNumber = GFrameNumberRenderThread;
+	const bool bIsNewFrame = GFrameNumberRenderThread != RealTimeSlicedReflectionCaptureFrameNumber;
+	RealTimeSlicedReflectionCaptureFrameNumber = GFrameNumberRenderThread;
 
 	RDG_EVENT_SCOPE(GraphBuilder, "CaptureConvolveSkyEnvMap");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, CaptureConvolveSkyEnvMap);
@@ -846,20 +846,20 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		// Go to next state iff this is a new frame
 		if (bIsNewFrame)
 		{
-		switch (RealTimeSlicedReflectionCaptureFirstFrameState)
-		{
-		case ERealTimeSlicedReflectionCaptureFirstFrameState::INIT:
-			RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME;
-			break;
+			switch (RealTimeSlicedReflectionCaptureFirstFrameState)
+			{
+				case ERealTimeSlicedReflectionCaptureFirstFrameState::INIT:
+					RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME;
+					break;
 
-		case ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME:
-			RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::BEYOND_FIRST_FRAME;
-			break;
+				case ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME:
+					RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::BEYOND_FIRST_FRAME;
+					break;
 
-		default:
-			break;
+				default:
+					break;
+			}
 		}
-	}
 	}
 	else
 	{
@@ -910,7 +910,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		if (bIsNewFrame)
 		{
 			if (++RealTimeSlicedReflectionCaptureState >= TimeSliceCount)
-		{
+			{
 				RealTimeSlicedReflectionCaptureState = 0;
 			}
 		}

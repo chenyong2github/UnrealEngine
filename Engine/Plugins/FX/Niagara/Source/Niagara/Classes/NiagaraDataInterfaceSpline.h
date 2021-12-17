@@ -127,23 +127,23 @@ struct FNDISpline_InstanceData
 	FNiagaraDataInterfaceSplineLUT SplineLUT;
 
 	bool bSyncedGPUCopy;
-
+	
 
 	// We cache the version of the current spline curves so that we can reset the curves structure if we're using the LUT
 	uint32 SplineCurvesVersion;
 
 	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceSpline* Interface, FNiagaraSystemInstance* SystemInstance) const;
-
+	
 	template<typename UseLUT>
 	float GetSplineLength() const;
 	
-	bool IsValid() const; 
+	bool IsValid() const;
 
 
 
 	
 	template<typename UseLUT>
-	FVector GetLocationAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	FVector GetLocationAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;	
 	template<typename UseLUT>
 	FQuat GetQuaternionAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 	template<typename UseLUT>
@@ -198,7 +198,7 @@ public:
 	/** Reference to a user parameter if we're reading one. This should  be an Object user parameter that is either a USplineComponent or an AActor containing a USplineComponent. */
 	UPROPERTY(EditAnywhere, Category = "Spline")
 	FNiagaraUserParameterBinding SplineUserParameter;
-	
+
 	UPROPERTY(EditAnywhere, Category = "Spline")
 	bool bUseLUT;
 

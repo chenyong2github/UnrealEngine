@@ -1311,7 +1311,7 @@ void UDemoNetDriver::ProcessRemoteFunction(AActor* Actor, UFunction* Function, v
 			{
 				// Handle role swapping if this is a client-recorded replay.
 				FScopedActorRoleSwap RoleSwap(Actor);
-			
+
 				InternalProcessRemoteFunction(Actor, SubObject, ClientConnections[0], Function, Parameters, OutParms, Stack, IsServer());
 			}
 		}
@@ -5258,6 +5258,7 @@ bool UDemoNetDriver::ShouldForwardFunction(AActor* Actor, UFunction* Function, v
 	// currently no need to forward replay playback RPCs on to other drivers
 	return false;
 }
+
 void UDemoNetDriver::RequestCheckpoint()
 {
 	if (IsRecording())

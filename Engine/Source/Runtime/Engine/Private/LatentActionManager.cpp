@@ -263,9 +263,9 @@ void FLatentActionManager::ProcessLatentActions(UObject* InObject, float DeltaTi
 		{
 			if (GLatentActionStats[i].Duration > GLatentActionMinDurationToLog)
 			{
-			UE_LOG(LogScript, Warning, TEXT("Class = %s, Object = %s, Duration = %f ms"), *GLatentActionStats[i].ClassName.ToString(), *GLatentActionStats[i].ObjectName.ToString(), GLatentActionStats[i].Duration * 1000.0);
+				UE_LOG(LogScript, Warning, TEXT("Class = %s, Object = %s, Duration = %f ms"), *GLatentActionStats[i].ClassName.ToString(), *GLatentActionStats[i].ObjectName.ToString(), GLatentActionStats[i].Duration * 1000.0);
+			}
 		}
-	}
 	}
 #endif // LATENT_ACTION_PROFILING_ENABLED
 }
