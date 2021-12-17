@@ -1836,7 +1836,7 @@ bool FMetalStateCache::PrepareToRestart(bool const bCurrentApplied)
 				LoadAction = ERenderTargetLoadAction::ELoad;
 			}
 			RenderTargetView.Action = MakeRenderTargetActions(LoadAction, StoreAction);
-			check(RenderTargetView.RenderTarget == nil || GetStoreAction(RenderTargetView.Action) == ERenderTargetStoreAction::EStore);
+			check(RenderTargetView.RenderTarget == nil || GetStoreAction(RenderTargetView.Action) != ERenderTargetStoreAction::ENoAction);
 		}
 		
 		InvalidateRenderTargets();
