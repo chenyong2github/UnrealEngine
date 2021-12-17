@@ -515,27 +515,46 @@ RENDERCORE_API bool PlatformSupportsVelocityRendering(const FStaticShaderPlatfor
 
 RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform);
 
-
-/* Simple cache for RendererSettings ini lookup per shader platform. */
 template<typename Type>
 struct RENDERCORE_API FShaderPlatformCachedIniValue
 {
-	FShaderPlatformCachedIniValue(const TCHAR* InKey)
-		: Key(InKey)
+	FShaderPlatformCachedIniValue(const TCHAR* /*InSection*/, const TCHAR* InCVarName)
+		: CVarName(InCVarName)
 		, CVar(nullptr)
-	{}
+	{
+	}
 
-	Type Get(EShaderPlatform ShaderPlatform);
+	FShaderPlatformCachedIniValue(IConsoleVariable* InCVar)
+		: CVar(InCVar)
+	{
+	}
+
+	Type Get(EShaderPlatform ShaderPlatform)
+	{
+		Type Value {};
+#if ALLOW_OTHER_PLATFORM_CONFIG
+		// find/create a cvar if needed
+		if (CVar == nullptr)
+		{
+			CVar = IConsoleManager::Get().FindConsoleVariable(*CVarName);
+			if (CVar == nullptr)
+			{
+				// this could be a cvar that only exists on the target platform so create a dummy one
+				CVar = IConsoleManager::Get().RegisterConsoleVariable(*CVarName, Type(), TEXT(""), ECVF_ReadOnly);
+			}
+		}
+
+		// now get the value from ther platform that makes sense for this shader platform
+		CVar->GetPlatformValueVariable(ShaderPlatformToPlatformName(ShaderPlatform))->GetValue(Value);
+#else
+		unimplemented();
+#endif
+		return Value;
+	}
 
 private:
-	const TCHAR* Key;
+	FString CVarName;
 	IConsoleVariable* CVar;
-#if WITH_EDITOR
-	/** Set that holds shader platforms for which the ini check was done. */
-	TSet<EShaderPlatform> TestedIni;
-	/** Cached values from the inis. */
-	TMap<EShaderPlatform, Type> CachedValues;
-#endif
 };
 
 /** Returns if ForwardShading is enabled. Only valid for the current platform (otherwise call ITargetPlatform::UsesForwardShading()). */

@@ -460,6 +460,13 @@ public:
 		return nullptr;
 	}
 
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	virtual IConsoleVariable* GetPlatformValueVariable(FName PlatformName)
+	{
+		return nullptr;
+	}
+#endif
+
 	// convenience methods
 
 	/** Set the internal value from the specified bool. */
@@ -853,6 +860,13 @@ struct CORE_API IConsoleManager
 	virtual IConsoleObject* FindConsoleObject(const TCHAR* Name, bool bTrackFrequentCalls = true) const = 0;
 
 	/**
+	 * Lookup the name of a console object by its pointer 
+	 * @param Object to lookup
+	 * @return Name of the object, or an empty string if the object can't be found
+	 */
+	virtual FString FindConsoleObjectName(const IConsoleObject* Obj) const = 0;
+
+	/**
 	 * Find a typed console variable (faster access to the value, no virtual function call)
 	 * @param Name must not be 0
 	 * @return 0 if the object wasn't found
@@ -933,6 +947,20 @@ struct CORE_API IConsoleManager
 		}
 		return *Singleton;
 	}
+
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	/**
+	 * Walks over the best set of ini sections for another platform that can be used to emulate cvars as the platform
+	 * will have set - WITH THE NOTABLE EXCEPTION OF specific DeviceProfiles. Use the DeviceProfileManager code to get a DP
+	 * for a platform, as this code cannot easily access DeviceProfile logic.
+	 * It also won't include any UserSettings or ConsoleVariables.ini settings.
+	 * 
+	 * @param PlatformName The platform name (the ini name, so Windows, not Win64)
+	 * @param bVisitPlatformDeviceProfile Set to true if you want Visit called with CVars found in the base DeviceProfile named PlatformName 
+	 * @param Visit the callback to run for each CVar found
+	 */
+	static bool VisitPlatformCVarsForEmulation(FName PlatformName, bool bVisitPlatformDeviceProfile, TFunctionRef<void(const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)> Visit);
+#endif
 
 protected:
 	virtual ~IConsoleManager() { }

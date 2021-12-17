@@ -36,7 +36,7 @@ public:
 	bool IsThreadPropagationThread();
 
 	/** @param InVar must not be 0 */
-	FString FindConsoleObjectName(const IConsoleObject* Obj) const;
+	virtual FString FindConsoleObjectName(const IConsoleObject* Obj) const override;
 
 	/** Can be moved out into some automated testing system */
 	void Test();

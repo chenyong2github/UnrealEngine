@@ -1214,64 +1214,6 @@ RENDERCORE_API bool SupportsTSR(const FStaticShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform);
 }
 
-template<typename Type>
-Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
-{
-	Type Value = {};
-
-#if WITH_EDITOR
-	Type* ExistingEntry = CachedValues.Find(ShaderPlatform);
-	if (ExistingEntry != nullptr)
-	{
-		return *ExistingEntry;
-	}
-
-	bool bTestedIni = TestedIni.Contains(ShaderPlatform);
-	if (!bTestedIni)
-	{
-		TestedIni.Add(ShaderPlatform);
-		FConfigCacheIni* PlatformIni = FConfigCacheIni::ForPlatform(ShaderPlatformToPlatformName(ShaderPlatform));
-
-		if (PlatformIni != nullptr)
-		{
-			// Rendering CVars can be set from a number of sections - see UDeviceProfileManager::ExpandDeviceProfileCVars for their ordering.
-			// (Here they are in reverse order because we will use the first found setting).
-			const TCHAR* ConsoleVariablesSections[] =
-			{
-				TEXT("ConsoleVariables"),
-				TEXT("SystemSettings"),
-				TEXT("/Script/Engine.RendererOverrideSettings"),
-				TEXT("/Script/Engine.RendererSettings")
-			};
-
-			for (const TCHAR* SectionThatCanSetAVar : ConsoleVariablesSections)
-			{
-				if (PlatformIni->GetValue(SectionThatCanSetAVar, Key, Value, TEXT("Engine")))
-				{
-					CachedValues.Add(ShaderPlatform, Value);
-					return Value;
-				}
-			}
-		}
-	}
-#endif
-	// If it's not in the ini file, don't cache, always return the CVar's current value
-	if (CVar==nullptr)
-	{
-		CVar = IConsoleManager::Get().FindConsoleVariable(Key);
-	}
-
-	if (CVar!=nullptr)
-	{
-		CVar->GetValue(Value);
-	}
-	return Value;
-}
-template struct FShaderPlatformCachedIniValue<FString>;
-template struct FShaderPlatformCachedIniValue<int32>;
-template struct FShaderPlatformCachedIniValue<float>;
-template struct FShaderPlatformCachedIniValue<bool>;
-
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
 	TEXT("r.ForwardShading"),

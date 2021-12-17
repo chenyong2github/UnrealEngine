@@ -307,6 +307,175 @@ void OnCVarChange(T& Dst, const T& Src, EConsoleVariableFlags Flags, EConsoleVar
 	}
 }
 
+#if ALLOW_OTHER_PLATFORM_CONFIG
+
+static void ExpandScalabilityCVar(FConfigCacheIni* ConfigSystem, const FString& CVarKey, const FString& CVarValue, TMap<FString, FString>& ExpandedCVars, bool bOverwriteExistingValue)
+{
+	// load scalability settings directly from ini instead of using scalability system, so as not to inadvertantly mess anything up
+	// if the DP had sg.ResolutionQuality=3, we would read [ResolutionQuality@3]
+	FString SectionName = FString::Printf(TEXT("%s@%s"), *CVarKey.Mid(3), *CVarValue);
+	// walk over the scalability section and add them in, unless already done
+	FConfigSection* ScalabilitySection = ConfigSystem->GetSectionPrivate(*SectionName, false, true, GScalabilityIni);
+	if (ScalabilitySection != nullptr)
+	{
+		for (const auto& Pair : *ScalabilitySection)
+		{
+			FString ScalabilityKey = Pair.Key.ToString();
+			if (bOverwriteExistingValue || !ExpandedCVars.Contains(ScalabilityKey))
+			{
+				ExpandedCVars.Add(ScalabilityKey, Pair.Value.GetValue());
+			}
+		}
+	}
+}
+
+bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, bool bVisitPlatformDeviceProfile, TFunctionRef<void(const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)> Visit)
+{
+	// get the config system for the platform the DP uses
+	FConfigCacheIni* ConfigSystem = FConfigCacheIni::ForPlatform(*PlatformName.ToString());
+	if (ConfigSystem == nullptr)
+	{
+		return false;
+	}
+
+	// ECVF_SetByConstructor:
+	//   doesn't come from ini
+
+	// ECVF_SetByScalability:
+	//	 skipped, i believe this is not really loaded as a normal layer per-se, it's up to the other sections to set with this one
+
+	// ECVF_SetByGameSetting:
+	//   skipped, since we don't have a user
+
+
+	// ECVF_SetByProjectSetting:
+	// ECVF_SetBySystemSettingsIni:
+	// ECVF_SetByDeviceProfile: 
+	//   ONLY using the base DP named for the platform, as the DPManager needs to be used for proper DeviceProfiles
+
+	const TCHAR* DeviceProfileTag = TEXT("_NamedDeviceProfile");
+	struct FSectionPair
+	{
+		const TCHAR* Name; EConsoleVariableFlags SetBy;
+	} Sections[] =
+	{
+		{ TEXT("/Script/Engine.RendererSettings"), ECVF_SetByProjectSetting },
+		{ TEXT("/Script/Engine.RendererOverrideSettings"), ECVF_SetByProjectSetting },
+		{ TEXT("/Script/Engine.StreamingSettings"), ECVF_SetByProjectSetting },
+		{ TEXT("/Script/Engine.GarbageCollectionSettings"), ECVF_SetByProjectSetting },
+		{ TEXT("/Script/Engine.NetworkSettings"), ECVF_SetByProjectSetting },
+
+		{ TEXT("SystemSettings"), ECVF_SetBySystemSettingsIni },
+		{ TEXT("ConsoleVariables"), ECVF_SetBySystemSettingsIni },
+
+		{ DeviceProfileTag, ECVF_SetByDeviceProfile },
+	};
+
+	// now walk up the stack getting current values
+	for (const FSectionPair& SectionPair : Sections)
+	{
+		FConfigSection* Section;
+		if (FCString::Strcmp(SectionPair.Name, DeviceProfileTag) == 0)
+		{
+			// skip this if we don't want it
+			if (bVisitPlatformDeviceProfile == false)
+			{
+				continue;
+			}
+			FString DPSectionName = PlatformName.ToString() + TEXT(" DeviceProfile");
+			Section = ConfigSystem->GetSectionPrivate(*DPSectionName, false, true, GDeviceProfilesIni);
+		}
+		else
+		{
+			Section = ConfigSystem->GetSectionPrivate(SectionPair.Name, false, true, GEngineIni);
+		}
+
+		if (Section != nullptr)
+		{
+			// add the cvars from the section
+			for (const auto& Pair : *Section)
+			{
+				FString Key = Pair.Key.ToString();
+				FString Value = Pair.Value.GetValue();
+
+				// DPs have +CVars= prefix for the key, and the real cvar KVP is in the Value
+				if (Key.StartsWith(TEXT("CVars")))
+				{
+					FString ValueCopy = Value;
+					// expect a second = in the value, skip any that don't
+					if (!ValueCopy.Split(TEXT("="), &Key, &Value))
+					{
+						continue;
+					}
+				}
+
+				if (Key.StartsWith(TEXT("sg.")))
+				{
+					// @todo ini: If anything in here was already set, overwrite it or skip it?
+					// the priorities may cause runtime to fail to set a cvar that this will set blindly, since we are ignoring
+					// priority by doing them "in order". Scalablity is one of the lowest priorities, so should almost never be allowed?
+
+					TMap<FString, FString> ScalabilityCVars;
+					ExpandScalabilityCVar(ConfigSystem, Key, Value, ScalabilityCVars, true);
+
+					for (const auto& ScalabilityPair : ScalabilityCVars)
+					{
+						Visit(ScalabilityPair.Key, ScalabilityPair.Value, ECVF_SetByScalability);
+					}
+				}
+				else
+				{
+					Visit(Key, Value, SectionPair.SetBy);
+				}
+			}
+		}
+	}
+
+	// ECVF_SetByConsoleVariablesIni:
+	//   maybe skip this? it's a weird one, but maybe?
+
+	// ECVF_SetByCommandline:
+	//   skip as this would not be expected to apply to emulation
+
+	// ECVF_SetByCode:
+	//   skip because it cannot be set by code
+
+	// ECVF_SetByConsole
+	//   we could have this if we made a per-platform CVar, not just the shared default value
+
+
+	return true;
+}
+
+
+static bool GetConfigValueFromRuntimeSources(FName PlatformName, IConsoleVariable* CVar, FString& OutValue, EConsoleVariableFlags& LastSetBy)
+{
+
+	FString VariableName = IConsoleManager::Get().FindConsoleObjectName(CVar);
+	if (VariableName.Len() == 0)
+	{
+		return false;
+	}
+
+	OutValue = CVar->GetDefaultValueVariable()->GetString();
+	LastSetBy = ECVF_SetByConstructor;
+
+	IConsoleManager::VisitPlatformCVarsForEmulation(PlatformName, true, 
+		[&VariableName, &OutValue, &LastSetBy](const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)
+		{
+			// if this key is the variable, set it at the current SetBy level
+			if (CVarName == VariableName)
+			{
+				OutValue = CVarValue;
+				LastSetBy = SetBy;
+			}
+		});
+
+	// by this point, the value will be set, with the DefaultValue if nothing else from the visit function
+	return true;
+}
+#endif
+
 // T: bool, int32, float, FString
 template <class T>
 class FConsoleVariable : public FConsoleVariableBase
@@ -318,7 +487,7 @@ public:
 #if ALLOW_OTHER_PLATFORM_CONFIG
 		if (bSaveDefault)
 		{
-			PlatformIndependentDefault = TSharedPtr<IConsoleVariable>(new FConsoleVariable<T>(DefaultValue, TEXT(""), Flags, false));
+			PlatformIndependentDefault = TSharedPtr<IConsoleVariable>(new FConsoleVariable<T>(DefaultValue, TEXT(""), (EConsoleVariableFlags)(Flags | ECVF_ReadOnly), false));
 		}
 #endif
 	}
@@ -344,7 +513,7 @@ public:
 	virtual float GetFloat() const override;
 	virtual FString GetString() const override;
 
-virtual bool IsVariableBool() const override { return false; }
+	virtual bool IsVariableBool() const override { return false; }
 	virtual bool IsVariableInt() const override { return false; }
 	virtual bool IsVariableFloat() const override { return false; }
 	virtual bool IsVariableString() const override { return false; }
@@ -380,6 +549,37 @@ private: // ----------------------------------------------------
 	{
 		return PlatformIndependentDefault.Get();
 	}
+
+	TMap<FName, TSharedPtr<IConsoleVariable> > PlatformValues;
+	virtual IConsoleVariable* GetPlatformValueVariable(FName PlatformName)
+	{
+		check(IsInGameThread());
+		if (!PlatformValues.Contains(PlatformName))
+		{
+			FString ConfigValue;
+			EConsoleVariableFlags LastSetBy;
+			if (!GetConfigValueFromRuntimeSources(PlatformName, this, ConfigValue, LastSetBy))
+			{
+				return nullptr;
+			}
+			
+			T TypedValue;
+			TTypeFromString<T>::FromString(TypedValue, *ConfigValue);
+
+			// clear the existing setby mask
+			int NewFlags = GetFlags() & ~ECVF_SetFlagMask;
+			// add in new LastSetBy and make it readonly
+			NewFlags |= LastSetBy | ECVF_ReadOnly;
+
+			// make a new cvar to hold the value from the other platform
+			TSharedPtr<IConsoleVariable> PlatformCVar = TSharedPtr<IConsoleVariable>(new FConsoleVariable<T>(TypedValue, TEXT(""), (EConsoleVariableFlags)NewFlags, false));
+
+			PlatformValues.Add(PlatformName, PlatformCVar);
+		}
+
+		return PlatformValues.FindRef(PlatformName).Get();
+	}
+
 #endif
 
 };
@@ -1370,6 +1570,20 @@ bool FConsoleManager::ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevic
 		Param1.MidInline(0, Param1.Len() - 1, false);
 	}
 
+	// look for the <cvar>@<platform> syntax
+	FName PlatformName;
+	if (Param1.Contains(TEXT("@")))
+	{
+		FString Left, Right;
+		Param1.Split(TEXT("@"), &Left, &Right);
+
+		if (Left.Len() && Right.Len())
+		{
+			Param1 = Left;
+			PlatformName = *Right;
+		}
+	}
+
 	IConsoleObject* CObj = FindConsoleObject(*Param1);
 	if(!CObj)
 	{
@@ -1393,6 +1607,28 @@ bool FConsoleManager::ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevic
 
 	IConsoleCommand* CCmd = CObj->AsCommand();
 	IConsoleVariable* CVar = CObj->AsVariable();
+
+	if (PlatformName != NAME_None)
+	{
+		if (CVar == nullptr)
+		{
+			Ar.Logf(TEXT("Ignoring platform portion (@%s), which is only valid for looking up CVars"), *PlatformName.ToString());
+		}
+		else
+		{
+#if ALLOW_OTHER_PLATFORM_CONFIG
+			CVar = CVar->GetPlatformValueVariable(PlatformName);
+			if (!CVar)
+			{
+				Ar.Logf(TEXT("Unable find CVar %s for platform %s (possibly invalid platform name?)"), *Param1, *PlatformName.ToString());
+				return false;
+			}
+#else
+			Ar.Logf(TEXT("Unable to lookup a CVar value on another platform in this build"));
+			return false;
+#endif
+		}
+	}
 
 	if( CCmd )
 	{
@@ -1450,9 +1686,13 @@ bool FConsoleManager::ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevic
 			}
 			else
 			{
-				if(bReadOnly)
+				if (PlatformName != NAME_None)
 				{
-					Ar.Logf(TEXT("Error: %s is read only!"), *Param1, *CVar->GetString());
+					Ar.Logf(TEXT("Error: Unable to set a value for %s another platform!"), *Param1);
+				}
+				else if(bReadOnly)
+				{
+					Ar.Logf(TEXT("Error: %s is read only!"), *Param1);
 				}
 				else
 				{
