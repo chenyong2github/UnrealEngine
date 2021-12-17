@@ -296,7 +296,7 @@ struct RENDERCORE_API FBreadcrumbEvent
  #define GPU_STATS_ENDFRAME(RHICmdList) 
 #endif
 
-bool AreGPUStatsEnabled();
+RENDERCORE_API bool AreGPUStatsEnabled();
 
 #if HAS_GPU_STATS
 
