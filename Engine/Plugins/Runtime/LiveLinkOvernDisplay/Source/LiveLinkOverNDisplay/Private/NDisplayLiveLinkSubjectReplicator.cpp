@@ -20,19 +20,19 @@ DEFINE_LOG_CATEGORY_STATIC(LogNDisplayLiveLinkSubjectReplicator, Log, All);
 
 FNDisplayLiveLinkSubjectReplicator::~FNDisplayLiveLinkSubjectReplicator()
 {
-	if (IDisplayCluster::IsAvailable())
-	{
-		if (IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr())
-		{
-			ClusterManager->UnregisterSyncObject(this);
-		}
-	}
+	Deactivate();
 	
 	if (LiveLinkClient)
 	{
 		LiveLinkClient->OnLiveLinkTicked().RemoveAll(this);
+		LiveLinkClient->OnLiveLinkSourceRemoved().RemoveAll(this);
+		LiveLinkClient->RemoveSource(LiveLinkSourceGuid);
 	}
 
+	//Cleanup our virtual source from LiveLink
+	TrackedSubjects.Empty();
+
+	IModularFeatures::Get().OnModularFeatureUnregistered().RemoveAll(this);
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 }
@@ -77,40 +77,74 @@ void FNDisplayLiveLinkSubjectReplicator::AddReferencedObjects(FReferenceCollecto
 	}
 }
 
-void FNDisplayLiveLinkSubjectReplicator::Activate()
+void FNDisplayLiveLinkSubjectReplicator::Initialize()
 {
 	if (IModularFeatures::Get().IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
+		//Cache LiveLink client if it was available and listen for it being unregistered.
 		LiveLinkClient = &IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+		IModularFeatures::Get().OnModularFeatureUnregistered().AddRaw(this, &FNDisplayLiveLinkSubjectReplicator::OnModularFeatureRemoved);
 
-		if (IDisplayCluster::Get().GetClusterMgr()->IsMaster())
+		if (IDisplayCluster::IsAvailable())
 		{
-			//If we're a master, listen to LiveLinkTicked callback to bundle up the SyncObject. Subjects frames will have been processed at that point.
-			LiveLinkClient->OnLiveLinkTicked().AddRaw(this, &FNDisplayLiveLinkSubjectReplicator::OnLiveLinkTicked);
+			if (IDisplayCluster::Get().GetClusterMgr()->IsMaster())
+			{
+				//If we're a master, listen to LiveLinkTicked callback to bundle up the SyncObject. Subjects frames will have been processed at that point.
+				LiveLinkClient->OnLiveLinkTicked().AddRaw(this, &FNDisplayLiveLinkSubjectReplicator::OnLiveLinkTicked);
+			}
+			else if (IDisplayCluster::Get().GetClusterMgr()->IsSlave())
+			{
+				//If we're a slave, listen for new subject and disables them if we're tracking that subject
+				FCoreDelegates::OnBeginFrame.AddRaw(this, &FNDisplayLiveLinkSubjectReplicator::OnEngineBeginFrame);
+
+				//Used to reinitialize ourself if we are removed from livelink
+				LiveLinkClient->OnLiveLinkSourceRemoved().AddRaw(this, &FNDisplayLiveLinkSubjectReplicator::OnLiveLinkSourceRemoved);
+
+				ReInitializeVirtualSource();
+			}
 		}
-		else if (IDisplayCluster::Get().GetClusterMgr()->IsSlave())
+		else
 		{
-			//If we're a slave, listen for new subject and disables them if we're tracking that subject
-			FCoreDelegates::OnBeginFrame.AddRaw(this, &FNDisplayLiveLinkSubjectReplicator::OnEngineBeginFrame);
-
-			//Used to reinitialize ourself if we are removed from livelink
-			LiveLinkClient->OnLiveLinkSourceRemoved().AddRaw(this, &FNDisplayLiveLinkSubjectReplicator::OnLiveLinkSourceRemoved);
-
-			ReInitializeVirtualSource();
+			UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Error, TEXT("Can't initialize LiveLink Subject Replicator for nDisplay because nDisplay is not available."));
 		}
+	}
+	else
+	{
+		UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Error, TEXT("Can't initialize LiveLink Subject Replicator for nDisplay because LiveLink is not available."));
+	}
+}
 
-		//Register SyncObject on PreTick to have this behavior
+void FNDisplayLiveLinkSubjectReplicator::Activate()
+{
+	UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Log, TEXT("Registering sync object."));
 
-		//Order of operation will be
-		//1. When LiveLink creates snapshots for the frame, Master will create the sync object payload
-		//2. On PreTick, the SyncObject will be synchronized between cluster machines
-		//3. On object processing, Slaves will push received data for each subject to have the same data then Master
+	//Register SyncObject on PreTick to have this behavior
+
+	//Order of operation will be
+	//1. When LiveLink creates snapshots for the frame, Master will create the sync object payload
+	//2. On PreTick, the SyncObject will be synchronized between cluster machines
+	//3. On object processing, Slaves will push received data for each subject to have the same data then Master
+	if (IDisplayCluster::IsAvailable())
+	{
 		IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
 		ClusterManager->RegisterSyncObject(this, EDisplayClusterSyncGroup::PreTick);
 	}
 	else
 	{
-		UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Error, TEXT("Can't activate LiveLink Subject Replicator for nDisplay because LiveLink is not available."));
+		UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Warning, TEXT("Can't activate LiveLink Subject Replicator for nDisplay because nDisplay is not available."));
+	}
+}
+
+void FNDisplayLiveLinkSubjectReplicator::Deactivate()
+{
+	UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Log, TEXT("Unregistering sync object."));
+	
+	if (IDisplayCluster::IsAvailable())
+	{
+		if (IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr())
+		{
+			ClusterManager->UnregisterSyncObject(this);
+		}
 	}
 }
 
@@ -325,6 +359,7 @@ void FNDisplayLiveLinkSubjectReplicator::HandleNewSubject(FArchive& Ar, FLiveLin
 		[SubjectKey](const UNDisplaySlaveVirtualSubject* Other) { return Other->GetAssociatedSubjectKey().SubjectName == SubjectKey.SubjectName; }))
 	{
 		TrackedSubject = *FoundSujectDataPtr;
+		UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Verbose, TEXT("HandleNewSubject SubjectName=%s but was already tracked. Updating its info."), *SubjectKey.SubjectName.ToString());
 	}
 
 	if (Ar.IsSaving())
@@ -402,7 +437,7 @@ void FNDisplayLiveLinkSubjectReplicator::HandleNewSubject(FArchive& Ar, FLiveLin
 				}
 				else
 				{
-					UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Warning, TEXT("Replicating subject '%s' but could not find its settings"), *SubjectKey.SubjectName.ToString());
+					UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Warning, TEXT("Replicating subject '%s' but could not find its settings. Translators won't work."), *SubjectKey.SubjectName.ToString());
 				}
 			}
 
@@ -454,5 +489,16 @@ void FNDisplayLiveLinkSubjectReplicator::OnLiveLinkSourceRemoved(FGuid SourceGui
 	{
 		UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Verbose, TEXT("nDisplay LiveLink Source was removed. Reinitializing ourself."));
 		ReInitializeVirtualSource();
+	}
+}
+
+void FNDisplayLiveLinkSubjectReplicator::OnModularFeatureRemoved(const FName& Type, IModularFeature* ModularFeature)
+{
+	//If LiveLink gets unregistered, invalidate our cached client which make the replicator do nothing
+	//To support hot reload, we would need to register for the feature to be loaded again
+	if (Type == ILiveLinkClient::ModularFeatureName)
+	{
+		UE_LOG(LogNDisplayLiveLinkSubjectReplicator, Verbose, TEXT("LiveLink feature was removed."));
+		LiveLinkClient = nullptr;
 	}
 }
