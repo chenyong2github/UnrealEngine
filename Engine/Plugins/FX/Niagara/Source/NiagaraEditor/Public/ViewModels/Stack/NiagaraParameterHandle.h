@@ -75,3 +75,8 @@ private:
 	FName Namespace;
 	mutable TArray<FName> HandlePartsCache;
 };
+
+FORCEINLINE uint32 GetTypeHash(const FNiagaraParameterHandle& Var)
+{
+	return GetTypeHash(Var.GetParameterHandleString());
+}

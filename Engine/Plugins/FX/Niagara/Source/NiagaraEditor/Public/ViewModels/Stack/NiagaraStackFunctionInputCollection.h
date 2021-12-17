@@ -99,7 +99,7 @@ public:
 
 	void GetChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult) const;
 
-	void GetFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult) const;
+	void GetCustomFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult, const TArray<FOnFilterChild>& CustomFilters) const;
 
 	TArray<UNiagaraStackFunctionInput*> GetInlineParameterInputs() const;
 

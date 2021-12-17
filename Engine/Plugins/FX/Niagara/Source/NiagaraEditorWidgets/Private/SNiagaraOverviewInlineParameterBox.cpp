@@ -9,6 +9,7 @@
 #include "NiagaraScriptVariable.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraEditorUtilities.h"
 #include "Styling/StyleColors.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -54,12 +55,7 @@ SNiagaraOverviewInlineParameterBox::~SNiagaraOverviewInlineParameterBox()
 	BoundFunctionInputs.Empty();
 }
 
-int32 SNiagaraOverviewInlineParameterBox::GetNumChildWidgets()
-{
-	return NumParameterWidgets;
-}
-
-FReply SNiagaraOverviewInlineParameterBox::NavigateToStack(TWeakObjectPtr<UNiagaraStackFunctionInput> FunctionInput)
+FReply SNiagaraOverviewInlineParameterBox::NavigateToStack(TWeakObjectPtr<const UNiagaraStackFunctionInput> FunctionInput)
 {
 	// even if we can't navigate, the button should consume the input
 	if(!ModuleItem.IsValid() || !FunctionInput.IsValid() || FunctionInput->IsFinalized())
@@ -69,6 +65,13 @@ FReply SNiagaraOverviewInlineParameterBox::NavigateToStack(TWeakObjectPtr<UNiaga
 	
 	ModuleItem->GetSystemViewModel()->GetSelectionViewModel()->UpdateSelectedEntries({ModuleItem.Get()}, {}, true);
 
+	// we attempt to find a substitute entry, i.e. if our current input is an inline edit toggle, we try to find the input that the toggle is handling instead
+	TWeakObjectPtr<const UNiagaraStackFunctionInput> SubstituteEntry = FindSubstituteEntry(FunctionInput.Get());
+	if(SubstituteEntry.IsValid())
+	{
+		FunctionInput = SubstituteEntry;
+	}
+	
 	TArray<UNiagaraStackEntry::FStackSearchItem> SearchItems;
 	FunctionInput->GetSearchItems(SearchItems);
 	if(ensure(SearchItems.Num() > 0))
@@ -83,8 +86,8 @@ FReply SNiagaraOverviewInlineParameterBox::NavigateToStack(TWeakObjectPtr<UNiaga
 void SNiagaraOverviewInlineParameterBox::ConstructChildren()
 {
 	Container->ClearChildren();
-	NumParameterWidgets = 0;
-
+	ImageBrushes.Empty();
+	
 	for(TWeakObjectPtr<UNiagaraStackFunctionInput> BoundInput : BoundFunctionInputs)
 	{
 		if(BoundInput.IsValid())
@@ -101,12 +104,10 @@ void SNiagaraOverviewInlineParameterBox::ConstructChildren()
 		Container->AddSlot()
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Center)
-		.Padding(FMargin(2.f, 0.f))
+		.Padding(FMargin(1.f, 0.f))
 		[
 			ParameterWidget
 		];
-
-		NumParameterWidgets++;
 	}
 
 	SetVisibility(ParameterWidgets.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed);
@@ -177,14 +178,22 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 	TSharedPtr<INiagaraEditorTypeUtilities> TypeUtilities = FNiagaraEditorModule::Get().GetTypeUtilities(Type);
 
 	// we construct a variable with the data from our local struct memory because type utilities don't work on raw data
-	FNiagaraVariable Variable(Type, NAME_None);
+	FNiagaraVariable Variable(Type, FunctionInput->GetInputParameterHandle().GetParameterHandleString());
 	Variable.SetData(FunctionInput->GetLocalValueStruct()->GetStructMemory());
 	
 	// by default we display type information. In some cases we have overrides, but even then we want to keep the type information as we continue using it in the tooltips
 	const FText ValueText = TypeUtilities->GetStackDisplayText(Variable);
 	FText DisplayedText = ValueText;
-	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Type);
-	FLinearColor DisplayedColor = TypeColor;
+	const FLinearColor OriginalTypeColor = UEdGraphSchema_Niagara::GetTypeColor(Type);
+	FLinearColor ActualTypeColor = OriginalTypeColor;
+
+	// if we have an enum type, we want to override the type color to be gray instead
+	if(Type.GetEnum())
+	{
+		ActualTypeColor = FLinearColor(0.02f, 0.02f, 0.02f, 1.f);
+	}
+	
+	FLinearColor DisplayedColor = InputMetaData->bOverrideColor ? InputMetaData->InlineParameterColorOverride : ActualTypeColor;
 
 	UTexture2D* Icon = nullptr;
 	if (const UEnum* Enum = Type.GetEnum())
@@ -203,7 +212,6 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 	else if(Type == FNiagaraTypeDefinition::GetBoolDef() && InputMetaData->bEnableBoolOverride)
 	{
 		const FNiagaraBoolParameterMetaData& BoolParameterMetaData = InputMetaData->InlineParameterBoolOverride;
-		DisplayedColor = InputMetaData->bOverrideColor ? InputMetaData->InlineParameterColorOverride : DisplayedColor;
 
 		int32 Val = *(int32*)FunctionInput->GetLocalValueStruct()->GetStructMemory();
 		bool bParameterValue = Val == 0 ? false : true;
@@ -240,7 +248,8 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 	// we might have cases in which we don't want to display a parameter's data, such as if we only want to display a bool parameter when it is set to True
 	if(bGenerateProperWidget)
 	{
-		TWeakObjectPtr<UNiagaraStackFunctionInput> FunctionInputWeak = FunctionInput;
+		TWeakObjectPtr<const UNiagaraStackFunctionInput> FunctionInputWeak = FunctionInput;
+		
 		TSharedRef<SButton> ParameterWidgetButton = SNew(SButton)
 		.Text(DisplayedText)
 		.TextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.SystemOverview.InlineParameterText"))
@@ -251,22 +260,24 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 		// if we have an icon available, we use it instead of any text. Border color is irrelevant here.
 		if(Icon != nullptr)
 		{
-			FSlateBrush& ImageBrush = ImageBrushes.Emplace_GetRef();
-			ImageBrush.SetResourceObject(Icon);
-			ImageBrush.ImageSize.X = 16;
-			ImageBrush.ImageSize.Y = 16;
-	
+			FSlateImageBrush& ImageBrush = ImageBrushes.Emplace_GetRef(Icon, FVector2D(16.f, 16.f));
 			TSharedRef<SImage> ParameterWidgetIcon= SNew(SImage).Image(&ImageBrush);
 			ParameterWidgetButton->SetContent(ParameterWidgetIcon);
-			ParameterWidgetButton->SetButtonStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FButtonStyle>("NiagaraEditor.SystemOverview.InlineParameterButton.Transparent"));
+			ParameterWidgetButton->SetButtonStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FButtonStyle>("NiagaraEditor.SystemOverview.InlineParameterButton.Icon"));
 		}
 		// otherwise, we use text and set the border to its specified color (type, override, instance override color)
 		else
 		{
 			// if we are using a custom color, we set the button style to use a white base in order to get rid of a tint
-			if(DisplayedColor != TypeColor)
+			if(DisplayedColor != ActualTypeColor)
 			{
 				ParameterWidgetButton->SetButtonStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FButtonStyle>("NiagaraEditor.SystemOverview.InlineParameterButton.NoTint"));
+			}
+
+			// if we are an enum, we use a style that better fits the text
+			if(Type.GetEnum())
+			{
+				ParameterWidgetButton->SetButtonStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FButtonStyle>("NiagaraEditor.SystemOverview.InlineParameterButton.Enum"));
 			}
 			
 			ParameterWidgetButton->SetBorderBackgroundColor(DisplayedColor);
@@ -279,72 +290,8 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 		return SNullWidget::NullWidget;
 	}
 	
-
-	FText			   IconToolTip = FText::GetEmpty();
-	FSlateBrush const* IconBrush = FAppStyle::Get().GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
-	FSlateColor        IconColor = FSlateColor(TypeColor);
-	FString			   IconDocLink, IconDocExcerpt;
-	FSlateBrush const* SecondaryIconBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
-	FSlateColor        SecondaryIconColor = IconColor;
-
 	// we construct a tooltip widget that shows the parameter the value is associated with
-	TSharedRef<SToolTip> TooltipWidget = SNew(SToolTip).Content()
-	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SNiagaraIconWidget)
-				.IconToolTip(IconToolTip)
-				.IconBrush(IconBrush)
-				.IconColor(IconColor)
-				.DocLink(IconDocLink)
-				.DocExcerpt(IconDocExcerpt)
-				.SecondaryIconBrush(SecondaryIconBrush) 
-				.SecondaryIconColor(SecondaryIconColor)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Padding(3.f)
-			[
-				SNew(SNiagaraParameterNameTextBlock)
-				.IsReadOnly(true)
-				.ParameterText(FText::FromName(FunctionInput->GetInputParameterHandle().GetParameterHandleString()))
-			]
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Padding(3.f)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ParameterTooltipText", "Value: "))
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Padding(3.f)
-			[
-				SNew(STextBlock)
-				.Text(ValueText)
-			]
-		]
-	];
-
+	TSharedRef<SToolTip> TooltipWidget = FNiagaraParameterUtilities::GetTooltipWidget(Variable);
 	ParameterWidget->SetToolTip(TooltipWidget);
 	return ParameterWidget.ToSharedRef();
 }
@@ -383,6 +330,37 @@ TSharedRef<SWidget> SNiagaraOverviewInlineParameterBox::GenerateParameterWidgetF
 	//}
 
 	return SNullWidget::NullWidget;
+}
+
+TWeakObjectPtr<const UNiagaraStackFunctionInput> SNiagaraOverviewInlineParameterBox::FindSubstituteEntry(const UNiagaraStackFunctionInput* InInput)
+{
+	// there can only be substitute entries for inline edit condition toggles
+	if(!InInput->GetInputMetaData().IsSet() || !InInput->GetInputMetaData()->bInlineEditConditionToggle)
+	{
+		return nullptr;
+	}
+	
+	TArray<UNiagaraStackFunctionInput*> AllInputs;
+	ModuleItem->GetParameterInputs(AllInputs);
+
+	// we gather all edit conditions here so we can later map them back
+	for(const UNiagaraStackFunctionInput* Input : AllInputs)
+	{
+		if(Input->GetHasEditCondition())
+		{
+			if(Input->GetEditConditionVariable().IsSet())
+			{
+				FNiagaraParameterHandle EditHandle(Input->GetEditConditionVariable().GetValue().GetName());
+
+				if(InInput->GetInputParameterHandle() == EditHandle)
+				{
+					return Input;
+				}
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

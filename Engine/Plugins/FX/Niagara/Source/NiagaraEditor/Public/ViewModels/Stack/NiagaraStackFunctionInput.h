@@ -109,7 +109,7 @@ public:
 	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
 	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
 	virtual bool HasOverridenContent() const override;
-
+	
 	/** Gets the tooltip that should be shown for the value of this input. */
 	FText GetValueToolTip() const;
 
@@ -214,6 +214,9 @@ public:
 	/** Gets a multicast delegate which is called whenever the value on this input changes. */
 	FOnValueChanged& OnValueChanged();
 
+	/** Gets the variable that serves as an edit condition for this input. */
+	TOptional<FNiagaraVariable> GetEditConditionVariable() const;
+	
 	/** Gets whether or not this input has an associated edit condition input. */
 	bool GetHasEditCondition() const;
 
@@ -470,7 +473,7 @@ private:
 
 	/** An input condition handler for the visible condition. */
 	FNiagaraStackFunctionInputCondition VisibleCondition;
-
+	
 	/** Whether or not to show an inline control for the edit condition input. */
 	bool bShowEditConditionInline;
 

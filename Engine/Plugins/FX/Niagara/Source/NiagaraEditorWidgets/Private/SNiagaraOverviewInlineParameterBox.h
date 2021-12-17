@@ -35,11 +35,14 @@ public:
 
 private:
 	/** Selects the module item in the stack and searches for the function input */
-	FReply NavigateToStack(TWeakObjectPtr<UNiagaraStackFunctionInput> FunctionInput);
+	FReply NavigateToStack(TWeakObjectPtr<const UNiagaraStackFunctionInput> FunctionInput);
 	void ConstructChildren();
 	TArray<TSharedRef<SWidget>> GenerateParameterWidgets();
 	TSharedRef<SWidget> GenerateParameterWidgetFromLocalValue(UNiagaraStackFunctionInput* FunctionInput);
 	TSharedRef<SWidget> GenerateParameterWidgetFromDataInterface(UNiagaraStackFunctionInput* FunctionInput);
+	
+	/** We build a substitute map of entries that we want to */
+	TWeakObjectPtr<const UNiagaraStackFunctionInput> FindSubstituteEntry(const UNiagaraStackFunctionInput* Input);
 
 private:
 	/** The module item whose parameters this box is representing */
@@ -50,7 +53,5 @@ private:
 	/** We keep track of the function inputs we are observing through this parameter box so we can unbind the delegates later */
 	TArray<TWeakObjectPtr<UNiagaraStackFunctionInput>> BoundFunctionInputs;
 
-	TArray<FSlateBrush> ImageBrushes;
-
-	int32 NumParameterWidgets = 0;
+	TArray<FSlateImageBrush> ImageBrushes;
 };
