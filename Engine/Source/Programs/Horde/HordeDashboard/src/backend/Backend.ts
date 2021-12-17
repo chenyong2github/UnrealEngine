@@ -887,7 +887,15 @@ export class Backend {
 
                     data.dashboardSettings.preferences = preferences;
                 }
+
+                // apply defaults
+                const current = data.dashboardSettings.preferences.get(DashboardPreference.Darktheme);
+                if (current !== "true" && current !== "false") {
+                    data.dashboardSettings.preferences.set(DashboardPreference.Darktheme, "true");
+                }
+
                 resolve(data);
+
             }).catch(reason => reject(reason));
 
         });
