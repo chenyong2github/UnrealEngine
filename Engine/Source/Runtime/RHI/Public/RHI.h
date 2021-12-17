@@ -842,9 +842,19 @@ extern RHI_API FPixelFormatInfo GPixelFormats[PF_MAX];		// Maps members of EPixe
 /** Initialize the 'best guess' pixel format capabilities. Platform formats and support must be filled out before calling this. */
 extern RHI_API void RHIInitDefaultPixelFormatCapabilities();
 
-inline bool PixelFormatHasCapabilities(EPixelFormat InFormat, EPixelFormatCapabilities InCapabilities)
+inline bool RHIPixelFormatHasCapabilities(EPixelFormat InFormat, EPixelFormatCapabilities InCapabilities)
 {
 	return EnumHasAllFlags(GPixelFormats[InFormat].Capabilities, InCapabilities);
+}
+
+inline bool RHIIsTypedUAVLoadSupported(EPixelFormat InFormat)
+{
+	return RHIPixelFormatHasCapabilities(InFormat, EPixelFormatCapabilities::TypedUAVLoad);
+}
+
+inline bool RHIIsTypedUAVStoreSupported(EPixelFormat InFormat)
+{
+	return RHIPixelFormatHasCapabilities(InFormat, EPixelFormatCapabilities::TypedUAVStore);
 }
 
 //

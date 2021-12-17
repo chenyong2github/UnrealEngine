@@ -283,8 +283,7 @@ bool IsSubsurfaceRequiredForView(const FViewInfo& View)
 
 bool IsProfileIdCacheEnabled()
 {
-	const bool bIsR8UintSupported = GDynamicRHI && GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_R8_UINT);
-	return bIsR8UintSupported && CVarSSSBurleyEnableProfileIdCache.GetValueOnRenderThread() != 0;
+	return RHIIsTypedUAVLoadSupported(PF_R8_UINT) && CVarSSSBurleyEnableProfileIdCache.GetValueOnRenderThread() != 0;
 }
 
 uint32 GetSubsurfaceRequiredViewMask(TArrayView<const FViewInfo> Views)

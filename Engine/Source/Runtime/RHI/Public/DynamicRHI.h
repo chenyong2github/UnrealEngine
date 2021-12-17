@@ -1474,8 +1474,8 @@ public:
 	virtual void RHICalibrateTimers() {}
 	virtual void RHIPollRenderQueryResults() {}
 
-	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) { return true; }
-	virtual bool RHIIsTypedUAVStoreSupported(EPixelFormat PixelFormat) { return true; }
+	UE_DEPRECATED(5.0, "The global version of RHIIsTypedUAVLoadSupported should be used")
+	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) { return ::RHIIsTypedUAVLoadSupported(PixelFormat); }
 
 	virtual uint16 RHIGetPlatformTextureMaxSampleCount() { return 8; };
 

@@ -1788,16 +1788,4 @@ void FVulkanDynamicRHI::VulkanSetImageLayout( VkCommandBuffer CmdBuffer, VkImage
 	::VulkanSetImageLayout( CmdBuffer, Image, OldLayout, NewLayout, SubresourceRange );
 }
 
-bool FVulkanDynamicRHI::RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat)
-{
-	if (Device)
-	{
-		const FPixelFormatInfo& FormatInfo = GPixelFormats[PixelFormat];
-		const VkFormat Format = (VkFormat)FormatInfo.PlatformFormat;
-		const VkFormatFeatureFlags FormatFlags = Device->GetFormatProperties()[Format].optimalTilingFeatures;
-		return (FormatFlags & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) != 0;
-	}
-	return false;
-}
-
 #undef LOCTEXT_NAMESPACE

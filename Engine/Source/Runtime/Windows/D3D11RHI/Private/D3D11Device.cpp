@@ -538,16 +538,6 @@ void FD3D11DynamicRHI::SetupAfterDeviceCreation()
 	}
 }
 
-bool FD3D11DynamicRHI::RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat)
-{
-	return EnumHasAllFlags(GPixelFormats[PixelFormat].Capabilities, EPixelFormatCapabilities::TypedUAVLoad);
-}
-
-bool FD3D11DynamicRHI::RHIIsTypedUAVStoreSupported(EPixelFormat PixelFormat)
-{
-	return EnumHasAllFlags(GPixelFormats[PixelFormat].Capabilities, EPixelFormatCapabilities::TypedUAVStore);
-}
-
 void FD3D11DynamicRHI::UpdateMSAASettings()
 {	
 	check(DX_MAX_MSAA_COUNT == 8);

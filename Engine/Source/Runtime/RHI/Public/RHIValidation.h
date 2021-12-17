@@ -1727,11 +1727,6 @@ public:
 		RHI->RHIPollRenderQueryResults();
 	}
 
-	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) override final
-	{
-		return RHI->RHIIsTypedUAVLoadSupported(PixelFormat);
-	}
-
 	virtual uint16 RHIGetPlatformTextureMaxSampleCount() override final
 	{
 		return RHI->RHIGetPlatformTextureMaxSampleCount();
