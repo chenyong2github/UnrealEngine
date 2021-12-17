@@ -26,9 +26,12 @@ public:
 
 	virtual FNDisplayLiveLinkSubjectReplicator& GetSubjectReplicator() override;
 
+
 private:
 
 	void OnEngineLoopInitComplete();
+	void OnDisplayClusterStartSceneCallback() const;
+	void OnDisplayClusterEndSceneCallback() const;
 
 private:
 
