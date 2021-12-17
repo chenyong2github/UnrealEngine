@@ -63,6 +63,8 @@ struct MODELINGCOMPONENTS_API FCameraRectangle
 	bool IsProjectedSegmentIntersectingRectangle(const FVector& Endpoint1, const FVector& Endpoint2) const;
 	// bool IsProjectedTriangleIntersectingRectangle(const FVector& A, const FVector& B, const FVector& C) const;
 
+	FConvexVolume FrustumAsConvexVolume() const;
+
 	// Return the 3D point obtained by projecting the given 3D Point onto the given projection plane
 	// Note: Assumes an orthographic camera
 	static FVector OrthographicProjection(const FPlane3& Plane, const FVector& Point)
@@ -71,10 +73,11 @@ struct MODELINGCOMPONENTS_API FCameraRectangle
 	}
 
 	// Return the 3D point obtained by projecting the given 3D Point onto the given projection plane
-	// Note: OrthographicProjection is more efficient if the camera is known to be orthographic
+	// Note: Assumes a perspective camera
 	FVector PerspectiveProjection(const FPlane3& Plane, const FVector& Point) const
 	{
 		ensure(bIsInitialized);
+		checkSlow(!CameraState.bIsOrthographic);
 		return FMath::RayPlaneIntersection(CameraState.Position, Point - CameraState.Position, (FPlane)Plane);
 	}
 
