@@ -77,6 +77,36 @@ public:
 	EBakeFilterType GetFilter() const { return FilterType; }
 	int32 GetTileSize() const { return TileSize; }
 
+	/**
+	 * Computes the connected UV triangles and returns an array containing
+	 * the mapping from triangle ID to unique UV chart ID. If the mesh
+	 * has no UVs, the UVCharts will be initialized to 0.
+	 *
+	 * @param Mesh the mesh to compute UV charts.
+	 * @param MeshUVCharts the triangle ID to UV Chart ID array.
+	 */
+	static void ComputeUVCharts(const FDynamicMesh3& Mesh, TArray<int32>& MeshUVCharts);
+
+	/**
+	 * Set an a Triangle ID to UV Chart ID array for TargetMesh.
+	 * If this is not set, then the baker will compute it as part of Bake().
+	 * Since ComputeUVCharts() is non-trivial, this method is intended
+	 * to allow a client to externally cache the result of ComputeUVCharts
+	 * to minimize the overhead per bake.
+	 * 
+	 * @param UVChartsIn the TriID to UVChartID map
+	 */
+	void SetTargetMeshUVCharts(TArray<int32>* UVChartsIn)
+	{
+		TargetMeshUVCharts = UVChartsIn;
+	}
+
+	/** @return the Triangle ID to UV Chart ID mapping */
+	const TArray<int32>* GetTargetMeshUVCharts() const
+	{
+		return TargetMeshUVCharts;
+	}
+
 	//
 	// Analytics
 	//
@@ -105,7 +135,8 @@ protected:
 		FMeshMapTileBuffer& TileBuffer,
 		const FMeshMapEvaluator::FCorrespondenceSample& Sample,
 		const FVector2d& UVPosition,
-		const FVector2i& ImageCoords);
+		const FVector2i& ImageCoords,
+		const FImageOccupancyMap& OccupancyMap);
 
 	/** Initialize evaluation contexts and precompute data for bake evaluation. */
 	void InitBake();
@@ -184,6 +215,20 @@ protected:
 
 	/** Array of bake result images. */
 	TArray<TUniquePtr<TImageBuilder<FVector4f>>> BakeResults;
+
+	/**
+	 * Array of TargetMesh triangle ID to UV chart ID mapping.
+	 * Can be optionally provided by the client. If not provided,
+	 * will be computed as part of the bake.
+	 */
+	TArray<int32>* TargetMeshUVCharts = nullptr;
+
+	/**
+	 * Local Array of TargetMesh triangle ID to UV chart ID mapping.
+	 * This will be populated only if not provided by the client via
+	 * TargetMeshUVCharts.
+	 */
+	TArray<int32> TargetMeshUVChartsLocal;
 };
 
 } // end namespace UE::Geometry

@@ -51,6 +51,8 @@ public:
 	TArray64<FVector2f> TexelQueryUV;
 	/** integer/Triangle ID for each texel in image. Only set for Interior texels. */
 	TArray64<int32> TexelQueryTriangle;
+	/** UV Chart ID for each texel in image. Only set if UVSpaceMeshTriCharts is provided during ComputeFromUVSpaceMesh */
+	TArray64<int32> TexelQueryUVChart;
 
 	/** Set of Gutter Texels. Pair is <LinearIndexOfGutterTexel, LinearIndexOfNearestInteriorTexel>, so
 	    Gutter can be filled by directly copying from source to target. */
@@ -99,9 +101,17 @@ public:
 	//}
 
 
+	/**
+	 * Computes the image occupancy map from a UV space mesh.
+	 * 
+	 * @param UVSpaceMesh UV space mesh to compute the occupancy map from.
+	 * @param GetTriangleIDFunc Lambda to remap a texel's nearest triangle ID
+	 * @param UVSpaceMeshTriCharts Optional UVSpaceMesh triangle ID to UV chart map 
+	 */
 	template<typename MeshType, typename GetTriangleIDFuncType>
 	bool ComputeFromUVSpaceMesh(const MeshType& UVSpaceMesh, 
-		GetTriangleIDFuncType GetTriangleIDFunc = [](int32 TriangleID) { return TriangleID; } )
+		GetTriangleIDFuncType GetTriangleIDFunc = [](int32 TriangleID) { return TriangleID; },
+		const TArray<int32>* UVSpaceMeshTriCharts = nullptr)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FImageOccupancyMap::ComputeFromUVSpaceMesh);
 		
@@ -114,6 +124,7 @@ public:
 		TexelInteriorSamples.Init(0, LinearImageSize);
 		TexelQueryUV.Init(FVector2f::Zero(), LinearSampleSize);
 		TexelQueryTriangle.Init(IndexConstants::InvalidID, LinearSampleSize);
+		TexelQueryUVChart.Init(IndexConstants::InvalidID, LinearImageSize);
 
 		const FVector2d TexelSize = Dimensions.GetTexelSize();
 		const double TexelDiag = TexelSize.Length();
@@ -126,8 +137,10 @@ public:
 		TArray< TArray64<TTuple<int64, int64>> > GutterTexelsPerScanline;
 		GutterTexelsPerScanline.SetNum(Tile.GetHeight());
 
+		const int32 NumUVSpaceMeshTriCharts = UVSpaceMeshTriCharts ? UVSpaceMeshTriCharts->Num() : 0;
+
 		ParallelFor(Tile.GetHeight(),
-					[this, &UVSpaceMesh, &GetTriangleIDFunc, &FlatSpatial, TexelDiag, &QueryOptions, &TexelSize, &TotalGutterCounter, &GutterTexelsPerScanline]
+					[this, &UVSpaceMesh, &GetTriangleIDFunc, &FlatSpatial, TexelDiag, &QueryOptions, &TexelSize, &TotalGutterCounter, &GutterTexelsPerScanline, UVSpaceMeshTriCharts, NumUVSpaceMeshTriCharts]
 		(int32 ImgY)
 		{
 			for (int32 ImgX = 0; ImgX < Tile.GetWidth(); ++ImgX)
@@ -159,11 +172,12 @@ public:
 						UVSpaceMesh.GetTriVertices(NearestTriID, A, B, C);
 						const FTriangle2d UVTriangle(GetXY(A), GetXY(B), GetXY(C));
 
+						const int32 TriId = GetTriangleIDFunc(NearestTriID);
 						if (UVTriangle.IsInsideOrOn(UVPoint))
 						{
 							TexelType[SampleLinearIdx] = InteriorTexel;
 							TexelQueryUV[SampleLinearIdx] = (FVector2f)UVPoint;
-							TexelQueryTriangle[SampleLinearIdx] = GetTriangleIDFunc(NearestTriID);
+							TexelQueryTriangle[SampleLinearIdx] = TriId;
 							++TexelInteriorSamples[TexelLinearIdx];
 							bIsGutterTexel = false;
 						}
@@ -176,7 +190,7 @@ public:
 
 							TexelType[SampleLinearIdx] = InteriorTexel;
 							TexelQueryUV[SampleLinearIdx] = (FVector2f)NearestUV;
-							TexelQueryTriangle[SampleLinearIdx] = GetTriangleIDFunc(NearestTriID);
+							TexelQueryTriangle[SampleLinearIdx] = TriId;
 							++TexelInteriorSamples[TexelLinearIdx];
 							bIsGutterTexel = false;
 						}
@@ -192,6 +206,10 @@ public:
 							// to each gutter pixel.
 							const int64 NearestLinearIdx = Dimensions.GetIndex(NearestCoords);
 							GutterNearestTexel = TTuple<int64, int64>(SourceTexelLinearIdx, NearestLinearIdx);
+						}
+						if (TriId < NumUVSpaceMeshTriCharts && TexelQueryUVChart[TexelLinearIdx] == IndexConstants::InvalidID)
+						{
+							TexelQueryUVChart[TexelLinearIdx] = (*UVSpaceMeshTriCharts)[TriId];
 						}
 						bHitTriID = true;
 					}
