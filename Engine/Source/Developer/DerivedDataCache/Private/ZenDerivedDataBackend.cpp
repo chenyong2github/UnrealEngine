@@ -21,6 +21,7 @@
 #include "ZenBackendUtils.h"
 #include "ZenSerialization.h"
 #include "ZenServerHttp.h"
+#include "ZenStatistics.h"
 
 TRACE_DECLARE_INT_COUNTER(ZenDDC_Exist,			TEXT("ZenDDC Exist"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_ExistHit,		TEXT("ZenDDC Exist Hit"));
@@ -153,6 +154,7 @@ bool FZenDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 			if (bIsHit)
 			{
 				TRACE_COUNTER_ADD(ZenDDC_ExistHit, int64(1));
+				COOK_STAT(Timer.AddHit(0));
 			}
 			return bIsHit;
 		}
@@ -480,10 +482,53 @@ FZenDerivedDataBackend::GetSpeedClass() const
 
 TSharedRef<FDerivedDataCacheStatsNode> FZenDerivedDataBackend::GatherUsageStats() const
 {
-	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s.%s"), TEXT("ZenDDC"), *GetName()));
-	Usage->Stats.Add(TEXT(""), UsageStats);
+	Zen::FZenStats ZenStats;
 
-	return Usage;
+	FDerivedDataCacheUsageStats LocalStats;
+	FDerivedDataCacheUsageStats RemoteStats;
+
+#if ENABLE_COOK_STATS
+	using EHitOrMiss = FCookStats::CallStats::EHitOrMiss;
+	using ECacheStatType = FCookStats::CallStats::EStatType;
+
+	Zen::GetDefaultServiceInstance().GetStats(ZenStats);
+
+	const int64 RemotePutSize = int64(ZenStats.UpstreamStats.TotalUploadedMB * 1024 * 1024);
+	const int64 RemoteGetSize = int64(ZenStats.UpstreamStats.TotalDownloadedMB * 1024 * 1024);
+	const int64 LocalGetSize = FMath::Max<int64>(0, UsageStats.GetStats.GetAccumulatedValueAnyThread(EHitOrMiss::Hit, ECacheStatType::Bytes) - RemoteGetSize);
+
+	LocalStats.PutStats = UsageStats.PutStats;
+	LocalStats.ExistsStats = UsageStats.ExistsStats;
+	LocalStats.PrefetchStats = UsageStats.PrefetchStats;
+
+	LocalStats.GetStats.Accumulate(EHitOrMiss::Hit, ECacheStatType::Counter, ZenStats.CacheStats.Hits - ZenStats.CacheStats.UpstreamHits, /*bIsInGameThread*/ false);
+	LocalStats.GetStats.Accumulate(EHitOrMiss::Miss, ECacheStatType::Counter, ZenStats.CacheStats.Misses + ZenStats.CacheStats.UpstreamHits, /*bIsInGameThread*/ false);
+	RemoteStats.GetStats.Accumulate(EHitOrMiss::Hit, ECacheStatType::Counter, ZenStats.CacheStats.UpstreamHits, /*bIsInGameThread*/ false);
+	RemoteStats.GetStats.Accumulate(EHitOrMiss::Miss, ECacheStatType::Counter, ZenStats.CacheStats.Misses, /*bIsInGameThread*/ false);
+
+	LocalStats.GetStats.Accumulate(EHitOrMiss::Hit, ECacheStatType::Bytes, LocalGetSize, /*bIsInGameThread*/ false);
+	RemoteStats.GetStats.Accumulate(EHitOrMiss::Hit, ECacheStatType::Bytes, RemoteGetSize, /*bIsInGameThread*/ false);
+	RemoteStats.PutStats.Accumulate(EHitOrMiss::Hit, ECacheStatType::Bytes, RemotePutSize, /*bIsInGameThread*/ false);
+#endif
+
+	TSharedRef<FDerivedDataCacheStatsNode> LocalNode =
+		MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s.%s"), TEXT("ZenDDC"), *GetName()));
+	LocalNode->Stats.Add(TEXT(""), LocalStats);
+
+	if (ZenStats.UpstreamStats.EndPointStats.IsEmpty())
+	{
+		return LocalNode;
+	}
+
+	TSharedRef<FDerivedDataCacheStatsNode> RemoteNode =
+		MakeShared<FDerivedDataCacheStatsNode>(this, ZenStats.UpstreamStats.EndPointStats[0].Url);
+	RemoteNode->Stats.Add(TEXT(""), RemoteStats);
+
+	TSharedRef<FDerivedDataCacheStatsNode> GroupNode =
+		MakeShared<FDerivedDataCacheStatsNode>(this, TEXT("Zen Group"));
+	GroupNode->Children.Add(LocalNode);
+	GroupNode->Children.Add(RemoteNode);
+	return GroupNode;
 }
 
 bool FZenDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
