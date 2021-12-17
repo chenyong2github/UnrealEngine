@@ -11,7 +11,7 @@
 
 
 //------------------------------------------------------- RECOMPILE HASH
-// 4E268118-A455-494C-BA81-DCFF1C9528CB
+// BE1AEDD9-8FB8-4039-8E36-8C888D492EC7
 
 
 //------------------------------------------------------- COMPILER CONFIG
@@ -74,23 +74,6 @@
 #define SUB_PIXEL_PARALLAX_FACTOR_BIT_COUNT 4
 #define SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET 0
 #define SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK ((1 << SUB_PIXEL_PARALLAX_FACTOR_BIT_COUNT) - 1)
-
-
-// Size and payload of the super resolution history
-#define SUPERRES_RES_MULTIPLIER 2
-
-#define SUPERRES_AGE_BITS 5
-#define SUPERRES_AGE_BITMASK ((1 << SUPERRES_AGE_BITS) - 1)
-
-#define SUPERRES_INTERFERENCE_BITS 4
-#define SUPERRES_INTERFERENCE_BITMASK ((1 << SUPERRES_INTERFERENCE_BITS) - 1)
-
-#define SUPERRES_OFFSET_BITS 4
-#define SUPERRES_OFFSET_BITMASK ((1 << SUPERRES_OFFSET_BITS) - 1)
-#define SUPERRES_OFFSET_OFFSET (SUPERRES_OFFSET_BITMASK / 2)
-#define SUPERRES_OFFSET_MIN (-SUPERRES_OFFSET_OFFSET)
-#define SUPERRES_OFFSET_MAX (SUPERRES_OFFSET_BITMASK - SUPERRES_OFFSET_OFFSET)
-
 
 
 // K = Center of the nearest input pixel.
@@ -294,7 +277,6 @@ FScreenTransform ScreenPosToPrevHistoryBufferUV;
 float HistoryPreExposureCorrection;
 
 uint bCameraCut;
-float MoireInvExposure;
 
 #if DEBUG_OUTPUT
 	RWTexture2D<float4> DebugOutput;
@@ -906,13 +888,6 @@ taa_half UncompressParallaxFactor(taa_subpixel_payload CompressedParallaxFactor)
 		taa_half(1.0);
 }
 
-taa_half LumaToInterferenceSeed(taa_half Luma)
-{
-	Luma *= taa_half(MoireInvExposure);
-
-	return Luma * HdrWeightY(Luma);
-}
-
 taa_half3x2 QuantizeForFloatRenderTarget(taa_half3x2 Color, taa_half E, const float3 QuantizationError)
 {
 	taa_half3x2 Error = dpv_mul(Color, taa_half3(QuantizationError));
@@ -941,43 +916,6 @@ taa_half3 QuantizeForFloatRenderTarget(taa_half3 Color, taa_half E, const float3
 	return dpv_lo(QuantizeForFloatRenderTarget(dpv_interleave_mono_registers(Color), E, QuantizationError));
 }
 
-
-struct FSuperResHistory
-{
-	int2 TexelToSample;
-	uint Age;
-	taa_half InterferenceSeed;
-};
-
-uint2 PackSuperResHistory(FSuperResHistory SuperRes)
-{
-	uint CompressedInterferenceSeed = clamp(
-		uint(SuperRes.InterferenceSeed * taa_half(SUPERRES_INTERFERENCE_BITMASK)),
-		uint(0), uint(SUPERRES_INTERFERENCE_BITMASK));
-
-	uint2 Packed = 0;
-
-	Packed[0] |= ((SuperRes.Age) & SUPERRES_AGE_BITMASK) << 0;
-	Packed[0] |= ((CompressedInterferenceSeed) & SUPERRES_INTERFERENCE_BITMASK) << 5;
-
-	Packed[1] |= (uint(SuperRes.TexelToSample.x + SUPERRES_OFFSET_OFFSET) & SUPERRES_OFFSET_BITMASK) << 0 * SUPERRES_OFFSET_BITS;
-	Packed[1] |= (uint(SuperRes.TexelToSample.y + SUPERRES_OFFSET_OFFSET) & SUPERRES_OFFSET_BITMASK) << 1 * SUPERRES_OFFSET_BITS;
-
-	return Packed;
-}
-
-FSuperResHistory UnpackSuperResHistory(uint2 Packed)
-{
-	FSuperResHistory SuperRes;
-
-	SuperRes.Age = ((Packed[0] >> 0) & SUPERRES_AGE_BITMASK);
-	SuperRes.InterferenceSeed = taa_half((Packed[0] >> 5) & SUPERRES_INTERFERENCE_BITMASK) * rcp(taa_half(SUPERRES_INTERFERENCE_BITMASK));
-
-	SuperRes.TexelToSample.x = ((Packed[1] >> 0 * SUPERRES_OFFSET_BITS) & SUPERRES_OFFSET_BITMASK) - SUPERRES_OFFSET_OFFSET;
-	SuperRes.TexelToSample.y = ((Packed[1] >> 1 * SUPERRES_OFFSET_BITS) & SUPERRES_OFFSET_BITMASK) - SUPERRES_OFFSET_OFFSET;
-
-	return SuperRes;
-}
 
 #if COMPRESS_PREV_USE_COUNT
 

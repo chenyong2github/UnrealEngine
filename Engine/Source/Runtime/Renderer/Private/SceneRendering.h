@@ -911,10 +911,6 @@ struct FTSRHistory
 	// Non-filterable output resolution
 	TRefCountPtr<IPooledRenderTarget> SubpixelDetails;
 
-	// Super resolution informaiton
-	TStaticArray<TRefCountPtr<IPooledRenderTarget>, 1> LowResTextures;
-	TStaticArray<TRefCountPtr<IPooledRenderTarget>, 2> SuperResTextures;
-
 	FIntRect OutputViewportRect;
 
 

@@ -35,12 +35,9 @@ float3 OutputQuantizationError;
 Texture2D<taa_half3> InputTexture;
 Texture2D<taa_half3> PredictionSceneColorTexture;
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
-Texture2D<taa_half4> InterferenceSeedTexture;
-Texture2D<taa_half> InterferenceWeightTexture;
 
 RWTexture2D<taa_half3> FilteredInputOutput;
 RWTexture2D<taa_half3> FilteredPredictionSceneColorOutput;
-RWTexture2D<taa_half4> FilteredInterferenceSeedOutput;
 RWTexture2D<taa_half>  InputSceneColorLdrLumaOutput;
 
 
@@ -87,8 +84,6 @@ void MainCS(
 	taa_half4 FilteredInterferenceSeed;
 	taa_half FilteredInterferenceSeedWeight;
 
-	taa_half CenterSampleInterferenceWeight;
-
 	{
 		taa_half SampleSpatialWeight = 1.0;
 
@@ -96,10 +91,7 @@ void MainCS(
 		taa_half3 HistorySample = PredictionSceneColorTexture[InputPixelPos];
 		taa_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
 			ParallaxRejectionMaskTexture[InputPixelPos]);
-		taa_half4 InterferenceSeedSample = InterferenceSeedTexture[InputPixelPos];
 		
-		CenterSampleInterferenceWeight = InterferenceWeightTexture[InputPixelPos];
-
 		taa_half InputWeight = ComputeColorWeight(InputSample);
 		taa_half HistoryWeight = HistorySampleValidity * ComputeColorWeight(HistorySample);
 
@@ -110,13 +102,6 @@ void MainCS(
 		
 		FilteredHistory       = (SampleSpatialWeight * HistoryWeight) * HistorySample;
 		FilteredHistoryWeight = (SampleSpatialWeight * HistoryWeight);
-		
-		#if DIM_MOIRE_HEURISTIC
-		{
-			FilteredInterferenceSeed       = (SampleSpatialWeight * HistorySampleValidity) * InterferenceSeedSample;
-			FilteredInterferenceSeedWeight = (SampleSpatialWeight * HistorySampleValidity);
-		}
-		#endif
 	}
 	
 	uint StartSampleId;
@@ -194,48 +179,24 @@ void MainCS(
 		taa_half3 HistorySample = PredictionSceneColorTexture[SampleInputPixelPos];
 		taa_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
 			ParallaxRejectionMaskTexture[SampleInputPixelPos]);
-		taa_half4 InterferenceSeedSample = InterferenceSeedTexture[SampleInputPixelPos];
-
-		#if DIM_MOIRE_HEURISTIC
-			taa_half SampleInterferenceWeight = InterferenceWeightTexture[SampleInputPixelPos];
-			//SampleInterferenceWeight = 0.0; // TODO: need to dectect interference due to this pattern
-			//SampleInterferenceWeight = 1.0;
-
-			SampleInterferenceWeight = min(SampleInterferenceWeight, CenterSampleInterferenceWeight);
-		#else
-			taa_half SampleInterferenceWeight = taa_half(1.0);
-		#endif
 
 		#if CONFIG_SCENE_COLOR_OVERFLOW
 			InputSample = min(InputSample, LargestSceneColorRGB);
 		#endif
 
-		taa_half InputWeight = (HistorySampleValidity * SampleInterferenceWeight) * ComputeColorWeight(InputSample);
-		taa_half HistoryWeight = (HistorySampleValidity * SampleInterferenceWeight) * ComputeColorWeight(HistorySample);
+		taa_half InputWeight = HistorySampleValidity * ComputeColorWeight(InputSample);
+		taa_half HistoryWeight = HistorySampleValidity * ComputeColorWeight(HistorySample);
 
 		FilteredInput       += (SampleSpatialWeight * InputWeight) * InputSample;
 		FilteredInputWeight += (SampleSpatialWeight * InputWeight);
 		
 		FilteredHistory       += (SampleSpatialWeight * HistoryWeight) * HistorySample;
 		FilteredHistoryWeight += (SampleSpatialWeight * HistoryWeight);
-		
-		#if DIM_MOIRE_HEURISTIC
-		{
-			FilteredInterferenceSeed       += (SampleSpatialWeight * HistorySampleValidity * SampleInterferenceWeight) * InterferenceSeedSample;
-			FilteredInterferenceSeedWeight += (SampleSpatialWeight * HistorySampleValidity * SampleInterferenceWeight);
-		}
-		#endif
 	}
 
 	{
 		FilteredInput *= SafeRcp(FilteredInputWeight);
 		FilteredHistory *= SafeRcp(FilteredHistoryWeight);
-		
-		#if DIM_MOIRE_HEURISTIC
-		{
-			FilteredInterferenceSeed *= SafeRcp(FilteredInterferenceSeedWeight);
-		}
-		#endif
 	}
 	
 	// Compute the LDR luma used for spatial anti-aliasing's computation of the TexelOffset
@@ -284,12 +245,6 @@ void MainCS(
 
 	FilteredInputOutput[OutputPixelPos] = FilteredInput;
 	FilteredPredictionSceneColorOutput[OutputPixelPos] = FilteredHistory;
-	
-	#if DIM_MOIRE_HEURISTIC
-	{
-		FilteredInterferenceSeedOutput[OutputPixelPos] = FilteredInterferenceSeed;
-	}
-	#endif
 
 	#if DIM_OUTPUT_ANTI_ALIASING_LUMA
 	{

@@ -61,7 +61,6 @@ Texture2D<taa_half3> InputSceneColorTexture;
 Texture2D<uint2> InputSceneStencilTexture;
 Texture2D<taa_half4> InputSceneTranslucencyTexture;
 
-Texture2D<taa_half> InterferenceWeightTexture;
 Texture2D<taa_half> HistoryRejectionTexture;
 Texture2D<taa_half> TranslucencyRejectionTexture;
 
@@ -254,7 +253,6 @@ void MainCS(
 	taa_half2 LowFrequencyRejection = taa_half(1.0).xx;
 	taa_half2 TranslucencyRejection = taa_half(1.0).xx;
 	taa_half2 OutputPixelVelocity = taa_half(0.0).xx;
-	taa_half2 MoireWeight = taa_half(1.0).xx;
 	taa_half2 NoiseFiltering = taa_half(0.0).xx;
 	taa_half2x2 HoleFilledVelocityMask = dpv_interleave_mono_registers(taa_half(1.0).xx);
 	taa_subpixel_payload2 ParallaxFactorBits = taa_subpixel_payload(0x0).xx;
@@ -273,7 +271,6 @@ void MainCS(
 		taa_half RawLowFrequencyRejection[DPV_PIXEL_PER_LANE];
 		taa_half RawTranslucencyRejection[DPV_PIXEL_PER_LANE];
 		taa_half RawTranslucencyRejectionNeighborhood[CONFIG_SAMPLES - 1][DPV_PIXEL_PER_LANE];
-		taa_half RawMoireWeightNeighborhood[CONFIG_SAMPLES - 1][DPV_PIXEL_PER_LANE]; // TODO(TSR): bug
 		
 		uint RawSceneStencilRef[DPV_PIXEL_PER_LANE];
 		uint RawSceneStencilRefNeighborhood[CONFIG_SAMPLES - 1][DPV_PIXEL_PER_LANE];
@@ -331,10 +328,6 @@ void MainCS(
 				{
 					RawTranslucencyRejectionNeighborhood[NeighborId][PixelId] = TranslucencyRejectionTexture[dpv_access_pixel(SampleInputPixelPos, PixelId)];
 					RawSceneStencilRefNeighborhood[NeighborId][PixelId] = InputSceneStencilTexture.Load(int3(dpv_access_pixel(SampleInputPixelPos, PixelId), 0)) STENCIL_COMPONENT_SWIZZLE;
-			
-					#if DIM_MOIRE_HEURISTIC
-						RawMoireWeightNeighborhood[NeighborId][PixelId] = InterferenceWeightTexture[dpv_access_pixel(SampleInputPixelPos, PixelId)];
-					#endif
 				}
 			} // for (uint NeighborId = 0; NeighborId < (CONFIG_SAMPLES - 1); NeighborId++)
 			
@@ -420,10 +413,6 @@ void MainCS(
 				TranslucencyRejection = min(TranslucencyRejection, dpv_interleave_registers_array(RawTranslucencyRejectionNeighborhood[NeighborId]));
 			
 				SceneStencilRef |= dpv_interleave_registers_array(RawSceneStencilRefNeighborhood[NeighborId]);
-			
-				#if DIM_MOIRE_HEURISTIC
-					MoireWeight = min(MoireWeight, dpv_interleave_registers_array(RawMoireWeightNeighborhood[NeighborId]));
-				#endif
 			}
 		}
 
@@ -907,10 +896,6 @@ void MainCS(
 			PrevYCoCg, ClampedPrevYCoCg,
 			PrevHighFrequencyYCoCg, InputMinColor, InputMaxColor,
 			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevYCoCg[0], ClampedPrevYCoCg[0])));
-		
-		#if DIM_MOIRE_HEURISTIC
-			HighFrequencyRejection = max(HighFrequencyRejection, 1.0 - MoireWeight);
-		#endif
 
 		//PrevHighFrequencyColor = dpv_scale(PrevHighFrequencyColor, HighFrequencyRejection);
 		PrevHighFrequencyColor = dpv_scale(clamp(NormalizedPrevHighFrequencyColor, PrevHistoryMommentMin, PrevHistoryMommentMax), HighFrequencyRejection * PrevHistoryValidity);
@@ -991,11 +976,6 @@ void MainCS(
 		#if 1
 		{
 			taa_half2 MaxValidity = taa_half(1.0) - (taa_half(1.0) - PredictionOnlyValidity) * saturate(OutputPixelVelocity * taa_half(InvWeightClampingPixelSpeed));
-		
-			// Maintain full stability on interference areas.
-			#if DIM_MOIRE_HEURISTIC
-				MaxValidity = max(MaxValidity, 1.0 - MoireWeight);
-			#endif
 
 			// Clamp up the max validity to favorise stability under motion on high contrast edges.
 			#if 1
