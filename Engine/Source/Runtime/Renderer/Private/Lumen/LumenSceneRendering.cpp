@@ -342,7 +342,7 @@ bool Lumen::ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& Vi
 
 bool DoesRuntimePlatformSupportLumen()
 {
-	return GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_R16_UINT);
+	return RHIIsTypedUAVLoadSupported(PF_R16_UINT);
 }
 
 bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily, bool bSkipProjectCheck)
