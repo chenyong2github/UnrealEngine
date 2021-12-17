@@ -571,79 +571,18 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile()
 #if ALLOW_OTHER_PLATFORM_CONFIG
 void UDeviceProfileManager::ExpandDeviceProfileCVars(UDeviceProfile* DeviceProfile)
 {
-	// get the config system for the platform the DP uses
-	FConfigCacheIni* ConfigSystem = FConfigCacheIni::ForPlatform(*DeviceProfile->DeviceType);
-	check(ConfigSystem);
-
-	// walk up the chain cvar setBys and emulate what would happen on the target platform
-	FString Platform = DeviceProfile->DeviceType;
-
-	// now walk up the stack getting current values
-
-	// ECVF_SetByConstructor:
-	//   in PlatformIndependentDefault, used if getting a var but not in this DP
-
-	// ECVF_SetByScalability:
-	//	 skipped, i believe this is not really loaded as a normal layer per-se, it's up to the other sections to set with this one
-
-	// ECVF_SetByGameSetting:
-	//   skipped, since we don't have a user
-
-	const TCHAR* SectionNames[] = {
-		// ECVF_SetByProjectSetting:
-		TEXT("/Script/Engine.RendererSettings"),
-		TEXT("/Script/Engine.RendererOverrideSettings"),
-		TEXT("/Script/Engine.StreamingSettings"),
-		TEXT("/Script/Engine.GarbageCollectionSettings"),
-		TEXT("/Script/Engine.NetworkSettings"),
-
-		// ECVF_SetBySystemSettingsIni:
-		TEXT("SystemSettings"),
-		TEXT("ConsoleVariables"),
-	};
-
-	// go through possible cvar sections that the target platform would load and read all cvars in them
 	TMap<FString, FString> CVarsToAdd;
-	for (const TCHAR* SectionName : SectionNames)
-	{
-		FConfigSection* Section = ConfigSystem->GetSectionPrivate(SectionName, false, true, GEngineIni);
-		if (Section != nullptr)
+	IConsoleManager::VisitPlatformCVarsForEmulation(*DeviceProfile->DeviceType, false,
+		[&CVarsToAdd](const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)
 		{
-			// add the cvars from the section
-			for (const auto& Pair : *Section)
-			{
-				FString Key = Pair.Key.ToString();
-				FString Value = Pair.Value.GetValue();
-				if (Key.StartsWith(TEXT("sg.")))
-				{
-					// @todo ini: If anything in here was already set, overwrite it or skip it?
-					// the priorities may cause runtime to fail to set a cvar that this will set blindly, since we are ignoring
-					// priority by doing them "in order". Scalablity is one of the lowest priorities, so should almost never be allowed?
-					ExpandScalabilityCVar(ConfigSystem, Key, Value, CVarsToAdd, true);
-				}
-				CVarsToAdd.Add(Pair.Key.ToString(), Pair.Value.GetValue());
-			}
-		}
-	}
+			CVarsToAdd.Add(CVarName, CVarValue);
+		});
+
+	// we now have all the cvars for this platform without _any_ device profiles, so now add those into the map
 	DeviceProfile->AddExpandedCVars(CVarsToAdd);
 
-	// ECVF_SetByDeviceProfile:
+	// and finalize them into a cache
 	ProcessDeviceProfileIniSettings(DeviceProfile->GetName(), EDeviceProfileMode::DPM_CacheValues);
-
-	// ECVF_SetByGameOverride:
-	//   skipped, since we don't have a user
-
-	// ECVF_SetByConsoleVariablesIni:
-	//   maybe skip this? it's a weird one, but maybe?
-
-	// ECVF_SetByCommandline:
-	//   skip as this would not be expected to apply to emulation
-
-	// ECVF_SetByCode:
-	//   skip because it cannot be set by code
-
-	// ECVF_SetByConsole
-	//   we could have this if we made a per-platform CVar, not just the shared default value
 }
 #endif
 
@@ -1372,7 +1311,7 @@ void UDeviceProfileManager::GetAllPossibleParentProfiles(const UDeviceProfile* C
 
 
 #if ALLOW_OTHER_PLATFORM_CONFIG
-static bool GetCVarForPlatform( FOutputDevice& Ar, FString DPName, FString CVarName)
+static bool GetCVarForDeviceProfile( FOutputDevice& Ar, FString DPName, FString CVarName)
 {
 	UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(DPName, false);
 	if (DeviceProfile == nullptr)
@@ -1419,7 +1358,7 @@ public:
 				return false;
 			}
 
-			return GetCVarForPlatform(Ar, DPName, CVarName);
+			return GetCVarForDeviceProfile(Ar, DPName, CVarName);
 		}
 		else if (FParse::Command(&Cmd, TEXT("dpdump")))
 		{
