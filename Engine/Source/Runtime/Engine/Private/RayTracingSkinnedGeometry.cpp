@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RayTracingSkinnedGeometry.h"
-#include "RHI.h"
 
 #if RHI_RAYTRACING
 
 #include "RenderGraphBuilder.h"
+#include "RHI.h"
 
 DECLARE_GPU_STAT(SkinnedGeometryBuildBLAS);
 DECLARE_GPU_STAT(SkinnedGeometryUpdateBLAS);
