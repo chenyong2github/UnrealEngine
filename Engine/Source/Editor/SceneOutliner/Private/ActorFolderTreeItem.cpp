@@ -12,6 +12,7 @@
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
 #include "ActorDescTreeItem.h"
+#include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorFolderTreeItem"
 
@@ -276,6 +277,11 @@ void FActorFolderTreeItem::CreateSubFolder(TWeakPtr<SSceneOutliner> WeakOutliner
 TSharedRef<SWidget> FActorFolderTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 {
 	return SNew(SActorFolderTreeLabel, *this, Outliner, InRow);
+}
+
+bool FActorFolderTreeItem::ShouldShowPinnedState() const
+{
+	return GetRootObject() == FFolder::GetDefaultRootObject() && World.IsValid() && World->IsPartitionedWorld();
 }
 
 #undef LOCTEXT_NAMESPACE
