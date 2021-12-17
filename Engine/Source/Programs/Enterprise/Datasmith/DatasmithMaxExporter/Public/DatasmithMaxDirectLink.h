@@ -83,6 +83,8 @@ bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath); // Create exporter
 IExporter* GetExporter();
 void ShutdownExporter();
 bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet);
+void ShutdownScripts();
+
 
 IPersistentExportOptions& GetPersistentExportOptions();
 
@@ -418,6 +420,9 @@ void LogInfo(const FString& Msg);
 void LogDebugNode(const FString& Name, class INode* Node);
 void LogNodeEvent(const MCHAR* Name, INodeEventCallback::NodeKeyTab& nodes);
 void LogFlush();
+
+void LogWarningDialog(const TCHAR* Msg);
+void LogWarningDialog(const FString& Msg);
 
 }
 

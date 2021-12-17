@@ -3,15 +3,16 @@
 #ifdef NEW_DIRECTLINK_PLUGIN
 
 #include "DatasmithMaxDirectLink.h"
+#include "DatasmithMaxLogger.h"
 
-#include "DatasmithExporterManager.h"
-
-
-#include "Logging/LogMacros.h"
+#include "Async/Async.h"
+#include "Containers/Queue.h"
 
 #include "Resources/Windows/resource.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
+
+
 MAX_INCLUDES_START
 	#include "impexp.h"
 	#include "max.h"
@@ -24,8 +25,9 @@ MAX_INCLUDES_START
 	#include "maxscript\macros\define_instantiation_functions.h"
 
 	#include <maxicon.h>
-
 MAX_INCLUDES_END
+
+#include "windows.h"
 
 extern HINSTANCE HInstanceMax;
 
@@ -34,6 +36,8 @@ namespace DatasmithMaxDirectLink
 {
 
 /************************************* MaxScript exports *********************************/
+
+void InitScripts();
 
 Value* OnLoad_cf(Value**, int);
 Primitive OnLoad_pf(_M("Datasmith_OnLoad"), OnLoad_cf);
@@ -47,6 +51,8 @@ Value* OnLoad_cf(Value **arg_list, int count)
 	bool bEnableUI = pEnableUI->to_bool();
 
 	const TCHAR* EnginePathUnreal = (const TCHAR*)pEnginePath->to_string();
+
+	InitScripts();
 
 	if (CreateExporter(bEnableUI, EnginePathUnreal))
 	{
@@ -312,6 +318,126 @@ Value* LogInfo_cf(Value** arg_list, int count)
 }
 Primitive LogInfo_pf(_M("Datasmith_LogInfo"), LogInfo_cf);
 
+
+class FMessagesDialog
+{
+public:
+
+	~FMessagesDialog()
+	{
+		ensure(false);
+		if (Thread.IsValid())
+		{
+			ThreadEvent->Trigger();
+			Thread.Get();
+		}
+	}
+
+	static INT_PTR CALLBACK DlgProc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam)
+	{
+		switch (iMsg)
+		{
+			case WM_INITDIALOG:
+			{
+				return TRUE;
+			}
+
+			case WM_CLOSE:
+			{
+				ShowWindow(hDlg, SW_HIDE);
+				return FALSE;
+			}
+		};
+		return FALSE;
+	}
+
+	void PumpWindowMessages()
+	{
+		MSG Message;
+		// standard Windows message handling
+		while(PeekMessage(&Message, NULL, 0, 0, PM_REMOVE))
+		{
+			if (!IsDialogMessage(DialogHwnd, &Message))
+			{
+				TranslateMessage(&Message);
+				DispatchMessage(&Message);
+			}
+		}
+	}
+
+	void ProcessLogMessages()
+	{
+		if (Messages.IsEmpty())
+		{
+			return;
+		}
+
+		FString Message;
+		while(Messages.Dequeue(Message))
+		{
+			SendDlgItemMessage(DialogHwnd, IDC_ERROR_MSG_LIST, LB_ADDSTRING, NULL, reinterpret_cast<LPARAM>(*Message));
+		}
+
+		// Scroll message list to bottom
+		LRESULT ItemCount = SendDlgItemMessage(DialogHwnd, IDC_ERROR_MSG_LIST, LB_GETCOUNT,NULL,NULL);
+		SendDlgItemMessage(DialogHwnd, IDC_ERROR_MSG_LIST, LB_SETTOPINDEX,ItemCount-1,NULL);
+	}
+
+	void Toggle()
+	{
+		if (!bDialogCreated)
+		{
+			Thread = Async(EAsyncExecution::Thread,
+				[&, this]
+				{
+					DialogHwnd = CreateDialogParam(HInstanceMax, MAKEINTRESOURCE(IDD_ERROR_MSGS), GetCOREInterface()->GetMAXHWnd(), DlgProc, reinterpret_cast<LPARAM>(this));
+					while (true)
+					{
+						PumpWindowMessages();
+
+						ProcessLogMessages();
+
+						if (ThreadEvent->Wait(FTimespan::FromMilliseconds(10)))
+						{
+							DestroyWindow(DialogHwnd);
+							break;
+						}
+					}
+				}
+			);
+			bDialogCreated = true;
+		}
+		else
+		{
+			ShowWindow(DialogHwnd, IsWindowVisible(DialogHwnd) ? SW_HIDE : SW_SHOW);
+		}
+	}
+
+	void AddWarning(const TCHAR* Message)
+	{
+		Messages.Enqueue(Message);
+	}
+
+	bool bDialogCreated = false;
+	HWND DialogHwnd = NULL;
+	FEventRef ThreadEvent;
+	TFuture<void> Thread;
+
+	TQueue<FString> Messages;
+};
+
+TUniquePtr<FMessagesDialog> MessagesDialog;
+
+void LogWarningDialog(const FString& Msg)
+{
+	LogWarningDialog(*Msg);
+}
+
+void LogWarningDialog(const TCHAR* Msg)
+{
+	MessagesDialog->AddWarning(Msg);
+}
+
 // Setup ActionTable with Datasmith commands exposed as actions
 class FDatasmithActions
 {
@@ -388,12 +514,12 @@ public:
 		}
 	};
 
-
 	class FDatasmithActionCallback : public ActionCallback
 	{
 	public:
 
-		BOOL ExecuteAction (int ActionId) {
+		BOOL ExecuteAction (int ActionId)
+		{
 			LogDebug(FString::Printf(TEXT("Action: %d"), ActionId));
 
 			switch (ActionId)
@@ -435,6 +561,7 @@ public:
 			}
 			case ID_SHOWLOG_ACTION_ID:
 			{
+				MessagesDialog->Toggle();
 				return true;
 			}
 			}
@@ -444,7 +571,6 @@ public:
 
 	FDatasmithActions()
 		: Name(TEXT("Datasmith"))
-		, Table(Name)
 	{
 		// todo: localization of Name
 
@@ -462,23 +588,35 @@ public:
 			DATASMITH_ACTION(SHOWLOG),
 		};
 
-		Table.BuildActionTable(nullptr, sizeof(ActionsDescriptions) / sizeof(ActionsDescriptions[0]), ActionsDescriptions, HInstanceMax);
+		FDatasmithActionTable* Table = new FDatasmithActionTable(Name); // Table, registered with RegisterActionTable will be deallocated by Max
+
+		Table->BuildActionTable(nullptr, sizeof(ActionsDescriptions) / sizeof(ActionsDescriptions[0]), ActionsDescriptions, HInstanceMax);
 		GetCOREInterface()->GetActionManager()->RegisterActionContext(ActionContextId, Name.data());
 
 		// Register table - this needs to be called explicitly when action table is not returned to Max with ClassDesc's GetActionTable method
-		GetCOREInterface()->GetActionManager()->RegisterActionTable(&Table);
+		GetCOREInterface()->GetActionManager()->RegisterActionTable(Table); 
 
 		GetCOREInterface()->GetActionManager()->ActivateActionTable(&ActionCallback, ActionTableId);
 	}
 
 private:
 	TSTR Name;
-	FDatasmithActionTable Table;
 	FDatasmithActionCallback ActionCallback;
 };
 
 
 TUniquePtr<FDatasmithActions> Actions;
+
+void InitScripts()
+{
+	MessagesDialog.Reset(new FMessagesDialog);
+}
+
+void ShutdownScripts()
+{
+	MessagesDialog.Reset();
+	Actions.Reset();
+}
 
 Value* SetupActions_cf(Value** arg_list, int count)
 {
@@ -490,6 +628,19 @@ Value* SetupActions_cf(Value** arg_list, int count)
 	return bool_result(true);
 }
 Primitive SetupActions_pf(_M("Datasmith_SetupActions"), SetupActions_cf);
+
+
+Value* AddWarning_cf(Value**, int);
+Primitive AddWarning_pf(_M("Datasmith_AddWarning"), AddWarning_cf);
+
+Value* AddWarning_cf(Value** arg_list, int count)
+{
+	check_arg_count(AddWarning, 1, count);
+
+	MessagesDialog->AddWarning(arg_list[0]->to_string());
+
+	return bool_result(true);
+}
 
 
 }

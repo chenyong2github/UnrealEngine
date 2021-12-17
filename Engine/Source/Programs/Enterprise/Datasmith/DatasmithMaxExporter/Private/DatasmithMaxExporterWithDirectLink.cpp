@@ -1519,7 +1519,7 @@ public:
 				}
 				else
 				{
-					DatasmithMaxLogger::Get().AddUnsupportedLight(NodeTracker.Node);
+					LogWarningDialog(TEXT("Unsupported light: ") + DatasmithMaxLogger::Get().GetLightDescription(NodeTracker.Node));
 				}
 				return false;
 			}
@@ -2000,6 +2000,7 @@ bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath)
 
 void ShutdownExporter()
 {
+	ShutdownScripts();
 	Exporter.Reset();
 	FDatasmithDirectLink::Shutdown();
 	FDatasmithExporterManager::Shutdown();
