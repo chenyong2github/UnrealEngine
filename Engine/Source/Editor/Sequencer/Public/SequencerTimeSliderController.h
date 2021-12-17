@@ -23,6 +23,7 @@ class FSequencerTimeSliderController : public ITimeSliderController, public TSha
 {
 public:
 	FSequencerTimeSliderController( const FTimeSliderArgs& InArgs, TWeakPtr<FSequencer> InWeakSequencer );
+	~FSequencerTimeSliderController();
 
 	/**
 	* Determines the optimal spacing between tick marks in the slider for a given pixel density
@@ -66,7 +67,7 @@ public:
 	virtual FFrameTime GetScrubPosition() const override { return TimeSliderArgs.ScrubPosition.Get(FFrameTime()); }
 
 	/** Get the current time for the Scrub handle which indicates what range is being evaluated. */
-	virtual void SetScrubPosition(FFrameTime InTime) override { CommitScrubPosition(InTime, false); } 
+	virtual void SetScrubPosition(FFrameTime InTime, bool bEvaluate) override { CommitScrubPosition(InTime, false, bEvaluate); }
 
 	/**
 	 * Clamp the given range to the clamp range 
@@ -171,6 +172,12 @@ public:
 		}
 	};
 
+	/** Set that's evaluating */
+	void SetIsEvaluating()
+	{
+		bIsEvaluating = true;
+	}
+
 private:
 	// forward declared as class members to prevent name collision with similar types defined in other units
 	struct FDrawTickArgs;
@@ -180,8 +187,9 @@ private:
 	 *
 	 * @param NewValue				Value resulting from the user's interaction
 	 * @param bIsScrubbing			True if done via scrubbing, false if just releasing scrubbing
+	 * @param bEvaluate				If true evaluate, if not just change time
 	 */
-	void CommitScrubPosition( FFrameTime NewValue, bool bIsScrubbing );
+	void CommitScrubPosition( FFrameTime NewValue, bool bIsScrubbing, bool bEvaluate);
 
 	/**
 	 * Draw time tick marks
@@ -339,6 +347,9 @@ private:
 	/** When > 0, we should not show context menus */
 	int32 ContextMenuSuppression;
 	
+	/** If evaluating, if not we draw the time box to be yellow not default*/
+	bool bIsEvaluating = true;
+
 	friend FContextMenuSuppressor;
 	
 };

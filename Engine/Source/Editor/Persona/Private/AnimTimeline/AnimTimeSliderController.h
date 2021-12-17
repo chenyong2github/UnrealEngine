@@ -65,7 +65,7 @@ public:
 	virtual FAnimatedRange GetClampRange() const override { return TimeSliderArgs.ClampRange.Get(); }
 	virtual TRange<FFrameNumber> GetPlayRange() const override { return TimeSliderArgs.PlaybackRange.Get(TRange<FFrameNumber>()); }
 	virtual FFrameTime GetScrubPosition() const { return TimeSliderArgs.ScrubPosition.Get(); }
-	virtual void SetScrubPosition(FFrameTime InTime) { TimeSliderArgs.OnScrubPositionChanged.ExecuteIfBound(InTime, false); }
+	virtual void SetScrubPosition(FFrameTime InTime, bool bEvaluate) { TimeSliderArgs.OnScrubPositionChanged.ExecuteIfBound(InTime, false, bEvaluate); }
 	/** End ITimeSliderController Interface */
 
 	/**

@@ -43,7 +43,7 @@ enum class ENearestKeyOption : uint8
 };
 ENUM_CLASS_FLAGS(ENearestKeyOption);
 
-DECLARE_DELEGATE_TwoParams( FOnScrubPositionChanged, FFrameTime, bool )
+DECLARE_DELEGATE_ThreeParams( FOnScrubPositionChanged, FFrameTime, bool, bool )
 DECLARE_DELEGATE_TwoParams( FOnViewRangeChanged, TRange<double>, EViewRangeInterpolation )
 DECLARE_DELEGATE_OneParam( FOnTimeRangeChanged, TRange<double> )
 DECLARE_DELEGATE_OneParam( FOnFrameRangeChanged, TRange<FFrameNumber> )
@@ -283,7 +283,7 @@ public:
 	virtual FFrameTime GetScrubPosition() const { return FFrameTime(); }
 
 	/** Set the current time for the Scrub handle which indicates what range is being evaluated. */
-	virtual void SetScrubPosition(FFrameTime InTime) {}
+	virtual void SetScrubPosition(FFrameTime InTime, bool bEvaluate) {}
 
 	/**
 	 * Set a new range based on a min, max and an interpolation mode
