@@ -35,7 +35,7 @@ enum class EPlanetShape : uint8 {
 /**
  *
  */
-UCLASS(hidecategories=(Transform, Replication, Actor, LOD, Cooking))
+UCLASS(hidecategories=(Transform, Replication, Actor, Cooking))
 class GEOREFERENCING_API AGeoReferencingSystem : public AInfo
 {
 	GENERATED_BODY()

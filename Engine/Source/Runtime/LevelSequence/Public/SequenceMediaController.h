@@ -17,7 +17,7 @@ class UMediaPlayer;
 /**
  * Replicated actor class that is responsible for instigating various cinematic assets (Media, Audio, Level Sequences) in a synchronized fasion
  */
-UCLASS(hideCategories=(Rendering, Physics, LOD, Activation, Input, Collision))
+UCLASS(hideCategories=(Rendering, Physics, HLOD, Activation, Input, Collision))
 class LEVELSEQUENCE_API ALevelSequenceMediaController
 	: public AActor
 	, public IMovieSceneCustomClockSource

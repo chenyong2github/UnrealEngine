@@ -15,7 +15,7 @@ class ULevelVariantSets;
 class ULevelVariantSetsFunctionDirector;
 class UVariantSet;
 
-UCLASS(hideCategories=(Rendering, Physics, LOD, Activation, Input, Actor, Cooking))
+UCLASS(hideCategories=(Rendering, Physics, HLOD, Activation, Input, Actor, Cooking))
 class VARIANTMANAGERCONTENT_API ALevelVariantSetsActor : public AActor
 {
 public:
