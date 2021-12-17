@@ -4,6 +4,7 @@
 #include "rtc_base/location.h"
 #include "PixelStreamingSettings.h"
 #include "PixelStreamerDelegates.h"
+#include "Streamer.h"
 
 #define SUBMIT_TASK_WITH_RETURN(ReturnType, FuncWithReturnType) \
     if(this->IsInSignallingThread()) \
@@ -123,12 +124,23 @@ void FThreadSafePlayerSessions::SendUnfreezeFrame()
     SUBMIT_TASK_NO_PARAMS(SendUnfreezeFrame_SignallingThread)
 }
 
+void FThreadSafePlayerSessions::SendFileData(const TArray<uint8>& ByteData, const FString& MimeType, const FString& FileExtension)
+{
+    SUBMIT_TASK_WITH_PARAMS(SendFileData_SignallingThread, ByteData, MimeType, FileExtension)
+}
+
 webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession(FPlayerId PlayerId, 
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory,
     webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig,
-    FSignallingServerConnection* SignallingServerConnection)
+    FSignallingServerConnection* SignallingServerConnection,
+	int Flags)
 {
-    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(webrtc::PeerConnectionInterface*, CreatePlayerSession_SignallingThread, PlayerId, PeerConnectionFactory, PeerConnectionConfig, SignallingServerConnection)
+    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(webrtc::PeerConnectionInterface*, CreatePlayerSession_SignallingThread, PlayerId, PeerConnectionFactory, PeerConnectionConfig, SignallingServerConnection, Flags)
+}
+
+void FThreadSafePlayerSessions::SetPlayerSessionDataChannel(FPlayerId PlayerId, rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel)
+{
+    SUBMIT_TASK_WITH_PARAMS(SetPlayerSessionDataChannel_SignallingThread, PlayerId, DataChannel)
 }
 
 void FThreadSafePlayerSessions::DeleteAllPlayerSessions()
@@ -350,6 +362,19 @@ void FThreadSafePlayerSessions::SendFreezeFrame_SignallingThread(const TArray64<
 	}
 }
 
+void FThreadSafePlayerSessions::SendFileData_SignallingThread(const TArray<uint8>& ByteData, const FString& MimeType, const FString& FileExtension)
+{
+    checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
+
+	UE_LOG(PixelStreamer, Log, TEXT("Sending file with Mime type %s to all players: %d bytes"), *MimeType, ByteData.Num());
+    {
+        for(auto& PlayerEntry : this->Players)
+        {
+            PlayerEntry.Value->SendFileData(ByteData, MimeType, FileExtension);
+        }
+    }
+}
+
 void FThreadSafePlayerSessions::SendUnfreezeFrame_SignallingThread()
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
@@ -389,6 +414,15 @@ FPlayerSession* FThreadSafePlayerSessions::GetPlayerSession_SignallingThread(FPl
     return nullptr;
 }
 
+void FThreadSafePlayerSessions::SetPlayerSessionDataChannel_SignallingThread(FPlayerId PlayerId, rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel)
+{
+    FPlayerSession* Player = this->GetPlayerSession_SignallingThread(PlayerId);
+    if(Player)
+    {
+        Player->SetDataChannel(DataChannel);
+    }
+}
+
 void FThreadSafePlayerSessions::DeleteAllPlayerSessions_SignallingThread()
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
@@ -403,7 +437,7 @@ void FThreadSafePlayerSessions::DeleteAllPlayerSessions_SignallingThread()
         delete Player;
         bool bWasQualityController = this->QualityControllingPlayer == PlayerId;
 
-        if(Delegates)
+        if(Delegates && FModuleManager::Get().IsModuleLoaded("PixelStreaming"))
         {
             Delegates->OnClosedConnection.Broadcast(PlayerId, bWasQualityController);
         }
@@ -415,7 +449,7 @@ void FThreadSafePlayerSessions::DeleteAllPlayerSessions_SignallingThread()
     this->Players.Empty();
     this->QualityControllingPlayer = INVALID_PLAYER_ID;
 
-    if(Delegates)
+    if(Delegates && FModuleManager::Get().IsModuleLoaded("PixelStreaming"))
     {
         Delegates->OnAllConnectionsClosed.Broadcast();
     }
@@ -476,7 +510,8 @@ int FThreadSafePlayerSessions::DeletePlayerSession_SignallingThread(FPlayerId Pl
 webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession_SignallingThread(FPlayerId PlayerId, 
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory, 
     webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig,
-    FSignallingServerConnection* SignallingServerConnection)
+    FSignallingServerConnection* SignallingServerConnection,
+    int Flags)
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 	check(PeerConnectionFactory);
@@ -520,8 +555,12 @@ webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession_
 		Delegates->OnNewConnection.Broadcast(PlayerId, bMakeQualityController);
 	}
 
+    
+
     return PeerConnection.get();
 }
+
+
 
 void FThreadSafePlayerSessions::SetQualityController_SignallingThread(FPlayerId PlayerId)
 {

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingModule.h"
-#include "FreezeFrame.h"
 #include "Streamer.h"
 #include "InputDevice.h"
 #include "PixelStreamerInputComponent.h"
@@ -47,10 +46,11 @@
 
 DEFINE_LOG_CATEGORY(PixelStreaming);
 
+IPixelStreamingModule* FPixelStreamingModule::PixelStreamingModule = nullptr;
+
 namespace
 {
 	
-
 	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	// required for WMF video decoding
 	// some Windows versions don't have Media Foundation preinstalled. We configure MF DLLs as delay-loaded and load them manually here
@@ -140,9 +140,6 @@ void FPixelStreamingModule::InitStreamer()
 	// application-specific blueprint.
 	UPixelStreamerDelegates::CreateInstance();
 
-	// Allow Pixel Streaming to be frozen and a freeze frame image to be used
-	// instead of the video stream.
-	UFreezeFrame::CreateInstance();
 	verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
 
 	Streamer = MakeUnique<FStreamer>(SignallingServerURL, StreamerId);
@@ -187,6 +184,20 @@ void FPixelStreamingModule::ShutdownModule()
 	}
 
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
+}
+
+IPixelStreamingModule* FPixelStreamingModule::GetModule()
+{
+	if(PixelStreamingModule) 
+    {
+        return PixelStreamingModule;
+    }
+    IPixelStreamingModule* Module = FModuleManager::Get().LoadModulePtr<IPixelStreamingModule>("PixelStreaming");
+    if(Module)
+    {
+        PixelStreamingModule = Module;
+    }
+    return PixelStreamingModule;
 }
 
 bool FPixelStreamingModule::CheckPlatformCompatibility() const
@@ -301,9 +312,9 @@ void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
 			}
 			uint32 Width = Texture2DRHI->GetSizeX();
 			uint32 Height = Texture2DRHI->GetSizeY();
-			// Create empty texture
-			FRHIResourceCreateInfo CreateInfo(TEXT("FreezeFrameTexture"));
-			FTexture2DRHIRef DestTexture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Present, CreateInfo);
+			
+			FTexture2DRHIRef DestTexture = CreateTexture(Width, Height);
+			
 			FGPUFenceRHIRef CopyFence = GDynamicRHI->RHICreateGPUFence(*FString::Printf(TEXT("FreezeFrameFence")));
 
 			// Copy freeze frame texture to empty texture
@@ -408,6 +419,11 @@ void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rec
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("JPEG image wrapper failed to accept frame data"));
 	}
+}
+
+void FPixelStreamingModule::SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension)
+{	
+	Streamer->SendFileData(ByteData, MimeType, FileExtension);
 }
 
 bool FPixelStreamingModule::IsTickableWhenPaused() const

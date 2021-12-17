@@ -80,6 +80,12 @@ public:
 	 * Unfreeze Pixel Streaming.
 	 */
 	virtual void UnfreezeFrame() = 0;
+
+	/**
+	 * Send a file to the browser where we are sending video.
+	 * @param FilePath - The freeze frame to display. If null then the back buffer is captured.
+	 */
+	virtual void SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension) = 0;
 	
 	/**
 	 * Get the audio sink associated with a specific peer/player.

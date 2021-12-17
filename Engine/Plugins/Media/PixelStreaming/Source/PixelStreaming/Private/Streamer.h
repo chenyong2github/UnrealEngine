@@ -30,6 +30,7 @@ public:
 	void SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor);
 	void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
 	void SendUnfreezeFrame();
+	void SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension);
 	void ForceKeyFrame();
 
 	bool IsStreaming() const { return bStreamingStarted; }

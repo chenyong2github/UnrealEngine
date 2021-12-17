@@ -11,6 +11,7 @@
 #include "PixelStreamingAudioSink.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "SignallingServerConnection.h"
+#include "Async/Async.h"
 #include "WebRtcObservers.h"
 
 FPlayerSession::FPlayerSession(IPixelStreamingSessions* InSessions, FSignallingServerConnection* InSignallingServerConnection, FPlayerId InPlayerId)
@@ -50,6 +51,11 @@ webrtc::PeerConnectionInterface& FPlayerSession::GetPeerConnection()
 void FPlayerSession::SetPeerConnection(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& InPeerConnection)
 {
 	PeerConnection = InPeerConnection;
+}
+
+void FPlayerSession::SetDataChannel(const rtc::scoped_refptr<webrtc::DataChannelInterface>& InDataChannel)
+{
+	DataChannel = InDataChannel;
 }
 
 FPlayerId FPlayerSession::GetPlayerId() const
@@ -118,7 +124,7 @@ FPixelStreamingAudioSink& FPlayerSession::GetAudioSink()
 
 bool FPlayerSession::SendMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const
 {
-	if (!DataChannel)
+	if (!this->DataChannel)
 	{
 		return false;
 	}
@@ -132,12 +138,12 @@ bool FPlayerSession::SendMessage(PixelStreamingProtocol::EToPlayerMsg Type, cons
 	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
 	Pos = SerializeToBuffer(Buffer, Pos, *Descriptor, DescriptorSize);
 
-	return DataChannel->Send(webrtc::DataBuffer(Buffer, true));
+	return this->DataChannel->Send(webrtc::DataBuffer(Buffer, true));
 }
 
 void FPlayerSession::SendQualityControlStatus(bool bIsQualityController) const
 {
-	if (!DataChannel)
+	if (!this->DataChannel)
 	{
 		return;
 	}
@@ -151,7 +157,7 @@ void FPlayerSession::SendQualityControlStatus(bool bIsQualityController) const
 	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
 	Pos = SerializeToBuffer(Buffer, Pos, &ControlsQuality, sizeof(ControlsQuality));
 
-	if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
+	if (!this->DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("failed to send quality control status"));
 	}
@@ -159,60 +165,25 @@ void FPlayerSession::SendQualityControlStatus(bool bIsQualityController) const
 
 void FPlayerSession::SendFreezeFrame(const TArray64<uint8>& JpegBytes) const
 {
-	if (!DataChannel)
+	SendArbitraryData(this->DataChannel, static_cast<TArray<uint8>>(JpegBytes), static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::FreezeFrame));
+}
+
+void FPlayerSession::SendFileData(const TArray<uint8>& ByteData, const FString& MimeType, const FString& FileExtension) const
+{
+	// Send the mime type first
+	FPlayerSession::SendMessage(PixelStreamingProtocol::EToPlayerMsg::FileMimeType, MimeType);
+	// Send the extension next
+	FPlayerSession::SendMessage(PixelStreamingProtocol::EToPlayerMsg::FileExtension, FileExtension);
+	// Send the contents of the file
+	AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [&, ByteData]()
 	{
-		return;
-	}
-
-	// just a sanity check. WebRTC buffer size is 16MB, which translates to 3840Mbps for 30fps video. It's not expected
-	// that freeze frame size will come close to this limit and it's not expected we'll send freeze frames too often.
-	// if this fails check that you send compressed image or that you don't do this too often (like 30fps or more)
-	if (DataChannel->buffered_amount() + JpegBytes.Num() >= 16 * 1024 * 1024)
-	{
-		UE_LOG(PixelStreamer, Error, TEXT("Freeze frame too big: image size %d, buffered amount %d"), JpegBytes.Num(), DataChannel->buffered_amount());
-		return;
-	}
-
-	const uint8 MessageType = static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::FreezeFrame);
-	const int32 JpegSize = JpegBytes.Num();
-
-	// Maximum size of a single buffer should be 16KB as this is spec compliant message length for a single data channel transmission
-	const int32 MaxBufferBytes = 16 * 1024;
-	const int32 MessageHeader = sizeof(MessageType) + sizeof(JpegSize);
-	const int32 MaxJpegBytesPerMsg = MaxBufferBytes - MessageHeader;
-
-	int32 JpegBytesTransmitted = 0;
-
-	while(JpegBytesTransmitted < JpegSize)
-	{
-		int32 RemainingJpegBytes = JpegSize - JpegBytesTransmitted;
-		int32 JpegBytesToTransmit =  FGenericPlatformMath::Min(MaxJpegBytesPerMsg, RemainingJpegBytes);
-
-		rtc::CopyOnWriteBuffer Buffer(MessageHeader + JpegBytesToTransmit);
-
-		size_t Pos = 0;
-
-		// Write message type as FreezeFrame
-		Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
-		// Write size of FreezeFrame payload
-		Pos = SerializeToBuffer(Buffer, Pos, &JpegSize, sizeof(JpegSize));
-		// Write the jpeg bytes payload
-		Pos = SerializeToBuffer(Buffer, Pos, JpegBytes.GetData() + JpegBytesTransmitted, JpegBytesToTransmit);
-
-		if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
-		{
-			UE_LOG(PixelStreamer, Error, TEXT("failed to send freeze frame"));
-			return;
-		}
-
-		// Increment the number of bytes we have transmitted
-		JpegBytesTransmitted += JpegBytesToTransmit; 
-	}
+		SendArbitraryData(this->DataChannel, ByteData, static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::FileContents));
+	});
 }
 
 void FPlayerSession::SendUnfreezeFrame() const
 {
-	if (!DataChannel)
+	if (!this->DataChannel)
 	{
 		return;
 	}
@@ -224,7 +195,7 @@ void FPlayerSession::SendUnfreezeFrame() const
 	size_t Pos = 0;
 	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
 
-	if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
+	if (!this->DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("failed to send unfreeze frame"));
 	}
@@ -253,7 +224,7 @@ void FPlayerSession::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterf
 void FPlayerSession::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel)
 {
 	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%s"), TEXT("FPlayerSession::OnDataChannel"), *PlayerId);
-	DataChannel = InDataChannel;
+	this->DataChannel = InDataChannel;
 	this->DataChannelObserver.Register(InDataChannel);
 }
 

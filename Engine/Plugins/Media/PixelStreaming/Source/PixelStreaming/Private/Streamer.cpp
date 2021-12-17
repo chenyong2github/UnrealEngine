@@ -161,23 +161,26 @@ webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, in
 	webrtc::PeerConnectionInterface* PeerConnection = PlayerSessions.CreatePlayerSession(PlayerId, 
 		PeerConnectionFactory, 
 		PeerConnectionConfig, 
-		SignallingServerConnection.Get());
+		SignallingServerConnection.Get(),
+		Flags);
 	
 	if (PeerConnection != nullptr)
 	{
-		if ((Flags & PSPFlag_SupportsDataChannel) != 0)
+		if ((Flags & PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_SupportsDataChannel) != PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_None)
 		{
 			webrtc::DataChannelInit DataChannelConfig;
 			DataChannelConfig.reliable = true;
 			DataChannelConfig.ordered = true;
 
 			rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel = PeerConnection->CreateDataChannel("datachannel", &DataChannelConfig);
+			PlayerSessions.SetPlayerSessionDataChannel(PlayerId, DataChannel);
 
 			// Bind to the on data channel open delegate (we use this as the earliest time peer is ready for freeze frame)
 			FPixelStreamingDataChannelObserver* DataChannelObserver = PlayerSessions.GetDataChannelObserver(PlayerId);
 			check(DataChannelObserver);
 			DataChannelObserver->OnDataChannelOpen.AddRaw(this, &FStreamer::OnDataChannelOpen);
 			DataChannelObserver->Register(DataChannel);
+			
 		}
 
 		AddStreams(PlayerId, PeerConnection, Flags);
@@ -190,7 +193,7 @@ void FStreamer::OnSessionDescription(FPlayerId PlayerId, webrtc::SdpType Type, c
 {
 	if (Type == webrtc::SdpType::kOffer)
 	{
-		if (webrtc::PeerConnectionInterface* PeerConnection = CreateSession(PlayerId, PSPFlag_SupportsDataChannel))
+		if (webrtc::PeerConnectionInterface* PeerConnection = CreateSession(PlayerId, PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_SupportsDataChannel))
 		{
 			webrtc::SdpParseError Error;
 			std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc = webrtc::CreateSessionDescription(Type, to_string(Sdp), &Error);
@@ -658,4 +661,9 @@ void FStreamer::SendUnfreezeFrame()
 	this->PlayerSessions.SendUnfreezeFrame();
 	
 	CachedJpegBytes.Empty();
+}
+
+void FStreamer::SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension)
+{
+	this->PlayerSessions.SendFileData(ByteData, MimeType, FileExtension);
 }

@@ -9,13 +9,6 @@
 #include "PlayerId.h"
 #include "PixelStreamingDataChannelObserver.h"
 
-enum FPixelStreamingPlayerFlags
-{
-	PSPFlag_None = 0,
-	PSPFlag_SupportsDataChannel = 1,
-	PSPFlag_IsSFU = 2,
-};
-
 class FSignallingServerConnection;
 class IPixelStreamingSessions;
 
@@ -28,6 +21,7 @@ public:
 
 	webrtc::PeerConnectionInterface& GetPeerConnection();
 	void SetPeerConnection(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& InPeerConnection);
+	void SetDataChannel(const rtc::scoped_refptr<webrtc::DataChannelInterface>& InDataChannel);
 	
 	FPlayerId GetPlayerId() const;
 
@@ -41,6 +35,7 @@ public:
 
 	void SendQualityControlStatus(bool bIsQualityController) const;
 	void SendFreezeFrame(const TArray64<uint8>& JpegBytes) const;
+	void SendFileData(const TArray<uint8>& ByteData, const FString& MimeType, const FString& FileExtension) const;
 	void SendUnfreezeFrame() const;
 	void SendVideoEncoderQP(double QP) const;
 	FPixelStreamingDataChannelObserver& GetDataChannelObserver();
@@ -76,3 +71,4 @@ private:
 	FThreadSafeBool bDisconnecting = false;
 	FPixelStreamingAudioSink AudioSink;
 };
+

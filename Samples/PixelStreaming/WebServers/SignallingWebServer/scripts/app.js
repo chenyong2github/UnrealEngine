@@ -40,6 +40,16 @@ let freezeFrame = {
     valid: false
 };
 
+let file = {
+    mimetype: "",
+    extension: "",
+	receiving: false,
+    size: 0,
+    data: [],
+    valid: false,
+    timestampStart: undefined
+};
+
 // Optionally detect if the user is not interacting (AFK) and disconnect them.
 let afk = {
     enabled: false,   // Set to true to enable the AFK system.
@@ -77,6 +87,10 @@ function scanGamepads() {
     }
 }
 
+var script = document.createElement('script');
+script.src = 'https://code.jquery.com/jquery-3.4.1.min.js';
+script.type = 'text/javascript';
+document.getElementsByTagName('head')[0].appendChild(script);
 
 function updateStatus() {
     scanGamepads();
@@ -293,7 +307,6 @@ function setupHtmlEvents() {
         };
     }
 
-    // Todo: This should be removed or updated for UE5.
     let latencyButton = document.getElementById('test-latency-button');
     if (latencyButton) {
         latencyButton.onclick = () => {
@@ -566,7 +579,10 @@ const ToClientMessageType = {
     UnfreezeFrame: 4,
     VideoEncoderAvgQP: 5,
     LatencyTest: 6,
-    InitialSettings: 7
+    InitialSettings: 7,
+    FileExtension: 8,
+    FileMimeType: 9,
+    FileContents: 10
 };
 
 let VideoEncoderQP = "N/A";
@@ -640,6 +656,94 @@ function setupWebRtcPlayer(htmlElement, config) {
             }
             webRtcPlayerObj.setVideoEnabled(false);
         };
+    }
+
+    
+
+    function processFileExtension(view) {
+        // Reset file if we got a file message and we are not "receiving" it yet
+        if(!file.receiving)
+        {
+            file.mimetype = "";
+            file.extension = "";
+            file.receiving = true;
+            file.valid = false;
+            file.size = 0;
+            file.data = [];
+            file.timestampStart = (new Date()).getTime();
+            console.log('Received first chunk of file'); 
+        }
+
+        let extensionAsString = new TextDecoder("utf-16").decode(view.slice(1));
+        console.log(extensionAsString);
+        file.extension = extensionAsString;
+    }
+
+    function processFileMimeType(view) {
+        // Reset file if we got a file message and we are not "receiving" it yet
+        if(!file.receiving)
+        {
+            file.mimetype = "";
+            file.extension = "";
+            file.receiving = true;
+            file.valid = false;
+            file.size = 0;
+            file.data = [];
+            file.timestampStart = (new Date()).getTime();
+            console.log('Received first chunk of file'); 
+        }
+
+        let mimeAsString = new TextDecoder("utf-16").decode(view.slice(1));
+        console.log(mimeAsString);
+        file.mimetype = mimeAsString;
+    }
+
+
+    function processFileContents(view) {
+        // If we haven't received the intial setup instructions, return
+        if(!file.receiving) return;
+
+        // Extract the toal size of the file (across all chunks)
+        file.size = Math.ceil((new DataView(view.slice(1, 5).buffer)).getInt32(0, true) / 16379 /* The maximum number of payload bits per message*/);
+        
+        // Get the file part of the payload
+        let fileBytes = view.slice(1 + 4);
+
+        // Append to existing data that holds the file
+        file.data.push(fileBytes);
+        
+        // Uncomment for debug
+        console.log(`Received file chunk: ${ file.data.length }/${ file.size }`);
+
+        if(file.data.length === file.size)
+        {
+            file.receiving = false;
+            file.valid = true;
+            console.log("Received complete file")
+            const transferDuration = ((new Date()).getTime() - file.timestampStart);
+            const transferBitrate = Math.round(file.size * 16 * 1024  / transferDuration);
+            console.log(`Average transfer bitrate: ${transferBitrate}kb/s over ${transferDuration / 1000} seconds`);
+
+            // File reconstruction
+            /**
+             * Example code to reconstruct the file
+             * 
+             * This code reconstructs the received data into the original file based on the mime type and extension provided and then downloads the reconstructed file
+             */
+            var received = new Blob(file.data, { type: file.mimetype })
+            var a = document.createElement('a');
+            a.setAttribute('href', URL.createObjectURL(received));
+            a.setAttribute('download', `transfer.${file.extension}`);
+            var aj = $(a);
+            aj.appendTo('body');
+            // aj[0].click();
+            aj.remove();
+        } 
+        else if(file.data.length > file.size)
+        {
+            file.receiving = false;
+            console.error(`Received bigger file than advertised: ${file.data.length}/${file.size}`);
+        }
     }
 
     function processFreezeFrameMessage(view) {
@@ -749,12 +853,18 @@ function setupWebRtcPlayer(htmlElement, config) {
             }
             if (settingsJSON.WebRTC) {
                 document.getElementById('webrtc-degradation-pref').value = settingsJSON.WebRTC.DegradationPref;
-                document.getElementById("webrtc-max-fps-text").value = settingsJSON.WebRTC.MaxFPS;
+                document.getElementById("webrtc-fps-text").value = settingsJSON.WebRTC.MaxFPS;
                 document.getElementById("webrtc-min-bitrate-text").value = settingsJSON.WebRTC.MinBitrate / 1000;
                 document.getElementById("webrtc-max-bitrate-text").value = settingsJSON.WebRTC.MaxBitrate / 1000;
                 document.getElementById("webrtc-low-qp-text").value = settingsJSON.WebRTC.LowQP;
                 document.getElementById("webrtc-high-qp-text").value = settingsJSON.WebRTC.HighQP;
             }
+        } else if (view[0] == ToClientMessageType.FileExtension) {
+            processFileExtension(view);
+        } else if (view[0] == ToClientMessageType.FileMimeType) {
+            processFileMimeType(view);
+        } else if (view[0] == ToClientMessageType.FileContents) {
+            processFileContents(view);
         } else {
             console.error(`unrecognized data received, packet ID ${view[0]}`);
         }

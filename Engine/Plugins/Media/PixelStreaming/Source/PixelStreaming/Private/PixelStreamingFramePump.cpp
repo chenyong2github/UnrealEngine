@@ -42,7 +42,7 @@ FPlayerVideoSource* FPixelStreamingFramePump::CreatePlayerVideoSource(FPlayerId 
 		NewSource = PlayerVideoSources[PlayerId].Get();
 	}
 
-	if ((Flags & PSPFlag_IsSFU) != 0)
+	if ((Flags & PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_IsSFU) != PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_None)
 	{
 		ElevatedPlayerId = PlayerId;
 	}

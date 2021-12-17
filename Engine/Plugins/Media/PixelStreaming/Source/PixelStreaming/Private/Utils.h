@@ -10,6 +10,7 @@
 #include "Linux/LinuxPlatformMisc.h"
 #endif
 
+#include "RHI.h"
 #include "Containers/StringConv.h"
 #include "Containers/UnrealString.h"
 #include "Templates/SharedPointer.h"
@@ -24,6 +25,9 @@
 #include "ScreenRendering.h"
 #include "RHIStaticStates.h"
 #include "Modules/ModuleManager.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
+#include "PixelStreamingPrivate.h"
+#include "Async/Async.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 inline bool IsWindows7Plus()
@@ -234,5 +238,80 @@ inline void CopyTexture(FTexture2DRHIRef SourceTexture, FTexture2DRHIRef Destina
 	RHICmdList.WriteGPUFence(CopyFence);
 
 	RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
+}
+
+inline size_t SerializeToBuffer(rtc::CopyOnWriteBuffer& Buffer, size_t Pos, const void* Data, size_t DataSize)
+{
+	FMemory::Memcpy(&Buffer[Pos], reinterpret_cast<const uint8_t*>(Data), DataSize);
+	return Pos + DataSize;
+}
+
+inline void SendArbitraryData(rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel, const TArray<uint8>& DataBytes, const uint8 MessageType)
+{
+	if(!DataChannel)
+	{
+		return;
+	}
+
+	// int32 results in a maximum 4GB file (4,294,967,296 bytes)
+	const int32 DataSize = DataBytes.Num();
+
+	// Maximum size of a single buffer should be 16KB as this is spec compliant message length for a single data channel transmission
+	const int32 MaxBufferBytes = 16 * 1024;
+	const int32 MessageHeader = sizeof(MessageType) + sizeof(DataSize);
+	const int32 MaxDataBytesPerMsg = MaxBufferBytes - MessageHeader;
+
+	int32 BytesTransmitted = 0;
+	
+	while(BytesTransmitted < DataSize)
+	{
+		int32 RemainingBytes = DataSize - BytesTransmitted;
+		int32 BytesToTransmit = FGenericPlatformMath::Min(MaxDataBytesPerMsg, RemainingBytes);
+		
+		rtc::CopyOnWriteBuffer Buffer(MessageHeader + BytesToTransmit);
+
+		size_t Pos = 0;
+
+		// Write message type
+		Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+		// Write size of payload
+		Pos = SerializeToBuffer(Buffer, Pos, &DataSize, sizeof(DataSize));
+		// Write the data bytes payload
+		Pos = SerializeToBuffer(Buffer, Pos, DataBytes.GetData() + BytesTransmitted, BytesToTransmit);
+
+		uint64_t BufferBefore = DataChannel->buffered_amount();
+		while(BufferBefore + BytesToTransmit >= 16 * 1024 * 1024) // 16MB (WebRTC Data Channel buffer size)
+		{	
+			FPlatformProcess::Sleep(0.000001f); // sleep 1 microsecond
+			BufferBefore = DataChannel->buffered_amount();
+		}
+
+		if(!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
+		{
+			UE_LOG(PixelStreamer, Error, TEXT("Failed to send data channel packet"));
+			return;
+		}
+
+		// Increment the number of bytes transmitted
+		BytesTransmitted += BytesToTransmit;
+	}
+}
+
+inline FTexture2DRHIRef CreateTexture(uint32 Width, uint32 Height)
+{
+	// Create empty texture
+	FRHIResourceCreateInfo CreateInfo(TEXT("BlankTexture"));
+
+	FTexture2DRHIRef Texture;
+	FString RHIName = GDynamicRHI->GetName();
+
+	if(RHIName == TEXT("Vulkan")) {
+		Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable | TexCreate_External, ERHIAccess::Present, CreateInfo);
+	} 
+	else
+	{
+		Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
+	}
+	return Texture;
 }
 

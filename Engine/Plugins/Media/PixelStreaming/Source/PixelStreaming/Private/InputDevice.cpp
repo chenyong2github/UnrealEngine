@@ -121,7 +121,7 @@ FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& 
 	, bAllowCommands(PixelStreamingSettings::IsAllowPixelStreamingCommands())
 	, bFakingTouchEvents(FSlateApplication::Get().IsFakingTouchEvents())
 	, FocusedPos(UnfocusedPos)
-	, PixelStreamingModule(FModuleManager::Get().GetModulePtr<IPixelStreamingModule>("PixelStreaming"))
+	, PixelStreamingModule(FPixelStreamingModule::GetModule())
 {
 	if (GEngine->GameViewport && !GEngine->GameViewport->HasSoftwareCursor(EMouseCursor::Default))
 	{

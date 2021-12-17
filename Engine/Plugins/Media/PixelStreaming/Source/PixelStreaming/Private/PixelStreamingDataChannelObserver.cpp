@@ -7,6 +7,7 @@
 #include "InputDevice.h"
 #include "Modules/ModuleManager.h"
 #include "IPixelStreamingModule.h"
+#include "PixelStreamingModule.h"
 #include "HAL/PlatformTime.h"
 #include "IPixelStreamingSessions.h"
 
@@ -14,7 +15,7 @@
 FPixelStreamingDataChannelObserver::FPixelStreamingDataChannelObserver(IPixelStreamingSessions* InPlayerSessions, FPlayerId InPlayerId)
     : PlayerSessions(InPlayerSessions)
     , PlayerId(InPlayerId)
-    , InputDevice(FModuleManager::Get().GetModuleChecked<IPixelStreamingModule>("PixelStreaming").GetInputDevice())
+    , InputDevice(FPixelStreamingModule::GetModule()->GetInputDevice())
 {
 
 }

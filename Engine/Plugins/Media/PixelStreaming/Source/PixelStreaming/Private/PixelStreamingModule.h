@@ -20,6 +20,9 @@ class SWindow;
  */
 class FPixelStreamingModule : public IPixelStreamingModule, public FTickableGameObject
 {
+public:
+	static IPixelStreamingModule* GetModule();
+
 private:
 	/** IModuleInterface implementation */
 	void StartupModule() override;
@@ -60,6 +63,7 @@ private:
 	void OnGameModePostLogin(AGameModeBase* GameMode, APlayerController* NewPlayer);
 	void OnGameModeLogout(AGameModeBase* GameMode, AController* Exiting);
 	void SendJpeg(TArray<FColor> RawData, const FIntRect& Rect);
+	void SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension);
 
 	void InitStreamer();
 
@@ -70,4 +74,5 @@ private:
 	bool bFrozen = false;
 	bool bCaptureNextBackBufferAndStream = false;
 	double LastVideoEncoderQPReportTime = 0;
+	static IPixelStreamingModule* PixelStreamingModule;
 };
