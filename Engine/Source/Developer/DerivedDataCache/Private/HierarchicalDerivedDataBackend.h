@@ -48,12 +48,6 @@ public:
 		UpdateAsyncInnerBackends();
 	}
 
-	/** Return a type for this interface */
-	virtual FString GetDisplayName() const override
-	{
-		return TEXT("Hierarchical");
-	}
-
 	/** Return a name for this interface */
 	virtual FString GetName() const override
 	{
@@ -463,7 +457,8 @@ public:
 
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
-		TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, TEXT("Hierarchical"));
+		TSharedRef<FDerivedDataCacheStatsNode> Usage =
+			MakeShared<FDerivedDataCacheStatsNode>(TEXT("Hierarchical"), TEXT(""), /*bIsLocal*/ true);
 		Usage->Stats.Add(TEXT(""), UsageStats);
 
 		FReadScopeLock LockScope(Lock);

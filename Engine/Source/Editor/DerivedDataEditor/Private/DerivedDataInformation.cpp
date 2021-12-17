@@ -4,7 +4,6 @@
 #include "SDerivedDataStatusBar.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataCacheInterface.h"
-#include "DerivedDataBackendInterface.h"
 #include "Settings/EditorProjectSettings.h"
 #include "Settings/EditorSettings.h"
 #include "ToolMenus.h"
@@ -18,29 +17,32 @@ bool FDerivedDataInformation::bIsUploading = false;
 FText FDerivedDataInformation::RemoteCacheWarningMessage;
 ERemoteCacheState FDerivedDataInformation::RemoteCacheState= ERemoteCacheState::Unavailable;
 
-double FDerivedDataInformation::GetCacheActivitySizeBytes(bool bGet, bool bLocal)
+static TArray<TSharedRef<const FDerivedDataCacheStatsNode>> GetCacheUsageStats()
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
-	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
-		if (Node->Children.Num() == 0)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCacheRef().GatherUsageStats();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
+	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node)
+	{
+		if (Node->Children.IsEmpty())
 		{
 			LeafUsageStats.Add(Node);
 		}
-		});
+	});
+	return LeafUsageStats;
+}
 
+double FDerivedDataInformation::GetCacheActivitySizeBytes(bool bGet, bool bLocal)
+{
 	int64 TotalBytes = 0;
 
-	for (int32 Index = 0; Index < LeafUsageStats.Num(); Index++)
+	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 	{
-		const FDerivedDataBackendInterface* Backend = LeafUsageStats[Index]->GetBackendInterface();
-
-		if (Backend->IsRemote() == bLocal)
+		if (Usage->IsLocal() != bLocal)
+		{
 			continue;
-
-		TSharedRef<FDerivedDataCacheStatsNode> Usage = Backend->GatherUsageStats();
+		}
 
 		for (const auto& KVP : Usage->Stats)
 		{
@@ -63,27 +65,14 @@ double FDerivedDataInformation::GetCacheActivitySizeBytes(bool bGet, bool bLocal
 
 double FDerivedDataInformation::GetCacheActivityTimeSeconds(bool bGet, bool bLocal)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
-	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
-		if (Node->Children.Num() == 0)
-		{
-			LeafUsageStats.Add(Node);
-		}
-		});
-
 	int64 TotalCycles = 0;
 
-	for (int32 Index = 0; Index < LeafUsageStats.Num(); Index++)
+	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 	{
-		const FDerivedDataBackendInterface* Backend = LeafUsageStats[Index]->GetBackendInterface();
-
-		if (Backend->IsRemote() == bLocal)
+		if (Usage->IsLocal() != bLocal)
+		{
 			continue;
-
-		TSharedRef<FDerivedDataCacheStatsNode> Usage = Backend->GatherUsageStats();
+		}
 
 		for (const auto& KVP : Usage->Stats)
 		{
@@ -113,73 +102,37 @@ double FDerivedDataInformation::GetCacheActivityTimeSeconds(bool bGet, bool bLoc
 
 bool FDerivedDataInformation::GetHasRemoteCache()
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
-	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
-		if (Node->Children.Num() == 0)
-		{
-			LeafUsageStats.Add(Node);
-		}
-		});
-
-	for (int32 Index = 0; Index < LeafUsageStats.Num(); Index++)
+	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 	{
-		const FDerivedDataBackendInterface* Backend = LeafUsageStats[Index]->GetBackendInterface();
-
-		if (Backend->IsRemote())
+		if (!Usage->IsLocal())
+		{
 			return true;
+		}
 	}
-
 	return false;
 }
 
 bool FDerivedDataInformation::GetHasZenCache()
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
-	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
-		if (Node->Children.Num() == 0)
-		{
-			LeafUsageStats.Add(Node);
-		}
-		});
-
-	for (int32 Index = 0; Index < LeafUsageStats.Num(); Index++)
+	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 	{
-		const FDerivedDataBackendInterface* Backend = LeafUsageStats[Index]->GetBackendInterface();
-
-		if (Backend->GetDisplayName().Equals("Zen"))
+		if (Usage->GetCacheType().Equals(TEXT("Zen")))
+		{
 			return true;
+		}
 	}
-
 	return false;
 }
 
 bool FDerivedDataInformation::GetHasHordeStorageCache()
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
-	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
-		if (Node->Children.Num() == 0)
-		{
-			LeafUsageStats.Add(Node);
-		}
-		});
-
-	for (int32 Index = 0; Index < LeafUsageStats.Num(); Index++)
+	for (const TSharedRef<const FDerivedDataCacheStatsNode>& Usage : GetCacheUsageStats())
 	{
-		const FDerivedDataBackendInterface* Backend = LeafUsageStats[Index]->GetBackendInterface();
-
-		if (Backend->GetDisplayName().Equals("Horde Storage"))
+		if (Usage->GetCacheType().Equals(TEXT("Horde Storage")))
+		{
 			return true;
+		}
 	}
-
 	return false;
 }
 
@@ -187,13 +140,13 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 {
 	RemoteCacheState = ERemoteCacheState::Unavailable;
 
-	if ( GetHasRemoteCache() )
+	if (GetHasRemoteCache())
 	{
 		const double OldLastGetTime = LastGetTime;
 		const double OldLastPutTime = LastPutTime;
 
-		LastGetTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(true, false);
-		LastPutTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(false, false);
+		LastGetTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(/*bGet*/ true, /*bLocal*/ false);
+		LastPutTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(/*bGet*/ false, /*bLocal*/ false);
 
 		if (OldLastGetTime != 0.0 && OldLastPutTime != 0.0)
 		{
@@ -211,15 +164,11 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 		}
 	}
 
-	const UDDCProjectSettings* DDCProjectSettings = GetDefault<UDDCProjectSettings>();
-
-	if (DDCProjectSettings && DDCProjectSettings->EnableWarnings)
+	if (const UDDCProjectSettings* DDCProjectSettings = GetDefault<UDDCProjectSettings>(); DDCProjectSettings && DDCProjectSettings->EnableWarnings)
 	{
-		const UEditorSettings* EditorSettings = GetDefault<UEditorSettings>();
-
-		if (EditorSettings)
+		if (const UEditorSettings* EditorSettings = GetDefault<UEditorSettings>())
 		{
-			if (DDCProjectSettings->RecommendEveryoneUseHordeStorage && GetHasHordeStorageCache()==false && (FCString::Stricmp(GetDerivedDataCache()->GetGraphName(), TEXT("NoJupiter"))!=0))
+			if (DDCProjectSettings->RecommendEveryoneUseHordeStorage && !GetHasHordeStorageCache() && (FCString::Stricmp(GetDerivedDataCache()->GetGraphName(), TEXT("NoJupiter")) != 0))
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
 				RemoteCacheWarningMessage = FText(LOCTEXT("HordeStorageWarning", "It is recommended that you use a DDC graph that supports Horde Storage. Please check any -ddc commandline overrides."));
@@ -234,7 +183,7 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 				RemoteCacheState = ERemoteCacheState::Warning;
 				RemoteCacheWarningMessage = FText(LOCTEXT("GlobalLocalDDCPathWarning", "It is recommended that you set up a valid Global Shared DDC Path"));
 			}
-			else if (DDCProjectSettings->RecommendEveryoneEnableS3DDC && EditorSettings->bEnableS3DDC == false)
+			else if (DDCProjectSettings->RecommendEveryoneEnableS3DDC && !EditorSettings->bEnableS3DDC)
 			{
 				RemoteCacheState = ERemoteCacheState::Warning;
 				RemoteCacheWarningMessage = FText(LOCTEXT("AWSS3CacheEnabledWarning", "It is recommended that you enable the AWS S3 Cache"));
@@ -245,7 +194,6 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 				RemoteCacheWarningMessage = FText(LOCTEXT("S3GloblaLocalPathdWarning", "It is recommended that you set up a valid Global Local S3 DDC Path"));
 			}
 		}
-		
 	}
 }
 

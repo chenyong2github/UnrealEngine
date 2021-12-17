@@ -1980,11 +1980,6 @@ FString FHttpDerivedDataBackend::GetName() const
 	return Domain;
 }
 
-FString FHttpDerivedDataBackend::GetDisplayName() const
-{
-	return TEXT("Horde Storage");
-}
-
 bool FHttpDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	return CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
@@ -2525,9 +2520,9 @@ void FHttpDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTran
 
 TSharedRef<FDerivedDataCacheStatsNode> FHttpDerivedDataBackend::GatherUsageStats() const
 {
-	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s @ %s (%s)"), TEXT("HTTP"), *Domain, *Namespace));
+	TSharedRef<FDerivedDataCacheStatsNode> Usage =
+		MakeShared<FDerivedDataCacheStatsNode>(TEXT("Horde Storage"), FString::Printf(TEXT("%s (%s)"), *Domain, *Namespace), /*bIsLocal*/ false);
 	Usage->Stats.Add(TEXT(""), UsageStats);
-
 	return Usage;
 }
 

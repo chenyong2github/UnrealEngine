@@ -2,7 +2,6 @@
 
 #include "SDerivedDataDialogs.h"
 #include "Algo/Sort.h"
-#include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataInformation.h"
@@ -600,9 +599,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 
 	for (TSharedRef<const FDerivedDataCacheStatsNode> Node : LeafUsageStats)
 	{
-		const FDerivedDataBackendInterface* Backend = Node->GetBackendInterface();
-
-		if (Backend->GetDisplayName().Equals("Memory") || Backend->IsWrapper())
+		if (Node->GetCacheType().Equals(TEXT("Memory")))
 		{
 			continue;
 		}
@@ -632,14 +629,14 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(DefaultMarginFirstColumn)
-			.Text(FText::FromString(Backend->GetDisplayName()))
+			.Text(FText::FromString(Node->GetCacheType()))
 		];
 
 		Panel->AddSlot(1, Row)
 		[
 			SNew(STextBlock)
 			.Margin(DefaultMargin)
-			.Text((Backend->GetSpeedClass() == FDerivedDataBackendInterface::ESpeedClass::Local) ? LOCTEXT("Local", "Local") : LOCTEXT("Remote", "Remote"))
+			.Text(Node->IsLocal() ? LOCTEXT("Local", "Local") : LOCTEXT("Remote", "Remote"))
 		];
 
 		Panel->AddSlot(2, Row)
@@ -670,7 +667,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(DefaultMargin)
-			.Text(FText::FromString(Backend->GetName()))
+			.Text(FText::FromString(Node->GetCacheName()))
 		];
 
 		Row++;

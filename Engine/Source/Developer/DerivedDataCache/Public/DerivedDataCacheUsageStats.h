@@ -103,23 +103,24 @@ public:
 #endif
 };
 
-class FDerivedDataBackendInterface;
-
 /**
  *  Hierarchical usage stats for the DDC nodes.
  */
 class FDerivedDataCacheStatsNode : public TSharedFromThis<FDerivedDataCacheStatsNode>
 {
 public:
-	FDerivedDataCacheStatsNode(const FDerivedDataBackendInterface* InBackendInterface, const FString& InCacheName)
-		: BackendInterface(InBackendInterface)
+	FDerivedDataCacheStatsNode(const FString& InCacheType, const FString& InCacheName, bool bInIsLocal)
+		: CacheType(InCacheType)
 		, CacheName(InCacheName)
+		, bIsLocal(bInIsLocal)
 	{
 	}
 
-	const FDerivedDataBackendInterface* GetBackendInterface() const { return BackendInterface; }
+	const FString& GetCacheType() const { return CacheType; }
 
 	const FString& GetCacheName() const { return CacheName; }
+
+	bool IsLocal() const { return bIsLocal; }
 
 	TMap<FString, FDerivedDataCacheUsageStats> ToLegacyUsageMap() const
 	{
@@ -168,8 +169,9 @@ public:
 	TArray<TSharedRef<FDerivedDataCacheStatsNode>> Children;
 
 protected:
-	const FDerivedDataBackendInterface* BackendInterface;
+	FString CacheType;
 	FString CacheName;
+	bool bIsLocal;
 };
 
 struct FDerivedDataCacheResourceStat
@@ -254,4 +256,3 @@ struct FDerivedDataCacheSummaryStats
 {
 	COOK_STAT(TArray<FDerivedDataCacheSummaryStat> Stats);
 };
-

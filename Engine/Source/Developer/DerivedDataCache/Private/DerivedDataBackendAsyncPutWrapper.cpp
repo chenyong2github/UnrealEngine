@@ -330,7 +330,8 @@ void FDerivedDataBackendAsyncPutWrapper::RemoveCachedData(const TCHAR* CacheKey,
 
 TSharedRef<FDerivedDataCacheStatsNode> FDerivedDataBackendAsyncPutWrapper::GatherUsageStats() const
 {
-	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, TEXT("AsyncPutWrapper"));
+	TSharedRef<FDerivedDataCacheStatsNode> Usage =
+		MakeShared<FDerivedDataCacheStatsNode>(TEXT("AsyncPutWrapper"), TEXT(""), InnerBackend->GetSpeedClass() == ESpeedClass::Local);
 	Usage->Stats.Add(TEXT("AsyncPut"), UsageStats);
 	Usage->Stats.Add(TEXT("AsyncPutSync"), PutSyncUsageStats);
 

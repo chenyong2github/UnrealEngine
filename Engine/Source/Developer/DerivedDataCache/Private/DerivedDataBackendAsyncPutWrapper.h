@@ -67,9 +67,6 @@ public:
 	FDerivedDataBackendAsyncPutWrapper(FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts);
 
 	/** Return a name for this interface */
-	virtual FString GetDisplayName() const override { return FString(TEXT("AsyncPutWrapper")); }
-
-	/** Return a name for this interface */
 	virtual FString GetName() const override
 	{
 		return FString::Printf(TEXT("AsyncPutWrapper (%s)"), *InnerBackend->GetName());
@@ -77,12 +74,6 @@ public:
 
 	/** return true if this cache is writable **/
 	virtual bool IsWritable() const override;
-
-	/** This is a wrapepr type **/
-	virtual bool IsWrapper() const override
-	{
-		return true;
-	}
 
 	/** Returns a class of speed for this interface **/
 	virtual ESpeedClass GetSpeedClass() const override;

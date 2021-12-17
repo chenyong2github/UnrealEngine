@@ -30,12 +30,6 @@ public:
 		check(InnerBackend);
 	}
 
-	/** Return a type for this interface */
-	virtual FString GetDisplayName() const override
-	{
-		return FString(TEXT("LimitKeyLengthWrapper"));
-	}
-
 	/** Return a name for this interface */
 	virtual FString GetName() const override 
 	{ 
@@ -46,12 +40,6 @@ public:
 	virtual bool IsWritable() const override
 	{
 		return InnerBackend->IsWritable();
-	}
-
-	/** This is a wrapepr type **/
-	virtual bool IsWrapper() const override
-	{
-		return true;
 	}
 
 	/** Returns a class of speed for this interface **/
@@ -243,7 +231,8 @@ public:
 
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
-		TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, TEXT("LimitKeyLength"));
+		TSharedRef<FDerivedDataCacheStatsNode> Usage =
+			MakeShared<FDerivedDataCacheStatsNode>(TEXT("LimitKeyLength"), TEXT(""), InnerBackend->GetSpeedClass() == ESpeedClass::Local);
 		Usage->Stats.Add(TEXT(""), UsageStats);
 
 		if (InnerBackend)

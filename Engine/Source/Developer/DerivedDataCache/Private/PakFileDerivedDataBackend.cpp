@@ -74,11 +74,6 @@ FPakFileDerivedDataBackend::~FPakFileDerivedDataBackend()
 	Close();
 }
 
-FString FPakFileDerivedDataBackend::GetDisplayName() const
-{
-	return FString(TEXT("PakFile"));
-}
-
 FString FPakFileDerivedDataBackend::GetName() const
 {
 	return CachePath;
@@ -476,7 +471,8 @@ bool FPakFileDerivedDataBackend::SortAndCopy(const FString &InputFilename, const
 
 TSharedRef<FDerivedDataCacheStatsNode> FPakFileDerivedDataBackend::GatherUsageStats() const
 {
-	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s.%s"), TEXT("PakFile"), *CachePath));
+	TSharedRef<FDerivedDataCacheStatsNode> Usage =
+		MakeShared<FDerivedDataCacheStatsNode>(TEXT("PakFile"), CachePath, /*bIsLocal*/ true);
 	Usage->Stats.Add(TEXT(""), UsageStats);
 	return Usage;
 }

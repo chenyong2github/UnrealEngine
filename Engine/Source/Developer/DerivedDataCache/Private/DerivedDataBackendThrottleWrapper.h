@@ -9,6 +9,7 @@
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
+#include "Memory/SharedBuffer.h"
 #include <atomic>
 
 namespace UE::DerivedData::Backends
@@ -60,12 +61,6 @@ public:
 		check(InnerBackend);
 	}
 
-	/** Return a type for this interface */
-	virtual FString GetDisplayName() const override
-	{
-		return FString(TEXT("ThrottleWrapper"));
-	}
-
 	/** Return a name for this interface */
 	virtual FString GetName() const override
 	{
@@ -76,12 +71,6 @@ public:
 	virtual bool IsWritable() const override
 	{
 		return InnerBackend->IsWritable();
-	}
-
-	/** This is a wrapepr type **/
-	virtual bool IsWrapper() const override
-	{
-		return true;
 	}
 
 	/** Returns a class of speed for this interface **/
@@ -153,10 +142,9 @@ public:
 
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
-		TSharedRef<FDerivedDataCacheStatsNode> Inner = InnerBackend->GatherUsageStats();
-		TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, TEXT("ThrottleWrapper"));
-		Usage->Children.Add(Inner);
-
+		TSharedRef<FDerivedDataCacheStatsNode> Usage =
+			MakeShared<FDerivedDataCacheStatsNode>(TEXT("ThrottleWrapper"), TEXT(""), InnerBackend->GetSpeedClass() == ESpeedClass::Local);
+		Usage->Children.Add(InnerBackend->GatherUsageStats());
 		return Usage;
 	}
 
