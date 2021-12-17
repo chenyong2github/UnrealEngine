@@ -180,8 +180,7 @@ FReply SInputKeySelector::OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent&
 	{
 		SetIsSelectingKey( false );
 
-		if ((InKeyEvent.GetKey() == EKeys::PS4_Special) || // Required?
-			(bEscapeCancelsSelection && (KeyUp == EKeys::Escape || IsEscapeKey(KeyUp))))
+		if (bEscapeCancelsSelection && (KeyUp == EKeys::Escape || IsEscapeKey(KeyUp)))
 		{
 			return FReply::Handled();
 		}
