@@ -40,7 +40,9 @@ public class MeshUtilities : ModuleRules
 				"StaticMeshDescription",
 				"ToolMenus",
 				"MeshUtilitiesEngine",
-            }
+				"SkeletalMeshUtilitiesCommon",
+				"ClothingSystemRuntimeCommon",
+			}
 		);
 
         PublicIncludePathModuleNames.AddRange(

@@ -101,6 +101,9 @@
 #include "StaticMeshOperations.h"
 #include "MeshUtilitiesEngine.h"
 
+#include "LODUtilities.h"
+#include "ClothingAsset.h"
+
 #if WITH_EDITOR
 #include "Editor.h"
 #include "UnrealEdMisc.h"
@@ -5830,6 +5833,8 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 
 void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) const
 {
+	check(IsInGameThread());
+
 	for (int32 LodIndex = 0; LodIndex < SkeletalMesh->GetLODNum(); LodIndex++)
 	{
 		const FSkeletalMeshLODInfo* ThisLODInfo = SkeletalMesh->GetLODInfo(LodIndex);
@@ -5839,10 +5844,12 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 		const bool bRawBuildDataAvailable = SkeletalMesh->IsLODImportedDataBuildAvailable(LodIndex);
 		if (!bRawDataEmpty && bRawBuildDataAvailable)
 		{
+			//No need to create import data if we already have some
 			continue;
 		}
-		const bool bInlineReduction = SkeletalMesh->IsReductionActive(LodIndex) && (ThisLODInfo->ReductionSettings.BaseLOD == LodIndex);
-		if (!bInlineReduction)
+		const bool bReductionActive = SkeletalMesh->IsReductionActive(LodIndex);
+		const bool bInlineReduction = (ThisLODInfo->ReductionSettings.BaseLOD == LodIndex);
+		if (bReductionActive && !bInlineReduction)
 		{
 			//Generated LOD (not inline) do not need imported data
 			continue;
@@ -5851,38 +5858,61 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 		//Find the reduction data to restore the imported LODModel by using the deprecated OriginalReductionSourceMeshData_DEPRECATED data
 		if (SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED.IsValidIndex(LodIndex))
 		{
-			FSkeletalMeshLODModel& ToUpdateLODModel = SkeletalMesh->GetImportedModel()->LODModels[LodIndex];
+			FSkeletalMeshLODModel TempLODModel;
 			TMap<FString, TArray<FMorphTargetDelta>> LODMorphTargetData;
 			
 			//Old inline reduced assets do not have the original imported skin weight data, it must be re-import if we want to convert it to import data
-			//Swap the LODModel pointer to the one we store when reducing, so we add the true import data
-			SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED[LodIndex]->LoadReductionData(ToUpdateLODModel, LODMorphTargetData, SkeletalMesh);
+			SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED[LodIndex]->LoadReductionData(TempLODModel, LODMorphTargetData, SkeletalMesh);
 
-			TArray<UMorphTarget*> OriginalMorphTargets;
-			OriginalMorphTargets.Reserve(LODMorphTargetData.Num());
-			for (const TPair<FString, TArray<FMorphTargetDelta>>& MorphTargetChannel : LODMorphTargetData)
+			if (TempLODModel.NumVertices > 0)
 			{
-				UMorphTarget* ExistingMorphTarget = nullptr;
-				for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
-				{
-					if (MorphTarget->GetName() == MorphTargetChannel.Key)
-					{
-						ExistingMorphTarget = MorphTarget;
-					}
-				}
-				if (!ExistingMorphTarget)
-				{
-					FName MorphTargetName = *(MorphTargetChannel.Key);
-					ExistingMorphTarget = NewObject<UMorphTarget>(SkeletalMesh, MorphTargetName);
-					check(ExistingMorphTarget);
-				}
+				FSkeletalMeshLODModel& ToUpdateLODModel = SkeletalMesh->GetImportedModel()->LODModels[LodIndex];
 
-				const TArray<FMorphTargetDelta>& MorphTargetDeltas = MorphTargetChannel.Value;
-				ExistingMorphTarget->PopulateDeltas(MorphTargetDeltas, LodIndex, ToUpdateLODModel.Sections, ThisLODInfo->BuildSettings.bRecomputeNormals, false, ThisLODInfo->BuildSettings.MorphThresholdPosition);
+				// Unbind any existing clothing assets before loading the reduction data
+				TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
+				FLODUtilities::UnbindClothingAndBackup(SkeletalMesh, ClothingBindings, LodIndex);
+
+				//Swap the LODModel pointer to the one we store when reducing, so we add the true import data
+				FSkeletalMeshLODModel::CopyStructure(&ToUpdateLODModel, &TempLODModel);
+
+				//Rebind the cloth asset on the LODModel restore by the reduction data
+				FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings, LodIndex);
+
+				//Since we load the reduction LODModel we have to validate the material indexes.
+				SkeletalMesh->ValidateAllLodMaterialIndexes();
+
+				TArray<UMorphTarget*> OriginalMorphTargets;
+				OriginalMorphTargets.Reserve(LODMorphTargetData.Num());
+				for (const TPair<FString, TArray<FMorphTargetDelta>>& MorphTargetChannel : LODMorphTargetData)
+				{
+					UMorphTarget* ExistingMorphTarget = nullptr;
+					for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
+					{
+						if (MorphTarget->GetName() == MorphTargetChannel.Key)
+						{
+							ExistingMorphTarget = MorphTarget;
+						}
+					}
+					if (!ExistingMorphTarget)
+					{
+						FName MorphTargetName = *(MorphTargetChannel.Key);
+						ExistingMorphTarget = NewObject<UMorphTarget>(SkeletalMesh, MorphTargetName);
+						check(ExistingMorphTarget);
+					}
+
+					const TArray<FMorphTargetDelta>& MorphTargetDeltas = MorphTargetChannel.Value;
+					ExistingMorphTarget->PopulateDeltas(MorphTargetDeltas, LodIndex, ToUpdateLODModel.Sections, ThisLODInfo->BuildSettings.bRecomputeNormals, false, ThisLODInfo->BuildSettings.MorphThresholdPosition);
+				}
 			}
 		}
 
 		FSkeletalMeshLODModel* LODModel = &(SkeletalMesh->GetImportedModel()->LODModels[LodIndex]);
+
+		//Make sure the inline cache fit the LODModel
+		if (SkeletalMesh->GetImportedModel()->InlineReductionCacheDatas.IsValidIndex(LodIndex))
+		{
+			SkeletalMesh->GetImportedModel()->InlineReductionCacheDatas[LodIndex].SetCacheGeometryInfo(*LODModel);
+		}
 
 		FSkeletalMeshImportData ImportData;
 		ImportData.bDiffPose = false;

@@ -2663,6 +2663,11 @@ private:
 	void PostLoadVerifyAndFixBadTangent();
 
 public:
+	/*
+	 * This function will enforce valid material index in the sections and the LODMaterialMap of all LOD.
+	 */
+	void ValidateAllLodMaterialIndexes();
+
 	//We want to avoid calling post edit change multiple time during import and build process.
 
 	/*

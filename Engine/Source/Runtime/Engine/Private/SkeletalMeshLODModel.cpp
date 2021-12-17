@@ -1264,6 +1264,7 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 	//Fill the ChunkedParentSectionIndex data, we assume that every section using the same material are chunked
 	int32 LastMaterialIndex = INDEX_NONE;
 	uint32 LastBoneCount = 0;
+	int32 LastOriginalDataSectionIndex = INDEX_NONE;
 	int32 CurrentParentChunkIndex = INDEX_NONE;
 	int32 OriginalIndex = 0;
 	//We assume here that if the project use per platform chunking, the minimum value will be the same has the prior project settings.
@@ -1276,8 +1277,10 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 	{
 		FSkelMeshSection& Section = Sections[LODModelSectionIndex];
 		
+		//If we have already chunked data in this LODModel use it to know if we need to chunk a section or not, this can happen when we load reduction data.
+		const bool bIsOldChunkingSection = LastOriginalDataSectionIndex != INDEX_NONE && Section.OriginalDataSectionIndex == LastOriginalDataSectionIndex;
 		//If we have cloth on a chunked section we treat the chunked section has a parent section (this is to get the same result has before the refactor)
-		if (LastBoneCount >= MaxGPUSkinBones && Section.MaterialIndex == LastMaterialIndex && !Section.ClothingData.AssetGuid.IsValid())
+		if ((bIsOldChunkingSection || LastBoneCount >= MaxGPUSkinBones) && Section.MaterialIndex == LastMaterialIndex && !Section.ClothingData.AssetGuid.IsValid())
 		{
 			Section.ChunkedParentSectionIndex = CurrentParentChunkIndex;
 			Section.OriginalDataSectionIndex = Sections[CurrentParentChunkIndex].OriginalDataSectionIndex;
@@ -1319,7 +1322,7 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 		}
 
 		LastMaterialIndex = Section.MaterialIndex;
-		//Set the last bone count
+		LastOriginalDataSectionIndex = Section.OriginalDataSectionIndex;
 		LastBoneCount = (uint32)Sections[LODModelSectionIndex].BoneMap.Num();
 	}
 }

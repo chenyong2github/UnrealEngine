@@ -428,14 +428,20 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 			for (int32 LODIndex = 0; LODIndex < SkelMeshModel->LODModels.Num(); LODIndex++)
 			{
 				FSkeletalMeshLODModel* LODModel = &(SkelMeshModel->LODModels[LODIndex]);
-				const FSkeletalMeshLODInfo* LODInfo = Owner->GetLODInfo(LODIndex);
+				FSkeletalMeshLODInfo* LODInfo = Owner->GetLODInfo(LODIndex);
 				check(LODInfo);
-				bool bRawDataEmpty = Owner->IsLODImportedDataEmpty(LODIndex);
-				bool bRawBuildDataAvailable = Owner->IsLODImportedDataBuildAvailable(LODIndex);
+				//We want to avoid building a LOD if the LOD was generated from a previous LODIndex.
+				const bool bIsGeneratedLodNotInline = (LODInfo->bHasBeenSimplified && Owner->IsReductionActive(LODIndex) && Owner->GetReductionSettings(LODIndex).BaseLOD < LODIndex);
+				
+				//Make sure the LOD have all the data needed to be build
+				const bool bRawDataEmpty = Owner->IsLODImportedDataEmpty(LODIndex);
+				const bool bRawBuildDataAvailable = Owner->IsLODImportedDataBuildAvailable(LODIndex);
+				
 				//Build the source model before the render data, if we are a purely generated LOD we do not need to be build
 				IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
-				if (!bRawDataEmpty && bRawBuildDataAvailable)
+				if (!bIsGeneratedLodNotInline && !bRawDataEmpty && bRawBuildDataAvailable)
 				{
+					LODInfo->bHasBeenSimplified = false;
 					const bool bRegenDepLODs = true;
 					FSkeletalMeshBuildParameters BuildParameters(Owner, TargetPlatform, LODIndex, bRegenDepLODs);
 					MeshBuilderModule.BuildSkeletalMesh(BuildParameters);
@@ -522,7 +528,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 					//If we are in this case we should resave the asset so the source data will be the same and we can use this DDC. Reduction can change the number of sections and the user section data is in the DDC key.
 					//So if we change the reduction algorithm, its possible we fall in this situation.
 					//We save the real data key which force the asset to always rebuild when the editor is loading it until the user save it
-					UE_LOG(LogSkeletalMesh, Log, TEXT("Skeletal mesh [%s]: The derived data key is different after the build. Resave the asset to avoid rebuilding it everytime the editor load it."), *Owner->GetPathName());
+					UE_LOG(LogSkeletalMesh, Log, TEXT("Skeletal mesh [%s]: The derived data key is different after the build. Save the asset to avoid rebuilding it everytime the editor load it."), *Owner->GetPathName());
 				}
 			}
 			else

@@ -684,7 +684,9 @@ bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 		uint32 LODTriNumber = MAX_uint32;
 		const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LODIndex);
 		const bool bLODHasBeenSimplified = LODInfoPtr && LODInfoPtr->bHasBeenSimplified;
-		if (GetImportedModel() && GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+		//If we are not inline reduced, we wont set the LODVertexNumber and LODTriNumber from the LODModel or from the cache.
+		const bool bInlineReduction = LODInfoPtr && (LODInfoPtr->ReductionSettings.BaseLOD == LODIndex);
+		if (bInlineReduction && GetImportedModel() && GetImportedModel()->LODModels.IsValidIndex(LODIndex))
 		{
 			if (!bLODHasBeenSimplified)
 			{
@@ -2869,6 +2871,91 @@ void USkeletalMesh::CreateUserSectionsDataForLegacyAssets()
 	}
 }
 
+void USkeletalMesh::ValidateAllLodMaterialIndexes()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::ValidateAllLodMaterialIndexes);
+
+	for (int32 LodIndex = 0; LodIndex < GetLODNum(); LodIndex++)
+	{
+		FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LodIndex);
+		if (!LODInfoPtr)
+		{
+			continue;
+		}
+		FSkeletalMeshLODModel& LODModel = GetImportedModel()->LODModels[LodIndex];
+		const int32 SectionNum = LODModel.Sections.Num();
+		const TArray<FSkeletalMaterial>& ListOfMaterials = GetMaterials();
+		//See if more then one section use the same UserSectionData
+		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+		{
+			int32 LodMaterialMapOverride = INDEX_NONE;
+			FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+			//Validate and fix the LODMaterialMap override
+			if (LODInfoPtr->LODMaterialMap.IsValidIndex(SectionIndex) && LODInfoPtr->LODMaterialMap[SectionIndex] != INDEX_NONE)
+			{
+				LodMaterialMapOverride = LODInfoPtr->LODMaterialMap[SectionIndex];
+				if (!ListOfMaterials.IsValidIndex(LodMaterialMapOverride))
+				{
+					UE_ASSET_LOG(LogSkeletalMesh
+						, Display
+						, this
+						, TEXT("Fix LOD %d Section %d LODMaterialMap override material index from %d to INDEX_NONE. The value is not pointing on a valid Material slot index.")
+						, LodIndex
+						, SectionIndex
+						, LodMaterialMapOverride);
+					LODInfoPtr->LODMaterialMap[SectionIndex] = INDEX_NONE;
+				}
+			}
+			//Validate and fix the section material index
+			{
+				if (!ListOfMaterials.IsValidIndex(Section.MaterialIndex))
+				{
+					if (LodMaterialMapOverride != INDEX_NONE)
+					{
+						UE_ASSET_LOG(LogSkeletalMesh
+							, Display
+							, this
+							, TEXT("Fix LOD %d Section %d Material index from %d to %d. The fallback value is from the LODMaterialMap Override. The value is not pointing on a valid Material slot index.")
+							, LodIndex
+							, SectionIndex
+							, Section.MaterialIndex
+							, LodMaterialMapOverride);
+						Section.MaterialIndex = LodMaterialMapOverride;
+					}
+					else
+					{
+						//Fall back on the original section index
+						if (ListOfMaterials.IsValidIndex(Section.OriginalDataSectionIndex))
+						{
+							UE_ASSET_LOG(LogSkeletalMesh
+								, Display
+								, this
+								, TEXT("Fix LOD %d Section %d Material index from %d to %d. The fallback value is from the OriginalDataSectionIndex. The value is not pointing on a valid Material slot index.")
+								, LodIndex
+								, SectionIndex
+								, Section.MaterialIndex
+								, Section.OriginalDataSectionIndex);
+							Section.MaterialIndex = Section.OriginalDataSectionIndex;
+						}
+						else
+						{
+							UE_ASSET_LOG(LogSkeletalMesh
+								, Display
+								, this
+								, TEXT("Fix LOD %d Section %d Material index from %d to 0. The fallback value is 0. The value is not pointing on a valid Material slot index.")
+								, LodIndex
+								, SectionIndex
+								, Section.MaterialIndex);
+							//Fallback on material index 0
+							Section.MaterialIndex = 0;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 void USkeletalMesh::PostLoadValidateUserSectionData()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::PostLoadValidateUserSectionData);
@@ -2892,15 +2979,12 @@ void USkeletalMesh::PostLoadValidateUserSectionData()
 		FSkeletalMeshLODModel& BaseReductionLODModel = GetImportedModel()->LODModels[ReductionBaseLOD];
 		FSkeletalMeshLODModel& ThisLODModel = GetImportedModel()->LODModels[LodIndex];
 		const int32 SectionNum = ThisLODModel.Sections.Num();
-		
+		const int32 UserSectionsDataNum = ThisLODModel.UserSectionsData.Num();
+		const int32 BaseUserSectionsDataNum = BaseReductionLODModel.UserSectionsData.Num();
 		//We must make sure the result is similar to what the reduction will give. So we will not have more user section data then the number we have for the base LOD.
 		//Because reduction reset the UserSectionData to the number of parent section after the reduction.
-		bool UserSectionDataBadCount = ThisLODModel.UserSectionsData.Num() > SectionNum;
-		if (!UserSectionDataBadCount && LodIndex != ReductionBaseLOD)
-		{
-			UserSectionDataBadCount = (ThisLODModel.UserSectionsData.Num() > BaseReductionLODModel.UserSectionsData.Num());
-		}
-		bool bLODHaveSectionIssue = UserSectionDataBadCount;
+		const bool bIsInlineReduction = LodIndex == ReductionBaseLOD;
+		bool bLODHaveSectionIssue = !bIsInlineReduction && ( (UserSectionsDataNum > SectionNum) || (UserSectionsDataNum > BaseUserSectionsDataNum) );
 		if (!bLODHaveSectionIssue)
 		{
 			//See if more then one section use the same UserSectionData
@@ -3046,13 +3130,13 @@ void USkeletalMesh::PostLoadEnsureImportDataExist()
 		//We create the import data only if the mesh was simplified and its doing inline reduction
 		//Non simplified mesh without import data should not be converted because the simplification will kick in and the asset will be simplified (asset vertex and face count will change)
 		const bool bReductionActive = IsReductionActive(LodIndex);
-		const bool bInlineReduction = bReductionActive && (ThisLODInfo->ReductionSettings.BaseLOD == LodIndex);
+		const bool bInlineReduction = (ThisLODInfo->ReductionSettings.BaseLOD == LodIndex);
 		if (bReductionActive && !bInlineReduction)
 		{
 			//Generated LOD (not inline) do not need imported data
 			continue;
 		}
-		else if (bInlineReduction && ThisLODInfo->bHasBeenSimplified)
+		else if (bInlineReduction && (bReductionActive || ThisLODInfo->bHasBeenSimplified))
 		{
 			//If we cannot convert alternate skin weight data, we do not want to allow 
 			if (GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED.IsValidIndex(LodIndex))
@@ -3099,7 +3183,10 @@ void USkeletalMesh::PostLoadEnsureImportDataExist()
 		}
 		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 		//We create the import data for all LOD that do not have import data except for the generated LODs.
-		MeshUtilities.CreateImportDataFromLODModel(this);
+		{
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(this, false, false);
+			MeshUtilities.CreateImportDataFromLODModel(this);
+		}
 #if WITH_EDITORONLY_DATA
 		//If the import data is existing we want to turn use legacy derive data key to false
 		SetUseLegacyMeshDerivedDataKey(false);
@@ -3447,6 +3534,8 @@ void USkeletalMesh::BeginPostLoadInternal(FSkeletalMeshPostLoadContext& Context)
 		{
 			CreateUserSectionsDataForLegacyAssets();
 		}
+
+		ValidateAllLodMaterialIndexes();
 
 		PostLoadEnsureImportDataExist();
 	}
