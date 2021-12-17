@@ -163,7 +163,10 @@ namespace Metasound
 				DataTypeSelector = MakeShared<FMetasoundDataTypeSelector>();
 			}
 
-			virtual ~TMetasoundGraphMemberDetailCustomization() = default;
+			virtual ~TMetasoundGraphMemberDetailCustomization()
+			{
+				RenameRequestedHandle.Reset();
+			}
 
 		protected:
 			TWeakObjectPtr<TMemberType> GraphMember;
@@ -234,6 +237,7 @@ namespace Metasound
 					.OnTextChanged(this, &TChildClass::OnNameChanged)
 					.OnTextCommitted(this, &TChildClass::OnNameCommitted)
 					.IsReadOnly(bIsInterfaceMember || !bIsGraphEditable)
+					.SelectAllTextWhenFocused(true)
 					.Font(IDetailLayoutBuilder::GetDetailFont());
 
 				DisplayNameEditableTextBox = SNew(SEditableTextBox)
@@ -303,6 +307,29 @@ namespace Metasound
 						if (LiteralObject)
 						{
 							LiteralHandle->MarkHiddenByCustomization();
+
+							// Rename
+							if (UMetasoundEditorGraphMemberDefaultLiteral* MemberDefaultLiteral = CastChecked<UMetasoundEditorGraphMemberDefaultLiteral>(LiteralObject))
+							{
+								if (UMetasoundEditorGraphMember* Member = MemberDefaultLiteral->GetParentMember())
+								{
+									if (const UMetasoundEditorGraph* OwningGraph = GraphMember->GetOwningGraph())
+									{
+										TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*OwningGraph);
+										if (MetasoundEditor->CanRenameNodes())
+										{
+											if (!RenameRequestedHandle.IsValid())
+											{
+												Member->OnRenameRequested.Clear();
+												RenameRequestedHandle = Member->OnRenameRequested.AddLambda([NameEditableTextBox = this->NameEditableTextBox]()
+												{
+													FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
+												});
+											}
+										}
+									}
+								}
+							}
 
 							TSharedPtr<IPropertyHandle> DefaultValueHandle;
 
@@ -504,6 +531,8 @@ namespace Metasound
 
 		private:
 			TUniquePtr<IMemberDefaultLiteralCustomization> LiteralCustomization;
+
+			FDelegateHandle RenameRequestedHandle;
 		};
 
 		class FMetasoundInputDetailCustomization : public TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphInput, FMetasoundInputDetailCustomization>

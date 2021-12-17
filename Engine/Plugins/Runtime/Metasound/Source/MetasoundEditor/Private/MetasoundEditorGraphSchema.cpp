@@ -971,6 +971,7 @@ void UMetasoundEditorGraphSchema::GetContextMenuActions(class UToolMenu* Menu, c
 		Section.AddMenuEntry(FGenericCommands::Get().Cut);
 		Section.AddMenuEntry(FGenericCommands::Get().Copy);
 		Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
+		Section.AddMenuEntry(FGenericCommands::Get().Rename);
 		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 
 		// Only display update ability if node is of type external

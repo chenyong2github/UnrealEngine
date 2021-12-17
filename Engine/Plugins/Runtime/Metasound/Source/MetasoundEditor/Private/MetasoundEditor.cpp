@@ -1237,6 +1237,10 @@ namespace Metasound
 					FExecuteAction::CreateLambda([this] { DuplicateNodes(); }),
 					FCanExecuteAction::CreateLambda([this]() { return CanDuplicateNodes(); }));
 
+				GraphEditorCommands->MapAction(FGenericCommands::Get().Rename,
+					FExecuteAction::CreateLambda([this] { RenameNode(); }),
+					FCanExecuteAction::CreateLambda([this]() { return CanRenameNodes(); }));
+
 				// Alignment Commands
 				GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
 					FExecuteAction::CreateLambda([this]() { MetasoundGraphEditor->OnAlignTop(); }));
@@ -1834,6 +1838,78 @@ namespace Metasound
 			}
 
 			MetasoundGraphEditor->NotifyGraphChanged();
+		}
+
+		bool FEditor::CanRenameNodes() const
+		{
+			if (!IsGraphEditable())
+			{
+				return false;
+			}
+
+			const FGraphPanelSelectionSet& SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
+			for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
+			{
+				// Node is directly renameable (comment nodes)
+				const UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
+				if (Node && Node->GetCanRenameNode())
+				{
+					return true;
+				}
+
+				// Renameable member nodes
+				if (const UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(*SelectedIter))
+				{
+					if (const UMetasoundEditorGraphMember* Member = MemberNode->GetMember()) 
+					{
+						// Variable
+						if (const UMetasoundEditorGraphVariable* Variable = Cast<UMetasoundEditorGraphVariable>(Member))
+						{
+							return true;
+						}
+
+						// Input or output that is not an interface member (does not have a valid interface version)
+						const FMetasoundFrontendVersion* InterfaceVersion = nullptr;
+						if (const UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(Member))
+						{
+							InterfaceVersion = &Vertex->GetInterfaceVersion();
+						}
+
+						return (!InterfaceVersion || !InterfaceVersion->IsValid());
+					}
+				}
+			}
+			return false;
+		}
+
+		void FEditor::RenameNode() 
+		{
+			const FGraphPanelSelectionSet& SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
+			for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
+			{
+				// Node is directly renameable (comment nodes)
+				UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
+				if (Node && Node->GetCanRenameNode())
+				{
+					if (TSharedPtr<SGraphEditor> GraphEditor = GetGraphEditor())
+					{
+						GraphEditor->JumpToNode(Node, /*bRequestRename=*/true);
+						return;
+					}
+				}
+
+				// Renameable member nodes (inputs/outputs/variables)
+				if (UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(*SelectedIter))
+				{
+					if (const UMetasoundEditorGraphMember* Member = MemberNode->GetMember()) 
+					{
+						if (Member->OnRenameRequested.IsBound())
+						{
+							Member->OnRenameRequested.Broadcast();
+						}
+					}
+				}
+			}
 		}
 
 		void FEditor::RefreshDetails()
