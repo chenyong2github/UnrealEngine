@@ -11,13 +11,16 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "RenderingThread.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
+#include "AssetUtils/StaticMeshMaterialUtil.h"
 
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "ScopedTransaction.h"
 #endif
 
 using namespace UE::Geometry;
@@ -141,6 +144,12 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 
 	int32 UseLODIndex = FMath::Clamp(TargetLOD.LODIndex, 0, 32);
 
+	if (Options.bReplaceMaterials && UseLODIndex != 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshToStaticMesh_InvalidOptions1", "CopyMeshToStaticMesh: Can only Replace Materials when updating LOD0"));
+		return FromDynamicMesh;
+	}
+
 	// don't allow build-in engine assets to be modified
 	if (ToStaticMeshAsset->GetPathName().StartsWith(TEXT("/Engine/")))
 	{
@@ -196,12 +205,41 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 		Converter.Convert(&ReadMesh, *MeshDescription, !BuildSettings.bRecomputeTangents);
 	});
 
-	ToStaticMeshAsset->CommitMeshDescription(UseLODIndex);
-
 	// Setting to prevent the standard static mesh reduction from running and replacing the render LOD.
 	FStaticMeshSourceModel& ThisSourceModel = ToStaticMeshAsset->GetSourceModel(UseLODIndex);
 	ThisSourceModel.ReductionSettings.PercentTriangles = 1.f;
 	ThisSourceModel.ReductionSettings.PercentVertices = 1.f;
+
+	if (Options.bReplaceMaterials)
+	{
+		bool bHaveSlotNames = (Options.NewMaterialSlotNames.Num() == Options.NewMaterials.Num());
+
+		TArray<FStaticMaterial> NewMaterials;
+		for (int32 k = 0; k < Options.NewMaterials.Num(); ++k)
+		{
+			FStaticMaterial NewMaterial;
+			NewMaterial.MaterialInterface = Options.NewMaterials[k];
+			FName UseSlotName = (bHaveSlotNames && Options.NewMaterialSlotNames[k] != NAME_None) ? Options.NewMaterialSlotNames[k] :
+				UE::AssetUtils::GenerateNewMaterialSlotName(NewMaterials, NewMaterial.MaterialInterface, k);
+
+			NewMaterial.MaterialSlotName = UseSlotName;
+			NewMaterial.ImportedMaterialSlotName = UseSlotName;
+			NewMaterial.UVChannelData = FMeshUVChannelInfo(1.f);		// this avoids an ensure in  UStaticMesh::GetUVChannelData
+			NewMaterials.Add(NewMaterial);
+		}
+
+		ToStaticMeshAsset->SetStaticMaterials(NewMaterials);
+
+		// Reset the section info map
+		int32 NumSections = ToStaticMeshAsset->GetSectionInfoMap().GetSectionNumber(UseLODIndex);
+		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+		{
+			ToStaticMeshAsset->GetSectionInfoMap().Remove(UseLODIndex, SectionIndex);
+		}
+	}
+
+	ToStaticMeshAsset->CommitMeshDescription(UseLODIndex);
+
 
 	if (Options.bDeferMeshPostEditChange == false)
 	{
@@ -221,6 +259,48 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 
 	return FromDynamicMesh;
 }
+
+
+
+
+
+
+void UGeometryScriptLibrary_StaticMeshFunctions::GetSectionMaterialListFromStaticMesh(
+	UStaticMesh* FromStaticMeshAsset, 
+	FGeometryScriptMeshReadLOD RequestedLOD,
+	TArray<UMaterialInterface*>& MaterialList,
+	TArray<int32>& MaterialIndex,
+	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	UGeometryScriptDebug* Debug)
+{
+	Outcome = EGeometryScriptOutcomePins::Failure;
+
+	if (FromStaticMeshAsset == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetSectionMaterialListFromStaticMesh_InvalidInput1", "GetSectionMaterialListFromStaticMesh: FromStaticMeshAsset is Null"));
+		return;
+	}
+	if (RequestedLOD.LODType != EGeometryScriptLODType::MaxAvailable && RequestedLOD.LODType != EGeometryScriptLODType::SourceModel)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetSectionMaterialListFromStaticMesh_LODNotAvailable", "GetSectionMaterialListFromStaticMesh: Requested LOD is not available"));
+		return;
+	}
+
+	int32 UseLODIndex = FMath::Clamp(RequestedLOD.LODIndex, 0, FromStaticMeshAsset->GetNumLODs() - 1);
+
+	MaterialList.Reset();
+	MaterialIndex.Reset();
+	if (UE::AssetUtils::GetStaticMeshLODMaterialListBySection(FromStaticMeshAsset, UseLODIndex, MaterialList, MaterialIndex) == false)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetSectionMaterialListFromStaticMesh_QueryFailed", "GetSectionMaterialListFromStaticMesh: Could not fetch Material Set from Asset"));
+		return;
+	}
+
+	Outcome = EGeometryScriptOutcomePins::Success;
+}
+
+
+
 
 
 

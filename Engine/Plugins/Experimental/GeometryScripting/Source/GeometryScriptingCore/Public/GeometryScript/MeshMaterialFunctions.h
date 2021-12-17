@@ -72,4 +72,28 @@ public:
 		bool& bIsValidPolygroupID,
 		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Materials", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	DeleteTrianglesByMaterialID( 
+		UDynamicMesh* TargetMesh, 
+		int MaterialID,
+		int& NumDeleted,
+		bool bDeferChangeNotifications = false,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Compact the MaterialIDs of the TargetMesh, ie remove any un-used MaterialIDs and remap the remaining
+	 * N in-use MaterialIDs to the range [0,N-1]. Optionally compute a Compacted list of Materials.
+	 * @param SourceMaterialList Input Material list, assumption is that SourceMaterialList.Num() == number of MaterialIDs on mesh at input
+	 * @param CompactedMaterialList new Compacted Material list, one-to-one with new compacted MaterialIDs
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Materials", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	CompactMaterialIDs( 
+		UDynamicMesh* TargetMesh, 
+		TArray<UMaterialInterface*> SourceMaterialList,
+		TArray<UMaterialInterface*>& CompactedMaterialList,
+		UGeometryScriptDebug* Debug = nullptr);
+
 };

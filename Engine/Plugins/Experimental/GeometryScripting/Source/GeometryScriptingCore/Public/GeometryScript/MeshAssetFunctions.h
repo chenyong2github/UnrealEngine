@@ -9,7 +9,7 @@
 
 class UStaticMesh;
 class UDynamicMesh;
-
+class UMaterialInterface;
 
 
 
@@ -44,13 +44,23 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bEnableRemoveDegenerates = false;
 
+	
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bReplaceMaterials = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	TArray<UMaterialInterface*> NewMaterials;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	TArray<FName> NewMaterialSlotNames;
+
+
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bEmitTransaction = true;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bDeferMeshPostEditChange = false;
 };
-
 
 
 
@@ -82,6 +92,17 @@ public:
 		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|StaticMesh", meta = (ExpandEnumAsExecs = "Outcome"))
+	static void
+	GetSectionMaterialListFromStaticMesh(
+		UStaticMesh* FromStaticMeshAsset, 
+		FGeometryScriptMeshReadLOD RequestedLOD,
+		TArray<UMaterialInterface*>& MaterialList,
+		TArray<int32>& MaterialIndex,
+		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		UGeometryScriptDebug* Debug = nullptr);
 };
 
 

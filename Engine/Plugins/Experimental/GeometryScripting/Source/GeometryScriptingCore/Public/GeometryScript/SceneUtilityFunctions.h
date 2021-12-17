@@ -8,6 +8,7 @@
 #include "SceneUtilityFunctions.generated.h"
 
 class UStaticMesh;
+class UMaterialInterface;
 class UDynamicMesh;
 class UDynamicMeshPool;
 
@@ -48,6 +49,14 @@ public:
 		bool bTransformToWorld,
 		FTransform& LocalToWorld,
 		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Scene")
+	static void
+	SetComponentMaterialList(
+		UPrimitiveComponent* Component, 
+		const TArray<UMaterialInterface*>& MaterialList,
 		UGeometryScriptDebug* Debug = nullptr);
 
 };

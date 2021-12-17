@@ -4,6 +4,7 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshAttributeUtil.h"
 #include "UDynamicMesh.h"
 #include "Polygroups/PolygroupSet.h"
 
@@ -90,6 +91,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::EnableMaterialIDs(
 		return TargetMesh;
 	}
 
+	// this will enable the material IDs even though the lambda doesn't do anything
 	bool bHasMaterialIDs;
 	SimpleMeshMaterialEdit(TargetMesh, true, bHasMaterialIDs, [](FDynamicMesh3& Mesh, FDynamicMeshMaterialAttribute& MaterialIDs) {});
 
@@ -323,6 +325,151 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::SetPolygroupMaterial
 		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
 	}
 	return TargetMesh;	
+}
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::DeleteTrianglesByMaterialID(
+	UDynamicMesh* TargetMesh,
+	int MaterialID,
+	int& NumDeleted,
+	bool bDeferChangeNotifications,
+	UGeometryScriptDebug* Debug)
+{
+	NumDeleted = 0;
+	if (TargetMesh)
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			FDynamicMeshMaterialAttribute* MaterialIDs = (EditMesh.HasAttributes() && EditMesh.Attributes()->HasMaterialID()) ? EditMesh.Attributes()->GetMaterialID() : nullptr;
+			if (MaterialIDs == nullptr)
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("DeleteTrianglesByMaterialID_NoMaterialID", "DeleteTrianglesByMaterialID: MaterialID Attribute is not enabled"));
+				return;
+			}
+
+			TArray<int32> TriangleList;
+			for (int32 TriangleID : EditMesh.TriangleIndicesItr())
+			{
+				if (MaterialIDs->GetValue(TriangleID) == MaterialID)
+				{
+					TriangleList.Add(TriangleID);
+				}
+			}
+
+			for (int32 TriangleID : TriangleList)
+			{
+				EMeshResult Result = EditMesh.RemoveTriangle(TriangleID);
+				if (Result == EMeshResult::Ok)
+				{
+					NumDeleted++;
+				}
+			}
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+	}
+	return TargetMesh;
+}
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::CompactMaterialIDs(
+	UDynamicMesh* TargetMesh,
+	TArray<UMaterialInterface*> SourceMaterialList,
+	TArray<UMaterialInterface*>& CompactedMaterialList,
+	UGeometryScriptDebug* Debug)
+{
+	CompactedMaterialList = SourceMaterialList;
+
+	if (TargetMesh)
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			FDynamicMeshMaterialAttribute* MaterialIDs = (EditMesh.HasAttributes() && EditMesh.Attributes()->HasMaterialID()) ? EditMesh.Attributes()->GetMaterialID() : nullptr;
+			if (MaterialIDs == nullptr)
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CompactMaterialIDs_NoMaterialID", "CompactMaterialIDs: MaterialID Attribute is not enabled"));
+				return;
+			}
+
+			bool bWasCompact = false;
+			TArray<int32> OldToNewMap, NewToOldMap;
+			bool bOK = UE::Geometry::CompactAttributeValues(EditMesh, *MaterialIDs, OldToNewMap, NewToOldMap, bWasCompact);
+			if (bOK == false)
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CompactMaterialIDs_InvalidMaterialID", "CompactMaterialIDs: Invalid MaterialIDs found, unsafe to Compact"));
+				return;
+			}
+			if (bWasCompact)
+			{
+				return;
+			}
+
+			int32 NewMaterialIDCount = NewToOldMap.Num();
+			CompactedMaterialList.Reset();
+			CompactedMaterialList.SetNum(NewMaterialIDCount);
+			for (int32 k = 0; k < NewMaterialIDCount; ++k)
+			{
+				int32 OldIndex = NewToOldMap[k];
+				CompactedMaterialList[k] = (OldIndex < SourceMaterialList.Num()) ?
+					SourceMaterialList[OldIndex] : nullptr;
+			}
+
+			//TArray<int32> KnownMaterialIDs;
+			//int32 MaxMaterialID = -1, MinMaterialID = TNumericLimits<int32>::Max();
+			//for (int32 TriangleID : EditMesh.TriangleIndicesItr())
+			//{
+			//	int32 MaterialID = MaterialIDs->GetValue(TriangleID);
+			//	MaxMaterialID = FMath::Max(MaterialID, MaxMaterialID);
+			//	MinMaterialID = FMath::Min(MaterialID, MinMaterialID);
+			//	KnownMaterialIDs.AddUnique(MaterialID);
+			//}
+			//if (MinMaterialID < 0)
+			//{
+			//	UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CompactMaterialIDs_InvalidMaterialID", "CompactMaterialIDs: Negative MaterialID found, unsafe to Compact"));
+			//	return;
+			//}
+			//if ( MaxMaterialID == (KnownMaterialIDs.Num()-1) )
+			//{
+			//	// set is already compact, nothing to do
+			//	return;
+			//}
+
+			//TArray<int32> MaterialIDMap;
+			//MaterialIDMap.Init(-1, MaxMaterialID+1);
+
+			//int32 NewMaterialIDCounter = 0;
+			//int32 NewMaxID = 0;
+			//for (int32 TriangleID : EditMesh.TriangleIndicesItr())
+			//{
+			//	int32 MaterialID = MaterialIDs->GetValue(TriangleID);
+			//	if (MaterialIDMap[MaterialID] == -1)
+			//	{
+			//		MaterialIDMap[MaterialID] = NewMaterialIDCounter;
+			//		NewMaxID = FMath::Max(NewMaxID, NewMaterialIDCounter);
+			//		NewMaterialIDCounter++;
+			//	}
+			//	int32 NewMaterialID = MaterialIDMap[MaterialID];
+			//	MaterialIDs->SetValue(TriangleID, NewMaterialID);
+			//}
+
+			//CompactedMaterialList.Reset();
+			//if ( SourceMaterialList.Num() == (MaxMaterialID+1) )
+			//{
+			//	CompactedMaterialList.SetNum(NewMaterialIDCounter);
+			//	for (int32 k = 0; k <= MaxMaterialID; ++k)
+			//	{
+			//		if (MaterialIDMap[k] >= 0)
+			//		{
+			//			CompactedMaterialList[MaterialIDMap[k]] = SourceMaterialList[k];
+			//		}
+			//		
+			//	}
+			//}
+
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	}
+	return TargetMesh;
 }
 
 
