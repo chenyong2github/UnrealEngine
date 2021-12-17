@@ -34,6 +34,7 @@ namespace Metasound
 } // namespace Metasound
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMetasoundMemberNameChanged, FGuid /* NodeID */);
+DECLARE_MULTICAST_DELEGATE(FOnMetasoundMemberRenameRequested);
 
 UCLASS()
 class METASOUNDEDITOR_API UMetasoundEditorGraphMemberDefaultLiteral : public UObject
@@ -86,6 +87,9 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphMember : public UObject
 public:
 	/** Delegate called when the name of the associated Frontend Node is changed */
 	FOnMetasoundMemberNameChanged NameChanged;
+
+	/** Delegate called when a rename is requested on a renameable member node. */
+	FOnMetasoundMemberRenameRequested OnRenameRequested;
 
 	/** Return the section of where this member belongs. */
 	virtual Metasound::Editor::ENodeSection GetSectionID() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetSectionID, return Metasound::Editor::ENodeSection::None; );

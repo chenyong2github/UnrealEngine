@@ -130,6 +130,12 @@ namespace Metasound
 			void PasteNodes(const FVector2D* InLocation = nullptr);
 			void PasteNodes(const FVector2D* InLocation, const FText& InTransactionText);
 
+			/** Rename node (currently applies to comments and member nodes). */
+			void RenameNode();
+
+			/** Whether at least one of the currently selected node(s) can be renamed. */
+			bool CanRenameNodes() const;
+
 			/** Forces all UX pertaining to the root graph's interface to be refreshed. */
 			void RefreshInterface();
 
