@@ -109,6 +109,73 @@ bool FCameraRectangle::IsProjectedSegmentIntersectingRectangle(const FVector& En
 	return TestIntersection(ProjectedSegmentUV, SelectionDomain.Rectangle);
 }
 
+FConvexVolume FCameraRectangle::FrustumAsConvexVolume() const
+{
+	FConvexVolume OutFrustum;
+	ensure(bIsInitialized);
+	FVector2 Point[4]
+	{
+		SelectionDomain.Rectangle.Min,
+		FVector2(SelectionDomain.Rectangle.Min.X, SelectionDomain.Rectangle.Max.Y),
+		SelectionDomain.Rectangle.Max,
+		FVector2(SelectionDomain.Rectangle.Max.X, SelectionDomain.Rectangle.Min.Y)
+	};
+
+	FVector BoxPoint[4];
+	for (int32 i = 0; i < 4; i++)
+	{
+		BoxPoint[i] = PointUVToPoint3D(SelectionDomain.Plane, Point[i]);
+	}
+
+	if (!CameraState.bIsOrthographic)
+	{
+		FVector CamPoint = CameraState.Position;
+		FVector WorldDir[4];
+		for (int32 i = 0; i < 4; i++)
+		{
+			WorldDir[i] = (BoxPoint[i] - CamPoint).GetSafeNormal();
+		}
+		// Use the camera position and the selection box to create the bounding planes
+		FPlane TopPlane(BoxPoint[0], BoxPoint[1], CamPoint); // Top Plane
+		FPlane RightPlane(BoxPoint[1], BoxPoint[2], CamPoint); // Right Plane
+		FPlane BottomPlane(BoxPoint[2], BoxPoint[3], CamPoint); // Bottom Plane
+		FPlane LeftPlane(BoxPoint[3], BoxPoint[0], CamPoint); // Left Plane
+
+		// Near plane is the selection plane flipped, as the convex construction wants the planes to be oriented away from the volume
+		FPlane NearPlane(-SelectionDomain.Plane.Normal, -SelectionDomain.Plane.Constant);
+
+		// TODO: currently no far plane because we haven't propagated that info down to here
+
+		// The frustum is built with the first four planes corresponding to the sides of the frustum + a near plane at the front
+		OutFrustum.Planes.Empty();
+		OutFrustum.Planes.Add(TopPlane);
+		OutFrustum.Planes.Add(RightPlane);
+		OutFrustum.Planes.Add(BottomPlane);
+		OutFrustum.Planes.Add(LeftPlane);
+		OutFrustum.Planes.Add(NearPlane);
+	}
+	else
+	{
+		FVector CamOffset = -SelectionDomain.Plane.Normal;
+		// Use the camera position and the selection box to create the bounding planes
+		FPlane TopPlane(BoxPoint[0], BoxPoint[1], BoxPoint[0] + CamOffset); // Top Plane
+		FPlane RightPlane(BoxPoint[1], BoxPoint[2], BoxPoint[1] + CamOffset); // Right Plane
+		FPlane BottomPlane(BoxPoint[2], BoxPoint[3], BoxPoint[2] + CamOffset); // Bottom Plane
+		FPlane LeftPlane(BoxPoint[3], BoxPoint[0], BoxPoint[3] + CamOffset); // Left Plane
+
+		OutFrustum.Planes.Empty();
+		OutFrustum.Planes.Add(TopPlane);
+		OutFrustum.Planes.Add(RightPlane);
+		OutFrustum.Planes.Add(BottomPlane);
+		OutFrustum.Planes.Add(LeftPlane);
+
+		// Note: Orthographic selections are unbounded in the plane normal direction
+	}
+
+	OutFrustum.Init();
+	return OutFrustum;
+}
+
 // ---------------------------------------
 
 void URectangleMarqueeMechanic::Setup(UInteractiveTool* ParentToolIn)

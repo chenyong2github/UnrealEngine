@@ -836,19 +836,19 @@ void FindBoneVolumes(
 }
 
 
-void FindSmallBones(
+void FilterBonesByVolume(
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
 	const TArrayView<const double>& Volumes,
-	double MinVolume,
+	TFunctionRef<bool(double Volume, int32 BoneIdx)> Filter,
 	TArray<int32>& OutSmallBones
 )
 {
 	OutSmallBones.Reset();
 
-	auto AddIdx = [&Collection, &Volumes, &MinVolume, &OutSmallBones](int32 TransformIdx)
+	auto AddIdx = [&Collection, &Volumes, &Filter, &OutSmallBones](int32 TransformIdx)
 	{
-		if (Collection.TransformToGeometryIndex[TransformIdx] > -1 && Volumes[TransformIdx] < MinVolume)
+		if (Collection.TransformToGeometryIndex[TransformIdx] > -1 && Filter(Volumes[TransformIdx], TransformIdx))
 		{
 			OutSmallBones.Add(TransformIdx);
 		}
@@ -878,6 +878,23 @@ void FindSmallBones(
 			AddIdx(TransformIdx);
 		}
 	}
+}
+
+
+void FindSmallBones(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	const TArrayView<const double>& Volumes,
+	double MinVolume,
+	TArray<int32>& OutSmallBones
+)
+{
+	FilterBonesByVolume(Collection, TransformIndices, Volumes, 
+		[MinVolume](double Volume, int32 BoneIdx) -> bool
+		{
+			return Volume < MinVolume;
+		},
+		OutSmallBones);
 }
 
 

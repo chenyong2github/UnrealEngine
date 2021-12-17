@@ -249,6 +249,23 @@ void PLANARCUT_API FindSmallBones(
 	TArray<int32>& OutSmallBones
 );
 
+/**
+ * Populate an array of transform indices w/ those that match a custom volume-based filter
+ *
+ * @param Collection			The collection to be processed
+ * @param TransformIndices		The transform indices to process, or empty if all should be processed
+ * @param Volumes				Volumes of geometry; 1:1 w/ TransformIndices array
+ * @param Filter				Geometry for which the volume filter returns true will be chosen
+ * @param OutSmallBones			Output array, to be filled with transform indices for small pieces of geometry
+ */
+void PLANARCUT_API FilterBonesByVolume(
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	const TArrayView<const double>& Volumes,
+	TFunctionRef<bool(double Volume, int32 BoneIdx)> Filter,
+	TArray<int32>& OutSmallBones
+);
+
 namespace UE
 {
 	namespace PlanarCut

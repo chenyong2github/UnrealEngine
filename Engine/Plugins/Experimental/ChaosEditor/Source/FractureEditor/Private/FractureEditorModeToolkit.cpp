@@ -763,6 +763,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.SelectSiblings);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectAllInLevel);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectNeighbors);
+		ToolbarBuilder.AddToolBarButton(Commands.SelectCustom);
 	}
 	else if (PaletteIndex == TEXT("Fracture"))
 	{
