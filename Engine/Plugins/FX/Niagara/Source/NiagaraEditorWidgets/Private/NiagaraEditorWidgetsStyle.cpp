@@ -287,7 +287,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.SystemOverview.TableViewRow", FTableRowStyle(NormalTableRowStyle)
 		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel))
 		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel))
-		.SetSelectedTextColor(FStyleColors::Background)
+		.SetSelectedTextColor(FStyleColors::ForegroundInverted)
 		.SetInactiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, GetDefault<UEditorStyleSettings>()->GetSubduedSelectionColor())));
 
 	Style->Set("NiagaraEditor.Stack.BackgroundColor", FLinearColor(FColor(96, 96, 96)));
