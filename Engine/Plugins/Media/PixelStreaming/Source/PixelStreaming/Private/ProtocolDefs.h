@@ -7,6 +7,14 @@
 
 namespace PixelStreamingProtocol
 {
+	enum EPixelStreamingPlayerFlags
+	{
+		PSPFlag_None = 0x00,
+		PSPFlag_SupportsDataChannel = 0x01,
+		PSPFlag_IsSFU = 0x02,
+	};
+
+
 	enum class EToStreamerMsg : uint8
 	{
 		/**********************************************************************/
@@ -76,7 +84,10 @@ namespace PixelStreamingProtocol
 		UnfreezeFrame = 4,
 		VideoEncoderAvgQP = 5, // average Quantisation Parameter value of Video Encoder, roughly depicts video encoding quality
 		LatencyTest = 6,
-		InitialSettings = 7
+		InitialSettings = 7,
+		FileExtension = 8,
+		FileMimeType = 9,
+		FileContents = 10
 	};
 
 	template<typename T>

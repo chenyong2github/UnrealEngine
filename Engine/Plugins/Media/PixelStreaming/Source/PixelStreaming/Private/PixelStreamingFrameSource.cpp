@@ -4,6 +4,7 @@
 #include "LatencyTester.h"
 #include "PixelStreamingStats.h"
 #include "Async/Async.h"
+#include "Utils.h"
 
 FPixelStreamingFrameSource::FPixelStreamingFrameSource()
 {
@@ -162,24 +163,6 @@ FTexture2DRHIRef FPixelStreamingLayerFrameSource::GetFrame()
 		bIsTempDirty = false;
 	}
 	return ReadBuffer;
-}
-
-namespace
-{
-	FTexture2DRHIRef CreateTexture(int Width, int Height)
-	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
-		FTexture2DRHIRef Texture;
-		FString RHIName = GDynamicRHI->GetName();
-
-		if(RHIName == TEXT("Vulkan")) {
-			Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable | TexCreate_External, ERHIAccess::Present, CreateInfo);
-		} else
-		{
-			Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
-		}
-	    return Texture;
-	}
 }
 
 void FPixelStreamingLayerFrameSource::Initialize(int Width, int Height)

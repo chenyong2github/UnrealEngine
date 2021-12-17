@@ -523,8 +523,8 @@ void FSignallingServerConnection::OnPlayerConnected(const FJsonObjectPtr& Json)
 		HANDLE_SS_ERROR(TEXT("Failed to get `playerId` from `join` message\n%s"), *ToString(Json));
 	}
 	int Flags = 0;
-	Flags |= Json->GetBoolField(TEXT("dataChannel")) ? PSPFlag_SupportsDataChannel : 0;
-	Flags |= Json->GetBoolField(TEXT("sfu")) ? PSPFlag_IsSFU : 0;
+	Flags |= Json->GetBoolField(TEXT("dataChannel")) ?  PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_SupportsDataChannel : 0;
+	Flags |= Json->GetBoolField(TEXT("sfu")) ? PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_IsSFU : 0;
 	Observer.OnPlayerConnected(PlayerId, Flags);
 }
 

@@ -2,6 +2,7 @@
 
 #include "PixelStreamerInputComponent.h"
 #include "IPixelStreamingModule.h"
+#include "PixelStreamingModule.h"
 #include "InputDevice.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -12,7 +13,7 @@
 #include "PixelStreamingPrivate.h"
 
 UPixelStreamerInputComponent::UPixelStreamerInputComponent()
-	: PixelStreamingModule(FModuleManager::Get().GetModulePtr<IPixelStreamingModule>("PixelStreaming"))
+	: PixelStreamingModule(FPixelStreamingModule::GetModule())
 {
 }
 

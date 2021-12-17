@@ -21,6 +21,7 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
         bool IsInSignallingThread() const;
 		void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
 		void SendUnfreezeFrame();
+		void SendFileData(const TArray<uint8>& ByteData, const FString& MimeType, const FString& FileExtension);
 		void SendMessageAll(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const;
 		void DisconnectPlayer(FPlayerId PlayerId, const FString& Reason);
 		void SendLatestQPAllPlayers(int LatestQP) const;
@@ -30,7 +31,10 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 		webrtc::PeerConnectionInterface* CreatePlayerSession(FPlayerId PlayerId, 
 			rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory, 
 			webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig, 
-			FSignallingServerConnection* SignallingServerConnection);
+			FSignallingServerConnection* SignallingServerConnection,
+			int Flags);
+
+		void SetPlayerSessionDataChannel(FPlayerId PlayerId, rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel);
 
 		void DeleteAllPlayerSessions();
 		int DeletePlayerSession(FPlayerId PlayerId);
@@ -59,6 +63,8 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 		// Note: This is very intentionally internal and there is no public version because as soon as we hand it out it isn't thread safe anymore.
 		FPlayerSession* GetPlayerSession_SignallingThread(FPlayerId PlayerId) const;
 
+		void SetPlayerSessionDataChannel_SignallingThread(FPlayerId PlayerId, rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel);
+
 		void OnRemoteIceCandidate_SignallingThread(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp);
 		void OnAnswer_SignallingThread(FPlayerId PlayerId, FString Sdp);
 		IPixelStreamingAudioSink* GetUnlistenedAudioSink_SignallingThread() const;
@@ -68,6 +74,7 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 		void SendFreezeFrame_SignallingThread(const TArray64<uint8>& JpegBytes);
 		void SendUnfreezeFrame_SignallingThread();
 		void SendFreezeFrameTo_SignallingThread(FPlayerId PlayerId, const TArray64<uint8>& JpegBytes) const;
+		void SendFileData_SignallingThread(const TArray<uint8>& ByteData, const FString& MimeType, const FString& FileExtension);
 		void SetQualityController_SignallingThread(FPlayerId PlayerId);
 		void DisconnectPlayer_SignallingThread(FPlayerId PlayerId, const FString& Reason);
 		void SendMessageAll_SignallingThread(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const;
@@ -77,7 +84,8 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 		webrtc::PeerConnectionInterface* CreatePlayerSession_SignallingThread(FPlayerId PlayerId, 
 			rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory, 
 			webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig,
-			FSignallingServerConnection* SignallingServerConnection);
+			FSignallingServerConnection* SignallingServerConnection,
+			int Flags);
 
 		void DeleteAllPlayerSessions_SignallingThread();
 		int DeletePlayerSession_SignallingThread(FPlayerId PlayerId);

@@ -52,11 +52,7 @@ public:
 	 */
 	static UPixelStreamerDelegates* CreateInstance();
 
-	/**
-	 * Get the singleton. This allows application-specific blueprints to bind
-	 * to delegates of interest.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Pixel Streamer Delegates")
+	
 	static UPixelStreamerDelegates* GetPixelStreamerDelegates()
 	{
 		if(Singleton == nullptr)
@@ -67,7 +63,6 @@ public:
 	}
 
 private:
-
 	// The singleton object.
 	static UPixelStreamerDelegates* Singleton;
 };
