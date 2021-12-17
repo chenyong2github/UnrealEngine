@@ -5,7 +5,7 @@
 #include "Sampling/MeshMapBakerQueue.h"
 #include "Image/ImageOccupancyMap.h"
 #include "Image/ImageTile.h"
-#include "Algo/Count.h"
+#include "Selections/MeshConnectedComponents.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
 using namespace UE::Geometry;
@@ -81,6 +81,13 @@ void FMeshMapBaker::InitBake()
 	}
 
 	InitFilter();
+
+	// Compute UV charts if null or invalid.
+	if (!TargetMeshUVCharts || !ensure(TargetMeshUVCharts->Num() == TargetMesh->TriangleCount()))
+	{
+		ComputeUVCharts(*TargetMesh, TargetMeshUVChartsLocal);
+		TargetMeshUVCharts = &TargetMeshUVChartsLocal;
+	}
 }
 
 void FMeshMapBaker::InitBakeDefaults()
@@ -121,7 +128,7 @@ void FMeshMapBaker::Bake()
 	BakeAnalytics.Reset();
 	FScopedDurationTimer TotalBakeTimer(BakeAnalytics.TotalBakeDuration);
 	
-	if (Bakers.IsEmpty())
+	if (Bakers.IsEmpty() || !TargetMesh)
 	{
 		return;
 	}
@@ -305,11 +312,17 @@ void FMeshMapBaker::Bake()
 
 		FImageOccupancyMap OccupancyMap;
 		OccupancyMap.GutterSize = GutterSize;
-		OccupancyMap.Initialize(Dimensions, Tile, SamplesPerPixel);
-		OccupancyMap.ComputeFromUVSpaceMesh(FlatMesh, [this](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); });
+		OccupancyMap.Initialize(Dimensions, PaddedTile, SamplesPerPixel);
+		OccupancyMap.ComputeFromUVSpaceMesh(FlatMesh, [this](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); }, TargetMeshUVCharts);
 		GutterTexelsPerTile[TileIdx] = OccupancyMap.GutterTexels;
 
-		BakeAnalytics.NumSamplePixels += Algo::CountIf(OccupancyMap.TexelInteriorSamples, [](const int32 Value){ return Value > 0; });
+		const int64 NumTilePixels = Tile.Num();
+		for (int64 TilePixelIdx = 0; TilePixelIdx < NumTilePixels; ++TilePixelIdx)
+		{
+			const FVector2i SourceCoords = Tile.GetSourceCoords(TilePixelIdx);
+			const int64 OccupancyMapIdx = OccupancyMap.Tile.GetIndexFromSourceCoords(SourceCoords);
+			BakeAnalytics.NumSamplePixels += OccupancyMap.TexelInteriorSamples[OccupancyMapIdx];; 
+		}
 
 		FMeshMapTileBuffer* TileBuffer = new FMeshMapTileBuffer(PaddedTile, BakeSampleBufferSize);
 
@@ -330,16 +343,16 @@ void FMeshMapBaker::Bake()
 						return;
 					}
 
-					const int64 TilePixelLinearIdx = Tile.GetIndex(TileCoords);
-					if (OccupancyMap.TexelNumSamples(TilePixelLinearIdx) == 0)
+					const FVector2i ImageCoords = Tile.GetSourceCoords(TileCoords);
+					const int64 OccupancyMapLinearIdx = OccupancyMap.Tile.GetIndexFromSourceCoords(ImageCoords);
+					if (OccupancyMap.TexelNumSamples(OccupancyMapLinearIdx) == 0)
 					{
 						continue;
 					}
 
-					const FVector2i ImageCoords = Tile.GetSourceCoords(TileCoords);
 					for (int32 SampleIdx = 0; SampleIdx < NumSamples; ++SampleIdx)
 					{
-						const int64 LinearIdx = TilePixelLinearIdx * NumSamples + SampleIdx;
+						const int64 LinearIdx = OccupancyMapLinearIdx * NumSamples + SampleIdx;
 						if (OccupancyMap.IsInterior(LinearIdx))
 						{
 							const FVector2d UVPosition = (FVector2d)OccupancyMap.TexelQueryUV[LinearIdx];
@@ -349,7 +362,7 @@ void FMeshMapBaker::Bake()
 							DetailCorrespondenceSampler.SampleUV(UVTriangleID, UVPosition, Sample);
 							if (Sample.DetailMesh && DetailSampler->IsTriangle(Sample.DetailMesh, Sample.DetailTriID))
 							{
-								BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords);
+								BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords, OccupancyMap);
 							}
 						}
 					}
@@ -479,7 +492,8 @@ void FMeshMapBaker::BakeSample(
 	FMeshMapTileBuffer& TileBuffer,
 	const FMeshMapEvaluator::FCorrespondenceSample& Sample,
 	const FVector2d& UVPosition,
-	const FVector2i& ImageCoords)
+	const FVector2i& ImageCoords,
+	const FImageOccupancyMap& OccupancyMap)
 {
 	// Evaluate each baker into stack allocated float buffer
 	float* Buffer = static_cast<float*>(FMemory_Alloca(sizeof(float) * BakeSampleBufferSize));
@@ -493,7 +507,10 @@ void FMeshMapBaker::BakeSample(
 
 	const FImageTile& Tile = TileBuffer.GetTile();
 
-	auto AddFn = [this, &ImageCoords, &UVPosition, &Tile, &TileBuffer, Buffer](const TArray<int32>& BakeIds) -> void
+	const int64 OccupancyMapSampleIdx = OccupancyMap.Tile.GetIndexFromSourceCoords(ImageCoords);
+	const int32 SampleUVChart = OccupancyMap.TexelQueryUVChart[OccupancyMapSampleIdx];
+
+	auto AddFn = [this, &ImageCoords, &UVPosition, &Tile, &TileBuffer, Buffer, &OccupancyMap, SampleUVChart](const TArray<int32>& BakeIds) -> void
 	{
 		const FVector2i BoxFilterStart(
 			FMath::Clamp(ImageCoords.X - FilterKernelSize, 0, Dimensions.GetWidth()),
@@ -509,6 +526,8 @@ void FMeshMapBaker::BakeSample(
 		{
 			const FVector2i SourceCoords = BoxFilterTile.GetSourceCoords(FilterIdx);
 			const int64 BufferTilePixelLinearIdx = Tile.GetIndexFromSourceCoords(SourceCoords);
+			const int64 OccupancyMapFilterIdx = OccupancyMap.Tile.GetIndexFromSourceCoords(SourceCoords);
+			const int32 BufferTilePixelUVChart = OccupancyMap.TexelQueryUVChart[OccupancyMapFilterIdx];
 			float* PixelBuffer = TileBuffer.GetPixel(BufferTilePixelLinearIdx);
 			float& PixelWeight = TileBuffer.GetPixelWeight(BufferTilePixelLinearIdx);
 
@@ -517,7 +536,8 @@ void FMeshMapBaker::BakeSample(
 			TexelDistance.X *= Dimensions.GetWidth();
 			TexelDistance.Y *= Dimensions.GetHeight();
 
-			const float FilterWeight = TextureFilterEval(TexelDistance);
+			float FilterWeight = TextureFilterEval(TexelDistance);
+			FilterWeight *= (SampleUVChart == BufferTilePixelUVChart);
 			PixelWeight += FilterWeight;
 			for (const int32 BakeIdx : BakeIds)
 			{
@@ -667,6 +687,29 @@ float FMeshMapBaker::EvaluateFilter(const FVector2d& Dist)
 		Result = MitchellNetravaliFilter.GetWeight(Dist);
 	}
 	return Result;
+}
+
+
+void FMeshMapBaker::ComputeUVCharts(const FDynamicMesh3& Mesh, TArray<int32>& MeshUVCharts)
+{
+	MeshUVCharts.SetNumZeroed(Mesh.TriangleCount());
+	if (const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes() ? Mesh.Attributes()->PrimaryUV() : nullptr)
+	{
+		FMeshConnectedComponents UVComponents(&Mesh);
+		UVComponents.FindConnectedTriangles();
+		UVComponents.FindConnectedTriangles([UVOverlay](int32 Triangle0, int32 Triangle1) {
+			return UVOverlay ? UVOverlay->AreTrianglesConnected(Triangle0, Triangle1) : false;
+		});
+		const int32 NumComponents = UVComponents.Num();
+		for (int32 ComponentId = 0; ComponentId < NumComponents; ++ComponentId)
+		{
+			const FMeshConnectedComponents::FComponent& UVComp = UVComponents.GetComponent(ComponentId);
+			for (const int32 TriId : UVComp.Indices)
+			{
+				MeshUVCharts[TriId] = ComponentId;
+			}
+		}
+	}
 }
 
 

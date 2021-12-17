@@ -176,6 +176,8 @@ protected:
 	};
 	FBakeSettings CachedBakeSettings;
 
+	TArray<int32> TargetMeshUVCharts;
+
 	/**
 	 * To be invoked by client when bake map types change.
 	 * @param ResultMapTypes the requested map types to compute

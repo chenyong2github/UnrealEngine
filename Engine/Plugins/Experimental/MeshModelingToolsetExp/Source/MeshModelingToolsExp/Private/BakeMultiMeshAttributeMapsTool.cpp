@@ -319,6 +319,7 @@ public:
 	TSharedPtr<UE::Geometry::FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents;
 	TUniquePtr<UE::Geometry::FMeshMapBaker> Baker;
 	UBakeMultiMeshAttributeMapsTool::FBakeSettings BakeSettings;
+	TArray<int32>* BaseMeshUVCharts;
 
 	// Detail bake data
 	TArray<TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>>> CachedColorImages;
@@ -337,6 +338,7 @@ public:
 		Baker->SetProjectionDistance(BakeSettings.ProjectionDistance);
 		Baker->SetSamplesPerPixel(BakeSettings.SamplesPerPixel);
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
+		Baker->SetTargetMeshUVCharts(BaseMeshUVCharts);
 		
 		FMeshBakerMeshSceneSampler DetailSampler(DetailMeshScene);
 		Baker->SetDetailSampler(&DetailSampler);
@@ -503,6 +505,7 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMultiMeshAttr
 	TUniquePtr<FMultiMeshMapBakerOp> Op = MakeUnique<FMultiMeshMapBakerOp>();
 	Op->DetailMeshScene = &DetailMeshScene;
 	Op->BaseMesh = &TargetMesh;
+	Op->BaseMeshUVCharts = &TargetMeshUVCharts;
 	Op->BakeSettings = CachedBakeSettings;
 
 	constexpr EBakeMapType RequiresTangents = EBakeMapType::TangentSpaceNormal | EBakeMapType::BentNormal;

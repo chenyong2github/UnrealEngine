@@ -79,6 +79,10 @@ void UBakeMeshAttributeMapsToolBase::PostSetup()
 	Compute->Setup(this);
 	Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult); });
 
+	// Initialize UV charts
+	// TODO: Compute UV charts asynchronously
+	FMeshMapBaker::ComputeUVCharts(TargetMesh, TargetMeshUVCharts);
+
 	GatherAnalytics(BakeAnalytics.MeshSettings);
 }
 
