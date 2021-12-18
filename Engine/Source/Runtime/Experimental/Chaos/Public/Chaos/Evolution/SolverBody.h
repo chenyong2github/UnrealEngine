@@ -4,8 +4,21 @@
 #include "Chaos/Core.h"
 #include "Math/Quat.h"
 
+// Set to 1 to force single precision in the constraint solver, even if the default numeric type is double
+#define CHAOS_CONSTRAINTSOLVER_LOWPRECISION 1
+
 namespace Chaos
 {
+	// Set the low precision (LP) math types
+#if CHAOS_CONSTRAINTSOLVER_LOWPRECISION
+	using FRealLP = FRealSingle;
+#else
+	using FRealLP = FReal;
+#endif
+	using FVec3LP = TVec3<FRealLP>;
+	using FMatrix33LP = TMatrix33<FRealLP>;
+
+
 	class FSolverBody;
 	class FSolverBodyContainer;
 
@@ -123,42 +136,44 @@ namespace Chaos
 		{
 			if (IsDynamic() && (Dt != FReal(0)))
 			{
-				State.V += State.DP / Dt;
-				State.W += State.DQ / Dt;
+				const FRealLP InvDt = FRealLP(1) / FRealLP(Dt);
+				State.V += State.DP * InvDt;
+				State.W += State.DQ * InvDt;
 			}
 		}
 
 		/**
 		 * @brief Get the inverse mass
 		*/
-		inline FReal InvM() const { return State.InvM; }
+		//inline FReal InvM() const { return State.InvM; }
+		inline FRealLP InvM() const { return State.InvM; }
 
 		/**
 		 * @brief Set the inverse mass
 		*/
-		inline void SetInvM(FReal InInvM) { State.InvM = InInvM; }
+		inline void SetInvM(FReal InInvM) { State.InvM = FRealLP(InInvM); }
 
 		/**
 		 * @brief Get the world-space inverse inertia
 		*/
-		inline const FMatrix33& InvI() const { return State.InvI; }
+		inline const FMatrix33LP& InvI() const { return State.InvI; }
 
 		/**
 		 * @brief Set the world-space inverse inertia
 		*/
-		inline void SetInvI(const FMatrix33& InInvI) { State.InvI = InInvI; }
+		inline void SetInvI(const FMatrix33& InInvI) { State.InvI = FMatrix33LP(InInvI); }
 
 		/**
 		 * @brief Get the local-space inverse inertia (diagonal elements)
 		*/
-		inline const FVec3& InvILocal() const { return State.InvILocal; }
+		inline const FVec3LP& InvILocal() const { return State.InvILocal; }
 
 		/**
 		 * @brief Set the local-space inverse inertia (diagonal elements)
 		*/
 		inline void SetInvILocal(const FVec3& InInvILocal)
 		{ 
-			State.InvILocal = InInvILocal; 
+			State.InvILocal = FVec3LP(InInvILocal); 
 			UpdateRotationDependentState();
 		}
 
@@ -216,24 +231,24 @@ namespace Chaos
 		/**
 		 * @brief Net world-space position correction applied by the constraints
 		*/
-		inline const FVec3& DP() const { return State.DP; }
+		inline const FVec3LP& DP() const { return State.DP; }
 
 		/**
 		 * @brief Net world-space rotation correction applied by the constraints (axis-angle vector equivalent to angular velocity but for position)
 		*/
-		inline const FVec3& DQ() const { return State.DQ; }
+		inline const FVec3LP& DQ() const { return State.DQ; }
 
 		/**
 		 * @brief World-space position after applying the net correction DP()
 		 * @note Calculated on demand from P() and DP() (only requires vector addition)
 		*/
-		inline FVec3 CorrectedP() const { return State.P + State.DP; }
+		inline FVec3 CorrectedP() const { return State.P + FVec3(State.DP); }
 
 		/**
 		 * @brief World-space rotation after applying the net correction DQ()
 		 * @note Calculated on demand from Q() and DQ() (requires quaternion multiply and normalization)
 		*/
-		inline FRotation3 CorrectedQ() const { return IsModified() ? FRotation3::IntegrateRotationWithAngularVelocity(State.Q, State.DQ, FReal(1)) : State.Q; }
+		inline FRotation3 CorrectedQ() const { return IsDynamic() ? FRotation3::IntegrateRotationWithAngularVelocity(State.Q, FVec3(State.DQ), FReal(1)) : State.Q; }
 
 		/**
 		 * @brief Apply the accumulated position and rotation corrections to the predicted P and Q
@@ -244,8 +259,8 @@ namespace Chaos
 		{
 			State.P = CorrectedP();
 			State.Q = CorrectedQ();
-			State.DP = FVec3(0);
-			State.DQ = FVec3(0);
+			State.DP = FVec3LP(0);
+			State.DQ = FVec3LP(0);
 		}
 
 		/**
@@ -267,12 +282,6 @@ namespace Chaos
 		inline void SetLevel(int32 InLevel) { State.Level = InLevel; }
 
 		/**
-		 * @brief Whether there were any active collision constraints on this body
-		*/
-		inline bool HasActiveCollision() const { return State.bHasActiveCollision; }
-		inline void SetHasActiveCollision(bool bInHasCollision) { State.bHasActiveCollision = bInHasCollision; }
-
-		/**
 		 * @brief Whether the body has a finite mass
 		 * @note This is based on the current inverse mass, so a "dynamic" particle with 0 inverse mass will return true here.
 		*/
@@ -281,7 +290,7 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space position and rotation delta to the body center of mass, and update inverse mass
 		*/
-		inline void ApplyTransformDelta(const FVec3 DP, const FVec3 DR)
+		inline void ApplyTransformDelta(const FVec3LP& DP, const FVec3LP& DR)
 		{
 			ApplyPositionDelta(DP);
 			ApplyRotationDelta(DR);
@@ -290,25 +299,23 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space position delta to the solver body center of mass
 		*/
-		inline void ApplyPositionDelta(const FVec3 DP)
+		inline void ApplyPositionDelta(const FVec3LP& DP)
 		{
 			State.DP += DP;
-			++State.LastChangeEpoch;
 		}
 
 		/**
 		 * @brief Apply a world-space rotation delta to the solver body and update the inverse mass
 		*/
-		inline void ApplyRotationDelta(const FVec3 DR)
+		inline void ApplyRotationDelta(const FVec3LP& DR)
 		{
 			State.DQ += DR;
-			++State.LastChangeEpoch;
 		}
 
 		/**
 		 * @brief Apply a world-space velocity delta to the solver body
 		*/
-		inline void ApplyVelocityDelta(const FVec3& DV, const FVec3& DW)
+		inline void ApplyVelocityDelta(const FVec3LP& DV, const FVec3LP& DW)
 		{
 			ApplyLinearVelocityDelta(DV);
 			ApplyAngularVelocityDelta(DW);
@@ -317,19 +324,17 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space linear velocity delta to the solver body
 		*/
-		inline void ApplyLinearVelocityDelta(const FVec3& DV)
+		inline void ApplyLinearVelocityDelta(const FVec3LP& DV)
 		{
 			State.V += DV;
-			++State.LastChangeEpoch;
 		}
 
 		/**
 		 * @brief Apply an world-space angular velocity delta to the solver body
 		*/
-		inline void ApplyAngularVelocityDelta(const FVec3& DW)
+		inline void ApplyAngularVelocityDelta(const FVec3LP& DW)
 		{
 			State.W += DW;
-			++State.LastChangeEpoch;
 		}
 
 		/**
@@ -339,16 +344,6 @@ namespace Chaos
 		inline void EnforceShortestRotationTo(const FRotation3& InQ)
 		{
 			State.Q.EnforceShortestArcWith(InQ);
-		}
-
-		inline int32 LastChangeEpoch() const
-		{
-			return State.LastChangeEpoch;
-		}
-
-		inline bool IsModified() const
-		{
-			return State.LastChangeEpoch != 0;
 		}
 
 		/**
@@ -366,6 +361,9 @@ namespace Chaos
 				: InvILocal(0)
 				, InvM(0)
 				, InvI(0)
+				, DP(0)
+				, DQ(0)
+				, Level(0)
 				, X(0)
 				, R(FRotation3::Identity)
 				, P(0)
@@ -374,22 +372,26 @@ namespace Chaos
 				, W(0)
 				, CoM(0)
 				, RoM(FRotation3::Identity)
-				, DP(0)
-				, DQ(0)
-				, Level(0)
-				, LastChangeEpoch(0)
-				, bHasActiveCollision(false)
 			{}
 
 			// Local-space inverse inertia (diagonal, so only 3 elements)
-			FVec3 InvILocal;
+			FVec3LP InvILocal;
 
 			// Inverse mass
-			FReal InvM;
+			FRealLP InvM;
 
 			// World-space inverse inertia
 			// @todo(chaos): do we need this, or should we force all systems to use the FConstraintSolverBody decorator?
-			FMatrix33 InvI;
+			FMatrix33LP InvI;
+
+			// Net position delta applied by all constraints (constantly changing as we iterate over constraints)
+			FVec3LP DP;
+
+			// Net rotation delta applied by all constraints (constantly changing as we iterate over constraints)
+			FVec3LP DQ;
+
+			// Distance to a kinmatic body (through the contact graph). Used by collision shock propagation
+			int32 Level;
 
 			// World-space center of mass state at start of sub step
 			FVec3 X;
@@ -414,26 +416,8 @@ namespace Chaos
 
 			// Actor-space center of mass rotation
 			FRotation3 RoM;
-
-			// Net position delta applied by all constraints (constantly changing as we iterate over constraints)
-			FVec3 DP;
-
-			// Net rotation delta applied by all constraints (constantly changing as we iterate over constraints)
-			FVec3 DQ;
-
-			// Distance to a kinmatic body (through the contact graph). Used by collision shock propagation
-			int32 Level;
-
-			// A counter incremented every time the state changes. 
-			// Used by constraints to determine if some other constraint has modified the body for early exit logic
-			int32 LastChangeEpoch;
-
-			// Whether we had any active contacts this substep
-			// @todo(chaos): maybe make this a counter?
-			bool bHasActiveCollision;
 		};
 
-		//FGenericParticleHandle Particle;
 		FState State;
 	};
 
@@ -487,23 +471,23 @@ namespace Chaos
 		/**
 		 * @brief A scale applied to both inverse mass and inverse inertia
 		*/
-		inline FReal InvMScale() const { return State.InvMassScale; }
-		inline void SetInvMScale(FReal InInvMassScale) { State.InvMassScale = InInvMassScale; }
+		inline FRealLP InvMScale() const { return State.InvMassScale; }
+		inline void SetInvMScale(FReal InInvMassScale) { State.InvMassScale = FRealLP(InInvMassScale); }
 
 		/**
 		 * @brief The scaled inverse mass
 		*/
-		FReal InvM() const { return State.InvMassScale * Body->InvM(); }
+		FRealLP InvM() const { return State.InvMassScale * Body->InvM(); }
 
 		/**
 		 * @brief The scaled inverse inertia
 		*/
-		FMatrix33 InvI() const { return State.InvMassScale * Body->InvI(); }
+		FMatrix33LP InvI() const { return State.InvMassScale * Body->InvI(); }
 
 		/**
 		 * @brief The scaled local space inverse inertia
 		*/
-		FVec3 InvILocal() const { return State.InvMassScale * Body->InvILocal(); }
+		FVec3LP InvILocal() const { return State.InvMassScale * Body->InvILocal(); }
 
 		/**
 		 * @brief Whether the body is dynamic (i.e., has a finite mass) after InvMassScale is applied
@@ -525,30 +509,28 @@ namespace Chaos
 		inline const FVec3& V() const { return Body->V(); }
 		inline const FVec3& W() const { return Body->W(); }
 		inline int32 Level() const { return Body->Level(); }
-		inline const FVec3& DP() const { return Body->DP(); }
-		inline const FVec3& DQ() const { return Body->DQ(); }
+		inline const FVec3LP& DP() const { return Body->DP(); }
+		inline const FVec3LP& DQ() const { return Body->DQ(); }
 		inline FVec3 CorrectedP() const { return Body->CorrectedP(); }
 		inline FRotation3 CorrectedQ() const { return Body->CorrectedQ(); }
 
-		inline void ApplyTransformDelta(const FVec3 DP, const FVec3 DR) { Body->ApplyTransformDelta(DP, DR); }
-		inline void ApplyPositionDelta(const FVec3 DP) { Body->ApplyPositionDelta(DP); }
-		inline void ApplyRotationDelta(const FVec3 DR) { Body->ApplyRotationDelta(DR); }
-		inline void ApplyVelocityDelta(const FVec3& DV, const FVec3& DW) { Body->ApplyVelocityDelta(DV, DW); }
-		inline void ApplyLinearVelocityDelta(const FVec3& DV) { Body->ApplyLinearVelocityDelta(DV); }
-		inline void ApplyAngularVelocityDelta(const FVec3& DW) { Body->ApplyAngularVelocityDelta(DW); }
+		inline void ApplyTransformDelta(const FVec3LP& DP, const FVec3LP& DR) { Body->ApplyTransformDelta(DP, DR); }
+		inline void ApplyPositionDelta(const FVec3LP& DP) { Body->ApplyPositionDelta(DP); }
+		inline void ApplyRotationDelta(const FVec3LP& DR) { Body->ApplyRotationDelta(DR); }
+		inline void ApplyVelocityDelta(const FVec3LP& DV, const FVec3LP& DW) { Body->ApplyVelocityDelta(DV, DW); }
+		inline void ApplyLinearVelocityDelta(const FVec3LP& DV) { Body->ApplyLinearVelocityDelta(DV); }
+		inline void ApplyAngularVelocityDelta(const FVec3LP& DW) { Body->ApplyAngularVelocityDelta(DW); }
 		inline void EnforceShortestRotationTo(const FRotation3& InQ) { Body->EnforceShortestRotationTo(InQ); }
 		inline void UpdateRotationDependentState() { Body->UpdateRotationDependentState(); }
-
-		inline int32 LastChangeEpoch() const { return Body->LastChangeEpoch(); }
 
 	private:
 		// Struct is only so that we can use the same var names as function names
 		struct FState
 		{
 			FState() 
-				: InvMassScale(FReal(1)) 
+				: InvMassScale(FRealLP(1))
 			{}
-			FReal InvMassScale;
+			FRealLP InvMassScale;
 		};
 
 		// The body we decorate

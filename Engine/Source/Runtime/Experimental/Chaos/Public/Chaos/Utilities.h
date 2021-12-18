@@ -244,6 +244,17 @@ namespace Chaos
 			    L.M[0][2] * R.X + L.M[1][2] * R.Y + L.M[2][2] * R.Z);
 		}
 
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+		inline TVec3<FRealSingle> Multiply(const TMatrix33<FRealSingle>& L, const TVec3<FRealSingle>& R)
+		{
+			// @todo(chaos): optimize: use simd
+			return TVec3<FRealSingle>(
+				L.M[0][0] * R.X + L.M[1][0] * R.Y + L.M[2][0] * R.Z,
+				L.M[0][1] * R.X + L.M[1][1] * R.Y + L.M[2][1] * R.Z,
+				L.M[0][2] * R.X + L.M[1][2] * R.Y + L.M[2][2] * R.Z);
+		}
+#endif
+
 		inline FVec4 Multiply(const FMatrix44& L, const FVec4& R)
 		{
 			// @todo(chaos): optimize: use simd

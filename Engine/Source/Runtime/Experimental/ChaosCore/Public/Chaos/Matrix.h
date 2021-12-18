@@ -560,4 +560,401 @@ namespace Chaos
 		static const PMatrix<FReal, 3, 3> Zero;
 		static const PMatrix<FReal, 3, 3> Identity;
 	};
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+	template<>
+	class PMatrix<FRealSingle, 3, 3> : public UE::Math::TMatrix<FRealSingle>
+	{
+	public:
+		PMatrix()
+			: UE::Math::TMatrix<FRealSingle>() {}
+		PMatrix(UE::Math::TMatrix<FRealSingle>&& Other)
+			: UE::Math::TMatrix<FRealSingle>(MoveTemp(Other)) {}
+		PMatrix(const UE::Math::TMatrix<FRealSingle>& Other)
+			: UE::Math::TMatrix<FRealSingle>((UE::Math::TMatrix<FRealSingle>)Other) {}
+		PMatrix(const UE::Math::TMatrix<FRealDouble>& Other)
+			: UE::Math::TMatrix<FRealSingle>((UE::Math::TMatrix<FRealSingle>)Other) {}
+		PMatrix(const FRealSingle x00, const FRealSingle x11, const FRealSingle x22)
+			: UE::Math::TMatrix<FRealSingle>()
+		{
+			M[0][0] = x00;
+			M[1][0] = 0;
+			M[2][0] = 0;
+			M[0][1] = 0;
+			M[1][1] = x11;
+			M[2][1] = 0;
+			M[0][2] = 0;
+			M[1][2] = 0;
+			M[2][2] = x22;
+			// Fill in the remainder with reasonable values.
+			M[3][0] = 0;
+			M[3][1] = 0;
+			M[3][2] = 0;
+			M[3][3] = 1;
+			M[0][3] = 0;
+			M[1][3] = 0;
+			M[2][3] = 0;
+		}
+		PMatrix(const FRealSingle x00, const FRealSingle x10, const FRealSingle x20, const FRealSingle x11, const FRealSingle x21, const FRealSingle x22)
+			: UE::Math::TMatrix<FRealSingle>()
+		{
+			M[0][0] = x00;
+			M[1][0] = x10;
+			M[2][0] = x20;
+			M[0][1] = x10;
+			M[1][1] = x11;
+			M[2][1] = x21;
+			M[0][2] = x20;
+			M[1][2] = x21;
+			M[2][2] = x22;
+			// Fill in the remainder with reasonable values.
+			M[3][0] = 0;
+			M[3][1] = 0;
+			M[3][2] = 0;
+			M[3][3] = 1;
+			M[0][3] = 0;
+			M[1][3] = 0;
+			M[2][3] = 0;
+		}
+		PMatrix(const FRealSingle x00, const FRealSingle x10, const FRealSingle x20, const FRealSingle x01, const FRealSingle x11, const FRealSingle x21, const FRealSingle x02, const FRealSingle x12, const FRealSingle x22)
+			: UE::Math::TMatrix<FRealSingle>()
+		{
+			M[0][0] = x00;
+			M[1][0] = x10;
+			M[2][0] = x20;
+			M[0][1] = x01;
+			M[1][1] = x11;
+			M[2][1] = x21;
+			M[0][2] = x02;
+			M[1][2] = x12;
+			M[2][2] = x22;
+			// Fill in the remainder with reasonable values.
+			M[3][0] = 0;
+			M[3][1] = 0;
+			M[3][2] = 0;
+			M[3][3] = 1;
+			M[0][3] = 0;
+			M[1][3] = 0;
+			M[2][3] = 0;
+		}
+		PMatrix(const FRealSingle x)
+			: UE::Math::TMatrix<FRealSingle>()
+		{
+			M[0][0] = x;
+			M[1][0] = x;
+			M[2][0] = x;
+			M[0][1] = x;
+			M[1][1] = x;
+			M[2][1] = x;
+			M[0][2] = x;
+			M[1][2] = x;
+			M[2][2] = x;
+			// Fill in the remainder with reasonable values.
+			M[3][0] = 0;
+			M[3][1] = 0;
+			M[3][2] = 0;
+			M[3][3] = 1;
+			M[0][3] = 0;
+			M[1][3] = 0;
+			M[2][3] = 0;
+		}
+		PMatrix(const TVector<FRealSingle, 3>& C1, const TVector<FRealSingle, 3>& C2, const TVector<FRealSingle, 3>& C3)
+		{
+			M[0][0] = C1.X;
+			M[1][0] = C1.Y;
+			M[2][0] = C1.Z;
+			M[0][1] = C2.X;
+			M[1][1] = C2.Y;
+			M[2][1] = C2.Z;
+			M[0][2] = C3.X;
+			M[1][2] = C3.Y;
+			M[2][2] = C3.Z;
+			// Fill in the remainder with reasonable values.
+			M[3][0] = 0;
+			M[3][1] = 0;
+			M[3][2] = 0;
+			M[3][3] = 1;
+			M[0][3] = 0;
+			M[1][3] = 0;
+			M[2][3] = 0;
+		}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
+		PMatrix<FRealSingle, 3, 3> GetTransposed()
+		{
+			return PMatrix<FRealSingle, 3, 3>(M[0][0], M[0][1], M[0][2], M[1][0], M[1][1], M[1][2], M[2][0], M[2][1], M[2][2]);
+		}
+		FRealSingle Determinant()
+		{
+			return M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) - M[0][1] * (M[1][0] * M[2][2] - M[1][2] * M[2][0]) + M[0][2] * (M[1][0] * M[2][1] - M[1][1] * M[2][0]);
+		}
+		PMatrix<FRealSingle, 3, 3>& operator+=(const PMatrix<FRealSingle, 3, 3>& Other)
+		{
+			M[0][0] += Other.M[0][0];
+			M[0][1] += Other.M[0][1];
+			M[0][2] += Other.M[0][2];
+			M[1][0] += Other.M[1][0];
+			M[1][1] += Other.M[1][1];
+			M[1][2] += Other.M[1][2];
+			M[2][0] += Other.M[2][0];
+			M[2][1] += Other.M[2][1];
+			M[2][2] += Other.M[2][2];
+			return *this;
+		}
+#endif
+		// TDOD(mlentine): This should really be a vector multiply and sum for each entry using sse
+		TVector<FRealSingle, 3> operator*(const TVector<FRealSingle, 3>& Other) const
+		{
+			return TVector<FRealSingle, 3>(
+				M[0][0] * Other[0] + M[0][1] * Other[1] + M[0][2] * Other[2],
+				M[1][0] * Other[0] + M[1][1] * Other[1] + M[1][2] * Other[2],
+				M[2][0] * Other[0] + M[2][1] * Other[1] + M[2][2] * Other[2]);
+		}
+		PMatrix<FRealSingle, 3, 3> operator+(const PMatrix<FRealSingle, 3, 3>& Other) const
+		{
+			return PMatrix<FRealSingle, 3, 3>(
+				M[0][0] + Other.M[0][0],
+				M[1][0] + Other.M[1][0],
+				M[2][0] + Other.M[2][0],
+				M[0][1] + Other.M[0][1],
+				M[1][1] + Other.M[1][1],
+				M[2][1] + Other.M[2][1],
+				M[0][2] + Other.M[0][2],
+				M[1][2] + Other.M[1][2],
+				M[2][2] + Other.M[2][2]);
+		}
+		friend PMatrix<FRealSingle, 3, 3> operator+(const PMatrix<FRealSingle, 3, 3>& Other)
+		{
+			return Other;
+		}
+		PMatrix<FRealSingle, 3, 3> operator-(const PMatrix<FRealSingle, 3, 3>& Other) const
+		{
+			return PMatrix<FRealSingle, 3, 3>(
+				M[0][0] - Other.M[0][0],
+				M[1][0] - Other.M[1][0],
+				M[2][0] - Other.M[2][0],
+				M[0][1] - Other.M[0][1],
+				M[1][1] - Other.M[1][1],
+				M[2][1] - Other.M[2][1],
+				M[0][2] - Other.M[0][2],
+				M[1][2] - Other.M[1][2],
+				M[2][2] - Other.M[2][2]);
+		}
+		friend PMatrix<FRealSingle, 3, 3> operator-(const PMatrix<FRealSingle, 3, 3>& Other)
+		{
+			return PMatrix<FRealSingle, 3, 3>(
+				-Other.M[0][0],
+				-Other.M[1][0],
+				-Other.M[2][0],
+				-Other.M[0][1],
+				-Other.M[1][1],
+				-Other.M[2][1],
+				-Other.M[0][2],
+				-Other.M[1][2],
+				-Other.M[2][2]);
+		}
+		PMatrix<FRealSingle, 3, 3> operator*(const PMatrix<FRealSingle, 3, 3>& Other) const
+		{
+			return static_cast<const UE::Math::TMatrix<FRealSingle>*>(this)->operator*(static_cast<const UE::Math::TMatrix<FRealSingle>&>(Other));
+		}
+		PMatrix<FRealSingle, 3, 3> operator*(const FRealSingle Other) const
+		{
+			return PMatrix<FRealSingle, 3, 3>(
+				M[0][0] * Other,
+				M[1][0] * Other,
+				M[2][0] * Other,
+				M[0][1] * Other,
+				M[1][1] * Other,
+				M[2][1] * Other,
+				M[0][2] * Other,
+				M[1][2] * Other,
+				M[2][2] * Other);
+		}
+		friend PMatrix<FRealSingle, 3, 3> operator*(const FRealSingle OtherF, const PMatrix<FRealSingle, 3, 3>& OtherM)
+		{
+			return OtherM * OtherF;
+		}
+		PMatrix<FRealSingle, 3, 3> SubtractDiagonal(const FRealSingle Scalar) const
+		{
+			return PMatrix<FRealSingle, 3, 3>(
+				M[0][0] - Scalar,
+				M[1][0],
+				M[2][0],
+				M[0][1],
+				M[1][1] - Scalar,
+				M[2][1],
+				M[0][2],
+				M[1][2],
+				M[2][2] - Scalar);
+		}
+		PMatrix<FRealSingle, 3, 3> SymmetricCofactorMatrix() const
+		{
+			return PMatrix<FRealSingle, 3, 3>(
+				M[1][1] * M[2][2] - M[2][1] * M[2][1],
+				M[2][1] * M[2][0] - M[1][0] * M[2][2],
+				M[1][0] * M[2][1] - M[1][1] * M[2][0],
+				M[0][0] * M[2][2] - M[2][0] * M[2][0],
+				M[1][0] * M[2][0] - M[0][0] * M[2][1],
+				M[0][0] * M[1][1] - M[1][0] * M[1][0]);
+		}
+		TVector<FRealSingle, 3> LargestColumnNormalized() const
+		{
+			FRealSingle m10 = M[1][0] * M[1][0];
+			FRealSingle m20 = M[2][0] * M[2][0];
+			FRealSingle m21 = M[2][1] * M[2][1];
+			FRealSingle c0 = M[0][0] * M[0][0] + m10 + m20;
+			FRealSingle c1 = m10 + M[1][1] * M[1][1] + m21;
+			FRealSingle c2 = m20 + m21 + M[2][2] * M[2][2];
+			if (c0 > c1 && c0 > c2)
+			{
+				return TVector<FRealSingle, 3>(M[0][0], M[1][0], M[2][0]) / sqrt(c0);
+			}
+			if (c1 > c2)
+			{
+				return TVector<FRealSingle, 3>(M[1][0], M[1][1], M[2][1]) / sqrt(c1);
+			}
+			if (c2 > 0)
+			{
+				return TVector<FRealSingle, 3>(M[2][0], M[2][1], M[2][2]) / sqrt(c2);
+			}
+			return TVector<FRealSingle, 3>(1, 0, 0);
+		}
+
+		/**
+		 * Get the specified axis (0-indexed, X,Y,Z).
+		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
+		 */
+		FORCEINLINE TVector<FRealSingle, 3> GetAxis(int32 AxisIndex) const
+		{
+			return TVector<FRealSingle, 3>(M[AxisIndex][0], M[AxisIndex][1], M[AxisIndex][2]);
+		}
+
+		/**
+		 * Set the specified axis (0-indexed, X,Y,Z).
+		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
+		 */
+		FORCEINLINE void SetAxis(int32 AxisIndex, const TVector<FRealSingle, 3>& Axis)
+		{
+			M[AxisIndex][0] = Axis.X;
+			M[AxisIndex][1] = Axis.Y;
+			M[AxisIndex][2] = Axis.Z;
+			M[AxisIndex][3] = 0;
+		}
+
+		/**
+		 * Get the specified row (0-indexed, X,Y,Z).
+		 * @note: we are treating matrices as column major, so rows are not sequential in memory
+		 * @seealso GetAxis, GetColumn
+		 */
+		FORCEINLINE TVector<FRealSingle, 3> GetRow(int32 RowIndex) const
+		{
+			return TVector<FRealSingle, 3>(M[0][RowIndex], M[1][RowIndex], M[2][RowIndex]);
+		}
+
+		/**
+		 * Set the specified row.
+		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
+		 * @seealso SetAxis, SetColumn
+		 */
+		FORCEINLINE void SetRow(int32 RowIndex, const TVector<FRealSingle, 3>& V)
+		{
+			M[0][RowIndex] = V.X;
+			M[1][RowIndex] = V.Y;
+			M[2][RowIndex] = V.Z;
+			M[3][RowIndex] = 0;
+		}
+
+		/**
+		 * Get the specified column (0-indexed, X,Y,Z). Equivalent to GetAxis.
+		 * @note: we are treating matrices as column major, so columns are sequential in memory
+		 * @seealso GetAxis, GetRow
+		 */
+		FORCEINLINE TVector<FRealSingle, 3> GetColumn(int32 ColumnIndex) const
+		{
+			return GetAxis(ColumnIndex);
+		}
+
+		/**
+		 * Set the specified column. Equivalent to SetAxis.
+		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
+		 * @seealso SetAxis, SetRow
+		 */
+		FORCEINLINE void SetColumn(int32 ColumnIndex, const TVector<FRealSingle, 3>& V)
+		{
+			SetAxis(ColumnIndex, V);
+		}
+
+		/**
+		 * Get the diagonal elements as a vector.
+		 */
+		FORCEINLINE TVector<FRealSingle, 3> GetDiagonal() const
+		{
+			return TVector<FRealSingle, 3>(M[0][0], M[1][1], M[2][2]);
+		}
+
+		FORCEINLINE FRealSingle GetAt(int32 RowIndex, int32 ColIndex) const
+		{
+			return M[ColIndex][RowIndex];
+		}
+
+		FORCEINLINE void SetAt(int32 RowIndex, int32 ColIndex, FRealSingle V)
+		{
+			M[ColIndex][RowIndex] = V;
+		}
+
+		/**
+		 * Return a diagonal matrix with the specified elements
+		 */
+		static PMatrix<FRealSingle, 3, 3> FromDiagonal(const TVector<FRealSingle, 3>& D)
+		{
+			return PMatrix<FRealSingle, 3, 3>(D.X, D.Y, D.Z);
+		}
+
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
+		// TODO(mlentine): Document which one is row and which one is column
+		PMatrix<FRealSingle, 3, 3> operator*(const PMatrix<FRealSingle, 3, 3>& Other)
+		{
+			return PMatrix<FRealSingle, 3, 3>(
+				M[0][0] * Other.M[0][0] + M[0][1] * Other.M[1][0] + M[0][2] * Other.M[2][0],
+				M[1][0] * Other.M[0][0] + M[1][1] * Other.M[1][0] + M[1][2] * Other.M[2][0],
+				M[2][0] * Other.M[0][0] + M[2][1] * Other.M[1][0] + M[2][2] * Other.M[2][0],
+				M[0][0] * Other.M[0][1] + M[0][1] * Other.M[1][1] + M[0][2] * Other.M[2][1],
+				M[1][0] * Other.M[0][1] + M[1][1] * Other.M[1][1] + M[1][2] * Other.M[2][1],
+				M[2][0] * Other.M[0][1] + M[2][1] * Other.M[1][1] + M[2][2] * Other.M[2][1],
+				M[0][0] * Other.M[0][2] + M[0][1] * Other.M[1][2] + M[0][2] * Other.M[2][2],
+				M[1][0] * Other.M[0][2] + M[1][1] * Other.M[1][2] + M[1][2] * Other.M[2][2],
+				M[2][0] * Other.M[0][2] + M[2][1] * Other.M[1][2] + M[2][2] * Other.M[2][2]);
+		}
+		PMatrix<FRealSingle, 3, 3> operator*(const FRealSingle Scalar)
+		{
+			return PMatrix<FRealSingle, 3, 3>(
+				M[0][0] * Scalar + M[0][1] * Scalar + M[0][2] * Scalar,
+				M[1][0] * Scalar + M[1][1] * Scalar + M[1][2] * Scalar,
+				M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar,
+				M[0][0] * Scalar + M[0][1] * Scalar + M[0][2] * Scalar,
+				M[1][0] * Scalar + M[1][1] * Scalar + M[1][2] * Scalar,
+				M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar,
+				M[0][0] * Scalar + M[0][1] * Scalar + M[0][2] * Scalar,
+				M[1][0] * Scalar + M[1][1] * Scalar + M[1][2] * Scalar,
+				M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar);
+		}
+#endif
+		inline bool Equals(const PMatrix<FRealSingle, 3, 3>& Other, FRealSingle Tolerance = KINDA_SMALL_NUMBER) const
+		{
+			return true
+				&& (FMath::Abs(Other.M[0][0] - M[0][0]) <= Tolerance)
+				&& (FMath::Abs(Other.M[0][1] - M[0][1]) <= Tolerance)
+				&& (FMath::Abs(Other.M[0][2] - M[0][2]) <= Tolerance)
+				&& (FMath::Abs(Other.M[1][0] - M[1][0]) <= Tolerance)
+				&& (FMath::Abs(Other.M[1][1] - M[1][1]) <= Tolerance)
+				&& (FMath::Abs(Other.M[1][2] - M[1][2]) <= Tolerance)
+				&& (FMath::Abs(Other.M[2][0] - M[2][0]) <= Tolerance)
+				&& (FMath::Abs(Other.M[2][1] - M[2][1]) <= Tolerance)
+				&& (FMath::Abs(Other.M[2][2] - M[2][2]) <= Tolerance);
+		}
+
+
+		static const PMatrix<FRealSingle, 3, 3> Zero;
+		static const PMatrix<FRealSingle, 3, 3> Identity;
+	};
+#endif
 }

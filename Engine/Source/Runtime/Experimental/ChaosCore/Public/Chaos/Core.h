@@ -32,6 +32,12 @@ namespace Chaos
 	template <typename T>
 	using TVec4 = TVector<T, 4>;
 
+	template<typename T>
+	using TRotation3 = TRotation<T, 3>;
+
+	template<typename T>
+	using TMatrix33 = PMatrix<T, 3, 3>;
+
 	// NOTE: if you get a merge conflict on the GUID, you must replace it with a new GUID - do not accept the source or target
 	// or you will likely get DDC version conflicts resulting in crashes during load.
 	// Core version string for Chaos data. Any DDC builder dependent on Chaos for serialization should depend on this version

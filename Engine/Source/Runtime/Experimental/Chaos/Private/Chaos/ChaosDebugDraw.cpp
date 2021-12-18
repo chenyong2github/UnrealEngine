@@ -923,15 +923,6 @@ namespace Chaos
 							const FReal BoxScale = Settings.DrawScale * Settings.ContactWidth;
 							FDebugDrawQueue::GetInstance().DrawDebugBox(WorldPlaneLocation, FVec3(BoxScale, BoxScale, FReal(0.01)), FRotation3(FRotationMatrix::MakeFromZ(WorldPlaneNormal)), FColor::Purple, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, 0.5f * Settings.LineThickness);
 						}
-
-						// How many iterations (0 = green, 8 = red)
-						if (bChaosDebugDebugDrawContactIterations)
-						{
-							const FReal BoxScale = Settings.DrawScale * Settings.ContactWidth * FReal(1.5);
-							const float IterationColorScale = FMath::Clamp(float(Contact.GetNumActivePositionIterations()) / float(8), float(0), float(1));
-							const FColor IterationColor = FLinearColor::LerpUsingHSV(FColor::Green, FColor::Red, IterationColorScale).ToFColor(false);
-							FDebugDrawQueue::GetInstance().DrawDebugBox(WorldPlaneLocation, FVec3(BoxScale, BoxScale, FReal(0.01)), FRotation3(FRotationMatrix::MakeFromZ(WorldPlaneNormal)), IterationColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, 0.5f * Settings.LineThickness);
-						}
 					}
 				}
 				else

@@ -385,9 +385,6 @@ namespace Chaos
 		
 		bool GetUseIncrementalCollisionDetection() const { return !Flags.bUseManifold || Flags.bUseIncrementalManifold; }
 
-		void SetNumActivePositionIterations(const int32 InNumActivePositionIterations) { NumActivePositionIterations = InNumActivePositionIterations; }
-		int32 GetNumActivePositionIterations() const { return NumActivePositionIterations; }
-
 		/**
 		 * @brief Clear the current and previous manifolds
 		*/
@@ -593,7 +590,6 @@ namespace Chaos
 		FRigidTransform3 LastShapeWorldTransform0;
 		FRigidTransform3 LastShapeWorldTransform1;
 		int32 ExpectedNumManifoldPoints;
-		int32 NumActivePositionIterations;
 	};
 
 
