@@ -112,10 +112,10 @@ namespace Chaos
 				// add the padding to the Phi (since it was from pre-padded collision detection).
 				if (bApplyResitution && !bHaveRestitutionPadding)
 				{
-					const FVec3 BodyV0 = Body0.V() + (Body0.DP() / IterationParameters.Dt);
-					const FVec3 BodyW0 = Body0.W() + (Body0.DQ() / IterationParameters.Dt);
-					const FVec3 BodyV1 = Body1.V() + (Body1.DP() / IterationParameters.Dt);
-					const FVec3 BodyW1 = Body1.W() + (Body1.DQ() / IterationParameters.Dt);
+					const FVec3 BodyV0 = Body0.V() + (FVec3(Body0.DP()) / IterationParameters.Dt);
+					const FVec3 BodyW0 = Body0.W() + (FVec3(Body0.DQ()) / IterationParameters.Dt);
+					const FVec3 BodyV1 = Body1.V() + (FVec3(Body1.DP()) / IterationParameters.Dt);
+					const FVec3 BodyW1 = Body1.W() + (FVec3(Body1.DQ()) / IterationParameters.Dt);
 					FVec3 CV0 = BodyV0 + FVec3::CrossProduct(BodyW0, VectorToPoint0);
 					FVec3 CV1 = BodyV1 + FVec3::CrossProduct(BodyW1, VectorToPoint1);
 					FVec3 CV = CV0 - CV1;
@@ -130,8 +130,8 @@ namespace Chaos
 				}
 			
 				FMatrix33 ContactInvI =
-					(Body0.IsDynamic() ? ComputeFactorMatrix3(VectorToPoint0, Body0.InvI(), Body0.InvM()) : FMatrix33(0)) +
-					(Body1.IsDynamic() ? ComputeFactorMatrix3(VectorToPoint1, Body1.InvI(), Body1.InvM()) : FMatrix33(0));
+					(Body0.IsDynamic() ? ComputeFactorMatrix3(VectorToPoint0, FMatrix33(Body0.InvI()), FReal(Body0.InvM())) : FMatrix33(0)) +
+					(Body1.IsDynamic() ? ComputeFactorMatrix3(VectorToPoint1, FMatrix33(Body1.InvI()), FReal(Body1.InvM())) : FMatrix33(0));
 
 				// Calculate the normal correction
 				FVec3 NormalError = Contact.Phi * Contact.Normal;
@@ -178,14 +178,14 @@ namespace Chaos
 				if (Body0.IsDynamic())
 				{
 					FVec3 DP0 = Body0.InvM() * DX;
-					FVec3 DR0 = Utilities::Multiply(Body0.InvI(), FVec3::CrossProduct(VectorToPoint0, DX));
+					FVec3 DR0 = Utilities::Multiply(FMatrix33(Body0.InvI()), FVec3::CrossProduct(VectorToPoint0, DX));
 					Body0.ApplyTransformDelta(DP0, DR0);
 					//Body0.UpdateRotationDependentState();
 				}
 				if (Body1.IsDynamic())
 				{
 					FVec3 DP1 = Body1.InvM() * -DX;
-					FVec3 DR1 = Utilities::Multiply(Body1.InvI(), FVec3::CrossProduct(VectorToPoint1, -DX));
+					FVec3 DR1 = Utilities::Multiply(FMatrix33(Body1.InvI()), FVec3::CrossProduct(VectorToPoint1, -DX));
 					Body1.ApplyTransformDelta(DP1, DR1);
 					//Body1.UpdateRotationDependentState();
 				}

@@ -158,7 +158,6 @@ namespace Chaos
 		, LastShapeWorldTransform0()
 		, LastShapeWorldTransform1()
 		, ExpectedNumManifoldPoints(0)
-		, NumActivePositionIterations(0)
 	{
 		Manifold.Implicit[0] = nullptr;
 		Manifold.Implicit[1] = nullptr;
@@ -195,7 +194,6 @@ namespace Chaos
 		, LastShapeWorldTransform0()
 		, LastShapeWorldTransform1()
 		, ExpectedNumManifoldPoints(0)
-		, NumActivePositionIterations(0)
 	{
 		Manifold.Implicit[0] = Implicit0;
 		Manifold.Implicit[1] = Implicit1;

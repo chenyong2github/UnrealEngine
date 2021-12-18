@@ -39,17 +39,12 @@ namespace Chaos
 	{
 		if (Particle.IsValid())
 		{
-			if (SolverBody.IsDynamic() && SolverBody.IsModified())
+			if (SolverBody.IsDynamic())
 			{
 				// Set the particle state
 				FParticleUtilities::SetCoMWorldTransform(Particle, SolverBody.CorrectedP(), SolverBody.CorrectedQ());
 				Particle->SetV(SolverBody.V());
 				Particle->SetW(SolverBody.W());
-
-				if (SolverBody.HasActiveCollision())
-				{
-					//Particle->AuxilaryValue(*ParticleParameters.Collided) = true;
-				}
 			}
 
 			// Reset SolverBodyIndex cookie every step - it will be reassigned next step

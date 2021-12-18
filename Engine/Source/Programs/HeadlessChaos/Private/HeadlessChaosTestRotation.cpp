@@ -288,7 +288,7 @@ namespace ChaosTest {
 			EXPECT_NEAR(MatrixCrossP.Y, V3.Y, Tolerance);
 			EXPECT_NEAR(MatrixCrossP.Z, V3.Z, Tolerance);
 
-			FVec3 MatrixCrossN = Utilities::Multiply(V1M.GetTransposed(), V2);
+			FVec3 MatrixCrossN = Utilities::Multiply(FMatrix33(V1M.GetTransposed()), V2);
 			EXPECT_NEAR(MatrixCrossN.X, -V3.X, Tolerance);
 			EXPECT_NEAR(MatrixCrossN.Y, -V3.Y, Tolerance);
 			EXPECT_NEAR(MatrixCrossN.Z, -V3.Z, Tolerance);

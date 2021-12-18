@@ -129,7 +129,6 @@ namespace Chaos
 			FVec3 AccumulatedImpulse = FVec3(0);
 
 			Constraint->ResetSolverResults();
-			Constraint->SetNumActivePositionIterations(Solver.NumPositionSolves());
 
 			for (int32 PointIndex = 0; PointIndex < Solver.NumManifoldPoints(); ++PointIndex)
 			{
@@ -277,8 +276,11 @@ namespace Chaos
 	}
 
 	// Solve position including support for incremental collision detection
-	bool FPBDCollisionSolverContainer::SolvePositionIncrementalImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut, const bool bApplyStaticFriction)
+	bool FPBDCollisionSolverContainer::SolvePositionIncrementalImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut, const bool bApplyStaticFriction)
 	{
+		const FRealLP Dt = FRealLP(InDt);
+		const FRealLP MaxPushOut = FRealLP(InMaxPushOut);
+
 		bool bNeedsAnotherIteration = false;
 		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
 		{
@@ -302,8 +304,11 @@ namespace Chaos
 	}
 
 	// Solve position with friction (last few iterations each tick)
-	bool FPBDCollisionSolverContainer::SolvePositionWithFrictionImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut)
+	bool FPBDCollisionSolverContainer::SolvePositionWithFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut)
 	{
+		const FRealLP Dt = FRealLP(InDt);
+		const FRealLP MaxPushOut = FRealLP(InMaxPushOut);
+
 		bool bNeedsAnotherIteration = false;
 		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
 		{
@@ -313,8 +318,11 @@ namespace Chaos
 	}
 
 	// Solve position without friction (first few iterations each tick)
-	bool FPBDCollisionSolverContainer::SolvePositionNoFrictionImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut)
+	bool FPBDCollisionSolverContainer::SolvePositionNoFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut)
 	{
+		const FRealLP Dt = FRealLP(InDt);
+		const FRealLP MaxPushOut = FRealLP(InMaxPushOut);
+
 		bool bNeedsAnotherIteration = false;
 		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
 		{
@@ -323,13 +331,14 @@ namespace Chaos
 		return bNeedsAnotherIteration;
 	}
 
-	bool FPBDCollisionSolverContainer::SolveVelocityImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const bool bParallel)
+	bool FPBDCollisionSolverContainer::SolveVelocityImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const bool bParallel)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
 		if (!bChaos_PBDCollisionSolver_Velocity_SolveEnabled)
 		{
 			return false;
 		}
+		const FRealLP Dt = FRealLP(InDt);
 
 		UpdateVelocityShockPropagation(Dt, It, NumIts, BeginIndex, EndIndex);
 
