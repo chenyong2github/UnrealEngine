@@ -27,12 +27,10 @@
 #define BINNED3_BASE_PAGE_SIZE				4096			// Minimum "page size" for binned3
 #define BINNED3_MINIMUM_ALIGNMENT_SHIFT		4				// Alignment of blocks, expressed as a shift
 #define BINNED3_MINIMUM_ALIGNMENT			16				// Alignment of blocks
-#ifndef BINNED3_MAX_SMALL_POOL_SIZE
 #if USE_CACHED_PAGE_ALLOCATOR_FOR_LARGE_ALLOCS
 #define BINNED3_MAX_SMALL_POOL_SIZE			(BINNEDCOMMON_MAX_LISTED_SMALL_POOL_SIZE)	// Maximum medium block size
 #else
 #define BINNED3_MAX_SMALL_POOL_SIZE			(128 * 1024)	// Maximum medium block size
-#endif
 #endif
 #define BINNED3_SMALL_POOL_COUNT			(BINNEDCOMMON_NUM_LISTED_SMALL_POOLS + (BINNED3_MAX_SMALL_POOL_SIZE - BINNEDCOMMON_MAX_LISTED_SMALL_POOL_SIZE) / BINNED3_BASE_PAGE_SIZE)
 
@@ -71,10 +69,10 @@
 #define BINNED3_ALLOW_RUNTIME_TWEAKING 0
 #if BINNED3_ALLOW_RUNTIME_TWEAKING
 	extern CORE_API int32 GMallocBinned3PerThreadCaches;
-	extern CORE_API int32 GMallocBinned3BundleSize;
-	extern CORE_API int32 GMallocBinned3BundleCount;
-	extern CORE_API int32 GMallocBinned3MaxBundlesBeforeRecycle;
-	extern CORE_API int32 GMallocBinned3AllocExtra;
+	extern CORE_API int32 GMallocBinned3BundleSize = DEFAULT_GMallocBinned3BundleSize;
+	extern CORE_API int32 GMallocBinned3BundleCount = DEFAULT_GMallocBinned3BundleCount;
+	extern CORE_API int32 GMallocBinned3MaxBundlesBeforeRecycle = BINNED3_MAX_GMallocBinned3MaxBundlesBeforeRecycle;
+	extern CORE_API int32 GMallocBinned3AllocExtra = DEFAULT_GMallocBinned3AllocExtra;
 #else
 	#define GMallocBinned3PerThreadCaches DEFAULT_GMallocBinned3PerThreadCaches
 	#define GMallocBinned3BundleSize DEFAULT_GMallocBinned3BundleSize
@@ -528,18 +526,10 @@ public:
 	FORCEINLINE virtual void* Malloc(SIZE_T Size, uint32 Alignment) override
 	{
 		void* Result = nullptr;
-
-
-		if (Alignment > BINNED3_MINIMUM_ALIGNMENT)
-		{
-			Size = Align(Size, Alignment);
-		}
-
-
-
+	
 		// Only allocate from the small pools if the size is small enough and the alignment isn't crazy large.
 		// With large alignments, we'll waste a lot of memory allocating an entire page, but such alignments are highly unlikely in practice.
-		if ((Size <= BINNED3_MAX_SMALL_POOL_SIZE) )
+		if ((Size <= BINNED3_MAX_SMALL_POOL_SIZE) & (Alignment <= BINNED3_MINIMUM_ALIGNMENT)) // one branch, not two
 		{
 			FPerThreadFreeBlockLists* Lists = GMallocBinned3PerThreadCaches ? FPerThreadFreeBlockLists::Get() : nullptr;
 			if (Lists)
@@ -565,12 +555,7 @@ public:
 	}
 	FORCEINLINE virtual void* Realloc(void* Ptr, SIZE_T NewSize, uint32 Alignment) override
 	{
-		if (Alignment > BINNED3_MINIMUM_ALIGNMENT)
-		{
-			NewSize = Align(NewSize, Alignment);
-		}
-
-		if (NewSize <= BINNED3_MAX_SMALL_POOL_SIZE )
+		if (NewSize <= BINNED3_MAX_SMALL_POOL_SIZE && Alignment <= BINNED3_MINIMUM_ALIGNMENT) // one branch, not two
 		{
 			FPerThreadFreeBlockLists* Lists = GMallocBinned3PerThreadCaches ? FPerThreadFreeBlockLists::Get() : nullptr;
 
@@ -665,15 +650,10 @@ public:
 
 	FORCEINLINE virtual SIZE_T QuantizeSize(SIZE_T Count, uint32 Alignment) override
 	{
-		if (Alignment > BINNED3_MINIMUM_ALIGNMENT)
-		{
-			Count = Align(Count, Alignment);
-		}
-
 		static_assert(DEFAULT_ALIGNMENT <= BINNED3_MINIMUM_ALIGNMENT, "DEFAULT_ALIGNMENT is assumed to be zero"); // used below
 		checkSlow((Alignment & (Alignment - 1)) == 0); // Check the alignment is a power of two
 		SIZE_T SizeOut;
-		if ((Count <= BINNED3_MAX_SMALL_POOL_SIZE))
+		if ((Count <= BINNED3_MAX_SMALL_POOL_SIZE) & (Alignment <= BINNED3_MINIMUM_ALIGNMENT)) // one branch, not two
 		{
 			SizeOut = PoolIndexToBlockSize(BoundSizeToPoolIndex(Count));
 		}

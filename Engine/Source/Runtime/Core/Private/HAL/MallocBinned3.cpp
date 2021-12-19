@@ -958,7 +958,7 @@ void* FMallocBinned3::MallocExternal(SIZE_T Size, uint32 Alignment)
 
 	// Only allocate from the small pools if the size is small enough and the alignment isn't crazy large.
 	// With large alignments, we'll waste a lot of memory allocating an entire page, but such alignments are highly unlikely in practice.
-	if ((Size <= BINNED3_MAX_SMALL_POOL_SIZE) )
+	if ((Size <= BINNED3_MAX_SMALL_POOL_SIZE) & (Alignment <= BINNED3_MINIMUM_ALIGNMENT)) // one branch, not two
 	{
 		uint32 PoolIndex = BoundSizeToPoolIndex(Size);
 		FPerThreadFreeBlockLists* Lists = GMallocBinned3PerThreadCaches ? FPerThreadFreeBlockLists::Get() : nullptr;
@@ -1116,7 +1116,7 @@ void* FMallocBinned3::ReallocExternal(void* Ptr, SIZE_T NewSize, uint32 Alignmen
 		check(Ptr); // null is an OS allocation because it will not fall in our VM block
 		uint32 BlockSize = PoolIndexToBlockSize(PoolIndex);
 		if (
-			((NewSize <= BlockSize)) && // one branch, not two
+			((NewSize <= BlockSize) & (Alignment <= BINNED3_MINIMUM_ALIGNMENT)) && // one branch, not two
 			(PoolIndex == 0 || NewSize > PoolIndexToBlockSize(PoolIndex - 1)))
 		{
 #if BINNED3_ALLOCATOR_STATS
@@ -1150,7 +1150,7 @@ void* FMallocBinned3::ReallocExternal(void* Ptr, SIZE_T NewSize, uint32 Alignmen
 	uint32 PoolOSRequestedBytes = Pool->GetOSRequestedBytes();
 	checkf(PoolOSRequestedBytes <= PoolOsBytes, TEXT("FMallocBinned3::ReallocExternal %d %d"), int32(PoolOSRequestedBytes), int32(PoolOsBytes));
 	if (NewSize > PoolOsBytes || // can't fit in the old block
-		(NewSize <= BINNED3_MAX_SMALL_POOL_SIZE) || // can switch to the small block allocator
+		(NewSize <= BINNED3_MAX_SMALL_POOL_SIZE && Alignment <= BINNED3_MINIMUM_ALIGNMENT) || // can switch to the small block allocator
 		Align(NewSize, OsAllocationGranularity) < PoolOsBytes) // we can get some pages back
 	{
 		Mutex.Unlock();
