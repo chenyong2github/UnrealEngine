@@ -10,4 +10,4 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyDescription("A tool to build Unreal Engine")]
 [assembly: AssemblyConfiguration("")]
 
-[assembly: InternalsVisibleTo("UnrealBuildToolTests")]
+[assembly: InternalsVisibleTo("UnrealBuildTool.Tests")]
