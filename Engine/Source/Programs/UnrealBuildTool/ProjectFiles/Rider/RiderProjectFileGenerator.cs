@@ -452,14 +452,14 @@ namespace UnrealBuildTool
 		{ 
 			ProjectFile? EngineProject = null;
 			List<ProjectFile>? GameProjects = null;
-			List<ProjectFile>? ModProjects = null;
+			List<ProjectFile>? ModProjects = new List<ProjectFile>();
 			Dictionary<FileReference, ProjectFile>? ProgramProjects = null;
 
 			// Setup buildable projects for all targets
 			AddProjectsForAllTargets(PlatformProjectGenerators, AllGameProjects, out EngineProject,
 				out GameProjects, out ProgramProjects);
 
-			AddProjectsForMods(GameProjects, out ModProjects);
+			AddProjectsForMods(GameProjects, ModProjects);
 			AddAllGameProjects(GameProjects);
 
 			// If we're still missing an engine project because we don't have any targets for it, make one up.
