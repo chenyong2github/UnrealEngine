@@ -1739,33 +1739,30 @@ namespace UnrealBuildTool
 		/// </summary>
 		private void AddUnrealBuildToolProject(PrimaryProjectFolder ProgramsFolder)
 		{
-			List<string> ProjectDirectoryNames = new List<string>();
-			ProjectDirectoryNames.Add("UnrealBuildTool");
+			DirectoryReference ProgramsDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs");
 
-			foreach (string ProjectDirectoryName in ProjectDirectoryNames)
+			FileReference ProjectFileName = FileReference.Combine(ProgramsDirectory, "UnrealBuildTool", "UnrealBuildTool.csproj");
+			if (FileReference.Exists(ProjectFileName))
 			{
-				DirectoryReference ProjectDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs", ProjectDirectoryName);
-				if (DirectoryReference.Exists(ProjectDirectory))
-				{
-					string ProjectName = "UnrealBuildTool.csproj";
+				VCSharpProjectFile UnrealBuildToolProject = new VCSharpProjectFile(ProjectFileName);
+				UnrealBuildToolProject.ShouldBuildForAllSolutionTargets = true;
 
-					FileReference ProjectFileName = FileReference.Combine(ProjectDirectory, ProjectName);
+				// Store it off as we need it when generating target projects.
+				UBTProject = UnrealBuildToolProject;
 
-					if (FileReference.Exists(ProjectFileName))
-					{
-						VCSharpProjectFile UnrealBuildToolProject = new VCSharpProjectFile(ProjectFileName);
-						UnrealBuildToolProject.ShouldBuildForAllSolutionTargets = true;
+				// Add the project
+				AddExistingProjectFile(UnrealBuildToolProject, bNeedsAllPlatformAndConfigurations: true, bForceDevelopmentConfiguration: true);
 
-						// Store it off as we need it when generating target projects.
-						UBTProject = UnrealBuildToolProject;
+				// Put this in a solution folder
+				ProgramsFolder.ChildProjects.Add(UnrealBuildToolProject);
+			}
 
-						// Add the project
-						AddExistingProjectFile(UnrealBuildToolProject, bNeedsAllPlatformAndConfigurations: true, bForceDevelopmentConfiguration: true);
-
-						// Put this in a solution folder
-						ProgramsFolder.ChildProjects.Add(UnrealBuildToolProject);
-					}
-				}
+			FileReference TestsProjectFileName = FileReference.Combine(ProgramsDirectory, "UnrealBuildTool.Tests", "UnrealBuildTool.Tests.csproj");
+			if (FileReference.Exists(TestsProjectFileName))
+			{
+				VCSharpProjectFile UbtTestsProject = new VCSharpProjectFile(TestsProjectFileName);
+				AddExistingProjectFile(UbtTestsProject, bNeedsAllPlatformAndConfigurations: true, bForceDevelopmentConfiguration: true);
+				ProgramsFolder.ChildProjects.Add(UbtTestsProject);
 			}
 		}
 
