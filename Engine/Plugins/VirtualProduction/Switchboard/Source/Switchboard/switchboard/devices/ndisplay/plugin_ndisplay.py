@@ -519,7 +519,8 @@ class DevicenDisplay(DeviceUnreal):
             'ue_command_line': StringSetting(
                 attr_name="ue_command_line",
                 nice_name="UE Command Line",
-                value=kwargs.get("ue_command_line", '')
+                value=kwargs.get("ue_command_line", ''),
+                allow_reset=False
             ),
             'window_position': Setting(
                 attr_name="window_position",
