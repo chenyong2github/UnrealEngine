@@ -305,7 +305,7 @@ public:
 };
 
 USTRUCT()
-struct FDisplayClusterConfigurationJsonMasterNode_426
+struct FDisplayClusterConfigurationJsonPrimaryNode_426
 {
 	GENERATED_BODY()
 
@@ -411,7 +411,7 @@ struct FDisplayClusterConfigurationJsonCluster_426
 
 public:
 	UPROPERTY()
-	FDisplayClusterConfigurationJsonMasterNode_426 MasterNode;
+	FDisplayClusterConfigurationJsonPrimaryNode_426 MasterNode;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonClusterSync_426 Sync;

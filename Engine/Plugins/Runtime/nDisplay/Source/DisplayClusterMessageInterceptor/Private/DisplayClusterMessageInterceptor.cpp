@@ -109,8 +109,8 @@ void FDisplayClusterMessageInterceptor::SyncMessages()
 		for (const FString& MessageId : MessageIds)
 		{
 			SyncMessagesEvent.Type = MessageId;					// the actually message id we received
-			const bool bMasterOnly = false; //All nodes are broadcasting events to synchronize them across cluster
-			ClusterManager->EmitClusterEventJson(SyncMessagesEvent, bMasterOnly);
+			const bool bPrimaryOnly = false; //All nodes are broadcasting events to synchronize them across cluster
+			ClusterManager->EmitClusterEventJson(SyncMessagesEvent, bPrimaryOnly);
 			UE_LOG(LogDisplayClusterInterception, VeryVerbose, TEXT("Emitting cluster event for message %s on frame %d"), *MessageId, GFrameCounter);
 		}
 	}

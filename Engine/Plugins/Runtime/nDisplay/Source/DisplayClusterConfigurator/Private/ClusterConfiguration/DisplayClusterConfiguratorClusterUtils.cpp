@@ -106,10 +106,10 @@ UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils
 
 		NewNode = AddClusterNodeToCluster(NodeTemplate, Cluster, ItemName);
 
-		// If the newly added cluster node is the only node in the cluster, it should be the master node, so set it as the master
+		// If the newly added cluster node is the only node in the cluster, it should be the primary node, so set it as the primary
 		if (Cluster->Nodes.Num() == 1)
 		{
-			SetClusterNodeAsMaster(NewNode);
+			SetClusterNodeAsPrimary(NewNode);
 		}
 
 		if (bAddViewport)
@@ -612,12 +612,12 @@ FString FDisplayClusterConfiguratorClusterUtils::GetClusterNodeName(UDisplayClus
 	return "";
 }
 
-bool FDisplayClusterConfiguratorClusterUtils::IsClusterNodeMaster(UDisplayClusterConfigurationClusterNode* ClusterNode)
+bool FDisplayClusterConfiguratorClusterUtils::IsClusterNodePrimary(UDisplayClusterConfigurationClusterNode* ClusterNode)
 {
 	if (const UDisplayClusterConfigurationCluster* Cluster = Cast<UDisplayClusterConfigurationCluster>(ClusterNode->GetOuter()))
 	{
-		const FString MasterNodeId = Cluster->MasterNode.Id;
-		if (Cluster->Nodes.Contains(MasterNodeId) && Cluster->Nodes[MasterNodeId] == ClusterNode)
+		const FString PrimaryNodeId = Cluster->PrimaryNode.Id;
+		if (Cluster->Nodes.Contains(PrimaryNodeId) && Cluster->Nodes[PrimaryNodeId] == ClusterNode)
 		{
 			return true;
 		}
@@ -727,7 +727,7 @@ bool FDisplayClusterConfiguratorClusterUtils::RenameClusterNode(UDisplayClusterC
 				return false;
 			}
 
-			const bool bIsMaster = IsClusterNodeMaster(ClusterNode);
+			const bool bIsPrimary = IsClusterNodePrimary(ClusterNode);
 
 			ClusterNode->Modify();
 			ClusterNodeParent->Modify();
@@ -746,10 +746,10 @@ bool FDisplayClusterConfiguratorClusterUtils::RenameClusterNode(UDisplayClusterC
 			ClusterNode->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_DoNotDirty | REN_ForceNoResetLoaders);
 			ClusterNode->SetFlags(RF_Transient);
 			
-			// If the cluster node was a master node before the rename, we need to update the master reference in the cluster with the new name
-			if (bIsMaster)
+			// If the cluster node was a primary node before the rename, we need to update the primary reference in the cluster with the new name
+			if (bIsPrimary)
 			{
-				SetClusterNodeAsMaster(NewClusterNode);
+				SetClusterNodeAsPrimary(NewClusterNode);
 			}
 
 			return true;
@@ -759,7 +759,7 @@ bool FDisplayClusterConfiguratorClusterUtils::RenameClusterNode(UDisplayClusterC
 	return false;
 }
 
-bool FDisplayClusterConfiguratorClusterUtils::SetClusterNodeAsMaster(UDisplayClusterConfigurationClusterNode* ClusterNode)
+bool FDisplayClusterConfiguratorClusterUtils::SetClusterNodeAsPrimary(UDisplayClusterConfigurationClusterNode* ClusterNode)
 {
 	if (UDisplayClusterConfigurationCluster* ClusterNodeParent = Cast<UDisplayClusterConfigurationCluster>(ClusterNode->GetOuter()))
 	{
@@ -768,7 +768,7 @@ bool FDisplayClusterConfiguratorClusterUtils::SetClusterNodeAsMaster(UDisplayClu
 		if (NodeIdPtr != nullptr)
 		{
 			ClusterNodeParent->Modify();
-			ClusterNodeParent->MasterNode.Id = *NodeIdPtr;
+			ClusterNodeParent->PrimaryNode.Id = *NodeIdPtr;
 			return true;
 		}
 	}

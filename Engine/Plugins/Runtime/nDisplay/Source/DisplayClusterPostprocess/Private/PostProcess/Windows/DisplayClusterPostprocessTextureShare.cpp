@@ -276,7 +276,7 @@ void FDisplayClusterPostprocessTextureShare::PerformPostProcessRenderTargetBefor
 
 void FDisplayClusterPostprocessTextureShare::InitializeResources_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutTexture) const
 {
-	// Create master share for all render viewports
+	// Create share for all render viewports
 	for (int CurrentViewportIndex = 0; CurrentViewportIndex < RenderViewports.Num(); CurrentViewportIndex++)
 	{
 		const FDisplayClusterViewport& CurrentViewport = RenderViewports[CurrentViewportIndex];
@@ -286,7 +286,7 @@ void FDisplayClusterPostprocessTextureShare::InitializeResources_RenderThread(FR
 		}
 	}
 
-	// Open slave share for all render viewports
+	// Open share for all render viewports
 	for (const auto& It : DestinationViewportsMap)
 	{
 		ImplOpenResource_RenderThread(RHICmdList, GetDisplayClusterViewportShareName(It.Value));
@@ -300,7 +300,7 @@ void FDisplayClusterPostprocessTextureShare::InitializeResources(const FViewport
 {
 	const FTexture2DRHIRef& Backbuffer = MainViewport.GetRenderTargetTexture();
 
-	// Create master share for all render viewports
+	// Create share for all render viewports
 	for (int CurrentViewportIndex = 0; CurrentViewportIndex < RenderViewports.Num(); CurrentViewportIndex++)
 	{
 		const FDisplayClusterViewport& CurrentViewport = RenderViewports[CurrentViewportIndex];
@@ -310,7 +310,7 @@ void FDisplayClusterPostprocessTextureShare::InitializeResources(const FViewport
 		}
 	}
 
-	// Open slave share for all render viewports
+	// Open share for all render viewports
 	for (const auto& It : DestinationViewportsMap)
 	{
 		ImplOpenResource(GetDisplayClusterViewportShareName(It.Value));

@@ -163,12 +163,12 @@ protected:
 ////////////////////////////////////////////////////////////////
 // Cluster
 USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMasterNodePorts
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPrimaryNodePorts
 {
 	GENERATED_BODY()
 
 public:
-	FDisplayClusterConfigurationMasterNodePorts();
+	FDisplayClusterConfigurationPrimaryNodePorts();
 
 public:
 	/** Advanced: network port for Cluster Sync Events */
@@ -185,7 +185,7 @@ public:
 };
 
 USTRUCT(Blueprintable)
-struct FDisplayClusterConfigurationMasterNode
+struct FDisplayClusterConfigurationPrimaryNode
 {
 	GENERATED_BODY()
 
@@ -193,8 +193,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = NDisplay)
 	FString Id;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Master Node Ports"))
-	FDisplayClusterConfigurationMasterNodePorts Ports;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Primary Node Ports"))
+	FDisplayClusterConfigurationPrimaryNodePorts Ports;
 };
 
 USTRUCT(Blueprintable)
@@ -415,7 +415,7 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationCluster
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration", meta = (ShowOnlyInnerProperties))
-	FDisplayClusterConfigurationMasterNode MasterNode;
+	FDisplayClusterConfigurationPrimaryNode PrimaryNode;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Configuration", meta = (ShowOnlyInnerProperties))
 	FDisplayClusterConfigurationClusterSync Sync;

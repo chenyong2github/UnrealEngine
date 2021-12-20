@@ -47,14 +47,14 @@ void FDisplayClusterConfigManager::EndSession()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterConfigManager
 //////////////////////////////////////////////////////////////////////////////////////////////
-FString FDisplayClusterConfigManager::GetMasterNodeId() const
+FString FDisplayClusterConfigManager::GetPrimaryNodeId() const
 {
-	return ConfigData ? ConfigData->Cluster->MasterNode.Id : FString();
+	return ConfigData ? ConfigData->Cluster->PrimaryNode.Id : FString();
 }
 
-const UDisplayClusterConfigurationClusterNode* FDisplayClusterConfigManager::GetMasterNode() const
+const UDisplayClusterConfigurationClusterNode* FDisplayClusterConfigManager::GetPrimaryNode() const
 {
-	return ConfigData ? ConfigData->Cluster->GetNode(GetMasterNodeId()) : nullptr;
+	return ConfigData ? ConfigData->Cluster->GetNode(GetPrimaryNodeId()) : nullptr;
 }
 
 const UDisplayClusterConfigurationClusterNode* FDisplayClusterConfigManager::GetLocalNode() const

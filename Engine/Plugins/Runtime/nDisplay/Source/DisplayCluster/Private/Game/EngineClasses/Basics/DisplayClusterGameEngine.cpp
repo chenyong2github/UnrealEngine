@@ -236,19 +236,19 @@ bool UDisplayClusterGameEngine::ValidateConfigFile(const FString& FilePath)
 	const EDisplayClusterConfigurationVersion ConfigVersion = IDisplayClusterConfiguration::Get().GetConfigVersion(FilePath);
 	switch (ConfigVersion)
 	{
-		case EDisplayClusterConfigurationVersion::Version_CFG:
-			// Old .cfg file are not allowed anymore
-			UE_LOG(LogDisplayClusterEngine, Error, TEXT("Old (.cfg) config format is not supported"));
-			break;
-
 		case EDisplayClusterConfigurationVersion::Version_426:
 			// Old 4.26 and 4.27p1 formats are not allowed as well
 			UE_LOG(LogDisplayClusterEngine, Error, TEXT("Detected old (.ndisplay 4.26 or .ndisplay 4.27p1) config format. Please upgrade to the actual version."));
 			return true;
 
 		case EDisplayClusterConfigurationVersion::Version_427:
-			// Ok, it's the actual config format
+			// Ok, it's one of the actual config formats
 			UE_LOG(LogDisplayClusterEngine, Log, TEXT("Detected (.ndisplay 4.27) config format"));
+			return true;
+
+		case EDisplayClusterConfigurationVersion::Version_500:
+			// Ok, it's one of the actual config formats
+			UE_LOG(LogDisplayClusterEngine, Log, TEXT("Detected (.ndisplay 5.00) config format"));
 			return true;
 
 		case EDisplayClusterConfigurationVersion::Unknown:

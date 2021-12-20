@@ -189,9 +189,9 @@ FDisplayClusterConfiguratorBlueprintEditor* FDisplayClusterConfiguratorUtils::Ge
 	return nullptr;
 }
 
-bool FDisplayClusterConfiguratorUtils::IsMasterNodeInConfig(UDisplayClusterConfigurationData* ConfigData)
+bool FDisplayClusterConfiguratorUtils::IsPrimaryNodeInConfig(UDisplayClusterConfigurationData* ConfigData)
 {
-	return ConfigData && ConfigData->Cluster && ConfigData->Cluster->Nodes.Num() > 0 && !ConfigData->Cluster->MasterNode.Id.IsEmpty();
+	return ConfigData && ConfigData->Cluster && ConfigData->Cluster->Nodes.Num() > 0 && !ConfigData->Cluster->PrimaryNode.Id.IsEmpty();
 }
 
 void FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(UObject* InObject, const bool bIsStructuralChange)

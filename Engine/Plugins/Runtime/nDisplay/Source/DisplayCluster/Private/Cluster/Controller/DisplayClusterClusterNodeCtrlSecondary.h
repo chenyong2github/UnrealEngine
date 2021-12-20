@@ -11,14 +11,14 @@ class FDisplayClusterClusterEventsBinaryClient;
 
 
 /**
- * Slave node controller implementation (cluster mode). . Manages clients on client side.
+ * Secondary node controller implementation (cluster mode). . Manages clients on client side.
  */
-class FDisplayClusterClusterNodeCtrlSlave
+class FDisplayClusterClusterNodeCtrlSecondary
 	: public FDisplayClusterClusterNodeCtrlBase
 {
 public:
-	FDisplayClusterClusterNodeCtrlSlave(const FString& CtrlName, const FString& NodeName);
-	virtual ~FDisplayClusterClusterNodeCtrlSlave();
+	FDisplayClusterClusterNodeCtrlSecondary(const FString& CtrlName, const FString& NodeName);
+	virtual ~FDisplayClusterClusterNodeCtrlSecondary();
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -26,7 +26,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual EDisplayClusterNodeRole GetClusterRole() const override
 	{
-		return EDisplayClusterNodeRole::Slave;
+		return EDisplayClusterNodeRole::Secondary;
 	}
 
 public:

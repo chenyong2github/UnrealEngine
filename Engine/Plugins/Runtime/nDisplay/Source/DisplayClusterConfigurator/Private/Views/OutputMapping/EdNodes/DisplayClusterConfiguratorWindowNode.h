@@ -34,7 +34,7 @@ public:
 	FString GetCfgHost() const;
 	const FString& GetPreviewImagePath() const;
 	bool IsFixedAspectRatio() const;
-	bool IsMaster() const;
+	bool IsPrimary() const;
 
 	FDelegateHandle RegisterOnPreviewImageChanged(const FOnPreviewImageChangedDelegate& Delegate);
 	void UnregisterOnPreviewImageChanged(FDelegateHandle DelegateHandle);

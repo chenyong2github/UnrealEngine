@@ -70,7 +70,7 @@ bool UDisplayClusterConfiguratorWindowNode::IsFixedAspectRatio() const
 	return CfgClusterNode->bFixedAspectRatio;
 }
 
-bool UDisplayClusterConfiguratorWindowNode::IsMaster() const
+bool UDisplayClusterConfiguratorWindowNode::IsPrimary() const
 {
 	if (!IsObjectValid())
 	{
@@ -78,7 +78,7 @@ bool UDisplayClusterConfiguratorWindowNode::IsMaster() const
 	}
 
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
-	return FDisplayClusterConfiguratorClusterUtils::IsClusterNodeMaster(ClusterNode);
+	return FDisplayClusterConfiguratorClusterUtils::IsClusterNodePrimary(ClusterNode);
 }
 
 FDelegateHandle UDisplayClusterConfiguratorWindowNode::RegisterOnPreviewImageChanged(const FOnPreviewImageChangedDelegate& Delegate)

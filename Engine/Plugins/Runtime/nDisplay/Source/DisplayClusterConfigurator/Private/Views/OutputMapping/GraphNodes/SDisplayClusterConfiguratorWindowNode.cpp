@@ -214,9 +214,9 @@ public:
 	{
 		UDisplayClusterConfiguratorWindowNode* WindowEdNode = ParentNode->GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
 		const FText NodeName = FText::FromString(WindowEdNode->GetNodeName());
-		if (WindowEdNode->IsMaster())
+		if (WindowEdNode->IsPrimary())
 		{
-			return FText::Format(LOCTEXT("WindowNameWithMaster", "{0} (Master)"), NodeName);
+			return FText::Format(LOCTEXT("WindowNameWithPrimary", "{0} (Primary)"), NodeName);
 		}
 		else
 		{

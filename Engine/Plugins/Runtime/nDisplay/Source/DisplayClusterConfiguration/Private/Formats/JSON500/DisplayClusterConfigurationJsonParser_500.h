@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Formats/IDisplayClusterConfigurationDataParser.h"
-#include "Formats/JSON427/DisplayClusterConfigurationJsonTypes_427.h"
+#include "Formats/JSON500/DisplayClusterConfigurationJsonTypes_500.h"
 
 class UDisplayClusterConfigurationData;
 
 
-namespace JSON427
+namespace JSON500
 {
 	/**
 	 * Config parser for JSON based config files
@@ -39,7 +39,7 @@ namespace JSON427
 
 	private:
 		// Intermediate temporary data (Json types)
-		FDisplayClusterConfigurationJsonContainer_427 JsonData;
+		FDisplayClusterConfigurationJsonContainer_500 JsonData;
 		// Source file
 		FString ConfigFile;
 		// Owner for config data UObject we'll create on success

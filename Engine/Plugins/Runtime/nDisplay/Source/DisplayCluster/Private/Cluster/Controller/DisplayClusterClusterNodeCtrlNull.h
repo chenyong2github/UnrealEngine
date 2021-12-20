@@ -6,7 +6,7 @@
 
 
 /**
- * Null controller. It's used when no 'legal' controller istantiated.
+ * Null controller. It's used when no 'legal' controller instantiated.
  * The main goal is to always have a cluster controller instance.
  */
 class FDisplayClusterClusterNodeCtrlNull final
@@ -47,10 +47,10 @@ public:
 		return ControllerName;
 	}
 
-	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) override
+	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bPrimaryOnly) override
 	{ }
 
-	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly) override
+	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson& Event, bool bPrimaryOnly) override
 	{ }
 
 public:

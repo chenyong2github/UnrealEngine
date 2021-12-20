@@ -87,12 +87,12 @@ void FNDisplayLiveLinkSubjectReplicator::Initialize()
 
 		if (IDisplayCluster::IsAvailable())
 		{
-			if (IDisplayCluster::Get().GetClusterMgr()->IsMaster())
+			if (IDisplayCluster::Get().GetClusterMgr()->IsPrimary())
 			{
 				//If we're a master, listen to LiveLinkTicked callback to bundle up the SyncObject. Subjects frames will have been processed at that point.
 				LiveLinkClient->OnLiveLinkTicked().AddRaw(this, &FNDisplayLiveLinkSubjectReplicator::OnLiveLinkTicked);
 			}
-			else if (IDisplayCluster::Get().GetClusterMgr()->IsSlave())
+			else if (IDisplayCluster::Get().GetClusterMgr()->IsSecondary())
 			{
 				//If we're a slave, listen for new subject and disables them if we're tracking that subject
 				FCoreDelegates::OnBeginFrame.AddRaw(this, &FNDisplayLiveLinkSubjectReplicator::OnEngineBeginFrame);
@@ -164,7 +164,7 @@ void FNDisplayLiveLinkSubjectReplicator::OnEngineBeginFrame()
 	//Only our replicated VirtualSubjects should be enabled
 	if (LiveLinkClient)
 	{
-		check(IDisplayCluster::Get().GetClusterMgr()->IsSlave());
+		check(IDisplayCluster::Get().GetClusterMgr()->IsSecondary());
 
 		const bool bIncludeDisabled = false;
 		const bool bIncludeVirtual = true;

@@ -162,8 +162,8 @@ private:
 
 	void ResendSyncEvent(IDisplayClusterClusterManager* ClusterManager)
 	{
-		//Master will send out its interceptor settings to the cluster so everyone uses the same things
-		if (ClusterManager->IsMaster())
+		// Primary node will send out its interceptor settings to the cluster so everyone uses the same things
+		if (ClusterManager->IsPrimary())
 		{
 			FString ExportedSettings;
 			const UDisplayClusterMessageInterceptionSettings* CurrentSettings = GetDefault<UDisplayClusterMessageInterceptionSettings>();
@@ -174,8 +174,8 @@ private:
 			SettingsEvent.Name = ClusterManager->GetNodeId();
 			SettingsEvent.bIsSystemEvent = true;
 			SettingsEvent.Parameters.FindOrAdd(DisplayClusterInterceptionModuleUtils::EventParameterSettings) = MoveTemp(ExportedSettings);
-			const bool bMasterOnly = true;
-			ClusterManager->EmitClusterEventJson(SettingsEvent, bMasterOnly);
+			const bool bPrimaryOnly = true;
+			ClusterManager->EmitClusterEventJson(SettingsEvent, bPrimaryOnly);
 		}
 	}
 
@@ -198,8 +198,8 @@ private:
 		SyncMessagesEvent.Name = ClusterManager->GetNodeId();	// which node got the message
 		SyncMessagesEvent.bIsSystemEvent = true;				// nDisplay internal event
 		SyncMessagesEvent.bShouldDiscardOnRepeat = false;		// Don' discard the events with the same cat/type/name
-		const bool bMasterOnly = false;							// All nodes are broadcasting events to synchronize them across cluster
-		ClusterManager->EmitClusterEventJson(SyncMessagesEvent, bMasterOnly);
+		const bool bPrimaryOnly = false;							// All nodes are broadcasting events to synchronize them across cluster
+		ClusterManager->EmitClusterEventJson(SyncMessagesEvent, bPrimaryOnly);
 	}
 
 	void WorkspaceSyncEvent()
@@ -219,8 +219,8 @@ private:
 		SyncMessagesEvent.Name = ClusterManager->GetNodeId();	// which node got the message
 		SyncMessagesEvent.bIsSystemEvent = true;				// nDisplay internal event
 		SyncMessagesEvent.bShouldDiscardOnRepeat = false;		// Don' discard the events with the same cat/type/name
-		const bool bMasterOnly = false;							// All nodes are broadcasting events to synchronize them across cluster
-		ClusterManager->EmitClusterEventJson(SyncMessagesEvent, bMasterOnly);
+		const bool bPrimaryOnly = false;							// All nodes are broadcasting events to synchronize them across cluster
+		ClusterManager->EmitClusterEventJson(SyncMessagesEvent, bPrimaryOnly);
 	}
 
 	bool CanFinalizeWorkspaceSync() const

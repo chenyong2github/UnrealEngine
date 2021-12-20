@@ -64,7 +64,7 @@ void FDisplayClusterClusterNodeCtrlBase::Shutdown()
 	StopServers();
 }
 
-void FDisplayClusterClusterNodeCtrlBase::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
+void FDisplayClusterClusterNodeCtrlBase::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson& Event, bool bPrimaryOnly)
 {
 	// We should synchronize access to the client
 	FScopeLock Lock(&ExternEventsClientJsonGuard);
@@ -75,7 +75,7 @@ void FDisplayClusterClusterNodeCtrlBase::SendClusterEventTo(const FString& Addre
 	ExternalEventsClientJson->Disconnect();
 }
 
-void FDisplayClusterClusterNodeCtrlBase::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
+void FDisplayClusterClusterNodeCtrlBase::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bPrimaryOnly)
 {
 	// We should synchronize access to the client
 	FScopeLock Lock(&ExternEventsClientBinaryGuard);

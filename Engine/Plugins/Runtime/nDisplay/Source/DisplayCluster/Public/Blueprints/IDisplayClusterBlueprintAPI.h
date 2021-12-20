@@ -67,16 +67,16 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get nodes amount"), Category = "NDisplay|Cluster")
 	virtual int32 GetActiveNodesAmount() const = 0;
 
-	/** Returns true if current node is a master node in a cluster. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is master node"), Category = "NDisplay|Cluster")
-	virtual bool IsMaster() const = 0;
+	/** Returns true if current node is a primary node in a cluster. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is a primary node"), Category = "NDisplay|Cluster")
+	virtual bool IsPrimary() const = 0;
 
-	/** Returns true if current node is a slave node in a cluster. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is slave node"), Category = "NDisplay|Cluster")
-	virtual bool IsSlave() const = 0;
+	/** Returns true if current node is a secondary node in a cluster. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is a secondary node"), Category = "NDisplay|Cluster")
+	virtual bool IsSecondary() const = 0;
 
 	/** Returns true if current node is a backup node in a cluster. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is backup node"), Category = "NDisplay|Cluster")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is a backup node"), Category = "NDisplay|Cluster")
 	virtual bool IsBackup() const = 0;
 
 	/** Returns the role of the current cluster node. */
@@ -95,17 +95,17 @@ public:
 
 	/** Emits JSON cluster event. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Emit JSON cluster event"), Category = "NDisplay|Cluster")
-	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool bMasterOnly) = 0;
+	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool bPrimaryOnly) = 0;
 
 	/** Emits binary cluster event. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Emit binary cluster event"), Category = "NDisplay|Cluster")
-	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) = 0;
+	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bPrimaryOnly) = 0;
 
 	/** Sends JSON cluster event to a specific target (outside of the cluster). */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Send JSON event to a specific host"), Category = "NDisplay|Cluster")
-	virtual void SendClusterEventJsonTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly) = 0;
+	virtual void SendClusterEventJsonTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bPrimaryOnly) = 0;
 
 	/** Sends binary cluster event to a specific target (outside of the cluster). */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Send binary event to a specific host"), Category = "NDisplay|Cluster")
-	virtual void SendClusterEventBinaryTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) = 0;
+	virtual void SendClusterEventBinaryTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bPrimaryOnly) = 0;
 };

@@ -313,8 +313,8 @@ void FDisplayClusterConfiguratorTreeItemClusterNode::FillItemColumn(TSharedPtr<S
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(NSLOCTEXT("FDisplayClusterConfiguratorTreeItemClusterNode", "MasterText", "(Master)"))
-			.Visibility(this, &FDisplayClusterConfiguratorTreeItemClusterNode::GetMasterLabelVisibility)
+			.Text(NSLOCTEXT("FDisplayClusterConfiguratorTreeItemClusterNode", "PrimaryText", "(Primary)"))
+			.Visibility(this, &FDisplayClusterConfiguratorTreeItemClusterNode::GetPrimaryLabelVisibility)
 		];
 }
 
@@ -340,12 +340,12 @@ void FDisplayClusterConfiguratorTreeItemClusterNode::OnDisplayNameCommitted(cons
 	}
 }
 
-EVisibility FDisplayClusterConfiguratorTreeItemClusterNode::GetMasterLabelVisibility() const
+EVisibility FDisplayClusterConfiguratorTreeItemClusterNode::GetPrimaryLabelVisibility() const
 {
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
-	bool bIsMaster = FDisplayClusterConfiguratorClusterUtils::IsClusterNodeMaster(ClusterNode);
+	const bool bIsPrimary = FDisplayClusterConfiguratorClusterUtils::IsClusterNodePrimary(ClusterNode);
 
-	return bIsMaster ? EVisibility::Visible : EVisibility::Collapsed;
+	return bIsPrimary ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FSlateColor FDisplayClusterConfiguratorTreeItemClusterNode::GetHostColor() const

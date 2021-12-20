@@ -47,9 +47,9 @@ public:
 		return ClusterNodeId; 
 	}
 
-	virtual FString GetMasterNodeId() const override;
+	virtual FString GetPrimaryNodeId() const override;
 
-	virtual const UDisplayClusterConfigurationClusterNode* GetMasterNode() const override;
+	virtual const UDisplayClusterConfigurationClusterNode* GetPrimaryNode() const override;
 	virtual const UDisplayClusterConfigurationClusterNode* GetLocalNode() const override;
 	virtual const UDisplayClusterConfigurationViewport*    GetLocalViewport(const FString& ViewportId) const override;
 

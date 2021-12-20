@@ -6,10 +6,10 @@
 
 #include "Cluster/IDisplayClusterClusterSyncObject.h"
 #include "Cluster/IDisplayClusterClusterEventListener.h"
-#include "Cluster/Controller/DisplayClusterClusterNodeCtrlMaster.h"
-#include "Cluster/Controller/DisplayClusterClusterNodeCtrlNull.h"
-#include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlEditor.h"
+#include "Cluster/Controller/DisplayClusterClusterNodeCtrlNull.h"
+#include "Cluster/Controller/DisplayClusterClusterNodeCtrlPrimary.h"
+#include "Cluster/Controller/DisplayClusterClusterNodeCtrlSecondary.h"
 #include "Cluster/Failover/DisplayClusterFailoverNodeCtrlNull.h"
 #include "Cluster/Failover/DisplayClusterFailoverNodeCtrlPrimary.h"
 #include "Cluster/Failover/DisplayClusterFailoverNodeCtrlSecondary.h"
@@ -255,16 +255,16 @@ void FDisplayClusterClusterManager::PostTick(float DeltaSeconds)
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterManager
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterClusterManager::IsMaster() const
+bool FDisplayClusterClusterManager::IsPrimary() const
 {
 	FScopeLock Lock(&InternalsCS);
-	return ClusterNodeCtrl ? ClusterNodeCtrl->GetClusterRole() == EDisplayClusterNodeRole::Master : false;
+	return ClusterNodeCtrl ? ClusterNodeCtrl->GetClusterRole() == EDisplayClusterNodeRole::Primary : false;
 }
 
-bool FDisplayClusterClusterManager::IsSlave() const
+bool FDisplayClusterClusterManager::IsSecondary() const
 {
 	FScopeLock Lock(&InternalsCS);
-	return ClusterNodeCtrl ? ClusterNodeCtrl->GetClusterRole() == EDisplayClusterNodeRole::Slave : false;
+	return ClusterNodeCtrl ? ClusterNodeCtrl->GetClusterRole() == EDisplayClusterNodeRole::Secondary : false;
 }
 
 bool FDisplayClusterClusterManager::IsBackup() const
@@ -361,7 +361,7 @@ void FDisplayClusterClusterManager::RemoveClusterEventBinaryListener(const FOnCl
 	OnClusterEventBinary.Remove(Listener.GetHandle());
 }
 
-void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
+void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool bPrimaryOnly)
 {
 	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("JSON event emission request: %s:%s:%s"), *Event.Category, *Event.Type, *Event.Name);
 
@@ -369,8 +369,8 @@ void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterCl
 
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
-		// [Master] Since we receive cluster events asynchronously, we push it to a primary events pool
-		if (IsMaster())
+		// [Primary] Since we receive cluster events asynchronously, we push it to a primary events pool
+		if (IsPrimary())
 		{
 			// Generate event ID
 			const FString EventId = FString::Printf(TEXT("%s-%s-%s"), *Event.Category, *Event.Type, *Event.Name);
@@ -386,11 +386,11 @@ void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterCl
 				ClusterEventsJsonNonDiscarded.Add(EventPtr);
 			}
 		}
-		// [Slave] Send event to the master
+		// [Secondary] Send event to the primary node
 		else
 		{
-			// An event will be emitted from a slave node if it's explicitly specified by MasterOnly=false
-			if (!bMasterOnly && ClusterNodeCtrl)
+			// An event will be emitted from a secondary node if it's explicitly specified by bPrimaryOnly=false
+			if (!bPrimaryOnly && ClusterNodeCtrl)
 			{
 				ClusterNodeCtrl->EmitClusterEventJson(Event);
 			}
@@ -398,7 +398,7 @@ void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterCl
 	}
 }
 
-void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
+void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bPrimaryOnly)
 {
 	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("BIN event emission request: %d"), Event.EventId);
 
@@ -406,8 +406,8 @@ void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayCluster
 
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
-		// [Master] Since we receive cluster events asynchronously, we push it to a primary events pool
-		if (IsMaster())
+		// [Primary] Since we receive cluster events asynchronously, we push it to a primary events pool
+		if (IsPrimary())
 		{
 			// Make it shared ptr
 			TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe> EventPtr = MakeShared<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>(Event);
@@ -421,11 +421,11 @@ void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayCluster
 				ClusterEventsBinaryNonDiscarded.Add(EventPtr);
 			}
 		}
-		// [Slave] Send event to the master
+		// [Secondary] Send event to the primary node
 		else
 		{
-			// An event will be emitted from a slave node if it's explicitly specified by MasterOnly=false
-			if (!bMasterOnly && ClusterNodeCtrl)
+			// An event will be emitted from a secondary node if it's explicitly specified by bPrimaryOnly=false
+			if (!bPrimaryOnly && ClusterNodeCtrl)
 			{
 				ClusterNodeCtrl->EmitClusterEventBinary(Event);
 			}
@@ -433,31 +433,31 @@ void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayCluster
 	}
 }
 
-void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
+void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson& Event, bool bPrimaryOnly)
 {
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
 		if (ClusterNodeCtrl)
 		{
-			if (IsMaster() || !bMasterOnly)
+			if (IsPrimary() || !bPrimaryOnly)
 			{
 				UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("JSON event emission request: recipient=%s:%u, event=%s:%s:%s"), *Address, Port, *Event.Category, *Event.Type, *Event.Name);
-				ClusterNodeCtrl->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+				ClusterNodeCtrl->SendClusterEventTo(Address, Port, Event, bPrimaryOnly);
 			}
 		}
 	}
 }
 
-void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
+void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bPrimaryOnly)
 {
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
 		if (ClusterNodeCtrl)
 		{
-			if (IsMaster() || !bMasterOnly)
+			if (IsPrimary() || !bPrimaryOnly)
 			{
 				UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("BIN event emission request: recipient=%s:%u, event=%d"), *Address, Port, Event.EventId);
-				ClusterNodeCtrl->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+				ClusterNodeCtrl->SendClusterEventTo(Address, Port, Event, bPrimaryOnly);
 			}
 		}
 	}
@@ -558,7 +558,7 @@ void FDisplayClusterClusterManager::SyncObjects(EDisplayClusterSyncGroup InSyncG
 		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (objects)."), ObjectsData.Num());
 
 		// No need to import data on the primary node
-		if (!IsMaster())
+		if (!IsPrimary())
 		{
 			// Perform data load (objects state update)
 			ImportObjectsData(InSyncGroup, ObjectsData);
@@ -772,7 +772,7 @@ void FDisplayClusterClusterManager::ExportNativeInputData(TMap<FString, FString>
 {
 	// If we are on the primary node, that means we got network request for input data.
 	// So, provide with data once it's cached.
-	if (IsMaster())
+	if (IsPrimary())
 	{
 		// Wait for data cache to be ready
 		NativeInputCacheReadySignal->Wait();
@@ -805,16 +805,16 @@ TUniquePtr<IDisplayClusterClusterNodeController> FDisplayClusterClusterManager::
 	// Instantiate appropriate controller depending on operation mode and cluster role
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster)
 	{
-		// Master or slave
-		if (ClusterNodeId.Equals(GDisplayCluster->GetPrivateConfigMgr()->GetMasterNodeId(), ESearchCase::IgnoreCase))
+		// Primary or secondary
+		if (ClusterNodeId.Equals(GDisplayCluster->GetPrivateConfigMgr()->GetPrimaryNodeId(), ESearchCase::IgnoreCase))
 		{
-			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating master node controller..."));
-			return MakeUnique<FDisplayClusterClusterNodeCtrlMaster>(FString("[CTRL-M]"), ClusterNodeId);
+			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating primary node controller..."));
+			return MakeUnique<FDisplayClusterClusterNodeCtrlPrimary>(FString("[CTRL-M]"), ClusterNodeId);
 		}
 		else
 		{
-			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating slave node controller..."));
-			return MakeUnique<FDisplayClusterClusterNodeCtrlSlave>(FString("[CTRL-S]"), ClusterNodeId);
+			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating secondary node controller..."));
+			return MakeUnique<FDisplayClusterClusterNodeCtrlSecondary>(FString("[CTRL-S]"), ClusterNodeId);
 		}
 	}
 	else if (CurrentOperationMode == EDisplayClusterOperationMode::Editor)
@@ -833,11 +833,11 @@ TUniquePtr<IDisplayClusterFailoverNodeController> FDisplayClusterClusterManager:
 	const EDisplayClusterNodeRole ClusterRole = GetClusterRole();
 	switch (ClusterRole)
 	{
-	case EDisplayClusterNodeRole::Master:
+	case EDisplayClusterNodeRole::Primary:
 		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover primary controller..."));
 		return MakeUnique<FDisplayClusterFailoverNodeCtrlPrimary>();
 
-	case EDisplayClusterNodeRole::Slave:
+	case EDisplayClusterNodeRole::Secondary:
 		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover secondary controller..."));
 		return MakeUnique<FDisplayClusterFailoverNodeCtrlSecondary>();
 	}

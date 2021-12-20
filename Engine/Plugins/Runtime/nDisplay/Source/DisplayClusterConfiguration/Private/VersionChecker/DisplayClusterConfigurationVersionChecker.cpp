@@ -19,14 +19,12 @@ EDisplayClusterConfigurationVersion FDisplayClusterConfigurationVersionChecker::
 
 	switch (FileType)
 	{
-	case EConfigFileType::Text:
-		return EDisplayClusterConfigurationVersion::Version_CFG;
-
 	case EConfigFileType::Json:
 		return GetConfigVersionJson(FilePath);
-	}
 
-	return EDisplayClusterConfigurationVersion::Unknown;
+	default:
+		return EDisplayClusterConfigurationVersion::Unknown;
+	}
 }
 
 EDisplayClusterConfigurationVersion FDisplayClusterConfigurationVersionChecker::GetConfigVersionJson(const FString& FilePath) const
@@ -60,6 +58,10 @@ EDisplayClusterConfigurationVersion FDisplayClusterConfigurationVersionChecker::
 	{
 		return EDisplayClusterConfigurationVersion::Version_427;
 	}
+	else if (JsonData.nDisplay.Version.Equals(TEXT("5.00")))
+	{
+		return EDisplayClusterConfigurationVersion::Version_500;
+	}
 
 	// Otherwise it's something unknown
 	return EDisplayClusterConfigurationVersion::Unknown;
@@ -72,11 +74,6 @@ FDisplayClusterConfigurationVersionChecker::EConfigFileType FDisplayClusterConfi
 	{
 		UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("JSON config: %s"), *InConfigPath);
 		return EConfigFileType::Json;
-	}
-	else if (Extension.Equals(FString(DisplayClusterConfigurationStrings::file::FileExtCfg), ESearchCase::IgnoreCase))
-	{
-		UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("TXT config: %s"), *InConfigPath);
-		return EConfigFileType::Text;
 	}
 
 	UE_LOG(LogDisplayClusterConfiguration, Warning, TEXT("Unknown file extension: %s"), *Extension);

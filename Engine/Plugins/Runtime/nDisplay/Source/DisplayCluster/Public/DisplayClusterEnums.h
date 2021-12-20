@@ -26,8 +26,8 @@ UENUM(BlueprintType)
 enum class EDisplayClusterNodeRole : uint8
 {
 	None = 0,
-	Master,
-	Slave,
+	Primary,
+	Secondary,
 	Backup,
 };
 

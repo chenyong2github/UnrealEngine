@@ -85,7 +85,7 @@ FDMXDisplayClusterReplicator::FDMXDisplayClusterReplicator()
 
 			if (bAutoMode)
 			{
-				return ClusterManager->IsMaster();
+				return ClusterManager->IsPrimary();
 			}
 
 			return bForceMaster;

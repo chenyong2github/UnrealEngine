@@ -133,11 +133,11 @@ public:
 	static FString GetClusterNodeName(UDisplayClusterConfigurationClusterNode* ClusterNode);
 
 	/**
-	 * Determines if a cluster node is the master node in its cluster.
+	 * Determines if a cluster node is the primary node in its cluster.
 	 * @param ClusterNode - The cluster node to check.
-	 * @return true if the node is the master; otherwise, false.
+	 * @return true if the node is the primary; otherwise, false.
 	 */
-	static bool IsClusterNodeMaster(UDisplayClusterConfigurationClusterNode* ClusterNode);
+	static bool IsClusterNodePrimary(UDisplayClusterConfigurationClusterNode* ClusterNode);
 
 	/**
 	 * Gets a unique name for a cluster node owned by the specified cluster.
@@ -173,11 +173,11 @@ public:
 	static bool RenameClusterNode(UDisplayClusterConfigurationClusterNode* ClusterNode, FString NewClusterNodeName);
 
 	/**
-	 * Sets the cluster node as the master node.
-	 * @param ClusterNode - The cluster node to set as the master node
-	 * @return true if the cluster node was successfully set as the master node
+	 * Sets the cluster node as the primary node.
+	 * @param ClusterNode - The cluster node to set as the primary node
+	 * @return true if the cluster node was successfully set as the primary node
 	 */
-	static bool SetClusterNodeAsMaster(UDisplayClusterConfigurationClusterNode* ClusterNode);
+	static bool SetClusterNodeAsPrimary(UDisplayClusterConfigurationClusterNode* ClusterNode);
 
 	/**
 	 * Gets the name that the viewport is stored under in its parent cluster node.

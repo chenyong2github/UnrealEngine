@@ -47,43 +47,14 @@ namespace JSON427
 
 	bool FDisplayClusterConfigurationJsonParser::SaveData(const UDisplayClusterConfigurationData* ConfigData, const FString& FilePath)
 	{
-		FString JsonTextOut;
-
-		// Convert to json string
-		if (!AsString(ConfigData, JsonTextOut))
-		{
-			return false;
-		}
-
-		// Save json string to a file
-		if (!FFileHelper::SaveStringToFile(JsonTextOut, *FilePath))
-		{
-			UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Couldn't save data to file: %s"), *FilePath);
-			return false;
-		}
-
-		UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("Configuration data has been successfully saved to file: %s"), *FilePath);
-
-		return true;
+		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Export to JSON 427 is not supported. Use JSON 500 exporter."));
+		return false;
 	}
 
 	bool FDisplayClusterConfigurationJsonParser::AsString(const UDisplayClusterConfigurationData* ConfigData, FString& OutString)
 	{
-		// Convert nDisplay internal types to json types
-		if (!ConvertDataToExternalTypes(ConfigData))
-		{
-			UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Couldn't convert data to json data types"));
-			return false;
-		}
-
-		// Serialize json types to json string
-		if (!FJsonObjectConverter::UStructToJsonObjectString<FDisplayClusterConfigurationJsonContainer_427>(JsonData, OutString))
-		{
-			UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Couldn't serialize data to json"));
-			return false;
-		}
-
-		return true;
+		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Export to JSON 427 is not supported. Use JSON 500 exporter."));
+		return false;
 	}
 
 	UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::ConvertDataToInternalTypes()
@@ -159,18 +130,18 @@ namespace JSON427
 
 		// Cluster
 		{
-			// Master node
+			// Primary node
 			{
-				Config->Cluster->MasterNode.Id = CfgJson.Cluster.MasterNode.Id;
+				Config->Cluster->PrimaryNode.Id = CfgJson.Cluster.MasterNode.Id;
 
 				const uint16* ClusterSyncPort = CfgJson.Cluster.MasterNode.Ports.Find(DisplayClusterConfigurationStrings::config::cluster::ports::PortClusterSync);
-				Config->Cluster->MasterNode.Ports.ClusterSync = (ClusterSyncPort ? *ClusterSyncPort : 41001);
+				Config->Cluster->PrimaryNode.Ports.ClusterSync = (ClusterSyncPort ? *ClusterSyncPort : 41001);
 
 				const uint16* ClusterEventsJsonPort = CfgJson.Cluster.MasterNode.Ports.Find(DisplayClusterConfigurationStrings::config::cluster::ports::PortClusterEventsJson);
-				Config->Cluster->MasterNode.Ports.ClusterEventsJson = (ClusterEventsJsonPort ? *ClusterEventsJsonPort : 41003);
+				Config->Cluster->PrimaryNode.Ports.ClusterEventsJson = (ClusterEventsJsonPort ? *ClusterEventsJsonPort : 41003);
 
 				const uint16* ClusterEventsBinaryPort = CfgJson.Cluster.MasterNode.Ports.Find(DisplayClusterConfigurationStrings::config::cluster::ports::PortClusterEventsBinary);
-				Config->Cluster->MasterNode.Ports.ClusterEventsBinary = (ClusterEventsBinaryPort ? *ClusterEventsBinaryPort : 41004);
+				Config->Cluster->PrimaryNode.Ports.ClusterEventsBinary = (ClusterEventsBinaryPort ? *ClusterEventsBinaryPort : 41004);
 			}
 
 			// Cluster sync
@@ -284,188 +255,7 @@ namespace JSON427
 
 	bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UDisplayClusterConfigurationData* Config)
 	{
-		if (!(Config && Config->Scene && Config->Cluster))
-		{
-			UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("nullptr detected in the configuration data"));
-			return false;
-		}
-
-		FDisplayClusterConfigurationJsonNdisplay_427& Json = JsonData.nDisplay;
-
-		// Info
-		Json.Description = Config->Info.Description;
-		Json.Version = FString("4.27"); // Use hard-coded version number to be able to detect JSON config version on import
-		Json.AssetPath = Config->Info.AssetPath;
-
-		// Misc
-		Json.Misc.bFollowLocalPlayerCamera = Config->bFollowLocalPlayerCamera;
-		Json.Misc.bExitOnEsc = Config->bExitOnEsc;
-
-		// Scene
-		{
-			// Cameras
-			for (const TPair<FString, UDisplayClusterConfigurationSceneComponentCamera*>& Comp : Config->Scene->Cameras)
-			{
-				FDisplayClusterConfigurationJsonSceneComponentCamera_427 CfgComp;
-
-				// General
-				CfgComp.ParentId = Comp.Value->ParentId;
-				CfgComp.Location = FDisplayClusterConfigurationJsonVector_427::FromVector(Comp.Value->Location);
-				CfgComp.Rotation = FDisplayClusterConfigurationJsonRotator_427::FromRotator(Comp.Value->Rotation);
-				// Camera specific
-				CfgComp.InterpupillaryDistance = Comp.Value->InterpupillaryDistance;
-				CfgComp.SwapEyes = Comp.Value->bSwapEyes;
-				CfgComp.StereoOffset = DisplayClusterConfigurationJsonHelpers::ToString(Comp.Value->StereoOffset);
-
-				Json.Scene.Cameras.Emplace(Comp.Key, CfgComp);
-			}
-
-			// Screens
-			for (const TPair<FString, UDisplayClusterConfigurationSceneComponentScreen*>& Comp : Config->Scene->Screens)
-			{
-				FDisplayClusterConfigurationJsonSceneComponentScreen_427 CfgComp;
-
-				// General
-				CfgComp.ParentId = Comp.Value->ParentId;
-				CfgComp.Location = FDisplayClusterConfigurationJsonVector_427::FromVector(Comp.Value->Location);
-				CfgComp.Rotation = FDisplayClusterConfigurationJsonRotator_427::FromRotator(Comp.Value->Rotation);
-				// Screen specific
-				CfgComp.Size = FDisplayClusterConfigurationJsonSizeFloat_427::FromVector(Comp.Value->Size);
-
-				Json.Scene.Screens.Emplace(Comp.Key, CfgComp);
-			}
-
-			// Xforms
-			for (const TPair<FString, UDisplayClusterConfigurationSceneComponentXform*>& Comp : Config->Scene->Xforms)
-			{
-				FDisplayClusterConfigurationJsonSceneComponentScreen_427 CfgComp;
-
-				// General
-				CfgComp.ParentId = Comp.Value->ParentId;
-				CfgComp.Location = FDisplayClusterConfigurationJsonVector_427::FromVector(Comp.Value->Location);
-				CfgComp.Rotation = FDisplayClusterConfigurationJsonRotator_427::FromRotator(Comp.Value->Rotation);
-
-				Json.Scene.Xforms.Emplace(Comp.Key, CfgComp);
-			}
-		}
-
-		// Cluster
-		{
-			// Master node
-			{
-				Json.Cluster.MasterNode.Id = Config->Cluster->MasterNode.Id;
-				Json.Cluster.MasterNode.Ports.Emplace(DisplayClusterConfigurationStrings::config::cluster::ports::PortClusterSync,         Config->Cluster->MasterNode.Ports.ClusterSync);
-				Json.Cluster.MasterNode.Ports.Emplace(DisplayClusterConfigurationStrings::config::cluster::ports::PortClusterEventsJson,   Config->Cluster->MasterNode.Ports.ClusterEventsJson);
-				Json.Cluster.MasterNode.Ports.Emplace(DisplayClusterConfigurationStrings::config::cluster::ports::PortClusterEventsBinary, Config->Cluster->MasterNode.Ports.ClusterEventsBinary);
-			}
-
-			// Cluster sync
-			{
-				// Native input sync
-				Json.Cluster.Sync.InputSyncPolicy.Type = Config->Cluster->Sync.InputSyncPolicy.Type;
-				Json.Cluster.Sync.InputSyncPolicy.Parameters = Config->Cluster->Sync.InputSyncPolicy.Parameters;
-
-				// Render sync
-				Json.Cluster.Sync.RenderSyncPolicy.Type = Config->Cluster->Sync.RenderSyncPolicy.Type;
-				Json.Cluster.Sync.RenderSyncPolicy.Parameters = Config->Cluster->Sync.RenderSyncPolicy.Parameters;
-			}
-
-			// Network
-			{
-				Json.Cluster.Network.Emplace(DisplayClusterConfigurationStrings::config::cluster::network::NetConnectRetriesAmount,
-					DisplayClusterTypesConverter::template ToString(Config->Cluster->Network.ConnectRetriesAmount));
-
-				Json.Cluster.Network.Emplace(DisplayClusterConfigurationStrings::config::cluster::network::NetConnectRetryDelay,
-					DisplayClusterTypesConverter::template ToString(Config->Cluster->Network.ConnectRetryDelay));
-
-				Json.Cluster.Network.Emplace(DisplayClusterConfigurationStrings::config::cluster::network::NetGameStartBarrierTimeout,
-					DisplayClusterTypesConverter::template ToString(Config->Cluster->Network.GameStartBarrierTimeout));
-
-				Json.Cluster.Network.Emplace(DisplayClusterConfigurationStrings::config::cluster::network::NetFrameStartBarrierTimeout,
-					DisplayClusterTypesConverter::template ToString(Config->Cluster->Network.FrameStartBarrierTimeout));
-
-				Json.Cluster.Network.Emplace(DisplayClusterConfigurationStrings::config::cluster::network::NetFrameEndBarrierTimeout,
-					DisplayClusterTypesConverter::template ToString(Config->Cluster->Network.FrameEndBarrierTimeout));
-
-				Json.Cluster.Network.Emplace(DisplayClusterConfigurationStrings::config::cluster::network::NetRenderSyncBarrierTimeout,
-					DisplayClusterTypesConverter::template ToString(Config->Cluster->Network.RenderSyncBarrierTimeout));
-			}
-
-			// Cluster nodes
-			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& CfgNode : Config->Cluster->Nodes)
-			{
-				FDisplayClusterConfigurationJsonClusterNode_427 Node;
-
-				// Base parameters
-				Node.Host = CfgNode.Value->Host;
-				Node.Sound = CfgNode.Value->bIsSoundEnabled;
-				Node.FullScreen = CfgNode.Value->bIsFullscreen;
-				Node.Window = FDisplayClusterConfigurationJsonRectangle_427(CfgNode.Value->WindowRect.X, CfgNode.Value->WindowRect.Y, CfgNode.Value->WindowRect.W, CfgNode.Value->WindowRect.H);
-
-				// Viewports
-				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& CfgViewport : CfgNode.Value->Viewports)
-				{
-					FDisplayClusterConfigurationJsonViewport_427 Viewport;
-
-					// Base parameters
-					Viewport.Camera = CfgViewport.Value->Camera;
-					Viewport.Region = FDisplayClusterConfigurationJsonRectangle_427(CfgViewport.Value->Region.X, CfgViewport.Value->Region.Y, CfgViewport.Value->Region.W, CfgViewport.Value->Region.H);
-					Viewport.GPUIndex = CfgViewport.Value->GPUIndex;
-					Viewport.BufferRatio = CfgViewport.Value->RenderSettings.BufferRatio;
-
-					// Projection policy
-					Viewport.ProjectionPolicy.Type = CfgViewport.Value->ProjectionPolicy.Type;
-					Viewport.ProjectionPolicy.Parameters = CfgViewport.Value->ProjectionPolicy.Parameters;
-
-					// Overscan
-					Viewport.Overscan.Mode = DisplayClusterConfigurationJsonHelpers::ToString(CfgViewport.Value->RenderSettings.Overscan.Mode);
-					Viewport.Overscan.bEnabled = CfgViewport.Value->RenderSettings.Overscan.bEnabled;
-					Viewport.Overscan.Oversize = CfgViewport.Value->RenderSettings.Overscan.bOversize;
-					Viewport.Overscan.Left = CfgViewport.Value->RenderSettings.Overscan.Left;
-					Viewport.Overscan.Right = CfgViewport.Value->RenderSettings.Overscan.Right;
-					Viewport.Overscan.Top = CfgViewport.Value->RenderSettings.Overscan.Top;
-					Viewport.Overscan.Bottom = CfgViewport.Value->RenderSettings.Overscan.Bottom;
-					
-					// Save this viewport
-					Node.Viewports.Emplace(CfgViewport.Key, Viewport);
-				}
-
-				// Postprocess
-				for (const TPair<FString, FDisplayClusterConfigurationPostprocess>& CfgPostprocess : CfgNode.Value->Postprocess)
-				{
-					FDisplayClusterConfigurationJsonPostprocess_427 PostprocessOperation;
-
-					PostprocessOperation.Type = CfgPostprocess.Value.Type;
-					PostprocessOperation.Parameters = CfgPostprocess.Value.Parameters;
-
-					Node.Postprocess.Emplace(CfgPostprocess.Key, PostprocessOperation);
-				}
-
-				// OutputRemap
-				{
-					Node.OutputRemap.bEnable = CfgNode.Value->OutputRemap.bEnable;
-					Node.OutputRemap.DataSource = (CfgNode.Value->OutputRemap.DataSource == EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::ExternalFile) ? "file" : "mesh";
-					Node.OutputRemap.ExternalFile = CfgNode.Value->OutputRemap.ExternalFile;
-
-					if (CfgNode.Value->OutputRemap.StaticMesh)
-					{
-						Node.OutputRemap.StaticMeshAsset = CfgNode.Value->OutputRemap.StaticMesh->GetPathName();
-					}
-				}
-
-				// Store new cluster node
-				Json.Cluster.Nodes.Emplace(CfgNode.Key, Node);
-			}
-		}
-
-		// Custom parameters
-		Json.CustomParameters = Config->CustomParameters;
-
-		// Diagnostics
-		Json.Diagnostics.SimulateLag = Config->Diagnostics.bSimulateLag;
-		Json.Diagnostics.MinLagTime = Config->Diagnostics.MinLagTime;
-		Json.Diagnostics.MaxLagTime = Config->Diagnostics.MaxLagTime;
-
-		return true;
+		// Not supported anymore
+		return false;
 	}
 }

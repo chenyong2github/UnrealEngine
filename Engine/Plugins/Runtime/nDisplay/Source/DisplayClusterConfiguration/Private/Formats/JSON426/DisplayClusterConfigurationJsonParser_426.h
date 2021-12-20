@@ -18,7 +18,7 @@ namespace JSON426
 		: public IDisplayClusterConfigurationDataParser
 	{
 	public:
-		FDisplayClusterConfigurationJsonParser() = default;
+		FDisplayClusterConfigurationJsonParser()  = default;
 		~FDisplayClusterConfigurationJsonParser() = default;
 
 	public:

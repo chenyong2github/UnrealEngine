@@ -26,7 +26,7 @@ void UDisplayClusterPlayerInput::ProcessInputStack(const TArray<UInputComponent*
 	{
 		TMap<FString, FString> KeyStates;
 
-		if (ClusterMgr->IsMaster())
+		if (ClusterMgr->IsPrimary())
 		{
 			// Export key states data for the stack
 			SerializeKeyStateMap(KeyStates);

@@ -117,7 +117,7 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 			// And start PIE session with that config data
 			if (ConfigData)
 			{
-				if (!DisplayClusterModule->StartSession(ConfigData, ConfigData->Cluster->MasterNode.Id))
+				if (!DisplayClusterModule->StartSession(ConfigData, ConfigData->Cluster->PrimaryNode.Id))
 				{
 					UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("An error occurred during DisplayCluster session start"));
 				}

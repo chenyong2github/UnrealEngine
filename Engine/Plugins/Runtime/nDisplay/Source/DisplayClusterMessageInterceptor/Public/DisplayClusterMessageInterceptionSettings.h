@@ -40,7 +40,7 @@ public:
 
 	/**
 	 * Settings related to interception. 
-	 * @note Settings from master will be synchronized across the cluster
+	 * @note Settings from primary node will be synchronized across the cluster
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Interception Settings", meta = (ShowOnlyInnerProperties))
 	FMessageInterceptionSettings InterceptionSettings;

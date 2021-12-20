@@ -45,7 +45,7 @@ protected:
 	//~ End FDisplayClusterConfiguratorTreeItem Interface
 
 private:
-	EVisibility GetMasterLabelVisibility() const;
+	EVisibility GetPrimaryLabelVisibility() const;
 	FSlateColor GetHostColor() const;
 	FReply OnHostClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 

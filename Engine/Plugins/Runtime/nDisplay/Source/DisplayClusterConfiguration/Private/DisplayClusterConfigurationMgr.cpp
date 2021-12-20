@@ -5,7 +5,7 @@
 #include "Formats/IDisplayClusterConfigurationDataParser.h"
 #include "Formats/JSON426/DisplayClusterConfigurationJsonParser_426.h"
 #include "Formats/JSON427/DisplayClusterConfigurationJsonParser_427.h"
-#include "Formats/Text/DisplayClusterConfigurationTextParser.h"
+#include "Formats/JSON500/DisplayClusterConfigurationJsonParser_500.h"
 
 #include "VersionChecker/DisplayClusterConfigurationVersionChecker.h"
 
@@ -18,7 +18,7 @@
 
 
 // Alias for current config scheme
-namespace ACTUAL_CONFIG_SCHEME = JSON427;
+namespace ACTUAL_CONFIG_SCHEME = JSON500;
 
 
 FDisplayClusterConfigurationMgr& FDisplayClusterConfigurationMgr::Get()
@@ -62,16 +62,16 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationMgr::LoadConfig(co
 	TUniquePtr<FDisplayClusterConfigurationVersionChecker> VersionChecker = MakeUnique<FDisplayClusterConfigurationVersionChecker>();
 	switch (VersionChecker->GetConfigVersion(ConfigFile))
 	{
-	case EDisplayClusterConfigurationVersion::Version_CFG:
-		Parser = MakeUnique<FDisplayClusterConfigurationTextParser>();
-		break;
-
 	case EDisplayClusterConfigurationVersion::Version_426:
 		Parser = MakeUnique<JSON426::FDisplayClusterConfigurationJsonParser>();
 		break;
 
 	case EDisplayClusterConfigurationVersion::Version_427:
 		Parser = MakeUnique<JSON427::FDisplayClusterConfigurationJsonParser>();
+		break;
+
+	case EDisplayClusterConfigurationVersion::Version_500:
+		Parser = MakeUnique<JSON500::FDisplayClusterConfigurationJsonParser>();
 		break;
 
 	case EDisplayClusterConfigurationVersion::Unknown:
