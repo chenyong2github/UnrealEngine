@@ -15,6 +15,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 using System.Threading;
+using EpicGames.Core;
 
 namespace UnrealGameSync
 {
@@ -209,6 +210,7 @@ public enum LatestChangeType
 		LineBasedTextWriter Log;
 
 		UserSettings Settings;
+		UserWorkspaceState WorkspaceState;
 		UserWorkspaceSettings WorkspaceSettings;
 		UserProjectSettings ProjectSettings;
 
@@ -331,8 +333,11 @@ public enum LatestChangeType
 			bUnstable = bInUnstable;
 			Log = InLog;
 			Settings = InSettings;
-			WorkspaceSettings = InSettings.FindOrAddWorkspace(DetectSettings.BranchClientPath);
-			ProjectSettings = InSettings.FindOrAddProject(DetectSettings.NewSelectedClientFileName);
+			WorkspaceState = InSettings.FindOrAddWorkspaceState(new DirectoryReference(DetectSettings.BranchDirectoryName), DetectSettings.NewSelectedClientFileName);
+			WorkspaceSettings = InSettings.FindOrAddWorkspaceSettings(new DirectoryReference(DetectSettings.BranchDirectoryName), DetectSettings.BranchClientPath);
+
+			string ProjectPath = Regex.Replace(DetectSettings.NewSelectedClientFileName, "^//[^/]+/", "");
+			ProjectSettings = InSettings.FindOrAddProjectSettings(new DirectoryReference(DetectSettings.BranchDirectoryName), ProjectPath);
 
 			DesiredTaskbarState = Tuple.Create(TaskbarState.NoProgress, 0.0f);
 
@@ -376,10 +381,10 @@ public enum LatestChangeType
 			// Check if we've the project we've got open in this workspace is the one we're actually synced to
 			int CurrentChangeNumber = -1;
 			string CurrentSyncFilterHash = null;
-			if (String.Compare(WorkspaceSettings.CurrentProjectIdentifier, SelectedProjectIdentifier, true) == 0)
+			if (String.Compare(WorkspaceState.CurrentProjectIdentifier, SelectedProjectIdentifier, true) == 0)
 			{
-				CurrentChangeNumber = WorkspaceSettings.CurrentChangeNumber;
-				CurrentSyncFilterHash = WorkspaceSettings.CurrentSyncFilterHash;
+				CurrentChangeNumber = WorkspaceState.CurrentChangeNumber;
+				CurrentSyncFilterHash = WorkspaceState.CurrentSyncFilterHash;
 			}
 
 			// Figure out which API server to use
@@ -391,7 +396,7 @@ public enum LatestChangeType
 
 			string TelemetryProjectIdentifier = PerforceUtils.GetClientOrDepotDirectoryName(DetectSettings.NewSelectedProjectIdentifier);
 
-			Workspace = new Workspace(PerforceClient, BranchDirectoryName, SelectedFileName, DetectSettings.BranchClientPath, DetectSettings.NewSelectedClientFileName, CurrentChangeNumber, CurrentSyncFilterHash, WorkspaceSettings.LastBuiltChangeNumber, TelemetryProjectIdentifier, DetectSettings.bIsEnterpriseProject, new LogControlTextWriter(SyncLog));
+			Workspace = new Workspace(PerforceClient, BranchDirectoryName, SelectedFileName, DetectSettings.BranchClientPath, DetectSettings.NewSelectedClientFileName, CurrentChangeNumber, CurrentSyncFilterHash, WorkspaceState.LastBuiltChangeNumber, TelemetryProjectIdentifier, DetectSettings.bIsEnterpriseProject, new LogControlTextWriter(SyncLog));
 			Workspace.OnUpdateComplete += UpdateCompleteCallback;
 
 			string ProjectLogBaseName = Path.Combine(DataFolder, String.Format("{0}@{1}", PerforceClient.ClientName, DetectSettings.BranchClientPath.Replace("//" + PerforceClient.ClientName + "/", "").Trim('/').Replace("/", "$")));
@@ -844,14 +849,14 @@ public enum LatestChangeType
 
 		private void UpdateSyncConfig(int ChangeNumber, string SyncFilterHash)
 		{
-			WorkspaceSettings.CurrentProjectIdentifier = SelectedProjectIdentifier;
-			WorkspaceSettings.CurrentChangeNumber = ChangeNumber;
-			WorkspaceSettings.CurrentSyncFilterHash = SyncFilterHash;
-			if (ChangeNumber == -1 || ChangeNumber != WorkspaceSettings.CurrentChangeNumber)
+			WorkspaceState.CurrentProjectIdentifier = SelectedProjectIdentifier;
+			WorkspaceState.CurrentChangeNumber = ChangeNumber;
+			WorkspaceState.CurrentSyncFilterHash = SyncFilterHash;
+			if (ChangeNumber == -1 || ChangeNumber != WorkspaceState.CurrentChangeNumber)
 			{
-				WorkspaceSettings.AdditionalChangeNumbers.Clear();
+				WorkspaceState.AdditionalChangeNumbers.Clear();
 			}
-			Settings.Save();
+			WorkspaceState.Save();
 		}
 
 		private void BuildList_OnScroll()
@@ -951,7 +956,7 @@ public enum LatestChangeType
 				}
 			}
 
-			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategories);
+			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
 
 			ConfigSection PerforceSection = PerforceMonitor.LatestProjectConfigFile.FindSection("Perforce");
 			if (PerforceSection != null)
@@ -1056,12 +1061,12 @@ public enum LatestChangeType
 		{
 			if (Workspace.IsBusy() && MessageBox.Show("Are you sure you want to cancel the current operation?", "Cancel operation", MessageBoxButtons.YesNo) == DialogResult.Yes)
 			{
-				WorkspaceSettings.LastSyncChangeNumber = Workspace.PendingChangeNumber;
-				WorkspaceSettings.LastSyncResult = WorkspaceUpdateResult.Canceled;
-				WorkspaceSettings.LastSyncResultMessage = null;
-				WorkspaceSettings.LastSyncTime = null;
-				WorkspaceSettings.LastSyncDurationSeconds = 0;
-				Settings.Save();
+				WorkspaceState.LastSyncChangeNumber = Workspace.PendingChangeNumber;
+				WorkspaceState.LastSyncResult = WorkspaceUpdateResult.Canceled;
+				WorkspaceState.LastSyncResultMessage = null;
+				WorkspaceState.LastSyncTime = null;
+				WorkspaceState.LastSyncDurationSeconds = 0;
+				WorkspaceState.Save();
 
 				Workspace.CancelUpdate();
 
@@ -1095,22 +1100,21 @@ public enum LatestChangeType
 
 			if (Result == WorkspaceUpdateResult.Success && Context.Options.HasFlag(WorkspaceUpdateOptions.SyncSingleChange))
 			{
-				WorkspaceSettings.AdditionalChangeNumbers.Add(Context.ChangeNumber);
-				Settings.Save();
+				WorkspaceState.AdditionalChangeNumbers.Add(Context.ChangeNumber);
 			}
 
-			if (Result == WorkspaceUpdateResult.Success && WorkspaceSettings.ExpandedArchiveTypes != null)
+			if (Result == WorkspaceUpdateResult.Success && WorkspaceState.ExpandedArchiveTypes != null)
 			{
-				WorkspaceSettings.ExpandedArchiveTypes = WorkspaceSettings.ExpandedArchiveTypes.Except(Context.ArchiveTypeToArchive.Where(x => x.Value == null).Select(x => x.Key)).ToArray();
+				WorkspaceState.ExpandedArchiveTypes = WorkspaceState.ExpandedArchiveTypes.Except(Context.ArchiveTypeToArchive.Where(x => x.Value == null).Select(x => x.Key)).ToArray();
 			}
 
-			WorkspaceSettings.LastSyncChangeNumber = Context.ChangeNumber;
-			WorkspaceSettings.LastSyncResult = Result;
-			WorkspaceSettings.LastSyncResultMessage = ResultMessage;
-			WorkspaceSettings.LastSyncTime = DateTime.UtcNow;
-			WorkspaceSettings.LastSyncDurationSeconds = (int)(WorkspaceSettings.LastSyncTime.Value - Context.StartTime).TotalSeconds;
-			WorkspaceSettings.LastBuiltChangeNumber = Workspace.LastBuiltChangeNumber;
-			Settings.Save();
+			WorkspaceState.LastSyncChangeNumber = Context.ChangeNumber;
+			WorkspaceState.LastSyncResult = Result;
+			WorkspaceState.LastSyncResultMessage = ResultMessage;
+			WorkspaceState.LastSyncTime = DateTime.UtcNow;
+			WorkspaceState.LastSyncDurationSeconds = (int)(WorkspaceState.LastSyncTime.Value - Context.StartTime).TotalSeconds;
+			WorkspaceState.LastBuiltChangeNumber = Workspace.LastBuiltChangeNumber;
+			WorkspaceState.Save();
 
 			if (Result == WorkspaceUpdateResult.FilesToResolve)
 			{
@@ -1520,7 +1524,7 @@ public enum LatestChangeType
 					return false;
 				}
 			}
-			if (IsBisectModeEnabled() && !WorkspaceSettings.ChangeNumberToBisectState.ContainsKey(Change.Number))
+			if (IsBisectModeEnabled() && !WorkspaceState.BisectChanges.Any(x => x.Change == Change.Number))
 			{
 				return false;
 			}
@@ -2155,20 +2159,20 @@ public enum LatestChangeType
 		private void GetRemainingBisectRange(out int OutPassChangeNumber, out int OutFailChangeNumber)
 		{
 			int PassChangeNumber = -1;
-			foreach (KeyValuePair<int, BisectState> Pair in WorkspaceSettings.ChangeNumberToBisectState)
+			foreach (BisectEntry Entry in WorkspaceState.BisectChanges)
 			{
-				if (Pair.Value == BisectState.Pass && (Pair.Key > PassChangeNumber || PassChangeNumber == -1))
+				if (Entry.State == BisectState.Pass && (Entry.Change > PassChangeNumber || PassChangeNumber == -1))
 				{
-					PassChangeNumber = Pair.Key;
+					PassChangeNumber = Entry.Change;
 				}
 			}
 
 			int FailChangeNumber = -1;
-			foreach (KeyValuePair<int, BisectState> Pair in WorkspaceSettings.ChangeNumberToBisectState)
+			foreach (BisectEntry Entry in WorkspaceState.BisectChanges)
 			{
-				if (Pair.Value == BisectState.Fail && Pair.Key > PassChangeNumber && (Pair.Key < FailChangeNumber || FailChangeNumber == -1))
+				if (Entry.State == BisectState.Fail && Entry.Change > PassChangeNumber && (Entry.Change < FailChangeNumber || FailChangeNumber == -1))
 				{
-					FailChangeNumber = Pair.Key;
+					FailChangeNumber = Entry.Change;
 				}
 			}
 
@@ -2198,7 +2202,7 @@ public enum LatestChangeType
 
 			bool bAllowSync = CanSyncChange(Change.Number);
 			int BadgeAlpha = bAllowSync ? 255 : 128;
-			Color TextColor = (bAllowSync || Change.Number == Workspace.PendingChangeNumber || Change.Number == Workspace.CurrentChangeNumber || (WorkspaceSettings != null && WorkspaceSettings.AdditionalChangeNumbers.Contains(Change.Number))) ? SystemColors.WindowText : Blend(SystemColors.Window, SystemColors.WindowText, 0.25f);
+			Color TextColor = (bAllowSync || Change.Number == Workspace.PendingChangeNumber || Change.Number == Workspace.CurrentChangeNumber || (WorkspaceState != null && WorkspaceState.AdditionalChangeNumbers.Contains(Change.Number))) ? SystemColors.WindowText : Blend(SystemColors.Window, SystemColors.WindowText, 0.25f);
 
 			const int FadeRange = 6;
 			if (e.ItemIndex >= BuildList.Items.Count - FadeRange && NumChanges >= PerforceMonitor.CurrentMaxChanges && !IsBisectModeEnabled())
@@ -2217,7 +2221,7 @@ public enum LatestChangeType
 				{
 					e.Graphics.DrawImage(Properties.Resources.Icons, MinX * DpiScaleX, IconY, PreviousSyncIcon, GraphicsUnit.Pixel);
 				}
-				else if (WorkspaceSettings != null && WorkspaceSettings.AdditionalChangeNumbers.Contains(Change.Number))
+				else if (WorkspaceSettings != null && WorkspaceState.AdditionalChangeNumbers.Contains(Change.Number))
 				{
 					e.Graphics.DrawImage(Properties.Resources.Icons, MinX * DpiScaleX, IconY, AdditionalSyncIcon, GraphicsUnit.Pixel);
 				}
@@ -2236,16 +2240,16 @@ public enum LatestChangeType
 						int FirstPass, FirstFail;
 						GetRemainingBisectRange(out FirstPass, out FirstFail);
 
-						BisectState State;
-						if (!WorkspaceSettings.ChangeNumberToBisectState.TryGetValue(Change.Number, out State) || State == BisectState.Exclude)
+						BisectEntry Entry = WorkspaceState.BisectChanges.FirstOrDefault(x => x.Change == Change.Number);
+						if (Entry == null || Entry.State == BisectState.Exclude)
 						{
 							QualityIcon = new Rectangle(0, 0, 0, 0);
 						}
-						if (State == BisectState.Pass)
+						if (Entry.State == BisectState.Pass)
 						{
 							QualityIcon = BisectPassIcon;
 						}
-						else if (State == BisectState.Fail)
+						else if (Entry.State == BisectState.Fail)
 						{
 							QualityIcon = BisectFailIcon;
 						}
@@ -2382,7 +2386,7 @@ public enum LatestChangeType
 					}
 
 					string SummaryText;
-					if (WorkspaceSettings.LastSyncChangeNumber == -1 || WorkspaceSettings.LastSyncChangeNumber != Change.Number || !GetLastUpdateMessage(WorkspaceSettings.LastSyncResult, WorkspaceSettings.LastSyncResultMessage, out SummaryText))
+					if (WorkspaceState.LastSyncChangeNumber == -1 || WorkspaceState.LastSyncChangeNumber != Change.Number || !GetLastUpdateMessage(WorkspaceState.LastSyncResult, WorkspaceState.LastSyncResultMessage, out SummaryText))
 					{
 						StringBuilder SummaryTextBuilder = new StringBuilder();
 
@@ -3557,19 +3561,19 @@ public enum LatestChangeType
 				Lines.Add(ProgramsLine);
 
 				// Get the summary of the last sync
-				if (WorkspaceSettings.LastSyncChangeNumber > 0)
+				if (WorkspaceState.LastSyncChangeNumber > 0)
 				{
 					string SummaryText;
-					if (WorkspaceSettings.LastSyncChangeNumber == Workspace.CurrentChangeNumber && WorkspaceSettings.LastSyncResult == WorkspaceUpdateResult.Success && WorkspaceSettings.LastSyncTime.HasValue)
+					if (WorkspaceState.LastSyncChangeNumber == Workspace.CurrentChangeNumber && WorkspaceState.LastSyncResult == WorkspaceUpdateResult.Success && WorkspaceState.LastSyncTime.HasValue)
 					{
 						Lines.Add(new StatusLine() { LineHeight = 0.5f });
 
 						StatusLine SuccessLine = new StatusLine();
 						SuccessLine.AddIcon(Properties.Resources.StatusIcons, new Size(16, 16), 0);
-						SuccessLine.AddText(String.Format("  Sync took {0}{1}s, completed at {2}.", (WorkspaceSettings.LastSyncDurationSeconds >= 60) ? String.Format("{0}m ", WorkspaceSettings.LastSyncDurationSeconds / 60) : "", WorkspaceSettings.LastSyncDurationSeconds % 60, WorkspaceSettings.LastSyncTime.Value.ToLocalTime().ToString("h\\:mmtt").ToLowerInvariant()));
+						SuccessLine.AddText(String.Format("  Sync took {0}{1}s, completed at {2}.", (WorkspaceState.LastSyncDurationSeconds >= 60) ? String.Format("{0}m ", WorkspaceState.LastSyncDurationSeconds / 60) : "", WorkspaceState.LastSyncDurationSeconds % 60, WorkspaceState.LastSyncTime.Value.ToLocalTime().ToString("h\\:mmtt").ToLowerInvariant()));
 						Lines.Add(SuccessLine);
 					}
-					else if (GetLastUpdateMessage(WorkspaceSettings.LastSyncResult, WorkspaceSettings.LastSyncResultMessage, out SummaryText))
+					else if (GetLastUpdateMessage(WorkspaceState.LastSyncResult, WorkspaceState.LastSyncResultMessage, out SummaryText))
 					{
 						Lines.Add(new StatusLine() { LineHeight = 0.5f });
 
@@ -3954,10 +3958,10 @@ public enum LatestChangeType
 		private void ViewLastSyncStatus()
 		{
 			string SummaryText;
-			if (GetLastUpdateMessage(WorkspaceSettings.LastSyncResult, WorkspaceSettings.LastSyncResultMessage, out SummaryText))
+			if (GetLastUpdateMessage(WorkspaceState.LastSyncResult, WorkspaceState.LastSyncResultMessage, out SummaryText))
 			{
 				string CaptionText;
-				if (!GetGenericLastUpdateMessage(WorkspaceSettings.LastSyncResult, out CaptionText))
+				if (!GetGenericLastUpdateMessage(WorkspaceState.LastSyncResult, out CaptionText))
 				{
 					CaptionText = "Sync error";
 				}
@@ -4183,8 +4187,7 @@ public enum LatestChangeType
 						BuildListContextMenu_OpenVisualStudio.Visible = !bIsBusy && bIsCurrentChange;
 						BuildListContextMenu_Cancel.Visible = bIsBusy;
 
-						BisectState State;
-						WorkspaceSettings.ChangeNumberToBisectState.TryGetValue(ContextMenuChange.Number, out State);
+						BisectState State = WorkspaceState.BisectChanges.FirstOrDefault(x => x.Change == ContextMenuChange.Number)?.State ?? BisectState.Include;
 						bool bIsBisectMode = IsBisectModeEnabled();
 						BuildListContextMenu_Bisect_Pass.Visible = bIsBisectMode && State != BisectState.Pass;
 						BuildListContextMenu_Bisect_Fail.Visible = bIsBisectMode && State != BisectState.Fail;
@@ -5130,7 +5133,7 @@ public enum LatestChangeType
 				ExtraSafeToDeleteExtensions = "";
 			}
 
-			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategories);
+			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
 			List<string> SyncPaths = Workspace.GetSyncPaths(WorkspaceSettings.bSyncAllProjects ?? Settings.bSyncAllProjects, CombinedSyncFilter);
 
 			CleanWorkspaceWindow.DoClean(ParentForm, Workspace.Perforce, BranchDirectoryName, Workspace.ClientRootPath, SyncPaths, ExtraSafeToDeleteFolders.Split('\n'), ExtraSafeToDeleteExtensions.Split('\n'), Log);
@@ -5330,7 +5333,7 @@ public enum LatestChangeType
 
 				// Save the settings
 				ProjectSettings.BuildSteps = ModifiedBuildSteps;
-				Settings.Save();
+				ProjectSettings.Save();
 
 				// Update the custom tools menu, because we might have changed it
 				UpdateBuildSteps();
@@ -5468,24 +5471,26 @@ public enum LatestChangeType
 			DiagnosticsText.AppendFormat("Event monitor: {0}\n", (EventMonitor == null) ? "(inactive)" : EventMonitor.LastStatusMessage);
 			DiagnosticsText.AppendFormat("Issue monitor: {0}\n", (IssueMonitor == null) ? "(inactive)" : IssueMonitor.LastStatusMessage);
 
-			DiagnosticsWindow Diagnostics = new DiagnosticsWindow(DataFolder, DiagnosticsText.ToString());
+			DiagnosticsWindow Diagnostics = new DiagnosticsWindow(DataFolder, DiagnosticsText.ToString(), Settings.GetCachedFilePaths());
 			Diagnostics.ShowDialog(this);
 		}
 
 		private void OptionsContextMenu_SyncFilter_Click(object sender, EventArgs e)
 		{
-			SyncFilter Filter = new SyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, Settings.bSyncAllProjects, Settings.bIncludeAllProjectsInSolution, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategories, WorkspaceSettings.bSyncAllProjects, WorkspaceSettings.bIncludeAllProjectsInSolution);
+			SyncFilter Filter = new SyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, Settings.bSyncAllProjects, Settings.bIncludeAllProjectsInSolution, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict, WorkspaceSettings.bSyncAllProjects, WorkspaceSettings.bIncludeAllProjectsInSolution);
 			if (Filter.ShowDialog() == DialogResult.OK)
 			{
 				Settings.SyncCategories = Filter.GlobalSyncCategories;
 				Settings.SyncView = Filter.GlobalView;
 				Settings.bSyncAllProjects = Filter.bGlobalSyncAllProjects;
 				Settings.bIncludeAllProjectsInSolution = Filter.bGlobalIncludeAllProjectsInSolution;
-				WorkspaceSettings.SyncCategories = Filter.WorkspaceSyncCategories;
+				Settings.Save();
+
+				WorkspaceSettings.SyncCategoriesDict = Filter.WorkspaceSyncCategories;
 				WorkspaceSettings.SyncView = Filter.WorkspaceView;
 				WorkspaceSettings.bSyncAllProjects = Filter.bWorkspaceSyncAllProjects;
 				WorkspaceSettings.bIncludeAllProjectsInSolution = Filter.bWorkspaceIncludeAllProjectsInSolution;
-				Settings.Save();
+				WorkspaceSettings.Save();
 			}
 		}
 
@@ -5790,7 +5795,7 @@ public enum LatestChangeType
 
 		private bool IsBisectModeEnabled()
 		{
-			return WorkspaceSettings.ChangeNumberToBisectState.Count >= 2;
+			return WorkspaceState.BisectChanges.Count >= 2;
 		}
 
 		private void EnableBisectMode()
@@ -5807,8 +5812,8 @@ public enum LatestChangeType
 				ChangeNumberToBisectState[ChangeNumberToBisectState.Keys.Min()] = BisectState.Pass;
 				ChangeNumberToBisectState[ChangeNumberToBisectState.Keys.Max()] = BisectState.Fail;
 
-				WorkspaceSettings.ChangeNumberToBisectState = ChangeNumberToBisectState;
-				Settings.Save();
+				WorkspaceState.BisectChanges = ChangeNumberToBisectState.Select(x => new BisectEntry {  Change = x.Key, State = x.Value }).ToList();
+				WorkspaceState.Save();
 
 				UpdateBuildList();
 				UpdateStatusPanel();
@@ -5817,8 +5822,8 @@ public enum LatestChangeType
 
 		private void CancelBisectMode()
 		{
-			WorkspaceSettings.ChangeNumberToBisectState.Clear();
-			Settings.Save();
+			WorkspaceState.BisectChanges.Clear();
+			WorkspaceState.Save();
 
 			UpdateBuildList();
 			UpdateStatusPanel();
@@ -5831,11 +5836,11 @@ public enum LatestChangeType
 				PerforceChangeSummary Change = (PerforceChangeSummary)SelectedItem.Tag;
 				if (Change != null)
 				{
-					WorkspaceSettings.ChangeNumberToBisectState[Change.Number] = State;
+					WorkspaceState.SetBisectState(Change.Number, State);
 				}
 			}
 
-			Settings.Save();
+			WorkspaceState.Save();
 
 			ChangeNumberToLayoutInfo.Clear();
 			BuildList.Invalidate();
@@ -5850,11 +5855,11 @@ public enum LatestChangeType
 			GetRemainingBisectRange(out PassChangeNumber, out FailChangeNumber);
 
 			List<int> ChangeNumbers = new List<int>();
-			foreach (KeyValuePair<int, BisectState> Pair in WorkspaceSettings.ChangeNumberToBisectState)
+			foreach (BisectEntry Entry in WorkspaceState.BisectChanges)
 			{
-				if (Pair.Value == BisectState.Include && Pair.Key > PassChangeNumber && Pair.Key < FailChangeNumber)
+				if (Entry.State == BisectState.Include && Entry.Change > PassChangeNumber && Entry.Change < FailChangeNumber)
 				{
-					ChangeNumbers.Add(Pair.Key);
+					ChangeNumbers.Add(Entry.Change);
 				}
 			}
 
@@ -5964,6 +5969,7 @@ public enum LatestChangeType
 			{
 				ProjectSettings.FilterBadges.Add(BadgeName);
 			}
+			ProjectSettings.Save();
 
 			UpdateBuildListFilter();
 		}
@@ -5972,6 +5978,7 @@ public enum LatestChangeType
 		{
 			ProjectSettings.FilterBadges.Clear();
 			ProjectSettings.FilterType = FilterType.None;
+			ProjectSettings.Save();
 
 			Settings.bShowAutomatedChanges = false;
 			Settings.Save();
@@ -6063,14 +6070,15 @@ public enum LatestChangeType
 		private void FilterContextMenu_Type_ShowAll_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.None;
-			Settings.Save();
+			ProjectSettings.Save();
+
 			UpdateBuildListFilter();
 		}
 
 		private void FilterContextMenu_Type_Code_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.Code;
-			Settings.Save();
+			ProjectSettings.Save();
 
 			UpdateBuildListFilter();
 		}
@@ -6078,7 +6086,7 @@ public enum LatestChangeType
 		private void FilterContextMenu_Type_Content_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.Content;
-			Settings.Save();
+			ProjectSettings.Save();
 
 			UpdateBuildListFilter();
 		}

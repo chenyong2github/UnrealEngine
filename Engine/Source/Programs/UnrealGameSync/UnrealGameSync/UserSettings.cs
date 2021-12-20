@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -204,42 +208,94 @@ namespace UnrealGameSync
 		}
 	}
 
+	class SyncCategory
+	{
+		public Guid Id { get; set; }
+		public bool Enable { get; set; }
+	}
+
+	class BisectEntry
+	{
+		public int Change { get; set; }
+		public BisectState State { get; set; }
+	}
+
 	class UserWorkspaceSettings
 	{
-		// Settings for the currently synced project in this workspace. CurrentChangeNumber is only valid for this workspace if CurrentProjectPath is the current project.
-		public string CurrentProjectIdentifier;
-		public int CurrentChangeNumber;
-		public string CurrentSyncFilterHash;
-		public List<int> AdditionalChangeNumbers = new List<int>();
-
-		// Settings for the last attempted sync. These values are set to persist error messages between runs.
-		public int LastSyncChangeNumber;
-		public WorkspaceUpdateResult LastSyncResult;
-		public string LastSyncResultMessage;
-		public DateTime? LastSyncTime;
-		public int LastSyncDurationSeconds;
-
-		// The last successful build, regardless of whether a failed sync has happened in the meantime. Used to determine whether to force a clean due to entries in the project config file.
-		public int LastBuiltChangeNumber;
-
-		// Expanded archives in the workspace
-		public string[] ExpandedArchiveTypes;
-
-		// The changes that we're regressing at the moment
-		public Dictionary<int, BisectState> ChangeNumberToBisectState = new Dictionary<int, BisectState>();
+		[JsonIgnore]
+		public FileReference File { get; set; }
 
 		// Workspace specific SyncFilters
-		public string[] SyncView;
-		public Dictionary<Guid, bool> SyncCategories;
-		public bool? bSyncAllProjects;
-		public bool? bIncludeAllProjectsInSolution;
+		public string[] SyncView { get; set; }
+		public List<SyncCategory> SyncCategories { get; set; } = new List<SyncCategory>();
+		public bool? bSyncAllProjects { get; set; }
+		public bool? bIncludeAllProjectsInSolution { get; set; }
+
+		[JsonIgnore]
+		public Dictionary<Guid, bool> SyncCategoriesDict
+		{
+			get => SyncCategories.ToDictionary(x => x.Id, x => x.Enable);
+			set => SyncCategories = value.Select(x => new SyncCategory { Id = x.Key, Enable = x.Value }).ToList();
+		}
+
+		public void Save() => Utility.SaveJson(File, this);
+	}
+
+	class UserWorkspaceState
+	{
+		[JsonIgnore]
+		public FileReference File { get; set; }
+
+		// Client path to the current project
+		public string SelectedClientFileName { get; set; }
+
+		// Settings for the currently synced project in this workspace. CurrentChangeNumber is only valid for this workspace if CurrentProjectPath is the current project.
+		public string CurrentProjectIdentifier { get; set; }
+		public int CurrentChangeNumber { get; set; }
+		public string CurrentSyncFilterHash { get; set; }
+		public List<int> AdditionalChangeNumbers { get; set; } = new List<int>();
+
+		// Settings for the last attempted sync. These values are set to persist error messages between runs.
+		public int LastSyncChangeNumber { get; set; }
+		public WorkspaceUpdateResult LastSyncResult { get; set; }
+		public string LastSyncResultMessage { get; set; }
+		public DateTime? LastSyncTime { get; set; }
+		public int LastSyncDurationSeconds { get; set; }
+
+		// The last successful build, regardless of whether a failed sync has happened in the meantime. Used to determine whether to force a clean due to entries in the project config file.
+		public int LastBuiltChangeNumber { get; set; }
+
+		// Expanded archives in the workspace
+		public string[] ExpandedArchiveTypes { get; set; }
+
+		// The changes that we're regressing at the moment
+		public List<BisectEntry> BisectChanges { get; set; } = new List<BisectEntry>();
+
+		public void SetBisectState(int Change, BisectState State)
+		{
+			BisectEntry Entry = BisectChanges.FirstOrDefault(x => x.Change == Change);
+			if (Entry == null)
+			{
+				Entry = new BisectEntry();
+				Entry.Change = Change;
+				BisectChanges.Add(Entry);
+			}
+			Entry.State = State;
+		}
+
+		public void Save() => Utility.SaveJson(File, this);
 	}
 
 	class UserProjectSettings
 	{
-		public List<ConfigObject> BuildSteps = new List<ConfigObject>();
-		public FilterType FilterType;
-		public HashSet<string> FilterBadges = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		[JsonIgnore]
+		public FileReference File { get; set; }
+
+		public List<ConfigObject> BuildSteps { get; set; } = new List<ConfigObject>();
+		public FilterType FilterType { get; set; }
+		public HashSet<string> FilterBadges { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+		public void Save() => Utility.SaveJson(File, this);
 	}
 
 	class UserSettings
@@ -313,8 +369,9 @@ namespace UnrealGameSync
 		public int NotifyUnresolvedMinutes;
 
 		// Project settings
-		Dictionary<string, UserWorkspaceSettings> WorkspaceKeyToSettings = new Dictionary<string,UserWorkspaceSettings>();
-		Dictionary<string, UserProjectSettings> ProjectKeyToSettings = new Dictionary<string,UserProjectSettings>();
+		Dictionary<FileReference, UserWorkspaceState> WorkspaceKeyToState = new Dictionary<FileReference, UserWorkspaceState>();
+		Dictionary<FileReference, UserWorkspaceSettings> WorkspaceKeyToSettings = new Dictionary<FileReference, UserWorkspaceSettings>();
+		Dictionary<FileReference, UserProjectSettings> ProjectKeyToSettings = new Dictionary<FileReference, UserProjectSettings>();
 
 		// Perforce settings
 		public PerforceSyncOptions SyncOptions = new PerforceSyncOptions();
@@ -591,142 +648,228 @@ namespace UnrealGameSync
 			return Object.ToString();
 		}
 
-		public UserWorkspaceSettings FindOrAddWorkspace(string ClientBranchPath)
+		public DirectoryReference GetConfigDir(DirectoryReference WorkspaceDir)
 		{
-			// Update the current workspace
-			string CurrentWorkspaceKey = ClientBranchPath.Trim('/');
+			DirectoryReference ConfigDir = DirectoryReference.Combine(WorkspaceDir, ".ugs");
 
-			UserWorkspaceSettings CurrentWorkspace;
-			if(!WorkspaceKeyToSettings.TryGetValue(CurrentWorkspaceKey, out CurrentWorkspace))
+			DirectoryInfo ConfigDirInfo = ConfigDir.ToDirectoryInfo();
+			if (!ConfigDirInfo.Exists)
 			{
-				// Create a new workspace settings object
-				CurrentWorkspace = new UserWorkspaceSettings();
-				WorkspaceKeyToSettings.Add(CurrentWorkspaceKey, CurrentWorkspace);
+				ConfigDirInfo.Create();
+				ConfigDirInfo.Attributes = FileAttributes.Directory | FileAttributes.Hidden;
+			}
 
-				// Read the workspace settings
-				ConfigSection WorkspaceSection = ConfigFile.FindSection(CurrentWorkspaceKey);
-				if(WorkspaceSection == null)
+			return ConfigDir;
+		}
+
+		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string SelectedClientFileName)
+		{
+			FileReference ConfigFile = FileReference.Combine(GetConfigDir(RootDir), "global.json");
+			if (!WorkspaceKeyToState.TryGetValue(ConfigFile, out UserWorkspaceState State))
+			{
+				if (!Utility.TryLoadJson(ConfigFile, out State))
 				{
-					string LegacyBranchAndClientKey = ClientBranchPath.Trim('/');
-
-					int SlashIdx = LegacyBranchAndClientKey.IndexOf('/');
-					if(SlashIdx != -1)
-					{
-						LegacyBranchAndClientKey = LegacyBranchAndClientKey.Substring(0, SlashIdx) + "$" + LegacyBranchAndClientKey.Substring(SlashIdx + 1);
-					}
-
-					string CurrentSync = ConfigFile.GetValue("Clients." + LegacyBranchAndClientKey, null);
-					if(CurrentSync != null)
-					{
-						int AtIdx = CurrentSync.LastIndexOf('@');
-						if(AtIdx != -1)
-						{
-							int ChangeNumber;
-							if(int.TryParse(CurrentSync.Substring(AtIdx + 1), out ChangeNumber))
-							{
-								CurrentWorkspace.CurrentProjectIdentifier = CurrentSync.Substring(0, AtIdx);
-								CurrentWorkspace.CurrentChangeNumber = ChangeNumber;
-							}
-						}
-					}
-
-					string LastUpdateResultText = ConfigFile.GetValue("Clients." + LegacyBranchAndClientKey + "$LastUpdate", null);
-					if(LastUpdateResultText != null)
-					{
-						int ColonIdx = LastUpdateResultText.LastIndexOf(':');
-						if(ColonIdx != -1)
-						{
-							int ChangeNumber;
-							if(int.TryParse(LastUpdateResultText.Substring(0, ColonIdx), out ChangeNumber))
-							{
-								WorkspaceUpdateResult Result;
-								if(Enum.TryParse(LastUpdateResultText.Substring(ColonIdx + 1), out Result))
-								{
-									CurrentWorkspace.LastSyncChangeNumber = ChangeNumber;
-									CurrentWorkspace.LastSyncResult = Result;
-								}
-							}
-						}
-					}
-
-					CurrentWorkspace.SyncView = new string[0];
-					CurrentWorkspace.SyncCategories = new Dictionary<Guid, bool>();
-					CurrentWorkspace.bSyncAllProjects = null;
-					CurrentWorkspace.bIncludeAllProjectsInSolution = null;
+					string ClientBranchPath = Regex.Replace(SelectedClientFileName, "^(//[^/]+)/.*$", "$1");
+					State = ImportWorkspaceState(ClientBranchPath);
+					State.SelectedClientFileName = SelectedClientFileName;
+					Utility.SaveJson(ConfigFile, State);
 				}
-				else
+
+				State.File = ConfigFile;
+				WorkspaceKeyToState.Add(ConfigFile, State);
+			}
+			if (!String.Equals(State.SelectedClientFileName, SelectedClientFileName))
+			{
+				State = new UserWorkspaceState();
+				State.File = ConfigFile;
+				State.SelectedClientFileName = SelectedClientFileName;
+				WorkspaceKeyToState[ConfigFile] = State;
+			}
+			return State;
+		}
+
+		public UserWorkspaceSettings FindOrAddWorkspaceSettings(DirectoryReference LocalRoot, string ClientBranchPath)
+		{
+			FileReference ConfigFile = FileReference.Combine(GetConfigDir(LocalRoot), $"client_{ClientBranchPath.Trim('/').Replace('/', '+')}.json");
+			if (!WorkspaceKeyToSettings.TryGetValue(ConfigFile, out UserWorkspaceSettings Settings))
+			{
+				if (!Utility.TryLoadJson(ConfigFile, out Settings))
 				{
-					CurrentWorkspace.CurrentProjectIdentifier = WorkspaceSection.GetValue("CurrentProjectPath");
-					CurrentWorkspace.CurrentChangeNumber = WorkspaceSection.GetValue("CurrentChangeNumber", -1);
-					CurrentWorkspace.CurrentSyncFilterHash = WorkspaceSection.GetValue("CurrentSyncFilterHash", null);
-					foreach(string AdditionalChangeNumberString in WorkspaceSection.GetValues("AdditionalChangeNumbers", new string[0]))
+					Settings = ImportWorkspaceSettings(ClientBranchPath);
+					Utility.SaveJson(ConfigFile, Settings);
+				}
+
+				Settings.File = ConfigFile;
+				WorkspaceKeyToSettings.Add(ConfigFile, Settings);
+			}
+			return Settings;
+		}
+
+		UserWorkspaceState ImportWorkspaceState(string ClientBranchPath)
+		{
+			UserWorkspaceState CurrentWorkspace = new UserWorkspaceState();
+
+			// Read the workspace settings
+			ConfigSection WorkspaceSection = ConfigFile.FindSection(ClientBranchPath.Trim('/'));
+			if(WorkspaceSection == null)
+			{
+				string LegacyBranchAndClientKey = ClientBranchPath.Trim('/');
+
+				int SlashIdx = LegacyBranchAndClientKey.IndexOf('/');
+				if(SlashIdx != -1)
+				{
+					LegacyBranchAndClientKey = LegacyBranchAndClientKey.Substring(0, SlashIdx) + "$" + LegacyBranchAndClientKey.Substring(SlashIdx + 1);
+				}
+
+				string CurrentSync = ConfigFile.GetValue("Clients." + LegacyBranchAndClientKey, null);
+				if(CurrentSync != null)
+				{
+					int AtIdx = CurrentSync.LastIndexOf('@');
+					if(AtIdx != -1)
 					{
-						int AdditionalChangeNumber;
-						if(int.TryParse(AdditionalChangeNumberString, out AdditionalChangeNumber))
+						int ChangeNumber;
+						if(int.TryParse(CurrentSync.Substring(AtIdx + 1), out ChangeNumber))
 						{
-							CurrentWorkspace.AdditionalChangeNumbers.Add(AdditionalChangeNumber);
+							CurrentWorkspace.CurrentProjectIdentifier = CurrentSync.Substring(0, AtIdx);
+							CurrentWorkspace.CurrentChangeNumber = ChangeNumber;
 						}
 					}
-					Enum.TryParse(WorkspaceSection.GetValue("LastSyncResult", ""), out CurrentWorkspace.LastSyncResult);
-					CurrentWorkspace.LastSyncResultMessage = UnescapeText(WorkspaceSection.GetValue("LastSyncResultMessage"));
-					CurrentWorkspace.LastSyncChangeNumber = WorkspaceSection.GetValue("LastSyncChangeNumber", -1);
+				}
 
-					DateTime LastSyncTime;
-					if(DateTime.TryParse(WorkspaceSection.GetValue("LastSyncTime", ""), out LastSyncTime))
+				string LastUpdateResultText = ConfigFile.GetValue("Clients." + LegacyBranchAndClientKey + "$LastUpdate", null);
+				if(LastUpdateResultText != null)
+				{
+					int ColonIdx = LastUpdateResultText.LastIndexOf(':');
+					if(ColonIdx != -1)
 					{
-						CurrentWorkspace.LastSyncTime = LastSyncTime;
-					}
-
-					CurrentWorkspace.LastSyncDurationSeconds = WorkspaceSection.GetValue("LastSyncDuration", 0);
-					CurrentWorkspace.LastBuiltChangeNumber = WorkspaceSection.GetValue("LastBuiltChangeNumber", 0);
-					CurrentWorkspace.ExpandedArchiveTypes = WorkspaceSection.GetValues("ExpandedArchiveName", new string[0]);
-
-					CurrentWorkspace.SyncView = WorkspaceSection.GetValues("SyncFilter", new string[0]);
-					CurrentWorkspace.SyncCategories = GetCategorySettings(WorkspaceSection, "SyncIncludedCategories", "SyncExcludedCategories");
-
-					int SyncAllProjects = WorkspaceSection.GetValue("SyncAllProjects", -1);
-					CurrentWorkspace.bSyncAllProjects = (SyncAllProjects == 0)? (bool?)false : (SyncAllProjects == 1)? (bool?)true : (bool?)null;
-
-					int IncludeAllProjectsInSolution = WorkspaceSection.GetValue("IncludeAllProjectsInSolution", -1);
-					CurrentWorkspace.bIncludeAllProjectsInSolution = (IncludeAllProjectsInSolution == 0)? (bool?)false : (IncludeAllProjectsInSolution == 1)? (bool?)true : (bool?)null;
-
-					string[] BisectEntries = WorkspaceSection.GetValues("Bisect", new string[0]);
-					foreach(string BisectEntry in BisectEntries)
-					{
-						ConfigObject BisectEntryObject = new ConfigObject(BisectEntry);
-
-						int ChangeNumber = BisectEntryObject.GetValue("Change", -1);
-						if(ChangeNumber != -1)
+						int ChangeNumber;
+						if(int.TryParse(LastUpdateResultText.Substring(0, ColonIdx), out ChangeNumber))
 						{
-							BisectState State;
-							if(Enum.TryParse(BisectEntryObject.GetValue("State", ""), out State))
+							WorkspaceUpdateResult Result;
+							if(Enum.TryParse(LastUpdateResultText.Substring(ColonIdx + 1), out Result))
 							{
-								CurrentWorkspace.ChangeNumberToBisectState[ChangeNumber] = State;
+								CurrentWorkspace.LastSyncChangeNumber = ChangeNumber;
+								CurrentWorkspace.LastSyncResult = Result;
 							}
 						}
 					}
 				}
 			}
+			else
+			{
+				CurrentWorkspace.CurrentProjectIdentifier = WorkspaceSection.GetValue("CurrentProjectPath");
+				CurrentWorkspace.CurrentChangeNumber = WorkspaceSection.GetValue("CurrentChangeNumber", -1);
+				CurrentWorkspace.CurrentSyncFilterHash = WorkspaceSection.GetValue("CurrentSyncFilterHash", null);
+				foreach(string AdditionalChangeNumberString in WorkspaceSection.GetValues("AdditionalChangeNumbers", new string[0]))
+				{
+					int AdditionalChangeNumber;
+					if(int.TryParse(AdditionalChangeNumberString, out AdditionalChangeNumber))
+					{
+						CurrentWorkspace.AdditionalChangeNumbers.Add(AdditionalChangeNumber);
+					}
+				}
+
+				WorkspaceUpdateResult LastSyncResult;
+				Enum.TryParse(WorkspaceSection.GetValue("LastSyncResult", ""), out LastSyncResult);
+				CurrentWorkspace.LastSyncResult = LastSyncResult;
+
+				CurrentWorkspace.LastSyncResultMessage = UnescapeText(WorkspaceSection.GetValue("LastSyncResultMessage"));
+				CurrentWorkspace.LastSyncChangeNumber = WorkspaceSection.GetValue("LastSyncChangeNumber", -1);
+
+				DateTime LastSyncTime;
+				if(DateTime.TryParse(WorkspaceSection.GetValue("LastSyncTime", ""), out LastSyncTime))
+				{
+					CurrentWorkspace.LastSyncTime = LastSyncTime;
+				}
+
+				CurrentWorkspace.LastSyncDurationSeconds = WorkspaceSection.GetValue("LastSyncDuration", 0);
+				CurrentWorkspace.LastBuiltChangeNumber = WorkspaceSection.GetValue("LastBuiltChangeNumber", 0);
+				CurrentWorkspace.ExpandedArchiveTypes = WorkspaceSection.GetValues("ExpandedArchiveName", new string[0]);
+
+				string[] BisectEntries = WorkspaceSection.GetValues("Bisect", new string[0]);
+				foreach(string BisectEntry in BisectEntries)
+				{
+					ConfigObject BisectEntryObject = new ConfigObject(BisectEntry);
+
+					int ChangeNumber = BisectEntryObject.GetValue("Change", -1);
+					if(ChangeNumber != -1)
+					{
+						BisectState State;
+						if(Enum.TryParse(BisectEntryObject.GetValue("State", ""), out State))
+						{
+							BisectEntry Entry = new BisectEntry();
+							Entry.Change = ChangeNumber;
+							Entry.State = State;
+							CurrentWorkspace.BisectChanges.Add(Entry);
+						}
+					}
+				}
+			}
+
 			return CurrentWorkspace;
 		}
 
-		public UserProjectSettings FindOrAddProject(string ClientProjectFileName)
+		UserWorkspaceSettings ImportWorkspaceSettings(string CurrentWorkspaceKey)
+		{
+			UserWorkspaceSettings CurrentWorkspace = new UserWorkspaceSettings();
+
+			ConfigSection WorkspaceSection = ConfigFile.FindSection(CurrentWorkspaceKey);
+			if (WorkspaceSection == null)
+			{
+				CurrentWorkspace.SyncView = new string[0];
+				CurrentWorkspace.SyncCategories = new List<SyncCategory>();
+				CurrentWorkspace.bSyncAllProjects = null;
+				CurrentWorkspace.bIncludeAllProjectsInSolution = null;
+			}
+			else
+			{
+				CurrentWorkspace.SyncView = WorkspaceSection.GetValues("SyncFilter", new string[0]);
+				CurrentWorkspace.SyncCategories = GetCategorySettings(WorkspaceSection, "SyncIncludedCategories", "SyncExcludedCategories").Select(x => new SyncCategory { Id = x.Key, Enable = x.Value }).ToList();
+
+				int SyncAllProjects = WorkspaceSection.GetValue("SyncAllProjects", -1);
+				CurrentWorkspace.bSyncAllProjects = (SyncAllProjects == 0) ? (bool?)false : (SyncAllProjects == 1) ? (bool?)true : (bool?)null;
+
+				int IncludeAllProjectsInSolution = WorkspaceSection.GetValue("IncludeAllProjectsInSolution", -1);
+				CurrentWorkspace.bIncludeAllProjectsInSolution = (IncludeAllProjectsInSolution == 0) ? (bool?)false : (IncludeAllProjectsInSolution == 1) ? (bool?)true : (bool?)null;
+			}
+
+			return CurrentWorkspace;
+		}
+
+		public UserProjectSettings FindOrAddProjectSettings(DirectoryReference LocalRoot, string ClientProjectFileName)
+		{
+			FileReference ConfigFile = FileReference.Combine(GetConfigDir(LocalRoot), $"project_{ClientProjectFileName.Trim('/').Replace('/', '+')}.json");
+			if (!ProjectKeyToSettings.TryGetValue(ConfigFile, out UserProjectSettings Settings))
+			{
+				if (!Utility.TryLoadJson(ConfigFile, out Settings))
+				{
+					Settings = ImportProjectSettings(ClientProjectFileName);
+					Utility.SaveJson(ConfigFile, Settings);
+				}
+
+				Settings.File = ConfigFile;
+				ProjectKeyToSettings.Add(ConfigFile, Settings);
+			}
+			return Settings;
+		}
+
+		public UserProjectSettings ImportProjectSettings(string ClientProjectFileName)
 		{
 			// Read the project settings
-			UserProjectSettings CurrentProject;
-			if(!ProjectKeyToSettings.TryGetValue(ClientProjectFileName, out CurrentProject))
-			{
-				CurrentProject = new UserProjectSettings();
-				ProjectKeyToSettings.Add(ClientProjectFileName, CurrentProject);
+			UserProjectSettings CurrentProject = new UserProjectSettings();
 	
-				ConfigSection ProjectSection = ConfigFile.FindOrAddSection(ClientProjectFileName);
-				CurrentProject.BuildSteps.AddRange(ProjectSection.GetValues("BuildStep", new string[0]).Select(x => new ConfigObject(x)));
-				if(!Enum.TryParse(ProjectSection.GetValue("FilterType", ""), true, out CurrentProject.FilterType))
-				{
-					CurrentProject.FilterType = FilterType.None;
-				}
-				CurrentProject.FilterBadges.UnionWith(ProjectSection.GetValues("FilterBadges", new string[0]));
+			ConfigSection ProjectSection = ConfigFile.FindOrAddSection(ClientProjectFileName);
+			CurrentProject.BuildSteps.AddRange(ProjectSection.GetValues("BuildStep", new string[0]).Select(x => new ConfigObject(x)));
+
+			FilterType FilterType;
+			if (!Enum.TryParse(ProjectSection.GetValue("FilterType", ""), true, out FilterType))
+			{
+				FilterType = FilterType.None;
 			}
+
+			CurrentProject.FilterType = FilterType;
+			CurrentProject.FilterBadges.UnionWith(ProjectSection.GetValues("FilterBadges", new string[0]));
+
 			return CurrentProject;
 		}
 
@@ -831,72 +974,6 @@ namespace UnrealGameSync
 			if (NotifyUnresolvedMinutes != -1)
 			{
 				NotificationSection.SetValue("NotifyUnresolvedMinutes", NotifyUnresolvedMinutes);
-			}
-
-			// Current workspace settings
-			foreach(KeyValuePair<string, UserWorkspaceSettings> Pair in WorkspaceKeyToSettings)
-			{
-				string CurrentWorkspaceKey = Pair.Key;
-				UserWorkspaceSettings CurrentWorkspace = Pair.Value;
-
-				ConfigSection WorkspaceSection = ConfigFile.FindOrAddSection(CurrentWorkspaceKey);
-				WorkspaceSection.Clear();
-				WorkspaceSection.SetValue("CurrentProjectPath", CurrentWorkspace.CurrentProjectIdentifier);
-				WorkspaceSection.SetValue("CurrentChangeNumber", CurrentWorkspace.CurrentChangeNumber);
-				if(CurrentWorkspace.CurrentSyncFilterHash != null)
-				{
-					WorkspaceSection.SetValue("CurrentSyncFilterHash", CurrentWorkspace.CurrentSyncFilterHash);
-				}
-				WorkspaceSection.SetValues("AdditionalChangeNumbers", CurrentWorkspace.AdditionalChangeNumbers.Select(x => x.ToString()).ToArray());
-				WorkspaceSection.SetValue("LastSyncResult", CurrentWorkspace.LastSyncResult.ToString());
-				WorkspaceSection.SetValue("LastSyncResultMessage", EscapeText(CurrentWorkspace.LastSyncResultMessage));
-				WorkspaceSection.SetValue("LastSyncChangeNumber", CurrentWorkspace.LastSyncChangeNumber);
-				if(CurrentWorkspace.LastSyncTime.HasValue)
-				{
-					WorkspaceSection.SetValue("LastSyncTime", CurrentWorkspace.LastSyncTime.ToString());
-				}
-				if(CurrentWorkspace.LastSyncDurationSeconds > 0)
-				{
-					WorkspaceSection.SetValue("LastSyncDuration", CurrentWorkspace.LastSyncDurationSeconds);
-				}
-				WorkspaceSection.SetValue("LastBuiltChangeNumber", CurrentWorkspace.LastBuiltChangeNumber);
-				WorkspaceSection.SetValues("ExpandedArchiveName", CurrentWorkspace.ExpandedArchiveTypes);
-				WorkspaceSection.SetValues("SyncFilter", CurrentWorkspace.SyncView);
-				SetCategorySettings(WorkspaceSection, "SyncIncludedCategories", "SyncExcludedCategories", CurrentWorkspace.SyncCategories);
-				if(CurrentWorkspace.bSyncAllProjects.HasValue)
-				{
-					WorkspaceSection.SetValue("SyncAllProjects", CurrentWorkspace.bSyncAllProjects.Value);
-				}
-				if(CurrentWorkspace.bIncludeAllProjectsInSolution.HasValue)
-				{
-					WorkspaceSection.SetValue("IncludeAllProjectsInSolution", CurrentWorkspace.bIncludeAllProjectsInSolution.Value);
-				}
-
-				List<ConfigObject> BisectEntryObjects = new List<ConfigObject>();
-				foreach(KeyValuePair<int, BisectState> BisectPair in CurrentWorkspace.ChangeNumberToBisectState)
-				{
-					ConfigObject BisectEntryObject = new ConfigObject();
-					BisectEntryObject.SetValue("Change", BisectPair.Key);
-					BisectEntryObject.SetValue("State", BisectPair.Value.ToString());
-					BisectEntryObjects.Add(BisectEntryObject);
-				}
-				WorkspaceSection.SetValues("Bisect", BisectEntryObjects.Select(x => x.ToString()).ToArray());
-			}
-
-			// Current project settings
-			foreach(KeyValuePair<string, UserProjectSettings> Pair in ProjectKeyToSettings)
-			{
-				string CurrentProjectKey = Pair.Key;
-				UserProjectSettings CurrentProject = Pair.Value;
-
-				ConfigSection ProjectSection = ConfigFile.FindOrAddSection(CurrentProjectKey);
-				ProjectSection.Clear();
-				ProjectSection.SetValues("BuildStep", CurrentProject.BuildSteps.Select(x => x.ToString()).ToArray());
-				if(CurrentProject.FilterType != FilterType.None)
-				{
-					ProjectSection.SetValue("FilterType", CurrentProject.FilterType.ToString());
-				}
-				ProjectSection.SetValues("FilterBadges", CurrentProject.FilterBadges.ToArray());
 			}
 
 			// Perforce settings
@@ -1066,6 +1143,11 @@ namespace UnrealGameSync
 				}
 			}
 			return Result.ToString();
+		}
+
+		public IEnumerable<FileReference> GetCachedFilePaths()
+		{
+			return WorkspaceKeyToState.Keys.Concat(WorkspaceKeyToSettings.Keys).Concat(ProjectKeyToSettings.Keys);
 		}
 	}
 }

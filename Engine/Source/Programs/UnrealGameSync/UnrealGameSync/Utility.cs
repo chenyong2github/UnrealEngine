@@ -2,6 +2,7 @@
 
 #define USE_NEW_PROCESS_JOBS
 
+using EpicGames.Core;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,49 @@ namespace UnrealGameSync
 {
 	static class Utility
 	{
+		public static bool TryLoadJson<T>(FileReference File, out T Object) where T : class
+		{
+			if (!FileReference.Exists(File))
+			{
+				Object = null;
+				return false;
+			}
+
+			try
+			{
+				Object = LoadJson<T>(File);
+				return true;
+			}
+			catch
+			{
+				Object = null;
+				return false;
+			}
+		}
+
+		public static T LoadJson<T>(FileReference File)
+		{
+			JsonSerializerOptions Options = new JsonSerializerOptions { AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip };
+			Options.Converters.Add(new JsonStringEnumConverter());
+
+			byte[] Data = FileReference.ReadAllBytes(File);
+			return JsonSerializer.Deserialize<T>(Data, Options);
+		}
+
+		public static void SaveJson<T>(FileReference File, T Object)
+		{
+			JsonSerializerOptions Options = new JsonSerializerOptions { IgnoreNullValues = true, WriteIndented = true };
+			Options.Converters.Add(new JsonStringEnumConverter());
+
+			using (Stream Stream = FileReference.Open(File, FileMode.Create, FileAccess.Write, FileShare.Read))
+			{
+				using (Utf8JsonWriter Writer = new Utf8JsonWriter(Stream, new JsonWriterOptions { Indented = true }))
+				{
+					JsonSerializer.Serialize(Writer, Object, Options);
+				}
+			}
+		}
+
 		public static string GetPathWithCorrectCase(FileInfo Info)
 		{
 			DirectoryInfo ParentInfo = Info.Directory;

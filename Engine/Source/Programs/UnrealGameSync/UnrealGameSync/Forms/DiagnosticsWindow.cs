@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Windows.Forms;
 using System.IO;
 using System.IO.Compression;
@@ -11,12 +14,14 @@ namespace UnrealGameSync
 	public partial class DiagnosticsWindow : Form
 	{
 		string DataFolder;
+		List<FileReference> ExtraFiles;
 
-		public DiagnosticsWindow(string InDataFolder, string InDiagnosticsText)
+		public DiagnosticsWindow(string InDataFolder, string InDiagnosticsText, IEnumerable<FileReference> InExtraFiles)
 		{
 			InitializeComponent();
 			DataFolder = InDataFolder;
 			DiagnosticsTextBox.Text = InDiagnosticsText.Replace("\n", "\r\n");
+			ExtraFiles = InExtraFiles.ToList();
 		}
 
 		private void ViewLogsButton_Click(object sender, EventArgs e)
@@ -55,6 +60,20 @@ namespace UnrealGameSync
 								using (FileStream InputStream = File.Open(FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
 								{
 									ZipArchiveEntry Entry = Zip.CreateEntry(Path.GetFileName(FileName));
+									using (Stream OutputStream = Entry.Open())
+									{
+										InputStream.CopyTo(OutputStream);
+									}
+								}
+							}
+						}
+						foreach (FileReference ExtraFile in ExtraFiles)
+						{
+							if(FileReference.Exists(ExtraFile))
+							{
+								using (FileStream InputStream = FileReference.Open(ExtraFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+								{
+									ZipArchiveEntry Entry = Zip.CreateEntry(ExtraFile.FullName.Replace(":", "").Replace('\\', '/'));
 									using (Stream OutputStream = Entry.Open())
 									{
 										InputStream.CopyTo(OutputStream);

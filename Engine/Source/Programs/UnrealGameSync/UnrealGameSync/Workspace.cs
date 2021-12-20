@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -440,7 +441,7 @@ namespace UnrealGameSync
 			{
 				using(TelemetryStopwatch SyncTelemetryStopwatch = new TelemetryStopwatch("Workspace_Sync", TelemetryProjectPath))
 				{
-					Log.WriteLine("Syncing to {0}...", PendingChangeNumber);
+					Log.WriteLine("Syncing to {0}...", Context.ChangeNumber);
 
 					// Make sure we're logged in
 					bool bLoggedIn;
@@ -627,7 +628,7 @@ namespace UnrealGameSync
 						foreach(string SyncPath in SyncPaths)
 						{
 							List<PerforceFileRecord> SyncRecords = new List<PerforceFileRecord>();
-							if(!Perforce.SyncPreview(SyncPath, PendingChangeNumber, !Context.Options.HasFlag(WorkspaceUpdateOptions.Sync), Record => { SyncRecords.Add(Record); Counter.Increment(); }, Log))
+							if(!Perforce.SyncPreview(SyncPath, Context.ChangeNumber, !Context.Options.HasFlag(WorkspaceUpdateOptions.Sync), Record => { SyncRecords.Add(Record); Counter.Increment(); }, Log))
 							{
 								StatusMessage = String.Format("Couldn't enumerate changes matching {0}.", SyncPath);
 								return WorkspaceUpdateResult.FailedToSync;
@@ -648,7 +649,7 @@ namespace UnrealGameSync
 								// If it doesn't exist locally, just add a sync command for it
 								if (String.IsNullOrEmpty(SyncRecord.ClientPath))
 								{
-									BatchBuilder.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, PendingChangeNumber), SyncRecord.FileSize);
+									BatchBuilder.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, Context.ChangeNumber), SyncRecord.FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
 									RequiredFreeSpace += SyncRecord.FileSize;
 									continue;
@@ -671,7 +672,7 @@ namespace UnrealGameSync
 								// This occurs for files returned from GetOpenFiles as SyncRecord.ClientPath is the client workspace path not local path.
 								if (!FullName.StartsWith(LocalRootPrefix, StringComparison.OrdinalIgnoreCase))
 								{
-									BatchBuilder.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, PendingChangeNumber), SyncRecord.FileSize);
+									BatchBuilder.Add(String.Format("{0}@{1}", SyncRecord.DepotPath, Context.ChangeNumber), SyncRecord.FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
 									RequiredFreeSpace += SyncRecord.FileSize;
 									continue;
