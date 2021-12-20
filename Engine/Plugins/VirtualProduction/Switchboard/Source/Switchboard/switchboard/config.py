@@ -51,7 +51,8 @@ class Setting(QtCore.QObject):
         nice_name: str,
         value,
         tool_tip: typing.Optional[str] = None,
-        show_ui: bool = True
+        show_ui: bool = True,
+        allow_reset: bool = True
     ):
         '''
         Create a new Setting object.
@@ -86,6 +87,11 @@ class Setting(QtCore.QObject):
         # want override highlighting.
         self._base_widget = None
         self._override_widgets = {}
+        
+        # Appears when override value is different from _value
+        self._allow_reset = allow_reset
+        self._base_reset_widget = None
+        self._reset_override_widgets = {}
 
         self.tool_tip = tool_tip
         self.show_ui = show_ui
@@ -110,7 +116,8 @@ class Setting(QtCore.QObject):
         self._value = new_value
 
         self.signal_setting_changed.emit(old_value, self._value)
-
+        self._refresh_reset_base_widget()
+    
     def override_value(self, device_name: str, override):
         override = self._filter_value(override)
 
@@ -120,6 +127,8 @@ class Setting(QtCore.QObject):
 
         self._overrides[device_name] = override
         self.signal_setting_overridden.emit(device_name, self._value, override)
+
+        self._refresh_reset_override_widget(device_name)
 
     def get_value(self, device_name: typing.Optional[str] = None):
         try:
@@ -173,6 +182,7 @@ class Setting(QtCore.QObject):
         '''
         if override_device_name is None:
             self.update_value(new_value)
+            self._refresh_reset_override_widgets()
             return
 
         old_value = self.get_value(override_device_name)
@@ -186,7 +196,6 @@ class Setting(QtCore.QObject):
         else:
             if widget:
                 sb_widgets.set_qt_property(widget, "override", False)
-            self.remove_override(override_device_name)
 
     def _on_setting_changed(
             self, new_value,
@@ -242,9 +251,75 @@ class Setting(QtCore.QObject):
             if self.tool_tip:
                 setting_label.setToolTip(self.tool_tip)
 
-            form_layout.addRow(setting_label, top_level_widget)
+            form_layout.addRow(
+                setting_label,                
+                self._decorate_with_reset_widget(override_device_name, top_level_widget)
+            )
 
         return top_level_widget
+    
+    def _decorate_with_reset_widget(self, override_device_name: str, setting_editor_widget: QtWidgets.QWidget):
+        if not self._allow_reset:
+            return setting_editor_widget
+        
+        horizontal_box = QtWidgets.QWidget()
+        horizontal_layout = QtWidgets.QHBoxLayout(horizontal_box)
+        horizontal_layout.setContentsMargins(0, 0, 0, 0)
+        horizontal_layout.setSpacing(3)
+
+        if isinstance(setting_editor_widget, QtWidgets.QWidget):
+            horizontal_layout.addWidget(setting_editor_widget)
+        elif isinstance(setting_editor_widget, QtWidgets.QLayout):
+            horizontal_layout.addLayout(setting_editor_widget)
+
+        button = QtWidgets.QPushButton()
+        pixmap = QtGui.QPixmap(":icons/images/reset_to_default.png")
+        button.setIcon(QtGui.QIcon(pixmap))
+        button.setFlat(True)
+        button.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+        button.setMaximumWidth(12)
+        button.setMaximumHeight(12)
+        button.setToolTip("Reset to default")
+        button.pressed.connect(
+            lambda override_device_name=override_device_name:
+                self._on_press_reset_override(override_device_name)
+        )
+        
+        horizontal_layout.addWidget(button)
+        is_base_reset_widget = override_device_name is None
+        if is_base_reset_widget:
+            self._base_reset_widget = button
+            self._refresh_reset_base_widget()
+        else:
+            self._reset_override_widgets[override_device_name] = button
+            self._refresh_reset_override_widget(override_device_name)
+        return horizontal_box
+    
+    def _on_press_reset_override(self, override_device_name: str):
+        if override_device_name is None:
+            self.update_value(self._original_value)
+            self._base_reset_widget.setVisible(False)
+            self._refresh_reset_override_widgets()
+            return
+        
+        if self.is_overridden(override_device_name):
+            self.override_value(override_device_name, self._value)
+            # Update UI
+            self._on_setting_changed(self._value, override_device_name=override_device_name)
+            self._on_widget_value_changed(self._value, override_device_name)
+            self._reset_override_widgets[override_device_name].setVisible(False)
+            
+    def _refresh_reset_base_widget(self):
+        if self._base_reset_widget:
+            self._base_reset_widget.setVisible(self._value != self._original_value)
+
+    def _refresh_reset_override_widgets(self):
+        for device_name in self._overrides.keys():
+            self._on_press_reset_override(device_name)
+
+    def _refresh_reset_override_widget(self, device_name: str):
+        if device_name in self._reset_override_widgets:
+            self._reset_override_widgets[device_name].setVisible(self.is_overridden(device_name))
 
     def set_widget(
             self, widget: typing.Optional[QtWidgets.QWidget] = None,
@@ -279,7 +354,7 @@ class Setting(QtCore.QObject):
         '''
         return self._override_widgets.get(
             override_device_name, self._base_widget)
-
+    
 
 class BoolSetting(Setting):
     '''
@@ -374,7 +449,8 @@ class StringSetting(Setting):
         value: str,
         placeholder_text: str = '',
         tool_tip: typing.Optional[str] = None,
-        show_ui: bool = True
+        show_ui: bool = True,
+        allow_reset: bool = True
     ):
         '''
         Create a new StringSetting object.
@@ -389,7 +465,7 @@ class StringSetting(Setting):
         '''
         super().__init__(
             attr_name, nice_name, value,
-            tool_tip=tool_tip, show_ui=show_ui)
+            tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset)
 
         self.placeholder_text = placeholder_text
 
@@ -566,7 +642,8 @@ class OptionSetting(Setting):
         value,
         possible_values: typing.List = None,
         tool_tip: typing.Optional[str] = None,
-        show_ui: bool = True
+        show_ui: bool = True,
+        allow_reset: bool = True
     ):
         '''
         Create a new OptionSetting object.
@@ -581,7 +658,7 @@ class OptionSetting(Setting):
         '''
         super().__init__(
             attr_name, nice_name, value,
-            tool_tip=tool_tip, show_ui=show_ui)
+            tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset)
 
         self.possible_values = possible_values or []
 
@@ -986,6 +1063,7 @@ class LoggingSettingVerbosityView(QtWidgets.QTreeView):
 
         model.category_verbosities = category_verbosities
 
+
 class LoggingSetting(Setting):
     '''
     A UI-displayable Setting for storing and modifying a set of logging
@@ -1043,7 +1121,8 @@ class LoggingSetting(Setting):
         categories: typing.List[str] = None,
         verbosity_levels: typing.List[str] = None,
         tool_tip: typing.Optional[str] = None,
-        show_ui: bool = True
+        show_ui: bool = True,
+        allow_reset: bool = True
     ):
         '''
         Create a new LoggingSetting object.
@@ -1065,7 +1144,7 @@ class LoggingSetting(Setting):
 
         super().__init__(
             attr_name, nice_name, value,
-            tool_tip=tool_tip, show_ui=show_ui)
+            tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset)
 
         self._verbosity_levels = (
             verbosity_levels or self.DEFAULT_VERBOSITY_LEVELS)
