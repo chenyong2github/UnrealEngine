@@ -40,8 +40,8 @@ public:
 	/** Locate an open Blueprint Editor for the object. */
 	static FDisplayClusterConfiguratorBlueprintEditor* GetBlueprintEditorForObject(UObject* InObject);
 
-	/** Checks if a master node is present in a config. */
-	static bool IsMasterNodeInConfig(UDisplayClusterConfigurationData* ConfigData);
+	/** Checks if a primary node is present in a config. */
+	static bool IsPrimaryNodeInConfig(UDisplayClusterConfigurationData* ConfigData);
 	
 	/**
 	 * Find the blueprint associated with the object and signal it should be recompiled.

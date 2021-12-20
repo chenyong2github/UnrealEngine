@@ -67,8 +67,8 @@ private:
 
 	void ShowAll();
 
-	void SetAsMaster();
-	bool CanSetAsMaster() const;
+	void SetAsPrimary();
+	bool CanSetAsPrimary() const;
 
 	void AddNewClusterNode(FVector2D PresetSize);
 	bool CanAddNewClusterNode() const;

@@ -27,9 +27,9 @@ namespace DisplayClusterStrings
 		// Cluster node roles
 		namespace role
 		{
-			static constexpr auto Master = TEXT("master");
-			static constexpr auto Slave  = TEXT("slave");
-			static constexpr auto Backup = TEXT("backup");
+			static constexpr auto Primary   = TEXT("primary");
+			static constexpr auto Secondary = TEXT("secondary");
+			static constexpr auto Backup    = TEXT("backup");
 		}
 
 		// Stereo device types (command line values)

@@ -659,7 +659,7 @@ bool FDisplayClusterConfiguratorBlueprintEditor::ExportConfig()
 bool FDisplayClusterConfiguratorBlueprintEditor::CanExportConfig() const
 {
 	UDisplayClusterConfigurationData* EditingObject = GetEditorData();
-	return FDisplayClusterConfiguratorUtils::IsMasterNodeInConfig(EditingObject);
+	return FDisplayClusterConfiguratorUtils::IsPrimaryNodeInConfig(EditingObject);
 }
 
 bool FDisplayClusterConfiguratorBlueprintEditor::SaveToFile(const FString& InFilePath)

@@ -112,7 +112,7 @@ void FDisplayClusterConfiguratorViewCluster::FillContextMenu(FMenuBuilder& MenuB
 		if (SelectedObject->IsA<UDisplayClusterConfigurationClusterNode>())
 		{
 			MenuBuilder.AddSeparator();
-			MenuBuilder.AddMenuEntry(TreeViewCommands.SetAsMaster);
+			MenuBuilder.AddMenuEntry(TreeViewCommands.SetAsPrimary);
 		}
 	}
 }
@@ -196,9 +196,9 @@ void FDisplayClusterConfiguratorViewCluster::BindPinnableCommands(FUICommandList
 	);
 
 	CommandList.MapAction(
-		TreeViewCommands.SetAsMaster,
-		FExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::SetAsMaster),
-		FCanExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::CanSetAsMaster)
+		TreeViewCommands.SetAsPrimary,
+		FExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::SetAsPrimary),
+		FCanExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::CanSetAsPrimary)
 	);
 }
 
@@ -406,7 +406,7 @@ bool FDisplayClusterConfiguratorViewCluster::CanRenameSelectedNode() const
 	return false;
 }
 
-void FDisplayClusterConfiguratorViewCluster::SetAsMaster()
+void FDisplayClusterConfiguratorViewCluster::SetAsPrimary()
 {
 	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SelectedTreeItems = ViewTree->GetSelectedItems();
 
@@ -414,9 +414,9 @@ void FDisplayClusterConfiguratorViewCluster::SetAsMaster()
 	{
 		if (UDisplayClusterConfigurationClusterNode* ClusterNode = Cast<UDisplayClusterConfigurationClusterNode>(SelectedTreeItems[0]->GetObject()))
 		{
-			FScopedTransaction Transaction(LOCTEXT("SetMasterNode", "Set Master Node"));
+			FScopedTransaction Transaction(LOCTEXT("SetPrimaryNode", "Set Primary Node"));
 
-			if (!FDisplayClusterConfiguratorClusterUtils::SetClusterNodeAsMaster(ClusterNode))
+			if (!FDisplayClusterConfiguratorClusterUtils::SetClusterNodeAsPrimary(ClusterNode))
 			{
 				Transaction.Cancel();
 			}
@@ -510,7 +510,7 @@ void FDisplayClusterConfiguratorViewCluster::ShowAll()
 	}
 }
 
-bool FDisplayClusterConfiguratorViewCluster::CanSetAsMaster() const
+bool FDisplayClusterConfiguratorViewCluster::CanSetAsPrimary() const
 {
 	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SelectedTreeItems = ViewTree->GetSelectedItems();
 
@@ -519,9 +519,9 @@ bool FDisplayClusterConfiguratorViewCluster::CanSetAsMaster() const
 		if (const UDisplayClusterConfigurationClusterNode* ClusterNode = Cast<UDisplayClusterConfigurationClusterNode>(SelectedTreeItems[0]->GetObject()))
 		{
 			UDisplayClusterConfigurationCluster* Cluster = ToolkitPtr.Pin()->GetEditorData()->Cluster;
-			const FString MasterNodeId = Cluster->MasterNode.Id;
+			const FString PrimaryNodeId = Cluster->PrimaryNode.Id;
 
-			if (!Cluster->Nodes.Contains(MasterNodeId) || Cluster->Nodes[MasterNodeId] != ClusterNode)
+			if (!Cluster->Nodes.Contains(PrimaryNodeId) || Cluster->Nodes[PrimaryNodeId] != ClusterNode)
 			{
 				return true;
 			}

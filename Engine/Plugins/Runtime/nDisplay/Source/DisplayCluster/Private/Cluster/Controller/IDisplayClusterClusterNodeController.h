@@ -47,10 +47,10 @@ public:
 	}
 
 	/** Send binary event to a specific target outside of the cluster */
-	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
+	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bPrimaryOnly)
 	{ }
 
 	/** Send JSON event to a specific target outside of the cluster */
-	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
+	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson& Event, bool bPrimaryOnly)
 	{ }
 };

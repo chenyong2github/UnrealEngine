@@ -9,7 +9,7 @@ void FDisplayClusterConfiguratorCommands::RegisterCommands()
 {
 	UI_COMMAND(Import, "Import", "Import an nDisplay config. This may overwrite components. When upgrading from the deprecated .cfg file format the recommended import workflow is to drag & drop your .cfg file into the content browser.\
  If you need to reimport it is recommended to use the reimport options of the asset context menu", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(Export, "Export", "Export to an nDisplay config. Requires a master cluster node set. This does not export all components and is meant for launching the cluster from the command line", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(Export, "Export", "Export to an nDisplay config. Requires a primary cluster node set. This does not export all components and is meant for launching the cluster from the command line", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(EditConfig, "EditConfig", "Edit config file with text editor", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ExportConfigOnSave, "Export on Save", "Export to nDisplay config automatically on save. Requires a config previously exported", EUserInterfaceActionType::ToggleButton, FInputChord());
 

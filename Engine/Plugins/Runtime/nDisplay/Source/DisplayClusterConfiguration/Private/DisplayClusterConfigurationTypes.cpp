@@ -134,7 +134,7 @@ const TSet<FString> UDisplayClusterConfigurationData::RenderSyncPolicies =
 
 const TSet<FString> UDisplayClusterConfigurationData::InputSyncPolicies =
 {
-	TEXT("ReplicateMaster"),
+	TEXT("ReplicatePrimary"),
 	TEXT("None")
 };
 
@@ -271,7 +271,7 @@ void UDisplayClusterConfigurationScene::GetObjectsToExport(TArray<UObject*>& Out
 	SAVE_MAP(Cameras);
 }
 
-FDisplayClusterConfigurationMasterNodePorts::FDisplayClusterConfigurationMasterNodePorts()
+FDisplayClusterConfigurationPrimaryNodePorts::FDisplayClusterConfigurationPrimaryNodePorts()
 	: ClusterSync(41001)
 	, ClusterEventsJson  (41003)
 	, ClusterEventsBinary(41004)
@@ -282,7 +282,7 @@ FDisplayClusterConfigurationClusterSync::FDisplayClusterConfigurationClusterSync
 {
 	using namespace DisplayClusterConfigurationStrings::config;
 	RenderSyncPolicy.Type = cluster::render_sync::Ethernet;
-	InputSyncPolicy.Type = cluster::input_sync::InputSyncPolicyReplicateMaster;
+	InputSyncPolicy.Type  = cluster::input_sync::InputSyncPolicyReplicatePrimary;
 }
 
 FDisplayClusterConfigurationNetworkSettings::FDisplayClusterConfigurationNetworkSettings()

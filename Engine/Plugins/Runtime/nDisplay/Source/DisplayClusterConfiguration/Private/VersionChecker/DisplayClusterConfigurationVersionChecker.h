@@ -27,7 +27,6 @@ protected:
 	enum class EConfigFileType
 	{
 		Unknown,
-		Text,
 		Json
 	};
 

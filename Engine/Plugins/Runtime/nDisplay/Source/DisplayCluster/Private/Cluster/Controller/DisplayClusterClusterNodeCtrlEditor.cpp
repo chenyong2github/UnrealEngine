@@ -51,7 +51,7 @@ bool FDisplayClusterClusterNodeCtrlEditor::StartServers()
 
 	// Always use localhost for PIE because there might be some other host specified in the configuration data
 	const FString HostForPie("127.0.0.1");
-	const FDisplayClusterConfigurationMasterNodePorts& Ports = ConfigData->Cluster->MasterNode.Ports;
+	const FDisplayClusterConfigurationPrimaryNodePorts& Ports = ConfigData->Cluster->PrimaryNode.Ports;
 
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Servers: addr %s, port_cs %d, port_ce %d, port_ceb %d"), *HostForPie, Ports.ClusterSync, Ports.ClusterEventsJson, Ports.ClusterEventsBinary);
 

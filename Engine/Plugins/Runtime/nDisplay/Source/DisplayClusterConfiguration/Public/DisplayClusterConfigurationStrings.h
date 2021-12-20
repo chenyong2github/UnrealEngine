@@ -45,7 +45,6 @@ namespace DisplayClusterConfigurationStrings
 	// Config file extensions
 	namespace file
 	{
-		static constexpr auto FileExtCfg  = TEXT("cfg");
 		static constexpr auto FileExtJson = TEXT("ndisplay");
 	}
 
@@ -72,8 +71,8 @@ namespace DisplayClusterConfigurationStrings
 
 			namespace input_sync
 			{
-				static constexpr auto InputSyncPolicyNone            = TEXT("None");
-				static constexpr auto InputSyncPolicyReplicateMaster = TEXT("ReplicateMaster");
+				static constexpr auto InputSyncPolicyNone             = TEXT("None");
+				static constexpr auto InputSyncPolicyReplicatePrimary = TEXT("ReplicatePrimary");
 			}
 
 			namespace render_sync

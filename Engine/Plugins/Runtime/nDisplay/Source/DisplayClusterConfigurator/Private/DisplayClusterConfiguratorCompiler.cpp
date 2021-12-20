@@ -241,9 +241,9 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 		return;
 	}
 	
-	if (!FDisplayClusterConfiguratorUtils::IsMasterNodeInConfig(BlueprintData))
+	if (!FDisplayClusterConfiguratorUtils::IsPrimaryNodeInConfig(BlueprintData))
 	{
-		MessageLog.Warning(*LOCTEXT("NoMasterNodeWarning", "Master cluster node not set. Please set a master node.").ToString());
+		MessageLog.Warning(*LOCTEXT("NoPrimaryNodeWarning", "Primary cluster node not set. Please set a primary node.").ToString());
 	}
 
 	bool bAtLeastOneViewportFound = false;

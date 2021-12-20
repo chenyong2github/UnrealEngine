@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
+#include "Cluster/Controller/DisplayClusterClusterNodeCtrlSecondary.h"
 #include "Network/IDisplayClusterServer.h"
 
 class FDisplayClusterClusterSyncService;
@@ -14,14 +14,14 @@ class FDisplayClusterTcpListener;
 
 
 /**
- * Master node controller implementation (cluster mode). Manages servers on master side.
+ * Primary node controller implementation (cluster mode). Manages servers on primary node side.
  */
-class FDisplayClusterClusterNodeCtrlMaster
-	: public FDisplayClusterClusterNodeCtrlSlave
+class FDisplayClusterClusterNodeCtrlPrimary
+	: public FDisplayClusterClusterNodeCtrlSecondary
 {
 public:
-	FDisplayClusterClusterNodeCtrlMaster(const FString& CtrlName, const FString& NodeName);
-	virtual ~FDisplayClusterClusterNodeCtrlMaster();
+	FDisplayClusterClusterNodeCtrlPrimary(const FString& CtrlName, const FString& NodeName);
+	virtual ~FDisplayClusterClusterNodeCtrlPrimary();
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -38,7 +38,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual EDisplayClusterNodeRole GetClusterRole() const override
 	{
-		return EDisplayClusterNodeRole::Master;
+		return EDisplayClusterNodeRole::Primary;
 	}
 
 	virtual bool DropClusterNode(const FString& NodeId) override;

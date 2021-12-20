@@ -43,8 +43,8 @@ private:
 	void SendReplicationQueue();
 
 private:
-	// CVar value MasterOnly
-	const bool bInterceptOnMasterOnly;
+	// CVar value PrimaryOnly
+	const bool bInterceptOnPrimaryOnly;
 	// Cluster events listener
 	FOnClusterEventBinaryListener EventsListener;
 	// Force Apply the ERCIResponse

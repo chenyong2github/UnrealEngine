@@ -17,7 +17,7 @@ void FDisplayClusterConfiguratorTreeViewCommands::RegisterCommands()
 	UI_COMMAND(ShowSelected, "Show Selected", "Shows the selected cluster items", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::H));
 	UI_COMMAND(HideSelected, "Hide Selected", "Hides the selected cluster items", EUserInterfaceActionType::Button, FInputChord(EKeys::H));
 
-	UI_COMMAND(SetAsMaster, "Set as Master", "Sets this cluster node as the master node", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SetAsPrimary, "Set as Primary", "Sets this cluster node as the primary node", EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

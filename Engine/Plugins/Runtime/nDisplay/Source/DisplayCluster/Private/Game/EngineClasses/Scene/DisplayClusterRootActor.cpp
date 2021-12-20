@@ -177,7 +177,7 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 	// Override Cluster
 	if (CurrentConfigData->Cluster)
 	{
-		CurrentConfigData->Cluster->MasterNode = ConfigData->Cluster->MasterNode;
+		CurrentConfigData->Cluster->PrimaryNode = ConfigData->Cluster->PrimaryNode;
 		CurrentConfigData->Cluster->Sync = ConfigData->Cluster->Sync;
 		CurrentConfigData->Cluster->Network = ConfigData->Cluster->Network;
 
@@ -660,7 +660,7 @@ void ADisplayClusterRootActor::BeginPlay()
 		}
 
 		// Optionally activate native input synchronization
-		if (SyncPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::input_sync::InputSyncPolicyReplicateMaster, ESearchCase::IgnoreCase))
+		if (SyncPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::input_sync::InputSyncPolicyReplicatePrimary, ESearchCase::IgnoreCase))
 		{
 			APlayerController* const PlayerController = GetWorld()->GetFirstPlayerController();
 			if (PlayerController)

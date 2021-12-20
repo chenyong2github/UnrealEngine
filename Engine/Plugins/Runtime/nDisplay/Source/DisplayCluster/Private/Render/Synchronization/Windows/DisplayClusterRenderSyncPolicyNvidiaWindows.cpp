@@ -152,13 +152,13 @@ bool FDisplayClusterRenderSyncPolicyNvidia::SynchronizeClusterRendering(int32& I
 	// Initialize barriers at first call
 	if (!bNvApiBarrierSet)
 	{
-		bNvDiagInit    = (CVarNvidiaSyncDiagnosticsInit.GetValueOnRenderThread() != 0);
-		bNvDiagPresent = (CVarNvidiaSyncDiagnosticsPresent.GetValueOnRenderThread() != 0);
+		bNvDiagInit       = (CVarNvidiaSyncDiagnosticsInit.GetValueOnRenderThread() != 0);
+		bNvDiagPresent    = (CVarNvidiaSyncDiagnosticsPresent.GetValueOnRenderThread() != 0);
 		bNvDiagWaitQueue  = (CVarNvidiaSyncDiagnosticsWaitQueue.GetValueOnRenderThread() != 0);
 		bNvDiagCompletion = (CVarNvidiaSyncDiagnosticsCompletion.GetValueOnRenderThread() != 0);
 
 		NvPresentBarrierCountLimit = CVarNvidiaPresentBarrierCountLimit.GetValueOnRenderThread();
-		NvCompletionCountLimit = CVarNvidiaCompletionCountLimit.GetValueOnRenderThread();
+		NvCompletionCountLimit     = CVarNvidiaCompletionCountLimit.GetValueOnRenderThread();
 
 
 		UE_LOG(LogDisplayClusterRenderSync, Log, 

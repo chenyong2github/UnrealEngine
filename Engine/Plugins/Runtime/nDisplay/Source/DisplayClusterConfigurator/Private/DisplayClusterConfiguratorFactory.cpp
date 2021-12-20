@@ -32,7 +32,6 @@ UDisplayClusterConfiguratorFactory::UDisplayClusterConfiguratorFactory()
 	SupportedClass = UDisplayClusterBlueprint::StaticClass();
 	ParentClass = ADisplayClusterRootActor::StaticClass();
 
-	Formats.Add(FString(DisplayClusterConfigurationStrings::file::FileExtCfg) + TEXT(";Config"));
 	Formats.Add(FString(DisplayClusterConfigurationStrings::file::FileExtJson) + TEXT(";Config"));
 
 	bCreateNew = true;

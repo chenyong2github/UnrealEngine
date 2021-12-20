@@ -15,12 +15,12 @@
 #include "Misc/CommandLine.h"
 
 // Data interception source
-static TAutoConsoleVariable<int32> CVarInterceptOnMasterOnly(
-	TEXT("nDisplay.RemoteControlInterceptor.MasterOnly"),
+static TAutoConsoleVariable<int32> CVarInterceptOnPrimaryOnly(
+	TEXT("nDisplay.RemoteControlInterceptor.PrimaryOnly"),
 	1,
 	TEXT("RemoteControl commands interception location\n")
 	TEXT("0 : All nodes\n")
-	TEXT("1 : Master only\n")
+	TEXT("1 : Primary only\n")
 	,
 	ECVF_ReadOnly
 );
@@ -30,7 +30,7 @@ static TAutoConsoleVariable<int32> CVarInterceptOnMasterOnly(
 const int32 EventId_InterceptorQueue		= 0xaabb0704;
 
 FDisplayClusterRemoteControlInterceptor::FDisplayClusterRemoteControlInterceptor()
-	: bInterceptOnMasterOnly(CVarInterceptOnMasterOnly.GetValueOnGameThread() == 1)
+	: bInterceptOnPrimaryOnly(CVarInterceptOnPrimaryOnly.GetValueOnGameThread() == 1)
 	, bForceApply(false)
 {
 	bForceApply = FParse::Param(FCommandLine::Get(), TEXT("ClusterForceApplyResponse"));
@@ -251,8 +251,8 @@ void FDisplayClusterRemoteControlInterceptor::SendReplicationQueue()
 	Event.bShouldDiscardOnRepeat = false;
 	Event.EventData              = MoveTemp(Buffer);
 
-	// Emit cluster event (or not, it depends on the bInterceptOnMasterOnly value and the role of this cluster node)
-	IDisplayCluster::Get().GetClusterMgr()->EmitClusterEventBinary(Event, bInterceptOnMasterOnly);
+	// Emit cluster event (or not, it depends on the bInterceptOnPrimaryOnly value and the role of this cluster node)
+	IDisplayCluster::Get().GetClusterMgr()->EmitClusterEventBinary(Event, bInterceptOnPrimaryOnly);
 
 	InterceptQueueMap.Empty();
 }

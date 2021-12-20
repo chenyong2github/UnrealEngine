@@ -26,11 +26,11 @@ public:
 
 	// Returns ID of cluster node that is assigned to this application instance
 	virtual FString GetLocalNodeId() const = 0;
-	// Returns master node ID
-	virtual FString GetMasterNodeId() const = 0;
+	// Returns primary node ID
+	virtual FString GetPrimaryNodeId() const = 0;
 
-	// Returns master node configuration data
-	virtual const UDisplayClusterConfigurationClusterNode* GetMasterNode() const = 0;
+	// Returns primary node configuration data
+	virtual const UDisplayClusterConfigurationClusterNode* GetPrimaryNode() const = 0;
 	// Returns configuration data for cluster node that is assigned to this application instance
 	virtual const UDisplayClusterConfigurationClusterNode* GetLocalNode() const = 0;
 	// Returns configuration data for a specified local viewport 

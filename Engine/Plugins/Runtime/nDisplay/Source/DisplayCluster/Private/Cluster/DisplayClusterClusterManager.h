@@ -41,9 +41,9 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterClusterManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool IsMaster() const override;
-	virtual bool IsSlave()  const override;
-	virtual bool IsBackup() const override;
+	virtual bool IsPrimary()   const override;
+	virtual bool IsSecondary() const override;
+	virtual bool IsBackup()    const override;
 	virtual EDisplayClusterNodeRole GetClusterRole() const override;
 
 	virtual FString GetNodeId() const override
@@ -72,11 +72,11 @@ public:
 	virtual void AddClusterEventBinaryListener(const FOnClusterEventBinaryListener& Listener) override;
 	virtual void RemoveClusterEventBinaryListener(const FOnClusterEventBinaryListener& Listener) override;
 
-	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool MasterOnly) override;
-	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) override;
+	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool bPrimaryOnly) override;
+	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bPrimaryOnly) override;
 
-	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson&   Event, bool bMasterOnly) override;
-	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) override;
+	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson&   Event, bool bPrimaryOnly) override;
+	virtual void SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bPrimaryOnly) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

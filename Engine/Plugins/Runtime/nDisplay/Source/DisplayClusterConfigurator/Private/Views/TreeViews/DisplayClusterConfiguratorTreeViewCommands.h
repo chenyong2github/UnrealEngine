@@ -31,5 +31,5 @@ public:
 	TSharedPtr<FUICommandInfo> ShowSelected;
 	TSharedPtr<FUICommandInfo> HideSelected;
 
-	TSharedPtr<FUICommandInfo> SetAsMaster;
+	TSharedPtr<FUICommandInfo> SetAsPrimary;
 };
