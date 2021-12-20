@@ -269,7 +269,31 @@ class FramelessQLineEdit(QtWidgets.QLineEdit):
         elif e.key() == QtCore.Qt.Key_Escape:
             self.setText(self.current_text)
             self.clearFocus()
+    
 
+class CollapsibleGroupBox(QtWidgets.QGroupBox):
+    def __init__(self):
+        super().__init__()
+        
+        self.setCheckable(True)
+        self.setStyleSheet(
+            'QGroupBox::indicator:checked:hover {image: url(:icons/images/tree_arrow_expanded_hovered.png);}'
+            'QGroupBox::indicator:checked {image: url(:icons/images/tree_arrow_expanded.png);}'
+            'QGroupBox::indicator:unchecked:hover {image: url(:icons/images/tree_arrow_collapsed_hovered.png);}'
+            'QGroupBox::indicator:unchecked {image: url(:icons/images/tree_arrow_collapsed.png);}'
+        )
+
+        self.toggled.connect(self._set_expanded)
+        
+    def _set_expanded(self, should_expand: bool):
+        if should_expand:
+            self.setMaximumHeight(self._original_maximum_height)
+        else:
+            self._original_maximum_height = self.maximumHeight()
+            # Just font height does not suffice ... need to investigate how to get a better value programmatically
+            safety_margin = 6
+            self.setMaximumHeight(self.fontMetrics().height() + safety_margin)
+            
 
 def set_qt_property(
     widget: QtWidgets.QWidget, prop, value, *,
