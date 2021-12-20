@@ -12,6 +12,7 @@ from switchboard import config
 from switchboard import switchboard_widgets as sb_widgets
 from switchboard.config import CONFIG, SETTINGS
 from switchboard.settings_search import SettingsSearch
+from switchboard.switchboard_widgets import CollapsibleGroupBox
 from switchboard.ui.horizontal_tabs import HorizontalTabWidget
 
 RELATIVE_PATH = os.path.dirname(__file__)
@@ -147,7 +148,7 @@ class SettingsDialog(QtCore.QObject):
         return self.ui.config_path_layout;
         
     def _create_switchboard_settings(self):
-        self.ui.switchboard_settings_group = QtWidgets.QGroupBox()
+        self.ui.switchboard_settings_group = CollapsibleGroupBox()
         self.ui.switchboard_settings_group.setTitle("Switchboard")
         layout = QtWidgets.QFormLayout(self.ui.switchboard_settings_group)
         
@@ -179,7 +180,7 @@ class SettingsDialog(QtCore.QObject):
         return self.ui.switchboard_settings_group
         
     def _create_project_settings(self):
-        self.ui.project_settings_group = QtWidgets.QGroupBox()
+        self.ui.project_settings_group = CollapsibleGroupBox()
         self.ui.project_settings_group.setTitle("Project Settings")
         layout = QtWidgets.QVBoxLayout(self.ui.project_settings_group)
         
@@ -301,6 +302,12 @@ class SettingsDialog(QtCore.QObject):
         self.ui.source_control_settings_group = QtWidgets.QGroupBox()
         self.ui.source_control_settings_group.setTitle("Source Control")
         self.ui.source_control_settings_group.setCheckable(True)
+        self.ui.source_control_settings_group.setStyleSheet(
+            'QGroupBox::indicator:checked:hover {image: url(:icons/images/check_box_checked_hovered.png);}'
+            'QGroupBox::indicator:checked {image: url(:icons/images/check_box_checked.png);}'
+            'QGroupBox::indicator:unchecked:hover {image: url(:icons/images/check_box_hovered.png);}'
+            'QGroupBox::indicator:unchecked {image: url(:icons/images/check_box.png);}'
+        )
         form_layout = QtWidgets.QFormLayout(self.ui.source_control_settings_group)
         layout.addWidget(self.ui.source_control_settings_group)
         
@@ -334,7 +341,7 @@ class SettingsDialog(QtCore.QObject):
             CONFIG.SOURCE_CONTROL_WORKSPACE.update_value(widget.text()))
     
     def _create_multi_user_server_settings(self):
-        self.ui.multi_user_settings = QtWidgets.QGroupBox()
+        self.ui.multi_user_settings = CollapsibleGroupBox()
         self.ui.multi_user_settings.setTitle("Multi User Server")
         form_layout = QtWidgets.QFormLayout(self.ui.multi_user_settings)
         
@@ -628,7 +635,7 @@ class SettingsDialog(QtCore.QObject):
             return  # no settings to show
 
         # Create a group box per plugin
-        device_override_group_box = QtWidgets.QGroupBox()
+        device_override_group_box = CollapsibleGroupBox()
         device_override_group_box.setTitle(f'{plugin_name} Settings')
         device_override_group_box.setLayout(QtWidgets.QVBoxLayout())
         device_override_group_box.setSizePolicy(
@@ -657,7 +664,7 @@ class SettingsDialog(QtCore.QObject):
 
         # add widgets for settings and overrides of individual devices
         for device_name, settings, overrides in device_settings:
-            group_box = QtWidgets.QGroupBox()
+            group_box = CollapsibleGroupBox()
             group_box.setTitle(device_name)
             group_box.setLayout(QtWidgets.QVBoxLayout())
 
@@ -676,5 +683,5 @@ class SettingsDialog(QtCore.QObject):
 
         # Pull all widgets up so they do not attempt to divide space among themselves when filtered by search
         device_override_group_box.layout().addItem(
-            QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+            QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         )
