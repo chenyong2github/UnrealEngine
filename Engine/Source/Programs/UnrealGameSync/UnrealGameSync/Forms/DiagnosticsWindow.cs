@@ -13,10 +13,10 @@ namespace UnrealGameSync
 {
 	public partial class DiagnosticsWindow : Form
 	{
-		string DataFolder;
+		DirectoryReference DataFolder;
 		List<FileReference> ExtraFiles;
 
-		public DiagnosticsWindow(string InDataFolder, string InDiagnosticsText, IEnumerable<FileReference> InExtraFiles)
+		public DiagnosticsWindow(DirectoryReference InDataFolder, string InDiagnosticsText, IEnumerable<FileReference> InExtraFiles)
 		{
 			InitializeComponent();
 			DataFolder = InDataFolder;
@@ -26,7 +26,7 @@ namespace UnrealGameSync
 
 		private void ViewLogsButton_Click(object sender, EventArgs e)
 		{
-			Process.Start("explorer.exe", DataFolder);
+			Process.Start("explorer.exe", DataFolder.FullName);
 		}
 
 		private void SaveButton_Click(object sender, EventArgs e)
@@ -37,10 +37,10 @@ namespace UnrealGameSync
 			Dialog.FileName = Path.Combine(Dialog.InitialDirectory, "UGS-Diagnostics.zip");
 			if(Dialog.ShowDialog() == DialogResult.OK)
 			{
-				string DiagnosticsFileName = Path.Combine(DataFolder, "Diagnostics.txt");
+				FileReference DiagnosticsFileName = FileReference.Combine(DataFolder, "Diagnostics.txt");
 				try
 				{
-					File.WriteAllLines(DiagnosticsFileName, DiagnosticsTextBox.Lines);
+					FileReference.WriteAllLines(DiagnosticsFileName, DiagnosticsTextBox.Lines);
 				}
 				catch(Exception Ex)
 				{
@@ -53,13 +53,13 @@ namespace UnrealGameSync
 				{
 					using (ZipArchive Zip = new ZipArchive(File.OpenWrite(ZipFileName), ZipArchiveMode.Create))
 					{
-						foreach (string FileName in Directory.EnumerateFiles(DataFolder))
+						foreach (FileReference FileName in DirectoryReference.EnumerateFiles(DataFolder))
 						{
-							if (!FileName.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase) && !FileName.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase))
+							if (!FileName.HasExtension(".exe") && !FileName.HasExtension(".dll"))
 							{
-								using (FileStream InputStream = File.Open(FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+								using (FileStream InputStream = FileReference.Open(FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
 								{
-									ZipArchiveEntry Entry = Zip.CreateEntry(Path.GetFileName(FileName));
+									ZipArchiveEntry Entry = Zip.CreateEntry(FileName.MakeRelativeTo(DataFolder).Replace('\\', '/'));
 									using (Stream OutputStream = Entry.Open())
 									{
 										InputStream.CopyTo(OutputStream);

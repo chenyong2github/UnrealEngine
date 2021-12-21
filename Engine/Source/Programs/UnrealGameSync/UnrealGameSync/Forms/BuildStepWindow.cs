@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -17,15 +18,15 @@ namespace UnrealGameSync
 	{
 		BuildStep Step;
 		List<string> TargetNames;
-		string BaseDirectoryPrefix;
+		DirectoryReference BaseDirectory;
 		IReadOnlyDictionary<string, string> Variables;
 		VariablesWindow VariablesWindow;
 
-		public BuildStepWindow(BuildStep InTask, List<string> InTargetNames, string InBaseDirectory, IReadOnlyDictionary<string, string> InVariables)
+		public BuildStepWindow(BuildStep InTask, List<string> InTargetNames, DirectoryReference InBaseDirectory, IReadOnlyDictionary<string, string> InVariables)
 		{
 			Step = InTask;
 			TargetNames = InTargetNames;
-			BaseDirectoryPrefix = Path.GetFullPath(InBaseDirectory) + Path.DirectorySeparatorChar;
+			BaseDirectory = InBaseDirectory;
 			Variables = InVariables;
 
 			InitializeComponent();
@@ -212,20 +213,20 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				return Path.Combine(BaseDirectoryPrefix, FileName);
+				return FileReference.Combine(BaseDirectory, FileName).FullName;
 			}
 		}
 
 		private string RemoveBaseDirectory(string FileName)
 		{
-			string FullFileName = Path.GetFullPath(FileName);
-			if(FullFileName.StartsWith(BaseDirectoryPrefix, StringComparison.InvariantCultureIgnoreCase))
+			FileReference FullFileName = new FileReference(FileName);
+			if(FullFileName.IsUnderDirectory(BaseDirectory))
 			{
-				return FullFileName.Substring(BaseDirectoryPrefix.Length);
+				return FullFileName.MakeRelativeTo(BaseDirectory);
 			}
 			else
 			{
-				return FullFileName;
+				return FileName;
 			}
 		}
 

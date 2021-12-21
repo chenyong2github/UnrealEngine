@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -14,22 +15,22 @@ namespace UnrealGameSync
 	{
 		public UserSelectedProjectSettings SelectedProject;
 		public PerforceConnection PerforceClient;
-		public string NewSelectedFileName;
+		public FileReference NewSelectedFileName;
 		public string NewSelectedProjectIdentifier;
 		public string NewProjectEditorTarget;
 		public string BranchClientPath;
-		public string BranchDirectoryName;
+		public DirectoryReference BranchDirectoryName;
 		public string NewSelectedClientFileName;
 		public string StreamName;
 		public Image ProjectLogo;
-		public string DataFolder;
-		public string CacheFolder;
+		public DirectoryReference DataFolder;
+		public DirectoryReference CacheFolder;
 		public bool bIsEnterpriseProject;
 		public ConfigFile LatestProjectConfigFile;
-		public List<KeyValuePair<string, DateTime>> LocalConfigFiles;
+		public List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles;
 		TextWriter Log;
 
-		public DetectProjectSettingsTask(UserSelectedProjectSettings SelectedProject, string InDataFolder, string InCacheFolder, TextWriter InLog)
+		public DetectProjectSettingsTask(UserSelectedProjectSettings SelectedProject, DirectoryReference InDataFolder, DirectoryReference InCacheFolder, TextWriter InLog)
 		{
 			this.SelectedProject = SelectedProject;
 			DataFolder = InDataFolder;
@@ -85,18 +86,16 @@ namespace UnrealGameSync
 				PerforceClient = new PerforceConnection(Perforce.UserName, ClientName, Perforce.ServerAndPort);
 
 				// Figure out the path on the client. Use the cached location if it's valid.
-				if(SelectedProject.LocalPath != null && File.Exists(SelectedProject.LocalPath))
+				string LocalPath = SelectedProject.LocalPath;
+				if (LocalPath == null || !File.Exists(LocalPath))
 				{
-					NewSelectedFileName = SelectedProject.LocalPath;
-				}
-				else
-				{
-					if(!PerforceClient.ConvertToLocalPath(NewSelectedClientFileName, out NewSelectedFileName, Log))
+					if (!PerforceClient.ConvertToLocalPath(NewSelectedClientFileName, out LocalPath, Log))
 					{
 						ErrorMessage = String.Format("Couldn't get client path for {0}", NewSelectedClientFileName);
 						return false;
 					}
 				}
+				NewSelectedFileName = new FileReference(LocalPath);
 			}
 			else
 			{
@@ -109,10 +108,10 @@ namespace UnrealGameSync
 				}
 
 				// Use the path as the selected filename
-				NewSelectedFileName = SelectedProject.LocalPath;
+				NewSelectedFileName = new FileReference(SelectedProject.LocalPath);
 
 				// Make sure the project exists
-				if(!File.Exists(SelectedProject.LocalPath))
+				if (!FileReference.Exists(NewSelectedFileName))
 				{
 					ErrorMessage = String.Format("{0} does not exist.", SelectedProject.LocalPath);
 					return false;
@@ -153,7 +152,7 @@ namespace UnrealGameSync
 				// Check there's only one client
 				if(CandidateClients.Count > 1)
 				{
-					ErrorMessage = String.Format("Found multiple workspaces containing {0}:\n\n{1}\n\nCannot determine which to use.", Path.GetFileName(NewSelectedFileName), String.Join("\n", CandidateClients.Select(x => x.ClientName)));
+					ErrorMessage = String.Format("Found multiple workspaces containing {0}:\n\n{1}\n\nCannot determine which to use.", Path.GetFileName(NewSelectedFileName.GetFileName()), String.Join("\n", CandidateClients.Select(x => x.ClientName)));
 					return false;
 				}
 
@@ -161,21 +160,18 @@ namespace UnrealGameSync
 				PerforceClient = CandidateClients[0];
 
 				// Get the client path for the project file
-				if(!PerforceClient.ConvertToClientPath(NewSelectedFileName, out NewSelectedClientFileName, Log))
+				if(!PerforceClient.ConvertToClientPath(NewSelectedFileName.FullName, out NewSelectedClientFileName, Log))
 				{
 					ErrorMessage = String.Format("Couldn't get client path for {0}", NewSelectedFileName);
 					return false;
 				}
 			}
 
-			// Normalize the filename
-			NewSelectedFileName = Path.GetFullPath(NewSelectedFileName).Replace('/', Path.DirectorySeparatorChar);
-
 			// Make sure the path case is correct. This can cause UBT intermediates to be out of date if the case mismatches.
-			NewSelectedFileName = Utility.GetPathWithCorrectCase(new FileInfo(NewSelectedFileName));
+			NewSelectedFileName = FileReference.FindCorrectCase(NewSelectedFileName);
 
 			// Update the selected project with all the data we've found
-			SelectedProject = new UserSelectedProjectSettings(SelectedProject.ServerAndPort, SelectedProject.UserName, SelectedProject.Type, NewSelectedClientFileName, NewSelectedFileName);
+			SelectedProject = new UserSelectedProjectSettings(SelectedProject.ServerAndPort, SelectedProject.UserName, SelectedProject.Type, NewSelectedClientFileName, NewSelectedFileName.FullName);
 
 			// Figure out where the engine is in relation to it
 			int EndIdx = NewSelectedClientFileName.Length - 1;
@@ -202,7 +198,7 @@ namespace UnrealGameSync
 						}
 
 						BranchClientPath = NewSelectedClientFileName.Substring(0, EndIdx);
-						BranchDirectoryName = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(FileRecords[0].ClientPath), "..", ".."));
+						BranchDirectoryName = new DirectoryReference(Path.Combine(Path.GetDirectoryName(FileRecords[0].ClientPath), "..", ".."));
 						break;
 					}
 				}
@@ -210,7 +206,7 @@ namespace UnrealGameSync
 			Log.WriteLine("Found branch root at {0}", BranchClientPath);
 
 			// Find the editor target for this project
-			if(NewSelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+			if(NewSelectedFileName.HasExtension(".uproject"))
 			{
 				List<PerforceFileRecord> Files;
 				if(PerforceClient.FindFiles(PerforceUtils.GetClientOrDepotDirectoryName(NewSelectedClientFileName) + "/Source/*Editor.Target.cs", out Files, Log) && Files.Count >= 1)
@@ -263,15 +259,15 @@ namespace UnrealGameSync
 			}
 
 			// Read the project logo
-			if (NewSelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+			if (NewSelectedFileName.HasExtension(".uproject"))
 			{
-				string LogoFileName = Path.Combine(Path.GetDirectoryName(NewSelectedFileName), "Build", "UnrealGameSync.png");
-				if(File.Exists(LogoFileName))
+				FileReference LogoFileName = FileReference.Combine(NewSelectedFileName.Directory, "Build", "UnrealGameSync.png");
+				if(FileReference.Exists(LogoFileName))
 				{
 					try
 					{
 						// Duplicate the image, otherwise we'll leave the file locked
-						using(Image Image = Image.FromFile(LogoFileName))
+						using(Image Image = Image.FromFile(LogoFileName.FullName))
 						{
 							ProjectLogo = new Bitmap(Image);
 						}
@@ -287,9 +283,9 @@ namespace UnrealGameSync
 			if(NewSelectedClientFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
 			{
 				string Text;
-				if(File.Exists(NewSelectedFileName))
+				if(FileReference.Exists(NewSelectedFileName))
 				{
-					Text = File.ReadAllText(NewSelectedFileName);
+					Text = FileReference.ReadAllText(NewSelectedFileName);
 				}
 				else
 				{
@@ -305,7 +301,7 @@ namespace UnrealGameSync
 			}
 
 			// Make sure the drive containing the project exists, to prevent other errors down the line
-			string PathRoot = Path.GetPathRoot(NewSelectedFileName);
+			string PathRoot = Path.GetPathRoot(NewSelectedFileName.FullName);
 			if (!Directory.Exists(PathRoot))
 			{
 				ErrorMessage = String.Format("Path '{0}' is invalid", NewSelectedFileName);
@@ -313,7 +309,7 @@ namespace UnrealGameSync
 			}
 
 			// Read the initial config file
-			LocalConfigFiles = new List<KeyValuePair<string, DateTime>>();
+			LocalConfigFiles = new List<KeyValuePair<FileReference, DateTime>>();
 			LatestProjectConfigFile = PerforceMonitor.ReadProjectConfigFile(PerforceClient, BranchClientPath, NewSelectedClientFileName, CacheFolder, LocalConfigFiles, Log);
 
 			// Run any event hooks
@@ -343,7 +339,7 @@ namespace UnrealGameSync
 					// Require either a username or host name match
 					if((String.IsNullOrEmpty(Client.Host) || String.Compare(Client.Host, HostName, StringComparison.InvariantCultureIgnoreCase) == 0) && (String.IsNullOrEmpty(Client.Owner) || String.Compare(Client.Owner, UserName, StringComparison.InvariantCultureIgnoreCase) == 0))
 					{
-						if(!Utility.SafeIsFileUnderDirectory(NewSelectedFileName, Client.Root))
+						if(!Utility.SafeIsFileUnderDirectory(NewSelectedFileName.FullName, Client.Root))
 						{
 							Log.WriteLine("Rejecting {0} due to root mismatch ({1})", Client.Name, Client.Root);
 							continue;
@@ -352,14 +348,14 @@ namespace UnrealGameSync
 						PerforceConnection CandidateClient = new PerforceConnection(UserName, Client.Name, ServerAndPort);
 
 						bool bFileExists;
-						if(!CandidateClient.FileExists(NewSelectedFileName, out bFileExists, Log) || !bFileExists)
+						if(!CandidateClient.FileExists(NewSelectedFileName.FullName, out bFileExists, Log) || !bFileExists)
 						{
 							Log.WriteLine("Rejecting {0} due to file not existing in workspace", Client.Name);
 							continue;
 						}
 
 						List<PerforceFileRecord> Records;
-						if(!CandidateClient.Stat(NewSelectedFileName, out Records, Log))
+						if(!CandidateClient.Stat(NewSelectedFileName.FullName, out Records, Log))
 						{
 							Log.WriteLine("Rejecting {0} due to {1} not in depot", Client.Name, NewSelectedFileName);
 							continue;

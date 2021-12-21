@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -114,10 +115,10 @@ namespace UnrealGameSync
 			InitializeComponent();
 		}
 
-		public static void DoClean(IWin32Window Owner, PerforceConnection PerforceClient, string LocalRootPath, string ClientRootPath, IReadOnlyList<string> SyncPaths, string[] ExtraSafeToDeleteFolders, string[] ExtraSafeToDeleteExtensions, TextWriter Log)
+		public static void DoClean(IWin32Window Owner, PerforceConnection PerforceClient, DirectoryReference LocalRootPath, string ClientRootPath, IReadOnlyList<string> SyncPaths, string[] ExtraSafeToDeleteFolders, string[] ExtraSafeToDeleteExtensions, TextWriter Log)
 		{
 			// Figure out which folders to clean
-			FolderToClean RootFolderToClean = new FolderToClean(new DirectoryInfo(LocalRootPath));
+			FolderToClean RootFolderToClean = new FolderToClean(LocalRootPath.ToDirectoryInfo());
 			using(FindFoldersToCleanTask QueryWorkspace = new FindFoldersToCleanTask(PerforceClient, RootFolderToClean, ClientRootPath, SyncPaths, Log))
 			{
 				string ErrorMessage;

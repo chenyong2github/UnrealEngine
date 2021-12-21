@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -18,11 +19,11 @@ namespace UnrealGameSync
 		List<string> TargetNames;
 		List<BuildStep> Steps;
 		HashSet<Guid> ProjectSteps;
-		string BaseDirectory;
+		DirectoryReference BaseDirectory;
 		ListViewItem.ListViewSubItem MouseDownSubItem = null;
 		IReadOnlyDictionary<string, string> Variables;
 
-		public ModifyBuildStepsWindow(List<string> InTargetNames, List<BuildStep> InSteps, HashSet<Guid> InProjectSteps, string InBaseDirectory, IReadOnlyDictionary<string, string> InVariables)
+		public ModifyBuildStepsWindow(List<string> InTargetNames, List<BuildStep> InSteps, HashSet<Guid> InProjectSteps, DirectoryReference InBaseDirectory, IReadOnlyDictionary<string, string> InVariables)
 		{
 			TargetNames = InTargetNames;
 			Steps = InSteps;

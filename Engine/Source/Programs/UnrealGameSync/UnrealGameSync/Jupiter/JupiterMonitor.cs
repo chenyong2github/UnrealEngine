@@ -39,7 +39,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private JupiterMonitor(OIDCTokenManager InTokenManager, string InLogPath, string InNamespace, string InUrl,
+		private JupiterMonitor(OIDCTokenManager InTokenManager, FileReference InLogPath, string InNamespace, string InUrl,
 			string InProviderIdentifier, string InExpectedBranch)
 		{
 			TokenManager = InTokenManager;
@@ -75,7 +75,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static JupiterMonitor CreateFromConfigFile(OIDCTokenManager TokenManager, string LogPath, ConfigFile ConfigFile, string SelectedProjectIdentifier)
+		public static JupiterMonitor CreateFromConfigFile(OIDCTokenManager TokenManager, FileReference LogPath, ConfigFile ConfigFile, string SelectedProjectIdentifier)
 		{
 			ConfigSection JupiterConfigSection = ConfigFile.FindSection("Jupiter");
 			if (JupiterConfigSection == null)
@@ -224,7 +224,7 @@ namespace UnrealGameSync
 				return ChangeToKey.TryGetValue(ChangeNumber, out ArchiveKey);
 			}
 
-			public bool DownloadArchive(string ArchiveKey, string LocalRootPath, string ManifestFileName, TextWriter Log, ProgressValue Progress)
+			public bool DownloadArchive(string ArchiveKey, DirectoryReference LocalRootPath, FileReference ManifestFileName, TextWriter Log, ProgressValue Progress)
 			{
 				try
 				{
@@ -239,10 +239,10 @@ namespace UnrealGameSync
 					});
 
 					// place the manifest for the Jupiter download next to the UGS manifest
-					FileReference UGSManifestFileReference = new FileReference(ManifestFileName);
+					FileReference UGSManifestFileReference = ManifestFileName;
 					FileReference JupiterManifestFileReference = FileReference.Combine(UGSManifestFileReference.Directory, "Jupiter-Manifest.json");
 
-					DirectoryReference RootDirectory = new DirectoryReference(LocalRootPath);
+					DirectoryReference RootDirectory = LocalRootPath;
 					JupiterFileTree FileTree = new JupiterFileTree(RootDirectory, InDeferReadingFiles: true);
 					Task<List<FileReference>> DownloadTask = FileTree.DownloadFromJupiter(JupiterManifestFileReference, JupiterUrl, JupiterNamespace, ArchiveKey, ProgressCallback);
 					DownloadTask.Wait();
@@ -255,12 +255,12 @@ namespace UnrealGameSync
 					}
 
 					// Write it out to a temporary file, then move it into place
-					string TempManifestFileName = ManifestFileName + ".tmp";
-					using (FileStream OutputStream = File.Open(TempManifestFileName, FileMode.Create, FileAccess.Write))
+					FileReference TempManifestFileName = ManifestFileName + ".tmp";
+					using (FileStream OutputStream = FileReference.Open(TempManifestFileName, FileMode.Create, FileAccess.Write))
 					{
 						ArchiveManifest.Write(OutputStream);
 					}
-					File.Move(TempManifestFileName, ManifestFileName);
+					FileReference.Move(TempManifestFileName, ManifestFileName);
 
 					return true;
 				}

@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
 
 namespace UnrealGameSync
 {
@@ -178,13 +179,13 @@ namespace UnrealGameSync
 			CloseFile();
 		}
 
-		public bool OpenFile(string NewLogFileName)
+		public bool OpenFile(FileReference NewLogFileName)
 		{
 			CloseFile();
 			Clear();
 			try
 			{
-				LogFileStream = File.Open(NewLogFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+				LogFileStream = FileReference.Open(NewLogFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
 			}
 			catch(Exception)
 			{

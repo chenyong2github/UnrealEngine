@@ -14,6 +14,7 @@ using System.Text;
 using System.Diagnostics;
 using UnrealGameSync.Forms;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
 
 namespace UnrealGameSync
 {
@@ -76,8 +77,8 @@ namespace UnrealGameSync
 		List<WorkspaceIssueMonitor> WorkspaceIssueMonitors = new List<WorkspaceIssueMonitor>();
 
 		string ApiUrl;
-		string DataFolder;
-		string CacheFolder;
+		DirectoryReference DataFolder;
+		DirectoryReference CacheFolder;
 		PerforceConnection DefaultConnection;
 		LineBasedTextWriter Log;
 		UserSettings Settings;
@@ -110,7 +111,7 @@ namespace UnrealGameSync
 
 		NetCoreWindow NetCoreWindow;
 
-		public MainWindow(UpdateMonitor InUpdateMonitor, string InApiUrl, string InDataFolder, string InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsResult[] StartupProjects, PerforceConnection InDefaultConnection, LineBasedTextWriter InLog, UserSettings InSettings, string InUri, OIDCTokenManager InOidcTokenManager)
+		public MainWindow(UpdateMonitor InUpdateMonitor, string InApiUrl, DirectoryReference InDataFolder, DirectoryReference InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsResult[] StartupProjects, PerforceConnection InDefaultConnection, LineBasedTextWriter InLog, UserSettings InSettings, string InUri, OIDCTokenManager InOidcTokenManager)
 		{
 			Log = InLog;
 			Log.WriteLine("Opening Main Window for {0} projects. Last Project {1}", StartupProjects.Length, InSettings.LastProject);
@@ -181,7 +182,7 @@ namespace UnrealGameSync
 				Text += $" {Program.GetVersionString()} (UNSTABLE)";
 			}
 
-			AutomationLog = new TimestampLogWriter(new BoundedLogWriter(Path.Combine(DataFolder, "Automation.log")));
+			AutomationLog = new TimestampLogWriter(new BoundedLogWriter(FileReference.Combine(DataFolder, "Automation.log")));
 			AutomationServer = new AutomationServer(Request => { MainThreadSynchronizationContext.Post(Obj => PostAutomationRequest(Request), null); }, AutomationLog, InUri);
 
 			// Allow creating controls from now on
@@ -298,7 +299,7 @@ namespace UnrealGameSync
 			if (Result == WorkspaceUpdateResult.Success && Command != null)
 			{
 				string CmdExe = Environment.GetEnvironmentVariable("COMSPEC");
-				Workspace.ExecCommand("Run build command", "Running build command", CmdExe, String.Format("/c {0}", Command), Workspace.BranchDirectoryName, true);
+				Workspace.ExecCommand("Run build command", "Running build command", CmdExe, String.Format("/c {0}", Command), Workspace.BranchDirectoryName.FullName, true);
 			}
 		}
 
@@ -324,7 +325,7 @@ namespace UnrealGameSync
 
 			if(!bForceSync && Workspace.CanLaunchEditor())
 			{
-				return new AutomationRequestOutput(AutomationRequestResult.Ok, Encoding.UTF8.GetBytes(Workspace.SelectedFileName));
+				return new AutomationRequestOutput(AutomationRequestResult.Ok, Encoding.UTF8.GetBytes(Workspace.SelectedFileName.FullName));
 			}
 
 			Workspace.AddStartupCallback((Control, bCancel) => StartAutomatedSyncAfterStartup(Control, bCancel, Request));
@@ -391,11 +392,11 @@ namespace UnrealGameSync
 			}
 		}
 
-		void CompleteAutomatedSync(WorkspaceUpdateResult Result, string SelectedFileName, AutomationRequest Request)
+		void CompleteAutomatedSync(WorkspaceUpdateResult Result, FileReference SelectedFileName, AutomationRequest Request)
 		{
 			if(Result == WorkspaceUpdateResult.Success)
 			{
-				Request.SetOutput(new AutomationRequestOutput(AutomationRequestResult.Ok, Encoding.UTF8.GetBytes(SelectedFileName)));
+				Request.SetOutput(new AutomationRequestOutput(AutomationRequestResult.Ok, Encoding.UTF8.GetBytes(SelectedFileName.FullName)));
 			}
 			else if(Result == WorkspaceUpdateResult.Canceled)
 			{
@@ -427,7 +428,7 @@ namespace UnrealGameSync
 							string ExistingProjectPath = ClientPath.Substring(SlashIdx);
 							if(String.Compare(ExistingProjectPath, ProjectPath, StringComparison.OrdinalIgnoreCase) == 0)
 							{
-								return new AutomationRequestOutput(AutomationRequestResult.Ok, Encoding.UTF8.GetBytes(ExistingWorkspace.SelectedFileName));
+								return new AutomationRequestOutput(AutomationRequestResult.Ok, Encoding.UTF8.GetBytes(ExistingWorkspace.SelectedFileName.FullName));
 							}
 						}
 					}
@@ -1030,7 +1031,7 @@ namespace UnrealGameSync
 
 		void UpdateRecentProjectsList(DetectProjectSettingsTask DetectedProjectSettings)
 		{
-			Settings.RecentProjects.RemoveAll(x => x.LocalPath == DetectedProjectSettings.NewSelectedFileName);
+			Settings.RecentProjects.RemoveAll(x => x.LocalPath == DetectedProjectSettings.NewSelectedFileName.FullName);
 			Settings.RecentProjects.Insert(0, DetectedProjectSettings.SelectedProject);
 
 			const int MaxRecentProjects = 10;
@@ -1130,7 +1131,7 @@ namespace UnrealGameSync
 					WorkspaceControl Workspace = TabControl.GetTabData(TabIdx) as WorkspaceControl;
 					if(Workspace != null)
 					{
-						if(Workspace.SelectedFileName.Equals(ProjectSettings.NewSelectedFileName, StringComparison.InvariantCultureIgnoreCase))
+						if(Workspace.SelectedFileName == ProjectSettings.NewSelectedFileName)
 						{
 							Log.WriteLine("  Already open in tab {0}", TabIdx);
 							if((Options & OpenProjectOptions.Quiet) == 0)
@@ -1139,9 +1140,9 @@ namespace UnrealGameSync
 							}
 							return TabIdx;
 						}
-						else if(ProjectSettings.NewSelectedFileName.StartsWith(Workspace.BranchDirectoryName + Path.DirectorySeparatorChar, StringComparison.InvariantCultureIgnoreCase))
+						else if(ProjectSettings.NewSelectedFileName.IsUnderDirectory(Workspace.BranchDirectoryName))
 						{
-							if((Options & OpenProjectOptions.Quiet) == 0 && MessageBox.Show(String.Format("{0} is already open under {1}.\n\nWould you like to close it?", Path.GetFileNameWithoutExtension(Workspace.SelectedFileName), Workspace.BranchDirectoryName, Path.GetFileNameWithoutExtension(ProjectSettings.NewSelectedFileName)), "Branch already open", MessageBoxButtons.YesNo) == System.Windows.Forms.DialogResult.Yes)
+							if((Options & OpenProjectOptions.Quiet) == 0 && MessageBox.Show(String.Format("{0} is already open under {1}.\n\nWould you like to close it?", Workspace.SelectedFileName.GetFileNameWithoutExtension(), Workspace.BranchDirectoryName, ProjectSettings.NewSelectedFileName.GetFileNameWithoutExtension()), "Branch already open", MessageBoxButtons.YesNo) == System.Windows.Forms.DialogResult.Yes)
 							{
 								Log.WriteLine("  Another project already open in this workspace, tab {0}. Replacing.", TabIdx);
 								TabControl.RemoveTab(TabIdx);
@@ -1251,13 +1252,13 @@ namespace UnrealGameSync
 					TabName = Workspace.StreamName;
 					break;
 				case TabLabels.ProjectFile:
-					TabName = Workspace.SelectedFileName;
+					TabName = Workspace.SelectedFileName.FullName;
 					break;
 				case TabLabels.WorkspaceName:
 					TabName = Workspace.ClientName;
 					break;
 				case TabLabels.WorkspaceRoot:
-					TabName = Workspace.BranchDirectoryName;
+					TabName = Workspace.BranchDirectoryName.FullName;
 					break;
 				default:
 					break;
@@ -1640,7 +1641,7 @@ namespace UnrealGameSync
 				string ServerId = ApiUrl != null ? Regex.Replace(ApiUrl, @"^.*://", "") : "noserver";
 				ServerId = Regex.Replace(ServerId, "[^a-zA-Z.]", "+");
 
-				string LogFileName = Path.Combine(DataFolder, String.Format("IssueMonitor-{0}-{1}.log", ServerId, UserName));
+				FileReference LogFileName = FileReference.Combine(DataFolder, String.Format("IssueMonitor-{0}-{1}.log", ServerId, UserName));
 
 				WorkspaceIssueMonitor = new WorkspaceIssueMonitor();
 				WorkspaceIssueMonitor.IssueMonitor = new IssueMonitor(ApiUrl, UserName, TimeSpan.FromSeconds(60.0), LogFileName);

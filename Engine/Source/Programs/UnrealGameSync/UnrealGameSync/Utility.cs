@@ -510,21 +510,21 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static bool TryPrintFileUsingCache(PerforceConnection Perforce, string DepotPath, string CacheFolder, string Digest, out List<string> Lines, TextWriter Log)
+		public static bool TryPrintFileUsingCache(PerforceConnection Perforce, string DepotPath, DirectoryReference CacheFolder, string Digest, out List<string> Lines, TextWriter Log)
 		{
 			if(Digest == null)
 			{
 				return Perforce.Print(DepotPath, out Lines, Log);
 			}
 
-			string CacheFile = Path.Combine(CacheFolder, Digest);
-			if(File.Exists(CacheFile))
+			FileReference CacheFile = FileReference.Combine(CacheFolder, Digest);
+			if(FileReference.Exists(CacheFile))
 			{
 				Log.WriteLine("Reading cached copy of {0} from {1}", DepotPath, CacheFile);
-				Lines = new List<string>(File.ReadAllLines(CacheFile));
+				Lines = new List<string>(FileReference.ReadAllLines(CacheFile));
 				try
 				{
-					File.SetLastWriteTimeUtc(CacheFile, DateTime.UtcNow);
+					FileReference.SetLastWriteTimeUtc(CacheFile, DateTime.UtcNow);
 				}
 				catch(Exception Ex)
 				{
@@ -534,26 +534,26 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				string TempFile = String.Format("{0}.{1}.temp", CacheFile, Guid.NewGuid());
-				if(!Perforce.PrintToFile(DepotPath, TempFile, Log))
+				FileReference TempFile = new FileReference(String.Format("{0}.{1}.temp", CacheFile.FullName, Guid.NewGuid()));
+				if(!Perforce.PrintToFile(DepotPath, TempFile.FullName, Log))
 				{
 					Lines = null;
 					return false;
 				}
 				else
 				{
-					Lines = new List<string>(File.ReadAllLines(TempFile));
+					Lines = new List<string>(FileReference.ReadAllLines(TempFile));
 					try
 					{
-						File.SetAttributes(TempFile, FileAttributes.Normal);
-						File.SetLastWriteTimeUtc(TempFile, DateTime.UtcNow);
-						File.Move(TempFile, CacheFile);
+						FileReference.SetAttributes(TempFile, FileAttributes.Normal);
+						FileReference.SetLastWriteTimeUtc(TempFile, DateTime.UtcNow);
+						FileReference.Move(TempFile, CacheFile);
 					}
 					catch
 					{
 						try
 						{
-							File.Delete(TempFile);
+							FileReference.Delete(TempFile);
 						}
 						catch
 						{
@@ -564,9 +564,9 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static void ClearPrintCache(string CacheFolder)
+		public static void ClearPrintCache(DirectoryReference CacheFolder)
 		{
-			DirectoryInfo CacheDir = new DirectoryInfo(CacheFolder);
+			DirectoryInfo CacheDir = CacheFolder.ToDirectoryInfo();
 			if(CacheDir.Exists)
 			{
 				DateTime DeleteTime = DateTime.UtcNow - TimeSpan.FromDays(5.0);

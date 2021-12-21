@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -78,7 +79,7 @@ namespace UnrealGameSync
 		string Target { get;  }
 		bool Exists();
 		bool TryGetArchiveKeyForChangeNumber(int ChangeNumber, out string ArchiveKey);
-		bool DownloadArchive(string ArchiveKey, string LocalRootPath, string ManifestFileName, TextWriter Log, ProgressValue Progress);
+		bool DownloadArchive(string ArchiveKey, DirectoryReference LocalRootPath, FileReference ManifestFileName, TextWriter Log, ProgressValue Progress);
 	}
 
 	class PerforceMonitor : IDisposable, IArchiveInfoSource
@@ -155,12 +156,12 @@ namespace UnrealGameSync
 				return ChangeNumberToFileRevision.TryGetValue(ChangeNumber, out ArchiveKey);
 			}
 
-			public bool DownloadArchive(string ArchiveKey, string LocalRootPath, string ManifestFileName, TextWriter Log, ProgressValue Progress)
+			public bool DownloadArchive(string ArchiveKey, DirectoryReference LocalRootPath, FileReference ManifestFileName, TextWriter Log, ProgressValue Progress)
 			{
-				string TempZipFileName = Path.GetTempFileName();
+				FileReference TempZipFileName = new FileReference(Path.GetTempFileName());
 				try
 				{
-					if (!Perforce.PrintToFile(ArchiveKey, TempZipFileName, Log) || new FileInfo(TempZipFileName).Length == 0)
+					if (!Perforce.PrintToFile(ArchiveKey, TempZipFileName.FullName, Log) || TempZipFileName.ToFileInfo().Length == 0)
 					{
 						return false;
 					}
@@ -170,8 +171,8 @@ namespace UnrealGameSync
 				}
 				finally
 				{
-					File.SetAttributes(TempZipFileName, FileAttributes.Normal);
-					File.Delete(TempZipFileName);
+					FileReference.SetAttributes(TempZipFileName, FileAttributes.Normal);
+					FileReference.Delete(TempZipFileName);
 				}
 
 				return true;
@@ -207,8 +208,8 @@ namespace UnrealGameSync
 		BoundedLogWriter LogWriter;
 		bool bIsEnterpriseProject;
 		bool bDisposing;
-		string CacheFolder;
-		List<KeyValuePair<string, DateTime>> LocalConfigFiles;
+		DirectoryReference CacheFolder;
+		List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles;
 
 		public event Action OnUpdate;
 		public event Action OnUpdateMetadata;
@@ -221,7 +222,7 @@ namespace UnrealGameSync
 			private set;
 		}
 
-		public PerforceMonitor(PerforceConnection InPerforce, string InBranchClientPath, string InSelectedClientFileName, string InSelectedProjectIdentifier, string InLogPath, bool bInIsEnterpriseProject, ConfigFile InProjectConfigFile, string InCacheFolder, List<KeyValuePair<string, DateTime>> InLocalConfigFiles)
+		public PerforceMonitor(PerforceConnection InPerforce, string InBranchClientPath, string InSelectedClientFileName, string InSelectedProjectIdentifier, FileReference InLogPath, bool bInIsEnterpriseProject, ConfigFile InProjectConfigFile, DirectoryReference InCacheFolder, List<KeyValuePair<FileReference, DateTime>> InLocalConfigFiles)
 		{
 			Perforce = InPerforce;
 			BranchClientPath = InBranchClientPath;
@@ -609,7 +610,7 @@ namespace UnrealGameSync
 				}
 			}
 
-			if(LocalConfigFiles.Any(x => File.GetLastWriteTimeUtc(x.Key) != x.Value))
+			if(LocalConfigFiles.Any(x => FileReference.GetLastWriteTimeUtc(x.Key) != x.Value))
 			{
 				UpdateProjectConfigFile();
 				if(OnUpdateMetadata != null)
@@ -704,7 +705,7 @@ namespace UnrealGameSync
 			LatestProjectConfigFile = ReadProjectConfigFile(Perforce, BranchClientPath, SelectedClientFileName, CacheFolder, LocalConfigFiles, LogWriter);
 		}
 
-		public static ConfigFile ReadProjectConfigFile(PerforceConnection Perforce, string BranchClientPath, string SelectedClientFileName, string CacheFolder, List<KeyValuePair<string, DateTime>> LocalConfigFiles, TextWriter Log)
+		public static ConfigFile ReadProjectConfigFile(PerforceConnection Perforce, string BranchClientPath, string SelectedClientFileName, DirectoryReference CacheFolder, List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles, TextWriter Log)
 		{
 			List<string> ConfigFilePaths = Utility.GetDepotConfigPaths(BranchClientPath + "/Engine", SelectedClientFileName);
 
@@ -730,7 +731,7 @@ namespace UnrealGameSync
 						try
 						{
 							DateTime LastModifiedTime = File.GetLastWriteTimeUtc(LocalFileName);
-							LocalConfigFiles.Add(new KeyValuePair<string, DateTime>(LocalFileName, LastModifiedTime));
+							LocalConfigFiles.Add(new KeyValuePair<FileReference, DateTime>(new FileReference(LocalFileName), LastModifiedTime));
 							Lines = File.ReadAllLines(LocalFileName).ToList();
 						}
 						catch(Exception Ex)

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -79,14 +80,14 @@ namespace UnrealGameSync
 
 	static class ArchiveUtils
 	{
-		public static void ExtractFiles(string ArchiveFileName, string BaseDirectoryName, string ManifestFileName, ProgressValue Progress, TextWriter LogWriter)
+		public static void ExtractFiles(FileReference ArchiveFileName, DirectoryReference BaseDirectoryName, FileReference ManifestFileName, ProgressValue Progress, TextWriter LogWriter)
 		{
 			DateTime TimeStamp = DateTime.UtcNow;
-			using (ZipArchive Zip = new ZipArchive(File.OpenRead(ArchiveFileName)))
+			using (ZipArchive Zip = new ZipArchive(File.OpenRead(ArchiveFileName.FullName)))
 			{
 				if (ManifestFileName != null)
 				{
-					File.Delete(ManifestFileName);
+					FileReference.Delete(ManifestFileName);
 
 					// Create the manifest
 					ArchiveManifest Manifest = new ArchiveManifest();
@@ -99,12 +100,12 @@ namespace UnrealGameSync
 					}
 
 					// Write it out to a temporary file, then move it into place
-					string TempManifestFileName = ManifestFileName + ".tmp";
-					using (FileStream OutputStream = File.Open(TempManifestFileName, FileMode.Create, FileAccess.Write))
+					FileReference TempManifestFileName = ManifestFileName + ".tmp";
+					using (FileStream OutputStream = FileReference.Open(TempManifestFileName, FileMode.Create, FileAccess.Write))
 					{
 						Manifest.Write(OutputStream);
 					}
-					File.Move(TempManifestFileName, ManifestFileName);
+					FileReference.Move(TempManifestFileName, ManifestFileName);
 				}
 
 				// Extract all the files
@@ -113,27 +114,27 @@ namespace UnrealGameSync
 				{
 					if(!Entry.FullName.EndsWith("/") && !Entry.FullName.EndsWith("\\"))
 					{
-						string FileName = Path.Combine(BaseDirectoryName, Entry.FullName);
-						Directory.CreateDirectory(Path.GetDirectoryName(FileName));
+						FileReference FileName = FileReference.Combine(BaseDirectoryName, Entry.FullName);
+						DirectoryReference.CreateDirectory(FileName.Directory);
 
 						lock(LogWriter)
 						{
 							LogWriter.WriteLine("Writing {0}", FileName);
 						}
 
-						Entry.ExtractToFile(FileName, true);
-						File.SetLastWriteTimeUtc(FileName, TimeStamp);
+						Entry.ExtractToFile(FileName.FullName, true);
+						FileReference.SetLastWriteTimeUtc(FileName, TimeStamp);
 					}
 					Progress.Set((float)++EntryIdx / (float)Zip.Entries.Count);
 				}
 			}
 		}
 
-		public static void RemoveExtractedFiles(string BaseDirectoryName, string ManifestFileName, ProgressValue Progress, TextWriter LogWriter)
+		public static void RemoveExtractedFiles(DirectoryReference BaseDirectoryName, FileReference ManifestFileName, ProgressValue Progress, TextWriter LogWriter)
 		{
 			// Read the manifest in
 			ArchiveManifest Manifest;
-			using(FileStream InputStream = File.Open(ManifestFileName, FileMode.Open, FileAccess.Read))
+			using(FileStream InputStream = FileReference.Open(ManifestFileName, FileMode.Open, FileAccess.Read))
 			{
 				Manifest = new ArchiveManifest(InputStream);
 			}
@@ -141,7 +142,7 @@ namespace UnrealGameSync
 			// Remove all the files that haven't been modified match
 			for(int Idx = 0; Idx < Manifest.Files.Count; Idx++)
 			{
-				FileInfo File = new FileInfo(Path.Combine(BaseDirectoryName, Manifest.Files[Idx].FileName));
+				FileInfo File = FileReference.Combine(BaseDirectoryName, Manifest.Files[Idx].FileName).ToFileInfo();
 				if(File.Exists)
 				{
 					if(File.Length != Manifest.Files[Idx].Length)

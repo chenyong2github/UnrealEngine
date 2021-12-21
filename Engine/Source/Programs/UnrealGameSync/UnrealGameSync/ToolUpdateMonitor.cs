@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -40,25 +41,25 @@ namespace UnrealGameSync
 		Thread WorkerThread;
 		AutoResetEvent WakeEvent;
 		bool bQuit;
-		string LogFile;
+		FileReference LogFile;
 		public List<ToolDefinition> Tools { get; private set; } = new List<ToolDefinition>();
 		int LastChange = -1;
 
 		public PerforceConnection Perforce { get; }
-		string ToolsDir { get; }
+		DirectoryReference ToolsDir { get; }
 		UserSettings Settings { get; }
 
 		public event Action OnChange;
 
-		public ToolUpdateMonitor(PerforceConnection InPerforce, string DataDir, UserSettings Settings)
+		public ToolUpdateMonitor(PerforceConnection InPerforce, DirectoryReference DataDir, UserSettings Settings)
 		{
 			this.Perforce = InPerforce;
-			this.ToolsDir = Path.Combine(DataDir, "Tools");
+			this.ToolsDir = DirectoryReference.Combine(DataDir, "Tools");
 			this.Settings = Settings;
 
-			LogFile = Path.Combine(DataDir, "Tools.log");
+			LogFile = FileReference.Combine(DataDir, "Tools.log");
 
-			Directory.CreateDirectory(ToolsDir);
+			DirectoryReference.CreateDirectory(ToolsDir);
 
 			WakeEvent = new AutoResetEvent(false);
 		}
@@ -93,9 +94,9 @@ namespace UnrealGameSync
 			Close();
 		}
 
-		string GetToolPathInternal(string ToolName)
+		DirectoryReference GetToolPathInternal(string ToolName)
 		{
-			return Path.Combine(ToolsDir, ToolName, "Current");
+			return DirectoryReference.Combine(ToolsDir, ToolName, "Current");
 		}
 
 		public string GetToolName(Guid ToolId)
@@ -110,7 +111,7 @@ namespace UnrealGameSync
 			return null;
 		}
 
-		public string GetToolPath(string ToolName)
+		public DirectoryReference GetToolPath(string ToolName)
 		{
 			if (GetToolChange(ToolName) != 0)
 			{
@@ -294,7 +295,7 @@ namespace UnrealGameSync
 
 		void RunCommand(string ToolName, string Command, TextWriter Log)
 		{
-			string ToolPath = GetToolPathInternal(ToolName);
+			DirectoryReference ToolPath = GetToolPathInternal(ToolName);
 
 			string CommandExe = Command;
 			string CommandArgs = string.Empty;
@@ -306,7 +307,7 @@ namespace UnrealGameSync
 				CommandArgs = Command.Substring(SpaceIdx + 1);
 			}
 
-			int ExitCode = Utility.ExecuteProcess(Path.Combine(ToolPath, CommandExe), ToolPath, CommandArgs, null, Log);
+			int ExitCode = Utility.ExecuteProcess(FileReference.Combine(ToolPath, CommandExe).FullName, ToolPath.FullName, CommandArgs, null, Log);
 			Log.WriteLine("(Exit: {0})", ExitCode);
 		}
 
@@ -322,7 +323,7 @@ namespace UnrealGameSync
 
 			SetToolChange(ToolName, null);
 
-			string ToolPath = GetToolPath(ToolName);
+			DirectoryReference ToolPath = GetToolPath(ToolName);
 			if (ToolPath != null)
 			{
 				Log.WriteLine("Removing {0}", ToolPath);
@@ -330,9 +331,9 @@ namespace UnrealGameSync
 			}
 		}
 
-		static void ForceDeleteDirectory(string DirectoryName)
+		static void ForceDeleteDirectory(DirectoryReference DirectoryName)
 		{
-			DirectoryInfo BaseDir = new DirectoryInfo(DirectoryName);
+			DirectoryInfo BaseDir = DirectoryName.ToDirectoryInfo();
 			if (BaseDir.Exists)
 			{
 				foreach (FileInfo File in BaseDir.EnumerateFiles("*", SearchOption.AllDirectories))
@@ -343,7 +344,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		static bool TryDeleteDirectory(string DirectoryName)
+		static bool TryDeleteDirectory(DirectoryReference DirectoryName)
 		{
 			try
 			{
@@ -358,25 +359,25 @@ namespace UnrealGameSync
 
 		bool UpdateTool(string ToolName, int Change, List<PerforceFileRecord> Records, Action<TextWriter> InstallAction, TextWriter Log)
 		{
-			string ToolDir = Path.Combine(ToolsDir, ToolName);
-			Directory.CreateDirectory(ToolDir);
+			DirectoryReference ToolDir = DirectoryReference.Combine(ToolsDir, ToolName);
+			DirectoryReference.CreateDirectory(ToolDir);
 
-			foreach (DirectoryInfo ExistingDir in new DirectoryInfo(ToolDir).EnumerateDirectories("Prev-*"))
+			foreach (DirectoryReference ExistingDir in DirectoryReference.EnumerateDirectories(ToolDir, "Prev-*"))
 			{
-				TryDeleteDirectory(ExistingDir.FullName);
+				TryDeleteDirectory(ExistingDir);
 			}
 
-			string NextToolDir = Path.Combine(ToolDir, "Next");
+			DirectoryReference NextToolDir = DirectoryReference.Combine(ToolDir, "Next");
 			ForceDeleteDirectory(NextToolDir);
-			Directory.CreateDirectory(NextToolDir);
+			DirectoryReference.CreateDirectory(NextToolDir);
 
-			string NextToolZipsDir = Path.Combine(NextToolDir, ".zips");
-			Directory.CreateDirectory(NextToolZipsDir);
+			DirectoryReference NextToolZipsDir = DirectoryReference.Combine(NextToolDir, ".zips");
+			DirectoryReference.CreateDirectory(NextToolZipsDir);
 
 			for (int Idx = 0; Idx < Records.Count; Idx++)
 			{
-				string ZipFile = Path.Combine(NextToolZipsDir, String.Format("{0}.{1}.zip", ToolName, Idx));
-				if (!Perforce.PrintToFile(String.Format("{0}#{1}", Records[Idx].DepotPath, Records[Idx].HeadRevision), ZipFile, Log) || !File.Exists(ZipFile))
+				FileReference ZipFile = FileReference.Combine(NextToolZipsDir, String.Format("{0}.{1}.zip", ToolName, Idx));
+				if (!Perforce.PrintToFile(String.Format("{0}#{1}", Records[Idx].DepotPath, Records[Idx].HeadRevision), ZipFile.FullName, Log) || !FileReference.Exists(ZipFile))
 				{
 					Log.WriteLine("Unable to print {0}", Records[Idx].DepotPath);
 					return false;
@@ -386,15 +387,15 @@ namespace UnrealGameSync
 
 			SetToolChange(ToolName, null);
 
-			string CurrentToolDir = Path.Combine(ToolDir, "Current");
-			if (Directory.Exists(CurrentToolDir))
+			DirectoryReference CurrentToolDir = DirectoryReference.Combine(ToolDir, "Current");
+			if (DirectoryReference.Exists(CurrentToolDir))
 			{
-				string PrevDirectoryName = Path.Combine(ToolDir, String.Format("Prev-{0:X16}", Stopwatch.GetTimestamp()));
-				Directory.Move(CurrentToolDir, PrevDirectoryName);
+				DirectoryReference PrevDirectoryName = DirectoryReference.Combine(ToolDir, String.Format("Prev-{0:X16}", Stopwatch.GetTimestamp()));
+				Directory.Move(CurrentToolDir.FullName, PrevDirectoryName.FullName);
 				TryDeleteDirectory(PrevDirectoryName);
 			}
 
-			Directory.Move(NextToolDir, CurrentToolDir);
+			Directory.Move(NextToolDir.FullName, CurrentToolDir.FullName);
 
 			if (InstallAction != null)
 			{
@@ -406,17 +407,17 @@ namespace UnrealGameSync
 			return true;
 		}
 
-		string GetConfigFilePath(string ToolName)
+		FileReference GetConfigFilePath(string ToolName)
 		{
-			return Path.Combine(ToolsDir, ToolName, ToolName + ".ini");
+			return FileReference.Combine(ToolsDir, ToolName, ToolName + ".ini");
 		}
 
 		int GetToolChange(string ToolName)
 		{
 			try
 			{
-				string ConfigFilePath = GetConfigFilePath(ToolName);
-				if (File.Exists(ConfigFilePath))
+				FileReference ConfigFilePath = GetConfigFilePath(ToolName);
+				if (FileReference.Exists(ConfigFilePath))
 				{
 					ConfigFile ConfigFile = new ConfigFile();
 					ConfigFile.Load(ConfigFilePath);
@@ -431,7 +432,7 @@ namespace UnrealGameSync
 
 		void SetToolChange(string ToolName, int? Change)
 		{
-			string ConfigFilePath = GetConfigFilePath(ToolName);
+			FileReference ConfigFilePath = GetConfigFilePath(ToolName);
 			if (Change.HasValue)
 			{
 				ConfigFile ConfigFile = new ConfigFile();
@@ -440,7 +441,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				File.Delete(ConfigFilePath);
+				FileReference.Delete(ConfigFilePath);
 			}
 		}
 	}

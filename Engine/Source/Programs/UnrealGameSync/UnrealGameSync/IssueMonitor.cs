@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EnvDTE;
+using EpicGames.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -149,7 +150,7 @@ namespace UnrealGameSync
 		// Only used by MainWindow, but easier to just store here
 		public Dictionary<long, IssueAlertReason> IssueIdToAlertReason = new Dictionary<long, IssueAlertReason>();
 
-		public IssueMonitor(string ApiUrl, string UserName, TimeSpan UpdateInterval, string LogFileName)
+		public IssueMonitor(string ApiUrl, string UserName, TimeSpan UpdateInterval, FileReference LogFileName)
 		{
 			this.ApiUrl = ApiUrl;
 			this.UserName = UserName;

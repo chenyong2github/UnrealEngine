@@ -206,7 +206,7 @@ public enum LatestChangeType
 
 		IWorkspaceControlOwner Owner;
 		string ApiUrl;
-		string DataFolder;
+		DirectoryReference DataFolder;
 		LineBasedTextWriter Log;
 
 		UserSettings Settings;
@@ -222,7 +222,7 @@ public enum LatestChangeType
 			private set;
 		}
 
-		public string SelectedFileName
+		public FileReference SelectedFileName
 		{
 			get;
 			private set;
@@ -230,7 +230,7 @@ public enum LatestChangeType
 
 		string SelectedProjectIdentifier;
 
-		public string BranchDirectoryName
+		public DirectoryReference BranchDirectoryName
 		{
 			get;
 			private set;
@@ -333,11 +333,11 @@ public enum LatestChangeType
 			bUnstable = bInUnstable;
 			Log = InLog;
 			Settings = InSettings;
-			WorkspaceState = InSettings.FindOrAddWorkspaceState(new DirectoryReference(DetectSettings.BranchDirectoryName), DetectSettings.NewSelectedClientFileName);
-			WorkspaceSettings = InSettings.FindOrAddWorkspaceSettings(new DirectoryReference(DetectSettings.BranchDirectoryName), DetectSettings.BranchClientPath);
+			WorkspaceState = InSettings.FindOrAddWorkspaceState(DetectSettings.BranchDirectoryName, DetectSettings.NewSelectedClientFileName, DetectSettings.NewSelectedProjectIdentifier);
+			WorkspaceSettings = InSettings.FindOrAddWorkspaceSettings(DetectSettings.BranchDirectoryName, DetectSettings.BranchClientPath);
 
 			string ProjectPath = Regex.Replace(DetectSettings.NewSelectedClientFileName, "^//[^/]+/", "");
-			ProjectSettings = InSettings.FindOrAddProjectSettings(new DirectoryReference(DetectSettings.BranchDirectoryName), ProjectPath);
+			ProjectSettings = InSettings.FindOrAddProjectSettings(DetectSettings.BranchDirectoryName, ProjectPath);
 
 			DesiredTaskbarState = Tuple.Create(TaskbarState.NoProgress, 0.0f);
 
@@ -396,10 +396,12 @@ public enum LatestChangeType
 
 			string TelemetryProjectIdentifier = PerforceUtils.GetClientOrDepotDirectoryName(DetectSettings.NewSelectedProjectIdentifier);
 
-			Workspace = new Workspace(PerforceClient, BranchDirectoryName, SelectedFileName, DetectSettings.BranchClientPath, DetectSettings.NewSelectedClientFileName, CurrentChangeNumber, CurrentSyncFilterHash, WorkspaceState.LastBuiltChangeNumber, TelemetryProjectIdentifier, DetectSettings.bIsEnterpriseProject, new LogControlTextWriter(SyncLog));
+			ProjectInfo Project = new ProjectInfo(BranchDirectoryName, SelectedFileName, DetectSettings.BranchClientPath, DetectSettings.NewSelectedClientFileName, TelemetryProjectIdentifier, DetectSettings.bIsEnterpriseProject);
+
+			Workspace = new Workspace(PerforceClient, Project, WorkspaceState, new LogControlTextWriter(SyncLog));
 			Workspace.OnUpdateComplete += UpdateCompleteCallback;
 
-			string ProjectLogBaseName = Path.Combine(DataFolder, String.Format("{0}@{1}", PerforceClient.ClientName, DetectSettings.BranchClientPath.Replace("//" + PerforceClient.ClientName + "/", "").Trim('/').Replace("/", "$")));
+			FileReference ProjectLogBaseName = FileReference.Combine(DataFolder, String.Format("{0}@{1}", PerforceClient.ClientName, DetectSettings.BranchClientPath.Replace("//" + PerforceClient.ClientName + "/", "").Trim('/').Replace("/", "$")));
 
 			PerforceMonitor = new PerforceMonitor(PerforceClient, DetectSettings.BranchClientPath, DetectSettings.NewSelectedClientFileName, DetectSettings.NewSelectedProjectIdentifier, ProjectLogBaseName + ".p4.log", DetectSettings.bIsEnterpriseProject, DetectSettings.LatestProjectConfigFile, DetectSettings.CacheFolder, DetectSettings.LocalConfigFiles);
 			PerforceMonitor.OnUpdate += UpdateBuildListCallback;
@@ -414,8 +416,7 @@ public enum LatestChangeType
 
 			UpdateColumnSettings();
 
-			string LogFileName = Path.Combine(DataFolder, ProjectLogBaseName + ".sync.log");
-			SyncLog.OpenFile(LogFileName);
+			SyncLog.OpenFile(ProjectLogBaseName + ".sync.log");
 
 			Splitter.SetLogVisibility(Settings.bShowLogWindow);
 
@@ -436,14 +437,14 @@ public enum LatestChangeType
 			IssueMonitor = InOwner.CreateIssueMonitor(IssuesApiUrl, DetectSettings.PerforceClient.UserName);
 			IssueMonitor.OnIssuesChanged += IssueMonitor_OnIssuesChangedAsync;
 
-			if (SelectedFileName.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
+			if (SelectedFileName.HasExtension(".uproject"))
 			{
-				string TintColorFileName = GetTintColorFileName();
+				FileReference TintColorFileName = GetTintColorFileName();
 
-				Directory.CreateDirectory(Path.GetDirectoryName(TintColorFileName));
+				DirectoryReference.CreateDirectory(TintColorFileName.Directory);
 
-				EditorConfigWatcher.Path = Path.GetDirectoryName(TintColorFileName);
-				EditorConfigWatcher.Filter = Path.GetFileName(TintColorFileName);
+				EditorConfigWatcher.Path = TintColorFileName.Directory.FullName;
+				EditorConfigWatcher.Filter = TintColorFileName.GetFileName();
 				EditorConfigWatcher.EnableRaisingEvents = true;
 
 				TintColor = GetTintColor();
@@ -847,18 +848,6 @@ public enum LatestChangeType
 			MainThreadSynchronizationContext.Post((o) => LoginExpired(), null);
 		}
 
-		private void UpdateSyncConfig(int ChangeNumber, string SyncFilterHash)
-		{
-			WorkspaceState.CurrentProjectIdentifier = SelectedProjectIdentifier;
-			WorkspaceState.CurrentChangeNumber = ChangeNumber;
-			WorkspaceState.CurrentSyncFilterHash = SyncFilterHash;
-			if (ChangeNumber == -1 || ChangeNumber != WorkspaceState.CurrentChangeNumber)
-			{
-				WorkspaceState.AdditionalChangeNumbers.Clear();
-			}
-			WorkspaceState.Save();
-		}
-
 		private void BuildList_OnScroll()
 		{
 			PendingSelectedChangeNumber = -1;
@@ -1028,7 +1017,6 @@ public enum LatestChangeType
 
 			if (Context.Options.HasFlag(WorkspaceUpdateOptions.Sync))
 			{
-				UpdateSyncConfig(-1, Workspace.CurrentSyncFilterHash);
 				EventMonitor.PostEvent(Context.ChangeNumber, EventType.Syncing);
 			}
 
@@ -1038,12 +1026,12 @@ public enum LatestChangeType
 				{
 					foreach (BuildConfig Config in Enum.GetValues(typeof(BuildConfig)))
 					{
-						List<string> EditorReceiptPaths = GetEditorReceiptPaths(Config);
-						foreach (string EditorReceiptPath in EditorReceiptPaths)
+						List<FileReference> EditorReceiptPaths = GetEditorReceiptPaths(Config);
+						foreach (FileReference EditorReceiptPath in EditorReceiptPaths)
 						{
-							if (File.Exists(EditorReceiptPath))
+							if (FileReference.Exists(EditorReceiptPath))
 							{
-								try { File.Delete(EditorReceiptPath); } catch (Exception) { }
+								try { FileReference.Delete(EditorReceiptPath); } catch (Exception) { }
 							}
 						}
 					}
@@ -1080,7 +1068,6 @@ public enum LatestChangeType
 
 				UpdateSyncActionCheckboxes();
 				Refresh();
-				UpdateSyncConfig(Workspace.CurrentChangeNumber, Workspace.CurrentSyncFilterHash);
 				UpdateStatusPanel();
 				DesiredTaskbarState = Tuple.Create(TaskbarState.NoProgress, 0.0f);
 				Owner.UpdateProgress();
@@ -1095,26 +1082,6 @@ public enum LatestChangeType
 		void UpdateComplete(WorkspaceUpdateContext Context, WorkspaceUpdateResult Result, string ResultMessage)
 		{
 			UpdateTimer.Stop();
-
-			UpdateSyncConfig(Workspace.CurrentChangeNumber, Workspace.CurrentSyncFilterHash);
-
-			if (Result == WorkspaceUpdateResult.Success && Context.Options.HasFlag(WorkspaceUpdateOptions.SyncSingleChange))
-			{
-				WorkspaceState.AdditionalChangeNumbers.Add(Context.ChangeNumber);
-			}
-
-			if (Result == WorkspaceUpdateResult.Success && WorkspaceState.ExpandedArchiveTypes != null)
-			{
-				WorkspaceState.ExpandedArchiveTypes = WorkspaceState.ExpandedArchiveTypes.Except(Context.ArchiveTypeToArchive.Where(x => x.Value == null).Select(x => x.Key)).ToArray();
-			}
-
-			WorkspaceState.LastSyncChangeNumber = Context.ChangeNumber;
-			WorkspaceState.LastSyncResult = Result;
-			WorkspaceState.LastSyncResultMessage = ResultMessage;
-			WorkspaceState.LastSyncTime = DateTime.UtcNow;
-			WorkspaceState.LastSyncDurationSeconds = (int)(WorkspaceState.LastSyncTime.Value - Context.StartTime).TotalSeconds;
-			WorkspaceState.LastBuiltChangeNumber = Workspace.LastBuiltChangeNumber;
-			WorkspaceState.Save();
 
 			if (Result == WorkspaceUpdateResult.FilesToResolve)
 			{
@@ -3050,10 +3017,10 @@ public enum LatestChangeType
 			{
 				BuildConfig EditorBuildConfig = GetEditorBuildConfig();
 
-				List<string> ReceiptPaths = GetEditorReceiptPaths(EditorBuildConfig);
+				List<FileReference> ReceiptPaths = GetEditorReceiptPaths(EditorBuildConfig);
 
-				string EditorExe = GetEditorExePath(EditorBuildConfig);
-				if (ReceiptPaths.Any(x => File.Exists(x)) && File.Exists(EditorExe))
+				FileReference EditorExe = GetEditorExePath(EditorBuildConfig);
+				if (ReceiptPaths.Any(x => FileReference.Exists(x)) && FileReference.Exists(EditorExe))
 				{
 					if (Settings.bEditorArgumentsPrompt && !ModifyEditorArguments())
 					{
@@ -3061,7 +3028,7 @@ public enum LatestChangeType
 					}
 
 					StringBuilder LaunchArguments = new StringBuilder();
-					if (SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+					if (SelectedFileName.HasExtension(".uproject"))
 					{
 						LaunchArguments.AppendFormat("\"{0}\"", SelectedFileName);
 					}
@@ -3077,7 +3044,7 @@ public enum LatestChangeType
 						LaunchArguments.Append(" -debug");
 					}
 
-					if (!Utility.SpawnProcess(EditorExe, LaunchArguments.ToString()))
+					if (!Utility.SpawnProcess(EditorExe.FullName, LaunchArguments.ToString()))
 					{
 						ShowErrorDialog("Unable to spawn {0} {1}", EditorExe, LaunchArguments.ToString());
 					}
@@ -3121,26 +3088,26 @@ public enum LatestChangeType
 			public string Launch { get; set; }
 		}
 
-		private string GetEditorExePath(BuildConfig Config)
+		private FileReference GetEditorExePath(BuildConfig Config)
 		{
 			// Try to read the executable path from the target receipt
-			List<string> ReceiptFileNames = GetEditorReceiptPaths(Config);
-			foreach (string ReceiptFileName in ReceiptFileNames)
+			List<FileReference> ReceiptFileNames = GetEditorReceiptPaths(Config);
+			foreach (FileReference ReceiptFileName in ReceiptFileNames)
 			{
-				if (File.Exists(ReceiptFileName))
+				if (FileReference.Exists(ReceiptFileName))
 				{
 					Log.WriteLine("Reading {0}", ReceiptFileName);
 					try
 					{
-						string Text = File.ReadAllText(ReceiptFileName);
+						string Text = FileReference.ReadAllText(ReceiptFileName);
 						ReceiptJsonObject Receipt = JsonSerializer.Deserialize<ReceiptJsonObject>(Text, Program.DefaultJsonSerializerOptions);
 
 						string LaunchFileName = Receipt.Launch;
 						if (LaunchFileName != null)
 						{
-							LaunchFileName = LaunchFileName.Replace("$(EngineDir)", Path.Combine(BranchDirectoryName, "Engine"));
-							LaunchFileName = LaunchFileName.Replace("$(ProjectDir)", Path.GetDirectoryName(SelectedFileName));
-							return Path.GetFullPath(LaunchFileName);
+							LaunchFileName = LaunchFileName.Replace("$(EngineDir)", DirectoryReference.Combine(BranchDirectoryName, "Engine").FullName);
+							LaunchFileName = LaunchFileName.Replace("$(ProjectDir)", SelectedFileName.Directory.FullName);
+							return new FileReference(LaunchFileName);
 						}
 					}
 					catch (Exception Ex)
@@ -3160,12 +3127,12 @@ public enum LatestChangeType
 			{
 				ExeFileName = String.Format("{0}-Win64-{1}.exe", TargetName, Config.ToString());
 			}
-			return Path.Combine(BranchDirectoryName, "Engine", "Binaries", "Win64", ExeFileName);
+			return FileReference.Combine(BranchDirectoryName, "Engine", "Binaries", "Win64", ExeFileName);
 		}
 
 		private bool WaitForProgramsToFinish()
 		{
-			string[] ProcessFileNames = GetProcessesRunningInWorkspace();
+			FileReference[] ProcessFileNames = GetProcessesRunningInWorkspace();
 			if (ProcessFileNames.Length > 0)
 			{
 				ProgramsRunningWindow ProgramsRunning = new ProgramsRunningWindow(GetProcessesRunningInWorkspace, ProcessFileNames);
@@ -3177,7 +3144,7 @@ public enum LatestChangeType
 			return true;
 		}
 
-		private string[] GetProcessesRunningInWorkspace()
+		private FileReference[] GetProcessesRunningInWorkspace()
 		{
 			HashSet<string> ProcessNames = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 			ProcessNames.Add("Win64\\UE4Editor.exe");
@@ -3201,24 +3168,24 @@ public enum LatestChangeType
 			ProcessNames.Add("DotNET\\UnrealBuildTool\\UnrealBuildTool.exe");
 			ProcessNames.Add("DotNET\\AutomationTool\\AutomationTool.exe");
 
-			List<string> ProcessFileNames = new List<string>();
+			List<FileReference> ProcessFileNames = new List<FileReference>();
 			try
 			{
-				string BinariesRootPath = Path.Combine(Workspace.LocalRootPath, "Engine\\Binaries");
+				DirectoryReference BinariesRootPath = DirectoryReference.Combine(Workspace.Project.LocalRootPath, "Engine\\Binaries");
 
 				foreach (string ProcessName in ProcessNames)
 				{
 					try
 					{
-						string ProcessFilename = Path.Combine(BinariesRootPath, ProcessName);
+						FileReference ProcessFilename = FileReference.Combine(BinariesRootPath, ProcessName);
 
-						if (File.Exists(ProcessFilename))
+						if (FileReference.Exists(ProcessFilename))
 						{
 							try
 							{
 								// Try to open the file to determine whether the executable is running.
 								// We do this so that we can also find processes running under other user sessions, without needing PROCESS_QUERY_INFORMATION access rights.
-								using FileStream TestStream = File.OpenWrite(ProcessFilename);
+								using FileStream TestStream = File.OpenWrite(ProcessFilename.FullName);
 							}
 							catch (IOException)
 							{
@@ -3238,31 +3205,31 @@ public enum LatestChangeType
 			return ProcessFileNames.ToArray();
 		}
 
-		private List<string> GetEditorReceiptPaths(BuildConfig Config)
+		private List<FileReference> GetEditorReceiptPaths(BuildConfig Config)
 		{
 			string ConfigSuffix = (Config == BuildConfig.Development) ? "" : String.Format("-Win64-{0}", Config.ToString());
 
-			List<string> PossiblePaths = new List<string>();
+			List<FileReference> PossiblePaths = new List<FileReference>();
 			string ActualEditorName = TryGetEditorNameFromArchive();
 			if (ActualEditorName != null)
 			{
-				PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("{0}{1}.target", ActualEditorName, ConfigSuffix)));
+				PossiblePaths.Add(FileReference.Combine(SelectedFileName.Directory, "Binaries", "Win64", String.Format("{0}{1}.target", ActualEditorName, ConfigSuffix)));
 			}
-			else if (SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+			else if (SelectedFileName.HasExtension(".uproject"))
 			{
 				if (bIsEnterpriseProject)
 				{
-					PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("StudioEditor{0}.target", ConfigSuffix)));
+					PossiblePaths.Add(FileReference.Combine(SelectedFileName.Directory, "Binaries", "Win64", String.Format("StudioEditor{0}.target", ConfigSuffix)));
 				}
 				else
 				{
-					PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
-					PossiblePaths.Add(Path.Combine(Workspace.LocalRootPath, "Engine", "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
+					PossiblePaths.Add(FileReference.Combine(SelectedFileName.Directory, "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
+					PossiblePaths.Add(FileReference.Combine(Workspace.Project.LocalRootPath, "Engine", "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
 				}
 			}
 			else
 			{
-				PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Engine", "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
+				PossiblePaths.Add(FileReference.Combine(SelectedFileName.Directory, "Engine", "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
 			}
 			return PossiblePaths;
 		}
@@ -3360,14 +3327,14 @@ public enum LatestChangeType
 
 		void RunTool(ToolDefinition Tool, ToolLink Link)
 		{
-			string ToolDir = Owner.ToolUpdateMonitor.GetToolPath(Tool.Name);
+			DirectoryReference ToolDir = Owner.ToolUpdateMonitor.GetToolPath(Tool.Name);
 
 			Dictionary<string, string> Variables = GetWorkspaceVariables(Workspace.CurrentChangeNumber);
-			Variables["ToolDir"] = ToolDir;
+			Variables["ToolDir"] = ToolDir.FullName;
 
 			string FileName = Utility.ExpandVariables(Link.FileName, Variables);
 			string Arguments = Utility.ExpandVariables(Link.Arguments, Variables);
-			string WorkingDir = Utility.ExpandVariables(Link.WorkingDir ?? ToolDir, Variables);
+			string WorkingDir = Utility.ExpandVariables(Link.WorkingDir ?? ToolDir.FullName, Variables);
 
 			SafeProcessStart(FileName, Arguments, WorkingDir);
 		}
@@ -3414,7 +3381,7 @@ public enum LatestChangeType
 				// Project
 				StatusLine ProjectLine = new StatusLine();
 				ProjectLine.AddText(String.Format("Opened "));
-				ProjectLine.AddLink(SelectedFileName + " \u25BE", FontStyle.Regular, (P, R) => { SelectRecentProject(R); });
+				ProjectLine.AddLink(SelectedFileName.FullName + " \u25BE", FontStyle.Regular, (P, R) => { SelectRecentProject(R); });
 				ProjectLine.AddText("  |  ");
 				ProjectLine.AddLink("Settings...", FontStyle.Regular, (P, R) => { Owner.EditSelectedProject(this); });
 				Lines.Add(ProjectLine);
@@ -3529,7 +3496,7 @@ public enum LatestChangeType
 					ProgramsLine.AddText("  |  ");
 				}
 
-				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { SafeProcessStart("explorer.exe", String.Format("\"{0}\"", Path.GetDirectoryName(SelectedFileName))); });
+				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { SafeProcessStart("explorer.exe", String.Format("\"{0}\"", SelectedFileName.Directory.FullName)); });
 
 				if (GetDefaultIssueFilter() != null)
 				{
@@ -4909,17 +4876,17 @@ public enum LatestChangeType
 		private void OpenSolution()
 		{
 			string MasterProjectName = "UE4";
-			if (File.Exists(Path.Combine(BranchDirectoryName, "UE5.sln")))
+			if (FileReference.Exists(FileReference.Combine(BranchDirectoryName, "UE5.sln")))
 			{
 				MasterProjectName = "UE5";
 			}
 
-			string MasterProjectNameFileName = Path.Combine(BranchDirectoryName, "Engine", "Intermediate", "ProjectFiles", "MasterProjectName.txt");
-			if (File.Exists(MasterProjectNameFileName))
+			FileReference MasterProjectNameFileName = FileReference.Combine(BranchDirectoryName, "Engine", "Intermediate", "ProjectFiles", "MasterProjectName.txt");
+			if (FileReference.Exists(MasterProjectNameFileName))
 			{
 				try
 				{
-					MasterProjectName = File.ReadAllText(MasterProjectNameFileName).Trim();
+					MasterProjectName = FileReference.ReadAllText(MasterProjectNameFileName).Trim();
 				}
 				catch (Exception Ex)
 				{
@@ -4927,16 +4894,16 @@ public enum LatestChangeType
 				}
 			}
 
-			string SolutionFileName = Path.Combine(BranchDirectoryName, MasterProjectName + ".sln");
-			if (!File.Exists(SolutionFileName))
+			FileReference SolutionFileName = FileReference.Combine(BranchDirectoryName, MasterProjectName + ".sln");
+			if (!FileReference.Exists(SolutionFileName))
 			{
 				MessageBox.Show(String.Format("Couldn't find solution at {0}", SolutionFileName));
 			}
 			else
 			{
-				ProcessStartInfo StartInfo = new ProcessStartInfo(SolutionFileName);
+				ProcessStartInfo StartInfo = new ProcessStartInfo(SolutionFileName.FullName);
 				StartInfo.UseShellExecute = true;
-				StartInfo.WorkingDirectory = BranchDirectoryName;
+				StartInfo.WorkingDirectory = BranchDirectoryName.FullName;
 				SafeProcessStart(StartInfo);
 			}
 		}
@@ -5134,9 +5101,9 @@ public enum LatestChangeType
 			}
 
 			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
-			List<string> SyncPaths = Workspace.GetSyncPaths(WorkspaceSettings.bSyncAllProjects ?? Settings.bSyncAllProjects, CombinedSyncFilter);
+			List<string> SyncPaths = Workspace.GetSyncPaths(Workspace.Project, WorkspaceSettings.bSyncAllProjects ?? Settings.bSyncAllProjects, CombinedSyncFilter);
 
-			CleanWorkspaceWindow.DoClean(ParentForm, Workspace.Perforce, BranchDirectoryName, Workspace.ClientRootPath, SyncPaths, ExtraSafeToDeleteFolders.Split('\n'), ExtraSafeToDeleteExtensions.Split('\n'), Log);
+			CleanWorkspaceWindow.DoClean(ParentForm, Workspace.Perforce, BranchDirectoryName, Workspace.Project.ClientRootPath, SyncPaths, ExtraSafeToDeleteFolders.Split('\n'), ExtraSafeToDeleteExtensions.Split('\n'), Log);
 		}
 
 		private void UpdateBuildSteps()
@@ -5251,7 +5218,7 @@ public enum LatestChangeType
 						string ToolName = Owner.ToolUpdateMonitor.GetToolName(Step.ToolId);
 						if (ToolName != null)
 						{
-							Variables["ToolDir"] = Owner.ToolUpdateMonitor.GetToolPath(ToolName);
+							Variables["ToolDir"] = Owner.ToolUpdateMonitor.GetToolPath(ToolName).FullName;
 						}
 					}
 
@@ -5272,11 +5239,11 @@ public enum LatestChangeType
 			Variables.Add("Stream", StreamName);
 			Variables.Add("Change", ChangeNumber.ToString());
 			Variables.Add("ClientName", ClientName);
-			Variables.Add("BranchDir", BranchDirectoryName);
-			Variables.Add("ProjectDir", Path.GetDirectoryName(SelectedFileName));
-			Variables.Add("ProjectFile", SelectedFileName);
-			Variables.Add("UE4EditorExe", GetEditorExePath(EditorBuildConfig));
-			Variables.Add("UE4EditorCmdExe", GetEditorExePath(EditorBuildConfig).Replace(".exe", "-Cmd.exe"));
+			Variables.Add("BranchDir", BranchDirectoryName.FullName);
+			Variables.Add("ProjectDir", SelectedFileName.Directory.FullName);
+			Variables.Add("ProjectFile", SelectedFileName.FullName);
+			Variables.Add("UE4EditorExe", GetEditorExePath(EditorBuildConfig).FullName);
+			Variables.Add("UE4EditorCmdExe", GetEditorExePath(EditorBuildConfig).FullName.Replace(".exe", "-Cmd.exe"));
 			Variables.Add("UE4EditorConfig", EditorBuildConfig.ToString());
 			Variables.Add("UE4EditorDebugArg", (EditorBuildConfig == BuildConfig.Debug || EditorBuildConfig == BuildConfig.DebugGame) ? " -debug" : "");
 			Variables.Add("UseIncrementalBuilds", "1");
@@ -5294,9 +5261,9 @@ public enum LatestChangeType
 			{
 				// Find all the target names for this project
 				List<string> TargetNames = new List<string>();
-				if (!String.IsNullOrEmpty(SelectedFileName) && SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+				if (SelectedFileName != null && SelectedFileName.HasExtension(".uproject"))
 				{
-					DirectoryInfo SourceDirectory = new DirectoryInfo(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Source"));
+					DirectoryInfo SourceDirectory = DirectoryReference.Combine(SelectedFileName.Directory, "Source").ToDirectoryInfo();
 					if (SourceDirectory.Exists)
 					{
 						foreach (FileInfo TargetFile in SourceDirectory.EnumerateFiles("*.target.cs", SearchOption.TopDirectoryOnly))
@@ -5383,7 +5350,7 @@ public enum LatestChangeType
 		private Dictionary<Guid, ConfigObject> GetDefaultBuildStepObjects()
 		{
 			string ProjectArgument = "";
-			if (SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+			if (SelectedFileName.HasExtension(".uproject"))
 			{
 				ProjectArgument = String.Format("\"{0}\"", SelectedFileName);
 			}
@@ -5393,7 +5360,7 @@ public enum LatestChangeType
 			{
 				ActualEditorTargetName = EditorTargetName;
 			}
-			else if (SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase) && bIsEnterpriseProject)
+			else if (SelectedFileName.HasExtension(".uproject") && bIsEnterpriseProject)
 			{
 				ActualEditorTargetName = "StudioEditor";
 			}
@@ -5460,7 +5427,7 @@ public enum LatestChangeType
 			StringBuilder DiagnosticsText = new StringBuilder();
 			DiagnosticsText.AppendFormat("Application version: {0}\n", Program.GetVersionString());
 			DiagnosticsText.AppendFormat("Synced from: {0}\n", Program.SyncVersion ?? "(unknown)");
-			DiagnosticsText.AppendFormat("Selected file: {0}\n", (SelectedFileName == null) ? "(none)" : SelectedFileName);
+			DiagnosticsText.AppendFormat("Selected file: {0}\n", (SelectedFileName == null) ? "(none)" : SelectedFileName.FullName);
 			if (Workspace != null)
 			{
 				DiagnosticsText.AppendFormat("P4 server: {0}\n", Workspace.Perforce.ServerAndPort ?? "(default)");
@@ -6113,17 +6080,17 @@ public enum LatestChangeType
 			UpdateTintColor();
 		}
 
-		private string GetTintColorFileName()
+		private FileReference GetTintColorFileName()
 		{
-			return Path.Combine(Path.GetDirectoryName(SelectedFileName), "Saved", "Config", "Windows", "EditorPerProjectUserSettings.ini");
+			return FileReference.Combine(SelectedFileName.Directory, "Saved", "Config", "Windows", "EditorPerProjectUserSettings.ini");
 		}
 
 		private Color? GetTintColor()
 		{
 			try
 			{
-				string FileName = GetTintColorFileName();
-				if (!File.Exists(FileName))
+				FileReference FileName = GetTintColorFileName();
+				if (!FileReference.Exists(FileName))
 				{
 					return null;
 				}

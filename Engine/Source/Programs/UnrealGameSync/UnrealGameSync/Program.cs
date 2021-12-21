@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -97,7 +98,7 @@ namespace UnrealGameSync
 			string Uri;
 			ParseArgument(RemainingArgs, "-uri=", out Uri);
 
-			string UpdateConfigFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "AutoUpdate.ini");
+			FileReference UpdateConfigFile = FileReference.Combine(new FileReference(Assembly.GetExecutingAssembly().Location).Directory, "AutoUpdate.ini");
 			MergeUpdateSettings(UpdateConfigFile, ref UpdatePath, ref UpdateSpawn);
 
 			// Set the current working directory to the update directory to prevent child-process file handles from disrupting auto-updates
@@ -119,14 +120,14 @@ namespace UnrealGameSync
 				}
 			}
 
-			string DataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UnrealGameSync");
-			Directory.CreateDirectory(DataFolder);
+			DirectoryReference DataFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData), "UnrealGameSync");
+			DirectoryReference.CreateDirectory(DataFolder);
 
 			// Enable TLS 1.1 and 1.2. TLS 1.0 is now deprecated and not allowed by default in NET Core servers.
 			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
 
 			// Create the log file
-			using (TimestampLogWriter Log = new TimestampLogWriter(new BoundedLogWriter(Path.Combine(DataFolder, "UnrealGameSync.log"))))
+			using (TimestampLogWriter Log = new TimestampLogWriter(new BoundedLogWriter(FileReference.Combine(DataFolder, "UnrealGameSync.log"))))
 			{
 				Log.WriteLine("Application version: {0}", Assembly.GetExecutingAssembly().GetName().Version);
 				Log.WriteLine("Started at {0}", DateTime.Now.ToString());
@@ -141,7 +142,7 @@ namespace UnrealGameSync
 					Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
 				}
 
-				using (BoundedLogWriter TelemetryLog = new BoundedLogWriter(Path.Combine(DataFolder, "Telemetry.log")))
+				using (BoundedLogWriter TelemetryLog = new BoundedLogWriter(FileReference.Combine(DataFolder, "Telemetry.log")))
 				{
 					TelemetryLog.WriteLine("Creating telemetry sink for session {0}", SessionId);
 
@@ -217,12 +218,12 @@ namespace UnrealGameSync
 			}
 		}
 
-		static void MergeUpdateSettings(string UpdateConfigFile, ref string UpdatePath, ref string UpdateSpawn)
+		static void MergeUpdateSettings(FileReference UpdateConfigFile, ref string UpdatePath, ref string UpdateSpawn)
 		{
 			try
 			{
 				ConfigFile UpdateConfig = new ConfigFile();
-				if(File.Exists(UpdateConfigFile))
+				if(FileReference.Exists(UpdateConfigFile))
 				{
 					UpdateConfig.Load(UpdateConfigFile);
 				}

@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
+using EpicGames.Core;
 
 namespace UnrealGameSync
 {
@@ -238,7 +239,7 @@ namespace UnrealGameSync
 
 		public event Action OnUpdatesReady;
 
-		public EventMonitor(string InApiUrl, string InProject, string InCurrentUserName, string InLogFileName)
+		public EventMonitor(string InApiUrl, string InProject, string InCurrentUserName, FileReference InLogFileName)
 		{
 			ApiUrl = InApiUrl;
 			Project = InProject;

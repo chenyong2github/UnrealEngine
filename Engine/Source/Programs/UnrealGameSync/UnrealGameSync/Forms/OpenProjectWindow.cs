@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -18,13 +19,13 @@ namespace UnrealGameSync
 		string ServerAndPortOverride;
 		string UserNameOverride;
 		DetectProjectSettingsTask DetectedProjectSettings;
-		string DataFolder;
-		string CacheFolder;
+		DirectoryReference DataFolder;
+		DirectoryReference CacheFolder;
 		PerforceConnection DefaultConnection;
 		TextWriter Log;
 		UserSettings Settings;
 
-		private OpenProjectWindow(UserSelectedProjectSettings Project, UserSettings Settings, string DataFolder, string CacheFolder, PerforceConnection DefaultConnection, TextWriter Log)
+		private OpenProjectWindow(UserSelectedProjectSettings Project, UserSettings Settings, DirectoryReference DataFolder, DirectoryReference CacheFolder, PerforceConnection DefaultConnection, TextWriter Log)
 		{
 			InitializeComponent();
 
@@ -86,7 +87,7 @@ namespace UnrealGameSync
 			get { return Utility.OverridePerforceSettings(DefaultConnection, ServerAndPortOverride, UserNameOverride); }
 		}
 
-		public static bool ShowModal(IWin32Window Owner, UserSelectedProjectSettings Project, out DetectProjectSettingsTask NewDetectedProjectSettings, UserSettings Settings, string DataFolder, string CacheFolder, PerforceConnection DefaultConnection, TextWriter Log)
+		public static bool ShowModal(IWin32Window Owner, UserSelectedProjectSettings Project, out DetectProjectSettingsTask NewDetectedProjectSettings, UserSettings Settings, DirectoryReference DataFolder, DirectoryReference CacheFolder, PerforceConnection DefaultConnection, TextWriter Log)
 		{
 			OpenProjectWindow Window = new OpenProjectWindow(Project, Settings, DataFolder, CacheFolder, DefaultConnection, Log);
 			if(Window.ShowDialog(Owner) == DialogResult.OK)

@@ -251,7 +251,7 @@ namespace UnrealGameSync
 
 		// Settings for the currently synced project in this workspace. CurrentChangeNumber is only valid for this workspace if CurrentProjectPath is the current project.
 		public string CurrentProjectIdentifier { get; set; }
-		public int CurrentChangeNumber { get; set; }
+		public int CurrentChangeNumber { get; set; } = -1;
 		public string CurrentSyncFilterHash { get; set; }
 		public List<int> AdditionalChangeNumbers { get; set; } = new List<int>();
 
@@ -283,7 +283,13 @@ namespace UnrealGameSync
 			Entry.State = State;
 		}
 
-		public void Save() => Utility.SaveJson(File, this);
+		public void Save()
+		{
+			lock(File)
+			{
+				Utility.SaveJson(File, this);
+			}
+		}
 	}
 
 	class UserProjectSettings
@@ -310,7 +316,7 @@ namespace UnrealGameSync
 			None		// Show no robomerge changes
 		};
 
-		string FileName;
+		FileReference FileName;
 		ConfigFile ConfigFile = new ConfigFile();
 
 		// General settings
@@ -410,7 +416,7 @@ namespace UnrealGameSync
 			return Projects;
 		}
 
-		public UserSettings(string InFileName, TextWriter Log)
+		public UserSettings(FileReference InFileName, TextWriter Log)
 		{
 			FileName = InFileName;
 			ConfigFile.TryLoad(FileName, Log);
@@ -662,7 +668,7 @@ namespace UnrealGameSync
 			return ConfigDir;
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string SelectedClientFileName)
+		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string SelectedClientFileName, string SelectedProjectIdentifier)
 		{
 			FileReference ConfigFile = FileReference.Combine(GetConfigDir(RootDir), "global.json");
 			if (!WorkspaceKeyToState.TryGetValue(ConfigFile, out UserWorkspaceState State))
@@ -678,11 +684,12 @@ namespace UnrealGameSync
 				State.File = ConfigFile;
 				WorkspaceKeyToState.Add(ConfigFile, State);
 			}
-			if (!String.Equals(State.SelectedClientFileName, SelectedClientFileName))
+			if (!String.Equals(State.SelectedClientFileName, SelectedClientFileName, StringComparison.Ordinal) || !String.Equals(State.CurrentProjectIdentifier, SelectedProjectIdentifier, StringComparison.Ordinal))
 			{
 				State = new UserWorkspaceState();
 				State.File = ConfigFile;
 				State.SelectedClientFileName = SelectedClientFileName;
+				State.CurrentProjectIdentifier = SelectedProjectIdentifier;
 				WorkspaceKeyToState[ConfigFile] = State;
 			}
 			return State;

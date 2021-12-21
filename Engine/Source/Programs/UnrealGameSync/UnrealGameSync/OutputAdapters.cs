@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -134,12 +135,12 @@ namespace UnrealGameSync
 	
 	class BoundedLogWriter : LineBasedTextWriter
 	{
-		string FileName;
-		string BackupFileName;
+		FileReference FileName;
+		FileReference BackupFileName;
 		int MaxSize;
 		StreamWriter Inner;
 
-		public BoundedLogWriter(string InFileName, int InMaxSize = 128 * 1024)
+		public BoundedLogWriter(FileReference InFileName, int InMaxSize = 128 * 1024)
 		{
 			FileName = InFileName;
 			BackupFileName = FileName + ".bak";
@@ -173,16 +174,16 @@ namespace UnrealGameSync
 			CloseInner();
 			try
 			{
-				if(File.Exists(BackupFileName))
+				if(FileReference.Exists(BackupFileName))
 				{
-					File.Delete(BackupFileName);
+					FileReference.Delete(BackupFileName);
 				}
-				if(File.Exists(FileName))
+				if(FileReference.Exists(FileName))
 				{
-					File.Move(FileName, BackupFileName);
+					FileReference.Move(FileName, BackupFileName);
 				}
 
-				Inner = new StreamWriter(FileName);
+				Inner = new StreamWriter(FileName.FullName);
 				Inner.AutoFlush = true;
 			}
 			catch(Exception)

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -431,31 +432,33 @@ namespace UnrealGameSync
 		{
 		}
 
-		string GetTempFileName(string FileName)
+		FileReference GetTempFileName(FileReference FileName)
 		{
 			return FileName + ".tmp";
 		}
 
-		public void Load(string FileName)
+		public void Load(FileReference FileName)
 		{
-			Parse(File.ReadAllLines(FileName));
+			Parse(FileReference.ReadAllLines(FileName));
 		}
 
-		public bool TryLoad(string FileName, TextWriter Log)
+		public bool TryLoad(FileReference FileName, TextWriter Log)
 		{
-			FileInfo FileInfo = new FileInfo(FileName);
+			FileInfo FileInfo = FileName.ToFileInfo();
 			if (FileInfo.Exists)
 			{
 				Log.WriteLine("Loading config file from {0} ({1} bytes)", FileInfo.FullName, FileInfo.Length);
-				Load(FileInfo.FullName);
+				Load(FileName);
 				return true;
 			}
 
-			FileInfo TempFileInfo = new FileInfo(GetTempFileName(FileName));
+			FileReference TempFileName = GetTempFileName(FileName);
+
+			FileInfo TempFileInfo = TempFileName.ToFileInfo();
 			if (TempFileInfo.Exists)
 			{
 				Log.WriteLine("Loading temporary config file from {0} ({1} bytes)", TempFileInfo.FullName, TempFileInfo.Length);
-				Load(TempFileInfo.FullName);
+				Load(TempFileName);
 				return true;
 			}
 
@@ -496,12 +499,12 @@ namespace UnrealGameSync
 			}
 		}
 
-		public void Save(string FileName)
+		public void Save(FileReference FileName)
 		{
-			string TempFileName = GetTempFileName(FileName);
-			File.Delete(TempFileName);
+			FileReference TempFileName = GetTempFileName(FileName);
+			FileReference.Delete(TempFileName);
 
-			using (StreamWriter Writer = new StreamWriter(TempFileName))
+			using (StreamWriter Writer = new StreamWriter(TempFileName.FullName))
 			{
 				for(int Idx = 0; Idx < Sections.Count; Idx++)
 				{
@@ -527,8 +530,8 @@ namespace UnrealGameSync
 				}
 			}
 
-			File.Delete(FileName);
-			File.Move(TempFileName, FileName);
+			FileReference.Delete(FileName);
+			FileReference.Move(TempFileName, FileName);
 		}
 
 		public ConfigSection FindSection(string Name)

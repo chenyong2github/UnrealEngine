@@ -1,5 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -22,8 +23,8 @@ namespace UnrealGameSync
 		PerforceConnection DefaultConnection;
 		UpdateMonitor UpdateMonitor;
 		string ApiUrl;
-		string DataFolder;
-		string CacheFolder;
+		DirectoryReference DataFolder;
+		DirectoryReference CacheFolder;
 		bool bRestoreState;
 		string UpdateSpawn;
 		bool bUnstable;
@@ -51,13 +52,13 @@ namespace UnrealGameSync
 
 		OIDCTokenManager OIDCTokenManager;
 
-		public ProgramApplicationContext(PerforceConnection DefaultConnection, UpdateMonitor UpdateMonitor, string ApiUrl, string DataFolder, EventWaitHandle ActivateEvent, bool bRestoreState, string UpdateSpawn, string ProjectFileName, bool bUnstable, TimestampLogWriter Log, string Uri)
+		public ProgramApplicationContext(PerforceConnection DefaultConnection, UpdateMonitor UpdateMonitor, string ApiUrl, DirectoryReference DataFolder, EventWaitHandle ActivateEvent, bool bRestoreState, string UpdateSpawn, string ProjectFileName, bool bUnstable, TimestampLogWriter Log, string Uri)
 		{
 			this.DefaultConnection = DefaultConnection;
 			this.UpdateMonitor = UpdateMonitor;
 			this.ApiUrl = ApiUrl;
 			this.DataFolder = DataFolder;
-			this.CacheFolder = Path.Combine(DataFolder, "Cache");
+			this.CacheFolder = DirectoryReference.Combine(DataFolder, "Cache");
 			this.bRestoreState = bRestoreState;
 			this.UpdateSpawn = UpdateSpawn;
 			this.bUnstable = bUnstable;
@@ -65,8 +66,8 @@ namespace UnrealGameSync
 			this.Uri = Uri;
 
 			// Create the directories
-			Directory.CreateDirectory(DataFolder);
-			Directory.CreateDirectory(CacheFolder);
+			DirectoryReference.CreateDirectory(DataFolder);
+			DirectoryReference.CreateDirectory(CacheFolder);
 
 			// Make sure a synchronization context is set. We spawn a bunch of threads (eg. UpdateMonitor) at startup, and need to make sure we can post messages 
 			// back to the main thread at any time.
@@ -79,7 +80,7 @@ namespace UnrealGameSync
 			MainThreadSynchronizationContext = WindowsFormsSynchronizationContext.Current;
 
 			// Read the user's settings
-			Settings = new UserSettings(Path.Combine(DataFolder, "UnrealGameSync.ini"), Log);
+			Settings = new UserSettings(FileReference.Combine(DataFolder, "UnrealGameSync.ini"), Log);
 			if(!String.IsNullOrEmpty(ProjectFileName))
 			{
 				string FullProjectFileName = Path.GetFullPath(ProjectFileName);
