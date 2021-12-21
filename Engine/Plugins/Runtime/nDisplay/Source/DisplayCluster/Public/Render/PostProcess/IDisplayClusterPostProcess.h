@@ -21,15 +21,6 @@ public:
 
 public:
 	/**
-	* Game thread call. Initialize postprocess from config line
-	*
-	* @param CfgLine - Configuration line for this postprocess
-	*/
-	UE_DEPRECATED(4.26, "This function is deprecated. Use TMap based InitializePostProcess.")
-	virtual void InitializePostProcess(const FString& CfgLine)
-	{ }
-
-	/**
 	* Return postprocess name
 	*/
 	virtual const FString& GetId() const = 0;

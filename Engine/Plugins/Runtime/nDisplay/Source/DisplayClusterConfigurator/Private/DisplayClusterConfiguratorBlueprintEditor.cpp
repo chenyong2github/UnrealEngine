@@ -577,7 +577,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::UpdateXformGizmos()
 bool FDisplayClusterConfiguratorBlueprintEditor::LoadWithOpenFileDialog()
 {
 	const FString NDisplayFileDescription = LOCTEXT("NDisplayFileDescription", "nDisplay Config").ToString();
-	const FString NDisplayFileExtension = TEXT("*.ndisplay;*.cfg");
+	const FString NDisplayFileExtension = TEXT("*.ndisplay");
 	const FString FileTypes = FString::Printf(TEXT("%s (%s)|%s"), *NDisplayFileDescription, *NDisplayFileExtension, *NDisplayFileExtension);
 
 	// Prompt the user for the filenames
