@@ -80,18 +80,6 @@ public:
 	virtual IDisplayClusterClusterManager* GetClusterMgr() const = 0;
 
 	/**
-	* Access to the input manager.
-	*
-	* @return Current cluster manager or nullptr
-	*/
-	class IDisplayClusterInputManager { };
-	UE_DEPRECATED(4.27, "VRPN functionality has been moved to LiveLinkVRPN")
-	virtual IDisplayClusterInputManager* GetInputMgr() const
-	{
-		return nullptr;
-	}
-
-	/**
 	* Access to the config manager.
 	*
 	* @return Current config manager or nullptr
