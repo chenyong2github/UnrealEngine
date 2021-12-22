@@ -4,22 +4,27 @@
 
 #include "LevelSnapshot.h"
 #include "Data/LevelSnapshotsEditorData.h"
+#include "LevelSnapshotsEditor/Private/LevelSnapshotsEditorModule.h"
 
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetThumbnail.h"
 #include "ContentBrowserDelegates.h"
 #include "ContentBrowserModule.h"
 #include "Editor/EditorStyle/Public/EditorStyleSet.h"
 #include "IContentBrowserSingleton.h"
+#include "LevelSnapshotsEditorFunctionLibrary.h"
+#include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsLog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
-#include "Slate/Public/Framework/MultiBox/MultiBoxBuilder.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "UObject/Object.h"
 #include "UObject/SoftObjectPath.h"
+#include "Widgets/Input/SSlider.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/SToolTip.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
@@ -30,7 +35,8 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, ULevelSna
 
 	check(OwningWorldPathAttribute.IsSet());
 
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	const FContentBrowserModule& ContentBrowserModule =
+		FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
 	FARFilter ARFilter;
 	ARFilter.ClassNames.Add(ULevelSnapshot::StaticClass()->GetFName());
@@ -51,17 +57,25 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, ULevelSna
 	AssetPickerConfig.ThumbnailScale = 0.8f;
 	AssetPickerConfig.Filter = ARFilter;
 	AssetPickerConfig.SelectionMode = ESelectionMode::Single;
-	AssetPickerConfig.OnAssetDoubleClicked = FOnAssetSelected::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnAssetDoubleClicked);
-	AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnShouldFilterAsset);
-	AssetPickerConfig.OnGetAssetContextMenu = FOnGetAssetContextMenu::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnGetAssetContextMenu);
-
+	AssetPickerConfig.OnAssetDoubleClicked =
+		FOnAssetSelected::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnAssetDoubleClicked);
+	AssetPickerConfig.OnShouldFilterAsset =
+		FOnShouldFilterAsset::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnShouldFilterAsset);
+	AssetPickerConfig.OnGetAssetContextMenu =
+		FOnGetAssetContextMenu::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnGetAssetContextMenu);
 	AssetPickerConfig.OnGetCustomAssetToolTip =
 		FOnGetCustomAssetToolTip::CreateSP(this, &SLevelSnapshotsEditorBrowser::CreateCustomTooltip);
-	
+		
+
 	ChildSlot
-		[
-			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
-		];
+	[
+		ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
+	];	
+}
+
+SLevelSnapshotsEditorBrowser::~SLevelSnapshotsEditorBrowser()
+{
+	
 }
 
 void SLevelSnapshotsEditorBrowser::SelectAsset(const FAssetData& InAssetData) const
@@ -79,28 +93,6 @@ void SLevelSnapshotsEditorBrowser::SelectAsset(const FAssetData& InAssetData) co
 	{
 		EditorData->SetActiveSnapshot(Snapshot);
 	}
-}
-
-TSharedRef<SToolTip> SLevelSnapshotsEditorBrowser::CreateCustomTooltip(FAssetData& AssetData)
-{
-	constexpr uint32 ThumbnailSize = 256;
-	TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(AssetData, ThumbnailSize, ThumbnailSize, UThumbnailManager::Get().GetSharedThumbnailPool());
-	
-	FAssetThumbnailConfig AssetThumbnailConfig;
-	AssetThumbnailConfig.bAllowFadeIn = false;
-	AssetThumbnailConfig.bAllowRealTimeOnHovered = false;
-	AssetThumbnailConfig.bForceGenericThumbnail = false;
-			
-	return SNew(SToolTip)
-	[
-		SNew(SBox)
-		.WidthOverride(ThumbnailSize)
-		.HeightOverride(ThumbnailSize)
-		.VAlign(VAlign_Top)
-		[
-			AssetThumbnail->MakeThumbnailWidget(AssetThumbnailConfig)
-		]
-	];
 }
 
 TArray<FAssetViewCustomColumn> SLevelSnapshotsEditorBrowser::GetCustomColumns() const
@@ -208,6 +200,42 @@ TSharedPtr<SWidget> SLevelSnapshotsEditorBrowser::OnGetAssetContextMenu(const TA
 	MenuBuilder.BeginSection(TEXT("Asset"), NSLOCTEXT("ReferenceViewerSchema", "AssetSectionLabel", "Asset"));
 	{
 		MenuBuilder.AddMenuEntry(
+		LOCTEXT("AssetTypeActions_LevelSnapshot_UpdateSnapshotData", "Update Snapshot Data"),
+		LOCTEXT("AssetTypeActions_LevelSnapshot_UpdateSnapshotDataToolTip", "Record a snapshot of the current map to this snapshot asset and update the thumbnail. Equivalent to 'Take Snapshot'. Select only one Level Snapshot asset at a time."),
+		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton.Small"),
+		FUIAction(
+			FExecuteAction::CreateLambda([SelectedAsset] {
+				if (const TObjectPtr<ULevelSnapshot> LevelSnapshotAsset = Cast<ULevelSnapshot>(SelectedAsset))
+				{
+					if (UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld())
+					{
+						LevelSnapshotAsset->SnapshotWorld(World);
+						ULevelSnapshotsEditorFunctionLibrary::GenerateThumbnailForSnapshotAsset(LevelSnapshotAsset);
+						LevelSnapshotAsset->MarkPackageDirty();
+					}
+				}
+			}),
+			FCanExecuteAction::CreateLambda([] () { return true; })
+			)
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AssetTypeActions_LevelSnapshot_CaptureThumbnail", "Capture Thumbnail"),
+			LOCTEXT("AssetTypeActions_LevelSnapshot_CaptureThumbnailsToolTip", "Capture and update the thumbnail only for this asset."),
+			FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton.Small"),
+			FUIAction(
+			FExecuteAction::CreateLambda([SelectedAsset] {
+				if (const TObjectPtr<ULevelSnapshot> LevelSnapshotAsset = Cast<ULevelSnapshot>(SelectedAsset))
+				{
+					ULevelSnapshotsEditorFunctionLibrary::GenerateThumbnailForSnapshotAsset(LevelSnapshotAsset);
+					LevelSnapshotAsset->MarkPackageDirty();
+				}
+			}),
+			FCanExecuteAction::CreateLambda([] () { return true; })
+			)
+		);
+		
+		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Browse", "Browse to Asset"),
 			LOCTEXT("BrowseTooltip", "Browses to the associated asset and selects it in the most recently used Content Browser (summoning one if necessary)"),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser.Small"),
@@ -239,11 +267,96 @@ TSharedPtr<SWidget> SLevelSnapshotsEditorBrowser::OnGetAssetContextMenu(const TA
 				}),
 				FCanExecuteAction::CreateLambda([] () { return true; })
 			)
-	);
+		);
 	}
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SToolTip> SLevelSnapshotsEditorBrowser::CreateCustomTooltip(FAssetData& AssetData)
+{
+	constexpr uint32 MaxTooltipWidth = 1024;
+	constexpr uint32 ThumbnailSize = 256;
+	constexpr uint32 MaxDescriptionHeight = ThumbnailSize / 3 * 2;
+	
+	const TSharedRef<FAssetThumbnail> AssetThumbnail =
+		MakeShareable(
+			new FAssetThumbnail(
+				AssetData.GetAsset(),
+				ThumbnailSize,
+				ThumbnailSize,
+				UThumbnailManager::Get().GetSharedThumbnailPool()
+			)
+		);
+	
+	FAssetThumbnailConfig AssetThumbnailConfig;
+	AssetThumbnailConfig.bAllowFadeIn = false;
+	AssetThumbnailConfig.bAllowRealTimeOnHovered = false;
+	AssetThumbnailConfig.bForceGenericThumbnail = false;
+	AssetThumbnailConfig.ColorStripOrientation = EThumbnailColorStripOrientation::VerticalRightEdge;
+
+	FString OutDescription;
+	AssetData.GetTagValue("SnapshotDescription",OutDescription);
+
+	FString OutCaptureTime;
+	AssetData.GetTagValue("CaptureTime",OutCaptureTime);
+	
+	return SNew(SToolTip)
+	[
+		SNew(SBox)
+		.MaxDesiredWidth(MaxTooltipWidth)
+		[
+			SNew(SHorizontalBox)
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SBox)
+				.HeightOverride(ThumbnailSize + 5) // Offset for asset color strip
+				.WidthOverride(ThumbnailSize)
+				[
+					AssetThumbnail->MakeThumbnailWidget(AssetThumbnailConfig)
+				]
+			]
+
+			+SHorizontalBox::Slot()
+			.MaxWidth(MaxTooltipWidth - ThumbnailSize)
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(5.f))
+			[
+				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(FText::FromName(AssetData.AssetName))
+					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+					.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
+				]
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(OutCaptureTime))
+				]
+
+				+SVerticalBox::Slot()
+				.MaxHeight(MaxDescriptionHeight)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(OutDescription))
+					.AutoWrapText(true)
+					.WrappingPolicy(ETextWrappingPolicy::DefaultWrapping)
+					.OverflowPolicy(ETextOverflowPolicy::Ellipsis)				
+				]
+			]
+		]
+	];
 }
 
 #undef LOCTEXT_NAMESPACE
