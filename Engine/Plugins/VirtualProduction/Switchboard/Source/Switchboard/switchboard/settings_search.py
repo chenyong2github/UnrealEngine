@@ -9,6 +9,8 @@ from PySide2 import QtGui
 from PySide2 import QtUiTools
 from PySide2 import QtWidgets
 
+from switchboard.switchboard_widgets import CollapsibleGroupBox
+
 
 def as_widget_or_layout(row_item):
     return row_item.widget() if row_item.widget() else row_item.layout()
@@ -146,6 +148,9 @@ class SettingsSearch:
             is_any_child_visible = self._update_layout_visibility(widget.layout(), search_term_list) \
                 or is_match_on_containing_category
             widget.setVisible(is_any_child_visible)
+            if is_any_child_visible and isinstance(widget, CollapsibleGroupBox):
+                widget.set_expanded(True)
+            
             return is_any_child_visible
 
         return False

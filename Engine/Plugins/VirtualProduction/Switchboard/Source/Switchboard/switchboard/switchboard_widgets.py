@@ -125,6 +125,30 @@ class MultiSelectionComboBox(QtWidgets.QComboBox):
         self.signal_selection_changed.emit(selected_entries)
 
 
+# A combo box that has a static icon and opens a list of options when pressed, e.g. view options in settings
+class DropDownMenuComboBox(QtWidgets.QComboBox):
+    on_select_option = QtCore.Signal(str)
+    
+    def __init__(self, icon: QtGui.QIcon, icon_size: int = 20, parent=None):
+        super().__init__(parent=parent)
+        self.addItem(icon, "")
+        drop_down_arrow_size = 20
+        self.setFixedWidth(icon_size + drop_down_arrow_size)
+        self.model().setData(self.model().index(0, 0), QtCore.QSize(100, 100), QtCore.Qt.SizeHintRole)
+        self.view().setRowHidden(0, True)
+        self.currentIndexChanged.connect(self._on_index_changed)
+    
+    def _on_index_changed(self, index: int):
+        selected_item = self.itemText(index)
+        self.on_select_option.emit(selected_item)
+        # Always make sure that the icon is shown
+        self.setCurrentIndex(0)
+    
+    def showPopup(self):
+        self.view().setMinimumWidth(self.view().sizeHintForColumn(0))
+        super().showPopup()
+    
+
 class ControlQPushButton(QtWidgets.QPushButton):
     def __init__(self, parent = None, *, hover_focus: bool = True):
         super().__init__(parent)
@@ -270,6 +294,7 @@ class FramelessQLineEdit(QtWidgets.QLineEdit):
             self.setText(self.current_text)
             self.clearFocus()
     
+    
 
 class CollapsibleGroupBox(QtWidgets.QGroupBox):
     def __init__(self):
@@ -283,9 +308,21 @@ class CollapsibleGroupBox(QtWidgets.QGroupBox):
             'QGroupBox::indicator:unchecked {image: url(:icons/images/tree_arrow_collapsed.png);}'
         )
 
-        self.toggled.connect(self._set_expanded)
+        self.toggled.connect(self._on_set_expanded)
+        self.setChecked(True)
         
-    def _set_expanded(self, should_expand: bool):
+    @property
+    def is_expanded(self):
+        return self.isChecked()
+        
+    def set_expanded(self, value: bool):
+        if value and not self.is_expanded or not value and self.is_expanded:
+            self._on_set_expanded(value)
+            self.blockSignals(True)
+            self.setChecked(value)
+            self.blockSignals(False)
+        
+    def _on_set_expanded(self, should_expand: bool):
         if should_expand:
             self.setMaximumHeight(self._original_maximum_height)
         else:
