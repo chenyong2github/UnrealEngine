@@ -12,7 +12,7 @@ from switchboard import config
 from switchboard import switchboard_widgets as sb_widgets
 from switchboard.config import CONFIG, SETTINGS
 from switchboard.settings_search import SettingsSearch
-from switchboard.switchboard_widgets import CollapsibleGroupBox
+from switchboard.switchboard_widgets import CollapsibleGroupBox, DropDownMenuComboBox
 from switchboard.ui.horizontal_tabs import HorizontalTabWidget
 
 RELATIVE_PATH = os.path.dirname(__file__)
@@ -22,6 +22,8 @@ def clear_widgets(layout):
     for i in range(layout.count()):
         layout.takeAt(0) 
 
+COLLAPSE_ALL_TEXT = "Collapse all"
+EXPAND_ALL_TEXT = "Expand all"
 
 class SettingsDialog(QtCore.QObject):
     def __init__(self):
@@ -33,14 +35,10 @@ class SettingsDialog(QtCore.QObject):
         self.ui.resize(600, 800)
         dialog_layout = QtWidgets.QVBoxLayout(self.ui)
         dialog_layout.setContentsMargins(2, 2, 2, 2)
-        
-        self.ui.searchBar = QtWidgets.QLineEdit()
-        self.ui.searchBar.setPlaceholderText("Search")
-        dialog_layout.addWidget(self.ui.searchBar)
-
         self.ui.setWindowTitle("Settings")
         self.ui.finished.connect(self._on_finished)
 
+        self._create_search_area(dialog_layout)
         self.general_settings_list = [
             self._create_config_path_settings(),
             self._create_switchboard_settings(),
@@ -126,6 +124,55 @@ class SettingsDialog(QtCore.QObject):
 
     def _on_search_text_edited(self, search_string: str):
         self.settings_search.search(search_string)
+        
+    def _create_search_area(self, dialog_layout):
+        self.ui.search_area = QtWidgets.QWidget()
+        search_layout = QtWidgets.QHBoxLayout(self.ui.search_area)
+        search_layout.setContentsMargins(1, 1, 1, 1)
+        
+        self.ui.searchBar = QtWidgets.QLineEdit()
+        self.ui.searchBar.setPlaceholderText("Search")
+        search_layout.addWidget(self.ui.searchBar)
+
+        pixmap = QtGui.QPixmap(":icons/images/view_button.png")
+        self.ui.view_options = DropDownMenuComboBox(QtGui.QIcon(pixmap))
+        self.ui.view_options.addItem(COLLAPSE_ALL_TEXT)
+        self.ui.view_options.addItem(EXPAND_ALL_TEXT)
+        
+        self.ui.view_options.on_select_option.connect(self._on_view_option_selected)
+        search_layout.addWidget(self.ui.view_options)
+        dialog_layout.addWidget(self.ui.search_area)
+
+    def _on_view_option_selected(self, selected_item):
+        if selected_item == COLLAPSE_ALL_TEXT:
+            self._set_categories_expanded(False)
+        elif selected_item == EXPAND_ALL_TEXT:
+            self._set_categories_expanded(True)
+            
+    def _set_categories_expanded(self, should_expand: bool):
+        def _set_expanded_recursive(widget_or_layout, should_expand: bool):
+            if isinstance(widget_or_layout, CollapsibleGroupBox):
+                widget_or_layout.set_expanded(should_expand)
+            
+            layout = widget_or_layout
+            if isinstance(widget_or_layout, QtWidgets.QWidget):
+                if isinstance(widget_or_layout, QtWidgets.QScrollArea):
+                    layout = widget_or_layout.widget().layout()
+                else:
+                    layout = widget_or_layout.layout()
+                
+            if layout is None:
+                return
+            
+            for i in range(layout.count()):
+                layout_item = layout.itemAt(i)
+                if layout_item.widget():
+                    _set_expanded_recursive(layout_item.widget(), should_expand)
+                elif layout_item.layout():
+                    _set_expanded_recursive(layout_item.layout(), should_expand)
+            
+        active_tab_content = self.ui.tab_widget.currentWidget()
+        _set_expanded_recursive(active_tab_content, should_expand)
         
     def _create_config_path_settings(self):
         self.ui.config_path_layout = QtWidgets.QWidget()
@@ -639,17 +686,17 @@ class SettingsDialog(QtCore.QObject):
         device_override_group_box.setTitle(f'{plugin_name} Settings')
         device_override_group_box.setLayout(QtWidgets.QVBoxLayout())
         device_override_group_box.setSizePolicy(
-            QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+            QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
         )
 
         # Need to manually create scroll bar for tab
         scroll_bar = QtWidgets.QScrollArea()
         scroll_bar.setWidget(device_override_group_box)
         scroll_bar.setWidgetResizable(True)
-        scroll_bar.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
+        scroll_bar.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustIgnored)
         scroll_bar.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        scroll_layout = QtWidgets.QVBoxLayout()
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout = QtWidgets.QVBoxLayout(scroll_bar)
+        scroll_layout.setContentsMargins(1, 1, 1, 1)
         
         self.ui.tab_widget.addTab(scroll_bar, f'{plugin_name}')
         self.plugin_widgets[plugin_name] = (device_override_group_box, scroll_bar)
