@@ -259,7 +259,8 @@ class Setting(QtCore.QObject):
         return top_level_widget
     
     def _decorate_with_reset_widget(self, override_device_name: str, setting_editor_widget: QtWidgets.QWidget):
-        if not self._allow_reset:
+        # Reset will still be shown on overrides
+        if not self._allow_reset and override_device_name is None:
             return setting_editor_widget
         
         horizontal_box = QtWidgets.QWidget()
@@ -305,8 +306,8 @@ class Setting(QtCore.QObject):
         if self.is_overridden(override_device_name):
             self.override_value(override_device_name, self._value)
             # Update UI
-            self._on_setting_changed(self._value, override_device_name=override_device_name)
             self._on_widget_value_changed(self._value, override_device_name)
+            self._on_setting_changed(self._value, override_device_name=override_device_name)
             self._reset_override_widgets[override_device_name].setVisible(False)
             
     def _refresh_reset_base_widget(self):
@@ -752,6 +753,244 @@ class MultiOptionSetting(OptionSetting):
                     item.setCheckState(QtCore.Qt.Unchecked)
 
             widget.setEditText(widget.separator.join(selected_items))
+
+
+class ArrayRow(QtWidgets.QWidget):
+    def __init__(self, array_index: int, editor_widget: QtWidgets.QWidget, parent=None):
+        super().__init__(parent=parent)
+        self._editor_widget = editor_widget
+    
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setSpacing(1)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        self._index_label = QtWidgets.QLabel()
+        self._index_label.setFixedWidth(20)
+        self.update_index(array_index)
+        layout.addWidget(self._index_label)
+
+        layout.addWidget(editor_widget)
+        # TODO: Insert & delete combo box
+    
+    @property
+    def editor_widget(self):
+        return self._editor_widget
+    
+    def update_index(self, index: int):
+        self._index_label.setText(str(index))
+
+class ListSetting(Setting):
+    '''
+    A setting which has add and clear buttons. Each item will be displayed in a new line.
+    Functions like array properties in Unreal Editor.
+    
+    Subclasses are responsible for generating widgets for the array contents, see e.g. ArrayStringSetting.
+    '''
+
+    def __init__(
+        self,
+        attr_name: str,
+        nice_name: str,
+        value: typing.List = [],
+        tool_tip: typing.Optional[str] = None,
+        show_ui: bool = True,
+        allow_reset: bool = True
+    ):
+        '''
+        Create a new ArraySetting object.
+
+        Args:
+            attr_name      : Internal name.
+            nice_name      : Display name.
+            value          : The initial value of this Setting.
+            tool_tip       : Tooltip to show in the UI for this Setting.
+            show_ui        : Whether to show this Setting in the Settings UI.
+        '''
+        super().__init__(
+            attr_name, nice_name, value,
+            tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset)
+        
+        self.array_count_labels = {}
+        self.element_layouts = {}
+    
+    def create_element(self, override_device_name: str, index: int) -> typing.Tuple[QtWidgets.QWidget, object]:
+        '''
+        Called when a new array element is supposed to be created.
+        @returns The widget to use for editing and the default value for the new array element
+        '''
+        raise NotImplementedError("Subclasses must override this")
+    
+    def update_element_value(self, editor_widget: QtWidgets.QWidget, list_value: typing.List, index: int):
+        '''
+        Called to update the editor_widget with the the value from list_value[index].
+        '''
+        raise NotImplementedError("Subclasses must override this")
+
+    def _create_widgets(self, override_device_name: typing.Optional[str] = None):
+        root = QtWidgets.QWidget()
+        root_layout = QtWidgets.QVBoxLayout(root)
+        root_layout.setSpacing(1)
+        root_layout.setContentsMargins(1, 1, 1, 1)
+        
+        root_layout.addWidget(
+            self._create_header(override_device_name)
+        )
+        
+        elements_root = QtWidgets.QWidget()
+        elements_layout = QtWidgets.QVBoxLayout(elements_root)
+        self.element_layouts[override_device_name] = elements_layout
+        elements_layout.setSpacing(1)
+        elements_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.addWidget(
+            elements_root
+        )
+
+        self.set_widget(
+            widget=root, override_device_name=override_device_name)
+        self._on_setting_changed(self.get_value(override_device_name), override_device_name)
+        return root
+
+    def _create_header(self, override_device_name) -> QtWidgets.QWidget:
+        header = QtWidgets.QWidget()
+        header_layout = QtWidgets.QHBoxLayout(header)
+        header_layout.setSpacing(5)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        
+        array_count_label = QtWidgets.QLabel()
+        self.array_count_labels[override_device_name] = array_count_label
+        array_count_label.setFixedWidth(100)
+        self._update_array_count_label(override_device_name)
+
+        add_button = QtWidgets.QPushButton()
+        pixmap = QtGui.QPixmap(":icons/images/PlusSymbol_12x.png")
+        add_button.setIcon(QtGui.QIcon(pixmap))
+        add_button.setFlat(True)
+        add_button.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+        add_button.setMaximumWidth(12)
+        add_button.setMaximumHeight(12)
+        add_button.pressed.connect(
+            lambda override_device_name=override_device_name:
+                self._on_press_add(override_device_name)
+        )
+
+        clear_button = QtWidgets.QPushButton()
+        pixmap = QtGui.QPixmap(":icons/images/empty_set_12x.png")
+        clear_button.setIcon(QtGui.QIcon(pixmap))
+        clear_button.setFlat(True)
+        clear_button.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+        clear_button.setMaximumWidth(12)
+        clear_button.setMaximumHeight(12)
+        clear_button.pressed.connect(
+            lambda override_device_name=override_device_name:
+            self._on_press_clear(override_device_name)
+        )
+
+        header_layout.addWidget(array_count_label)
+        header_layout.addWidget(add_button)
+        header_layout.addWidget(clear_button)
+        header_layout.addItem(QtWidgets.QSpacerItem(0, 0, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
+
+        return header
+        
+    def _update_array_count_label(self, override_device_name: str):
+        current_value = self.get_value(override_device_name)
+        self.array_count_labels[override_device_name].setText(f"{len(current_value)} Elements")
+        
+    def _on_press_add(self, override_device_name: str):
+        current_value = self.get_value(override_device_name)
+        
+        row_widget, default_value = self._create_element_row(override_device_name, len(current_value))
+        self.element_layouts[override_device_name].addWidget(
+            row_widget
+        )
+        
+        self._on_widget_value_changed(current_value + [default_value], override_device_name)
+        # Force update in case _on_widget_value_changed implicitly changed array settings without telling us
+        self._on_setting_changed(self.get_value(override_device_name), override_device_name)
+        
+    def _on_press_clear(self, override_device_name: str):
+        self._on_widget_value_changed([], override_device_name)
+        
+        container_layout = self.element_layouts[override_device_name]
+        for i in reversed(range(container_layout.count())):
+            container_layout.itemAt(i).widget().setParent(None)
+        
+        # Force update in case _on_widget_value_changed implicitly changed array settings without telling us
+        self._on_setting_changed(self.get_value(override_device_name), override_device_name)
+    
+    def _create_element_row(self, override_device_name: str, index: int) -> typing.Tuple[ArrayRow, object]:
+        editing_widget, default_value = self.create_element(override_device_name, index)
+        row = ArrayRow(index, editing_widget)
+        return row, default_value
+
+    def _on_setting_changed(self, new_value: typing.List, override_device_name: typing.Optional[str] = None):
+        container_layout = self.element_layouts[override_device_name]
+        
+        container_len = container_layout.count()
+        new_len = len(new_value)
+        new_list_is_bigger = container_layout.count() < new_len
+        new_list_is_smaller = container_layout.count() > new_len
+        if new_list_is_bigger:
+            for missing_index in range(container_layout.count(), len(new_value), 1):
+                new_array_row, _ = self._create_element_row(override_device_name, missing_index)
+                container_layout.addWidget(new_array_row)
+        
+        if new_list_is_smaller:
+            for added_index in reversed(range(new_len, container_layout.count(), 1)):
+                container_layout.itemAt(added_index).widget().deleteLater()
+                
+        for index in range(new_len):
+            array_row: ArrayRow = container_layout.itemAt(index).widget()
+            self.update_element_value(array_row.editor_widget, new_value, index)
+
+        self._update_array_count_label(override_device_name)
+    
+    
+class StringListSetting(ListSetting):
+    '''
+    An array setting where the elements are strings
+    '''
+    def __init__(
+        self,
+        attr_name: str,
+        nice_name: str,
+        value: typing.List[str] = [],
+        tool_tip: typing.Optional[str] = None,
+        show_ui: bool = True,
+        allow_reset: bool = True
+    ):
+        '''
+        Create a new ArraySetting object.
+
+        Args:
+            attr_name      : Internal name.
+            nice_name      : Display name.
+            value          : The initial value of this Setting.
+            tool_tip       : Tooltip to show in the UI for this Setting.
+            show_ui        : Whether to show this Setting in the Settings UI.
+        '''
+        super().__init__(
+            attr_name, nice_name, value,
+            tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset)
+        pass
+
+    def create_element(self, override_device_name: str, index: int) -> typing.Tuple[QtWidgets.QWidget, object]:
+        line_edit = QtWidgets.QLineEdit()
+        line_edit.editingFinished.connect(
+            lambda line_edit=line_edit, override_device_name=override_device_name, index=index:
+                self._on_editor_widget_changed(line_edit, override_device_name, index)
+        )
+        return line_edit, ""
+    
+    def _on_editor_widget_changed(self, line_edit, override_device_name, index):
+        current_list = self.get_value(override_device_name)
+        # List needs to a different object otherwise _on_widget_value_changed will think the value has not changed
+        copied_value = current_list.copy()
+        copied_value[index] = line_edit.text()
+        self._on_widget_value_changed(copied_value, override_device_name)
+
+    def update_element_value(self, editor_widget: QtWidgets.QLineEdit, list_value: typing.List, index: int):
+        editor_widget.setText(list_value[index])
 
 
 class LoggingModel(QtGui.QStandardItemModel):

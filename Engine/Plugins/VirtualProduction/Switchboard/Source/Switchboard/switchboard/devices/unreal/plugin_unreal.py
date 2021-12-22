@@ -23,7 +23,7 @@ from switchboard import switchboard_application
 from switchboard import switchboard_utils as sb_utils
 from switchboard.config import CONFIG, BoolSetting, DirectoryPathSetting, \
     IntSetting, MultiOptionSetting, OptionSetting, StringSetting, FileSystemPathSetting, \
-    SETTINGS, DEFAULT_MAP_TEXT
+    SETTINGS, DEFAULT_MAP_TEXT, StringListSetting
 from switchboard.devices.device_base import Device, DeviceStatus, \
     PluginHeaderWidgets
 from switchboard.devices.device_widget_base import DeviceWidget, DeviceAutoJoinMUServerUI
@@ -279,17 +279,17 @@ class DeviceUnreal(Device):
             value="",
             tool_tip='Additional command line arguments for the engine',
         ),
-        'exec_cmds': StringSetting(
+        'exec_cmds': StringListSetting(
             attr_name="exec_cmds",
             nice_name='ExecCmds',
-            value="",
+            value=[],
             tool_tip='ExecCmds to be passed. No need for outer double quotes.',
         ),
-        'dp_cvars': StringSetting(
+        'dp_cvars': StringListSetting(
             attr_name='dp_cvars',
             nice_name="DPCVars",
-            value='',
-            tool_tip="Device profile console variables (comma separated)."
+            value=[],
+            tool_tip="Device profile console variables."
         ),
         'port': IntSetting(
             attr_name="port",
@@ -1289,15 +1289,15 @@ class DeviceUnreal(Device):
                 remote_utrace_path,
                 CONFIG.INSIGHTS_TRACE_ARGS.get_value())
 
-        exec_cmds = str(
-            DeviceUnreal.csettings["exec_cmds"].get_value(self.name)).strip()
+        exec_cmds = DeviceUnreal.csettings["exec_cmds"].get_value(self.name).copy()
+        exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
         if len(exec_cmds):
-            command_line_args += f' -ExecCmds="{exec_cmds}" '
+            exec_cmds_expanded = ','.join(exec_cmds)
+            command_line_args.append(f'-ExecCmds="{exec_cmds_expanded}"')
 
         # DPCVars may need to be appended to, so we don't concatenate them
         # until the end.
-        dp_cvars = str(
-            DeviceUnreal.csettings["dp_cvars"].get_value(self.name)).strip()
+        dp_cvars = DeviceUnreal.csettings["dp_cvars"].get_value(self.name)
 
         (supported_roles, unsupported_roles) = self.get_vproles()
         if supported_roles:
