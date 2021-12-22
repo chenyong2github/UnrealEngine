@@ -474,6 +474,10 @@ namespace RemoteControlPropertyUtilities
 		{
 			SetterFunction = OwnerClass->FindFunctionByName(*SetterName);
 		}
+		else
+		{
+			return nullptr;
+		}
 #endif
 
 		FString PropertyName = Property->GetName();
