@@ -14,11 +14,13 @@
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameManager.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetManager.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetResource.h"
-#include "Render/Viewport/DisplayClusterViewportStrings.h"
 #include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessManager.h"
-
+#include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessOutputRemap.h"
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfigurationBase.h"
+#include "Render/Viewport/DisplayClusterViewportStrings.h"
+
+#include "WarpBlend/IDisplayClusterWarpBlend.h"
 
 #include "SceneViewExtension.h"
 
@@ -648,3 +650,35 @@ TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayCluster
 	return nullptr;
 }
 
+void FDisplayClusterViewportManager::MarkComponentGeometryDirty(const FName InComponentName)
+{
+	check(IsInGameThread());
+
+	// 1. Update all ProceduralMeshComponent references for projection policies
+	for (IDisplayClusterViewport* ViewportIt : GetViewports())
+	{
+		if (ViewportIt != nullptr)
+		{
+			const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& ProjectionPolicy = ViewportIt->GetProjectionPolicy();
+			if (ProjectionPolicy.IsValid())
+			{
+				TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlendInterface;
+				if (ProjectionPolicy->GetWarpBlendInterface(WarpBlendInterface) && WarpBlendInterface.IsValid())
+				{
+					// Update only interfaces with ProceduralMesh as geometry source 
+					if (WarpBlendInterface->GetWarpGeometryType() == EDisplayClusterWarpGeometryType::WarpProceduralMesh)
+					{
+						// Set the ProceduralMeshComponent geometry dirty for all valid WarpBlendInterface
+						WarpBlendInterface->MarkWarpGeometryComponentDirty(InComponentName);
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Update all ProceduralMeshComponent references for OutputRemap
+	if (PostProcessManager.IsValid())
+	{
+		PostProcessManager->GetOutputRemap()->MarkProceduralMeshComponentGeometryDirty(InComponentName);
+	}
+}

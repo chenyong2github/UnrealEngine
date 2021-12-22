@@ -10,7 +10,7 @@
 #include "RHIResources.h"
 
 
-class FDisplayClusterRender_MeshComponentProxy;
+class IDisplayClusterRender_MeshComponentProxy;
 class FDisplayClusterShaderParameters_ICVFX;
 class FDisplayClusterShaderParameters_Override;
 struct FDisplayClusterShaderParameters_GenerateMips;
@@ -88,7 +88,7 @@ public:
 	*
 	* @return - true if success
 	*/
-	virtual bool RenderPostprocess_OutputRemap(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InSourceTexture, FRHITexture2D* InRenderTargetableDestTexture, const FDisplayClusterRender_MeshComponentProxy& MeshProxy) const = 0;
+	virtual bool RenderPostprocess_OutputRemap(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InSourceTexture, FRHITexture2D* InRenderTargetableDestTexture, const IDisplayClusterRender_MeshComponentProxy& MeshProxy) const = 0;
 
 	/**
 	* Render postprocess Blur

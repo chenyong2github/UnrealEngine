@@ -6,10 +6,10 @@
 #include "RHI.h"
 #include "RHICommandList.h"
 
-class FDisplayClusterRender_MeshComponentProxy;
+class IDisplayClusterRender_MeshComponentProxy;
 
 class FDisplayClusterShadersPostprocess_OutputRemap
 {
 public:
-	static bool RenderPostprocess_OutputRemap(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InSourceTexture, FRHITexture2D* InRenderTargetableDestTexture, const FDisplayClusterRender_MeshComponentProxy& MeshProxy);
+	static bool RenderPostprocess_OutputRemap(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InSourceTexture, FRHITexture2D* InRenderTargetableDestTexture, const IDisplayClusterRender_MeshComponentProxy& MeshProxy);
 };

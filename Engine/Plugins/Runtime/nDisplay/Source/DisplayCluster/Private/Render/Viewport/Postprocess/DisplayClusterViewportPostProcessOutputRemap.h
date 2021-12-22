@@ -8,8 +8,10 @@
 #include "RHIUtilities.h"
 
 class IDisplayClusterViewportManager;
-class FDisplayClusterRender_MeshComponent;
+class IDisplayClusterRender_MeshComponent;
 class UStaticMesh;
+class UStaticMeshComponent;
+class UProceduralMeshComponent;
 
 /**
  * Display Cluster Viewport PostProcess OutputRemap
@@ -23,25 +25,27 @@ public:
 	// Game thread update calls
 	bool UpdateConfiguration_ExternalFile(const FString& InExternalFile);
 	bool UpdateConfiguration_StaticMesh(UStaticMesh* InStaticMesh);
+	bool UpdateConfiguration_StaticMeshComponent(UStaticMeshComponent* InStaticMeshComponent);
+	bool UpdateConfiguration_ProceduralMeshComponent(UProceduralMeshComponent* InProceduralMeshComponent);
 	void UpdateConfiguration_Disabled();
+
+	bool MarkProceduralMeshComponentGeometryDirty(const FName& InComponentName);
 
 	bool IsEnabled() const
 	{
-		return bIsEnabled;
+		return OutputRemapMesh.IsValid();
 	}
 
 public:
 	void PerformPostProcessFrame_RenderThread(FRHICommandListImmediate& RHICmdList, const TArray<FRHITexture2D*>* InFrameTargets = nullptr, const TArray<FRHITexture2D*>* InAdditionalFrameTargets = nullptr) const;
 
 private:
-	bool bIsEnabled = false;
-	UStaticMesh* StaticMesh = nullptr;
-	FString ExternalFile;
-
-	bool bErrorCantFindFileOnce = false;
-	bool bErrorFailLoadFromFileOnce = false;
+	bool ImplInitializeConfiguration();
 
 private:
-	FDisplayClusterRender_MeshComponent& OutputRemapMesh;
+	FString ExternalFile;
+
+private:
+	TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> OutputRemapMesh;
 	class IDisplayClusterShaders& ShadersAPI;
 };

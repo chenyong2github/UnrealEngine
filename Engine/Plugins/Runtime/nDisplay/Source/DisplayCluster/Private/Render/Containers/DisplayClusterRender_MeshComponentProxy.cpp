@@ -16,13 +16,20 @@ FDisplayClusterRender_MeshComponentProxy::FDisplayClusterRender_MeshComponentPro
 
 FDisplayClusterRender_MeshComponentProxy::~FDisplayClusterRender_MeshComponentProxy()
 {
-	Release_RenderThread();
+	check(IsInRenderingThread());
+
+	ImplRelease_RenderThread();
 }
 
 void FDisplayClusterRender_MeshComponentProxy::Release_RenderThread()
 {
 	check(IsInRenderingThread());
 
+	ImplRelease_RenderThread();
+}
+
+void FDisplayClusterRender_MeshComponentProxy::ImplRelease_RenderThread()
+{
 	VertexBufferRHI.SafeRelease();
 	IndexBufferRHI.SafeRelease();
 
@@ -30,11 +37,16 @@ void FDisplayClusterRender_MeshComponentProxy::Release_RenderThread()
 	NumVertices = 0;
 }
 
-bool FDisplayClusterRender_MeshComponentProxy::BeginRender_RenderThread(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit) const
+bool FDisplayClusterRender_MeshComponentProxy::IsEnabled_RenderThread() const
 {
 	check(IsInRenderingThread());
 
-	if (IsValid_RenderThread())
+	return NumTriangles > 0 && NumVertices > 0 && VertexBufferRHI.IsValid() && IndexBufferRHI.IsValid();
+}
+
+bool FDisplayClusterRender_MeshComponentProxy::BeginRender_RenderThread(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit) const
+{
+	if (IsEnabled_RenderThread())
 	{
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GDisplayClusterMeshVertexDeclaration.VertexDeclarationRHI;
 		return true;
@@ -45,9 +57,7 @@ bool FDisplayClusterRender_MeshComponentProxy::BeginRender_RenderThread(FRHIComm
 
 bool  FDisplayClusterRender_MeshComponentProxy::FinishRender_RenderThread(FRHICommandListImmediate& RHICmdList) const
 {
-	check(IsInRenderingThread());
-
-	if (IsValid_RenderThread())
+	if (IsEnabled_RenderThread())
 	{
 		// Support update
 		RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
@@ -62,7 +72,7 @@ void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHIComman
 {
 	check(IsInRenderingThread());
 
-	Release_RenderThread();
+	ImplRelease_RenderThread();
 
 	if (InMeshData && InMeshData->IsValid())
 	{

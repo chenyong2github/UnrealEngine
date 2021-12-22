@@ -37,9 +37,6 @@
 #include "Misc/DisplayClusterStrings.h"
 
 #include "Render/Viewport/DisplayClusterViewportManager.h"
-#include "Render/Viewport/IDisplayClusterViewport.h"
-#include "Render/Projection/IDisplayClusterProjectionPolicy.h"
-#include "WarpBlend/IDisplayClusterWarpBlend.h"
 
 #include "Game/EngineClasses/Scene/DisplayClusterRootActorInitializer.h"
 
@@ -583,27 +580,8 @@ void ADisplayClusterRootActor::UpdateProceduralMeshComponentData(const UProcedur
 	{
 		FName ProceduralComponentName = (InProceduralMeshComponent==nullptr) ? NAME_None : InProceduralMeshComponent->GetFName();
 
-		const TArrayView<IDisplayClusterViewport*> Viewports = ViewportManager->GetViewports();
-		for (IDisplayClusterViewport* ViewportIt : Viewports)
-		{
-			if (ViewportIt != nullptr)
-			{
-				const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& ProjectionPolicy = ViewportIt->GetProjectionPolicy();
-				if (ProjectionPolicy.IsValid())
-				{
-					TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlendInterface;
-					if (ProjectionPolicy->GetWarpBlendInterface(WarpBlendInterface) && WarpBlendInterface.IsValid())
-					{
-						// Update only interfaces with ProceduralMesh as geometry source 
-						if (WarpBlendInterface->GetWarpGeometryType() == EDisplayClusterWarpGeometryType::WarpProceduralMesh)
-						{
-							// Set the ProceduralMeshComponent geometry dirty for all valid WarpBlendInterface
-							WarpBlendInterface->MarkWarpGeometryComponentDirty(ProceduralComponentName);
-						}
-					}
-				}
-			}
-		}
+		// Support for all hidden internal refs
+		ViewportManager->MarkComponentGeometryDirty(ProceduralComponentName);
 	}
 }
 

@@ -17,7 +17,7 @@
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryContext.h"
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryProxy.h"
 
-#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
+#include "Render/IDisplayClusterRenderManager.h"
 
 bool FDisplayClusterWarpBlendLoader_ProceduralMeshComponent::Load(const FDisplayClusterWarpBlendConstruct::FAssignWarpProceduralMesh& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
 {
@@ -29,12 +29,15 @@ bool FDisplayClusterWarpBlendLoader_ProceduralMeshComponent::Load(const FDisplay
 		WarpBlend->GeometryContext.ProfileType = EDisplayClusterWarpProfileType::warp_A3D;
 
 		FDisplayClusterWarpBlend_GeometryProxy& Proxy = WarpBlend->GeometryContext.GeometryProxy;
-
+		
+		FDisplayClusterMeshUVs MeshUVs(InParameters.BaseUVIndex, InParameters.ChromakeyUVIndex);
 
 		// Assign procedural mesh
-		Proxy.MeshComponent = MakeUnique<FDisplayClusterRender_MeshComponent>();
-		Proxy.MeshComponent->AssignProceduralMeshComponentRefs(InParameters.ProceduralMeshComponent, InParameters.OriginComponent, InParameters.ProceduralMeshComponentSectionIndex);
+		Proxy.MeshComponent = IDisplayCluster::Get().GetRenderMgr()->CreateMeshComponent();
+		Proxy.MeshComponent->AssignProceduralMeshComponentRefs(InParameters.ProceduralMeshComponent, MeshUVs, InParameters.OriginComponent, InParameters.ProceduralMeshComponentSectionIndex);
+		
 		Proxy.ProceduralMeshComponentSectionIndex = InParameters.ProceduralMeshComponentSectionIndex;
+		Proxy.WarpMeshUVs = MeshUVs;
 
 		Proxy.GeometryType = EDisplayClusterWarpGeometryType::WarpProceduralMesh;
 

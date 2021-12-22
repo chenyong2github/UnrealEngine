@@ -59,6 +59,7 @@ public:
 	virtual bool UnregisterPostProcessFactory(const FString& InPostProcessType) override;
 	virtual TSharedPtr<IDisplayClusterPostProcessFactory> GetPostProcessFactory(const FString& InPostProcessType) override;
 	virtual void GetRegisteredPostProcess(TArray<FString>& OutPostProcessIDs) const override;
+	virtual TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> CreateMeshComponent() const override;
 
 	virtual IDisplayClusterViewportManager* GetViewportManager() const override;
 

@@ -3,10 +3,12 @@
 #include "Render/Viewport/Containers/DisplayClusterViewportRemap.h"
 #include "DisplayClusterConfigurationTypes_ViewportRemap.h"
 
+#include "Misc/DisplayClusterGlobals.h"
+#include "Render/IDisplayClusterRenderManager.h"
+
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
-#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
 #include "Render/Containers/DisplayClusterRender_MeshGeometry.h"
 
 bool FDisplayClusterViewportRemap::UpdateConfiguration(const FDisplayClusterViewport& InViewport, const FDisplayClusterConfigurationViewport_Remap& InRemapConfiguration)
@@ -94,7 +96,7 @@ void FDisplayClusterViewportRemap::Empty()
 	RemapMesh.Reset();
 }
 
-TSharedPtr<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> FDisplayClusterViewportRemap::GetRemapMesh() const
+TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> FDisplayClusterViewportRemap::GetRemapMesh() const
 {
 	check(IsInGameThread());
 
@@ -121,7 +123,7 @@ void FDisplayClusterViewportRemap::ImplUpdateRemapMesh(const FDisplayClusterView
 		if (!RemapMesh.IsValid())
 		{
 			// Create new viewport remap mesh component
-			RemapMesh = MakeShared<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe>();
+			RemapMesh = IDisplayCluster::Get().GetRenderMgr()->CreateMeshComponent();
 		}
 
 		RemapMesh->AssignMeshGeometry(&RemapGeometry);

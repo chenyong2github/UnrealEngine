@@ -11,5 +11,5 @@ class IDisplayClusterWarpBlend;
 class FDisplayClusterWarpBlendLoader_MeshComponent
 {
 public:
-	static bool Load(const FDisplayClusterWarpBlendConstruct::FAssignWarpMesh& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend);
+	static bool Load(const FDisplayClusterWarpBlendConstruct::FAssignWarpStaticMesh& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend);
 };

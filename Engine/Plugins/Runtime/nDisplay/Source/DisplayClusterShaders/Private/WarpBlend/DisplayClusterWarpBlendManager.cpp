@@ -16,7 +16,7 @@ bool FDisplayClusterWarpBlendManager::Create(const FDisplayClusterWarpBlendConst
 	return FDisplayClusterWarpBlendLoader_MPCDI::Load(InConstructParameters, OutWarpBlend);
 }
 
-bool  FDisplayClusterWarpBlendManager::Create(const FDisplayClusterWarpBlendConstruct::FAssignWarpMesh& InConstructParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend) const
+bool  FDisplayClusterWarpBlendManager::Create(const FDisplayClusterWarpBlendConstruct::FAssignWarpStaticMesh& InConstructParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend) const
 {
 	return FDisplayClusterWarpBlendLoader_MeshComponent::Load(InConstructParameters, OutWarpBlend);
 };

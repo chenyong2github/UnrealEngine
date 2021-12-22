@@ -76,8 +76,13 @@ namespace DisplayClusterProjectionStrings
 		
 		namespace mesh
 		{
-			static constexpr auto Component    = TEXT("mesh_component");
-			static constexpr auto SectionIndex = TEXT("section_index");
+			static constexpr auto Component        = TEXT("mesh_component");
+
+			static constexpr auto LODIndex         = TEXT("lod_index");
+			static constexpr auto SectionIndex     = TEXT("section_index");
+
+			static constexpr auto BaseUVIndex      = TEXT("base_uv_index");
+			static constexpr auto ChromakeyUVIndex = TEXT("chromakey_uv_index");
 		}
 
 		namespace mpcdi

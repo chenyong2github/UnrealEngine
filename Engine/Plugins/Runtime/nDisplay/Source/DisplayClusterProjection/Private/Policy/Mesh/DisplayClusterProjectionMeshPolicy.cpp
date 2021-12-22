@@ -22,36 +22,50 @@ FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const F
 {
 }
 
-bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(class IDisplayClusterViewport* InViewport)
+bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
 	if (WarpBlendInterface.IsValid() == false)
 	{
+		// Read configuration from config
 		FWarpMeshConfiguration WarpCfg;
 		if (!GetWarpMeshConfiguration(InViewport, WarpCfg))
 		{
 			return false;
 		}
 
+		// The mesh always uses DCRootActor as its origin because all geometry is in UE space.
+		InitializeOriginComponent(InViewport, TEXT(""));
+
 		IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
 		bool bResult = false;
 
 		if (WarpCfg.StaticMeshComponent != nullptr)
 		{
-			FDisplayClusterWarpBlendConstruct::FAssignWarpMesh CreateParameters;
-			CreateParameters.MeshComponent   = WarpCfg.StaticMeshComponent;
-			CreateParameters.OriginComponent = WarpCfg.OriginComponent;
+			FDisplayClusterWarpBlendConstruct::FAssignWarpStaticMesh CreateParameters;
+
+			CreateParameters.OriginComponent = GetOriginComp();
+
+			CreateParameters.StaticMeshComponent = WarpCfg.StaticMeshComponent;
+			CreateParameters.StaticMeshComponentLODIndex = WarpCfg.StaticMeshComponentLODIndex;
+
+			CreateParameters.BaseUVIndex      = WarpCfg.BaseUVIndex;
+			CreateParameters.ChromakeyUVIndex = WarpCfg.ChromakeyUVIndex;
 
 			bResult = ShadersAPI.GetWarpBlendManager().Create(CreateParameters, WarpBlendInterface);
 		}
 		else
 		{
 			FDisplayClusterWarpBlendConstruct::FAssignWarpProceduralMesh CreateParameters;
-			CreateParameters.OriginComponent = WarpCfg.OriginComponent;
+
+			CreateParameters.OriginComponent = GetOriginComp();
 
 			CreateParameters.ProceduralMeshComponent = WarpCfg.ProceduralMeshComponent;
-			CreateParameters.ProceduralMeshComponentSectionIndex = WarpCfg.SectionIndex;
+			CreateParameters.ProceduralMeshComponentSectionIndex = WarpCfg.ProceduralMeshComponentSectionIndex;
+
+			CreateParameters.BaseUVIndex      = WarpCfg.BaseUVIndex;
+			CreateParameters.ChromakeyUVIndex = WarpCfg.ChromakeyUVIndex;
 
 			bResult = ShadersAPI.GetWarpBlendManager().Create(CreateParameters, WarpBlendInterface);
 		}
@@ -70,7 +84,7 @@ bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(class IDisplay
 	return true;
 }
 
-bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
+bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -78,9 +92,6 @@ bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(class IDisplayCluster
 	// so we can extend it by our projection related functionality/components/etc.
 
 	WarpBlendContexts.Empty();
-
-	// Find origin component if it exists
-	InitializeOriginComponent(InViewport, OriginCompId);
 
 	if (!CreateWarpMeshInterface(InViewport))
 	{
@@ -130,9 +141,56 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 		return false;
 	}
 
+	int32 CfgBaseUVIndex = INDEX_NONE;
+	if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), DisplayClusterProjectionStrings::cfg::mesh::BaseUVIndex, CfgBaseUVIndex))
+	{
+		if (CfgBaseUVIndex >= 0)
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Verbose, TEXT("Found BaseUVIndex value - '%d'"), CfgBaseUVIndex);
+
+			OutWarpCfg.BaseUVIndex = CfgBaseUVIndex;
+		}
+		else
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Invalid BaseUVIndex value - '%d'"), CfgBaseUVIndex);
+		}
+	}
+
+	int32 CfgChromakeyUVIndex = INDEX_NONE;
+	if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), DisplayClusterProjectionStrings::cfg::mesh::ChromakeyUVIndex, CfgChromakeyUVIndex))
+	{
+		if (CfgChromakeyUVIndex >= 0)
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Verbose, TEXT("Found ChromakeyUVIndex value - '%d'"), CfgChromakeyUVIndex);
+
+			OutWarpCfg.ChromakeyUVIndex = CfgChromakeyUVIndex;
+		}
+		else
+		{
+			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Invalid ChromakeyUVIndex value - '%d'"), CfgChromakeyUVIndex);
+		}
+	}
+
 	// Get the StaticMeshComponent
 	OutWarpCfg.StaticMeshComponent = Root->GetComponentByName<UStaticMeshComponent>(ComponentId);
-	if (OutWarpCfg.StaticMeshComponent == nullptr)
+	if (OutWarpCfg.StaticMeshComponent != nullptr)
+	{
+		int CfgLODIndex;
+		if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), DisplayClusterProjectionStrings::cfg::mesh::LODIndex, CfgLODIndex))
+		{
+			if (CfgLODIndex >= 0)
+			{
+				UE_LOG(LogDisplayClusterProjectionMesh, Verbose, TEXT("Found StaticMeshComponent LODIndex value - '%d'"), CfgLODIndex);
+
+				OutWarpCfg.StaticMeshComponentLODIndex = CfgLODIndex;
+			}
+			else
+			{
+				UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Invalid StaticMeshComponent LODIndex value - '%d'"), CfgLODIndex);
+			}
+		}
+	}
+	else
 	{
 		// Get the ProceduralMeshComponent
 		OutWarpCfg.ProceduralMeshComponent = Root->GetComponentByName<UProceduralMeshComponent>(ComponentId);
@@ -140,29 +198,27 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 		{
 			if (!IsEditorOperationMode())
 			{
-				UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't initialize mesh component '%s'"), *ComponentId);
+				UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't find mesh component '%s' in RootActor"), *ComponentId);
 			}
 
 			return false;
 		}
 
-		int CfgSectionIndex;
+		int32 CfgSectionIndex;
 		if (DisplayClusterHelpers::map::template ExtractValueFromString(GetParameters(), DisplayClusterProjectionStrings::cfg::mesh::SectionIndex, CfgSectionIndex))
 		{
 			if (CfgSectionIndex >= 0)
 			{
-				UE_LOG(LogDisplayClusterProjectionMesh, Verbose, TEXT("Found SectionIndex value - '%d'"), CfgSectionIndex);
+				UE_LOG(LogDisplayClusterProjectionMesh, Verbose, TEXT("Found ProceduralMeshComponent SectionIndex value - '%d'"), CfgSectionIndex);
 
-				OutWarpCfg.SectionIndex = CfgSectionIndex;
+				OutWarpCfg.ProceduralMeshComponentSectionIndex = CfgSectionIndex;
 			}
 			else
 			{
-				UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Invalid SectionIndex value - '%d'"), CfgSectionIndex);
+				UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Invalid ProceduralMeshComponent SectionIndex value - '%d'"), CfgSectionIndex);
 			}
 		}
 	}
-
-	OutWarpCfg.OriginComponent = Root->GetRootComponent();
 
 	return true;
 }

@@ -12,7 +12,8 @@
 //*************************************************************************
 //* FDisaplyClusterMeshComponentProxyData
 //*************************************************************************
-FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FStaticMeshLODResources& InStaticMeshLODResource, const int32 InUVChromakeyIndex)
+FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FString& InSourceGeometryName, const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FStaticMeshLODResources& InStaticMeshLODResource, const FDisplayClusterMeshUVs& InUVs)
+	: SourceGeometryName(InSourceGeometryName)
 {
 	check(IsInGameThread());
 
@@ -20,8 +21,15 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 	const FStaticMeshVertexBuffer& VertexBuffer = InStaticMeshLODResource.VertexBuffers.StaticMeshVertexBuffer;
 	const FRawStaticIndexBuffer& IndexBuffer = InStaticMeshLODResource.IndexBuffer;
 
-	uint32 UVBaseIndex = 0;
-	uint32 UVChromakeyIndex = (InUVChromakeyIndex < InStaticMeshLODResource.GetNumTexCoords()) ? InUVChromakeyIndex : 0;
+	// Max tex coords used in StaticMesh
+	const int32 NumTexCoords = InStaticMeshLODResource.GetNumTexCoords();
+
+	// Remap BaseUVs
+	// By default, StaticMesh uses index 0 for BaseUV
+	const int32 BaseUVIndex = InUVs.GetSourceGeometryUVIndex(FDisplayClusterMeshUVs::ERemapTarget::Base, NumTexCoords, 0);
+
+	// By default, StaticMesh uses index 1 for ChromakeyUV
+	const int32 ChromakeyUVIndex = InUVs.GetSourceGeometryUVIndex(FDisplayClusterMeshUVs::ERemapTarget::Chromakey, NumTexCoords, 1);
 
 	IndexBuffer.GetCopy(IndexData);
 
@@ -29,25 +37,70 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 	for (int32 VertexIdx = 0; VertexIdx < VertexData.Num(); VertexIdx++)
 	{
 		VertexData[VertexIdx].Position = PositionBuffer.VertexPosition(VertexIdx);
-		VertexData[VertexIdx].UV = VertexBuffer.GetVertexUV(VertexIdx, UVBaseIndex);
-		VertexData[VertexIdx].UV_Chromakey = VertexBuffer.GetVertexUV(VertexIdx, UVChromakeyIndex);
+		VertexData[VertexIdx].UV = VertexBuffer.GetVertexUV(VertexIdx, BaseUVIndex);
+		VertexData[VertexIdx].UV_Chromakey = VertexBuffer.GetVertexUV(VertexIdx, ChromakeyUVIndex);
 	}
 
 	UpdateData(InDataFunc);
 }
 
-FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FProcMeshSection& InProcMeshSection, const int32 InUVChromakeyIndex)
+FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FString& InSourceGeometryName, const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FProcMeshSection& InProcMeshSection, const FDisplayClusterMeshUVs& InUVs)
+	: SourceGeometryName(InSourceGeometryName)
 {
+	if (InUVs[FDisplayClusterMeshUVs::ERemapTarget::Base] > 3)
+	{
+		// Show warning for values >3
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("MeshComponentProxyData('%s'): Base UVIndex value '%d' is invalid - ProceduralMesh support range 0..3"), *SourceGeometryName, InUVs[FDisplayClusterMeshUVs::ERemapTarget::Base]);
+	}
+
+	if (InUVs[FDisplayClusterMeshUVs::ERemapTarget::Chromakey] > 3)
+	{
+		// Show warning for values >3
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("MeshComponentProxyData('%s'): Chromakey UVIndex value '%d' is invalid - ProceduralMesh support range 0..3"), *SourceGeometryName, InUVs[FDisplayClusterMeshUVs::ERemapTarget::Chromakey]);
+	}
+
+	// Remap BaseUVs
+	// Max tex coords used in ProceduralMesh now 4
+	const int32 NumTexCoords = 4;
+
+	// By default, ProceduralMesh uses index 0 for BaseUV
+	const int32 BaseUVIndex = InUVs.GetSourceGeometryUVIndex(FDisplayClusterMeshUVs::ERemapTarget::Base, NumTexCoords, 0);
+
+	// By default, ProceduralMesh uses index 0 for ChromakeyUV
+	const int32 ChromakeyUVIndex = InUVs.GetSourceGeometryUVIndex(FDisplayClusterMeshUVs::ERemapTarget::Chromakey, NumTexCoords, 0);
+
 	VertexData.AddZeroed(InProcMeshSection.ProcVertexBuffer.Num());
 	for (int32 VertexIdx = 0; VertexIdx < VertexData.Num(); VertexIdx++)
 	{
 		const FProcMeshVertex& InVertex = InProcMeshSection.ProcVertexBuffer[VertexIdx];
 
 		VertexData[VertexIdx].Position = InVertex.Position;
-		VertexData[VertexIdx].UV = InVertex.UV0;
 
-		switch (InUVChromakeyIndex)
+		// Remap source geometry UV for Base
+		switch (BaseUVIndex)
 		{
+		default:
+		case 0:
+			VertexData[VertexIdx].UV = InVertex.UV0;
+			break;
+		case 1:
+			VertexData[VertexIdx].UV = InVertex.UV1;
+			break;
+		case 2:
+			VertexData[VertexIdx].UV = InVertex.UV2;
+			break;
+		case 3:
+			VertexData[VertexIdx].UV = InVertex.UV3;
+			break;
+		}
+
+		// Remap source geometry UV for Chromakey
+		switch (ChromakeyUVIndex)
+		{
+		default:
+		case 0:
+			VertexData[VertexIdx].UV_Chromakey = InVertex.UV0;
+			break;
 		case 1:
 			VertexData[VertexIdx].UV_Chromakey = InVertex.UV1;
 			break;
@@ -56,9 +109,6 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 			break;
 		case 3:
 			VertexData[VertexIdx].UV_Chromakey = InVertex.UV3;
-			break;
-		default:
-			VertexData[VertexIdx].UV_Chromakey = InVertex.UV0;
 			break;
 		}
 	}
@@ -73,7 +123,8 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 	UpdateData(InDataFunc);
 }
 
-FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FDisplayClusterRender_MeshGeometry& InMeshGeometry)
+FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FString& InSourceGeometryName, const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FDisplayClusterRender_MeshGeometry& InMeshGeometry)
+	: SourceGeometryName(InSourceGeometryName)
 {
 	bool bUseChromakeyUV = InMeshGeometry.ChromakeyUV.Num() > 0;
 
@@ -103,8 +154,8 @@ void FDisplayClusterRender_MeshComponentProxyData::UpdateData(const EDisplayClus
 		{
 		case EDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace:
 			// Output remap require normalize mesh to screen space coords:
-			NormalizeToScreenSpace();
-			RemoveInvisibleFaces();
+			ImplNormalizeToScreenSpace();
+			ImplRemoveInvisibleFaces();
 			break;
 
 		default:
@@ -128,19 +179,11 @@ void FDisplayClusterRender_MeshComponentProxyData::UpdateData(const EDisplayClus
 
 	if (!IsValid())
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::UpdateData() Invalid mesh - ignored"));
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::UpdateData('%s') Invalid mesh - ignored"), *SourceGeometryName);
 	}
 }
 
-enum class EGeometryPlane2DAxis : uint8
-{
-	XY,
-	XZ,
-	YZ,
-	Undefined
-};
-
-void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
+void FDisplayClusterRender_MeshComponentProxyData::ImplNormalizeToScreenSpace()
 {
 	FBox AABBox(FVector(FLT_MAX, FLT_MAX, FLT_MAX), FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX));
 
@@ -165,18 +208,20 @@ void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
 	);
 
 	bool bIsValidMeshAxis = true;
+
 	// Support axis rules: Z=UP(screen Y), Y=RIGHT(screen X), X=NotUsed
-	EGeometryPlane2DAxis GeometryPlane2DAxis = EGeometryPlane2DAxis::Undefined;
 	if (FMath::Abs(Size.Y) <= KINDA_SMALL_NUMBER)
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace(): The Y axis is used in screen space as 'x' and the distance cannot be zero."));
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace('%s'): The Y axis is used in screen space as 'x' and the distance cannot be zero."), *SourceGeometryName);
 		bIsValidMeshAxis = false;
-		}
+	}
+
 	if (FMath::Abs(Size.Z) <= KINDA_SMALL_NUMBER)
-		{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace(): The Z axis is used in screen space as 'y' and the distance cannot be zero."));
+	{
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace('%s'): The Z axis is used in screen space as 'y' and the distance cannot be zero."), *SourceGeometryName);
 		bIsValidMeshAxis = false;
-		}
+	}
+
 	if (bIsValidMeshAxis)
 	{
 		// Checking for strange aspect ratio
@@ -185,7 +230,7 @@ void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
 		if (AspectRatio > 10)
 		{
 			// just warning, experimental
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("MeshComponentProxyData::NormalizeToScreenSpace(): Aspect ratio is to big '%d'- <%d,%d>"), AspectRatio, ScreenSize.X, ScreenSize.Y);
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("MeshComponentProxyData::NormalizeToScreenSpace('%s'): Aspect ratio is to big '%d'- <%d,%d>"), *SourceGeometryName, AspectRatio, ScreenSize.X, ScreenSize.Y);
 		}
 	}
 
@@ -197,7 +242,7 @@ void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
 		NumTriangles = 0;
 		NumVertices = 0;
 
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace() Invalid mesh. Expected mesh axis: Z=UP(screen Y), Y=RIGHT(screen X), X=NotUsed"));
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace('%s') Invalid mesh. Expected mesh axis: Z=UP(screen Y), Y=RIGHT(screen X), X=NotUsed"), *SourceGeometryName);
 		return;
 	}
 
@@ -213,8 +258,12 @@ void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
 	}
 }
 
-void FDisplayClusterRender_MeshComponentProxyData::RemoveInvisibleFaces()
+void FDisplayClusterRender_MeshComponentProxyData::ImplRemoveInvisibleFaces()
 {
+	// The geometry is created by the 3D artist and is sometimes incorrect. 
+	// For example, in the OutputRemap post-process, it is necessary that all UVs be in the range 0..1. 
+	// For visual validation, all points outside the 0..1 range are excluded during geometry loading when called function RemoveInvisibleFaces().
+
 	TArray<uint32> VisibleIndexData;
 	int32 RemovedFacesNum = 0;
 	const int32 FacesNum = IndexData.Num() / 3;
@@ -246,7 +295,7 @@ void FDisplayClusterRender_MeshComponentProxyData::RemoveInvisibleFaces()
 
 	if (RemovedFacesNum)
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::RemoveInvisibleFaces() Removed %d/%d faces"), RemovedFacesNum, FacesNum);
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::RemoveInvisibleFaces('%s') Removed %d/%d faces"), *SourceGeometryName, RemovedFacesNum, FacesNum);
 	}
 }
 

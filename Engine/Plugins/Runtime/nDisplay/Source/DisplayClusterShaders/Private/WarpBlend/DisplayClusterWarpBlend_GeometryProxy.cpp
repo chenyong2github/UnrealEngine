@@ -2,8 +2,7 @@
 
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryProxy.h"
 
-#include "Render/DisplayClusterRenderTexture.h"
-#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
+#include "Render/Containers/IDisplayClusterRender_MeshComponent.h"
 
 #include "WarpBlend/Math/DisplayClusterWarpBlendMath_WarpMesh.h"
 #include "WarpBlend/Math/DisplayClusterWarpBlendMath_WarpProceduralMesh.h"
@@ -12,7 +11,6 @@
 /////////////////////////////////////////////////////////////////////////////////
 /// FDisplayClusterWarpBlend_GeometryProxy
 /////////////////////////////////////////////////////////////////////////////////
-
 bool FDisplayClusterWarpBlend_GeometryProxy::UpdateGeometry()
 {
 	switch (GeometryType)
@@ -34,7 +32,7 @@ bool FDisplayClusterWarpBlend_GeometryProxy::UpdateGeometry()
 	return false;
 }
 
-const FDisplayClusterRender_MeshComponentProxy* FDisplayClusterWarpBlend_GeometryProxy::GetWarpMeshProxy_RenderThread() const
+const IDisplayClusterRender_MeshComponentProxy* FDisplayClusterWarpBlend_GeometryProxy::GetWarpMeshProxy_RenderThread() const
 {
 	check(IsInRenderingThread());
 
@@ -115,7 +113,7 @@ bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometry_WarpMesh()
 	// If StaticMesh geometry changed, update mpcdi math and RHI resources
 	if (MeshComponent->IsMeshComponentRefGeometryDirty() || bIsMeshComponentLost)
 	{
-		MeshComponent->AssignStaticMeshComponentRefs(StaticMeshComponent, OriginComponent, StaticMeshComponentLODIndex);
+		MeshComponent->AssignStaticMeshComponentRefs(StaticMeshComponent, WarpMeshUVs, OriginComponent, StaticMeshComponentLODIndex);
 		bIsMeshComponentLost = false;
 	}
 	
@@ -164,7 +162,7 @@ bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometry_WarpProceduralMe
 	// If ProceduralMesh geometry changed, update mpcdi math and RHI resources
 	if (MeshComponent->IsMeshComponentRefGeometryDirty() || bIsMeshComponentLost)
 	{
-		MeshComponent->AssignProceduralMeshComponentRefs(ProceduralMeshComponent, OriginComponent, ProceduralMeshComponentSectionIndex);
+		MeshComponent->AssignProceduralMeshComponentRefs(ProceduralMeshComponent, WarpMeshUVs, OriginComponent, ProceduralMeshComponentSectionIndex);
 		bIsMeshComponentLost = false;
 	}
 

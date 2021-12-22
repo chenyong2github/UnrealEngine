@@ -32,7 +32,7 @@ public:
 	virtual class FRHITexture* GetTexture(EDisplayClusterWarpBlendTextureType TextureType) const = 0;
 	virtual float              GetAlphaMapEmbeddedGamma() const = 0;
 
-	virtual const class FDisplayClusterRender_MeshComponentProxy* GetWarpMeshProxy_RenderThread() const = 0;
+	virtual const class IDisplayClusterRender_MeshComponentProxy* GetWarpMeshProxy_RenderThread() const = 0;
 
 	// Return current warp profile type
 	virtual EDisplayClusterWarpProfileType  GetWarpProfileType() const = 0;

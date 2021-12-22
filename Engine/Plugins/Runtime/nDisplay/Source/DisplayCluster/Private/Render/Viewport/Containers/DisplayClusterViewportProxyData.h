@@ -13,7 +13,7 @@ class FDisplayClusterRenderTargetResource;
 class FDisplayClusterViewport;
 class FDisplayClusterViewportProxy;
 class FDisplayClusterViewport_Context;
-class FDisplayClusterRender_MeshComponent;
+class IDisplayClusterRender_MeshComponent;
 
 //
 // Container for data exchange game->render threads
@@ -29,7 +29,7 @@ public:
 private:
 	FDisplayClusterViewportProxy* DstViewportProxy;
 
-	TSharedPtr<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> RemapMesh;
+	TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> RemapMesh;
 
 	FDisplayClusterViewport_OverscanSettings     OverscanSettings;
 

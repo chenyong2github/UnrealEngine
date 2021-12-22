@@ -39,7 +39,7 @@ public:
 		return GeometryContext.GeometryProxy.AlphaMapEmbeddedGamma; 
 	}
 
-	virtual const FDisplayClusterRender_MeshComponentProxy* GetWarpMeshProxy_RenderThread() const override
+	virtual const IDisplayClusterRender_MeshComponentProxy* GetWarpMeshProxy_RenderThread() const override
 	{
 		return GeometryContext.GeometryProxy.GetWarpMeshProxy_RenderThread();
 	}

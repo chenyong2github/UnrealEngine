@@ -3,8 +3,6 @@
 #include "WarpBlend/Math/DisplayClusterWarpBlendMath_Frustum.h"
 
 #include "Render/IDisplayClusterRenderTexture.h"
-#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
-
 #include "Misc/DisplayClusterHelpers.h"
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
