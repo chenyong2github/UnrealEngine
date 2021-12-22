@@ -44,9 +44,18 @@ static const FStaticMeshLODResources* ImplGetStaticMeshLODResources(const UStati
 {
 	if (InStaticMesh != nullptr)
 	{
-		if (InStaticMesh->bAllowCPUAccess)
+		if (InStaticMesh->bAllowCPUAccess == false)
 		{
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("If packaging this project, static mesh '%s' requires its AllowCPUAccess flag to be enabled."), *InStaticMesh->GetName());
+			const FString InStaticMeshName = InStaticMesh->GetName();
+
+			// Removed spam in log
+			static TArray<FString> MeshNamesInLog;
+			if (MeshNamesInLog.Find(InStaticMeshName) == INDEX_NONE)
+			{
+				// Show this warning once per mesh
+				UE_LOG(LogDisplayClusterRender, Warning, TEXT("If packaging this project, static mesh '%s' requires its AllowCPUAccess flag to be enabled."), *InStaticMeshName);
+				MeshNamesInLog.Add(InStaticMeshName);
+			}
 #if !WITH_EDITOR
 			// Can't access to cooked data from CPU without this flag
 			return nullptr;
@@ -99,7 +108,7 @@ FDisplayClusterRender_MeshComponent::~FDisplayClusterRender_MeshComponent()
 	MeshComponentProxy = nullptr;
 }
 
-USceneComponent* FDisplayClusterRender_MeshComponent::GetOriginComponent()
+USceneComponent* FDisplayClusterRender_MeshComponent::GetOriginComponent() const
 {
 	check(IsInGameThread());
 
@@ -113,20 +122,30 @@ void FDisplayClusterRender_MeshComponent::SetGeometryFunc(const EDisplayClusterR
 	DataFunc = InDataFunc;
 }
 
-FDisplayClusterRender_MeshComponentProxy* FDisplayClusterRender_MeshComponent::GetMeshComponentProxy_RenderThread() const
+IDisplayClusterRender_MeshComponentProxy* FDisplayClusterRender_MeshComponent::GetMeshComponentProxy_RenderThread() const
 {
 	check(IsInRenderingThread());
 
 	return MeshComponentProxy;
 }
 
-UStaticMeshComponent* FDisplayClusterRender_MeshComponent::GetStaticMeshComponent()
+UStaticMeshComponent* FDisplayClusterRender_MeshComponent::GetStaticMeshComponent() const
 {
 	check(IsInGameThread());
 
 	if(GeometrySource == EDisplayClusterRender_MeshComponentGeometrySource::StaticMeshComponentRef)
 	{
 		return StaticMeshComponentRef.GetOrFindStaticMeshComponent();
+	}
+
+	return nullptr;
+}
+
+const UStaticMesh* FDisplayClusterRender_MeshComponent::GetStaticMesh() const
+{
+	if (StaticMeshRef.IsValid() && !StaticMeshRef.IsStale())
+	{
+		return StaticMeshRef.Get();
 	}
 
 	return nullptr;
@@ -144,7 +163,7 @@ const FStaticMeshLODResources* FDisplayClusterRender_MeshComponent::GetStaticMes
 	return nullptr;
 }
 
-void FDisplayClusterRender_MeshComponent::AssignStaticMeshComponentRefs(UStaticMeshComponent* InStaticMeshComponent, USceneComponent* InOriginComponent, int32 InLODIndex)
+void FDisplayClusterRender_MeshComponent::AssignStaticMeshComponentRefs(UStaticMeshComponent* InStaticMeshComponent, const FDisplayClusterMeshUVs& InUVs, USceneComponent* InOriginComponent, int32 InLODIndex)
 {
 	check(IsInGameThread());
 
@@ -153,6 +172,8 @@ void FDisplayClusterRender_MeshComponent::AssignStaticMeshComponentRefs(UStaticM
 	StaticMeshComponentRef.SetStaticMeshComponentRef(InStaticMeshComponent);
 	ProceduralMeshComponentRef.ResetProceduralMeshComponentRef();
 
+	StaticMeshRef.Reset();
+
 	// Set source geometry type
 	GeometrySource = EDisplayClusterRender_MeshComponentGeometrySource::StaticMeshComponentRef;
 
@@ -160,8 +181,9 @@ void FDisplayClusterRender_MeshComponent::AssignStaticMeshComponentRefs(UStaticM
 	const FStaticMeshLODResources* StaticMeshLODResources = ImplGetStaticMeshComponentLODResources(InStaticMeshComponent, InLODIndex);
 	if (StaticMeshLODResources != nullptr)
 	{
+		const FString SourceGeometryName = InStaticMeshComponent->GetFName().ToString();
 		// Send geometry to proxy
-		ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(DataFunc, *StaticMeshLODResources));
+		ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(SourceGeometryName, DataFunc, *StaticMeshLODResources, InUVs));
 	}
 	else
 	{
@@ -170,7 +192,7 @@ void FDisplayClusterRender_MeshComponent::AssignStaticMeshComponentRefs(UStaticM
 	}
 }
 
-UProceduralMeshComponent* FDisplayClusterRender_MeshComponent::GetProceduralMeshComponent()
+UProceduralMeshComponent* FDisplayClusterRender_MeshComponent::GetProceduralMeshComponent() const
 {
 	check(IsInGameThread());
 
@@ -194,7 +216,7 @@ const FProcMeshSection* FDisplayClusterRender_MeshComponent::GetProceduralMeshCo
 	return nullptr;
 }
 
-void FDisplayClusterRender_MeshComponent::AssignProceduralMeshComponentRefs(UProceduralMeshComponent* InProceduralMeshComponent, USceneComponent* InOriginComponent, const int32 InSectionIndex)
+void FDisplayClusterRender_MeshComponent::AssignProceduralMeshComponentRefs(UProceduralMeshComponent* InProceduralMeshComponent, const FDisplayClusterMeshUVs& InUVs, USceneComponent* InOriginComponent, const int32 InSectionIndex)
 {
 	check(IsInGameThread());
 
@@ -203,6 +225,8 @@ void FDisplayClusterRender_MeshComponent::AssignProceduralMeshComponentRefs(UPro
 	StaticMeshComponentRef.ResetStaticMeshComponentRef();
 	ProceduralMeshComponentRef.SetProceduralMeshComponentRef(InProceduralMeshComponent);
 
+	StaticMeshRef.Reset();
+
 	// Set source geometry type
 	GeometrySource = EDisplayClusterRender_MeshComponentGeometrySource::ProceduralMeshComponentRef;
 
@@ -210,8 +234,9 @@ void FDisplayClusterRender_MeshComponent::AssignProceduralMeshComponentRefs(UPro
 	const FProcMeshSection* ProcMeshSection = ImplGetProceduralMeshComponentSection(InProceduralMeshComponent, InSectionIndex);
 	if (ProcMeshSection != nullptr)
 	{
+		const FString SourceGeometryName = InProceduralMeshComponent->GetFName().ToString();
 		// Send geometry to proxy
-		ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(DataFunc, *ProcMeshSection));
+		ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(SourceGeometryName, DataFunc, *ProcMeshSection, InUVs));
 	}
 	else
 	{
@@ -220,7 +245,7 @@ void FDisplayClusterRender_MeshComponent::AssignProceduralMeshComponentRefs(UPro
 	}
 }
 
-void FDisplayClusterRender_MeshComponent::AssignProceduralMeshSection(const FProcMeshSection& InProcMeshSection)
+void FDisplayClusterRender_MeshComponent::AssignProceduralMeshSection(const FProcMeshSection& InProcMeshSection, const FDisplayClusterMeshUVs& InUVs)
 {
 	check(IsInGameThread());
 
@@ -228,15 +253,18 @@ void FDisplayClusterRender_MeshComponent::AssignProceduralMeshSection(const FPro
 	OriginComponentRef.ResetSceneComponent();
 	StaticMeshComponentRef.ResetStaticMeshComponentRef();
 	ProceduralMeshComponentRef.ResetProceduralMeshComponentRef();
+
+	StaticMeshRef.Reset();
 
 	// Set source geometry type
 	GeometrySource = EDisplayClusterRender_MeshComponentGeometrySource::ProceduralMeshSection;
 
+	const FString SourceGeometryName(TEXT("ProcMeshSection"));
 	// Send geometry to proxy
-	ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(DataFunc, InProcMeshSection));
+	ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(SourceGeometryName, DataFunc, InProcMeshSection, InUVs));
 }
 
-void FDisplayClusterRender_MeshComponent::AssignStaticMesh(const UStaticMesh* InStaticMesh, int32 InLODIndex)
+void FDisplayClusterRender_MeshComponent::AssignStaticMesh(const UStaticMesh* InStaticMesh, const FDisplayClusterMeshUVs& InUVs, int32 InLODIndex)
 {
 	check(IsInGameThread());
 
@@ -244,6 +272,8 @@ void FDisplayClusterRender_MeshComponent::AssignStaticMesh(const UStaticMesh* In
 	OriginComponentRef.ResetSceneComponent();
 	StaticMeshComponentRef.ResetStaticMeshComponentRef();
 	ProceduralMeshComponentRef.ResetProceduralMeshComponentRef();
+
+	StaticMeshRef = InStaticMesh;
 
 	// Set source geometry type
 	GeometrySource = EDisplayClusterRender_MeshComponentGeometrySource::StaticMeshAsset;
@@ -252,8 +282,9 @@ void FDisplayClusterRender_MeshComponent::AssignStaticMesh(const UStaticMesh* In
 	const FStaticMeshLODResources* StaticMeshLODResources = ImplGetStaticMeshLODResources(InStaticMesh, InLODIndex);
 	if (StaticMeshLODResources != nullptr)
 	{
+		const FString SourceGeometryName = InStaticMesh->GetFName().ToString();
 		// Send geometry to proxy
-		ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(DataFunc, *StaticMeshLODResources));
+		ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(SourceGeometryName, DataFunc, *StaticMeshLODResources, InUVs));
 	}
 	else
 	{
@@ -271,18 +302,33 @@ void FDisplayClusterRender_MeshComponent::AssignMeshGeometry(const FDisplayClust
 	StaticMeshComponentRef.ResetStaticMeshComponentRef();
 	ProceduralMeshComponentRef.ResetProceduralMeshComponentRef();
 
+	StaticMeshRef.Reset();
+
 	// Set source geometry type
 	GeometrySource = EDisplayClusterRender_MeshComponentGeometrySource::MeshGeometry;
 
 	if (InMeshGeometry != nullptr)
 	{
+		const FString SourceGeometryName(TEXT("nDCRender_MeshGeometry"));
 		// Send geometry to proxy
-		ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(DataFunc, *InMeshGeometry));
+		ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(SourceGeometryName, DataFunc, *InMeshGeometry));
 	}
 	else
 	{
 		// no InMeshGeometry- release proxy geometry
 		ImplUpdateMeshComponentProxyData(MeshComponentProxy, nullptr);
+	}
+}
+
+void FDisplayClusterRender_MeshComponent::AssignMeshGeometry_RenderThread(const FDisplayClusterRender_MeshGeometry* InMeshGeometry, const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc) const
+{
+	check(IsInRenderingThread());
+
+	if (InMeshGeometry != nullptr)
+	{
+		const FString SourceGeometryName(TEXT("nDCRender_MeshGeometry_RenderThread"));
+		// Send geometry to proxy
+		ImplUpdateMeshComponentProxyData(MeshComponentProxy, new FDisplayClusterRender_MeshComponentProxyData(SourceGeometryName, InDataFunc, *InMeshGeometry));
 	}
 }
 
@@ -294,6 +340,8 @@ void FDisplayClusterRender_MeshComponent::ReleaseMeshComponent()
 	OriginComponentRef.ResetSceneComponent();
 	StaticMeshComponentRef.ResetStaticMeshComponentRef();
 	ProceduralMeshComponentRef.ResetProceduralMeshComponentRef();
+
+	StaticMeshRef.Reset();
 
 	// Set source geometry type
 	GeometrySource = EDisplayClusterRender_MeshComponentGeometrySource::Disabled;

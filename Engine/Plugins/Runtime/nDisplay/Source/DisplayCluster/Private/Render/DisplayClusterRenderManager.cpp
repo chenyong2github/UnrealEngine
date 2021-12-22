@@ -29,6 +29,8 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicyFactory.h"
 
+#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
+
 #include "Render/Presentation/DisplayClusterPresentationNative.h"
 
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyFactoryInternal.h"
@@ -474,6 +476,11 @@ void FDisplayClusterRenderManager::GetRegisteredPostProcess(TArray<FString>& Out
 {
 	FScopeLock Lock(&CritSecInternals);
 	PostProcessFactories.GetKeys(OutPostProcessIDs);
+}
+
+TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> FDisplayClusterRenderManager::CreateMeshComponent() const
+{
+	return MakeShared<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe>();
 }
 
 IDisplayClusterViewportManager* FDisplayClusterRenderManager::GetViewportManager() const

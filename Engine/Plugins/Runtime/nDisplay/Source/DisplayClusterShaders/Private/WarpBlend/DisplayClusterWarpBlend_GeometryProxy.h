@@ -3,11 +3,10 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "WarpBlend/DisplayClusterWarpEnums.h"
-#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
+#include "Render/Containers/IDisplayClusterRender_MeshComponent.h"
 #include "Render/IDisplayClusterRenderTexture.h"
 
-class IDisplayClusterRenderTexture;
-class FDisplayClusterRender_MeshComponentProxy;
+class IDisplayClusterRender_MeshComponentProxy;
 
 struct FStaticMeshLODResources;
 struct FProcMeshSection;
@@ -46,7 +45,7 @@ public:
 	bool UpdateGeometry();
 	bool UpdateGeometryLOD(const FIntPoint& InSizeLOD);
 
-	const FDisplayClusterRender_MeshComponentProxy* GetWarpMeshProxy_RenderThread() const;
+	const IDisplayClusterRender_MeshComponentProxy* GetWarpMeshProxy_RenderThread() const;
 
 	const FStaticMeshLODResources* GetStaticMeshComponentLODResources() const;
 	const FProcMeshSection* GetProceduralMeshComponentSection() const;
@@ -70,7 +69,9 @@ public:
 	TUniquePtr<IDisplayClusterRenderTexture> AlphaMapTexture;
 	TUniquePtr<IDisplayClusterRenderTexture> BetaMapTexture;
 
-	TUniquePtr<FDisplayClusterRender_MeshComponent> MeshComponent;
+	TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> MeshComponent;
+
+	FDisplayClusterMeshUVs WarpMeshUVs;
 
 	// for huge warp mesh geometry, change this value, and use LOD geometry in frustum math
 	int32 StaticMeshComponentLODIndex = 0;

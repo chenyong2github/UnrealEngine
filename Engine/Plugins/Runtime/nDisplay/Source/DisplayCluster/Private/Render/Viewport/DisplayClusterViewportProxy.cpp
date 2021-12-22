@@ -12,8 +12,8 @@
 
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
-#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
-#include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
+#include "Render/Containers/IDisplayClusterRender_MeshComponent.h"
+#include "Render/Containers/IDisplayClusterRender_MeshComponentProxy.h"
 
 #if WITH_EDITOR
 #include "DisplayClusterRootActor.h"
@@ -202,8 +202,8 @@ void FDisplayClusterViewportProxy::ImplViewportRemap_RenderThread(FRHICommandLis
 
 	if (RemapMesh.IsValid())
 	{
-		const FDisplayClusterRender_MeshComponentProxy* MeshProxy = RemapMesh->GetMeshComponentProxy_RenderThread();
-		if (MeshProxy && MeshProxy->IsValid_RenderThread())
+		const IDisplayClusterRender_MeshComponentProxy* MeshProxy = RemapMesh->GetMeshComponentProxy_RenderThread();
+		if (MeshProxy!=nullptr && MeshProxy->IsEnabled_RenderThread())
 		{
 			if (AdditionalFrameTargetableResources.Num() != OutputFrameTargetableResources.Num())
 			{
@@ -241,8 +241,8 @@ EDisplayClusterViewportResourceType FDisplayClusterViewportProxy::GetOutputResou
 
 	if (RemapMesh.IsValid())
 	{
-		const FDisplayClusterRender_MeshComponentProxy* MeshProxy = RemapMesh->GetMeshComponentProxy_RenderThread();
-		if (MeshProxy && MeshProxy->IsValid_RenderThread())
+		const IDisplayClusterRender_MeshComponentProxy* MeshProxy = RemapMesh->GetMeshComponentProxy_RenderThread();
+		if (MeshProxy!=nullptr && MeshProxy->IsEnabled_RenderThread())
 		{
 			// In this case render to additional frame targetable
 			return EDisplayClusterViewportResourceType::AdditionalFrameTargetableResource;

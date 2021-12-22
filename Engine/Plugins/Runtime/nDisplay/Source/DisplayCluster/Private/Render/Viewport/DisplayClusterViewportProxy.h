@@ -13,7 +13,7 @@ class FDisplayClusterViewportManagerProxy;
 class FDisplayClusterViewport;
 class IDisplayClusterShaders;
 class IDisplayClusterProjectionPolicy;
-class FDisplayClusterRender_MeshComponent;
+class IDisplayClusterRender_MeshComponent;
 
 class FDisplayClusterViewportProxy
 	: public IDisplayClusterViewportProxy
@@ -120,7 +120,7 @@ protected:
 	// Additional parameters
 	FDisplayClusterViewport_OverscanSettings     OverscanSettings;
 
-	TSharedPtr<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> RemapMesh;
+	TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> RemapMesh;
 
 	// Projection policy instance that serves this viewport
 	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ProjectionPolicy;

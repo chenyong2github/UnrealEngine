@@ -22,10 +22,12 @@
 
 #include "ClearQuad.h"
 
-#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
-#include "Render/Containers/DisplayClusterRender_MeshComponentProxy.h"
-#include "Render/Containers/DisplayClusterRender_MeshComponentProxyData.h"
+#include "Render/Containers/IDisplayClusterRender_MeshComponent.h"
+#include "Render/Containers/IDisplayClusterRender_MeshComponentProxy.h"
 #include "Render/Containers/DisplayClusterRender_MeshGeometry.h"
+
+#include "IDisplayCluster.h"
+#include "Render/IDisplayClusterRenderManager.h"
 
 #define OutputRemapShaderFileName TEXT("/Plugin/nDisplay/Private/OutputRemapShaders.usf")
 
@@ -87,7 +89,7 @@ IMPLEMENT_SHADER_TYPE(, FOutputRemapVS, OutputRemapShaderFileName, TEXT("OutputR
 
 DECLARE_GPU_STAT_NAMED(nDisplay_PostProcess_OutputRemap, TEXT("nDisplay PostProcess::OutputRemap"));
 
-bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRemap(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InSourceTexture, FRHITexture2D* InRenderTargetableDestTexture, const FDisplayClusterRender_MeshComponentProxy& InMeshProxy)
+bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRemap(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InSourceTexture, FRHITexture2D* InRenderTargetableDestTexture, const IDisplayClusterRender_MeshComponentProxy& InMeshProxy)
 {
 	check(IsInRenderingThread());
 
@@ -96,7 +98,7 @@ bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRema
 		return false;
 	}
 
-	FDisplayClusterRender_MeshComponentProxy const* MeshProxy = &InMeshProxy;
+	IDisplayClusterRender_MeshComponentProxy const* MeshProxy = &InMeshProxy;
 
 	const EVarOutputRemapShaderType ShaderType = (EVarOutputRemapShaderType)CVarOutputRemapShaderType.GetValueOnAnyThread();
 	switch (ShaderType)
@@ -104,22 +106,24 @@ bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRema
 		case EVarOutputRemapShaderType::Passthrough:
 		{
 			// Use simple 1:1 test mesh for shader forwarding
-			static FDisplayClusterRender_MeshComponent TestMesh_Passthrough;
+			static TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> TestMesh_Passthrough = IDisplayCluster::Get().GetRenderMgr()->CreateMeshComponent();
 
-			FDisplayClusterRender_MeshComponentProxy* TestMeshMeshComponentProxy = TestMesh_Passthrough.GetMeshComponentProxy_RenderThread();
-			if (TestMeshMeshComponentProxy != nullptr)
+			if (TestMesh_Passthrough.IsValid())
 			{
-				if (!TestMeshMeshComponentProxy->IsValid_RenderThread())
+				IDisplayClusterRender_MeshComponentProxy* TestMeshMeshComponentProxy = TestMesh_Passthrough->GetMeshComponentProxy_RenderThread();
+				if (TestMeshMeshComponentProxy != nullptr)
 				{
-					// Initialize once:
-					FDisplayClusterRender_MeshGeometry PassthroughMeshGeometry(EDisplayClusterRender_MeshGeometryCreateType::Passthrough);
-					FDisplayClusterRender_MeshComponentProxyData ProxyData(EDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace, PassthroughMeshGeometry);
+					if (!TestMeshMeshComponentProxy->IsEnabled_RenderThread())
+					{
+						// Initialize once:
+						FDisplayClusterRender_MeshGeometry PassthroughMeshGeometry(EDisplayClusterRender_MeshGeometryCreateType::Passthrough);
+						TestMesh_Passthrough->AssignMeshGeometry_RenderThread(&PassthroughMeshGeometry, EDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace);
+					}
 
-					TestMeshMeshComponentProxy->UpdateRHI_RenderThread(RHICmdList, &ProxyData);
+					MeshProxy = TestMeshMeshComponentProxy;
 				}
-
-				MeshProxy = TestMeshMeshComponentProxy;
 			}
+
 			break;
 		}
 

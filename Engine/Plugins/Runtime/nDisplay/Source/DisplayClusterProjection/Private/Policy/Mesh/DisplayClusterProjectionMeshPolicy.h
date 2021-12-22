@@ -9,8 +9,9 @@ class UStaticMeshComponent;
 class UProceduralMeshComponent;
 class USceneComponent;
 
-/**
- * Adapter for the Mesh and ProceduralMesh warp
+/*
+ * Mesh projection policy
+ * Supported geometry sources - StaticMeshComponent, ProceduralMeshComponent
  */
 class FDisplayClusterProjectionMeshPolicy
 	: public FDisplayClusterProjectionMPCDIPolicy
@@ -36,10 +37,19 @@ public:
 private:
 	struct FWarpMeshConfiguration
 	{
-		USceneComponent*          OriginComponent = nullptr;
+		// StaticMesh component with source geometry
 		UStaticMeshComponent*     StaticMeshComponent = nullptr;
+		// StaticMesh geometry LOD
+		int32 StaticMeshComponentLODIndex = 0;
+
+		// ProceduralMesh component with source geometry
 		UProceduralMeshComponent* ProceduralMeshComponent = nullptr;
-		int32 SectionIndex = 0;
+		// ProceduralMesh section index
+		int32 ProceduralMeshComponentSectionIndex = 0;
+
+		// Customize source geometry UV channels
+		int32 BaseUVIndex = INDEX_NONE;
+		int32 ChromakeyUVIndex = INDEX_NONE;
 	};
 
 	bool GetWarpMeshConfiguration(IDisplayClusterViewport* InViewport, FWarpMeshConfiguration& OutWarpCfg);

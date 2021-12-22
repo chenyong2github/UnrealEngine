@@ -115,5 +115,13 @@ public:
 	* @return - arrays with viewport objects refs
 	*/
 	virtual const TArrayView<IDisplayClusterViewport*> GetViewports() const = 0;
+
+	/**
+	* Mark the geometry of the referenced component(s) as dirty (ProceduralMesh, etc)
+	* [Game thread func]
+	*
+	* @param InComponentName - (optional) Unique component name
+	*/
+	virtual void MarkComponentGeometryDirty(const FName InComponentName = NAME_None) = 0;
 };
 

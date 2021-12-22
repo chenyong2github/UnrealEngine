@@ -7,6 +7,7 @@
 class IDisplayClusterRenderDevice;
 class IDisplayClusterPostProcess;
 class IDisplayClusterPostProcessFactory;
+class IDisplayClusterRender_MeshComponent;
 class IDisplayClusterProjectionPolicy;
 class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
@@ -166,4 +167,8 @@ public:
 	*/
 	virtual IDisplayClusterViewportManager* GetViewportManager() const = 0;
 
+	/**
+	* @return - new mesh component object
+	*/
+	virtual TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> CreateMeshComponent() const = 0;
 };

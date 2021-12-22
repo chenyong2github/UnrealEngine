@@ -81,7 +81,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(IDisplayClusterViewp
 
 	WarpBlendContexts.Empty();
 
-	if (WarpBlendInterface.IsValid() == false && !CreateWarpBlendFromConfig())
+	if (WarpBlendInterface.IsValid() == false && !CreateWarpBlendFromConfig(InViewport))
 	{
 		// Ignore broken MPCDI config for other attempts
 		bInvalidConfiguration = true;
@@ -93,9 +93,6 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(IDisplayClusterViewp
 
 		return false;
 	}
-
-	// Find origin component if it exists
-	InitializeOriginComponent(InViewport, OriginCompId);
 
 	// Finally, initialize internal views data container
 	WarpBlendContexts.AddDefaulted(2);
@@ -370,7 +367,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ReleasePreviewMeshComponent()
 	PreviewMeshComponentRef.ResetSceneComponent();
 }
 
-UMeshComponent* FDisplayClusterProjectionMPCDIPolicy::GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
+UMeshComponent* FDisplayClusterProjectionMPCDIPolicy::GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
 {
 	check(IsInGameThread());
 
@@ -426,7 +423,7 @@ UMeshComponent* FDisplayClusterProjectionMPCDIPolicy::GetOrCreatePreviewMeshComp
 
 #endif
 
-bool FDisplayClusterProjectionMPCDIPolicy::CreateWarpBlendFromConfig()
+bool FDisplayClusterProjectionMPCDIPolicy::CreateWarpBlendFromConfig(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -438,7 +435,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::CreateWarpBlendFromConfig()
 		IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
 
 		// Support custom origin node
-		OriginCompId = CfgData.OriginType;
+		InitializeOriginComponent(InViewport, CfgData.OriginType);
 
 		bIsPreviewMeshEnabled = CfgData.bEnablePreview;
 

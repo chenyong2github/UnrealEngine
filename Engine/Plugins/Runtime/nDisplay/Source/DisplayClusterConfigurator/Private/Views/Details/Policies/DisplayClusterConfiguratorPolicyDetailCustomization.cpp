@@ -453,12 +453,30 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMeshPolicy(UDispl
 		ConfigurationViewports,
 		TArray<TSubclassOf<UActorComponent>>{ UStaticMeshComponent::StaticClass(), UProceduralMeshComponent::StaticClass()}));
 
-	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<int32>>(
-		"SectionIndex",
+	TSharedPtr<FPolicyParameterInfo> SectionIndexParameterRef = MakeShared<FPolicyParameterInfoNumber<int32>>(
+		"Section Index",
 		DisplayClusterProjectionStrings::cfg::mesh::SectionIndex,
 		Blueprint,
-		ConfigurationViewports));
+		ConfigurationViewports, 0, 0);
+	SectionIndexParameterRef->SetParameterTooltip(LOCTEXT("MeshPolicySectionIndexTooltip", "Section index with geometry in the ProceduralMesh component"));
 
+	TSharedPtr<FPolicyParameterInfo> BaseUVIndexParameterRef = MakeShared<FPolicyParameterInfoNumber<int32>>(
+		"Warp UVs",
+		DisplayClusterProjectionStrings::cfg::mesh::BaseUVIndex,
+		Blueprint,
+		ConfigurationViewports, -1, -1);
+	BaseUVIndexParameterRef->SetParameterTooltip(LOCTEXT("MeshPolicyBaseUVIndexTooltip", "Define custom UV channel in the original geometry as UV for warp. The default is -1."));
+
+	TSharedPtr<FPolicyParameterInfo> ChromakeyUVIndexParameterRef = MakeShared<FPolicyParameterInfoNumber<int32>>(
+		"Chromakey UVs",
+		DisplayClusterProjectionStrings::cfg::mesh::ChromakeyUVIndex,
+		Blueprint,
+		ConfigurationViewports, -1, -1);
+	ChromakeyUVIndexParameterRef->SetParameterTooltip(LOCTEXT("MeshPolicyChromakeyUVIndexTooltip", "Define custom UV channel in the original geometry as UV for ChromakeyMarkers. The default is -1."));
+
+	CustomPolicyParameters.Add(SectionIndexParameterRef);
+	CustomPolicyParameters.Add(BaseUVIndexParameterRef);
+	CustomPolicyParameters.Add(ChromakeyUVIndexParameterRef);
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateDomePolicy(UDisplayClusterBlueprint* Blueprint)

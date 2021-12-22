@@ -9,6 +9,13 @@
 
 #include "DisplayClusterViewportConfigurationHelpers.h"
 #include "DisplayClusterConfigurationTypes.h"
+
+#include "DisplayClusterRootActor.h"
+
+#include "Engine/StaticMesh.h"
+#include "ProceduralMeshComponent.h"
+
+
 ///////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfigurationBase
 ///////////////////////////////////////////////////////////////////
@@ -121,6 +128,28 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 					{
 					case EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::StaticMesh:
 						PPManager->GetOutputRemap()->UpdateConfiguration_StaticMesh(OutputRemapCfg.StaticMesh);
+						break;
+
+					case EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::MeshComponent:
+						if (!OutputRemapCfg.MeshComponentName.IsEmpty())
+						{
+							// Get the StaticMeshComponent
+							UStaticMeshComponent* StaticMeshComponent = RootActor.GetComponentByName<UStaticMeshComponent>(OutputRemapCfg.MeshComponentName);
+							if (StaticMeshComponent != nullptr)
+							{
+								PPManager->GetOutputRemap()->UpdateConfiguration_StaticMeshComponent(StaticMeshComponent);
+							}
+							else
+							{
+								// Get the procedural mesh component
+								UProceduralMeshComponent* ProceduralMeshComponent = RootActor.GetComponentByName<UProceduralMeshComponent>(OutputRemapCfg.MeshComponentName);
+								PPManager->GetOutputRemap()->UpdateConfiguration_ProceduralMeshComponent(ProceduralMeshComponent);
+							}
+						}
+						else
+						{
+							PPManager->GetOutputRemap()->UpdateConfiguration_Disabled();
+						}
 						break;
 
 					case EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::ExternalFile:

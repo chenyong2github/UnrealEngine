@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
+#include "Render/Containers/IDisplayClusterRender_MeshComponent.h"
 #include "Render/Viewport/Containers/DisplayClusterViewportRemapData.h"
 
 class FDisplayClusterViewport;
@@ -24,7 +24,7 @@ public:
 	bool UpdateConfiguration(const FDisplayClusterViewport& InViewport, const FDisplayClusterConfigurationViewport_Remap& InRemapConfiguration);
 
 	/** Gets a pointer to the mesh geometry to use for rendering the remapped regions */
-	TSharedPtr<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> GetRemapMesh() const;
+	TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> GetRemapMesh() const;
 
 	/** Gets whether there are any remapped regions to render */
 	bool IsUsed() const { return RemapRegions.Num() > 0; }
@@ -52,7 +52,7 @@ private:
 
 private:
 	/** The mesh used to render the remapped regions */
-	TSharedPtr<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> RemapMesh;
+	TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> RemapMesh;
 	
 	/** A list of all the remapped regions to render */
 	TArray<FDisplayClusterViewportRemapData> RemapRegions;
