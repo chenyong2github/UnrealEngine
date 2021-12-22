@@ -16,7 +16,7 @@ from switchboard import message_protocol
 from switchboard import switchboard_utils as sb_utils
 from switchboard import switchboard_widgets as sb_widgets
 from switchboard.config import CONFIG, BoolSetting, FilePathSetting, \
-    LoggingSetting, OptionSetting, Setting, StringSetting, SETTINGS
+    LoggingSetting, OptionSetting, Setting, StringSetting, SETTINGS, StringListSetting
 from switchboard.devices.device_widget_base import AddDeviceDialog
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, \
     DeviceWidgetUnreal
@@ -397,17 +397,18 @@ class DevicenDisplay(DeviceUnreal):
             nice_name="Extra Cmd Line Args",
             value="",
         ),
-        'ndisplay_exec_cmds': StringSetting(
+        'ndisplay_exec_cmds': StringListSetting(
             attr_name="ndisplay_exec_cmds",
             nice_name='ExecCmds',
-            value="",
+            value= [],
             tool_tip='ExecCmds to be passed. No need for outer double quotes.',
+            allow_reset=False
         ),
-        'ndisplay_dp_cvars': StringSetting(
+        'ndisplay_dp_cvars': StringListSetting(
             attr_name='ndisplay_dp_cvars',
             nice_name="DPCVars",
-            value='',
-            tool_tip="Device profile console variables (comma separated)."
+            value=[],
+            tool_tip="Device profile console variables."
         ),
         'ndisplay_unattended': BoolSetting(
             attr_name='ndisplay_unattended',
@@ -818,11 +819,9 @@ class DevicenDisplay(DeviceUnreal):
         ]
 
         # fill in ExecCmds
-        exec_cmds = str(
-            self.csettings["ndisplay_exec_cmds"].get_value(
-                self.name)).strip().split(',')
+        exec_cmds = self.csettings["ndisplay_exec_cmds"].get_value(self.name).copy()
 
-        if DevicenDisplay.csettings['disable_all_screen_messages'].get_value():
+        if DevicenDisplay.csettings['disable_all_screen_messages'].get_value() and 'DisableAllScreenMessages' not in exec_cmds:
             exec_cmds.append('DisableAllScreenMessages')
             
         exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
@@ -860,7 +859,7 @@ class DevicenDisplay(DeviceUnreal):
         ])
 
         # Device profile CVars.
-        dp_cvars = str(self.csettings['ndisplay_dp_cvars'].get_value(self.name)).split(',')
+        dp_cvars = self.csettings['ndisplay_dp_cvars'].get_value(self.name)
         dp_cvars = [cvar.strip() for cvar in dp_cvars if len(cvar.strip()) and len(cvar.split('=')) == 2]
 
         # Insights traces parameters
