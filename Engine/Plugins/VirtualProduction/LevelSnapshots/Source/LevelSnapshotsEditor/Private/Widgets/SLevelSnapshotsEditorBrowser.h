@@ -7,12 +7,9 @@
 #include "Widgets/SCompoundWidget.h"
 
 class ULevelSnapshotsEditorData;
-class UWorld;
-class SToolTip;
 
 struct FAssetData;
 struct FAssetViewCustomColumn;
-struct FSnapshotEditorViewData;
 
 class SLevelSnapshotsEditorBrowser : public SCompoundWidget
 {
@@ -26,16 +23,18 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, ULevelSnapshotsEditorData* InEditorData);
+	virtual ~SLevelSnapshotsEditorBrowser() override;
+
 	void SelectAsset(const FAssetData& InAssetData) const;
 
 private:
 	
-	TSharedRef<SToolTip> CreateCustomTooltip(FAssetData& AssetData);
 	TArray<FAssetViewCustomColumn> GetCustomColumns() const;
 	void OnAssetDoubleClicked(const FAssetData& InAssetData) const;
 	bool OnShouldFilterAsset(const FAssetData& InAssetData) const;
 	TSharedPtr<SWidget> OnGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets);
-
+	TSharedRef<SToolTip> CreateCustomTooltip(FAssetData& AssetData);
+	
 	TAttribute<FSoftObjectPath> OwningWorldPathAttribute;
 
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorData;

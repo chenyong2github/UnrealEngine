@@ -3,13 +3,13 @@
 #include "Views/Input/SLevelSnapshotsEditorInput.h"
 
 #include "Data/LevelSnapshotsEditorData.h"
+#include "LevelSnapshotsLog.h"
+#include "SLevelSnapshotsEditorContextPicker.h"
 #include "Widgets/SLevelSnapshotsEditorBrowser.h"
 
 #include "Editor.h"
 #include "Engine/World.h"
 #include "Widgets/SBoxPanel.h"
-
-#include "LevelSnapshotsLog.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
@@ -33,6 +33,14 @@ void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, ULevelSnaps
 		SAssignNew(EditorInputOuterVerticalBox, SVerticalBox)
 
 		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SAssignNew(EditorContextPickerPtr, SLevelSnapshotsEditorContextPicker, EditorData.Get())
+			.SelectedWorldPath(EditorData->GetEditorWorld())
+			.OnSelectWorldContext_Raw(this, &SLevelSnapshotsEditorInput::OverrideWorld)
+		]
+		
+		+ SVerticalBox::Slot()
 		[
 			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, InEditorData)
 				.OwningWorldPath(EditorData->GetEditorWorld())
@@ -51,7 +59,7 @@ void SLevelSnapshotsEditorInput::OverrideWorld(FSoftObjectPath InNewContextPath)
 	if (!ensure(InNewContextPath.IsValid()))
 	{
 		UE_LOG(LogLevelSnapshots, Error,
-			TEXT("SLevelSnapshotsEditorInput::OverrideWorld: Unable to rebuild Snapshot Browser; InNewContext or BuilderPtr are invalid."));
+			TEXT("%hs: Unable to rebuild Snapshot Browser; InNewContext or BuilderPtr are invalid."), __FUNCTION__);
 		return;
 	}
 	
