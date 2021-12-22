@@ -7,6 +7,7 @@
 #include "Render/Containers/DisplayClusterRender_MeshGeometry.h"
 
 class USceneComponent;
+class UStaticMesh;
 class UStaticMeshComponent;
 class UProceduralMeshComponent;
 
