@@ -173,14 +173,29 @@ int32 FDMXFixtureMode::AddOrInsertFunction(int32 IndexOfFunction, FDMXFixtureFun
 
 FDMXOnFixtureTypeChangedDelegate UDMXEntityFixtureType::OnFixtureTypeChangedDelegate;
 
-UDMXEntityFixtureType* UDMXEntityFixtureType::CreateFixtureTypeInLibrary(UDMXLibrary* ParentDMXLibrary, const FString& DesiredName)
+UDMXEntityFixtureType* UDMXEntityFixtureType::CreateFixtureTypeInLibrary(UDMXLibrary* ParentDMXLibrary, const FString& DesiredName, bool bMarkDMXLibraryDirty)
 {
 	if (ensureMsgf(ParentDMXLibrary, TEXT("Create New Fixture Type cannot create Fixture Type when Parent Library is null.")))
 	{
+#if WITH_EDITOR
+		if (bMarkDMXLibraryDirty)
+		{
+			ParentDMXLibrary->Modify();
+			ParentDMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetEntitiesPropertyName()));
+		}
+#endif
+
 		FString EntityName = FDMXRuntimeUtils::FindUniqueEntityName(ParentDMXLibrary, UDMXEntityFixtureType::StaticClass(), DesiredName);
 
 		UDMXEntityFixtureType* NewFixtureType = NewObject<UDMXEntityFixtureType>(ParentDMXLibrary, UDMXEntityFixtureType::StaticClass(), NAME_None, RF_Transactional);
 		NewFixtureType->SetName(EntityName);
+
+#if WITH_EDITOR
+		if (bMarkDMXLibraryDirty)
+		{
+			ParentDMXLibrary->PostEditChange();
+		}
+#endif
 
 		return NewFixtureType;
 	}

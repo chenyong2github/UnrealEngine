@@ -397,37 +397,47 @@ void SDMXFixtureTypeTree::OnDeleteNodes()
 	}
 
 	// Confirm deletion of Fixture Types in use
-	if (EntitiesInUse.Num() > 0)
+	const bool bConfirmDelete = [&EntitiesInUse]()
 	{
-		const FText ConfirmDeleteText =
-			FText::Format(LOCTEXT("ConfirmDeleteEntityInUse", "Fixture Patches use {0}|plural(one = this, other = these) Fixture {0}|plural(one = Type, other = Types). Do you really want to delete {0}|plural(one = it, other = them)?"),
-				EntitiesInUse.Num() == 1);
-
-		const FText DialogTitleText = LOCTEXT("DeleteFixtureTypesDialogTitle", "Delete Fixture Types");
-
-		EAppReturnType::Type DialogResult = FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, ConfirmDeleteText, &DialogTitleText);
-		if (DialogResult == EAppReturnType::Yes)
+		if (EntitiesInUse.Num() > 0)
 		{
-			// Remove the Fixture Types from the DMX Library
-			const FScopedTransaction Transaction(EntitiesToDelete.Num() > 1 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
+			const FText ConfirmDeleteText =
+				FText::Format(LOCTEXT("ConfirmDeleteEntityInUse", "Fixture Patches use {0}|plural(one = this, other = these) Fixture {0}|plural(one = Type, other = Types). Do you really want to delete {0}|plural(one = it, other = them)?"),
+					EntitiesInUse.Num() == 1);
 
-			DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetEntitiesPropertyName()));
-			for (UDMXEntityFixtureType* FixtureType : FixtureTypesToDelete)
+			const FText DialogTitleText = LOCTEXT("DeleteFixtureTypesDialogTitle", "Delete Fixture Types");
+
+			EAppReturnType::Type DialogResult = FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, ConfirmDeleteText, &DialogTitleText);
+			if (DialogResult == EAppReturnType::No)
 			{
-				ensureMsgf(DMXLibrary == FixtureType->GetParentLibrary(), TEXT("Unexpected DMX Library of Fixture Type and DMX Library of Editor do not match when removing Fixture Types."));
-				const FDMXEntityFixtureTypeRef FixtureTypeRef(FixtureType);
-				UDMXEntityFixtureType::RemoveFixtureTypeFromLibrary(FixtureTypeRef);
+				return false;
 			}
-			DMXLibrary->PostEditChange();
-
-			// Clear selection if no fixture types remain
-			if (GetSelectedEntities().Num() == 0)
-			{
-				FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>());
-			}
-
-			UpdateTree();
 		}
+
+		return true;
+	}();
+
+	if (bConfirmDelete)
+	{
+		// Remove the Fixture Types from the DMX Library
+		const FScopedTransaction Transaction(EntitiesToDelete.Num() > 1 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
+
+		DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetEntitiesPropertyName()));
+		for (UDMXEntityFixtureType* FixtureType : FixtureTypesToDelete)
+		{
+			ensureMsgf(DMXLibrary == FixtureType->GetParentLibrary(), TEXT("Unexpected DMX Library of Fixture Type and DMX Library of Editor do not match when removing Fixture Types."));
+			const FDMXEntityFixtureTypeRef FixtureTypeRef(FixtureType);
+			UDMXEntityFixtureType::RemoveFixtureTypeFromLibrary(FixtureTypeRef);
+		}
+		DMXLibrary->PostEditChange();
+
+		// Clear selection if no fixture types remain
+		if (DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixtureType>().Num() == 0)
+		{
+			FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>());
+		}
+
+		UpdateTree();
 	}
 }
 
@@ -573,6 +583,8 @@ FReply SDMXFixtureTypeTree::OnAddNewFixtureTypeClicked()
 {
 	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
 	{		
+		const FScopedTransaction Transaction(LOCTEXT("CreateFixtureTypeTransaction", "Create DMX Fixture Type"));
+
 		UDMXEntityFixtureType* NewFixtureType = UDMXEntityFixtureType::CreateFixtureTypeInLibrary(PinnedEditor->GetDMXLibrary());
 
 		FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>({ NewFixtureType }));

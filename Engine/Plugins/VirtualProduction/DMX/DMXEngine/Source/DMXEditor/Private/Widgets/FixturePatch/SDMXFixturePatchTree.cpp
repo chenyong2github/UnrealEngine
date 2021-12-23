@@ -844,7 +844,7 @@ void SDMXFixturePatchTree::OnAddNewFixturePatchClicked(UDMXEntity* InSelectedFix
 		if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(InSelectedFixtureType))
 		{
 			// Find the first free channel behind all patches, before adding the new patch
-			const UDMXLibrary* DMXLibrary = FixtureType->GetParentLibrary();
+			UDMXLibrary* DMXLibrary = FixtureType->GetParentLibrary();
 			TArray<UDMXEntityFixturePatch*> OtherFixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 			OtherFixturePatches.Sort([](const UDMXEntityFixturePatch& OtherPatchA, const UDMXEntityFixturePatch& OtherPatchB)
 				{
@@ -878,6 +878,8 @@ void SDMXFixturePatchTree::OnAddNewFixturePatchClicked(UDMXEntity* InSelectedFix
 
 				return 1;
 			}();
+
+			const FScopedTransaction Transaction(LOCTEXT("CreateFixturePatchTransaction", "Create DMX Fixture Patch"));
 
 			const FDMXEntityFixtureTypeRef FixtureTypeRef = FDMXEntityFixtureTypeRef(FixtureType);
 			UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef, FixtureType->Name);
