@@ -52,8 +52,12 @@ namespace RendererUtils
 
 	class FGaussianBlurPS : public FGlobalShader
 	{
-		DECLARE_INLINE_TYPE_LAYOUT(FGaussianBlurPS, NonVirtual);
 	public:
+		FGaussianBlurPS() = default;
+		FGaussianBlurPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+			FGlobalShader(Initializer)
+		{}
+
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
 			return true;
@@ -64,50 +68,26 @@ namespace RendererUtils
 			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		}
 
-		FGaussianBlurPS() {}
-		FGaussianBlurPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-			FGlobalShader(Initializer)
-		{
-			SourceTexture.Bind(Initializer.ParameterMap, TEXT("SourceTexture"));
-			SourceTextureSampler.Bind(Initializer.ParameterMap, TEXT("SourceTextureSampler"));
-			BufferSizeAndInvSize.Bind(Initializer.ParameterMap, TEXT("BufferSizeAndInvSize"));
-		}
-
-		void SetParameters(FRHICommandList& RHICmdList, FRHITexture* InSourceTexture, const FVector4& InBufferSizeAndInvSize)
-		{
-			FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-			FRHISamplerState* SamplerState = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-			SetTextureParameter(RHICmdList, ShaderRHI, SourceTexture, InSourceTexture);
-			SetSamplerParameter(RHICmdList, ShaderRHI, SourceTextureSampler, SamplerState);
-
-			SetShaderValue(RHICmdList, ShaderRHI, BufferSizeAndInvSize, InBufferSizeAndInvSize);
-		}
-
-	private:
-		LAYOUT_FIELD(FShaderResourceParameter, SourceTexture);
-		LAYOUT_FIELD(FShaderResourceParameter, SourceTextureSampler);
-		LAYOUT_FIELD(FShaderParameter, BufferSizeAndInvSize);
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, SourceTexture)
+			SHADER_PARAMETER_SAMPLER(SamplerState, SourceTextureSampler)
+			SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
+			RENDER_TARGET_BINDING_SLOTS()
+		END_SHADER_PARAMETER_STRUCT()
 	};
 
 	class FHorizontalBlurPS : public FGaussianBlurPS
 	{
-		DECLARE_SHADER_TYPE(FHorizontalBlurPS, Global);
 	public:
-		FHorizontalBlurPS() = default;
-		FHorizontalBlurPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGaussianBlurPS(Initializer)
-		{}
+		DECLARE_GLOBAL_SHADER(FHorizontalBlurPS);
+		SHADER_USE_PARAMETER_STRUCT(FHorizontalBlurPS, FGaussianBlurPS);
 	};
 
 	class FVerticalBlurPS : public FGaussianBlurPS
 	{
-		DECLARE_SHADER_TYPE(FVerticalBlurPS, Global);
 	public:
-		FVerticalBlurPS() = default;
-		FVerticalBlurPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FGaussianBlurPS(Initializer)
-		{}
+		DECLARE_GLOBAL_SHADER(FVerticalBlurPS);
+		SHADER_USE_PARAMETER_STRUCT(FVerticalBlurPS, FGaussianBlurPS);
 	};
 
 	// Compute Shader
@@ -125,16 +105,19 @@ namespace RendererUtils
 		}
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
+			SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, SourceTexture)
+			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWOutputTexture)
 			SHADER_PARAMETER_SAMPLER(SamplerState, SourceTextureSampler)
-			SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
-			SHADER_PARAMETER_UAV(RWTexture2D<float4>, RWOutputTexture)
+			SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)			
 		END_SHADER_PARAMETER_STRUCT()
 	};
 
 	class FHorizontalBlurCS : public FGaussianBlurCS
 	{
 	public:
+		DECLARE_GLOBAL_SHADER(FHorizontalBlurCS);
+		SHADER_USE_PARAMETER_STRUCT(FHorizontalBlurCS, FGaussianBlurCS);
+
 		static const uint32 ThreadGroupSizeX = 64;
 		static const uint32 ThreadGroupSizeY = 1;
 
@@ -148,14 +131,14 @@ namespace RendererUtils
 			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), ThreadGroupSizeX);
 			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), ThreadGroupSizeY);
 		}
-
-		DECLARE_GLOBAL_SHADER(FHorizontalBlurCS);
-		SHADER_USE_PARAMETER_STRUCT(FHorizontalBlurCS, FGaussianBlurCS);
 	};
 
 	class FVerticalBlurCS : public FGaussianBlurCS
 	{
 	public:
+		DECLARE_GLOBAL_SHADER(FVerticalBlurCS);
+		SHADER_USE_PARAMETER_STRUCT(FVerticalBlurCS, FGaussianBlurCS);
+
 		static const uint32 ThreadGroupSizeX = 1;
 		static const uint32 ThreadGroupSizeY = 64;
 
@@ -169,31 +152,29 @@ namespace RendererUtils
 			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), ThreadGroupSizeX);
 			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), ThreadGroupSizeY);
 		}
-
-		DECLARE_GLOBAL_SHADER(FVerticalBlurCS);
-		SHADER_USE_PARAMETER_STRUCT(FVerticalBlurCS, FGaussianBlurCS);
 	};
 
 	extern void AddGaussianBlurFilter_InternalPS(
-		FRHICommandListImmediate& RHICmdList,
+		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FRHITexture* SourceTexture,
-		TRefCountPtr<IPooledRenderTarget>& RenderTarget,
+		FRDGTextureSRVRef InTexture,
+		FRDGTextureRef OutTexture,
 		TShaderRef<FGaussianBlurPS> PixelShader);
 
 	extern void AddGaussianBlurFilter_InternalCS(
-		FRHICommandListImmediate& RHICmdList,
+		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FRHITexture* SourceTexture,
-		TRefCountPtr<IPooledRenderTarget>& RenderTarget,
+		FRDGTextureSRVRef InTexture,
+		FRDGTextureUAVRef OutTexture,
 		TShaderRef<FGaussianBlurCS> ComputeShader,
 		FIntPoint TexelsPerThreadGroup);
 
 	extern void AddGaussianBlurFilter(
-		FRHICommandListImmediate& RHICmdList,
+		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FRHITexture* SourceTexture,
-		TRefCountPtr<IPooledRenderTarget>& HorizontalRenderTarget,
-		TRefCountPtr<IPooledRenderTarget>& VerticalRenderTarget,
-		bool bIsComputePass = false);
+		FRDGTextureRef SourceTexture,
+		FRDGTextureRef HorizontalBlurTexture,
+		FRDGTextureRef VerticalBlurTexture,
+		bool bUseComputeShader = false);
+
 }

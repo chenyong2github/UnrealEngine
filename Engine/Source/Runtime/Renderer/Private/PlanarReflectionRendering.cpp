@@ -230,39 +230,49 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 			SceneColorInput = FilteredSceneColor->GetRenderTargetItem().ShaderResourceTexture;
 		}
 	}
+	else if (ReflectionSceneProxy->bApplyBlur)
+	{
+		bool bUseComputeShader = CVarPlanarReflectionPreferCompute.GetValueOnAnyThread() != 0;
+
+		const FIntPoint BufferSize = Target->GetSizeXY();
+		const EPixelFormat PixelFormat = Target->GetRenderTargetTexture()->GetFormat();
+		FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(BufferSize, PixelFormat,
+			FClearValueBinding::White, TexCreate_ShaderResource, TexCreate_RenderTargetable, false);
+		Desc.TargetableFlags |= bUseComputeShader ? TexCreate_UAV : TexCreate_None;
+
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ReflectionSceneProxy->HorizontalBlurRenderTarget, TEXT("HorizontalBlurRenderTarget"));
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ReflectionSceneProxy->VerticalBlurRenderTarget, TEXT("VerticalBlurRenderTarget"));
+		ensure(ReflectionSceneProxy->HorizontalBlurRenderTarget && ReflectionSceneProxy->VerticalBlurRenderTarget);
+
+		FMemMark Mark(FMemStack::Get());
+		FRDGBuilder GraphBuilder(RHICmdList);
+
+		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(FSceneRenderTargets::Get(RHICmdList).GetSceneColor());
+		FRDGTextureRef HorizontalBlurTexture = GraphBuilder.RegisterExternalTexture(ReflectionSceneProxy->HorizontalBlurRenderTarget);
+		FRDGTextureRef VerticalBlurTexture = GraphBuilder.RegisterExternalTexture(ReflectionSceneProxy->VerticalBlurRenderTarget);
+
+		RendererUtils::AddGaussianBlurFilter(GraphBuilder,
+			View,
+			SceneColorTexture,
+			HorizontalBlurTexture,
+			VerticalBlurTexture,
+			bUseComputeShader);
+
+		GraphBuilder.Execute();
+
+		SceneColorInput = ReflectionSceneProxy->VerticalBlurRenderTarget->GetRenderTargetItem().TargetableTexture;
+	}
+	else
+	{
+		ReflectionSceneProxy->HorizontalBlurRenderTarget.SafeRelease();
+		ReflectionSceneProxy->VerticalBlurRenderTarget.SafeRelease();
+	}
 
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, PrefilterPlanarReflection);
 
 		FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
-		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
-
-		if (ReflectionSceneProxy->bApplyBlur)
-		{
-			bool bUseComputeShader = CVarPlanarReflectionPreferCompute.GetValueOnAnyThread() != 0;
-
-			const FIntPoint BufferSize = Target->GetSizeXY();
-			const EPixelFormat PixelFormat = Target->GetRenderTargetTexture()->GetFormat();
-			FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(BufferSize, PixelFormat,
-				FClearValueBinding::White, TexCreate_ShaderResource, TexCreate_RenderTargetable, false);
-			Desc.TargetableFlags |= bUseComputeShader ? TexCreate_UAV : TexCreate_None;
-
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ReflectionSceneProxy->HorizontalBlurRenderTarget, TEXT("HorizontalBlurRenderTarget"));
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ReflectionSceneProxy->VerticalBlurRenderTarget, TEXT("VerticalBlurRenderTarget"));
-			ensure(ReflectionSceneProxy->HorizontalBlurRenderTarget && ReflectionSceneProxy->VerticalBlurRenderTarget);
-
-			RendererUtils::AddGaussianBlurFilter(RHICmdList, View, SceneColorInput,
-				ReflectionSceneProxy->HorizontalBlurRenderTarget,
-				ReflectionSceneProxy->VerticalBlurRenderTarget,
-				bUseComputeShader);
-
-			SceneColorInput = ReflectionSceneProxy->VerticalBlurRenderTarget->GetRenderTargetItem().TargetableTexture;
-		}
-		else
-		{
-			ReflectionSceneProxy->HorizontalBlurRenderTarget.SafeRelease();
-			ReflectionSceneProxy->VerticalBlurRenderTarget.SafeRelease();
-		}
+		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);	
 
 		// Workaround for a possible driver bug on S7 Adreno, missing planar reflections
 		ERenderTargetLoadAction RTLoadAction = IsVulkanMobilePlatform(View.GetShaderPlatform()) ?  ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;

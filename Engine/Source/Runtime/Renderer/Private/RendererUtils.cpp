@@ -8,6 +8,7 @@
 #include "SceneRendering.h"
 #include "SceneFilterRendering.h"
 #include "CommonRenderResources.h"
+#include "ScreenPass.h"
 
 class FRTWriteMaskDecodeCS : public FGlobalShader
 {
@@ -181,111 +182,118 @@ IMPLEMENT_GLOBAL_SHADER(FHorizontalBlurCS, "/Engine/Private/RenderGraphUtilities
 IMPLEMENT_GLOBAL_SHADER(FVerticalBlurCS, "/Engine/Private/RenderGraphUtilities.usf", "VerticalBlurCS", SF_Compute);
 
 void RendererUtils::AddGaussianBlurFilter_InternalPS(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FRHITexture* SourceTexture,
-	TRefCountPtr<IPooledRenderTarget>& RenderTarget,
+	FRDGTextureSRVRef InTexture,
+	FRDGTextureRef OutTexture,
 	TShaderRef<FGaussianBlurPS> PixelShader)
 {
-	FSceneRenderTargetItem& RenderTargetItem = RenderTarget->GetRenderTargetItem();
-	FIntVector RenderTargetSize = RenderTargetItem.TargetableTexture->GetSizeXYZ();
-	FIntPoint BufferSize = FIntPoint(RenderTargetSize.X, RenderTargetSize.Y);
+	FScreenPassRenderTarget ScreenPassRenderTarget(OutTexture, ERenderTargetLoadAction::EClear);
 
-	FRHIRenderPassInfo HorizontalBlurRPInfo(RenderTargetItem.TargetableTexture, ERenderTargetActions::Clear_Store);
-	RHICmdList.BeginRenderPass(HorizontalBlurRPInfo, TEXT("BlurRenderPass"));
-	{
-		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, BufferSize.X, BufferSize.Y, 1.0f);
+	FIntVector TextureSize = OutTexture->Desc.GetSize();
+	FIntPoint BufferSize = FIntPoint(TextureSize.X, TextureSize.Y);
 
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	FGaussianBlurPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGaussianBlurPS::FParameters>();
+	PassParameters->SourceTexture = InTexture;
+	PassParameters->SourceTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	PassParameters->RenderTargets[0] = ScreenPassRenderTarget.GetRenderTargetBinding();
 
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+	TShaderMapRef<FScreenRectangleVS> VertexShader(View.ShaderMap);
 
-		TShaderMapRef<FScreenRectangleVS> VertexShader(View.ShaderMap);
-
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-		PixelShader->SetParameters(RHICmdList, SourceTexture, FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y));
-
-		FIntPoint UV = 0;
-		FIntPoint UVSize = BufferSize;
-		if (RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[View.FeatureLevel]) && !IsMobileHDR())
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("GaussianBlurFilter %dx%d (PS)", BufferSize.X, BufferSize.Y),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[VertexShader, PixelShader, PassParameters, BufferSize](FRHICommandList& RHICmdList)
 		{
-			UV.Y = UV.Y + UVSize.Y;
-			UVSize.Y = -UVSize.Y;
-		}
+			RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, BufferSize.X, BufferSize.Y, 1.0f);
 
-		DrawRectangle(
-			RHICmdList,
-			0, 0,
-			BufferSize.X, BufferSize.Y,
-			UV.X, UV.Y,
-			UVSize.X, UVSize.Y,
-			BufferSize,
-			BufferSize,
-			VertexShader,
-			EDRF_UseTriangleOptimization);
-	}
-	RHICmdList.EndRenderPass();
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+			DrawRectangle(
+				RHICmdList,
+				0, 0,
+				BufferSize.X, BufferSize.Y,
+				0, 0,
+				BufferSize.X, BufferSize.Y,
+				BufferSize,
+				BufferSize,
+				VertexShader,
+				EDRF_UseTriangleOptimization);
+		});
 }
 
 void RendererUtils::AddGaussianBlurFilter_InternalCS(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FRHITexture* SourceTexture,
-	TRefCountPtr<IPooledRenderTarget>& RenderTarget,
+	FRDGTextureSRVRef InTexture,
+	FRDGTextureUAVRef OutTexture,
 	TShaderRef<FGaussianBlurCS> ComputeShader,
 	FIntPoint TexelsPerThreadGroup)
 {
-	FSceneRenderTargetItem& RenderTargetItem = RenderTarget->GetRenderTargetItem();
-	check(RenderTargetItem.UAV);
+	FIntVector TextureSize = OutTexture->Desc.Texture->Desc.GetSize();
+	FIntPoint BufferSize = FIntPoint(TextureSize.X, TextureSize.Y);
 
-	FIntVector RenderTargetSize = RenderTargetItem.TargetableTexture->GetSizeXYZ();
-	FIntPoint BufferSize = FIntPoint(RenderTargetSize.X, RenderTargetSize.Y);
+	FGaussianBlurCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGaussianBlurCS::FParameters>();
+	PassParameters->SourceTexture = InTexture;
+	PassParameters->SourceTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	PassParameters->RWOutputTexture = OutTexture;
 
-	FGaussianBlurCS::FParameters PassParameters;
-	PassParameters.SourceTexture = SourceTexture;
-	PassParameters.SourceTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	PassParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
-	PassParameters.RWOutputTexture = RenderTargetItem.UAV;
-
-	FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(BufferSize, TexelsPerThreadGroup);
-	FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, GroupCount);
+	FComputeShaderUtils::AddPass(GraphBuilder,
+		RDG_EVENT_NAME("GaussianBlurFilter %dx%d (CS)", BufferSize.X, BufferSize.Y),
+		ComputeShader,
+		PassParameters,
+		FComputeShaderUtils::GetGroupCount(BufferSize, TexelsPerThreadGroup));
 }
 
-
 void RendererUtils::AddGaussianBlurFilter(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FRHITexture* SourceTexture,
-	TRefCountPtr<IPooledRenderTarget>& HorizontalBlurRenderTarget,
-	TRefCountPtr<IPooledRenderTarget>& VerticalBlurRenderTarget,
-	bool bIsComputePass)
+	FRDGTextureRef SourceTexture,
+	FRDGTextureRef HorizontalBlurTexture,
+	FRDGTextureRef VerticalBlurTexture,
+	bool bUseComputeShader)
 {
-	if (bIsComputePass)
+	FRDGTextureSRVRef SourceTextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SourceTexture));
+	FRDGTextureSRVRef HorizontalBlurTextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(HorizontalBlurTexture));
+
+	if (bUseComputeShader)
 	{
+		FRDGTextureUAVRef HorizontalBlurTextureUAV = GraphBuilder.CreateUAV(HorizontalBlurTexture);
+		FRDGTextureUAVRef VerticalBlurTextureUAV = GraphBuilder.CreateUAV(VerticalBlurTexture);
+
 		// Horizontal Blur
 		TShaderMapRef<FHorizontalBlurCS> HorizontalBlurCS(View.ShaderMap);
-		AddGaussianBlurFilter_InternalCS(RHICmdList, View, SourceTexture, HorizontalBlurRenderTarget, HorizontalBlurCS, FHorizontalBlurCS::TexelsPerThreadGroup);
+		AddGaussianBlurFilter_InternalCS(GraphBuilder, View, SourceTextureSRV, HorizontalBlurTextureUAV, HorizontalBlurCS, FHorizontalBlurCS::TexelsPerThreadGroup);
 
 		// Vertical Blur
 		TShaderMapRef<FVerticalBlurCS> VerticalBlurCS(View.ShaderMap);
-		AddGaussianBlurFilter_InternalCS(RHICmdList, View, HorizontalBlurRenderTarget->GetRenderTargetItem().TargetableTexture, VerticalBlurRenderTarget, VerticalBlurCS, FVerticalBlurCS::TexelsPerThreadGroup);
+		AddGaussianBlurFilter_InternalCS(GraphBuilder, View, HorizontalBlurTextureSRV, VerticalBlurTextureUAV, VerticalBlurCS, FVerticalBlurCS::TexelsPerThreadGroup);
 	}
 	else
 	{
 		// Horizontal Blur
 		TShaderMapRef<FHorizontalBlurPS> HorizontalBlurPS(View.ShaderMap);
-		AddGaussianBlurFilter_InternalPS(RHICmdList, View, SourceTexture, HorizontalBlurRenderTarget, HorizontalBlurPS);
+		AddGaussianBlurFilter_InternalPS(GraphBuilder, View, SourceTextureSRV, HorizontalBlurTexture, HorizontalBlurPS);
 
 		// Vertical Blur
 		TShaderMapRef<FVerticalBlurPS> VerticalBlurPS(View.ShaderMap);
-		AddGaussianBlurFilter_InternalPS(RHICmdList, View, HorizontalBlurRenderTarget->GetRenderTargetItem().TargetableTexture, VerticalBlurRenderTarget, VerticalBlurPS);
+		AddGaussianBlurFilter_InternalPS(GraphBuilder, View, HorizontalBlurTextureSRV, VerticalBlurTexture, VerticalBlurPS);
 	}
 }
