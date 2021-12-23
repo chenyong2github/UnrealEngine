@@ -12,7 +12,6 @@
 class UDMXEntityFixturePatch;
 
 class IPropertyHandle;
-class SBorder;
 class STextBlock;
 
 
@@ -61,9 +60,6 @@ private:
 	/** Error text, shows if not empty */
 	FText ErrorText;
 	
-	/** The border around the widget */
-	TSharedPtr<SBorder> Border;
-
 	// Slate Args
 	FDMXOnFixturePatchDetailRowMouseButtonEvent OnLMBDown;
 	FDMXOnFixturePatchDetailRowMouseButtonEvent OnLMBUp;

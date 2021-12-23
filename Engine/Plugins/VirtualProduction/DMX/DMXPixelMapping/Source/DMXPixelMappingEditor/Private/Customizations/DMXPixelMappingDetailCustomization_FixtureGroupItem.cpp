@@ -246,7 +246,7 @@ TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroupItem::Gene
 }
 
 void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout)
-{	
+{
 	IDetailCategoryBuilder& ModualtorsCategory = InDetailLayout.EditCategory("Modulators", LOCTEXT("DMXModulatorsCategory", "Modulators"), ECategoryPriority::Important);
 
 	TSharedPtr<IPropertyHandle> ModulatorClassesHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ModulatorClasses), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
@@ -273,25 +273,25 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetail
 					UClass* ModulatorClass = FirstGroupItemComponent->Modulators[IndexModulator]->GetClass();
 
 					for (const TWeakObjectPtr<UObject>& CustomizedObject : CustomizedObjects)
-				{
-						if (UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(CustomizedObject.Get()))
 					{
+						if (UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(CustomizedObject.Get()))
+						{
 							const bool bMultiEditableModulator =
 								GroupItemComponent->Modulators.IsValidIndex(IndexModulator) &&
 								GroupItemComponent->Modulators[IndexModulator] &&
 								GroupItemComponent->Modulators[IndexModulator]->GetClass() == ModulatorClass;
 
 							if (bMultiEditableModulator)
-						{
+							{
 								ModulatorsToEdit.Add(GroupItemComponent->Modulators[IndexModulator]);
-						}
+							}
 							else
-						{
-							// Don't allow multi edit if not all modulators are of same class
-							ModulatorsToEdit.Reset();
+							{
+								// Don't allow multi edit if not all modulators are of same class
+								ModulatorsToEdit.Reset();
+							}
 						}
 					}
-				}
 				}
 				else if (UDMXModulator* ModulatorOfFirstGroupItem = FirstGroupItemComponent->Modulators[IndexModulator])
 				{
@@ -325,7 +325,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetail
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("ModulatorMultipleValues", "Multiple Values"))
-							.Font(IDetailLayoutBuilder::GetDetailFont())
+						.Font(IDetailLayoutBuilder::GetDetailFont())
 						];
 
 					break;

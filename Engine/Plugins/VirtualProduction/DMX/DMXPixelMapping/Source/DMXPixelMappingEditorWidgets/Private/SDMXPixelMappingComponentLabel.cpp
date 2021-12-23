@@ -12,6 +12,8 @@
 
 void SDMXPixelMappingComponentLabel::Construct(const FArguments& InArgs)
 {
+	SetCanTick(false);
+
 	LabelText = InArgs._LabelText;
 	bAlignAbove = InArgs._bAlignAbove;
 

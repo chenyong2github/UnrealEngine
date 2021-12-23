@@ -5,8 +5,11 @@
 #include "DMXPixelMappingRuntimeObjectVersion.h"
 #include "DMXPixelMappingTypes.h"
 #include "IDMXPixelMappingRendererModule.h"
+#include "Components/DMXPixelMappingFixtureGroupComponent.h"
+#include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
+#include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
 #include "Library/DMXEntityFixtureType.h"
@@ -180,7 +183,7 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 #if WITH_EDITOR
 void UDMXPixelMappingRendererComponent::RenderEditorPreviewTexture()
 {
-	if (DownsampleBufferTarget == nullptr || DownsamplePixelCount == 0)
+	if (!DownsampleBufferTarget)
 	{
 		return;
 	}
@@ -238,6 +241,37 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::GetPreviewRenderTarge
 	return PreviewRenderTarget;
 }
 #endif // WITH_EDITOR
+
+bool UDMXPixelMappingRendererComponent::GetPixelMappingComponentModulators(FDMXEntityFixturePatchRef FixturePatchRef, TArray<UDMXModulator*>& DMXModulators)
+{
+	for (const UDMXPixelMappingBaseComponent* Child : Children)
+	{
+		if (const UDMXPixelMappingFixtureGroupComponent* GroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Child))
+		{
+			for (const UDMXPixelMappingBaseComponent* ChildOfGroupComponent : GroupComponent->Children)
+			{
+				if (const UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(ChildOfGroupComponent))
+				{
+					if (GroupItemComponent->FixturePatchRef.GetFixturePatch() == FixturePatchRef.GetFixturePatch())
+					{
+						DMXModulators = GroupItemComponent->Modulators;
+						return true;
+					}
+				}
+				else if (const UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(ChildOfGroupComponent))
+				{
+					if (MatrixComponent->FixturePatchRef.GetFixturePatch() == FixturePatchRef.GetFixturePatch())
+					{
+						DMXModulators = MatrixComponent->Modulators;
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
 
 #if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()

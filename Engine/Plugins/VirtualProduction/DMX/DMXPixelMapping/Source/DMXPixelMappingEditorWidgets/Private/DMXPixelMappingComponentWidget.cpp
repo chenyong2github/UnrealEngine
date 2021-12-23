@@ -52,16 +52,22 @@ void FDMXPixelMappingComponentWidget::AddToCanvas(const TSharedRef<SConstraintCa
 	];
 }
 
+FDMXPixelMappingComponentWidget::~FDMXPixelMappingComponentWidget()
+{
+	RemoveFromCanvas();
+}
+
 void FDMXPixelMappingComponentWidget::RemoveFromCanvas()
 {
 	if (OuterCanvas.IsValid() && ComponentSlot && LabelSlot)
 	{
 		OuterCanvas->RemoveSlot(ComponentSlot->GetWidget());
 		OuterCanvas->RemoveSlot(LabelSlot->GetWidget());
-
-		ComponentSlot = nullptr;
-		LabelSlot = nullptr;
 	}
+
+	ComponentSlot = nullptr;
+	LabelSlot = nullptr;
+	OuterCanvas.Reset();
 }
 
 void FDMXPixelMappingComponentWidget::SetZOrder(float ZOrder)

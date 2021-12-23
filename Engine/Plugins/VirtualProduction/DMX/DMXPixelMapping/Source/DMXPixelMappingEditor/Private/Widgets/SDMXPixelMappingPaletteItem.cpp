@@ -1,15 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SDMXPixelMappingPaletteItem.h"
-#include "ViewModels/DMXPixelMappingPaletteViewModel.h"
-#include "Templates/DMXPixelMappingComponentTemplate.h"
-#include "DragDrop/DMXPixelMappingDragDropOp.h"
 
+#include "DragDrop/DMXPixelMappingDragDropOp.h"
+#include "Templates/DMXPixelMappingComponentTemplate.h"
+#include "ViewModels/DMXPixelMappingPaletteViewModel.h"
+
+#include "EditorStyleSet.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Text/STextBlock.h"
-#include "EditorStyleSet.h"
 
+
+namespace UE::DMX::Private::SDMXPixelMappingPaletteItem
+{
+	constexpr FLinearColor NormalBGColor(0.f, 0.0f, 0.f, 0.f); // Fully transparent so it just shows the background
+	constexpr FLinearColor HoveredBGColor(1.f, 1.f, 1.f, 0.2f); // White transparent
+}
 
 void SDMXPixelMappingHierarchyItemHeader::Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>& InViewModel)
 {
@@ -27,6 +35,8 @@ void SDMXPixelMappingHierarchyItemHeader::Construct(const FArguments& InArgs, co
 
 void SDMXPixelMappingHierarchyItemTemplate::Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>& InViewModel)
 {
+	using namespace UE::DMX::Private::SDMXPixelMappingPaletteItem;
+
 	ViewModel = InViewModel;
 
 	STableRow<FDMXPixelMappingPreviewWidgetViewModelPtr>::Construct(
@@ -37,8 +47,16 @@ void SDMXPixelMappingHierarchyItemTemplate::Construct(const FArguments& InArgs, 
 		.OnDragDetected(this, &SDMXPixelMappingHierarchyItemTemplate::OnDraggingWidget)
 		.Content()
 		[
-			SNew(STextBlock)
-			.Text(InViewModel->GetName())
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+			.BorderBackgroundColor_Lambda([this]()
+				{
+					return IsHovered() ? HoveredBGColor : NormalBGColor;
+				})
+			[
+				SNew(STextBlock)
+				.Text(InViewModel->GetName())
+			]
 		],
 		InOwnerTableView);
 

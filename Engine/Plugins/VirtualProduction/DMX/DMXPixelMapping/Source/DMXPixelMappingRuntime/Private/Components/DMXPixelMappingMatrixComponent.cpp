@@ -162,41 +162,6 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChang
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-void UDMXPixelMappingMatrixComponent::PreEditUndo()
-{
-	// Override Output Component, but not UObject
-	UObject::PreEditUndo();
-
-	PreEditUndoMatrixCellChildren = Children;
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
-void UDMXPixelMappingMatrixComponent::PostEditUndo()
-{
-	// Override Output Component, but not UObject
-	UObject::PostEditUndo();
-
-	HandleMatrixChanged();
-	HandlePositionChanged();
-
-	const EVisibility NewVisibility = IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
-
-	constexpr bool bPropagonateToChildren = true;
-	UpdateComponentWidget(NewVisibility, bPropagonateToChildren);
-
-	// HandleSizeOrMatrixChanged creates new cells. Hide the previous ones
-	for (UDMXPixelMappingBaseComponent* PreEditUndoChild : PreEditUndoMatrixCellChildren)
-	{
-		// Children are always matrix cells
-		UDMXPixelMappingMatrixCellComponent* PreEditUndoMatrixCellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(PreEditUndoChild);
-
-		PreEditUndoMatrixCellComponent->UpdateComponentWidget(EVisibility::Collapsed);
-	}
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
 const FText UDMXPixelMappingMatrixComponent::GetPaletteCategory()
 {
 	return LOCTEXT("Common", "Common");
@@ -357,7 +322,7 @@ void UDMXPixelMappingMatrixComponent::SetSize(const FVector2D& NewSize)
 	SizeX = FMath::Max(SizeX, 1.f);
 	SizeY = FMath::Max(SizeY, 1.f);
 
-	HandleMatrixChanged();
+	//HandleMatrixChanged();
 	HandleSizeChanged();
 }
 

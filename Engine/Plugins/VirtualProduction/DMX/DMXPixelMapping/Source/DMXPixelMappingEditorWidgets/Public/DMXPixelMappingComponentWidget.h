@@ -22,6 +22,9 @@ public:
 	/** Constructs the class, optionally with custom widgets */
 	FDMXPixelMappingComponentWidget(TSharedPtr<SDMXPixelMappingComponentBox> InComponentBox = nullptr, TSharedPtr<SDMXPixelMappingComponentLabel> InComponentLabel = nullptr, bool bShowLabelAbove = false);
 
+	/** Destructor */
+	virtual ~FDMXPixelMappingComponentWidget();
+
 	/** Adds the widgets to a canvas. If it already resides in a canvas it is removed from that. */
 	void AddToCanvas(const TSharedRef<SConstraintCanvas>& Canvas, float ZOrder);
 
@@ -42,6 +45,9 @@ public:
 
 	/** Sets the label text */
 	void SetLabelText(const FText& Text);
+
+	/** Sets if the ID text of is visible */
+	void SetIDVisibility(bool bVisible);
 
 	/** Sets the color of the widget */
 	void SetColor(const FLinearColor& Color);

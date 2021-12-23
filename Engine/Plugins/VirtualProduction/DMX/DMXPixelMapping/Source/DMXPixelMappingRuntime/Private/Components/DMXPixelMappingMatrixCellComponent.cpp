@@ -70,24 +70,6 @@ void UDMXPixelMappingMatrixCellComponent::PostEditChangeProperty(FPropertyChange
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-void UDMXPixelMappingMatrixCellComponent::PreEditUndo()
-{
-	// Use default engine instead of parent class.
-	// Let the prent matrix component handle it instead.
-	UObject::PreEditUndo();
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
-void UDMXPixelMappingMatrixCellComponent::PostEditUndo()
-	{
-	// Use default engine instead of parent class.
-	// Let the prent matrix component handle it instead.	
-	UObject::PostEditUndo();
-	}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
 TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingMatrixCellComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
 	ComponentWidget = Super::BuildSlot(InCanvas);

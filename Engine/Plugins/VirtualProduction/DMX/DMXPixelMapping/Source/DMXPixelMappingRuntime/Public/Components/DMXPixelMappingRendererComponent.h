@@ -3,8 +3,12 @@
 #pragma once
 
 #include "Components/DMXPixelMappingOutputComponent.h"
+
 #include "IDMXPixelMappingRenderer.h"
+#include "Library/DMXEntityReference.h"
+
 #include "Templates/SubclassOf.h"
+
 #include "DMXPixelMappingRendererComponent.generated.h"
 
 
@@ -153,6 +157,13 @@ private:
 	UTextureRenderTarget2D* CreateRenderTarget(const FName& InBaseName);
 
 public:
+	/**
+	 * Returns the Modulators of the component corresponding to the patch specified. 
+	 * Note, this node does a lookup on all fixture patches in use, hence may be slow and shouldn't be called on tick. 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	bool GetPixelMappingComponentModulators(FDMXEntityFixturePatchRef FixturePatchRef, TArray<UDMXModulator*>& DMXModulators);
+
 	/** Type of rendering, Texture, Material, UMG, etc... */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Render Settings")
 	EDMXPixelMappingRendererType RendererType;

@@ -106,19 +106,20 @@ FReply SDMXPixelMappingHierarchyItem::OnDropWidget(const FDragDropEvent& InDragD
 					NewParent = Destination->GetParent();
 				}
 
-				if (NewParent)
+				const bool bOldParentIsNewParent = NewParent == Source->GetParent();
+				if (NewParent && !bOldParentIsNewParent)
 				{
+					// Add to the new parent
+					NewParent->Modify();
+					Source->Modify();
+					NewParent->AddChild(Source);
+
 					// Remove from the old parent
 					if (Source->GetParent())
 					{
 						Source->GetParent()->Modify();
 						Source->GetParent()->RemoveChild(Source);
 					}
-
-					// Add to the new parent
-					NewParent->Modify();
-					Source->Modify();
-					NewParent->AddChild(Source);
 
 					// Adopt location and size of new parent if required
 					if (UDMXPixelMappingOutputComponent* ParentOutputComponent = Cast<UDMXPixelMappingOutputComponent>(NewParent))

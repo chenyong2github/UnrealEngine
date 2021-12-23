@@ -20,6 +20,7 @@
 #include "IPropertyUtilities.h"
 #include "ScopedTransaction.h"
 #include "Layout/Visibility.h"
+#include "Misc/CoreDelegates.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/SBoxPanel.h"
@@ -32,7 +33,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::CustomizeDetails(IDetailL
 	PropertyUtilities = InDetailLayout.GetPropertyUtilities();
 
 	WeakFixtureGroupComponent = GetSelectedFixtureGroupComponent(InDetailLayout);
-	if(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = WeakFixtureGroupComponent.Get())
+	if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = WeakFixtureGroupComponent.Get())
 	{
 		// Listen to component changes
 		UDMXPixelMappingBaseComponent::GetOnComponentAdded().AddSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnComponentAdded);
@@ -42,7 +43,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::CustomizeDetails(IDetailL
 		DMXLibraryHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary), UDMXPixelMappingFixtureGroupComponent::StaticClass());
 		DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnLibraryChanged));
 		DMXLibraryHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnLibraryChanged));
-		
+
 		if (UDMXLibrary* DMXLibrary = GetSelectedDMXLibrary(FixtureGroupComponent))
 		{
 			UpdateFixturePatchesInUse(DMXLibrary);
@@ -67,7 +68,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::CustomizeDetails(IDetailL
 						{
 							return GroupItemComponent->FixturePatchRef.GetFixturePatch() == FixturePatch;
 						}
-						else if (UDMXPixelMappingMatrixComponent*  MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(BaseComponent))
+						else if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(BaseComponent))
 						{
 							return MatrixComponent->FixturePatchRef.GetFixturePatch() == FixturePatch;
 						}
@@ -94,7 +95,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::CustomizeDetails(IDetailL
 							FixturePatchDetailRowWidget
 						];
 				}
-			}		
+			}
 		}
 	}
 }
@@ -120,40 +121,37 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::OnLibraryChanged()
 					}
 				}
 				else if (UDMXPixelMappingMatrixComponent* ChildMatrix = Cast<UDMXPixelMappingMatrixComponent>(ChildComponent))
-							{
+				{
 					if (ChildMatrix->FixturePatchRef.GetFixturePatch() &&
 						ChildMatrix->FixturePatchRef.GetFixturePatch()->GetParentLibrary() != GroupComponent->DMXLibrary)
-						{
+					{
 						GroupComponent->RemoveChild(ChildMatrix);
-						}
 					}
+				}
 			};
 		}
-				}
-
-	if (!bRefreshing)
-	{
-		ForceRefresh();
-		bRefreshing = true;
 	}
-			}
+
+	if (!RequestForceRefreshHandle.IsValid())
+	{
+		RequestForceRefreshHandle = FCoreDelegates::OnEndFrame.AddSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh);
+	}
+}
 
 void FDMXPixelMappingDetailCustomization_FixtureGroup::OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
 {
-	if (!bRefreshing)
+	if (!RequestForceRefreshHandle.IsValid())
 	{
-		ForceRefresh();
-		bRefreshing = true;
-		}
+		RequestForceRefreshHandle = FCoreDelegates::OnEndFrame.AddSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh);
 	}
+}
 
 void FDMXPixelMappingDetailCustomization_FixtureGroup::OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
 {
-	if (!bRefreshing)
+	if (!RequestForceRefreshHandle.IsValid())
 	{
-	ForceRefresh();
-		bRefreshing = true;
-}
+		RequestForceRefreshHandle = FCoreDelegates::OnEndFrame.AddSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh);
+	}
 }
 
 void FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh()
@@ -167,13 +165,13 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh()
 		PropertyUtilities->ForceRefresh();
 	}
 
-	bRefreshing = false;
+	RequestForceRefreshHandle.Reset();
 }
 
 void FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchLMBDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FDMXEntityFixturePatchRef FixturePatchRef)
 {
 	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
-	if(FixturePatch)
+	if (FixturePatch)
 	{
 		if (SelectedFixturePatches.Num() == 0)
 		{
@@ -313,10 +311,10 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::UpdateFixturePatchesInUse
 		FixturePatchRef.SetEntity(FixturePatch);
 		FixturePatches.Add(FixturePatchRef);
 	}
-		
+
 	SelectedFixturePatches.RemoveAll([&FixturePatchesInLibrary](const FDMXEntityFixturePatchRef& SelectedFixturePatch) {
 		return !SelectedFixturePatch.GetFixturePatch() || !FixturePatchesInLibrary.Contains(SelectedFixturePatch.GetFixturePatch());
-	});
+		});
 }
 
 UDMXLibrary* FDMXPixelMappingDetailCustomization_FixtureGroup::GetSelectedDMXLibrary(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent) const

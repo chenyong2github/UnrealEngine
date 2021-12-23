@@ -264,6 +264,13 @@ public:
 	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Leads to entangled references. Use GetParent() or WeakParent instead."))
 	UDMXPixelMappingBaseComponent* Parent_DEPRECATED;
 
+protected:
+	/** Called when the component was added to a parent */
+	virtual void NotifyAddedToParent();
+
+	/** Called when the component was added to a parent */
+	virtual void NotifyRemovedFromParent();
+
 private:
 	/** Parent component */
 	UPROPERTY(NonTransactional)

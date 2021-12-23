@@ -32,8 +32,6 @@ public:
 	//~ Begin UObject implementation
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
 #endif // WITH_EDITOR
 	//~ End UObject implementation
 

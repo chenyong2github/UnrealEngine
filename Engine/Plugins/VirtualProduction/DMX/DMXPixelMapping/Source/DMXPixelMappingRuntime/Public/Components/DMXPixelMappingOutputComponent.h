@@ -72,11 +72,10 @@ protected:
 public:
 	//~ Begin DMXPixelMappingBaseComponent interface
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
-	virtual void AddChild(UDMXPixelMappingBaseComponent* InComponent) override;
-	virtual void RemoveChild(UDMXPixelMappingBaseComponent* InComponent) override;
+	virtual void NotifyAddedToParent() override;
+	virtual void NotifyRemovedFromParent() override;
 	//~ End DMXPixelMappingBaseComponent interface
  
-
 	/*----------------------------------
 		UDMXPixelMappingOutputComponent Interface
 	----------------------------------*/
@@ -148,9 +147,6 @@ public:
 	FORCEINLINE const TSharedPtr<FDMXPixelMappingComponentWidget> GetComponentWidget() { return ComponentWidget; }
 
 protected:
-	/** Returns the canvas of the render component if available */
-	TSharedPtr<SConstraintCanvas> FindRendererComponentCanvas() const;
-
 	/** Udpates the component widget. If bWithChildrenRecursive, updates child Components' Component Widget recursively */
 	void UpdateComponentWidget(EVisibility NewVisibility = EVisibility::Visible, bool bWithChildrenRecursive = false);
 #endif // WITH_EDITOR

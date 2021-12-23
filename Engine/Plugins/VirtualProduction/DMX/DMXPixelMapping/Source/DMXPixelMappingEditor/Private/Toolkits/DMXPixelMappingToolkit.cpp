@@ -33,6 +33,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Docking/SDockTab.h"
 
@@ -260,7 +261,7 @@ void FDMXPixelMappingToolkit::Tick(float DeltaTime)
 		}
 	}
 
-	// Update component colors
+	// Update component widgets
 	UpdateComponentWidgetColors();
 }
 
@@ -291,8 +292,6 @@ void FDMXPixelMappingToolkit::HandleRemoveComponents()
 	// DEPRECATED 4.27
 	FDMXEditorUtils::ClearAllDMXPortBuffers();
 	FDMXEditorUtils::ClearFixturePatchCachedData();
-
-	DesignerView->UpdateOutput(true);
 
 	UpdateBlueprintNodes(DMXPixelMapping);
 	OnComponentsAddedOrDeletedDelegate_DEPRECATED.Broadcast();
@@ -333,6 +332,7 @@ TArray<ComponentType> FDMXPixelMappingToolkit::MakeComponentArray(const TSet<FDM
 
 void FDMXPixelMappingToolkit::SelectComponents(const TSet<FDMXPixelMappingComponentReference>& InSelectedComponents)
 {
+	// Update selection
 	SelectedComponents.Empty();
 
 	SetActiveRenderComponent(nullptr);
@@ -358,12 +358,6 @@ void FDMXPixelMappingToolkit::SelectComponents(const TSet<FDMXPixelMappingCompon
 		{
 			ActiveOutputComponents.Add(OutputComponent);
 		}
-	}
-
-	if (SelectedComponents.Num() > 0)
-	{
-		// Force update design view
-		DesignerView->UpdateOutput(true);
 	}
 
 	OnSelectedComponentsChangedDelegate.Broadcast();
@@ -537,33 +531,134 @@ void FDMXPixelMappingToolkit::OnSaveThumbnailImage()
 TArray<UDMXPixelMappingBaseComponent*> FDMXPixelMappingToolkit::CreateComponentsFromTemplates(UDMXPixelMappingRootComponent* RootComponent, UDMXPixelMappingBaseComponent* Target, const TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>>& Templates)
 {
 	TArray<UDMXPixelMappingBaseComponent*> NewComponents;
-	if (ensureMsgf(RootComponent && Target, TEXT("Tried to create components from template but RootComponent or Target were invalid.")))
+	if (Templates.Num() > 0)
 	{
-		for (const TSharedPtr<FDMXPixelMappingComponentTemplate>& Template : Templates)
+		TGuardValue<bool>(bAddingComponents, true);
+
+		FScopedSlowTask SlowTask(Templates.Num(), LOCTEXT("CreateComponentsSlowTaskMessage", "Creating Pixel Mapping Components"));
+		SlowTask.MakeDialogDelayed(.5f);
+
+		if (ensureMsgf(RootComponent && Target, TEXT("Tried to create components from template but RootComponent or Target were invalid.")))
 		{
-			if (UDMXPixelMappingBaseComponent* NewComponent = Template->CreateComponent<UDMXPixelMappingBaseComponent>(RootComponent))
+			for (const TSharedPtr<FDMXPixelMappingComponentTemplate>& Template : Templates)
 			{
-				NewComponents.Add(NewComponent);
+				SlowTask.EnterProgressFrame(1);
+				if (UDMXPixelMappingBaseComponent* NewComponent = Template->CreateComponent<UDMXPixelMappingBaseComponent>(RootComponent))
+				{
+					NewComponents.Add(NewComponent);
 
-				Target->Modify();
-				NewComponent->Modify();
+					Target->Modify();
+					NewComponent->Modify();
 
-				Target->AddChild(NewComponent);
+					Target->AddChild(NewComponent);
+				}
 			}
 		}
+
+		UpdateBlueprintNodes(DMXPixelMapping);
 	}
 
 	return NewComponents;
 }
 
-void FDMXPixelMappingToolkit::OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* InComponent)
+void FDMXPixelMappingToolkit::DeleteSelectedComponents()
 {
-	UpdateBlueprintNodes(DMXPixelMapping);
+	if (SelectedComponents.Num() > 0)
+	{
+		TGuardValue<bool>(bRemovingComponents, true);
+
+		// Count how many Descendants need to be removed 
+		const int32 NumComponentsAndItsDescendants = [this]()
+		{
+			int32 DescendantsCounter = 0;
+			for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
+			{
+				if (UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent())
+				{
+					DescendantsCounter++;
+
+					constexpr bool bCountRecursive = true;
+					Component->ForEachChild([&DescendantsCounter](UDMXPixelMappingBaseComponent* ChildComponent)
+						{
+							DescendantsCounter++;
+						}, bCountRecursive);
+				}
+			}
+			return DescendantsCounter;
+		}();
+
+		// Make a slow task since removing may take a significant amount of time
+		const TSharedRef<FScopedSlowTask> SlowTask = MakeShared<FScopedSlowTask>(NumComponentsAndItsDescendants, LOCTEXT("DeleteComponentsSlowTaskMessage", "Removing Pixel Mapping Components"));
+		SlowTask->MakeDialogDelayed(.5f);
+
+		// Bind to the Component Removed Event and let the Slow Task update from that 
+		const FDelegateHandle RemoveComponentDelegateHandle = UDMXPixelMappingBaseComponent::GetOnComponentRemoved().AddRaw(this, &FDMXPixelMappingToolkit::UpdateRemoveComponentSlowTask, SlowTask);
+
+		// Remove the Components
+		const FScopedTransaction DeleteSelectedComponentsTransaction =
+			FScopedTransaction(FText::Format(LOCTEXT("DeleteSelectedComponents", "PixelMapping: Delete {0}|plural(one=Component, other=Components)"), SelectedComponents.Num()));
+
+		TSet<FDMXPixelMappingComponentReference> ParentComponentReferences;
+		for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
+		{
+			if (UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent())
+			{
+				if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(Component))
+				{
+					SetActiveRenderComponent(nullptr);
+				}
+
+				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Component))
+				{
+					ActiveOutputComponents.Remove(OutputComponent);
+				}
+
+				if (UDMXPixelMappingBaseComponent* ParentComponent = Component->GetParent())
+				{
+					ParentComponentReferences.Add(GetReferenceFromComponent(ParentComponent));
+
+					Component->SetFlags(RF_Transactional);
+					Component->Modify();
+					ParentComponent->Modify();
+
+					ParentComponent->RemoveChild(ComponentReference.GetComponent());
+				}
+			}
+		}
+
+		// Unbind from the Component Removed Event
+		UDMXPixelMappingBaseComponent::GetOnComponentRemoved().Remove(RemoveComponentDelegateHandle);
+
+		// Select the Parent Component 
+		SelectComponents(ParentComponentReferences);
+
+		UpdateBlueprintNodes(DMXPixelMapping);
+	}
 }
 
-void FDMXPixelMappingToolkit::OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* InComponent)
+void FDMXPixelMappingToolkit::OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
 {
-	UpdateBlueprintNodes(DMXPixelMapping);
+	// For performance reasons don't update blueprint nodes if the methods in this class add (possibly many) components.
+	// Instead call UpdateBlueprintNodes at the end such functions.
+	if (!bAddingComponents)
+	{
+		UpdateBlueprintNodes(DMXPixelMapping);
+	}
+}
+
+void FDMXPixelMappingToolkit::OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
+{
+	// For performance reasons don't update blueprint nodes if the methods in this class remove (possibly many) components .
+	// Instead call UpdateBlueprintNodes at the end such functions.
+	if (!bRemovingComponents)
+	{
+		UpdateBlueprintNodes(DMXPixelMapping);
+	}
+}
+
+void FDMXPixelMappingToolkit::UpdateRemoveComponentSlowTask(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* InComponent, TSharedRef<FScopedSlowTask> SlowTask)
+{
+	SlowTask->EnterProgressFrame(1);
 }
 
 void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
@@ -726,45 +821,6 @@ void FDMXPixelMappingToolkit::CreateInternalViews()
 	CreateOrGetView_DesignerView();
 	CreateOrGetView_PreviewView();
 	CreateOrGetView_DetailsView();
-}
-
-void FDMXPixelMappingToolkit::DeleteSelectedComponents()
-{
-	const FScopedTransaction DeleteSelectedComponentsTransaction =
-		FScopedTransaction(FText::Format(LOCTEXT("DeleteSelectedComponents", "PixelMapping: Delete {0}|plural(one=Component, other=Components)"), SelectedComponents.Num()));
-
-	// Select parent as selected.
-	TSet<FDMXPixelMappingComponentReference> ParentComponentReferences;
-
-	for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
-	{
-		if (UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent())
-		{
-			if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(Component))
-			{
-				SetActiveRenderComponent(nullptr);
-			}
-
-			if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Component))
-			{
-				ActiveOutputComponents.Remove(OutputComponent);
-			}
-
-			if (UDMXPixelMappingBaseComponent* ParentComponent = Component->GetParent())
-			{
-				ParentComponentReferences.Add(GetReferenceFromComponent(ParentComponent));
-
-				Component->SetFlags(RF_Transactional);
-				Component->Modify();
-				ParentComponent->Modify();
-
-				ParentComponent->RemoveChild(ComponentReference.GetComponent());
-			}
-		}
-	}
-
-	// Should be called at the end of the function after Broadcast the changes
-	SelectComponents(ParentComponentReferences);
 }
 
 void FDMXPixelMappingToolkit::OnComponentRenamed(UDMXPixelMappingBaseComponent* InComponent)
