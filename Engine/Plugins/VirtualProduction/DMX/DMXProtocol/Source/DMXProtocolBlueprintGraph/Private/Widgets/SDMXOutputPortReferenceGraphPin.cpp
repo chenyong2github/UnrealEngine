@@ -40,29 +40,19 @@ FDMXOutputPortReference SDMXOutputPortReferenceGraphPin::GetPinValue() const
 		FDMXOutputPortReference::StaticStruct()->ImportText(*EntityRefStr, &PortReference, nullptr, EPropertyPortFlags::PPF_None, GLog, FDMXOutputPortReference::StaticStruct()->GetName());
 	}
 
-	// If no value is set or the value doesn't exist in protocol settings, return the first port in settings instead.
-	if (!PortReference.GetPortGuid().IsValid())
-	{
-		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
-		if (ensure(ProtocolSettings))
-		{
-			if (ProtocolSettings->OutputPortConfigs.Num() > 0)
-			{
-				PortReference = FDMXOutputPortReference(ProtocolSettings->OutputPortConfigs[0].GetPortGuid(), true);
-
-				constexpr bool bMarkAsModified = false;
-				SetPinValue(PortReference, bMarkAsModified);
-			}
-		}
-	}
-
 	return PortReference;
 }
 
 void SDMXOutputPortReferenceGraphPin::SetPinValue(const FDMXOutputPortReference& OutputPortReference, bool bMarkAsModified) const
 {
+	if (GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	FString ValueString;
 	FDMXOutputPortReference::StaticStruct()->ExportText(ValueString, &OutputPortReference, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+
 	GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, ValueString, bMarkAsModified);
 }
 

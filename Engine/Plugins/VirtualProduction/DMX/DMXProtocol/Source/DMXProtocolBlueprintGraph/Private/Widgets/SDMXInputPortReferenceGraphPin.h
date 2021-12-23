@@ -31,7 +31,7 @@ private:
 
 	FDMXInputPortReference GetPinValue() const;
 
-	void SetPinValue(const FDMXInputPortReference& InputPortReference, bool bMarkAsModified = true) const;
+	void SetPinValue(const FDMXInputPortReference& InputPortReference, bool bMarkAsModified) const;
 
 	TSharedPtr<SDMXPortSelector> PortSelector;
 };
