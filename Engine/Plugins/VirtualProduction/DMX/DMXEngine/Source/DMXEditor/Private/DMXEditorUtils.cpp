@@ -566,6 +566,8 @@ FText FDMXEditorUtils::GetEntityTypeNameText(TSubclassOf<UDMXEntity> EntityClass
 bool FDMXEditorUtils::TryAutoAssignToUniverses(UDMXEntityFixturePatch* Patch, const TSet<int32>& AllowedUniverses)
 {
 	check(Patch->IsAutoAssignAddress());
+	
+	Patch->Modify();
 	const int32 UniverseToRestore = Patch->GetUniverseID();
 	const int32 AutoAddressToRestore = Patch->GetAutoStartingAddress();
 	
@@ -681,6 +683,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 		
 		static void AssignPatchTo(UDMXEntityFixturePatch* Patch, int32 ToAddress, int32 UniverseToAssignTo)
 		{
+			Patch->Modify();
 			Patch->SetAutoStartingAddress(ToAddress);
 			Patch->SetUniverseID(UniverseToAssignTo);
 		}

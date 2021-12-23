@@ -38,15 +38,23 @@ UDMXEntityFixturePatch::UDMXEntityFixturePatch()
 #endif // WITH_EDITORONLY_DATA
 {}
 
-UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef, const FString& DesiredName)
+UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef, const FString& DesiredName, bool bMarkDMXLibraryDirty)
 {
 	UDMXEntityFixtureType* FixtureType = FixtureTypeRef.GetFixtureType();
 
-	if (ensureMsgf(FixtureType, TEXT("Cannot create Fixture Patch when Fixture Type is null.")))
+	if (ensureMsgf(FixtureType, TEXT("Cannot create Fixture Patch when Fixture Type is invalid.")))
 	{
 		UDMXLibrary* DMXLibrary = FixtureType->GetParentLibrary();
-		if (ensureMsgf(DMXLibrary, TEXT("Cannot create Fixture Patch when DMX Library is null.")))
+		if (ensureMsgf(DMXLibrary, TEXT("Cannot create Fixture Patch when Fixture Type's DMX Library is invalid.")))
 		{
+#if WITH_EDITOR
+			if (bMarkDMXLibraryDirty)
+			{
+				DMXLibrary->Modify();
+				DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetEntitiesPropertyName()));
+			}
+#endif
+
 			FString EntityName = FDMXRuntimeUtils::FindUniqueEntityName(DMXLibrary, UDMXEntityFixturePatch::StaticClass(), DesiredName);
 
 			UDMXEntityFixturePatch* NewFixturePatch = NewObject<UDMXEntityFixturePatch>(DMXLibrary, UDMXEntityFixturePatch::StaticClass(), NAME_None, RF_Transactional);
@@ -54,6 +62,13 @@ UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMX
 			NewFixturePatch->SetFixtureType(FixtureType);
 
 			return NewFixturePatch;
+
+#if WITH_EDITOR
+			if (bMarkDMXLibraryDirty)
+			{
+				DMXLibrary->PostEditChange();
+			}
+#endif
 		}
 	}
 
@@ -378,8 +393,6 @@ const FDMXFixtureMode* UDMXEntityFixturePatch::GetActiveMode() const
 
 void UDMXEntityFixturePatch::SetFixtureType(UDMXEntityFixtureType* NewFixtureType)
 {
-	Modify();
-
 	if (!IsValid(NewFixtureType))
 	{
 		ParentFixtureTypeTemplate = nullptr;
@@ -396,8 +409,6 @@ void UDMXEntityFixturePatch::SetFixtureType(UDMXEntityFixtureType* NewFixtureTyp
 
 void UDMXEntityFixturePatch::SetUniverseID(int32 NewUniverseID)
 {
-	Modify();
-
 	UniverseID = NewUniverseID;
 
 	RebuildCache();
@@ -405,8 +416,6 @@ void UDMXEntityFixturePatch::SetUniverseID(int32 NewUniverseID)
 
 void UDMXEntityFixturePatch::SetAutoStartingAddress(int32 NewAutoStartingAddress)
 {
-	Modify();
-
 	AutoStartingAddress = NewAutoStartingAddress;
 	ManualStartingAddress = NewAutoStartingAddress;
 
@@ -415,8 +424,6 @@ void UDMXEntityFixturePatch::SetAutoStartingAddress(int32 NewAutoStartingAddress
 
 void UDMXEntityFixturePatch::SetManualStartingAddress(int32 NewManualStartingAddress)
 {
-	Modify();
-
 	ManualStartingAddress = NewManualStartingAddress;
 
 	RebuildCache();
@@ -424,8 +431,6 @@ void UDMXEntityFixturePatch::SetManualStartingAddress(int32 NewManualStartingAdd
 
 void UDMXEntityFixturePatch::SetStartingChannel(int32 NewStartingChannel)
 {
-	Modify();
-
 	if (NewStartingChannel == AutoStartingAddress && ManualStartingAddress == NewStartingChannel)
 	{
 		return;
@@ -462,8 +467,6 @@ int32 UDMXEntityFixturePatch::GetEndingChannel() const
 
 bool UDMXEntityFixturePatch::SetActiveModeIndex(int32 NewActiveModeIndex)
 {
-	Modify();
-
 	if (IsValid(ParentFixtureTypeTemplate))
 	{
 		if (ParentFixtureTypeTemplate->Modes.IsValidIndex(NewActiveModeIndex))

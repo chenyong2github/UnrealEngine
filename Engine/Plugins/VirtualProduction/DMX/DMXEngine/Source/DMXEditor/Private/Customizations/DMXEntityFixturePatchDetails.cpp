@@ -9,6 +9,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
+#include "ScopedTransaction.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXEntityFixturePatchFixtureSettingsDetails"
@@ -123,18 +124,21 @@ void FDMXEntityFixturePatchDetails::OnParentFixtureTypeChanged(UDMXEntity* NewTe
 
 void FDMXEntityFixturePatchDetails::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
 {
-	// Keep the active mode valid
-	int32 ActiveMode;
-	if (ActiveModeHandle->GetValue(ActiveMode) == FPropertyAccess::Success)
+	if (IsValid(FixtureType) && !FixtureType->HasAnyFlags(RF_Transactional))
 	{
-		if (!FixtureType->Modes.IsValidIndex(ActiveMode))
+		// Keep the active mode valid
+		int32 ActiveMode;
+		if (ActiveModeHandle->GetValue(ActiveMode) == FPropertyAccess::Success)
 		{
-			const int32 NewActiveMode = FixtureType->Modes.Num() > 0 ? 0 : INDEX_NONE;
-			ActiveModeHandle->SetValue(NewActiveMode);
+			if (!FixtureType->Modes.IsValidIndex(ActiveMode))
+			{
+				const int32 NewActiveMode = FixtureType->Modes.Num() > 0 ? 0 : INDEX_NONE;
+				ActiveModeHandle->SetValue(NewActiveMode);
+			}
 		}
+	
+		PropertyUtilities->ForceRefresh();
 	}
-
-	PropertyUtilities->ForceRefresh();
 }
 
 void FDMXEntityFixturePatchDetails::OnActiveModeChanged(const TSharedPtr<uint32> InSelectedMode, ESelectInfo::Type SelectInfo)
@@ -266,11 +270,20 @@ void FDMXEntityFixturePatchDetails::SetActiveMode(int32 ModeIndex)
 	TArray<UObject*> OuterObjects;
 	ActiveModeHandle->GetOuterObjects(OuterObjects);
 
-	TArray<UDMXEntityFixturePatch*> FixturePatches;
-	for (UObject* Object : OuterObjects)
+	if (OuterObjects.Num() > 0)
 	{
-		UDMXEntityFixturePatch* Patch = CastChecked<UDMXEntityFixturePatch>(Object);
-		Patch->SetActiveModeIndex(ModeIndex);
+		const FScopedTransaction Transaction(LOCTEXT("SetFixturePatchActiveModeTransaction", "Set DMX Fixture Patch Active Mode"));
+
+		for (UObject* Object : OuterObjects)
+		{
+			UDMXEntityFixturePatch* Patch = CastChecked<UDMXEntityFixturePatch>(Object);
+			Patch->Modify();
+			Patch->PreEditChange(UDMXEntityFixturePatch::StaticClass()->FindPropertyByName(UDMXEntityFixturePatch::GetActiveModePropertyNameChecked()));
+
+			Patch->SetActiveModeIndex(ModeIndex);
+
+			Patch->PostEditChange();
+		}
 	}
 }
 

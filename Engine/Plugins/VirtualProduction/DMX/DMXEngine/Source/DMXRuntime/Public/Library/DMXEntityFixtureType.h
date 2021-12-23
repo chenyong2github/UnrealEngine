@@ -274,8 +274,8 @@ class DMXRUNTIME_API UDMXEntityFixtureType
 public:
 	/** Creates a new Fixture Type in the DMX Library */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	static UDMXEntityFixtureType* CreateFixtureTypeInLibrary(UDMXLibrary* ParentDMXLibrary, const FString& DesiredName = TEXT(""));
-	
+	static UDMXEntityFixtureType* CreateFixtureTypeInLibrary(UDMXLibrary* ParentDMXLibrary, const FString& DesiredName = TEXT(""), bool bMarkDMXLibraryDirty = true);
+
 	/** Removes a Fixture Type from a DMX Library */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	static void RemoveFixtureTypeFromLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef);
