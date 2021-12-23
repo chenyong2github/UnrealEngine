@@ -21,7 +21,6 @@ TSharedRef<SWidget> SDMXInputPortReferenceGraphPin::GetDefaultValueWidget()
 {
 	FDMXInputPortReference InitiallySelectedPortReference = GetPinValue();
 
-	// Create entity picker button
 	PortSelector = SNew(SDMXPortSelector)
 		.Mode(EDMXPortSelectorMode::SelectFromAvailableInputs)
 		.InitialSelection(InitiallySelectedPortReference.GetPortGuid())
@@ -41,29 +40,19 @@ FDMXInputPortReference SDMXInputPortReferenceGraphPin::GetPinValue() const
 		FDMXInputPortReference::StaticStruct()->ImportText(*EntityRefStr, &PortReference, nullptr, EPropertyPortFlags::PPF_None, GLog, FDMXInputPortReference::StaticStruct()->GetName());
 	}
 
-	// If no value is set or the value doesn't exist in protocol settings, return the first port in settings instead.
-	if (!PortReference.GetPortGuid().IsValid())
-	{
-		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
-		if (ensure(ProtocolSettings))
-		{
-			if (ProtocolSettings->InputPortConfigs.Num() > 0)
-			{
-				PortReference = FDMXInputPortReference(ProtocolSettings->InputPortConfigs[0].GetPortGuid(), true);
-
-				constexpr bool bMarkAsModified = false;
-				SetPinValue(PortReference, bMarkAsModified);
-			}
-		}
-	}
-
 	return PortReference;
 }
-	
+
 void SDMXInputPortReferenceGraphPin::SetPinValue(const FDMXInputPortReference& InputPortReference, bool bMarkAsModified) const
 {
+	if (GraphPinObj->IsPendingKill())
+	{
+		return;
+	}
+
 	FString ValueString;
 	FDMXInputPortReference::StaticStruct()->ExportText(ValueString, &InputPortReference, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+
 	GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, ValueString, bMarkAsModified);
 }
 
@@ -90,7 +79,8 @@ void SDMXInputPortReferenceGraphPin::OnPortSelected() const
 
 		FDMXInputPortReference PortReference(PortGuid, true);
 
-		SetPinValue(PortReference);
+		constexpr bool bMarkAsModified = true;
+		SetPinValue(PortReference, bMarkAsModified);
 	}
 }
 

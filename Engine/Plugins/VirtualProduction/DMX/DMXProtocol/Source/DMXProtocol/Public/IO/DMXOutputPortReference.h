@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "DMXProtocolLog.h"
+#include "DMXProtocolSettings.h"
+
 #include "Misc/Guid.h"
 
 #include "DMXOutputPortReference.generated.h"
@@ -15,17 +18,45 @@ struct DMXPROTOCOL_API FDMXOutputPortReference
 
 	FDMXOutputPortReference()
 		: bEnabledFlag(true)
-	{}
+	{
+		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+		if (ProtocolSettings && ProtocolSettings->OutputPortConfigs.Num() > 0)
+		{
+			PortGuid = ProtocolSettings->OutputPortConfigs[0].GetPortGuid();
+		}
+	}
 
 	FDMXOutputPortReference(const FGuid& InPortGuid, bool bIsEnabledFlag)
 		: PortGuid(InPortGuid)
 		, bEnabledFlag(bIsEnabledFlag)
-	{}
+	{
+		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+		if (ProtocolSettings)
+		{
+			const FDMXOutputPortConfig* ExistingOutputPortConfigPtr = ProtocolSettings->OutputPortConfigs.FindByPredicate([InPortGuid](const FDMXOutputPortConfig& OutputPortConfig)
+				{
+					return OutputPortConfig.GetPortGuid() == InPortGuid;
+				});
+
+			UE_CLOG(!ExistingOutputPortConfigPtr, LogDMXProtocol, Warning, TEXT("Trying to construct output port refrence, but the referenced Port Guid doesn't exist."));
+		}
+	}
 
 	FDMXOutputPortReference(const FDMXOutputPortReference& InOutputPortReference, bool bIsEnabledFlag)
 		: PortGuid(InOutputPortReference.PortGuid)
 		, bEnabledFlag(bIsEnabledFlag)
-	{}
+	{
+		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+		if (ProtocolSettings)
+		{
+			const FDMXOutputPortConfig* ExistingOutputPortConfigPtr = ProtocolSettings->OutputPortConfigs.FindByPredicate([InOutputPortReference](const FDMXOutputPortConfig& OutputPortConfig)
+				{
+					return OutputPortConfig.GetPortGuid() == InOutputPortReference.GetPortGuid();
+				});
+
+			UE_CLOG(!ExistingOutputPortConfigPtr, LogDMXProtocol, Warning, TEXT("Trying to construct output port refrence, but the referenced Port Guid doesn't exist."));
+		}
+	}
 
 	/** Returns true if the port is enabled. Always true unless constructed with bIsAlwaysEnabled = false */
 	FORCEINLINE bool IsEnabledFlagSet() const { return bEnabledFlag; }
