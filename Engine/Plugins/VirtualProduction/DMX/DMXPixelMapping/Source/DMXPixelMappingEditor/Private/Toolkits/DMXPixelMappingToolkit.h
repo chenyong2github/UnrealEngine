@@ -8,24 +8,23 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "DMXPixelMappingComponentReference.h"
 
-class UDMXPixelMapping;
-class SDockableTab;
-class FTabManager;
-class SWidget;
-
+class FDMXPixelMappingPaletteViewModel;
+class FDMXPixelMappingToolbar;
 class SDMXPixelMappingPaletteView;
 class SDMXPixelMappingHierarchyView;
 class SDMXPixelMappingDesignerView;
 class SDMXPixelMappingPreviewView;
 class SDMXPixelMappingDetailsView;
-
-class FDMXPixelMappingPaletteViewModel;
-
+class UDMXPixelMapping;
 class UDMXPixelMappingBaseComponent;
-class FDMXPixelMappingToolbar;
-class UDMXPixelMappingRendererComponent;
-class UDMXPixelMappingOutputComponent;
 class UDMXPixelMappingMatrixComponent;
+class UDMXPixelMappingOutputComponent;
+class UDMXPixelMappingRendererComponent;
+
+struct FScopedSlowTask;
+class FTabManager;
+class SDockableTab;
+class SWidget;
 
 
 /**
@@ -146,8 +145,6 @@ public:
 
 	void AddRenderer();
 
-	void DeleteSelectedComponents();
-
 	void OnComponentRenamed(UDMXPixelMappingBaseComponent* InComponent);
 
 	/** 
@@ -156,13 +153,19 @@ public:
 	 */
 	TArray<UDMXPixelMappingBaseComponent*> CreateComponentsFromTemplates(UDMXPixelMappingRootComponent* RootComponent, UDMXPixelMappingBaseComponent* Target, const TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>>& Templates);
 
-	UE_DEPRECATED(4.27, "Handled in UDMXPixelMappingMatrixComponent internally instead. No longer needs to be call explicitly.")
-	void DeleteMatrixPixels(UDMXPixelMappingMatrixComponent* InMatrixComponent) { checkNoEntry();}
-
-	UE_DEPRECATED(4.27, "Handled in UDMXPixelMappingMatrixComponent internally instead.  No longer needs to be call explicitly.")
-	void CreateMatrixPixels(UDMXPixelMappingMatrixComponent* InMatrixComponent) {}
+	/** Deletes the selected Components */
+	void DeleteSelectedComponents();
 
 private:
+	/** Called when a Component was added to the pixel mapping */
+	void OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+
+	/** Called when a Component was removed from the pixel mapping */
+	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+
+	/** Updates the Slow Task when removing Components */
+	void UpdateRemoveComponentSlowTask(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component, TSharedRef<FScopedSlowTask> SlowTask);
+
 	void PlayDMX();
 
 	void StopPlayingDMX();
@@ -193,13 +196,6 @@ private:
 
 	void CreateInternalViews();
 
-	/** Called when a component was added to the pixel mapping */
-	void OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* InComponent);
-
-	/** Called when a component was removed from the pixel mapping */
-	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* InComponent);
-
-private:
 	UDMXPixelMapping* DMXPixelMapping;
 
 	/** List of open tool panels; used to ensure only one exists at any one time */
@@ -239,6 +235,12 @@ private:
 	uint8 RequestStopSendingTicks;
 
 	static const uint8 RequestStopSendingMaxTicks;
+
+	/** True while adding components (to avoid needlessly updating blueprint nodes on each component added via our own methods) */
+	bool bAddingComponents = false;
+
+	/** True while removing components (to avoid needlessly updating blueprint nodes on each component removed via our own methods) */
+	bool bRemovingComponents = false;
 
 	FOnComponentsAddedOrDeletedDelegate OnComponentsAddedOrDeletedDelegate_DEPRECATED;
 

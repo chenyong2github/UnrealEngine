@@ -12,16 +12,16 @@
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingPreviewView"
 
-namespace
+namespace UE::DMX::Private::SDMXPixelMappingFixturePatchDetailRow
 {
 	constexpr FLinearColor NormalBGColor(0.f, 0.0f, 0.f, 0.f); // Fully transparent so it just shows the background
 	constexpr FLinearColor HighlightBGColor(0.87f, 0.64f, 0.f, 0.5f); // Yellow transparent
-	constexpr FLinearColor ErrorBGColor(1.f, 0.f, 0.f, 0.5f); // Yellow transparent
-
 }
 
 void SDMXPixelMappingFixturePatchDetailRow::Construct(const FArguments& InArgs)
 {
+	using namespace UE::DMX::Private::SDMXPixelMappingFixturePatchDetailRow;
+
 	OnLMBDown = InArgs._OnLMBDown;
 	OnLMBUp   = InArgs._OnLMBUp;
 	OnDragged = InArgs._OnDragged;
@@ -36,8 +36,8 @@ void SDMXPixelMappingFixturePatchDetailRow::Construct(const FArguments& InArgs)
 		+ SOverlay::Slot()
 		.Padding(-3.f) // Need to overdraw to avoid having gaps between the detail rows
 		[
-			SAssignNew(Border, SBorder)
-			.BorderImage(FEditorStyle::GetBrush("DetailsView.GroupSection"))
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
 			.BorderBackgroundColor_Lambda([this]()
 				{
 					return bHighlight ? HighlightBGColor : NormalBGColor;

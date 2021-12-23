@@ -6,30 +6,33 @@
 
 #include "DMXPixelMappingComponentReference.h"
 
+#include "EditorUndoClient.h"
 #include "Templates/SharedPointer.h"
 
-class FDMXPixelMappingToolkit;
+class UDMXPixelMappingBaseComponent;
 class FDMXPixelMappingComponentReference;
 class FDMXPixelMappingDragDropOp;
-class SDMXPixelMappingRuler;
-class SDMXPixelMappingTransformHandle;
-class SDMXPixelMappingSourceTextureViewport;
-class UDMXPixelMappingBaseComponent;
 class UDMXPixelMappingFixtureGroupComponent;
 class UDMXPixelMappingFixtureGroupItemComponent;
 class UDMXPixelMappingOutputComponent;
 class UDMXPixelMappingRendererComponent;
+class SDMXPixelMappingRuler;
+class SDMXPixelMappingSourceTextureViewport;
+class FDMXPixelMappingToolkit;
+class SDMXPixelMappingTransformHandle;
 
-struct FOptionalSize;
 class FHittestGrid;
-class SCanvas;
-class SDMXPixelMappingDesignerCanvas;
+struct FOptionalSize;
+class SBorder;
 class SBox;
+class SCanvas;
+class SConstraintCanvas;
 class SOverlay;
 
 
 class SDMXPixelMappingDesignerView
 	: public SDMXPixelMappingSurface
+	, public FEditorUndoClient
 {
 private:
 	struct FComponentHitResult
@@ -49,7 +52,9 @@ public:
 	SLATE_BEGIN_ARGS(SDMXPixelMappingDesignerView) { }
 	SLATE_END_ARGS()
 
-public:
+	/** Destructor */
+	virtual ~SDMXPixelMappingDesignerView();
+
 	/**
 	 * Constructs the widget.
 	 *
@@ -57,12 +62,20 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
 
+	/** The width of the preview screen for the UI */
+	FOptionalSize GetPreviewAreaWidth() const;
+
+	/** The height of the preview screen for the UI */
+	FOptionalSize GetPreviewAreaHeight() const;
+
+	/** Gets the scale of the preview screen */
+	float GetPreviewScale() const;
+
+protected:
 	// Begin SWidget interface
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -73,39 +86,57 @@ public:
 	// End of SWidget interface
 
 	//~ Begin SDMXPixelMappingSurface interface
-	virtual void OnPaintBackground(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const override;
 	virtual FSlateRect ComputeAreaBounds() const override;
 	virtual int32 GetGraphRulePeriod() const override;
 	virtual float GetGridScaleAmount() const override;
 	virtual int32 GetSnapGridSize() const override;
 	//~ End SDMXPixelMappingSurface interface
 
-	/** The width of the preview screen for the UI */
-	FOptionalSize GetPreviewAreaWidth() const;
-
-	/** The height of the preview screen for the UI */
-	FOptionalSize GetPreviewAreaHeight() const;
-
-	void UpdateOutput(bool bForceUpdate);
-
-	TSet<FDMXPixelMappingComponentReference> GetSelectedComponents() const;
-
-	FDMXPixelMappingComponentReference GetSelectedComponent() const;
-
-	float GetPreviewScale() const;
+	//~ Begin FEditorUndoClient Interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	// End of FEditorUndoClient
 
 private:
-	/** Returns the component under the cursor */
-	UDMXPixelMappingOutputComponent* FindComponentUnderCursor() const;
+	/** Rebuilds the designer widget */
+	void RebuildDesigner();
 
-	/** Returns the cursor position in graph space */
-	bool GetGraphSpaceCursorPosition(FVector2D& OutGraphSpaceCursorPosition) const;
+	/** Creates the extension widgets for the selected component */
+	void CreateExtensionWidgetsForSelection();
 
-	void PopulateWidgetGeometryCache(FArrangedWidget& Root);
+	/** Clears the extension widgets */
+	void ClearExtensionWidgets();
 
-	void PopulateWidgetGeometryCache_Loop(FArrangedWidget& Parent);
+	/** Returns if the extension widget canvas should be visible */
+	EVisibility GetExtensionCanvasVisibility() const;
 
-	FGeometry GetDesignerGeometry() const;
+	/** Gets the positioin of the extension widget */
+	FVector2D GetExtensionPosition(TSharedPtr<SDMXPixelMappingTransformHandle> Handle);
+
+	/** Gets the size of the extension widget */
+	FVector2D GetExtensionSize(TSharedPtr<SDMXPixelMappingTransformHandle> Handle);
+
+	/** Returns text for the currently hovered component */
+	FText GetHoveredComponentNameText() const;
+
+	/** Returns text for the currently hovered component's parent */
+	FText GetHoveredComponentParentNameText() const;
+
+	/** Returns the visibility of the side rulers */
+	EVisibility GetRulerVisibility() const;
+
+	/** Returns the cursor position as text */
+	FText GetCursorPositionText() const;
+
+	/** Returns the visibility of the cursor position text block */
+	EVisibility GetCursorPositionTextVisibility() const;
+
+	/** Returns the visibility of the ZoomPan widget */
+	EVisibility GetZoomPanVisibility() const;
+
+private:
+	/** Called when zoom to fit was clicked */
+	FReply OnZoomToFitClicked();
 
 	/** Called when a component was added */
 	void OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
@@ -113,49 +144,43 @@ private:
 	/** Called when a component was removed */
 	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
-	EVisibility GetRulerVisibility() const;
-
-	TSharedRef<SWidget> CreateOverlayUI();
-
-	FText GetCursorPositionText() const;
-
-	EVisibility GetCursorPositionTextVisibility() const;
-
-	EVisibility IsZoomPanVisible() const;
-
-	void GetPreviewAreaAndSize(FVector2D& Area, FVector2D& Size) const;
-
-	FGeometry MakeGeometryWindowLocal(const FGeometry& WidgetGeometry) const;
-
-	FReply HandleZoomToFitClicked();
-
+	/** Called when the selected component in the toolkit changed */
 	void OnSelectedComponentsChanged();
 
 	/** Adds any pending selected Components to the selection set */
 	void ResolvePendingSelectedComponents(bool bClearPreviousSelection = false);
-	
+
+	void PopulateWidgetGeometryCache(FArrangedWidget& Root);
+
+	void PopulateWidgetGeometryCache_Loop(FArrangedWidget& Parent);
+
+private:
+	/** Returns the component under the cursor */
+	UDMXPixelMappingOutputComponent* GetComponentUnderCursor() const;
+
+	/** Returns the selected components */
+	TSet<FDMXPixelMappingComponentReference> GetSelectedComponents() const;
+
+	/** Returns the first best selected component */
+	FDMXPixelMappingComponentReference GetSelectedComponent() const;
+
+	/** Gets the Geometry of the component, returns true if successful */
+	bool GetComponentGeometry(FDMXPixelMappingComponentReference InComponentReference, FGeometry& OutGeometry);
+
+	/** Gets the Geometry of the component, returns true if successful */
+	bool GetComponentGeometry(UDMXPixelMappingBaseComponent* InBaseComponent, FGeometry& OutGeometry);
+
+	/** Returns the cursor position in graph space */
+	bool GetGraphSpaceCursorPosition(FVector2D& OutGraphSpaceCursorPosition) const;
+
+	void GetPreviewAreaAndSize(FVector2D& Area, FVector2D& Size) const;
+
+	FGeometry GetDesignerGeometry() const;
+
+	FGeometry MakeGeometryWindowLocal(const FGeometry& WidgetGeometry) const;
+
 	/** Updates the drag drop op to use the patches selected in the Palette */
 	void HandleDragEnterFromDetailsOrPalette(const TSharedPtr<FDMXPixelMappingDragDropOp>& DragDropOp);
-
-	void ClearExtensionWidgets();
-
-	void CreateExtensionWidgetsForSelection();
-
-	EVisibility GetExtensionCanvasVisibility() const;
-
-	FVector2D GetExtensionPosition(TSharedPtr<SDMXPixelMappingTransformHandle> Handle);
-
-	FVector2D GetExtensionSize(TSharedPtr<SDMXPixelMappingTransformHandle> Handle);
-
-	bool GetComponentGeometry(FDMXPixelMappingComponentReference ComponentReference, FGeometry& Geometry);
-
-	bool GetComponentGeometry(UDMXPixelMappingBaseComponent* BaseComponent, FGeometry& Geometry);
-
-	/** Returns text for the currently hovered component */
-	FText GetHoveredComponentNameText() const;
-
-	/** Returns text for the currently hovered component's parent */
-	FText GetHoveredComponentParentNameText() const;
 
 private:
 	/** The component that should be selected, but isn't selected yet */
@@ -164,20 +189,25 @@ private:
 	/** The drag over DragDropOp that should be handled on the next tick*/
 	TSharedPtr<FDMXPixelMappingDragDropOp> PendingDragDropOp;
 
+	/** Canvas that holds the extension widget */
 	TSharedPtr<SCanvas> ExtensionWidgetCanvas;
 
+	/** Widget that holds the source texture */
 	TSharedPtr<SDMXPixelMappingSourceTextureViewport> SourceTextureViewport;
 
 	/** Canvas that holds the component widgets */
-	TSharedPtr<SDMXPixelMappingDesignerCanvas> DesignCanvas;
+	TSharedPtr<SConstraintCanvas> DesignCanvas;
 
 	TSharedPtr<SBox> PreviewSizeConstraint;
 
 	TSharedPtr<SOverlay> PreviewHitTestRoot;
 
+	/** Borer that contains the Design Canvas */
+	TSharedPtr<SBorder> DesignCanvasBorder;
+
 	TSharedPtr<FHittestGrid> HittestGrid;
 
-	TMap<TSharedRef<SWidget>, FArrangedWidget> CachedWidgetGeometry;
+	TMap<TWeakPtr<SWidget>, FArrangedWidget> CachedWidgetGeometry;
 
 	TWeakObjectPtr<UDMXPixelMappingRendererComponent> CachedRendererComponent;
 
@@ -205,4 +235,3 @@ private:
 		TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>> CachedSelectedComponents;
 	};
 };
-

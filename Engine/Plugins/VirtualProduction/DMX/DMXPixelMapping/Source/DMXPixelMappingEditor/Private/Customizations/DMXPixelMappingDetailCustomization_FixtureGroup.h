@@ -102,6 +102,9 @@ private:
 	};
 	TArray<FDetailRowWidgetWithPatch> DetailRowWidgetsWithPatch;
 
+	/** Delegate handle while being bound to the OnEndFrame event */
+	FDelegateHandle RequestForceRefreshHandle;
+
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 
 	/** If true, is refreshing */

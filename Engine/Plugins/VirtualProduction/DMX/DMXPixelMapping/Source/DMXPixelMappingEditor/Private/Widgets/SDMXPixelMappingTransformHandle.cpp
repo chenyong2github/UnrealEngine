@@ -46,27 +46,31 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonDown(const FGeometry& MyGeo
 	{
 		Action = ComputeActionAtLocation(MyGeometry, MouseEvent);
 
-		check(DesignerViewWeakPtr.Pin());
-
-		const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
-		UDMXPixelMappingBaseComponent* Preview = ComponentReference.GetComponent();
-		UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
-
-		if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Preview))
+		if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = DesignerViewWeakPtr.Pin()->GetToolkit())
 		{
-			FMargin Offsets;
-			FVector2D Size = OutputComponent->GetSize();
-			Offsets.Right = Size.X;
-			Offsets.Bottom = Size.Y;
-			StartingOffsets = Offsets;
+			const TSet<FDMXPixelMappingComponentReference> SelectedComponentReferences = Toolkit->GetSelectedComponents();
+			for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponentReferences)
+			{
+				UDMXPixelMappingBaseComponent* Preview = ComponentReference.GetComponent();
+				UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
+
+				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Preview))
+				{
+					FMargin Offsets;
+					FVector2D Size = OutputComponent->GetSize();
+					Offsets.Right = Size.X;
+					Offsets.Bottom = Size.Y;
+					StartingOffsets = Offsets;
+				}
+
+				MouseDownPosition = MouseEvent.GetScreenSpacePosition();
+
+				ScopedTransaction = MakeShareable<FScopedTransaction>(new FScopedTransaction(LOCTEXT("ResizePixelMappingComponent", "PixelMapping: Resize Component")));
+				Component->Modify();
+
+				return FReply::Handled().CaptureMouse(SharedThis(this));
+			}
 		}
-
-		MouseDownPosition = MouseEvent.GetScreenSpacePosition();
-
-		ScopedTransaction = MakeShareable<FScopedTransaction>(new FScopedTransaction(LOCTEXT("ResizePixelMappingComponent", "PixelMapping: Resize Component")));
-		Component->Modify();
-
-		return FReply::Handled().CaptureMouse(SharedThis(this));
 	}
 
 	return FReply::Unhandled();
@@ -80,46 +84,46 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonUp(const FGeometry& MyGeome
 		
 		if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = DesignerViewWeakPtr.Pin()->GetToolkit())
 		{		
-			const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
-			if (UDMXPixelMappingOutputComponent* ResizedComponent = Cast<UDMXPixelMappingOutputComponent>(ComponentReference.GetComponent()))
-			{			
-				// Delete the component if it's no longer over its parent
-				if (ResizedComponent->HasValidParent() &&
-					!ResizedComponent->IsOverParent())
+			const TSet<FDMXPixelMappingComponentReference> SelectedComponentReferences = Toolkit->GetSelectedComponents();
+			for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponentReferences)
+			{
+				if (UDMXPixelMappingOutputComponent* ResizedComponent = Cast<UDMXPixelMappingOutputComponent>(ComponentReference.GetComponent()))
 				{
-					ResizedComponent->SetFlags(RF_Transactional);
-					ResizedComponent->Modify();
-
-					ResizedComponent->GetParent()->RemoveChild(ResizedComponent);
-				}
-
-				// Delete childs if they're no longer over their parent
-				for (UDMXPixelMappingBaseComponent* Child : TArray<UDMXPixelMappingBaseComponent*>(ResizedComponent->Children))
-				{
-					if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Child))
+					// Delete the component if it's no longer over its parent
+					if (ResizedComponent->HasValidParent() &&
+						!ResizedComponent->IsOverParent())
 					{
-						if (OutputComponent && !OutputComponent->IsOverParent())
+						ResizedComponent->SetFlags(RF_Transactional);
+						ResizedComponent->Modify();
+
+						ResizedComponent->GetParent()->RemoveChild(ResizedComponent);
+					}
+
+					// Delete childs if they're no longer over their parent
+					for (UDMXPixelMappingBaseComponent* Child : TArray<UDMXPixelMappingBaseComponent*>(ResizedComponent->Children))
+					{
+						if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Child))
 						{
-							ResizedComponent->RemoveChild(Child);
+							if (OutputComponent && !OutputComponent->IsOverParent())
+							{
+								ResizedComponent->RemoveChild(Child);
+							}
 						}
 					}
+
+					// Set the final size transacted
+					const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - MouseDownPosition;
+					const FVector2D TranslateAmount = Delta * (1.0f / (DesignerViewWeakPtr.Pin()->GetPreviewScale() * MyGeometry.Scale));
+
+					ResizedComponent->Modify();
+					Resize(ResizedComponent, DragDirection, TranslateAmount);
+
+					ScopedTransaction.Reset();
+
+					return FReply::Handled().ReleaseMouseCapture();
 				}
 			}
 		}
-
-		// Set the final size transacted
-		const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
-		UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
-
-		const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - MouseDownPosition;
-		const FVector2D TranslateAmount = Delta * (1.0f / (DesignerViewWeakPtr.Pin()->GetPreviewScale() * MyGeometry.Scale));
-
-		Component->Modify();
-		Resize(Component, DragDirection, TranslateAmount);
-
-		ScopedTransaction.Reset();
-
-		return FReply::Handled().ReleaseMouseCapture();
 	}
 
 	return FReply::Unhandled();
@@ -129,15 +133,20 @@ FReply SDMXPixelMappingTransformHandle::OnMouseMove(const FGeometry& MyGeometry,
 {
 	if ( Action != EDMXPixelMappingTransformAction::None )
 	{
-		check(DesignerViewWeakPtr.Pin());
+		if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = DesignerViewWeakPtr.Pin()->GetToolkit())
+		{
+			const TSet<FDMXPixelMappingComponentReference> SelectedComponentReferences = Toolkit->GetSelectedComponents();
+			for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponentReferences)
+			{
+				if (UDMXPixelMappingOutputComponent* ResizedComponent = Cast<UDMXPixelMappingOutputComponent>(ComponentReference.GetComponent()))
+				{
+					const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - MouseDownPosition;
+					const FVector2D TranslateAmount = Delta * (1.0f / (DesignerViewWeakPtr.Pin()->GetPreviewScale() * MyGeometry.Scale));
 
-		const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
-		UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
-
-		const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - MouseDownPosition;
-		const FVector2D TranslateAmount = Delta * (1.0f / (DesignerViewWeakPtr.Pin()->GetPreviewScale() * MyGeometry.Scale));
-
-		Resize(Component, DragDirection, TranslateAmount);
+					Resize(ResizedComponent, DragDirection, TranslateAmount);
+				}
+			}
+		}
 	}
 
 	return FReply::Unhandled();

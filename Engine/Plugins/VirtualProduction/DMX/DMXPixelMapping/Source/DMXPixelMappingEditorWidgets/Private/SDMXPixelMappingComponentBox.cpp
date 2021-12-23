@@ -10,6 +10,8 @@
 
 void SDMXPixelMappingComponentBox::Construct(const FArguments& InArgs)
 {
+	SetCanTick(false);
+
 	IDText = InArgs._IDText;
 	MaxIDTextSize = InArgs._MaxIDTextSize;
 
