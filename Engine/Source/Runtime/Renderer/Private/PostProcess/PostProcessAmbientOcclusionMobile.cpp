@@ -12,6 +12,7 @@
 #include "SystemTextures.h"
 #include "ScreenPass.h"
 #include "ScenePrivate.h"
+#include "RendererUtils.h"
 
 FAmbientOcclusionMobileOutputs GAmbientOcclusionMobileOutputs;
 
@@ -397,7 +398,8 @@ void FMobileSceneRenderer::InitAmbientOcclusionOutputs(FRHICommandListImmediate&
 
 	const FIntPoint& BufferSize = SceneDepthZDesc.Extent;
 
-	const uint32 DownsampleFactor = 2;
+	const int32 MobileAmbientOcclusionQuality = CVarMobileAmbientOcclusionQuality.GetValueOnRenderThread();
+	const int32 DownsampleFactor = MobileAmbientOcclusionQuality <= 2 ? 2 : 1; // The high quality use the full size
 
 	FIntPoint Extent = FIntPoint::DivideAndRoundUp(BufferSize, DownsampleFactor);
 
@@ -406,8 +408,10 @@ void FMobileSceneRenderer::InitAmbientOcclusionOutputs(FRHICommandListImmediate&
 	if (!GAmbientOcclusionMobileOutputs.IsValid() || GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture->GetDesc().Extent != Extent || (bUsePixelShader && GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture->GetDesc().Format != PF_G8) || (!bUsePixelShader && GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture->GetDesc().Format != PF_R8G8B8A8))
 	{
 		GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture.SafeRelease();
+		GAmbientOcclusionMobileOutputs.IntermediateBlurTexture.SafeRelease();
 
 		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(Extent, bUsePixelShader ? PF_G8 : PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false, 1, false), GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture, TEXT("AmbientOcclusionTexture"));
+		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(Extent, bUsePixelShader ? PF_G8 : PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false, 1, false), GAmbientOcclusionMobileOutputs.IntermediateBlurTexture, TEXT("IntermediateBlurTexture"));
 	}
 }
 
@@ -440,10 +444,13 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 	static const auto GTAOFalloffStartRatioCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.GTAO.FalloffStartRatio"));
 	static const auto GTAOFalloffEndCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.GTAO.FalloffEnd"));
 	static const auto GTAONumAnglesCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.GTAO.NumAngles"));
-	const uint32 DownsampleFactor = 2;
 
 	const int32 MobileGTAOPreIntegratedTextureType = CVarMobileGTAOPreIntegratedTextureType.GetValueOnRenderThread();
 	const int32 MobileAmbientOcclusionQuality = CVarMobileAmbientOcclusionQuality.GetValueOnRenderThread();
+	const int32 DownsampleFactor = MobileAmbientOcclusionQuality <= 2 ? 2 : 1; // The high quality use the full size
+
+	const int32 MobileAmbientOcclusionShaderType = CVarMobileAmbientOcclusionShaderType.GetValueOnRenderThread();
+	const bool  bUseComputerShader = MobileAmbientOcclusionShaderType != 2;
 
 	FRDGTextureUAVRef AmbientOcclusionTextureUAV = GraphBuilder.CreateUAV(AmbientOcclusionTexture);
 
@@ -628,6 +635,19 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 				SpatialFilterShader,
 				SpatialFilterParameters,
 				FComputeShaderUtils::GetGroupCount(ViewRect.Size(), FGTAOMobile_SpatialFilterCS::TexelsPerThreadGroup));
+		}
+
+		// The medium and high quality apply a blur filter.
+		if (MobileAmbientOcclusionQuality > 1)
+		{
+			FRDGTextureRef IntermediateBlurTexture = GraphBuilder.RegisterExternalTexture(GAmbientOcclusionMobileOutputs.IntermediateBlurTexture);
+
+			RendererUtils::AddGaussianBlurFilter(GraphBuilder,
+				View,
+				AmbientOcclusionTexture,
+				IntermediateBlurTexture,
+				AmbientOcclusionTexture,
+				bUseComputerShader);
 		}
 	}
 }
