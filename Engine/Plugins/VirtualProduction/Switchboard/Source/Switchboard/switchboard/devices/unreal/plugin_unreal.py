@@ -23,7 +23,7 @@ from switchboard import switchboard_application
 from switchboard import switchboard_utils as sb_utils
 from switchboard.config import CONFIG, BoolSetting, DirectoryPathSetting, \
     IntSetting, MultiOptionSetting, OptionSetting, StringSetting, FileSystemPathSetting, \
-    SETTINGS, DEFAULT_MAP_TEXT, StringListSetting
+    SETTINGS, DEFAULT_MAP_TEXT, StringListSetting, migrate_comma_separated_string_to_list
 from switchboard.devices.device_base import Device, DeviceStatus, \
     PluginHeaderWidgets
 from switchboard.devices.device_widget_base import DeviceWidget, DeviceAutoJoinMUServerUI
@@ -284,12 +284,14 @@ class DeviceUnreal(Device):
             nice_name='ExecCmds',
             value=[],
             tool_tip='ExecCmds to be passed. No need for outer double quotes.',
+            migrate_data=migrate_comma_separated_string_to_list
         ),
         'dp_cvars': StringListSetting(
             attr_name='dp_cvars',
             nice_name="DPCVars",
             value=[],
-            tool_tip="Device profile console variables."
+            tool_tip="Device profile console variables.",
+            migrate_data=migrate_comma_separated_string_to_list
         ),
         'port': IntSetting(
             attr_name="port",
