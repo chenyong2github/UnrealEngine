@@ -3,6 +3,7 @@
 import concurrent.futures
 import json
 import os
+import typing
 from pathlib import Path
 import socket
 import struct
@@ -16,7 +17,8 @@ from switchboard import message_protocol
 from switchboard import switchboard_utils as sb_utils
 from switchboard import switchboard_widgets as sb_widgets
 from switchboard.config import CONFIG, BoolSetting, FilePathSetting, \
-    LoggingSetting, OptionSetting, Setting, StringSetting, SETTINGS, StringListSetting
+    LoggingSetting, OptionSetting, Setting, StringSetting, SETTINGS, StringListSetting, \
+    migrate_comma_separated_string_to_list
 from switchboard.devices.device_widget_base import AddDeviceDialog
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal, \
     DeviceWidgetUnreal
@@ -402,13 +404,15 @@ class DevicenDisplay(DeviceUnreal):
             nice_name='ExecCmds',
             value= [],
             tool_tip='ExecCmds to be passed. No need for outer double quotes.',
-            allow_reset=False
+            allow_reset=False,
+            migrate_data=migrate_comma_separated_string_to_list
         ),
         'ndisplay_dp_cvars': StringListSetting(
             attr_name='ndisplay_dp_cvars',
             nice_name="DPCVars",
             value=[],
-            tool_tip="Device profile console variables."
+            tool_tip="Device profile console variables.",
+            migrate_data=migrate_comma_separated_string_to_list
         ),
         'ndisplay_unattended': BoolSetting(
             attr_name='ndisplay_unattended',
