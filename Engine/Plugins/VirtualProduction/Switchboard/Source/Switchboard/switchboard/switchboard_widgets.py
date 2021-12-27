@@ -129,11 +129,17 @@ class MultiSelectionComboBox(QtWidgets.QComboBox):
 class DropDownMenuComboBox(QtWidgets.QComboBox):
     on_select_option = QtCore.Signal(str)
     
-    def __init__(self, icon: QtGui.QIcon, icon_size: int = 20, parent=None):
+    def __init__(self, icon: QtGui.QIcon = None, icon_size: int = 25, parent=None):
         super().__init__(parent=parent)
-        self.addItem(icon, "")
-        drop_down_arrow_size = 20
-        self.setFixedWidth(icon_size + drop_down_arrow_size)
+        
+        drop_down_arrow_size = 15
+        if icon is not None:
+            self.addItem(icon, "")
+            self.setFixedWidth(icon_size + drop_down_arrow_size)
+        else:
+            self.addItem("")
+            self.setFixedWidth(drop_down_arrow_size)
+        
         self.model().setData(self.model().index(0, 0), QtCore.QSize(100, 100), QtCore.Qt.SizeHintRole)
         self.view().setRowHidden(0, True)
         self.currentIndexChanged.connect(self._on_index_changed)
