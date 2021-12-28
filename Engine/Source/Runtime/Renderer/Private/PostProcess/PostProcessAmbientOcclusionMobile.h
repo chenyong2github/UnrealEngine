@@ -11,15 +11,17 @@
 struct FAmbientOcclusionMobileOutputs
 {
 	TRefCountPtr<IPooledRenderTarget> AmbientOcclusionTexture;
+	TRefCountPtr<IPooledRenderTarget> IntermediateBlurTexture;
 
 	bool IsValid()
 	{
-		return AmbientOcclusionTexture.IsValid();
+		return AmbientOcclusionTexture.IsValid() && IntermediateBlurTexture.IsValid();
 	}
 
 	void Release()
 	{
 		AmbientOcclusionTexture.SafeRelease();
+		IntermediateBlurTexture.SafeRelease();
 	}
 };
 
