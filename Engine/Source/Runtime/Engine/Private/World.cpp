@@ -2007,8 +2007,19 @@ void UWorld::MarkObjectsPendingKill()
 	auto MarkObjectPendingKill = [](UObject* Object)
 	{
 		Object->MarkAsGarbage();
+
+		if (ULevel* Level = Cast<ULevel>(Object))
+		{
+			Level->CleanupActors();
+#if WITH_EDITORONLY_DATA
+			if (Level->GetOutermost()->MetaData)
+			{
+				Level->GetOutermost()->MetaData->ClearFlags(RF_Standalone);
+			}
+#endif
+		}
 	};
-	ForEachObjectWithOuter(this, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+	ForEachObjectWithOuter(this, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage);
 
 	MarkAsGarbage();
 	bMarkedObjectsPendingKill = true;
@@ -3230,7 +3241,15 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 				{
 					ForEachObjectWithPackage(Package, [](UObject* PackageObject) { PackageObject->MarkAsGarbage(); return true; }, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 				}
-			}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+			}, true, RF_NoFlags, EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage);
+
+			Level->CleanupActors();
+#if WITH_EDITORONLY_DATA
+			if (Level->GetOutermost()->MetaData)
+			{
+				Level->GetOutermost()->MetaData->ClearFlags(RF_Standalone);
+			}
+#endif
 		}
 	}
 
@@ -4962,6 +4981,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		if (PersistentLevel)
 		{
 			PersistentLevel->CleanupLevel(bCleanupResources);
+			PersistentLevel->CleanupActors();
 		}
 
 		if (GetNumLevels() > 1)
@@ -4969,7 +4989,9 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 			check(GetLevel(0) == PersistentLevel);
 			for (int32 LevelIndex = 1; LevelIndex < GetNumLevels(); ++LevelIndex)
 			{
-				GetLevel(LevelIndex)->CleanupLevel(bCleanupResources);
+				ULevel* Level = GetLevel(LevelIndex);
+				Level->CleanupLevel(bCleanupResources);
+				Level->CleanupActors();
 			}
 		}
 	}
