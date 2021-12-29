@@ -869,11 +869,6 @@ public:
 	ENGINE_API void CleanupLevel(bool bCleanupResources);
 
 	/**
-	 * Empties the Actors array after everything's been cleaned up
-	 */
-	ENGINE_API void CleanupActors();
-
-	/**
 	 * Clears all components of actors associated with this level (aka in Actors array) and 
 	 * also the BSP model components.
 	 */

@@ -413,12 +413,6 @@ void ULevel::CleanupLevel(bool bCleanupResources)
 	}
 }
 
-void ULevel::CleanupActors()
-{
-	Actors.Empty();
-	ActorsForGC.Empty();
-}
-
 void ULevel::PostInitProperties()
 {
 	Super::PostInitProperties();
