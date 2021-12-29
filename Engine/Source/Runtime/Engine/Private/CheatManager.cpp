@@ -76,6 +76,11 @@ UCheatManager::UCheatManager(const FObjectInitializer& ObjectInitializer)
 	bDebugCapsuleTraceComplex = false;
 }
 
+void UCheatManager::OnPlayerEndPlayed(AActor* Player, EEndPlayReason::Type EndPlayReason)
+{
+	CheatManagerExtensions.Empty();
+}
+
 bool UCheatManager::ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor)
 {
 #if UE_WITH_CHEAT_MANAGER
@@ -673,6 +678,7 @@ void UCheatManager::InitCheatManager()
 {
 	ReceiveInitCheatManager(); //BP Initialization event
 	OnCheatManagerCreatedDelegate.Broadcast(this);
+	GetOuterAPlayerController()->OnEndPlay.AddDynamic(this, &UCheatManager::OnPlayerEndPlayed);
 }
 
 void UCheatManager::BeginDestroy()
