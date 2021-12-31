@@ -191,26 +191,41 @@ webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, in
 
 void FStreamer::OnSessionDescription(FPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp)
 {
-	if (Type == webrtc::SdpType::kOffer)
+	switch(Type)
 	{
-		if (webrtc::PeerConnectionInterface* PeerConnection = CreateSession(PlayerId, PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_SupportsDataChannel))
-		{
-			webrtc::SdpParseError Error;
-			std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc = webrtc::CreateSessionDescription(Type, to_string(Sdp), &Error);
-			if (!SessionDesc)
-			{
-				UE_LOG(PixelStreamer, Error, TEXT("Failed to parse offer's SDP: %s\n%s"), Error.description.c_str(), *Sdp);
-				return;
-			}
+		case webrtc::SdpType::kOffer:
+			OnOffer(PlayerId, Sdp);
+			break;
+		case webrtc::SdpType::kAnswer:
+		case webrtc::SdpType::kPrAnswer:
+			PlayerSessions.OnAnswer(PlayerId, Sdp);
+			SetStreamingStarted(true);
+			break;
+		case webrtc::SdpType::kRollback:
+			UE_LOG(PixelStreamer, Error, TEXT("Rollback SDP is currently unsupported. SDP is: %s"), *Sdp);
+			break;
+	}
+}
 
-			HandleOffer(PlayerId, PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface>(SessionDesc.release()));
-			ForceKeyFrame();
+void FStreamer::OnOffer(FPlayerId PlayerId, const FString& Sdp)
+{
+	webrtc::PeerConnectionInterface* PeerConnection = CreateSession(PlayerId, PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_SupportsDataChannel);
+	if (PeerConnection)
+	{
+		webrtc::SdpParseError Error;
+		std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc = webrtc::CreateSessionDescription(webrtc::SdpType::kOffer, to_string(Sdp), &Error);
+		if (!SessionDesc)
+		{
+			UE_LOG(PixelStreamer, Error, TEXT("Failed to parse offer's SDP: %s\n%s"), Error.description.c_str(), *Sdp);
+			return;
 		}
+
+		SendAnswer(PlayerId, PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface>(SessionDesc.release()));
+		ForceKeyFrame();
 	}
 	else
 	{
-		PlayerSessions.OnAnswer(PlayerId, Sdp);
-		SetStreamingStarted(true);
+		UE_LOG(PixelStreamer, Error, TEXT("Failed to create player session, peer connection was nullptr."));
 	}
 }
 
@@ -252,7 +267,7 @@ void FStreamer::SetLocalDescription(webrtc::PeerConnectionInterface* PeerConnect
 	// Note: if desired, manually limiting total bitrate for a peer is possible in PeerConnection::SetBitrate(const BitrateSettings& bitrate)
 }
 
-void FStreamer::HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
+void FStreamer::SendAnswer(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
 {
 	// below is async execution (with error handling) of:
 	//		PeerConnection.SetRemoteDescription(SDP);
@@ -519,7 +534,9 @@ void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterf
 	webrtc::RtpTransceiverInit TransceiverOptions;
 	TransceiverOptions.stream_ids = { TCHAR_TO_UTF8(*VideoStreamId) };
 
-	if (PixelStreamingSettings::SimulcastParameters.Layers.Num() > 0)
+	bool bIsSFU = (Flags & PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_IsSFU) != PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_None;
+
+	if (bIsSFU && PixelStreamingSettings::SimulcastParameters.Layers.Num() > 0)
 	{
 		// encodings should be lowest res to highest
 		TArray<PixelStreamingSettings::FSimulcastParameters::FLayer*> SortedLayers;

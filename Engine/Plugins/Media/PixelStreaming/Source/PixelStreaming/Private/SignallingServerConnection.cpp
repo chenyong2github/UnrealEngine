@@ -523,8 +523,17 @@ void FSignallingServerConnection::OnPlayerConnected(const FJsonObjectPtr& Json)
 		HANDLE_SS_ERROR(TEXT("Failed to get `playerId` from `join` message\n%s"), *ToString(Json));
 	}
 	int Flags = 0;
-	Flags |= Json->GetBoolField(TEXT("dataChannel")) ?  PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_SupportsDataChannel : 0;
-	Flags |= Json->GetBoolField(TEXT("sfu")) ? PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_IsSFU : 0;
+
+	// Default to always making datachannel, unless explicitly set to false.
+	bool bMakeDataChannel = true;
+	Json->TryGetBoolField(TEXT("datachannel"), bMakeDataChannel);
+
+	// Default peer is not an SFU, unless explictly set as SFU
+	bool bIsSFU = false;
+	Json->TryGetBoolField(TEXT("sfu"), bIsSFU);
+
+	Flags |= bMakeDataChannel ? PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_SupportsDataChannel : 0;
+	Flags |= bIsSFU ? PixelStreamingProtocol::EPixelStreamingPlayerFlags::PSPFlag_IsSFU : 0;
 	Observer.OnPlayerConnected(PlayerId, Flags);
 }
 

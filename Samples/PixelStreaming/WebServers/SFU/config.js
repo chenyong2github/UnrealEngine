@@ -1,4 +1,4 @@
-module.exports = {
+const config = {
   signallingURL: "ws://localhost:8889",
 
   mediasoup: {
@@ -36,7 +36,6 @@ module.exports = {
             "packetization-mode": 1,
             "profile-level-id": "42e01f",
             "level-asymmetry-allowed": 1
-            //						  'x-google-start-bitrate'  : 1000
           },
         },
       ],
@@ -47,11 +46,44 @@ module.exports = {
     // localhost so you might have to specify a proper
     // private or public ip here.
     webRtcTransport: {
-      listenIps: [
-        { ip: "172.29.118.57", announcedIp: null },
-        //{ ip: "<external ip>", announcedIp: null }
-      ],
-      initialAvailableOutgoingBitrate: 20000000,
+      //listenIps: { ip: "<external ip>", announcedIp: null }
+      listenIps: getLocalListenIps(), 
+      // 100 megabits
+      initialAvailableOutgoingBitrate: 100_000_000,
     },
   },
-};
+}
+
+function getPublicListenIps() {
+  // todo: but should be { ip: "0.0.0.0", announcedIp: "your public IP" }
+}
+
+function getLocalListenIps() {
+  const listenIps = []
+  if (typeof window === 'undefined') {
+    const os = require('os')
+    const networkInterfaces = os.networkInterfaces()
+    const ips = []
+    if (networkInterfaces) {
+      for (const [key, addresses] of Object.entries(networkInterfaces)) {
+        addresses.forEach(address => {
+          if (address.family === 'IPv4') {
+            listenIps.push({ ip: address.address, announcedIp: null })
+          }
+          /* ignore link-local and other special ipv6 addresses.
+           * https://www.iana.org/assignments/ipv6-address-space/ipv6-address-space.xhtml
+           */
+          else if (address.family === 'IPv6' && address.address[0] !== 'f') {
+            listenIps.push({ ip: address.address, announcedIp: null })
+          }
+        })
+      }
+    }
+  }
+  if (listenIps.length === 0) {
+    listenIps.push({ ip: '127.0.0.1', announcedIp: null })
+  }
+  return listenIps
+}
+
+module.exports = config;

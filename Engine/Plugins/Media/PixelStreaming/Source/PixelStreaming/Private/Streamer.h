@@ -74,13 +74,14 @@ private:
 	virtual void OnSignallingServerDisconnected() override;
 	
 	// own methods
+	void OnOffer(FPlayerId PlayerId, const FString& Sdp);
 	void ModifyAudioTransceiverDirection(webrtc::PeerConnectionInterface* PeerConnection);
 	void DeletePlayerSession(FPlayerId PlayerId);
 	void DeleteAllPlayerSessions();
 	void AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, int Flags);
 	void SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel, int Flags);
 	void SetupAudioTrack(webrtc::PeerConnectionInterface* PeerConnection, const FString AudioStreamId, const FString AudioTrackLabel);
-	void HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp);
+	void SendAnswer(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp);
 	void OnDataChannelOpen(FPlayerId PlayerId, webrtc::DataChannelInterface* DataChannel);
 	void OnQualityControllerChanged(FPlayerId PlayerId);
 	void PostPlayerDeleted(FPlayerId PlayerId);

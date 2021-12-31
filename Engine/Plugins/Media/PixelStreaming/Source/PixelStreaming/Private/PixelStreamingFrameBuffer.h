@@ -71,6 +71,7 @@ public:
 
 	virtual FPixelStreamingFrameBufferType GetFrameBufferType() const { return Simulcast; }
 	FPixelStreamingLayerFrameSource* GetLayerFrameSource(int LayerIndex) const;
+	int GetNumLayers() const;
 
     virtual int width() const override;
     virtual int height() const override;

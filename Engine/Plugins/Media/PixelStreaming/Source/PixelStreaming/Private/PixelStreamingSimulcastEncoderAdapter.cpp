@@ -289,7 +289,7 @@ int PixelStreamingSimulcastEncoderAdapter::Encode(const webrtc::VideoFrame& inpu
             continue;
         }
 
-		FPixelStreamingLayerFrameSource* layer_frame_source = simulcast_frame_buffer->GetLayerFrameSource(StreamInfos.size() == 1 ? HighestResolutionStreamIndex : stream_idx);
+		FPixelStreamingLayerFrameSource* layer_frame_source = simulcast_frame_buffer->GetLayerFrameSource(StreamInfos.size() == 1 ? simulcast_frame_buffer->GetNumLayers() - 1 : stream_idx);
         int ret = EncodeStream(input_image, layer_frame_source, stream_idx, send_key_frame);
         if (ret != WEBRTC_VIDEO_CODEC_OK)
         {

@@ -34,6 +34,11 @@ FPixelStreamingSimulcastFrameBuffer::~FPixelStreamingSimulcastFrameBuffer()
 
 }
 
+int FPixelStreamingSimulcastFrameBuffer::GetNumLayers() const
+{
+	return FrameSource->GetNumLayers();
+}
+
 FPixelStreamingLayerFrameSource* FPixelStreamingSimulcastFrameBuffer::GetLayerFrameSource(int LayerIndex) const
 {
 	return FrameSource->GetLayerFrameSource(LayerIndex);

@@ -349,28 +349,33 @@ namespace PixelStreamingSettings
 		SimulcastParameters.Layers.Empty();
 
 		FString StringOptions;
-		if (FParse::Value(FCommandLine::Get(), TEXT("SimulcastParameters="), StringOptions, false))
+		bool bPassedSimulcastParams = FParse::Value(FCommandLine::Get(), TEXT("SimulcastParameters="), StringOptions, false);
+		
+		// If no simulcast parameters are passed use some default values
+		if(!bPassedSimulcastParams)
 		{
-			TArray<FString> ParameterArray;
-			StringOptions.ParseIntoArray(ParameterArray, TEXT(","), true);
-			const int OptionCount = ParameterArray.Num();
-			bool success = OptionCount % 3 == 0;
-			int NextOption = 0;
-			while (success && ((OptionCount - NextOption) >= 3))
-			{
-				FSimulcastParameters::FLayer Layer;
-				success = FDefaultValueHelper::ParseFloat(ParameterArray[NextOption++], Layer.Scaling);
-				success = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MinBitrate);
-				success = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MaxBitrate);
-				SimulcastParameters.Layers.Add(Layer);
-			}
+			StringOptions = FString(TEXT("1.0,5000000,20000000,2.0,1000000,5000000,4.0,50000,1000000"));
+		}
 
-			if (!success)
-			{
-				// failed parsing the parameters. just ignore the parameters.
-				UE_LOG(PixelStreamer, Log, TEXT("Simulcast parameters malformed. Expected (float, int, int [, float, int, int] etc.)."));
-				SimulcastParameters.Layers.Empty();
-			}
+		TArray<FString> ParameterArray;
+		StringOptions.ParseIntoArray(ParameterArray, TEXT(","), true);
+		const int OptionCount = ParameterArray.Num();
+		bool bSuccess = OptionCount % 3 == 0;
+		int NextOption = 0;
+		while (bSuccess && ((OptionCount - NextOption) >= 3))
+		{
+			FSimulcastParameters::FLayer Layer;
+			bSuccess = FDefaultValueHelper::ParseFloat(ParameterArray[NextOption++], Layer.Scaling);
+			bSuccess = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MinBitrate);
+			bSuccess = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MaxBitrate);
+			SimulcastParameters.Layers.Add(Layer);
+		}
+
+		if (!bSuccess)
+		{
+			// failed parsing the parameters. just ignore the parameters.
+			UE_LOG(PixelStreamer, Error, TEXT("Simulcast parameters malformed. Expected [Scaling_0, MinBitrate_0, MaxBitrate_0, ... , Scaling_N, MinBitrate_N, MaxBitrate_N] as [float, int, int, ... , float, int, int] etc.]"));
+			SimulcastParameters.Layers.Empty();
 		}
 	}
 

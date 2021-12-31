@@ -54,7 +54,7 @@ async function onMessage(msg) {
 
     try {
       for (const producer of producers) {
-        const consumer = await transport.consume({ producerId: producer.id, rtpCapabilities: router.rtpCapabilities, });
+        const consumer = await transport.consume({ producerId: producer.id, rtpCapabilities: router.rtpCapabilities });
         consumer.observer.on("layerschange", function() { console.log("layer changed!", consumer.currentLayers); });
         endpoint.addConsumer(consumer);
       }
@@ -76,6 +76,9 @@ async function onMessage(msg) {
     consumers = new Map();
     producers = null;
   }
+  // todo a new message type for force layer switch (for debugging)
+  // see: https://mediasoup.org/documentation/v3/mediasoup/api/#consumer-setPreferredLayers
+  // preferredLayers for debugging to select a particular simulcast layer, looks like { spatialLayer: 2, temporalLayer: 0 }
 }
 
 async function startMediasoup() {
@@ -112,14 +115,16 @@ async function createWebRtcTransport(name, playerId) {
     appData: { name: name, id: playerId }
   });
 
-  transport.on("icestatechange", (iceState) => { console.log("%s ICE state changed to %s", name, iceState); });
-  transport.on("iceselectedtuplechange", (iceTuple) => { console.log("%s ICE selected tuple %s", name, JSON.stringify(iceTuple)); });
+  transport.on("icestatechange", (iceState) => { console.log("%s %s ICE state changed to %s", name, playerId, iceState); });
+  transport.on("iceselectedtuplechange", (iceTuple) => { console.log("%s %s ICE selected tuple %s", name, playerId, JSON.stringify(iceTuple)); });
 
   return transport;
 }
 
 async function main() {
   console.log('Starting Mediasoup...');
+  console.log("Config = ");
+  console.log(config);
   router = await startMediasoup();
 
   // this might need work. returns hard coded caps
