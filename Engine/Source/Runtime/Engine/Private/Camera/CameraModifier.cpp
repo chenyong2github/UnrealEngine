@@ -100,7 +100,23 @@ AActor* UCameraModifier::GetViewTarget() const
 
 void UCameraModifier::AddedToCamera( APlayerCameraManager* Camera ) 
 {
+	if (CameraOwner)
+	{
+		CameraOwner->OnDestroyed.RemoveDynamic(this, &UCameraModifier::OnCameraOwnerDestroyed);
+	}
 	CameraOwner = Camera;
+	if (CameraOwner)
+	{
+		CameraOwner->OnDestroyed.AddDynamic(this, &UCameraModifier::OnCameraOwnerDestroyed);
+	}
+}
+
+void UCameraModifier::OnCameraOwnerDestroyed(AActor* InOwner)
+{
+	if (InOwner == CameraOwner)
+	{
+		CameraOwner = nullptr;
+	}
 }
 
 UWorld* UCameraModifier::GetWorld() const
