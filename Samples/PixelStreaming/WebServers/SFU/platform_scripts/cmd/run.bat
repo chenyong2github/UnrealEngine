@@ -3,10 +3,9 @@
 
 title SFU
 
-pushd "%~dp0"
-cd ..\..
+pushd "%~dp0\..\.."
 
-npm start
+cmd /k npm start
 
 popd
-pause
+@pause

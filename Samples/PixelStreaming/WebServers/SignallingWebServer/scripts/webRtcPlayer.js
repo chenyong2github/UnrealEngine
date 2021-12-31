@@ -194,13 +194,12 @@ function webRtcPlayer(parOptions) {
                 }
             }
 
-            self.video.srcObject = e.streams[0];
-
-            if (self.onNewVideoTrack)
+            // All tracks are added "muted" by WebRTC/browser and become unmuted when media is being sent
+            e.track.onunmute = () => {
+                self.video.srcObject = e.streams[0];
                 self.onNewVideoTrack(e.streams);
-            return;
+            }
         }
-        
     };
 
     handleOnAudioTrack = function(audioMediaStream)

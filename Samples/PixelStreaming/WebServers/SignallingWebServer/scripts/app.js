@@ -632,11 +632,7 @@ function setupWebRtcPlayer(htmlElement, config) {
 
     webRtcPlayerObj.onDataChannelConnected = function() {
         if (ws && ws.readyState === WS_OPEN_STATE) {
-            showTextOverlay('WebRTC connected, waiting for video');
-
-            if (webRtcPlayerObj.video && webRtcPlayerObj.video.srcObject && webRtcPlayerObj.onVideoInitialised) {
-                webRtcPlayerObj.onVideoInitialised();
-            }
+            showTextOverlay('WebRTC data channel connected... waiting for video');
         }
     };
 
@@ -794,6 +790,9 @@ function setupWebRtcPlayer(htmlElement, config) {
     }
 
     webRtcPlayerObj.onNewVideoTrack = function(streams) {
+        if (webRtcPlayerObj.video && webRtcPlayerObj.video.srcObject && webRtcPlayerObj.onVideoInitialised) {
+            webRtcPlayerObj.onVideoInitialised();
+        }
         updateStreamList();
     }
 

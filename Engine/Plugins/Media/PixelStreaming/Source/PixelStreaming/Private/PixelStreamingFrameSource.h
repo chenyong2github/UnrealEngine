@@ -25,6 +25,7 @@ public:
 
 	int GetSourceWidth() const;
 	int GetSourceHeight() const;
+	int GetNumLayers() const;
 
 private:
 	TArray<TUniquePtr<FPixelStreamingLayerFrameSource>> LayerSources;
@@ -48,8 +49,10 @@ public:
 
 	FTexture2DRHIRef GetFrame();
 
-private:
+public:
 	const float FrameScale;
+
+private:
 	int SourceWidth = 0;
 	int SourceHeight = 0;
 

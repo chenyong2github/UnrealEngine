@@ -25,8 +25,10 @@ FPixelStreamingFrameSource::FPixelStreamingFrameSource()
 
 	for (auto& Layer : SortedLayers)
 	{
+		UE_LOG(PixelStreamer, Log, TEXT("Created frame source with scaling factor: %f"), Layer.Value->FrameScale);
 		LayerSources.Add(MoveTemp(Layer.Value));
 	}
+	
 }
 
 FPixelStreamingFrameSource::~FPixelStreamingFrameSource()
@@ -71,6 +73,11 @@ void FPixelStreamingFrameSource::OnFrameReady(const FTexture2DRHIRef& FrameBuffe
 	}
 
 	bAvailable = true;
+}
+
+int FPixelStreamingFrameSource::GetNumLayers() const
+{
+	return LayerSources.Num();
 }
 
 FPixelStreamingLayerFrameSource* FPixelStreamingFrameSource::GetLayerFrameSource(int LayerIndex)
