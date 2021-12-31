@@ -568,4 +568,28 @@ void APlayerState::OnSetUniqueId()
 
 }
 
+void APlayerState::SetPawnPrivate(APawn* InPawn)
+{
+	if (InPawn != PawnPrivate)
+	{
+		if (PawnPrivate)
+		{
+			PawnPrivate->OnDestroyed.RemoveDynamic(this, &APlayerState::OnPawnPrivateDestroyed);
+		}
+		PawnPrivate = InPawn;
+		if (PawnPrivate)
+		{
+			PawnPrivate->OnDestroyed.AddDynamic(this, &APlayerState::OnPawnPrivateDestroyed);
+		}
+	}
+}
+
+void APlayerState::OnPawnPrivateDestroyed(AActor* InActor)
+{
+	if (InActor == PawnPrivate)
+	{
+		PawnPrivate = nullptr;
+	}
+}
+
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

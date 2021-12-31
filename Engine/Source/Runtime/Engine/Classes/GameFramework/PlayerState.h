@@ -176,6 +176,11 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category=PlayerState, meta=(AllowPrivateAccess="true"))
 	TObjectPtr<APawn> PawnPrivate;
 
+	void SetPawnPrivate(APawn* InPawn);
+
+	UFUNCTION()
+	void OnPawnPrivateDestroyed(AActor* InActor);
+
 	/**
 	 * Stores the last 4 seconds worth of ping data (one second per 'bucket').
 	 * It is stored in this manner, to allow calculating a moving average,
@@ -475,7 +480,7 @@ private:
 	FSetPlayerStatePawn(APlayerState* PlayerState, APawn* Pawn)
 	{
 		APawn* OldPawn = PlayerState->PawnPrivate;
-		PlayerState->PawnPrivate = Pawn;
+		PlayerState->SetPawnPrivate(Pawn);
 		PlayerState->OnPawnSet.Broadcast(PlayerState, PlayerState->PawnPrivate, OldPawn); 
 	}
 };
