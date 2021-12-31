@@ -754,6 +754,9 @@ private:
 	UPROPERTY(Transient, DuplicateTransient)
 	TArray<FCachedKeyToActionInfo> CachedKeyToActionInfo;
 
+	UFUNCTION()
+	void OnInputOwnerEndPlayed(AActor* InOwner, EEndPlayReason::Type EndPlayReason);
+
 public:
 	/** The priority of this input component when pushed in to the stack. */
 	int32 Priority;

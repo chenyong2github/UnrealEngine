@@ -57,6 +57,10 @@ void UInputComponent::ConditionalBuildKeyMap(UPlayerInput* PlayerInput)
 		CachedKeyToActionInfo.AddDefaulted();
 		CachedInfoToPopulate = &CachedKeyToActionInfo.Last();
 		CachedInfoToPopulate->PlayerInput = PlayerInput;
+		if (AActor* OwnerActor = PlayerInput->GetTypedOuter<AActor>())
+		{
+			OwnerActor->OnEndPlay.AddUniqueDynamic(this, &UInputComponent::OnInputOwnerEndPlayed);
+		}
 	}
 
 	// Reset the map and AnyKey array
@@ -84,6 +88,18 @@ void UInputComponent::ConditionalBuildKeyMap(UPlayerInput* PlayerInput)
 	}
 
 	CachedInfoToPopulate->KeyMapBuiltForIndex = PlayerInput->GetKeyMapBuildIndex();
+}
+
+void UInputComponent::OnInputOwnerEndPlayed(AActor* InOwner, EEndPlayReason::Type EndPlayReason)
+{
+	for (int32 Index = CachedKeyToActionInfo.Num() - 1; Index >= 0; --Index)
+	{
+		FCachedKeyToActionInfo& CachedInfo = CachedKeyToActionInfo[Index];
+		if (CachedInfo.PlayerInput->GetTypedOuter<AActor>() == InOwner)
+		{
+			CachedKeyToActionInfo.RemoveAtSwap(Index, 1, false);
+		}
+	}
 }
 
 void UInputComponent::GetActionsBoundToKey(UPlayerInput* PlayerInput, const FKey Key, TArray<TSharedPtr<FInputActionBinding>>& Actions) const
