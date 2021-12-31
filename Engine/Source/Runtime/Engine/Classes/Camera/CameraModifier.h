@@ -62,6 +62,9 @@ protected:
 	UPROPERTY(transient, BlueprintReadOnly, Category = CameraModifier)
 	float Alpha;
 
+	UFUNCTION()
+	void OnCameraOwnerDestroyed(AActor* InOwner);
+
 protected:
 	/** @return Returns the ideal blend alpha for this modifier. Interpolation will seek this value. */
 	virtual float GetTargetAlpha();
