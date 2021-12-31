@@ -241,15 +241,27 @@ namespace LowLevelTasks
 		return ~0;
 	}
 
-	void FTask::PropagateUserData()
+	void FTask::InheritParentData(const TCHAR*& DebugName, ETaskPriority& Priority)
 	{
 		const FTask* ActiveTask = FSchedulerTls::GetActiveTask();
 		if (ActiveTask != nullptr)
 		{
+			if(DebugName == nullptr)
+			{
+				DebugName = ActiveTask->GetDebugName();
+			}
+			if (Priority == ETaskPriority::Inherit)
+			{
+				Priority = ActiveTask->GetPriority();
+			}
 			UserData = ActiveTask->GetUserData();
 		}
 		else
 		{
+			if (Priority == ETaskPriority::Inherit)
+			{
+				Priority = ETaskPriority::Default;
+			}
 			UserData = nullptr;
 		}
 	}
