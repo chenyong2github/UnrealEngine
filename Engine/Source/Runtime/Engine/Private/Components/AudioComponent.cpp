@@ -274,6 +274,13 @@ void UAudioComponent::OnUnregister()
 	{
 		Stop();
 	}
+	Shutdown();
+}
+
+void UAudioComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	Shutdown();
 }
 
 const UObject* UAudioComponent::AdditionalStatObject() const
