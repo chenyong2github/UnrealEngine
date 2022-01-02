@@ -1239,6 +1239,15 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UFUNCTION()
 	void OnRep_OwningActor();
 
+	UFUNCTION()
+	void OnAvatarActorDestroyed(AActor* InActor);
+
+	UFUNCTION()
+	void OnOwnerActorDestroyed(AActor* InActor);
+
+	UFUNCTION()
+	void OnSpawnedAttributesEndPlayed(AActor* InActor, EEndPlayReason::Type EndPlayReason);
+
 	/** Cached off data about the owning actor that abilities will need to frequently access (movement component, mesh component, anim instance, etc) */
 	TSharedPtr<FGameplayAbilityActorInfo>	AbilityActorInfo;
 
