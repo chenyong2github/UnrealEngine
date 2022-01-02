@@ -2686,7 +2686,15 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UAbilitySystemComponent::SetOwnerActor(AActor* NewOwnerActor)
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, OwnerActor, this);
+	if (OwnerActor)
+	{
+		OwnerActor->OnDestroyed.RemoveDynamic(this, &UAbilitySystemComponent::OnOwnerActorDestroyed);
+	}
 	OwnerActor = NewOwnerActor;
+	if (OwnerActor)
+	{
+		OwnerActor->OnDestroyed.AddDynamic(this, &UAbilitySystemComponent::OnOwnerActorDestroyed);
+	}
 }
 
 AActor* UAbilitySystemComponent::GetOwnerActor() const
@@ -2697,7 +2705,15 @@ AActor* UAbilitySystemComponent::GetOwnerActor() const
 void UAbilitySystemComponent::SetAvatarActor_Direct(AActor* NewAvatarActor)
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, AvatarActor, this);
+	if (AvatarActor)
+	{
+		AvatarActor->OnDestroyed.RemoveDynamic(this, &UAbilitySystemComponent::OnAvatarActorDestroyed);
+	}
 	AvatarActor = NewAvatarActor;
+	if (AvatarActor)
+	{
+		AvatarActor->OnDestroyed.AddDynamic(this, &UAbilitySystemComponent::OnAvatarActorDestroyed);
+	}
 }
 
 AActor* UAbilitySystemComponent::GetAvatarActor_Direct() const
@@ -2705,9 +2721,44 @@ AActor* UAbilitySystemComponent::GetAvatarActor_Direct() const
 	return AvatarActor;
 }
 
+void UAbilitySystemComponent::OnAvatarActorDestroyed(AActor* InActor)
+{
+	if (InActor == AvatarActor)
+	{
+		AvatarActor = nullptr;
+	}
+}
+
+void UAbilitySystemComponent::OnOwnerActorDestroyed(AActor* InActor)
+{
+	if (InActor == OwnerActor)
+	{
+		OwnerActor = nullptr;
+	}
+}
+
 void UAbilitySystemComponent::SetSpawnedAttributes(const TArray<UAttributeSet*>& NewSpawnedAttributes)
 {
+	TArray<UAttributeSet*>& LocalSpawnedAttributes = GetSpawnedAttributes_Mutable();
+	for (int32 Index = LocalSpawnedAttributes.Num() - 1; Index >= 0; --Index)
+	{
+		UAttributeSet* AttributeSet = LocalSpawnedAttributes[Index];
+		AActor* ActorOwner = AttributeSet->GetTypedOuter<AActor>();
+		if (ActorOwner)
+		{
+			ActorOwner->OnEndPlay.RemoveDynamic(this, &UAbilitySystemComponent::OnSpawnedAttributesEndPlayed);
+		}
+	}
 	GetSpawnedAttributes_Mutable() = NewSpawnedAttributes;
+	for (int32 Index = NewSpawnedAttributes.Num() - 1; Index >= 0; --Index)
+	{
+		UAttributeSet* AttributeSet = NewSpawnedAttributes[Index];
+		AActor* ActorOwner = AttributeSet->GetTypedOuter<AActor>();
+		if (ActorOwner)
+		{
+			ActorOwner->OnEndPlay.AddUniqueDynamic(this, &UAbilitySystemComponent::OnSpawnedAttributesEndPlayed);
+		}
+	}
 }
 
 TArray<UAttributeSet*>& UAbilitySystemComponent::GetSpawnedAttributes_Mutable()
@@ -2719,6 +2770,19 @@ TArray<UAttributeSet*>& UAbilitySystemComponent::GetSpawnedAttributes_Mutable()
 const TArray<UAttributeSet*>& UAbilitySystemComponent::GetSpawnedAttributes() const
 {
 	return SpawnedAttributes;
+}
+
+void UAbilitySystemComponent::OnSpawnedAttributesEndPlayed(AActor* InActor, EEndPlayReason::Type EndPlayReason)
+{
+	TArray<UAttributeSet*>& LocalSpawnedAttributes = GetSpawnedAttributes_Mutable();
+	for (int32 Index = LocalSpawnedAttributes.Num() - 1; Index >= 0; --Index)
+	{
+		UAttributeSet* AttributeSet = LocalSpawnedAttributes[Index];
+		if (AttributeSet->GetTypedOuter<AActor>() == InActor)
+		{
+			LocalSpawnedAttributes[Index] = nullptr;
+		}
+	}
 }
 
 void UAbilitySystemComponent::SetClientDebugStrings(TArray<FString>&& NewClientDebugStrings)
