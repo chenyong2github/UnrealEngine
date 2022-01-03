@@ -2985,6 +2985,8 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes,
 				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 
+			ScriptResource->SetDataInterfaceParamInfo(CachedScriptVM.DIParamInfo);
+
 			if (FNiagaraUtilities::SupportsComputeShaders(ShaderPlatform))
 			{
 				CacheShadersForResources(ScriptResource.Get(), true);
