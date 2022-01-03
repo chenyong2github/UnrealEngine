@@ -169,6 +169,7 @@ public:
 	virtual void OnExitMemory(const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData) override;
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) override;
 	virtual TFuture<UE::BulkDataRegistry::FData> GetData(const FGuid& BulkDataId) override;
+	virtual uint64 GetBulkDataResaveSize(FName PackageName) override;
 
 	// FTickableEditorObject/FTickableCookObject interface
 	virtual void Tick(float DeltaTime) override;
@@ -195,6 +196,7 @@ private:
 	FCriticalSection PendingPackageLock;
 
 	TMap<FGuid, FRegisteredBulk> Registry;
+	FResaveSizeTracker ResaveSizeTracker;
 	TMap<FGuid, FUpdatingPayload> UpdatingPayloads;
 	TMap<FName, TUniquePtr<FPendingPackage>> PendingPackages;
 	TMap<FGuid, TRefCountPtr<FPendingPayloadId>> PendingPayloadIds;

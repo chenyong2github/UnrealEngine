@@ -166,7 +166,7 @@ void FBulkDataRegistryEditorDomain::Register(UPackage* Owner, const UE::Virtuali
 	UE::Virtualization::FVirtualizedUntypedBulkData CopyBulk(BulkData.CopyTornOff());
 	if (Owner
 		&& Owner->GetFileSize() // We only record the BulkDataList for disk packages
-		&& !Owner->GetHasBeenEndLoaded() // We only record BulkDats that are loaded before the package finishes loading
+		&& !Owner->GetHasBeenEndLoaded() // We only record BulkDatas that are loaded before the package finishes loading
 		&& CopyBulk.CanSaveForRegistry()
 		)
 	{
@@ -174,9 +174,12 @@ void FBulkDataRegistryEditorDomain::Register(UPackage* Owner, const UE::Virtuali
 		AddPendingPackageBulkData(PackageName, CopyBulk);
 	}
 
-	FWriteScopeLock RegistryScopeLock(RegistryLock);
-	check(bActive); // Registrations should not come in after we destruct
-	Registry.Add(BulkData.GetIdentifier(), FRegisteredBulk(MoveTemp(CopyBulk), PackageName));
+	{
+		FWriteScopeLock RegistryScopeLock(RegistryLock);
+		check(bActive); // Registrations should not come in after we destruct
+		Registry.Add(BulkData.GetIdentifier(), FRegisteredBulk(MoveTemp(CopyBulk), PackageName));
+	}
+	ResaveSizeTracker.Register(Owner, BulkData);
 }
 
 void FBulkDataRegistryEditorDomain::OnExitMemory(const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData)
@@ -317,6 +320,11 @@ TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(cons
 		{
 			return UE::BulkDataRegistry::FData{ true, Payload };
 		});
+}
+
+uint64 FBulkDataRegistryEditorDomain::GetBulkDataResaveSize(FName PackageName)
+{
+	return ResaveSizeTracker.GetBulkDataResaveSize(PackageName);
 }
 
 void FBulkDataRegistryEditorDomain::TickCook(float DeltaTime, bool bTickComplete)
