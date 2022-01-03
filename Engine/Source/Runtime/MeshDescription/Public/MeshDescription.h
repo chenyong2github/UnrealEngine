@@ -1333,6 +1333,8 @@ public:
 	static TConstArrayView<FGuid> GetMeshDescriptionCustomVersions();
 
 private:
+	void UpdateMeshDescriptionFormat();
+
 #if WITH_EDITOR
 	/** Protects simultaneous access to BulkData */
 	FRWLock       BulkDataLock;

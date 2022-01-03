@@ -596,6 +596,9 @@ public:
 		return GeoImportVersion >= ESkeletalMeshGeoImportVersions::SkeletalMeshBuildRefactor &&
 			SkinningImportVersion >= ESkeletalMeshSkinningImportVersions::SkeletalMeshBuildRefactor;
 	}
+
+private:
+	ENGINE_API void UpdateRawMeshFormat();
 };
 
 namespace FWedgePositionHelper
