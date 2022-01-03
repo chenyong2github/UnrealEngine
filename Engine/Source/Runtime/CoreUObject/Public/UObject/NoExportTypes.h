@@ -280,6 +280,7 @@ enum EPixelFormat
 	PF_R32G32B32_SINT,
 	PF_R32G32B32F,
 	PF_R8_SINT,
+	PF_R64_UINT,
 	PF_MAX,
 };
 
