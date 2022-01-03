@@ -244,7 +244,22 @@ public:
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
+	#if ENABLE_COOK_STATS
+		return InnerBackend->Put(Requests, Context, Owner,
+			[this, OnComplete = MoveTemp(OnComplete)](FCachePutCompleteParams&& Params)
+			{
+				if (Params.Status == EStatus::Ok)
+				{
+					UsageStats.TimePut().AddHit(0);
+				}
+				if (OnComplete)
+				{
+					OnComplete(MoveTemp(Params));
+				}
+			});
+	#else
 		return InnerBackend->Put(Requests, Context, Owner, MoveTemp(OnComplete));
+	#endif
 	}
 
 	virtual void Get(
@@ -253,7 +268,22 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
+	#if ENABLE_COOK_STATS
+		return InnerBackend->Get(Requests, Context, Owner,
+			[this, OnComplete = MoveTemp(OnComplete)](FCacheGetCompleteParams&& Params)
+			{
+				if (Params.Status == EStatus::Ok)
+				{
+					UsageStats.TimeGet().AddHit(0);
+				}
+				if (OnComplete)
+				{
+					OnComplete(MoveTemp(Params));
+				}
+			});
+	#else
 		return InnerBackend->Get(Requests, Context, Owner, MoveTemp(OnComplete));
+	#endif
 	}
 
 	virtual void GetChunks(
@@ -262,7 +292,22 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) override
 	{
+	#if ENABLE_COOK_STATS
+		return InnerBackend->GetChunks(Chunks, Context, Owner,
+			[this, OnComplete = MoveTemp(OnComplete)](FCacheGetChunkCompleteParams&& Params)
+			{
+				if (Params.Status == EStatus::Ok)
+				{
+					UsageStats.TimeGet().AddHit(0);
+				}
+				if (OnComplete)
+				{
+					OnComplete(MoveTemp(Params));
+				}
+			});
+	#else
 		return InnerBackend->GetChunks(Chunks, Context, Owner, MoveTemp(OnComplete));
+	#endif
 	}
 
 private:
