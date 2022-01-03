@@ -1185,7 +1185,7 @@ void UGeometryCollectionComponent::UpdateRemovalEventRegistration()
 	}
 }
 
-void ActivateClusters(Chaos::FPBDRigidsEvolution::FRigidClustering& Clustering, Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Cluster)
+void ActivateClusters(Chaos::FRigidClustering& Clustering, Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Cluster)
 {
 	if(!Cluster)
 	{
@@ -1236,7 +1236,7 @@ void UGeometryCollectionComponent::OnRep_RepData(const FGeometryCollectionRepDat
 				Chaos::FPhysicsSolver* Solver = Prox->GetSolver<Chaos::FPhysicsSolver>();
 				Chaos::FPBDRigidsEvolution* Evo = Solver->GetEvolution();
 				check(Evo);
-				Chaos::FPBDRigidsEvolution::FRigidClustering& Clustering = Evo->GetRigidClustering();
+				Chaos::FRigidClustering& Clustering = Evo->GetRigidClustering();
 				
 				// Set X/R/V/W for next sim step from the replicated state
 				Particle->SetX(SourcePose.Position);
@@ -1429,7 +1429,7 @@ void UGeometryCollectionComponent::NetAbandonCluster_Implementation(int32 Transf
 
 			Solver->RegisterSimOneShotCallback([Prox = PhysicsProxy, Strain, TransformIndex, Solver]()
 			{
-				Chaos::TPBDRigidClustering<Chaos::FPBDRigidsEvolution, Chaos::FPBDCollisionConstraints>& Clustering = Solver->GetEvolution()->GetRigidClustering();
+				Chaos::FRigidClustering& Clustering = Solver->GetEvolution()->GetRigidClustering();
 				Chaos::FPBDRigidClusteredParticleHandle* Parent = Prox->GetParticles()[TransformIndex];
 
 				if(!Parent->Disabled())

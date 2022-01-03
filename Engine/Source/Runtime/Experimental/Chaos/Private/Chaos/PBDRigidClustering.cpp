@@ -358,8 +358,7 @@ namespace Chaos
 	// TPBDRigidClustering
 	//==========================================================================
 
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::TPBDRigidClustering(T_FPBDRigidsEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles)
+	FRigidClustering::FRigidClustering(FPBDRigidsEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles)
 		: MEvolution(InEvolution)
 		, MParticles(InParticles)
 		, MCollisionImpulseArrayDirty(true)
@@ -368,13 +367,17 @@ namespace Chaos
 		, MClusterUnionConnectionType(FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation)
 	{}
 
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::~TPBDRigidClustering()
+	FRigidClustering::~FRigidClustering()
 	{}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::CreateClusterParticle"), STAT_CreateClusterParticle, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	Chaos::FPBDRigidClusteredParticleHandle* TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::CreateClusterParticle(const int32 ClusterGroupIndex, TArray<Chaos::FPBDRigidParticleHandle*>&& Children, const FClusterCreationParameters& Parameters, TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry, const FRigidTransform3* ForceMassOrientation, const FUniqueIdx* ExistingIndex)
+	Chaos::FPBDRigidClusteredParticleHandle* FRigidClustering::CreateClusterParticle(
+		const int32 ClusterGroupIndex, 
+		TArray<Chaos::FPBDRigidParticleHandle*>&& Children, 
+		const FClusterCreationParameters& Parameters, 
+		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry, 
+		const FRigidTransform3* ForceMassOrientation, 
+		const FUniqueIdx* ExistingIndex)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CreateClusterParticle);
 
@@ -463,9 +466,8 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarUnionsHaveCollisionParticles(TEXT("p.UnionsHaveCollisionParticles"), UnionsHaveCollisionParticles, TEXT(""));
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::CreateClusterParticleFromClusterChildren"), STAT_CreateClusterParticleFromClusterChildren, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	Chaos::FPBDRigidClusteredParticleHandle* 
-	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::CreateClusterParticleFromClusterChildren(
+	FRigidClustering::CreateClusterParticleFromClusterChildren(
 		TArray<FPBDRigidParticleHandle*>&& Children, 
 		FPBDRigidClusteredParticleHandle* Parent, 
 		const FRigidTransform3& ClusterWorldTM, 
@@ -540,8 +542,8 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UnionClusterGroups"), STAT_UnionClusterGroups, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UnionClusterGroups()
+	void 
+	FRigidClustering::UnionClusterGroups()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UnionClusterGroups);
 
@@ -615,8 +617,8 @@ namespace Chaos
 
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::DeactivateClusterParticle"), STAT_DeactivateClusterParticle, STATGROUP_Chaos);
-	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint>
-	TSet<FPBDRigidParticleHandle*> TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint>::DeactivateClusterParticle(
+	TSet<FPBDRigidParticleHandle*> 
+	FRigidClustering::DeactivateClusterParticle(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DeactivateClusterParticle);
@@ -631,9 +633,8 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseClusterParticles(STRAIN)"), STAT_ReleaseClusterParticles_STRAIN, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	TSet<FPBDRigidParticleHandle*> 
-	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::ReleaseClusterParticles(
+	FRigidClustering::ReleaseClusterParticles(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle,
 		const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap,
 		bool bForceRelease)
@@ -903,12 +904,11 @@ namespace Chaos
 
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseClusterParticlesNoInternalCluster"), STAT_ReleaseClusterParticlesNoInternalCluster, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	TSet<FPBDRigidParticleHandle*>
-		TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::ReleaseClusterParticlesNoInternalCluster(
-			FPBDRigidClusteredParticleHandle* ClusteredParticle,
-			const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap,
-			bool bForceRelease)
+	FRigidClustering::ReleaseClusterParticlesNoInternalCluster(
+		FPBDRigidClusteredParticleHandle* ClusteredParticle,
+		const TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap,
+		bool bForceRelease)
 	{
 		/* This is a near duplicate of the ReleaseClusterParticles() method with the internal cluster creation removed.
 		*  This method should be used exclusively by the GeometryCollectionComponentCacheAdaptor in order to implement
@@ -1130,8 +1130,8 @@ namespace Chaos
 
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseClusterParticles(LIST)"), STAT_ReleaseClusterParticles_LIST, STATGROUP_Chaos);
-	template<class FPBDRigidsEvolution, class FPBDCollisionConstraint>
-	TSet<FPBDRigidParticleHandle*> TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraint>::ReleaseClusterParticles(
+	TSet<FPBDRigidParticleHandle*> 
+	FRigidClustering::ReleaseClusterParticles(
 		TArray<FPBDRigidParticleHandle*> ChildrenParticles)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ReleaseClusterParticles_LIST);
@@ -1178,11 +1178,10 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::Update Impulse from Strain"), STAT_UpdateImpulseStrain, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::Update Dirty Impulses"), STAT_UpdateDirtyImpulses, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::Rewind"), STAT_ClusterRewind, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	void 
-	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::AdvanceClustering(
+	FRigidClustering::AdvanceClustering(
 		const FReal Dt, 
-		T_FPBDCollisionConstraint& CollisionRule)
+		FPBDCollisionConstraints& CollisionRule)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AdvanceClustering);
 		UE_LOG(LogChaos, Verbose, TEXT("START FRAME with Dt %f"), Dt);
@@ -1309,9 +1308,8 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::BreakingModel()"), STAT_BreakingModel, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> 
-	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::BreakingModel(
+	FRigidClustering::BreakingModel(
 		TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BreakingModel);
@@ -1373,8 +1371,8 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::PromoteStrains()"), STAT_PromoteStrains, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	FReal TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::PromoteStrains(
+	FReal 
+	FRigidClustering::PromoteStrains(
 		FPBDRigidParticleHandle* CurrentNode)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_PromoteStrains);
@@ -1399,8 +1397,8 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateKinematicProperties()"), STAT_UpdateKinematicProperties, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateKinematicProperties(
+	void 
+	FRigidClustering::UpdateKinematicProperties(
 		Chaos::FPBDRigidParticleHandle* InParent)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateKinematicProperties);
@@ -1450,49 +1448,9 @@ namespace Chaos
 		}
 	}
 
-	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::SwapBufferedData"), STAT_SwapBufferedData, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::SwapBufferedData()
-	{
-		check(false);
-		// TODO: Ryan - this code currently uses MParticles as the only source of clustered particles.
-		// As things stand, clustered particles and geometry collection particles are both of clustered
-		// type, but are stored separately.  Geometry collection particles exist on both game and physics
-		// threads, cluster particles only exist on the physics thread.
-/*
-		SCOPE_CYCLE_COUNTER(STAT_SwapBufferedData);
-		ResourceLock.WriteLock();
-		//BufferResource.MChildren.Reset();
-		//BufferResource.ClusterParentTransforms.Reset();	//todo: once everything is atomic this should get reset
-		const TArray<TSerializablePtr<FImplicitObject>>& AllGeom = MParticles.GetAllGeometry();
-		BufferResource.GeometryPtrs.SetNum(AllGeom.Num());
-
-		const auto& NonDisabledClusteredParticles = MEvolution.GetNonDisabledClusteredArray();
-		for (auto& ClusteredParticle : NonDisabledClusteredParticles)
-		{
-			//const TArray<uint32>* Children = MChildren.Find(ClusteredParticle);
-			TArray<FPBDRigidParticleHandle*>* Children = MChildren.Find(ClusteredParticle);
-			//if (Children && ClusteredParticle->ClusterIds().Id == INDEX_NONE) //root cluster so copy children
-			if (Children && ClusteredParticle->ClusterIds().Id == nullptr) //root cluster so copy children
-			{
-				//TODO: record GT particle pointer instead
-				//BufferResource.MChildren.Add(ClusteredParticle->TransientParticleIndex(), *Children);
-				BufferResource.MChildren.Add(
-					ClusteredParticle, *Children);
-				//BufferResource.ClusterParentTransforms.Add(ClusteredParticle->TransientParticleIndex(), TRigidTransform<FReal, 3>(ClusteredParticle->X(), ClusteredParticle->R()));
-				BufferResource.ClusterParentTransforms.Add(
-					ClusteredParticle, TRigidTransform<FReal, 3>(ClusteredParticle->X(), ClusteredParticle->R()));
-			}
-		}
-
-		BufferResource.GeometryPtrs = AllGeom; //in future this should be sparse. SQ has fallback that relies on potentially all geom so can't do it yet
-		ResourceLock.WriteUnlock();
-*/
-	}
-
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::GetActiveClusterIndex"), STAT_GetActiveClusterIndex, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	FPBDRigidParticleHandle* TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::GetActiveClusterIndex(
+	FPBDRigidParticleHandle* 
+	FRigidClustering::GetActiveClusterIndex(
 		FPBDRigidParticleHandle* Child)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_GetActiveClusterIndex);
@@ -1504,8 +1462,8 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::GenerateConnectionGraph"), STAT_GenerateConnectionGraph, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::GenerateConnectionGraph(
+	void 
+	FRigidClustering::GenerateConnectionGraph(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters)
 	{
@@ -1549,8 +1507,8 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateMassProperties"), STAT_UpdateMassProperties, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateMassProperties(
+	void 
+	FRigidClustering::UpdateMassProperties(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
 		TSet<FPBDRigidParticleHandle*>& Children, 
 		const FRigidTransform3* ForceMassOrientation)
@@ -1569,8 +1527,8 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateGeometry_CopyPoints"), STAT_UpdateGeometry_CopyPoints, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateGeometry_PointsBVH"), STAT_UpdateGeometry_PointsBVH, STATGROUP_Chaos);
 
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateGeometry(
+	void 
+	FRigidClustering::UpdateGeometry(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
 		const TSet<FPBDRigidParticleHandle*>& Children, 
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry,
@@ -1828,9 +1786,9 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarMinContactSpeedForStrainEval(TEXT("p.chaos.MinContactSpeedForStrainEval"), MinContactSpeedForStrainEval, TEXT("Minimum speed at the contact before accumulating for strain eval "));
 
 	DECLARE_CYCLE_STAT(TEXT("ComputeStrainFromCollision"), STAT_ComputeStrainFromCollision, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::ComputeStrainFromCollision(
-		const T_FPBDCollisionConstraint& CollisionRule)
+	void 
+	FRigidClustering::ComputeStrainFromCollision(
+		const FPBDCollisionConstraints& CollisionRule)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ComputeStrainFromCollision);
 		FClusterMap& MParentToChildren = GetChildrenMap();
@@ -1907,8 +1865,8 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("ResetCollisionImpulseArray"), STAT_ResetCollisionImpulseArray, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::ResetCollisionImpulseArray()
+	void 
+	FRigidClustering::ResetCollisionImpulseArray()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ResetCollisionImpulseArray);
 		if (MCollisionImpulseArrayDirty)
@@ -1920,8 +1878,8 @@ namespace Chaos
 		}
 	}
 
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::DisableCluster(
+	void 
+	FRigidClustering::DisableCluster(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle)
 	{
 		// #note: we don't recursively descend to the children
@@ -1933,8 +1891,8 @@ namespace Chaos
 		MActiveRemovalIndices.Remove(ClusteredParticle);
 	}
 
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::DisableParticleWithBreakEvent(
+	void 
+	FRigidClustering::DisableParticleWithBreakEvent(
 		Chaos::FPBDRigidParticleHandle* Particle)
 	{
 		DisableCluster(Particle->CastToClustered());
@@ -1965,9 +1923,8 @@ namespace Chaos
 		}
 	}
 
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	FPBDRigidClusteredParticleHandle*
-	TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::DestroyClusterParticle(
+	FRigidClustering::DestroyClusterParticle(
 		FPBDRigidClusteredParticleHandle* ClusteredParticle,
 		const FClusterDestoryParameters& Parameters)
 	{
@@ -2040,8 +1997,8 @@ namespace Chaos
 
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingPointImplicit"), STAT_UpdateConnectivityGraphUsingPointImplicit, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateConnectivityGraphUsingPointImplicit(
+	void 
+	FRigidClustering::UpdateConnectivityGraphUsingPointImplicit(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters)
 	{
@@ -2113,8 +2070,8 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::FixConnectivityGraphUsingDelaunayTriangulation"), STAT_FixConnectivityGraphUsingDelaunayTriangulation, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::FixConnectivityGraphUsingDelaunayTriangulation(
+	void 
+	FRigidClustering::FixConnectivityGraphUsingDelaunayTriangulation(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters)
 	{
@@ -2267,9 +2224,10 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingDelaunayTriangulation"), STAT_UpdateConnectivityGraphUsingDelaunayTriangulation, STATGROUP_Chaos);
-
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateConnectivityGraphUsingDelaunayTriangulation(Chaos::FPBDRigidClusteredParticleHandle* Parent, const FClusterCreationParameters& Parameters)
+	void 
+	FRigidClustering::UpdateConnectivityGraphUsingDelaunayTriangulation(
+		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
+		const FClusterCreationParameters& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateConnectivityGraphUsingDelaunayTriangulation);
 
@@ -2305,8 +2263,8 @@ namespace Chaos
 		}
 	}
 
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::ConnectNodes(
+	void 
+	FRigidClustering::ConnectNodes(
 		FPBDRigidParticleHandle* Child1,
 		FPBDRigidParticleHandle* Child2)
 	{
@@ -2316,8 +2274,8 @@ namespace Chaos
 		ConnectNodes(ClusteredChild1, ClusteredChild2);
 	}
 
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::ConnectNodes(
+	void 
+	FRigidClustering::ConnectNodes(
 		FPBDRigidClusteredParticleHandle* ClusteredChild1,
 		FPBDRigidClusteredParticleHandle* ClusteredChild2)
 	{
@@ -2339,16 +2297,16 @@ namespace Chaos
 		}
 	}
 
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::RemoveNodeConnections(
+	void 
+	FRigidClustering::RemoveNodeConnections(
 		FPBDRigidParticleHandle* Child)
 	{
 		RemoveNodeConnections(Child->CastToClustered());
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::RemoveNodeConnections"), STAT_RemoveNodeConnections, STATGROUP_Chaos);
-	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::RemoveNodeConnections(
+	void 
+	FRigidClustering::RemoveNodeConnections(
 		FPBDRigidClusteredParticleHandle* ClusteredChild)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_RemoveNodeConnections);
@@ -2368,8 +2326,3 @@ namespace Chaos
 
 
 } // namespace Chaos
-
-using namespace Chaos;
-
-template class CHAOS_API Chaos::TPBDRigidClustering<Chaos::FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
-
