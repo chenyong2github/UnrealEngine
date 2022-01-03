@@ -94,14 +94,23 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 		}
 	}
 
+	// Hide some of the WorldPartition properties found in AActor
+	TArray<TSharedRef<IPropertyHandle>> PropertiesToHide;
+	PropertiesToHide.Add(DetailBuilder.GetProperty(AActor::GetRuntimeGridPropertyName(), AActor::StaticClass()));
+	PropertiesToHide.Add(DetailBuilder.GetProperty(AActor::GetIsSpatiallyLoadedPropertyName(), AActor::StaticClass()));
+	for (TSharedRef<IPropertyHandle> Property : PropertiesToHide)
+	{
+		DetailBuilder.HideProperty(Property);
+	}
+
 	if (CustomizedLevel)
 	{
 		const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(CustomizedLevel->GetWorld());
 
-		IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
+		IDetailCategoryBuilder& WorldPartitionCategory = DetailBuilder.EditCategory("WorldPartition");
 		if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)
 		{
-			WorldCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
+			WorldPartitionCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
 				.NameContent()
 				[
 					SNew(STextBlock)
@@ -121,7 +130,7 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 
 		if (bIsPartitionedWorld)
 		{
-			WorldCategory.AddCustomRow(LOCTEXT("DefaultWorldPartitionSettingsRow", "DefaultWorldPartitionSettings"), true)
+			WorldPartitionCategory.AddCustomRow(LOCTEXT("DefaultWorldPartitionSettingsRow", "DefaultWorldPartitionSettings"), true)
 				.NameContent()
 				[
 					SNew(STextBlock)
@@ -168,7 +177,7 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 					]
 				];
 
-			WorldCategory.AddCustomRow(LOCTEXT("WorldPartitionEditorCellSizeRow", "WorldPartitionEditorCellSize"), true)
+			WorldPartitionCategory.AddCustomRow(LOCTEXT("WorldPartitionEditorCellSizeRow", "WorldPartitionEditorCellSize"), true)
 				.NameContent()
 				[
 					SNew(STextBlock)

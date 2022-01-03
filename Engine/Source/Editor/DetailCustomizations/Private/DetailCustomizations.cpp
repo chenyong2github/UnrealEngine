@@ -744,7 +744,7 @@ void FDetailCustomizationsModule::RegisterSectionMappings()
 	{
 		{
 			TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("WorldPartition", "Streaming", LOCTEXT("Streaming", "Streaming"));
-			Section->AddCategory("RuntimeHash");
+			Section->AddCategory("WorldPartition");
 		}
 	}
 

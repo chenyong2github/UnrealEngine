@@ -181,11 +181,11 @@ public:
 	IWorldPartitionEditor* WorldPartitionEditor;
 
 	/** Class of WorldPartitionStreamingPolicy to be used to manage world partition streaming. */
-	UPROPERTY(EditAnywhere, Category=RuntimeHash, NoClear, meta = (NoResetToDefault))
+	UPROPERTY(EditAnywhere, Category=WorldPartition, NoClear, meta = (NoResetToDefault))
 	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
 #endif
 
-	UPROPERTY(EditAnywhere, Category=RuntimeHash, NoClear, meta = (NoResetToDefault), Instanced)
+	UPROPERTY(EditAnywhere, Category=WorldPartition, NoClear, meta = (NoResetToDefault), Instanced)
 	TObjectPtr<UWorldPartitionRuntimeHash> RuntimeHash;
 
 #if WITH_EDITOR
@@ -196,7 +196,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	// Default HLOD layer
-	UPROPERTY(EditAnywhere, Category=HLOD)
+	UPROPERTY(EditAnywhere, Category=WorldPartition, meta = (DisplayName = "Default HLOD Layer"))
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
 
 	TArray<FWorldPartitionReference> LoadedSubobjects;

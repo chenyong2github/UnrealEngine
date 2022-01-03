@@ -56,6 +56,7 @@
 #include "ScopedTransaction.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "Algo/AnyOf.h"
 
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "K2Node_AddDelegate.h"
@@ -142,6 +143,21 @@ void FActorDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 		if (!HideCategories.Contains(TEXT("Actor")))
 		{
 			AddActorCategory(DetailLayout, ActorsPerLevelCount);
+		}
+
+		// Hide World Partition specific properties in non WP levels
+		const bool bShouldDisplayWorldPartitionProperties = Algo::AnyOf(SelectedActors, [](const TWeakObjectPtr<AActor> Actor)
+		{
+			UWorld* World = Actor.IsValid() ? Actor->GetTypedOuter<UWorld>() : nullptr;
+			return World != nullptr && UWorld::HasSubsystem<UWorldPartitionSubsystem>(World);
+		});
+
+		if (!bShouldDisplayWorldPartitionProperties)
+		{
+			DetailLayout.HideProperty(DetailLayout.GetProperty(AActor::GetRuntimeGridPropertyName(), AActor::StaticClass()));
+			DetailLayout.HideProperty(DetailLayout.GetProperty(AActor::GetIsSpatiallyLoadedPropertyName(), AActor::StaticClass()));
+			DetailLayout.HideProperty(DetailLayout.GetProperty(AActor::GetDataLayersPropertyName(), AActor::StaticClass()));
+			DetailLayout.HideProperty(DetailLayout.GetProperty(AActor::GetHLODLayerPropertyName(), AActor::StaticClass()));
 		}
 
 		OnExtendActorDetails.Broadcast(DetailLayout, FGetSelectedActors::CreateSP(this, &FActorDetails::GetSelectedActors));

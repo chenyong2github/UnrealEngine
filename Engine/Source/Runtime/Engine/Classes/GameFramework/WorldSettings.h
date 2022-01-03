@@ -407,7 +407,7 @@ struct FBroadphaseSettings
 /**
  * Actor containing all script accessible world properties.
  */
-UCLASS(config=game, hidecategories=(Actor, Advanced, Display, Events, Object, Attachment, Info, Input, Blueprint, Layers, Tags, Replication), showcategories=(Rendering, "Input|MouseInput", "Input|TouchInput"), notplaceable)
+UCLASS(config=game, hidecategories=(Actor, Advanced, Display, Events, Object, Attachment, Info, Input, Blueprint, Layers, Tags, Replication), showcategories=(Rendering, WorldPartition, "Input|MouseInput", "Input|TouchInput"), notplaceable)
 class ENGINE_API AWorldSettings : public AInfo, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
@@ -478,7 +478,7 @@ public:
 	uint8 bUseClientSideLevelStreamingVolumes:1;
 
 	/** World origin will shift to a camera position when camera goes far away from current origin */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, AdvancedDisplay, meta=(editcondition = "bEnableWorldComposition"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, AdvancedDisplay, meta=(EditConditionHides, EditCondition = "bEnableWorldComposition"))
 	uint8 bEnableWorldOriginRebasing:1;
 		
 	/** if set to true, when we call GetGravityZ we assume WorldGravityZ has already been initialized and skip the lookup of DefaultGravityZ and GlobalGravityZ */
@@ -517,7 +517,7 @@ public:
 	uint8 bOverrideDefaultBroadphaseSettings:1;
 
 	/** If set to true, all eligible actors in this level will be added to a single cluster representing the entire level (used for small sublevels) */
-	UPROPERTY(EditAnywhere, config, Category = HLODSystem, AdvancedDisplay, meta=(DisplayAfter="HierarchicalLODSetup"))
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem, AdvancedDisplay, meta=(EditConditionHides, EditCondition="WorldPartition == nullptr", DisplayAfter="HierarchicalLODSetup"))
 	uint8 bGenerateSingleClusterForLevel : 1;
 
 #if WITH_EDITORONLY_DATA
@@ -666,16 +666,16 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** If set overrides the level settings and global project settings */
-	UPROPERTY(EditAnywhere, config, Category = HLODSystem)
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem, meta=(EditConditionHides, EditCondition = "WorldPartition == nullptr"))
 	TSoftClassPtr<class UHierarchicalLODSetup> HLODSetupAsset;
 
 	/** If set overrides the project-wide base material used for Proxy Materials */
-	UPROPERTY(EditAnywhere, config, Category = HLODSystem, meta=(editcondition = "HLODSetupAsset == nullptr"))
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem, meta=(EditConditionHides, EditCondition = "WorldPartition == nullptr && HLODSetupAsset == nullptr"))
 	TSoftObjectPtr<class UMaterialInterface> OverrideBaseMaterial;
 
 protected:
 	/** Hierarchical LOD Setup */
-	UPROPERTY(EditAnywhere, Category = HLODSystem, config, meta=(editcondition = "HLODSetupAsset == nullptr"))
+	UPROPERTY(EditAnywhere, Category = HLODSystem, config, meta=(EditConditionHides, EditCondition = "WorldPartition == nullptr && HLODSetupAsset == nullptr"))
 	TArray<struct FHierarchicalSimplification> HierarchicalLODSetup;
 
 public:
@@ -683,7 +683,7 @@ public:
 	int32 NumHLODLevels;
 
 	/** Specify the transform to apply to the source meshes when building HLODs. */
-	UPROPERTY(EditAnywhere, config, Category = HLODSystem, AdvancedDisplay, meta=(DisplayName = "HLOD Baking Transform"))
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem, AdvancedDisplay, meta=(EditConditionHides, EditCondition = "WorldPartition == nullptr", DisplayName = "HLOD Baking Transform"))
 	FTransform HLODBakingTransform;
 
 	/************************************/

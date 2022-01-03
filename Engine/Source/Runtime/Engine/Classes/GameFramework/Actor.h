@@ -764,7 +764,11 @@ public:
 
 	/** Specify in which HLOD layer this actor should be included. */
 	void SetHLODLayer(class UHLODLayer* InHLODLayer);
+
+	/** Gets the property name for HLODLayer. */
+	static const FName GetHLODLayerPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, HLODLayer); }
 #endif
+
 	/** Specify a RayTracingGroupId for this actors. Components with invalid RayTracingGroupId will inherit the actors. */
 	UFUNCTION(BlueprintCallable, Category = RayTracing)
 	void SetRayTracingGroupId(int32 InRaytracingGroupId);
@@ -859,6 +863,9 @@ public:
 
 	/** Sets this actor's current target runtime grid. */
 	void SetRuntimeGrid(FName InRuntimeGrid) { RuntimeGrid = InRuntimeGrid; }
+
+	/** Gets the property name for RuntimeGrid. */
+	static const FName GetRuntimeGridPropertyName()	{ return GET_MEMBER_NAME_CHECKED(AActor, RuntimeGrid); }
 
 	/** Returns this actor's current Guid. Actor Guids are only available in development builds. */
 	inline const FGuid& GetActorGuid() const { return ActorGuid; }
@@ -1146,6 +1153,7 @@ public:
 	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
 	bool IsValidForDataLayer() const;
 	void FixupDataLayers(bool bRevertChangesOnLockedDataLayer = false);
+	static const FName GetDataLayersPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayers); }
 #endif
 
 	//~=============================================================================
@@ -2232,6 +2240,9 @@ public:
 
 	/** Returns true if this actor allows changing the spatially loaded flag.  */
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const { return true; }
+
+	/** Gets the property name for bIsSpatiallyLoaded. */
+	static const FName GetIsSpatiallyLoadedPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, bIsSpatiallyLoaded); }
 
 	/**
 	 * Returns whether or not this actor was explicitly hidden in the editor for the duration of the current editor session
