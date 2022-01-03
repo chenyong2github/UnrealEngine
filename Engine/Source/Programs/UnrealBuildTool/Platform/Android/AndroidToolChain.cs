@@ -605,6 +605,11 @@ namespace UnrealBuildTool
 			Result += " -fno-PIE";
 
 			Result += " -Wno-unused-variable";
+			if (CompilerVersionGreaterOrEqual(13, 0, 0))
+			{
+				Result += " -Wno-unused-but-set-variable";
+				Result += " -Wno-unused-but-set-parameter";
+			}
 			// this will hide the warnings about static functions in headers that aren't used in every single .cpp file
 			Result += " -Wno-unused-function";
 			// this hides the "enumeration value 'XXXXX' not handled in switch [-Wswitch]" warnings - we should maybe remove this at some point and add UE_LOG(, Fatal, ) to default cases
