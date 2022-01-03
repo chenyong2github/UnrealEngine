@@ -335,10 +335,7 @@ TSharedRef<FDerivedDataCacheStatsNode> FDerivedDataBackendAsyncPutWrapper::Gathe
 	Usage->Stats.Add(TEXT("AsyncPut"), UsageStats);
 	Usage->Stats.Add(TEXT("AsyncPutSync"), PutSyncUsageStats);
 
-	if (InnerBackend)
-	{
-		Usage->Children.Add(InnerBackend->GatherUsageStats());
-	}
+	Usage->Children.Add(InnerBackend->GatherUsageStats());
 	if (InflightCache)
 	{
 		Usage->Children.Add(InflightCache->GatherUsageStats());

@@ -234,12 +234,7 @@ public:
 		TSharedRef<FDerivedDataCacheStatsNode> Usage =
 			MakeShared<FDerivedDataCacheStatsNode>(TEXT("LimitKeyLength"), TEXT(""), InnerBackend->GetSpeedClass() == ESpeedClass::Local);
 		Usage->Stats.Add(TEXT(""), UsageStats);
-
-		if (InnerBackend)
-		{
-			Usage->Children.Add(InnerBackend->GatherUsageStats());
-		}
-
+		Usage->Children.Add(InnerBackend->GatherUsageStats());
 		return Usage;
 	}
 
