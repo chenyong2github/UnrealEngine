@@ -521,7 +521,7 @@ public:
 			GlobalLambdaMultiplier = 1.f;
 		}
 
-		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init"),
+		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture TFO init; latest sdk version = %s"),
 			TEXT(OodleTextureVersion)
 			);
 		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD

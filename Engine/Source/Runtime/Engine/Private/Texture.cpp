@@ -2232,7 +2232,7 @@ static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITarget
 				if ( LogOnce )
 				{
 					LogOnce = false;
-					UE_LOG(LogTexture, Display, TEXT("AlternateTextureCompression/TextureCompressionFormatWithVersion not specified, using %s."), *TextureCompressionFormat);
+					UE_LOG(LogTexture, Verbose, TEXT("AlternateTextureCompression/TextureCompressionFormatWithVersion not specified, using %s."), *TextureCompressionFormat);
 				}
 			}
 		}
