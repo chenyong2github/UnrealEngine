@@ -2026,7 +2026,7 @@ void UContentBrowserAssetDataSource::OnImportAsset(const FName InPath)
 {
 	if (ensure(!InPath.IsNone()))
 	{
-		AssetTools->ImportAssetsWithDialog(InPath.ToString());
+		AssetTools->ImportAssetsWithDialogAsync(InPath.ToString());
 	}
 }
 

@@ -2277,7 +2277,7 @@ void FLevelEditorActionCallbacks::ImportContent()
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
-	AssetToolsModule.Get().ImportAssetsWithDialog(Path);
+	AssetToolsModule.Get().ImportAssetsWithDialogAsync(Path);
 }
 
 void FLevelEditorActionCallbacks::ToggleVR()

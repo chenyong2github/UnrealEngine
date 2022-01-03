@@ -1106,83 +1106,14 @@ TArray<UObject*> UAssetToolsImpl::ImportAssets(const FString& DestinationPath)
 
 TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialog(const FString& DestinationPath)
 {
-	if (!GetWritableFolderPermissionList()->PassesStartsWithFilter(DestinationPath))
-	{
-		NotifyBlockedByWritableFolderFilter();
-		return TArray<UObject*>();
-	}
+	const bool bAllowAsyncImport = false;
+	return ImportAssetsWithDialogImplementation(DestinationPath, bAllowAsyncImport);
+}
 
-	TArray<UObject*> ReturnObjects;
-	FString FileTypes, AllExtensions;
-	TArray<UFactory*> Factories;
-
-	// Get the list of valid factories
-	for( TObjectIterator<UClass> It ; It ; ++It )
-	{
-		UClass* CurrentClass = (*It);
-
-		if( CurrentClass->IsChildOf(UFactory::StaticClass()) && !(CurrentClass->HasAnyClassFlags(CLASS_Abstract)) )
-		{
-			UFactory* Factory = Cast<UFactory>( CurrentClass->GetDefaultObject() );
-			if( Factory->bEditorImport )
-			{
-				Factories.Add( Factory );
-			}
-		}
-	}
-
-	TMultiMap<uint32, UFactory*> FilterIndexToFactory;
-
-	// Generate the file types and extensions represented by the selected factories
-	ObjectTools::GenerateFactoryFileExtensions( Factories, FileTypes, AllExtensions, FilterIndexToFactory );
-
-	FileTypes = FString::Printf(TEXT("All Files (%s)|%s|%s"),*AllExtensions,*AllExtensions,*FileTypes);
-
-	// Prompt the user for the filenames
-	TArray<FString> OpenFilenames;
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	bool bOpened = false;
-	int32 FilterIndex = -1;
-
-	if ( DesktopPlatform )
-	{
-		const void* ParentWindowWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
-
-		bOpened = DesktopPlatform->OpenFileDialog(
-			ParentWindowWindowHandle,
-			LOCTEXT("ImportDialogTitle", "Import").ToString(),
-			FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT),
-			TEXT(""),
-			FileTypes,
-			EFileDialogFlags::Multiple,
-			OpenFilenames,
-			FilterIndex
-			);
-	}
-
-	if ( bOpened )
-	{
-		if ( OpenFilenames.Num() > 0 )
-		{
-			UFactory* ChosenFactory = nullptr;
-			if (FilterIndex > 0)
-			{
-				ChosenFactory = *FilterIndexToFactory.Find(FilterIndex);
-			}
-
-
-			FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_IMPORT, OpenFilenames[0]);
-
-			//If interchange framework is enable and we do not import using automation we allow async import.
-			const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
-			const bool bAllowAsyncImport = EditorExperimentalSettings->bEnableInterchangeFramework;
-			constexpr bool bSyncToBrowser = true;
-			constexpr TArray<TPair<FString, FString>>* FilesAndDestinations = nullptr;
-			ReturnObjects = ImportAssets(OpenFilenames, DestinationPath, ChosenFactory, bSyncToBrowser, FilesAndDestinations, bAllowAsyncImport);
-		}
-	}
-
-	return ReturnObjects;
+void UAssetToolsImpl::ImportAssetsWithDialogAsync(const FString& DestinationPath)
+{
+	const bool bAllowAsyncImport = true;
+	ImportAssetsWithDialogImplementation(DestinationPath, bAllowAsyncImport);
 }
 
 TArray<UObject*> UAssetToolsImpl::ImportAssetsAutomated(const UAutomatedAssetImportData* ImportData)
@@ -3566,6 +3497,83 @@ void UAssetToolsImpl::AddSubContentBlacklist(const FString& InMount)
 void UAssetToolsImpl::OnContentPathMounted(const FString& InAssetPath, const FString& FileSystemPath)
 {
 	AddSubContentBlacklist(InAssetPath);
+}
+
+TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialogImplementation(const FString& DestinationPath, bool bAllowAsyncImport)
+{
+	if (!GetWritableFolderPermissionList()->PassesStartsWithFilter(DestinationPath))
+	{
+		NotifyBlockedByWritableFolderFilter();
+		return TArray<UObject*>();
+	}
+
+	TArray<UObject*> ReturnObjects;
+	FString FileTypes, AllExtensions;
+	TArray<UFactory*> Factories;
+
+	// Get the list of valid factories
+	for (TObjectIterator<UClass> It; It; ++It)
+	{
+		UClass* CurrentClass = (*It);
+
+		if (CurrentClass->IsChildOf(UFactory::StaticClass()) && !(CurrentClass->HasAnyClassFlags(CLASS_Abstract)))
+		{
+			UFactory* Factory = Cast<UFactory>(CurrentClass->GetDefaultObject());
+			if (Factory->bEditorImport)
+			{
+				Factories.Add(Factory);
+			}
+		}
+	}
+
+	TMultiMap<uint32, UFactory*> FilterIndexToFactory;
+
+	// Generate the file types and extensions represented by the selected factories
+	ObjectTools::GenerateFactoryFileExtensions(Factories, FileTypes, AllExtensions, FilterIndexToFactory);
+
+	FileTypes = FString::Printf(TEXT("All Files (%s)|%s|%s"), *AllExtensions, *AllExtensions, *FileTypes);
+
+	// Prompt the user for the filenames
+	TArray<FString> OpenFilenames;
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	bool bOpened = false;
+	int32 FilterIndex = -1;
+
+	if (DesktopPlatform)
+	{
+		const void* ParentWindowWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
+
+		bOpened = DesktopPlatform->OpenFileDialog(
+			ParentWindowWindowHandle,
+			LOCTEXT("ImportDialogTitle", "Import").ToString(),
+			FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT),
+			TEXT(""),
+			FileTypes,
+			EFileDialogFlags::Multiple,
+			OpenFilenames,
+			FilterIndex
+		);
+	}
+
+	if (bOpened)
+	{
+		if (OpenFilenames.Num() > 0)
+		{
+			UFactory* ChosenFactory = nullptr;
+			if (FilterIndex > 0)
+			{
+				ChosenFactory = *FilterIndexToFactory.Find(FilterIndex);
+			}
+
+
+			FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_IMPORT, OpenFilenames[0]);
+			const bool bSyncToBrowser = false;
+			TArray<TPair<FString, FString>>* FilesAndDestination = nullptr;
+			ReturnObjects = ImportAssets(OpenFilenames, DestinationPath, ChosenFactory, bSyncToBrowser, FilesAndDestination, bAllowAsyncImport);
+		}
+	}
+
+	return ReturnObjects;
 }
 
 TSharedRef<FPathPermissionList>& UAssetToolsImpl::GetFolderPermissionList()

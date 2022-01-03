@@ -287,6 +287,14 @@ public:
 	virtual TArray<UObject*> ImportAssetsWithDialog(const FString& DestinationPath) = 0;
 
 	/**
+	 * Opens a file open dialog to choose files to import to the destination path.
+	 * It differ from ImportAssetsWithDialog by allowing an async import when it's available
+	 *
+	 * @param DestinationPath	Path to import files to
+	 */
+	virtual void ImportAssetsWithDialogAsync(const FString& DestinationPath) = 0;
+
+	/**
 	 * Imports the specified files to the destination path.
 	 *
 	 * @param Files				Files to import
