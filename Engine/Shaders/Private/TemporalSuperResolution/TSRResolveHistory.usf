@@ -141,15 +141,15 @@ void MainCS(
 				
 				taa_half3 SampleTranslucencyColor = History_Translucency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				taa_half  SampleTranslucencyAlpha = History_TranslucencyAlpha.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+				
+				taa_half SampleHistoryValidity = SampleMetadata.y;
 
 				#if 1
 				{
 					SampleLowFrequencyColor  = SampleLowFrequencyColor  * SampleTranslucencyAlpha + SampleTranslucencyColor;
-					SampleHighFrequencyColor = SampleHighFrequencyColor * SampleTranslucencyAlpha + SampleTranslucencyColor;
+					SampleHighFrequencyColor = SampleHighFrequencyColor * SampleTranslucencyAlpha + SampleTranslucencyColor * SampleHistoryValidity;
 				}
 				#endif
-
-				taa_half SampleHistoryValidity = SampleMetadata.y;
 
 				float2 PixelOffset = abs(SamplePixelPos - OutputPixelPos);
 
