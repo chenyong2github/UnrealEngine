@@ -6,6 +6,8 @@
 #include "MeshAttributes.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/LargeMemoryWriter.h"
+#include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/NameAsStringProxyArchive.h"
 #include "Serialization/VirtualizedBulkDataReader.h"
@@ -2006,20 +2008,7 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 		{
 			// If the bulk data hasn't been updated since this was loaded, there's a possibility that it has old versioning.
 			// Explicitly load and resave the FMeshDescription so that its version is in sync with the FMeshDescriptionBulkData.
-			if( !bBulkDataUpdated )
-			{
-				const FGuid OriginalGuid = Guid;
-
-				FMeshDescription MeshDescription;
-				LoadMeshDescription( MeshDescription );
-				SaveMeshDescription( MeshDescription );
-
-				// Maintain the original guid; this is a format change only. GetIdString will change because it adds the CustomVersions to the key.
-				if (!bGuidIsHash)
-				{
-					Guid = OriginalGuid;
-				}
-			}
+			UpdateMeshDescriptionFormat();
 		}
 	}
 
@@ -2136,6 +2125,64 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 
 		BulkData.UnloadData();
 	}
+}
+
+void FMeshDescriptionBulkData::UpdateMeshDescriptionFormat()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionBulkData::UpdateMeshDescriptionFormat);
+	if (bBulkDataUpdated)
+	{
+		return;
+	}
+	if (BulkData.GetPayloadSize() == 0)
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	// TODO: Remove this once VirtualizedBulkData can be shown to be thread safe
+	// A lock is required so we can clone the mesh description from multiple threads
+	FRWScopeLock ScopeLock(BulkDataLock, SLT_Write);
+#endif //WITH_EDITOR
+
+	FSharedBuffer OldBytes = BulkData.GetPayload().Get();
+	FMemoryReaderView Reader(OldBytes.GetView(), true /* bIsPersistent */);
+	BulkData.UnloadData();
+	// Propagate the custom version information from the package to the bulk data, so that the MeshDescription
+	// is serialized with the same versioning.
+	Reader.SetCustomVersions(CustomVersions);
+	FMeshDescription MeshDescription;
+	MeshDescription.Empty();
+	Reader << MeshDescription;
+
+	FLargeMemoryWriter NewBytes(OldBytes.GetSize(), true /* bIsPersistent */);
+	if (!MeshDescription.IsEmpty())
+	{
+		NewBytes << MeshDescription;
+	}
+	uint64 NumBytes = static_cast<uint64>(NewBytes.TotalSize());
+
+	if (NumBytes != OldBytes.GetSize() ||
+		0 != FMemory::Memcmp(OldBytes.GetData(), NewBytes.GetData(), NumBytes))
+	{
+		// The MeshDescription format has changed, so save it to this's BulkData
+		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(NewBytes.ReleaseOwnership(), NumBytes, FMemory::Free));
+		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
+		CustomVersions = NewBytes.GetCustomVersions();
+		if (bGuidIsHash)
+		{
+			UseHashAsGuid();
+		}
+		else
+		{
+			// Maintain the original guid; this is a format change only. GetIdString will change because it adds the CustomVersions to the key.
+			FPlatformMisc::CreateGuid(Guid);
+		}
+	}
+
+	// Mark the MeshDescriptionBulkData as having been updated.
+	// This means we know that its version is up-to-date.
+	bBulkDataUpdated = true;
 }
 
 void FMeshDescriptionBulkData::Empty()

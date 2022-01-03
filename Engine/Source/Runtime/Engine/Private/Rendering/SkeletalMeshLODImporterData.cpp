@@ -13,6 +13,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"
+#include "Serialization/LargeMemoryWriter.h"
 #include "SkeletalMeshAttributes.h"
 #include "SkeletalMeshOperations.h"
 
@@ -776,9 +777,7 @@ void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		if (Ar.IsSaving() && bUseSerializeLoadingCustomVersion == true)
 		{
 			//We need to update the FReductionSkeletalMeshData serialize version to the latest in case we save the Parent bulkdata
-			FSkeletalMeshImportData MeshImportData;
-			LoadRawMesh(MeshImportData);
-			SaveRawMesh(MeshImportData);
+			UpdateRawMeshFormat();
 		}
 	}
 
@@ -881,6 +880,91 @@ void FRawSkeletalMeshBulkData::LoadRawMesh(FSkeletalMeshImportData& OutMesh)
 			verify(BulkData.UnloadBulkData());
 		}
 #endif
+	}
+}
+
+
+void FRawSkeletalMeshBulkData::UpdateRawMeshFormat()
+{
+	if (BulkData.GetElementCount() == 0)
+	{
+		return;
+	}
+
+	// An exclusive lock is required so we can safely load the raw data from multiple threads
+	FWriteScopeLock ScopeLock(BulkDataLock.Get());
+#if WITH_EDITOR
+	// This allows any thread to be able to deserialize from the RawMesh directly
+	// from disk so we can unload bulk data from memory.
+	bool bHasBeenLoadedFromFileReader = false;
+	if (BulkData.IsAsyncLoadingComplete() && !BulkData.IsBulkDataLoaded())
+	{
+		// This can't be called in -game mode because we're not allowed to load bulk data outside of EDL.
+		bHasBeenLoadedFromFileReader = BulkData.LoadBulkDataWithFileReader();
+	}
+#endif
+
+	bool bModified = false;
+	uint64 NumBytes = 0;
+	FLargeMemoryWriter NewBytes(BulkData.GetBulkDataSize(), true /* bIsPersistent */);
+	FSkeletalMeshImportData MeshImportData;
+	// This is in a scope because the BulkData needs to be unlocked for UnloadBulkData.
+	{
+		FMemoryView OldBytes(BulkData.Lock(LOCK_READ_ONLY), BulkData.GetBulkDataSize());
+		ON_SCOPE_EXIT
+		{
+			BulkData.Unlock();
+		};
+		FMemoryReaderView Reader(OldBytes, true /* bIsPersistent */);
+
+		// Propagate the custom version information from the package to the bulk data, so that the MeshDescription
+		// is serialized with the same versioning.
+		Reader.SetCustomVersions(SerializeLoadingCustomVersionContainer);
+		Reader << MeshImportData;
+
+		NewBytes << MeshImportData;
+		NumBytes = static_cast<uint64>(NewBytes.TotalSize());
+		bModified = NumBytes != OldBytes.GetSize() ||
+			0 != FMemory::Memcmp(OldBytes.GetData(), NewBytes.GetData(), NumBytes);
+	}
+
+#if WITH_EDITOR
+	// Throw away the bulk data allocation only in the case we can safely reload it from disk
+	// and if BulkData.LoadBulkDataWithFileReader() is allowed to work from any thread.
+	// This saves a significant amount of memory during map loading of Nanite Meshes.
+	if (bHasBeenLoadedFromFileReader)
+	{
+		verify(BulkData.UnloadBulkData());
+	}
+#endif
+
+	if (bModified)
+	{
+		//Clear the bulk data before writing it
+		BulkData.RemoveBulkData();
+		BulkData.StoreCompressedOnDisk(NAME_Zlib);
+		{
+			BulkData.Lock(LOCK_READ_WRITE);
+			ON_SCOPE_EXIT
+			{
+				BulkData.Unlock();
+			};
+			void* Buffer = BulkData.Realloc(NumBytes);
+			FMemory::Memcpy(Buffer, NewBytes.GetData(), NumBytes);
+		}
+		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
+		SerializeLoadingCustomVersionContainer = NewBytes.GetCustomVersions();
+
+		//Create the guid from the content, this allow to use the data into the ddc key
+		FSHA1 Sha;
+		if (NumBytes > 0)
+		{
+			Sha.Update(NewBytes.GetData(), NumBytes);
+		}
+		Sha.Final();
+		uint32 Hash[5];
+		Sha.GetHash((uint8*)Hash);
+		Guid = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 	}
 }
 
