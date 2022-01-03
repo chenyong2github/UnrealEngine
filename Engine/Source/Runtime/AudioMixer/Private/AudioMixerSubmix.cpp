@@ -1146,7 +1146,7 @@ namespace Audio
 					double AudioClock = MixerDevice->GetAudioClock();
 					double TimeSinceSilent = AudioClock - SilenceTimeStartSeconds;
 
-					UE_LOG(LogAudioMixer, Log, 
+					UE_LOG(LogAudioMixer, Verbose, 
 						TEXT("Submix Disabled. Num Sources: %d, Time Silent: %.2f, Disablement Threshold: %.2f, Submix Name: %s"), 
 						MixerSourceVoices.Num(),
 						(float)TimeSinceSilent,
