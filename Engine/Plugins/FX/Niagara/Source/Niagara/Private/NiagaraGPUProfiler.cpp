@@ -43,14 +43,11 @@ FNiagaraGPUProfiler::~FNiagaraGPUProfiler()
 
 void FNiagaraGPUProfiler::BeginFrame(FRHICommandListImmediate& RHICmdList)
 {
-	bProfilingFrame = false;
-	bProfilingDispatches = false;
-
-	// Process any frames that are potentially complete
-	while ( CurrentReadFrame != CurrentWriteFrame )
+	// Process all frames until we run out
+	while (FGpuFrameData* ReadFrame = GetReadFrame())
 	{
-		FGpuFrameData& ReadFrame = GetReadFrame();
-		if ( !ProcessFrame(RHICmdList, ReadFrame) )
+		// Attempt to process, might not be read
+		if ( !ProcessFrame(RHICmdList, *ReadFrame) )
 		{
 			break;
 		}
@@ -65,42 +62,32 @@ void FNiagaraGPUProfiler::BeginFrame(FRHICommandListImmediate& RHICmdList)
 		return;
 	}
 
-	// Have a processed all previous data?
-	if (GetWriteFrame().EndQuery.GetQuery() != nullptr)
-	{
-		return;
-	}
-
-	// Latch values for frame
-	bProfilingFrame = true;
-	bProfilingDispatches = true;
+	// Get frame to write into
+	ActiveWriteFrame = GetWriteFrame();
 }
 
 void FNiagaraGPUProfiler::EndFrame(FRHICommandList& RHICmdList)
 {
-	if ( !bProfilingFrame )
+	if (ActiveWriteFrame == nullptr)
 	{
 		return;
 	}
 
 	// Inject end marker so we know if all dispatches are complete
-	FGpuFrameData& WriteFrame = GetWriteFrame();
-
-	WriteFrame.EndQuery = QueryPool->AllocateQuery();
-	RHICmdList.EndRenderQuery(WriteFrame.EndQuery.GetQuery());
+	ActiveWriteFrame->EndQuery = QueryPool->AllocateQuery();
+	RHICmdList.EndRenderQuery(ActiveWriteFrame->EndQuery.GetQuery());
 
 	CurrentWriteFrame = (CurrentWriteFrame + 1) % NumBufferFrames;
 }
 
 void FNiagaraGPUProfiler::BeginStage(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage, int32 NumDispatchGroups)
 {
-	if (!bProfilingFrame)
+	if (ActiveWriteFrame == nullptr)
 	{
 		return;
 	}
 
-	FGpuFrameData& WriteFrame = GetWriteFrame();
-	FGpuStageTimer& StageTimer = WriteFrame.StageTimers[TickStage];
+	FGpuStageTimer& StageTimer = ActiveWriteFrame->StageTimers[TickStage];
 	StageTimer.NumDispatchGroups = NumDispatchGroups;
 	StageTimer.StartQuery = QueryPool->AllocateQuery();
 	RHICmdList.EndRenderQuery(StageTimer.StartQuery.GetQuery());
@@ -108,13 +95,12 @@ void FNiagaraGPUProfiler::BeginStage(FRHICommandList& RHICmdList, ENiagaraGpuCom
 
 void FNiagaraGPUProfiler::EndStage(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage, int32 NumDispatches)
 {
-	if (!bProfilingFrame)
+	if (ActiveWriteFrame == nullptr)
 	{
 		return;
 	}
 
-	FGpuFrameData& WriteFrame = GetWriteFrame();
-	FGpuStageTimer& StageTimer = WriteFrame.StageTimers[TickStage];
+	FGpuStageTimer& StageTimer = ActiveWriteFrame->StageTimers[TickStage];
 	StageTimer.NumDispatches = NumDispatches;
 	StageTimer.EndQuery = QueryPool->AllocateQuery();
 	RHICmdList.EndRenderQuery(StageTimer.EndQuery.GetQuery());
@@ -122,15 +108,14 @@ void FNiagaraGPUProfiler::EndStage(FRHICommandList& RHICmdList, ENiagaraGpuCompu
 
 void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, const FNiagaraGpuDispatchInstance& DispatchInstance)
 {
-	if (!bProfilingDispatches)
+	if (ActiveWriteFrame == nullptr)
 	{
 		return;
 	}
 	check(bDispatchRecursionGuard == false);
 	bDispatchRecursionGuard = true;
 
-	FGpuFrameData& WriteFrame = GetWriteFrame();
-	FGpuDispatchTimer& DispatchTimer = WriteFrame.DispatchTimers.AddDefaulted_GetRef();
+	FGpuDispatchTimer& DispatchTimer = ActiveWriteFrame->DispatchTimers.AddDefaulted_GetRef();
 
 	DispatchTimer.bUniqueInstance = DispatchInstance.SimStageData.bSetDataToRender && (&DispatchInstance.InstanceData == &DispatchInstance.Tick.GetInstances()[0]);
 	DispatchTimer.OwnerComponent = DispatchInstance.InstanceData.Context->ProfilingComponentPtr;
@@ -142,15 +127,14 @@ void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, const FNiag
 
 void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, const struct FNiagaraComputeInstanceData& InstanceData, FName StageName)
 {
-	if (!bProfilingDispatches)
+	if (ActiveWriteFrame == nullptr)
 	{
 		return;
 	}
 	check(bDispatchRecursionGuard == false);
 	bDispatchRecursionGuard = true;
 
-	FGpuFrameData& WriteFrame = GetWriteFrame();
-	FGpuDispatchTimer& DispatchTimer = WriteFrame.DispatchTimers.AddDefaulted_GetRef();
+	FGpuDispatchTimer& DispatchTimer = ActiveWriteFrame->DispatchTimers.AddDefaulted_GetRef();
 	DispatchTimer.bUniqueInstance = false;
 	DispatchTimer.OwnerComponent = InstanceData.Context->ProfilingComponentPtr;
 	DispatchTimer.OwnerEmitter = InstanceData.Context->ProfilingEmitterPtr;
@@ -161,15 +145,14 @@ void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, const struc
 
 void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, FName StageName)
 {
-	if (!bProfilingDispatches)
+	if (ActiveWriteFrame == nullptr)
 	{
 		return;
 	}
 	check(bDispatchRecursionGuard == false);
 	bDispatchRecursionGuard = true;
 
-	FGpuFrameData& WriteFrame = GetWriteFrame();
-	FGpuDispatchTimer& DispatchTimer = WriteFrame.DispatchTimers.AddDefaulted_GetRef();
+	FGpuDispatchTimer& DispatchTimer = ActiveWriteFrame->DispatchTimers.AddDefaulted_GetRef();
 	DispatchTimer.bUniqueInstance = false;
 	DispatchTimer.OwnerComponent = nullptr;
 	DispatchTimer.OwnerEmitter = nullptr;
@@ -180,15 +163,14 @@ void FNiagaraGPUProfiler::BeginDispatch(FRHICommandList& RHICmdList, FName Stage
 
 void FNiagaraGPUProfiler::EndDispatch(FRHICommandList& RHICmdList)
 {
-	if (!bProfilingDispatches)
+	if (ActiveWriteFrame == nullptr)
 	{
 		return;
 	}
 	check(bDispatchRecursionGuard == true);
 	bDispatchRecursionGuard = false;
 
-	FGpuFrameData& WriteFrame = GetWriteFrame();
-	FGpuDispatchTimer& DispatchTimer = WriteFrame.DispatchTimers.Last();
+	FGpuDispatchTimer& DispatchTimer = ActiveWriteFrame->DispatchTimers.Last();
 	DispatchTimer.EndQuery = QueryPool->AllocateQuery();
 	RHICmdList.EndRenderQuery(DispatchTimer.EndQuery.GetQuery());
 }

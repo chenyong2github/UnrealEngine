@@ -539,6 +539,13 @@ FNiagaraDebugHud::FNiagaraDebugHud(UWorld* World)
 				GpuResults = InGpuResults;
 				GpuResultsGameFrameCounter = GFrameCounter;
 
+				for (const auto& StageResults : GpuResults->StageResults )
+				{
+					GpuTotalDispatches.Accumulate(GpuResultsGameFrameCounter, StageResults.NumDispatches);
+					GpuTotalDispatchGroups.Accumulate(GpuResultsGameFrameCounter, StageResults.NumDispatchGroups);
+					GpuTotalMicroseconds.Accumulate(GpuResultsGameFrameCounter, StageResults.DurationMicroseconds);
+				}
+
 				for ( const auto& DispatchResult : GpuResults->DispatchResults )
 				{
 					if ( DispatchResult.OwnerEmitter.IsExplicitlyNull() )
@@ -1754,25 +1761,15 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 
 	// Display overview of results
 	{
-		int32 TotalDispatches = 0;
-		int32 TotalDispatchGroups = 0;
-		uint64 TotalMicroseconds = 0;
-		for (const auto& StageResult : GpuResults->StageResults)
-		{
-			TotalDispatches += StageResult.NumDispatches;
-			TotalDispatchGroups += StageResult.NumDispatchGroups;
-			TotalMicroseconds += StageResult.DurationMicroseconds;
-		}
-
 		FSimpleTableDraw SimpleTable;
 		SimpleTable.AddColumns(1, 250.0f);
 		SimpleTable.AddColumns(2, 150.0f);
 		SimpleTable.GetColumnText(0).Append(TEXT("Gpu Compute Overview"));
 		SimpleTable.RowComplete();
 
-		SimpleTable.GetColumnText(0).Appendf(TEXT("TotalMicroseconds : %llu"), TotalMicroseconds);
-		SimpleTable.GetColumnText(1).Appendf(TEXT("TotalDispatches : %d"), TotalDispatches);
-		SimpleTable.GetColumnText(2).Appendf(TEXT("TotalDispatchGroups : %d"), TotalDispatchGroups);
+		SimpleTable.GetColumnText(0).Appendf(TEXT("TotalMicroseconds : %llu"), GpuTotalMicroseconds.GetAverage());
+		SimpleTable.GetColumnText(1).Appendf(TEXT("TotalDispatches : %d"), GpuTotalDispatches.GetAverage());
+		SimpleTable.GetColumnText(2).Appendf(TEXT("TotalDispatchGroups : %d"), GpuTotalDispatchGroups.GetAverage());
 
 		SimpleTable.Draw(Font, DrawCanvas, TextLocation, DetailColor, BackgroundColor);
 		TextLocation.Y += fAdvanceHeight;
