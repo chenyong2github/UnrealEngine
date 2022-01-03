@@ -83,6 +83,18 @@ FScreenTransform FScreenTransform::ChangeTextureUVCoordinateFromTo(
 		ChangeTextureBasisFromTo(DestViewport, ETextureBasis::ViewportUV, ETextureBasis::TextureUV));
 }
 
+// static
+FScreenTransform FScreenTransform::SvPositionToViewportUV(const FIntRect& SrcViewport)
+{
+	return (FScreenTransform::Identity - SrcViewport.Min) / SrcViewport.Size();
+}
+
+// static
+FScreenTransform FScreenTransform::DispatchThreadIdToViewportUV(const FIntRect& SrcViewport)
+{
+	return (FScreenTransform::Identity + 0.5f) / SrcViewport.Size();
+}
+
 void SetScreenPassPipelineState(FRHICommandList& RHICmdList, const FScreenPassPipelineState& ScreenPassDraw)
 {
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;

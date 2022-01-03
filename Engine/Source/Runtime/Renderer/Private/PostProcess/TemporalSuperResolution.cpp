@@ -2,7 +2,6 @@
 
 #include "PostProcess/TemporalAA.h"
 #include "PostProcess/PostProcessTonemap.h"
-#include "PostProcess/PostProcessMitchellNetravali.h"
 #include "PostProcess/PostProcessing.h"
 #include "ClearQuad.h"
 #include "PostProcessing.h"
@@ -20,7 +19,7 @@ TAutoConsoleVariable<float> CVarTSRHistorySP(
 	TEXT("r.TSR.HistoryScreenPercentage"),
 	100.0f,
 	TEXT("Size of TSR's history."),
-	ECVF_RenderThreadSafe);
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRR11G11B10History(
 	TEXT("r.TSR.R11G11B10History"), 1,
@@ -464,6 +463,27 @@ class FTSRUpdateHistoryCS : public FTSRShader
 	}
 }; // class FTSRUpdateHistoryCS
 
+class FTSRResolveHistoryCS : public FTSRShader
+{
+	DECLARE_GLOBAL_SHADER(FTSRResolveHistoryCS);
+	SHADER_USE_PARAMETER_STRUCT(FTSRResolveHistoryCS, FTSRShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
+		SHADER_PARAMETER(FScreenTransform, DispatchThreadToHistoryPixelPos)
+		SHADER_PARAMETER(FIntPoint, OutputViewRectMin)
+		SHADER_PARAMETER(FIntPoint, OutputViewRectMax)
+		SHADER_PARAMETER(int32, bGenerateOutputMip1)
+		SHADER_PARAMETER(float, HistoryValidityMultiply)
+
+		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, History)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutputMip0)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutputMip1)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTSRResolveHistoryCS
+
 #if COMPILE_TSR_DEBUG_PASSES
 
 class FTSRDebugHistoryCS : public FTSRShader
@@ -476,7 +496,7 @@ class FTSRDebugHistoryCS : public FTSRShader
 		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, History)
 		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, PrevHistory)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 }; // class FTSRDebugHistoryCS
 
 #endif
@@ -493,6 +513,7 @@ IMPLEMENT_GLOBAL_SHADER(FTSRDilateRejectionCS,       "/Engine/Private/TemporalSu
 IMPLEMENT_GLOBAL_SHADER(FTSRSpatialAntiAliasingCS,   "/Engine/Private/TemporalSuperResolution/TSRSpatialAntiAliasing.usf",   "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRFilterAntiAliasingCS,    "/Engine/Private/TemporalSuperResolution/TSRFilterAntiAliasing.usf",    "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRUpdateHistoryCS,         "/Engine/Private/TemporalSuperResolution/TSRUpdateHistory.usf",         "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTSRResolveHistoryCS,        "/Engine/Private/TemporalSuperResolution/TSRResolveHistory.usf",        "MainCS", SF_Compute);
 
 #if COMPILE_TSR_DEBUG_PASSES
 IMPLEMENT_GLOBAL_SHADER(FTSRDebugHistoryCS,          "/Engine/Private/TemporalSuperResolution/TSRDebugHistory.usf",          "MainCS", SF_Compute);
@@ -508,6 +529,20 @@ bool ComposeSeparateTranslucencyInTSR(const FViewInfo& View)
 {
 	return CVarTSRTranslucencySeparateTemporalAccumulation.GetValueOnRenderThread() != 0;
 }
+
+static FRDGTextureUAVRef CreateDummyUAV(FRDGBuilder& GraphBuilder, EPixelFormat PixelFormat)
+{
+	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+		FIntPoint(1, 1),
+		PixelFormat,
+		FClearValueBinding::None,
+		/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+
+	FRDGTextureRef DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.DummyOutput"));
+	GraphBuilder.RemoveUnusedTextureWarning(DummyTexture);
+
+	return GraphBuilder.CreateUAV(DummyTexture);
+};
 
 ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FRDGBuilder& GraphBuilder,
@@ -1259,20 +1294,21 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			FComputeShaderUtils::GetGroupCount(RejectionRect.Size(), 8));
 	}
 
+	// Allocate output
 	FRDGTextureRef SceneColorOutputTexture;
 	{
-		// Allocate output
-		{
-			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				HistoryExtent,
-				PF_FloatR11G11B10,
-				FClearValueBinding::None,
-				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-				/* NumMips = */ PassInputs.bGenerateOutputMip1 ? 2 : 1);
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			OutputExtent,
+			PF_FloatR11G11B10,
+			FClearValueBinding::None,
+			/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
+			/* NumMips = */ PassInputs.bGenerateOutputMip1 ? 2 : 1);
 
-			SceneColorOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.Output"));
-		}
+		SceneColorOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.Output"));
+	}
 
+	// Update temporal history.
+	{
 		FTSRUpdateHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRUpdateHistoryCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
@@ -1297,28 +1333,28 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->InvWeightClampingPixelSpeed = 1.0f / CVarTSRWeightClampingPixelSpeed.GetValueOnRenderThread();
 		PassParameters->InputToHistoryFactor = float(HistorySize.X) / float(InputRect.Width());
 		PassParameters->ResponsiveStencilMask = CVarTSREnableResponiveAA.GetValueOnRenderThread() ? (STENCIL_TEMPORAL_RESPONSIVE_AA_MASK) : 0;
-		PassParameters->bGenerateOutputMip1 = PassInputs.bGenerateOutputMip1 ? 1 : 0;
+		PassParameters->bGenerateOutputMip1 = (PassInputs.bGenerateOutputMip1 && HistorySize == OutputRect.Size()) ? 1 : 0;
 
 		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
 		PassParameters->PrevHistory = PrevHistory;
 
 		PassParameters->HistoryOutput = CreateUAVs(GraphBuilder, History);
-		PassParameters->SceneColorOutputMip0 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputTexture, /* InMipLevel = */ 0));
-		if (PassInputs.bGenerateOutputMip1)
+		if (HistorySize != OutputRect.Size())
+		{
+			PassParameters->SceneColorOutputMip0 = CreateDummyUAV(GraphBuilder, PF_FloatR11G11B10);
+		}
+		else
+		{
+			PassParameters->SceneColorOutputMip0 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputTexture, /* InMipLevel = */ 0));
+		}
+		
+		if (PassParameters->bGenerateOutputMip1)
 		{
 			PassParameters->SceneColorOutputMip1 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputTexture, /* InMipLevel = */ 1));
 		}
 		else
 		{
-			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				FIntPoint(1, 1),
-				PF_FloatR11G11B10,
-				FClearValueBinding::None,
-				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
-
-			FRDGTextureRef DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.DummyOutput"));
-			PassParameters->SceneColorOutputMip1 = GraphBuilder.CreateUAV(DummyTexture);
-			GraphBuilder.RemoveUnusedTextureWarning(DummyTexture);
+			PassParameters->SceneColorOutputMip1 = CreateDummyUAV(GraphBuilder, PF_FloatR11G11B10);
 		}
 		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent, TEXT("Debug.TSR.UpdateHistory"));
 
@@ -1365,10 +1401,38 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	// If we upscaled the history buffer, downsize back to the secondary screen percentage size.
 	if (HistorySize != OutputRect.Size())
 	{
-		SceneColorOutputTexture = ComputeMitchellNetravaliDownsample(
-			GraphBuilder, View,
-			/* InputViewport = */ FScreenPassTexture(SceneColorOutputTexture, FIntRect(FIntPoint(0, 0), HistorySize)),
-			/* OutputViewport = */ FScreenPassTextureViewport(OutputExtent, OutputRect));
+		FTSRResolveHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRResolveHistoryCS::FParameters>();
+		PassParameters->CommonParameters = CommonParameters;
+		PassParameters->DispatchThreadToHistoryPixelPos = (
+			FScreenTransform::DispatchThreadIdToViewportUV(OutputRect) *
+			FScreenTransform::ChangeTextureBasisFromTo(
+				HistoryExtent, FIntRect(FIntPoint(0, 0), HistorySize),
+				FScreenTransform::ETextureBasis::ViewportUV, FScreenTransform::ETextureBasis::TexelPosition));
+		PassParameters->OutputViewRectMin = OutputRect.Min;
+		PassParameters->OutputViewRectMax = OutputRect.Max;
+		PassParameters->bGenerateOutputMip1 = PassInputs.bGenerateOutputMip1 ? 1 : 0;
+		PassParameters->HistoryValidityMultiply = float(HistorySize.X * HistorySize.Y) / float(OutputRect.Width() * OutputRect.Height());
+
+		PassParameters->History = History;
+		
+		PassParameters->SceneColorOutputMip0 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputTexture, /* InMipLevel = */ 0));
+		if (PassParameters->bGenerateOutputMip1)
+		{
+			PassParameters->SceneColorOutputMip1 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputTexture, /* InMipLevel = */ 1));
+		}
+		else
+		{
+			PassParameters->SceneColorOutputMip1 = CreateDummyUAV(GraphBuilder, PF_FloatR11G11B10);
+		}
+		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent, TEXT("Debug.TSR.ResolveHistory"));
+
+		TShaderMapRef<FTSRResolveHistoryCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("TSR ResolveHistory %dx%d", OutputRect.Width(), OutputRect.Height()),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(OutputRect.Size(), 8));
 	}
 
 	// Extract all resources for next frame.

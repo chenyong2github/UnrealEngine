@@ -227,6 +227,22 @@ inline FScreenTransform operator + (const FScreenTransform& AToB, const FIntPoin
 }
 
 
+inline FScreenTransform operator - (const FScreenTransform& AToB, const FVector2f& Bias)
+{
+	return FScreenTransform(AToB.Scale, AToB.Bias - Bias);
+}
+
+inline FScreenTransform operator - (const FScreenTransform& AToB, const float& Bias)
+{
+	return AToB - FVector2f(Bias, Bias);
+}
+
+inline FScreenTransform operator - (const FScreenTransform& AToB, const FIntPoint& Bias)
+{
+	return AToB - FVector2f(Bias.X, Bias.Y);
+}
+
+
 inline FScreenTransform operator / (const FScreenTransform& AToB, const FVector2f& InvertedScale)
 {
 	ensure(!FMath::IsNearlyZero(InvertedScale.X));
