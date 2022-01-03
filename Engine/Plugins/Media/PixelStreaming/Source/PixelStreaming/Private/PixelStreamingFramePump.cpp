@@ -12,8 +12,6 @@ FPixelStreamingFramePump::FPixelStreamingFramePump(FPixelStreamingFrameSource* I
 ,PlayersChangedEvent(FPlatformProcess::GetSynchEventFromPool(false))
 ,NextPumpEvent(FPlatformProcess::GetSynchEventFromPool(false))
 {
-	const int32 FPS = PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
-	FrameDeltaMs = 1000.0 / FPS;
 	PumpThread = MakeUnique<FThread>(TEXT("PumpThread"), [this]() { PumpLoop(); });
 }
 
@@ -147,6 +145,8 @@ void FPixelStreamingFramePump::PumpLoop()
 	        // Sleep as long as we need for a constant FPS
 	        const uint64 EndCycles = FPlatformTime::Cycles64();
 	        const double DeltaMs = FPlatformTime::ToMilliseconds64(EndCycles - LastCycles);
+			const int32 FPS = PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
+			const double FrameDeltaMs = 1000.0 / FPS;
 	        const double SleepMs = FrameDeltaMs - DeltaMs;
 	        LastCycles = EndCycles;
 

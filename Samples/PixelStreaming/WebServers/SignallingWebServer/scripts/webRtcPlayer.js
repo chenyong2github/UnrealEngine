@@ -76,10 +76,8 @@ function webRtcPlayer(parOptions) {
     {
         TestStartTimeMs: null,
         UEReceiptTimeMs: null,
-        UEPreCaptureTimeMs: null,
-        UEPostCaptureTimeMs: null,
-        UEPreEncodeTimeMs: null,
-        UEPostEncodeTimeMs: null,
+        UEEncodeMs: null,
+        UECaptureToSendMs: null,
         UETransmissionTimeMs: null,
         BrowserReceiptTimeMs: null,
         FrameDisplayDeltaTimeMs: null,
@@ -87,10 +85,8 @@ function webRtcPlayer(parOptions) {
         {
             this.TestStartTimeMs = null;
             this.UEReceiptTimeMs = null;
-            this.UEPreCaptureTimeMs = null;
-            this.UEPostCaptureTimeMs = null;
-            this.UEPreEncodeTimeMs = null;
-            this.UEPostEncodeTimeMs = null;
+            this.UEEncodeMs = null,
+            this.UECaptureToSendMs = null,
             this.UETransmissionTimeMs = null;
             this.BrowserReceiptTimeMs = null;
             this.FrameDisplayDeltaTimeMs = null;
@@ -98,10 +94,8 @@ function webRtcPlayer(parOptions) {
         SetUETimings: function(UETimings)
         {
             this.UEReceiptTimeMs = UETimings.ReceiptTimeMs;
-            this.UEPreCaptureTimeMs = UETimings.PreCaptureTimeMs;
-            this.UEPostCaptureTimeMs = UETimings.PostCaptureTimeMs;
-            this.UEPreEncodeTimeMs = UETimings.PreEncodeTimeMs;
-            this.UEPostEncodeTimeMs = UETimings.PostEncodeTimeMs;
+            this.UEEncodeMs = UETimings.EncodeMs,
+            this.UECaptureToSendMs = UETimings.CaptureToSendMs,
             this.UETransmissionTimeMs = UETimings.TransmissionTimeMs;
             this.BrowserReceiptTimeMs = Date.now();
             this.OnAllLatencyTimingsReady(this);

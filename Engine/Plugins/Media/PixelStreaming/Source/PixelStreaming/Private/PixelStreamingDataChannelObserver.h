@@ -36,6 +36,9 @@ class FPixelStreamingDataChannelObserver : public webrtc::DataChannelObserver
         void Register(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel);
         void Unregister();
 
+    private:
+        void SendLatencyReport() const;
+
     public:
 
         DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataChannelOpen, FPlayerId, webrtc::DataChannelInterface*)

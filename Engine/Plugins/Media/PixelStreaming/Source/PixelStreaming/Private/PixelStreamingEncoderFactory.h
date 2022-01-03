@@ -53,8 +53,6 @@ public:
 
 	void OnEncodedImage(FHardwareEncoderId SourceEncoderId, const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation);
 
-	int GetLatestQP() const { return 0; }
-
 private:
 	// Used for checks such as whether a given player id is associated with the quality controlling player.
 	IPixelStreamingSessions* PixelStreamingSessions;

@@ -35,7 +35,6 @@ private:
 	bool bThreadRunning = true;
 	FEvent* PlayersChangedEvent;
 	FEvent* NextPumpEvent;
-	double FrameDeltaMs = 1000.0 / 60.0; // default to 60fps
 	int32 NextFrameId = 0;
 
 	void PumpLoop();

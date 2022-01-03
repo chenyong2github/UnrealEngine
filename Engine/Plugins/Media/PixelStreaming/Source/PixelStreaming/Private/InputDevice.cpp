@@ -118,7 +118,6 @@ const size_t FInputDevice::MessageHeaderOffset = 3;
 FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	: PixelStreamerApplicationWrapper(MakeShareable(new FApplicationWrapper(FSlateApplication::Get().GetPlatformApplication())))
 	, MessageHandler(InMessageHandler)
-	, bAllowCommands(PixelStreamingSettings::IsAllowPixelStreamingCommands())
 	, bFakingTouchEvents(FSlateApplication::Get().IsFakingTouchEvents())
 	, FocusedPos(UnfocusedPos)
 	, PixelStreamingModule(FPixelStreamingModule::GetModule())
@@ -574,7 +573,7 @@ void FInputDevice::ProcessUIInteraction(const FString& InDescriptor)
 
 void FInputDevice::ProcessCommand(const FString& InDescriptor)
 {
-	if (bAllowCommands)
+	if (PixelStreamingSettings::CVarPixelStreamingAllowConsoleCommands.GetValueOnAnyThread())
 	{
 		bool Success = Commands.Enqueue(InDescriptor);
 		checkf(Success, TEXT("Unable to enqueue new Command %s"), *InDescriptor);

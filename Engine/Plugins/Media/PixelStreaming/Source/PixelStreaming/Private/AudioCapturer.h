@@ -3,7 +3,7 @@
 #pragma once
 
 #include "WebRTCIncludes.h"
-#include "AudioMixerDevice.h"
+#include "AudioDevice.h"
 #include "HAL/CriticalSection.h"
 
 // This class is only used if -PixelStreamingWebRTCUseLegacyAudioDevice or related CVar are used.

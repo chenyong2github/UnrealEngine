@@ -9,6 +9,8 @@
 #include "Templates/SharedPointer.h"
 #include "PlayerId.h"
 #include "IPixelStreamingAudioSink.h"
+#include "Templates/SharedPointer.h"
+#include "IPixelStreamingStatsConsumer.h"
 
 class UTexture2D;
 class UPixelStreamerInputComponent;
@@ -16,12 +18,11 @@ class UPixelStreamerInputComponent;
 /**
 * The public interface to this module
 */
-class IPixelStreamingModule : public IInputDeviceModule
+class PIXELSTREAMING_API IPixelStreamingModule : public IInputDeviceModule
 {
 public:
-
 	/**
-	* Singleton-like access to this module's interface.  This is just for convenience!
+	* Singleton-like access to this module's interface.
 	* Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
 	*
 	* @return Returns singleton instance, loading the module on demand if needed
@@ -32,14 +33,31 @@ public:
 	}
 
 	/**
-	* Checks to see if this module is loaded and ready.  It is only valid to call Get() if IsAvailable() returns true.
+	* Checks to see if this module is loaded.  
 	*
-	* @return True if the module is loaded and ready to use
+	* @return True if the module is loaded.
 	*/
 	static inline bool IsAvailable()
 	{
 		return FModuleManager::Get().IsModuleLoaded("PixelStreaming");
 	}
+
+	/*
+	* Event fired when internal streamer is initialized and the methods on this module are ready for use.
+	*/
+	DECLARE_EVENT_OneParam(IPixelStreamingModule, FReadyEvent, IPixelStreamingModule&)
+	
+	/*
+	* A getter for the OnReady event. Intent is for users to call IPixelStreamingModule::Get().OnReady().AddXXX.
+	* @return The bindable OnReady event.
+	*/
+	virtual FReadyEvent& OnReady() = 0;
+
+	/*
+	* Is the PixelStreaming module actually ready to use? Is the streamer created.
+	* @return True if Pixel Streaming module methods are ready for use.
+	*/
+	virtual bool IsReady() = 0;
 
 	/**
 	 * Returns a reference to the input device. The lifetime of this reference
@@ -47,7 +65,7 @@ public:
 	 * @return A reference to the input device.
 	 */
 	virtual class FInputDevice& GetInputDevice() = 0;
-	
+
 	/**
 	 * Add any player config JSON to the given object which relates to
 	 * configuring the input system for the pixel streaming on the browser.
@@ -86,7 +104,6 @@ public:
 	 * @param FilePath - The freeze frame to display. If null then the back buffer is captured.
 	 */
 	virtual void SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension) = 0;
-	
 	/**
 	 * Get the audio sink associated with a specific peer/player.
 	 */
@@ -115,5 +132,16 @@ public:
 	 */
 	virtual const TArray<UPixelStreamerInputComponent*> GetInputComponents() = 0;
 
-};
+	/*
+	 * Add a callback that gets fired any time a stat is updated during Pixel Streaming.
+	 * @param Callback - The callback that is fired when the stat changes.
+	 */
+	virtual void AddAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback) = 0;
 
+	/*
+	 * Remove the callback for any stat changed.
+	 * @param Callback - The callback to remove.
+	 */
+	virtual void RemoveAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback) = 0;
+
+};

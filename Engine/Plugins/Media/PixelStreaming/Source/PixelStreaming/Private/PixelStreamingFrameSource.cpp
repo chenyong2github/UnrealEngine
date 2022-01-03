@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "PixelStreamingFrameSource.h"
 
-#include "LatencyTester.h"
+#include "PixelStreamingFrameSource.h"
 #include "PixelStreamingStats.h"
 #include "Async/Async.h"
 #include "Utils.h"
@@ -41,35 +40,10 @@ void FPixelStreamingFrameSource::OnFrameReady(const FTexture2DRHIRef& FrameBuffe
 	const int32 FrameId = NextFrameId++;
 	const int64 TimestampUs = rtc::TimeMicros();
 
-	// Latency test pre capture
-	if (FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::PRE_CAPTURE)
-	{
-		FLatencyTester::RecordPreCaptureTime();
-	}
-
 	// pass the frame to the layers
 	for (auto& LayerSource : LayerSources)
 	{
 		LayerSource->OnFrameReady(FrameBuffer);
-	}
-
-	// Latency test post capture
-	if (FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::POST_CAPTURE)
-	{
-		FLatencyTester::RecordPostCaptureTime(FrameId);
-	}
-
-	UE_LOG(PixelStreamer, VeryVerbose, TEXT("(%d) captured video %lld"), RtcTimeMs(), TimestampUs);
-
-	// If stats are enabled, records the stats during capture now.
-	FPixelStreamingStats& Stats = FPixelStreamingStats::Get();
-	if (Stats.GetStatsEnabled())
-	{
-		int64 TimestampNowUs = rtc::TimeMicros();
-		int64 CaptureLatencyUs = TimestampNowUs - TimestampUs;
-		double CaptureLatencyMs = (double)CaptureLatencyUs / 1000.0;
-		Stats.SetCaptureLatency(CaptureLatencyMs);
-		Stats.OnCaptureFinished();
 	}
 
 	bAvailable = true;
@@ -148,15 +122,15 @@ void FPixelStreamingLayerFrameSource::OnFrameReady(const FTexture2DRHIRef& Frame
 				bIsTempDirty = true;
 			}
 
-			uint64 PostWaitingOnCopy = FPlatformTime::Cycles64();
-
-			FPixelStreamingStats& Stats = FPixelStreamingStats::Get();
-			if(Stats.GetStatsEnabled())
-			{
-				double CaptureLatencyMs = FPlatformTime::ToMilliseconds64(PostWaitingOnCopy - WriteBuffer.PreWaitingOnCopy);
-				Stats.SetCaptureLatency(CaptureLatencyMs);
-				Stats.OnCaptureFinished();
-			}
+			// For debugging timing information about the copy operation
+			// Turning it on all the time is a bit too much log spam if logging stats
+			//uint64 PostWaitingOnCopy = FPlatformTime::Cycles64();
+			// FPixelStreamingStats* Stats = FPixelStreamingStats::Get();
+			// if(Stats)
+			// {
+			// 	double CaptureLatencyMs = FPlatformTime::ToMilliseconds64(PostWaitingOnCopy - WriteBuffer.PreWaitingOnCopy);
+			// 	Stats->StoreApplicationStat(FStatData(FName(*FString::Printf(TEXT("Layer (x%.2f) Capture time (ms)"), FrameScale)), CaptureLatencyMs, 2, true));
+			// }
 		});
 	}
 }

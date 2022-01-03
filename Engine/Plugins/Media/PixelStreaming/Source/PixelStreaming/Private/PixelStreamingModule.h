@@ -31,6 +31,8 @@ private:
 	TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
 
 	/** IPixelStreamingModule implementation */
+	IPixelStreamingModule::FReadyEvent& OnReady() override;
+	bool IsReady() override;
 	FInputDevice& GetInputDevice() override;
 	void AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject) override;
 	void SendResponse(const FString& Descriptor) override;
@@ -50,6 +52,9 @@ private:
 	void UnfreezeFrame() override;
 	IPixelStreamingAudioSink* GetPeerAudioSink(FPlayerId PlayerId) override;
 	IPixelStreamingAudioSink* GetUnlistenedAudioSink() override;
+	void AddAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback) override;
+	void RemoveAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback) override;
+	/** End IPixelStreamingModule implementation */
 
 	// FTickableGameObject
 	bool IsTickableWhenPaused() const override;
@@ -68,6 +73,7 @@ private:
 	void InitStreamer();
 
 private:
+	IPixelStreamingModule::FReadyEvent ReadyEvent;
 	TUniquePtr<FStreamer> Streamer;
 	TSharedPtr<FInputDevice> InputDevice;
 	TArray<UPixelStreamerInputComponent*> InputComponents;

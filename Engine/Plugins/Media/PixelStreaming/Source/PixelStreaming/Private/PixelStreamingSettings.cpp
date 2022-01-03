@@ -4,6 +4,8 @@
 #include "PixelStreamingPrivate.h"
 #include "Misc/DefaultValueHelper.h"
 #include "Async/Async.h"
+#include "IPixelStreamingStatsConsumer.h"
+#include "IPixelStreamingModule.h"
 
 template <typename T>
 void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
@@ -239,6 +241,12 @@ namespace PixelStreamingSettings
 		TEXT("Comma separated list of keys to ignore from streaming clients."),
 		ECVF_Default);
 
+	TAutoConsoleVariable<bool> CVarPixelStreamingAllowConsoleCommands(
+		TEXT("PixelStreaming.AllowPixelStreamingCommands"),
+		false,
+		TEXT("If true browser can send consoleCommand payloads that execute in UE's console."),
+		ECVF_Default);
+
 	TArray<FKey> FilteredKeys;
 
 	void OnFilteredKeysChanged(IConsoleVariable* Var)
@@ -255,54 +263,51 @@ namespace PixelStreamingSettings
 
 	void OnKeyframeIntervalChanged(IConsoleVariable* Var)
 	{
-		// HACK: Only doing it like this because this a hotfix change and cannot public ABI.
-		// Todo: Fix in next proper engine release.
-		AsyncTask(ENamedThreads::GameThread, [Var]()
-				  {
-					  IConsoleVariable* CVarNVENCKeyframeInterval = IConsoleManager::Get().FindConsoleVariable(TEXT("NVENC.KeyframeInterval"));
-					  if (CVarNVENCKeyframeInterval)
-					  {
-						  CVarNVENCKeyframeInterval->Set(Var->GetInt(), ECVF_SetByCommandline);
-					  }
+		AsyncTask(ENamedThreads::GameThread, [Var]() {
+			IConsoleVariable* CVarNVENCKeyframeInterval = IConsoleManager::Get().FindConsoleVariable(TEXT("NVENC.KeyframeInterval"));
+			if (CVarNVENCKeyframeInterval)
+			{
+				CVarNVENCKeyframeInterval->Set(Var->GetInt(), ECVF_SetByCommandline);
+			}
 
-					  IConsoleVariable* CVarAMFKeyframeInterval = IConsoleManager::Get().FindConsoleVariable(TEXT("AMF.KeyframeInterval"));
-					  if (CVarNVENCKeyframeInterval)
-					  {
-						  CVarAMFKeyframeInterval->Set(Var->GetInt(), ECVF_SetByCommandline);
-					  }
-				  });
+			IConsoleVariable* CVarAMFKeyframeInterval = IConsoleManager::Get().FindConsoleVariable(TEXT("AMF.KeyframeInterval"));
+			if (CVarNVENCKeyframeInterval)
+			{
+				CVarAMFKeyframeInterval->Set(Var->GetInt(), ECVF_SetByCommandline);
+			}
+		});
 	}
 	// Ends Pixel Streaming Plugin CVars
 
 	// Begin utility functions etc.
 	std::map<FString, AVEncoder::FVideoEncoder::RateControlMode> const RateControlCVarMap{
-		{"ConstQP", AVEncoder::FVideoEncoder::RateControlMode::CONSTQP},
-		{"VBR", AVEncoder::FVideoEncoder::RateControlMode::VBR},
-		{"CBR", AVEncoder::FVideoEncoder::RateControlMode::CBR},
+		{ "ConstQP", AVEncoder::FVideoEncoder::RateControlMode::CONSTQP },
+		{ "VBR", AVEncoder::FVideoEncoder::RateControlMode::VBR },
+		{ "CBR", AVEncoder::FVideoEncoder::RateControlMode::CBR },
 	};
 
 	std::map<FString, AVEncoder::FVideoEncoder::MultipassMode> const MultipassCVarMap{
-		{"DISABLED", AVEncoder::FVideoEncoder::MultipassMode::DISABLED},
-		{"QUARTER", AVEncoder::FVideoEncoder::MultipassMode::QUARTER},
-		{"FULL", AVEncoder::FVideoEncoder::MultipassMode::FULL},
+		{ "DISABLED", AVEncoder::FVideoEncoder::MultipassMode::DISABLED },
+		{ "QUARTER", AVEncoder::FVideoEncoder::MultipassMode::QUARTER },
+		{ "FULL", AVEncoder::FVideoEncoder::MultipassMode::FULL },
 	};
 
 	std::map<FString, AVEncoder::FVideoEncoder::H264Profile> const H264ProfileMap{
-		{"AUTO", AVEncoder::FVideoEncoder::H264Profile::AUTO},
-		{"BASELINE", AVEncoder::FVideoEncoder::H264Profile::BASELINE},
-		{"MAIN", AVEncoder::FVideoEncoder::H264Profile::MAIN},
-		{"HIGH", AVEncoder::FVideoEncoder::H264Profile::HIGH},
-		{"HIGH444", AVEncoder::FVideoEncoder::H264Profile::HIGH444},
-		{"STEREO", AVEncoder::FVideoEncoder::H264Profile::STEREO},
-		{"SVC_TEMPORAL_SCALABILITY", AVEncoder::FVideoEncoder::H264Profile::SVC_TEMPORAL_SCALABILITY},
-		{"PROGRESSIVE_HIGH", AVEncoder::FVideoEncoder::H264Profile::PROGRESSIVE_HIGH},
-		{"CONSTRAINED_HIGH", AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH},
+		{ "AUTO", AVEncoder::FVideoEncoder::H264Profile::AUTO },
+		{ "BASELINE", AVEncoder::FVideoEncoder::H264Profile::BASELINE },
+		{ "MAIN", AVEncoder::FVideoEncoder::H264Profile::MAIN },
+		{ "HIGH", AVEncoder::FVideoEncoder::H264Profile::HIGH },
+		{ "HIGH444", AVEncoder::FVideoEncoder::H264Profile::HIGH444 },
+		{ "STEREO", AVEncoder::FVideoEncoder::H264Profile::STEREO },
+		{ "SVC_TEMPORAL_SCALABILITY", AVEncoder::FVideoEncoder::H264Profile::SVC_TEMPORAL_SCALABILITY },
+		{ "PROGRESSIVE_HIGH", AVEncoder::FVideoEncoder::H264Profile::PROGRESSIVE_HIGH },
+		{ "CONSTRAINED_HIGH", AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH },
 	};
 
 	AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar()
 	{
 		auto const cvarStr = CVarPixelStreamingEncoderRateControl.GetValueOnAnyThread();
-		auto const it = RateControlCVarMap.find(cvarStr);
+		auto const it	   = RateControlCVarMap.find(cvarStr);
 		if (it == std::end(RateControlCVarMap))
 			return AVEncoder::FVideoEncoder::RateControlMode::CBR;
 		return it->second;
@@ -311,7 +316,7 @@ namespace PixelStreamingSettings
 	AVEncoder::FVideoEncoder::MultipassMode GetMultipassCVar()
 	{
 		auto const cvarStr = CVarPixelStreamingEncoderMultipass.GetValueOnAnyThread();
-		auto const it = MultipassCVarMap.find(cvarStr);
+		auto const it	   = MultipassCVarMap.find(cvarStr);
 		if (it == std::end(MultipassCVarMap))
 			return AVEncoder::FVideoEncoder::MultipassMode::FULL;
 		return it->second;
@@ -335,7 +340,7 @@ namespace PixelStreamingSettings
 	AVEncoder::FVideoEncoder::H264Profile GetH264Profile()
 	{
 		auto const cvarStr = CVarPixelStreamingH264Profile.GetValueOnAnyThread();
-		auto const it = H264ProfileMap.find(cvarStr);
+		auto const it	   = H264ProfileMap.find(cvarStr);
 		if (it == std::end(H264ProfileMap))
 			return AVEncoder::FVideoEncoder::H264Profile::BASELINE;
 		return it->second;
@@ -379,6 +384,52 @@ namespace PixelStreamingSettings
 		}
 	}
 
+	/*
+	* Stats logger - as turned on/off by CVarPixelStreamingLogStats
+	*/
+
+	class FPixelStreamingStatsLogger : public IPixelStreamingStatsConsumer
+	{
+		void ConsumeStat(FPlayerId PlayerId, FName StatName, float StatValue)
+		{
+			UE_LOG(PixelStreamer, Log, TEXT("[%s](%s) = %f"), *PlayerId, *StatName.ToString(), StatValue);
+		}
+	};
+	TSharedPtr<FPixelStreamingStatsLogger> StatsLogger = MakeShared<FPixelStreamingStatsLogger>();
+	TWeakPtr<FPixelStreamingStatsLogger> StatsLoggerWeak = TWeakPtr<FPixelStreamingStatsLogger>(StatsLogger);
+
+	void OnLogStatsChanged(IConsoleVariable* Var)
+	{
+		bool bLogStats = Var->GetBool();
+		IPixelStreamingModule& Module = IPixelStreamingModule::Get();
+		
+
+		if(Module.IsReady())
+		{
+
+		}
+
+		if(bLogStats)
+		{
+			Module.AddAnyStatChangedCallback(StatsLoggerWeak);
+		}
+		else
+		{
+			Module.RemoveAnyStatChangedCallback(StatsLoggerWeak);
+		}
+	}
+
+	/*
+	* Settings parsing and initialization.
+	*/
+
+	// Some settings need to be set after streamer is initialized
+	void OnStreamerReady(IPixelStreamingModule& Module)
+	{
+		PixelStreamingSettings::CVarPixelStreamingLogStats.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&PixelStreamingSettings::OnLogStatsChanged));
+		CommandLineParseOption(TEXT("PixelStreamingLogStats"), PixelStreamingSettings::CVarPixelStreamingLogStats);
+	}
+
 	void InitialiseSettings()
 	{
 		UE_LOG(PixelStreamer, Log, TEXT("Initialising Pixel Streaming settings."));
@@ -409,9 +460,9 @@ namespace PixelStreamingSettings
 		CommandLineParseValue(TEXT("PixelStreamingKeyFilter="), PixelStreamingSettings::CVarPixelStreamingKeyFilter);
 
 		// Options parse (if these exist they are set to true)
+		CommandLineParseOption(TEXT("AllowPixelStreamingCommands"), PixelStreamingSettings::CVarPixelStreamingAllowConsoleCommands);
 		CommandLineParseOption(TEXT("PixelStreamingOnScreenStats"), PixelStreamingSettings::CVarPixelStreamingOnScreenStats);
 		CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingOnScreenStats);
-		CommandLineParseOption(TEXT("PixelStreamingLogStats"), PixelStreamingSettings::CVarPixelStreamingLogStats);
 
 		CommandLineParseOption(TEXT("PixelStreamingDebugDumpFrame"), PixelStreamingSettings::CVarPixelStreamingDebugDumpFrame);
 		CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), PixelStreamingSettings::CVarPixelStreamingEnableFillerData);
@@ -425,5 +476,10 @@ namespace PixelStreamingSettings
 		CommandLineParseOption(TEXT("PixelStreamingDisableLatencyTester"), PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester);
 
 		ReadSimulcastParameters();
+
+		IPixelStreamingModule& Module = IPixelStreamingModule::Get();
+		Module.OnReady().AddStatic(&PixelStreamingSettings::OnStreamerReady);
 	}
+
+
 } // namespace PixelStreamingSettings

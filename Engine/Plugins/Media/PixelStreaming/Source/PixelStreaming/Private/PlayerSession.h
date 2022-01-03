@@ -8,12 +8,15 @@
 #include "PixelStreamingAudioSink.h"
 #include "PlayerId.h"
 #include "PixelStreamingDataChannelObserver.h"
+#include "PixelStreamingStats.h"
+#include "PixelStreamingRTCStatsCollector.h"
+#include "IPixelStreamingStatsConsumer.h"
 
 class FSignallingServerConnection;
 class IPixelStreamingSessions;
 
 class FPlayerSession
-    : public webrtc::PeerConnectionObserver
+	: public webrtc::PeerConnectionObserver
 {
 public:
 	FPlayerSession(IPixelStreamingSessions* InSessions, FSignallingServerConnection* InSignallingServerConnection, FPlayerId PlayerId);
@@ -21,27 +24,25 @@ public:
 
 	webrtc::PeerConnectionInterface& GetPeerConnection();
 	void SetPeerConnection(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& InPeerConnection);
-	void SetDataChannel(const rtc::scoped_refptr<webrtc::DataChannelInterface>& InDataChannel);
 	
-	FPlayerId GetPlayerId() const;
+	void SetDataChannel(const rtc::scoped_refptr<webrtc::DataChannelInterface>& InDataChannel);
 
 	void OnAnswer(FString Sdp);
 	void OnRemoteIceCandidate(const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp);
 	void DisconnectPlayer(const FString& Reason);
 
+	FPlayerId GetPlayerId() const;
 	FPixelStreamingAudioSink& GetAudioSink();
+	FPixelStreamingDataChannelObserver& GetDataChannelObserver();
 
 	bool SendMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const;
-
 	void SendQualityControlStatus(bool bIsQualityController) const;
 	void SendFreezeFrame(const TArray64<uint8>& JpegBytes) const;
 	void SendFileData(const TArray<uint8>& ByteData, const FString& MimeType, const FString& FileExtension) const;
 	void SendUnfreezeFrame() const;
 	void SendVideoEncoderQP(double QP) const;
-	FPixelStreamingDataChannelObserver& GetDataChannelObserver();
-
+	void PollWebRTCStats() const;
 private:
-
 	void ModifyAudioTransceiverDirection();
 
 	//
@@ -70,5 +71,7 @@ private:
 	FPixelStreamingDataChannelObserver DataChannelObserver;
 	FThreadSafeBool bDisconnecting = false;
 	FPixelStreamingAudioSink AudioSink;
+	rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> WebRTCStatsCallback;
+	TSharedPtr<IPixelStreamingStatsConsumer> QPReporter;
 };
 

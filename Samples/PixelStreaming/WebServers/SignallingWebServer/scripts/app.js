@@ -235,40 +235,25 @@ function setupHtmlEvents() {
     let encoderParamsSubmit = document.getElementById('encoder-params-submit');
     if (encoderParamsSubmit !== null) {
         encoderParamsSubmit.onclick = function(event) {
-            let rateControl = document.getElementById('encoder-rate-control').value;
-            let targetBitrate = document.getElementById('encoder-target-bitrate-text').value * 1000;
-            let maxBitrate = document.getElementById('encoder-max-bitrate-text').value * 1000;
+
             let minQP = document.getElementById('encoder-min-qp-text').value;
             let maxQP = document.getElementById('encoder-max-qp-text').value;
-            let fillerData = document.getElementById('encoder-filler-data-tgl').checked ? 1 : 0;
-            let multipass = document.getElementById('encoder-multipass').value;
 
-            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.RateControl ' + rateControl });
-            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.TargetBitrate ' + targetBitrate > 0 ? targetBitrate : -1 });
-            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.MaxBitrateVBR ' + maxBitrate > 0 ? maxBitrate : -1 });
             emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.MinQP ' + minQP });
             emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.MaxQP ' + maxQP });
-            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.EnableFillerData ' + fillerData });
-            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.Multipass ' + multipass });
         };
     }
 
     let webrtcParamsSubmit = document.getElementById('webrtc-params-submit');
     if (webrtcParamsSubmit !== null) {
         webrtcParamsSubmit.onclick = function(event) {
-            let degradationPref = document.getElementById('webrtc-degradation-pref').value;
             let FPS = document.getElementById('webrtc-fps-text').value;
             let minBitrate = document.getElementById('webrtc-min-bitrate-text').value * 1000;
             let maxBitrate = document.getElementById('webrtc-max-bitrate-text').value * 1000;
-            let lowQP = document.getElementById('webrtc-low-qp-text').value;
-            let highQP = document.getElementById('webrtc-high-qp-text').value;
 
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.DegradationPreference ' + degradationPref });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.Fps ' + FPS });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MinBitrate ' + minBitrate });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MaxBitrate ' + maxBitrate });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.LowQpThreshold ' + lowQP });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.HighQpThreshold ' + highQP });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.Fps ' + FPS });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.MinBitrate ' + minBitrate });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.MaxBitrate ' + maxBitrate });
         };
     }
 
@@ -839,24 +824,52 @@ function setupWebRtcPlayer(htmlElement, config) {
             let settingsString = new TextDecoder("utf-16").decode(data.slice(1));
             let settingsJSON = JSON.parse(settingsString);
 
-            // reminder bitrates are sent in bps but displayed in kbps
+            if(settingsJSON.PixelStreaming) {
+                let allowConsoleCommands = settingsJSON.PixelStreaming.AllowPixelStreamingCommands;
+                if(allowConsoleCommands === false){
+                    document.getElementById('encoder-min-qp-text').disabled = true;
+                    document.getElementById('encoder-max-qp-text').disabled = true;
+                    document.getElementById("webrtc-fps-text").disabled = true;
+                    document.getElementById("webrtc-min-bitrate-text").disabled = true;
+                    document.getElementById("webrtc-max-bitrate-text").disabled = true;
+                    document.getElementById("show-fps-button").disabled = true;
+                    document.getElementById("encoder-params-submit").disabled = true;
+                    document.getElementById("webrtc-params-submit").disabled = true;
 
+                    if(!document.getElementById("warning-elem-webrtc")) {
+                        let warningElem1 = document.createElement("p");
+                        warningElem1.innerText = "(Disabled by -AllowPixelStreamingCommands=false)";
+                        warningElem1.classList = "subtitle-text";
+                        warningElem1.id = "warning-elem-webrtc";
+                        document.getElementById("webRTCSettingsHeader").appendChild(warningElem1);
+                    }
+                    
+                    if(!document.getElementById("warning-elem-encoder")) {
+                        let warningElem2 = document.createElement("p");
+                        warningElem2.innerText = "(Disabled by -AllowPixelStreamingCommands=false)";
+                        warningElem2.classList = "subtitle-text";
+                        warningElem2.id = "warning-elem-encoder";
+                        document.getElementById("encoderSettingsHeader").appendChild(warningElem2);
+                    }
+
+                    console.warn("-AllowPixelStreamingCommands=false, sending console commands from browser to UE is disabled, including toggling FPS and changing encoder settings from the browser.")
+                }
+                let disableLatencyTest = settingsJSON.PixelStreaming.DisableLatencyTest;
+                if(disableLatencyTest) {
+                    document.getElementById("test-latency-button").disabled = true;
+                    document.getElementById("test-latency-button").title = "Disabled by -PixelStreamingDisableLatencyTester=true";
+                    console.warn("-PixelStreamingDisableLatencyTester=true, requesting latency report from the the browser to UE is disabled.")
+                }
+            }
             if (settingsJSON.Encoder) {
-                document.getElementById('encoder-rate-control').value = settingsJSON.Encoder.RateControl;
-                document.getElementById('encoder-target-bitrate-text').value = settingsJSON.Encoder.TargetBitrate > 0 ? settingsJSON.Encoder.TargetBitrate / 1000 : settingsJSON.Encoder.TargetBitrate;
-                document.getElementById('encoder-max-bitrate-text').value = settingsJSON.Encoder.MaxBitrate > 0 ? settingsJSON.Encoder.MaxBitrate / 1000 : settingsJSON.Encoder.MaxBitrate;
                 document.getElementById('encoder-min-qp-text').value = settingsJSON.Encoder.MinQP;
                 document.getElementById('encoder-max-qp-text').value = settingsJSON.Encoder.MaxQP;
-                document.getElementById('encoder-filler-data-tgl').checked = settingsJSON.Encoder.FillerData == 1;
-                document.getElementById('encoder-multipass').value = settingsJSON.Encoder.MultiPass;
             }
             if (settingsJSON.WebRTC) {
-                document.getElementById('webrtc-degradation-pref').value = settingsJSON.WebRTC.DegradationPref;
-                document.getElementById("webrtc-fps-text").value = settingsJSON.WebRTC.MaxFPS;
+                document.getElementById("webrtc-fps-text").value = settingsJSON.WebRTC.FPS;
+                // reminder bitrates are sent in bps but displayed in kbps
                 document.getElementById("webrtc-min-bitrate-text").value = settingsJSON.WebRTC.MinBitrate / 1000;
                 document.getElementById("webrtc-max-bitrate-text").value = settingsJSON.WebRTC.MaxBitrate / 1000;
-                document.getElementById("webrtc-low-qp-text").value = settingsJSON.WebRTC.LowQP;
-                document.getElementById("webrtc-high-qp-text").value = settingsJSON.WebRTC.HighQP;
             }
         } else if (view[0] == ToClientMessageType.FileExtension) {
             processFileExtension(view);
@@ -969,11 +982,11 @@ function setupStats(){
         statsText += `<div>Received (${receivedBytesMeasurement}): ${numberFormat.format(receivedBytes)}</div>`;
         statsText += `<div>Frames Decoded: ${aggregatedStats.hasOwnProperty('framesDecoded') ? numberFormat.format(aggregatedStats.framesDecoded) : 'Chrome only'}</div>`;
         statsText += `<div>Packets Lost: ${aggregatedStats.hasOwnProperty('packetsLost') ? numberFormat.format(aggregatedStats.packetsLost) : 'Chrome only'}</div>`;
-        statsText += `<div style="color: ${color}">Bitrate (kbps): ${aggregatedStats.hasOwnProperty('bitrate') ? numberFormat.format(aggregatedStats.bitrate) : 'Chrome only'}</div>`;
         statsText += `<div>Framerate: ${aggregatedStats.hasOwnProperty('framerate') ? numberFormat.format(aggregatedStats.framerate) : 'Chrome only'}</div>`;
         statsText += `<div>Frames dropped: ${aggregatedStats.hasOwnProperty('framesDropped') ? numberFormat.format(aggregatedStats.framesDropped) : 'Chrome only'}</div>`;
         statsText += `<div>Net RTT (ms): ${aggregatedStats.hasOwnProperty('currentRoundTripTime') ? numberFormat.format(aggregatedStats.currentRoundTripTime * 1000) : 'Can\'t calculate'}</div>`;
         statsText += `<div>Browser receive to composite (ms): ${aggregatedStats.hasOwnProperty('receiveToCompositeMs') ? numberFormat.format(aggregatedStats.receiveToCompositeMs) : 'Chrome only'}</div>`;
+        statsText += `<div style="color: ${color}">Bitrate (kbps): ${aggregatedStats.hasOwnProperty('bitrate') ? numberFormat.format(aggregatedStats.bitrate) : 'Chrome only'}</div>`;
         statsText += `<div style="color: ${color}">Video Quantization Parameter: ${VideoEncoderQP}</div>`;
 
         let statsDiv = document.getElementById("stats");
@@ -1002,9 +1015,8 @@ function setupStats(){
         }
 
         let latencyExcludingDecode = timings.BrowserReceiptTimeMs - timings.TestStartTimeMs;
-        let captureLatency = timings.UEPostCaptureTimeMs - timings.UEPreCaptureTimeMs;
-        let encodeLatency = timings.UEPostEncodeTimeMs - timings.UEPreEncodeTimeMs;
-        let uePixelStreamLatency = captureLatency + encodeLatency + (timings.UETransmissionTimeMs - timings.UEPostEncodeTimeMs);
+        let encodeLatency = timings.UEEncodeMs;
+        let uePixelStreamLatency = timings.UECaptureToSendMs;
         let ueTestDuration = timings.UETransmissionTimeMs - timings.UEReceiptTimeMs;
         let networkLatency = latencyExcludingDecode - ueTestDuration;
 
@@ -1019,9 +1031,8 @@ function setupStats(){
 
         let latencyStatsInnerHTML = '';
         latencyStatsInnerHTML += `<div>Net latency RTT (ms): ${networkLatency.toFixed(2)}</div>`;
-        latencyStatsInnerHTML += `<div>UE Capture+Encode+Transmit (ms): ${uePixelStreamLatency.toFixed(2)}</div>`;
-        latencyStatsInnerHTML += `<div>UE Capture (ms): ${captureLatency.toFixed(2)}</div>`;
         latencyStatsInnerHTML += `<div>UE Encode (ms): ${encodeLatency.toFixed(2)}</div>`;
+        latencyStatsInnerHTML += `<div>UE Send to capture (ms): ${uePixelStreamLatency.toFixed(2)}</div>`;
         latencyStatsInnerHTML += `<div>UE probe duration (ms): ${ueTestDuration.toFixed(2)}</div>`;
         latencyStatsInnerHTML += timings.FrameDisplayDeltaTimeMs && timings.BrowserReceiptTimeMs ? `<div>Browser composite latency (ms): ${timings.FrameDisplayDeltaTimeMs.toFixed(2)}</div>` : "";
         latencyStatsInnerHTML += browserSideLatency ? `<div>Total browser latency (ms): ${browserSideLatency.toFixed(2)}</div>` : "";

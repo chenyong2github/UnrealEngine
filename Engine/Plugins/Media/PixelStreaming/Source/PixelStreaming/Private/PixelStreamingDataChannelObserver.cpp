@@ -3,13 +3,14 @@
 #include "PixelStreamingDataChannelObserver.h"
 #include "PixelStreamingPrivate.h"
 #include "PixelStreamingSettings.h"
-#include "LatencyTester.h"
 #include "InputDevice.h"
 #include "Modules/ModuleManager.h"
 #include "IPixelStreamingModule.h"
 #include "PixelStreamingModule.h"
 #include "HAL/PlatformTime.h"
 #include "IPixelStreamingSessions.h"
+#include "PixelStreamingStats.h"
+#include "PixelStreamingStatNames.h"
 
 
 FPixelStreamingDataChannelObserver::FPixelStreamingDataChannelObserver(IPixelStreamingSessions* InPlayerSessions, FPlayerId InPlayerId)
@@ -56,11 +57,7 @@ void FPixelStreamingDataChannelObserver::OnMessage(const webrtc::DataBuffer& Buf
 	}
 	else if(MsgType == PixelStreamingProtocol::EToStreamerMsg::LatencyTest)
 	{
-		FString TestStartTimeInBrowserMs = PixelStreamingProtocol::ParseString(Buffer, FInputDevice::GetMessageHeaderOffset());
-		FLatencyTester::Start(this->PlayerId);
-		FLatencyTester::RecordReceiptTime();
-        double NowMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles());
-		UE_LOG(PixelStreamer, Log, TEXT("Browser start time: %s | UE start time: %f"), *TestStartTimeInBrowserMs, NowMs);
+		SendLatencyReport();
 	}
 	else if (MsgType == PixelStreamingProtocol::EToStreamerMsg::RequestInitialSettings)
 	{
@@ -70,6 +67,45 @@ void FPixelStreamingDataChannelObserver::OnMessage(const webrtc::DataBuffer& Buf
 	{
 		InputDevice.OnMessage(Buffer);
 	}
+}
+
+void FPixelStreamingDataChannelObserver::SendLatencyReport() const
+{
+	if(PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester.GetValueOnAnyThread())
+	{
+		return;
+	}
+
+	double ReceiptTimeMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
+
+	AsyncTask(ENamedThreads::GameThread, [this, ReceiptTimeMs]() 
+	{ 
+
+		double EncodeMs = -1.0;
+		double CaptureToSendMs = 0.0;
+
+		FPixelStreamingStats* Stats = FPixelStreamingStats::Get();
+		if(Stats)
+		{
+			// bool QueryPeerStat_GameThread(FPlayerId PlayerId, FName StatToQuery, double& OutStatValue)
+			Stats->QueryPeerStat_GameThread(PlayerId, PixelStreamingStatNames::MeanEncodeTime, EncodeMs);
+			Stats->QueryPeerStat_GameThread(PlayerId, PixelStreamingStatNames::MeanSendDelay, CaptureToSendMs);
+		}
+
+		double TransmissionTimeMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
+
+		FString ReportToTransmitJSON = FString::Printf( 
+            TEXT( "{ \"ReceiptTimeMs\": %.2f, \"EncodeMs\": %.2f, \"CaptureToSendMs\": %.2f, \"TransmissionTimeMs\": %.2f }" ), 
+            ReceiptTimeMs,
+            EncodeMs,
+            CaptureToSendMs,
+            TransmissionTimeMs
+        );
+
+		PlayerSessions->SendMessage(PlayerId, PixelStreamingProtocol::EToPlayerMsg::LatencyTest, ReportToTransmitJSON);
+
+	});
+
 }
         
 void FPixelStreamingDataChannelObserver::OnBufferedAmountChange(uint64_t PreviousAmount)
@@ -91,6 +127,10 @@ void FPixelStreamingDataChannelObserver::SendInitialSettings() const
 		return;
 	}
 
+	const FString PixelStreamingPayload = FString::Printf(TEXT("{ \"AllowPixelStreamingCommands\": %s, \"DisableLatencyTest\": %s }"),
+		PixelStreamingSettings::CVarPixelStreamingAllowConsoleCommands.GetValueOnAnyThread() ? TEXT("true") : TEXT("false"),
+		PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester.GetValueOnAnyThread() ? TEXT("true") : TEXT("false"));
+
 	const FString WebRTCPayload = FString::Printf(TEXT("{ \"DegradationPref\": \"%s\", \"FPS\": %d, \"MinBitrate\": %d, \"MaxBitrate\": %d, \"LowQP\": %d, \"HighQP\": %d }"),
 		*PixelStreamingSettings::CVarPixelStreamingDegradationPreference.GetValueOnAnyThread(),
 		PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread(),
@@ -108,7 +148,7 @@ void FPixelStreamingDataChannelObserver::SendInitialSettings() const
 		PixelStreamingSettings::CVarPixelStreamingEnableFillerData.GetValueOnAnyThread() ? 1 : 0,
 		*PixelStreamingSettings::CVarPixelStreamingEncoderMultipass.GetValueOnAnyThread());
 
-	const FString FullPayload = FString::Printf(TEXT("{ \"Encoder\": %s, \"WebRTC\": %s }"), *EncoderPayload, *WebRTCPayload);
+	const FString FullPayload = FString::Printf(TEXT("{ \"PixelStreaming\": %s, \"Encoder\": %s, \"WebRTC\": %s }"), *PixelStreamingPayload, *EncoderPayload, *WebRTCPayload);
 
 	if (!this->PlayerSessions->SendMessage(this->PlayerId, PixelStreamingProtocol::EToPlayerMsg::InitialSettings, FullPayload))
 	{
