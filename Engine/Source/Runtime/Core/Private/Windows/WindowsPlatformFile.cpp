@@ -503,6 +503,12 @@ public:
 			TRACE_PLATFORMFILE_BEGIN_REOPEN(Handle);
 			HANDLE NewFileHandle = ReOpenFile(Handle, DesiredAccess, ShareMode, Flags);
 			TRACE_PLATFORMFILE_END_REOPEN(NewFileHandle);
+			if (NewFileHandle == INVALID_HANDLE_VALUE)
+			{
+				// We are not allowed to change this->IsValid() from true to false.
+				// If the Reopen fails, keep the old FileHandle
+				return;
+			}
 
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
 			BOOL CloseResult = CloseHandle(Handle);
@@ -519,6 +525,7 @@ public:
 			(void)CloseResult;
 #endif
 			Handle = NewFileHandle;
+			check(IsValid());
 		}
 	}
 };
@@ -757,6 +764,7 @@ public:
 		if (Seek(NewSize) && UpdatedNonOverlappedPos() && SetEndOfFile(FileHandle) != 0)
 		{
 			UpdateFileSize();
+			check(IsValid());
 			return true;
 		}
 		return false;
@@ -768,6 +776,12 @@ public:
 			TRACE_PLATFORMFILE_BEGIN_REOPEN(FileHandle);
 			HANDLE NewFileHandle = ReOpenFile(FileHandle, DesiredAccess, ShareMode, Flags);
 			TRACE_PLATFORMFILE_END_REOPEN(NewFileHandle);
+			if (NewFileHandle == INVALID_HANDLE_VALUE)
+			{
+				// We are not allowed to change this->IsValid() from true to false.
+				// If the Reopen fails, keep the old FileHandle
+				return;
+			}
 
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle);
 			BOOL CloseResult = CloseHandle(FileHandle);
@@ -784,6 +798,7 @@ public:
 			(void)CloseResult;
 #endif
 			FileHandle = NewFileHandle;
+			check(IsValid());
 		}
 	}
 };
