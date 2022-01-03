@@ -598,6 +598,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		// Whether separate translucency is composed in TSR.
 		bool bComposeSeparateTranslucencyInTSR = TAAConfig == EMainTAAPassConfig::TSR && ComposeSeparateTranslucencyInTSR(View);
 
+		const FIntPoint PostTAAViewSize = View.PrimaryScreenPercentageMethod != EPrimaryScreenPercentageMethod::TemporalUpscale ? View.GetSecondaryViewRectSize() : View.ViewRect.Size();
+
 		const FPostProcessMaterialChain PostProcessMaterialAfterTonemappingChain = GetPostProcessMaterialChain(View, BL_AfterTonemapping);
 
 		PassSequence.SetEnabled(EPass::MotionBlur, bVisualizeMotionBlur || bMotionBlurEnabled);
@@ -632,7 +634,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		const bool bProcessQuarterResolution = IsPostProcessingQuarterResolutionDownsampleEnabled();
 		const bool bMotionBlurNeedsHalfResInput = PassSequence.IsEnabled(EPass::MotionBlur) && DoesMotionBlurNeedsHalfResInput() && !bVisualizeMotionBlur;
 
-		const float FFTBloomResolutionFraction = GetFFTBloomResolutionFraction();
+		const float FFTBloomResolutionFraction = GetFFTBloomResolutionFraction(PostTAAViewSize);
 
 		const bool bProduceSceneColorChain = (
 			bBasicEyeAdaptationEnabled ||
@@ -765,6 +767,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				OutputHistory.ReferenceBufferSize = TAAInputs.GetOutputExtent() * TAAInputs.ResolutionDivisor;
 			}
 		}
+
+		ensure(SceneColor.ViewRect.Size() == PostTAAViewSize);
 
 		// Post Process Material Chain - SSR Input
 		if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)

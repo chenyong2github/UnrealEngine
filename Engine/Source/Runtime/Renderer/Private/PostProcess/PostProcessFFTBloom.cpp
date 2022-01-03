@@ -197,9 +197,11 @@ IMPLEMENT_GLOBAL_SHADER(FBloomFinalizeApplyConstantsCS,     "/Engine/Private/Blo
 
 } //! namespace
 
-float GetFFTBloomResolutionFraction()
+float GetFFTBloomResolutionFraction(const FIntPoint& ViewSize)
 {
-	return FMath::Clamp(CVarBloomScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.1f, 1.0f);
+	float MaxResolutionFraction = FMath::Min(float(GMaxTextureDimensions) * 0.5f / float(FMath::Max(ViewSize.X, ViewSize.Y)), 1.0f);
+
+	return FMath::Clamp(CVarBloomScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.1f, MaxResolutionFraction);
 }
 
 bool IsFFTBloomEnabled(const FViewInfo& View)
@@ -640,7 +642,7 @@ FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 {
 	check(InputSceneColor.IsValid());
 
-	const float ResolutionFraction = GetFFTBloomResolutionFraction();
+	const float ResolutionFraction = GetFFTBloomResolutionFraction(InputSceneColor.ViewRect.Size());
 	const float DownscaleResolutionFraction = ResolutionFraction / InputResolutionFraction;
 	check(DownscaleResolutionFraction <= 1.0f);
 
