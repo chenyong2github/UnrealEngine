@@ -5,9 +5,12 @@
 #if WITH_EDITOR
 
 #include "Async/Future.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "Compression/CompressedBuffer.h"
 #include "Containers/ArrayView.h"
 #include "Delegates/Delegate.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "IO/IoHash.h"
 
@@ -66,6 +69,14 @@ public:
 	 */
 	virtual TFuture<UE::BulkDataRegistry::FData> GetData(const FGuid& BulkDataId) = 0;
 
+	/**
+	 * Report whether the Package had BulkDatas during load that upgrade or otherwise exist in memoryonly and
+	 * cannot save all its BulkDatas by reference when resaved. This function only returns the correct
+	 * information until OnEndLoadPackage is called for the given package; after that it can return an arbitrary
+	 * value.
+	 */
+	virtual uint64 GetBulkDataResaveSize(FName PackageName) = 0;
+
 	/** Set and intialize global IBulkDataRegistry; Get fatally fails before. */
 	COREUOBJECT_API static void Initialize();
 	/** Shutdown and deallocate global IBulkDataRegistry; Get fatally fails afterwards. */
@@ -76,6 +87,32 @@ public:
 protected:
 	virtual ~IBulkDataRegistry() {};
 };
+
+namespace UE::BulkDataRegistry::Private
+{
+
+/** Implements behavior needed across multiple BulkDataRegistry implementations for GetBulkDataResaveSize */
+class FResaveSizeTracker
+{
+public:
+	COREUOBJECT_API FResaveSizeTracker();
+	COREUOBJECT_API ~FResaveSizeTracker();
+
+	COREUOBJECT_API void Register(UPackage* Owner, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData);
+	COREUOBJECT_API uint64 GetBulkDataResaveSize(FName PackageName);
+
+private:
+	COREUOBJECT_API void OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages);
+	COREUOBJECT_API void OnPostEngineInit();
+
+	FRWLock Lock;
+	TMap<FName, uint64> PackageBulkResaveSize;
+	TArray<FName> DeferredRemove;
+	bool bPostEngineInitComplete = false;
+};
+
+}
+
 
 // Temporary interface for tunneling the EditorBuildInputResolver into CoreUObject.
 // In the future this will be implemented as part of the BuildAPI

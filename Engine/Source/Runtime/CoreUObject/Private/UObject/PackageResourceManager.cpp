@@ -3,6 +3,7 @@
 #include "UObject/PackageResourceManager.h"
 
 #include "Async/AsyncFileHandle.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageSegment.h"
 #include "Misc/PreloadableFile.h"
 #include "Misc/ScopeLock.h"
@@ -259,3 +260,25 @@ FOpenAsyncPackageResult::~FOpenAsyncPackageResult()
 {
 	// Defined in CPP so we can forward declare IAsyncReadFileHandle
 }
+
+#if WITH_EDITOR
+bool IsEditorDomainEnabled()
+{
+	static bool bEnabled = []()
+	{
+		if (!GIsEditor || (IsRunningCommandlet() && !IsRunningCookCommandlet()))
+		{
+			return false;
+		}
+		bool bEnabledByConfig = true;
+		GConfig->GetBool(TEXT("EditorDomain"), TEXT("EditorDomainEnabled"), bEnabledByConfig, GEditorIni);
+		if (GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainEnabled"), bEnabledByConfig, GEditorIni))
+		{
+			UE_LOG(LogPackageResourceManager, Error,
+				TEXT("Editor.ini:[CookSettings]:EditorDomainEnabled is deprecated, use Editor.ini:[EditorDomain]:EditorDomainEnabled instead."));
+		}
+		return bEnabledByConfig;
+	}();
+	return bEnabled;
+}
+#endif

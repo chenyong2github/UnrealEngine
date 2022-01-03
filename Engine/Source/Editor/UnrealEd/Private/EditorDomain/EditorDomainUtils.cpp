@@ -2,6 +2,7 @@
 
 #include "EditorDomain/EditorDomainUtils.h"
 
+#include "Algo/AnyOf.h"
 #include "Algo/IsSorted.h"
 #include "Algo/Unique.h"
 #include "AssetRegistry/AssetData.h"
@@ -14,6 +15,7 @@
 #include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 #include "Editor.h"
+#include "Engine/StaticMesh.h"
 #include "HAL/FileManager.h"
 #include "Hash/Blake3.h"
 #include "Memory/SharedBuffer.h"
@@ -22,6 +24,7 @@
 #include "Misc/PackagePath.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
+#include "Serialization/BulkDataRegistry.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/PackageWriterToSharedBuffer.h"
@@ -73,9 +76,10 @@ bool GTargetDomainClassUseAllowList = true;
 bool GTargetDomainClassEmptyAllowList = false;
 TArray<int32> GGlobalAddedCustomVersions;
 bool bGGlobalAddedCustomVersionsInitialized = false;
+int64 GMaxBulkDataSize = -1;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("30E58214A4A84D638FAA8826B81338A1");
+const TCHAR* EditorDomainVersion = TEXT("D0A667ED7E374A60962A4AA61B63E6B5");
 
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
@@ -871,6 +875,10 @@ void UtilsInitialize()
 		GTargetDomainClassBlockList = ConstructTargetIterativeClassBlockList();
 	}
 
+	double MaxBulkDataSize = 64 * 1024;
+	GConfig->GetDouble(TEXT("EditorDomain"), TEXT("MaxBulkDataSize"), MaxBulkDataSize, GEditorIni);
+	GMaxBulkDataSize = static_cast<uint64>(MaxBulkDataSize);
+
 	// Constructing allowlists requires use of UStructs, and the early SetPackageResourceManager
 	// where UtilsInitialize is called is too early; trying to call UStruct->GetSchemaHash at that
 	// time will break the UClass. Defer the construction of allowlist-based data until OnPostEngineInit
@@ -930,11 +938,6 @@ void RequestEditorDomainPackage(const FPackagePath& PackagePath,
 class FEditorDomainPackageWriter final : public TPackageWriterToSharedBuffer<IPackageWriter>
 {
 public:
-	FEditorDomainPackageWriter(uint64& InFileSize)
-		: FileSize(InFileSize)
-	{
-	}
-
 	// IPackageWriter
 	virtual FCapabilities GetCapabilities() const override
 	{
@@ -966,6 +969,16 @@ public:
 	TConstArrayView<FAttachment> GetAttachments() const
 	{
 		return Attachments;
+	}
+
+	uint64 GetBulkDataSize() const
+	{
+		return BulkDataSize;
+	}
+
+	uint64 GetFileSize() const
+	{
+		return FileSize;
 	}
 
 protected:
@@ -1000,6 +1013,7 @@ protected:
 		check(Record.Package->Buffer.GetSize() > 0); // Header+Exports segment is non-zero in length
 		AttachmentBuffers.Add(Record.Package->Buffer);
 
+		BulkDataSize = 0;
 		for (const FBulkDataRecord& BulkRecord : Record.BulkDatas)
 		{
 			checkf(BulkRecord.Info.BulkDataType == IPackageWriter::FBulkDataInfo::AppendToExports,
@@ -1019,7 +1033,8 @@ protected:
 					FileRegion.Length, BulkRecord.Buffer));
 				SizeFromRegions += FileRegion.Length;
 			}
-			checkf(SizeFromRegions == BulkRecord.Buffer.GetSize(), TEXT("Expects all BulkData to be in a region."))
+			checkf(SizeFromRegions == BulkRecord.Buffer.GetSize(), TEXT("Expects all BulkData to be in a region."));
+			BulkDataSize += BulkRecord.Buffer.GetSize();
 		}
 		for (const FLinkerAdditionalDataRecord& AdditionalRecord : Record.LinkerAdditionalDatas)
 		{
@@ -1038,7 +1053,8 @@ protected:
 				SizeFromRegions += FileRegion.Length;
 			}
 			checkf(SizeFromRegions == AdditionalRecord.Buffer.GetSize(),
-				TEXT("Expects all LinkerAdditionalData to be in a region."))
+				TEXT("Expects all LinkerAdditionalData to be in a region."));
+			BulkDataSize += AdditionalRecord.Buffer.GetSize();
 		}
 
 		// We use a counter for PayloadIds rather than hashes of the Attachments. We do this because
@@ -1074,7 +1090,8 @@ protected:
 private:
 	TArray<FAttachment> Attachments;
 	FPackageWriterRecords::FWritePackage WritePackageRecord;
-	uint64& FileSize;
+	uint64 FileSize = 0;
+	uint64 BulkDataSize = 0;
 };
 
 
@@ -1087,8 +1104,9 @@ bool TrySavePackage(UPackage* Package)
 		return false;
 	}
 
+	FName PackageName = Package->GetFName();
 	FString ErrorMessage;
-	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(Package->GetFName());
+	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
 	if (!PackageDigest.IsSuccessful())
 	{
 		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package to EditorDomain: %s."),
@@ -1098,10 +1116,17 @@ bool TrySavePackage(UPackage* Package)
 	if (!EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::SaveEnabled))
 	{
 		UE_LOG(LogEditorDomain, Verbose, TEXT("Skipping save of blocked package to EditorDomain: %s."),
-			*Package->GetName());
+			*WriteToString<256>(PackageName));
 		return false;
 	}
-	UE_LOG(LogEditorDomain, Verbose, TEXT("Saving to EditorDomain: %s."), *Package->GetName())
+	if (GMaxBulkDataSize >= 0 &&
+		IBulkDataRegistry::Get().GetBulkDataResaveSize(PackageName) > static_cast<uint64>(GMaxBulkDataSize))
+	{
+		UE_LOG(LogEditorDomain, Verbose, TEXT("Skipping save of package with new BulkData to EditorDomain: %s."),
+			*WriteToString<256>(PackageName));
+		return false;
+	}
+	UE_LOG(LogEditorDomain, Verbose, TEXT("Saving to EditorDomain: %s."), *WriteToString<256>(PackageName));
 
 	uint32 SaveFlags = SAVE_NoError // Do not crash the SaveServer on an error
 		| SAVE_BulkDataByReference	// EditorDomain saves reference bulkdata from the WorkspaceDomain rather than duplicating it
@@ -1110,14 +1135,21 @@ bool TrySavePackage(UPackage* Package)
 		// | SAVE_KeepGUID;			// Prevent indeterminism by keeping the Guid
 		;
 
+	TArray<UObject*> PackageObjects;
+	auto GetPackageObjects = [&PackageObjects, Package]() -> TArrayView<UObject*>
+	{
+		if (PackageObjects.IsEmpty())
+		{
+			GetObjectsWithPackage(Package, PackageObjects);
+		}
+		return PackageObjects;
+	};
 	if (GetEditorDomainSaveUnversioned())
 	{
 		// With some exceptions, EditorDomain packages are saved unversioned; 
 		// editors request the appropriate version of the EditorDomain package matching their serialization version
 		bool bSaveUnversioned = true;
-		TArray<UObject*> PackageObjects;
-		GetObjectsWithPackage(Package, PackageObjects);
-		for (UObject* Object : PackageObjects)
+		for (UObject* Object : GetPackageObjects())
 		{
 			UClass* Class = Object ? Object->GetClass() : nullptr;
 			if (Class && Class->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
@@ -1132,8 +1164,7 @@ bool TrySavePackage(UPackage* Package)
 		SaveFlags |= bSaveUnversioned ? SAVE_Unversioned_Properties : 0;
 	}
 
-	uint64 FileSize = 0;
-	FEditorDomainPackageWriter* PackageWriter = new FEditorDomainPackageWriter(FileSize);
+	FEditorDomainPackageWriter* PackageWriter = new FEditorDomainPackageWriter();
 	IPackageWriter::FBeginPackageInfo BeginInfo;
 	BeginInfo.PackageName = Package->GetFName();
 	PackageWriter->BeginPackage(BeginInfo);
@@ -1253,10 +1284,36 @@ bool TrySavePackage(UPackage* Package)
 		return false;
 	}
 
+	if (GMaxBulkDataSize >= 0 && PackageWriter->GetBulkDataSize() > static_cast<uint64>(GMaxBulkDataSize))
+	{
+		// TODO EditorDomain MeshDescription: We suppress the warning if the package includes a MeshDescription;
+		// MeshDescriptions do not yet detect the need for a bulkdata resave until save serialization.
+		bool bDisplayAsWarning = !Algo::AnyOf(GetPackageObjects(), [](UObject* Object)
+			{
+				return Object->IsA<UStaticMesh>();
+			});
+
+		FString Message = FString::Printf(TEXT("Could not save package to EditorDomain because BulkData size is too large. ")
+			TEXT("Package=%s, BulkDataSize=%d, EditorDomain.MaxBulkDataSize=%d")
+			TEXT("\n\tWe did not detect this until after trying to save the package, which is bad for performance. Resave the package ")
+			TEXT("or debug why the size was not detected by the BulkDataRegistry."),
+			*WriteToString<256>(PackageName), PackageWriter->GetBulkDataSize(), GMaxBulkDataSize);
+		if (bDisplayAsWarning)
+		{
+			UE_LOG(LogEditorDomain, Display, TEXT("%s"), *Message);
+		}
+		else
+		{
+			UE_LOG(LogEditorDomain, Verbose, TEXT("%s"), *Message);
+		}
+		return false;
+	}
+
 	ICache& Cache = GetCache();
 
 	TCbWriter<16> MetaData;
 	MetaData.BeginObject();
+	uint64 FileSize = PackageWriter->GetFileSize();
 	MetaData << "FileSize" << FileSize;
 	MetaData.EndObject();
 

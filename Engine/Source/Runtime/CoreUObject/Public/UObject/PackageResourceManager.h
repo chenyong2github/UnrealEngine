@@ -421,4 +421,10 @@ private:
 #endif
 };
 
-
+#if WITH_EDITOR
+/**
+ * Report whether the EditorDomain is enabled by config, for systems that need to behave differently if editordomain
+ * will be enabled and need to know before the PackageResourceManager is constructed.
+ */
+COREUOBJECT_API bool IsEditorDomainEnabled();
+#endif

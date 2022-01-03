@@ -42,15 +42,13 @@ public:
 
 	static IPackageResourceManager* SetPackageResourceManager()
 	{
-		if (GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet()))
+		bool bEditorDomainEnabled = IsEditorDomainEnabled();
+		if (GIsEditor)
 		{
-			bool bEditorDomainEnabled = true;
-			GConfig->GetBool(TEXT("EditorDomain"), TEXT("EditorDomainEnabled"), bEditorDomainEnabled, GEditorIni);
-			if (GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainEnabled"), bEditorDomainEnabled, GEditorIni))
-			{
-				UE_LOG(LogEditorDomain, Error, TEXT("Editor.ini:[CookSettings]:EditorDomainEnabled is deprecated, use Editor.ini:[EditorDomain]:EditorDomainEnabled instead."));
-			}
 			UE_LOG(LogEditorDomain, Display, TEXT("EditorDomain is %s"), bEditorDomainEnabled ? TEXT("Enabled") : TEXT("Disabled"));
+		}
+		if (bEditorDomainEnabled)
+		{
 			UE::EditorDomain::UtilsInitialize();
 			UE::TargetDomain::UtilsInitialize(bEditorDomainEnabled);
 			if (bEditorDomainEnabled)
