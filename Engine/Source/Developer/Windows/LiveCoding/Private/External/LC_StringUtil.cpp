@@ -6,11 +6,8 @@
 
 #include "LC_StringUtil.h"
 // BEGIN EPIC MOD
-#if defined(__clang__) && defined(_MSC_VER) && _MSVC_LANG > 201402L
-#if __clang_major__ > 12
+#if defined(__clang__) && defined(_MSC_VER) && _MSVC_LANG > 201402L && __clang_major__ < 13
 // For reference: https://bugs.llvm.org/show_bug.cgi?id=41226#c16
-#error Re-check whether this workaround is still needed for clang 13.0 and higher.
-#endif
 #include <wchar.h>
 #endif
 
@@ -167,11 +164,8 @@ namespace detail
 	// Temporary replacement for std::wstring::find
 	static size_t WideFindOffset(const std::wstring& haystack, const std::wstring& needle)
 	{
-#if defined(__clang__) && defined(_MSC_VER) && _MSVC_LANG > 201402L
-#if __clang_major__ > 12
+#if defined(__clang__) && defined(_MSC_VER) && _MSVC_LANG > 201402L && __clang_major__ < 13
 		// For reference: https://bugs.llvm.org/show_bug.cgi?id=41226#c16
-		#error Re-check whether this workaround is still needed for clang 13.0 and higher.
-#endif
 		const wchar_t* found = ::wcsstr(haystack.c_str(), needle.c_str());
 		if (found)
 		{
