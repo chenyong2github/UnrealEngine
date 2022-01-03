@@ -191,7 +191,6 @@ const FSlateBrush* UNiagaraStackEmitterSummaryItem::GetIconBrush() const
 
 void UNiagaraStackEmitterSummaryItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
-
 	if (FilteredObject == nullptr)
 	{
 		FilteredObject = NewObject<UNiagaraStackSummaryViewObject>(this);

@@ -197,22 +197,36 @@ private:
 	UPROPERTY()
 	FGuid InputGuid;
 
+	UPROPERTY()
+	FName InputName;
 public:
 
 	FFunctionInputSummaryViewKey() { }
 
 	FFunctionInputSummaryViewKey(const FGuid& InFunctionGuid, const FGuid& InInputGuid)
 		: FunctionGuid(InFunctionGuid), InputGuid(InInputGuid)
-	{ }
+	{
+		check(InFunctionGuid.IsValid());
+		check(InInputGuid.IsValid());		
+	}
+
+	FFunctionInputSummaryViewKey(const FGuid& InFunctionGuid, const FName& InInputName)
+		: FunctionGuid(InFunctionGuid), InputName(InInputName)
+	{
+		check(InFunctionGuid.IsValid());
+		check(!InputName.IsNone());		
+	}
 
 	bool operator==(const FFunctionInputSummaryViewKey& Other) const
 	{
-		return FunctionGuid == Other.FunctionGuid && InputGuid == Other.InputGuid;
+		return FunctionGuid == Other.FunctionGuid && InputGuid == Other.InputGuid && InputName == Other.InputName;
 	}
 
 	friend uint32 GetTypeHash(const FFunctionInputSummaryViewKey& Key)
 	{
-		return HashCombine(GetTypeHash(Key.FunctionGuid), GetTypeHash(Key.InputGuid));
+		return HashCombine(
+			GetTypeHash(Key.FunctionGuid),
+			Key.InputGuid.IsValid()? GetTypeHash(Key.InputGuid) : GetTypeHash(Key.InputName));
 	}
 };
 
@@ -233,7 +247,7 @@ public:
 	
 	FFunctionInputSummaryViewMetadata()
 		: bVisible(false)
-		, SortIndex(0)
+		, SortIndex(INDEX_NONE)
 	{		
 	}
 

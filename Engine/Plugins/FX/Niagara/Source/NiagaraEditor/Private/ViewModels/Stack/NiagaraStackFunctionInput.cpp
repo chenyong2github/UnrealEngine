@@ -2478,6 +2478,11 @@ bool UNiagaraStackFunctionInput::HasFrontDivider() const
 	return IsSemanticChild() || Super::HasFrontDivider();
 }
 
+TOptional<FNiagaraVariableMetaData> UNiagaraStackFunctionInput::GetMetadata() const
+{
+	return InputMetaData;
+}
+
 TOptional<FGuid> UNiagaraStackFunctionInput::GetMetadataGuid() const
 {
 	return InputMetaData.IsSet() ? InputMetaData->GetVariableGuid() : TOptional<FGuid>();

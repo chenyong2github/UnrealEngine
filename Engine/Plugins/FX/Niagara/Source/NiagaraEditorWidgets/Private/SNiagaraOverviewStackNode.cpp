@@ -308,36 +308,18 @@ void SNiagaraOverviewStackNode::CreateBottomSummaryExpander()
 	.VAlign(VAlign_Fill)
 	[
 		SNew(SButton)
-		.ForegroundColor(FSlateColor::UseForeground())
-		.ButtonStyle(FCoreStyle::Get(), "NoBorder")
-		.HAlign(HAlign_Fill)
-		.OnClicked(this, &SNiagaraOverviewStackNode::OnSummaryExpanderClicked)
+		.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+		.HAlign(HAlign_Center)
+		.ContentPadding(2)
+		.ToolTipText(this, &SNiagaraOverviewStackNode::GetSummaryViewCollapseTooltipText)
+		.OnClicked(this, &SNiagaraOverviewStackNode::ExpandSummaryViewClicked)
+		.IsFocusable(false)
+		.Content()
 		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Left)
-			[
-				// LEFT
-				SNullWidget::NullWidget
-			]
-			+SHorizontalBox::Slot()
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				//.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.SystemOverview.GroupHeaderText")
-				.Text(this, &SNiagaraOverviewStackNode::GetSummaryExpanderButtonText)
-				
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Right)
-			[
-				// RIGHT
-				SNullWidget::NullWidget
-			]
-		]
+			// add the dropdown button for advanced properties 
+			SNew(SImage)
+				.Image(this, &SNiagaraOverviewStackNode::GetSummaryViewButtonBrush)
+		]		
 	];
 }
 
@@ -626,17 +608,31 @@ EVisibility SNiagaraOverviewStackNode::GetOpenParentEmitterVisibility() const
 		: EVisibility::Collapsed;
 }
 
-FText SNiagaraOverviewStackNode::GetSummaryExpanderButtonText() const
+
+const FSlateBrush* SNiagaraOverviewStackNode::GetSummaryViewButtonBrush() const
 {
 	UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
-	if (EditorData)
+	if (BottomSummaryExpander->IsHovered())
 	{
-		return EditorData->ShouldShowSummaryView()? LOCTEXT("SummaryViewExpanderButton_Expand", "Show Emitter Avanced") : LOCTEXT("SummaryViewExpanderButton_Hide", "Show Emitter Summary");
+		return EditorData && EditorData->ShouldShowSummaryView()
+			? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered")
+			: FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered");
 	}
-	return LOCTEXT("SummaryViewExpanderButton_Error", "Invalid Emitter");
+	else
+	{
+		return EditorData && EditorData->ShouldShowSummaryView()
+			? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down")
+			: FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up");
+	}	
 }
 
-FReply SNiagaraOverviewStackNode::OnSummaryExpanderClicked()
+FText SNiagaraOverviewStackNode::GetSummaryViewCollapseTooltipText() const
+{
+	UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
+	return EditorData && EditorData->ShouldShowSummaryView()? LOCTEXT("HideAdvancedToolTip", "Show Full Emitter") : LOCTEXT("ShowAdvancedToolTip", "Show Emitter Summary");
+}
+
+FReply SNiagaraOverviewStackNode::ExpandSummaryViewClicked()
 {
 	UNiagaraEmitterEditorData* EditorData = EmitterHandleViewModelWeak.IsValid()? &EmitterHandleViewModelWeak.Pin()->GetEmitterViewModel()->GetOrCreateEditorData() : nullptr;
 	if (EditorData)

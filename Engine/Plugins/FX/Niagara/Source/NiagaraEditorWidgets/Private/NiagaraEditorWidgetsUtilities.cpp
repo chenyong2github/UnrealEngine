@@ -6,6 +6,7 @@
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "Stack/SNiagaraStackItemGroupAddMenu.h"
+#include "NiagaraNodeAssignment.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraClipboard.h"
@@ -20,9 +21,13 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterEditorData.h"
 #include "NiagaraMessages.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraStackInputCategory.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackEditorWidgetsUtilities"
 
@@ -511,30 +516,55 @@ FString FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug(UNia
 	return FString::Printf(TEXT("0x%08x - %s - %s"), StackEntry, *StackEntry->GetClass()->GetName(), *StackEntry->GetDisplayName().ToString());
 }
 
-UNiagaraStackFunctionInput* FNiagaraStackEditorWidgetsUtilities::FindTopMostParentFunctionInput(UNiagaraStackFunctionInput* FunctionInput)
-{
-	UNiagaraStackFunctionInput* CurrentTopMost = FunctionInput;
-	UObject* CurrentParent = FunctionInput->GetOuter();
-	while (CurrentParent)
-	{
-		if (CurrentParent->IsA<UNiagaraStackFunctionInput>())
-		{
-			CurrentTopMost = CastChecked<UNiagaraStackFunctionInput>(CurrentParent);
-		}
-		
-		CurrentParent = CurrentParent->GetOuter();
-	}
-
-	return CurrentTopMost;
-}
-
 TOptional<FFunctionInputSummaryViewKey> FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(UNiagaraStackFunctionInput* FunctionInput)
 {
-	FGuid NodeGuid = FunctionInput->GetInputFunctionCallNode().NodeGuid;
-	TOptional<FGuid> VariableGuid = FunctionInput->GetMetadataGuid();
-	return VariableGuid.IsSet()
-		       ? FFunctionInputSummaryViewKey(NodeGuid, VariableGuid.GetValue())
-		       : TOptional<FFunctionInputSummaryViewKey>();
+	const FGuid NodeGuid = FunctionInput->GetInputFunctionCallNode().NodeGuid;
+
+	const UNiagaraNodeFunctionCall& InputCallNode = FunctionInput->GetInputFunctionCallNode();
+	if (InputCallNode.IsA<UNiagaraNodeAssignment>())
+	{		
+		return FFunctionInputSummaryViewKey(NodeGuid, FunctionInput->GetInputParameterHandle().GetParameterHandleString());
+	}
+	
+	const TOptional<FGuid> VariableGuid = FunctionInput->GetMetadataGuid();
+	if (VariableGuid.IsSet() && VariableGuid.GetValue().IsValid())
+	{
+		return FFunctionInputSummaryViewKey(NodeGuid, VariableGuid.GetValue());
+	}
+	
+	return TOptional<FFunctionInputSummaryViewKey>();
+}
+
+UNiagaraStackFunctionInput* FNiagaraStackEditorWidgetsUtilities::GetParentInputForSummaryView(UNiagaraStackFunctionInput* FunctionInput)
+{
+	UNiagaraEmitter* Emitter = (FunctionInput && FunctionInput->GetEmitterViewModel())? FunctionInput->GetEmitterViewModel()->GetEmitter() : nullptr;
+	UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
+	
+	if (EditorData)
+	{		
+		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
+
+		TOptional<FNiagaraVariableMetaData> Metadata = FunctionInput->GetMetadata();
+		if (Metadata.IsSet() && !Metadata->ParentAttribute.IsNone())
+		{
+			UNiagaraStackInputCategory* Category = CastChecked<UNiagaraStackInputCategory>(FunctionInput->GetOuter());
+
+			TArray<UNiagaraStackEntry*> Children;
+			Category->GetFilteredChildrenOfTypes(Children, { UNiagaraStackFunctionInput::StaticClass() });
+
+			for (UNiagaraStackEntry* Entry : Children)
+			{
+				UNiagaraStackFunctionInput* Input = CastChecked<UNiagaraStackFunctionInput>(Entry);
+
+				if (Input->GetInputParameterHandle().GetName() == Metadata->ParentAttribute)
+				{
+					return Input;
+				}				
+			}
+		}
+	}
+
+	return FunctionInput;	
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -62,8 +62,9 @@ private:
 	FReply OpenParentEmitter();
 	EVisibility GetOpenParentEmitterVisibility() const;
 
-	FText GetSummaryExpanderButtonText() const;
-	FReply OnSummaryExpanderClicked();
+	const FSlateBrush* GetSummaryViewButtonBrush() const;
+	FText GetSummaryViewCollapseTooltipText() const;
+	FReply ExpandSummaryViewClicked();
 private:
 	UNiagaraOverviewNode* OverviewStackNode;
 	UNiagaraStackViewModel* StackViewModel;
