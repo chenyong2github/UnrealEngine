@@ -2520,12 +2520,13 @@ FPixelFormatInfo    GPixelFormats[PF_MAX] =
 	FPixelFormatInfo(PF_ASTC_10x10_HDR,         TEXT("ASTC_10x10_HDR"),    10,         10,         1,          16,         4,              0),
 	FPixelFormatInfo(PF_ASTC_12x12_HDR,         TEXT("ASTC_12x12_HDR"),    12,         12,         1,          16,         4,              0),
 
-	FPixelFormatInfo(PF_G16R16_SNORM,       TEXT("G16R16_SNORM"),       1,          1,          1,          4,          2,              1),
-	FPixelFormatInfo(PF_R8G8_UINT,          TEXT("R8G8_UINT"),          1,          1,          1,          2,          2,              1),
-	FPixelFormatInfo(PF_R32G32B32_UINT,     TEXT("R32G32B32_UINT"),     1,          1,          1,          12,         3,              1),
-	FPixelFormatInfo(PF_R32G32B32_SINT,     TEXT("R32G32B32_SINT"),     1,          1,          1,          12,         3,              1),
-	FPixelFormatInfo(PF_R32G32B32F,         TEXT("R32G32B32F"),         1,          1,          1,          12,         3,              1),
-	FPixelFormatInfo(PF_R8_SINT,            TEXT("R8_SINT"),            1,          1,          1,          1,          1,              1),
+	FPixelFormatInfo(PF_G16R16_SNORM,       TEXT("G16R16_SNORM"),          1,          1,          1,          4,          2,              1),
+	FPixelFormatInfo(PF_R8G8_UINT,          TEXT("R8G8_UINT"),             1,          1,          1,          2,          2,              1),
+	FPixelFormatInfo(PF_R32G32B32_UINT,     TEXT("R32G32B32_UINT"),        1,          1,          1,          12,         3,              1),
+	FPixelFormatInfo(PF_R32G32B32_SINT,     TEXT("R32G32B32_SINT"),        1,          1,          1,          12,         3,              1),
+	FPixelFormatInfo(PF_R32G32B32F,         TEXT("R32G32B32F"),            1,          1,          1,          12,         3,              1),
+	FPixelFormatInfo(PF_R8_SINT,            TEXT("R8_SINT"),               1,          1,          1,          1,          1,              1),
+	FPixelFormatInfo(PF_R64_UINT,			TEXT("R64_UINT"),              1,          1,          1,          8,          1,              0),
 };
 
 void RHIInitDefaultPixelFormatCapabilities()

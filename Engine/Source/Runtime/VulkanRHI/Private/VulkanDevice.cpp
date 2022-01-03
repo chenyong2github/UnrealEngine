@@ -640,6 +640,10 @@ void FVulkanDevice::SetupFormats()
 	MapFormatSupport(PF_R32G32B32F, { VK_FORMAT_R32G32B32_SFLOAT }, ComponentMappingRGB1);
 	MapFormatSupport(PF_R8_SINT, { VK_FORMAT_R8_SINT }, ComponentMappingR001);
 
+	// This will be the format used for 64bit image atomics
+	MapFormatSupport(PF_R64_UINT, { VK_FORMAT_R64_UINT }, ComponentMappingR001, EPixelFormatCapabilities::TextureAtomics);
+	checkf(!GRHISupportsAtomicUInt64 || EnumHasAnyFlags(GPixelFormats[PF_R64_UINT].Capabilities, EPixelFormatCapabilities::TextureSample | EPixelFormatCapabilities::UAV), TEXT("Image atomics were enabled, but the R64 format does not have TextureSample or UAV capabilities!"));
+
 	if (CVarVulkanUseD24.GetValueOnAnyThread() != 0)
 	{
 		// prefer VK_FORMAT_D24_UNORM_S8_UINT
