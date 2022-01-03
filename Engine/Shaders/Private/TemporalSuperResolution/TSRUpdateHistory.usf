@@ -135,11 +135,6 @@ taa_ushort2x2 Map8x8Tile2x2LaneDPV(uint GroupThreadIndex)
 #endif
 }
 
-taa_half2 ComputeLowFrequencyContribution(taa_half2 HistoryValidity)
-{
-	return saturate((HistoryValidity - taa_half(1.0 * rcp(MAX_SAMPLE_COUNT))) * taa_half(6.0));
-}
-
 taa_half3x2 TransformColorForClampingBox(taa_half3x2 Color)
 {
 	return RGBToYCoCg(Color);
@@ -1292,7 +1287,6 @@ void MainCS(
 
 	// Compute final output
 	taa_half3x2 FinalOutputColor;
-	taa_half2 FinalOutputValidity;
 	{
 		taa_half2 OutputBlend = ComputeLowFrequencyContribution(FinalHistoryValidity);
 
@@ -1312,8 +1306,6 @@ void MainCS(
 			OutputBlend = 1.0;
 		}
 		#endif
-
-		FinalOutputValidity = lerp(taa_half(1.0), saturate(FinalHistoryValidity), OutputBlend);
 
 		taa_half2 LowFrequencyWeight = HdrWeight4(FinalLowFrequencyColor);
 		taa_half2 Moment1Weight = HdrWeight4(FinalHighFrequencyColor);

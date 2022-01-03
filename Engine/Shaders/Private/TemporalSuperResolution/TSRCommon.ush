@@ -581,6 +581,16 @@ half2 SafeRcp(half2 x)
 
 #endif
 
+taa_half2 ComputeLowFrequencyContribution(taa_half2 HistoryValidity)
+{
+	return saturate((HistoryValidity - taa_half(1.0 * rcp(MAX_SAMPLE_COUNT))) * taa_half(6.0));
+}
+
+taa_half ComputeLowFrequencyContribution(taa_half HistoryValidity)
+{
+	return dpv_lo(ComputeLowFrequencyContribution(dpv_interleave_mono_registers(HistoryValidity)));
+}
+
 taa_half3x2 RGBToYCoCg(taa_half3x2 RGB)
 {
     taa_half2 R = RGB[0];

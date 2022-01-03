@@ -318,6 +318,8 @@ struct FScreenTransform
 		const FScreenPassTextureViewport& SrcViewport,
 		const FScreenPassTextureViewport& DestViewport);
 
+	static FScreenTransform SvPositionToViewportUV(const FIntRect& SrcViewport);
+	static FScreenTransform DispatchThreadIdToViewportUV(const FIntRect& SrcViewport);
 }; // FScreenTransform
 
 // A utility shader parameter struct containing the viewport, texture, and sampler for a unique texture input to a shader.
