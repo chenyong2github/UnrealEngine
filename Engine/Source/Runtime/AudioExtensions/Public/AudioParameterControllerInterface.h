@@ -18,7 +18,7 @@ class AUDIOEXTENSIONS_API UAudioParameterControllerInterface : public UInterface
 	GENERATED_UINTERFACE_BODY()
 };
 
-// Base interface for any object implementing a
+// Base interface for any object implementing parameter control for a given sound instance controller.
 class AUDIOEXTENSIONS_API IAudioParameterControllerInterface : public IInterface
 {
 	GENERATED_IINTERFACE_BODY()
@@ -28,8 +28,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Parameter")
 	virtual void ResetParameters() = 0;
 
-	// Triggers a named trigger
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Trigger Parameter"), Category = "Audio|Parameter")
+	// Executes a named trigger.  Does *not* cache trigger value, so only executes if the sound
+	// is already playing.  If the intent is for the trigger to execute immediately (if playing)
+	// and be called on initialization for all future instances, call 'SetBoolParameter' with the
+	// intended initial trigger behavior (true if trigger desired on initialization, false if not).
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Execute Trigger Parameter"), Category = "Audio|Parameter")
 	virtual void SetTriggerParameter(FName InName) = 0;
 
 	// Sets a named Boolean
