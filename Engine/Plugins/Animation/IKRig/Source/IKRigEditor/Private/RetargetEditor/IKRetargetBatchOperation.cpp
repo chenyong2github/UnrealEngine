@@ -254,8 +254,11 @@ void FIKRetargetBatchOperation::ConvertAnimation(
 				SourceComponentPose.Add(BonePose);
 			}
 
+			// update goals 
+			Processor->CopyTargetIKRigSettingsFromAsset();
+			
 			// run the retarget
-			TArray<FTransform>& TargetComponentPose = Processor->RunRetargeter(SourceComponentPose);
+			const TArray<FTransform>& TargetComponentPose = Processor->RunRetargeter(SourceComponentPose);
 
 			// convert to a local-space pose
 			TArray<FTransform> TargetLocalPose = TargetComponentPose;

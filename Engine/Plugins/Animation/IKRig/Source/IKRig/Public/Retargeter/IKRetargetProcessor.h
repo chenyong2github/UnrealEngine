@@ -38,13 +38,13 @@ struct IKRIG_API FRetargetSkeleton
 
 	void UpdateGlobalTransformsBelowBone(
 		const int32 StartBoneIndex,
-		TArray<FTransform>& InLocalPose,
+		const TArray<FTransform>& InLocalPose,
 		TArray<FTransform>& OutGlobalPose) const;
 
 	void UpdateLocalTransformsBelowBone(
 		const int32 StartBoneIndex,
 		TArray<FTransform>& OutLocalPose,
-		TArray<FTransform>& InGlobalPose) const;
+		const TArray<FTransform>& InGlobalPose) const;
 	
 	void UpdateGlobalTransformOfSingleBone(
 		const int32 BoneIndex,
@@ -54,7 +54,7 @@ struct IKRIG_API FRetargetSkeleton
 	void UpdateLocalTransformOfSingleBone(
 		const int32 BoneIndex,
 		TArray<FTransform>& OutLocalPose,
-		TArray<FTransform>& InGlobalPose) const;
+		const TArray<FTransform>& InGlobalPose) const;
 
 	void GetChildrenIndices(const int32 BoneIndex, TArray<int32>& OutChildren) const;
 };
