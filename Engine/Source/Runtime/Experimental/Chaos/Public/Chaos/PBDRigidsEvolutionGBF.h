@@ -7,6 +7,7 @@
 #include "Chaos/Collision/SpatialAccelerationCollisionDetector.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
 #include "Chaos/PBDCollisionConstraints.h"
+#include "Chaos/PBDRigidClustering.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PerParticleAddImpulses.h"
 #include "Chaos/PerParticleEtherDrag.h"
@@ -87,7 +88,6 @@ namespace Chaos
 		using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 		using FCollisionDetector = FSpatialAccelerationCollisionDetector;
 		using FExternalForces = FPerParticleExternalForces;
-		using FRigidClustering = TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
 		using FJointConstraintsRule = TPBDConstraintIslandRule<FPBDJointConstraints>;
 		using FSuspensionConstraintsRule = TPBDConstraintIslandRule<FPBDSuspensionConstraints>;
 		using FJointConstraints = FPBDJointConstraints;
@@ -164,8 +164,8 @@ namespace Chaos
 		FORCEINLINE FGravityForces& GetGravityForces() { return GravityForces; }
 		FORCEINLINE const FGravityForces& GetGravityForces() const { return GravityForces; }
 
-		FORCEINLINE const TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>& GetRigidClustering() const { return Clustering; }
-		FORCEINLINE TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>& GetRigidClustering() { return Clustering; }
+		FORCEINLINE const FRigidClustering& GetRigidClustering() const { return Clustering; }
+		FORCEINLINE FRigidClustering& GetRigidClustering() { return Clustering; }
 
 		FORCEINLINE FJointConstraints& GetJointConstraints() { return JointConstraints; }
 		FORCEINLINE const FJointConstraints& GetJointConstraints() const { return JointConstraints; }
@@ -345,7 +345,7 @@ namespace Chaos
 			return CurrentStepResimCacheImp;
 		}
 
-		TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints> Clustering;
+		FRigidClustering Clustering;
 
 		FPBDJointConstraints JointConstraints;
 		TPBDConstraintIslandRule<FPBDJointConstraints> JointConstraintRule;

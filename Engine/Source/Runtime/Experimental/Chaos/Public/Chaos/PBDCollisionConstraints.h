@@ -50,7 +50,6 @@ public:
 	using FConstHandles = TArrayView<const FPBDCollisionConstraint* const>;
 
 	// For use by dependent types
-	using FPointContactConstraint = FPBDCollisionConstraint;				// Used by clustering (remove this?)
 	using FConstraintContainerHandle = FPBDCollisionConstraintHandle;		// Used by constraint rules
 	using FConstraintSolverContainerType = FPBDCollisionSolverContainer;	// Used by constraint rules
 	using FParticleHandle = TGeometryParticleHandle<FReal, 3>;

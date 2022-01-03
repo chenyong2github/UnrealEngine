@@ -16,6 +16,7 @@
 namespace Chaos
 {
 	extern CHAOS_API FRealSingle ChaosClusteringChildrenInheritVelocity;
+	class FPBDCollisionConstraints;
 }
 
 namespace Chaos
@@ -41,12 +42,11 @@ struct CHAOS_API FClusterDestoryParameters {
 /* 
 * PDBRigidClustering
 */
-template<class T_FPBDRigidEvolution, class T_FPBDCollisionConstraint>
-class CHAOS_API TPBDRigidClustering
+class CHAOS_API FRigidClustering
 {
-	typedef typename T_FPBDCollisionConstraint::FPointContactConstraint FPointContactConstraint;
 public:
 	/** Parent to children */
+	typedef FPBDRigidsEvolutionGBF                      FRigidEvolution;
 
 	typedef FPBDRigidParticleHandle*					FRigidHandle;
 	typedef TArray<FRigidHandle>						FRigidHandleArray;
@@ -56,12 +56,10 @@ public:
 
 	typedef TPair<FClusterHandle, FRigidHandleArray>	FClusterMapEntry;
 	typedef TMap<FClusterHandle, FRigidHandleArray>	    FClusterMap;
+	///using FCollisionConstraintHandle = FPBDCollisionConstraintHandle;
 
-
-	using FCollisionConstraintHandle = FPBDCollisionConstraintHandle;
-
-	TPBDRigidClustering(T_FPBDRigidEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles);
-	~TPBDRigidClustering();
+	FRigidClustering(FRigidEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles);
+	~FRigidClustering();
 
 	//
 	// Initialization
@@ -159,7 +157,7 @@ public:
 	*   ... Release bodies based collision impulses.
 	*   ... Updating properties as necessary.
 	*/
-	void AdvanceClustering(const FReal dt, T_FPBDCollisionConstraint& CollisionRule);
+	void AdvanceClustering(const FReal dt, FPBDCollisionConstraints& CollisionRule);
 
 	/**
 	*  BreakingModel
@@ -193,8 +191,7 @@ public:
 	//  be accessed via the game thread.
 	//
 	const FClusterBuffer&  GetBufferedData() const { ResourceLock.ReadLock(); return BufferResource; } /* Secure access from game thread*/
-	void                   ReleaseBufferedData() const { ResourceLock.ReadUnlock(); }    /* Release access from game thread*/
-	void                   SwapBufferedData();                                         /* Managed by the PBDRigidSolver ONLY!*/
+	void                   ReleaseBufferedData() const { ResourceLock.ReadUnlock(); }				   /* Release access from game thread*/
 
 
 	/*
@@ -321,7 +318,7 @@ public:
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry,
 		const FClusterCreationParameters& Parameters);
 
-	void ComputeStrainFromCollision(const T_FPBDCollisionConstraint& CollisionRule);
+	void ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule);
 	void ResetCollisionImpulseArray();
 	void DisableCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle);
 	void DisableParticleWithBreakEvent(Chaos::FPBDRigidParticleHandle* Particle);
@@ -351,7 +348,7 @@ public:
 
 private:
 
-	T_FPBDRigidEvolution& MEvolution;
+	FRigidEvolution& MEvolution;
 	FPBDRigidClusteredParticles& MParticles;
 	TSet<Chaos::FPBDRigidClusteredParticleHandle*> TopLevelClusterParents;
 	TSet<Chaos::FPBDRigidParticleHandle*> MActiveRemovalIndices;
@@ -528,8 +525,5 @@ inline void CleanCollisionParticles(
 		ResultingIndices.Add(Ordering[i]);
 	}
 }
-
-template <typename T, int d>
-using TClusterBuffer UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FClusterBuffer instead") = FClusterBuffer;
 
 } // namespace Chaos

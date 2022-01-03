@@ -36,7 +36,7 @@ namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
 
-	bool ClusterMapContains(const Chaos::TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraints>::FClusterMap& ClusterMap, const FPBDRigidParticleHandle* InKey, TArray<FPBDRigidParticleHandle*> Elements)
+	bool ClusterMapContains(const Chaos::FRigidClustering::FClusterMap& ClusterMap, const FPBDRigidParticleHandle* InKey, TArray<FPBDRigidParticleHandle*> Elements)
 	{
 		if (ClusterMap.Num())
 		{
@@ -880,9 +880,8 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
 
-		using FClustering = TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
-		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
-		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
+		FRigidClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
+		const FRigidClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
 
 		// Verify that the parent-child relationship is reflected in the clustering hierarchy
 		// Tree should be:
@@ -1180,9 +1179,8 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
 
-		using FClustering = TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
-		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
-		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
+		FRigidClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
+		const FRigidClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
 
 		// Verify that the parent-child relationship is reflected in the clustering hierarchy
 		// Tree should be:
@@ -2063,9 +2061,8 @@ namespace GeometryCollectionTest
 
 		UnitTest.Advance();
 
-		using FClustering = TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
-		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
-		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
+		FRigidClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
+		const FRigidClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
 		const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdsArray = Clustering.GetClusterIdsArray();
 
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
@@ -2255,7 +2252,7 @@ namespace GeometryCollectionTest
 		FalloffField->Falloff = EFieldFalloffType::Field_FallOff_None;
 
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
-		Chaos::TPBDRigidClustering<Chaos::FPBDRigidsEvolutionGBF, Chaos::FPBDCollisionConstraints>& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
+		Chaos::FRigidClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 		auto& x = UnitTest.Solver->GetEvolution()->GetRigidClustering().GetStrainArray();
 
