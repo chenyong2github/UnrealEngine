@@ -553,7 +553,7 @@ private: // ----------------------------------------------------
 	TMap<FName, TSharedPtr<IConsoleVariable> > PlatformValues;
 	virtual IConsoleVariable* GetPlatformValueVariable(FName PlatformName)
 	{
-		check(IsInGameThread());
+		//check(IsInGameThread());
 		if (!PlatformValues.Contains(PlatformName))
 		{
 			FString ConfigValue;
