@@ -6,126 +6,265 @@
 #include "RHIResources.h"
 
 class FRHICommandListImmediate;
+class FRHITransientHeap;
+class FRHITransientPagePool;
 
-enum class ERHITransientResourceType
+struct FRHITransientPageSpan
+{
+	// Offset of the span in the page pool in pages. 
+	uint16 Offset = 0;
+
+	// Number of pages in the span.
+	uint16 Count = 0;
+};
+
+/** Represents an allocation from a transient page pool. */
+struct FRHITransientPagePoolAllocation
+{
+	bool IsValid() const { return Pool != nullptr; }
+
+	// The transient page pool which made the allocation.
+	FRHITransientPagePool* Pool = nullptr;
+
+	// A unique hash identifying this allocation to the allocator implementation.
+	uint64 Hash = 0;
+
+	// The index identifying the allocation to the page pool.
+	uint16 SpanIndex = 0;
+
+	// Offsets into the array of spans for the allocator implementation.
+	uint16 SpanOffsetMin = 0;
+	uint16 SpanOffsetMax = 0;
+};
+
+/** Represents a full set of page allocations from multiple page pools. */
+struct FRHITransientPageAllocation
+{
+	// The list of allocations by pool.
+	TArray<FRHITransientPagePoolAllocation> PoolAllocations;
+
+	// The full list of spans indexed by each allocation.
+	TArray<FRHITransientPageSpan> Spans;
+};
+
+/** Represents an allocation from the transient heap. */
+struct FRHITransientHeapAllocation
+{
+	bool IsValid() const { return Size != 0; }
+
+	// Transient heap which made the allocation.
+	FRHITransientHeap* Heap = nullptr;
+
+	// Size of the allocation made from the allocator (aligned).
+	uint64 Size = 0;
+
+	// Offset in the transient heap; front of the heap starts at 0.
+	uint64 Offset = 0;
+
+	// Number of bytes of padding were added to the offset.
+	uint32 AlignmentPad = 0;
+};
+
+enum class ERHITransientResourceType : uint8
 {
 	Texture,
 	Buffer
 };
 
-struct FRHITransientResourceStats
+enum class ERHITransientAllocationType : uint8
 {
-	uint64 HeapOffsetMin = 0;
-	uint64 HeapOffsetMax = 0;
-	uint32 HeapIndex = 0;
+	Heap,
+	Page
 };
 
 class FRHITransientResource
 {
 public:
-	FRHITransientResource(FRHIResource* InResource, uint64 InHash, ERHITransientResourceType InType)
+	static const uint32 kInvalidPassIndex = TNumericLimits<uint32>::Max();
+
+	FRHITransientResource(
+		FRHIResource* InResource,
+		uint64 InGpuVirtualAddress,
+		uint64 InHash,
+		uint64 InSize,
+		ERHITransientAllocationType InAllocationType,
+		ERHITransientResourceType InResourceType)
 		: Resource(InResource)
+		, GpuVirtualAddress(InGpuVirtualAddress)
 		, Hash(InHash)
-		, Type(InType)
+		, Size(InSize)
+		, AllocationType(InAllocationType)
+		, ResourceType(InResourceType)
 	{}
 
 	virtual ~FRHITransientResource() = default;
 
-	// (Internal) Initializes the transient resource with a new allocation / name.
-	virtual void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InAcquirePassIndex, const FRHITransientResourceStats& InStats)
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//! Internal Allocator API
+
+	virtual void Acquire(const TCHAR* InName, uint32 InAcquirePassIndex, uint64 InAllocatorCycle)
 	{
 		Name = InName;
-		AllocationIndex = InAllocationIndex;
 		AcquirePasses = TInterval<uint32>(0, InAcquirePassIndex);
-		DiscardPasses = TInterval<uint32>(0, TNumericLimits<uint32>::Max());
+		DiscardPasses = TInterval<uint32>(kInvalidPassIndex, kInvalidPassIndex);
+		AcquireCycle = InAllocatorCycle;
+		AcquireCount++;
 		AliasingOverlaps.Reset();
-		Stats = InStats;
 	}
 
-	// (Internal) Assigns the discard pass index.
-	FORCEINLINE void SetDiscardPass(uint32 PassIndex) { DiscardPasses.Min = PassIndex; }
+	void Discard(uint32 InDiscardPassIndex)
+	{
+		DiscardPasses.Min = InDiscardPassIndex;
+	}
 
-	// (Internal) Adds a new transient resource overlap.
-	FORCEINLINE void AddAliasingOverlap(FRHITransientResource* InResource)
+	void AddAliasingOverlap(FRHITransientResource* InResource)
 	{
 		AliasingOverlaps.Emplace(InResource->GetRHI(), InResource->IsTexture() ? FRHITransientAliasingOverlap::EType::Texture : FRHITransientAliasingOverlap::EType::Buffer);
+
+		check(InResource->DiscardPasses.Min != kInvalidPassIndex);
 
 		InResource->DiscardPasses.Max = FMath::Min(InResource->DiscardPasses.Max,             AcquirePasses.Max);
 		            AcquirePasses.Min = FMath::Max(            AcquirePasses.Min, InResource->DiscardPasses.Min);
 	}
 
+	FRHITransientHeapAllocation& GetHeapAllocation()
+	{
+		check(AllocationType == ERHITransientAllocationType::Heap);
+		return HeapAllocation;
+	}
+
+	const FRHITransientHeapAllocation& GetHeapAllocation() const
+	{
+		check(AllocationType == ERHITransientAllocationType::Heap);
+		return HeapAllocation;
+	}
+
+	FRHITransientPageAllocation& GetPageAllocation()
+	{
+		check(IsPageAllocated());
+		return PageAllocation;
+	}
+
+	const FRHITransientPageAllocation& GetPageAllocation() const
+	{
+		check(IsPageAllocated());
+		return PageAllocation;
+	}
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+
 	// Returns the underlying RHI resource.
-	FORCEINLINE FRHIResource* GetRHI() const { return Resource; }
+	FRHIResource* GetRHI() const { return Resource; }
+
+	// Returns the gpu virtual address of the transient resource.
+	uint64 GetGpuVirtualAddress() const { return GpuVirtualAddress; }
 
 	// Returns the name assigned to the transient resource at allocation time.
-	FORCEINLINE const TCHAR* GetName() const { return Name; }
+	const TCHAR* GetName() const { return Name; }
 
-	// (Internal)Returns the hash used to uniquely identify this resource if cached.
-	FORCEINLINE uint64 GetHash() const { return Hash; }
+	// Returns the hash used to uniquely identify this resource if cached.
+	uint64 GetHash() const { return Hash; }
 
-	// (Internal) Returns the platform-specific allocation index.
-	FORCEINLINE uint32 GetAllocationIndex() const { return AllocationIndex; }
+	// Returns the required size in bytes of the resource.
+	uint64 GetSize() const { return Size; }
+
+	// Returns the last allocator cycle this resource was acquired.
+	uint64 GetAcquireCycle() const { return AcquireCycle; }
+
+	// Returns the number of times Acquire has been called.
+	uint32 GetAcquireCount() const { return AcquireCount; }
+
+	// Returns the list of aliasing overlaps used when transitioning the resource.
+	TConstArrayView<FRHITransientAliasingOverlap> GetAliasingOverlaps() const { return AliasingOverlaps; }
 
 	// Returns the pass index which may end acquiring this resource.
-	FORCEINLINE TInterval<uint32> GetAcquirePasses() const { return AcquirePasses; }
+	TInterval<uint32> GetAcquirePasses() const { return AcquirePasses; }
 
 	// Returns the pass index which discarded this resource.
-	FORCEINLINE TInterval<uint32> GetDiscardPasses() const { return DiscardPasses; }
+	TInterval<uint32> GetDiscardPasses() const { return DiscardPasses; }
 
-	// Returns the aliasing overlaps for this resource.
-	FORCEINLINE TConstArrayView<FRHITransientAliasingOverlap> GetAliasingOverlaps() const { return AliasingOverlaps; }
+	// Returns whether this resource is still in an acquired state.
+	bool IsAcquired() const { return DiscardPasses.Min == kInvalidPassIndex; }
 
-	FORCEINLINE ERHITransientResourceType GetType() const { return Type; }
-	FORCEINLINE bool IsTexture() const { return Type == ERHITransientResourceType::Texture; }
-	FORCEINLINE bool IsBuffer() const { return Type == ERHITransientResourceType::Buffer; }
+	ERHITransientResourceType GetResourceType() const { return ResourceType; }
 
-	FORCEINLINE const FRHITransientResourceStats& GetStats() const { return Stats; }
+	bool IsTexture() const { return ResourceType == ERHITransientResourceType::Texture; }
+	bool IsBuffer()  const { return ResourceType == ERHITransientResourceType::Buffer; }
+
+	ERHITransientAllocationType GetAllocationType() const { return AllocationType; }
+
+	bool IsHeapAllocated() const { return AllocationType == ERHITransientAllocationType::Heap; }
+	bool IsPageAllocated() const { return AllocationType == ERHITransientAllocationType::Page; }
 
 private:
 	// Underlying RHI resource.
 	TRefCountPtr<FRHIResource> Resource;
 
+	// The Gpu virtual address of the RHI resource.
+	uint64 GpuVirtualAddress = 0;
+
 	// The hash used to uniquely identify this resource if cached.
 	uint64 Hash;
 
+	// Size of the resource in bytes.
+	uint64 Size;
+
+	// Alignment of the resource in bytes.
+	uint32 Alignment;
+
+	// Tracks the number of times Acquire has been called.
+	uint32 AcquireCount = 0;
+
+	// Cycle count used to deduce age of the resource.
+	uint64 AcquireCycle = 0;
+
 	// Debug name of the resource. Updated with each allocation.
-	const TCHAR* Name{};
+	const TCHAR* Name = nullptr;
+
+	FRHITransientHeapAllocation HeapAllocation;
+	FRHITransientPageAllocation PageAllocation;
 
 	// List of aliasing resources overlapping with this one.
 	TArray<FRHITransientAliasingOverlap> AliasingOverlaps;
 
-	// Type of the underlying RHI resource.
-	ERHITransientResourceType Type;
-
-	// An index to the underlying allocation info on the internal platform allocator.
-	uint32 AllocationIndex = ~0u;
+	// Start -> End split pass index intervals for acquire / discard operations.
 	TInterval<uint32> AcquirePasses = TInterval<uint32>(0, 0);
 	TInterval<uint32> DiscardPasses = TInterval<uint32>(0, 0);
 
-	FRHITransientResourceStats Stats;
+	ERHITransientAllocationType AllocationType;
+	ERHITransientResourceType ResourceType;
 };
 
 class RHI_API FRHITransientTexture final : public FRHITransientResource
 {
 public:
-	FRHITransientTexture(FRHITexture* InTexture, uint64 InHash, const FRHITextureCreateInfo& InCreateInfo)
-		: FRHITransientResource(InTexture, InHash, ERHITransientResourceType::Texture)
+	FRHITransientTexture(
+		FRHITexture* InTexture,
+		uint64 InGpuVirtualAddress,
+		uint64 InHash,
+		uint64 InSize,
+		ERHITransientAllocationType InAllocationType,
+		const FRHITextureCreateInfo& InCreateInfo)
+		: FRHITransientResource(InTexture, InGpuVirtualAddress, InHash, InSize, InAllocationType, ERHITransientResourceType::Texture)
 		, CreateInfo(InCreateInfo)
 	{}
 
-	void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex, const FRHITransientResourceStats& InStats) override;
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//! Internal Allocator API
+	void Acquire(const TCHAR* InName, uint32 InAcquirePassIndex, uint64 InInitCycle) override;
+	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Returns the underlying RHI texture.
 	FRHITexture* GetRHI() const { return static_cast<FRHITexture*>(FRHITransientResource::GetRHI()); }
 
 	// Returns the create info struct used when creating this texture.
-	FORCEINLINE const FRHITextureCreateInfo& GetCreateInfo() const { return CreateInfo; }
+	const FRHITextureCreateInfo& GetCreateInfo() const { return CreateInfo; }
 
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(GetRHI(), InCreateInfo); }
+	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(GetRHI(), InCreateInfo); }
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
-	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(GetRHI(), InCreateInfo); }
+	FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(GetRHI(), InCreateInfo); }
 
 	// The create info describing the texture.
 	const FRHITextureCreateInfo CreateInfo;
@@ -137,24 +276,33 @@ public:
 class RHI_API FRHITransientBuffer final : public FRHITransientResource
 {
 public:
-	FORCEINLINE FRHITransientBuffer(FRHIBuffer* InBuffer, uint64 InHash, const FRHIBufferCreateInfo& InCreateInfo)
-		: FRHITransientResource(InBuffer, InHash, ERHITransientResourceType::Buffer)
+	FRHITransientBuffer(
+		FRHIBuffer* InBuffer,
+		uint64 InGpuVirtualAddress,
+		uint64 InHash,
+		uint64 InSize,
+		ERHITransientAllocationType InAllocationType,
+		const FRHIBufferCreateInfo& InCreateInfo)
+		: FRHITransientResource(InBuffer, InGpuVirtualAddress, InHash, InSize, InAllocationType, ERHITransientResourceType::Buffer)
 		, CreateInfo(InCreateInfo)
 	{}
 
-	void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex, const FRHITransientResourceStats& InStats) override;
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//! Internal Allocator API
+	void Acquire(const TCHAR* InName, uint32 InAcquirePassIndex, uint64 InInitCycle) override;
+	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Returns the underlying RHI buffer.
-	FORCEINLINE FRHIBuffer* GetRHI() const { return static_cast<FRHIBuffer*>(FRHITransientResource::GetRHI()); }
+	FRHIBuffer* GetRHI() const { return static_cast<FRHIBuffer*>(FRHITransientResource::GetRHI()); }
 
 	// Returns the create info used when creating this buffer.
-	FORCEINLINE const FRHIBufferCreateInfo& GetCreateInfo() const { return CreateInfo; }
+	const FRHIBufferCreateInfo& GetCreateInfo() const { return CreateInfo; }
 
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(GetRHI(), InCreateInfo); }
+	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(GetRHI(), InCreateInfo); }
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
-	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(GetRHI(), InCreateInfo); }
+	FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(GetRHI(), InCreateInfo); }
 
 	// The create info describing the texture.
 	const FRHIBufferCreateInfo CreateInfo;
@@ -163,18 +311,29 @@ public:
 	FRHIBufferViewCache ViewCache;
 };
 
-struct FRHITransientHeapStats
+class FRHITransientAllocationStats
 {
-	struct FHeap
+public:
+	struct FAllocation
 	{
-		// Maximum number of bytes used in the heap.
-		uint64 WatermarkSize{};
-
-		// Number of bytes allocated for use in the heap.
-		uint64 Capacity{};
+		uint64 OffsetMin = 0;
+		uint64 OffsetMax = 0;
+		uint32 MemoryRangeIndex = 0;
 	};
 
-	TArray<FHeap, TInlineAllocator<4>> Heaps;
+	using FAllocationArray = TArray<FAllocation, TInlineAllocator<2>>;
+
+	struct FMemoryRange
+	{
+		// Number of bytes available for use in the memory range.
+		uint64 Capacity = 0;
+
+		// Number of bytes allocated for use in the memory range.
+		uint64 CommitSize = 0;
+	};
+
+	TArray<FMemoryRange> MemoryRanges;
+	TMap<const FRHITransientResource*, FAllocationArray> Resources;
 };
 
 class IRHITransientResourceAllocator
@@ -190,15 +349,9 @@ public:
 	virtual void DeallocateMemory(FRHITransientTexture* InTexture, uint32 InPassIndex) = 0;
 	virtual void DeallocateMemory(FRHITransientBuffer* InBuffer, uint32 InPassIndex) = 0;
 
-	// Flushes any pending allocations in preparation for rendering. Resources are not required to be deallocated yet. Use when interleaving execution with allocation.
-	virtual void Flush(FRHICommandListImmediate& RHICmdList) {}
+	// Flushes any pending allocations prior to rendering. Optionally emits stats if OutStats is valid.
+	virtual void Flush(FRHICommandListImmediate& RHICmdList, FRHITransientAllocationStats* OutStats = nullptr) = 0;
 
-	// Freezes all allocations and validates that all resources have their memory deallocated.
-	virtual void Freeze(FRHICommandListImmediate& RHICmdList, FRHITransientHeapStats& OutHeapStats) = 0;
-
-	// Releases the transient allocator and deletes the instance. Any FRHITransientResource* access after this call is not allowed.
-	virtual void Release(FRHICommandListImmediate& RHICmdList)
-	{
-		delete this;
-	}
+	// Releases this instance of the transient allocator. Invalidates any outstanding transient resources.
+	virtual void Release(FRHICommandListImmediate& RHICmdList) { delete this; }
 };

@@ -107,6 +107,7 @@ extern int32 GRDGAsyncCompute;
 extern int32 GRDGCullPasses;
 extern int32 GRDGMergeRenderPasses;
 extern int32 GRDGTransientAllocator;
+extern int32 GRDGTransientExtractedResources;
 extern int32 GRDGTransientIndirectArgBuffers;
 extern int32 GRDGDrain;
 extern int32 GRDGParallelExecute;
@@ -222,7 +223,7 @@ inline void EnumerateExtendedLifetimeResources(ResourceRegistryType& Registry, F
 		{
 			auto* Resource = Registry[Handle];
 
-			if (IsDebugAllowedForResource(Resource->Name))
+			if (IsDebugAllowedForResource(Resource->Name) && !Resource->IsCulled())
 			{
 				Function(Resource);
 			}

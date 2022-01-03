@@ -377,7 +377,7 @@ public:
 	inline FD3D12CommandContextRedirector& GetDefaultContextRedirector() { return DefaultContextRedirector; }
 	inline FD3D12CommandContextRedirector& GetDefaultAsyncComputeContextRedirector() { return DefaultAsyncComputeContextRedirector; }
 
-	inline FD3D12TransientResourceSystem& GetTransientResourceSystem() { return *TransientResourceSystem; }
+	FD3D12TransientHeapCache& GetOrCreateTransientHeapCache();
 
 	FD3D12TemporalEffect* GetTemporalEffect(const FName& EffectName);
 
@@ -571,7 +571,7 @@ protected:
 	TMap<FName, FD3D12TemporalEffect> TemporalEffectMap;
 #endif
 
-	TUniquePtr<FD3D12TransientResourceSystem> TransientResourceSystem;
+	TUniquePtr<IRHITransientMemoryCache> TransientMemoryCache;
 
 	// Each of these devices represents a physical GPU 'Node'
 	FD3D12Device* Devices[MAX_NUM_GPUS];

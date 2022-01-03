@@ -817,6 +817,16 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 #endif
 }
 
+FD3D12TransientHeapCache& FD3D12Adapter::GetOrCreateTransientHeapCache()
+{
+	if (!TransientMemoryCache)
+	{
+		TransientMemoryCache = FD3D12TransientHeapCache::Create(this, FRHIGPUMask::All());
+	}
+
+	return static_cast<FD3D12TransientHeapCache&>(*TransientMemoryCache);
+}
+
 void FD3D12Adapter::InitializeDevices()
 {
 	check(IsInGameThread());
@@ -1134,8 +1144,6 @@ void FD3D12Adapter::InitializeDevices()
 
 		PipelineStateCache.RebuildFromDiskCache(StaticGraphicsRS, StaticComputeRS);
 	}
-
-	TransientResourceSystem = FD3D12TransientResourceSystem::Create(this, FRHIGPUMask::All());
 }
 
 void FD3D12Adapter::InitializeRayTracing()
@@ -1184,8 +1192,6 @@ void FD3D12Adapter::Cleanup()
 {
 	// Reset the RHI initialized flag.
 	GIsRHIInitialized = false;
-
-	TransientResourceSystem.Reset();
 
 	for (auto& Viewport : Viewports)
 	{
@@ -1256,6 +1262,7 @@ void FD3D12Adapter::Cleanup()
 		StagingFence.SafeRelease();
 	}
 
+	TransientMemoryCache.Reset();
 
 	PipelineStateCache.Close();
 	RootSignatureManager.Destroy();
@@ -1396,8 +1403,10 @@ void FD3D12Adapter::EndFrame()
 	}
 	GetDeferredDeletionQueue().ReleaseResources(false, false);
 
-	TransientResourceSystem->GarbageCollect();
-	TransientResourceSystem->UpdateStats();
+	if (TransientMemoryCache)
+	{
+		TransientMemoryCache->GarbageCollect();
+	}
 
 #if D3D12_SUBMISSION_GAP_RECORDER
 	SubmitGapRecorderTimestamps();

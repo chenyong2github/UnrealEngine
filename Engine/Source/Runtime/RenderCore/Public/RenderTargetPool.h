@@ -68,10 +68,6 @@ struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
 	{
 		return RenderTargetPool != nullptr;
 	}
-	bool IsCompatibleWithRDG() const override
-	{
-		return true;
-	}
 
 	virtual void SetDebugName(const TCHAR *InName);
 	virtual const FPooledRenderTargetDesc& GetDesc() const;

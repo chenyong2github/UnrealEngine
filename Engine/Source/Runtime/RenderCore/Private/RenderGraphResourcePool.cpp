@@ -12,11 +12,7 @@ uint64 ComputeHash(const FRDGBufferDesc& Desc)
 	return CityHash64((const char*)&Desc, sizeof(FRDGBufferDesc));
 }
 
-FRenderGraphResourcePool::FRenderGraphResourcePool()
-{ }
-
-
-TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBuffer(
+TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(
 	FRHICommandList& RHICmdList,
 	const FRDGBufferDesc& Desc,
 	const TCHAR* InDebugName)
@@ -26,7 +22,7 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBuffer(
 	return Result;
 }
 
-TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
+TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBufferInternal(
 	FRHICommandList& RHICmdList,
 	const FRDGBufferDesc& Desc,
 	const TCHAR* InDebugName)
@@ -36,7 +32,7 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 	FRDGBufferDesc AlignedDesc = Desc;
 	AlignedDesc.NumElements = Align(AlignedDesc.BytesPerElement * AlignedDesc.NumElements, BufferPageSize) / AlignedDesc.BytesPerElement;
 	const uint64 BufferHash = ComputeHash(AlignedDesc);
-
+	
 	// First find if available.
 	for (int32 Index = 0; Index < AllocatedBufferHashes.Num(); ++Index)
 	{
@@ -71,7 +67,7 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 
 	// Allocate new one
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FRenderGraphResourcePool::CreateBuffer);
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRDGBufferPool::CreateBuffer);
 
 		const uint32 NumBytes = AlignedDesc.GetTotalNumBytes();
 
@@ -110,12 +106,12 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 	}
 }
 
-void FRenderGraphResourcePool::ReleaseDynamicRHI()
+void FRDGBufferPool::ReleaseDynamicRHI()
 {
 	AllocatedBuffers.Empty();
 }
 
-void FRenderGraphResourcePool::TickPoolElements()
+void FRDGBufferPool::TickPoolElements()
 {
 	const uint32 kFramesUntilRelease = 30;
 
@@ -143,4 +139,148 @@ void FRenderGraphResourcePool::TickPoolElements()
 	++FrameCounter;
 }
 
-TGlobalResource<FRenderGraphResourcePool> GRenderGraphResourcePool;
+TGlobalResource<FRDGBufferPool> GRenderGraphResourcePool;
+
+uint32 FRDGTransientRenderTarget::AddRef() const
+{
+	check(IsInRenderingThread());
+	check(LifetimeState == ERDGTransientResourceLifetimeState::Allocated);
+	return ++RefCount;
+}
+
+uint32 FRDGTransientRenderTarget::Release()
+{
+	check(IsInRenderingThread());
+	check(RefCount > 0 && LifetimeState == ERDGTransientResourceLifetimeState::Allocated);
+	const uint32 Refs = --RefCount;
+	if (Refs == 0)
+	{
+		GRDGTransientResourceAllocator.AddPendingDeallocation(this);
+	}
+	return Refs;
+}
+
+void FRDGTransientResourceAllocator::InitDynamicRHI()
+{
+	Allocator = RHICreateTransientResourceAllocator();
+}
+
+void FRDGTransientResourceAllocator::ReleaseDynamicRHI()
+{
+	if (Allocator)
+	{
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+		ReleasePendingDeallocations();
+		PendingDeallocationList.Empty();
+
+		for (FRDGTransientRenderTarget* RenderTarget : DeallocatedList)
+		{
+			delete RenderTarget;
+		}
+		DeallocatedList.Empty();
+
+		Allocator->Flush(RHICmdList);
+		Allocator->Release(RHICmdList);
+		Allocator = nullptr;
+	}
+}
+
+TRefCountPtr<FRDGTransientRenderTarget> FRDGTransientResourceAllocator::AllocateRenderTarget(FRHITransientTexture* Texture)
+{
+	check(Texture);
+
+	FRDGTransientRenderTarget* RenderTarget = nullptr;
+
+	if (!FreeList.IsEmpty())
+	{
+		RenderTarget = FreeList.Pop();
+	}
+	else
+	{
+		RenderTarget = new FRDGTransientRenderTarget();
+	}
+
+	RenderTarget->Texture = Texture;
+	RenderTarget->Desc = Translate(Texture->CreateInfo);
+	RenderTarget->Desc.DebugName = Texture->GetName();
+	RenderTarget->LifetimeState = ERDGTransientResourceLifetimeState::Allocated;
+	RenderTarget->GetRenderTargetItem().TargetableTexture = Texture->GetRHI();
+	RenderTarget->GetRenderTargetItem().ShaderResourceTexture = Texture->GetRHI();
+	InitAsWholeResource(RenderTarget->State, {});
+	return RenderTarget;
+}
+
+void FRDGTransientResourceAllocator::Release(TRefCountPtr<FRDGTransientRenderTarget>&& RenderTarget, FRDGPassHandle PassHandle)
+{
+	check(RenderTarget);
+
+	if (RenderTarget->GetRefCount() == 1)
+	{
+		Allocator->DeallocateMemory(RenderTarget->Texture, PassHandle.GetIndex());
+		RenderTarget->Reset();
+		RenderTarget = nullptr;
+	}
+}
+
+void FRDGTransientResourceAllocator::AddPendingDeallocation(FRDGTransientRenderTarget* RenderTarget)
+{
+	check(RenderTarget);
+	check(RenderTarget->GetRefCount() == 0);
+
+	if (RenderTarget->Texture)
+	{
+		RenderTarget->LifetimeState = ERDGTransientResourceLifetimeState::PendingDeallocation;
+		PendingDeallocationList.Emplace(RenderTarget);
+	}
+	else
+	{
+		RenderTarget->LifetimeState = ERDGTransientResourceLifetimeState::Deallocated;
+		DeallocatedList.Emplace(RenderTarget);
+	}
+}
+
+void FRDGTransientResourceAllocator::ReleasePendingDeallocations()
+{
+	if (!PendingDeallocationList.IsEmpty())
+	{
+		FMemStack& MemStack = FMemStack::Get();
+		FMemMark Mark(MemStack);
+
+		TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
+		Transitions.Reserve(PendingDeallocationList.Num());
+
+		TArray<FRHITransientAliasingInfo, TMemStackAllocator<>> Aliases;
+		Aliases.Reserve(PendingDeallocationList.Num());
+
+		for (FRDGTransientRenderTarget* RenderTarget : PendingDeallocationList)
+		{
+			Allocator->DeallocateMemory(RenderTarget->Texture, 0);
+
+			Aliases.Emplace(FRHITransientAliasingInfo::Discard(RenderTarget->Texture->GetRHI()));
+			Transitions.Emplace(RenderTarget->Texture->GetRHI(), ERHIAccess::Unknown, ERHIAccess::Discard);
+
+			RenderTarget->Reset();
+			RenderTarget->LifetimeState = ERDGTransientResourceLifetimeState::Deallocated;
+		}
+
+		{
+			const FRHITransition* Transition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::Graphics, ERHIPipeline::Graphics, ERHITransitionCreateFlags::None, Transitions, Aliases));
+
+			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+			RHICmdList.BeginTransition(Transition);
+			RHICmdList.EndTransition(Transition);
+		}
+
+		FreeList.Append(PendingDeallocationList);
+		PendingDeallocationList.Reset();
+	}
+
+	if (!DeallocatedList.IsEmpty())
+	{
+		FreeList.Append(DeallocatedList);
+		DeallocatedList.Reset();
+	}
+}
+
+TGlobalResource<FRDGTransientResourceAllocator> GRDGTransientResourceAllocator;

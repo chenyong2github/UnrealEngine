@@ -41,6 +41,8 @@ namespace Nanite
 	struct FResources;
 };
 
+class FRHITransientTexture;
+
 // Shortcut for the allocator used by scene rendering.
 typedef TMemStackAllocator<> SceneRenderingAllocator;
 
@@ -553,10 +555,12 @@ struct IPooledRenderTarget
 	inline FSceneRenderTargetItem& GetRenderTargetItem() { return RenderTargetItem; }
 	/** Get the low level internals (texture/surface) */
 	inline const FSceneRenderTargetItem& GetRenderTargetItem() const { return RenderTargetItem; }
+
 	/** Returns if the render target is tracked by a pool. */
 	virtual bool IsTracked() const = 0;
-	/** Returns true if the render target is compatible with RDG. */
-	virtual bool IsCompatibleWithRDG() const { return false; }
+
+	/** Returns a transient texture if this is a container for one. */
+	virtual FRHITransientTexture* GetTransientTexture() const { return nullptr; }
 
 	// Refcounting
 	virtual uint32 AddRef() const = 0;

@@ -12,17 +12,10 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
-
-/**
- * Pools all resources for the render graph.
- */
-class RENDERCORE_API FRenderGraphResourcePool : public FRenderResource
+class RENDERCORE_API FRDGBufferPool : public FRenderResource
 {
 public:
-	FRenderGraphResourcePool();
-
-	/** Free renderer resources */
-	virtual void ReleaseDynamicRHI() override;
+	FRDGBufferPool() = default;
 
 	/** Call once per frame to trim elements from the pool. */
 	void TickPoolElements();
@@ -31,6 +24,8 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> FindFreeBuffer(FRHICommandList& RHICmdList, const FRDGBufferDesc& Desc, const TCHAR* InDebugName);
 
 private:
+	void ReleaseDynamicRHI() override;
+
 	/** Allocate a buffer from a given descriptor. */
 	TRefCountPtr<FRDGPooledBuffer> FindFreeBufferInternal(FRHICommandList& RHICmdList, const FRDGBufferDesc& Desc, const TCHAR* InDebugName);
 
@@ -44,4 +39,80 @@ private:
 };
 
 /** The global render targets for easy shading. */
-extern RENDERCORE_API TGlobalResource<FRenderGraphResourcePool> GRenderGraphResourcePool;
+extern RENDERCORE_API TGlobalResource<FRDGBufferPool> GRenderGraphResourcePool;
+
+enum class ERDGTransientResourceLifetimeState
+{
+	Deallocated,
+	Allocated,
+	PendingDeallocation
+};
+
+class FRDGTransientRenderTarget final : public IPooledRenderTarget
+{
+public:
+	uint32 AddRef() const override;
+	uint32 Release() override;
+	uint32 GetRefCount() const override { return RefCount; }
+
+	bool IsFree() const override { return false; }
+	bool IsTracked() const override { return true; }
+	uint32 ComputeMemorySize() const override { return 0; }
+
+	void SetDebugName(const TCHAR*) override {}
+
+	const FPooledRenderTargetDesc& GetDesc() const override { return Desc; }
+
+	FRHITransientTexture* GetTransientTexture() const override
+	{
+		check(LifetimeState == ERDGTransientResourceLifetimeState::Allocated);
+		return Texture;
+	}
+
+	void Reset()
+	{
+		Texture = nullptr;
+		RenderTargetItem.ShaderResourceTexture = nullptr;
+		RenderTargetItem.TargetableTexture = nullptr;
+	}
+
+	FRDGTextureSubresourceState State;
+
+private:
+	FRDGTransientRenderTarget() = default;
+
+	FRHITransientTexture* Texture;
+	FPooledRenderTargetDesc Desc;
+	ERDGTransientResourceLifetimeState LifetimeState;
+	mutable uint32 RefCount = 0;
+
+	friend class FRDGTransientResourceAllocator;
+};
+
+class FRDGTransientResourceAllocator : public FRenderResource
+{
+public:
+	IRHITransientResourceAllocator* Get() { return Allocator; }
+
+	TRefCountPtr<FRDGTransientRenderTarget> AllocateRenderTarget(FRHITransientTexture* Texture);
+
+	void Release(TRefCountPtr<FRDGTransientRenderTarget>&& RenderTarget, FRDGPassHandle PassHandle);
+
+	void ReleasePendingDeallocations();
+
+private:
+	void InitDynamicRHI() override;
+	void ReleaseDynamicRHI() override;
+
+	void AddPendingDeallocation(FRDGTransientRenderTarget* RenderTarget);
+
+	IRHITransientResourceAllocator* Allocator = nullptr;
+
+	TArray<FRDGTransientRenderTarget*> FreeList;
+	TArray<FRDGTransientRenderTarget*> PendingDeallocationList;
+	TArray<FRDGTransientRenderTarget*> DeallocatedList;
+
+	friend class FRDGTransientRenderTarget;
+};
+
+extern RENDERCORE_API TGlobalResource<FRDGTransientResourceAllocator> GRDGTransientResourceAllocator;

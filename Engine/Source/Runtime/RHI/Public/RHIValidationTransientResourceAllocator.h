@@ -20,16 +20,12 @@ public:
 	virtual FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex) override final;
 	virtual void DeallocateMemory(FRHITransientTexture* InTexture, uint32 InPassIndex) override final;
 	virtual void DeallocateMemory(FRHITransientBuffer* InBuffer, uint32 InPassIndex) override final;
-	virtual void Flush(FRHICommandListImmediate&) override final;
-	virtual void Freeze(FRHICommandListImmediate&, FRHITransientHeapStats&) override final;
+	virtual void Flush(FRHICommandListImmediate&, FRHITransientAllocationStats*) override final;
 	virtual void Release(FRHICommandListImmediate&) override final;
 
 private:
 	// Actual RHI transient allocator which will get all functions forwarded
 	IRHITransientResourceAllocator* RHIAllocator = nullptr;
-
-	bool bFrozen = false;
-	bool bReleased = false;
 
 	// All the allocated resources on the transient allocator
 	struct FAllocatedResourceData
@@ -42,7 +38,6 @@ private:
 
 		const TCHAR* DebugName = nullptr;
 		EType ResourceType = EType::Texture;
-		bool bMemoryAllocated = false;
 
 		struct FTexture
 		{

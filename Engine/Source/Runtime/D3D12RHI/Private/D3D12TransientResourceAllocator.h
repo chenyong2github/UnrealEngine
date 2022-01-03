@@ -13,7 +13,7 @@ class FD3D12TransientHeap final
 	, public FD3D12LinkedAdapterObject<FD3D12TransientHeap>
 {
 public:
-	FD3D12TransientHeap(const FRHITransientHeapInitializer& Initializer, FD3D12Adapter* Adapter, FD3D12Device* Device, FRHIGPUMask VisibleNodeMask);
+	FD3D12TransientHeap(const FInitializer& Initializer, FD3D12Adapter* Adapter, FD3D12Device* Device, FRHIGPUMask VisibleNodeMask);
 	~FD3D12TransientHeap();
 
 	FD3D12Heap* Get() { return Heap; }
@@ -22,35 +22,32 @@ private:
 	TRefCountPtr<FD3D12Heap> Heap;
 };
 
-class FD3D12TransientResourceSystem final
-	: public FRHITransientResourceSystem
+class FD3D12TransientHeapCache final
+	: public FRHITransientHeapCache
 	, public FD3D12AdapterChild
 {
 public:
-	static TUniquePtr<FD3D12TransientResourceSystem> Create(FD3D12Adapter* ParentAdapter, FRHIGPUMask VisibleNodeMask);
+	static TUniquePtr<FD3D12TransientHeapCache> Create(FD3D12Adapter* ParentAdapter, FRHIGPUMask VisibleNodeMask);
 
 	//! FRHITransientResourceSystem Overrides
-	FRHITransientHeap* CreateHeap(const FRHITransientHeapInitializer& Initializer) override;
+	FRHITransientHeap* CreateHeap(const FRHITransientHeap::FInitializer& Initializer) override;
 
 private:
-	FD3D12TransientResourceSystem(const FRHITransientResourceSystemInitializer& Initializer, FD3D12Adapter* ParentAdapter, FRHIGPUMask VisibleNodeMask);
+	FD3D12TransientHeapCache(const FInitializer& Initializer, FD3D12Adapter* ParentAdapter, FRHIGPUMask VisibleNodeMask);
 
 	FRHIGPUMask VisibleNodeMask;
 };
 
-class FD3D12TransientResourceAllocator final
-	: public IRHITransientResourceAllocator
+class FD3D12TransientResourceHeapAllocator final
+	: public FRHITransientResourceHeapAllocator
 	, public FD3D12AdapterChild
 {
 public:
-	FD3D12TransientResourceAllocator(FD3D12TransientResourceSystem& InParentSystem);
+	FD3D12TransientResourceHeapAllocator(FD3D12TransientHeapCache& InHeapCache);
 
 	//! IRHITransientResourceAllocator Overrides
 	FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex) override;
 	FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex) override;
-	void DeallocateMemory(FRHITransientTexture* InTexture, uint32 InPassIndex) override;
-	void DeallocateMemory(FRHITransientBuffer* InBuffer, uint32 InPassIndex) override;
-	void Freeze(FRHICommandListImmediate& RHICmdList, FRHITransientHeapStats& OutHeapStats) override;
 
 private:
 
@@ -72,8 +69,8 @@ private:
 		FD3D12TransientHeap& Heap;
 		const FRHITransientHeapAllocation& Allocation;
 		const D3D12_RESOURCE_DESC Desc;
+		uint64 GpuVirtualAddress = 0;
 	};
 
-	FRHITransientResourceAllocator Allocator;
 	FD3D12Device* AllocationInfoQueryDevice;
 };

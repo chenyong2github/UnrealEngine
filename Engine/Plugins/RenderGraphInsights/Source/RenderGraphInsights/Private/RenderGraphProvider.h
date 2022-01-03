@@ -45,7 +45,6 @@ public:
 	FString Name;
 	double StartTime{};
 	double EndTime{};
-	mutable uint32 VisibleIndex = kInvalidVisibleIndex;
 
 	FPacket(const UE::Trace::IAnalyzer::FOnEventContext& Context);
 };
@@ -66,6 +65,8 @@ class FScopePacket : public FPassIntervalPacket
 public:
 	uint32 Depth{};
 
+	mutable uint32 VisibleIndex = kInvalidVisibleIndex;
+
 	FScopePacket(const UE::Trace::IAnalyzer::FOnEventContext& Context);
 };
 
@@ -76,14 +77,18 @@ public:
 	uint32 Index{};
 	uint32 Order{};
 	uint64 SizeInBytes{};
-	FRHITransientResourceStats TransientStats;
+	FRHITransientAllocationStats::FAllocationArray TransientAllocations;
 
 	TArray<FRDGPassHandle> Passes;
+
+	mutable TArray<uint32, TInlineAllocator<1>> VisibleItems;
 
 	bool bExternal{};
 	bool bExtracted{};
 	bool bCulled{};
 	bool bTransient{};
+	bool bTransientUntracked{};
+	bool bTransientCacheHit{};
 
 	FResourcePacket(const UE::Trace::IAnalyzer::FOnEventContext& Context);
 };
@@ -118,6 +123,9 @@ class FPassPacket : public FPacket
 public:
 	TArray<FRDGTextureHandle> Textures;
 	TArray<FRDGBufferHandle> Buffers;
+
+	mutable uint32 VisibleIndex = kInvalidVisibleIndex;
+
 	FRDGPassHandle Handle;
 	FRDGPassHandle GraphicsForkPass;
 	FRDGPassHandle GraphicsJoinPass;
@@ -150,11 +158,13 @@ public:
 	TMap<FRDGBufferHandle, const FBufferPacket*> BufferHandleToPreviousOwner;
 	TMap<FRDGTextureHandle, const FTexturePacket*> TextureHandleToPreviousOwner;
 
+	mutable uint32 VisibleIndex = kInvalidVisibleIndex;
+
 	uint32 ScopeDepth{};
 	uint32 PassCount{};
 
-	FRHITransientHeapStats TransientHeapStats;
-	TArray<uint64, TInlineAllocator<8>> TransientHeapOffsets;
+	FRHITransientAllocationStats TransientAllocationStats;
+	TArray<uint64> TransientMemoryRangeByteOffsets;
 
 	FGraphPacket(TraceServices::ILinearAllocator& Allocator, const UE::Trace::IAnalyzer::FOnEventContext& Context);
 

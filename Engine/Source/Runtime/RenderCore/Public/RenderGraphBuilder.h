@@ -214,8 +214,8 @@ public:
 	 *  the lifetime of the GPU resource until execution, at which point the pointer is filled. If specified, the texture is transitioned
 	 *  to the AccessFinal state, or kDefaultAccessFinal otherwise.
 	 */
-	void QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutPooledTexturePtr);
-	void QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutPooledTexturePtr, ERHIAccess AccessFinal);
+	void QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutPooledTexturePtr, ERDGResourceExtractionFlags Flags = ERDGResourceExtractionFlags::None);
+	void QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutPooledTexturePtr, ERHIAccess AccessFinal, ERDGResourceExtractionFlags Flags = ERDGResourceExtractionFlags::None);
 
 	/** Queues a pooled buffer extraction to happen at the end of graph execution. For graph-created buffers, this extends the lifetime
 	 *  of the GPU resource until execution, at which point the pointer is filled. If specified, the buffer is transitioned to the
@@ -626,26 +626,7 @@ private:
 	IF_RDG_CMDLIST_STATS(TStatId CommandListStatScope);
 	IF_RDG_CMDLIST_STATS(TStatId CommandListStatState);
 
-	class FTransientResourceAllocator
-	{
-	public:
-		FTransientResourceAllocator(FRHICommandListImmediate& InRHICmdList)
-			: RHICmdList(InRHICmdList)
-		{}
-
-		~FTransientResourceAllocator();
-
-		IRHITransientResourceAllocator* GetOrCreate();
-		IRHITransientResourceAllocator* Get() const { return Allocator; }
-		IRHITransientResourceAllocator* operator->() const { check(Allocator);  return Allocator; }
-		operator bool() const { return Allocator != nullptr; }
-
-	private:
-		FRHICommandListImmediate& RHICmdList;
-		IRHITransientResourceAllocator* Allocator = nullptr;
-		bool bCreateAttempted = false;
-
-	} TransientResourceAllocator;
+	IRHITransientResourceAllocator* TransientResourceAllocator = nullptr;
 
 	enum class EExecuteMode
 	{
