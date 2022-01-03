@@ -54,7 +54,7 @@ int32 FRetargetSkeleton::FindBoneIndexByName(const FName InName) const
 
 void FRetargetSkeleton::UpdateGlobalTransformsBelowBone(
 	const int32 StartBoneIndex,
-	TArray<FTransform>& InLocalPose,
+	const TArray<FTransform>& InLocalPose,
 	TArray<FTransform>& OutGlobalPose) const
 {
 	check(BoneNames.IsValidIndex(StartBoneIndex));
@@ -70,7 +70,7 @@ void FRetargetSkeleton::UpdateGlobalTransformsBelowBone(
 void FRetargetSkeleton::UpdateLocalTransformsBelowBone(
 	const int32 StartBoneIndex,
 	TArray<FTransform>& OutLocalPose,
-	TArray<FTransform>& InGlobalPose) const
+	const TArray<FTransform>& InGlobalPose) const
 {
 	check(BoneNames.IsValidIndex(StartBoneIndex));
 	check(BoneNames.Num() == OutLocalPose.Num());
@@ -92,23 +92,23 @@ void FRetargetSkeleton::UpdateGlobalTransformOfSingleBone(
 	{
 		return; // root always in global space
 	}
-	const FTransform ChildLocalTransform = InLocalPose[BoneIndex];
-	const FTransform ParentGlobalTransform = OutGlobalPose[ParentIndex];
+	const FTransform& ChildLocalTransform = InLocalPose[BoneIndex];
+	const FTransform& ParentGlobalTransform = OutGlobalPose[ParentIndex];
 	OutGlobalPose[BoneIndex] = ChildLocalTransform * ParentGlobalTransform;
 }
 
 void FRetargetSkeleton::UpdateLocalTransformOfSingleBone(
 	const int32 BoneIndex,
 	TArray<FTransform>& OutLocalPose,
-	TArray<FTransform>& InGlobalPose) const
+	const TArray<FTransform>& InGlobalPose) const
 {
 	const int32 ParentIndex = ParentIndices[BoneIndex];
 	if (ParentIndex == INDEX_NONE)
 	{
 		return; // root always in global space
 	}
-	const FTransform ChildGlobalTransform = InGlobalPose[BoneIndex];
-	const FTransform ParentGlobalTransform = InGlobalPose[ParentIndex];
+	const FTransform& ChildGlobalTransform = InGlobalPose[BoneIndex];
+	const FTransform& ParentGlobalTransform = InGlobalPose[ParentIndex];
 	OutLocalPose[BoneIndex] = ChildGlobalTransform.GetRelativeTransform(ParentGlobalTransform);
 }
 
