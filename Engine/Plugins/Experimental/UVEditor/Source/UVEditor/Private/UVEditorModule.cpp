@@ -30,8 +30,10 @@ void FUVEditorModule::StartupModule()
 
 	// Register details view customizations
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	ClassesToUnregisterOnShutdown.Reset();
 	PropertyModule.RegisterCustomClassLayout(USelectToolActionPropertySet::StaticClass()->GetFName(), 
 		FOnGetDetailCustomizationInstance::CreateStatic(&FUVSelectToolActionPropertySetDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(USelectToolActionPropertySet::StaticClass()->GetFName());
 }
 
 void FUVEditorModule::ShutdownModule()
@@ -46,7 +48,13 @@ void FUVEditorModule::ShutdownModule()
 
 	// Unregister customizations
 	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
-	PropertyEditorModule->UnregisterCustomClassLayout(USelectToolActionPropertySet::StaticClass()->GetFName());
+	if (PropertyEditorModule)
+	{
+		for (FName ClassName : ClassesToUnregisterOnShutdown)
+		{
+			PropertyEditorModule->UnregisterCustomClassLayout(ClassName);
+		}
+	}
 }
 
 void FUVEditorModule::RegisterMenus()

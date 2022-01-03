@@ -22,9 +22,12 @@ public:
 	DECLARE_EVENT_OneParam(FUVEditorModule, FOnRegisterLayoutExtensions, FLayoutExtender&);
 	virtual FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() { return RegisterLayoutExtensions; }
 
+protected:
+	void RegisterMenus();
+
 private:
 	FOnRegisterLayoutExtensions	RegisterLayoutExtensions;
 
-protected:
-	void RegisterMenus();
+	/** StaticClass is not safe on shutdown, so we cache the name, and use this to unregister on shut down */
+	TArray<FName> ClassesToUnregisterOnShutdown;
 };
