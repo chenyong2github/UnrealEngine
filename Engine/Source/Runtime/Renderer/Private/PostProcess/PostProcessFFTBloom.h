@@ -11,14 +11,12 @@ struct FBloomOutputs;
 // Returns whether FFT bloom is enabled for the view.
 bool IsFFTBloomEnabled(const FViewInfo& View);
 
-float GetFFTBloomResolutionFraction();
+float GetFFTBloomResolutionFraction(const FIntPoint& ViewSize);
 
 struct FFFTBloomOutput
 {
 	FScreenPassTexture BloomTexture;
 	FRDGBufferRef SceneColorApplyParameters = nullptr;
 };
-
-float GetFFTBloomResolutionFraction();
 
 FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassTexture& InputSceneColor, float InputResolutionFraction);
