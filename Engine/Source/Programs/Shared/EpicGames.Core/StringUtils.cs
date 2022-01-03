@@ -117,73 +117,85 @@ namespace EpicGames.Core
 			return Result;
 		}
 
+		/// <inheritdoc cref="WordWrap(string, int, int, int)">
+		public static IEnumerable<string> WordWrap(string Text, int MaxWidth)
+		{
+			return WordWrap(Text, 0, 0, MaxWidth);
+		}
+
 		/// <summary>
-		/// Takes a given sentence and wraps it on a word by word basis so that no line exceeds the
-		/// set maximum line length. Words longer than a line are broken up. Returns the sentence as
-		/// a list of individual lines.
+		/// Takes a given sentence and wraps it on a word by word basis so that no line exceeds the set maximum line length. Words longer than a line 
+		/// are broken up. Returns the sentence as a list of individual lines.
 		/// </summary>
 		/// <param name="Text">The text to be wrapped</param>
+		/// <param name="InitialIndent">Indent for the first line</param>
+		/// <param name="HangingIndent">Indent for subsequent lines</param>
 		/// <param name="MaxWidth">The maximum (non negative) length of the returned sentences</param>
-		/// <param name="Lines">Receives a list of word-wrapped lines</param>
-		public static List<string> WordWrap(string Text, int MaxWidth)
+		public static IEnumerable<string> WordWrap(string Text, int InitialIndent, int HangingIndent, int MaxWidth)
 		{
-			// Early out
-			if (Text.Length == 0)
-			{
-				return new List<string>();
-			}
+			StringBuilder Builder = new StringBuilder();
 
-			string[] Words = Text.Split(' ');
-			List<string> WrappedWords = new List<string>();
-
-			string CurrentSentence = string.Empty;
-			foreach (var Word in Words)
+			int MinIdx = 0;
+			for (int LineIdx = 0; MinIdx < Text.Length; LineIdx++)
 			{
-				// if this is a very large word, split it
-				if (Word.Length > MaxWidth)
+				int Indent = (LineIdx == 0) ? InitialIndent : HangingIndent;
+				int MaxWidthForLine = MaxWidth - Indent;
+				int MaxIdx = GetWordWrapLineEnd(Text, MinIdx, MaxWidthForLine);
+
+				int PrintMaxIdx = MaxIdx;
+				while (PrintMaxIdx > MinIdx && Text[PrintMaxIdx - 1] == ' ')
 				{
-					// If the current sentence is ready to be written, do that.
-					if (CurrentSentence.Length >= MaxWidth)
-					{
-						// next line and reset sentence
-						WrappedWords.Add(CurrentSentence);
-						CurrentSentence = string.Empty;
-					}
-
-					// Top up the current line
-					WrappedWords.Add(CurrentSentence + Word.Substring(0, MaxWidth - CurrentSentence.Length));
-
-					int length = MaxWidth - CurrentSentence.Length;
-					while (length + MaxWidth < Word.Length)
-					{
-						// Place the starting lengths into their own lines
-						WrappedWords.Add(Word.Substring(length, Math.Min(MaxWidth, Word.Length - length)));
-						length += MaxWidth;
-					}
-
-					// then the trailing end into the next line
-					CurrentSentence += Word.Substring(length, Math.Min(MaxWidth, Word.Length - length)) + " ";
+					PrintMaxIdx--;
 				}
-				else
-				{
-					if (CurrentSentence.Length + Word.Length > MaxWidth)
-					{
-						// next line and reset sentence
-						WrappedWords.Add(CurrentSentence);
-						CurrentSentence = string.Empty;
-					}
 
-					// Add the word to the current sentence.
-					CurrentSentence += Word + " ";
-				}
+				Builder.Clear();
+				Builder.Append(' ', Indent);
+				Builder.Append(Text, MinIdx, PrintMaxIdx - MinIdx);
+				yield return Builder.ToString();
+
+				MinIdx = MaxIdx;
 			}
+		}
 
-			if (CurrentSentence.Length > 0)
+		/// <summary>
+		/// Gets the next character index to end a word-wrapped line on
+		/// </summary>
+		static int GetWordWrapLineEnd(string Text, int MinIdx, int MaxWidth)
+		{
+			int MaxIdx = MinIdx + MaxWidth;
+			if (MaxIdx >= Text.Length)
 			{
-				WrappedWords.Add(CurrentSentence);
+				return Text.Length;
 			}
 
-			return WrappedWords;
+			if (Text[MaxIdx] == ' ')
+			{
+				for (; ; MaxIdx++)
+				{
+					if (MaxIdx == Text.Length)
+					{
+						return MaxIdx;
+					}
+					if (Text[MaxIdx] != ' ')
+					{
+						return MaxIdx;
+					}
+				}
+			}
+			else
+			{
+				for(int TryMaxIdx = MaxIdx; ; TryMaxIdx--)
+				{
+					if(TryMaxIdx == MinIdx)
+					{
+						return MaxIdx;
+					}
+					if (Text[TryMaxIdx - 1] == ' ')
+					{
+						return TryMaxIdx;
+					}
+				}
+			}
 		}
 
 		/// <summary>
@@ -236,7 +248,6 @@ namespace EpicGames.Core
 		{
 			return FormatList(Arguments.ToArray(), Conjunction);
 		}
-
 
 		/// <summary>
 		/// Formats a list of items

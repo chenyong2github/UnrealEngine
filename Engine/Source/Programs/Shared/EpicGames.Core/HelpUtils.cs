@@ -18,29 +18,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Gets the width of the window for formatting purposes
 		/// </summary>
-		public static int WindowWidth
-		{
-			get
-			{
-				// Get the window width, using a default value if there's no console attached to this process.
-				int NewWindowWidth;
-				try
-				{
-					NewWindowWidth = Console.WindowWidth;
-				}
-				catch
-				{
-					NewWindowWidth = 240;
-				}
-
-				if (NewWindowWidth <= 0)
-				{
-					NewWindowWidth = 240;
-				}
-
-				return NewWindowWidth;
-			}
-		}
+		public static int WindowWidth => ConsoleUtils.WindowWidth;
 
 		/// <summary>
 		/// Prints help for the given object type
@@ -127,7 +105,7 @@ namespace EpicGames.Core
 		/// <param name="Logger">Logger implementation to write to</param>
 		public static void PrintParagraph(string Text, int MaxWidth, ILogger Logger)
 		{
-			List<string> Lines = StringUtils.WordWrap(Text, MaxWidth);
+			IEnumerable<string> Lines = StringUtils.WordWrap(Text, MaxWidth);
 			foreach (string Line in Lines)
 			{
 				Logger.LogInformation(Line);
@@ -184,7 +162,7 @@ namespace EpicGames.Core
 					string ParamString = IndentString + Item.Key.PadRight(RightPadding);
 
 					// Build the description line by line, adding the same amount of intending each time. 
-					List<string> DescriptionLines = StringUtils.WordWrap(Item.Value, MaxWidth - ParamString.Length);
+					IEnumerable<string> DescriptionLines = StringUtils.WordWrap(Item.Value, MaxWidth - ParamString.Length);
 
 					foreach(string DescriptionLine in DescriptionLines)
 					{
