@@ -11,52 +11,53 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Framework/BufferedData.h"
 
-#define TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS 0
-
 namespace Chaos
 {
-	extern CHAOS_API FRealSingle ChaosClusteringChildrenInheritVelocity;
 	class FPBDCollisionConstraints;
-}
-
-namespace Chaos
-{
-
-class CHAOS_API FClusterBuffer
-{
-public:
-	using FClusterChildrenMap = TMap<FPBDRigidParticleHandle*, TArray<FPBDRigidParticleHandle*>>;
-	using FClusterTransformMap = TMap<FPBDRigidParticleHandle*, FRigidTransform3>;
-
-	virtual ~FClusterBuffer() = default;
-
-	FClusterChildrenMap MChildren;
-	FClusterTransformMap ClusterParentTransforms;
-	TArray<Chaos::TSerializablePtr<FImplicitObject>> GeometryPtrs;
-};
 
 struct CHAOS_API FClusterDestoryParameters {
 	bool bReturnInternalOnly : true;
 };
 
-/* 
-* PDBRigidClustering
+/****
+*
+*   FRigidClustering
+* 
+*   The Chaos Destruction System allows artists to define exactly how geometry 
+*   will break and separate during the simulations. Artists construct the 
+*	simulation assets using pre-fractured geometry and utilize dynamically 
+*   generated rigid constraints to model the structural connections during the
+*   simulation. The resulting objects within the simulation can separate from 
+*   connected structures based on interactions with environmental elements, 
+*   like fields and collisions.
+*
+*   The destruction system relies on an internal clustering model 
+*   (aka Clustering) which controls how the rigidly attached geometry is 
+*   simulated. Clustering allows artists to initialize sets of geometry as 
+*   a single rigid body, then dynamically break the objects during the 
+*   simulation. At its core, the clustering system will simply join the mass
+*   and inertia of each connected element into one larger single rigid body.
+* 
+*   At the beginning of the simulation a connection graph is initialized 
+*   based on the rigid body’s nearest neighbors. Each connection between the
+*   bodies represents a rigid constraint within the cluster and is given 
+*   initial strain values. During the simulation, the strains within the 
+*   connection graph are evaluated. The connections can be broken when collision
+*   constraints, or field evaluations, impart an impulse on the rigid body that
+*   exceeds the connections limit. Fields can also be used to decrease the 
+*   internal strain values of the connections, resulting in a weakening of the
+*   internal structure
+*
 */
 class CHAOS_API FRigidClustering
 {
 public:
-	/** Parent to children */
-	typedef FPBDRigidsEvolutionGBF                      FRigidEvolution;
 
+	typedef FPBDRigidsEvolutionGBF                      FRigidEvolution;
 	typedef FPBDRigidParticleHandle*					FRigidHandle;
 	typedef TArray<FRigidHandle>						FRigidHandleArray;
-	typedef TSet<FPBDRigidParticleHandle>				FRigidHandleSet;
-
 	typedef FPBDRigidClusteredParticleHandle*			FClusterHandle;
-
-	typedef TPair<FClusterHandle, FRigidHandleArray>	FClusterMapEntry;
 	typedef TMap<FClusterHandle, FRigidHandleArray>	    FClusterMap;
-	///using FCollisionConstraintHandle = FPBDCollisionConstraintHandle;
 
 	FRigidClustering(FRigidEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles);
 	~FRigidClustering();
@@ -169,15 +170,6 @@ public:
 	TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> BreakingModel(
 		TMap<FGeometryParticleHandle*, Chaos::FReal>* ExternalStrainMap = nullptr);
 
-	/**
-	*  PromoteStrains
-	*    Sums the strains based on the cluster hierarchy. For example
-	*    a cluster with two children that have strains {3,4} will have
-	*    a ExternalStrain entry of 7. Will only decent the current
-	*    node passed, and ignores the disabled flag.
-	*/
-	FReal PromoteStrains(FPBDRigidParticleHandle* CurrentNode);
-
 	/*
 	*  Process the kinematic state of the clusters. Because the leaf node geometry can
 	*  be changed by the solver, it is necessary to check all the sub clusters.
@@ -187,11 +179,6 @@ public:
 	//
 	// Access
 	//
-	//  The ClusterIds and ChildrenMap are shared resources that can
-	//  be accessed via the game thread.
-	//
-	const FClusterBuffer&  GetBufferedData() const { ResourceLock.ReadLock(); return BufferResource; } /* Secure access from game thread*/
-	void                   ReleaseBufferedData() const { ResourceLock.ReadUnlock(); }				   /* Release access from game thread*/
 
 
 	/*
@@ -250,21 +237,10 @@ public:
 	*/
 	TArrayCollectionArray<int32>& GetClusterGroupIndexArray() { return MParticles.ClusterGroupIndexArray(); }
 
-	void AddToClusterUnion(int32 ClusterID, FPBDRigidClusteredParticleHandle* Handle)
-	{
-		if(ClusterID <= 0)
-		{
-			return;
-		}
-
-		if(!ClusterUnionMap.Contains(ClusterID))
-		{
-			ClusterUnionMap.Add(ClusterID, TArray<FPBDRigidClusteredParticleHandle*>());
-		}
-
-		ClusterUnionMap[ClusterID].Add(Handle);
-	}
-
+	/*
+	*  Cluster Break Data
+	*     The cluster breaks can be used to seed particle emissions. 
+	*/
 	const TArray<FBreakingData>& GetAllClusterBreakings() const { return MAllClusterBreakings; }
 	void SetGenerateClusterBreaking(bool DoGenerate) { DoGenerateBreakingData = DoGenerate; }
 	void ResetAllClusterBreakings() { MAllClusterBreakings.Reset(); }
@@ -290,22 +266,6 @@ public:
 	const TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParents() const { return TopLevelClusterParents; }
 	TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParents() { return TopLevelClusterParents; }
 
-	/* Ryan - do we still need this?
-	void InitTopLevelClusterParents(const int32 StartIndex)
-	{
-		if (!StartIndex)
-		{
-			TopLevelClusterParents.Reset();
-		}
-		for (uint32 i = StartIndex; i < MParticles.Size(); ++i)
-		{
-			if (MParticles.ClusterIds(i).Id == INDEX_NONE && !MParticles.Disabled(i))
-			{
-				TopLevelClusterParents.Add(i);
-			}
-		}
-	}
-	*/
  protected:
 	void UpdateMassProperties(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
@@ -355,8 +315,6 @@ private:
 
 
 	// Cluster data
-	mutable FRWLock ResourceLock;
-	FClusterBuffer BufferResource;
 	FClusterMap MChildren;
 	TMap<int32, TArray<FPBDRigidClusteredParticleHandle*> > ClusterUnionMap;
 
