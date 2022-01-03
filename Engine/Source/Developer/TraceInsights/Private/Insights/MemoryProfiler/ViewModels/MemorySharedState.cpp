@@ -934,6 +934,12 @@ void FMemorySharedState::InitMemoryRules()
 		LOCTEXT("MemRule_AaBf_Desc", "Identifies allocations allocated between time A and time B and freed after time B.\n(A ≤ a ≤ B ≤ f)")));
 
 	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
+		ERule::aAfaBf, 2,
+		LOCTEXT("MemRule_aAfaBf_Short", "A*B*/*A*B"),
+		LOCTEXT("MemRule_aAfaBf_Verbose", "Growth vs. Decline"),
+		LOCTEXT("MemRule_aAfaBf_Desc", "Identifies \"growth\" allocations, allocated between time A and time B and freed after time B (A ≤ a ≤ B ≤ f)\nand \"decline\" allocations, allocated before time A and freed between time A and time B (a ≤ A ≤ f ≤ B).\nThe \"decline\" allocations are changed to have negative size, so the size aggregation shows variation between A and B.")));
+
+	MemoryRules.Add(MakeShared<Insights::FMemoryRuleSpec>(
 		ERule::AfB, 2,
 		LOCTEXT("MemRule_AfB_Short", "*A**B"),
 		LOCTEXT("MemRule_AfB_Verbose", "Free Events"),
