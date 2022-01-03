@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "PixelStreamingVideoEncoder.h"
 #include "PixelStreamingEncoderFactory.h"
 #include "VideoEncoderFactory.h"
@@ -8,7 +9,6 @@
 #include "UnrealEngine.h"
 #include "Misc/Paths.h"
 #include "PixelStreamingSettings.h"
-#include "LatencyTester.h"
 #include "PlayerId.h"
 #include "IPixelStreamingSessions.h"
 #include "Async/Async.h"
@@ -55,13 +55,6 @@ int32 FPixelStreamingVideoEncoder::Release()
 
 int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
 {
-	// Record stat for when WebRTC delivered frame, if stats are enabled.
-	FPixelStreamingStats& Stats = FPixelStreamingStats::Get();
-	if (Stats.GetStatsEnabled())
-	{
-		Stats.OnWebRTCDeliverFrameForEncode(HardwareEncoderId);
-	}
-
 	bool Keyframe = false;
 	if ((frame_types && (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey))
 	{
@@ -75,12 +68,6 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	}
 
 	UpdateConfig();
-
-	// If we are running a latency test then record pre-encode timing
-	if (FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::PRE_ENCODE)
-	{
-		FLatencyTester::RecordPreEncodeTime(frame.id());
-	}
 
 	Encoder->Encode(frame, Keyframe);
 
@@ -107,7 +94,7 @@ webrtc::VideoEncoder::EncoderInfo FPixelStreamingVideoEncoder::GetEncoderInfo() 
 	const int HighQP = PixelStreamingSettings::CVarPixelStreamingWebRTCHighQpThreshold.GetValueOnAnyThread();
 	info.scaling_settings = VideoEncoder::ScalingSettings(LowQP, HighQP);
 
-	// basically means HW encoder must be perfect and drop frames itself etc
+	// if true means HW encoder must be perfect and drop frames itself etc
 	info.has_trusted_rate_controller = false;
 
 	return info;
@@ -184,7 +171,7 @@ void FPixelStreamingVideoEncoder::SendEncodedImage(uint64 SourceEncoderId, webrt
 		}
 	}
 
-	// Dump H264 frames to file for debugging if CVar is turned 5on.
+	// Dump H264 frames to file for debugging if CVar is turned on.
 	if (PixelStreamingSettings::CVarPixelStreamingDebugDumpFrame.GetValueOnAnyThread())
 	{
 		static IFileHandle* FileHandle = nullptr;

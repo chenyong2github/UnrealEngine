@@ -442,14 +442,14 @@ sfuServer.on('connection', function (ws, req) {
 		console.error(`SFU disconnected: ${code} - ${reason}`);
 		sfu = null;
 		disconnectAllPlayers();
-		players.delete(SFUPlayerId);
+		disconnectSFUPlayer();
 	});
 
 	ws.on('error', function(error) {
 		console.error(`SFU connection error: ${error}`);
 		sfu = null;
 		disconnectAllPlayers();
-		players.delete(SFUPlayerId);
+		disconnectSFUPlayer();
 		try {
 			ws.close(1006 /* abnormal closure */, error);
 		} catch(err) {
@@ -573,6 +573,15 @@ function disconnectAllPlayers(code, reason) {
 			player.ws.close(code, reason);
 		}
 	}
+}
+
+function disconnectSFUPlayer() {
+	console.log("disconnecting SFU from streamer");
+	if(players.has(SFUPlayerId)) {
+		players.get(SFUPlayerId).ws.close(4000, "SFU Disconnected");
+		players.delete(SFUPlayerId);
+	}
+	sendMessageToController({ type: 'playerDisconnected', playerId: SFUPlayerId }, true);
 }
 
 /**

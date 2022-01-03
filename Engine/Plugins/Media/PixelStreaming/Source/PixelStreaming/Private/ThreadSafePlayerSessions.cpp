@@ -180,19 +180,35 @@ void FThreadSafePlayerSessions::OnRemoteIceCandidate(FPlayerId PlayerId, const s
 
 void FThreadSafePlayerSessions::OnAnswer(FPlayerId PlayerId, FString Sdp)
 {
-    if (this->IsInSignallingThread())
-    {
-        this->OnAnswer_SignallingThread(PlayerId, Sdp);
-    }
-    else
-    {
-        this->WebRtcSignallingThread->PostTask(RTC_FROM_HERE, [this, PlayerId, Sdp]() { this->OnAnswer_SignallingThread(PlayerId, Sdp); } );
-    }
+    SUBMIT_TASK_WITH_PARAMS(OnAnswer_SignallingThread, PlayerId, Sdp)
+}
+
+void FThreadSafePlayerSessions::PollWebRTCStats() const
+{
+    SUBMIT_TASK_NO_PARAMS(PollWebRTCStats_SignallingThread)
 }
 
 /////////////////////////
 // Internal methods
 /////////////////////////
+
+void FThreadSafePlayerSessions::PollWebRTCStats_SignallingThread() const
+{
+    checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
+
+    for (auto& Entry : Players)
+	{
+		FPlayerSession* Player = Entry.Value;
+        if(Player)
+        {
+            Player->PollWebRTCStats();
+        }
+        else
+        {
+            UE_LOG(PixelStreamer, Log, TEXT("Could not poll WebRTC stats for peer because peer was nullptr."));
+        }
+    }
+}
 
 void FThreadSafePlayerSessions::OnRemoteIceCandidate_SignallingThread(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
 {
@@ -555,12 +571,8 @@ webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession_
 		Delegates->OnNewConnection.Broadcast(PlayerId, bMakeQualityController);
 	}
 
-    
-
     return PeerConnection.get();
 }
-
-
 
 void FThreadSafePlayerSessions::SetQualityController_SignallingThread(FPlayerId PlayerId)
 {

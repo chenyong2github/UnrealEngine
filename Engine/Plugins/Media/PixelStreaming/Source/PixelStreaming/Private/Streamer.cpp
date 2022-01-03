@@ -13,6 +13,7 @@
 #include "PixelStreamingAudioSink.h"
 #include "WebRtcObservers.h"
 #include "PlayerVideoSource.h"
+#include "PixelStreamingRTCStatsCollector.h"
 
 DEFINE_LOG_CATEGORY(PixelStreamer);
 
@@ -28,6 +29,7 @@ FStreamer::FStreamer(const FString& InSignallingServerUrl, const FString& InStre
 	, SignallingServerConnection(MakeUnique<FSignallingServerConnection>(*this, InStreamerId))
 	, FramePump(&FrameSource)
 	, PlayerSessions(WebRtcSignallingThread.Get())
+	, Stats(&PlayerSessions)
 {
 	RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity::LS_VERBOSE);
 
@@ -158,6 +160,8 @@ void FStreamer::OnDataChannelOpen(FPlayerId PlayerId, webrtc::DataChannelInterfa
 
 webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, int Flags)
 {
+	PeerConnectionConfig.enable_simulcast_stats = true;
+
 	webrtc::PeerConnectionInterface* PeerConnection = PlayerSessions.CreatePlayerSession(PlayerId, 
 		PeerConnectionFactory, 
 		PeerConnectionConfig, 
@@ -426,15 +430,6 @@ void FStreamer::OnSignallingServerDisconnected()
 	ConnectToSignallingServer();
 }
 
-void FStreamer::SendLatestQPAllPlayers() const
-{
-	if(this->VideoEncoderFactory)
-	{
-		double LatestQP = this->VideoEncoderFactory->GetLatestQP();
-		this->PlayerSessions.SendLatestQPAllPlayers( (int)LatestQP );
-	}
-}
-
 int FStreamer::GetNumPlayers() const
 {
 	return this->PlayerSessions.GetNumPlayers();
@@ -481,6 +476,11 @@ bool FStreamer::SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlaye
 void FStreamer::SendLatestQP(FPlayerId PlayerId, int LatestQP) const
 {
 	this->PlayerSessions.SendLatestQP(PlayerId, LatestQP);
+}
+
+void FStreamer::PollWebRTCStats() const
+{
+	this->PlayerSessions.PollWebRTCStats();
 }
 
 void FStreamer::DeleteAllPlayerSessions()
@@ -538,6 +538,7 @@ void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterf
 
 	if (bIsSFU && PixelStreamingSettings::SimulcastParameters.Layers.Num() > 0)
 	{
+
 		// encodings should be lowest res to highest
 		TArray<PixelStreamingSettings::FSimulcastParameters::FLayer*> SortedLayers;
 		for (auto& Layer : PixelStreamingSettings::SimulcastParameters.Layers)
@@ -553,11 +554,11 @@ void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterf
 		{
 			const auto SimulcastLayer = SortedLayers[i];
 			webrtc::RtpEncodingParameters LayerEncoding{};
-			LayerEncoding.rid = TCHAR_TO_UTF8(*(FString("Layer") + FString::FromInt(LayerCount - i)));
+			LayerEncoding.rid = TCHAR_TO_UTF8(*(FString("simulcast") + FString::FromInt(LayerCount - i)));
 			LayerEncoding.min_bitrate_bps = SimulcastLayer->MinBitrate;
 			LayerEncoding.max_bitrate_bps = SimulcastLayer->MaxBitrate;
 			LayerEncoding.scale_resolution_down_by = SimulcastLayer->Scaling;
-			LayerEncoding.max_framerate = PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
+			LayerEncoding.max_framerate = FMath::Max(60, PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread());
 			TransceiverOptions.send_encodings.push_back(LayerEncoding);
 		}
 	}
@@ -567,33 +568,28 @@ void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterf
 		encoding.rid = "base";
 		encoding.max_bitrate_bps = PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate.GetValueOnAnyThread();
 		encoding.min_bitrate_bps = PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate.GetValueOnAnyThread();
-		encoding.max_framerate = PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
+		encoding.max_framerate = FMath::Max(60, PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread());
 		encoding.scale_resolution_down_by.reset();
 		TransceiverOptions.send_encodings.push_back(encoding);
 	}
 
-	auto Result = PeerConnection->AddTransceiver(VideoTrack, TransceiverOptions);
+	webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> Result = PeerConnection->AddTransceiver(VideoTrack, TransceiverOptions);
+	checkf(Result.ok(), TEXT("Failed to add Video transceiver to PeerConnection. Msg=%s"), *FString(Result.error().message()));
 
-	if (Result.ok())
+	// Set some content hints based on degradation prefs, WebRTC uses these internally.
+	webrtc::DegradationPreference DegradationPref = PixelStreamingSettings::GetDegradationPreference();
+	switch (DegradationPref)
 	{
-		// Set some content hints based on degradation prefs, WebRTC uses these internally.
-		webrtc::DegradationPreference DegradationPref = PixelStreamingSettings::GetDegradationPreference();
-		switch (DegradationPref)
-		{
-		case webrtc::DegradationPreference::MAINTAIN_FRAMERATE:
-			VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kFluid);
-			break;
-		case webrtc::DegradationPreference::MAINTAIN_RESOLUTION:
-			VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kDetailed);
-			break;
-		default:
-			break;
-		}
+	case webrtc::DegradationPreference::MAINTAIN_FRAMERATE:
+		VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kFluid);
+		break;
+	case webrtc::DegradationPreference::MAINTAIN_RESOLUTION:
+		VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kDetailed);
+		break;
+	default:
+		break;
 	}
-	else
-	{
-		UE_LOG(PixelStreamer, Error, TEXT("Failed to add Video transceiver to PeerConnection. Msg=%s"), TCHAR_TO_UTF8(Result.error().message()));
-	}
+
 }
 
 void FStreamer::SetupAudioTrack(webrtc::PeerConnectionInterface* PeerConnection, FString const AudioStreamId, FString const AudioTrackLabel)
@@ -683,4 +679,14 @@ void FStreamer::SendUnfreezeFrame()
 void FStreamer::SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension)
 {
 	this->PlayerSessions.SendFileData(ByteData, MimeType, FileExtension);
+}
+
+void FStreamer::AddAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback)
+{
+	this->Stats.AddOnAnyStatChangedCallback(Callback);
+}
+
+void FStreamer::RemoveAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback)
+{
+	this->Stats.RemoveOnAnyStatChangedCallback(Callback);
 }

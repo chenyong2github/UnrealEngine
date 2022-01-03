@@ -13,28 +13,76 @@
 #include "SignallingServerConnection.h"
 #include "Async/Async.h"
 #include "WebRtcObservers.h"
+#include "PixelStreamingStats.h"
+#include "PixelStreamingStatNames.h"
+
+class QPConsumer : public IPixelStreamingStatsConsumer
+{
+public:
+	QPConsumer(IPixelStreamingSessions* InSessions)
+		: Sessions(InSessions) {}
+
+	QPConsumer(QPConsumer&& Other)
+		: Sessions(Other.Sessions){}
+
+	// Begin IPixelStreamingStatsConsumer
+	void ConsumeStat(FPlayerId PlayerId, FName StatName, float StatValue) override { Sessions->SendLatestQP(PlayerId, (int)StatValue); }
+	// End IPixelStreamingStatsConsumer
+private:
+	IPixelStreamingSessions* Sessions;
+};
 
 FPlayerSession::FPlayerSession(IPixelStreamingSessions* InSessions, FSignallingServerConnection* InSignallingServerConnection, FPlayerId InPlayerId)
-    : SignallingServerConnection(InSignallingServerConnection)
-    , PlayerId(InPlayerId)
+	: SignallingServerConnection(InSignallingServerConnection)
+	, PlayerId(InPlayerId)
 	, DataChannelObserver(InSessions, InPlayerId)
+	, WebRTCStatsCallback(new rtc::RefCountedObject<FPixelStreamingRTCStatsCollector>(InPlayerId))
+	, QPReporter(MakeShared<QPConsumer>(InSessions))
 {
 	UE_LOG(PixelStreamer, Log, TEXT("%s: PlayerId=%s"), TEXT("Created FPlayerSession::FPlayerSession"), *PlayerId);
+
+	// Listen for changes on QP for this peer and when there is a change send that QP over the data channel to the browser
+	FPixelStreamingStats* Stats = FPixelStreamingStats::Get();
+	if (Stats)
+	{
+		Stats->AddOnPeerStatChangedCallback(PlayerId,
+			PixelStreamingStatNames::MeanQPPerSecond,
+			TWeakPtr<IPixelStreamingStatsConsumer>(QPReporter));
+	}
 }
 
 FPlayerSession::~FPlayerSession()
 {
 	UE_LOG(PixelStreamer, Log, TEXT("%s: PlayerId=%s"), TEXT("FPlayerSession::~FPlayerSession"), *PlayerId);
-	
+
 	this->DataChannelObserver.Unregister();
 	this->DataChannel = nullptr;
-	
+
 	if (this->PeerConnection)
 	{
 		this->PeerConnection->Close();
 		this->PeerConnection = nullptr;
 	}
-		
+
+	FPixelStreamingStats* Stats = FPixelStreamingStats::Get();
+	if (Stats)
+	{
+		Stats->RemovePeersStats(PlayerId);
+	}
+}
+
+void FPlayerSession::PollWebRTCStats() const
+{
+	check(PeerConnection);
+	//PeerConnection->GetStats(WebRTCStatsCallback);
+	std::vector<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> Transceivers = PeerConnection->GetTransceivers();
+	for (rtc::scoped_refptr<webrtc::RtpTransceiverInterface> Transceiver : Transceivers)
+	{
+		if (Transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_VIDEO)
+		{
+			PeerConnection->GetStats(Transceiver->sender(), WebRTCStatsCallback);
+		}
+	}
 }
 
 FPixelStreamingDataChannelObserver& FPlayerSession::GetDataChannelObserver()
@@ -73,16 +121,14 @@ void FPlayerSession::OnAnswer(FString Sdp)
 		return;
 	}
 
-	FSetSessionDescriptionObserver* SetRemoteDescriptionObserver = FSetSessionDescriptionObserver::Create
-	(
+	FSetSessionDescriptionObserver* SetRemoteDescriptionObserver = FSetSessionDescriptionObserver::Create(
 		[]() // on success
 		{
 		},
 		[](const FString& Error) // on failure
 		{
 			UE_LOG(PixelStreamer, Error, TEXT("Failed to set remote description: %s"), *Error);
-		}
-	);
+		});
 
 	PeerConnection->SetRemoteDescription(SetRemoteDescriptionObserver, SessionDesc.release());
 }
@@ -94,7 +140,8 @@ void FPlayerSession::OnRemoteIceCandidate(const std::string& SdpMid, int SdpMLin
 	if (Candidate)
 	{
 		PeerConnection->AddIceCandidate(std::move(Candidate), [&](webrtc::RTCError error) {
-			if (!error.ok()) {
+			if (!error.ok())
+			{
 				UE_LOG(PixelStreamer, Error, TEXT("AddIceCandidate failed (%s): %S"), *PlayerId, error.message());
 			}
 		});
@@ -124,40 +171,40 @@ FPixelStreamingAudioSink& FPlayerSession::GetAudioSink()
 
 bool FPlayerSession::SendMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const
 {
-	if (!this->DataChannel)
+	if (!DataChannel)
 	{
 		return false;
 	}
 
-	const uint8 MessageType = static_cast<uint8>(Type);
+	const uint8 MessageType		= static_cast<uint8>(Type);
 	const size_t DescriptorSize = Descriptor.Len() * sizeof(TCHAR);
 
 	rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + DescriptorSize);
 
 	size_t Pos = 0;
-	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
-	Pos = SerializeToBuffer(Buffer, Pos, *Descriptor, DescriptorSize);
+	Pos		   = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+	Pos		   = SerializeToBuffer(Buffer, Pos, *Descriptor, DescriptorSize);
 
-	return this->DataChannel->Send(webrtc::DataBuffer(Buffer, true));
+	return DataChannel->Send(webrtc::DataBuffer(Buffer, true));
 }
 
 void FPlayerSession::SendQualityControlStatus(bool bIsQualityController) const
 {
-	if (!this->DataChannel)
+	if (!DataChannel)
 	{
 		return;
 	}
 
-	const uint8 MessageType = static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::QualityControlOwnership);
+	const uint8 MessageType		= static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::QualityControlOwnership);
 	const uint8 ControlsQuality = bIsQualityController ? 1 : 0;
 
 	rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + sizeof(ControlsQuality));
 
 	size_t Pos = 0;
-	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
-	Pos = SerializeToBuffer(Buffer, Pos, &ControlsQuality, sizeof(ControlsQuality));
+	Pos		   = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+	Pos		   = SerializeToBuffer(Buffer, Pos, &ControlsQuality, sizeof(ControlsQuality));
 
-	if (!this->DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
+	if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("failed to send quality control status"));
 	}
@@ -175,15 +222,14 @@ void FPlayerSession::SendFileData(const TArray<uint8>& ByteData, const FString& 
 	// Send the extension next
 	FPlayerSession::SendMessage(PixelStreamingProtocol::EToPlayerMsg::FileExtension, FileExtension);
 	// Send the contents of the file
-	AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [&, ByteData]()
-	{
+	AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [&, ByteData]() {
 		SendArbitraryData(this->DataChannel, ByteData, static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::FileContents));
 	});
 }
 
 void FPlayerSession::SendUnfreezeFrame() const
 {
-	if (!this->DataChannel)
+	if (!DataChannel)
 	{
 		return;
 	}
@@ -193,9 +239,9 @@ void FPlayerSession::SendUnfreezeFrame() const
 	rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType));
 
 	size_t Pos = 0;
-	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+	Pos		   = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
 
-	if (!this->DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
+	if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("failed to send unfreeze frame"));
 	}
@@ -224,8 +270,8 @@ void FPlayerSession::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterf
 void FPlayerSession::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel)
 {
 	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%s"), TEXT("FPlayerSession::OnDataChannel"), *PlayerId);
-	this->DataChannel = InDataChannel;
-	this->DataChannelObserver.Register(InDataChannel);
+	DataChannel = InDataChannel;
+	DataChannelObserver.Register(InDataChannel);
 }
 
 void FPlayerSession::OnRenegotiationNeeded()
@@ -263,10 +309,10 @@ void FPlayerSession::OnIceConnectionReceivingChange(bool Receiving)
 void FPlayerSession::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
 {
 	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%s"), TEXT("FPlayerSession::OnTrack"), *PlayerId);
-	
+
 	// print out track type
 	auto mediaType = transceiver->media_type();
-	switch(mediaType)
+	switch (mediaType)
 	{
 		case cricket::MediaType::MEDIA_TYPE_AUDIO:
 			UE_LOG(PixelStreamer, Log, TEXT("Track was type: audio"));
@@ -280,12 +326,11 @@ void FPlayerSession::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface>
 		default:
 			UE_LOG(PixelStreamer, Log, TEXT("Track was an unsupported type"));
 			break;
-  
 	}
 
 	// print out track direction
 	webrtc::RtpTransceiverDirection direction = transceiver->direction();
-	switch(direction)
+	switch (direction)
 	{
 		case webrtc::RtpTransceiverDirection::kSendRecv:
 			UE_LOG(PixelStreamer, Log, TEXT("Track direction: send+recv"));
@@ -304,22 +349,21 @@ void FPlayerSession::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface>
 			break;
 	}
 
-
 	rtc::scoped_refptr<webrtc::RtpReceiverInterface> Receiver = transceiver->receiver();
-	if(mediaType != cricket::MediaType::MEDIA_TYPE_AUDIO)
+	if (mediaType != cricket::MediaType::MEDIA_TYPE_AUDIO)
 	{
 		return;
 	}
 
 	rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> MediaStreamTrack = Receiver->track();
-	FString TrackEnabledStr = MediaStreamTrack->enabled() ? FString("Enabled") : FString("Disabled");
-	FString TrackStateStr = MediaStreamTrack->state() == webrtc::MediaStreamTrackInterface::TrackState::kLive ? FString("Live") : FString("Ended");
+	FString TrackEnabledStr												   = MediaStreamTrack->enabled() ? FString("Enabled") : FString("Disabled");
+	FString TrackStateStr												   = MediaStreamTrack->state() == webrtc::MediaStreamTrackInterface::TrackState::kLive ? FString("Live") : FString("Ended");
 	UE_LOG(PixelStreamer, Log, TEXT("MediaStreamTrack id: %s | Is enabled: %s | State: %s"), *FString(MediaStreamTrack->id().c_str()), *TrackEnabledStr, *TrackStateStr);
 
-	webrtc::AudioTrackInterface* AudioTrack = static_cast<webrtc::AudioTrackInterface*>(MediaStreamTrack.get());
+	webrtc::AudioTrackInterface* AudioTrack	  = static_cast<webrtc::AudioTrackInterface*>(MediaStreamTrack.get());
 	webrtc::AudioSourceInterface* AudioSource = AudioTrack->GetSource();
-	FString AudioSourceStateStr = AudioSource->state() == webrtc::MediaSourceInterface::SourceState::kLive ? FString("Live") : FString("Not live");
-	FString AudioSourceRemoteStr = AudioSource->remote() ? FString("Remote") : FString("Local");
+	FString AudioSourceStateStr				  = AudioSource->state() == webrtc::MediaSourceInterface::SourceState::kLive ? FString("Live") : FString("Not live");
+	FString AudioSourceRemoteStr			  = AudioSource->remote() ? FString("Remote") : FString("Local");
 	UE_LOG(PixelStreamer, Log, TEXT("AudioSource | State: %s | Locality: %s"), *AudioSourceStateStr, *AudioSourceRemoteStr);
 	AudioSource->AddSink(&this->AudioSink);
 }

@@ -10,7 +10,6 @@
 #include "PixelStreamingPrivate.h"
 #include "PlayerSession.h"
 #include "PixelStreamingAudioSink.h"
-#include "LatencyTester.h"
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
@@ -143,6 +142,9 @@ void FPixelStreamingModule::InitStreamer()
 	verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
 
 	Streamer = MakeUnique<FStreamer>(SignallingServerURL, StreamerId);
+	
+	// Streamer has been created, so module is now "ready" for external use.
+	ReadyEvent.Broadcast(*this);
 }
 
 /** IModuleInterface implementation */
@@ -270,6 +272,16 @@ TSharedPtr<class IInputDevice> FPixelStreamingModule::CreateInputDevice(const TS
 {
 	InputDevice = MakeShareable(new FInputDevice(InMessageHandler));
 	return InputDevice;
+}
+
+IPixelStreamingModule::FReadyEvent& FPixelStreamingModule::OnReady()
+{
+	return ReadyEvent;
+}
+
+bool FPixelStreamingModule::IsReady()
+{
+	return Streamer.IsValid();
 }
 
 FInputDevice& FPixelStreamingModule::GetInputDevice()
@@ -438,28 +450,6 @@ bool FPixelStreamingModule::IsTickableInEditor() const
 
 void FPixelStreamingModule::Tick(float DeltaTime)
 {
-	// If we are running a latency test then check if we have timing results and if we do transmit them
-	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::RESULTS_READY)
-	{
-		FString LatencyResults;
-		FPlayerId LatencyTestPlayerId;
-		bool bEnded = FLatencyTester::End(LatencyResults, LatencyTestPlayerId);
-		if(bEnded)
-		{
-			Streamer->SendMessage(LatencyTestPlayerId, PixelStreamingProtocol::EToPlayerMsg::LatencyTest, LatencyResults);
-		}
-	}
-
-	// Send video encoder averaged QP approx every 1 second
-	if(this->Streamer.IsValid() && this->Streamer->IsStreaming() && this->Streamer->GetNumPlayers() > 0)
-	{
-		double Now = FPlatformTime::Seconds();
-		if (Now - LastVideoEncoderQPReportTime > 1)
-		{
-			Streamer->SendLatestQPAllPlayers();
-			LastVideoEncoderQPReportTime = FPlatformTime::Seconds();
-		}
-	}
 	
 }
 
@@ -472,6 +462,7 @@ IPixelStreamingAudioSink* FPixelStreamingModule::GetPeerAudioSink(FPlayerId Play
 {
 	if(!this->Streamer.IsValid())
 	{
+		UE_LOG(PixelStreamer, Error, TEXT("Cannot get audio sink when streamer does not yet exist."));
 		return nullptr;
 	}
 
@@ -482,10 +473,32 @@ IPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
 {
 	if(!this->Streamer.IsValid())
 	{
+		UE_LOG(PixelStreamer, Error, TEXT("Cannot get audio sink when streamer does not yet exist."));
 		return nullptr;
 	}
 
 	return this->Streamer->GetUnlistenedAudioSink();
+}
+
+void FPixelStreamingModule::AddAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback)
+{
+	if(!this->Streamer.IsValid())
+	{
+		UE_LOG(PixelStreamer, Error, TEXT("Cannot add stat callback when streamer does not yet exist."));
+		return;
+	}
+
+	this->Streamer->AddAnyStatChangedCallback(Callback);
+}
+
+void FPixelStreamingModule::RemoveAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback)
+{
+	if(!this->Streamer.IsValid())
+	{
+		UE_LOG(PixelStreamer, Error, TEXT("Cannot remove stat callback when streamer does not yet exist."));
+		return;
+	}
+	this->Streamer->RemoveAnyStatChangedCallback(Callback);
 }
 
 IMPLEMENT_MODULE(FPixelStreamingModule, PixelStreaming)

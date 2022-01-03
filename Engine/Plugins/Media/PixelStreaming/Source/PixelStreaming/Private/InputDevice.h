@@ -490,12 +490,6 @@ private:
 	TQueue<FString> UIInteractions;
 
 	/**
-	 * It is only possible to enable commands when explicitly permitted as these
-	 * have security implications.
-	 */
-	bool bAllowCommands;
-
-	/**
 	 * A queue of command descriptor strings which contain the command to
 	 * execute and its arguments.
 	 */

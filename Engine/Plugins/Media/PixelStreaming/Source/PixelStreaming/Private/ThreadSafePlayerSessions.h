@@ -49,6 +49,7 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 		virtual bool SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const override;
 		virtual void SendLatestQP(FPlayerId PlayerId, int LatestQP) const override;
 		virtual void SendFreezeFrameTo(FPlayerId PlayerId, const TArray64<uint8>& JpegBytes) const override;
+		void PollWebRTCStats() const override;
         // End IPixelStreamingSessions
 
 	public:
@@ -64,7 +65,7 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 		FPlayerSession* GetPlayerSession_SignallingThread(FPlayerId PlayerId) const;
 
 		void SetPlayerSessionDataChannel_SignallingThread(FPlayerId PlayerId, rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel);
-
+		void PollWebRTCStats_SignallingThread() const;
 		void OnRemoteIceCandidate_SignallingThread(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp);
 		void OnAnswer_SignallingThread(FPlayerId PlayerId, FString Sdp);
 		IPixelStreamingAudioSink* GetUnlistenedAudioSink_SignallingThread() const;

@@ -5,53 +5,133 @@
 #include "Utils.h"
 #include "PixelStreamingSettings.h"
 #include "Tickable.h"
+#include "PlayerId.h"
+#include "CanvasItem.h"
+#include "IPixelStreamingSessions.h"
+#include "Containers/UnrealString.h"
+#include "IPixelStreamingStatsConsumer.h"
+#include "UnrealEngine.h"
 
-// Stats about Pixel Streaming that can displayed either in the in-application HUD or in the log.
-struct FPixelStreamingStats : FTickableGameObject
+
+// ----------------- FStatData -----------------
+
+struct FStatData
 {
-	public:
-		static FPixelStreamingStats& Get();
-		bool GetStatsEnabled();
-		void Tick(float DeltaTime);
-		void Reset();
-		void SetCaptureLatency(double CaptureLatencyMs);
-		void OnCaptureFinished();
-		void OnKeyframeEncoded(uint64 encoderId);
-		void OnWebRTCDeliverFrameForEncode(uint64 encoderId);
-		void OnEncodingFinished(uint64 encoderId);
-		void SetEncoderLatency(uint64 encoderId, double EncoderLatencyMs);
-		void SetEncoderBitrateMbps(uint64 encoderId, double EncoderBitrateMbps);
-		void SetEncoderQP(uint64 encoderId, double QP);
+public:
 
-		FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(PixelStreamingStats, STATGROUP_Tickables); }
-		
-	private:
-		void EmitStat(int UniqueId, FString StringToEmit);
+	FStatData(FName InStatName, double InStatValue, int InNDecimalPlacesToPrint, bool bInSmooth = false)
+		: StatName(InStatName)
+		, StatValue(InStatValue)
+		, NDecimalPlacesToPrint(InNDecimalPlacesToPrint)
+		, bSmooth(bInSmooth) {}
 
-	private:
+	bool operator==(const FStatData& Other) const
+	{
+		return Equals(Other);
+	}
 
-		static constexpr uint32 SmoothingPeriod = 3 * 60; // kinda 3 secs for 60FPS
+	bool Equals(const FStatData& Other) const
+	{
+		return StatName == Other.StatName;
+	}
 
-		// Note: FSmoothedValue is thread safe.
+	FName StatName;
+	double StatValue;
+	int NDecimalPlacesToPrint;
+	bool bSmooth;
+};
 
-		struct FEncoderStats
-		{
-			FSmoothedValue<SmoothingPeriod> WebRTCCaptureToEncodeLatencyMs;
-			FSmoothedValue<SmoothingPeriod> EncoderLatencyMs;
-			FSmoothedValue<SmoothingPeriod> EncoderBitrateMbps;
-			FSmoothedValue<SmoothingPeriod> EncoderQP;
-			uint64 LastEncodeTimeCycles = 0;
-			FSmoothedValue<SmoothingPeriod> EncoderFPS;
-			uint64 LastKeyFrameTimeCycles = 0;
-		};
+FORCEINLINE uint32 GetTypeHash(const FStatData& Obj)
+{
+	// From UnrealString.h
+	return GetTypeHash(Obj.StatName);
+}
 
-		FSmoothedValue<SmoothingPeriod> CaptureLatencyMs;
+// ----------------- FRenderableStat -----------------
 
-		uint64 LastCaptureTimeCycles = 0;
-		FSmoothedValue<SmoothingPeriod> CaptureFPS;
+struct FRenderableStat
+{
+	FStatData Stat;
+	FCanvasTextItem CanvasItem;
+};
 
-		// unique ptr because FSmoothedValue is not trivially copyable 
-		TMap<uint64, TUniquePtr<FEncoderStats>> EncoderStats;
+// ----------------- FPixelStreamingPeerStats -----------------
 
-		FEncoderStats& GetEncoderStats(uint64 encoderId);
+// Pixel Streaming stats that are associated with a specific peer.
+class FPixelStreamingPeerStats
+{
+
+public:
+	FPixelStreamingPeerStats(FPlayerId InAssociatedPlayer)
+		: AssociatedPlayer(InAssociatedPlayer)
+		, PlayerIdCanvasItem(FVector2D(0, 0), FText::FromString(FString::Printf(TEXT("[Peer Stats(%s)]"), *AssociatedPlayer)), FSlateFontInfo(FSlateFontInfo(UEngine::GetSmallFont(), 12)), FLinearColor(0, 1, 0))
+	{
+		PlayerIdCanvasItem.EnableShadow(FLinearColor::Black);
+	};
+	
+	void StoreStat(FStatData StatToStore);
+	bool StoreStat_GameThread(FStatData StatToStore);
+
+private:
+	int DisplayId = 0;
+	FPlayerId AssociatedPlayer;
+
+public:
+	TMap<FName, FRenderableStat> StoredStats;
+	TMap<FName, TArray<TWeakPtr<IPixelStreamingStatsConsumer>>> SingleStatConsumers;
+	FCanvasTextItem PlayerIdCanvasItem;
+	
+
+};
+
+// ----------------- FPixelStreamingStats -----------------
+
+// Stats about Pixel Streaming that can displayed either in the in-application HUD, in the log, or simply reported to some subscriber.
+class FPixelStreamingStats : FTickableGameObject
+{
+public:
+	static constexpr double SmoothingPeriod = 3.0 * 60.0; 
+	static constexpr double SmoothingFactor = 10.0 / 100.0;
+	static FPixelStreamingStats* Get();
+
+	FPixelStreamingStats(IPixelStreamingSessions* Sessions);
+	void QueryPeerStat(FPlayerId PlayerId, FName StatToQuery, TFunction<void(bool,double)> QueryCallback) const;
+	bool QueryPeerStat_GameThread(FPlayerId PlayerId, FName StatToQuery, double& OutStatValue) const;
+	void RemovePeersStats(FPlayerId PlayerId);
+	void StorePeerStat(FPlayerId PlayerId, FStatData Stat);
+	void StoreApplicationStat(FStatData PeerStat);
+	void Tick(float DeltaTime);
+	void AddOnPeerStatChangedCallback(FPlayerId PlayerId, FName StatToListenOn, TWeakPtr<IPixelStreamingStatsConsumer> Callback);
+	void AddOnAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback);
+	void RemoveOnAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback);
+	int32 OnRenderStats(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+	bool OnToggleStats(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(PixelStreamingStats, STATGROUP_Tickables); }
+
+private:
+	void PollPixelStreamingSettings();
+	void RemovePeerStat_GameThread(FPlayerId PlayerId);
+	bool StorePeerStat_GameThread(FPlayerId PlayerId, FStatData Stat);
+	bool StoreApplicationStat_GameThread(FStatData Stat);
+	void AddOnPeerStatChangedCallback_GameThread(FPlayerId PlayerId, FName StatToListenOn, TWeakPtr<IPixelStreamingStatsConsumer> Callback);
+	void AddOnAnyStatChangedCallback_GameThread(TWeakPtr<IPixelStreamingStatsConsumer> Callback);
+	void RemoveOnAnyStatChangedCallback_GameThread(TWeakPtr<IPixelStreamingStatsConsumer> Callback);
+	void FireStatChanged_GameThread(FPlayerId PlayerId, FName StatName, float StatValue);
+
+private:
+	static FPixelStreamingStats* Instance;
+
+	IPixelStreamingSessions* Sessions;
+
+	bool bRegisterEngineStats = false;
+	FName PixelStreamingStatName = FName(TEXT("STAT_PixelStreaming"));
+	FName PixelStreamingStatCategory = FName(TEXT("STATCAT_PixelStreaming"));
+	FText PixelStreamingStatDescription = FText::FromString(FString(TEXT("Pixel Streaming stats for all connected peers.")));
+
+	TMap<FPlayerId, FPixelStreamingPeerStats> PeerStats;
+	TMap<FName, FRenderableStat> ApplicationStats;
+	TArray<TWeakPtr<IPixelStreamingStatsConsumer>> AllStatsConsumers;
+
+	int64 LastTimeSettingsPolledCycles = 0;
 };

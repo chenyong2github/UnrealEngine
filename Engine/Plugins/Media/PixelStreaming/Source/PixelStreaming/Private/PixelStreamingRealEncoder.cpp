@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "PixelStreamingRealEncoder.h"
 #include "Utils.h"
 #include "VulkanRHIPrivate.h"
 #include "PixelStreamingStats.h"
 #include "VideoEncoderFactory.h"
 #include "PixelStreamingEncoderFactory.h"
-#include "LatencyTester.h"
 
 namespace
 {
@@ -64,7 +64,18 @@ namespace
 		webrtc::EncodedImage Image;
 
 		webrtc::RTPFragmentationHeader FragHeader;
-		CreateH264FragmentHeader(InPacket.Data.Get(), InPacket.DataSize, FragHeader);
+		//CreateH264FragmentHeader(InPacket.Data.Get(), InPacket.DataSize, FragHeader);
+
+		std::vector<webrtc::H264::NaluIndex> NALUIndices = webrtc::H264::FindNaluIndices(InPacket.Data.Get(), InPacket.DataSize);
+		FragHeader.VerifyAndAllocateFragmentationHeader(NALUIndices.size());
+		FragHeader.fragmentationVectorSize = static_cast<uint16_t>(NALUIndices.size());
+		for (int i = 0; i != NALUIndices.size(); ++i)
+		{
+			webrtc::H264::NaluIndex const& NALUIndex = NALUIndices[i];
+			FragHeader.fragmentationOffset[i] = NALUIndex.payload_start_offset;
+			FragHeader.fragmentationLength[i] = NALUIndex.payload_size;
+		}
+
 
 		Image.timing_.packetization_finish_ms = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMilliseconds();
 		Image.timing_.encode_start_ms = InPacket.Timings.StartTs.GetTotalMilliseconds();
@@ -91,28 +102,6 @@ namespace
 		CodecInfo.codecSpecific.H264.base_layer_sync = false;
 
 		Factory->OnEncodedImage(SourceEncoderId, Image, &CodecInfo, &FragHeader);
-
-		FPixelStreamingStats& Stats = FPixelStreamingStats::Get();
-		const double EncoderLatencyMs = (InPacket.Timings.FinishTs.GetTotalMicroseconds() - InPacket.Timings.StartTs.GetTotalMicroseconds()) / 1000.0;
-		const double BitrateMbps = InPacket.DataSize * 8 * InPacket.Framerate / 1000000.0;
-
-		if (Stats.GetStatsEnabled())
-		{
-			Stats.SetEncoderLatency(SourceEncoderId, EncoderLatencyMs);
-			Stats.SetEncoderBitrateMbps(SourceEncoderId, BitrateMbps);
-			Stats.SetEncoderQP(SourceEncoderId, InPacket.VideoQP);
-			Stats.OnEncodingFinished(SourceEncoderId);
-			if(InPacket.IsKeyFrame)
-			{
-				Stats.OnKeyframeEncoded(SourceEncoderId);
-			}
-		}
-
-		// If we are running a latency test then record pre-encode timing
-		if (FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::POST_ENCODE)
-		{
-			FLatencyTester::RecordPostEncodeTime(InFrame->GetFrameID());
-		}
 	}
 }
 

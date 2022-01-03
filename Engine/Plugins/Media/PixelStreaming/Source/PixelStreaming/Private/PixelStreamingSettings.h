@@ -25,7 +25,7 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingEnableFillerData;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderMultipass;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingH264Profile;
-	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderKeyFrameInterval;
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderKeyframeInterval;
 // End Encoder CVars
 
 // Begin Capturer CVars
@@ -50,6 +50,7 @@ namespace PixelStreamingSettings
 // End WebRTC CVars
 
 // Begin Pixel Streaming Plugin CVars
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingAllowConsoleCommands;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingOnScreenStats;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingLogStats;
 
@@ -81,11 +82,6 @@ namespace PixelStreamingSettings
 	extern FSimulcastParameters SimulcastParameters;
 
 // Begin Command line args
-
-	inline bool IsAllowPixelStreamingCommands()
-	{
-		return FParse::Param(FCommandLine::Get(), TEXT("AllowPixelStreamingCommands"));
-	}
 
 	inline bool IsPixelStreamingHideCursor()
 	{

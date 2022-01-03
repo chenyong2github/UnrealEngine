@@ -50,11 +50,12 @@ public:
 	virtual bool SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const override;
 	virtual void SendLatestQP(FPlayerId PlayerId, int LatestQP) const override;
 	virtual void SendFreezeFrameTo(FPlayerId PlayerId, const TArray64<uint8>& JpegBytes) const override;
+	virtual void PollWebRTCStats() const override;
 	// End IPixelStreamingSessions interface.
 
+	void AddAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback);
+	void RemoveAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback);
 	void SendCachedFreezeFrameTo(FPlayerId PlayerId) const;
-
-	void SendLatestQPAllPlayers() const;
 
 private:
 
@@ -113,6 +114,7 @@ private:
 	FThreadSafeBool bStreamingStarted = false;
 
 	FThreadSafePlayerSessions PlayerSessions;
+	FPixelStreamingStats Stats;
 
 	TUniquePtr<webrtc::SessionDescriptionInterface> SFULocalDescription;
 	TUniquePtr<webrtc::SessionDescriptionInterface> SFURemoteDescription;
