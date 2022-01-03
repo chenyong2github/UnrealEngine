@@ -158,11 +158,11 @@ private:
 
 	const FSlateBrush* GetFilteredViewIcon() const;
 	EVisibility GetFilteredViewContextButtonVisibility() const;
+	bool GetSummaryViewChangeEnabledStateAllowed() const;
+	bool GetSummaryViewChangeDisplayNameAllowed() const;
+	bool GetSummaryViewChangeCategoryAllowed() const;
 	TSharedRef<SWidget> GetFilteredViewPropertiesContent();
-
-	ECheckBoxState GetFilteredViewVisibility() const;
-	void OnFilteredViewVisibilityChanged(ECheckBoxState NewState);
-
+	
 	FText GetFilteredViewDisplayName() const;
 	bool VerifyFilteredViewDisplayName(const FText& InText, FText& OutErrorMessage) const;
 	void FilteredViewDisplayNameTextCommitted(const FText& Text, ETextCommit::Type CommitType);
@@ -171,7 +171,7 @@ private:
 	bool VerifyFilteredViewCategory(const FText& InText, FText& OutErrorMessage) const;
 	void FilteredViewCategoryTextCommitted(const FText& Text, ETextCommit::Type CommitType);
 
-	int32 GetFilteredViewSortIndex() const;
+	TOptional<int32> GetFilteredViewSortIndex() const;
 	void FilteredViewSortIndexChanged(int32 Value);
 	void FilteredViewSortIndexCommitted(int32 Value, ETextCommit::Type CommitInfo);
 

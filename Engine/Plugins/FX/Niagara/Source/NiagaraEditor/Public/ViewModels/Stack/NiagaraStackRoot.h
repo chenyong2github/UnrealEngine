@@ -24,6 +24,7 @@ public:
 	UNiagaraStackRoot();
 	
 	void Initialize(FRequiredEntryData InRequiredEntryData, bool bInIncludeSystemInformation, bool bInIncludeEmitterInformation);
+	void FinalizeInternal() override;
 
 	virtual bool GetCanExpand() const override;
 	virtual bool GetShouldShowInStack() const override;

@@ -65,10 +65,8 @@ FFunctionInputSummaryViewMetadata UNiagaraEmitterEditorData::GetSummaryViewMetaD
 }
 
 void UNiagaraEmitterEditorData::SetSummaryViewMetaData(const FFunctionInputSummaryViewKey& Key, const FFunctionInputSummaryViewMetadata& NewMetadata)
-{
-	FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitter", "EmitterModuleNodeMetaDataChanged", "MetaData for summary view node changed."));
+{	
 	static const FFunctionInputSummaryViewMetadata Empty;
-
 	if (NewMetadata == Empty)
 	{
 		SummaryViewFunctionInputMetadata.Remove(Key);
@@ -77,15 +75,18 @@ void UNiagaraEmitterEditorData::SetSummaryViewMetaData(const FFunctionInputSumma
 	{
 		SummaryViewFunctionInputMetadata.FindOrAdd(Key) = NewMetadata;
 	}
+	
 	OnPersistentDataChanged().Broadcast();
-	// GraphSource->MarkNotSynchronized(TEXT("MetaData for summary view node changed."));
 	OnSummaryViewStateChangedDelegate.Broadcast();
-	// UNiagaraSystem::RequestCompileForEmitter(this);
 }
 
 void UNiagaraEmitterEditorData::ToggleShowSummaryView()
 {
+	FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitter", "EmitterModuleShowSummaryChanged", "Emitter summary view enabled/disabled."));
+	Modify();
+	
 	bShowSummaryView = !bShowSummaryView;
+	
 	OnPersistentDataChanged().Broadcast();
 	OnSummaryViewStateChangedDelegate.Broadcast();
 }

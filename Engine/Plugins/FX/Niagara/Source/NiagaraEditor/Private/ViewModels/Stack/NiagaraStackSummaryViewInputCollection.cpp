@@ -42,6 +42,12 @@ void UNiagaraStackSummaryViewObject::Initialize(FRequiredEntryData InRequiredEnt
 	GetEmitterViewModel()->GetOrCreateEditorData().OnSummaryViewStateChanged().AddUObject(this, &UNiagaraStackSummaryViewObject::OnViewStateChanged);
 }
 
+void UNiagaraStackSummaryViewObject::FinalizeInternal()
+{
+	GetEmitterViewModel()->GetOrCreateEditorData().OnSummaryViewStateChanged().RemoveAll(this);
+	Super::FinalizeInternal();
+}
+
 FText UNiagaraStackSummaryViewObject::GetDisplayName() const
 {
 	return LOCTEXT("FilteredInputCollectionDisplayName", "Filtered Inputs");
@@ -84,7 +90,7 @@ void UNiagaraStackSummaryViewObject::RefreshChildrenInternal(const TArray<UNiaga
 
 	if (NewChildren.Num() == 0)
 	{
-		FText EmptyAssignmentNodeMessageText = LOCTEXT("EmptySummaryNodeMessage", "No Parameters in Summary View.\n\nTo add a parameter use the icon to the right of an available parameter in the stack. You can also set the DisplayName, SortIndex, and Category from the same dropdown, as well as here in the summary view after adding the parameters.");
+		FText EmptyAssignmentNodeMessageText = LOCTEXT("EmptySummaryNodeMessage", "No Parameters in Emitter Summary.\n\nTo add a parameter use the context menu for an available parameter in the stack. Once in the summary view you can use the drop down menu from the icon next to a parameter to set the DisplayName, SortIndex, and Category.");
 		UNiagaraStackItemTextContent* EmtpySummaryMessage = FindCurrentChildOfTypeByPredicate<UNiagaraStackItemTextContent>(CurrentChildren,
 			[&](UNiagaraStackItemTextContent* CurrentStackItemTextContent) { return CurrentStackItemTextContent->GetDisplayName().IdenticalTo(EmptyAssignmentNodeMessageText); });
 		

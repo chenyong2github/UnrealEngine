@@ -55,6 +55,15 @@ void UNiagaraStackRoot::Initialize(FRequiredEntryData InRequiredEntryData, bool 
 	}	
 }
 
+void UNiagaraStackRoot::FinalizeInternal()
+{
+	if (bIncludeEmitterInformation && GetEmitterViewModel())
+	{
+		GetEmitterViewModel()->GetOrCreateEditorData().OnSummaryViewStateChanged().RemoveAll(this);
+	}	
+	Super::FinalizeInternal();
+}
+
 bool UNiagaraStackRoot::GetCanExpand() const
 {
 	return false;

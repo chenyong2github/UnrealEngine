@@ -34,14 +34,32 @@ static FText GetUserFriendlyFunctionName(UNiagaraNodeFunctionCall* Node)
 	return FText::FromString(Node->GetFunctionName());
 }
 
-static bool ShouldShowInSummaryView(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall* InputFunctionCallNode, TOptional<FNiagaraVariableMetaData>& VariableMetadata)
+static TOptional<FFunctionInputSummaryViewKey> GetSummaryViewInputKeyForFunctionInput(UNiagaraNodeFunctionCall* FunctionCall, const FNiagaraVariable& InputVariable, const TOptional<FNiagaraVariableMetaData>& InputMetaData)
 {
-	if (Emitter && VariableMetadata.IsSet())
+	FGuid NodeGuid = FunctionCall->NodeGuid;
+	
+	if (FunctionCall->IsA<UNiagaraNodeAssignment>())
 	{
-		UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData());
-		if (EditorData)
+		return FFunctionInputSummaryViewKey(NodeGuid, InputVariable.GetName());
+	}
+	
+	if (InputMetaData.IsSet())
+	{
+		return FFunctionInputSummaryViewKey(NodeGuid, InputMetaData->GetVariableGuid());
+	}
+	
+	return TOptional<FFunctionInputSummaryViewKey>();
+}
+
+static bool ShouldShowInSummaryView(UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall* FunctionCall, const FNiagaraVariable& InputVariable, const TOptional<FNiagaraVariableMetaData>& InputMetaData)
+{
+	UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
+	if (EditorData && InputMetaData.IsSet())
+	{
+		TOptional<FFunctionInputSummaryViewKey> SummaryViewKey = GetSummaryViewInputKeyForFunctionInput(FunctionCall, InputVariable, InputMetaData);
+		if (SummaryViewKey.IsSet())
 		{
-			return EditorData->GetSummaryViewMetaData(FFunctionInputSummaryViewKey(InputFunctionCallNode->NodeGuid, VariableMetadata->GetVariableGuid())).bVisible;
+			return EditorData->GetSummaryViewMetaData(SummaryViewKey.GetValue()).bVisible;
 		}
 	}
 	return false;
@@ -249,31 +267,30 @@ void UNiagaraStackFunctionInputCollectionBase::RefreshChildrenForFunctionCall(UN
 		int32 EditorSortPriority = InputMetaData.IsSet() ? InputMetaData->EditorSortPriority : 0;
 		TOptional<FText> DisplayName;
 
-		if (Emitter && InputMetaData.IsSet() && bShouldApplySummaryFilter)
+		UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
+
+		const auto& SummaryViewKey = GetSummaryViewInputKeyForFunctionInput(InputFunctionCallNode, InputVariable, InputMetaData);
+		if (EditorData && bShouldApplySummaryFilter && SummaryViewKey.IsSet())
 		{
-			UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData());
-			if (EditorData)
+			FFunctionInputSummaryViewMetadata SummaryViewData = EditorData->GetSummaryViewMetaData(SummaryViewKey.GetValue());
+			if (SummaryViewData.Category != NAME_None)
 			{
-				FFunctionInputSummaryViewMetadata SummaryViewData = EditorData->GetSummaryViewMetaData(FFunctionInputSummaryViewKey(FFunctionInputSummaryViewKey(InputFunctionCallNode->NodeGuid, InputMetaData->GetVariableGuid())));
-				if (SummaryViewData.Category != NAME_None)
-				{
-					InputCategory = FText::FromName(SummaryViewData.Category);
-				}
-				else
-				{
-					InputCategory = InputCategory.EqualTo(UncategorizedName)? FText::FromString(*InputFunctionCallNode->GetFunctionName()) : FText::FromString(*(InputFunctionCallNode->GetFunctionName() + TEXT(" - ") + InputCategory.ToString()));
-				}
-				EditorSortPriority = SummaryViewData.SortIndex;
-				DisplayName = (SummaryViewData.DisplayName != NAME_None) ? FText::FromName(SummaryViewData.DisplayName) : TOptional<FText>();
+				InputCategory = FText::FromName(SummaryViewData.Category);
 			}
+			else
+			{
+				InputCategory = InputCategory.EqualTo(UncategorizedName)? FText::FromString(*InputFunctionCallNode->GetFunctionName()) : FText::FromString(*(InputFunctionCallNode->GetFunctionName() + TEXT(" - ") + InputCategory.ToString()));
+			}
+			EditorSortPriority = SummaryViewData.SortIndex != INDEX_NONE? SummaryViewData.SortIndex : EditorSortPriority;
+			DisplayName = (SummaryViewData.DisplayName != NAME_None) ? FText::FromName(SummaryViewData.DisplayName) : TOptional<FText>();		
 		}
 
-		bool bShouldShowInSummary = ShouldShowInSummaryView(Emitter, InputFunctionCallNode, InputMetaData);
+		bool bShouldShowInSummary = ShouldShowInSummaryView(Emitter, InputFunctionCallNode, InputVariable, InputMetaData);
 		if (bShouldShowInSummary)
 		{
 			SummaryViewPins.Add(InputPin);
 		}		
-		bool bIsInputHidden = HiddenPins.Contains(InputPin) || (bShouldApplySummaryFilter && !bShouldShowInSummary);
+		bool bIsInputHidden = HiddenPins.Contains(InputPin);
 		FInputData InputData = { InputPin, InputVariable.GetType(), EditorSortPriority, DisplayName, InputCategory, false, bIsInputHidden, bShouldShowInSummary };
 		int32 Index = InputDataCollection.Add(InputData);
 
@@ -327,43 +344,37 @@ void UNiagaraStackFunctionInputCollectionBase::RefreshChildrenForFunctionCall(UN
 			InputMetaData = InputFunctionGraph->GetMetaData(InputVariable);
 		}
 
-		FText InputCategory = InputMetaData.IsSet() && InputMetaData->CategoryName.IsEmptyOrWhitespace() == false
+		FText InputCategory = (InputMetaData.IsSet() && InputMetaData->CategoryName.IsEmptyOrWhitespace() == false)
 			? InputMetaData->CategoryName
 			: UncategorizedName;
 
 		int32 EditorSortPriority = InputMetaData.IsSet() ? InputMetaData->EditorSortPriority : 0;
 		TOptional<FText> DisplayName;
+		
+		UNiagaraEmitterEditorData* EditorData = Emitter? Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData()) : nullptr;
 
-		if (Emitter && InputMetaData.IsSet() && bShouldApplySummaryFilter)
+		const auto& SummaryViewKey = GetSummaryViewInputKeyForFunctionInput(InputFunctionCallNode, InputVariable, InputMetaData);
+		if (EditorData && bShouldApplySummaryFilter && SummaryViewKey.IsSet())
 		{
-			UNiagaraEmitterEditorData* EditorData = Cast<UNiagaraEmitterEditorData>(Emitter->GetEditorData());
-			if (EditorData)
+			FFunctionInputSummaryViewMetadata SummaryViewData = EditorData->GetSummaryViewMetaData(SummaryViewKey.GetValue());
+			if (SummaryViewData.Category != NAME_None)
 			{
-				FFunctionInputSummaryViewMetadata SummaryViewData = EditorData->GetSummaryViewMetaData(FFunctionInputSummaryViewKey(FFunctionInputSummaryViewKey(InputFunctionCallNode->NodeGuid, InputMetaData->GetVariableGuid())));
-				if (SummaryViewData.Category != NAME_None)
-				{
-					InputCategory = FText::FromName(SummaryViewData.Category);
-				}
-				else
-				{
-					InputCategory = InputCategory.EqualTo(UncategorizedName)? FText::FromString(*InputFunctionCallNode->GetFunctionName()) : FText::FromString(*(InputFunctionCallNode->GetFunctionName() + TEXT(" - ") + InputCategory.ToString()));
-				}
-				EditorSortPriority = SummaryViewData.SortIndex;
-				DisplayName = (SummaryViewData.DisplayName != NAME_None) ? FText::FromName(SummaryViewData.DisplayName) : TOptional<FText>();
+				InputCategory = FText::FromName(SummaryViewData.Category);
 			}
-		}
-
-		if (DisplayName.IsSet())
-		{
-			check(true);
+			else
+			{
+				InputCategory = InputCategory.EqualTo(UncategorizedName)? FText::FromString(*InputFunctionCallNode->GetFunctionName()) : FText::FromString(*(InputFunctionCallNode->GetFunctionName() + TEXT(" - ") + InputCategory.ToString()));
+			}
+			EditorSortPriority = SummaryViewData.SortIndex != INDEX_NONE? SummaryViewData.SortIndex : EditorSortPriority;
+			DisplayName = (SummaryViewData.DisplayName != NAME_None) ? FText::FromName(SummaryViewData.DisplayName) : TOptional<FText>();		
 		}
 		
-		bool bShouldShowInSummary = ShouldShowInSummaryView(Emitter, InputFunctionCallNode, InputMetaData);
+		bool bShouldShowInSummary = ShouldShowInSummaryView(Emitter, InputFunctionCallNode, InputVariable, InputMetaData);
 		if (bShouldShowInSummary)
 		{
 			SummaryViewPins.Add(InputPin);
 		}		
-		bool bIsInputHidden = HiddenSwitchPins.Contains(InputPin) || (bShouldApplySummaryFilter && !bShouldShowInSummary);
+		bool bIsInputHidden = HiddenSwitchPins.Contains(InputPin);
 		FInputData InputData = { InputPin, InputVariable.GetType(), EditorSortPriority, DisplayName, InputCategory, true, bIsInputHidden, bShouldShowInSummary };
 		int32 Index = InputDataCollection.Add(InputData);
 
@@ -415,29 +426,28 @@ void UNiagaraStackFunctionInputCollectionBase::RefreshChildrenForFunctionCall(UN
 	}
 
 
-
-	static TFunction<bool(const FInputData*)> HasChildShownInSummary = [](const FInputData* Input) -> bool
+	if (bShouldApplySummaryFilter)
 	{
-		if (Input->bShouldShowInSummary)
-		{
-			return true;
-		}
-		for (const FInputData* Child : Input->Children)
-		{
-			if (HasChildShownInSummary(Child))
-			{
-				return true;
-			}
-		}
-		return false;		
-	};
+		static TFunction<void(FInputData*)> PropagateSummaryViewShowToChildren = [](FInputData* Input)
+		{		
+			bool bShouldShowChildren = !Input->bIsHidden && Input->bShouldShowInSummary;
 
-	// Propagate summary visibility up the parents
-	for (FInputData& InputData : InputDataCollection)
-	{		
-		if (HasChildShownInSummary(&InputData))
+			Input->bIsHidden = !bShouldShowChildren;
+
+			for (FInputData* Child : Input->Children)
+			{
+				Child->bShouldShowInSummary = bShouldShowChildren;
+				PropagateSummaryViewShowToChildren(Child);
+			}		
+		};
+
+		// Propagate summary visibility to children
+		for (FInputData& InputData : InputDataCollection)
 		{
-			InputData.bIsHidden = false;
+			if (!InputData.bIsChild)
+			{
+				PropagateSummaryViewShowToChildren(&InputData);
+			}
 		}
 	}
 

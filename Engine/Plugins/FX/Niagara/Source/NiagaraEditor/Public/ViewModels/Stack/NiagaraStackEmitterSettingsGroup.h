@@ -134,23 +134,4 @@ public:
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
-
-
-private:
-	// UPROPERTY()
-	// UNiagaraStackItemGroupFooter* GroupFooter;
-
 };
-
-// UCLASS()
-// class NIAGARAEDITOR_API UNiagaraStackItemGroupFooter : public UNiagaraStackEntry
-// {
-// 	GENERATED_BODY()
-//
-// public:
-// 	void Initialize(FRequiredEntryData InRequiredEntryData);
-//
-// 	virtual EStackRowStyle GetStackRowStyle() const override;
-//
-// 	virtual bool GetCanExpand() const;
-// };
