@@ -179,19 +179,14 @@ void FAllocationsQuery::Run()
 		}
 	}
 
-	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Done"));
-
 	AllocationsProvider.EndRead();
 
 	IsWorking = false;
 
 	uint64 EndTime = FPlatformTime::Cycles64();
 	const double TotalTime = static_cast<double>(EndTime - StartTime) * FPlatformTime::GetSecondsPerCycle64();
-	if (TotalTime > 0.1)
-	{
-		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Allocations query completed in %.3fs (%u cells, %u allocations)"),
-			TotalTime, CellCount, TotalAllocationCount);
-	}
+	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Allocations query completed in %.3fs (%u cells, %u allocations)"),
+		TotalTime, CellCount, TotalAllocationCount);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -264,6 +259,21 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, &OutAllocs](const FAllocationItem& Alloc)
 		{
 			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeB)
+			{
+				OutAllocs.Add(&Alloc);
+			}
+		});
+	}
+	break;
+
+	case IAllocationsProvider::EQueryRule::aAfaBf: // decline + growth
+	{
+		const double TimeA = Params.TimeA;
+		const double TimeB = Params.TimeB;
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, &OutAllocs](const FAllocationItem& Alloc)
+		{
+			if ((Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeA && Alloc.EndTime <= TimeB) || // decline
+				(Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeB)) // growth
 			{
 				OutAllocs.Add(&Alloc);
 			}

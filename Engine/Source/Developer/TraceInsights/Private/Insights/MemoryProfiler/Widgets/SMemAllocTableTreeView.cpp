@@ -137,6 +137,8 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 			const int32 TotalAllocCount = Allocs.Num();
 			if (TotalAllocCount != TableTreeNodes.Num())
 			{
+				UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Creating nodes (%d nodes --> %d allocs)..."), TableTreeNodes.Num(), TotalAllocCount);
+
 				if (TableTreeNodes.Num() > TotalAllocCount)
 				{
 					TableTreeNodes.Empty();
@@ -149,8 +151,6 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 				for (int32 AllocIndex = TableTreeNodes.Num(); AllocIndex < TotalAllocCount; ++AllocIndex)
 				{
 					const FMemoryAlloc* Alloc = MemAllocTable->GetMemAlloc(AllocIndex);
-					FName NodeName(Alloc->bIsBlock ? BaseHeapName : BaseNodeName, Alloc->GetStartEventIndex() + 1);
-					FMemAllocNodePtr NodePtr = MakeShared<FMemAllocNode>(NodeName, MemAllocTable, AllocIndex);
 
 					// Until we have an UX story around heap allocations
 					// remove them from the list
@@ -160,6 +160,8 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 						continue;
 					}
 
+					FName NodeName(Alloc->bIsBlock ? BaseHeapName : BaseNodeName, Alloc->GetStartEventIndex() + 1);
+					FMemAllocNodePtr NodePtr = MakeShared<FMemAllocNode>(NodeName, MemAllocTable, AllocIndex);
 					TableTreeNodes.Add(NodePtr);
 				}
 				ensure(TableTreeNodes.Num() == TotalAllocCount - HeapAllocCount);
@@ -200,7 +202,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 	if (TotalTime > 0.01)
 	{
 		const double SyncTime = SyncStopwatch.GetAccumulatedTime();
-		UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Tree view rebuilt in %.3fs (%.3fs + %.3fs) --> %d allocs (%d added)"),
+		UE_LOG(MemoryProfiler, Log, TEXT("[MemAlloc] Tree view rebuilt in %.3fs (%.3fs + %.3fs) --> %d nodes (%d added)"),
 			TotalTime, SyncTime, TotalTime - SyncTime, TableTreeNodes.Num(), TableTreeNodes.Num() - PreviousNodeCount);
 	}
 }
@@ -276,6 +278,8 @@ void SMemAllocTableTreeView::StartQuery()
 		QueryStopwatch.Reset();
 		QueryStopwatch.Start();
 	}
+
+	//TODO: update window title
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -357,12 +361,21 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.StartTime = Allocation->GetStartTime();
 					Alloc.EndTime = Allocation->GetEndTime();
 					Alloc.Address = Allocation->GetAddress();
-					Alloc.Size = Allocation->GetSize();
+					Alloc.Size = int64(Allocation->GetSize());
 					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
 					Alloc.Callstack = Allocation->GetCallstack();
 					Alloc.RootHeap = Allocation->GetRootHeap();
 					Alloc.bIsBlock = Allocation->IsHeap();
 					check(Alloc.Callstack != nullptr);
+
+					if (Rule->GetValue() == TraceServices::IAllocationsProvider::EQueryRule::aAfaBf)
+					{
+						if (Alloc.StartTime <= TimeMarkers[0] && Alloc.EndTime <= TimeMarkers[1]) // decline
+						{
+							Alloc.Size = -Alloc.Size;
+							Alloc.bIsDecline = true;
+						}
+					}
 				}
 
 				PageStopwatch.Stop();

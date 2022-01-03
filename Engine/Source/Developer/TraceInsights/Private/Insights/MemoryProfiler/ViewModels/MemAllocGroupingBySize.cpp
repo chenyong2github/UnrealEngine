@@ -101,7 +101,7 @@ void FMemAllocGroupingBySize::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 		const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
 		if (Alloc)
 		{
-			const uint64 Size = Alloc->GetSize();
+			const uint64 Size = FMath::Abs(Alloc->GetSize());
 
 			uint32 ThresholdIndex;
 			if (bIsPow2)

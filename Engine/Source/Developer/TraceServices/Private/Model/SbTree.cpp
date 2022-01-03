@@ -168,6 +168,21 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	}
 	break;
 
+	case IAllocationsProvider::EQueryRule::aAfaBf: // decline + growth
+	{
+		const double TimeA = Params.TimeA;
+		const double TimeB = Params.TimeB;
+		for (const FAllocationItem* Alloc : Allocs)
+		{
+			if ((Alloc->StartTime <= TimeA && Alloc->EndTime >= TimeA && Alloc->EndTime <= TimeB) || // decline
+				(Alloc->StartTime >= TimeA && Alloc->StartTime <= TimeB && Alloc->EndTime >= TimeB)) // growth
+			{
+				OutAllocs.Add(Alloc);
+			}
+		}
+	}
+	break;
+
 	case IAllocationsProvider::EQueryRule::AfB: // free events
 	{
 		const double TimeA = Params.TimeA;
@@ -520,6 +535,14 @@ void FSbTree::Query(TArray<const FSbTreeCell*>& OutCells, const IAllocationsProv
 		}
 		break;
 
+		case IAllocationsProvider::EQueryRule::aAfaBf: // decline + growth
+		{
+			int32 Column1;
+			GetColumnsAtTime(Params.TimeA, &Column1, nullptr);
+			IterateCells(OutCells, Column1, CurrentColumn);
+		}
+		break;
+
 		case IAllocationsProvider::EQueryRule::AfB: // free events
 		{
 			int32 Column1;
@@ -688,13 +711,11 @@ void FSbTree::IterateCells(TArray<const FSbTreeCell*> & OutCells, int32 StartCol
 	const uint32 NumOffsettedCells = static_cast<uint32>(OffsettedCells.Num());
 	for (uint32 Depth = 1; Depth <= MaxDepth; ++Depth) // offsetted cells doesn't exist on Depth 0
 	{
-		uint32 HalfCellWidth = (1 << Depth) >> 1;
-		if (HalfCellWidth > LocalStartColumn)
-		{
-			break;
-		}
-		uint32 FirstCellIndex = FSbTreeUtils::GetCellAtDepth(LocalStartColumn - HalfCellWidth, Depth);
-		uint32 LastCellIndex = FMath::Min(FSbTreeUtils::GetCellAtDepth(LocalEndColumn - HalfCellWidth, Depth) + 1, NumOffsettedCells);
+		const uint32 HalfCellWidth = (1 << Depth) >> 1;
+		const uint32 OffsettedStartColumn = (LocalStartColumn > HalfCellWidth) ? LocalStartColumn - HalfCellWidth : 0;
+		const uint32 FirstCellIndex = FSbTreeUtils::GetCellAtDepth(OffsettedStartColumn, Depth);
+		const uint32 OffsettedEndColumn = (LocalEndColumn > HalfCellWidth) ? LocalEndColumn - HalfCellWidth : 0;
+		const uint32 LastCellIndex = FMath::Min(FSbTreeUtils::GetCellAtDepth(OffsettedEndColumn, Depth) + 1, NumOffsettedCells);
 		const uint32 CellIncrement = 1 << (Depth + 1);
 		for (uint32 CellIndex = FirstCellIndex; CellIndex < LastCellIndex; CellIndex += CellIncrement)
 		{

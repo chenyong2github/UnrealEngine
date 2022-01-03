@@ -67,6 +67,7 @@ public:
 		Aaf,     // after
 		aAfB,    // decline
 		AaBf,    // growth
+		aAfaBf,  // decline + growth (used as "growth vs. decline")
 		AfB,     // free events
 		AaB,     // alloc events
 		AafB,    // short living allocs
