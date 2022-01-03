@@ -35,9 +35,6 @@ namespace Chaos
 	int32 UseConnectivity = 1;
 	FAutoConsoleVariableRef CVarUseConnectivity(TEXT("p.UseConnectivity"), UseConnectivity, TEXT("Whether to use connectivity graph when breaking up clusters"));
 
-	CHAOS_API FRealSingle ChaosClusteringChildrenInheritVelocity = 1.f;
-	FAutoConsoleVariableRef CVarChildrenInheritVelocity(TEXT("p.ChildrenInheritVelocity"), ChaosClusteringChildrenInheritVelocity, TEXT("Whether children inherit parent collision velocity when declustering. 0 has no impact velocity like glass, 1 has full impact velocity like brick"));
-
 	int32 ComputeClusterCollisionStrains = 1;
 	FAutoConsoleVariableRef CVarComputeClusterCollisionStrains(TEXT("p.ComputeClusterCollisionStrains"), ComputeClusterCollisionStrains, TEXT("Whether to use collision constraints when processing clustering."));
 
@@ -68,126 +65,6 @@ namespace Chaos
 	int32 DeactivateClusterChildren = 0;
 	FAutoConsoleVariableRef CVarDeactivateClusterChildren(TEXT("p.DeactivateClusterChildren"), DeactivateClusterChildren, TEXT("If children should be decativated when broken and put into another cluster."));
 
-	//==========================================================================
-	// Free helper functions
-	//==========================================================================
-
-	template<class T, int d>
-	FVec3 GetContactLocation(const FPBDCollisionConstraint& Contact)
-	{
-		return Contact.GetLocation();
-	}
-
-	template<class T, int d>
-	FVec3 GetContactLocation(const FRigidBodyContactConstraintPGS& Contact)
-	{
-		// @todo(mlentine): Does the exact point matter?
-		T MinPhi = FLT_MAX;
-		FVec3 MinLoc;
-		for (int32 i = 0; i < Contact.Phi.Num(); ++i)
-		{
-			if (Contact.Phi[i] < MinPhi)
-			{
-				MinPhi = Contact.Phi[i];
-				MinLoc = Contact.Location[i];
-			}
-		}
-		return MinLoc;
-	}
-
-	template<class T, int d>
-	T CalculatePseudoMomentum(const TPBDRigidClusteredParticles<T, d>& InParticles, const uint32 Index)
-	{
-		FVec3 LinearPseudoMomentum = (InParticles.X(Index) - InParticles.P(Index)) * InParticles.M(Index);
-		FRotation3 Delta = InParticles.R(Index) * InParticles.Q(Index).Inverse();
-		FVec3 Axis;
-		T Angle;
-		Delta.ToAxisAndAngle(Axis, Angle);
-		FVec3 AngularPseudoMomentum = InParticles.I(Index) * (Axis * Angle);
-		return LinearPseudoMomentum.Size() + AngularPseudoMomentum.Size();
-	}
-
-	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::RewindAndEvolve<BGF>()"), STAT_RewindAndEvolve_BGF, STATGROUP_Chaos);
-	template<typename T, int d>
-	void RewindAndEvolve(
-		FPBDRigidsEvolutionGBF& Evolution, 
-		TPBDRigidClusteredParticles<T, d>& InParticles, 
-		const TSet<int32>& IslandsToRecollide, 
-		const TSet<FPBDRigidParticleHandle*> AllActivatedChildren,
-		const T Dt, 
-		FPBDCollisionConstraints& CollisionRule)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_RewindAndEvolve_BGF);
-		// Rewind active particles
-		const TArray<int32> IslandsToRecollideArray = IslandsToRecollide.Array();
-		PhysicsParallelFor(IslandsToRecollideArray.Num(), [&](int32 Idx) {
-			int32 Island = IslandsToRecollideArray[Idx];
-			auto Particles = Evolution.GetIslandParticles(Island); // copy
-			for (int32 ArrayIdx = Particles.Num() - 1; ArrayIdx >= 0; --ArrayIdx)
-			{
-				auto PBDRigid = Particles[ArrayIdx]->CastToRigidParticle();
-				if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
-				{
-					if (!PBDRigid->Sleeping() && !PBDRigid->Disabled())
-					{
-						PBDRigid->P() = PBDRigid->X();
-						PBDRigid->Q() = PBDRigid->R();
-						PBDRigid->V() = PBDRigid->PreV();
-						PBDRigid->W() = PBDRigid->PreW();
-						continue;
-					}
-				}
-				Particles.RemoveAtSwap(ArrayIdx);
-			}
-			Evolution.Integrate(MakeHandleView(Particles), Dt);
-		});
-
-		TSet<FGeometryParticleHandle*> AllIslandParticles;
-		for (int32 Island = 0; Island < Evolution.NumIslands(); ++Island)
-		{
-			const auto& ParticleIndices = Evolution.GetIslandParticles(Island);
-			for (const auto Particle : ParticleIndices)
-			{
-				auto PBDRigid = Particle->CastToRigidParticle();
-				if(PBDRigid && PBDRigid->ObjectState() == EObjectStateType::Dynamic)
-				{
-					bool bDisabled = PBDRigid->Disabled();
-
-					// #TODO - Have to repeat checking out whether the particle is disabled matching the PFor above.
-					// Move these into shared array so we only process it once
-					if (!AllIslandParticles.Contains(Particle) && !bDisabled)
-					{
-						AllIslandParticles.Add(Particle);
-					}
-				}
-			}
-		}
-
-		const bool bRewindOnDeclusterSolve = ChaosClusteringChildrenInheritVelocity < 1.f;
-		if (bRewindOnDeclusterSolve)
-		{
-			// @todo(mlentine): We can precompute internal constraints which can filter some from the narrow phase tests but may not help much
-
-#if CHAOS_PARTICLEHANDLE_TODO
-			//CollisionRule.UpdateConstraints(InParticles, Evolution.GetNonDisabledIndices(), Dt, AllActivatedChildren, AllIslandParticles.Array());
-#else
-			//CollisionRule.UpdateConstraints(Dt, AllIslandParticles);	//this seems wrong
-#endif
-
-			Evolution.InitializeAccelerationStructures();
-
-			// Resolve collisions
-			PhysicsParallelFor(IslandsToRecollide.Num(), [&](int32 Island) {
-				// @todo(mlentine): This is heavy handed and probably can be simplified as we know only a little bit changed.
-				Evolution.UpdateAccelerationStructures(Dt, Island);
-				Evolution.ApplyConstraintsPhase1(Dt, Island);
-				// @todo(ccaulfield): should we also update velocities here? Evolution does...
-				Evolution.ApplyConstraintsPhase2(Dt, Island);
-				// @todo(ccaulfield): support sleep state update on evolution
-				//Evolution.UpdateSleepState(Island);
-			});
-		}
-	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateClusterMassProperties()"), STAT_UpdateClusterMassProperties, STATGROUP_Chaos);
 	void UpdateClusterMassProperties(
@@ -454,6 +331,21 @@ namespace Chaos
 
 		NewParticle->SetSleeping(bClusterIsAsleep);
 
+		auto AddToClusterUnion = [&](int32 ClusterID, FPBDRigidClusteredParticleHandle* Handle)
+		{
+			if (ClusterID <= 0)
+			{
+				return;
+			}
+
+			if (!ClusterUnionMap.Contains(ClusterID))
+			{
+				ClusterUnionMap.Add(ClusterID, TArray<FPBDRigidClusteredParticleHandle*>());
+			}
+
+			ClusterUnionMap[ClusterID].Add(Handle);
+		};
+
 		if(ClusterGroupIndex)
 		{
 			AddToClusterUnion(ClusterGroupIndex, NewParticle);
@@ -649,11 +541,7 @@ namespace Chaos
 		TArray<FPBDRigidParticleHandle*>& Children = MChildren[ClusteredParticle];
 
 		bool bChildrenChanged = false;
-		const bool bRewindOnDecluster = ChaosClusteringChildrenInheritVelocity < 1;
-		const FRigidTransform3 PreSolveTM = 
-			bRewindOnDecluster ? 
-			FRigidTransform3(ClusteredParticle->X(), ClusteredParticle->R()) : 
-			FRigidTransform3(ClusteredParticle->P(), ClusteredParticle->Q());
+		const FRigidTransform3 PreSolveTM = FRigidTransform3(ClusteredParticle->P(), ClusteredParticle->Q());
 
 		//@todo(ocohen): iterate with all the potential parents at once?
 		//find all children within some distance of contact point
@@ -671,11 +559,8 @@ namespace Chaos
 			Child->SetX(ChildFrame.GetTranslation());
 			Child->SetR(ChildFrame.GetRotation());
 
-			if (!bRewindOnDecluster)
-			{
-				Child->SetP(Child->X());
-				Child->SetQ(Child->R());
-			}
+			Child->SetP(Child->X());
+			Child->SetQ(Child->R());
 
 			//todo(ocohen): for now just inherit velocity at new COM. This isn't quite right for rotation
 			//todo(ocohen): in the presence of collisions, this will leave all children with the post-collision
@@ -925,11 +810,7 @@ namespace Chaos
 		TArray<FPBDRigidParticleHandle*>& Children = MChildren[ClusteredParticle];
 
 		bool bChildrenChanged = false;
-		const bool bRewindOnDecluster = ChaosClusteringChildrenInheritVelocity < 1;
-		const FRigidTransform3 PreSolveTM =
-			bRewindOnDecluster ?
-			FRigidTransform3(ClusteredParticle->X(), ClusteredParticle->R()) :
-			FRigidTransform3(ClusteredParticle->P(), ClusteredParticle->Q());
+		const FRigidTransform3 PreSolveTM = FRigidTransform3(ClusteredParticle->P(), ClusteredParticle->Q());
 
 		//@todo(ocohen): iterate with all the potential parents at once?
 		//find all children within some distance of contact point
@@ -947,11 +828,8 @@ namespace Chaos
 			Child->SetX(ChildFrame.GetTranslation());
 			Child->SetR(ChildFrame.GetRotation());
 
-			if (!bRewindOnDecluster)
-			{
-				Child->SetP(Child->X());
-				Child->SetQ(Child->R());
-			}
+			Child->SetP(Child->X());
+			Child->SetQ(Child->R());
 
 			//todo(ocohen): for now just inherit velocity at new COM. This isn't quite right for rotation
 			//todo(ocohen): in the presence of collisions, this will leave all children with the post-collision
@@ -1177,7 +1055,6 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::AdvanceClustering"), STAT_AdvanceClustering, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::Update Impulse from Strain"), STAT_UpdateImpulseStrain, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::Update Dirty Impulses"), STAT_UpdateDirtyImpulses, STATGROUP_Chaos);
-	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::Rewind"), STAT_ClusterRewind, STATGROUP_Chaos);
 	void 
 	FRigidClustering::AdvanceClustering(
 		const FReal Dt, 
@@ -1225,83 +1102,36 @@ namespace Chaos
 			//
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateDirtyImpulses);
-				for (const auto& ActiveCluster : GetTopLevelClusterParents() )
+				for (const auto& ActiveCluster : GetTopLevelClusterParents())
 				{
 					if (!ActiveCluster->Disabled())
-				{
-					if (ActiveCluster->ClusterIds().NumChildren > 0) //active index is a cluster
 					{
+						if (ActiveCluster->ClusterIds().NumChildren > 0) //active index is a cluster
+						{
 							TArray<FRigidHandle>& ParentToChildren = MChildren[ActiveCluster];
 							for (FRigidHandle Child : ParentToChildren)
-						{
-								if (FClusterHandle ClusteredChild = Child->CastToClustered())
 							{
-								if (ClusteredChild->Strain() <= 0.f)
+								if (FClusterHandle ClusteredChild = Child->CastToClustered())
 								{
-									ClusteredChild->CollisionImpulse() = FLT_MAX;
-									MCollisionImpulseArrayDirty = true;
+									if (ClusteredChild->Strain() <= 0.f)
+									{
+										ClusteredChild->CollisionImpulse() = FLT_MAX;
+										MCollisionImpulseArrayDirty = true;
+									}
 								}
 							}
 						}
 					}
 				}
 			}
-			}
 
 			if (MCollisionImpulseArrayDirty)
 			{
-
 				SCOPE_CYCLE_COUNTER(STAT_UpdateDirtyImpulses);
 				TMap<FPBDRigidClusteredParticleHandle*, TSet<FPBDRigidParticleHandle*>> ClusterToActivatedChildren = 
 					BreakingModel();
-
-				TSet<FPBDRigidParticleHandle*> AllActivatedChildren;
-				TSet<int32> IslandsToRecollide;
-				for (auto Itr : ClusterToActivatedChildren)
-				{
-					//question: do we need to iterate all the children? Seems like island is known from cluster, but don't want to break anything at this point
-					TSet<FPBDRigidParticleHandle*>& ActivatedChildren = Itr.Value;
-					for (FPBDRigidParticleHandle* ActiveChild : ActivatedChildren)
-					{
-						if (ensure(!ActiveChild->Disabled()))
-						{
-							int32 Island = ActiveChild->IslandIndex();
-							if (!IslandsToRecollide.Contains(Island) && Island != INDEX_NONE) // todo ask mike
-							{
-								IslandsToRecollide.Add(Island);
-							}
-						}
-					}
-					AllActivatedChildren.Append(ActivatedChildren);
-				}
-
-				const bool bRewindOnDecluster = ChaosClusteringChildrenInheritVelocity < 1.f;
-				if (bRewindOnDecluster && AllActivatedChildren.Num())
-				{
-					SCOPE_CYCLE_COUNTER(STAT_ClusterRewind);
-
-					if (MEvolution.NumIslands())
-					{
-						RewindAndEvolve(MEvolution, MParticles, IslandsToRecollide, AllActivatedChildren, Dt, CollisionRule);
-					}
-
-					if (ChaosClusteringChildrenInheritVelocity > 0.f)
-					{
-						for (auto Itr : ClusterToActivatedChildren)
-						{
-							FPBDRigidClusteredParticleHandle* ClusteredParticle = Itr.Key;
-							TSet<FPBDRigidParticleHandle*>& ActivatedChildren = Itr.Value;
-							for (FPBDRigidParticleHandle* ActiveChild : ActivatedChildren)
-							{
-								ActiveChild->SetV(
-									ActiveChild->V() * (1.f - ChaosClusteringChildrenInheritVelocity) + ClusteredParticle->V() * ChaosClusteringChildrenInheritVelocity);
-								ActiveChild->SetW(
-									ActiveChild->W() * (1.f - ChaosClusteringChildrenInheritVelocity) + ClusteredParticle->W() * ChaosClusteringChildrenInheritVelocity);
-							}
-						}
-					}
-				}
 			} // end if MCollisionImpulseArrayDirty
+
 		} // end if MParticles.Size()
 		Timer.Stop();
 		UE_LOG(LogChaos, Verbose, TEXT("Cluster Break Update Time is %f"), Time);
@@ -1368,32 +1198,6 @@ namespace Chaos
 		}
 
 		return AllActivatedChildren;
-	}
-
-	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::PromoteStrains()"), STAT_PromoteStrains, STATGROUP_Chaos);
-	FReal 
-	FRigidClustering::PromoteStrains(
-		FPBDRigidParticleHandle* CurrentNode)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_PromoteStrains);
-		if (FPBDRigidClusteredParticleHandle* ClusteredCurrentNode = CurrentNode->CastToClustered())
-		{
-			FReal ChildrenStrains = (FReal)0.;
-			if (MChildren.Contains(ClusteredCurrentNode))
-			{
-				for (FRigidHandle Child : MChildren[ClusteredCurrentNode])
-				{
-					ChildrenStrains += PromoteStrains(Child);
-				}
-			}
-			else
-			{
-				return ClusteredCurrentNode->Strains();
-			}
-			ClusteredCurrentNode->SetStrains(ClusteredCurrentNode->Strains() + ChildrenStrains);
-			return ClusteredCurrentNode->Strains();
-		}
-		return (FReal)0.;
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateKinematicProperties()"), STAT_UpdateKinematicProperties, STATGROUP_Chaos);
