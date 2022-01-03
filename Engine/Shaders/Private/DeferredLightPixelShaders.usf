@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	DeferredLightPixelShaders.usf: 
+	DeferredLightPixelShaders.usf:
 =============================================================================*/
 
 #define SUPPORT_CONTACT_SHADOWS 1

@@ -432,64 +432,6 @@ void GetCloudShadowAOData(const FVolumetricCloudRenderSceneInfo* CloudInfo, cons
 	OutData.bShouldSampleCloudSkyAO  = OutData.bShouldSampleCloudSkyAO  && bCloudComponentValid;
 }
 
-FVolumetricCloudShadowParameters GetCloudShadowParameters(FRDGBuilder& GraphBuilder)
-{
-	FVolumetricCloudShadowParameters Out;
-
-	Out.bAtmospherePerPixelTransmittance = 0.f;
-	Out.CloudShadowmapTexture = GSystemTextures.GetDepthDummy(GraphBuilder);
-	Out.CloudShadowmapFarDepthKm = 0.f;
-	Out.CloudShadowmapWorldToLightClipMatrix = FMatrix44f::Identity;
-	Out.CloudShadowmapStrength = 0.f;
-	Out.CloudShadowmapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Out.bCloudPerPixelTransmittance = 0.f;
-	return Out;
-}
-
-FVolumetricCloudShadowParameters GetCloudShadowParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, const FLightSceneProxy* LightProxy, const FVolumetricCloudRenderSceneInfo* CloudInfo)
-{
-	FVolumetricCloudShadowParameters Out;
-
-	Out.bAtmospherePerPixelTransmittance =
-		LightProxy->GetLightType() == LightType_Directional &&
-		LightProxy->IsUsedAsAtmosphereSunLight() &&
-		LightProxy->GetUsePerPixelAtmosphereTransmittance() &&
-		ShouldRenderSkyAtmosphere(Scene, View.Family->EngineShowFlags) ? 1.f : 0.f;
-
-	const FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
-	const FLightSceneProxy* AtmosphereLight1Proxy = Scene->AtmosphereLights[1] ? Scene->AtmosphereLights[1]->Proxy : nullptr;
-	const bool VolumetricCloudShadowMap0Valid = View.VolumetricCloudShadowRenderTarget[0] != nullptr;
-	const bool VolumetricCloudShadowMap1Valid = View.VolumetricCloudShadowRenderTarget[1] != nullptr;
-	const bool bLight0CloudPerPixelTransmittance = CloudInfo && VolumetricCloudShadowMap0Valid && AtmosphereLight0Proxy == LightProxy && AtmosphereLight0Proxy && AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
-	const bool bLight1CloudPerPixelTransmittance = CloudInfo && VolumetricCloudShadowMap1Valid && AtmosphereLight1Proxy == LightProxy && AtmosphereLight1Proxy && AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
-	if (bLight0CloudPerPixelTransmittance)
-	{
-		Out.CloudShadowmapTexture = View.VolumetricCloudShadowRenderTarget[0];
-		Out.CloudShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[0].X;
-		Out.CloudShadowmapWorldToLightClipMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[0];
-		Out.CloudShadowmapStrength = AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength();
-	}
-	else if (bLight1CloudPerPixelTransmittance)
-	{
-		Out.CloudShadowmapTexture = View.VolumetricCloudShadowRenderTarget[1];
-		Out.CloudShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[1].X;
-		Out.CloudShadowmapWorldToLightClipMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[1];
-		Out.CloudShadowmapStrength = AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength();
-	}
-	else
-	{
-		Out.CloudShadowmapTexture = GSystemTextures.GetDepthDummy(GraphBuilder);	
-		Out.CloudShadowmapFarDepthKm = 0.f;
-		Out.CloudShadowmapWorldToLightClipMatrix = FMatrix44f::Identity;
-		Out.CloudShadowmapStrength = 0.f;
-	}
-	Out.CloudShadowmapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-	Out.bCloudPerPixelTransmittance = bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance ? 1.f : 0.f;
-
-	return Out;
-}
-
 /*=============================================================================
 	FVolumetricCloudRenderSceneInfo implementation.
 =============================================================================*/
@@ -2615,9 +2557,9 @@ bool SetupLightCloudTransmittanceParameters(FRDGBuilder& GraphBuilder, const FSc
 	const FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 	const bool VolumetricCloudShadowMap0Valid = View.VolumetricCloudShadowRenderTarget[0] != nullptr;
 	const bool VolumetricCloudShadowMap1Valid = View.VolumetricCloudShadowRenderTarget[1] != nullptr;
-	const bool bLight0CloudPerPixelTransmittance = CloudInfo && LightSceneInfo && VolumetricCloudShadowMap0Valid && AtmosphereLight0Proxy == LightSceneInfo->Proxy && AtmosphereLight0Proxy && AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
-	const bool bLight1CloudPerPixelTransmittance = CloudInfo && LightSceneInfo && VolumetricCloudShadowMap1Valid && AtmosphereLight1Proxy == LightSceneInfo->Proxy && AtmosphereLight1Proxy && AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
-	if (bLight0CloudPerPixelTransmittance)
+	const bool bLight0CloudShadowEnabled = CloudInfo && LightSceneInfo && VolumetricCloudShadowMap0Valid && AtmosphereLight0Proxy == LightSceneInfo->Proxy && AtmosphereLight0Proxy && AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
+	const bool bLight1CloudShadowEnabled = CloudInfo && LightSceneInfo && VolumetricCloudShadowMap1Valid && AtmosphereLight1Proxy == LightSceneInfo->Proxy && AtmosphereLight1Proxy && AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
+	if (bLight0CloudShadowEnabled)
 	{
 		OutParameters.CloudShadowmapTexture = View.VolumetricCloudShadowRenderTarget[0];
 		OutParameters.CloudShadowmapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -2625,7 +2567,7 @@ bool SetupLightCloudTransmittanceParameters(FRDGBuilder& GraphBuilder, const FSc
 		OutParameters.CloudShadowmapWorldToLightClipMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[0];
 		OutParameters.CloudShadowmapStrength = AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength();
 	}
-	else if (bLight1CloudPerPixelTransmittance)
+	else if (bLight1CloudShadowEnabled)
 	{
 		OutParameters.CloudShadowmapTexture = View.VolumetricCloudShadowRenderTarget[1];
 		OutParameters.CloudShadowmapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -2638,5 +2580,5 @@ bool SetupLightCloudTransmittanceParameters(FRDGBuilder& GraphBuilder, const FSc
 		DefaultLightCloudTransmittanceParameters(GraphBuilder, OutParameters);
 	}
 
-	return bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance;
+	return bLight0CloudShadowEnabled || bLight1CloudShadowEnabled;
 }

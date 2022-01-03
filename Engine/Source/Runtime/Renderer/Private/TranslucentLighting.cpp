@@ -661,18 +661,14 @@ class FTranslucentLightingInjectPS : public FMaterialShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDeferredLightUniformStruct, DeferredLight)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, VolumetricCloudShadowmapTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudShadowmapTextureSampler)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLightCloudTransmittanceParameters, LightCloudTransmittanceParameters)
 		SHADER_PARAMETER(FMatrix44f, LightFunctionWorldToLight)
-		SHADER_PARAMETER(FMatrix44f, VolumetricCloudWorldToLightClipShadowMatrix)
 		SHADER_PARAMETER(FVector4f, LightFunctionParameters)
 		SHADER_PARAMETER(float, SpotlightMask)
-		SHADER_PARAMETER(float, VolumetricCloudShadowmapFarDepthKm)
-		SHADER_PARAMETER(float, VolumetricCloudShadowmapStrength)
-		SHADER_PARAMETER(uint32, VolumetricCloudShadowEnabled)
-		SHADER_PARAMETER(uint32, AtmospherePerPixelTransmittanceEnabled)
 		SHADER_PARAMETER(uint32, VolumeCascadeIndex)
 		SHADER_PARAMETER(int32, VirtualShadowMapId)
+		SHADER_PARAMETER(uint32, AtmospherePerPixelTransmittanceEnabled)
+		SHADER_PARAMETER(uint32, VolumetricCloudShadowEnabled)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FRadialAttenuation	: SHADER_PERMUTATION_BOOL("RADIAL_ATTENUATION");
@@ -730,8 +726,6 @@ public:
 		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxy);
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
 	}
-
-private:
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FTranslucentLightingInjectPS, TEXT("/Engine/Private/TranslucentLightInjectionShaders.usf"), TEXT("InjectMainPS"), SF_Pixel);
@@ -1133,48 +1127,10 @@ static void InjectTranslucentLightArray(
 					PassParameters->PS.LightFunctionWorldToLight = WorldToLight;
 				}
 
-				{
-					// TODO this should be put in a common structure / set function.
-					FLightSceneProxy* AtmosphereLight0Proxy = LightSceneInfo->Scene->AtmosphereLights[0] ? LightSceneInfo->Scene->AtmosphereLights[0]->Proxy : nullptr;
-					FLightSceneProxy* AtmosphereLight1Proxy = LightSceneInfo->Scene->AtmosphereLights[1] ? LightSceneInfo->Scene->AtmosphereLights[1]->Proxy : nullptr;
-					{
-						FVolumetricCloudRenderSceneInfo* CloudInfo = LightSceneInfo->Scene->GetVolumetricCloudSceneInfo();
+				const bool bCloudShadowEnabled = SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, LightSceneInfo, PassParameters->PS.LightCloudTransmittanceParameters);
+				PassParameters->PS.VolumetricCloudShadowEnabled = bCloudShadowEnabled ? 1 : 0;
 
-						const bool bLight0CloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowRenderTarget[0] != nullptr && AtmosphereLight0Proxy && AtmosphereLight0Proxy == LightSceneInfo->Proxy;
-						const bool bLight1CloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowRenderTarget[1] != nullptr && AtmosphereLight1Proxy && AtmosphereLight1Proxy == LightSceneInfo->Proxy;
-
-						if (bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance)
-						{
-							PassParameters->PS.VolumetricCloudShadowmapTexture = View.VolumetricCloudShadowRenderTarget[LightIndex];
-							PassParameters->PS.VolumetricCloudWorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[LightIndex];
-							PassParameters->PS.VolumetricCloudShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[LightIndex].X;
-							if (bLight0CloudPerPixelTransmittance)
-							{
-								PassParameters->PS.VolumetricCloudShadowmapStrength = AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength();
-							}
-							else if (bLight1CloudPerPixelTransmittance)
-							{
-								PassParameters->PS.VolumetricCloudShadowmapStrength = AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength();
-							}
-							PassParameters->PS.VolumetricCloudShadowEnabled = 1;
-						}
-						else
-						{
-							PassParameters->PS.VolumetricCloudShadowmapTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
-							PassParameters->PS.VolumetricCloudWorldToLightClipShadowMatrix = FMatrix44f::Identity;
-							PassParameters->PS.VolumetricCloudShadowmapFarDepthKm = 1.0f;
-							PassParameters->PS.VolumetricCloudShadowmapStrength = 0.0f;
-							PassParameters->PS.VolumetricCloudShadowEnabled = 0;
-						}
-
-						PassParameters->PS.VolumetricCloudShadowmapTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-					}
-
-					const bool bLightAtmospherePerPixelTransmittance = ShouldRenderSkyAtmosphere(LightSceneInfo->Scene, View.Family->EngineShowFlags) &&
-						((AtmosphereLight0Proxy == LightSceneInfo->Proxy && AtmosphereLight0Proxy && AtmosphereLight0Proxy->GetUsePerPixelAtmosphereTransmittance())
-							|| (AtmosphereLight1Proxy == LightSceneInfo->Proxy && AtmosphereLight1Proxy && AtmosphereLight1Proxy->GetUsePerPixelAtmosphereTransmittance()));
-					PassParameters->PS.AtmospherePerPixelTransmittanceEnabled = bLightAtmospherePerPixelTransmittance;
-				}
+				PassParameters->PS.AtmospherePerPixelTransmittanceEnabled = IsLightAtmospherePerPixelTransmittanceEnabled(Scene, View, LightSceneInfo);
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("InjectTranslucentLightArray"),

@@ -175,6 +175,7 @@ extern void SetupSkyAtmosphereViewSharedUniformShaderParameters(const class FVie
 // Prepare the sun light data as a function of the atmosphere state. 
 void PrepareSunLightProxy(const FSkyAtmosphereRenderSceneInfo& SkyAtmosphere, uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight);
 
+bool IsLightAtmospherePerPixelTransmittanceEnabled(const FScene* Scene, const FViewInfo& View, const FLightSceneInfo* const LightSceneInfo);
 
 float GetValidAerialPerspectiveStartDepthInCm(const FViewInfo& View, const FSkyAtmosphereSceneProxy& SkyAtmosphereProxy);
 

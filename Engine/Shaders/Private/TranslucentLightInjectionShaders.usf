@@ -19,13 +19,9 @@ float4 SimpleLightPositionAndRadius;
 float4 SimpleLightColorAndExponent;
 
 #if RADIAL_ATTENUATION==0
+#define USE_CLOUD_TRANSMITTANCE 1
 #include "VolumetricCloudCommon.ush"
-float4x4 VolumetricCloudWorldToLightClipShadowMatrix;
-float VolumetricCloudShadowmapFarDepthKm;
-Texture2D<float3> VolumetricCloudShadowmapTexture;
-SamplerState VolumetricCloudShadowmapTextureSampler;
 uint VolumetricCloudShadowEnabled;
-float VolumetricCloudShadowmapStrength;
 
 #include "/Engine/Private/SkyAtmosphereCommon.ush"
 uint AtmospherePerPixelTransmittanceEnabled;
@@ -210,7 +206,7 @@ void InjectMainPS(
 		if (VolumetricCloudShadowEnabled > 0)
 		{
 			float OutOpticalDepth = 0.0f;
-			ShadowFactor *= lerp(1.0, GetCloudVolumetricShadow(WorldPositionForLighting, VolumetricCloudWorldToLightClipShadowMatrix, VolumetricCloudShadowmapFarDepthKm, VolumetricCloudShadowmapTexture, VolumetricCloudShadowmapTextureSampler, OutOpticalDepth), VolumetricCloudShadowmapStrength);
+			ShadowFactor *= lerp(1.0f, GetCloudVolumetricShadow(WorldPositionForLighting, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
 		}
 		#endif
 		
