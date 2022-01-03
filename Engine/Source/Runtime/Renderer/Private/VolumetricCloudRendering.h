@@ -157,19 +157,6 @@ END_SHADER_PARAMETER_STRUCT()
 
 FVolumetricCloudShadowAOParameters GetCloudShadowAOParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVolumetricCloudRenderSceneInfo* CloudInfo);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FVolumetricCloudShadowParameters, )
-	SHADER_PARAMETER(float, bAtmospherePerPixelTransmittance)
-	SHADER_PARAMETER(float, bCloudPerPixelTransmittance)
-	SHADER_PARAMETER(float, CloudShadowmapFarDepthKm)
-	SHADER_PARAMETER(FMatrix44f, CloudShadowmapWorldToLightClipMatrix)
-	SHADER_PARAMETER(float, CloudShadowmapStrength)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudShadowmapTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, CloudShadowmapSampler)
-END_SHADER_PARAMETER_STRUCT()
-
-FVolumetricCloudShadowParameters GetCloudShadowParameters(FRDGBuilder& GraphBuilder);
-FVolumetricCloudShadowParameters GetCloudShadowParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, const FLightSceneProxy* LightProxy, const FVolumetricCloudRenderSceneInfo* CloudInfo);
-
 struct FCloudShadowAOData
 {
 	bool bShouldSampleCloudShadow;

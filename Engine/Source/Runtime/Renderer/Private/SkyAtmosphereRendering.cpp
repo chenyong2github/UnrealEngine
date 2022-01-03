@@ -434,6 +434,23 @@ void PrepareSunLightProxy(const FSkyAtmosphereRenderSceneInfo& SkyAtmosphere, ui
 	AtmosphereLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun, SunDiskOuterSpaceLuminance);
 }
 
+bool IsLightAtmospherePerPixelTransmittanceEnabled(const FScene* Scene, const FViewInfo& View, const FLightSceneInfo* const LightSceneInfo)
+{
+	if (Scene 
+		&& LightSceneInfo 
+		&& LightSceneInfo->Proxy->GetLightType() == LightType_Directional 
+		&& ShouldRenderSkyAtmosphere(LightSceneInfo->Scene, View.Family->EngineShowFlags))
+	{
+		FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
+		FLightSceneProxy* AtmosphereLight1Proxy = Scene->AtmosphereLights[1] ? Scene->AtmosphereLights[1]->Proxy : nullptr;
+
+		// The light must be one of the atmospheric directional lights and has per pixel atmosphere transmittance enabled.
+		return (AtmosphereLight0Proxy == LightSceneInfo->Proxy && AtmosphereLight0Proxy && AtmosphereLight0Proxy->GetUsePerPixelAtmosphereTransmittance())
+			|| (AtmosphereLight1Proxy == LightSceneInfo->Proxy && AtmosphereLight1Proxy && AtmosphereLight1Proxy->GetUsePerPixelAtmosphereTransmittance());
+	}
+	return false;
+}
+
 
 
 /*=============================================================================

@@ -453,7 +453,8 @@ class FDeferredLightPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricCloudShadowAOParameters, CloudShadowAO)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricCloudShadowParameters, CloudShadow)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLightCloudTransmittanceParameters, CloudShadow)
+		SHADER_PARAMETER(uint32, CloudShadowEnabled)
 		SHADER_PARAMETER(uint32, HairTransmittanceBufferMaxCount)
 		SHADER_PARAMETER(uint32, HairShadowMaskValid)
 		SHADER_PARAMETER(FVector4f, ShadowChannelMask)
@@ -1800,7 +1801,7 @@ static FDeferredLightPS::FParameters GetDeferredLightPSParameters(
 	Out.LightingChannelsTexture = LightingChannelsTexture ? LightingChannelsTexture : WhiteDummy;
 	Out.LightingChannelsSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Out.CloudShadowAO = GetCloudShadowAOParameters(GraphBuilder, View, CloudInfo);
-	Out.CloudShadow = GetCloudShadowParameters(GraphBuilder, Scene, View, LightSceneInfo->Proxy, CloudInfo);
+	Out.CloudShadowEnabled = SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, LightSceneInfo, Out.CloudShadow) ? 1 : 0;
 	Out.LightAttenuationTexture = ShadowMaskTexture ? ShadowMaskTexture : WhiteDummy;
 	Out.LightAttenuationTextureSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 	Out.DummyRectLightTextureForCapsuleCompilerWarning = DepthDummy;
@@ -2110,8 +2111,8 @@ static void RenderLight(
 			PermutationVector.Set< FDeferredLightPS::FIESProfileDim >(false);
 			PermutationVector.Set< FDeferredLightPS::FAnistropicMaterials >(bSupportAnisotropyPermutation);
 			// Only directional lights are rendered in this path, so we only need to check if it is use to light the atmosphere
-			PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(PassParameters->PS.CloudShadow.bAtmospherePerPixelTransmittance > 0);
-			PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(PassParameters->PS.CloudShadow.bCloudPerPixelTransmittance > 0);
+			PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(IsLightAtmospherePerPixelTransmittanceEnabled(Scene, View, LightSceneInfo));
+			PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(PassParameters->PS.CloudShadowEnabled > 0);
 		}
 		PermutationVector = FDeferredLightPS::RemapPermutation(PermutationVector);
 
@@ -2231,8 +2232,8 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >(ELightSourceShape::Directional);
 		PermutationVector.Set< FDeferredLightPS::FSourceTextureDim >(false);
 		PermutationVector.Set< FDeferredLightPS::FIESProfileDim >(false);
-		PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(PassParameters->PS.CloudShadow.bAtmospherePerPixelTransmittance > 0.f);
-		PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(PassParameters->PS.CloudShadow.bCloudPerPixelTransmittance > 0.f);
+		PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(IsLightAtmospherePerPixelTransmittanceEnabled(Scene, View, LightSceneInfo));
+		PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(PassParameters->PS.CloudShadowEnabled > 0.f);
 	}
 	else
 	{
@@ -2356,7 +2357,8 @@ static FSimpleLightsStandardDeferredParameters GetRenderLightSimpleParameters(
 	Out.PS.LightingChannelsTexture = WhiteDummy;
 	Out.PS.LightingChannelsSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Out.PS.CloudShadowAO = GetCloudShadowAOParameters(GraphBuilder, View, nullptr);
-	Out.PS.CloudShadow = GetCloudShadowParameters(GraphBuilder);
+	Out.PS.CloudShadowEnabled = 0;
+	SetupLightCloudTransmittanceParameters(GraphBuilder, nullptr, View, nullptr, Out.PS.CloudShadow);
 	Out.PS.LightAttenuationTexture = WhiteDummy;
 	Out.PS.LightAttenuationTextureSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 	Out.PS.DummyRectLightTextureForCapsuleCompilerWarning = DepthDummy;
