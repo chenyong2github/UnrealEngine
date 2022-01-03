@@ -237,7 +237,7 @@ void MainCS(
 		}
 		#endif
 
-		#if DEBUG_OUTPUT
+		#if DEBUG_OUTPUT && 0 // running out of UAVs
 		{
 			DebugOutput[OutputPixelPos] = Debug;
 		}

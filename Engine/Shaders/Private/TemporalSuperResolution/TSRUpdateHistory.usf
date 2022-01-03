@@ -1417,6 +1417,7 @@ void MainCS(
 		}
 		
 		// Output final scene color Mip1
+		#if !DEBUG_OUTPUT // running out of UAVs
 		{
 			taa_half3x2 HalfResOutput = OutputColor * taa_half(0.25);
 			//taa_short2x2 HalfResOutputPixelPos = (LocalHistoryPixelPos >> taa_short(1)) | (((LocalHistoryPixelPos & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));
@@ -1467,6 +1468,7 @@ void MainCS(
 				SceneColorOutputMip1[dpv_hi(HalfResOutputPixelPos)] = dpv_hi(HalfResOutput);
 			#endif
 		}
+		#endif
 
 		#if DEBUG_OUTPUT
 		{
