@@ -40,15 +40,6 @@ namespace EpicGames.Perforce
 		/// <param name="Password">Password to use to login</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		Task LoginAsync(string Password, CancellationToken CancellationToken = default);
-
-		/// <summary>
-		/// Sets an environment variable
-		/// </summary>
-		/// <param name="Name">Name of the variable to set</param>
-		/// <param name="Value">Value for the variable</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
-		/// <returns>Response from the server</returns>
-		Task SetAsync(string Name, string Value, CancellationToken CancellationToken = default);
+		Task<IPerforceOutput> LoginCommandAsync(string Password, CancellationToken CancellationToken = default);
 	}
 }

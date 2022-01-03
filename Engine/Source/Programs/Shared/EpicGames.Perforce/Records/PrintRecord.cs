@@ -17,7 +17,7 @@ namespace EpicGames.Perforce
 		/// Path to the file in the depot
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public string DepotFile { get; set; }
+		public string DepotFile { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Revision number of the file
@@ -41,7 +41,7 @@ namespace EpicGames.Perforce
 		/// File type
 		/// </summary>
 		[PerforceTag("type")]
-		public string Type { get; set; }
+		public string Type { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Submit time of the file
@@ -54,14 +54,17 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("fileSize", Optional = true)]
 		public long FileSize { get; set; }
+	}
 
+	/// <summary>
+	/// Information about a printed file, with its data
+	/// </summary>
+	/// <typeparam name="T">The type of data</typeparam>
+	public class PrintRecord<T> : PrintRecord where T : class
+	{
 		/// <summary>
-		/// Private constructor for serialization
+		/// Data for the file
 		/// </summary>
-		private PrintRecord()
-		{
-			DepotFile = null!;
-			Type = null!;
-		}
+		public T? Contents { get; set; }
 	}
 }

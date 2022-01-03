@@ -780,7 +780,7 @@ namespace EpicGames.Perforce.Managed
 			bool bError = false;
 			FileReference LocalFile = FileReference.Combine(WorkspaceDir, "FortniteGame", "Content", "Backend", "StatsV2.json");
 
-			PerforceResponseList<FStatRecord> Record = await Perforce.TryFStatAsync(FStatOptions.None, new[] { LocalFile.FullName }, CancellationToken.None);
+			List<PerforceResponse<FStatRecord>> Record = await Perforce.TryFStatAsync(FStatOptions.None, new[] { LocalFile.FullName }).ToListAsync();
 
 			string PerforceState;
 			if (Record.Count == 0)
@@ -908,7 +908,7 @@ namespace EpicGames.Perforce.Managed
 			}
 
 			// query the location of each file
-			PerforceResponseList<WhereRecord> WhereResponseList = await Perforce.TryWhereAsync(LastRecord.Files.Select(x => x.DepotFile).ToArray(), CancellationToken);
+			List<PerforceResponse<WhereRecord>> WhereResponseList = await Perforce.TryWhereAsync(LastRecord.Files.Select(x => x.DepotFile).ToArray(), CancellationToken).ToListAsync(CancellationToken);
 			List<WhereRecord> WhereRecords = WhereResponseList.Where(x => x.Succeeded).Select(x => x.Data).ToList();
 
 			// parse out all the list of deleted and modified files
@@ -1241,7 +1241,7 @@ namespace EpicGames.Perforce.Managed
 				Stopwatch Timer = Stopwatch.StartNew();
 
 				// Get a list of open files
-				List<FStatRecord> OpenedFilesResponse = await PerforceClient.GetOpenFilesAsync(OpenedOptions.ShortOutput, -1, PerforceClient.Settings.ClientName!, null, 1, new string[0], CancellationToken);
+				List<OpenedRecord> OpenedFilesResponse = await PerforceClient.OpenedAsync(OpenedOptions.ShortOutput, -1, PerforceClient.Settings.ClientName!, null, 1, new string[0], CancellationToken).ToListAsync(CancellationToken);
 
 				// If there are any files, revert them
 				if(OpenedFilesResponse.Any())
@@ -1957,7 +1957,7 @@ namespace EpicGames.Perforce.Managed
 					ClientWithFileList.GlobalOptions.Add($"-Zdebug=dm=2");
 				}
 
-				List<SyncRecord> Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken);
+				List<SyncRecord> Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
 				if (StatsFile != null)
 				{
 					try
@@ -2000,28 +2000,28 @@ namespace EpicGames.Perforce.Managed
 								}
 								else if (Idx == 1)
 								{
-									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken);
+									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
 									PrintSyncRecords(Records);
 								}
 								else if (Idx == 2)
 								{
 									await Task.Delay(5000);
-									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken);
+									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force | SyncOptions.FullDepotSyntax, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
 									PrintSyncRecords(Records);
 								}
 								else if (Idx == 3)
 								{
-									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force, -1, new string[0], CancellationToken);
+									Records = await ClientWithFileList.SyncAsync(SyncOptions.Force, -1, new string[0], CancellationToken).ToListAsync(CancellationToken);
 									PrintSyncRecords(Records);
 								}
 								else if (Idx == 4)
 								{
-									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { $"{StatsFile.StreamFile.Path}#{StatsFile.StreamFile.Revision}" }, CancellationToken);
+									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { $"{StatsFile.StreamFile.Path}#{StatsFile.StreamFile.Revision}" }, CancellationToken).ToListAsync(CancellationToken);
 									PrintSyncRecords(Records);
 								}
 								else if (Idx == 5)
 								{
-									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { LocalFile.FullName }, CancellationToken);
+									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { LocalFile.FullName }, CancellationToken).ToListAsync(CancellationToken);
 									PrintSyncRecords(Records);
 								}
 								else
@@ -2029,7 +2029,7 @@ namespace EpicGames.Perforce.Managed
 									break;
 								}
 
-								PerforceResponseList<FStatRecord> StatRecords = await Client.TryFStatAsync(FStatOptions.None, new[] { LocalFile.FullName }, CancellationToken.None);
+								List<PerforceResponse<FStatRecord>> StatRecords = await Client.TryFStatAsync(FStatOptions.None, new[] { LocalFile.FullName }, CancellationToken).ToListAsync(CancellationToken);
 								foreach (PerforceResponse<FStatRecord> StatResponse in StatRecords)
 								{
 									if (StatResponse.Succeeded)

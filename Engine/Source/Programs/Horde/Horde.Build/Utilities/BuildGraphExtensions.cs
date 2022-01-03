@@ -33,7 +33,7 @@ namespace Horde.Build.Utilities
 
 			public async Task<bool> ExistsAsync(string Path)
 			{
-				List<FStatRecord> Records = await PerforceConnection.FStatAsync($"{Stream}/{Path}@{ChangeNumber}");
+				List<FStatRecord> Records = await PerforceConnection.FStatAsync($"{Stream}/{Path}@{ChangeNumber}").ToListAsync();
 				return Records.Count > 0;
 			}
 

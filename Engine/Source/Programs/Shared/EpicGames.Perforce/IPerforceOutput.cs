@@ -228,9 +228,8 @@ namespace EpicGames.Perforce
 			List<PerforceResponse> Responses = new List<PerforceResponse>();
 
 			// Read all the records into a list
-			long ParsedLen = 0;
-			long MaxParsedLen = 0;
-			while (await Perforce.ReadAsync(CancellationToken))
+			long MaxParsedLen;
+			for(; ;)
 			{
 				// Check for the whole message not being a marshalled python object, and produce a better response in that scenario
 				ReadOnlyMemory<byte> Data = Perforce.Data;
@@ -239,6 +238,9 @@ namespace EpicGames.Perforce
 					throw new PerforceException("Unexpected response from server (expected '{'):{0}", FormatDataAsString(Data.Span));
 				}
 
+				// Reset the max parsed length. This will be measured against the current buffer position.
+				MaxParsedLen = 0;
+
 				// Parse the responses from the current buffer
 				int BufferPos = 0;
 				for (; ; )
@@ -246,7 +248,7 @@ namespace EpicGames.Perforce
 					int NewBufferPos = BufferPos;
 					if (!TryReadResponse(Data, ref NewBufferPos, StatRecordInfo, out PerforceResponse? Response))
 					{
-						MaxParsedLen = ParsedLen + NewBufferPos;
+						MaxParsedLen = NewBufferPos;
 						break;
 					}
 					if (Response.Error == null || Response.Error.Generic != PerforceGenericCode.Empty)
@@ -258,17 +260,22 @@ namespace EpicGames.Perforce
 
 				// Discard all the data that we've processed
 				Perforce.Discard(BufferPos);
-				ParsedLen += BufferPos;
+				MaxParsedLen -= BufferPos;
+
+				// Try to read more data into the buffer
+				if (!await Perforce.ReadAsync(CancellationToken))
+				{
+					break;
+				}
 			}
 
 			// If the stream is complete but we couldn't parse a response from the server, treat it as an error
 			if (Perforce.Data.Length > 0)
 			{
-				long DumpOffset = Math.Max(MaxParsedLen - 32, ParsedLen);
-				int SliceOffset = (int)(DumpOffset - ParsedLen);
+				int SliceOffset = (int)Math.Max(MaxParsedLen - 32, 0);
 				string StrDump = FormatDataAsString(Perforce.Data.Span.Slice(SliceOffset));
 				string HexDump = FormatDataAsHexDump(Perforce.Data.Span.Slice(SliceOffset, Math.Min(1024, Perforce.Data.Length - SliceOffset)));
-				throw new PerforceException("Unparsable data at offset {0}+{1}/{2}.\nString data from offset {3}:{4}\nHex data from offset {3}:{5}", ParsedLen, MaxParsedLen - ParsedLen, ParsedLen + Perforce.Data.Length, DumpOffset, StrDump, HexDump);
+				throw new PerforceException("Unparsable data at offset {0}.\nString data from offset {1}:{2}\nHex data from offset {1}:{3}", MaxParsedLen, SliceOffset, StrDump, HexDump);
 			}
 
 			return Responses;

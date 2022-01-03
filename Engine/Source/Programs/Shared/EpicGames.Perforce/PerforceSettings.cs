@@ -141,4 +141,32 @@ namespace EpicGames.Perforce
 			return new PerforceSettings(Environment);
 		}
 	}
+
+	/// <summary>
+	/// Extension methods for setting objects
+	/// </summary>
+	public static class PerforceSettingExtensions
+	{
+		/// <summary>
+		/// Gets the command line arguments to launch an external program, such as P4V or P4VC
+		/// </summary>
+		/// <param name="Settings"></param>
+		/// <param name="bIncludeClient"></param>
+		/// <returns></returns>
+		public static string GetArgumentsForExternalProgram(this IPerforceSettings Settings, bool bIncludeClient)
+		{
+			StringBuilder BasicCommandArgs = new StringBuilder();
+			
+			BasicCommandArgs.AppendFormat("-p \"{0}\"", Settings.ServerAndPort);
+			BasicCommandArgs.AppendFormat(" -u \"{0}\"", Settings.UserName);
+
+			if (bIncludeClient && Settings.ClientName != null)
+			{
+				BasicCommandArgs.AppendFormat(" -c \"{0}\" ", Settings.ClientName);
+			}
+
+			return BasicCommandArgs.ToString();
+		}
+
+	}
 }

@@ -361,7 +361,7 @@ namespace HordeAgent.Utility
 			}
 
 			// check if there are any open files, and revert them
-			List<FStatRecord> Files = await Perforce.GetOpenFilesAsync(OpenedOptions.None, -1, null, null, 1, new[] { "//..." }, CancellationToken);
+			List<OpenedRecord> Files = await Perforce.OpenedAsync(OpenedOptions.None, -1, null, null, 1, new[] { "//..." }, CancellationToken).ToListAsync(CancellationToken);
 			if (Files.Count > 0)
 			{
 				await Perforce.RevertAsync(-1, null, RevertOptions.KeepWorkspaceFiles, new[] { "//..." }, CancellationToken);

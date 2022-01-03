@@ -887,7 +887,7 @@ namespace HordeServer.Commits.Impl
 		/// <returns></returns>
 		static async Task<StreamTreeRef> UpdateTreeAsync(StreamTreeRef RootRef, IPerforceConnection Perforce, ViewMap View, int Change, ObjectSet ObjectSet, Utf8StringComparer PathComparer)
 		{
-			List<FStatRecord> Records = await Perforce.FStatAsync(-1, Change, null, null, -1, FStatOptions.IncludeFileSizes, FileSpecList.Any);
+			List<FStatRecord> Records = await Perforce.FStatAsync(-1, Change, null, null, -1, FStatOptions.IncludeFileSizes, FileSpecList.Any).ToListAsync();
 			return await UpdateTreeAsync(RootRef, Records, View, ObjectSet, PathComparer);
 		}
 

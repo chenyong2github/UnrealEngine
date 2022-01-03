@@ -14,12 +14,6 @@ namespace EpicGames.Perforce
 	public class PerforceInfo
 	{
 		/// <summary>
-		/// The severity level
-		/// </summary>
-		[PerforceTag("level")]
-		public int Level { get; set; }
-
-		/// <summary>
 		/// Message data
 		/// </summary>
 		[PerforceTag("data")]

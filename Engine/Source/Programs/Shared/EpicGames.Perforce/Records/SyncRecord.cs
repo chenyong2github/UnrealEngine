@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,19 +12,20 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Information about a synced file
 	/// </summary>
+	[DebuggerDisplay("{DepotFile}")]
 	public class SyncRecord
 	{
 		/// <summary>
 		/// Path to the file in the depot
 		/// </summary>
 		[PerforceTag("depotFile")]
-		public string DepotFile { get; set; }
+		public string DepotFile { get; set; } = String.Empty;
 
 		/// <summary>
-		/// Path to the file in the workspace
+		/// Path to the file in the workspace. Note: despite being a property called 'clientFile', this is not in client syntax.
 		/// </summary>
 		[PerforceTag("clientFile")]
-		public string ClientFile { get; set; }
+		public string Path { get; set; } = String.Empty;
 
 		/// <summary>
 		/// The revision number of the file that was synced
@@ -35,7 +37,7 @@ namespace EpicGames.Perforce
 		/// Action taken when syncing the file
 		/// </summary>
 		[PerforceTag("action")]
-		public string Action { get; set; }
+		public SyncAction Action { get; set; }
 
 		/// <summary>
 		/// Size of the file
@@ -60,24 +62,5 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("change", Optional = true)]
 		public int Change { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		private SyncRecord()
-		{
-			DepotFile = null!;
-			ClientFile = null!;
-			Action = null!;
-		}
-
-		/// <summary>
-		/// Format this record for display in the debugger
-		/// </summary>
-		/// <returns>Summary of this revision</returns>
-		public override string ToString()
-		{
-			return DepotFile;
-		}
 	}
 }

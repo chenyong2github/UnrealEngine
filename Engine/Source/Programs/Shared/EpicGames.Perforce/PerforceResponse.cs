@@ -164,4 +164,52 @@ namespace EpicGames.Perforce
 			}
 		}
 	}
+
+	/// <summary>
+	/// Extension methods for responses
+	/// </summary>
+	public static class PerforceResponseExtensions
+	{
+		/// <summary>
+		/// Whether all responses in this list are successful
+		/// </summary>
+		public static bool Succeeded<T>(this IEnumerable<PerforceResponse<T>> Responses) where T : class
+		{
+			return Responses.All(x => x.Succeeded);
+		}
+
+		/// <summary>
+		/// Sequence of all the error responses.
+		/// </summary>
+		public static IEnumerable<PerforceError> GetErrors<T>(this IEnumerable<PerforceResponse<T>> Responses) where T : class
+		{
+			foreach (PerforceResponse<T> Response in Responses)
+			{
+				PerforceError? Error = Response.Error;
+				if (Error != null)
+				{
+					yield return Error;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Throws an exception if any response is an error
+		/// </summary>
+		public static void EnsureSuccess<T>(this IEnumerable<PerforceResponse<T>> Responses) where T : class
+		{
+			foreach (PerforceResponse<T> Response in Responses)
+			{
+				Response.EnsureSuccess();
+			}
+		}
+
+		/// <summary>
+		/// Unwrap a task returning a response object
+		/// </summary>
+		public static async Task<T> UnwrapAsync<T>(this Task<PerforceResponse<T>> Response) where T : class
+		{
+			return (await Response).Data;
+		}
+	}
 }

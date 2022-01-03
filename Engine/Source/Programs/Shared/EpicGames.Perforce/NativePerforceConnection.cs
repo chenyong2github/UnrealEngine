@@ -130,7 +130,7 @@ namespace EpicGames.Perforce
 
 			public Channel<(PinnedBuffer Buffer, int Length)> ReadBuffers = Channel.CreateUnbounded<(PinnedBuffer, int)>();
 
-			public ReadOnlyMemory<byte> Data => (Buffer == null) ? ReadOnlyMemory<byte>.Empty : Buffer.Data.AsMemory(BufferPos, BufferLen);
+			public ReadOnlyMemory<byte> Data => (Buffer == null) ? ReadOnlyMemory<byte>.Empty : Buffer.Data.AsMemory(BufferPos, BufferLen - BufferPos);
 
 			public Response(NativePerforceConnection Outer)
 			{
@@ -186,6 +186,23 @@ namespace EpicGames.Perforce
 					return Buffer != null;
 				}
 
+				// If we've used up all the data in the buffer, return it to the write list and move to the next one.
+				int OriginalBufferLen = BufferLen - NextBufferPos;
+				if (BufferPos >= OriginalBufferLen)
+				{
+					Outer.WriteBuffers.TryAdd(Buffer!);
+
+					Buffer = NextBuffer;
+					BufferPos -= OriginalBufferLen;
+					BufferLen = NextBufferLen;
+
+					NextBuffer = null;
+					NextBufferPos = 0;
+					NextBufferLen = 0;
+
+					return true;
+				}
+
 				// Ensure there's some space in the current buffer. In order to handle cases where we want to read data straddling both buffers, copy 16k chunks
 				// back to the first buffer until we can read entirely from the second buffer.
 				int MaxAppend = Buffer.MaxLength - BufferLen;
@@ -235,27 +252,9 @@ namespace EpicGames.Perforce
 
 			public void Discard(int NumBytes)
 			{
-				if (NumBytes > 0)
-				{
-					// Update the read position
-					BufferPos += NumBytes;
-					Debug.Assert(BufferPos <= BufferLen);
-
-					// If we've used up all the data in the buffer, return it to the write list and move to the next one.
-					int OriginalBufferLen = BufferLen - NextBufferPos;
-					if (BufferPos >= OriginalBufferLen)
-					{
-						Outer.WriteBuffers.Add(Buffer!);
-
-						Buffer = NextBuffer;
-						BufferPos -= OriginalBufferLen;
-						BufferLen = NextBufferLen;
-
-						NextBuffer = null;
-						NextBufferPos = 0;
-						NextBufferLen = 0;
-					}
-				}
+				// Update the read position
+				BufferPos += NumBytes;
+				Debug.Assert(BufferPos <= BufferLen);
 			}
 		}
 
@@ -327,9 +326,14 @@ namespace EpicGames.Perforce
 
 		}
 
-		void GetNextWriteBuffer(NativeWriteBuffer NativeWriteBuffer)
+		void GetNextWriteBuffer(NativeWriteBuffer NativeWriteBuffer, int MinSize)
 		{
 			PinnedBuffer Buffer = WriteBuffers.Take();
+			if (Buffer.MaxLength < MinSize)
+			{
+				Buffer.Resize(MinSize);
+			}
+
 			NativeWriteBuffer.Data = Buffer.BasePtr;
 			NativeWriteBuffer.MaxLength = Buffer.Data.Length;
 			NativeWriteBuffer.MaxCount = int.MaxValue;
@@ -410,7 +414,7 @@ namespace EpicGames.Perforce
 			Requests.Add((() =>
 			{
 				NativeWriteBuffer WriteBuffer = new NativeWriteBuffer();
-				GetNextWriteBuffer(WriteBuffer);
+				GetNextWriteBuffer(WriteBuffer, 1);
 				Client = Client_Create(NativeSettings, WriteBuffer, OnBufferReadyFnPtr);
 			}, Response));
 
@@ -468,7 +472,14 @@ namespace EpicGames.Perforce
 		{
 			PinnedBuffer Buffer = Buffers.First(x => x.BasePtr == ReadBuffer.Data);
 			CurrentResponse!.ReadBuffers.Writer.TryWrite((Buffer, ReadBuffer.Length)); // Unbounded; will always succeed
-			GetNextWriteBuffer(WriteBuffer);
+
+			int NextWriteSize = 0;
+			if (ReadBuffer.Length == 0)
+			{
+				NextWriteSize = ReadBuffer.MaxLength * 2;
+			}
+
+			GetNextWriteBuffer(WriteBuffer, NextWriteSize);
 		}
 
 		/// <inheritdoc/>
@@ -491,34 +502,11 @@ namespace EpicGames.Perforce
 		}
 
 		/// <inheritdoc/>
-		public async Task LoginAsync(string Password, CancellationToken CancellationToken = default)
+		public Task<IPerforceOutput> LoginCommandAsync(string Password, CancellationToken CancellationToken = default)
 		{
-			await using Response Response = new Response(this);
+			Response Response = new Response(this);
 			Requests.Add((() => Client_Login(Client, Password), Response), CancellationToken);
-
-			List<PerforceResponse> Records = await ((IPerforceOutput)Response).ReadResponsesAsync(null, default);
-			if (Records.Count != 1)
-			{
-				throw new PerforceException("Expected at least one record to be returned from Init() call.");
-			}
-
-			PerforceError? Error = Records[0].Error;
-			if (Error != null && Error.Severity != PerforceSeverityCode.Info)
-			{
-				throw new PerforceException(Error);
-			}
-		}
-
-		/// <inheritdoc/>
-		public Task SetAsync(string Name, string Value, CancellationToken CancellationToken = default)
-		{
-			throw new NotImplementedException();
-		}
-
-		/// <inheritdoc/>
-		public Task<string?> TryGetSettingAsync(string Name, CancellationToken CancellationToken = default)
-		{
-			throw new NotImplementedException();
+			return Task.FromResult<IPerforceOutput>(Response);
 		}
 	}
 }

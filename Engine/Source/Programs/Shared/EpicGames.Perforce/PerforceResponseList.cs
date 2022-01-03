@@ -16,6 +16,22 @@ namespace EpicGames.Perforce
 	public class PerforceResponseList<T> : List<PerforceResponse<T>> where T : class
 	{
 		/// <summary>
+		/// Default constructor
+		/// </summary>
+		public PerforceResponseList()
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Responses">Initial contents of the list</param>
+		public PerforceResponseList(IEnumerable<PerforceResponse<T>> Responses)
+			: base(Responses)
+		{
+		}
+
+		/// <summary>
 		/// Whether all responses in this list are successful
 		/// </summary>
 		public bool Succeeded
