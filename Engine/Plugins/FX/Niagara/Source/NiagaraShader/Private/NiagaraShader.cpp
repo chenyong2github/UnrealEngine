@@ -1197,6 +1197,7 @@ void FNiagaraShader::BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>&
 	FloatInputBufferParam.Bind(ParameterMap, TEXT("InputFloat"));
 	IntInputBufferParam.Bind(ParameterMap, TEXT("InputInt"));
 	HalfInputBufferParam.Bind(ParameterMap, TEXT("InputHalf"));
+	StaticInputFloatParam.Bind(ParameterMap, TEXT("StaticInputFloat"));
 	FloatOutputBufferParam.Bind(ParameterMap, TEXT("OutputFloat"));
 	IntOutputBufferParam.Bind(ParameterMap, TEXT("OutputInt"));
 	HalfOutputBufferParam.Bind(ParameterMap, TEXT("OutputHalf"));
@@ -1319,6 +1320,11 @@ void FNiagaraDataInterfaceParamRef::WriteFrozenParameters(FMemoryImageWriter& Wr
 {
 	const UNiagaraDataInterfaceBase* Base = DIType.Get(Writer.TryGetPrevPointerTable());
 	InParameters.WriteMemoryImageWithDerivedType(Writer, Base->GetComputeParametersTypeDesc());
+}
+
+bool FNiagaraDataInterfaceGPUParamInfo::IsUserParameter() const
+{
+	return DataInterfaceHLSLSymbol.StartsWith(TEXT("User_"));
 }
 
 bool FNiagaraDataInterfaceGPUParamInfo::Serialize(FArchive& Ar)

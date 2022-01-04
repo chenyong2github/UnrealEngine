@@ -216,6 +216,8 @@ struct NIAGARASHADER_API FNiagaraDataInterfaceGPUParamInfo
 	UPROPERTY()
 	TArray<FNiagaraDataInterfaceGeneratedFunction> GeneratedFunctions;
 
+	bool IsUserParameter() const;
+
 	bool Serialize(FArchive& Ar);
 };
 
