@@ -85,9 +85,9 @@ class RecordingManager(QtCore.QObject):
         date_string = switchboard_utils.date_to_string(datetime.date.today())
 
         if sequence:
-            return os.path.join(project_dir, CONFIG.PROJECT_NAME, date_string, sequence)
+            return os.path.join(project_dir, CONFIG.PROJECT_NAME.get_value(), date_string, sequence)
 
-        return os.path.join(project_dir, CONFIG.PROJECT_NAME, date_string)
+        return os.path.join(project_dir, CONFIG.PROJECT_NAME.get_value(), date_string)
 
     def add_recording(self, recording):
         # Add a new recording to the manager
@@ -283,7 +283,7 @@ class TransportQueue(QtCore.QObject):
     def run_transport_job(self, transport_job, device):
         # Add Sequence
         take_name = switchboard_utils.capture_name(transport_job.slate, transport_job.take)
-        output_path = os.path.join(SETTINGS.TRANSPORT_PATH, CONFIG.PROJECT_NAME, transport_job.date, take_name)
+        output_path = os.path.join(SETTINGS.TRANSPORT_PATH.get_value(), CONFIG.PROJECT_NAME.get_value(), transport_job.date, take_name)
 
         # Make sure the dirs exist
         os.makedirs(output_path, exist_ok=True)
@@ -295,10 +295,10 @@ class TransportQueue(QtCore.QObject):
         self.active_jobs.append(transport_job)
 
         # Start the thread
-        transport_thread = threading.Thread(target=self._transport_file, args=[device, transport_job.paths, output_path, transport_job.job_name])
+        transport_thread = threading.Thread(target=self._transport_file, args=[device, transport_job.paths, output_path, transport_job, transport_job.job_name])
         transport_thread.start()
 
-    def _transport_file(self, device, device_paths, output_path, job_name):
+    def _transport_file(self, device, device_paths, output_path, transport_job, job_name):
         LOGGER.debug('Start Job')
         self.signal_transport_queue_job_started.emit(transport_job)
 
@@ -316,7 +316,7 @@ class TransportQueue(QtCore.QObject):
         self.signal_transport_queue_job_finished.emit(transport_job)
 
     def file_path(self):
-        project_dir = os.path.join(self._root_dir, 'projects', CONFIG.PROJECT_NAME)
+        project_dir = os.path.join(self._root_dir, 'projects', CONFIG.PROJECT_NAME.get_value())
         os.makedirs(project_dir, exist_ok=True)
 
         return os.path.join(project_dir, TRANSPORT_QUEUE_FILE_NAME)

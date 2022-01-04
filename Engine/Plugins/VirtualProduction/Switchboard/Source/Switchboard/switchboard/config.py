@@ -464,7 +464,7 @@ class IntSetting(Setting):
 
         old_value = int(widget.text())
         if new_value != old_value:
-            widget.setText(new_value)
+            widget.setText(str(new_value))
             widget.setCursorPosition(0)
 
 
@@ -1790,142 +1790,6 @@ class Config(object):
     def __init__(self, file_path: typing.Union[str, pathlib.Path]):
         self.init_with_file_path(file_path)
 
-    def init_new_config(self, file_path: typing.Union[str, pathlib.Path],
-                        uproject, engine_dir, p4_settings):
-        ''' Initialize new configuration
-        '''
-
-        self.file_path = get_absolute_config_path(file_path)
-        self.PROJECT_NAME = self.file_path.stem
-        self.UPROJECT_PATH = StringSetting(
-            "uproject", "uProject Path", uproject, tool_tip="Path to uProject")
-        self.SWITCHBOARD_DIR = os.path.abspath(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
-        self.ENGINE_DIR = StringSetting(
-            "engine_dir", "Engine Directory", engine_dir,
-            tool_tip="Path to UE4 engine directory")
-        self.BUILD_ENGINE = BoolSetting(
-            "build_engine", "Build Engine", False,
-            tool_tip="Is Engine built from source?")
-        self.MAPS_PATH = StringSetting(
-            "maps_path", "Map Path", "",
-            tool_tip=(
-                "Relative path from Content folder that contains maps to "
-                "launch into."))
-        self.MAPS_FILTER = StringSetting(
-            "maps_filter", "Map Filter", "*.umap",
-            tool_tip=(
-                "Walk every file in the Map Path and run a fnmatch to filter "
-                "the file names"))
-        self.P4_ENABLED = BoolSetting(
-            "p4_enabled", "Perforce Enabled", p4_settings['p4_enabled'],
-            tool_tip="Toggle Perforce support for the entire application")
-        self.SOURCE_CONTROL_WORKSPACE = StringSetting(
-            "source_control_workspace", "Workspace Name",
-            p4_settings['p4_workspace_name'],
-            tool_tip="SourceControl Workspace/Branch")
-
-        self.P4_PROJECT_PATH = PerforcePathSetting(
-            attr_name="p4_sync_path",
-            nice_name="Perforce Project Path",
-            value=p4_settings['p4_project_path']
-        )
-
-        self.P4_ENGINE_PATH = PerforcePathSetting(
-            attr_name="p4_engine_path",
-            nice_name="Perforce Engine Path",
-            value=p4_settings['p4_engine_path']
-        )
-
-        self.init_unreal_insights()
-
-        self.CURRENT_LEVEL = DEFAULT_MAP_TEXT
-
-        self.OSC_SERVER_PORT = IntSetting(
-            "osc_server_port", "OSC Server Port", 6000)
-        self.OSC_CLIENT_PORT = IntSetting(
-            "osc_client_port", "OSC Client Port", 8000)
-
-        # MU Settings
-        self.MULTIUSER_SERVER_EXE = 'UnrealMultiUserServer'
-
-        self.init_muserver()
-
-        self.LISTENER_EXE = 'SwitchboardListener'
-
-        self._device_data_from_config = {}
-        self._plugin_data_from_config = {}
-        self._plugin_settings = {}
-        self._device_settings = {}
-
-        LOGGER.info(f"Creating new config saved in {self.file_path}")
-        self.save()
-
-        SETTINGS.CONFIG = self.file_path
-        SETTINGS.save()
-
-    def init_muserver(self, data={}):
-        # MU Settings
-        self.MUSERVER_COMMAND_LINE_ARGUMENTS = data.get(
-            'muserver_command_line_arguments', '')
-        self.MUSERVER_SERVER_NAME = data.get(
-            'muserver_server_name', f'{self.PROJECT_NAME}_MU_Server')
-        self.MUSERVER_ENDPOINT = data.get('muserver_endpoint', ':9030')
-        self.MUSERVER_MULTICAST_ENDPOINT = StringSetting(
-            attr_name='udpmessaging_multicast_endpoint',
-            nice_name='Multicast Endpoint',
-            value=data.get('muserver_multicast_endpoint', '230.0.0.1:6666'),
-            tool_tip=(
-                'Multicast group and port (-UDPMESSAGING_TRANSPORT_MULTICAST) '
-                'in the {ip}:{port} endpoint format. The multicast group IP '
-                'must be in the range 224.0.0.0 to 239.255.255.255.'),
-        )
-        self.MUSERVER_AUTO_LAUNCH = data.get('muserver_auto_launch', True)
-        self.MUSERVER_CLEAN_HISTORY = data.get('muserver_clean_history', False)
-        self.MUSERVER_AUTO_BUILD = data.get('muserver_auto_build', True)
-        self.MUSERVER_AUTO_ENDPOINT = data.get('muserver_auto_endpoint', True)
-
-        self.MUSERVER_AUTO_JOIN = BoolSetting(
-            "muserver_auto_join",
-            "Unreal Multi-user Server Auto-join",
-            data.get('muserver_auto_join', True)
-        )
-
-    def init_unreal_insights(self, data={}):
-        self.INSIGHTS_TRACE_ENABLE = BoolSetting(
-            "tracing_enabled",
-            "Unreal Insights Tracing State",
-            data.get("tracing_enabled", False),
-        )
-        self.INSIGHTS_TRACE_ARGS = StringSetting(
-            "tracing_args",
-            "Unreal Insights Tracing Args",
-            data.get('tracing_arg', 'log,cpu,gpu,frame,bookmark,concert,messaging')
-        )
-        self.INSIGHTS_STAT_EVENTS = BoolSetting(
-            "tracing_stat_events",
-            "Unreal Insights Tracing with Stat Events",
-            data.get('tracing_stat_events', True)
-        )
-
-    def save_muserver(self, data):
-        data["muserver_command_line_arguments"] = (
-            self.MUSERVER_COMMAND_LINE_ARGUMENTS)
-        data["muserver_server_name"] = self.MUSERVER_SERVER_NAME
-        data["muserver_endpoint"] = self.MUSERVER_ENDPOINT
-        data["muserver_auto_launch"] = self.MUSERVER_AUTO_LAUNCH
-        data["muserver_clean_history"] = self.MUSERVER_CLEAN_HISTORY
-        data["muserver_auto_build"] = self.MUSERVER_AUTO_BUILD
-        data["muserver_auto_endpoint"] = self.MUSERVER_AUTO_ENDPOINT
-
-        data["muserver_auto_join"] = self.MUSERVER_AUTO_JOIN.get_value()
-        data["muserver_multicast_endpoint"] = self.MUSERVER_MULTICAST_ENDPOINT.get_value()
-
-    def save_unreal_insights(self, data):
-        data['tracing_enabled'] = self.INSIGHTS_TRACE_ENABLE.get_value()
-        data['tracing_args'] = self.INSIGHTS_TRACE_ARGS.get_value()
-        data['tracing_stat_events'] = self.INSIGHTS_STAT_EVENTS.get_value()
-
     def init_with_file_path(self, file_path: typing.Union[str, pathlib.Path]):
         if file_path:
             try:
@@ -1943,102 +1807,31 @@ class Config(object):
             self.file_path = None
             data = {}
 
-        project_settings = []
+        self.init_switchboard_settings()
+        self.init_project_settings(data)
+        self.init_unreal_insights(data)
+        self.init_muserver(data)
 
-        self.PROJECT_NAME = data.get('project_name', 'Default')
-        self.UPROJECT_PATH = StringSetting(
-            "uproject", "uProject Path", data.get('uproject', ''),
-            tool_tip="Path to uProject")
-        project_settings.append(self.UPROJECT_PATH)
+        # Automatically save whenever a project setting is changed or
+        # overridden by a device.
+        # TODO: switchboard_settings
+        all_settings = [setting for _, setting in self.basic_project_settings.items()] \
+            + [setting for _, setting in self.osc_settings.items()] \
+            + [setting for _, setting in self.source_control_settings.items()] \
+            + [setting for _, setting in self.unreal_insight_settings.items()] \
+            + [setting for _, setting in self.mu_settings.items()]
+            # TODO: multiuser
+        for setting in all_settings:
+            setting.signal_setting_changed.connect(lambda: self.save())
+            setting.signal_setting_overridden.connect(
+                self.on_device_override_changed)
 
         # Directory Paths
         self.SWITCHBOARD_DIR = os.path.abspath(
             os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
-        self.ENGINE_DIR = StringSetting(
-            "engine_dir", "Engine Directory", data.get('engine_dir', ''),
-            tool_tip="Path to UE4 engine directory")
-        project_settings.append(self.ENGINE_DIR)
-        self.BUILD_ENGINE = BoolSetting(
-            "build_engine", "Build Engine", data.get('build_engine', False),
-            tool_tip="Is Engine built from source?")
-        project_settings.append(self.BUILD_ENGINE)
-        self.MAPS_PATH = StringSetting(
-            "maps_path", "Map Path", data.get('maps_path', ''),
-            placeholder_text="Maps",
-            tool_tip=(
-                "Relative path from Content folder that contains maps to "
-                "launch into."))
-        project_settings.append(self.MAPS_PATH)
-        self.MAPS_FILTER = StringSetting(
-            "maps_filter", "Map Filter", data.get('maps_filter', '*.umap'),
-            placeholder_text="*.umap",
-            tool_tip=(
-                "Walk every file in the Map Path and run a fnmatch to "
-                "filter the file names"))
-        project_settings.append(self.MAPS_FILTER)
-
-        # OSC settings
-        self.OSC_SERVER_PORT = IntSetting(
-            "osc_server_port", "OSC Server Port",
-            data.get('osc_server_port', 6000))
-        self.OSC_CLIENT_PORT = IntSetting(
-            "osc_client_port", "OSC Client Port",
-            data.get('osc_client_port', 8000))
-        project_settings.extend([self.OSC_SERVER_PORT, self.OSC_CLIENT_PORT])
-
-        # Perforce settings
-        self.P4_ENABLED = BoolSetting(
-            "p4_enabled", "Perforce Enabled", data.get("p4_enabled", False),
-            tool_tip="Toggle Perforce support for the entire application")
-        self.SOURCE_CONTROL_WORKSPACE = StringSetting(
-            "source_control_workspace", "Workspace Name",
-            data.get("source_control_workspace"),
-            tool_tip="SourceControl Workspace/Branch")
-
-        self.P4_PROJECT_PATH = PerforcePathSetting(
-            "p4_sync_path",
-            "Perforce Project Path",
-            data.get("p4_sync_path", ''),
-            placeholder_text="//UE4/Project"
-        )
-
-        self.P4_ENGINE_PATH = PerforcePathSetting(
-            "p4_engine_path",
-            "Perforce Engine Path",
-            data.get("p4_engine_path", ''),
-            placeholder_text="//UE4/Project/Engine"
-        )
-
-        project_settings.extend(
-            [self.P4_ENABLED, self.SOURCE_CONTROL_WORKSPACE,
-             self.P4_PROJECT_PATH, self.P4_ENGINE_PATH])
-
-        self.init_unreal_insights(data)
-
-        project_settings.extend([
-            self.INSIGHTS_TRACE_ENABLE,
-            self.INSIGHTS_STAT_EVENTS,
-            self.INSIGHTS_TRACE_ARGS])
-
-        # EXE names
-        self.MULTIUSER_SERVER_EXE = data.get(
-            'multiuser_exe', 'UnrealMultiUserServer')
-        self.LISTENER_EXE = data.get('listener_exe', 'SwitchboardListener')
-
-        self.init_muserver(data)
 
         # MISC SETTINGS
         self.CURRENT_LEVEL = data.get('current_level', DEFAULT_MAP_TEXT)
-
-        project_settings.extend([
-            self.MUSERVER_AUTO_JOIN])
-
-        # Automatically save whenever a project setting is changed or
-        # overridden by a device.
-        for setting in project_settings:
-            setting.signal_setting_changed.connect(lambda: self.save())
-            setting.signal_setting_overridden.connect(
-                self.on_device_override_changed)
 
         # Devices
         self._device_data_from_config = {}
@@ -2062,6 +1855,244 @@ class Config(object):
                         k: v for (k, v) in data.items() if k != "ip_address"}
                     self._device_data_from_config.setdefault(
                         device_type, []).append(device_data)
+
+    def init_new_config(self, file_path: typing.Union[str, pathlib.Path], uproject, engine_dir, p4_settings):
+        ''' 
+        Initialize new configuration
+        '''
+
+        self.file_path = get_absolute_config_path(file_path)
+        self.init_switchboard_settings()
+        self.init_project_settings({ "project_name": self.file_path.stem })
+        self.init_unreal_insights()
+        self.init_muserver()
+
+        self.CURRENT_LEVEL = DEFAULT_MAP_TEXT
+
+        self._device_data_from_config = {}
+        self._plugin_data_from_config = {}
+        self._plugin_settings = {}
+        self._device_settings = {}
+
+        LOGGER.info(f"Creating new config saved in {self.file_path}")
+        self.save()
+
+        SETTINGS.CONFIG = self.file_path
+        SETTINGS.save()
+        
+    def init_switchboard_settings(self, data={}):
+        self.switchboard_settings = {
+            "listener_exe": StringSetting(
+                "listener_exe",
+                "Listener Executable Name",
+                 data.get('listener_exe', 'SwitchboardListener')
+            )
+        }
+        
+        self.LISTENER_EXE = self.switchboard_settings["listener_exe"]
+
+    def init_project_settings(self, data={}):
+        self.basic_project_settings = {
+            "project_name": StringSetting(
+                "project_name",
+                "Project Name",
+                data.get('project_name', 'Default')
+            ),
+            "uproject": FilePathSetting(
+                "uproject", "uProject Path",
+                data.get('uproject', ''),
+                tool_tip="Path to uProject"
+            ),
+            "engine_dir": FilePathSetting(
+                "engine_dir",
+                "Engine Directory",
+                data.get('engine_dir', ''),
+                tool_tip="Path to UE4 engine directory"
+            ),
+            "build_engine": BoolSetting(
+                "build_engine",
+                "Build Engine",
+                data.get('build_engine', False),
+                tool_tip="Is Engine built from source?"
+            ),
+            "maps_path": StringSetting(
+                "maps_path",
+                "Map Path",
+                data.get('maps_path', ''),
+                placeholder_text="Maps",
+                tool_tip="Relative path from Content folder that contains maps to launch into."
+            ),
+            "maps_filter": StringSetting(
+                "maps_filter",
+                "Map Filter",
+                data.get('maps_filter', '*.umap'),
+                placeholder_text="*.umap",
+                tool_tip="Walk every file in the Map Path and run a fnmatch to filter the file names"
+            )
+        }
+
+        self.PROJECT_NAME = self.basic_project_settings["project_name"]
+        self.UPROJECT_PATH = self.basic_project_settings["uproject"]
+        self.ENGINE_DIR = self.basic_project_settings["engine_dir"]
+        self.BUILD_ENGINE = self.basic_project_settings["build_engine"]
+        self.MAPS_PATH = self.basic_project_settings["maps_path"]
+        self.MAPS_FILTER = self.basic_project_settings["maps_filter"]
+
+        self.osc_settings = {
+            "osc_server_port": IntSetting(
+                "osc_server_port",
+                "OSC Server Port",
+                data.get('osc_server_port', 6000)
+            ),
+            "osc_client_port": IntSetting(
+                "osc_client_port",
+                "OSC Client Port",
+                data.get('osc_client_port', 8000)
+            )
+        }
+
+        self.OSC_SERVER_PORT = self.osc_settings["osc_server_port"]
+        self.OSC_CLIENT_PORT = self.osc_settings["osc_client_port"]
+
+        self.source_control_settings = {
+            "p4_enabled": BoolSetting(
+                "p4_enabled",
+                "Perforce Enabled",
+                data.get("p4_enabled", False),
+                tool_tip="Toggle Perforce support for the entire application"
+            ),
+            "source_control_workspace": StringSetting(
+                "source_control_workspace", "Workspace Name",
+                data.get("source_control_workspace"),
+                tool_tip="SourceControl Workspace/Branch"
+            ),
+            "p4_sync_path": PerforcePathSetting(
+                "p4_sync_path",
+                "Perforce Project Path",
+                data.get("p4_sync_path", ''),
+                placeholder_text="//UE4/Project"
+            ),
+            "p4_engine_path": PerforcePathSetting(
+                "p4_engine_path",
+                "Perforce Engine Path",
+                data.get("p4_engine_path", ''),
+                placeholder_text="//UE4/Project/Engine"
+            )
+        }
+
+        self.P4_ENABLED = self.source_control_settings["p4_enabled"]
+        self.SOURCE_CONTROL_WORKSPACE = self.source_control_settings["source_control_workspace"]
+        self.P4_PROJECT_PATH = self.source_control_settings["p4_sync_path"]
+        self.P4_ENGINE_PATH = self.source_control_settings["p4_engine_path"]
+
+    def init_unreal_insights(self, data={}):
+        self.unreal_insight_settings = {
+            "tracing_enabled": BoolSetting(
+                "tracing_enabled",
+                "Unreal Insights Tracing State",
+                data.get("tracing_enabled", False),
+            ),
+            "tracing_args": StringSetting(
+                "tracing_args",
+                "Unreal Insights Tracing Args",
+                data.get('tracing_arg', 'log,cpu,gpu,frame,bookmark,concert,messaging')
+            ),
+            "tracing_stat_events": BoolSetting(
+                "tracing_stat_events",
+                "Unreal Insights Tracing with Stat Events",
+                data.get('tracing_stat_events', True)
+            )
+        }
+
+        self.INSIGHTS_TRACE_ENABLE = self.unreal_insight_settings["tracing_enabled"]
+        self.INSIGHTS_TRACE_ARGS = self.unreal_insight_settings["tracing_args"]
+        self.INSIGHTS_STAT_EVENTS = self.unreal_insight_settings["tracing_stat_events"]
+
+    def init_muserver(self, data={}):
+        self.mu_settings = {
+            "muserver_server_name": StringSetting(
+                "muserver_server_name",
+                "Command Line Args",
+                data.get('muserver_server_name', f'{self.PROJECT_NAME.get_value()}_MU_Server')
+            ),
+            "muserver_command_line_arguments": StringSetting(
+                "muserver_command_line_arguments",
+                "Server name",
+                data.get('muserver_command_line_arguments', '')
+            ),
+            "muserver_endpoint": StringSetting(
+                "muserver_endpoint",
+                "Unicast Endpoint",
+                data.get('muserver_endpoint', ':9030')
+            ),
+            "udpmessaging_multicast_endpoint": StringSetting(
+                attr_name='udpmessaging_multicast_endpoint',
+                nice_name='Multicast Endpoint',
+                value=data.get('muserver_multicast_endpoint', '230.0.0.1:6666'),
+                tool_tip=(
+                    'Multicast group and port (-UDPMESSAGING_TRANSPORT_MULTICAST) '
+                    'in the {ip}:{port} endpoint format. The multicast group IP '
+                    'must be in the range 224.0.0.0 to 239.255.255.255.'),
+            ),
+            "multiuser_exe": StringSetting(
+                "multiuser_exe",
+                "Multiuser Executable Name",
+                data.get('multiuser_exe', 'UnrealMultiUserServer')
+            ),
+            "muserver_auto_launch": BoolSetting(
+                "muserver_auto_launch",
+                "Auto Launch",
+                data.get('muserver_auto_launch', True)
+            ),
+            "muserver_clean_history": BoolSetting(
+                "muserver_clean_history",
+                "Clean History",
+                data.get('muserver_clean_history', False)
+            ),
+            "muserver_auto_build": BoolSetting(
+                "muserver_auto_build",
+                "Auto Build",
+                data.get('muserver_auto_build', True)
+            ),
+            "muserver_auto_endpoint": BoolSetting(
+                "muserver_auto_endpoint",
+                "Auto Endpoint",
+                data.get('muserver_auto_endpoint', True)
+            ),
+            "muserver_auto_join": BoolSetting(
+                "muserver_auto_join",
+                "Unreal Multi-user Server Auto-join",
+                data.get('muserver_auto_join', True)
+            )
+        }
+        
+        self.MUSERVER_SERVER_NAME = self.mu_settings["muserver_server_name"]
+        self.MUSERVER_COMMAND_LINE_ARGUMENTS = self.mu_settings["muserver_command_line_arguments"]
+        self.MUSERVER_ENDPOINT = self.mu_settings["muserver_endpoint"]
+        self.MUSERVER_MULTICAST_ENDPOINT = self.mu_settings["udpmessaging_multicast_endpoint"]
+        self.MULTIUSER_SERVER_EXE = self.mu_settings["multiuser_exe"]
+        self.MUSERVER_AUTO_LAUNCH = self.mu_settings["muserver_auto_launch"]
+        self.MUSERVER_CLEAN_HISTORY = self.mu_settings["muserver_clean_history"]
+        self.MUSERVER_AUTO_BUILD = self.mu_settings["muserver_auto_build"]
+        self.MUSERVER_AUTO_ENDPOINT = self.mu_settings["muserver_auto_endpoint"]
+        self.MUSERVER_AUTO_JOIN = self.mu_settings["muserver_auto_join"]
+
+    def save_unreal_insights(self, data):
+        data['tracing_enabled'] = self.INSIGHTS_TRACE_ENABLE.get_value()
+        data['tracing_args'] = self.INSIGHTS_TRACE_ARGS.get_value()
+        data['tracing_stat_events'] = self.INSIGHTS_STAT_EVENTS.get_value()
+        
+    def save_muserver(self, data):
+        data["muserver_command_line_arguments"] = self.MUSERVER_COMMAND_LINE_ARGUMENTS.get_value()
+        data["muserver_server_name"] = self.MUSERVER_SERVER_NAME.get_value()
+        data["muserver_endpoint"] = self.MUSERVER_ENDPOINT.get_value()
+        data["multiuser_exe"] = self.MULTIUSER_SERVER_EXE.get_value()
+        data["muserver_auto_launch"] = self.MUSERVER_AUTO_LAUNCH.get_value()
+        data["muserver_clean_history"] = self.MUSERVER_CLEAN_HISTORY.get_value()
+        data["muserver_auto_build"] = self.MUSERVER_AUTO_BUILD.get_value()
+        data["muserver_auto_endpoint"] = self.MUSERVER_AUTO_ENDPOINT.get_value()
+        data["muserver_multicast_endpoint"] = self.MUSERVER_MULTICAST_ENDPOINT.get_value()
+        data["muserver_auto_join"] = self.MUSERVER_AUTO_JOIN.get_value()
 
     def load_plugin_settings(self, device_type, settings):
         ''' Updates plugin settings values with those read from the config file.
@@ -2123,13 +2154,13 @@ class Config(object):
         data = {}
 
         # General settings
-        data['project_name'] = self.PROJECT_NAME
+        data['project_name'] = self.PROJECT_NAME.get_value()
         data['uproject'] = self.UPROJECT_PATH.get_value()
         data['engine_dir'] = self.ENGINE_DIR.get_value()
         data['build_engine'] = self.BUILD_ENGINE.get_value()
         data["maps_path"] = self.MAPS_PATH.get_value()
         data["maps_filter"] = self.MAPS_FILTER.get_value()
-        data["listener_exe"] = self.LISTENER_EXE
+        data["listener_exe"] = self.LISTENER_EXE.get_value()
 
         self.save_unreal_insights(data)
 
@@ -2143,9 +2174,6 @@ class Config(object):
         data["p4_engine_path"] = self.P4_ENGINE_PATH.get_value()
         data["source_control_workspace"] = (
             self.SOURCE_CONTROL_WORKSPACE.get_value())
-
-        # MU Settings
-        data["multiuser_exe"] = self.MULTIUSER_SERVER_EXE
 
         self.save_muserver(data)
 
@@ -2254,11 +2282,11 @@ class Config(object):
 
     def multiuser_server_path(self):
         return self.engine_exe_path(
-            self.ENGINE_DIR.get_value(), self.MULTIUSER_SERVER_EXE)
+            self.ENGINE_DIR.get_value(), self.MULTIUSER_SERVER_EXE.get_value())
 
     def listener_path(self):
         return self.engine_exe_path(
-            self.ENGINE_DIR.get_value(), self.LISTENER_EXE)
+            self.ENGINE_DIR.get_value(), self.LISTENER_EXE.get_value())
 
     # todo-dara: find a way to do this directly in the LiveLinkFace plugin code
     def unreal_device_ip_addresses(self):
@@ -2334,10 +2362,17 @@ class UserSettings(object):
             self.CONFIG = config_paths[0] if config_paths else None
 
         # IP Address of the machine running Switchboard
-        self.IP_ADDRESS = data.get(
-            'ip_address', socket.gethostbyname(socket.gethostname()))
-
-        self.TRANSPORT_PATH = data.get('transport_path', '')
+        self.IP_ADDRESS = StringSetting(
+            "ip_address",
+            "IP Address",
+            data.get("ip_address", socket.gethostbyname(socket.gethostname()))
+        )
+        self.TRANSPORT_PATH = FilePathSetting(
+                "transport_path",
+                "Transport path",
+                data.get('transport_path', '')
+            )
+        
 
         # UI Settings
         self.MUSERVER_SESSION_NAME = data.get(
@@ -2354,8 +2389,8 @@ class UserSettings(object):
     def save(self):
         data = {
             'config': '',
-            'ip_address': self.IP_ADDRESS,
-            'transport_path': self.TRANSPORT_PATH,
+            'ip_address': self.IP_ADDRESS.get_value(),
+            'transport_path': self.TRANSPORT_PATH.get_value(),
             'muserver_session_name': self.MUSERVER_SESSION_NAME,
             'current_sequence': self.CURRENT_SEQUENCE,
             'current_slate': self.CURRENT_SLATE,

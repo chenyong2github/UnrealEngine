@@ -105,10 +105,10 @@ class MultiUserApplication:
         return ''
 
     def get_mu_server_endpoint_arg(self):
-        setting_val = CONFIG.MUSERVER_ENDPOINT.strip()
+        setting_val = CONFIG.MUSERVER_ENDPOINT.get_value().strip()
         if setting_val:
             converted_ip = sb_utils.expand_endpoint(setting_val,
-                                                    SETTINGS.IP_ADDRESS.strip())
+                                                    SETTINGS.IP_ADDRESS.get_value().strip())
             return f'-UDPMESSAGING_TRANSPORT_UNICAST="{converted_ip}"'
         return ''
 
@@ -132,14 +132,14 @@ class MultiUserApplication:
 
             cmdline = f'start "Multi User Server" "{self.exe_path()}"'
             cmdline += f' -CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME}"'
-            cmdline += f' {CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS}'
+            cmdline += f' {CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS.get_value()}'
             cmdline += f' {self.get_mu_server_endpoint_arg()}'
             cmdline += f' {self.get_mu_server_multicast_arg()}'
 
             if self.concert_ignore_cl:
                 cmdline += " -ConcertIgnore"
 
-            if CONFIG.MUSERVER_CLEAN_HISTORY:
+            if CONFIG.MUSERVER_CLEAN_HISTORY.get_value():
                 cmdline += " -ConcertClean"
 
             if len(args) > 0:
@@ -267,7 +267,7 @@ hosts allow = {allowed_addrs}
             client.address for client in self.allowed_clients.values()}
 
         allowed_addrs.add(self.address)
-        allowed_addrs.add(SETTINGS.IP_ADDRESS)
+        allowed_addrs.add(SETTINGS.IP_ADDRESS.get_value())
         allowed_addrs.discard('0.0.0.0')
 
         config = self.CONFIG_TEMPLATE.format(

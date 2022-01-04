@@ -2,6 +2,7 @@
 
 import os
 import pathlib
+import typing
 
 from PySide2 import QtCore
 from PySide2 import QtGui
@@ -10,7 +11,7 @@ from PySide2 import QtWidgets
 
 from switchboard import config
 from switchboard import switchboard_widgets as sb_widgets
-from switchboard.config import CONFIG, SETTINGS
+from switchboard.config import CONFIG, SETTINGS, Config, UserSettings, Setting
 from switchboard.settings_search import SettingsSearch
 from switchboard.switchboard_widgets import CollapsibleGroupBox, DropDownMenuComboBox
 from switchboard.ui.horizontal_tabs import HorizontalTabWidget
@@ -26,7 +27,7 @@ COLLAPSE_ALL_TEXT = "Collapse all"
 EXPAND_ALL_TEXT = "Expand all"
 
 class SettingsDialog(QtCore.QObject):
-    def __init__(self):
+    def __init__(self, settings: UserSettings, config: Config):
         super().__init__()
         self.plugin_widgets = {}
 
@@ -41,9 +42,9 @@ class SettingsDialog(QtCore.QObject):
         self._create_search_area(dialog_layout)
         self.general_settings_list = [
             self._create_config_path_settings(),
-            self._create_switchboard_settings(),
-            self._create_project_settings(),
-            self._create_multi_user_server_settings()
+            self._create_switchboard_settings(settings, config),
+            self._create_project_settings(config),
+            self._create_multi_user_server_settings(config)
         ]
         
         self._create_tab_widget(dialog_layout)
@@ -194,158 +195,41 @@ class SettingsDialog(QtCore.QObject):
         
         return self.ui.config_path_layout;
         
-    def _create_switchboard_settings(self):
+    def _create_switchboard_settings(self, settings: UserSettings, config: Config):
         self.ui.switchboard_settings_group = CollapsibleGroupBox()
         self.ui.switchboard_settings_group.setTitle("Switchboard")
         layout = QtWidgets.QFormLayout(self.ui.switchboard_settings_group)
         
-        # IP address
-        self.ui.ip_address_label = QtWidgets.QLabel()
-        self.ui.ip_address_label.setText("IP Address")
-        self.ui.ip_address_line_edit = QtWidgets.QLineEdit()
-        layout.addRow(self.ui.ip_address_label, self.ui.ip_address_line_edit)
-        
-        # Transport path
-        self.ui.transport_path_root = QtWidgets.QWidget()
-        self.ui.transport_path_label = QtWidgets.QLabel()
-        self.ui.transport_path_label.setText("Transport Path")
-        transport_path_horizontal_layout = QtWidgets.QHBoxLayout(self.ui.transport_path_root)
-        transport_path_horizontal_layout.setContentsMargins(0, 0, 0, 0)
-        self.ui.transport_path_line_edit = QtWidgets.QLineEdit()
-        self.ui.transport_path_browse_button = QtWidgets.QPushButton()
-        self.ui.transport_path_browse_button.setText("Browse")
-        transport_path_horizontal_layout.addWidget(self.ui.transport_path_line_edit)
-        transport_path_horizontal_layout.addWidget(self.ui.transport_path_browse_button)
-        layout.addRow(self.ui.transport_path_label, self.ui.transport_path_root)
-        
-        # Listener Executable name
-        self.ui.listener_exe_label = QtWidgets.QLabel()
-        self.ui.listener_exe_label.setText("Listener Executable name")
-        self.ui.listener_exe_line_edit = QtWidgets.QLineEdit()
-        layout.addRow(self.ui.listener_exe_label, self.ui.listener_exe_line_edit)
+        settings.IP_ADDRESS.create_ui(form_layout=layout)
+        settings.TRANSPORT_PATH.create_ui(form_layout=layout)
+        config.LISTENER_EXE.create_ui(form_layout=layout)
         
         return self.ui.switchboard_settings_group
         
-    def _create_project_settings(self):
+    def _create_project_settings(self, config: Config):
         self.ui.project_settings_group = CollapsibleGroupBox()
         self.ui.project_settings_group.setTitle("Project Settings")
         layout = QtWidgets.QVBoxLayout(self.ui.project_settings_group)
         
         project_settings_root = QtWidgets.QWidget()
         form_layout = QtWidgets.QFormLayout(project_settings_root)
+        self._create_settings_section(config.basic_project_settings, form_layout)
         layout.addWidget(project_settings_root)
-
-        # Project Name
-        self.ui.project_name_label = QtWidgets.QLabel()
-        self.ui.project_name_label.setText("Project Name")
-        self.ui.project_name_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.project_name_label, self.ui.project_name_line_edit)
-        
-        # UProject
-        self.ui.uproject_root = QtWidgets.QWidget()
-        self.ui.uproject_label = QtWidgets.QLabel()
-        self.ui.uproject_label.setText("UProject")
-        uproject_horizontal_layout = QtWidgets.QHBoxLayout(self.ui.uproject_root)
-        uproject_horizontal_layout.setContentsMargins(0, 0, 0, 0)
-        self.ui.uproject_line_edit = QtWidgets.QLineEdit()
-        self.ui.uproject_browse_button = QtWidgets.QPushButton()
-        self.ui.uproject_browse_button.setText("Browse")
-        uproject_horizontal_layout.addWidget(self.ui.uproject_line_edit)
-        uproject_horizontal_layout.addWidget(self.ui.uproject_browse_button)
-        form_layout.addRow(self.ui.uproject_label, self.ui.uproject_root)
-        
-        # Engine Dir
-        self.ui.engine_dir_root = QtWidgets.QWidget()
-        self.ui.engine_dir_label = QtWidgets.QLabel()
-        self.ui.engine_dir_label.setText("Engine Dir")
-        engine_dir_horizontal_layout = QtWidgets.QHBoxLayout(self.ui.engine_dir_root)
-        engine_dir_horizontal_layout.setContentsMargins(0, 0, 0, 0)
-        self.ui.engine_dir_line_edit = QtWidgets.QLineEdit()
-        self.ui.engine_dir_browse_button = QtWidgets.QPushButton()
-        self.ui.engine_dir_browse_button.setText("Browse")
-        engine_dir_horizontal_layout.addWidget(self.ui.engine_dir_line_edit)
-        engine_dir_horizontal_layout.addWidget(self.ui.engine_dir_browse_button)
-        form_layout.addRow(self.ui.engine_dir_label, self.ui.engine_dir_root)
-        
-        # Build Engine
-        self.ui.build_engine_label = QtWidgets.QLabel()
-        self.ui.build_engine_label.setText("Build Engine")
-        self.ui.build_engine_checkbox = QtWidgets.QCheckBox()
-        form_layout.addRow(self.ui.build_engine_label, self.ui.build_engine_checkbox)
-
-        # Map Path
-        self.ui.map_path_label = QtWidgets.QLabel()
-        self.ui.map_path_label.setText("Map Path")
-        self.ui.map_path_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.map_path_label, self.ui.map_path_line_edit)
-        
-        # Map Filter
-        self.ui.map_filter_label = QtWidgets.QLabel()
-        self.ui.map_filter_label.setText("Project Filter")
-        self.ui.map_filter_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.map_filter_label, self.ui.map_filter_line_edit)
-        
-        # Set up listeners
-        self.ui.uproject_browse_button.clicked.connect(
-            self.uproject_browse_button_clicked)
-        self.ui.engine_dir_browse_button.clicked.connect(
-            self.engine_dir_browse_button_clicked)
-
-        # Update settings in CONFIG when they are changed in the SettingsDialog
-        self.ui.engine_dir_line_edit.editingFinished.connect(
-            lambda widget=self.ui.engine_dir_line_edit:
-            CONFIG.ENGINE_DIR.update_value(widget.text()))
-        self.ui.build_engine_checkbox.stateChanged.connect(
-            lambda state:
-            CONFIG.BUILD_ENGINE.update_value(
-                True if state == QtCore.Qt.Checked else False))
-        self.ui.uproject_line_edit.editingFinished.connect(
-            lambda widget=self.ui.uproject_line_edit:
-            CONFIG.UPROJECT_PATH.update_value(widget.text()))
-        self.ui.map_path_line_edit.editingFinished.connect(
-            lambda widget=self.ui.map_path_line_edit:
-            CONFIG.MAPS_PATH.update_value(widget.text()))
-        self.ui.map_filter_line_edit.editingFinished.connect(
-            lambda widget=self.ui.map_filter_line_edit:
-            CONFIG.MAPS_FILTER.update_value(widget.text()))
         
         # Sub settings
-        self._create_osc_settings(layout)
-        self._create_source_control_settings(layout)
+        self._create_osc_settings(config, layout)
+        self._create_source_control_settings(config, layout)
+        
         return self.ui.project_settings_group
     
-    def _create_osc_settings(self, layout):
+    def _create_osc_settings(self, config: Config, layout: QtWidgets.QFormLayout):
         self.ui.osc_settings_group = QtWidgets.QGroupBox()
         self.ui.osc_settings_group.setTitle("OSC")
         form_layout = QtWidgets.QFormLayout(self.ui.osc_settings_group)
         layout.addWidget(self.ui.osc_settings_group)
-        
-        # Server port
-        self.ui.osc_server_port_label = QtWidgets.QLabel()
-        self.ui.osc_server_port_label.setText("Server Port")
-        self.ui.osc_server_port_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.osc_server_port_label, self.ui.osc_server_port_line_edit)
-        
-        # Client port
-        self.ui.osc_client_port_label = QtWidgets.QLabel()
-        self.ui.osc_client_port_label.setText("Client Port")
-        self.ui.osc_client_port_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.osc_client_port_label, self.ui.osc_client_port_line_edit)
-        
-        # Set up listeners
-        max_port = (1 << 16) - 1
-        self.ui.osc_server_port_line_edit.setValidator(
-            QtGui.QIntValidator(0, max_port))
-        self.ui.osc_client_port_line_edit.setValidator(
-            QtGui.QIntValidator(0, max_port))
-        self.ui.osc_server_port_line_edit.editingFinished.connect(
-            lambda widget=self.ui.osc_server_port_line_edit:
-            CONFIG.OSC_SERVER_PORT.update_value(int(widget.text())))
-        self.ui.osc_client_port_line_edit.editingFinished.connect(
-            lambda widget=self.ui.osc_client_port_line_edit:
-            CONFIG.OSC_CLIENT_PORT.update_value(int(widget.text())))
+        self._create_settings_section(config.osc_settings, form_layout)
     
-    def _create_source_control_settings(self, layout):
+    def _create_source_control_settings(self, config: Config, layout: QtWidgets.QFormLayout):
         self.ui.source_control_settings_group = QtWidgets.QGroupBox()
         self.ui.source_control_settings_group.setTitle("Source Control")
         self.ui.source_control_settings_group.setCheckable(True)
@@ -357,97 +241,20 @@ class SettingsDialog(QtCore.QObject):
         )
         form_layout = QtWidgets.QFormLayout(self.ui.source_control_settings_group)
         layout.addWidget(self.ui.source_control_settings_group)
-        
-        # P4 Project Path
-        self.ui.p4_project_path_label = QtWidgets.QLabel()
-        self.ui.p4_project_path_label.setText("P4 Project Path")
-        self.ui.p4_project_path_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.p4_project_path_label, self.ui.p4_project_path_line_edit)
-        
-        # P4 Engine Path
-        self.ui.p4_engine_path_label = QtWidgets.QLabel()
-        self.ui.p4_engine_path_label.setText("P4 Engine Path")
-        self.ui.p4_engine_path_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.p4_engine_path_label, self.ui.p4_engine_path_line_edit)
-        
-        # P4 Workspace name
-        self.ui.source_control_workspace_label = QtWidgets.QLabel()
-        self.ui.source_control_workspace_label.setText("P4 Workspace name")
-        self.ui.source_control_workspace_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.source_control_workspace_label, self.ui.source_control_workspace_line_edit)
-        
-        # Set up listeners
-        self.ui.p4_project_path_line_edit.editingFinished.connect(
-            lambda widget=self.ui.p4_project_path_line_edit:
-            CONFIG.P4_PROJECT_PATH.update_value(widget.text()))
-        self.ui.p4_engine_path_line_edit.editingFinished.connect(
-            lambda widget=self.ui.p4_engine_path_line_edit:
-            CONFIG.P4_ENGINE_PATH.update_value(widget.text()))
-        self.ui.source_control_workspace_line_edit.editingFinished.connect(
-            lambda widget=self.ui.source_control_workspace_line_edit:
-            CONFIG.SOURCE_CONTROL_WORKSPACE.update_value(widget.text()))
+        self._create_settings_section(config.source_control_settings, form_layout)
     
-    def _create_multi_user_server_settings(self):
+    def _create_multi_user_server_settings(self, config: Config):
         self.ui.multi_user_settings = CollapsibleGroupBox()
         self.ui.multi_user_settings.setTitle("Multi User Server")
         form_layout = QtWidgets.QFormLayout(self.ui.multi_user_settings)
         
-        # Server Name
-        self.ui.mu_server_name_label = QtWidgets.QLabel()
-        self.ui.mu_server_name_label.setText("Server Name")
-        self.ui.mu_server_name_line_edit = QtWidgets.QLineEdit()
-        self.ui.mu_server_name_line_edit.setPlaceholderText("MU_Server")
-        form_layout.addRow(self.ui.mu_server_name_label, self.ui.mu_server_name_line_edit)
-        
-        # Command Line Args
-        self.ui.mu_cmd_line_args_label = QtWidgets.QLabel()
-        self.ui.mu_cmd_line_args_label.setText("Command Line Args")
-        self.ui.mu_cmd_line_args_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.mu_cmd_line_args_label, self.ui.mu_cmd_line_args_line_edit)
-        
-        # Unicast Endpoint
-        self.ui.mu_server_endpoint_label = QtWidgets.QLabel()
-        self.ui.mu_server_endpoint_label.setText("Unicast Endpoint")
-        self.ui.mu_server_endpoint_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.mu_server_endpoint_label, self.ui.mu_server_endpoint_line_edit)
-        
-        # Multicast Endpoint
-        self.ui.mu_server_multicast_endpoint_label = QtWidgets.QLabel()
-        self.ui.mu_server_multicast_endpoint_label.setText("Multicast Endpoint")
-        self.ui.mu_server_multicast_endpoint_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.mu_server_multicast_endpoint_label, self.ui.mu_server_multicast_endpoint_line_edit)
-        
-        # Clean History
-        self.ui.mu_clean_history_label = QtWidgets.QLabel()
-        self.ui.mu_clean_history_label.setText("Clean History")
-        self.ui.mu_clean_history_check_box = QtWidgets.QCheckBox()
-        form_layout.addRow(self.ui.mu_clean_history_label, self.ui.mu_clean_history_check_box)
-        
-        # Auto Launch
-        self.ui.mu_auto_launch_label = QtWidgets.QLabel()
-        self.ui.mu_auto_launch_label.setText("Auto Launch")
-        self.ui.mu_auto_launch_check_box = QtWidgets.QCheckBox()
-        form_layout.addRow(self.ui.mu_auto_launch_label, self.ui.mu_auto_launch_check_box)
-        
-        # Executable Name
-        self.ui.muserver_exe_label = QtWidgets.QLabel()
-        self.ui.muserver_exe_label.setText("Executable Name")
-        self.ui.muserver_exe_line_edit = QtWidgets.QLineEdit()
-        form_layout.addRow(self.ui.muserver_exe_label, self.ui.muserver_exe_line_edit)
-        
-        # Auto Build
-        self.ui.muserver_auto_build_label = QtWidgets.QLabel()
-        self.ui.muserver_auto_build_label.setText("Auto Build")
-        self.ui.muserver_auto_build_check_box = QtWidgets.QCheckBox()
-        form_layout.addRow(self.ui.muserver_auto_build_label, self.ui.muserver_auto_build_check_box)
-        
-        # Auto Static Endpoint
-        self.ui.muserver_auto_endpoint_label = QtWidgets.QLabel()
-        self.ui.muserver_auto_endpoint_label.setText("Auto Static Endpoint")
-        self.ui.muserver_auto_endpoint_check_box = QtWidgets.QCheckBox()
-        form_layout.addRow(self.ui.muserver_auto_endpoint_label, self.ui.muserver_auto_endpoint_check_box)
-        
+        self._create_settings_section(config.mu_settings, form_layout)
         return self.ui.multi_user_settings
+    
+    def _create_settings_section(self, dict: typing.Dict[str, Setting], layout: QtWidgets.QFormLayout):
+        setting_list = [setting for _, setting in dict.items()]
+        for setting in setting_list:
+            setting.create_ui(override_device_name=None, form_layout=layout)
 
     def _create_tab_widget(self, parent_layout):
         self.ui.tab_widget = HorizontalTabWidget()
@@ -520,158 +327,6 @@ class SettingsDialog(QtCore.QObject):
             QtWidgets.QToolTip().showText(rect, str(e))
 
         self._changed_config_path = config_path
-
-    def uproject_browse_button_clicked(self):
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(
-            parent=self.ui, filter='*.uproject')
-        if file_name:
-            file_name = os.path.normpath(file_name)
-            self.set_uproject(file_name)
-            CONFIG.UPROJECT_PATH.update_value(file_name)
-
-    def engine_dir_browse_button_clicked(self):
-        dir_name = QtWidgets.QFileDialog.getExistingDirectory(parent=self.ui)
-        if dir_name:
-            dir_name = os.path.normpath(dir_name)
-            self.set_engine_dir(dir_name)
-            CONFIG.ENGINE_DIR.update_value(dir_name)
-
-    def ip_address(self):
-        return self.ui.ip_address_line_edit.text()
-
-    def set_ip_address(self, value):
-        self.ui.ip_address_line_edit.setText(value)
-
-    def transport_path(self):
-        return self.ui.transport_path_line_edit.text()
-
-    def set_transport_path(self, value):
-        self.ui.transport_path_line_edit.setText(value)
-
-    def listener_exe(self):
-        return self.ui.listener_exe_line_edit.text()
-
-    def set_listener_exe(self, value):
-        self.ui.listener_exe_line_edit.setText(value)
-
-    def project_name(self):
-        return self.ui.project_name_line_edit.text()
-
-    def set_project_name(self, value):
-        self.ui.project_name_line_edit.setText(value)
-
-    def uproject(self):
-        return self.ui.uproject_line_edit.text()
-
-    def set_uproject(self, value):
-        self.ui.uproject_line_edit.setText(value)
-
-    def engine_dir(self):
-        return self.ui.engine_dir_line_edit.text()
-
-    def set_engine_dir(self, value):
-        self.ui.engine_dir_line_edit.setText(value)
-
-    def set_build_engine(self, value):
-        self.ui.build_engine_checkbox.setChecked(value)
-
-    def p4_enabled(self):
-        return self.ui.source_control_settings_group.isChecked()
-
-    def set_p4_enabled(self, enabled):
-        self.ui.source_control_settings_group.setChecked(enabled)
-
-    def p4_project_path(self):
-        return self.ui.p4_project_path_line_edit.text()
-
-    def set_p4_project_path(self, value):
-        self.ui.p4_project_path_line_edit.setText(value)
-
-    def p4_engine_path(self):
-        return self.ui.p4_engine_path_line_edit.text()
-
-    def set_p4_engine_path(self, value):
-        self.ui.p4_engine_path_line_edit.setText(value)
-
-    def source_control_workspace(self):
-        return self.ui.source_control_workspace_line_edit.text()
-
-    def set_source_control_workspace(self, value):
-        self.ui.source_control_workspace_line_edit.setText(value)
-
-    def map_path(self):
-        return self.ui.map_path_line_edit.text()
-
-    def set_map_path(self, value):
-        self.ui.map_path_line_edit.setText(value)
-
-    def map_filter(self):
-        return self.ui.map_filter_line_edit.text()
-
-    def set_map_filter(self, value):
-        self.ui.map_filter_line_edit.setText(value)
-
-    # OSC Settings
-    def set_osc_server_port(self, port):
-        self.ui.osc_server_port_line_edit.setText(str(port))
-
-    def set_osc_client_port(self, port):
-        self.ui.osc_client_port_line_edit.setText(str(port))
-
-    # MU SERVER Settings
-    def mu_server_name(self):
-        return self.ui.mu_server_name_line_edit.text()
-
-    def set_mu_server_name(self, value):
-        self.ui.mu_server_name_line_edit.setText(value)
-
-    def mu_server_multicast_endpoint(self):
-        return self.ui.mu_server_multicast_endpoint_line_edit.text()
-
-    def set_mu_server_multicast_endpoint(self, endpoint):
-        self.ui.mu_server_multicast_endpoint_line_edit.setText(str(endpoint))
-
-    def mu_server_endpoint(self):
-        return self.ui.mu_server_endpoint_line_edit.text()
-
-    def set_mu_server_endpoint(self, endpoint):
-        self.ui.mu_server_endpoint_line_edit.setText(str(endpoint))
-
-    def mu_cmd_line_args(self):
-        return self.ui.mu_cmd_line_args_line_edit.text()
-
-    def set_mu_cmd_line_args(self, value):
-        self.ui.mu_cmd_line_args_line_edit.setText(value)
-
-    def mu_auto_launch(self):
-        return self.ui.mu_auto_launch_check_box.isChecked()
-
-    def set_mu_auto_launch(self, value):
-        self.ui.mu_auto_launch_check_box.setChecked(value)
-
-    def mu_clean_history(self):
-        return self.ui.mu_clean_history_check_box.isChecked()
-
-    def set_mu_clean_history(self, value):
-        self.ui.mu_clean_history_check_box.setChecked(value)
-
-    def mu_server_exe(self):
-        return self.ui.muserver_exe_line_edit.text()
-
-    def set_mu_server_exe(self, value):
-        self.ui.muserver_exe_line_edit.setText(value)
-
-    def mu_server_auto_build(self) -> bool:
-        return self.ui.muserver_auto_build_check_box.isChecked()
-
-    def set_mu_server_auto_build(self, value: bool):
-        self.ui.muserver_auto_build_check_box.setChecked(value)
-
-    def mu_server_auto_endpoint(self) -> bool:
-        return self.ui.muserver_auto_endpoint_check_box.isChecked()
-
-    def set_mu_server_auto_endpoint(self, value: bool):
-        self.ui.muserver_auto_endpoint_check_box.setChecked(value)
 
     # Devices
     def add_section_for_plugin(self, plugin_name, plugin_settings, device_settings):

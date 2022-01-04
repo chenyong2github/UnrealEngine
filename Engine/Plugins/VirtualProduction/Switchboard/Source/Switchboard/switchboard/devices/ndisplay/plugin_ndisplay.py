@@ -856,7 +856,7 @@ class DevicenDisplay(DeviceUnreal):
                 '-CONCERTAUTOCONNECT'])
 
         args.extend([
-            f'-CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME}"',
+            f'-CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME.get_value()}"',
             f'-CONCERTSESSION="{SETTINGS.MUSERVER_SESSION_NAME}"',
             f'-CONCERTDISPLAYNAME="{self.name}"',
             '-CONCERTISHEADLESS',
