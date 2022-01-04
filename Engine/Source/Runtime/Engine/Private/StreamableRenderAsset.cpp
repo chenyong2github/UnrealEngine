@@ -5,12 +5,24 @@
 #include "ContentStreaming.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 
+static const TCHAR* GNoRefBiasQualityLevelCVarName = TEXT("r.Streaming.NoRefLODBiasQualityLevel");
+static const TCHAR* GNoRefBiasQualityLevelScalabilitySection = TEXT("ViewDistanceQuality");
+static int32 GNoRefBiasQualityLevel = -1;
+static FAutoConsoleVariableRef CVarNoRefBiasQualityLevel(
+	GNoRefBiasQualityLevelCVarName,
+	GNoRefBiasQualityLevel,
+	TEXT("The quality level for the no-ref mesh streaming LOD bias"),
+	ECVF_Scalability);
+
 extern bool TrackRenderAssetEvent(struct FStreamingRenderAsset* StreamingRenderAsset, UStreamableRenderAsset* RenderAsset, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager);
 
 UStreamableRenderAsset::UStreamableRenderAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	check(sizeof(FStreamableRenderResourceState) == sizeof(uint64));
+
+	SetNoRefStreamingLODBias(-1);
+	NoRefStreamingLODBias.Init(GNoRefBiasQualityLevelCVarName, GNoRefBiasQualityLevelScalabilitySection);
 }
 
 void UStreamableRenderAsset::RegisterMipLevelChangeCallback(UPrimitiveComponent* Component, int32 LODIndex, float TimeoutSecs, bool bOnStreamIn, FLODStreamingCallback&& Callback)
@@ -394,4 +406,9 @@ bool UStreamableRenderAsset::IsReadyForFinishDestroy()
 	}
 
 	return !PendingUpdate.IsValid();
+}
+
+int32 UStreamableRenderAsset::GetCurrentNoRefStreamingLODBias() const
+{
+	return GetNoRefStreamingLODBias().GetValue(GNoRefBiasQualityLevel);
 }

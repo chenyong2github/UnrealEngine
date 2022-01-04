@@ -3297,6 +3297,26 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 			.EntryNames(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODOverrideNames)
 		];
 
+	LODSettingsCategory.AddCustomRow(LOCTEXT("NoRefStreamingLODBias", "NoRef Streaming LOD Bias"))
+	.RowTag("NoRefStreamingLODBias")
+	.IsEnabled(TAttribute<bool>::CreateLambda([this]() { return GetLODCount() > 1; }))
+	.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("NoRefStreamingLODBias", "NoRef Streaming LOD Bias"))
+		]
+	.ValueContent()
+		.MinDesiredWidth(float(StaticMesh->GetNoRefStreamingLODBias().PerQuality.Num() + 1) * 125.f)
+		.MaxDesiredWidth(float((int32)QualityLevelProperty::EQualityLevels::Num + 1) * 125.f)
+		[
+			SNew(SPerQualityLevelPropertiesWidget)
+			.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetNoRefStreamingLODBiasWidget)
+			.OnAddEntry(this, &FLevelOfDetailSettingsLayout::AddNoRefStreamingLODBiasOverride)
+			.OnRemoveEntry(this, &FLevelOfDetailSettingsLayout::RemoveNoRefStreamingLODBiasOverride)
+			.EntryNames(this, &FLevelOfDetailSettingsLayout::GetNoRefStreamingLODBiasOverrideNames)
+		];
+
 	{
 		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::CreateSP(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNames);
 
@@ -4419,6 +4439,119 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetMinQualityLevelLODOverrideNames()
 	}
 	OverrideNames.Sort(FNameLexicalLess());
 	return OverrideNames;
+}
+
+void FLevelOfDetailSettingsLayout::OnNoRefStreamingLODBiasChanged(int32 NewValue, FName QualityLevel)
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	{
+		FStaticMeshComponentRecreateRenderStateContext ReregisterContext(StaticMesh, false);
+		NewValue = FMath::Clamp<int32>(NewValue, -1, MAX_STATIC_MESH_LODS - 1);
+		FPerQualityLevelInt NoRefStreamingLODBias = StaticMesh->GetNoRefStreamingLODBias();
+		int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevel);
+		if (QualityLevel == NAME_None || QLKey == INDEX_NONE)
+		{
+			NoRefStreamingLODBias.Default = NewValue;
+		}
+		else
+		{
+			int32* ValuePtr = NoRefStreamingLODBias.PerQuality.Find(QLKey);
+			if (ValuePtr != nullptr)
+			{
+				*ValuePtr = NewValue;
+			}
+		}
+		StaticMesh->SetNoRefStreamingLODBias(MoveTemp(NoRefStreamingLODBias));
+		StaticMesh->Modify();
+	}
+	StaticMeshEditor.RefreshViewport();
+}
+
+void FLevelOfDetailSettingsLayout::OnNoRefStreamingLODBiasCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName QualityLevel)
+{
+	OnNoRefStreamingLODBiasChanged(InValue, QualityLevel);
+}
+
+int32 FLevelOfDetailSettingsLayout::GetNoRefStreamingLODBias(FName QualityLevel) const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevel);
+	const int32* ValuePtr = (QualityLevel == NAME_None) ? nullptr : StaticMesh->GetNoRefStreamingLODBias().PerQuality.Find(QLKey);
+	return (ValuePtr != nullptr) ? *ValuePtr : StaticMesh->GetNoRefStreamingLODBias().Default;
+}
+
+TSharedRef<SWidget> FLevelOfDetailSettingsLayout::GetNoRefStreamingLODBiasWidget(FName QualityLevelName) const
+{
+	return SNew(SSpinBox<int32>)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Value(this, &FLevelOfDetailSettingsLayout::GetNoRefStreamingLODBias, QualityLevelName)
+		.OnValueChanged(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnNoRefStreamingLODBiasChanged, QualityLevelName)
+		.OnValueCommitted(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnNoRefStreamingLODBiasCommitted, QualityLevelName)
+		.MinValue(-1)
+		.MaxValue(MAX_STATIC_MESH_LODS - 1)
+		.ToolTipText(this, &FLevelOfDetailSettingsLayout::GetNoRefStreamingLODBiasTooltip)
+		.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1);
+}
+
+bool FLevelOfDetailSettingsLayout::AddNoRefStreamingLODBiasOverride(FName QualityLevelName)
+{
+	FScopedTransaction Transaction(LOCTEXT("AddNoRefStreamingLODBiasOverride", "Add NoRef Streaming LOD Bias Override"));
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	StaticMesh->Modify();
+	int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	if (StaticMesh->GetNoRefStreamingLODBias().PerQuality.Find(QLKey) == nullptr)
+	{
+		FPerQualityLevelInt NoRefStreamingLODBias = StaticMesh->GetNoRefStreamingLODBias();
+		int32 Value = NoRefStreamingLODBias.Default;
+		NoRefStreamingLODBias.PerQuality.Add(QLKey, Value);
+		StaticMesh->SetNoRefStreamingLODBias(MoveTemp(NoRefStreamingLODBias));
+		OnNoRefStreamingLODBiasChanged(Value, QualityLevelName);
+		return true;
+	}
+	return false;
+}
+
+bool FLevelOfDetailSettingsLayout::RemoveNoRefStreamingLODBiasOverride(FName QualityLevelName)
+{
+	FScopedTransaction Transaction(LOCTEXT("RemoveNoRefStreamingLODBiasOverride", "Remove NoRef Streaming LOD Bias Override"));
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+	StaticMesh->Modify();
+
+	FPerQualityLevelInt NoRefStreamingLODBias = StaticMesh->GetNoRefStreamingLODBias();
+	int32 QL = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	if (QL != INDEX_NONE && NoRefStreamingLODBias.PerQuality.Remove(QL) != 0)
+	{
+		int32 Value = NoRefStreamingLODBias.Default;
+		StaticMesh->SetNoRefStreamingLODBias(MoveTemp(NoRefStreamingLODBias));
+		OnNoRefStreamingLODBiasChanged(Value, QualityLevelName);
+		return true;
+	}
+	return false;
+}
+
+TArray<FName> FLevelOfDetailSettingsLayout::GetNoRefStreamingLODBiasOverrideNames() const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	TArray<FName> OverrideNames;
+	for (const TPair<int32, int32>& Pair : StaticMesh->GetNoRefStreamingLODBias().PerQuality)
+	{
+		OverrideNames.Add(QualityLevelProperty::QualityLevelToFName(Pair.Key));
+	}
+	OverrideNames.Sort(FNameLexicalLess());
+	return OverrideNames;
+}
+
+FText FLevelOfDetailSettingsLayout::GetNoRefStreamingLODBiasTooltip() const
+{
+	return LOCTEXT("NoRefStreamingLODBiasTooltip", "LOD bias for preloading no-ref mesh LODs. To use platform default, set to -1.");
 }
 
 /** @return - whether value was different */
