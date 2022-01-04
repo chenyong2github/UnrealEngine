@@ -429,7 +429,7 @@ class DeviceUnreal(Device):
             (ipaddress.ip_address(d.ip_address), d)
             for d in cls.active_unreal_devices]
 
-        switchboard_ip_address = ipaddress.ip_address(SETTINGS.IP_ADDRESS)
+        switchboard_ip_address = ipaddress.ip_address(SETTINGS.IP_ADDRESS.get_value())
 
         def is_local(pair):
             return pair[0].is_loopback or (pair[0] == switchboard_ip_address)
@@ -735,7 +735,7 @@ class DeviceUnreal(Device):
 
         # Also check the multi-user server settings.
         muserver_extra_args_lower: str = (
-            CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS.lower())
+            CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS.get_value().lower())
         if '-udpmessaging_transport_unicast' in muserver_extra_args_lower:
             LOGGER.error(
                 f'{self.name}: Multi-user server command line arguments '
@@ -1061,7 +1061,7 @@ class DeviceUnreal(Device):
         if (self.is_designated_local_builder() and
                 CONFIG.BUILD_ENGINE.get_value()):
             # Build multi-user server
-            if CONFIG.MUSERVER_AUTO_BUILD:
+            if CONFIG.MUSERVER_AUTO_BUILD.get_value():
                 if DeviceUnreal.mu_server.is_running():
                     mb_ret = QtWidgets.QMessageBox.question(
                         None, 'Terminate multi-user server?',
@@ -1233,10 +1233,10 @@ class DeviceUnreal(Device):
 
     @classmethod
     def get_muserver_endpoint(cls) -> str:
-        setting_val = CONFIG.MUSERVER_ENDPOINT.strip()
+        setting_val = CONFIG.MUSERVER_ENDPOINT.get_value().strip()
         if setting_val:
             return sb_utils.expand_endpoint(setting_val,
-                                            SETTINGS.IP_ADDRESS.strip())
+                                            SETTINGS.IP_ADDRESS.get_value().strip())
         else:
             return ''
 
@@ -1252,7 +1252,7 @@ class DeviceUnreal(Device):
         endpoints: List[str] = []
 
         # Multi-user server.
-        if CONFIG.MUSERVER_AUTO_ENDPOINT:
+        if CONFIG.MUSERVER_AUTO_ENDPOINT.get_value():
             endpoints.append(DeviceUnreal.get_muserver_endpoint())
 
         # Any additional endpoints manually specified via settings.
@@ -1279,7 +1279,7 @@ class DeviceUnreal(Device):
                 '-CONCERTRETRYAUTOCONNECTONERROR '
                 '-CONCERTAUTOCONNECT ')
 
-        command_line_args += (f'-CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME}" '
+        command_line_args += (f'-CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME.get_value()}" '
                               f'-CONCERTSESSION="{SETTINGS.MUSERVER_SESSION_NAME}" '
                               f'-CONCERTDISPLAYNAME="{self.name}"')
 
@@ -1378,7 +1378,9 @@ class DeviceUnreal(Device):
             return
 
         # Launch the MU server
-        if CONFIG.MUSERVER_AUTO_JOIN.get_value() and self.autojoin_mu_server.get_value() and CONFIG.MUSERVER_AUTO_LAUNCH:
+        if CONFIG.MUSERVER_AUTO_JOIN.get_value() \
+            and self.autojoin_mu_server.get_value() \
+            and CONFIG.MUSERVER_AUTO_LAUNCH.get_value():
             DeviceUnreal.mu_server.launch()
 
         self.compute_runtime_str()
@@ -1424,7 +1426,7 @@ class DeviceUnreal(Device):
         if self.status == DeviceStatus.OPEN:
             self.send_osc_message(
                 osc.OSC_ADD_SEND_TARGET,
-                [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value()])
+                [SETTINGS.IP_ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value()])
         else:
             self.osc_connection_timer.stop()
 
@@ -1875,7 +1877,7 @@ class DeviceUnreal(Device):
             DeviceUnreal.rsync_server.make_cygdrive_path(remote_path)
 
         dest_endpoint = \
-            f'{SETTINGS.IP_ADDRESS}:{DeviceUnreal.rsync_server.port}'
+            f'{SETTINGS.IP_ADDRESS.get_value()}:{DeviceUnreal.rsync_server.port}'
         dest_module = DeviceUnreal.rsync_server.INCOMING_LOGS_MODULE
         dest_path = f'rsync://{dest_endpoint}/{dest_module}/'
 

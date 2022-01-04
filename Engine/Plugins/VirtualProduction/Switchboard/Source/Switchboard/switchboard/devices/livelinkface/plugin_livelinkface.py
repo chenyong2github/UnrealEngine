@@ -107,7 +107,7 @@ class DeviceLiveLinkFace(Device):
 
     # Tell the mobile which ip_address is running Switchboard
     def osc_add_send_target(self):
-        self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value()], log=True)
+        self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value()], log=True)
 
     def osc_add_send_target_confirm(self):
         # If the mobile is left on and CP is relaunched the normal bootup sequence doesn't happen 

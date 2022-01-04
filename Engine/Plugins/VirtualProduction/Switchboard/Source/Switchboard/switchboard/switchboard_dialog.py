@@ -292,7 +292,7 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Start the OSC server
         self.osc_server = switchboard_application.OscServer()
-        self.osc_server.launch(SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value())
+        self.osc_server.launch(SETTINGS.IP_ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value())
 
         # Register with OSC server
         self.osc_server.dispatcher_map(osc.TAKE, self.osc_take)
@@ -808,33 +808,7 @@ class SwitchboardDialog(QtCore.QObject):
         Settings window
         """
         # TODO: VALIDATE RECORD PATH
-        settings_dialog = SettingsDialog()
-
-        settings_dialog.set_config_path(SETTINGS.CONFIG)
-        settings_dialog.set_ip_address(SETTINGS.IP_ADDRESS)
-        settings_dialog.set_transport_path(SETTINGS.TRANSPORT_PATH)
-        settings_dialog.set_listener_exe(CONFIG.LISTENER_EXE)
-        settings_dialog.set_project_name(CONFIG.PROJECT_NAME)
-        settings_dialog.set_uproject(CONFIG.UPROJECT_PATH.get_value())
-        settings_dialog.set_engine_dir(CONFIG.ENGINE_DIR.get_value())
-        settings_dialog.set_build_engine(CONFIG.BUILD_ENGINE.get_value())
-        settings_dialog.set_p4_enabled(bool(CONFIG.P4_ENABLED.get_value()))
-        settings_dialog.set_source_control_workspace(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
-        settings_dialog.set_p4_project_path(CONFIG.P4_PROJECT_PATH.get_value())
-        settings_dialog.set_p4_engine_path(CONFIG.P4_ENGINE_PATH.get_value())
-        settings_dialog.set_map_path(CONFIG.MAPS_PATH.get_value())
-        settings_dialog.set_map_filter(CONFIG.MAPS_FILTER.get_value())
-        settings_dialog.set_osc_server_port(CONFIG.OSC_SERVER_PORT.get_value())
-        settings_dialog.set_osc_client_port(CONFIG.OSC_CLIENT_PORT.get_value())
-        settings_dialog.set_mu_server_name(CONFIG.MUSERVER_SERVER_NAME)
-        settings_dialog.set_mu_server_endpoint(CONFIG.MUSERVER_ENDPOINT)
-        settings_dialog.set_mu_server_multicast_endpoint(CONFIG.MUSERVER_MULTICAST_ENDPOINT.get_value())
-        settings_dialog.set_mu_cmd_line_args(CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS)
-        settings_dialog.set_mu_clean_history(CONFIG.MUSERVER_CLEAN_HISTORY)
-        settings_dialog.set_mu_auto_launch(CONFIG.MUSERVER_AUTO_LAUNCH)
-        settings_dialog.set_mu_server_exe(CONFIG.MULTIUSER_SERVER_EXE)
-        settings_dialog.set_mu_server_auto_build(CONFIG.MUSERVER_AUTO_BUILD)
-        settings_dialog.set_mu_server_auto_endpoint(CONFIG.MUSERVER_AUTO_ENDPOINT)
+        settings_dialog = SettingsDialog(SETTINGS, CONFIG)
 
         for plugin_name in sorted(self.device_manager.available_device_plugins(), key=str.lower):
             device_instances = self.device_manager.devices_of_type(plugin_name)
@@ -843,6 +817,8 @@ class SwitchboardDialog(QtCore.QObject):
         
         settings_dialog.select_all_tab()
 
+        old_ip_address = SETTINGS.IP_ADDRESS.get_value()
+        old_transport_path = SETTINGS.TRANSPORT_PATH.get_value()
         # avoid saving the config all the time while in the settings dialog
         CONFIG.push_saving_allowed(False)
         try:
@@ -855,73 +831,14 @@ class SwitchboardDialog(QtCore.QObject):
         new_config_path = settings_dialog.config_path()
         if new_config_path != SETTINGS.CONFIG and new_config_path is not None:
             CONFIG.replace(new_config_path)
-
             SETTINGS.CONFIG = new_config_path
             SETTINGS.save()
 
-        ip_address = settings_dialog.ip_address()
-        if ip_address != SETTINGS.IP_ADDRESS:
-            SETTINGS.IP_ADDRESS = ip_address
+        if old_ip_address != SETTINGS.IP_ADDRESS.get_value() or SETTINGS.TRANSPORT_PATH.get_value():
             SETTINGS.save()
-
-            # Relaunch the OSC server
+        if old_ip_address != SETTINGS.IP_ADDRESS.get_value():
             self.osc_server.close()
-            self.osc_server.launch(SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value())
-
-        transport_path = settings_dialog.transport_path()
-        if transport_path != SETTINGS.TRANSPORT_PATH:
-            SETTINGS.TRANSPORT_PATH = transport_path
-            SETTINGS.save()
-
-        # todo-dara, when these project settings have been converted into actual Settings
-        # these assignments are not needed anymore, as the settings would be directly connected to their widgets
-
-        project_name = settings_dialog.project_name()
-        if project_name != CONFIG.PROJECT_NAME:
-            CONFIG.PROJECT_NAME = project_name
-
-        listener_exe = settings_dialog.listener_exe()
-        if listener_exe != CONFIG.LISTENER_EXE:
-            CONFIG.LISTENER_EXE = listener_exe
-
-        # Multi User Settings
-        mu_server_name = settings_dialog.mu_server_name()
-        if mu_server_name != CONFIG.MUSERVER_SERVER_NAME:
-            CONFIG.MUSERVER_SERVER_NAME = mu_server_name
-
-        mu_server_endpoint = settings_dialog.mu_server_endpoint()
-        if mu_server_endpoint != CONFIG.MUSERVER_ENDPOINT:
-            CONFIG.MUSERVER_ENDPOINT = mu_server_endpoint
-
-        mu_server_multicast_endpoint = settings_dialog.mu_server_multicast_endpoint()
-        if mu_server_multicast_endpoint != CONFIG.MUSERVER_MULTICAST_ENDPOINT:
-            CONFIG.MUSERVER_MULTICAST_ENDPOINT.update_value(mu_server_multicast_endpoint)
-
-        mu_cmd_line_args = settings_dialog.mu_cmd_line_args()
-        if mu_cmd_line_args != CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS:
-            CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS = mu_cmd_line_args
-
-        mu_clean_history = settings_dialog.mu_clean_history()
-        if mu_clean_history != CONFIG.MUSERVER_CLEAN_HISTORY:
-            CONFIG.MUSERVER_CLEAN_HISTORY = mu_clean_history
-
-        mu_auto_launch = settings_dialog.mu_auto_launch()
-        if mu_auto_launch != CONFIG.MUSERVER_AUTO_LAUNCH:
-            CONFIG.MUSERVER_AUTO_LAUNCH = mu_auto_launch
-
-        mu_server_exe = settings_dialog.mu_server_exe()
-        if mu_server_exe != CONFIG.MULTIUSER_SERVER_EXE:
-            CONFIG.MULTIUSER_SERVER_EXE = mu_server_exe
-
-        mu_auto_build = settings_dialog.mu_server_auto_build()
-        if mu_auto_build != CONFIG.MUSERVER_AUTO_BUILD:
-            CONFIG.MUSERVER_AUTO_BUILD = mu_auto_build
-
-        mu_auto_endpoint = settings_dialog.mu_server_auto_endpoint()
-        if mu_auto_endpoint != CONFIG.MUSERVER_AUTO_ENDPOINT:
-            CONFIG.MUSERVER_AUTO_ENDPOINT = mu_auto_endpoint
-
-        CONFIG.P4_ENABLED.update_value(settings_dialog.p4_enabled())
+            self.osc_server.launch(SETTINGS.IP_ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value())
 
         CONFIG.save()
 
@@ -1864,7 +1781,7 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Return a Recording object
         new_recording = recording.Recording()
-        new_recording.project = CONFIG.PROJECT_NAME
+        new_recording.project = CONFIG.PROJECT_NAME.get_value()
         new_recording.shoot = self.shoot
         new_recording.sequence = self.sequence
         new_recording.slate = self.slate
