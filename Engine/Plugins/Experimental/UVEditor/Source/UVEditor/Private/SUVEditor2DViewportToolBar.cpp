@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "SUVEditor2DViewportToolBar.h"
 
 #include "EditorViewportCommands.h"
