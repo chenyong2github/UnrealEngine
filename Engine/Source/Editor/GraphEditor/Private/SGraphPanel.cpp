@@ -781,11 +781,17 @@ bool SGraphPanel::OnHandleLeftMouseRelease(const FGeometry& MyGeometry, const FP
 			if( PinWidgetGeometry.Geometry.IsUnderLocation( MouseEvent.GetScreenSpacePosition() ) )
 			{
 				SGraphPin& TargetPin = static_cast<SGraphPin&>( PinWidgetGeometry.Widget.Get() );
-
+				
 				if (PreviewConnectionPin->TryHandlePinConnection(TargetPin))
 				{
-					NodeList.Add(TargetPin.GetPinObj()->GetOwningNode());
-					NodeList.Add(PreviewConnectionPin->GetPinObj()->GetOwningNode());
+					// We have to do a second check on PinObjs here since TryHandlePinConnection, may invalidate them.
+					UEdGraphPin* PreviewConnectionPinObj = PreviewConnectionPin->GetPinObj();
+					UEdGraphPin* TargetPinObj = TargetPin.GetPinObj();
+					if (TargetPinObj && PreviewConnectionPinObj)
+					{
+						NodeList.Add(TargetPinObj->GetOwningNode());
+						NodeList.Add(PreviewConnectionPinObj->GetOwningNode());
+					}
 				}
 				bHandledDrop = true;
 			}
