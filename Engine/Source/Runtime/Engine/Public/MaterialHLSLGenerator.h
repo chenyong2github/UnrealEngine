@@ -23,7 +23,6 @@ class UMaterialExpressionFunctionInput;
 class UMaterialExpressionFunctionOutput;
 struct FFunctionExpressionInput;
 class ITargetPlatform;
-enum class EMaterialGenerateHLSLStatus : uint8;
 
 namespace UE
 {
@@ -50,33 +49,34 @@ struct TMaterialHLSLGeneratorType;
 #define DECLARE_MATERIAL_HLSLGENERATOR_DATA(T) \
 	template<> struct TMaterialHLSLGeneratorType<T> { static const FName& GetTypeName() { static const FName Name(TEXT(#T)); return Name; } }
 
+class FMaterialHLSLErrorHandler : public UE::HLSLTree::FErrorHandlerInterface
+{
+public:
+	explicit FMaterialHLSLErrorHandler(FMaterial& InOutMaterial);
+
+	virtual void AddErrorInternal(UObject* InOwner, FStringView InError) override;
+
+private:
+	FMaterial* Material;
+};
+
 /**
  * MaterialHLSLGenerator is a bridge between a material, and HLSLTree.  It facilitates generating HLSL source code for a given material, using HLSLTree
  */
 class FMaterialHLSLGenerator
 {
 public:
-	FMaterialHLSLGenerator(UMaterial* InTargetMaterial,
-		const FMaterialCompileTargetParameters& InCompilerTarget,
+	FMaterialHLSLGenerator(const FMaterialCompileTargetParameters& InCompilerTarget,
+		FMaterial& InOutMaterial,
 		UE::Shader::FStructTypeRegistry& InOutTypeRegistry,
 		UE::HLSLTree::FTree& InOutTree);
 
 	const FMaterialCompileTargetParameters& GetCompileTarget() const { return CompileTarget; }
-
-	bool Finalize();
-
-	/** Retrieve the compile errors from the generator */
-	void AcquireErrors(FMaterial& OutMaterial);
-
-	EMaterialGenerateHLSLStatus Error(const FString& Message);
-
-	template <typename FormatType, typename... ArgTypes>
-	inline EMaterialGenerateHLSLStatus Errorf(const FormatType& Format, ArgTypes... Args)
-	{
-		return Error(FString::Printf(Format, Args...));
-	}
+	
+	bool Generate();
 
 	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
+	FMaterialHLSLErrorHandler& GetErrors() { return Errors; }
 
 	UE::HLSLTree::FExpression* GetResultExpression() { return ResultExpression; }
 	UE::HLSLTree::FStatement* GetResultStatement() { return ResultStatement; }
@@ -185,21 +185,19 @@ private:
 	void* InternalFindExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression);
 
 	const FMaterialCompileTargetParameters& CompileTarget;
-	UMaterial* TargetMaterial;
+	UMaterial* TargetMaterial = nullptr;
+	FMaterialHLSLErrorHandler Errors;
 
-	const UE::Shader::FStructType* MaterialAttributesType;
+	const UE::Shader::FStructType* MaterialAttributesType = nullptr;
 	UE::Shader::FValue MaterialAttributesDefaultValue;
 
 	UE::HLSLTree::FTree* HLSLTree;
-	UE::Shader::FStructTypeRegistry* TypeRegistry;
+	UE::Shader::FStructTypeRegistry* TypeRegistry = nullptr;
 	UE::HLSLTree::FExpression* ResultExpression = nullptr;
 	UE::HLSLTree::FStatement* ResultStatement = nullptr;
 
-	TArray<UMaterialExpression*> ExpressionStack;
 	TArray<FFunctionCallEntry*, TInlineAllocator<8>> FunctionCallStack;
 	TArray<UE::HLSLTree::FScope*> JoinedScopeStack;
-	TArray<FString> CompileErrors;
-	TArray<UMaterialExpression*> ErrorExpressions;
 	TMap<UE::HLSLTree::FTextureDescription, UE::HLSLTree::FTextureParameterDeclaration*> TextureDeclarationMap;
 	TMap<FName, UE::HLSLTree::FTextureParameterDeclaration*> TextureParameterDeclarationMap;
 	TMap<FSHAHash, FFunctionCallEntry*> FunctionCallMap;

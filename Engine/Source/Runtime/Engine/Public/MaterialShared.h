@@ -2295,7 +2295,7 @@ private:
 	friend class FMaterialShaderMap;
 	friend class FShaderCompilingManager;
 	friend class FHLSLMaterialTranslator;
-	friend class FMaterialHLSLGenerator;
+	friend class FMaterialHLSLErrorHandler;
 };
 
 /**

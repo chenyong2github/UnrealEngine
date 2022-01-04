@@ -44,7 +44,7 @@ class UMaterialExpressionSetMaterialAttributes : public UMaterialExpression
 	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override {return true;}
 	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip) override;
 
-	virtual EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

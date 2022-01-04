@@ -9,6 +9,7 @@
 #include "Materials/MaterialExpressionFunctionInput.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
+#include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/Material.h"
 #include "ShaderCore.h"
 #include "HLSLTree/HLSLTree.h"
@@ -35,17 +36,62 @@ static UE::Shader::EValueType GetShaderType(EMaterialValueType MaterialType)
 	}
 }
 
-FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial,
-	const FMaterialCompileTargetParameters& InCompileTarget,
+FMaterialHLSLErrorHandler::FMaterialHLSLErrorHandler(FMaterial& InOutMaterial)
+	: Material(&InOutMaterial)
+{
+	Material->CompileErrors.Reset();
+	Material->ErrorExpressions.Reset();
+}
+
+void FMaterialHLSLErrorHandler::AddErrorInternal(UObject* InOwner, FStringView InError)
+{
+	UMaterialExpression* MaterialExpressionOwner = Cast<UMaterialExpression>(InOwner);
+	UMaterialExpression* ExpressionToError = nullptr;
+	TStringBuilder<1024> FormattedError;
+
+	if (MaterialExpressionOwner)
+	{
+		if (MaterialExpressionOwner->GetClass() != UMaterialExpressionMaterialFunctionCall::StaticClass()
+			&& MaterialExpressionOwner->GetClass() != UMaterialExpressionFunctionInput::StaticClass()
+			&& MaterialExpressionOwner->GetClass() != UMaterialExpressionFunctionOutput::StaticClass())
+		{
+			// Add the expression currently being compiled to ErrorExpressions so we can draw it differently
+			ExpressionToError = MaterialExpressionOwner;
+
+			const int32 ChopCount = FCString::Strlen(TEXT("MaterialExpression"));
+			const FString ErrorClassName = MaterialExpressionOwner->GetClass()->GetName();
+
+			// Add the node type to the error message
+			FormattedError.Appendf(TEXT("(Node %s) "), *ErrorClassName.Right(ErrorClassName.Len() - ChopCount));
+		}
+	}
+
+	FormattedError.Append(InError);
+	const FString Error(FormattedError.ToView());
+
+	// Standard error handling, immediately append one-off errors and signal failure
+	Material->CompileErrors.AddUnique(Error);
+
+	if (ExpressionToError)
+	{
+		Material->ErrorExpressions.Add(ExpressionToError);
+		ExpressionToError->LastErrorText = Error;
+	}
+}
+
+FMaterialHLSLGenerator::FMaterialHLSLGenerator(const FMaterialCompileTargetParameters& InCompileTarget,
+	FMaterial& InOutMaterial,
 	UE::Shader::FStructTypeRegistry& InOutTypeRegistry,
 	UE::HLSLTree::FTree& InOutTree)
 	: CompileTarget(InCompileTarget)
-	, TargetMaterial(InTargetMaterial)
+	, Errors(InOutMaterial)
 	, HLSLTree(&InOutTree)
 	, TypeRegistry(&InOutTypeRegistry)
 	, bGeneratedResult(false)
 {
-	const EMaterialShadingModel DefaultShadingModel = InTargetMaterial->GetShadingModels().GetFirstShadingModel();
+	UMaterialInterface* MaterialInterface = InOutMaterial.GetMaterialInterface();
+	TargetMaterial = MaterialInterface->GetMaterial();
+	const EMaterialShadingModel DefaultShadingModel = TargetMaterial->GetShadingModels().GetFirstShadingModel();
 
 	FFunctionCallEntry* RootFunctionEntry = new(InOutTree.GetAllocator()) FFunctionCallEntry();
 	FunctionCallStack.Add(RootFunctionEntry);
@@ -86,26 +132,37 @@ FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial,
 	MaterialAttributesDefaultValue.Type = MaterialAttributesType;
 }
 
-void FMaterialHLSLGenerator::AcquireErrors(FMaterial& OutMaterial)
+bool FMaterialHLSLGenerator::Generate()
 {
-	OutMaterial.CompileErrors = MoveTemp(CompileErrors);
-	OutMaterial.ErrorExpressions = MoveTemp(ErrorExpressions);
-}
+	using namespace UE::HLSLTree;
 
-bool FMaterialHLSLGenerator::Finalize()
-{
+	FScope& RootScope = HLSLTree->GetRootScope();
+
+	bool bResult = false;
+	if (TargetMaterial->IsCompiledWithExecutionFlow())
+	{
+		UMaterialExpression* BaseExpression = TargetMaterial->ExpressionExecBegin;
+		bResult = GenerateStatements(RootScope, BaseExpression);
+	}
+	else
+	{
+		bResult = GenerateResult(RootScope);
+	}
+
+	if (!bResult)
+	{
+		return false;
+	}
+
 	check(FunctionCallStack.Num() == 1);
-
 	if (!bGeneratedResult)
 	{
-		Error(TEXT("Missing connection to material output"));
-		return false;
+		return Errors.AddError(TEXT("Missing connection to material output"));
 	}
 
 	if (!ResultExpression || !ResultStatement)
 	{
-		Error(TEXT("Failed to initialize result"));
-		return false;
+		return Errors.AddError(TEXT("Failed to initialize result"));
 	}
 
 	for (const auto& It : StatementMap)
@@ -114,57 +171,16 @@ bool FMaterialHLSLGenerator::Finalize()
 		const FStatementEntry& Entry = It.Value;
 		if (Entry.NumInputs != Expression->NumExecutionInputs)
 		{
-			Error(TEXT("Invalid number of input connections"));
-			return false;
+			return Errors.AddError(TEXT("Invalid number of input connections"));
 		}
 	}
 
 	if (JoinedScopeStack.Num() != 0)
 	{
-		Error(TEXT("Invalid control flow"));
-		return false;
+		return Errors.AddError(TEXT("Invalid control flow"));
 	}
 
 	return HLSLTree->Finalize();
-}
-
-EMaterialGenerateHLSLStatus FMaterialHLSLGenerator::Error(const FString& Message)
-{
-	UMaterialExpression* ExpressionToError = nullptr;
-	FString ErrorString;
-
-	if (ExpressionStack.Num() > 0)
-	{
-		UMaterialExpression* ErrorExpression = ExpressionStack.Last();
-		check(ErrorExpression);
-
-		if (ErrorExpression->GetClass() != UMaterialExpressionMaterialFunctionCall::StaticClass()
-			&& ErrorExpression->GetClass() != UMaterialExpressionFunctionInput::StaticClass()
-			&& ErrorExpression->GetClass() != UMaterialExpressionFunctionOutput::StaticClass())
-		{
-			// Add the expression currently being compiled to ErrorExpressions so we can draw it differently
-			ExpressionToError = ErrorExpression;
-
-			const int32 ChopCount = FCString::Strlen(TEXT("MaterialExpression"));
-			const FString ErrorClassName = ErrorExpression->GetClass()->GetName();
-
-			// Add the node type to the error message
-			ErrorString += FString(TEXT("(Node ")) + ErrorClassName.Right(ErrorClassName.Len() - ChopCount) + TEXT(") ");
-		}
-	}
-
-	ErrorString += Message;
-
-	// Standard error handling, immediately append one-off errors and signal failure
-	CompileErrors.AddUnique(ErrorString);
-
-	if (ExpressionToError)
-	{
-		ErrorExpressions.Add(ExpressionToError);
-		ExpressionToError->LastErrorText = Message;
-	}
-
-	return EMaterialGenerateHLSLStatus::Error;
 }
 
 static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& Generator,
@@ -235,7 +251,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 	bool bResult = false;
 	if (bGeneratedResult)
 	{
-		Error(TEXT("Multiple connections to execution output"));
+		return Errors.AddError(TEXT("Multiple connections to execution output"));
 	}
 	else
 	{
@@ -327,7 +343,7 @@ UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextu
 	FString SamplerTypeError;
 	if (!UMaterialExpressionTextureBase::VerifySamplerType(CompileTarget.FeatureLevel, CompileTarget.TargetPlatform, Value.Texture, Value.SamplerType, SamplerTypeError))
 	{
-		Errorf(TEXT("%s"), *SamplerTypeError);
+		Errors.AddErrorf(TEXT("%s"), *SamplerTypeError);
 		return nullptr;
 	}
 
@@ -344,7 +360,7 @@ UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextu
 	FString SamplerTypeError;
 	if (!UMaterialExpressionTextureBase::VerifySamplerType(CompileTarget.FeatureLevel, CompileTarget.TargetPlatform, DefaultValue.Texture, DefaultValue.SamplerType, SamplerTypeError))
 	{
-		Errorf(TEXT("%s"), *SamplerTypeError);
+		Errors.AddErrorf(TEXT("%s"), *SamplerTypeError);
 		return nullptr;
 	}
 
@@ -358,13 +374,16 @@ UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextu
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex)
 {
-	UE::HLSLTree::FExpression* Expression = nullptr;
+	using namespace UE::HLSLTree;
+	FOwnerScope TreeOwnerScope(GetTree(), MaterialExpression);
+	FOwnerScope ErrorOwnerScope(Errors, MaterialExpression);
 
-	ExpressionStack.Add(MaterialExpression);
-	const EMaterialGenerateHLSLStatus Status = MaterialExpression->GenerateHLSLExpression(*this, Scope, OutputIndex, Expression);
-	verify(ExpressionStack.Pop() == MaterialExpression);
-
-	return Expression;
+	FExpression* Expression = nullptr;
+	if (MaterialExpression->GenerateHLSLExpression(*this, Scope, OutputIndex, Expression))
+	{
+		return Expression;
+	}
+	return nullptr;
 }
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireFunctionInputExpression(UE::HLSLTree::FScope& Scope, const UMaterialExpressionFunctionInput* MaterialExpression)
@@ -390,21 +409,29 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireFunctionInputExpressio
 
 UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextureDeclaration(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex)
 {
-	// No need to cache at this level, TextureDeclarations are cached at a lower level, as they're generated by UMaterialExpression
-	UE::HLSLTree::FTextureParameterDeclaration* TextureDeclaration = nullptr;
-	const EMaterialGenerateHLSLStatus Status = MaterialExpression->GenerateHLSLTexture(*this, Scope, OutputIndex, TextureDeclaration);
-	return TextureDeclaration;
+	using namespace UE::HLSLTree;
+	FOwnerScope TreeOwnerScope(GetTree(), MaterialExpression);
+	FOwnerScope ErrorOwnerScope(Errors, MaterialExpression);
+
+	FTextureParameterDeclaration* TextureDeclaration = nullptr;
+	if (MaterialExpression->GenerateHLSLTexture(*this, Scope, OutputIndex, TextureDeclaration))
+	{
+		return TextureDeclaration;
+	}
+	return nullptr;
 }
 
 bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression)
 {
+	using namespace UE::HLSLTree;
+	FOwnerScope ErrorOwnerScope(Errors, MaterialExpression);
+
 	FStatementEntry& Entry = StatementMap.FindOrAdd(MaterialExpression);
 	check(Entry.NumInputs >= 0);
 	check(Entry.NumInputs < MaterialExpression->NumExecutionInputs);
 	if (Entry.NumInputs == MaxNumPreviousScopes)
 	{
-		Error(TEXT("Bad control flow"));
-		return false;
+		return Errors.AddError(TEXT("Bad control flow"));
 	}
 
 	Entry.PreviousScope[Entry.NumInputs++] = &Scope;
@@ -412,13 +439,12 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 	bool bResult = true;
 	if (Entry.NumInputs == MaterialExpression->NumExecutionInputs)
 	{
-		UE::HLSLTree::FScope* ScopeToUse = &Scope;
+		FScope* ScopeToUse = &Scope;
 		if (MaterialExpression->NumExecutionInputs > 1u)
 		{
 			if (JoinedScopeStack.Num() == 0)
 			{
-				Error(TEXT("Bad control flow"));
-				return false;
+				return Errors.AddError(TEXT("Bad control flow"));
 			}
 
 			ScopeToUse = JoinedScopeStack.Pop(false);
@@ -428,9 +454,8 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 			}
 		}
 
-		ExpressionStack.Add(MaterialExpression);
-		const EMaterialGenerateHLSLStatus Status = MaterialExpression->GenerateHLSLStatements(*this, *ScopeToUse);
-		verify(ExpressionStack.Pop() == MaterialExpression);
+		FOwnerScope TreeOwnerScope(GetTree(), MaterialExpression);
+		bResult = MaterialExpression->GenerateHLSLStatements(*this, *ScopeToUse);
 	}
 
 	return bResult;
@@ -442,7 +467,7 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSL
 
 	if (!Function)
 	{
-		Error(TEXT("Missing material function"));
+		Errors.AddError(TEXT("Missing material function"));
 		return nullptr;
 	}
 
@@ -452,14 +477,14 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSL
 
 	if (FunctionInputs.Num() != ConnectedInputs.Num())
 	{
-		Error(TEXT("Mismatched function inputs"));
+		Errors.AddError(TEXT("Mismatched function inputs"));
 		return nullptr;
 	}
 
 	const UMaterialExpressionFunctionOutput* ExpressionOutput = FunctionOutputs.IsValidIndex(OutputIndex) ? FunctionOutputs[OutputIndex].ExpressionOutput.Get() : nullptr;
 	if (!ExpressionOutput)
 	{
-		Error(TEXT("Invalid function output"));
+		Errors.AddError(TEXT("Invalid function output"));
 		return nullptr;
 	}
 

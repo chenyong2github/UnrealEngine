@@ -165,12 +165,15 @@ void FPreshaderData::WriteType(const FType& Type)
 
 void FPreshaderData::WriteValue(const FValue& Value)
 {
+	const int32 NumComponents = Value.Type.GetNumComponents();
+
 	WriteType(Value.Type);
-	for (int32 Index = 0; Index < Value.Component.Num(); ++Index)
+	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{
 		const EValueComponentType ComponentType = Value.Type.GetComponentType(Index);
 		const int32 ComponentSize = GetComponentTypeSizeInBytes(ComponentType);
-		WriteData(&Value.Component[Index].Packed, ComponentSize);
+		const FValueComponent Component = Value.TryGetComponent(Index);
+		WriteData(&Component.Packed, ComponentSize);
 	}
 }
 

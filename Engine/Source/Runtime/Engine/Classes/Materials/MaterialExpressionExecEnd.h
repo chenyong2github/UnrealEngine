@@ -18,7 +18,7 @@ class UMaterialExpressionExecEnd : public UMaterialExpression
 	virtual bool CanUserDeleteExpression() const override { return false; }
 	virtual bool HasExecInput() override { return true; }
 
-	virtual EMaterialGenerateHLSLStatus GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) override;
+	virtual bool GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

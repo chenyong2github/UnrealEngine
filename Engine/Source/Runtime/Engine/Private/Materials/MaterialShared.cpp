@@ -272,7 +272,7 @@ int32 FExpressionInput::Compile(class FMaterialCompiler* Compiler)
 		return INDEX_NONE;
 }
 
-UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+UE::HLSLTree::FExpression* FExpressionInput::TryAcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
 {
 	UE::HLSLTree::FExpression* Result = nullptr;
 	if (Expression)
@@ -285,14 +285,40 @@ UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSL
 			Result = Generator.NewSwizzle(SwizzleParams, Result);
 		}
 	}
-	
+
 	return Result;
+}
+
+UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+{
+	const FExpressionInput TracedInput = GetTracedInput();
+	if (!TracedInput.Expression)
+	{
+		Generator.GetErrors().AddError(TEXT("Missing input"));
+		return nullptr;
+	}
+	return TryAcquireHLSLExpression(Generator, Scope);
+}
+
+UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionOrConstant(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& ConstantValue) const
+{
+	const FExpressionInput TracedInput = GetTracedInput();
+	if (!TracedInput.Expression)
+	{
+		return Generator.NewConstant(ConstantValue);
+	}
+	return TryAcquireHLSLExpression(Generator, Scope);
 }
 
 UE::HLSLTree::FTextureParameterDeclaration* FExpressionInput::AcquireHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
 {
 	UE::HLSLTree::FTextureParameterDeclaration* Result = nullptr;
-	if (Expression)
+	const FExpressionInput TracedInput = GetTracedInput();
+	if (!TracedInput.Expression)
+	{
+		Generator.GetErrors().AddError(TEXT("Missing input"));
+	}
+	else if (Expression)
 	{
 		Expression->ValidateState();
 		Result = Generator.AcquireTextureDeclaration(Scope, Expression, OutputIndex);

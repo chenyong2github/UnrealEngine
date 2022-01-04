@@ -162,7 +162,7 @@ class UMaterialExpressionMaterialFunctionCall : public UMaterialExpression
 		SharedCompileState = SharedState;
 	}
 
-	virtual EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
 
 private:	
 	/** Helper that fixes up expression links where possible. */

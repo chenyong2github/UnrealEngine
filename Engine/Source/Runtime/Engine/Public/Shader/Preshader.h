@@ -119,7 +119,7 @@ public:
 	template<>
 	FPreshaderData& Write<FHashedMaterialParameterInfo>(const FHashedMaterialParameterInfo& Value) { return Write(Value.Name).Write(Value.Index).Write(Value.Association); }
 
-	inline FPreshaderData& WriteOpcode(EPreshaderOpcode Op) { return Write<uint8>((uint8)Op); }
+	inline FPreshaderData& WriteOpcode(EPreshaderOpcode Op) { ensure(Op != EPreshaderOpcode::Nop); return Write<uint8>((uint8)Op); }
 
 	LAYOUT_FIELD(TMemoryImageArray<FScriptName>, Names);
 	LAYOUT_FIELD(TMemoryImageArray<FPreshaderStructType>, StructTypes);

@@ -230,12 +230,22 @@ void Cast(const Operation& Op, const FValue& Value, FValue& OutResult)
 		OutResult.Component.Add(Op(ValueTypeDesc.ComponentType, Value.Component[i]));
 	}
 
-	if (NumCopyComponents == 1 && ResultTypeDesc.NumComponents > 1)
+	if (NumCopyComponents < ResultTypeDesc.NumComponents)
 	{
-		const FValueComponent Component = OutResult.Component[0];
-		for (int32 i = 1; i < ResultTypeDesc.NumComponents; ++i)
+		if (NumCopyComponents == 1)
 		{
-			OutResult.Component.Add(Component);
+			const FValueComponent Component = OutResult.Component[0];
+			for (int32 i = 1; i < ResultTypeDesc.NumComponents; ++i)
+			{
+				OutResult.Component.Add(Component);
+			}
+		}
+		else
+		{
+			for (int32 i = NumCopyComponents; i < ResultTypeDesc.NumComponents; ++i)
+			{
+				OutResult.Component.AddDefaulted();
+			}
 		}
 	}
 }

@@ -54,31 +54,10 @@ EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionE
 	return EExpressionEvaluation::Preshader;
 }
 
-FErrors::FErrors(FMemStackBase& InAllocator)
+FEmitContext::FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry)
 	: Allocator(&InAllocator)
-{
-}
-
-void FErrors::AddError(const FNode* InNode, FStringView InError)
-{
-	const int32 SizeofString = InError.Len() * sizeof(TCHAR);
-	void* Memory = Allocator->Alloc(sizeof(FError) + SizeofString, alignof(FError));
-	FError* Error = new(Memory) FError();
-	FMemory::Memcpy(Error->Message, InError.GetData(), SizeofString);
-	Error->Message[InError.Len()] = 0;
-	Error->MessageLength = InError.Len();
-	Error->Node = InNode;
-	Error->Next = FirstError;
-	FirstError = Error;
-	NumErrors++;
-
-	ensureMsgf(false, TEXT("%s"), Error->Message);
-}
-
-FEmitContext::FEmitContext(FMemStackBase& InAllocator, const Shader::FStructTypeRegistry& InTypeRegistry)
-	: Allocator(&InAllocator)
+	, Errors(&InErrors)
 	, TypeRegistry(&InTypeRegistry)
-	, Errors(InAllocator)
 {
 }
 
@@ -555,7 +534,7 @@ void FExpressionLocalPHI::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDer
 	OutResult.ExpressionDdy = ExpressionDdy;
 }
 
-void FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	check(NumValues <= MaxNumPreviousScopes);
 	FExpression* ForwardExpression = Values[0];
@@ -623,13 +602,15 @@ void FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 					CurrentType = MergePreparedTypes(CurrentType, ValueType);
 					if (CurrentType.IsVoid())
 					{
-						return Context.Errors.AddError(this, TEXT("Type mismatch"));
+						return Context.Errors->AddError(TEXT("Type mismatch"));
 					}
 					check(NumValidTypes < NumValues);
 					NumValidTypes++;
 				}
 			}
 		}
+
+		return true;
 	};
 
 	// First try to assign all the values we can
@@ -637,7 +618,10 @@ void FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 
 	// Assuming we have at least one value with a valid type, we use that to initialize our type
 	CurrentType.SetEvaluation(EExpressionEvaluation::Shader); // TODO - No support for preshader flow control
-	OutResult.SetType(Context, RequestedType, CurrentType);
+	if (!OutResult.SetType(Context, RequestedType, CurrentType))
+	{
+		return false;
+	}
 
 	if (NumValidTypes < NumValues)
 	{
@@ -645,9 +629,11 @@ void FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 		UpdateValueTypes();
 		if (NumValidTypes < NumValues)
 		{
-			return Context.Errors.AddError(this, TEXT("Failed to compute all types for LocalPHI"));
+			return Context.Errors->AddError(TEXT("Failed to compute all types for LocalPHI"));
 		}
 	}
+
+	return true;
 }
 
 void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
@@ -666,7 +652,8 @@ void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, const FRequeste
 			DeclarationScope = FScope::FindSharedParent(DeclarationScope, Scopes[i]);
 			if (!DeclarationScope)
 			{
-				return Context.Errors.AddError(this, TEXT("Invalid LocalPHI"));
+				Context.Errors->AddError(TEXT("Invalid LocalPHI"));
+				return;
 			}
 		}
 
@@ -730,6 +717,7 @@ const FPreparedType& PrepareExpressionValue(FEmitContext& Context, FExpression* 
 		return VoidType;
 	}
 
+	FOwnerScope OwnerScope(*Context.Errors, InExpression->GetOwner());
 	if (InExpression->bReentryFlag)
 	{
 		// Valid for this to be called reentrantly
@@ -746,7 +734,7 @@ const FPreparedType& PrepareExpressionValue(FEmitContext& Context, FExpression* 
 	}
 	else if (InExpression->CurrentRequestedType.GetStructType() != RequestedType.GetStructType())
 	{
-		Context.Errors.AddError(InExpression, TEXT("Type mismatch"));
+		Context.Errors->AddError(TEXT("Type mismatch"));
 		return VoidType;
 	}
 	else
@@ -769,15 +757,22 @@ const FPreparedType& PrepareExpressionValue(FEmitContext& Context, FExpression* 
 	{
 		check(!InExpression->CurrentRequestedType.IsVoid());
 
-		InExpression->bReentryFlag = true;
-		InExpression->PrepareValue(Context, InExpression->CurrentRequestedType, InExpression->PrepareValueResult);
-		InExpression->bReentryFlag = false;
+		bool bResult = false;
+		{
+			FExpressionReentryScope ReentryScope(InExpression);
+			bResult = InExpression->PrepareValue(Context, InExpression->CurrentRequestedType, InExpression->PrepareValueResult);
+		}
 
-		if (InExpression->PrepareValueResult.GetPreparedType().IsVoid())
+		if (!bResult)
 		{
 			// If we failed to assign a valid type, reset the requested type as well
 			// This ensures we'll try to compute a type again the next time we're called
 			InExpression->CurrentRequestedType.Reset();
+			InExpression->PrepareValueResult.SetTypeVoid();
+		}
+		else
+		{
+			check(!InExpression->PrepareValueResult.GetPreparedType().IsVoid());
 		}
 	}
 
@@ -1107,20 +1102,31 @@ bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context, const Shad
 		check(ComponentType == Shader::EValueComponentType::Void);
 		if (StructType != PreparedType.StructType)
 		{
-			Context.Errors.AddError(nullptr, TEXT("Invalid type"));
-			return false;
+			return Context.Errors->AddError(TEXT("Invalid type"));
 		}
 	}
 	else
 	{
-		check(ComponentType != Shader::EValueComponentType::Void);
+		if (ComponentType == Shader::EValueComponentType::Void)
+		{
+			return false;
+		}
 		PreparedType.ValueComponentType = Shader::CombineComponentTypes(PreparedType.ValueComponentType, ComponentType);
 	}
 
 	return true;
 }
 
-void FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& Type)
+bool FPrepareValueResult::SetTypeVoid()
+{
+	PreparedType.PreparedComponents.Reset();
+	PreparedType.ValueComponentType = Shader::EValueComponentType::Void;
+	PreparedType.StructType = nullptr;
+	ForwardValue = nullptr;
+	return false;
+}
+
+bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& Type)
 {
 	if (TryMergePreparedType(Context, Type.StructType, Shader::GetValueTypeDescription(Type.ValueType).ComponentType))
 	{
@@ -1135,10 +1141,12 @@ void FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 				}
 			}
 		}
+		return true;
 	}
+	return false;
 }
 
-void FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& Type)
+bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& Type)
 {
 	if (TryMergePreparedType(Context, Type.StructType, Type.ValueComponentType))
 	{
@@ -1150,10 +1158,12 @@ void FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 				PreparedType.MergeComponentEvaluation(Index, Type.GetComponentEvaluation(Index));
 			}
 		}
+		return true;
 	}
+	return false;
 }
 
-void FPrepareValueResult::SetForwardValue(FEmitContext& Context, const FRequestedType& RequestedType, FExpression* InForwardValue)
+bool FPrepareValueResult::SetForwardValue(FEmitContext& Context, const FRequestedType& RequestedType, FExpression* InForwardValue)
 {
 	check(InForwardValue);
 	if (InForwardValue != ForwardValue)
@@ -1161,6 +1171,7 @@ void FPrepareValueResult::SetForwardValue(FEmitContext& Context, const FRequeste
 		PreparedType = PrepareExpressionValue(Context, InForwardValue, RequestedType);
 		ForwardValue = InForwardValue;
 	}
+	return true;
 }
 
 void FExpression::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
@@ -1180,6 +1191,7 @@ void FExpression::EmitValuePreshader(FEmitContext& Context, const FRequestedType
 
 FEmitShaderCode* FExpression::GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType, const Shader::FType& ResultType)
 {
+	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	if (PrepareValueResult.ForwardValue)
 	{
 		return PrepareValueResult.ForwardValue->GetValueShader(Context, RequestedType, ResultType);
@@ -1217,6 +1229,7 @@ FEmitShaderCode* FExpression::GetValueShader(FEmitContext& Context)
 
 void FExpression::GetValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader)
 {
+	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	if (PrepareValueResult.ForwardValue)
 	{
 		return PrepareValueResult.ForwardValue->GetValuePreshader(Context, RequestedType, OutPreshader);
@@ -1240,6 +1253,7 @@ void FExpression::GetValuePreshader(FEmitContext& Context, const FRequestedType&
 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, const FRequestedType& RequestedType)
 {
+	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	if (PrepareValueResult.ForwardValue)
 	{
 		return PrepareValueResult.ForwardValue->GetValueConstant(Context, RequestedType);
@@ -1329,6 +1343,7 @@ bool PrepareScope(FEmitContext& Context, FScope* InScope)
 		{
 			if (InScope->OwnerStatement)
 			{
+				FOwnerScope OwnerScope(*Context.Errors, InScope->OwnerStatement->GetOwner());
 				InScope->OwnerStatement->Prepare(Context);
 			}
 			else
@@ -1454,6 +1469,21 @@ void FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const
 	}
 }
 
+void FOwnerContext::PushOwner(UObject* Owner)
+{
+	OwnerStack.Add(Owner);
+}
+
+UObject* FOwnerContext::PopOwner()
+{
+	return OwnerStack.Pop(false);
+}
+
+UObject* FOwnerContext::GetCurrentOwner() const
+{
+	return (OwnerStack.Num() > 0) ? OwnerStack.Last() : nullptr;
+}
+
 void FTree::ResetNodes()
 {
 	FNode* Node = Nodes;
@@ -1502,16 +1532,18 @@ bool FTree::EmitShader(FEmitContext& Context, FStringBuilderBase& OutCode) const
 		Context.ScopeStack.Add(RootScope);
 		RootScope->ContainedStatement->EmitShader(Context);
 		Context.ScopeStack.Pop(false);
-
-		if (Context.Errors.Num() > 0)
-		{
-			return false;
-		}
 	}
 
 	Context.Finalize();
 	RootScope->WriteHLSL(1, OutCode);
-	return Context.Errors.Num() == 0;
+	return true;
+}
+
+void FTree::RegisterNode(FNode* Node)
+{
+	Node->Owner = GetCurrentOwner();
+	Node->NextNode = Nodes;
+	Nodes = Node;
 }
 
 void FTree::RegisterExpression(FExpression* Expression)
@@ -1573,6 +1605,8 @@ const FExpressionDerivatives& FTree::GetAnalyticDerivatives(FExpression* InExpre
 	if (!InExpression->bComputedDerivatives)
 	{
 		FExpressionReentryScope ReentryScope(InExpression);
+		FOwnerScope OwnerScope(*this, InExpression->GetOwner()); // Associate any newly created nodes with the same owner as the input expression
+
 		InExpression->ComputeAnalyticDerivatives(*this, InExpression->Derivatives);
 		InExpression->bComputedDerivatives = true;
 	}

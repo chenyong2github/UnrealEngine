@@ -167,7 +167,7 @@ FEmitShaderCode* FEmitContext::EmitCast(FEmitShaderCode* ShaderValue, const Shad
 	}
 	else
 	{
-		Errors.AddErrorf(nullptr, TEXT("Cannot cast between non-numeric types %s to %s."), SourceTypeDesc.Name, DestTypeDesc.Name);
+		Errors->AddErrorf(TEXT("Cannot cast between non-numeric types %s to %s."), SourceTypeDesc.Name, DestTypeDesc.Name);
 		FormattedCode.Appendf(TEXT("((%s)0)"), DestType.GetName());
 	}
 
