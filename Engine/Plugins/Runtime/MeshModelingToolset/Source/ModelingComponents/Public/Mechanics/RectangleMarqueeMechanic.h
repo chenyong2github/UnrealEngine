@@ -15,6 +15,7 @@
 #include "RectangleMarqueeMechanic.generated.h"
 
 class UClickDragInputBehavior;
+struct FConvexVolume;
 
 PREDECLARE_USE_GEOMETRY_CLASS(FGeometrySet3);
 
