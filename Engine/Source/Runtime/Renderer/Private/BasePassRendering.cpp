@@ -903,8 +903,6 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		StampDeferredDebugProbeMaterialPS(GraphBuilder, Views, BasePassRenderTargets, SceneTextures);
 	}
 #endif
-
-	Strata::PostBasePass(GraphBuilder, Views);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FOpaqueBasePassParameters, )
