@@ -13,6 +13,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/PBDRigidClustering.h"
+#include "Chaos/PBDRigidClusteringCollisionParticleAlgo.h"
 
 DEFINE_LOG_CATEGORY_STATIC(GCS_Log, NoLogging, All);
 
