@@ -243,6 +243,7 @@ TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUnifo
 
 void SetupMobileDirectionalLightUniformParameters(
 	const FScene& Scene,
+	int32 ViewIndex,
 	const FViewInfo& SceneView,
 	const TArray<FVisibleLightInfo,SceneRenderingAllocator>& VisibleLightInfos,
 	int32 ChannelIdx,
@@ -266,11 +267,11 @@ void SetupMobileDirectionalLightUniformParameters(
 			const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& DirectionalLightShadowInfos = VisibleLightInfos[Light->Id].AllProjectedShadows;
 			static_assert(MAX_MOBILE_SHADOWCASCADES <= 4, "more than 4 cascades not supported by the shader and uniform buffer");
 
-			const int32 NumShadowsToCopy = FMath::Min(DirectionalLightShadowInfos.Num(), MAX_MOBILE_SHADOWCASCADES);
+			const int32 NumShadowsToCopy = FMath::Min(DirectionalLightShadowInfos.Num(), SceneView.MaxShadowCascades);
 			int32_t OutShadowIndex = 0;
 			for (int32 i = 0; i < NumShadowsToCopy; ++i)
 			{
-				const FProjectedShadowInfo* ShadowInfo = DirectionalLightShadowInfos[i];
+				const FProjectedShadowInfo* ShadowInfo = DirectionalLightShadowInfos[i + ViewIndex * NumShadowsToCopy];
 
 				if (ShadowInfo->ShadowDepthView && !ShadowInfo->bRayTracedDistanceField && ShadowInfo->CacheMode != SDCM_StaticPrimitivesOnly)
 				{
