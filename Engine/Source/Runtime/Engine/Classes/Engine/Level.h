@@ -658,6 +658,9 @@ public:
 	/** Whether the level is partitioned or not. */
     UPROPERTY()
 	uint8										bIsPartitioned : 1;
+	/** Whether the level is a world partition runtime cell. */
+	UPROPERTY()
+	uint8										bIsWorldPartitionRuntimeCell;
 
 	enum class EIncrementalComponentState : uint8
 	{
