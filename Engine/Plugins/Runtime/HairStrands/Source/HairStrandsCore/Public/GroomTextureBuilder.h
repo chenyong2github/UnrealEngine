@@ -51,7 +51,8 @@ struct FStrandsTexturesOutput
 	class UTexture2D* Tangent = nullptr;
 	class UTexture2D* Coverage = nullptr;
 	class UTexture2D* Attribute = nullptr;
-	bool IsValid() const { return Depth && Tangent && Coverage && Attribute; }
+	class UTexture2D* GroupIndex = nullptr;
+	bool IsValid() const { return Depth && Tangent && Coverage && Attribute && GroupIndex; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

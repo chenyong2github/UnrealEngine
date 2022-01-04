@@ -16,6 +16,7 @@ struct FHairVertexAttributes
 	float3 HairBaseColor;
 	float  HairSeed;
 	float  HairRoughness;
+	float  HairGroupIndex;
 };
 
 float GetHairStrandsDepth(float2 InAtlasUV, float InDeviceZ)
@@ -41,7 +42,7 @@ float GetHairStrandsCoverage(float2 InAtlasUV)
 	return Texture2DSample(HairCardsVF.CoverageTexture, HairCardsVF.CoverageSampler, InAtlasUV).x;
 }
 
-FHairVertexAttributes GetHairStrandsAttributes(float2 InAtlasUV, float2 InRootUV = float2(0, 0), float InCardLength = 0.f)
+FHairVertexAttributes GetHairStrandsAttributes(float2 InAtlasUV, float2 InRootUV = float2(0, 0), float InCardLength = 0.f, float InCardGroupIndex = 0.f)
 {
 	InAtlasUV.y = HairCardsVF.bInvertUV ? 1 - InAtlasUV.y : InAtlasUV.y;
 	const float4 Value = Texture2DSample(HairCardsVF.AttributeTexture, HairCardsVF.AttributeSampler, InAtlasUV);
@@ -61,6 +62,7 @@ FHairVertexAttributes GetHairStrandsAttributes(float2 InAtlasUV, float2 InRootUV
 	Out.HairBaseColor = 0;
 	Out.HairSeed = Seed;
 	Out.HairRoughness = 0;
+	Out.HairGroupIndex = InCardGroupIndex;
 	return Out;
 }
 
@@ -108,9 +110,15 @@ float GetHairStrandsRoughness(float2 HairPrimitiveUV)
 	return GetHairStrandsAttributes(HairPrimitiveUV).HairRoughness;
 }
 
-float GetHairStrandsGroupIndex(float2 InAtlasUV)
+float GetHairStrandsGroupIndex(float2 InAtlasUV, float InHairPrimitiveGroupIndex)
 {
-	return HairCardsVF.GroupIndex; 
+	// * For hair cards,  group index is stored onto vertices
+	// * For hair meshes, group index is stored within a texture
+	if (HairCardsVF.bUseTextureGroupIndex)
+	{
+		InHairPrimitiveGroupIndex = Texture2DSample(HairCardsVF.GroupIndexTexture, HairCardsVF.GroupIndexSampler, InAtlasUV).x * 255.f;
+	}
+	return InHairPrimitiveGroupIndex;
 }
 ////////////////////////////////////////////////////////////////////////////////
 

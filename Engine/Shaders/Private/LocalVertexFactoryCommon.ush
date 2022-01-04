@@ -37,13 +37,14 @@ struct FVertexFactoryInterpolantsVSToPS
 	#endif
 #endif
 #if HAIR_STRAND_MESH_FACTORY
-		nointerpolation uint HairPrimitiveId : HAIR_PRIMITIVE_ID;	// Control point ID
-		float2 HairPrimitiveUV				 : HAIR_PRIMITIVE_UV;	// U: parameteric distance between the two surrounding control points. V: parametric distance along the width.
+		nointerpolation uint HairPrimitiveId		: HAIR_PRIMITIVE_ID;	// Control point ID
+		float2 HairPrimitiveUV						: HAIR_PRIMITIVE_UV;	// U: parameteric distance between the two surrounding control points. V: parametric distance along the width.
 #endif
 #if HAIR_CARD_MESH_FACTORY
-	float2 HairPrimitiveUV					: HAIR_PRIMITIVE_UV;	// Atlas UV
-	float2 HairPrimitiveRootUV				: HAIR_PRIMITIVE_ROOTUV;// UV at the root point of the cards
-	float  HairPrimitiveLength				: HAIR_PRIMITIVE_LENGTH;
+	float2 HairPrimitiveUV							: HAIR_PRIMITIVE_UV;	// Atlas UV
+	float2 HairPrimitiveRootUV						: HAIR_PRIMITIVE_ROOTUV;// UV at the root point of the cards
+	float  HairPrimitiveLength						: HAIR_PRIMITIVE_LENGTH;
+	nointerpolation float HairPrimitiveGroupIndex	: HAIR_PRIMITIVE_GROUPINDEX;
 #endif
 
 #if HAS_INSTANCE_LOCAL_TO_WORLD_PS

@@ -180,8 +180,12 @@ struct HAIRSTRANDSCORE_API FHairGroupCardsTextures
 	UPROPERTY(EditAnywhere, Category = "CardsAttributes")
 	TObjectPtr<UTexture2D> AttributeTexture = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = "CardsAuxilaryData")
+	UPROPERTY(EditAnywhere, Category = "CardsAttributes")
 	TObjectPtr<UTexture2D> AuxilaryDataTexture = nullptr;
+
+	/* Store hair group indices. This texture is only used by hair meshes and can be generated through the hair-textures option on Groom Asset. */
+	UPROPERTY(EditAnywhere, Category = "CardsAttributes")
+	TObjectPtr<UTexture2D> GroupIndexTexture = nullptr;
 
 	void SetTexture(EHairAtlasTextureType SlotID, UTexture2D* Texture);
 

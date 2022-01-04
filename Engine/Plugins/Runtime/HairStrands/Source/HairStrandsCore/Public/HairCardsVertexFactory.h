@@ -26,12 +26,11 @@ public:
 	struct FDataType
 	{
 		FHairGroupInstance* Instance = nullptr;
-		uint32 GroupIndex = 0;
 		uint32 LODIndex = 0;
 		EHairGeometryType GeometryType = EHairGeometryType::NoneGeometry;
 	};
 
-	FHairCardsVertexFactory(FHairGroupInstance* Instance, uint32 GroupIndex, uint32 LODIndex, EHairGeometryType GeometryType, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName);
+	FHairCardsVertexFactory(FHairGroupInstance* Instance, uint32 LODIndex, EHairGeometryType GeometryType, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName);
 	
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 

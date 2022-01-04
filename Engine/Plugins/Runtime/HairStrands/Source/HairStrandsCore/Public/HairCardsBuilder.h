@@ -13,6 +13,7 @@
 #include "GroomResources.h"
 
 struct FHairGroupCardsTextures;
+struct FHairStrandsVoxelData;
 
 #if WITH_EDITOR
 namespace FHairCardsBuilder
@@ -20,6 +21,7 @@ namespace FHairCardsBuilder
 	bool ImportGeometry(
 		const UStaticMesh* StaticMesh,
 		const FHairStrandsDatas& InStrandsData,
+		const FHairStrandsVoxelData& InStrandsVoxelData,
 		FHairCardsBulkData& OutBulk,
 		FHairStrandsDatas& OutGuides,
 		FHairCardsInterpolationBulkData& OutInterpolationBulkData);
