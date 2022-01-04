@@ -5,12 +5,14 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
+#include "UObject/GCObject.h"
 #include "Folder.h"
 #include "LevelInstance/LevelInstanceTypes.h"
 
 #include "LevelInstanceSubsystem.generated.h"
 
 class ALevelInstance;
+class ULevelInstanceEditorObject;
 class ULevelStreamingLevelInstance;
 class ULevelStreamingLevelInstanceEditor;
 class UWorldPartitionSubsystem;
@@ -48,8 +50,6 @@ public:
 
 #if WITH_EDITOR
 	void Tick();
-	void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
-	void OnPackageDeleted(UPackage* Package);
 	void OnExitEditorMode();
 	void PackAllLoadedActors();
 	bool CanPackAllLoadedActors() const;
@@ -57,8 +57,9 @@ public:
 	ALevelInstance* GetEditingLevelInstance() const;
 	bool CanEditLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	bool CanCommitLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
+	bool CanDiscardLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	void EditLevelInstance(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr = nullptr);
-	ALevelInstance* CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits = false, bool bPromptForSave = true, TSet<FName>* DirtyPackages = nullptr);
+	ALevelInstance* CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits = false, TSet<FName>* DirtyPackages = nullptr);
 	void SaveLevelInstanceAs(ALevelInstance* LevelInstanceActor);
 	bool IsEditingLevelInstanceDirty(const ALevelInstance* LevelInstanceActor) const;
 	bool IsEditingLevelInstance(const ALevelInstance* LevelInstanceActor) const { return GetLevelInstanceEdit(LevelInstanceActor) != nullptr; }
@@ -114,22 +115,30 @@ private:
 	void BreakLevelInstance_Impl(ALevelInstance* LevelInstanceActor, uint32 Levels, TArray<AActor*>& OutMovedActors);
 
 	static bool ShouldIgnoreDirtyPackage(UPackage* DirtyPackage, const UWorld* EditingWorld);
-	void OnPackageChanged(UPackage* Package);
 
-	struct FLevelInstanceEdit
+	class FLevelInstanceEdit : public FGCObject
 	{
-		ULevelStreamingLevelInstanceEditor* LevelStreaming;
-		bool bCommittedChanges = false;
+	public:
+		TObjectPtr<ULevelStreamingLevelInstanceEditor> LevelStreaming;
+		TObjectPtr<ULevelInstanceEditorObject> EditorObject;
 
 		FLevelInstanceEdit(ULevelStreamingLevelInstanceEditor* InLevelStreaming, FLevelInstanceID InLevelInstanceID);
-		~FLevelInstanceEdit();
+		virtual ~FLevelInstanceEdit();
 
 		UWorld* GetEditWorld() const;
 		FLevelInstanceID GetLevelInstanceID() const;
+
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override;
+
+		void GetPackagesToSave(TArray<UPackage*>& OutPackagesToSave) const;
+		bool CanDiscard(FText* OutReason = nullptr) const;
+		bool HasCommittedChanges() const;
+		void MarkCommittedChanges();
 	};
 
 	bool EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, bool bRecursive);
-	ALevelInstance* CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits = false, bool bPromptForSave = true, TSet<FName>* DirtyPackages = nullptr);
+	ALevelInstance* CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits = false, TSet<FName>* DirtyPackages = nullptr);
 	
 	const FLevelInstanceEdit* GetLevelInstanceEdit(const ALevelInstance* LevelInstanceActor) const;
 	bool IsLevelInstanceEditDirty(const FLevelInstanceEdit* LevelInstanceEdit) const;

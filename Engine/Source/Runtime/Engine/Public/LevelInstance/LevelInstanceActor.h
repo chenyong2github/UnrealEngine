@@ -88,6 +88,7 @@ public:
 
 	bool CanEdit(FText* OutReason = nullptr) const;
 	bool CanCommit(FText* OutReason = nullptr) const;
+	bool CanDiscard(FText* OutReason = nullptr) const;
 	bool IsEditing() const;
 	bool HasChildEdit() const;
 	void Edit(AActor* ContextActor = nullptr);
@@ -108,7 +109,7 @@ public:
 	virtual void OnWorldAssetChanged() { UpdateFromLevel(); }
 	virtual void OnEdit() {}
 	virtual void OnEditChild() {}
-	virtual void OnCommit(bool bChanged, bool bPromptForSave) {}
+	virtual void OnCommit(bool bChanged) {}
 	virtual void OnCommitChild(bool bChanged) {}
 	virtual void UpdateFromLevel();
 		

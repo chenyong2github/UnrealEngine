@@ -40,7 +40,7 @@ public:
 
 	virtual void PostLoad() override;
 	virtual void UpdateFromLevel() override;
-	virtual void OnCommit(bool bChanged, bool bPromptForSave) override;
+	virtual void OnCommit(bool bChanged) override;
 	virtual void OnCommitChild(bool bChanged) override;
 	virtual void OnEdit() override;
 	virtual void OnEditChild() override;
