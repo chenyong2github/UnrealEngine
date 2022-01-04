@@ -221,18 +221,36 @@ void UMovieSceneSubSection::PostEditChangeProperty(FPropertyChangedEvent& Proper
 		{
 			if (UMovieSceneSequence* CurrentSequence = TrackOuter->GetTypedOuter<UMovieSceneSequence>())
 			{
+				TArray<UMovieSceneSubTrack*> SubTracks;
+
 				for (UMovieSceneTrack* MasterTrack : SubSequenceMovieScene->GetMasterTracks())
 				{
 					if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(MasterTrack))
 					{
-						if ( SubTrack->ContainsSequence(*CurrentSequence, true))
-						{
-							UE_LOG(LogMovieScene, Error, TEXT("Invalid level sequence %s. It is already contained by: %s."), *SubSequence->GetDisplayName().ToString(), *CurrentSequence->GetDisplayName().ToString());
+						SubTracks.Add(SubTrack);
+					}
+				}
 
-							// Restore to the previous sub sequence because there was a circular dependency
-							SubSequence = PreviousSubSequence;
-							break;
+				for (const FMovieSceneBinding& Binding : SubSequenceMovieScene->GetBindings())
+				{
+					for (UMovieSceneTrack* Track : SubSequenceMovieScene->FindTracks(UMovieSceneSubTrack::StaticClass(), Binding.GetObjectGuid()))
+					{
+						if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(Track))
+						{
+							SubTracks.Add(SubTrack);
 						}
+					}
+				}
+
+				for (UMovieSceneSubTrack* SubTrack : SubTracks)
+				{
+					if ( SubTrack->ContainsSequence(*CurrentSequence, true))
+					{
+						UE_LOG(LogMovieScene, Error, TEXT("Invalid level sequence %s. It is already contained by: %s."), *SubSequence->GetDisplayName().ToString(), *CurrentSequence->GetDisplayName().ToString());
+
+						// Restore to the previous sub sequence because there was a circular dependency
+						SubSequence = PreviousSubSequence;
+						break;
 					}
 				}
 			}
