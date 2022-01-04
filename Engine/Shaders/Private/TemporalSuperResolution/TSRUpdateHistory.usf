@@ -371,9 +371,9 @@ void MainCS(
 					float Bilinear11 = saturate(0.0 + BilinearInterp.x) * saturate(0.0 + BilinearInterp.y);
 					
 					float Bilateral00 = Bilinear00;
-					float Bilateral10 = Bilinear10 * saturate(1.0 - length2((V10 - V00) * InputInfo_ViewportSize * 0.5));
-					float Bilateral01 = Bilinear01 * saturate(1.0 - length2((V01 - V00) * InputInfo_ViewportSize * 0.5));
-					float Bilateral11 = Bilinear11 * saturate(1.0 - length2((V11 - V00) * InputInfo_ViewportSize * 0.5));
+					float Bilateral10 = Bilinear10 * ComputeScreenVelocityBilateralWeight(V10 - V00);
+					float Bilateral01 = Bilinear01 * ComputeScreenVelocityBilateralWeight(V01 - V00);
+					float Bilateral11 = Bilinear11 * ComputeScreenVelocityBilateralWeight(V11 - V00);
 
 					float NormalizeBilateral = rcp(Bilateral00 + Bilateral10 + Bilateral01 + Bilateral11);
 

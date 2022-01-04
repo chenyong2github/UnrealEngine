@@ -1034,3 +1034,15 @@ taa_short2 GetLaneOffsetSign()
 	return taa_short(1).xx;
 }
 #endif
+
+float ComputePixelVelocityBilateralWeight(float2 PixelVelocityDelta)
+{
+	return saturate(1.0 - length2(PixelVelocityDelta));
+}
+
+float ComputeScreenVelocityBilateralWeight(float2 ScreenVelocityDelta)
+{
+	return ComputePixelVelocityBilateralWeight(ScreenVelocityDelta * ScreenVelocityToInputPixelVelocity);
+}
+
+
