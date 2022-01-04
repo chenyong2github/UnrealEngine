@@ -122,7 +122,7 @@ void FRemoteTalkerDataImpl::Reset()
 	LastSeen = MAX_FLT;
 	NumFramesStarved = 0;
 
-	if (VoipSynthComponent)
+	if (UObjectInitialized() && VoipSynthComponent)
 	{
 		VoipSynthComponent->Stop();
 
