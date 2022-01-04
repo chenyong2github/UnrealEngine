@@ -1898,18 +1898,29 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	FBoxSphereBounds SystemBounds;
 	if (CurrLocalBounds.IsValid)
 	{
+		ensureMsgf(!CurrLocalBounds.Min.ContainsNaN() && !CurrLocalBounds.Max.ContainsNaN(), TEXT("CurrLocalBounds contains NaN for System(%d)"), *GetNameSafe(Asset));
+
 		SystemBounds = CurrLocalBounds;
 		SystemBounds.BoxExtent *= BoundsScale;
 		SystemBounds.SphereRadius *= BoundsScale;
 	}
 	else
 	{
-		FBox SimBounds = SystemFixedBounds;
-		if (!SimBounds.IsValid && Asset && Asset->bFixedBounds)
+		if (SystemFixedBounds.IsValid)
 		{
-			SimBounds = Asset->GetFixedBounds();
+			ensureMsgf(!SystemFixedBounds.Min.ContainsNaN() && !SystemFixedBounds.Max.ContainsNaN(), TEXT("SystemFixedBounds contains NaN for System(%d)"), *GetNameSafe(Asset));
+			SystemBounds = FBoxSphereBounds(SystemFixedBounds);
 		}
-		SystemBounds = FBoxSphereBounds(SimBounds);
+		else if ( Asset && Asset->bFixedBounds )
+		{
+			const FBox AssetFixedBounds = Asset->GetFixedBounds();
+			ensureMsgf(!AssetFixedBounds.Min.ContainsNaN() && !AssetFixedBounds.Max.ContainsNaN(), TEXT("AssetFixedBounds contains NaN for System(%d)"), *GetNameSafe(Asset));
+			SystemBounds = FBoxSphereBounds(AssetFixedBounds);
+		}
+		else
+		{
+			SystemBounds = FBoxSphereBounds(FVector::ZeroVector, FVector(1.0f), 1.0f);
+		}
 	}
 
 	return SystemBounds.TransformBy(LocalToWorld);
@@ -1953,7 +1964,7 @@ bool UNiagaraComponent::ResolveOwnerAllowsScalability(bool bRegister)
 				RegisterWithScalabilityManager();
 			}
 		}
-		else if (!bOwnerAllowsScalabiltiy)
+		else
 		{
 			if (!IsActive() && bIsCulledByScalability)
 			{
