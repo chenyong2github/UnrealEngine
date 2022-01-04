@@ -231,12 +231,8 @@ void UMLAdapterSession::Close()
 	{
 		Agent->ClearInternalFlags(EInternalObjectFlags::Async);
 	}
-	Agents.Reset();
 
-	if (CachedWorld && CachedWorld->GetGameInstance())
-	{
-		CachedWorld->GetGameInstance()->GetOnPawnControllerChanged().RemoveAll(this);
-	}
+	Agents.Reset();
 }
 
 void UMLAdapterSession::Tick(float DeltaTime)
@@ -329,6 +325,8 @@ FMLAdapter::FAgentID UMLAdapterSession::AddAgent()
 	UClass* AgentClass = UMLAdapterSettings::GetAgentClass().Get()
 		? UMLAdapterSettings::GetAgentClass().Get()
 		: UMLAdapterAgent::StaticClass();
+
+	UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Creating MLAdapter agent of class %s"), *GetNameSafe(AgentClass));
 
 	UMLAdapterAgent* NewAgent = FMLAdapter::NewObject<UMLAdapterAgent>(this, AgentClass);
 

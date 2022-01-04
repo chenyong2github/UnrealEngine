@@ -274,9 +274,11 @@ void UMLAdapterManager::Tick(float DeltaTime)
 
 UMLAdapterSession* UMLAdapterManager::CreateNewSession()
 {
-	UClass* Class = UMLAdapterSettings::GetSessionClass().Get()
+	UClass* Class = UMLAdapterSettings::GetSessionClass().Get() 
 		? UMLAdapterSettings::GetSessionClass().Get()
 		: UMLAdapterSession::StaticClass();
+
+	UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Creating MLAdapter session of class %s"), *GetNameSafe(Class));
 
 	UMLAdapterSession* NewSession = FMLAdapter::NewObject<UMLAdapterSession>(this, Class);
 	check(NewSession);
