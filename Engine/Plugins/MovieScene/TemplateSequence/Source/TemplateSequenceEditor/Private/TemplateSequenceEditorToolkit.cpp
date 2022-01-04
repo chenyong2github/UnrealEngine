@@ -50,7 +50,12 @@ FTemplateSequenceEditorToolkit::~FTemplateSequenceEditorToolkit()
 
 	if (FModuleManager::Get().IsModuleLoaded(TEXT("LevelEditor")))
 	{
-		auto& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		
+		// @todo remove when world-centric mode is added
+		LevelEditorModule.AttachSequencer(SNullWidget::NullWidget, nullptr);
+		FLevelEditorSequencerIntegration::Get().RemoveSequencer(Sequencer.ToSharedRef());
+
 		LevelEditorModule.OnMapChanged().RemoveAll(this);
 	}
 
