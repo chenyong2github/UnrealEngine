@@ -6,6 +6,7 @@
 
 class UMaterialInterface;
 class UStaticMesh;
+struct FStaticMaterial;
 
 
 namespace UE
