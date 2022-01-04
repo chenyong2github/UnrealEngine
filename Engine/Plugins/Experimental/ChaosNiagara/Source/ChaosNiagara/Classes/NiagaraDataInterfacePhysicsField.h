@@ -9,7 +9,14 @@
 
 #include "NiagaraDataInterfacePhysicsField.generated.h"
 
-/** Data stored per physics asset instance*/
+/** Data stored per physics asset instance on the render thread */
+struct FNDIFieldRenderData
+{
+	/** Field render resource for gpu */
+	class FPhysicsFieldResource* FieldResource;
+};
+
+/** Data stored per physics asset instance on the game thread */
 struct FNDIPhysicsFieldData
 {
 	/** Initialize the resource */
@@ -99,7 +106,7 @@ protected:
 struct FNDIPhysicsFieldProxy : public FNiagaraDataInterfaceProxy
 {
 	/** Get the size of the data that will be passed to render*/
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return sizeof(FNDIPhysicsFieldData); }
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return sizeof(FNDIFieldRenderData); }
 
 	/** Get the data that will be passed to render*/
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
@@ -111,6 +118,6 @@ struct FNDIPhysicsFieldProxy : public FNiagaraDataInterfaceProxy
 	void DestroyPerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
 	/** List of proxy data for each system instances*/
-	TMap<FNiagaraSystemInstanceID, FNDIPhysicsFieldData> SystemInstancesToProxyData;
+	TMap<FNiagaraSystemInstanceID, FNDIFieldRenderData> SystemInstancesToProxyData;
 };
 
