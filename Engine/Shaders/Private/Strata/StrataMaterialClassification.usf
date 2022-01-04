@@ -193,25 +193,3 @@ void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if SHADER_POST_BASEPASS
-
-Texture2DArray<uint> MaterialTextureArrayMRTs;
-RWTexture2DArray<uint> MaterialTextureArrayUAV;
-
-[numthreads(8, 8, 1)]
-void PostBasePassCS(uint2 DispatchThreadId : SV_DispatchThreadID)
-{
-	if (any(int2(DispatchThreadId.xy) >= View.ViewSizeAndInvSize.xy))
-	{
-		return;
-	}
-
-	int3 CoordData0 = int3(View.ViewRectMin.xy + DispatchThreadId.xy, 0);
-	int3 CoordData1 = int3(View.ViewRectMin.xy + DispatchThreadId.xy, 1);
-
-	MaterialTextureArrayUAV[CoordData0] = MaterialTextureArrayMRTs[CoordData0];
-	MaterialTextureArrayUAV[CoordData1] = MaterialTextureArrayMRTs[CoordData1];
-}
-
-#endif // SHADER_POST_BASEPASS
-
