@@ -9,8 +9,6 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SBorder;
-
 class SConsoleVariablesEditorGlobalSearchToggle : public SCompoundWidget
 {
 public:
