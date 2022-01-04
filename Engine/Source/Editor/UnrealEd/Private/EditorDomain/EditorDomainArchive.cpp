@@ -407,10 +407,10 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 
 	// Note that Segment.RequestOwner is Interface-only and so we can write it outside the lock
 	Segment.RequestOwner.Emplace(EPriority::Normal);
-	FCacheChunkRequest SegmentChunk{UE::EditorDomain::GetEditorDomainPackageKey(EditorDomainHash), Segment.PayloadId};
+	FCacheChunkRequest SegmentChunk{PackagePath.GetDebugName(), UE::EditorDomain::GetEditorDomainPackageKey(EditorDomainHash), Segment.PayloadId};
 	SegmentChunk.Policy = ECachePolicy::Local;
-	Cache.GetChunks({SegmentChunk}, PackagePath.GetDebugName(), *Segment.RequestOwner,
-		[this, &Segment](FCacheGetChunkCompleteParams&& Params)
+	Cache.GetChunks({SegmentChunk}, *Segment.RequestOwner,
+		[this, &Segment](FCacheChunkCompleteParams&& Params)
 		{
 			if (AsyncSource == ESource::Closed)
 			{

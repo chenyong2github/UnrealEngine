@@ -589,7 +589,6 @@ bool FZenDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
 
 void FZenDerivedDataBackend::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
@@ -602,21 +601,21 @@ void FZenDerivedDataBackend::Put(
 		bool bResult;
 		if (ShouldSimulateMiss(Record.GetKey()))
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
-				*GetName(), *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
+				*GetName(), *WriteToString<96>(Record.GetKey()), *Request.Name);
 			bResult = false;
 		}
 
-		bResult = PutCacheRecord(Record, Context, Request.Policy);
+		bResult = PutCacheRecord(Record, Request.Policy);
 
 		if (bResult)
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache put complete for %s from '%.*s'"),
-				*GetName(), *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache put complete for %s from '%s'"),
+				*GetName(), *WriteToString<96>(Record.GetKey()), *Request.Name);
 			COOK_STAT(Timer.AddHit(MeasureCacheRecord(Record)));
 			if (OnComplete)
 			{
-				OnComplete({ Record.GetKey(), Request.UserData, EStatus::Ok });
+				OnComplete({ Request.Name, Record.GetKey(), Request.UserData, EStatus::Ok });
 			}
 		}
 		else
@@ -624,7 +623,7 @@ void FZenDerivedDataBackend::Put(
 			COOK_STAT(Timer.AddMiss(MeasureCacheRecord(Record)));
 			if (OnComplete)
 			{
-				OnComplete({ Record.GetKey(), Request.UserData, EStatus::Error });
+				OnComplete({ Request.Name, Record.GetKey(), Request.UserData, EStatus::Error });
 			}
 		}
 	}
@@ -632,7 +631,6 @@ void FZenDerivedDataBackend::Put(
 
 void FZenDerivedDataBackend::Get(
 	const TConstArrayView<FCacheGetRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
@@ -642,7 +640,7 @@ void FZenDerivedDataBackend::Get(
 	int32 TotalCompleted = 0;
 
 	ForEachBatch(CacheRecordBatchSize, Requests.Num(),
-		[this, &Requests, &Context, &Owner, &OnComplete, &TotalCompleted](int32 BatchFirst, int32 BatchLast)
+		[this, &Requests, &Owner, &OnComplete, &TotalCompleted](int32 BatchFirst, int32 BatchLast)
 	{
 		TRACE_COUNTER_ADD(ZenDDC_Get, int64(BatchLast) - int64(BatchFirst) + 1);
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
@@ -716,8 +714,8 @@ void FZenDerivedDataBackend::Get(
 				{
 					if (ShouldSimulateMiss(Key))
 					{
-						UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of '%s' from '%.*s'"),
-							*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+						UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of '%s' from '%s'"),
+							*GetName(), *WriteToString<96>(Key), *Request.Name);
 					}
 					else
 					{
@@ -727,8 +725,8 @@ void FZenDerivedDataBackend::Get(
 
 				if (Record)
 				{
-					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for '%s' from '%.*s'"),
-						*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for '%s' from '%s'"),
+						*GetName(), *WriteToString<96>(Key), *Request.Name);
 					
 					TRACE_COUNTER_ADD(ZenDDC_GetHit, int64(1));
 					int64 ReceivedSize = MeasureCacheRecord(Record.Get());
@@ -737,17 +735,17 @@ void FZenDerivedDataBackend::Get(
 
 					if (OnComplete)
 					{
-						OnComplete({ MoveTemp(Record).Get(), Request.UserData, EStatus::Ok });
+						OnComplete({ Request.Name, MoveTemp(Record).Get(), Request.UserData, EStatus::Ok });
 					}
 				}
 				else
 				{
-					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss for '%s' from '%.*s'"),
-						*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss for '%s' from '%s'"),
+						*GetName(), *WriteToString<96>(Key), *Request.Name);
 					
 					if (OnComplete)
 					{
-						OnComplete({ FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error });
+						OnComplete({ Request.Name, FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error });
 					}
 				}
 				
@@ -761,12 +759,12 @@ void FZenDerivedDataBackend::Get(
 				const FCacheGetRequest& Request = Requests[KeyIndex];
 				const FCacheKey& Key = Request.Key;
 
-				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss for '%s' from '%.*s'"),
-					*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss for '%s' from '%s'"),
+					*GetName(), *WriteToString<96>(Key), *Request.Name);
 					
 				if (OnComplete)
 				{
-					OnComplete({ FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error });
+					OnComplete({ Request.Name, FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error });
 				}
 				
 				TotalCompleted++;
@@ -779,21 +777,20 @@ void FZenDerivedDataBackend::Get(
 }
 
 void FZenDerivedDataBackend::GetChunks(
-	TConstArrayView<FCacheChunkRequest> Chunks,
-	FStringView Context,
+	TConstArrayView<FCacheChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheGetChunkComplete&& OnComplete)
+	FOnCacheChunkComplete&& OnComplete)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::GetChunks);
-	TRACE_COUNTER_ADD(ZenDDC_ChunkRequestCount, int64(Chunks.Num()));
+	TRACE_COUNTER_ADD(ZenDDC_ChunkRequestCount, int64(Requests.Num()));
 
-	TArray<FCacheChunkRequest, TInlineAllocator<16>> SortedChunks(Chunks);
-	SortedChunks.StableSort(TChunkLess());
+	TArray<FCacheChunkRequest, TInlineAllocator<16>> SortedRequests(Requests);
+	SortedRequests.StableSort(TChunkLess());
 
 	int32 TotalCompleted = 0;
 
-	ForEachBatch(CacheChunksBatchSize, SortedChunks.Num(),
-		[this, &SortedChunks, &Context, &Owner, &OnComplete, &TotalCompleted](int32 BatchFirst, int32 BatchLast)
+	ForEachBatch(CacheChunksBatchSize, SortedRequests.Num(),
+		[this, &SortedRequests, &Owner, &OnComplete, &TotalCompleted](int32 BatchFirst, int32 BatchLast)
 	{
 		TRACE_COUNTER_ADD(ZenDDC_Get, int64(BatchLast) - int64(BatchFirst) + 1);
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
@@ -807,19 +804,19 @@ void FZenDerivedDataBackend::GetChunks(
 				BatchRequest.BeginArray("ChunkRequests"_ASV);
 				for (int32 ChunkIndex = BatchFirst; ChunkIndex <= BatchLast; ChunkIndex++)
 				{
-					const FCacheChunkRequest& Chunk = SortedChunks[ChunkIndex];
+					const FCacheChunkRequest& Request = SortedRequests[ChunkIndex];
 					
 					BatchRequest.BeginObject();
 					
 					BatchRequest.BeginObject("Key"_ASV);
-					BatchRequest << "Bucket"_ASV << Chunk.Key.Bucket.ToString();
-					BatchRequest << "Hash"_ASV << Chunk.Key.Hash;
+					BatchRequest << "Bucket"_ASV << Request.Key.Bucket.ToString();
+					BatchRequest << "Hash"_ASV << Request.Key.Hash;
 					BatchRequest.EndObject();
 
-					BatchRequest.AddObjectId("PayloadId"_ASV, Chunk.Id);
-					BatchRequest << "RawOffset"_ASV << Chunk.RawOffset;
-					BatchRequest << "RawSize"_ASV << Chunk.RawSize;
-					BatchRequest << "Policy"_ASV << static_cast<uint32>(Chunk.Policy);
+					BatchRequest.AddObjectId("PayloadId"_ASV, Request.Id);
+					BatchRequest << "RawOffset"_ASV << Request.RawOffset;
+					BatchRequest << "RawSize"_ASV << Request.RawSize;
+					BatchRequest << "Policy"_ASV << static_cast<uint32>(Request.Policy);
 
 					BatchRequest.EndObject();
 				}
@@ -844,25 +841,25 @@ void FZenDerivedDataBackend::GetChunks(
 			int32 ChunkIndex = BatchFirst;
 			for (FCbFieldView HashView : ResponseObj["Result"_ASV])
 			{
-				const FCacheChunkRequest& Chunk = SortedChunks[ChunkIndex++];
+				const FCacheChunkRequest& Request = SortedRequests[ChunkIndex++];
 
-				if (ShouldSimulateMiss(Chunk.Key))
+				if (ShouldSimulateMiss(Request.Key))
 				{
-					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of '%s' from '%.*s'"),
-						*GetName(), *WriteToString<96>(Chunk.Key ,'/', Chunk.Id), Context.Len(), Context.GetData());
+					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of '%s' from '%s'"),
+						*GetName(), *WriteToString<96>(Request.Key ,'/', Request.Id), *Request.Name);
 					
 					if (OnComplete)
 					{
-						OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error });
+						OnComplete({ Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error });
 					}
 				}
 				else if (const FCbAttachment* Attachment = BatchResponse.FindAttachment(HashView.AsHash()))
 				{
 					const FCompressedBuffer& CompressedBuffer = Attachment->AsCompressedBinary();
-					FSharedBuffer Buffer = FCompressedBufferReader(CompressedBuffer).Decompress(Chunk.RawOffset, Chunk.RawSize);
+					FSharedBuffer Buffer = FCompressedBufferReader(CompressedBuffer).Decompress(Request.RawOffset, Request.RawSize);
 					
-					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for '%s' from '%.*s'"),
-						*GetName(), *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
+					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for '%s' from '%s'"),
+						*GetName(), *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
 
 					const uint64 RawSize = Buffer.GetSize();
 					TRACE_COUNTER_ADD(ZenDDC_GetHit, int64(1));
@@ -871,17 +868,17 @@ void FZenDerivedDataBackend::GetChunks(
 					
 					if (OnComplete)
 					{
-						OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, RawSize, CompressedBuffer.GetRawHash(), MoveTemp(Buffer), Chunk.UserData, EStatus::Ok});
+						OnComplete({ Request.Name, Request.Key, Request.Id, Request.RawOffset, RawSize, CompressedBuffer.GetRawHash(), MoveTemp(Buffer), Request.UserData, EStatus::Ok });
 					}
 				}
 				else
 				{
-					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with missing payload '%s' for '%s' from '%.*s'"),
-						*GetName(), *WriteToString<16>(Chunk.Id), *WriteToString<96>(Chunk.Key), Context.Len(), Context.GetData());
+					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with missing payload '%s' for '%s' from '%s'"),
+						*GetName(), *WriteToString<16>(Request.Id), *WriteToString<96>(Request.Key), *Request.Name);
 					
 					if (OnComplete)
 					{
-						OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error });
+						OnComplete({ Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error });
 					}
 				}
 
@@ -892,14 +889,14 @@ void FZenDerivedDataBackend::GetChunks(
 		{
 			for (int32 ChunkIndex = BatchFirst; ChunkIndex <= BatchLast; ChunkIndex++)
 			{
-				const FCacheChunkRequest& Chunk = SortedChunks[ChunkIndex];
+				const FCacheChunkRequest& Request = SortedRequests[ChunkIndex];
 				
-				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with missing payload '%s' for '%s' from '%.*s'"),
-					*GetName(), *WriteToString<16>(Chunk.Id), *WriteToString<96>(Chunk.Key), Context.Len(), Context.GetData());
+				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with missing payload '%s' for '%s' from '%s'"),
+					*GetName(), *WriteToString<16>(Request.Id), *WriteToString<96>(Request.Key), *Request.Name);
 				
 				if (OnComplete)
 				{
-					OnComplete({ Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error });
+					OnComplete({ Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error });
 				}
 				
 				TotalCompleted++;
@@ -907,11 +904,11 @@ void FZenDerivedDataBackend::GetChunks(
 		}
 	});
 
-	UE_CLOG(TotalCompleted != SortedChunks.Num(), LogDerivedDataCache, Warning, TEXT("Only '%d/%d' cache chunk request(s) completed"), TotalCompleted, SortedChunks.Num());
-	TRACE_COUNTER_SUBTRACT(ZenDDC_ChunkRequestCount, int64(Chunks.Num()));
+	UE_CLOG(TotalCompleted != SortedRequests.Num(), LogDerivedDataCache, Warning, TEXT("Only '%d/%d' cache chunk request(s) completed"), TotalCompleted, SortedRequests.Num());
+	TRACE_COUNTER_SUBTRACT(ZenDDC_ChunkRequestCount, int64(Requests.Num()));
 }
 
-bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringView Context, const FCacheRecordPolicy& Policy)
+bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, const FCacheRecordPolicy& Policy)
 {
 	const FCacheKey& Key = Record.GetKey();
 	FCbPackage Package = Record.Save();

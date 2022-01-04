@@ -456,30 +456,29 @@ private:
 
 void FDerivedDataBackendAsyncPutWrapper::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
 	if (Owner.GetPriority() == EPriority::Blocking || !GDDCIOThreadPool)
 	{
-		InnerBackend->Put(Requests, Context, Owner, MoveTemp(OnComplete));
+		InnerBackend->Put(Requests, Owner, MoveTemp(OnComplete));
 	}
 	else
 	{
 		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
-			[this, Requests = TArray<FCachePutRequest>(Requests), Context = FString(Context), OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			[this, Requests = TArray<FCachePutRequest>(Requests), OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
 			{
 				if (!bCancel)
 				{
 					FRequestOwner BlockingOwner(EPriority::Blocking);
-					InnerBackend->Put(Requests, Context, BlockingOwner, MoveTemp(OnComplete));
+					InnerBackend->Put(Requests, BlockingOwner, MoveTemp(OnComplete));
 					BlockingOwner.Wait();
 				}
 				else if (OnComplete)
 				{
 					for (const FCachePutRequest& Request : Requests)
 					{
-						OnComplete({Request.Record.GetKey(), Request.UserData, EStatus::Canceled});
+						OnComplete({Request.Name, Request.Record.GetKey(), Request.UserData, EStatus::Canceled});
 					}
 				}
 			});
@@ -489,30 +488,29 @@ void FDerivedDataBackendAsyncPutWrapper::Put(
 
 void FDerivedDataBackendAsyncPutWrapper::Get(
 	const TConstArrayView<FCacheGetRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
 	if (Owner.GetPriority() == EPriority::Blocking || !GDDCIOThreadPool)
 	{
-		InnerBackend->Get(Requests, Context, Owner, MoveTemp(OnComplete));
+		InnerBackend->Get(Requests, Owner, MoveTemp(OnComplete));
 	}
 	else
 	{
 		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
-			[this, Requests = TArray<FCacheGetRequest>(Requests), Context = FString(Context), OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			[this, Requests = TArray<FCacheGetRequest>(Requests), OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
 			{
 				if (!bCancel)
 				{
 					FRequestOwner BlockingOwner(EPriority::Blocking);
-					InnerBackend->Get(Requests, Context, BlockingOwner, MoveTemp(OnComplete));
+					InnerBackend->Get(Requests, BlockingOwner, MoveTemp(OnComplete));
 					BlockingOwner.Wait();
 				}
 				else if (OnComplete)
 				{
 					for (const FCacheGetRequest& Request : Requests)
 					{
-						OnComplete({FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Canceled});
+						OnComplete({Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Canceled});
 					}
 				}
 			});
@@ -521,31 +519,30 @@ void FDerivedDataBackendAsyncPutWrapper::Get(
 }
 
 void FDerivedDataBackendAsyncPutWrapper::GetChunks(
-	TConstArrayView<FCacheChunkRequest> Chunks,
-	FStringView Context,
+	TConstArrayView<FCacheChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheGetChunkComplete&& OnComplete)
+	FOnCacheChunkComplete&& OnComplete)
 {
 	if (Owner.GetPriority() == EPriority::Blocking || !GDDCIOThreadPool)
 	{
-		InnerBackend->GetChunks(Chunks, Context, Owner, MoveTemp(OnComplete));
+		InnerBackend->GetChunks(Requests, Owner, MoveTemp(OnComplete));
 	}
 	else
 	{
 		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
-			[this, Chunks = TArray<FCacheChunkRequest>(Chunks), Context = FString(Context), OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			[this, Requests = TArray<FCacheChunkRequest>(Requests), OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
 			{
 				if (!bCancel)
 				{
 					FRequestOwner BlockingOwner(EPriority::Blocking);
-					InnerBackend->GetChunks(Chunks, Context, BlockingOwner, MoveTemp(OnComplete));
+					InnerBackend->GetChunks(Requests, BlockingOwner, MoveTemp(OnComplete));
 					BlockingOwner.Wait();
 				}
 				else if (OnComplete)
 				{
-					for (const FCacheChunkRequest& Chunk : Chunks)
+					for (const FCacheChunkRequest& Request : Requests)
 					{
-						OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Canceled});
+						OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Canceled});
 					}
 				}
 			});

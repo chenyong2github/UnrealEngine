@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h" // DDC-TODO: Remove!
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataPayloadId.h"
@@ -17,8 +18,8 @@
 
 namespace UE::DerivedData { class ICacheStoreMaintainer; }
 namespace UE::DerivedData { class IRequestOwner; }
+namespace UE::DerivedData { struct FCacheChunkCompleteParams; }
 namespace UE::DerivedData { struct FCacheChunkRequest; }
-namespace UE::DerivedData { struct FCacheGetChunkCompleteParams; }
 namespace UE::DerivedData { struct FCacheGetCompleteParams; }
 namespace UE::DerivedData { struct FCacheGetRequest; }
 namespace UE::DerivedData { struct FCachePutCompleteParams; }
@@ -28,9 +29,11 @@ namespace UE::DerivedData::Private { class ICacheRecordPolicyShared; }
 namespace UE::DerivedData
 {
 
+using FCacheRequestName = FString;
+
 using FOnCachePutComplete = TUniqueFunction<void (FCachePutCompleteParams&& Params)>;
 using FOnCacheGetComplete = TUniqueFunction<void (FCacheGetCompleteParams&& Params)>;
-using FOnCacheGetChunkComplete = TUniqueFunction<void (FCacheGetChunkCompleteParams&& Params)>;
+using FOnCacheChunkComplete = TUniqueFunction<void (FCacheChunkCompleteParams&& Params)>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -237,13 +240,11 @@ public:
 	 * be stored as a partial record that can attempt recovery of missing payloads when fetched.
 	 *
 	 * @param Requests     Requests with the cache records to store. Records must have a key.
-	 * @param Context      A description of the request. An object path is typically sufficient.
 	 * @param Owner        The owner to execute the request within.
 	 * @param OnComplete   A callback invoked for every record as it completes or is canceled.
 	 */
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete = FOnCachePutComplete()) = 0;
 
@@ -261,13 +262,11 @@ public:
 	 * PartialOnError is set for the missing payloads.
 	 *
 	 * @param Requests     Requests with the keys identifying the cache records to query.
-	 * @param Context      A description of the request. An object path is typically sufficient.
 	 * @param Owner        The owner to execute the request within.
 	 * @param OnComplete   A callback invoked for every key as it completes or is canceled.
 	 */
 	virtual void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) = 0;
 
@@ -281,16 +280,14 @@ public:
 	 * the requested records. Requests for whole payloads may propagate those payloads into other
 	 * cache stores, in accordance with the policy, through a put of a partial record.
 	 *
-	 * @param Chunks       The keys, IDs, offsets, and sizes of the chunks to query.
-	 * @param Context      A description of the request. An object path is typically sufficient.
+	 * @param Requests     The keys, IDs, offsets, and sizes of the chunks to query.
 	 * @param Owner        The owner to execute the request within.
 	 * @param OnComplete   A callback invoked for every chunk as it completes or is canceled.
 	 */
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Chunks,
-		FStringView Context,
+		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) = 0;
+		FOnCacheChunkComplete&& OnComplete) = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -370,7 +367,6 @@ public:
 
 	/** Returns the interface to the background cache store maintenance. */
 	virtual ICacheStoreMaintainer& GetMaintainer() = 0;
-
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -378,6 +374,9 @@ public:
 /** Parameters to request to put a cache record. */
 struct FCachePutRequest
 {
+	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
+	FCacheRequestName Name;
+
 	/** The cache record to put. */
 	FCacheRecord Record;
 
@@ -391,6 +390,9 @@ struct FCachePutRequest
 /** Parameters for the completion callback for cache put requests. */
 struct FCachePutCompleteParams
 {
+	/** A copy of the name from the request. */
+	FCacheRequestName Name;
+
 	/** Key for the part of the put request that completed or was canceled. */
 	FCacheKey Key;
 
@@ -404,6 +406,9 @@ struct FCachePutCompleteParams
 /** Parameters to request a cache record. */
 struct FCacheGetRequest
 {
+	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
+	FCacheRequestName Name;
+
 	/** The key identifying the cache record to fetch. */
 	FCacheKey Key;
 
@@ -417,6 +422,9 @@ struct FCacheGetRequest
 /** Parameters for the completion callback for cache get requests. */
 struct FCacheGetCompleteParams
 {
+	/** A copy of the name from the request. */
+	FCacheRequestName Name;
+
 	/**
 	 * Record for the part of the get request that completed or was canceled.
 	 *
@@ -437,6 +445,9 @@ struct FCacheGetCompleteParams
 /** Parameters to request a chunk, which is a subset of a payload, from a cache record. */
 struct FCacheChunkRequest
 {
+	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
+	FCacheRequestName Name;
+
 	/** The key identifying the cache record to fetch the payload from. */
 	FCacheKey Key;
 
@@ -460,8 +471,11 @@ struct FCacheChunkRequest
 };
 
 /** Parameters for the completion callback for cache chunk requests. */
-struct FCacheGetChunkCompleteParams
+struct FCacheChunkCompleteParams
 {
+	/** A copy of the name from the request. */
+	FCacheRequestName Name;
+
 	/** Key from the chunk request that completed or was canceled. */
 	FCacheKey Key;
 

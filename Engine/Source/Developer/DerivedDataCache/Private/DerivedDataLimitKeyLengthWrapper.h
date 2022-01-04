@@ -240,12 +240,11 @@ public:
 
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
 	#if ENABLE_COOK_STATS
-		return InnerBackend->Put(Requests, Context, Owner,
+		return InnerBackend->Put(Requests, Owner,
 			[this, OnComplete = MoveTemp(OnComplete)](FCachePutCompleteParams&& Params)
 			{
 				if (Params.Status == EStatus::Ok)
@@ -258,18 +257,17 @@ public:
 				}
 			});
 	#else
-		return InnerBackend->Put(Requests, Context, Owner, MoveTemp(OnComplete));
+		return InnerBackend->Put(Requests, Owner, MoveTemp(OnComplete));
 	#endif
 	}
 
 	virtual void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
 	#if ENABLE_COOK_STATS
-		return InnerBackend->Get(Requests, Context, Owner,
+		return InnerBackend->Get(Requests, Owner,
 			[this, OnComplete = MoveTemp(OnComplete)](FCacheGetCompleteParams&& Params)
 			{
 				if (Params.Status == EStatus::Ok)
@@ -282,19 +280,18 @@ public:
 				}
 			});
 	#else
-		return InnerBackend->Get(Requests, Context, Owner, MoveTemp(OnComplete));
+		return InnerBackend->Get(Requests, Owner, MoveTemp(OnComplete));
 	#endif
 	}
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Chunks,
-		FStringView Context,
+		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) override
+		FOnCacheChunkComplete&& OnComplete) override
 	{
 	#if ENABLE_COOK_STATS
-		return InnerBackend->GetChunks(Chunks, Context, Owner,
-			[this, OnComplete = MoveTemp(OnComplete)](FCacheGetChunkCompleteParams&& Params)
+		return InnerBackend->GetChunks(Requests, Owner,
+			[this, OnComplete = MoveTemp(OnComplete)](FCacheChunkCompleteParams&& Params)
 			{
 				if (Params.Status == EStatus::Ok)
 				{
@@ -306,7 +303,7 @@ public:
 				}
 			});
 	#else
-		return InnerBackend->GetChunks(Chunks, Context, Owner, MoveTemp(OnComplete));
+		return InnerBackend->GetChunks(Requests, Owner, MoveTemp(OnComplete));
 	#endif
 	}
 
