@@ -62,6 +62,8 @@ namespace ConcertSyncClientUtil
 		EGetObjectResultFlags Flags;
 	};
 
+	bool UserIsEditing();
+
 	bool CanPerformBlockingAction(const bool bBlockDuringInteraction = true);
 
 	void UpdatePendingKillState(UObject* InObj, const bool bIsPendingKill);
