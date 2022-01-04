@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InteractiveToolBuilder.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Image/ImageDimensions.h"
@@ -11,6 +10,7 @@
 #include "Sampling/MeshMapBaker.h"
 #include "ModelingOperators.h"
 #include "PreviewMesh.h"
+#include "ModelingToolTargetUtil.h"
 #include "BakeMeshAttributeMapsToolBase.h"
 #include "BakeMeshAttributeMapsTool.generated.h"
 
@@ -149,5 +149,13 @@ protected:
 	FDetailMeshSettings CachedDetailMeshSettings;
 	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedDetailNormalMap;
 	EBakeOpState UpdateResult_DetailNormalMap();
+
+	void SetSourceObjectVisible(bool bState)
+	{
+		if (!bIsBakeToSelf)
+		{
+			UE::ToolTarget::SetSourceObjectVisible(Targets[1], bState);
+		}
+	}
 };
 

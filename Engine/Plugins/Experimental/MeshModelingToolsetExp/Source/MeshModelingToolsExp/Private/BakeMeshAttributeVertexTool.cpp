@@ -22,7 +22,6 @@
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "TargetInterfaces/SkeletalMeshBackedTarget.h"
 #include "ToolTargetManager.h"
-#include "ModelingToolTargetUtil.h"
 #include "AssetUtils/Texture2DUtil.h"
 
 #include "EngineAnalytics.h"
@@ -299,8 +298,10 @@ void UBakeMeshAttributeVertexTool::Setup()
 	InputMeshSettings->SourceSkeletalMesh = !bIsBakeToSelf ? GetSkeletalMeshTarget(DetailTarget) : nullptr;
 	InputMeshSettings->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
 	InputMeshSettings->SourceNormalMap = nullptr;
+	InputMeshSettings->WatchProperty(InputMeshSettings->bHideSourceMesh, [this](bool bState) { SetSourceObjectVisible(!bState); });
 	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
 	InputMeshSettings->WatchProperty(InputMeshSettings->bProjectionInWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });
+	SetSourceObjectVisible(!InputMeshSettings->bHideSourceMesh);
 
 	OcclusionSettings = NewObject<UBakeOcclusionMapToolProperties>(this);
 	OcclusionSettings->RestoreProperties(this);
@@ -371,6 +372,7 @@ void UBakeMeshAttributeVertexTool::Shutdown(EToolShutdownType ShutdownType)
 	MultiTextureSettings->SaveProperties(this);
 
 	UE::ToolTarget::ShowSourceObject(Targets[0]);
+	SetSourceObjectVisible(true);
 
 	if (Compute)
 	{

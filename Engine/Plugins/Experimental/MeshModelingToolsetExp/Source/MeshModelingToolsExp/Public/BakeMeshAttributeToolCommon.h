@@ -66,6 +66,11 @@ public:
 		EditCondition = "SourceDynamicMesh != nullptr", EditConditionHides))
 	TObjectPtr<AActor> SourceDynamicMesh = nullptr;
 
+	/** If true, hide the source mesh */
+	UPROPERTY(EditAnywhere, Category = BakeInput, meta = (EditConditionHides, HideEditConditionToggle,
+		EditCondition = "SourceStaticMesh != nullptr || SourceSkeletalMesh != nullptr || SourceDynamicMesh != nullptr"))
+	bool bHideSourceMesh = false;
+
 	/** Source mesh normal map; if empty, the geometric normals will be used */
 	UPROPERTY(EditAnywhere, Category = BakeInput, AdvancedDisplay, meta = (TransientToolProperty,
 		EditCondition = "bHasSourceNormalMap == true", EditConditionHides, HideEditConditionToggle))
