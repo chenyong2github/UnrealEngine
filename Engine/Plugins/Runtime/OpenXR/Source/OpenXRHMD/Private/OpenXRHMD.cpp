@@ -28,6 +28,7 @@
 #include "IHandTracker.h"
 #include "PixelShaderUtils.h"
 #include "ScenePrivate.h"
+#include "GeneralProjectSettings.h"
 #include "Epic_openxr.h"
 
 #if WITH_EDITOR
@@ -963,8 +964,10 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 		}
 	}
 
-#if PLATFORM_HOLOLENS
-	bIsStandaloneStereoOnlyDevice = true;
+#if PLATFORM_HOLOLENS || PLATFORM_ANDROID
+	bool bStartInVR = false;
+	GConfig->GetBool(TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("bStartInVR"), bStartInVR, GGameIni);
+	bIsStandaloneStereoOnlyDevice = FParse::Param(FCommandLine::Get(), TEXT("vr")) || bStartInVR;
 #else
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{

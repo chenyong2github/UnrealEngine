@@ -7,6 +7,7 @@
 #include "IOpenXRExtensionPlugin.h"
 #include "IOpenXRARModule.h"
 #include "BuildSettings.h"
+#include "GeneralProjectSettings.h"
 
 #if PLATFORM_ANDROID
 #include <android_native_app_glue.h>
@@ -126,6 +127,12 @@ bool FOpenXRHMDModule::IsStandaloneStereoOnlyDevice()
 				return true;
 			}
 		}
+
+#if PLATFORM_HOLOLENS || PLATFORM_ANDROID
+		bool bStartInVR = false;
+		GConfig->GetBool(TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("bStartInVR"), bStartInVR, GGameIni); 
+		return FParse::Param(FCommandLine::Get(), TEXT("vr")) || bStartInVR;
+#endif
 	}
 	return false;
 }
@@ -313,7 +320,8 @@ PFN_xrGetInstanceProcAddr FOpenXRHMDModule::GetDefaultLoader()
 	FPlatformProcess::PopDllDirectory(*BinariesPath);
 #elif PLATFORM_LINUX
 	FString BinariesPath = FPaths::EngineDir() / FString(TEXT("Binaries/ThirdParty/OpenXR/linux/x86_64-unknown-linux-gnu"));
-	LoaderHandle = FPlatformProcess::GetDllHandle(*(BinariesPath / TEXT("libopenxr_loader.so")));
+	FString LoaderName = "libopenxr_loader.so";
+	LoaderHandle = FPlatformProcess::GetDllHandle(*(BinariesPath / LoaderName)); 
 #elif PLATFORM_HOLOLENS
 #ifndef PLATFORM_64BITS
 #error HoloLens platform does not currently support 32-bit. 32-bit OpenXR loader binaries are needed.
@@ -327,15 +335,38 @@ PFN_xrGetInstanceProcAddr FOpenXRHMDModule::GetDefaultLoader()
 #error Unsupported CPU family for the HoloLens platform.
 #endif
 
-	LoaderHandle = FPlatformProcess::GetDllHandle(*(BinariesPath / "openxr_loader.dll"));
+	FString LoaderName = "openxr_loader.dll";
+	LoaderHandle = FPlatformProcess::GetDllHandle(*(BinariesPath / LoaderName)); 
+#elif PLATFORM_ANDROID
+	FString LoaderName = "libopenxr_loader.so";
+	LoaderHandle = FPlatformProcess::GetDllHandle(*LoaderName);
 #endif
 
 	if (!LoaderHandle)
 	{
-		UE_LOG(LogHMD, Log, TEXT("Failed to load openxr_loader.dll"));
+		UE_LOG(LogHMD, Log, TEXT("Failed to load %s"), *LoaderName);
 		return nullptr;
 	}
-	return (PFN_xrGetInstanceProcAddr)FPlatformProcess::GetDllExport(LoaderHandle, TEXT("xrGetInstanceProcAddr"));
+
+	PFN_xrGetInstanceProcAddr OutGetProcAddr = (PFN_xrGetInstanceProcAddr)FPlatformProcess::GetDllExport(LoaderHandle, TEXT("xrGetInstanceProcAddr"));
+
+#if PLATFORM_ANDROID
+	PFN_xrInitializeLoaderKHR xrInitializeLoaderKHR;
+	OutGetProcAddr(XR_NULL_HANDLE, "xrInitializeLoaderKHR", (PFN_xrVoidFunction*)&xrInitializeLoaderKHR);
+	if (xrInitializeLoaderKHR == nullptr)
+	{
+		UE_LOG(LogHMD, Error, TEXT("Unable to load OpenXR Android xrInitializeLoaderKHR"));
+		return nullptr;
+	}
+
+	XrLoaderInitInfoAndroidKHR LoaderInitializeInfoAndroid;
+	LoaderInitializeInfoAndroid.type = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
+	LoaderInitializeInfoAndroid.next = NULL;
+	LoaderInitializeInfoAndroid.applicationVM = GNativeAndroidApp->activity->vm;
+	LoaderInitializeInfoAndroid.applicationContext = GNativeAndroidApp->activity->clazz;
+	XR_ENSURE(xrInitializeLoaderKHR((XrLoaderInitInfoBaseHeaderKHR*)&LoaderInitializeInfoAndroid));
+#endif
+	return OutGetProcAddr;
 }
 
 bool FOpenXRHMDModule::EnableExtensions(const TArray<const ANSICHAR*>& RequiredExtensions, const TArray<const ANSICHAR*>& OptionalExtensions, TArray<const ANSICHAR*>& OutExtensions)
