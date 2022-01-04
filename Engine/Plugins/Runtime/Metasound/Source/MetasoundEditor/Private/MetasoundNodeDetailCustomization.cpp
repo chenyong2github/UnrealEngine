@@ -30,6 +30,7 @@
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
 #include "PropertyRestriction.h"
+#include "SAssetDropTarget.h"
 #include "SlateCore/Public/Styling/SlateColor.h"
 #include "SMetasoundActionMenu.h"
 #include "SMetasoundGraphNode.h"
@@ -64,6 +65,34 @@ namespace Metasound
 				"Audio:Mono",
 				"Audio:Stereo"
 			};
+
+			void GetDataTypeFromElementPropertyHandle(TSharedPtr<IPropertyHandle> ElementPropertyHandle, Frontend::FDataTypeRegistryInfo& OutDataTypeInfo)
+			{
+				using namespace Frontend;
+
+				TArray<UObject*>OuterObjects;
+				ElementPropertyHandle->GetOuterObjects(OuterObjects);
+				if (OuterObjects.Num() == 1)
+				{
+					UObject* Outer = OuterObjects.Last();
+					if (const UMetasoundEditorGraphMemberDefaultLiteral* DefaultLiteral = Cast<UMetasoundEditorGraphMemberDefaultLiteral>(Outer))
+					{
+						if (const UMetasoundEditorGraphMember* Member = Cast<UMetasoundEditorGraphMember>(DefaultLiteral->GetOuter()))
+						{
+							ensure(IDataTypeRegistry::Get().GetDataTypeInfo(Member->GetDataType(), OutDataTypeInfo));
+						}
+					}
+				}
+			}
+
+			// If DataType is an array type, creates & returns the array's
+			// element type. Otherwise, returns this type's DataTypeName.
+			FName GetPrimitiveTypeName(const Frontend::FDataTypeRegistryInfo& InDataTypeInfo)
+			{
+				return InDataTypeInfo.IsArrayType()
+					? CreateElementTypeNameFromArrayTypeName(InDataTypeInfo.DataTypeName)
+					: InDataTypeInfo.DataTypeName;
+			}
 		} // namespace MemberCustomizationPrivate
 
 		FMetasoundFloatLiteralCustomization::~FMetasoundFloatLiteralCustomization()
@@ -75,9 +104,9 @@ namespace Metasound
 			}
 		}
 
-		void FMetasoundFloatLiteralCustomization::CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, TSharedPtr<IPropertyHandle> InDefaultValueHandle)
+		void FMetasoundFloatLiteralCustomization::CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout)
 		{
-			check(InputCategoryBuilder);
+			check(DefaultCategoryBuilder);
 
 			UMetasoundEditorGraphMemberDefaultFloat* DefaultFloat = Cast<UMetasoundEditorGraphMemberDefaultFloat>(&InLiteral);
 			if (!ensure(DefaultFloat))
@@ -86,19 +115,27 @@ namespace Metasound
 			}
 			FloatLiteral = DefaultFloat;
 
-			if (IDetailPropertyRow* Row = InputCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault)))
+			TSharedPtr<IPropertyHandle> DefaultValueHandle;
+			IDetailPropertyRow* Row = DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), UMetasoundEditorGraphMemberDefaultFloat::GetDefaultPropertyName());
+			if (ensure(Row))
+			{
+				DefaultValueHandle = Row->GetPropertyHandle();
+			}
+
+			Row = DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault));
+			if (ensure(Row))
 			{
 				// If clamping or using slider, clamp default value to given range 
 				if (DefaultFloat->ClampDefault || DefaultFloat->WidgetType != EMetasoundMemberDefaultWidget::None)
 				{
 					FVector2D Range = DefaultFloat->GetRange();
-					InDefaultValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), Range.X));
-					InDefaultValueHandle->SetInstanceMetaData("ClampMax", FString::Printf(TEXT("%f"), Range.Y));
+					DefaultValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), Range.X));
+					DefaultValueHandle->SetInstanceMetaData("ClampMax", FString::Printf(TEXT("%f"), Range.Y));
 				}
 				else // Stop clamping
 				{
-					InDefaultValueHandle->SetInstanceMetaData("ClampMin", "");
-					InDefaultValueHandle->SetInstanceMetaData("ClampMax", "");
+					DefaultValueHandle->SetInstanceMetaData("ClampMin", "");
+					DefaultValueHandle->SetInstanceMetaData("ClampMax", "");
 				}
 
 				DefaultFloat->OnClampChanged.Remove(OnClampChangedDelegateHandle);
@@ -114,23 +151,93 @@ namespace Metasound
 					}
 				});
 			}
-			InputCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, Range));
+			DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, Range));
+
+			// add input widget properties
+			IDetailCategoryBuilder& WidgetCategoryBuilder = InDetailLayout.EditCategory("EditorOptions");
+			WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType));
+			WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetOrientation));
+			WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetValueType));
 		}
 
-		void FMetasoundMemberDefaultBoolDetailCustomization::CacheProxyData(TSharedPtr<IPropertyHandle> InPropertyHandle)
+		void FMetasoundObjectArrayLiteralCustomization::CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout)
 		{
-			DataTypeName = FName();
+			check(DefaultCategoryBuilder);
 
-			const FString* MetadataDataTypeName = InPropertyHandle->GetInstanceMetaData(MemberCustomizationStyle::DataTypeNameIdentifier);
-			if (ensure(MetadataDataTypeName))
+			TSharedPtr<IPropertyHandle> DefaultValueHandle;
+			IDetailPropertyRow* Row = DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ &InLiteral }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultObjectArray, Default));
+			if (ensure(Row))
 			{
-				DataTypeName = **MetadataDataTypeName;
+				DefaultValueHandle = Row->GetPropertyHandle();
 			}
+
+			constexpr bool bShowChildren = true;
+			Row->ShowPropertyButtons(false)
+			.CustomWidget(bShowChildren)
+			.NameContent()
+			[
+				DefaultValueHandle->CreatePropertyNameWidget()
+			]
+			.ValueContent()
+			[
+				SNew(SAssetDropTarget)
+				.bSupportsMultiDrop(true)
+				.OnAreAssetsAcceptableForDropWithReason_Lambda([this, DefaultValueHandle](TArrayView<FAssetData> InAssets, FText& OutReason)
+				{
+					Frontend::FDataTypeRegistryInfo DataTypeInfo;
+					MemberCustomizationPrivate::GetDataTypeFromElementPropertyHandle(DefaultValueHandle, DataTypeInfo);
+
+					const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+					bool bCanDrop = true;
+					for (const FAssetData& AssetData : InAssets)
+					{
+						if (DataTypeInfo.ProxyGeneratorClass)
+						{
+							if (UClass* Class = AssetData.GetClass())
+							{
+								if (EditorModule.IsExplicitProxyClass(*DataTypeInfo.ProxyGeneratorClass))
+								{
+									bCanDrop &= Class == DataTypeInfo.ProxyGeneratorClass;
+								}
+								else
+								{
+									bCanDrop &= Class->IsChildOf(DataTypeInfo.ProxyGeneratorClass);
+								}
+							}
+						}
+					}
+					return true;
+				})
+				.OnAssetsDropped_Lambda([this, DefaultValueHandle](const FDragDropEvent& DragDropEvent, TArrayView<FAssetData> InAssets)
+				{
+					if (DefaultValueHandle.IsValid())
+					{
+						TSharedPtr<IPropertyHandleArray> ArrayHandle = DefaultValueHandle->AsArray();
+						if (ensure(ArrayHandle.IsValid()))
+						{
+							for (const FAssetData& AssetData : InAssets)
+							{
+								uint32 AddIndex = INDEX_NONE;
+								ArrayHandle->GetNumElements(AddIndex);
+								ArrayHandle->AddItem();
+								TSharedPtr<IPropertyHandle> ElementHandle = ArrayHandle->GetElement(static_cast<int32>(AddIndex));
+								TSharedPtr<IPropertyHandle> ObjectHandle = ElementHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundEditorGraphMemberDefaultObjectRef, Object));
+								ObjectHandle->SetValue(AssetData.GetAsset());
+							}
+						}
+					}
+				})
+				[
+					DefaultValueHandle->CreatePropertyValueWidget()
+				]
+			];
 		}
 
 		FText FMetasoundMemberDefaultBoolDetailCustomization::GetPropertyNameOverride() const
 		{
-			if (DataTypeName == Metasound::GetMetasoundDataTypeName<Metasound::FTrigger>())
+			using namespace MemberCustomizationPrivate;
+
+			if (GetPrimitiveTypeName(DataTypeInfo) == Metasound::GetMetasoundDataTypeName<Metasound::FTrigger>())
 			{
 				return LOCTEXT("TriggerInput_SimulateTitle", "Simulate");
 			}
@@ -141,12 +248,13 @@ namespace Metasound
 		TSharedRef<SWidget> FMetasoundMemberDefaultBoolDetailCustomization::CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const
 		{
 			using namespace Frontend;
+			using namespace MemberCustomizationPrivate;
 
 			TSharedPtr<IPropertyHandle> ValueProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundEditorGraphMemberDefaultBoolRef, Value));
 			if (ValueProperty.IsValid())
 			{
 				// Not a trigger, so just display as underlying literal type (bool)
-				if (DataTypeName != Metasound::GetMetasoundDataTypeName<Metasound::FTrigger>())
+				if (GetPrimitiveTypeName(DataTypeInfo) != Metasound::GetMetasoundDataTypeName<Metasound::FTrigger>())
 				{
 					return ValueProperty->CreatePropertyValueWidget();
 				}
@@ -182,27 +290,17 @@ namespace Metasound
 			return SNullWidget::NullWidget;
 		}
 
-		void FMetasoundMemberDefaultIntDetailCustomization::CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle)
-		{
-			DataTypeName = FName();
-
-			const FString* MetadataDataTypeName = ProxyHandle->GetInstanceMetaData(MemberCustomizationStyle::DataTypeNameIdentifier);
-			if (ensure(MetadataDataTypeName))
-			{
-				DataTypeName = **MetadataDataTypeName;
-			}
-		}
-
 		TSharedRef<SWidget> FMetasoundMemberDefaultIntDetailCustomization::CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const
 		{
 			using namespace Frontend;
+			using namespace MemberCustomizationPrivate;
 
 			if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
 			{
 				TSharedPtr<IPropertyHandle> ValueProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundEditorGraphMemberDefaultIntRef, Value));
 				if (ValueProperty.IsValid())
 				{
-					TSharedPtr<const IEnumDataTypeInterface> EnumInterface = IDataTypeRegistry::Get().GetEnumInterfaceForDataType(DataTypeName);
+					TSharedPtr<const IEnumDataTypeInterface> EnumInterface = IDataTypeRegistry::Get().GetEnumInterfaceForDataType(GetPrimitiveTypeName(DataTypeInfo));
 
 					// Not an enum, so just display as underlying type (int32)
 					if (!EnumInterface.IsValid())
@@ -275,60 +373,23 @@ namespace Metasound
 			return SNullWidget::NullWidget;
 		}
 
-		void FMetasoundMemberDefaultObjectDetailCustomization::CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle)
-		{
-			ProxyGenClass.Reset();
-
-			const FString* MetadataProxyGenClass = ProxyHandle->GetInstanceMetaData(MemberCustomizationStyle::ProxyGeneratorClassNameIdentifier);
-			TSharedPtr<IPropertyHandle> MetadataHandle = ProxyHandle->GetParentHandle();
-			if (!ensure(MetadataProxyGenClass))
-			{
-				return;
-			}
-
-			const FName ClassName = FName(*MetadataProxyGenClass);
-			for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-			{
-				UClass* Class = *ClassIt;
-				if (!Class->IsNative())
-				{
-					continue;
-				}
-				
-				if (Class->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists))
-				{
-					continue;
-				}
-
-				if (ClassIt->GetFName() != ClassName)
-				{
-					continue;
-				}
-
-				ProxyGenClass = *ClassIt;
-				return;
-			}
-
-			ensureMsgf(false, TEXT("Failed to find ProxyGeneratorClass. Class not set "));
-		}
-
 		TSharedRef<SWidget> FMetasoundMemberDefaultObjectDetailCustomization::CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const
 		{
 			TSharedPtr<IPropertyHandle> PropertyHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundEditorGraphMemberDefaultObjectRef, Object));
 
 			const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-			auto FilterAsset = [InEditorModule = &EditorModule, InProxyGenClass = ProxyGenClass](const FAssetData& InAsset)
+			auto FilterAsset = [InEditorModule = &EditorModule, InProxyGenClass = DataTypeInfo.ProxyGeneratorClass](const FAssetData& InAsset)
 			{
-				if (InProxyGenClass.IsValid())
+				if (InProxyGenClass)
 				{
 					if (UClass* Class = InAsset.GetClass())
 					{
-						if (InEditorModule->IsExplicitProxyClass(*InProxyGenClass.Get()))
+						if (InEditorModule->IsExplicitProxyClass(*InProxyGenClass))
 						{
-							return Class != InProxyGenClass.Get();
+							return Class != InProxyGenClass;
 						}
 
-						return !Class->IsChildOf(InProxyGenClass.Get());
+						return !Class->IsChildOf(InProxyGenClass);
 					}
 				}
 
@@ -337,7 +398,8 @@ namespace Metasound
 
 			auto ValidateAsset = [FilterAsset](const FAssetData& InAsset)
 			{
-				return !FilterAsset(InAsset);
+				// A null asset reference is a valid default
+				return InAsset.IsValid() ? !FilterAsset(InAsset) : true;
 			};
 
 			auto GetAssetPath = [PropertyHandle = PropertyHandle]()
@@ -352,18 +414,18 @@ namespace Metasound
 
 			return SNew(SObjectPropertyEntryBox)
 				.AllowClear(true)
-				.AllowedClass(ProxyGenClass.Get())
+				.AllowedClass(DataTypeInfo.ProxyGeneratorClass)
 				.DisplayBrowse(true)
 				.DisplayThumbnail(true)
 				.DisplayUseSelected(true)
-				.NewAssetFactories(PropertyCustomizationHelpers::GetNewAssetFactoriesForClasses({ ProxyGenClass.Get() }))
+				.NewAssetFactories(PropertyCustomizationHelpers::GetNewAssetFactoriesForClasses({DataTypeInfo.ProxyGeneratorClass }))
 				.ObjectPath_Lambda(GetAssetPath)
 				.OnShouldFilterAsset_Lambda(FilterAsset)
 				.OnShouldSetAsset_Lambda(ValidateAsset)
 				.PropertyHandle(PropertyHandle);
 		}
 
-		TSharedRef<SWidget> FMetasoundInputArrayDetailCustomizationBase::CreateNameWidget(TSharedPtr<IPropertyHandle> StructPropertyHandle) const
+		TSharedRef<SWidget> FMetasoundDefaultMemberElementDetailCustomizationBase::CreateNameWidget(TSharedPtr<IPropertyHandle> StructPropertyHandle) const
 		{
 			const FText PropertyName = GetPropertyNameOverride();
 			if (!PropertyName.IsEmpty())
@@ -378,39 +440,39 @@ namespace Metasound
 				.Font(IDetailLayoutBuilder::GetDetailFont());
 		}
 
-		TSharedRef<SWidget> FMetasoundInputArrayDetailCustomizationBase::CreateValueWidget(TSharedPtr<IPropertyHandleArray> ParentArrayProperty, TSharedPtr<IPropertyHandle> StructPropertyHandle, bool bIsInArray) const
+		TSharedRef<SWidget> FMetasoundDefaultMemberElementDetailCustomizationBase::CreateValueWidget(TSharedPtr<IPropertyHandleArray> ParentPropertyHandleArray, TSharedPtr<IPropertyHandle> StructPropertyHandle) const
 		{
 			TSharedRef<SWidget> ValueWidget = CreateStructureWidget(StructPropertyHandle);
-			if (!bIsInArray)
+			if (!ParentPropertyHandleArray.IsValid())
 			{
 				return ValueWidget;
 			}
 
 			TSharedPtr<IPropertyHandle> StructPropertyPtr = StructPropertyHandle;
-			FExecuteAction InsertAction = FExecuteAction::CreateLambda([ParentArrayProperty, StructPropertyPtr]
+			FExecuteAction InsertAction = FExecuteAction::CreateLambda([ParentPropertyHandleArray, StructPropertyPtr]
 			{
 				const int32 ArrayIndex = StructPropertyPtr.IsValid() ? StructPropertyPtr->GetIndexInArray() : INDEX_NONE;
-				if (ParentArrayProperty.IsValid() && ArrayIndex >= 0)
+				if (ParentPropertyHandleArray.IsValid() && ArrayIndex >= 0)
 				{
-					ParentArrayProperty->Insert(ArrayIndex);
+					ParentPropertyHandleArray->Insert(ArrayIndex);
 				}
 			});
 
-			FExecuteAction DeleteAction = FExecuteAction::CreateLambda([ParentArrayProperty, StructPropertyPtr]
+			FExecuteAction DeleteAction = FExecuteAction::CreateLambda([ParentPropertyHandleArray, StructPropertyPtr]
 			{
 				const int32 ArrayIndex = StructPropertyPtr.IsValid() ? StructPropertyPtr->GetIndexInArray() : INDEX_NONE;
-				if (ParentArrayProperty.IsValid() && ArrayIndex >= 0)
+				if (ParentPropertyHandleArray.IsValid() && ArrayIndex >= 0)
 				{
-					ParentArrayProperty->DeleteItem(ArrayIndex);
+					ParentPropertyHandleArray->DeleteItem(ArrayIndex);
 				}
 			});
 
-			FExecuteAction DuplicateAction = FExecuteAction::CreateLambda([ParentArrayProperty, StructPropertyPtr]
+			FExecuteAction DuplicateAction = FExecuteAction::CreateLambda([ParentPropertyHandleArray, StructPropertyPtr]
 			{
 				const int32 ArrayIndex = StructPropertyPtr.IsValid() ? StructPropertyPtr->GetIndexInArray() : INDEX_NONE;
-				if (ParentArrayProperty.IsValid() && ArrayIndex >= 0)
+				if (ParentPropertyHandleArray.IsValid() && ArrayIndex >= 0)
 				{
-					ParentArrayProperty->DuplicateItem(ArrayIndex);
+					ParentPropertyHandleArray->DuplicateItem(ArrayIndex);
 				}
 			});
 
@@ -431,29 +493,28 @@ namespace Metasound
 				];
 		}
 
-		void FMetasoundInputArrayDetailCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+		void FMetasoundDefaultMemberElementDetailCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 		{
-			bool bIsInArray = false;
-			TSharedPtr<IPropertyHandleArray> ParentArrayProperty;
-			TSharedPtr<IPropertyHandle> ProxyProperty = StructPropertyHandle;
+			TSharedPtr<IPropertyHandleArray> ParentPropertyHandleArray;
+			TSharedPtr<IPropertyHandle> ElementPropertyHandle = StructPropertyHandle;
+			if (ElementPropertyHandle.IsValid())
 			{
-				TSharedPtr<IPropertyHandle> ParentProperty = ProxyProperty->GetParentHandle();
-				if (ProxyProperty.IsValid() && ParentProperty.IsValid())
+				TSharedPtr<IPropertyHandle> ParentProperty = ElementPropertyHandle->GetParentHandle();
+				while (ParentProperty.IsValid() && ParentProperty->GetProperty() != nullptr)
 				{
-					ParentArrayProperty = ParentProperty->AsArray();
-					if (ParentArrayProperty.IsValid())
+					ParentPropertyHandleArray = ParentProperty->AsArray();
+					if (ParentPropertyHandleArray.IsValid())
 					{
-						ProxyProperty = ParentProperty;
-						bIsInArray = true;
+						ElementPropertyHandle = ParentProperty;
+						break;
 					}
 				}
 			}
+			MemberCustomizationPrivate::GetDataTypeFromElementPropertyHandle(ElementPropertyHandle, DataTypeInfo);
 
-			CacheProxyData(ProxyProperty);
-
-			TSharedRef<SWidget> ValueWidget = CreateValueWidget(ParentArrayProperty, StructPropertyHandle, bIsInArray);
+			TSharedRef<SWidget> ValueWidget = CreateValueWidget(ParentPropertyHandleArray, StructPropertyHandle);
 			FDetailWidgetRow& ValueRow = ChildBuilder.AddCustomRow(MemberCustomizationStyle::DefaultPropertyText);
-			if (bIsInArray)
+			if (ParentPropertyHandleArray.IsValid())
 			{
 				ValueRow.NameContent()
 				[
@@ -498,7 +559,7 @@ namespace Metasound
 			];
 		}
 
-		void FMetasoundInputArrayDetailCustomizationBase::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+		void FMetasoundDefaultMemberElementDetailCustomizationBase::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 		{
 		}
 
@@ -744,13 +805,6 @@ namespace Metasound
 			return false;
 		}
 
-		void FMetasoundInputDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
-		{
-			using namespace Frontend;
-
-			TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphInput, FMetasoundInputDetailCustomization>::CustomizeDetails(DetailLayout);
-		}
-
 		const FText FMetasoundOutputDetailCustomization::MemberNameText = LOCTEXT("OutputGraphMemberLabel", "Output");
 
 		bool FMetasoundOutputDetailCustomization::IsInterfaceMember() const
@@ -761,11 +815,6 @@ namespace Metasound
 			}
 
 			return false;
-		}
-
-		void FMetasoundOutputDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
-		{
-			TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphOutput, FMetasoundOutputDetailCustomization>::CustomizeDetails(DetailLayout);
 		}
 	} // namespace Editor
 } // namespace Metasound

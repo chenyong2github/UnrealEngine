@@ -6,11 +6,13 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 #include "Layout/Visibility.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundEditorGraph.h"
+#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphMemberDefaults.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontendLiteral.h"
@@ -45,14 +47,10 @@ namespace Metasound
 			static const FText DataTypeNameText = LOCTEXT("Node_DataTypeName", "Type");
 			static const FText DefaultPropertyText = LOCTEXT("Node_DefaultPropertyName", "Default Value");
 			static const FText NodeTooltipText = LOCTEXT("Node_Tooltip", "Tooltip");
-
-			static const FName DataTypeNameIdentifier = "DataTypeName";
-			static const FName ProxyGeneratorClassNameIdentifier = "GeneratorClass";
 		} // namespace MemberCustomizationStyle
 
-		class FMetasoundFloatLiteralCustomization : public IMemberDefaultLiteralCustomization
+		class FMetasoundFloatLiteralCustomization : public FMetasoundDefaultLiteralCustomizationBase
 		{
-			IDetailCategoryBuilder* InputCategoryBuilder = nullptr;
 			TWeakObjectPtr<UMetasoundEditorGraphMemberDefaultFloat> FloatLiteral;
 
 			// Delegate for updating the clamp min/max of the input value when the slider range is changed 
@@ -62,26 +60,59 @@ namespace Metasound
 			FDelegateHandle OnClampChangedDelegateHandle;
 
 		public:
-			FMetasoundFloatLiteralCustomization(IDetailCategoryBuilder& InInputCategoryBuilder)
-				: InputCategoryBuilder(&InInputCategoryBuilder)
+			FMetasoundFloatLiteralCustomization(IDetailCategoryBuilder& InDefaultCategoryBuilder)
+				: FMetasoundDefaultLiteralCustomizationBase(InDefaultCategoryBuilder)
+			{
+			}
+			virtual ~FMetasoundFloatLiteralCustomization();
+
+			virtual void CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout) override;
+		};
+
+		// Customization to support drag-and-drop of Proxy UObject types on underlying members that are structs.
+		// Struct ownership of objects required to customize asset filters based on dynamic UObject MetaSound Registry DataTypes.
+		class FMetasoundObjectArrayLiteralCustomization : public FMetasoundDefaultLiteralCustomizationBase
+		{
+		public:
+			FMetasoundObjectArrayLiteralCustomization(IDetailCategoryBuilder& InDefaultCategoryBuilder)
+				: FMetasoundDefaultLiteralCustomizationBase(InDefaultCategoryBuilder)
 			{
 			}
 
-			virtual ~FMetasoundFloatLiteralCustomization();
+			virtual ~FMetasoundObjectArrayLiteralCustomization() = default;
 
-			virtual void CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, TSharedPtr<IPropertyHandle> InDefaultValueHandle) override;
+			virtual void CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout) override;
 		};
 
+		class FMetasoundDefaultLiteralCustomizationFactory : public IMemberDefaultLiteralCustomizationFactory
+		{
+		public:
+			virtual TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> CreateLiteralCustomization(IDetailCategoryBuilder& DefaultCategoryBuilder) const override
+			{
+				return TUniquePtr<FMetasoundDefaultLiteralCustomizationBase>(new FMetasoundDefaultLiteralCustomizationBase(DefaultCategoryBuilder));
+			}
+		};
+
+		// Customization to support float widgets (ex. sliders, knobs)
 		class FMetasoundFloatLiteralCustomizationFactory : public IMemberDefaultLiteralCustomizationFactory
 		{
 		public:
-			virtual TUniquePtr<IMemberDefaultLiteralCustomization> CreateLiteralCustomization(IDetailCategoryBuilder& DefaultCategoryBuilder) const override
+			virtual TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> CreateLiteralCustomization(IDetailCategoryBuilder& DefaultCategoryBuilder) const override
 			{
-				return TUniquePtr<IMemberDefaultLiteralCustomization>(new FMetasoundFloatLiteralCustomization(DefaultCategoryBuilder));
+				return TUniquePtr<FMetasoundDefaultLiteralCustomizationBase>(new FMetasoundFloatLiteralCustomization(DefaultCategoryBuilder));
 			}
 		};
 
-		class FMetasoundInputArrayDetailCustomizationBase : public IPropertyTypeCustomization
+		class FMetasoundObjectArrayLiteralCustomizationFactory : public IMemberDefaultLiteralCustomizationFactory
+		{
+		public:
+			virtual TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> CreateLiteralCustomization(IDetailCategoryBuilder& DefaultCategoryBuilder) const override
+			{
+				return TUniquePtr<FMetasoundDefaultLiteralCustomizationBase>(new FMetasoundObjectArrayLiteralCustomization(DefaultCategoryBuilder));
+			}
+		};
+
+		class FMetasoundDefaultMemberElementDetailCustomizationBase : public IPropertyTypeCustomization
 		{
 		public:
 			//~ Begin IPropertyTypeCustomization
@@ -91,43 +122,34 @@ namespace Metasound
 
 		protected:
 			virtual FText GetPropertyNameOverride() const { return FText::GetEmpty(); }
+
+			// TODO: Merge with FMetasoundDefaultLiteralCustomizationBaseFactory
 			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& PropertyHandle) const = 0;
-			virtual void CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle) { }
+
+			Frontend::FDataTypeRegistryInfo DataTypeInfo;
 
 		private:
 			TSharedRef<SWidget> CreateNameWidget(TSharedPtr<IPropertyHandle> StructPropertyHandle) const;
-			TSharedRef<SWidget> CreateValueWidget(TSharedPtr<IPropertyHandleArray> ParentArrayProperty, TSharedPtr<IPropertyHandle> StructPropertyHandle, bool bIsInArray) const;
+			TSharedRef<SWidget> CreateValueWidget(TSharedPtr<IPropertyHandleArray> ParentArrayProperty, TSharedPtr<IPropertyHandle> StructPropertyHandle) const;
 		};
 
-		class FMetasoundMemberDefaultBoolDetailCustomization : public FMetasoundInputArrayDetailCustomizationBase
+		class FMetasoundMemberDefaultBoolDetailCustomization : public FMetasoundDefaultMemberElementDetailCustomizationBase
 		{
 		protected:
 			virtual FText GetPropertyNameOverride() const override;
 			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const override;
-			virtual void CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle) override;
-
-		private:
-			FName DataTypeName;
 		};
 
-		class FMetasoundMemberDefaultIntDetailCustomization : public FMetasoundInputArrayDetailCustomizationBase
+		class FMetasoundMemberDefaultIntDetailCustomization : public FMetasoundDefaultMemberElementDetailCustomizationBase
 		{
 		protected:
 			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const override;
-			virtual void CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle) override;
-
-		private:
-			FName DataTypeName;
 		};
 
-		class FMetasoundMemberDefaultObjectDetailCustomization : public FMetasoundInputArrayDetailCustomizationBase
+		class FMetasoundMemberDefaultObjectDetailCustomization : public FMetasoundDefaultMemberElementDetailCustomizationBase
 		{
 		protected:
 			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const override;
-			virtual void CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle) override;
-
-		private:
-			TWeakObjectPtr<UClass> ProxyGenClass;
 		};
 
 		class FMetasoundDataTypeSelector : public TSharedFromThis<FMetasoundDataTypeSelector>
@@ -202,6 +224,28 @@ namespace Metasound
 				static const FText MemberNameDescriptionFormat = LOCTEXT("GraphMember_DisplayDescriptionFormat", "Name used by external systems/referencing MetaSounds to identify {0}. Used as DisplayName within MetaSound Graph Editor if no DisplayName is provided.");
 				static const FText Name = FText::Format(MemberNameDescriptionFormat, TChildClass::MemberNameText);
 				return Name;
+			}
+
+			void UpdateRenameDelegate(UMetasoundEditorGraphMemberDefaultLiteral& InMemberDefaultLiteral)
+			{
+				if (UMetasoundEditorGraphMember* Member = InMemberDefaultLiteral.GetParentMember())
+				{
+					if (const UMetasoundEditorGraph* OwningGraph = GraphMember->GetOwningGraph())
+					{
+						TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*OwningGraph);
+						if (MetasoundEditor->CanRenameNodes())
+						{
+							if (!RenameRequestedHandle.IsValid())
+							{
+								Member->OnRenameRequested.Clear();
+								RenameRequestedHandle = Member->OnRenameRequested.AddLambda([this]()
+								{
+									FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
+								});
+							}
+						}
+					}
+				}
 			}
 
 			virtual bool IsInterfaceMember() const
@@ -301,115 +345,37 @@ namespace Metasound
 				TSharedPtr<IPropertyHandle> LiteralHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(TMemberType, Literal));
 				if (ensure(GraphMember.IsValid()) && ensure(LiteralHandle.IsValid()))
 				{
+					// Always hide, even if no customization (LiteralObject isn't found) as this is the case
+					// where the default object is not required (i.e. Default Member is default constructed)
+					LiteralHandle->MarkHiddenByCustomization();
+
 					UObject* LiteralObject = nullptr;
 					if (LiteralHandle->GetValue(LiteralObject) == FPropertyAccess::Success)
 					{
-						if (LiteralObject)
+						if (UMetasoundEditorGraphMemberDefaultLiteral * MemberDefaultLiteral = Cast<UMetasoundEditorGraphMemberDefaultLiteral>(LiteralObject))
 						{
-							LiteralHandle->MarkHiddenByCustomization();
-
-							// Rename
-							if (UMetasoundEditorGraphMemberDefaultLiteral* MemberDefaultLiteral = CastChecked<UMetasoundEditorGraphMemberDefaultLiteral>(LiteralObject))
-							{
-								if (UMetasoundEditorGraphMember* Member = MemberDefaultLiteral->GetParentMember())
-								{
-									if (const UMetasoundEditorGraph* OwningGraph = GraphMember->GetOwningGraph())
-									{
-										TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*OwningGraph);
-										if (MetasoundEditor->CanRenameNodes())
-										{
-											if (!RenameRequestedHandle.IsValid())
-											{
-												Member->OnRenameRequested.Clear();
-												RenameRequestedHandle = Member->OnRenameRequested.AddLambda([NameEditableTextBox = this->NameEditableTextBox]()
-												{
-													FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
-												});
-											}
-										}
-									}
-								}
-							}
-
-							TSharedPtr<IPropertyHandle> DefaultValueHandle;
-
-							if (IDetailPropertyRow* Row = DefaultCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ LiteralObject }), "Default"))
-							{
-								DefaultValueHandle = Row->GetPropertyHandle();
-								if (DefaultValueHandle.IsValid())
-								{
-									SetDefaultPropertyMetaData(DefaultValueHandle.ToSharedRef());
-								}
-							}
+							UpdateRenameDelegate(*MemberDefaultLiteral);
 
 							IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 							LiteralCustomization = EditorModule.CreateMemberDefaultLiteralCustomization(*LiteralObject->GetClass(), DefaultCategoryBuilder);
 							if (LiteralCustomization.IsValid())
 							{
-								LiteralCustomization->CustomizeLiteral(*CastChecked<UMetasoundEditorGraphMemberDefaultLiteral>(LiteralObject), DefaultValueHandle);
+								LiteralCustomization->CustomizeLiteral(*MemberDefaultLiteral, InDetailLayout);
 							}
-
-							UMetasoundEditorGraphMemberDefaultFloat* DefaultFloat = Cast<UMetasoundEditorGraphMemberDefaultFloat>(LiteralObject);
-							if (DefaultFloat)
+							else if (LiteralObject)
 							{
-								// add input widget properties 
-								IDetailCategoryBuilder& WidgetCategoryBuilder = InDetailLayout.EditCategory("Widget");
-								WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType));
-								WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetOrientation));
-								WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetValueType));
+								IDetailPropertyRow* Row = DefaultCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ LiteralObject }), "Default");
+								UClass* LiteralClass = LiteralObject->GetClass();
+								check(LiteralClass);
+								ensureMsgf(Row, TEXT("Class '%s' missing expected 'Default' member."
+									"Either add/rename default member or register customization to display default value/opt out appropriately."),
+									*LiteralClass->GetName());
 							}
 						}
 					}
 				}
 			}
 			// End of IDetailCustomization interface
-
-			void SetDefaultPropertyMetaData(TSharedRef<IPropertyHandle> InDefaultPropertyHandle) const
-			{
-				using namespace Frontend;
-
-				if (!GraphMember.IsValid())
-				{
-					return;
-				}
-
-				FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-				if (!ensure(Registry))
-				{
-					return;
-				}
-
-				FName TypeName = GraphMember->GetDataType();
-				if (TypeName.IsNone())
-				{
-					return;
-				}
-
-				FDataTypeRegistryInfo DataTypeInfo;
-				if (!ensure(IDataTypeRegistry::Get().GetDataTypeInfo(TypeName, DataTypeInfo)))
-				{
-					return;
-				}
-
-				if (DataTypeInfo.IsArrayType())
-				{
-					TypeName = CreateElementTypeNameFromArrayTypeName(TypeName);
-				}
-				InDefaultPropertyHandle->SetInstanceMetaData(MemberCustomizationStyle::DataTypeNameIdentifier, TypeName.ToString());
-
-				const EMetasoundFrontendLiteralType LiteralType = GetMetasoundFrontendLiteralType(DataTypeInfo.PreferredLiteralType);
-				if (LiteralType != EMetasoundFrontendLiteralType::UObject && LiteralType != EMetasoundFrontendLiteralType::UObjectArray)
-				{
-					return;
-				}
-
-				UClass* ProxyGenClass = DataTypeInfo.ProxyGeneratorClass;
-				if (ProxyGenClass)
-				{
-					const FString ClassName = ProxyGenClass->GetName();
-					InDefaultPropertyHandle->SetInstanceMetaData(MemberCustomizationStyle::ProxyGeneratorClassNameIdentifier, ClassName);
-				}
-			}
 
 			void OnNameChanged(const FText& InNewName)
 			{
@@ -530,7 +496,7 @@ namespace Metasound
 			}
 
 		private:
-			TUniquePtr<IMemberDefaultLiteralCustomization> LiteralCustomization;
+			TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> LiteralCustomization;
 
 			FDelegateHandle RenameRequestedHandle;
 		};
@@ -547,14 +513,10 @@ namespace Metasound
 
 			virtual bool IsInterfaceMember() const override;
 
-			// IDetailCustomization interface
-			virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
-			// End of IDetailCustomization interface
-
 			static const FText MemberNameText;
 
 		private:
-			TUniquePtr<IMemberDefaultLiteralCustomization> LiteralCustomization;
+			TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> LiteralCustomization;
 		};
 
 		class FMetasoundOutputDetailCustomization : public TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphOutput, FMetasoundOutputDetailCustomization>
@@ -571,12 +533,8 @@ namespace Metasound
 
 			virtual bool IsInterfaceMember() const override;
 
-			// IDetailCustomization interface
-			virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
-			// End of IDetailCustomization interface
-
 		private:
-			TUniquePtr<IMemberDefaultLiteralCustomization> LiteralCustomization;
+			TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> LiteralCustomization;
 		};
 	} // namespace Editor
 } // namespace Metasound

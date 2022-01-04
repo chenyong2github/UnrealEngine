@@ -18,11 +18,6 @@ namespace Metasound
 	namespace Editor
 	{
 		const FText FMetasoundVariableDetailCustomization::MemberNameText = LOCTEXT("Variable_Name", "Variable");
-
-		void FMetasoundVariableDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
-		{
-			TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphVariable, FMetasoundVariableDetailCustomization>::CustomizeDetails(DetailLayout);
-		}
 	} // namespace Editor
 } // namespace Metasound
 #undef LOCTEXT_NAMESPACE
