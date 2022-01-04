@@ -2022,37 +2022,87 @@ void FRHIRenderPassInfo::Validate() const
 }
 #endif
 
-bool FRHITextureCreateInfo::IsValid() const
+#define ValidateTextureDesc(expr, format, ...) \
+	if (bFatal) \
+	{ \
+		checkf(expr, format, ##__VA_ARGS__); \
+	} \
+	else if (!(expr)) \
+	{ \
+		return false;\
+	} \
+
+// static
+bool FRHITextureCreateInfo::Validate(const FRHITextureCreateInfo& Desc, const TCHAR* Name, bool bFatal)
 {
-	if (Extent.X <= 0 || Extent.Y <= 0 || Depth == 0 || ArraySize == 0 || NumMips == 0 || NumSamples < 1 || NumSamples > 8)
+	// Validate texture's pixel format.
 	{
-		return false;
+		ValidateTextureDesc(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
+		ValidateTextureDesc(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
+		ValidateTextureDesc(GPixelFormats[Desc.Format].Supported,
+			TEXT("Failed to create texture %s with pixel format %s because it is not supported."),
+			Name,
+			GPixelFormats[Desc.Format].Name);
 	}
 
-	if (NumSamples > 1 && !(Dimension == ETextureDimension::Texture2D || Dimension == ETextureDimension::Texture2DArray))
+	// Validate texture's extent.
 	{
-		return false;
+		int32 MaxDimension = (Desc.Dimension == ETextureDimension::TextureCube || Desc.Dimension == ETextureDimension::TextureCubeArray) ? GMaxCubeTextureDimensions : GMaxTextureDimensions;
+
+		ValidateTextureDesc(Desc.Extent.X > 0, TEXT("Texture %s's Extent.X=%d is invalid."), Name, Desc.Extent.X);
+		ValidateTextureDesc(Desc.Extent.X <= MaxDimension, TEXT("Texture %s's Extent.X=%d is too large."), Name, Desc.Extent.X);
+
+		ValidateTextureDesc(Desc.Extent.Y > 0, TEXT("Texture %s's Extent.Y=%d is invalid."), Name, Desc.Extent.Y);
+		ValidateTextureDesc(Desc.Extent.Y <= MaxDimension, TEXT("Texture %s's Extent.Y=%d is too large."), Name, Desc.Extent.Y);
 	}
 
-	if (Dimension == ETextureDimension::Texture3D)
+	// Validate texture's depth
+	if (Desc.Dimension == ETextureDimension::Texture3D)
 	{
-		if (ArraySize > 1)
-		{
-			return false;
-		}
+		ValidateTextureDesc(Desc.Depth > 0, TEXT("Texture %s's Depth=%d is invalid."), Name, int32(Desc.Depth));
+		ValidateTextureDesc(Desc.Depth <= GMaxTextureDimensions, TEXT("Texture %s's Extent.Depth=%d is too large."), Name, Desc.Depth);
 	}
-	else if (Depth > 1)
+	else
 	{
-		return false;
+		ValidateTextureDesc(Desc.Depth == 1, TEXT("Texture %s's Depth=%d is invalid for Dimension=%s."), Name, int32(Desc.Depth), GetTextureDimensionString(Desc.Dimension));
 	}
 
-	if (Format == PF_Unknown)
+	// Validate texture's array size
+	if (Desc.Dimension == ETextureDimension::Texture2DArray || Desc.Dimension == ETextureDimension::TextureCubeArray)
 	{
-		return false;
+		ValidateTextureDesc(Desc.ArraySize > 0, TEXT("Texture %s's ArraySize=%d is invalid."), Name, Desc.ArraySize);
+		ValidateTextureDesc(Desc.ArraySize <= GMaxTextureArrayLayers, TEXT("Texture %s's Extent.ArraySize=%d is too large."), Name, int32(Desc.ArraySize));
+	}
+	else
+	{
+		ValidateTextureDesc(Desc.ArraySize == 1, TEXT("Texture %s's ArraySize=%d is invalid for Dimension=%s."), Name, Desc.ArraySize,  GetTextureDimensionString(Desc.Dimension));
+	}
+
+	// Validate texture's samples count.
+	if (Desc.Dimension == ETextureDimension::Texture2D || Desc.Dimension == ETextureDimension::Texture2DArray)
+	{
+		ValidateTextureDesc(Desc.NumSamples > 0, TEXT("Texture %s's NumSamples=%d is invalid."), Name, Desc.NumSamples);
+	}
+	else
+	{
+		ValidateTextureDesc(Desc.NumSamples == 1, TEXT("Texture %s's NumSamples=%d is invalid for Dimension=%s."), Name, Desc.NumSamples, GetTextureDimensionString(Desc.Dimension));
+	}
+
+	// Validate texture's mips.
+	if (Desc.IsMultisample())
+	{
+		ValidateTextureDesc(Desc.NumMips == 1, TEXT("MSAA Texture %s's can only have one mip."), Name);
+	}
+	else
+	{
+		ValidateTextureDesc(Desc.NumMips > 0, TEXT("Texture %s's NumMips=%d is invalid."), Name, Desc.NumMips);
+		ValidateTextureDesc(Desc.NumMips <= GMaxTextureMipCount, TEXT("Texture %s's NumMips=%d is too large."), Name, Desc.NumMips);
 	}
 
 	return true;
 }
+
+#undef ValidateTextureDesc
 
 static FRHIPanicEvent RHIPanicEvent;
 FRHIPanicEvent& RHIGetPanicDelegate()
