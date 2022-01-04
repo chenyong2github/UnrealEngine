@@ -278,6 +278,10 @@ class MESHMODELINGTOOLSEXP_API UBakeVisualizationProperties : public UInteractiv
 {
 	GENERATED_BODY()
 public:
+	/** Preview the texture as an input to the respective material parameter (ex. Normal, Ambient Occlusion) */
+	UPROPERTY(EditAnywhere, Category = Preview)
+	bool bPreviewAsMaterial = false;
+	
 	/** Adjust the brightness of the preview material; does not affect results stored in textures */
 	UPROPERTY(EditAnywhere, Category = Preview, meta = (DisplayName = "Brightness", UIMin = "0.0", UIMax = "1.0"))
 	float Brightness = 1.0f;
