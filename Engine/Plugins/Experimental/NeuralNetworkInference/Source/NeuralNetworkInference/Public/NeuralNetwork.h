@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NeuralEnumClasses.h"
-#include "NeuralStats.h"
+#include "NeuralStatistics.h"
 #include "NeuralTensor.h"
 #include "NeuralNetwork.generated.h"
 
@@ -235,14 +235,14 @@ public:
 // CONTINUE HERE
 	/**
 	 * Stats functions:
-	 * - GetLastInferenceTime will provide the last inference time measured milliseconds
+	 * - GetLastRunTimeMSec will provide the last inference time measured milliseconds.
 	 * - GetInferenceStats returns inference time statistics. (NumberSamples, Average, StdDev, Min, Max statistics measured in milliseconds)
 	 * - GetInputMemoryTransferStats returns Input Memory Transfer statistics. (NumberSamples, Average, StdDev, Min, Max statistics measured in
 	 *   milliseconds)
 	 */
-	float GetLastInferenceTimeMSec() const;
-	FNeuralStatsData GetInferenceStats() const;
-	FNeuralStatsData GetInputMemoryTransferStats() const;
+	float GetLastRunTimeMSec() const;
+	FNeuralStatistics GetInferenceStats() const;
+	FNeuralStatistics GetInputMemoryTransferStats() const;
 	void ResetStats();
 
 protected:
@@ -311,8 +311,8 @@ private:
 	/**
 	 * Stats-related members.
 	 */
-	FNeuralStats ComputeStatsModule;
-	FNeuralStats InputMemoryTransferStatsModule;
+	FNeuralStatisticsEstimator ComputeStatisticsEstimator;
+	FNeuralStatisticsEstimator InputTransferStatisticsEstimator;
 
 	/**
 	 * Struct pointer containing the UE-and-ORT-based back end implementation.

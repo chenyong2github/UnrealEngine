@@ -1,16 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NeuralStats.h"
+#include "NeuralStatistics.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNNIStats, Display, All);
 
 
 
-/* FNeuralStats auxiliary functions
+/* FNeuralStatisticsEstimator auxiliary functions
  *****************************************************************************/
 
-void FNeuralStats_CalculateMinMax(float& OutMin, float& OutMax, const TCircularBuffer<float>& InDataBuffer, const bool bInIsBufferFull, const uint32 InBufferIdx)
+void FNeuralStatisticsEstimator_CalculateMinMax(float& OutMin, float& OutMax, const TCircularBuffer<float>& InDataBuffer, const bool bInIsBufferFull,
+	const uint32 InBufferIdx)
 {
 	const uint32 PtrEnd = (bInIsBufferFull) ? InDataBuffer.Capacity() : InBufferIdx;
 
@@ -32,10 +33,10 @@ void FNeuralStats_CalculateMinMax(float& OutMin, float& OutMax, const TCircularB
 
 
 
-/* FNeuralStatsData auxiliary functions
+/* FNeuralStatistics constructor
  *****************************************************************************/
 
-FNeuralStatsData::FNeuralStatsData(const int InNumberSamples, const float InAverage, const float InStdDev, const float InMin, const float InMax)
+FNeuralStatistics::FNeuralStatistics(const int InNumberSamples, const float InAverage, const float InStdDev, const float InMin, const float InMax)
 	: NumberSamples(InNumberSamples)
 	, Average(InAverage)
 	, StdDev(InStdDev)
@@ -48,7 +49,7 @@ FNeuralStatsData::FNeuralStatsData(const int InNumberSamples, const float InAver
 /* FNeuralNetworkInferenceQATimer public functions
  *****************************************************************************/
 
-FNeuralStats::FNeuralStats(const uint32 InSizeRollingWindow) 
+FNeuralStatisticsEstimator::FNeuralStatisticsEstimator(const uint32 InSizeRollingWindow) 
 	: EpsilonFloat(0.000001f)
 	, BufferIdx(0)
 	, bIsBufferFull(false)
@@ -57,7 +58,7 @@ FNeuralStats::FNeuralStats(const uint32 InSizeRollingWindow)
 {
 }
 	
-void FNeuralStats::StoreSample(const float InRunTime) 
+void FNeuralStatisticsEstimator::StoreSample(const float InRunTime) 
 {
 	LastSample = InRunTime;
 
@@ -70,7 +71,7 @@ void FNeuralStats::StoreSample(const float InRunTime)
 	BufferIdx = DataBuffer.GetNextIndex(BufferIdx);
 }
 
-void FNeuralStats::ResetStats()
+void FNeuralStatisticsEstimator::ResetStats()
 {
 	for (uint32 Index = 0; Index < DataBuffer.Capacity(); ++Index)
 	{
@@ -81,23 +82,23 @@ void FNeuralStats::ResetStats()
 	LastSample = 0;
 }
 
-float FNeuralStats::GetLastSample() const
+float FNeuralStatisticsEstimator::GetLastSample() const
 {
 	return LastSample;
 }
 
-FNeuralStatsData FNeuralStats::GetStats() const
+FNeuralStatistics FNeuralStatisticsEstimator::GetStats() const
 {
 	const uint32 count = (bIsBufferFull) ? DataBuffer.Capacity() : BufferIdx;
 	const float Mean = CalculateMean();
 	const float StdDev = CalculateStdDev(Mean);
 	float Min, Max;
-	FNeuralStats_CalculateMinMax(Min, Max, DataBuffer, bIsBufferFull, BufferIdx);
+	FNeuralStatisticsEstimator_CalculateMinMax(Min, Max, DataBuffer, bIsBufferFull, BufferIdx);
 	// Return aggregated data
-	return FNeuralStatsData(count, Mean, StdDev, Min, Max);
+	return FNeuralStatistics(count, Mean, StdDev, Min, Max);
 }
 
-float FNeuralStats::CalculateMean() const
+float FNeuralStatisticsEstimator::CalculateMean() const
 {
 	uint32 PtrEnd = (bIsBufferFull) ? DataBuffer.Capacity(): BufferIdx;
 	float AccumulatorMean = 0;
@@ -109,7 +110,7 @@ float FNeuralStats::CalculateMean() const
 	return AccumulatorMean / (static_cast<float>(PtrEnd) + EpsilonFloat);
 }
 
-float FNeuralStats::CalculateStdDev(const float InMean) const
+float FNeuralStatisticsEstimator::CalculateStdDev(const float InMean) const
 {
 	const uint32 PtrEnd = (bIsBufferFull) ? DataBuffer.Capacity() : BufferIdx;
 
