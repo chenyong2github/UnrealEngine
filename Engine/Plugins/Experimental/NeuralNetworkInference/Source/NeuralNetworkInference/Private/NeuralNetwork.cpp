@@ -319,7 +319,7 @@ void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const i
 			TEXT("UNeuralNetwork::SetInputFromArrayCopy(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."),
 			(int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
-	InputMemoryTransferStatsModule.StoreSample(RunTimer.Toc());
+	InputTransferStatisticsEstimator.StoreSample(RunTimer.Toc());
 }
 
 void UNeuralNetwork::SetInputFromVoidPointerCopy(const void* const InVoidPtr, const int32 InTensorIndex)
@@ -351,7 +351,7 @@ void UNeuralNetwork::SetInputFromVoidPointerCopy(const void* const InVoidPtr, co
 			TEXT("UNeuralNetwork::SetInputFromVoidPointerCopy(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."),
 			(int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
-	InputMemoryTransferStatsModule.StoreSample(RunTimer.Toc());
+	InputTransferStatisticsEstimator.StoreSample(RunTimer.Toc());
 }
 
 void* UNeuralNetwork::GetInputDataPointerMutable(const int32 InTensorIndex)
@@ -503,28 +503,28 @@ void UNeuralNetwork::Run()
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."),
 			(int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
-	ComputeStatsModule.StoreSample(RunTimer.Toc());
+	ComputeStatisticsEstimator.StoreSample(RunTimer.Toc());
 }
 
-float UNeuralNetwork::GetLastInferenceTimeMSec() const
+float UNeuralNetwork::GetLastRunTimeMSec() const
 {
-	return ComputeStatsModule.GetLastSample();
+	return ComputeStatisticsEstimator.GetLastSample();
 }
 
-FNeuralStatsData UNeuralNetwork::GetInferenceStats() const
+FNeuralStatistics UNeuralNetwork::GetInferenceStats() const
 {
-	return ComputeStatsModule.GetStats();
+	return ComputeStatisticsEstimator.GetStats();
 }
 
-FNeuralStatsData UNeuralNetwork::GetInputMemoryTransferStats() const
+FNeuralStatistics UNeuralNetwork::GetInputMemoryTransferStats() const
 {
-	return InputMemoryTransferStatsModule.GetStats();
+	return InputTransferStatisticsEstimator.GetStats();
 }
 
 void UNeuralNetwork::ResetStats()
 {
-	ComputeStatsModule.ResetStats();
-	InputMemoryTransferStatsModule.ResetStats();
+	ComputeStatisticsEstimator.ResetStats();
+	InputTransferStatisticsEstimator.ResetStats();
 }
 
 
