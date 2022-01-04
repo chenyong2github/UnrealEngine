@@ -18,7 +18,7 @@ struct FScreenPassTexture;
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAV)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAVWithoutRTs)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, SSSTextureUAV)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -51,10 +51,8 @@ struct FStrataSceneData
 
 	// Resources allocated and updated each frame
 
-
-	FRDGTextureRef MaterialTextureArrayMRTs;
-
 	FRDGTextureRef MaterialTextureArray;
+	FRDGTextureUAVRef MaterialTextureArrayUAVWithoutRTs;
 	FRDGTextureUAVRef MaterialTextureArrayUAV;
 	FRDGTextureSRVRef MaterialTextureArraySRV;
 
