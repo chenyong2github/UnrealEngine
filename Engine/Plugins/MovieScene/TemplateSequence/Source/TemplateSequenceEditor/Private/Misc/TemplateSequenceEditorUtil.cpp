@@ -44,6 +44,10 @@ void FTemplateSequenceEditorUtil::ChangeActorBinding(UObject* Object, UActorFact
 	// Make the new spawnable object binding.
 	FGuid NewSpawnableGuid = Sequencer.MakeNewSpawnable(*Object);
 	FMovieSceneSpawnable* NewSpawnable = MovieScene->FindSpawnable(NewSpawnableGuid);
+	if (!NewSpawnable)
+	{
+		return;
+	}
 
 	// Pre-notify that a change will occur.
 	FProperty* BoundActorClassProperty = FindFProperty<FProperty>(UTemplateSequence::StaticClass(), GET_MEMBER_NAME_CHECKED(UTemplateSequence, BoundActorClass));
