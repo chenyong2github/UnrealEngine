@@ -47,6 +47,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = SelectionFilter, meta = (EditCondition = "bSelectEdges"))
 	bool bSelectEdgeRings = false;
 
+	/** When false, faces that face away from the camera are ignored in selection and occlusion. Useful for working with inside-out meshes. */
+	UPROPERTY(EditAnywhere, Category = SelectionFilter, AdvancedDisplay)
+	bool bHitBackFaces = true;
+
 	UPROPERTY(EditAnywhere, Category = SelectionFilter, AdvancedDisplay)
 	bool bEnableMarquee = true;
 

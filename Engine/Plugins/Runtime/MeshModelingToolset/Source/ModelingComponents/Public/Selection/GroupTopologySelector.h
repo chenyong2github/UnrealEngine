@@ -50,6 +50,11 @@ public:
 		bool bEnableEdgeHits = true;
 		bool bEnableCornerHits = true;
 		
+		// When false, hits of a triangles that are facing away from the camera are not considered. This can
+		// be useful when working with inside-out meshes, where we usually want to select the farther, visible
+		// wall.
+		bool bHitBackFaces = true;
+
 		// The following are mainly useful for ortho viewport selection:
 
 		// Prefer an edge projected to a point rather than the point, and a face projected to an edge
