@@ -320,9 +320,13 @@ void SOptimusEditorGraphExplorer::CollectAllActions(FGraphActionListBuilderBase&
 		return;
 	}
 
-	// This should be purely interface-based.
+	// FIXME: This should be purely interface-based.
 	UOptimusDeformer *Deformer = Editor->GetDeformer();
-
+	if (!Deformer)
+	{
+		return;
+	}
+	
 	for (UOptimusNodeGraph* Graph : Deformer->GetGraphs())
 	{
 		FText GraphCategory = GetGraphSubCategory(Graph);
@@ -332,19 +336,16 @@ void SOptimusEditorGraphExplorer::CollectAllActions(FGraphActionListBuilderBase&
 		CollectChildGraphActions(OutAllActions, Graph, GraphCategory);
 	}
 
-	if (Deformer)
+	for (UOptimusResourceDescription* Resource : Deformer->GetResources())
 	{
-		for (UOptimusResourceDescription* Resource : Deformer->GetResources())
-		{
-			TSharedPtr<FOptimusSchemaAction_Resource> ResourceAction = MakeShared<FOptimusSchemaAction_Resource>(Resource, /*Grouping=*/2);
-			OutAllActions.AddAction(ResourceAction);
-		}
+		TSharedPtr<FOptimusSchemaAction_Resource> ResourceAction = MakeShared<FOptimusSchemaAction_Resource>(Resource, /*Grouping=*/2);
+		OutAllActions.AddAction(ResourceAction);
+	}
 
-		for (UOptimusVariableDescription* Variable : Deformer->GetVariables())
-		{
-			TSharedPtr<FOptimusSchemaAction_Variable> VariableAction = MakeShared<FOptimusSchemaAction_Variable>(Variable, /*Grouping=*/3);
-			OutAllActions.AddAction(VariableAction);
-		}
+	for (UOptimusVariableDescription* Variable : Deformer->GetVariables())
+	{
+		TSharedPtr<FOptimusSchemaAction_Variable> VariableAction = MakeShared<FOptimusSchemaAction_Variable>(Variable, /*Grouping=*/3);
+		OutAllActions.AddAction(VariableAction);
 	}
 }
 
@@ -370,6 +371,14 @@ void SOptimusEditorGraphExplorer::CollectChildGraphActions(
 	{
 		TSharedPtr<FOptimusSchemaAction_Graph> GraphAction = MakeShared<FOptimusSchemaAction_Graph>(SubGraph, /*Grouping=*/1, Category);
 		OutAllActions.AddAction(GraphAction);
+	}
+
+	for (const UOptimusNodeGraph* SubGraph: InParentGraph->GetGraphs())
+	{
+		if (!SubGraph->GetGraphs().IsEmpty())
+		{
+			CollectChildGraphActions(OutAllActions, SubGraph, Category);
+		}
 	}
 }
 
