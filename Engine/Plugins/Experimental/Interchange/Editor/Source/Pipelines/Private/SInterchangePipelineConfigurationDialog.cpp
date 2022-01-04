@@ -427,8 +427,9 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 
 void SInterchangePipelineConfigurationDialog::OnSelectionChanged(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, ESelectInfo::Type SelectionType)
 {
+	UInterchangePipelineBase* Pipeline = Item ? Item->Pipeline : nullptr;
 	//Change the object point by the InspectorBox
-	PipelineConfigurationDetailsView->SetObject(Item->Pipeline);
+	PipelineConfigurationDetailsView->SetObject(Pipeline);
 }
 
 void SInterchangePipelineConfigurationDialog::RecursiveSavePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, const int32 PipelineIndex) const
