@@ -80,7 +80,7 @@ namespace SteamAudio
 		UPhononSpatializationSourceSettings* SpatializationSettings = static_cast<UPhononSpatializationSourceSettings*>(InSettings);
 		FBinauralSource& BinauralSource = BinauralSources[SourceId];
 
-		UE_LOG(LogSteamAudio, Log, TEXT("Creating spatialization effect."));
+		UE_LOG(LogSteamAudio, Verbose, TEXT("Creating spatialization effect."));
 
 		if (SpatializationSettings)
 		{
@@ -109,7 +109,7 @@ namespace SteamAudio
 	{
 		FBinauralSource& BinauralSource = BinauralSources[SourceId];
 
-		UE_LOG(LogSteamAudio, Log, TEXT("Destroying spatialization effect."));
+		UE_LOG(LogSteamAudio, Verbose, TEXT("Destroying spatialization effect."));
 
 		switch (BinauralSource.SpatializationMethod)
 		{
