@@ -237,40 +237,6 @@ FCacheRecordPolicy FCacheRecordPolicyBuilder::Build()
 	return Policy;
 }
 
-void ICache::Put(
-	const TConstArrayView<FCacheRecord> Records,
-	const FStringView Context,
-	const ECachePolicy Policy,
-	IRequestOwner& Owner,
-	FOnCachePutComplete&& OnComplete)
-{
-	const FCacheRequestName Name(Context);
-	TArray<FCachePutRequest, TInlineAllocator<16>> Requests;
-	Requests.Reserve(Records.Num());
-	for (const FCacheRecord& Record : Records)
-	{
-		Requests.Add({Name, Record, Policy});
-	}
-	return Put(Requests, Owner, MoveTemp(OnComplete));
-}
-
-void ICache::Get(
-	const TConstArrayView<FCacheKey> Keys,
-	const FStringView Context,
-	const FCacheRecordPolicy Policy,
-	IRequestOwner& Owner,
-	FOnCacheGetComplete&& OnComplete)
-{
-	const FCacheRequestName Name(Context);
-	TArray<FCacheGetRequest, TInlineAllocator<16>> Requests;
-	Requests.Reserve(Keys.Num());
-	for (const FCacheKey& Key : Keys)
-	{
-		Requests.Add({Name, Key, Policy});
-	}
-	return Get(Requests, Owner, MoveTemp(OnComplete));
-}
-
 } // UE::DerivedData
 
 namespace UE::DerivedData::Private
