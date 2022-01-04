@@ -174,9 +174,11 @@ FOpenGLShaderResourceView::~FOpenGLShaderResourceView()
 	}
 }
 
-FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHITexture* TextureRHI, uint32 MipLevel)
+FUnorderedAccessViewRHIRef FOpenGLDynamicRHI::RHICreateUnorderedAccessView(FRHITexture* TextureRHI, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
 {
 	check(TextureRHI->GetFlags() & TexCreate_UAV);
+	// Slice selection of a texture array still need to be implemented on OpenGL
+	check(FirstArraySlice == 0 && NumArraySlices == 0);
 	return new FOpenGLTextureUnorderedAccessView(TextureRHI);
 }
 
