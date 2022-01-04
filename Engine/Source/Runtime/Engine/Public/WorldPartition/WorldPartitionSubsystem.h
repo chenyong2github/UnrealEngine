@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "WorldPartitionStreamingSource.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "WorldPartitionSubsystem.generated.h"
 
