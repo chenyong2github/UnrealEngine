@@ -37,7 +37,17 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 	, ListViewPtr(InListView)
 	, SortOrder(IndexInList)
 	, DirectParentRow(InDirectParentRow)
-	{}
+	{
+		if (PresetValue.IsEmpty())
+		{
+			if (const auto Variable = CommandInfo.Pin()->GetConsoleVariablePtr())
+			{
+				PresetValue = Variable->GetString();
+			}
+		}
+
+		SetCachedValue(PresetValue);
+	}
 
 	[[nodiscard]] TWeakPtr<FConsoleVariablesEditorCommandInfo> GetCommandInfo() const;
 
@@ -83,6 +93,9 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 
 	[[nodiscard]] bool GetDoesRowPassFilters() const;
 	void SetDoesRowPassFilters(const bool bPass);
+	
+	[[nodiscard]] bool DoesCurrentValueDifferFromPresetValue() const;
+	void SetDoesCurrentValueDifferFromPresetValue(const bool bNewValue);
 
 	[[nodiscard]] bool GetIsSelected() const;
 	void SetIsSelected(const bool bNewSelected);
@@ -92,6 +105,7 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 
 	[[nodiscard]] bool IsRowChecked() const;
 
+	[[nodiscard]] bool ShouldBeVisible() const;
 	[[nodiscard]] EVisibility GetDesiredVisibility() const;
 
 	[[nodiscard]] bool HasVisibleChildren() const
@@ -109,7 +123,7 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 
 	[[nodiscard]] TArray<FConsoleVariablesEditorListRowPtr> GetSelectedTreeViewItems() const;
 
-	FReply OnRemoveButtonClicked();
+	FReply OnActionButtonClicked();
 	
 	void ResetToPresetValue();
 
@@ -135,6 +149,8 @@ private:
 	bool bDoesRowMatchSearchTerms = true;
 	bool bDoesRowPassFilters = true;
 
+	bool bDoesCurrentValueDifferFromPresetValue = false;
+	
 	bool bIsSelected = false;
 	TWeakPtr<FConsoleVariablesEditorListRow> DirectParentRow;
 

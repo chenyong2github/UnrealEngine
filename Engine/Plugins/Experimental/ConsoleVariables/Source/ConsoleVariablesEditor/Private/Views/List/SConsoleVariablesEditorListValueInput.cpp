@@ -120,6 +120,11 @@ void SConsoleVariablesEditorListValueInput_Float::Construct(const FArguments& In
 	Item.Pin()->SetCachedValue(GetInputValueAsString());
 }
 
+SConsoleVariablesEditorListValueInput_Float::~SConsoleVariablesEditorListValueInput_Float()
+{
+	InputWidget.Reset();
+}
+
 void SConsoleVariablesEditorListValueInput_Float::SetInputValue(const FString& InValueAsString)
 {
 	InputWidget->SetValue(FCString::Atof(*InValueAsString));
@@ -195,6 +200,11 @@ void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InAr
 	}
 	
 	Item.Pin()->SetCachedValue(GetInputValueAsString());
+}
+
+SConsoleVariablesEditorListValueInput_Int::~SConsoleVariablesEditorListValueInput_Int()
+{
+	InputWidget.Reset();
 }
 
 void SConsoleVariablesEditorListValueInput_Int::SetInputValue(const FString& InValueAsString)
@@ -279,6 +289,11 @@ void SConsoleVariablesEditorListValueInput_String::Construct(const FArguments& I
 	Item.Pin()->SetCachedValue(GetInputValueAsString());
 }
 
+SConsoleVariablesEditorListValueInput_String::~SConsoleVariablesEditorListValueInput_String()
+{
+	InputWidget.Reset();
+}
+
 void SConsoleVariablesEditorListValueInput_String::SetInputValue(const FString& InValueAsString)
 {
 	InputWidget->SetText(FText::FromString(InValueAsString));
@@ -338,6 +353,12 @@ void SConsoleVariablesEditorListValueInput_Bool::Construct(const FArguments& InA
 	];
 	
 	Item.Pin()->SetCachedValue(GetInputValueAsString());
+}
+
+SConsoleVariablesEditorListValueInput_Bool::~SConsoleVariablesEditorListValueInput_Bool()
+{
+	InputWidget.Reset();
+	ButtonText.Reset();
 }
 
 void SConsoleVariablesEditorListValueInput_Bool::SetInputValue(const FString& InValueAsString)
@@ -440,6 +461,12 @@ void SConsoleVariablesEditorListValueInput_Command::Construct(const FArguments& 
 	Item.Pin()->SetCachedValue(GetInputValueAsString());
 }
 
+SConsoleVariablesEditorListValueInput_Command::~SConsoleVariablesEditorListValueInput_Command()
+{
+	InputWidget.Reset();
+	InputText.Reset();
+}
+
 void SConsoleVariablesEditorListValueInput_Command::SetInputValue(const FString& InValueAsString)
 {
 	InputText->SetText(FText::FromString(InValueAsString));
@@ -450,7 +477,7 @@ FString SConsoleVariablesEditorListValueInput_Command::GetInputValueAsString()
 	return GetInputValue();
 }
 
-FString SConsoleVariablesEditorListValueInput_Command::GetInputValue()
+FString SConsoleVariablesEditorListValueInput_Command::GetInputValue() const
 {
 	return InputText->GetText().ToString();
 }

@@ -28,6 +28,22 @@ void FConsoleVariablesEditorStyle::Shutdown()
 	StyleInstance.Reset();
 }
 
+void FConsoleVariablesEditorStyle::ReloadTextures()
+{
+	FSlateApplication::Get().GetRenderer()->ReloadTextureResources();
+}
+
+const ISlateStyle& FConsoleVariablesEditorStyle::Get()
+{
+	return *StyleInstance;
+}
+
+const FName& FConsoleVariablesEditorStyle::GetStyleSetName() const
+{
+	static FName ConsoleVariablesStyleSetName(TEXT("ConsoleVariablesEditor"));
+	return ConsoleVariablesStyleSetName;
+}
+
 const FSlateBrush* FConsoleVariablesEditorStyle::GetBrush(const FName PropertyName, const ANSICHAR* Specifier, const ISlateStyle* RequestingStyle) const
 {
 	return StyleInstance->GetBrush(PropertyName, Specifier);
@@ -86,19 +102,3 @@ TSharedRef< FSlateStyleSet > FConsoleVariablesEditorStyle::Create()
 #undef IMAGE_BRUSH
 #undef BOX_BRUSH
 #undef BORDER_BRUSH
-
-void FConsoleVariablesEditorStyle::ReloadTextures()
-{
-	FSlateApplication::Get().GetRenderer()->ReloadTextureResources();
-}
-
-const ISlateStyle& FConsoleVariablesEditorStyle::Get()
-{
-	return *StyleInstance;
-}
-
-const FName& FConsoleVariablesEditorStyle::GetStyleSetName() const
-{
-	static FName ConsoleVariablesStyleSetName(TEXT("ConsoleVariablesEditor"));
-	return ConsoleVariablesStyleSetName;
-}

@@ -28,7 +28,7 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface Interface
 
-	void OpenConsoleVariablesDialogWithAssetSelected(const FAssetData& InAssetData);
+	void OpenConsoleVariablesDialogWithAssetSelected(const FAssetData& InAssetData) const;
 
 	/** Find all console variables and cache their startup values */
 	void QueryAndBeginTrackingConsoleVariables();
@@ -42,6 +42,10 @@ public:
 	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByName(
 		const FString& NameToSearch, ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase);
 
+	/** Find all tracked console variables matching a specific search query with optional case sensitivity. */
+	TArray<TWeakPtr<FConsoleVariablesEditorCommandInfo>> FindCommandInfosMatchingTokens(
+		const TArray<FString>& InTokens, ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase);
+
 	/**
 	 *Find a tracked console variable by its console object reference.
 	 *Note that some commands do not have an associated console object (such as 'stat unit') and will not be found with this method.
@@ -50,10 +54,13 @@ public:
 	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByConsoleObjectReference(
 		IConsoleObject* InConsoleObjectReference);
 	
-	[[nodiscard]] TObjectPtr<UConsoleVariablesAsset> GetEditingAsset() const;
-	void SetEditingAsset(const TObjectPtr<UConsoleVariablesAsset> InEditingAsset);
+	[[nodiscard]] TObjectPtr<UConsoleVariablesAsset> GetPresetAsset() const;
+	[[nodiscard]] TObjectPtr<UConsoleVariablesAsset> GetGlobalSearchAsset() const;
 
-	void SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString);
+	/** Fills Global Search Asset's Saved Commands with variables matching the specified query. Returns false if no matches were found. */
+	bool PopulateGlobalSearchAssetWithVariablesMatchingTokens(const TArray<FString>& InTokens);
+
+	void SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString) const;
 	void OnRemoteCvarChanged(const FString InName, const FString InValue);
 	
 private:
@@ -61,25 +68,28 @@ private:
 	void OnFEngineLoopInitComplete();
 
 	void RegisterMenuItem();
-	void RegisterProjectSettings();
+	void RegisterProjectSettings() const;
 
 	void OnConsoleVariableChanged(IConsoleVariable* ChangedVariable);
 	/** In the event a console object is unregistered, this failsafe callback will clean up the associated list item and command info object. */
 	void OnDetectConsoleObjectUnregistered(FString CommandName);
 
-	TObjectPtr<UConsoleVariablesAsset> AllocateTransientPreset();
+	TObjectPtr<UConsoleVariablesAsset> AllocateTransientPreset(const FName DesiredName) const;
+	void CreateEditingPresets();
 
 	TSharedRef<SDockTab> SpawnMainPanelTab(const FSpawnTabArgs& Args);
 
-	void OpenConsoleVariablesEditor();
+	static void OpenConsoleVariablesEditor();
 	
 	static const FName ConsoleVariablesToolkitPanelTabId;
 
 	/* Lives for as long as the module is loaded. */
 	TSharedPtr<FConsoleVariablesEditorMainPanel> MainPanel;
 
-	// Transient preset that's being edited so we don't affect the reference asset unless we save it
-	TObjectPtr<UConsoleVariablesAsset> EditingAsset = nullptr;
+	/** Transient preset that's being edited so we don't affect the reference asset unless we save it */
+	TObjectPtr<UConsoleVariablesAsset> EditingPresetAsset = nullptr;
+	/** Transient preset that tracks variables that match the search criteria */
+	TObjectPtr<UConsoleVariablesAsset> EditingGlobalSearchAsset = nullptr;
 
 	/** All tracked variables and their default, startup, and current values */
 	TArray<TSharedPtr<FConsoleVariablesEditorCommandInfo>> ConsoleObjectsMasterReference;

@@ -19,14 +19,16 @@ FConsoleVariablesEditorMainPanel::FConsoleVariablesEditorMainPanel()
 {
 	EditorList = MakeShared<FConsoleVariablesEditorList>();
 	
-	OnConnectionChangedHandle = MultiUserManager.OnConnectionChange().AddRaw(
-		this, &FConsoleVariablesEditorMainPanel::OnConnectionChanged);
-	OnRemoteCVarChangeHandle = MultiUserManager.OnRemoteCVarChange().AddRaw(
-		this, &FConsoleVariablesEditorMainPanel::OnRemoteCvarChange);
+	OnConnectionChangedHandle = MultiUserManager.OnConnectionChange().AddStatic(
+		&FConsoleVariablesEditorMainPanel::OnConnectionChanged);
+	OnRemoteCVarChangeHandle = MultiUserManager.OnRemoteCVarChange().AddStatic(
+		&FConsoleVariablesEditorMainPanel::OnRemoteCvarChange);
 }
 
 FConsoleVariablesEditorMainPanel::~FConsoleVariablesEditorMainPanel()
 {
+	MainPanelWidget.Reset();
+	EditorList.Reset();
 	MultiUserManager.OnConnectionChange().Remove(OnConnectionChangedHandle);
 	MultiUserManager.OnRemoteCVarChange().Remove(OnRemoteCVarChangeHandle);
 }
@@ -48,7 +50,7 @@ FConsoleVariablesEditorModule& FConsoleVariablesEditorMainPanel::GetConsoleVaria
 
 TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorMainPanel::GetEditingAsset()
 {
-	return GetConsoleVariablesModule().GetEditingAsset();
+	return GetConsoleVariablesModule().GetPresetAsset();
 }
 
 void FConsoleVariablesEditorMainPanel::AddConsoleObjectToPreset(
@@ -68,7 +70,10 @@ void FConsoleVariablesEditorMainPanel::AddConsoleObjectToPreset(
 			}
 		);
 
-		RebuildList(bScrollToNewRow ? InConsoleCommand : "");
+		if (GetEditorList().Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
+		{
+			RebuildList(bScrollToNewRow ? InConsoleCommand : "");
+		}
 	}
 }
 

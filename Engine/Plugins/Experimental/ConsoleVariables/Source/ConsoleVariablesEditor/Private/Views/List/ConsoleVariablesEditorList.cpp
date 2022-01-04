@@ -6,14 +6,14 @@
 
 FConsoleVariablesEditorList::~FConsoleVariablesEditorList()
 {
-	
+	ListWidget.Reset();
 }
 
 TSharedRef<SWidget> FConsoleVariablesEditorList::GetOrCreateWidget()
 {
 	if (!ListWidget.IsValid())
 	{
-		SAssignNew(ListWidget, SConsoleVariablesEditorList);
+		SAssignNew(ListWidget, SConsoleVariablesEditorList, SharedThis(this));
 	}
 
 	return ListWidget.ToSharedRef();

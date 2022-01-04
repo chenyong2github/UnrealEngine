@@ -9,6 +9,7 @@
 #include "MultiUser/ConsoleVariableSyncData.h"
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
 
+#include "Algo/AnyOf.h"
 #include "Algo/Find.h"
 #include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
@@ -56,7 +57,7 @@ void FConsoleVariablesEditorModule::ShutdownModule()
 	}
 }
 
-void FConsoleVariablesEditorModule::OpenConsoleVariablesDialogWithAssetSelected(const FAssetData& InAssetData)
+void FConsoleVariablesEditorModule::OpenConsoleVariablesDialogWithAssetSelected(const FAssetData& InAssetData) const
 {
 	if (InAssetData.IsValid())
 	{
@@ -113,6 +114,26 @@ TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorModule::Find
 	return Match ? *Match : nullptr;
 }
 
+TArray<TWeakPtr<FConsoleVariablesEditorCommandInfo>> FConsoleVariablesEditorModule::FindCommandInfosMatchingTokens(
+	const TArray<FString>& InTokens, ESearchCase::Type InSearchCase)
+{
+	TArray<TWeakPtr<FConsoleVariablesEditorCommandInfo>> ReturnValue;
+	
+	for (const TSharedPtr<FConsoleVariablesEditorCommandInfo>& CommandInfo : ConsoleObjectsMasterReference)
+	{
+		if (Algo::AnyOf(InTokens,
+			[&CommandInfo, InSearchCase](const FString& Token)
+			{
+				return CommandInfo->Command.Contains(Token, InSearchCase);
+			}))
+		{
+			ReturnValue.Add(CommandInfo);
+		}
+	}
+
+	return ReturnValue;
+}
+
 TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorModule::FindCommandInfoByConsoleObjectReference(
 	IConsoleObject* InConsoleObjectReference)
 {
@@ -126,19 +147,58 @@ TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorModule::Find
 	return Match ? *Match : nullptr;
 }
 
-TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::GetEditingAsset() const
+TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::GetPresetAsset() const
 {
-	return EditingAsset.Get();
+	return EditingPresetAsset;
 }
 
-void FConsoleVariablesEditorModule::SetEditingAsset(const TObjectPtr<UConsoleVariablesAsset> InEditingAsset)
+TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::GetGlobalSearchAsset() const
 {
-	EditingAsset = InEditingAsset;
+	return EditingGlobalSearchAsset;
 }
 
-void FConsoleVariablesEditorModule::SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString)
+bool FConsoleVariablesEditorModule::PopulateGlobalSearchAssetWithVariablesMatchingTokens(const TArray<FString>& InTokens)
+{
+	// Remove existing commands
+	TArray<FConsoleVariablesEditorAssetSaveData> NullList;
+	EditingGlobalSearchAsset->ReplaceSavedCommands(NullList);
+	
+	for (const TWeakPtr<FConsoleVariablesEditorCommandInfo>& CommandInfo : FindCommandInfosMatchingTokens(InTokens))
+	{
+		EditingGlobalSearchAsset->AddOrSetConsoleObjectSavedData(
+			{
+				CommandInfo.Pin()->Command,
+				CommandInfo.Pin()->GetConsoleVariablePtr() ?
+					CommandInfo.Pin()->GetConsoleVariablePtr()->GetString() : "",
+				ECheckBoxState::Checked
+			}
+		);
+	}
+
+	return EditingGlobalSearchAsset->GetSavedCommandsCount() > 0;
+}
+
+void FConsoleVariablesEditorModule::SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString) const
 {
 	MainPanel->GetMultiUserManager().SendConsoleVariableChange(InVariableName, InValueAsString);
+}
+
+void FConsoleVariablesEditorModule::OnRemoteCvarChanged(const FString InName, const FString InValue)
+{
+	UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
+
+	if (GetDefault<UConcertCVarSynchronization>()->bSyncCVarTransactions)
+	{
+		if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
+			FindCommandInfoByName(InName); CommandInfo.IsValid())
+		{
+			if (CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(InValue))
+			{
+				GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(),
+					*FString::Printf(TEXT("%s %s"), *InName, *InValue));
+			}
+		}
+	}
 }
 
 void FConsoleVariablesEditorModule::OnFEngineLoopInitComplete()
@@ -146,7 +206,7 @@ void FConsoleVariablesEditorModule::OnFEngineLoopInitComplete()
 	RegisterMenuItem();
 	RegisterProjectSettings();
 	QueryAndBeginTrackingConsoleVariables();
-	AllocateTransientPreset();
+	CreateEditingPresets();
 	
 	MainPanel = MakeShared<FConsoleVariablesEditorMainPanel>();
 }
@@ -164,7 +224,7 @@ void FConsoleVariablesEditorModule::RegisterMenuItem()
 	BrowserSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory());
 }
 
-void FConsoleVariablesEditorModule::RegisterProjectSettings()
+void FConsoleVariablesEditorModule::RegisterProjectSettings() const
 {
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
@@ -180,7 +240,7 @@ void FConsoleVariablesEditorModule::RegisterProjectSettings()
 
 void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* ChangedVariable)
 {
-	check(EditingAsset);
+	check(EditingPresetAsset);
 
 	if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
 		FindCommandInfoByConsoleObjectReference(ChangedVariable); CommandInfo.IsValid())
@@ -189,20 +249,28 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 		const FString& Key = PinnedCommand->Command;
 		
 		FConsoleVariablesEditorAssetSaveData FoundData;
-		const bool bIsVariableCurrentlyTracked = EditingAsset->FindSavedDataByCommandString(Key, FoundData);
+		const bool bIsVariableCurrentlyTracked = EditingPresetAsset->FindSavedDataByCommandString(Key, FoundData);
+
+		const UConsoleVariablesEditorProjectSettings* Settings = GetDefault<UConsoleVariablesEditorProjectSettings>();
+		check(Settings);
 		
 		if (!bIsVariableCurrentlyTracked)
 		{
 			// If not yet tracked and we want to track variable changes from outside the dialogue,
 			// Check if the changed value differs from the startup value before tracking it
-			if (GetMutableDefault<UConsoleVariablesEditorProjectSettings>()->bAddAllChangedConsoleVariablesToCurrentPreset
-				&& PinnedCommand->IsCurrentValueDifferentFromInputValue(PinnedCommand->StartupValueAsString))
+			if (Settings->bAddAllChangedConsoleVariablesToCurrentPreset &&
+				!Settings->ChangedConsoleVariableSkipList.Contains(Key) && 
+				PinnedCommand->IsCurrentValueDifferentFromInputValue(PinnedCommand->StartupValueAsString))
 			{
 				if (MainPanel.IsValid())
 				{
 					MainPanel->AddConsoleObjectToPreset(
 						Key,
-						ChangedVariable->GetString(),
+						// If we're not in preset mode then pass empty value
+						// This forces the row to get the current value at the time it's generated
+						MainPanel->GetEditorListMode() ==
+						FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset ?
+						ChangedVariable->GetString() : "",
 						true
 					);
 				}
@@ -224,9 +292,9 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 
 void FConsoleVariablesEditorModule::OnDetectConsoleObjectUnregistered(FString CommandName)
 {
-	check(EditingAsset);
+	check(EditingPresetAsset);
 
-	EditingAsset->RemoveConsoleVariable(CommandName);
+	EditingPresetAsset->RemoveConsoleVariable(CommandName);
 
 	if (MainPanel.IsValid())
 	{
@@ -240,37 +308,23 @@ void FConsoleVariablesEditorModule::OnDetectConsoleObjectUnregistered(FString Co
 	}
 }
 
-void FConsoleVariablesEditorModule::OnRemoteCvarChanged(const FString InName, const FString InValue)
+TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::AllocateTransientPreset(const FName DesiredName) const
 {
-	UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
+	const FString PackageName = "/Temp/ConsoleVariablesEditor/PendingConsoleVariablesPresets";
 
-	if (GetMutableDefault<UConcertCVarSynchronization>()->bSyncCVarTransactions)
-	{
-		if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
-			FindCommandInfoByName(InName); CommandInfo.IsValid())
-		{
-			if (CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(InValue))
-			{
-				GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(),
-					*FString::Printf(TEXT("%s %s"), *InName, *InValue));
-			}
-		}
-	}
-}
-
-TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::AllocateTransientPreset()
-{
-	static const TCHAR* PackageName = TEXT("/Temp/ConsoleVariablesEditor/PendingConsoleVariablesCollections");
-
-	static FName DesiredName = "PendingConsoleVariablesCollection";
-
-	UPackage* NewPackage = CreatePackage(PackageName);
+	UPackage* NewPackage = CreatePackage(*PackageName);
 	NewPackage->SetFlags(RF_Transient);
 	NewPackage->AddToRoot();
 
-	EditingAsset = NewObject<UConsoleVariablesAsset>(NewPackage, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
+	return NewObject<UConsoleVariablesAsset>(
+		NewPackage, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
+}
 
-	return EditingAsset;
+void FConsoleVariablesEditorModule::CreateEditingPresets()
+{
+	EditingPresetAsset = AllocateTransientPreset("ConsoleVariablesPreset_PendingPreset");
+	
+	EditingGlobalSearchAsset = AllocateTransientPreset("ConsoleVariablesPreset_GlobalSearch");
 }
 
 TSharedRef<SDockTab> FConsoleVariablesEditorModule::SpawnMainPanelTab(const FSpawnTabArgs& Args)
