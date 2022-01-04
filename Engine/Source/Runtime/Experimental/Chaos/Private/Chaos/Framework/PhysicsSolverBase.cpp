@@ -146,7 +146,7 @@ namespace Chaos
 		, bUseCollisionResimCache(false)
 		, bPaused_External(false)
 		, Owner(InOwner)
-		, ExternalDataLock_External(new FPhysicsSceneGuard())
+		, ExternalDataLock_External(new FPhysSceneLock())
 		, bIsShuttingDown(false)
 		, AsyncDt(InAsyncDt)
 		, AccumulatedTime(0)

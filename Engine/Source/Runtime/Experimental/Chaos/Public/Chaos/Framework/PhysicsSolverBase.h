@@ -6,6 +6,7 @@
 #include "Misc/ScopeLock.h"
 #include "ChaosLog.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
+#include "Framework/Threading.h"
 #include "Chaos/ParticleDirtyFlags.h"
 #include "Async/ParallelFor.h"
 #include "Containers/Queue.h"
@@ -23,7 +24,6 @@ namespace Chaos
 {
 	class FPhysicsSolverBase;
 	struct FPendingSpatialDataQueue;
-	class FPhysicsSceneGuard;
 	class FChaosResultsManager;
 	class FRewindData;
 	class IRewindCallback;
@@ -477,7 +477,7 @@ namespace Chaos
 		FRWLock SimMaterialLock;
 		
 		/** Scene lock object for external threads (non-physics) */
-		TUniquePtr<FPhysicsSceneGuard> ExternalDataLock_External;
+		TUniquePtr<FPhysSceneLock> ExternalDataLock_External;
 
 		friend FChaosSolversModule;
 		friend FPhysicsSolverAdvanceTask;
@@ -515,7 +515,7 @@ namespace Chaos
 
 		/** Get the lock used for external data manipulation. A better API would be to use scoped locks so that getting a write lock is non-const */
 		//NOTE: this is a const operation so that you can acquire a read lock on a const solver. The assumption is that non-const write operations are already marked non-const
-		FPhysicsSceneGuard& GetExternalDataLock_External() const { return *ExternalDataLock_External; }
+		FPhysSceneLock& GetExternalDataLock_External() const { return *ExternalDataLock_External; }
 
 	protected:
 		/** Storage for events, see the Add/Remove pairs above for event timings */
