@@ -134,7 +134,7 @@ static void ProcessCompilationJob(const FShaderCompilerInput& Input,FShaderCompi
 		Output.GenerateOutputHash();
 		if (Input.CompressionFormat != NAME_None)
 		{
-			Output.CompressOutput(Input.CompressionFormat);
+			Output.CompressOutput(Input.CompressionFormat, Input.OodleCompressor, Input.OodleLevel);
 		}
 	}
 	Output.CompileTime = FPlatformTime::Seconds() - TimeStart;

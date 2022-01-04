@@ -1909,7 +1909,15 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	{
 		// add shader compression format
 		KeyString += TEXT("_Compr");
-		KeyString += GetShaderCompressionFormat().ToString();
+		FName CompressionFormat = GetShaderCompressionFormat();
+		KeyString += CompressionFormat.ToString();
+		if (CompressionFormat == NAME_Oodle)
+		{
+			FOodleDataCompression::ECompressor OodleCompressor;
+			FOodleDataCompression::ECompressionLevel OodleLevel;
+			GetShaderCompressionOodleSettings(OodleCompressor, OodleLevel);
+			KeyString += FString::Printf(TEXT("_Compr%d_Lev%d"), static_cast<int32>(OodleCompressor), static_cast<int32>(OodleLevel));
+		}
 	}
 
 	{

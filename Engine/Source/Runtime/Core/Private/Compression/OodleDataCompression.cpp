@@ -234,7 +234,7 @@ struct OodleScratchBuffers
 			OodleScratches = new OodleScratchBuffer[OodleScratchBufferCount];
 		}
 		
-		UE_LOG(OodleDataCompression, Display, TEXT("OodleScratchMemorySize=%d x %d"),(int)OodleScratchMemorySize,OodleScratchBufferCount);
+		UE_LOG(OodleDataCompression, Verbose, TEXT("OodleScratchMemorySize=%d x %d"),(int)OodleScratchMemorySize,OodleScratchBufferCount);
 	}
 	
 	~OodleScratchBuffers()

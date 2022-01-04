@@ -21,6 +21,7 @@
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
 #include "RHIShaderFormatDefinitions.inl"
+#include "Compression/OodleDataCompression.h"
 #if WITH_EDITOR
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -559,12 +560,12 @@ void FShaderCompilerOutput::GenerateOutputHash()
 	HashState.GetHash(&OutputHash.Hash[0]);
 }
 
-void FShaderCompilerOutput::CompressOutput(FName ShaderCompressionFormat)
+void FShaderCompilerOutput::CompressOutput(FName ShaderCompressionFormat, FOodleDataCompression::ECompressor OodleCompressor, FOodleDataCompression::ECompressionLevel OodleLevel)
 {
 	// make sure the hash has been generated
 	checkf(OutputHash != FSHAHash(), TEXT("Output hash must be generated before compressing the shader code."));
 	checkf(ShaderCompressionFormat != NAME_None, TEXT("Compression format should be valid"));
-	ShaderCode.Compress(ShaderCompressionFormat);
+	ShaderCode.Compress(ShaderCompressionFormat, OodleCompressor, OodleLevel);
 }
 
 static void ReportVirtualShaderFilePathError(TArray<FShaderCompilerError>* CompileErrors, FString ErrorString)
@@ -1614,23 +1615,40 @@ void AddShaderSourceDirectoryMapping(const FString& VirtualShaderDirectory, cons
 	GShaderSourceDirectoryMappings.Add(VirtualShaderDirectory, RealShaderDirectory);
 }
 
-void FShaderCode::Compress(FName ShaderCompressionFormat)
+void FShaderCode::Compress(FName ShaderCompressionFormat, FOodleDataCompression::ECompressor InOodleCompressor, FOodleDataCompression::ECompressionLevel InOodleLevel)
 {
 	checkf(OptionalDataSize == -1, TEXT("FShaderCode::Compress() was called before calling FShaderCode::FinalizeShaderCode()"));
 
 	TArray<uint8> Compressed;
-	int32 CompressedSize = ShaderCodeWithOptionalData.Num();
+	// conventional formats will fail if the compressed size isn't enough, Oodle needs a more precise estimate
+	int32 CompressedSize = (ShaderCompressionFormat != NAME_Oodle) ? ShaderCodeWithOptionalData.Num() : FOodleDataCompression::CompressedBufferSizeNeeded(ShaderCodeWithOptionalData.Num());
 	Compressed.AddUninitialized(CompressedSize);
 
+	// non-Oodle format names use the old API, for NAME_Oodle we replace the call with the custom invocation
+	bool bCompressed = false;
+	if (ShaderCompressionFormat != NAME_Oodle)
+	{
+		bCompressed = FCompression::CompressMemory(ShaderCompressionFormat, Compressed.GetData(), CompressedSize, ShaderCodeWithOptionalData.GetData(), ShaderCodeWithOptionalData.Num(), COMPRESS_BiasSize);
+	}
+	else
+	{
+		CompressedSize = FOodleDataCompression::Compress(Compressed.GetData(), CompressedSize, ShaderCodeWithOptionalData.GetData(), ShaderCodeWithOptionalData.Num(),
+			InOodleCompressor, InOodleLevel);
+		bCompressed = CompressedSize != 0;
+	}
+
 	// there is code that assumes that if CompressedSize == CodeSize, the shader isn't compressed. Because of that, do not accept equal compressed size (very unlikely anyway)
-	if (FCompression::CompressMemory(ShaderCompressionFormat, Compressed.GetData(), CompressedSize, ShaderCodeWithOptionalData.GetData(), ShaderCodeWithOptionalData.Num()) && CompressedSize < ShaderCodeWithOptionalData.Num())
+	if (bCompressed && CompressedSize < ShaderCodeWithOptionalData.Num())
 	{
 		// cache the ShaderCodeSize since it will no longer possible to get it as the reader will fail to parse the compressed data
 		FShaderCodeReader Wrapper(ShaderCodeWithOptionalData);
 		ShaderCodeSize = Wrapper.GetShaderCodeSize();
+		checkf(ShaderCodeSize >= 0, TEXT("Unable to determine ShaderCodeSize from uncompressed code"), ShaderCodeSize);
 
 		// finalize the compression
 		CompressionFormat = ShaderCompressionFormat;
+		OodleCompressor = InOodleCompressor;
+		OodleLevel = InOodleLevel;
 		UncompressedSize = ShaderCodeWithOptionalData.Num();
 
 		Compressed.SetNum(CompressedSize);
@@ -1657,7 +1675,10 @@ FArchive& operator<<(FArchive& Ar, FShaderCode& Output)
 		Ar << CompressionFormatString;
 		Output.CompressionFormat = FName(*CompressionFormatString);
 	}
+	Ar << reinterpret_cast<uint8&>(Output.OodleCompressor);
+	Ar << reinterpret_cast<uint8&>(Output.OodleLevel);
 	Ar << Output.ShaderCodeSize;
+	checkf(Output.UncompressedSize == 0 || Output.ShaderCodeSize > 0, TEXT("FShaderCode::operator<<(): invalid shader code size for a compressed shader: ShaderCodeSize=%d, UncompressedSize=%d"), Output.ShaderCodeSize, Output.UncompressedSize);
 	return Ar;
 }
 
@@ -1691,6 +1712,8 @@ FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input)
 	Ar << Input.DebugDescription;
 	Ar << Input.Environment;
 	Ar << Input.ExtraSettings;
+	Ar << reinterpret_cast<uint8&>(Input.OodleCompressor);
+	Ar << reinterpret_cast<uint8&>(Input.OodleLevel);
 
 	// Note: skipping Input.SharedEnvironment, which is handled by FShaderCompileUtilities::DoWriteTasks in order to maintain sharing
 

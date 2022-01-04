@@ -163,6 +163,12 @@ struct FExtraShaderCompilerSettings
 	}
 };
 
+namespace FOodleDataCompression
+{
+	enum class ECompressor : uint8;
+	enum class ECompressionLevel : int8;
+}
+
 /** Struct that gathers all readonly inputs needed for the compilation of a single shader. */
 struct FShaderCompilerInput
 {
@@ -208,6 +214,12 @@ struct FShaderCompilerInput
 	// Additional compilation settings that can be filled by FMaterial::SetupExtaCompilationSettings
 	// FMaterial::SetupExtaCompilationSettings is usually called by each (*)MaterialShaderType::BeginCompileShader() function
 	FExtraShaderCompilerSettings ExtraSettings;
+
+	/** Oodle-specific compression algorithm - used if CompressionFormat is set to NAME_Oodle. */
+	FOodleDataCompression::ECompressor OodleCompressor;
+
+	/** Oodle-specific compression level - used if CompressionFormat is set to NAME_Oodle. */
+	FOodleDataCompression::ECompressionLevel OodleLevel;
 
 	FShaderCompilerInput() :
 		Target(SF_NumFrequencies, SP_NumPlatforms),
@@ -451,7 +463,7 @@ struct FShaderCompilerOutput
 	RENDERCORE_API void GenerateOutputHash();
 
 	/** Calls GenerateOutputHash() before the compression, replaces FShaderCode with the compressed data (if compression result was smaller). */
-	RENDERCORE_API void CompressOutput(FName ShaderCompressionFormat);
+	RENDERCORE_API void CompressOutput(FName ShaderCompressionFormat, FOodleDataCompression::ECompressor OodleCompressor, FOodleDataCompression::ECompressionLevel OodleLevel);
 
 	friend FArchive& operator<<(FArchive& Ar, FShaderCompilerOutput& Output)
 	{

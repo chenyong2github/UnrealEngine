@@ -104,6 +104,15 @@ extern RENDERCORE_API bool AllowDebugViewmodes(EShaderPlatform Platform);
 /** Returns the shader compression format (passing ShaderFormat for future proofing, but as of now the setting is global for all formats). */
 extern RENDERCORE_API FName GetShaderCompressionFormat(const FName& ShaderFormat = NAME_None);
 
+namespace FOodleDataCompression
+{
+	enum class ECompressor : uint8;
+	enum class ECompressionLevel : int8;
+}
+
+/** Returns Oodle-specific shader compression format settings (passing ShaderFormat for future proofing, but as of now the setting is global for all formats). */
+extern RENDERCORE_API void GetShaderCompressionOodleSettings(FOodleDataCompression::ECompressor& OutCompressor, FOodleDataCompression::ECompressionLevel& OutLevel, const FName& ShaderFormat = NAME_None);
+
 struct FShaderTarget
 {
 	// The rest of uint32 holding the bitfields can be left unitialized. Union with a uint32 serves to prevent that to be able to set the whole uint32 value
@@ -836,6 +845,12 @@ class FShaderCode
 	/** Compression algo */
 	mutable FName CompressionFormat;
 
+	/** Oodle-specific compression algorithm - used if CompressionFormat is set to NAME_Oodle. */
+	FOodleDataCompression::ECompressor OodleCompressor;
+
+	/** Oodle-specific compression level - used if CompressionFormat is set to NAME_Oodle. */
+	FOodleDataCompression::ECompressionLevel OodleLevel;
+
 	/** We cannot get the code size after the compression, so store it here */
 	mutable int32 ShaderCodeSize;
 
@@ -861,7 +876,7 @@ public:
 		}
 	}
 
-	void Compress(FName ShaderCompressionFormat);
+	void Compress(FName ShaderCompressionFormat, FOodleDataCompression::ECompressor InOodleCompressor, FOodleDataCompression::ECompressionLevel InOodleLevel);
 
 	// Write access for regular microcode: Optional Data must be added AFTER regular microcode and BEFORE Finalize
 	TArray<uint8>& GetWriteAccess()
@@ -903,6 +918,16 @@ public:
 	FName GetCompressionFormat() const
 	{
 		return CompressionFormat;
+	}
+
+	FOodleDataCompression::ECompressor GetOodleCompressor() const
+	{
+		return OodleCompressor;
+	}
+
+	FOodleDataCompression::ECompressionLevel GetOodleLevel() const
+	{
+		return OodleLevel;
 	}
 
 	int32 GetUncompressedSize() const
