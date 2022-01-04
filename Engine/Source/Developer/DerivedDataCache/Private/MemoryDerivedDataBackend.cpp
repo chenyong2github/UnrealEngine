@@ -468,7 +468,6 @@ int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecor
 
 void FMemoryDerivedDataBackend::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
@@ -481,14 +480,14 @@ void FMemoryDerivedDataBackend::Put(
 		{
 			if (OnComplete)
 			{
-				OnComplete({Key, Request.UserData, Status});
+				OnComplete({Request.Name, Key, Request.UserData, Status});
 			}
 		};
 
 		if (ShouldSimulateMiss(Key))
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
-				*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
+				*GetName(), *WriteToString<96>(Key), *Request.Name);
 			continue;
 		}
 
@@ -509,6 +508,7 @@ void FMemoryDerivedDataBackend::Put(
 			}
 			if (const FCacheRecord* Existing = CacheRecords.Find(Key))
 			{
+				CacheRecords.Remove(Key);
 				CurrentCacheSize -= CalcSerializedCacheRecordSize(*Existing);
 				bMaxSizeExceeded = false;
 			}
@@ -542,7 +542,6 @@ void FMemoryDerivedDataBackend::Put(
 
 void FMemoryDerivedDataBackend::Get(
 	const TConstArrayView<FCacheGetRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
@@ -556,8 +555,8 @@ void FMemoryDerivedDataBackend::Get(
 		EStatus Status = EStatus::Error;
 		if (ShouldSimulateMiss(Key))
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
-				*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
+				*GetName(), *WriteToString<96>(Key), *Request.Name);
 		}
 		else if (FWriteScopeLock ScopeLock(SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
 		{
@@ -596,70 +595,70 @@ void FMemoryDerivedDataBackend::Get(
 			COOK_STAT(Timer.AddHit(CalcRawCacheRecordSize(Record.Get())));
 			if (OnComplete)
 			{
-				OnComplete({MoveTemp(Record).Get(), Request.UserData, Status});
+				OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
 			}
 		}
 		else
 		{
 			if (OnComplete)
 			{
-				OnComplete({FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error});
+				OnComplete({Request.Name, FCacheRecordBuilder(Key).Build(), Request.UserData, EStatus::Error});
 			}
 		}
 	}
 }
 
 void FMemoryDerivedDataBackend::GetChunks(
-	const TConstArrayView<FCacheChunkRequest> Chunks,
-	const FStringView Context,
+	const TConstArrayView<FCacheChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheGetChunkComplete&& OnComplete)
+	FOnCacheChunkComplete&& OnComplete)
 {
 	FPayload Payload;
 	FCacheKey PayloadKey;
 	FCompressedBufferReader Reader;
-	for (const FCacheChunkRequest& Chunk : Chunks)
+	for (const FCacheChunkRequest& Request : Requests)
 	{
-		const bool bExistsOnly = EnumHasAnyFlags(Chunk.Policy, ECachePolicy::SkipValue);
+		const bool bExistsOnly = EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipValue);
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
-		if (ShouldSimulateMiss(Chunk.Key))
+		if (ShouldSimulateMiss(Request.Key))
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
-				*GetName(), *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
+				*GetName(), *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
 		}
-		else if (PayloadKey == Chunk.Key && Payload.GetId() == Chunk.Id)
+		else if (PayloadKey == Request.Key && Payload.GetId() == Request.Id)
 		{
 			// Payload matches the request.
 		}
-		else if (FWriteScopeLock ScopeLock(SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(Chunk.Key))
+		else if (FWriteScopeLock ScopeLock(SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(Request.Key))
 		{
 			Reader.ResetSource();
 			Payload.Reset();
-			Payload = Record->GetAttachmentPayload(Chunk.Id);
-			PayloadKey = Chunk.Key;
+			Payload = Record->GetAttachmentPayload(Request.Id);
+			PayloadKey = Request.Key;
 			Reader.SetSource(Payload.GetData());
 		}
-		if (Payload && Chunk.RawOffset <= Payload.GetRawSize())
+		if (Payload && Request.RawOffset <= Payload.GetRawSize())
 		{
-			const uint64 RawSize = FMath::Min(Payload.GetRawSize() - Chunk.RawOffset, Chunk.RawSize);
+			const uint64 RawSize = FMath::Min(Payload.GetRawSize() - Request.RawOffset, Request.RawSize);
 			COOK_STAT(Timer.AddHit(RawSize));
 			if (OnComplete)
 			{
 				FSharedBuffer Buffer;
 				if (Payload.HasData() && !bExistsOnly)
 				{
-					Buffer = Reader.Decompress(Chunk.RawOffset, RawSize);
+					Buffer = Reader.Decompress(Request.RawOffset, RawSize);
 				}
 				const EStatus Status = bExistsOnly || Buffer ? EStatus::Ok : EStatus::Error;
-				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
-					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Chunk.UserData, Status});
+				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
+					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Request.UserData, Status});
 			}
 		}
 		else
 		{
 			if (OnComplete)
 			{
-				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error});
+				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
+					0, {}, {}, Request.UserData, EStatus::Error});
 			}
 		}
 	}

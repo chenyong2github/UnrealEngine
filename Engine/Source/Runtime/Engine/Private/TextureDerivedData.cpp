@@ -1287,7 +1287,13 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 			const FTexture2DMipMap& Mip = Mips[MipIndex];
 			if (Mip.IsPagedToDerivedData())
 			{
-				MipKeys.Add({Key, FTexturePlatformData::MakeMipId(MipIndex)});
+				TStringBuilder<256> MipNameBuilder;
+				MipNameBuilder.Append(DebugContext).Appendf(TEXT(" [MIP 0]"), MipIndex);
+				FCacheChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
+				Request.Name = MipNameBuilder;
+				Request.Key = Key;
+				Request.Id = FTexturePlatformData::MakeMipId(MipIndex);
+				Request.UserData = MipIndex;
 			}
 		}
 
@@ -1296,19 +1302,11 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 			check(Callback);
 			bool bMiss = false;
 			FRequestOwner RequestOwner(EPriority::Blocking);
-			GetCache().GetChunks(MipKeys, DebugContext, RequestOwner,
-				[&Mips, Callback = MoveTemp(Callback), FirstMipToLoad, &bMiss](FCacheGetChunkCompleteParams&& Params)
+			GetCache().GetChunks(MipKeys, RequestOwner, [Callback = MoveTemp(Callback), &bMiss](FCacheChunkCompleteParams&& Params)
 			{
 				if (Params.Status == EStatus::Ok)
 				{
-					for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
-					{
-						if (Params.Id == FTexturePlatformData::MakeMipId(MipIndex))
-						{
-							Callback(MipIndex, MoveTemp(Params.RawData));
-							break;
-						}
-					}
+					Callback(int32(Params.UserData), MoveTemp(Params.RawData));
 				}
 				else
 				{

@@ -58,34 +58,37 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 				using namespace UE::DerivedData;
 				TArray<FCacheChunkRequest> MipKeys;
 
+				TStringBuilder<256> MipNameBuilder;
+				Context.Texture->GetPathName(nullptr, MipNameBuilder);
+				const int32 TextureNameLen = MipNameBuilder.Len();
+
 				const FCacheKey& Key = *PlatformData->DerivedDataKey.Get<UE::DerivedData::FCacheKeyProxy>().AsCacheKey();
 				for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 				{
 					const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
 					if (MipMap.IsPagedToDerivedData())
 					{
-						MipKeys.Add({Key, FTexturePlatformData::MakeMipId(MipIndex + LODBias)});
+						FCacheChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
+						MipNameBuilder.Appendf(TEXT(" [MIP 0]"), MipIndex + LODBias);
+						Request.Name = MipNameBuilder;
+						Request.Key = Key;
+						Request.Id = FTexturePlatformData::MakeMipId(MipIndex + LODBias);
+						Request.UserData = MipIndex;
+						MipNameBuilder.RemoveSuffix(MipNameBuilder.Len() - TextureNameLen);
 					}
 				}
 
 				if (MipKeys.Num())
 				{
-					GetCache().GetChunks(MipKeys, Context.Texture->GetPathName(), DDCRequestOwner,
-						[this, &Context, LODBias](FCacheGetChunkCompleteParams&& Params)
+					GetCache().GetChunks(MipKeys, DDCRequestOwner, [this](FCacheChunkCompleteParams&& Params)
+					{
+						if (Params.Status == EStatus::Ok)
 						{
-							if (Params.Status == EStatus::Ok)
-							{
-								for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
-								{
-									if (Params.Id == FTexturePlatformData::MakeMipId(MipIndex + LODBias))
-									{
-										check(!DDCBuffers[MipIndex]);
-										DDCBuffers[MipIndex] = MoveTemp(Params.RawData);
-										break;
-									}
-								}
-							}
-						});
+							const int32 MipIndex = int32(Params.UserData);
+							check(!DDCBuffers[MipIndex]);
+							DDCBuffers[MipIndex] = MoveTemp(Params.RawData);
+						}
+					});
 				}
 			}
 			else

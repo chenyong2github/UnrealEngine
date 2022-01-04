@@ -92,21 +92,18 @@ public:
 
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete = FOnCachePutComplete()) override;
 
 	virtual void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override;
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Chunks,
-		FStringView Context,
+		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) override;
+		FOnCacheChunkComplete&& OnComplete) override;
 
 private:
 	enum class EGetResult
@@ -121,7 +118,7 @@ private:
 	FDerivedDataBackendInterface::EPutStatus PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, Zen::EContentType ContentType);
 	EGetResult GetZenData(const FCacheKey& Key, ECachePolicy CachePolicy, FCbPackage& OutPackage) const;
 
-	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, const FCacheRecordPolicy& Policy);
+	bool PutCacheRecord(const FCacheRecord& Record, const FCacheRecordPolicy& Policy);
 
 	bool IsServiceReady();
 	static FString MakeLegacyZenKey(const TCHAR* CacheKey);

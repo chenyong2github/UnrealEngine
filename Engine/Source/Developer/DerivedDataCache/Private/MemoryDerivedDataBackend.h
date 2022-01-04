@@ -96,21 +96,18 @@ public:
 
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override;
 
 	virtual void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override;
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Chunks,
-		FStringView Context,
+		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) override;
+		FOnCacheChunkComplete&& OnComplete) override;
 
 private:
 	/** Name of the cache file loaded (if any). */

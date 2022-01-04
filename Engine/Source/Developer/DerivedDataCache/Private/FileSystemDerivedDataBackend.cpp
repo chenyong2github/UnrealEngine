@@ -753,46 +753,43 @@ public:
 
 	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) final;
 	void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) final;
 	void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Chunks,
-		FStringView Context,
+		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) final;
+		FOnCacheChunkComplete&& OnComplete) final;
 
 private:
 	uint64 MeasureCompressedCacheRecord(const FCacheRecord& Record) const;
 	uint64 MeasureRawCacheRecord(const FCacheRecord& Record) const;
 
-	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, const FCacheRecordPolicy& Policy, uint64& OutWriteSize);
-	bool PutCacheContent(const FCompressedBuffer& Content, const FStringView Context, uint64& OutWriteSize) const;
+	bool PutCacheRecord(const FCacheRecord& Record, FStringView RecordName, const FCacheRecordPolicy& Policy, uint64& OutWriteSize);
+	bool PutCacheContent(const FCompressedBuffer& Content, const FStringView ContentName, uint64& OutWriteSize) const;
 
 	FOptionalCacheRecord GetCacheRecordOnly(
 		const FCacheKey& Key,
-		const FStringView Context,
+		const FStringView RecordName,
 		const FCacheRecordPolicy& Policy);
 	FOptionalCacheRecord GetCacheRecord(
 		const FCacheKey& Key,
-		const FStringView Context,
+		const FStringView RecordName,
 		const FCacheRecordPolicy& Policy,
 		EStatus& OutStatus);
 	FPayload GetCacheContent(
 		const FCacheKey& Key,
 		const FPayload& Payload,
-		FStringView Context,
+		FStringView ContentName,
 		ECachePolicy Policy,
 		ECachePolicy SkipFlag) const;
 	void GetCacheContent(
 		const FCacheKey& Key,
 		const FPayload& Payload,
-		FStringView Context,
+		FStringView ContentName,
 		ECachePolicy Policy,
 		ECachePolicy SkipFlag,
 		FCompressedBufferReader& Reader,
@@ -801,11 +798,11 @@ private:
 	void BuildCacheRecordPath(const FCacheKey& CacheKey, FStringBuilderBase& Path) const;
 	void BuildCacheContentPath(const FIoHash& RawHash, FStringBuilderBase& Path) const;
 
-	bool SaveFileWithHash(FStringBuilderBase& Path, FStringView Context, TFunctionRef<void (FArchive&)> WriteFunction) const;
-	bool LoadFileWithHash(FStringBuilderBase& Path, FStringView Context, TFunctionRef<void (FArchive&)> ReadFunction) const;
-	bool SaveFile(FStringBuilderBase& Path, FStringView Context, TFunctionRef<void (FArchive&)> WriteFunction) const;
-	bool LoadFile(FStringBuilderBase& Path, FStringView Context, TFunctionRef<void (FArchive&)> ReadFunction) const;
-	TUniquePtr<FArchive> OpenFile(FStringBuilderBase& Path, FStringView Context) const;
+	bool SaveFileWithHash(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> WriteFunction) const;
+	bool LoadFileWithHash(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> ReadFunction) const;
+	bool SaveFile(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> WriteFunction) const;
+	bool LoadFile(FStringBuilderBase& Path, FStringView DebugName, TFunctionRef<void (FArchive&)> ReadFunction) const;
+	TUniquePtr<FArchive> OpenFile(FStringBuilderBase& Path, FStringView DebugName) const;
 
 	bool FileExists(FStringBuilderBase& Path) const;
 
@@ -1535,7 +1532,6 @@ bool FFileSystemCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 
 void FFileSystemCacheStore::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
@@ -1546,23 +1542,23 @@ void FFileSystemCacheStore::Put(
 		TRACE_COUNTER_INCREMENT(FileSystemDDC_Put);
 		COOK_STAT(auto Timer = UsageStats.TimePut());
 		uint64 WriteSize = 0;
-		if (PutCacheRecord(Record, Context, Request.Policy, WriteSize))
+		if (PutCacheRecord(Record, Request.Name, Request.Policy, WriteSize))
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache put complete for %s from '%.*s'"),
-				*CachePath, *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache put complete for %s from '%s'"),
+				*CachePath, *WriteToString<96>(Record.GetKey()), *Request.Name);
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_PutHit);
 			TRACE_COUNTER_ADD(FileSystemDDC_BytesWritten, MeasureCompressedCacheRecord(Record));
 			COOK_STAT(if (WriteSize) { Timer.AddHit(WriteSize); });
 			if (OnComplete)
 			{
-				OnComplete({Record.GetKey(), Request.UserData, EStatus::Ok});
+				OnComplete({Request.Name, Record.GetKey(), Request.UserData, EStatus::Ok});
 			}
 		}
 		else
 		{
 			if (OnComplete)
 			{
-				OnComplete({Record.GetKey(), Request.UserData, EStatus::Error});
+				OnComplete({Request.Name, Record.GetKey(), Request.UserData, EStatus::Error});
 			}
 		}
 	}
@@ -1570,7 +1566,6 @@ void FFileSystemCacheStore::Put(
 
 void FFileSystemCacheStore::Get(
 	const TConstArrayView<FCacheGetRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
@@ -1580,36 +1575,35 @@ void FFileSystemCacheStore::Get(
 		TRACE_COUNTER_INCREMENT(FileSystemDDC_Get);
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
 		EStatus Status = EStatus::Ok;
-		if (FOptionalCacheRecord Record = GetCacheRecord(Request.Key, Context, Request.Policy, Status))
+		if (FOptionalCacheRecord Record = GetCacheRecord(Request.Key, Request.Name, Request.Policy, Status))
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
-				*CachePath, *WriteToString<96>(Request.Key), Context.Len(), Context.GetData());
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%s'"),
+				*CachePath, *WriteToString<96>(Request.Key), *Request.Name);
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
 			TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, MeasureCompressedCacheRecord(Record.Get()));
 			COOK_STAT(Timer.AddHit(MeasureRawCacheRecord(Record.Get())));
 			if (OnComplete)
 			{
-				OnComplete({MoveTemp(Record).Get(), Request.UserData, Status});
+				OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
 			}
 		}
 		else
 		{
 			if (OnComplete)
 			{
-				OnComplete({FCacheRecordBuilder(Request.Key).Build(), Request.UserData, Status});
+				OnComplete({Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, Status});
 			}
 		}
 	}
 }
 
 void FFileSystemCacheStore::GetChunks(
-	const TConstArrayView<FCacheChunkRequest> Chunks,
-	const FStringView Context,
+	const TConstArrayView<FCacheChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheGetChunkComplete&& OnComplete)
+	FOnCacheChunkComplete&& OnComplete)
 {
-	TArray<FCacheChunkRequest, TInlineAllocator<16>> SortedChunks(Chunks);
-	SortedChunks.StableSort(TChunkLess());
+	TArray<FCacheChunkRequest, TInlineAllocator<16>> SortedRequests(Requests);
+	SortedRequests.StableSort(TChunkLess());
 
 	FPayload Payload;
 	FCacheKey PayloadKey;
@@ -1617,40 +1611,40 @@ void FFileSystemCacheStore::GetChunks(
 	FCompressedBufferReader PayloadReader;
 	EStatus PayloadStatus = EStatus::Error;
 	FOptionalCacheRecord Record;
-	for (const FCacheChunkRequest& Chunk : SortedChunks)
+	for (const FCacheChunkRequest& Request : SortedRequests)
 	{
 		constexpr ECachePolicy SkipFlag = ECachePolicy::SkipValue;
-		const bool bExistsOnly = EnumHasAnyFlags(Chunk.Policy, SkipFlag);
+		const bool bExistsOnly = EnumHasAnyFlags(Request.Policy, SkipFlag);
 		TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Get);
 		TRACE_COUNTER_INCREMENT(FileSystemDDC_Get);
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
-		if (!(Payload && PayloadKey == Chunk.Key && Payload.GetId() == Chunk.Id) || !bExistsOnly <= PayloadReader.HasSource())
+		if (!(Payload && PayloadKey == Request.Key && Payload.GetId() == Request.Id) || !bExistsOnly <= PayloadReader.HasSource())
 		{
 			PayloadStatus = EStatus::Error;
 			PayloadReader.ResetSource();
 			PayloadAr.Reset();
 			Payload.Reset();
-			if (!(Record && Record.Get().GetKey() == Chunk.Key))
+			if (!(Record && Record.Get().GetKey() == Request.Key))
 			{
 				FCacheRecordPolicyBuilder PolicyBuilder(ECachePolicy::None);
 				const ECachePolicy RecordSkipFlags = bExistsOnly ? ECachePolicy::SkipData : ECachePolicy::None;
-				PolicyBuilder.AddPayloadPolicy(Chunk.Id, Chunk.Policy | RecordSkipFlags);
+				PolicyBuilder.AddPayloadPolicy(Request.Id, Request.Policy | RecordSkipFlags);
 				Record.Reset();
-				Record = GetCacheRecordOnly(Chunk.Key, Context, PolicyBuilder.Build());
+				Record = GetCacheRecordOnly(Request.Key, Request.Name, PolicyBuilder.Build());
 			}
 			if (Record)
 			{
-				Payload = Record.Get().GetPayload(Chunk.Id);
-				PayloadKey = Chunk.Key;
-				GetCacheContent(Chunk.Key, Payload, Context, Chunk.Policy, SkipFlag, PayloadReader, PayloadAr);
+				Payload = Record.Get().GetPayload(Request.Id);
+				PayloadKey = Request.Key;
+				GetCacheContent(Request.Key, Payload, Request.Name, Request.Policy, SkipFlag, PayloadReader, PayloadAr);
 			}
 		}
 		if (Payload)
 		{
-			const uint64 RawOffset = FMath::Min(Payload.GetRawSize(), Chunk.RawOffset);
-			const uint64 RawSize = FMath::Min(Payload.GetRawSize() - RawOffset, Chunk.RawSize);
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%.*s'"),
-				*CachePath, *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
+			const uint64 RawOffset = FMath::Min(Payload.GetRawSize(), Request.RawOffset);
+			const uint64 RawSize = FMath::Min(Payload.GetRawSize() - RawOffset, Request.RawSize);
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%s'"),
+				*CachePath, *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
 			TRACE_COUNTER_INCREMENT(FileSystemDDC_GetHit);
 			TRACE_COUNTER_ADD(FileSystemDDC_BytesRead, !bExistsOnly ? RawSize : 0);
 			COOK_STAT(Timer.AddHit(!bExistsOnly ? RawSize : 0));
@@ -1662,15 +1656,15 @@ void FFileSystemCacheStore::GetChunks(
 					Buffer = PayloadReader.Decompress(RawOffset, RawSize);
 				}
 				const EStatus ChunkStatus = bExistsOnly || Buffer.GetSize() == RawSize ? EStatus::Ok : EStatus::Error;
-				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
-					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Chunk.UserData, ChunkStatus});
+				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
+					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Request.UserData, ChunkStatus});
 			}
 			continue;
 		}
 
 		if (OnComplete)
 		{
-			OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error});
+			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error});
 		}
 	}
 }
@@ -1693,7 +1687,7 @@ uint64 FFileSystemCacheStore::MeasureRawCacheRecord(const FCacheRecord& Record) 
 
 bool FFileSystemCacheStore::PutCacheRecord(
 	const FCacheRecord& Record,
-	const FStringView Context,
+	const FStringView RecordName,
 	const FCacheRecordPolicy& Policy,
 	uint64& OutWriteSize)
 {
@@ -1701,7 +1695,7 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose,
 			TEXT("%s: Skipped put of %s from '%.*s' because this cache store is read-only"),
-			*CachePath, *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
+			*CachePath, *WriteToString<96>(Record.GetKey()), RecordName.Len(), RecordName.GetData());
 		return false;
 	}
 
@@ -1715,14 +1709,14 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	if (!EnumHasAnyFlags(CombinedPolicy, StoreFlag))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
-			*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			*CachePath, *WriteToString<96>(Key), RecordName.Len(), RecordName.GetData());
 		return false;
 	}
 
 	if (ShouldSimulateMiss(Key))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
-			*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			*CachePath, *WriteToString<96>(Key), RecordName.Len(), RecordName.GetData());
 		return false;
 	}
 
@@ -1737,7 +1731,7 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	}
 	else
 	{
-		bRecordExists = LoadFileWithHash(Path, Context, [&ExistingPackage](FArchive& Ar) { ExistingPackage.TryLoad(Ar); });
+		bRecordExists = LoadFileWithHash(Path, RecordName, [&ExistingPackage](FArchive& Ar) { ExistingPackage.TryLoad(Ar); });
 	}
 
 	// Save the record to a package and remove attachments that will be stored externally.
@@ -1786,13 +1780,13 @@ bool FFileSystemCacheStore::PutCacheRecord(
 	for (FCompressedBuffer& Content : ExternalContent)
 	{
 		uint64 WriteSize = 0;
-		PutCacheContent(Content, Context, OutWriteSize);
+		PutCacheContent(Content, RecordName, OutWriteSize);
 		OutWriteSize += WriteSize;
 	}
 
 	// Save the record package to storage.
 	const auto WriteRecord = [&](FArchive& Ar) { Package.Save(Ar); OutWriteSize += uint64(Ar.TotalSize()); };
-	if (!bRecordExists && !SaveFileWithHash(Path, Context, WriteRecord))
+	if (!bRecordExists && !SaveFileWithHash(Path, RecordName, WriteRecord))
 	{
 		return false;
 	}
@@ -1807,14 +1801,14 @@ bool FFileSystemCacheStore::PutCacheRecord(
 
 FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecordOnly(
 	const FCacheKey& Key,
-	const FStringView Context,
+	const FStringView RecordName,
 	const FCacheRecordPolicy& Policy)
 {
 	if (!IsUsable())
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose,
 			TEXT("%s: Skipped get of %s from '%.*s' because this cache store is not available"),
-			*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			*CachePath, *WriteToString<96>(Key), RecordName.Len(), RecordName.GetData());
 		return FOptionalCacheRecord();
 	}
 
@@ -1824,14 +1818,14 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecordOnly(
 	if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), QueryPolicy))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' due to cache policy"),
-			*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			*CachePath, *WriteToString<96>(Key), RecordName.Len(), RecordName.GetData());
 		return FOptionalCacheRecord();
 	}
 
 	if (ShouldSimulateMiss(Key))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
-			*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			*CachePath, *WriteToString<96>(Key), RecordName.Len(), RecordName.GetData());
 		return FOptionalCacheRecord();
 	}
 
@@ -1850,17 +1844,17 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecordOnly(
 	FOptionalCacheRecord Record;
 	{
 		FCbPackage Package;
-		if (!LoadFileWithHash(Path, Context, [&Package](FArchive& Ar) { Package.TryLoad(Ar); }))
+		if (!LoadFileWithHash(Path, RecordName, [&Package](FArchive& Ar) { Package.TryLoad(Ar); }))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss with missing record for %s from '%.*s'"),
-				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+				*CachePath, *WriteToString<96>(Key), RecordName.Len(), RecordName.GetData());
 			return Record;
 		}
 
 		if (ValidateCompactBinary(Package, ECbValidateMode::Default | ECbValidateMode::Package) != ECbValidateError::None)
 		{
 			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid package for %s from '%.*s'"),
-				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+				*CachePath, *WriteToString<96>(Key), RecordName.Len(), RecordName.GetData());
 			return FOptionalCacheRecord();
 		}
 
@@ -1868,7 +1862,7 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecordOnly(
 		if (Record.IsNull())
 		{
 			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with record load failure for %s from '%.*s'"),
-				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+				*CachePath, *WriteToString<96>(Key), RecordName.Len(), RecordName.GetData());
 			return Record;
 		}
 	}
@@ -1884,11 +1878,11 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecordOnly(
 
 FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecord(
 	const FCacheKey& Key,
-	const FStringView Context,
+	const FStringView RecordName,
 	const FCacheRecordPolicy& Policy,
 	EStatus& OutStatus)
 {
-	FOptionalCacheRecord Record = GetCacheRecordOnly(Key, Context, Policy);
+	FOptionalCacheRecord Record = GetCacheRecordOnly(Key, RecordName, Policy);
 	if (Record.IsNull())
 	{
 		OutStatus = EStatus::Error;
@@ -1907,7 +1901,7 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecord(
 	if (FPayload Payload = Record.Get().GetValuePayload())
 	{
 		const ECachePolicy PayloadPolicy = Policy.GetPayloadPolicy(Payload.GetId());
-		if (FPayload Content = GetCacheContent(Key, Payload, Context, PayloadPolicy, ECachePolicy::SkipValue))
+		if (FPayload Content = GetCacheContent(Key, Payload, RecordName, PayloadPolicy, ECachePolicy::SkipValue))
 		{
 			RecordBuilder.SetValue(MoveTemp(Content));
 		}
@@ -1926,7 +1920,7 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecord(
 	for (FPayload Payload : Record.Get().GetAttachmentPayloads())
 	{
 		const ECachePolicy PayloadPolicy = Policy.GetPayloadPolicy(Payload.GetId());
-		if (FPayload Content = GetCacheContent(Key, Payload, Context, PayloadPolicy, ECachePolicy::SkipAttachments))
+		if (FPayload Content = GetCacheContent(Key, Payload, RecordName, PayloadPolicy, ECachePolicy::SkipAttachments))
 		{
 			RecordBuilder.AddAttachment(MoveTemp(Content));
 		}
@@ -1947,14 +1941,14 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecord(
 
 bool FFileSystemCacheStore::PutCacheContent(
 	const FCompressedBuffer& Content,
-	const FStringView Context,
+	const FStringView ContentName,
 	uint64& OutWriteSize) const
 {
 	const FIoHash& RawHash = Content.GetRawHash();
 	TStringBuilder<256> Path;
 	BuildCacheContentPath(RawHash, Path);
 	const auto WriteContent = [&](FArchive& Ar) { Content.Save(Ar); OutWriteSize += uint64(Ar.TotalSize()); };
-	if (!FileExists(Path) && !SaveFileWithHash(Path, Context, WriteContent))
+	if (!FileExists(Path) && !SaveFileWithHash(Path, ContentName, WriteContent))
 	{
 		return false;
 	}
@@ -1968,7 +1962,7 @@ bool FFileSystemCacheStore::PutCacheContent(
 FPayload FFileSystemCacheStore::GetCacheContent(
 	const FCacheKey& Key,
 	const FPayload& Payload,
-	const FStringView Context,
+	const FStringView ContentName,
 	const ECachePolicy Policy,
 	const ECachePolicy SkipFlag) const
 {
@@ -2000,7 +1994,7 @@ FPayload FFileSystemCacheStore::GetCacheContent(
 	else
 	{
 		FCompressedBuffer CompressedBuffer;
-		if (LoadFileWithHash(Path, Context, [&CompressedBuffer](FArchive& Ar) { CompressedBuffer = FCompressedBuffer::Load(Ar); }))
+		if (LoadFileWithHash(Path, ContentName, [&CompressedBuffer](FArchive& Ar) { CompressedBuffer = FCompressedBuffer::Load(Ar); }))
 		{
 			if (CompressedBuffer.GetRawHash() == RawHash)
 			{
@@ -2013,7 +2007,7 @@ FPayload FFileSystemCacheStore::GetCacheContent(
 			UE_LOG(LogDerivedDataCache, Display,
 				TEXT("%s: Cache miss with corrupted payload %s with hash %s for %s from '%.*s'"),
 				*CachePath, *WriteToString<16>(Payload.GetId()), *WriteToString<48>(RawHash),
-				*WriteToString<96>(Key), Context.Len(), Context.GetData());
+				*WriteToString<96>(Key), ContentName.Len(), ContentName.GetData());
 			return FPayload::Null;
 		}
 	}
@@ -2021,14 +2015,14 @@ FPayload FFileSystemCacheStore::GetCacheContent(
 	UE_LOG(LogDerivedDataCache, Verbose,
 		TEXT("%s: Cache miss with missing payload %s with hash %s for %s from '%.*s'"),
 		*CachePath, *WriteToString<16>(Payload.GetId()), *WriteToString<48>(RawHash), *WriteToString<96>(Key),
-		Context.Len(), Context.GetData());
+		ContentName.Len(), ContentName.GetData());
 	return FPayload::Null;
 }
 
 void FFileSystemCacheStore::GetCacheContent(
 	const FCacheKey& Key,
 	const FPayload& Payload,
-	const FStringView Context,
+	const FStringView ContentName,
 	const ECachePolicy Policy,
 	const ECachePolicy SkipFlag,
 	FCompressedBufferReader& Reader,
@@ -2066,7 +2060,7 @@ void FFileSystemCacheStore::GetCacheContent(
 	}
 	else
 	{
-		OutArchive = OpenFile(Path, Context);
+		OutArchive = OpenFile(Path, ContentName);
 		if (OutArchive)
 		{
 			Reader.SetSource(*OutArchive);
@@ -2081,7 +2075,7 @@ void FFileSystemCacheStore::GetCacheContent(
 			UE_LOG(LogDerivedDataCache, Display,
 				TEXT("%s: Cache miss with corrupted payload %s with hash %s for %s from '%.*s'"),
 				*CachePath, *WriteToString<16>(Payload.GetId()), *WriteToString<48>(RawHash),
-				*WriteToString<96>(Key), Context.Len(), Context.GetData());
+				*WriteToString<96>(Key), ContentName.Len(), ContentName.GetData());
 			Reader.ResetSource();
 			OutArchive.Reset();
 			return;
@@ -2091,7 +2085,7 @@ void FFileSystemCacheStore::GetCacheContent(
 	UE_LOG(LogDerivedDataCache, Verbose,
 		TEXT("%s: Cache miss with missing payload %s with hash %s for %s from '%.*s'"),
 		*CachePath, *WriteToString<16>(Payload.GetId()), *WriteToString<48>(RawHash), *WriteToString<96>(Key),
-		Context.Len(), Context.GetData());
+		ContentName.Len(), ContentName.GetData());
 }
 
 void FFileSystemCacheStore::BuildCacheRecordPath(const FCacheKey& CacheKey, FStringBuilderBase& Path) const
@@ -2108,10 +2102,10 @@ void FFileSystemCacheStore::BuildCacheContentPath(const FIoHash& RawHash, FStrin
 
 bool FFileSystemCacheStore::SaveFileWithHash(
 	FStringBuilderBase& Path,
-	const FStringView Context,
+	const FStringView DebugName,
 	const TFunctionRef<void (FArchive&)> WriteFunction) const
 {
-	return SaveFile(Path, Context, [&WriteFunction](FArchive& Ar)
+	return SaveFile(Path, DebugName, [&WriteFunction](FArchive& Ar)
 	{
 		THashingArchiveProxy<FBlake3> HashAr(Ar);
 		WriteFunction(HashAr);
@@ -2122,10 +2116,10 @@ bool FFileSystemCacheStore::SaveFileWithHash(
 
 bool FFileSystemCacheStore::LoadFileWithHash(
 	FStringBuilderBase& Path,
-	const FStringView Context,
+	const FStringView DebugName,
 	const TFunctionRef<void (FArchive& Ar)> ReadFunction) const
 {
-	return LoadFile(Path, Context, [this, &Path, &Context, &ReadFunction](FArchive& Ar)
+	return LoadFile(Path, DebugName, [this, &Path, &DebugName, &ReadFunction](FArchive& Ar)
 	{
 		THashingArchiveProxy<FBlake3> HashAr(Ar);
 		ReadFunction(HashAr);
@@ -2138,7 +2132,7 @@ bool FFileSystemCacheStore::LoadFileWithHash(
 			Ar.SetError();
 			UE_LOG(LogDerivedDataCache, Display,
 				TEXT("%s: File %s from '%.*s' is corrupted and has hash %s when %s is expected."),
-				*CachePath, *Path, Context.Len(), Context.GetData(),
+				*CachePath, *Path, DebugName.Len(), DebugName.GetData(),
 				*WriteToString<80>(Hash), *WriteToString<80>(SavedHash));
 		}
 	});
@@ -2146,7 +2140,7 @@ bool FFileSystemCacheStore::LoadFileWithHash(
 
 bool FFileSystemCacheStore::SaveFile(
 	FStringBuilderBase& Path,
-	const FStringView Context,
+	const FStringView DebugName,
 	const TFunctionRef<void (FArchive&)> WriteFunction) const
 {
 	TStringBuilder<256> TempPath;
@@ -2171,7 +2165,7 @@ bool FFileSystemCacheStore::SaveFile(
 	{
 		UE_LOG(LogDerivedDataCache, Warning,
 			TEXT("%s: Failed to write to temp file %s when saving %s from '%.*s'. Error 0x%08x"),
-			*CachePath, *TempPath, *Path, Context.Len(), Context.GetData(), FPlatformMisc::GetLastError());
+			*CachePath, *TempPath, *Path, DebugName.Len(), DebugName.GetData(), FPlatformMisc::GetLastError());
 		return false;
 	}
 
@@ -2180,7 +2174,7 @@ bool FFileSystemCacheStore::SaveFile(
 		UE_LOG(LogDerivedDataCache, Warning,
 			TEXT("%s: Failed to write to temp file %s when saving %s from '%.*s'. ")
 			TEXT("File is %" INT64_FMT " bytes when %" INT64_FMT " bytes are expected."),
-			*CachePath, *TempPath, *Path, Context.Len(), Context.GetData(),
+			*CachePath, *TempPath, *Path, DebugName.Len(), DebugName.GetData(),
 			IFileManager::Get().FileSize(*TempPath), WriteSize);
 		return false;
 	}
@@ -2190,7 +2184,7 @@ bool FFileSystemCacheStore::SaveFile(
 	{
 		UE_LOG(LogDerivedDataCache, Log,
 			TEXT("%s: Move collision when writing file %s from '%.*s'."),
-			*CachePath, *Path, Context.Len(), Context.GetData());
+			*CachePath, *Path, DebugName.Len(), DebugName.GetData());
 	}
 
 	return true;
@@ -2198,7 +2192,7 @@ bool FFileSystemCacheStore::SaveFile(
 
 bool FFileSystemCacheStore::LoadFile(
 	FStringBuilderBase& Path,
-	const FStringView Context,
+	const FStringView DebugName,
 	const TFunctionRef<void (FArchive& Ar)> ReadFunction) const
 {
 	check(IsUsable());
@@ -2207,7 +2201,7 @@ bool FFileSystemCacheStore::LoadFile(
 	int64 ReadSize = 0;
 	bool bError = false;
 
-	if (TUniquePtr<FArchive> Ar = OpenFile(Path, Context))
+	if (TUniquePtr<FArchive> Ar = OpenFile(Path, DebugName))
 	{
 		ReadFunction(*Ar);
 		ReadSize = Ar->Tell();
@@ -2217,7 +2211,7 @@ bool FFileSystemCacheStore::LoadFile(
 		{
 			UE_LOG(LogDerivedDataCache, Display,
 				TEXT("%s: Failed to load file %s from '%.*s'."),
-				*CachePath, *Path, Context.Len(), Context.GetData());
+				*CachePath, *Path, DebugName.Len(), DebugName.GetData());
 		}
 	}
 
@@ -2229,12 +2223,12 @@ bool FFileSystemCacheStore::LoadFile(
 		// Slower than 0.5 MiB/s?
 		UE_CLOG(ReadSpeed < 0.5, LogDerivedDataCache, Warning,
 			TEXT("%s: Loading %s from '%.*s' is very slow (%.2f MiB/s); consider disabling this cache backend"),
-			*CachePath, *Path, Context.Len(), Context.GetData(), ReadSpeed);
+			*CachePath, *Path, DebugName.Len(), DebugName.GetData(), ReadSpeed);
 	}
 
 	UE_LOG(LogDerivedDataCache, VeryVerbose,
 		TEXT("%s: Loaded %s from '%.*s' (%" INT64_FMT " bytes, %.02f secs, %.2f MiB/s)"),
-		*CachePath, *Path, Context.Len(), Context.GetData(), ReadSize, ReadDuration, ReadSpeed);
+		*CachePath, *Path, DebugName.Len(), DebugName.GetData(), ReadSize, ReadDuration, ReadSpeed);
 
 	if (bError && !bReadOnly)
 	{
@@ -2244,7 +2238,7 @@ bool FFileSystemCacheStore::LoadFile(
 	return !bError && ReadSize > 0;
 }
 
-TUniquePtr<FArchive> FFileSystemCacheStore::OpenFile(FStringBuilderBase& Path, const FStringView Context) const
+TUniquePtr<FArchive> FFileSystemCacheStore::OpenFile(FStringBuilderBase& Path, const FStringView DebugName) const
 {
 	// Check for existence before reading because it may update the modification time and avoid the
 	// file being deleted by a cache cleanup thread or process.

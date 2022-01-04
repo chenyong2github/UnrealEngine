@@ -474,7 +474,6 @@ public:
 
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
@@ -495,7 +494,7 @@ public:
 					if (RequestsOk.Num() < Requests.Num())
 					{
 						FRequestOwner BlockingOwner(EPriority::Blocking);
-						InnerBackends[PutCacheIndex]->Put(Requests, Context, BlockingOwner,
+						InnerBackends[PutCacheIndex]->Put(Requests, BlockingOwner,
 							[&OnComplete, &RequestsOk](FCachePutCompleteParams&& Params)
 							{
 								if (Params.Status == EStatus::Ok)
@@ -512,7 +511,7 @@ public:
 					}
 					else
 					{
-						AsyncPutInnerBackends[PutCacheIndex]->Put(Requests, Context, AsyncOwner);
+						AsyncPutInnerBackends[PutCacheIndex]->Put(Requests, AsyncOwner);
 					}
 				}
 			}
@@ -524,7 +523,7 @@ public:
 			{
 				if (!RequestsOk.Contains(Request.Record.GetKey()))
 				{
-					OnComplete({Request.Record.GetKey(), Request.UserData, EStatus::Error});
+					OnComplete({Request.Name, Request.Record.GetKey(), Request.UserData, EStatus::Error});
 				}
 			}
 		}
@@ -532,7 +531,6 @@ public:
 
 	virtual void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
@@ -548,8 +546,8 @@ public:
 			{
 				// Block on this because backends in this hierarchy are not expected to be asynchronous.
 				FRequestOwner BlockingOwner(EPriority::Blocking);
-				InnerBackends[GetCacheIndex]->Get(RemainingRequests, Context, BlockingOwner,
-					[this, Context, GetCacheIndex, &Owner, &OnComplete, &KeysOk](FCacheGetCompleteParams&& Params)
+				InnerBackends[GetCacheIndex]->Get(RemainingRequests, BlockingOwner,
+					[this, GetCacheIndex, &Owner, &OnComplete, &KeysOk](FCacheGetCompleteParams&& Params)
 					{
 						if (Params.Status == EStatus::Ok)
 						{
@@ -560,7 +558,7 @@ public:
 							{
 								if (GetCacheIndex != FillCacheIndex)
 								{
-									AsyncPutInnerBackends[FillCacheIndex]->Put({{Params.Record, ECachePolicy::Default}}, Context, AsyncOwner);
+									AsyncPutInnerBackends[FillCacheIndex]->Put({{Params.Name, Params.Record, ECachePolicy::Default}}, AsyncOwner);
 								}
 							}
 
@@ -603,41 +601,40 @@ public:
 		{
 			for (const FCacheGetRequest& Request : RemainingRequests)
 			{
-				OnComplete({FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Error});
+				OnComplete({Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Error});
 			}
 		}
 	}
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Chunks,
-		FStringView Context,
+		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) override
+		FOnCacheChunkComplete&& OnComplete) override
 	{
-		TArray<FCacheChunkRequest, TInlineAllocator<16>> RemainingChunks(Chunks);
+		TArray<FCacheChunkRequest, TInlineAllocator<16>> RemainingRequests(Requests);
 
 		{
 			FReadScopeLock LockScope(Lock);
 
 			for (FDerivedDataBackendInterface* InnerBackend : InnerBackends)
 			{
-				if (RemainingChunks.IsEmpty())
+				if (RemainingRequests.IsEmpty())
 				{
 					return;
 				}
-				RemainingChunks.StableSort(TChunkLess());
+				RemainingRequests.StableSort(TChunkLess());
 				TArray<FCacheChunkRequest, TInlineAllocator<16>> ErrorChunks;
 				FRequestOwner BlockingOwner(EPriority::Blocking);
-				InnerBackend->GetChunks(RemainingChunks, Context, BlockingOwner,
-					[&OnComplete, &RemainingChunks, &ErrorChunks](FCacheGetChunkCompleteParams&& Params)
+				InnerBackend->GetChunks(RemainingRequests, BlockingOwner,
+					[&OnComplete, &RemainingRequests, &ErrorChunks](FCacheChunkCompleteParams&& Params)
 					{
 						if (Params.Status == EStatus::Error)
 						{
-							const int32 ChunkIndex = Algo::BinarySearch(RemainingChunks, Params, TChunkLess());
+							const int32 ChunkIndex = Algo::BinarySearch(RemainingRequests, Params, TChunkLess());
 							checkf(ChunkIndex != INDEX_NONE, TEXT("Failed to find remaining chunk %s ")
 								TEXT(" with raw offset %") UINT64_FMT TEXT("."),
 								*WriteToString<96>(Params.Key, '/', Params.Id), Params.RawOffset);
-							ErrorChunks.Add(RemainingChunks[ChunkIndex]);
+							ErrorChunks.Add(RemainingRequests[ChunkIndex]);
 						}
 						else if (OnComplete)
 						{
@@ -645,15 +642,15 @@ public:
 						}
 					});
 				BlockingOwner.Wait();
-				RemainingChunks = MoveTemp(ErrorChunks);
+				RemainingRequests = MoveTemp(ErrorChunks);
 			}
 		}
 
 		if (OnComplete)
 		{
-			for (const FCacheChunkRequest& Chunk : RemainingChunks)
+			for (const FCacheChunkRequest& Request : RemainingRequests)
 			{
-				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error});
+				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error});
 			}
 		}
 	}

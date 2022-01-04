@@ -167,7 +167,6 @@ public:
 
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
@@ -183,7 +182,7 @@ public:
 			return {Request.Record.GetKey(), Private::GetCacheRecordCompressedSize(Request.Record)};
 		});
 
-		InnerBackend->Put(Requests, Context, Owner,
+		InnerBackend->Put(Requests, Owner,
 			[this, RecordSizes = MoveTemp(RecordSizes), State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCachePutCompleteParams&& Params)
 			{
 				const FRecordSize* Size = Algo::FindBy(RecordSizes, Params.Key, &FRecordSize::Key);
@@ -197,11 +196,10 @@ public:
 
 	virtual void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override
 	{
-		InnerBackend->Get(Requests, Context, Owner,
+		InnerBackend->Get(Requests, Owner,
 			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheGetCompleteParams&& Params)
 			{
 				CloseThrottlingScope(State, FThrottlingState(this, Private::GetCacheRecordCompressedSize(Params.Record)));
@@ -213,13 +211,12 @@ public:
 	}
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Chunks,
-		FStringView Context,
+		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) override
+		FOnCacheChunkComplete&& OnComplete) override
 	{
-		InnerBackend->GetChunks(Chunks, Context, Owner,
-			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheGetChunkCompleteParams&& Params)
+		InnerBackend->GetChunks(Requests, Owner,
+			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheChunkCompleteParams&& Params)
 			{
 				CloseThrottlingScope(State, FThrottlingState(this, Params.RawData.GetSize()));
 				if (OnComplete)

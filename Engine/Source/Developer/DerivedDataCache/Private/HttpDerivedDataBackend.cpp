@@ -2528,7 +2528,6 @@ TSharedRef<FDerivedDataCacheStatsNode> FHttpDerivedDataBackend::GatherUsageStats
 
 void FHttpDerivedDataBackend::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
@@ -2536,14 +2535,13 @@ void FHttpDerivedDataBackend::Put(
 	{
 		for (const FCachePutRequest& Request : Requests)
 		{
-			OnComplete({Request.Record.GetKey(), Request.UserData, EStatus::Error});
+			OnComplete({Request.Name, Request.Record.GetKey(), Request.UserData, EStatus::Error});
 		}
 	}
 }
 
 void FHttpDerivedDataBackend::Get(
 	const TConstArrayView<FCacheGetRequest> Requests,
-	const FStringView Context,
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
@@ -2551,22 +2549,21 @@ void FHttpDerivedDataBackend::Get(
 	{
 		for (const FCacheGetRequest& Request : Requests)
 		{
-			OnComplete({FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Error});
+			OnComplete({Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Error});
 		}
 	}
 }
 
 void FHttpDerivedDataBackend::GetChunks(
-	const TConstArrayView<FCacheChunkRequest> Chunks,
-	const FStringView Context,
+	const TConstArrayView<FCacheChunkRequest> Requests,
 	IRequestOwner& Owner,
-	FOnCacheGetChunkComplete&& OnComplete)
+	FOnCacheChunkComplete&& OnComplete)
 {
 	if (OnComplete)
 	{
-		for (const FCacheChunkRequest& Chunk : Chunks)
+		for (const FCacheChunkRequest& Request : Requests)
 		{
-			OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset, 0, {}, {}, Chunk.UserData, EStatus::Error});
+			OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Error});
 		}
 	}
 }

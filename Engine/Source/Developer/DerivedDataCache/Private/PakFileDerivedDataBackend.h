@@ -106,48 +106,45 @@ public:
 
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override;
 
 	virtual void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
-		FStringView Context,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) override;
 
 	virtual void GetChunks(
-		TConstArrayView<FCacheChunkRequest> Chunks,
-		FStringView Context,
+		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) override;
+		FOnCacheChunkComplete&& OnComplete) override;
 
 private:
 	uint64 MeasureCompressedCacheRecord(const FCacheRecord& Record) const;
 	uint64 MeasureRawCacheRecord(const FCacheRecord& Record) const;
 
-	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, const FCacheRecordPolicy& Policy);
-	bool PutCacheContent(const FCompressedBuffer& Content, const FStringView Context);
+	bool PutCacheRecord(const FCacheRecord& Record, FStringView RecordName, const FCacheRecordPolicy& Policy);
+	bool PutCacheContent(const FCompressedBuffer& Content, const FStringView ContentName);
 
 	FOptionalCacheRecord GetCacheRecordOnly(
 		const FCacheKey& Key,
-		const FStringView Context,
+		const FStringView RecordName,
 		const FCacheRecordPolicy& Policy);
 	FOptionalCacheRecord GetCacheRecord(
 		const FCacheKey& Key,
-		const FStringView Context,
+		const FStringView RecordName,
 		const FCacheRecordPolicy& Policy,
 		EStatus& OutStatus);
 	void GetCacheContent(
 		const FCacheKey& Key,
-		const FStringView Context,
+		const FStringView ContentName,
 		const ECachePolicy Policy,
 		const ECachePolicy SkipFlag,
 		FPayload& InOutPayload,
 		EStatus& InOutStatus);
 
-	bool SaveFile(FStringView Path, FStringView Context, TFunctionRef<void (FArchive&)> WriteFunction);
-	FSharedBuffer LoadFile(FStringView Path, FStringView Context);
+	bool SaveFile(FStringView Path, FStringView DebugName, TFunctionRef<void (FArchive&)> WriteFunction);
+	FSharedBuffer LoadFile(FStringView Path, FStringView DebugName);
 	bool FileExists(FStringView Path);
 
 private:
