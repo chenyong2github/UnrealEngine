@@ -1543,6 +1543,7 @@ FValidationTransientResourceAllocator::~FValidationTransientResourceAllocator()
 FRHITransientTexture* FValidationTransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex)
 {
 	check(!bFrozen);
+	check(FRHITextureCreateInfo::CheckValidity(InCreateInfo, InDebugName));
 	checkf(!EnumHasAnyFlags(InCreateInfo.Flags, TexCreate_Transient), TEXT("Attempted to create transient texture %s using legacy TexCreate_Transient flag."), InDebugName);
 
 	FRHITransientTexture* TransientTexture = RHIAllocator->CreateTexture(InCreateInfo, InDebugName, InPassIndex);

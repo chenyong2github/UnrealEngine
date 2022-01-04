@@ -266,12 +266,8 @@ void FRDGUserValidation::ValidateCreateTexture(const FRDGTextureDesc& Desc, cons
 	checkf(Name, TEXT("Creating a texture requires a valid debug name."));
 	ExecuteGuard(TEXT("CreateTexture"), Name);
 
-	// Validate the pixel format.
-	checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
-	checkf(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with invalid FPooledRenderTargetDesc::Format."), Name);
-	checkf(GPixelFormats[Desc.Format].Supported,
-		TEXT("Failed to create texture %s with pixel format %s because it is not supported."), Name, GPixelFormats[Desc.Format].Name);
-	checkf(Desc.IsValid(), TEXT("Texture %s was created with an invalid descriptor."), Name);
+	// Make sure the descriptor is supported by the RHI.
+	check(FRDGTextureDesc::CheckValidity(Desc, Name));
 
 	// Can't create back buffer textures
 	checkf(!EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::Presentable), TEXT("Illegal to create texture %s with presentable flag."), Name);
