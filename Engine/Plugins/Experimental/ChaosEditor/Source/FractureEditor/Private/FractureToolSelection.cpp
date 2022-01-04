@@ -284,8 +284,8 @@ void UFractureToolSelection::DrawHUD(FEditorViewportClient* ViewportClient, FVie
 {
 	Super::DrawHUD(ViewportClient, Viewport, View, Canvas);
 
-	const FViewportClient* Focused = GLevelEditorModeTools().GetFocusedViewportClient();
-	bool bThisViewHasFocus = (ViewportClient == Focused);
+	const FEditorViewportClient* Focused = GLevelEditorModeTools().GetFocusedViewportClient();
+	const bool bThisViewHasFocus = (ViewportClient == Focused);
 	
 	RectangleMarqueeManager->DrawHUD(Canvas, bThisViewHasFocus);
 }
