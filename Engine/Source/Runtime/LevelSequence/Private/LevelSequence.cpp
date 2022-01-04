@@ -15,6 +15,8 @@
 #include "Animation/AnimInstance.h"
 #include "LevelSequenceModule.h"
 #include "MovieSceneSpawnableAnnotation.h"
+#include "Tracks/MovieScene3DAttachTrack.h"
+#include "Tracks/MovieScene3DPathTrack.h"
 #include "Tracks/MovieSceneAudioTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
@@ -103,7 +105,9 @@ bool ULevelSequence::CanAnimateObject(UObject& InObject) const
 
 ETrackSupport ULevelSequence::IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const
 {
-	if (InTrackClass == UMovieSceneAudioTrack::StaticClass() ||
+	if (InTrackClass == UMovieScene3DAttachTrack::StaticClass() ||
+		InTrackClass == UMovieScene3DPathTrack::StaticClass() ||
+		InTrackClass == UMovieSceneAudioTrack::StaticClass() ||
 		InTrackClass == UMovieSceneCameraCutTrack::StaticClass() ||
 		InTrackClass == UMovieSceneCinematicShotTrack::StaticClass() ||
 		InTrackClass == UMovieSceneEventTrack::StaticClass() ||

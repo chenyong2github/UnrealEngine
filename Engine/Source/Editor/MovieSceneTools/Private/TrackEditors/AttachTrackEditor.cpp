@@ -138,6 +138,11 @@ bool F3DAttachTrackEditor::SupportsType( TSubclassOf<UMovieSceneTrack> Type ) co
 	return Type == UMovieScene3DAttachTrack::StaticClass();
 }
 
+bool F3DAttachTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
+{
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieScene3DAttachTrack::StaticClass()) : ETrackSupport::NotSupported;
+	return TrackSupported == ETrackSupport::Supported;
+}
 
 TSharedRef<ISequencerSection> F3DAttachTrackEditor::MakeSectionInterface( UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding )
 {
