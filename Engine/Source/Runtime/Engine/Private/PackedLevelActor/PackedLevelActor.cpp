@@ -170,18 +170,17 @@ void APackedLevelActor::OnEdit()
 	MarkComponentsRenderStateDirty();
 }
 
-void APackedLevelActor::OnCommit(bool bChanged, bool bPromptForSave)
+void APackedLevelActor::OnCommit(bool bChanged)
 {
-	Super::OnCommit(bChanged, bPromptForSave);
+	Super::OnCommit(bChanged);
 
 	if (bChanged)
 	{
 		if (UBlueprint* GeneratedBy = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
 		{
 			check(GeneratedBy == BlueprintAsset.Get());
-			const bool bCheckoutAndSave = true;
 			TSharedPtr<FPackedLevelActorBuilder> Builder = FPackedLevelActorBuilder::CreateDefaultBuilder();
-			Builder->UpdateBlueprint(GeneratedBy, bCheckoutAndSave, bPromptForSave);
+			Builder->UpdateBlueprint(GeneratedBy);
 			return; // return here because Actor might have been reinstanced
 		}
 	}

@@ -718,6 +718,19 @@ bool ALevelInstance::CanCommit(FText* OutReason) const
 	return false;
 }
 
+bool ALevelInstance::CanDiscard(FText* OutReason) const
+{
+	if (HasValidLevelInstanceID())
+	{
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+		{
+			return LevelInstanceSubsystem->CanDiscardLevelInstance(this, OutReason);
+		}
+	}
+
+	return false;
+}
+
 bool ALevelInstance::IsEditing() const
 {
 	if (HasValidLevelInstanceID())

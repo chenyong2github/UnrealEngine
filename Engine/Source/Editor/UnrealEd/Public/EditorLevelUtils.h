@@ -129,6 +129,12 @@ public:
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FCanMoveActorToLevelDelegate, const AActor* /* ActorToMove */, const ULevel* /* DestLevel */, bool& /* bOutCanMove */);
 	static UNREALED_API FCanMoveActorToLevelDelegate CanMoveActorToLevelDelegate;
 		
+	/** 
+	* Delegate used by MoveActorsToLevel() to notify about actors being moved 
+	*/
+	DECLARE_EVENT_TwoParams(UEditorLevelUtils, FOnMoveActorsToLevelEvent, const TArray<AActor*>& /* ActorsToMove */, const ULevel* /* DestLevel */);
+	static UNREALED_API FOnMoveActorsToLevelEvent OnMoveActorsToLevelEvent;
+
 	/**
 	 * Creates a new streaming level and adds it to a world
 	 *
@@ -213,7 +219,7 @@ private:
 
 	static UNREALED_API ULevelStreaming* AddLevelToWorld_Internal(UWorld* InWorld, const TCHAR* LevelPackageName, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FTransform& LevelTransform = FTransform::Identity);
 
-	static UNREALED_API int32 CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bCutActors, bool bMoveActors, bool bWarnAboutReferences = true, bool bWarnAboutRenaming = true, bool bMoveAllOrFail = false, TArray<AActor*>* OutActors = nullptr);
+	static UNREALED_API int32 CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bMoveActors, bool bWarnAboutReferences = true, bool bWarnAboutRenaming = true, bool bMoveAllOrFail = false, TArray<AActor*>* OutActors = nullptr);
 
 public:
 	/** Sets the LevelStreamingClass for the specified Level 

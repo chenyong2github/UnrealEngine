@@ -68,6 +68,7 @@ static TAutoConsoleVariable<int32>  CVarReflectEditorLevelVisibilityWithGame(
 	TEXT("1 - game state is relfected with editor.\n"), ECVF_Default);
 
 UEditorLevelUtils::FCanMoveActorToLevelDelegate UEditorLevelUtils::CanMoveActorToLevelDelegate;
+UEditorLevelUtils::FOnMoveActorsToLevelEvent UEditorLevelUtils::OnMoveActorsToLevelEvent;
 
 int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevelStreaming* DestStreamingLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming)
 {
@@ -76,19 +77,17 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 
 int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming, bool bMoveAllOrFail, TArray<AActor*>* OutActors /*=nullptr*/)
 {
-	const bool bCutActors = true;
 	const bool bMoveActors = true;
-	return CopyOrMoveActorsToLevel(ActorsToMove, DestLevel, bCutActors, bMoveActors, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail, OutActors);
+	return CopyOrMoveActorsToLevel(ActorsToMove, DestLevel, bMoveActors, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail, OutActors);
 }
 
 int32 UEditorLevelUtils::CopyActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming, bool bMoveAllOrFail, TArray<AActor*>* OutActors /*=nullptr*/)
 {
-	const bool bCutActors = false;
 	const bool bMoveActors = false;
-	return CopyOrMoveActorsToLevel(ActorsToMove, DestLevel, bCutActors, bMoveActors, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail);
+	return CopyOrMoveActorsToLevel(ActorsToMove, DestLevel, bMoveActors, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail);
 }
 
-int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bCutActors, bool bMoveActors, bool bWarnAboutReferences /*= true*/, bool bWarnAboutRenaming /*= true*/, bool bMoveAllOrFail /*= false*/, TArray<AActor*>* OutActors /*=nullptr*/)
+int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bMoveActors, bool bWarnAboutReferences /*= true*/, bool bWarnAboutRenaming /*= true*/, bool bMoveAllOrFail /*= false*/, TArray<AActor*>* OutActors /*=nullptr*/)
 {
 	int32 NumMovedActors = 0;
 
@@ -102,7 +101,8 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 		FPlatformApplicationMisc::ClipboardPaste(OriginalClipboardContent);
 
 		// The final list of actors to move after invalid actors were removed
-		TArray<TWeakObjectPtr<AActor>> FinalMoveList;
+		TArray<AActor*> FinalMoveList;
+		TArray<TWeakObjectPtr<AActor>> FinalWeakMoveList;
 		FinalMoveList.Reserve(ActorsToMove.Num());
 
 		bool bIsDestLevelLocked = FLevelUtils::IsLevelLocked(DestLevel);
@@ -153,10 +153,10 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 
 			USelection* ActorSelection = GEditor->GetSelectedActors();
 			ActorSelection->BeginBatchSelectOperation();
-			for (TWeakObjectPtr<AActor> ActorPtr : FinalMoveList)
+			FinalWeakMoveList.Reserve(FinalMoveList.Num());
+			for (AActor* Actor : FinalMoveList)
 			{
-				AActor* Actor = ActorPtr.Get();
-				check(Actor);
+				FinalWeakMoveList.Add(Actor);
 				check(Actor->CopyPasteId == INDEX_NONE);
 				Actor->CopyPasteId = ActorPathMapping.Add(TTuple<FSoftObjectPath, FSoftObjectPath>(FSoftObjectPath(Actor), FSoftObjectPath()));
 				GEditor->SelectActor(Actor, true, false);
@@ -168,11 +168,17 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 				// Start the transaction
 				FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MoveSelectedActorsToSelectedLevel", "Move Actors To Level"));
 
+				// Broadcast event
+				if(bMoveActors)
+				{
+					OnMoveActorsToLevelEvent.Broadcast(ActorsToMove, DestLevel);
+				}
+
 				// Cache the old level
 				ULevel* OldCurrentLevel = OwningWorld->GetCurrentLevel();
 
 				FString DestinationData;
-				GEditor->CopySelectedActorsToClipboard(OwningWorld, bCutActors, bMoveActors, bWarnAboutReferences, &DestinationData);
+				GEditor->CopySelectedActorsToClipboard(OwningWorld, bMoveActors, bMoveActors, bWarnAboutReferences, &DestinationData);
 
 				const bool bLevelVisible = DestLevel->bIsVisible;
 				if (!bLevelVisible)
@@ -252,7 +258,7 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 			// The moved (pasted) actors will now be selected
 			NumMovedActors += FinalMoveList.Num();
 
-			for (TWeakObjectPtr<AActor> ActorPtr : FinalMoveList)
+			for (TWeakObjectPtr<AActor> ActorPtr : FinalWeakMoveList)
 			{
 				// It is possible a GC happens because of RenameAssets being called so here we want to update the CopyPasteId only on reachable actors
 				if (AActor* Actor = ActorPtr.Get(/*bEvenIfPendingKill=*/true))

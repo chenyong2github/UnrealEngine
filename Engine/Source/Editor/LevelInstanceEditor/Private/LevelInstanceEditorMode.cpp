@@ -24,8 +24,6 @@ ULevelInstanceEditorMode::ULevelInstanceEditorMode()
 		false);
 
 	bContextRestriction = true;
-
-	FEditorDelegates::PreBeginPIE.AddUObject(this, &ULevelInstanceEditorMode::OnPreBeginPIE);
 }
 
 ULevelInstanceEditorMode::~ULevelInstanceEditorMode()
@@ -59,6 +57,8 @@ void ULevelInstanceEditorMode::Enter()
 	UEdMode::Enter();
 
 	UpdateEngineShowFlags();
+
+	FEditorDelegates::PreBeginPIE.AddUObject(this, &ULevelInstanceEditorMode::OnPreBeginPIE);
 }
 
 void ULevelInstanceEditorMode::Exit()
@@ -66,6 +66,10 @@ void ULevelInstanceEditorMode::Exit()
 	UEdMode::Exit();
 		
 	UpdateEngineShowFlags();
+
+	bContextRestriction = true;
+
+	FEditorDelegates::PreBeginPIE.RemoveAll(this);
 }
 
 void ULevelInstanceEditorMode::CreateToolkit()

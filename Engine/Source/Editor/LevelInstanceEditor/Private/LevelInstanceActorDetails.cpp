@@ -108,7 +108,7 @@ void FLevelInstanceActorDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 		return;
 	}
 
-	IDetailCategoryBuilder& LevelInstanceEditingCategory = DetailBuilder.EditCategory("LevelInstance Editing", FText::GetEmpty(), ECategoryPriority::Transform);
+	IDetailCategoryBuilder& LevelInstanceEditingCategory = DetailBuilder.EditCategory("Level Edit", FText::GetEmpty(), ECategoryPriority::Transform);
 
 	LevelInstanceEditingCategory.AddCustomRow(FText::GetEmpty())
 	[

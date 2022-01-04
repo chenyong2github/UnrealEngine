@@ -136,7 +136,7 @@ namespace LevelInstanceMenuUtils
 		}
 	}
 		
-	void CreateCommitMenu(UToolMenu* Menu, AActor* ContextActor)
+	void CreateCommitDiscardMenu(UToolMenu* Menu, AActor* ContextActor)
 	{
 		ALevelInstance* LevelInstanceEdit = nullptr;
 		if (ContextActor)
@@ -157,35 +157,23 @@ namespace LevelInstanceMenuUtils
 
 		if (LevelInstanceEdit)
 		{
-			FText Tooltip;
-			const bool bCanCommit = LevelInstanceEdit->CanCommit(&Tooltip);
+			FToolMenuSection& Section = CreateLevelSection(Menu);
 
-			auto CreateMenuEntry = [Menu, LevelInstanceEdit, Tooltip](bool bDiscard, bool bCanCommit)
-			{
-				FToolUIAction MenuAction;
+			FText CommitTooltip;
+			const bool bCanCommit = LevelInstanceEdit->CanCommit(&CommitTooltip);
 
-				MenuAction.ExecuteAction.BindLambda([bDiscard, LevelInstanceEdit](const FToolMenuContext&)
-				{
-					if (bDiscard)
-					{
-						LevelInstanceEdit->Discard();
-					}
-					else
-					{
-						LevelInstanceEdit->Commit();
-					}
-				});
-				MenuAction.CanExecuteAction.BindLambda([bCanCommit, LevelInstanceEdit](const FToolMenuContext&)
-				{
-					return bCanCommit;
-				});
+			FToolUIAction CommitAction;
+			CommitAction.ExecuteAction.BindLambda([LevelInstanceEdit](const FToolMenuContext&) { LevelInstanceEdit->Commit(); });
+			CommitAction.CanExecuteAction.BindLambda([bCanCommit](const FToolMenuContext&) { return bCanCommit; });
+			Section.AddMenuEntry(NAME_None, LOCTEXT("LevelInstanceCommitLabel", "Commit"), CommitTooltip, FSlateIcon(), CommitAction);
 
-				FToolMenuSection& Section = CreateLevelSection(Menu);
-				Section.AddMenuEntry(NAME_None, bDiscard ? LOCTEXT("LevelInstanceDiscardLabel", "Discard") : LOCTEXT("LevelInstanceCommitLabel", "Commit"), Tooltip, FSlateIcon(), MenuAction);
-			};
-			
-			CreateMenuEntry(/*bDiscard=*/ false, bCanCommit);
-			CreateMenuEntry(/*bDiscard=*/ true, bCanCommit);
+			FText DiscardTooltip;
+			const bool bCanDiscard = LevelInstanceEdit->CanDiscard(&DiscardTooltip);
+
+			FToolUIAction DiscardAction;
+			DiscardAction.ExecuteAction.BindLambda([LevelInstanceEdit](const FToolMenuContext&) { LevelInstanceEdit->Discard(); });
+			DiscardAction.CanExecuteAction.BindLambda([bCanDiscard](const FToolMenuContext&) { return bCanDiscard; });
+			Section.AddMenuEntry(NAME_None, LOCTEXT("LevelInstanceDiscardLabel", "Discard"), DiscardTooltip, FSlateIcon(), DiscardAction);
 		}
 	}
 
@@ -730,7 +718,7 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 			if (ContextActor)
 			{
 				LevelInstanceMenuUtils::CreateEditMenu(ToolMenu, ContextActor);
-				LevelInstanceMenuUtils::CreateCommitMenu(ToolMenu, ContextActor);
+				LevelInstanceMenuUtils::CreateCommitDiscardMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreateSaveAsMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreateBreakMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreatePackedBlueprintMenu(ToolMenu, ContextActor);
