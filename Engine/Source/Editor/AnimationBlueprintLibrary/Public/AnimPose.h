@@ -147,8 +147,8 @@ public:
 	* @return	Transform in requested space for bone if found, otherwise return identity transform
 	*/
 	UFUNCTION(BlueprintPure, meta = (ScriptMethod), Category = "Animation|Pose")
-    static FTransform GetBonePose(UPARAM(ref) const FAnimPose& Pose, FName BoneName, EAnimPoseSpaces Space = EAnimPoseSpaces::Local);
-
+    static const FTransform& GetBonePose(UPARAM(ref) const FAnimPose& Pose, FName BoneName, EAnimPoseSpaces Space = EAnimPoseSpaces::Local);
+	
 	/**
 	* Sets the transform for the provided bone name for a pose
 	*
@@ -170,7 +170,7 @@ public:
 	* @return	Transform in requested space for bone if found, otherwise return identity transform
 	*/
 	UFUNCTION(BlueprintPure, meta = (ScriptMethod), Category = "Animation|Pose")
-    static FTransform GetRefBonePose(UPARAM(ref) const FAnimPose& Pose, FName BoneName, EAnimPoseSpaces Space = EAnimPoseSpaces::Local);
+    static const FTransform& GetRefBonePose(UPARAM(ref) const FAnimPose& Pose, FName BoneName, EAnimPoseSpaces Space = EAnimPoseSpaces::Local);
 
 	/**
 	* Retrieves the relative transform between the two provided bone names
