@@ -1963,23 +1963,27 @@ bool UNiagaraDataInterfaceStaticMesh::UpgradeFunctionCall(FNiagaraFunctionSignat
 				break;
 			}
 		}
-
-		FunctionSignature.FunctionVersion = EDIFunctionVersion::RefactoredV1;
 	}
 
 	if (FunctionSignature.FunctionVersion < EDIFunctionVersion::LargeWorldCoordinates)
 	{
-		TArray<FNiagaraFunctionSignature> AllFunctions;
-		GetFunctions(AllFunctions);
-		for (const FNiagaraFunctionSignature& Sig : AllFunctions)
+		if (
+			(FunctionSignature.Name == GetVertexWSName) ||
+			(FunctionSignature.Name == GetTriangleWSName) ||
+			(FunctionSignature.Name == GetSocketTransformName) ||
+			(FunctionSignature.Name == GetSocketTransformWSName) ||
+			(FunctionSignature.Name == GetFilteredSocketTransformName) ||
+			(FunctionSignature.Name == GetFilteredSocketTransformWSName) ||
+			(FunctionSignature.Name == GetUnfilteredSocketTransformName) ||
+			(FunctionSignature.Name == GetUnfilteredSocketTransformWSName) )
 		{
-			if (FunctionSignature.Name == Sig.Name)
-			{
-				FunctionSignature = Sig;
-				return true;
-			}
+			check(FunctionSignature.Outputs[0].GetName() == TEXT("Position"));
+			check(FunctionSignature.Outputs[0].GetType() == FNiagaraTypeDefinition::GetVec3Def());
+			FunctionSignature.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
 		}
 	}
+
+	FunctionSignature.FunctionVersion = EDIFunctionVersion::LatestVersion;
 
 	return true;
 }
