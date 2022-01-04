@@ -1637,10 +1637,10 @@ void FPixelShaderInOut_MainPS(
 
 	// Generate the strata material data to write out
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), OpaqueBasePass.Strata.MaxBytesPerPixel);
-	FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(OpaqueBasePass.Strata.MaterialTextureArrayUAV);
+	FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(OpaqueBasePass.Strata.MaterialTextureArrayUAVWithoutRTs);
 	PackStrataOut(
 		RWStrataMaterialContainer,
-		OpaqueBasePass.Strata.MaterialTextureArrayUAV,
+		OpaqueBasePass.Strata.MaterialTextureArrayUAVWithoutRTs,
 		Dither,
 		StrataAddressing,
 		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance,

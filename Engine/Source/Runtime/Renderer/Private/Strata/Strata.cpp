@@ -72,6 +72,7 @@ void FStrataSceneData::Reset()
 	SSSTextureUAV = nullptr;
 
 	MaterialTextureArray = nullptr;
+	MaterialTextureArrayUAVWithoutRTs = nullptr;
 	MaterialTextureArrayUAV = nullptr;
 	MaterialTextureArraySRV = nullptr;
 
@@ -192,19 +193,22 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 	}
 	else
 	{
-		StrataSceneData.MaxBytesPerPixel = 4u;
+		StrataSceneData.MaxBytesPerPixel = 4u * STRATA_BASE_PASS_MRT_OUTPUT_COUNT;
 	}
 
 	// Create the material data container
 	FIntPoint SceneTextureExtent = IsStrataEnabled() ? GetSceneTextureExtent() : FIntPoint(2, 2);
 
-	const FRDGTextureDesc MaterialTextureDescMRTs = FRHITextureCreateInfo::Create2DArray(SceneTextureExtent, PF_R32_UINT, FClearValueBinding::Transparent, TexCreate_TargetArraySlicesIndependently | TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, 2, 1, 1);
-	StrataSceneData.MaterialTextureArrayMRTs = GraphBuilder.CreateTexture(MaterialTextureDescMRTs, TEXT("Strata.MaterialRT"));
-
-	const FRDGTextureDesc MaterialTextureDesc = FRHITextureCreateInfo::Create2DArray(SceneTextureExtent, PF_R32_UINT, FClearValueBinding::Transparent, TexCreate_DisableDCC | TexCreate_NoFastClear | TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, StrataSceneData.MaxBytesPerPixel / 4, 1, 1);
+	const uint32 SliceCount = FMath::DivideAndRoundUp(StrataSceneData.MaxBytesPerPixel, 4u);
+	const FRDGTextureDesc MaterialTextureDesc = FRHITextureCreateInfo::Create2DArray(SceneTextureExtent, PF_R32_UINT, FClearValueBinding::Transparent, 
+		TexCreate_TargetArraySlicesIndependently | TexCreate_DisableDCC | TexCreate_NoFastClear | TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, SliceCount, 1, 1);
 	StrataSceneData.MaterialTextureArray = GraphBuilder.CreateTexture(MaterialTextureDesc, TEXT("Strata.Material"));
 	StrataSceneData.MaterialTextureArraySRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(StrataSceneData.MaterialTextureArray));
 	StrataSceneData.MaterialTextureArrayUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(StrataSceneData.MaterialTextureArray, 0));
+
+	// See AppendStrataMRTs
+	check(STRATA_BASE_PASS_MRT_OUTPUT_COUNT <= SliceCount);
+	StrataSceneData.MaterialTextureArrayUAVWithoutRTs = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(StrataSceneData.MaterialTextureArray, 0, PF_Unknown, STRATA_BASE_PASS_MRT_OUTPUT_COUNT, SliceCount - STRATA_BASE_PASS_MRT_OUTPUT_COUNT));
 
 	// Rough diffuse model
 	StrataSceneData.bRoughDiffuse = CVarStrataRoughDiffuse.GetValueOnRenderThread() > 0 ? 1u : 0u;
@@ -220,7 +224,7 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 	{
 		AddStrataClearMaterialBufferPass(
 			GraphBuilder, 
-			GraphBuilder.CreateUAV(FRDGTextureUAVDesc(StrataSceneData.MaterialTextureArrayMRTs, 0)),
+			GraphBuilder.CreateUAV(FRDGTextureUAVDesc(StrataSceneData.MaterialTextureArray, 0)),
 			StrataSceneData.SSSTextureUAV,
 			StrataSceneData.MaxBytesPerPixel, 
 			MaterialBufferSizeXY);
@@ -241,7 +245,7 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataScene
 	{
 		OutStrataUniformParameters.bRoughDiffuse = StrataSceneData->bRoughDiffuse ? 1u : 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
-		OutStrataUniformParameters.MaterialTextureArrayUAV = StrataSceneData->MaterialTextureArrayUAV;
+		OutStrataUniformParameters.MaterialTextureArrayUAVWithoutRTs = StrataSceneData->MaterialTextureArrayUAVWithoutRTs;
 		OutStrataUniformParameters.SSSTextureUAV = StrataSceneData->SSSTextureUAV;
 	}
 	else
@@ -255,7 +259,7 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataScene
 		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 		OutStrataUniformParameters.bRoughDiffuse = 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = 0;
-		OutStrataUniformParameters.MaterialTextureArrayUAV = DummyWritableTextureArrayUAV;
+		OutStrataUniformParameters.MaterialTextureArrayUAVWithoutRTs = DummyWritableTextureArrayUAV;
 		OutStrataUniformParameters.SSSTextureUAV = DummyWritableTextureUAV;
 	}
 }
@@ -635,11 +639,14 @@ void AppendStrataMRTs(FSceneRenderer& SceneRenderer, uint32& RenderTargetCount, 
 		// - We must never clear the second uint, it will only be written/read if needed.
 		auto AddStrataOutputTarget = [&](int16 StrataMaterialArraySlice, bool bNeverClear = false)
 		{
-			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.MaterialTextureArrayMRTs, StrataMaterialArraySlice, bNeverClear);
+			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.MaterialTextureArray, StrataMaterialArraySlice, bNeverClear);
 			RenderTargetCount++;
 		};
-		AddStrataOutputTarget(0);
-		AddStrataOutputTarget(1, true); // Never clear that target
+		for (int i = 0; i < STRATA_BASE_PASS_MRT_OUTPUT_COUNT; ++i)
+		{
+			const bool bNeverClear = i != 0; // Only allow clearing the first slice containing the header
+			AddStrataOutputTarget(i, bNeverClear);
+		}
 
 		// Add another MRT for Strata top layer information. We want to follow the usual clear process which can leverage fast clear.
 		{
@@ -693,7 +700,17 @@ IMPLEMENT_GLOBAL_SHADER(FStrataPostBasePassCS, "/Engine/Private/Strata/StrataMat
 
 void PostBasePass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views)
 {
-	RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, IsStrataEnabled() && Views.Num() > 0, "StrataPostBasePass");
+
+
+
+
+	////// TODO delete PostBasePas shader
+
+
+
+
+
+	/*RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, IsStrataEnabled() && Views.Num() > 0, "StrataPostBasePass");
 	if (!IsStrataEnabled())
 	{
 		return;
@@ -716,7 +733,7 @@ void PostBasePass(FRDGBuilder& GraphBuilder, const TArray<FViewInfo>& Views)
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), GroupSize));
-	}
+	}*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
