@@ -91,7 +91,7 @@ static FAutoConsoleVariableRef CVarActorClusteringEnabled(
 	ECVF_Default
 );
 
-bool GUseLegacyRouteActorInitialization = true;
+bool GUseLegacyRouteActorInitialization = false;
 static FAutoConsoleVariableRef CVarUseLegacyRouteActorInitialization(
 	TEXT("s.UseLegacyRouteActorInitialization"),
 	GUseLegacyRouteActorInitialization,
