@@ -68,6 +68,9 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 		if(NewNonFrequentData)
 		{
 			Handle->SetNonFrequentData(*NewNonFrequentData);
+
+			// geometry may have changed, we need to invalidate the particle so it can be removed from caching structures in the evolution
+			Evolution.InvalidateParticle(Handle);
 		}
 
 		auto NewVelocities = bHasKinematicData ? ParticleData.FindVelocities(Manager, DataIdx) : nullptr;

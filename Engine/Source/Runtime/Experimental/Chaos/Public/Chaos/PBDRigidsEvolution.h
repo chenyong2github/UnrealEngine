@@ -368,6 +368,11 @@ public:
 		DisableConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
 	}
 
+	CHAOS_API void InvalidateParticle(FGeometryParticleHandle* Particle)
+	{
+		ConstraintGraph.DisableParticle(Particle);
+	}
+	
 	CHAOS_API void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration,FPendingSpatialDataQueue& ExternalQueue);
 
 	CHAOS_API void DisableParticles(TSet<FGeometryParticleHandle*> &ParticlesIn)
