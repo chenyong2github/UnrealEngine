@@ -14,11 +14,29 @@ class FConsoleVariablesEditorList : public TSharedFromThis<FConsoleVariablesEdit
 {
 public:
 
-	FConsoleVariablesEditorList(){};
+	enum class EConsoleVariablesEditorListMode : uint8
+	{
+		// We're displaying the cvars listed in the loaded (or default) preset
+		Preset = 1,
+		// We're displaying the cvars that match the criteria of the global search
+		GlobalSearch = 2
+	};
+
+	FConsoleVariablesEditorList() {}
 
 	~FConsoleVariablesEditorList();
 
 	TSharedRef<SWidget> GetOrCreateWidget();
+
+	EConsoleVariablesEditorListMode GetListMode() const
+	{
+		return CurrentListMode;
+	}
+
+	void SetListMode(EConsoleVariablesEditorListMode NewListMode)
+	{
+		CurrentListMode = NewListMode;;
+	}
 
 	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
 	void RebuildList(const FString& InConsoleCommandToScrollTo = "") const;
@@ -34,5 +52,6 @@ public:
 
 private:
 
+	EConsoleVariablesEditorListMode CurrentListMode = EConsoleVariablesEditorListMode::Preset;
 	TSharedPtr<SConsoleVariablesEditorList> ListWidget;
 };

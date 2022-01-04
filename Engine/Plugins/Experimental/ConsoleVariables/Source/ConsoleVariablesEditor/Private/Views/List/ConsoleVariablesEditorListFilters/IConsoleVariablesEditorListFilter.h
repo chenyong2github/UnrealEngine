@@ -7,6 +7,14 @@
 class IConsoleVariablesEditorListFilter
 {
 public:
+
+	enum class EConsoleVariablesEditorListFilterMatchType
+	{
+		// Filters of this type are placed into a group in which if any of the group's filters pass, the row is considered passing
+		MatchAny,
+		// Filters of this type are placed into a group in which all of the group's filters must pass for the row to be considered passing
+		MatchAll
+	};
 	
 	virtual ~IConsoleVariablesEditorListFilter() = default;
 
@@ -32,6 +40,16 @@ public:
 		return bIsFilterActive;
 	}
 
+	void SetFilterMatchType(const EConsoleVariablesEditorListFilterMatchType InType)
+	{
+		FilterMatchType = InType;
+	}
+
+	EConsoleVariablesEditorListFilterMatchType GetFilterMatchType() const
+	{
+		return FilterMatchType;
+	}
+
 	virtual bool DoesItemPassFilter(const FConsoleVariablesEditorListRowPtr& InItem)
 	{
 		return false;
@@ -40,5 +58,6 @@ public:
 private:
 
 	bool bIsFilterActive = true;
+	EConsoleVariablesEditorListFilterMatchType FilterMatchType = EConsoleVariablesEditorListFilterMatchType::MatchAny;
 			
 };

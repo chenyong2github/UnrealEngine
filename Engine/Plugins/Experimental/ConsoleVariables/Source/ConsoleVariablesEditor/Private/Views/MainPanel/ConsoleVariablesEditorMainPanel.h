@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ConsoleVariablesEditorModule.h"
+#include "Views/List/ConsoleVariablesEditorList.h"
 #include "Widgets/SWidget.h"
 
 class FConsoleVariablesEditorList;
@@ -54,6 +55,11 @@ public:
 		return EditorList;
 	}
 
+	FConsoleVariablesEditorList::EConsoleVariablesEditorListMode GetEditorListMode() const
+	{
+		return EditorList->GetListMode();
+	}
+
 	UE::ConsoleVariables::MultiUser::Private::FManager& GetMultiUserManager()
 	{
 		return MultiUserManager;
@@ -70,8 +76,8 @@ private:
 
 	TSharedPtr<FConsoleVariablesEditorList> EditorList;
 
-	void OnConnectionChanged(EConcertConnectionStatus Status);
-	void OnRemoteCvarChange(const FString InName, const FString InValue);
+	static void OnConnectionChanged(EConcertConnectionStatus Status);
+	static void OnRemoteCvarChange(const FString InName, const FString InValue);
 
 	UE::ConsoleVariables::MultiUser::Private::FManager MultiUserManager;
 	FDelegateHandle OnConnectionChangedHandle;

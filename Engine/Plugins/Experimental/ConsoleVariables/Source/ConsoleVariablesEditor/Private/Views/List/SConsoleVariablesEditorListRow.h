@@ -108,5 +108,5 @@ private:
 	
 	TWeakPtr<FConsoleVariablesEditorListRow> Item;
 	
-	TSharedPtr<SButton> RemoveButtonPtr;
+	TSharedPtr<SButton> ActionButtonPtr;
 };

@@ -41,6 +41,8 @@ public:
 
 	void Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow);
 	
+	virtual ~SConsoleVariablesEditorListValueInput_Float() override;
+	
 	virtual void SetInputValue(const FString& InValueAsString) override;
 	virtual FString GetInputValueAsString() override;
 
@@ -62,6 +64,8 @@ public:
 
 	void Construct(
 		const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow, const bool bIsShowFlag = false);
+
+	virtual ~SConsoleVariablesEditorListValueInput_Int() override;
 	
 	virtual void SetInputValue(const FString& InValueAsString) override;
 	virtual FString GetInputValueAsString() override;
@@ -83,6 +87,8 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow);
+
+	virtual ~SConsoleVariablesEditorListValueInput_String() override;
 	
 	virtual void SetInputValue(const FString& InValueAsString) override;
 	virtual FString GetInputValueAsString() override;
@@ -104,6 +110,8 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow);
+
+	virtual ~SConsoleVariablesEditorListValueInput_Bool() override;
 	
 	virtual void SetInputValue(const FString& InValueAsString) override;
 	void SetInputValue(const bool bNewValue);
@@ -139,10 +147,12 @@ public:
 	void Construct(
 		const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow, const FString& InSavedText);
 	
+	virtual ~SConsoleVariablesEditorListValueInput_Command() override;
+	
 	virtual void SetInputValue(const FString& InValueAsString) override;
 	virtual FString GetInputValueAsString() override;
 
-	FString GetInputValue();
+	FString GetInputValue() const;
 
 private:
 	

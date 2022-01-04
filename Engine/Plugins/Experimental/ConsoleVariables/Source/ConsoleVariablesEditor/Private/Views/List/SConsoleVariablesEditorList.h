@@ -6,9 +6,13 @@
 #include "ConsoleVariablesEditorListFilters/IConsoleVariablesEditorListFilter.h"
 
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/STreeView.h"
 
+class SConsoleVariablesEditorGlobalSearchToggle;
+class SWrapBox;
+class FConsoleVariablesEditorList;
 class UConsoleVariablesAsset;
 class SBox;
 class SComboButton;
@@ -25,9 +29,20 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedRef<FConsoleVariablesEditorList> ListModel);
 
 	virtual ~SConsoleVariablesEditorList() override;
+
+	TWeakPtr<FConsoleVariablesEditorList> GetListModelPtr()
+	{
+		return ListModelPtr;
+	}
+
+	FReply TryEnterGlobalSearch(const FString& SearchString = "");
+	FReply HandleRemoveGlobalSearchToggleButton();
+	void CleanUpGlobalSearchesMarkedForDelete();
+	/** Remove all widgets from the global search container then recreate them */
+	void RefreshGlobalSearchWidgets();
 
 	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
 	void RebuildList(const FString& InConsoleCommandToScrollTo = "");
@@ -52,7 +67,7 @@ public:
 	void UpdatePresetValuesForSave(const TObjectPtr<UConsoleVariablesAsset> InAsset) const;
 
 	FString GetSearchStringFromSearchInputField() const;
-	void ExecuteListViewSearchOnAllRows(const FString& SearchString) const;
+	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);
 
 	bool DoesTreeViewHaveVisibleChildren() const;
 
@@ -67,7 +82,7 @@ public:
 	void OnListItemCheckBoxStateChange(const ECheckBoxState InNewState);
 
 	void ToggleFilterActive(const FString& FilterName);
-	void EvaluateIfRowsPassFilters();
+	void EvaluateIfRowsPassFilters(const bool bShouldRefreshAfterward = true);
 
 	// Sorting
 
@@ -78,13 +93,14 @@ public:
 	EColumnSortMode::Type GetSortModeForColumn(FName InColumnName) const;
 	void OnSortColumnCalled(EColumnSortPriority::Type Priority, const FName& ColumnName, EColumnSortMode::Type SortMode);
 	EColumnSortMode::Type CycleSortMode(const FName& InColumnName);
-	void ExecuteSort(const FName& InColumnName, const EColumnSortMode::Type InColumnSortMode);
+	void ExecuteSort(
+		const FName& InColumnName, const EColumnSortMode::Type InColumnSortMode, const bool bShouldRefreshAfterward = true);
 	void ClearSorting()
 	{
 		ActiveSortingColumnName = NAME_None;
 		ActiveSortingType = EColumnSortMode::None;
 	}
-	void SetSortOrder();
+	void SetSortOrder(const bool bShouldRefreshAfterward = true);
 
 	// Column Names
 
@@ -95,6 +111,8 @@ public:
 	static const FName SourceColumnName;
 
 private:
+
+	TWeakPtr<FConsoleVariablesEditorList> ListModelPtr;
 	
 	TSharedPtr<SHeaderRow> HeaderRow;
 	TSharedPtr<SHeaderRow> GenerateHeaderRow();
@@ -110,15 +128,25 @@ private:
 
 	// Search
 	
-	void OnListViewSearchTextChanged(const FText& Text) const;
+	void OnListViewSearchTextChanged(const FText& Text);
 
 	TSharedPtr<SSearchBox> ListSearchBoxPtr;
 	TSharedPtr<SComboButton> ViewOptionsComboButton;
+	
+	/** Contains the GlobalSearchesContainer and remove button. Made a member in order to collapse it when GlobalSearchesContainer has no children. */
+	TSharedPtr<SHorizontalBox> GlobalSearchesHBox;
+	/** Contains the global search checkboxes only */
+	TSharedPtr<SWrapBox> GlobalSearchesContainer;
+	TArray<TSharedRef<SConsoleVariablesEditorGlobalSearchToggle>> CurrentGlobalSearches;
+	
+	TSharedPtr<SButton> RemoveGlobalSearchesButtonPtr;
 	TSharedPtr<SBox> ListBoxContainerPtr;
 
 	//  Tree View Implementation
 
 	void GenerateTreeView();
+	void FindVisibleTreeViewObjects();
+	void FindVisibleObjectsAndRequestTreeRefresh();
 	
 	void OnGetRowChildren(FConsoleVariablesEditorListRowPtr Row, TArray<FConsoleVariablesEditorListRowPtr>& OutChildren) const;
 	void OnRowChildExpansionChange(FConsoleVariablesEditorListRowPtr Row, const bool bIsExpanded, const bool bIsRecursive = false) const;
@@ -128,8 +156,15 @@ private:
 	TArray<TSharedRef<IConsoleVariablesEditorListFilter>> ShowFilters;
 
 	TSharedPtr<STreeView<FConsoleVariablesEditorListRowPtr>> TreeViewPtr;
-	
+
+	/** All Tree view objects */
 	TArray<FConsoleVariablesEditorListRowPtr> TreeViewRootObjects;
+	/** Visible Tree view objects, after filters */
+	TArray<FConsoleVariablesEditorListRowPtr> VisibleTreeViewObjects;
+	/** When a global search is initiated we cache the tree objects shown in preset list mode
+	 * This way they can be recalled without rebuilding from the saved commands
+	 */
+	TArray<FConsoleVariablesEditorListRowPtr> LastPresetObjects;
 
 	// Sorting
 
