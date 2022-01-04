@@ -609,6 +609,7 @@ namespace UnrealBuildTool
 			{
 				Result += " -Wno-unused-but-set-variable";
 				Result += " -Wno-unused-but-set-parameter";
+				Result += " -Wno-ordered-compare-function-pointers";
 			}
 			// this will hide the warnings about static functions in headers that aren't used in every single .cpp file
 			Result += " -Wno-unused-function";

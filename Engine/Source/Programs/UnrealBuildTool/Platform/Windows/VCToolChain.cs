@@ -852,6 +852,11 @@ namespace UnrealBuildTool
 				// @todo clang: Kind of a shame to turn these off.  We'd like to catch unused variables, but it is tricky with how our assertion macros work.
 				Arguments.Add("-Wno-inconsistent-missing-override");
 				Arguments.Add("-Wno-unused-variable");
+				if (EnvVars.CompilerVersion >= new VersionNumber(13))
+				{
+					Arguments.Add("-Wno-unused-but-set-variable");
+					Arguments.Add("-Wno-unused-but-set-parameter");
+				}
 				Arguments.Add("-Wno-unused-local-typedefs");
 				Arguments.Add("-Wno-unused-function");
 				Arguments.Add("-Wno-unused-private-field");
@@ -891,6 +896,10 @@ namespace UnrealBuildTool
 				Arguments.Add("-Wno-invalid-token-paste");
 				Arguments.Add("-Wno-null-pointer-arithmetic");
 				Arguments.Add("-Wno-constant-logical-operand"); // Triggered by || of two template-derived values inside a static_assert
+				if (EnvVars.CompilerVersion >= new VersionNumber(13))
+				{
+					Arguments.Add("-Wno-ordered-compare-function-pointers");
+				}
 
 			}
 		}
