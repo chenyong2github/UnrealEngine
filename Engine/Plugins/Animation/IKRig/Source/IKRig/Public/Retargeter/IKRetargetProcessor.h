@@ -354,6 +354,9 @@ public:
 	/** Get index of the root bone of the target skeleton. */
 	const int32 GetTargetSkeletonRootBone() const { return RootRetargeter.Target.BoneIndex; };
 
+	/** Get read-only access to the source skeleton. */
+	const FRetargetSkeleton& GetSourceSkeleton() const { return SourceSkeleton; };
+	
 	/** Get whether this processor is ready to call RunRetargeter() and generate new poses. */
 	bool IsInitialized() const { return bIsInitialized; };
 
