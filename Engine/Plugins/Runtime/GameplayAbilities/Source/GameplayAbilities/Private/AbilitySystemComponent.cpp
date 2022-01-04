@@ -2018,7 +2018,7 @@ UAbilitySystemComponent* GetDebugTarget(FASCDebugTargetInfo* Info)
 			if (ASC->GetWorld() == Info->TargetWorld.Get() && MakeWeakObjectPtr(ASC).Get())
 			{
 				Info->LastDebugTarget = ASC;
-				if (ASC->AbilityActorInfo->IsLocallyControlledPlayer())
+				if (ASC->AbilityActorInfo != nullptr && ASC->AbilityActorInfo->IsLocallyControlledPlayer())
 				{
 					// Default to local player first
 					break;
