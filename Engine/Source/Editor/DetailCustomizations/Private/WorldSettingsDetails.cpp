@@ -107,10 +107,11 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 	{
 		const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(CustomizedLevel->GetWorld());
 
-		IDetailCategoryBuilder& WorldPartitionCategory = DetailBuilder.EditCategory("WorldPartition");
 		if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)
 		{
-			WorldPartitionCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
+			IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
+
+			WorldCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
 				.NameContent()
 				[
 					SNew(STextBlock)
@@ -130,6 +131,8 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 
 		if (bIsPartitionedWorld)
 		{
+			IDetailCategoryBuilder& WorldPartitionCategory = DetailBuilder.EditCategory("WorldPartition");
+
 			WorldPartitionCategory.AddCustomRow(LOCTEXT("DefaultWorldPartitionSettingsRow", "DefaultWorldPartitionSettings"), true)
 				.NameContent()
 				[
