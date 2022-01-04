@@ -89,7 +89,7 @@ public:
 	static void SetUObjectReaderPropertyRemap(UNiagaraComponent* NiagaraComponent, FName UserParameterName, FName GraphName, FName RemapName);
 
 private:
-	//void VMGetProperty(FVectorVMExternalFunctionContext& Context);
+	void VMGetComponentTransform(FVectorVMExternalFunctionContext& Context);
 
 	FName GetRemappedPropertyName(FName InName) const
 	{
