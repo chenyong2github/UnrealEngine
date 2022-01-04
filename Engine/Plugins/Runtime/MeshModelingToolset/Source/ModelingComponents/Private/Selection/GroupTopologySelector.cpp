@@ -553,7 +553,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FSelectionSettings& Sett
 	{
 		if (Settings.bSelectDownRay)
 		{
-			for (const FIndex2i ElementTuple : DownRayElements)
+			for (const FIndex2i& ElementTuple : DownRayElements)
 			{
 				ResultOut.SelectedEdgeIDs.Add(ElementTuple.A);
 			}
