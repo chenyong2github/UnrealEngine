@@ -220,6 +220,8 @@ struct FStreamingRenderAsset
 	int32			MinAllowedMips;
 	/** (2) Max mip to be requested by the streaming  */
 	int32			MaxAllowedMips;
+	/** (2) LOD bias applied to no-ref meshes */
+	int32			NoRefLODBias;
 	/** (2) How much game time has elapsed since the texture was bound for rendering. Based on FApp::GetCurrentTime(). */
 	float			LastRenderTime;
 

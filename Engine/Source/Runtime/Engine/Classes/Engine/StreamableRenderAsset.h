@@ -11,6 +11,7 @@
 #include "Templates/RefCounting.h"
 #include "RenderAssetUpdate.h"
 #include "Streaming/StreamableRenderResourceState.h"
+#include "PerQualityLevelProperties.h"
 #include "StreamableRenderAsset.generated.h"
 
 #define STREAMABLERENDERASSET_NODEFAULT(FuncName) LowLevelFatalError(TEXT("UStreamableRenderAsset::%s has no default implementation"), TEXT(#FuncName))
@@ -204,6 +205,18 @@ public:
 	ENGINE_API virtual void BeginDestroy() override;
 	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 
+	const FPerQualityLevelInt& GetNoRefStreamingLODBias() const
+	{
+		return NoRefStreamingLODBias;
+	}
+
+	void SetNoRefStreamingLODBias(FPerQualityLevelInt NewValue)
+	{
+		NoRefStreamingLODBias = MoveTemp(NewValue);
+	}
+
+	ENGINE_API int32 GetCurrentNoRefStreamingLODBias() const;
+
 protected:
 	
 	// Also returns false if the render resource is non existent, to prevent stalling on an event that will never complete.
@@ -243,6 +256,9 @@ public:
 	int32 NumCinematicMipLevels;
 
 protected:
+	UPROPERTY()
+	FPerQualityLevelInt NoRefStreamingLODBias;
+
 	/** FStreamingRenderAsset index used by the texture streaming system. */
 	UPROPERTY(transient, duplicatetransient, NonTransactional)
 	int32 StreamingIndex = INDEX_NONE;

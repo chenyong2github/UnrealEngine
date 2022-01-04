@@ -90,6 +90,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/CoreMisc.h"
+#include "SPerQualityLevelPropertiesWidget.h"
 #include "UObject/SavePackage.h"
 
 #define LOCTEXT_NAMESPACE "PersonaMeshDetails"
@@ -3218,6 +3219,26 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 		]
 	];
 
+	LODSettingsCategory.AddCustomRow(LOCTEXT("NoRefStreamingLODBias", "NoRef Streaming LOD Bias"))
+	.RowTag("NoRefStreamingLODBias")
+	.IsEnabled(TAttribute<bool>::CreateLambda([this]() { return GetLODCount() > 1; }))
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("NoRefStreamingLODBias", "NoRef Streaming LOD Bias"))
+	]
+	.ValueContent()
+	.MinDesiredWidth(float(SkelMesh->GetNoRefStreamingLODBias().PerQuality.Num() + 1) * 125.f)
+	.MaxDesiredWidth(float((int32)QualityLevelProperty::EQualityLevels::Num + 1) * 125.f)
+	[
+		SNew(SPerQualityLevelPropertiesWidget)
+		.OnGenerateWidget(this, &FPersonaMeshDetails::GetNoRefStreamingLODBiasWidget)
+		.OnAddEntry(this, &FPersonaMeshDetails::AddNoRefStreamingLODBiasOverride)
+		.OnRemoveEntry(this, &FPersonaMeshDetails::RemoveNoRefStreamingLODBiasOverride)
+		.EntryNames(this, &FPersonaMeshDetails::GetNoRefStreamingLODBiasOverrideNames)
+	];
+
 	TSharedPtr<IPropertyHandle> MinLODPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetMinLodMemberName(), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& MinLODRow = LODSettingsCategory.AddProperty(MinLODPropertyHandle);
 	MinLODRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
@@ -3398,6 +3419,119 @@ void FPersonaMeshDetails::RefreshMeshDetailLayout()
 		LodReductionSettings->UnbindReductionSettings();
 	}
 	MeshDetailLayout->ForceRefreshDetails();
+}
+
+void FPersonaMeshDetails::OnNoRefStreamingLODBiasChanged(int32 NewValue, FName QualityLevel)
+{
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+
+	{
+		FSkinnedMeshComponentRecreateRenderStateContext ReregisterContext(SkelMesh);
+		NewValue = FMath::Clamp<int32>(NewValue, -1, SkelMesh->GetLODNum() - 1);
+		FPerQualityLevelInt NoRefStreamingLODBias = SkelMesh->GetNoRefStreamingLODBias();
+		int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevel);
+		if (QualityLevel == NAME_None || QLKey == INDEX_NONE)
+		{
+			NoRefStreamingLODBias.Default = NewValue;
+		}
+		else
+		{
+			int32* ValuePtr = NoRefStreamingLODBias.PerQuality.Find(QLKey);
+			if (ValuePtr != nullptr)
+			{
+				*ValuePtr = NewValue;
+			}
+		}
+		SkelMesh->SetNoRefStreamingLODBias(MoveTemp(NoRefStreamingLODBias));
+		SkelMesh->Modify();
+	}
+	RefreshMeshDetailLayout();
+}
+
+void FPersonaMeshDetails::OnNoRefStreamingLODBiasCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName QualityLevel)
+{
+	OnNoRefStreamingLODBiasChanged(InValue, QualityLevel);
+}
+
+int32 FPersonaMeshDetails::GetNoRefStreamingLODBias(FName QualityLevel) const
+{
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+
+	int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevel);
+	const int32* ValuePtr = (QualityLevel == NAME_None) ? nullptr : SkelMesh->GetNoRefStreamingLODBias().PerQuality.Find(QLKey);
+	return (ValuePtr != nullptr) ? *ValuePtr : SkelMesh->GetNoRefStreamingLODBias().Default;
+}
+
+TSharedRef<SWidget> FPersonaMeshDetails::GetNoRefStreamingLODBiasWidget(FName QualityLevelName) const
+{
+	return SNew(SSpinBox<int32>)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Value(this, &FPersonaMeshDetails::GetNoRefStreamingLODBias, QualityLevelName)
+		.OnValueChanged(const_cast<FPersonaMeshDetails*>(this), &FPersonaMeshDetails::OnNoRefStreamingLODBiasChanged, QualityLevelName)
+		.OnValueCommitted(const_cast<FPersonaMeshDetails*>(this), &FPersonaMeshDetails::OnNoRefStreamingLODBiasCommitted, QualityLevelName)
+		.MinValue(-1)
+		.MaxValue(GetPersonaToolkit()->GetMesh()->GetLODNum() - 1)
+		.ToolTipText(this, &FPersonaMeshDetails::GetNoRefStreamingLODBiasTooltip)
+		.IsEnabled(FPersonaMeshDetails::GetLODCount() > 1);
+}
+
+bool FPersonaMeshDetails::AddNoRefStreamingLODBiasOverride(FName QualityLevelName)
+{
+	FScopedTransaction Transaction(LOCTEXT("AddNoRefStreamingLODBiasOverride", "Add NoRef Streaming LOD Bias Override"));
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+	SkelMesh->Modify();
+	int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	if (SkelMesh->GetNoRefStreamingLODBias().PerQuality.Find(QLKey) == nullptr)
+	{
+		FPerQualityLevelInt NoRefStreamingLODBias = SkelMesh->GetNoRefStreamingLODBias();
+		int32 Value = NoRefStreamingLODBias.Default;
+		NoRefStreamingLODBias.PerQuality.Add(QLKey, Value);
+		SkelMesh->SetNoRefStreamingLODBias(MoveTemp(NoRefStreamingLODBias));
+		OnNoRefStreamingLODBiasChanged(Value, QualityLevelName);
+		return true;
+	}
+	return false;
+}
+
+bool FPersonaMeshDetails::RemoveNoRefStreamingLODBiasOverride(FName QualityLevelName)
+{
+	FScopedTransaction Transaction(LOCTEXT("RemoveNoRefStreamingLODBiasOverride", "Remove NoRef Streaming LOD Bias Override"));
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+	SkelMesh->Modify();
+
+	FPerQualityLevelInt NoRefStreamingLODBias = SkelMesh->GetNoRefStreamingLODBias();
+	int32 QL = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	if (QL != INDEX_NONE && NoRefStreamingLODBias.PerQuality.Remove(QL) != 0)
+	{
+		int32 Value = NoRefStreamingLODBias.Default;
+		SkelMesh->SetNoRefStreamingLODBias(MoveTemp(NoRefStreamingLODBias));
+		OnNoRefStreamingLODBiasChanged(Value, QualityLevelName);
+		return true;
+	}
+	return false;
+}
+
+TArray<FName> FPersonaMeshDetails::GetNoRefStreamingLODBiasOverrideNames() const
+{
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+
+	TArray<FName> OverrideNames;
+	for (const TPair<int32, int32>& Pair : SkelMesh->GetNoRefStreamingLODBias().PerQuality)
+	{
+		OverrideNames.Add(QualityLevelProperty::QualityLevelToFName(Pair.Key));
+	}
+	OverrideNames.Sort(FNameLexicalLess());
+	return OverrideNames;
+}
+
+FText FPersonaMeshDetails::GetNoRefStreamingLODBiasTooltip() const
+{
+	return LOCTEXT("NoRefStreamingLODBiasTooltip", "LOD bias for preloading no-ref mesh LODs. To use platform default, set to -1.");
 }
 
 FReply FPersonaMeshDetails::OnApplyChanges()

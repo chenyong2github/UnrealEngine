@@ -586,6 +586,15 @@ private:
 
 	void RefreshMeshDetailLayout();
 
+	void OnNoRefStreamingLODBiasChanged(int32 NewValue, FName QualityLevel);
+	void OnNoRefStreamingLODBiasCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName QualityLevel);
+	int32 GetNoRefStreamingLODBias(FName QualityLevel) const;
+	TSharedRef<SWidget> GetNoRefStreamingLODBiasWidget(FName QualityLevelName) const;
+	bool AddNoRefStreamingLODBiasOverride(FName QualityLevelName);
+	bool RemoveNoRefStreamingLODBiasOverride(FName QualityLevelName);
+	TArray<FName> GetNoRefStreamingLODBiasOverrideNames() const;
+	FText GetNoRefStreamingLODBiasTooltip() const;
+
 	/** apply LOD changes if the user modified LOD reduction settings */
 	FReply OnApplyChanges();
 	/** regenerate one specific LOD Index no dependencies*/

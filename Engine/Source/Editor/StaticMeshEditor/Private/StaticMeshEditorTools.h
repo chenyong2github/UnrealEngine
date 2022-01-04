@@ -559,6 +559,14 @@ private:
 	bool RemoveMinLODQualityLevelOverride(FName QualityLevelName);
 	TArray<FName> GetMinQualityLevelLODOverrideNames() const;
 
+	void OnNoRefStreamingLODBiasChanged(int32 NewValue, FName QualityLevel);
+	void OnNoRefStreamingLODBiasCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName QualityLevel);
+	int32 GetNoRefStreamingLODBias(FName QualityLevel) const;
+	TSharedRef<SWidget> GetNoRefStreamingLODBiasWidget(FName QualityLevelName) const;
+	bool AddNoRefStreamingLODBiasOverride(FName QualityLevelName);
+	bool RemoveNoRefStreamingLODBiasOverride(FName QualityLevelName);
+	TArray<FName> GetNoRefStreamingLODBiasOverrideNames() const;
+
 	void OnNumStreamedLODsChanged(int32 NewValue, FName Platform);
 	void OnNumStreamedLODsCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName Platform);
 	int32 GetNumStreamedLODs(FName Platform) const;
@@ -595,6 +603,7 @@ private:
 	void UpdateLODNames();
 	FText GetLODCountTooltip() const;
 	FText GetMinLODTooltip() const;
+	FText GetNoRefStreamingLODBiasTooltip() const;
 	FText GetNumStreamedLODsTooltip() const;
 
 	FText GetLODCustomModeNameContent(int32 LODIndex) const;
