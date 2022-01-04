@@ -13,13 +13,13 @@ void FAnimPose::Init(const FBoneContainer& InBoneContainer)
 {
 	Reset();
 	BoneContainer = InBoneContainer;
-		
+
+	const FReferenceSkeleton& RefSkeleton = BoneContainer.GetSkeletonAsset()->GetReferenceSkeleton();
+	
 	for (const FBoneIndexType BoneIndex : BoneContainer.GetBoneIndicesArray())
 	{			
 		const FCompactPoseBoneIndex CompactIndex(BoneIndex);
 		const FCompactPoseBoneIndex CompactParentIndex = BoneContainer.GetParentBoneIndex(CompactIndex);
-
-		const FReferenceSkeleton& RefSkeleton = BoneContainer.GetSkeletonAsset()->GetReferenceSkeleton();
 
 		const int32 SkeletonBoneIndex = BoneContainer.GetSkeletonIndex(CompactIndex);
 		if (SkeletonBoneIndex != INDEX_NONE)
@@ -195,7 +195,7 @@ void UAnimPoseExtensions::GetBoneNames(const FAnimPose& Pose, TArray<FName>& Bon
 	Bones.Append(Pose.BoneNames);
 }
 
-FTransform UAnimPoseExtensions::GetBonePose(const FAnimPose& Pose, FName BoneName, EAnimPoseSpaces Space /*= EAnimPoseSpaces::Local*/)
+const FTransform& UAnimPoseExtensions::GetBonePose(const FAnimPose& Pose, FName BoneName, EAnimPoseSpaces Space /*= EAnimPoseSpaces::Local*/)
 {
 	if (Pose.IsValid())
 	{
@@ -247,7 +247,7 @@ void UAnimPoseExtensions::SetBonePose(FAnimPose& Pose, FTransform Transform, FNa
 	}
 }
 	
-FTransform UAnimPoseExtensions::GetRefBonePose(const FAnimPose& Pose, FName BoneName, EAnimPoseSpaces Space /*= EAnimPoseSpaces::Local*/)
+const FTransform& UAnimPoseExtensions::GetRefBonePose(const FAnimPose& Pose, FName BoneName, EAnimPoseSpaces Space /*= EAnimPoseSpaces::Local*/)
 {
 	if (Pose.IsValid())
 	{
