@@ -58,6 +58,7 @@ namespace Metasound
 			// If provided in registration call, UClass this datatype was registered with
 			UClass* ProxyGeneratorClass = nullptr;
 
+			// Returns if DataType supports array parsing.
 			FORCEINLINE bool IsArrayType() const
 			{
 				return bIsDefaultArrayParsable

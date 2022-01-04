@@ -22,7 +22,8 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
 					"ToolWidgets",
 					"AudioWidgets",
-					"AudioSynesthesia"
+					"AudioSynesthesia",
+					"EditorWidgets"
 				}
 			);
 

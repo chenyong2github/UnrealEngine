@@ -7,8 +7,8 @@
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
 
+class FMetasoundDefaultLiteralCustomizationBase;
 class IDetailLayoutBuilder;
-class IMemberDefaultLiteralCustomization;
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
@@ -27,10 +27,6 @@ namespace Metasound
 			}
 
 			virtual ~FMetasoundVariableDetailCustomization() = default;
-
-			// IDetailCustomization interface
-			virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
-			// End of IDetailCustomization interface
 		};
 	} // namespace Editor
 } // namespace Metasound

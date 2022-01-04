@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DetailCategoryBuilder.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
@@ -12,7 +11,8 @@
 #include "PropertyHandle.h"
 #include "Templates/Function.h"
 
-
+// Forward Declarations
+class IDetailLayoutBuilder;
 class UMetasoundEditorGraph;
 class UMetasoundEditorGraphMemberDefaultLiteral;
 
@@ -37,12 +37,20 @@ namespace Metasound
 			}
 		};
 
-		class METASOUNDEDITOR_API IMemberDefaultLiteralCustomization
+		class METASOUNDEDITOR_API FMetasoundDefaultLiteralCustomizationBase
 		{
-		public:
-			virtual ~IMemberDefaultLiteralCustomization() = default;
+		protected:
+			IDetailCategoryBuilder* DefaultCategoryBuilder = nullptr;
 
-			virtual void CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, TSharedPtr<IPropertyHandle> InDefaultValueHandle) = 0;
+		public:
+			FMetasoundDefaultLiteralCustomizationBase(IDetailCategoryBuilder& InDefaultCategoryBuilder)
+				: DefaultCategoryBuilder(&InDefaultCategoryBuilder)
+			{
+			}
+
+			virtual ~FMetasoundDefaultLiteralCustomizationBase() = default;
+
+			virtual void CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout) { }
 		};
 
 		class METASOUNDEDITOR_API IMemberDefaultLiteralCustomizationFactory
@@ -50,7 +58,7 @@ namespace Metasound
 		public:
 			virtual ~IMemberDefaultLiteralCustomizationFactory() = default;
 
-			virtual TUniquePtr<IMemberDefaultLiteralCustomization> CreateLiteralCustomization(IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;
+			virtual TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> CreateLiteralCustomization(IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;
 		};
 
 		class METASOUNDEDITOR_API IMetasoundEditorModule : public IModuleInterface
@@ -73,7 +81,7 @@ namespace Metasound
 
 			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const = 0;
 
-			virtual TUniquePtr<IMemberDefaultLiteralCustomization> CreateMemberDefaultLiteralCustomization(UClass& InClass, IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;
+			virtual TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> CreateMemberDefaultLiteralCustomization(UClass& InClass, IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;
 
 			virtual const TSubclassOf<UMetasoundEditorGraphMemberDefaultLiteral> FindDefaultLiteralClass(EMetasoundFrontendLiteralType InLiteralType) const = 0;
 		};
