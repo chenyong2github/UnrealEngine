@@ -15,6 +15,7 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "ScreenSpaceDenoise.h"
 #include "HairStrands/HairStrandsEnvironment.h"
+#include "Strata/Strata.h"
 
 extern FLumenGatherCvarState GLumenGatherCvars;
 
@@ -1166,7 +1167,8 @@ void UpdateHistoryScreenProbeGather(
 		TRefCountPtr<IPooledRenderTarget>* HistoryNumFramesAccumulated = &ScreenProbeGatherState.NumFramesAccumulatedRT;
 		TRefCountPtr<IPooledRenderTarget>* FastUpdateModeHistoryState = &ScreenProbeGatherState.FastUpdateModeHistoryRT;
 		TRefCountPtr<IPooledRenderTarget>* NormalHistoryState = &ScreenProbeGatherState.NormalHistoryRT;
-		const bool bRejectBasedOnNormal = GLumenScreenProbeTemporalRejectBasedOnNormal != 0 && NormalHistoryState;
+		const bool bRejectBasedOnNormal = GLumenScreenProbeTemporalRejectBasedOnNormal != 0 && NormalHistoryState
+			&& !Strata::IsStrataEnabled(); // STRATA_TODO provide Lumen with a valid normal
 
 		ensureMsgf(SceneTextures.Velocity->Desc.Format != PF_G16R16, TEXT("Lumen requires 3d velocity.  Update Velocity format code."));
 
