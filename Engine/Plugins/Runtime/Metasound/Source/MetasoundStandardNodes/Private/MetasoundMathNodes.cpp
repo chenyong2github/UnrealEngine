@@ -267,6 +267,8 @@ namespace Metasound
 				, AdditionalOperandRefs(InAdditionalOperands)
 				, ValueRef(TDataWriteReferenceFactory<TDataClass>::CreateAny(InSettings))
 			{
+				// Set initial value.
+				TMathOpClass::Calculate(InstanceData, PrimaryOperandRef, AdditionalOperandRefs, ValueRef);
 			}
 
 			virtual FDataReferenceCollection GetInputs() const override
