@@ -7,6 +7,7 @@
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Defines.h"
+#include "Chaos/PBDRigidClusteringAlgo.h"
 #include "Chaos/Particles.h"
 #include <limits>
 
@@ -242,7 +243,7 @@ namespace Chaos
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ClusteredHandle->CastToRigidParticle();
 					check(RigidHandle);
-					Clustering.UpdateKinematicProperties(RigidHandle);
+					UpdateKinematicProperties(RigidHandle, Clustering.GetChildrenMap(), *RigidSolver->GetEvolution());
 				}
 			}
 		}

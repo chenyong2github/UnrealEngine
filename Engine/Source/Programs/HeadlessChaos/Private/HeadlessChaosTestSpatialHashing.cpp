@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/PBDRigidClustering.h"
+#include "Chaos/PBDRigidClusteringCollisionParticleAlgo.h"
 
 DEFINE_LOG_CATEGORY_STATIC(AHSP_Test, Verbose, All);
 
