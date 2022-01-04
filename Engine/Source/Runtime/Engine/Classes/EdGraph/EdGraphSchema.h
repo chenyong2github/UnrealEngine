@@ -777,6 +777,14 @@ class ENGINE_API UEdGraphSchema : public UObject
 	virtual void ClearPinWatch(UEdGraphPin const* Pin) const {}
 
 	/**
+	 * Checks to see if a pin supports Pin Value Inspection Tooltips
+	 *
+	 * @param	Pin The pin to check
+	 * @return	true if it supports data tooltips
+	 */
+	virtual bool CanShowDataTooltipForPin(const UEdGraphPin& Pin) const { return false; }
+
+	/**
 	 * Sets the string to the specified pin; even if it is invalid it is still set.
 	 *
 	 * @param	Pin			   	The pin on which to set the default value.
