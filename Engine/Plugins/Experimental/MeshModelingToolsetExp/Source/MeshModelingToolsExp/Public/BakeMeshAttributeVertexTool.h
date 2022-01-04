@@ -10,6 +10,7 @@
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
 #include "PreviewMesh.h"
+#include "ModelingToolTargetUtil.h"
 #include "Sampling/MeshVertexBaker.h"
 #include "BakeMeshAttributeTool.h"
 #include "BakeMeshAttributeVertexTool.generated.h"
@@ -194,6 +195,14 @@ protected:
 		}
 	};
 	FBakeSettings CachedBakeSettings;
+
+	void SetSourceObjectVisible(bool bState)
+	{
+		if (!bIsBakeToSelf)
+		{
+			UE::ToolTarget::SetSourceObjectVisible(Targets[1], bState);
+		}
+	}
 
 
 	//

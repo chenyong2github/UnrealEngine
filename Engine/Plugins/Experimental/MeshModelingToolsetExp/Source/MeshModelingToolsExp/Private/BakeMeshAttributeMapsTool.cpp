@@ -26,7 +26,6 @@
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "TargetInterfaces/SkeletalMeshBackedTarget.h"
 #include "ToolTargetManager.h"
-#include "ModelingToolTargetUtil.h"
 
 // required to pass UStaticMesh asset so we can save at same location
 #include "Engine/StaticMesh.h"
@@ -302,6 +301,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 	InputMeshSettings->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
 	InputMeshSettings->SourceNormalMap = nullptr;
 	UpdateUVLayerNames(InputMeshSettings->TargetUVLayer, InputMeshSettings->TargetUVLayerNamesList, TargetMesh);
+	InputMeshSettings->WatchProperty(InputMeshSettings->bHideSourceMesh, [this](bool bState) { SetSourceObjectVisible(!bState); });
 	InputMeshSettings->WatchProperty(InputMeshSettings->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
 	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
 	InputMeshSettings->WatchProperty(InputMeshSettings->bProjectionInWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });
@@ -315,6 +315,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 		}
 		OpState |= EBakeOpState::Evaluate;
 	});
+	SetSourceObjectVisible(!InputMeshSettings->bHideSourceMesh);
 	
 
 	ResultSettings = NewObject<UBakeMeshAttributeMapsResultToolProperties>(this);
@@ -468,6 +469,8 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 	CurvatureSettings->SaveProperties(this);
 	TextureSettings->SaveProperties(this);
 	MultiTextureSettings->SaveProperties(this);
+
+	SetSourceObjectVisible(true);
 
 	if (Compute)
 	{
