@@ -3471,15 +3471,17 @@ bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSign
 
 	if (FunctionSignature.FunctionVersion < FNiagaraSkelMeshDIFunctionVersion::LargeWorldCoordinates)
 	{
-		TArray<FNiagaraFunctionSignature> AllFunctions;
-		GetFunctions(AllFunctions);
-		for (const FNiagaraFunctionSignature& Sig : AllFunctions)
+		if (
+			(FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSInterpName) ||
+			(FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSName) ||
+			(FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataWSName) ||
+			(FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataWSName) ||
+			(FunctionSignature.Name == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataWSInterpolatedName))
 		{
-			if (FunctionSignature.Name == Sig.Name)
-			{
-				FunctionSignature = Sig;
-				return true;
-			}
+			check(FunctionSignature.Outputs[0].GetName() == TEXT("Position"));
+			check(FunctionSignature.Outputs[0].GetType() == FNiagaraTypeDefinition::GetVec3Def());
+			FunctionSignature.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
+			bWasChanged = true;
 		}
 	}
 
