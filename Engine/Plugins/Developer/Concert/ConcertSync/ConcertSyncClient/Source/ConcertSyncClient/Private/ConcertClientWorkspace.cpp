@@ -834,7 +834,7 @@ void FConcertClientWorkspace::OnEndFrame()
 		FConcertSlowTaskStackWorkaround::Get().PopTask(MoveTemp(InitialSyncSlowTask));
 	}
 
-	if (bHasSyncedWorkspace && CanProcessPendingPackages())
+	if (bHasSyncedWorkspace && CanProcessPendingPackages() && !ConcertSyncClientUtil::UserIsEditing())
 	{
 		if (PackageManager)
 		{
