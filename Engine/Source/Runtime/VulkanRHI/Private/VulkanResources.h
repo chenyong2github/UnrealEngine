@@ -1228,7 +1228,7 @@ class FVulkanUnorderedAccessView : public FRHIUnorderedAccessView, public Vulkan
 public:
 
 	FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer);
-	FVulkanUnorderedAccessView(FVulkanDevice* Device, FRHITexture* TextureRHI, uint32 MipLevel);
+	FVulkanUnorderedAccessView(FVulkanDevice* Device, FRHITexture* TextureRHI, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices);
 	FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* Buffer, EPixelFormat Format);
 
 	~FVulkanUnorderedAccessView();
@@ -1242,6 +1242,8 @@ protected:
 	TRefCountPtr<FRHITexture> SourceTexture;
 	FVulkanTextureView TextureView;
 	uint32 MipLevel;
+	uint16 FirstArraySlice;
+	uint16 NumArraySlices;
 
 	// The buffer this UAV comes from (can be null)
 	TRefCountPtr<FVulkanResourceMultiBuffer> SourceBuffer;

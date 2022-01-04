@@ -2717,11 +2717,11 @@ FRHIUnorderedAccessView* FRHITextureViewCache::GetOrCreateUAV(FRHITexture* Textu
 	{
 		if (UAVCreateInfo.Format != PF_Unknown)
 		{
-			RHIUnorderedAccessView = RHICreateUnorderedAccessView(Texture, UAVCreateInfo.MipLevel, UAVCreateInfo.Format);
+			RHIUnorderedAccessView = RHICreateUnorderedAccessView(Texture, UAVCreateInfo.MipLevel, UAVCreateInfo.Format, UAVCreateInfo.FirstArraySlice, UAVCreateInfo.NumArraySlices);
 		}
 		else
 		{
-			RHIUnorderedAccessView = RHICreateUnorderedAccessView(Texture, UAVCreateInfo.MipLevel);
+			RHIUnorderedAccessView = RHICreateUnorderedAccessView(Texture, UAVCreateInfo.MipLevel, UAVCreateInfo.FirstArraySlice, UAVCreateInfo.NumArraySlices);
 		}
 	}
 
