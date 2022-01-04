@@ -29,6 +29,10 @@
 #define STRATA_BSDF_TYPE_SINGLELAYERWATER	4
 // When more than 5 BSDF must exists, please update STATE_BIT_COUNT_BSDF and FStrataClassification.ShadingModels packing in Strata.ush
 
+// The size of strata material classification tiles on screen
+#define STRATA_TILE_SIZE					8
+
+// This is used to round up the strata material buffer for better cache locality on read/write.
 #define STRATA_DATA_TILE_SIZE				8
 #define STRATA_DATA_TILE_SIZE_DIV_AS_SHIFT	3
 
