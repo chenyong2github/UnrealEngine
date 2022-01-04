@@ -34,7 +34,7 @@
 #include "DynamicMesh/MeshTangents.h"
 #include "ConstrainedDelaunay2.h"
 
-#include "Engine/EngineTypes.h"
+
 #include "StaticMeshOperations.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
