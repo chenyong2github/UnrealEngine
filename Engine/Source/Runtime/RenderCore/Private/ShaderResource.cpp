@@ -24,18 +24,53 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/MemStack.h"
 #include "ShaderCompilerCore.h"
+#include "Compression/OodleDataCompression.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/IShaderFormat.h"
 #endif
 
-int32 GShaderCompressionFormatChoice = 1;
+int32 GShaderCompressionFormatChoice = 2;
 static FAutoConsoleVariableRef CVarShaderCompressionFormatChoice(
 	TEXT("r.Shaders.CompressionFormat"),
 	GShaderCompressionFormatChoice,
 	TEXT("Select the compression methods for the shader code.\n")
 	TEXT(" 0: None (uncompressed)\n")
-	TEXT(" 1: LZ4 (default)"),
+	TEXT(" 1: LZ4\n")
+	TEXT(" 2: Oodle (default)\n")
+	TEXT(" 3: ZLib\n"),
+	ECVF_ReadOnly);
+
+int32 GShaderCompressionOodleAlgo = 1;
+static FAutoConsoleVariableRef CVarShaderCompressionOodleAlgo(
+	TEXT("r.Shaders.CompressionFormat.Oodle.Algo"),
+	GShaderCompressionOodleAlgo,
+	TEXT("Oodle compression method for the shader code, from fastest to slowest to decode.\n")
+	TEXT(" 0: None (invalid setting)\n")
+	TEXT(" 1: Selkie (fastest to decode)\n")
+	TEXT(" 2: Mermaid\n")
+	TEXT(" 3: Kraken\n")
+	TEXT(" 4: Leviathan (slowest to decode)\n"),
+	ECVF_ReadOnly);
+
+int32 GShaderCompressionOodleLevel = 6;
+static FAutoConsoleVariableRef CVarShaderCompressionOodleAlgoChoice(
+	TEXT("r.Shaders.CompressionFormat.Oodle.Level"),
+	GShaderCompressionOodleLevel,
+	TEXT("Oodle compression level. This mostly trades encode speed vs compression ratio, decode speed is determined by r.Shaders.CompressionFormat.Oodle.Algo\n")
+	TEXT(" -4 : HyperFast4\n")
+	TEXT(" -3 : HyperFast3\n")
+	TEXT(" -2 : HyperFast2\n")
+	TEXT(" -1 : HyperFast1\n")
+	TEXT("  0 : None\n")
+	TEXT("  1 : SuperFast\n")
+	TEXT("  2 : VeryFast\n")
+	TEXT("  3 : Fast\n")
+	TEXT("  4 : Normal\n")
+	TEXT("  5 : Optimal1\n")
+	TEXT("  6 : Optimal2\n")
+	TEXT("  7 : Optimal3\n")
+	TEXT("  8 : Optimal4\n"),
 	ECVF_ReadOnly);
 
 FName GetShaderCompressionFormat(const FName& ShaderFormat)
@@ -50,7 +85,38 @@ FName GetShaderCompressionFormat(const FName& ShaderFormat)
 	}
 #endif
 
-	return (GShaderCompressionFormatChoice == 1) ? NAME_LZ4 : NAME_None;
+	static FName Formats[]
+	{
+		NAME_None,
+		NAME_LZ4,
+		NAME_Oodle,
+		NAME_Zlib
+	};
+	
+	//GShaderCompressionFormatChoice = (GShaderCompressionFormatChoice < 0) ? 0 : GShaderCompressionFormatChoice;
+	GShaderCompressionFormatChoice = FMath::Clamp(GShaderCompressionFormatChoice, 0, UE_ARRAY_COUNT(Formats) - 1);
+	return Formats[GShaderCompressionFormatChoice];
+}
+
+void GetShaderCompressionOodleSettings(FOodleDataCompression::ECompressor& OutCompressor, FOodleDataCompression::ECompressionLevel& OutLevel, const FName& ShaderFormat)
+{
+	// support an older developer-only CVar for compatibility and make it preempt
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	static const IConsoleVariable* CVarSkipCompression = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.SkipCompression"));
+	static bool bSkipCompression = (CVarSkipCompression && CVarSkipCompression->GetInt() != 0);
+	if (UNLIKELY(bSkipCompression))
+	{
+		OutCompressor = FOodleDataCompression::ECompressor::Selkie;
+		OutLevel = FOodleDataCompression::ECompressionLevel::None;
+		return;
+	}
+#endif
+
+	GShaderCompressionOodleAlgo = FMath::Clamp(GShaderCompressionOodleAlgo, static_cast<int32>(FOodleDataCompression::ECompressor::NotSet), static_cast<int32>(FOodleDataCompression::ECompressor::Leviathan));
+	OutCompressor = static_cast<FOodleDataCompression::ECompressor>(GShaderCompressionOodleAlgo);
+
+	GShaderCompressionOodleLevel = FMath::Clamp(GShaderCompressionOodleLevel, static_cast<int32>(FOodleDataCompression::ECompressionLevel::HyperFast4), static_cast<int32>(FOodleDataCompression::ECompressionLevel::Optimal4));
+	OutLevel = static_cast<FOodleDataCompression::ECompressionLevel>(GShaderCompressionOodleLevel);
 }
 
 bool FShaderMapResource::ArePlatformsCompatible(EShaderPlatform CurrentPlatform, EShaderPlatform TargetPlatform)
@@ -239,6 +305,26 @@ void FShaderMapResourceCode::AddShaderCode(EShaderFrequency InFrequency, const F
 					*InHash.ToString(),
 					*ShaderCompressionFormat.ToString()
 				);
+			}
+			else if (ShaderCompressionFormat == NAME_Oodle)
+			{
+				// check if Oodle-specific settings match
+				FOodleDataCompression::ECompressor OodleCompressor;
+				FOodleDataCompression::ECompressionLevel OodleLevel;
+				GetShaderCompressionOodleSettings(OodleCompressor, OodleLevel);
+
+				if (InCode.GetOodleCompressor() != OodleCompressor || InCode.GetOodleLevel() != OodleLevel)
+				{
+					UE_LOG(LogShaders, Fatal, TEXT("Shader %s is expected to be compressed with Oodle compressor %d level %d, but it is compressed with compressor %d level %d instead."),
+						*InHash.ToString(),
+						static_cast<int32>(OodleCompressor),
+						static_cast<int32>(OodleLevel),
+						static_cast<int32>(InCode.GetOodleCompressor()),
+						static_cast<int32>(InCode.GetOodleLevel())
+					);
+					// unreachable
+					return;
+				}
 			}
 		}
 		else
@@ -473,7 +559,7 @@ TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 Sh
 	if (ShaderEntry.Code.Num() != ShaderEntry.UncompressedSize)
 	{
 		void* UncompressedCode = MemStack.Alloc(ShaderEntry.UncompressedSize, 16);
-		auto bSucceed = FCompression::UncompressMemory(GetShaderCompressionFormat(), UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.Code.Num());
+		bool bSucceed = FCompression::UncompressMemory(GetShaderCompressionFormat(), UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.Code.Num());
 		check(bSucceed);
 		ShaderCode = (uint8*)UncompressedCode;
 	}

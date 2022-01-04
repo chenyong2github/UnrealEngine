@@ -1844,7 +1844,7 @@ static bool CheckSingleJob(const FShaderCompileJob& SingleJob, TArray<FString>& 
 {
 	if (SingleJob.bSucceeded)
 	{
-		check(SingleJob.Output.ShaderCode.GetShaderCodeSize() > 0);
+		checkf(SingleJob.Output.ShaderCode.GetShaderCodeSize() > 0, TEXT("Abnormal shader code size for a succeded job: %d bytes"), SingleJob.Output.ShaderCode.GetShaderCodeSize());
 	}
 
 	if (GShowShaderWarnings || !SingleJob.bSucceeded)
@@ -2537,7 +2537,7 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 			SingleJob->Output.GenerateOutputHash();
 			if (SingleJob->Input.CompressionFormat != NAME_None)
 			{
-				SingleJob->Output.CompressOutput(SingleJob->Input.CompressionFormat);
+				SingleJob->Output.CompressOutput(SingleJob->Input.CompressionFormat, SingleJob->Input.OodleCompressor, SingleJob->Input.OodleLevel);
 			}
 		}
 	}
@@ -5241,6 +5241,7 @@ void GlobalBeginCompileShader(
 	Input.Target = Target;
 	Input.ShaderFormat = ShaderFormatName;
 	Input.CompressionFormat = GetShaderCompressionFormat();
+	GetShaderCompressionOodleSettings(Input.OodleCompressor, Input.OodleLevel);
 	Input.VirtualSourceFilePath = SourceFilename;
 	Input.EntryPointName = FunctionName;
 	Input.bCompilingForShaderPipeline = false;

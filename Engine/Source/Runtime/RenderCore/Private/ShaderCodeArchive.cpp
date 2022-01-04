@@ -10,6 +10,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/MemoryReader.h"
+#include "Compression/OodleDataCompression.h"
 #if WITH_EDITOR
 #include "Misc/StringBuilder.h"
 #include "Templates/Greater.h"
@@ -128,6 +129,22 @@ bool FSerializedShaderArchive::FindOrAddShader(const FSHAHash& Hash, int32& OutI
 	return bAdded;
 }
 
+namespace ShaderCodeArchive
+{
+	/** Decompresses the shader into caller-provided memory. Caller is assumed to allocate at least ShaderEntry uncompressed size value.
+	 * The engine will crash (LogFatal) if this function fails.
+	 */
+	void DecompressShader(uint8* OutDecompressedShader, int64 UncompressedSize, const uint8* CompressedShaderCode, int64 CompressedSize)
+	{
+		bool bSucceed = FCompression::UncompressMemory(GetShaderCompressionFormat(), OutDecompressedShader, UncompressedSize, CompressedShaderCode, CompressedSize);
+		check(bSucceed);
+		if (!bSucceed)
+		{
+			UE_LOG(LogShaderLibrary, Fatal, TEXT("ShaderCodeArchive::DecompressShader(): Could not decompress shader (GetShaderCompressionFormat=%s)"), *GetShaderCompressionFormat().ToString());
+		}
+	}
+}
+
 void FSerializedShaderArchive::DecompressShader(int32 Index, const TArray<TArray<uint8>>& ShaderCode, TArray<uint8>& OutDecompressedShader) const
 {
 	const FShaderCodeEntry& Entry = ShaderEntries[Index];
@@ -138,8 +155,7 @@ void FSerializedShaderArchive::DecompressShader(int32 Index, const TArray<TArray
 	}
 	else
 	{
-		bool bSucceed = FCompression::UncompressMemory(GetShaderCompressionFormat(), OutDecompressedShader.GetData(), Entry.UncompressedSize, ShaderCode[Index].GetData(), Entry.Size);
-		check(bSucceed);
+		ShaderCodeArchive::DecompressShader(OutDecompressedShader.GetData(), Entry.UncompressedSize, ShaderCode[Index].GetData(), Entry.Size);
 	}
 }
 
@@ -981,9 +997,8 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 
 	if (ShaderEntry.UncompressedSize != ShaderEntry.Size)
 	{
-		void* UncompressedCode = MemStack.Alloc(ShaderEntry.UncompressedSize, 16);
-		const bool bDecompressResult = FCompression::UncompressMemory(GetShaderCompressionFormat(), UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.Size);
-		check(bDecompressResult);
+		uint8* UncompressedCode = reinterpret_cast<uint8*>(MemStack.Alloc(ShaderEntry.UncompressedSize, 16));
+		ShaderCodeArchive::DecompressShader(UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.Size);
 		ShaderCode = (uint8*)UncompressedCode;
 	}
 
@@ -1357,9 +1372,8 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 Index)
 	FMemMark Mark(MemStack);
 	if (ShaderEntry.UncompressedSize != ShaderEntry.CompressedSize)
 	{
-		void* UncompressedCode = MemStack.Alloc(ShaderEntry.UncompressedSize, 16);
-		const bool bDecompressResult = FCompression::UncompressMemory(GetShaderCompressionFormat(), UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.CompressedSize);
-		check(bDecompressResult);
+		uint8* UncompressedCode = reinterpret_cast<uint8*>(MemStack.Alloc(ShaderEntry.UncompressedSize, 16));
+		ShaderCodeArchive::DecompressShader(UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.CompressedSize);
 		ShaderCode = (uint8*)UncompressedCode;
 	}
 
