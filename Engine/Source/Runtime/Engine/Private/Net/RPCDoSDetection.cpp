@@ -1020,10 +1020,10 @@ ERPCNotifyResult FRPCDoSDetection::CheckRPCTracking(UFunction* Function, FName F
 {
 	ERPCNotifyResult Result = ERPCNotifyResult::ExecuteRPC;
 	bool bNewTracking = false;
-	FRPCTrackingInfo& Tracking = FindOrAddRPCTracking(Function, bNewTracking);
 
 	if (!bHitchSuspendDetection)
 	{
+		FRPCTrackingInfo& Tracking = FindOrAddRPCTracking(Function, bNewTracking);
 		const uint8 OldTrackedSecondIncrement = Tracking.LastTrackedSecondIncrement;
 
 		Tracking.LastTrackedSecondIncrement = SecondsIncrementer;
@@ -1128,13 +1128,20 @@ ERPCNotifyResult FRPCDoSDetection::CheckRPCTracking(UFunction* Function, FName F
 		if (Tracking.BlockState == ERPCBlockState::Blocked)
 		{
 			PostReceivedRPCBlockCount++;
+
+			Result = ERPCNotifyResult::BlockRPC;
 		}
 	}
-
-
-	if (Tracking.BlockState == ERPCBlockState::Blocked)
+	else
 	{
-		Result = ERPCNotifyResult::BlockRPC;
+		TSharedPtr<FRPCTrackingInfo>* TrackingPtr = RPCTracking.Find(Function);
+
+		if (TrackingPtr != nullptr && TrackingPtr->IsValid() && TrackingPtr->Get()->BlockState == ERPCBlockState::Blocked)
+		{
+			PostReceivedRPCBlockCount++;
+
+			Result = ERPCNotifyResult::BlockRPC;
+		}
 	}
 
 	return Result;
