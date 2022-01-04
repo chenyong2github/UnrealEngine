@@ -270,10 +270,12 @@ FCbPackage FCacheRecord::Save() const
 	return Package;
 }
 
-FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package, FCbObjectView RecordObject)
+FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCbObject& Object)
 {
+	const FCbObjectView ObjectView = Object;
+
 	FCacheKey Key;
-	FCbObjectView KeyObject = RecordObject["Key"_ASV].AsObjectView();
+	FCbObjectView KeyObject = ObjectView["Key"_ASV].AsObjectView();
 	auto TrySetBucketName = [](FUtf8StringView Name, FCacheKey& Key)
 	{
 		if (Private::IsValidCacheBucketName(Name))
@@ -291,9 +293,9 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package, FCbObjectView
 
 	FCacheRecordBuilder Builder(Key);
 
-	Builder.SetMeta(FCbObject::Clone(RecordObject["Meta"_ASV].AsObjectView()));
+	Builder.SetMeta(Object["Meta"_ASV].AsObject());
 
-	auto LoadPayload = [&Package](const FCbObjectView& PayloadObject)
+	auto LoadPayload = [&Attachments](const FCbObjectView& PayloadObject)
 	{
 		const FPayloadId PayloadId = PayloadObject["Id"_ASV].AsObjectId();
 		if (PayloadId.IsNull())
@@ -301,7 +303,7 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package, FCbObjectView
 			return FPayload();
 		}
 		const FIoHash RawHash = PayloadObject["RawHash"_ASV].AsHash();
-		if (const FCbAttachment* Attachment = Package.FindAttachment(RawHash))
+		if (const FCbAttachment* Attachment = Attachments.FindAttachment(RawHash))
 		{
 			if (const FCompressedBuffer& Compressed = Attachment->AsCompressedBinary())
 			{
@@ -319,7 +321,7 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package, FCbObjectView
 		}
 	};
 
-	if (FCbObjectView ValueObject = RecordObject["Value"_ASV].AsObjectView())
+	if (FCbObjectView ValueObject = ObjectView["Value"_ASV].AsObjectView())
 	{
 		FPayload Value = LoadPayload(ValueObject);
 		if (!Value)
@@ -329,7 +331,7 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package, FCbObjectView
 		Builder.SetValue(Value);
 	}
 
-	for (FCbFieldView AttachmentField : RecordObject["Attachments"_ASV])
+	for (FCbFieldView AttachmentField : ObjectView["Attachments"_ASV])
 	{
 		FPayload Attachment = LoadPayload(AttachmentField.AsObjectView());
 		if (!Attachment)

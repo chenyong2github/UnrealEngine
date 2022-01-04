@@ -703,14 +703,14 @@ void FZenDerivedDataBackend::Get(
 			const FCbObject& ResponseObj = BatchResponse.GetObject();
 			
 			int32 KeyIndex = BatchFirst;
-			for (FCbFieldView RecordView : ResponseObj["Result"_ASV])
+			for (FCbField RecordField : ResponseObj["Result"_ASV])
 			{
 				const FCacheGetRequest& Request = Requests[KeyIndex++];
 				const FCacheKey& Key = Request.Key;
 				
 				FOptionalCacheRecord Record;
 
-				if (!RecordView.IsNull())
+				if (!RecordField.IsNull())
 				{
 					if (ShouldSimulateMiss(Key))
 					{
@@ -719,7 +719,7 @@ void FZenDerivedDataBackend::Get(
 					}
 					else
 					{
-						Record = FCacheRecord::Load(BatchResponse, RecordView.AsObjectView()); 
+						Record = FCacheRecord::Load(BatchResponse, RecordField.AsObject());
 					}
 				}
 
