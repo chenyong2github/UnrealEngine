@@ -14,7 +14,7 @@ using UE::Geometry::FDynamicMesh3;
  * Convert FSkeletalMeshLODModel to FDynamicMesh3
  *
  */
-class MESHCONVERSION_API FSkeletalMeshLODModelToDynamicMesh
+class MESHCONVERSIONENGINETYPES_API FSkeletalMeshLODModelToDynamicMesh
 {
 public:
 	/** If true, will print some possibly-helpful debugging spew to output log */

@@ -32,6 +32,7 @@ public class MeshLODToolset : ModuleRules
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"MeshConversion",
+				"MeshConversionEngineTypes",
 				"MeshDescription",
                 "StaticMeshDescription",
 				"ModelingComponents",

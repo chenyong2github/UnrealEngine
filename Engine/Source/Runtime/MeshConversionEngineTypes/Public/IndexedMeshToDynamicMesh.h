@@ -18,7 +18,7 @@ using namespace UE::Geometry;
  * as well as overlay Tangents enabled/copied, and MaterialID set.
  * @param bAttemptToWeldSeams if true, try to weld seam edges together to create a more closed mesh using FMergeCoincidentMeshEdges
  */
-void MESHCONVERSION_API RenderBuffersToDynamicMesh(
+void MESHCONVERSIONENGINETYPES_API RenderBuffersToDynamicMesh(
 	const FStaticMeshVertexBuffers& VertexData,
 	const FRawStaticIndexBuffer& IndexData,
 	const FStaticMeshSectionArray& SectionData,
