@@ -104,7 +104,7 @@ FSceneDataProviderProxy::FSceneDataProviderProxy(USceneComponent* SceneComponent
 	bool bUseSceneTime = SceneComponent != nullptr;
 #if WITH_EDITOR
 	// Don't tick time in Editor unless in PIE.
-	if (GIsEditor)
+	if (GIsEditor && bUseSceneTime)
 	{
 		bUseSceneTime &= (SceneComponent->GetWorld() != nullptr && SceneComponent->GetWorld()->WorldType != EWorldType::Editor);
 	}
