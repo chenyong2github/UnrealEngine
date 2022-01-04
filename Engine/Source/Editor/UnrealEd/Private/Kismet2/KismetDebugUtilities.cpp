@@ -1634,7 +1634,7 @@ bool FKismetDebugUtilities::CanInspectPinValue(const UEdGraphPin* Pin)
 	// Can't inspect exec pins or delegate pins; their values are not defined.
 	// Disallow non-K2 Schemas (like ControlRig)
 	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(OwningNode->GetSchema());
-	if (!K2Schema || K2Schema->IsExecPin(*Pin) || K2Schema->IsDelegateCategory(Pin->PinType.PinCategory))
+	if (!K2Schema || !K2Schema->CanShowDataTooltipForPin(*Pin))
 	{
 		return false;
 	}

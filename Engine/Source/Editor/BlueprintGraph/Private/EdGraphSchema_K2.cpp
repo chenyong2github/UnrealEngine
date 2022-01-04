@@ -5488,6 +5488,11 @@ bool UEdGraphSchema_K2::IsSelfPin(const UEdGraphPin& Pin) const
 	return (Pin.PinName == PN_Self);
 }
 
+bool UEdGraphSchema_K2::CanShowDataTooltipForPin(const UEdGraphPin& Pin) const
+{
+	return !IsExecPin(Pin) && !IsDelegateCategory(Pin.PinType.PinCategory);
+}
+
 bool UEdGraphSchema_K2::IsDelegateCategory(const FName Category) const
 {
 	return (Category == PC_Delegate);

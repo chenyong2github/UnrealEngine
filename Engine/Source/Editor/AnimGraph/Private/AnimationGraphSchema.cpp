@@ -439,6 +439,11 @@ void UAnimationGraphSchema::CreateFunctionGraphTerminators(UEdGraph& Graph, UCla
 }
 
 
+bool UAnimationGraphSchema::CanShowDataTooltipForPin(const UEdGraphPin& Pin) const
+{
+	return !IsPosePin(Pin.PinType) && UEdGraphSchema_K2::CanShowDataTooltipForPin(Pin);
+}
+
 bool UAnimationGraphSchema::CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> InAction) const
 {
 	if (!InAction.IsValid())
