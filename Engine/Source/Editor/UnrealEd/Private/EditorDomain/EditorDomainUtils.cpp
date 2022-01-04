@@ -930,8 +930,7 @@ void RequestEditorDomainPackage(const FPackagePath& PackagePath,
 	// But set the CachePolicy to store into remote. This will cause the CacheStore to push
 	// any existing local value into upstream storage and refresh the last-used time in the upstream.
 	ECachePolicy CachePolicy = SkipFlags | ECachePolicy::Local | ECachePolicy::StoreRemote;
-	Cache.Get({ GetEditorDomainPackageKey(EditorDomainHash) }, PackagePath.GetDebugName(),
-		CachePolicy, Owner, MoveTemp(Callback));
+	Cache.Get({{{PackagePath.GetDebugName()}, GetEditorDomainPackageKey(EditorDomainHash), CachePolicy}}, Owner, MoveTemp(Callback));
 }
 
 /** Stores data from SavePackage in accessible fields */
@@ -1324,7 +1323,7 @@ bool TrySavePackage(UPackage* Package)
 	}
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
 	FRequestOwner Owner(EPriority::Normal);
-	Cache.Put({RecordBuilder.Build()}, Package->GetName(), ECachePolicy::Default, Owner);
+	Cache.Put({{{Package->GetName()}, RecordBuilder.Build()}}, Owner);
 	Owner.KeepAlive();
 
 	// TODO_BuildDefinitionList: Calculate and store BuildDefinitionList on the PackageData, or collect it here from some other source.
@@ -1366,8 +1365,7 @@ void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, T
 
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
-	Cache.Get({ GetBulkDataListKey(PackageDigest.Hash) },
-		WriteToString<128>(PackageName), ECachePolicy::Default, Owner,
+	Cache.Get({{{WriteToString<128>(PackageName)}, GetBulkDataListKey(PackageDigest.Hash)}}, Owner,
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
 		{
 			bool bOk = Params.Status == EStatus::Ok;
@@ -1399,7 +1397,7 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 	FRequestOwner Owner(EPriority::Normal);
 	FCacheRecordBuilder RecordBuilder(GetBulkDataListKey(PackageDigest.Hash));
 	RecordBuilder.SetValue(Buffer);
-	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Owner);
+	Cache.Put({{{WriteToString<128>(PackageName)}, RecordBuilder.Build()}}, Owner);
 	Owner.KeepAlive();
 }
 
@@ -1437,13 +1435,13 @@ void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::Derive
 
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
-	Cache.Get({ GetBulkDataPayloadIdKey(PackageAndGuidHash) },
-		WriteToString<192>(PackageName, TEXT("/"), BulkDataId), ECachePolicy::Default, Owner,
+	Cache.Get({{{WriteToString<192>(PackageName, TEXT("/"), BulkDataId)}, GetBulkDataPayloadIdKey(PackageAndGuidHash)}},
+		Owner,
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
-	{
-		bool bOk = Params.Status == EStatus::Ok;
-		InnerCallback(bOk ? Params.Record.GetValue().GetData().Decompress() : FSharedBuffer());
-	});
+		{
+			bool bOk = Params.Status == EStatus::Ok;
+			InnerCallback(bOk ? Params.Record.GetValue().GetData().Decompress() : FSharedBuffer());
+		});
 }
 
 void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuffer Buffer)
@@ -1471,7 +1469,7 @@ void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuf
 	FRequestOwner Owner(EPriority::Normal);
 	FCacheRecordBuilder RecordBuilder(GetBulkDataPayloadIdKey(PackageAndGuidHash));
 	RecordBuilder.SetValue(Buffer);
-	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Owner);
+	Cache.Put({{{WriteToString<128>(PackageName)}, RecordBuilder.Build()}}, Owner);
 	Owner.KeepAlive();
 }
 

@@ -23,6 +23,7 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataSharedString.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Event.h"
 #include "HAL/FileManager.h"
@@ -193,7 +194,7 @@ private:
 	static TArray<FName> ParseExportBuildTypes(bool& bOutExportAll);
 
 private:
-	FString Name;
+	FSharedString Name;
 	FString FunctionName{TEXT("Unknown")};
 
 	/** Active state for the job. Always moves through states in order. */
@@ -285,8 +286,8 @@ const TCHAR* LexToString(EBuildJobState State)
 
 FBuildJob::FBuildJob(
 	const FBuildJobCreateParams& Params,
-	FStringView InName,
-	FStringView InFunctionName,
+	const FStringView InName,
+	const FStringView InFunctionName,
 	FOnBuildComplete&& InOnComplete)
 	: Name(InName)
 	, FunctionName(InFunctionName)
@@ -508,7 +509,7 @@ void FBuildJob::BeginCacheQuery()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::CacheQuery);
 	EnumAddFlags(BuildStatus, EBuildStatus::CacheQuery);
-	Cache.Get({Context->GetCacheKey()}, Name, MakeCacheRecordQueryPolicy(BuildPolicy, *Context), Owner,
+	Cache.Get({{Name, Context->GetCacheKey(), MakeCacheRecordQueryPolicy(BuildPolicy, *Context)}}, Owner,
 		[this](FCacheGetCompleteParams&& Params) { EndCacheQuery(MoveTemp(Params)); });
 }
 
@@ -574,7 +575,7 @@ void FBuildJob::BeginCacheStore()
 	EnumAddFlags(BuildStatus, EBuildStatus::CacheStore);
 	FCacheRecordBuilder RecordBuilder(Context->GetCacheKey());
 	Output.Get().Save(RecordBuilder);
-	Cache.Put({RecordBuilder.Build()}, Name, MakeCacheStorePolicy(BuildPolicy.GetCombinedPolicy(), *Context), Owner,
+	Cache.Put({{Name, RecordBuilder.Build(), MakeCacheStorePolicy(BuildPolicy.GetCombinedPolicy(), *Context)}}, Owner,
 		[this](FCachePutCompleteParams&& Params) { EndCacheStore(MoveTemp(Params)); });
 }
 

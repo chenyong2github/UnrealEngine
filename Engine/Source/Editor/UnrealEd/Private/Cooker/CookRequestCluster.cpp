@@ -383,6 +383,7 @@ bool FRequestCluster::TryTakeOwnership(FPackageData& PackageData, bool bUrgent, 
 
 void FRequestCluster::StartAsync(const FCookerTimer& CookerTimer, bool& bOutComplete)
 {
+	using namespace UE::DerivedData;
 	using namespace UE::EditorDomain;
 
 	if (bStartAsyncComplete)
@@ -399,25 +400,27 @@ void FRequestCluster::StartAsync(const FCookerTimer& CookerTimer, bool& bOutComp
 		if (bBatchDownloadEnabled)
 		{
 			// If the EditorDomain is active, then batch-download all packages to cook from remote cache into local
-			TArray<UE::DerivedData::FCacheKey> CacheKeys;
-			CacheKeys.Reserve(Requests.Num());
+			TArray<FCacheGetRequest> CacheRequests;
+			CacheRequests.Reserve(Requests.Num());
+
+			ECachePolicy CachePolicy = ECachePolicy::Default | UE::DerivedData::ECachePolicy::SkipData;
 			for (FPackageData* PackageData : Requests)
 			{
-				FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageData->GetPackageName());
+				FName PackageName = PackageData->GetPackageName();
+				FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
 				if (PackageDigest.IsSuccessful() && EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::LoadEnabled))
 				{
-					CacheKeys.Add(GetEditorDomainPackageKey(PackageDigest.Hash));
+					TStringBuilder<256> RequestName;
+					RequestName << PackageName << TEXT(" [RequestCluster]");
+					CacheRequests.Add({{RequestName}, GetEditorDomainPackageKey(PackageDigest.Hash), CachePolicy});
 				}
 			}
 
-			if (CacheKeys.Num() > 0)
+			if (!CacheRequests.IsEmpty())
 			{
-				UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
-				UE::DerivedData::ECachePolicy CachePolicy = UE::DerivedData::ECachePolicy::Default | UE::DerivedData::ECachePolicy::SkipData;
-				UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Highest);
+				FRequestOwner Owner(EPriority::Highest);
 				Owner.KeepAlive();
-				Cache.Get(CacheKeys, TEXT("RequestClusterEditorDomainDownload"_SV), CachePolicy, Owner,
-					[](UE::DerivedData::FCacheGetCompleteParams&& Params) {});
+				GetCache().Get(CacheRequests, Owner, [](FCacheGetCompleteParams&& Params) {});
 			}
 		}
 	}

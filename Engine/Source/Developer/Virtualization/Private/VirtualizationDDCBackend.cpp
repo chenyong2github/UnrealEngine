@@ -103,11 +103,8 @@ EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer&
 		Result = Params;
 	};
 
-	Cache.Put(	{RecordBuilder.Build()},
-				TEXT("Mirage"), // TODO: Improve this when we start passing more context to push
-				TransferPolicy,
-				Owner, 
-				MoveTemp(Callback));
+	// TODO: Improve the name when we start passing more context to this function
+	Cache.Put({{{TEXT("Mirage")}, RecordBuilder.Build(), TransferPolicy}}, Owner, MoveTemp(Callback));
 
 	Owner.Wait();
 
@@ -145,11 +142,8 @@ FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
 		}
 	};
 
-	Cache.Get(	{Key}, 
-				TEXT("Mirage"), // TODO: Improve this when we start passing more context to push
-				TransferPolicy,
-				Owner,
-				MoveTemp(Callback));
+	// TODO: Improve the name when we start passing more context to this function
+	Cache.Get({{{TEXT("Mirage")}, Key, TransferPolicy}}, Owner, MoveTemp(Callback));
 
 	Owner.Wait();
 
@@ -174,11 +168,8 @@ bool FDDCBackend::DoesPayloadExist(const FPayloadId& Id)
 		ResultStatus = Params.Status;
 	};
 
-	Cache.Get(	{ Key },
-				TEXT("Mirage"), // TODO: Improve this when we start passing more context to push
-				QueryPolicy | UE::DerivedData::ECachePolicy::SkipData,
-				Owner,
-				MoveTemp(Callback));
+	// TODO: Improve the name when we start passing more context to this function
+	Cache.Get({{{TEXT("Mirage")}, Key, QueryPolicy | UE::DerivedData::ECachePolicy::SkipData}}, Owner, MoveTemp(Callback));
 
 	Owner.Wait();
 
