@@ -18,7 +18,11 @@
 
 #define AA_CROSS 1
 
+#define CONFIG_USE_SCENE_VELOCITY 1
+
 #define CONFIG_DEPTH_EDGE_DETECTION 1
+
+#define CONFIG_VELOCITY_EXTRAPOLATION 1
 
 
 //------------------------------------------------------- PARAMETERS
@@ -26,8 +30,9 @@
 float2 PrevOutputBufferUVMin;
 float2 PrevOutputBufferUVMax;
 float WorldDepthToDepthError;
+float VelocityExtrapolationMultiplier;
 
-Texture2D SceneDepthTexture;
+Texture2D<float> SceneDepthTexture;
 Texture2D SceneVelocityTexture;
 
 RWTexture2D<float2> DilatedVelocityOutput;
@@ -75,7 +80,7 @@ void MainCS(
 	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
 	float2 InputBufferUV = (InputPixelPos + 0.5) * InputInfo_ExtentInverse;
 
-	float DeviceZ = SceneDepthTexture[InputPixelPos].r;
+	float DeviceZ = SceneDepthTexture[InputPixelPos];
 
 	float ClosestDeviceZ = DeviceZ;
 	float2 VelocityPixelOffset = float2(0.0, 0.0);
@@ -112,8 +117,8 @@ void MainCS(
 		{
 			const int2 Offset = kOffsets[i];
 
-			float SampleDeviceZ0 = SceneDepthTexture[int2(InputPixelPos) + Offset].r;
-			float SampleDeviceZ1 = SceneDepthTexture[int2(InputPixelPos) - Offset].r;
+			float SampleDeviceZ0 = SceneDepthTexture[int2(InputPixelPos) + Offset];
+			float SampleDeviceZ1 = SceneDepthTexture[int2(InputPixelPos) - Offset];
 			
 			#if CONFIG_DEPTH_EDGE_DETECTION
 			{
@@ -149,13 +154,51 @@ void MainCS(
 	float2 FinalScreenVelocity = 0.0;
 
 	// Compute final screen vecocity.
-	#if 1
+	#if CONFIG_VELOCITY_EXTRAPOLATION
+	BRANCH
+	if (VelocityExtrapolationMultiplier > 0.0)
+	{
+		int2 PixelCoord1 = int2(InputBufferUV * InputInfo_Extent + VelocityPixelOffset * 1.0);
+		int2 PixelCoord2 = int2(InputBufferUV * InputInfo_Extent + VelocityPixelOffset * 2.0);
+
+		PixelCoord2 = clamp(PixelCoord2, InputPixelPosMin, InputPixelPosMax);
+
+		float ClosestDeviceZ1 = ClosestDeviceZ;
+		float ClosestDeviceZ2 = SceneDepthTexture[PixelCoord2];
+
+		float4 EncodedVelocity1 = SceneVelocityTexture[PixelCoord1];
+		float4 EncodedVelocity2 = SceneVelocityTexture[PixelCoord2];
+
+		float2 ScreenVelocity1 = ComputeStaticVelocity(ScreenPos, ClosestDeviceZ1);
+		float2 ScreenVelocity2 = ComputeStaticVelocity(ScreenPos, ClosestDeviceZ2);
+		
+		#if CONFIG_USE_SCENE_VELOCITY
+		{
+			if (EncodedVelocity1.x > 0.0)
+			{
+				ScreenVelocity1 = DecodeVelocityFromTexture(EncodedVelocity1).xy;
+			}
+			if (EncodedVelocity2.x > 0.0)
+			{
+				ScreenVelocity2 = DecodeVelocityFromTexture(EncodedVelocity2).xy;
+			}
+		}
+		#endif
+
+		float2 VelocityDelta = ScreenVelocity1 - ScreenVelocity2;
+		float ExtrapolationBilateral = ComputeScreenVelocityBilateralWeight(VelocityDelta);
+
+		FinalScreenVelocity = ScreenVelocity1 + VelocityDelta * ExtrapolationBilateral * VelocityExtrapolationMultiplier;
+	}
+	else
+	#endif
 	{
 		FinalScreenVelocity = ComputeStaticVelocity(ScreenPos, ClosestDeviceZ);
+		
+		float4 EncodedVelocity = SceneVelocityTexture[uint2(InputBufferUV * InputInfo_Extent + VelocityPixelOffset)];
 
-		#if 1
+		#if CONFIG_USE_SCENE_VELOCITY
 		{
-			float4 EncodedVelocity = SceneVelocityTexture[uint2(InputBufferUV * InputInfo_Extent + VelocityPixelOffset)];
 			if (EncodedVelocity.x > 0.0)
 			{
 				FinalScreenVelocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
@@ -163,7 +206,6 @@ void MainCS(
 		}
 		#endif
 	}
-	#endif
 
 	// Do motion blur velocity flatten.
 	#if DIM_MOTION_BLUR_DIRECTIONS > 0
