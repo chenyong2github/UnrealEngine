@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using EnvDTE;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace UnrealGameSync
 {
@@ -14,14 +17,9 @@ namespace UnrealGameSync
 		[UriHandler(true)]
 		public static UriResult VSOpen(string DepotPath, int Line = -1)
 		{
+			string TempFileName = P4Automation.PrintToTempFile(null, DepotPath, NullLogger.Instance).GetAwaiter().GetResult();
+
 			string ErrorMessage;
-			string TempFileName;
-
-			if (!P4Automation.PrintToTempFile(null, DepotPath, out TempFileName, out ErrorMessage))
-			{
-				return new UriResult() { Error = ErrorMessage ?? "Unknown P4 Error" };
-			}
-
 			if (!VisualStudioAutomation.OpenFile(TempFileName, out ErrorMessage, Line))
 			{
 				return new UriResult() { Error = ErrorMessage ?? "Unknown Visual Studio Error" };

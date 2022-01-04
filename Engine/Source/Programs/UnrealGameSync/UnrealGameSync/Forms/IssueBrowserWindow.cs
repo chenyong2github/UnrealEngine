@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Perforce;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,36 +17,38 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	partial class IssueBrowserWindow : Form
 	{
 		IssueMonitor IssueMonitor;
-		string ServerAndPort;
-		string UserName;
+		IPerforceSettings PerforceSettings;
 		TimeSpan? ServerTimeOffset;
-		TextWriter Log;
+		IServiceProvider ServiceProvider;
+		ILogger Logger;
 		string CurrentStream;
 		int MaxResults = 0;
 		int PendingMaxResults = 0;
-		string FilterName;
+		string? FilterName;
 		Dictionary<string, Func<IssueData, bool>> CustomFilters = new Dictionary<string, Func<IssueData, bool>>();
 		List<IssueData> Issues = new List<IssueData>();
 		SynchronizationContext MainThreadSynchronizationContext;
-		Thread BackgroundThread;
+		Task? BackgroundTask;
 		bool bDisposed;
 
-		public IssueBrowserWindow(IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream, Dictionary<string, Func<IssueData, bool>> CustomFilters, string FilterName)
+		public IssueBrowserWindow(IssueMonitor IssueMonitor, IPerforceSettings PerforceSettings, TimeSpan? ServerTimeOffset, IServiceProvider ServiceProvider, string CurrentStream, Dictionary<string, Func<IssueData, bool>> CustomFilters, string FilterName)
 		{
 			this.IssueMonitor = IssueMonitor;
-			this.ServerAndPort = ServerAndPort;
-			this.UserName = UserName;
+			this.PerforceSettings = PerforceSettings;
 			this.ServerTimeOffset = ServerTimeOffset;
-			this.Log = Log;
+			this.ServiceProvider = ServiceProvider;
+			this.Logger = ServiceProvider.GetRequiredService<ILogger<IssueBrowserWindow>>();
 			this.CurrentStream = CurrentStream;
 			this.FilterName = FilterName;
 			this.CustomFilters = CustomFilters;
-			this.MainThreadSynchronizationContext = SynchronizationContext.Current;
+			this.MainThreadSynchronizationContext = SynchronizationContext.Current!;
 
 			IssueMonitor.AddRef();
 
@@ -52,13 +57,16 @@ namespace UnrealGameSync
 			using (Graphics Graphics = Graphics.FromHwnd(IntPtr.Zero))
 			{
 				float DpiScaleX = Graphics.DpiX / 96.0f;
-				foreach (ColumnHeader Column in IssueListView.Columns)
+				foreach (ColumnHeader? Column in IssueListView.Columns)
 				{
-					Column.Width = (int)(Column.Width * DpiScaleX);
+					if (Column != null)
+					{
+						Column.Width = (int)(Column.Width * DpiScaleX);
+					}
 				}
 			}
 
-			System.Reflection.PropertyInfo DoubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+			System.Reflection.PropertyInfo DoubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
 			DoubleBufferedProperty.SetValue(IssueListView, true, null);
 		}
 
@@ -87,19 +95,19 @@ namespace UnrealGameSync
 			CheckToStartBackgroundThread();
 		}
 
-		void FetchIssues(int NewMaxResults)
+		async Task FetchIssues(int NewMaxResults, CancellationToken CancellationToken)
 		{
 			try
 			{
 				SortedDictionary<int, IssueData> NewSortedIssues = new SortedDictionary<int, IssueData>();
 
-				List<IssueData> OpenIssues = RESTApi.GET<List<IssueData>>(IssueMonitor.ApiUrl, "issues");
+				List<IssueData> OpenIssues = await RESTApi.GetAsync<List<IssueData>>($"{IssueMonitor.ApiUrl}/api/issues", CancellationToken);
 				foreach (IssueData OpenIssue in OpenIssues)
 				{
 					NewSortedIssues[(int)OpenIssue.Id] = OpenIssue;
 				}
 
-				List<IssueData> ResolvedIssues = RESTApi.GET<List<IssueData>>(IssueMonitor.ApiUrl, String.Format("issues?includeresolved=true&maxresults={0}", NewMaxResults));
+				List<IssueData> ResolvedIssues = await RESTApi.GetAsync<List<IssueData>>($"{IssueMonitor.ApiUrl}/api/issues?includeresolved=true&maxresults={NewMaxResults}", CancellationToken);
 				foreach (IssueData ResolvedIssue in ResolvedIssues)
 				{
 					NewSortedIssues[(int)ResolvedIssue.Id] = ResolvedIssue;
@@ -122,14 +130,14 @@ namespace UnrealGameSync
 			Issues = NewIssues;
 			UpdateIssueList();
 
-			BackgroundThread = null;
+			BackgroundTask = null;
 			CheckToStartBackgroundThread();
 		}
 
 		void FetchIssuesFailure(Exception Ex)
 		{
 			StatusLabel.Text = String.Format("Unable to fetch issues ({0})", Ex.Message);
-			BackgroundThread = null;
+			BackgroundTask = null;
 			CheckToStartBackgroundThread();
 		}
 
@@ -143,11 +151,10 @@ namespace UnrealGameSync
 
 		void StartBackgroundThread()
 		{
-			if(BackgroundThread == null)
+			if(BackgroundTask == null)
 			{
 				int NewMaxResultsCopy = PendingMaxResults;
-				BackgroundThread = new Thread(() => FetchIssues(NewMaxResultsCopy));
-				BackgroundThread.Start();
+				BackgroundTask = Task.Run(() => FetchIssues(NewMaxResultsCopy, CancellationToken.None));
 			}
 		}
 
@@ -158,7 +165,7 @@ namespace UnrealGameSync
 			DateTime Midnight = (Now - Now.TimeOfDay).ToUniversalTime();
 
 			// Get the regex for the selected filter
-			Func<IssueData, bool> Filter;
+			Func<IssueData, bool>? Filter;
 			if (String.IsNullOrEmpty(FilterName))
 			{
 				Filter = x => true;
@@ -255,12 +262,12 @@ namespace UnrealGameSync
 
 		static List<IssueBrowserWindow> ExistingWindows = new List<IssueBrowserWindow>();
 
-		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream, Dictionary<string, Func<IssueData, bool>> CustomFilters, string DefaultFilter)
+		public static void Show(Form Owner, IssueMonitor IssueMonitor, IPerforceSettings PerforceSettings, TimeSpan? ServerTimeOffset, IServiceProvider ServiceProvider, string CurrentStream, Dictionary<string, Func<IssueData, bool>> CustomFilters, string DefaultFilter)
 		{
 			IssueBrowserWindow Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor);
 			if(Window == null)
 			{
-				Window = new IssueBrowserWindow(IssueMonitor, ServerAndPort, UserName, ServerTimeOffset, Log, CurrentStream, CustomFilters, DefaultFilter);
+				Window = new IssueBrowserWindow(IssueMonitor, PerforceSettings, ServerTimeOffset, ServiceProvider, CurrentStream, CustomFilters, DefaultFilter);
 				Window.Owner = Owner;
 				Window.StartPosition = FormStartPosition.Manual;
 				Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
@@ -349,7 +356,7 @@ namespace UnrealGameSync
 
 		private void ShowIssue(IssueData Issue)
 		{
-			IssueDetailsWindow.Show(Owner, IssueMonitor, ServerAndPort, UserName, ServerTimeOffset, Issue, Log, CurrentStream);
+			IssueDetailsWindow.Show(Owner, IssueMonitor, PerforceSettings, ServerTimeOffset, Issue, ServiceProvider, CurrentStream);
 		}
 
 		private void IssueListView_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)

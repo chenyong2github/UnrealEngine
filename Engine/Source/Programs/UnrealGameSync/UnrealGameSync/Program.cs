@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Perforce;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -40,7 +43,7 @@ namespace UnrealGameSync
 		public static string SyncVersion = null;
 
 		[STAThread]
-		static void Main(string[] Args)
+		static async Task Main(string[] Args)
 		{
 			bool bFirstInstance;
 			using (Mutex InstanceMutex = new Mutex(true, "UnrealGameSyncRunning", out bFirstInstance))
@@ -61,7 +64,7 @@ namespace UnrealGameSync
 
 					if (bFirstInstance)
 					{
-						InnerMain(InstanceMutex, ActivateEvent, Args);
+						await InnerMainAsync(InstanceMutex, ActivateEvent, Args);
 					}
 					else
 					{
@@ -71,7 +74,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		static void InnerMain(Mutex InstanceMutex, EventWaitHandle ActivateEvent, string[] Args)
+		static async Task InnerMainAsync(Mutex InstanceMutex, EventWaitHandle ActivateEvent, string[] Args)
 		{
 			string ServerAndPort = null;
 			string UserName = null;
@@ -126,28 +129,37 @@ namespace UnrealGameSync
 			// Enable TLS 1.1 and 1.2. TLS 1.0 is now deprecated and not allowed by default in NET Core servers.
 			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
 
-			// Create the log file
-			using (TimestampLogWriter Log = new TimestampLogWriter(new BoundedLogWriter(FileReference.Combine(DataFolder, "UnrealGameSync.log"))))
+			// Create a new logger
+			using (ILoggerProvider LoggerProvider = Logging.CreateLoggerProvider(FileReference.Combine(DataFolder, "UnrealGameSync.log")))
 			{
-				Log.WriteLine("Application version: {0}", Assembly.GetExecutingAssembly().GetName().Version);
-				Log.WriteLine("Started at {0}", DateTime.Now.ToString());
+				ServiceCollection Services = new ServiceCollection();
+				Services.AddLogging(Builder => Builder.AddProvider(LoggerProvider));
+				Services.AddSingleton<IAsyncDisposer, AsyncDisposer>();
 
-				string SessionId = Guid.NewGuid().ToString();
-				Log.WriteLine("SessionId: {0}", SessionId);
-
-				if (ServerAndPort == null || UserName == null)
+				await using (ServiceProvider ServiceProvider = Services.BuildServiceProvider())
 				{
-					Log.WriteLine("Missing server settings; finding defaults.");
-					GetDefaultServerSettings(ref ServerAndPort, ref UserName, Log);
-					Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
-				}
+					ILoggerFactory LoggerFactory = ServiceProvider.GetRequiredService<ILoggerFactory>();
 
-				using (BoundedLogWriter TelemetryLog = new BoundedLogWriter(FileReference.Combine(DataFolder, "Telemetry.log")))
-				{
-					TelemetryLog.WriteLine("Creating telemetry sink for session {0}", SessionId);
+					ILogger Logger = LoggerFactory.CreateLogger("Startup");
+					Logger.LogInformation("Application version: {Version}", Assembly.GetExecutingAssembly().GetName().Version);
+					Logger.LogInformation("Started at {Time}", DateTime.Now.ToString());
+
+					string SessionId = Guid.NewGuid().ToString();
+					Logger.LogInformation("SessionId: {SessionId}", SessionId);
+
+					if (ServerAndPort == null || UserName == null)
+					{
+						Logger.LogInformation("Missing server settings; finding defaults.");
+						ServerAndPort ??= PerforceSettings.Default.ServerAndPort;
+						UserName ??= PerforceSettings.Default.UserName;
+						Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
+					}
+
+					ILogger TelemetryLogger = LoggerProvider.CreateLogger("Telemetry");
+					TelemetryLogger.LogInformation("Creating telemetry sink for session {SessionId}", SessionId);
 
 					ITelemetrySink PrevTelemetrySink = Telemetry.ActiveSink;
-					using (ITelemetrySink TelemetrySink = DeploymentSettings.CreateTelemetrySink(UserName, SessionId, TelemetryLog))
+					using (ITelemetrySink TelemetrySink = DeploymentSettings.CreateTelemetrySink(UserName, SessionId, TelemetryLogger))
 					{
 						Telemetry.ActiveSink = TelemetrySink;
 
@@ -155,10 +167,11 @@ namespace UnrealGameSync
 
 						AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
-						PerforceConnection DefaultConnection = new PerforceConnection(UserName, null, ServerAndPort);
-						using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultConnection, UpdatePath))
+						IPerforceSettings DefaultSettings = new PerforceSettings(ServerAndPort, UserName) { PreferNativeClient = true };
+
+						using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultSettings, UpdatePath, ServiceProvider))
 						{
-							ProgramApplicationContext Context = new ProgramApplicationContext(DefaultConnection, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, Log, Uri);
+							ProgramApplicationContext Context = new ProgramApplicationContext(DefaultSettings, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, ServiceProvider, Uri);
 							Application.Run(Context);
 
 							if (UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)
@@ -170,41 +183,6 @@ namespace UnrealGameSync
 						}
 					}
 					Telemetry.ActiveSink = PrevTelemetrySink;
-				}
-			}
-		}
-
-		public static void GetDefaultServerSettings(ref string ServerAndPort, ref string UserName, TextWriter Log)
-		{
-			// Read the P4PORT setting for the server, if necessary. Change to the project folder if set, so we can respect the contents of any P4CONFIG file.
-			if(ServerAndPort == null)
-			{
-				PerforceConnection Perforce = new PerforceConnection(UserName, null, null);
-
-				string NewServerAndPort;
-				if (Perforce.GetSetting("P4PORT", out NewServerAndPort, Log))
-				{
-					ServerAndPort = NewServerAndPort;
-				}
-				else
-				{
-					ServerAndPort = PerforceConnection.DefaultServerAndPort;
-				}
-			}
-
-			// Update the server and username from the reported server info if it's not set
-			if(UserName == null)
-			{
-				PerforceConnection Perforce = new PerforceConnection(UserName, null, ServerAndPort);
-
-				PerforceInfoRecord PerforceInfo;
-				if(Perforce.Info(out PerforceInfo, Log) && !String.IsNullOrEmpty(PerforceInfo.UserName))
-				{
-					UserName = PerforceInfo.UserName;
-				}
-				else
-				{
-					UserName = Environment.UserName;
 				}
 			}
 		}

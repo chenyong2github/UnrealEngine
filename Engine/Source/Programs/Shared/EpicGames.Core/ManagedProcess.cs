@@ -436,6 +436,11 @@ namespace EpicGames.Core
 		/// </summary>
 		ManagedProcessGroup? AccountingProcessGroup;
 
+		byte[] Buffer = Array.Empty<byte>();
+		int BufferPos = 0;
+		int BufferLen = 0;
+		bool bCarriageReturn = false;
+
 		/// <summary>
 		/// Spawns a new managed process.
 		/// </summary>
@@ -970,7 +975,7 @@ namespace EpicGames.Core
 		/// <param name="Offset">Offset within the buffer to write to</param>
 		/// <param name="Count">Maximum number of bytes to read</param>
 		/// <returns>Number of bytes read</returns>
-		public async Task<int> ReadAsync(byte[] Buffer, int Offset, int Count, CancellationToken CancellationToken)
+		public async ValueTask<int> ReadAsync(byte[] Buffer, int Offset, int Count, CancellationToken CancellationToken)
 		{
 			return await StdOut!.ReadAsync(Buffer, Offset, Count, CancellationToken);
 		}
@@ -1024,6 +1029,66 @@ namespace EpicGames.Core
 					}
 					await WriteOutputAsync(Buffer, 0, Bytes, CancellationToken);
 				}
+			}
+		}
+
+		/// <summary>
+		/// Reads an individual line from the process
+		/// </summary>
+		/// <param name="CancellationToken"></param>
+		/// <returns></returns>
+		public async ValueTask<string?> ReadLineAsync(CancellationToken CancellationToken = default)
+		{
+			for (; ; )
+			{
+				// Skip any '\n' that's part of a '\r\n' sequence
+				if (bCarriageReturn && BufferPos < Buffer.Length)
+				{
+					if (Buffer[BufferPos] == '\n')
+					{
+						BufferPos++;
+					}
+					bCarriageReturn = false;
+				}
+
+				// Pull out the first complete output line
+				for (int Idx = BufferPos; Idx < BufferLen; Idx++)
+				{
+					byte Character = Buffer[Idx];
+					if (Character == '\r' || Character == '\n')
+					{
+						string Line = Console.OutputEncoding.GetString(Buffer, BufferPos, Idx - BufferPos);
+						bCarriageReturn = (Character == '\r');
+						BufferPos = Idx + 1;
+						return Line;
+					}
+				}
+
+				// Create some space in the output buffer
+				if (BufferPos > 0)
+				{
+					Array.Copy(Buffer, BufferPos, Buffer, 0, BufferLen - BufferPos);
+					BufferLen -= BufferPos;
+					BufferPos = 0;
+				}
+				else if (BufferLen == Buffer.Length)
+				{
+					Array.Resize(ref Buffer, Buffer.Length + (32 * 1024));
+				}
+
+				// Read more data into the buffer
+				int NumBytesRead = await ReadAsync(Buffer, BufferPos, Buffer.Length - BufferPos, CancellationToken);
+				if (NumBytesRead == 0)
+				{
+					string? Line = null;
+					if (BufferPos < BufferLen)
+					{
+						Line = Console.OutputEncoding.GetString(Buffer, BufferPos, BufferLen - BufferPos);
+						BufferPos = BufferLen;
+					}
+					return Line;
+				}
+				BufferLen += NumBytesRead;
 			}
 		}
 

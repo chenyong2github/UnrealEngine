@@ -16,37 +16,18 @@ namespace UnrealGameSync
 {
 	partial class ModalTaskWindow : Form
 	{
-		IModalTask Task;
-		SynchronizationContext SyncContext;
-		Thread BackgroundThread;
-		ModalTaskResult? PendingResult;
+		Task Task;
+		CancellationTokenSource CancellationSource;
 
-		public ModalTaskResult Result
-		{
-			get { return PendingResult.Value; }
-		}
-
-		public string ErrorMessage
-		{
-			get;
-			private set;
-		}
-
-		public event Action Complete;
-
-		public ModalTaskWindow(IModalTask InTask, string InTitle, string InMessage, FormStartPosition InStartPosition)
+		public ModalTaskWindow(string InTitle, string InMessage, FormStartPosition InStartPosition, Task InTask, CancellationTokenSource InCancellationSource)//, Func<CancellationToken, Task> InTaskFunc)
 		{
 			InitializeComponent();
 
-			Task = InTask;
 			Text = InTitle;
 			MessageLabel.Text = InMessage;
 			StartPosition = InStartPosition;
-
-			SyncContext = SynchronizationContext.Current;
-
-			BackgroundThread = new Thread(x => ThreadProc());
-			BackgroundThread.Start();
+			Task = InTask;
+			CancellationSource = InCancellationSource;
 		}
 
 		public void ShowAndActivate()
@@ -55,52 +36,19 @@ namespace UnrealGameSync
 			Activate();
 		}
 
-		private void ThreadProc()
+		private void ModalTaskWindow_Load(object sender, EventArgs e)
 		{
-			try
-			{
-				string ErrorMessageValue;
-				if (Task.Run(out ErrorMessageValue))
-				{
-					PendingResult = ModalTaskResult.Succeeded;
-				}
-				else
-				{
-					ErrorMessage = ErrorMessageValue;
-					PendingResult = ModalTaskResult.Failed;
-				}
-			}
-			catch(Exception Ex)
-			{
-				ErrorMessage = Ex.ToString();
-				PendingResult = ModalTaskResult.Failed;
-			}
-			SyncContext.Post((o) => ThreadCompleteCallback(), null);
-		}
-
-		private void ThreadCompleteCallback()
-		{
-			if(BackgroundThread != null)
-			{
-				BackgroundThread.Interrupt();
-				BackgroundThread.Join();
-				BackgroundThread = null;
-
-				if(!PendingResult.HasValue)
-				{
-					PendingResult = ModalTaskResult.Aborted;
-				}
-
-				if(Complete != null)
-				{
-					Complete();
-				}
-			}
+			SynchronizationContext SyncContext = SynchronizationContext.Current;
+			Task.ContinueWith(x => SyncContext.Post(y => Close(), null));
 		}
 
 		private void ModalTaskWindow_FormClosing(object sender, FormClosingEventArgs e)
 		{
-			ThreadCompleteCallback();
+			CancellationSource.Cancel();
+			if (!Task.IsCompleted)
+			{
+				e.Cancel = true;
+			}
 		}
 	}
 }

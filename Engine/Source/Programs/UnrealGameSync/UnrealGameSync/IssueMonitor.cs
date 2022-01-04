@@ -2,6 +2,8 @@
 
 using EnvDTE;
 using EpicGames.Core;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -16,6 +18,8 @@ using System.Threading.Tasks;
 
 using Thread = System.Threading.Thread;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	public enum IssueBuildOutcome
@@ -29,21 +33,21 @@ namespace UnrealGameSync
 	public class IssueBuildData
 	{
 		public long Id { get; set; }
-		public string Stream { get; set; }
+		public string Stream { get; set; } = String.Empty;
 		public int Change { get; set; }
-		public string JobName { get; set; }
-		public string JobUrl { get; set; }
-		public string JobStepName { get; set; }
-		public string JobStepUrl { get; set; }
-		public string ErrorUrl { get; set; }
+		public string JobName { get; set; } = String.Empty;
+		public string JobUrl { get; set; } = String.Empty;
+		public string JobStepName { get; set; } = String.Empty;
+		public string JobStepUrl { get; set; } = String.Empty;
+		public string ErrorUrl { get; set; } = String.Empty;
 		public IssueBuildOutcome Outcome { get; set; }
 	}
 
 	public class IssueDiagnosticData
 	{
 		public long? BuildId { get; set; }
-		public string Message { get; set; }
-		public string Url { get; set; }
+		public string Message { get; set; } = String.Empty;
+		public string Url { get; set; } = String.Empty;
 	}
 
 	public class IssueData
@@ -52,20 +56,20 @@ namespace UnrealGameSync
 		public long Id { get; set; }
 		public DateTime CreatedAt { get; set; }
 		public DateTime RetrievedAt { get; set; }
-		public string Project { get; set; }
-		public string Summary { get; set; }
-		public string Details { get; set; }
-		public string Owner { get; set; }
-		public string NominatedBy { get; set; }
+		public string Project { get; set; } = String.Empty;
+		public string Summary { get; set; } = String.Empty;
+		public string Details { get; set; } = String.Empty;
+		public string Owner { get; set; } = String.Empty;
+		public string NominatedBy { get; set; } = String.Empty;
 		public DateTime? AcknowledgedAt { get; set; }
 		public int FixChange { get; set; }
 		public DateTime? ResolvedAt { get; set; }
 		public bool bNotify { get; set; }
 		public bool bIsWarning { get; set; }
-		public string BuildUrl { get; set; }
-		public List<string> Streams { get;set; }
+		public string BuildUrl { get; set; } = String.Empty;
+		public List<string> Streams { get; set; } = new List<string>();
 
-		HashSet<string> CachedProjects;
+		HashSet<string>? CachedProjects;
 
 		public HashSet<string> Projects
 		{
@@ -113,8 +117,8 @@ namespace UnrealGameSync
 	public class IssueUpdateData
 	{
 		public long Id { get; set; }
-		public string Owner { get; set; }
-		public string NominatedBy { get; set; }
+		public string Owner { get; set; } = String.Empty;
+		public string NominatedBy { get; set; } = String.Empty;
 		public bool? Acknowledged { get; set; }
 		public int? FixChange { get; set; }
 		public bool? Resolved { get; set; }
@@ -135,45 +139,48 @@ namespace UnrealGameSync
 		public readonly string ApiUrl;
 		public readonly string UserName;
 		int RefCount = 1;
-		Thread WorkerThread;
-		BoundedLogWriter LogWriter;
-		bool bDisposing;
-		AutoResetEvent RefreshEvent;
+		Task? WorkerTask;
+		ILogger Logger;
+		CancellationTokenSource CancellationSource;
+		AsyncEvent RefreshEvent;
 		int UpdateIntervalMs;
 		List<long> TrackingIssueIds = new List<long>();
 		List<IssueData> Issues = new List<IssueData>();
 		object LockObject = new object();
 		List<IssueUpdateData> PendingUpdates = new List<IssueUpdateData>();
+		IAsyncDisposer AsyncDisposer;
 
-		public event Action OnIssuesChanged;
+		public Action? OnIssuesChanged { get; set; }
 
 		// Only used by MainWindow, but easier to just store here
 		public Dictionary<long, IssueAlertReason> IssueIdToAlertReason = new Dictionary<long, IssueAlertReason>();
 
-		public IssueMonitor(string ApiUrl, string UserName, TimeSpan UpdateInterval, FileReference LogFileName)
+		public IssueMonitor(string ApiUrl, string UserName, TimeSpan UpdateInterval, IServiceProvider ServiceProvider)
 		{
 			this.ApiUrl = ApiUrl;
 			this.UserName = UserName;
 			this.UpdateIntervalMs = (int)UpdateInterval.TotalMilliseconds;
+			this.Logger = ServiceProvider.GetRequiredService<ILogger<IssueMonitor>>();
+			CancellationSource = new CancellationTokenSource();
+			this.AsyncDisposer = ServiceProvider.GetRequiredService<IAsyncDisposer>();
 
-			LogWriter = new BoundedLogWriter(LogFileName);
-			if(ApiUrl == null)
+			if (ApiUrl == null)
 			{
 				LastStatusMessage = "Database functionality disabled due to empty ApiUrl.";
 			}
 			else
 			{
-				LogWriter.WriteLine("Using connection string: {0}", this.ApiUrl);
+				Logger.LogInformation("Using connection string: {ApiUrl}", this.ApiUrl);
 			}
 
-			RefreshEvent = new AutoResetEvent(false);
+			RefreshEvent = new AsyncEvent();
 		}
 
 		public string LastStatusMessage
 		{
 			get;
 			private set;
-		}
+		} = String.Empty;
 
 		public List<IssueData> GetIssues()
 		{
@@ -272,8 +279,7 @@ namespace UnrealGameSync
 		{
 			if(ApiUrl != null)
 			{
-				WorkerThread = new Thread(() => PollForUpdates());
-				WorkerThread.Start();
+				WorkerTask = Task.Run(() => PollForUpdatesAsync(CancellationSource.Token));
 			}
 		}
 
@@ -306,30 +312,24 @@ namespace UnrealGameSync
 
 		void DisposeInternal()
 		{
-			bDisposing = true;
-			if(WorkerThread != null)
+			OnIssuesChanged = null;
+
+			if (WorkerTask != null)
 			{
-				RefreshEvent.Set();
-				if(!WorkerThread.Join(100))
-				{
-					WorkerThread.Interrupt();
-					WorkerThread.Join();
-				}
-				WorkerThread = null;
-			}
-			if(LogWriter != null)
-			{
-				LogWriter.Dispose();
-				LogWriter = null;
+				CancellationSource.Cancel();
+				AsyncDisposer.Add(WorkerTask.ContinueWith(_ => CancellationSource.Dispose()));
+				WorkerTask = null;
 			}
 		}
 
-		void PollForUpdates()
+		async Task PollForUpdatesAsync(CancellationToken CancellationToken)
 		{
-			while (!bDisposing)
+			while (CancellationToken.IsCancellationRequested)
 			{
+				Task RefreshTask = RefreshEvent.Task;
+
 				// Check if there's any pending update
-				IssueUpdateData PendingUpdate;
+				IssueUpdateData? PendingUpdate;
 				lock (LockObject)
 				{
 					if (PendingUpdates.Count > 0)
@@ -345,53 +345,52 @@ namespace UnrealGameSync
 				// If we have an update, try to post it to the backend and check for another
 				if (PendingUpdate != null)
 				{
-					if (SendUpdate(PendingUpdate))
+					if (await SendUpdateAsync(PendingUpdate, CancellationToken))
 					{
 						lock (LockObject) { PendingUpdates.RemoveAt(0); }
 					}
 					else
 					{
-						RefreshEvent.WaitOne(5 * 1000);
+						await Task.WhenAny(RefreshTask, Task.Delay(TimeSpan.FromSeconds(5.0), CancellationToken));
 					}
 					continue;
 				}
 
 				// Read all the current issues
-				ReadCurrentIssues();
+				await ReadCurrentIssuesAsync(CancellationToken);
 
 				// Wait for something else to do
-				RefreshEvent.WaitOne(UpdateIntervalMs);
+				await Task.WhenAny(RefreshTask, Task.Delay(UpdateIntervalMs, CancellationToken));
 			}
 		}
 
-		bool SendUpdate(IssueUpdateData Update)
+		async Task<bool> SendUpdateAsync(IssueUpdateData Update, CancellationToken CancellationToken)
 		{
 			try
 			{
-				RESTApi.PUT<IssueUpdateData>(ApiUrl, String.Format("issues/{0}", Update.Id), Update);
+				await RESTApi.PutAsync<IssueUpdateData>($"{ApiUrl}/api/issues/{Update.Id}", Update, CancellationToken);
 				return true;
 			}
 			catch(Exception Ex)
 			{
-				LogWriter.WriteException(Ex, "Failed with exception.");
+				Logger.LogError(Ex, "Failed with exception.");
 				LastStatusMessage = String.Format("Failed to send update: ({0})", Ex.ToString());
 				return false;
 			}
 		}
 
-		bool ReadCurrentIssues()
+		async Task<bool> ReadCurrentIssuesAsync(CancellationToken CancellationToken)
 		{
 			try
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
-				LogWriter.WriteLine();
-				LogWriter.WriteLine("Polling for notifications at {0}...", DateTime.Now.ToString());
+				Logger.LogInformation("Polling for issues...");
 
 				// Get the initial number of issues. We won't post updates if this stays at zero.
 				int InitialNumIssues = Issues.Count;
 
 				// Fetch the new issues
-				List<IssueData> NewIssues = RESTApi.GET<List<IssueData>>(ApiUrl, String.Format("issues?user={0}", UserName));
+				List<IssueData> NewIssues = await RESTApi.GetAsync<List<IssueData>>($"{ApiUrl}/api/issues?user={UserName}", CancellationToken);
 
 				// Check if we're tracking a particular issue. If so, we want updates even when it's resolved.
 				long[] LocalTrackingIssueIds;
@@ -405,7 +404,7 @@ namespace UnrealGameSync
 					{
 						try
 						{
-							IssueData Issue = RESTApi.GET<IssueData>(ApiUrl, String.Format("issues/{0}", LocalTrackingIssueId));
+							IssueData Issue = await RESTApi.GetAsync<IssueData>($"{ApiUrl}/api/issues/{LocalTrackingIssueId}", CancellationToken);
 							if(Issue != null)
 							{
 								NewIssues.Add(Issue);
@@ -413,7 +412,7 @@ namespace UnrealGameSync
 						}
 						catch(Exception Ex)
 						{
-							LogWriter.WriteException(Ex, "Exception while fetching tracked issue");
+							Logger.LogError(Ex, "Exception while fetching tracked issue");
 						}
 					}
 				}
@@ -423,7 +422,7 @@ namespace UnrealGameSync
 				{
 					if (NewIssue.Version == 0)
 					{
-						List<IssueBuildData> Builds = RESTApi.GET<List<IssueBuildData>>(ApiUrl, String.Format("issues/{0}/builds", NewIssue.Id));
+						List<IssueBuildData> Builds = await RESTApi.GetAsync<List<IssueBuildData>>($"{ApiUrl}/api/issues/{NewIssue.Id}/builds", CancellationToken);
 						if (Builds != null && Builds.Count > 0)
 						{
 							NewIssue.bIsWarning = !Builds.Any(x => x.Outcome != IssueBuildOutcome.Warning);
@@ -458,12 +457,12 @@ namespace UnrealGameSync
 
 				// Update the stats
 				LastStatusMessage = String.Format("Last update took {0}ms", Timer.ElapsedMilliseconds);
-				LogWriter.WriteLine("Done in {0}ms.", Timer.ElapsedMilliseconds);
+				Logger.LogInformation("Done in {Time}ms.", Timer.ElapsedMilliseconds);
 				return true;
 			}
 			catch(Exception Ex)
 			{
-				LogWriter.WriteException(Ex, "Failed with exception.");
+				Logger.LogError(Ex, "Failed with exception.");
 				LastStatusMessage = String.Format("Last update failed: ({0})", Ex.ToString());
 				return false;
 			}

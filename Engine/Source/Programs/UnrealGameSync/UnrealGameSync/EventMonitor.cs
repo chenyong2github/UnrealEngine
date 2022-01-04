@@ -10,6 +10,9 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using EpicGames.Core;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace UnrealGameSync
 {
@@ -212,8 +215,10 @@ namespace UnrealGameSync
 		int ApiVersion;
 		string Project;
 		string CurrentUserName;
-		Thread WorkerThread;
-		AutoResetEvent RefreshEvent = new AutoResetEvent(false);
+		SynchronizationContext SynchronizationContext;
+		CancellationTokenSource CancellationSource;
+		Task WorkerTask;
+		AsyncEvent RefreshEvent = new AsyncEvent();
 		ConcurrentQueue<EventData> OutgoingEvents = new ConcurrentQueue<EventData>();
 		ConcurrentQueue<EventData> IncomingEvents = new ConcurrentQueue<EventData>();
 		ConcurrentQueue<CommentData> OutgoingComments = new ConcurrentQueue<CommentData>();
@@ -222,8 +227,8 @@ namespace UnrealGameSync
 		SortedDictionary<int, EventSummary> ChangeNumberToSummary = new SortedDictionary<int, EventSummary>();
 		Dictionary<string, EventData> UserNameToLastSyncEvent = new Dictionary<string, EventData>(StringComparer.InvariantCultureIgnoreCase);
 		Dictionary<string, BadgeData> BadgeNameToLatestData = new Dictionary<string, BadgeData>();
-		BoundedLogWriter LogWriter;
-		bool bDisposing;
+		ILogger Logger;
+		IAsyncDisposer AsyncDisposer;
 		LatestData LatestIds;
 		HashSet<int> FilterChangeNumbers = new HashSet<int>();
 		List<EventData> InvestigationEvents = new List<EventData>();
@@ -239,11 +244,16 @@ namespace UnrealGameSync
 
 		public event Action OnUpdatesReady;
 
-		public EventMonitor(string InApiUrl, string InProject, string InCurrentUserName, FileReference InLogFileName)
+		public EventMonitor(string InApiUrl, string InProject, string InCurrentUserName, IServiceProvider ServiceProvider)
 		{
 			ApiUrl = InApiUrl;
 			Project = InProject;
 			CurrentUserName = InCurrentUserName;
+			Logger = ServiceProvider.GetRequiredService<ILogger<EventMonitor>>();
+			AsyncDisposer = ServiceProvider.GetRequiredService<IAsyncDisposer>();
+			SynchronizationContext = SynchronizationContext.Current;
+			CancellationSource = new CancellationTokenSource();
+
 			LatestIds = new LatestData { LastBuildId = 0, LastCommentId = 0, LastEventId = 0 };
 
 			MetadataStream = Project.ToLowerInvariant().TrimEnd('/');
@@ -261,40 +271,33 @@ namespace UnrealGameSync
 				}
 			}
 
-			LogWriter = new BoundedLogWriter(InLogFileName);
 			if(ApiUrl == null)
 			{
 				LastStatusMessage = "Database functionality disabled due to empty ApiUrl.";
 			}
 			else
 			{
-				LogWriter.WriteLine("Using connection string: {0}", ApiUrl);
+				Logger.LogInformation("Using connection string: {ApiUrl}", ApiUrl);
 			}
 		}
 
 		public void Start()
 		{
-			WorkerThread = new Thread(() => PollForUpdates());
-			WorkerThread.Start();
+			if (WorkerTask == null)
+			{
+				WorkerTask = Task.Run(() => PollForUpdatesAsync(CancellationSource.Token));
+			}
 		}
 
 		public void Dispose()
 		{
-			bDisposing = true;
-			if(WorkerThread != null)
+			OnUpdatesReady = null;
+
+			if(WorkerTask != null)
 			{
-				RefreshEvent.Set();
-				if(!WorkerThread.Join(100))
-				{
-					WorkerThread.Interrupt();
-					WorkerThread.Join();
-				}
-				WorkerThread = null;
-			}
-			if(LogWriter != null)
-			{
-				LogWriter.Dispose();
-				LogWriter = null;
+				CancellationSource.Cancel();
+				AsyncDisposer.Add(WorkerTask.ContinueWith(_ => CancellationSource.Dispose()));
+				WorkerTask = null;
 			}
 		}
 
@@ -699,30 +702,31 @@ namespace UnrealGameSync
 			}
 		}
 
-		void PollForUpdates()
+		async Task PollForUpdatesAsync(CancellationToken CancellationToken)
 		{
-			Stopwatch NetCoreTimer = Stopwatch.StartNew();
 			EventData Event = null;
 			CommentData Comment = null;
 			bool bUpdateThrottledRequests = true;
 			double RequestThrottle = 90; // seconds to wait for throttled request;
 			Stopwatch Timer = Stopwatch.StartNew();
-			while (!bDisposing)
+			while (!CancellationToken.IsCancellationRequested)
 			{
+				Task RefreshTask = RefreshEvent.Task;
+
 				// If there's no connection string, just empty out the queue
 				if (ApiUrl != null)
 				{
 					// Post all the reviews to the database. We don't send them out of order, so keep the review outside the queue until the next update if it fails
 					while(Event != null || OutgoingEvents.TryDequeue(out Event))
 					{
-						SendEventToBackend(Event);
+						await SendEventToBackendAsync(Event, CancellationToken);
 						Event = null;
 					}
 
 					// Post all the comments to the database.
 					while(Comment != null || OutgoingComments.TryDequeue(out Comment))
 					{
-						SendCommentToBackend(Comment);
+						await SendCommentToBackendAsync(Comment, CancellationToken);
 						Comment = null;
 					}
 
@@ -733,30 +737,21 @@ namespace UnrealGameSync
 					}
 
 					// Read all the new reviews, pass whether or not to fire the throttled requests
-					ReadEventsFromBackend(bUpdateThrottledRequests);
+					await ReadEventsFromBackendAsync(bUpdateThrottledRequests, CancellationToken);
 
 					// Send a notification that we're ready to update
-					if((IncomingMetadata.Count > 0 || IncomingEvents.Count > 0 || IncomingBadges.Count > 0 || IncomingComments.Count > 0) && OnUpdatesReady != null)
+					if(IncomingMetadata.Count > 0 || IncomingEvents.Count > 0 || IncomingBadges.Count > 0 || IncomingComments.Count > 0)
 					{
-						OnUpdatesReady();
+						SynchronizationContext.Post(_ => OnUpdatesReady?.Invoke(), null);
 					}
-				}
-
-				// Post info about whether net core is installed
-				if (DeploymentSettings.NetCoreTelemetryUrl != null && NetCoreTimer.Elapsed > TimeSpan.FromMinutes(60.0))
-				{
-					try
-					{
-						RESTApi.POST(DeploymentSettings.NetCoreTelemetryUrl, "netcore", "{ }", "User=" + CurrentUserName, "Machine=" + Environment.MachineName, "NetCore=" + HasNetCore3().ToString());
-					}
-					catch
-					{
-					}
-					NetCoreTimer.Restart();
 				}
 
 				// Wait for something else to do
-				bUpdateThrottledRequests = RefreshEvent.WaitOne(30 * 1000);
+				Task DelayTask = Task.Delay(TimeSpan.FromSeconds(30.0), CancellationToken);
+				if (await Task.WhenAny(DelayTask, RefreshTask) == DelayTask)
+				{
+					bUpdateThrottledRequests = true;
+				}
 			}
 		}
 
@@ -776,54 +771,54 @@ namespace UnrealGameSync
 			return false;
 		}
 
-		bool SendEventToBackend(EventData Event)
+		async Task<bool> SendEventToBackendAsync(EventData Event, CancellationToken CancellationToken)
 		{
 			try
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
-				LogWriter.WriteLine("Posting event... ({0}, {1}, {2})", Event.Change, Event.UserName, Event.Type);
+				Logger.LogInformation("Posting event... ({Change}, {UserName}, {Type})", Event.Change, Event.UserName, Event.Type);
 				if (ApiVersion == 2)
 				{
-					SendMetadataUpdateUpdateV2(Event.Change, Event.Project, Event.UserName, Event.Type, null);
+					await SendMetadataUpdateUpdateV2Async(Event.Change, Event.Project, Event.UserName, Event.Type, null, CancellationToken);
 				}
 				else
 				{
-					RESTApi.POST(ApiUrl, "event", JsonSerializer.Serialize(Event));
+					await RESTApi.PostAsync($"{ApiUrl}/api/event", JsonSerializer.Serialize(Event), CancellationToken);
 				}
 				return true;
 			}
 			catch(Exception Ex)
 			{
-				LogWriter.WriteException(Ex, "Failed with exception.");
+				Logger.LogError(Ex, "Failed with exception.");
 				return false;
 			}
 		}
 
-		bool SendCommentToBackend(CommentData Comment)
+		async Task<bool> SendCommentToBackendAsync(CommentData Comment, CancellationToken CancellationToken)
 		{
 			try
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
-				LogWriter.WriteLine("Posting comment... ({0}, {1}, {2}, {3})", Comment.ChangeNumber, Comment.UserName, Comment.Text, Comment.Project);
+				Logger.LogInformation("Posting comment... ({Change}, {User}, {Text}, {Project})", Comment.ChangeNumber, Comment.UserName, Comment.Text, Comment.Project);
 				if (ApiVersion == 2)
 				{
-					SendMetadataUpdateUpdateV2(Comment.ChangeNumber, Comment.Project, Comment.UserName, null, Comment.Text);
+					await SendMetadataUpdateUpdateV2Async(Comment.ChangeNumber, Comment.Project, Comment.UserName, null, Comment.Text, CancellationToken);
 				}
 				else
 				{
-					RESTApi.POST(ApiUrl, "comment", JsonSerializer.Serialize(Comment));
+					await RESTApi.PostAsync($"{ApiUrl}/api/comment", JsonSerializer.Serialize(Comment), CancellationToken);
 				}
-				LogWriter.WriteLine("Done in {0}ms.", Timer.ElapsedMilliseconds);
+				Logger.LogInformation("Done in {Time}ms.", Timer.ElapsedMilliseconds);
 				return true;
 			}
 			catch(Exception Ex)
 			{
-				LogWriter.WriteException(Ex, "Failed with exception.");
+				Logger.LogError(Ex, "Failed with exception.");
 				return false;
 			}
 		}
 
-		void SendMetadataUpdateUpdateV2(int Change, string Project, string UserName, EventType? Event, string Comment)
+		async Task SendMetadataUpdateUpdateV2Async(int Change, string Project, string UserName, EventType? Event, string Comment, CancellationToken CancellationToken)
 		{
 			UpdateMetadataRequestV2 Update = new UpdateMetadataRequestV2();
 			Update.Stream = MetadataStream;
@@ -869,22 +864,22 @@ namespace UnrealGameSync
 			}
 			Update.Comment = Comment;
 
-			RESTApi.POST(ApiUrl, "metadata", JsonSerializer.Serialize(Update));
+			await RESTApi.PostAsync($"{ApiUrl}/api/metadata", JsonSerializer.Serialize(Update), CancellationToken);
 		}
 
-		bool ReadEventsFromBackend(bool bFireThrottledRequests)
+		async Task<bool> ReadEventsFromBackendAsync(bool bFireThrottledRequests, CancellationToken CancellationToken)
 		{
 			try
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
-				LogWriter.WriteLine();
-				LogWriter.WriteLine("Polling for reviews at {0}...", DateTime.Now.ToString());
+				Logger.LogInformation("Polling for events...");
+
 				//////////////
 				/// Initial Ids 
 				//////////////
 				if (ApiVersion == 0)
 				{
-					LatestData InitialIds = RESTApi.GET<LatestData>(ApiUrl, "latest", string.Format("project={0}", Project));
+					LatestData InitialIds = await RESTApi.GetAsync<LatestData>($"{ApiUrl}/api/latest?project={Project}", CancellationToken);
 					ApiVersion = (InitialIds.Version == 0)? 1 : InitialIds.Version;
 					LatestIds.LastBuildId = InitialIds.LastBuildId;
 					LatestIds.LastCommentId = InitialIds.LastCommentId;
@@ -909,7 +904,7 @@ namespace UnrealGameSync
 						// Fetch any updates in the current range of changes
 						if (MinChange != 0)
 						{
-							GetMetadataListResponseV2 NewEventList = RESTApi.GET<GetMetadataListResponseV2>(ApiUrl, "metadata", String.Format("{0}&minchange={1}&sequence={2}", CommonArgs, MinChange, MetadataSequenceNumber));
+							GetMetadataListResponseV2 NewEventList = await RESTApi.GetAsync<GetMetadataListResponseV2>($"{ApiUrl}/api/metadata?{CommonArgs}&minchange={MinChange}&sequence={MetadataSequenceNumber}", CancellationToken);
 							foreach (GetMetadataResponseV2 NewEvent in NewEventList.Items)
 							{
 								IncomingMetadata.Enqueue(NewEvent);
@@ -920,7 +915,7 @@ namespace UnrealGameSync
 						// Fetch any new changes
 						if (NewMinChangeCopy < MinChange)
 						{
-							GetMetadataListResponseV2 NewEvents = RESTApi.GET<GetMetadataListResponseV2>(ApiUrl, "metadata", String.Format("{0}&minchange={1}&maxchange={2}", CommonArgs, NewMinChangeCopy, MinChange));
+							GetMetadataListResponseV2 NewEvents = await RESTApi.GetAsync<GetMetadataListResponseV2>($"{ApiUrl}/api/metadata?{CommonArgs}&minchange={NewMinChangeCopy}&maxchange={MinChange}", CancellationToken);
 							foreach (GetMetadataResponseV2 NewEvent in NewEvents.Items)
 							{
 								IncomingMetadata.Enqueue(NewEvent);
@@ -931,50 +926,50 @@ namespace UnrealGameSync
 				}
 				else
 				{
-				//////////////
-				/// Builds
-				//////////////
-				List<BadgeData> Builds = RESTApi.GET<List<BadgeData>>(ApiUrl, "build", string.Format("project={0}", Project), string.Format("lastbuildid={0}", LatestIds.LastBuildId));
-				foreach (BadgeData Build in Builds)
-				{
-					IncomingBadges.Enqueue(Build);
-					LatestIds.LastBuildId = Math.Max(LatestIds.LastBuildId, Build.Id);
-				}
-
-				//////////////////////////
-				/// Throttled Requests
-				//////////////////////////
-				if (bFireThrottledRequests)
-				{
 					//////////////
-					/// Reviews 
+					/// Builds
 					//////////////
-					List<EventData> Events = RESTApi.GET<List<EventData>>(ApiUrl, "event", string.Format("project={0}", Project), string.Format("lasteventid={0}", LatestIds.LastEventId));
-					foreach (EventData Review in Events)
+					List<BadgeData> Builds = await RESTApi.GetAsync<List<BadgeData>>($"{ApiUrl}/api/build?project={Project}&lastbuildid={LatestIds.LastBuildId}", CancellationToken);
+					foreach (BadgeData Build in Builds)
 					{
-						IncomingEvents.Enqueue(Review);
-						LatestIds.LastEventId = Math.Max(LatestIds.LastEventId, Review.Id);
+						IncomingBadges.Enqueue(Build);
+						LatestIds.LastBuildId = Math.Max(LatestIds.LastBuildId, Build.Id);
 					}
 
-					//////////////
-					/// Comments 
-					//////////////
-					List<CommentData> Comments = RESTApi.GET<List<CommentData>>(ApiUrl, "comment", string.Format("project={0}", Project), string.Format("lastcommentid={0}", LatestIds.LastCommentId));
-					foreach (CommentData Comment in Comments)
+					//////////////////////////
+					/// Throttled Requests
+					//////////////////////////
+					if (bFireThrottledRequests)
 					{
-						IncomingComments.Enqueue(Comment);
-						LatestIds.LastCommentId = Math.Max(LatestIds.LastCommentId, Comment.Id);
+						//////////////
+						/// Reviews 
+						//////////////
+						List<EventData> Events = await RESTApi.GetAsync<List<EventData>>($"{ApiUrl}/api/event?project={Project}&lasteventid={LatestIds.LastEventId}", CancellationToken);
+						foreach (EventData Review in Events)
+						{
+							IncomingEvents.Enqueue(Review);
+							LatestIds.LastEventId = Math.Max(LatestIds.LastEventId, Review.Id);
+						}
+
+						//////////////
+						/// Comments 
+						//////////////
+						List<CommentData> Comments = await RESTApi.GetAsync<List<CommentData>>($"{ApiUrl}/api/comment?project={Project}&lastcommentid={LatestIds.LastCommentId}", CancellationToken);
+						foreach (CommentData Comment in Comments)
+						{
+							IncomingComments.Enqueue(Comment);
+							LatestIds.LastCommentId = Math.Max(LatestIds.LastCommentId, Comment.Id);
+						}
 					}
-				}
 				}
 
 				LastStatusMessage = String.Format("Last update took {0}ms", Timer.ElapsedMilliseconds);
-				LogWriter.WriteLine("Done in {0}ms.", Timer.ElapsedMilliseconds);
+				Logger.LogInformation("Done in {Time}ms.", Timer.ElapsedMilliseconds);
 				return true;
 			}
 			catch(Exception Ex)
 			{
-				LogWriter.WriteException(Ex, "Failed with exception.");
+				Logger.LogError(Ex, "Failed with exception.");
 				LastStatusMessage = String.Format("Last update failed: ({0})", Ex.ToString());
 				return false;
 			}

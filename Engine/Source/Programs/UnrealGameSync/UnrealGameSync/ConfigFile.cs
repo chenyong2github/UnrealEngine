@@ -1,17 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
-	class ConfigObject
+	public class ConfigObject
 	{
 		const string ConfigSeparatorCharacters = "(),= \t\"";
 
@@ -47,17 +51,25 @@ namespace UnrealGameSync
 				while(Idx < Text.Length)
 				{
 					// Read the next key/value pair
-					string Key = ParseConfigToken(Text, ref Idx);
+					string? Key = ParseConfigToken(Text, ref Idx);
+					if (Key == null)
+					{
+						return;
+					}
 					if(ParseConfigToken(Text, ref Idx) == "=")
 					{
-						string Value = ParseConfigValueToken(Text, ref Idx);
+						string? Value = ParseConfigValueToken(Text, ref Idx);
+						if (Value == null)
+						{
+							return;
+						}
 						SetValue(Key, Value);
 					}
 
 					// Check for the end of the list, or a comma before the next pair
 					for(;;)
 					{
-						string Token = ParseConfigValueToken(Text, ref Idx);
+						string? Token = ParseConfigValueToken(Text, ref Idx);
 						if(Token == ",")
 						{
 							break;
@@ -71,7 +83,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		static string ParseConfigToken(string Text, ref int Idx)
+		static string? ParseConfigToken(string Text, ref int Idx)
 		{
 			// Skip whitespace
 			while(Idx < Text.Length && Char.IsWhiteSpace(Text[Idx]))
@@ -117,15 +129,15 @@ namespace UnrealGameSync
 			}
 		}
 
-		static string ParseConfigValueToken(string Text, ref int Idx)
+		static string? ParseConfigValueToken(string Text, ref int Idx)
 		{
-			string Token = ParseConfigToken(Text, ref Idx);
+			string? Token = ParseConfigToken(Text, ref Idx);
 			if (Token == "(")
 			{
 				int StartIdx = Idx - 1;
 				for (; ; )
 				{
-					string NextToken = ParseConfigValueToken(Text, ref Idx);
+					string? NextToken = ParseConfigValueToken(Text, ref Idx);
 					if (NextToken == null || NextToken == ")")
 					{
 						break;
@@ -136,7 +148,8 @@ namespace UnrealGameSync
 			return Token;
 		}
 
-		public string GetValue(string Key, string DefaultValue = null)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public string? GetValue(string Key, string? DefaultValue = null)
 		{
 			for(int Idx = 0; Idx < Pairs.Count; Idx++)
 			{
@@ -150,7 +163,7 @@ namespace UnrealGameSync
 
 		public Guid GetValue(string Key, Guid DefaultValue)
 		{
-			string StringValue = GetValue(Key);
+			string? StringValue = GetValue(Key);
 			if(StringValue != null)
 			{
 				Guid Value;
@@ -164,7 +177,7 @@ namespace UnrealGameSync
 
 		public int GetValue(string Key, int DefaultValue)
 		{
-			string StringValue = GetValue(Key);
+			string? StringValue = GetValue(Key);
 			if(StringValue != null)
 			{
 				int Value;
@@ -178,7 +191,7 @@ namespace UnrealGameSync
 
 		public bool GetValue(string Key, bool DefaultValue)
 		{
-			string StringValue = GetValue(Key);
+			string? StringValue = GetValue(Key);
 			if(StringValue != null)
 			{
 				bool Value;
@@ -190,17 +203,24 @@ namespace UnrealGameSync
 			return DefaultValue;
 		}
 
-		public void SetValue(string Key, string Value)
+		public void SetValue(string Key, string? Value)
 		{
-			for(int Idx = 0; Idx < Pairs.Count; Idx++)
+			if (Value == null)
 			{
-				if(Pairs[Idx].Key.Equals(Key, StringComparison.InvariantCultureIgnoreCase))
-				{
-					Pairs[Idx] = new KeyValuePair<string,string>(Key, Value);
-					return;
-				}
+				Pairs.RemoveAll(x => x.Key.Equals(Key, StringComparison.OrdinalIgnoreCase));
 			}
-			Pairs.Add(new KeyValuePair<string,string>(Key, Value));
+			else
+			{
+				for (int Idx = 0; Idx < Pairs.Count; Idx++)
+				{
+					if (Pairs[Idx].Key.Equals(Key, StringComparison.OrdinalIgnoreCase))
+					{
+						Pairs[Idx] = new KeyValuePair<string, string>(Key, Value);
+						return;
+					}
+				}
+				Pairs.Add(new KeyValuePair<string, string>(Key, Value));
+			}
 		}
 
 		public void SetValue(string Key, Guid Value)
@@ -218,7 +238,7 @@ namespace UnrealGameSync
 			SetValue(Key, Value.ToString());
 		}
 
-		public string this[string Key]
+		public string? this[string Key]
 		{
 			get { return GetValue(Key); }
 			set { SetValue(Key, value); }
@@ -246,7 +266,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		public string ToString(ConfigObject BaseObject)
+		public string ToString(ConfigObject? BaseObject)
 		{
 			StringBuilder Result = new StringBuilder();
 			Result.Append("(");
@@ -281,7 +301,7 @@ namespace UnrealGameSync
 	}
 
 	[DebuggerDisplay("{Name}")]
-	class ConfigSection
+	public class ConfigSection
 	{
 		public string Name;
 		public Dictionary<string, string> Pairs = new Dictionary<string,string>();
@@ -344,7 +364,7 @@ namespace UnrealGameSync
 
 		public void AppendValue(string Key, string Value)
 		{
-			string CurrentValue;
+			string? CurrentValue;
 			if(Pairs.TryGetValue(Key, out CurrentValue))
 			{
 				Pairs[Key] = CurrentValue + "\n" + Value;
@@ -362,7 +382,7 @@ namespace UnrealGameSync
 
 		public int GetValue(string Key, int DefaultValue)
 		{
-			string ValueString = GetValue(Key);
+			string? ValueString = GetValue(Key);
 			if(ValueString != null)
 			{
 				int Value;
@@ -379,9 +399,10 @@ namespace UnrealGameSync
 			return GetValue(Key, DefaultValue? 1 : 0) != 0;
 		}
 
-		public string GetValue(string Key, string DefaultValue = null)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public string? GetValue(string Key, string? DefaultValue = null)
 		{
-			string Value;
+			string? Value;
 			if(!Pairs.TryGetValue(Key, out Value))
 			{
 				Value = DefaultValue;
@@ -389,9 +410,10 @@ namespace UnrealGameSync
 			return Value;
 		}
 
-		public string[] GetValues(string Key, string[] DefaultValue = null)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public string[]? GetValues(string Key, string[]? DefaultValue = null)
 		{
-			string Value = GetValue(Key, null);
+			string? Value = GetValue(Key, null);
 			if(Value == null)
 			{
 				return DefaultValue;
@@ -402,9 +424,10 @@ namespace UnrealGameSync
 			}
 		}
 
-		public Guid[] GetValues(string Key, Guid[] DefaultValue = null)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public Guid[]? GetValues(string Key, Guid[]? DefaultValue = null)
 		{
-			string[] StringValues = GetValues(Key, (string[])null);
+			string[]? StringValues = GetValues(Key, (string[]?)null);
 			if(StringValues == null)
 			{
 				return DefaultValue;
@@ -424,7 +447,7 @@ namespace UnrealGameSync
 		}
 	}
 
-	class ConfigFile
+	public class ConfigFile
 	{
 		List<ConfigSection> Sections = new List<ConfigSection>();
 
@@ -442,12 +465,12 @@ namespace UnrealGameSync
 			Parse(FileReference.ReadAllLines(FileName));
 		}
 
-		public bool TryLoad(FileReference FileName, TextWriter Log)
+		public bool TryLoad(FileReference FileName, ILogger Logger)
 		{
 			FileInfo FileInfo = FileName.ToFileInfo();
 			if (FileInfo.Exists)
 			{
-				Log.WriteLine("Loading config file from {0} ({1} bytes)", FileInfo.FullName, FileInfo.Length);
+				Logger.LogInformation("Loading config file from {File} ({Size} bytes)", FileInfo.FullName, FileInfo.Length);
 				Load(FileName);
 				return true;
 			}
@@ -457,18 +480,18 @@ namespace UnrealGameSync
 			FileInfo TempFileInfo = TempFileName.ToFileInfo();
 			if (TempFileInfo.Exists)
 			{
-				Log.WriteLine("Loading temporary config file from {0} ({1} bytes)", TempFileInfo.FullName, TempFileInfo.Length);
+				Logger.LogInformation("Loading temporary config file from {File} ({Size} bytes)", TempFileInfo.FullName, TempFileInfo.Length);
 				Load(TempFileName);
 				return true;
 			}
 
-			Log.WriteLine("No existing config file at {0}", FileName);
+			Logger.LogInformation("No existing config file at {File}", FileName);
 			return false;
 		}
 
 		public void Parse(string[] Lines)
 		{
-			ConfigSection CurrentSection = null;
+			ConfigSection? CurrentSection = null;
 			foreach(string Line in Lines)
 			{
 				string TrimLine = Line.Trim();
@@ -592,21 +615,24 @@ namespace UnrealGameSync
 			return (Section == null)? DefaultValue : Section.GetValue(Key.Substring(DotIdx + 1), DefaultValue);
 		}
 
-		public string GetValue(string Key, string DefaultValue)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public string? GetValue(string Key, string? DefaultValue)
 		{
 			int DotIdx = Key.IndexOf('.');
 			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
 			return (Section == null)? DefaultValue : Section.GetValue(Key.Substring(DotIdx + 1), DefaultValue);
 		}
 
-		public string[] GetValues(string Key, string[] DefaultValue)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public string[]? GetValues(string Key, string[]? DefaultValue)
 		{
 			int DotIdx = Key.IndexOf('.');
 			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
 			return (Section == null)? DefaultValue : Section.GetValues(Key.Substring(DotIdx + 1), DefaultValue);
 		}
 
-		public Guid[] GetGuidValues(string Key, Guid[] DefaultValue)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public Guid[]? GetGuidValues(string Key, Guid[]? DefaultValue)
 		{
 			int DotIdx = Key.IndexOf('.');
 			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));

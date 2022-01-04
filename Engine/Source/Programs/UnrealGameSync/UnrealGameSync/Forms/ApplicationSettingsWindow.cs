@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Perforce;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -15,42 +17,34 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using UnrealGameSync;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	partial class ApplicationSettingsWindow : Form
 	{
-		class PerforceTestConnectionTask : IPerforceModalTask
+		static class PerforceTestConnectionTask
 		{
-			string DepotPath;
-
-			public PerforceTestConnectionTask(string DepotPath)
-			{
-				this.DepotPath = DepotPath ?? DeploymentSettings.DefaultDepotPath;
-			}
-
-			public bool Run(PerforceConnection Perforce, TextWriter Log, out string ErrorMessage)
+			public static async Task RunAsync(IPerforceConnection Perforce, string DepotPath, CancellationToken CancellationToken)
 			{
 				string CheckFilePath = String.Format("{0}/Release/UnrealGameSync.exe", DepotPath);
 
-				List<PerforceFileRecord> FileRecords;
-				if(!Perforce.FindFiles(CheckFilePath, out FileRecords, Log) || FileRecords.Count == 0)
+				List<FStatRecord> FileRecords = await Perforce.FStatAsync(CheckFilePath, CancellationToken).ToListAsync(CancellationToken);
+				if(FileRecords.Count == 0)
 				{
-					ErrorMessage = String.Format("Unable to find {0}", CheckFilePath);
-					return false;
+					throw new UserErrorException($"Unable to find {CheckFilePath}");
 				}
-
-				ErrorMessage = null;
-				return true;
 			}
 		}
 
 		string OriginalExecutableFileName;
+		IPerforceSettings DefaultPerforceSettings;
 		UserSettings Settings;
-		TextWriter Log;
+		ILogger Logger;
 
-		string InitialServerAndPort;
-		string InitialUserName;
-		string InitialDepotPath;
+		string? InitialServerAndPort;
+		string? InitialUserName;
+		string? InitialDepotPath;
 		bool bInitialUnstable;
 		int InitialAutomationPortNumber;
 		ProtocolHandlerState InitialProtocolHandlerState;
@@ -74,14 +68,15 @@ namespace UnrealGameSync
 			}
 		}
 
-		private ApplicationSettingsWindow(string DefaultServerAndPort, string DefaultUserName, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, TextWriter Log)
+		private ApplicationSettingsWindow(IPerforceSettings DefaultPerforceSettings, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, ILogger<ApplicationSettingsWindow> Logger)
 		{
 			InitializeComponent();
 
 			this.OriginalExecutableFileName = OriginalExecutableFileName;
+			this.DefaultPerforceSettings = DefaultPerforceSettings;
 			this.Settings = Settings;
 			this.ToolUpdateMonitor = ToolUpdateMonitor;
-			this.Log = Log;
+			this.Logger = Logger;
 
 			Utility.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath);
 			bInitialUnstable = bUnstable;
@@ -94,11 +89,11 @@ namespace UnrealGameSync
 						
 			this.ServerTextBox.Text = InitialServerAndPort;
 			this.ServerTextBox.Select(ServerTextBox.TextLength, 0);
-			this.ServerTextBox.CueBanner = (DefaultServerAndPort == null)? "Default" : String.Format("Default ({0})", DefaultServerAndPort);
+			this.ServerTextBox.CueBanner = $"Default ({DefaultPerforceSettings.ServerAndPort})";
 
 			this.UserNameTextBox.Text = InitialUserName;
 			this.UserNameTextBox.Select(UserNameTextBox.TextLength, 0);
-			this.UserNameTextBox.CueBanner = (DefaultUserName == null)? "Default" : String.Format("Default ({0})", DefaultUserName);
+			this.UserNameTextBox.CueBanner = $"Default ({DefaultPerforceSettings.UserName})";
 
 			this.ParallelSyncThreadsSpinner.Value = Math.Max(Math.Min(Settings.SyncOptions.NumThreads, ParallelSyncThreadsSpinner.Maximum), ParallelSyncThreadsSpinner.Minimum);
 
@@ -141,9 +136,9 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static bool? ShowModal(IWin32Window Owner, PerforceConnection DefaultConnection, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, TextWriter Log)
+		public static bool? ShowModal(IWin32Window Owner, IPerforceSettings DefaultPerforceSettings, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, ILogger<ApplicationSettingsWindow> Logger)
 		{
-			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultConnection.ServerAndPort, DefaultConnection.UserName, bUnstable, OriginalExecutableFileName, Settings, ToolUpdateMonitor, Log);
+			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultPerforceSettings, bUnstable, OriginalExecutableFileName, Settings, ToolUpdateMonitor, Logger);
 			if(ApplicationSettings.ShowDialog() == DialogResult.OK)
 			{
 				return ApplicationSettings.bRestartUnstable;
@@ -163,19 +158,19 @@ namespace UnrealGameSync
 		private void OkBtn_Click(object sender, EventArgs e)
 		{
 			// Update the settings
-			string ServerAndPort = ServerTextBox.Text.Trim();
+			string? ServerAndPort = ServerTextBox.Text.Trim();
 			if(ServerAndPort.Length == 0)
 			{
 				ServerAndPort = null;
 			}
 
-			string UserName = UserNameTextBox.Text.Trim();
+			string? UserName = UserNameTextBox.Text.Trim();
 			if(UserName.Length == 0)
 			{
 				UserName = null;
 			}
 
-			string DepotPath = DepotPathTextBox.Text.Trim();
+			string? DepotPath = DepotPathTextBox.Text.Trim();
 			if(DepotPath.Length == 0 || DepotPath == DeploymentSettings.DefaultDepotPath)
 			{
 				DepotPath = null;
@@ -195,14 +190,13 @@ namespace UnrealGameSync
 				// Try to log in to the new server, and check the application is there
 				if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath)
 				{
-					string ErrorMessage;
-					ModalTaskResult Result = PerforceModalTask.Execute(this, new PerforceConnection(UserName, null, ServerAndPort), new PerforceTestConnectionTask(DepotPath), "Connecting", "Checking connection, please wait...", Log, out ErrorMessage);
-					if(Result != ModalTaskResult.Succeeded)
+					PerforceSettings Settings = Utility.OverridePerforceSettings(DefaultPerforceSettings, ServerAndPort, UserName);
+
+					string TestDepotPath = DepotPath ?? DeploymentSettings.DefaultDepotPath;
+
+					ModalTask? Task = PerforceModalTask.Execute(this, "Checking connection", "Checking connection, please wait...", Settings, (p, c) => PerforceTestConnectionTask.RunAsync(p, TestDepotPath, c), Logger);
+					if (Task == null || !Task.Succeeded)
 					{
-						if(Result == ModalTaskResult.Failed)
-						{
-							MessageBox.Show(ErrorMessage, "Unable to connect");
-						}
 						return;
 					}
 				}
@@ -235,9 +229,12 @@ namespace UnrealGameSync
 			}
 
 			List<Guid> NewEnabledTools = new List<Guid>();
-			foreach (ToolItem Item in CustomToolsListBox.CheckedItems)
+			foreach (ToolItem? Item in CustomToolsListBox.CheckedItems)
 			{
-				NewEnabledTools.Add(Item.Definition.Id);
+				if (Item != null)
+				{
+					NewEnabledTools.Add(Item.Definition.Id);
+				}
 			}
 			if (!NewEnabledTools.SequenceEqual(Settings.EnabledTools))
 			{

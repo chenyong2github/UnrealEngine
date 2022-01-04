@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -68,17 +69,17 @@ namespace UnrealGameSync
 		/// <summary>
 		/// The log writer to use
 		/// </summary>
-		TextWriter Log;
+		ILogger Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public EpicTelemetrySink(string Url, TextWriter Log)
+		public EpicTelemetrySink(string Url, ILogger Logger)
 		{
 			this.Url = Url;
-			this.Log = Log;
+			this.Logger = Logger;
 
-			Log.WriteLine("Posting to URL: {0}", Url);
+			Logger.LogInformation("Posting to URL: {Url}", Url);
 		}
 
 		/// <inheritdoc/>
@@ -150,7 +151,7 @@ namespace UnrealGameSync
 					// Print all the events we're sending
 					foreach (string Event in Events)
 					{
-						Log.WriteLine("Sending Event: {0}", Event);
+						Logger.LogInformation("Sending Event: {0}", Event);
 					}
 
 					// Convert the content to UTF8
@@ -173,7 +174,7 @@ namespace UnrealGameSync
 					// Wait for the response and dispose of it immediately
 					using (HttpWebResponse Response = (HttpWebResponse)Request.GetResponse())
 					{
-						Log.WriteLine("Response: {0}", (int)Response.StatusCode);
+						Logger.LogInformation("Response: {StatusCode}", (int)Response.StatusCode);
 					}
 				}
 				catch (WebException Ex)
@@ -182,7 +183,7 @@ namespace UnrealGameSync
 					HttpWebResponse Response = (HttpWebResponse)Ex.Response;
 					if (Response == null)
 					{
-						Log.WriteLine("Exception while attempting to send event: {0}", Ex.ToString());
+						Logger.LogError(Ex, "Exception while attempting to send event");
 					}
 					else
 					{
@@ -193,12 +194,12 @@ namespace UnrealGameSync
 							ResponseStream.CopyTo(MemoryStream);
 							ResponseText = Encoding.UTF8.GetString(MemoryStream.ToArray());
 						}
-						Log.WriteLine("EpicTelemetrySink: Failed to send analytics event. Code = {0}. Desc = {1}. Response = {2}.", (int)Response.StatusCode, Response.StatusDescription, ResponseText);
+						Logger.LogError("Failed to send analytics event. Code = {Code}. Desc = {Dec}. Response = {Response}.", (int)Response.StatusCode, Response.StatusDescription, ResponseText);
 					}
 				}
 				catch (Exception Ex)
 				{
-					Log.WriteLine("Exception while attempting to send event: {0}", Ex.ToString());
+					Logger.LogError(Ex, "Exception while attempting to send event");
 				}
 			}
 		}

@@ -1,22 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Perforce;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
 	partial class SelectProjectFromWorkspaceWindow : Form
 	{
-		class EnumerateWorkspaceProjectsTask : IPerforceModalTask
+		static class EnumerateWorkspaceProjectsTask
 		{
 			static readonly string[] Patterns =
 			{
@@ -24,43 +31,23 @@ namespace UnrealGameSync
 				"....uprojectdirs",
 			};
 
-			public string ClientName;
-			public List<string> Paths;
-
-			public EnumerateWorkspaceProjectsTask(string ClientName)
+			public static async Task<List<string>> RunAsync(IPerforceConnection Perforce, string ClientName, CancellationToken CancellationToken)
 			{
-				this.ClientName = ClientName;
-			}
+				ClientRecord ClientSpec = await Perforce.GetClientAsync(Perforce.Settings.ClientName, CancellationToken);
 
-			public bool Run(PerforceConnection Perforce, TextWriter Log, out string ErrorMessage)
-			{
-				PerforceConnection PerforceClient = new PerforceConnection(Perforce.UserName, ClientName, Perforce.ServerAndPort);
-
-				PerforceSpec ClientSpec;
-				if(!PerforceClient.TryGetClientSpec(Perforce.ClientName, out ClientSpec, Log))
+				string ClientRoot = ClientSpec.Root.TrimEnd(Path.DirectorySeparatorChar);
+				if (String.IsNullOrEmpty(ClientRoot))
 				{
-					ErrorMessage = String.Format("Unable to get client spec for {0}", ClientName);
-					return false;
+					throw new UserErrorException($"Client '{ClientName}' does not have a valid root directory.");
 				}
 
-				string ClientRoot = ClientSpec.GetField("Root")?.TrimEnd(Path.DirectorySeparatorChar);
-				if(String.IsNullOrEmpty(ClientRoot))
-				{
-					ErrorMessage = String.Format("Client '{0}' does not have a valid root directory.", ClientName);
-					return false;
-				}
-
-				List<PerforceFileRecord> FileRecords = new List<PerforceFileRecord>();
+				List<FStatRecord> FileRecords = new List<FStatRecord>();
 				foreach(string Pattern in Patterns)
 				{
 					string Filter = String.Format("//{0}/{1}", ClientName, Pattern);
 
-					List<PerforceFileRecord> WildcardFileRecords = new List<PerforceFileRecord>();
-					if(!PerforceClient.FindFiles(Filter, out WildcardFileRecords, Log))
-					{
-						ErrorMessage = String.Format("Unable to enumerate files matching {0}", Filter);
-						return false;
-					}
+					List<FStatRecord> WildcardFileRecords = await Perforce.FStatAsync(Filter, CancellationToken).ToListAsync(CancellationToken);
+					WildcardFileRecords.RemoveAll(x => x.Action == FileAction.Delete || x.Action == FileAction.MoveDelete);
 
 					FileRecords.AddRange(WildcardFileRecords);
 				}
@@ -71,17 +58,16 @@ namespace UnrealGameSync
 					ClientPrefix += Path.DirectorySeparatorChar;
 				}
 
-				Paths = new List<string>();
-				foreach(PerforceFileRecord FileRecord in FileRecords)
+				List<string> Paths = new List<string>();
+				foreach(FStatRecord FileRecord in FileRecords)
 				{
-					if(FileRecord.ClientPath.StartsWith(ClientPrefix, StringComparison.InvariantCultureIgnoreCase))
+					if(FileRecord.ClientFile != null && FileRecord.ClientFile.StartsWith(ClientPrefix, StringComparison.OrdinalIgnoreCase))
 					{
-						Paths.Add(FileRecord.ClientPath.Substring(ClientRoot.Length).Replace(Path.DirectorySeparatorChar, '/'));
+						Paths.Add(FileRecord.ClientFile.Substring(ClientRoot.Length).Replace(Path.DirectorySeparatorChar, '/'));
 					}
 				}
 
-				ErrorMessage = null;
-				return true;
+				return Paths;
 			}
 		}
 
@@ -196,9 +182,9 @@ namespace UnrealGameSync
 
 		static TreeNode FindOrAddChildNode(TreeNode ParentNode, string Text, int ImageIndex)
 		{
-			foreach(TreeNode ChildNode in ParentNode.Nodes)
+			foreach(TreeNode? ChildNode in ParentNode.Nodes)
 			{
-				if(String.Compare(ChildNode.Text, Text, StringComparison.InvariantCultureIgnoreCase) == 0)
+				if(ChildNode != null && String.Compare(ChildNode.Text, Text, StringComparison.InvariantCultureIgnoreCase) == 0)
 				{
 					return ChildNode;
 				}
@@ -211,22 +197,20 @@ namespace UnrealGameSync
 			return NextNode;
 		}
 
-		public static bool ShowModal(IWin32Window Owner, PerforceConnection Perforce, string WorkspaceName, string WorkspacePath, TextWriter Log, out string NewWorkspacePath)
+		public static bool ShowModal(IWin32Window Owner, IPerforceSettings Perforce, string WorkspaceName, string WorkspacePath, IServiceProvider ServiceProvider, [NotNullWhen(true)] out string? NewWorkspacePath)
 		{
-			EnumerateWorkspaceProjectsTask EnumerateProjectsTask = new EnumerateWorkspaceProjectsTask(WorkspaceName);
+			Perforce = new PerforceSettings(Perforce) { ClientName = WorkspaceName };
 
-			string ErrorMessage;
-			if(PerforceModalTask.Execute(Owner, Perforce, EnumerateProjectsTask, "Finding Projects", "Finding projects, please wait...", Log, out ErrorMessage) != ModalTaskResult.Succeeded)
+			ILogger Logger = ServiceProvider.GetRequiredService<ILogger<SelectProjectFromWorkspaceWindow>>();
+
+			ModalTask<List<string>>? PathsTask = PerforceModalTask.Execute(Owner, "Finding Projects", "Finding projects, please wait...", Perforce, (p, c) => EnumerateWorkspaceProjectsTask.RunAsync(p, WorkspaceName, c), Logger);
+			if(PathsTask == null || !PathsTask.Succeeded)
 			{
-				if(!String.IsNullOrEmpty(ErrorMessage))
-				{
-					MessageBox.Show(Owner, ErrorMessage);
-				}
 				NewWorkspacePath = null;
 				return false;
 			}
 
-			SelectProjectFromWorkspaceWindow SelectProjectWindow = new SelectProjectFromWorkspaceWindow(WorkspaceName, EnumerateProjectsTask.Paths, WorkspacePath);
+			SelectProjectFromWorkspaceWindow SelectProjectWindow = new SelectProjectFromWorkspaceWindow(WorkspaceName, PathsTask.Result, WorkspacePath);
 			if(SelectProjectWindow.ShowDialog() == DialogResult.OK && !String.IsNullOrEmpty(SelectProjectWindow.SelectedProjectFile))
 			{
 				NewWorkspacePath = SelectProjectWindow.SelectedProjectFile;

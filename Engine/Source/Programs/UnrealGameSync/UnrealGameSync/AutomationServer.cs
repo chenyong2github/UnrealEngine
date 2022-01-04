@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using System;
 using System.IO;
@@ -9,6 +10,8 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
@@ -105,7 +108,7 @@ namespace UnrealGameSync
 	class AutomationRequest : IDisposable
 	{
 		public AutomationRequestInput Input;
-		public AutomationRequestOutput Output;
+		public AutomationRequestOutput? Output;
 		public ManualResetEventSlim Complete;
 
 		public AutomationRequest(AutomationRequestInput Input)
@@ -117,47 +120,43 @@ namespace UnrealGameSync
 		public void SetOutput(AutomationRequestOutput Output)
 		{
 			this.Output = Output;
-			Complete.Set();
+			Complete?.Set();
 		}
 
 		public void Dispose()
 		{
-			if(Complete != null)
-			{
-				Complete.Dispose();
-				Complete = null;
-			}
+			Complete.Dispose();
 		}
 	}
 
 	class AutomationServer : IDisposable
 	{
-		TcpListener Listener;
+		TcpListener? Listener;
 		public const int DefaultPortNumber = 30422;
 
-		NamedPipeServerStream IPCStream;
+		NamedPipeServerStream? IPCStream;
 		static UnicodeEncoding StreamEncoding = new UnicodeEncoding();
 		const string UGSChannel = @"\.\pipe\UGSChannel";
 
-		Thread UriThread;
-		Thread TcpThread;
+		Thread? UriThread;
+		Thread? TcpThread;
 
 		EventWaitHandle ShutdownEvent;		
 		Action<AutomationRequest> PostRequest;
 
 		bool bDisposing;
-		TextWriter Log;
+		ILogger Logger;
 		string CommandLineUri;
 
-		public AutomationServer(Action<AutomationRequest> PostRequest, TextWriter Log, string Uri)
+		public AutomationServer(Action<AutomationRequest> PostRequest, string Uri, ILogger<AutomationServer> Logger)
 		{
+			ShutdownEvent = new ManualResetEvent(false);
+			this.PostRequest = PostRequest;
+			this.CommandLineUri = Uri;
+			this.Logger = Logger;
+
 			try
 			{
-				ShutdownEvent = new ManualResetEvent(false);
-				this.PostRequest = PostRequest;
-				this.Log = Log;
-				this.CommandLineUri = Uri;
-				
 				// IPC named pipe
 				IPCStream = new NamedPipeServerStream(UGSChannel, PipeDirection.In, 1, PipeTransmissionMode.Message, PipeOptions.Asynchronous);
 
@@ -176,7 +175,7 @@ namespace UnrealGameSync
 					catch (Exception Ex)
 					{
 						Listener = null;
-						Log.WriteLine("Unable to start automation server tcp listener: {0}", Ex.ToString());
+						Logger.LogError(Ex, "Unable to start automation server tcp listener");
 					}
 				}
 
@@ -185,7 +184,7 @@ namespace UnrealGameSync
 			}
 			catch (Exception Ex)
 			{
-				Log.WriteLine("Unable to start automation server: {0}", Ex.ToString());
+				Logger.LogError(Ex, "Unable to start automation server");
 			}
 		}
 
@@ -227,7 +226,7 @@ namespace UnrealGameSync
 				try
 				{
 
-					IAsyncResult IPCResult = IPCStream.BeginWaitForConnection(null, null);
+					IAsyncResult IPCResult = IPCStream!.BeginWaitForConnection(null, null);
 
 					int WaitResult = WaitHandle.WaitAny(new WaitHandle[] { ShutdownEvent, IPCResult.AsyncWaitHandle });
 
@@ -241,12 +240,12 @@ namespace UnrealGameSync
 					{
 						IPCStream.EndWaitForConnection(IPCResult);
 
-						Log.WriteLine("Accepted Uri connection");
+						Logger.LogInformation("Accepted Uri connection");
 
 						// Read URI
 						string Uri = ReadString(IPCStream);
 
-						Log.WriteLine("Received Uri: {0}", Uri);
+						Logger.LogInformation("Received Uri: {Uri}", Uri);
 
 						IPCStream.Disconnect();
 
@@ -255,14 +254,14 @@ namespace UnrealGameSync
 					}
 					catch (Exception Ex)
 					{
-						Log.WriteLine("Exception: {0}", Ex.ToString());
+						Logger.LogError(Ex, "Error during automation connection");
 					}
 				}
 				catch (Exception Ex)
 				{
 					if (!bDisposing)
 					{
-						Log.WriteLine("Exception: {0}", Ex.ToString());
+						Logger.LogError(Ex, "Error during automation connection");
 					}
 				}
 			}
@@ -277,7 +276,7 @@ namespace UnrealGameSync
 				try
 				{
 
-					IAsyncResult TCPResult = Listener.BeginAcceptTcpClient(null, null);
+					IAsyncResult TCPResult = Listener!.BeginAcceptTcpClient(null, null);
 
 					int WaitResult = WaitHandle.WaitAny(new WaitHandle[] { ShutdownEvent, TCPResult.AsyncWaitHandle });
 
@@ -291,39 +290,38 @@ namespace UnrealGameSync
 					{
 						TcpClient Client = Listener.EndAcceptTcpClient(TCPResult);
 
-						Log.WriteLine("Accepted connection from {0}", Client.Client.RemoteEndPoint);
+						Logger.LogInformation("Accepted connection from {Remote}", Client.Client.RemoteEndPoint);
 
 						NetworkStream Stream = Client.GetStream();
 
 						AutomationRequestInput Input = AutomationRequestInput.Read(Stream);
-						Log.WriteLine("Received input: {0} (+{1} bytes)", Input.Type, Input.Data.Length);
+						Logger.LogInformation("Received input: {Type} (+{NumBytes} bytes)", Input.Type, Input.Data.Length);
 
 						AutomationRequestOutput Output;
 						using (AutomationRequest Request = new AutomationRequest(Input))
 						{
 							PostRequest(Request);
 							Request.Complete.Wait();
-							Output = Request.Output;
+							Output = Request.Output!;
 						}
 
 						Output.Write(Stream);
-						Log.WriteLine("Sent output: {0} (+{1} bytes)", Output.Result, Output.Data.Length);
+						Logger.LogInformation("Sent output: {Result} (+{NumBytes} bytes)", Output.Result, Output.Data.Length);
 					}
 					catch (Exception Ex)
 					{
-						Log.WriteLine("Exception: {0}", Ex.ToString());
+						Logger.LogError(Ex, "Exception during automation");
 					}
 					finally
 					{
-						TCPResult = null;
-						Log.WriteLine("Closed connection.");
+						Logger.LogInformation("Closed connection.");
 					}
 				}
 				catch (Exception Ex)
 				{
 					if (!bDisposing)
 					{
-						Log.WriteLine("Exception: {0}", Ex.ToString());
+						Logger.LogError(Ex, "Exception during automation operation");
 					}
 				}
 			}

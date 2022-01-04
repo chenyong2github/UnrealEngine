@@ -1,492 +1,401 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Perforce;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
-	class DetectProjectSettingsTask : IPerforceModalTask, IDisposable
+	public class WorkspaceSettings
 	{
-		public UserSelectedProjectSettings SelectedProject;
-		public PerforceConnection PerforceClient;
-		public FileReference NewSelectedFileName;
+		public IPerforceSettings PerforceSettings;
+		public UserSelectedProjectSettings SelectedProject { get; }
+		public ProjectInfo ProjectInfo { get; private set; }
 		public string NewSelectedProjectIdentifier;
 		public string NewProjectEditorTarget;
-		public string BranchClientPath;
-		public DirectoryReference BranchDirectoryName;
-		public string NewSelectedClientFileName;
 		public string StreamName;
-		public Image ProjectLogo;
-		public DirectoryReference DataFolder;
-		public DirectoryReference CacheFolder;
-		public bool bIsEnterpriseProject;
+		public DirectoryReference DataFolder => GetDataFolder(ProjectInfo.LocalRootPath);
+		public DirectoryReference CacheFolder => GetCacheFolder(ProjectInfo.LocalRootPath);
 		public ConfigFile LatestProjectConfigFile;
+		public ConfigFile WorkspaceProjectConfigFile;
+		public IReadOnlyList<string>? WorkspaceProjectStreamFilter;
 		public List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles;
-		TextWriter Log;
 
-		public DetectProjectSettingsTask(UserSelectedProjectSettings SelectedProject, DirectoryReference InDataFolder, DirectoryReference InCacheFolder, TextWriter InLog)
+		public WorkspaceSettings(IPerforceSettings PerforceSettings, UserSelectedProjectSettings ProjectSettings, ProjectInfo ProjectInfo, string NewSelectedProjectIdentifier, string NewProjectEditorTarget, string StreamName, ConfigFile LatestProjectConfigFile, ConfigFile WorkspaceProjectConfigFile, IReadOnlyList<string>? WorkspaceProjectStreamFilter, List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles)
 		{
-			this.SelectedProject = SelectedProject;
-			DataFolder = InDataFolder;
-			CacheFolder = InCacheFolder;
-			Log = InLog;
+			this.PerforceSettings = PerforceSettings;
+			this.SelectedProject = ProjectSettings;
+			this.ProjectInfo = ProjectInfo;
+			this.NewSelectedProjectIdentifier = NewSelectedProjectIdentifier;
+			this.NewProjectEditorTarget = NewProjectEditorTarget;
+			this.StreamName = StreamName;
+			this.LatestProjectConfigFile = LatestProjectConfigFile;
+			this.WorkspaceProjectConfigFile = WorkspaceProjectConfigFile;
+			this.WorkspaceProjectStreamFilter = WorkspaceProjectStreamFilter;
+			this.LocalConfigFiles = LocalConfigFiles;
 		}
 
-		public void Dispose()
-		{
-			if(ProjectLogo != null)
-			{
-				ProjectLogo.Dispose();
-				ProjectLogo = null;
-			}
-		}
+		public static DirectoryReference GetDataFolder(DirectoryReference WorkspaceDir) => DirectoryReference.Combine(WorkspaceDir, ".ugs");
+		public static DirectoryReference GetCacheFolder(DirectoryReference WorkspaceDir) => DirectoryReference.Combine(WorkspaceDir, ".ugs", "cache");
 
-		public bool Run(PerforceConnection Perforce, out string ErrorMessage)
+		public static async Task<WorkspaceSettings> CreateAsync(IPerforceSettings DefaultPerforceSettings, UserSelectedProjectSettings SelectedProject, ILogger<WorkspaceSettings> Logger, CancellationToken CancellationToken)
 		{
+			PerforceSettings PerforceSettings = Utility.OverridePerforceSettings(DefaultPerforceSettings, SelectedProject.ServerAndPort, SelectedProject.UserName);
+			using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+
 			// Make sure we're logged in
-			bool bLoggedIn;
-			if(!Perforce.GetLoggedInState(out bLoggedIn, Log))
+			PerforceResponse<LoginRecord> LoginState = await Perforce.TryGetLoginStateAsync(CancellationToken);
+			if (!LoginState.Succeeded)
 			{
-				ErrorMessage = "Error while checking login status.";
-				return false;
-			}
-			if(!bLoggedIn)
-			{
-				ErrorMessage = "User is not logged in to Perforce.";
-				return false;
+				throw new UserErrorException("User is not logged in to Perforce.");
 			}
 
 			// Execute like a regular task
-			return Run(Perforce, Log, out ErrorMessage);
+			return await CreateAsync(Perforce, SelectedProject, Logger, CancellationToken);
 		}
 
-		public bool Run(PerforceConnection Perforce, TextWriter Log, out string ErrorMessage)
+		public static async Task<WorkspaceSettings> CreateAsync(IPerforceConnection DefaultConnection, UserSelectedProjectSettings SelectedProject, ILogger<WorkspaceSettings> Logger, CancellationToken CancellationToken)
 		{
+			using IDisposable LoggerScope = Logger.BeginScope("Project {SelectedProject}", SelectedProject.ToString());
+			Logger.LogInformation("Detecting settings for {Project}", SelectedProject);
+
 			// Use the cached client path to the file if it's available; it's much quicker than trying to find the correct workspace.
-			if(!String.IsNullOrEmpty(SelectedProject.ClientPath))
+			IPerforceConnection? PerforceClient = null;
+			try
 			{
-				// Get the client path
-				NewSelectedClientFileName = SelectedProject.ClientPath;
+				IPerforceSettings PerforceSettings;
 
-				// Get the client name
-				string ClientName;
-				if(!PerforceUtils.TryGetClientName(NewSelectedClientFileName, out ClientName))
+				FileReference NewSelectedFileName;
+				string NewSelectedClientFileName;
+				if (!String.IsNullOrEmpty(SelectedProject.ClientPath))
 				{
-					ErrorMessage = String.Format("Couldn't get client name from {0}", NewSelectedClientFileName);
-					return false;
-				}
+					// Get the client path
+					NewSelectedClientFileName = SelectedProject.ClientPath;
 
-				// Create the client
-				PerforceClient = new PerforceConnection(Perforce.UserName, ClientName, Perforce.ServerAndPort);
-
-				// Figure out the path on the client. Use the cached location if it's valid.
-				string LocalPath = SelectedProject.LocalPath;
-				if (LocalPath == null || !File.Exists(LocalPath))
-				{
-					if (!PerforceClient.ConvertToLocalPath(NewSelectedClientFileName, out LocalPath, Log))
+					// Get the client name
+					string? ClientName;
+					if (!PerforceUtils.TryGetClientName(NewSelectedClientFileName, out ClientName))
 					{
-						ErrorMessage = String.Format("Couldn't get client path for {0}", NewSelectedClientFileName);
-						return false;
-					}
-				}
-				NewSelectedFileName = new FileReference(LocalPath);
-			}
-			else
-			{
-				// Get the perforce server settings
-				PerforceInfoRecord PerforceInfo;
-				if(!Perforce.Info(out PerforceInfo, Log))
-				{
-					ErrorMessage = String.Format("Couldn't get Perforce server info");
-					return false;
-				}
-
-				// Use the path as the selected filename
-				NewSelectedFileName = new FileReference(SelectedProject.LocalPath);
-
-				// Make sure the project exists
-				if (!FileReference.Exists(NewSelectedFileName))
-				{
-					ErrorMessage = String.Format("{0} does not exist.", SelectedProject.LocalPath);
-					return false;
-				}
-
-				// Find all the clients for this user
-				Log.WriteLine("Enumerating clients for {0}...", PerforceInfo.UserName);
-
-				List<PerforceClientRecord> Clients;
-				if(!Perforce.FindClients(PerforceInfo.UserName, out Clients, Log))
-				{
-					ErrorMessage = String.Format("Couldn't find any clients for this host.");
-					return false;
-				}
-
-				List<PerforceConnection> CandidateClients = FilterClients(Clients, Perforce.ServerAndPort, PerforceInfo.HostName, PerforceInfo.UserName);
-				if(CandidateClients.Count == 0)
-				{
-					// Search through all workspaces. We may find a suitable workspace which is for any user.
-					Log.WriteLine("Enumerating shared clients...");
-					if(!Perforce.FindClients("", out Clients, Log))
-					{
-						ErrorMessage = "Failed to enumerate clients.";
-						return false;
+						throw new UserErrorException($"Couldn't get client name from {NewSelectedClientFileName}");
 					}
 
-					// Filter this list of clients
-					CandidateClients = FilterClients(Clients, Perforce.ServerAndPort, PerforceInfo.HostName, PerforceInfo.UserName);
+					// Create the client
+					PerforceSettings = new PerforceSettings(DefaultConnection.Settings) { ClientName = ClientName };
+					PerforceClient = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
 
-					// If we still couldn't find any, fail.
-					if(CandidateClients.Count == 0)
+					// Figure out the path on the client. Use the cached location if it's valid.
+					string? LocalPath = SelectedProject.LocalPath;
+					if (LocalPath == null || !File.Exists(LocalPath))
 					{
-						ErrorMessage = String.Format("Couldn't find any Perforce workspace containing {0}. Check your connection settings.", NewSelectedFileName);
-						return false;
-					}
-				}
-
-				// Check there's only one client
-				if(CandidateClients.Count > 1)
-				{
-					ErrorMessage = String.Format("Found multiple workspaces containing {0}:\n\n{1}\n\nCannot determine which to use.", Path.GetFileName(NewSelectedFileName.GetFileName()), String.Join("\n", CandidateClients.Select(x => x.ClientName)));
-					return false;
-				}
-
-				// Take the client we've chosen
-				PerforceClient = CandidateClients[0];
-
-				// Get the client path for the project file
-				if(!PerforceClient.ConvertToClientPath(NewSelectedFileName.FullName, out NewSelectedClientFileName, Log))
-				{
-					ErrorMessage = String.Format("Couldn't get client path for {0}", NewSelectedFileName);
-					return false;
-				}
-			}
-
-			// Make sure the path case is correct. This can cause UBT intermediates to be out of date if the case mismatches.
-			NewSelectedFileName = FileReference.FindCorrectCase(NewSelectedFileName);
-
-			// Update the selected project with all the data we've found
-			SelectedProject = new UserSelectedProjectSettings(SelectedProject.ServerAndPort, SelectedProject.UserName, SelectedProject.Type, NewSelectedClientFileName, NewSelectedFileName.FullName);
-
-			// Figure out where the engine is in relation to it
-			int EndIdx = NewSelectedClientFileName.Length - 1;
-			if(EndIdx != -1 && NewSelectedClientFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
-			{
-				EndIdx = NewSelectedClientFileName.LastIndexOf('/') - 1;
-			}
-			for(;;EndIdx--)
-			{
-				if(EndIdx < 2)
-				{
-					ErrorMessage = String.Format("Could not find engine in Perforce relative to project path ({0})", NewSelectedClientFileName);
-					return false;
-				}
-				if(NewSelectedClientFileName[EndIdx] == '/')
-				{
-					List<PerforceFileRecord> FileRecords;
-					if(PerforceClient.Stat(NewSelectedClientFileName.Substring(0, EndIdx) + "/Engine/Build/Build.version", out FileRecords, Log) && FileRecords.Count > 0)
-					{
-						if(FileRecords[0].ClientPath == null)
+						List<WhereRecord> Records = await PerforceClient.WhereAsync(NewSelectedClientFileName, CancellationToken).Where(x => !x.Unmap).ToListAsync(CancellationToken);
+						if (Records.Count != 1)
 						{
-							ErrorMessage = String.Format("Missing client path for {0}", FileRecords[0].DepotPath);
-							return false;
+							throw new UserErrorException($"Couldn't get client path for {NewSelectedClientFileName}");
 						}
-
-						BranchClientPath = NewSelectedClientFileName.Substring(0, EndIdx);
-						BranchDirectoryName = new DirectoryReference(Path.Combine(Path.GetDirectoryName(FileRecords[0].ClientPath), "..", ".."));
-						break;
+						LocalPath = Path.GetFullPath(Records[0].Path);
 					}
-				}
-			}
-			Log.WriteLine("Found branch root at {0}", BranchClientPath);
-
-			// Find the editor target for this project
-			if(NewSelectedFileName.HasExtension(".uproject"))
-			{
-				List<PerforceFileRecord> Files;
-				if(PerforceClient.FindFiles(PerforceUtils.GetClientOrDepotDirectoryName(NewSelectedClientFileName) + "/Source/*Editor.Target.cs", out Files, Log) && Files.Count >= 1)
-				{
-					string DepotPath = Files[0].DepotPath;
-					NewProjectEditorTarget = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(DepotPath.Substring(DepotPath.LastIndexOf('/') + 1)));
-					Log.WriteLine("Using {0} as editor target name (from {1})", NewProjectEditorTarget, Files[0]);
-				}
-				if (NewProjectEditorTarget == null)
-				{
-					Log.WriteLine("Couldn't find any editor targets for this project.");
-				}
-			}
-
-			// Get a unique name for the project that's selected. For regular branches, this can be the depot path. For streams, we want to include the stream name to encode imports.
-			if(PerforceClient.GetActiveStream(out StreamName, Log))
-			{
-				string ExpectedPrefix = String.Format("//{0}/", PerforceClient.ClientName);
-				if(!NewSelectedClientFileName.StartsWith(ExpectedPrefix, StringComparison.InvariantCultureIgnoreCase))
-				{
-					ErrorMessage = String.Format("Unexpected client path; expected '{0}' to begin with '{1}'", NewSelectedClientFileName, ExpectedPrefix);
-					return false;
-				}
-				string StreamPrefix;
-				if(!TryGetStreamPrefix(PerforceClient, StreamName, Log, out StreamPrefix))
-				{
-					ErrorMessage = String.Format("Failed to get stream info for {0}", StreamName);
-					return false;
-				}
-				NewSelectedProjectIdentifier = String.Format("{0}/{1}", StreamPrefix, NewSelectedClientFileName.Substring(ExpectedPrefix.Length));
-			}
-			else
-			{
-				if(!PerforceClient.ConvertToDepotPath(NewSelectedClientFileName, out NewSelectedProjectIdentifier, Log))
-				{
-					ErrorMessage = String.Format("Couldn't get depot path for {0}", NewSelectedFileName);
-					return false;
-				}
-
-				Match Match = Regex.Match(NewSelectedProjectIdentifier, "//([^/]+)/");
-				if (Match.Success)
-				{
-					PerforceSpec Spec;
-					if (PerforceClient.TryGetDepotSpec(Match.Groups[1].Value, out Spec, Log) && Spec.GetField("Type") == "stream")
-					{
-						ErrorMessage = String.Format("Cannot use a legacy client ({0}) with a stream depot ({1}).", PerforceClient.ClientName, Match.Groups[1].Value);
-						return false;
-					}
-				}
-			}
-
-			// Read the project logo
-			if (NewSelectedFileName.HasExtension(".uproject"))
-			{
-				FileReference LogoFileName = FileReference.Combine(NewSelectedFileName.Directory, "Build", "UnrealGameSync.png");
-				if(FileReference.Exists(LogoFileName))
-				{
-					try
-					{
-						// Duplicate the image, otherwise we'll leave the file locked
-						using(Image Image = Image.FromFile(LogoFileName.FullName))
-						{
-							ProjectLogo = new Bitmap(Image);
-						}
-					}
-					catch
-					{
-						ProjectLogo = null;
-					}
-				}
-			}
-
-			// Figure out if it's an enterprise project. Use the synced version if we have it.
-			if(NewSelectedClientFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
-			{
-				string Text;
-				if(FileReference.Exists(NewSelectedFileName))
-				{
-					Text = FileReference.ReadAllText(NewSelectedFileName);
+					NewSelectedFileName = new FileReference(LocalPath);
 				}
 				else
 				{
-					List<string> ProjectLines;
-					if(!PerforceClient.Print(NewSelectedClientFileName, out ProjectLines, Log))
+					PerforceSettings = DefaultConnection.Settings;
+
+					// Get the perforce server settings
+					InfoRecord PerforceInfo = await DefaultConnection.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
+
+					// Use the path as the selected filename
+					NewSelectedFileName = new FileReference(SelectedProject.LocalPath!);
+
+					// Make sure the project exists
+					if (!FileReference.Exists(NewSelectedFileName))
 					{
-						ErrorMessage = String.Format("Unable to get contents of {0}", NewSelectedClientFileName);
-						return false;
+						throw new UserErrorException($"{SelectedProject.LocalPath} does not exist.");
 					}
-					Text = String.Join("\n", ProjectLines);
+
+					// Find all the clients for this user
+					Logger.LogInformation("Enumerating clients for {UserName}...", PerforceInfo.UserName);
+
+					List<ClientsRecord> Clients = await DefaultConnection.GetClientsAsync(ClientsOptions.None, DefaultConnection.Settings.UserName, CancellationToken);
+
+					List<IPerforceSettings> CandidateClients = await FilterClients(Clients, NewSelectedFileName, DefaultConnection.Settings, PerforceInfo.ClientHost, Logger, CancellationToken);
+					if (CandidateClients.Count == 0)
+					{
+						// Search through all workspaces. We may find a suitable workspace which is for any user.
+						Logger.LogInformation("Enumerating shared clients...");
+						Clients = await DefaultConnection.GetClientsAsync(ClientsOptions.None, "", CancellationToken);
+
+						// Filter this list of clients
+						CandidateClients = await FilterClients(Clients, NewSelectedFileName, DefaultConnection.Settings, PerforceInfo.ClientHost, Logger, CancellationToken);
+
+						// If we still couldn't find any, fail.
+						if (CandidateClients.Count == 0)
+						{
+							throw new UserErrorException($"Couldn't find any Perforce workspace containing {NewSelectedFileName}. Check your connection settings.");
+						}
+					}
+
+					// Check there's only one client
+					if (CandidateClients.Count > 1)
+					{
+						throw new UserErrorException(String.Format("Found multiple workspaces containing {0}:\n\n{1}\n\nCannot determine which to use.", Path.GetFileName(NewSelectedFileName.GetFileName()), String.Join("\n", CandidateClients.Select(x => x.ClientName))));
+					}
+
+					// Take the client we've chosen
+					PerforceClient = await PerforceConnection.CreateAsync(CandidateClients[0], Logger);
+
+					// Get the client path for the project file
+					List<WhereRecord> Records = await PerforceClient.WhereAsync(NewSelectedFileName.FullName, CancellationToken).Where(x => !x.Unmap).ToListAsync(CancellationToken);
+					if (Records.Count == 0)
+					{
+						throw new UserErrorException("File is not mapped to any client");
+					}
+					else if (Records.Count > 1)
+					{
+						throw new UserErrorException($"File is mapped to {Records.Count} locations: {String.Join(", ", Records.Select(x => x.Path))}");
+					}
+
+					NewSelectedClientFileName = Records[0].ClientFile;
 				}
-				bIsEnterpriseProject = Utility.IsEnterpriseProjectFromText(Text);
-			}
 
-			// Make sure the drive containing the project exists, to prevent other errors down the line
-			string PathRoot = Path.GetPathRoot(NewSelectedFileName.FullName);
-			if (!Directory.Exists(PathRoot))
-			{
-				ErrorMessage = String.Format("Path '{0}' is invalid", NewSelectedFileName);
-				return false;
-			}
+				// Make sure the path case is correct. This can cause UBT intermediates to be out of date if the case mismatches.
+				NewSelectedFileName = FileReference.FindCorrectCase(NewSelectedFileName);
 
-			// Read the initial config file
-			LocalConfigFiles = new List<KeyValuePair<FileReference, DateTime>>();
-			LatestProjectConfigFile = PerforceMonitor.ReadProjectConfigFile(PerforceClient, BranchClientPath, NewSelectedClientFileName, CacheFolder, LocalConfigFiles, Log);
+				// Update the selected project with all the data we've found
+				SelectedProject = new UserSelectedProjectSettings(SelectedProject.ServerAndPort, SelectedProject.UserName, SelectedProject.Type, NewSelectedClientFileName, NewSelectedFileName.FullName);
 
-			// Run any event hooks
-			if (DeploymentSettings.OnDetectProjectSettings != null)
-			{
-				string Message;
-				if (!DeploymentSettings.OnDetectProjectSettings(this, Log, out Message))
+				// Get the local branch root
+				string? BranchClientPath = null;
+				DirectoryReference? BranchDirectoryName = null;
+
+				// Figure out where the engine is in relation to it
+				int EndIdx = NewSelectedClientFileName.Length - 1;
+				if (EndIdx != -1 && NewSelectedClientFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
 				{
-					ErrorMessage = Message;
-					return false;
+					EndIdx = NewSelectedClientFileName.LastIndexOf('/') - 1;
 				}
-			}
+				for (; EndIdx >= 2; EndIdx--)
+				{
+					if (NewSelectedClientFileName[EndIdx] == '/')
+					{
+						List<PerforceResponse<FStatRecord>> FileRecords = await PerforceClient.TryFStatAsync(FStatOptions.None, NewSelectedClientFileName.Substring(0, EndIdx) + "/Engine/Build/Build.version", CancellationToken).ToListAsync();
+						if (FileRecords.Succeeded())
+						{
+							FStatRecord FileRecord = FileRecords[0].Data;
+							if (FileRecord.ClientFile == null)
+							{
+								throw new UserErrorException($"Missing client path for {FileRecord.DepotFile}");
+							}
 
-			// Succeed!
-			ErrorMessage = null;
-			return true;
+							BranchClientPath = NewSelectedClientFileName.Substring(0, EndIdx);
+							BranchDirectoryName = new FileReference(FileRecord.ClientFile).Directory.ParentDirectory?.ParentDirectory;
+							break;
+						}
+					}
+				}
+				if(BranchClientPath == null || BranchDirectoryName == null)
+				{
+					throw new UserErrorException($"Could not find engine in Perforce relative to project path ({NewSelectedClientFileName})");
+				}
+
+				Logger.LogInformation("Found branch root at {RootPath}", BranchClientPath);
+
+				// Find the editor target for this project
+				string? NewProjectEditorTarget = null;
+				if (NewSelectedFileName.HasExtension(".uproject"))
+				{
+					List<FStatRecord> Records = await PerforceClient.FStatAsync(PerforceUtils.GetClientOrDepotDirectoryName(NewSelectedClientFileName) + "/Source/*Editor.Target.cs", CancellationToken).ToListAsync(CancellationToken);
+
+					FStatRecord Record = Records.FirstOrDefault(x => x.Action != FileAction.Delete || x.Action != FileAction.MoveDelete);
+					if (Record != null)
+					{
+						string DepotPath = Record.DepotFile!;
+						NewProjectEditorTarget = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(DepotPath.Substring(DepotPath.LastIndexOf('/') + 1)));
+						Logger.LogInformation("Using {TargetName} as editor target name (from {DepotPath})", NewProjectEditorTarget, DepotPath);
+					}
+
+					if (NewProjectEditorTarget == null)
+					{
+						Logger.LogInformation("Couldn't find any editor targets for this project.");
+					}
+				}
+
+				string NewSelectedProjectIdentifier;
+				// Get a unique name for the project that's selected. For regular branches, this can be the depot path. For streams, we want to include the stream name to encode imports.
+				string? StreamName = await PerforceClient.GetCurrentStreamAsync(CancellationToken);
+				if (StreamName != null)
+				{
+					string ExpectedPrefix = String.Format("//{0}/", PerforceClient.Settings.ClientName);
+					if (!NewSelectedClientFileName.StartsWith(ExpectedPrefix, StringComparison.InvariantCultureIgnoreCase))
+					{
+						throw new UserErrorException($"Unexpected client path; expected '{NewSelectedClientFileName}' to begin with '{ExpectedPrefix}'");
+					}
+					string? StreamPrefix = await TryGetStreamPrefixAsync(PerforceClient, StreamName, CancellationToken);
+					if (StreamPrefix == null)
+					{
+						throw new UserErrorException("Unable to get stream prefix");
+					}
+					NewSelectedProjectIdentifier = String.Format("{0}/{1}", StreamPrefix, NewSelectedClientFileName.Substring(ExpectedPrefix.Length));
+				}
+				else
+				{
+					List<PerforceResponse<WhereRecord>> Records = await PerforceClient.TryWhereAsync(NewSelectedClientFileName, CancellationToken).Where(x => !x.Succeeded || !x.Data.Unmap).ToListAsync(CancellationToken);
+					if (!Records.Succeeded() || Records.Count != 1)
+					{
+						throw new UserErrorException($"Couldn't get depot path for {NewSelectedFileName}");
+					}
+
+					NewSelectedProjectIdentifier = Records[0].Data.DepotFile;
+
+					Match Match = Regex.Match(NewSelectedProjectIdentifier, "//([^/]+)/");
+					if (Match.Success)
+					{
+						DepotRecord Depot = await PerforceClient.GetDepotAsync(Match.Groups[1].Value, CancellationToken);
+						if (Depot.Type == "stream")
+						{
+							throw new UserErrorException($"Cannot use a legacy client ({PerforceClient.Settings.ClientName}) with a stream depot ({Depot.Depot}).");
+						}
+					}
+				}
+
+				// Figure out if it's an enterprise project. Use the synced version if we have it.
+				bool bIsEnterpriseProject = false;
+				if (NewSelectedClientFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+				{
+					string Text;
+					if (FileReference.Exists(NewSelectedFileName))
+					{
+						Text = FileReference.ReadAllText(NewSelectedFileName);
+					}
+					else
+					{
+						PerforceResponse<PrintRecord<string[]>> ProjectLines = await PerforceClient.TryPrintLinesAsync(NewSelectedClientFileName, CancellationToken);
+						if (!ProjectLines.Succeeded)
+						{
+							throw new UserErrorException($"Unable to get contents of {NewSelectedClientFileName}");
+						}
+						Text = String.Join("\n", ProjectLines.Data.Contents!);
+					}
+					bIsEnterpriseProject = Utility.IsEnterpriseProjectFromText(Text);
+				}
+
+				// Make sure the drive containing the project exists, to prevent other errors down the line
+				string PathRoot = Path.GetPathRoot(NewSelectedFileName.FullName)!;
+				if (!Directory.Exists(PathRoot))
+				{
+					throw new UserErrorException($"Path '{NewSelectedFileName}' is invalid");
+				}
+
+				// Read the initial config file
+				List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles = new List<KeyValuePair<FileReference, DateTime>>();
+				ConfigFile LatestProjectConfigFile = await PerforceMonitor.ReadProjectConfigFileAsync(PerforceClient, BranchClientPath, NewSelectedClientFileName, GetCacheFolder(BranchDirectoryName), LocalConfigFiles, Logger, CancellationToken);
+
+				// Get the local config file and stream filter
+				ConfigFile WorkspaceProjectConfigFile = await Workspace.ReadProjectConfigFile(BranchDirectoryName, NewSelectedFileName, Logger);
+				IReadOnlyList<string>? WorkspaceProjectStreamFilter = await Workspace.ReadProjectStreamFilter(PerforceClient, WorkspaceProjectConfigFile, Logger, CancellationToken.None);
+
+				ProjectInfo ProjectInfo = new ProjectInfo(BranchDirectoryName, NewSelectedFileName, BranchClientPath, NewSelectedClientFileName, NewSelectedProjectIdentifier, bIsEnterpriseProject);
+
+				WorkspaceSettings WorkspaceSettings = new WorkspaceSettings(PerforceSettings, SelectedProject, ProjectInfo, NewSelectedProjectIdentifier, NewProjectEditorTarget!, StreamName!, LatestProjectConfigFile, WorkspaceProjectConfigFile, WorkspaceProjectStreamFilter, LocalConfigFiles);
+				DirectoryReference.CreateDirectory(WorkspaceSettings.DataFolder);
+				DirectoryReference.CreateDirectory(WorkspaceSettings.CacheFolder);
+
+				// Run any event hooks
+				if (DeploymentSettings.OnDetectProjectSettings != null)
+				{
+					string Message;
+					if (!DeploymentSettings.OnDetectProjectSettings(WorkspaceSettings, Logger, out Message))
+					{
+						throw new UserErrorException(Message);
+					}
+				}
+
+				return WorkspaceSettings;
+			}
+			finally
+			{
+				PerforceClient?.Dispose();
+			}
 		}
 
-		List<PerforceConnection> FilterClients(List<PerforceClientRecord> Clients, string ServerAndPort, string HostName, string UserName)
+		static async Task<List<IPerforceSettings>> FilterClients(List<ClientsRecord> Clients, FileReference NewSelectedFileName, IPerforceSettings DefaultPerforceSettings, string? HostName, ILogger Logger, CancellationToken CancellationToken)
 		{
-			List<PerforceConnection> CandidateClients = new List<PerforceConnection>();
-			foreach(PerforceClientRecord Client in Clients)
+			List<IPerforceSettings> CandidateClients = new List<IPerforceSettings>();
+			foreach(ClientsRecord Client in Clients)
 			{
 				// Make sure the client is well formed
 				if(!String.IsNullOrEmpty(Client.Name) && (!String.IsNullOrEmpty(Client.Host) || !String.IsNullOrEmpty(Client.Owner)) && !String.IsNullOrEmpty(Client.Root))
 				{
 					// Require either a username or host name match
-					if((String.IsNullOrEmpty(Client.Host) || String.Compare(Client.Host, HostName, StringComparison.InvariantCultureIgnoreCase) == 0) && (String.IsNullOrEmpty(Client.Owner) || String.Compare(Client.Owner, UserName, StringComparison.InvariantCultureIgnoreCase) == 0))
+					if((String.IsNullOrEmpty(Client.Host) || String.Compare(Client.Host, HostName, StringComparison.OrdinalIgnoreCase) == 0) && (String.IsNullOrEmpty(Client.Owner) || String.Compare(Client.Owner, DefaultPerforceSettings.UserName, StringComparison.OrdinalIgnoreCase) == 0))
 					{
 						if(!Utility.SafeIsFileUnderDirectory(NewSelectedFileName.FullName, Client.Root))
 						{
-							Log.WriteLine("Rejecting {0} due to root mismatch ({1})", Client.Name, Client.Root);
+							Logger.LogInformation("Rejecting {ClientName} due to root mismatch ({RootPath})", Client.Name, Client.Root);
 							continue;
 						}
 
-						PerforceConnection CandidateClient = new PerforceConnection(UserName, Client.Name, ServerAndPort);
+						PerforceSettings CandidateSettings = new PerforceSettings(DefaultPerforceSettings) { ClientName = Client.Name };
+						using IPerforceConnection CandidateClient = await PerforceConnection.CreateAsync(CandidateSettings, Logger);
 
-						bool bFileExists;
-						if(!CandidateClient.FileExists(NewSelectedFileName.FullName, out bFileExists, Log) || !bFileExists)
+						List<PerforceResponse<WhereRecord>> WhereRecords = await CandidateClient.TryWhereAsync(NewSelectedFileName.FullName, CancellationToken).Where(x => x.Failed || !x.Data.Unmap).ToListAsync(CancellationToken);
+						if(!WhereRecords.Succeeded() || WhereRecords.Count != 1)
 						{
-							Log.WriteLine("Rejecting {0} due to file not existing in workspace", Client.Name);
+							Logger.LogInformation("Rejecting {ClientName} due to file not existing in workspace", Client.Name);
 							continue;
 						}
 
-						List<PerforceFileRecord> Records;
-						if(!CandidateClient.Stat(NewSelectedFileName.FullName, out Records, Log))
+						List<PerforceResponse<FStatRecord>> Records = await CandidateClient.TryFStatAsync(FStatOptions.None, NewSelectedFileName.FullName, CancellationToken).ToListAsync(CancellationToken);
+						if (!Records.Succeeded())
 						{
-							Log.WriteLine("Rejecting {0} due to {1} not in depot", Client.Name, NewSelectedFileName);
+							Logger.LogInformation("Rejecting {ClientName} due to {FileName} not in depot", Client.Name, NewSelectedFileName);
 							continue;
 						}
 
-						Records.RemoveAll(x => !x.IsMapped);
+						Records.RemoveAll(x => !x.Data.IsMapped);
 						if(Records.Count == 0)
 						{
-							Log.WriteLine("Rejecting {0} due to {1} matching records", Client.Name, Records.Count);
+							Logger.LogInformation("Rejecting {ClientName} due to {NumRecords} matching records", Client.Name, Records.Count);
 							continue;
 						}
 
-						Log.WriteLine("Found valid client {0}", Client.Name);
-						CandidateClients.Add(CandidateClient);
+						Logger.LogInformation("Found valid client {ClientName}", Client.Name);
+						CandidateClients.Add(CandidateSettings);
 					}
 				}
 			}
 			return CandidateClients;
 		}
 
-		bool TryGetStreamPrefix(PerforceConnection Perforce, string StreamName, TextWriter Log, out string StreamPrefix)
+		static async Task<string?> TryGetStreamPrefixAsync(IPerforceConnection Perforce, string StreamName, CancellationToken CancellationToken)
 		{ 
-			string CurrentStreamName = StreamName;
-			for(;;)
+			string? CurrentStreamName = StreamName;
+			while(!String.IsNullOrEmpty(CurrentStreamName))
 			{
-				PerforceSpec StreamSpec;
-				if(!Perforce.TryGetStreamSpec(CurrentStreamName, out StreamSpec, Log))
+				PerforceResponse<StreamRecord> Response = await Perforce.TryGetStreamAsync(CurrentStreamName, false, CancellationToken);
+				if (!Response.Succeeded)
 				{
-					StreamPrefix = null;
-					return false;
+					return null;
 				}
-				if(StreamSpec.GetField("Type") != "virtual")
+
+				StreamRecord StreamSpec = Response.Data;
+				if(StreamSpec.Type != "virtual")
 				{
-					StreamPrefix = CurrentStreamName;
-					return true;
+					return CurrentStreamName;
 				}
-				CurrentStreamName = StreamSpec.GetField("Parent");
+
+				CurrentStreamName = StreamSpec.Parent;
 			}
-		}
-	}
-
-	class DetectProjectSettingsResult : IDisposable
-	{
-		public DetectProjectSettingsTask Task;
-		public bool bSucceeded;
-		public string ErrorMessage;
-
-		public DetectProjectSettingsResult(DetectProjectSettingsTask Task, bool bSucceeded, string ErrorMessage)
-		{
-			this.Task = Task;
-			this.bSucceeded = bSucceeded;
-			this.ErrorMessage = ErrorMessage;
-		}
-
-		public void Dispose()
-		{
-			if(Task != null)
-			{
-				Task.Dispose();
-				Task = null;
-			}
-		}
-	}
-
-	class DetectMultipleProjectSettingsTask : IModalTask, IDisposable
-	{
-		PerforceConnection DefaultConnection;
-		public DetectProjectSettingsTask[] Tasks;
-		public DetectProjectSettingsResult[] Results;
-
-		public DetectMultipleProjectSettingsTask(PerforceConnection DefaultConnection, IEnumerable<DetectProjectSettingsTask> Tasks)
-		{
-			this.DefaultConnection = DefaultConnection;
-			this.Tasks = Tasks.ToArray();
-		}
-
-		public void Dispose()
-		{
-			if(Results != null)
-			{
-				foreach(DetectProjectSettingsTask Task in Tasks.Where(x => x != null))
-				{
-					Task.Dispose();
-				}
-				foreach(DetectProjectSettingsResult Result in Results.Where(x => x != null))
-				{
-					Result.Dispose();
-				}
-				Results = null;
-			}
-		}
-
-		public bool Run(out string ErrorMessage)
-		{
-			Results = new DetectProjectSettingsResult[Tasks.Length];
-			Parallel.For(0, Tasks.Length, new ParallelOptions(){ MaxDegreeOfParallelism = 4 }, Idx => RunTask(Idx));
-
-			ErrorMessage = null;
-			return true;
-		}
-
-		void RunTask(int Idx)
-		{
-			DetectProjectSettingsTask Task = Tasks[Idx];
-
-			UserSelectedProjectSettings Project = Task.SelectedProject;
-			PerforceConnection Perforce = Utility.OverridePerforceSettings(DefaultConnection, Project.ServerAndPort, Project.UserName);
-
-			string TaskErrorMessage;
-			bool bTaskSucceeded = Tasks[Idx].Run(Perforce, out TaskErrorMessage);
-			Results[Idx] = new DetectProjectSettingsResult(Tasks[Idx], bTaskSucceeded, TaskErrorMessage);
-			Tasks[Idx] = null;
-		}
-	}
-
-	class QuietDetectProjectSettingsTask : IModalTask
-	{
-		PerforceConnection Perforce;
-		DetectProjectSettingsTask Inner;
-		TextWriter Log;
-
-		public QuietDetectProjectSettingsTask(PerforceConnection Perforce, DetectProjectSettingsTask Inner, TextWriter Log)
-		{
-			this.Perforce = Perforce;
-			this.Inner = Inner;
-			this.Log = Log;
-		}
-
-		public bool Run(out string ErrorMessage)
-		{
-			return Inner.Run(Perforce, out ErrorMessage);
+			return null;
 		}
 	}
 }

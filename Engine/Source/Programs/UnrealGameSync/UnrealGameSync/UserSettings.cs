@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -13,16 +15,18 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
-	enum BuildConfig
+	public enum BuildConfig
 	{
 		Debug,
 		DebugGame,
 		Development,
 	}
 
-	enum TabLabels
+	public enum TabLabels
 	{
 		Stream,
 		WorkspaceName,
@@ -30,7 +34,7 @@ namespace UnrealGameSync
 		ProjectFile,
 	}
 
-	enum BisectState
+	public enum BisectState
 	{
 		Include,
 		Exclude,
@@ -38,20 +42,20 @@ namespace UnrealGameSync
 		Fail,
 	}
 
-	enum UserSelectedProjectType
+	public enum UserSelectedProjectType
 	{
 		Client,
 		Local
 	}
 
-	enum FilterType
+	public enum FilterType
 	{
 		None,
 		Code,
 		Content
 	}
 
-	enum UserSettingsVersion
+	public enum UserSettingsVersion
 	{
 		Initial = 0,
 		DefaultServerSettings = 1,
@@ -73,11 +77,11 @@ namespace UnrealGameSync
 			this.Order = new List<string>(Order);
 		}
 
-		public static bool TryParseConfigEntry(string Text, out ArchiveSettings Settings)
+		public static bool TryParseConfigEntry(string Text, [NotNullWhen(true)] out ArchiveSettings? Settings)
 		{
 			ConfigObject Object = new ConfigObject(Text);
 
-			string Type = Object.GetValue("Type", null);
+			string? Type = Object.GetValue("Type", null);
 			if (Type == null)
 			{
 				Settings = null;
@@ -110,15 +114,15 @@ namespace UnrealGameSync
 		}
 	}
 
-	class UserSelectedProjectSettings
+	public class UserSelectedProjectSettings
 	{
-		public readonly string ServerAndPort;
-		public readonly string UserName;
+		public readonly string? ServerAndPort;
+		public readonly string? UserName;
 		public readonly UserSelectedProjectType Type;
-		public readonly string ClientPath;
-		public readonly string LocalPath;
+		public readonly string? ClientPath;
+		public readonly string? LocalPath;
 
-		public UserSelectedProjectSettings(string ServerAndPort, string UserName, UserSelectedProjectType Type, string ClientPath, string LocalPath)
+		public UserSelectedProjectSettings(string? ServerAndPort, string? UserName, UserSelectedProjectType Type, string? ClientPath, string? LocalPath)
 		{
 			this.ServerAndPort = ServerAndPort;
 			this.UserName = UserName;
@@ -127,14 +131,14 @@ namespace UnrealGameSync
 			this.LocalPath = LocalPath;
 		}
 
-		public static bool TryParseConfigEntry(string Text, out UserSelectedProjectSettings Project)
+		public static bool TryParseConfigEntry(string Text, [NotNullWhen(true)] out UserSelectedProjectSettings? Project)
 		{
 			ConfigObject Object = new ConfigObject(Text);
 
 			UserSelectedProjectType Type;
 			if(Enum.TryParse(Object.GetValue("Type", ""), out Type))
 			{
-				string ServerAndPort = Object.GetValue("ServerAndPort", null);
+				string? ServerAndPort = Object.GetValue("ServerAndPort", null);
 				if(String.IsNullOrWhiteSpace(ServerAndPort))
 				{
 					ServerAndPort = null;
@@ -146,19 +150,19 @@ namespace UnrealGameSync
 					ServerAndPort = "perforce:1666";
 				}
 
-				string UserName = Object.GetValue("UserName", null);
+				string? UserName = Object.GetValue("UserName", null);
 				if(String.IsNullOrWhiteSpace(UserName))
 				{
 					UserName = null;
 				}
 
-				string LocalPath = Object.GetValue("LocalPath", null);
+				string? LocalPath = Object.GetValue("LocalPath", null);
 				if(String.IsNullOrWhiteSpace(LocalPath))
 				{
 					LocalPath = null;
 				}
 
-				string ClientPath = Object.GetValue("ClientPath", null);
+				string? ClientPath = Object.GetValue("ClientPath", null);
 				if(String.IsNullOrWhiteSpace(ClientPath))
 				{
 					ClientPath = null;
@@ -202,31 +206,31 @@ namespace UnrealGameSync
 			return Object.ToString();
 		}
 
-		public override string ToString()
+		public override string? ToString()
 		{
 			return LocalPath ?? ClientPath;
 		}
 	}
 
-	class SyncCategory
+	public class SyncCategory
 	{
 		public Guid Id { get; set; }
 		public bool Enable { get; set; }
 	}
 
-	class BisectEntry
+	public class BisectEntry
 	{
 		public int Change { get; set; }
 		public BisectState State { get; set; }
 	}
 
-	class UserWorkspaceSettings
+	public class UserWorkspaceSettings
 	{
 		[JsonIgnore]
-		public FileReference File { get; set; }
+		public FileReference? File { get; set; }
 
 		// Workspace specific SyncFilters
-		public string[] SyncView { get; set; }
+		public string[]? SyncView { get; set; }
 		public List<SyncCategory> SyncCategories { get; set; } = new List<SyncCategory>();
 		public bool? bSyncAllProjects { get; set; }
 		public bool? bIncludeAllProjectsInSolution { get; set; }
@@ -238,27 +242,27 @@ namespace UnrealGameSync
 			set => SyncCategories = value.Select(x => new SyncCategory { Id = x.Key, Enable = x.Value }).ToList();
 		}
 
-		public void Save() => Utility.SaveJson(File, this);
+		public void Save() => Utility.SaveJson(File!, this);
 	}
 
-	class UserWorkspaceState
+	public class UserWorkspaceState
 	{
 		[JsonIgnore]
-		public FileReference File { get; set; }
+		public FileReference? File { get; set; }
 
 		// Client path to the current project
-		public string SelectedClientFileName { get; set; }
+		public string? SelectedClientFileName { get; set; }
 
 		// Settings for the currently synced project in this workspace. CurrentChangeNumber is only valid for this workspace if CurrentProjectPath is the current project.
-		public string CurrentProjectIdentifier { get; set; }
+		public string? CurrentProjectIdentifier { get; set; }
 		public int CurrentChangeNumber { get; set; } = -1;
-		public string CurrentSyncFilterHash { get; set; }
+		public string? CurrentSyncFilterHash { get; set; }
 		public List<int> AdditionalChangeNumbers { get; set; } = new List<int>();
 
 		// Settings for the last attempted sync. These values are set to persist error messages between runs.
 		public int LastSyncChangeNumber { get; set; }
 		public WorkspaceUpdateResult LastSyncResult { get; set; }
-		public string LastSyncResultMessage { get; set; }
+		public string? LastSyncResultMessage { get; set; }
 		public DateTime? LastSyncTime { get; set; }
 		public int LastSyncDurationSeconds { get; set; }
 
@@ -266,7 +270,7 @@ namespace UnrealGameSync
 		public int LastBuiltChangeNumber { get; set; }
 
 		// Expanded archives in the workspace
-		public string[] ExpandedArchiveTypes { get; set; }
+		public string[]? ExpandedArchiveTypes { get; set; }
 
 		// The changes that we're regressing at the moment
 		public List<BisectEntry> BisectChanges { get; set; } = new List<BisectEntry>();
@@ -285,7 +289,7 @@ namespace UnrealGameSync
 
 		public void Save()
 		{
-			lock(File)
+			lock(File!)
 			{
 				Utility.SaveJson(File, this);
 			}
@@ -295,13 +299,13 @@ namespace UnrealGameSync
 	class UserProjectSettings
 	{
 		[JsonIgnore]
-		public FileReference File { get; set; }
+		public FileReference? File { get; set; }
 
 		public List<ConfigObject> BuildSteps { get; set; } = new List<ConfigObject>();
 		public FilterType FilterType { get; set; }
 		public HashSet<string> FilterBadges { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-		public void Save() => Utility.SaveJson(File, this);
+		public void Save() => Utility.SaveJson(File!, this);
 	}
 
 	class UserSettings
@@ -335,7 +339,7 @@ namespace UnrealGameSync
 		public Guid[] EnabledTools;
 		public bool bShowNetCoreInfo;
 		public int FilterIndex;
-		public UserSelectedProjectSettings LastProject;
+		public UserSelectedProjectSettings? LastProject;
 		public List<UserSelectedProjectSettings> OpenProjects;
 		public List<UserSelectedProjectSettings> RecentProjects;
 		public string[] SyncView;
@@ -386,12 +390,12 @@ namespace UnrealGameSync
 		{
 			List<UserSelectedProjectSettings> Projects = new List<UserSelectedProjectSettings>();
 
-			string[] ProjectStrings = ConfigFile.GetValues(SettingName, null);
+			string[]? ProjectStrings = ConfigFile.GetValues(SettingName, null);
 			if(ProjectStrings != null)
 			{
 				foreach(string ProjectString in ProjectStrings)
 				{
-					UserSelectedProjectSettings Project;
+					UserSelectedProjectSettings? Project;
 					if(UserSelectedProjectSettings.TryParseConfigEntry(ProjectString, out Project))
 					{
 						Projects.Add(Project);
@@ -400,7 +404,7 @@ namespace UnrealGameSync
 			}
 			else if(LegacySettingName != null)
 			{
-				string[] LegacyProjectStrings = ConfigFile.GetValues(LegacySettingName, null);
+				string[]? LegacyProjectStrings = ConfigFile.GetValues(LegacySettingName, null);
 				if(LegacyProjectStrings != null)
 				{
 					foreach(string LegacyProjectString in LegacyProjectStrings)
@@ -416,10 +420,10 @@ namespace UnrealGameSync
 			return Projects;
 		}
 
-		public UserSettings(FileReference InFileName, TextWriter Log)
+		public UserSettings(FileReference InFileName, ILogger Logger)
 		{
 			FileName = InFileName;
-			ConfigFile.TryLoad(FileName, Log);
+			ConfigFile.TryLoad(FileName, Logger);
 
 			// General settings
 			Version = (UserSettingsVersion)ConfigFile.GetValue("General.Version", (int)UserSettingsVersion.Initial);
@@ -454,14 +458,14 @@ namespace UnrealGameSync
 			bShowNetCoreInfo = ConfigFile.GetValue("General.ShowNetCoreInfo", true);
 			int.TryParse(ConfigFile.GetValue("General.FilterIndex", "0"), out FilterIndex);
 
-			string LastProjectString = ConfigFile.GetValue("General.LastProject", null);
+			string? LastProjectString = ConfigFile.GetValue("General.LastProject", null);
 			if(LastProjectString != null)
 			{
 				UserSelectedProjectSettings.TryParseConfigEntry(LastProjectString, out LastProject);
 			}
 			else
 			{
-				string LastProjectFileName = ConfigFile.GetValue("General.LastProjectFileName", null);
+				string? LastProjectFileName = ConfigFile.GetValue("General.LastProjectFileName", null);
 				if(LastProjectFileName != null)
 				{
 					LastProject = new UserSelectedProjectSettings(null, null, UserSelectedProjectType.Local, null, LastProjectFileName);
@@ -521,7 +525,7 @@ namespace UnrealGameSync
 			string[] ArchiveValues = ConfigFile.GetValues("PrecompiledBinaries.Archives", new string[0]);
 			foreach (string ArchiveValue in ArchiveValues)
 			{
-				ArchiveSettings Settings;
+				ArchiveSettings? Settings;
 				if (ArchiveSettings.TryParseConfigEntry(ArchiveValue, out Settings))
 				{
 					Archives.Add(Settings);
@@ -538,9 +542,12 @@ namespace UnrealGameSync
 			foreach (string TokenValue in Tokens)
 			{
 				ConfigObject O = new ConfigObject(TokenValue);
-				string Provider = O.GetValue("Provider");
-				string Token = O.GetValue("Token");
-				ProviderToRefreshTokens.TryAdd(Provider, Token);
+				string? Provider = O.GetValue("Provider");
+				string? Token = O.GetValue("Token");
+				if (Provider != null && Token != null)
+				{
+					ProviderToRefreshTokens.TryAdd(Provider, Token);
+				}
 			}
 
 			// Window settings
@@ -671,7 +678,7 @@ namespace UnrealGameSync
 		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string SelectedClientFileName, string SelectedProjectIdentifier)
 		{
 			FileReference ConfigFile = FileReference.Combine(GetConfigDir(RootDir), "global.json");
-			if (!WorkspaceKeyToState.TryGetValue(ConfigFile, out UserWorkspaceState State))
+			if (!WorkspaceKeyToState.TryGetValue(ConfigFile, out UserWorkspaceState? State))
 			{
 				if (!Utility.TryLoadJson(ConfigFile, out State))
 				{
@@ -698,7 +705,7 @@ namespace UnrealGameSync
 		public UserWorkspaceSettings FindOrAddWorkspaceSettings(DirectoryReference LocalRoot, string ClientBranchPath)
 		{
 			FileReference ConfigFile = FileReference.Combine(GetConfigDir(LocalRoot), $"client_{ClientBranchPath.Trim('/').Replace('/', '+')}.json");
-			if (!WorkspaceKeyToSettings.TryGetValue(ConfigFile, out UserWorkspaceSettings Settings))
+			if (!WorkspaceKeyToSettings.TryGetValue(ConfigFile, out UserWorkspaceSettings? Settings))
 			{
 				if (!Utility.TryLoadJson(ConfigFile, out Settings))
 				{
@@ -728,7 +735,7 @@ namespace UnrealGameSync
 					LegacyBranchAndClientKey = LegacyBranchAndClientKey.Substring(0, SlashIdx) + "$" + LegacyBranchAndClientKey.Substring(SlashIdx + 1);
 				}
 
-				string CurrentSync = ConfigFile.GetValue("Clients." + LegacyBranchAndClientKey, null);
+				string? CurrentSync = ConfigFile.GetValue("Clients." + LegacyBranchAndClientKey, null);
 				if(CurrentSync != null)
 				{
 					int AtIdx = CurrentSync.LastIndexOf('@');
@@ -743,7 +750,7 @@ namespace UnrealGameSync
 					}
 				}
 
-				string LastUpdateResultText = ConfigFile.GetValue("Clients." + LegacyBranchAndClientKey + "$LastUpdate", null);
+				string? LastUpdateResultText = ConfigFile.GetValue("Clients." + LegacyBranchAndClientKey + "$LastUpdate", null);
 				if(LastUpdateResultText != null)
 				{
 					int ColonIdx = LastUpdateResultText.LastIndexOf(':');
@@ -846,7 +853,7 @@ namespace UnrealGameSync
 		public UserProjectSettings FindOrAddProjectSettings(DirectoryReference LocalRoot, string ClientProjectFileName)
 		{
 			FileReference ConfigFile = FileReference.Combine(GetConfigDir(LocalRoot), $"project_{ClientProjectFileName.Trim('/').Replace('/', '+')}.json");
-			if (!ProjectKeyToSettings.TryGetValue(ConfigFile, out UserProjectSettings Settings))
+			if (!ProjectKeyToSettings.TryGetValue(ConfigFile, out UserProjectSettings? Settings))
 			{
 				if (!Utility.TryLoadJson(ConfigFile, out Settings))
 				{
@@ -1061,7 +1068,7 @@ namespace UnrealGameSync
 		{
 			if(Enabled.Add(UniqueId))
 			{
-				WorkspaceSyncCategory Category;
+				WorkspaceSyncCategory? Category;
 				if(UniqueIdToFilter.TryGetValue(UniqueId, out Category))
 				{
 					foreach(Guid RequiresUniqueId in Category.Requires)
@@ -1072,7 +1079,8 @@ namespace UnrealGameSync
 			}
 		}
 
-		static string EscapeText(string Text)
+		[return: NotNullIfNotNull("Text")]
+		static string? EscapeText(string? Text)
 		{
 			if(Text == null)
 			{
@@ -1110,7 +1118,8 @@ namespace UnrealGameSync
 			return Result.ToString();
 		}
 
-		static string UnescapeText(string Text)
+		[return: NotNullIfNotNull("Text")]
+		static string? UnescapeText(string? Text)
 		{
 			if(Text == null)
 			{

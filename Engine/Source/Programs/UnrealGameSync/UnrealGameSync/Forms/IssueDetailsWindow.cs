@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
+using EpicGames.Perforce;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -11,7 +16,10 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
@@ -19,59 +27,77 @@ namespace UnrealGameSync
 	{
 		class BuildGroup
 		{
-			public string JobName;
-			public string JobUrl;
-			public int Change;
-			public IssueBuildOutcome Outcome;
-			public List<IssueBuildData> Builds;
+			public string JobName { get; }
+			public string JobUrl { get; }
+			public int Change { get; }
+			public IssueBuildOutcome Outcome { get; }
+			public IReadOnlyList<IssueBuildData> Builds { get; }
+
+			public BuildGroup(string JobName, string JobUrl, int Change, IssueBuildOutcome Outcome, IReadOnlyList<IssueBuildData> Builds)
+			{
+				this.JobName = JobName;
+				this.JobUrl = JobUrl;
+				this.Change = Change;
+				this.Outcome = Outcome;
+				this.Builds = Builds;
+			}
 		}
 
 		class PerforceChangeRange
 		{
 			public bool bExpanded;
-			public int MinChange;
-			public int MaxChange;
-			public List<PerforceChangeSummary> Changes;
-			public string ErrorMessage;
-			public BuildGroup BuildGroup;
+			public int MinChange { get; }
+			public int MaxChange { get; }
+			public List<ChangesRecord>? Changes;
+			public string? ErrorMessage;
+			public BuildGroup BuildGroup { get; }
+
+			public PerforceChangeRange(int MinChange, int MaxChange, BuildGroup BuildGroup)
+			{
+				this.MinChange = MinChange;
+				this.MaxChange = MaxChange;
+				this.BuildGroup = BuildGroup;
+			}
 		}
 
 		class PerforceChangeDetailsWithDescribeRecord : PerforceChangeDetails
 		{
-			public PerforceDescribeRecord DescribeRecord;
+			public DescribeRecord DescribeRecord;
 
-			public PerforceChangeDetailsWithDescribeRecord(PerforceDescribeRecord DescribeRecord)
+			public PerforceChangeDetailsWithDescribeRecord(DescribeRecord DescribeRecord)
 				: base(DescribeRecord)
 			{
 				this.DescribeRecord = DescribeRecord;
 			}
 		}
 
-		class PerforceWorkerThread : IDisposable
+		class PerforceWorkerTask : IDisposable
 		{
-			readonly PerforceConnection Perforce;
+			readonly IPerforceSettings PerforceSettings;
 			readonly string Filter;
-			readonly Action<PerforceChangeRange> OnUpdateChanges;
-			readonly Action<PerforceChangeSummary> OnUpdateChangeMetadata;
-			readonly TextWriter Log;
+			Action<PerforceChangeRange>? OnUpdateChanges;
+			Action<ChangesRecord>? OnUpdateChangeMetadata;
+			readonly ILogger Logger;
 			readonly object LockObject = new object();
-			Thread WorkerThread;
-			bool bTerminate;
-			AutoResetEvent RefreshEvent;
+			readonly SynchronizationContext SynchronizationContext;
+			Task? WorkerTask;
+			CancellationTokenSource CancellationSource;
+			AsyncEvent RefreshEvent;
 			List<PerforceChangeRange> Requests = new List<PerforceChangeRange>();
 			Dictionary<int, PerforceChangeDetailsWithDescribeRecord> ChangeNumberToDetails = new Dictionary<int, PerforceChangeDetailsWithDescribeRecord>();
 
-			public PerforceWorkerThread(PerforceConnection Perforce, string Filter, Action<PerforceChangeRange> OnUpdateChanges, Action<PerforceChangeSummary> OnUpdateChangeMetadata, TextWriter Log)
+			public PerforceWorkerTask(IPerforceSettings PerforceSettings, string Filter, Action<PerforceChangeRange>? OnUpdateChanges, Action<ChangesRecord>? OnUpdateChangeMetadata, ILogger Logger)
 			{
-				this.Perforce = Perforce;
+				this.PerforceSettings = PerforceSettings;
 				this.Filter = Filter;
 				this.OnUpdateChanges = OnUpdateChanges;
 				this.OnUpdateChangeMetadata = OnUpdateChangeMetadata;
-				this.Log = Log;
+				this.Logger = Logger;
+				this.SynchronizationContext = SynchronizationContext.Current!;
 
-				RefreshEvent = new AutoResetEvent(true);
-				WorkerThread = new Thread(() => Run());
-				WorkerThread.Start();
+				RefreshEvent = new AsyncEvent();
+				CancellationSource = new CancellationTokenSource();
+				WorkerTask = Task.Run(() => RunAsync(CancellationSource.Token));
 			}
 
 			public void AddRequest(PerforceChangeRange Range)
@@ -85,42 +111,29 @@ namespace UnrealGameSync
 
 			public void Dispose()
 			{
-				if(WorkerThread != null)
+				if (WorkerTask != null)
 				{
-					bTerminate = true;
-					RefreshEvent.Set();
-					if(!WorkerThread.Join(100))
-					{
-						WorkerThread.Interrupt();
-						WorkerThread.Join();
-					}
-					WorkerThread = null;
-				}
-				if(RefreshEvent != null)
-				{
-					RefreshEvent.Dispose();
-					RefreshEvent = null;
+					OnUpdateChanges = null;
+					OnUpdateChangeMetadata = null;
+
+					CancellationSource.Cancel();
+
+					WorkerTask.ContinueWith(x => CancellationSource.Dispose());
+					WorkerTask = null;
 				}
 			}
 
-			void Run()
+			async Task RunAsync(CancellationToken CancellationToken)
 			{
-				try
-				{
-					RunInternal();
-				}
-				catch (ThreadInterruptedException)
-				{
-				}
-			}
+				using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
 
-			void RunInternal()
-			{
 				List<PerforceChangeRange> CompletedRequests = new List<PerforceChangeRange>(); 
-				while(!bTerminate)
+				while(!CancellationToken.IsCancellationRequested)
 				{
+					Task RefreshTask = RefreshEvent.Task;
+
 					// Check if there's a request in the queue
-					PerforceChangeRange NextRequest = null;
+					PerforceChangeRange? NextRequest = null;
 					lock(LockObject)
 					{
 						if(Requests.Count > 0)
@@ -135,10 +148,10 @@ namespace UnrealGameSync
 					{
 						string RangeFilter = String.Format("{0}@{1},{2}", Filter, NextRequest.MinChange, (NextRequest.MaxChange == -1)? "now" : NextRequest.MaxChange.ToString());
 
-						List<PerforceChangeSummary> NewChanges;
-						if(Perforce.FindChanges(RangeFilter, -1, out NewChanges, Log))
+						PerforceResponseList<ChangesRecord> NewChanges = await Perforce.TryGetChangesAsync(ChangesOptions.None, -1, ChangeStatus.Submitted, RangeFilter, CancellationToken);
+						if(NewChanges.Succeeded)
 						{
-							NextRequest.Changes = NewChanges;
+							NextRequest.Changes = NewChanges.Data;
 							CompletedRequests.Add(NextRequest);
 						}
 						else
@@ -146,51 +159,50 @@ namespace UnrealGameSync
 							NextRequest.ErrorMessage = "Unable to fetch changes. Check your connection settings and try again.";
 						}
 
-						OnUpdateChanges(NextRequest);
+						SynchronizationContext.Post(x => OnUpdateChanges?.Invoke(NextRequest), null);
 						continue;
 					}
 
 					// Figure out which changes to fetch
-					List<PerforceChangeSummary> DescribeChanges;
+					List<ChangesRecord> DescribeChanges;
 					lock(LockObject)
 					{
 						DescribeChanges = CompletedRequests.SelectMany(x => x.Changes).Where(x => !ChangeNumberToDetails.ContainsKey(x.Number)).ToList();
 					}
 
 					// Fetch info on each individual change
-					foreach(PerforceChangeSummary DescribeChange in DescribeChanges)
+					foreach(ChangesRecord DescribeChange in DescribeChanges)
 					{
 						lock(LockObject)
 						{
-							if(bTerminate || Requests.Count > 0)
+							if(CancellationToken.IsCancellationRequested || Requests.Count > 0)
 							{
 								break;
 							}
 						}
 
-						PerforceDescribeRecord Record;
-						if(Perforce.Describe(DescribeChange.Number, out Record, Log))
+						PerforceResponse<DescribeRecord> Response = await Perforce.TryDescribeAsync(DescribeChange.Number);
+						if (Response.Succeeded)
 						{
+							DescribeRecord Record = Response.Data;
 							lock(LockObject)
 							{
-								ChangeNumberToDetails[Record.ChangeNumber] = new PerforceChangeDetailsWithDescribeRecord(Record);
-								if((Record.ChangeNumber & 3) == 0)
-								{
-									ChangeNumberToDetails[Record.ChangeNumber].bContainsCode = true;
-									ChangeNumberToDetails[Record.ChangeNumber].bContainsContent = true;
-								}
+								ChangeNumberToDetails[Record.Number] = new PerforceChangeDetailsWithDescribeRecord(Record);
 							}
 						}
 
-						OnUpdateChangeMetadata(DescribeChange);
+						SynchronizationContext.Post(x => OnUpdateChangeMetadata?.Invoke(DescribeChange), null);
 					}
 
 					// Wait for something to change
-					RefreshEvent.WaitOne();
+					using (IDisposable _ = CancellationToken.Register(() => RefreshEvent.Set()))
+					{
+						await RefreshTask;
+					}
 				}
 			}
 
-			public bool TryGetChangeDetails(int ChangeNumber, out PerforceChangeDetailsWithDescribeRecord Details)
+			public bool TryGetChangeDetails(int ChangeNumber, [NotNullWhen(true)] out PerforceChangeDetailsWithDescribeRecord? Details)
 			{
 				lock(LockObject)
 				{
@@ -255,34 +267,34 @@ namespace UnrealGameSync
 		IssueData Issue;
 		List<IssueBuildData> IssueBuilds;
 		List<IssueDiagnosticData> Diagnostics;
-		PerforceConnection Perforce;
+		IPerforceSettings PerforceSettings;
 		TimeSpan? ServerTimeOffset;
-		PerforceWorkerThread PerforceWorker;
-		TextWriter Log;
+		PerforceWorkerTask? PerforceWorker;
+		IServiceProvider ServiceProvider;
 		SynchronizationContext MainThreadSynchronizationContext;
-		string SelectedStream;
+		string? SelectedStream;
 		List<PerforceChangeRange> SelectedStreamRanges = new List<PerforceChangeRange>();
 		bool bIsDisposing;
-		Font BoldFont;
-		PerforceChangeSummary ContextMenuChange;
-		string LastOwner;
-		string LastDetailsText;
-		System.Windows.Forms.Timer UpdateTimer;
+		Font? BoldFont;
+		ChangesRecord? ContextMenuChange;
+		string? LastOwner;
+		string? LastDetailsText;
+		System.Windows.Forms.Timer? UpdateTimer;
 		StatusElementResources StatusElementResources;
 
-		IssueDetailsWindow(IssueMonitor IssueMonitor, IssueData Issue, List<IssueBuildData> IssueBuilds, List<IssueDiagnosticData> Diagnostics, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream)
+		IssueDetailsWindow(IssueMonitor IssueMonitor, IssueData Issue, List<IssueBuildData> IssueBuilds, List<IssueDiagnosticData> Diagnostics, IPerforceSettings PerforceSettings, TimeSpan? ServerTimeOffset, IServiceProvider ServiceProvider, string CurrentStream)
 		{
 			this.IssueMonitor = IssueMonitor;
 			this.Issue = Issue;
 			this.IssueBuilds = IssueBuilds;
 			this.Diagnostics = Diagnostics;
-			this.Perforce = new PerforceConnection(UserName, null, ServerAndPort);
+			this.PerforceSettings = PerforceSettings;
 			this.ServerTimeOffset = ServerTimeOffset;
-			this.Log = Log;
+			this.ServiceProvider = ServiceProvider;
 
 			IssueMonitor.AddRef();
 
-			MainThreadSynchronizationContext = SynchronizationContext.Current;
+			MainThreadSynchronizationContext = SynchronizationContext.Current!;
 
 			InitializeComponent();
 
@@ -295,15 +307,18 @@ namespace UnrealGameSync
 
 			BuildListView.SmallImageList = new ImageList(){ ImageSize = new Size(1, 20) };
 
-			System.Reflection.PropertyInfo DoubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+			System.Reflection.PropertyInfo DoubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
 			DoubleBufferedProperty.SetValue(BuildListView, true, null); 
 
 			using(Graphics Graphics = Graphics.FromHwnd(IntPtr.Zero))
 			{
 				float DpiScaleX = Graphics.DpiX / 96.0f;
-				foreach(ColumnHeader Column in BuildListView.Columns)
+				foreach(ColumnHeader? Column in BuildListView.Columns)
 				{
-					Column.Width = (int)(Column.Width * DpiScaleX);
+					if (Column != null)
+					{
+						Column.Width = (int)(Column.Width * DpiScaleX);
+					}
 				}
 			}
 
@@ -340,7 +355,7 @@ namespace UnrealGameSync
 				IssueMonitor.StopTracking(Issue.Id);
 				IssueMonitor.OnIssuesChanged -= OnUpdateIssuesAsync;
 				IssueMonitor.Release();
-				IssueMonitor = null;
+				IssueMonitor = null!;
 			}
 
 			base.Dispose(disposing);
@@ -370,7 +385,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void UpdateTimer_Tick(object sender, EventArgs e)
+		private void UpdateTimer_Tick(object? sender, EventArgs e)
 		{
 			UpdateBuildList();
 			StopUpdateTimer();
@@ -612,7 +627,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void IssueDetailsWindow_Disposed(object sender, EventArgs e)
+		private void IssueDetailsWindow_Disposed(object? sender, EventArgs e)
 		{
 			bIsDisposing = true;
 			DestroyWorker();
@@ -631,12 +646,12 @@ namespace UnrealGameSync
 			if(!Range.bExpanded)
 			{
 				Range.bExpanded = true;
-				PerforceWorker.AddRequest(Range);
+				PerforceWorker!.AddRequest(Range);
 				UpdateBuildList();
 			}
 		}
 
-		bool FilterMatch(Regex FilterRegex, PerforceChangeSummary Summary)
+		bool FilterMatch(Regex FilterRegex, ChangesRecord Summary)
 		{
 			if(FilterRegex.IsMatch(Summary.User))
 			{
@@ -649,7 +664,7 @@ namespace UnrealGameSync
 			return false;
 		}
 
-		bool FilterMatch(Regex FilterRegex, PerforceDescribeRecord DescribeRecord)
+		bool FilterMatch(Regex FilterRegex, DescribeRecord DescribeRecord)
 		{
 			if(FilterRegex.IsMatch(DescribeRecord.User))
 			{
@@ -672,7 +687,7 @@ namespace UnrealGameSync
 			BuildListView.BeginUpdate();
 
 			// Capture the initial selection
-			object PrevSelection = null;
+			object? PrevSelection = null;
 			if(BuildListView.SelectedItems.Count > 0)
 			{
 				PrevSelection = BuildListView.SelectedItems[0].Tag;
@@ -726,10 +741,10 @@ namespace UnrealGameSync
 					}
 					else
 					{
-						foreach(PerforceChangeSummary Change in Range.Changes)
+						foreach(ChangesRecord Change in Range.Changes)
 						{
-							PerforceChangeDetailsWithDescribeRecord Details;
-							PerforceWorker.TryGetChangeDetails(Change.Number, out Details);
+							PerforceChangeDetailsWithDescribeRecord? Details;
+							PerforceWorker!.TryGetChangeDetails(Change.Number, out Details);
 
 							if(FilterRegexes.Count > 0 || bOnlyShowCodeChanges || bOnlyShowContentChanges)
 							{
@@ -770,7 +785,7 @@ namespace UnrealGameSync
 
 							Item.SubItems.Add(Change.Number.ToString());
 
-							DateTime DisplayTime = Change.Date;
+							DateTime DisplayTime = Change.Time;
 							if (ServerTimeOffset.HasValue)
 							{
 								DisplayTime = (DisplayTime - ServerTimeOffset.Value).ToLocalTime();
@@ -844,7 +859,7 @@ namespace UnrealGameSync
 			BuildListView.Invalidate();
 		}
 
-		BuildGroup SelectedBuildGroup;
+		BuildGroup? SelectedBuildGroup;
 
 		void ShowJobContextMenu(Point Point, BuildGroup BuildGroup)
 		{
@@ -868,7 +883,7 @@ namespace UnrealGameSync
 			JobContextMenu.Show(BuildListView, Point, ToolStripDropDownDirection.BelowRight);
 		}
 
-		void UpdateChangeTypeWidget(StatusLineListViewWidget TypeWidget, PerforceChangeDetails Details)
+		void UpdateChangeTypeWidget(StatusLineListViewWidget TypeWidget, PerforceChangeDetails? Details)
 		{
 			TypeWidget.Line.Clear();
 			if(Details == null)
@@ -890,7 +905,7 @@ namespace UnrealGameSync
 
 		void CreateWorker()
 		{
-			string NewSelectedStream = StreamComboBox.SelectedItem as string;
+			string? NewSelectedStream = StreamComboBox.SelectedItem as string;
 			if(SelectedStream != NewSelectedStream)
 			{
 				DestroyWorker();
@@ -907,23 +922,16 @@ namespace UnrealGameSync
 					int MaxChange = -1;
 					foreach(IGrouping<string, IssueBuildData> Group in IssueBuilds.Where(x => x.Stream == SelectedStream).OrderByDescending(x => x.Change).ThenByDescending(x => x.JobUrl).GroupBy(x => x.JobUrl))
 					{
-						BuildGroup BuildGroup = new BuildGroup();
-						BuildGroup.JobName = Group.First().JobName;
-						BuildGroup.JobUrl = Group.Key;
-						BuildGroup.Change = Group.First().Change;
-						BuildGroup.Builds = Group.ToList();
-						BuildGroup.Outcome = Group.Any(x => x.Outcome == IssueBuildOutcome.Error)? IssueBuildOutcome.Error : Group.Any(x => x.Outcome == IssueBuildOutcome.Warning)? IssueBuildOutcome.Warning : IssueBuildOutcome.Success;
+						IssueBuildOutcome Outcome = Group.Any(x => x.Outcome == IssueBuildOutcome.Error) ? IssueBuildOutcome.Error : Group.Any(x => x.Outcome == IssueBuildOutcome.Warning) ? IssueBuildOutcome.Warning : IssueBuildOutcome.Success;
+						BuildGroup BuildGroup = new BuildGroup(Group.First().JobName, Group.Key, Group.First().Change, Outcome, Group.ToList());
 
-						PerforceChangeRange Range = new PerforceChangeRange();
-						Range.MinChange = BuildGroup.Change + 1;
-						Range.MaxChange = MaxChange;
-						Range.BuildGroup = BuildGroup;
+						PerforceChangeRange Range = new PerforceChangeRange(BuildGroup.Change + 1, MaxChange, BuildGroup);
 						SelectedStreamRanges.Add(Range);
 
 						MaxChange = BuildGroup.Change;
 					}
 
-					PerforceWorker = new PerforceWorkerThread(Perforce, String.Format("{0}/...", SelectedStream), OnRequestCompleteAsync, UpdateChangeMetadataAsync, Log);
+					PerforceWorker = new PerforceWorkerTask(PerforceSettings, String.Format("{0}/...", SelectedStream), OnRequestComplete, UpdateChangeMetadata, ServiceProvider.GetRequiredService<ILogger<PerforceWorkerTask>>());
 
 					UpdateBuildList();
 
@@ -961,22 +969,12 @@ namespace UnrealGameSync
 			MainThreadSynchronizationContext.Post((o) => { if(!bIsDisposing){ OnUpdateIssues(); } }, null);
 		}
 
-		void OnUpdateError(Exception Ex)
-		{
-			MessageBox.Show(String.Format("Unable to update database.\n\n{0}", Ex));
-		}
-
-		void OnUpdateErrorAsync(Exception Ex)
-		{
-			MainThreadSynchronizationContext.Post((o) => { if(!bIsDisposing){ OnUpdateError(Ex); } }, null);
-		}
-
 		void DestroyWorker()
 		{
 			if(PerforceWorker != null)
 			{
 				PerforceWorker.Dispose();
-				PerforceWorker = null;
+				PerforceWorker = null!;
 			}
 		}
 
@@ -985,12 +983,7 @@ namespace UnrealGameSync
 			UpdateBuildList();
 		}
 
-		void OnRequestCompleteAsync(PerforceChangeRange Range)
-		{
-			MainThreadSynchronizationContext.Post((o) => { if(!bIsDisposing) { OnRequestComplete(Range); } }, null);
-		}
-
-		void UpdateChangeMetadata(PerforceChangeSummary Change)
+		void UpdateChangeMetadata(ChangesRecord Change)
 		{
 			if(FilterTextBox.Text.Length > 0 || FilterTypeComboBox.SelectedIndex != 0)
 			{
@@ -998,12 +991,12 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				foreach(ListViewItem Item in BuildListView.Items)
+				foreach(ListViewItem? Item in BuildListView.Items)
 				{
-					if(Item.Tag == Change)
+					if(Item != null && Item.Tag == Change)
 					{
-						PerforceChangeDetailsWithDescribeRecord Details;
-						PerforceWorker.TryGetChangeDetails(Change.Number, out Details);
+						PerforceChangeDetailsWithDescribeRecord? Details;
+						PerforceWorker!.TryGetChangeDetails(Change.Number, out Details);
 
 						StatusLineListViewWidget TypeWidget = (StatusLineListViewWidget)Item.SubItems[TypeHeader.Index].Tag;
 						UpdateChangeTypeWidget(TypeWidget, Details);
@@ -1015,14 +1008,9 @@ namespace UnrealGameSync
 			}
 		}
 
-		void UpdateChangeMetadataAsync(PerforceChangeSummary Change)
-		{
-			MainThreadSynchronizationContext.Post((o) => { if(!bIsDisposing) { UpdateChangeMetadata(Change); } }, null);
-		}
-
 		static List<IssueDetailsWindow> ExistingWindows = new List<IssueDetailsWindow>();
 
-		class UpdateIssueDetailsTask : IModalTask
+		class UpdateIssueDetailsTask
 		{
 			string ApiUrl;
 			long IssueId;
@@ -1035,30 +1023,23 @@ namespace UnrealGameSync
 				this.Diagnostics = Diagnostics;
 			}
 
-			public bool Run(out string ErrorMessage)
+			public async Task RunAsync(CancellationToken CancellationToken)
 			{
-				Diagnostics.AddRange(RESTApi.GET<List<IssueDiagnosticData>>(ApiUrl, String.Format("issues/{0}/diagnostics", IssueId)));
-
-				ErrorMessage = null;
-				return true;
+				Diagnostics.AddRange(await RESTApi.GetAsync<List<IssueDiagnosticData>>($"{ApiUrl}/api/issues/{IssueId}/diagnostics", CancellationToken));
 			}
 		}
 
-		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, IssueData Issue, TextWriter Log, string CurrentStream)
+		public static void Show(Form Owner, IssueMonitor IssueMonitor, IPerforceSettings PerforceSettings, TimeSpan? ServerTimeOffset, IssueData Issue, IServiceProvider ServiceProvider, string CurrentStream)
 		{
-			List<IssueBuildData> IssueBuilds = new List<IssueBuildData>();
-			try
+			Func<CancellationToken, Task<List<IssueBuildData>>> Func = x => RESTApi.GetAsync<List<IssueBuildData>>($"{IssueMonitor.ApiUrl}/api/issues/{Issue.Id}/builds", x);
+			ModalTask<List<IssueBuildData>>? IssueBuilds = ModalTask.Execute(Owner, "Querying issue", "Querying issue, please wait...", Func);
+			if (IssueBuilds != null && IssueBuilds.Succeeded)
 			{
-				IssueBuilds = RESTApi.GET<List<IssueBuildData>>(IssueMonitor.ApiUrl, String.Format("issues/{0}/builds", Issue.Id));
+				Show(Owner, IssueMonitor, PerforceSettings, ServerTimeOffset, Issue, IssueBuilds.Result, ServiceProvider, CurrentStream);
 			}
-			catch (Exception Ex)
-			{
-				MessageBox.Show(Owner, Ex.ToString(), String.Format("Error querying builds for issue {0}", Issue.Id), MessageBoxButtons.OK);
-			}
-			Show(Owner, IssueMonitor, ServerAndPort, UserName, ServerTimeOffset, Issue, IssueBuilds, Log, CurrentStream);
 		}
 
-		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, IssueData Issue, List<IssueBuildData> IssueBuilds, TextWriter Log, string CurrentStream)
+		public static void Show(Form Owner, IssueMonitor IssueMonitor, IPerforceSettings PerforceSettings, TimeSpan? ServerTimeOffset, IssueData Issue, List<IssueBuildData> IssueBuilds, IServiceProvider ServiceProvider, string CurrentStream)
 		{
 			IssueDetailsWindow Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor && x.Issue.Id == Issue.Id);
 			if(Window == null)
@@ -1066,12 +1047,13 @@ namespace UnrealGameSync
 				List<IssueDiagnosticData> Diagnostics = new List<IssueDiagnosticData>();
 
 				UpdateIssueDetailsTask Task = new UpdateIssueDetailsTask(IssueMonitor.ApiUrl, Issue.Id, Diagnostics);
-				if(!ModalTask.ExecuteAndShowError(Owner, Task, "Fetching data", "Fetching data, please wait..."))
+				ModalTask? TaskResult = ModalTask.Execute(Owner, "Fetching data", "Fetching data, please wait...", Task.RunAsync);
+				if (TaskResult == null || !TaskResult.Succeeded)
 				{
 					return;
 				}
 
-				Window = new IssueDetailsWindow(IssueMonitor, Issue, IssueBuilds, Diagnostics, ServerAndPort, UserName, ServerTimeOffset, Log, CurrentStream);
+				Window = new IssueDetailsWindow(IssueMonitor, Issue, IssueBuilds, Diagnostics, PerforceSettings, ServerTimeOffset, ServiceProvider, CurrentStream);
 				Window.Owner = Owner;
 				if (Owner.Visible && Owner.WindowState != FormWindowState.Minimized)
 				{
@@ -1164,14 +1146,14 @@ namespace UnrealGameSync
 			{
 				BuildListView.DrawCustomSubItem(e.Graphics, e.SubItem);
 			}
-			else if(e.Item.Tag is PerforceChangeSummary)
+			else if(e.Item.Tag is ChangesRecord)
 			{
-				PerforceChangeSummary Change = (PerforceChangeSummary)e.Item.Tag;
+				ChangesRecord Change = (ChangesRecord)e.Item.Tag;
 
 				Font ChangeFont = BuildListView.Font;
 				if(Issue.Owner != null && String.Compare(Change.User, Issue.Owner, StringComparison.OrdinalIgnoreCase) == 0)
 				{
-					ChangeFont = BoldFont;
+					ChangeFont = BoldFont!;
 				}
 
 				if(e.ColumnIndex == ChangeHeader.Index)
@@ -1288,7 +1270,7 @@ namespace UnrealGameSync
 				ListViewHitTestInfo HitTest = BuildListView.HitTest(Args.Location);
 				if(HitTest.Item != null && HitTest.Item.Tag != null)
 				{
-					ContextMenuChange = HitTest.Item.Tag as PerforceChangeSummary; 
+					ContextMenuChange = HitTest.Item.Tag as ChangesRecord; 
 					if(ContextMenuChange != null)
 					{
 						BuildListContextMenu_Assign.Text = String.Format("Assign to {0}", ContextMenuChange.User);
@@ -1300,12 +1282,15 @@ namespace UnrealGameSync
 
 		private void BuildListContextMenu_MoreInfo_Click(object sender, EventArgs e)
 		{
-			Utility.SpawnP4VC(String.Format("{0} change {1}", Perforce.GetConnectionOptions(), ContextMenuChange.Number));
+			if (ContextMenuChange != null)
+			{
+				Utility.SpawnP4VC(String.Format("{0} change {1}", PerforceSettings.GetArgumentsForExternalProgram(true), ContextMenuChange.Number));
+			}
 		}
 
 		private void BuildListContextMenu_Blame_Click(object sender, EventArgs e)
 		{
-			if(ContextMenuChange != null)
+			if(ContextMenuChange != null && ContextMenuChange.User != null)
 			{
 				AssignToUser(ContextMenuChange.User);
 			}
@@ -1317,14 +1302,14 @@ namespace UnrealGameSync
 			Update.Id = Issue.Id;
 			Update.Owner = User;
 			Update.FixChange = 0;
-			if(String.Compare(User, Perforce.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+			if(String.Compare(User, PerforceSettings.UserName, StringComparison.OrdinalIgnoreCase) == 0)
 			{
 				Update.NominatedBy = "";
 				Update.Acknowledged = true;
 			}
 			else
 			{
-				Update.NominatedBy = Perforce.UserName;
+				Update.NominatedBy = PerforceSettings.UserName;
 				Update.Acknowledged = false;
 			}
 			IssueMonitor.PostUpdate(Update);
@@ -1339,8 +1324,8 @@ namespace UnrealGameSync
 
 		private void AssignToOtherBtn_Click(object sender, EventArgs e)
 		{
-			string SelectedUserName;
-			if(SelectUserWindow.ShowModal(this, Perforce, Log, out SelectedUserName))
+			string? SelectedUserName;
+			if(SelectUserWindow.ShowModal(this, PerforceSettings, ServiceProvider, out SelectedUserName))
 			{
 				AssignToUser(SelectedUserName);
 			}
@@ -1362,7 +1347,7 @@ namespace UnrealGameSync
 			int FixChangeNumber = Issue.FixChange;
 			if(FixChangeNumber == 0)
 			{
-				if(IssueFixedWindow.ShowModal(this, Perforce, ref FixChangeNumber))
+				if(IssueFixedWindow.ShowModal(this, PerforceSettings, ServiceProvider, ref FixChangeNumber))
 				{
 					IssueUpdateData Update = new IssueUpdateData();
 					Update.Id = Issue.Id;
@@ -1390,19 +1375,25 @@ namespace UnrealGameSync
 
 		private void JobContextMenu_ShowError_Click(object sender, EventArgs e)
 		{
-			foreach(IssueBuildData Build in SelectedBuildGroup.Builds)
+			if (SelectedBuildGroup != null)
 			{
-				if(Build.ErrorUrl != null)
+				foreach (IssueBuildData Build in SelectedBuildGroup.Builds)
 				{
-					Utility.OpenUrl(Build.ErrorUrl);
-					break;
+					if (Build.ErrorUrl != null)
+					{
+						Utility.OpenUrl(Build.ErrorUrl);
+						break;
+					}
 				}
 			}
 		}
 
 		private void JobContextMenu_ViewJob_Click(object sender, EventArgs e)
 		{
-			Utility.OpenUrl(SelectedBuildGroup.JobUrl);
+			if (SelectedBuildGroup != null)
+			{
+				Utility.OpenUrl(SelectedBuildGroup.JobUrl);
+			}
 		}
 
 		private void BuildListView_MouseUp(object sender, MouseEventArgs e)
@@ -1412,7 +1403,7 @@ namespace UnrealGameSync
 				ListViewHitTestInfo HitTest = BuildListView.HitTest(e.Location);
 				if(HitTest.Item != null)
 				{
-					BuildGroup Group = HitTest.Item.Tag as BuildGroup;
+					BuildGroup? Group = HitTest.Item.Tag as BuildGroup;
 					if(Group != null)
 					{
 						ShowJobContextMenu(e.Location, Group);

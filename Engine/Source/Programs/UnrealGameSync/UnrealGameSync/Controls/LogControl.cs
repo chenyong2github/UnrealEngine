@@ -14,6 +14,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealGameSync
 {
@@ -906,8 +907,13 @@ namespace UnrealGameSync
 		}
 	}
 
-	public class LogControlTextWriter : LineBasedTextWriter
+	public class LogControlTextWriter : ILogger
 	{
+		class NullDisposable : IDisposable
+		{
+			public void Dispose() { }
+		}
+
 		LogControl LogControl;
 
 		public LogControlTextWriter(LogControl InLogControl)
@@ -915,9 +921,22 @@ namespace UnrealGameSync
 			LogControl = InLogControl;
 		}
 
-		protected override void FlushLine(string Line)
+		public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
 		{
-			LogControl.AppendLine(Line);
+			string Message = Formatter(State, Exception);
+			LogControl.AppendLine(Message);
+
+			if (Exception != null)
+			{
+				foreach (string Line in Exception.ToString().Trim().Split('\n'))
+				{
+					LogControl.AppendLine(Message);
+				}
+			}
 		}
+
+		public bool IsEnabled(LogLevel logLevel) => true;
+
+		public IDisposable BeginScope<TState>(TState state) => new NullDisposable();
 	}
 }

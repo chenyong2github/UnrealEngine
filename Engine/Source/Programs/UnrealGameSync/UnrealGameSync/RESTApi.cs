@@ -7,6 +7,10 @@ using System.Net;
 using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
@@ -19,30 +23,15 @@ namespace UnrealGameSync
 
 		public override string ToString()
 		{
-			return String.Format("{0}\n\n{1}", Message, InnerException.ToString());
+			return String.Format("{0}\n\n{1}", Message, InnerException!.ToString());
 		}
 	}
 
 	public static class RESTApi
 	{
-		private static string SendRequestInternal(string URI, string Resource, string Method, string RequestBody = null, params string[] QueryParams)
+		private static async Task<string> SendRequestInternal(string Url, string Method, string? RequestBody, CancellationToken CancellationToken)
 		{
-			// set up the query string
-			StringBuilder TargetURI = new StringBuilder(string.Format("{0}/api/{1}", URI, Resource));
-			if (QueryParams.Length != 0)
-			{
-				TargetURI.Append("?");
-				for (int Idx = 0; Idx < QueryParams.Length; Idx++)
-				{
-					TargetURI.Append(QueryParams[Idx]);
-					if (Idx != QueryParams.Length - 1)
-					{
-						TargetURI.Append("&");
-					}
-				}
-			}
-
-			HttpWebRequest Request = (HttpWebRequest)WebRequest.Create(TargetURI.ToString());
+			HttpWebRequest Request = (HttpWebRequest)WebRequest.Create(Url);
 			Request.ContentType = "application/json";
 			Request.Method = Method;
 
@@ -54,7 +43,7 @@ namespace UnrealGameSync
 					byte[] bytes = Encoding.UTF8.GetBytes(RequestBody);
 					using (Stream RequestStream = Request.GetRequestStream())
 					{
-						RequestStream.Write(bytes, 0, bytes.Length);
+						await RequestStream.WriteAsync(bytes, 0, bytes.Length, CancellationToken);
 					}
 				}
 			}
@@ -62,12 +51,13 @@ namespace UnrealGameSync
 			{
 				using (WebResponse Response = Request.GetResponse())
 				{
-					string ResponseContent;
-					using (StreamReader ResponseReader = new StreamReader(Response.GetResponseStream(), Encoding.UTF8))
+					byte[] Data;
+					using (MemoryStream Buffer = new MemoryStream())
 					{
-						ResponseContent = ResponseReader.ReadToEnd();
+						await Response.GetResponseStream().CopyToAsync(Buffer, CancellationToken);
+						Data = Buffer.ToArray();
 					}
-					return ResponseContent;
+					return Encoding.UTF8.GetString(Data);
 				}
 			}
 			catch (Exception Ex)
@@ -76,24 +66,24 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static string POST(string URI, string Resource, string RequestBody = null, params string[] QueryParams)
+		public static Task<string> PostAsync(string Url, string RequestBody, CancellationToken CancellationToken)
 		{
-			return SendRequestInternal(URI, Resource, "POST", RequestBody, QueryParams);
+			return SendRequestInternal(Url, "POST", RequestBody, CancellationToken);
 		}
 
-		public static string GET(string URI, string Resource, params string[] QueryParams)
+		public static Task<string> GetAsync(string Url, CancellationToken CancellationToken)
 		{
-			return SendRequestInternal(URI, Resource, "GET", null, QueryParams);
+			return SendRequestInternal(Url, "GET", null, CancellationToken);
 		}
 
-		public static T GET<T>(string URI, string Resource, params string[] QueryParams)
+		public static async Task<T> GetAsync<T>(string Url, CancellationToken CancellationToken)
 		{
-			return JsonSerializer.Deserialize<T>(SendRequestInternal(URI, Resource, "GET", null, QueryParams), Program.DefaultJsonSerializerOptions);
+			return JsonSerializer.Deserialize<T>(await GetAsync(Url, CancellationToken), Program.DefaultJsonSerializerOptions);
 		}
 
-		public static string PUT<T>(string URI, string Resource, T Object, params string[] QueryParams)
+		public static Task<string> PutAsync<T>(string Url, T Object, CancellationToken CancellationToken)
 		{
-			return SendRequestInternal(URI, Resource, "PUT", JsonSerializer.Serialize(Object), QueryParams);
+			return SendRequestInternal(Url, "PUT", JsonSerializer.Serialize(Object), CancellationToken);
 		}
 	}
 }

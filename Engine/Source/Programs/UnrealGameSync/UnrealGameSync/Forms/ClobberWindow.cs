@@ -11,6 +11,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	public partial class ClobberWindow : Form
@@ -51,17 +53,23 @@ namespace UnrealGameSync
 
 		private void UncheckAll_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem Item in FileList.Items)
+			foreach (ListViewItem? Item in FileList.Items)
 			{
-				Item.Checked = false;
+				if (Item != null)
+				{
+					Item.Checked = false;
+				}
 			}
 		}
 
 		private void ContinueButton_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem Item in FileList.Items)
+			foreach(ListViewItem? Item in FileList.Items)
 			{
-				FilesToClobber[(string)Item.Tag] = Item.Checked;
+				if (Item != null)
+				{
+					FilesToClobber[(string)Item.Tag] = Item.Checked;
+				}
 			}
 		}
 	}

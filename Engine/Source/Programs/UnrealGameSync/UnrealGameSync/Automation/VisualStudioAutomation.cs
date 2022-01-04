@@ -11,17 +11,19 @@ using Microsoft.VisualStudio.Setup.Configuration;
 using EnvDTE;
 using System.Diagnostics;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 
 	static class VisualStudioAutomation
 	{
-		public static bool OpenFile(string FileName, out string ErrorMessage, int Line = -1)
+		public static bool OpenFile(string FileName, out string? ErrorMessage, int Line = -1)
 		{
 			ErrorMessage = null;
 
 			// first try to open via DTE
-			DTE DTE = VisualStudioAccessor.GetDTE();
+			DTE? DTE = VisualStudioAccessor.GetDTE();
 			if (DTE != null)
 			{
 				DTE.ItemOperations.OpenFile(FileName);
@@ -29,7 +31,7 @@ namespace UnrealGameSync
 
 				if (Line != -1)
 				{
-					(DTE.ActiveDocument.Selection as TextSelection).GotoLine(Line);
+					(DTE.ActiveDocument.Selection as TextSelection)?.GotoLine(Line);
 				}
 
 				return true;
@@ -60,7 +62,7 @@ namespace UnrealGameSync
 		public static bool LaunchVisualStudio(string Arguments, out string ErrorMessage)
 		{
 			ErrorMessage = "";
-			VisualStudioInstallation Install = VisualStudioInstallations.GetPreferredInstallation();
+			VisualStudioInstallation? Install = VisualStudioInstallations.GetPreferredInstallation();
 
 			if (Install == null)
 			{
@@ -85,7 +87,7 @@ namespace UnrealGameSync
 		}
 
 		[STAThread]
-		public static DTE GetDTE()
+		public static DTE? GetDTE()
 		{
 			IRunningObjectTable Table;
 			if (Succeeded(GetRunningObjectTable(0, out Table)) && Table != null)
@@ -101,7 +103,7 @@ namespace UnrealGameSync
 				MonikersTable.Reset();
 
 				// Look for all visual studio instances in the ROT
-				IMoniker[] Monikers = new IMoniker[] { null };
+				IMoniker[] Monikers = new IMoniker[1];
 				while (MonikersTable.Next(1, Monikers, IntPtr.Zero) == 0)
 				{
 					IBindCtx BindContext;
@@ -147,7 +149,8 @@ namespace UnrealGameSync
 
 			for (int Idx = 0; Idx < Installs.Length; Idx++)
 			{
-				if (InName.StartsWith(Installs[Idx].ROTMoniker))
+				string? Moniker = Installs[Idx].ROTMoniker;
+				if (Moniker != null && InName.StartsWith(Moniker))
 				{
 					return true;
 				}
@@ -175,13 +178,13 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Base directory for the installation
 		/// </summary>
-		public string BaseDir;
+		public string? BaseDir;
 
 
 		/// <summary>
 		/// Path of the devenv executable
 		/// </summary>
-		public string DevEnvPath;
+		public string? DevEnvPath;
 
 		/// <summary>
 		/// Visual Studio major version number
@@ -189,9 +192,9 @@ namespace UnrealGameSync
 		public int MajorVersion;
 
 		/// <summary>
-		///  Running Object Table moniker for this installation
+		/// Running Object Table moniker for this installation
 		/// </summary>
-		public string ROTMoniker;
+		public string? ROTMoniker;
 
 	}
 
@@ -201,7 +204,7 @@ namespace UnrealGameSync
 	static class VisualStudioInstallations
 	{
 
-		public static VisualStudioInstallation GetPreferredInstallation(int MajorVersion = 0)
+		public static VisualStudioInstallation? GetPreferredInstallation(int MajorVersion = 0)
 		{
 
 			if (CachedInstalls.Count == 0)

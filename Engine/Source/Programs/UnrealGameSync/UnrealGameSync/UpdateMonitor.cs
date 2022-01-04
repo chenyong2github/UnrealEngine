@@ -1,5 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
+using EpicGames.Perforce;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,6 +11,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
@@ -18,17 +24,12 @@ namespace UnrealGameSync
 
 	class UpdateMonitor : IDisposable
 	{
-		string WatchPath;
-		Thread WorkerThread;
-		ManualResetEvent QuitEvent;
+		Task? WorkerTask;
+		CancellationTokenSource CancellationSource = new CancellationTokenSource();
+		ILogger Logger;
+		IAsyncDisposer AsyncDisposer;
 
-		public event Action<UpdateType> OnUpdateAvailable;
-
-		public PerforceConnection Perforce
-		{
-			get;
-			private set;
-		}
+		public Action<UpdateType>? OnUpdateAvailable;
 
 		public bool? RelaunchUnstable
 		{
@@ -36,38 +37,28 @@ namespace UnrealGameSync
 			private set;
 		}
 
-		public UpdateMonitor(PerforceConnection InPerforce, string InWatchPath)
+		public UpdateMonitor(IPerforceSettings PerforceSettings, string WatchPath, IServiceProvider ServiceProvider)
 		{
-			Perforce = InPerforce;
-			WatchPath = InWatchPath;
-
-			QuitEvent = new ManualResetEvent(false);
+			this.Logger = ServiceProvider.GetRequiredService<ILogger<UpdateMonitor>>();
+			this.AsyncDisposer = ServiceProvider.GetRequiredService<IAsyncDisposer>();
 
 			if(WatchPath != null)
 			{
-				WorkerThread = new Thread(() => PollForUpdates());
-				WorkerThread.Start();
-			}
-		}
-
-		public void Close()
-		{
-			QuitEvent.Set();
-
-			if(WorkerThread != null)
-			{
-				if(!WorkerThread.Join(30))
-				{
-					WorkerThread.Interrupt();
-					WorkerThread.Join();
-				}
-				WorkerThread = null;
+				Logger.LogInformation("Watching for updates on {WatchPath}", WatchPath);
+				WorkerTask = Task.Run(() => PollForUpdatesAsync(PerforceSettings, WatchPath, CancellationSource.Token));
 			}
 		}
 
 		public void Dispose()
 		{
-			Close();
+			OnUpdateAvailable = null;
+
+			if (WorkerTask != null)
+			{
+				CancellationSource.Cancel();
+				AsyncDisposer.Add(WorkerTask.ContinueWith(_ => CancellationSource.Dispose()));
+				WorkerTask = null;
+			}
 		}
 
 		public bool IsUpdateAvailable
@@ -76,14 +67,15 @@ namespace UnrealGameSync
 			private set;
 		}
 
-		void PollForUpdates()
+		async Task PollForUpdatesAsync(IPerforceSettings PerforceSettings, string WatchPath, CancellationToken CancellationToken)
 		{
-			while(!QuitEvent.WaitOne(5 * 60 * 1000))
+			using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+			for (; ; )
 			{
-				StringWriter Log = new StringWriter();
+				await Task.Delay(TimeSpan.FromMinutes(5.0), CancellationToken);
 
-				List<PerforceChangeSummary> Changes;
-				if(Perforce.FindChanges(WatchPath, 1, out Changes, Log) && Changes.Count > 0)
+				PerforceResponseList<ChangesRecord> Changes = await Perforce.TryGetChangesAsync(ChangesOptions.None, -1, ChangeStatus.Submitted, WatchPath, CancellationToken);
+				if (Changes.Succeeded && Changes.Data.Count > 0)
 				{
 					TriggerUpdate(UpdateType.Background, null);
 				}

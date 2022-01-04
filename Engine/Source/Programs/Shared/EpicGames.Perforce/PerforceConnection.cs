@@ -3104,7 +3104,7 @@ namespace EpicGames.Perforce
 		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection Connection, string StreamPath, CancellationToken CancellationToken = default)
+		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection Connection, string? StreamPath, CancellationToken CancellationToken = default)
 		{
 			return (await TryGetStreamsAsync(Connection, StreamPath, CancellationToken)).Data;
 		}
@@ -3116,7 +3116,7 @@ namespace EpicGames.Perforce
 		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection Connection, string StreamPath, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection Connection, string? StreamPath, CancellationToken CancellationToken = default)
 		{
 			return TryGetStreamsAsync(Connection, StreamPath, -1, null, false, CancellationToken);
 		}
@@ -3131,7 +3131,7 @@ namespace EpicGames.Perforce
 		/// <param name="bUnloaded">Whether to enumerate unloaded workspaces</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection Connection, string StreamPath, int MaxResults, string? Filter, bool bUnloaded, CancellationToken CancellationToken = default)
+		public static async Task<List<StreamsRecord>> GetStreamsAsync(this IPerforceConnection Connection, string? StreamPath, int MaxResults, string? Filter, bool bUnloaded, CancellationToken CancellationToken = default)
 		{
 			return (await TryGetStreamsAsync(Connection, StreamPath, MaxResults, Filter, bUnloaded, CancellationToken)).Data;
 		}
@@ -3146,7 +3146,7 @@ namespace EpicGames.Perforce
 		/// <param name="bUnloaded">Whether to enumerate unloaded workspaces</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of streams matching the given criteria</returns>
-		public static Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection Connection, string StreamPath, int MaxResults, string? Filter, bool bUnloaded, CancellationToken CancellationToken = default)
+		public static Task<PerforceResponseList<StreamsRecord>> TryGetStreamsAsync(this IPerforceConnection Connection, string? StreamPath, int MaxResults, string? Filter, bool bUnloaded, CancellationToken CancellationToken = default)
 		{
 			// Build the command line
 			List<string> Arguments = new List<string>();

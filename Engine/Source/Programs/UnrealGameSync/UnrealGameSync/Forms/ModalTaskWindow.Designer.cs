@@ -58,6 +58,7 @@ namespace UnrealGameSync
 			this.ShowIcon = false;
 			this.ShowInTaskbar = false;
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+			this.Load += new System.EventHandler(this.ModalTaskWindow_Load);
 			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ModalTaskWindow_FormClosing);
 			this.ResumeLayout(false);
 

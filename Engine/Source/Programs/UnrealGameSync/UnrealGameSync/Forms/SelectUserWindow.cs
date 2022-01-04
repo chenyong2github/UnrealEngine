@@ -1,41 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Perforce;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
 	partial class SelectUserWindow : Form
 	{
-		class EnumerateUsersTask : IPerforceModalTask
+		static class EnumerateUsersTask
 		{
-			public List<PerforceUserRecord> Users;
-
-			public bool Run(PerforceConnection Perforce, TextWriter Log, out string ErrorMessage)
+			public static async Task<List<UsersRecord>> RunAsync(IPerforceConnection Perforce, CancellationToken CancellationToken)
 			{
-				if(!Perforce.FindUsers(out Users, Log))
-				{
-					ErrorMessage = "Unable to enumerate users.";
-					return false;
-				}
-
-				ErrorMessage = null;
-				return true;
+				return await Perforce.GetUsersAsync(UsersOptions.None, -1, CancellationToken);
 			}
 		}
 
 		private int SelectedUserIndex;
-		private List<PerforceUserRecord> Users;
+		private List<UsersRecord> Users;
 		
-		private SelectUserWindow(List<PerforceUserRecord> Users, int SelectedUserIndex)
+		private SelectUserWindow(List<UsersRecord> Users, int SelectedUserIndex)
 		{
 			InitializeComponent();
 
@@ -94,11 +92,11 @@ namespace UnrealGameSync
 			return base.ProcessCmdKey(ref Msg, KeyData);
 		}
 
-		private bool IncludeInFilter(PerforceUserRecord User, string[] FilterWords)
+		private bool IncludeInFilter(UsersRecord User, string[] FilterWords)
 		{
 			foreach(string FilterWord in FilterWords)
 			{
-				if(User.Name.IndexOf(FilterWord, StringComparison.OrdinalIgnoreCase) == -1 
+				if(User.UserName.IndexOf(FilterWord, StringComparison.OrdinalIgnoreCase) == -1 
 					&& User.FullName.IndexOf(FilterWord, StringComparison.OrdinalIgnoreCase) == -1
 					&& User.Email.IndexOf(FilterWord, StringComparison.OrdinalIgnoreCase) == -1)
 				{
@@ -118,10 +116,10 @@ namespace UnrealGameSync
 			string[] Filter = FilterTextBox.Text.Split(new char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
 			for(int Idx = 0; Idx < Users.Count; Idx++)
 			{
-				PerforceUserRecord User = Users[Idx];
+				UsersRecord User = Users[Idx];
 				if(IncludeInFilter(User, Filter))
 				{
-					ListViewItem Item = new ListViewItem(User.Name);
+					ListViewItem Item = new ListViewItem(User.UserName);
 					Item.SubItems.Add(new ListViewItem.ListViewSubItem(Item, User.FullName));
 					Item.SubItems.Add(new ListViewItem.ListViewSubItem(Item, User.Email));
 					Item.Tag = (int)Idx;
@@ -151,27 +149,21 @@ namespace UnrealGameSync
 			UpdateOkButton();
 		}
 
-		public static bool ShowModal(IWin32Window Owner, PerforceConnection Perforce, TextWriter Log, out string SelectedUserName)
+		public static bool ShowModal(IWin32Window Owner, IPerforceSettings PerforceSettings, IServiceProvider ServiceProvider, [NotNullWhen(true)] out string? SelectedUserName)
 		{
-			EnumerateUsersTask Task = new EnumerateUsersTask();
+			ILogger<SelectUserWindow> Logger = ServiceProvider.GetRequiredService<ILogger<SelectUserWindow>>();
 
-			string ErrorMessage;
-			ModalTaskResult Result = PerforceModalTask.Execute(Owner, Perforce, Task, "Finding users", "Finding users, please wait...", Log, out ErrorMessage);
-			if(Result != ModalTaskResult.Succeeded)
+			ModalTask<List<UsersRecord>>? UsersTask = PerforceModalTask.Execute(Owner, "Finding users", "Finding users, please wait...", PerforceSettings, EnumerateUsersTask.RunAsync, Logger);
+			if(UsersTask == null || !UsersTask.Succeeded)
 			{
-				if(!String.IsNullOrEmpty(ErrorMessage))
-				{
-					MessageBox.Show(Owner, ErrorMessage);
-				}
-
 				SelectedUserName = null;
 				return false;
 			}
 
-			SelectUserWindow SelectUser = new SelectUserWindow(Task.Users, 0);
+			SelectUserWindow SelectUser = new SelectUserWindow(UsersTask.Result, 0);
 			if(SelectUser.ShowDialog(Owner) == DialogResult.OK)
 			{
-				SelectedUserName = Task.Users[SelectUser.SelectedUserIndex].Name;
+				SelectedUserName = UsersTask.Result[SelectUser.SelectedUserIndex].UserName;
 				return true;
 			}
 			else

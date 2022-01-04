@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Perforce;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -16,6 +18,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	partial class CleanWorkspaceWindow : Form
@@ -29,8 +33,8 @@ namespace UnrealGameSync
 		class TreeNodeData
 		{
 			public TreeNodeAction Action;
-			public FileInfo File;
-			public FolderToClean Folder;
+			public FileInfo? File;
+			public FolderToClean? Folder;
 			public int NumFiles;
 			public int NumSelectedFiles;
 			public int NumEmptySelectedFiles;
@@ -54,7 +58,7 @@ namespace UnrealGameSync
 			CheckBoxState.CheckedNormal 
 		};
 
-		PerforceConnection PerforceClient;
+		IPerforceSettings PerforceSettings;
 		FolderToClean RootFolderToClean;
 
 		static readonly string[] SafeToDeleteFolders =
@@ -101,33 +105,31 @@ namespace UnrealGameSync
 
 		IReadOnlyList<string> ExtraSafeToDeleteFolders;
 		IReadOnlyList<string> ExtraSafeToDeleteExtensions;
+		ILogger Logger;
 
 		[DllImport("Shell32.dll", EntryPoint = "ExtractIconExW", CharSet = CharSet.Unicode, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
 		private static extern int ExtractIconEx(string sFile, int iIndex, IntPtr piLargeVersion, out IntPtr piSmallVersion, int amountIcons);
 
-		private CleanWorkspaceWindow(PerforceConnection PerforceClient, FolderToClean RootFolderToClean, string[] ExtraSafeToDeleteFolders, string[] ExtraSafeToDeleteExtensions)
+		private CleanWorkspaceWindow(IPerforceSettings PerforceSettings, FolderToClean RootFolderToClean, string[] ExtraSafeToDeleteFolders, string[] ExtraSafeToDeleteExtensions, ILogger<CleanWorkspaceWindow> Logger)
 		{
-			this.PerforceClient = PerforceClient;
+			this.PerforceSettings = PerforceSettings;
 			this.RootFolderToClean = RootFolderToClean;
 			this.ExtraSafeToDeleteFolders = ExtraSafeToDeleteFolders.Select(x => x.Trim().Replace('\\', '/').Trim('/')).Where(x => x.Length > 0).Select(x => String.Format("/{0}/", x.ToLowerInvariant())).ToArray();
 			this.ExtraSafeToDeleteExtensions = ExtraSafeToDeleteExtensions.Select(x => x.Trim().ToLowerInvariant()).Where(x => x.Length > 0).ToArray();
+			this.Logger = Logger;
 
 			InitializeComponent();
 		}
 
-		public static void DoClean(IWin32Window Owner, PerforceConnection PerforceClient, DirectoryReference LocalRootPath, string ClientRootPath, IReadOnlyList<string> SyncPaths, string[] ExtraSafeToDeleteFolders, string[] ExtraSafeToDeleteExtensions, TextWriter Log)
+		public static void DoClean(IWin32Window Owner, IPerforceSettings PerforceSettings, DirectoryReference LocalRootPath, string ClientRootPath, IReadOnlyList<string> SyncPaths, string[] ExtraSafeToDeleteFolders, string[] ExtraSafeToDeleteExtensions, ILogger<CleanWorkspaceWindow> Logger)
 		{
 			// Figure out which folders to clean
 			FolderToClean RootFolderToClean = new FolderToClean(LocalRootPath.ToDirectoryInfo());
-			using(FindFoldersToCleanTask QueryWorkspace = new FindFoldersToCleanTask(PerforceClient, RootFolderToClean, ClientRootPath, SyncPaths, Log))
+			using(FindFoldersToCleanTask QueryWorkspace = new FindFoldersToCleanTask(PerforceSettings, RootFolderToClean, ClientRootPath, SyncPaths, Logger))
 			{
-				string ErrorMessage;
-				if(ModalTask.Execute(Owner, QueryWorkspace, "Clean Workspace", "Querying files in Perforce, please wait...", out ErrorMessage) != ModalTaskResult.Succeeded)
+				ModalTask? Result = ModalTask.Execute(Owner, "Clean Workspace", "Querying files in Perforce, please wait...", x => QueryWorkspace.RunAsync(x), ModalTaskFlags.None);
+				if (Result == null || !Result.Succeeded)
 				{
-					if(!String.IsNullOrEmpty(ErrorMessage))
-					{
-						MessageBox.Show(ErrorMessage);
-					}
 					return;
 				}
 			}
@@ -140,7 +142,7 @@ namespace UnrealGameSync
 			}
 
 			// Populate the tree
-			CleanWorkspaceWindow CleanWorkspace = new CleanWorkspaceWindow(PerforceClient, RootFolderToClean, ExtraSafeToDeleteFolders, ExtraSafeToDeleteExtensions);
+			CleanWorkspaceWindow CleanWorkspace = new CleanWorkspaceWindow(PerforceSettings, RootFolderToClean, ExtraSafeToDeleteFolders, ExtraSafeToDeleteExtensions, Logger);
 			CleanWorkspace.ShowDialog();
 		}
 
@@ -377,9 +379,12 @@ namespace UnrealGameSync
 
 			if(NewNumSelectedFiles != ParentNodeData.NumSelectedFiles)
 			{
-				foreach(TreeNode ChildNode in ParentNode.Nodes)
+				foreach(TreeNode? ChildNode in ParentNode.Nodes)
 				{
-					SetSelectedOnChildren(ChildNode, Type);
+					if (ChildNode != null)
+					{
+						SetSelectedOnChildren(ChildNode, Type);
+					}
 				}
 				ParentNodeData.NumSelectedFiles = NewNumSelectedFiles;
 				UpdateImage(ParentNode);
@@ -400,16 +405,19 @@ namespace UnrealGameSync
 			List<FileInfo> FilesToSync = new List<FileInfo>();
 			List<FileInfo> FilesToDelete = new List<FileInfo>();
 			List<DirectoryInfo> DirectoriesToDelete = new List<DirectoryInfo>();
-			foreach(TreeNode RootNode in TreeView.Nodes)
+			foreach(TreeNode? RootNode in TreeView.Nodes)
 			{
-				FindSelection(RootNode, FilesToSync, FilesToDelete, DirectoriesToDelete);
+				if (RootNode != null)
+				{
+					FindSelection(RootNode, FilesToSync, FilesToDelete, DirectoriesToDelete);
+				}
 			}
 
-			string ErrorMessage;
-			if(ModalTask.Execute(this, new DeleteFilesTask(PerforceClient, FilesToSync, FilesToDelete, DirectoriesToDelete), "Clean Workspace", "Cleaning files, please wait...", out ErrorMessage) != ModalTaskResult.Succeeded && !String.IsNullOrEmpty(ErrorMessage))
+			ModalTask? Result = ModalTask.Execute(this, "Clean Workspace", "Cleaning files, please wait...", x => DeleteFilesTask.RunAsync(PerforceSettings, FilesToSync, FilesToDelete, DirectoriesToDelete, Logger, x), ModalTaskFlags.Quiet);
+			if(Result != null && Result.Failed)
 			{
 				FailedToDeleteWindow FailedToDelete = new FailedToDeleteWindow();
-				FailedToDelete.FileList.Text = ErrorMessage;
+				FailedToDelete.FileList.Text = Result.Error;
 				FailedToDelete.FileList.SelectionStart = 0;
 				FailedToDelete.FileList.SelectionLength = 0;
 				FailedToDelete.ShowDialog();
@@ -435,9 +443,12 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				foreach(TreeNode ChildNode in Node.Nodes)
+				foreach(TreeNode? ChildNode in Node.Nodes)
 				{
-					FindSelection(ChildNode, FilesToSync, FilesToDelete, DirectoriesToDelete);
+					if (ChildNode != null)
+					{
+						FindSelection(ChildNode, FilesToSync, FilesToDelete, DirectoriesToDelete);
+					}
 				}
 				if(NodeData.Folder != null && NodeData.Folder.bEmptyAfterClean && NodeData.NumSelectedFiles == NodeData.NumFiles)
 				{
@@ -448,17 +459,23 @@ namespace UnrealGameSync
 
 		private void SelectAllBtn_Click(object sender, EventArgs e)
 		{
-			foreach(TreeNode Node in TreeView.Nodes)
+			foreach(TreeNode? Node in TreeView.Nodes)
 			{
-				SetSelected(Node, SelectionType.All);
+				if (Node != null)
+				{
+					SetSelected(Node, SelectionType.All);
+				}
 			}
 		}
 
 		private void SelectMissingBtn_Click(object sender, EventArgs e)
 		{
-			foreach(TreeNode Node in TreeView.Nodes)
+			foreach(TreeNode? Node in TreeView.Nodes)
 			{
-				SetSelected(Node, SelectionType.Missing);
+				if (Node != null)
+				{
+					SetSelected(Node, SelectionType.Missing);
+				}
 			}
 		}
 

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,9 +21,9 @@ namespace UnrealGameSync
 		/// </summary>
 		/// <param name="UserName">The default Perforce user name</param>
 		/// <param name="SessionId">Unique identifier for this session</param>
-		/// <param name="Log">Log writer</param>
+		/// <param name="Logger">Log writer</param>
 		/// <returns>New telemetry sink instance</returns>
-		public delegate ITelemetrySink CreateTelemetrySinkDelegate(string UserName, string SessionId, TextWriter Log);
+		public delegate ITelemetrySink CreateTelemetrySinkDelegate(string UserName, string SessionId, ILogger Logger);
 #endif
 
 		/// <summary>
@@ -68,11 +69,11 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Delegate to allow validating a project being opened
 		/// </summary>
-		/// <param name="Task">The detected settings for the project</param>
-		/// <param name="Log">The logger</param>
+		/// <param name="Workspace">The detected settings for the project</param>
+		/// <param name="Logger">The logger</param>
 		/// <param name="Error">Receives an error on failure</param>
 		/// <returns></returns>
-		public delegate bool DetectProjectSettingsEvent(DetectProjectSettingsTask Task, TextWriter Log, out string Error);
+		public delegate bool DetectProjectSettingsEvent(WorkspaceSettings Workspace, ILogger Logger, out string Error);
 
 		/// <summary>
 		/// Called to validate the project settings

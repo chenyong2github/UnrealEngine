@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,6 +10,8 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
@@ -80,7 +83,7 @@ namespace UnrealGameSync
 
 	static class ArchiveUtils
 	{
-		public static void ExtractFiles(FileReference ArchiveFileName, DirectoryReference BaseDirectoryName, FileReference ManifestFileName, ProgressValue Progress, TextWriter LogWriter)
+		public static void ExtractFiles(FileReference ArchiveFileName, DirectoryReference BaseDirectoryName, FileReference? ManifestFileName, ProgressValue Progress, ILogger Logger)
 		{
 			DateTime TimeStamp = DateTime.UtcNow;
 			using (ZipArchive Zip = new ZipArchive(File.OpenRead(ArchiveFileName.FullName)))
@@ -116,11 +119,7 @@ namespace UnrealGameSync
 					{
 						FileReference FileName = FileReference.Combine(BaseDirectoryName, Entry.FullName);
 						DirectoryReference.CreateDirectory(FileName.Directory);
-
-						lock(LogWriter)
-						{
-							LogWriter.WriteLine("Writing {0}", FileName);
-						}
+						Logger.LogInformation("Writing {0}", FileName);
 
 						Entry.ExtractToFile(FileName.FullName, true);
 						FileReference.SetLastWriteTimeUtc(FileName, TimeStamp);
@@ -130,7 +129,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static void RemoveExtractedFiles(DirectoryReference BaseDirectoryName, FileReference ManifestFileName, ProgressValue Progress, TextWriter LogWriter)
+		public static void RemoveExtractedFiles(DirectoryReference BaseDirectoryName, FileReference ManifestFileName, ProgressValue Progress, ILogger LogWriter)
 		{
 			// Read the manifest in
 			ArchiveManifest Manifest;
@@ -147,15 +146,15 @@ namespace UnrealGameSync
 				{
 					if(File.Length != Manifest.Files[Idx].Length)
 					{
-						LogWriter.WriteLine("Skipping {0} due to modified length", File.FullName);
+						LogWriter.LogInformation("Skipping {FileName} due to modified length", File.FullName);
 					}
 					else if(Math.Abs((File.LastWriteTimeUtc - Manifest.Files[Idx].LastWriteTimeUtc).TotalSeconds) > 2.0)
 					{
-						LogWriter.WriteLine("Skipping {0} due to modified timestamp", File.FullName);
+						LogWriter.LogInformation("Skipping {FileName} due to modified timestamp", File.FullName);
 					}
 					else
 					{
-						LogWriter.WriteLine("Removing {0}", File.FullName);
+						LogWriter.LogInformation("Removing {FileName}", File.FullName);
 						File.Delete();
 					}
 				}

@@ -1,5 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Perforce;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -7,42 +10,42 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
 	partial class SelectWorkspaceWindow : Form
 	{
-		class EnumerateWorkspacesTask : IPerforceModalTask
+		class EnumerateWorkspaces
 		{
-			public PerforceInfoRecord Info;
-			public List<PerforceClientRecord> Clients;
+			public InfoRecord Info { get; }
+			public List<ClientsRecord> Clients { get; }
 
-			public bool Run(PerforceConnection Perforce, TextWriter Log, out string ErrorMessage)
+			public EnumerateWorkspaces(InfoRecord Info, List<ClientsRecord> Clients)
 			{
-				if(!Perforce.Info(out Info, Log))
-				{
-					ErrorMessage = "Unable to query Perforce info.";
-					return false;
-				}
-				if(!Perforce.FindClients(Info.UserName, out Clients, Log))
-				{
-					ErrorMessage = "Unable to enumerate clients from Perforce";
-					return false;
-				}
+				this.Info = Info;
+				this.Clients = Clients;
+			}
 
-				ErrorMessage = null;
-				return true;
+			public static async Task<EnumerateWorkspaces> RunAsync(IPerforceConnection Perforce, CancellationToken CancellationToken)
+			{
+				InfoRecord Info = await Perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
+				List<ClientsRecord> Clients = await Perforce.GetClientsAsync(ClientsOptions.None, Perforce.Settings.UserName, CancellationToken);
+				return new EnumerateWorkspaces(Info, Clients);
 			}
 		}
 
-		PerforceInfoRecord Info;
-		List<PerforceClientRecord> Clients;
-		string WorkspaceName;
+		InfoRecord Info;
+		List<ClientsRecord> Clients;
+		string? WorkspaceName;
 
-		private SelectWorkspaceWindow(PerforceInfoRecord Info, List<PerforceClientRecord> Clients, string WorkspaceName)
+		private SelectWorkspaceWindow(InfoRecord Info, List<ClientsRecord> Clients, string? WorkspaceName)
 		{
 			InitializeComponent();
 
@@ -67,9 +70,9 @@ namespace UnrealGameSync
 
 			WorkspaceListView.Items.Clear();
 
-			foreach(PerforceClientRecord Client in Clients.OrderBy(x => x.Name))
+			foreach(ClientsRecord Client in Clients.OrderBy(x => x.Name))
 			{
-				if(!OnlyForThisComputer.Checked || String.Compare(Client.Host, Info.HostName, StringComparison.InvariantCultureIgnoreCase) == 0)
+				if(!OnlyForThisComputer.Checked || String.Compare(Client.Host, Info.ClientHost, StringComparison.InvariantCultureIgnoreCase) == 0)
 				{
 					ListViewItem Item = new ListViewItem(Client.Name);
 					Item.SubItems.Add(new ListViewItem.ListViewSubItem(Item, Client.Host));
@@ -86,24 +89,16 @@ namespace UnrealGameSync
 			OkBtn.Enabled = (WorkspaceListView.SelectedItems.Count == 1);
 		}
 
-		public static bool ShowModal(IWin32Window Owner, PerforceConnection Perforce, string WorkspaceName, TextWriter Log, out string NewWorkspaceName)
+		public static bool ShowModal(IWin32Window Owner, IPerforceSettings Perforce, string WorkspaceName, IServiceProvider ServiceProvider, out string? NewWorkspaceName)
 		{
-			EnumerateWorkspacesTask EnumerateWorkspaces = new EnumerateWorkspacesTask();
-
-			string ErrorMessage;
-			ModalTaskResult Result = PerforceModalTask.Execute(Owner, Perforce, EnumerateWorkspaces, "Finding workspaces", "Finding workspaces, please wait...", Log, out ErrorMessage);
-			if(Result != ModalTaskResult.Succeeded)
+			ModalTask<EnumerateWorkspaces>? Task = PerforceModalTask.Execute(Owner, "Finding workspaces", "Finding workspaces, please wait...", Perforce, EnumerateWorkspaces.RunAsync, ServiceProvider.GetRequiredService<ILogger<EnumerateWorkspaces>>());
+			if (Task == null || !Task.Succeeded)
 			{
-				if(!String.IsNullOrEmpty(ErrorMessage))
-				{
-					MessageBox.Show(Owner, ErrorMessage);
-				}
-
 				NewWorkspaceName = null;
 				return false;
 			}
 
-			SelectWorkspaceWindow SelectWorkspace = new SelectWorkspaceWindow(EnumerateWorkspaces.Info, EnumerateWorkspaces.Clients, WorkspaceName);
+			SelectWorkspaceWindow SelectWorkspace = new SelectWorkspaceWindow(Task.Result.Info, Task.Result.Clients, WorkspaceName);
 			if(SelectWorkspace.ShowDialog(Owner) == DialogResult.OK)
 			{
 				NewWorkspaceName = SelectWorkspace.WorkspaceName;

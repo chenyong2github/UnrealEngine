@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections;
@@ -11,13 +11,15 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	public partial class VariablesWindow : Form
 	{
 		public delegate void InsertVariableDelegate(string Name);
 
-		public event InsertVariableDelegate OnInsertVariable;
+		public event InsertVariableDelegate? OnInsertVariable;
 
 		public VariablesWindow(IReadOnlyDictionary<string, string> Variables)
 		{
@@ -37,10 +39,10 @@ namespace UnrealGameSync
 				MacrosList.Items.Add(Item);
 			}
 
-			foreach(DictionaryEntry Entry in Environment.GetEnvironmentVariables())
+			foreach(DictionaryEntry Entry in Environment.GetEnvironmentVariables().OfType<DictionaryEntry>())
 			{
-				string Key = Entry.Key.ToString();
-				if(!Variables.ContainsKey(Key))
+				string? Key = Entry.Key?.ToString();
+				if(Key != null && Entry.Value != null && !Variables.ContainsKey(Key))
 				{
 					ListViewItem Item = new ListViewItem(String.Format("$({0})", Key));
 					Item.SubItems.Add(Entry.Value.ToString());

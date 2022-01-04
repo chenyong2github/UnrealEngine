@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,245 +9,34 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
-	public abstract class LineBasedTextWriter : TextWriter
-	{
-		StringBuilder CurrentLine = new StringBuilder();
-
-		public LineBasedTextWriter()
-		{
-		}
-
-		public override void Write(char Character)
-		{
-			if(Character == '\n')
-			{
-				FlushLine(CurrentLine.ToString());
-				CurrentLine.Clear();
-			}
-			else if(Character != '\r')
-			{
-				CurrentLine.Append(Character);
-			}
-		}
-
-		public override void WriteLine(string Line)
-		{
-			foreach(string SubLine in Line.Split('\n'))
-			{
-				FlushLine(SubLine.TrimEnd());
-			}
-		}
-
-		protected abstract void FlushLine(string Line);
-
-		public override Encoding Encoding
-		{
-			get { return Encoding.UTF8; }
-		}
-	}
-
-	class ThreadSafeTextWriter : LineBasedTextWriter
-	{
-		object LockObject;
-		TextWriter Inner;
-
-		public ThreadSafeTextWriter(TextWriter Inner)
-		{
-			this.LockObject = new object();
-			this.Inner = Inner;
-		}
-
-		protected override void FlushLine(string Line)
-		{
-			lock (LockObject)
-			{
-				Inner.WriteLine(Line);
-			}
-		}
-	}
-
-	class NullTextWriter : LineBasedTextWriter
-	{
-		protected override void FlushLine(string Line)
-		{
-		}
-	}
-
-	class BufferedTextWriter : LineBasedTextWriter
-	{
-		public List<string> Lines = new List<string>();
-
-		protected override void FlushLine(string Line)
-		{
-			Lines.Add(Line);
-		}
-	}
-
-	class PrefixedTextWriter : LineBasedTextWriter
+	class PrefixedTextWriter : ILogger
 	{
 		string Prefix;
-		TextWriter Inner;
+		ILogger Inner;
 
-		public PrefixedTextWriter(string InPrefix, TextWriter InInner)
+		public PrefixedTextWriter(string InPrefix, ILogger InInner)
 		{
 			Prefix = InPrefix;
 			Inner = InInner;
 		}
 
-		protected override void Dispose(bool bDisposing)
-		{
-			if(bDisposing)
-			{
-				Inner.Dispose();
-			}
-		}
+		public IDisposable BeginScope<TState>(TState State) => Inner.BeginScope(State);
 
-		protected override void FlushLine(string Line)
+		public bool IsEnabled(LogLevel LogLevel) => Inner.IsEnabled(LogLevel);
+
+		public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
 		{
-			Inner.WriteLine(Prefix + Line);
+			Inner.Log(LogLevel, EventId, State, Exception, (State, Exception) => Prefix + Formatter(State, Exception));
 		}
 	}
 
-	class TimestampLogWriter : LineBasedTextWriter
+	public class ProgressValue
 	{
-		LineBasedTextWriter Inner;
-
-		public TimestampLogWriter(LineBasedTextWriter Inner)
-		{
-			this.Inner = Inner;
-		}
-
-		protected override void Dispose(bool bDisposing)
-		{
-			if(Inner != null)
-			{
-				Inner.Dispose();
-				Inner = null;
-			}
-		}
-
-		protected override void FlushLine(string Line)
-		{
-			Inner.WriteLine("[{0}] {1}", DateTime.Now, Line);
-		}
-	}
-	
-	class BoundedLogWriter : LineBasedTextWriter
-	{
-		FileReference FileName;
-		FileReference BackupFileName;
-		int MaxSize;
-		StreamWriter Inner;
-
-		public BoundedLogWriter(FileReference InFileName, int InMaxSize = 128 * 1024)
-		{
-			FileName = InFileName;
-			BackupFileName = FileName + ".bak";
-			MaxSize = InMaxSize;
-			OpenInner();
-		}
-
-		protected override void Dispose(bool bDisposing)
-		{
-			if(bDisposing)
-			{
-				CloseInner();
-			}
-		}
-
-		protected override void FlushLine(string Line)
-		{
-			if(Inner != null)
-			{
-				Inner.WriteLine(Line);
-				if(Inner.BaseStream.Position > MaxSize)
-				{
-					CloseInner();
-					OpenInner();
-				}
-			}
-		}
-
-		private void OpenInner()
-		{
-			CloseInner();
-			try
-			{
-				if(FileReference.Exists(BackupFileName))
-				{
-					FileReference.Delete(BackupFileName);
-				}
-				if(FileReference.Exists(FileName))
-				{
-					FileReference.Move(FileName, BackupFileName);
-				}
-
-				Inner = new StreamWriter(FileName.FullName);
-				Inner.AutoFlush = true;
-			}
-			catch(Exception)
-			{
-				Inner = null;
-			}
-		}
-
-		private void CloseInner()
-		{
-			if(Inner != null)
-			{
-				Inner.Close();
-				Inner = null;
-			}
-		}
-	}
-
-	class ComposedTextWriter : TextWriter
-	{
-		TextWriter[] Inners;
-
-		public ComposedTextWriter(params TextWriter[] InInners)
-		{
-			Inners = InInners;
-		}
-
-		protected override void Dispose(bool bDisposing)
-		{
-			if(bDisposing)
-			{
-				foreach(TextWriter Inner in Inners)
-				{
-					Inner.Dispose();
-				}
-			}
-		}
-
-		public override void Write(char Character)
-		{
-			foreach(TextWriter Inner in Inners)
-			{
-				Inner.Write(Character);
-			}
-		}
-
-		public override void WriteLine(string Line)
-		{
-			foreach(TextWriter Inner in Inners)
-			{
-				Inner.WriteLine(Line);
-			}
-		}
-
-		public override Encoding Encoding
-		{
-			get { return Encoding.UTF8; }
-		}
-	}
-
-	class ProgressValue
-	{
-		Tuple<string, float> State;
+		Tuple<string, float> State = null!;
 		Stack<Tuple<float, float>> Ranges = new Stack<Tuple<float,float>>();
 
 		public ProgressValue()
@@ -317,27 +107,19 @@ namespace UnrealGameSync
 		}
 	}
 
-	class ProgressTextWriter : LineBasedTextWriter
+	static class ProgressTextWriter
 	{
 		const string DirectivePrefix = "@progress ";
 
-		ProgressValue Value;
-		TextWriter Inner;
-
-		public ProgressTextWriter(ProgressValue InValue, TextWriter InInner)
-		{ 
-			Value = InValue;
-			Inner = InInner;
-		}
-
-		protected override void FlushLine(string Line)
+		public static string? ParseLine(string Line, ProgressValue Value)
 		{
 			string TrimLine = Line.Trim();
 			if(TrimLine.StartsWith(DirectivePrefix))
 			{
 				// Line that just contains a progress directive
 				bool bSkipLine = false;
-				ProcessInternal(TrimLine.Substring(DirectivePrefix.Length), ref bSkipLine);
+				ProcessInternal(TrimLine.Substring(DirectivePrefix.Length), ref bSkipLine, Value);
+				return null;
 			}
 			else
 			{
@@ -354,7 +136,7 @@ namespace UnrealGameSync
 							string DirectiveSubstring = TrimLine.Substring(LastIdx + 1, TrimLine.Length - LastIdx - 2);
 							if(DirectiveSubstring.StartsWith(DirectivePrefix))
 							{
-								ProcessInternal(DirectiveSubstring.Substring(DirectivePrefix.Length), ref bSkipLine);
+								ProcessInternal(DirectiveSubstring.Substring(DirectivePrefix.Length), ref bSkipLine, Value);
 								RemainingLine = Line.Substring(0, LastIdx).TrimEnd();
 							}
 							break;
@@ -362,14 +144,18 @@ namespace UnrealGameSync
 					}
 				}
 
-				if(!bSkipLine)
+				if (bSkipLine)
 				{
-					Inner.WriteLine(RemainingLine);
+					return null;
+				}
+				else
+				{
+					return RemainingLine;
 				}
 			}
 		}
 
-		void ProcessInternal(string Line, ref bool bSkipLine)
+		static void ProcessInternal(string Line, ref bool bSkipLine, ProgressValue Value)
 		{
 			List<string> Tokens = ParseTokens(Line);
 			for(int TokenIdx = 0; TokenIdx < Tokens.Count; )
@@ -459,7 +245,7 @@ namespace UnrealGameSync
 			return Tokens;
 		}
 
-		bool ReadFraction(List<string> Tokens, ref int TokenIdx, out float Fraction)
+		static bool ReadFraction(List<string> Tokens, ref int TokenIdx, out float Fraction)
 		{
 			// Read a fraction in the form x%
 			if(TokenIdx + 2 <= Tokens.Count && Tokens[TokenIdx + 1] == "%")

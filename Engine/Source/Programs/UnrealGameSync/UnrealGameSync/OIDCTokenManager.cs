@@ -65,11 +65,11 @@ namespace UnrealGameSync
 			return TokenClients.Any(Pair => Pair.Value.GetStatusForProvider() == OIDCStatus.NotLoggedIn);
 		}
 
-		internal static OIDCTokenManager CreateFromConfigFile(UserSettings Settings, List<DetectProjectSettingsTask> ConfigFiles)
+		internal static OIDCTokenManager CreateFromConfigFile(UserSettings Settings, List<WorkspaceSettings> ConfigFiles)
 		{
 			// join the provider configuration from all projects
 			Dictionary<string, ProviderInfo> Providers = new Dictionary<string, ProviderInfo>();
-			foreach (DetectProjectSettingsTask DetectProjectSettingsTask in ConfigFiles)
+			foreach (WorkspaceSettings DetectProjectSettingsTask in ConfigFiles)
 			{
 				if(DetectProjectSettingsTask == null)
 				{
