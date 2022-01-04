@@ -203,6 +203,9 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	check(NewLevel->Model);
 	check(!NewLevel->bIsVisible);
 
+	// Mark the level as a runtime cell
+	NewLevel->bIsWorldPartitionRuntimeCell = true;
+
 	// Set the guids on the constructed level to something based on the generator rather than allowing indeterminism by
 	// constructing new Guids on every cook
 	// @todo_ow: revisit for static lighting support. We need to base the LevelBuildDataId on the relevant information from the
