@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "BoneContainer.h"
 #include "IKRigDefinition.h"
 
 #include "IKRigDataTypes.generated.h"
