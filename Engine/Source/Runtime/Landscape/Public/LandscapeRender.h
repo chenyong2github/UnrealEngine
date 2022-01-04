@@ -568,6 +568,8 @@ struct FLandscapeRenderSystem
 	void UpdateBuffers();
 
 	void EndFrame();
+
+	void WaitForTasksCompletion();
 };
 
 LANDSCAPE_API extern TMap<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*> LandscapeRenderSystems;
