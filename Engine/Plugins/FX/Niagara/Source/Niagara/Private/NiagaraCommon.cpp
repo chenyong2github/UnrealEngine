@@ -1106,6 +1106,13 @@ void FNiagaraUtilities::CollectScriptDataInterfaceParameters(const UObject& Owne
 	}
 }
 
+bool FNiagaraScriptDataInterfaceInfo::IsUserDataInterface() const
+{
+	TStringBuilder<128> NameBuilder;
+	Name.ToString(NameBuilder);
+	return FCString::Strnicmp(NameBuilder.ToString(), TEXT("user."), 5) == 0;
+}
+
 bool FNiagaraScriptDataInterfaceCompileInfo::CanExecuteOnTarget(ENiagaraSimTarget SimTarget) const
 {
 	// Note that this can be called on non-game threads. We ensure that the data interface CDO object is already in existence at application init time.

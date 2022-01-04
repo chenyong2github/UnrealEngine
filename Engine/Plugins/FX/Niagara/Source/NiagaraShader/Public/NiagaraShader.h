@@ -90,6 +90,7 @@ public:
 	LAYOUT_FIELD(FShaderResourceParameter, FloatInputBufferParam);
 	LAYOUT_FIELD(FShaderResourceParameter, IntInputBufferParam);
 	LAYOUT_FIELD(FShaderResourceParameter, HalfInputBufferParam);
+	LAYOUT_FIELD(FShaderResourceParameter, StaticInputFloatParam);
 	LAYOUT_FIELD(FRWShaderParameter, FloatOutputBufferParam);
 	LAYOUT_FIELD(FRWShaderParameter, IntOutputBufferParam);
 	LAYOUT_FIELD(FRWShaderParameter, HalfOutputBufferParam);

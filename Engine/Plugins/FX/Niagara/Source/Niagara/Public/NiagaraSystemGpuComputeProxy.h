@@ -47,6 +47,8 @@ private:
 	uint32										bRequiresViewUniformBuffer : 1;
 	uint32										bRequiresRayTracingScene : 1;
 
+	FShaderResourceViewRHIRef					StaticFloatBuffer;
+
 	TArray<FNiagaraComputeExecutionContext*>	ComputeContexts;
 	TArray<FNiagaraGPUSystemTick>				PendingTicks;
 };

@@ -13,6 +13,7 @@
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
+#include "NiagaraSystemStaticBuffers.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "Particles/ParticlePerfStats.h"
 #include "Particles/ParticleSystem.h"
@@ -972,10 +973,11 @@ public:
 		return nullptr;
 	}
 
-	bool AllowCullingForLocalPlayers()const{ return bAllowCullingForLocalPlayers; }
+	bool AllowCullingForLocalPlayers() const { return bAllowCullingForLocalPlayers; }
+
+	const FNiagaraSystemStaticBuffers* GetStaticBuffers() const { return StaticBuffers.Get(); }
 
 protected:
-
 	void GenerateStatID()const;
 #if STATS
 	mutable TStatId StatID_GT;
@@ -1009,7 +1011,10 @@ protected:
 
 	/** Total active instances of this system. */
 	int32 ActiveInstances;
+
+	TUniquePtr<FNiagaraSystemStaticBuffers, FNiagaraSystemStaticBuffers::FDeletor> StaticBuffers;
 };
+
 FORCEINLINE void UNiagaraSystem::RegisterActiveInstance()
 {
 	++ActiveInstances;

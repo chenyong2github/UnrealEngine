@@ -1941,6 +1941,9 @@ void UNiagaraSystem::CacheFromCompiledData()
 
 	bNeedsAsyncOptimize = true;
 
+	// Reset static buffers
+	StaticBuffers.Reset(new FNiagaraSystemStaticBuffers());
+
 	// Cache system data accessors
 	static const FName NAME_System_ExecutionState = "System.ExecutionState";
 	SystemExecutionStateAccessor.Init(SystemDataSet, NAME_System_ExecutionState);
@@ -1986,12 +1989,38 @@ void UNiagaraSystem::CacheFromCompiledData()
 			}
 			NiagaraEmitter->ConditionalPostLoad();
 			NiagaraEmitter->CacheFromCompiledData(DataSetCompiledData);
+
+			// Allow data interfaces to cache static buffers
+			UNiagaraScript* NiagaraScripts[] =
+			{
+				NiagaraEmitter->SpawnScriptProps.Script,
+				NiagaraEmitter->UpdateScriptProps.Script,
+				NiagaraEmitter->GetGPUComputeScript(),
+			};
+			for (UNiagaraScript* NiagaraScript : NiagaraScripts)
+			{
+				if (NiagaraScript == nullptr)
+				{
+					continue;
+				}
+
+				for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetCachedDefaultDataInterfaces())
+				{
+					if (UNiagaraDataInterface* DataInterface = DataInterfaceInfo.DataInterface)
+					{
+						DataInterface->CacheStaticBuffers(*StaticBuffers.Get(), DataInterfaceInfo, NiagaraEmitter->SimTarget);
+					}
+				}
+			}
 		}
 		else
 		{
 			EmitterExecutionStateAccessors.AddDefaulted();
 		}
 	}
+
+	// Finalize static buffers
+	StaticBuffers->Finalize();
 }
 
 bool UNiagaraSystem::HasSystemScriptDIsWithPerInstanceData() const

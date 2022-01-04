@@ -510,6 +510,8 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	RWBuffer<float> RWOutputFloat;
 	RWBuffer<half> RWOutputHalf;
 
+	Buffer<float> StaticInputFloat;
+
 	RWBuffer<uint> RWInstanceCounts;
 	uint ReadInstanceCountOffset;
 	uint WriteInstanceCountOffset;

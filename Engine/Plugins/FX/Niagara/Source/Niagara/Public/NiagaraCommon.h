@@ -582,8 +582,7 @@ public:
 	UPROPERTY()
 	FName RegisteredParameterMapWrite;
 
-	//TODO: Allow data interfaces to own datasets
-	void CopyTo(FNiagaraScriptDataInterfaceInfo* Destination, UObject* Outer) const;
+	bool IsUserDataInterface() const;
 };
 
 USTRUCT()

@@ -6,6 +6,7 @@
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGPUSystemTick.h"
+#include "NiagaraRenderer.h"
 
 FNiagaraSystemGpuComputeProxy::FNiagaraSystemGpuComputeProxy(FNiagaraSystemInstance* OwnerInstance)
 	: DebugOwnerInstance(OwnerInstance)
@@ -44,6 +45,18 @@ FNiagaraSystemGpuComputeProxy::FNiagaraSystemGpuComputeProxy(FNiagaraSystemInsta
 	{
 		ComputeTickStage = ENiagaraGpuComputeTickStage::PreInitViews;
 	}
+
+	// Static buffers
+	ENQUEUE_RENDER_COMMAND(SetStaticBuffers)(
+		[RT_Context=this, RT_StaticBuffers=OwnerInstance->GetSystem()->GetStaticBuffers()](FRHICommandListImmediate& RHICmdList)
+		{
+			RT_Context->StaticFloatBuffer = RT_StaticBuffers->GetGpuFloatBuffer();
+			if (!RT_Context->StaticFloatBuffer.IsValid())
+			{
+				RT_Context->StaticFloatBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
+			}
+		}
+	);
 }
 
 FNiagaraSystemGpuComputeProxy::~FNiagaraSystemGpuComputeProxy()
