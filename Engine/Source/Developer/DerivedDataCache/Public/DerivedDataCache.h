@@ -4,11 +4,11 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
-#include "Containers/UnrealString.h" // DDC-TODO: Remove!
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataPayloadId.h"
 #include "DerivedDataRequestTypes.h"
+#include "DerivedDataSharedString.h"
 #include "Math/NumericLimits.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
@@ -29,7 +29,7 @@ namespace UE::DerivedData::Private { class ICacheRecordPolicyShared; }
 namespace UE::DerivedData
 {
 
-using FCacheRequestName = FString;
+using FCacheRequestName = FSharedString;
 
 using FOnCachePutComplete = TUniqueFunction<void (FCachePutCompleteParams&& Params)>;
 using FOnCacheGetComplete = TUniqueFunction<void (FCacheGetCompleteParams&& Params)>;
