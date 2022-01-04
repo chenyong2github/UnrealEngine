@@ -83,6 +83,7 @@ struct FVertexFactoryIntermediates
 	float2 HairPrimitiveUV;
 	float2 HairPrimitiveRootUV;
 	float2 HairPrimitiveLength;
+	float  HairPrimitiveGroupIndex;
 
 	/** Cached primitive and instance data */
 	FSceneDataIntermediates SceneData;
@@ -108,6 +109,7 @@ struct FHairCardsPoint
 	float2 CardsUVs;
 	float2 RootUVs;
 	float  CardLength;
+	float  GroupIndex;
 };
 
 FHairCardsPoint GetVertexPosition(FVertexFactoryInput Input)
@@ -121,11 +123,14 @@ FHairCardsPoint GetVertexPosition(FVertexFactoryInput Input)
 	const float4 UVs  = Input.UVs;
 #endif
 
+	const uint EncodedW = asuint(Data.w);
+
 	FHairCardsPoint Out;
-	Out.Position = Data.xyz;
-	Out.CardsUVs = UVs.xy;
-	Out.RootUVs  = UVs.zw;
-	Out.CardLength = Data.w;
+	Out.Position	= Data.xyz;
+	Out.CardsUVs	= UVs.xy;
+	Out.RootUVs		= UVs.zw;
+	Out.CardLength	= f16tof32(EncodedW & 0xFFFF);
+	Out.GroupIndex	= (EncodedW>>16u);
 	return Out;
 }
 
@@ -173,6 +178,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.HairPrimitiveUV = float2(Interpolants.HairPrimitiveUV);
 	Result.HairPrimitiveRootUV = float2(Interpolants.HairPrimitiveRootUV);
 	Result.HairPrimitiveLength = Interpolants.HairPrimitiveLength;
+	Result.HairPrimitiveGroupIndex = Interpolants.HairPrimitiveGroupIndex;
 #if NUM_TEX_COORD_INTERPOLATORS
 	UNROLL
 	for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
@@ -252,13 +258,14 @@ half3x3 CalcTangentToWorld(FVertexFactoryIntermediates Intermediates, half3x3 Ta
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
+	FHairCardsPoint CardsPoint = GetVertexPosition(Input);
+
 	FVertexFactoryIntermediates Intermediates;
-	Intermediates.SceneData			= VF_GPUSCENE_GET_INTERMEDIATES(Input);
-	Intermediates.HairPrimitiveUV	= GetVertexPosition(Input).CardsUVs;
-	Intermediates.HairPrimitiveRootUV= GetVertexPosition(Input).RootUVs;
-	Intermediates.HairPrimitiveLength= GetVertexPosition(Input).CardLength; 
-	//Intermediates.HairDensity		= HairStrandsVF_Density;
-	//Intermediates.HairDimensions	= float2(GetWorldStrandLength(Input), GetWorldStrandRadius(Input));
+	Intermediates.SceneData					= VF_GPUSCENE_GET_INTERMEDIATES(Input);
+	Intermediates.HairPrimitiveUV			= CardsPoint.CardsUVs;
+	Intermediates.HairPrimitiveRootUV		= CardsPoint.RootUVs;
+	Intermediates.HairPrimitiveLength		= CardsPoint.CardLength; 
+	Intermediates.HairPrimitiveGroupIndex	= CardsPoint.GroupIndex;
 
 	float TangentSign;
 	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
@@ -312,9 +319,10 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 #endif
 
 	FHairCardsPoint CardsPoint = GetVertexPosition(Input);
-	Interpolants.HairPrimitiveUV = CardsPoint.CardsUVs;
-	Interpolants.HairPrimitiveRootUV = CardsPoint.RootUVs;
-	Interpolants.HairPrimitiveLength = CardsPoint.CardLength;
+	Interpolants.HairPrimitiveUV			= CardsPoint.CardsUVs;
+	Interpolants.HairPrimitiveRootUV		= CardsPoint.RootUVs;
+	Interpolants.HairPrimitiveLength		= CardsPoint.CardLength;
+	Interpolants.HairPrimitiveGroupIndex	= CardsPoint.GroupIndex;
 
 	SetPrimitiveId(Interpolants, Intermediates.SceneData.PrimitiveId);
 #if NUM_TEX_COORD_INTERPOLATORS 
@@ -439,6 +447,7 @@ FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayT
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.HairPrimitiveUV);
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.HairPrimitiveRootUV);
 	INTERPOLATE_MEMBER(InterpolantsVSToPS.HairPrimitiveLength);
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.HairPrimitiveGroupIndex);
 #endif
 
 	return O;

@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "GroomSettings.h"
+#include "Math/IntVector.h"
 
 struct FHairStrandsDatas;
 struct FHairStrandsClusterCullingData;
@@ -22,6 +23,20 @@ struct FHairDescriptionGroup;
 struct FHairGroupInfo;
 class FHairDescription;
 class UGroomAsset;
+
+struct FHairStrandsVoxelData
+{
+	static const uint8 InvalidGroupIndex = 0xFF;
+
+	FVector3f MinBound;
+	FVector3f MaxBound;
+	FIntVector Resolution;
+	TArray<uint8> GroupIndices;
+
+	// Return the (closest) group index corresponding to position P
+	uint8 GetGroupIndex(const FVector3f& P) const;
+	bool IsValid() const { return GroupIndices.Num() > 0; }
+};
 
 // Data flow overview
 // ==================
@@ -79,4 +94,9 @@ struct HAIRSTRANDSCORE_API FGroomBuilder
 		const float InGroomAssetRadius,
 		const FHairGroupsLOD& InSettings,
 		FHairStrandsClusterCullingBulkData& OutClusterCullingData);
+
+	// Optional: Voxelize hair group index
+	static void VoxelizeGroupIndex(
+		const FHairDescriptionGroups& In,
+		FHairStrandsVoxelData& Out);
 };

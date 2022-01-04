@@ -4,6 +4,7 @@
 #include "HairStrandsCore.h"
 #include "HairStrandsDatas.h"
 #include "HairCardsDatas.h"
+#include "GroomBuilder.h"
 
 #include "Math/Box.h"
 #include "RenderGraphBuilder.h"
@@ -3327,7 +3328,7 @@ namespace FHairCardsBuilder
 FString GetVersion()
 {
 	// Important to update the version when cards building or importing changes
-	return TEXT("9b5");
+	return TEXT("9c");
 }
 
 void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)
@@ -3574,7 +3575,8 @@ void SanitizeMeshDescription(FMeshDescription* MeshDescription)
 
 bool InternalImportGeometry(
 	const UStaticMesh* StaticMesh,
-	const FHairStrandsDatas& InStrandsData, // Used for extracting & assigning root UV to cards data
+	const FHairStrandsDatas& InStrandsData,			// Used for extracting & assigning root UV to cards data
+	const FHairStrandsVoxelData& InStrandsVoxelData,// Used for transfering & assigning group index to cards data
 	FHairCardsDatas& Out,
 	FHairCardsBulkData& OutBulk,
 	FHairStrandsDatas& OutGuides,
@@ -3722,8 +3724,10 @@ bool InternalImportGeometry(
 	OutBulk.CoverageTexture = nullptr;
 	OutBulk.AttributeTexture = nullptr;
 
+	const uint32 CardsCount = Out.Cards.IndexOffsets.Num();
+
 	TArray<float> CardLengths;
-	CardLengths.Reserve(Out.Cards.IndexOffsets.Num());
+	CardLengths.Reserve(CardsCount);
 	bool bSuccess = HairCards::CreateCardsGuides(Out.Cards, OutGuides, CardLengths);
 	if (bSuccess)
 	{
@@ -3743,8 +3747,49 @@ bool InternalImportGeometry(
 		}
 	}
 
+	// Used voxelized hair group (from hair strands) to assign hair group index to card vertices
+	TArray<uint32> CardGroupIndices;
+	CardGroupIndices.Init(0u, CardsCount);
+	if (InStrandsVoxelData.IsValid())
+	{
+		for (uint32 CardIt = 0; CardIt < CardsCount; ++CardIt)
+		{
+			// 1. For each cards' vertex, query the closest group index, and build an histogram 
+			//    of the group index covering the card
+			TArray<uint8> GroupBins;
+			GroupBins.Init(0, 64u);
+			const uint32 CardsIndexCount = Out.Cards.IndexCounts[CardIt];
+			const uint32 CardsIndexOffset = Out.Cards.IndexOffsets[CardIt];
+
+			for (uint32 IndexIt = 0; IndexIt < CardsIndexCount; ++IndexIt)
+			{
+				const uint32 VertexIndex = Out.Cards.Indices[CardsIndexOffset + IndexIt];
+				const FVector3f& P = Out.Cards.Positions[VertexIndex];
+
+				const uint8 GroupIndex = InStrandsVoxelData.GetGroupIndex(P);
+				if (GroupIndex != FHairStrandsVoxelData::InvalidGroupIndex)
+				{
+					check(GroupIndex < GroupBins.Num());
+					GroupBins[GroupIndex]++;
+				}
+			}
+
+			// 2. Since a cards can covers several group, select the group index covering the larger 
+			//    number of cards' vertices
+			uint32 MaxBinCount = 0u;
+			for (uint8 GroupIndex=0,GroupCount=GroupBins.Num(); GroupIndex<GroupCount; ++GroupIndex)
+			{
+				if (GroupBins[GroupIndex] > MaxBinCount)
+				{
+					CardGroupIndices[CardIt] = GroupIndex;
+					MaxBinCount = GroupBins[GroupIndex];
+				}
+			}
+		}
+	}
+
 	// Patch Cards Position to store cards length into the W component
-	for (uint32 CardIt = 0, CardsCount = Out.Cards.IndexOffsets.Num(); CardIt < CardsCount; ++CardIt)
+	for (uint32 CardIt = 0; CardIt < CardsCount; ++CardIt)
 	{
 		const uint32 CardsIndexCount = Out.Cards.IndexCounts[CardIt];
 		const uint32 CardsIndexOffset = Out.Cards.IndexOffsets[CardIt];
@@ -3759,7 +3804,11 @@ bool InternalImportGeometry(
 			// Instead of storing the interoplated card length, store the actual max length of the card, 
 			// as reconstructing the strands length, based on interpolatd CardLength will be too prone to numerical issue.
 			// This means that the strand length retrieves in shader will be an over estimate of the actual length
-			OutBulk.Positions[VertexIndex].W = CardLength; // InterpolatedCardLength;
+			const FFloat16 hCardLength = CardLength;  // InterpolatedCardLength;			
+
+			// Encode cards length & group index into the .W component of position
+			const uint32 EncodedW = hCardLength.Encoded | (CardGroupIndices[CardIt] << 16u);
+			OutBulk.Positions[VertexIndex].W = *(float*)&EncodedW;
 		}
 	}
 
@@ -3795,7 +3844,6 @@ bool InternalImportGeometry(
 		};
 		TArray<FCardsRootData> CardsRoots;
 		{
-			const uint32 CardsCount = Out.Cards.IndexOffsets.Num();
 			CardsRoots.Reserve(CardsCount);
 			for (uint32 CardIt = 0; CardIt < CardsCount; ++CardIt)
 			{
@@ -3865,6 +3913,7 @@ bool InternalImportGeometry(
 bool ImportGeometry(
 	const UStaticMesh* StaticMesh,
 	const FHairStrandsDatas& InStrandsData,
+	const FHairStrandsVoxelData& InStrandsVoxelData,
 	FHairCardsBulkData& OutBulk,
 	FHairStrandsDatas& OutGuides,
 	FHairCardsInterpolationBulkData& OutInterpolationBulkData)
@@ -3873,6 +3922,7 @@ bool ImportGeometry(
 	return InternalImportGeometry(
 		StaticMesh,
 		InStrandsData,
+		InStrandsVoxelData,
 		CardData,
 		OutBulk,
 		OutGuides,
@@ -3881,12 +3931,14 @@ bool ImportGeometry(
 
 bool ExtractCardsData(const UStaticMesh* StaticMesh, const FHairStrandsDatas& InStrandsData, FHairCardsDatas& Out)
 {
+	FHairStrandsVoxelData DummyStrandsVoxelData;
 	FHairCardsBulkData OutBulk;
 	FHairStrandsDatas OutGuides;
 	FHairCardsInterpolationBulkData OutInterpolationBulkData;
 	return InternalImportGeometry(
 		StaticMesh,
 		InStrandsData,
+		DummyStrandsVoxelData,
 		Out,
 		OutBulk,
 		OutGuides,

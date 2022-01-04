@@ -21,8 +21,8 @@ enum class EGroomCacheType : uint8;
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParameters, HAIRSTRANDSCORE_API)
 	SHADER_PARAMETER(uint32, bInvertUV)
 	SHADER_PARAMETER(uint32, bUseTextureRootUV)
+	SHADER_PARAMETER(uint32, bUseTextureGroupIndex)
 	SHADER_PARAMETER(uint32, MaxVertexCount)
-	SHADER_PARAMETER(float, GroupIndex)
 	SHADER_PARAMETER_SRV(Buffer<float4>, PositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, PreviousPositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, NormalsBuffer)
@@ -38,6 +38,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParamet
 	SHADER_PARAMETER_SAMPLER(SamplerState, AttributeSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, AuxilaryDataTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, AuxilaryDataSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, GroupIndexTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, GroupIndexSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters> FHairCardsUniformBuffer;

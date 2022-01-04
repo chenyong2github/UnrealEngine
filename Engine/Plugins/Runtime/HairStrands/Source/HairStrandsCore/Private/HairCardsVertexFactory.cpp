@@ -34,9 +34,9 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[LODIndex];
 
 		// Cards atlas UV are inverted so fetching needs to be inverted on the y-axis
-		UniformParameters.GroupIndex = Instance->Debug.GroupIndex;
 		UniformParameters.bInvertUV = LOD.RestResource->bInvertUV;
 		UniformParameters.bUseTextureRootUV = 0;
+		UniformParameters.bUseTextureGroupIndex = 0;
 		UniformParameters.MaxVertexCount = LOD.RestResource->GetVertexCount();
 
 		// When the geometry is not-dynamic (no binding to skeletal mesh, no simulation), only a single vertex buffer is allocated. 
@@ -67,6 +67,8 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		UniformParameters.AttributeSampler = LOD.RestResource->AttributeSampler;
 		UniformParameters.AuxilaryDataTexture = LOD.RestResource->AuxilaryDataTexture;
 		UniformParameters.AuxilaryDataSampler = LOD.RestResource->AuxilaryDataSampler;
+		UniformParameters.GroupIndexTexture = nullptr; // Group index are stored on vertices for cards
+		UniformParameters.GroupIndexSampler = nullptr; // Group index are stored on vertices for cards
 	}
 	else if (GeometryType == EHairGeometryType::Meshes)
 	{
@@ -87,9 +89,9 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		}
 
 		// Meshes UV are not inverted so no need to invert the y-axis
-		UniformParameters.GroupIndex = Instance->Debug.GroupIndex;
 		UniformParameters.bInvertUV = 0;
 		UniformParameters.bUseTextureRootUV = 1;
+		UniformParameters.bUseTextureGroupIndex = 1;
 		UniformParameters.MaxVertexCount = LOD.RestResource->GetVertexCount();
 		UniformParameters.NormalsBuffer = LOD.RestResource->NormalsBuffer.ShaderResourceViewRHI.GetReference();
 		UniformParameters.UVsBuffer = LOD.RestResource->UVsBuffer.ShaderResourceViewRHI.GetReference();
@@ -104,6 +106,8 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		UniformParameters.AttributeSampler = LOD.RestResource->AttributeSampler;
 		UniformParameters.AuxilaryDataTexture = LOD.RestResource->AuxilaryDataTexture;
 		UniformParameters.AuxilaryDataSampler = LOD.RestResource->AuxilaryDataSampler;
+		UniformParameters.GroupIndexTexture = LOD.RestResource->GroupIndexTexture;
+		UniformParameters.GroupIndexSampler = LOD.RestResource->GroupIndexSampler;
 	}
 
 	if (!bSupportsManualVertexFetch)
@@ -122,12 +126,14 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 	if (!UniformParameters.CoverageTexture)		{ UniformParameters.CoverageTexture = DefaultTexture; }
 	if (!UniformParameters.AttributeTexture)	{ UniformParameters.AttributeTexture = DefaultTexture;}
 	if (!UniformParameters.AuxilaryDataTexture)	{ UniformParameters.AuxilaryDataTexture = DefaultTexture; }
+	if (!UniformParameters.GroupIndexTexture)	{ UniformParameters.GroupIndexTexture = DefaultTexture; }
 
 	if (!UniformParameters.DepthSampler)		{ UniformParameters.DepthSampler = DefaultSampler;	  }
 	if (!UniformParameters.TangentSampler)		{ UniformParameters.TangentSampler = DefaultSampler;  }
 	if (!UniformParameters.CoverageSampler)		{ UniformParameters.CoverageSampler = DefaultSampler; }
 	if (!UniformParameters.AttributeSampler)	{ UniformParameters.AttributeSampler = DefaultSampler;}
-	if (!UniformParameters.AuxilaryDataSampler)	{ UniformParameters.AuxilaryDataSampler = DefaultSampler;}
+	if (!UniformParameters.AuxilaryDataSampler) { UniformParameters.AuxilaryDataSampler = DefaultSampler; }
+	if (!UniformParameters.GroupIndexSampler)	{ UniformParameters.GroupIndexSampler = DefaultSampler;}
 
 	return TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame);
 }
@@ -158,8 +164,6 @@ public:
 		const FHairCardsVertexFactory* VF = static_cast<const FHairCardsVertexFactory*>(VertexFactory);
 		check(VF);
 
-
-		const int32 GroupIndex = VF->Data.GroupIndex;
 		const int32 LODIndex = VF->Data.LODIndex;
 
 		const FHairGroupInstance* Instance = VF->Data.Instance;
@@ -190,14 +194,13 @@ public:
 
 IMPLEMENT_TYPE_LAYOUT(FHairCardsVertexFactoryShaderParameters);
 
-FHairCardsVertexFactory::FHairCardsVertexFactory(FHairGroupInstance* Instance, uint32 GroupIndex, uint32 LODIndex, EHairGeometryType GeometryType, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
+FHairCardsVertexFactory::FHairCardsVertexFactory(FHairGroupInstance* Instance, uint32 LODIndex, EHairGeometryType GeometryType, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
 	: FVertexFactory(InFeatureLevel)
 	, DebugName(InDebugName)
 {
 	bSupportsManualVertexFetch = RHISupportsManualVertexFetch(InShaderPlatform);
 
 	Data.Instance = Instance;
-	Data.GroupIndex = GroupIndex;
 	Data.LODIndex = LODIndex;
 	Data.GeometryType = GeometryType;
 }
