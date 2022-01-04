@@ -344,6 +344,7 @@ FGroupTopologySelector::FSelectionSettings UPolygonSelectionMechanic::GetTopoSel
 	Settings.bEnableFaceHits = Properties->bSelectFaces;
 	Settings.bEnableEdgeHits = Properties->bSelectEdges;
 	Settings.bEnableCornerHits = Properties->bSelectVertices;
+	Settings.bHitBackFaces = Properties->bHitBackFaces;
 
 	if (!PersistentSelection.IsEmpty() && (ShouldAddToSelectionFunc() || ShouldRemoveFromSelectionFunc()))
 	{

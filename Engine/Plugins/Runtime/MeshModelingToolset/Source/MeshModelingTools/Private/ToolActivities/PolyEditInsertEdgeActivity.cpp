@@ -627,6 +627,7 @@ bool UPolyEditInsertEdgeActivity::TopologyHitTest(const FRay& WorldRay,
 
 	FGroupTopologySelection Selection;
 	FVector3d Position, Normal;
+	TopologySelectorSettings.bHitBackFaces = ActivityContext->SelectionMechanic->Properties->bHitBackFaces;
 	if (TopologySelector->FindSelectedElement(TopologySelectorSettings,
 		LocalRay, Selection, Position, Normal))
 	{
@@ -654,6 +655,7 @@ bool UPolyEditInsertEdgeActivity::GetHoveredItem(const FRay& WorldRay,
 	FGroupTopologySelection Selection;
 	FVector3d Position, Normal;
 	int32 EdgeSegmentID;
+	TopologySelectorSettings.bHitBackFaces = ActivityContext->SelectionMechanic->Properties->bHitBackFaces;
 	if (!TopologySelector->FindSelectedElement(
 		TopologySelectorSettings, LocalRay, Selection, Position, Normal, &EdgeSegmentID))
 	{

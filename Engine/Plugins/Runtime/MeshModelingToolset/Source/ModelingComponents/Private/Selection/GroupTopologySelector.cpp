@@ -10,8 +10,8 @@
 using namespace UE::Geometry;
 
 // Local utility function forward declarations
-bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial);
-bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial);
+bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial, bool bBackFacesOcclude);
+bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial, bool bBackFacesOcclude);
 void AddNewEdgeLoopEdgesFromCorner(const FGroupTopology& Topology, int32 EdgeID, int32 CornerID, TSet<int32>& EdgeSet);
 bool GetNextEdgeLoopEdge(const FGroupTopology& Topology, int32 IncomingEdgeID, int32 CornerID, int32& NextEdgeIDOut);
 void AddNewEdgeRingEdges(const FGroupTopology& Topology, int32 StartEdgeID, int32 ForwardGroupID, TSet<int32>& EdgeSet);
@@ -101,13 +101,21 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 	FDynamicMeshAABBTree3* Spatial = GetSpatial();
 	const FGeometrySet3& TopoSpatial = GetGeometrySet();
 
+	IMeshSpatial::FQueryOptions SpatialQueryOptions;
+	if (Spatial && !Settings.bHitBackFaces)
+	{
+		SpatialQueryOptions.TriangleFilterF = [Spatial, &Ray](int32 Tid) {
+			return Spatial->GetMesh()->GetTriNormal(Tid).Dot(Ray.Direction) < 0;
+		};
+	}
+
 	// We start by intersecting with the mesh triangles because even when selecting corners or edges, we set
 	// the normal based on the true triangle that we hit. If we end up with a simple face selection, we will
 	// end up using this result.
 	double RayParameter = -1;
 	int HitTriangleID = IndexConstants::InvalidID;
 	FVector3d TriangleHitPos;
-	bool bActuallyHitSurface = (Spatial != nullptr) ? Spatial->FindNearestHitTriangle(Ray, RayParameter, HitTriangleID) : false;
+	bool bActuallyHitSurface = (Spatial != nullptr) ? Spatial->FindNearestHitTriangle(Ray, RayParameter, HitTriangleID, SpatialQueryOptions) : false;
 	if (bActuallyHitSurface)
 	{
 		TriangleHitPos = Ray.PointAt(RayParameter);
@@ -247,7 +255,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FSelectionSettings& Se
 	}
 
 	// Also bail if the closest element is not visible.
-	if (!Settings.bIgnoreOcclusion && IsOccluded(*ClosestElement, Ray.Origin, Spatial))
+	if (!Settings.bIgnoreOcclusion && IsOccluded(*ClosestElement, Ray.Origin, Spatial, Settings.bHitBackFaces))
 	{
 		return false;
 	}
@@ -413,7 +421,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FSelectionSettings& Sett
 	}
 
 	// Also bail if the closest element is not visible.
-	if (!Settings.bIgnoreOcclusion && IsOccluded(*ClosestElement, Ray.Origin, Spatial))
+	if (!Settings.bIgnoreOcclusion && IsOccluded(*ClosestElement, Ray.Origin, Spatial, Settings.bHitBackFaces))
 	{
 		return false;
 	}
@@ -565,17 +573,31 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FSelectionSettings& Sett
 	return false;
 }
 
-bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial)
+bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& ViewOrigin, 
+	const FDynamicMeshAABBTree3* Spatial, bool bBackFacesOcclude)
 {
-	return IsOccluded(ClosestElement.NearestGeoPoint, ViewOrigin, Spatial);
+	return IsOccluded(ClosestElement.NearestGeoPoint, ViewOrigin, Spatial, bBackFacesOcclude);
 }
 
-bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial)
+bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin, 
+	const FDynamicMeshAABBTree3* Spatial, bool bBackFacesOcclude)
 {
-	// Shoot ray backwards to see if we hit something. 
+	// We will shoot a ray backwards to see if we hit something. 
 	FRay3d ToEyeRay(Point, UE::Geometry::Normalized(ViewOrigin - Point), true);
 	ToEyeRay.Origin += (double)(100 * FMathf::ZeroTolerance) * ToEyeRay.Direction;
-	if (Spatial->FindNearestHitTriangle(ToEyeRay) >= 0)
+
+	IMeshSpatial::FQueryOptions QueryOptions;
+	if (!bBackFacesOcclude)
+	{
+		// If back faces don't occlude (ie we weren't hitting back faces on the way forward), 
+		// then the direction toward the camera should be same as normal direction.
+		QueryOptions.TriangleFilterF = [Spatial, &ToEyeRay](int32 Tid)
+		{
+			return Spatial->GetMesh()->GetTriNormal(Tid).Dot(ToEyeRay.Direction) > 0;
+		};
+	}
+
+	if (Spatial->FindNearestHitTriangle(ToEyeRay, QueryOptions) >= 0)
 	{
 		return true;
 	}
@@ -605,7 +627,8 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 			{
 				FVector TransformedPoint = TargetTransform.TransformPosition(PointPosition);
 				return CameraRectangle.IsProjectedPointInRectangle(TransformedPoint)
-					&& (Settings.bIgnoreOcclusion || !IsOccluded(PointPosition, LocalCameraOrigin, Spatial));
+					&& (Settings.bIgnoreOcclusion || !IsOccluded(PointPosition, LocalCameraOrigin, 
+						Spatial, Settings.bHitBackFaces));
 			},
 			ResultOut.SelectedCornerIDs);
 	}
@@ -619,8 +642,9 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 				// Testing occlusion properly seems like it would be a pain, so we'll just consider something occluded
 				// if one of the endpoints is occluded. This will handle the common case of not wanting to select a
 				// hidden edge that is connected to a visible corner.
-				if (!Settings.bIgnoreOcclusion && (IsOccluded(Curve.Start(), LocalCameraOrigin, Spatial)
-						|| IsOccluded(Curve.End(), LocalCameraOrigin, Spatial)))
+				if (!Settings.bIgnoreOcclusion 
+					&& (IsOccluded(Curve.Start(), LocalCameraOrigin, Spatial, Settings.bHitBackFaces)
+						|| IsOccluded(Curve.End(), LocalCameraOrigin, Spatial, Settings.bHitBackFaces)))
 				{
 					return false;
 				}

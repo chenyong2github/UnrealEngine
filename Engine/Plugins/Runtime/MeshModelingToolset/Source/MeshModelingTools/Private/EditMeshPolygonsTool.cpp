@@ -62,6 +62,11 @@ namespace EditMeshPolygonsToolLocals
 	FText TriEditDefaultMessage = LOCTEXT("OnStartEditMeshPolygonsTool", "Select PolyGroups to edit mesh. Use middle mouse on gizmo to reposition it. "
 		"Hold Ctrl while translating or (in local mode) rotating to align to scene. Shift and Ctrl change marquee select "
 		"behavior. Q toggles Gizmo Orientation Lock.");
+
+	FString GetPropertyCacheIdentifier(bool bTriangleMode)
+	{
+		return bTriangleMode ? TEXT("TriEditTool") : TEXT("PolyEditTool");
+	}
 }
 
 /*
@@ -231,7 +236,7 @@ void UEditMeshPolygonsTool::Setup()
 
 	// Initialize the common properties but don't add them yet, because we want them to be under the activity-specific ones.
 	CommonProps = NewObject<UPolyEditCommonProperties>(this);
-	CommonProps->RestoreProperties(this);
+	CommonProps->RestoreProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
 	CommonProps->WatchProperty(CommonProps->LocalFrameMode,
 		[this](ELocalFrameMode) { UpdateGizmoFrame(); });
 	CommonProps->WatchProperty(CommonProps->bLockRotation,
@@ -293,7 +298,7 @@ void UEditMeshPolygonsTool::Setup()
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
 	SelectionMechanic->bAddSelectionFilterPropertiesToParentTool = false; // We'll do this ourselves later
 	SelectionMechanic->Setup(this);
-	SelectionMechanic->Properties->RestoreProperties(this);
+	SelectionMechanic->Properties->RestoreProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UEditMeshPolygonsTool::OnSelectionModifiedEvent);
 	if (bTriangleMode)
 	{
@@ -442,12 +447,15 @@ bool UEditMeshPolygonsTool::IsToolInputSelectionUsable(const UPersistentMeshSele
 
 void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	using namespace EditMeshPolygonsToolLocals;
+
 	if (CurrentActivity)
 	{
 		CurrentActivity->End(ShutdownType);
 		CurrentActivity = nullptr;
 	}
-	CommonProps->SaveProperties(this);
+	CommonProps->SaveProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
+	SelectionMechanic->Properties->SaveProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
 
 	GetToolManager()->GetContextObjectStore()->RemoveContextObjectsOfType(UPolyEditActivityContext::StaticClass());
 	ActivityContext = nullptr;

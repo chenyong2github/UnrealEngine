@@ -355,6 +355,7 @@ FInputRayHit UPolyEditInsertEdgeLoopActivity::HitTest(const FRay& WorldRay)
 		(FVector3d)TargetTransform.InverseTransformVector(WorldRay.Direction), false);
 	FGroupTopologySelection Selection;
 	FVector3d Position, Normal;
+	TopologySelectorSettings.bHitBackFaces = ActivityContext->SelectionMechanic->Properties->bHitBackFaces;
 	if (TopologySelector->FindSelectedElement(
 		TopologySelectorSettings, LocalRay, Selection, Position, Normal))
 	{
@@ -381,6 +382,7 @@ bool UPolyEditInsertEdgeLoopActivity::UpdateHoveredItem(const FRay& WorldRay)
 	FGroupTopologySelection Selection;
 	FVector3d Position, Normal;
 	int32 EdgeSegmentID;
+	TopologySelectorSettings.bHitBackFaces = ActivityContext->SelectionMechanic->Properties->bHitBackFaces;
 	if (!TopologySelector->FindSelectedElement(
 		TopologySelectorSettings, LocalRay, Selection, Position, Normal, &EdgeSegmentID))
 	{
