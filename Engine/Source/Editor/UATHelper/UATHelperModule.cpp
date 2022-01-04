@@ -114,10 +114,10 @@ public:
 				NotificationItem->SetHyperlink(FSimpleDelegate::CreateStatic(&HandleHyperlinkNavigate), Message);
 
 			}
-
+			
+			ExpireNotificationItemPtr = NotificationItem;
 			if (bExpireAndFadeout)
 			{
-				ExpireNotificationItemPtr.Reset();
 				NotificationItem->SetExpireDuration(6.0f);
 				NotificationItem->SetFadeOutDuration(0.5f);
 				NotificationItem->SetCompletionState(CompletionState);
@@ -126,7 +126,6 @@ public:
 			else
 			{
 				// Handling the notification expiration in callback
-				ExpireNotificationItemPtr = NotificationItem;
 				NotificationItem->SetCompletionState(CompletionState);
 			}
 
