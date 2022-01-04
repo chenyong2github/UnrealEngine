@@ -2222,22 +2222,32 @@ class Config(object):
         self.save()
 
     def maps(self):
+        '''
+        Returns a list of ful map paths in an Unreal Engine project such as [ "/Game/Maps/MapName" ].
+        It will always start with Game and the slashes will always be "/" independent of the platform's separator.
+        '''
+        project_dir = os.path.dirname(self.UPROJECT_PATH.get_value().replace('"', ''))
         maps_path = os.path.normpath(
             os.path.join(
-                os.path.dirname(
-                    self.UPROJECT_PATH.get_value().replace('"', '')),
+                project_dir,
                 'Content',
                 self.MAPS_PATH.get_value()))
 
         maps = []
-        for _, _, files in os.walk(maps_path):
+        for path_to_map, b, files in os.walk(maps_path):
             for name in files:
                 if not fnmatch.fnmatch(name, self.MAPS_FILTER.get_value()):
                     continue
-
-                rootname, _ = os.path.splitext(name)
-                if rootname not in maps:
-                    maps.append(rootname)
+                
+                map_name, _ = os.path.splitext(name)
+                path_name = path_to_map.replace(project_dir, '', 1)
+                # Ignore the fact that maps may exist in plugins - we only search game content
+                path_name = path_name.replace('Content', 'Game')
+                path_name = os.path.join(path_name, map_name)
+                path_name = path_name.replace(os.sep, '/')
+                
+                if path_name not in maps:
+                    maps.append(path_name)
 
         maps.sort()
         return maps
