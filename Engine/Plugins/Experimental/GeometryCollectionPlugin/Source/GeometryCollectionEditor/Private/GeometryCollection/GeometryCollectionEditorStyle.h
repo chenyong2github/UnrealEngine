@@ -22,7 +22,7 @@ public:
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
 
-	~FGeometryCollectionEditorStyle()
+	virtual ~FGeometryCollectionEditorStyle()
 	{
 		FSlateStyleRegistry::UnRegisterSlateStyle(*this);
 	}
