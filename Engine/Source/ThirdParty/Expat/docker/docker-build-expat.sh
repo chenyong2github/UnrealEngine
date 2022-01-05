@@ -10,7 +10,15 @@
 
 if [ $UID -eq 0 ]; then
   # Centos 7
-  yum install -y cmake make gcc-c++
+  yum install -y make gcc-c++ wget
+
+  # Cmake
+  wget --no-check-certificate https://cmake.org/files/v3.12/cmake-3.12.3.tar.gz
+  tar zxvf cmake-3.*
+  cd cmake-3.*
+  ./bootstrap --prefix=/usr/local
+  make -j$(getconf _NPROCESSORS_ONLN)
+  make install
 
   # Create non-privileged user and workspace
   adduser buildmaster
@@ -47,8 +55,8 @@ BuildWithOptions()
 
 set -e
 
-BuildWithOptions Debug   -DCMAKE_BUILD_TYPE=Debug   -DCMAKE_C_FLAGS="-fPIC -gdwarf-4" -DBUILD_tools=OFF -DBUILD_examples=OFF -DBUILD_tests=OFF -DBUILD_shared=OFF -DSKIP_PRE_BUILD_COMMAND=TRUE
-BuildWithOptions Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-fPIC -gdwarf-4" -DBUILD_tools=OFF -DBUILD_examples=OFF -DBUILD_tests=OFF -DBUILD_shared=OFF -DSKIP_PRE_BUILD_COMMAND=TRUE
+BuildWithOptions Debug   -DCMAKE_BUILD_TYPE=Debug   -DCMAKE_C_FLAGS="-fPIC -gdwarf-4" -DEXPAT_BUILD_TOOLS=0 -DEXPAT_BUILD_EXAMPLES=0 -DEXPAT_BUILD_TESTS=0 -DEXPAT_SHARED_LIBS=0
+BuildWithOptions Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS="-fPIC -gdwarf-4" -DEXPAT_BUILD_TOOLS=0 -DEXPAT_BUILD_EXAMPLES=0 -DEXPAT_BUILD_TESTS=0 -DEXPAT_SHARED_LIBS=0
 
 set +e
 

@@ -5,7 +5,7 @@ REM Copyright Epic Games, Inc. All Rights Reserved.
 setlocal
 
 rem SET UE4_OPENSSL_ROOT_DIR="D:/YOUR_UE4_WORKSPACE_HERE/Engine/Source/ThirdParty/OpenSSL/1.1.1c"
-rem SET UE4_EXPAT_ROOT_DIR="D:/YOUR_UE4_WORKSPACE_HERE/Engine/Source/ThirdParty/Expat/expat-2.2.0"
+rem SET UE4_EXPAT_ROOT_DIR="D:/YOUR_UE4_WORKSPACE_HERE/Engine/Source/ThirdParty/Expat/expat-2.2.10"
 
 set PATH_TO_CMAKE_FILE=%CD%\..\
 

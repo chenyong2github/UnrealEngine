@@ -6,7 +6,7 @@ export UE4_ENGINE_ROOT_DIR=/path/to/your/ue4/depot
 
 # You many need to change some of these versions over time
 export UE4_OPENSSL_ROOT_DIR=$UE4_ENGINE_ROOT_DIR/Engine/Source/ThirdParty/OpenSSL/1.1.1c
-export UE4_EXPAT_ROOT_DIR=$UE4_ENGINE_ROOT_DIR/Engine/Source/ThirdParty/Expat/expat-2.2.0
+export UE4_EXPAT_ROOT_DIR=$UE4_ENGINE_ROOT_DIR/Engine/Source/ThirdParty/Expat/expat-2.2.10
 
 # Actually build the platforms
 echo Building Mac

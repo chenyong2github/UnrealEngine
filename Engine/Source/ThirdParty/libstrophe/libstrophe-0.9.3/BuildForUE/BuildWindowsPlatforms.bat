@@ -14,7 +14,7 @@ if not exist "%NDKROOT%" set NDKROOT=D:/your/carefully/redist/depot/CarefullyRed
 
 REM You many need to change some of these versions over time
 set UE4_OPENSSL_ROOT_DIR=%UE4_ENGINE_ROOT_DIR%/Engine/Source/ThirdParty/OpenSSL/1.1.1c
-set UE4_EXPAT_ROOT_DIR=%UE4_ENGINE_ROOT_DIR%/Engine/Source/ThirdParty/Expat/expat-2.2.0
+set UE4_EXPAT_ROOT_DIR=%UE4_ENGINE_ROOT_DIR%/Engine/Source/ThirdParty/Expat/expat-2.2.10
 set UE4_CMAKE_ROOT_DIR=%UE4_ENGINE_ROOT_DIR%/Engine/Source/ThirdParty/CMake
 set UE4_LWS_ROOT_DIR=%UE4_ENGINE_ROOT_DIR%/Engine/Source/ThirdParty/libWebSockets/libwebsockets
 set UE4_GNUMAKE_ROOT_DIR=%UE4_ENGINE_ROOT_DIR%/Engine/Extras/ThirdPartyNotUE/GNU_Make

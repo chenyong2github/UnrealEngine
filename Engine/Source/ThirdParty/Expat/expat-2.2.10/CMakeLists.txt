@@ -183,7 +183,9 @@ if(_EXPAT_UNICODE)
     endif()
 endif()
 
-include(${CMAKE_CURRENT_LIST_DIR}/ConfigureChecks.cmake)
+if(NOT HARDCODED_CONFIG)
+    include(${CMAKE_CURRENT_LIST_DIR}/ConfigureChecks.cmake)
+endif(NOT HARDCODED_CONFIG)
 
 macro(evaluate_detection_results use_ref have_ref thing_lower thing_title)
     if(${use_ref} AND NOT (${use_ref} STREQUAL "AUTO") AND NOT ${have_ref})

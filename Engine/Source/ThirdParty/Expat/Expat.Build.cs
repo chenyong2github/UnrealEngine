@@ -5,7 +5,7 @@ using System.IO;
 
 public class Expat : ModuleRules
 {
-	protected virtual string ExpatVersion			{ get { return "expat-2.2.0"; } }
+	protected virtual string ExpatVersion			{ get { return "expat-2.2.10"; } }
 
 	protected virtual string IncRootDirectory		{ get { return ModuleDirectory; } }
 	protected virtual string LibRootDirectory		{ get { return ModuleDirectory; } }
@@ -35,12 +35,12 @@ public class Expat : ModuleRules
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
 				string LibraryPath = Path.Combine(ExpatPackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), "Debug");
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "expatd.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libexpatdMD.lib"));
 			}
 			else
 			{
 				string LibraryPath = Path.Combine(ExpatPackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), "Release");
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "expat.lib"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "libexpatMD.lib"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
