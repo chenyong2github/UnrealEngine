@@ -389,11 +389,11 @@ private:
 
 public:
 
-	/** If enabled, actor rotations will snap to the grid. */
+	/** If enabled, new Actors that you drag into the viewport snap to the active 2D layer. */
 	UPROPERTY(EditAnywhere, config, Category=GridSnapping, meta=(DisplayName = "Enable 2D Layer Snapping"))
 	uint32 bEnableLayerSnap:1;
 
-	/** The index of the snap plane to use when bEnableLayerSnap is true (from the project SnapLayers array) */
+	/** The index of the snap plane to use when 2D Layer Snapping is enabled, from the array of Snap Layers set for the project. */
 	UPROPERTY(config)
 	int32 ActiveSnapLayerIndex;
 
