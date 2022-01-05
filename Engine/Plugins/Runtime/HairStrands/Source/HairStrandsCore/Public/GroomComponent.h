@@ -85,6 +85,7 @@ public:
 
 	/** Release Niagara components */
 	void ReleaseHairSimulation();
+	void ReleaseHairSimulation(const int32 GroupIndex);
 
 	/** Create per Group/LOD the Niagara component */
 	void CreateHairSimulation(const int32 GroupIndex, const int32 LODIndex);
