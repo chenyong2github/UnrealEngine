@@ -85,11 +85,14 @@ namespace UE::DatasmithImporter
 
 	bool FDirectLinkExternalSource::OpenStream()
 	{
-		if (SourceHandle.IsValid() && DestinationHandle.IsValid() && !bIsStreamOpen)
-		{
-			const DirectLink::FEndpoint::EOpenStreamResult Result = IDirectLinkExtensionModule::GetEndpoint().OpenStream(SourceHandle, DestinationHandle);
+		using namespace DirectLink;
 
-			bIsStreamOpen = Result == DirectLink::FEndpoint::EOpenStreamResult::Opened;
+		if (SourceHandle.IsValid() && DestinationHandle.IsValid())
+		{
+			const FEndpoint::EOpenStreamResult Result = IDirectLinkExtensionModule::GetEndpoint().OpenStream(SourceHandle, DestinationHandle);
+
+			bIsStreamOpen = Result == FEndpoint::EOpenStreamResult::Opened || Result == FEndpoint::EOpenStreamResult::AlreadyOpened;
+
 			return bIsStreamOpen;			
 		}
 
@@ -98,7 +101,7 @@ namespace UE::DatasmithImporter
 
 	void FDirectLinkExternalSource::CloseStream()
 	{
-		if (SourceHandle.IsValid() && DestinationHandle.IsValid() && bIsStreamOpen)
+		if (SourceHandle.IsValid() && DestinationHandle.IsValid())
 		{
 			IDirectLinkExtensionModule::GetEndpoint().CloseStream(SourceHandle, DestinationHandle);
 			bIsStreamOpen = false;
@@ -109,8 +112,8 @@ namespace UE::DatasmithImporter
 	{
 		if (IDirectLinkExtensionModule::IsAvailable())
 		{
-			IDirectLinkExtensionModule::GetEndpoint().RemoveDestination(DestinationHandle);
 			CloseStream();
+			IDirectLinkExtensionModule::GetEndpoint().RemoveDestination(DestinationHandle);
 		}
 
 		ClearOnExternalSourceLoadedDelegates();

@@ -3,6 +3,7 @@
 #include "DirectLinkManager.h"
 
 #include "DirectLinkAssetObserver.h"
+#include "DirectLinkExtensionSettings.h"
 #include "DirectLinkExternalSource.h"
 #include "DirectLinkUriResolver.h"
 
@@ -23,6 +24,57 @@ DEFINE_LOG_CATEGORY(LogDirectLinkManager);
 
 namespace UE::DatasmithImporter
 {
+	bool FDirectLinkAutoReconnectManager::Start()
+	{
+		if (GetDefault<UDirectLinkExtensionSettings>()->bAutoReconnect
+			&& (!CompletedFuture.IsValid() || CompletedFuture.IsReady()))
+		{
+			bShouldRun = true;
+			CompletedFuture = Async(EAsyncExecution::ThreadPool, [this]() {	Run(); });
+
+			return true;
+		}
+
+		return false;
+	}
+
+	void FDirectLinkAutoReconnectManager::Stop()
+	{
+		bShouldRun = false;
+	}
+
+	void FDirectLinkAutoReconnectManager::Run()
+	{
+		const float CurrentTime = FPlatformTime::Seconds();
+		const float TimeSinceLastTry = CurrentTime - LastTryTime;
+		const float ReconnectionDelayInSeconds = GetDefault<UDirectLinkExtensionSettings>()->ReconnectionDelayInSeconds;
+
+		if (TimeSinceLastTry < ReconnectionDelayInSeconds)
+		{
+			FPlatformProcess::Sleep(ReconnectionDelayInSeconds - TimeSinceLastTry);
+		}
+
+		int32 NumberOfSources;
+		{
+			FWriteScopeLock ReconnectionScopeLock(Manager.ReconnectionListLock);
+			for (int32 Index = Manager.ExternalSourcesToReconnect.Num() - 1; Index >= 0; --Index)
+			{
+				if (Manager.ExternalSourcesToReconnect[Index]->OpenStream())
+				{
+					Manager.ExternalSourcesToReconnect.RemoveAtSwap(Index);
+				}
+			}
+			NumberOfSources = Manager.ExternalSourcesToReconnect.Num();
+			LastTryTime = FPlatformTime::Seconds();
+		}
+
+		if (bShouldRun && NumberOfSources > 0)
+		{
+			// Could not reconnect, go back to the ThreadPool and try again later.
+			CompletedFuture = Async(EAsyncExecution::ThreadPool, [this]() {	Run(); });
+		}
+	}
+
 	/**
 	 * #ueent_todo: The AutoReimport feature should be generalize to all FExternalSource, not just DirectLink ones.
 	 */
@@ -44,6 +96,7 @@ namespace UE::DatasmithImporter
 	FDirectLinkManager::FDirectLinkManager()
 		: Endpoint(MakeUnique<DirectLink::FEndpoint>(TEXT("UE5-Editor")))
 		, AssetObserver(MakeUnique<FDirectLinkAssetObserver>(*this))
+		, ReconnectionManager(MakeUnique<FDirectLinkAutoReconnectManager>(*this))
 	{
 		Endpoint->AddEndpointObserver(this);
 
@@ -201,6 +254,52 @@ namespace UE::DatasmithImporter
 					{
 						// This source is still valid.
 						InvalidExternalSourceIds.Remove(DataPointId.Id);
+					}
+				}
+			}
+		}
+
+
+		TSet<DirectLink::FDestinationHandle> ActiveStreamsSources;
+		for (const DirectLink::FRawInfo::FStreamInfo& StreamInfo : RawInfoCache.StreamsInfo)
+		{
+			if (!StreamInfo.bIsActive)
+			{
+				continue;
+			}
+
+			if (TSharedRef<FDirectLinkExternalSource>* ExternalSource = DirectLinkSourceToExternalSourceMap.Find(StreamInfo.Source))
+			{
+				ActiveStreamsSources.Add(StreamInfo.Source);
+			}
+		}
+
+		{
+			FWriteScopeLock ReconnectionScopeLock(ReconnectionListLock);
+
+			for (int32 SourceIndex = ExternalSourcesToReconnect.Num() - 1; SourceIndex >= 0; --SourceIndex)
+			{
+				// If the source no longer exists, then there is no point in trying to reconnect.
+				if (InvalidExternalSourceIds.Contains(ExternalSourcesToReconnect[SourceIndex]->GetSourceHandle()))
+				{
+					ExternalSourcesToReconnect.RemoveAtSwap(SourceIndex);
+				}
+			}
+
+			for (const TPair<FGuid, TSharedRef<FDirectLinkExternalSource>>& ExternalSourceKeyValue : DirectLinkSourceToExternalSourceMap)
+			{
+				const TSharedRef<FDirectLinkExternalSource>& ExternalSource = ExternalSourceKeyValue.Value;
+
+				if (ExternalSource->IsStreamOpen() && !ActiveStreamsSources.Contains(ExternalSourceKeyValue.Key))
+				{
+					// Lost connection, update the external source state and try to reconnect.
+					ExternalSource->CloseStream();
+					
+					if (!ExternalSource->OpenStream())
+					{
+						// Could not reopen the stream, retry later.
+						ExternalSourcesToReconnect.Add(ExternalSource);
+						ReconnectionManager->Start();
 					}
 				}
 			}

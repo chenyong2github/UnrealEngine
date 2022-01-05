@@ -21,8 +21,39 @@ namespace UE::DatasmithImporter
 {
 	class FDirectLinkAssetObserver;
 	class FDirectLinkExternalSource;
+	class FDirectLinkManager;
 	struct FAutoReimportInfo;
 	struct FDirectLinkSourceDescription;
+
+	class FDirectLinkAutoReconnectManager
+	{
+	public:
+		FDirectLinkAutoReconnectManager(FDirectLinkManager& InManager)
+			: Manager(InManager)
+			, bShouldRun(true)
+		{}
+
+		~FDirectLinkAutoReconnectManager()
+		{
+			Stop();
+			CompletedFuture.Wait();
+		}
+
+		bool Start();
+
+		void Stop();
+
+	private:
+		void Run();
+
+		FDirectLinkManager& Manager;
+
+		TAtomic<bool> bShouldRun;
+
+		TFuture<void> CompletedFuture;
+
+		float LastTryTime = 0;
+	};
 
 	class FDirectLinkManager: public IDirectLinkManager, public DirectLink::IEndpointObserver
 	{
@@ -113,6 +144,11 @@ namespace UE::DatasmithImporter
 		
 		TMap<DirectLink::FSourceHandle, TSharedRef<FDirectLinkExternalSource>> DirectLinkSourceToExternalSourceMap;
 
+		FRWLock ReconnectionListLock;
+		TArray<TSharedRef<FDirectLinkExternalSource>> ExternalSourcesToReconnect;
+
+		TUniquePtr<FDirectLinkAutoReconnectManager> ReconnectionManager;
+
 		TMap<UObject*, TSharedRef<FAutoReimportInfo>> RegisteredAutoReimportObjectMap;
 		
 		TMultiMap<TSharedRef<FExternalSource>, TSharedRef<FAutoReimportInfo>> RegisteredAutoReimportExternalSourceMap;
@@ -122,5 +158,6 @@ namespace UE::DatasmithImporter
 #if WITH_EDITOR
 		FDelegateHandle OnPIEEndHandle;
 #endif
+		friend FDirectLinkAutoReconnectManager;
 	};
 }
