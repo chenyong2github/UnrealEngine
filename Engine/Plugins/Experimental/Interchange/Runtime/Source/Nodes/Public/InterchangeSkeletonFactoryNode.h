@@ -94,6 +94,20 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(RootJointID, FString)
 	}
 
+	/** Query if this skeleton should replace joint transform with time zero evaluation instead of bind pose.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Skeleton")
+	bool GetCustomUseTimeZeroForBindPose(bool& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(UseTimeZeroForBindPose, bool);
+	}
+
+	/** If AttributeValue is true, force this skeleton bind pose to use time zero instead of bind pose.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Skeleton")
+	bool SetCustomUseTimeZeroForBindPose(const bool& AttributeValue)
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(UseTimeZeroForBindPose, bool)
+	}
+
 private:
 
 	void FillAssetClassFromAttribute()
@@ -132,6 +146,7 @@ private:
 
 	//Skeleton
 	const UE::Interchange::FAttributeKey Macro_CustomRootJointIDKey = UE::Interchange::FAttributeKey(TEXT("RootJointID"));
+	const UE::Interchange::FAttributeKey Macro_CustomUseTimeZeroForBindPoseKey = UE::Interchange::FAttributeKey(TEXT("UseTimeZeroForBindPose"));
 	
 protected:
 #if WITH_ENGINE
