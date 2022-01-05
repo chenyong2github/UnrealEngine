@@ -5,6 +5,7 @@
 #include "SymslibResolver.h"
 #include "Algo/ForEach.h"
 #include "Algo/Sort.h"
+#include "Algo/Transform.h"
 #include "Async/MappedFileHandle.h"
 #include "Async/ParallelFor.h"
 #include "Containers/StringView.h"
@@ -19,6 +20,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/Diagnostics.h"
 #include <atomic>
 
 /////////////////////////////////////////////////////////////////////
@@ -58,37 +60,129 @@ namespace
 		}
 	};
 
-	static FString FindSymbolFile(const FString& Path)
+	static FString FindBinaryFileInPath(const FString& File, const FString& SearchPath)
 	{
 		IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
 
-		// Extract only filename part in case Path is absolute path
-		FString FileName = FPaths::GetCleanFilename(Path);
-
-		FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(TEXT("UE_INSIGHTS_SYMBOL_PATH"));
-
-		FString SymbolPathPart;
-		while (SymbolPath.Split(TEXT(";"), &SymbolPathPart, &SymbolPath))
+		// If the search path is an absolute path to a file use this. Filenames does
+		// not need to to match (e.g. eboot.bin <-> gamename.self)
+		if (PlatformFile->FileExists(*SearchPath))
 		{
-			FString Result = FPaths::Combine(SymbolPathPart, FileName);
+			return SearchPath;
+		}
+
+		
+		// Extract only filename part in case Path is absolute path
+		FString FileName = FPaths::GetCleanFilename(File);
+		
+		// Look in the search path 
+		FString Result = FPaths::Combine(SearchPath, FileName);
+		if (PlatformFile->FileExists(*Result))
+		{
+			return Result;
+		}
+		
+		// In case File is relative
+		if (FPaths::IsRelative(SearchPath))
+		{
+			Result = FPaths::Combine(SearchPath, File);
 			if (PlatformFile->FileExists(*Result))
 			{
-				// File found in one of symbol paths
 				return Result;
 			}
 		}
 
-		if (!SymbolPath.IsEmpty())
+		// Finally try the file path itself
+		if (PlatformFile->FileExists(*File))
 		{
-			FString Result = FPaths::Combine(SymbolPath, FileName);
-			if (PlatformFile->FileExists(*Result))
+			return File;
+		}
+
+
+		// File not found
+		return FString();
+	}
+
+	static FString FindSymbolFileInPath(const FString& File, const FString& SearchPath)
+	{
+		IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+		FString SearchPathBase;
+
+		// If search path is an absolute path to a file
+		if (PlatformFile->FileExists(*SearchPath))
+		{
+			// For symbol files, the filename do need to match.
+			if (FPaths::GetCleanFilename(SearchPath) == FPaths::GetCleanFilename(File))
 			{
-				// File found in symbol path
-				return Result;
+				return SearchPath;
 			}
+
+			// Strip the filename from the search path
+			SearchPathBase = FPaths::GetPath(SearchPath);
+		}
+		else
+		{
+			SearchPathBase = SearchPath;
+		}
+		
+		// Extract only filename part in case Path is absolute path
+		FString FileName = FPaths::GetCleanFilename(File);
+		
+		// Look in the search path 
+		FString Result = FPaths::Combine(SearchPathBase, FileName);
+		if (PlatformFile->FileExists(*Result))
+		{
+			return Result;
+		}
+
+		// In case File is relative
+		Result = FPaths::Combine(SearchPathBase, File);
+		if (PlatformFile->FileExists(*Result))
+		{
+			return Result;
 		}
 
 		// File not found
+		return FString();
+	}
+
+	// Find a file assuming that search path is a root engine folder.
+	static FString FindFileInEngineFolder(const FString& FilePath, const FString& SearchPath, const FString& Platform, const FString& Project)
+	{
+		IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+		const TCHAR* EngineFolders[] = {TEXT("Engine"), TEXT("Plugins")};
+		FString Result;
+
+		// If this file name has been renamed try mapping it to known
+		if (FilePath.Compare(TEXT("eboot.bin")) == 0)
+		{
+			Result = FPaths::Combine(SearchPath, Project, TEXT("Binaries"), Platform, Project, TEXT(".self"));
+			if (PlatformFile->FileExists(*Result))
+			{
+				return Result;
+			}
+		}
+		
+		const FString File = FPaths::GetCleanFilename(FilePath);
+		
+		// Look in some well known directories
+		for (const TCHAR* Folder : EngineFolders)
+		{
+			Result = FPaths::Combine(SearchPath, Folder, TEXT("Binaries"), Platform, File);
+			if (PlatformFile->FileExists(*Result))
+			{
+				return Result;
+			}
+			
+		}
+
+		// Look in project directory
+		Result = FPaths::Combine(SearchPath, Project, TEXT("Binaries"), Platform, File);
+		if (PlatformFile->FileExists(*Result))
+		{
+			return Result;
+		}
+
 		return FString();
 	}
 
@@ -96,73 +190,51 @@ namespace
 	// for more information see: https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/advanced-symsrv-use
 	// to explicitly download symbol from MS Symbol Server for specific dll file, run:
 	// "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\symchk.exe" /r C:\Windows\system32\kernel32.dll /s srv*C:\Symbols*https://msdl.microsoft.com/download/symbols
-	static FString FindWindowsSymbolFile(const FString& GuidPath)
+	static FString FindWindowsSymbolFile(const FString& GuidPath, const FString& SearchPath)
 	{
-		FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(TEXT("_NT_SYMBOL_PATH"));
-		if (SymbolPath.IsEmpty())
-		{
-			return FString();
-		}
-
 		IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
 
-		TArray<FString> Parts;
-		SymbolPath.ParseIntoArray(Parts, TEXT(";"));
-		for (const FString& Part : Parts)
+		if (SearchPath.StartsWith(TEXT("srv*")) || SearchPath.StartsWith(TEXT("cache*")))
 		{
-			if (Part.StartsWith(TEXT("srv*")))
+			TArray<FString> Srv;
+			SearchPath.RightChop(4).ParseIntoArray(Srv, TEXT("*"));
+			for (const FString& Path : Srv)
 			{
-				TArray<FString> Srv;
-				Part.RightChop(4).ParseIntoArray(Srv, TEXT("*"));
-				for (const FString& Path : Srv)
-				{
-					FString FilePath = FPaths::Combine(Path, GuidPath);
-					if (PlatformFile->FileExists(*FilePath))
-					{
-						return FilePath;
-					}
-				}
-			}
-			else if (!Part.Contains(TEXT("*")))
-			{
-				FString FilePath = FPaths::Combine(Part, GuidPath);
+				FString FilePath = FPaths::Combine(Path, GuidPath);
 				if (PlatformFile->FileExists(*FilePath))
 				{
 					return FilePath;
 				}
 			}
-		;}
+		}
+		else if (SearchPath.Contains(TEXT("*")))
+		{
+			FString FilePath = FPaths::Combine(SearchPath, GuidPath);
+			if (PlatformFile->FileExists(*FilePath))
+			{
+				return FilePath;
+			}
+		}
 
 		return FString();
 	}
 
-	static bool LoadBinary(const TCHAR* Path, SYMS_Arena* Arena, SYMS_ParseBundle& Bundle, TArray<FAutoMappedFile>& Files)
+	static bool LoadBinary(const TCHAR* Path, SYMS_Arena* Arena, SYMS_ParseBundle& Bundle, TArray<FAutoMappedFile>& Files, const FString& SearchPath, const FString& Platform, const FString& Project)
 	{
-		FString FilePath = Path;
-
+		const FString FilePath = Path;
 		bool bFileFound = false;
-		IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
 
 		// First lookup file in symbol path
-		FString BinaryPath = FindSymbolFile(FilePath);
-		if (!BinaryPath.IsEmpty())
+		FString BinaryPath = FindBinaryFileInPath(FilePath, SearchPath);
+		if (BinaryPath.IsEmpty() && !Platform.IsEmpty())
 		{
-			bFileFound = true;
+			BinaryPath = FindFileInEngineFolder(FilePath, SearchPath, Platform, Project);
 		}
-
+		bFileFound = !BinaryPath.IsEmpty();
+		
 		if (!bFileFound)
 		{
-			// If file is absolute path, try that
-			if (!FPathViews::IsRelativePath(*FilePath) && PlatformFile->FileExists(*FilePath))
-			{
-				BinaryPath = FilePath;
-				bFileFound = true;
-			}
-		}
-
-		if (!bFileFound)
-		{
-			UE_LOG(LogSymslib, Warning, TEXT("Binary file '%s' not found"), *FilePath);
+			UE_LOG(LogSymslib, Verbose, TEXT("Binary file '%s' not found"), *FilePath);
 			return false;
 		}
 
@@ -189,8 +261,8 @@ namespace
 
 		return true;
 	}
-
-	static bool LoadDebug(SYMS_Arena* Arena, SYMS_ParseBundle& Bundle, TArray<FAutoMappedFile>& Files)
+	
+	static bool LoadDebug(SYMS_Arena* Arena, SYMS_ParseBundle& Bundle, TArray<FAutoMappedFile>& Files, const FString& SearchPath)
 	{
 		if (syms_bin_is_dbg(Bundle.bin))
 		{
@@ -213,10 +285,9 @@ namespace
 		FString FilePath = ANSI_TO_TCHAR(reinterpret_cast<char*>(ExtFile.file_name.str));
 
 		bool bFileFound = false;
-		IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
 
 		// First try file in symbol path
-		FString DebugPath = FindSymbolFile(FilePath);
+		FString DebugPath = FindSymbolFileInPath(FilePath, SearchPath);
 		if (!DebugPath.IsEmpty())
 		{
 			bFileFound = true;
@@ -225,7 +296,7 @@ namespace
 		if (!bFileFound)
 		{
 			// if executable is PE format, try Windows symbol path format with guid in path
-			if (Bundle.bin->format == SYMS_FileFormat_PE)
+			if (Bundle.bin->format == SYMS_FileFormat_PE && SearchPath.Contains(TEXT("*")))
 			{
 				SYMS_PeBinAccel* PeAccel = reinterpret_cast<SYMS_PeBinAccel*>(Bundle.bin);
 
@@ -240,7 +311,7 @@ namespace
 					Age,
 					*FileName);
 
-				DebugPath = FindWindowsSymbolFile(GuidPath);
+				DebugPath = FindWindowsSymbolFile(GuidPath, SearchPath);
 				if (!DebugPath.IsEmpty())
 				{
 					bFileFound = true;
@@ -250,31 +321,10 @@ namespace
 
 		if (!bFileFound)
 		{
-			// Try direct path if it is absolute
-			if (!FPathViews::IsRelativePath(*FilePath) && PlatformFile->FileExists(*FilePath))
-			{
-				DebugPath = FilePath;
-				bFileFound = true;
-			}
-		}
-
-		if (!bFileFound)
-		{
-			// Try relative path to module binary file that was found in LoadBinary function
-			FString ModuleBasePath = FPaths::GetPath(Files[0].FilePath);
-			DebugPath = FPaths::Combine(ModuleBasePath, FPaths::GetCleanFilename(FilePath));
-			if (PlatformFile->FileExists(*DebugPath))
-			{
-				bFileFound = true;
-			}
-		}
-
-		if (!bFileFound)
-		{
-			UE_LOG(LogSymslib, Warning, TEXT("Debug file '%s' not found"), *FilePath);
+			UE_LOG(LogSymslib, Verbose, TEXT("Debug file '%s' not found"), *FilePath);
 			return false;
 		}
-
+		
 		FAutoMappedFile& File = Files.AddDefaulted_GetRef();
 		if (!File.Load(*DebugPath))
 		{
@@ -318,7 +368,7 @@ namespace
 		}
 		else if (DataParsed.bin->format == SYMS_FileFormat_ELF)
 		{
-			// try different ways of geting build id from elf binary
+			// try different ways of getting build id from elf binary
 			SYMS_String8 FoundId = { 0, 0 };
 
 			SYMS_String8 Bin = DataParsed.bin_data;
@@ -428,28 +478,77 @@ FSymslibResolver::FSymslibResolver(IAnalysisSession& InSession)
 	, CancelTasks(false)
 	, Session(InSession)
 {
-	UE_LOG(LogSymslib, Log, TEXT("UE_INSIGHTS_SYMBOL_PATH: '%s'"), *FPlatformMisc::GetEnvironmentVariable(TEXT("UE_INSIGHTS_SYMBOL_PATH")));
+	// Setup search paths. The SearchPaths array is a priority stack, which
+	// means paths are searched in reversed order.
+	// 1. Any new paths entered by the user this session
+	// 2. Path of the executable (if available)
+	// 3. Paths from UE_INSIGHTS_SYMBOLPATH
+	// 4. Paths from _NT_SYMBOL_PATH
+	// 5. Paths from the user configuration file
+
+	// Paths from configuration
+	FString SettingsIni;
+	if (FConfigCacheIni::LoadGlobalIniFile(SettingsIni, TEXT("UnrealInsightsSettings")))
+	{
+		GConfig->GetArray(TEXT("Insights.MemoryProfiler"), TEXT("SymbolSearchPaths"), SymbolSearchPaths, SettingsIni);
+	}
+
+	// Paths from environment
+	FString InsightsSymbolPath =  FPlatformMisc::GetEnvironmentVariable(TEXT("UE_INSIGHTS_SYMBOL_PATH"));
+	UE_LOG(LogSymslib, Log, TEXT("UE_INSIGHTS_SYMBOL_PATH: '%s'"), *InsightsSymbolPath);
+	FString SymbolPathPart;
+	while (InsightsSymbolPath.Split(TEXT(";"), &SymbolPathPart, &InsightsSymbolPath))
+	{
+		SymbolSearchPaths.Emplace(SymbolPathPart);
+	}
+
+#if PLATFORM_WINDOWS
+	FString NTSymbolPath = FPlatformMisc::GetEnvironmentVariable(TEXT("_NT_SYMBOL_PATH"));
+	UE_LOG(LogSymslib, Log, TEXT("_NT_SYMBOL_PATH: '%s'"), *NTSymbolPath);
+	while (NTSymbolPath.Split(TEXT(";"), &SymbolPathPart, &NTSymbolPath))
+	{
+		 SymbolSearchPaths.Emplace(SymbolPathPart);
+	}
+#endif
+
+	// Try to get session information
+	// todo: Sadly this will not be available in the constructor or when the first modules are traced, since the
+	//		 session info is traced later in the process startup sequence.
+#if 0
+	FAnalysisSessionReadScope _(Session);
+	const IDiagnosticsProvider* DiagnosticsProvider = ReadDiagnosticsProvider(Session);
+	if (DiagnosticsProvider && DiagnosticsProvider->IsSessionInfoAvailable())
+	{
+		const FSessionInfo Info = DiagnosticsProvider->GetSessionInfo();
+		Platform = Info.Platform;
+		Project = Info.AppName;
+	}
+#endif
 }
 
 FSymslibResolver::~FSymslibResolver()
 {
 	CancelTasks = true;
-	// Wait for cleanup task to finish
-	CleanupTask->Wait();
+	// Wait for any existing cleanup tasks to finish
+	if (CleanupTask)
+	{
+		CleanupTask->Wait();
+	}
+	// Wait for module reload task to finish
+	if (ModuleReloadTask)
+	{
+		ModuleReloadTask->Wait();
+	}
 }
 
-void FSymslibResolver::QueueModuleLoad(const FStringView& ModulePath, uint64 Base, uint32 Size, const uint8* ImageId, uint32 ImageIdSize)
+void FSymslibResolver::QueueModuleLoad(const uint8* ImageId, uint32 ImageIdSize, FModule* Module)
 {
 	FWriteScopeLock _(ModulesLock);
-	const FStringView ModuleName = FPathViews::GetCleanFilename(ModulePath);
-
+	check(!CleanupTask); // No queued addresses should be queued after cleanup task is started
+	
 	// Add module
 	FModuleEntry* Entry = &Modules.PushBack();
-	Entry->Base = Base;
-	Entry->Size = Size;
-	Entry->Name = Session.StoreString(ModuleName); //Allows safe sharing to UI
-	Entry->Path = Session.StoreString(ModulePath);
-	Entry->Status = EModuleStatus::Pending;
+	Entry->Module = Module;
 	Entry->ImageId = TArrayView<const uint8>(ImageId, ImageIdSize);
 
 	++ModulesDiscovered;
@@ -460,43 +559,126 @@ void FSymslibResolver::QueueModuleLoad(const FStringView& ModulePath, uint64 Bas
 	FFunctionGraphTask::CreateAndDispatchWhenReady(
 		[this, Entry]
 		{
-			LoadModuleTracked(Entry);
+			LoadModuleTracked(Entry, FStringView());
 			--TasksInFlight;
 		}, TStatId{}, nullptr, ENamedThreads::AnyBackgroundThreadNormalTask);
-
+	
 	// Sort list according to base address
 	SortedModules.Add(Entry);
-	Algo::Sort(SortedModules, [](const FModuleEntry* Lhs, const FModuleEntry* Rhs) { return Lhs->Base < Rhs->Base; });
+	Algo::Sort(SortedModules, [](const FModuleEntry* Lhs, const FModuleEntry* Rhs) { return Lhs->Module->Base < Rhs->Module->Base; });
+}
+
+void FSymslibResolver::QueueModuleReload(const FModule* Module, const TCHAR* InPath, TFunction<void(SymbolArray&)> ResolveOnSuccess)
+{
+	FWriteScopeLock _(ModulesLock);
+
+	// Find the entry
+	FModuleEntry* Entry = nullptr;
+	for (uint32 Idx = 0; Idx < Modules.Num(); ++Idx)
+	{
+		if (Modules[Idx].Module == Module)
+		{
+			Entry = &Modules[Idx];
+			break;
+		}
+	}
+	
+	if (Entry)
+	{
+		// No use in trying reload already loaded modules
+		EModuleStatus PreviousStatus = Entry->Module->Status.load();
+		if (!Entry->Module->Status.compare_exchange_strong(PreviousStatus, EModuleStatus::Pending))
+		{
+			return;
+		}
+		
+		FString PathStr(InPath);
+		FPaths::NormalizeDirectoryName(PathStr);
+		const TCHAR* Path = Session.StoreString(PathStr);
+
+		// Can only launch one task at a time
+		if (ModuleReloadTask && !ModuleReloadTask->IsComplete())
+		{
+			ModuleReloadTask->Wait();
+		}
+		
+		FFunctionGraphTask::CreateAndDispatchWhenReady([this, Entry, Path, PreviousStatus, ResolveOnSuccess]
+		{
+			FScopeLock CleanupExclusive(&CleanupLock);
+			
+			LoadModuleTracked(Entry, Path);
+
+			if (PreviousStatus >= EModuleStatus::FailedStatusStart)
+			{
+				--ModulesFailed;
+			}
+			
+			if (Entry->Module->Status.load() == EModuleStatus::Loaded)
+			{
+				// If an additional search path was specified and successful, add to the permanent
+				// list of search paths.
+				{
+					FWriteScopeLock _(SymbolSearchPathsLock);
+					//Get the base path if path points to a file 
+					IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+					const FString Directory = PlatformFile->DirectoryExists(Path) ? Path : FPaths::GetPath(Path);
+					if (!Directory.IsEmpty())
+					{
+						SymbolSearchPaths.AddUnique(Directory);
+					}
+				}
+				
+				// Ask the caller for a list of symbols that should be resolved, now that module is properly loaded and
+				// resolve them immediately.
+				{
+					SymbolArray SymbolsToResolve;
+					FSymbolStringAllocator StringAllocator(Session.GetLinearAllocator(), (2 << 12) / sizeof(TCHAR) );
+					ResolveOnSuccess(SymbolsToResolve);
+					for(TTuple<uint64, FResolvedSymbol*> Pair : SymbolsToResolve)
+					{
+						ResolveSymbolTracked(Pair.Get<0>(), Pair.Get<1>(), StringAllocator);
+					}
+				}
+
+				// Finally if the cleanup task has already been dispatched, no other resolve request will come in and we
+				// can safely release our resources. CleanupTask and a reload task cannot run at the same time due to CleanupLock.
+				if (CleanupTask)
+				{
+					// Need to wait for tasks, since there could be queued symbol resolves for this module waiting
+					// in the queue.
+					WaitForTasks();
+					
+					Algo::ForEach(Entry->Instance.Arenas, syms_arena_release);
+					Entry->Instance.Arenas.Empty();
+				}
+			}
+		}, TStatId{}, nullptr, ENamedThreads::AnyBackgroundThreadNormalTask);
+	}
 }
 
 void FSymslibResolver::QueueSymbolResolve(uint64 Address, FResolvedSymbol* Symbol)
 {
 	FScopeLock _(&SymbolsQueueLock);
+	check(!CleanupTask); // No queued addresses should be queued after cleanup task is started
 	MaybeDispatchQueuedAddresses();
-	++SymbolsDiscovered;
 	ResolveQueue.Add(FQueuedAddress{Address, Symbol});
 }
 
 void FSymslibResolver::OnAnalysisComplete()
 {
+	// Dispatch any remaining requests.
+	{
+		 FScopeLock _(&SymbolsQueueLock);
+		 DispatchQueuedAddresses();
+		 ResolveQueue.Reset();
+	}
+	
 	CleanupTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this]
 	{
-		// Dispatch any remaining requests.
-		{
-			FScopeLock _(&SymbolsQueueLock);
-			DispatchQueuedAddresses();
-			ResolveQueue.Reset();
-		}
+		FScopeLock CleanupExclusive(&CleanupLock);
 
 		// Wait for outstanding batches to complete.
-		uint32 OutstandingTasks = TasksInFlight.load(std::memory_order_acquire);
-		UE_LOG(LogSymslib, Display, TEXT("Waiting for %d outstanding tasks..."), OutstandingTasks);
-		do
-		{
-			OutstandingTasks = TasksInFlight.load(std::memory_order_acquire);
-			FPlatformProcess::Sleep(0.0);
-		}
-		while (OutstandingTasks > 0);
+		WaitForTasks();
 
 		// Release memory used by syms library
 		{
@@ -517,12 +699,23 @@ void FSymslibResolver::OnAnalysisComplete()
 
 void FSymslibResolver::GetStats(IModuleProvider::FStats* OutStats) const
 {
+	FReadScopeLock _(ModulesLock);
+	FMemory::Memzero(*OutStats);
+	for(const FModuleEntry& Entry : Modules)
+	{
+		OutStats->SymbolsDiscovered += Entry.Module->Stats.Discovered.load();
+		OutStats->SymbolsResolved += Entry.Module->Stats.Resolved.load();
+		OutStats->SymbolsFailed += Entry.Module->Stats.Failed.load();
+	}
 	OutStats->ModulesDiscovered = ModulesDiscovered.load();
 	OutStats->ModulesFailed = ModulesFailed.load();
 	OutStats->ModulesLoaded = ModulesLoaded.load();
-	OutStats->SymbolsDiscovered = SymbolsDiscovered.load();
-	OutStats->SymbolsFailed = SymbolsFailed.load();
-	OutStats->SymbolsResolved = SymbolsResolved.load();
+}
+
+void FSymslibResolver::EnumerateSymbolSearchPaths(TFunctionRef<void(FStringView Path)> Callback) const
+{
+	FReadScopeLock _(SymbolSearchPathsLock);
+	Algo::ForEach(SymbolSearchPaths, Callback);
 }
 
 /**
@@ -591,7 +784,7 @@ void FSymslibResolver::ResolveSymbols(TArrayView<FQueuedAddress>& QueuedWork)
 FSymslibResolver::FModuleEntry* FSymslibResolver::GetModuleForAddress(uint64 Address)
 {
 	FReadScopeLock _(ModulesLock);
-	const int32 EntryIdx = Algo::LowerBoundBy(SortedModules, Address, [](const FModuleEntry* Entry) { return Entry->Base; }) - 1;
+	const int32 EntryIdx = Algo::LowerBoundBy(SortedModules, Address, [](const FModuleEntry* Entry) { return Entry->Module->Base; }) - 1;
 	if (EntryIdx < 0 || EntryIdx >= SortedModules.Num())
 	{
 		return nullptr;
@@ -608,26 +801,64 @@ void FSymslibResolver::UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQuer
 	Symbol->Result.store(Result, std::memory_order_release);
 }
 
-void FSymslibResolver::LoadModuleTracked(FModuleEntry* Module)
+void FSymslibResolver::LoadModuleTracked(FModuleEntry* Entry, FStringView OverrideSearchPath)
 {
-	if (CancelTasks.load(std::memory_order_relaxed))
+	// Build search paths
+	FString ModuleNamePath;
+	TArray<FStringView> SearchPaths;
+	if (OverrideSearchPath.IsEmpty())
 	{
-		return;
+		FReadScopeLock _(SymbolSearchPathsLock);
+		for (const FString& SearchPath : SymbolSearchPaths)
+		{
+			SearchPaths.AddUnique(SearchPath);
+		}
+		
+		ModuleNamePath = FPaths::GetPath(Entry->Module->FullName);
+		FPaths::NormalizeDirectoryName(ModuleNamePath);
+		if (!ModuleNamePath.IsEmpty())
+		{
+			SearchPaths.AddUnique(ModuleNamePath);
+		}
+	}
+	else 
+	{
+		SearchPaths.Add(OverrideSearchPath);
+	}
+
+	// Exhaust all the search paths
+	EModuleStatus Status = EModuleStatus::Pending;
+	TStringBuilder<128> StatusMessage;
+	while(Status != EModuleStatus::Loaded && !CancelTasks.load() && SearchPaths.Num() > 0)
+	{
+		StatusMessage.Reset();
+		Status = LoadModule(Entry,SearchPaths.Top(), StatusMessage);
+		UE_LOG(LogSymslib, Display, TEXT("%s"), StatusMessage.ToString());
+		SearchPaths.Pop();
+	}
+
+	// If we are still pending after the loop we have failed
+	if (Status == EModuleStatus::Pending)
+	{
+		Status = EModuleStatus::Failed;
 	}
 	
-	const EModuleStatus Status = LoadModule(Module);
 	if (Status == EModuleStatus::Loaded)
 	{
+		// Reset this modules stats
+		Entry->Module->Stats.Discovered.store(0u);
+		Entry->Module->Stats.Resolved.store(0u);
+		Entry->Module->Stats.Failed.store(0u);
 		++ModulesLoaded;
 	}
 	else
 	{
 		++ModulesFailed;
-		Module->Status.store(Status);
 	}
-
-	//  Make the status visible
-	Module->Status.store(Status);
+	
+	// Make the final status visible to the world
+	Entry->Module->StatusMessage = Session.StoreString(StatusMessage.ToView());
+	Entry->Module->Status.store(Status);
 
 	// If this is the last module in flight dispatch pending queries
 	{
@@ -636,8 +867,9 @@ void FSymslibResolver::LoadModuleTracked(FModuleEntry* Module)
 	}
 }
 
-FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Module)
+EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Entry, FStringView SearchPathView, FStringBuilderBase& OutStatusMessage) const
 {
+	const FString SearchPath(SearchPathView);
 	// temporary memory used for loading
 	SYMS_Group* Group = syms_group_alloc();
 
@@ -647,27 +879,29 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 	// contents of binary & debug file
 	SYMS_ParseBundle Bundle;
 
-	if (!LoadBinary(Module->Path, Group->arena, Bundle, Files))
+	if (!LoadBinary(Entry->Module->FullName, Group->arena, Bundle, Files, SearchPath, Platform, Project))
 	{
 		syms_group_release(Group);
+		OutStatusMessage.Appendf(TEXT("Failed to load image for '%s' in '%s'."), Entry->Module->Name, *SearchPath);
 		return EModuleStatus::Failed;
 	}
 
-	if (!LoadDebug(Group->arena, Bundle, Files))
+	if (!LoadDebug(Group->arena, Bundle, Files, SearchPath))
 	{
 		syms_group_release(Group);
+		OutStatusMessage.Appendf(TEXT("Failed to load symbols for '%s' in '%s'."), Entry->Module->Name, *SearchPath);
 		return EModuleStatus::Failed;
 	}
 
 	// check debug data mismatch to captured module
-	if (!Module->ImageId.IsEmpty() && !MatchImageId(Module->ImageId, Bundle))
+	if (!Entry->ImageId.IsEmpty() && !MatchImageId(Entry->ImageId, Bundle))
 	{
 		syms_group_release(Group);
-		UE_LOG(LogSymslib, Warning, TEXT("Symbols for '%s' does not match traced binary."), Module->Name);
+		OutStatusMessage << TEXT("Symbols for '") << Entry->Module->Name << TEXT("' found in '") << SearchPath << TEXT("' does not match trace binary.");
 		return EModuleStatus::VersionMismatch;
 	}
 
-	FSymsInstance* Instance = &Module->Instance;
+	FSymsInstance* Instance = &Entry->Instance;
 
 	// initialize group
 	syms_set_lane(0);
@@ -791,47 +1025,56 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 	syms_group_release(Group);
 	Instance->Arenas.RemoveAll([](SYMS_Arena* arena) { return arena == nullptr; });
 
-	UE_LOG(LogSymslib, Display, TEXT("Loaded symbols for '%s' at base 0x%016llx, %u symbols."), Module->Name, Module->Base, SymbolCount.load());
-
-	return EModuleStatus::Loaded;
+	// In order to avoid listing all files, use only the last. On dwarf/elf this will be the main binary, on Windows
+	// this will be the pdb (the first is the exe/dll).
+	OutStatusMessage.Appendf(TEXT("%s loaded with %u symbols."), *Files.Last().FilePath, SymbolCount.load());
+	return EModuleStatus::Loaded; 
 }
 
 void FSymslibResolver::ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Target, FSymbolStringAllocator& StringAllocator)
 {
-	if (!ResolveSymbol(Address, Target, StringAllocator))
+	const ESymbolQueryResult PreviousResult = Target->Result.load();
+	if (PreviousResult == ESymbolQueryResult::OK)
 	{
-		++SymbolsFailed;
+		return;
 	}
-	else
-	{
-		++SymbolsResolved;
-	}
-}
-
-bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FSymbolStringAllocator& StringAllocator)
-{
-	FModuleEntry* Module = GetModuleForAddress(Address);
-	if (!Module)
+	
+	FModuleEntry* Entry = GetModuleForAddress(Address);
+	if (!Entry)
 	{
 		UE_LOG(LogSymslib, Warning, TEXT("No module mapped to address 0x%016llx."), Address);
 		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
-		return false;
+		return;
 	}
 
-	EModuleStatus Status = Module->Status.load();
+	FModule::SymbolStats& ModuleStats = Entry->Module->Stats;
+	++ModuleStats.Discovered;
+	if (!ResolveSymbol(Address, Target, StringAllocator, Entry))
+	{
+		++ModuleStats.Failed;
+	}
+	else
+	{
+		++ModuleStats.Resolved;
+	}
+}
+
+bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FSymbolStringAllocator& StringAllocator, FModuleEntry* Entry) const
+{
+	EModuleStatus Status = Entry->Module->Status.load();
 	while (Status == EModuleStatus::Pending)
 	{
 		//todo: yield
-		Status = Module->Status.load();
+		Status = Entry->Module->Status.load();
 	}
 
 	switch (Status)
 	{
 	case EModuleStatus::Failed:
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, Entry->Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
 		return false;
 	case EModuleStatus::VersionMismatch:
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::Mismatch, Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::Mismatch, Entry->Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
 		return false;
 	default:
 		break;
@@ -839,8 +1082,8 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 
 	// Find procedure and source file for address
 
-	FSymsInstance* Instance = &Module->Instance;
-	SYMS_U64 VirtualOffset = Address + Instance->DefaultBase - Module->Base;
+	FSymsInstance* Instance = &Entry->Instance;
+	SYMS_U64 VirtualOffset = Address + Instance->DefaultBase - Entry->Module->Base;
 
 	FSymsSymbol* SymsSymbol = nullptr;
 
@@ -886,14 +1129,14 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 			SymsSymbol = &Instance->StrippedSymbols[Value - 1];
 
 			// use module name as filename
-			SourceFilePersistent = StringAllocator.Store(Module->Name);
+			SourceFilePersistent = StringAllocator.Store(Entry->Module->Name);
 		}
 	}
 
 	// this includes skipping symbols without name (empty string)
 	if (!SymsSymbol || !SourceFilePersistent || SymsSymbol && SymsSymbol->Name[0] == 0)
 	{
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, Entry->Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
 		return false;
 	}
 
@@ -906,13 +1149,24 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	UpdateResolvedSymbol(
 		Target,
 		ESymbolQueryResult::OK,
-		Module->Name,
+		Entry->Module->Name,
 		SymbolNamePersistent,
 		SourceFilePersistent,
 		SourceFileLine
 	);
-
+		
 	return true;
+}
+	
+void FSymslibResolver::WaitForTasks()
+{
+	uint32 OutstandingTasks = TasksInFlight.load(std::memory_order_acquire);
+	do
+	{
+		 OutstandingTasks = TasksInFlight.load(std::memory_order_acquire);
+		 FPlatformProcess::Sleep(0.0);
+	}
+	while (OutstandingTasks > 0);
 }
 
 /////////////////////////////////////////////////////////////////////
