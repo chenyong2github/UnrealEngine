@@ -3372,16 +3372,20 @@ void FControlRigParameterTrackEditor::SelectFKBonesToAnimate(UFKControlRig* Auto
 
 	//reconstruct all channel proxies TODO or not to do that is the question
 }
-
-void FControlRigParameterSection::CollapseAllLayers()
+bool FControlRigParameterTrackEditor::CollapseAllLayers(TSharedPtr<ISequencer>& SequencerPtr, UMovieSceneTrack* OwnerTrack, UMovieSceneControlRigParameterSection* ParameterSection, bool bKeyReduce, float Tolerance)
 {
-	FScopedTransaction Transaction(LOCTEXT("CollapseAllSections", "CollapseAllSections"));
 
-	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
-	if (ParameterSection && ParameterSection->GetControlRig())
+	if (SequencerPtr.IsValid() && OwnerTrack && ParameterSection && ParameterSection->GetControlRig())
 	{
+		TArray<UMovieSceneSection*> Sections = OwnerTrack->GetAllSections();
+		//make sure right type
+		if (ParameterSection->GetBlendType().Get() != EMovieSceneBlendType::Absolute && Sections.Num() > 0 && Sections[0] != ParameterSection)
+		{
+			UE_LOG(LogControlRigEditor, Log, TEXT("Section wrong type or not first when collapsing layers"));
+			return false;
+		}
+		FScopedTransaction Transaction(LOCTEXT("CollapseAllSections", "CollapseAllSections"));
 		UControlRig* ControlRig = ParameterSection->GetControlRig();
-		TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
 		TRange<FFrameNumber> Range = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
 		FFrameNumber StartFrame = Range.GetLowerBoundValue();
 		FFrameNumber EndFrame = Range.GetUpperBoundValue();
@@ -3428,9 +3432,7 @@ void FControlRigParameterSection::CollapseAllLayers()
 			}
 		}
 		//delete other sections
-		UMovieSceneTrack* OwnerTrack = ParameterSection->GetTypedOuter<UMovieSceneTrack>();
 		OwnerTrack->Modify();
-		const TArray<UMovieSceneSection*>& Sections = OwnerTrack->GetAllSections();
 		for (Index = Sections.Num() - 1; Index >= 0; --Index)
 		{
 			if (Sections[Index] != ParameterSection)
@@ -3453,20 +3455,35 @@ void FControlRigParameterSection::CollapseAllLayers()
 			{
 				for (TPair<FName, TArray<FTransform>>& TrailControlTransform : ControlLocalTransforms)
 				{
-					ControlRig->SetControlLocalTransform(TrailControlTransform.Key, TrailControlTransform.Value[Index],true,Context,false);
+					ControlRig->SetControlLocalTransform(TrailControlTransform.Key, TrailControlTransform.Value[Index], true, Context, false);
 				}
 			}
 		}
+		if (bKeyReduce)
+		{
+			FKeyDataOptimizationParams Params;
+			Params.bAutoSetInterpolation = true;
+			Params.Tolerance = Tolerance;
+			FMovieSceneChannelProxy& ChannelProxy = ParameterSection->GetChannelProxy();
+			TArrayView<FMovieSceneFloatChannel*> FloatChannels = ChannelProxy.GetChannels<FMovieSceneFloatChannel>();
 
+			for (FMovieSceneFloatChannel* Channel : FloatChannels)
+			{
+				Channel->Optimize(Params); //should also auto tangent
+			}
+		}
 		//reset everything back
 		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
-		/*
-			const FFrameTime StartTime = SequencerPtr->GetLocalTime().Time;
-			FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(StartTime, TickResolution), SequencerPtr->GetPlaybackStatus()).SetHasJumped(true);
-			SequencerPtr->GetEvaluationTemplate().Evaluate(Context, *SequencerPtr);
-			ControlRig->Evaluate_AnyThread();
-			*/
+		return true;
 	}
+	return false;
+}
+void FControlRigParameterSection::CollapseAllLayers()
+{
+	TSharedPtr<ISequencer> SequencerPtr = WeakSequencer.Pin();
+	UMovieSceneControlRigParameterSection* ParameterSection = CastChecked<UMovieSceneControlRigParameterSection>(WeakSection.Get());
+	UMovieSceneTrack* OwnerTrack = ParameterSection->GetTypedOuter<UMovieSceneTrack>();
+	FControlRigParameterTrackEditor::CollapseAllLayers(SequencerPtr,OwnerTrack, ParameterSection);
 
 }
 void FControlRigParameterSection::KeyZeroValue()
@@ -3647,8 +3664,8 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 				MenuBuilder.BeginSection(NAME_None, LOCTEXT("AnimationLayers", "Animation Layers"));
 				{
 					MenuBuilder.AddMenuEntry(
-						LOCTEXT("MergeAllSections", "Merge All Sections"),
-						LOCTEXT("MergeAllSections_ToolTip", "Merge all sections to this"),
+						LOCTEXT("CollapseAllSections", "Collapse All Sections"),
+						LOCTEXT("CollapseAllSections_ToolTip", "Collapse all sections onto this section"),
 						FSlateIcon(),
 						FUIAction(FExecuteAction::CreateLambda([=] { CollapseAllLayers(); }))
 					);

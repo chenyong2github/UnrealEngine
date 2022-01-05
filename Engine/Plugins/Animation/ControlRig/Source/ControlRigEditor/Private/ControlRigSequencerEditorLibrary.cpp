@@ -34,6 +34,8 @@
 #include "Exporters/AnimSeqExportOption.h"
 #include "MovieSceneTimeHelpers.h"
 #include "ScopedTransaction.h"
+#include "ControlRigParameterTrackEditor.h"
+#include "ControlRigSpaceChannelEditors.h"
 
 #define LOCTEXT_NAMESPACE "ControlrigSequencerEditorLibrary"
 
@@ -2132,6 +2134,135 @@ bool UControlRigSequencerEditorLibrary::ImportFBXToControlRigTrack(UWorld* World
 	return bValid;
 }
 
+bool UControlRigSequencerEditorLibrary::CollapseControlRigAnimLayers(ULevelSequence* LevelSequence, UMovieSceneControlRigParameterTrack* InTrack, bool bKeyReduce, float Tolerance)
+{
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset(LevelSequence);
+	bool bValid = false;
 
+	if (WeakSequencer.IsValid() && InTrack)
+	{
+		TArray<UMovieSceneSection*> Sections = InTrack->GetAllSections();
+		if (Sections.Num() > 0)
+		{
+			TSharedPtr<ISequencer>  SequencerPtr = WeakSequencer.Pin();
+			UMovieSceneControlRigParameterSection* ParameterSection = Cast<UMovieSceneControlRigParameterSection>(Sections[0]);
+			bValid = FControlRigParameterTrackEditor::CollapseAllLayers(SequencerPtr,InTrack, ParameterSection, bKeyReduce, Tolerance);
+		}
+	}
+	return bValid;
+}
+
+bool UControlRigSequencerEditorLibrary::SetControlRigSpace(ULevelSequence* LevelSequence, UControlRig* ControlRig, FName ControlName, const FRigElementKey& InSpaceKey, FFrameNumber InTime, ESequenceTimeUnit TimeUnit)
+{
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset(LevelSequence);
+	bool bValid = false;
+
+	if (WeakSequencer.IsValid() && ControlRig && ControlName != NAME_None)
+	{
+		if (FRigControlElement* Element = ControlRig->FindControl(ControlName))
+		{
+			TSharedPtr<ISequencer>  Sequencer = WeakSequencer.Pin();
+			FScopedTransaction Transaction(LOCTEXT("KeyControlRigSpace", "Key Control Rig Space"));
+			FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlName, Sequencer.Get(), true /*bCreateIfNeeded*/);
+			if (SpaceChannelAndSection.SpaceChannel)
+			{
+				if (TimeUnit == ESequenceTimeUnit::DisplayRate)
+				{
+					InTime = FFrameRate::TransformTime(FFrameTime(InTime, 0), LevelSequence->GetMovieScene()->GetDisplayRate(), LevelSequence->GetMovieScene()->GetTickResolution()).RoundToFrame();
+				}
+				FKeyHandle Handle = FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(ControlRig, Sequencer.Get(), SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey, InTime, ControlRig->GetHierarchy(), Element->GetKey(), InSpaceKey);
+				bValid = Handle != FKeyHandle::Invalid();
+			}
+			else
+			{
+				UE_LOG(LogControlRig, Error, TEXT("Can not find Space Channel"));
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogControlRig, Error, TEXT("Can not find Control with that Name"));
+			return false;
+		}
+	}
+	return bValid;
+}
+
+bool UControlRigSequencerEditorLibrary::DeleteControlRigSpace(ULevelSequence* LevelSequence, UControlRig* ControlRig, FName ControlName, FFrameNumber InTime, ESequenceTimeUnit TimeUnit)
+{
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset(LevelSequence);
+	bool bValid = false;
+
+	if (WeakSequencer.IsValid() && ControlRig && ControlName != NAME_None)
+	{
+		if (FRigControlElement* Element = ControlRig->FindControl(ControlName))
+		{
+			TSharedPtr<ISequencer>  Sequencer = WeakSequencer.Pin();
+			FScopedTransaction Transaction(LOCTEXT("KeyControlRigSpace", "Key Control Rig Space"));
+			FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlName, Sequencer.Get(), false /*bCreateIfNeeded*/);
+			if (SpaceChannelAndSection.SpaceChannel)
+			{
+				if (TimeUnit == ESequenceTimeUnit::DisplayRate)
+				{
+					InTime = FFrameRate::TransformTime(FFrameTime(InTime, 0), LevelSequence->GetMovieScene()->GetDisplayRate(), LevelSequence->GetMovieScene()->GetTickResolution()).RoundToFrame();
+				}
+				UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(SpaceChannelAndSection.SectionToKey);
+				FControlRigSpaceChannelHelpers::SequencerSpaceChannelKeyDeleted(ControlRig, Sequencer.Get(), ControlName, SpaceChannelAndSection.SpaceChannel, ParamSection, InTime);
+				bValid = true;
+			}
+			else
+			{
+				UE_LOG(LogControlRig, Error, TEXT("Can not find Space Channel"));
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogControlRig, Error, TEXT("Can not find Control with that Name"));
+			return false;
+		}
+	}
+	return bValid;
+}
+
+bool UControlRigSequencerEditorLibrary::BakeControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, TArray<FName>& InControlNames, FRigSpacePickerBakeSettings InSettings, ESequenceTimeUnit TimeUnit)
+{
+	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset(InSequence);
+	bool bValid = false;
+
+	if (WeakSequencer.IsValid() && InControlRig && InControlNames.Num() > 0)
+	{
+		TSharedPtr<ISequencer>  Sequencer = WeakSequencer.Pin();
+		const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+		TArray<FFrameNumber> Frames;
+		const FFrameRate& FrameRate = Sequencer->GetFocusedDisplayRate();
+		FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
+		if (TimeUnit == ESequenceTimeUnit::DisplayRate)
+		{
+			InSettings.StartFrame = FFrameRate::TransformTime(FFrameTime(InSettings.StartFrame, 0), FrameRate, TickResolution).RoundToFrame();
+			InSettings.EndFrame = FFrameRate::TransformTime(FFrameTime(InSettings.EndFrame, 0), FrameRate, TickResolution).RoundToFrame();
+		}
+		for (FFrameNumber& Frame = InSettings.StartFrame; Frame <= InSettings.EndFrame; Frame += FrameRateInFrameNumber)
+		{
+			Frames.Add(Frame);
+		}
+
+		FScopedTransaction Transaction(LOCTEXT("BakeControlToSpace", "Bake Control In Space"));
+		for (const FName& ControlName : InControlNames)
+		{
+			if (FRigControlElement* Element = InControlRig->FindControl(ControlName))
+			{
+				FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(InControlRig, ControlName, Sequencer.Get(), false /*bCreateIfNeeded*/);
+				if (SpaceChannelAndSection.SpaceChannel)
+				{
+					FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(InControlRig, Sequencer.Get(), SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
+						Frames, InControlRig->GetHierarchy(), Element->GetKey(), InSettings);
+				}
+			}
+		}
+		bValid = true;
+	}
+	return bValid;
+}
 
 #undef LOCTEXT_NAMESPACE
