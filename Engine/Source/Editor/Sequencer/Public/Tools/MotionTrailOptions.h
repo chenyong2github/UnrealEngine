@@ -28,11 +28,11 @@ public:
 		, bShowFrameNumber(true)
 		, KeyColor(1.0, 1.0, 1.0)
 		, KeySize(10.0f)
-		, bShowTicks(false)
-		, TickColor(0.25,1.0,0.15)
-		, TickSize(5.0)
-		, bLockTicksToFrames(true)
-		, SecondsPerTick(0.1)
+		, bShowMarks(false)
+		, MarkColor(0.25,1.0,0.15)
+		, MarkSize(5.0)
+		, bLockMarksToFrames(true)
+		, SecondsPerMark(0.1)
 	{}
 
 	UPROPERTY(EditAnywhere, Category = Trail);
@@ -68,20 +68,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = Keys, Meta = (ClampMin = "0.0"))
 	double KeySize;
 
-	UPROPERTY(EditAnywhere, Category = Ticks)
-	bool bShowTicks;
+	UPROPERTY(EditAnywhere, Category = Marks)
+	bool bShowMarks;
 
-	UPROPERTY(EditAnywhere, Category = Ticks)
-	FLinearColor TickColor;
+	UPROPERTY(EditAnywhere, Category = Marks)
+	FLinearColor MarkColor;
 
-	UPROPERTY(EditAnywhere, Category = Ticks, Meta = (ClampMin = "0.0"))
-	double TickSize;
+	UPROPERTY(EditAnywhere, Category = Marks, Meta = (ClampMin = "0.0"))
+	double MarkSize;
 
-	UPROPERTY(EditAnywhere, Category = Ticks)
-	bool bLockTicksToFrames;
+	UPROPERTY(EditAnywhere, Category = Marks)
+	bool bLockMarksToFrames;
 
-	UPROPERTY(EditAnywhere, Category = Ticks, Meta = (EditCondition = "!bLockTicksToFrames", ClampMin = "0.01"))
-	double SecondsPerTick;
+	UPROPERTY(EditAnywhere, Category = Marks, Meta = (EditCondition = "!bLockMarksToFrames", ClampMin = "0.01"))
+	double SecondsPerMark;
 
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override
 	{
