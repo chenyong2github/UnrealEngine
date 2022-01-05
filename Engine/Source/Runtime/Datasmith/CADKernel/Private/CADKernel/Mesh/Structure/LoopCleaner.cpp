@@ -51,23 +51,22 @@ bool FLoopCleaner::CleanLoops()
 #endif
 
 	// for each loop, start by the best node, find all intersections
-	bool bIsAnOuterLoop = true;
 	LoopIndex = -1;
 	NextLoopFirstSegmentIndex = 0;
+
+	GetNext = LoopCleanerImpl::GetNextNodeImpl;
+	GetFirst = LoopCleanerImpl::GetFirstNode;
+	GetSecond = LoopCleanerImpl::GetSecondNode;
+
 	for (FLoopNode* StartNode : BestStartNodeOfLoops)
 	{
 		LoopIndex++;
 		StartSegmentIndex = NextLoopFirstSegmentIndex;
 		UpdateNextLoopFirstSegmentIndex(LoopIndex);
 
-		bLoopOrientation = EOrientation::Front;
-		GetNext = (bLoopOrientation == EOrientation::Front) ? LoopCleanerImpl::GetNextNodeImpl : LoopCleanerImpl::GetPreviousNodeImpl;
-		GetFirst = (bLoopOrientation == EOrientation::Front) ? LoopCleanerImpl::GetFirstNode : LoopCleanerImpl::GetSecondNode;
-		GetSecond = (bLoopOrientation == EOrientation::Front) ? LoopCleanerImpl::GetSecondNode : LoopCleanerImpl::GetFirstNode;
-
 		Intersections.Empty(5);
 
-		GetLoopNodeStartingFrom(StartNode, bIsAnOuterLoop, NodesOfLoop);
+		GetLoopNodeStartingFrom(StartNode, NodesOfLoop);
 
 #ifdef DEBUG_CLEAN_LOOPS		
 		Grid.DisplayGridPolyline(TEXT("Loop: start"), EGridSpace::UniformScaled, NodesOfLoop, true, EVisuProperty::YellowCurve);

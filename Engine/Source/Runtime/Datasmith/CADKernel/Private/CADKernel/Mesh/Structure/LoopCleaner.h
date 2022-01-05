@@ -364,7 +364,7 @@ private:
 
 	bool Fill(LoopCleanerImpl::FPinchIntersectionContext& Context);
 
-	void GetLoopNodeStartingFrom(FLoopNode* StartNode, bool bForward, TArray<FLoopNode*>& Loop)
+	void GetLoopNodeStartingFrom(FLoopNode* StartNode, TArray<FLoopNode*>& Loop)
 	{
 		FLoopNode* Node = StartNode;
 		Loop.Empty(LoopNodes.Num());
