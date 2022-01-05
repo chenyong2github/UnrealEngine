@@ -30,7 +30,7 @@ void SZenCacheStatisticsDialog::Construct(const FArguments& InArgs)
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0, 20, 0, 0)
+		.Padding(0, 0, 0, 0)
 		.Expose(GridSlot)
 		[
 			GetGridPanel()
@@ -72,95 +72,112 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	const FSlateColor TitleColor = FStyleColors::AccentWhite;
 	const FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
 
+	const double CacheDiskUsageMB = FUnitConversion::Convert(ZenStats.CacheStats.Size.Disk, EUnit::Bytes, EUnit::Megabytes);
+	const double CacheMemoryUsageMB = FUnitConversion::Convert(ZenStats.CacheStats.Size.Memory, EUnit::Bytes, EUnit::Megabytes);
+	
 	Panel->AddSlot(0, Row)
 	[
 		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
+		.Margin(FMargin(ColumnMargin, RowMargin))
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
-		.Text(LOCTEXT("Cache", "Cache"))
-		.Text(LOCTEXT("CacheType", "Cache Type"))
+		.Text(LOCTEXT("LocalServer", "Local Cache"))
 	];
 
-	Panel->AddSlot(1, Row)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Justification(ETextJustify::Left)
-		.Text(LOCTEXT("Location", "Location"))
-	];
-
-	Panel->AddSlot(2, Row)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Justification(ETextJustify::Left)
-		.Text(LOCTEXT("HitPercentage", "Hit%"))
-	];
-
-	Panel->AddSlot(3, Row)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Justification(ETextJustify::Left)
-		.Text(LOCTEXT("Read", "Read"))
-	];
-
-	Panel->AddSlot(4, Row)
-		[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Justification(ETextJustify::Left)
-		.Text(LOCTEXT("Write", "Write"))
-		];
-
-	Panel->AddSlot(5, Row)
-		[
-			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
-			.ColorAndOpacity(TitleColor)
-			.Font(TitleFont)
-			.Justification(ETextJustify::Left)
-			.Text(LOCTEXT("Details", "Details"))
-		];
 	Row++;
 
 	Panel->AddSlot(0, Row)
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text(LOCTEXT("ZenServer", "Zen"))
+		.Text(LOCTEXT("CacheSize", "Size"))
 	];
 
 	Panel->AddSlot(1, Row)
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text(LOCTEXT("LocalServer", "Local"))
+		.Text_Lambda([CacheDiskUsageMB] { return FText::FromString(SingleDecimalFormat(CacheDiskUsageMB) + TEXT(" MB")); })
 	];
 
-	Panel->AddSlot(2, Row)
+	Row++;
+
+	Panel->AddSlot(0, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, RowMargin))
+		.Text(LOCTEXT("CacheMemory", "Memory"))
+	];
+
+	Panel->AddSlot(1, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, RowMargin))
+		.Text_Lambda([CacheMemoryUsageMB] { return FText::FromString(SingleDecimalFormat(CacheMemoryUsageMB) + TEXT(" MB")); })
+	];
+
+	Row++;
+
+	Panel->AddSlot(0, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, RowMargin))
+		.Text(LOCTEXT("CacheHitRate", "Hit Rate"))
+	];
+
+	Panel->AddSlot(1, Row)
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin))
 		.Text_Lambda([ZenStats] { return FText::FromString(SingleDecimalFormat(ZenStats.CacheStats.HitRatio * 100.0) + TEXT(" %")); })
 	];
 
-	Panel->AddSlot(5, Row)
+	Row++;
+
+	Panel->AddSlot(0, Row)
 	[
 		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text_Lambda([this] { return FText::FromString(FString::Printf(TEXT("%s:%d"), UE::Zen::GetDefaultServiceInstance().GetHostName(), UE::Zen::GetDefaultServiceInstance().GetPort() )); })
+		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Text(LOCTEXT("UpstreamServer", "Upstream Server"))
 	];
 
+	Panel->AddSlot(1, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Text(LOCTEXT("HitRate", "Hit Rate"))
+	];
+
+	Panel->AddSlot(2, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Text(LOCTEXT("Downloaded", "Downloaded"))
+	];
+
+	Panel->AddSlot(3, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Text(LOCTEXT("Uploaded", "Uploaded"))
+	];
+
+	Panel->AddSlot(4, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Text(LOCTEXT("URL", "URL"))
+	];
 	Row++;
 	
 	int32 EndpointIndex = 1;
@@ -178,31 +195,24 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text(LOCTEXT("RemoteServer", "Remote"))
+			.Text_Lambda([EndpointStats] { return FText::FromString(SingleDecimalFormat(EndpointStats.HitRatio * 100.0) + TEXT(" %")); })
 		];
 
 		Panel->AddSlot(2, Row)
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text_Lambda([EndpointStats] { return FText::FromString(SingleDecimalFormat(EndpointStats.HitRatio * 100.0) + TEXT(" %")); })
+			.Text_Lambda([EndpointStats] { return FText::FromString(SingleDecimalFormat(EndpointStats.DownloadedMB) + TEXT(" MB")); })
 		];
 
 		Panel->AddSlot(3, Row)
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text_Lambda([EndpointStats] { return FText::FromString(SingleDecimalFormat(EndpointStats.DownloadedMB) + TEXT(" MB")); })
-		];
-
-		Panel->AddSlot(4, Row)
-		[
-			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin))
 			.Text_Lambda([EndpointStats] { return FText::FromString(SingleDecimalFormat(EndpointStats.UploadedMB) + TEXT(" MB")); })
 		];
 
-		Panel->AddSlot(5, Row)
+		Panel->AddSlot(4, Row)
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
@@ -215,37 +225,6 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 		Row++;
 	}
 
-	Panel->AddSlot(0, Row)
-	[
-		SNew(STextBlock)
-		.Text(FText::FromString(TEXT("Total")))
-		.Margin(FMargin(ColumnMargin, RowMargin))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Justification(ETextJustify::Left)	
-	];
-
-	Panel->AddSlot(3, Row)
-	.HAlign(HAlign_Right)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Justification(ETextJustify::Left)
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Text(FText::FromString(SingleDecimalFormat(SumTotalGetMB) + TEXT(" MB")))
-		];
-
-	Panel->AddSlot(4, Row)
-	.HAlign(HAlign_Right)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Justification(ETextJustify::Left)
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Text(FText::FromString(SingleDecimalFormat(SumTotalPutMB) + TEXT(" MB")))
-	];
 #endif
 
 	return Panel;
