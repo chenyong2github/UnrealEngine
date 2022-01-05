@@ -198,14 +198,14 @@ void FGuid::AppendString(FUtf8StringBuilderBase& Builder, EGuidFormats Format) c
 {
 	TAnsiStringBuilder<70> AnsiBuilder;
 	AppendString(AnsiBuilder, Format);
-	Builder.AppendAnsi(AnsiBuilder);
+	Builder.Append(AnsiBuilder);
 }
 
 void FGuid::AppendString(FWideStringBuilderBase& Builder, EGuidFormats Format) const
 {
 	TAnsiStringBuilder<70> AnsiBuilder;
 	AppendString(AnsiBuilder, Format);
-	Builder.AppendAnsi(AnsiBuilder);
+	Builder.Append(AnsiBuilder);
 }
 
 

@@ -620,7 +620,7 @@ void FRemoteBuildExecutionRequest::DetermineIfWorkerExists_Async()
 			State.WorkerDescriptionId = State.WorkerDescriptor.GetHash();
 
 			TStringBuilder<128> WorkerUri;
-			WorkerUri.AppendAnsi("/apply/workers/");
+			WorkerUri.Append("/apply/workers/");
 			WorkerUri << State.WorkerDescriptionId;
 
 			UE::Zen::FZenScopedRequestPtr Request(Executor.RequestPool.Get(), false);
@@ -637,7 +637,7 @@ void FRemoteBuildExecutionRequest::PostWorkerObject_Async()
 	UE::Tasks::Launch(TEXT("FRemoteBuildExecutionRequest::PostWorkerObject"), [this]
 		{
 			TStringBuilder<128> WorkerUri;
-			WorkerUri.AppendAnsi("/apply/workers/");
+			WorkerUri.Append("/apply/workers/");
 			WorkerUri << State.WorkerDescriptionId;
 
 			Executor.Stats.TotalWorkerObjectsUploaded.AddBlob(State.WorkerDescriptor.GetSize());
@@ -669,7 +669,7 @@ void FRemoteBuildExecutionRequest::PostWorkerPackage_Async()
 	UE::Tasks::Launch(TEXT("FRemoteBuildExecutionRequest::PostWorkerPackage"), [this]
 		{
 			TStringBuilder<128> WorkerUri;
-			WorkerUri.AppendAnsi("/apply/workers/");
+			WorkerUri.Append("/apply/workers/");
 			WorkerUri << State.WorkerDescriptionId;
 
 			uint64_t AttachmentBytes{};
@@ -739,7 +739,7 @@ void FRemoteBuildExecutionRequest::PostActionObject_Async()
 			}
 
 			TStringBuilder<128> ActionUri;
-			ActionUri.AppendAnsi("/apply/jobs/");
+			ActionUri.Append("/apply/jobs/");
 			ActionUri << State.WorkerDescriptionId;
 
 			State.NeedHashes.Empty();
@@ -794,7 +794,7 @@ void FRemoteBuildExecutionRequest::PostActionPackage_Async()
 			ActionPackage.SetObject(State.Action);
 
 			TStringBuilder<128> ActionUri;
-			ActionUri.AppendAnsi("/apply/jobs/");
+			ActionUri.Append("/apply/jobs/");
 			ActionUri << State.WorkerDescriptionId;
 
 			Executor.Stats.TotalActionPackagesUploaded.AddBlob(AttachmentBytes + State.Action.GetSize());
@@ -813,7 +813,7 @@ void FRemoteBuildExecutionRequest::GetResultPackage_Async()
 	UE::Tasks::Launch(TEXT("FRemoteBuildExecutionRequest::GetResultPackage"), [this]
 		{
 			TStringBuilder<128> JobGetUri;
-			JobGetUri.AppendAnsi("/apply/jobs/");
+			JobGetUri.Append("/apply/jobs/");
 			JobGetUri << State.WorkerDescriptionId;
 			JobGetUri << "/";
 			JobGetUri << State.ActionId;
