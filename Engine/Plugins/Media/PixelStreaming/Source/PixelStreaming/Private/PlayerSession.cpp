@@ -23,7 +23,7 @@ public:
 		: Sessions(InSessions) {}
 
 	QPConsumer(QPConsumer&& Other)
-		: Sessions(Other.Sessions){}
+		: Sessions(Other.Sessions) {}
 
 	// Begin IPixelStreamingStatsConsumer
 	void ConsumeStat(FPlayerId PlayerId, FName StatName, float StatValue) override { Sessions->SendLatestQP(PlayerId, (int)StatValue); }
@@ -176,14 +176,14 @@ bool FPlayerSession::SendMessage(PixelStreamingProtocol::EToPlayerMsg Type, cons
 		return false;
 	}
 
-	const uint8 MessageType		= static_cast<uint8>(Type);
+	const uint8 MessageType = static_cast<uint8>(Type);
 	const size_t DescriptorSize = Descriptor.Len() * sizeof(TCHAR);
 
 	rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + DescriptorSize);
 
 	size_t Pos = 0;
-	Pos		   = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
-	Pos		   = SerializeToBuffer(Buffer, Pos, *Descriptor, DescriptorSize);
+	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+	Pos = SerializeToBuffer(Buffer, Pos, *Descriptor, DescriptorSize);
 
 	return DataChannel->Send(webrtc::DataBuffer(Buffer, true));
 }
@@ -195,14 +195,14 @@ void FPlayerSession::SendQualityControlStatus(bool bIsQualityController) const
 		return;
 	}
 
-	const uint8 MessageType		= static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::QualityControlOwnership);
+	const uint8 MessageType = static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::QualityControlOwnership);
 	const uint8 ControlsQuality = bIsQualityController ? 1 : 0;
 
 	rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + sizeof(ControlsQuality));
 
 	size_t Pos = 0;
-	Pos		   = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
-	Pos		   = SerializeToBuffer(Buffer, Pos, &ControlsQuality, sizeof(ControlsQuality));
+	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+	Pos = SerializeToBuffer(Buffer, Pos, &ControlsQuality, sizeof(ControlsQuality));
 
 	if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 	{
@@ -239,7 +239,7 @@ void FPlayerSession::SendUnfreezeFrame() const
 	rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType));
 
 	size_t Pos = 0;
-	Pos		   = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
 
 	if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 	{
@@ -356,14 +356,14 @@ void FPlayerSession::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface>
 	}
 
 	rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> MediaStreamTrack = Receiver->track();
-	FString TrackEnabledStr												   = MediaStreamTrack->enabled() ? FString("Enabled") : FString("Disabled");
-	FString TrackStateStr												   = MediaStreamTrack->state() == webrtc::MediaStreamTrackInterface::TrackState::kLive ? FString("Live") : FString("Ended");
+	FString TrackEnabledStr = MediaStreamTrack->enabled() ? FString("Enabled") : FString("Disabled");
+	FString TrackStateStr = MediaStreamTrack->state() == webrtc::MediaStreamTrackInterface::TrackState::kLive ? FString("Live") : FString("Ended");
 	UE_LOG(PixelStreamer, Log, TEXT("MediaStreamTrack id: %s | Is enabled: %s | State: %s"), *FString(MediaStreamTrack->id().c_str()), *TrackEnabledStr, *TrackStateStr);
 
-	webrtc::AudioTrackInterface* AudioTrack	  = static_cast<webrtc::AudioTrackInterface*>(MediaStreamTrack.get());
+	webrtc::AudioTrackInterface* AudioTrack = static_cast<webrtc::AudioTrackInterface*>(MediaStreamTrack.get());
 	webrtc::AudioSourceInterface* AudioSource = AudioTrack->GetSource();
-	FString AudioSourceStateStr				  = AudioSource->state() == webrtc::MediaSourceInterface::SourceState::kLive ? FString("Live") : FString("Not live");
-	FString AudioSourceRemoteStr			  = AudioSource->remote() ? FString("Remote") : FString("Local");
+	FString AudioSourceStateStr = AudioSource->state() == webrtc::MediaSourceInterface::SourceState::kLive ? FString("Live") : FString("Not live");
+	FString AudioSourceRemoteStr = AudioSource->remote() ? FString("Remote") : FString("Local");
 	UE_LOG(PixelStreamer, Log, TEXT("AudioSource | State: %s | Locality: %s"), *AudioSourceStateStr, *AudioSourceRemoteStr);
 	AudioSource->AddSink(&this->AudioSink);
 }

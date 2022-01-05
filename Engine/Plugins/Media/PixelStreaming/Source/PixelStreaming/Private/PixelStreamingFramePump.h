@@ -26,7 +26,7 @@ private:
 	FCriticalSection ExtraSourcesGuard;
 	TArray<TUniquePtr<FPlayerVideoSource>> ExtraVideoSources;
 
-	FPlayerId ElevatedPlayerId = INVALID_PLAYER_ID;		// higher priority than quality controller
+	FPlayerId ElevatedPlayerId = INVALID_PLAYER_ID; // higher priority than quality controller
 	FPlayerId QualityControllerId = INVALID_PLAYER_ID;
 
 	FPixelStreamingFrameSource* FrameSource = nullptr;

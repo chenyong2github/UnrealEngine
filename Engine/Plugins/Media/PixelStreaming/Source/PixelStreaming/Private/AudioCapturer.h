@@ -8,9 +8,7 @@
 
 // This class is only used if -PixelStreamingWebRTCUseLegacyAudioDevice or related CVar are used.
 // This class will likely be removed in the future once the new ADM is confirmed stable.
-class FAudioCapturer
-	: public webrtc::AudioDeviceModule
-	, public ISubmixBufferListener
+class FAudioCapturer : public webrtc::AudioDeviceModule, public ISubmixBufferListener
 {
 private:
 	// ISubmixBufferListener interface
@@ -191,5 +189,4 @@ private:
 	bool bFormatChecked = false;
 
 	std::unique_ptr<webrtc::TaskQueueFactory> m_taskQueueFactory;
-
 };

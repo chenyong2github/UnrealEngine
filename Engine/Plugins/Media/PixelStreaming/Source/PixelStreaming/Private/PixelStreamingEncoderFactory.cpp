@@ -12,7 +12,7 @@
 #include "PixelStreamingSimulcastEncoderAdapter.h"
 
 FPixelStreamingSimulcastEncoderFactory::FPixelStreamingSimulcastEncoderFactory(IPixelStreamingSessions* InPixelStreamingSessions)
-	:RealFactory(new FPixelStreamingVideoEncoderFactory(InPixelStreamingSessions))
+	: RealFactory(new FPixelStreamingVideoEncoderFactory(InPixelStreamingSessions))
 {
 }
 
@@ -111,7 +111,7 @@ void FPixelStreamingVideoEncoderFactory::ForceKeyFrame()
 {
 	FScopeLock Lock(&ActiveEncodersGuard);
 	// Go through each encoder and send our encoded image to its callback
-	for(auto& KeyAndEncoder : HardwareEncoders)
+	for (auto& KeyAndEncoder : HardwareEncoders)
 	{
 		KeyAndEncoder.Value->SetForceNextKeyframe();
 	}
@@ -123,7 +123,7 @@ namespace
 	{
 		return static_cast<uint64>(Width) << 32 | static_cast<uint64>(Height);
 	}
-}
+} // namespace
 
 FPixelStreamingVideoEncoderFactory::FHardwareEncoderId FPixelStreamingVideoEncoderFactory::GetOrCreateHardwareEncoder(int Width, int Height, int MaxBitrate, int TargetBitrate, int MaxFramerate)
 {

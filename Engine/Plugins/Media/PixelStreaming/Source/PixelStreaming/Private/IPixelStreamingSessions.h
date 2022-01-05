@@ -13,14 +13,14 @@
 // actions on `FPlayerSession` objects.
 class IPixelStreamingSessions
 {
-	public:
-		virtual int GetNumPlayers() const = 0;
-		virtual IPixelStreamingAudioSink* GetAudioSink(FPlayerId PlayerId) const = 0;
-		virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() const = 0;
-		virtual bool IsQualityController(FPlayerId PlayerId) const = 0;
-		virtual void SetQualityController(FPlayerId PlayerId) = 0;
-		virtual bool SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const = 0;
-		virtual void SendLatestQP(FPlayerId PlayerId, int LatestQP) const = 0;
-		virtual void SendFreezeFrameTo(FPlayerId PlayerId, const TArray64<uint8>& JpegBytes) const = 0;
-		virtual void PollWebRTCStats() const = 0;
+public:
+	virtual int GetNumPlayers() const = 0;
+	virtual IPixelStreamingAudioSink* GetAudioSink(FPlayerId PlayerId) const = 0;
+	virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() const = 0;
+	virtual bool IsQualityController(FPlayerId PlayerId) const = 0;
+	virtual void SetQualityController(FPlayerId PlayerId) = 0;
+	virtual bool SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const = 0;
+	virtual void SendLatestQP(FPlayerId PlayerId, int LatestQP) const = 0;
+	virtual void SendFreezeFrameTo(FPlayerId PlayerId, const TArray64<uint8>& JpegBytes) const = 0;
+	virtual void PollWebRTCStats() const = 0;
 };

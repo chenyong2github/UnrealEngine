@@ -12,7 +12,6 @@ class IPixelStreamingModule;
 class FInputDevice : public IInputDevice
 {
 public:
-
 	/**
 	 * The pixel streaming input device takes input events and passes them to
 	 * a message handler.
@@ -38,7 +37,7 @@ public:
 	*/
 	virtual void SetChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
 
-	virtual void SetChannelValues(int32 ControllerId, const FForceFeedbackValues &values) override;
+	virtual void SetChannelValues(int32 ControllerId, const FForceFeedbackValues& values) override;
 
 	/** The types of event which can be processed by the device. */
 	enum class EventType
@@ -73,23 +72,23 @@ public:
 		{
 			uint64 Word;
 
-			struct   /** KEY_DOWN */
+			struct /** KEY_DOWN */
 			{
 				uint8 KeyCode;
 				bool bIsRepeat;
 			} KeyDown;
 
-			struct   /* KEY_UP */
+			struct /* KEY_UP */
 			{
 				uint8 KeyCode;
 			} KeyUp;
 
-			struct   /** KEY_PRESSED */
+			struct /** KEY_PRESSED */
 			{
 				TCHAR Character;
 			} Character;
 
-			struct   /** MOUSE_MOVE */
+			struct /** MOUSE_MOVE */
 			{
 				int16 DeltaX;
 				int16 DeltaY;
@@ -97,21 +96,21 @@ public:
 				uint16 PosY;
 			} MouseMove;
 
-			struct   /** MOUSE_DOWN, MOUSE_UP */
+			struct /** MOUSE_DOWN, MOUSE_UP */
 			{
 				uint8 Button;
 				uint16 PosX;
 				uint16 PosY;
 			} MouseButton;
 
-			struct   /** MOUSE_WHEEL */
+			struct /** MOUSE_WHEEL */
 			{
 				int16 Delta;
 				uint16 PosX;
 				uint16 PosY;
 			} MouseWheel;
 
-			struct   /** TOUCH_START, TOUCH_END, TOUCH_MOVE */
+			struct /** TOUCH_START, TOUCH_END, TOUCH_MOVE */
 			{
 				uint8 TouchIndex;
 				uint16 PosX;
@@ -119,7 +118,7 @@ public:
 				uint8 Force;
 			} Touch;
 
-			struct   /** GAMEPAD_PRESSED, GAMEPAD_RELEASED */
+			struct /** GAMEPAD_PRESSED, GAMEPAD_RELEASED */
 			{
 				uint8 ControllerIndex;
 				uint8 ButtonIndex;
@@ -127,7 +126,7 @@ public:
 
 			} GamepadButton;
 
-			struct   /** GAMEPAD_PRESSED, GAMEPAD_RELEASED */
+			struct /** GAMEPAD_PRESSED, GAMEPAD_RELEASED */
 			{
 				uint8 ControllerIndex;
 				float AnalogValue;
@@ -448,12 +447,12 @@ public:
      * How long is the message type specifier and the length specifier in bytes?
      * @return The number of header bytes in an incoming message what is ignored when it is parsed as string.
      */
-	static const size_t	GetMessageHeaderOffset() {
+	static const size_t GetMessageHeaderOffset()
+	{
 		return MessageHeaderOffset;
 	}
 
 private:
-
 	/**
 	 * Touch only. If the user touches the UI and focuses an editable widget
 	 * then we need to tell the browser to allow it to display an on-screen

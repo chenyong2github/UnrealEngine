@@ -3,14 +3,12 @@
 #include "PixelStreamingFrameSource.h"
 
 FPixelStreamingInitializeFrameBuffer::FPixelStreamingInitializeFrameBuffer(FPixelStreamingFrameSource* InFrameSource)
-	:FrameSource(InFrameSource)
+	: FrameSource(InFrameSource)
 {
-
 }
 
 FPixelStreamingInitializeFrameBuffer::~FPixelStreamingInitializeFrameBuffer()
 {
-
 }
 
 int FPixelStreamingInitializeFrameBuffer::width() const
@@ -24,14 +22,12 @@ int FPixelStreamingInitializeFrameBuffer::height() const
 }
 
 FPixelStreamingSimulcastFrameBuffer::FPixelStreamingSimulcastFrameBuffer(FPixelStreamingFrameSource* InFrameSource)
-:FrameSource(InFrameSource)
+	: FrameSource(InFrameSource)
 {
-
 }
 
 FPixelStreamingSimulcastFrameBuffer::~FPixelStreamingSimulcastFrameBuffer()
 {
-
 }
 
 int FPixelStreamingSimulcastFrameBuffer::GetNumLayers() const
@@ -46,36 +42,34 @@ FPixelStreamingLayerFrameSource* FPixelStreamingSimulcastFrameBuffer::GetLayerFr
 
 int FPixelStreamingSimulcastFrameBuffer::width() const
 {
-    return FrameSource->GetSourceWidth();
+	return FrameSource->GetSourceWidth();
 }
 
 int FPixelStreamingSimulcastFrameBuffer::height() const
 {
-    return FrameSource->GetSourceHeight();
+	return FrameSource->GetSourceHeight();
 }
 
 FPixelStreamingLayerFrameBuffer::FPixelStreamingLayerFrameBuffer(FPixelStreamingLayerFrameSource* InLayerFrameSource)
-:LayerFrameSource(InLayerFrameSource)
+	: LayerFrameSource(InLayerFrameSource)
 {
-
 }
 
 FPixelStreamingLayerFrameBuffer::~FPixelStreamingLayerFrameBuffer()
 {
-
 }
 
 FTexture2DRHIRef FPixelStreamingLayerFrameBuffer::GetFrame() const
 {
-    return LayerFrameSource->GetFrame();
+	return LayerFrameSource->GetFrame();
 }
 
 int FPixelStreamingLayerFrameBuffer::width() const
 {
-    return LayerFrameSource->GetSourceWidth();
+	return LayerFrameSource->GetSourceWidth();
 }
 
 int FPixelStreamingLayerFrameBuffer::height() const
 {
-    return LayerFrameSource->GetSourceHeight();
+	return LayerFrameSource->GetSourceHeight();
 }

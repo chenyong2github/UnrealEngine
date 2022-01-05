@@ -10,7 +10,6 @@ class UPixelStreamerDelegates : public UObject
 	GENERATED_BODY()
 
 public:
-
 	/**
 	 * A connection to the signalling server was made.
 	 */
@@ -52,10 +51,9 @@ public:
 	 */
 	static UPixelStreamerDelegates* CreateInstance();
 
-	
 	static UPixelStreamerDelegates* GetPixelStreamerDelegates()
 	{
-		if(Singleton == nullptr)
+		if (Singleton == nullptr)
 		{
 			return CreateInstance();
 		}

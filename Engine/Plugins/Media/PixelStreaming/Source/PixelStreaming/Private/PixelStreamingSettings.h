@@ -15,7 +15,7 @@ namespace PixelStreamingSettings
 {
 	extern void InitialiseSettings();
 
-// Begin Encoder CVars
+	// Begin Encoder CVars
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderTargetBitrate;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxBitrate;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingDebugDumpFrame;
@@ -26,15 +26,15 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderMultipass;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingH264Profile;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderKeyframeInterval;
-// End Encoder CVars
+	// End Encoder CVars
 
-// Begin Capturer CVars
+	// Begin Capturer CVars
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingUseBackBufferCaptureSize;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingCaptureSize;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingMaxNumBackBuffers;
-// End Capturer CVars
+	// End Capturer CVars
 
-// Begin WebRTC CVars
+	// Begin WebRTC CVars
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCFps;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCStartBitrate;
@@ -47,9 +47,9 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableAudioSync;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCUseLegacyAudioDevice;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableResolutionChange;
-// End WebRTC CVars
+	// End WebRTC CVars
 
-// Begin Pixel Streaming Plugin CVars
+	// Begin Pixel Streaming Plugin CVars
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingAllowConsoleCommands;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingOnScreenStats;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingLogStats;
@@ -58,14 +58,14 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<bool> CVarSendPlayerIdAsInteger;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingDisableLatencyTester;
 	extern TArray<FKey> FilteredKeys;
-// Ends Pixel Streaming Plugin CVars
+	// Ends Pixel Streaming Plugin CVars
 
-// Begin utility functions etc.
+	// Begin utility functions etc.
 	AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar();
 	AVEncoder::FVideoEncoder::MultipassMode GetMultipassCVar();
 	webrtc::DegradationPreference GetDegradationPreference();
 	AVEncoder::FVideoEncoder::H264Profile GetH264Profile();
-// End utility functions etc.
+	// End utility functions etc.
 
 	struct FSimulcastParameters
 	{
@@ -81,13 +81,13 @@ namespace PixelStreamingSettings
 
 	extern FSimulcastParameters SimulcastParameters;
 
-// Begin Command line args
+	// Begin Command line args
 
 	inline bool IsPixelStreamingHideCursor()
 	{
 		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
 	}
-	
+
 	inline bool IsForceVP8()
 	{
 		return FParse::Param(FCommandLine::Get(), TEXT("PSForceVP8"));
@@ -113,6 +113,6 @@ namespace PixelStreamingSettings
 		return FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingFastPan="), OutFastPan);
 	}
 
-// End Command line args
+	// End Command line args
 
-}
+} // namespace PixelStreamingSettings

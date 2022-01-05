@@ -18,9 +18,9 @@
 #include "Utils.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
-#include "Windows/WindowsHWrapper.h"
+	#include "Windows/WindowsHWrapper.h"
 #elif PLATFORM_LINUX
-#include "CudaModule.h"
+	#include "CudaModule.h"
 #endif
 
 #include "RenderingThread.h"
@@ -40,7 +40,7 @@
 #include "Engine/Engine.h"
 
 #if !UE_BUILD_SHIPPING
-#	include "DrawDebugHelpers.h"
+	#include "DrawDebugHelpers.h"
 #endif
 
 DEFINE_LOG_CATEGORY(PixelStreaming);
@@ -49,8 +49,8 @@ IPixelStreamingModule* FPixelStreamingModule::PixelStreamingModule = nullptr;
 
 namespace
 {
-	
-	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	// required for WMF video decoding
 	// some Windows versions don't have Media Foundation preinstalled. We configure MF DLLs as delay-loaded and load them manually here
 	// checking the result and avoiding error message box if failed
@@ -72,8 +72,8 @@ namespace
 				&& FPlatformProcess::GetDllHandle(TEXT("msmpeg2adec.dll"));
 		}
 	}
-	#endif
-}
+#endif
+} // namespace
 
 void FPixelStreamingModule::InitStreamer()
 {
@@ -81,12 +81,12 @@ void FPixelStreamingModule::InitStreamer()
 	FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), StreamerId);
 
 	FString SignallingServerURL;
-	if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingURL="), SignallingServerURL)) {
+	if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingURL="), SignallingServerURL))
+	{
 
 		FString SignallingServerIP;
 		uint16 SignallingServerPort = 8888;
-		if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingIP="), SignallingServerIP) ||
-			!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingPort="), SignallingServerPort))
+		if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingIP="), SignallingServerIP) || !FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingPort="), SignallingServerPort))
 		{
 			UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming is disabled, provide `PixelStreamingIP` and `PixelStreamingPort` cmd-args to enable it"));
 			return;
@@ -142,7 +142,7 @@ void FPixelStreamingModule::InitStreamer()
 	verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
 
 	Streamer = MakeUnique<FStreamer>(SignallingServerURL, StreamerId);
-	
+
 	// Streamer has been created, so module is now "ready" for external use.
 	ReadyEvent.Broadcast(*this);
 }
@@ -151,7 +151,7 @@ void FPixelStreamingModule::InitStreamer()
 void FPixelStreamingModule::StartupModule()
 {
 	// Pixel Streaming does not make sense without an RHI so we don't run in commandlets without one.
-	if(IsRunningCommandlet() && !IsAllowCommandletRendering())
+	if (IsRunningCommandlet() && !IsAllowCommandletRendering())
 	{
 		return;
 	}
@@ -160,17 +160,12 @@ void FPixelStreamingModule::StartupModule()
 	PixelStreamingSettings::InitialiseSettings();
 
 	// only D3D11/D3D12 is supported
-	if (GDynamicRHI == nullptr ||
-		!( GDynamicRHI->GetName() == FString(TEXT("D3D11")) || 
-		   GDynamicRHI->GetName() == FString(TEXT("D3D12"))	||
-		   GDynamicRHI->GetName() == FString(TEXT("Vulkan"))))
+	if (GDynamicRHI == nullptr || !(GDynamicRHI->GetName() == FString(TEXT("D3D11")) || GDynamicRHI->GetName() == FString(TEXT("D3D12")) || GDynamicRHI->GetName() == FString(TEXT("Vulkan"))))
 	{
 		UE_LOG(PixelStreaming, Warning, TEXT("Only D3D11/D3D12/Vulkan Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
 		return;
 	}
-	else if( GDynamicRHI->GetName() == FString(TEXT("D3D11")) || 
-		   	 GDynamicRHI->GetName() == FString(TEXT("D3D12")) ||
-			 GDynamicRHI->GetName() == FString(TEXT("Vulkan")))
+	else if (GDynamicRHI->GetName() == FString(TEXT("D3D11")) || GDynamicRHI->GetName() == FString(TEXT("D3D12")) || GDynamicRHI->GetName() == FString(TEXT("Vulkan")))
 	{
 		// By calling InitStreamer post engine init we can use pixel streaming in standalone editor mode
 		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FPixelStreamingModule::InitStreamer);
@@ -190,23 +185,23 @@ void FPixelStreamingModule::ShutdownModule()
 
 IPixelStreamingModule* FPixelStreamingModule::GetModule()
 {
-	if(PixelStreamingModule) 
-    {
-        return PixelStreamingModule;
-    }
-    IPixelStreamingModule* Module = FModuleManager::Get().LoadModulePtr<IPixelStreamingModule>("PixelStreaming");
-    if(Module)
-    {
-        PixelStreamingModule = Module;
-    }
-    return PixelStreamingModule;
+	if (PixelStreamingModule)
+	{
+		return PixelStreamingModule;
+	}
+	IPixelStreamingModule* Module = FModuleManager::Get().LoadModulePtr<IPixelStreamingModule>("PixelStreaming");
+	if (Module)
+	{
+		PixelStreamingModule = Module;
+	}
+	return PixelStreamingModule;
 }
 
 bool FPixelStreamingModule::CheckPlatformCompatibility() const
 {
 	bool bCompatible = true;
 
-	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	bool bWin8OrHigher = FPlatformMisc::VerifyWindowsVersion(6, 2);
 	if (!bWin8OrHigher)
 	{
@@ -217,8 +212,8 @@ bool FPixelStreamingModule::CheckPlatformCompatibility() const
 		UE_LOG(PixelStreamer, Error, TEXT("%s"), *ErrorString);
 		bCompatible = false;
 	}
-	#endif
-	
+#endif
+
 	if (!FStreamer::CheckPlatformCompatibility())
 	{
 		FText TitleText = FText::FromString(TEXT("Pixel Streaming Plugin"));
@@ -312,9 +307,9 @@ const TArray<UPixelStreamerInputComponent*> FPixelStreamingModule::GetInputCompo
 void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
 {
 	if (Texture)
-	{		
-		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)([this, Texture](FRHICommandListImmediate& RHICmdList)
-		{
+	{
+		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)
+		([this, Texture](FRHICommandListImmediate& RHICmdList) {
 			// A frame is supplied so immediately read its data and send as a JPEG.
 			FTexture2DRHIRef Texture2DRHI = (Texture->GetResource() && Texture->GetResource()->TextureRHI) ? Texture->GetResource()->TextureRHI->GetTexture2D() : nullptr;
 			if (!Texture2DRHI)
@@ -324,9 +319,9 @@ void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
 			}
 			uint32 Width = Texture2DRHI->GetSizeX();
 			uint32 Height = Texture2DRHI->GetSizeY();
-			
+
 			FTexture2DRHIRef DestTexture = CreateTexture(Width, Height);
-			
+
 			FGPUFenceRHIRef CopyFence = GDynamicRHI->RHICreateGPUFence(*FString::Printf(TEXT("FreezeFrameFence")));
 
 			// Copy freeze frame texture to empty texture
@@ -402,12 +397,10 @@ void FPixelStreamingModule::SendCommand(const FString& Descriptor)
 
 void FPixelStreamingModule::OnGameModePostLogin(AGameModeBase* GameMode, APlayerController* NewPlayer)
 {
-	
 }
 
 void FPixelStreamingModule::OnGameModeLogout(AGameModeBase* GameMode, AController* Exiting)
 {
-	
 }
 
 void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rect)
@@ -434,7 +427,7 @@ void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rec
 }
 
 void FPixelStreamingModule::SendFileData(TArray<uint8>& ByteData, FString& MimeType, FString& FileExtension)
-{	
+{
 	Streamer->SendFileData(ByteData, MimeType, FileExtension);
 }
 
@@ -450,7 +443,6 @@ bool FPixelStreamingModule::IsTickableInEditor() const
 
 void FPixelStreamingModule::Tick(float DeltaTime)
 {
-	
 }
 
 TStatId FPixelStreamingModule::GetStatId() const
@@ -460,7 +452,7 @@ TStatId FPixelStreamingModule::GetStatId() const
 
 IPixelStreamingAudioSink* FPixelStreamingModule::GetPeerAudioSink(FPlayerId PlayerId)
 {
-	if(!this->Streamer.IsValid())
+	if (!this->Streamer.IsValid())
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("Cannot get audio sink when streamer does not yet exist."));
 		return nullptr;
@@ -471,7 +463,7 @@ IPixelStreamingAudioSink* FPixelStreamingModule::GetPeerAudioSink(FPlayerId Play
 
 IPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
 {
-	if(!this->Streamer.IsValid())
+	if (!this->Streamer.IsValid())
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("Cannot get audio sink when streamer does not yet exist."));
 		return nullptr;
@@ -482,7 +474,7 @@ IPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
 
 void FPixelStreamingModule::AddAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback)
 {
-	if(!this->Streamer.IsValid())
+	if (!this->Streamer.IsValid())
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("Cannot add stat callback when streamer does not yet exist."));
 		return;
@@ -493,7 +485,7 @@ void FPixelStreamingModule::AddAnyStatChangedCallback(TWeakPtr<IPixelStreamingSt
 
 void FPixelStreamingModule::RemoveAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback)
 {
-	if(!this->Streamer.IsValid())
+	if (!this->Streamer.IsValid())
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("Cannot remove stat callback when streamer does not yet exist."));
 		return;

@@ -73,8 +73,8 @@ public:
 	FPixelStreamingLayerFrameSource* GetLayerFrameSource(int LayerIndex) const;
 	int GetNumLayers() const;
 
-    virtual int width() const override;
-    virtual int height() const override;
+	virtual int width() const override;
+	virtual int height() const override;
 
 private:
 	FPixelStreamingFrameSource* FrameSource = nullptr;
@@ -90,7 +90,7 @@ public:
 	FTexture2DRHIRef GetFrame() const;
 
 	virtual int width() const override;
-    virtual int height() const override;
+	virtual int height() const override;
 
 private:
 	FPixelStreamingLayerFrameSource* LayerFrameSource = nullptr;

@@ -12,13 +12,11 @@
 #include "IPixelStreamingStatsConsumer.h"
 #include "UnrealEngine.h"
 
-
 // ----------------- FStatData -----------------
 
 struct FStatData
 {
 public:
-
 	FStatData(FName InStatName, double InStatValue, int InNDecimalPlacesToPrint, bool bInSmooth = false)
 		: StatName(InStatName)
 		, StatValue(InStatValue)
@@ -68,7 +66,7 @@ public:
 	{
 		PlayerIdCanvasItem.EnableShadow(FLinearColor::Black);
 	};
-	
+
 	void StoreStat(FStatData StatToStore);
 	bool StoreStat_GameThread(FStatData StatToStore);
 
@@ -80,8 +78,6 @@ public:
 	TMap<FName, FRenderableStat> StoredStats;
 	TMap<FName, TArray<TWeakPtr<IPixelStreamingStatsConsumer>>> SingleStatConsumers;
 	FCanvasTextItem PlayerIdCanvasItem;
-	
-
 };
 
 // ----------------- FPixelStreamingStats -----------------
@@ -90,12 +86,12 @@ public:
 class FPixelStreamingStats : FTickableGameObject
 {
 public:
-	static constexpr double SmoothingPeriod = 3.0 * 60.0; 
+	static constexpr double SmoothingPeriod = 3.0 * 60.0;
 	static constexpr double SmoothingFactor = 10.0 / 100.0;
 	static FPixelStreamingStats* Get();
 
 	FPixelStreamingStats(IPixelStreamingSessions* Sessions);
-	void QueryPeerStat(FPlayerId PlayerId, FName StatToQuery, TFunction<void(bool,double)> QueryCallback) const;
+	void QueryPeerStat(FPlayerId PlayerId, FName StatToQuery, TFunction<void(bool, double)> QueryCallback) const;
 	bool QueryPeerStat_GameThread(FPlayerId PlayerId, FName StatToQuery, double& OutStatValue) const;
 	void RemovePeersStats(FPlayerId PlayerId);
 	void StorePeerStat(FPlayerId PlayerId, FStatData Stat);

@@ -13,36 +13,35 @@
 UCLASS()
 class PIXELSTREAMING_API UPixelStreamingBlueprints : public UBlueprintFunctionLibrary
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 public:
-    /**
+	/**
      * Send a specified byte array over the WebRTC peer connection data channel. The extension and mime type are used for file reconstruction on the front end 
      * 
      * @param   ByteArray       The raw data that will be sent over the data channel
      * @param   MimeType        The mime type of the file. Used for reconstruction on the front end
      * @param   FileExtension   The file extension. Used for file reconstruction on the front end
      */
-    UFUNCTION(BlueprintCallable, Category = "Pixel Streaming Transmit")
-    static void SendFileAsByteArray(TArray<uint8> ByteArray, FString MimeType, FString FileExtension);
+	UFUNCTION(BlueprintCallable, Category = "Pixel Streaming Transmit")
+	static void SendFileAsByteArray(TArray<uint8> ByteArray, FString MimeType, FString FileExtension);
 
-    /**
+	/**
      * Send a specified file over the WebRTC peer connection data channel. The extension and mime type are used for file reconstruction on the front end 
      * 
      * @param   FilePath        The path to the file that will be sent
      * @param   MimeType        The mime type of the file. Used for file reconstruction on the front end
      * @param   FileExtension   The file extension. Used for file reconstruction on the front end
      */
-    UFUNCTION(BlueprintCallable, Category = "Pixel Streaming Transmit")
-    static void SendFile(FString Filepath, FString MimeType, FString FileExtension);   
+	UFUNCTION(BlueprintCallable, Category = "Pixel Streaming Transmit")
+	static void SendFile(FString Filepath, FString MimeType, FString FileExtension);
 
-
-   /**
+	/**
     * The functions allow Pixel Streaming to be frozen and unfrozen from
     * Blueprint. When frozen, a freeze frame (a still image) will be used by the
     * browser instead of the video stream.
     */
 
-    /**
+	/**
 	 * Freeze Pixel Streaming.
 	 * @param   Texture         The freeze frame to display. If null then the back buffer is captured.
 	 */
@@ -55,9 +54,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pixel Streaming Freeze Frame")
 	static void UnfreezeFrame();
 
-
-    // PixelStreamerDelegates
-    /**
+	// PixelStreamerDelegates
+	/**
 	 * Get the singleton. This allows application-specific blueprints to bind
 	 * to delegates of interest.
 	 */

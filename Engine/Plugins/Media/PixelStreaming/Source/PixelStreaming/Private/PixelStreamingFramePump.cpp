@@ -8,19 +8,19 @@
 #include "PlayerSession.h"
 
 FPixelStreamingFramePump::FPixelStreamingFramePump(FPixelStreamingFrameSource* InFrameSource)
-:FrameSource(InFrameSource)
-,PlayersChangedEvent(FPlatformProcess::GetSynchEventFromPool(false))
-,NextPumpEvent(FPlatformProcess::GetSynchEventFromPool(false))
+	: FrameSource(InFrameSource)
+	, PlayersChangedEvent(FPlatformProcess::GetSynchEventFromPool(false))
+	, NextPumpEvent(FPlatformProcess::GetSynchEventFromPool(false))
 {
 	PumpThread = MakeUnique<FThread>(TEXT("PumpThread"), [this]() { PumpLoop(); });
 }
 
 FPixelStreamingFramePump::~FPixelStreamingFramePump()
 {
-    bThreadRunning = false;
-    PlayersChangedEvent->Trigger();
-    NextPumpEvent->Trigger();
-    PumpThread->Join();
+	bThreadRunning = false;
+	PlayersChangedEvent->Trigger();
+	NextPumpEvent->Trigger();
+	PumpThread->Join();
 }
 
 FPlayerVideoSource* FPixelStreamingFramePump::CreatePlayerVideoSource(FPlayerId PlayerId, int Flags)
@@ -128,7 +128,7 @@ void FPixelStreamingFramePump::PumpLoop()
 						.set_rotation(webrtc::VideoRotation::kVideoRotation_0)
 						.set_id(FrameId)
 						.build();
-					
+
 					// only send to quality controller (if it still exists. it might have been removed since the last check)
 					PlayerVideoSources[PumpPlayerId]->OnFrameReady(Frame);
 				}
@@ -142,18 +142,18 @@ void FPixelStreamingFramePump::PumpLoop()
 		}
 		else
 		{
-	        // Sleep as long as we need for a constant FPS
-	        const uint64 EndCycles = FPlatformTime::Cycles64();
-	        const double DeltaMs = FPlatformTime::ToMilliseconds64(EndCycles - LastCycles);
+			// Sleep as long as we need for a constant FPS
+			const uint64 EndCycles = FPlatformTime::Cycles64();
+			const double DeltaMs = FPlatformTime::ToMilliseconds64(EndCycles - LastCycles);
 			const int32 FPS = PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
 			const double FrameDeltaMs = 1000.0 / FPS;
-	        const double SleepMs = FrameDeltaMs - DeltaMs;
-	        LastCycles = EndCycles;
+			const double SleepMs = FrameDeltaMs - DeltaMs;
+			LastCycles = EndCycles;
 
-	        if (SleepMs > 0)
-	        {
-	        	NextPumpEvent->Wait(SleepMs, false);
-	        }
+			if (SleepMs > 0)
+			{
+				NextPumpEvent->Wait(SleepMs, false);
+			}
 		}
 	}
 }

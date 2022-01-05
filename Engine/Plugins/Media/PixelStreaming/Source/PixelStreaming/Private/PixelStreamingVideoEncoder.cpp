@@ -20,7 +20,6 @@ FPixelStreamingVideoEncoder::FPixelStreamingVideoEncoder(IPixelStreamingSessions
 	: PixelStreamingSessions(InPixelStreamingSessions)
 	, Factory(InFactory)
 {
-	
 }
 
 FPixelStreamingVideoEncoder::~FPixelStreamingVideoEncoder()
@@ -35,7 +34,7 @@ int FPixelStreamingVideoEncoder::InitEncode(webrtc::VideoCodec const* codec_sett
 	// this will cause an encoder to be created if it doesnt already
 	HardwareEncoderId = Factory.GetOrCreateHardwareEncoder(codec_settings->width, codec_settings->height, codec_settings->maxBitrate, codec_settings->startBitrate, codec_settings->maxFramerate);
 	UpdateConfig();
-	
+
 	WebRtcProposedTargetBitrate = codec_settings->startBitrate;
 
 	return WEBRTC_VIDEO_CODEC_OK;
@@ -120,7 +119,7 @@ void FPixelStreamingVideoEncoder::UpdateConfig()
 		}
 
 		// TODO how to handle res changes?
-		
+
 		NewConfig = CreateEncoderConfigFromCVars(NewConfig);
 
 		Encoder->SetConfig(NewConfig);
@@ -130,14 +129,14 @@ void FPixelStreamingVideoEncoder::UpdateConfig()
 AVEncoder::FVideoEncoder::FLayerConfig FPixelStreamingVideoEncoder::CreateEncoderConfigFromCVars(AVEncoder::FVideoEncoder::FLayerConfig InEncoderConfig) const
 {
 	// Change encoder settings through CVars
-	const int32 MaxBitrateCVar 											= PixelStreamingSettings::CVarPixelStreamingEncoderMaxBitrate.GetValueOnAnyThread();
-	const int32 TargetBitrateCVar 										= PixelStreamingSettings::CVarPixelStreamingEncoderTargetBitrate.GetValueOnAnyThread();
-	const int32 MinQPCVar 												= PixelStreamingSettings::CVarPixelStreamingEncoderMinQP.GetValueOnAnyThread();
-	const int32 MaxQPCVar 												= PixelStreamingSettings::CVarPixelStreamingEncoderMaxQP.GetValueOnAnyThread();
-	const AVEncoder::FVideoEncoder::RateControlMode RateControlCVar 	= PixelStreamingSettings::GetRateControlCVar();
-	const AVEncoder::FVideoEncoder::MultipassMode MultiPassCVar 		= PixelStreamingSettings::GetMultipassCVar();
-	const bool FillerDataCVar 											= PixelStreamingSettings::CVarPixelStreamingEnableFillerData.GetValueOnAnyThread();
-	const AVEncoder::FVideoEncoder::H264Profile H264Profile				= PixelStreamingSettings::GetH264Profile();
+	const int32 MaxBitrateCVar = PixelStreamingSettings::CVarPixelStreamingEncoderMaxBitrate.GetValueOnAnyThread();
+	const int32 TargetBitrateCVar = PixelStreamingSettings::CVarPixelStreamingEncoderTargetBitrate.GetValueOnAnyThread();
+	const int32 MinQPCVar = PixelStreamingSettings::CVarPixelStreamingEncoderMinQP.GetValueOnAnyThread();
+	const int32 MaxQPCVar = PixelStreamingSettings::CVarPixelStreamingEncoderMaxQP.GetValueOnAnyThread();
+	const AVEncoder::FVideoEncoder::RateControlMode RateControlCVar = PixelStreamingSettings::GetRateControlCVar();
+	const AVEncoder::FVideoEncoder::MultipassMode MultiPassCVar = PixelStreamingSettings::GetMultipassCVar();
+	const bool FillerDataCVar = PixelStreamingSettings::CVarPixelStreamingEnableFillerData.GetValueOnAnyThread();
+	const AVEncoder::FVideoEncoder::H264Profile H264Profile = PixelStreamingSettings::GetH264Profile();
 
 	InEncoderConfig.MaxBitrate = MaxBitrateCVar > -1 ? MaxBitrateCVar : InEncoderConfig.MaxBitrate;
 	InEncoderConfig.TargetBitrate = TargetBitrateCVar > -1 ? TargetBitrateCVar : WebRtcProposedTargetBitrate;
