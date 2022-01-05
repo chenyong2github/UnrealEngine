@@ -80,7 +80,7 @@ namespace UnrealGameSync
 			string? ServerAndPort = null;
 			string? UserName = null;
 			string? BaseUpdatePath = null;
-			Utility.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath);
+			GlobalSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath);
 
 			List<string> RemainingArgs = new List<string>(Args);
 
@@ -153,7 +153,7 @@ namespace UnrealGameSync
 						Logger.LogInformation("Missing server settings; finding defaults.");
 						ServerAndPort ??= PerforceSettings.Default.ServerAndPort;
 						UserName ??= PerforceSettings.Default.UserName;
-						Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
+						GlobalSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
 					}
 
 					ILogger TelemetryLogger = LoggerProvider.CreateLogger("Telemetry");
@@ -262,6 +262,55 @@ namespace UnrealGameSync
 
 			Value = null;
 			return false;
+		}
+
+		public static IEnumerable<string> GetPerforcePaths()
+		{
+			string? PathList = Environment.GetEnvironmentVariable("PATH");
+			if (!String.IsNullOrEmpty(PathList))
+			{
+				foreach (string PathEntry in PathList.Split(Path.PathSeparator))
+				{
+					string? PerforcePath = null;
+					try
+					{
+						string TestPerforcePath = Path.Combine(PathEntry, "p4.exe");
+						if (File.Exists(TestPerforcePath))
+						{
+							PerforcePath = TestPerforcePath;
+						}
+					}
+					catch
+					{
+					}
+
+					if (PerforcePath != null)
+					{
+						yield return PerforcePath;
+					}
+				}
+			}
+		}
+
+		public static void SpawnP4VC(string Arguments)
+		{
+			string Executable = "p4vc.exe";
+
+			foreach (string PerforcePath in GetPerforcePaths())
+			{
+				string? PerforceDir = Path.GetDirectoryName(PerforcePath);
+				if (PerforceDir != null && File.Exists(Path.Combine(PerforceDir, "p4vc.bat")) && !File.Exists(Path.Combine(PerforceDir, "p4vc.exe")))
+				{
+					Executable = Path.Combine(PerforceDir, "p4v.exe");
+					Arguments = "-p4vc " + Arguments;
+					break;
+				}
+			}
+
+			if (!Utility.SpawnHiddenProcess(Executable, Arguments))
+			{
+				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
+			}
 		}
 	}
 }

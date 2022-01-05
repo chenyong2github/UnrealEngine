@@ -26,7 +26,7 @@ namespace UnrealGameSync
 		{
 			string CommandLine = string.Format("timelapse {0}{1}", Line == -1 ? "" : string.Format(" -l {0} ", Line), DepotPath);
 
-			Utility.SpawnP4VC(CommandLine);
+			Program.SpawnP4VC(CommandLine);
 
 			return new UriResult() { Success = true };
 		}		

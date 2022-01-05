@@ -1282,7 +1282,7 @@ namespace UnrealGameSync
 		{
 			if (ContextMenuChange != null)
 			{
-				Utility.SpawnP4VC(String.Format("{0} change {1}", PerforceSettings.GetArgumentsForExternalProgram(true), ContextMenuChange.Number));
+				Program.SpawnP4VC(String.Format("{0} change {1}", PerforceSettings.GetArgumentsForExternalProgram(true), ContextMenuChange.Number));
 			}
 		}
 
