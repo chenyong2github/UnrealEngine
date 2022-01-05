@@ -247,6 +247,7 @@ namespace LowLevelTasks
 		inline const TCHAR* GetDebugName() const;
 		inline ETaskPriority GetPriority() const;
 		inline bool IsBackgroundTask() const;
+		inline bool AllowBusyWaiting() const;
 
 		void* GetUserData() const { return UserData; }
 		void SetUserData(void* NewUserData) const { UserData = NewUserData; }
@@ -263,7 +264,6 @@ namespace LowLevelTasks
 		//after calling this function the task can be considered dead
 		inline void ExecuteTask();
 		CORE_API void InheritParentData(const TCHAR*& DebugName, ETaskPriority& Priority);
-		inline bool AllowBusyWaiting() const;
 	};
 
    /******************
