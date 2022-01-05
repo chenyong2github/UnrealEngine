@@ -1360,7 +1360,16 @@ void UGroomComponent::ReleaseHairSimulation()
 {
 	for (int32 CompIndex = 0; CompIndex < NiagaraComponents.Num(); ++CompIndex)
 	{
-		TObjectPtr<UNiagaraComponent>& NiagaraComponent = NiagaraComponents[CompIndex];
+		ReleaseHairSimulation(CompIndex);
+	}
+	NiagaraComponents.Empty();
+}
+
+void UGroomComponent::ReleaseHairSimulation(const int32 GroupIndex)
+{
+	if (GroupIndex < NiagaraComponents.Num())
+	{
+		TObjectPtr<UNiagaraComponent>& NiagaraComponent = NiagaraComponents[GroupIndex];
 		if (NiagaraComponent && !NiagaraComponent->IsBeingDestroyed())
 		{
 			if (GetWorld() && NiagaraComponent->IsRegistered())
@@ -1372,7 +1381,6 @@ void UGroomComponent::ReleaseHairSimulation()
 			NiagaraComponent = nullptr;
 		}
 	}
-	NiagaraComponents.Empty();
 }
 
 void UGroomComponent::CreateHairSimulation(const int32 GroupIndex, const int32 LODIndex)
@@ -2972,6 +2980,7 @@ void UGroomComponent::Invalidate()
 void UGroomComponent::InvalidateAndRecreate()
 {
 	InitResources(true);
+	UpdateHairSimulation();
 	MarkRenderStateDirty();
 }
 #endif
