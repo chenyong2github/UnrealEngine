@@ -39,7 +39,7 @@ struct FForceFeedbackValues
 
 struct FHapticFeedbackBuffer
 {
-	TArray<uint8> RawData;
+	const uint8* RawData;
 	uint32 CurrentPtr;
 	int BufferLength;
 	int SamplesSent;

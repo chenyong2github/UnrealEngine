@@ -194,7 +194,12 @@ FOpenXRInputPlugin::FOpenXRInput::FOpenXRInput(FOpenXRHMD* HMD)
 
 XrAction FOpenXRInputPlugin::FOpenXRInput::GetActionForMotionSource(FName MotionSource) const
 {
-	const FOpenXRController& Controller = Controllers[MotionSourceToControllerHandMap.FindChecked(MotionSource)];
+	const EControllerHand* Hand = MotionSourceToControllerHandMap.Find(MotionSource);
+	if (Hand == nullptr)
+	{
+		return XR_NULL_HANDLE;
+	}
+	const FOpenXRController& Controller = Controllers[*Hand];
 	if (MotionSource == OpenXRSourceNames::LeftAim || MotionSource == OpenXRSourceNames::RightAim)
 	{
 		return Controller.AimAction;
@@ -259,11 +264,13 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 
 	XrPath LeftHand = GetPath(Instance, "/user/hand/left");
 	XrPath RightHand = GetPath(Instance, "/user/hand/right");
+	XrPath HMD = GetPath(Instance, "/user/head");
 
 	// Controller poses
 	OpenXRHMD->ResetActionDevices();
 	Controllers.Add(EControllerHand::Left, FOpenXRController(ActionSet, LeftHand, "Left Controller"));
 	Controllers.Add(EControllerHand::Right, FOpenXRController(ActionSet, RightHand, "Right Controller"));
+	Controllers.Add(EControllerHand::HMD, FOpenXRController(ActionSet, HMD, "HMD"));
 
 	// Generate a map of all supported interaction profiles
 	XrPath SimpleControllerPath = GetPath(Instance, "/interaction_profiles/khr/simple_controller");
@@ -481,6 +488,14 @@ int32 FOpenXRInputPlugin::FOpenXRInput::SuggestBindings(XrInstance Instance, FOp
 					Path += "/click";
 				}
 			}
+			else if (Component == "touch")
+			{
+				Path += "/touch";
+			}
+			else if (Component == "touchaxis")
+			{
+				Path += "/touchvalue";  // Note: this is not a standard openxr identifier.  It is meant to represent some kind of analog touch sensor.
+			}
 			else if (Component == "up" || Component == "down" || Component == "left" || Component == "right")
 			{
 				// TODO: Reserved for D-Pad support
@@ -575,6 +590,11 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 	}
 
 	if (OpenXRHMD == nullptr)
+	{
+		return;
+	}
+
+	if (!OpenXRHMD->IsFocused())
 	{
 		return;
 	}
@@ -711,6 +731,14 @@ void FOpenXRInputPlugin::FOpenXRInput::SetChannelValues(int32 ControllerId, cons
 		rightHaptics);
 }
 
+void FOpenXRInputPlugin::FOpenXRInput::SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property)
+{
+	for (IOpenXRExtensionPlugin* Module : OpenXRHMD->GetExtensionPlugins())
+	{
+		Module->OnSetDeviceProperty(OpenXRHMD->GetSession(), ControllerId, Property);
+	}
+}
+
 FName FOpenXRInputPlugin::FOpenXRInput::GetMotionControllerDeviceTypeName() const
 {
 	return FName(TEXT("OpenXR"));
@@ -771,10 +799,8 @@ bool FOpenXRInputPlugin::FOpenXRInput::GetControllerOrientationAndPosition(const
 	return false;
 }
 
-bool FOpenXRInputPlugin::FOpenXRInput::GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityRadPerSec, float WorldToMetersScale) const
+bool FOpenXRInputPlugin::FOpenXRInput::GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityRadPerSec, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const
 {
-	OutTimeWasUsed = true;
-
 	if (OpenXRHMD == nullptr)
 	{
 		return false;
@@ -784,18 +810,18 @@ bool FOpenXRInputPlugin::FOpenXRInput::GetControllerOrientationAndPositionForTim
 	{
 		if (MotionSource == OpenXRSourceNames::AnyHand)
 		{
-			return GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::LeftGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, WorldToMetersScale)
-				|| GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::RightGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, WorldToMetersScale);
+			return GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::LeftGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, OutbProvidedLinearAcceleration, OutLinearAcceleration, WorldToMetersScale)
+				|| GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::RightGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, OutbProvidedLinearAcceleration, OutLinearAcceleration, WorldToMetersScale);
 		}
 
 		if (MotionSource == OpenXRSourceNames::Left)
 		{
-			return GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::LeftGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, WorldToMetersScale);
+			return GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::LeftGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, OutbProvidedLinearAcceleration, OutLinearAcceleration, WorldToMetersScale);
 		}
 
 		if (MotionSource == OpenXRSourceNames::Right)
 		{
-			return GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::RightGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, WorldToMetersScale);
+			return GetControllerOrientationAndPositionForTime(ControllerIndex, OpenXRSourceNames::RightGrip, Time, OutTimeWasUsed, OutOrientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, OutbProvidedLinearAcceleration, OutLinearAcceleration, WorldToMetersScale);
 		}
 	}
 
@@ -812,6 +838,13 @@ bool FOpenXRInputPlugin::FOpenXRInput::GetControllerOrientationAndPositionForTim
 	GetInfo.subactionPath = XR_NULL_PATH;
 	GetInfo.action = GetActionForMotionSource(MotionSource);
 
+	if (GetInfo.action == XR_NULL_HANDLE)
+	{
+		UE_LOG(LogHMD, Warning, TEXT("GetControllerOrientationAndPositionForTime called with motion source %s which is unknown.  Cannot get pose."), *MotionSource.ToString());
+
+		return false;
+	}
+
 	XrActionStatePose State;
 	State.type = XR_TYPE_ACTION_STATE_POSE;
 	State.next = nullptr;
@@ -819,7 +852,7 @@ bool FOpenXRInputPlugin::FOpenXRInput::GetControllerOrientationAndPositionForTim
 	if (Result >= XR_SUCCESS && State.isActive)
 	{
 		FQuat Orientation;
-		OpenXRHMD->GetPoseForTime(GetDeviceIDForMotionSource(MotionSource), Time, Orientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec);
+		OpenXRHMD->GetPoseForTime(GetDeviceIDForMotionSource(MotionSource), Time, OutTimeWasUsed, Orientation, OutPosition, OutbProvidedLinearVelocity, OutLinearVelocity, OutbProvidedAngularVelocity, OutAngularVelocityRadPerSec, OutbProvidedLinearAcceleration, OutLinearAcceleration, WorldToMetersScale);
 		OutOrientation = FRotator(Orientation);
 		return true;
 	}
@@ -913,6 +946,11 @@ void FOpenXRInputPlugin::FOpenXRInput::SetHapticFeedbackValues(int32 ControllerI
 	{
 		return;
 	}
+	
+	if (OpenXRHMD->IsFocused() == false)
+	{
+		return;
+	}
 
 	XrHapticVibration HapticValue;
 	HapticValue.type = XR_TYPE_HAPTIC_VIBRATION;
@@ -930,12 +968,17 @@ void FOpenXRInputPlugin::FOpenXRInput::SetHapticFeedbackValues(int32 ControllerI
 			HapticActionInfo.next = nullptr;
 			HapticActionInfo.subactionPath = XR_NULL_PATH;
 			HapticActionInfo.action = Controllers[EControllerHand::Left].VibrationAction;
-			if (Values.Amplitude <= 0.0f || Values.Frequency < XR_FREQUENCY_UNSPECIFIED)
+			if (Values.HapticBuffer == nullptr && (Values.Amplitude <= 0.0f || Values.Frequency < XR_FREQUENCY_UNSPECIFIED))
 			{
 				XR_ENSURE(xrStopHapticFeedback(Session, &HapticActionInfo));
 			}
 			else
-			{
+			{				
+				FOpenXRExtensionChainStructPtrs ScopedExtensionChainStructs;
+				if (Values.HapticBuffer != nullptr)
+				{
+					OpenXRHMD->GetApplyHapticFeedbackAddChainStructsDelegate().Broadcast(&HapticValue, ScopedExtensionChainStructs, Values.HapticBuffer);
+				}
 				XR_ENSURE(xrApplyHapticFeedback(Session, &HapticActionInfo, (const XrHapticBaseHeader*)&HapticValue));
 			}
 		}
@@ -946,7 +989,29 @@ void FOpenXRInputPlugin::FOpenXRInput::SetHapticFeedbackValues(int32 ControllerI
 			HapticActionInfo.next = nullptr;
 			HapticActionInfo.subactionPath = XR_NULL_PATH;
 			HapticActionInfo.action = Controllers[EControllerHand::Right].VibrationAction;
-			if (Values.Amplitude <= 0.0f || Values.Frequency < XR_FREQUENCY_UNSPECIFIED)
+			if (Values.HapticBuffer == nullptr && (Values.Amplitude <= 0.0f || Values.Frequency < XR_FREQUENCY_UNSPECIFIED))
+			{
+				XR_ENSURE(xrStopHapticFeedback(Session, &HapticActionInfo));
+			}
+			else
+			{
+				FOpenXRExtensionChainStructPtrs ScopedExtensionChainStructs;
+				if (Values.HapticBuffer != nullptr)
+				{
+					OpenXRHMD->GetApplyHapticFeedbackAddChainStructsDelegate().Broadcast(&HapticValue, ScopedExtensionChainStructs, Values.HapticBuffer);
+				}
+				XR_ENSURE(xrApplyHapticFeedback(Session, &HapticActionInfo, (const XrHapticBaseHeader*)&HapticValue));
+			}
+		}
+		if (Hand == (int32)EControllerHand::HMD)
+		{
+			XrHapticActionInfo HapticActionInfo;
+			HapticActionInfo.type = XR_TYPE_HAPTIC_ACTION_INFO;
+			HapticActionInfo.next = nullptr;
+			HapticActionInfo.subactionPath = XR_NULL_PATH;
+			HapticActionInfo.action = Controllers[EControllerHand::HMD].VibrationAction;
+			
+			if (Values.HapticBuffer == nullptr && (Values.Amplitude <= 0.0f || Values.Frequency < XR_FREQUENCY_UNSPECIFIED))
 			{
 				XR_ENSURE(xrStopHapticFeedback(Session, &HapticActionInfo));
 			}

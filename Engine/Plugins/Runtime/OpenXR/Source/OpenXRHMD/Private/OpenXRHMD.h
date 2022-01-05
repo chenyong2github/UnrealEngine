@@ -14,6 +14,7 @@
 #include "StereoLayerManager.h"
 #include "DefaultSpectatorScreenController.h"
 #include "IHeadMountedDisplayVulkanExtensions.h"
+#include "IOpenXRExtensionPluginDelegates.h"
 
 #include <openxr/openxr.h>
 
@@ -32,6 +33,7 @@ class FOpenXRHMD
 	, public FSceneViewExtensionBase
 	, public FOpenXRAssetManager
 	, public TStereoLayerManager<FOpenXRLayer>
+	, public IOpenXRExtensionPluginDelegates
 {
 public:
 	class FDeviceSpace
@@ -133,7 +135,7 @@ public:
 
 	virtual bool GetIsTracked(int32 DeviceId);
 	virtual bool GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVector& CurrentPosition) override;
-	virtual bool GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& CurrentOrientation, FVector& CurrentPosition, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec);
+	virtual bool GetPoseForTime(int32 DeviceId, FTimespan Timespan, bool& OutTimeWasUsed, FQuat& CurrentOrientation, FVector& CurrentPosition, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec, bool& bProvidedLinearAcceleration, FVector& LinearAcceleration, float WorldToMetersScale);
 	virtual void SetBaseRotation(const FRotator& BaseRot) override;
 	virtual FRotator GetBaseRotation() const override;
 
@@ -180,6 +182,8 @@ protected:
 	bool OnStereoTeardown();
 	bool ReadNextEvent(XrEventDataBuffer* buffer);
 	void DestroySession();
+
+	void RequestExitApp();
 
 	void BuildOcclusionMeshes();
 	bool BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMDViewMesh& Mesh);
@@ -245,6 +249,8 @@ public:
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
+
+	/** FHMDSceneViewExtension interface */
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const;
 
 	/** IStereoRenderTargetManager */
@@ -261,6 +267,12 @@ public:
 
 	/** IStereoLayers */
 	virtual bool ShouldCopyDebugLayersToSpectatorScreen() const override { return true; }
+
+	/** IOpenXRExtensionPluginDelegates */
+public:
+	virtual FApplyHapticFeedbackAddChainStructsDelegate& GetApplyHapticFeedbackAddChainStructsDelegate() override { return ApplyHapticFeedbackAddChainStructsDelegate; }
+private:
+	FApplyHapticFeedbackAddChainStructsDelegate ApplyHapticFeedbackAddChainStructsDelegate;
 
 public:
 	/** Constructor */
@@ -300,6 +312,7 @@ private:
 	TAtomic<bool>			bIsReady;
 	TAtomic<bool>			bIsRendering;
 	TAtomic<bool>			bIsSynchronized;
+	bool					bIsExitingSessionByxrRequestExitSession;
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;
 	bool					bViewConfigurationFovSupported;

@@ -376,6 +376,7 @@ public:
 	TSharedPtr<struct FActiveHapticFeedbackEffect> ActiveHapticEffect_Left;
 	TSharedPtr<struct FActiveHapticFeedbackEffect> ActiveHapticEffect_Right;
 	TSharedPtr<struct FActiveHapticFeedbackEffect> ActiveHapticEffect_Gun;
+	TSharedPtr<struct FActiveHapticFeedbackEffect> ActiveHapticEffect_HMD;
 
 	/** Currently active force feedback weights */
 	FForceFeedbackValues ForceFeedbackValues;

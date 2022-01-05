@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "GenericPlatform/IInputInterface.h"
 #include "HapticFeedbackEffect_Base.generated.h"
 
 struct FHapticFeedbackValues;
@@ -14,7 +15,7 @@ class UHapticFeedbackEffect_Base : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void Initialize() {};
+	virtual void Initialize(FHapticFeedbackBuffer& HapticBuffer) {};
 
 	virtual void GetValues(const float EvalTime, FHapticFeedbackValues& Values);
 
@@ -43,13 +44,13 @@ struct ENGINE_API FActiveHapticFeedbackEffect
 		, PlayTime(0.f)
 	{
 		Scale = FMath::Clamp(InScale, 0.f, 10.f);
-		HapticEffect->Initialize();
+		HapticEffect->Initialize(HapticBuffer);
 	}
 
 	void Restart()
 	{
 		PlayTime = 0.f;
-		HapticEffect->Initialize();
+		HapticEffect->Initialize(HapticBuffer);
 	}
 
 	bool Update(const float DeltaTime, struct FHapticFeedbackValues& Values);
@@ -59,4 +60,5 @@ struct ENGINE_API FActiveHapticFeedbackEffect
 private:
 	float PlayTime;
 	float Scale;
+	FHapticFeedbackBuffer HapticBuffer;
 };

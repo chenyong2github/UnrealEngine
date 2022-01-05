@@ -30,6 +30,7 @@
 #include "ARSystem.h"
 #include "IHandTracker.h"
 #include "PixelShaderUtils.h"
+#include "Epic_openxr.h"
 
 #if PLATFORM_ANDROID
 #include <android_native_app_glue.h>
@@ -48,8 +49,14 @@ static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 	0,
 	TEXT("If true, enables the OpenXR validation layer, which will provide extended validation of\nOpenXR API calls. This should only be used for debugging purposes.\n")
 	TEXT("Changes will only take effect in new game/editor instances - can't be changed at runtime.\n"),
-	ECVF_Default);		// @todo: Should we specify ECVF_Cheat here so this doesn't show up in release builds?
+	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarOpenXRExitAppOnRuntimeDrivenSessionExit(
+	TEXT("xr.OpenXRExitAppOnRuntimeDrivenSessionExit"),
+	1,
+	TEXT("If true, RequestExitApp will be called after we destroy the session because the state transitioned to XR_SESSION_STATE_EXITING or XR_SESSION_STATE_LOSS_PENDING and this is NOT the result of a call from the App to xrRequestExitSession.\n")
+	TEXT("The aniticipated situation is that the runtime is associated with a launcher application or has a runtime UI overlay which can tell openxr to exit vr and that in that context the app should also exit.  But maybe there are cases where it should not?  Set this CVAR to make it not.\n"),
+	ECVF_Default);
 
 namespace {
 	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND, XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
@@ -1103,7 +1110,7 @@ bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVect
 	return true;
 }
 
-bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec)
+bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, bool& OutTimeWasUsed, FQuat& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec, bool& bProvidedLinearAcceleration, FVector& LinearAcceleration, float InWorldToMetersScale)
 {
 	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
@@ -1115,9 +1122,21 @@ bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& Orien
 
 	XrTime TargetTime = ToXrTime(Timespan);
 
+	// If TargetTime is zero just get the latest data (rather than the oldest).
+	if (TargetTime == 0)
+	{
+		OutTimeWasUsed = false;
+		TargetTime = GetDisplayTime();
+	}
+	else
+	{
+		OutTimeWasUsed = true;
+	}
+
 	const FDeviceSpace& DeviceSpace = DeviceSpaces[DeviceId];
 
-	XrSpaceVelocity DeviceVelocity { XR_TYPE_SPACE_VELOCITY };
+	XrSpaceAccelerationEPIC DeviceAcceleration{ (XrStructureType)XR_TYPE_SPACE_ACCELERATION_EPIC };
+	XrSpaceVelocity DeviceVelocity { XR_TYPE_SPACE_VELOCITY, &DeviceAcceleration };
 	XrSpaceLocation DeviceLocation { XR_TYPE_SPACE_LOCATION, &DeviceVelocity };
 
 	XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, TargetTime, &DeviceLocation));
@@ -1126,17 +1145,23 @@ bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& Orien
 		DeviceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
 	{
 		Orientation = ToFQuat(DeviceLocation.pose.orientation);
-		Position = ToFVector(DeviceLocation.pose.position, GetWorldToMetersScale());
+		Position = ToFVector(DeviceLocation.pose.position, InWorldToMetersScale);
 
 		if (DeviceVelocity.velocityFlags & XR_SPACE_VELOCITY_LINEAR_VALID_BIT)
 		{
 			bProvidedLinearVelocity = true;
-			LinearVelocity = ToFVector(DeviceVelocity.linearVelocity, GetWorldToMetersScale());
+			LinearVelocity = ToFVector(DeviceVelocity.linearVelocity, InWorldToMetersScale);
 		}
 		if (DeviceVelocity.velocityFlags & XR_SPACE_VELOCITY_ANGULAR_VALID_BIT)
 		{
 			bProvidedAngularVelocity = true;
-			AngularVelocityRadPerSec = ToFVector(DeviceVelocity.angularVelocity);
+			AngularVelocityRadPerSec = -ToFVector(DeviceVelocity.angularVelocity);
+		}
+
+		if (DeviceAcceleration.accelerationFlags & XR_SPACE_ACCELERATION_LINEAR_VALID_BIT_EPIC)
+		{
+			bProvidedLinearAcceleration = true;
+			LinearAcceleration = ToFVector(DeviceAcceleration.linearAcceleration, InWorldToMetersScale);
 		}
 
 		return true;
@@ -1200,6 +1225,10 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 		GEngine->bForceDisableFrameRateSmoothing = true;
 		if (OnStereoStartup())
 		{
+			if (!GIsEditor)
+			{
+				GEngine->SetMaxFPS(0);
+			}
 			StartSession();
 
 			FApp::SetUseVRFocus(true);
@@ -1526,6 +1555,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsReady(false)
 	, bIsRendering(false)
 	, bIsSynchronized(false)
+	, bIsExitingSessionByxrRequestExitSession(false)
 	, bNeedReAllocatedDepth(false)
 	, bNeedReBuildOcclusionMesh(true)
 	, bIsMobileMultiViewEnabled(false)
@@ -1657,6 +1687,11 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 
 	// Give the all frame states the same initial values.
 	PipelinedFrameStateRHI = PipelinedFrameStateRendering = PipelinedFrameStateGame;
+
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		Module->BindExtensionPluginDelegates(*this);
+	}
 }
 
 FOpenXRHMD::~FOpenXRHMD()
@@ -1712,10 +1747,9 @@ void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 			const FDeviceSpace& DeviceSpace = DeviceSpaces[DeviceIndex];
 			if (DeviceSpace.Space != XR_NULL_HANDLE)
 			{
-				XrSpaceLocation& DeviceLocation = PipelineState.DeviceLocations[DeviceIndex];
-				DeviceLocation.type = XR_TYPE_SPACE_LOCATION;
-				DeviceLocation.next = nullptr;
-				XrResult Result = xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &DeviceLocation);
+				XrSpaceLocation NewDeviceLocation = {};
+				NewDeviceLocation.type = XR_TYPE_SPACE_LOCATION;
+				XrResult Result = xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &NewDeviceLocation);
 				if (Result == XR_ERROR_TIME_INVALID)
 				{
 					// The display time is no longer valid so set the location as invalid as well
@@ -1724,6 +1758,20 @@ void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 				else
 				{
 					XR_ENSURE(Result);
+				}
+				
+				XrSpaceLocation& CachedDeviceLocation = PipelineState.DeviceLocations[DeviceIndex];
+				// Clear the location tracked bits
+				CachedDeviceLocation.locationFlags &= ~(XR_SPACE_LOCATION_POSITION_TRACKED_BIT | XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT);
+				if (NewDeviceLocation.locationFlags & (XR_SPACE_LOCATION_POSITION_VALID_BIT))
+				{
+					CachedDeviceLocation.pose.position = NewDeviceLocation.pose.position;
+					CachedDeviceLocation.locationFlags |= (NewDeviceLocation.locationFlags & (XR_SPACE_LOCATION_POSITION_TRACKED_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT));
+				}
+				if (NewDeviceLocation.locationFlags & (XR_SPACE_LOCATION_ORIENTATION_VALID_BIT))
+				{
+					CachedDeviceLocation.pose.orientation = NewDeviceLocation.pose.orientation;
+					CachedDeviceLocation.locationFlags |= (NewDeviceLocation.locationFlags & (XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT));
 				}
 			}
 			else
@@ -1886,7 +1934,7 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 		return false;
 	}
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FOpenXRHMD"));
 	Mesh.VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * VisibilityMask.vertexCountOutput, BUF_Static, CreateInfo);
 	void* VertexBufferPtr = RHILockVertexBuffer(Mesh.VertexBufferRHI, 0, sizeof(FFilterVertex) * VisibilityMask.vertexCountOutput, RLM_WriteOnly);
 	FFilterVertex* Vertices = reinterpret_cast<FFilterVertex*>(VertexBufferPtr);
@@ -1946,6 +1994,9 @@ bool FOpenXRHMD::OnStereoStartup()
 {
 	FWriteScopeLock Lock(SessionHandleMutex);
 	FWriteScopeLock DeviceLock(DeviceMutex);
+
+	check(Session == XR_NULL_HANDLE);
+	bIsExitingSessionByxrRequestExitSession = false;  // clear in case we requested exit for a previous session, but it ended in some other way before that happened.
 
 	XrSessionCreateInfo SessionInfo;
 	SessionInfo.type = XR_TYPE_SESSION_CREATE_INFO;
@@ -2056,6 +2107,8 @@ bool FOpenXRHMD::OnStereoTeardown()
 		FReadScopeLock Lock(SessionHandleMutex);
 		if (Session != XR_NULL_HANDLE)
 		{
+			UE_LOG(LogHMD, Verbose, TEXT("FOpenXRHMD::OnStereoTeardown() calling xrRequestExitSession"));
+			bIsExitingSessionByxrRequestExitSession = true;
 			Result = xrRequestExitSession(Session);
 		}
 	}
@@ -2348,6 +2401,11 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	ensure(IsInRenderingThread());
 	FReadScopeLock DeviceLock(DeviceMutex);
 
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		Module->OnBeginRendering_RenderThread(Session);
+	}
+
 	const float WorldToMeters = GetWorldToMetersScale();
 	const FTransform InvTrackingToWorld = GetTrackingToWorldTransform().Inverse();
 
@@ -2488,14 +2546,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		{
 			Layer.bUpdateTexture = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
 		}, false);
-
-		{
-			FReadScopeLock Lock(SessionHandleMutex);
-			for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-			{
-				Module->OnAcquireSwapchainImage(Session);
-			}
-		}
 
 		FXRSwapChainPtr ColorSwapchain = PipelinedLayerStateRendering.ColorSwapchain;
 		FXRSwapChainPtr DepthSwapchain = PipelinedLayerStateRendering.DepthSwapchain;
@@ -2678,43 +2728,46 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				bIsReady = false;
 				StopSession();
 			}
-			else if (SessionState.state == XR_SESSION_STATE_EXITING)
+			else if (SessionState.state == XR_SESSION_STATE_EXITING || SessionState.state == XR_SESSION_STATE_LOSS_PENDING)
 			{
 				// We need to make sure we unlock the frame rate again when exiting stereo while idle
 				if (!GIsEditor)
 				{
 					GEngine->SetMaxFPS(0);
 				}
+				
+				FApp::SetHasVRFocus(false);
+
+				DestroySession();
+
+				// Do we want to RequestExitApp the app after destoying the session?
+				// Yes if the app (ie ue4) did NOT requested the exit.
+				bool bExitApp = !bIsExitingSessionByxrRequestExitSession;
+				bIsExitingSessionByxrRequestExitSession = false;
+
+				// But only if this CVar is set to true.
+				bExitApp = bExitApp && (CVarOpenXRExitAppOnRuntimeDrivenSessionExit.GetValueOnAnyThread() != 0);
+#if WITH_EDITOR
+				// But always if in the editor, because that doesn't actually exit.  See RequestExitApp().
+				bExitApp = bExitApp || GIsEditor;
+#endif
+				if (bExitApp)
+				{
+					RequestExitApp();
+				}
+				break;
 			}
 
 			FApp::SetHasVRFocus(SessionState.state == XR_SESSION_STATE_FOCUSED);
-
-			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
-			{
-				break;
-			}
+			
+			break;
 		}
-		// Intentional fall-through
 		case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
 		{
-#if WITH_EDITOR
-			if (GIsEditor)
-			{
-				FSceneViewport* SceneVP = FindSceneViewport();
-				if (SceneVP && SceneVP->IsStereoRenderingAllowed())
-				{
-					TSharedPtr<SWindow> Window = SceneVP->FindWindow();
-					Window->RequestDestroyWindow();
-				}
-			}
-			else
-#endif//WITH_EDITOR
-			{
-				// ApplicationWillTerminateDelegate will fire from inside of the RequestExit
-				FPlatformMisc::RequestExit(false);
-			}
-
 			DestroySession();
+			
+			// Instance loss is intended to support things like updating the active openxr runtime.  Currently we just require an app restart.
+			RequestExitApp();
 
 			break;
 		}
@@ -2746,6 +2799,28 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 	UpdateDeviceLocations(true);
 
 	return true;
+}
+
+void FOpenXRHMD::RequestExitApp()
+{
+	UE_LOG(LogHMD, Log, TEXT("FOpenXRHMD is requesting app exit.  CurrentSessionState: %s"), OpenXRSessionStateToString(CurrentSessionState));
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		FSceneViewport* SceneVP = FindSceneViewport();
+		if (SceneVP && SceneVP->IsStereoRenderingAllowed())
+		{
+			TSharedPtr<SWindow> Window = SceneVP->FindWindow();
+			Window->RequestDestroyWindow();
+		}
+	}
+	else
+#endif//WITH_EDITOR
+	{
+		// ApplicationWillTerminateDelegate will fire from inside of the RequestExit
+		FPlatformMisc::RequestExit(false);
+	}
 }
 
 void FOpenXRHMD::OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameState, FXRSwapChainPtr ColorSwapchain, FXRSwapChainPtr DepthSwapchain)
@@ -2955,6 +3030,8 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		VSize = SrcRect.Height() / SrcTextureHeight;
 	}
 
+	RHICmdList.Transition(FRHITransitionInfo(DstTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
+
 	FRHITexture * ColorRT = DstTexture->GetTexture2DArray() ? DstTexture->GetTexture2DArray() : DstTexture->GetTexture2D();
 	FRHIRenderPassInfo RenderPassInfo(ColorRT, RTAction);
 	RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("OpenXRHMD_CopyTexture"));
@@ -3009,8 +3086,16 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			FIntPoint(1, 1),
 			VertexShader,
 			EDRF_Default);
+
 	}
 	RHICmdList.EndRenderPass();
+	
+	// TODO
+	// We can't assume the new access state is valid for usage by clients. For the spectator screen, Present is fine.
+	// For layer blits, we'll need to have something that's compatible with swapchain requirements when handed off to
+	// compositor (RTV?). There's a pending refactor from Jules that will make it easier for caller to pass in
+	// desired ERHIAccess for destination texture.
+	RHICmdList.Transition(FRHITransitionInfo(DstTexture, ERHIAccess::RTV, (ERHIAccess::Present | ERHIAccess::SRVMask)));
 }
 
 void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, const FXRSwapChainPtr& DstSwapChain, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const
@@ -3022,7 +3107,7 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	});
 
 	// Now that we've enqueued the swapchain wait we can add the commands to do the actual texture copy
-	FRHITexture2DArray* DstTexture = DstSwapChain->GetTexture2DArray();
+	FRHITexture2D* const DstTexture = DstSwapChain->GetTexture2DArray() ? DstSwapChain->GetTexture2DArray() : DstSwapChain->GetTexture2D();
 	CopyTexture_RenderThread(RHICmdList, SrcTexture, SrcRect, DstTexture, DstRect, bClearBlack, bNoAlpha, ERenderTargetActions::Clear_Store);
 
 	// Enqueue a command to release the image after the copy is done

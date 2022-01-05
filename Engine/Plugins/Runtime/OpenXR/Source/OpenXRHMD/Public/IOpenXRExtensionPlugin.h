@@ -9,7 +9,7 @@
 #include "ARTraceResult.h"
 #include "DefaultSpectatorScreenController.h"
 #include "UObject/SoftObjectPath.h"
-
+#include "GenericPlatform/IInputInterface.h"
 #include <openxr/openxr.h>
 
 class IOpenXRCustomAnchorSupport
@@ -275,6 +275,10 @@ public:
 	{
 	}
 
+	virtual void BindExtensionPluginDelegates(class IOpenXRExtensionPluginDelegates& OpenXRHMD)
+	{
+	}
+
 	virtual const void* OnGetSystem(XrInstance InInstance, const void* InNext)
 	{
 		return InNext;
@@ -304,8 +308,8 @@ public:
 		return InNext;
 	}
 
-	// OpenXRHMD::OnBeginRendering_RenderThread, before acquiring swapchain
-	virtual void OnAcquireSwapchainImage(XrSession InSession)
+	// OpenXRHMD::OnBeginRendering_RenderThread
+	virtual void OnBeginRendering_RenderThread(XrSession InSession)
 	{
 	}
 
@@ -351,7 +355,11 @@ public:
 	virtual void PostSyncActions(XrSession InSession)
 	{
 	}
-
+	
+	virtual void OnSetDeviceProperty(XrSession InSession, int32 ControllerId, const FInputDeviceProperty* Property)
+	{
+	}
+	
 	/**
 	 * Start the AR system.
 	 *

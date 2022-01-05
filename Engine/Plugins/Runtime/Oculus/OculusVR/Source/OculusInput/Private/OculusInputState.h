@@ -338,7 +338,10 @@ struct FOculusTouchControllerState : FOculusControllerState
 	/** Number of times that controller was recentered (for mobile controllers) */
 	int RecenterCount;
 
-
+public:
+	FHapticFeedbackBuffer ResampledHapticBuffer;
+	void ResampleHapticBufferData(const FHapticFeedbackBuffer& HapticBuffer, TMap<const uint8*, TSharedPtr<TArray<uint8>>>& ResampledRawDataCache);
+	
 	/** Explicit constructor sets up sensible defaults */
 	FOculusTouchControllerState( const EControllerHand Hand )
 		: TriggerAxis( 0.0f ),

@@ -25,13 +25,23 @@ bool FActiveHapticFeedbackEffect::Update(const float DeltaTime, FHapticFeedbackV
 		return false;
 	}
 
+	HapticBuffer.RawData = nullptr;
+	Values.HapticBuffer = &HapticBuffer;
 	HapticEffect->GetValues(PlayTime, Values);
+	// Don't return a HapticBuffer if the effect didn't fill in RawData.
+	// Previously this buffer was owned by the HapticEffect itself, but that prevents
+	// playing the same effect on multiple controllers simultaneously.
+	if (HapticBuffer.RawData == nullptr)
+	{
+		Values.HapticBuffer = nullptr;
+	}
 	Values.Amplitude *= Scale;
 	if (Values.HapticBuffer)
 	{
 		Values.HapticBuffer->ScaleFactor = Scale;
 		if (Values.HapticBuffer->bFinishedPlaying)
 		{
+			Values.HapticBuffer = nullptr;
 			return false;
 		}
 	}
@@ -92,25 +102,19 @@ float UHapticFeedbackEffect_Curve::GetDuration() const
 UHapticFeedbackEffect_Buffer::UHapticFeedbackEffect_Buffer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	HapticBuffer.RawData.AddUninitialized(Amplitudes.Num());
-	HapticBuffer.CurrentPtr = 0;
-	HapticBuffer.BufferLength = Amplitudes.Num();
-	HapticBuffer.SamplesSent = 0;
-	HapticBuffer.bFinishedPlaying = false;
-	HapticBuffer.SamplingRate = SampleRate;
 }
 
 UHapticFeedbackEffect_Buffer::~UHapticFeedbackEffect_Buffer()
 {
-	HapticBuffer.RawData.Empty();
 }
 
 
-void UHapticFeedbackEffect_Buffer::Initialize()
+void UHapticFeedbackEffect_Buffer::Initialize(FHapticFeedbackBuffer& HapticBuffer)
 {
 	HapticBuffer.CurrentPtr = 0;
 	HapticBuffer.SamplesSent = 0;
 	HapticBuffer.bFinishedPlaying = false;
+	HapticBuffer.RawData = nullptr;
 }
 
 void UHapticFeedbackEffect_Buffer::GetValues(const float EvalTime, FHapticFeedbackValues& Values)
@@ -119,7 +123,6 @@ void UHapticFeedbackEffect_Buffer::GetValues(const float EvalTime, FHapticFeedba
 
 	Values.Frequency = 1.0;
 	Values.Amplitude = ampidx < Amplitudes.Num() ? (float)Amplitudes[ampidx] / 255.f : 0.f;
-	Values.HapticBuffer = &HapticBuffer;
 }
 
 float UHapticFeedbackEffect_Buffer::GetDuration() const
@@ -139,26 +142,28 @@ UHapticFeedbackEffect_SoundWave::UHapticFeedbackEffect_SoundWave(const FObjectIn
 
 UHapticFeedbackEffect_SoundWave::~UHapticFeedbackEffect_SoundWave()
 {
-	HapticBuffer.RawData.Empty();
+	RawData.Empty();
 }
 
-void UHapticFeedbackEffect_SoundWave::Initialize()
+void UHapticFeedbackEffect_SoundWave::Initialize(FHapticFeedbackBuffer& HapticBuffer)
 {
 	if (!bPrepared)
 	{
 		PrepareSoundWaveBuffer();
 	}
+	HapticBuffer.BufferLength = RawData.Num();
 	HapticBuffer.CurrentPtr = 0;
 	HapticBuffer.SamplesSent = 0;
 	HapticBuffer.bFinishedPlaying = false;
+	HapticBuffer.SamplingRate = SoundWave->GetSampleRateForCurrentPlatform();
 }
 
 void UHapticFeedbackEffect_SoundWave::GetValues(const float EvalTime, FHapticFeedbackValues& Values)
 {
-	int ampidx = EvalTime * HapticBuffer.BufferLength/ SoundWave->GetDuration();
+	int ampidx = EvalTime * RawData.Num() / SoundWave->GetDuration();
 	Values.Frequency = 1.0;
-	Values.Amplitude = ampidx < HapticBuffer.BufferLength ? (float)HapticBuffer.RawData[ampidx] / 255.f : 0.f;
-	Values.HapticBuffer = &HapticBuffer;
+	Values.Amplitude = ampidx < RawData.Num() ? (float)RawData[ampidx] / 255.f : 0.f;
+	Values.HapticBuffer->RawData = RawData.GetData();
 }
 
 float UHapticFeedbackEffect_SoundWave::GetDuration() const
@@ -177,35 +182,26 @@ void UHapticFeedbackEffect_SoundWave::PrepareSoundWaveBuffer()
 	SoundWave->InitAudioResource(AD->GetRuntimeFormat(SoundWave));
 	uint8* PCMData = SoundWave->RawPCMData;
 	int32 RawPCMDataSize = SoundWave->RawPCMDataSize;
-	check((PCMData != nullptr) || (RawPCMDataSize == 0));
-	int32 SampleRate = SoundWave->GetSampleRateForCurrentPlatform();
-	int TargetFrequency = 320;
-	int TargetBufferSize = (RawPCMDataSize * TargetFrequency) / (SampleRate * 2) + 1; //2 because we're only using half of the 16bit source PCM buffer
-	HapticBuffer.BufferLength = TargetBufferSize;
-	HapticBuffer.RawData.AddUninitialized(TargetBufferSize);
-	HapticBuffer.CurrentPtr = 0;
-	HapticBuffer.SamplingRate = TargetFrequency;
+	check((PCMData != nullptr) || (RawPCMDataSize == 0));	
 
-	int previousTargetIndex = -1;
-	int currentMin = 0;
-	for (int i = 1; i < RawPCMDataSize; i += 2)
+	// Some platforms may need to resample the PCM data.  Such resampling should be performed at the platform specific plugin level
+	int32 NumChannels = SoundWave->NumChannels;
+	if (NumChannels > 1)
 	{
-		int targetIndex = i * TargetFrequency / (SampleRate * 2);
-		int val = PCMData[i];
-		if (val & 0x80)
+		UE_LOG(LogTemp, Warning, TEXT("%s used for vibration has more than 1 channel. Only the first channel will be used."), *SoundWave->GetPathName());
+		check(RawPCMDataSize % (sizeof(int16) * NumChannels) == 0);
+		int32 NumSamples = RawPCMDataSize / sizeof(int16) / NumChannels;
+		RawData.AddUninitialized(NumSamples * sizeof(int16));
+		int16* SourceData = reinterpret_cast<int16*>(PCMData);
+		int16* DestData = reinterpret_cast<int16*>(RawData.GetData());
+		for (int32 i = 0; i < NumSamples; i++)
 		{
-			val = ~val;
-		}
-		currentMin = FMath::Min(currentMin, val);
-
-		if (targetIndex != previousTargetIndex)
-		{
-
-			HapticBuffer.RawData[targetIndex] = val * 2;// *Scale;
-			previousTargetIndex = targetIndex;
-			currentMin = 0;
+			DestData[i] = SourceData[i * NumChannels];
 		}
 	}
+	else
+	{
+		RawData.Append(PCMData, RawPCMDataSize);
+	}
 	bPrepared = true;
-
 }

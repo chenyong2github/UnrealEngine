@@ -1075,9 +1075,13 @@ void FOculusInput::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const
 						(OvrpControllerState.ConnectedControllerTypes & (ovrpController_Touch | ovrpController_LTrackedRemote | ovrpController_RTrackedRemote)))
 					{
 						// Buffered haptics is currently only supported on Touch
-						FHapticFeedbackBuffer* HapticBuffer = Values.HapticBuffer;
+						if (Values.HapticBuffer)
+						{
+							ControllerState.ResampleHapticBufferData(*Values.HapticBuffer, ResampledRawDataCache);
+						}
+						FHapticFeedbackBuffer* HapticBuffer = &ControllerState.ResampledHapticBuffer;
 						if ( (OvrpControllerState.ConnectedControllerTypes & (ovrpController_Touch)) &&
-							HapticBuffer && HapticBuffer->SamplingRate == OvrpHapticsDesc.SampleRateHz)
+							Values.HapticBuffer && HapticBuffer->SamplingRate == OvrpHapticsDesc.SampleRateHz)
 						{
 							const ovrpController OvrpController = (EControllerHand(Hand) == EControllerHand::Left) ? ovrpController_LTouch : ovrpController_RTouch;
 
@@ -1100,7 +1104,8 @@ void FOculusInput::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const
 
 									if (OvrpHapticsBuffer.SamplesCount == 0 && OvrpHapticsState.SamplesQueued == 0)
 									{
-										HapticBuffer->bFinishedPlaying = true;
+										Values.HapticBuffer->bFinishedPlaying = HapticBuffer->bFinishedPlaying = true;
+
 										ControllerState.bPlayingHapticEffect = false;
 									}
 									else
@@ -1120,7 +1125,7 @@ void FOculusInput::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const
 											for (int i = 0; i < OvrpHapticsBuffer.SamplesCount; i++)
 											{
 												const uint32 DataIndex = HapticBuffer->CurrentPtr + (i * 2);
-												const uint16* const RawData = reinterpret_cast<uint16*>(&HapticBuffer->RawData[DataIndex]);
+												const uint16* const RawData = reinterpret_cast<const uint16*>(&HapticBuffer->RawData[DataIndex]);
 												samples[i] = static_cast<uint16>(*RawData * HapticBuffer->ScaleFactor);
 											}
 											OvrpHapticsBuffer.Samples = bufferToFree = samples;
@@ -1131,7 +1136,7 @@ void FOculusInput::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const
 											for (int i = 0; i < OvrpHapticsBuffer.SamplesCount; i++)
 											{
 												const uint32 DataIndex = HapticBuffer->CurrentPtr + (i * 4);
-												const uint32* const RawData = reinterpret_cast<uint32*>(&HapticBuffer->RawData[DataIndex]);
+												const uint32* const RawData = reinterpret_cast<const uint32*>(&HapticBuffer->RawData[DataIndex]);
 												samples[i] = static_cast<uint32>(*RawData * HapticBuffer->ScaleFactor);
 											}
 											OvrpHapticsBuffer.Samples = bufferToFree = samples;
@@ -1193,6 +1198,62 @@ void FOculusInput::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const
 
 			break;
 		}
+	}
+}
+
+void FOculusTouchControllerState::ResampleHapticBufferData(const FHapticFeedbackBuffer& HapticBuffer, TMap<const uint8*, TSharedPtr<TArray<uint8>>>& ResampledRawDataCache)
+{
+	const uint8* OriginalRawData = HapticBuffer.RawData;
+	TSharedPtr<TArray<uint8>>* ResampledRawDataSharedPtrPtr = ResampledRawDataCache.Find(OriginalRawData);
+	if (ResampledRawDataSharedPtrPtr == nullptr)
+	{
+		// We need to resample and cache the resampled data.
+
+		ResampledHapticBuffer = HapticBuffer;
+
+		int32 SampleRate = HapticBuffer.SamplingRate;
+		int TargetFrequency = 320;
+		int TargetBufferSize = (HapticBuffer.BufferLength * TargetFrequency) / (SampleRate * 2) + 1; //2 because we're only using half of the 16bit source PCM buffer
+		ResampledHapticBuffer.BufferLength = TargetBufferSize;
+		ResampledHapticBuffer.CurrentPtr = 0;
+		ResampledHapticBuffer.SamplingRate = TargetFrequency;
+
+		TSharedPtr<TArray<uint8>>& NewResampledRawDataSharedPtr = ResampledRawDataCache.Add(OriginalRawData);
+		NewResampledRawDataSharedPtr = MakeShared<TArray<uint8>>();
+		ResampledRawDataSharedPtrPtr = &NewResampledRawDataSharedPtr;
+		TArray<uint8>& ResampledRawData = *NewResampledRawDataSharedPtr;
+		ResampledRawData.SetNum(TargetBufferSize);
+
+		const uint8* PCMData = HapticBuffer.RawData;
+
+		int previousTargetIndex = -1;
+		int currentMin = 0;
+		for (int i = 1; i < HapticBuffer.BufferLength; i += 2)
+		{
+			int targetIndex = i * TargetFrequency / (SampleRate * 2);
+			int val = PCMData[i];
+			if (val & 0x80)
+			{
+				val = ~val;
+			}
+			currentMin = FMath::Min(currentMin, val);
+
+			if (targetIndex != previousTargetIndex)
+			{
+
+				ResampledRawData[targetIndex] = val * 2;// *Scale;
+				previousTargetIndex = targetIndex;
+				currentMin = 0;
+			}
+		}
+
+		ResampledHapticBuffer.RawData = ResampledRawData.GetData();
+	}
+	else if (ResampledHapticBuffer.RawData != (*ResampledRawDataSharedPtrPtr)->GetData())
+	{
+		// If this a cached effect, but not the same one we played last so we need to copy the new one's buffer and reference its cached resampled data.
+		ResampledHapticBuffer = HapticBuffer;
+		ResampledHapticBuffer.RawData = (*ResampledRawDataSharedPtrPtr)->GetData();
 	}
 }
 

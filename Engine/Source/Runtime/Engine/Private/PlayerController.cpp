@@ -4033,6 +4033,11 @@ void APlayerController::PlayHapticEffect(UHapticFeedbackEffect_Base* HapticEffec
 		case EControllerHand::Gun:
 			ActiveHapticEffect_Gun.Reset();
 			ActiveHapticEffect_Gun = MakeShareable(new FActiveHapticFeedbackEffect(HapticEffect, Scale, bLoop));
+			break;
+		case EControllerHand::HMD:
+			ActiveHapticEffect_HMD.Reset();
+			ActiveHapticEffect_HMD = MakeShareable(new FActiveHapticFeedbackEffect(HapticEffect, Scale, bLoop));
+			break;
 		default:
 			UE_LOG(LogPlayerController, Warning, TEXT("Invalid hand specified (%d) for haptic feedback effect %s"), (int32)Hand, *HapticEffect->GetName());
 			break;
@@ -4078,6 +4083,10 @@ void APlayerController::SetHapticsByValue(const float Frequency, const float Amp
 	else if (Hand == EControllerHand::Gun)
 	{
 		ActiveHapticEffect_Gun.Reset();
+	}
+	else if (Hand == EControllerHand::HMD)
+	{
+		ActiveHapticEffect_HMD.Reset();
 	}
 	else
 	{
@@ -4149,6 +4158,8 @@ void APlayerController::ProcessForceFeedbackAndHaptics(const float DeltaTime, co
 	bool bLeftHapticsNeedUpdate = false;
 	bool bRightHapticsNeedUpdate = false;
 	bool bGunHapticsNeedUpdate = false;
+	FHapticFeedbackValues HMDHaptics;
+	bool bHMDHapticsNeedUpdate = false;
 
 	// Always process feedback by default, but if the game is paused then only static
 	// effects that are flagged to play while paused will play
@@ -4247,6 +4258,16 @@ void APlayerController::ProcessForceFeedbackAndHaptics(const float DeltaTime, co
 
 				bGunHapticsNeedUpdate = true;
 			}
+			if (ActiveHapticEffect_HMD.IsValid())
+			{
+				const bool bPlaying = ActiveHapticEffect_HMD->Update(DeltaTime, HMDHaptics);
+				if (!bPlaying)
+				{
+					ActiveHapticEffect_HMD->bLoop ? ActiveHapticEffect_HMD->Restart() : ActiveHapticEffect_HMD.Reset();
+				}
+
+				bHMDHapticsNeedUpdate = true;
+			}
 		}
 	}
 
@@ -4284,6 +4305,10 @@ void APlayerController::ProcessForceFeedbackAndHaptics(const float DeltaTime, co
 					if (bGunHapticsNeedUpdate)
 					{
 						InputInterface->SetHapticFeedbackValues(ControllerId, (int32)EControllerHand::Gun, GunHaptics);
+					}
+					if (bHMDHapticsNeedUpdate)
+					{
+						InputInterface->SetHapticFeedbackValues(ControllerId, (int32)EControllerHand::HMD, HMDHaptics);
 					}
 				}
 			}
