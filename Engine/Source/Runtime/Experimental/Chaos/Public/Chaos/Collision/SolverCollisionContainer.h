@@ -35,8 +35,13 @@ namespace Chaos
 
 		virtual void Reset(const int32 InMaxCollisions) override;
 
+		/** Set the number of collision solvers in the container
+		 * @param MaxCollisions Max number of collision solvers
+		 */
+		void SetNum(const int32 MaxCollisions);
+
 		// Add a solver constraint for the specified constraint and gather the required solver data
-		void AddConstraintSolver(FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer);
+		void AddConstraintSolver(FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer, int32& ConstraintIndex);
 
 		bool SolvePositionSerial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex);
 		bool SolvePositionParallel(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex);

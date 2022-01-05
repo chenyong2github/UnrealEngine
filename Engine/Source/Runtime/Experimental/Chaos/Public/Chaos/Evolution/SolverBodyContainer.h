@@ -4,6 +4,7 @@
 #include "Chaos/Evolution/SolverBody.h"
 #include "Chaos/Framework/ContainerItemHandle.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 
 #include "Containers/Array.h"
 #include "Containers/Map.h"
@@ -28,9 +29,38 @@ namespace Chaos
 		}
 		
 		FSolverBody& GetSolverBody() { return SolverBody; }
-		const FGenericParticleHandle& GetParticle() { return Particle; }
+		const FGenericParticleHandle& GetParticle() const { return Particle; }
 
-		void GatherInput();
+		FORCEINLINE void GatherInput()
+		{
+			if (Particle.IsValid())
+			{
+				FRigidTransform3 CoMTransform = FParticleUtilitiesPQ::GetCoMWorldTransform(Particle);
+				SolverBody.SetP(CoMTransform.GetLocation());
+				SolverBody.SetQ(CoMTransform.GetRotation());
+				SolverBody.SetV(Particle->V());
+				SolverBody.SetW(Particle->W());
+				SolverBody.SetCoM(Particle->CenterOfMass());
+				SolverBody.SetRoM(Particle->RotationOfMass());
+
+				if (Particle->IsDynamic())
+				{
+					FRigidTransform3 PrevCoMTransform = FParticleUtilitiesXR::GetCoMWorldTransform(Particle);
+					SolverBody.SetX(PrevCoMTransform.GetLocation());
+					SolverBody.SetR(PrevCoMTransform.GetRotation());
+
+					SolverBody.SetInvM(Particle->InvM());
+					SolverBody.SetInvILocal(Particle->InvI().GetDiagonal());
+				}
+				else
+				{
+					SolverBody.SetX(SolverBody.P());
+					SolverBody.SetR(SolverBody.Q());
+				}
+				// No need to update the UpdateRotationDependentState since this function is only
+				// valid for dynamic particle for which the SetInvILocal is already doing the job
+			}
+		}
 		void ScatterOutput();
 
 	private:
@@ -114,6 +144,12 @@ namespace Chaos
 		inline const FSolverBodyAdapter& GetItem(int Index) const
 		{
 			return SolverBodies[Index];
+		}
+
+		/** Return all the solver bodies inside the container */
+		inline TArray<FSolverBodyAdapter>& GetBodies()
+		{
+			return SolverBodies;
 		}
 
 		// Whether the specified index is valid.

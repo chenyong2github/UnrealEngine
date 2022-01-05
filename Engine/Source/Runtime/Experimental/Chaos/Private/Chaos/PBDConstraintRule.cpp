@@ -259,7 +259,8 @@ namespace Chaos
 					int32 ConstraintSetEnd = 0;
 					
 					Constraints.SetNumIslandConstraints(ConstraintGraph->GetIslandConstraints(Island).Num(), *IslandSolver);
-					
+					IslandSolver->InitConstraintIndex(Constraints.GetContainerId());
+
 					for (int32 Level = 0; Level < MaxLevel; ++Level)
 					{
 						for (int32 Color = 0; Color < MaxColor; ++Color)

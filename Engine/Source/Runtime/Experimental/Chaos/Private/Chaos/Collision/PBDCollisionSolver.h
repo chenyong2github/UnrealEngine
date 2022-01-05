@@ -158,6 +158,12 @@ namespace Chaos
 
 		FPBDCollisionSolver();
 
+		/** Reset the state of the collision solver */
+		void Reset()
+		{
+			State.Reset();
+		}
+
 		FSolverReal StaticFriction() const { return State.StaticFriction; }
 		FSolverReal DynamicFriction() const { return State.DynamicFriction; }
 
@@ -290,6 +296,16 @@ namespace Chaos
 			{
 			}
 
+			/** Reset the state struct members to its default values */
+			void Reset()
+			{
+				StaticFriction = 0;
+				DynamicFriction = 0;
+				Stiffness = 1;
+				bHaveRestitution = false;
+				NumManifoldPoints = 0;
+			}
+
 			FSolverReal StaticFriction;
 			FSolverReal DynamicFriction;
 			FSolverReal Stiffness;
@@ -356,7 +372,6 @@ namespace Chaos
 		bool& bInOutInsideStaticFrictionCone)
 	{
 		bInOutInsideStaticFrictionCone = true;
-
 		// Static friction limit: immediately increase maximum lateral correction, but smoothly decay maximum static friction limit. 
 		// This is so that small variations in position (jitter) and therefore NetPushOutNormal don't cause static friction to slip
 		// @todo(chaos): StaticFriction smoothing is iteration count depenendent - try to make it not so

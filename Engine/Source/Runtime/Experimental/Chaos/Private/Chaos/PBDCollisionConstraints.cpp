@@ -357,7 +357,7 @@ namespace Chaos
 		if (SolverType == EConstraintSolverType::QuasiPbd)
 		{
 			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			SolverContainer.Reset(NumIslandConstraints);
+			SolverContainer.SetNum(NumIslandConstraints);
 
 			// @todo(chaos): we shouldn't have to pass settings down to the solvers every frame. Ideally the solver containers would be created by the constraint containers and
 			// the settings would be passed on then. Currently the solver containers are created here FPBDIslandSolverData::AddConstraintDatas
@@ -383,7 +383,7 @@ namespace Chaos
 			check(Constraint.IsEnabled());
 
 			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			SolverContainer.AddConstraintSolver(Dt, Constraint, Particle0Level, Particle1Level, SolverData.GetBodyContainer());
+			SolverContainer.AddConstraintSolver(Dt, Constraint, Particle0Level, Particle1Level, SolverData.GetBodyContainer(), SolverData.GetConstraintIndex(ContainerId));
 		}
 		else
 		{
