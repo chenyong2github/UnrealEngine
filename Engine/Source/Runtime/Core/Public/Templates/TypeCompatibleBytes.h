@@ -62,6 +62,7 @@ struct TTypeCompatibleBytes :
 		alignof(ElementType)
 		>
 {
+	using ElementTypeAlias_NatVisHelper = ElementType;
 	ElementType*		GetTypedPtr()		{ return (ElementType*)this;  }
 	const ElementType*	GetTypedPtr() const	{ return (const ElementType*)this; }
 };
