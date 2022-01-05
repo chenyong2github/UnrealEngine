@@ -43,6 +43,16 @@ namespace HordeServer.Notifications
 		/// <param name="StepId">The step id</param>
 		/// <returns>Async task</returns>
 		void NotifyJobStepComplete(IJob Job, IGraph Graph, SubResourceId BatchId, SubResourceId StepId);
+		
+		/// <summary>
+		/// Notify all subscribers that a job batch has been scheduled
+		/// </summary>
+		/// <param name="Pool">Pool for which job scheduled in</param>
+		/// <param name="PoolHasAgentsOnline">True if there are agents online in the pool</param>
+		/// <param name="Job">The job containing the batch that has been scheduled</param>
+		/// <param name="Graph">Graph used for the job</param>
+		/// <param name="BatchId">The batch id</param>
+		void NotifyJobScheduled(IPool Pool, bool PoolHasAgentsOnline, IJob Job, IGraph Graph, SubResourceId BatchId);
 
 		/// <summary>
 		/// Notify all subscribers that a job step's outcome has changed

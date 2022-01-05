@@ -165,6 +165,13 @@ namespace HordeServer.Services
 		/// Event triggered when a job step completes
 		/// </summary>
 		public event JobStepCompleteEvent? OnJobStepComplete;
+		
+		/// <summary>
+		/// Event triggered when a job is scheduled on the underlying JobTaskSource
+		///
+		/// Exposed and duplicated here to avoid dependency on the exact JobTaskSource
+		/// </summary>
+		public event JobTaskSource.JobScheduleEvent? OnJobScheduled;
 
 		/// <summary>
 		/// Constructor
@@ -199,6 +206,11 @@ namespace HordeServer.Services
 			this.PerforceService = PerforceService;
 			this.Settings = Settings;
 			this.Logger = Logger;
+
+			this.JobTaskSource.OnJobScheduled += (Pool, NumAgentsOnline, Job, Graph, BatchId) =>
+			{
+				OnJobScheduled?.Invoke(Pool, NumAgentsOnline, Job, Graph, BatchId);
+			};
 		}
 
 #pragma warning disable CA1801

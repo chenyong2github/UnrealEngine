@@ -131,6 +131,7 @@ namespace HordeServer.Notifications.Impl
 
 			IssueService.OnIssueUpdated += NotifyIssueUpdated;
 			JobService.OnJobStepComplete += NotifyJobStepComplete;
+			JobService.OnJobScheduled += NotifyJobScheduled;
 			JobService.OnLabelUpdate += NotifyLabelUpdate;
 		}
 
@@ -141,6 +142,7 @@ namespace HordeServer.Notifications.Impl
 
 			IssueService.OnIssueUpdated -= NotifyIssueUpdated;
 			JobService.OnJobStepComplete -= NotifyJobStepComplete;
+			JobService.OnJobScheduled += NotifyJobScheduled;
 			JobService.OnLabelUpdate -= NotifyLabelUpdate;
 
 			GC.SuppressFinalize(this);
@@ -195,6 +197,15 @@ namespace HordeServer.Notifications.Impl
 				Logger.LogInformation("Queuing job notifications for {JobId}:{BatchId}:{StepId}", Job.Id, BatchId, StepId);
 				EnqueueTask(() => SendJobNotificationsAsync(Job, Graph));
 				EnqueueTask(() => RecordJobCompleteMetrics(Job));
+			}
+		}
+		
+		/// <inheritdoc/>
+		public void NotifyJobScheduled(IPool Pool, bool PoolHasAgentsOnline, IJob Job, IGraph Graph, SubResourceId BatchId)
+		{
+			if (Pool.EnableAutoscaling && !PoolHasAgentsOnline)
+			{
+				EnqueueTasks(Sink => Sink.NotifyJobScheduledAsync(Pool, PoolHasAgentsOnline, Job, Graph, BatchId));
 			}
 		}
 
