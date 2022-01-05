@@ -112,7 +112,11 @@ public:
 
 	/** The source actor from which to sample */
 	UPROPERTY(EditAnywhere, Category = "Source")
-		TObjectPtr<AActor> SourceActor;
+	TObjectPtr<AActor> SourceActor;
+
+	/** Reference to a user parameter if we're reading one. */
+	UPROPERTY(EditAnywhere, Category = "Source")
+	FNiagaraUserParameterBinding MeshUserParameter;
 
 	/** The source component from which to sample */
 	TArray<TWeakObjectPtr<class USkeletalMeshComponent>> SourceComponents;
