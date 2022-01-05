@@ -145,6 +145,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "VisualLogger")
 	bool bSearchInsideLogs;
 
+	/** Whether to only show events occuring within one of visual logger filter volumes currently in the level */
+	UPROPERTY(EditAnywhere, config, Category = "VisualLogger")
+	bool bUseFilterVolumes;
+
 	/** Background color for 2d graphs visualization */
 	UPROPERTY(EditAnywhere, config, Category = "VisualLogger")
 	FColor GraphsBackgroundColor;

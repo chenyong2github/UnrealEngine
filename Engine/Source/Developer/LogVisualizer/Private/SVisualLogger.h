@@ -103,9 +103,19 @@ public:
 	void HandleTabManagerPersistLayout(const TSharedRef<FTabManager::FLayout>& LayoutToSave);
 
 	void OnNewWorld(UWorld* NewWorld);
+	
+	void OnLevelActorAdded(AActor* Actor);
+	void OnLevelActorDeleted(AActor* Actor);
+	void OnActorMoved(AActor* Actor);
+
+	void OnSettingsChanged(FName PropertyName);
+
 	void ResetData();
 
 protected:
+	void CollectFilterVolumes();
+	void ProcessFilterVolumes();
+
 	// Holds the list of UI commands.
 	TSharedRef<FUICommandList> CommandList;
 
@@ -134,4 +144,7 @@ protected:
 
 	FDelegateHandle DrawOnCanvasDelegateHandle;
 	TWeakObjectPtr<class UWorld> LastUsedWorld;
+
+	TArray<TWeakObjectPtr<const class AVisualLoggerFilterVolume>> FilterVolumesInLastUsedWorld;
+	TArray<FBox> FilterBoxes;
 };

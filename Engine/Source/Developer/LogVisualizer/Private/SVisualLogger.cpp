@@ -34,9 +34,11 @@
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
 #endif
+#include "GameDelegates.h"
 #include "ISettingsModule.h"
 
 #include "VisualLogger/VisualLoggerBinaryFileDevice.h"
+#include "VisualLogger/VisualLoggerFilterVolume.h"
 
 #define LOCTEXT_NAMESPACE "SVisualLogger"
 
@@ -110,6 +112,7 @@ SVisualLogger::~SVisualLogger()
 {
 #if WITH_EDITOR
 	FEditorDelegates::PostPIEStarted.Remove(PostPIEStartedHandle);
+	FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
 #endif
 		
 	TabManager->CloseAllAreas();
@@ -122,6 +125,7 @@ SVisualLogger::~SVisualLogger()
 
 #if WITH_EDITOR
 	ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->SavePersistentData();
+	ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->OnSettingChanged().RemoveAll(this);
 #endif
 
 	if (LastUsedWorld.IsValid())
@@ -143,6 +147,10 @@ SVisualLogger::~SVisualLogger()
 	FLogVisualizer::Get().GetEvents().OnFiltersChanged.RemoveAll(this);
 	FLogVisualizer::Get().GetEvents().OnLogLineSelectionChanged.Unbind();
 	FLogVisualizer::Get().GetEvents().OnKeyboardEvent.Unbind();
+
+	GEngine->OnLevelActorAdded().RemoveAll(this);
+	GEngine->OnLevelActorDeleted().RemoveAll(this);
+	GEngine->OnActorMoved().RemoveAll(this);
 
 	FVisualLoggerDatabase::Get().Reset();
 }
@@ -167,18 +175,40 @@ void SVisualLogger::Construct(const FArguments& InArgs, const TSharedRef<SDockTa
 	FVisualLoggerDatabase::Get().GetEvents().OnNewItem.AddRaw(this, &SVisualLogger::OnNewItemHandler);
 	FVisualLoggerDatabase::Get().GetEvents().OnItemSelectionChanged.AddRaw(this, &SVisualLogger::OnItemsSelectionChanged);
 
-	GEngine->OnWorldAdded().AddRaw(this, &SVisualLogger::OnNewWorld);
+	LastUsedWorld = FVisualLoggerEditorInterface::Get()->GetWorld();
+	CollectFilterVolumes();
+	ProcessFilterVolumes();
 
 #if WITH_EDITOR
 	PostPIEStartedHandle = FEditorDelegates::PostPIEStarted.AddLambda([this](const bool bIsSimulating)
 	{
-		UWorld* World = FLogVisualizer::Get().GetWorld();
+		UWorld* World = FVisualLoggerEditorInterface::Get()->GetWorld();
 		if (World != nullptr && World != LastUsedWorld)
 		{
 			OnNewWorld(World);
 		}
 	});
+
+	// Note that we use EndPlay delegate instead of FEditorDelegates::EndPie since we want 
+	// the teardown of the PlayWorld to be completed so FVisualLoggerEditorInterface will return
+	// us the Editor world (if any) as the new world.
+	FGameDelegates::Get().GetEndPlayMapDelegate().AddLambda([this]()
+	{
+		UWorld* World = FVisualLoggerEditorInterface::Get()->GetWorld();
+		if (World != nullptr && World != LastUsedWorld)
+		{
+			OnNewWorld(World);
+		}
+	});
+
+	ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->OnSettingChanged().AddRaw(this, &SVisualLogger::OnSettingsChanged);
 #endif
+
+	GEngine->OnWorldAdded().AddRaw(this, &SVisualLogger::OnNewWorld);
+
+	GEngine->OnLevelActorAdded().AddRaw(this, &SVisualLogger::OnLevelActorAdded);
+	GEngine->OnLevelActorDeleted().AddRaw(this, &SVisualLogger::OnLevelActorDeleted);
+	GEngine->OnActorMoved().AddRaw(this, &SVisualLogger::OnActorMoved);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Command Action Lists
@@ -751,18 +781,88 @@ void SVisualLogger::ResetData()
 	FLogVisualizer::Get().GetTimeSliderController().Get()->GetTimeSliderArgs().OnScrubPositionChanged = FVisualLoggerTimeSliderArgs::FOnScrubPositionChanged::CreateRaw(this, &SVisualLogger::OnScrubPositionChanged);
 }
 
+void SVisualLogger::CollectFilterVolumes()
+{
+	FilterVolumesInLastUsedWorld.Reset();
+	for (TActorIterator<AActor> It(LastUsedWorld.Get(), AVisualLoggerFilterVolume::StaticClass()); It; ++It)
+	{
+		AVisualLoggerFilterVolume* Volume = Cast<AVisualLoggerFilterVolume>(*It);
+		FilterVolumesInLastUsedWorld.Emplace(Volume);
+	}
+}
+
+void SVisualLogger::ProcessFilterVolumes()
+{
+	FilterBoxes.Reset(FilterVolumesInLastUsedWorld.Num());
+	for (TWeakObjectPtr<const AVisualLoggerFilterVolume>& WeakVolume : FilterVolumesInLastUsedWorld)
+	{
+		if (const AVisualLoggerFilterVolume* Volume = WeakVolume.Get())
+		{
+			FilterBoxes.Add(Volume->GetBounds().GetBox());
+		}
+	}
+}
+
+void SVisualLogger::OnLevelActorAdded(AActor* Actor)
+{
+	if (AVisualLoggerFilterVolume* Volume = Cast<AVisualLoggerFilterVolume>(Actor))
+	{
+		FilterVolumesInLastUsedWorld.AddUnique(Volume);
+		ProcessFilterVolumes();
+		OnFiltersChanged();
+	}
+}
+
+void SVisualLogger::OnLevelActorDeleted(AActor* Actor)
+{
+	if (AVisualLoggerFilterVolume* Volume = Cast<AVisualLoggerFilterVolume>(Actor))
+	{
+		FilterVolumesInLastUsedWorld.Remove(Volume);
+		ProcessFilterVolumes();
+		OnFiltersChanged();
+	}
+}
+
+void SVisualLogger::OnActorMoved(AActor* Actor)
+{
+	if (AVisualLoggerFilterVolume* Volume = Cast<AVisualLoggerFilterVolume>(Actor))
+	{
+		ProcessFilterVolumes();
+		OnFiltersChanged();
+	}
+}
+
+void SVisualLogger::OnSettingsChanged(FName PropertyName)
+{
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(ULogVisualizerSettings, bUseFilterVolumes))
+	{
+		// Note that we don't need to collect & process the volumes since their bookkeeping
+		// is not conditional to the flag, only the filtering.
+		OnFiltersChanged();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULogVisualizerSettings, bSearchInsideLogs))
+	{
+		OnFiltersChanged();
+	}
+}
+
 void SVisualLogger::OnNewWorld(UWorld* NewWorld)
 {
 	LastUsedWorld = NewWorld;
 
-	AVisualLoggerRenderingActor* HelperActor = Cast<AVisualLoggerRenderingActor>(FVisualLoggerEditorInterface::Get()->GetHelperActor(LastUsedWorld.Get()));
-	if (ensure(HelperActor))
+	// Only reset data when activating a new game world, not when returning to the Editor world (i.e. after PIE)
+	if (!IsValid(NewWorld) ||
+		(NewWorld->IsGameWorld() && ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->bResetDataWithNewSession))
 	{
-		if (LastUsedWorld.IsValid() == false || ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->bResetDataWithNewSession)
-		{
-			ResetData();
-		}
+		ResetData();
+	}
 
+	CollectFilterVolumes();
+	ProcessFilterVolumes();
+
+	AVisualLoggerRenderingActor* HelperActor = Cast<AVisualLoggerRenderingActor>(FVisualLoggerEditorInterface::Get()->GetHelperActor(LastUsedWorld.Get()));
+	if (ensure(HelperActor != nullptr))
+	{
 		// reset data and simulate row/item selection to recreate rendering proxy with correct data
 		HelperActor->ResetRendering();
 		const TArray<FName>& SelectedRows = FVisualLoggerDatabase::Get().GetSelectedRows();
@@ -943,6 +1043,9 @@ void SVisualLogger::UpdateVisibilityForEntry(const FVisualLoggerDBRow& DBRow, in
 
 	TArray<FVisualLoggerCategoryVerbosityPair> OutCategories;
 	FVisualLoggerHelpers::GetCategories(CurrentEntry.Entry, OutCategories);
+
+	bool bPassingFilter = true;
+
 	bool bHasValidCategories = false;
 	for (FVisualLoggerCategoryVerbosityPair& CategoryPair : OutCategories)
 	{
@@ -952,8 +1055,24 @@ void SVisualLogger::UpdateVisibilityForEntry(const FVisualLoggerDBRow& DBRow, in
 			break;
 		}
 	}
+	bPassingFilter &= bHasValidCategories;
 
-	if (Settings->bSearchInsideLogs && bHasValidCategories && SearchString.Len() > 0)
+	if (bPassingFilter && Settings->bUseFilterVolumes && FilterBoxes.Num() > 0 && CurrentEntry.Entry.bIsLocationValid)
+	{
+		bool bIsInsideAnyFilterVolume = false;
+		for (const FBox& Box : FilterBoxes)
+		{
+			if (Box.IsInside(CurrentEntry.Entry.Location))
+			{
+				bIsInsideAnyFilterVolume = true;
+				break;
+			}
+		}
+
+		bPassingFilter &= bIsInsideAnyFilterVolume;
+	}
+
+	if (bPassingFilter && Settings->bSearchInsideLogs && SearchString.Len() > 0)
 	{
 		bool bMatchSearchString = false;
 		for (const FVisualLogLine& CurrentLine : CurrentEntry.Entry.LogLines)
@@ -976,12 +1095,10 @@ void SVisualLogger::UpdateVisibilityForEntry(const FVisualLoggerDBRow& DBRow, in
 			}
 		}
 
-		FVisualLoggerDatabase::Get().GetRowByName(DBRow.GetOwnerName()).SetItemVisibility(ItemIndex, bMatchSearchString);
+		bPassingFilter &= bMatchSearchString;
 	}
-	else
-	{
-		FVisualLoggerDatabase::Get().GetRowByName(DBRow.GetOwnerName()).SetItemVisibility(ItemIndex, bHasValidCategories);
-	}
+
+	FVisualLoggerDatabase::Get().GetRowByName(DBRow.GetOwnerName()).SetItemVisibility(ItemIndex, bPassingFilter);
 }
 
 void SVisualLogger::OnLogLineSelectionChanged(TSharedPtr<struct FLogEntryItem> SelectedItem, int64 UserData, FName TagName)

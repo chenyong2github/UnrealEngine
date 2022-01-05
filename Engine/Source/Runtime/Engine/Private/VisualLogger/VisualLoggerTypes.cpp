@@ -59,6 +59,7 @@ FVisualLogEntry::FVisualLogEntry(const FVisualLogEntry& Entry)
 {
 	TimeStamp = Entry.TimeStamp;
 	Location = Entry.Location;
+	bIsLocationValid = Entry.bIsLocationValid;
 
 	Events = Entry.Events;
 	LogLines = Entry.LogLines;
@@ -70,27 +71,31 @@ FVisualLogEntry::FVisualLogEntry(const FVisualLogEntry& Entry)
 
 FVisualLogEntry::FVisualLogEntry(const AActor* InActor, TArray<TWeakObjectPtr<UObject> >* Children)
 {
-	if (IsValid(InActor))
+	if (!IsValid(InActor))
 	{
-		TimeStamp = InActor->GetWorld()->TimeSeconds;
-		Location = InActor->GetActorLocation();
-		const IVisualLoggerDebugSnapshotInterface* DebugSnapshotInterface = Cast<const IVisualLoggerDebugSnapshotInterface>(InActor);
-		if (DebugSnapshotInterface)
+		Reset();
+	}
+
+	TimeStamp = InActor->GetWorld()->TimeSeconds;
+	Location = InActor->GetActorLocation();
+	bIsLocationValid = true;
+
+	const IVisualLoggerDebugSnapshotInterface* DebugSnapshotInterface = Cast<const IVisualLoggerDebugSnapshotInterface>(InActor);
+	if (DebugSnapshotInterface)
+	{
+		DebugSnapshotInterface->GrabDebugSnapshot(this);
+	}
+	if (Children != nullptr)
+	{
+		TWeakObjectPtr<UObject>* WeakActorPtr = Children->GetData();
+		for (int32 Index = 0; Index < Children->Num(); ++Index, ++WeakActorPtr)
 		{
-			DebugSnapshotInterface->GrabDebugSnapshot(this);
-		}
-		if (Children != nullptr)
-		{
-			TWeakObjectPtr<UObject>* WeakActorPtr = Children->GetData();
-			for (int32 Index = 0; Index < Children->Num(); ++Index, ++WeakActorPtr)
+			if (WeakActorPtr->IsValid())
 			{
-				if (WeakActorPtr->IsValid())
+				const IVisualLoggerDebugSnapshotInterface* ChildActor = Cast<const IVisualLoggerDebugSnapshotInterface>(WeakActorPtr->Get());
+				if (ChildActor)
 				{
-					const IVisualLoggerDebugSnapshotInterface* ChildActor = Cast<const IVisualLoggerDebugSnapshotInterface>(WeakActorPtr->Get());
-					if (ChildActor)
-					{
-						ChildActor->GrabDebugSnapshot(this);
-					}
+					ChildActor->GrabDebugSnapshot(this);
 				}
 			}
 		}
@@ -101,6 +106,8 @@ FVisualLogEntry::FVisualLogEntry(float InTimeStamp, FVector InLocation, const UO
 {
 	TimeStamp = InTimeStamp;
 	Location = InLocation;
+	bIsLocationValid = true;
+
 	const IVisualLoggerDebugSnapshotInterface* DebugSnapshotInterface = Cast<const IVisualLoggerDebugSnapshotInterface>(Object);
 	if (DebugSnapshotInterface)
 	{
@@ -127,6 +134,7 @@ void FVisualLogEntry::Reset()
 {
 	TimeStamp = -1;
 	Location = FVector::ZeroVector;
+	bIsLocationValid = false;
 	Events.Reset();
 	LogLines.Reset();
 	Status.Reset();
@@ -482,6 +490,10 @@ FArchive& operator<<(FArchive& Ar, FVisualLogEntry& LogEntry)
 	Ar << LogEntry.Events;
 	Ar << LogEntry.ElementsToDraw;
 	Ar << LogEntry.DataBlocks;
+	
+	uint8 bTempIsLocationValid = (LogEntry.bIsLocationValid != 0);
+	Ar.SerializeBits(&bTempIsLocationValid, 1);
+	LogEntry.bIsLocationValid = bTempIsLocationValid != 0;	
 
 	const int32 VLogsVer = Ar.CustomVer(EVisualLoggerVersion::GUID);
 	if (VLogsVer > EVisualLoggerVersion::Initial)
