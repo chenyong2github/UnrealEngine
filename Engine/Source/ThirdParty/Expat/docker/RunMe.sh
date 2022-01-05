@@ -12,14 +12,14 @@
 #   docker run -v /epic:/epic -it --rm multiarch/centos:aarch64-clean /bin/bash
 
 SCRIPT_DIR=$(cd "$(dirname "$BASH_SOURCE")" ; pwd)
-EXPAT_DIR=$(readlink -f "${SCRIPT_DIR}/../expat-2.2.0")
+EXPAT_DIR=$(readlink -f "${SCRIPT_DIR}/../expat-2.2.10")
 
 BuildExpatWithDocker()
 {
 	local Arch=$1
 	local Image=$2
 	local ImageName=temp_build_linux_expat
-	local LibDir=${EXPAT_DIR}/Linux/${Arch}
+	local LibDir=${EXPAT_DIR}/Unix/${Arch}
 
 	echo Building ${Arch}...
 	echo docker run -t --name ${ImageName} -v ${EXPAT_DIR}:/expat -v ${SCRIPT_DIR}:/src ${Image} /src/docker-build-expat.sh

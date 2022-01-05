@@ -2,9 +2,10 @@ cmake_minimum_required(VERSION 3.3)
 project(libstrophe)
 
 # Put our build output one level up so we can easily delete the temporary files and only check-in the final libs
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
+#  I have commented these out because they break pathing for AutomationTool's BuildCMakeLib
+#set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
+#set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../")
 
 set(SOCKET_IMPL ../src/sock.c CACHE STRING "Socket implementation")
 option(DISABLE_TLS "Disable TLS support" ON)
@@ -30,10 +31,6 @@ endif()
 
 if (${DISABLE_SRV_LOOKUP})
 	add_definitions(-DDISABLE_SRV_LOOKUP)
-endif()
-
-if (${EXPAT_MANGLE})
-	add_definitions(-DEXPAT_MANGLE=1)
 endif()
 
 if (${USE_SOCKETAPI_DISPATCH})

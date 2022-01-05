@@ -24,7 +24,7 @@ for BUILD_CONFIG in Debug Release; do
 	mkdir -pv "${BUILD_DIR}"
 
 	pushd "${BUILD_DIR}"
-	cmake3 -DSOCKET_IMPL=../../src/sock.c -DCMAKE_BUILD_TYPE="${BUILD_CONFIG}" -DDISABLE_TLS=0 -DOPENSSL_PATH=/ThirdParty/OpenSSL/1.1.1c/include/Linux/${ARCH} -DEXPAT_PATH=/ThirdParty/Expat/expat-2.2.0/lib -DCMAKE_OSX_DEPLOYMENT_TARGET="10.9" "${SCRIPT_DIR}/../../BuildForUE"
+	cmake3 -DSOCKET_IMPL=../../src/sock.c -DCMAKE_BUILD_TYPE="${BUILD_CONFIG}" -DDISABLE_TLS=0 -DOPENSSL_PATH=/ThirdParty/OpenSSL/1.1.1c/include/Linux/${ARCH} -DEXPAT_PATH=/ThirdParty/Expat/expat-2.2.10/lib -DCMAKE_OSX_DEPLOYMENT_TARGET="10.9" "${SCRIPT_DIR}/../../BuildForUE"
 
 	make -j8
 
@@ -48,7 +48,7 @@ for BUILD_CONFIG in Debug Release; do
 	mkdir -pv "${BUILD_DIR}"
 
 	pushd "${BUILD_DIR}"
-	cmake3 -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true -DSOCKET_IMPL=../../src/sock.c -DCMAKE_BUILD_TYPE="${BUILD_CONFIG}" -DDISABLE_TLS=0 -DOPENSSL_PATH=/ThirdParty/OpenSSL/1.1.1c/include/Linux/${ARCH} -DEXPAT_PATH=/ThirdParty/Expat/expat-2.2.0/lib -DCMAKE_OSX_DEPLOYMENT_TARGET="10.9" "${SCRIPT_DIR}/../../BuildForUE"
+	cmake3 -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true -DSOCKET_IMPL=../../src/sock.c -DCMAKE_BUILD_TYPE="${BUILD_CONFIG}" -DDISABLE_TLS=0 -DOPENSSL_PATH=/ThirdParty/OpenSSL/1.1.1c/include/Linux/${ARCH} -DEXPAT_PATH=/ThirdParty/Expat/expat-2.2.10/lib -DCMAKE_OSX_DEPLOYMENT_TARGET="10.9" "${SCRIPT_DIR}/../../BuildForUE"
 
 	make -j8
 
