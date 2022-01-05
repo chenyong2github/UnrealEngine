@@ -57,8 +57,9 @@ namespace CADKernel
 			return CtName.IsEmpty() ? FString() : CtName.toUnicode();
 		};
 
-	private:
 		void AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell);
+
+	private:
 
 		TSharedPtr<FTopologicalLoop> AddLoop(CT_OBJECT_ID CTLoopId, TSharedRef<FSurface>& Surface);
 

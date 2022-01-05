@@ -3,6 +3,7 @@
 
 #include "CADKernel/Core/Chrono.h"
 #include "CADKernel/Core/Types.h"
+#include "CADKernel/Mesh/Meshers/MesherReport.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/UI/Progress.h"
@@ -41,58 +42,6 @@ namespace CADKernel
 		}
 	};
 
-	struct CADKERNEL_API FMesherChronos
-	{
-		FDuration GlobalDuration;
-		FDuration ApplyCriteriaDuration;
-		FDuration IsolateQuadPatchDuration;
-		FDuration GlobalMeshDuration;
-		FDuration GlobalPointCloudDuration;
-		FDuration GlobalGeneratePointCloudDuration;
-		FDuration GlobalTriangulateDuration;
-		FDuration GlobalDelaunayDuration;
-		FDuration GlobalMeshAndGetLoopNodes;
-		FDuration GlobalMeshEdges;
-		FDuration GlobalThinZones;
-
-		FDuration GlobalFindThinZones;
-		//FDuration GlobalScaleGrid;
-		FDuration GlobalMeshThinZones;
-
-		FMesherChronos()
-			: GlobalDuration(FChrono::Init())
-			, ApplyCriteriaDuration(FChrono::Init())
-			, IsolateQuadPatchDuration(FChrono::Init())
-			, GlobalMeshDuration(FChrono::Init())
-			, GlobalPointCloudDuration(FChrono::Init())
-			, GlobalGeneratePointCloudDuration(FChrono::Init())
-			, GlobalTriangulateDuration(FChrono::Init())
-			, GlobalDelaunayDuration(FChrono::Init())
-			, GlobalMeshAndGetLoopNodes(FChrono::Init())
-			, GlobalMeshEdges(FChrono::Init())
-			, GlobalThinZones(FChrono::Init())
-			, GlobalFindThinZones(FChrono::Init())
-			//, GlobalScaleGrid(FChrono::Init())
-			, GlobalMeshThinZones(FChrono::Init())
-		{}
-
-		void PrintTimeElapse() const
-		{
-			FMessage::Printf(Log, TEXT("\n\n\n"));
-			FChrono::PrintClockElapse(Log, TEXT(""), TEXT("Total"), GlobalDuration);
-			FChrono::PrintClockElapse(Log, TEXT("  |  "), TEXT("Apply Criteria"), ApplyCriteriaDuration);
-			FChrono::PrintClockElapse(Log, TEXT("  |  "), TEXT("Find Quad Surfaces"), IsolateQuadPatchDuration);
-			FChrono::PrintClockElapse(Log, TEXT("  |  "), TEXT("Mesh Time"), GlobalMeshDuration);
-			FChrono::PrintClockElapse(Log, TEXT("  |   |  "), TEXT("GeneratePoint Cloud "), GlobalGeneratePointCloudDuration);
-			FChrono::PrintClockElapse(Log, TEXT("  |   |  |  "), TEXT("Point Cloud "), GlobalPointCloudDuration);
-			FChrono::PrintClockElapse(Log, TEXT("  |   |  "), TEXT("ThinZones "), GlobalThinZones);
-			FChrono::PrintClockElapse(Log, TEXT("  |   |  "), TEXT("Mesh ThinZones "), GlobalMeshThinZones);
-			FChrono::PrintClockElapse(Log, TEXT("  |   |  "), TEXT("MeshEdges "), GlobalMeshEdges);
-			FChrono::PrintClockElapse(Log, TEXT("  |   |  "), TEXT("TriangulateDuration "), GlobalTriangulateDuration);
-			FChrono::PrintClockElapse(Log, TEXT("  |   |   |  "), TEXT("Delaunay Duration "), GlobalDelaunayDuration);
-		}
-	};
-
 	class CADKERNEL_API FParametricMesher
 	{
 	protected:
@@ -109,7 +58,7 @@ namespace CADKernel
 		TArray<TSharedPtr<FTopologicalEdge>> Edges;
 		TArray<TSharedPtr<FTopologicalVertex>> Vertices;
 
-		FMesherChronos Chronos;
+		FMesherReport MesherReport;
 
 		bool bDisplay = false;
 
