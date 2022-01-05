@@ -11,37 +11,8 @@
 #include "IStructureDetailsView.h"
 #include "Misc/FrameNumber.h"
 #include "EditorUndoClient.h"
-#include "SRigSpacePickerWidget.generated.h"
+#include "RigSpacePickerBakeSettings.h"
 
-USTRUCT()
-struct CONTROLRIGEDITOR_API FRigSpacePickerBakeSettings
-{
-	GENERATED_BODY();
-
-	FRigSpacePickerBakeSettings()
-	{
-		TargetSpace = FRigElementKey();
-		StartFrame = 0;
-		EndFrame = 100;
-		bReduceKeys = false;
-		Tolerance = 0.001f;
-	}
-
-	UPROPERTY()
-	FRigElementKey TargetSpace;
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	FFrameNumber StartFrame;
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	FFrameNumber EndFrame;
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bReduceKeys;
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	float Tolerance;
-};
 
 DECLARE_DELEGATE_RetVal_TwoParams(FRigElementKey, FRigSpacePickerGetActiveSpace, URigHierarchy*, const FRigElementKey&);
 DECLARE_DELEGATE_RetVal_TwoParams(const FRigControlElementCustomization*, FRigSpacePickerGetControlCustomization, URigHierarchy*, const FRigElementKey&);

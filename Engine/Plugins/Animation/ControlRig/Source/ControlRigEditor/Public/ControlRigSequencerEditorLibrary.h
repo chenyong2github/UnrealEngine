@@ -16,6 +16,7 @@
 #include "EulerTransform.h"
 #include "Tools/ControlRigSnapSettings.h"
 #include "SequenceTimeUnit.h"
+#include "RigSpacePickerBakeSettings.h"
 #include "ControlRigSequencerEditorLibrary.generated.h"
 
 class ULevelSequence;
@@ -782,18 +783,67 @@ public:
 	/*
 	 * Import FBX onto a control rig with the specified track and section
 	 *
-	 * @InWorld World to import to
-	 * @InSequence Sequence to import
-	 * @InTrack Track to import onto
-	 * @InSection Section to import onto, may be null in which case we use the track's section to key
-	 * @SelectedControlRigNames  List of selected control rig names. Will use them if  ImportFBXControlRigSettings->bImportOntoSelectedControls is true
-	 * @ImportFBXControlRigSettings Settings to control import.
-	 * @InImportFileName Path to fbx file to create
+	 * @param InWorld World to import to
+	 * @param InSequence Sequence to import
+	 * @param InTrack Track to import onto
+	 * @param InSection Section to import onto, may be null in which case we use the track's section to key
+	 * @param SelectedControlRigNames  List of selected control rig names. Will use them if  ImportFBXControlRigSettings->bImportOntoSelectedControls is true
+	 * @param ImportFBXControlRigSettings Settings to control import.
+	 * @param InImportFileName Path to fbx file to create
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
 	static bool ImportFBXToControlRigTrack(UWorld* World, ULevelSequence* InSequence, UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection,
 			const TArray<FString>& SelectedControlRigNames,
 			UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings,
 			const FString& ImportFilename);
+
+	/*
+	 * Collapse and bake all sections and layers on a control rig track to just one section.
+	 *
+	 * @param InSequence Sequence that has track to collapse
+	 * @param InTrack Track for layers to collapse
+	 * @param bKeyReduce If true do key reduction based upon Tolerance, if false don't
+	 * @param Tolerance If reducing keys, tolerance about which keys will be removed, smaller tolerance, more keys usually.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool CollapseControlRigAnimLayers(ULevelSequence* InSequence,UMovieSceneControlRigParameterTrack* InTrack, bool bKeyReduce = false, float Tolerance = 0.001f);
+
+	/*
+	 * Set the a key for the Control Rig Space for the Control at the specified time. If space is the same as the current no key witll be set.
+	 *
+	 * @param InSequence Sequence to set the space
+	 * @param InControlRig ControlRig with the Control
+	 * @param InControlName The name of the Control
+	 * @param InSpaceKey  The new space for the Control
+	 * @param InTime Time to change the space.
+	 * @param TimeUnit Unit for the InTime, either in display rate or tick resolution
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool SetControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, FName InControlName, const FRigElementKey& InSpaceKey, FFrameNumber InTime,  ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+
+	/*Set the a key for the Control Rig Space for the Control at the specified time.If space is the same as the current no key witll be set.
+	*
+	* @param InSequence Sequence to set the space
+	* @param InControlRig ControlRig with the Control
+	* @param InControlName The name of the Control
+	* @param InSpaceKey  The new space for the Control
+	* @param InTime Time to change the space.
+	* @param TimeUnit Unit for the InTime, either in display rate or tick resolution
+	* 
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool DeleteControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, FName InControlName,  FFrameNumber InTime, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+
+	/**
+	* @param InSequence Sequence to bake
+	* @param InControlRig ControlRig to bake
+	* @param InControlNames The name of the Controls to bake
+	* @param InSettings  The settings for the bake, e.g, how long to bake, to key reduce etc.
+	* @param TimeUnit Unit for the start and end times in the InSettings parameter.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool BakeControlRigSpace(ULevelSequence* InSequence, UControlRig* InControlRig, TArray<FName>& InControlNames, FRigSpacePickerBakeSettings InSettings, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+	
+	
 };
 

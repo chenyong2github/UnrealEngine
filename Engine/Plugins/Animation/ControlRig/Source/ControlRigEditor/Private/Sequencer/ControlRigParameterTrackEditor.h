@@ -195,6 +195,8 @@ public:
 	 */
 	bool ModifyOurGeneratedKeysByCurrentAndWeight(UObject* Object, UControlRig* InControlRig, FName RigControlName, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber Time, FGeneratedTrackKeys& InOutGeneratedTotalKeys, float Weight) const;
 
+	//**Function to collapse all layers from this section onto the first absoluate layer.*/
+	static bool CollapseAllLayers(TSharedPtr<ISequencer>& SequencerPtr, UMovieSceneTrack* OwnerTrack, UMovieSceneControlRigParameterSection* ParameterSection, bool bKeyReduce = false, float Tolerance = 0.001f);
 
 private:
 	FDelegateHandle SelectionChangedHandle;
@@ -259,7 +261,6 @@ public:
 	//~ ISequencerSection interface
 	virtual bool RequestDeleteCategory(const TArray<FName>& CategoryNamePath) override;
 	virtual bool RequestDeleteKeyArea(const TArray<FName>& KeyAreaNamePath) override;
-
 protected:
 	/** Add Sub Menu */
 	void AddAnimationSubMenuForFK(FMenuBuilder& MenuBuilder, FGuid ObjectBinding, USkeleton* Skeleton, UMovieSceneControlRigParameterSection* Section);
