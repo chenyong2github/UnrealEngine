@@ -24,6 +24,7 @@ namespace Audio
 	{
 		OwningClockPtr = InCommandInitInfo.OwningClockPointer;
 		SourceID = InCommandInitInfo.SourceID;
+		bIsCanceled = false;
 
 		// access source manager through owning clock (via clock manager)
 		FMixerSourceManager* SourceManager = OwningClockPtr->GetSourceManager();

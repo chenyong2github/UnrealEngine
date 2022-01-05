@@ -576,6 +576,12 @@ namespace Audio
 		return false;
 	}
 
+	void FQuartzQuantizedCommandHandle::Reset()
+	{
+		MixerDevice = nullptr;
+		CommandPtr.Reset();
+		OwningClockName = FName();
+	}
 
 	FQuartzLatencyTimer::FQuartzLatencyTimer()
 		: JourneyStartCycles(-1)
