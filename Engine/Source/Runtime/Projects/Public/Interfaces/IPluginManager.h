@@ -149,6 +149,13 @@ public:
 	virtual bool CanContainContent() const = 0;
 
 	/**
+	 * Determines if the plugin can contain Verse code.
+	 *
+	 * @return True if the plugin can contain Verse code.
+	 */
+	virtual bool CanContainVerse() const = 0;
+
+	/**
 	 * Returns the plugin's location
 	 *
 	 * @return Where the plugin was loaded from
@@ -296,6 +303,18 @@ public:
 	 * @return	Array of plugins with IsEnabled() and CanContainContent() both true.
 	 */
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContent() const = 0;
+
+	/**
+	 * Gets an array of all enabled plugins that can have Verse code.
+	 *
+	 * @return	Array of plugins with IsEnabled() and CanContainVerse() both true.
+	 */
+	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithVerse() const = 0;
+
+	/**
+	 * Gets an array of all enabled plugins that can have content or Verse code.
+	 */
+	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContentOrVerse() const = 0;
 
 	/**
 	 * Gets an array of all the discovered plugins.

@@ -1160,7 +1160,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 			}, true); // @todo disable parallelism for now as it's causing hard to track problems
 		}
 
-		for (TSharedRef<IPlugin> Plugin: GetEnabledPluginsWithContent())
+		for (TSharedRef<IPlugin> Plugin: GetEnabledPluginsWithContentOrVerse())
 		{
 			if (Plugin->GetDescriptor().bExplicitlyLoaded)
 			{
@@ -1790,6 +1790,7 @@ TSharedPtr<IPlugin> FPluginManager::FindPluginFromPath(const FString& PluginPath
 TArray<TSharedRef<IPlugin>> FPluginManager::GetEnabledPlugins()
 {
 	TArray<TSharedRef<IPlugin>> Plugins;
+	Plugins.Reserve(AllPlugins.Num());
 	for(TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
 	{
 		TSharedRef<FPlugin>& PossiblePlugin = PluginPair.Value;
@@ -1804,11 +1805,44 @@ TArray<TSharedRef<IPlugin>> FPluginManager::GetEnabledPlugins()
 TArray<TSharedRef<IPlugin>> FPluginManager::GetEnabledPluginsWithContent() const
 {
 	TArray<TSharedRef<IPlugin>> Plugins;
+	Plugins.Reserve(AllPlugins.Num());
 	for (const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
 	{
 		const TSharedRef<FPlugin>& PluginRef = PluginPair.Value;
 		const FPlugin& Plugin = *PluginRef;
 		if (Plugin.IsEnabled() && Plugin.CanContainContent())
+		{
+			Plugins.Add(PluginRef);
+		}
+	}
+	return Plugins;
+}
+
+TArray<TSharedRef<IPlugin>> FPluginManager::GetEnabledPluginsWithVerse() const
+{
+	TArray<TSharedRef<IPlugin>> Plugins;
+	Plugins.Reserve(AllPlugins.Num());
+	for (const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
+	{
+		const TSharedRef<FPlugin>& PluginRef = PluginPair.Value;
+		const FPlugin& Plugin = *PluginRef;
+		if (Plugin.IsEnabled() && Plugin.CanContainVerse())
+		{
+			Plugins.Add(PluginRef);
+		}
+	}
+	return Plugins;
+}
+
+TArray<TSharedRef<IPlugin>> FPluginManager::GetEnabledPluginsWithContentOrVerse() const
+{
+	TArray<TSharedRef<IPlugin>> Plugins;
+	Plugins.Reserve(AllPlugins.Num());
+	for (const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
+	{
+		const TSharedRef<FPlugin>& PluginRef = PluginPair.Value;
+		const FPlugin& Plugin = *PluginRef;
+		if (Plugin.IsEnabled() && (Plugin.CanContainContent() || Plugin.CanContainVerse()))
 		{
 			Plugins.Add(PluginRef);
 		}
@@ -1830,6 +1864,7 @@ TArray<TSharedRef<IPlugin>> FPluginManager::GetDiscoveredPlugins()
 TArray< FPluginStatus > FPluginManager::QueryStatusForAllPlugins() const
 {
 	TArray< FPluginStatus > PluginStatuses;
+	PluginStatuses.Reserve(AllPlugins.Num());
 
 	for( const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins )
 	{
@@ -1919,7 +1954,7 @@ void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Pl
 	Plugin->bEnabled = true;
 
 	// Mount the plugin content directory
-	if (Plugin->CanContainContent() && ensure(RegisterMountPointDelegate.IsBound()))
+	if ((Plugin->CanContainContent() || Plugin->CanContainVerse()) && ensure(RegisterMountPointDelegate.IsBound()))
 	{
 		if (NewPluginMountedEvent.IsBound())
 		{
@@ -1930,16 +1965,19 @@ void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Pl
 		RegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), ContentDir);
 
 		// Register this plugin's path with the list of content directories that the editor will search
-		if (FConfigFile* EngineConfigFile = GConfig->Find(GEngineIni))
+		if (Plugin->CanContainContent())
 		{
-			if (FConfigSection* CoreSystemSection = EngineConfigFile->Find(TEXT("Core.System")))
+			if (FConfigFile* EngineConfigFile = GConfig->Find(GEngineIni))
 			{
-				CoreSystemSection->AddUnique("Paths", MoveTemp(ContentDir));
+				if (FConfigSection* CoreSystemSection = EngineConfigFile->Find(TEXT("Core.System")))
+				{
+					CoreSystemSection->AddUnique("Paths", MoveTemp(ContentDir));
+				}
 			}
-		}
 
-		// Update the localization cache for the newly added content directory
-		UpdatePackageLocalizationCacheDelegate.ExecuteIfBound();
+			// Update the localization cache for the newly added content directory
+			UpdatePackageLocalizationCacheDelegate.ExecuteIfBound();
+		}
 	}
 
 	// If it's a code module, also load the modules for it
@@ -1997,7 +2035,7 @@ bool FPluginManager::UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& 
 		return false;
 	}
 
-	if (Plugin->CanContainContent() && ensure(UnRegisterMountPointDelegate.IsBound()))
+	if ((Plugin->CanContainContent() || Plugin->CanContainVerse()) && ensure(UnRegisterMountPointDelegate.IsBound()))
 	{
 		UnRegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), Plugin->GetContentDir());
 	}

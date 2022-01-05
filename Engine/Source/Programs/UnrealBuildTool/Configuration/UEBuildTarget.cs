@@ -3454,8 +3454,8 @@ namespace UnrealBuildTool
 				}
 				Instance.Dependencies = Dependencies;
 
-				// Stage the descriptor if the plugin contains content
-				if (Info.Descriptor.bCanContainContent || Dependencies.Any(x => x.bDescriptorNeededAtRuntime))
+				// Stage the descriptor if the plugin contains content or Verse code
+				if (Info.Descriptor.bCanContainContent || Info.Descriptor.bCanContainVerse || Dependencies.Any(x => x.bDescriptorNeededAtRuntime))
 				{
 					Instance.bDescriptorNeededAtRuntime = true;
 				}

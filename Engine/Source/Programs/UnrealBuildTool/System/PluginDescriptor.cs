@@ -150,6 +150,11 @@ namespace UnrealBuildTool
 		public bool bCanContainContent;
 
 		/// <summary>
+		/// Can this plugin contain Verse code (either in content directory or in any of its modules)?
+		/// </summary>
+		public bool bCanContainVerse;
+
+		/// <summary>
 		/// Marks the plugin as beta in the UI
 		/// </summary>
 		public bool bIsBetaVersion;
@@ -290,6 +295,7 @@ namespace UnrealBuildTool
 			}
 
 			RawObject.TryGetBoolField("CanContainContent", out bCanContainContent);
+			RawObject.TryGetBoolField("CanContainVerse", out bCanContainVerse);
 			RawObject.TryGetBoolField("IsBetaVersion", out bIsBetaVersion);
 			RawObject.TryGetBoolField("IsExperimentalVersion", out bIsExperimentalVersion);
 			RawObject.TryGetBoolField("Installed", out bInstalled);
@@ -381,6 +387,7 @@ namespace UnrealBuildTool
 				Writer.WriteValue("EnabledByDefault", bEnabledByDefault.Value);
 			}
 			Writer.WriteValue("CanContainContent", bCanContainContent);
+			Writer.WriteValue("CanContainVerse", bCanContainVerse);
 			if (bIsBetaVersion)
 			{
 				Writer.WriteValue("IsBetaVersion", bIsBetaVersion);

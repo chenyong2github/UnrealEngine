@@ -87,6 +87,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** Can this plugin contain content? */
 	bool bCanContainContent;
 
+	/** Can this plugin contain Verse code? */
+	bool bCanContainVerse;
+
 	/** Marks the plugin as beta in the UI */
 	bool bIsBetaVersion;
 
