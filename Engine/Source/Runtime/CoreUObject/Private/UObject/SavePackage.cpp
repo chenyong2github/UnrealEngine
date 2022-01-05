@@ -2148,12 +2148,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
 						Linker = MakePimpl<FLinkerSave>(InOuter, *TempFilename.GetValue(), bForceByteSwapping, bSaveUnversionedNative);
 					}
+
 					Linker->bProceduralSave = ObjectSaveContext.bProceduralSave;
 					Linker->bUpdatingLoadedPath = ObjectSaveContext.bUpdatingLoadedPath;
 
 					if (UE::FPackageTrailer::IsEnabled())
 					{
-						if (!bTextFormat) // The package trailer is not supported for text based assets yet
+						// The package trailer is not supported for text based assets yet
+						if (!bTextFormat && !ObjectSaveContext.bProceduralSave) 
 						{
 							Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(InOuter);
 						}

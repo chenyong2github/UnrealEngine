@@ -807,7 +807,8 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 
 		if (UE::FPackageTrailer::IsEnabled())
 		{
-			if (!SaveContext.IsTextFormat()) // The package trailer is not supported for text based assets yet
+			// The package trailer is not supported for text based assets yet
+			if (!SaveContext.IsTextFormat() && !SaveContext.IsProceduralSave())
 			{
 				SaveContext.Linker->PackageTrailerBuilder = MakeUnique<UE::FPackageTrailerBuilder>(SaveContext.GetPackage());
 			}
