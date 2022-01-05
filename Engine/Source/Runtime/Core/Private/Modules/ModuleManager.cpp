@@ -463,7 +463,7 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 		{
 			FScopedBootTiming BootScope("LoadModule  - ", InModuleName);
 			TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("LoadModule - %s"), *InModuleName.ToString());
-#if USE_PER_MODULE_UOBJECT_BOOTSTRAP
+#if USE_PER_MODULE_UOBJECT_BOOTSTRAP || WITH_VERSE
 			{
 				ProcessLoadedObjectsCallback.Broadcast(InModuleName, bCanProcessNewlyLoadedObjects);
 			}
