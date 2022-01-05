@@ -12,6 +12,7 @@
 
 // Forward Declarations
 class SGraphEditor;
+class UEdGraph;
 class UEdGraphNode;
 class UEdGraphPin;
 class UMetaSound;
