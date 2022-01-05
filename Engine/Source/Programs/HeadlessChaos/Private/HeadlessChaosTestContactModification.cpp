@@ -432,26 +432,14 @@ namespace ChaosTest
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(AllTraits, ContactModification_ModifyRestitution)
+	GTEST_TEST(AllTraits, ContactModification_ModifyRestitution_NoBounce)
 	{
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
 		Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
 
-		// Collide two cubes with static floor, one with restitution modified to 1, one with 0.
-
-		// simulated cube with downward velocity, should bounce on floor and end up with upward velocity.
-		FSingleParticlePhysicsProxy* BounceCubeProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
-		auto& BounceCubeParticle = BounceCubeProxy->GetGameThreadAPI();
-		auto BounceCubeGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100), FVec3(100)));
-		BounceCubeParticle.SetGeometry(BounceCubeGeom);
-		Solver->RegisterObject(BounceCubeProxy);
-		BounceCubeParticle.SetGravityEnabled(false);
-		BounceCubeParticle.SetX(FVec3(200, 0, 200));
-		SetCubeInertiaTensor(BounceCubeParticle, /*Dimension=*/200, /*Mass=*/1);
-		ChaosTest::SetParticleSimDataToCollide({ BounceCubeProxy->GetParticle_LowLevel() });
-		BounceCubeParticle.SetV(FVec3(0, 0, -100));
+		// Collide cube with static floor with restitution modified to 0
 
 		// Simulated cube with downawrd velocity, should not bounce, and end up with zero velocity.
 		FSingleParticlePhysicsProxy* NoBounceCubeProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
@@ -476,10 +464,9 @@ namespace ChaosTest
 
 		// Save Unique indices of floor and modified cube to disable in contact mod.
 		TVec2<FUniqueIdx> NoBounceUniqueIndices({ NoBounceCubeParticle.UniqueIdx(), FloorParticle.UniqueIdx() });
-		TVec2<FUniqueIdx> BounceUniqueIndices({ BounceCubeParticle.UniqueIdx(), FloorParticle.UniqueIdx() });
 
 		FContactModificationTestCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FContactModificationTestCallback>(true);
-		Callback->TestLambda = [BounceUniqueIndices, NoBounceUniqueIndices](Chaos::FCollisionContactModifier& Modifier)
+		Callback->TestLambda = [NoBounceUniqueIndices](Chaos::FCollisionContactModifier& Modifier)
 		{
 			for (FContactPairModifier& PairModifier : Modifier)
 			{
@@ -497,15 +484,79 @@ namespace ChaosTest
 						PairModifier.ModifyRestitution(0);
 					}
 				}
-				else if ((BounceUniqueIndices[0] == Idx0 && BounceUniqueIndices[1] == Idx1) ||
-						 (BounceUniqueIndices[0] == Idx1 && BounceUniqueIndices[1] == Idx0))
+			}
+		};
+
+
+		const float Dt = 0.1f;
+		const int32 Steps = 30;
+		for (int Step = 0; Step < Steps; ++Step)
+		{
+			Solver->AdvanceAndDispatch_External(Dt);
+			Solver->UpdateGameThreadStructures();
+		}
+
+		
+		EXPECT_NEAR(NoBounceCubeParticle.V().Z, 0.f, KINDA_SMALL_NUMBER);
+
+		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
+		Solver->UnregisterObject(NoBounceCubeProxy);
+		Solver->UnregisterObject(FloorProxy);
+		Module->DestroySolver(Solver);
+	}	
+
+
+	GTEST_TEST(AllTraits, ContactModification_ModifyRestitution_Bounce)
+	{
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
+		InitSolverSettings(Solver);
+		Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+
+		// Collide cubes with static floor  with restitution modified to 1
+
+		// simulated cube with downward velocity, should bounce on floor and end up with upward velocity.
+		FSingleParticlePhysicsProxy* BounceCubeProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+		auto& BounceCubeParticle = BounceCubeProxy->GetGameThreadAPI();
+		auto BounceCubeGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100), FVec3(100)));
+		BounceCubeParticle.SetGeometry(BounceCubeGeom);
+		Solver->RegisterObject(BounceCubeProxy);
+		BounceCubeParticle.SetGravityEnabled(false);
+		BounceCubeParticle.SetX(FVec3(200, 0, 200));
+		SetCubeInertiaTensor(BounceCubeParticle, /*Dimension=*/200, /*Mass=*/1);
+		ChaosTest::SetParticleSimDataToCollide({ BounceCubeProxy->GetParticle_LowLevel() });
+		BounceCubeParticle.SetV(FVec3(0, 0, -100));
+
+		// static floor at origin, occupying Z = [-100,0]
+		FSingleParticlePhysicsProxy* FloorProxy = FSingleParticlePhysicsProxy::Create(Chaos::FGeometryParticle::CreateParticle());
+		auto& FloorParticle = FloorProxy->GetGameThreadAPI();
+		auto FloorGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-500, -500, -100), FVec3(500, 500, 0)));
+		FloorParticle.SetGeometry(FloorGeom);
+		Solver->RegisterObject(FloorProxy);
+		FloorParticle.SetX(FVec3(0, 0, 0));
+		ChaosTest::SetParticleSimDataToCollide({ FloorProxy->GetParticle_LowLevel() });
+
+		// Save Unique indices of floor and modified cube to disable in contact mod.
+		TVec2<FUniqueIdx> BounceUniqueIndices({ BounceCubeParticle.UniqueIdx(), FloorParticle.UniqueIdx() });
+
+		FContactModificationTestCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FContactModificationTestCallback>(true);
+		Callback->TestLambda = [BounceUniqueIndices](Chaos::FCollisionContactModifier& Modifier)
+		{
+			for (FContactPairModifier& PairModifier : Modifier)
+			{
+				TVec2<FGeometryParticleHandle*> Particles = PairModifier.GetParticlePair();
+				FUniqueIdx Idx0 = Particles[0]->UniqueIdx();
+				FUniqueIdx Idx1 = Particles[1]->UniqueIdx();
+
+				if ((BounceUniqueIndices[0] == Idx0 && BounceUniqueIndices[1] == Idx1) ||
+					(BounceUniqueIndices[0] == Idx1 && BounceUniqueIndices[1] == Idx0))
 				{
 					int32 NumContacts = PairModifier.GetNumContacts();
 					for (int32 PointIdx = 0; PointIdx < NumContacts; ++PointIdx)
 					{
 						// set restitution
 						PairModifier.ModifyRestitution(1);
-						
+
 						// Our object is slow enough restitution will not be applied with default threshold.
 						PairModifier.ModifyRestitutionThreshold(99);
 					}
@@ -522,18 +573,13 @@ namespace ChaosTest
 			Solver->UpdateGameThreadStructures();
 		}
 
-		
-		EXPECT_NEAR(NoBounceCubeParticle.V().Z, 0.f, KINDA_SMALL_NUMBER);
-
-		// 50 is a somewhat arbritrary threshold, would expect 100 but solver seems to lose some energy with rest = 1.
-		EXPECT_GT(BounceCubeParticle.V().Z, 50.f);
+		EXPECT_NEAR(BounceCubeParticle.V().Z, 100.f, KINDA_SMALL_NUMBER);
 
 		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
 		Solver->UnregisterObject(BounceCubeProxy);
-		Solver->UnregisterObject(NoBounceCubeProxy);
 		Solver->UnregisterObject(FloorProxy);
 		Module->DestroySolver(Solver);
-	}	
+	}
 
 	GTEST_TEST(AllTraits, ContactModification_ModifyFriction)
 	{
@@ -572,7 +618,7 @@ namespace ChaosTest
 		FloorParticle.SetGeometry(FloorGeom);
 		Solver->RegisterObject(FloorProxy);
 		FloorParticle.SetX(FVec3(0, 0, 0));
-		FloorParticle.SetR(FQuat::MakeFromEuler(FVec3(0, 30, 0)));
+		FloorParticle.SetR(FQuat::MakeFromEuler(FVec3(0, 20, 0)));
 		ChaosTest::SetParticleSimDataToCollide({ FloorProxy->GetParticle_LowLevel() });
 
 

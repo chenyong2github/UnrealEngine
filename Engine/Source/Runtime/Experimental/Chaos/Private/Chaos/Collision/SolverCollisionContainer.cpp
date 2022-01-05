@@ -133,11 +133,22 @@ namespace Chaos
 			for (int32 PointIndex = 0; PointIndex < Solver.NumManifoldPoints(); ++PointIndex)
 			{
 				const FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = Solver.GetManifoldPoint(PointIndex);
+
+				const FVec3LP NetPushOut = 
+					SolverManifoldPoint.NetPushOutNormal * SolverManifoldPoint.WorldContactNormal +
+					SolverManifoldPoint.NetPushOutTangentU * SolverManifoldPoint.WorldContactTangentU +
+					SolverManifoldPoint.NetPushOutTangentV * SolverManifoldPoint.WorldContactTangentV;
+
+				const FVec3LP NetImpulse =
+					SolverManifoldPoint.NetImpulseNormal * SolverManifoldPoint.WorldContactNormal +
+					SolverManifoldPoint.NetImpulseTangentU * SolverManifoldPoint.WorldContactTangentU +
+					SolverManifoldPoint.NetImpulseTangentV * SolverManifoldPoint.WorldContactTangentV;
+
 				Constraint->SetSolverResults(PointIndex, 
-					SolverManifoldPoint.NetPushOut, 
-					SolverManifoldPoint.NetImpulse, 
+					NetPushOut, 
+					NetImpulse, 
 					SolverManifoldPoint.bInsideStaticFrictionCone,
-					SolverManifoldPoint.StaticFrictionMax,
+					SolverManifoldPoint.FrictionNetPushOutNormal,
 					Dt);
 			}
 

@@ -67,9 +67,15 @@ namespace Chaos
 		const FVec3& InWorldAnchorPoint1,
 		const FVec3LP& InWorldContactNormal)
 	{
-		NetPushOut = FVec3LP(0);
-		NetImpulse = FVec3LP(0);
+		NetPushOutNormal = FRealLP(0);
+		NetPushOutTangentU = FRealLP(0);
+		NetPushOutTangentV = FRealLP(0);
+		NetImpulseNormal = FRealLP(0);
+		NetImpulseTangentU = FRealLP(0);
+		NetImpulseTangentV = FRealLP(0);
+
 		UpdateContact(Body0, Body1, InWorldAnchorPoint0, InWorldAnchorPoint1, InWorldContactNormal);
+
 		UpdateMass(Body0, Body1);
 	}
 
@@ -79,9 +85,9 @@ namespace Chaos
 		const FRealLP InRestitution,
 		const FRealLP InRestitutionVelocityThreshold,
 		const bool bInEnableStaticFriction,
-		const FRealLP InStaticFrictionMax)
+		const FRealLP InFrictionNetPushOutNormal)
 	{
-		StaticFrictionMax = InStaticFrictionMax;
+		FrictionNetPushOutNormal = InFrictionNetPushOutNormal;
 		bInsideStaticFrictionCone = bInEnableStaticFriction;
 		WorldContactVelocityTargetNormal = FRealLP(0);
 
@@ -112,34 +118,76 @@ namespace Chaos
 		// The world-space contact normal
 		WorldContactNormal = InWorldContactNormal;
 
+		// World-space contact tangents. We are treating the normal as the constraint-space Z axis
+		// and the Tangent U and V as the constraint-space X and Y axes resepctively
+		WorldContactTangentU = FVec3LP::CrossProduct(FVec3LP(0, 1, 0), InWorldContactNormal);
+		if (!WorldContactTangentU.Normalize(FRealLP(KINDA_SMALL_NUMBER)))
+		{
+			WorldContactTangentU = FVec3LP::CrossProduct(FVec3LP(1, 0, 0), InWorldContactNormal);
+			WorldContactTangentU = WorldContactTangentU.GetUnsafeNormal();
+		}
+		WorldContactTangentV = FVec3LP::CrossProduct(InWorldContactNormal, WorldContactTangentU);
+
 		// The contact point error we are trying to correct in this solver
-		WorldContactDelta = InWorldAnchorPoint0 - InWorldAnchorPoint1;
+		const FVec3LP WorldContactDelta = InWorldAnchorPoint0 - InWorldAnchorPoint1;
+		WorldContactDeltaNormal = FVec3LP::DotProduct(WorldContactDelta, WorldContactNormal);
+		WorldContactDeltaTangent0 = FVec3LP::DotProduct(WorldContactDelta, WorldContactTangentU);
+		WorldContactDeltaTangent1 = FVec3LP::DotProduct(WorldContactDelta, WorldContactTangentV);
 	}
 
 	inline void FPBDCollisionSolverManifoldPoint::UpdateMass(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1)
 	{
-		const FMatrix33LP ContactMassInv =
-			(Body0.IsDynamic() ? Collisions::ComputeFactorMatrix3(RelativeContactPosition0, FMatrix33LP(Body0.InvI()), FRealLP(Body0.InvM())) : FMatrix33LP(0)) +
-			(Body1.IsDynamic() ? Collisions::ComputeFactorMatrix3(RelativeContactPosition1, FMatrix33LP(Body1.InvI()), FRealLP(Body1.InvM())) : FMatrix33LP(0));
-		const FMatrix33LP ContactMass = ContactMassInv.Inverse();
-		const FRealLP ContactMassInvNormal = FVec3LP::DotProduct(WorldContactNormal, Utilities::Multiply(ContactMassInv, WorldContactNormal));
-		const FRealLP ContactMassNormal = (ContactMassInvNormal > FRealLP(SMALL_NUMBER)) ? FRealLP(1) / ContactMassInvNormal : FRealLP(0);
-		WorldContactMass = ContactMass;
-		WorldContactMassNormal = ContactMassNormal;
+		FRealLP ContactMassInvNormal = FRealLP(0);
+		FRealLP ContactMassInvTangentU = FRealLP(0);
+		FRealLP ContactMassInvTangentV = FRealLP(0);
 
-		WorldContactNormalAngular0 = FVec3LP(0);
-		WorldContactNormalAngular1 = FVec3LP(0);
+		// These are not used if not initialized below so no need to clear
+		//WorldContactNormalAngular0 = FVec3LP(0);
+		//WorldContactTangentUAngular0 = FVec3LP(0);
+		//WorldContactTangentVAngular0 = FVec3LP(0);
+		//WorldContactNormalAngular1 = FVec3LP(0);
+		//WorldContactTangentUAngular1 = FVec3LP(0);
+		//WorldContactTangentVAngular1 = FVec3LP(0);
+
 		if (Body0.IsDynamic())
 		{
-			WorldContactNormalAngular0 = Body0.InvI() * FVec3LP::CrossProduct(RelativeContactPosition0, WorldContactNormal);
+			const FVec3LP R0xN = FVec3LP::CrossProduct(RelativeContactPosition0, WorldContactNormal);
+			const FVec3LP R0xU = FVec3LP::CrossProduct(RelativeContactPosition0, WorldContactTangentU);
+			const FVec3LP R0xV = FVec3LP::CrossProduct(RelativeContactPosition0, WorldContactTangentV);
+
+			const FMatrix33LP InvI0 = Body0.InvI();
+
+			WorldContactNormalAngular0 = InvI0 * R0xN;
+			WorldContactTangentUAngular0 = InvI0 * R0xU;
+			WorldContactTangentVAngular0 = InvI0 * R0xV;
+
+			ContactMassInvNormal += FVec3LP::DotProduct(R0xN, WorldContactNormalAngular0) + Body0.InvM();
+			ContactMassInvTangentU += FVec3LP::DotProduct(R0xU, WorldContactTangentUAngular0) + Body0.InvM();
+			ContactMassInvTangentV += FVec3LP::DotProduct(R0xV, WorldContactTangentVAngular0) + Body0.InvM();
 		}
 		if (Body1.IsDynamic())
 		{
-			WorldContactNormalAngular1 = Body1.InvI() * FVec3LP::CrossProduct(RelativeContactPosition1, WorldContactNormal);
+			const FVec3LP R1xN = FVec3LP::CrossProduct(RelativeContactPosition1, WorldContactNormal);
+			const FVec3LP R1xU = FVec3LP::CrossProduct(RelativeContactPosition1, WorldContactTangentU);
+			const FVec3LP R1xV = FVec3LP::CrossProduct(RelativeContactPosition1, WorldContactTangentV);
+
+			const FMatrix33LP InvI1 = Body1.InvI();
+
+			WorldContactNormalAngular1 = InvI1 * R1xN;
+			WorldContactTangentUAngular1 = InvI1 * R1xU;
+			WorldContactTangentVAngular1 = InvI1 * R1xV;
+
+			ContactMassInvNormal += FVec3LP::DotProduct(R1xN, WorldContactNormalAngular1) + Body1.InvM();
+			ContactMassInvTangentU += FVec3LP::DotProduct(R1xU, WorldContactTangentUAngular1) + Body1.InvM();
+			ContactMassInvTangentV += FVec3LP::DotProduct(R1xV, WorldContactTangentVAngular1) + Body1.InvM();
 		}
+
+		ContactMassNormal = (ContactMassInvNormal > FRealLP(SMALL_NUMBER)) ? FRealLP(1) / ContactMassInvNormal : FRealLP(0);
+		ContactMassTangentU = (ContactMassInvTangentU > FRealLP(SMALL_NUMBER)) ? FRealLP(1) / ContactMassInvTangentU : FRealLP(0);
+		ContactMassTangentV = (ContactMassInvTangentV > FRealLP(SMALL_NUMBER)) ? FRealLP(1) / ContactMassInvTangentV : FRealLP(0);
 	}
 
-	FVec3 FPBDCollisionSolverManifoldPoint::CalculateContactVelocity(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1) const
+	FVec3LP FPBDCollisionSolverManifoldPoint::CalculateContactVelocity(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1) const
 	{
 		const FVec3LP ContactVelocity0 = Body0.V() + FVec3::CrossProduct(Body0.W(), RelativeContactPosition0);
 		const FVec3LP ContactVelocity1 = Body1.V() + FVec3::CrossProduct(Body1.W(), RelativeContactPosition1);
@@ -234,7 +282,7 @@ namespace Chaos
 		const FReal InRestitution,
 		const FReal InRestitutionVelocityThreshold,
 		const bool bInEnableStaticFriction,
-		const FReal InStaticFrictionMax)
+		const FReal InFrictionNetPushOutNormal)
 	{
 		State.ManifoldPoints[ManifoldPoiontIndex].InitMaterial(
 			State.SolverBodies[0], 
@@ -242,7 +290,7 @@ namespace Chaos
 			FRealLP(InRestitution), 
 			FRealLP(InRestitutionVelocityThreshold),
 			bInEnableStaticFriction, 
-			FRealLP(InStaticFrictionMax));
+			FRealLP(InFrictionNetPushOutNormal));
 
 		// Track if any points have restitution enabled. See SolveVelocity
 		State.bHaveRestitution = State.bHaveRestitution || (State.ManifoldPoints[ManifoldPoiontIndex].WorldContactVelocityTargetNormal > 0);
@@ -273,23 +321,28 @@ namespace Chaos
 		FVec3LP RelativeContactPosition0 = FVec3(0);
 		FVec3LP RelativeContactPosition1 = FVec3(0);
 		FVec3LP WorldContactNormal = FVec3LP(0);
-		FVec3LP NetPushOut = FVec3LP(0);
+		FRealLP NetPushOutNormal = FRealLP(0);
 		FRealLP WorldContactVelocityTargetNormal = FReal(0);
 		for (int32 PointIndex = 0; PointIndex < State.NumManifoldPoints; ++PointIndex)
 		{
 			FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
-			if (!SolverManifoldPoint.NetPushOut.IsNearlyZero())
+			if (!FMath::IsNearlyZero(SolverManifoldPoint.NetPushOutNormal))
 			{
 				RelativeContactPosition0 += SolverManifoldPoint.RelativeContactPosition0;
 				RelativeContactPosition1 += SolverManifoldPoint.RelativeContactPosition1;
 				WorldContactVelocityTargetNormal += SolverManifoldPoint.WorldContactVelocityTargetNormal;
 				WorldContactNormal = SolverManifoldPoint.WorldContactNormal;	// Take last value - should all be similar
+				NetPushOutNormal += SolverManifoldPoint.NetPushOutNormal;
 				++NumActiveManifoldPoints;
 			}
 		}
 
 		// Solve for velocity at the new conatct point
 		// We only do this if we have multiple active contacts
+		// NOTE: this average contact isn't really correct, especially when all contacts do not equally
+		// contribute to the pushout (which is normal even for a simple box on a plane). E.g., the WorldContactVelocityTargetNormal
+		// and NetPushOutNormal will not be right. The goal here though is just to get close to the correct result in frewer iterations
+		// than we would have if we just solved the corners of the box in sequence.
 		if (NumActiveManifoldPoints > 1)
 		{
 			const FRealLP DynamicFriction = FRealLP(0);
@@ -300,31 +353,42 @@ namespace Chaos
 			AverageManifoldPoint.RelativeContactPosition1 = RelativeContactPosition1 * Scale;
 			AverageManifoldPoint.WorldContactNormal = WorldContactNormal;
 			AverageManifoldPoint.WorldContactVelocityTargetNormal = WorldContactVelocityTargetNormal * Scale;
+			AverageManifoldPoint.NetPushOutNormal = NetPushOutNormal * Scale;
 
 			const FMatrix33LP ContactMassInv =
 				(Body0.IsDynamic() ? Collisions::ComputeFactorMatrix3(AverageManifoldPoint.RelativeContactPosition0, Body0.InvI(), Body0.InvM()) : FMatrix33LP(0)) +
 				(Body1.IsDynamic() ? Collisions::ComputeFactorMatrix3(AverageManifoldPoint.RelativeContactPosition1, Body1.InvI(), Body1.InvM()) : FMatrix33LP(0));
 			const FRealLP ContactMassInvNormal = FVec3LP::DotProduct(AverageManifoldPoint.WorldContactNormal, Utilities::Multiply(ContactMassInv, AverageManifoldPoint.WorldContactNormal));
 			const FRealLP ContactMassNormal = (ContactMassInvNormal > FRealLP(SMALL_NUMBER)) ? FRealLP(1) / ContactMassInvNormal : FRealLP(0);
-			AverageManifoldPoint.WorldContactMassNormal = ContactMassNormal;
+			AverageManifoldPoint.ContactMassNormal = ContactMassNormal;
 
-			AverageManifoldPoint.WorldContactMass = FMatrix33LP(0);	// Unused
-			AverageManifoldPoint.WorldContactDelta = FVec3LP(0);	// Unused
-			AverageManifoldPoint.NetPushOut = FVec3LP(0);			// Unused
-			AverageManifoldPoint.NetImpulse = FVec3LP(0);			// Unused
-			AverageManifoldPoint.StaticFrictionMax = FRealLP(0);	// Unused
-			AverageManifoldPoint.bInsideStaticFrictionCone = false;	// Unused
+			// @todo(chaos): All unused for the average contact solve - optimize
+			AverageManifoldPoint.ContactMassTangentU = FRealLP(0);
+			AverageManifoldPoint.ContactMassTangentV = FRealLP(0);
+			AverageManifoldPoint.WorldContactTangentU = FVec3LP(0);
+			AverageManifoldPoint.WorldContactTangentV = FVec3LP(0);
+			AverageManifoldPoint.WorldContactDeltaNormal = FRealLP(0);
+			AverageManifoldPoint.WorldContactDeltaTangent0 = FRealLP(0);
+			AverageManifoldPoint.WorldContactDeltaTangent1 = FRealLP(0);
+			AverageManifoldPoint.NetPushOutTangentU = FRealLP(0);
+			AverageManifoldPoint.NetPushOutTangentV = FRealLP(0);
+			AverageManifoldPoint.NetImpulseNormal = FRealLP(0);
+			AverageManifoldPoint.NetImpulseTangentU = FRealLP(0);
+			AverageManifoldPoint.NetImpulseTangentV = FRealLP(0);
+			AverageManifoldPoint.FrictionNetPushOutNormal = FRealLP(0);
+			AverageManifoldPoint.bInsideStaticFrictionCone = false;
 
-			FVec3LP ContactVelocityDelta;
-			FRealLP ContactVelocityDeltaNormal;
-			AverageManifoldPoint.CalculateContactVelocityError(Body0, Body1, DynamicFriction, Dt, ContactVelocityDelta, ContactVelocityDeltaNormal);
+			// @todo(chaos): don't need tangential velocity delta here since we are setting DynamicFriction to 0
+			FRealLP ContactVelocityDeltaNormal, ContactVelocityDeltaTangentU, ContactVelocityDeltaTangentV;
+			AverageManifoldPoint.CalculateContactVelocityError(Body0, Body1, DynamicFriction, Dt, ContactVelocityDeltaNormal, ContactVelocityDeltaTangentU, ContactVelocityDeltaTangentV);
 
 			ApplyVelocityCorrection(
 				State.Stiffness,
 				Dt,
 				DynamicFriction,
-				ContactVelocityDelta,
 				ContactVelocityDeltaNormal,
+				ContactVelocityDeltaTangentU,
+				ContactVelocityDeltaTangentV,
 				AverageManifoldPoint,
 				Body0,
 				Body1);
@@ -335,7 +399,8 @@ namespace Chaos
 	{
 		// Apply restitution at the average contact point
 		// This means we don't need to run as many iterations to get stable bouncing
-		if (State.bHaveRestitution && (State.NumManifoldPoints > 1))
+		// It also helps with zero restitution to counter any velocioty added by the PBD solve
+		if (State.NumManifoldPoints > 1)
 		{
 			SolveVelocityAverage(Dt);
 		}
@@ -350,17 +415,18 @@ namespace Chaos
 		for (int32 PointIndex = 0; PointIndex < State.NumManifoldPoints; ++PointIndex)
 		{
 			FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
-			if (!SolverManifoldPoint.NetPushOut.IsNearlyZero())
+			if (!FMath::IsNearlyZero(SolverManifoldPoint.NetPushOutNormal))
 			{
-				FVec3LP ContactVelocityDelta;
-				FRealLP ContactVelocityDeltaNormal;
-				SolverManifoldPoint.CalculateContactVelocityError(Body0, Body1, DynamicFriction, Dt, ContactVelocityDelta, ContactVelocityDeltaNormal);
+				FRealLP ContactVelocityDeltaNormal, ContactVelocityDeltaTangentU, ContactVelocityDeltaTangentV;
+				SolverManifoldPoint.CalculateContactVelocityError(Body0, Body1, DynamicFriction, Dt, ContactVelocityDeltaNormal, ContactVelocityDeltaTangentU, ContactVelocityDeltaTangentV);
+
 				ApplyVelocityCorrection(
 					State.Stiffness,
 					Dt,
 					DynamicFriction,
-					ContactVelocityDelta,
 					ContactVelocityDeltaNormal,
+					ContactVelocityDeltaTangentU,
+					ContactVelocityDeltaTangentV,
 					SolverManifoldPoint,
 					Body0,
 					Body1);

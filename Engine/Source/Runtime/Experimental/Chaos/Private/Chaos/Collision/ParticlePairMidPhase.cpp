@@ -287,7 +287,7 @@ namespace Chaos
 			// Otherwise we will try to reuse it below
 			if (!bWasUpdatedLastTick || bUseCCD)
 			{
-				// Clear all manifold data
+				// Clear all manifold data including saved contact data
 				Constraint->ResetManifold();
 			}
 
