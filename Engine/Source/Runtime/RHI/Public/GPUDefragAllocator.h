@@ -792,6 +792,8 @@ protected:
 	*/
 	void Relocate(FRelocationStats& Stats, FMemoryChunk* Dest, int64 DestOffset, const void* Source, int64 Size, void* UserPayload)
 	{
+		MemoryTrace_ReallocFree((uint64)Source);
+		MemoryTrace_ReallocAlloc((uint64) Dest, Size, 4);
 		LLM(FLowLevelMemTracker::Get().OnLowLevelAllocMoved(ELLMTracker::Default, Dest->Base, Source));
 
 		uint8* DestAddr = Dest->Base + DestOffset;
