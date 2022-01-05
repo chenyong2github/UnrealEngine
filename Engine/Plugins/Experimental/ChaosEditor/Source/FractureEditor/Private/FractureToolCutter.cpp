@@ -257,6 +257,10 @@ void UFractureToolVoronoiCutterBase::UpdateLineSetExplodedVectors()
 {
 	EnumerateVisualizationMapping(EdgesMappings, VoronoiLineSets.Num(), [&](int32 Idx, FVector ExplodedVector)
 	{
+		if (!VoronoiLineSets[Idx])
+		{
+			return;
+		}
 		// TODO: If we add diagrams even when visibility is toggled off, we also need to update visibility here, e.g.: VoronoiLineSets[Idx]->SetVisibility(CutterSettings->bDrawDiagram);
 		AActor* Actor = VoronoiLineSets[Idx]->GetOwner();
 		VoronoiLineSets[Idx]->SetRelativeLocation(Actor->GetTransform().InverseTransformVector(ExplodedVector));
