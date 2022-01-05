@@ -167,12 +167,13 @@ public:
 	}
 
 	inline BuilderType& Append(CharType Char) { return AppendChar(Char); }
+
+	UE_DEPRECATED(5.0, "Use Append instead of AppendAnsi.")
 	inline BuilderType& AppendAnsi(const FAnsiStringView String) { return Append(String); }
-	inline BuilderType& AppendUtf8(const FUtf8StringView String) { return Append(String); }
+	UE_DEPRECATED(5.0, "Use Append instead of AppendAnsi.")
 	inline BuilderType& AppendAnsi(const ANSICHAR* const String) { return Append(String); }
-	inline BuilderType& AppendUtf8(const UTF8CHAR* const String) { return Append(String); }
+	UE_DEPRECATED(5.0, "Use Append instead of AppendAnsi.")
 	inline BuilderType& AppendAnsi(const ANSICHAR* const String, const int32 Length) { return Append(String, Length); }
-	inline BuilderType& AppendUtf8(const UTF8CHAR* const String, const int32 Length) { return Append(String, Length); }
 
 	/** Replace characters at given position and length with substring */
 	void ReplaceAt(int32 Pos, int32 RemoveLen, ViewType Str)
@@ -181,7 +182,7 @@ public:
 		check(RemoveLen >= 0);
 		check(Pos + RemoveLen <= Len());
 
-		const int DeltaLen = Str.Len() - RemoveLen;		
+		const int DeltaLen = Str.Len() - RemoveLen;
 		if (DeltaLen < 0)
 		{
 			CurPos += DeltaLen;
@@ -201,7 +202,7 @@ public:
 				*It = *(It - DeltaLen);
 			}
 		}
-		
+
 		FMemory::Memcpy(Base + Pos, Str.GetData(), Str.Len() * sizeof(CharType));
 	}
 

@@ -476,7 +476,7 @@ void FUnixCrashContext::AddPlatformSpecificProperties() const
 	if (AnsiSignalName != nullptr)
 	{
 		TStringBuilder<32> SignalName;
-		SignalName.AppendAnsi(AnsiSignalName);
+		SignalName.Append(AnsiSignalName);
 
 		AddCrashProperty(TEXT("CrashSignalName"), *SignalName);
 	}
@@ -937,13 +937,13 @@ void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 		}
 
 		DefaultErrorMessage.Append(TEXT("Caught signal "));
-		DefaultErrorMessage.AppendAnsi(ItoANSI(Signal, 10));
+		DefaultErrorMessage.Append(ItoANSI(Signal, 10));
 
 		ANSICHAR* SignalName = strsignal(Signal);
 		if (SignalName != nullptr)
 		{
 			DefaultErrorMessage.Append(TEXT(" "));
-			DefaultErrorMessage.AppendAnsi(SignalName);
+			DefaultErrorMessage.Append(SignalName);
 		}
 
 		ErrorMessage = *DefaultErrorMessage;
