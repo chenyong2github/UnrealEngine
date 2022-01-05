@@ -230,7 +230,7 @@ namespace UnrealGameSync
 		public FileReference? File { get; set; }
 
 		// Workspace specific SyncFilters
-		public string[]? SyncView { get; set; }
+		public string[] SyncView { get; set; } = Array.Empty<string>();
 		public List<SyncCategory> SyncCategories { get; set; } = new List<SyncCategory>();
 		public bool? bSyncAllProjects { get; set; }
 		public bool? bIncludeAllProjectsInSolution { get; set; }

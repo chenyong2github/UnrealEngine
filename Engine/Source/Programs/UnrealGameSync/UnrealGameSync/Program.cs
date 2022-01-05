@@ -43,7 +43,7 @@ namespace UnrealGameSync
 		public static string SyncVersion = null;
 
 		[STAThread]
-		static async Task Main(string[] Args)
+		static void Main(string[] Args)
 		{
 			bool bFirstInstance;
 			using (Mutex InstanceMutex = new Mutex(true, "UnrealGameSyncRunning", out bFirstInstance))
@@ -64,7 +64,7 @@ namespace UnrealGameSync
 
 					if (bFirstInstance)
 					{
-						await InnerMainAsync(InstanceMutex, ActivateEvent, Args);
+						InnerMainAsync(InstanceMutex, ActivateEvent, Args).GetAwaiter().GetResult();
 					}
 					else
 					{

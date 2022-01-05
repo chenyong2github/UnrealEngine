@@ -108,8 +108,6 @@ namespace UnrealGameSync
 				}
 				else
 				{
-					PerforceSettings = DefaultConnection.Settings;
-
 					// Get the perforce server settings
 					InfoRecord PerforceInfo = await DefaultConnection.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
 
@@ -151,7 +149,8 @@ namespace UnrealGameSync
 					}
 
 					// Take the client we've chosen
-					PerforceClient = await PerforceConnection.CreateAsync(CandidateClients[0], Logger);
+					PerforceSettings = CandidateClients[0];
+					PerforceClient = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
 
 					// Get the client path for the project file
 					List<WhereRecord> Records = await PerforceClient.WhereAsync(NewSelectedFileName.FullName, CancellationToken).Where(x => !x.Unmap).ToListAsync(CancellationToken);

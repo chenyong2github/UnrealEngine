@@ -85,13 +85,13 @@ namespace UnrealGameSync
 		public DateTime StartTime = DateTime.UtcNow;
 		public int ChangeNumber;
 		public WorkspaceUpdateOptions Options;
-		public string[] SyncFilter;
-		public Dictionary<string, Tuple<IArchiveInfo, string>> ArchiveTypeToArchive = new Dictionary<string, Tuple<IArchiveInfo, string>>();
+		public string[]? SyncFilter;
+		public Dictionary<string, Tuple<IArchiveInfo, string>?> ArchiveTypeToArchive = new Dictionary<string, Tuple<IArchiveInfo, string>?>();
 		public Dictionary<string, bool> DeleteFiles = new Dictionary<string,bool>();
 		public Dictionary<string, bool> ClobberFiles = new Dictionary<string,bool>();
 		public Dictionary<Guid,ConfigObject> DefaultBuildSteps;
 		public List<ConfigObject> UserBuildStepObjects;
-		public HashSet<Guid> CustomBuildSteps;
+		public HashSet<Guid>? CustomBuildSteps;
 		public Dictionary<string, string> Variables;
 		public PerforceSyncOptions? PerforceSyncOptions;
 		public List<HaveRecord>? HaveFiles; // Cached when sync filter has changed
@@ -100,7 +100,7 @@ namespace UnrealGameSync
 		public ConfigFile? ProjectConfigFile;
 		public IReadOnlyList<string>? ProjectStreamFilter;
 
-		public WorkspaceUpdateContext(int InChangeNumber, WorkspaceUpdateOptions InOptions, string[] InSyncFilter, Dictionary<Guid, ConfigObject> InDefaultBuildSteps, List<ConfigObject> InUserBuildSteps, HashSet<Guid> InCustomBuildSteps, Dictionary<string, string> InVariables)
+		public WorkspaceUpdateContext(int InChangeNumber, WorkspaceUpdateOptions InOptions, string[]? InSyncFilter, Dictionary<Guid, ConfigObject> InDefaultBuildSteps, List<ConfigObject> InUserBuildSteps, HashSet<Guid>? InCustomBuildSteps, Dictionary<string, string> InVariables)
 		{
 			ChangeNumber = InChangeNumber;
 			Options = InOptions;
@@ -366,7 +366,7 @@ namespace UnrealGameSync
 
 		IAsyncDisposer AsyncDisposer;
 
-		public Workspace(IPerforceSettings InPerfoceSettings, ProjectInfo InProject, UserWorkspaceState InState, ConfigFile ProjectConfigFile, IReadOnlyList<string> ProjectStreamFilter, ILogger Logger, IServiceProvider ServiceProvider)
+		public Workspace(IPerforceSettings InPerfoceSettings, ProjectInfo InProject, UserWorkspaceState InState, ConfigFile ProjectConfigFile, IReadOnlyList<string>? ProjectStreamFilter, ILogger Logger, IServiceProvider ServiceProvider)
 		{
 			PerforceSettings = InPerfoceSettings;
 			Project = InProject;
@@ -393,7 +393,7 @@ namespace UnrealGameSync
 			get; private set;
 		}
 
-		public IReadOnlyList<string> ProjectStreamFilter
+		public IReadOnlyList<string>? ProjectStreamFilter
 		{
 			get; private set;
 		}
@@ -1088,7 +1088,7 @@ namespace UnrealGameSync
 					DirectoryReference.CreateDirectory(ManifestDirectoryName);
 
 					// Sync and extract (or just remove) the given archives
-					foreach (KeyValuePair<string, Tuple<IArchiveInfo, string>> ArchiveTypeAndArchive in Context.ArchiveTypeToArchive)
+					foreach (KeyValuePair<string, Tuple<IArchiveInfo, string>?> ArchiveTypeAndArchive in Context.ArchiveTypeToArchive)
 					{
 						string ArchiveType = ArchiveTypeAndArchive.Key;
 
@@ -1384,7 +1384,7 @@ namespace UnrealGameSync
 			return SyncPaths.Select(x => Project.ClientRootPath + x).ToList();
 		}
 
-		public static List<string> GetRelativeSyncPaths(ProjectInfo Project, bool bSyncAllProjects, string[] SyncFilter)
+		public static List<string> GetRelativeSyncPaths(ProjectInfo Project, bool bSyncAllProjects, string[]? SyncFilter)
 		{
 			List<string> SyncPaths = new List<string>();
 
