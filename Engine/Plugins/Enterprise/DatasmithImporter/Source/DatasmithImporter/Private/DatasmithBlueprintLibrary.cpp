@@ -19,6 +19,8 @@
 #include "Async/ParallelFor.h"
 #include "AssetRegistryModule.h"
 #include "DatasmithAssetImportData.h"
+#include "DirectLinkExtensionModule.h"
+#include "DirectLinkExternalSource.h"
 #include "Editor.h"
 #include "EditorAssetLibrary.h"
 #include "Engine/StaticMesh.h"
@@ -543,14 +545,22 @@ namespace DatasmithSceneElementUtil
 
 UDatasmithSceneElement* UDatasmithSceneElement::ConstructDatasmithSceneFromFile(const FString& InFilename)
 {
-	using namespace DatasmithBlueprintLibraryImpl;
 	using namespace UE::DatasmithImporter;
 
 	const FSourceUri SourceUri = FSourceUri::FromFilePath(InFilename);
+	return ConstructDatasmithSceneFromSourceUri(SourceUri.ToString());
+}
+
+UDatasmithSceneElement* UDatasmithSceneElement::ConstructDatasmithSceneFromSourceUri(const FString& SourceUriString)
+{
+	using namespace DatasmithBlueprintLibraryImpl;
+	using namespace UE::DatasmithImporter;
+
+	const FSourceUri SourceUri = FSourceUri(SourceUriString);
 	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource(SourceUri);
 	if (!ExternalSource)
 	{
-		UE_LOG(LogDatasmithImport, Error, TEXT("Datasmith import error: file name could not be resolved to an external source. Abort import."));
+		UE_LOG(LogDatasmithImport, Error, TEXT("Datasmith import error: source uri could not be resolved to an external source. Abort import."));
 		return nullptr;
 	}
 
