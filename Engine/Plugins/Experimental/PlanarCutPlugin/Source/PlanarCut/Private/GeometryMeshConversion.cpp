@@ -199,7 +199,7 @@ namespace AugmentedDynamicMesh
 
 	void SetAllUV(FDynamicMesh3& Mesh, int VID, FVector2f UV, int NumUVLayers)
 	{
-		if (!ensure(NumUVLayers < MAX_NUM_UV_CHANNELS))
+		if (!ensure(NumUVLayers <= MAX_NUM_UV_CHANNELS))
 		{
 			NumUVLayers = MAX_NUM_UV_CHANNELS;
 		}
