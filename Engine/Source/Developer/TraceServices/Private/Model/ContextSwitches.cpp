@@ -201,7 +201,7 @@ void FContextSwitchesProvider::EnumerateCpuCoreEvents(uint32 CoreNumber, double 
 	}
 
 	auto Iterator = CpuCoreEvents->GetIteratorFromPage(PageIndex);
-	const FCpuCoreEvent* CurrentCpuCoreEvent = Iterator.NextItem();
+	const FCpuCoreEvent* CurrentCpuCoreEvent = Iterator.GetCurrentItem();
 	while (CurrentCpuCoreEvent && CurrentCpuCoreEvent->Start < EndTime)
 	{
 		if (CurrentCpuCoreEvent->End > StartTime)
@@ -213,6 +213,47 @@ void FContextSwitchesProvider::EnumerateCpuCoreEvents(uint32 CoreNumber, double 
 		}
 
 		CurrentCpuCoreEvent = Iterator.NextItem();
+	}
+}
+
+void FContextSwitchesProvider::EnumerateCpuCoreEventsBackwards(uint32 CoreNumber, double EndTime, double StartTime, CpuCoreEventCallback Callback) const
+{
+	Session.ReadAccessCheck();
+
+	if (CoreNumber >= (uint32)CpuCores.Num())
+	{
+		return;
+	}
+
+	const TPagedArray<FCpuCoreEvent>* CpuCoreEvents = CpuCores[CoreNumber];
+	if (CpuCoreEvents == nullptr)
+	{
+		return;
+	}
+
+	uint64 PageIndex = Algo::UpperBoundBy(*CpuCoreEvents, EndTime, [](const TPagedArrayPage<FCpuCoreEvent>& Page)
+		{
+			return Page.Items[0].Start;
+		});
+
+	if (PageIndex == 0)
+	{
+		return;
+	}
+
+	auto Iterator = PageIndex < CpuCoreEvents->NumPages() ? CpuCoreEvents->GetIteratorFromPage(PageIndex) : CpuCoreEvents->end();
+	const FCpuCoreEvent* CurrentCpuCoreEvent = Iterator.GetCurrentItem();
+	while (CurrentCpuCoreEvent && CurrentCpuCoreEvent->End > StartTime)
+	{
+		if (CurrentCpuCoreEvent->Start < EndTime)
+		{
+			if (Callback(*CurrentCpuCoreEvent) == EContextSwitchEnumerationResult::Stop)
+			{
+				break;
+			}
+		}
+
+		CurrentCpuCoreEvent = Iterator.PrevItem();
 	}
 }
 
