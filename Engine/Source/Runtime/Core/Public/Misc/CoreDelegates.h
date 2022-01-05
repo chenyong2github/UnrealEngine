@@ -248,6 +248,9 @@ public:
 	// Called at the end of UEngine::Init, right before loading PostEngineInit modules for both normal execution and commandlets
 	static FSimpleMulticastDelegate OnPostEngineInit;
 
+	// Called after all modules have been loaded for all phases
+	static FSimpleMulticastDelegate OnAllModuleLoadingPhasesComplete;
+
 	// Called at the very end of engine initialization, right before the engine starts ticking. This is not called for commandlets
 	static FSimpleMulticastDelegate OnFEngineLoopInitComplete;
 
