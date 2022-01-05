@@ -738,7 +738,7 @@ TSharedPtr<IConsoleVariable> FOtherPlatformValueHelper<T>::GetPlatformValueVaria
 		}
 
 		T TypedValue;
-		TTypeFromString<T>::FromString(TypedValue, *ConfigValue);
+		TTypeFromString<T>::FromString(TypedValue, ConvertValueFromHumanFriendlyValue(*ConfigValue));
 
 		// clear the existing setby mask
 		int NewFlags = GetFlags() & ~ECVF_SetFlagMask;
