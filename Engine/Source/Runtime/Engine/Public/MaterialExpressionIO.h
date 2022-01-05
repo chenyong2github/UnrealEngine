@@ -19,6 +19,7 @@ class FTextureParameterDeclaration;
 namespace Shader
 {
 enum class EValueType : uint8;
+struct FValue;
 }
 }
 
