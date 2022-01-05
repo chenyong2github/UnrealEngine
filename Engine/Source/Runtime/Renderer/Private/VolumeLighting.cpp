@@ -31,7 +31,7 @@ const FProjectedShadowInfo* GetFirstWholeSceneShadowMap(const FVisibleLightInfo&
 	return nullptr;
 }
 
-static auto SetVolumeShadowingDefaultShaderParametersGlobal = [](FRDGBuilder& GraphBuilder, auto& ShaderParams)
+static void SetVolumeShadowingDefaultShaderParametersGlobal(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParameters& ShaderParams)
 {
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 	FRDGTextureRef BlackDepthCubeTexture = SystemTextures.BlackDepthCube;
@@ -56,26 +56,23 @@ static auto SetVolumeShadowingDefaultShaderParametersGlobal = [](FRDGBuilder& Gr
 	ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 0, 0, SCF_Less>::GetRHI();
 };
 
-
-
-static auto GetVolumeShadowingShaderParametersGlobal = [](
+void GetVolumeShadowingShaderParameters(
 	FRDGBuilder& GraphBuilder,
-	auto& ShaderParams,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
 	const FProjectedShadowInfo* ShadowInfo,
-	int32 InnerSplitIndex)
+	int32 InnerSplitIndex,
+	FVolumeShadowingShaderParameters& OutParameters)
 {
-	const bool bDynamicallyShadowed = ShadowInfo != NULL;
+	const bool bDynamicallyShadowed = ShadowInfo != nullptr;
 	if (bDynamicallyShadowed)
 	{
-		FVector4f ShadowmapMinMaxValue;
-		ShaderParams.WorldToShadowMatrix = ShadowInfo->GetWorldToShadowMatrix(ShaderParams.ShadowmapMinMax);
+		OutParameters.WorldToShadowMatrix = ShadowInfo->GetWorldToShadowMatrix(OutParameters.ShadowmapMinMax);
 	}
 	else
 	{
-		ShaderParams.WorldToShadowMatrix = FMatrix::Identity;
-		ShaderParams.ShadowmapMinMax = FVector4f(1.0f);
+		OutParameters.WorldToShadowMatrix = FMatrix::Identity;
+		OutParameters.ShadowmapMinMax = FVector4f(1.0f);
 	}
 
 	// default to ignore the plane
@@ -111,18 +108,19 @@ static auto GetVolumeShadowingShaderParametersGlobal = [](
 		ShadowInjectParamValue.Z = FadeParams.Y;
 		ShadowInjectParamValue.W = -FadeParams.X * FadeParams.Y;
 	}
-	ShaderParams.ShadowInjectParams = ShadowInjectParamValue;
-	ShaderParams.ClippingPlanes[0] = Planes[0];
-	ShaderParams.ClippingPlanes[1] = Planes[1];
+	OutParameters.ShadowInjectParams = ShadowInjectParamValue;
+	OutParameters.ClippingPlanes[0] = Planes[0];
+	OutParameters.ClippingPlanes[1] = Planes[1];
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	ELightComponentType LightType = (ELightComponentType)LightSceneInfo->Proxy->GetLightType();
-	FRDGTexture* ShadowDepthTextureResource = nullptr;
+	OutParameters.ShadowDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	if (bDynamicallyShadowed)
 	{
-		ShaderParams.DepthBiasParameters = FVector4f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), 1.0f / (ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ));
+		OutParameters.DepthBiasParameters = FVector4f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), 1.0f / (ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ));
 
+		FRDGTexture* ShadowDepthTextureResource = nullptr;
 		if (LightType == LightType_Point || LightType == LightType_Rect)
 		{
 			ShadowDepthTextureResource = SystemTextures.Black;
@@ -131,15 +129,14 @@ static auto GetVolumeShadowingShaderParametersGlobal = [](
 		{
 			ShadowDepthTextureResource = GraphBuilder.RegisterExternalTexture(ShadowInfo->RenderTargets.DepthTarget);
 		}
+		OutParameters.ShadowDepthTexture = ShadowDepthTextureResource;
 	}
 	else
 	{
-		ShadowDepthTextureResource = SystemTextures.Black;
-		ShaderParams.DepthBiasParameters = FVector(1.0f);
+		OutParameters.DepthBiasParameters = FVector(1.0f);
+		OutParameters.ShadowDepthTexture = SystemTextures.Black;
 	}
-	check(ShadowDepthTextureResource)
-		ShaderParams.ShadowDepthTexture = ShadowDepthTextureResource;
-	ShaderParams.ShadowDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	check(OutParameters.ShadowDepthTexture);
 
 	const FStaticShadowDepthMap* StaticShadowDepthMap = LightSceneInfo->Proxy->GetStaticShadowDepthMap();
 	const uint32 bStaticallyShadowedValue = LightSceneInfo->IsPrecomputedLightingValid() && StaticShadowDepthMap && StaticShadowDepthMap->Data && StaticShadowDepthMap->TextureRHI ? 1 : 0;
@@ -147,18 +144,19 @@ static auto GetVolumeShadowingShaderParametersGlobal = [](
 	const FMatrix WorldToStaticShadow = bStaticallyShadowedValue ? StaticShadowDepthMap->Data->WorldToLight : FMatrix::Identity;
 	const FVector4f StaticShadowBufferSizeValue = bStaticallyShadowedValue ? FVector4f(StaticShadowDepthMap->Data->ShadowMapSizeX, StaticShadowDepthMap->Data->ShadowMapSizeY, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeX, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeY) : FVector4f(0, 0, 0, 0);
 
-	ShaderParams.bStaticallyShadowed = bStaticallyShadowedValue;
+	OutParameters.bStaticallyShadowed = bStaticallyShadowedValue;
 
-	ShaderParams.StaticShadowDepthTexture = StaticShadowDepthMapTexture;
-	ShaderParams.StaticShadowDepthTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	OutParameters.StaticShadowDepthTexture = StaticShadowDepthMapTexture;
+	OutParameters.StaticShadowDepthTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	ShaderParams.WorldToStaticShadowMatrix = WorldToStaticShadow;
-	ShaderParams.StaticShadowBufferSize = StaticShadowBufferSizeValue;
+	OutParameters.WorldToStaticShadowMatrix = WorldToStaticShadow;
+	OutParameters.StaticShadowBufferSize = StaticShadowBufferSizeValue;
 
-	GetOnePassPointShadowProjectionParameters(GraphBuilder, bDynamicallyShadowed && (LightType == LightType_Point || LightType == LightType_Rect) ? ShadowInfo : NULL, ShaderParams.OnePassPointShadowProjection);
-};
-
-
+	GetOnePassPointShadowProjectionParameters(
+		GraphBuilder, 
+		bDynamicallyShadowed && (LightType == LightType_Point || LightType == LightType_Rect) ? ShadowInfo : NULL, 
+		OutParameters.OnePassPointShadowProjection);
+}
 
 void SetVolumeShadowingShaderParameters(
 	FRDGBuilder& GraphBuilder,
@@ -173,13 +171,7 @@ void SetVolumeShadowingShaderParameters(
 	ShaderParams.Position = LightParameters.Position;
 	ShaderParams.InvRadius = LightParameters.InvRadius;
 
-	GetVolumeShadowingShaderParametersGlobal(
-		GraphBuilder,
-		ShaderParams.VolumeShadowingShaderParameters,
-		View,
-		LightSceneInfo,
-		ShadowInfo,
-		InnerSplitIndex);
+	GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ShadowInfo, InnerSplitIndex, ShaderParams.VolumeShadowingShaderParameters);
 }
 
 void SetVolumeShadowingShaderParameters(
@@ -195,13 +187,7 @@ void SetVolumeShadowingShaderParameters(
 	ShaderParams.Position = LightParameters.Position;
 	ShaderParams.InvRadius = LightParameters.InvRadius;
 
-	GetVolumeShadowingShaderParametersGlobal(
-		GraphBuilder,
-		ShaderParams.VolumeShadowingShaderParameters,
-		View,
-		LightSceneInfo,
-		ShadowInfo,
-		InnerSplitIndex);
+	GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ShadowInfo, InnerSplitIndex, ShaderParams.VolumeShadowingShaderParameters);
 }
 
 void SetVolumeShadowingDefaultShaderParameters(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParametersGlobal0& ShaderParams)

@@ -25,8 +25,6 @@ VolumetricFog.cpp
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
-IMPLEMENT_TYPE_LAYOUT(FVolumeShadowingParameters);
-
 int32 GVolumetricFog = 1;
 FAutoConsoleVariableRef CVarVolumetricFog(
 	TEXT("r.VolumetricFog"),
@@ -310,112 +308,6 @@ class FInjectShadowedLocalLightPS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FInjectShadowedLocalLightPS, "/Engine/Private/VolumetricFog.usf", "InjectShadowedLocalLightPS", SF_Pixel);
 
-void GetVolumeShadowingShaderParameters(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View, 
-	const FLightSceneInfo* LightSceneInfo, 
-	const FProjectedShadowInfo* ShadowMap, 
-	int32 InnerSplitIndex, 
-	bool bDynamicallyShadowed,
-	FVolumeShadowingShaderParameters& OutParameters)
-{
-	//@todo DynamicGI: remove duplication with FVolumeShadowingParameters, only FTranslucentLightingInjectPS renamins to be converted to RDG
-
-	if (bDynamicallyShadowed && ShadowMap != nullptr)
-	{
-		FVector4f ShadowmapMinMaxValue;
-		FMatrix WorldToShadowMatrixValue = ShadowMap->GetWorldToShadowMatrix(ShadowmapMinMaxValue);
-
-		OutParameters.WorldToShadowMatrix = WorldToShadowMatrixValue;
-		OutParameters.ShadowmapMinMax = ShadowmapMinMaxValue;
-	}
-	else
-	{
-		OutParameters.WorldToShadowMatrix = FMatrix::Identity;
-		OutParameters.ShadowmapMinMax = FVector(1.0f);
-	}
-
-	// default to ignore the plane
-	FVector4f Planes[2] = { FVector4f(0, 0, 0, -1), FVector4f(0, 0, 0, -1) };
-	// .zw:DistanceFadeMAD to use MAD for efficiency in the shader, default to ignore the plane
-	FVector4f ShadowInjectParamValue(1, 1, 0, 0);
-
-	if (InnerSplitIndex >= 0)
-	{
-		FShadowCascadeSettings ShadowCascadeSettings;
-
-		LightSceneInfo->Proxy->GetShadowSplitBounds(View, (uint32)InnerSplitIndex, LightSceneInfo->IsPrecomputedLightingValid(), &ShadowCascadeSettings);
-
-		// near cascade plane
-		{
-			ShadowInjectParamValue.X = ShadowCascadeSettings.SplitNearFadeRegion == 0 ? 1.0f : 1.0f / ShadowCascadeSettings.SplitNearFadeRegion;
-			Planes[0] = FVector4f((FVector)(ShadowCascadeSettings.NearFrustumPlane),  -ShadowCascadeSettings.NearFrustumPlane.W);
-		}
-
-		uint32 CascadeCount = LightSceneInfo->Proxy->GetNumViewDependentWholeSceneShadows(View, LightSceneInfo->IsPrecomputedLightingValid());
-
-		// far cascade plane
-		if(InnerSplitIndex != CascadeCount - 1)
-		{
-			ShadowInjectParamValue.Y = 1.0f / ShadowCascadeSettings.SplitFarFadeRegion;
-			Planes[1] = FVector4f((FVector)(ShadowCascadeSettings.FarFrustumPlane), -ShadowCascadeSettings.FarFrustumPlane.W);
-		}
-
-		const FVector2D FadeParams = LightSceneInfo->Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), LightSceneInfo->IsPrecomputedLightingValid(), View.MaxShadowCascades);
-
-		// setup constants for the MAD in shader
-		ShadowInjectParamValue.Z = FadeParams.Y;
-		ShadowInjectParamValue.W = -FadeParams.X * FadeParams.Y;
-	}
-
-	OutParameters.ClippingPlanes[0] = Planes[0];
-	OutParameters.ClippingPlanes[1] = Planes[1];
-	OutParameters.ShadowInjectParams = ShadowInjectParamValue;
-	
-	ELightComponentType LightType = (ELightComponentType)LightSceneInfo->Proxy->GetLightType();
-
-	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-	OutParameters.ShadowDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	if (bDynamicallyShadowed && ShadowMap)
-	{
-		OutParameters.DepthBiasParameters = FVector4f(ShadowMap->GetShaderDepthBias(), ShadowMap->GetShaderSlopeDepthBias(), ShadowMap->GetShaderMaxSlopeDepthBias(), 1.0f / (ShadowMap->MaxSubjectZ - ShadowMap->MinSubjectZ));
-
-		FRDGTexture* ShadowDepthTextureResource = nullptr;
-		if (LightType == LightType_Point || LightType == LightType_Rect)
-		{
-			ShadowDepthTextureResource = SystemTextures.Black;
-		}
-		else
-		{
-			ShadowDepthTextureResource = GraphBuilder.RegisterExternalTexture(ShadowMap->RenderTargets.DepthTarget);
-		}
-
-		OutParameters.ShadowDepthTexture = ShadowDepthTextureResource;
-	}
-	else
-	{
-		OutParameters.DepthBiasParameters = FVector(1.0f);
-		OutParameters.ShadowDepthTexture = SystemTextures.Black;
-
-	}
-
-	GetOnePassPointShadowProjectionParameters(GraphBuilder, bDynamicallyShadowed && (LightType == LightType_Point || LightType == LightType_Rect) ? ShadowMap : NULL, OutParameters.OnePassPointShadowProjection);
-
-	const FStaticShadowDepthMap* StaticShadowDepthMap = LightSceneInfo->Proxy->GetStaticShadowDepthMap();
-	const uint32 bStaticallyShadowedValue = LightSceneInfo->IsPrecomputedLightingValid() && StaticShadowDepthMap && StaticShadowDepthMap->Data && StaticShadowDepthMap->TextureRHI ? 1 : 0;
-	FRHITexture* StaticShadowDepthMapTexture = bStaticallyShadowedValue ? StaticShadowDepthMap->TextureRHI : GWhiteTexture->TextureRHI;
-	const FMatrix WorldToStaticShadow = bStaticallyShadowedValue ? StaticShadowDepthMap->Data->WorldToLight : FMatrix::Identity;
-	const FVector4f StaticShadowBufferSizeValue = bStaticallyShadowedValue ? FVector4f(StaticShadowDepthMap->Data->ShadowMapSizeX, StaticShadowDepthMap->Data->ShadowMapSizeY, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeX, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeY) : FVector4f(0, 0, 0, 0);
-
-	OutParameters.bStaticallyShadowed = bStaticallyShadowedValue;
-
-	OutParameters.StaticShadowDepthTexture = StaticShadowDepthMapTexture;
-	OutParameters.StaticShadowDepthTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-	OutParameters.WorldToStaticShadowMatrix = WorldToStaticShadow;
-	OutParameters.StaticShadowBufferSize = StaticShadowBufferSizeValue;
-}
-
 const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(const FVisibleLightInfo& VisibleLightInfo)
 {
 	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
@@ -654,7 +546,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 
 				const FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo);
 				const bool bDynamicallyShadowed = ProjectedShadowInfo != NULL;
-				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ProjectedShadowInfo, 0, bDynamicallyShadowed, PassParameters->VolumeShadowingShaderParameters);
+				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ProjectedShadowInfo, 0, PassParameters->VolumeShadowingShaderParameters);
 
 				FInjectShadowedLocalLightPS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FInjectShadowedLocalLightPS::FDynamicallyShadowed >(bDynamicallyShadowed);
