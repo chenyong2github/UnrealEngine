@@ -44,7 +44,7 @@ dotnet msbuild /target:clean /property:Configuration=Development /nologo Program
 
 :SkipClean
 echo Building UnrealBuildTool...
-dotnet msbuild /restore /target:build /property:Configuration=Development /nologo Programs\UnrealBuildTool\UnrealBuildTool.csproj /verbosity:quiet
+dotnet msbuild /restore /target:build /property:Configuration=Development /property:Platform=AnyCPU /nologo Programs\UnrealBuildTool\UnrealBuildTool.csproj /verbosity:quiet
 if errorlevel 1 goto Error_UBTCompileFailed
 
 rem ## Run UnrealBuildTool to generate Visual Studio solution and project files
