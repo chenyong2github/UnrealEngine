@@ -13,28 +13,42 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	public partial class SdkInfoWindow : Form
 	{
 		class SdkItem
 		{
-			public string Category;
-			public string Description;
-			public string Install;
-			public string Browse;
+			public string Category { get; }
+			public string Description { get; }
+			public string? Install;
+			public string? Browse;
+
+			public SdkItem(string Category, string Description)
+			{
+				this.Category = Category;
+				this.Description = Description;
+			}
 		}
 
 		class BadgeInfo
 		{
-			public string UniqueId;
-			public string Label;
+			public string UniqueId { get; }
+			public string Label { get; }
 			public Rectangle Rectangle;
-			public Action OnClick;
+			public Action? OnClick;
+
+			public BadgeInfo(string UniqueId, string Label)
+			{
+				this.UniqueId = UniqueId;
+				this.Label = Label;
+			}
 		}
 
 		Font BadgeFont;
-		string HoverBadgeUniqueId;
+		string? HoverBadgeUniqueId;
 
 		public SdkInfoWindow(string[] SdkInfoEntries, Dictionary<string, string> Variables, Font BadgeFont)
 		{
@@ -49,7 +63,7 @@ namespace UnrealGameSync
 
 				string UniqueId = Object.GetValue("UniqueId", Guid.NewGuid().ToString());
 
-				ConfigObject ExistingObject;
+				ConfigObject? ExistingObject;
 				if(UniqueIdToObject.TryGetValue(UniqueId, out ExistingObject))
 				{
 					ExistingObject.AddOverrides(Object, null);
@@ -63,9 +77,9 @@ namespace UnrealGameSync
 			List<SdkItem> Items = new List<SdkItem>();
 			foreach(ConfigObject Object in UniqueIdToObject.Values)
 			{
-				SdkItem Item = new SdkItem();
-				Item.Category = Object.GetValue("Category", "Other");
-				Item.Description = Object.GetValue("Description", "");
+				string Category = Object.GetValue("Category", "Other");
+				string Description = Object.GetValue("Description", "");
+				SdkItem Item = new SdkItem(Category, Description);
 
 				Item.Install = Utility.ExpandVariables(Object.GetValue("Install", ""), Variables);
 				if(Item.Install.Contains("$("))
@@ -108,7 +122,7 @@ namespace UnrealGameSync
 				}
 			}
 
-			System.Reflection.PropertyInfo DoubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+			System.Reflection.PropertyInfo DoubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
 			DoubleBufferedProperty.SetValue(SdkListView, true, null);
 
 			if(SdkListView.Items.Count > 0)
@@ -153,7 +167,7 @@ namespace UnrealGameSync
 
 		private void SdkListView_MouseMove(object sender, MouseEventArgs e)
 		{
-			string NewHoverUniqueId = null;
+			string? NewHoverUniqueId = null;
 
 			ListViewHitTestInfo HitTest = SdkListView.HitTest(e.Location);
 			if(HitTest.Item != null && HitTest.SubItem == HitTest.Item.SubItems[2])
@@ -204,19 +218,19 @@ namespace UnrealGameSync
 
 			SdkItem Sdk = (SdkItem)SubItem.Tag;
 
-			Action InstallAction = null;
+			Action? InstallAction = null;
 			if(!String.IsNullOrEmpty(Sdk.Install))
 			{
 				InstallAction = () => { Install(Sdk.Install); };
 			}
-			Badges.Add(new BadgeInfo(){ UniqueId = UniqueIdPrefix + "_Install", Label = "Install", OnClick = InstallAction });
+			Badges.Add(new BadgeInfo(UniqueIdPrefix + "_Install", "Install") { OnClick = InstallAction });
 
-			Action BrowseAction = null;
+			Action? BrowseAction = null;
 			if(!String.IsNullOrEmpty(Sdk.Browse))
 			{
 				BrowseAction = () => { Browse(Sdk.Browse); };
 			}
-			Badges.Add(new BadgeInfo(){ UniqueId = UniqueIdPrefix + "_Browse", Label = "Browse", OnClick = BrowseAction });
+			Badges.Add(new BadgeInfo(UniqueIdPrefix + "_Browse", "Browse"){ OnClick = BrowseAction });
 
 			int Right = SubItem.Bounds.Right - 10;
 			for(int Idx = Badges.Count - 1; Idx >= 0; Idx--)

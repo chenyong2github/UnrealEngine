@@ -15,8 +15,6 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	public enum BuildConfig

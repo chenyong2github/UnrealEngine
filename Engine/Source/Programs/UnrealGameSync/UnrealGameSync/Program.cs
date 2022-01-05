@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -26,7 +27,7 @@ namespace UnrealGameSync
 	{
 		public static string GetVersionString()
 		{
-			AssemblyInformationalVersionAttribute Version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+			AssemblyInformationalVersionAttribute? Version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
 			return Version?.InformationalVersion ?? "Unknown";
 		}
 
@@ -40,7 +41,7 @@ namespace UnrealGameSync
 
 		public static JsonSerializerOptions DefaultJsonSerializerOptions { get; } = GetDefaultJsonSerializerOptions();
 
-		public static string SyncVersion = null;
+		public static string? SyncVersion = null;
 
 		[STAThread]
 		static void Main(string[] Args)
@@ -76,17 +77,17 @@ namespace UnrealGameSync
 
 		static async Task InnerMainAsync(Mutex InstanceMutex, EventWaitHandle ActivateEvent, string[] Args)
 		{
-			string ServerAndPort = null;
-			string UserName = null;
-			string BaseUpdatePath = null;
+			string? ServerAndPort = null;
+			string? UserName = null;
+			string? BaseUpdatePath = null;
 			Utility.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath);
 
 			List<string> RemainingArgs = new List<string>(Args);
 
-			string UpdateSpawn;
+			string? UpdateSpawn;
 			ParseArgument(RemainingArgs, "-updatespawn=", out UpdateSpawn);
 
-			string UpdatePath;
+			string? UpdatePath;
 			ParseArgument(RemainingArgs, "-updatepath=", out UpdatePath);
 
 			bool bRestoreState;
@@ -95,10 +96,10 @@ namespace UnrealGameSync
 			bool bUnstable;
 			ParseOption(RemainingArgs, "-unstable", out bUnstable);
 
-            string ProjectFileName;
+            string? ProjectFileName;
             ParseArgument(RemainingArgs, "-project=", out ProjectFileName);
 
-			string Uri;
+			string? Uri;
 			ParseArgument(RemainingArgs, "-uri=", out Uri);
 
 			FileReference UpdateConfigFile = FileReference.Combine(new FileReference(Assembly.GetExecutingAssembly().Location).Directory, "AutoUpdate.ini");
@@ -110,7 +111,7 @@ namespace UnrealGameSync
 				Directory.SetCurrentDirectory(Path.GetDirectoryName(UpdateSpawn));
 			}
 
-			string SyncVersionFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "SyncVersion.txt");
+			string SyncVersionFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location!)!, "SyncVersion.txt");
 			if(File.Exists(SyncVersionFile))
 			{
 				try
@@ -123,7 +124,7 @@ namespace UnrealGameSync
 				}
 			}
 
-			DirectoryReference DataFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData), "UnrealGameSync");
+			DirectoryReference DataFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData)!, "UnrealGameSync");
 			DirectoryReference.CreateDirectory(DataFolder);
 
 			// Enable TLS 1.1 and 1.2. TLS 1.0 is now deprecated and not allowed by default in NET Core servers.
@@ -158,7 +159,7 @@ namespace UnrealGameSync
 					ILogger TelemetryLogger = LoggerProvider.CreateLogger("Telemetry");
 					TelemetryLogger.LogInformation("Creating telemetry sink for session {SessionId}", SessionId);
 
-					ITelemetrySink PrevTelemetrySink = Telemetry.ActiveSink;
+					ITelemetrySink? PrevTelemetrySink = Telemetry.ActiveSink;
 					using (ITelemetrySink TelemetrySink = DeploymentSettings.CreateTelemetrySink(UserName, SessionId, TelemetryLogger))
 					{
 						Telemetry.ActiveSink = TelemetrySink;
@@ -189,14 +190,14 @@ namespace UnrealGameSync
 
 		private static void CurrentDomain_UnhandledException(object Sender, UnhandledExceptionEventArgs Args)
 		{
-			Exception Ex = Args.ExceptionObject as Exception;
+			Exception? Ex = Args.ExceptionObject as Exception;
 			if(Ex != null)
 			{
 				Telemetry.SendEvent("Crash", new {Exception = Ex.ToString()});
 			}
 		}
 
-		static void MergeUpdateSettings(FileReference UpdateConfigFile, ref string UpdatePath, ref string UpdateSpawn)
+		static void MergeUpdateSettings(FileReference UpdateConfigFile, ref string? UpdatePath, ref string? UpdateSpawn)
 		{
 			try
 			{
@@ -247,7 +248,7 @@ namespace UnrealGameSync
 			return false;
 		}
 
-		static bool ParseArgument(List<string> RemainingArgs, string Prefix, out string Value)
+		static bool ParseArgument(List<string> RemainingArgs, string Prefix, [NotNullWhen(true)] out string? Value)
 		{
 			for(int Idx = 0; Idx < RemainingArgs.Count; Idx++)
 			{

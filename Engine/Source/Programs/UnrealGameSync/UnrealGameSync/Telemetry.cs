@@ -213,7 +213,7 @@ namespace UnrealGameSync
 		/// <summary>
 		/// The current telemetry provider
 		/// </summary>
-		public static ITelemetrySink ActiveSink
+		public static ITelemetrySink? ActiveSink
 		{
 			get; set;
 		}
@@ -225,7 +225,7 @@ namespace UnrealGameSync
 		/// <param name="Attributes">Arbitrary object to include in the payload</param>
 		public static void SendEvent(string EventName, object Attributes)
 		{
-			ActiveSink.SendEvent(EventName, Attributes);
+			ActiveSink?.SendEvent(EventName, Attributes);
 		}
 	}
 }

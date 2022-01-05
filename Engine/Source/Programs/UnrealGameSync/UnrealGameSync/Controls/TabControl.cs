@@ -24,8 +24,14 @@ namespace UnrealGameSync
 			public int Width;
 			public int CloseButtonWidth;
 			public Size TextSize;
-			public Tuple<Color, float> Highlight;
+			public Tuple<Color, float>? Highlight;
 			public Color? TintColor;
+
+			public TabData(string Name, object Data)
+			{
+				this.Name = Name;
+				this.Data = Data;
+			}
 		}
 
 		class TabDragData
@@ -34,39 +40,47 @@ namespace UnrealGameSync
 			public int InitialIdx;
 			public int MouseX;
 			public int RelativeMouseX;
+
+			public TabDragData(TabData Tab, int InitialIdx, int MouseX, int RelativeMouseX)
+			{
+				this.Tab = Tab;
+				this.InitialIdx = InitialIdx;
+				this.MouseX = MouseX;
+				this.RelativeMouseX = RelativeMouseX;
+			}
 		}
 
 		List<TabData> Tabs = new List<TabData>();
 		int SelectedTabIdx;
 		int HoverTabIdx;
 		int HighlightTabIdx;
-		TabDragData DragState;
+		TabDragData? DragState;
 
-		public delegate void OnTabChangedDelegate(object NewTabData);
-		public event OnTabChangedDelegate OnTabChanged;
+		public delegate void OnTabChangedDelegate(object? NewTabData);
+		public event OnTabChangedDelegate? OnTabChanged;
 
 		public delegate void OnNewTabClickDelegate(Point Location, MouseButtons Buttons);
-		public event OnNewTabClickDelegate OnNewTabClick;
+		public event OnNewTabClickDelegate? OnNewTabClick;
 
-		public delegate void OnTabClickedDelegate(object TabData, Point Location, MouseButtons Buttons);
-		public event OnTabClickedDelegate OnTabClicked;
+		public delegate void OnTabClickedDelegate(object? TabData, Point Location, MouseButtons Buttons);
+		public event OnTabClickedDelegate? OnTabClicked;
 
 		public delegate bool OnTabClosingDelegate(object TabData);
-		public event OnTabClosingDelegate OnTabClosing;
+		public event OnTabClosingDelegate? OnTabClosing;
 
 		public delegate void OnTabClosedDelegate(object TabData);
-		public event OnTabClosedDelegate OnTabClosed;
+		public event OnTabClosedDelegate? OnTabClosed;
 
 		public delegate void OnTabReorderDelegate();
-		public event OnTabReorderDelegate OnTabReorder;
+		public event OnTabReorderDelegate? OnTabReorder;
 
 		public delegate void OnButtonClickDelegate(int ButtonIdx, Point Location, MouseButtons Buttons);
-		public event OnButtonClickDelegate OnButtonClick;
+		public event OnButtonClickDelegate? OnButtonClick;
 
 		public TabControl()
 		{
 			DoubleBuffered = true;
-			Tabs.Add(new TabData{ Name = "+" });
+			Tabs.Add(new TabData("+", "+"));
 			SelectedTabIdx = -1;
 			HoverTabIdx = -1;
 			HighlightTabIdx = -1;
@@ -97,9 +111,9 @@ namespace UnrealGameSync
 			return Result;
 		}
 
-		public void SetHighlight(int TabIdx, Tuple<Color, float> Highlight)
+		public void SetHighlight(int TabIdx, Tuple<Color, float>? Highlight)
 		{
-			Tuple<Color, float> CurrentHighlight = Tabs[TabIdx].Highlight;
+			Tuple<Color, float>? CurrentHighlight = Tabs[TabIdx].Highlight;
 			if(Highlight == null || CurrentHighlight == null)
 			{
 				if(Highlight != CurrentHighlight)
@@ -139,7 +153,7 @@ namespace UnrealGameSync
 				SelectedTabIdx++;
 			}
 
-			Tabs.Insert(Idx, new TabData{ Name = Name, Data = Data, TintColor = TintColor });
+			Tabs.Insert(Idx, new TabData(Name, Data){ TintColor = TintColor });
 			LayoutTabs();
 			Invalidate();
 			return Idx;
@@ -342,18 +356,18 @@ namespace UnrealGameSync
 						}
 						else
 						{
-							DragState = new TabDragData{ Tab = Tabs[SelectedTabIdx], InitialIdx = SelectedTabIdx, MouseX = e.Location.X, RelativeMouseX = e.Location.X - Tabs[SelectedTabIdx].MinX };
+							DragState = new TabDragData(Tabs[SelectedTabIdx], SelectedTabIdx, e.Location.X, e.Location.X - Tabs[SelectedTabIdx].MinX);
 						}
 					}
 					else
 					{
 						if(HoverTabIdx > Tabs.Count - 1)
 						{
-							OnButtonClick(HoverTabIdx - Tabs.Count, e.Location, e.Button);
+							OnButtonClick?.Invoke(HoverTabIdx - Tabs.Count, e.Location, e.Button);
 						}
 						else if(HoverTabIdx == Tabs.Count - 1)
 						{
-							OnNewTabClick(e.Location, e.Button);
+							OnNewTabClick?.Invoke(e.Location, e.Button);
 						}
 						else
 						{
@@ -372,7 +386,7 @@ namespace UnrealGameSync
 
 			if(OnTabClicked != null)
 			{
-				object TabData = (HoverTabIdx == -1)? null : Tabs[HoverTabIdx].Data;
+				object? TabData = (HoverTabIdx == -1)? null : Tabs[HoverTabIdx].Data;
 				OnTabClicked(TabData, e.Location, e.Button);
 			}
 		}
@@ -558,7 +572,7 @@ namespace UnrealGameSync
 			e.Graphics.DrawLine(SystemPens.ControlLightLight, 0, ClientSize.Height - 1, ClientSize.Width, ClientSize.Height - 1);
 		}
 
-		void DrawBackground(Graphics Graphics, TabData Tab, Brush BackgroundBrush, Brush StripeBrush, Tuple<Color, float> Highlight)
+		void DrawBackground(Graphics Graphics, TabData Tab, Brush BackgroundBrush, Brush StripeBrush, Tuple<Color, float>? Highlight)
 		{
 			float DpiScaleY = Graphics.DpiY / 96.0f;
 

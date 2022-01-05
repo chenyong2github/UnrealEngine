@@ -20,7 +20,7 @@ namespace UnrealGameSync
 		List<BuildStep> Steps;
 		HashSet<Guid> ProjectSteps;
 		DirectoryReference BaseDirectory;
-		ListViewItem.ListViewSubItem MouseDownSubItem = null;
+		ListViewItem.ListViewSubItem? MouseDownSubItem = null;
 		IReadOnlyDictionary<string, string> Variables;
 
 		public ModifyBuildStepsWindow(List<string> InTargetNames, List<BuildStep> InSteps, HashSet<Guid> InProjectSteps, DirectoryReference InBaseDirectory, IReadOnlyDictionary<string, string> InVariables)
@@ -78,33 +78,42 @@ namespace UnrealGameSync
 
 		private void EditStepButton_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem Item in BuildStepList.SelectedItems)
+			foreach(ListViewItem? Item in BuildStepList.SelectedItems)
 			{
-				BuildStepWindow EditStep = new BuildStepWindow((BuildStep)Item.Tag, TargetNames, BaseDirectory, Variables);
-				EditStep.ShowDialog();
-				Item.Text = ((BuildStep)Item.Tag).Description;
-				break;
+				if (Item != null)
+				{
+					BuildStepWindow EditStep = new BuildStepWindow((BuildStep)Item.Tag, TargetNames, BaseDirectory, Variables);
+					EditStep.ShowDialog();
+					Item.Text = ((BuildStep)Item.Tag).Description;
+					break;
+				}
 			}
 		}
 
 		private void RemoveStepButton_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem Item in BuildStepList.SelectedItems)
+			foreach(ListViewItem? Item in BuildStepList.SelectedItems)
 			{
-				if(MessageBox.Show(String.Format("Remove the '{0}' step?", Item.Text), "Remove Step", MessageBoxButtons.YesNo) == DialogResult.Yes)
+				if (Item != null)
 				{
-					BuildStepList.Items.Remove(Item);
+					if (MessageBox.Show(String.Format("Remove the '{0}' step?", Item.Text), "Remove Step", MessageBoxButtons.YesNo) == DialogResult.Yes)
+					{
+						BuildStepList.Items.Remove(Item);
+					}
+					break;
 				}
-				break;
 			}
 		}
 
 		private void CloseButton_Click(object sender, EventArgs e)
 		{
 			Steps.Clear();
-			foreach(ListViewItem Item in BuildStepList.Items)
+			foreach(ListViewItem? Item in BuildStepList.Items)
 			{
-				Steps.Add((BuildStep)Item.Tag);
+				if (Item != null)
+				{
+					Steps.Add((BuildStep)Item.Tag);
+				}
 			}
 			Close();
 		}
@@ -210,15 +219,18 @@ namespace UnrealGameSync
 		private void MoveUp_Click(object sender, EventArgs e)
 		{
 			BuildStepList.BeginUpdate();
-			foreach(ListViewItem Item in BuildStepList.SelectedItems)
+			foreach(ListViewItem? Item in BuildStepList.SelectedItems)
 			{
-				int Index = Item.Index;
-				if(Index > 0)
+				if (Item != null)
 				{
-					BuildStepList.Items.RemoveAt(Index);
-					BuildStepList.Items.Insert(Index - 1, Item);
+					int Index = Item.Index;
+					if (Index > 0)
+					{
+						BuildStepList.Items.RemoveAt(Index);
+						BuildStepList.Items.Insert(Index - 1, Item);
+					}
+					break;
 				}
-				break;
 			}
 			BuildStepList.EndUpdate();
 			UpdateEnabledButtons();
@@ -227,15 +239,18 @@ namespace UnrealGameSync
 		private void MoveDown_Click(object sender, EventArgs e)
 		{
 			BuildStepList.BeginUpdate();
-			foreach(ListViewItem Item in BuildStepList.SelectedItems)
+			foreach(ListViewItem? Item in BuildStepList.SelectedItems)
 			{
-				int Index = Item.Index;
-				if(Index < BuildStepList.Items.Count - 1)
+				if (Item != null)
 				{
-					BuildStepList.Items.RemoveAt(Index);
-					BuildStepList.Items.Insert(Index + 1, Item);
+					int Index = Item.Index;
+					if (Index < BuildStepList.Items.Count - 1)
+					{
+						BuildStepList.Items.RemoveAt(Index);
+						BuildStepList.Items.Insert(Index + 1, Item);
+					}
+					break;
 				}
-				break;
 			}
 			BuildStepList.EndUpdate();
 			UpdateEnabledButtons();
@@ -244,11 +259,14 @@ namespace UnrealGameSync
 		private void ModifyBuildStepsWindow_FormClosed(object sender, FormClosedEventArgs e)
 		{
 			Steps.Clear();
-			foreach(ListViewItem Item in BuildStepList.Items)
+			foreach(ListViewItem? Item in BuildStepList.Items)
 			{
-				BuildStep Step = (BuildStep)Item.Tag;
-				Step.OrderIndex = Steps.Count;
-				Steps.Add(Step);
+				if (Item != null)
+				{
+					BuildStep Step = (BuildStep)Item.Tag;
+					Step.OrderIndex = Steps.Count;
+					Steps.Add(Step);
+				}
 			}
 		}
 	}

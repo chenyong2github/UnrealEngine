@@ -11,8 +11,6 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	enum AutomationRequestType
@@ -146,9 +144,9 @@ namespace UnrealGameSync
 
 		bool bDisposing;
 		ILogger Logger;
-		string CommandLineUri;
+		string? CommandLineUri;
 
-		public AutomationServer(Action<AutomationRequest> PostRequest, string Uri, ILogger<AutomationServer> Logger)
+		public AutomationServer(Action<AutomationRequest> PostRequest, string? Uri, ILogger<AutomationServer> Logger)
 		{
 			ShutdownEvent = new ManualResetEvent(false);
 			this.PostRequest = PostRequest;

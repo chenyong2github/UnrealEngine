@@ -22,8 +22,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics.CodeAnalysis;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	public class UncontrolledChangelist
@@ -61,7 +59,7 @@ namespace UnrealGameSync
 		void UpdateAlertWindows();
 		void UpdateTintColors();
 
-		IssueMonitor CreateIssueMonitor(string ApiUrl, string UserName);
+		IssueMonitor CreateIssueMonitor(string? ApiUrl, string UserName);
 		void ReleaseIssueMonitor(IssueMonitor IssueMonitor);
 	}
 
@@ -212,7 +210,7 @@ namespace UnrealGameSync
 		const string EditorArchiveType = "Editor";
 
 		IWorkspaceControlOwner Owner;
-		string ApiUrl;
+		string? ApiUrl;
 		DirectoryReference DataFolder;
 		IServiceProvider ServiceProvider;
 		ILogger Logger;
@@ -330,7 +328,7 @@ namespace UnrealGameSync
 		// Placeholder text that is in the control and cleared when the user starts editing.
 		static string AuthorFilterPlaceholderText = "<username>";
 
-		public WorkspaceControl(IWorkspaceControlOwner InOwner, string InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, WorkspaceSettings WorkspaceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, OIDCTokenManager InOidcTokenManager)
+		public WorkspaceControl(IWorkspaceControlOwner InOwner, string? InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, WorkspaceSettings WorkspaceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, OIDCTokenManager? InOidcTokenManager)
 		{
 			InitializeComponent();
 
@@ -463,7 +461,7 @@ namespace UnrealGameSync
 			StartupTimer = new System.Threading.Timer(x => MainThreadSynchronizationContext.Post((o) => { if (!IsDisposed) { StartupTimerElapsed(false); } }, null), null, TimeSpan.FromSeconds(20.0), TimeSpan.FromMilliseconds(-1.0));
 			StartupCallbacks = new List<WorkspaceStartupCallback>();
 
-			string IssuesApiUrl = GetIssuesApiUrl();
+			string? IssuesApiUrl = GetIssuesApiUrl();
 			IssueMonitor = InOwner.CreateIssueMonitor(IssuesApiUrl, WorkspaceSettings.PerforceSettings.UserName);
 			IssueMonitor.OnIssuesChanged += IssueMonitor_OnIssuesChangedAsync;
 
@@ -695,7 +693,7 @@ namespace UnrealGameSync
 			ServiceBadges = new List<ServiceBadgeInfo>();
 			foreach (string ServiceBadgeName in ServiceBadgeNames)
 			{
-				BadgeData LatestBuild;
+				BadgeData? LatestBuild;
 				if (EventMonitor.TryGetLatestBadge(ServiceBadgeName, out LatestBuild))
 				{
 					ServiceBadges.Add(new ServiceBadgeInfo(ServiceBadgeName, LatestBuild.Url, LatestBuild.Result));
@@ -1483,7 +1481,7 @@ namespace UnrealGameSync
 				else if (Settings.ShowRobomerge == UserSettings.RobomergeShowChangesOption.Badged)
 				{
 					// if this change has any badges, we'll show it unless it's later filtered out
-					EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
+					EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
 					if (Summary == null || !Summary.Badges.Any())
 					{
 						return false;
@@ -1493,7 +1491,7 @@ namespace UnrealGameSync
 
 			if (ProjectSettings.FilterBadges.Count > 0)
 			{
-				EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
+				EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
 				if (Summary == null || !Summary.Badges.Any(x => ProjectSettings.FilterBadges.Contains(x.BadgeName)))
 				{
 					return false;
@@ -1530,7 +1528,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		string GetIssuesApiUrl()
+		string? GetIssuesApiUrl()
 		{
 			string? IssuesApiUrl;
 			if (!TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "IssuesApiUrl", out IssuesApiUrl))
@@ -1543,7 +1541,7 @@ namespace UnrealGameSync
 		void UpdateBuildMetadata()
 		{
 			// Refresh the issue monitor if it's changed
-			string IssuesApiUrl = GetIssuesApiUrl();
+			string? IssuesApiUrl = GetIssuesApiUrl();
 			if (IssuesApiUrl != IssueMonitor.ApiUrl)
 			{
 				Logger.LogInformation("Changing issues API url from {OldApiUrl} to {ApiUrl}", IssueMonitor.ApiUrl, IssuesApiUrl);
@@ -1581,7 +1579,7 @@ namespace UnrealGameSync
 			{
 				if (Item != null && Item.Tag != null)
 				{
-					EventSummary Summary = EventMonitor.GetSummaryForChange(((ChangesRecord)Item.Tag).Number);
+					EventSummary? Summary = EventMonitor.GetSummaryForChange(((ChangesRecord)Item.Tag).Number);
 					if (Summary != null)
 					{
 						foreach (BadgeData Badge in Summary.Badges)
@@ -1695,7 +1693,7 @@ namespace UnrealGameSync
 				return true;
 			}
 
-			EventSummary Review = EventMonitor.GetSummaryForChange(ChangeNumber);
+			EventSummary? Review = EventMonitor.GetSummaryForChange(ChangeNumber);
 			if (Review != null)
 			{
 				if (Review.LastStarReview != null && Review.LastStarReview.Type == EventType.Starred)
@@ -1877,7 +1875,7 @@ namespace UnrealGameSync
 			Dictionary<string, BadgeData> TypeToLastSucceededBuild = new Dictionary<string, BadgeData>();
 			for (int Idx = SortedChangeNumbers.Count - 1; Idx >= 0; Idx--)
 			{
-				EventSummary Summary = EventMonitor.GetSummaryForChange(SortedChangeNumbers[Idx]);
+				EventSummary? Summary = EventMonitor.GetSummaryForChange(SortedChangeNumbers[Idx]);
 				if (Summary != null)
 				{
 					foreach (BadgeData Badge in Summary.Badges)
@@ -2137,7 +2135,7 @@ namespace UnrealGameSync
 				LayoutInfo.DescriptionBadges = CreateDescriptionBadges(Change);
 				LayoutInfo.TypeBadges = CreateTypeBadges(Change.Number);
 
-				EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
+				EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
 				LayoutInfo.BuildBadges = CreateBuildBadges(Change.Number, Summary);
 				LayoutInfo.CustomBadges = CreateCustomBadges(Change.Number, Summary);
 
@@ -2204,7 +2202,7 @@ namespace UnrealGameSync
 
 			if (e.ColumnIndex == IconColumn.Index)
 			{
-				EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
+				EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
 
 				float MinX = 4 * DpiScaleX;
 				if ((Summary != null && EventMonitor.WasSyncedByCurrentUser(Summary.ChangeNumber)) || (Workspace != null && Workspace.CurrentChangeNumber == Change.Number))
@@ -2360,7 +2358,7 @@ namespace UnrealGameSync
 
 					if (Change.Number == Workspace.CurrentChangeNumber)
 					{
-						EventData Review = EventMonitor.GetReviewByCurrentUser(Change.Number);
+						EventData? Review = EventMonitor.GetReviewByCurrentUser(Change.Number);
 
 						MaxX -= FrownIcon.Width * DpiScaleX;
 						e.Graphics.DrawImage(Properties.Resources.Icons, MaxX, IconY, (Review == null || !EventMonitor.IsPositiveReview(Review.Type)) ? FrownIcon : DisabledFrownIcon, GraphicsUnit.Pixel);
@@ -2380,7 +2378,7 @@ namespace UnrealGameSync
 					{
 						StringBuilder SummaryTextBuilder = new StringBuilder();
 
-						EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
+						EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
 
 						AppendItemList(SummaryTextBuilder, " ", "Under investigation by {0}.", EventMonitor.GetInvestigatingUsers(Change.Number).Select(x => FormatUserName(x)));
 
@@ -2755,7 +2753,7 @@ namespace UnrealGameSync
 			return false;
 		}
 
-		private List<BadgeInfo> CreateBuildBadges(int ChangeNumber, EventSummary Summary)
+		private List<BadgeInfo> CreateBuildBadges(int ChangeNumber, EventSummary? Summary)
 		{
 			List<BadgeInfo> Badges = new List<BadgeInfo>();
 
@@ -2816,7 +2814,7 @@ namespace UnrealGameSync
 			return new BadgeInfo(BadgeLabel, BadgeGroup, UniqueId, BadgeColor, HoverBadgeColor, ClickHandler);
 		}
 
-		private Dictionary<string, List<BadgeInfo>> CreateCustomBadges(int ChangeNumber, EventSummary Summary)
+		private Dictionary<string, List<BadgeInfo>> CreateCustomBadges(int ChangeNumber, EventSummary? Summary)
 		{
 			Dictionary<string, List<BadgeInfo>> ColumnNameToBadges = new Dictionary<string, List<BadgeInfo>>();
 			if (Summary != null && Summary.Badges.Count > 0)
@@ -3773,7 +3771,7 @@ namespace UnrealGameSync
 			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "SdkInfo", out SdkInfoEntries))
 			{
 				Dictionary<string, string> Variables = GetWorkspaceVariables(-1);
-				SdkInfoWindow Window = new SdkInfoWindow(SdkInfoEntries, Variables, BadgeFont);
+				SdkInfoWindow Window = new SdkInfoWindow(SdkInfoEntries, Variables, BadgeFont!);
 				Window.ShowDialog();
 			}
 		}
@@ -4184,7 +4182,7 @@ namespace UnrealGameSync
 						BuildListContextMenu_StartInvestigating.Visible = !EventMonitor.IsUnderInvestigationByCurrentUser(ContextMenuChange.Number);
 						BuildListContextMenu_FinishInvestigating.Visible = EventMonitor.IsUnderInvestigation(ContextMenuChange.Number);
 
-						string CommentText;
+						string? CommentText;
 						bool bHasExistingComment = EventMonitor.GetCommentByCurrentUser(ContextMenuChange.Number, out CommentText);
 						BuildListContextMenu_LeaveComment.Visible = !bHasExistingComment;
 						BuildListContextMenu_EditComment.Visible = bHasExistingComment;
@@ -4215,7 +4213,7 @@ namespace UnrealGameSync
 						BuildListContextMenu_MarkBad.Visible = !bIsBisectMode;
 						BuildListContextMenu_WithdrawReview.Visible = !bIsBisectMode;
 
-						EventSummary Summary = EventMonitor.GetSummaryForChange(ContextMenuChange.Number);
+						EventSummary? Summary = EventMonitor.GetSummaryForChange(ContextMenuChange.Number);
 						bool bStarred = (Summary != null && Summary.LastStarReview != null && Summary.LastStarReview.Type == EventType.Starred);
 						BuildListContextMenu_AddStar.Visible = !bStarred;
 						BuildListContextMenu_RemoveStar.Visible = bStarred;
@@ -4744,7 +4742,7 @@ namespace UnrealGameSync
 		{
 			if (ContextMenuChange != null)
 			{
-				EventSummary Summary = EventMonitor.GetSummaryForChange(ContextMenuChange.Number);
+				EventSummary? Summary = EventMonitor.GetSummaryForChange(ContextMenuChange.Number);
 				if (Summary != null && Summary.LastStarReview != null && Summary.LastStarReview.Type == EventType.Starred)
 				{
 					string Message = String.Format("This change was starred by {0}. Are you sure you want to remove it?", FormatUserName(Summary.LastStarReview.UserName));
@@ -4856,7 +4854,7 @@ namespace UnrealGameSync
 						}
 					}
 
-					EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
+					EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
 					if (Summary != null)
 					{
 						StringBuilder SummaryText = new StringBuilder();
@@ -5081,7 +5079,7 @@ namespace UnrealGameSync
 					}
 					else if (ChangeType == LatestChangeType.Good)
 					{
-						EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
+						EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
 						if (Summary != null && Summary.Verdict == ReviewVerdict.Good && CanSyncChange(Change.Number))
 						{
 							ChangeNumber = FindNewestGoodContentChange(Change.Number);
@@ -5090,7 +5088,7 @@ namespace UnrealGameSync
 					}
 					else if (ChangeType == LatestChangeType.Starred)
 					{
-						EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
+						EventSummary? Summary = EventMonitor.GetSummaryForChange(Change.Number);
 						if (((Summary != null && Summary.LastStarReview != null && Summary.LastStarReview.Type == EventType.Starred) || PromotedChangeNumbers.Contains(Change.Number)) && CanSyncChange(Change.Number))
 						{
 							ChangeNumber = FindNewestGoodContentChange(Change.Number);
@@ -5122,7 +5120,7 @@ namespace UnrealGameSync
 					break;
 				}
 
-				EventSummary Summary = EventMonitor.GetSummaryForChange(NextChangeNumber);
+				EventSummary? Summary = EventMonitor.GetSummaryForChange(NextChangeNumber);
 				if (Summary != null && Summary.Verdict == ReviewVerdict.Bad)
 				{
 					break;
@@ -5140,7 +5138,7 @@ namespace UnrealGameSync
 			{
 				LeaveCommentWindow LeaveComment = new LeaveCommentWindow();
 
-				string CommentText;
+				string? CommentText;
 				if (EventMonitor.GetCommentByCurrentUser(ContextMenuChange.Number, out CommentText))
 				{
 					LeaveComment.CommentTextBox.Text = CommentText;
@@ -5382,7 +5380,7 @@ namespace UnrealGameSync
 						ConfigObject? DefaultObject;
 						ProjectBuildStepObjects.TryGetValue(Step.UniqueId, out DefaultObject);
 
-						ConfigObject UserConfigObject = Step.ToConfigObject(DefaultObject);
+						ConfigObject? UserConfigObject = Step.ToConfigObject(DefaultObject);
 						if (UserConfigObject != null && UserConfigObject.Pairs.Any(x => x.Key != "UniqueId"))
 						{
 							ModifiedBuildSteps.Add(UserConfigObject);

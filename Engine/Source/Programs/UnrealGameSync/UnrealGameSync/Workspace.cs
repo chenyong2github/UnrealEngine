@@ -19,8 +19,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	[Flags]
@@ -1226,7 +1224,7 @@ namespace UnrealGameSync
 					{
 						MaxProgressFraction += (float)Step.EstimatedDuration / (float)Math.Max(BuildSteps.Sum(x => x.EstimatedDuration), 1);
 
-						Progress.Set(Step.StatusText);
+						Progress.Set(Step.StatusText ?? "Executing build step");
 						Progress.Push(MaxProgressFraction);
 
 						Logger.LogInformation("{Status}", Step.StatusText);
@@ -1277,7 +1275,7 @@ namespace UnrealGameSync
 										StepStopwatch.AddData(new { Project = Path.GetFileNameWithoutExtension(Step.FileName) });
 
 										FileReference LocalRunUAT = FileReference.Combine(Project.LocalRootPath, "Engine", "Build", "BatchFiles", "RunUAT.bat");
-										string Arguments = String.Format("/C \"\"{0}\" -profile=\"{1}\"\"", LocalRunUAT, FileReference.Combine(Project.LocalRootPath, Step.FileName));
+										string Arguments = String.Format("/C \"\"{0}\" -profile=\"{1}\"\"", LocalRunUAT, FileReference.Combine(Project.LocalRootPath, Step.FileName ?? "unknown"));
 										Logger.LogInformation("uat> Running {FileName} {Argument}", LocalRunUAT, Arguments);
 
 										int ResultFromUAT = await Utility.ExecuteProcessAsync(CmdExe, null, Arguments, Line => ProcessOutput(Line, "uat> ", Progress, Logger), CancellationToken);
@@ -1295,7 +1293,7 @@ namespace UnrealGameSync
 									{
 										StepStopwatch.AddData(new { FileName = Path.GetFileNameWithoutExtension(Step.FileName) });
 
-										FileReference ToolFileName = FileReference.Combine(Project.LocalRootPath, Utility.ExpandVariables(Step.FileName, Context.Variables));
+										FileReference ToolFileName = FileReference.Combine(Project.LocalRootPath, Utility.ExpandVariables(Step.FileName ?? "unknown", Context.Variables));
 										string ToolWorkingDir = String.IsNullOrWhiteSpace(Step.WorkingDir) ? ToolFileName.Directory.FullName : Utility.ExpandVariables(Step.WorkingDir, Context.Variables);
 										string ToolArguments = Utility.ExpandVariables(Step.Arguments ?? "", Context.Variables);
 										Logger.LogInformation("tool> Running {0} {1}", ToolFileName, ToolArguments);

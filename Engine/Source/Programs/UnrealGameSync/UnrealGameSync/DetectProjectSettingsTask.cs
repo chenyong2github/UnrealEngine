@@ -12,8 +12,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	public class WorkspaceSettings
@@ -311,7 +309,7 @@ namespace UnrealGameSync
 				// Run any event hooks
 				if (DeploymentSettings.OnDetectProjectSettings != null)
 				{
-					string Message;
+					string? Message;
 					if (!DeploymentSettings.OnDetectProjectSettings(WorkspaceSettings, Logger, out Message))
 					{
 						throw new UserErrorException(Message);

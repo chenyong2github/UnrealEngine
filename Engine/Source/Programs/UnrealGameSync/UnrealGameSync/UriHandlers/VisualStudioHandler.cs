@@ -19,7 +19,7 @@ namespace UnrealGameSync
 		{
 			string TempFileName = P4Automation.PrintToTempFile(null, DepotPath, NullLogger.Instance).GetAwaiter().GetResult();
 
-			string ErrorMessage;
+			string? ErrorMessage;
 			if (!VisualStudioAutomation.OpenFile(TempFileName, out ErrorMessage, Line))
 			{
 				return new UriResult() { Error = ErrorMessage ?? "Unknown Visual Studio Error" };

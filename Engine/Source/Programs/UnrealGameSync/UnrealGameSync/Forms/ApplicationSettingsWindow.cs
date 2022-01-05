@@ -17,8 +17,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using UnrealGameSync;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	partial class ApplicationSettingsWindow : Form
@@ -99,7 +97,7 @@ namespace UnrealGameSync
 
 			this.DepotPathTextBox.Text = InitialDepotPath;
 			this.DepotPathTextBox.Select(DepotPathTextBox.TextLength, 0);
-			this.DepotPathTextBox.CueBanner = DeploymentSettings.DefaultDepotPath;
+			this.DepotPathTextBox.CueBanner = DeploymentSettings.DefaultDepotPath ?? String.Empty;
 
 			this.UseUnstableBuildCheckBox.Checked = bUnstable;
 
@@ -192,12 +190,14 @@ namespace UnrealGameSync
 				{
 					PerforceSettings Settings = Utility.OverridePerforceSettings(DefaultPerforceSettings, ServerAndPort, UserName);
 
-					string TestDepotPath = DepotPath ?? DeploymentSettings.DefaultDepotPath;
-
-					ModalTask? Task = PerforceModalTask.Execute(this, "Checking connection", "Checking connection, please wait...", Settings, (p, c) => PerforceTestConnectionTask.RunAsync(p, TestDepotPath, c), Logger);
-					if (Task == null || !Task.Succeeded)
+					string? TestDepotPath = DepotPath ?? DeploymentSettings.DefaultDepotPath;
+					if (TestDepotPath != null)
 					{
-						return;
+						ModalTask? Task = PerforceModalTask.Execute(this, "Checking connection", "Checking connection, please wait...", Settings, (p, c) => PerforceTestConnectionTask.RunAsync(p, TestDepotPath, c), Logger);
+						if (Task == null || !Task.Succeeded)
+						{
+							return;
+						}
 					}
 				}
 

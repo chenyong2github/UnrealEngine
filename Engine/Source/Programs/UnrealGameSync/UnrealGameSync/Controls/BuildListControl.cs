@@ -53,7 +53,7 @@ namespace UnrealGameSync
 
 		public delegate void OnScrollDelegate();
 
-		public event OnScrollDelegate OnScroll;
+		public event OnScrollDelegate? OnScroll;
 
 		public BuildListControl()
 		{

@@ -20,7 +20,7 @@ namespace UnrealGameSync
 		List<string> TargetNames;
 		DirectoryReference BaseDirectory;
 		IReadOnlyDictionary<string, string> Variables;
-		VariablesWindow VariablesWindow;
+		VariablesWindow? VariablesWindow;
 
 		public BuildStepWindow(BuildStep InTask, List<string> InTargetNames, DirectoryReference InBaseDirectory, IReadOnlyDictionary<string, string> InVariables)
 		{
@@ -242,7 +242,7 @@ namespace UnrealGameSync
 			{
 				for(;;)
 				{
-					IContainerControl NextContainer = Container.ActiveControl as IContainerControl;
+					IContainerControl? NextContainer = Container.ActiveControl as IContainerControl;
 					if(NextContainer == null)
 					{
 						break;
@@ -250,7 +250,7 @@ namespace UnrealGameSync
 					Container = NextContainer;
 				}
 
-				TextBox FocusTextBox = Container.ActiveControl as TextBox;
+				TextBox? FocusTextBox = Container.ActiveControl as TextBox;
 				if(FocusTextBox != null)
 				{
 					FocusTextBox.SelectedText = Name;

@@ -19,8 +19,8 @@ namespace UnrealGameSync
 		object SyncObject = new object();
 		FileReference[] Programs;
 		Func<FileReference[]> EnumeratePrograms;
-		ManualResetEvent TerminateEvent;
-		Thread BackgroundThread;
+		ManualResetEvent? TerminateEvent;
+		Thread? BackgroundThread;
 
 		public ProgramsRunningWindow(Func<FileReference[]> EnumeratePrograms, FileReference[] Programs)
 		{
@@ -43,7 +43,7 @@ namespace UnrealGameSync
 		{
 			for(;;)
 			{
-				if(TerminateEvent.WaitOne(TimeSpan.FromSeconds(2.0)))
+				if(TerminateEvent!.WaitOne(TimeSpan.FromSeconds(2.0)))
 				{
 					break;
 				}
@@ -76,7 +76,7 @@ namespace UnrealGameSync
 		{
 			if(BackgroundThread != null)
 			{
-				TerminateEvent.Set();
+				TerminateEvent!.Set();
 
 				BackgroundThread.Join();
 				BackgroundThread = null;

@@ -10,8 +10,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	class RestException : Exception

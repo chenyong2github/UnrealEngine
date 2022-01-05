@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
@@ -54,7 +55,7 @@ namespace UnrealGameSync
 
 		public Font FindOrAddFont(FontStyle Style)
 		{
-			Font Result;
+			Font? Result;
 			if(!FontCache.TryGetValue(Style, out Result))
 			{
 				Result = new Font(FontCache[FontStyle.Regular], Style);
@@ -198,7 +199,7 @@ namespace UnrealGameSync
 		string Name;
 		Color BackgroundColor;
 		Color HoverBackgroundColor;
-		Action<Point, Rectangle> ClickAction;
+		Action<Point, Rectangle>? ClickAction;
 
 		public bool MergeLeft
 		{
@@ -210,11 +211,13 @@ namespace UnrealGameSync
 			get; set;
 		}
 
-		public BadgeStatusElement(string InName, Color InBackgroundColor, Action<Point, Rectangle> InClickAction)
+		public BadgeStatusElement(string InName, Color InBackgroundColor, Action<Point, Rectangle>? InClickAction)
 		{
 			Name = InName;
 			BackgroundColor = InBackgroundColor;
-			if(ClickAction == null)
+			ClickAction = InClickAction;
+
+			if (ClickAction == null)
 			{
 				HoverBackgroundColor = BackgroundColor;
 			}
@@ -222,7 +225,6 @@ namespace UnrealGameSync
 			{
 				HoverBackgroundColor = Color.FromArgb(Math.Min(BackgroundColor.R + 32, 255), Math.Min(BackgroundColor.G + 32, 255), Math.Min(BackgroundColor.B + 32, 255));
 			}
-			ClickAction = InClickAction;
 			if(ClickAction != null)
 			{
 				Cursor = NativeCursors.Hand;
@@ -374,13 +376,13 @@ namespace UnrealGameSync
 			bModified = true;
 		}
 
-		public void AddBadge(string InText, Color InBackgroundColor, Action<Point, Rectangle> InClickAction)
+		public void AddBadge(string InText, Color InBackgroundColor, Action<Point, Rectangle>? InClickAction)
 		{
 			Elements.Add(new BadgeStatusElement(InText, InBackgroundColor, InClickAction));
 			if(Elements.Count >= 2)
 			{
-				BadgeStatusElement PrevBadge = Elements[Elements.Count - 2] as BadgeStatusElement;
-				BadgeStatusElement NextBadge = Elements[Elements.Count - 1] as BadgeStatusElement;
+				BadgeStatusElement? PrevBadge = Elements[Elements.Count - 2] as BadgeStatusElement;
+				BadgeStatusElement? NextBadge = Elements[Elements.Count - 1] as BadgeStatusElement;
 				if(PrevBadge != null && NextBadge != null)
 				{
 					PrevBadge.MergeRight = true;
@@ -396,7 +398,7 @@ namespace UnrealGameSync
 			bModified = true;
 		}
 
-		public bool HitTest(Point Location, out StatusElement OutElement)
+		public bool HitTest(Point Location, [NotNullWhen(true)] out StatusElement? OutElement)
 		{
 			OutElement = null;
 			if(Bounds.Contains(Location))
@@ -440,20 +442,20 @@ namespace UnrealGameSync
 	{
 		const float LineSpacing = 1.35f;
 
-		Image ProjectLogo;
+		Image? ProjectLogo;
 		bool bDisposeProjectLogo;
 		Rectangle ProjectLogoBounds;
-		StatusElementResources Resources;
+		StatusElementResources? Resources;
 		List<StatusLine> Lines = new List<StatusLine>();
-		StatusLine Caption;
-		Pen AlertDividerPen;
+		StatusLine? Caption;
+		Pen? AlertDividerPen;
 		int AlertDividerY;
-		StatusLine Alert;
+		StatusLine? Alert;
 		Color? TintColor;
 		Point? MouseOverLocation;
-		StatusElement MouseOverElement;
+		StatusElement? MouseOverElement;
 		Point? MouseDownLocation;
-		StatusElement MouseDownElement;
+		StatusElement? MouseDownElement;
 		int ContentWidth = 400;
 		int SuspendDisplayCount;
 
@@ -539,7 +541,7 @@ namespace UnrealGameSync
 			Caption = null;
 		}
 
-		public void Set(IEnumerable<StatusLine> NewLines, StatusLine NewCaption, StatusLine NewAlert, Color? NewTintColor)
+		public void Set(IEnumerable<StatusLine> NewLines, StatusLine? NewCaption, StatusLine? NewAlert, Color? NewTintColor)
 		{
 			if(Resources == null)
 			{
@@ -584,7 +586,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		protected bool HitTest(Point Location, out StatusElement OutElement)
+		protected bool HitTest(Point Location, [NotNullWhen(true)] out StatusElement? OutElement)
 		{
 			OutElement = null;
 			foreach(StatusLine Line in Lines)
@@ -634,8 +636,8 @@ namespace UnrealGameSync
 			if(Alert != null)
 			{
 				AlertDividerY = Height - (int)(Font.Height * 2);
-				Alert.Layout(Graphics, Point.Empty, Resources);
-				Alert.Layout(Graphics, new Point((Width - Alert.Bounds.Width) / 2, (Height + AlertDividerY) / 2), Resources);
+				Alert.Layout(Graphics, Point.Empty, Resources!);
+				Alert.Layout(Graphics, new Point((Width - Alert.Bounds.Width) / 2, (Height + AlertDividerY) / 2), Resources!);
 				BodyHeight = AlertDividerY;
 			}
 
@@ -656,9 +658,9 @@ namespace UnrealGameSync
 			LogoY -= Font.Height / 2;
 			if(Caption != null)
 			{
-				Caption.Layout(Graphics, Point.Empty, Resources);
+				Caption.Layout(Graphics, Point.Empty, Resources!);
 				int CaptionWidth = Caption.Bounds.Width;
-				Caption.Layout(Graphics, new Point(Math.Min(LogoX + (LogoWidth / 2) - (CaptionWidth / 2), DividerX - CaptionWidth), LogoY + LogoHeight), Resources);
+				Caption.Layout(Graphics, new Point(Math.Min(LogoX + (LogoWidth / 2) - (CaptionWidth / 2), DividerX - CaptionWidth), LogoY + LogoHeight), Resources!);
 			}
 
 			// Set the logo rectangle
@@ -672,7 +674,7 @@ namespace UnrealGameSync
 			foreach(StatusLine Line in Lines)
 			{
 				LineY += (int)(Font.Height * LineSpacing * Line.LineHeight * 0.5f);
-				Line.Layout(Graphics, new Point(DividerX + 5, (int)LineY), Resources);
+				Line.Layout(Graphics, new Point(DividerX + 5, (int)LineY), Resources!);
 				LineY += (int)(Font.Height * LineSpacing * Line.LineHeight * 0.5f);
 			}
 		}
@@ -757,16 +759,16 @@ namespace UnrealGameSync
 
 				foreach(StatusLine Line in Lines)
 				{
-					Line.Draw(e.Graphics, Resources);
+					Line.Draw(e.Graphics, Resources!);
 				}
 				if(Caption != null)
 				{
-					Caption.Draw(e.Graphics, Resources);
+					Caption.Draw(e.Graphics, Resources!);
 				}
 				if(Alert != null)
 				{
 					e.Graphics.DrawLine(AlertDividerPen, 0, AlertDividerY, Width, AlertDividerY);
-					Alert.Draw(e.Graphics, Resources);
+					Alert.Draw(e.Graphics, Resources!);
 				}
 			}
 		}
@@ -775,7 +777,7 @@ namespace UnrealGameSync
 		{
 			MouseOverLocation = NewMouseOverLocation;
 
-			StatusElement NewMouseOverElement = null;
+			StatusElement? NewMouseOverElement = null;
 			if(MouseOverLocation.HasValue)
 			{
 				HitTest(MouseOverLocation.Value, out NewMouseOverElement);
@@ -805,7 +807,7 @@ namespace UnrealGameSync
 		{
 			MouseDownLocation = NewMouseDownLocation;
 
-			StatusElement NewMouseDownElement = null;
+			StatusElement? NewMouseDownElement = null;
 			if(MouseDownLocation.HasValue)
 			{
 				HitTest(MouseDownLocation.Value, out NewMouseDownElement);

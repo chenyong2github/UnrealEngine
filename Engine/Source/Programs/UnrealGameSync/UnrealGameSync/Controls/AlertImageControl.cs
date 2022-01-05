@@ -16,9 +16,9 @@ namespace UnrealGameSync
 {
 	partial class AlertImageControl : UserControl
 	{
-		Image ImageValue;
+		Image? ImageValue;
 
-		public Image Image
+		public Image? Image
 		{
 			get { return ImageValue; }
 			set { ImageValue = value; Invalidate(); }

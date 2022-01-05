@@ -11,8 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	public class PerforceLoginException : Exception
@@ -82,7 +80,7 @@ namespace UnrealGameSync
 						PasswordPrompt = $"Authentication failed. Enter the password for user '{PerforceSettings.UserName}' on server '{PerforceSettings.ServerAndPort}'.";
 					}
 
-					PasswordWindow PasswordWindow = new PasswordWindow(PasswordPrompt, Password);
+					PasswordWindow PasswordWindow = new PasswordWindow(PasswordPrompt, Password ?? String.Empty);
 					if (Owner == null)
 					{
 						PasswordWindow.StartPosition = FormStartPosition.CenterScreen;
