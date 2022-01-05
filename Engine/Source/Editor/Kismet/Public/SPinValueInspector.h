@@ -22,7 +22,7 @@ public:
 	{}
 	SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, const FEdGraphPinReference& InPinRef);
+		void Construct(const FArguments& InArgs);
 
 	/** Whether the search filter UI should be visible. */
 	bool ShouldShowSearchFilter() const;
@@ -41,6 +41,9 @@ protected:
 
 	/** Adds the pin to the tree view */
 	void PopulateTreeView();
+
+	/** Sets the current watched pin */
+	void SetPinRef(const FEdGraphPinReference& InPinRef);
 
 private:
 	/** Holds a weak reference to the target pin. */
@@ -69,9 +72,6 @@ public:
 	 */
 	void TryDismissTooltip();
 
-	/** Inspector widget in the tooltip */
-	TSharedPtr<SPinValueInspector> ValueInspectorWidget;
-
 private:
 	/** Dismisses the current tooltip (internal implementation) */
 	void DismissTooltip();
@@ -85,6 +85,9 @@ private:
 public:
 	/** Summons a new tooltip in the shared window */
 	static TWeakPtr<FPinValueInspectorTooltip> SummonTooltip(FEdGraphPinReference InPinRef);
+
+	/** Inspector widget in the tooltip */
+	static TSharedPtr<SPinValueInspector> ValueInspectorWidget;
 
 private:
 	/** Handles Creating a custom tooltip window for all PinValueInspector tooltips */
