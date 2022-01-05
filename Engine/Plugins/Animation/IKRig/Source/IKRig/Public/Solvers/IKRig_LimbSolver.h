@@ -58,7 +58,7 @@ public:
 
 	/** Only used if bEnableRotationLimit is enabled. Prevents the leg from folding onto itself,
 	* and forces at least this angle between Parent and Child bone. */
-	UPROPERTY(EditAnywhere, Category = "Limb IK Settings|FABRIK|Limits", meta = (ClampMin = "0.0", ClampMax = "90.0", UIMin = "0.0", UIMax = "90.0"))
+	UPROPERTY(EditAnywhere, Category = "Limb IK Settings|FABRIK|Limits", meta = (EditCondition="bEnableLimit", ClampMin = "0.0", ClampMax = "90.0", UIMin = "0.0", UIMax = "90.0"))
 	float MinRotationAngle = 15.f;
 
 	/** Pull averaging only has a visual impact when we have more than 2 bones (3 links). */
@@ -80,7 +80,7 @@ public:
 	bool bEnableTwistCorrection = false;
 	
 	/** Forward Axis for Foot bone. */
-	UPROPERTY(EditAnywhere, Category = "Limb IK Settings|Twist")
+	UPROPERTY(EditAnywhere, Category = "Limb IK Settings|Twist", meta = (EditCondition="bEnableTwistCorrection"))
 	TEnumAsByte<EAxis::Type> EndBoneForwardAxis = EAxis::Y;
 	
 	/** UIKRigSolver interface */
