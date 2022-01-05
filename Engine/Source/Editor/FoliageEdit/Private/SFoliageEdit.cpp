@@ -23,7 +23,6 @@
 #include "Classes/EditorStyleSettings.h"
 
 #include "FoliageEditActions.h"
-#include "IIntroTutorials.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "SFoliagePalette.h"
 #include "Widgets/Layout/SHeader.h"
@@ -44,8 +43,6 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SFoliageEdit::Construct(const FArguments& InArgs)
 {
 	FoliageEditMode = (FEdModeFoliage*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Foliage);
-
-	IIntroTutorials& IntroTutorials = FModuleManager::LoadModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
 
 	// Everything (or almost) uses this padding, change it to expand the padding.
 	FMargin StandardPadding(6.f, 3.f);
@@ -93,16 +90,6 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							SNew(STextBlock)
 							.Text(this, &SFoliageEdit::GetActiveToolName)
 							.TextStyle(FEditorStyle::Get(), "FoliageEditMode.ActiveToolName.Text")
-						]
-
-						+ SHorizontalBox::Slot()
-						.Padding(StandardRightPadding)
-						.HAlign(HAlign_Right)
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							// Tutorial link
-							IntroTutorials.CreateTutorialsWidget(TEXT("FoliageMode"))
 						]
 					]
 
