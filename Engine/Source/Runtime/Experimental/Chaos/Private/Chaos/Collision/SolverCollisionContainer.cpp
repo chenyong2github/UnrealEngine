@@ -186,18 +186,25 @@ namespace Chaos
 	{
 		CollisionSolvers.Reset(MaxCollisions);
 	}
+	
+	void FPBDCollisionSolverContainer::SetNum(const int32 MaxCollisions)
+	{
+		CollisionSolvers.SetNum(MaxCollisions, false);
+	}
 
-	void FPBDCollisionSolverContainer::AddConstraintSolver(FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer)
+	void FPBDCollisionSolverContainer::AddConstraintSolver(FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer, int32& ConstraintIndex)
 	{
 		// This container is required to allocate pointers that are valid for the whole tick,
 		// so we cannot allow the container to resize during the tick. See Reset()
-		check(CollisionSolvers.Num() < CollisionSolvers.Max());
+		check(ConstraintIndex < CollisionSolvers.Num());
 
-		const int32 SolverCollisionIndex = CollisionSolvers.AddDefaulted();
+		auto& CollisionSolver = CollisionSolvers[ConstraintIndex];
+		CollisionSolver.GetSolver().Reset();
 
-		CollisionSolvers[SolverCollisionIndex].GatherInput(Dt, Constraint, Particle0Level, Particle1Level, SolverBodyContainer);
+		CollisionSolver.GatherInput(Dt, Constraint, Particle0Level, Particle1Level, SolverBodyContainer);
 
-		bRequiresIncrementalCollisionDetection |= CollisionSolvers[SolverCollisionIndex].IsIncrementalManifold();
+		bRequiresIncrementalCollisionDetection |= CollisionSolver.IsIncrementalManifold();
+		++ConstraintIndex;
 	}
 
 	void FPBDCollisionSolverContainer::UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex)

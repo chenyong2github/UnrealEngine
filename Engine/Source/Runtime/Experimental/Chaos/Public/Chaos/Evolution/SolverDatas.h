@@ -52,6 +52,13 @@ public :
 	template<typename ConstraintType> const ConstraintType* GetConstraintHandle(const int32 ContainerId, const int32 ConstraintIndex) const;
 	template<typename ConstraintType> ConstraintType* GetConstraintHandle(const int32 ContainerId, const int32 ConstraintIndex);
 
+	/** Accessors of the current constraint index */
+	const int32& GetConstraintIndex(const int32 ContainerId) const { return ConstraintDatas[ContainerId].ConstraintIndex; };
+	int32& GetConstraintIndex(const int32 ContainerId) { return ConstraintDatas[ContainerId].ConstraintIndex; };
+
+	/** Init the current constraint index */
+	void InitConstraintIndex(const int32 ContainerId) { ConstraintDatas[ContainerId].ConstraintIndex = 0; };
+
 	/** Add a constraint container to the solver island given a container id
 	* @param ContainerId Constraints container id from which the solver constraint datas is being built
 	*/
@@ -68,6 +75,9 @@ protected:
 
 		/** Constraint handles that will be used for legacy solver */
 		TArray<FConstraintHandle*> ConstraintHandles;
+
+		/** Current constraint index in the constraint container */
+		int32 ConstraintIndex;
 	};
 
 	/** Solver body container of that datas */

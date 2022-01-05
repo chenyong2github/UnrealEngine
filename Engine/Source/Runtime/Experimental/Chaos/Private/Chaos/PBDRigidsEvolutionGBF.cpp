@@ -525,7 +525,39 @@ void FPBDRigidsEvolutionGBF::GatherSolverInput(FReal Dt, int32 Island)
 {
 	// We must initialize the solver body container to be large enough to hold all particles in the
 	// island so that the pointers remain valid (the array should not grow and relocate)
-	ConstraintGraph.GetSolverIsland(Island)->GetBodyContainer().Reset(ConstraintGraph.GetIslandParticles(Island).Num());
+	FPBDIslandSolver* SolverIsland = ConstraintGraph.GetSolverIsland(Island);
+	if(SolverIsland)
+	{
+		// We pre-add all the dynamic particles solver bodies involved in any constraint to speed up the gather 
+		const TArray<FGeometryParticleHandle*>& IslandParticles = SolverIsland->GetParticles();
+		SolverIsland->GetBodyContainer().Reset(IslandParticles.Num());
+
+		if(!SolverIsland->IsSleeping())
+		{
+			for(auto& Particle : IslandParticles)
+			{
+				FGenericParticleHandle GenericHandle = Particle->Handle();
+				GenericHandle->SetSolverBodyIndex(INDEX_NONE);
+				
+				if(GenericHandle->ObjectState() == EObjectStateType::Dynamic)
+				{
+					if(FPBDRigidParticleHandle* PBDRigid = Particle->Handle()->CastToRigidParticle())
+					{
+						if(ConstraintGraph.GetGraphNodes().IsValidIndex(PBDRigid->ConstraintGraphIndex()))
+						{
+							if(ConstraintGraph.GetGraphNodes()[PBDRigid->ConstraintGraphIndex()].NodeEdges.Num() > 0)
+							{
+								// Only the non sleeping dynamic rigid particles involved in any constraints will be added
+								// by default to the solver bodies
+								const int32 BodyIndex = SolverIsland->GetBodyContainer().GetBodies().Emplace(GenericHandle);
+								GenericHandle->SetSolverBodyIndex(BodyIndex);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// NOTE: SolverBodies are gathered as part of the constraint gather, in the order that they are first seen 
 	for (FPBDConstraintGraphRule* ConstraintRule : PrioritizedConstraintRules)
