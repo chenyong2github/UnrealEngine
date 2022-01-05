@@ -143,6 +143,10 @@ protected:
 			LLM_PLATFORM_SCOPE(ELLMTag::ThreadStackPlatform);
 			// add in the thread size, since it's allocated in a black box we can't track
 			// note: I don't see any accounting for this when threads are destroyed
+			const uint64 FakeAddress = uint64(InRunnable) | (uint64(1u) << 48);
+			MemoryTrace_Alloc(FakeAddress, InStackSize, 4);
+			MemoryTrace_MarkAllocAsHeap(FakeAddress, EMemoryTraceRootHeap::SystemMemory);
+			MemoryTrace_Alloc(FakeAddress, InStackSize, 4);
 			LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, nullptr, InStackSize));
 			LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, nullptr, InStackSize));
 

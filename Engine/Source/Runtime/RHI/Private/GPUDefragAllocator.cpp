@@ -223,6 +223,7 @@ void* FGPUDefragAllocator::Allocate(int64 AllocationSize, int32 Alignment, TStat
 
 	check(IsAligned(AllocatedChunk->Base, Alignment));
 
+	MemoryTrace_Alloc((uint64)AllocatedChunk->Base, AllocationSize, Alignment);
 	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, AllocatedChunk->Base, AllocationSize));
 
 	return AllocatedChunk->Base;
@@ -354,6 +355,7 @@ void* GBestFitAllocatorFreePointer = nullptr;
 */
 void FGPUDefragAllocator::Free(void* Pointer)
 {
+	MemoryTrace_Free((uint64)Pointer);
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 	if (Pointer)
 	{
