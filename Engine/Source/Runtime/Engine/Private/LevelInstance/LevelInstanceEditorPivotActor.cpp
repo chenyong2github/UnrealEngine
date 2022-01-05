@@ -16,6 +16,9 @@ ALevelInstancePivot::ALevelInstancePivot(const FObjectInitializer& ObjectInitial
 {
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	RootComponent->Mobility = EComponentMobility::Static;
+#if WITH_EDITORONLY_DATA
+	bActorLabelEditable = false;
+#endif // WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITOR
@@ -38,6 +41,8 @@ ALevelInstancePivot* ALevelInstancePivot::Create(ALevelInstance* LevelInstanceAc
 	PivotActor->SpawnTransform = PivotActor->GetActorTransform();
 	PivotActor->OriginalPivotOffset = WorldSettings->LevelInstancePivotOffset;
 	PivotActor->SetLevelInstanceID(LevelInstanceActor->GetLevelInstanceID());
+	// Set Label last as this will call PostEditChangeProperty and update the offset so other fields need to be setup first.
+	PivotActor->SetActorLabel(TEXT("Pivot"));
 
 	return PivotActor;
 }
