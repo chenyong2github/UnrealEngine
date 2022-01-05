@@ -166,13 +166,14 @@ struct ENGINE_API FVisualLogEntry
 	uint8 bPassedClassAllowList : 1;
 	uint8 bPassedObjectAllowList : 1;	
 	uint8 bIsAllowedToLog : 1;
+	uint8 bIsLocationValid : 1;
 	uint8 bIsInitialized : 1;
 
 	TArray<FVisualLogEvent> Events;
 	TArray<FVisualLogLine> LogLines;
 	TArray<FVisualLogStatusCategory> Status;
 	TArray<FVisualLogShapeElement> ElementsToDraw;
-	TArray<FVisualLogHistogramSample>	HistogramSamples;
+	TArray<FVisualLogHistogramSample> HistogramSamples;
 	TArray<FVisualLogDataBlock>	DataBlocks;
 
 	FVisualLogEntry() { Reset(); }
