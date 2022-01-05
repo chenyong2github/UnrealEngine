@@ -20,7 +20,7 @@ using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
-	sealed class UserErrorException : Exception
+	public sealed class UserErrorException : Exception
 	{
 		public int Code { get; }
 
@@ -30,8 +30,18 @@ namespace UnrealGameSync
 		}
 	}
 
-	static class Utility
+	public static class Utility
 	{
+		static JsonSerializerOptions GetDefaultJsonSerializerOptions()
+		{
+			JsonSerializerOptions Options = new JsonSerializerOptions();
+			Options.PropertyNameCaseInsensitive = true;
+			Options.Converters.Add(new JsonStringEnumConverter());
+			return Options;
+		}
+
+		public static JsonSerializerOptions DefaultJsonSerializerOptions { get; } = GetDefaultJsonSerializerOptions();
+
 		public static bool TryLoadJson<T>(FileReference File, [NotNullWhen(true)] out T? Object) where T : class
 		{
 			if (!FileReference.Exists(File))

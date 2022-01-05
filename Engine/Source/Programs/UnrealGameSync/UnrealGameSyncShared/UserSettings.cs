@@ -68,7 +68,7 @@ namespace UnrealGameSync
 		Latest = DefaultNumberOfThreads
 	}
 
-	class ArchiveSettings
+	public class ArchiveSettings
 	{
 		public bool bEnabled;
 		public string Type;
@@ -300,7 +300,7 @@ namespace UnrealGameSync
 		}
 	}
 
-	class UserProjectSettings
+	public class UserProjectSettings
 	{
 		[JsonIgnore]
 		public FileReference? File { get; set; }
@@ -312,7 +312,7 @@ namespace UnrealGameSync
 		public void Save() => Utility.SaveJson(File!, this);
 	}
 
-	class UserSettings
+	public class UserSettings
 	{
 		/// <summary>
 		/// Enum that decribes which robomerge changes to show

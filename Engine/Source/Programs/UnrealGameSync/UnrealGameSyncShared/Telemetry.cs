@@ -28,7 +28,7 @@ namespace UnrealGameSync
 	/// <summary>
 	/// Telemetry sink that discards all events
 	/// </summary>
-	class NullTelemetrySink : ITelemetrySink
+	public class NullTelemetrySink : ITelemetrySink
 	{
 		/// <inheritdoc/>
 		public void Dispose()
@@ -44,7 +44,7 @@ namespace UnrealGameSync
 	/// <summary>
 	/// Epic internal telemetry sink using the data router
 	/// </summary>
-	class EpicTelemetrySink : ITelemetrySink
+	public class EpicTelemetrySink : ITelemetrySink
 	{
 		/// <summary>
 		/// Combined url to post event streams to

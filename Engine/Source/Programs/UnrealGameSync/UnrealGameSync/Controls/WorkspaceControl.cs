@@ -1806,7 +1806,7 @@ namespace UnrealGameSync
 				try
 				{
 					string JsonString = File.ReadAllText(UncontrolledChangelistPersistencyFilePath);
-					UncontrolledChangelistPersistency UCLPersistency = JsonSerializer.Deserialize<UncontrolledChangelistPersistency>(JsonString, Program.DefaultJsonSerializerOptions);
+					UncontrolledChangelistPersistency UCLPersistency = JsonSerializer.Deserialize<UncontrolledChangelistPersistency>(JsonString, Utility.DefaultJsonSerializerOptions);
 
 					foreach (UncontrolledChangelist UCL in UCLPersistency.Changelists)
 					{
@@ -3118,7 +3118,7 @@ namespace UnrealGameSync
 					try
 					{
 						string Text = FileReference.ReadAllText(ReceiptFileName);
-						ReceiptJsonObject Receipt = JsonSerializer.Deserialize<ReceiptJsonObject>(Text, Program.DefaultJsonSerializerOptions);
+						ReceiptJsonObject Receipt = JsonSerializer.Deserialize<ReceiptJsonObject>(Text, Utility.DefaultJsonSerializerOptions);
 
 						string? LaunchFileName = Receipt.Launch;
 						if (LaunchFileName != null)

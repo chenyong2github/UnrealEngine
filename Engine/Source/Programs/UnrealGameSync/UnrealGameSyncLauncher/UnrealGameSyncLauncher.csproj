@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
   <PropertyGroup>
@@ -41,8 +41,11 @@
     <Compile Include="..\UnrealGameSync\PerforceModalTask.cs">
       <Link>UnrealGameSync\PerforceModalTask.cs</Link>
     </Compile>
-    <Compile Include="..\UnrealGameSync\Utility.cs">
-      <Link>UnrealGameSync\Utility.cs</Link>
+    <Compile Include="..\UnrealGameSync\GlobalSettings.cs">
+      <Link>UnrealGameSync\GlobalSettings.cs</Link>
+    </Compile>
+    <Compile Include="..\UnrealGameSyncShared\Utility.cs">
+      <Link>UnrealGameSyncShared\Utility.cs</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>

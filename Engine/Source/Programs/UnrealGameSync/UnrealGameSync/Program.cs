@@ -31,16 +31,6 @@ namespace UnrealGameSync
 			return Version?.InformationalVersion ?? "Unknown";
 		}
 
-		static JsonSerializerOptions GetDefaultJsonSerializerOptions()
-		{
-			JsonSerializerOptions Options = new JsonSerializerOptions();
-			Options.PropertyNameCaseInsensitive = true;
-			Options.Converters.Add(new JsonStringEnumConverter());
-			return Options;
-		}
-
-		public static JsonSerializerOptions DefaultJsonSerializerOptions { get; } = GetDefaultJsonSerializerOptions();
-
 		public static string? SyncVersion = null;
 
 		[STAThread]

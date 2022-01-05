@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
-	enum BuildStepType
+	public enum BuildStepType
 	{
 		Compile,
 		Cook,
@@ -17,7 +17,7 @@ namespace UnrealGameSync
 	}
 
 	[DebuggerDisplay("{Description}")]
-	class BuildStep
+	public class BuildStep
 	{
 		public const string UniqueIdKey = "UniqueId";
 

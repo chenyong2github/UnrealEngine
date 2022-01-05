@@ -122,7 +122,7 @@ namespace UnrealGameSync
 		}
 	}
 
-	class WorkspaceSyncCategory
+	public class WorkspaceSyncCategory
 	{
 		public Guid UniqueId;
 		public bool bEnable;
@@ -199,7 +199,7 @@ namespace UnrealGameSync
 		}
 	}
 
-	class WorkspaceUpdate : IAsyncDisposable
+	public class WorkspaceUpdate : IAsyncDisposable
 	{
 		const string BuildVersionFileName = "/Engine/Build/Build.version";
 		const string VersionHeaderFileName = "/Engine/Source/Runtime/Launch/Resources/Version.h";
@@ -1709,7 +1709,7 @@ namespace UnrealGameSync
 
 		static string UpdateBuildVersion(string Text, int Changelist, int CodeChangelist, string BranchOrStreamName, bool bIsLicenseeVersion)
 		{
-			Dictionary<string, object> Object = JsonSerializer.Deserialize<Dictionary<string, object>>(Text, Program.DefaultJsonSerializerOptions);
+			Dictionary<string, object> Object = JsonSerializer.Deserialize<Dictionary<string, object>>(Text, Utility.DefaultJsonSerializerOptions);
 
 			int PrevCompatibleChangelist = 0;
 			if (Object.TryGetValue("CompatibleChangelist", out object? PrevCompatibleChangelistObj))
