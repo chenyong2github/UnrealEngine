@@ -22,6 +22,17 @@
 template <class T> class TLockFreePointerListLIFO;
 class FSignedDistanceFieldBuildMaterialData;
 
+namespace MeshCardRepresentation
+{
+	extern ENGINE_API float GetMinDensity();
+	extern ENGINE_API float GetNormalTreshold();
+	extern ENGINE_API int32 GetMaxSurfelDistanceXY();
+	extern ENGINE_API int32 GetMaxSurfelDistanceZ();
+	extern ENGINE_API int32 GetSeedIterations();
+	extern ENGINE_API int32 GetGrowIterations();
+	extern ENGINE_API int32 GetDebugSurfelDirection();
+};
+
 class FLumenCardOBB
 {
 public:
@@ -253,7 +264,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
-	void CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, bool bGenerateDistanceFieldAsIfTwoSided, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData);
+	void CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, int32 MaxLumenMeshCards, bool bGenerateDistanceFieldAsIfTwoSided, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData);
 
 #endif
 
@@ -297,6 +308,7 @@ public:
 
 	FSourceMeshDataForDerivedDataTask SourceMeshData;
 	bool bGenerateDistanceFieldAsIfTwoSided = false;
+	int32 MaxLumenMeshCards = 0;
 	UStaticMesh* StaticMesh = nullptr;
 	UStaticMesh* GenerateSource = nullptr;
 	FString DDCKey;

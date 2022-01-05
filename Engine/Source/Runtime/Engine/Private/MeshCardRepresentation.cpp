@@ -54,7 +54,7 @@ static TAutoConsoleVariable<int32> CVarCardRepresentation(
 
 static TAutoConsoleVariable<float> CVarCardRepresentationMinDensity(
 	TEXT("r.MeshCardRepresentation.MinDensity"),
-	0.1f,
+	0.2f,
 	TEXT("How much of filled area needs to be there to spawn a card, [0;1] range."),
 	ECVF_ReadOnly);
 
@@ -64,10 +64,16 @@ static TAutoConsoleVariable<float> CVarCardRepresentationNormalTreshold(
 	TEXT("Normal treshold when surface elements should be clustered together."),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<float> CVarCardRepresentationDistanceTreshold(
-	TEXT("r.MeshCardRepresentation.DistanceTreshold"),
-	4.0f,
-	TEXT("Distance treshold (in surfels) when surface elements should be clustered together."),
+static TAutoConsoleVariable<int32> CVarCardRepresentationMaxSurfelDistanceXY(
+	TEXT("r.MeshCardRepresentation.DistanceTresholdXY"),
+	4,
+	TEXT("Max distance (in surfels) when surface elements should be clustered together along XY."),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarCardRepresentationMaxSurfelDistanceZ(
+	TEXT("r.MeshCardRepresentation.DistanceTresholdZ"),
+	16,
+	TEXT("Max distance (in surfels) when surface elements should be clustered together along Z."),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarCardRepresentationSeedIterations(
@@ -82,24 +88,68 @@ static TAutoConsoleVariable<int32> CVarCardRepresentationGrowIterations(
 	TEXT("Max number of grow iterations."),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarCardRepresentationDebugSurfelDirection(
+	TEXT("r.MeshCardRepresentation.Debug.SurfelDirection"),
+	-1,
+	TEXT("Generate cards for only surfels pointing in a specific direction."),
+	ECVF_Default);
+
+float MeshCardRepresentation::GetMinDensity()
+{
+	return FMath::Clamp(CVarCardRepresentationMinDensity.GetValueOnAnyThread(), 0.0f, 1.0f);
+}
+
+float MeshCardRepresentation::GetNormalTreshold()
+{
+	return FMath::Clamp(CVarCardRepresentationNormalTreshold.GetValueOnAnyThread(), 0.0f, 1.0f);
+}
+
+int32 MeshCardRepresentation::GetMaxSurfelDistanceXY()
+{
+	return FMath::Max(CVarCardRepresentationMaxSurfelDistanceXY.GetValueOnAnyThread(), 0);
+}
+
+int32 MeshCardRepresentation::GetMaxSurfelDistanceZ()
+{
+	return FMath::Max(CVarCardRepresentationMaxSurfelDistanceZ.GetValueOnAnyThread(), 0);
+}
+
+int32 MeshCardRepresentation::GetDebugSurfelDirection()
+{
+	return FMath::Clamp(CVarCardRepresentationDebugSurfelDirection.GetValueOnAnyThread(), -1, 5);
+}
+
+int32 MeshCardRepresentation::GetSeedIterations()
+{
+	return FMath::Clamp(CVarCardRepresentationSeedIterations.GetValueOnAnyThread(), 1, 16);
+}
+
+int32 MeshCardRepresentation::GetGrowIterations()
+{
+	return FMath::Clamp(CVarCardRepresentationGrowIterations.GetValueOnAnyThread(), 0, 16);
+}
+
 FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue = NULL;
 
 #if WITH_EDITOR
 
 // DDC key for card representation data, must be changed when modifying the generation code or data format
-#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("FE868160-96B4-4109-9213-552264DE3775")
+#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("E75C4BB2-3C39-464A-ACA8-67FF69F47553")
 
-FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey)
+FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey, int32 MaxLumenMeshCards)
 {
-	const float MinDensity = CVarCardRepresentationMinDensity.GetValueOnAnyThread();
-	const float NormalTreshold = CVarCardRepresentationNormalTreshold.GetValueOnAnyThread();
-	const float DistanceTreshold = CVarCardRepresentationDistanceTreshold.GetValueOnAnyThread();
-	const int32 SeedIterations = CVarCardRepresentationSeedIterations.GetValueOnAnyThread();
-	const int32 GrowIterations = CVarCardRepresentationGrowIterations.GetValueOnAnyThread();
+	const float MinDensity = MeshCardRepresentation::GetMinDensity();
+	const float NormalTreshold = MeshCardRepresentation::GetNormalTreshold();
+	const float MaxSurfelDistanceXY = MeshCardRepresentation::GetMaxSurfelDistanceXY();
+	const float MaxSurfelDistanceZ = MeshCardRepresentation::GetMaxSurfelDistanceZ();
+	const int32 SeedIterations = MeshCardRepresentation::GetSeedIterations();
+	const int32 GrowIterations = MeshCardRepresentation::GetGrowIterations();
+	const int32 DebugSurfelDirection = MeshCardRepresentation::GetDebugSurfelDirection();
 
 	return FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("CARD"),
-		*FString::Printf(TEXT("%s_%s_%.3f_%.3f_%.3f_%d_%d"), *InMeshKey, CARDREPRESENTATION_DERIVEDDATA_VER, MinDensity, NormalTreshold, DistanceTreshold, SeedIterations, GrowIterations),
+		*FString::Printf(TEXT("%s_%s_%.3f_%.3f_%.3f_%d_%d_%d_%d_%d"), *InMeshKey, CARDREPRESENTATION_DERIVEDDATA_VER, 
+			MinDensity, NormalTreshold, MaxSurfelDistanceXY, MaxSurfelDistanceZ, SeedIterations, GrowIterations, MaxLumenMeshCards, DebugSurfelDirection),
 		TEXT(""));
 }
 
@@ -113,7 +163,8 @@ void BeginCacheMeshCardRepresentation(const ITargetPlatform* TargetPlatform, USt
 
 	if (CVarCards->GetValueOnAnyThread() != 0)
 	{
-		FString Key = BuildCardRepresentationDerivedDataKey(DistanceFieldKey);
+		const FMeshBuildSettings& BuildSettings = StaticMeshAsset->GetSourceModel(0).BuildSettings;
+		FString Key = BuildCardRepresentationDerivedDataKey(DistanceFieldKey, BuildSettings.MaxLumenMeshCards);
 		if (RenderData.LODResources.IsValidIndex(0))
 		{
 			if (!RenderData.LODResources[0].CardRepresentationData)
@@ -121,15 +172,21 @@ void BeginCacheMeshCardRepresentation(const ITargetPlatform* TargetPlatform, USt
 				RenderData.LODResources[0].CardRepresentationData = new FCardRepresentationData();
 			}
 
-			const FMeshBuildSettings& BuildSettings = StaticMeshAsset->GetSourceModel(0).BuildSettings;
 			UStaticMesh* MeshToGenerateFrom = StaticMeshAsset;
 
-			RenderData.LODResources[0].CardRepresentationData->CacheDerivedData(Key, TargetPlatform, StaticMeshAsset, MeshToGenerateFrom, BuildSettings.bGenerateDistanceFieldAsIfTwoSided, OptionalSourceMeshData);
+			RenderData.LODResources[0].CardRepresentationData->CacheDerivedData(
+				Key,
+				TargetPlatform,
+				StaticMeshAsset,
+				MeshToGenerateFrom,
+				BuildSettings.MaxLumenMeshCards,
+				BuildSettings.bGenerateDistanceFieldAsIfTwoSided,
+				OptionalSourceMeshData);
 		}
 	}
 }
 
-void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, bool bGenerateDistanceFieldAsIfTwoSided, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData)
+void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, int32 MaxLumenMeshCards, bool bGenerateDistanceFieldAsIfTwoSided, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData)
 {
 	TArray<uint8> DerivedData;
 
@@ -150,6 +207,7 @@ void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const IT
 		NewTask->StaticMesh = Mesh;
 		NewTask->GenerateSource = GenerateSource;
 		NewTask->GeneratedCardRepresentation = new FCardRepresentationData();
+		NewTask->MaxLumenMeshCards = MaxLumenMeshCards;
 		NewTask->bGenerateDistanceFieldAsIfTwoSided = bGenerateDistanceFieldAsIfTwoSided;
 
 		for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
@@ -598,6 +656,7 @@ void FCardRepresentationAsyncQueue::Build(FAsyncCardRepresentationTask* Task, FQ
 			Task->MaterialBlendModes,
 			Task->GenerateSource->GetRenderData()->Bounds,
 			Task->GenerateSource->GetRenderData()->LODResources[0].DistanceFieldData,
+			Task->MaxLumenMeshCards,
 			Task->bGenerateDistanceFieldAsIfTwoSided,
 			*Task->GeneratedCardRepresentation);
 	}

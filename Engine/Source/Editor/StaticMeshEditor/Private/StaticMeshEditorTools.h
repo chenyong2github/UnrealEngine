@@ -206,6 +206,7 @@ private:
 	TOptional<float> GetBuildScaleY() const;
 	TOptional<float> GetBuildScaleZ() const;
 	float GetDistanceFieldResolutionScale() const;
+	int32 GetMaxLumenMeshCards() const;
 
 	void OnRecomputeNormalsChanged(ECheckBoxState NewState);
 	void OnRecomputeTangentsChanged(ECheckBoxState NewState);
@@ -228,6 +229,8 @@ private:
 	void OnDistanceFieldResolutionScaleCommitted(float NewValue, ETextCommit::Type TextCommitType);
 	FString GetCurrentDistanceFieldReplacementMeshPath() const;
 	void OnDistanceFieldReplacementMeshSelected(const FAssetData& AssetData);
+	void OnMaxLumenMeshCardsChanged(int32 NewValue);
+	void OnMaxLumenMeshCardsCommitted(int32 NewValue, ETextCommit::Type TextCommitType);
 
 private:
 	TWeakPtr<FLevelOfDetailSettingsLayout> ParentLODSettings;

@@ -42,15 +42,16 @@ Texture2D DepthAtlas;
 	#define VISUALIZE_MODE_NORMALS 3
 	#define VISUALIZE_MODE_EMISSIVE 4
 	#define VISUALIZE_MODE_OPACITY 5
-	#define VISUALIZE_MODE_CARD_WEIGHTS 6
-	#define VISUALIZE_MODE_DIRECT_LIGHTING 7
-	#define VISUALIZE_MODE_INDIRECT_LIGHTING 8
-	#define VISUALIZE_MODE_LOCAL_POSITION 9
-	#define VISUALIZE_MODE_VELOCITY 10
-	#define VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES 11
-	#define VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES 12
-	#define VISUALIZE_MODE_LAST_USED_PAGE 13
-	#define VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES 14
+	#define VISUALIZE_MODE_CARD_COVERAGE 6
+	#define VISUALIZE_MODE_CARD_WEIGHTS 7
+	#define VISUALIZE_MODE_DIRECT_LIGHTING 8
+	#define VISUALIZE_MODE_INDIRECT_LIGHTING 9
+	#define VISUALIZE_MODE_LOCAL_POSITION 10
+	#define VISUALIZE_MODE_VELOCITY 11
+	#define VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES 12
+	#define VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES 13
+	#define VISUALIZE_MODE_LAST_USED_PAGE 14
+	#define VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES 15
 
 	uint VisualizeMode;
 #endif
@@ -214,8 +215,7 @@ struct FSurfaceCacheSample
 	// Surface properties
 	float3 Lighting;
 	float Opacity;
-
-	uint MeshCardsIndex;
+	bool bValid;
 };
 
 FSurfaceCacheSample SampleSurfaceCache(FLumenCardSample CardSample, uint AtlasId)
@@ -223,6 +223,7 @@ FSurfaceCacheSample SampleSurfaceCache(FLumenCardSample CardSample, uint AtlasId
 	FSurfaceCacheSample SurfaceCacheSample;
 	SurfaceCacheSample.Lighting = 0.0f;
 	SurfaceCacheSample.Opacity = Texture2DSampleLevel(OpacityAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).x;
+	SurfaceCacheSample.bValid = true;
 
 	if (SurfaceCacheSample.Opacity > 0.01f)
 	{
@@ -408,11 +409,20 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIn
 	FSurfaceCacheSample SurfaceCacheSample;
 	SurfaceCacheSample.Lighting = float3(0.0f, 0.0f, 0.0f);
 	SurfaceCacheSample.Opacity = 1.0f;
-	SurfaceCacheSample.MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
+	SurfaceCacheSample.bValid = false;
 
-	if (SurfaceCacheSample.MeshCardsIndex < LumenCardScene.NumMeshCards)
+#if ENABLE_VISUALIZE_MODE == 1
+	if (VisualizeMode == VISUALIZE_MODE_CARD_COVERAGE)
 	{
-		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(SurfaceCacheSample.MeshCardsIndex);
+		SurfaceCacheSample.Lighting = float3(1, 0, 1) * View.OneOverPreExposure;
+		SurfaceCacheSample.Opacity = 1.0f;
+	}
+#endif
+
+	const uint MeshCardsIndex = LumenCardScene.SceneInstanceIndexToMeshCardsIndexBuffer.Load(4 * SceneInstanceIndex);
+	if (MeshCardsIndex < LumenCardScene.NumMeshCards)
+	{
+		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
 
 		float3 LocalSamplePosition = mul(float4(SamplePosition, 1.0f), MeshCardsData.WorldToLocal).xyz;
 		float3 LocalSampleNormal = normalize(mul(float4(SampleNormal, 0.0f), transpose(MeshCardsData.LocalToWorld)).xyz);
