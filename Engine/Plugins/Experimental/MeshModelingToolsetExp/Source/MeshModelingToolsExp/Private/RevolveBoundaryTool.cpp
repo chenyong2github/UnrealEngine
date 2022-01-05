@@ -111,6 +111,7 @@ void URevolveBoundaryTool::Setup()
 		FRotator AxisOrientation = ((FQuat)PlaneMechanic->Plane.Rotation).Rotator();
 		Settings->AxisOrientation.X = AxisOrientation.Pitch;
 		Settings->AxisOrientation.Y = AxisOrientation.Yaw;
+		NotifyOfPropertyChangeByTool(Settings);
 		UpdateRevolutionAxis();
 		});
 
