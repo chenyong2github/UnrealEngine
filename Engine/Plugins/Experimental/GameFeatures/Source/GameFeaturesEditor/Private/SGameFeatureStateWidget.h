@@ -32,9 +32,11 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	static FText GetDisplayNameOfState(EGameFeaturePluginState State);
+	static FText GetTooltipOfState(EGameFeaturePluginState StateID);
 
 private:
 	FText GetStateStatusDisplay() const;
+	FText GetStateStatusDisplayTooltip() const;
 
 private:
 	TAttribute<EGameFeaturePluginState> CurrentState;

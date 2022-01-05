@@ -150,9 +150,9 @@ enum class EGameFeaturePluginState : uint8
 	Unregistering,				// Transition state Registered -> Installed. Cleaning up data gathered in Registering.
 	Registering,				// Transition state Installed -> Registered. Discovering assets in the plugin, but not loading them, except a few for discovery reasons.
 	Registered,					// The assets in the plugin are known, but have not yet been loaded, except a few for discovery reasons.
-	Unloading,					// Transition state Loaded -> Registered. In the process of removing code/contnet from memory. 
+	Unloading,					// Transition state Loaded -> Registered. In the process of removing code/content from memory. 
 	Loading,					// Transition state Registered -> Loaded. In the process of loading code/content into memory.
-	Loaded,						// The plugin is loaded into memory, but not registered with game systems and active.
+	Loaded,						// The plugin is loaded into memory and registered with some game systems but not yet active.
 	Deactivating,				// Transition state Active -> Loaded. Currently unregistering with game systems.
 	Activating,					// Transition state Loaded -> Active. Currently registering plugin code/content with game systems.
 	Active,						// Plugin is fully loaded and active. It is affecting the game.
