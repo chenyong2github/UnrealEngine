@@ -53,9 +53,8 @@ float4 GetTransmissionProfile(uint SubsurfaceProfileInt, float Thickness)
 {
 	// 0..255, which SubSurface profile to pick
 	const float2 TextureSize = View.SSProfilesTextureSizeAndInvSize.xy;
-	bool bUseBurley = GetSubsurfaceTransmittanceProfileUseBurley(SubsurfaceProfileInt);
-	float ProfileOffset = bUseBurley ? BSSS_TRANSMISSION_PROFILE_OFFSET : SSSS_TRANSMISSION_PROFILE_OFFSET;
-	float2 uv = float2((ProfileOffset + Thickness / SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE * (SSSS_TRANSMISSION_PROFILE_SIZE - 1) + 0.5f), SubsurfaceProfileInt + 0.5f) / (TextureSize.xy);
+	float ProfileOffset = BSSS_TRANSMISSION_PROFILE_OFFSET;
+	float2 uv = float2((ProfileOffset + Thickness / SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE * (BSSS_TRANSMISSION_PROFILE_SIZE - 1) + 0.5f), SubsurfaceProfileInt + 0.5f) / (TextureSize.xy);
 	return Texture2DSampleLevel(View.SSProfilesTexture, View.SSProfilesTransmissionSampler, uv, 0);
 }
 

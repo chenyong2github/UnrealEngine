@@ -931,18 +931,18 @@ void SubsurfaceRecombinePS(in FScreenVertexOutput Input, out float4 OutColor : S
 	const float PixelRadiusScale	= SSSData.ProfileRadiusScale;
 
 	// asset specific color
-	float3 SubsurfaceColor = 0.0f;
+	float3 Tint = 0.0f;
 	float ProfileRadiusScale = 1.0f;
 	if (SSSData.bIsProfile)
 	{
-		SubsurfaceColor = GetSubsurfaceProfileKernel(SSSS_SUBSURFACE_COLOR_OFFSET, ProfileId).rgb;
+		Tint = GetSubsurfaceProfileKernel(SSSS_TINT_SCALE_OFFSET, ProfileId).rgb;
 		ProfileRadiusScale = GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + SSSS_N_KERNELWEIGHTCOUNT - 1, ProfileId).a;
 	}
 	else if (ProfileId == SSS_PROFILE_ID_PERPIXEL)
 	{
 		// This color is used to lerping 'incident light' into 'diffused light', i.e, controlling the sharpness of the lighting.
 		// In case of direct DMPF control, this is not needed.
-		SubsurfaceColor = float3(1, 1, 1);
+		Tint = float3(1, 1, 1);
 	}
 #else
 	const uint ProfileId = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
@@ -951,7 +951,7 @@ void SubsurfaceRecombinePS(in FScreenVertexOutput Input, out float4 OutColor : S
 	const float StoredSpecular		= ScreenSpaceData.GBuffer.StoredSpecular;
 	const float PixelRadiusScale	= ScreenSpaceData.GBuffer.CustomData.a;
 	// asset specific color
-	const float3 SubsurfaceColor	= GetSubsurfaceProfileKernel(SSSS_SUBSURFACE_COLOR_OFFSET, ProfileId).rgb;
+	const float3 Tint	= GetSubsurfaceProfileKernel(SSSS_TINT_SCALE_OFFSET, ProfileId).rgb;
 	const float ProfileRadiusScale	= GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + SSSS_N_KERNELWEIGHTCOUNT - 1, ProfileId).a;
 #endif
 
@@ -1002,10 +1002,10 @@ void SubsurfaceRecombinePS(in FScreenVertexOutput Input, out float4 OutColor : S
 	
 	float3 ExtractedNonSubsurface = DiffuseAndSpecular.Specular;
 
-	float3 FadedSubsurfaceColor = SubsurfaceColor * LerpFactor;
+	float3 FadedTint = Tint * LerpFactor;
 
 	// combine potentially half res with full res
-	float3 SubsurfaceLighting = lerp(DiffuseAndSpecular.Diffuse, SSSColor, FadedSubsurfaceColor);
+	float3 SubsurfaceLighting = lerp(DiffuseAndSpecular.Diffuse, SSSColor, FadedTint);
 
 	OutColor = float4(SubsurfaceLighting * StoredBaseColor + ExtractedNonSubsurface, 1.0f);
 }
