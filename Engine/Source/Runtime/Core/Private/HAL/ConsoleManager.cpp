@@ -475,22 +475,60 @@ static bool GetConfigValueFromRuntimeSources(FName PlatformName, IConsoleVariabl
 	// by this point, the value will be set, with the DefaultValue if nothing else from the visit function
 	return true;
 }
+
 #endif
+
+
+// an intermediate class between specific typed CVars and FConsoleVariableBase to handle looking up other platform's cvars and caching them
+// if ALLOW_OTHER_PLATFORM_CONFIG is 0, then this is a pass-through class that does nothing
+template <class T>
+class FOtherPlatformValueHelper : public FConsoleVariableBase
+{
+public:
+
+	FOtherPlatformValueHelper(const T& DefaultValue, const TCHAR* Help, EConsoleVariableFlags Flags, bool bSaveDefault);
+
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	// remember the default value of this cvar, before anything else can assign to it - this way we can know in the editor what the value
+	// would be for a cvar on another platform, if no .ini file on that platform sets it
+	virtual IConsoleVariable* GetDefaultValueVariable()
+	{
+		return PlatformIndependentDefault.Get();
+	}
+
+	virtual TSharedPtr<IConsoleVariable> GetPlatformValueVariable(FName PlatformName) override;
+	virtual void ClearPlatformVariables(FName PlatformName) override;
+
+protected:
+	// cache of the default value - we need to remember this when calculating the value on another platform if that platform doesn't override it in any ini file
+	// even if this platform does (in which case the default is lost)
+	TSharedPtr<IConsoleVariable> PlatformIndependentDefault;
+
+	// cache of the values of this cvar on other platforms
+	TMap<FName, TSharedPtr<IConsoleVariable> > PlatformValues;
+	FRWLock PlatformValuesLock;
+
+#endif
+};
+
+
+
+
 
 // T: bool, int32, float, FString
 template <class T>
-class FConsoleVariable : public FConsoleVariableBase
+class FConsoleVariable : public FOtherPlatformValueHelper<T>
 {
+// help find functions without needing this-> prefixes
+	using FConsoleVariableBase::GetShadowIndex;
+	using FConsoleVariableBase::CanChange;
+	using FConsoleVariableBase::Flags;
+
 public:
 	FConsoleVariable(T DefaultValue, const TCHAR* Help, EConsoleVariableFlags Flags, bool bSaveDefault=true) 
-		: FConsoleVariableBase(Help, Flags), Data(DefaultValue)
+		: FOtherPlatformValueHelper<T>(DefaultValue, Help, Flags, bSaveDefault)
+		, Data(DefaultValue)
 	{
-#if ALLOW_OTHER_PLATFORM_CONFIG
-		if (bSaveDefault)
-		{
-			PlatformIndependentDefault = TSharedPtr<IConsoleVariable>(new FConsoleVariable<T>(DefaultValue, TEXT(""), (EConsoleVariableFlags)(Flags | ECVF_ReadOnly), false));
-		}
-#endif
 	}
 
 	// interface IConsoleVariable ----------------------------------- 
@@ -541,50 +579,6 @@ private: // ----------------------------------------------------
 		OnCVarChange(Data.ShadowedValue[1], Data.ShadowedValue[0], Flags, SetBy);
 		FConsoleVariableBase::OnChanged(SetBy);
 	}
-
-#if ALLOW_OTHER_PLATFORM_CONFIG
-	// remember the dfefault value of this cvar, before anything else can assign to it - this way we can know in the editor what the value
-	// would be for a cvar on another platform, if no .ini file on that platform sets it
-	TSharedPtr<IConsoleVariable> PlatformIndependentDefault;
-	virtual IConsoleVariable* GetDefaultValueVariable() override
-	{
-		return PlatformIndependentDefault.Get();
-	}
-
-	TMap<FName, TSharedPtr<IConsoleVariable> > PlatformValues;
-	FRWLock PlatformValuesLock;
-	virtual IConsoleVariable* GetPlatformValueVariable(FName PlatformName)
-	{
-		// cheap lock here, contention is very rare
-		FRWScopeLock Lock(PlatformValuesLock, SLT_Write);
-		if (!PlatformValues.Contains(PlatformName))
-		{
-			FString ConfigValue;
-			EConsoleVariableFlags LastSetBy;
-			if (!GetConfigValueFromRuntimeSources(PlatformName, this, ConfigValue, LastSetBy))
-			{
-				return nullptr;
-			}
-			
-			T TypedValue;
-			TTypeFromString<T>::FromString(TypedValue, *ConfigValue);
-
-			// clear the existing setby mask
-			int NewFlags = GetFlags() & ~ECVF_SetFlagMask;
-			// add in new LastSetBy and make it readonly
-			NewFlags |= LastSetBy | ECVF_ReadOnly;
-
-			// make a new cvar to hold the value from the other platform
-			TSharedPtr<IConsoleVariable> PlatformCVar = TSharedPtr<IConsoleVariable>(new FConsoleVariable<T>(TypedValue, TEXT(""), (EConsoleVariableFlags)NewFlags, false));
-
-			PlatformValues.Add(PlatformName, PlatformCVar);
-		}
-
-		return PlatformValues.FindRef(PlatformName).Get();
-	}
-
-#endif
-
 };
 
 // specialization for all
@@ -714,15 +708,87 @@ template<> TConsoleVariableData<FString>* FConsoleVariable<FString>::AsVariableS
 	return &Data;
 }
 
+
+
+template<class T>
+FOtherPlatformValueHelper<T>::FOtherPlatformValueHelper(const T& DefaultValue, const TCHAR* Help, EConsoleVariableFlags Flags, bool bSaveDefault)
+	: FConsoleVariableBase(Help, Flags)
+{
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	if (bSaveDefault)
+	{
+		PlatformIndependentDefault = TSharedPtr<IConsoleVariable>(new FConsoleVariable<T>(DefaultValue, TEXT(""), (EConsoleVariableFlags)(Flags | ECVF_ReadOnly), false));
+	}
+#endif
+}
+
+#if ALLOW_OTHER_PLATFORM_CONFIG
+template<class T>
+TSharedPtr<IConsoleVariable> FOtherPlatformValueHelper<T>::GetPlatformValueVariable(FName PlatformName)
+{
+	// cheap lock here, contention is very rare
+	FRWScopeLock Lock(PlatformValuesLock, SLT_Write);
+	if (!PlatformValues.Contains(PlatformName))
+	{
+		FString ConfigValue;
+		EConsoleVariableFlags LastSetBy;
+		if (!GetConfigValueFromRuntimeSources(PlatformName, this, ConfigValue, LastSetBy))
+		{
+			return nullptr;
+		}
+
+		T TypedValue;
+		TTypeFromString<T>::FromString(TypedValue, *ConfigValue);
+
+		// clear the existing setby mask
+		int NewFlags = GetFlags() & ~ECVF_SetFlagMask;
+		// add in new LastSetBy and make it readonly
+		NewFlags |= LastSetBy | ECVF_ReadOnly;
+
+		// make a new cvar to hold the value from the other platform
+		TSharedPtr<IConsoleVariable> PlatformCVar = TSharedPtr<IConsoleVariable>(new FConsoleVariable<T>(TypedValue, TEXT(""), (EConsoleVariableFlags)NewFlags, false));
+
+		PlatformValues.Add(PlatformName, PlatformCVar);
+	}
+
+	return PlatformValues.FindRef(PlatformName);
+}
+
+template<class T>
+void FOtherPlatformValueHelper<T>::ClearPlatformVariables(FName PlatformName)
+{
+	FRWScopeLock Lock(PlatformValuesLock, SLT_Write);
+
+	if (PlatformName == NAME_None)
+	{
+		PlatformValues.Empty();
+	}
+	else
+	{
+		PlatformValues.Remove(PlatformName);
+	}
+}
+
+#endif
+
+
+
 // ----
 
 // T: int32, float, bool
 template <class T>
-class FConsoleVariableRef : public FConsoleVariableBase
+class FConsoleVariableRef : public FOtherPlatformValueHelper<T>
 {
+	// help find functions without needing this-> prefixes
+	using FConsoleVariableBase::GetShadowIndex;
+	using FConsoleVariableBase::CanChange;
+	using FConsoleVariableBase::Flags;
+
 public:
 	FConsoleVariableRef(T& InRefValue, const TCHAR* Help, EConsoleVariableFlags Flags) 
-		: FConsoleVariableBase(Help, Flags), RefValue(InRefValue), MainValue(InRefValue)
+		: FOtherPlatformValueHelper<T>(InRefValue, Help, Flags, true)
+		, RefValue(InRefValue)
+		, MainValue(InRefValue)
 	{
 	}
 
@@ -1610,6 +1676,7 @@ bool FConsoleManager::ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevic
 
 	IConsoleCommand* CCmd = CObj->AsCommand();
 	IConsoleVariable* CVar = CObj->AsVariable();
+	TSharedPtr<IConsoleVariable> PlatformCVar;
 
 	if (PlatformName != NAME_None)
 	{
@@ -1620,7 +1687,8 @@ bool FConsoleManager::ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevic
 		else
 		{
 #if ALLOW_OTHER_PLATFORM_CONFIG
-			CVar = CVar->GetPlatformValueVariable(PlatformName);
+			PlatformCVar = CVar->GetPlatformValueVariable(PlatformName);
+			CVar = PlatformCVar.Get();
 			if (!CVar)
 			{
 				Ar.Logf(TEXT("Unable find CVar %s for platform %s (possibly invalid platform name?)"), *Param1, *PlatformName.ToString());

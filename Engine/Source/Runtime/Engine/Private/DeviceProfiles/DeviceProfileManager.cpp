@@ -1386,8 +1386,24 @@ public:
 		}
 		else if (FParse::Command(&Cmd, TEXT("dpreload")))
 		{
+			// clear cached other-platform CVars
+			IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda(
+				[](const TCHAR* Key, IConsoleObject* ConsoleObject)
+				{
+					if (IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
+					{
+						AsVariable->ClearPlatformVariables();
+					}
+
+				}));
+
+			// clear some cached cvars in other-platform expansions
+			for (TObjectPtr<UDeviceProfile> DeviceProfile : UDeviceProfileManager::Get().Profiles)
+			{
+				DeviceProfile->ClearAllExpandedCVars();
+			}
+
 			FConfigCacheIni::ClearOtherPlatformConfigs();
-			// @todo ini clear out all DPs AllExpandedCVars
 		}
 		else if (FParse::Command(&Cmd, TEXT("dpreapply")))
 		{
