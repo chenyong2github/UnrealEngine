@@ -55,6 +55,8 @@ class UCurveTable
 
 	ECurveTableMode GetCurveTableMode() const { return CurveTableMode; }
 
+	/** Removes a single row from the CurveTable by name. Just returns if row is not found. */
+	ENGINE_API virtual void RemoveRow(FName RowName);
 	ENGINE_API FRichCurve& AddRichCurve(FName RowName);
 	ENGINE_API FSimpleCurve& AddSimpleCurve(FName RowName);
 
