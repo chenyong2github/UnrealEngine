@@ -2,19 +2,26 @@
 // Refactor in progress
 #pragma once
 
-static int32 FaceToDebug = 0;
+//#define DEBUG_CADKERNEL
 
-//#define ADD_TRIANGLE_2D
-//#define DEBUG_ISOTRIANGULATOR
-//
-//#define DEBUG_LOOP_INTERSECTION_AND_FIX_IT		
-//#define DEBUG_REMOVE_LOOP_INTERSECTIONS
-//#define DEBUG_REMOVE_UNIQUE_INTERSECTION
-//#define DEBUG_SWAP_SEGMENTS_OR_REMOVE
-//#define DEBUG_FIND_LOOP_INTERSECTION_AND_FIX_IT
-//#define DEBUG_FIND_LOOP_INTERSECTIONS		
+#ifdef DEBUG_CADKERNEL
+static int32 FaceToDebug = 70;
+
+#define ADD_TRIANGLE_2D
+#define DEBUG_ISOTRIANGULATOR
+
+// Loop cleaner
+#define DEBUG_CLEAN_LOOPS
+
+#define DEBUG_LOOP_INTERSECTION_AND_FIX_IT		
+#define DEBUG_REMOVE_LOOP_INTERSECTIONS
+#define DEBUG_REMOVE_UNIQUE_INTERSECTION
+#define DEBUG_SWAP_SEGMENTS_OR_REMOVE
+#define DEBUG_FIND_LOOP_INTERSECTIONS	
+#define DEBUG_REMOVE_INTERSECTIONS
 
 
 #define DEBUG_ONLY_SURFACE_TO_DEBUG
-static bool BoolDisplayDebugMeshStep=false;
+static bool bDisplayDebugMeshStep=false;
 
+#endif

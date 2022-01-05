@@ -13,155 +13,6 @@
 namespace CADKernel
 {
 
-void FIsoTriangulator::Display(EGridSpace Space, const FIsoSegment& Segment, FIdent Ident, EVisuProperty Property, bool bDisplayOrientation) const
-{
-	DisplaySegment(Segment.GetFirstNode().GetPoint(Space, Grid), Segment.GetSecondNode().GetPoint(Space, Grid), Ident, Property, bDisplayOrientation);
-}
-
-void FIsoTriangulator::DisplayTriangle(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, const FIsoNode& NodeC) const
-{
-	TArray<FPoint> Points;
-	Points.SetNum(3);
-	Points[0] = NodeA.GetPoint(Space, Grid);
-	Points[1] = NodeB.GetPoint(Space, Grid);
-	Points[2] = NodeC.GetPoint(Space, Grid);
-	DrawElement(2, Points, EVisuProperty::Element);
-	DisplaySegment(Points[0], Points[1]); 
-	DisplaySegment(Points[1], Points[2]);
-	DisplaySegment(Points[2], Points[0]);
-}
-
-void FIsoTriangulator::Display(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, FIdent Ident, EVisuProperty Property) const
-{
-	return DisplaySegment(NodeA.GetPoint(Space, Grid), NodeB.GetPoint(Space, Grid), Ident, Property);
-}
-
-void FIsoTriangulator::Display(EGridSpace Space, const FIsoNode& Node, FIdent Ident, EVisuProperty Property) const
-{
-	return DisplayPoint(Node.GetPoint(Space, Grid), Property, Ident);
-}
-
-void FIsoTriangulator::Display(FString Message, EGridSpace Space, const TArray<const FIsoNode*>& Nodes, EVisuProperty Property) const
-{
-	if (!bDisplay)
-	{
-		return;
-	}
-
-	Open3DDebugSession(Message);
-	for (int32 Index = 0; Index < Nodes.Num(); ++Index)
-	{
-		Display(Space, *Nodes[Index], Nodes[Index]->GetIndex(), Property);
-	}
-	Close3DDebugSession();
-}
-
-void FIsoTriangulator::Display(EGridSpace Space, const TCHAR* Message, const TArray<FIsoSegment*>& Segments, bool bDisplayNode, bool bDisplayOrientation, EVisuProperty Property) const
-{
-	if (!bDisplay)
-	{
-		return;
-	}
-
-	F3DDebugSession _(Message);
-#ifdef DEBUG_LIMIT
-	for (FIsoSegment* Segment : Segments)
-	{
-		if (Segment->IsALimit())
-		{
-			Display(Space, *Segment, 0, EVisuProperty::Iso, bDisplayOrientation);
-		}
-	}
-#endif
-	for (FIsoSegment* Segment : Segments)
-	{
-#ifdef DEBUG_LIMIT
-		if (!Segment->IsALimit())
-#endif
-		{
-			Display(Space, *Segment, 0, Property, bDisplayOrientation);
-		}
-	}
-
-	if (bDisplayNode)
-	{
-		for (FIsoSegment* Segment : Segments)
-		{
-			Display(Space, Segment->GetFirstNode(), Segment->GetFirstNode().GetId(), (EVisuProperty)(Property - 1));
-			Display(Space, Segment->GetSecondNode(), Segment->GetSecondNode().GetId(), (EVisuProperty)(Property - 1));
-		}
-	}
-	//Wait();
-}
-
-void FIsoTriangulator::DisplayLoops(EGridSpace Space, const TCHAR* Message, const TArray<FLoopNode>& Nodes, bool bDisplayNode, EVisuProperty NodeVisuProperty) const
-{
-	if (!bDisplay)
-	{
-		return;
-	}
-
-	F3DDebugSession _(Message);
-
-	for (const FLoopNode& Node : Nodes)
-	{
-		if (!Node.IsDelete())
-		{
-			Display(Space, Node, Node.GetNextNode(), 0, NodeVisuProperty);
-		}
-	}
-
-	if (bDisplayNode)
-	{
-		for (const FLoopNode& Node : Nodes)
-		{
-			if (Node.IsDelete())
-			{
-				Display(Space, Node, Node.GetFaceIndex(), EVisuProperty::PurplePoint);
-			}
-			else
-			{
-				Display(Space, Node, Node.GetFaceIndex(), (EVisuProperty) ((int32)NodeVisuProperty + 1));
-			}
-		}
-	}
-}
-
-void FIsoTriangulator::DisplayLoop(EGridSpace Space, const TCHAR* Message, const TArray<FLoopNode*>& Nodes, bool bDisplayNode, EVisuProperty NodeVisuProperty) const
-{
-	if (!bDisplay)
-	{
-		return;
-	}
-
-	F3DDebugSession _(Message);
-
-	int32 Index = 0;
-	for (const FLoopNode* Node : Nodes)
-	{
-		if (!Node->IsDelete())
-		{
-			Display(Space, *Node, Node->GetNextNode(), Index++, (EVisuProperty)((int32)NodeVisuProperty + 1));
-		}
-	}
-
-	if (bDisplayNode)
-	{
-		for (const FLoopNode* Node : Nodes)
-		{
-			if (Node->IsDelete())
-			{
-				Display(Space, *Node, Node->GetFaceIndex(), EVisuProperty::PurplePoint);
-			}
-			else
-			{
-				Display(Space, *Node, Node->GetFaceIndex(), (EVisuProperty)((int32)NodeVisuProperty));
-			}
-		}
-	}
-}
-
-
 void FIsoTriangulator::DisplayIsoNodes(EGridSpace Space) const
 {
 	if (!bDisplay)
@@ -172,13 +23,13 @@ void FIsoTriangulator::DisplayIsoNodes(EGridSpace Space) const
 	Open3DDebugSession(TEXT("FIsoTrianguler::IsoNodes"));
 	for (const FLoopNode& Node : LoopNodes)
 	{
-		Display(Space, Node, Node.GetFaceIndex(), EVisuProperty::YellowPoint);
+		Grid.DisplayIsoNode(Space, Node, Node.GetFaceIndex(), EVisuProperty::YellowPoint);
 	}
 	Close3DDebugSession();
 	Open3DDebugSession(TEXT("FIsoTrianguler::IsoNodes Inner"));
 	for (const FIsoNode& Node : InnerNodes)
 	{
-		Display(Space, Node, Node.GetFaceIndex());
+		Grid.DisplayIsoNode(Space, Node, Node.GetFaceIndex());
 	}
 	Close3DDebugSession();
 }
@@ -212,16 +63,7 @@ void FIsoTriangulator::DisplayPixels(TArray<uint8>& Pixel) const
 	Close3DDebugSession();
 }
 
-void FIsoTriangulator::DisplayCycle(const TArray<FIsoSegment*>& Cycle, const TCHAR* Message) const
-{
-	F3DDebugSession _(Message);
-	for (const FIsoSegment* Segment : Cycle)
-	{
-		Display(EGridSpace::UniformScaled, *Segment);
-	}
-}
-
-void FIsoTriangulator::DisplayLoops(const TCHAR* Message, bool bOneNode, bool bSplitBySegment, bool bDisplayNext, bool bDisplayPrevious) const
+void FIsoTriangulator::DisplayLoops(const TCHAR* Message, bool bOneNode, bool bSplitBySegment) const
 {
 	if (bDisplay)
 	{
@@ -234,9 +76,9 @@ void FIsoTriangulator::DisplayLoops(const TCHAR* Message, bool bOneNode, bool bS
 				{
 					if (Node.IsDelete())
 					{
-						Display(EGridSpace::UniformScaled, Node, Index++, EVisuProperty::PurplePoint);
+						Grid.DisplayIsoNode(EGridSpace::UniformScaled, Node, Index++, EVisuProperty::PurplePoint);
 					}
-					Display(EGridSpace::UniformScaled, Node, Index++, EVisuProperty::BluePoint);
+					Grid.DisplayIsoNode(EGridSpace::UniformScaled, Node, Index++, EVisuProperty::BluePoint);
 				}
 			}
 
@@ -246,29 +88,38 @@ void FIsoTriangulator::DisplayLoops(const TCHAR* Message, bool bOneNode, bool bS
 				for (FIsoSegment* Segment : LoopSegments)
 				{
 					F3DDebugSession D(bSplitBySegment, TEXT("Segment"));
-					Display(EGridSpace::UniformScaled, Segment->GetFirstNode(), Segment->GetSecondNode(), Index++, EVisuProperty::BlueCurve);
+					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, Segment->GetFirstNode(), Segment->GetSecondNode(), Index++, EVisuProperty::BlueCurve);
 				}
 			}
 
-			if(bDisplayNext)
+		}
+		Wait(false);
+	}
+}
+
+void FIsoTriangulator::DisplayLoopsByNextAndPrevious(const TCHAR* Message) const
+{
+	if (bDisplay)
+	{
+		F3DDebugSession _(Message);
+		{
 			{
 				F3DDebugSession A(TEXT("Node Next"));
 				int32 Index = 0;
 				for (FIsoSegment* Segment : LoopSegments)
 				{
-					F3DDebugSession B(bSplitBySegment, TEXT("Segment"));
-					Display(EGridSpace::UniformScaled, Segment->GetFirstNode(), ((const FLoopNode&) Segment->GetFirstNode()).GetNextNode(), Index++, EVisuProperty::BlueCurve);
+					F3DDebugSession B(TEXT("Segment"));
+					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, Segment->GetFirstNode(), ((const FLoopNode&)Segment->GetFirstNode()).GetNextNode(), Index++, EVisuProperty::BlueCurve);
 				}
 			}
 
-			if(bDisplayPrevious)
 			{
 				F3DDebugSession C(TEXT("Node Forward"));
 				int32 Index = 0;
 				for (FIsoSegment* Segment : LoopSegments)
 				{
-					F3DDebugSession B(bSplitBySegment, TEXT("Segment"));
-					Display(EGridSpace::UniformScaled, Segment->GetSecondNode(), ((const FLoopNode&)Segment->GetSecondNode()).GetPreviousNode(), Index++, EVisuProperty::BlueCurve);
+					F3DDebugSession B(TEXT("Segment"));
+					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, Segment->GetSecondNode(), ((const FLoopNode&)Segment->GetSecondNode()).GetPreviousNode(), Index++, EVisuProperty::BlueCurve);
 				}
 			}
 

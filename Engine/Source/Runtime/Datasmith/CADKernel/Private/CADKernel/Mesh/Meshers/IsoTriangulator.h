@@ -8,6 +8,7 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionSegmentTool.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoNode.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoSegment.h"
+#include "CADKernel/Mesh/Meshers/MesherReport.h"
 #include "CADKernel/UI/Visu.h"
 
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
@@ -22,15 +23,6 @@ class FIntersectionSegmentTool;
 class FFaceMesh;
 struct FCell;
 
-
-namespace IsoTriangulatorImpl
-{
-typedef TFunction<double(const FPoint2D&, const FPoint2D&, double)> GetSlopMethod;
-typedef TFunction<FLoopNode* (FLoopNode*)> GetNextNodeMethod;
-typedef TFunction<const FLoopNode* (const FLoopNode*)> GetNextConstNodeMethod;
-typedef TFunction<const FLoopNode* (const FIsoSegment*)> GetSegmentToNodeMethod;
-typedef TPair<FLoopNode*, FLoopNode*> FLoopSection;
-}
 
 struct CADKERNEL_API FIsoTriangulatorChronos
 {
@@ -96,6 +88,7 @@ struct CADKERNEL_API FIsoTriangulatorChronos
 class FIsoTriangulator
 {
 	friend class FParametricMesher;
+	friend class FLoopCleaner;
 
 protected:
 
@@ -180,9 +173,11 @@ protected:
 	const double MeshingTolerance;
 	const double SquareMeshingTolerance;
 
+	FMesherReport& MesherReport;
+
 public:
 
-	FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh);
+	FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh, FMesherReport& InMesherReport);
 
 	/**
 	 * Main method
@@ -191,8 +186,6 @@ public:
 	bool Triangulate();
 
 	void BuildNodes();
-
-	bool FindLoopIntersectionAndFixIt();
 
 	/**
 	 * Build the segments of the loops and check if each loop is self intersecting.
@@ -346,49 +339,6 @@ public:
 
 	bool CanCycleBeMeshed(const TArray<FIsoSegment*>& Cycle, FIntersectionSegmentTool& CycleIntersectionTool);
 
-	bool TryToRemoveSelfIntersectionByMovingTheClosedOusidePoint(const FIsoSegment& Segment0, const FIsoSegment& Segment1);
-	bool TryToRemoveIntersectionByMovingTheClosedOusidePoint(const FIsoSegment& Segment0, const FIsoSegment& Segment1);
-	void RemoveIntersectionByMovingOutsideSegmentNodeInside(const FIsoSegment& IntersectingSegment, const FIsoSegment& Segment);
-
-	bool TryToRemoveIntersectionBySwappingSegments(FIsoSegment& Segment0, FIsoSegment& Segment1);                                  // ok
-
-		/**
-		 * Segment and the segment next (or before Segment) are intersecting IntersectingSegment
-		 * The common node is moved
-		 */
-	bool TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(const FIsoSegment& IntersectingSegment, FIsoSegment& Segment); // ok 
-
-	bool RemoveNodeOfLoop(FLoopNode& NodeToRemove);
-	void RemovePickOfLoop(FIsoSegment& Segment);
-
-	bool RemovePickRecursively(FLoopNode* Node0, FLoopNode* Node1);
-
-	bool CheckAndRemovePick(const FPoint2D& PreviousPoint, const FPoint2D& NodeToRemovePoint, const FPoint2D& NextPoint, FLoopNode& NodeToRemove)
-	{
-		double Slop = ComputeUnorientedSlope(NodeToRemovePoint, PreviousPoint, NextPoint);
-		bool bRemoveNode = false;
-		if (Slop < 0.03)
-		{
-			bRemoveNode = true;
-		}
-		else if (Slop < 0.1)
-		{
-			double SquareDistance1 = SquareDistanceOfPointToSegment(PreviousPoint, NodeToRemovePoint, NextPoint);
-			double SquareDistance2 = SquareDistanceOfPointToSegment(NextPoint, NodeToRemovePoint, PreviousPoint);
-			double MinSquareDistance = FMath::Min(SquareDistance1, SquareDistance2);
-			if (MinSquareDistance < SquareGeometricTolerance2)
-			{
-				bRemoveNode = true;
-			}
-		}
-
-		if (bRemoveNode)
-		{
-			return RemoveNodeOfLoop(NodeToRemove);
-		}
-		return false;
-	};
-
 	/**
 	 * Finalization of the mesh by the tessellation of the inner grid
 	 */
@@ -415,102 +365,13 @@ public:
 
 private:
 
-	// Methods used by FindLoopIntersectionAndFixIt Step1
-	void FindBestLoopExtremity(TArray<FLoopNode*>& BestStartNodeOfLoop);
-	void FindLoopIntersections(const TArray<FLoopNode*>& LoopNodes, bool bForward, TArray<TPair<double, double>>& OutIntersections);
-	EOrientation GetLoopOrientation(const FLoopNode* StartNode);
-	void FixLoopOrientation(const TArray<FLoopNode*>& LoopNodes);
-	void SwapLoopOrientation(int32 FirstSegmentIndex, int32 LastSegmentIndex);
-	void MoveIntersectingSectionBehindOppositeSection(IsoTriangulatorImpl::FLoopSection IntersectingSection, IsoTriangulatorImpl::FLoopSection OppositeSection, IsoTriangulatorImpl::GetNextNodeMethod GetNext, IsoTriangulatorImpl::GetNextNodeMethod GetPrevious);
-	void OffsetSegment(FIsoSegment& Segment, TSegment<FPoint2D>& Segment2D, TSegment<FPoint2D>& IntersectingSegment2D);
-	void OffsetNode(FLoopNode& Node, TSegment<FPoint2D>& IntersectingSegment2D);
-
-	/**
-	 * If the new position of the node is closed to the previous or next node position, it will be delete
-	 */
-	void MoveNode(FLoopNode& NodeToMove, FPoint2D& ProjectedPoint);
-
-	/**
-	 * @return false if the SubLoop is bigger than the other part of the loop
-	 */
-	bool RemoveLoopIntersections(const TArray<FLoopNode*>& NodesOfLoop, TArray<TPair<double, double>>& Intersections, bool bForward);
-
-	void RemoveLoopPicks(TArray<FLoopNode*>& NodesOfLoop, TArray<TPair<double, double>>& Intersections);
-
-	void RemoveThePick(const TArray<FLoopNode*>& NodesOfLoop, const TPair<double, double>& Intersection, bool bForward);
-	void SwapNodes(const TArray<FLoopNode*>& NodesOfLoop, const TPair<double, double>& Intersection, bool bForward);
-
-	/**
-	 * Case0: __     ___        __      ___
-	 *          \   /             \    /
-	 *           o o        =>     o  o
-	 *        __/   \___		__/    \___
-	 *
-	 * Case1:    ____    ___        ____    ___
-	 *           |   \  /   |       |   \  /   |
-	 *           |    oo    |   =>  |    o     |
-	 *           |___/  \___|       |          |
-	 *                              |    o     |
-	 * 								|___/  \___|
-	 */
-	bool SpreadCoincidentNodes(const TArray<FLoopNode*>& NodesOfLoop, TPair<double, double> Intersection);
-
-	/**
-	 * Case:  o_________o          o_________o
-	 *             o         =>
-	 *          __/ \___		        o
-	 *								 __/ \___
-	 */
-	bool MovePickBehind(const TArray<FLoopNode*>& NodesOfLoop, TPair<double, double> Intersection, bool bKeyIsExtremity);
-
-	/**
-	 * Two cases:
-	 *    - the segments of the intersection a closed parallel and in same orientation. in this case, the sub-loop is a long pick. The sub-Loop is delete
-	 *    - the loop is an inner loop closed to the border:
-	 *       _____________                _____________
-	 *   |  /             \			  |__/             \
-	 *    \/               |     =>                     |
-	 *    /\               |		   __               |
-	 *   |  \_____________/			  |  \_____________/
-	 *
-	 */
-	void TryToSwapSegmentsOrRemoveLoop(const TArray<FLoopNode*>& NodesOfLoop, const TPair<double, double>& Intersection, bool bForward);
-
-	bool RemovePickToOutside(const TArray<FLoopNode*>& NodesOfLoop, const TPair<double, double>& Intersection, const TPair<double, double>& NextIntersection, bool bForward);
-
-	/**
-	 * @return false if the SubLoop is bigger than the other part of the loop
-	 */
-	bool RemoveIntersectionsOfSubLoop(const TArray<FLoopNode*>& LoopNodesFromStartNode, TArray<TPair<double, double>>& Intersections, int32 IntersectionIndex, int32 IntersectionCount, bool bForward);
-	bool RemoveUniqueIntersection(const TArray<FLoopNode*>& LoopNodesFromStartNode, TPair<double, double> Intersection, bool bForward);
-	//void RemoveSubLoop(const TArray<FLoopNode*>& NodesOfLoop, const TPair<double, double>& Intersection, bool bForward);
-	void RemoveSubLoop(FLoopNode* StartNode, FLoopNode* EndNode, IsoTriangulatorImpl::GetNextNodeMethod GetNext);
-
-	/**
-	 * Check if the sub-loop is not bigger than the main loop.
-	 * If the segment count of the SubLoop is bigger than 1/3 of the segment count of the main loop
-	 * the length of each part are compute.
-	 * If the sub-loop length is bigger than the main loop^, there is a problem (problem orientation ?)
-	 * The surface meshing is canceled to avoid a bigger problem during the meshing step, that could cause a process crash.
-	 */
-	bool IsSubLoopBiggerThanMainLoop(const TArray<FLoopNode*>& LoopNodesFromStartNode, const TPair<double, double>& Intersection, bool bForward);
-
-	void RemoveIntersectionByMovingOutsideNodeInside(const FIsoSegment& IntersectingSegment, FLoopNode& NodeToMove);
-
-	bool CheckMainLoopConsistency();
-
-	// Methods used by FindLoopIntersectionAndFixIt Step2
-	void FillIntersectionToolWithOuterLoop();
-
-	void FixIntersectionBetweenLoops();
-
-	FIsoSegment* FindNextSegment(EGridSpace Space, const FIsoSegment* StartSegment, const FIsoNode* StartNode, IsoTriangulatorImpl::GetSlopMethod GetSlop) const;
-
+	FIsoSegment* FindNextSegment(EGridSpace Space, const FIsoSegment* StartSegment, const FIsoNode* StartNode, SlopMethod GetSlop) const;
 
 
 #ifdef UNUSED_TO_DELETE_
 	void CreateLoopToLoopSegment(FLoopNode* NodeA, const FPoint2D& ACoordinates, FLoopNode* NodeB, const FPoint2D& BCoordinates, TArray<FIsoSegment*>& NewSegments);
 #endif
+
 	// ==========================================================================================
 	// 	   Create segments
 	// ==========================================================================================
@@ -562,24 +423,13 @@ public:
 	void DisplayPixel(const int32 IndexU, const int32 IndexV) const;
 
 	void DisplayIsoNodes(EGridSpace Space) const;
-	void Display(EGridSpace Space, const FIsoNode& Node, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;
-	void Display(FString Message, EGridSpace Space, const TArray<const FIsoNode*>& Points, EVisuProperty Property) const;
 
-	void Display(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::Element) const;
-	void Display(EGridSpace Space, const FIsoSegment& Segment, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::Element, bool bDisplayOrientation = false) const;
-	void Display(EGridSpace Space, const TCHAR* Message, const TArray<FIsoSegment*>& Segment, bool bDisplayNode, bool bDisplayOrientation = false, EVisuProperty Property = EVisuProperty::Element) const;
-
-	void DisplayLoops(EGridSpace Space, const TCHAR* Message, const TArray<FLoopNode>& Nodes, bool bDisplayNode, EVisuProperty Property = EVisuProperty::Element) const;
-	void DisplayLoops(const TCHAR* Message, bool bOneNode = true, bool bSplitBySegment = false, bool bDisplayNext = false, bool bDisplayPrevious = false) const;
-	void DisplayLoop(EGridSpace Space, const TCHAR* Message, const TArray<FLoopNode*>& Nodes, bool bDisplayNode, EVisuProperty Property = EVisuProperty::Element) const;
-
-	void DisplayCycle(const TArray<FIsoSegment*>& Cycle, const TCHAR* Message) const;
+	void DisplayLoops(const TCHAR* Message, bool bOneNode = true, bool bSplitBySegment = false) const;
+	void DisplayLoopsByNextAndPrevious(const TCHAR* Message) const;
 
 	void DisplayCells(const TArray<FCell>& Cells) const;
 	void DisplayCell(const FCell& Cell) const;
 	void DrawCellBoundary(int32 Index, EVisuProperty Property) const;
-
-	void DisplayTriangle(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, const FIsoNode& NodeC) const;
 #endif
 
 };
@@ -654,95 +504,6 @@ inline double EquilateralCriteria(const PointType& SegmentA, const PointType& Se
 	double Criteria2 = FMath::Abs(CoordinateOfProjectedPointOnSegment(Point, SegmentA, SegmentB, false) - 0.5);
 	double Criteria3 = FMath::Abs(CoordinateOfProjectedPointOnSegment(SegmentB, Point, SegmentA, false) - 0.5);
 	return Criteria1 + Criteria2 + Criteria3;
-}
-
-inline FLoopNode* GetNextNodeImpl(FLoopNode* Node)
-{
-	return &Node->GetNextNode();
-}
-
-inline FLoopNode* GetPreviousNodeImpl(FLoopNode* Node)
-{
-	return &Node->GetPreviousNode();
-}
-
-inline const FLoopNode* GetNextConstNodeImpl(const FLoopNode* Node)
-{
-	return &Node->GetNextNode();
-}
-
-inline const FLoopNode* GetPreviousConstNodeImpl(const FLoopNode* Node)
-{
-	return &Node->GetPreviousNode();
-}
-
-inline const FLoopNode* GetFirstNode(const FIsoSegment* Segment)
-{
-	return (const FLoopNode*)&Segment->GetFirstNode();
-};
-
-inline const FLoopNode* GetSecondNode(const FIsoSegment* Segment)
-{
-	return (const FLoopNode*)&Segment->GetSecondNode();
-};
-
-inline void GetLoopNodeStartingFrom(FLoopNode* StartNode, bool bForward, TArray<FLoopNode*>& Loop)
-{
-	using namespace IsoTriangulatorImpl;
-	GetNextNodeMethod GetNext = bForward ? GetNextNodeImpl : GetPreviousNodeImpl;
-	FLoopNode* Node = StartNode;
-	Loop.Add(StartNode);
-	for (Node = GetNext(Node); Node != StartNode; Node = GetNext(Node))
-	{
-		Loop.Add(Node);
-	}
-}
-
-inline FLoopNode* GetNodeAt(const TArray<FLoopNode*>& NodesOfLoop, const int32 Index)
-{
-	FLoopNode* Node = NodesOfLoop[Index];
-#ifdef DEBUG_LOOP_INTERSECTION_AND_FIX_IT		
-	Wait(Node->IsDelete());
-#endif
-	ensureCADKernel(!Node->IsDelete());
-	return Node;
-};
-
-inline int32 NextIndex(const int32 NodeCount, int32 StartIndex)
-{
-	++StartIndex;
-	return (StartIndex >= NodeCount) ? 0 : StartIndex;
-};
-
-inline void RemoveDeletedNodes(TArray<FLoopNode*>& NodesOfLoop)
-{
-	int32 Index = NodesOfLoop.IndexOfByPredicate([](FLoopNode* Node) { return Node->IsDelete(); });
-	if (Index == INDEX_NONE)
-	{
-		return;
-	}
-	int32 NewIndex = Index;
-	for (; Index < NodesOfLoop.Num(); ++Index)
-	{
-		if (!NodesOfLoop[Index]->IsDelete())
-		{
-			NodesOfLoop[NewIndex++] = NodesOfLoop[Index];
-		}
-	}
-	NodesOfLoop.SetNum(NewIndex);
-}
-
-/**
- * for findNextSegment
- */
-inline double ClockwiseSlop(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
-{
-	return 8. - ComputePositiveSlope(StartPoint, EndPoint, ReferenceSlope);
-}
-
-inline double CounterClockwiseSlop(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
-{
-	return ComputePositiveSlope(StartPoint, EndPoint, ReferenceSlope);
 }
 
 

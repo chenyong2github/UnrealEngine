@@ -4,9 +4,34 @@
 
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Point.h"
+#include "Algo/AllOf.h"
 
 namespace CADKernel
 {
+
+	typedef TFunction<double(const FPoint2D&, const FPoint2D&, double)> SlopMethod;
+
+
+	/**
+	 * Transform a positive slope into an oriented slope [-4, 4] i.e. an equivalent angle between [-Pi, Pi]
+	 * @return a slop between [-4, 4]
+	 */
+	inline double TransformIntoOrientedSlope(double Slope)
+	{
+		if (Slope > 4.) Slope -= 8;
+		if (Slope < -4.) Slope += 8;
+		return Slope;
+	}
+
+	/**
+	 * Transform a slope into a positive slope [0, *] i.e. an equivalent angle between [0, 2.Pi]
+	 * @return a slop between [0, 8]
+	 */
+	inline double TransformIntoPositiveSlope(double Slope)
+	{
+		if (Slope < 0) Slope += 8;
+		return Slope;
+	}
 
 	/**
 	 * Fast angle approximation by a "slope" :
@@ -103,7 +128,6 @@ namespace CADKernel
 		return Delta;
 	}
 
-
 	/**
 	 * Compute the oriented slope of a segment according to a reference slope
 	 * This method is used to compute an approximation of the angle between two segments in 2D.
@@ -126,19 +150,17 @@ namespace CADKernel
 		double ReferenceSlope = ComputeSlope(StartPoint, EndPoint1);
 		double Slope = ComputeSlope(StartPoint, EndPoint2);
 		Slope -= ReferenceSlope;
-		if (Slope < 0) Slope += 8;
-		return Slope;
+		return TransformIntoPositiveSlope(Slope);
 	}
 
-	/**
-	 * Transform a positive slope into an oriented slope [-4, 4] i.e. an equivalent angle between [-Pi, Pi]
-	 * @return a slop between [-4, 4]
-	 */
-	inline double TransformIntoOrientedSlope(double Slope)
+	inline double ClockwiseSlop(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
 	{
-		if (Slope > 4.) Slope -= 8;
-		if (Slope < -4.) Slope += 8;
-		return Slope;
+		return 8. - ComputePositiveSlope(StartPoint, EndPoint, ReferenceSlope);
+	}
+
+	inline double CounterClockwiseSlop(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
+	{
+		return ComputePositiveSlope(StartPoint, EndPoint, ReferenceSlope);
 	}
 
 	/**
@@ -189,7 +211,7 @@ namespace CADKernel
 	 * Return true if the segment BP is inside the sector defined the half-lines [BA) and [BC) in the counterclockwise.
 	 * Return false if ABP angle or PBC angle is too flat (smaller than FlatAngle)
 	 */
-	inline bool IsPointPBeInsideSectorABC(const FPoint2D& PointA, const FPoint2D& PointB, const FPoint2D& PointC, const FPoint2D& PointP, const double FlatAngle)
+	inline bool IsPointPInsideSectorABC(const FPoint2D& PointA, const FPoint2D& PointB, const FPoint2D& PointC, const FPoint2D& PointP, const double FlatAngle)
 	 {
 		 double SlopWithNextBoundary = ComputeSlope(PointB, PointC);
 		 double BoundaryDeltaSlope = ComputePositiveSlope(PointB, PointA, SlopWithNextBoundary);
@@ -201,5 +223,93 @@ namespace CADKernel
 		 return true;
 	 }
 
+	/**
+	 *                         P1
+	 *          inside        /
+	 *                       /   inside
+	 *                      /
+	 *    A -------------- B --------------- C
+	 *                      \
+	 *           Outside     \  Outside
+	 *                        \
+	 *                         P2
+	 *
+	 * Return true if all of the segment BPi is inside the sector defined the half-lines [BA) and [BC) in the counterclockwise.
+	 */
+	inline bool ArePointsInsideSectorABC(const FPoint2D& PointA, const FPoint2D& PointB, const FPoint2D& PointC, const TArray<const FPoint2D*>& Points, const double FlatAngle = -SMALL_NUMBER)
+	{
+		double SlopWithNextBoundary = ComputeSlope(PointB, PointC);
+		double BoundaryDeltaSlope = ComputePositiveSlope(PointB, PointA, SlopWithNextBoundary);
+
+		return Algo::AllOf(Points, [&](const FPoint2D* PointP) {
+			double DeltaU = PointB.U - PointP->U;
+			double DeltaV = PointB.V - PointP->V;
+
+			if (FMath::Abs(DeltaU) < SMALL_NUMBER && FMath::Abs(DeltaV) < SMALL_NUMBER)
+			{
+				return true;
+			}
+
+			double SegmentSlope = ComputePositiveSlope(PointB, *PointP, SlopWithNextBoundary);
+			if (SegmentSlope < FlatAngle || SegmentSlope + FlatAngle > BoundaryDeltaSlope)
+			{
+				return false;
+			}
+			return true;
+			});
+	}
+
+	inline FPoint2D SlopeToVector(const double Slop)
+	{
+		int32 SlopStep = (int32)(Slop);
+		FPoint2D Vector;
+		switch (SlopStep)
+		{
+		case 0:
+			// Delta = DeltaV / DeltaU;
+			Vector[0] = 1.;
+			Vector[1] = Slop;
+			break;
+		case 1:
+			// 2 - DeltaU / DeltaV;
+			Vector[0] = 2. - Slop;
+			Vector[1] = 1.;
+			break;
+		case 2:
+			// 2 - DeltaU / DeltaV;
+			Vector[0] = 2. - Slop;
+			Vector[1] = 1.;
+			break;
+		case 3:
+			// 4 + DeltaV / DeltaU;
+			Vector[0] = -1.;
+			Vector[1] = 4. - Slop;
+			break;
+		case 4:
+			// 4 + DeltaV / DeltaU;
+			Vector[0] = -1.;
+			Vector[1] = 4. - Slop;
+			break;
+		case 5:
+			// 6 - DeltaU / DeltaV;
+			Vector[0] = Slop - 6.;
+			Vector[1] = -1.;
+			break;
+		case 6:
+			// 6 - DeltaU / DeltaV // deltaU/deltaV <0
+			Vector[0] = Slop - 6.;
+			Vector[1] = -1;
+			break;
+		case 7:
+			// 8 + DeltaV / DeltaU; // deltaU/deltaV <0
+			Vector[0] = 1.;
+			Vector[1] = Slop - 8.;
+			break;
+		default:
+			break;
+		}
+
+		return Vector;
+	}
 
 } // namespace CADKernel	

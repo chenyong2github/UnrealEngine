@@ -138,7 +138,7 @@ bool FTopologicalLoop::Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& Lo
 	double LoopLength = 0;
 	int32 EdgeCount = 0;
 	int32 PointCount = 0;
-	for (const FOrientedEdge& Edge : Edges)
+ 	for (const FOrientedEdge& Edge : Edges)
 	{
 		if (Edge.Entity->IsDegenerated())
 		{
@@ -151,7 +151,7 @@ bool FTopologicalLoop::Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& Lo
 
 	double LoopMeanLength = LoopLength / EdgeCount;
 	double MinEdgeLength = LoopMeanLength * 0.01;
-	MinEdgeLength = FMath::Max(MinEdgeLength, Face.Pin()->GetCarrierSurface()->Get3DTolerance() * 10);
+	MinEdgeLength = FMath::Max(MinEdgeLength, Face.Pin()->GetCarrierSurface()->Get3DTolerance());
 
 	LoopSampling.Empty(PointCount);
 
@@ -218,6 +218,13 @@ void FTopologicalLoop::Orient()
 		// the loop is degenerated
 		return;
 	}
+
+#ifdef DEBUG_ORIENT
+	{
+		F3DDebugSession _(*FString::Printf(TEXT("Loop before orientation")));
+		DisplayOrientedPolyline(LoopSampling, EVisuProperty::BlueCurve);
+	}
+#endif
 
 	LoopSampling.Pop();
 	TSet<int32> ExtremityIndex;
@@ -456,6 +463,20 @@ void FTopologicalLoop::Orient()
 	{
 		SwapOrientation();
 	}
+
+#ifdef DEBUG_ORIENT
+	{
+		LoopSampling.Empty();
+		if (!Get2DSamplingWithoutDegeneratedEdges(LoopSampling))
+		{
+			return;
+		}
+
+		F3DDebugSession _(*FString::Printf(TEXT("Loop oriented")));
+		DisplayOrientedPolyline(LoopSampling, EVisuProperty::BlueCurve);
+	}
+#endif
+
 }
 
 void FTopologicalLoop::SwapOrientation()
