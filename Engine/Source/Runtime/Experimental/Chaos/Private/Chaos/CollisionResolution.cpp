@@ -1615,7 +1615,7 @@ namespace Chaos
 			FPBDCollisionConstraint* Constraint = Context.CollisionAllocator->FindOrCreateConstraint(Particle0, Implicit0, Simplicial0, LocalTransform0, Particle1, Implicit1, Simplicial1, LocalTransform1, CullDistance, EContactShapesType::LevelSetLevelSet, bAllowManifolds);
 
 			// @todo(chaos): support manifold restoration for Levelsets and remove this
-			Constraint->ResetManifold();
+			Constraint->ResetActiveManifoldContacts();
 
 			// @todo(chaos): the order test should be done befor we create the constraint so we can do it right first time, rather than patching it after
 			bool bIsParticleDynamic0 = Particle0->CastToRigidParticle() && Particle0->ObjectState() == EObjectStateType::Dynamic;

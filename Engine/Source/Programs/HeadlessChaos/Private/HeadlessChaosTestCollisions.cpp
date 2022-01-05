@@ -457,7 +457,6 @@ namespace ChaosTest {
 
 	// This test will make sure that a dynamic cube colliding with a static floor will have the correct bounce velocity
 	// for a restitution of 0.5
-	// The dynamic cube will collide with one of its vertices onto a face of the static cube
 	void CollisionCubeCubeRestitution()
 	{
 		TArrayCollectionArray<bool> Collided;
@@ -476,13 +475,15 @@ namespace ChaosTest {
 
 		FGeometryParticleHandle* StaticCube = AppendStaticParticleBox(Particles, FVec3(100.0f));
 		StaticCube->X() = FVec3(0, 0, -50.0f);
+		StaticCube->UpdateWorldSpaceState(FRigidTransform3(StaticCube->X(), StaticCube->R()), FVec3(0));
+
 		FPBDRigidParticleHandle* DynamicCube = AppendDynamicParticleBox(Particles, FVec3(100.0f));
-		DynamicCube->P() = FVec3(0, 0, 80); // Penetrating by about 5cm
-		DynamicCube->Q() = FRotation3::FromElements( 0.27059805f, 0.27059805f, 0.0f, 0.923879532f ); // Rotate so that vertex collide
+		DynamicCube->X() = FVec3(0, 0, 50);
+		DynamicCube->R() = FRotation3::FromIdentity();
 		DynamicCube->V() = FVec3(0, 0, -100);
 		DynamicCube->PreV() = DynamicCube->V();
-		DynamicCube->X() = DynamicCube->P() - DynamicCube->V() * Dt;
-		DynamicCube->R() = DynamicCube->Q();
+		DynamicCube->P() = DynamicCube->X() + DynamicCube->V() * Dt;
+		DynamicCube->Q() = DynamicCube->R();
 		DynamicCube->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 		DynamicCube->UpdateWorldSpaceState(FRigidTransform3(DynamicCube->P(), DynamicCube->Q()), FVec3(0));
 
@@ -520,8 +521,7 @@ namespace ChaosTest {
 		Collisions.ScatterOutput(Dt);
 
 		// This test's tolerances are set to be very crude as to not be over sensitive (for now)
-		EXPECT_TRUE(DynamicCube->V().Z > 10.0f);  // restitution not too low
-		EXPECT_TRUE(DynamicCube->V().Z < 70.0f);  // restitution not too high
+		EXPECT_NEAR(DynamicCube->V().Z, 50.0f, 5.0f);  // restitution not too low
 		EXPECT_TRUE(FMath::Abs(DynamicCube->V().X) < 1.0f);
 		EXPECT_TRUE(FMath::Abs(DynamicCube->V().Y) < 1.0f);
 	}

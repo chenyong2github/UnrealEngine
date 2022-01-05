@@ -41,7 +41,7 @@ namespace Chaos
 			ensure(SphereBTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			FContactPoint ContactPoint = SphereSphereContactPoint(SphereA, SphereATransform, SphereB, SphereBTransform, Constraint.GetCullDistance(), Constraint.Manifold.RestitutionPadding);
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
@@ -64,7 +64,7 @@ namespace Chaos
 			ensure(PlaneTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			FContactPoint ContactPoint = SpherePlaneContactPoint(Sphere, SphereTransform, Plane, PlaneTransform, Constraint.Manifold.RestitutionPadding);
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
@@ -81,7 +81,7 @@ namespace Chaos
 			ensure(BoxTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			FContactPoint ContactPoint = SphereBoxContactPoint(Sphere, SphereTransform, Box, BoxTransform, Constraint.Manifold.RestitutionPadding);
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
@@ -98,7 +98,7 @@ namespace Chaos
 			ensure(CapsuleTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			FContactPoint ContactPoint = SphereCapsuleContactPoint(Sphere, SphereTransform, Capsule, CapsuleTransform, Constraint.Manifold.RestitutionPadding);
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
@@ -115,7 +115,7 @@ namespace Chaos
 			ensure(ConvexTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			FContactPoint ContactPoint = SphereConvexContactPoint(Sphere, SphereTransform, Convex, ConvexTransform);
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
@@ -133,7 +133,7 @@ namespace Chaos
 			ensure(TriMeshWorldTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			FContactPoint ContactPoint = SphereTriangleMeshContactPoint(Sphere, SphereWorldTransform, TriangleMesh, TriMeshWorldTransform, Constraint.GetCullDistance(), 0.0f);
 			if (ContactPoint.Phi < Constraint.GetCullDistance())
@@ -166,7 +166,7 @@ namespace Chaos
 			ensure(CapsuleBTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			FVec3 CapsuleADirection(CapsuleATransform.TransformVector(CapsuleA.GetSegment().GetAxis()));
 			const FVec3 CapsuleBDirection(CapsuleBTransform.TransformVector(CapsuleB.GetSegment().GetAxis()));
@@ -272,7 +272,7 @@ namespace Chaos
 			ensure(TriMeshWorldTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			TArray<FContactPoint> ContactPoints;
 			GJKImplicitManifold<FCapsule, TriMeshType>(Capsule, CapsuleWorldTransform, TriangleMesh, TriMeshWorldTransform, Constraint.GetCullDistance(), 0.0f, ContactPoints);
@@ -293,7 +293,7 @@ namespace Chaos
 			ensure(HeightFieldTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			TArray<FContactPoint> ContactPoints;
 			GJKImplicitManifold<FCapsule>(Capsule, CapsuleTransform, HeightField, HeightFieldTransform, Constraint.GetCullDistance(), 0.0f, ContactPoints);
@@ -315,7 +315,7 @@ namespace Chaos
 			ensure(HeightFieldTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			//FContactPoint ContactPoint = ConvexHeightFieldContactPoint(Convex, ConvexTransform, HeightField, HeightFieldTransform, Constraint.GetCullDistance(), 0.0f);
 
@@ -339,7 +339,7 @@ namespace Chaos
 			ensure(TriMeshTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			// @todo(chaos): support manifold maintenance
-			Constraint.ResetManifold();
+			Constraint.ResetActiveManifoldContacts();
 
 			TArray<FContactPoint> ContactPoints;
 			GJKImplicitManifold<ConvexType, TriMeshType>(Convex, ConvexTransform, TriangleMesh, TriMeshTransform, Constraint.GetCullDistance(), 0.0f, ContactPoints);
