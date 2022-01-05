@@ -13,11 +13,9 @@
     <ApplicationIcon>Resources\Icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RuntimeIdentifiers>win10-x64</RuntimeIdentifiers>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\UnrealGameSync\ChildProcess.cs">
-      <Link>UnrealGameSync\ChildProcess.cs</Link>
-    </Compile>
     <Compile Include="..\UnrealGameSync\Forms\ModalTaskWindow.cs">
       <Link>UnrealGameSync\ModalTaskWindow.cs</Link>
       <SubType>Form</SubType>
@@ -40,15 +38,16 @@
     <Compile Include="..\UnrealGameSync\ModalTask.cs">
       <Link>UnrealGameSync\ModalTask.cs</Link>
     </Compile>
-    <Compile Include="..\UnrealGameSync\Perforce.cs">
-      <Link>UnrealGameSync\Perforce.cs</Link>
-    </Compile>
     <Compile Include="..\UnrealGameSync\PerforceModalTask.cs">
       <Link>UnrealGameSync\PerforceModalTask.cs</Link>
     </Compile>
     <Compile Include="..\UnrealGameSync\Utility.cs">
       <Link>UnrealGameSync\Utility.cs</Link>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\EpicGames.Core\EpicGames.Core.csproj" />
+    <ProjectReference Include="..\..\Shared\EpicGames.Perforce\EpicGames.Perforce.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Properties\Settings.settings">

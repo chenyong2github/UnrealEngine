@@ -69,6 +69,10 @@ namespace UnrealGameSync
 				Task<T> BackgroundTask = Task.Run(() => TaskFunc(CancellationSource.Token));
 
 				ModalTaskWindow Window = new ModalTaskWindow(Title, Message, (Owner == null) ? FormStartPosition.CenterScreen : FormStartPosition.CenterParent, BackgroundTask, CancellationSource);
+				if(Owner == null)
+				{
+					Window.ShowInTaskbar = true;
+				}
 				Window.ShowDialog(Owner);
 
 				if (BackgroundTask.IsCanceled || (BackgroundTask.Exception != null && BackgroundTask.Exception.InnerException is OperationCanceledException))
