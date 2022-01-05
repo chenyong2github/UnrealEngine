@@ -612,6 +612,8 @@ namespace Audio
 		SourceInfo.bHasPreDistanceAttenuationSend = false;
 		SourceInfo.bModFiltersUpdated = false;
 
+		SourceInfo.QuantizedCommandHandle.Reset();
+
 #if AUDIO_MIXER_ENABLE_DEBUG_MODE
 		SourceInfo.bIsDebugMode = false;
 		SourceInfo.DebugName = FString();
@@ -2768,6 +2770,8 @@ namespace Audio
 
 		SourceInfo.bIsPausedForQuantization = false;
 		SourceInfo.bIsActive = !SourceInfo.bIsPaused;
+
+		SourceInfo.QuantizedCommandHandle.Reset();
 	}
 
 	const float* FMixerSourceManager::GetPreDistanceAttenuationBuffer(const int32 SourceId) const

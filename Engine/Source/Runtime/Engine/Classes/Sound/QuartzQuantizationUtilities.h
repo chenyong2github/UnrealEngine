@@ -563,8 +563,11 @@ namespace Audio
 		TSharedPtr<IQuartzQuantizedCommand> CommandPtr{ nullptr };
 		FMixerDevice* MixerDevice{ nullptr };
 
-		// attempts to cancel the command. Returns true if the cancellation was successful.
+		// Attempts to cancel the command. Returns true if the cancellation was successful.
 		bool Cancel();
+
+		// Resets the handle to initial state.
+		void Reset();
 	};
 } // namespace Audio
 
