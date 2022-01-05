@@ -1997,14 +1997,13 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 
 			PostProcessSunShaftAndDof = SunMaskOutputs.SunMask;
 
-			if (!bUseDepthTexture)
-			{
-				SceneColor = SunMaskOutputs.SceneColor;
-			}
-
 			// The scene color will be decoded after sun mask pass and output to linear color space for following passes if sun shaft enabled
 			// set bMetalMSAAHDRDecode to false if sun shaft enabled
-			bMetalMSAAHDRDecode = (bMetalMSAAHDRDecode && !bUseSun);
+			if (bMetalMSAAHDRDecode && bUseSun)
+			{
+				SceneColor = SunMaskOutputs.SceneColor;
+				bMetalMSAAHDRDecode = false;
+			}
 			//@todo Ronin sunmask pass isnt clipping to image only.
 		}
 
