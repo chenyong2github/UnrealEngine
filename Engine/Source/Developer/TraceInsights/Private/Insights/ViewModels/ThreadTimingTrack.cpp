@@ -1036,7 +1036,8 @@ void FThreadTimingTrack::DrawSelectedEventInfo(const FThreadTrackEvent& Selected
 			*TimeUtils::FormatTimeAuto(SelectedEvent.GetExclusiveTime()));
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const FVector2D Size = FontMeasureService->Measure(Str, Font);
+		const float FontScale = DrawContext.Geometry.Scale;
+		const FVector2D Size = FontMeasureService->Measure(Str, Font, FontScale) / FontScale;
 		const float X = Viewport.GetWidth() - Size.X - 23.0f;
 		const float Y = Viewport.GetPosY() + Viewport.GetHeight() - Size.Y - 18.0f;
 

@@ -588,6 +588,7 @@ void FTimingGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Cont
 	const FSlateBrush* Brush = Context.GetHelper().GetWhiteBrush();
 	//const FSlateFontInfo& Font = Context.GetHelper().GetEventFont();
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	const float FontScale = DrawContext.Geometry.Scale;
 
 	const double TopValue = ViewportY.GetValueAtOffset(RoundedViewHeight);
 	const double GridValue = ViewportY.GetValueAtOffset(MinDY);
@@ -652,7 +653,7 @@ void FTimingGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Cont
 			// Draw horizontal grid line.
 			DrawContext.DrawBox(0, Y, ViewWidth, 1, Brush, GridColor);
 
-			const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font);
+			const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font, FontScale) / FontScale;
 			const float LabelX = X0 - LabelTextSize.X - 4.0f;
 			const float LabelY = FMath::Min(Y0 + GetHeight() - TextH, FMath::Max(Y0, Y - TextH / 2));
 

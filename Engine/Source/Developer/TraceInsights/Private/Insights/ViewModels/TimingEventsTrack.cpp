@@ -71,7 +71,7 @@ void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 		int32 MaxDepth = -1;
 
 		{
-			FTimingEventsTrackDrawStateBuilder Builder(*DrawState, Context.GetViewport());
+			FTimingEventsTrackDrawStateBuilder Builder(*DrawState, Context.GetViewport(), Context.GetGeometry().Scale);
 
 			BuildDrawState(Builder, Context);
 
@@ -123,7 +123,7 @@ void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 				FStopwatch Stopwatch;
 				Stopwatch.Start();
 				{
-					FTimingEventsTrackDrawStateBuilder Builder(*FilteredDrawState, Context.GetViewport());
+					FTimingEventsTrackDrawStateBuilder Builder(*FilteredDrawState, Context.GetViewport(), Context.GetGeometry().Scale);
 					BuildFilteredDrawState(Builder, Context);
 					Builder.Flush();
 				}

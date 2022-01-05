@@ -24,6 +24,7 @@ FTrackHeader::FTrackHeader(FBaseTimingTrack& InParentTrack)
 	: ParentTrack(InParentTrack)
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, Font(FAppStyle::Get().GetFontStyle("SmallFont"))
+	, FontScale(1.0f)
 {
 	Reset();
 }
@@ -45,19 +46,14 @@ void FTrackHeader::Reset()
 
 void FTrackHeader::UpdateSize()
 {
-	//ParentTrack.GetName()
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	const float TextWidth = FontMeasureService->Measure(ParentTrack.GetName(), Font).X;
+	const float TextWidth = FontMeasureService->Measure(ParentTrack.GetName(), Font, FontScale).X / FontScale;
 
 	Width = TextWidth + 4.0f;
 	if (bCanBeCollapsed)
 	{
 		Width += 9.0f;
 	}
-	//if (ParentTrack.IsSelected())
-	//{
-	//	Width += 9.0f;
-	//}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
