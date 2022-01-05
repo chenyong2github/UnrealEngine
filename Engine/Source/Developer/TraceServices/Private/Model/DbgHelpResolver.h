@@ -19,11 +19,16 @@ namespace TraceServices {
 class FDbgHelpResolver : public FRunnable
 {
 public:
+	typedef TArray<TTuple<uint64, FResolvedSymbol*>> SymbolArray;
+	
+	void Start();
 	FDbgHelpResolver(IAnalysisSession& InSession);
 	~FDbgHelpResolver();
-	void QueueModuleLoad(const FStringView& ModulePath, uint64 Base, uint32 Size, const uint8* ImageId, uint32 ImageIdSize);
+	void QueueModuleLoad(const uint8* ImageId, uint32 ImageIdSize, FModule* Module);
+	void QueueModuleReload(const FModule* Module, const TCHAR* InPath, TFunction<void(SymbolArray&)> ResolveOnSuccess);
 	void QueueSymbolResolve(uint64 Address, FResolvedSymbol* Symbol);
 	void GetStats(IModuleProvider::FStats* OutStats) const;
+	void EnumerateSymbolSearchPaths(TFunctionRef<void(FStringView Path)> Callback) const;
 	void OnAnalysisComplete();
 
 private:	
@@ -33,7 +38,8 @@ private:
 		uint32 Size;
 		const TCHAR* Name;
 		const TCHAR* Path;
-		bool bSymbolsLoaded;
+		FModule* Module;
+		TArray<uint8> ImageId;
 	};
 
 	struct FQueuedAddress
@@ -44,9 +50,9 @@ private:
 
 	struct FQueuedModule
 	{
-		uint64 Base;
-		uint64 Size;
-		const TCHAR* ImagePath;
+		const FModule* Module;
+		const TCHAR* Path;
+		TArrayView<const uint8> ImageId;
 	};
 
 	enum : uint32 {
@@ -61,10 +67,10 @@ private:
 	static void UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line);
 
 	void ResolveSymbol(uint64 Address, FResolvedSymbol* Target);
-	bool LoadModuleSymbols(uint64 Base, uint64 Size, const TCHAR* Path);
+	void LoadModuleSymbols(const FModule* Module, const TCHAR* Path, const TArrayView<const uint8> ImageId);
 	const FModuleEntry* GetModuleForAddress(uint64 Address) const;
 
-	FCriticalSection ModulesCs;
+	mutable FCriticalSection ModulesCs;
 	TArray<FModuleEntry> LoadedModules;
 	TQueue<FQueuedModule, EQueueMode::Mpsc> LoadSymbolsQueue;
 	TQueue<FQueuedAddress, EQueueMode::Mpsc> ResolveQueue;
@@ -72,13 +78,11 @@ private:
 	std::atomic<uint32> ModulesDiscovered;
 	std::atomic<uint32> ModulesFailed;
 	std::atomic<uint32> ModulesLoaded;
-	std::atomic<uint32> SymbolsDiscovered;
-	std::atomic<uint32> SymbolsFailed;
-	std::atomic<uint32> SymbolsResolved;
 
+	mutable FCriticalSection SymbolSearchPathsLock;
+	TArray<FString> SymbolSearchPaths;
 	bool bRunWorkerThread;
 	bool bDrainThenStop;
-	bool bInitialized;
 	UPTRINT Handle;
 	IAnalysisSession& Session;
 	FRunnableThread* Thread;

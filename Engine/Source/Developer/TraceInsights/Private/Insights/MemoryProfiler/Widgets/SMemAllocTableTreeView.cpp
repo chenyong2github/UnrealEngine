@@ -1004,9 +1004,9 @@ FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 	if (ModuleProvider)
 	{
 		ModuleProvider->GetStats(&Stats);
-		check(Stats.SymbolsDiscovered >= Stats.SymbolsResolved + Stats.SymbolsFailed);
-		const uint32 SymbolsPending = Stats.SymbolsDiscovered - Stats.SymbolsResolved - Stats.SymbolsFailed;
-		if (SymbolsPending != 0)
+		//check(Stats.SymbolsDiscovered >= Stats.SymbolsResolved + Stats.SymbolsFailed);
+		const int32 SymbolsPending = Stats.SymbolsDiscovered - Stats.SymbolsResolved - Stats.SymbolsFailed;
+		if (SymbolsPending > 0)
 		{
 			return FText::Format(LOCTEXT("SymbolsResolved1", "Resolving {0} / {1} symbols ({2} resolved, {3} failed)"), SymbolsPending, Stats.SymbolsDiscovered, Stats.SymbolsResolved, Stats.SymbolsFailed);
 		}
@@ -1026,11 +1026,11 @@ FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 FText SMemAllocTableTreeView::GetSymbolResolutionTooltip() const
 {
 	auto ModuleProvider = Session->ReadProvider<IModuleProvider>(FName("ModuleProvider"));
-
-	static const TCHAR* SymbolPathEnvVar = TEXT("UE_INSIGHTS_SYMBOL_PATH");
-	FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(SymbolPathEnvVar);
-	return FText::Format(LOCTEXT("SymbolResolutionEnvVarHelp", "Symbol paths can be provided with the environment variable {0}.\nUE_INSIGHTS_SYMBOL_PATH=\"{1}\""),
-		FText::FromString(SymbolPathEnvVar), FText::FromString(*SymbolPath));
+	TStringBuilder<2048> Sb;
+	uint32 Index = 0;
+	ModuleProvider->EnumerateSymbolSearchPaths([&Sb, &Index](FStringView Path) { Sb << ++Index << TEXT(": ") << Path << TEXT("\n");});
+	return FText::Format(LOCTEXT("SymbolResolutionEnvVarHelp", "Symbol paths:\n{0}"),
+		FText::FromStringView(Sb));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

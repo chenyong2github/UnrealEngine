@@ -2,11 +2,14 @@
 
 #include "ModuleProvider.h"
 #include <atomic>
+
+#include "Algo/Find.h"
 #include "Algo/Transform.h"
 #include "Common/CachedPagedArray.h"
 #include "Common/CachedStringStore.h"
 #include "Common/Utils.h"
 #include "Containers/Map.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/PathViews.h"
 #include "TraceServices/Model/AnalysisCache.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -27,28 +30,6 @@
 namespace TraceServices {
 
 /////////////////////////////////////////////////////////////////////
-struct FModuleEntry
-{
-	const TCHAR*		Name;
-	const TCHAR*		Path;
-	uint64				Base;
-	uint32				Size;
-	bool				bLoaded;
-	std::atomic<bool>	bReady;
-
-	FModuleEntry(const TCHAR* InName, const TCHAR* InPath, uint64 InBase, uint32 InSize, bool InLoaded)
-		: Name(InName)
-		, Path(InPath)
-		, Base(InBase)
-		, Size(InSize)
-		, bLoaded(InLoaded)
-		, bReady(false)
-	{
-
-	}
-};
-
-/////////////////////////////////////////////////////////////////////
 template<typename SymbolResolverType>
 class TModuleProvider : public IModuleAnalysisProvider
 {
@@ -58,6 +39,10 @@ public:
 
 	//Query interface
 	const FResolvedSymbol*		GetSymbol(uint64 Address) override;
+	uint32						GetNumModules() const override;
+	void						EnumerateModules(uint32 Start, TFunctionRef<void(const FModule& Module)> Callback) const override;
+	FGraphEventRef				LoadSymbolsForModuleUsingPath(uint64 Base, const TCHAR* Path) override;
+	void						EnumerateSymbolSearchPaths(TFunctionRef<void(FStringView Path)> Callback) const override;
 	void						GetStats(FStats* OutStats) const override;
 
 	//Analysis interface
@@ -68,6 +53,7 @@ public:
 	void						LoadSymbolsFromCache(IAnalysisCache& Cache);
 
 private:
+	uint32						GetNumCachedSymbolsFromModule(uint64 Base, uint32 Size);
 
 	struct FSavedSymbol
 	{
@@ -78,10 +64,10 @@ private:
 		uint32 Line;
 	};
 	
-	FRWLock						ModulesLock;
-	TPagedArray<FModuleEntry>	Modules;
+	mutable FRWLock				ModulesLock;
+	TPagedArray<FModule>		Modules;
 
-	FRWLock						SymbolsLock;
+	FRWLock				SymbolsLock;
 	// Persistently stored symbol strings
 	FCachedStringStore Strings;
 	// Efficient representation of symbols
@@ -90,10 +76,14 @@ private:
 	TMap<uint64, const FResolvedSymbol*> SymbolCacheLookup;
 	// Number of cached symbols that was loaded (used for stats)
 	uint32 NumCachedSymbols;
+	// Number of discovered symbols
+	std::atomic<uint32> SymbolsDiscovered;
 	
 	IAnalysisSession&			Session;
 	FString						Platform;
 	TUniquePtr<SymbolResolverType>	Resolver;
+	FGraphEventRef				LoadSymbolsTask;
+	bool						LoadSymbolsAbort = false;
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -113,6 +103,11 @@ TModuleProvider<SymbolResolverType>::TModuleProvider(IAnalysisSession& Session)
 template <typename SymbolResolverType>
 TModuleProvider<SymbolResolverType>::~TModuleProvider()
 {
+	if (LoadSymbolsTask)
+	{
+		LoadSymbolsAbort = true;
+		LoadSymbolsTask->Wait();
+	}
 	// Delete the resolver in order to flush all pending resolves
 	Resolver.Reset();
 	SaveSymbolsToCache(Session.GetCache());
@@ -141,6 +136,7 @@ const FResolvedSymbol* TModuleProvider<SymbolResolverType>::GetSymbol(uint64 Add
 		}
 		ResolvedSymbol = &SymbolCache.EmplaceBack(ESymbolQueryResult::Pending, nullptr, nullptr, nullptr, 0);
 		SymbolCacheLookup.Add(Address, ResolvedSymbol);
+		++SymbolsDiscovered;
 	}
 
 	// If not in cache yet, queue it up in the resolver
@@ -151,12 +147,118 @@ const FResolvedSymbol* TModuleProvider<SymbolResolverType>::GetSymbol(uint64 Add
 }
 
 /////////////////////////////////////////////////////////////////////
+template <typename SymbolResolverType>
+uint32 TModuleProvider<SymbolResolverType>::GetNumModules() const
+{
+	FReadScopeLock _(ModulesLock);
+	return Modules.Num();
+}
+
+/////////////////////////////////////////////////////////////////////
+template <typename SymbolResolverType>
+void TModuleProvider<SymbolResolverType>::EnumerateModules(uint32 Start, TFunctionRef<void(const FModule& Module)> Callback) const 
+{
+	FReadScopeLock _(ModulesLock);
+	for (uint32 i = Start; i < Modules.Num(); ++i)
+	{
+		Callback(Modules[i]);
+	}
+}
+
+/////////////////////////////////////////////////////////////////////
+template <typename SymbolResolverType>
+FGraphEventRef TModuleProvider<SymbolResolverType>::LoadSymbolsForModuleUsingPath(uint64 Base, const TCHAR* Path)
+{
+	FReadScopeLock _(ModulesLock);
+	const FModule* Module = Algo::FindBy(Modules, Base, &FModule::Base);
+	if (Module)
+	{
+		const FString FullPath = FPaths::ConvertRelativePathToFull(Path);
+		if (Resolver && !FullPath.IsEmpty() && Module->Status.load() != EModuleStatus::Loaded)
+		{
+			// Setup a task to queue and watch the queued module. If it succeeds in resolving with the new path
+			// re-resolve any cached symbols 
+			LoadSymbolsTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, Module, FullPath]()
+			{
+				auto ReloadModuleFn = [this] (const FModule* InModule, const TCHAR* InPath)
+				{
+					const uint32 DiscoveredSymbols = InModule->Stats.Discovered.load();
+					const uint64 ModuleBegin = InModule->Base;
+					const uint64 ModuleEnd = InModule->Base + InModule->Size;
+
+					auto ReresolveOnSuccess = [this, DiscoveredSymbols, ModuleBegin, ModuleEnd] (TArray<TTuple<uint64,FResolvedSymbol*>>& OutSymbols)
+					{
+						OutSymbols.Reserve(DiscoveredSymbols);
+					
+						FReadScopeLock _(SymbolsLock);
+						for (auto Pair : SymbolCacheLookup)
+						{
+							const uint64 Address = Pair.Get<0>();
+							FResolvedSymbol* Symbol = const_cast<FResolvedSymbol*>(Pair.Get<1>());
+							if (FMath::IsWithin(Pair.Get<0>(), ModuleBegin, ModuleEnd))
+							{
+								OutSymbols.Add(TTuple<uint64,FResolvedSymbol*>(Address, Symbol));
+							}
+						}
+					};
+
+					Resolver->QueueModuleReload(InModule, InPath, ReresolveOnSuccess);
+					// Wait for the resolver to do it's work
+					while (InModule->Status.load() == EModuleStatus::Pending)
+					{
+						FPlatformProcess::Sleep(.1);
+					}
+
+					return InModule->Status.load();
+				};
+			
+				UE_LOG(LogTraceServices, Display, TEXT("Queing symbol loading using path %s."), *FullPath);
+
+				// Load the requested module
+				const EModuleStatus Result = ReloadModuleFn(Module, *FullPath);
+
+				if (Result == EModuleStatus::Loaded)
+				{
+					// Queue up any other failed module using the directory.
+					IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
+					const FString Directory = PlatformFile->DirectoryExists(*FullPath) ? FullPath : FPaths::GetPath(FullPath);
+					for (auto& OtherModule : Modules)
+					{
+						if (LoadSymbolsAbort)
+						{
+							return;
+						}
+						const EModuleStatus ModuleStatus = OtherModule.Status.load();
+						if (&OtherModule != Module && ModuleStatus != EModuleStatus::Loaded && ModuleStatus != EModuleStatus::Pending)
+						{
+							ReloadModuleFn(&OtherModule, *Directory);
+						}
+					}
+				}
+
+				UE_LOG(LogTraceServices, Display, TEXT("Loading symbols for path %s complete."), *FullPath);
+			});
+
+			return LoadSymbolsTask;
+		}
+	}
+	return FGraphEventRef();
+}
+
+/////////////////////////////////////////////////////////////////////
+template <typename SymbolResolverType>
+void TModuleProvider<SymbolResolverType>::EnumerateSymbolSearchPaths(TFunctionRef<void(FStringView Path)> Callback) const
+{
+	Resolver->EnumerateSymbolSearchPaths(Callback);
+}
+
+/////////////////////////////////////////////////////////////////////
 template<typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::GetStats(FStats* OutStats) const
 {
 	Resolver->GetStats(OutStats);
+	OutStats->SymbolsDiscovered = SymbolsDiscovered.load();
 	// Add the cached symbols (the resolver doesn't know about them)
-	OutStats->SymbolsDiscovered += NumCachedSymbols;
 	OutStats->SymbolsResolved += NumCachedSymbols;
 }
 
@@ -169,15 +271,18 @@ void TModuleProvider<SymbolResolverType>::OnModuleLoad(const FStringView& Module
 		return;
 	}
 
-	const TCHAR* Path = Session.StoreString(Module);
-	const TCHAR* Name = Session.StoreString(Module);
+	const FStringView NameTemp = FPathViews::GetCleanFilename(Module);
+	const TCHAR* Name = Session.StoreString(NameTemp);
+	const TCHAR* FullName = Session.StoreString(Module);
 
-	{
-		FWriteScopeLock _(ModulesLock);
-		Modules.EmplaceBack(Name, Path, Base, Size, false);
-	}
+	FWriteScopeLock _(ModulesLock);
+	FModule& NewModule = Modules.EmplaceBack(Name, FullName, Base, Size, EModuleStatus::Pending);
 
-	Resolver->QueueModuleLoad(Module, Base, Size, ImageId, ImageIdSize);
+	// The number of cached symbols for this module is equal to the number
+	// of matching addresses in the cache.
+	NewModule.Stats.Cached = GetNumCachedSymbolsFromModule(Base, Size);
+	
+	Resolver->QueueModuleLoad(ImageId, ImageIdSize, &NewModule);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -226,6 +331,7 @@ void TModuleProvider<SymbolResolverType>::SaveSymbolsToCache(IAnalysisCache& Cac
 	UE_LOG(LogTraceServices, Display, TEXT("Added %d symbols to the %d previously saved symbols."), NumSavedSymbols, NumPreviouslySavedSymbols);
 }
 
+/////////////////////////////////////////////////////////////////////
 template <typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::LoadSymbolsFromCache(IAnalysisCache& Cache)
 {
@@ -247,6 +353,25 @@ void TModuleProvider<SymbolResolverType>::LoadSymbolsFromCache(IAnalysisCache& C
 	}
 	NumCachedSymbols = SymbolCacheLookup.Num();
 	UE_LOG(LogTraceServices, Display, TEXT("Loaded %d symbols from cache."), SymbolCacheLookup.Num());
+}
+
+/////////////////////////////////////////////////////////////////////
+template <typename SymbolResolverType>
+uint32 TModuleProvider<SymbolResolverType>::GetNumCachedSymbolsFromModule(uint64 Base, uint32 Size)
+{
+	uint32 Count(0);
+	const uint64 Start = Base;
+	const uint64 End = Base + Size;
+	FWriteScopeLock _(SymbolsLock);
+	for (auto& AddressSymbolPair : SymbolCacheLookup)
+	{
+		const uint64 Address = AddressSymbolPair.Get<0>();
+		if (FMath::IsWithin(Address, Start, End))
+		{
+			++Count;
+		}
+	}
+	return Count;
 }
 
 /////////////////////////////////////////////////////////////////////
