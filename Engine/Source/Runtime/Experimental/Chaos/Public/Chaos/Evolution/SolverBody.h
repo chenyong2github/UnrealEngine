@@ -9,14 +9,17 @@
 
 namespace Chaos
 {
-	// Set the low precision (LP) math types
+	// Set the math types used by the constraint solvers when single precision is acceptable.
+	// NOTE: public APIs should still use FReal, FVec3 etc. whereas FSolverReal and associated
+	// types are for use internally where double precision is unnecessary and causes performance
+	// issues and/or memory bloat.
 #if CHAOS_CONSTRAINTSOLVER_LOWPRECISION
-	using FRealLP = FRealSingle;
+	using FSolverReal = FRealSingle;
 #else
-	using FRealLP = FReal;
+	using FSolverReal = FReal;
 #endif
-	using FVec3LP = TVec3<FRealLP>;
-	using FMatrix33LP = TMatrix33<FRealLP>;
+	using FSolverVec3 = TVec3<FSolverReal>;
+	using FSolverMatrix33 = TMatrix33<FSolverReal>;
 
 
 	class FSolverBody;
@@ -136,7 +139,7 @@ namespace Chaos
 		{
 			if (IsDynamic() && (Dt != FReal(0)))
 			{
-				const FRealLP InvDt = FRealLP(1) / FRealLP(Dt);
+				const FSolverReal InvDt = FSolverReal(1) / FSolverReal(Dt);
 				State.V += State.DP * InvDt;
 				State.W += State.DQ * InvDt;
 			}
@@ -146,34 +149,34 @@ namespace Chaos
 		 * @brief Get the inverse mass
 		*/
 		//inline FReal InvM() const { return State.InvM; }
-		inline FRealLP InvM() const { return State.InvM; }
+		inline FSolverReal InvM() const { return State.InvM; }
 
 		/**
 		 * @brief Set the inverse mass
 		*/
-		inline void SetInvM(FReal InInvM) { State.InvM = FRealLP(InInvM); }
+		inline void SetInvM(FReal InInvM) { State.InvM = FSolverReal(InInvM); }
 
 		/**
 		 * @brief Get the world-space inverse inertia
 		*/
-		inline const FMatrix33LP& InvI() const { return State.InvI; }
+		inline const FSolverMatrix33& InvI() const { return State.InvI; }
 
 		/**
 		 * @brief Set the world-space inverse inertia
 		*/
-		inline void SetInvI(const FMatrix33& InInvI) { State.InvI = FMatrix33LP(InInvI); }
+		inline void SetInvI(const FMatrix33& InInvI) { State.InvI = FSolverMatrix33(InInvI); }
 
 		/**
 		 * @brief Get the local-space inverse inertia (diagonal elements)
 		*/
-		inline const FVec3LP& InvILocal() const { return State.InvILocal; }
+		inline const FSolverVec3& InvILocal() const { return State.InvILocal; }
 
 		/**
 		 * @brief Set the local-space inverse inertia (diagonal elements)
 		*/
 		inline void SetInvILocal(const FVec3& InInvILocal)
 		{ 
-			State.InvILocal = FVec3LP(InInvILocal); 
+			State.InvILocal = FSolverVec3(InInvILocal); 
 			UpdateRotationDependentState();
 		}
 
@@ -231,12 +234,12 @@ namespace Chaos
 		/**
 		 * @brief Net world-space position correction applied by the constraints
 		*/
-		inline const FVec3LP& DP() const { return State.DP; }
+		inline const FSolverVec3& DP() const { return State.DP; }
 
 		/**
 		 * @brief Net world-space rotation correction applied by the constraints (axis-angle vector equivalent to angular velocity but for position)
 		*/
-		inline const FVec3LP& DQ() const { return State.DQ; }
+		inline const FSolverVec3& DQ() const { return State.DQ; }
 
 		/**
 		 * @brief World-space position after applying the net correction DP()
@@ -259,8 +262,8 @@ namespace Chaos
 		{
 			State.P = CorrectedP();
 			State.Q = CorrectedQ();
-			State.DP = FVec3LP(0);
-			State.DQ = FVec3LP(0);
+			State.DP = FSolverVec3(0);
+			State.DQ = FSolverVec3(0);
 		}
 
 		/**
@@ -290,7 +293,7 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space position and rotation delta to the body center of mass, and update inverse mass
 		*/
-		inline void ApplyTransformDelta(const FVec3LP& DP, const FVec3LP& DR)
+		inline void ApplyTransformDelta(const FSolverVec3& DP, const FSolverVec3& DR)
 		{
 			ApplyPositionDelta(DP);
 			ApplyRotationDelta(DR);
@@ -299,7 +302,7 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space position delta to the solver body center of mass
 		*/
-		inline void ApplyPositionDelta(const FVec3LP& DP)
+		inline void ApplyPositionDelta(const FSolverVec3& DP)
 		{
 			State.DP += DP;
 		}
@@ -307,7 +310,7 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space rotation delta to the solver body and update the inverse mass
 		*/
-		inline void ApplyRotationDelta(const FVec3LP& DR)
+		inline void ApplyRotationDelta(const FSolverVec3& DR)
 		{
 			State.DQ += DR;
 		}
@@ -315,7 +318,7 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space velocity delta to the solver body
 		*/
-		inline void ApplyVelocityDelta(const FVec3LP& DV, const FVec3LP& DW)
+		inline void ApplyVelocityDelta(const FSolverVec3& DV, const FSolverVec3& DW)
 		{
 			ApplyLinearVelocityDelta(DV);
 			ApplyAngularVelocityDelta(DW);
@@ -324,7 +327,7 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space linear velocity delta to the solver body
 		*/
-		inline void ApplyLinearVelocityDelta(const FVec3LP& DV)
+		inline void ApplyLinearVelocityDelta(const FSolverVec3& DV)
 		{
 			State.V += DV;
 		}
@@ -332,7 +335,7 @@ namespace Chaos
 		/**
 		 * @brief Apply an world-space angular velocity delta to the solver body
 		*/
-		inline void ApplyAngularVelocityDelta(const FVec3LP& DW)
+		inline void ApplyAngularVelocityDelta(const FSolverVec3& DW)
 		{
 			State.W += DW;
 		}
@@ -375,20 +378,20 @@ namespace Chaos
 			{}
 
 			// Local-space inverse inertia (diagonal, so only 3 elements)
-			FVec3LP InvILocal;
+			FSolverVec3 InvILocal;
 
 			// Inverse mass
-			FRealLP InvM;
+			FSolverReal InvM;
 
 			// World-space inverse inertia
 			// @todo(chaos): do we need this, or should we force all systems to use the FConstraintSolverBody decorator?
-			FMatrix33LP InvI;
+			FSolverMatrix33 InvI;
 
 			// Net position delta applied by all constraints (constantly changing as we iterate over constraints)
-			FVec3LP DP;
+			FSolverVec3 DP;
 
 			// Net rotation delta applied by all constraints (constantly changing as we iterate over constraints)
-			FVec3LP DQ;
+			FSolverVec3 DQ;
 
 			// Distance to a kinmatic body (through the contact graph). Used by collision shock propagation
 			int32 Level;
@@ -471,23 +474,23 @@ namespace Chaos
 		/**
 		 * @brief A scale applied to both inverse mass and inverse inertia
 		*/
-		inline FRealLP InvMScale() const { return State.InvMassScale; }
-		inline void SetInvMScale(FReal InInvMassScale) { State.InvMassScale = FRealLP(InInvMassScale); }
+		inline FSolverReal InvMScale() const { return State.InvMassScale; }
+		inline void SetInvMScale(FReal InInvMassScale) { State.InvMassScale = FSolverReal(InInvMassScale); }
 
 		/**
 		 * @brief The scaled inverse mass
 		*/
-		FRealLP InvM() const { return State.InvMassScale * Body->InvM(); }
+		FSolverReal InvM() const { return State.InvMassScale * Body->InvM(); }
 
 		/**
 		 * @brief The scaled inverse inertia
 		*/
-		FMatrix33LP InvI() const { return State.InvMassScale * Body->InvI(); }
+		FSolverMatrix33 InvI() const { return State.InvMassScale * Body->InvI(); }
 
 		/**
 		 * @brief The scaled local space inverse inertia
 		*/
-		FVec3LP InvILocal() const { return State.InvMassScale * Body->InvILocal(); }
+		FSolverVec3 InvILocal() const { return State.InvMassScale * Body->InvILocal(); }
 
 		/**
 		 * @brief Whether the body is dynamic (i.e., has a finite mass) after InvMassScale is applied
@@ -509,17 +512,17 @@ namespace Chaos
 		inline const FVec3& V() const { return Body->V(); }
 		inline const FVec3& W() const { return Body->W(); }
 		inline int32 Level() const { return Body->Level(); }
-		inline const FVec3LP& DP() const { return Body->DP(); }
-		inline const FVec3LP& DQ() const { return Body->DQ(); }
+		inline const FSolverVec3& DP() const { return Body->DP(); }
+		inline const FSolverVec3& DQ() const { return Body->DQ(); }
 		inline FVec3 CorrectedP() const { return Body->CorrectedP(); }
 		inline FRotation3 CorrectedQ() const { return Body->CorrectedQ(); }
 
-		inline void ApplyTransformDelta(const FVec3LP& DP, const FVec3LP& DR) { Body->ApplyTransformDelta(DP, DR); }
-		inline void ApplyPositionDelta(const FVec3LP& DP) { Body->ApplyPositionDelta(DP); }
-		inline void ApplyRotationDelta(const FVec3LP& DR) { Body->ApplyRotationDelta(DR); }
-		inline void ApplyVelocityDelta(const FVec3LP& DV, const FVec3LP& DW) { Body->ApplyVelocityDelta(DV, DW); }
-		inline void ApplyLinearVelocityDelta(const FVec3LP& DV) { Body->ApplyLinearVelocityDelta(DV); }
-		inline void ApplyAngularVelocityDelta(const FVec3LP& DW) { Body->ApplyAngularVelocityDelta(DW); }
+		inline void ApplyTransformDelta(const FSolverVec3& DP, const FSolverVec3& DR) { Body->ApplyTransformDelta(DP, DR); }
+		inline void ApplyPositionDelta(const FSolverVec3& DP) { Body->ApplyPositionDelta(DP); }
+		inline void ApplyRotationDelta(const FSolverVec3& DR) { Body->ApplyRotationDelta(DR); }
+		inline void ApplyVelocityDelta(const FSolverVec3& DV, const FSolverVec3& DW) { Body->ApplyVelocityDelta(DV, DW); }
+		inline void ApplyLinearVelocityDelta(const FSolverVec3& DV) { Body->ApplyLinearVelocityDelta(DV); }
+		inline void ApplyAngularVelocityDelta(const FSolverVec3& DW) { Body->ApplyAngularVelocityDelta(DW); }
 		inline void EnforceShortestRotationTo(const FRotation3& InQ) { Body->EnforceShortestRotationTo(InQ); }
 		inline void UpdateRotationDependentState() { Body->UpdateRotationDependentState(); }
 
@@ -528,9 +531,9 @@ namespace Chaos
 		struct FState
 		{
 			FState() 
-				: InvMassScale(FRealLP(1))
+				: InvMassScale(FSolverReal(1))
 			{}
-			FRealLP InvMassScale;
+			FSolverReal InvMassScale;
 		};
 
 		// The body we decorate
