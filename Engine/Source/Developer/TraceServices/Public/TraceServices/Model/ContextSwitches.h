@@ -52,6 +52,7 @@ public:
 	virtual uint64 GetCpuCoresSerial() const = 0;
 	virtual void EnumerateCpuCores(CpuCoreCallback Callback) const = 0;
 	virtual void EnumerateCpuCoreEvents(uint32 CoreNumber, double StartTime, double EndTime, CpuCoreEventCallback Callback) const = 0;
+	virtual void EnumerateCpuCoreEventsBackwards(uint32 CoreNumber, double EndTime, double StartTime, CpuCoreEventCallback Callback) const = 0;
 	virtual void EnumerateContextSwitches(uint32 ThreadId, double StartTime, double EndTime, ContextSwitchCallback Callback) const = 0;
 };
 

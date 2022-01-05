@@ -269,6 +269,91 @@ const TSharedPtr<const ITimingEvent> FCpuCoreTimingTrack::GetEvent(double InTime
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const TSharedPtr<const ITimingEvent> FCpuCoreTimingTrack::SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const
+{
+	TSharedPtr<const ITimingEvent> FoundEvent;
+
+	FFilterContext FilterConfiguratorContext;
+	FilterConfiguratorContext.SetReturnValueForUnsetFilters(false);
+	FilterConfiguratorContext.AddFilterData<double>(static_cast<int32>(EFilterField::StartTime), 0.0f);
+	FilterConfiguratorContext.AddFilterData<double>(static_cast<int32>(EFilterField::EndTime), 0.0f);
+	FilterConfiguratorContext.AddFilterData<double>(static_cast<int32>(EFilterField::Duration), 0.0f);
+	FilterConfiguratorContext.AddFilterData<FString>(static_cast<int32>(EFilterField::TrackName), this->GetName());
+	FilterConfiguratorContext.AddFilterData<int64>(static_cast<int32>(EFilterField::CoreEventName), 0);
+
+	TTimingEventSearch<TraceServices::FCpuCoreEvent>::Search(
+		InSearchParameters,
+
+		[this, &InSearchParameters](TTimingEventSearch<TraceServices::FCpuCoreEvent>::FContext& InContext)
+		{
+			TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+			if (Session.IsValid())
+			{
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+				if (Session.IsValid() && TraceServices::ReadContextSwitchesProvider(*Session.Get()))
+				{
+					const TraceServices::IContextSwitchesProvider* ContextSwitchesProvider = TraceServices::ReadContextSwitchesProvider(*Session.Get());
+
+					auto Callback = [&InContext](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FCpuCoreEvent& Event)
+					{
+						InContext.Check(EventStartTime, EventEndTime, EventDepth, Event);
+						return InContext.ShouldContinueSearching() ? TraceServices::EContextSwitchEnumerationResult::Continue : TraceServices::EContextSwitchEnumerationResult::Stop;
+					};
+
+					if (InContext.GetParameters().SearchDirection == FTimingEventSearchParameters::ESearchDirection::Forward)
+					{
+						ContextSwitchesProvider->EnumerateCpuCoreEvents(CoreNumber, InSearchParameters.StartTime, InSearchParameters.EndTime,
+							[ContextSwitchesProvider, Callback](const TraceServices::FCpuCoreEvent& CpuCoreEvent)
+							{
+								return Callback(CpuCoreEvent.Start, CpuCoreEvent.End, 0, CpuCoreEvent);
+							});
+					}
+					else
+					{
+						ContextSwitchesProvider->EnumerateCpuCoreEventsBackwards(CoreNumber, InSearchParameters.EndTime, InSearchParameters.StartTime,
+							[ContextSwitchesProvider, Callback](const TraceServices::FCpuCoreEvent& CpuCoreEvent)
+							{
+								return Callback(CpuCoreEvent.Start, CpuCoreEvent.End, 0, CpuCoreEvent);
+							});
+					}
+				}
+			}
+		},
+
+		[&FilterConfiguratorContext, &InSearchParameters](double EventStartTime, double EventEndTime, uint32 EventDepth, const TraceServices::FCpuCoreEvent& Event)
+		{
+			if (!InSearchParameters.FilterExecutor.IsValid())
+			{
+				return true;
+			}
+
+			TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+			if (Session.IsValid())
+			{
+				FilterConfiguratorContext.SetFilterData<double>(static_cast<int32>(EFilterField::StartTime), EventStartTime);
+				FilterConfiguratorContext.SetFilterData<double>(static_cast<int32>(EFilterField::EndTime), EventEndTime);
+				FilterConfiguratorContext.SetFilterData<double>(static_cast<int32>(EFilterField::Duration), EventEndTime - EventStartTime);
+				FilterConfiguratorContext.SetFilterData<int64>(static_cast<int32>(EFilterField::CoreEventName), Event.SystemThreadId);
+
+				return InSearchParameters.FilterExecutor->ApplyFilters(FilterConfiguratorContext);
+			}
+
+			return false;
+		},
+
+		[&FoundEvent, this](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const TraceServices::FCpuCoreEvent& InEvent)
+		{
+			FoundEvent = MakeShared<FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
+		},
+
+		TTimingEventSearch<TraceServices::FCpuCoreEvent>::NoMatch
+		);
+
+	return FoundEvent;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FCpuCoreTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const
 {
 	InOutTooltip.ResetContent();
