@@ -32,9 +32,6 @@ public:
 	/** Toggles visibility for the Frames Track. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleFramesTrackVisibility;
 
-	/** Toggles visibility for the Graph Track. Global and custom command. */
-	TSharedPtr<FUICommandInfo> ToggleGraphTrackVisibility;
-
 	/** Toggles visibility for the Timing View. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleTimingViewVisibility;
 
@@ -78,7 +75,7 @@ public:
 	/** Toggles visibility for Main Graph track. */
 	TSharedPtr<FUICommandInfo> ShowMainGraphTrack;
 
-	/** Opens the quick find widget */
+	/** Opens the Quick Find widget. */
 	TSharedPtr<FUICommandInfo> QuickFind;
 
 	/** Toggles visibility for GPU thread track. */
@@ -138,7 +135,6 @@ protected:\
 	ECheckBoxState CmdName##_GetCheckState() const; /**< Handles FGetActionCheckState for CmdName. */
 
 	DECLARE_TOGGLE_COMMAND(ToggleFramesTrackVisibility)
-	DECLARE_TOGGLE_COMMAND(ToggleGraphTrackVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleTimingViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleTimersViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleCallersTreeViewVisibility)
