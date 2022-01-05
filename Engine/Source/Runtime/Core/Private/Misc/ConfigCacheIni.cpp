@@ -4174,7 +4174,11 @@ bool FConfigCacheIni::InitializeKnownConfigFiles(const TCHAR* PlatformName, bool
 		}
 	}
 
-	bIsReadyForUse = true;
+	// Gconfig set itself ready for use later on
+	if (this != GConfig)
+	{
+		bIsReadyForUse = true;
+	}
 
 	return bEngineConfigCreated;
 }
@@ -4329,10 +4333,6 @@ void FConfigCacheIni::InitializeConfigSystem()
 	// create GConfig
 	GConfig = new FConfigCacheIni(EConfigCacheType::DiskBacked);
 
-#if WITH_EDITOR
-	AsyncInitializeConfigForPlatforms();
-#endif
-
 	// load the main .ini files (unless we're running a program or a gameless UnrealEditor.exe, DefaultEngine.ini is required).
 	const bool bIsGamelessExe = !FApp::HasProjectName();
 	const bool bDefaultEngineIniRequired = !bIsGamelessExe && (GIsGameAgnosticExe || FApp::IsProjectNameEmpty());
@@ -4386,8 +4386,12 @@ void FConfigCacheIni::InitializeConfigSystem()
 
 	// now we can make use of GConfig
 	GConfig->bIsReadyForUse = true;
-	FCoreDelegates::ConfigReadyForUse.Broadcast();
 
+#if WITH_EDITOR
+	AsyncInitializeConfigForPlatforms();
+#endif
+
+	FCoreDelegates::ConfigReadyForUse.Broadcast();
 }
 
 const FString& FConfigCacheIni::GetCustomConfigString()
@@ -5453,12 +5457,8 @@ static FCriticalSection GConfigForPlatformLock;
 #if WITH_EDITOR
 void FConfigCacheIni::AsyncInitializeConfigForPlatforms()
 {
-	// this function has an internal cache that is created on first call, and if that happens on a thread, crashes can happen,
-	// so the trivial solution is to call it now to enforce the cache is created before any threads read from it
+	// since GConfig just became ready, this will cache something new on first use, and we don't want two threads going at it
 	FPaths::ProjectDir();
-
-	// make sure we call this super early before anyone else would be calling ForPlatform()
-	check(!GConfig->bIsReadyForUse);
 
 	// pre-create all platforms so that the loop below doesn't reallocate anything in the map
 	for (auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
