@@ -77,6 +77,11 @@ public:
 		return Descriptor.bCanContainContent;
 	}
 
+	virtual bool CanContainVerse() const override
+	{
+		return Descriptor.bCanContainVerse;
+	}
+
 	virtual EPluginType GetType() const override
 	{
 		return Type;
@@ -129,6 +134,8 @@ public:
 
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPlugins() override;
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContent() const override;
+	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithVerse() const override;
+	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContentOrVerse() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetDiscoveredPlugins() override;
 	virtual TArray< FPluginStatus > QueryStatusForAllPlugins() const override;
 	virtual bool AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh = true) override;

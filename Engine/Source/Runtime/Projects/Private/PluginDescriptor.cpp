@@ -79,6 +79,7 @@ FPluginDescriptor::FPluginDescriptor()
 	: Version(0)
 	, EnabledByDefault(EPluginEnabledByDefault::Unspecified)
 	, bCanContainContent(false)
+	, bCanContainVerse(false)
 	, bIsBetaVersion(false)
 	, bIsExperimentalVersion(false)
 	, bInstalled(false)
@@ -216,6 +217,7 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText* OutFailReason /*=
 	}
 
 	Object.TryGetBoolField(TEXT("CanContainContent"), bCanContainContent);
+	Object.TryGetBoolField(TEXT("CanContainVerse"), bCanContainVerse);
 	Object.TryGetBoolField(TEXT("IsBetaVersion"), bIsBetaVersion);
 	Object.TryGetBoolField(TEXT("IsExperimentalVersion"), bIsExperimentalVersion);
 	Object.TryGetBoolField(TEXT("Installed"), bInstalled);
@@ -328,6 +330,7 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	}
 
 	JsonObject.SetBoolField(TEXT("CanContainContent"), bCanContainContent);
+	JsonObject.SetBoolField(TEXT("CanContainVerse"), bCanContainVerse);
 	JsonObject.SetBoolField(TEXT("IsBetaVersion"), bIsBetaVersion);
 	JsonObject.SetBoolField(TEXT("IsExperimentalVersion"), bIsExperimentalVersion);
 	JsonObject.SetBoolField(TEXT("Installed"), bInstalled);
