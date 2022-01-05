@@ -27,10 +27,12 @@ FPixelStreamingFrameSource::FPixelStreamingFrameSource()
 		UE_LOG(PixelStreamer, Log, TEXT("Created frame source with scaling factor: %f"), Layer.Value->FrameScale);
 		LayerSources.Add(MoveTemp(Layer.Value));
 	}
+	
 }
 
 FPixelStreamingFrameSource::~FPixelStreamingFrameSource()
 {
+
 }
 
 void FPixelStreamingFrameSource::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
@@ -69,12 +71,14 @@ int FPixelStreamingFrameSource::GetSourceHeight() const
 }
 
 FPixelStreamingLayerFrameSource::FPixelStreamingLayerFrameSource(float InFrameScale)
-	: FrameScale(InFrameScale)
+:FrameScale(InFrameScale)
 {
+
 }
 
 FPixelStreamingLayerFrameSource::~FPixelStreamingLayerFrameSource()
 {
+
 }
 
 void FPixelStreamingLayerFrameSource::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
@@ -95,21 +99,22 @@ void FPixelStreamingLayerFrameSource::OnFrameReady(const FTexture2DRHIRef& Frame
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 		WriteBuffer.Fence->Clear();
 
-		RHICmdList.EnqueueLambda([&](FRHICommandListImmediate& RHICmdList) {
+		RHICmdList.EnqueueLambda([&](FRHICommandListImmediate& RHICmdList){
 			WriteBuffer.PreWaitingOnCopy = FPlatformTime::Cycles64();
 		});
 
 		CopyTexture(FrameBuffer, WriteBuffer.Texture, WriteBuffer.Fence);
 
-		AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [&]() {
-			while (!WriteBuffer.Fence->Poll())
+		AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [&]()
+		{
+			while(!WriteBuffer.Fence->Poll())
 			{
 				// spin
 			}
-
+			
 			{
 				FScopeLock Lock(&CriticalSection);
-
+				
 				TempBuffer.Swap(WriteBuffer.Texture);
 				WriteBuffer.Fence->Clear();
 				WriteBuffer.bAvailable = true;

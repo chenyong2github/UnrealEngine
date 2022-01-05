@@ -225,7 +225,6 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const flo
 		if (const AActor* ObjectAsActor = Cast<AActor>(LogOwner))
 		{
 			CurrentEntry->Location = ObjectAsActor->GetActorLocation();
-			CurrentEntry->bIsLocationValid = true;
 		}
 
 		FOwnerToChildrenRedirectionMap& RedirectionMap = GetRedirectionMap(LogOwner);

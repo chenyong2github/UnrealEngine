@@ -166,8 +166,10 @@ export class Fetch {
             return;
         }
 
-        window.location.assign("/api/v2/dashboard/login?redirect=" + btoa(redirect ?? "/index"));
+        window.location.assign("/api/v1/dashboard/login?redirect=" + encodeURI(redirect));
     }
+
+
 
     private async handleResponse(response: Response, url: string, mode: string, resolve: (value: FetchResponse | PromiseLike<FetchResponse>) => void, reject: (reason?: any) => void, config?: FetchRequestConfig) {
 

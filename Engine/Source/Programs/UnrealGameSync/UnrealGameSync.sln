@@ -30,8 +30,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Perforce", "..\Sh
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EpicGames.Perforce.Native", "..\Shared\EpicGames.Perforce.Native\EpicGames.Perforce.Native.vcxproj", "{49D830C4-4AAC-47AD-834A-9A0836A26D4E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnrealGameSyncShared", "UnrealGameSyncShared\UnrealGameSyncShared.csproj", "{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -161,18 +159,6 @@ Global
 		{49D830C4-4AAC-47AD-834A-9A0836A26D4E}.Release|Any CPU.Build.0 = Release|x64
 		{49D830C4-4AAC-47AD-834A-9A0836A26D4E}.Release|x64.ActiveCfg = Release|x64
 		{49D830C4-4AAC-47AD-834A-9A0836A26D4E}.Release|x64.Build.0 = Release|x64
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Debug|x64.Build.0 = Debug|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Development|Any CPU.ActiveCfg = Debug|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Development|Any CPU.Build.0 = Debug|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Development|x64.ActiveCfg = Debug|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Development|x64.Build.0 = Debug|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Release|x64.ActiveCfg = Release|Any CPU
-		{0E3EF7EB-7F7C-48C2-A507-C979A3C08CCC}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

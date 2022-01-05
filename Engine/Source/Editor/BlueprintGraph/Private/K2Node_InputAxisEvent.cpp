@@ -123,10 +123,7 @@ bool UK2Node_InputAxisEvent::IsCompatibleWithGraph(const UEdGraph* TargetGraph) 
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(TargetGraph);
 	if (Blueprint && Blueprint->SkeletonGeneratedClass)
 	{
-		UEdGraphSchema_K2 const* K2Schema = Cast<UEdGraphSchema_K2>(TargetGraph->GetSchema());
-		bool const bIsConstructionScript = (K2Schema != nullptr) ? UEdGraphSchema_K2::IsConstructionScript(TargetGraph) : false;
-		
-		bIsCompatible = Blueprint && Blueprint->SupportsInputEvents() && !bIsConstructionScript;
+		bIsCompatible = Blueprint->ParentClass->IsChildOf(AActor::StaticClass());
 	}
 
 	return bIsCompatible && Super::IsCompatibleWithGraph(TargetGraph);

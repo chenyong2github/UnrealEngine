@@ -356,21 +356,20 @@ namespace Metasound
 						{
 							UpdateRenameDelegate(*MemberDefaultLiteral);
 
-							UClass* MemberClass = MemberDefaultLiteral->GetClass();
-							check(MemberClass);
-
 							IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-							LiteralCustomization = EditorModule.CreateMemberDefaultLiteralCustomization(*MemberClass, DefaultCategoryBuilder);
+							LiteralCustomization = EditorModule.CreateMemberDefaultLiteralCustomization(*LiteralObject->GetClass(), DefaultCategoryBuilder);
 							if (LiteralCustomization.IsValid())
 							{
 								LiteralCustomization->CustomizeLiteral(*MemberDefaultLiteral, InDetailLayout);
 							}
-							else
+							else if (LiteralObject)
 							{
-								IDetailPropertyRow* Row = DefaultCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ MemberDefaultLiteral }), "Default");
+								IDetailPropertyRow* Row = DefaultCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ LiteralObject }), "Default");
+								UClass* LiteralClass = LiteralObject->GetClass();
+								check(LiteralClass);
 								ensureMsgf(Row, TEXT("Class '%s' missing expected 'Default' member."
 									"Either add/rename default member or register customization to display default value/opt out appropriately."),
-									*MemberClass->GetName());
+									*LiteralClass->GetName());
 							}
 						}
 					}

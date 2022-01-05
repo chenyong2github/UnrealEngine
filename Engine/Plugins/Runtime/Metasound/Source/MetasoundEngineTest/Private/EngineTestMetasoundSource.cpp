@@ -78,16 +78,15 @@ namespace EngineTestMetasoundSourcePrivate
 
 		// Add default source & mono interface members (OnPlay, OnFinished & Mono Out)
 		FModifyRootGraphInterfaces InterfaceTransform(
-		{ },
 		{	
 			SourceInterface::GetVersion(), 
 			SourceOneShotInterface::GetVersion(),
 			OutputFormatMonoInterface::GetVersion() 
-		}); 
+		}, { });
 		InterfaceTransform.Transform(DocumentHandle);
 
 		// Input on Play
-		FNodeHandle OnPlayOutputNode = RootGraph->GetInputNodeWithName(SourceInterface::Inputs::OnPlay);
+		FNodeHandle OnPlayOutputNode = RootGraph->GetOutputNodeWithName(SourceInterface::Inputs::OnPlay);
 		check(OnPlayOutputNode->IsValid());
 
 		// Input Frequency

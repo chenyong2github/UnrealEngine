@@ -25,7 +25,6 @@ struct CONTROLRIGEDITOR_API FRigTreeDisplaySettings
 		bShowRigidBodies = true;
 		bShowReferences = true;
 		bShowDynamicHierarchy = false;
-		bShowIconColors = true;
 	}
 	
 	FText FilterText;
@@ -56,9 +55,6 @@ struct CONTROLRIGEDITOR_API FRigTreeDisplaySettings
 
 	/** Whether or not to show the static or dynamic hierarchy */
 	bool bShowDynamicHierarchy;
-
-	/** Whether to tint the icons with the element color */
-	bool bShowIconColors;
 };
 
 DECLARE_DELEGATE_RetVal(const URigHierarchy*, FOnGetRigTreeHierarchy);
@@ -174,7 +170,7 @@ public:
 	bool bSupportsRename;
 	TArray<TSharedPtr<FRigTreeElement>> Children;
 
-	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedPtr<SRigHierarchyTreeView> InTreeView, const FRigTreeDisplaySettings& InSettings);
+	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedPtr<SRigHierarchyTreeView> InTreeView);
 
 	void RequestRename();
 
@@ -190,7 +186,7 @@ class SRigHierarchyItem : public STableRow<TSharedPtr<FRigTreeElement>>
 {
 public:
 	
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedPtr<SRigHierarchyTreeView> InTreeView, const FRigTreeDisplaySettings& InSettings);
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedPtr<SRigHierarchyTreeView> InTreeView);
  	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
 	static TPair<const FSlateBrush*, FSlateColor> GetBrushForElementType(const URigHierarchy* InHierarchy, const FRigElementKey& InKey);

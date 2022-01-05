@@ -123,7 +123,7 @@ struct HAIRSTRANDSCORE_API FHairInterpolationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InterpolationSettings", meta = (ToolTip = "If checked, override imported guides with generated ones."))
 	bool bOverrideGuides;
 
-	/** Density factor for converting hair into guide curve if no guides are provided. The value should be between 0 and 1, and can be thought as a ratio/percentage of strands used as guides.*/
+	/** Density factor for converting hair into guide curve if no guides are provided. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InterpolationSettings", meta = (ClampMin = "0", ClampMax = "1.0", UIMin = "0", UIMax = "1.0"))
 	float HairToGuideDensity;
 

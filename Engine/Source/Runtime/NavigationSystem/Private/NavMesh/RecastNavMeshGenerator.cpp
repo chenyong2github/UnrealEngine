@@ -13,7 +13,6 @@
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "NavigationSystem.h"
 #include "FramePro/FrameProProfiler.h"
-#include "NavMesh/RecastVersion.h"
 #include "UObject/GarbageCollection.h"
 
 #if WITH_RECAST
@@ -4589,29 +4588,16 @@ FString FRecastTileGenerator::GetReferencerName() const
 	return TEXT("FRecastTileGenerator");
 }
 
-static int32 CalculateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, FVector::FReal TileSizeInWorldUnits, FVector::FReal AvgLayersPerGridCell, const uint32 NavMeshVersion)
+static int32 CaclulateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, FVector::FReal TileSizeinWorldUnits, FVector::FReal AvgLayersPerGridCell)
 {
 	int32 GridCellsCount = 0;
-	for (const FBox& AreaBounds : NavigableAreas)
+	for (FBox AreaBounds : NavigableAreas)
 	{
 		// TODO: need more precise calculation, currently we don't take into account that volumes can be overlapped
-		const FBox RCBox = Unreal2RecastBox(AreaBounds);
-
-		if (NavMeshVersion >= NAVMESHVER_MAXTILES_COUNT_CHANGE)
-		{
-			// Keep this as an integer division to avoid imprecision between platforms and targets (since MaxTilesCount is compared with stored data).
-			const int32 TileSizeUU = (int32)TileSizeInWorldUnits;
-			const int32 XSize = (FMath::CeilToInt(RCBox.GetSize().X) / TileSizeUU) + 1;
-			const int32 YSize = (FMath::CeilToInt(RCBox.GetSize().Z) / TileSizeUU) + 1;
-			GridCellsCount += (XSize*YSize);
-		}
-		else
-		{
-			// Support old navmesh versions
-			int32 XSize = FMath::CeilToInt(RCBox.GetSize().X/TileSizeInWorldUnits) + 1;
-			int32 YSize = FMath::CeilToInt(RCBox.GetSize().Z/TileSizeInWorldUnits) + 1;
-			GridCellsCount+= (XSize*YSize);
-		}
+		FBox RCBox = Unreal2RecastBox(AreaBounds);
+		int32 XSize = FMath::CeilToInt(RCBox.GetSize().X/TileSizeinWorldUnits) + 1;
+		int32 YSize = FMath::CeilToInt(RCBox.GetSize().Z/TileSizeinWorldUnits) + 1;
+		GridCellsCount+= (XSize*YSize);
 	}
 	
 	return FMath::CeilToInt(GridCellsCount * AvgLayersPerGridCell);
@@ -4947,7 +4933,7 @@ void FRecastNavMeshGenerator::CalcNavMeshProperties(int32& MaxTiles, int32& MaxP
 	int32 MaxRequestedTiles = 0;
 	if (DestNavMesh->IsResizable())
 	{
-		MaxRequestedTiles = CalculateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile, DestNavMesh->NavMeshVersion);
+		MaxRequestedTiles = CaclulateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile);
 	}
 	else
 	{
@@ -5098,7 +5084,7 @@ void FRecastNavMeshGenerator::OnNavigationBoundsChanged()
 	if (!IsGameStaticNavMesh(DestNavMesh) && DestNavMesh->IsResizable() && DetourMesh)
 	{
 		// Check whether Navmesh size needs to be changed
-		int32 MaxRequestedTiles = CalculateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile, DestNavMesh->NavMeshVersion);
+		int32 MaxRequestedTiles = CaclulateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile);
 		if (DetourMesh->getMaxTiles() != MaxRequestedTiles)
 		{
 			// Destroy current NavMesh

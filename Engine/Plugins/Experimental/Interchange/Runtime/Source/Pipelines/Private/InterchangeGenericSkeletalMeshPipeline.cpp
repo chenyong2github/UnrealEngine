@@ -102,7 +102,7 @@ namespace UE::Interchange::SkeletalMeshGenericPipeline
 		return true;
 	}
 
-	void RecursiveBuildSkeletalSkeleton(const FString JoinToAddUid, const int32 ParentIndex, const UInterchangeBaseNodeContainer* BaseNodeContainer, TArray<FMeshBoneInfo>& SkeletalLodRawInfos)
+	void RecursiveBuildSkeletalSkeleton(const FString JoinToAddUid, const int32 ParentIndex, const UInterchangeBaseNodeContainer* BaseNodeContainer, TArray<FMeshBoneInfo>& SkeletalLodRawInfos, TArray<FTransform>& SkeletalLodRawTransforms)
 	{
 		const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(JoinToAddUid));
 		if (!SceneNode || !SceneNode->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
@@ -117,11 +117,14 @@ namespace UE::Interchange::SkeletalMeshGenericPipeline
 #if WITH_EDITORONLY_DATA
 		Info.ExportName = Info.Name.ToString();
 #endif
+		FTransform& JoinTransform = SkeletalLodRawTransforms.AddZeroed_GetRef();
+		SceneNode->GetCustomLocalTransform(JoinTransform);
+
 		//Iterate childrens
 		const TArray<FString> ChildrenIds = BaseNodeContainer->GetNodeChildrenUids(JoinToAddUid);
 		for (int32 ChildIndex = 0; ChildIndex < ChildrenIds.Num(); ++ChildIndex)
 		{
-			RecursiveBuildSkeletalSkeleton(ChildrenIds[ChildIndex], JoinIndex, BaseNodeContainer, SkeletalLodRawInfos);
+			RecursiveBuildSkeletalSkeleton(ChildrenIds[ChildIndex], JoinIndex, BaseNodeContainer, SkeletalLodRawInfos, SkeletalLodRawTransforms);
 		}
 	}
 
@@ -135,7 +138,9 @@ namespace UE::Interchange::SkeletalMeshGenericPipeline
 
 		TArray<FMeshBoneInfo> SkeletalLodRawInfos;
 		SkeletalLodRawInfos.Reserve(SkeletonBoneCount);
-		RecursiveBuildSkeletalSkeleton(RootJoinUid, INDEX_NONE, BaseNodeContainer, SkeletalLodRawInfos);
+		TArray<FTransform> SkeletalLodRawTransforms;
+		SkeletalLodRawTransforms.Reserve(SkeletonBoneCount);
+		RecursiveBuildSkeletalSkeleton(RootJoinUid, INDEX_NONE, BaseNodeContainer, SkeletalLodRawInfos, SkeletalLodRawTransforms);
 		const int32 SkeletalLodBoneCount = SkeletalLodRawInfos.Num();
 
 		// first ensure the parent exists for each bone
@@ -437,13 +442,6 @@ UInterchangeSkeletonFactoryNode* UInterchangeGenericAssetsPipeline::CreateSkelet
 			//Log an error
 			return nullptr;
 		}
-		FString ExistingSkeletonRootJointUid;
-		SkeletonFactoryNode->GetCustomRootJointUid(ExistingSkeletonRootJointUid);
-		if (!ensure(ExistingSkeletonRootJointUid.Equals(RootJointUid)))
-		{
-			//Log an error
-			return nullptr;
-		}
 	}
 	else
 	{
@@ -454,7 +452,6 @@ UInterchangeSkeletonFactoryNode* UInterchangeGenericAssetsPipeline::CreateSkelet
 		}
 		SkeletonFactoryNode->InitializeSkeletonNode(SkeletonUid, DisplayLabel, USkeleton::StaticClass()->GetName());
 		SkeletonFactoryNode->SetCustomRootJointUid(RootJointNode->GetUniqueID());
-		SkeletonFactoryNode->SetCustomUseTimeZeroForBindPose(bUseT0AsRefPose);
 		BaseNodeContainer->AddNode(SkeletonFactoryNode);
 	}
 

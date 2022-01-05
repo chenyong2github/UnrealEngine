@@ -6,7 +6,6 @@
 
 namespace Insights
 {
-
 class FEventNameFilterValueConverter : public IFilterValueConverter
 {
 public:
@@ -14,5 +13,4 @@ public:
 	virtual FText GetTooltipText() const override;
 	virtual FText GetHintText() const override;
 };
-
 } // namespace Insights

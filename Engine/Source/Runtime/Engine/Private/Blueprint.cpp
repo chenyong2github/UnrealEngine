@@ -1021,7 +1021,7 @@ bool UBlueprint::AllowsDynamicBinding() const
 
 bool UBlueprint::SupportsInputEvents() const
 {
-	return ParentClass && ParentClass->IsChildOf(UObject::StaticClass());
+	return FBlueprintEditorUtils::IsActorBased(this) || FBlueprintEditorUtils::IsComponentBased(this);
 }
 
 struct FBlueprintInnerHelper

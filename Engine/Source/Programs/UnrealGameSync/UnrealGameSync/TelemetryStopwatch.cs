@@ -10,14 +10,14 @@ namespace UnrealGameSync
 	class TelemetryStopwatch : IDisposable
 	{
 		readonly string EventName;
-		readonly Dictionary<string, object?> EventData;
+		readonly Dictionary<string, object> EventData;
 		readonly Stopwatch Timer;
 
 		public TelemetryStopwatch(string EventName, string Project)
 		{
 			this.EventName = EventName;
 
-			EventData = new Dictionary<string, object?>();
+			EventData = new Dictionary<string, object>();
 			EventData["Project"] = Project;
 
 			Timer = Stopwatch.StartNew();

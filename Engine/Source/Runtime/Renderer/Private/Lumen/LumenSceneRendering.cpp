@@ -267,14 +267,6 @@ LLM_DEFINE_TAG(Lumen, NAME_None, NAME_None, GET_STATFNAME(STAT_LumenLLM), GET_ST
 extern int32 GAllowLumenDiffuseIndirect;
 extern int32 GAllowLumenReflections;
 
-namespace LumenSurfaceCache
-{
-	int32 GetMinCardResolution()
-	{
-		 return FMath::Clamp(GLumenSceneCardMinResolution, 1, 1024);
-	}
-};
-
 namespace LumenLandscape
 {
 	constexpr int32 CardCaptureLOD = 0;
@@ -1141,7 +1133,6 @@ public:
 
 	void AnyThreadTask()
 	{
-		const int32 MinCardResolution = LumenSurfaceCache::GetMinCardResolution();
 		const int32 LastPrimitiveGroupIndex = FMath::Min(FirstPrimitiveGroupIndex + NumPrimitiveGroupsPerPacket, PrimitiveGroups.Num());
 
 		for (int32 PrimitiveGroupIndex = FirstPrimitiveGroupIndex; PrimitiveGroupIndex < LastPrimitiveGroupIndex; ++PrimitiveGroupIndex)
@@ -1163,7 +1154,7 @@ public:
 					MaxCardResolution = MaxCardExtent * GLumenSceneFarFieldTexelDensity;
 				}
 
-				if (DistanceSquared <= CardMaxDistanceSq && MaxCardResolution >= MinCardResolution)
+				if (DistanceSquared <= CardMaxDistanceSq && MaxCardResolution >= 2.0f)
 				{
 					if (PrimitiveGroup.MeshCardsIndex == -1 && PrimitiveGroup.bValidMeshCards)
 					{
@@ -1231,7 +1222,7 @@ public:
 	void AnyThreadTask()
 	{
 		const int32 LastLumenMeshCardsIndex = FMath::Min(FirstMeshCardsIndex + NumMeshCardsPerPacket, LumenMeshCards.Num());
-		const int32 MinCardResolution = LumenSurfaceCache::GetMinCardResolution();
+		const int32 MinCardResolution = FMath::Clamp(GLumenSceneCardMinResolution, 1, 1024);
 
 		for (int32 MeshCardsIndex = FirstMeshCardsIndex; MeshCardsIndex < LastLumenMeshCardsIndex; ++MeshCardsIndex)
 		{
@@ -1328,33 +1319,6 @@ float ComputeMaxCardUpdateDistanceFromCamera()
 	return MaxCardDistanceFromCamera + GLumenSceneCardCaptureMargin;
 }
 
-// Make sure all mesh rendering data is prepared before we render
-bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup)
-{
-	bool bReadyToRender = true;
-
-	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
-	{
-		if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
-		{
-			if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
-			{
-				PrimitiveSceneInfo->UpdateUniformBuffer(FRHICommandListExecutor::GetImmediateCommandList());
-			}
-
-			if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
-			{
-				// Need to defer to next InitViews, as main view visible primitives are processed on parallel tasks and calling 
-				// CacheMeshDrawCommands may resize CachedDrawLists/CachedMeshDrawCommandStateBuckets causing a crash.
-				PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck();
-				bReadyToRender = false;
-			}
-		}
-	}
-
-	return bReadyToRender;
-}
-
 // Process a throttled number of Lumen surface cache add requests
 // It will make virtual and physical allocations, and evict old pages as required
 void ProcessLumenSurfaceCacheRequests(
@@ -1415,8 +1379,7 @@ void ProcessLumenSurfaceCacheRequests(
 					bCanAlloc = false;
 				}
 
-				const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
-				if (bCanAlloc && UpdateStaticMeshes(LumenSceneData.PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
+				if (bCanAlloc)
 				{
 					Card.bVisible = true;
 					Card.DesiredLockedResLevel = Request.ResLevel;
@@ -1447,6 +1410,8 @@ void ProcessLumenSurfaceCacheRequests(
 							FLumenSurfaceCacheAllocator::FAllocation CardCaptureAllocation;
 							CaptureAtlasAllocator.Allocate(PageTableEntry, CardCaptureAllocation);
 							check(CardCaptureAllocation.PhysicalPageCoord.X >= 0);
+
+							const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
 
 							CardPagesToRender.Add(FCardPageRenderData(
 								MainView,
@@ -1513,8 +1478,7 @@ void ProcessLumenSurfaceCacheRequests(
 				bCanAlloc = false;
 			}
 
-			const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
-			if (bCanAlloc && UpdateStaticMeshes(LumenSceneData.PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
+			if (bCanAlloc)
 			{
 				const bool bLockPages = false;
 
@@ -1533,6 +1497,8 @@ void ProcessLumenSurfaceCacheRequests(
 					FLumenSurfaceCacheAllocator::FAllocation CardCaptureAllocation;
 					CaptureAtlasAllocator.Allocate(PageTableEntry, CardCaptureAllocation);
 					check(CardCaptureAllocation.PhysicalPageCoord.X >= 0);
+
+					const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
 
 					CardPagesToRender.Add(FCardPageRenderData(
 						MainView,
@@ -1830,6 +1796,47 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		{
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(MeshPassSetup);
+
+				// Make sure all mesh rendering data is prepared before we render
+				{
+					QUICK_SCOPE_CYCLE_COUNTER(PrepareStaticMeshData);
+
+					// Set of unique primitives requiring static mesh update
+					TSet<FPrimitiveSceneInfo*> PrimitivesToUpdateStaticMeshes;
+
+					for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+					{
+						const FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[CardPageRenderData.PrimitiveGroupIndex];
+
+						for (FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
+						{
+							if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
+							{
+								if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
+								{
+									PrimitiveSceneInfo->UpdateUniformBuffer(GraphBuilder.RHICmdList);
+								}
+
+								if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
+								{
+									PrimitivesToUpdateStaticMeshes.Add(PrimitiveSceneInfo);
+								}
+							}
+						}
+					}
+
+					if (PrimitivesToUpdateStaticMeshes.Num() > 0)
+					{
+						TArray<FPrimitiveSceneInfo*> UpdatedSceneInfos;
+						UpdatedSceneInfos.Reserve(PrimitivesToUpdateStaticMeshes.Num());
+						for (FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitivesToUpdateStaticMeshes)
+						{
+							UpdatedSceneInfos.Add(PrimitiveSceneInfo);
+						}
+
+						FPrimitiveSceneInfo::UpdateStaticMeshes(GraphBuilder.RHICmdList, Scene, UpdatedSceneInfos, EUpdateStaticMeshFlags::RasterCommands, true);
+					}
+				}
 
 				#if (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT) && STATS
 				if (GLumenSceneSurfaceCacheLogUpdates != 0)

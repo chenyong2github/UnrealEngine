@@ -224,16 +224,6 @@ namespace HordeServer.Tasks.Impl
 		// Cache of stream objects. Used to resolve agent types.
 		private Dictionary<StreamId, IStream> Streams = new Dictionary<StreamId, IStream>();
 
-		/// <summary>
-		/// Delegate for job schedule events
-		/// </summary>
-		public delegate void JobScheduleEvent(IPool Pool, bool HasAgentsOnline, IJob Job, IGraph Graph, SubResourceId BatchId);
-		
-		/// <summary>
-		/// Event triggered when a job is scheduled
-		/// </summary>
-		public event JobScheduleEvent? OnJobScheduled;
-
 		// Interval between querying the database for jobs to execute
 		static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(5.0);
 
@@ -359,23 +349,13 @@ namespace HordeServer.Tasks.Impl
 			SortedSet<QueueItem> NewQueue = new SortedSet<QueueItem>(Queue.Comparer);
 			Dictionary<(JobId, SubResourceId), QueueItem> NewBatchIdToQueueItem = new Dictionary<(JobId, SubResourceId), QueueItem>();
 			
-			// Returns true if agents are online and available for scheduling for a pool
-			bool IsPoolOnline(PoolId PoolId)
-			{
-				return OnlinePools.Contains(PoolId);
-			}
-			
-			// Returns true if a pool can be auto-scaled
-			bool IsPoolAutoScaled(PoolId PoolId)
+			bool HasAgentsOnline(PoolId PoolId)
 			{
 				IPool? Pool = Pools.Find(p => p.Id == PoolId);
-				return ValidPools.Contains(PoolId) && Pool != null && Pool.EnableAutoscaling;
-			}
-			
-			bool HasAgentsOnlineOrIsAutoScaled(PoolId PoolId)
-			{
+				bool IsPoolOnline = OnlinePools.Contains(PoolId);
+				bool IsPoolAutoScaled = ValidPools.Contains(PoolId) && Pool != null && Pool.EnableAutoscaling;
 				// If pool is auto-scaled, it will be considered online even if it has no agents online
-				return IsPoolOnline(PoolId) || IsPoolAutoScaled(PoolId);
+				return IsPoolOnline || IsPoolAutoScaled;
 			}
 
 			// Query for a new list of jobs for the queue
@@ -433,7 +413,7 @@ namespace HordeServer.Tasks.Impl
 					{
 						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.NoAgentsInPool);
 					}
-					else if (!HasAgentsOnlineOrIsAutoScaled(AgentType.Pool))
+					else if (!HasAgentsOnline(AgentType.Pool))
 					{
 						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.NoAgentsOnline);
 					}
@@ -447,12 +427,6 @@ namespace HordeServer.Tasks.Impl
 						QueueItem NewQueueItem = new QueueItem(Stream, NewJob, BatchIdx, AgentType.Pool, Workspace, UseAutoSDK);
 						NewQueue.Add(NewQueueItem);
 						NewBatchIdToQueueItem[(NewJob.Id, Batch.Id)] = NewQueueItem;
-						
-						IPool? NewJobPool = Pools.Find(p => p.Id == AgentType.Pool);
-						if (NewJobPool != null)
-						{
-							OnJobScheduled?.Invoke(NewJobPool, IsPoolOnline(AgentType.Pool), NewJob, Graph, Batch.Id);
-						}
 					}
 				}
 

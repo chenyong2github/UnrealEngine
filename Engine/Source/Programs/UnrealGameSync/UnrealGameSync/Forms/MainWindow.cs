@@ -19,7 +19,6 @@ using EpicGames.Perforce;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
-using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealGameSync
 {
@@ -59,11 +58,6 @@ namespace UnrealGameSync
 		{
 			public IssueMonitor IssueMonitor;
 			public int RefCount;
-
-			public WorkspaceIssueMonitor(IssueMonitor IssueMonitor)
-			{
-				this.IssueMonitor = IssueMonitor;
-			}
 		}
 
 		[Flags]
@@ -86,7 +80,7 @@ namespace UnrealGameSync
 		List<IssueMonitor> DefaultIssueMonitors = new List<IssueMonitor>();
 		List<WorkspaceIssueMonitor> WorkspaceIssueMonitors = new List<WorkspaceIssueMonitor>();
 
-		string? ApiUrl;
+		string ApiUrl;
 		DirectoryReference DataFolder;
 		DirectoryReference CacheFolder;
 		IPerforceSettings DefaultPerforceSettings;
@@ -100,15 +94,15 @@ namespace UnrealGameSync
 
 		bool bRestoreStateOnLoad;
 
-		OIDCTokenManager? OIDCTokenManager;
+		OIDCTokenManager OIDCTokenManager;
 
-		System.Threading.Timer? ScheduleTimer;
-		System.Threading.Timer? ScheduleSettledTimer;
+		System.Threading.Timer ScheduleTimer;
+		System.Threading.Timer ScheduleSettledTimer;
 
 		string OriginalExecutableFileName;
 		bool bUnstable;
 
-		IMainWindowTabPanel? CurrentTabPanel;
+		IMainWindowTabPanel CurrentTabPanel;
 
 		AutomationServer AutomationServer;
 
@@ -119,7 +113,9 @@ namespace UnrealGameSync
 
 		public ToolUpdateMonitor ToolUpdateMonitor { get; private set; }
 
-		public MainWindow(UpdateMonitor InUpdateMonitor, string? InApiUrl, DirectoryReference InDataFolder, DirectoryReference InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, List<(UserSelectedProjectSettings, ModalTask<WorkspaceSettings>)> StartupTasks, IPerforceSettings InDefaultPerforceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, string? InUri, OIDCTokenManager? InOidcTokenManager)
+		NetCoreWindow NetCoreWindow;
+
+		public MainWindow(UpdateMonitor InUpdateMonitor, string InApiUrl, DirectoryReference InDataFolder, DirectoryReference InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, List<(UserSelectedProjectSettings, ModalTask<WorkspaceSettings>)> StartupTasks, IPerforceSettings InDefaultPerforceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, string InUri, OIDCTokenManager InOidcTokenManager)
 		{
 			ServiceProvider = InServiceProvider;
 			Logger = ServiceProvider.GetRequiredService<ILogger<MainWindow>>();
@@ -129,7 +125,7 @@ namespace UnrealGameSync
 			InitializeComponent();
 
 			UpdateMonitor = InUpdateMonitor;
-			MainThreadSynchronizationContext = SynchronizationContext.Current!;
+			MainThreadSynchronizationContext = SynchronizationContext.Current;
 			ApiUrl = InApiUrl;
 			DataFolder = InDataFolder;
 			CacheFolder = InCacheFolder;
@@ -224,7 +220,7 @@ namespace UnrealGameSync
 				}
 				else if (Request.Input.Type == AutomationRequestType.SyncProject)
 				{
-					AutomationRequestOutput? Output = StartAutomatedSync(Request, true);
+					AutomationRequestOutput Output = StartAutomatedSync(Request, true);
 					if (Output != null)
 					{
 						Request.SetOutput(Output);
@@ -237,7 +233,7 @@ namespace UnrealGameSync
 				}
 				else if (Request.Input.Type == AutomationRequestType.OpenProject)
 				{
-					AutomationRequestOutput? Output = StartAutomatedSync(Request, false);
+					AutomationRequestOutput Output = StartAutomatedSync(Request, false);
 					if (Output != null)
 					{
 						Request.SetOutput(Output);
@@ -273,13 +269,13 @@ namespace UnrealGameSync
 			string Command = Reader.ReadString();
 			string ProjectPath = Reader.ReadString();
 
-			AutomatedBuildWindow.BuildInfo? BuildInfo;
+			AutomatedBuildWindow.BuildInfo BuildInfo;
 			if (!AutomatedBuildWindow.ShowModal(this, DefaultPerforceSettings, StreamName, ProjectPath, Changelist, Command.ToString(), Settings, ServiceProvider, out BuildInfo))
 			{
 				return new AutomationRequestOutput(AutomationRequestResult.Canceled);
 			}
 
-			WorkspaceControl? Workspace;
+			WorkspaceControl Workspace;
 			if (!OpenWorkspaceForAutomation(BuildInfo.SelectedWorkspaceInfo, StreamName, BuildInfo.ProjectPath, out Workspace))
 			{
 				return new AutomationRequestOutput(AutomationRequestResult.Error);
@@ -308,12 +304,12 @@ namespace UnrealGameSync
 		{
 			if (Result == WorkspaceUpdateResult.Success && Command != null)
 			{
-				string CmdExe = Environment.GetEnvironmentVariable("COMSPEC") ?? "C:\\Windows\\System32\\cmd.exe";
+				string CmdExe = Environment.GetEnvironmentVariable("COMSPEC");
 				Workspace.ExecCommand("Run build command", "Running build command", CmdExe, String.Format("/c {0}", Command), Workspace.BranchDirectoryName.FullName, true);
 			}
 		}
 
-		AutomationRequestOutput? StartAutomatedSync(AutomationRequest Request, bool bForceSync)
+		AutomationRequestOutput StartAutomatedSync(AutomationRequest Request, bool bForceSync)
 		{
 			ShowAndActivate();
 
@@ -321,13 +317,13 @@ namespace UnrealGameSync
 			string StreamName = Reader.ReadString();
 			string ProjectPath = Reader.ReadString();
 
-			AutomatedSyncWindow.WorkspaceInfo? WorkspaceInfo;
+			AutomatedSyncWindow.WorkspaceInfo WorkspaceInfo;
 			if(!AutomatedSyncWindow.ShowModal(this, DefaultPerforceSettings, StreamName, ProjectPath, out WorkspaceInfo, ServiceProvider))
 			{
 				return new AutomationRequestOutput(AutomationRequestResult.Canceled);
 			}
 
-			WorkspaceControl? Workspace;
+			WorkspaceControl Workspace;
 			if(!OpenWorkspaceForAutomation(WorkspaceInfo, StreamName, ProjectPath, out Workspace))
 			{
 				return new AutomationRequestOutput(AutomationRequestResult.Error);
@@ -342,14 +338,14 @@ namespace UnrealGameSync
 			return null;
 		}
 
-		private bool OpenWorkspaceForAutomation(AutomatedSyncWindow.WorkspaceInfo WorkspaceInfo, string StreamName, string ProjectPath, [NotNullWhen(true)] out WorkspaceControl? OutWorkspace)
+		private bool OpenWorkspaceForAutomation(AutomatedSyncWindow.WorkspaceInfo WorkspaceInfo, string StreamName, string ProjectPath, out WorkspaceControl OutWorkspace)
 		{
 			if (WorkspaceInfo.bRequiresStreamSwitch)
 			{
 				// Close any tab containing this window
 				for (int ExistingTabIdx = 0; ExistingTabIdx < TabControl.GetTabCount(); ExistingTabIdx++)
 				{
-					WorkspaceControl? ExistingWorkspace = TabControl.GetTabData(ExistingTabIdx) as WorkspaceControl;
+					WorkspaceControl ExistingWorkspace = TabControl.GetTabData(ExistingTabIdx) as WorkspaceControl;
 					if (ExistingWorkspace != null && ExistingWorkspace.ClientName.Equals(WorkspaceInfo.WorkspaceName))
 					{
 						TabControl.RemoveTab(ExistingTabIdx);
@@ -360,16 +356,16 @@ namespace UnrealGameSync
 				// Switch the stream
 				Func<IPerforceConnection, CancellationToken, Task> SwitchTask = async (Connection, CancellationToken) =>
 				{
-					await Connection.SwitchClientToStreamAsync(Connection.Settings.ClientName!, StreamName, SwitchClientOptions.None, CancellationToken);
+					await Connection.SwitchClientToStreamAsync(Connection.Settings.ClientName, StreamName, SwitchClientOptions.None, CancellationToken);
 				};
 
 				PerforceSettings Settings = new PerforceSettings(WorkspaceInfo.ServerAndPort, WorkspaceInfo.UserName);
 				Settings.ClientName = WorkspaceInfo.WorkspaceName;
 
-				ModalTask? Result = PerforceModalTask.Execute(Owner, "Please wait", "Switching streams, please wait...", Settings, SwitchTask, Logger, ModalTaskFlags.Quiet);
+				ModalTask Result = PerforceModalTask.Execute(Owner, "Please wait", "Switching streams, please wait...", Settings, SwitchTask, Logger, ModalTaskFlags.Quiet);
 				if (Result == null || !Result.Succeeded)
 				{
-					Logger.LogError("Unable to switch stream ({Message})", Result?.Error ?? "Operation cancelled");
+					Logger.LogError("Unable to switch stream ({Message})", Result.Error);
 					OutWorkspace = null;
 					return false;
 				}
@@ -385,7 +381,7 @@ namespace UnrealGameSync
 				return false;
 			}
 
-			WorkspaceControl? Workspace = TabControl.GetTabData(TabIdx) as WorkspaceControl;
+			WorkspaceControl Workspace = TabControl.GetTabData(TabIdx) as WorkspaceControl;
 			if (Workspace == null)
 			{
 				Logger.LogError("Workspace was unable to open");
@@ -434,10 +430,10 @@ namespace UnrealGameSync
 
 			for(int ExistingTabIdx = 0; ExistingTabIdx < TabControl.GetTabCount(); ExistingTabIdx++)
 			{
-				WorkspaceControl? ExistingWorkspace = TabControl.GetTabData(ExistingTabIdx) as WorkspaceControl;
+				WorkspaceControl ExistingWorkspace = TabControl.GetTabData(ExistingTabIdx) as WorkspaceControl;
 				if(ExistingWorkspace != null && String.Compare(ExistingWorkspace.StreamName, StreamName, StringComparison.OrdinalIgnoreCase) == 0 && ExistingWorkspace.SelectedProject != null)
 				{
-					string? ClientPath = ExistingWorkspace.SelectedProject.ClientPath;
+					string ClientPath = ExistingWorkspace.SelectedProject.ClientPath;
 					if(ClientPath != null && ClientPath.StartsWith("//"))
 					{
 						int SlashIdx = ClientPath.IndexOf('/', 2);
@@ -463,7 +459,7 @@ namespace UnrealGameSync
 
 			for (int ExistingTabIdx = 0; ExistingTabIdx < TabControl.GetTabCount(); ExistingTabIdx++)
 			{
-				WorkspaceControl? ExistingWorkspace = TabControl.GetTabData(ExistingTabIdx) as WorkspaceControl;
+				WorkspaceControl ExistingWorkspace = TabControl.GetTabData(ExistingTabIdx) as WorkspaceControl;
 				if (ExistingWorkspace != null)
 				{
 					IssueMonitor IssueMonitor = ExistingWorkspace.GetIssueMonitor();
@@ -473,7 +469,7 @@ namespace UnrealGameSync
 						try
 						{
 							Func<CancellationToken, Task<IssueData>> Func = x => RESTApi.GetAsync<IssueData>($"{IssueMonitor.ApiUrl}/api/issues/{IssueId}", x);
-							ModalTask<IssueData>? IssueTask = ModalTask.Execute(this, "Finding Issue", "Querying issue data, please wait...", Func);
+							ModalTask<IssueData> IssueTask = ModalTask.Execute(this, "Finding Issue", "Querying issue data, please wait...", Func);
 							if (IssueTask == null)
 							{
 								Logger.LogInformation("Operation cancelled");
@@ -516,7 +512,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		void TabControl_OnTabClicked(object? TabData, Point Location, MouseButtons Buttons)
+		void TabControl_OnTabClicked(object TabData, Point Location, MouseButtons Buttons)
 		{
 			if(Buttons == System.Windows.Forms.MouseButtons.Right)
 			{
@@ -609,13 +605,13 @@ namespace UnrealGameSync
 			if(AutomationServer != null)
 			{
 				AutomationServer.Dispose();
-				AutomationServer = null!;
+				AutomationServer = null;
 			}
 
 			if (ToolUpdateMonitor != null)
 			{
 				ToolUpdateMonitor.Dispose();
-				ToolUpdateMonitor = null!;
+				ToolUpdateMonitor = null;
 			}
 
 			base.Dispose(disposing);
@@ -647,7 +643,7 @@ namespace UnrealGameSync
 				{
 					for (int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)
 					{
-						IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(Idx)!;
+						IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(Idx);
 						if (!TabPanel.CanClose())
 						{
 							EventArgs.Cancel = true;
@@ -660,7 +656,7 @@ namespace UnrealGameSync
 			}
 
 			Settings.bWindowVisible = Visible;
-			Settings.WindowState = WindowState.ToString();
+			Settings.WindowState = WindowState;
 			if(WindowState == FormWindowState.Normal)
 			{
 				Settings.WindowBounds = new Rectangle(Location, Size);
@@ -794,7 +790,7 @@ namespace UnrealGameSync
 
 			for (int TabIdx = 0; TabIdx < TabControl.GetTabCount(); TabIdx++)
 			{
-				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(TabIdx)!;
+				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(TabIdx);
 				if(TabPanel.IsBusy())
 				{
 					return false;
@@ -958,11 +954,11 @@ namespace UnrealGameSync
 			Logger.LogInformation("Schedule: Starting Sync");
 			for(int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)
 			{
-				WorkspaceControl? Workspace = TabControl.GetTabData(Idx) as WorkspaceControl;
+				WorkspaceControl Workspace = TabControl.GetTabData(Idx) as WorkspaceControl;
 				if(Workspace != null)
 				{
 					Logger.LogInformation("Schedule: Considering {File}", Workspace.SelectedFileName);
-					if(Settings.ScheduleAnyOpenProject || Settings.ScheduleProjects.Any(x => x.LocalPath != null && x.LocalPath.Equals(Workspace.SelectedProject.LocalPath, StringComparison.OrdinalIgnoreCase)))
+					if(Settings.ScheduleAnyOpenProject || Settings.ScheduleProjects.Any(x => x.LocalPath.Equals(Workspace.SelectedProject.LocalPath, StringComparison.OrdinalIgnoreCase)))
 					{
 						Logger.LogInformation("Schedule: Starting Sync");
 						Workspace.ScheduleTimerElapsed();
@@ -971,7 +967,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		void TabControl_OnTabChanged(object? NewTabData)
+		void TabControl_OnTabChanged(object NewTabData)
 		{
 			if(IsHandleCreated)
 			{
@@ -1035,7 +1031,7 @@ namespace UnrealGameSync
 
 		public void OpenNewProject()
 		{
-			WorkspaceSettings? WorkspaceSettings = OpenProjectWindow.ShowModal(this, null, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
+			WorkspaceSettings WorkspaceSettings = OpenProjectWindow.ShowModal(this, null, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
 			if(WorkspaceSettings != null)
 			{
 				int NewTabIdx = TryOpenProject(WorkspaceSettings, -1, OpenProjectOptions.None);
@@ -1050,7 +1046,7 @@ namespace UnrealGameSync
 
 		void UpdateRecentProjectsList(UserSelectedProjectSettings DetectedProjectSettings)
 		{
-			Settings.RecentProjects.RemoveAll(x => x.LocalPath != null && x.LocalPath.Equals(DetectedProjectSettings.LocalPath, StringComparison.OrdinalIgnoreCase));
+			Settings.RecentProjects.RemoveAll(x => x.LocalPath.Equals(DetectedProjectSettings.LocalPath, StringComparison.OrdinalIgnoreCase));
 			Settings.RecentProjects.Insert(0, DetectedProjectSettings);
 
 			const int MaxRecentProjects = 10;
@@ -1097,7 +1093,7 @@ namespace UnrealGameSync
 
 		public void EditSelectedProject(int TabIdx, UserSelectedProjectSettings SelectedProject)
 		{
-			WorkspaceSettings? WorkspaceSettings = OpenProjectWindow.ShowModal(this, SelectedProject, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
+			WorkspaceSettings WorkspaceSettings = OpenProjectWindow.ShowModal(this, SelectedProject, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
 			if(WorkspaceSettings != null)
 			{
 				int NewTabIdx = TryOpenProject(WorkspaceSettings, TabIdx, OpenProjectOptions.None);
@@ -1120,10 +1116,10 @@ namespace UnrealGameSync
 				TaskFlags |= ModalTaskFlags.Quiet;
 			}
 
-			ModalTask<WorkspaceSettings>? SettingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", DefaultPerforceSettings, (p, c) => WorkspaceSettings.CreateAsync(p, Project, ProjectLogger, c), ProjectLogger, TaskFlags);
-			if (SettingsTask == null || SettingsTask.Failed)
+			ModalTask<WorkspaceSettings> SettingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", DefaultPerforceSettings, (p, c) => WorkspaceSettings.CreateAsync(p, Project, ProjectLogger, c), ProjectLogger, TaskFlags);
+			if(SettingsTask == null || !SettingsTask.Succeeded)
 			{
-				if(SettingsTask != null) CreateErrorPanel(ReplaceTabIdx, Project, SettingsTask.Error);
+				CreateErrorPanel(ReplaceTabIdx, Project, SettingsTask.Error);
 				return -1;
 			}
 
@@ -1139,7 +1135,7 @@ namespace UnrealGameSync
 			{
 				if(ReplaceTabIdx != TabIdx)
 				{
-					WorkspaceControl? Workspace = TabControl.GetTabData(TabIdx) as WorkspaceControl;
+					WorkspaceControl Workspace = TabControl.GetTabData(TabIdx) as WorkspaceControl;
 					if(Workspace != null)
 					{
 						if(Workspace.SelectedFileName == WorkspaceSettings.ProjectInfo.LocalFileName)
@@ -1174,7 +1170,7 @@ namespace UnrealGameSync
 			// Remove the current tab. We need to ensure the workspace has been shut down before creating a new one with the same log files, etc...
 			if(ReplaceTabIdx != -1)
 			{
-				WorkspaceControl? OldWorkspace = TabControl.GetTabData(ReplaceTabIdx) as WorkspaceControl;
+				WorkspaceControl OldWorkspace = TabControl.GetTabData(ReplaceTabIdx) as WorkspaceControl;
 				if(OldWorkspace != null)
 				{
 					OldWorkspace.Hide();
@@ -1240,7 +1236,7 @@ namespace UnrealGameSync
 			Settings.OpenProjects.Clear();
 			for(int TabIdx = 0; TabIdx < TabControl.GetTabCount(); TabIdx++)
 			{
-				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(TabIdx)!;
+				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(TabIdx);
 				Settings.OpenProjects.Add(TabPanel.SelectedProject);
 			}
 			Settings.Save();
@@ -1294,7 +1290,7 @@ namespace UnrealGameSync
 
 				for(int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)
 				{
-					WorkspaceControl? Workspace = TabControl.GetTabData(Idx) as WorkspaceControl;
+					WorkspaceControl Workspace = TabControl.GetTabData(Idx) as WorkspaceControl;
 					if(Workspace != null)
 					{
 						TabControl.SetTabName(Idx, GetTabName(Workspace));
@@ -1358,7 +1354,7 @@ namespace UnrealGameSync
 
 			for(int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)
 			{
-				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(Idx)!;
+				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(Idx);
 
 				Tuple<TaskbarState, float> DesiredTaskbarState = TabPanel.DesiredTaskbarState;
 				if(DesiredTaskbarState.Item1 == TaskbarState.Error)
@@ -1401,7 +1397,7 @@ namespace UnrealGameSync
 		{
 			for (int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)
 			{
-				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(Idx)!;
+				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(Idx);
 				TabControl.SetTint(Idx, TabPanel.TintColor);
 			}
 		}
@@ -1416,7 +1412,7 @@ namespace UnrealGameSync
 
 			for (int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)
 			{
-				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(Idx)!;
+				IMainWindowTabPanel TabPanel = (IMainWindowTabPanel)TabControl.GetTabData(Idx);
 				TabPanel.UpdateSettings();
 			}
 		}
@@ -1439,12 +1435,7 @@ namespace UnrealGameSync
 					}
 				}
 			}
-
-			FormWindowState NewWindowState;
-			if (Enum.TryParse(Settings.WindowState, true, out NewWindowState))
-			{
-				WindowState = NewWindowState;
-			}
+			WindowState = Settings.WindowState;
 		}
 
 		bool ShowNotificationForIssue(IssueData Issue)
@@ -1597,7 +1588,7 @@ namespace UnrealGameSync
 		{
 			for(int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)
 			{
-				WorkspaceControl? Workspace = TabControl.GetTabData(Idx) as WorkspaceControl;
+				WorkspaceControl Workspace = TabControl.GetTabData(Idx) as WorkspaceControl;
 				if(Workspace != null && Workspace.GetIssueMonitor() == Alert.IssueMonitor)
 				{
 					Workspace.ShowIssueDetails(Alert.Issue);
@@ -1649,7 +1640,7 @@ namespace UnrealGameSync
 			SetAlertWindowPositions();
 		}
 
-		public IssueMonitor CreateIssueMonitor(string? ApiUrl, string UserName)
+		public IssueMonitor CreateIssueMonitor(string ApiUrl, string UserName)
 		{
 			WorkspaceIssueMonitor WorkspaceIssueMonitor = WorkspaceIssueMonitors.FirstOrDefault(x => String.Compare(x.IssueMonitor.ApiUrl, ApiUrl, StringComparison.OrdinalIgnoreCase) == 0 && String.Compare(x.IssueMonitor.UserName, UserName, StringComparison.OrdinalIgnoreCase) == 0);
 			if (WorkspaceIssueMonitor == null)
@@ -1659,10 +1650,10 @@ namespace UnrealGameSync
 
 				FileReference LogFileName = FileReference.Combine(DataFolder, String.Format("IssueMonitor-{0}-{1}.log", ServerId, UserName));
 
-				IssueMonitor IssueMonitor = new IssueMonitor(ApiUrl, UserName, TimeSpan.FromSeconds(60.0), ServiceProvider);
-				IssueMonitor.OnIssuesChanged += IssueMonitor_OnUpdateAsync;
+				WorkspaceIssueMonitor = new WorkspaceIssueMonitor();
+				WorkspaceIssueMonitor.IssueMonitor = new IssueMonitor(ApiUrl, UserName, TimeSpan.FromSeconds(60.0), ServiceProvider);
+				WorkspaceIssueMonitor.IssueMonitor.OnIssuesChanged += IssueMonitor_OnUpdateAsync;
 
-				WorkspaceIssueMonitor = new WorkspaceIssueMonitor(IssueMonitor);
 				WorkspaceIssueMonitors.Add(WorkspaceIssueMonitor);
 			}
 
@@ -1698,6 +1689,19 @@ namespace UnrealGameSync
 					IssueMonitor.Release();
 
 					WorkspaceIssueMonitors.RemoveAt(Index);
+				}
+			}
+		}
+
+		private void NetCoreTimer_Tick(object sender, EventArgs e)
+		{
+			if (NetCoreWindow == null || !NetCoreWindow.Created)
+			{
+				if (!EventMonitor.HasNetCore3() && Settings.bShowNetCoreInfo)
+				{
+					NetCoreWindow = new NetCoreWindow(Settings);
+					NetCoreWindow.Location = new Point(Location.X + (Width - NetCoreWindow.Width) / 2, Location.Y + (Height - NetCoreWindow.Height) / 2);
+					NetCoreWindow.Show(this);
 				}
 			}
 		}

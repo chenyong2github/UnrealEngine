@@ -16,7 +16,6 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Security;
-using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealGameSync
 {
@@ -40,16 +39,16 @@ namespace UnrealGameSync
 		{
 			public uint Flags;
 			public uint Type;
-			public string? TargetName;
-			public string? Comment;
+			public string TargetName;
+			public string Comment;
 			public FILETIME LastWritten;
 			public int CredentialBlobSize;
 			public IntPtr CredentialBlob;
 			public uint Persist;
 			public uint AttributeCount;
 			public IntPtr Attributes;
-			public string? TargetAlias;
-			public string? UserName;
+			public string TargetAlias;
+			public string UserName;
 		}
 
 		[DllImport("Advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -61,7 +60,7 @@ namespace UnrealGameSync
 		[DllImport("advapi32.dll", SetLastError = true)]
 		static extern bool CredFree(IntPtr Buffer);
 
-		public static bool ReadCredential(string Name, uint Type, [NotNullWhen(true)] out string? UserName, [NotNullWhen(true)] out string? Password)
+		public static bool ReadCredential(string Name, uint Type, out string UserName, out string Password)
 		{
 			IntPtr Buffer = IntPtr.Zero;
 			try
@@ -73,16 +72,16 @@ namespace UnrealGameSync
 					return false;
 				}
 
-				CREDENTIAL? Credential = Marshal.PtrToStructure<CREDENTIAL>(Buffer);
-				if (Credential == null || Credential.UserName == null || Credential.CredentialBlob == IntPtr.Zero)
-				{
-					UserName = null;
-					Password = null;
-					return false;
-				}
-
+				CREDENTIAL Credential = Marshal.PtrToStructure<CREDENTIAL>(Buffer);
 				UserName = Credential.UserName;
-				Password = Marshal.PtrToStringUni(Credential.CredentialBlob, Credential.CredentialBlobSize / sizeof(char));
+				if (Credential.CredentialBlob == IntPtr.Zero)
+				{
+					Password = null;
+				}
+				else
+				{
+					Password = Marshal.PtrToStringUni(Credential.CredentialBlob, Credential.CredentialBlobSize / sizeof(char));
+				}
 				return true;
 			}
 			finally
@@ -122,7 +121,7 @@ namespace UnrealGameSync
 			// Copy the credentials from a generic Windows credential to 
 			if (!ReadCredential(Host, CRED_TYPE_DOMAIN_PASSWORD, out _, out _))
 			{
-				if (ReadCredential("UnrealGameSync:RDP", CRED_TYPE_GENERIC, out string? UserName, out string? Password))
+				if (ReadCredential("UnrealGameSync:RDP", CRED_TYPE_GENERIC, out string UserName, out string Password))
 				{
 					WriteCredential(Host, CRED_TYPE_DOMAIN_PASSWORD, UserName, Password);
 				}

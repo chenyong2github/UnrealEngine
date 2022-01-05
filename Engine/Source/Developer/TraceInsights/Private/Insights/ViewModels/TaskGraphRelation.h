@@ -4,12 +4,11 @@
 
 #include "CoreMinimal.h"
 
+#include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/ViewModels/ITimingEvent.h"
 
 namespace Insights
 {
-
-enum class ETaskEventType : uint32;
 
 class FTaskGraphRelation : public ITimingEventRelation
 {

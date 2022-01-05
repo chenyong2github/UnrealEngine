@@ -11,6 +11,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	public class ConfigObject
@@ -253,7 +255,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		public void AddOverrides(ConfigObject Object, ConfigObject? DefaultObject)
+		public void AddOverrides(ConfigObject Object, ConfigObject DefaultObject)
 		{
 			foreach(KeyValuePair<string, string> Pair in Object.Pairs)
 			{

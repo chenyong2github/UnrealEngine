@@ -109,11 +109,11 @@ struct UNREALED_API FMode2DLayer
 		, Depth(InDepth)
 	{ }
 
-	/** A descriptive name for this snap layer. */
+	/** Whether snapping to surfaces in the world is enabled */
 	UPROPERTY(EditAnywhere, config, Category = Layer)
 	FString Name;
 
-	/** The position of this snap layer's plane along the Snap Axis. */
+	/** The amount of depth to apply when snapping to surfaces */
 	UPROPERTY(EditAnywhere, config, Category = Layer)
 	float Depth;
 };
@@ -135,19 +135,19 @@ class UNREALED_API ULevelEditor2DSettings : public UDeveloperSettings
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** If enabled, shows the 2D combined translate and rotate tool in the viewport toolbar. */
+	/** If enabled will allow 2D mode */
 	UPROPERTY(EditAnywhere, config, Category=General, meta=(DisplayName="Enable 2D combined translate + rotate widget"))
 	bool bEnable2DWidget;
 
-	/** If enabled, shows the 2D layer snapping controls in the viewport toolbar. */
+	/** If enabled will allow 2D mode */
 	UPROPERTY(EditAnywhere, config, Category=LayerSnapping)
 	bool bEnableSnapLayers;
 
-	/** Sets the world space axis for 2D snap layers. */
+	/** Snap axis */
 	UPROPERTY(EditAnywhere, config, Category=LayerSnapping, meta=(EditCondition=bEnableSnapLayers))
 	ELevelEditor2DAxis SnapAxis;
 
-	/** Snap layers that are displayed in the viewport toolbar. */
+	/** Snap layers that are displayed in the viewport toolbar */
 	UPROPERTY(EditAnywhere, config, Category=LayerSnapping, meta=(EditCondition=bEnableSnapLayers))
 	TArray<FMode2DLayer> SnapLayers;
 

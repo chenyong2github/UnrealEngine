@@ -24,14 +24,13 @@
 // FTimingEventsTrackDrawStateBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimingEventsTrackDrawStateBuilder::FTimingEventsTrackDrawStateBuilder(FTimingEventsTrackDrawState& InState, const FTimingTrackViewport& InViewport, float InFontScale)
+FTimingEventsTrackDrawStateBuilder::FTimingEventsTrackDrawStateBuilder(FTimingEventsTrackDrawState& InState, const FTimingTrackViewport& InViewport)
 	: DrawState(InState)
 	, Viewport(InViewport)
 	, MaxDepth(-1)
 	, LastEventX2()
 	, LastBox()
 	, EventFont(FAppStyle::Get().GetFontStyle("SmallFont"))
-	, FontScale(InFontScale)
 {
 	DrawState.Reset();
 }
@@ -214,8 +213,7 @@ void FTimingEventsTrackDrawStateBuilder::AddEvent(double EventStartTime, double 
 		const FString Name = GetEventNameCallback(EventW);
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const int32 HorizontalOffset = FMath::RoundToInt((EventW - 2.0f) * FontScale);
-		const int32 LastWholeCharacterIndex = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(Name, EventFont, HorizontalOffset, FontScale);
+		const int32 LastWholeCharacterIndex = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(Name, EventFont, FMath::RoundToInt(EventW - 2.0f));
 
 		if (LastWholeCharacterIndex >= 0)
 		{
@@ -705,8 +703,7 @@ void FTimingViewDrawHelper::DrawTrackHeader(const FBaseTimingTrack& Track, const
 		if (TrackH > 4.0f)
 		{
 			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			const float FontScale = DrawContext.Geometry.Scale;
-			float TextWidth = FontMeasureService->Measure(Track.GetName(), EventFont, FontScale).X / FontScale;
+			float TextWidth = FontMeasureService->Measure(Track.GetName(), EventFont).X;
 
 			constexpr float PinWidth = 8.0f;
 			if (Track.IsSelected())

@@ -7,14 +7,15 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView()
-	: FWorldPartitionActorDescView(nullptr)
+	: ActorDesc(nullptr)
+	, bIsForcedNonSpatiallyLoaded(false)
+	, bInvalidDataLayers(false)
 {}
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc)
 	: ActorDesc(InActorDesc)
 	, bIsForcedNonSpatiallyLoaded(false)
 	, bInvalidDataLayers(false)
-	, bInvalidRuntimeGrid(false)
 {}
 
 const FGuid& FWorldPartitionActorDescView::GetGuid() const

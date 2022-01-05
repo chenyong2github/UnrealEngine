@@ -308,10 +308,8 @@ void UMirrorDataTable::FillCompactPoseMirrorBones(const FBoneContainer& BoneCont
 	}
 }
 
-void UMirrorDataTable::FillMirrorBoneIndexes(const USkeleton* InSkeleton, TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex>& OutMirrorBoneIndexes) const
+void UMirrorDataTable::FillMirrorBoneIndexes(const FReferenceSkeleton& ReferenceSkeleton, TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex>& OutMirrorBoneIndexes) const
 {
-	const FReferenceSkeleton& ReferenceSkeleton = InSkeleton->GetReferenceSkeleton();
-
 	// Reset the mirror table to defaults (no mirroring)
 	OutMirrorBoneIndexes.SetNumUninitialized(ReferenceSkeleton.GetNum());
 	FMemory::Memset(OutMirrorBoneIndexes.GetData(), INDEX_NONE, OutMirrorBoneIndexes.Num() * OutMirrorBoneIndexes.GetTypeSize());
@@ -364,7 +362,7 @@ void UMirrorDataTable::FillMirrorArrays()
 		return; 
 	}
 
-	FillMirrorBoneIndexes(Skeleton, BoneToMirrorBoneIndex);
+	FillMirrorBoneIndexes(Skeleton->GetReferenceSkeleton(), BoneToMirrorBoneIndex);
 
 	TMap<FName, FName> CurveToMirrorCurveMap;
 	

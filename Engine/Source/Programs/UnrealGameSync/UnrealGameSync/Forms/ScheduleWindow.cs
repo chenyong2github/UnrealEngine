@@ -62,7 +62,7 @@ namespace UnrealGameSync
 			OutAnyOpenProject = false;
 
 			List<UserSelectedProjectSettings> ScheduledProjects = new List<UserSelectedProjectSettings>();
-			foreach(int Index in ProjectListBox.CheckedIndices.OfType<int>())
+			foreach(int Index in ProjectListBox.CheckedIndices)
 			{
 				if(Index == 0)
 				{

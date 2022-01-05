@@ -55,7 +55,7 @@ namespace UE
 				FTransform	LocalTransform; // local transform
 			};
 
-			void RecursiveAddBones(const UInterchangeBaseNodeContainer* NodeContainer, const FString& JointNodeId, TArray <FJointInfo>& JointInfos, int32 ParentIndex, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary, const bool bUseTimeZeroAsBindPose, bool & bOutDiffPose)
+			void RecursiveAddBones(const UInterchangeBaseNodeContainer* NodeContainer, const FString& JointNodeId, TArray <FJointInfo>& JointInfos, int32 ParentIndex, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary)
 			{
 				const UInterchangeSceneNode* JointNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(JointNodeId));
 				if (!JointNode)
@@ -67,33 +67,7 @@ namespace UE
 				int32 JointInfoIndex = JointInfos.Num();
 				FJointInfo& Info = JointInfos.AddZeroed_GetRef();
 				Info.Name = JointNode->GetDisplayLabel();
-
-				FTransform LocalTransform;
-				ensure(JointNode->GetCustomLocalTransform(LocalTransform));
-
-				FTransform TimeZeroLocalTransform;
-				const bool bHasTimeZeroTransform = JointNode->GetCustomTimeZeroLocalTransform(TimeZeroLocalTransform);
-				FTransform BindPoseLocalTransform;
-				const bool bHasBindPoseTransform = JointNode->GetCustomBindPoseLocalTransform(BindPoseLocalTransform);
-
-				Info.LocalTransform = bHasBindPoseTransform ? BindPoseLocalTransform : LocalTransform;
-				//If user want to bind the mesh at time zero try to get the time zero transform
-				if (bUseTimeZeroAsBindPose && bHasTimeZeroTransform)
-				{
-					if (bHasBindPoseTransform)
-					{
-						if(!TimeZeroLocalTransform.Equals(Info.LocalTransform))
-						{
-							bOutDiffPose = true;
-						}
-					}
-					Info.LocalTransform = TimeZeroLocalTransform;
-				}
-				else if (bHasBindPoseTransform)
-				{
-					Info.LocalTransform = BindPoseLocalTransform;
-				}
-
+				ensure(JointNode->GetCustomLocalTransform(Info.LocalTransform));
 				Info.ParentIndex = ParentIndex;
 
 				SkeletalMeshImportData::FBone& Bone = RefBonesBinary.AddZeroed_GetRef();
@@ -110,11 +84,11 @@ namespace UE
 				Bone.NumChildren = ChildrenIds.Num();
 				for (int32 ChildIndex = 0; ChildIndex < ChildrenIds.Num(); ++ChildIndex)
 				{
-					RecursiveAddBones(NodeContainer, ChildrenIds[ChildIndex], JointInfos, JointInfoIndex, RefBonesBinary, bUseTimeZeroAsBindPose, bOutDiffPose);
+					RecursiveAddBones(NodeContainer, ChildrenIds[ChildIndex], JointInfos, JointInfoIndex, RefBonesBinary);
 				}
 			}
 
-			bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, const UInterchangeBaseNodeContainer* NodeContainer, const FString& RootJointNodeId, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary, const bool bUseTimeZeroAsBindPose, bool& bOutDiffPose)
+			bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, const UInterchangeBaseNodeContainer* NodeContainer, const FString& RootJointNodeId, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary)
 			{
 				auto FixupBoneName = [](FString BoneName)
 				{
@@ -129,12 +103,7 @@ namespace UE
 
 				FReferenceSkeletonModifier RefSkelModifier(RefSkeleton, SkeletonAsset);
 				TArray <FJointInfo> JointInfos;
-				RecursiveAddBones(NodeContainer, RootJointNodeId, JointInfos, INDEX_NONE, RefBonesBinary, bUseTimeZeroAsBindPose, bOutDiffPose);
-				if (bOutDiffPose)
-				{
-					//bOutDiffPose can only be true if the user ask to bind with time zero transform.
-					ensure(bUseTimeZeroAsBindPose);
-				}
+				RecursiveAddBones(NodeContainer, RootJointNodeId, JointInfos, INDEX_NONE, RefBonesBinary);
 				// Digest bones to the serializable format.
 				for (int32 b = 0; b < JointInfos.Num(); b++)
 				{
@@ -266,7 +235,7 @@ namespace UE
 					const int32 VertexOffset = BlendShapePayloadData->VertexOffset;
 					const int32 SourceMeshVertexCount = SourceMeshDescription.Vertices().Num();
 					const int32 DestinationVertexIndexMax = VertexOffset + SourceMeshVertexCount;
-					if (!DestinationSkeletalMeshImportData.Points.IsValidIndex(DestinationVertexIndexMax-1))
+					if (!DestinationSkeletalMeshImportData.Points.IsValidIndex(DestinationVertexIndexMax))
 					{
 						UE_LOG(LogInterchangeImport, Error, TEXT("Corrupted blend shape optional payload data [%s]"), *BlendShapeName);
 						continue;
@@ -322,7 +291,7 @@ namespace UE
 						const int32 VertexOffset = BlendShapePayloadData->VertexOffset;
 						const int32 SourceMeshVertexCount = SourceMeshDescription.Vertices().Num();
 						const int32 DestinationVertexIndexMax = VertexOffset + SourceMeshVertexCount;
-						if (!ensure(DestinationSkeletalMeshImportData.Points.IsValidIndex(DestinationVertexIndexMax-1)))
+						if (!ensure(DestinationSkeletalMeshImportData.Points.IsValidIndex(DestinationVertexIndexMax)))
 						{
 							//This error was suppose to be catch in the pre parallel for loop
 							break;
@@ -364,156 +333,12 @@ namespace UE
 				return;
 			}
 
-			const UInterchangeSceneNode* RecursiveFindJointByName(const UInterchangeBaseNodeContainer* NodeContainer, const FString& ParentJointNodeId, const FString& JointName)
-			{
-				if (const UInterchangeSceneNode* JointNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(ParentJointNodeId)))
-				{
-					if (JointNode->GetDisplayLabel().Equals(JointName))
-					{
-						return JointNode;
-					}
-				}
-				TArray<FString> NodeChildrenUids = NodeContainer->GetNodeChildrenUids(ParentJointNodeId);
-				for (int32 ChildIndex = 0; ChildIndex < NodeChildrenUids.Num(); ++ChildIndex)
-				{
-					if (const UInterchangeSceneNode* JointNode = RecursiveFindJointByName(NodeContainer, NodeChildrenUids[ChildIndex], JointName))
-					{
-						return JointNode;
-					}
-				}
-
-				return nullptr;
-			}
-
-			void SkinVertexPositionToTimeZero(UE::Interchange::FSkeletalMeshLodPayloadData& LodMeshPayload
-				, const UInterchangeBaseNodeContainer* NodeContainer
-				, const FString& RootJointNodeId
-				, const FTransform& MeshGlobalTransform)
-			{
-				FMeshDescription& MeshDescription = LodMeshPayload.LodMeshDescription;
-				const int32 VertexCount = MeshDescription.Vertices().Num();
-				const TArray<FString>& JointNames = LodMeshPayload.JointNames;
-				// Create a copy of the vertex array to receive vertex deformations.
-				TArray<FVector> DestinationVertexPositions;
-				DestinationVertexPositions.AddZeroed(VertexCount);
-
-				FSkeletalMeshAttributes Attributes(MeshDescription);
-				TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
-				FSkinWeightsVertexAttributesRef VertexSkinWeights = Attributes.GetVertexSkinWeights();
-
-				for (FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
-				{
-					//We can use GetValue because the Meshdescription was compacted before the copy
-					DestinationVertexPositions[VertexID.GetValue()] = VertexPositions[VertexID];
-				}
-
-				// Deform the vertex array with the links contained in the mesh.
-				TArray<FMatrix> SkinDeformations;
-				SkinDeformations.AddZeroed(VertexCount);
-
-				TArray<double> SkinWeights;
-				SkinWeights.AddZeroed(VertexCount);
-
-				//We assume normalize weight method in this bind pose conversion
-
-				const FTransform MeshGlobalTransformInverse = MeshGlobalTransform.Inverse();
-				const int32 JointCount = JointNames.Num();
-				for (int32 JointIndex = 0; JointIndex < JointCount; ++JointIndex)
-				{
-					const FString& JointName = JointNames[JointIndex];
-
-					const UInterchangeSceneNode* JointNode = RecursiveFindJointByName(NodeContainer, RootJointNodeId, JointName);
-					if (!ensure(JointNode))
-					{
-						continue;
-					}
-					
-					FTransform JointBindPoseGlobalTransform;
-					if (!JointNode->GetCustomBindPoseGlobalTransform(JointBindPoseGlobalTransform))
-					{
-						//If there is no bind pose we will fall back on the CustomGlobalTransform of the link.
-						//We ensure here because any scenenode should have a valid CustomGlobalTransform.
-						if (!ensure(JointNode->GetCustomGlobalTransform(JointBindPoseGlobalTransform)))
-						{
-							//No value to convert from, skip this joint.
-							continue;
-						}
-					}
-
-					FTransform JointTimeZeroGlobalTransform;
-					if (!JointNode->GetCustomTimeZeroGlobalTransform(JointTimeZeroGlobalTransform))
-					{
-						//If there is no time zero global transform we cannot set the bind pose to time zero.
-						//We must skip this joint.
-						continue;
-					}
-
-					//Get the mesh transform in local relative to the bind pose transform
- 					const FTransform MeshTransformRelativeToBindPoseTransform = MeshGlobalTransform * JointBindPoseGlobalTransform.Inverse();
-					//Get the time zero pose transform in local relative to the mesh transform
- 					const FTransform TimeZeroTransformRelativeToMeshTransform = JointTimeZeroGlobalTransform * MeshGlobalTransformInverse;
-					//Multiply both transform to get a matrix that will transform the mesh vertices from the bind pose skinning to the time zero skinning
- 					const FMatrix VertexTransformMatrix = (MeshTransformRelativeToBindPoseTransform * TimeZeroTransformRelativeToMeshTransform).ToMatrixWithScale();
-
-					//Iterate all bone vertices
-					for (FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
-					{
-						const int32 VertexIndex = VertexID.GetValue();
-						const FVertexBoneWeights BoneWeights = VertexSkinWeights.Get(VertexID);
-						const int32 InfluenceCount = BoneWeights.Num();
-						float Weight = 0.0f;
-						for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
-						{
-							FBoneIndexType BoneIndex = BoneWeights[InfluenceIndex].GetBoneIndex();
-							if (JointIndex == BoneIndex)
-							{
-								Weight = BoneWeights[InfluenceIndex].GetWeight();
-								break;
-							}
-						}
-						if (FMath::IsNearlyZero(Weight))
-						{
-							continue;
-						}
-
-						//The weight multiply the vertex transform matrix so we can have multiple joint affecting this vertex.
-						const FMatrix Influence = VertexTransformMatrix * Weight;
-						//Add the weighted result
-						SkinDeformations[VertexIndex] += Influence;
-						//Add the total weight so we can normalize the result in case the accumulated weight is different then 1
-						SkinWeights[VertexIndex] += Weight;
-					}
-				}
-
-				for (FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
-				{
-					const int32 VertexIndex = VertexID.GetValue();
-					const FVector3f lSrcVertex = DestinationVertexPositions[VertexIndex];
-					FVector& lDstVertex = DestinationVertexPositions[VertexIndex];
-					double Weight = SkinWeights[VertexIndex];
-
-					// Deform the vertex if there was at least a link with an influence on the vertex,
-					if (!FMath::IsNearlyZero(Weight))
-					{
-						//Apply skinning of all joints
-						lDstVertex = SkinDeformations[VertexIndex].TransformPosition(lSrcVertex);
-						//Normalized, in case the weight is different then 1
-						lDstVertex /= Weight;
-						//Set the new vertex position in the mesh description
-						VertexPositions[VertexID] = lDstVertex;
-					}
-				}
-			}
-
 			void RetrieveAllSkeletalMeshPayloadsAndFillImportData(const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode
 																  , FSkeletalMeshImportData& DestinationImportData
 																  , TArray<FMeshNodeContext>& MeshReferences
 																  , TArray<SkeletalMeshImportData::FBone>& RefBonesBinary
 																  , const UInterchangeSkeletalMeshFactory::FCreateAssetParams& Arguments
-																  , const IInterchangeSkeletalMeshPayloadInterface* SkeletalMeshTranslatorPayloadInterface
-																  , const bool bSkinControlPointToTimeZero
-																  , const UInterchangeBaseNodeContainer* NodeContainer
-																  , const FString& RootJointNodeId)
+																  , const IInterchangeSkeletalMeshPayloadInterface* SkeletalMeshTranslatorPayloadInterface)
 			{
 				if (!SkeletalMeshTranslatorPayloadInterface)
 				{
@@ -561,20 +386,6 @@ namespace UE
 					SkeletalMeshAppendSettings.SourceVertexIDOffset = VertexOffset;
 					FElementIDRemappings ElementIDRemappings;
 					LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
-
-					if (bSkinControlPointToTimeZero)
-					{
-						//We need to rebind the mesh at time 0. Skeleton joint have the time zero transform, so we need to apply the skinning to the mesh
-						//With the skeleton transform at time zero
-						FTransform MeshGlobalTransform;
-						MeshGlobalTransform.SetIdentity();
-						if (MeshNodeContext.SceneGlobalTransform.IsSet())
-						{
-							MeshGlobalTransform = MeshNodeContext.SceneGlobalTransform.GetValue();
-						}
-						SkinVertexPositionToTimeZero(LodMeshPayload.GetValue(), NodeContainer, RootJointNodeId, MeshGlobalTransform);
-					}
-
 					const int32 RefBoneCount = RefBonesBinary.Num();
 					//Remap the influence vertex index to point on the correct index
 					if (LodMeshPayload->JointNames.Num() > 0)
@@ -597,6 +408,7 @@ namespace UE
 							}
 						}
 					}
+
 					//Bake the payload, with the provide transform
 					if (MeshNodeContext.SceneGlobalTransform.IsSet())
 					{
@@ -999,64 +811,6 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					continue;
 				}
 
-				FString SkeletonNodeUid;
-				if (!LodDataNode->GetCustomSkeletonUid(SkeletonNodeUid))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-					continue;
-				}
-				const UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.NodeContainer->GetNode(SkeletonNodeUid));
-				if (!SkeletonNode)
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-					continue;
-				}
-
-				FSoftObjectPath SpecifiedSkeleton;
-				SkeletalMeshFactoryNode->GetCustomSkeletonSoftObjectPath(SpecifiedSkeleton);
-				bool bSpecifiedSkeleton = SpecifiedSkeleton.IsValid();
-				if (SkeletonReference == nullptr)
-				{
-					UObject* SkeletonObject = nullptr;
-
-					if (SpecifiedSkeleton.IsValid())
-					{
-						SkeletonObject = SpecifiedSkeleton.TryLoad();
-					}
-					else if (SkeletonNode->ReferenceObject.IsValid())
-					{
-						SkeletonObject = SkeletonNode->ReferenceObject.TryLoad();
-					}
-
-					if (SkeletonObject)
-					{
-						SkeletonReference = Cast<USkeleton>(SkeletonObject);
-
-					}
-					if (!ensure(SkeletonReference))
-					{
-						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-						break;
-					}
-				}
-
-				FString RootJointNodeId;
-				if (!SkeletonNode->GetCustomRootJointUid(RootJointNodeId))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD Root Joint when importing SkeletalMesh asset %s"), *Arguments.AssetName);
-					continue;
-				}
-
-				int32 SkeletonDepth = 0;
-				TArray<SkeletalMeshImportData::FBone> RefBonesBinary;
-				bool bUseTimeZeroAsBindPose = false;
-				SkeletonNode->GetCustomUseTimeZeroForBindPose(bUseTimeZeroAsBindPose);
-				bool bDiffPose = false;
-				UE::Interchange::Private::ProcessImportMeshSkeleton(SkeletonReference, SkeletalMesh->GetRefSkeleton(), SkeletonDepth, Arguments.NodeContainer, RootJointNodeId, RefBonesBinary, bUseTimeZeroAsBindPose, bDiffPose);
-				if (bSpecifiedSkeleton && !SkeletonReference->IsCompatibleMesh(SkeletalMesh))
-				{
-					UE_LOG(LogInterchangeImport, Warning, TEXT("The skeleton %s is incompatible with the imported skeletalmesh asset %s"), *SkeletonReference->GetName(), *Arguments.AssetName);
-				}
 				
 				TArray<UE::Interchange::Private::FMeshNodeContext> MeshReferences;
 				//Scope to query the mesh node
@@ -1080,18 +834,12 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 							FString MeshDependencyUid;
 							MeshReference.SceneNode->GetCustomAssetInstanceUid(MeshDependencyUid);
 							MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
-							//Cache the scene node global matrix, we will use this matrix to bake the vertices, add the node geometric mesh offset to this matrix to bake it properly
+							//Cache the scene node global matrix, we will use this matrix to bake the vertices
 							FTransform SceneNodeGlobalTransform;
-							if (!bUseTimeZeroAsBindPose || !MeshReference.SceneNode->GetCustomTimeZeroGlobalTransform(SceneNodeGlobalTransform))
+							if (MeshReference.SceneNode->GetCustomGlobalTransform(SceneNodeGlobalTransform))
 							{
-								ensure(MeshReference.SceneNode->GetCustomGlobalTransform(SceneNodeGlobalTransform));
+								MeshReference.SceneGlobalTransform = SceneNodeGlobalTransform;
 							}
-							FTransform SceneNodeGeometricTransform;
-							if(MeshReference.SceneNode->GetCustomGeometricTransform(SceneNodeGeometricTransform))
-							{
-								SceneNodeGlobalTransform *= SceneNodeGeometricTransform;
-							}
-							MeshReference.SceneGlobalTransform = SceneNodeGlobalTransform;
 						}
 						if (!ensure(MeshReference.MeshNode != nullptr))
 						{
@@ -1112,19 +860,71 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					}
 				}
 
+				FString SkeletonNodeUid;
+				if (!LodDataNode->GetCustomSkeletonUid(SkeletonNodeUid))
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+					continue;
+				}
+				const UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.NodeContainer->GetNode(SkeletonNodeUid));
+				if (!SkeletonNode)
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+					continue;
+				}
+				
+				FSoftObjectPath SpecifiedSkeleton;
+				SkeletalMeshFactoryNode->GetCustomSkeletonSoftObjectPath(SpecifiedSkeleton);
+				bool bSpecifiedSkeleton = SpecifiedSkeleton.IsValid();
+				if(SkeletonReference == nullptr)
+				{
+					UObject* SkeletonObject = nullptr;
+					
+					if (SpecifiedSkeleton.IsValid())
+					{
+						SkeletonObject = SpecifiedSkeleton.TryLoad();
+					}
+					else if (SkeletonNode->ReferenceObject.IsValid())
+					{
+						SkeletonObject = SkeletonNode->ReferenceObject.TryLoad();
+					}
+
+					if (SkeletonObject)
+					{
+						SkeletonReference = Cast<USkeleton>(SkeletonObject);
+						
+					}
+					if (!ensure(SkeletonReference))
+					{
+						UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+						break;
+					}
+				}
+
+				FString RootJointNodeId;
+				if (!SkeletonNode->GetCustomRootJointUid(RootJointNodeId))
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD Root Joint when importing SkeletalMesh asset %s"), *Arguments.AssetName);
+					continue;
+				}
+				
+				int32 SkeletonDepth = 0;
+				TArray<SkeletalMeshImportData::FBone> RefBonesBinary;
+				UE::Interchange::Private::ProcessImportMeshSkeleton(SkeletonReference, SkeletalMesh->GetRefSkeleton(), SkeletonDepth, Arguments.NodeContainer, RootJointNodeId, RefBonesBinary);
+				if (bSpecifiedSkeleton && !SkeletonReference->IsCompatibleMesh(SkeletalMesh))
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("The skeleton %s is incompatible with the imported skeletalmesh asset %s"), *SkeletonReference->GetName() , *Arguments.AssetName);
+				}
 				//Add the lod mesh data to the skeletalmesh
 				FSkeletalMeshImportData SkeletalMeshImportData;
-				const bool bSkinControlPointToTimeZero = bUseTimeZeroAsBindPose && bDiffPose;
+				
 				//Get all meshes and blend shapes payload and fill the SkeletalMeshImportData structure
 				UE::Interchange::Private::RetrieveAllSkeletalMeshPayloadsAndFillImportData(SkeletalMeshFactoryNode
 																						   , SkeletalMeshImportData
 																						   , MeshReferences
 																						   , RefBonesBinary
 																						   , Arguments
-																						   , SkeletalMeshTranslatorPayloadInterface
-																						   , bSkinControlPointToTimeZero
-																						   , Arguments.NodeContainer
-																						   , RootJointNodeId);
+																						   , SkeletalMeshTranslatorPayloadInterface);
 				//////////////////////////////////////////////////////////////////////////
 				//Manage vertex color, we want to use the translated source data
 				//Replace -> do nothing
@@ -1239,10 +1039,6 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					SkeletalMesh->SetPhysicsAsset(PhysicsAsset);
 				}
 			}
-		}
-		else //Re-Import
-		{
-			//We want to swap the source data and set properly any skeleton change
 		}
 		
 		//Getting the file Hash will cache it into the source data

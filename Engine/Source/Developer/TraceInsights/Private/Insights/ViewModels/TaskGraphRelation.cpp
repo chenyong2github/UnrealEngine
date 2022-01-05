@@ -2,20 +2,13 @@
 
 #include "TaskGraphRelation.h"
 
-// Insights
-#include "Insights/Common/PaintUtils.h"
-#include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
+#include "Insights/Common/PaintUtils.h"
 
 namespace Insights
 {
-
 INSIGHTS_IMPLEMENT_RTTI(FTaskGraphRelation)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTaskGraphRelation::FTaskGraphRelation(double InSourceTime, int32 InSourceThreadId, double InTargetTime, int32 InTargetThreadId, ETaskEventType InType)
 {
@@ -25,8 +18,6 @@ FTaskGraphRelation::FTaskGraphRelation(double InSourceTime, int32 InSourceThread
 	TargetThreadId = InTargetThreadId;
 	Type = InType;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FTaskGraphRelation::Draw(const FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const ITimingViewDrawHelper& Helper, const ITimingEventRelation::EDrawFilter Filter)
 {
@@ -157,7 +148,5 @@ void FTaskGraphRelation::Draw(const FDrawContext& DrawContext, const FTimingTrac
 	DrawContext.DrawLines(OutlineLayerId, 0.0f, 0.0f, LinePoints, ESlateDrawEffect::None, OutlineColor, /*bAntialias=*/ true, OutlineThickness);
 	DrawContext.DrawLines(LayerId, 0.0f, 0.0f, LinePoints, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, LineThickness);
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace Insights

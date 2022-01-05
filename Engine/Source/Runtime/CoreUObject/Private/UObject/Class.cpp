@@ -5174,11 +5174,14 @@ void* UClass::CreateSparseClassData()
 	{
 		// initialize per class data from the archetype if we have one
 		const void* SparseArchetypeData = GetArchetypeForSparseClassData();
-		UScriptStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
+		UStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
 
-		if (SparseArchetypeData && SparseClassDataStruct->IsChildOf(SparseClassDataArchetypeStruct))
+		if (SparseArchetypeData)
 		{
-			SparseClassDataArchetypeStruct->CopyScriptStruct(SparseClassData, SparseArchetypeData);
+			for (FProperty* P = SparseClassDataArchetypeStruct->PropertyLink; P; P = P->PropertyLinkNext)
+			{
+				P->CopyCompleteValue_InContainer(SparseClassData, SparseArchetypeData);
+			}
 		}
 	}
 

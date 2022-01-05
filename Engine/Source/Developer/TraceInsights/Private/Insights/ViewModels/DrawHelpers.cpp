@@ -326,8 +326,7 @@ void FDrawHelpers::DrawSelection(
 	if (!Text.IsEmpty())
 	{
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const float FontScale = DrawContext.Geometry.Scale;
-		const float TextWidth = FontMeasureService->Measure(Text, Font, FontScale).X / FontScale;
+		const float TextWidth = FontMeasureService->Measure(Text, Font).X;
 
 		const float CenterX = (SelectionX1 + SelectionX2) / 2.0f;
 

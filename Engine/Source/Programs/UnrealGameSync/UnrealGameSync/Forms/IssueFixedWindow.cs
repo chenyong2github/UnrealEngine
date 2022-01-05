@@ -260,7 +260,7 @@ namespace UnrealGameSync
 		private void ChangesContextMenu_MoreInfo_Click(object sender, EventArgs e)
 		{
 			DescribeRecord Record = (DescribeRecord)ChangesListContextMenu.Tag;
-			Program.SpawnP4VC(String.Format("{0} change {1}", PerforceSettings.GetArgumentsForExternalProgram(true), Record.Number));
+			Utility.SpawnP4VC(String.Format("{0} change {1}", PerforceSettings.GetArgumentsForExternalProgram(true), Record.Number));
 		}
 
 		private void ChangeNumberTextBox_Enter(object sender, EventArgs e)

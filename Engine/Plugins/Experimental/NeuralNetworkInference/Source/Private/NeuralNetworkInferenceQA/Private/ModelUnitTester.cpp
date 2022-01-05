@@ -59,7 +59,7 @@ FNNIUnitTesterTimeData FModelUnitTester_GetTimeInformation(UNeuralNetwork* InOut
 		}
 	}
 	// Return NetworkTimeData
-	return FNNIUnitTesterTimeData(InOutNetwork->GetRunStatistics(), InOutNetwork->GetInputMemoryTransferStats(), OutCopyingStats.GetStats());
+	return FNNIUnitTesterTimeData(InOutNetwork->GetInferenceStats(), InOutNetwork->GetInputMemoryTransferStats(), OutCopyingStats.GetStats());
 }
 
 
@@ -232,9 +232,7 @@ bool FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 		bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::CPU, UNeuralNetwork::ENeuralBackEnd::UEAndORT,
 			InCPURepetitionsForUEAndORTBackEnd[ModelIndex]);
 		UNeuralNetwork* Network = NetworkUassetLoadTest(UAssetModelFilePath);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (Network->GetBackEndForCurrentPlatform() != UNeuralNetwork::ENeuralBackEnd::UEAndORT)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			UE_LOG(LogNeuralNetworkInferenceQA, Warning, TEXT("-------------------- Default UAsset BackEnd should be UEAndORT."));
 			return false;
@@ -351,18 +349,14 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 	const ENeuralDeviceType OriginalOutputDeviceType = InOutNetwork->GetOutputDeviceType();
 	const ENeuralSynchronousMode OriginalSynchronousMode = InOutNetwork->GetSynchronousMode();
 	const ENeuralThreadMode OriginalThreadModeDelegateForAsyncRunCompleted = InOutNetwork->GetThreadModeDelegateForAsyncRunCompleted();
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const UNeuralNetwork::ENeuralBackEnd OriginalBackEnd = InOutNetwork->GetBackEnd();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	// Set (a)synchronous Mode
 	InOutNetwork->SetSynchronousMode(InSynchronousMode);
 	InOutNetwork->SetThreadModeDelegateForAsyncRunCompleted(ENeuralThreadMode::AnyThread);
 
 	// Set back end
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!InOutNetwork->SetBackEnd(InBackEnd))
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		UE_LOG(LogNeuralNetworkInferenceQA, Warning, TEXT("Backend %s is disabled."), *GetBackEndString(InBackEnd));
 		return false;
@@ -465,9 +459,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		/*OutputDeviceType*/OriginalOutputDeviceType);
 	InOutNetwork->SetSynchronousMode(OriginalSynchronousMode);
 	InOutNetwork->SetThreadModeDelegateForAsyncRunCompleted(OriginalThreadModeDelegateForAsyncRunCompleted);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	InOutNetwork->SetBackEnd(OriginalBackEnd);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Test successful
 	return bDidGlobalTestPassed;
 }
@@ -540,13 +532,9 @@ bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const ENeural
 	}
 	// Save original network state
 	const ENeuralDeviceType OriginalDeviceType = InOutNetwork->GetDeviceType();
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const UNeuralNetwork::ENeuralBackEnd OriginalBackEnd = InOutNetwork->GetBackEnd();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Set desired back end
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!InOutNetwork->SetBackEnd(InBackEnd))
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		UE_LOG(LogNeuralNetworkInferenceQA, Warning, TEXT("Backend %s is disabled."), *GetBackEndString(InBackEnd));
 		return false;
@@ -575,9 +563,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Reset to original network state
 	InOutNetwork->SetDeviceType(OriginalDeviceType);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	InOutNetwork->SetBackEnd(OriginalBackEnd);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Test successful
 	return true;
 }

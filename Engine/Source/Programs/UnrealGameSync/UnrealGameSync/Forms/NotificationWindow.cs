@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -27,16 +27,16 @@ namespace UnrealGameSync
 
 		// Logo
 		Rectangle LogoBounds;
-		Bitmap? LogoBitmap;
+		Bitmap LogoBitmap;
 
 		// Caption
 		Rectangle CaptionBounds;
-		string CaptionText = "Caption Text";
-		Font? CaptionFont;
+		string CaptionText;
+		Font CaptionFont;
 
 		// Message
 		Rectangle MessageBounds;
-		string MessageText = "Mesage Text";
+		string MessageText;
 
 		// Close button
 		Rectangle CloseButtonBounds;
@@ -44,8 +44,8 @@ namespace UnrealGameSync
 		bool bMouseDownOverClose;
 
 		// Notifications
-		public Action? OnMoreInformation;
-		public Action? OnDismiss;
+		public Action OnMoreInformation;
+		public Action OnDismiss;
 
 		public NotificationWindow(Image InLogo)
 		{

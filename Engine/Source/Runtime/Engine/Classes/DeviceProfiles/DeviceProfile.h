@@ -164,7 +164,6 @@ private:
 public:
 	const TMap<FString, FString>& GetAllExpandedCVars();
 	void AddExpandedCVars(const TMap<FString, FString>& CVarsToMerge);
-	void ClearAllExpandedCVars();
 private:
 	/** Resolved CVars, including expanded scalability cvars used to properly emulate one platform on another */
 	TMap<FString, FString> AllExpandedCVars;

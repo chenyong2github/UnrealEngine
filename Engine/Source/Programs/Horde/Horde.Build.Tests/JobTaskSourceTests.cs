@@ -17,10 +17,6 @@ namespace HordeServerTests
 	[TestClass]
 	public class JobTaskSourceTests : TestSetup
 	{
-		private bool EventReceived;
-		private IPool? EventPool;
-		private bool? EventPoolHasAgentsOnline;
-		
 		[TestMethod]
 		public async Task UpdateJobQueueNormal()
 		{
@@ -31,9 +27,6 @@ namespace HordeServerTests
 			Assert.AreEqual(1, JobTaskSource.GetQueueForTesting().Count);
 			Assert.AreEqual(Fixture.Job1.Id, JobTaskSource.GetQueueForTesting().Min!.Id.Item1);
 			Assert.AreEqual(JobStepBatchState.Ready, JobTaskSource.GetQueueForTesting().Min!.Batch.State);
-			
-			Assert.IsTrue(EventReceived);
-			Assert.IsTrue(EventPoolHasAgentsOnline!.Value);
 		}
 		
 		[TestMethod]
@@ -47,8 +40,6 @@ namespace HordeServerTests
 
 			IJob Job = (await JobService.GetJobAsync(Fixture.Job1.Id))!;
 			Assert.AreEqual(JobStepBatchError.NoAgentsInPool, Job.Batches[0].Error);
-			
-			Assert.IsFalse(EventReceived);
 		}
 		
 		[TestMethod]
@@ -62,8 +53,6 @@ namespace HordeServerTests
 
 			IJob Job = (await JobService.GetJobAsync(Fixture.Job1.Id))!;
 			Assert.AreEqual(JobStepBatchError.NoAgentsOnline, Job.Batches[0].Error);
-			
-			Assert.IsFalse(EventReceived);
 		}
 		
 		[TestMethod]
@@ -77,9 +66,6 @@ namespace HordeServerTests
 
 			Assert.AreEqual(Fixture.Job1.Id, JobTaskSource.GetQueueForTesting().Min!.Id.Item1);
 			Assert.AreEqual(JobStepBatchState.Ready, JobTaskSource.GetQueueForTesting().Min!.Batch.State);
-
-			Assert.IsTrue(EventReceived);
-			Assert.IsFalse(EventPoolHasAgentsOnline!.Value);
 		}
 
 		private async Task<Fixture> SetupPoolWithAgentAsync(bool IsPoolAutoScaled, bool ShouldCreateAgent, bool IsAgentEnabled)
@@ -92,13 +78,6 @@ namespace HordeServerTests
 				IAgent? Agent = await AgentService.CreateAgentAsync("TestAgent", IsAgentEnabled, null, new List<StringId<IPool>> { Pool.Id });
 				await AgentService.CreateSessionAsync(Agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
 			}
-			
-			JobTaskSource.OnJobScheduled += (Pool, PoolHasAgentsOnline, Job, Graph, BatchId) =>
-			{
-				EventReceived = true;
-				EventPool = Pool;
-				EventPoolHasAgentsOnline = PoolHasAgentsOnline;
-			};
 
 			return Fixture;
 		}

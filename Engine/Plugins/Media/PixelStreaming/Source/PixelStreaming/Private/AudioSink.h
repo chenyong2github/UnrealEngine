@@ -81,10 +81,8 @@ class FAudioSink : public webrtc::AudioTrackSinkInterface
 public:
 	using FDelegate = TUniqueFunction<void(const FAudioSampleRef&)>;
 
-	explicit FAudioSink(FDelegate&& InDelegate)
-		: Delegate(MoveTemp(InDelegate))
-	{
-	}
+	explicit FAudioSink(FDelegate&& InDelegate): Delegate(MoveTemp(InDelegate))
+	{}
 
 private:
 	void OnData(const void* AudioData, int32 BitsPerSample, int32 SampleRate, SIZE_T NumberOfChannels, SIZE_T NumberOfFrames) override

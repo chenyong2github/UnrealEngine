@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
-	public enum BuildStepType
+	enum BuildStepType
 	{
 		Compile,
 		Cook,
@@ -17,30 +17,30 @@ namespace UnrealGameSync
 	}
 
 	[DebuggerDisplay("{Description}")]
-	public class BuildStep
+	class BuildStep
 	{
 		public const string UniqueIdKey = "UniqueId";
 
 		public Guid UniqueId;
 		public int OrderIndex;
-		public string? Description;
-		public string? StatusText;
+		public string Description;
+		public string StatusText;
 		public int EstimatedDuration;
 		public BuildStepType Type;
-		public string? Target;
-		public string? Platform;
-		public string? Configuration;
-		public string? FileName;
-		public string? WorkingDir;
-		public string? Arguments;
+		public string Target;
+		public string Platform;
+		public string Configuration;
+		public string FileName;
+		public string WorkingDir;
+		public string Arguments;
 		public bool bUseLogWindow;
 		public bool bNormalSync;
 		public bool bScheduledSync;
-		public string? StatusPanelLink;
-		public Guid[] Requires = Array.Empty<Guid>();
+		public string StatusPanelLink;
+		public Guid[] Requires;
 		public Guid ToolId;
 
-		public BuildStep(Guid InUniqueId, int InOrderIndex, string? InDescription, string? InStatusText, int InEstimatedDuration, string? InFileName, string? InArguments, string? InWorkingDir, bool bInUseLogWindow)
+		public BuildStep(Guid InUniqueId, int InOrderIndex, string InDescription, string InStatusText, int InEstimatedDuration, string InFileName, string InArguments, string InWorkingDir, bool bInUseLogWindow)
 		{
 			UniqueId = InUniqueId;
 			OrderIndex = InOrderIndex;
@@ -54,7 +54,7 @@ namespace UnrealGameSync
 			bUseLogWindow = bInUseLogWindow;
 		}
 
-		public BuildStep(Guid InUniqueId, int InOrderIndex, string? InDescription, string? InStatusText, int InEstimatedDuration, string? InTarget, string? InPlatform, string? InConfiguration, string? InArguments, bool bInSyncDefault)
+		public BuildStep(Guid InUniqueId, int InOrderIndex, string InDescription, string InStatusText, int InEstimatedDuration, string InTarget, string InPlatform, string InConfiguration, string InArguments, bool bInSyncDefault)
 		{
 			UniqueId = InUniqueId;
 			OrderIndex = InOrderIndex;
@@ -163,7 +163,7 @@ namespace UnrealGameSync
 				Guid UniqueId;
 				if(Guid.TryParse(ModifyObject.GetValue(UniqueIdKey, ""), out UniqueId))
 				{
-					ConfigObject? DefaultObject;
+					ConfigObject DefaultObject;
 					if(BuildStepObjects.TryGetValue(UniqueId, out DefaultObject))
 					{
 						ModifyObject.SetDefaults(DefaultObject);
@@ -213,7 +213,7 @@ namespace UnrealGameSync
 			return Result;
 		}
 
-		public ConfigObject? ToConfigObject(ConfigObject? DefaultObject)
+		public ConfigObject ToConfigObject(ConfigObject DefaultObject)
 		{
 			ConfigObject Result = new ConfigObject();
 			Result[UniqueIdKey] = UniqueId.ToString();

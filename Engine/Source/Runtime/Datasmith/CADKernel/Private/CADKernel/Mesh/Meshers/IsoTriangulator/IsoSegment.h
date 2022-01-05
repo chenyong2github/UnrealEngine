@@ -120,14 +120,6 @@ public:
 
 	void Clean()
 	{
-		if (FirstNode)
-		{
-			FirstNode->DisconnectSegment(*this);
-		}
-		if (SecondNode)
-		{
-			SecondNode->DisconnectSegment(*this);
-		}
 		FirstNode = nullptr;
 		SecondNode = nullptr;
 		States = EIsoSegmentStates::Delete;
@@ -267,19 +259,6 @@ public:
 
 		((FLoopNode*)SecondNode)->SetPreviousConnectedNode((FLoopNode*)FirstNode);
 		((FLoopNode*)FirstNode)->SetNextConnectedNode((FLoopNode*)SecondNode);
-	}
-
-	void ReplaceNode(FIsoNode& OldNode, FIsoNode& NewNode)
-	{
-		if (FirstNode == &OldNode)
-		{
-			SetFirstNode(NewNode);
-		}
-		else 
-		{
-			ensureCADKernel(SecondNode == &OldNode);
-			SetSecondNode(NewNode);
-		}
 	}
 
 	void SwapOrientation()

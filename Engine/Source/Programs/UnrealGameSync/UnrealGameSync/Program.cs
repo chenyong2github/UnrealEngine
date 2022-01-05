@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -27,14 +26,24 @@ namespace UnrealGameSync
 	{
 		public static string GetVersionString()
 		{
-			AssemblyInformationalVersionAttribute? Version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+			AssemblyInformationalVersionAttribute Version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
 			return Version?.InformationalVersion ?? "Unknown";
 		}
 
-		public static string? SyncVersion = null;
+		static JsonSerializerOptions GetDefaultJsonSerializerOptions()
+		{
+			JsonSerializerOptions Options = new JsonSerializerOptions();
+			Options.PropertyNameCaseInsensitive = true;
+			Options.Converters.Add(new JsonStringEnumConverter());
+			return Options;
+		}
+
+		public static JsonSerializerOptions DefaultJsonSerializerOptions { get; } = GetDefaultJsonSerializerOptions();
+
+		public static string SyncVersion = null;
 
 		[STAThread]
-		static void Main(string[] Args)
+		static async Task Main(string[] Args)
 		{
 			bool bFirstInstance;
 			using (Mutex InstanceMutex = new Mutex(true, "UnrealGameSyncRunning", out bFirstInstance))
@@ -55,7 +64,7 @@ namespace UnrealGameSync
 
 					if (bFirstInstance)
 					{
-						InnerMainAsync(InstanceMutex, ActivateEvent, Args).GetAwaiter().GetResult();
+						await InnerMainAsync(InstanceMutex, ActivateEvent, Args);
 					}
 					else
 					{
@@ -67,17 +76,17 @@ namespace UnrealGameSync
 
 		static async Task InnerMainAsync(Mutex InstanceMutex, EventWaitHandle ActivateEvent, string[] Args)
 		{
-			string? ServerAndPort = null;
-			string? UserName = null;
-			string? BaseUpdatePath = null;
-			GlobalSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath);
+			string ServerAndPort = null;
+			string UserName = null;
+			string BaseUpdatePath = null;
+			Utility.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath);
 
 			List<string> RemainingArgs = new List<string>(Args);
 
-			string? UpdateSpawn;
+			string UpdateSpawn;
 			ParseArgument(RemainingArgs, "-updatespawn=", out UpdateSpawn);
 
-			string? UpdatePath;
+			string UpdatePath;
 			ParseArgument(RemainingArgs, "-updatepath=", out UpdatePath);
 
 			bool bRestoreState;
@@ -86,10 +95,10 @@ namespace UnrealGameSync
 			bool bUnstable;
 			ParseOption(RemainingArgs, "-unstable", out bUnstable);
 
-            string? ProjectFileName;
+            string ProjectFileName;
             ParseArgument(RemainingArgs, "-project=", out ProjectFileName);
 
-			string? Uri;
+			string Uri;
 			ParseArgument(RemainingArgs, "-uri=", out Uri);
 
 			FileReference UpdateConfigFile = FileReference.Combine(new FileReference(Assembly.GetExecutingAssembly().Location).Directory, "AutoUpdate.ini");
@@ -101,7 +110,7 @@ namespace UnrealGameSync
 				Directory.SetCurrentDirectory(Path.GetDirectoryName(UpdateSpawn));
 			}
 
-			string SyncVersionFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location!)!, "SyncVersion.txt");
+			string SyncVersionFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "SyncVersion.txt");
 			if(File.Exists(SyncVersionFile))
 			{
 				try
@@ -114,7 +123,7 @@ namespace UnrealGameSync
 				}
 			}
 
-			DirectoryReference DataFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData)!, "UnrealGameSync");
+			DirectoryReference DataFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData), "UnrealGameSync");
 			DirectoryReference.CreateDirectory(DataFolder);
 
 			// Enable TLS 1.1 and 1.2. TLS 1.0 is now deprecated and not allowed by default in NET Core servers.
@@ -143,13 +152,13 @@ namespace UnrealGameSync
 						Logger.LogInformation("Missing server settings; finding defaults.");
 						ServerAndPort ??= PerforceSettings.Default.ServerAndPort;
 						UserName ??= PerforceSettings.Default.UserName;
-						GlobalSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
+						Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
 					}
 
 					ILogger TelemetryLogger = LoggerProvider.CreateLogger("Telemetry");
 					TelemetryLogger.LogInformation("Creating telemetry sink for session {SessionId}", SessionId);
 
-					ITelemetrySink? PrevTelemetrySink = Telemetry.ActiveSink;
+					ITelemetrySink PrevTelemetrySink = Telemetry.ActiveSink;
 					using (ITelemetrySink TelemetrySink = DeploymentSettings.CreateTelemetrySink(UserName, SessionId, TelemetryLogger))
 					{
 						Telemetry.ActiveSink = TelemetrySink;
@@ -180,14 +189,14 @@ namespace UnrealGameSync
 
 		private static void CurrentDomain_UnhandledException(object Sender, UnhandledExceptionEventArgs Args)
 		{
-			Exception? Ex = Args.ExceptionObject as Exception;
+			Exception Ex = Args.ExceptionObject as Exception;
 			if(Ex != null)
 			{
 				Telemetry.SendEvent("Crash", new {Exception = Ex.ToString()});
 			}
 		}
 
-		static void MergeUpdateSettings(FileReference UpdateConfigFile, ref string? UpdatePath, ref string? UpdateSpawn)
+		static void MergeUpdateSettings(FileReference UpdateConfigFile, ref string UpdatePath, ref string UpdateSpawn)
 		{
 			try
 			{
@@ -238,7 +247,7 @@ namespace UnrealGameSync
 			return false;
 		}
 
-		static bool ParseArgument(List<string> RemainingArgs, string Prefix, [NotNullWhen(true)] out string? Value)
+		static bool ParseArgument(List<string> RemainingArgs, string Prefix, out string Value)
 		{
 			for(int Idx = 0; Idx < RemainingArgs.Count; Idx++)
 			{
@@ -252,55 +261,6 @@ namespace UnrealGameSync
 
 			Value = null;
 			return false;
-		}
-
-		public static IEnumerable<string> GetPerforcePaths()
-		{
-			string? PathList = Environment.GetEnvironmentVariable("PATH");
-			if (!String.IsNullOrEmpty(PathList))
-			{
-				foreach (string PathEntry in PathList.Split(Path.PathSeparator))
-				{
-					string? PerforcePath = null;
-					try
-					{
-						string TestPerforcePath = Path.Combine(PathEntry, "p4.exe");
-						if (File.Exists(TestPerforcePath))
-						{
-							PerforcePath = TestPerforcePath;
-						}
-					}
-					catch
-					{
-					}
-
-					if (PerforcePath != null)
-					{
-						yield return PerforcePath;
-					}
-				}
-			}
-		}
-
-		public static void SpawnP4VC(string Arguments)
-		{
-			string Executable = "p4vc.exe";
-
-			foreach (string PerforcePath in GetPerforcePaths())
-			{
-				string? PerforceDir = Path.GetDirectoryName(PerforcePath);
-				if (PerforceDir != null && File.Exists(Path.Combine(PerforceDir, "p4vc.bat")) && !File.Exists(Path.Combine(PerforceDir, "p4vc.exe")))
-				{
-					Executable = Path.Combine(PerforceDir, "p4v.exe");
-					Arguments = "-p4vc " + Arguments;
-					break;
-				}
-			}
-
-			if (!Utility.SpawnHiddenProcess(Executable, Arguments))
-			{
-				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
-			}
 		}
 	}
 }

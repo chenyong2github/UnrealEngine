@@ -58,6 +58,7 @@ public:
 	void SendCachedFreezeFrameTo(FPlayerId PlayerId) const;
 
 private:
+
 	webrtc::PeerConnectionInterface* CreateSession(FPlayerId PlayerId, int Flags);
 	webrtc::AudioProcessing* SetupAudioProcessingModule();
 
@@ -72,7 +73,7 @@ private:
 	virtual void OnPlayerConnected(FPlayerId PlayerId, int Flags) override;
 	virtual void OnPlayerDisconnected(FPlayerId PlayerId) override;
 	virtual void OnSignallingServerDisconnected() override;
-
+	
 	// own methods
 	void OnOffer(FPlayerId PlayerId, const FString& Sdp);
 	void ModifyAudioTransceiverDirection(webrtc::PeerConnectionInterface* PeerConnection);
@@ -106,7 +107,7 @@ private:
 
 	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
 	cricket::AudioOptions AudioSourceOptions;
-
+	
 	// When we send a freeze frame we retain the data so we send freeze frame to new peers if they join during a freeze frame.
 	TArray64<uint8> CachedJpegBytes;
 
@@ -118,3 +119,4 @@ private:
 	TUniquePtr<webrtc::SessionDescriptionInterface> SFULocalDescription;
 	TUniquePtr<webrtc::SessionDescriptionInterface> SFURemoteDescription;
 };
+

@@ -13,7 +13,6 @@ using EpicGames.Core;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
-using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealGameSync
 {
@@ -49,18 +48,18 @@ namespace UnrealGameSync
 	{
 		public long Id { get; set; }
 		public int Change { get; set; }
-		public string UserName { get; set; } = String.Empty;
+		public string UserName { get; set; }
 		public EventType Type { get; set; }
-		public string Project { get; set; } = String.Empty;
+		public string Project { get; set; }
 	}
 
 	class CommentData
 	{
 		public long Id { get; set; }
 		public int ChangeNumber { get; set; }
-		public string UserName { get; set; } = String.Empty;
-		public string Text { get; set; } = String.Empty;
-		public string Project { get; set; } = String.Empty;
+		public string UserName { get; set; }
+		public string Text { get; set; }
+		public string Project { get; set; }
 	}
 
 	enum BadgeResult
@@ -76,10 +75,10 @@ namespace UnrealGameSync
 	{
 		public long Id { get; set; }
 		public int ChangeNumber { get; set; }
-		public string BuildType { get; set; } = String.Empty;
+		public string BuildType { get; set; }
 		public BadgeResult Result { get; set; }
-		public string Url { get; set; } = String.Empty;
-		public string Project { get; set; } = String.Empty;
+		public string Url { get; set; }
+		public string Project { get; set; }
 
 		public bool IsSuccess
 		{
@@ -153,46 +152,46 @@ namespace UnrealGameSync
 
 	class GetUserDataResponseV2
 	{
-		public string User { get; set; } = String.Empty;
+		public string User { get; set; }
 		public long? SyncTime { get; set; }
 		public UgsUserVote? Vote { get; set; }
-		public string Comment { get; set; } = String.Empty;
+		public string Comment { get; set; }
 		public bool? Investigating { get; set; }
 		public bool? Starred { get; set; }
 	}
 
 	class GetBadgeDataResponseV2
 	{
-		public string Name { get; set; } = String.Empty;
-		public string Url { get; set; } = String.Empty;
+		public string Name { get; set; }
+		public string Url { get; set; }
 		public BadgeResult State { get; set; }
 	}
 
 	class GetMetadataResponseV2
 	{
 		public int Change { get; set; }
-		public string Project { get; set; } = String.Empty;
-		public List<GetUserDataResponseV2> Users { get; set; } = new List<GetUserDataResponseV2>();
-		public List<GetBadgeDataResponseV2> Badges { get; set; } = new List<GetBadgeDataResponseV2>();
+		public string Project { get; set; }
+		public List<GetUserDataResponseV2> Users { get; set; }
+		public List<GetBadgeDataResponseV2> Badges { get; set; }
 	}
 
 	class GetMetadataListResponseV2
 	{
 		public long SequenceNumber { get; set; }
-		public List<GetMetadataResponseV2> Items { get; set; } = new List<GetMetadataResponseV2>();
+		public List<GetMetadataResponseV2> Items { get; set; }
 	}
 
 	class UpdateMetadataRequestV2
 	{
-		public string? Stream { get; set; }
+		public string Stream { get; set; }
 		public int Change { get; set; }
-		public string? Project { get; set; }
-		public string? UserName { get; set; }
+		public string Project { get; set; }
+		public string UserName { get; set; }
 		public bool? Synced { get; set; }
-		public string? Vote { get; set; }
+		public string Vote { get; set; }
 		public bool? Investigating { get; set; }
 		public bool? Starred { get; set; }
-		public string? Comment { get; set; }
+		public string Comment { get; set; }
 	}
 
 	class EventSummary
@@ -202,23 +201,23 @@ namespace UnrealGameSync
 		public List<EventData> SyncEvents = new List<EventData>();
 		public List<EventData> Reviews = new List<EventData>();
 		public List<string> CurrentUsers = new List<string>();
-		public EventData? LastStarReview;
+		public EventData LastStarReview;
 		public List<BadgeData> Badges = new List<BadgeData>();
 		public List<CommentData> Comments = new List<CommentData>();
 
-		public GetMetadataResponseV2? SharedMetadata;
-		public GetMetadataResponseV2? ProjectMetadata;
+		public GetMetadataResponseV2 SharedMetadata;
+		public GetMetadataResponseV2 ProjectMetadata;
 	}
 
 	class EventMonitor : IDisposable
 	{
-		string? ApiUrl;
+		string ApiUrl;
 		int ApiVersion;
 		string Project;
 		string CurrentUserName;
 		SynchronizationContext SynchronizationContext;
 		CancellationTokenSource CancellationSource;
-		Task? WorkerTask;
+		Task WorkerTask;
 		AsyncEvent RefreshEvent = new AsyncEvent();
 		ConcurrentQueue<EventData> OutgoingEvents = new ConcurrentQueue<EventData>();
 		ConcurrentQueue<EventData> IncomingEvents = new ConcurrentQueue<EventData>();
@@ -233,7 +232,7 @@ namespace UnrealGameSync
 		LatestData LatestIds;
 		HashSet<int> FilterChangeNumbers = new HashSet<int>();
 		List<EventData> InvestigationEvents = new List<EventData>();
-		List<EventData>? ActiveInvestigations;
+		List<EventData> ActiveInvestigations = new List<EventData>();
 
 		// MetadataV2
 		string MetadataStream;
@@ -243,21 +242,20 @@ namespace UnrealGameSync
 		int NewMinChange;
 		long MetadataSequenceNumber;
 
-		public Action? OnUpdatesReady;
+		public event Action OnUpdatesReady;
 
-		public EventMonitor(string? InApiUrl, string InProject, string InCurrentUserName, IServiceProvider ServiceProvider)
+		public EventMonitor(string InApiUrl, string InProject, string InCurrentUserName, IServiceProvider ServiceProvider)
 		{
 			ApiUrl = InApiUrl;
 			Project = InProject;
 			CurrentUserName = InCurrentUserName;
 			Logger = ServiceProvider.GetRequiredService<ILogger<EventMonitor>>();
 			AsyncDisposer = ServiceProvider.GetRequiredService<IAsyncDisposer>();
-			SynchronizationContext = SynchronizationContext.Current!;
+			SynchronizationContext = SynchronizationContext.Current;
 			CancellationSource = new CancellationTokenSource();
 
 			LatestIds = new LatestData { LastBuildId = 0, LastCommentId = 0, LastEventId = 0 };
 
-			MetadataProject = String.Empty;
 			MetadataStream = Project.ToLowerInvariant().TrimEnd('/');
 			if (MetadataStream.StartsWith("//", StringComparison.Ordinal))
 			{
@@ -361,7 +359,7 @@ namespace UnrealGameSync
 
 		protected EventSummary FindOrAddSummary(int ChangeNumber)
 		{
-			EventSummary? Summary;
+			EventSummary Summary;
 			if(!ChangeNumberToSummary.TryGetValue(ChangeNumber, out Summary))
 			{
 				Summary = new EventSummary();
@@ -375,29 +373,29 @@ namespace UnrealGameSync
 		{
 			get;
 			private set;
-		} = String.Empty;
+		}
 
 		public void ApplyUpdates()
 		{
-			GetMetadataResponseV2? Metadata;
+			GetMetadataResponseV2 Metadata;
 			while (IncomingMetadata.TryDequeue(out Metadata))
 			{
 				ConvertMetadataToEvents(Metadata);
 			}
 
-			EventData? Event;
+			EventData Event;
 			while(IncomingEvents.TryDequeue(out Event))
 			{
 				ApplyEventUpdate(Event);
 			}
 
-			BadgeData? Badge;
+			BadgeData Badge;
 			while(IncomingBadges.TryDequeue(out Badge))
 			{
 				ApplyBadgeUpdate(Badge);
 			}
 
-			CommentData? Comment;
+			CommentData Comment;
 			while(IncomingComments.TryDequeue(out Comment))
 			{
 				ApplyCommentUpdate(Comment);
@@ -438,7 +436,7 @@ namespace UnrealGameSync
 			else if(IsReview(Event.Type))
 			{
 				// Try to find an existing review by this user. If we already have a newer review, ignore this one. Otherwise remove it.
-				EventData? ExistingReview = Summary.Reviews.Find(x => String.Compare(x.UserName, Event.UserName, true) == 0);
+				EventData ExistingReview = Summary.Reviews.Find(x => String.Compare(x.UserName, Event.UserName, true) == 0);
 				if(ExistingReview != null)
 				{
 					if(ExistingReview.Id <= Event.Id)
@@ -465,7 +463,7 @@ namespace UnrealGameSync
 		{
 			EventSummary Summary = FindOrAddSummary(Badge.ChangeNumber);
 
-			BadgeData? ExistingBadge = Summary.Badges.Find(x => x.ChangeNumber == Badge.ChangeNumber && x.BuildType == Badge.BuildType);
+			BadgeData ExistingBadge = Summary.Badges.Find(x => x.ChangeNumber == Badge.ChangeNumber && x.BuildType == Badge.BuildType);
 			if(ExistingBadge != null)
 			{
 				if(ExistingBadge.Id <= Badge.Id)
@@ -481,7 +479,7 @@ namespace UnrealGameSync
 			Summary.Badges.Add(Badge);
 			Summary.Verdict = GetVerdict(Summary.Reviews, Summary.Badges);
 
-			BadgeData? LatestBadge;
+			BadgeData LatestBadge;
 			if(!BadgeNameToLatestData.TryGetValue(Badge.BadgeName, out LatestBadge) || Badge.ChangeNumber > LatestBadge.ChangeNumber || (Badge.ChangeNumber == LatestBadge.ChangeNumber && Badge.Id > LatestBadge.Id))
 			{
 				BadgeNameToLatestData[Badge.BadgeName] = Badge;
@@ -548,7 +546,7 @@ namespace UnrealGameSync
 			EventSummary NewSummary = new EventSummary();
 			NewSummary.ChangeNumber = Metadata.Change;
 
-			EventSummary? Summary;
+			EventSummary Summary;
 			if (ChangeNumberToSummary.TryGetValue(Metadata.Change, out Summary))
 			{
 				foreach (string CurrentUser in Summary.CurrentUsers)
@@ -686,7 +684,7 @@ namespace UnrealGameSync
 			if(Event.Type == EventType.Syncing && FilterChangeNumbers.Contains(Event.Change) && !String.IsNullOrEmpty(Event.UserName))
 			{
 				// Update the active users list for this change
-				EventData? LastSync;
+				EventData LastSync;
 				if(UserNameToLastSyncEvent.TryGetValue(Event.UserName, out LastSync))
 				{
 					if(Event.Id > LastSync.Id)
@@ -706,8 +704,8 @@ namespace UnrealGameSync
 
 		async Task PollForUpdatesAsync(CancellationToken CancellationToken)
 		{
-			EventData? Event = null;
-			CommentData? Comment = null;
+			EventData Event = null;
+			CommentData Comment = null;
 			bool bUpdateThrottledRequests = true;
 			double RequestThrottle = 90; // seconds to wait for throttled request;
 			Stopwatch Timer = Stopwatch.StartNew();
@@ -820,7 +818,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		async Task SendMetadataUpdateUpdateV2Async(int Change, string Project, string UserName, EventType? Event, string? Comment, CancellationToken CancellationToken)
+		async Task SendMetadataUpdateUpdateV2Async(int Change, string Project, string UserName, EventType? Event, string Comment, CancellationToken CancellationToken)
 		{
 			UpdateMetadataRequestV2 Update = new UpdateMetadataRequestV2();
 			Update.Stream = MetadataStream;
@@ -1018,16 +1016,16 @@ namespace UnrealGameSync
 			}
 		}
 
-		public bool GetCommentByCurrentUser(int ChangeNumber, [NotNullWhen(true)] out string? CommentText)
+		public bool GetCommentByCurrentUser(int ChangeNumber, out string CommentText)
 		{
-			EventSummary? Summary = GetSummaryForChange(ChangeNumber);
+			EventSummary Summary = GetSummaryForChange(ChangeNumber);
 			if(Summary == null)
 			{
 				CommentText = null;
 				return false;
 			}
 
-			CommentData? Comment = Summary.Comments.Find(x => String.Compare(x.UserName, CurrentUserName, true) == 0);
+			CommentData Comment = Summary.Comments.Find(x => String.Compare(x.UserName, CurrentUserName, true) == 0);
 			if(Comment == null || String.IsNullOrWhiteSpace(Comment.Text))
 			{
 				CommentText = null;
@@ -1038,15 +1036,15 @@ namespace UnrealGameSync
 			return true;
 		}
 
-		public EventData? GetReviewByCurrentUser(int ChangeNumber)
+		public EventData GetReviewByCurrentUser(int ChangeNumber)
 		{
-			EventSummary? Summary = GetSummaryForChange(ChangeNumber);
+			EventSummary Summary = GetSummaryForChange(ChangeNumber);
 			if(Summary == null)
 			{
 				return null;
 			}
 
-			EventData? Event = Summary.Reviews.FirstOrDefault(x => String.Compare(x.UserName, CurrentUserName, true) == 0);
+			EventData Event = Summary.Reviews.FirstOrDefault(x => String.Compare(x.UserName, CurrentUserName, true) == 0);
 			if(Event == null || Event.Type == EventType.Unknown)
 			{
 				return null;
@@ -1055,14 +1053,14 @@ namespace UnrealGameSync
 			return Event;
 		}
 
-		public EventSummary? GetSummaryForChange(int ChangeNumber)
+		public EventSummary GetSummaryForChange(int ChangeNumber)
 		{
-			EventSummary? Summary;
+			EventSummary Summary;
 			ChangeNumberToSummary.TryGetValue(ChangeNumber, out Summary);
 			return Summary;
 		}
 
-		public bool TryGetLatestBadge(string BuildType, [NotNullWhen(true)] out BadgeData? BadgeData)
+		public bool TryGetLatestBadge(string BuildType, out BadgeData BadgeData)
 		{
 			return BadgeNameToLatestData.TryGetValue(BuildType, out BadgeData);
 		}
@@ -1084,7 +1082,7 @@ namespace UnrealGameSync
 
 		public bool WasSyncedByCurrentUser(int ChangeNumber)
 		{
-			EventSummary? Summary = GetSummaryForChange(ChangeNumber);
+			EventSummary Summary = GetSummaryForChange(ChangeNumber);
 			return (Summary != null && Summary.SyncEvents.Any(x => x.Type == EventType.Syncing && String.Compare(x.UserName, CurrentUserName, true) == 0));
 		}
 
@@ -1162,16 +1160,13 @@ namespace UnrealGameSync
 			UpdateActiveInvestigations();
 
 			int StartChangeNumber = -1;
-			if (ActiveInvestigations != null)
+			foreach(EventData ActiveInvestigation in ActiveInvestigations)
 			{
-				foreach (EventData ActiveInvestigation in ActiveInvestigations)
+				if(String.Compare(ActiveInvestigation.UserName, CurrentUserName, true) == 0)
 				{
-					if (String.Compare(ActiveInvestigation.UserName, CurrentUserName, true) == 0)
+					if(ActiveInvestigation.Change <= LastChangeNumber && (StartChangeNumber == -1 || ActiveInvestigation.Change < StartChangeNumber))
 					{
-						if (ActiveInvestigation.Change <= LastChangeNumber && (StartChangeNumber == -1 || ActiveInvestigation.Change < StartChangeNumber))
-						{
-							StartChangeNumber = ActiveInvestigation.Change;
-						}
+						StartChangeNumber = ActiveInvestigation.Change;
 					}
 				}
 			}

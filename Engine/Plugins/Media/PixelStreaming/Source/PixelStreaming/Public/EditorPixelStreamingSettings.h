@@ -32,7 +32,7 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = PixelStreaming)
 	FSoftClassPath PixelStreamerHiddenCursorClassName;
-
+	
 	/**
 	 * Pixel Streaming may be running on a machine which has no physical mouse
 	 * attached, and yet the browser is sending mouse positions. As such, we

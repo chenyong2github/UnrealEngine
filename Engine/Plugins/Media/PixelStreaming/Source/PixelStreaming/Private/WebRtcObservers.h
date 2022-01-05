@@ -23,7 +23,8 @@ public:
 	using FSuccessCallback = TUniqueFunction<void()>;
 	using FFailureCallback = TUniqueFunction<void(const FString&)>;
 
-	static FSetSessionDescriptionObserver* Create(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
+	static FSetSessionDescriptionObserver*
+		Create(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
 	{
 		return new rtc::RefCountedObject<FSetSessionDescriptionObserver>(MoveTemp(successCallback), MoveTemp(failureCallback));
 	}
@@ -31,8 +32,7 @@ public:
 	FSetSessionDescriptionObserver(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
 		: SuccessCallback(MoveTemp(successCallback))
 		, FailureCallback(MoveTemp(failureCallback))
-	{
-	}
+	{}
 
 	// we don't need to do anything on success
 	void OnSuccess() override
@@ -58,7 +58,8 @@ public:
 	using FSuccessCallback = TUniqueFunction<void(webrtc::SessionDescriptionInterface*)>;
 	using FFailureCallback = TUniqueFunction<void(const FString&)>;
 
-	static FCreateSessionDescriptionObserver* Create(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
+	static FCreateSessionDescriptionObserver*
+		Create(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
 	{
 		return new rtc::RefCountedObject<FCreateSessionDescriptionObserver>(MoveTemp(successCallback), MoveTemp(failureCallback));
 	}
@@ -66,8 +67,7 @@ public:
 	FCreateSessionDescriptionObserver(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
 		: SuccessCallback(MoveTemp(successCallback))
 		, FailureCallback(MoveTemp(failureCallback))
-	{
-	}
+	{}
 
 	void OnSuccess(webrtc::SessionDescriptionInterface* SDP) override
 	{

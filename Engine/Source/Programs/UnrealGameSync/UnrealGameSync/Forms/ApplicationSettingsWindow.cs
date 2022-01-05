@@ -17,6 +17,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using UnrealGameSync;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	partial class ApplicationSettingsWindow : Form
@@ -76,7 +78,7 @@ namespace UnrealGameSync
 			this.ToolUpdateMonitor = ToolUpdateMonitor;
 			this.Logger = Logger;
 
-			GlobalSettings.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath);
+			Utility.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath);
 			bInitialUnstable = bUnstable;
 
 			InitialAutomationPortNumber = AutomationServer.GetPortNumber();
@@ -97,7 +99,7 @@ namespace UnrealGameSync
 
 			this.DepotPathTextBox.Text = InitialDepotPath;
 			this.DepotPathTextBox.Select(DepotPathTextBox.TextLength, 0);
-			this.DepotPathTextBox.CueBanner = DeploymentSettings.DefaultDepotPath ?? String.Empty;
+			this.DepotPathTextBox.CueBanner = DeploymentSettings.DefaultDepotPath;
 
 			this.UseUnstableBuildCheckBox.Checked = bUnstable;
 
@@ -190,14 +192,12 @@ namespace UnrealGameSync
 				{
 					PerforceSettings Settings = Utility.OverridePerforceSettings(DefaultPerforceSettings, ServerAndPort, UserName);
 
-					string? TestDepotPath = DepotPath ?? DeploymentSettings.DefaultDepotPath;
-					if (TestDepotPath != null)
+					string TestDepotPath = DepotPath ?? DeploymentSettings.DefaultDepotPath;
+
+					ModalTask? Task = PerforceModalTask.Execute(this, "Checking connection", "Checking connection, please wait...", Settings, (p, c) => PerforceTestConnectionTask.RunAsync(p, TestDepotPath, c), Logger);
+					if (Task == null || !Task.Succeeded)
 					{
-						ModalTask? Task = PerforceModalTask.Execute(this, "Checking connection", "Checking connection, please wait...", Settings, (p, c) => PerforceTestConnectionTask.RunAsync(p, TestDepotPath, c), Logger);
-						if (Task == null || !Task.Succeeded)
-						{
-							return;
-						}
+						return;
 					}
 				}
 
@@ -207,7 +207,7 @@ namespace UnrealGameSync
 				}
 
 				bRestartUnstable = UseUnstableBuildCheckBox.Checked;
-				GlobalSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
+				Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
 				AutomationServer.SetPortNumber(AutomationPortNumber);
 			}
 

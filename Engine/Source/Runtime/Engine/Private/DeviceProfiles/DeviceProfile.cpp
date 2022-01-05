@@ -395,11 +395,5 @@ void UDeviceProfile::AddExpandedCVars(const TMap<FString, FString>& CVarsToMerge
 	}
 }
 
-void UDeviceProfile::ClearAllExpandedCVars()
-{
-	AllExpandedCVars.Empty();
-}
-
-
 
 #endif

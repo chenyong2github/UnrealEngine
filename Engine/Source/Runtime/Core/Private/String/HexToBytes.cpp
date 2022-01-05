@@ -5,7 +5,9 @@
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 
-namespace UE::String
+namespace UE
+{
+namespace String
 {
 
 template <typename CharType>
@@ -42,4 +44,5 @@ int32 HexToBytes(FUtf8StringView Hex, uint8* OutBytes)
 	return HexToBytesImpl<UTF8CHAR>(Hex, OutBytes);
 }
 
-} // UE::String
+}
+}

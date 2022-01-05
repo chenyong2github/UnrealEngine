@@ -23,14 +23,13 @@
 // FPacketContentViewDrawStateBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FPacketContentViewDrawStateBuilder::FPacketContentViewDrawStateBuilder(FPacketContentViewDrawState& InDrawState, const FPacketContentViewport& InViewport, float InFontScale)
+FPacketContentViewDrawStateBuilder::FPacketContentViewDrawStateBuilder(FPacketContentViewDrawState& InDrawState, const FPacketContentViewport& InViewport)
 	: DrawState(InDrawState)
 	, Viewport(InViewport)
 	, MaxDepth(-1)
 	, LastEventX2()
 	, LastBox()
 	, EventFont(FAppStyle::Get().GetFontStyle("SmallFont"))
-	, FontScale(InFontScale)
 {
 	DrawState.Reset();
 }
@@ -252,8 +251,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const TraceServices::FNetProfi
 		const FString Name(Builder);
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const int32 HorizontalOffset = FMath::RoundToInt((EventW - 2.0f) * FontScale);
-		const int32 LastWholeCharacterIndex = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(Name, EventFont, HorizontalOffset, FontScale);
+		const int32 LastWholeCharacterIndex = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(Name, EventFont, FMath::RoundToInt(EventW - 2.0f));
 
 		if (LastWholeCharacterIndex >= 0)
 		{

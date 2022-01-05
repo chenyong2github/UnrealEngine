@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -28,7 +28,7 @@ namespace UnrealGameSync
 
 		int LogHeight = 200;
 
-		public event Action<bool>? OnVisibilityChanged;
+		public event Action<bool> OnVisibilityChanged;
 
 		[Browsable(true)]
 		public string Caption

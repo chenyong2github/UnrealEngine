@@ -118,16 +118,16 @@ namespace UnrealGameSync
 		int ScrollColumnsPerPage;
 
 		bool bIsSelecting;
-		TextSelection? Selection;
+		TextSelection Selection;
 
 		Size FontSize;
 
-		Timer? SelectionScrollTimer;
+		Timer SelectionScrollTimer;
 		int AutoScrollRate = 0;
 
-		Timer? UpdateTimer;
+		Timer UpdateTimer;
 		ConcurrentQueue<string> QueuedLines = new ConcurrentQueue<string>();
-		FileStream? LogFileStream;
+		FileStream LogFileStream;
 
 		public LogControl()
 		{
@@ -258,7 +258,7 @@ namespace UnrealGameSync
 				List<string> NewLines = new List<string>();
 				for(;;)
 				{
-					string? NextLine;
+					string NextLine;
 					if(!QueuedLines.TryDequeue(out NextLine))
 					{
 						break;
@@ -388,12 +388,12 @@ namespace UnrealGameSync
 			}
 		}
 
-		protected void ContextMenu_CopySelection(object? sender, EventArgs e)
+		protected void ContextMenu_CopySelection(object sender, EventArgs e)
 		{
 			CopySelection();
 		}
 
-		protected void ContextMenu_SelectAll(object? sender, EventArgs e)
+		protected void ContextMenu_SelectAll(object sender, EventArgs e)
 		{
 			SelectAll();
 		}
@@ -506,7 +506,7 @@ namespace UnrealGameSync
 				TextLocation Location = PointToTextLocation(e.Location);
 				Selection = new TextSelection(Location, Location);
 
-				SelectionScrollTimer!.Start();
+				SelectionScrollTimer.Start();
 				AutoScrollRate = 0;
 
 				Capture = true;
@@ -525,7 +525,7 @@ namespace UnrealGameSync
 		{
 			base.OnMouseMove(e);
 
-			if(bIsSelecting && Selection != null)
+			if(bIsSelecting)
 			{
 				TextLocation NewSelectionEnd = PointToTextLocation(e.Location);
 				if(NewSelectionEnd.LineIdx != Selection.End.LineIdx || NewSelectionEnd.ColumnIdx != Selection.End.ColumnIdx)
@@ -623,7 +623,7 @@ namespace UnrealGameSync
 				{
 					Selection = null;
 				}
-				SelectionScrollTimer!.Stop();
+				SelectionScrollTimer.Stop();
 				bIsSelecting = false;
 			}
 		}
@@ -797,7 +797,7 @@ namespace UnrealGameSync
 			ScrollLine = VerticalScroll.nPos;
 		}
 
-		protected void SelectionScrollTimer_TimerElapsed(object? Sender, EventArgs Args)
+		protected void SelectionScrollTimer_TimerElapsed(object Sender, EventArgs Args)
 		{
 			if(AutoScrollRate != 0 && Selection != null)
 			{

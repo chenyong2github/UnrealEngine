@@ -200,7 +200,7 @@ private:
 
 	uint32 GetPacketSequence(int32 PacketIndex) const;
 
-	void UpdateState(float FontScale);
+	void UpdateState();
 
 	void UpdateHoveredEvent();
 	FNetworkPacketEventRef GetEventAtMousePosition(float X, float Y);

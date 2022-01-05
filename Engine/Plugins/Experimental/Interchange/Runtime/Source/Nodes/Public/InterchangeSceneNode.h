@@ -220,110 +220,30 @@ public:
 		return MaterialDependencyUids.RemoveName(MaterialDependencyUid);
 	}
 
-	//Default transform is the transform we have in the node (no bind pose, no time evaluation).
-
-	/** Return the default scene node local transform. */
+	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
 	bool GetCustomLocalTransform(FTransform& AttributeValue) const
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_GETTER(LocalTransform, FTransform);
 	}
 
-	/** Store the default scene node local transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
 	bool SetCustomLocalTransform(const FTransform& AttributeValue)
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(LocalTransform, FTransform);
 	}
 
-	/** Return the default scene node global transform. */
+	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
 	bool GetCustomGlobalTransform(FTransform& AttributeValue) const
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_GETTER(GlobalTransform, FTransform);
 	}
 
-	/** Store the default scene node global transform. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
 	bool SetCustomGlobalTransform(const FTransform& AttributeValue)
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(GlobalTransform, FTransform);
-	}
-
-	//Bind pose transform is the transform of the joint when the binding with the mesh was done.
-	//This attribute should be set only if we have a joint.
-
-	/** Return the bind pose scene node local transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomBindPoseLocalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(BindPoseLocalTransform, FTransform);
-	}
-
-	/** Store the bind pose scene node local transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomBindPoseLocalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(BindPoseLocalTransform, FTransform);
-	}
-
-	/** Return the bind pose scene node global transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomBindPoseGlobalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(BindPoseGlobalTransform, FTransform);
-	}
-
-	/** Store the bind pose scene node global transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomBindPoseGlobalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(BindPoseGlobalTransform, FTransform);
-	}
-
-	//Time zero transform is the transform of the node at time zero.
-	//This is useful when there is no bind pose or when we import rigid mesh.
-
-	/** Return the time zero scene node local transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomTimeZeroLocalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(TimeZeroLocalTransform, FTransform);
-	}
-
-	/** Store the time zero scene node local transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomTimeZeroLocalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TimeZeroLocalTransform, FTransform);
-	}
-
-	/** Return the time zero scene node global transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomTimeZeroGlobalTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(TimeZeroGlobalTransform, FTransform);
-	}
-
-	/** Store the time zero scene node global transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomTimeZeroGlobalTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TimeZeroGlobalTransform, FTransform);
-	}
-
-	/** Return the geometric offset. Any mesh attach to this scene node will be offset using this transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool GetCustomGeometricTransform(FTransform& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(GeometricTransform, FTransform);
-	}
-
-	/** Store the geometric offset. Any mesh attach to this scene node will be offset using this transform. */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Joint")
-	bool SetCustomGeometricTransform(const FTransform& AttributeValue)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(GeometricTransform, FTransform);
 	}
 
 	/** Return false if the Attribute was not set previously.*/
@@ -344,11 +264,6 @@ private:
 	//Scene Attribute Keys
 	const UE::Interchange::FAttributeKey Macro_CustomLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("LocalTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomGlobalTransformKey = UE::Interchange::FAttributeKey(TEXT("GlobalTransform"));
-	const UE::Interchange::FAttributeKey Macro_CustomBindPoseLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("BindPoseLocalTransform"));
-	const UE::Interchange::FAttributeKey Macro_CustomBindPoseGlobalTransformKey = UE::Interchange::FAttributeKey(TEXT("BindPoseGlobalTransform"));
-	const UE::Interchange::FAttributeKey Macro_CustomTimeZeroLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("TimeZeroLocalTransform"));
-	const UE::Interchange::FAttributeKey Macro_CustomTimeZeroGlobalTransformKey = UE::Interchange::FAttributeKey(TEXT("TimeZeroGlobalTransform"));
-	const UE::Interchange::FAttributeKey Macro_CustomGeometricTransformKey = UE::Interchange::FAttributeKey(TEXT("GeometricTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomAssetInstanceUidKey = UE::Interchange::FAttributeKey(TEXT("AssetInstanceUid"));
 
 	UE::Interchange::FNameAttributeArrayHelper NodeSpecializeTypes;

@@ -12,6 +12,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	public class WorkspaceSettings
@@ -106,6 +108,8 @@ namespace UnrealGameSync
 				}
 				else
 				{
+					PerforceSettings = DefaultConnection.Settings;
+
 					// Get the perforce server settings
 					InfoRecord PerforceInfo = await DefaultConnection.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
 
@@ -147,8 +151,7 @@ namespace UnrealGameSync
 					}
 
 					// Take the client we've chosen
-					PerforceSettings = CandidateClients[0];
-					PerforceClient = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+					PerforceClient = await PerforceConnection.CreateAsync(CandidateClients[0], Logger);
 
 					// Get the client path for the project file
 					List<WhereRecord> Records = await PerforceClient.WhereAsync(NewSelectedFileName.FullName, CancellationToken).Where(x => !x.Unmap).ToListAsync(CancellationToken);
@@ -297,8 +300,8 @@ namespace UnrealGameSync
 				ConfigFile LatestProjectConfigFile = await PerforceMonitor.ReadProjectConfigFileAsync(PerforceClient, BranchClientPath, NewSelectedClientFileName, GetCacheFolder(BranchDirectoryName), LocalConfigFiles, Logger, CancellationToken);
 
 				// Get the local config file and stream filter
-				ConfigFile WorkspaceProjectConfigFile = await WorkspaceUpdate.ReadProjectConfigFile(BranchDirectoryName, NewSelectedFileName, Logger);
-				IReadOnlyList<string>? WorkspaceProjectStreamFilter = await WorkspaceUpdate.ReadProjectStreamFilter(PerforceClient, WorkspaceProjectConfigFile, Logger, CancellationToken);
+				ConfigFile WorkspaceProjectConfigFile = await Workspace.ReadProjectConfigFile(BranchDirectoryName, NewSelectedFileName, Logger);
+				IReadOnlyList<string>? WorkspaceProjectStreamFilter = await Workspace.ReadProjectStreamFilter(PerforceClient, WorkspaceProjectConfigFile, Logger, CancellationToken.None);
 
 				ProjectInfo ProjectInfo = new ProjectInfo(BranchDirectoryName, NewSelectedFileName, BranchClientPath, NewSelectedClientFileName, NewSelectedProjectIdentifier, bIsEnterpriseProject);
 
@@ -309,7 +312,7 @@ namespace UnrealGameSync
 				// Run any event hooks
 				if (DeploymentSettings.OnDetectProjectSettings != null)
 				{
-					string? Message;
+					string Message;
 					if (!DeploymentSettings.OnDetectProjectSettings(WorkspaceSettings, Logger, out Message))
 					{
 						throw new UserErrorException(Message);

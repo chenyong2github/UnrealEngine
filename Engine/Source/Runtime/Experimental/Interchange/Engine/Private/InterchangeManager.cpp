@@ -674,7 +674,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 															
 
 
-		auto GetDefaultPipelineStackName = [ImportType, &InterchangeProjectSettings]()->FName
+		const FName DefaultPipelineStackName = [ImportType, &InterchangeProjectSettings]()
 		{
 			if (ImportType == UE::Interchange::EImportType::ImportType_Scene)
 			{
@@ -684,7 +684,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 			{
 				return InterchangeProjectSettings->DefaultPipelineStack;
 			}
-		};
+		}();
 			
 		const TMap<FName, FInterchangePipelineStack>& DefaultPipelineStacks = InterchangeProjectSettings->PipelineStacks;
 
@@ -723,7 +723,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 		}
 		else
 		{
-			FName PipelineStackName = GetDefaultPipelineStackName();
+			FName PipelineStackName = DefaultPipelineStackName;
 			if (RegisteredPipelineConfiguration && (bShowPipelineStacksConfigurationDialog || (!DefaultPipelineStacks.Contains(PipelineStackName) && !bIsUnattended)))
 			{
 				//Show the dialog, a plugin should have register this dialog. We use a plugin to be able to use editor code when doing UI
@@ -736,7 +736,6 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				{
 					bImportAllWithDefault = true;
 				}
-				PipelineStackName = GetDefaultPipelineStackName();
 			}
 			if (!bImportCancel)
 			{
@@ -744,13 +743,13 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				const TMap<FName, FInterchangePipelineStack>& PipelineStacks = InterchangeProjectSettings->PipelineStacks;
 				if (!PipelineStacks.Contains(PipelineStackName))
 				{
-					if (PipelineStacks.Contains(GetDefaultPipelineStackName()))
+					if (PipelineStacks.Contains(DefaultPipelineStackName))
 					{
-						PipelineStackName = GetDefaultPipelineStackName();
+						PipelineStackName = DefaultPipelineStackName;
 					}
 					else
 					{
-						//Log an error, we cannot import asset without a valid pipeline, we will use the first available pipeline
+						//Log an error, we cannot import asset without a valid pipeline, we will use the first pipeline
 						for (const TPair<FName, FInterchangePipelineStack>& PipelineStack : PipelineStacks)
 						{
 							PipelineStackName = PipelineStack.Key;

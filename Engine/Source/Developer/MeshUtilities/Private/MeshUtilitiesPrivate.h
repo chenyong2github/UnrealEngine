@@ -113,7 +113,6 @@ private:
 		const TArray<FSignedDistanceFieldBuildMaterialData>& MaterialBlendModes,
 		const FBoxSphereBounds& Bounds,
 		const FDistanceFieldVolumeData* DistanceFieldVolumeData,
-		int32 MaxLumenMeshCards,
 		bool bGenerateAsIfTwoSided,
 		class FCardRepresentationData& OutData) override;
 

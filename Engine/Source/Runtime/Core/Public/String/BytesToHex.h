@@ -6,7 +6,9 @@
 #include "Containers/ArrayView.h"
 #include "Containers/StringFwd.h"
 
-namespace UE::String
+namespace UE
+{
+namespace String
 {
 
 /**
@@ -35,4 +37,5 @@ CORE_API void BytesToHexLower(TConstArrayView<uint8> Bytes, FAnsiStringBuilderBa
 CORE_API void BytesToHexLower(TConstArrayView<uint8> Bytes, FWideStringBuilderBase& Builder);
 CORE_API void BytesToHexLower(TConstArrayView<uint8> Bytes, FUtf8StringBuilderBase& Builder);
 
-} // UE::String
+}
+}

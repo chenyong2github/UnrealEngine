@@ -14,7 +14,6 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
-#include "Insights/Widgets/SModulesView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -43,7 +42,6 @@ struct FMemoryProfilerTabs
 	static const FName MemInvestigationViewID;
 	static const FName MemTagTreeViewID;
 	static const FName MemAllocTableTreeViewID; // base id
-	static const FName MemModulesViewID;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,9 +104,6 @@ private:
 	TSharedRef<SDockTab> SpawnTab_MemAllocTableTreeView(const FSpawnTabArgs& Args, int32 TabIndex);
 	void OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
-	TSharedRef<SDockTab> SpawnTab_MemModulesView(const FSpawnTabArgs& Args);
-	void OnMemModulesViewClosed(TSharedRef<SDockTab> TabBeingClosed);
-	
 	/**
 	 * Fill the main menu with menu items.
 	 *
@@ -196,9 +191,6 @@ private:
 
 	/** The list of Allocations table tree view widgets */
 	TArray<TSharedPtr<Insights::SMemAllocTableTreeView>> MemAllocTableTreeViews;
-
-	/** The modules view widget. */
-	TSharedPtr<Insights::SModulesView> MemModulesView;
 
 	const int32 MaxMemAllocTableTreeViews = 4;
 	int32 LastMemAllocTableTreeViewIndex = -1;

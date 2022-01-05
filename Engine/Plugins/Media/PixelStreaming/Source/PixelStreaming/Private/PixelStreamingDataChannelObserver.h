@@ -14,37 +14,41 @@ class FInputDevice;
 class FPixelStreamingDataChannelObserver : public webrtc::DataChannelObserver
 {
 
-public:
-	FPixelStreamingDataChannelObserver(IPixelStreamingSessions* InSessions, FPlayerId InPlayerId);
+    public:
 
-	// Begin webrtc::DataChannelObserver
+        FPixelStreamingDataChannelObserver(IPixelStreamingSessions* InSessions, FPlayerId InPlayerId);
 
-	// The data channel state have changed.
-	virtual void OnStateChange() override;
+        // Begin webrtc::DataChannelObserver
 
-	//  A data buffer was successfully received.
-	virtual void OnMessage(const webrtc::DataBuffer& buffer) override;
+        // The data channel state have changed.
+        virtual void OnStateChange() override;
+        
+        //  A data buffer was successfully received.
+        virtual void OnMessage(const webrtc::DataBuffer& buffer) override;
+        
+        // The data channel's buffered_amount has changed.
+        virtual void OnBufferedAmountChange(uint64_t sent_data_size) override;
+        
+        // End webrtc::DataChannelObserver
 
-	// The data channel's buffered_amount has changed.
-	virtual void OnBufferedAmountChange(uint64_t sent_data_size) override;
+        void SendInitialSettings() const;
 
-	// End webrtc::DataChannelObserver
+        void Register(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel);
+        void Unregister();
 
-	void SendInitialSettings() const;
+    private:
+        void SendLatencyReport() const;
 
-	void Register(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel);
-	void Unregister();
+    public:
 
-private:
-	void SendLatencyReport() const;
+        DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataChannelOpen, FPlayerId, webrtc::DataChannelInterface*)
+	    FOnDataChannelOpen OnDataChannelOpen;
 
-public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDataChannelOpen, FPlayerId, webrtc::DataChannelInterface*)
-		FOnDataChannelOpen OnDataChannelOpen;
+    private:
+        rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel;
+        IPixelStreamingSessions* PlayerSessions;
+        FPlayerId PlayerId;
+        FInputDevice& InputDevice;
 
-private:
-	rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel;
-	IPixelStreamingSessions* PlayerSessions;
-	FPlayerId PlayerId;
-	FInputDevice& InputDevice;
+
 };

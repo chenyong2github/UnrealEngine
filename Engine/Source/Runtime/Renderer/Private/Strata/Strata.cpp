@@ -565,12 +565,11 @@ static void AddStrataInternalClassificationTilePass(
 		RDG_EVENT_NAME("Strata::%sClassificationPass(%s)", bDebug ? TEXT("Debug") : TEXT("Stencil"), ToString(TileMaterialType)),
 		ParametersPS,
 		ERDGPassFlags::Raster,
-		[ParametersPS, VertexShader, PixelShader, OutputResolution, StrataTilePrimitiveType, TileMaterialType, bDebug](FRHICommandList& RHICmdList)
+		[ParametersPS, VertexShader, PixelShader, OutputResolution, StrataTilePrimitiveType, bDebug](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-			uint32 StencilRef = 0xFF;
 			if (bDebug)
 			{
 				// Use premultiplied alpha blending, pixel shader and depth/stencil is off
@@ -580,34 +579,19 @@ static void AddStrataInternalClassificationTilePass(
 			}
 			else
 			{
-				check(TileMaterialType == EStrataTileMaterialType::ESimple || TileMaterialType == EStrataTileMaterialType::ESingle);
-
 				// No blending and no pixel shader required. Stencil will be writen to.
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = nullptr;
 				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-				if (TileMaterialType == EStrataTileMaterialType::ESimple)
-				{
-					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
-						false, CF_Always,
-						true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-						false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-						0xFF, StencilBit_Fast>::GetRHI();
-					StencilRef = StencilBit_Fast;
-				}
-				else // EStrataTileMaterialType::ESingle
-				{
-					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
-						false, CF_Always,
-						true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-						false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-						0xFF, StencilBit_Single>::GetRHI();
-					StencilRef = StencilBit_Single;
-				}
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
+					false, CF_Always, 
+					true,  CF_Always, SO_Keep, SO_Keep, SO_Replace,
+					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+					0xFF, StencilBit_Fast>::GetRHI();
 			}
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.PrimitiveType = StrataTilePrimitiveType;
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilBit_Fast);
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersPS->VS);
 			if (bDebug)
 			{

@@ -17,13 +17,12 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DiscardMeshAttribut
 {
 	if (TargetMesh)
 	{
-		constexpr bool bEnforceAttributeInvariants = false;
 		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
 		{
 			EditMesh.DiscardAttributes();
 			EditMesh.DiscardVertexNormals();
 
-		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications, bEnforceAttributeInvariants);
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
 	}
 	return TargetMesh;
 }

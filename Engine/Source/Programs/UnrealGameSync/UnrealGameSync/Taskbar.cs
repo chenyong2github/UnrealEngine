@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -38,7 +38,7 @@ namespace UnrealGameSync
 		{
 		}
 
-		static ITaskbarList3? Interface;
+		static ITaskbarList3 Interface;
 
 		static Taskbar()
 		{

@@ -118,7 +118,7 @@ namespace UnrealGameSync
 	{
 		public long Id { get; set; }
 		public string Owner { get; set; } = String.Empty;
-		public string? NominatedBy { get; set; }
+		public string NominatedBy { get; set; } = String.Empty;
 		public bool? Acknowledged { get; set; }
 		public int? FixChange { get; set; }
 		public bool? Resolved { get; set; }
@@ -136,7 +136,7 @@ namespace UnrealGameSync
 
 	class IssueMonitor : IDisposable
 	{
-		public readonly string? ApiUrl;
+		public readonly string ApiUrl;
 		public readonly string UserName;
 		int RefCount = 1;
 		Task? WorkerTask;
@@ -155,7 +155,7 @@ namespace UnrealGameSync
 		// Only used by MainWindow, but easier to just store here
 		public Dictionary<long, IssueAlertReason> IssueIdToAlertReason = new Dictionary<long, IssueAlertReason>();
 
-		public IssueMonitor(string? ApiUrl, string UserName, TimeSpan UpdateInterval, IServiceProvider ServiceProvider)
+		public IssueMonitor(string ApiUrl, string UserName, TimeSpan UpdateInterval, IServiceProvider ServiceProvider)
 		{
 			this.ApiUrl = ApiUrl;
 			this.UserName = UserName;

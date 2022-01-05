@@ -13,6 +13,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+
+#nullable enable
 
 namespace UnrealGameSync
 {
@@ -52,13 +55,6 @@ namespace UnrealGameSync
 		Content
 	}
 
-	public enum LatestChangeType
-	{
-		Any,
-		Good,
-		Starred,
-	}
-
 	public enum UserSettingsVersion
 	{
 		Initial = 0,
@@ -68,7 +64,7 @@ namespace UnrealGameSync
 		Latest = DefaultNumberOfThreads
 	}
 
-	public class ArchiveSettings
+	class ArchiveSettings
 	{
 		public bool bEnabled;
 		public string Type;
@@ -234,7 +230,7 @@ namespace UnrealGameSync
 		public FileReference? File { get; set; }
 
 		// Workspace specific SyncFilters
-		public string[] SyncView { get; set; } = Array.Empty<string>();
+		public string[]? SyncView { get; set; }
 		public List<SyncCategory> SyncCategories { get; set; } = new List<SyncCategory>();
 		public bool? bSyncAllProjects { get; set; }
 		public bool? bIncludeAllProjectsInSolution { get; set; }
@@ -300,7 +296,7 @@ namespace UnrealGameSync
 		}
 	}
 
-	public class UserProjectSettings
+	class UserProjectSettings
 	{
 		[JsonIgnore]
 		public FileReference? File { get; set; }
@@ -312,7 +308,7 @@ namespace UnrealGameSync
 		public void Save() => Utility.SaveJson(File!, this);
 	}
 
-	public class UserSettings
+	class UserSettings
 	{
 		/// <summary>
 		/// Enum that decribes which robomerge changes to show
@@ -362,7 +358,7 @@ namespace UnrealGameSync
 
 		// Window settings
 		public bool bWindowVisible;
-		public string WindowState;
+		public FormWindowState WindowState;
 		public Rectangle? WindowBounds;
 		
 		// Schedule settings
@@ -556,7 +552,10 @@ namespace UnrealGameSync
 
 			// Window settings
 			bWindowVisible = ConfigFile.GetValue("Window.Visible", true);
-			WindowState = ConfigFile.GetValue("Window.State", "");
+			if(!Enum.TryParse(ConfigFile.GetValue("Window.State", ""), true, out WindowState))
+			{
+				WindowState = FormWindowState.Normal;
+			}
 			WindowBounds = ParseRectangleValue(ConfigFile.GetValue("Window.Bounds", ""));
 
 			// Schedule settings
@@ -965,7 +964,7 @@ namespace UnrealGameSync
 			ConfigSection WindowSection = ConfigFile.FindOrAddSection("Window");
 			WindowSection.Clear();
 			WindowSection.SetValue("Visible", bWindowVisible);
-			WindowSection.SetValue("State", WindowState);
+			WindowSection.SetValue("State", WindowState.ToString());
 			if(WindowBounds != null)
 			{
 				WindowSection.SetValue("Bounds", FormatRectangleValue(WindowBounds.Value));

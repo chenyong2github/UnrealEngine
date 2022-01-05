@@ -16,7 +16,6 @@ ULogVisualizerSettings::ULogVisualizerSettings(const FObjectInitializer& ObjectI
 	TrivialLogsThreshold = 1;
 	DefaultCameraDistance = 150;
 	bSearchInsideLogs = true;
-	bUseFilterVolumes = true;
 	GraphsBackgroundColor = FColor(0, 0, 0, 70);
 	bResetDataWithNewSession = false;
 	bDrawExtremesOnGraphs = false;

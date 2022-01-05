@@ -3684,9 +3684,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			ensure(IProjectManager::Get().LoadModulesForProject(ELoadingPhase::PostEngineInit));
 			ensure(IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PostEngineInit));
 
-			// Call module loading phases completion callbacks
-			FCoreDelegates::OnAllModuleLoadingPhasesComplete.Broadcast();
-
 			//run automation smoke tests now that the commandlet has had a chance to override the above flags and GEngine is available
 			FAutomationTestFramework::Get().RunSmokeTests();
 
@@ -4342,12 +4339,6 @@ int32 FEngineLoop::Init()
 			RequestEngineExit(TEXT("One or more modules failed PostEngineInit"));
 			return 1;
 		}
-	}
-
-	// Call module loading phases completion callbacks
-	{
-		SCOPED_BOOT_TIMING("OnAllModuleLoadingPhasesComplete.Broadcast");
-		FCoreDelegates::OnAllModuleLoadingPhasesComplete.Broadcast();
 	}
 
 	{

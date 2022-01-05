@@ -102,7 +102,7 @@ private:
 	};
 
 public:
-	explicit FTimingEventsTrackDrawStateBuilder(FTimingEventsTrackDrawState& InState, const FTimingTrackViewport& InViewport, float InFontScale);
+	explicit FTimingEventsTrackDrawStateBuilder(FTimingEventsTrackDrawState& InState, const FTimingTrackViewport& InViewport);
 	virtual ~FTimingEventsTrackDrawStateBuilder() {}
 
 	/**
@@ -134,7 +134,6 @@ private:
 	TArray<FBoxData> LastBox;
 
 	const FSlateFontInfo EventFont;
-	float FontScale;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

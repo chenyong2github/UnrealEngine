@@ -114,9 +114,6 @@ public:
 	/** Test out space switching as it would look like for animator */
 	TSharedPtr< FUICommandInfo > TestSpaceSwitching;
 
-	/** Whether to tint the icons with the element color */
-	TSharedPtr< FUICommandInfo > ShowIconColors;
-
 	/**
 	 * Initialize commands
 	 */

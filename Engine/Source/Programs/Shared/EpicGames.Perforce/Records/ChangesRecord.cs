@@ -29,7 +29,7 @@ namespace EpicGames.Perforce
 		/// The user that owns or submitted the change
 		/// </summary>
 		[PerforceTag("user")]
-		public string User { get; set; } = String.Empty;
+		public string? User { get; set; }
 
 		/// <summary>
 		/// The client that owns the change
@@ -59,6 +59,6 @@ namespace EpicGames.Perforce
 		/// Description for the changelist
 		/// </summary>
 		[PerforceTag("desc")]
-		public string Description { get; set; } = String.Empty;
+		public string? Description { get; set; }
 	}
 }

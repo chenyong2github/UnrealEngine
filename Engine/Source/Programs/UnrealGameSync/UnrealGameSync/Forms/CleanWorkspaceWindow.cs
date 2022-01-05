@@ -18,6 +18,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	partial class CleanWorkspaceWindow : Form

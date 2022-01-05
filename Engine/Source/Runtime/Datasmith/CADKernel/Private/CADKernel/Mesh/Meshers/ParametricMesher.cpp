@@ -123,7 +123,7 @@ void FParametricMesher::MeshEntities()
 		ApplyFaceCriteria(Face.ToSharedRef());
 	}
 
-	MesherReport.Chronos.ApplyCriteriaDuration = FChrono::Elapse(ApplyCriteriaStartTime);
+	Chronos.ApplyCriteriaDuration = FChrono::Elapse(ApplyCriteriaStartTime);
 
 	FTimePoint MeshingStartTime = FChrono::Now();
 
@@ -142,7 +142,7 @@ void FParametricMesher::MeshEntities()
 
 		IsolateQuadFace(QuadTrimmedSurfaceSet, OtherEntities);
 
-		MesherReport.Chronos.IsolateQuadPatchDuration = FChrono::Elapse(IsolateQuadPatchStartTime);
+		Chronos.IsolateQuadPatchDuration = FChrono::Elapse(IsolateQuadPatchStartTime);
 		FMessage::Printf(Log, TEXT("  %d Quad Surfaces found\n"), QuadTrimmedSurfaceSet.Num());
 	}
 
@@ -152,8 +152,8 @@ void FParametricMesher::MeshEntities()
 
 	FTimePoint MeshStartTime = FChrono::Now();
 	MeshSurfaceByFront(QuadTrimmedSurfaceSet);
-	MesherReport.Chronos.GlobalMeshDuration = FChrono::Elapse(MeshStartTime);
-	MesherReport.Chronos.GlobalDuration = FChrono::Elapse(StartTime);
+	Chronos.GlobalMeshDuration = FChrono::Elapse(MeshStartTime);
+	Chronos.GlobalDuration = FChrono::Elapse(StartTime);
 
 	//Chronos.PrintTimeElapse();
 }
@@ -217,9 +217,10 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 
 	FProgress _(1, TEXT("Meshing Entities : Mesh Surface"));
 
-#ifdef DEBUG_CADKERNEL
-	F3DDebugSession S(bDisplayDebugMeshStep, FString::Printf(TEXT("Mesh of surface %d"), Face->GetId()));
-#endif
+	if (BoolDisplayDebugMeshStep)
+	{
+		Open3DDebugSession(FString::Printf(TEXT("Mesh of surface %d"), Face->GetId()));
+	}
 
 	FTimePoint StartTime = FChrono::Now();
 
@@ -230,6 +231,10 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 
 	if (Grid.IsDegenerated())
 	{
+		if (BoolDisplayDebugMeshStep)
+		{
+			Close3DDebugSession();
+		}
 		FMessage::Printf(EVerboseLevel::Log, TEXT("The meshing of the surface %d failed due to a degenerated grid\n"), Face->GetId());
 		Face->SetMeshed();
 		return;
@@ -241,7 +246,7 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 
 	TSharedRef<FFaceMesh> SurfaceMesh = StaticCastSharedRef<FFaceMesh>(Face->GetOrCreateMesh(MeshModel));
 
-	FIsoTriangulator IsoTrianguler(Grid, SurfaceMesh, MesherReport);
+	FIsoTriangulator IsoTrianguler(Grid, SurfaceMesh);
 	if (IsoTrianguler.Triangulate())
 	{
 		if (Face->IsBackOriented())
@@ -256,15 +261,19 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 	FDuration Duration = FChrono::Elapse(StartTime);
 
 #ifdef CADKERNEL_DEV
-	MesherReport.Chronos.GlobalPointCloudDuration += Grid.Chronos.GeneratePointCloudDuration;
-	MesherReport.Chronos.GlobalGeneratePointCloudDuration += GenerateCloudDuration;
-	MesherReport.Chronos.GlobalTriangulateDuration += TriangulateDuration;
-	MesherReport.Chronos.GlobalDelaunayDuration += IsoTrianguler.Chronos.FindSegmentToLinkLoopToLoopByDelaunayDuration;
-	MesherReport.Chronos.GlobalMeshDuration += Duration;
+	Chronos.GlobalPointCloudDuration += Grid.Chronos.GeneratePointCloudDuration;
+	Chronos.GlobalGeneratePointCloudDuration += GenerateCloudDuration;
+	Chronos.GlobalTriangulateDuration += TriangulateDuration;
+	Chronos.GlobalDelaunayDuration += IsoTrianguler.Chronos.FindSegmentToLinkLoopToLoopByDelaunayDuration;
+	Chronos.GlobalMeshDuration += Duration;
 #endif
 
 	FChrono::PrintClockElapse(EVerboseLevel::Debug, TEXT("   "), TEXT("Meshing"), Duration);
 
+	if (BoolDisplayDebugMeshStep)
+	{
+		Close3DDebugSession();
+	}
 }
 
 void FParametricMesher::GenerateCloud(FGrid& Grid)
@@ -291,22 +300,20 @@ void FParametricMesher::GenerateCloud(FGrid& Grid)
 #endif
 			FTimePoint MeshThinZonesTime = FChrono::Now();
 			MeshThinZoneEdges(Grid);
-			MesherReport.Chronos.GlobalMeshThinZones += FChrono::Elapse(MeshThinZonesTime);
+			Chronos.GlobalMeshThinZones += FChrono::Elapse(MeshThinZonesTime);
 		}
-		MesherReport.Chronos.GlobalThinZones += FChrono::Elapse(StartTime);
+		Chronos.GlobalThinZones += FChrono::Elapse(StartTime);
 	}
 
-#ifdef DEBUG_THIN_ZONES
 	Grid.DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D"), Grid.GetInner2DPoints(EGridSpace::Default2D));
 	//Wait(Grid.bDisplay);
-#endif
 
 	FTimePoint StartTime = FChrono::Now();
 	MeshFaceLoops(Grid);
 
 	Grid.ProcessPointCloud();
 
-	MesherReport.Chronos.GlobalMeshAndGetLoopNodes += FChrono::Elapse(StartTime);
+	Chronos.GlobalMeshAndGetLoopNodes += FChrono::Elapse(StartTime);
 }
 
 void FParametricMesher::MeshFaceLoops(FGrid& Grid)
@@ -323,7 +330,7 @@ void FParametricMesher::MeshFaceLoops(FGrid& Grid)
 		}
 	}
 
-	MesherReport.Chronos.GlobalMeshEdges += FChrono::Elapse(StartTime);
+	Chronos.GlobalMeshEdges += FChrono::Elapse(StartTime);
 }
 
 static void FillImposedIsoCuttingPoints(TArray<double>& UEdgeSetOfIntersectionWithIso, ECoordinateType CoordinateType, double EdgeToleranceGeo, const FTopologicalEdge& Edge, TArray<FCuttingPoint>& OutImposedIsoVertexSet)
@@ -1356,7 +1363,7 @@ void FParametricMesher::MeshThinZoneEdges(FGrid& Grid)
 	}
 	Close3DDebugSession();
 #endif
-	MesherReport.Chronos.GlobalMeshThinZones += FChrono::Elapse(MeshStartTime);
+	Chronos.GlobalMeshThinZones += FChrono::Elapse(MeshStartTime);
 
 }
 

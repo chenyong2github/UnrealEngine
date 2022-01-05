@@ -544,17 +544,13 @@ struct RENDERCORE_API FShaderPlatformCachedIniValue
 			}
 		}
 
-		// now get the value from the platform that makes sense for this shader platform
-		TSharedPtr<IConsoleVariable> OtherPlatformVar = CVar->GetPlatformValueVariable(ShaderPlatformToPlatformName(ShaderPlatform));
-		ensureMsgf(OtherPlatformVar.IsValid(), TEXT("Failed to get another platform's version of a cvar (possible name: '%s'). It is probably an esoteric subclass that needs to implement GetPlatformValueVariable."), *CVarName);
-		if (OtherPlatformVar.IsValid())
+		if (CVar != nullptr)
 		{
-			OtherPlatformVar->GetValue(Value);
-		}
-		else
-		{
-			// get this platform's value, even tho it could be wrong
-			CVar->GetValue(Value);
+			// now get the value from the platform that makes sense for this shader platform
+			if (IConsoleVariable* ConsoleVariable = CVar->GetPlatformValueVariable(ShaderPlatformToPlatformName(ShaderPlatform)))
+			{
+				ConsoleVariable->GetValue(Value);
+			}
 		}
 #else
 		unimplemented();

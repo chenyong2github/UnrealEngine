@@ -107,7 +107,6 @@ void FMarkersTimingTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 
 void FMarkersTimingTrack::Update(const ITimingTrackUpdateContext& Context)
 {
-	Header.SetFontScale(Context.GetGeometry().Scale);
 	Header.Update(Context);
 
 	const FTimingTrackViewport& Viewport = Context.GetViewport();
@@ -115,7 +114,7 @@ void FMarkersTimingTrack::Update(const ITimingTrackUpdateContext& Context)
 	{
 		ClearDirtyFlag();
 
-		UpdateDrawState(Context);
+		UpdateDrawState(Viewport);
 	}
 }
 
@@ -131,9 +130,9 @@ void FMarkersTimingTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FMarkersTimingTrack::UpdateDrawState(const ITimingTrackUpdateContext& Context)
+void FMarkersTimingTrack::UpdateDrawState(const FTimingTrackViewport& InViewport)
 {
-	FTimeMarkerTrackBuilder Builder(*this, Context.GetViewport(), Context.GetGeometry().Scale);
+	FTimeMarkerTrackBuilder Builder(*this, InViewport);
 
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
@@ -388,12 +387,11 @@ void FMarkersTimingTrack::UpdateBookmarkCategory()
 // FTimeMarkerTrackBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTimeMarkerTrackBuilder::FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, const FTimingTrackViewport& InViewport, float InFontScale)
+FTimeMarkerTrackBuilder::FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, const FTimingTrackViewport& InViewport)
 	: Track(InTrack)
 	, Viewport(InViewport)
 	, FontMeasureService(FSlateApplication::Get().GetRenderer()->GetFontMeasureService())
 	, Font(FAppStyle::Get().GetFontStyle("SmallFont"))
-	, FontScale(InFontScale)
 {
 	Track.ResetCache();
 	Track.NumLogMessages = 0;
@@ -496,7 +494,7 @@ void FTimeMarkerTrackBuilder::Flush(float AvailableTextW)
 		bool bAddNewBox = true;
 		if (Track.TimeMarkerBoxes.Num() > 0)
 		{
-			FTimeMarkerBoxInfo& PrevBox = Track.TimeMarkerBoxes.Last();
+			FTimeMarkerBoxInfo& PrevBox = Track.TimeMarkerBoxes[Track.TimeMarkerBoxes.Num() - 1];
 			if (PrevBox.X + PrevBox.W == LastX1 &&
 				PrevBox.Color.R == Color.R &&
 				PrevBox.Color.G == Color.G &&
@@ -511,7 +509,7 @@ void FTimeMarkerTrackBuilder::Flush(float AvailableTextW)
 		if (bAddNewBox)
 		{
 			// Add new Box info to cache.
-			FTimeMarkerBoxInfo& Box = Track.TimeMarkerBoxes.AddDefaulted_GetRef();
+			FTimeMarkerBoxInfo& Box = Track.TimeMarkerBoxes[Track.TimeMarkerBoxes.AddDefaulted()];
 			Box.X = LastX1;
 			Box.W = LastX2 - LastX1;
 			Box.Color = Color;
@@ -527,20 +525,19 @@ void FTimeMarkerTrackBuilder::Flush(float AvailableTextW)
 				CategoryStr.RightChopInline(3, false);
 			}
 
-			const int32 HorizontalOffset = FMath::RoundToInt((AvailableTextW - 2.0f) * FontScale);
-			const int32 LastWholeCharacterIndexCategory = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(CategoryStr, Font, HorizontalOffset, FontScale);
-			const int32 LastWholeCharacterIndexMessage = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(LastMessage, Font, HorizontalOffset, FontScale);
+			const int32 LastWholeCharacterIndexCategory = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(CategoryStr, Font, FMath::RoundToInt(AvailableTextW - 2.0f));
+			const int32 LastWholeCharacterIndexMessage = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(LastMessage, Font, FMath::RoundToInt(AvailableTextW - 2.0f));
 
 			if (LastWholeCharacterIndexCategory >= 0 ||
 				LastWholeCharacterIndexMessage >= 0)
 			{
 				// Add new Text info to cache.
-				FTimeMarkerTextInfo& TextInfo = Track.TimeMarkerTexts.AddDefaulted_GetRef();
+				FTimeMarkerTextInfo& TextInfo = Track.TimeMarkerTexts[Track.TimeMarkerTexts.AddDefaulted()];
 				TextInfo.X = LastX2 + 2.0f;
 				TextInfo.Color = Color;
 				if (LastWholeCharacterIndexCategory >= 0)
 				{
-					TextInfo.Category.AppendChars(*CategoryStr, LastWholeCharacterIndexCategory + 1);
+					TextInfo.Category = CategoryStr.Left(LastWholeCharacterIndexCategory + 1);
 				}
 				if (LastWholeCharacterIndexMessage >= 0)
 				{

@@ -16,6 +16,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	class PerforceChangeDetails
@@ -74,6 +76,17 @@ namespace UnrealGameSync
 	interface IArchiveInfoSource
 	{
 		IReadOnlyList<IArchiveInfo> AvailableArchives { get; }
+	}
+
+	public interface IArchiveInfo
+	{
+		string Name { get; }
+		string Type { get; }
+		string BasePath { get; }
+		string? Target { get;  }
+		bool Exists();
+		bool TryGetArchiveKeyForChangeNumber(int ChangeNumber, [NotNullWhen(true)] out string? ArchiveKey);
+		Task<bool> DownloadArchive(IPerforceConnection Perforce, string ArchiveKey, DirectoryReference LocalRootPath, FileReference ManifestFileName, ILogger Logger, ProgressValue Progress, CancellationToken CancellationToken);
 	}
 
 	class PerforceMonitor : IDisposable, IArchiveInfoSource

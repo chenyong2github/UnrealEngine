@@ -18,11 +18,11 @@ namespace UnrealGameSync
 	partial class ConnectWindow : Form
 	{
 		IPerforceSettings DefaultPerforceSettings;
-		string? ServerAndPortOverride;
-		string? UserNameOverride;
+		string ServerAndPortOverride;
+		string UserNameOverride;
 		IServiceProvider ServiceProvider;
 
-		private ConnectWindow(IPerforceSettings DefaultPerforceSettings, string? ServerAndPortOverride, string? UserNameOverride, IServiceProvider ServiceProvider)
+		private ConnectWindow(IPerforceSettings DefaultPerforceSettings, string ServerAndPortOverride, string UserNameOverride, IServiceProvider ServiceProvider)
 		{
 			InitializeComponent();
 
@@ -47,7 +47,7 @@ namespace UnrealGameSync
 			UpdateEnabledControls();
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings DefaultSettings, ref string? ServerAndPortOverride, ref string? UserNameOverride, IServiceProvider ServiceProvider)
+		public static bool ShowModal(IWin32Window Owner, IPerforceSettings DefaultSettings, ref string ServerAndPortOverride, ref string UserNameOverride, IServiceProvider ServiceProvider)
 		{
 			ConnectWindow Connect = new ConnectWindow(DefaultSettings, ServerAndPortOverride, UserNameOverride, ServiceProvider);
 			if(Connect.ShowDialog(Owner) == DialogResult.OK)
@@ -109,7 +109,7 @@ namespace UnrealGameSync
 
 		private void BrowseUserBtn_Click(object sender, EventArgs e)
 		{
-			string? NewUserName;
+			string NewUserName;
 			if(SelectUserWindow.ShowModal(this, new PerforceSettings(DefaultPerforceSettings) { UserName = UserNameTextBox.Text, ServerAndPort = ServerAndPortTextBox.Text }, ServiceProvider, out NewUserName))
 			{
 				UserNameTextBox.Text = NewUserName;

@@ -6,7 +6,6 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "HAL/PlatformApplicationMisc.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
@@ -678,9 +677,6 @@ void SPacketContentView::Tick(const FGeometry& AllottedGeometry, const double In
 
 	ThisGeometry = AllottedGeometry;
 
-	const float FontScale = AllottedGeometry.Scale;
-	Tooltip.SetFontScale(FontScale);
-
 	FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 
 	if (!bIsScrolling)
@@ -695,7 +691,7 @@ void SPacketContentView::Tick(const FGeometry& AllottedGeometry, const double In
 	if (bIsStateDirty)
 	{
 		bIsStateDirty = false;
-		UpdateState(FontScale);
+		UpdateState();
 		AdjustForSplitContent();
 	}
 
@@ -851,15 +847,15 @@ void SPacketContentView::DisableFilterEventType()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPacketContentView::UpdateState(float FontScale)
+void SPacketContentView::UpdateState()
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
 	if (PacketBitSize > 0)
 	{
-		FPacketContentViewDrawStateBuilder Builder(*DrawState, Viewport, FontScale);
-		FPacketContentViewDrawStateBuilder FilteredDrawStateBuilder(*FilteredDrawState, Viewport, FontScale);
+		FPacketContentViewDrawStateBuilder Builder(*DrawState, Viewport);
+		FPacketContentViewDrawStateBuilder FilteredDrawStateBuilder(*FilteredDrawState, Viewport);
 
 		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid())
@@ -1109,8 +1105,7 @@ int32 SPacketContentView::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 		FSlateFontInfo SummaryFont = FAppStyle::Get().GetFontStyle("SmallFont");
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const float FontScale = DrawContext.Geometry.Scale;
-		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale;
+		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;
 		const float DbgDY = MaxFontCharHeight;
 
 		const float DbgW = 280.0f;

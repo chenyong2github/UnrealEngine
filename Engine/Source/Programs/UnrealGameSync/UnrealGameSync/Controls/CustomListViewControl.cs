@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	abstract class CustomListViewWidget
@@ -105,7 +107,7 @@ namespace UnrealGameSync
 
 		public override void OnMouseDown(Point Location)
 		{
-			StatusElement? Element;
+			StatusElement Element;
 			if(Line.HitTest(Location, out Element))
 			{
 				MouseDownElement = Element;
@@ -135,7 +137,7 @@ namespace UnrealGameSync
 
 		public override void OnMouseMove(Point Location)
 		{
-			StatusElement? NewMouseOverElement;
+			StatusElement NewMouseOverElement;
 			Line.HitTest(Location, out NewMouseOverElement);
 
 			if(MouseOverElement != NewMouseOverElement)

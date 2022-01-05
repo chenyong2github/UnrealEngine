@@ -24,6 +24,7 @@ DEFINE_LOG_CATEGORY(LogAudioCapturer);
 		};                       \
 	}
 
+
 constexpr int FAudioCapturer::SampleRate;
 constexpr int FAudioCapturer::NumChannels;
 
@@ -109,7 +110,7 @@ int32 FAudioCapturer::Init()
 		FScopeLock Lock(&DeviceBufferCS);
 
 		m_taskQueueFactory = webrtc::CreateDefaultTaskQueueFactory();
-		DeviceBuffer = MakeUnique<webrtc::AudioDeviceBuffer>(m_taskQueueFactory.get());
+		DeviceBuffer = MakeUnique<webrtc::AudioDeviceBuffer>( m_taskQueueFactory.get() );
 	}
 
 	// subscribe to audio data
@@ -181,14 +182,14 @@ int16 FAudioCapturer::RecordingDevices()
 }
 
 int32 FAudioCapturer::PlayoutDeviceName(
-	uint16 index, char name[webrtc::kAdmMaxDeviceNameSize], char guid[webrtc::kAdmMaxGuidSize])
+    uint16 index, char name[webrtc::kAdmMaxDeviceNameSize], char guid[webrtc::kAdmMaxGuidSize])
 {
 	CHECKinitialized_();
 	return -1;
 }
 
 int32 FAudioCapturer::RecordingDeviceName(
-	uint16 index, char name[webrtc::kAdmMaxDeviceNameSize], char guid[webrtc::kAdmMaxGuidSize])
+    uint16 index, char name[webrtc::kAdmMaxDeviceNameSize], char guid[webrtc::kAdmMaxGuidSize])
 {
 	CHECKinitialized_();
 	return -1;

@@ -12,6 +12,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace UnrealGameSync
 {
 	enum UpdateType
@@ -35,7 +37,7 @@ namespace UnrealGameSync
 			private set;
 		}
 
-		public UpdateMonitor(IPerforceSettings PerforceSettings, string? WatchPath, IServiceProvider ServiceProvider)
+		public UpdateMonitor(IPerforceSettings PerforceSettings, string WatchPath, IServiceProvider ServiceProvider)
 		{
 			this.Logger = ServiceProvider.GetRequiredService<ILogger<UpdateMonitor>>();
 			this.AsyncDisposer = ServiceProvider.GetRequiredService<IAsyncDisposer>();

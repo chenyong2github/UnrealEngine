@@ -730,7 +730,7 @@ FMobileSunMaskOutputs AddMobileSunMaskPass(FRDGBuilder& GraphBuilder, const FVie
 		FRDGTextureDesc OutputDesc = Inputs.SceneColor.Texture->Desc;
 		OutputDesc.Reset();
 
-		if (Inputs.bUseSun && Inputs.bUseMetalMSAAHDRDecode)
+		if (!Inputs.bUseDepthTexture)
 		{
 			if (IsMobilePropagateAlphaEnabled(View.GetShaderPlatform()))
 			{
