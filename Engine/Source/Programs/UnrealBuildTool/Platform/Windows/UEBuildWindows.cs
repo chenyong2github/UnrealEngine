@@ -47,6 +47,23 @@ namespace UnrealBuildTool
 		VisualStudio2022,
 	}
 
+
+	/// <summary>
+	/// Extension methods for WindowsCompilier enum
+	/// </summary>
+	public static class WindowsCompilerExtensions
+	{
+		/// <summary>
+		/// Returns if this compiler toolchain based on MSVC
+		/// </summary>
+		/// <param name="Compiler">The compiler to check</param>
+		/// <returns>true if MSVC based</returns>
+		public static bool IsMSVC(this WindowsCompiler Compiler)
+		{
+			return Compiler >= WindowsCompiler.VisualStudio2019;
+		}
+	}
+
 	/// <summary>
 	/// Which static analyzer to use
 	/// </summary>
@@ -254,7 +271,7 @@ namespace UnrealBuildTool
 		/// Microsoft provides legacy_stdio_definitions library to enable building with VS2015 until they fix everything up.
 		public bool bNeedsLegacyStdioDefinitionsLib
 		{
-			get { return Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.VisualStudio2022 || Compiler == WindowsCompiler.Clang; }
+			get { return Compiler.IsMSVC() || Compiler == WindowsCompiler.Clang; }
 		}
 
 		/// <summary>
@@ -937,6 +954,10 @@ namespace UnrealBuildTool
 				{
 					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2019;
 				}
+				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2022))
+				{
+					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2022;
+				}
 				else
 				{
 					Target.WindowsPlatform.Compiler = GetDefaultCompiler(Target.ProjectFile);
@@ -1009,7 +1030,7 @@ namespace UnrealBuildTool
 
 //			@Todo: Still getting reports of frequent OOM issues with this enabled as of 15.7.
 //			// Enable fast PDB linking if we're on VS2017 15.7 or later. Previous versions have OOM issues with large projects.
-//			if(!Target.bFormalBuild && !Target.bUseFastPDBLinking.HasValue && Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
+//			if(!Target.bFormalBuild && !Target.bUseFastPDBLinking.HasValue && Target.WindowsPlatform.Compiler.IsMSVC())
 //			{
 //				VersionNumber Version;
 //				DirectoryReference ToolChainDir;
@@ -1286,7 +1307,7 @@ namespace UnrealBuildTool
 							}
 						}
 					}
-				    else if(Compiler >= WindowsCompiler.VisualStudio2019)
+				    else if(Compiler.IsMSVC())
 				    {
 						// Enumerate all the manually installed toolchains
 						List<VisualStudioInstallation> Installations = FindVisualStudioInstallations(Compiler);

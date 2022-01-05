@@ -130,7 +130,7 @@ namespace UnrealBuildTool
 			// Experimental deterministic compile support
 			if (Target.WindowsPlatform.bDeterministic)
 			{
-				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
+				if (Target.WindowsPlatform.Compiler.IsMSVC())
 				{
 					Arguments.Add("/experimental:deterministic");
 				}
@@ -710,7 +710,7 @@ namespace UnrealBuildTool
 				
 				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
-					if (EnvVars.ToolChainVersion >= VersionNumber.Parse("14.27") && Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
+					if (EnvVars.ToolChainVersion >= VersionNumber.Parse("14.27") && Target.WindowsPlatform.Compiler.IsMSVC())
 					{
 						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.json", SourceFile.Location.GetFileName())));
 						CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);

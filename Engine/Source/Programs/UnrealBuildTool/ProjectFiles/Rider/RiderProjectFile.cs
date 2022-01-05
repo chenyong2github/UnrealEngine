@@ -637,7 +637,7 @@ namespace UnrealBuildTool
 				ToolchainInfo.Architecture = WindowsExports.GetArchitectureSubpath(CurrentTarget.Rules.WindowsPlatform.Architecture);
 				
 				WindowsCompiler WindowsPlatformCompiler = CurrentTarget.Rules.WindowsPlatform.Compiler;
-				ToolchainInfo.bStrictConformanceMode = WindowsPlatformCompiler >= WindowsCompiler.VisualStudio2019 && CurrentTarget.Rules.WindowsPlatform.bStrictConformanceMode;
+				ToolchainInfo.bStrictConformanceMode = WindowsPlatformCompiler.IsMSVC() && CurrentTarget.Rules.WindowsPlatform.bStrictConformanceMode;
 				ToolchainInfo.Compiler = WindowsPlatformCompiler.ToString();
 			}
 			else
