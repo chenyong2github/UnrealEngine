@@ -2929,6 +2929,15 @@ struct FMeshBuildSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
 	TObjectPtr<class UStaticMesh> DistanceFieldReplacementMesh;
 
+	/** 
+	 * Max Lumen mesh cards to generate for this mesh.
+	 * More cards means that surface will have better coverage, but will result in increased runtime overhead.
+	 * Set to 0 in order to disable mesh card generation for this mesh.
+	 * Default is 12.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
+	int32 MaxLumenMeshCards;
+
 	/** Default settings. */
 	FMeshBuildSettings()
 		: bUseMikkTSpace(true)
@@ -2953,6 +2962,7 @@ struct FMeshBuildSettings
 		, DistanceFieldBias_DEPRECATED(0.0f)
 #endif
 		, DistanceFieldReplacementMesh(nullptr)
+		, MaxLumenMeshCards(12)
 	{ }
 
 	/** Equality operator. */
@@ -2974,7 +2984,8 @@ struct FMeshBuildSettings
 			&& BuildScale3D == Other.BuildScale3D
 			&& DistanceFieldResolutionScale == Other.DistanceFieldResolutionScale
 			&& bGenerateDistanceFieldAsIfTwoSided == Other.bGenerateDistanceFieldAsIfTwoSided
-			&& DistanceFieldReplacementMesh == Other.DistanceFieldReplacementMesh;
+			&& DistanceFieldReplacementMesh == Other.DistanceFieldReplacementMesh
+			&& MaxLumenMeshCards == Other.MaxLumenMeshCards;
 	}
 
 	/** Inequality. */

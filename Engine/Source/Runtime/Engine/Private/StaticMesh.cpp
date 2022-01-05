@@ -2369,6 +2369,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 
 	FString ReplacementMeshName = BuildSettings.DistanceFieldReplacementMesh->GetPathName();
 	Ar << ReplacementMeshName;
+	Ar << BuildSettings.MaxLumenMeshCards;
 }
 
 // If static mesh derived data needs to be rebuilt (new format, serialization
