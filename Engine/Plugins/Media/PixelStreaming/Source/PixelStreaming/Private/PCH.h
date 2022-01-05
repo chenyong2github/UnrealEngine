@@ -2,7 +2,6 @@
 
 #pragma once
 
-
 #include "HAL/Thread.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformProcess.h"
@@ -73,9 +72,9 @@
 #include "Framework/Application/SlateUser.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
-#include "Windows/WindowsPlatformMisc.h"
+	#include "Windows/WindowsPlatformMisc.h"
 #elif PLATFORM_LINUX
-#include "Linux/LinuxPlatformMisc.h"
+	#include "Linux/LinuxPlatformMisc.h"
 #endif
 
 #include "Internationalization/Internationalization.h"

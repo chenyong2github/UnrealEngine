@@ -47,7 +47,7 @@ private:
 	uint64 HardwareEncoderId;
 
 	// We store this so we can restore back to it if the user decides to use then stop using the PixelStreaming.Encoder.TargetBitrate CVar.
-	int32 WebRtcProposedTargetBitrate = 5000000; 
+	int32 WebRtcProposedTargetBitrate = 5000000;
 
 	webrtc::EncodedImageCallback* OnEncodedImageCallback = nullptr;
 

@@ -12,39 +12,37 @@
 #include "PixelStreamingStats.h"
 #include "PixelStreamingStatNames.h"
 
-
 FPixelStreamingDataChannelObserver::FPixelStreamingDataChannelObserver(IPixelStreamingSessions* InPlayerSessions, FPlayerId InPlayerId)
-    : PlayerSessions(InPlayerSessions)
-    , PlayerId(InPlayerId)
-    , InputDevice(FPixelStreamingModule::GetModule()->GetInputDevice())
+	: PlayerSessions(InPlayerSessions)
+	, PlayerId(InPlayerId)
+	, InputDevice(FPixelStreamingModule::GetModule()->GetInputDevice())
 {
-
 }
 
 void FPixelStreamingDataChannelObserver::Register(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel)
 {
-    this->DataChannel = InDataChannel;
-    this->DataChannel->RegisterObserver(this);
+	this->DataChannel = InDataChannel;
+	this->DataChannel->RegisterObserver(this);
 }
 
 void FPixelStreamingDataChannelObserver::Unregister()
 {
-    if(this->DataChannel)
-    {
-        this->DataChannel->UnregisterObserver();
-        this->DataChannel = nullptr;
-    }
+	if (this->DataChannel)
+	{
+		this->DataChannel->UnregisterObserver();
+		this->DataChannel = nullptr;
+	}
 }
 
 void FPixelStreamingDataChannelObserver::OnStateChange()
 {
-    webrtc::DataChannelInterface::DataState State = this->DataChannel->state();
+	webrtc::DataChannelInterface::DataState State = this->DataChannel->state();
 	if (State == webrtc::DataChannelInterface::DataState::kOpen)
 	{
 		this->OnDataChannelOpen.Broadcast(this->PlayerId, this->DataChannel.get());
 	}
 }
-        
+
 void FPixelStreamingDataChannelObserver::OnMessage(const webrtc::DataBuffer& Buffer)
 {
 	PixelStreamingProtocol::EToStreamerMsg MsgType = static_cast<PixelStreamingProtocol::EToStreamerMsg>(Buffer.data.data()[0]);
@@ -53,9 +51,9 @@ void FPixelStreamingDataChannelObserver::OnMessage(const webrtc::DataBuffer& Buf
 	{
 		check(Buffer.data.size() == 1);
 		UE_LOG(PixelStreamer, Log, TEXT("Player %s has requested quality control through the data channel."), *this->PlayerId);
-        this->PlayerSessions->SetQualityController(this->PlayerId);
+		this->PlayerSessions->SetQualityController(this->PlayerId);
 	}
-	else if(MsgType == PixelStreamingProtocol::EToStreamerMsg::LatencyTest)
+	else if (MsgType == PixelStreamingProtocol::EToStreamerMsg::LatencyTest)
 	{
 		SendLatencyReport();
 	}
@@ -71,21 +69,19 @@ void FPixelStreamingDataChannelObserver::OnMessage(const webrtc::DataBuffer& Buf
 
 void FPixelStreamingDataChannelObserver::SendLatencyReport() const
 {
-	if(PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester.GetValueOnAnyThread())
+	if (PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester.GetValueOnAnyThread())
 	{
 		return;
 	}
 
 	double ReceiptTimeMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
 
-	AsyncTask(ENamedThreads::GameThread, [this, ReceiptTimeMs]() 
-	{ 
-
+	AsyncTask(ENamedThreads::GameThread, [this, ReceiptTimeMs]() {
 		double EncodeMs = -1.0;
 		double CaptureToSendMs = 0.0;
 
 		FPixelStreamingStats* Stats = FPixelStreamingStats::Get();
-		if(Stats)
+		if (Stats)
 		{
 			// bool QueryPeerStat_GameThread(FPlayerId PlayerId, FName StatToQuery, double& OutStatValue)
 			Stats->QueryPeerStat_GameThread(PlayerId, PixelStreamingStatNames::MeanEncodeTime, EncodeMs);
@@ -94,35 +90,31 @@ void FPixelStreamingDataChannelObserver::SendLatencyReport() const
 
 		double TransmissionTimeMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
 
-		FString ReportToTransmitJSON = FString::Printf( 
-            TEXT( "{ \"ReceiptTimeMs\": %.2f, \"EncodeMs\": %.2f, \"CaptureToSendMs\": %.2f, \"TransmissionTimeMs\": %.2f }" ), 
-            ReceiptTimeMs,
-            EncodeMs,
-            CaptureToSendMs,
-            TransmissionTimeMs
-        );
+		FString ReportToTransmitJSON = FString::Printf(
+			TEXT("{ \"ReceiptTimeMs\": %.2f, \"EncodeMs\": %.2f, \"CaptureToSendMs\": %.2f, \"TransmissionTimeMs\": %.2f }"),
+			ReceiptTimeMs,
+			EncodeMs,
+			CaptureToSendMs,
+			TransmissionTimeMs);
 
 		PlayerSessions->SendMessage(PlayerId, PixelStreamingProtocol::EToPlayerMsg::LatencyTest, ReportToTransmitJSON);
-
 	});
-
 }
-        
+
 void FPixelStreamingDataChannelObserver::OnBufferedAmountChange(uint64_t PreviousAmount)
 {
-    UE_LOG(
-        PixelStreamer, 
-        VeryVerbose, 
-        TEXT("player %s: OnBufferedAmountChanged: prev %d, cur %d"), 
-        *this->PlayerId, 
-        PreviousAmount, 
-        this->DataChannel->buffered_amount()
-        );
+	UE_LOG(
+		PixelStreamer,
+		VeryVerbose,
+		TEXT("player %s: OnBufferedAmountChanged: prev %d, cur %d"),
+		*this->PlayerId,
+		PreviousAmount,
+		this->DataChannel->buffered_amount());
 }
 
 void FPixelStreamingDataChannelObserver::SendInitialSettings() const
 {
-    if (!this->DataChannel)
+	if (!this->DataChannel)
 	{
 		return;
 	}

@@ -14,7 +14,6 @@ namespace PixelStreamingProtocol
 		PSPFlag_IsSFU = 0x02,
 	};
 
-
 	enum class EToStreamerMsg : uint8
 	{
 		/**********************************************************************/
@@ -64,7 +63,7 @@ namespace PixelStreamingProtocol
 		GamepadButtonPressed = 90,
 		GamepadButtonReleased = 91,
 		GamepadAnalog = 92,
-		
+
 		/**********************************************************************/
 
 		/*
@@ -76,7 +75,8 @@ namespace PixelStreamingProtocol
 	};
 
 	//! Messages that can be sent to the webrtc players
-	enum class EToPlayerMsg : uint8 {
+	enum class EToPlayerMsg : uint8
+	{
 		QualityControlOwnership = 0,
 		Response = 1,
 		Command = 2,
@@ -90,7 +90,7 @@ namespace PixelStreamingProtocol
 		FileContents = 10
 	};
 
-	template<typename T>
+	template <typename T>
 	static const T& ParseBuffer(const uint8*& Data, uint32& Size)
 	{
 		checkf(sizeof(T) <= Size, TEXT("%d - %d"), sizeof(T), Size);
@@ -103,7 +103,8 @@ namespace PixelStreamingProtocol
 	static FString ParseString(const webrtc::DataBuffer& Buffer, const size_t Offset = 0)
 	{
 		FString Res;
-		if (Buffer.data.size() > Offset) {
+		if (Buffer.data.size() > Offset)
+		{
 			size_t StringLength = (Buffer.data.size() - Offset) / sizeof(TCHAR);
 			Res.GetCharArray().SetNumUninitialized(StringLength + 1);
 			FMemory::Memcpy(Res.GetCharArray().GetData(), Buffer.data.data() + Offset, StringLength * sizeof(TCHAR));
@@ -112,4 +113,4 @@ namespace PixelStreamingProtocol
 		return Res;
 	}
 
-};
+}; // namespace PixelStreamingProtocol

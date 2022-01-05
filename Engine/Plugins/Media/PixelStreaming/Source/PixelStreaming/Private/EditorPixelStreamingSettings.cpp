@@ -5,7 +5,6 @@
 UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)
 {
-	
 }
 
 FName UPixelStreamingSettings::GetCategoryName() const

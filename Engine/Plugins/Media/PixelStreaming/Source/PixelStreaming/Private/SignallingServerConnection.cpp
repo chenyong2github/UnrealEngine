@@ -20,34 +20,33 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
 
 // This handles errors in Signalling Server (SS) messaging by logging them and disconnecting from SS
-#define HANDLE_SS_ERROR(ErrorMsg, ...)\
-	do\
-	{\
-		UE_LOG(LogPixelStreamingSS, Error, ErrorMsg, ##__VA_ARGS__);\
-		WS->Close(4000, FString::Printf(ErrorMsg, ##__VA_ARGS__));\
-		return;\
-	}\
-	while(false);
+#define HANDLE_SS_ERROR(ErrorMsg, ...)                               \
+	do                                                               \
+	{                                                                \
+		UE_LOG(LogPixelStreamingSS, Error, ErrorMsg, ##__VA_ARGS__); \
+		WS->Close(4000, FString::Printf(ErrorMsg, ##__VA_ARGS__));   \
+		return;                                                      \
+	}                                                                \
+	while (false);
 
-#define HANDLE_PLAYER_SS_ERROR(PlayerId, ErrorMsg, ...)\
-	do\
-	{\
-		UE_LOG(LogPixelStreamingSS, Error, TEXT("player %s: ") ErrorMsg, *PlayerId, ##__VA_ARGS__);\
-		SendDisconnectPlayer(PlayerId, FString::Printf(ErrorMsg, ##__VA_ARGS__));\
-		return;\
-	}\
-	while(false);
+#define HANDLE_PLAYER_SS_ERROR(PlayerId, ErrorMsg, ...)                                             \
+	do                                                                                              \
+	{                                                                                               \
+		UE_LOG(LogPixelStreamingSS, Error, TEXT("player %s: ") ErrorMsg, *PlayerId, ##__VA_ARGS__); \
+		SendDisconnectPlayer(PlayerId, FString::Printf(ErrorMsg, ##__VA_ARGS__));                   \
+		return;                                                                                     \
+	}                                                                                               \
+	while (false);
 
 FSignallingServerConnection::FSignallingServerConnection(FSignallingServerConnectionObserver& InObserver, const FString& InStreamerId)
 	: Observer(InObserver), StreamerId(InStreamerId)
 {
-	
 }
 
 void FSignallingServerConnection::Connect(const FString& Url)
 {
 	// Already have a websocket connection, no need to make another one
-	if(WS)
+	if (WS)
 	{
 		return;
 	}
@@ -70,11 +69,11 @@ void FSignallingServerConnection::Disconnect()
 		return;
 	}
 
-	if(!IsEngineExitRequested())
+	if (!IsEngineExitRequested())
 	{
 		GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
 	}
-	
+
 	WS->OnConnected().Remove(OnConnectedHandle);
 	WS->OnConnectionError().Remove(OnConnectionErrorHandle);
 	WS->OnClosed().Remove(OnClosedHandle);
@@ -124,7 +123,7 @@ void FSignallingServerConnection::SendAnswer(FPlayerId PlayerId, const webrtc::S
 void FSignallingServerConnection::SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPlayerId PlayerId)
 {
 	bool bSendAsInteger = PixelStreamingSettings::CVarSendPlayerIdAsInteger.GetValueOnAnyThread();
-	if(bSendAsInteger)
+	if (bSendAsInteger)
 	{
 		int32 PlayerIdAsInt = PlayerIdToInt(PlayerId);
 		JsonObject->SetNumberField(TEXT("playerId"), PlayerIdAsInt);
@@ -133,22 +132,21 @@ void FSignallingServerConnection::SetPlayerIdJson(FJsonObjectPtr& JsonObject, FP
 	{
 		JsonObject->SetStringField(TEXT("playerId"), PlayerId);
 	}
-	
 }
 
 bool FSignallingServerConnection::GetPlayerIdJson(const FJsonObjectPtr& Json, FPlayerId& OutPlayerId)
 {
 	bool bSendAsInteger = PixelStreamingSettings::CVarSendPlayerIdAsInteger.GetValueOnAnyThread();
-	if(bSendAsInteger)
+	if (bSendAsInteger)
 	{
 		uint32 PlayerIdInt;
-		if(Json->TryGetNumberField(TEXT("playerId"), PlayerIdInt))
+		if (Json->TryGetNumberField(TEXT("playerId"), PlayerIdInt))
 		{
 			OutPlayerId = ToPlayerId(PlayerIdInt);
 			return true;
 		}
 	}
-	else if(Json->TryGetStringField(TEXT("playerId"), OutPlayerId))
+	else if (Json->TryGetStringField(TEXT("playerId"), OutPlayerId))
 	{
 		return true;
 	}
@@ -347,7 +345,7 @@ void FSignallingServerConnection::OnConfig(const FJsonObjectPtr& Json)
 	// SS sends `config` that looks like:
 	// `{peerConnectionOptions: { 'iceServers': [{'urls': ['stun:34.250.222.95:19302', 'turn:34.250.222.95:19303']}] }}`
 	// where `peerConnectionOptions` is `RTCConfiguration` (except in native `RTCConfiguration` "iceServers" = "servers").
-	// As `RTCConfiguration` doesn't implement parsing from a string (or `ToString` method), 
+	// As `RTCConfiguration` doesn't implement parsing from a string (or `ToString` method),
 	// we just get `stun`/`turn` URLs from it and ignore other options
 
 	const TSharedPtr<FJsonObject>* PeerConnectionOptions;
@@ -464,7 +462,7 @@ void FSignallingServerConnection::OnStreamerIceCandidate(const FJsonObjectPtr& J
 		HANDLE_SS_ERROR(TEXT("Failed to parse remote `iceCandidate` message\n%s"), *ToString(Json));
 	}
 
-	Observer.OnRemoteIceCandidate(TUniquePtr<webrtc::IceCandidateInterface>{Candidate.release()});
+	Observer.OnRemoteIceCandidate(TUniquePtr<webrtc::IceCandidateInterface>{ Candidate.release() });
 }
 
 void FSignallingServerConnection::OnPlayerIceCandidate(const FJsonObjectPtr& Json)

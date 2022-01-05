@@ -46,7 +46,7 @@ public:
 	* Event fired when internal streamer is initialized and the methods on this module are ready for use.
 	*/
 	DECLARE_EVENT_OneParam(IPixelStreamingModule, FReadyEvent, IPixelStreamingModule&)
-	
+
 	/*
 	* A getter for the OnReady event. Intent is for users to call IPixelStreamingModule::Get().OnReady().AddXXX.
 	* @return The bindable OnReady event.
@@ -143,5 +143,4 @@ public:
 	 * @param Callback - The callback to remove.
 	 */
 	virtual void RemoveAnyStatChangedCallback(TWeakPtr<IPixelStreamingStatsConsumer> Callback) = 0;
-
 };

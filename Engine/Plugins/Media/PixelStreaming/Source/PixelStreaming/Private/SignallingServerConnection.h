@@ -20,26 +20,39 @@ class FSignallingServerConnectionObserver
 {
 public:
 	virtual ~FSignallingServerConnectionObserver()
-	{}
+	{
+	}
 
 	virtual void OnSignallingServerDisconnected() = 0;
 	virtual void OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) = 0;
 	virtual void OnSessionDescription(FPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp)
-	{ unimplemented(); }
+	{
+		unimplemented();
+	}
 
 	// Streamer-only
 	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
-	{ unimplemented(); }
+	{
+		unimplemented();
+	}
 	virtual void OnPlayerConnected(FPlayerId PlayerId, int Flags)
-	{ unimplemented(); }
+	{
+		unimplemented();
+	}
 	virtual void OnPlayerDisconnected(FPlayerId PlayerId)
-	{ unimplemented(); }
+	{
+		unimplemented();
+	}
 
 	// Player-only
 	virtual void OnRemoteIceCandidate(TUniquePtr<webrtc::IceCandidateInterface> Candidate)
-	{ unimplemented(); }
+	{
+		unimplemented();
+	}
 	virtual void OnPlayerCount(uint32 Count)
-	{ unimplemented(); }
+	{
+		unimplemented();
+	}
 };
 
 class FSignallingServerConnection final

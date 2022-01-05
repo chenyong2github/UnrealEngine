@@ -12,7 +12,7 @@ public:
 	FPlayerVideoSource(FPlayerId InPlayerId);
 	virtual ~FPlayerVideoSource();
 
-	FPlayerId GetPlayerId() const {	return PlayerId; }
+	FPlayerId GetPlayerId() const { return PlayerId; }
 	bool IsInitialised() const { return Initialised; }
 
 	void AddRef() const override
@@ -26,7 +26,7 @@ public:
 		{
 			return rtc::RefCountReleaseStatus::kDroppedLastRef;
 		}
-		
+
 		return rtc::RefCountReleaseStatus::kOtherRefsRemained;
 	}
 

@@ -15,8 +15,7 @@
 class FSignallingServerConnection;
 class IPixelStreamingSessions;
 
-class FPlayerSession
-	: public webrtc::PeerConnectionObserver
+class FPlayerSession : public webrtc::PeerConnectionObserver
 {
 public:
 	FPlayerSession(IPixelStreamingSessions* InSessions, FSignallingServerConnection* InSignallingServerConnection, FPlayerId PlayerId);
@@ -24,7 +23,7 @@ public:
 
 	webrtc::PeerConnectionInterface& GetPeerConnection();
 	void SetPeerConnection(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& InPeerConnection);
-	
+
 	void SetDataChannel(const rtc::scoped_refptr<webrtc::DataChannelInterface>& InDataChannel);
 
 	void OnAnswer(FString Sdp);
@@ -42,6 +41,7 @@ public:
 	void SendUnfreezeFrame() const;
 	void SendVideoEncoderQP(double QP) const;
 	void PollWebRTCStats() const;
+
 private:
 	void ModifyAudioTransceiverDirection();
 
@@ -74,4 +74,3 @@ private:
 	rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> WebRTCStatsCallback;
 	TSharedPtr<IPixelStreamingStatsConsumer> QPReporter;
 };
-

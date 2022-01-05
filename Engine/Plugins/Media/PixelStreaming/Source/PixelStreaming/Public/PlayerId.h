@@ -6,11 +6,20 @@
 
 using FPlayerId = FString;
 
-inline FPlayerId ToPlayerId(FString PlayerIdString) { return FPlayerId(PlayerIdString); }
+inline FPlayerId ToPlayerId(FString PlayerIdString)
+{
+	return FPlayerId(PlayerIdString);
+}
 
-inline FPlayerId ToPlayerId(int32 PlayerIdInteger) { return FString::FromInt(PlayerIdInteger); }
+inline FPlayerId ToPlayerId(int32 PlayerIdInteger)
+{
+	return FString::FromInt(PlayerIdInteger);
+}
 
-inline int32 PlayerIdToInt(FPlayerId PlayerId) { return FCString::Atoi(*PlayerId); }
+inline int32 PlayerIdToInt(FPlayerId PlayerId)
+{
+	return FCString::Atoi(*PlayerId);
+}
 
 static const FPlayerId INVALID_PLAYER_ID = ToPlayerId(FString(TEXT("Invalid Player Id")));
 static const FPlayerId SFU_PLAYER_ID = FString(TEXT("1"));
