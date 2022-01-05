@@ -172,7 +172,7 @@ int32 GenerateParticleSortKeys(
 	int32 BatchId
 	)
 {
-	check(FeatureLevel == ERHIFeatureLevel::SM5 || FeatureLevel == ERHIFeatureLevel::ES3_1);
+	check(FeatureLevel >= ERHIFeatureLevel::SM5 || FeatureLevel == ERHIFeatureLevel::ES3_1);
 
 	FParticleKeyGenParameters KeyGenParameters;
 	FParticleKeyGenUniformBufferRef KeyGenUniformBuffer;
