@@ -27,7 +27,7 @@ public:
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
-
+	virtual bool ShouldExport() override { return false; }
 	void SetPivot(ELevelInstancePivotType PivotType, AActor* PivotActor = nullptr);
 private:
 	void SetLevelInstanceID(const FLevelInstanceID& InLevelInstanceID) { LevelInstanceID = InLevelInstanceID; }

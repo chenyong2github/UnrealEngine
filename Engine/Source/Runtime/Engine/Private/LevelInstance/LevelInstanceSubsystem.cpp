@@ -20,6 +20,7 @@
 #include "LevelInstance/ILevelInstanceEditorModule.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "LevelInstance/LevelInstanceEditorObject.h"
+#include "LevelInstance/LevelInstanceEditorPivotActor.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ITransaction.h"
 #include "Misc/Paths.h"
@@ -1152,6 +1153,11 @@ ULevelInstanceSubsystem::FLevelsToRemoveScope::~FLevelsToRemoveScope()
 
 bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor, FText* OutReason) const
 {
+	if (Actor->IsA<ALevelInstancePivot>())
+	{
+		return false;
+	}
+
 	if (Actor->GetWorld() == GetWorld())
 	{
 		if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
