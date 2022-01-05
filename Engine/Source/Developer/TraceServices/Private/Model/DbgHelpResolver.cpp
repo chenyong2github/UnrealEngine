@@ -269,7 +269,6 @@ void FDbgHelpResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target)
 	const FModuleEntry* Entry = GetModuleForAddress(Address);
 	if (!Entry)
 	{
-		++Entry->Module->Stats.Failed;
 		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, GUnknownModuleTextDbgHelp,
 		                     GUnknownModuleTextDbgHelp, GUnknownModuleTextDbgHelp, 0);
 		return;
