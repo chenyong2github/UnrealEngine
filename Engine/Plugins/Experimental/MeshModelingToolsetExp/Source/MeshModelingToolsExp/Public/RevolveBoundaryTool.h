@@ -95,9 +95,11 @@ public:
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 protected:
 
-	// Support for Ctrl+Clicking a boundary to align the revolution axis to that segment
-	bool bAlignAxisOnClick = false;
-	int32 AlignAxisModifier = 2;
+	// Support for Ctrl+(Shift+)Clicking a boundary to align the revolution axis to that segment
+	bool bMoveAxisOnClick = false;
+	bool bAlignAxisOnClick = true;
+	int32 CtrlModifier = 2;
+	int32 ShiftModifier = 3;
 
 	/** Property set for type of output object (StaticMesh, Volume, etc) */
 	UPROPERTY()
