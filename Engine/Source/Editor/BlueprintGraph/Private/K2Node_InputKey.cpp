@@ -12,6 +12,8 @@
 #include "BlueprintNodeSpawner.h"
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "GameFramework/InputSettings.h"
+#include "Editor.h"								// for FEditorDelegates::OnEnableGestureRecognizerChanged
 
 #define LOCTEXT_NAMESPACE "UK2Node_InputKey"
 
@@ -372,11 +374,18 @@ void UK2Node_InputKey::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionR
 		InputNode->InputKey = Key;
 	};
 
+	auto RefreshClassActions = []()
+	{
+		FBlueprintActionDatabase::Get().RefreshClassActions(StaticClass());
+	};
+
 	// actions get registered under specific object-keys; the idea is that
 	// actions might have to be updated (or deleted) if their object-key is
 	// mutated (or removed)... here we use the node's class (so if the node
 	// type disappears, then the action should go with it)
 	UClass* ActionKey = GetClass();
+	
+	const bool bAllowGestures = GetDefault<UInputSettings>()->bEnableGestureRecognizer;
 
 	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and
 	// iterating over keys), first check to make sure that the registrar is
@@ -385,10 +394,20 @@ void UK2Node_InputKey::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionR
 	// corresponding to that asset)
 	if (ActionRegistrar.IsOpenForRegistration(ActionKey))
 	{
+		// Refresh the action database of this node when the input settings are changed
+		static bool bRegisterOnce = true;
+		if (bRegisterOnce)
+		{
+			bRegisterOnce = false;
+			FEditorDelegates::OnEnableGestureRecognizerChanged.AddStatic(RefreshClassActions);
+		}
+		
 		for (const FKey& Key : AllKeys)
 		{
+			// Do not show gesture keys if they are not enabled in the settings
+			const bool bInvalidGestureKey = !bAllowGestures && Key.IsGesture();
 			// these will be handled by UK2Node_GetInputAxisKeyValue and UK2Node_GetInputVectorAxisValue respectively
-			if (!Key.IsBindableInBlueprints() || Key.IsAnalog())
+			if (!Key.IsBindableInBlueprints() || Key.IsAnalog() || bInvalidGestureKey)
 			{
 				continue;
 			}
