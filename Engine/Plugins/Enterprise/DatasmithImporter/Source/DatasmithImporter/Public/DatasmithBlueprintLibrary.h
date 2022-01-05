@@ -57,6 +57,14 @@ public:
 	static UDatasmithSceneElement* ConstructDatasmithSceneFromFile(const FString& FilePath);
 
 	/**
+	 * Open an existing Datasmith source from the SourceUri.
+	 * @param	SourceUri Uri of the datasmith scene to open. ie: file://c:/MyFolder/MyFiles.udatasmith
+	 * @return	The opened DatasmithScene, that can be modified and can be imported.
+	 **/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Datasmith")
+	static UDatasmithSceneElement* ConstructDatasmithSceneFromSourceUri(const FString& SourceUri);
+
+	/**
 	 * Open set of CAD files as actors in a single datasmith scene
 	 * Importing set of files into single DatasmithScene asset(with ImportScene) is supported only for CAD files
 	 * @return	The opened DatasmithScene, that can be modified and can be imported.
