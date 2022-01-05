@@ -209,7 +209,10 @@ protected:
 		EdgesMappings.Empty();
 		for (ULineSetComponent* Lines : VoronoiLineSets)
 		{
-			Lines->DestroyComponent();
+			if (Lines)
+			{
+				Lines->DestroyComponent();
+			}
 		}
 		VoronoiLineSets.Empty();
 	}
