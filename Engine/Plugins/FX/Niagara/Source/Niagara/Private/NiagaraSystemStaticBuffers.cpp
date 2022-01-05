@@ -20,7 +20,7 @@ void FNiagaraSystemStaticBuffers::Finalize()
 			{
 				check(GpuFloatBuffer.NumBytes == 0);
 
-				GpuFloatBuffer.Initialize(TEXT("NiagaraSystemStaticBuffers"), sizeof(float), GpuFloatResource.Num(), EPixelFormat::PF_R32_FLOAT, BUF_None, &GpuFloatResource);
+				GpuFloatBuffer.Initialize(TEXT("NiagaraSystemStaticBuffers"), sizeof(float), GpuFloatResource.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static, &GpuFloatResource);
 			}
 		);
 	}
