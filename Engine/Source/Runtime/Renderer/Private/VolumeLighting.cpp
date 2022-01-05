@@ -155,31 +155,7 @@ static auto GetVolumeShadowingShaderParametersGlobal = [](
 	ShaderParams.WorldToStaticShadowMatrix = WorldToStaticShadow;
 	ShaderParams.StaticShadowBufferSize = StaticShadowBufferSizeValue;
 
-	//
-	// See FOnePassPointShadowProjectionShaderParameters from ShadowRendering.h
-	//
-	FRDGTexture* ShadowDepthTextureValue = ShadowInfo
-		? GraphBuilder.RegisterExternalTexture(ShadowInfo->RenderTargets.DepthTarget) 
-		: SystemTextures.BlackDepthCube;
-
-	ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTexture = ShadowDepthTextureValue;
-	ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTexture2 = ShadowDepthTextureValue;
-	ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 0, 0, SCF_Less>::GetRHI();
-
-	if (bDynamicallyShadowed)
-	{
-		if (ShadowInfo)
-		{
-			TArray<FMatrix44f> SIOnePassShadowViewProjectionMatrices = LWC::ConvertArrayType<FMatrix44f>(ShadowInfo->OnePassShadowViewProjectionMatrices);	// LWC_TODO: Precision loss. Perf pessimization
-			memcpy(ShaderParams.OnePassPointShadowProjection.ShadowViewProjectionMatrices.GetData(), SIOnePassShadowViewProjectionMatrices.GetData(), SIOnePassShadowViewProjectionMatrices.Num() * sizeof(FMatrix44f));
-			ShaderParams.OnePassPointShadowProjection.InvShadowmapResolution = 1.0f / float(ShadowInfo->ResolutionX);
-		}
-		else
-		{
-			memset(ShaderParams.OnePassPointShadowProjection.ShadowViewProjectionMatrices.GetData(), 0, sizeof(ShaderParams.OnePassPointShadowProjection.ShadowViewProjectionMatrices));
-			ShaderParams.OnePassPointShadowProjection.InvShadowmapResolution = 0.0f;
-		}
-	}
+	GetOnePassPointShadowProjectionParameters(GraphBuilder, bDynamicallyShadowed && (LightType == LightType_Point || LightType == LightType_Rect) ? ShadowInfo : NULL, ShaderParams.OnePassPointShadowProjection);
 };
 
 
