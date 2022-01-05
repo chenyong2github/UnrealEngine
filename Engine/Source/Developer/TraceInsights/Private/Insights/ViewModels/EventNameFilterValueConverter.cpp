@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "QuickFindFilterConverters.h"
+#include "EventNameFilterValueConverter.h"
 
 #include "Insights/InsightsManager.h"
 
-#define LOCTEXT_NAMESPACE "Insights::QuickFindFilterConverters"
+#define LOCTEXT_NAMESPACE "Insights::FEventNameFilterValueConverter"
 
 namespace Insights
 {
