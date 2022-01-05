@@ -101,6 +101,7 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void CreateCustomPins(TArray<UEdGraphPin*>* InOldPins) override;
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const override;
 	// End of UEdGraphNode interface
 
 	// UAnimGraphNode_Base interface

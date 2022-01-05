@@ -9,6 +9,13 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Algo/ForEach.h"
 
+FAnimNode_IKRig::FAnimNode_IKRig()
+	: AlphaInputType(EAnimAlphaInputType::Float)
+	, bAlphaBoolEnabled(true)
+	, Alpha(1.0f)
+	, ActualAlpha(0.f)
+{}
+
 void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output) 
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -28,6 +35,11 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 	}
 
 	if (!IKRigProcessor->IsInitialized())
+	{
+		return;
+	}
+
+	if (!FAnimWeight::IsRelevant(ActualAlpha))
 	{
 		return;
 	}
@@ -118,7 +130,7 @@ void FAnimNode_IKRig::CopyOutputPoseToAnimGraph(FCompactPose& OutputPose)
 			// input pose (in local space).
 			if (*Index != -1)
 			{
-				OutputPose[CPIndex] = IKRigSkeleton.CurrentPoseLocal[*Index];	
+				OutputPose[CPIndex].BlendWith(IKRigSkeleton.CurrentPoseLocal[*Index], ActualAlpha);
 			}
 		}
 	}
@@ -155,7 +167,32 @@ void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Co
 
 void FAnimNode_IKRig::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
-	GetEvaluateGraphExposedInputs().Execute(Context);
+	ActualAlpha = 0.f;
+	// if (IsLODEnabled(Context.AnimInstanceProxy))
+	{
+		GetEvaluateGraphExposedInputs().Execute(Context);
+
+		// alpha handlers
+		switch (AlphaInputType)
+		{
+		case EAnimAlphaInputType::Float : 
+			ActualAlpha = AlphaScaleBias.ApplyTo(AlphaScaleBiasClamp.ApplyTo(Alpha, Context.GetDeltaTime()));
+			break;
+		case EAnimAlphaInputType::Bool :
+			ActualAlpha = AlphaBoolBlend.ApplyTo(bAlphaBoolEnabled, Context.GetDeltaTime());
+			break;
+		case EAnimAlphaInputType::Curve :
+			if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(Context.AnimInstanceProxy->GetAnimInstanceObject()))
+			{
+				ActualAlpha = AlphaScaleBiasClamp.ApplyTo(AnimInstance->GetCurveValue(AlphaCurveName), Context.GetDeltaTime());
+			}
+			break;
+		};
+
+		// Make sure Alpha is clamped between 0 and 1.
+		ActualAlpha = FMath::Clamp<float>(ActualAlpha, 0.f, 1.f);
+	}
+	
 	FAnimNode_Base::Update_AnyThread(Context);
 	Source.Update(Context);
 }
@@ -296,10 +333,10 @@ void FAnimNode_IKRig::InitializeProperties(const UObject* InSourceInstance, UCla
 			// while evaluating
 			const FName& GoalPropertyName = DestPropertyNames[PropIndex];
 
-			// we use the goal name's hash value as described in UAnimGraphNode_IKRig::CreateCustomPinsFromValidAsset
+			// find the right goal
 			const int32 GoalIndex = Goals.IndexOfByPredicate([&GoalPropertyName](const FIKRigGoal& InGoal)
 			{
-				return GetTypeHash(InGoal.Name) == GoalPropertyName.GetNumber();
+			 	return GoalPropertyName.ToString().EndsWith(InGoal.Name.ToString());
 			});
 
 			if (Goals.IsValidIndex(GoalIndex))

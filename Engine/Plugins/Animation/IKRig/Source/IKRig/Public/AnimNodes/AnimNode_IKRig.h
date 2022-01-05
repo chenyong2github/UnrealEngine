@@ -6,6 +6,8 @@
 
 #include "IKRigDataTypes.h"
 #include "Animation/AnimNode_CustomProperty.h"
+#include "Animation/InputScaleBias.h"
+
 #include "AnimNode_IKRig.generated.h"
 
 class UIKRigProcessor;
@@ -18,6 +20,8 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_CustomProperty
 {
 	GENERATED_BODY()
 
+	FAnimNode_IKRig();
+	
 	/** The input pose to start the IK solve relative to. */
 	UPROPERTY(EditAnywhere, Category = Links)
 	FPoseLink Source;
@@ -49,6 +53,29 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_CustomProperty
 	
 #endif
 
+	/** alpha value handler **/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Alpha)
+	EAnimAlphaInputType AlphaInputType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Alpha, meta = (PinShownByDefault, DisplayName = "bEnabled"))
+	bool bAlphaBoolEnabled;
+
+	// Current strength of the skeletal control
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Alpha, meta = (PinShownByDefault))
+	float Alpha;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Alpha)
+	FInputScaleBias AlphaScaleBias;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Alpha, meta = (DisplayName = "Blend Settings"))
+	FInputAlphaBoolBlend AlphaBoolBlend;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Alpha, meta = (PinShownByDefault))
+	FName AlphaCurveName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Alpha)
+	FInputScaleBiasClamp AlphaScaleBiasClamp;
+	
 private:
 
 	/** IK Rig runtime processor */
@@ -64,6 +91,9 @@ private:
 	/** Cached functions used to update goals using custom properties to avoid looking for then when evaluating */
 	using UpdateFunction = std::function<void(const UObject*)>;
 	TArray<UpdateFunction> UpdateFunctions;
+
+	UPROPERTY(Transient)
+	float ActualAlpha;
 	
 public:
 
