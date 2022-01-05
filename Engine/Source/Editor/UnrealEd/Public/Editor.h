@@ -286,6 +286,8 @@ struct UNREALED_API FEditorDelegates
 	static FOnAssetsDeleted OnAssetsDeleted;
 	/** Called when a user starts dragging something out of content browser (can be multiple assets) */
 	static FOnAssetDragStarted OnAssetDragStarted;
+	/** Called when a user changes the UInputSettings::bEnableGestureRecognizer setting to refresh the available actions. */
+	static FSimpleMulticastDelegate OnEnableGestureRecognizerChanged;
 	/** Called when Action or Axis mappings have been changed */
 	static FSimpleMulticastDelegate OnActionAxisMappingsChanged;
 	/** Called from FEditorUtils::AddLevelToWorld after the level is added successfully to the world. */

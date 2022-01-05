@@ -188,6 +188,11 @@ void UInputSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 		ForceRebuildKeymaps();
 		FEditorDelegates::OnActionAxisMappingsChanged.Broadcast();
 	}
+
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, bEnableGestureRecognizer))
+	{
+		FEditorDelegates::OnEnableGestureRecognizerChanged.Broadcast();
+	}
 }
 
 #endif

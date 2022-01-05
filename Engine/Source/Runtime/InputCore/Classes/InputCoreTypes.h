@@ -89,6 +89,7 @@ struct INPUTCORE_API FKey
 	bool ShouldUpdateAxisWithoutSamples() const;
 	bool IsBindableToActions() const;
 	bool IsDeprecated() const;
+	bool IsGesture() const;
 	FText GetDisplayName(bool bLongDisplayName = true) const;
 	FString ToString() const;
 	FName GetFName() const;
@@ -157,6 +158,9 @@ struct INPUTCORE_API FKeyDetails
 		ButtonAxis				 = 1 << 10,		// Analog 1D axis emulating a digital button press. E.g. Gamepad right stick up
 		Axis2D					 = 1 << 11,
 
+		// Gesture input types such as Flick, Pinch, and Rotate
+		Gesture					 = 1 << 12,
+
 		// Deprecated. Replace with axis definitions for clarity.
 
 		FloatAxis  UE_DEPRECATED(4.26, "Please use Axis1D instead.") = Axis1D,
@@ -185,6 +189,7 @@ struct INPUTCORE_API FKeyDetails
 	FORCEINLINE bool IsBindableInBlueprints() const { return bIsBindableInBlueprints != 0; }
 	FORCEINLINE bool ShouldUpdateAxisWithoutSamples() const { return bShouldUpdateAxisWithoutSamples != 0; }
 	FORCEINLINE bool IsBindableToActions() const { return bIsBindableToActions != 0; }
+	FORCEINLINE bool IsGesture() const { return bIsGesture != 0; }
 	FORCEINLINE bool IsDeprecated() const { return bIsDeprecated != 0; }
 	FORCEINLINE FName GetMenuCategory() const { return MenuCategory; }
 	FText GetDisplayName(const bool bLongDisplayName = true) const;
@@ -224,6 +229,7 @@ private:
 	uint8 bShouldUpdateAxisWithoutSamples : 1;
 	uint8 bIsBindableToActions : 1;
 	uint8 bIsDeprecated : 1;
+	uint8 bIsGesture : 1;
 	EInputAxisType AxisType;
 
 	TAttribute<FText> LongDisplayName;
