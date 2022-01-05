@@ -76,17 +76,6 @@ namespace UnrealGameSync
 		IReadOnlyList<IArchiveInfo> AvailableArchives { get; }
 	}
 
-	public interface IArchiveInfo
-	{
-		string Name { get; }
-		string Type { get; }
-		string BasePath { get; }
-		string? Target { get;  }
-		bool Exists();
-		bool TryGetArchiveKeyForChangeNumber(int ChangeNumber, [NotNullWhen(true)] out string? ArchiveKey);
-		Task<bool> DownloadArchive(IPerforceConnection Perforce, string ArchiveKey, DirectoryReference LocalRootPath, FileReference ManifestFileName, ILogger Logger, ProgressValue Progress, CancellationToken CancellationToken);
-	}
-
 	class PerforceMonitor : IDisposable, IArchiveInfoSource
 	{
 		internal class PerforceArchiveInfo : IArchiveInfo

@@ -13,7 +13,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
@@ -51,6 +50,13 @@ namespace UnrealGameSync
 		None,
 		Code,
 		Content
+	}
+
+	public enum LatestChangeType
+	{
+		Any,
+		Good,
+		Starred,
 	}
 
 	public enum UserSettingsVersion
@@ -356,7 +362,7 @@ namespace UnrealGameSync
 
 		// Window settings
 		public bool bWindowVisible;
-		public FormWindowState WindowState;
+		public string WindowState;
 		public Rectangle? WindowBounds;
 		
 		// Schedule settings
@@ -550,10 +556,7 @@ namespace UnrealGameSync
 
 			// Window settings
 			bWindowVisible = ConfigFile.GetValue("Window.Visible", true);
-			if(!Enum.TryParse(ConfigFile.GetValue("Window.State", ""), true, out WindowState))
-			{
-				WindowState = FormWindowState.Normal;
-			}
+			WindowState = ConfigFile.GetValue("Window.State", "");
 			WindowBounds = ParseRectangleValue(ConfigFile.GetValue("Window.Bounds", ""));
 
 			// Schedule settings
@@ -962,7 +965,7 @@ namespace UnrealGameSync
 			ConfigSection WindowSection = ConfigFile.FindOrAddSection("Window");
 			WindowSection.Clear();
 			WindowSection.SetValue("Visible", bWindowVisible);
-			WindowSection.SetValue("State", WindowState.ToString());
+			WindowSection.SetValue("State", WindowState);
 			if(WindowBounds != null)
 			{
 				WindowSection.SetValue("Bounds", FormatRectangleValue(WindowBounds.Value));

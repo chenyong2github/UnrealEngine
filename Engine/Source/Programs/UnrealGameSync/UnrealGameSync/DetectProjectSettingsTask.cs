@@ -297,8 +297,8 @@ namespace UnrealGameSync
 				ConfigFile LatestProjectConfigFile = await PerforceMonitor.ReadProjectConfigFileAsync(PerforceClient, BranchClientPath, NewSelectedClientFileName, GetCacheFolder(BranchDirectoryName), LocalConfigFiles, Logger, CancellationToken);
 
 				// Get the local config file and stream filter
-				ConfigFile WorkspaceProjectConfigFile = await Workspace.ReadProjectConfigFile(BranchDirectoryName, NewSelectedFileName, Logger);
-				IReadOnlyList<string>? WorkspaceProjectStreamFilter = await Workspace.ReadProjectStreamFilter(PerforceClient, WorkspaceProjectConfigFile, Logger, CancellationToken.None);
+				ConfigFile WorkspaceProjectConfigFile = await WorkspaceUpdate.ReadProjectConfigFile(BranchDirectoryName, NewSelectedFileName, Logger);
+				IReadOnlyList<string>? WorkspaceProjectStreamFilter = await WorkspaceUpdate.ReadProjectStreamFilter(PerforceClient, WorkspaceProjectConfigFile, Logger, CancellationToken);
 
 				ProjectInfo ProjectInfo = new ProjectInfo(BranchDirectoryName, NewSelectedFileName, BranchClientPath, NewSelectedClientFileName, NewSelectedProjectIdentifier, bIsEnterpriseProject);
 

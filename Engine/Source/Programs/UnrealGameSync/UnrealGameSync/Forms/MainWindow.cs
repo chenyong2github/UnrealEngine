@@ -660,7 +660,7 @@ namespace UnrealGameSync
 			}
 
 			Settings.bWindowVisible = Visible;
-			Settings.WindowState = WindowState;
+			Settings.WindowState = WindowState.ToString();
 			if(WindowState == FormWindowState.Normal)
 			{
 				Settings.WindowBounds = new Rectangle(Location, Size);
@@ -1439,7 +1439,12 @@ namespace UnrealGameSync
 					}
 				}
 			}
-			WindowState = Settings.WindowState;
+
+			FormWindowState NewWindowState;
+			if (Enum.TryParse(Settings.WindowState, true, out NewWindowState))
+			{
+				WindowState = NewWindowState;
+			}
 		}
 
 		bool ShowNotificationForIssue(IssueData Issue)

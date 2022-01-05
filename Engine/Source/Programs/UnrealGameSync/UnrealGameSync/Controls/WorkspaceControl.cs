@@ -37,13 +37,6 @@ namespace UnrealGameSync
 		public List<UncontrolledChangelist> Changelists { get; set; } = new List<UncontrolledChangelist>();
 	}
 
-	public enum LatestChangeType
-	{
-		Any,
-		Good,
-		Starred,
-	}
-
 	interface IWorkspaceControlOwner
 	{
 		ToolUpdateMonitor ToolUpdateMonitor { get; }
@@ -5187,7 +5180,7 @@ namespace UnrealGameSync
 			}
 
 			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
-			List<string> SyncPaths = Workspace.GetSyncPaths(Workspace.Project, WorkspaceSettings.bSyncAllProjects ?? Settings.bSyncAllProjects, CombinedSyncFilter);
+			List<string> SyncPaths = WorkspaceUpdate.GetSyncPaths(Workspace.Project, WorkspaceSettings.bSyncAllProjects ?? Settings.bSyncAllProjects, CombinedSyncFilter);
 
 			CleanWorkspaceWindow.DoClean(ParentForm, PerforceSettings, BranchDirectoryName, Workspace.Project.ClientRootPath, SyncPaths, ExtraSafeToDeleteFolders.Split('\n'), ExtraSafeToDeleteExtensions.Split('\n'), ServiceProvider.GetRequiredService<ILogger<CleanWorkspaceWindow>>());
 		}
