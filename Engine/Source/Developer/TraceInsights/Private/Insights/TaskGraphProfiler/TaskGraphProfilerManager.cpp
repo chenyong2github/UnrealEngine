@@ -2,23 +2,24 @@
 
 #include "TaskGraphProfilerManager.h"
 
+#include "Async/TaskGraphInterfaces.h"
 #include "Features/IModularFeatures.h"
+#include "Framework/Docking/TabManager.h"
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/TasksProfiler.h"
-#include "Async/TaskGraphInterfaces.h"
 
+// Insights
 #include "Insights/InsightsStyle.h"
+#include "Insights/TaskGraphProfiler/ViewModels/TaskGraphRelation.h"
 #include "Insights/TaskGraphProfiler/ViewModels/TaskTable.h"
 #include "Insights/TaskGraphProfiler/ViewModels/TaskTimingTrack.h"
 #include "Insights/TaskGraphProfiler/Widgets/STaskTableTreeView.h"
 #include "Insights/TimingProfilerManager.h"
-#include "Insights/ViewModels/TaskGraphRelation.h"
 #include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/ViewModels/ThreadTrackEvent.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
-#include "Framework/Docking/TabManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
