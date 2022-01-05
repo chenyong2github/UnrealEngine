@@ -69,6 +69,7 @@ void SReflectorToolTipWidget::Construct( const FArguments& InArgs )
 			++SlotCount;
 		};
 
+		BuildLabelAndValue(LOCTEXT("SourceName", "Source"), { this, &SReflectorToolTipWidget::GetWidgetsSourceName });
 		BuildLabelAndValue(LOCTEXT("DesiredSize", "Desired Size"), { this, &SReflectorToolTipWidget::GetWidgetsDesiredSize });
 		BuildLabelAndValue(LOCTEXT("ActualSize", "Actual Size"), { this, &SReflectorToolTipWidget::GetWidgetActualSize });
 		BuildLabelAndValue(LOCTEXT("SizeInfo", "Size Info"), { this, &SReflectorToolTipWidget::GetSizeInfo });
