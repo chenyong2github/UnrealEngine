@@ -121,15 +121,16 @@ void UDynamicMesh::ProcessMesh(TFunctionRef<void(const UE::Geometry::FDynamicMes
 void UDynamicMesh::EditMesh(TFunctionRef<void(FDynamicMesh3&)> EditFunc,
 							EDynamicMeshChangeType ChangeType,
 							EDynamicMeshAttributeChangeFlags ChangeFlags,
-							bool bDeferChangeEvents)
+							bool bDeferChangeEvents,
+							bool bEnforceAttributeInvariants)
 {
 	FDynamicMeshChangeInfo ChangeInfo;
 	ChangeInfo.Type = ChangeType;
 	ChangeInfo.Flags = ChangeFlags;
-	EditMeshInternal(EditFunc, ChangeInfo, bDeferChangeEvents);
+	EditMeshInternal(EditFunc, ChangeInfo, bDeferChangeEvents, bEnforceAttributeInvariants);
 }
 
-void UDynamicMesh::EditMeshInternal(TFunctionRef<void(FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo, bool bDeferChangeEvents)
+void UDynamicMesh::EditMeshInternal(TFunctionRef<void(FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo, bool bDeferChangeEvents, bool bEnforceAttributeInvariants)
 {
 	if (!bDeferChangeEvents)
 	{
@@ -137,18 +138,21 @@ void UDynamicMesh::EditMeshInternal(TFunctionRef<void(FDynamicMesh3&)> EditFunc,
 	}
 	EditFunc(GetMeshRef());
 
-	// Enforce our mesh attribute invariants. This should probably be optional to support compute-only UDynamicMeshes....
-	if (Mesh->HasTriangleGroups() == false)
+	if (bEnforceAttributeInvariants)
 	{
-		Mesh->EnableTriangleGroups();
-	}
-	if (Mesh->HasAttributes() == false)
-	{
-		Mesh->EnableAttributes();
-	}
-	if (Mesh->Attributes()->HasMaterialID() == false)
-	{
-		Mesh->Attributes()->EnableMaterialID();
+		// Enforce our mesh attribute invariants. Optional to support compute-only UDynamicMeshes.
+		if (Mesh->HasTriangleGroups() == false)
+		{
+			Mesh->EnableTriangleGroups();
+		}
+		if (Mesh->HasAttributes() == false)
+		{
+			Mesh->EnableAttributes();
+		}
+		if (Mesh->Attributes()->HasMaterialID() == false)
+		{
+			Mesh->Attributes()->EnableMaterialID();
+		}
 	}
 
 	if (!bDeferChangeEvents)
