@@ -29,6 +29,11 @@ public:
 
 private:
 
+	FText GetWidgetsSourceName() const
+	{
+		return WidgetInfo->GetWidgetReadableLocation();
+	}
+
 	FText GetWidgetsDesiredSize() const
 	{
 		return FText::FromString(WidgetInfo->GetWidgetDesiredSize().ToString());
