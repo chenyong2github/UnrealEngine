@@ -347,7 +347,7 @@ namespace UnrealBuildTool
 
 		public static DirectoryReference? GetCppCXMetadataLocation(WindowsCompiler Compiler, DirectoryReference SelectedToolChainDir)
 		{
-			if (Compiler >= WindowsCompiler.VisualStudio2019)
+			if (Compiler.IsMSVC())
 			{
 				return DirectoryReference.Combine(SelectedToolChainDir, "lib", "x86", "Store", "references");
 			}

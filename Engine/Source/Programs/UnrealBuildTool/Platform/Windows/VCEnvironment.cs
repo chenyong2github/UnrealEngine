@@ -180,7 +180,7 @@ namespace UnrealBuildTool
 		/// <returns>Directory containing the 32-bit toolchain binaries</returns>
 		public static DirectoryReference GetVCToolPath(WindowsCompiler Compiler, DirectoryReference VCToolChainDir, WindowsArchitecture Architecture)
 		{
-			if (Compiler >= WindowsCompiler.VisualStudio2019)
+			if (Compiler.IsMSVC())
 			{
 				FileReference NativeCompilerPath = FileReference.Combine(VCToolChainDir, "bin", "HostX64", WindowsExports.GetArchitectureSubpath(Architecture), "cl.exe");
 				if (FileReference.Exists(NativeCompilerPath))
@@ -325,7 +325,7 @@ namespace UnrealBuildTool
 			string ArchFolder = WindowsExports.GetArchitectureSubpath(Architecture);
 
 			// Add the standard Visual C++ library paths
-			if (ToolChain >= WindowsCompiler.VisualStudio2019)
+			if (ToolChain.IsMSVC())
 			{
 				if (Platform == UnrealTargetPlatform.HoloLens)
 				{
@@ -367,7 +367,7 @@ namespace UnrealBuildTool
 			LibraryPaths.Add( GetToolChainLibsDir(Platform));
 
 			// If we're on >= Visual Studio 2015 and using pre-Windows 10 SDK, we need to find a Windows 10 SDK and add the UCRT include paths
-			if(ToolChain >= WindowsCompiler.VisualStudio2019 && WindowsSdkVersion < new VersionNumber(10))
+			if(ToolChain.IsMSVC() && WindowsSdkVersion < new VersionNumber(10))
 			{
 				KeyValuePair<VersionNumber, DirectoryReference> Pair = MicrosoftPlatformSDK.FindUniversalCrtDirs().OrderByDescending(x => x.Key).FirstOrDefault();
 				if(Pair.Key == null || Pair.Key < new VersionNumber(10))
@@ -526,7 +526,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					throw new BuildException("{0}, or {1} must be installed in order to build this target.", WindowsPlatform.GetCompilerName(WindowsCompiler.VisualStudio2019), WindowsPlatform.GetCompilerName(WindowsCompiler.VisualStudio2022));
+					throw new BuildException("{0} or {1} must be installed in order to build this target.", WindowsPlatform.GetCompilerName(WindowsCompiler.VisualStudio2019), WindowsPlatform.GetCompilerName(WindowsCompiler.VisualStudio2022));
 				}
 			}
 			else
