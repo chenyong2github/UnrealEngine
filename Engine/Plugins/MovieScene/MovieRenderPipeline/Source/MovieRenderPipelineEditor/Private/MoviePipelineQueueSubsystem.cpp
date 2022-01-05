@@ -11,16 +11,34 @@ UMoviePipelineExecutorBase* UMoviePipelineQueueSubsystem::RenderQueueWithExecuto
 		return nullptr;
 	}
 
+	ActiveExecutor = NewObject<UMoviePipelineExecutorBase>(this, InExecutorType);
+	RenderQueueWithExecutorInstance(ActiveExecutor);
+	return ActiveExecutor;
+}
+
+void UMoviePipelineQueueSubsystem::RenderQueueWithExecutorInstance(UMoviePipelineExecutorBase* InExecutor)
+{
+	if (!ensureMsgf(!IsRendering(), TEXT("RenderQueueWithExecutor cannot be called while already rendering!")))
+	{
+		FFrame::KismetExecutionMessage(TEXT("Render already in progress."), ELogVerbosity::Error);
+		return;
+	}
+
+	if (!InExecutor)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Invalid executor supplied."), ELogVerbosity::Error);
+		return;
+	}
+
 	ILevelSequenceEditorModule* LevelSequenceEditorModule = FModuleManager::GetModulePtr<ILevelSequenceEditorModule>("LevelSequenceEditor");
 	if (LevelSequenceEditorModule)
 	{
 		LevelSequenceEditorModule->OnComputePlaybackContext().AddUObject(this, &UMoviePipelineQueueSubsystem::OnSequencerContextBinding);
 	}
-		
-	ActiveExecutor = NewObject<UMoviePipelineExecutorBase>(this, InExecutorType);
+
+	ActiveExecutor = InExecutor;
 	ActiveExecutor->OnExecutorFinished().AddUObject(this, &UMoviePipelineQueueSubsystem::OnExecutorFinished);
 	ActiveExecutor->Execute(GetQueue());
-	return ActiveExecutor;
 }
 
 void UMoviePipelineQueueSubsystem::OnSequencerContextBinding(bool& bAllowBinding)
