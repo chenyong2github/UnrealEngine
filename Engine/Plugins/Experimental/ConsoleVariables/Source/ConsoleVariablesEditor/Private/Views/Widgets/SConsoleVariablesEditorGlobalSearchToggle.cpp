@@ -2,6 +2,7 @@
 
 #include "SConsoleVariablesEditorGlobalSearchToggle.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
