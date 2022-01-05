@@ -4,9 +4,7 @@
 
 #include "Misc/StringBuilder.h"
 
-namespace UE
-{
-namespace String
+namespace UE::String
 {
 
 template <typename CharType, ANSICHAR LetterA>
@@ -88,5 +86,4 @@ void BytesToHexLower(TConstArrayView<uint8> Bytes, FUtf8StringBuilderBase& Build
 	BytesToHexImpl<UTF8CHAR, 'a'>(Bytes, GetData(Builder) + Offset);
 }
 
-}
-}
+} // UE::String
