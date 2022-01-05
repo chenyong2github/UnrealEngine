@@ -67,6 +67,10 @@ namespace UE::DatasmithImporter
 		 */
 		void Invalidate();
 
+		const FGuid& GetSourceHandle() const { return SourceHandle; }
+
+		const FGuid& GetDestinationHandle() const { return DestinationHandle; }
+
 	protected:
 		/**
 		 * Used by GetSceneReceiver() to create a wrapper around the ISceneReceiver returned by this function.
