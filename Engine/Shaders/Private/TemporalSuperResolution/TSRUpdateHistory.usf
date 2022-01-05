@@ -125,6 +125,7 @@ groupshared taa_subpixel_payload2 SharedParallaxFactorBits[GROUP_SHARED_SIZE];
 
 //------------------------------------------------------- FUNCTIONS
 
+CALL_SITE_DEBUGLOC 
 taa_ushort2x2 Map8x8Tile2x2LaneDPV(uint GroupThreadIndex)
 {
 	taa_ushort2 GroupId = Map8x8Tile2x2Lane(GroupThreadIndex);
@@ -135,11 +136,13 @@ taa_ushort2x2 Map8x8Tile2x2LaneDPV(uint GroupThreadIndex)
 #endif
 }
 
+CALL_SITE_DEBUGLOC 
 taa_half3x2 TransformColorForClampingBox(taa_half3x2 Color)
 {
 	return RGBToYCoCg(Color);
 }
 
+CALL_SITE_DEBUGLOC 
 taa_half3x2 GetColorChannel(taa_half4x2 Color)
 {
 	return dpv_interleave_registers(
