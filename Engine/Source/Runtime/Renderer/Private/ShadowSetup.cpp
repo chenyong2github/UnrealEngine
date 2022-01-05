@@ -4974,7 +4974,8 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 				}
 			}
 			// If uncached and no primitives, skip allocations etc
-			else if (ProjectedShadowInfo->CacheMode == SDCM_Uncached && !ProjectedShadowInfo->HasSubjectPrims() && !ProjectedShadowInfo->IsWholeSceneDirectionalShadow())
+			// Note: cached PreShadows, for some reason, has CacheMode == SDCM_Uncached so need to skip them here.
+			else if ((ProjectedShadowInfo->CacheMode == SDCM_Uncached && !ProjectedShadowInfo->bPreShadow) && !ProjectedShadowInfo->HasSubjectPrims() && !ProjectedShadowInfo->IsWholeSceneDirectionalShadow())
 			{
 				bShadowIsVisible = false;
 			}
