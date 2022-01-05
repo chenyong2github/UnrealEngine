@@ -519,6 +519,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	ThisGeometry = AllottedGeometry;
 
+	Tooltip.SetFontScale(AllottedGeometry.Scale);
+
 	bPreventThrottling = false;
 
 	constexpr float OverscrollFadeSpeed = 2.0f;
@@ -678,8 +680,14 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	class FTimingTrackUpdateContext : public ITimingTrackUpdateContext
 	{
 	public:
-		explicit FTimingTrackUpdateContext(STimingView* InTimingView, double InCurrentTime, float InDeltaTime) : TimingView(InTimingView), CurrentTime(InCurrentTime), DeltaTime(InDeltaTime) {}
+		explicit FTimingTrackUpdateContext(STimingView* InTimingView, const FGeometry& InGeometry, double InCurrentTime, float InDeltaTime)
+			: TimingView(InTimingView)
+			, Geometry(InGeometry)
+			, CurrentTime(InCurrentTime)
+			, DeltaTime(InDeltaTime)		
+		{}
 
+		virtual const FGeometry& GetGeometry() const override { return Geometry; }
 		virtual const FTimingTrackViewport& GetViewport() const override { return TimingView->GetViewport(); }
 		virtual const FVector2D& GetMousePosition() const override { return TimingView->GetMousePosition(); }
 		virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const override { return TimingView->GetHoveredEvent(); }
@@ -691,11 +699,12 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	public:
 		STimingView* TimingView;
+		const FGeometry& Geometry;
 		double CurrentTime;
 		float DeltaTime;
 	};
 
-	FTimingTrackUpdateContext UpdateContext(this, InCurrentTime, InDeltaTime);
+	FTimingTrackUpdateContext UpdateContext(this, AllottedGeometry, InCurrentTime, InDeltaTime);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pre-Update.
@@ -1109,6 +1118,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 #endif
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	const float FontScale = AllottedGeometry.Scale;
 
 	const float ViewWidth = AllottedGeometry.GetLocalSize().X;
 	const float ViewHeight = AllottedGeometry.GetLocalSize().Y;
@@ -1508,7 +1518,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	{
 		const FSlateFontInfo& SummaryFont = MainFont;
 
-		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;
+		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale;
 		const float DbgDY = MaxFontCharHeight;
 
 		const float DbgW = 320.0f;
@@ -4887,7 +4897,9 @@ TSharedRef<SDockTab> STimingView::SpawnQuickFindTab(const FSpawnTabArgs& Args)
 	const TSharedPtr<SWindow>& OwnerWindow = Args.GetOwnerWindow();
 	if (OwnerWindow.IsValid() && OwnerWindow != FSlateApplication::Get().FindWidgetWindow(SharedThis(this)))
 	{
-		const float LocalDPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
+		TSharedPtr<SWindow> TopmostAncestor = OwnerWindow->GetTopmostAncestor();
+		const FVector2D DPIProbePoint = TopmostAncestor->GetPositionInScreen() + FVector2D(10.0f, 10.0f);
+		const float LocalDPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DPIProbePoint.X, DPIProbePoint.Y);
 		OwnerWindow->Resize(FVector2D(600 * LocalDPIScaleFactor, 400 * LocalDPIScaleFactor));
 	}
 

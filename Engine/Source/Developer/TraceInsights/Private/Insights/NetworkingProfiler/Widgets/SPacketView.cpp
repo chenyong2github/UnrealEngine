@@ -653,6 +653,7 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 	FSlateFontInfo SummaryFont = FAppStyle::Get().GetFontStyle("SmallFont");
+	const float FontScale = AllottedGeometry.Scale;
 
 	const FSlateBrush* WhiteBrush = FInsightsStyle::Get().GetBrush("WhiteBrush");
 
@@ -775,7 +776,7 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 					});
 			}
 
-			FVector2D TextSize = FontMeasureService->Measure(Text, SummaryFont);
+			const FVector2D TextSize = FontMeasureService->Measure(Text, SummaryFont, FontScale) / FontScale;
 
 			const float DX = 2.0f;
 			const float W2 = TextSize.X / 2 + DX;
@@ -809,7 +810,7 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	const bool bShouldDisplayDebugInfo = FInsightsManager::Get()->IsDebugInfoEnabled();
 	if (bShouldDisplayDebugInfo)
 	{
-		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;
+		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale;
 		const float DbgDY = MaxFontCharHeight;
 
 		const float DbgW = 280.0f;
@@ -946,6 +947,7 @@ void SPacketView::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBr
 		const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+		const float FontScale = DrawContext.Geometry.Scale;
 
 		for (double Value = StartValue; Value < TopValue; Value += Grid)
 		{
@@ -956,7 +958,7 @@ void SPacketView::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBr
 
 			const int64 ValueBits = static_cast<int64>(Value);
 			const FString Text = (ValueBits == 0) ? TEXT("0") : FString::Format(TEXT("{0} bits"), { FText::AsNumber(ValueBits).ToString() });
-			const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
+			const FVector2D TextSize = FontMeasureService->Measure(Text, Font, FontScale) / FontScale;
 			constexpr float TextH = 14.0f;
 
 			// Draw background for value text.
@@ -1020,6 +1022,7 @@ void SPacketView::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlate
 		const FLinearColor TopTextColor(1.0f, 1.0f, 1.0f, 0.7f);
 
 		//const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+		//const float FontScale = DrawContext.Geometry.Scale;
 
 		for (int32 Index = StartIndex; Index < RightIndex; Index += Grid)
 		{
@@ -1029,7 +1032,7 @@ void SPacketView::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlate
 			DrawContext.DrawBox(X, 0, 1, ViewHeight, Brush, GridColor);
 
 			const FString Text = FText::AsNumber(Index).ToString();
-			//const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
+			//const FVector2D TextSize = FontMeasureService->Measure(Text, Font, FontScale) / FontScale;
 			//constexpr float TextH = 14.0f;
 
 			// Draw background for index text.

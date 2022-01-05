@@ -254,6 +254,7 @@ void FFrameTimingTrack::Update(const ITimingTrackUpdateContext& Context)
 {
 	FTimingEventsTrack::Update(Context);
 
+	Header.SetFontScale(Context.GetGeometry().Scale);
 	Header.UpdateSize();
 	Header.Update(Context);
 }
@@ -292,6 +293,7 @@ void FFrameTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 	{
 		const FTimingEvent& SelectedEvent = SelectedEventPtr->As<FTimingEvent>();
 		const ITimingViewDrawHelper& Helper = Context.GetHelper();
+		const float FontScale = Context.GetDrawContext().Geometry.Scale;
 		DrawSelectedEventInfo(SelectedEvent, Context.GetViewport(), Context.GetDrawContext(), Helper.GetWhiteBrush(), Helper.GetEventFont());
 	}
 
@@ -309,7 +311,8 @@ void FFrameTimingTrack::DrawSelectedEventInfo(const FTimingEvent& SelectedEvent,
 		const FString Str = GetCompleteFrameName(InFoundFrame.Index, Duration);
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const FVector2D Size = FontMeasureService->Measure(Str, Font);
+		const float FontScale = DrawContext.Geometry.Scale;
+		const FVector2D Size = FontMeasureService->Measure(Str, Font, FontScale) / FontScale;
 		const float X = Viewport.GetWidth() - Size.X - 23.0f;
 		const float Y = Viewport.GetPosY() + Viewport.GetHeight() - Size.Y - 18.0f;
 

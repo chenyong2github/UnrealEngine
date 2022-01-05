@@ -224,8 +224,8 @@ protected:
 
 	FFrameTrackSampleRef HoveredSample;
 
-	float TooltipDesiredOpacity;
 	mutable float TooltipOpacity;
+	mutable float TooltipSizeX;
 
 	//////////////////////////////////////////////////
 	// Misc

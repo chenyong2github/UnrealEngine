@@ -218,13 +218,14 @@ void FTimeRulerTrack::Draw(const ITimingTrackDrawContext& Context) const
 	const double Precision = FMath::Max(DT / 10.0, TimeUtils::Nanosecond);
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	const float FontScale = DrawContext.Geometry.Scale;
 
 	// Draw the time at major tick marks.
 	for (float X = MajorOX; X < Viewport.GetWidth() + MajorTickMark; X += MajorTickMark)
 	{
 		const double T = Viewport.SlateUnitsToTime(X);
 		FString Text = TimeUtils::FormatTime(T, Precision);
-		const float TextWidth = FontMeasureService->Measure(Text, Font).X;
+		const float TextWidth = FontMeasureService->Measure(Text, Font, FontScale).X / FontScale;
 		DrawContext.DrawText(X - TextWidth / 2, TextY, Text, Font,
 			(T < Viewport.GetMinValidTime() || T >= Viewport.GetMaxValidTime()) ? FLinearColor(0.7f, 0.5f, 0.5f, 1.0f) : FLinearColor(0.8f, 0.8f, 0.8f, 1.0f));
 	}
@@ -267,8 +268,9 @@ void FTimeRulerTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 		}
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+		const float FontScale = DrawContext.Geometry.Scale;
 
-		const float MousePosTextWidth = FMath::RoundToFloat(FontMeasureService->Measure(MousePosText, Font).X);
+		const float MousePosTextWidth = FMath::RoundToFloat(FontMeasureService->Measure(MousePosText, Font, FontScale).X / FontScale);
 
 		if (!FMath::IsNearlyEqual(CrtMousePosTextWidth, MousePosTextWidth))
 		{
@@ -400,8 +402,9 @@ void FTimeRulerTrack::DrawTimeMarker(const ITimingTrackDrawContext& Context, con
 	}
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	const float FontScale = DrawContext.Geometry.Scale;
 
-	const float TextWidth = FMath::RoundToFloat(FontMeasureService->Measure(TimeMarkerText, Font).X);
+	const float TextWidth = FMath::RoundToFloat(FontMeasureService->Measure(TimeMarkerText, Font, FontScale).X / FontScale);
 
 	if (!FMath::IsNearlyEqual(TimeMarker.GetCrtTextWidth(), TextWidth))
 	{

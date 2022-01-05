@@ -892,11 +892,12 @@ void FMemoryGraphTrack::DrawHorizontalAxisLabel(const TDrawHorizontalAxisLabelPa
 		}
 	}
 
-	const FVector2D TextSize = Params.FontMeasureService->Measure(LabelText, Font);
+	const float FontScale = Params.DrawContext.Geometry.Scale;
+	const FVector2D TextSize = Params.FontMeasureService->Measure(LabelText, Font, FontScale) / FontScale;
 	constexpr float TextH = 14.0f;
 
 	// Draw background for value text.
-	Params.DrawContext.DrawBox(Params.DrawContext.LayerId + 1, Params.X - TextSize.X - 4.0f, Params.Y, TextSize.X + 4.0f, TextH, Params.Brush, Params.TextBgColor);
+	Params.DrawContext.DrawBox(Params.DrawContext.LayerId + 1, Params.X - TextSize.X - 4.0f, Params.Y, TextSize.X + 5.0f, TextH, Params.Brush, Params.TextBgColor);
 
 	// Draw value text.
 	Params.DrawContext.DrawText(Params.DrawContext.LayerId + 2, Params.X - TextSize.X - 2.0f, Params.Y + 1.0f, LabelText, Font, Params.TextColor);
