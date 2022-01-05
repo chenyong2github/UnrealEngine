@@ -5,7 +5,6 @@
 #include "SDerivedDataStatusBar.h"
 #include "SDerivedDataDialogs.h"
 #include "SDerivedDataCacheSettings.h"
-#include "SZenCacheStatistics.h"
 #include "SVirtualAssetsStatistics.h"
 #include "ZenServerInterface.h"
 #include "DerivedDataCacheNotifications.h"

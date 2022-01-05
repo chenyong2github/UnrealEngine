@@ -6,13 +6,20 @@
 
 namespace UE::Zen {
 
+	struct FZenCacheSizeStats
+	{
+		double Disk = 0;
+		double Memory = 0;
+	};
+
 	struct FZenCacheStats
 	{
+		FZenCacheSizeStats Size;
 		int64 Hits = 0;
 		int64 Misses = 0;
 		double HitRatio = 0.0;
 		int64 UpstreamHits = 0;
-		double UpstreamRatio = 0.0;
+		double UpstreamRatio = 0.0;	
 	};
 
 	struct FZenRequestStats
@@ -46,12 +53,26 @@ namespace UE::Zen {
 		TArray<FZenEndPointStats> EndPointStats;
 	};
 
+	struct FZenCASSizeStats
+	{
+		int64 Tiny = 0;
+		int64 Small = 0;
+		int64 Large = 0;
+		int64 Total = 0;
+	};
+
+	struct FZenCASStats
+	{
+		FZenCASSizeStats Size;
+	};
+
 	struct FZenStats
 	{
 		FZenRequestStats RequestStats;
 		FZenCacheStats CacheStats;
 		FZenUpstreamStats UpstreamStats;
 		FZenRequestStats UpstreamRequestStats;
+		FZenCASStats CASStats;
 
 	};
 

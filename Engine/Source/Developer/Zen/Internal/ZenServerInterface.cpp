@@ -821,6 +821,11 @@ FZenServiceInstance::GetStats( FZenStats& stats ) const
 		CacheStats.UpstreamHits = CacheObjectView["upstream_hits"].AsInt64();
 		CacheStats.UpstreamRatio = CacheObjectView["upstream_ratio"].AsDouble();
 
+		FCbObjectView CacheSizeObjectView = CacheObjectView["size"].AsObjectView();
+		FZenCacheSizeStats& CacheSizeStats = CacheStats.Size;
+		CacheSizeStats.Disk = CacheSizeObjectView["disk"].AsDouble();
+		CacheSizeStats.Memory = CacheSizeObjectView["memory"].AsDouble();
+
 		FCbObjectView UpstreamObjectView = RootObjectView["upstream"].AsObjectView();
 		FZenUpstreamStats& UpstreamStats = stats.UpstreamStats;
 
@@ -860,6 +865,16 @@ FZenServiceInstance::GetStats( FZenStats& stats ) const
 
 			UpstreamStats.EndPointStats.Push(EndPointStats);
 		}
+
+		FCbObjectView CASObjectView = RootObjectView["cas"].AsObjectView();	
+		FCbObjectView CASSizeObjectView = CASObjectView["size"].AsObjectView();
+
+		FZenCASSizeStats& CASSizeStats = stats.CASStats.Size;
+
+		CASSizeStats.Tiny = CASSizeObjectView["tiny"].AsInt64();
+		CASSizeStats.Small = CASSizeObjectView["small"].AsInt64();
+		CASSizeStats.Large = CASSizeObjectView["large"].AsInt64();
+		CASSizeStats.Total = CASSizeObjectView["total"].AsInt64();
 
 		return true;
 	}
