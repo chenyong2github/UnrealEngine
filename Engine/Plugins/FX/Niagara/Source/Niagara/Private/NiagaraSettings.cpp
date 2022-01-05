@@ -8,7 +8,7 @@ UNiagaraSettings::UNiagaraSettings(const FObjectInitializer& ObjectInitlaizer)
 	, NDISkelMesh_GpuUniformSamplingFormat(ENDISkelMesh_GpuUniformSamplingFormat::Full)
 	, NDISkelMesh_AdjacencyTriangleIndexFormat(ENDISkelMesh_AdjacencyTriangleIndexFormat::Full)
 {
-
+	PositionPinTypeColor = FLinearColor(1.0f, 0.3f, 1.0f, 1.0f);
 }
 
 FName UNiagaraSettings::GetCategoryName() const

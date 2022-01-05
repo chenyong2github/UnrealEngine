@@ -35,6 +35,7 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraScript.h"
 #include "NiagaraScriptSource.h"
+#include "NiagaraSettings.h"
 #include "ObjectEditorUtils.h"
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
@@ -1343,12 +1344,21 @@ FLinearColor UEdGraphSchema_Niagara::GetPinTypeColor(const FEdGraphPinType& PinT
 	}
 		
 	const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+	if (PinType.PinCategory == PinCategoryEnum || PinType.PinCategory == PinCategoryStaticEnum)
+	{
+		return Settings->BytePinTypeColor;
+	}
+	if (PinType.PinCategory == PinCategoryClass || PinType.PinCategory == PinCategoryStaticClass)
+	{
+		return Settings->ObjectPinTypeColor;
+	}
 	return Settings->WildcardPinTypeColor;
 }
 
 FLinearColor UEdGraphSchema_Niagara::GetTypeColor(const FNiagaraTypeDefinition& Type)
 {
 	const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+	const UNiagaraSettings* NiagaraSettings = GetDefault<UNiagaraSettings>();
 	if (Type == FNiagaraTypeDefinition::GetFloatDef())
 	{
 		return Settings->FloatPinTypeColor;
@@ -1365,9 +1375,21 @@ FLinearColor UEdGraphSchema_Niagara::GetTypeColor(const FNiagaraTypeDefinition& 
 	{
 		return Settings->VectorPinTypeColor;
 	}
+	else if (Type == FNiagaraTypeDefinition::GetPositionDef())
+	{
+		return NiagaraSettings->PositionPinTypeColor;
+	}
 	else if (Type == FNiagaraTypeDefinition::GetParameterMapDef())
 	{
 		return Settings->ExecutionPinTypeColor;
+	}
+	else if (Type.IsUObject() || Type.IsDataInterface())
+	{
+		return Settings->ObjectPinTypeColor;
+	}
+	else if (Type.IsEnum())
+	{
+		return Settings->BytePinTypeColor;
 	}
 	else if(Type == FNiagaraTypeDefinition::GetWildcardDef())
 	{
