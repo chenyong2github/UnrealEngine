@@ -224,10 +224,10 @@ void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSi
 
 
 
-void ComputeTransmissionProfileBurley(FLinearColor* TargetBuffer, uint32 TargetBufferSize, FLinearColor SubsurfaceColor, 
-																		FLinearColor FalloffColor, float ExtinctionScale, 
-																		FLinearColor SurfaceAlbedo, FLinearColor DiffuseMeanFreePathInMm,
-																		float InUnitToMm, FLinearColor TransmissionTintColor)
+void ComputeTransmissionProfileBurley(FLinearColor* TargetBuffer, uint32 TargetBufferSize, 
+									FLinearColor FalloffColor, float ExtinctionScale,
+									FLinearColor SurfaceAlbedo, FLinearColor DiffuseMeanFreePathInMm,
+									float InUnitToMm, FLinearColor TransmissionTintColor)
 {
 	check(TargetBuffer);
 	check(TargetBufferSize > 0);

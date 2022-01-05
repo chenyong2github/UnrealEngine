@@ -3,7 +3,6 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "RenderingThread.h"
 #include "RendererInterface.h"
-#include "Rendering/SeparableSSS.h"
 #include "Rendering/BurleyNormalizedSSS.h"
 #include "EngineModule.h"
 #include "RenderTargetPool.h"
@@ -261,14 +260,12 @@ static float GetNextSmallerPositiveFloat(float x)
 
 // NOTE: Changing offsets below requires updating all instances of #SSSS_CONSTANTS
 // TODO: This needs to be defined in a single place and shared between C++ and shaders!
-#define SSSS_SUBSURFACE_COLOR_OFFSET			0
-#define BSSS_SURFACEALBEDO_OFFSET                (SSSS_SUBSURFACE_COLOR_OFFSET+1)
+#define SSSS_TINT_SCALE_OFFSET					0
+#define BSSS_SURFACEALBEDO_OFFSET               (SSSS_TINT_SCALE_OFFSET+1)
 #define BSSS_DMFP_OFFSET                        (BSSS_SURFACEALBEDO_OFFSET+1)
 #define SSSS_TRANSMISSION_OFFSET				(BSSS_DMFP_OFFSET+1)
 #define SSSS_BOUNDARY_COLOR_BLEED_OFFSET		(SSSS_TRANSMISSION_OFFSET+1)
-#define SSSS_APPROXIMATE_SURFACEALBEDO_OFFSET	(SSSS_BOUNDARY_COLOR_BLEED_OFFSET+1)
-#define SSSS_APPROXIMATE_DMFP_OFFSET			(SSSS_APPROXIMATE_SURFACEALBEDO_OFFSET+1)
-#define SSSS_DUAL_SPECULAR_OFFSET				(SSSS_APPROXIMATE_DMFP_OFFSET+1)
+#define SSSS_DUAL_SPECULAR_OFFSET				(SSSS_BOUNDARY_COLOR_BLEED_OFFSET+1)
 #define SSSS_KERNEL0_OFFSET						(SSSS_DUAL_SPECULAR_OFFSET+1)
 #define SSSS_KERNEL0_SIZE						13
 #define SSSS_KERNEL1_OFFSET						(SSSS_KERNEL0_OFFSET + SSSS_KERNEL0_SIZE)
@@ -276,10 +273,8 @@ static float GetNextSmallerPositiveFloat(float x)
 #define SSSS_KERNEL2_OFFSET						(SSSS_KERNEL1_OFFSET + SSSS_KERNEL1_SIZE)
 #define SSSS_KERNEL2_SIZE						6
 #define SSSS_KERNEL_TOTAL_SIZE					(SSSS_KERNEL0_SIZE + SSSS_KERNEL1_SIZE + SSSS_KERNEL2_SIZE)
-#define SSSS_TRANSMISSION_PROFILE_OFFSET		(SSSS_KERNEL0_OFFSET + SSSS_KERNEL_TOTAL_SIZE)
-#define SSSS_TRANSMISSION_PROFILE_SIZE			32
-#define BSSS_TRANSMISSION_PROFILE_OFFSET        (SSSS_TRANSMISSION_PROFILE_OFFSET + SSSS_TRANSMISSION_PROFILE_SIZE)
-#define BSSS_TRANSMISSION_PROFILE_SIZE			SSSS_TRANSMISSION_PROFILE_SIZE
+#define BSSS_TRANSMISSION_PROFILE_OFFSET		(SSSS_KERNEL0_OFFSET + SSSS_KERNEL_TOTAL_SIZE)
+#define BSSS_TRANSMISSION_PROFILE_SIZE			32
 #define	SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE	5.0f // See MaxTransmissionProfileDistance in ComputeTransmissionProfile(), SeparableSSS.cpp
 #define	SSSS_MAX_DUAL_SPECULAR_ROUGHNESS		2.0f
 
@@ -384,32 +379,16 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 	{
 		FSubsurfaceProfileStruct Data = SubsurfaceProfileEntries[y].Settings;
 
-		// Convert subsurface parameters from separable to burley for mobile platform, and because the current shader platform is unknown at here, the converted parameters need to be saved in different slots(SSSS_APPROXIMATE_SURFACEALBEDO_OFFSET and SSSS_APPROXIMATE_DMFP_OFFSET).
-		if (!Data.bEnableBurley)
-		{
-			FLinearColor ApproximateSurfaceAlbedo, ApproximateMeanFreePathColor;
-			float ApproximateMeanFreePathDistance;
-			ConvertSubsurfaceParametersFromSeparableToBurley(Data, ApproximateSurfaceAlbedo, ApproximateMeanFreePathColor, ApproximateMeanFreePathDistance);
-			
-			ApproximateMeanFreePathColor = ApproximateMeanFreePathColor.GetClamped(Bias);
-			ApproximateSurfaceAlbedo = ApproximateSurfaceAlbedo.GetClamped(Bias);
-			
-			FLinearColor ApproximateDiffuseMeanFreePathInMm = (ApproximateMeanFreePathColor * ApproximateMeanFreePathDistance) * CmToMm;
-			SetupSurfaceAlbedoAndDiffuseMeanFreePath(ApproximateSurfaceAlbedo, ApproximateDiffuseMeanFreePathInMm);
-
-			TextureRow[SSSS_APPROXIMATE_SURFACEALBEDO_OFFSET] = ApproximateSurfaceAlbedo;
-			TextureRow[SSSS_APPROXIMATE_DMFP_OFFSET] = EncodeDiffuseMeanFreePath(ApproximateDiffuseMeanFreePathInMm);
-		}
-
-		Data.SubsurfaceColor = Data.SubsurfaceColor.GetClamped();
+		Data.Tint = Data.Tint.GetClamped();
 		Data.FalloffColor = Data.FalloffColor.GetClamped(Bias);
 		Data.MeanFreePathColor = Data.MeanFreePathColor.GetClamped(Bias); // In Cm
 		Data.TransmissionTintColor = Data.TransmissionTintColor.GetClamped(Bias);
 		Data.SurfaceAlbedo = Data.SurfaceAlbedo.GetClamped(Bias);
 
-		// to allow blending of the Subsurface with fullres in the shader
-		TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET] = Data.SubsurfaceColor;
-		TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].A = EncodeWorldUnitScale(Data.WorldUnitScale);
+		// to allow blending of the Subsurface with fullres in the shader and
+		// to depricate {scatter radius, falloff} in favor of albedo/MFP, need the `subsurface color` as tint.
+		TextureRow[SSSS_TINT_SCALE_OFFSET] = Data.Tint;
+		TextureRow[SSSS_TINT_SCALE_OFFSET].A = EncodeWorldUnitScale(Data.WorldUnitScale);
 		
 		const float UnitToCm = Data.WorldUnitScale;
 
@@ -466,22 +445,14 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 			// make Burley fallback looks the same to Burley. Set 1.0f when we have enough samples.
 			const float SamplingCountCompensation = 0.707f;
 			Data.ScatterRadius *= (Data.WorldUnitScale * 10.0f)*2.229f* SamplingCountCompensation;
-
-			// To depricate {scatter radius, falloff} in favor of albedo/MFP, need the subsurface color as tint.
-			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].R = Data.Tint.R; 
-			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].G = Data.Tint.G;
-			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].B = Data.Tint.B;
 		}
 		else
 		{
-			ComputeMirroredSSSKernel(&TextureRow[SSSS_KERNEL0_OFFSET], SSSS_KERNEL0_SIZE, Data.SubsurfaceColor, Data.FalloffColor);
-			ComputeMirroredSSSKernel(&TextureRow[SSSS_KERNEL1_OFFSET], SSSS_KERNEL1_SIZE, Data.SubsurfaceColor, Data.FalloffColor);
-			ComputeMirroredSSSKernel(&TextureRow[SSSS_KERNEL2_OFFSET], SSSS_KERNEL2_SIZE, Data.SubsurfaceColor, Data.FalloffColor);
+			UE_LOG(LogSubsurfaceProfile, Warning, TEXT("Dipole model has already been upgraded to Burley. Should not reach here."));
 		}
 
-		ComputeTransmissionProfile(&TextureRow[SSSS_TRANSMISSION_PROFILE_OFFSET], SSSS_TRANSMISSION_PROFILE_SIZE, Data.SubsurfaceColor, Data.FalloffColor, Data.ExtinctionScale);
 		ComputeTransmissionProfileBurley(&TextureRow[BSSS_TRANSMISSION_PROFILE_OFFSET], BSSS_TRANSMISSION_PROFILE_SIZE, 
-			Data.SubsurfaceColor, Data.FalloffColor, Data.ExtinctionScale, Data.SurfaceAlbedo, DifffuseMeanFreePathInMm, UnitToCm * CmToMm, Data.TransmissionTintColor);
+			Data.FalloffColor, Data.ExtinctionScale, Data.SurfaceAlbedo, DifffuseMeanFreePathInMm, UnitToCm * CmToMm, Data.TransmissionTintColor);
 
 		// could be lower than 1 (but higher than 0) to range compress for better quality (for 8 bit)
 		const float TableMaxRGB = 1.0f;
