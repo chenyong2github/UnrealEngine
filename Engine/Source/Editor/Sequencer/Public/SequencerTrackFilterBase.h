@@ -9,6 +9,8 @@
 #include "MovieSceneSequence.h"
 
 class FMenuBuilder;
+class FUICommandList;
+class ISequencer;
 
 typedef const UObject* FTrackFilterType;
 
@@ -50,6 +52,8 @@ public:
 	}
 
 	virtual bool PassesFilterChannel(FMovieSceneChannel* InMovieSceneChannel) const { return false; }
+
+	virtual void BindCommands(TSharedRef<FUICommandList> CommandBindings, TWeakPtr<ISequencer> Sequencer) {}
 
 protected:
 	void BroadcastChangedEvent() const { ChangedEvent.Broadcast(); }

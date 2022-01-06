@@ -320,9 +320,13 @@ private:
 
 class FSequencerTrackFilter_Animated : public FSequencerTrackFilter
 {
+public:
+	FSequencerTrackFilter_Animated();
+	~FSequencerTrackFilter_Animated();
+
 	virtual FString GetName() const override { return TEXT("AnimatedFilter"); }
 	virtual FText GetDisplayName() const override { return LOCTEXT("SequenceTrackFilter_Animated", "Animated Tracks"); }
-	virtual FText GetToolTipText() const override { return LOCTEXT("SequencerTrackFilter_AnimatedTip", "Show Only Animated Tracks."); }
+	virtual FText GetToolTipText() const override;
 	virtual FSlateIcon GetIcon() const { return FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyUser"); }
 
 	virtual bool ShouldUpdateOnTrackValueChanged() const override
@@ -340,5 +344,15 @@ class FSequencerTrackFilter_Animated : public FSequencerTrackFilter
 		return (InMovieSceneChannel && InMovieSceneChannel->GetNumKeys() > 0);
 	}
 
+	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override
+	{
+		static UClass* LevelSequenceClass = FindObject<UClass>(ANY_PACKAGE, TEXT("LevelSequence"), true);
+		static UClass* WidgetAnimationClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WidgetAnimation"), true);
+		return InSequence != nullptr &&
+			((LevelSequenceClass != nullptr && InSequence->GetClass()->IsChildOf(LevelSequenceClass)) ||
+			(WidgetAnimationClass != nullptr && InSequence->GetClass()->IsChildOf(WidgetAnimationClass)));
+	}
+	
+	virtual void BindCommands(TSharedRef<FUICommandList> CommandBindings, TWeakPtr<ISequencer> Sequencer) override;
 };
 #undef LOCTEXT_NAMESPACE
