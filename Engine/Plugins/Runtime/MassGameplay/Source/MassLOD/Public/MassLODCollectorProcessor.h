@@ -9,28 +9,12 @@
 
 #include "MassLODCollectorProcessor.generated.h"
 
-USTRUCT()
-struct FMassCollectorLODConfig
+struct FMassGenericCollectorLogic : public FLODDefaultLogic
 {
-	GENERATED_BODY()
-
-	/** Component Tag that will be used to associate LOD config */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config, meta = (BaseStruct = "MassTag"))
-	FInstancedStruct TagFilter;
-
-	/** Runtime data for matching the LOD config */
-	TMassLODCollector<FMassRepresentationLODLogic> RepresentationLODCollector;
-	FMassEntityQuery CloseEntityQuery;
-	FMassEntityQuery FarEntityQuery_Conditional;
-	TMassLODCollector<FMassSimulationLODLogic> SimulationLODCollector;
-	FMassEntityQuery OnLODEntityQuery;
-	FMassEntityQuery OffLODEntityQuery_Conditional;
-	TMassLODCollector<FMassCombinedLODLogic> CombinedLODCollector;
-	// Keep these in this order as we are creating ArrayView from the first 3 queries.
-	FMassEntityQuery CloseAndOnLODEntityQuery;
-	FMassEntityQuery CloseAndOffLODEntityQuery;
-	FMassEntityQuery FarAndOnLODEntityQuery;
-	FMassEntityQuery FarAndOffLODEntityQuery_Conditional;
+	enum
+	{
+		bDoVisibilityLogic = true,
+	};
 };
 
 /*
@@ -48,6 +32,21 @@ protected:
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
-	TArray<FMassCollectorLODConfig> LODConfigs;
+	template <bool bLocalViewersOnly>
+	void CollectLODForChunk(FMassExecutionContext& Context);
+
+	template <bool bLocalViewersOnly>
+	void ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
+
+	TMassLODCollector<FMassGenericCollectorLogic> Collector;
+
+	// Queries for visualization and simulation calculation
+	/** All entities that are in visible range and are On LOD*/
+	FMassEntityQuery EntityQuery_VisibleRangeAndOnLOD;
+	/** All entities that are in visible range but are Off LOD */
+	FMassEntityQuery EntityQuery_VisibleRangeOnly;
+	/** All entities that are NOT in visible range but are On LOD */
+	FMassEntityQuery EntityQuery_OnLODOnly;
+	/** All entities that are Not in visible range and are at Off LOD */
+	FMassEntityQuery EntityQuery_NotVisibleRangeAndOffLOD;
 };

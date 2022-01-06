@@ -7,6 +7,15 @@
 
 #include "MassLODTrait.generated.h"
 
+UCLASS(meta = (DisplayName = "LODCollector"))
+class MASSLOD_API UMassLODCollectorTrait : public UMassEntityTraitBase
+{
+	GENERATED_BODY()
+
+protected:
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+};
+
 UCLASS(meta = (DisplayName = "SimulationLOD"))
 class MASSLOD_API UMassSimulationLODTrait : public UMassEntityTraitBase
 {

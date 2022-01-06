@@ -16,76 +16,57 @@ UMassLODCollectorProcessor::UMassLODCollectorProcessor()
 
 void UMassLODCollectorProcessor::ConfigureQueries()
 {
-	for (FMassCollectorLODConfig& LODConfig : LODConfigs)
+	FMassEntityQuery BaseQuery;
+	BaseQuery.AddTagRequirement<FMassCollectLODViewerInfoTag>(EMassFragmentPresence::All);
+	BaseQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	BaseQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadWrite);
+	BaseQuery.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
+	BaseQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
+	BaseQuery.SetChunkFilter([](const FMassExecutionContext& Context)
 	{
-		FMassEntityQuery BaseQuery;
-		if (LODConfig.TagFilter.GetScriptStruct())
-		{
-			BaseQuery.AddTagRequirement(*LODConfig.TagFilter.GetScriptStruct(), EMassFragmentPresence::All);
-		}
-		BaseQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
-		BaseQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadWrite);
+		return FMassVisualizationChunkFragment::ShouldUpdateVisualizationForChunk(Context)
+			|| FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame(Context);
+	});
 
-		LODConfig.OnLODEntityQuery = BaseQuery;
-		LODConfig.OnLODEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
-		LODConfig.OffLODEntityQuery_Conditional = BaseQuery;
-		LODConfig.OffLODEntityQuery_Conditional.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
-		LODConfig.OffLODEntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
-		LODConfig.OffLODEntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
+	EntityQuery_VisibleRangeAndOnLOD = BaseQuery;
+	EntityQuery_VisibleRangeAndOnLOD.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
+	EntityQuery_VisibleRangeAndOnLOD.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
 
-		LODConfig.CloseEntityQuery = BaseQuery;
-		LODConfig.CloseEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
-		LODConfig.FarEntityQuery_Conditional = BaseQuery;
-		LODConfig.FarEntityQuery_Conditional.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
-		LODConfig.FarEntityQuery_Conditional.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
-		LODConfig.FarEntityQuery_Conditional.SetChunkFilter(&FMassVisualizationChunkFragment::ShouldUpdateVisualizationForChunk);
+	EntityQuery_VisibleRangeOnly = BaseQuery;
+	EntityQuery_VisibleRangeOnly.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
+	EntityQuery_VisibleRangeOnly.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
 
-		// @todo: Cleanup once we can do more complex logic with entity queries. There is no other way to do "Notall", we need to create by hand 3 queries to achieve it.
-		LODConfig.CloseAndOnLODEntityQuery = BaseQuery;
-		LODConfig.CloseAndOnLODEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
-		LODConfig.CloseAndOnLODEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
-		LODConfig.CloseAndOffLODEntityQuery = BaseQuery;
-		LODConfig.CloseAndOffLODEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
-		LODConfig.CloseAndOffLODEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
-		LODConfig.FarAndOnLODEntityQuery = BaseQuery;
-		LODConfig.FarAndOnLODEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
-		LODConfig.FarAndOnLODEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
-		LODConfig.FarAndOffLODEntityQuery_Conditional = BaseQuery;
-		LODConfig.FarAndOffLODEntityQuery_Conditional.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
-		LODConfig.FarAndOffLODEntityQuery_Conditional.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
-		LODConfig.FarAndOffLODEntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
-		LODConfig.FarAndOffLODEntityQuery_Conditional.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
-		LODConfig.FarAndOffLODEntityQuery_Conditional.SetChunkFilter([](const FMassExecutionContext& Context)
-			{
-				return Context.GetChunkFragment<FMassVisualizationChunkFragment>().ShouldUpdateVisualization()
-					|| FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame(Context);
-			});
-	}
+	EntityQuery_OnLODOnly = BaseQuery;
+	EntityQuery_OnLODOnly.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
+	EntityQuery_OnLODOnly.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
+
+	EntityQuery_NotVisibleRangeAndOffLOD = BaseQuery;
+	EntityQuery_NotVisibleRangeAndOffLOD.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
+	EntityQuery_NotVisibleRangeAndOffLOD.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
 }
 
-template <typename TCollector>
-void CollectLOD(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, const TArray<FViewerInfo>& ViewersInfo, TCollector& Collector, TArrayView<FMassEntityQuery> HighFrequencyTickingEntityQueries, FMassEntityQuery& LowFrequencyTickingEntityQuery)
+template <bool bLocalViewersOnly>
+void UMassLODCollectorProcessor::CollectLODForChunk(FMassExecutionContext& Context)
 {
-	Collector.PrepareExecution(ViewersInfo);
+	TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
+	TArrayView<FMassViewerInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassViewerInfoFragment>();
 
-	auto CollectLODInfo = [&Collector](FMassExecutionContext& Context)
+	Collector.CollectLODInfo<FDataFragment_Transform, FMassViewerInfoFragment, bLocalViewersOnly, true/*bCollectDistanceToViewer*/>(Context, LocationList, ViewerInfoList);
+}
+
+template <bool bLocalViewersOnly>
+void UMassLODCollectorProcessor::ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
+{
 	{
-		TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
-		TArrayView<FMassViewerInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassViewerInfoFragment>();
-
-		Collector.CollectLODInfo(Context, LocationList, ViewerInfoList);
-	};
-
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("HighFrequency"))
-		for(FMassEntityQuery& HighFrequencyTickingEntityQuery : HighFrequencyTickingEntityQueries)
-		{
-			HighFrequencyTickingEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, CollectLODInfo);
-		}
+		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Close"));
+		EntityQuery_VisibleRangeAndOnLOD.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
+		EntityQuery_VisibleRangeOnly.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
+		EntityQuery_OnLODOnly.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
 	}
+
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("LowFrequency"))
-		LowFrequencyTickingEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, CollectLODInfo);
+		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Far"));
+		EntityQuery_NotVisibleRangeAndOffLOD.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) { CollectLODForChunk<bLocalViewersOnly>(Context); });
 	}
 }
 
@@ -93,25 +74,16 @@ void UMassLODCollectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 {
 	check(LODManager);
 	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();
+	Collector.PrepareExecution(Viewers);
 
 	check(World);
-
-	for (FMassCollectorLODConfig& LODConfig : LODConfigs)
+	if (World->IsNetMode(NM_DedicatedServer))
 	{
-		if (World->IsNetMode(NM_Client))
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("RepresentationLODCollector"))
-			CollectLOD(EntitySubsystem, Context, Viewers, LODConfig.RepresentationLODCollector, MakeArrayView(&LODConfig.CloseEntityQuery,1), LODConfig.FarEntityQuery_Conditional);
-		}
-		else if (World->IsNetMode(NM_DedicatedServer))
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("SimulationLODCollector"))
-			CollectLOD(EntitySubsystem, Context, Viewers, LODConfig.SimulationLODCollector, MakeArrayView(&LODConfig.OnLODEntityQuery,1), LODConfig.OffLODEntityQuery_Conditional);
-		}
-		else
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("CombinedLODCollector"))
-			CollectLOD(EntitySubsystem, Context, Viewers, LODConfig.CombinedLODCollector, MakeArrayView(&LODConfig.CloseAndOnLODEntityQuery,3), LODConfig.FarAndOffLODEntityQuery_Conditional);
-		}
+		ExecuteInternal<false/*bLocalViewersOnly*/>(EntitySubsystem, Context);
 	}
+	else
+	{
+		ExecuteInternal<true/*bLocalViewersOnly*/>(EntitySubsystem, Context);
+	}
+
 }
