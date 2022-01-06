@@ -76,6 +76,7 @@ private:
 	const USkeleton*	Skeleton;
 public:
 	FReferenceSkeletonModifier(FReferenceSkeleton& InRefSkel, const USkeleton* InSkeleton) : RefSkeleton(InRefSkel), Skeleton(InSkeleton) {}
+	FReferenceSkeletonModifier(USkeleton* InSkeleton);
 	~FReferenceSkeletonModifier();
 
 	// Update the reference pose transform of the specified bone

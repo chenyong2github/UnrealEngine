@@ -158,6 +158,22 @@ bool USkeleton::IsCompatibleSkeletonByAssetString(const FString& SkeletonAssetSt
 	return false;
 }
 
+void USkeleton::AddCompatibleSkeleton(const USkeleton* SourceSkeleton)
+{
+	CompatibleSkeletons.AddUnique(SourceSkeleton);
+
+	ClearSkeletonRemappings();
+	BuildSkeletonRemappings(false);
+}
+
+void USkeleton::RemoveCompatibleSkeleton(const USkeleton* SourceSkeleton)
+{
+	CompatibleSkeletons.Remove(SourceSkeleton);
+
+	ClearSkeletonRemappings();
+	BuildSkeletonRemappings(false);
+}
+
 bool USkeleton::IsCompatibleSkeletonByAssetData(const FAssetData& AssetData, const TCHAR* InTag) const
 {
 	return IsCompatibleSkeletonByAssetString(AssetData.GetTagValueRef<FString>(InTag));
@@ -451,6 +467,14 @@ USkeleton::USkeleton(const FObjectInitializer& ObjectInitializer)
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		FCoreUObjectDelegates::OnPackageReloaded.AddStatic(&USkeleton::HandlePackageReloaded);
+	}
+	else
+	{
+		if (!HasAnyFlags(RF_NeedPostLoad))
+		{
+			FScopeLock Lock(&LoadedSkeletonsMutex);
+			LoadedSkeletons.Add(this);
+		}
 	}
 }
 
@@ -2490,14 +2514,7 @@ void USkeleton::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	OutTags.Add(FAssetRegistryTag(USkeleton::RigTag, RigFullName, FAssetRegistryTag::TT_Hidden));
 }
 
-UBlendProfile* USkeleton::CreateNewBlendProfile(const FName& InProfileName)
-{
-	Modify();
-	UBlendProfile* NewProfile = NewObject<UBlendProfile>(this, InProfileName, RF_Public | RF_Transactional);
-	BlendProfiles.Add(NewProfile);
-
-	return NewProfile;
-}
+#endif //WITH_EDITOR
 
 UBlendProfile* USkeleton::GetBlendProfile(const FName& InProfileName)
 {
@@ -2513,7 +2530,14 @@ UBlendProfile* USkeleton::GetBlendProfile(const FName& InProfileName)
 	return nullptr;
 }
 
-#endif //WITH_EDITOR
+UBlendProfile* USkeleton::CreateNewBlendProfile(const FName& InProfileName)
+{
+	Modify();
+	UBlendProfile* NewProfile = NewObject<UBlendProfile>(this, InProfileName, RF_Public | RF_Transactional);
+	BlendProfiles.Add(NewProfile);
+
+	return NewProfile;
+}
 
 USkeletalMeshSocket* USkeleton::FindSocket(FName InSocketName) const
 {
