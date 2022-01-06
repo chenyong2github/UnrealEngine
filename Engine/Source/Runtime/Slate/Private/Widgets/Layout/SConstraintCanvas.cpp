@@ -25,12 +25,76 @@ void SConstraintCanvas::FSlot::Construct(const FChildren& SlotOwner, FSlotArgume
 	{
 		AutoSizeAttr = MoveTemp(InArgs._AutoSize);
 	}
-	if (InArgs._ZOrder.IsSet())
+	ZOrder = InArgs._ZOrder.Get(ZOrder);
+}
+
+void SConstraintCanvas::FSlot::SetZOrder(float InZOrder)
+{
+	if (SWidget* OwnerWidget = FSlotBase::GetOwnerWidget())
 	{
-		ZOrderAttr = MoveTemp(InArgs._ZOrder);
+		if (ZOrder != InZOrder)
+		{
+			TPanelChildren<FSlot>& OwnerChildren = static_cast<SConstraintCanvas*>(OwnerWidget)->Children;
+
+			int32 ChildIndexToMove = 0;
+			{
+				bool bFound = false;
+				const int32 ChildrenNum = OwnerChildren.Num();
+				for (; ChildIndexToMove < ChildrenNum; ++ChildIndexToMove)
+				{
+					const FSlot& CurSlot = OwnerChildren[ChildIndexToMove];
+					if (&CurSlot == this)
+					{
+						bFound = true;
+						break;
+					}
+				}
+				// This slot has to be contained by the children's owner.
+				check(OwnerChildren.IsValidIndex(ChildIndexToMove) && bFound);
+			}
+
+			int32 ChildIndexDestination = 0;
+			{
+				const int32 ChildrenNum = OwnerChildren.Num();
+				for (; ChildIndexDestination < ChildrenNum; ++ChildIndexDestination)
+				{
+					const FSlot& CurSlot = OwnerChildren[ChildIndexDestination];
+					if (InZOrder < CurSlot.GetZOrder() && &CurSlot != this)
+					{
+						// Insert before
+						break;
+					}
+				}
+				if (ChildIndexDestination >= ChildrenNum)
+				{
+					const FSlot& CurSlot = OwnerChildren[ChildrenNum - 1];
+					if (&CurSlot == this)
+					{
+						// No need to move, it's already at the end.
+						ChildIndexToMove = ChildIndexDestination;
+					}
+				}
+			}
+
+			ZOrder = InZOrder;
+
+			if (ChildIndexToMove != ChildIndexDestination)
+			{
+				// TPanelChildren::Move does a remove before the insert, that may change the index location
+				if (ChildIndexDestination > ChildIndexToMove)
+				{
+					--ChildIndexDestination;
+				}
+				OwnerChildren.Move(ChildIndexToMove, ChildIndexDestination);
+			}
+		}
+	}
+	else
+	{
+		ZOrder = InZOrder;
+		ensureMsgf(false, TEXT("The order of the Slot could not be set because it's not added to an existing Widget."));
 	}
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /* SConstraintCanvas interface
  *****************************************************************************/
@@ -44,7 +108,17 @@ SConstraintCanvas::SConstraintCanvas()
 
 void SConstraintCanvas::Construct( const SConstraintCanvas::FArguments& InArgs )
 {
-	Children.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
+	// Sort the children based on ZOrder.
+	TArray<FSlot::FSlotArguments>& Slots = const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots);
+	auto SortOperator = [](const FSlot::FSlotArguments& A, const FSlot::FSlotArguments& B)
+	{
+		int32 AZOrder = A._ZOrder.Get(0);
+		int32 BZOrder = B._ZOrder.Get(0);
+		return AZOrder == BZOrder ? reinterpret_cast<UPTRINT>(&A) < reinterpret_cast<UPTRINT>(&B) : AZOrder < BZOrder;
+	};
+	Slots.StableSort(SortOperator);
+
+	Children.AddSlots(MoveTemp(Slots));
 }
 
 SConstraintCanvas::FSlot::FSlotArguments SConstraintCanvas::Slot()
@@ -54,7 +128,50 @@ SConstraintCanvas::FSlot::FSlotArguments SConstraintCanvas::Slot()
 
 SConstraintCanvas::FScopedWidgetSlotArguments SConstraintCanvas::AddSlot()
 {
-	return FScopedWidgetSlotArguments { MakeUnique<FSlot>(), this->Children, INDEX_NONE };
+	TWeakPtr<SConstraintCanvas> WeakWidget = SharedThis(this);
+	return FScopedWidgetSlotArguments { MakeUnique<FSlot>(), this->Children, INDEX_NONE,
+		[WeakWidget](const FSlot* InNewSlot, int32 InsertedLocation)
+		{
+			if (TSharedPtr<SConstraintCanvas> Pinned = WeakWidget.Pin())
+			{
+				int32 NewSlotZOrder = InNewSlot->GetZOrder();
+				TPanelChildren<FSlot>& OwnerChildren = Pinned->Children;
+				int32 ChildIndexDestination = 0;
+				{
+					const int32 ChildrenNum = OwnerChildren.Num();
+					for (; ChildIndexDestination < ChildrenNum; ++ChildIndexDestination)
+					{
+						const FSlot& CurSlot = OwnerChildren[ChildIndexDestination];
+						if (NewSlotZOrder < CurSlot.GetZOrder() && &CurSlot != InNewSlot)
+						{
+							// Insert before
+							break;
+						}
+					}
+					if (ChildIndexDestination >= ChildrenNum)
+					{
+						const FSlot& CurSlot = OwnerChildren[ChildrenNum - 1];
+						if (&CurSlot == InNewSlot)
+						{
+							// No need to move, it's already at the end.
+							ChildIndexDestination = INDEX_NONE;
+						}
+					}
+				}
+
+				// Move the slot to the correct location
+				if (ChildIndexDestination != INDEX_NONE && InsertedLocation != ChildIndexDestination)
+				{
+					// TPanelChildren::Move does a remove before the insert, that may change the index location
+					if (ChildIndexDestination > InsertedLocation)
+					{
+						--ChildIndexDestination;
+						ensure(false); // we inserted at the end, that should not occurs.
+					}
+					OwnerChildren.Move(InsertedLocation, ChildIndexDestination);
+				}
+			}
+		}};
 }
 
 void SConstraintCanvas::ClearChildren()
@@ -78,20 +195,6 @@ int32 SConstraintCanvas::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
 	return -1;
 }
 
-struct FChildZOrder
-{
-	int32 ChildIndex;
-	float ZOrder;
-};
-
-struct FSortSlotsByZOrder
-{
-	FORCEINLINE bool operator()(const FChildZOrder& A, const FChildZOrder& B) const
-	{
-		return A.ZOrder == B.ZOrder ? A.ChildIndex < B.ChildIndex : A.ZOrder < B.ZOrder;
-	}
-};
-
 /* SWidget overrides
  *****************************************************************************/
 
@@ -113,28 +216,13 @@ void SConstraintCanvas::ArrangeLayeredChildren(const FGeometry& AllottedGeometry
 #else
 		const static bool bExplicitChildZOrder = GetDefault<USlateSettings>()->bExplicitCanvasChildZOrder;
 #endif
-		// Sort the children based on zorder.
-		TArray< FChildZOrder, TInlineAllocator<64> > SlotOrder;
-		SlotOrder.Reserve(Children.Num());
 
-		for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
-		{
-			const SConstraintCanvas::FSlot& CurChild = Children[ChildIndex];
-
-			FChildZOrder Order;
-			Order.ChildIndex = ChildIndex;
-			Order.ZOrder = CurChild.GetZOrder();
-			SlotOrder.Add(Order);
-		}
-
-		SlotOrder.StableSort(FSortSlotsByZOrder());
 		float LastZOrder = -FLT_MAX;
 
 		// Arrange the children now in their proper z-order.
 		for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
 		{
-			const FChildZOrder& CurSlot = SlotOrder[ChildIndex];
-			const SConstraintCanvas::FSlot& CurChild = Children[CurSlot.ChildIndex];
+			const SConstraintCanvas::FSlot& CurChild = Children[ChildIndex];
 			const TSharedRef<SWidget>& CurWidget = CurChild.GetWidget();
 
 			const EVisibility ChildVisibility = CurWidget->GetVisibility();
@@ -204,13 +292,13 @@ void SConstraintCanvas::ArrangeLayeredChildren(const FGeometry& AllottedGeometry
 				{
 					// Split children into discrete layers for the paint method
 					bNewLayer = false;
-					if (CurSlot.ZOrder > LastZOrder + DELTA)
+					if (CurChild.GetZOrder() > LastZOrder + DELTA)
 					{
 						if (ArrangedChildLayers.Num() > 0)
 						{
 							bNewLayer = true;
 						}
-						LastZOrder = CurSlot.ZOrder;
+						LastZOrder = CurChild.GetZOrder();
 					}
 
 				}

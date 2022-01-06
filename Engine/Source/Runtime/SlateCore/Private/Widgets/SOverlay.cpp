@@ -13,11 +13,97 @@ void SOverlay::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeIn
 	FOverlaySlot::RegisterAttributes(Initializer);
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void SOverlay::FOverlaySlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 {
 	TBasicLayoutWidgetSlot<FOverlaySlot>::Construct(SlotOwner, MoveTemp(InArgs));
-	ZOrder = InArgs._ZOrder.Get(ZOrder);
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void SOverlay::FOverlaySlot::SetZOrder(int32 InZOrder)
+{
+	if (SWidget* OwnerWidget = FSlotBase::GetOwnerWidget())
+	{
+		if (ZOrder != InZOrder)
+		{
+			TPanelChildren<FOverlaySlot>& OwnerChildren = static_cast<SOverlay*>(OwnerWidget)->Children;
+
+			// if bellow 0 or INDEX_NONE, then move it to the end.
+			if (InZOrder <= INDEX_NONE)
+			{
+				// We have at least one child since GetOwnerWidget returned a valid Widget (parent/child relationship).
+				check(OwnerChildren.Num() != 0);
+
+				const FOverlaySlot& LastSlot = OwnerChildren[OwnerChildren.Num() - 1];
+				if (&LastSlot == this)
+				{
+					return; // We are already the last FSlot
+				}
+
+				InZOrder = LastSlot.GetZOrder() + 1;
+				if (ZOrder == InZOrder)
+				{
+					return; 
+				}
+			}
+
+			int32 ChildIndexToMove = 0;
+			{
+				bool bFound = false;
+				const int32 ChildrenNum = OwnerChildren.Num();
+				for (; ChildIndexToMove < ChildrenNum; ++ChildIndexToMove)
+				{
+					const FOverlaySlot& CurSlot = OwnerChildren[ChildIndexToMove];
+					if (&CurSlot == this)
+					{
+						bFound = true;
+						break;
+					}
+				}
+				// This slot has to be contained by the children's owner.
+				check(OwnerChildren.IsValidIndex(ChildIndexToMove) && bFound);
+			}
+
+			int32 ChildIndexDestination = 0;
+			{
+				const int32 ChildrenNum = OwnerChildren.Num();
+				for (; ChildIndexDestination < ChildrenNum; ++ChildIndexDestination)
+				{
+					const FOverlaySlot& CurSlot = OwnerChildren[ChildIndexDestination];
+					if (InZOrder < CurSlot.GetZOrder() && &CurSlot != this)
+					{
+						// Insert before
+						break;
+					}
+				}
+				if (ChildIndexDestination >= ChildrenNum)
+				{
+					const FOverlaySlot& CurSlot = OwnerChildren[ChildrenNum-1];
+					if (&CurSlot == this)
+					{
+						// No need to move, it's already at the end.
+						ChildIndexToMove = ChildIndexDestination;
+					}
+				}
+			}
+
+			ZOrder = InZOrder;
+
+			if (ChildIndexToMove != ChildIndexDestination)
+			{
+				// TPanelChildren::Move does a remove before the insert, that may change the index location
+				if (ChildIndexDestination > ChildIndexToMove)
+				{
+					--ChildIndexDestination;
+				}
+				OwnerChildren.Move(ChildIndexToMove, ChildIndexDestination);
+			}
+		}
+	}
+	else
+	{
+		ZOrder = InZOrder;
+		ensureMsgf(false, TEXT("The order of the OverlaySlot could not be set because it's not added to an existing Widget."));
+	}
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -30,7 +116,7 @@ SOverlay::SOverlay()
 
 SOverlay::FOverlaySlot::FSlotArguments SOverlay::Slot()
 {
-	return FOverlaySlot::FSlotArguments(MakeUnique<FOverlaySlot>());
+	return FOverlaySlot::FSlotArguments(MakeUnique<FOverlaySlot>(0));
 }
 
 void SOverlay::Construct( const SOverlay::FArguments& InArgs )
@@ -168,8 +254,7 @@ SOverlay::FScopedWidgetSlotArguments SOverlay::AddSlot( int32 ZOrder )
 		Index = CurSlotIndex;
 	}
 
-	FScopedWidgetSlotArguments Result {MakeUnique<FOverlaySlot>(), this->Children, Index};
-	Result.ZOrder(ZOrder);
+	FScopedWidgetSlotArguments Result {MakeUnique<FOverlaySlot>(ZOrder), this->Children, Index};
 	return MoveTemp(Result);
 }
 
