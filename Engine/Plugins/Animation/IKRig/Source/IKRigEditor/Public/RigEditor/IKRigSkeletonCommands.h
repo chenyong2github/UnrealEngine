@@ -23,15 +23,15 @@ public:
 	/** delete selected element */
 	TSharedPtr< FUICommandInfo > DeleteElement;
 	/** add goal to selected solvers */
-	TSharedPtr< FUICommandInfo > ConnectGoalToSolvers;
+	TSharedPtr< FUICommandInfo > ConnectGoalToSolver;
 	/** remove goal to selected solvers */
-	TSharedPtr< FUICommandInfo > DisconnectGoalFromSolvers;
+	TSharedPtr< FUICommandInfo > DisconnectGoalFromSolver;
 
 	/** set root bone on selected solvers */
-	TSharedPtr< FUICommandInfo > SetRootBoneOnSolvers;
+	TSharedPtr< FUICommandInfo > SetRootBoneOnSolver;
 
 	/** set end bone on selected solvers (Pole Solvers only)*/
-	TSharedPtr< FUICommandInfo > SetEndBoneOnSolvers;
+	TSharedPtr< FUICommandInfo > SetEndBoneOnSolver;
 	
 	/** add bone setting to bone */
 	TSharedPtr< FUICommandInfo > AddBoneSettings;

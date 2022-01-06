@@ -404,19 +404,19 @@ void SIKRigSkeleton::BindCommands()
         FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleDeleteElement),
         FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanDeleteElement));
 
-	CommandList->MapAction(Commands.ConnectGoalToSolvers,
+	CommandList->MapAction(Commands.ConnectGoalToSolver,
         FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleConnectGoalToSolver),
         FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanConnectGoalToSolvers));
 
-	CommandList->MapAction(Commands.DisconnectGoalFromSolvers,
+	CommandList->MapAction(Commands.DisconnectGoalFromSolver,
         FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleDisconnectGoalFromSolver),
         FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanDisconnectGoalFromSolvers));
 
-	CommandList->MapAction(Commands.SetRootBoneOnSolvers,
+	CommandList->MapAction(Commands.SetRootBoneOnSolver,
         FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleSetRootBoneOnSolvers),
         FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanSetRootBoneOnSolvers));
 
-	CommandList->MapAction(Commands.SetEndBoneOnSolvers,
+	CommandList->MapAction(Commands.SetEndBoneOnSolver,
 	FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleSetEndBoneOnSolvers),
 	FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanSetEndBoneOnSolvers),
 	FIsActionChecked(),
@@ -470,13 +470,13 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 	
 	MenuBuilder.BeginSection("ConnectGoals", LOCTEXT("ConnectGoalOperations", "Connect Goals To Solvers"));
-	MenuBuilder.AddMenuEntry(Actions.ConnectGoalToSolvers);
-	MenuBuilder.AddMenuEntry(Actions.DisconnectGoalFromSolvers);
+	MenuBuilder.AddMenuEntry(Actions.ConnectGoalToSolver);
+	MenuBuilder.AddMenuEntry(Actions.DisconnectGoalFromSolver);
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("BoneSettings", LOCTEXT("BoneSettingsOperations", "Bone Settings"));
-	MenuBuilder.AddMenuEntry(Actions.SetRootBoneOnSolvers);
-	MenuBuilder.AddMenuEntry(Actions.SetEndBoneOnSolvers);
+	MenuBuilder.AddMenuEntry(Actions.SetRootBoneOnSolver);
+	MenuBuilder.AddMenuEntry(Actions.SetEndBoneOnSolver);
 	MenuBuilder.AddMenuEntry(Actions.AddBoneSettings);
 	MenuBuilder.AddMenuEntry(Actions.RemoveBoneSettings);
 	MenuBuilder.EndSection();
