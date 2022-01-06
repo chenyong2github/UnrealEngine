@@ -357,6 +357,9 @@ private:
 	// Object binding
 	/** Setup bindings to a runtime object (or clear by passing in nullptr). */
 	void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding);
+
+protected:
+	
 	/** Get bindings to a runtime object */
 	TSharedPtr<IControlRigObjectBinding> GetObjectBinding() const;
 

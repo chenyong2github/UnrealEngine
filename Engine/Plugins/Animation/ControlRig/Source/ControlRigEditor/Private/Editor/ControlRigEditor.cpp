@@ -1282,6 +1282,14 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 		}
 
 		DebuggedControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditor::OnHierarchyModified_AnyThread);
+
+		if(!bIsExternalControlRig)
+		{
+			if(EditorSkelComp)
+			{
+				EditorSkelComp->SetComponentToWorld(FTransform::Identity);
+			}
+		}
 	}
 	else
 	{
@@ -3010,6 +3018,21 @@ void FControlRigEditor::Tick(float DeltaTime)
 			ControlRig->SetDeltaTime(DeltaTime);
 			ControlRig->Evaluate_AnyThread();
 			bDrawHierarchyBones = true;
+		}
+
+		if(UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+		{
+			const bool bIsExternalControlRig = DebuggedControlRig != ControlRig;			
+			if(bIsExternalControlRig)
+			{
+				if(UControlRigSkeletalMeshComponent* EditorSkelComp = Cast<UControlRigSkeletalMeshComponent>(GetPersonaToolkit()->GetPreviewScene()->GetPreviewMeshComponent()))
+				{
+					if(DebuggedControlRig->OuterSceneComponent.IsValid())
+					{
+						EditorSkelComp->SetComponentToWorld(DebuggedControlRig->OuterSceneComponent->GetComponentToWorld());
+					}
+				}
+			}
 		}
 
 		if (LastDebuggedRig != GetCustomDebugObjectLabel(Blueprint->GetObjectBeingDebugged()))
