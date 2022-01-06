@@ -16,13 +16,13 @@ class UControlRigEditModeSettings : public UObject
 	UControlRigEditModeSettings()
 		: bDisplayHierarchy(false)
 		, bDisplayNulls(false)
-		, bHideManipulators(false)
+		, bHideControlShapes(false)
 		, bDisplayAxesOnSelection(false)
 		, AxisScale(10.f)
 		, bCoordSystemPerWidgetMode(true)
 		, bOnlySelectRigControls(false)
 		, bLocalTransformsInEachLocalSpace(true)
-		, ShapeScale(1.0f)
+		, GizmoScale(1.0f)
 	{
 		LastInViewportTweenWidgetLocation = FVector2D(EForceInit::ForceInitToZero);
 	}
@@ -43,9 +43,9 @@ public:
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings")
 	bool bDisplayNulls;
 
-	/** Should we always hide manipulators in viewport */
+	/** Should we always hide control shapes in viewport */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings")
-	bool bHideManipulators;
+	bool bHideControlShapes;
 
 	/** Should we show axes for the selected elements */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings")
@@ -69,7 +69,7 @@ public:
 	
 	/** The scale for Gizmos */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings")
-	float ShapeScale;
+	float GizmoScale;
 
 	UPROPERTY(config)
 	FVector2D LastInViewportTweenWidgetLocation;

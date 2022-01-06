@@ -692,7 +692,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 
 	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 
-	bool bRender = !Settings->bHideManipulators;
+	bool bRender = !Settings->bHideControlShapes;
 
 	FTransform ComponentTransform = GetHostingSceneComponentTransform();
 	if (bRender)
@@ -2155,22 +2155,22 @@ void FControlRigEditMode::FrameItems(const TArray<FRigElementKey>& InItems)
 void FControlRigEditMode::IncreaseShapeSize()
 {
 	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
-	Settings->ShapeScale += 0.1f;
-	GetModeManager()->SetWidgetScale(Settings->ShapeScale);
+	Settings->GizmoScale += 0.1f;
+	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
 
 void FControlRigEditMode::DecreaseShapeSize()
 {
 	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
-	Settings->ShapeScale -= 0.1f;
-	GetModeManager()->SetWidgetScale(Settings->ShapeScale);
+	Settings->GizmoScale -= 0.1f;
+	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
 
 void FControlRigEditMode::ResetControlShapeSize()
 {
 	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
-	Settings->ShapeScale = 1.0f;
-	GetModeManager()->SetWidgetScale(Settings->ShapeScale);
+	Settings->GizmoScale = 1.0f;
+	GetModeManager()->SetWidgetScale(Settings->GizmoScale);
 }
 
 void FControlRigEditMode::ToggleControlShapeTransformEdit()
@@ -2319,7 +2319,7 @@ void FControlRigEditMode::ToggleManipulators()
 {
 	// Toggle flag (is used in drawing code)
 	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();
-	Settings->bHideManipulators = !Settings->bHideManipulators;
+	Settings->bHideControlShapes = !Settings->bHideControlShapes;
 }
 
 void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
@@ -3141,10 +3141,10 @@ void FControlRigEditMode::TickControlShape(AControlRigShapeActor* ShapeActor, co
 			if (FRigControlElement* ControlElement = ControlRig->FindControl(ShapeActor->ControlName))
 			{
 				ShapeActor->SetShapeColor(ControlElement->Settings.ShapeColor);
-				ShapeActor->SetIsTemporarilyHiddenInEditor(!ControlElement->Settings.bShapeVisible || Settings->bHideManipulators);
+				ShapeActor->SetIsTemporarilyHiddenInEditor(!ControlElement->Settings.bShapeVisible || Settings->bHideControlShapes);
 				if (!IsInLevelEditor()) //don't change this in level editor otherwise we can never select it
 				{
-					ShapeActor->SetSelectable(ControlElement->Settings.bShapeVisible && !Settings->bHideManipulators && ControlElement->Settings.bAnimatable);
+					ShapeActor->SetSelectable(ControlElement->Settings.bShapeVisible && !Settings->bHideControlShapes && ControlElement->Settings.bAnimatable);
 				}
 			}
 		}
