@@ -948,6 +948,11 @@ void SPinTypeSelector::OnSelectPinType(FPinTypeTreeItem InItem, FName InPinCateg
 		FSlateNotificationManager::Get().AddNotification(Info);
 	}
 
+	if (!Schema->SupportsPinTypeContainer(SchemaAction, NewTargetPinType, NewTargetPinType.ContainerType))
+	{
+		NewTargetPinType.ContainerType = EPinContainerType::None;
+	}
+
 	OnTypeChanged.ExecuteIfBound(NewTargetPinType);
 }
 

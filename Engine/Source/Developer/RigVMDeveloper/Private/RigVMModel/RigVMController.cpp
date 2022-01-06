@@ -8255,13 +8255,21 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 
 	if (URigVMFunctionEntryNode* EntryNode = Graph->GetEntryNode())
 	{
+		TArray<URigVMLink*> Links = EntryNode->GetLinks();
+		DetachLinksFromPinObjects(&Links, true);
 		RepopulatePinsOnNode(EntryNode, true, true);
+		ReattachLinksToPinObjects(false, &Links, true);
+		
 		RemoveUnusedOrphanedPins(EntryNode, true);
 	}
 	
 	if (URigVMFunctionReturnNode* ReturnNode = Graph->GetReturnNode())
 	{
+		TArray<URigVMLink*> Links = ReturnNode->GetLinks();
+		DetachLinksFromPinObjects(&Links, true);
 		RepopulatePinsOnNode(ReturnNode, true, true);
+		ReattachLinksToPinObjects(false, &Links, true);
+		
 		RemoveUnusedOrphanedPins(ReturnNode, true);
 	}
 
