@@ -1177,6 +1177,16 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 		FSequencerCommands::Get().OpenNodeGroupsManager,
 		FExecuteAction::CreateSP(this, &SSequencer::OpenNodeGroupsManager)
 	);
+
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
+	{
+		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
+		{
+			TrackFilter->BindCommands(SequencerCommandBindings, SequencerPtr.Pin());
+		}
+	}
 }
 
 void SSequencer::OpenTickResolutionOptions()
@@ -1853,29 +1863,70 @@ void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
 	}
 }
 
-
-void SSequencer::SetFilterOn(const FText& InName, bool bOn)
+void SSequencer::SetTrackFilterEnabled(const FText& InTrackFilterName, bool bEnabled)
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 
-
+	bool bFound = false;
 	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
 	{
 		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
 		{
-			if (InName.EqualToCaseIgnored(TrackFilter->GetDisplayName()))
+			if (InTrackFilterName.EqualToCaseIgnored(TrackFilter->GetDisplayName()))
 			{
-				if (bOn && !IsTrackFilterActive(TrackFilter))
+				bFound = true;
+				if (bEnabled && !IsTrackFilterActive(TrackFilter))
 				{
 					Sequencer->GetNodeTree()->AddFilter(TrackFilter);
 				}
-				else if (!bOn && IsTrackFilterActive(TrackFilter))
+				else if (!bEnabled && IsTrackFilterActive(TrackFilter))
 				{
 					Sequencer->GetNodeTree()->RemoveFilter(TrackFilter);
 				}
 			}
 		}
 	}
+
+	if (!bFound)
+	{
+		UE_LOG(LogSequencer, Warning, TEXT("'%s' track filter not found"), *InTrackFilterName.ToString());
+	}
+}
+
+bool SSequencer::IsTrackFilterEnabled(const FText& InTrackFilterName) const
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
+	{
+		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
+		{
+			if (InTrackFilterName.EqualToCaseIgnored(TrackFilter->GetDisplayName()))
+			{
+				return Sequencer->GetNodeTree()->IsTrackFilterActive(TrackFilter);
+			}
+		}
+	}
+
+	UE_LOG(LogSequencer, Warning, TEXT("'%s' track filter not found"), *InTrackFilterName.ToString());
+
+	return false;
+}
+
+TArray<FText> SSequencer::GetTrackFilterNames() const
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+	TArray<FText> Filters;
+	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
+	{
+		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
+		{
+			Filters.Add(TrackFilter->GetDisplayName());
+		}
+	}
+
+	return Filters;
 }
 
 void SSequencer::OnResetFilters()

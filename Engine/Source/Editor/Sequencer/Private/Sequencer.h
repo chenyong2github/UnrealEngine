@@ -847,7 +847,9 @@ public:
 	virtual void SetSequencerSettings(USequencerSettings* InSettings) override { Settings = InSettings; }
 	virtual TSharedPtr<class ITimeSlider> GetTopTimeSliderWidget() const override;
 	virtual void ResetTimeController() override;
-	virtual void SetFilterOn(const FText& InName, bool bOn) override;
+	virtual void SetTrackFilterEnabled(const FText& InTrackFilterName, bool bEnabled) override;
+	virtual bool IsTrackFilterEnabled(const FText& InTrackFilterName) const override;
+	virtual TArray<FText> GetTrackFilterNames() const override;
 
 public:
 

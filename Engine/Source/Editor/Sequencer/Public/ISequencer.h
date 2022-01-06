@@ -717,12 +717,16 @@ public:
 	virtual void ObjectImplicitlyRemoved(UObject* InObject) const = 0;
 
 public:
-	/**
-	*    Turn on/off the filter with the specified name
-	* @InName The name of the of the filter
-	* @bOn   Whether or not the filter is on or off.
-	*/
-	virtual void SetFilterOn(const FText& InName, bool bOn) = 0;
+
+	/** Sets the specified track filter to be on or off */
+	virtual void SetTrackFilterEnabled(const FText& InTrackFilterName, bool bEnabled) = 0;
+
+	/** Gets whether the specified track filter is on/off */
+	virtual bool IsTrackFilterEnabled(const FText& InTrackFilterName) const = 0;
+
+	/** Gets all the available track filter names */
+	virtual TArray<FText> GetTrackFilterNames() const = 0;
+
 public:
 
 	/**

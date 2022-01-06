@@ -347,8 +347,14 @@ public:
 	/** Sets the play time for the sequence. Will extend the working range if out of bounds. */
 	void SetPlayTime(double Frame);
 
-	/** Sets the specified filter to be on or off*/
-	void SetFilterOn(const FText& InName, bool bOn);
+	/** Sets the specified track filter to be on or off */
+	void SetTrackFilterEnabled(const FText& InTrackFilterName, bool bEnabled);
+
+	/** Gets whether the specified track filter is on/off */
+	bool IsTrackFilterEnabled(const FText& InTrackFilterName) const;
+
+	/** Gets all the available track filter names */
+	TArray<FText> GetTrackFilterNames() const;
 
 	/** Sets the text to search by */
 	void SetSearchText(const FText& InSearchText);

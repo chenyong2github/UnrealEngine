@@ -208,6 +208,21 @@ public:
 	static void SetLockCameraCutToViewport(bool bLock);
 
 public:
+
+	/** Gets whether the specified track filter is on/off */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	static bool IsTrackFilterEnabled(const FText& TrackFilterName);
+
+	/** Sets the specified track filter to be on or off */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetTrackFilterEnabled(const FText& TrackFilterName, bool bEnabled);
+
+	/** Gets all the available track filter names */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	static TArray<FText> GetTrackFilterNames();
+
+public:
+
 	/** Get if a custom color for specified channel idendified by it's class and identifier exists */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static bool HasCustomColorForChannel(UClass* Class, const FString& Identifier);
