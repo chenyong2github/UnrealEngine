@@ -106,6 +106,7 @@ void FMLDeformerEditorToolkit::InitAssetEditor(
 
 	OnSwitchedVisualizationMode();
 	EditorData->UpdateTimeSlider();
+	EditorData->UpdateIsReadyForTrainingState();
 }
 
 TSharedRef<IPersonaToolkit> FMLDeformerEditorToolkit::GetPersonaToolkit() const 
@@ -187,6 +188,7 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 						FrameCacheInitSettings.DeformerAsset = DeformerAsset;
 						FrameCacheInitSettings.CacheSizeInBytes = 1024ull * 1024 * DeformerAsset->GetCacheSizeInMegabytes();
 						FrameCacheInitSettings.World = EditorData->GetWorld();
+						FrameCacheInitSettings.DeltaMode = EDeltaMode::PreSkinning;
 						TSharedPtr<FMLDeformerFrameCache> FrameCache = MakeShared<FMLDeformerFrameCache>();
 						FrameCache->Init(FrameCacheInitSettings);
 
@@ -512,7 +514,7 @@ UMLDeformerComponent* FMLDeformerEditorToolkit::AddMLDeformerComponentToActor(EM
 	return Component;
 }
 
-void FMLDeformerEditorToolkit::AddDeformerGraphComponentToActor(EMLDeformerEditorActorIndex ActorIndex, UComputeGraph* ComputeGraph) const
+void FMLDeformerEditorToolkit::AddMeshDeformerToActor(EMLDeformerEditorActorIndex ActorIndex, UComputeGraph* ComputeGraph) const
 {
 	FMLDeformerEditorActor& EditorActor = EditorData->GetEditorActor(ActorIndex);
 	USkinnedMeshComponent* SkelMeshComponent = EditorActor.SkelMeshComponent;
@@ -639,7 +641,7 @@ void FMLDeformerEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPerso
 	// Create the component with the deformer graph on it.
 	UMLDeformerVizSettings* VizSettings = EditorData->GetDeformerAsset()->GetVizSettings();
 	UComputeGraph* ComputeGraph = VizSettings->GetDeformerGraph();
-	AddDeformerGraphComponentToActor(EMLDeformerEditorActorIndex::DeformedTest, ComputeGraph);
+	AddMeshDeformerToActor(EMLDeformerEditorActorIndex::DeformedTest, ComputeGraph);
 
 	// Create the ground truth actor.
 	const FLinearColor GroundTruthLabelColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.GroundTruth.LabelColor");
@@ -707,7 +709,6 @@ void FMLDeformerEditorToolkit::OnFinishedChangingDetails(const FPropertyChangedE
 	else
 	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, DeltaCutoffLength) ||
 	    Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, AlignmentTransform) ||
-	    Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, DeltaMode) ||
 	    Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, MaxTrainingFrames))
 	{
 		EditorData->InitAssets();
@@ -719,6 +720,7 @@ void FMLDeformerEditorToolkit::OnFinishedChangingDetails(const FPropertyChangedE
 		if (DeformerAsset->GetTempTrainingInputs() != DeformerAsset->GetTrainingInputs())
 		{
 			DeformerAsset->SetTempTrainingInputs(DeformerAsset->GetTrainingInputs());
+			EditorData->UpdateIsReadyForTrainingState();
 			EditorData->GetDetailsView()->ForceRefresh();
 		}
 	}
@@ -730,7 +732,6 @@ void FMLDeformerEditorToolkit::OnFinishedChangingDetails(const FPropertyChangedE
 	else
 	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, DeformerGraph))
 	{
-		EditorData->UpdateDeformerGraph();
 		SetComputeGraphDataProviders();
 		EditorData->GetVizSettingsDetailsView()->ForceRefresh();
 	}
@@ -816,7 +817,7 @@ FText FMLDeformerEditorToolkit::GetOverlayText() const
 void FMLDeformerEditorToolkit::SetComputeGraphDataProviders() const
 {
 	UMLDeformerVizSettings* VizSettings = EditorData->GetDeformerAsset()->GetVizSettings();
-	AddDeformerGraphComponentToActor(EMLDeformerEditorActorIndex::DeformedTest, VizSettings->GetDeformerGraph());
+	AddMeshDeformerToActor(EMLDeformerEditorActorIndex::DeformedTest, VizSettings->GetDeformerGraph());
 }
 
 #undef LOCTEXT_NAMESPACE

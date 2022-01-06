@@ -72,5 +72,5 @@ private:
 	FVector VertexDeltaMean = FVector(0.0f, 0.0f, 0.0f);
 	bool bCanRunNeuralNet = false;
 	float VertexDeltaMultiplier = 1.0f;
-	float DebugScale = 1.0f;
+	float HeatMapScale = 1.0f;
 };

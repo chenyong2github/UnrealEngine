@@ -113,6 +113,7 @@ public:
 	void CreateMaterials();
 	void ClampFrameIndex();
 
+	void UpdateIsReadyForTrainingState();
 	bool IsReadyForTraining() const;
 	FText GetOverlayText();
 
@@ -131,6 +132,7 @@ public:
 	TArray<float> VertexDeltas;
 
 	bool bIsVertexDeltaNormalized = false;
+	bool bIsReadyForTraining = false;
 	int32 CurrentFrame = -1;
 
 private:

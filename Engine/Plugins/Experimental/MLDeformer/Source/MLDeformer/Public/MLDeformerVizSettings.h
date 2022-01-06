@@ -11,11 +11,26 @@ class UAnimSequence;
 class UComputeGraph;
 class UGeometryCache;
 
+// The visualization mode, which selects whether you want to view the training data, or test your already trained model.
 UENUM()
 enum class EMLDeformerVizMode : uint8
 {
+	// Preview the training data.
 	TrainingData = 0,
+
+	// Preview testing data, used on trained models.
 	TestData
+};
+
+// The heat map mode which selects what the colors of the heatmap represent.
+UENUM()
+enum class EMLDeformerHeatMapMode : uint8
+{
+	// Visualize the error versus the ground truth model. Requires a ground truth model to be setup.
+	GroundTruth = 0,
+
+	// Visualize areas where the deformer is applying corrections.
+	Activations
 };
 
 /**
@@ -52,6 +67,8 @@ public:
 	UComputeGraph* GetDeformerGraph() const { return DeformerGraph; }
 	EMLDeformerVizMode GetVisualizationMode() const { return VisualizationMode; }
 	EMLDeformerVizMode GetTempVisualizationMode() const { return TempVisualizationMode; }
+	EMLDeformerHeatMapMode GetHeatMapMode() const { return HeatMapMode; }
+	float GetHeatMapScale() const { return HeatMapScale; }
 	
 	void SetTempVisualizationMode(EMLDeformerVizMode Mode) { TempVisualizationMode = Mode; }
 	void SetDeformerGraph(UComputeGraph* InDeformerGraph) { DeformerGraph = InDeformerGraph; }
@@ -65,39 +82,47 @@ public:
 	EMLDeformerVizMode TempVisualizationMode = EMLDeformerVizMode::TrainingData;	// Workaround for a bug in UX where the combobox triggers a value changed when clicking it.
 
 	/** The animation sequence to play on the skeletal mesh. */
-	UPROPERTY(EditAnywhere, Category = "Testing")
+	UPROPERTY(EditAnywhere, Category = "Test Assets")
 	TObjectPtr<UAnimSequence> TestAnimSequence = nullptr;
 
 	/** The deformer graph to use on the asset editor's deformed test actor. */
-	UPROPERTY(EditAnywhere, Category = "Testing")
+	UPROPERTY(EditAnywhere, Category = "Test Assets")
 	TObjectPtr<UComputeGraph> DeformerGraph = nullptr;
 
 	/** The geometry cache that represents the ground truth of the test anim sequence. */
-	UPROPERTY(EditAnywhere, Category = "Testing")
+	UPROPERTY(EditAnywhere, Category = "Test Assets")
 	TObjectPtr<UGeometryCache> GroundTruth = nullptr;
 
 	/** The scale factor of the ML deformer deltas being applied on top of the linear skinned results. */
-	UPROPERTY(EditAnywhere, Category = "Testing", meta = (ClampMin = "0.0", ClampMax = "5.0"))
+	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0.0", ClampMax = "5.0"))
 	float VertexDeltaMultiplier = 1.0f;
 
 	/** The play speed factor of the test anim sequence. */
-	UPROPERTY(EditAnywhere, Category = "Testing", meta = (ClampMin = "0.0", ClampMax = "2.0"))
+	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0.0", ClampMax = "2.0"))
 	float AnimPlaySpeed = 1.0f;
 
 	/** Show the heat map? This will visualize the active areas of the deformer. */
-	UPROPERTY(EditAnywhere, Category = "Testing")
+	UPROPERTY(EditAnywhere, Category = "Live Settings")
 	bool bShowHeatMap = false;
 
+	/** What should the heatmap visualize? */
+	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "bShowHeatMap"))
+	EMLDeformerHeatMapMode HeatMapMode = EMLDeformerHeatMapMode::GroundTruth;
+
+	/** How many units (centimeters) of error should the most intense color represent? */
+	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "bShowHeatMap", ClampMin = "0.00001"))
+	float HeatMapScale = 1.0f;
+
 	/** Draw the linear skinned actor? */
-	UPROPERTY(EditAnywhere, Category = "Testing")
+	UPROPERTY(EditAnywhere, Category = "Live Settings")
 	bool bDrawLinearSkinnedActor = true;
 
 	/** Draw the ML Deformed actor? */
-	UPROPERTY(EditAnywhere, Category = "Testing", DisplayName = "Draw ML Deformed Actor")
+	UPROPERTY(EditAnywhere, Category = "Live Settings", DisplayName = "Draw ML Deformed Actor")
 	bool bDrawMLDeformedActor = true;
 
 	/** Draw the ground truth actor? */
-	UPROPERTY(EditAnywhere, Category = "Testing", meta = (EditCondition = "GroundTruth != nullptr"))
+	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "GroundTruth != nullptr"))
 	bool bDrawGroundTruthActor = true;
 
 	/** The frame number of the training data to visualize. */
