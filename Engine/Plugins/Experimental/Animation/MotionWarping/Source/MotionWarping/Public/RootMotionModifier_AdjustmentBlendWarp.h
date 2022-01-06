@@ -41,7 +41,8 @@ struct FMotionDeltaTrackContainer
 	}
 };
 
-UCLASS(meta = (DisplayName = "Adjustment Blend Warp"))
+// EXPERIMENTAL: Marked with 'hidedropdown' to prevent it from showing up in the UI since it is not ready for production.
+UCLASS(hidedropdown, meta = (DisplayName = "Adjustment Blend Warp"))
 class MOTIONWARPING_API URootMotionModifier_AdjustmentBlendWarp : public URootMotionModifier_Warp
 {
 	GENERATED_BODY()
@@ -61,12 +62,12 @@ public:
 
 	void GetIKBoneTransformAndAlpha(FName BoneName, FTransform& OutTransform, float& OutAlpha) const;
 
-	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	//UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	static URootMotionModifier_AdjustmentBlendWarp* AddRootMotionModifierAdjustmentBlendWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime,
 		FName InWarpTargetName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
 		bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, bool bInWarpIKBones, const TArray<FName>& InIKBones);
 
-	UFUNCTION(BlueprintPure, Category = "Motion Warping")
+	//UFUNCTION(BlueprintPure, Category = "Motion Warping")
 	static void GetAdjustmentBlendIKBoneTransformAndAlpha(ACharacter* Character, FName BoneName, FTransform& OutTransform, float& OutAlpha);
 
 protected:
