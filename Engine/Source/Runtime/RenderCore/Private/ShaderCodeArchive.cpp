@@ -17,6 +17,7 @@
 #endif
 
 #if UE_SCA_VISUALIZE_SHADER_USAGE
+#include "Modules/ModuleManager.h"
 #include "IImageWrapperModule.h"
 #include "IImageWrapper.h"
 #endif // UE_SCA_VISUALIZE_SHADER_USAGE
