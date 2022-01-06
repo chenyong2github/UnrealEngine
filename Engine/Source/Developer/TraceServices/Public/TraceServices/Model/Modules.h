@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
+#include "Async/TaskGraphInterfaces.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Templates/UnrealTemplate.h"
 #include <atomic>

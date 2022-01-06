@@ -2,7 +2,7 @@
 
 #include "SModulesView.h"
 
-//#include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
 #include "Textures/SlateIcon.h"

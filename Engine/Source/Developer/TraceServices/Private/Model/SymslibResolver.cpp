@@ -13,6 +13,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformTLS.h"
 #include "Logging/LogMacros.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/CString.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"

@@ -10,6 +10,8 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
 #include "Logging/LogMacros.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/Guid.h"
 #include "Misc/PathViews.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/StringBuilder.h"
