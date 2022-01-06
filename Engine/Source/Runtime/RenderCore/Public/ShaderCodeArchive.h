@@ -9,16 +9,29 @@
 #include "Shader.h"
 #include "IO/IoDispatcher.h"
 
-struct FShaderMapEntry
+// enable visualization in the desktop Development builds only as it has a memory hit and writes files
+#define UE_SCA_VISUALIZE_SHADER_USAGE			(!WITH_EDITOR && UE_BUILD_DEVELOPMENT && PLATFORM_DESKTOP)
+
+struct FIoStoreShaderMapEntry
 {
 	uint32 ShaderIndicesOffset = 0u;
 	uint32 NumShaders = 0u;
+
+	friend FArchive& operator <<(FArchive& Ar, FIoStoreShaderMapEntry& Ref)
+	{
+		return Ar << Ref.ShaderIndicesOffset << Ref.NumShaders;
+	}
+};
+
+struct FShaderMapEntry : public FIoStoreShaderMapEntry
+{
 	uint32 FirstPreloadIndex = 0u;
 	uint32 NumPreloadEntries = 0u;
 
 	friend FArchive& operator <<(FArchive& Ar, FShaderMapEntry& Ref)
 	{
-		return Ar << Ref.ShaderIndicesOffset << Ref.NumShaders << Ref.FirstPreloadIndex << Ref.NumPreloadEntries;
+		operator<<(Ar, static_cast<FIoStoreShaderMapEntry&>(Ref));
+		return Ar << Ref.FirstPreloadIndex << Ref.NumPreloadEntries;
 	}
 };
 
@@ -125,7 +138,7 @@ public:
 			ShaderIndices.GetAllocatedSize()
 #if WITH_EDITOR
 			+ ShaderCodeToAssets.GetAllocatedSize()
-#endif
+#endif // WITH_EDITOR
 			;
 	}
 
@@ -141,7 +154,7 @@ public:
 		ShaderHashTable.Clear();
 #if WITH_EDITOR
 		ShaderCodeToAssets.Empty();
-#endif
+#endif // WITH_EDITOR
 	}
 
 	int32 GetNumShaderMaps() const
@@ -179,6 +192,53 @@ public:
 		Ref.Serialize(Ar);
 		return Ar;
 	}
+};
+
+// run-time only debugging facility
+struct FShaderUsageVisualizer
+{
+#if UE_SCA_VISUALIZE_SHADER_USAGE
+	/** Lock guarding access to visualization structures. */
+	FCriticalSection VisualizeLock;
+
+	/** Total number of shaders. */
+	int32 NumShaders;
+
+	/** Shader indices that were preloaded. */
+	TSet<int32> PreloadedShadersForVis;
+
+	/** Shader indices that were created. */
+	TSet<int32> CreatedShadersForVis;
+
+	void Initialize(const int32 InNumShaders);
+
+	void MarkPreloadedForVisualization(int32 ShaderIndex)
+	{
+		extern int32 GShaderCodeLibraryVisualizeShaderUsage;
+		if (LIKELY(GShaderCodeLibraryVisualizeShaderUsage))
+		{
+			FScopeLock Lock(&VisualizeLock);
+			PreloadedShadersForVis.Add(ShaderIndex);
+		}
+	}
+
+	void MarkCreatedForVisualization(int32 ShaderIndex)
+	{
+		extern int32 GShaderCodeLibraryVisualizeShaderUsage;
+		if (LIKELY(GShaderCodeLibraryVisualizeShaderUsage))
+		{
+			FScopeLock Lock(&VisualizeLock);
+			CreatedShadersForVis.Add(ShaderIndex);
+		}
+	}
+
+	void SaveShaderUsageBitmap(const FString& Name, EShaderPlatform ShaderPlatform);
+#else
+	inline void Initialize(const int32 InNumShaders) {}
+	inline void MarkPreloadedForVisualization(int32 ShaderIndex) {}
+	inline void MarkCreatedForVisualization(int32 ShaderIndex) {}
+	inline void SaveShaderUsageBitmap(const FString& Name, EShaderPlatform ShaderPlatform) {}
+#endif // UE_SCA_VISUALIZE_SHADER_USAGE
 };
 
 class FShaderCodeArchive : public FRHIShaderLibrary
@@ -264,21 +324,11 @@ protected:
 	// The shader code present in the library
 	FSerializedShaderArchive SerializedShaders;
 
-	TArray<FGraphEventRef> ShaderMapPreloadEvents;
-
 	TArray<FShaderPreloadEntry> ShaderPreloads;
 	FRWLock ShaderPreloadLock;
-};
 
-struct FIoStoreShaderMapEntry
-{
-	uint32 ShaderIndicesOffset = 0u;
-	uint32 NumShaders = 0u;
-
-	friend FArchive& operator <<(FArchive& Ar, FIoStoreShaderMapEntry& Ref)
-	{
-		return Ar << Ref.ShaderIndicesOffset << Ref.NumShaders;
-	}
+	/** debug visualizer - in Shipping compiles out to an empty struct with no-op functions */
+	FShaderUsageVisualizer DebugVisualizer;
 };
 
 struct FIoStoreShaderCodeEntry
@@ -372,5 +422,7 @@ private:
 	FHashTable ShaderHashTable;
 	TArray<FShaderPreloadEntry> ShaderPreloads;
 	FRWLock ShaderPreloadLock;
-};
 
+	/** debug visualizer - in Shipping compiles out to an empty struct with no-op functions */
+	FShaderUsageVisualizer DebugVisualizer;
+};

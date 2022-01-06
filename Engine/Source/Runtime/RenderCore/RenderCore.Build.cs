@@ -3,6 +3,7 @@
 using System.IO;
 using UnrealBuildBase;
 using UnrealBuildTool;
+using System;
 
 public class RenderCore : ModuleRules
 {
@@ -24,6 +25,11 @@ public class RenderCore : ModuleRules
 			DynamicallyLoadedModuleNames.Add("TargetPlatform");
 			// UObjects are used to produce the full path of the asset by which the shaders are identified
 			PrivateDependencyModuleNames.Add("CoreUObject");
+		}
+		// shader runtime usage visualization requires ability to create images - it is only used in non-editor desktop development targets
+		else if (Target.Configuration == UnrealTargetConfiguration.Development && Array.IndexOf(Utils.GetPlatformsInClass(UnrealPlatformClass.Desktop), Target.Platform) >= 0)
+		{
+			PrivateDependencyModuleNames.Add("ImageWrapper");
 		}
 
 		// Copy the GPUDumpViewer's source code for the r.DumpGPU command.
