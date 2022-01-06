@@ -29,6 +29,7 @@ public:
 
 	/** IEditableSkeleton interface */
 	virtual const USkeleton& GetSkeleton() const override;
+	virtual bool IsSkeletonValid() const override;
 	virtual const TArray<class UBlendProfile*>& GetBlendProfiles() const override;
 	virtual class UBlendProfile* GetBlendProfile(const FName& InBlendProfileName) override;
 	virtual class UBlendProfile* CreateNewBlendProfile(const FName& InBlendProfileName) override;
