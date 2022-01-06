@@ -69,13 +69,23 @@ bool GSlateVerifyParentChildrenRelationship = false;
 static FAutoConsoleVariableRef CVarSlateVerifyParentChildrenRelationship(
 	TEXT("Slate.VerifyParentChildrenRelationship"),
 	GSlateVerifyParentChildrenRelationship,
-	TEXT("Each frame, verify that a widget has only one parent.")
+	TEXT("Every tick, verify that a widget has only one parent.")
 );
-namespace UE {
-	namespace Slate
-	{
-		void VerifyParentChildrenRelationship(const TSharedRef<SWindow>& WindowToDraw);
-	}
+
+bool GSlateVerifyWidgetLayerId = false;
+static FAutoConsoleVariableRef CVarSlateVerifyWidgetLayerId(
+	TEXT("Slate.VerifyWidgetLayerId"),
+	GSlateVerifyWidgetLayerId,
+	TEXT("Every tick, verify that widgets have a LayerId range that fits with their siblings and their parent.")
+);
+
+namespace UE
+{
+namespace Slate
+{
+	void VerifyParentChildrenRelationship(const TSharedRef<SWindow>& WindowToDraw);
+	void VerifyWidgetLayerId(const TSharedRef<SWindow>& WindowToDraw);
+}
 }
 #endif
 
@@ -1131,6 +1141,13 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 			MaxLayerId = WidgetReflector->Visualize( DrawWindowArgs.WidgetsToVisualizeUnderCursor, WindowElementList, MaxLayerId );
 		}
 
+#endif
+
+#if WITH_SLATE_DEBUGGING
+		if (GSlateVerifyWidgetLayerId)
+		{
+			UE::Slate::VerifyWidgetLayerId(WindowToDraw);
+		}
 #endif
 
 		// This window is visible, so draw its child windows as well
@@ -7106,6 +7123,7 @@ namespace Private
 				{
 					if (AllWidgets.Find(&ChildWidget))
 					{
+						bResult = false;
 						UE_LOG(LogSlate, Warning, TEXT("The widget '%s' is owned by more than one parent. 1:'%s' 2:'%s'.")
 							, *FReflectionMetaData::GetWidgetDebugInfo(ChildWidget)
 							, *FReflectionMetaData::GetWidgetDebugInfo(AllWidgets[&ChildWidget])
@@ -7119,11 +7137,56 @@ namespace Private
 					if (ChildWidget.GetParentWidget().Get() != Parent)
 					{
 						bResult = false;
-						UE_LOG(LogSlate, Warning, TEXT("The widget '%s' ."), *FReflectionMetaData::GetWidgetDebugInfo(ChildWidget));
+						UE_LOG(LogSlate, Warning, TEXT("The widget '%s' has the wrong parent."), *FReflectionMetaData::GetWidgetDebugInfo(ChildWidget));
 					}
-					else
+
+					bResult = bResult && VerifyParentChildrenRelationship_Recursive(&ChildWidget, AllWidgets);
+				}
+			});
+
+		return bResult;
+	}
+
+	bool VerifyWidgetLayerId_Recursive(SWidget& Widget)
+	{
+		bool bResult = true;
+
+		const uint32 LastPaintFrame = Widget.Debug_GetLastPaintFrame();
+		const bool bIsDeferredPaint = Widget.GetPersistentState().bDeferredPainting;
+		const int32 InLayerId = Widget.GetPersistentState().LayerId;
+		const int32 OutLayerId = Widget.GetPersistentState().OutgoingLayerId;
+
+		int32 PreviousInLayerId = InLayerId;
+		int32 PreviousOutLayerId = InLayerId;
+
+		Widget.GetAllChildren()->ForEachWidget([&bResult, LastPaintFrame, bIsDeferredPaint, InLayerId, OutLayerId](SWidget& ChildWidget)
+			{
+				if (&ChildWidget != &SNullWidget::NullWidget.Get())
+				{
+					if (ChildWidget.GetVisibility().IsVisible() && ChildWidget.Debug_GetLastPaintFrame() == LastPaintFrame)
 					{
-						VerifyParentChildrenRelationship_Recursive(&ChildWidget, AllWidgets);
+						const bool bIsChildDeferredPaint = ChildWidget.GetPersistentState().bDeferredPainting;
+						if (bIsChildDeferredPaint == bIsDeferredPaint)
+						{
+							const int32 ChildInLayerId = ChildWidget.GetPersistentState().LayerId;
+							const int32 ChildOutLayerId = ChildWidget.GetPersistentState().OutgoingLayerId;
+
+							const bool bLayerInIsValid = InLayerId <= ChildInLayerId && InLayerId <= ChildOutLayerId;
+							const bool bLayerOutIsValid = OutLayerId >= ChildInLayerId && OutLayerId >= ChildOutLayerId;
+
+							if (!bLayerInIsValid || !bLayerOutIsValid)
+							{
+								bResult = false;
+								UE_LOG(LogSlate, Warning, TEXT("The widget '%s' LayerId is invalid. Parent: [%d,%d] Child: [%d,%d].")
+									, *FReflectionMetaData::GetWidgetDebugInfo(ChildWidget)
+									, InLayerId
+									, OutLayerId
+									, ChildInLayerId
+									, ChildOutLayerId);
+							}
+						}
+
+						bResult = bResult && VerifyWidgetLayerId_Recursive(ChildWidget);
 					}
 				}
 			});
@@ -7141,11 +7204,25 @@ void VerifyParentChildrenRelationship(const TSharedRef<SWindow>& WindowToDraw)
 		AllWidgets.Add(&WindowToDraw.Get(), nullptr);
 		if (!Private::VerifyParentChildrenRelationship_Recursive(&WindowToDraw.Get(), AllWidgets))
 		{
-			GSlateVerifyParentChildrenRelationship = false;
+			CVarSlateVerifyParentChildrenRelationship->Set(false);
 			ensureMsgf(false, TEXT("VerifyParentChildrenRelationship failed. See log for more info."));
 		}
 	}
 }
+
+
+void VerifyWidgetLayerId(const TSharedRef<SWindow>& WindowToDraw)
+{
+	if (WindowToDraw != SNullWidget::NullWidget)
+	{
+		if (!Private::VerifyWidgetLayerId_Recursive(WindowToDraw.Get()))
+		{
+			CVarSlateVerifyWidgetLayerId->Set(false);
+			ensureMsgf(false, TEXT("VerifyWidgetLayerId failed. See log for more info."));
+		}
+	}
+}
+
 
 #endif
 }// Slate

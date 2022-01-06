@@ -765,6 +765,8 @@ FSlateWindowElementList::FDeferredPaint::FDeferredPaint( const TSharedRef<const 
 	, WidgetStyle( InWidgetStyle )
 	, bParentEnabled( InParentEnabled )
 {
+	const_cast<FPaintArgs&>(Args).SetDeferredPaint(true);
+
 #if WITH_SLATE_DEBUGGING
 	// We need to perform this update here, because otherwise we'll warn that this widget
 	// was not painted along the fast path, which, it will be, but later because it's deferred,
@@ -781,6 +783,7 @@ FSlateWindowElementList::FDeferredPaint::FDeferredPaint(const FDeferredPaint& Co
 	, WidgetStyle(Copy.WidgetStyle)
 	, bParentEnabled(Copy.bParentEnabled)
 {
+	const_cast<FPaintArgs&>(Args).SetDeferredPaint(true);
 }
 
 int32 FSlateWindowElementList::FDeferredPaint::ExecutePaint(int32 LayerId, FSlateWindowElementList& OutDrawElements, const FSlateRect& MyCullingRect) const
@@ -802,7 +805,7 @@ FSlateWindowElementList::FDeferredPaint FSlateWindowElementList::FDeferredPaint:
 
 void FSlateWindowElementList::QueueDeferredPainting( const FDeferredPaint& InDeferredPaint )
 {
-	DeferredPaintList.Add(MakeShareable(new FDeferredPaint(InDeferredPaint)));
+	DeferredPaintList.Add(MakeShared<FDeferredPaint>(InDeferredPaint));
 }
 
 int32 FSlateWindowElementList::PaintDeferred(int32 LayerId, const FSlateRect& MyCullingRect)

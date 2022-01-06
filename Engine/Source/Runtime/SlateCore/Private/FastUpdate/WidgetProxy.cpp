@@ -212,6 +212,7 @@ int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList
 	
 	FPaintArgs UpdatedArgs = PaintArgs.WithNewParent(MyState.PaintParent.Pin().Get());
 	UpdatedArgs.SetInheritedHittestability(MyState.bInheritedHittestability);
+	UpdatedArgs.SetDeferredPaint(MyState.bDeferredPainting);
 
 	int32 PrevLayerId = MyState.OutgoingLayerId;
 

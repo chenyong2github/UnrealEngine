@@ -27,7 +27,7 @@ public:
 	FPaintArgs(const SWidget* PaintParent, FHittestGrid& InRootHittestGrid, FHittestGrid& InCurrentHitTestGrid, FVector2D InWindowOffset, double InCurrentTime, float InDeltaTime);
 	FPaintArgs(const SWidget* PaintParent, FHittestGrid& InRootHittestGrid, FVector2D InWindowOffset, double InCurrentTime, float InDeltaTime);
 
-	FORCEINLINE_DEBUGGABLE FPaintArgs WithNewParent(const SWidget* PaintParent) const
+	UE_NODISCARD FORCEINLINE_DEBUGGABLE FPaintArgs WithNewParent(const SWidget* PaintParent) const
 	{
 		FPaintArgs Args(*this);
 		Args.PaintParentPtr = PaintParent;
@@ -35,26 +35,58 @@ public:
 		return Args;
 	}
 
-	FORCEINLINE_DEBUGGABLE FPaintArgs WithNewHitTestGrid(FHittestGrid& NewHitTestGrid) const
+	UE_NODISCARD FORCEINLINE_DEBUGGABLE FPaintArgs WithNewHitTestGrid(FHittestGrid& NewHitTestGrid) const
 	{
 		FPaintArgs NewArgs(PaintParentPtr, RootGrid, NewHitTestGrid, WindowOffset, CurrentTime, DeltaTime);
 		return NewArgs;
 	}
 
 	FPaintArgs InsertCustomHitTestPath(const SWidget* Widget, TSharedRef<ICustomHitTestPath> CustomHitTestPath) const;
-	void SetInheritedHittestability(bool InInheritedHittestability) { bInheritedHittestability = InInheritedHittestability; }
 
-	UE_DEPRECATED(4.23, "FHittestGrid::GetGrid is deprecated.  Use GetHittestGrid instead")
-	FHittestGrid& GetGrid() const { return GetHittestGrid(); }
+	void SetInheritedHittestability(bool InInheritedHittestability)
+	{
+		bInheritedHittestability = InInheritedHittestability;
+	}
 
-	FHittestGrid& GetHittestGrid() const { return CurrentGrid; }
+	bool GetInheritedHittestability() const
+	{
+		return bInheritedHittestability;
+	}
 
-	const SWidget* GetPaintParent() const { return PaintParentPtr;  }
-	FVector2D GetWindowToDesktopTransform() const { return WindowOffset; }
-	double GetCurrentTime() const { return CurrentTime; }
-	float GetDeltaTime() const { return DeltaTime; }
+	FHittestGrid& GetHittestGrid() const
+	{
+		return CurrentGrid;
+	}
 
-	bool GetInheritedHittestability() const { return bInheritedHittestability; }
+	const SWidget* GetPaintParent() const
+	{
+		return PaintParentPtr; 
+	}
+
+	FVector2D GetWindowToDesktopTransform() const
+	{
+		return WindowOffset;
+	}
+
+	double GetCurrentTime() const
+	{
+		return CurrentTime;
+	}
+
+	float GetDeltaTime() const
+	{
+		return DeltaTime;
+	}
+
+	void SetDeferredPaint(bool InDeferredPaint)
+	{
+		bDeferredPainting = InDeferredPaint;
+	}
+
+	bool GetDeferredPaint() const
+	{
+		return bDeferredPainting;
+	}
 	
 private:
 
@@ -70,5 +102,6 @@ private:
 	double CurrentTime;
 	float DeltaTime;
 	uint8 bInheritedHittestability : 1;
+	uint8 bDeferredPainting : 1;
 
 };

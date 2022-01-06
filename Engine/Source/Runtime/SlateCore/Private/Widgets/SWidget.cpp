@@ -1472,6 +1472,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	PersistentState.LayerId = LayerId;
 	PersistentState.bParentEnabled = bParentEnabled;
 	PersistentState.bInheritedHittestability = bInheritedHittestability;
+	PersistentState.bDeferredPainting = Args.GetDeferredPaint();
 	PersistentState.AllottedGeometry = AllottedGeometry;
 	PersistentState.DesktopGeometry = DesktopSpaceGeometry;
 	PersistentState.WidgetStyle = InWidgetStyle;
@@ -1521,15 +1522,14 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	TGuardValue<EFlowDirection> FlowGuard(GSlateFlowDirection, ComputeFlowDirection());
 
 #if WITH_SLATE_DEBUGGING
-	TArray<TWeakPtr<const SWidget>> DebugChildWidgetsToPaint;
+	TArray<TWeakPtr<const SWidget>, TInlineAllocator<16>> DebugChildWidgetsToPaint;
 
 	if (GSlateIsOnFastUpdatePath && GSlateEnsureAllVisibleWidgetsPaint)
 	{
-		// Don't check things that are invalidation roots, or volatile, or volatile indirectly, a completely different set
-		// of rules apply to those widgets.
-		if (!IsVolatile() && !IsVolatileIndirectly() && !Advanced_IsInvalidationRoot())
+		// Don't check for invalidation roots a completely different set of rules apply to those widgets.
+		if (!Advanced_IsInvalidationRoot())
 		{
-			MutableThis->GetChildren()->ForEachWidget([&DebugChildWidgetsToPaint](const SWidget& Child)
+			MutableThis->GetAllChildren()->ForEachWidget([&DebugChildWidgetsToPaint](const SWidget& Child)
 				{
 					if (Child.GetVisibility().IsVisible())
 					{
@@ -1552,7 +1552,6 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	// Detect children that should have been painted, but were skipped during the paint process.
 	// this will result in geometry being left on screen and not cleared, because it's visible, yet wasn't painted.
 #if WITH_SLATE_DEBUGGING
-	if (GSlateIsOnFastUpdatePath && GSlateEnsureAllVisibleWidgetsPaint)
 	{
 		for (TWeakPtr<const SWidget>& DebugChildThatShouldHaveBeenPaintedPtr : DebugChildWidgetsToPaint)
 		{
@@ -1560,8 +1559,13 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 			{
 				if (DebugChild->GetVisibility().IsVisible())
 				{
-					ensureMsgf(DebugChild->Debug_GetLastPaintFrame() == GFrameNumber, TEXT("The Widget '%s' was visible, but never painted.  This means it was skipped during painting, without alerting the fast path."), *FReflectionMetaData::GetWidgetPath(DebugChild.Get()));
+					ensureAlwaysMsgf(DebugChild->Debug_GetLastPaintFrame() == GFrameNumber, TEXT("The Widget '%s' was visible, but never painted. This means it was skipped during painting, without alerting the fast path."), *FReflectionMetaData::GetWidgetPath(DebugChild.Get()));
 				}
+			}
+			else
+			{
+				CVarSlateEnsureAllVisibleWidgetsPaint->Set(false);
+				ensureAlwaysMsgf(false, TEXT("A widget was destroyed while painting it's parent. This is not supported by the Invalidation system."));
 			}
 		}
 	}
