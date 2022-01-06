@@ -422,9 +422,7 @@ void SConsoleVariablesEditorList::UpdatePresetValuesForSave(const TObjectPtr<UCo
 	
 	for (const FConsoleVariablesEditorListRowPtr& Item : TreeViewRootObjects)
 	{
-		const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo = Item->GetCommandInfo();
-		
-		if (CommandInfo.IsValid())
+		if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo = Item->GetCommandInfo(); CommandInfo.IsValid())
 		{
 			NewSavedCommands.Add(
 				{

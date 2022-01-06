@@ -409,20 +409,20 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 			.Visibility(EVisibility::SelfHitTestInvisible)
 
 			+ SOverlay::Slot()
-			  .HAlign(HAlign_Left)
-			  .VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-					.Visibility(EVisibility::SelfHitTestInvisible)
-					.Text_Lambda([this]()
-				                {
-					                return Item.Pin()->GetCommandInfo().Pin()->GetSourceAsText();
-				                })
+				.Visibility(EVisibility::SelfHitTestInvisible)
+				.Text_Lambda([this]()
+                {
+	                return Item.Pin()->GetCommandInfo().Pin()->GetSourceAsText();
+                })
 			]
 
 			+ SOverlay::Slot()
-			  .HAlign(HAlign_Right)
-			  .VAlign(VAlign_Center)
+		    .HAlign(HAlign_Right)
+		    .VAlign(VAlign_Center)
 			[
 				SAssignNew(HoverableWidgetsPtr, SConsoleVariablesEditorListRowHoverWidgets, Item)
 				.Visibility(EVisibility::Collapsed)
@@ -470,13 +470,25 @@ void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState 
 
 				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
 					PinnedItem->GetCommandInfo().Pin()->Command,
-					PinnedItem->GetCommandInfo().Pin()->StartupValueAsString);
+					PinnedItem->GetCommandInfo().Pin()->StartupValueAsString
+				);
 			}
 		}
 
 		if (const TWeakPtr<SConsoleVariablesEditorList> ListView = PinnedItem->GetListViewPtr(); ListView.IsValid())
 		{
-			ListView.Pin()->OnListItemCheckBoxStateChange(InNewState);
+			const TSharedPtr<SConsoleVariablesEditorList> PinnedListView = ListView.Pin();
+			PinnedListView->OnListItemCheckBoxStateChange(InNewState);
+
+			if (const TWeakPtr<FConsoleVariablesEditorList>& ListModel = PinnedListView->GetListModelPtr(); ListModel.IsValid())
+			{
+				const FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
+				TObjectPtr<UConsoleVariablesAsset> Asset =
+					ListModel.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset ?
+						ConsoleVariablesEditorModule.GetPresetAsset() : ConsoleVariablesEditorModule.GetGlobalSearchAsset();
+				
+				PinnedListView->UpdatePresetValuesForSave(Asset);
+			}
 		}
 	}
 }

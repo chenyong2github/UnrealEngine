@@ -161,6 +161,14 @@ struct FConsoleVariablesEditorCommandInfo
 
 	void SetSourceFlag(const EConsoleVariableFlags InSource)
 	{
+		const uint32 OldPri = (uint32)GetSource();
+		const uint32 NewPri = (uint32)InSource;
+
+		if (NewPri < OldPri)
+		{
+			return;
+		}
+		
 		if (IConsoleObject* ConsoleObject = GetConsoleObjectPtr())
 		{
 			ClearSourceFlags();
