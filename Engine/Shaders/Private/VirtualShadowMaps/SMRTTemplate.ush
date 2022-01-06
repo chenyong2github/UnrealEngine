@@ -58,7 +58,10 @@ FSMRTResult SMRTRayCast(
 			}
 			else
 			{
-				const float CompareTolerance = abs(Sample.CompareToleranceScale * SampleCompare);
+				// Add a small relative error to the comparison to avoid missing surfaces due to numeric precision issues
+				// Without this there are occasionally flickering fireflies in fully shadowed regions with SMRT
+				const float EpsScale = 1.02f;
+				const float CompareTolerance = abs(Sample.CompareToleranceScale * SampleCompare) * EpsScale;
 
 				bool bBehind = (SampleDepth - ReferenceDepth) > (2.0f * CompareTolerance);
 				float DepthSample = bBehind ? DepthHistory : SampleDepth;
