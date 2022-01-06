@@ -424,3 +424,24 @@ FTransform UDEPRECATED_RootMotionModifier_SimpleWarp::ProcessRootMotion(const FT
 
 	return FinalRootMotion;
 }
+
+// URootMotionModifier_Scale
+///////////////////////////////////////////////////////////////
+
+URootMotionModifier_Scale* URootMotionModifier_Scale::AddRootMotionModifierScale(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FVector InScale)
+{
+	if (ensureAlways(InMotionWarpingComp))
+	{
+		URootMotionModifier_Scale* NewModifier = NewObject<URootMotionModifier_Scale>(InMotionWarpingComp);
+		NewModifier->Animation = InAnimation;
+		NewModifier->StartTime = InStartTime;
+		NewModifier->EndTime = InEndTime;
+		NewModifier->Scale = InScale;
+
+		InMotionWarpingComp->AddModifier(NewModifier);
+
+		return NewModifier;
+	}
+
+	return nullptr;
+}

@@ -18,7 +18,18 @@ public:
 	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	static URootMotionModifier_SkewWarp* AddRootMotionModifierSkewWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime,
-		FName InWarpTargetName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
-		bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier = 1.f);
+	static URootMotionModifier_SkewWarp* AddRootMotionModifierSkewWarp(
+		UPARAM(DisplayName = "Motion Warping Comp") UMotionWarpingComponent* InMotionWarpingComp,
+		UPARAM(DisplayName = "Animation") const UAnimSequenceBase* InAnimation,
+		UPARAM(DisplayName = "Start Time") float InStartTime,
+		UPARAM(DisplayName = "End Time") float InEndTime,
+		UPARAM(DisplayName = "Warp Target Name") FName InWarpTargetName,
+		UPARAM(DisplayName = "Warp Point Anim Provider") EWarpPointAnimProvider InWarpPointAnimProvider,
+		UPARAM(DisplayName = "Warp Point Anim Transform") FTransform InWarpPointAnimTransform,
+		UPARAM(DisplayName = "Warp Point Anim Bone Name") FName InWarpPointAnimBoneName,
+		UPARAM(DisplayName = "Warp Translation") bool bInWarpTranslation = true,
+		UPARAM(DisplayName = "Ignore Z Axis") bool bInIgnoreZAxis = true,
+		UPARAM(DisplayName = "Warp Rotation") bool bInWarpRotation = true,
+		UPARAM(DisplayName = "Rotation Type") EMotionWarpRotationType InRotationType = EMotionWarpRotationType::Default,
+		UPARAM(DisplayName = "Warp Rotation Time Multiplier") float InWarpRotationTimeMultiplier = 1.f);
 };
