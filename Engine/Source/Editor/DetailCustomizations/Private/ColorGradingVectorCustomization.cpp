@@ -545,19 +545,17 @@ void FColorGradingVectorCustomization::MakeHeaderRow(FDetailWidgetRow& Row, TSha
 			];
 
 		// Make a widget for each property.  The vector component properties  will be displayed in the header
-		TOptional<float> MinValue, MaxValue, SliderMinValue, SliderMaxValue;
-		float SliderExponent, Delta;
-		int32 ShiftMouseMovePixelPerDelta = 1;
-		bool SupportDynamicSliderMaxValue = false;
-		bool SupportDynamicSliderMinValue = false;
 
 		TSharedRef<IPropertyHandle> ColorGradingPropertyHandleRef = ColorGradingPropertyHandle.Pin().ToSharedRef();
-		FMathStructCustomization::ExtractNumericMetadata<float>(ColorGradingPropertyHandleRef, MinValue, MaxValue, SliderMinValue, SliderMaxValue, SliderExponent, Delta, ShiftMouseMovePixelPerDelta, SupportDynamicSliderMaxValue, SupportDynamicSliderMinValue);
+		FMathStructCustomization::FNumericMetadata<float> Metadata;
+		FMathStructCustomization::ExtractNumericMetadata(ColorGradingPropertyHandleRef, Metadata);
 
 		for (int32 ColorIndex = 0; ColorIndex < SortedChildArray.Num(); ++ColorIndex)
 		{
 			TWeakPtr<IPropertyHandle> WeakHandlePtr = SortedChildArray[ColorIndex];
-			TSharedRef<SNumericEntryBox<float>> NumericEntryBox = MakeNumericEntryBox(ColorIndex, MinValue, MaxValue, SliderMinValue, SliderMaxValue, SliderExponent, Delta, ShiftMouseMovePixelPerDelta, SupportDynamicSliderMaxValue, SupportDynamicSliderMinValue);
+			TSharedRef<SNumericEntryBox<float>> NumericEntryBox = MakeNumericEntryBox(ColorIndex, Metadata.MinValue, Metadata.MaxValue, 
+				Metadata.SliderMinValue, Metadata.SliderMaxValue, Metadata.SliderExponent, Metadata.Delta, 
+				Metadata.ShiftMouseMovePixelPerDelta, Metadata.bSupportDynamicSliderMaxValue, Metadata.bSupportDynamicSliderMinValue);
 			TSharedPtr<SSpinBox<float>> NumericEntrySpinBox = StaticCastSharedPtr<SSpinBox<float>>(NumericEntryBox->GetSpinBox());
 			 
 			NumericEntryBoxWidgetList.Add(NumericEntryBox);
@@ -788,15 +786,11 @@ void FColorGradingCustomBuilder::Tick(float DeltaTime)
 void FColorGradingCustomBuilder::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
 {
 	// Make a widget for each property.  The vector component properties  will be displayed in the header
-	TOptional<float> MinValue, MaxValue, SliderMinValue, SliderMaxValue;
-	float SliderExponent, Delta;
-	int32 ShiftMouseMovePixelPerDelta = 1;
-	bool SupportDynamicSliderMaxValue = false;
-	bool SupportDynamicSliderMinValue = false;
+
 	TSharedRef<IPropertyHandle> ColorGradingPropertyHandleRef = ColorGradingPropertyHandle.Pin().ToSharedRef();
-
-	FMathStructCustomization::ExtractNumericMetadata<float>(ColorGradingPropertyHandleRef, MinValue, MaxValue, SliderMinValue, SliderMaxValue, SliderExponent, Delta, ShiftMouseMovePixelPerDelta, SupportDynamicSliderMaxValue, SupportDynamicSliderMinValue);	
-
+	FMathStructCustomization::FNumericMetadata<float> Metadata;
+	FMathStructCustomization::ExtractNumericMetadata(ColorGradingPropertyHandleRef, Metadata);
+	
 	EColorGradingModes ColorGradingMode = GetColorGradingMode();
 
 	NodeRow.NameContent()
@@ -812,14 +806,14 @@ void FColorGradingCustomBuilder::GenerateHeaderRowContent(FDetailWidgetRow& Node
 			.Padding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
 			[
 				SAssignNew(ColorGradingPickerWidget, SColorGradingPicker)
-				.ValueMin(MinValue)
-				.ValueMax(MaxValue)
-				.SliderValueMin(SliderMinValue)
-				.SliderValueMax(SliderMaxValue)
-				.MainDelta(Delta)
-				.SupportDynamicSliderMaxValue(SupportDynamicSliderMaxValue)
-				.SupportDynamicSliderMinValue(SupportDynamicSliderMinValue)
-				.MainShiftMouseMovePixelPerDelta(ShiftMouseMovePixelPerDelta)
+				.ValueMin(Metadata.MinValue)
+				.ValueMax(Metadata.MaxValue)
+				.SliderValueMin(Metadata.SliderMinValue)
+				.SliderValueMax(Metadata.SliderMaxValue)
+				.MainDelta(Metadata.Delta)
+				.SupportDynamicSliderMaxValue(Metadata.bSupportDynamicSliderMaxValue)
+				.SupportDynamicSliderMinValue(Metadata.bSupportDynamicSliderMinValue)
+				.MainShiftMouseMovePixelPerDelta(Metadata.ShiftMouseMovePixelPerDelta)
 				.ColorGradingModes(ColorGradingMode)
 				.OnColorCommitted(this, &FColorGradingCustomBuilder::OnColorGradingPickerChanged)
 				.OnQueryCurrentColor(this, &FColorGradingCustomBuilder::GetCurrentColorGradingValue)
@@ -887,7 +881,9 @@ void FColorGradingCustomBuilder::GenerateHeaderRowContent(FDetailWidgetRow& Node
 	{
 		TWeakPtr<IPropertyHandle> WeakHandlePtr = SortedChildArray[ColorIndex];
 
-		TSharedRef<SNumericEntryBox<float>> NumericEntryBox = MakeNumericEntryBox(ColorIndex, MinValue, MaxValue, SliderMinValue, SliderMaxValue, SliderExponent, Delta, ShiftMouseMovePixelPerDelta, SupportDynamicSliderMaxValue, SupportDynamicSliderMinValue);
+		TSharedRef<SNumericEntryBox<float>> NumericEntryBox = MakeNumericEntryBox(ColorIndex, Metadata.MinValue, Metadata.MaxValue, 
+			Metadata.SliderMinValue, Metadata.SliderMaxValue, Metadata.SliderExponent, Metadata.Delta, 
+			Metadata.ShiftMouseMovePixelPerDelta, Metadata.bSupportDynamicSliderMaxValue, Metadata.bSupportDynamicSliderMinValue);
 		TSharedPtr<SSpinBox<float>> NumericEntrySpinBox = StaticCastSharedPtr<SSpinBox<float>>(NumericEntryBox->GetSpinBox());
 
 		NumericEntryBoxWidgetList.Add(NumericEntryBox);

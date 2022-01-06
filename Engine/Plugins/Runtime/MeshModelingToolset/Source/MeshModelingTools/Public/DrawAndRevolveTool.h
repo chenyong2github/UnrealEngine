@@ -46,12 +46,13 @@ public:
 	bool bClosePathToAxis = true;
 	
 	/** Sets the draw plane origin. The revolution axis is the X axis in the plane. */
-	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (DisplayName = "Origin", EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (DisplayName = "Origin", EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle,
+		Delta = 5, LinearDeltaSensitivity = 1))
 	FVector DrawPlaneOrigin = FVector(0, 0, 0);
 
 	/** Sets the draw plane orientation. The revolution axis is the X axis in the plane. */
 	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (DisplayName = "Orientation", EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle, 
-		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 18000))
+		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 180000))
 	FRotator DrawPlaneOrientation = FRotator(90, 0, 0);
 
 	/** Enables snapping while editing the path. */

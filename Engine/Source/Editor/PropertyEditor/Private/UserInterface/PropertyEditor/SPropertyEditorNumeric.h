@@ -256,6 +256,7 @@ public:
 			const FString& MetaUIMinString = GetMetaDataFromKey("UIMin");
 			const FString& MetaUIMaxString = GetMetaDataFromKey("UIMax");
 			const FString& SliderExponentString = GetMetaDataFromKey("SliderExponent");
+			const FString& LinearDeltaSensitivityString = GetMetaDataFromKey("LinearDeltaSensitivity");
 			const FString& DeltaString = GetMetaDataFromKey("Delta");
 			const FString& ClampMinString = GetMetaDataFromKey("ClampMin");
 			const FString& ClampMaxString = GetMetaDataFromKey("ClampMax");
@@ -293,6 +294,14 @@ public:
 			{
 				TTypeFromString<NumericType>::FromString(Delta, *DeltaString);
 			}
+
+			int32 LinearDeltaSensitivity = 0;
+			if (LinearDeltaSensitivityString.Len())
+			{
+				TTypeFromString<int32>::FromString(LinearDeltaSensitivity, *LinearDeltaSensitivityString);
+			}
+			// LinearDeltaSensitivity only works in SSpinBox if delta is provided, so add it in if it wasn't.
+			Delta = (LinearDeltaSensitivity != 0 && Delta == NumericType(0)) ? NumericType(1) : Delta;
 
 			if (ClampMin >= ClampMax && (ClampMinString.Len() || ClampMaxString.Len()))
 			{
@@ -371,6 +380,8 @@ public:
 				.MaxSliderValue(SliderMaxValue)
 				.SliderExponent(SliderExponent)
 				.Delta(Delta)
+				// LinearDeltaSensitivity needs to be left unset if not provided, rather than being set to some default
+				.LinearDeltaSensitivity(LinearDeltaSensitivity != 0 ? LinearDeltaSensitivity : TAttribute<int32>())
 				.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
 				.OnValueChanged(this, &SPropertyEditorNumeric<NumericType>::OnValueChanged)
 				.OnValueCommitted(this, &SPropertyEditorNumeric<NumericType>::OnValueCommitted)

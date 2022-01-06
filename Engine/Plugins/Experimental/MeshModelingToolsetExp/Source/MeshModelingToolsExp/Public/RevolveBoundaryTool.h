@@ -58,11 +58,13 @@ public:
 	bool bDisplayInputMesh = false;
 
 	/** Sets the revolution axis origin. */
-	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (DisplayName = "Origin"))
+	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (DisplayName = "Origin",
+		Delta = 5, LinearDeltaSensitivity = 1))
 	FVector AxisOrigin = FVector(0, 0, 0);
 
 	/** Sets the revolution axis pitch and yaw. */
-	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (DisplayName = "Orientation"))
+	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (DisplayName = "Orientation",
+		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 180000))
 	FVector2D AxisOrientation;
 
 protected:
