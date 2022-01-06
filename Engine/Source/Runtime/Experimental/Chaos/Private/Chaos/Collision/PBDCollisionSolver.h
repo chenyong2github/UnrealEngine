@@ -87,6 +87,7 @@ namespace Chaos
 		/**
 		 * @brief Calculate the velocity error at the current transforms
 		*/
+		void CalculateContactVelocityErrorNormal(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, FSolverReal& OutContactVelocityDeltaNormal) const;
 		void CalculateContactVelocityError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FSolverReal DynamicFriction, const FSolverReal Dt, FSolverReal& OutContactVelocityDeltaNormal, FSolverReal& OutContactVelocityDeltaTangent0, FSolverReal& OutContactVelocityDeltaTangent1) const;
 
 		// @todo(chaos): make private
@@ -474,7 +475,7 @@ namespace Chaos
 		}
 		if (Body1.IsDynamic())
 		{
-			const FSolverVec3 DX1 = -(Body1.InvM() * PushOut);
+			const FSolverVec3 DX1 = -Body1.InvM() * PushOut;
 			const FSolverVec3 DR1 = ManifoldPoint.WorldContactNormalAngular1 * -PushOutNormal + ManifoldPoint.WorldContactTangentUAngular1 * -PushOutTangentU + ManifoldPoint.WorldContactTangentVAngular1 * -PushOutTangentV;
 			Body1.ApplyPositionDelta(DX1);
 			Body1.ApplyRotationDelta(DR1);
@@ -532,7 +533,7 @@ namespace Chaos
 		
 		// Clamp the total impulse to be positive along the normal. We can apply a net negative impulse, 
 		// but only to correct the velocity that was added by pushout.
-		FSolverReal NetImpulseNormal = ManifoldPoint.NetImpulseNormal + ImpulseNormal;
+		const FSolverReal NetImpulseNormal = ManifoldPoint.NetImpulseNormal + ImpulseNormal;
 		const FSolverReal PushOutImpulseNormal = FMath::Max(0.0f, ManifoldPoint.NetPushOutNormal / Dt);
 		if (NetImpulseNormal < -PushOutImpulseNormal)
 		{
@@ -560,13 +561,52 @@ namespace Chaos
 		// Calculate the velocity deltas from the impulse
 		if (Body0.IsDynamic())
 		{
-			const FSolverVec3 AngularImpulse = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPosition0, Impulse);
-			Body0.ApplyVelocityDelta(Body0.InvM() * Impulse, Body0.InvI() * AngularImpulse);
+			const FSolverVec3 DV0 = Body0.InvM() * Impulse;
+			const FSolverVec3 DW0 = ManifoldPoint.WorldContactNormalAngular0 * ImpulseNormal + ManifoldPoint.WorldContactTangentUAngular0 * ImpulseTangentU + ManifoldPoint.WorldContactTangentVAngular0 * ImpulseTangentV;
+			Body0.ApplyVelocityDelta(DV0, DW0);
 		}
 		if (Body1.IsDynamic())
 		{
-			const FSolverVec3 AngularImpulse = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPosition1, Impulse);
-			Body1.ApplyVelocityDelta(Body1.InvM() * -Impulse, Body1.InvI() * -AngularImpulse);
+			const FSolverVec3 DV1 = -Body1.InvM() * Impulse;
+			const FSolverVec3 DW1 = ManifoldPoint.WorldContactNormalAngular1 * -ImpulseNormal + ManifoldPoint.WorldContactTangentUAngular1 * -ImpulseTangentU + ManifoldPoint.WorldContactTangentVAngular1 * -ImpulseTangentV;
+			Body1.ApplyVelocityDelta(DV1, DW1);
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void ApplyVelocityCorrectionNormal(
+		const FSolverReal Stiffness,
+		const FSolverReal Dt,
+		const FSolverReal ContactVelocityDeltaNormal,
+		FPBDCollisionSolverManifoldPoint& ManifoldPoint,
+		FConstraintSolverBody& Body0,
+		FConstraintSolverBody& Body1)
+	{
+		FSolverReal ImpulseNormal = -(Stiffness * ManifoldPoint.ContactMassNormal) * ContactVelocityDeltaNormal;
+
+		// See comments in ApplyVelocityCorrection
+		const FSolverReal NetImpulseNormal = ManifoldPoint.NetImpulseNormal + ImpulseNormal;
+		const FSolverReal PushOutImpulseNormal = FMath::Max(0.0f, ManifoldPoint.NetPushOutNormal / Dt);
+		if (NetImpulseNormal < -PushOutImpulseNormal)
+		{
+			ImpulseNormal = ImpulseNormal - (NetImpulseNormal + PushOutImpulseNormal);
+		}
+
+		ManifoldPoint.NetImpulseNormal += ImpulseNormal;
+
+		FSolverVec3 Impulse = ImpulseNormal * ManifoldPoint.WorldContactNormal;
+
+		// Calculate the velocity deltas from the impulse
+		if (Body0.IsDynamic())
+		{
+			const FSolverVec3 DV0 = Body0.InvM() * Impulse;
+			const FSolverVec3 DW0 = ManifoldPoint.WorldContactNormalAngular0 * ImpulseNormal;
+			Body0.ApplyVelocityDelta(DV0, DW0);
+		}
+		if (Body1.IsDynamic())
+		{
+			const FSolverVec3 DV1 = -Body1.InvM() * Impulse;
+			const FSolverVec3 DW1 = ManifoldPoint.WorldContactNormalAngular1 * -ImpulseNormal;
+			Body1.ApplyVelocityDelta(DV1, DW1);
 		}
 	}
 
@@ -627,9 +667,6 @@ namespace Chaos
 		const FSolverVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;
 		const FSolverReal ContactVelocityNormal = FSolverVec3::DotProduct(ContactVelocity, WorldContactNormal);
 
-		// Target normal velocity, including restitution
-		const FSolverReal ContactVelocityTargetNormal = WorldContactVelocityTargetNormal;
-
 		// Add up the errors in the velocity (current velocity - desired velocity)
 		OutContactVelocityDeltaNormal = (ContactVelocityNormal - WorldContactVelocityTargetNormal);
 		OutContactVelocityDeltaTangent0 = FSolverReal(0);
@@ -660,6 +697,16 @@ namespace Chaos
 		}
 	}
 
+	FORCEINLINE_DEBUGGABLE void FPBDCollisionSolverManifoldPoint::CalculateContactVelocityErrorNormal(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, FSolverReal& OutContactVelocityDeltaNormal) const
+	{
+		const FSolverVec3 ContactVelocity0 = Body0.V() + FSolverVec3::CrossProduct(Body0.W(), RelativeContactPosition0);
+		const FSolverVec3 ContactVelocity1 = Body1.V() + FSolverVec3::CrossProduct(Body1.W(), RelativeContactPosition1);
+		const FSolverVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;
+		const FSolverReal ContactVelocityNormal = FSolverVec3::DotProduct(ContactVelocity, WorldContactNormal);
+
+		// Add up the errors in the velocity (current velocity - desired velocity)
+		OutContactVelocityDeltaNormal = (ContactVelocityNormal - WorldContactVelocityTargetNormal);
+	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////////////
