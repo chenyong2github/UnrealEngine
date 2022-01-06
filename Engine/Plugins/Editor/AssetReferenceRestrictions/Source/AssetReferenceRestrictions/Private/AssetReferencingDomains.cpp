@@ -494,7 +494,10 @@ void FDomainDatabase::AddDomainVisibilityList(TSharedPtr<FDomainData> Domain, co
 {
 	for (const FString& OtherDomainName : VisibilityList)
 	{
-		Domain->DomainsVisibleFromHere.Add(FindOrAddDomainByName(OtherDomainName));
+		if (!OtherDomainName.IsEmpty())
+		{
+			Domain->DomainsVisibleFromHere.Add(FindOrAddDomainByName(OtherDomainName));
+		}
 	}
 }
 
