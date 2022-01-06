@@ -90,7 +90,7 @@ private:
 	void CreateBaseActor(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene, const FName& Name, FLinearColor LabelColor, FLinearColor WireframeColor);
 	void CreateGeomCacheActor(EMLDeformerEditorActorIndex ActorIndex, UWorld* World, const FName& Name, UGeometryCache* GeomCache, FLinearColor LabelColor, FLinearColor WireframeColor);
 	UMLDeformerComponent* AddMLDeformerComponentToActor(EMLDeformerEditorActorIndex ActorIndex);
-	void AddDeformerGraphComponentToActor(EMLDeformerEditorActorIndex ActorIndex, UComputeGraph* ComputeGraph) const;
+	void AddMeshDeformerToActor(EMLDeformerEditorActorIndex ActorIndex, UComputeGraph* ComputeGraph) const;
 	bool TryLoadOnnxFile() const;
 	void ShowNotification(const FText& Message, SNotificationItem::ECompletionState State, bool PlaySound) const;
 	UTextRenderComponent* CreateLabelForActor(AActor* Actor, UWorld* World, FLinearColor Color, const FText& Text) const;

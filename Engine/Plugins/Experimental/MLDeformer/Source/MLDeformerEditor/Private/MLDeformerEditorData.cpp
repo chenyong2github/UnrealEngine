@@ -293,7 +293,10 @@ void FMLDeformerEditorData::InitAssets()
 	InitSettings.DeformerAsset = MLDeformerAsset.Get();
 	InitSettings.World = GetWorld();
 	InitSettings.bLogCacheStats = false;
+	InitSettings.DeltaMode = EDeltaMode::PostSkinning;
 	SingleFrameCache.Init(InitSettings);
+
+	UpdateIsReadyForTrainingState();
 }
 
 void FMLDeformerEditorData::SetAnimFrame(int32 FrameNumber)
@@ -326,9 +329,11 @@ void FMLDeformerEditorData::SetAnimFrame(int32 FrameNumber)
 	CurrentFrame = FrameNumber;
 }
 
-bool FMLDeformerEditorData::IsReadyForTraining() const
+void FMLDeformerEditorData::UpdateIsReadyForTrainingState()
 {
 	UMLDeformerAsset* Asset = GetDeformerAsset();
+
+	bIsReadyForTraining = false;
 
 	// Make sure we have picked required assets.
 	if (Asset == nullptr ||
@@ -336,26 +341,26 @@ bool FMLDeformerEditorData::IsReadyForTraining() const
 		GetDeformerAsset()->GetAnimSequence() == nullptr ||
 		GetDeformerAsset()->GetSkeletalMesh() == nullptr)
 	{
-		return false;
+		return;
 	}
 
 	// There are no training frames.
 	if (GetDeformerAsset()->GetNumFrames() == 0)
 	{
-		return false;
+		return;
 	}
 
 	// Now make sure the assets are compatible.
 	if (!Asset->GetVertexErrorText(Asset->GetSkeletalMesh(), Asset->GetGeometryCache(), FText(), FText()).IsEmpty() ||
 		!Asset->GetGeomCacheErrorText(Asset->GetGeometryCache()).IsEmpty())
 	{
-		return false;
+		return;
 	}
 
 	// Make sure we have inputs.
 	if (Asset->CreateInputInfo().IsEmpty())
 	{
-		return false;
+		return;
 	}
 
 	// Make sure every skeletal imported mesh has some geometry track.
@@ -374,11 +379,16 @@ bool FMLDeformerEditorData::IsReadyForTraining() const
 	{
 		if (!GetSingleFrameCache().GetSampler().GetFailedImportedMeshNames().IsEmpty())
 		{
-			return false;
+			return;
 		}
 	}
 
-	return true;
+	bIsReadyForTraining = true;
+}
+
+bool FMLDeformerEditorData::IsReadyForTraining() const
+{
+	return bIsReadyForTraining;
 }
 
 bool FMLDeformerEditorData::GenerateDeltas(uint32 LODIndex, uint32 FrameNumber, TArray<float>& OutDeltas)
@@ -704,7 +714,7 @@ bool FMLDeformerEditorData::IsPlayingAnim() const
 
 FString FMLDeformerEditorData::GetDefaultDeformerGraphAssetPath()
 {
-	return FString(TEXT("/MLDeformer/Deformers/PreSkinningMLDeformerGraph.PreSkinningMLDeformerGraph"));
+	return FString(TEXT("/MLDeformer/Deformers/DefaultMLDeformerGraph.DefaultMLDeformerGraph"));
 }
 
 UComputeGraph* FMLDeformerEditorData::LoadDefaultDeformerGraph()

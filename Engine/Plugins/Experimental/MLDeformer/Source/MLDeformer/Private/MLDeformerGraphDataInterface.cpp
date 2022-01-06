@@ -119,9 +119,9 @@ FMLDeformerDataProviderProxy::FMLDeformerDataProviderProxy(UMLDeformerComponent*
 	VertexDeltaMean = DeformerAsset->GetVertexDeltaMean();
 	bCanRunNeuralNet = NeuralNetwork ? (NeuralNetwork->GetInputTensor().Num() == static_cast<int64>(DeformerAsset->GetInputInfo().CalcNumNeuralNetInputs())) : false;
 
-#ifdef WITH_EDITOR
 	VertexDeltaMultiplier = DeformerComponent->GetVertexDeltaMultiplier();
-	DebugScale = 5.f; // todo: Route configurable value from to here from UI.
+#if WITH_EDITORONLY_DATA
+	HeatMapScale = DeformerAsset->GetVizSettings()->GetHeatMapScale();
 #endif
 }
 
@@ -149,7 +149,7 @@ void FMLDeformerDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR cons
 	Parameters.VertexDeltaScale = VertexDeltaScale;
 	Parameters.VertexDeltaMean = VertexDeltaMean;
 	Parameters.VertexDeltaMultiplier = VertexDeltaMultiplier;
-	Parameters.DebugScale = DebugScale;
+	Parameters.DebugScale = HeatMapScale;
 	Parameters.PositionDeltaBuffer = BufferSRV;
 	Parameters.VertexMapBuffer = VertexMapBufferSRV;
 

@@ -41,6 +41,9 @@ UENUM()
 enum class EDecayFunction : uint8
 {
 	Linear,
+
+	// Multiply the learning rate with the Decay Rate each step.
+	// Basically making it smaller all the time.
 	Multiplicative
 };
 
@@ -48,8 +51,11 @@ enum class EDecayFunction : uint8
 UENUM()
 enum class EDeviceType : uint8
 {
-	CPU,	/** Train using CPU. */
-	GPU		/** Train using GPU.*/
+	// Train using the CPU. This tends to be slower.
+	CPU,
+
+	// Train using the GPU. This should be the fastest.
+	GPU
 };
 
 UENUM()
@@ -151,8 +157,6 @@ public:
 	void SetInputInfo(const FMLDeformerInputInfo& Input) { InputInfo = Input; }
 
 #if WITH_EDITORONLY_DATA
-	EDeltaMode GetDeltaMode() const { return DeltaMode; }
-
 	const FTransform& GetAlignmentTransform() const { return AlignmentTransform; }
 
 	const USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh;  }
@@ -296,10 +300,6 @@ public:
 	/** The percentage of noise to add. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "100.0")) // A percentage.
 	float NoiseAmount = 0.5;
-
-	/** The delta mode, which describes in what space the calculated deltas are. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings")
-	EDeltaMode DeltaMode = EDeltaMode::PreSkinning;
 
 	/** The loss function to use during model training. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings")

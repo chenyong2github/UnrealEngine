@@ -81,11 +81,11 @@ void FMLDeformerVizSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder&
 	SharedCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, LabelScale));
 	SharedCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, MeshSpacing));
 
-	// Testing.
-	IDetailCategoryBuilder& TestingCategoryBuilder = DetailBuilder.EditCategory("Testing", FText::GetEmpty(), ECategoryPriority::Important);
-	TestingCategoryBuilder.SetCategoryVisibility(bShowTestData);
+	// Test Assets.
+	IDetailCategoryBuilder& TestAssetsCategory = DetailBuilder.EditCategory("Test Assets", FText::GetEmpty(), ECategoryPriority::Important);
+	TestAssetsCategory.SetCategoryVisibility(bShowTestData);
 	
-	IDetailPropertyRow& TestAnimRow = TestingCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TestAnimSequence));
+	IDetailPropertyRow& TestAnimRow = TestAssetsCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, TestAnimSequence));
 	TestAnimRow.CustomWidget()
 	.NameContent()
 	[
@@ -108,7 +108,7 @@ void FMLDeformerVizSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder&
 	if (VizSettings)
 	{
 		const FText AnimErrorText = DeformerAsset->GetIncompatibleSkeletonErrorText(DeformerAsset->GetSkeletalMesh(), VizSettings->GetTestAnimSequence());
-		FDetailWidgetRow& AnimErrorRow = TestingCategoryBuilder.AddCustomRow(FText::FromString("AnimSkeletonMisMatchError"))
+		FDetailWidgetRow& AnimErrorRow = TestAssetsCategory.AddCustomRow(FText::FromString("AnimSkeletonMisMatchError"))
 			.Visibility(!AnimErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
 			.WholeRowContent()
 			[
@@ -122,19 +122,17 @@ void FMLDeformerVizSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder&
 			];
 	}
 
-	TestingCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, AnimPlaySpeed));
-
 	FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FMLDeformerVizSettingsDetails::IsResetToDefaultDeformerGraphVisible);
 	FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FMLDeformerVizSettingsDetails::OnResetToDefaultDeformerGraph);
 	FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
-	TestingCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, DeformerGraph)).OverrideResetToDefault(ResetOverride);
+	TestAssetsCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, DeformerGraph)).OverrideResetToDefault(ResetOverride);
 
 	// Show a warning when no deformer graph has been selected.
 	UObject* Graph = nullptr;
 	TSharedRef<IPropertyHandle> DeformerGraphProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, DeformerGraph));
 	if (DeformerGraphProperty->GetValue(Graph) == FPropertyAccess::Result::Success)
 	{
-		FDetailWidgetRow& GraphErrorRow = TestingCategoryBuilder.AddCustomRow(FText::FromString("GraphError"))
+		FDetailWidgetRow& GraphErrorRow = TestAssetsCategory.AddCustomRow(FText::FromString("GraphError"))
 			.Visibility((Graph == nullptr) ? EVisibility::Visible : EVisibility::Collapsed)
 			.WholeRowContent()
 			[
@@ -150,7 +148,7 @@ void FMLDeformerVizSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder&
 
 	if (DeformerAsset)
 	{
-		FDetailWidgetRow& ErrorRow = TestingCategoryBuilder.AddCustomRow(FText::FromString("NoNeuralNetError"))
+		FDetailWidgetRow& ErrorRow = TestAssetsCategory.AddCustomRow(FText::FromString("NoNeuralNetError"))
 			.Visibility((DeformerAsset->GetInferenceNeuralNetwork() == nullptr && Graph != nullptr) ? EVisibility::Visible : EVisibility::Collapsed)
 			.WholeRowContent()
 			[
@@ -164,13 +162,13 @@ void FMLDeformerVizSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder&
 			];
 	}
 
-	TestingCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, GroundTruth));
+	TestAssetsCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, GroundTruth));
 
 	// Show an error when the test anim sequence duration doesn't match the one of the ground truth.
 	if (VizSettings)
 	{
 		const FText AnimErrorText = DeformerAsset->GetAnimSequenceErrorText(VizSettings->GroundTruth, VizSettings->GetTestAnimSequence());
-		FDetailWidgetRow& GroundTruthAnimErrorRow = TestingCategoryBuilder.AddCustomRow(FText::FromString("GroundTruthAnimMismatchError"))
+		FDetailWidgetRow& GroundTruthAnimErrorRow = TestAssetsCategory.AddCustomRow(FText::FromString("GroundTruthAnimMismatchError"))
 			.Visibility(!AnimErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
 			.WholeRowContent()
 			[
@@ -184,7 +182,7 @@ void FMLDeformerVizSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder&
 			];
 
 		const FText GeomErrorText = DeformerAsset->GetGeomCacheErrorText(VizSettings->GetGroundTruth());
-		FDetailWidgetRow& GroundTruthGeomErrorRow = TestingCategoryBuilder.AddCustomRow(FText::FromString("GroundTruthGeomMismatchError"))
+		FDetailWidgetRow& GroundTruthGeomErrorRow = TestAssetsCategory.AddCustomRow(FText::FromString("GroundTruthGeomMismatchError"))
 			.Visibility(!GeomErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
 			.WholeRowContent()
 			[
@@ -198,7 +196,7 @@ void FMLDeformerVizSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder&
 			];
 
 		const FText VertexErrorText = DeformerAsset->GetVertexErrorText(DeformerAsset->SkeletalMesh, VizSettings->GetGroundTruth(), FText::FromString("Base Mesh"), FText::FromString("Ground Truth Mesh"));
-		FDetailWidgetRow& GroundTruthVertexErrorRow = TestingCategoryBuilder.AddCustomRow(FText::FromString("GroundTruthVertexMismatchError"))
+		FDetailWidgetRow& GroundTruthVertexErrorRow = TestAssetsCategory.AddCustomRow(FText::FromString("GroundTruthVertexMismatchError"))
 			.Visibility(!VertexErrorText.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
 			.WholeRowContent()
 			[
@@ -212,11 +210,21 @@ void FMLDeformerVizSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder&
 			];
 	}
 
-	TestingCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, VertexDeltaMultiplier));
-	TestingCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bShowHeatMap));
-	TestingCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawLinearSkinnedActor));
-	TestingCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawMLDeformedActor));
-	TestingCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawGroundTruthActor));
+	IDetailCategoryBuilder& LiveSettingsCategory = DetailBuilder.EditCategory("Live Settings", FText::GetEmpty(), ECategoryPriority::Important);
+	LiveSettingsCategory.SetCategoryVisibility(bShowTestData);
+
+	LiveSettingsCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, VertexDeltaMultiplier));
+	LiveSettingsCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, AnimPlaySpeed));
+
+	IDetailGroup& HeatMapGroup = LiveSettingsCategory.AddGroup("HeatMap", LOCTEXT("HeatMap", "Heat Map"), false, true);
+	HeatMapGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bShowHeatMap)));
+	HeatMapGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, HeatMapMode)));
+	HeatMapGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, HeatMapScale)));
+
+	IDetailGroup& VisGroup = LiveSettingsCategory.AddGroup("Visibility", LOCTEXT("Visibility", "Visibility"), false, true);
+	VisGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawLinearSkinnedActor)));
+	VisGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawMLDeformedActor)));
+	VisGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawGroundTruthActor)));
 
 	// Training data.
 	IDetailCategoryBuilder& TrainingMeshesCategoryBuilder = DetailBuilder.EditCategory("Training Meshes", FText::GetEmpty(), ECategoryPriority::Important);

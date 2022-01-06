@@ -89,6 +89,7 @@ public:
 	{
 		TObjectPtr<UWorld> World = nullptr;
 		TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
+		EDeltaMode DeltaMode = EDeltaMode::PreSkinning;
 	};
 
 	FMLDeformerSampler() = default;
@@ -170,6 +171,7 @@ public:
 	struct FInitSettings
 	{
 		SIZE_T CacheSizeInBytes = 1024 * 1024 * 1024 * 2ull;	// 2 gigabyte on default.
+		EDeltaMode DeltaMode = EDeltaMode::PreSkinning;
 		TObjectPtr<UMLDeformerAsset> DeformerAsset = nullptr;
 		UWorld* World = nullptr;
 		bool bLogCacheStats = true;

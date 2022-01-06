@@ -152,6 +152,8 @@ void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& Skin
 		OutVertexDeltas[Index] = 0.0f;
 	}
 
+	const EDeltaMode DeltaMode = Sampler->GetInitSettings().DeltaMode;
+
 	// For all mesh mappings we found.
 	const float SampleTime = GeometryCacheComponent->GetTimeAtFrame(AnimFrameIndex);
 	const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
@@ -181,7 +183,7 @@ void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& Skin
 				FVector3f Delta = FVector3f::ZeroVector;
 
 				const int32 ArrayIndex = 3 * SkinnedVertexIndex;
-				if (DeformerAsset->GetDeltaMode() == EDeltaMode::PreSkinning)
+				if (DeltaMode == EDeltaMode::PreSkinning)
 				{
 					// Calculate the inverse skinning transform for this vertex.
 					const int32 RenderVertexIndex = MeshMapping.ImportedVertexToRenderVertexMap[VertexIndex];
@@ -205,7 +207,7 @@ void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& Skin
 				}
 				else // We're post skinning.
 				{
-					check(DeformerAsset->GetDeltaMode() == EDeltaMode::PostSkinning);
+					check(DeltaMode == EDeltaMode::PostSkinning);
 					const FVector3f SkinnedVertexPos = SkinnedPositions[SkinnedVertexIndex];
 					const FVector3f GeomCacheVertexPos = AlignmentTransform.TransformPosition(GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
 					Delta = GeomCacheVertexPos - SkinnedVertexPos;
@@ -449,7 +451,9 @@ void FMLDeformerFrameCache::Init(const FInitSettings& InitSettings)
 
 	DeformerAsset = InitSettings.DeformerAsset;
 
-	if (DeformerAsset->GetSkeletalMesh() == nullptr || DeformerAsset->GetGeometryCache() == nullptr || DeformerAsset->GetAnimSequence() == nullptr)
+	if (DeformerAsset->GetSkeletalMesh() == nullptr || 
+		DeformerAsset->GetGeometryCache() == nullptr || 
+		DeformerAsset->GetAnimSequence() == nullptr)
 	{
 		FrameMap.Empty();
 		CachedTrainingFrames.Empty();
@@ -461,6 +465,7 @@ void FMLDeformerFrameCache::Init(const FInitSettings& InitSettings)
 	FMLDeformerSampler::FInitSettings SamplerInitSettings;
 	SamplerInitSettings.DeformerAsset = InitSettings.DeformerAsset;
 	SamplerInitSettings.World = InitSettings.World;
+	SamplerInitSettings.DeltaMode = InitSettings.DeltaMode;
 	Sampler.Init(SamplerInitSettings);
 
 	// Create the first training frame, and update it already so we know how much memory one frame takes.
