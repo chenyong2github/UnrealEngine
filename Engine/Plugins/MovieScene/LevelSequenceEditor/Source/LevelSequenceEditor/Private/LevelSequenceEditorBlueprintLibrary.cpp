@@ -412,6 +412,39 @@ void ULevelSequenceEditorBlueprintLibrary::SetLockLevelSequence(bool bLock)
 	}
 }
 
+bool ULevelSequenceEditorBlueprintLibrary::IsTrackFilterEnabled(const FText& TrackFilterName)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		TSharedPtr<ISequencer> Sequencer = CurrentSequencer.Pin();
+
+		return Sequencer->IsTrackFilterEnabled(TrackFilterName);
+	}
+	return false;
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SetTrackFilterEnabled(const FText& TrackFilterName, bool bEnabled)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		TSharedPtr<ISequencer> Sequencer = CurrentSequencer.Pin();
+
+		Sequencer->SetTrackFilterEnabled(TrackFilterName, bEnabled);
+	}
+}
+
+TArray<FText> ULevelSequenceEditorBlueprintLibrary::GetTrackFilterNames()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		TSharedPtr<ISequencer> Sequencer = CurrentSequencer.Pin();
+
+		return Sequencer->GetTrackFilterNames();
+	}
+
+	return TArray<FText>();
+}
+
 bool ULevelSequenceEditorBlueprintLibrary::HasCustomColorForChannel(UClass* Class, const FString& Identifier)
 {
 	const UCurveEditorSettings* Settings = GetDefault<UCurveEditorSettings>();

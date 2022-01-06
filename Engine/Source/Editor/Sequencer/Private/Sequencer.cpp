@@ -9737,11 +9737,20 @@ void FSequencer::ObjectImplicitlyRemoved(UObject* InObject) const
 	}
 }
 
-void FSequencer::SetFilterOn(const FText& InName, bool bOn)
+void FSequencer::SetTrackFilterEnabled(const FText& InTrackFilterName, bool bEnabled)
 {
-	SequencerWidget->SetFilterOn(InName, bOn);
+	SequencerWidget->SetTrackFilterEnabled(InTrackFilterName, bEnabled);
 }
 
+bool FSequencer::IsTrackFilterEnabled(const FText& InTrackFilterName) const
+{
+	return SequencerWidget->IsTrackFilterEnabled(InTrackFilterName);
+}
+
+TArray<FText> FSequencer::GetTrackFilterNames() const
+{
+	return SequencerWidget->GetTrackFilterNames();
+}
 
 void FSequencer::ImportSectionsFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneSection*>& ImportedSections)
 {
