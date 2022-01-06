@@ -143,6 +143,12 @@ enum class EMassVisibility : uint8
 };
 
 USTRUCT()
+struct FMassCollectLODViewerInfoTag : public FMassTag
+{
+	GENERATED_BODY();
+};
+
+USTRUCT()
 struct MASSLOD_API FMassVisibilityCanBeSeenTag : public FMassTag
 {
 	GENERATED_BODY()

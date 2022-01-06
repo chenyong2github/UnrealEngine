@@ -5,11 +5,19 @@
 #include "Engine/World.h"
 #include "MassCommonFragments.h"
 #include "StructUtilsTypes.h"
+#include "MassLODTypes.h"
+
+void UMassLODCollectorTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
+{
+	BuildContext.AddFragment<FMassViewerInfoFragment>();
+	BuildContext.AddTag<FMassCollectLODViewerInfoTag>();
+}
 
 void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_Transform>();
-	BuildContext.AddFragmentWithDefaultInitializer<FMassViewerInfoFragment>();
+	BuildContext.AddTag<FMassCollectLODViewerInfoTag>(); // Depends on FMassViewerInfoFragment
+	BuildContext.AddFragment<FDataFragment_Transform>();
+
 	FMassSimulationLODFragment& LODFragment = BuildContext.AddFragment_GetRef<FMassSimulationLODFragment>();
 
 	// Start all simulation LOD in the Off 

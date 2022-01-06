@@ -27,6 +27,7 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	// the following needs to be always there for mesh vis to work. Adding following fragments after already 
 	// adding Config.AdditionalDataFragments to let user configure the fragments first. Calling BuildContext.Add() 
 	// won't override any fragments that are already there
+	BuildContext.AddTag<FMassCollectLODViewerInfoTag>(); // Depends on FMassViewerInfoFragment
 	BuildContext.AddFragment<FDataFragment_Transform>();
 
 	if (UMassRepresentationSubsystem* RepresentationSubsystem = Cast<UMassRepresentationSubsystem>(World.GetSubsystemBase(RepresentationSubsystemClass)))
@@ -43,7 +44,6 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 			BuildContext.AddTag(*RepresentationDestructorTag);
 		}
 
-		BuildContext.AddFragment<FMassViewerInfoFragment>();
 		BuildContext.AddFragment<FMassRepresentationLODFragment>();
 		BuildContext.AddTag<FMassVisibilityCulledByDistanceTag>();
 
