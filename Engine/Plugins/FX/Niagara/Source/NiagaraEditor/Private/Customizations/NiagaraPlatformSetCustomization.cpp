@@ -1253,6 +1253,12 @@ void SNiagaraConsoleInputBox::SuggestionSelectionChanged(TSharedPtr<FString> New
 		return;
 	}
 
+	if (NewValue.IsValid() == false)
+	{
+		SuggestionBox->SetIsOpen(false);
+		return;
+	}
+
 	Suggestions.SelectedSuggestion = Suggestions.SuggestionsList.IndexOfByPredicate([&NewValue](const TSharedPtr<FString>& InSuggestion)
 		{
 			return InSuggestion == NewValue;
@@ -1378,6 +1384,7 @@ void SNiagaraConsoleInputBox::OnTextCommitted(const FText& InText, ETextCommit::
 		WorkingText = InText;
 		IConsoleManager::Get().AddConsoleHistoryEntry(NiagaraCVarHistoryKey, *InText.ToString());
 		OnTextCommittedEvent.ExecuteIfBound(InText);
+		SuggestionBox->SetIsOpen(false);
 	}
 }
 
