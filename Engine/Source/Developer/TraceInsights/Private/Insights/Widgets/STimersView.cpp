@@ -2311,22 +2311,22 @@ void STimersView::ContextMenu_Export_Execute()
 			}
 			else
 			{
-				StringBuilder.Append(Separator);
+				StringBuilder.AppendChar(Separator);
 			}
 			FString Value = ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar();
 			int32 CharIndex;
 			if (Value.FindChar(Separator, CharIndex))
 			{
-				StringBuilder.Append(QuotationMarkBegin);
+				StringBuilder.AppendChar(QuotationMarkBegin);
 				StringBuilder.Append(Value);
-				StringBuilder.Append(QuotationMarkEnd);
+				StringBuilder.AppendChar(QuotationMarkEnd);
 			}
 			else
 			{
 				StringBuilder.Append(Value);
 			}
 		}
-		StringBuilder.Append(LineEnd);
+		StringBuilder.AppendChar(LineEnd);
 		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(TCHAR));
 	}
 
@@ -2351,23 +2351,23 @@ void STimersView::ContextMenu_Export_Execute()
 			}
 			else
 			{
-				StringBuilder.Append(Separator);
+				StringBuilder.AppendChar(Separator);
 			}
 
 			FString Value = ColumnRef->GetValueAsSerializableString(*Node).ReplaceCharWithEscapedChar();
 			int32 CharIndex;
 			if (Value.FindChar(Separator, CharIndex))
 			{
-				StringBuilder.Append(QuotationMarkBegin);
+				StringBuilder.AppendChar(QuotationMarkBegin);
 				StringBuilder.Append(Value);
-				StringBuilder.Append(QuotationMarkEnd);
+				StringBuilder.AppendChar(QuotationMarkEnd);
 			}
 			else
 			{
 				StringBuilder.Append(Value);
 			}
 		}
-		StringBuilder.Append(LineEnd);
+		StringBuilder.AppendChar(LineEnd);
 		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(TCHAR));
 	}
 
@@ -2395,15 +2395,15 @@ struct FExportTimingEventsHeaderParams
 void ExportTimingEventsHeader(FExportTimingEventsHeaderParams& Params)
 {
 	Params.StringBuilder.Append(UTF8TEXT("ThreadId"));
-	Params.StringBuilder.Append(Params.Separator);
+	Params.StringBuilder.AppendChar(Params.Separator);
 	Params.StringBuilder.Append(UTF8TEXT("TimerId"));
-	Params.StringBuilder.Append(Params.Separator);
+	Params.StringBuilder.AppendChar(Params.Separator);
 	Params.StringBuilder.Append(UTF8TEXT("StartTime"));
-	Params.StringBuilder.Append(Params.Separator);
+	Params.StringBuilder.AppendChar(Params.Separator);
 	Params.StringBuilder.Append(UTF8TEXT("EndTime"));
-	Params.StringBuilder.Append(Params.Separator);
+	Params.StringBuilder.AppendChar(Params.Separator);
 	Params.StringBuilder.Append(UTF8TEXT("Depth"));
-	Params.StringBuilder.Append(Params.LineEnd);
+	Params.StringBuilder.AppendChar(Params.LineEnd);
 
 	Params.ExportFileHandle->Write((const uint8*)Params.StringBuilder.ToString(), Params.StringBuilder.Len() * sizeof(UTF8CHAR));
 }
@@ -2440,15 +2440,15 @@ void ExportTimingEventsEnumerate(FExportTimingEventsEnumerateParams& Params)
 					{
 						Params.StringBuilder.Reset();
 						Params.StringBuilder.Appendf(UTF8TEXT("%u"), Params.ThreadId);
-						Params.StringBuilder.Append(Params.Separator);
+						Params.StringBuilder.AppendChar(Params.Separator);
 						Params.StringBuilder.Appendf(UTF8TEXT("%u"), Event.TimerIndex);
-						Params.StringBuilder.Append(Params.Separator);
+						Params.StringBuilder.AppendChar(Params.Separator);
 						Params.StringBuilder.Appendf(UTF8TEXT("%.9g"), EventStartTime);
-						Params.StringBuilder.Append(Params.Separator);
+						Params.StringBuilder.AppendChar(Params.Separator);
 						Params.StringBuilder.Appendf(UTF8TEXT("%.9g"), EventEndTime);
-						Params.StringBuilder.Append(Params.Separator);
+						Params.StringBuilder.AppendChar(Params.Separator);
 						Params.StringBuilder.Appendf(UTF8TEXT("%u"), EventDepth);
-						Params.StringBuilder.Append(Params.LineEnd);
+						Params.StringBuilder.AppendChar(Params.LineEnd);
 
 						Params.ExportFileHandle->Write((const uint8*)Params.StringBuilder.ToString(), Params.StringBuilder.Len() * sizeof(UTF8CHAR));
 					}
@@ -2796,11 +2796,11 @@ void STimersView::ContextMenu_ExportThreads_Execute() const
 	// Write header.
 	{
 		StringBuilder.Append(UTF8TEXT("ThreadId"));
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("Name"));
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("GroupName"));
-		StringBuilder.Append(LineEnd);
+		StringBuilder.AppendChar(LineEnd);
 
 		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
 	}
@@ -2810,20 +2810,20 @@ void STimersView::ContextMenu_ExportThreads_Execute() const
 	{
 		StringBuilder.Reset();
 		StringBuilder.Appendf(UTF8TEXT("%u"), FGpuTimingTrack::Gpu1ThreadId);
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("GPU1"));
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("GPU"));
-		StringBuilder.Append(LineEnd);
+		StringBuilder.AppendChar(LineEnd);
 		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
 
 		StringBuilder.Reset();
 		StringBuilder.Appendf(UTF8TEXT("%u"), FGpuTimingTrack::Gpu2ThreadId);
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("GPU2"));
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("GPU"));
-		StringBuilder.Append(LineEnd);
+		StringBuilder.AppendChar(LineEnd);
 		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
 
 		// Iterate the CPU threads.
@@ -2835,11 +2835,11 @@ void STimersView::ContextMenu_ExportThreads_Execute() const
 				{
 					StringBuilder.Reset();
 					StringBuilder.Appendf(UTF8TEXT("%u"), ThreadInfo.Id);
-					StringBuilder.Append(Separator);
+					StringBuilder.AppendChar(Separator);
 					StringBuilder.Append(TCHAR_TO_UTF8(ThreadInfo.Name));
-					StringBuilder.Append(Separator);
+					StringBuilder.AppendChar(Separator);
 					StringBuilder.Append(TCHAR_TO_UTF8(ThreadInfo.GroupName));
-					StringBuilder.Append(LineEnd);
+					StringBuilder.AppendChar(LineEnd);
 					ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
 				});
 		}
@@ -2890,15 +2890,15 @@ void STimersView::ContextMenu_ExportTimers_Execute() const
 	// Write header.
 	{
 		StringBuilder.Append(UTF8TEXT("TimerId"));
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("Type"));
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("Name"));
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("File"));
-		StringBuilder.Append(Separator);
+		StringBuilder.AppendChar(Separator);
 		StringBuilder.Append(UTF8TEXT("Line"));
-		StringBuilder.Append(LineEnd);
+		StringBuilder.AppendChar(LineEnd);
 
 		ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
 	}
@@ -2919,15 +2919,15 @@ void STimersView::ContextMenu_ExportTimers_Execute() const
 			const TraceServices::FTimingProfilerTimer& Timer = *(TimerReader->GetTimer(TimerIndex));
 			StringBuilder.Reset();
 			StringBuilder.Appendf(UTF8TEXT("%u"), Timer.Id);
-			StringBuilder.Append(Separator);
+			StringBuilder.AppendChar(Separator);
 			StringBuilder.Append(Timer.IsGpuTimer ? UTF8TEXT("GPU") : UTF8TEXT("CPU"));
-			StringBuilder.Append(Separator);
+			StringBuilder.AppendChar(Separator);
 			StringBuilder.Append(TCHAR_TO_UTF8(Timer.Name));
-			StringBuilder.Append(Separator);
+			StringBuilder.AppendChar(Separator);
 			StringBuilder.Append(Timer.File ? (const UTF8CHAR*)TCHAR_TO_UTF8(Timer.File) : UTF8TEXT(""));
-			StringBuilder.Append(Separator);
+			StringBuilder.AppendChar(Separator);
 			StringBuilder.Appendf(UTF8TEXT("%u"), Timer.Line);
-			StringBuilder.Append(LineEnd);
+			StringBuilder.AppendChar(LineEnd);
 			ExportFileHandle->Write((const uint8*)StringBuilder.ToString(), StringBuilder.Len() * sizeof(UTF8CHAR));
 		}
 	}

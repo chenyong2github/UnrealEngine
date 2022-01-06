@@ -169,7 +169,7 @@ public:
 		{
 			if (!(Builder.Len() == 0 || Builder.LastChar() == '/' || Builder.LastChar() == '\\'))
 			{
-				Builder.Append('/');
+				Builder.AppendChar('/');
 			}
 			return Builder;
 		};

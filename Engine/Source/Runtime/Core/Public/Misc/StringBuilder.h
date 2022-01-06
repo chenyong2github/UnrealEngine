@@ -166,6 +166,7 @@ public:
 		return *this;
 	}
 
+	UE_DEPRECATED(5.0, "Use AppendChar instead of Append.")
 	inline BuilderType& Append(CharType Char) { return AppendChar(Char); }
 
 	UE_DEPRECATED(5.0, "Use Append instead of AppendAnsi.")

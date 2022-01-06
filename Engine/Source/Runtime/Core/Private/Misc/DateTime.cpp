@@ -260,12 +260,12 @@ void FDateTime::ToString(const TCHAR* Format, FStringBuilderBase& Result) const
 				case TCHAR('M'): Result.Appendf(TEXT("%02i"), GetMinute()); break;
 				case TCHAR('S'): Result.Appendf(TEXT("%02i"), GetSecond()); break;
 				case TCHAR('s'): Result.Appendf(TEXT("%03i"), GetMillisecond()); break;
-				default:		 Result.Append(*Format);
+				default:		 Result.AppendChar(*Format);
 				}
 			}
 			else
 			{
-				Result.Append(*Format);
+				Result.AppendChar(*Format);
 			}
 
 			// move to the next one
@@ -304,12 +304,12 @@ FString FDateTime::ToFormattedString(const TCHAR* Format) const
 				case TCHAR('p'): Result.Append(IsMorning() ? TEXT("AM") : TEXT("PM")); break;
 				case TCHAR('P'): Result.Append(IsMorning() ? TEXT("am") : TEXT("pm")); break;
 				case TCHAR('j'): Result.Appendf(TEXT("%03i"), GetDayOfYear()); break;
-				default:		 Result.Append(*Format);
+				default:		 Result.AppendChar(*Format);
 				}
 			}
 			else
 			{
-				Result.Append(*Format);
+				Result.AppendChar(*Format);
 			}
 
 			// move to the next one

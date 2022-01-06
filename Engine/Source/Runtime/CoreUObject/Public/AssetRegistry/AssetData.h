@@ -227,7 +227,7 @@ public:
 	{
 		OutFullNameBuilder.Reset();
 		AssetClass.AppendString(OutFullNameBuilder);
-		OutFullNameBuilder.Append(' ');
+		OutFullNameBuilder.AppendChar(' ');
 		ObjectPath.AppendString(OutFullNameBuilder);
 	}
 
@@ -254,9 +254,9 @@ public:
 	{
 		OutExportTextNameBuilder.Reset();
 		AssetClass.AppendString(OutExportTextNameBuilder);
-		OutExportTextNameBuilder.Append('\'');
+		OutExportTextNameBuilder.AppendChar('\'');
 		ObjectPath.AppendString(OutExportTextNameBuilder);
-		OutExportTextNameBuilder.Append('\'');
+		OutExportTextNameBuilder.AppendChar('\'');
 	}
 
 	/** Returns true if the this asset is a redirector. */

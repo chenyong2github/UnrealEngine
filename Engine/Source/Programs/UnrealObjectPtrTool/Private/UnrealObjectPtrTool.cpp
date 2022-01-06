@@ -263,7 +263,7 @@ bool FPointerUpgrader::TryFlushPendingWrites(FPendingWrites& PendingWrites)
 		TStringBuilder<2048> CompositeFilenamesBuilder;
 		for (const FPendingWrites::ElementType& PendingWrite : PendingWrites)
 		{
-			CompositeFilenamesBuilder.Append(TEXT('"'));
+			CompositeFilenamesBuilder.AppendChar(TEXT('"'));
 			CompositeFilenamesBuilder.Append(PendingWrite.Key);
 			CompositeFilenamesBuilder.Append(TEXT("\" "));
 		}

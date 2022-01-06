@@ -1530,17 +1530,17 @@ void SLogView::AppendFormatMessageDetailed(const FLogMessageRecord& Log, TString
 void SLogView::AppendFormatMessageDelimitedHeader(TStringBuilderBase<TCHAR>& InOutStringBuilder, TCHAR Separator) const
 {
 	InOutStringBuilder.Append(TEXT("Index"));
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(TEXT("Time"));
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(TEXT("Verbosity"));
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(TEXT("Category"));
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(TEXT("Message"));
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(TEXT("File"));
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(TEXT("Line"));
 }
 
@@ -1549,13 +1549,13 @@ void SLogView::AppendFormatMessageDelimitedHeader(TStringBuilderBase<TCHAR>& InO
 void SLogView::AppendFormatMessageDelimited(const FLogMessageRecord& Log, TStringBuilderBase<TCHAR>& InOutStringBuilder, TCHAR Separator) const
 {
 	InOutStringBuilder.Appendf(TEXT("%d"), Log.GetIndex());
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(TimeUtils::FormatTimeHMS(Log.GetTime(), TimeUtils::Microsecond));
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(::ToString(Log.GetVerbosity()));
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(Log.GetCategoryAsString());
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	FString Message = Log.GetMessageAsString();
 	if (Separator == TEXT('\t'))
 	{
@@ -1564,18 +1564,18 @@ void SLogView::AppendFormatMessageDelimited(const FLogMessageRecord& Log, TStrin
 	}
 	else if (Separator == TEXT(','))
 	{
-		InOutStringBuilder.Append(TEXT('\"'));
+		InOutStringBuilder.AppendChar(TEXT('\"'));
 		FString EscapedMessage = Message.Replace(TEXT("\""), TEXT("\"\""), ESearchCase::CaseSensitive);
 		InOutStringBuilder.Append(EscapedMessage);
-		InOutStringBuilder.Append(TEXT('\"'));
+		InOutStringBuilder.AppendChar(TEXT('\"'));
 	}
 	else
 	{
 		InOutStringBuilder.Append(Message);
 	}
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Append(Log.GetFile());
-	InOutStringBuilder.Append(Separator);
+	InOutStringBuilder.AppendChar(Separator);
 	InOutStringBuilder.Appendf(TEXT("%d"), Log.GetLine());
 }
 
@@ -1665,7 +1665,7 @@ void SLogView::CopyRange() const
 
 	TStringBuilder<1024> StringBuilder;
 	AppendFormatMessageDelimitedHeader(StringBuilder, TEXT('\t'));
-	StringBuilder.Append(TEXT('\n'));
+	StringBuilder.AppendChar(TEXT('\n'));
 
 	int32 NumMessagesInSelectedRange = 0;
 
@@ -1683,7 +1683,7 @@ void SLogView::CopyRange() const
 				{
 					FLogMessageRecord Log(MessageInfo);
 					AppendFormatMessageDelimited(Log, StringBuilder, TEXT('\t'));
-					StringBuilder.Append(TEXT('\n'));
+					StringBuilder.AppendChar(TEXT('\n'));
 					++NumMessagesInSelectedRange;
 				}
 			});
@@ -1715,7 +1715,7 @@ void SLogView::CopyAll() const
 
 	TStringBuilder<1024> StringBuilder;
 	AppendFormatMessageDelimitedHeader(StringBuilder, TEXT('\t'));
-	StringBuilder.Append(TEXT('\n'));
+	StringBuilder.AppendChar(TEXT('\n'));
 
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (Session.IsValid())
@@ -1729,7 +1729,7 @@ void SLogView::CopyAll() const
 			{
 				FLogMessageRecord Log(MessageInfo);
 				AppendFormatMessageDelimited(Log, StringBuilder, TEXT('\t'));
-				StringBuilder.Append(TEXT('\n'));
+				StringBuilder.AppendChar(TEXT('\n'));
 			});
 		}
 	}
@@ -1844,7 +1844,7 @@ void SLogView::SaveLogsToFile(bool bSaveLogsInSelectedRangeOnly) const
 	{
 		TStringBuilder<1024> StringBuilder;
 		AppendFormatMessageDelimitedHeader(StringBuilder, Separator);
-		StringBuilder.Append(TEXT('\n'));
+		StringBuilder.AppendChar(TEXT('\n'));
 		FTCHARToUTF16 UTF16String(StringBuilder.ToString(), StringBuilder.Len());
 		ExportFileHandle->Write((const uint8*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
 	}
@@ -1866,7 +1866,7 @@ void SLogView::SaveLogsToFile(bool bSaveLogsInSelectedRangeOnly) const
 					TStringBuilder<1024> StringBuilder;
 					FLogMessageRecord Log(MessageInfo);
 					AppendFormatMessageDelimited(Log, StringBuilder, Separator);
-					StringBuilder.Append(TEXT('\n'));
+					StringBuilder.AppendChar(TEXT('\n'));
 					FTCHARToUTF16 UTF16String(StringBuilder.ToString(), StringBuilder.Len());
 					ExportFileHandle->Write((const uint8*)UTF16String.Get(), UTF16String.Length() * sizeof(UTF16CHAR));
 					++NumMessagesInSelectedRange;

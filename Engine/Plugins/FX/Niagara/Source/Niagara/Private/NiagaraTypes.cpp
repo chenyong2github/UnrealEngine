@@ -6,7 +6,7 @@ void FNiagaraVariableBase::SetNamespacedName(const FString& InNamespace, FName I
 {
 	TStringBuilder<128> NameBuilder;
 	NameBuilder.Append(InNamespace);
-	NameBuilder.Append('.');
+	NameBuilder.AppendChar(TEXT('.'));
 	InVariableName.AppendString(NameBuilder);
 	Name = FName(NameBuilder.ToString());
 }

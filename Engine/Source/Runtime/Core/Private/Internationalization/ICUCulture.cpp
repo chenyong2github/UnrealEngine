@@ -925,12 +925,12 @@ TSharedRef<const icu::DateFormat, ESPMode::ThreadSafe> FICUCultureImplementation
 					case TCHAR('p'): Result.Append(TEXT("a")); break;
 					case TCHAR('P'): Result.Append(TEXT("a")); break;
 					case TCHAR('j'): Result.Append(TEXT("D")); break;
-					default:		 Result.Append(*Format);
+					default:		 Result.AppendChar(*Format);
 					}
 				}
 				else
 				{
-					Result.Append(*Format);
+					Result.AppendChar(*Format);
 				}
 
 				// move to the next one

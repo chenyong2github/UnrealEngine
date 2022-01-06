@@ -894,7 +894,7 @@ bool ReplaceVirtualFilePathForShaderAutogen(FString& InOutVirtualFilePath, EShad
 		const uint32 PlatformNameLen = PlatformName.GetPlainNameString(PlatformNameString);
 		OutputShaderName.Append(PlatformNameString, PlatformNameLen);
 
-		OutputShaderName.Append(TEXT('/'));
+		OutputShaderName.AppendChar(TEXT('/'));
 
 		// Append the relative name (the substring after "/Engine/Generated/ShaderAutogen/").
 		const TCHAR* RelativeShaderName = *InOutVirtualFilePath + ShaderAutogenStem.Len();

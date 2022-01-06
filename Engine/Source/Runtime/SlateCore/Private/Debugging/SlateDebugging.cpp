@@ -258,7 +258,7 @@ FString LexToString(ESlateDebuggingInvalidateRootReason InValue)
 	}
 
 	TStringBuilder<512> Result;
-#define ENUM_CASE_TO_STRING(Enum) if (EnumHasAnyFlags(InValue, ESlateDebuggingInvalidateRootReason::Enum)) { if (Result.Len() != 0) { Result.Append(TEXT('|')); } Result.Append(TEXT(#Enum)); }
+#define ENUM_CASE_TO_STRING(Enum) if (EnumHasAnyFlags(InValue, ESlateDebuggingInvalidateRootReason::Enum)) { if (Result.Len() != 0) { Result.AppendChar(TEXT('|')); } Result.Append(TEXT(#Enum)); }
 	ENUM_CASE_TO_STRING(ChildOrder);
 	ENUM_CASE_TO_STRING(Root);
 	ENUM_CASE_TO_STRING(ScreenPosition);
