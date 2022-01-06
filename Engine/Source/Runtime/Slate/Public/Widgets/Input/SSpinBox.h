@@ -620,7 +620,7 @@ public:
 				{
 					// If this control has a specified delta and sensitivity then we use that instead of the current value for determining how much to change.
 					const float Sign = (MouseEvent.GetCursorDelta().X > 0) ? 1.f : -1.f;
-					if (LinearDeltaSensitivity.IsSet() && Delta.IsSet() && Delta.Get() > 0)
+					if (LinearDeltaSensitivity.IsSet() && LinearDeltaSensitivity.Get() != 0 && Delta.IsSet() && Delta.Get() > 0)
 					{
 						const float MouseDelta = FMath::Abs(MouseEvent.GetCursorDelta().X / LinearDeltaSensitivity.Get());
 						NewValue = InternalValue + (Sign * MouseDelta * FMath::Pow((float)Delta.Get(), SliderExponent.Get()));

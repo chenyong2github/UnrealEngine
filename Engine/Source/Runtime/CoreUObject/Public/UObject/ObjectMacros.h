@@ -1204,6 +1204,9 @@ namespace UM
 		/// [PropertyMetadata] Used by FDirectoryPath properties. Indicates that the path will be picked using the Slate-style directory picker inside the game Content dir.
 		ContentDir,
 
+		/// [PropertyMetadata] Used for float and integer properties.  Specifies the step size when the slider is used (e.g. for Delta = 10, the value will scroll among steps of 10).
+		Delta,
+
 		/// [PropertyMetadata] This property is deprecated, any blueprint references to it cause a compilation warning.
 		DeprecatedProperty,
 
@@ -1279,6 +1282,13 @@ namespace UM
 
 		/// [PropertyMetadata] Signifies that the bool property is only displayed inline as an edit condition toggle in other properties, and should not be shown on its own row.
 		InlineEditConditionToggle,
+
+		/// [PropertyMetadata] Somewhat misleading name (because a higher value is less sensitive), but maps directly to the LinearDeltaSensitivity 
+		/// parameter in sliders created for float and integer properties. When the property does not have both a UIMin and UIMax to bound it, this
+		/// parameter prevents the slider sensitivity from always behaving exponentially (ie slower around 0 and faster elsewhere). Instead, the mouse 
+		/// displacement is simply divided by this value before being multiplied by Delta (which defaults to 1 when LinearDeltaSensitivity is specified,
+		/// and is still raised to SliderExponent). The value should be a positive int (0 does nothing, negative sign ignored if present).
+		LinearDeltaSensitivity,
 
 		/// [ClassMetadata] [PropertyMetadata] Used by TObjectPtr properties.  Allows the referenced object to be eager/lazy/background loaded in editor.
 		// LoadBehavior, (Commented out so as to avoid duplicate name with version in the Class section, but still show in the property section)

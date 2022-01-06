@@ -75,6 +75,7 @@ void FMathStructCustomization::MakeHeaderRow(TSharedRef<class IPropertyHandle>& 
 		ChildHandle->SetInstanceMetaData(TEXT("UIMax"), StructPropertyHandle->GetMetaData(TEXT("UIMax")));
 		ChildHandle->SetInstanceMetaData(TEXT("SliderExponent"), StructPropertyHandle->GetMetaData(TEXT("SliderExponent")));
 		ChildHandle->SetInstanceMetaData(TEXT("Delta"), StructPropertyHandle->GetMetaData(TEXT("Delta")));
+		ChildHandle->SetInstanceMetaData(TEXT("LinearDeltaSensitivity"), StructPropertyHandle->GetMetaData(TEXT("LinearDeltaSensitivity")));
 		ChildHandle->SetInstanceMetaData(TEXT("ShiftMouseMovePixelPerDelta"), StructPropertyHandle->GetMetaData(TEXT("ShiftMouseMovePixelPerDelta")));
 		ChildHandle->SetInstanceMetaData(TEXT("SupportDynamicSliderMaxValue"), StructPropertyHandle->GetMetaData(TEXT("SupportDynamicSliderMaxValue")));
 		ChildHandle->SetInstanceMetaData(TEXT("SupportDynamicSliderMinValue"), StructPropertyHandle->GetMetaData(TEXT("SupportDynamicSliderMinValue")));
@@ -157,9 +158,49 @@ void FMathStructCustomization::GetSortedChildren(TSharedRef<IPropertyHandle> Str
 	}
 }
 
+// Deprecated overload, to be removed.
+template<typename NumericType>
+void FMathStructCustomization::ExtractNumericMetadata(TSharedRef<IPropertyHandle>& PropertyHandle, TOptional<NumericType>& MinValue,
+		TOptional<NumericType>& MaxValue, TOptional<NumericType>& SliderMinValue, TOptional<NumericType>& SliderMaxValue,
+		NumericType& SliderExponent, NumericType& Delta, int32& ShiftMouseMovePixelPerDelta,
+		bool& bSupportDynamicSliderMaxValue, bool& bSupportDynamicSliderMinValue)
+{
+	FNumericMetadata<NumericType> Metadata;
+	ExtractNumericMetadata(PropertyHandle, Metadata);
+
+	MinValue = Metadata.MinValue;
+	MaxValue = Metadata.MaxValue;
+	SliderMinValue = Metadata.SliderMinValue;
+	SliderMaxValue = Metadata.SliderMaxValue;
+	SliderExponent = Metadata.SliderExponent;
+	Delta = Metadata.Delta;
+	ShiftMouseMovePixelPerDelta = Metadata.ShiftMouseMovePixelPerDelta;
+	bSupportDynamicSliderMaxValue = Metadata.bSupportDynamicSliderMaxValue;
+	bSupportDynamicSliderMinValue = Metadata.bSupportDynamicSliderMinValue;
+}
+// Explicitly instantiate the deprecated overload for the four types that we had implicit instantiations
+// for at time of deprecation (float, double, int32, uint8), since we no longer implicitly instantiate
+// it in this file due to using the other overload.
+template void FMathStructCustomization::ExtractNumericMetadata<float>(TSharedRef<IPropertyHandle>& PropertyHandle,
+	TOptional<float>& MinValue, TOptional<float>& MaxValue, TOptional<float>& SliderMinValue,
+	TOptional<float>& SliderMaxValue, float& SliderExponent, float& Delta,
+	int32& ShiftMouseMovePixelPerDelta, bool& bSupportDynamicSliderMaxValue, bool& bSupportDynamicSliderMinValue);
+template void FMathStructCustomization::ExtractNumericMetadata<double>(TSharedRef<IPropertyHandle>& PropertyHandle,
+	TOptional<double>& MinValue, TOptional<double>& MaxValue, TOptional<double>& SliderMinValue,
+	TOptional<double>& SliderMaxValue, double& SliderExponent, double& Delta,
+	int32& ShiftMouseMovePixelPerDelta, bool& bSupportDynamicSliderMaxValue, bool& bSupportDynamicSliderMinValue);
+template void FMathStructCustomization::ExtractNumericMetadata<int32>(TSharedRef<IPropertyHandle>& PropertyHandle,
+	TOptional<int32>& MinValue, TOptional<int32>& MaxValue, TOptional<int32>& SliderMinValue,
+	TOptional<int32>& SliderMaxValue, int32& SliderExponent, int32& Delta,
+	int32& ShiftMouseMovePixelPerDelta, bool& bSupportDynamicSliderMaxValue, bool& bSupportDynamicSliderMinValue);
+template void FMathStructCustomization::ExtractNumericMetadata<uint8>(TSharedRef<IPropertyHandle>& PropertyHandle,
+	TOptional<uint8>& MinValue, TOptional<uint8>& MaxValue, TOptional<uint8>& SliderMinValue,
+	TOptional<uint8>& SliderMaxValue, uint8& SliderExponent, uint8& Delta,
+	int32& ShiftMouseMovePixelPerDelta, bool& bSupportDynamicSliderMaxValue, bool& bSupportDynamicSliderMinValue);
+
 
 template<typename NumericType>
-void FMathStructCustomization::ExtractNumericMetadata(TSharedRef<IPropertyHandle>& PropertyHandle, TOptional<NumericType>& MinValue, TOptional<NumericType>& MaxValue, TOptional<NumericType>& SliderMinValue, TOptional<NumericType>& SliderMaxValue, NumericType& SliderExponent, NumericType& Delta, int32 &ShiftMouseMovePixelPerDelta, bool& SupportDynamicSliderMaxValue, bool& SupportDynamicSliderMinValue)
+void FMathStructCustomization::ExtractNumericMetadata(TSharedRef<IPropertyHandle>& PropertyHandle, FNumericMetadata<NumericType>& MetadataOut)
 {
 	FProperty* Property = PropertyHandle->GetProperty();
 
@@ -167,6 +208,7 @@ void FMathStructCustomization::ExtractNumericMetadata(TSharedRef<IPropertyHandle
 	const FString& MetaUIMaxString = Property->GetMetaData(TEXT("UIMax"));
 	const FString& SliderExponentString = Property->GetMetaData(TEXT("SliderExponent"));
 	const FString& DeltaString = Property->GetMetaData(TEXT("Delta"));
+	const FString& LinearDeltaSensitivityString = Property->GetMetaData(TEXT("LinearDeltaSensitivity"));
 	const FString& ShiftMouseMovePixelPerDeltaString = Property->GetMetaData(TEXT("ShiftMouseMovePixelPerDelta"));
 	const FString& SupportDynamicSliderMaxValueString = Property->GetMetaData(TEXT("SupportDynamicSliderMaxValue"));
 	const FString& SupportDynamicSliderMinValueString = Property->GetMetaData(TEXT("SupportDynamicSliderMinValue"));
@@ -195,29 +237,37 @@ void FMathStructCustomization::ExtractNumericMetadata(TSharedRef<IPropertyHandle
 	TTypeFromString<NumericType>::FromString(UIMin, *UIMinString);
 	TTypeFromString<NumericType>::FromString(UIMax, *UIMaxString);
 
-	SliderExponent = NumericType(1);
+	MetadataOut.SliderExponent = NumericType(1);
 
 	if (SliderExponentString.Len())
 	{
-		TTypeFromString<NumericType>::FromString(SliderExponent, *SliderExponentString);
+		TTypeFromString<NumericType>::FromString(MetadataOut.SliderExponent, *SliderExponentString);
 	}
 
-	Delta = NumericType(0);
+	MetadataOut.Delta = NumericType(0);
 
 	if (DeltaString.Len())
 	{
-		TTypeFromString<NumericType>::FromString(Delta, *DeltaString);
+		TTypeFromString<NumericType>::FromString(MetadataOut.Delta, *DeltaString);
 	}
 
-	ShiftMouseMovePixelPerDelta = 1;
+	MetadataOut.LinearDeltaSensitivity = 0;
+	if (LinearDeltaSensitivityString.Len())
+	{
+		TTypeFromString<int32>::FromString(MetadataOut.LinearDeltaSensitivity, *LinearDeltaSensitivityString);
+	}
+	// LinearDeltaSensitivity only works in SSpinBox if delta is provided, so add it in if it wasn't.
+	MetadataOut.Delta = (MetadataOut.LinearDeltaSensitivity != 0 && MetadataOut.Delta == NumericType(0)) ? NumericType(1) : MetadataOut.Delta;
+
+	MetadataOut.ShiftMouseMovePixelPerDelta = 1;
 	if (ShiftMouseMovePixelPerDeltaString.Len())
 	{
-		TTypeFromString<int32>::FromString(ShiftMouseMovePixelPerDelta, *ShiftMouseMovePixelPerDeltaString);
+		TTypeFromString<int32>::FromString(MetadataOut.ShiftMouseMovePixelPerDelta, *ShiftMouseMovePixelPerDeltaString);
 		//The value should be greater or equal to 1
 		// 1 is neutral since it is a multiplier of the mouse drag pixel
-		if (ShiftMouseMovePixelPerDelta < 1)
+		if (MetadataOut.ShiftMouseMovePixelPerDelta < 1)
 		{
-			ShiftMouseMovePixelPerDelta = 1;
+			MetadataOut.ShiftMouseMovePixelPerDelta = 1;
 		}
 	}
 
@@ -229,18 +279,18 @@ void FMathStructCustomization::ExtractNumericMetadata(TSharedRef<IPropertyHandle
 	const NumericType ActualUIMin = FMath::Max(UIMin, ClampMin);
 	const NumericType ActualUIMax = FMath::Min(UIMax, ClampMax);
 
-	MinValue = ClampMinString.Len() ? ClampMin : TOptional<NumericType>();
-	MaxValue = ClampMaxString.Len() ? ClampMax : TOptional<NumericType>();
-	SliderMinValue = (UIMinString.Len()) ? ActualUIMin : TOptional<NumericType>();
-	SliderMaxValue = (UIMaxString.Len()) ? ActualUIMax : TOptional<NumericType>();
+	MetadataOut.MinValue = ClampMinString.Len() ? ClampMin : TOptional<NumericType>();
+	MetadataOut.MaxValue = ClampMaxString.Len() ? ClampMax : TOptional<NumericType>();
+	MetadataOut.SliderMinValue = (UIMinString.Len()) ? ActualUIMin : TOptional<NumericType>();
+	MetadataOut.SliderMaxValue = (UIMaxString.Len()) ? ActualUIMax : TOptional<NumericType>();
 
 	if (ActualUIMin >= ActualUIMax && (MetaUIMinString.Len() || MetaUIMaxString.Len()))
 	{
 		//UE_LOG(LogPropertyNode, Warning, TEXT("UI Min (%s) >= UI Max (%s) for Ranged Numeric"), *UIMinString, *UIMaxString);
 	}
 	
-	SupportDynamicSliderMaxValue = SupportDynamicSliderMaxValueString.Len() > 0 && SupportDynamicSliderMaxValueString.ToBool();
-	SupportDynamicSliderMinValue = SupportDynamicSliderMinValueString.Len() > 0 && SupportDynamicSliderMinValueString.ToBool();
+	MetadataOut.bSupportDynamicSliderMaxValue = SupportDynamicSliderMaxValueString.Len() > 0 && SupportDynamicSliderMaxValueString.ToBool();
+	MetadataOut.bSupportDynamicSliderMinValue = SupportDynamicSliderMinValueString.Len() > 0 && SupportDynamicSliderMinValueString.ToBool();
 }
 
 
@@ -249,13 +299,8 @@ TSharedRef<SWidget> FMathStructCustomization::MakeNumericWidget(
 	TSharedRef<IPropertyHandle>& StructurePropertyHandle,
 	TSharedRef<IPropertyHandle>& PropertyHandle)
 {
-	TOptional<NumericType> MinValue, MaxValue, SliderMinValue, SliderMaxValue;
-	NumericType SliderExponent, Delta;
-	int32 ShiftMouseMovePixelPerDelta = 1;
-	bool SupportDynamicSliderMaxValue = false;
-	bool SupportDynamicSliderMinValue = false;
-
-	ExtractNumericMetadata(StructurePropertyHandle, MinValue, MaxValue, SliderMinValue, SliderMaxValue, SliderExponent, Delta, ShiftMouseMovePixelPerDelta, SupportDynamicSliderMaxValue, SupportDynamicSliderMinValue);
+	FNumericMetadata<NumericType> Metadata;
+	ExtractNumericMetadata(StructurePropertyHandle, Metadata);
 
 	TWeakPtr<IPropertyHandle> WeakHandlePtr = PropertyHandle;
 
@@ -272,17 +317,19 @@ TSharedRef<SWidget> FMathStructCustomization::MakeNumericWidget(
 			.OnEndSliderMovement(this, &FMathStructCustomization::OnEndSliderMovement<NumericType>)
 			// Only allow spin on handles with one object.  Otherwise it is not clear what value to spin
 			.AllowSpin(PropertyHandle->GetNumOuterObjects() < 2)
-			.ShiftMouseMovePixelPerDelta(ShiftMouseMovePixelPerDelta)
-			.SupportDynamicSliderMaxValue(SupportDynamicSliderMaxValue)
-			.SupportDynamicSliderMinValue(SupportDynamicSliderMinValue)
+			.ShiftMouseMovePixelPerDelta(Metadata.ShiftMouseMovePixelPerDelta)
+			.SupportDynamicSliderMaxValue(Metadata.bSupportDynamicSliderMaxValue)
+			.SupportDynamicSliderMinValue(Metadata.bSupportDynamicSliderMinValue)
 			.OnDynamicSliderMaxValueChanged(this, &FMathStructCustomization::OnDynamicSliderMaxValueChanged<NumericType>)
 			.OnDynamicSliderMinValueChanged(this, &FMathStructCustomization::OnDynamicSliderMinValueChanged<NumericType>)
-			.MinValue(MinValue)
-			.MaxValue(MaxValue)
-			.MinSliderValue(SliderMinValue)
-			.MaxSliderValue(SliderMaxValue)
-			.SliderExponent(SliderExponent)
-			.Delta(Delta)
+			.MinValue(Metadata.MinValue)
+			.MaxValue(Metadata.MaxValue)
+			.MinSliderValue(Metadata.SliderMinValue)
+			.MaxSliderValue(Metadata.SliderMaxValue)
+			.SliderExponent(Metadata.SliderExponent)
+			.Delta(Metadata.Delta)
+			// LinearDeltaSensitivity must be left unset if not provided, rather than being set to some default
+			.LinearDeltaSensitivity(Metadata.LinearDeltaSensitivity != 0 ? Metadata.LinearDeltaSensitivity : TAttribute<int32>())
 			.ToolTipText(this, &FMathStructCustomization::OnGetValueToolTip<NumericType>, WeakHandlePtr);
 }
 
