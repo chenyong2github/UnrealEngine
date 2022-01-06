@@ -25,7 +25,35 @@ enum PlayerIndex
 	PlayerTwo,
 	PlayerThree,
 	PlayerFour,
-	PlayerUnset
+	
+	PlayerUnset = -1
+};
+
+enum class EAppleControllerEventType : int32
+{
+    Invalid,
+    Connect,
+    Disconnect,
+    BecomeCurrent
+};
+
+struct FDeferredAppleControllerEvent
+{
+	FDeferredAppleControllerEvent(EAppleControllerEventType InEventType, GCController* InController)
+	: EventType(InEventType)
+	, Controller([InController retain])
+	{}
+	FDeferredAppleControllerEvent(const FDeferredAppleControllerEvent& Other)
+	{
+		EventType = Other.EventType;
+		Controller = [Other.Controller retain];
+	}
+	~FDeferredAppleControllerEvent()
+	{
+		[Controller release];
+	}
+    EAppleControllerEventType EventType;
+    GCController* Controller;
 };
 
 /**
@@ -76,7 +104,10 @@ public:
 protected:
 
 	FAppleControllerInterface( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );
+	
+	void SignalEvent(EAppleControllerEventType InEventType, GCController* InController);
 
+private:
 
 	void HandleConnection(GCController* Controller);
 	void HandleDisconnect(GCController* Controller);
@@ -109,6 +140,10 @@ protected:
 		// Workaround for unreliable buttonMenu behavior in iOS/tvOS 14
         bool bPauseWasPressed;
 	};
+	
+	// Controller Event Callbacks are on the main thread - defer to tick processing
+	FCriticalSection DeferredEventCS;
+	TArray<FDeferredAppleControllerEvent> DeferredEvents;
 	
     // there is a hardcoded limit of 4 controllers in the API
 	FUserController Controllers[4];
