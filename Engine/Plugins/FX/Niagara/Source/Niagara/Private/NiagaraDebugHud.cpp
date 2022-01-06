@@ -2305,7 +2305,10 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 					const FVector ParticleScreenLocation = Canvas->Project(ParticleWorldPosition);
 
 					TStringBuilder<1024> StringBuilder;
-					StringBuilder.Appendf(TEXT("Particle(%u)"), iInstance);
+					if ( Settings.bShowParticleIndex )
+					{
+						StringBuilder.Appendf(TEXT("Particle(%u)"), iInstance);
+					}
 					for (const auto& ParticleVariable : CachedVariables.ParticleVariables[iEmitter])
 					{
 						StringBuilder.AppendChar(Settings.bShowParticleVariablesVertical ? TEXT('\n') : TEXT(' '));
