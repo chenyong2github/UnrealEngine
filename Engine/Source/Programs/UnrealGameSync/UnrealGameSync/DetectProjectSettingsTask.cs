@@ -12,8 +12,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	public class WorkspaceSettings
@@ -108,8 +106,6 @@ namespace UnrealGameSync
 				}
 				else
 				{
-					PerforceSettings = DefaultConnection.Settings;
-
 					// Get the perforce server settings
 					InfoRecord PerforceInfo = await DefaultConnection.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
 
@@ -151,7 +147,8 @@ namespace UnrealGameSync
 					}
 
 					// Take the client we've chosen
-					PerforceClient = await PerforceConnection.CreateAsync(CandidateClients[0], Logger);
+					PerforceSettings = CandidateClients[0];
+					PerforceClient = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
 
 					// Get the client path for the project file
 					List<WhereRecord> Records = await PerforceClient.WhereAsync(NewSelectedFileName.FullName, CancellationToken).Where(x => !x.Unmap).ToListAsync(CancellationToken);
@@ -297,13 +294,17 @@ namespace UnrealGameSync
 
 				// Read the initial config file
 				List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles = new List<KeyValuePair<FileReference, DateTime>>();
-				ConfigFile LatestProjectConfigFile = await PerforceMonitor.ReadProjectConfigFileAsync(PerforceClient, BranchClientPath, NewSelectedClientFileName, GetCacheFolder(BranchDirectoryName), LocalConfigFiles, Logger, CancellationToken);
+				ConfigFile LatestProjectConfigFile = await ConfigUtils.ReadProjectConfigFileAsync(PerforceClient, BranchClientPath, NewSelectedClientFileName, GetCacheFolder(BranchDirectoryName), LocalConfigFiles, Logger, CancellationToken);
 
 				// Get the local config file and stream filter
-				ConfigFile WorkspaceProjectConfigFile = await Workspace.ReadProjectConfigFile(BranchDirectoryName, NewSelectedFileName, Logger);
-				IReadOnlyList<string>? WorkspaceProjectStreamFilter = await Workspace.ReadProjectStreamFilter(PerforceClient, WorkspaceProjectConfigFile, Logger, CancellationToken.None);
+				ConfigFile WorkspaceProjectConfigFile = await WorkspaceUpdate.ReadProjectConfigFile(BranchDirectoryName, NewSelectedFileName, Logger);
+				IReadOnlyList<string>? WorkspaceProjectStreamFilter = await WorkspaceUpdate.ReadProjectStreamFilter(PerforceClient, WorkspaceProjectConfigFile, Logger, CancellationToken);
 
-				ProjectInfo ProjectInfo = new ProjectInfo(BranchDirectoryName, NewSelectedFileName, BranchClientPath, NewSelectedClientFileName, NewSelectedProjectIdentifier, bIsEnterpriseProject);
+				int BranchIdx = BranchClientPath.IndexOf('/', 2);
+				string BranchPath = (BranchIdx == -1) ? String.Empty : BranchClientPath.Substring(BranchIdx);
+				string ProjectPath = NewSelectedClientFileName.Substring(BranchClientPath.Length);
+
+				ProjectInfo ProjectInfo = new ProjectInfo(BranchDirectoryName, PerforceSettings.ClientName!, BranchPath, ProjectPath, NewSelectedProjectIdentifier, bIsEnterpriseProject);
 
 				WorkspaceSettings WorkspaceSettings = new WorkspaceSettings(PerforceSettings, SelectedProject, ProjectInfo, NewSelectedProjectIdentifier, NewProjectEditorTarget!, StreamName!, LatestProjectConfigFile, WorkspaceProjectConfigFile, WorkspaceProjectStreamFilter, LocalConfigFiles);
 				DirectoryReference.CreateDirectory(WorkspaceSettings.DataFolder);
@@ -312,7 +313,7 @@ namespace UnrealGameSync
 				// Run any event hooks
 				if (DeploymentSettings.OnDetectProjectSettings != null)
 				{
-					string Message;
+					string? Message;
 					if (!DeploymentSettings.OnDetectProjectSettings(WorkspaceSettings, Logger, out Message))
 					{
 						throw new UserErrorException(Message);
