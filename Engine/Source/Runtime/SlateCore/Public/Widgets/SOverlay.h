@@ -41,13 +41,12 @@ public:
 	class SLATECORE_API FOverlaySlot : public TBasicLayoutWidgetSlot<FOverlaySlot>
 	{
 	public:
-		FOverlaySlot()
+		FOverlaySlot(int32 InZOrder)
 			: TBasicLayoutWidgetSlot<FOverlaySlot>(HAlign_Fill, VAlign_Fill)
-			, ZOrder(0)
+			, ZOrder(InZOrder)
 		{ }
 
 		SLATE_SLOT_BEGIN_ARGS(FOverlaySlot, TBasicLayoutWidgetSlot<FOverlaySlot>)
-			SLATE_ARGUMENT(TOptional<int32>, ZOrder)
 		SLATE_SLOT_END_ARGS()
 
 		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
@@ -57,20 +56,12 @@ public:
 			return ZOrder;
 		}
 
-		void SetZOrder(int32 InOrder)
-		{
-			if (ZOrder != InOrder)
-			{
-				ZOrder = InOrder;
-				FSlotBase::Invalidate(EInvalidateWidgetReason::Layout);
-			}
-		}
+		void SetZOrder(int32 InOrder);
 
 	public:
 		/**
-		 * Slots with larger ZOrder values will draw above slots with smaller ZOrder values.  Slots
-		 * with the same ZOrder will simply draw in the order they were added.  Currently this only
-		 * works for overlay slots that are added dynamically with AddWidget() and RemoveWidget()
+		 * Slots with larger ZOrder values will draw above slots with smaller ZOrder values. Slots
+		 * with the same ZOrder will simply draw in the order they were added.
 		 */
 		UE_DEPRECATED(5.0, "Direct access to ZOrder is now deprecated. Use the getter or setter.")
 		int32 ZOrder;

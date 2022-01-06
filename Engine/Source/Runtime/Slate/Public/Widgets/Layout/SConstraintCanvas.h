@@ -40,7 +40,7 @@ public:
 			, AnchorsAttr(FAnchors(0.0f, 0.0f))
 			, AlignmentAttr(FVector2D(0.5f, 0.5f))
 			, AutoSizeAttr(false)
-			, ZOrderAttr(0)
+			, ZOrder(0)
 		{ }
 
 		SLATE_SLOT_BEGIN_ARGS(FSlot, TSlotBase<FSlot>)
@@ -48,7 +48,7 @@ public:
 			SLATE_ATTRIBUTE(FAnchors, Anchors)
 			SLATE_ATTRIBUTE(FVector2D, Alignment)
 			SLATE_ATTRIBUTE(bool, AutoSize)
-			SLATE_ATTRIBUTE(float, ZOrder)
+			SLATE_ARGUMENT(TOptional<float>, ZOrder)
 		SLATE_SLOT_END_ARGS()
 
 		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
@@ -93,18 +93,11 @@ public:
 			return AutoSizeAttr.Get();
 		}
 
-		void SetZOrder(const TAttribute<float>& InZOrder)
-		{
-			// Layout isn't entirely correct here, but Paint wouldn't be either.
-			// We need the parent to redraw the children because the logical order didn't change
-			// but the paint order may have if ZOrder changed, so the painted elements need to
-			// be resorted.
-			SetAttribute(ZOrderAttr, InZOrder, EInvalidateWidgetReason::Layout);
-		}
+		void SetZOrder(float InZOrder);
 
 		float GetZOrder() const
 		{
-			return ZOrderAttr.Get();
+			return ZOrder;
 		}
 
 	public:
@@ -124,9 +117,14 @@ public:
 		UE_DEPRECATED(5.0, "Direct access to AutoSizeAttr is now deprecated. Use the getter or setter.")
 		TAttribute<bool> AutoSizeAttr;
 
+#if WITH_EDITORONLY_DATA
 		/** Z-Order */
 		UE_DEPRECATED(5.0, "Direct access to ZOrderAttr is now deprecated. Use the getter or setter.")
 		TAttribute<float> ZOrderAttr;
+#endif
+	private:
+		/** Z-Order */
+		float ZOrder;
 	};
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
