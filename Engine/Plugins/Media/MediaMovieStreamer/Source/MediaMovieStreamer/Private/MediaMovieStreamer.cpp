@@ -118,6 +118,19 @@ bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<
 	return true;
 }
 
+void FMediaMovieStreamer::PreviousViewportInterface(const TSharedPtr<ISlateViewport>& PreviousViewportInterface)
+{
+	// Use the size of the previous viewport as our default,
+	// as we may not have a size ourselves if we don't have a texture.
+	FIntPoint ViewportSize(ForceInitToZero);
+	if (PreviousViewportInterface.IsValid())
+	{
+		ViewportSize = PreviousViewportInterface->GetSize();
+	}
+
+	MovieViewport->SetDefaultSize(ViewportSize);
+}
+
 void FMediaMovieStreamer::ForceCompletion()
 {
 }
