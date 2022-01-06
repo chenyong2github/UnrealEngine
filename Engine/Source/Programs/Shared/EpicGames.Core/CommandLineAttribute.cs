@@ -12,7 +12,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Attribute to indicate the name of a command line argument
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Field, AllowMultiple = true)]
+	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
 	public class CommandLineAttribute : Attribute
 	{
 		/// <summary>
