@@ -275,7 +275,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 					.Content()
 					[
 						SNew(SImage)
-						.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scratch"))
+						.Image(FNiagaraEditorStyle::Get().GetBrush("Tab.ScratchPad"))
 					]
 				];
 		}
