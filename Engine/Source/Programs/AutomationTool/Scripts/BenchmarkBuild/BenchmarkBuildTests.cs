@@ -57,14 +57,27 @@ namespace AutomationTool.Benchmark
 
 		public BenchmarkBuildTask(FileReference InProjectFile, string InTarget, UnrealTargetPlatform InPlatform, BuildOptions InOptions, string InUBTArgs="", int CoreCount=0)
 		{
-			bool IsVanillaUE4 = InProjectFile == null;
+			bool IsVanillaUE = InProjectFile == null;
 
-			string ModuleName = IsVanillaUE4 ? "UE4" : InProjectFile.GetFileNameWithoutAnyExtensions();
+			string ModuleName = IsVanillaUE ? "Unreal" : InProjectFile.GetFileNameWithoutAnyExtensions();
+
+			/*if (InTarget.Equals("Client", StringComparison.OrdinalIgnoreCase))
+			{
+				// If they asked for client check this project defines that, if not use Game. This is useful when building
+				// a lot of samples that may not all be set up for clients
+				ProjectProperties Props = ProjectUtils.GetProjectProperties(InProjectFile, new List<UnrealTargetPlatform> { InPlatform }, new List<UnrealTargetConfiguration> { UnrealTargetConfiguration.Development });
+
+				if (Props != null && !Props.Targets.Any(T => T.Rules.Type.ToString().Equals("Client", StringComparison.OrdinalIgnoreCase)))
+				{
+					InTarget = "Game";
+					Log.TraceInformation("{0} has no Client target. Will build Game", ModuleName);
+				}
+			}*/
 
 			TaskName = string.Format("{0} {1} {2}", ModuleName, InTarget, InPlatform);
 
 			Command = new BuildTarget();
-			Command.ProjectName = IsVanillaUE4 ? null : ModuleName;
+			Command.ProjectName = IsVanillaUE ? null : ModuleName;
 			Command.Platforms = InPlatform.ToString();
 			Command.Targets = InTarget;
 			Command.NoTools = true;
@@ -102,7 +115,7 @@ namespace AutomationTool.Benchmark
 
 		protected override bool PerformTask()
 		{
-			ExitCode Result = Command.Execute();
+			 ExitCode Result = Command.Execute();
 
 			return Result == ExitCode.Success;
 		}

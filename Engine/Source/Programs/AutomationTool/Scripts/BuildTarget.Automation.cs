@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
@@ -41,6 +42,22 @@ namespace AutomationTool
 		public string UBTArgs { get; set; }
 
 		public bool Preview { get; set; }
+
+		// It would be nice to use SingleTargetProperties but we can't get rules
+		// For UE types..
+		public class SimpleTargetInfo
+		{
+			public string		TargetName { get; private set; }
+
+			public TargetType	Type { get; private set; }
+
+			public SimpleTargetInfo(string InName, TargetType InType)
+			{
+				TargetName = InName;
+				Type = InType;
+			}
+		}
+
 
 		public BuildTarget()
 		{
@@ -114,9 +131,9 @@ namespace AutomationTool
 				}
 			}
 
-			IEnumerable<string> BuildTargets = TargetList.Select(T => ProjectTargetFromTarget(T, ProjectFile, PlatformList, ConfigurationList)).ToArray();			
+			IEnumerable<SimpleTargetInfo> BuildTargets = TargetList.Select(T => ProjectTargetFromTargetName(T, ProjectFile, PlatformList, ConfigurationList)).ToArray();			
 
-			bool ContainsEditor = BuildTargets.Where(T => T.EndsWith("Editor", StringComparison.OrdinalIgnoreCase)).Any();
+			bool ContainsEditor = BuildTargets.Where(T => T.Type == TargetType.Editor).Any();
 			bool SingleBuild = BuildTargets.Count() == 1 && PlatformList.Count() == 1 && ConfigurationList.Count() == 1;
 
 			if (!SingleBuild || (ContainsEditor && !NoTools))
@@ -126,15 +143,14 @@ namespace AutomationTool
 
 				UnrealBuild.BuildAgenda Agenda = new UnrealBuild.BuildAgenda();
 
-				string EditorTarget = BuildTargets.Where(T => T.EndsWith("Editor", StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-
-				IEnumerable<string> OtherTargets = BuildTargets.Where(T => T != EditorTarget);
+				SimpleTargetInfo EditorTarget = BuildTargets.Where(T => T.Type == TargetType.Editor).FirstOrDefault();
+				IEnumerable<SimpleTargetInfo> OtherTargets = BuildTargets.Where(T => T.Type != TargetType.Editor);
 
 				UnrealTargetPlatform CurrentPlatform = HostPlatform.Current.HostEditorPlatform;
 
-				if (string.IsNullOrEmpty(EditorTarget) == false)
+				if (EditorTarget != null)
 				{
-					Agenda.AddTarget(EditorTarget, CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile, UBTArgs);
+					Agenda.AddTarget(EditorTarget.TargetName, CurrentPlatform, UnrealTargetConfiguration.Development, ProjectFile, UBTArgs);
 
 					if (!NoTools)
 					{
@@ -146,9 +162,9 @@ namespace AutomationTool
 					}
 				}
 
-				foreach (string Target in OtherTargets)
+				foreach (SimpleTargetInfo Target in OtherTargets)
 				{
-					bool IsServer = Target.EndsWith("Server", StringComparison.OrdinalIgnoreCase);
+					bool IsServer = Target.Type == TargetType.Server;
 
 					IEnumerable<UnrealTargetPlatform> PlatformsToBuild = IsServer ? new UnrealTargetPlatform[] { CurrentPlatform } : PlatformList;
 
@@ -156,7 +172,7 @@ namespace AutomationTool
 					{
 						foreach (UnrealTargetConfiguration Config in ConfigurationList)
 						{
-							Agenda.AddTarget(Target, Platform, Config, ProjectFile, UBTArgs);
+							Agenda.AddTarget(Target.TargetName, Platform, Config, ProjectFile, UBTArgs);
 						}
 					}
 				}
@@ -181,7 +197,7 @@ namespace AutomationTool
 				FileReference InstalledUBT = FileReference.Combine(Unreal.EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool.exe");
 				UnrealTargetPlatform PlatformToBuild = PlatformList.First();
 				UnrealTargetConfiguration ConfigToBuild = ConfigurationList.First();
-				string TargetToBuild = BuildTargets.First();
+				string TargetToBuild = BuildTargets.First().TargetName;
 
 				if (!Preview)
 				{
@@ -204,69 +220,68 @@ namespace AutomationTool
 			return ExitCode.Success;
 		}
 
-		public string ProjectTargetFromTarget(string InTargetName, FileReference InProjectFile, IEnumerable<UnrealTargetPlatform> InPlatformList, IEnumerable<UnrealTargetConfiguration> InConfigurationList)
+		/// <summary>
+		/// Takes a target type like "Editor" and returns the actual targetname used by the specified project. If no project is specified then
+		/// the name of the UE types (e.g. UnrealEditor) is returned.
+		/// </summary>
+		/// <param name="InTargetName"></param>
+		/// <param name="InProjectFile"></param>
+		/// <param name="InPlatformList"></param>
+		/// <param name="InConfigurationList"></param>
+		/// <returns></returns>
+		public SimpleTargetInfo ProjectTargetFromTargetName(string InTargetName, FileReference InProjectFile, IEnumerable<UnrealTargetPlatform> InPlatformList, IEnumerable<UnrealTargetConfiguration> InConfigurationList)
 		{
 			ProjectProperties Properties = InProjectFile != null ? ProjectUtils.GetProjectProperties(InProjectFile, InPlatformList.ToList(), InConfigurationList.ToList()) : null;
 
-			string ProjectTarget = null;
+			SimpleTargetInfo ProjectTarget = null;
 
-			if (Properties!= null && Properties.bIsCodeBasedProject)
+			IEnumerable<SimpleTargetInfo> AvailableTargets = null;
+
+			if (Properties != null && Properties.bIsCodeBasedProject)
 			{
-				var AvailableTargets = Properties.Targets.Select(T => T.Rules.Type.ToString());
-
-				// go through the list of targets such as Editor, Client, Server etc and replace them with their real target names
-				List<string> ActualTargets = new List<string>();
-
-				// If they asked for ShooterClient etc and that's there, just return that.
-				if (Properties.Targets.Any(T => T.TargetName.Equals(InTargetName, StringComparison.OrdinalIgnoreCase)))
-				{
-					ProjectTarget = InTargetName;
-				}
-				else
-				{
-					// find targets that match (and there may be multiple...)
-					IEnumerable<string> MatchingTargetTypes = Properties.Targets.Where(T => T.Rules.Type.ToString().Equals(InTargetName, StringComparison.OrdinalIgnoreCase)).Select(T => T.TargetName);
-
-					if (MatchingTargetTypes.Any())
-					{
-						if (MatchingTargetTypes.Count() == 1)
-						{
-							ProjectTarget = MatchingTargetTypes.First();
-						}
-						else
-						{
-							// if multiple targets, pick the one with our name (FN specific!)
-							ProjectTarget = MatchingTargetTypes.Where(T => string.CompareOrdinal(T, 0, ProjectName, 0, 1) == 0).FirstOrDefault();
-						}
-					}
-				}
+				AvailableTargets = Properties.Targets.Select(T => new SimpleTargetInfo(T.TargetName, T.Rules.Type));
 			}
 			else
 			{
-				// default UE4 targets
-				IEnumerable<string> UE4Targets = new[] { "Editor", "Game", "Client", "Server" };
-
-				string ShortTargetName = InTargetName;
-				if (ShortTargetName.StartsWith("UE4", StringComparison.OrdinalIgnoreCase))
+				// default UE targets
+				AvailableTargets = new[]
 				{
-					ShortTargetName = ShortTargetName.Substring(3);
-				}
-
-				string UE4Target = UE4Targets.Where(S => S.Equals(ShortTargetName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-	
-				// If they asked for editor, client etc then give them the UE version
-				if (!string.IsNullOrEmpty(UE4Target))
-				{
-					ProjectTarget = "Unreal" + UE4Target;
-				}
-				else
-				{
-					// or just build what they want and let later code figure out if that's valid. E.g. "UnrealPak"
-					ProjectTarget = InTargetName;
-				}
+					new SimpleTargetInfo("UnrealEditor", TargetType.Editor),
+					new SimpleTargetInfo("UnrealGame", TargetType.Game),
+					new SimpleTargetInfo("UnrealClient", TargetType.Client),
+					new SimpleTargetInfo("UnrealServer", TargetType.Server),
+				};			
 			}
 
-			if (string.IsNullOrEmpty(ProjectTarget))
+
+			// If they asked for ShooterClient etc and that's there, just return that.
+			ProjectTarget = AvailableTargets.FirstOrDefault(T => T.TargetName.Equals(InTargetName, StringComparison.OrdinalIgnoreCase));
+
+			if (ProjectTarget == null)
+			{
+				// find targets that use rules of the desired type
+				IEnumerable<SimpleTargetInfo> MatchingTargetTypes = AvailableTargets
+					.Where(T => T.Type.ToString().Equals(InTargetName, StringComparison.OrdinalIgnoreCase));
+
+				if (MatchingTargetTypes.Any())
+				{
+					if (MatchingTargetTypes.Count() == 1)
+					{
+						ProjectTarget = MatchingTargetTypes.First();
+					}
+					else
+					{
+						// if multiple targets, pick the one that starts with project name and contains the target type
+						// (Some projects have multiple targets of a given type)
+						ProjectTarget = MatchingTargetTypes
+										.Where(T => string.CompareOrdinal(T.TargetName, 0, ProjectName, 0, 1) == 0)
+										.Where(T => T.TargetName.IndexOf(InTargetName, StringComparison.OrdinalIgnoreCase) > 0)
+										.FirstOrDefault();
+					}
+				}
+			}		
+
+			if (ProjectTarget == null)
 			{
 				throw new AutomationException("{0} is not a valid target in {1}", InTargetName, InProjectFile);
 			}
