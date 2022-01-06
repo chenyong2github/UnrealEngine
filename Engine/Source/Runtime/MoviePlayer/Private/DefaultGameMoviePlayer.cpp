@@ -390,6 +390,14 @@ bool FDefaultGameMoviePlayer::PlayMovie()
 				TSharedPtr<SViewport> MovieViewport = MovieViewportWeakPtr.Pin();
 				if (MovieViewport.IsValid())
 				{
+					// Let the streamer know about the previous viewport interface.
+					TSharedPtr<SViewport> GameViewport = FSlateApplication::Get().GetGameViewport();
+					if (GameViewport.IsValid())
+					{
+						TSharedPtr<ISlateViewport> ViewportInterface = GameViewport->GetViewportInterface().Pin();
+						ActiveMovieStreamer->PreviousViewportInterface(ViewportInterface);
+					}
+
 					FSlateApplication::Get().RegisterGameViewport(MovieViewport.ToSharedRef());
 				}
 			}

@@ -28,14 +28,14 @@ enum EMoviePlaybackType
 class FMovieViewport : public ISlateViewport, public TSharedFromThis<FMovieViewport>
 {
 public:
-	FMovieViewport() {}
+	FMovieViewport() : DefaultSize(ForceInitToZero) {}
 	~FMovieViewport() {}
 
 	/* ISlateViewport interface. */
 	virtual FIntPoint GetSize() const override
 	{
 		TSharedPtr<FSlateTexture2DRHIRef, ESPMode::ThreadSafe> SlateTextureSharedPtr = SlateTexture.Pin();
-		return SlateTextureSharedPtr.IsValid() ? FIntPoint(SlateTextureSharedPtr->GetWidth(), SlateTextureSharedPtr->GetHeight()) : FIntPoint();
+		return SlateTextureSharedPtr.IsValid() ? FIntPoint(SlateTextureSharedPtr->GetWidth(), SlateTextureSharedPtr->GetHeight()) : DefaultSize;
 	}
 
 	virtual class FSlateShaderResource* GetViewportRenderTargetTexture() const override
@@ -53,8 +53,17 @@ public:
 		SlateTexture = InTexture;
 	}
 
+	/** Sets the size to use when there is no texture. */
+	void SetDefaultSize(FIntPoint InSize)
+	{
+		DefaultSize = InSize;
+	}
+
 private:
 	TWeakPtr<FSlateTexture2DRHIRef, ESPMode::ThreadSafe> SlateTexture;
+
+	/** Size to use when we don't have a texture. */
+	FIntPoint DefaultSize;
 };
 
 
@@ -69,6 +78,9 @@ public:
 
 	virtual bool Init(const TArray<FString>& MoviePaths, TEnumAsByte<EMoviePlaybackType> inPlaybackType) = 0;
 	
+	/** Tells the movie streamer about the viewport interface that was active before us. */
+	virtual void PreviousViewportInterface(const TSharedPtr<ISlateViewport>& PreviousViewportInterface) {};
+
 	/** Forces the movie streamer to cancel what it's streaming and close. */
 	virtual void ForceCompletion() = 0;
 
