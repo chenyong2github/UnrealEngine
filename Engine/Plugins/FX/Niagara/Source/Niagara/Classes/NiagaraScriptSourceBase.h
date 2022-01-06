@@ -12,6 +12,7 @@
 
 class INiagaraParameterDefinitionsSubscriber;
 class UNiagaraParameterDefinitionsBase;
+class UNiagaraScriptSourceBase;
 
 struct EditorExposedVectorConstant
 {
@@ -47,6 +48,7 @@ public:
 	virtual bool IsDuplicateDataFor(UNiagaraSystem* InSystem, UNiagaraEmitter* InEmitter, UNiagaraScript* InScript) const = 0;
 	virtual void GetDuplicatedObjects(TArray<UObject*>& Objects) = 0;
 	virtual const TMap<FName, UNiagaraDataInterface*>& GetObjectNameMap() = 0;
+	virtual const UNiagaraScriptSourceBase* GetScriptSource() const =  0;
 	virtual int32 GetDependentRequestCount() const = 0;
 	virtual TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> GetDependentRequest(int32 Index) = 0;
 	virtual void ReleaseCompilationCopies() = 0;

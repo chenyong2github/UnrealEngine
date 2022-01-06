@@ -2821,21 +2821,43 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 			{
 				TSharedPtr<FNiagaraVMExecutableData> ExeData = EmitterCompiledScriptPair.CompileResults;
 				CompileRequest.CombinedCompileTime += ExeData->CompileTime;
+				UNiagaraScript* CompiledScript = EmitterCompiledScriptPair.CompiledScript;
+
+				// generate the ObjectNameMap from the source (from the duplicated data if available).
 				TMap<FName, UNiagaraDataInterface*> ObjectNameMap;
-				if (AsyncTask->ComputedPrecompileData.IsValid())
+				if (AsyncTask->ComputedPrecompileDuplicateData.IsValid())
 				{
-					ObjectNameMap = AsyncTask->ComputedPrecompileDuplicateData->GetObjectNameMap(); 
+					if (const UNiagaraScriptSourceBase* ScriptSource = AsyncTask->ComputedPrecompileDuplicateData->GetScriptSource())
+					{
+						ObjectNameMap = ScriptSource->ComputeObjectNameMap(*this, CompiledScript->GetUsage(), CompiledScript->GetUsageId(), AsyncTask->UniqueEmitterName);
+					}
+					else
+					{
+						checkf(false, TEXT("Failed to get ScriptSource from ComputedPrecompileDuplicateData"));
+					}
+
+					// we need to replace the DI in the above generated map with the duplicates that we've created as a part of the duplication process
+					TMap<FName, UNiagaraDataInterface*> DuplicatedObjectNameMap = AsyncTask->ComputedPrecompileDuplicateData->GetObjectNameMap();
+					for (auto ObjectMapIt = ObjectNameMap.CreateIterator(); ObjectMapIt; ++ObjectMapIt)
+					{
+						if (UNiagaraDataInterface** Replacement = DuplicatedObjectNameMap.Find(ObjectMapIt.Key()))
+						{
+							ObjectMapIt.Value() = *Replacement;
+						}
+						else
+						{
+							ObjectMapIt.RemoveCurrent();
+						}
+					}
 				}
 				else
 				{
-					UNiagaraScript* CompiledScript = EmitterCompiledScriptPair.CompiledScript;
-					ObjectNameMap = CompiledScript->GetLatestSource()->ComputeObjectNameMap(*this, CompiledScript->GetUsage(), CompiledScript->GetUsageId(), AsyncTask->UniqueEmitterName);
+					const UNiagaraScriptSourceBase* ScriptSource = CompiledScript->GetLatestSource();
+					ObjectNameMap = ScriptSource->ComputeObjectNameMap(*this, CompiledScript->GetUsage(), CompiledScript->GetUsageId(), AsyncTask->UniqueEmitterName);
 				}
+
 				EmitterCompiledScriptPair.CompiledScript->SetVMCompilationResults(EmitterCompiledScriptPair.CompileId, *ExeData, AsyncTask->UniqueEmitterName, ObjectNameMap);
-			}
-			// clean up the precompile data
-			if (AsyncTask->ComputedPrecompileData.IsValid())
-			{
+
 				// Synchronize the variables that we actually encountered during precompile so that we can expose them to the end user.
 				TArray<FNiagaraVariable> OriginalExposedParams;
 				ExposedParameters.GetParameters(OriginalExposedParams);
@@ -2848,10 +2870,17 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 						ExposedParameters.AddParameter(EncounteredExposedVars[i], true, false);
 					}
 				}
-				
+			}
+		}
+
+		// clean up the precompile data
+		for (auto& AsyncTask : CompileRequest.DDCTasks)
+		{
+			AsyncTask->ComputedPrecompileData.Reset();
+			if (AsyncTask->ComputedPrecompileDuplicateData.IsValid())
+			{
 				AsyncTask->ComputedPrecompileDuplicateData->ReleaseCompilationCopies();
 				AsyncTask->ComputedPrecompileDuplicateData.Reset();
-				AsyncTask->ComputedPrecompileData.Reset();
 			}
 		}
 
