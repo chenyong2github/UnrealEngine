@@ -6,6 +6,8 @@
 #include "Engine/SkeletalMesh.h"
 #include "Animation/Skeleton.h"
 #include "Algo/Accumulate.h"
+#include "Algo/Transform.h"
+#include "Animation/BlendProfile.h"
 
 IMPLEMENT_MODULE(IModuleInterface, SkeletalMerging);
 

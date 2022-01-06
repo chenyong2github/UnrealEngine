@@ -3,6 +3,7 @@
 #pragma once
 
 #include "SkeletalMeshMerge.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "SkeletalMergingLibrary.generated.h"
 
 /**
