@@ -1558,7 +1558,7 @@ void UGameFeaturePluginStateMachine::UpdateStateMachine()
 
 		if (StateStatus.TransitionToState != EGameFeaturePluginState::Uninitialized)
 		{
-			UE_LOG(LogGameFeatures, Display, TEXT("Game feature '%s' transitioning state (%s -> %s)"), *GetGameFeatureName(), *UE::GameFeatures::ToString(CurrentState), *UE::GameFeatures::ToString(StateStatus.TransitionToState));
+			UE_LOG(LogGameFeatures, Verbose, TEXT("Game feature '%s' transitioning state (%s -> %s)"), *GetGameFeatureName(), *UE::GameFeatures::ToString(CurrentState), *UE::GameFeatures::ToString(StateStatus.TransitionToState));
 			AllStates[(int32)CurrentState]->EndState();
 			CurrentStateInfo = FGameFeaturePluginStateInfo(StateStatus.TransitionToState);
 			CurrentState = StateStatus.TransitionToState;
