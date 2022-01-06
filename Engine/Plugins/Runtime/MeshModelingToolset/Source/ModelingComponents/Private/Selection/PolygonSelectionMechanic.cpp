@@ -46,7 +46,7 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	ClickOrDragBehavior->Modifiers.RegisterModifier(ShiftModifierID, FInputDeviceState::IsShiftKeyDown);
 	ClickOrDragBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
 	ClickOrDragBehavior->SetDefaultPriority(BasePriority);
-	ParentTool->AddInputBehavior(ClickOrDragBehavior);
+	ParentTool->AddInputBehavior(ClickOrDragBehavior, this);
 
 	Properties = NewObject<UPolygonSelectionMechanicProperties>(this);
 	if (bAddSelectionFilterPropertiesToParentTool)

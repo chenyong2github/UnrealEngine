@@ -17,13 +17,10 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-
-#nullable enable
 
 namespace UnrealGameSync
 {
-	sealed class UserErrorException : Exception
+	public sealed class UserErrorException : Exception
 	{
 		public int Code { get; }
 
@@ -33,8 +30,18 @@ namespace UnrealGameSync
 		}
 	}
 
-	static class Utility
+	public static class Utility
 	{
+		static JsonSerializerOptions GetDefaultJsonSerializerOptions()
+		{
+			JsonSerializerOptions Options = new JsonSerializerOptions();
+			Options.PropertyNameCaseInsensitive = true;
+			Options.Converters.Add(new JsonStringEnumConverter());
+			return Options;
+		}
+
+		public static JsonSerializerOptions DefaultJsonSerializerOptions { get; } = GetDefaultJsonSerializerOptions();
+
 		public static bool TryLoadJson<T>(FileReference File, [NotNullWhen(true)] out T? Object) where T : class
 		{
 			if (!FileReference.Exists(File))
@@ -117,15 +124,6 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static void WriteException(this TextWriter Writer, Exception Ex, string Format, params object[] Args)
-		{
-			Writer.WriteLine(Format, Args);
-			foreach(string Line in Ex.ToString().Split('\n'))
-			{
-				Writer.WriteLine(">>>  " + Line);
-			}
-		}
-
 		public static bool SpawnProcess(string FileName, string CommandLine)
 		{
 			using(Process ChildProcess = new Process())
@@ -194,7 +192,7 @@ namespace UnrealGameSync
 		/// Any unknown variables are ignored.
 		/// </summary>
 		/// <param name="InputString">String to search for variable names</param>
-		/// <param name="Variables">Lookup of variable names to values</param>
+		/// <param name="AdditionalVariables">Lookup of variable names to values</param>
 		/// <returns>String with all variables replaced</returns>
 		public static string ExpandVariables(string InputString, Dictionary<string, string>? AdditionalVariables = null)
 		{
@@ -373,99 +371,6 @@ namespace UnrealGameSync
 
 		/******/
 
-		public static void ReadGlobalPerforceSettings(ref string? ServerAndPort, ref string? UserName, ref string? DepotPath)
-		{
-			using (RegistryKey Key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Epic Games\\UnrealGameSync", false))
-			{
-				if(Key != null)
-				{
-					ServerAndPort = Key.GetValue("ServerAndPort", ServerAndPort) as string;
-					UserName = Key.GetValue("UserName", UserName) as string;
-					DepotPath = Key.GetValue("DepotPath", DepotPath) as string;
-
-					// Fix corrupted depot path string
-					if(DepotPath != null)
-					{
-						Match Match = Regex.Match(DepotPath, "^(.*)/(Release|UnstableRelease)/\\.\\.\\.@.*$");
-						if (Match.Success)
-						{
-							DepotPath = Match.Groups[1].Value;
-							SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
-						}
-					}
-				}
-			}
-		}
-
-		public static void DeleteRegistryKey(RegistryKey RootKey, string KeyName, string ValueName)
-		{
-			using (RegistryKey Key = RootKey.OpenSubKey(KeyName, true))
-			{
-				if (Key != null)
-				{
-					DeleteRegistryKey(Key, ValueName);
-				}
-			}
-		}
-
-		public static void DeleteRegistryKey(RegistryKey Key, string Name)
-		{
-			string[] ValueNames = Key.GetValueNames();
-			if (ValueNames.Any(x => String.Compare(x, Name, StringComparison.OrdinalIgnoreCase) == 0))
-			{
-				try
-				{ 
-					Key.DeleteValue(Name);
-				}
-				catch
-				{ 
-				}
-			}
-		}
-
-		public static void SaveGlobalPerforceSettings(string? ServerAndPort, string? UserName, string? DepotPath)
-		{
-			try
-			{
-				using (RegistryKey Key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Epic Games\\UnrealGameSync"))
-				{
-					// Delete this legacy setting
-					DeleteRegistryKey(Key, "Server");
-
-					if(String.IsNullOrEmpty(ServerAndPort))
-					{
-						try { Key.DeleteValue("ServerAndPort"); } catch(Exception) { }
-					}
-					else
-					{
-						Key.SetValue("ServerAndPort", ServerAndPort);
-					}
-
-					if(String.IsNullOrEmpty(UserName))
-					{
-						try { Key.DeleteValue("UserName"); } catch(Exception) { }
-					}
-					else
-					{
-						Key.SetValue("UserName", UserName);
-					}
-
-					if(String.IsNullOrEmpty(DepotPath) || (DeploymentSettings.DefaultDepotPath != null && String.Equals(DepotPath, DeploymentSettings.DefaultDepotPath, StringComparison.InvariantCultureIgnoreCase)))
-					{
-						DeleteRegistryKey(Key, "DepotPath");
-					}
-					else
-					{
-						Key.SetValue("DepotPath", DepotPath);
-					}
-				}
-			}
-			catch(Exception Ex)
-			{
-				MessageBox.Show("Unable to save settings.\n\n" + Ex.ToString());
-			}
-		}
-
 		public static async Task<string[]?> TryPrintFileUsingCacheAsync(IPerforceConnection Perforce, string DepotPath, DirectoryReference CacheFolder, string? Digest, ILogger Logger, CancellationToken CancellationToken)
 		{
 			if(Digest == null)
@@ -639,55 +544,6 @@ namespace UnrealGameSync
 				}
 			}
 			return NormalUserName.ToString();
-		}
-
-		public static IEnumerable<string> GetPerforcePaths()
-		{
-			string? PathList = Environment.GetEnvironmentVariable("PATH");
-			if (!String.IsNullOrEmpty(PathList))
-			{
-				foreach (string PathEntry in PathList.Split(Path.PathSeparator))
-				{
-					string? PerforcePath = null;
-					try
-					{
-						string TestPerforcePath = Path.Combine(PathEntry, "p4.exe");
-						if (File.Exists(TestPerforcePath))
-						{
-							PerforcePath = TestPerforcePath;
-						}
-					}
-					catch
-					{
-					}
-
-					if(PerforcePath != null)
-					{
-						yield return PerforcePath;
-					}
-				}
-			}
-		}
-
-		public static void SpawnP4VC(string Arguments)
-		{
-			string Executable = "p4vc.exe";
-
-			foreach (string PerforcePath in GetPerforcePaths())
-			{
-				string? PerforceDir = Path.GetDirectoryName(PerforcePath);
-				if (PerforceDir != null && File.Exists(Path.Combine(PerforceDir, "p4vc.bat")) && !File.Exists(Path.Combine(PerforceDir, "p4vc.exe")))
-				{
-					Executable = Path.Combine(PerforceDir, "p4v.exe");
-					Arguments = "-p4vc " + Arguments;
-					break;
-				}
-			}
-
-			if (!Utility.SpawnHiddenProcess(Executable, Arguments))
-			{
-				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
-			}
 		}
 
 		public static void OpenUrl(string Url)

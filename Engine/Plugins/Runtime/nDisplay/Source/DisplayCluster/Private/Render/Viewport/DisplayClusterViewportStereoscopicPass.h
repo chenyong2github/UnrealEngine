@@ -9,7 +9,7 @@ struct FDisplayClusterViewportStereoscopicPass
 {
 	inline static EStereoscopicPass EncodeStereoscopicPass(const uint32 ContextNum, const uint32 ContextAmmount)
 	{
-		EStereoscopicPass EncodedPass = EStereoscopicPass::eSSP_FULL;
+		EStereoscopicPass EncodedPass = EStereoscopicPass::eSSP_PRIMARY;
 
 		// Monoscopic rendering
 		if (ContextAmmount == 1)

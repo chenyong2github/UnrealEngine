@@ -11,8 +11,6 @@ using Microsoft.VisualStudio.Setup.Configuration;
 using EnvDTE;
 using System.Diagnostics;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 

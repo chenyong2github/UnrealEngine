@@ -8,7 +8,7 @@
 ------------------------ FStreamStatsSink------------------------
 */
 
-FPixelStreamingRTCStatsCollector::FStreamStatsSink::FStreamStatsSink(FString InRid) 
+FPixelStreamingRTCStatsCollector::FStreamStatsSink::FStreamStatsSink(FString InRid)
 	: Rid(InRid)
 {
 	Add(PixelStreamingStatNames::FirCount, 0);
@@ -22,7 +22,7 @@ FPixelStreamingRTCStatsCollector::FStreamStatsSink::FStreamStatsSink(FString InR
 	Add(PixelStreamingStatNames::FrameWidth, 0);
 	Add(PixelStreamingStatNames::FrameHeight, 0);
 	Add(PixelStreamingStatNames::HugeFramesSent, 0);
-	
+
 	AddForCalculation(PixelStreamingStatNames::FramesSent);
 	AddForCalculation(PixelStreamingStatNames::BytesSent);
 	AddForCalculation(PixelStreamingStatNames::QPSum);
@@ -38,7 +38,6 @@ FPixelStreamingRTCStatsCollector::FStreamStatsSink::FStreamStatsSink(FString InR
 FPixelStreamingRTCStatsCollector::FPixelStreamingRTCStatsCollector()
 	: FPixelStreamingRTCStatsCollector(INVALID_PLAYER_ID)
 {
-
 }
 
 FPixelStreamingRTCStatsCollector::FPixelStreamingRTCStatsCollector(FPlayerId PlayerId)
@@ -59,7 +58,6 @@ FPixelStreamingRTCStatsCollector::FPixelStreamingRTCStatsCollector(FPlayerId Pla
 	TrackStatsSink.Add(PixelStreamingStatNames::PauseCount, 0);
 	TrackStatsSink.Add(PixelStreamingStatNames::TotalFreezesDuration, 2);
 	TrackStatsSink.Add(PixelStreamingStatNames::TotalPausesDuration, 2);
-	
 
 	SourceStatsSink.Add(PixelStreamingStatNames::SourceFps, 0);
 }
@@ -81,8 +79,8 @@ rtc::RefCountReleaseStatus FPixelStreamingRTCStatsCollector::Release() const
 
 void FPixelStreamingRTCStatsCollector::ExtractValueAndSet(const webrtc::RTCStatsMemberInterface* ExtractFrom, FStatData* SetValueHere)
 {
-	FString StatValueStr	= FString(ExtractFrom->ValueToString().c_str());
-	double StatValueDouble	= FCString::Atod(*StatValueStr);
+	FString StatValueStr = FString(ExtractFrom->ValueToString().c_str());
+	double StatValueDouble = FCString::Atod(*StatValueStr);
 	SetValueHere->StatValue = StatValueDouble;
 }
 
@@ -102,8 +100,8 @@ void FPixelStreamingRTCStatsCollector::OnStatsDelivered(const rtc::scoped_refptr
 
 	for (webrtc::RTCStatsReport::ConstIterator Iter = Report->begin(); Iter != Report->end(); ++Iter)
 	{
-		const webrtc::RTCStats& Stats									= *Iter;
-		FString StatsType												= FString(Stats.type());
+		const webrtc::RTCStats& Stats = *Iter;
+		FString StatsType = FString(Stats.type());
 		std::vector<const webrtc::RTCStatsMemberInterface*> StatMembers = Stats.Members();
 
 		// For debugging
@@ -117,24 +115,24 @@ void FPixelStreamingRTCStatsCollector::OnStatsDelivered(const rtc::scoped_refptr
 		FStatsSink* StatsSink = nullptr;
 		FString Rid;
 
-		if(StatsType == TrackStatsStr)
+		if (StatsType == TrackStatsStr)
 		{
 			StatsSink = &TrackStatsSink;
 		}
-		else if(StatsType == SourceStatsStr)
+		else if (StatsType == SourceStatsStr)
 		{
 			StatsSink = &SourceStatsSink;
 		}
-		else if(StatsType == StreamStatsStr)
+		else if (StatsType == StreamStatsStr)
 		{
 			// Extract the `rid`
 			for (const webrtc::RTCStatsMemberInterface* StatMember : StatMembers)
 			{
 				FString StatName = FString(StatMember->name());
-				if(StatName == RidStr)
+				if (StatName == RidStr)
 				{
 					Rid = FString(StatMember->ValueToString().c_str());
-					if(!StreamStatsSinks.Contains(Rid))
+					if (!StreamStatsSinks.Contains(Rid))
 					{
 						StreamStatsSinks.Add(Rid, FStreamStatsSink(Rid));
 					}
@@ -187,7 +185,7 @@ void FPixelStreamingRTCStatsCollector::OnStatsDelivered(const rtc::scoped_refptr
 
 void FPixelStreamingRTCStatsCollector::CalculateStats(FPixelStreamingStats* PSStats)
 {
-	uint64 CyclesNow	= FPlatformTime::Cycles64();
+	uint64 CyclesNow = FPlatformTime::Cycles64();
 	double SecondsDelta = FGenericPlatformTime::ToSeconds64(CyclesNow - LastCalculationCycles);
 
 	// Don't calculate stats if 1 second window has not yet elapsed
@@ -197,13 +195,13 @@ void FPixelStreamingRTCStatsCollector::CalculateStats(FPixelStreamingStats* PSSt
 	}
 
 	// This will bring the calculations into a 1 second window
-	double PerSecondRatio		  = 1.0 / SecondsDelta;
-	double FramesSentPerSecond	  = 0.0;
+	double PerSecondRatio = 1.0 / SecondsDelta;
+	double FramesSentPerSecond = 0.0;
 	double EncodedFramesPerSecond = 0.0;
-	
+
 	// Calculate stats based on each of the stream stats sinks
 
-	for(auto& Entry : StreamStatsSinks)
+	for (auto& Entry : StreamStatsSinks)
 	{
 		FString& Rid = Entry.Key;
 		FStatsSink& StreamSink = Entry.Value;
@@ -223,7 +221,7 @@ void FPixelStreamingRTCStatsCollector::CalculateStats(FPixelStreamingStats* PSSt
 		if (BytesSentStat && BytesSentStat->LatestStat.StatValue > 0)
 		{
 			double BytesSentPerSecond = BytesSentStat->CalculateDelta(PerSecondRatio);
-			double MegabitsPerSecond  = BytesSentPerSecond / 1000.0 * 8.0;
+			double MegabitsPerSecond = BytesSentPerSecond / 1000.0 * 8.0;
 			FName StatName = PixelStreamingStatNames::Bitrate;
 			PSStats->StorePeerStat(Id, FStatData(StatName, MegabitsPerSecond, 0));
 		}
@@ -242,7 +240,7 @@ void FPixelStreamingRTCStatsCollector::CalculateStats(FPixelStreamingStats* PSSt
 		if (QPSumStat && QPSumStat->LatestStat.StatValue > 0 && EncodedFramesPerSecond > 0.0)
 		{
 			double QPSumDeltaPerSecond = QPSumStat->CalculateDelta(PerSecondRatio);
-			double MeanQPPerFrame	   = QPSumDeltaPerSecond / EncodedFramesPerSecond;
+			double MeanQPPerFrame = QPSumDeltaPerSecond / EncodedFramesPerSecond;
 			FName StatName = PixelStreamingStatNames::MeanQPPerSecond;
 			PSStats->StorePeerStat(Id, FStatData(StatName, MeanQPPerFrame, 0));
 		}
@@ -266,7 +264,6 @@ void FPixelStreamingRTCStatsCollector::CalculateStats(FPixelStreamingStats* PSSt
 			FName StatName = PixelStreamingStatNames::MeanSendDelay;
 			PSStats->StorePeerStat(Id, FStatData(StatName, MeanSendDelayPerFrameMs, 2));
 		}
-
 	}
 
 	LastCalculationCycles = FPlatformTime::Cycles64();

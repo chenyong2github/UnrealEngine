@@ -41,7 +41,7 @@ int32 FPixelStreamingAudioDeviceModule::RegisterAudioCallback(webrtc::AudioTrans
 int32 FPixelStreamingAudioDeviceModule::Init()
 {
 	this->InitRecording();
-	
+
 	UE_LOG(LogPixelStreamingAudioDeviceModule, Verbose, TEXT("Init PixelStreamingAudioDeviceModule"));
 	this->bInitialized = true;
 	return 0;
@@ -127,11 +127,11 @@ int32 FPixelStreamingAudioDeviceModule::InitPlayout()
 	CHECKinitialized_();
 	bool bIsPlayoutAvailable = false;
 	this->PlayoutIsAvailable(&bIsPlayoutAvailable);
-	if(!bIsPlayoutAvailable)
+	if (!bIsPlayoutAvailable)
 	{
 		return -1;
 	}
-	
+
 	this->Requester.InitPlayout();
 	return 0;
 }
@@ -146,7 +146,7 @@ int32 FPixelStreamingAudioDeviceModule::StartPlayout()
 {
 	CHECKinitialized_();
 
-	if(!this->Requester.PlayoutIsInitialized())
+	if (!this->Requester.PlayoutIsInitialized())
 	{
 		return -1;
 	}
@@ -158,7 +158,7 @@ int32 FPixelStreamingAudioDeviceModule::StartPlayout()
 int32 FPixelStreamingAudioDeviceModule::StopPlayout()
 {
 	CHECKinitialized_();
-	if(!this->Requester.PlayoutIsInitialized())
+	if (!this->Requester.PlayoutIsInitialized())
 	{
 		return -1;
 	}
@@ -186,12 +186,12 @@ int32 FPixelStreamingAudioDeviceModule::InitRecording()
 
 	bool bIsRecordingAvailable = false;
 	this->RecordingIsAvailable(&bIsRecordingAvailable);
-	if(!bIsRecordingAvailable)
+	if (!bIsRecordingAvailable)
 	{
 		return -1;
 	}
 
-	if(!this->Capturer.IsInitialised())
+	if (!this->Capturer.IsInitialised())
 	{
 		this->Capturer.Init();
 	}
@@ -208,7 +208,7 @@ bool FPixelStreamingAudioDeviceModule::RecordingIsInitialized() const
 int32 FPixelStreamingAudioDeviceModule::StartRecording()
 {
 	CHECKinitialized_();
-	if(!this->Capturer.IsCapturing())
+	if (!this->Capturer.IsCapturing())
 	{
 		this->Capturer.StartCapturing();
 	}
@@ -218,7 +218,7 @@ int32 FPixelStreamingAudioDeviceModule::StartRecording()
 int32 FPixelStreamingAudioDeviceModule::StopRecording()
 {
 	CHECKinitialized_();
-	if(this->Capturer.IsCapturing())
+	if (this->Capturer.IsCapturing())
 	{
 		this->Capturer.EndCapturing();
 	}
@@ -321,7 +321,7 @@ bool FSubmixCapturer::Init()
 	}
 
 	// already initialised
-	if(this->bInitialised)
+	if (this->bInitialised)
 	{
 		return true;
 	}
@@ -349,7 +349,7 @@ void FSubmixCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float*
 	}
 
 	// No point doing anything with UE audio if the callback from WebRTC has not been set yet.
-	if(this->AudioCallback == nullptr)
+	if (this->AudioCallback == nullptr)
 	{
 		return;
 	}
@@ -370,7 +370,7 @@ void FSubmixCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float*
 
 	// Note: TSampleBuffer takes in AudioData as float* and internally converts to int16
 	Audio::TSampleBuffer<int16> Buffer(AudioData, NumSamples, NumChannels, SampleRate);
-	
+
 	// Mix to our target number of channels if the source does not already match.
 	if (Buffer.GetNumChannels() != this->TargetNumChannels)
 	{
@@ -378,31 +378,31 @@ void FSubmixCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float*
 	}
 
 	RecordingBuffer.Append(Buffer.GetData(), Buffer.GetNumSamples());
-	
+
 	const float ChunkDurationSecs = 0.01f; //10ms
 	const int32 SamplesPer10Ms = this->GetSamplesPerDurationSecs(ChunkDurationSecs);
-	
+
 	// Feed in 10ms chunks
-	while(RecordingBuffer.Num() > SamplesPer10Ms)
+	while (RecordingBuffer.Num() > SamplesPer10Ms)
 	{
 
 		// Extract a 10ms chunk of samples from recording buffer
 		TArray<int16_t> SubmitBuffer(RecordingBuffer.GetData(), SamplesPer10Ms);
 		const size_t frames = SubmitBuffer.Num() / this->TargetNumChannels;
-  		const size_t bytes_per_frame = this->TargetNumChannels * sizeof(int16_t);
+		const size_t bytes_per_frame = this->TargetNumChannels * sizeof(int16_t);
 
 		uint32_t OutMicLevel = this->VolumeLevel;
 
 		int32_t WebRTCRes = this->AudioCallback->RecordedDataIsAvailable(
-			SubmitBuffer.GetData(), 
-			frames, 
-			bytes_per_frame, 
-			this->TargetNumChannels, 
-			this->TargetSampleRate, 
-			0, 
-			0, 
-			this->VolumeLevel, 
-			false, 
+			SubmitBuffer.GetData(),
+			frames,
+			bytes_per_frame,
+			this->TargetNumChannels,
+			this->TargetSampleRate,
+			0,
+			0,
+			this->VolumeLevel,
+			false,
 			OutMicLevel);
 
 		this->SetVolume(OutMicLevel);
@@ -410,13 +410,12 @@ void FSubmixCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float*
 		// Remove 10ms of samples from the recording buffer now it is submitted
 		RecordingBuffer.RemoveAt(0, SamplesPer10Ms, false);
 	}
-
 }
 
 int32 FSubmixCapturer::GetSamplesPerDurationSecs(float InSeconds) const
 {
 	int32 SamplesPerSecond = this->TargetNumChannels * this->TargetSampleRate;
-	int32 NumSamplesPerDuration = (int32) (SamplesPerSecond * InSeconds);
+	int32 NumSamplesPerDuration = (int32)(SamplesPerSecond * InSeconds);
 	return NumSamplesPerDuration;
 }
 
@@ -451,7 +450,7 @@ void FSubmixCapturer::Uninitialise()
 
 bool FSubmixCapturer::StartCapturing()
 {
-	if(!this->bInitialised)
+	if (!this->bInitialised)
 	{
 		return false;
 	}
@@ -461,7 +460,7 @@ bool FSubmixCapturer::StartCapturing()
 
 bool FSubmixCapturer::EndCapturing()
 {
-	if(!this->bInitialised)
+	if (!this->bInitialised)
 	{
 		return false;
 	}
@@ -491,49 +490,46 @@ void FAudioPlayoutRequester::InitPlayout()
 
 void FAudioPlayoutRequester::StartPlayout()
 {
-	if(this->PlayoutIsInitialized() && !this->Playing())
+	if (this->PlayoutIsInitialized() && !this->Playing())
 	{
-		TFunction<void()> RequesterFunc = [this](){
-			
+		TFunction<void()> RequesterFunc = [this]() {
 			FScopeLock Lock(&this->PlayoutCriticalSection);
 
-			
 			// Only request audio if audio callback is valid
-			if(!this->AudioCallback)
+			if (!this->AudioCallback)
 			{
 				return;
 			}
-			
+
 			// Our intention is to request samples at some fixed interval (i.e 10ms)
 			int32 NSamplesPerChannel = (this->SampleRate) / (1000 / FAudioPlayoutRequester::RequestIntervalMs);
 			const size_t BytesPerFrame = this->NumChannels * sizeof(int16_t);
-			
+
 			// Ensure buffer has the total number of samples we need for all audio frames
 			PlayoutBuffer.Reserve(NSamplesPerChannel * this->NumChannels);
-			
+
 			size_t OutNSamples = 0;
 			int64_t ElapsedTimeMs = -1;
-  			int64_t NtpTimeMs = -1;
+			int64_t NtpTimeMs = -1;
 
 			// Note this is mixed result of all audio sources, which in turn triggers the sinks for each audio source to be called.
 			// For example, if you had 3 audio sources in the browser sending 16kHz mono they would all be mixed down into the number
 			// of channels and sample rate specified below. However, for listening to each audio source prior to mixing refer to
 			// FPixelStreamingAudioSink.
 			uint32_t Result = this->AudioCallback->NeedMorePlayData(
-				NSamplesPerChannel, 
-				BytesPerFrame, 
-				this->NumChannels, 
-				this->SampleRate, 
-				PlayoutBuffer.GetData(), 
-				OutNSamples, 
-				&ElapsedTimeMs, 
+				NSamplesPerChannel,
+				BytesPerFrame,
+				this->NumChannels,
+				this->SampleRate,
+				PlayoutBuffer.GetData(),
+				OutNSamples,
+				&ElapsedTimeMs,
 				&NtpTimeMs);
 
-			if(Result != 0)
+			if (Result != 0)
 			{
 				UE_LOG(LogPixelStreamingAudioDeviceModule, Error, TEXT("NeedMorePlayData return non-zero result indicating an error"));
 			}
-			
 		};
 
 		this->RequesterThread.Reset(nullptr);
@@ -545,7 +541,7 @@ void FAudioPlayoutRequester::StartPlayout()
 
 void FAudioPlayoutRequester::StopPlayout()
 {
-	if(this->PlayoutIsInitialized() && this->Playing())
+	if (this->PlayoutIsInitialized() && this->Playing())
 	{
 		this->RequesterRunnable->Stop();
 		this->bIsPlaying = false;
@@ -581,13 +577,13 @@ uint32 FAudioPlayoutRequester::Runnable::Run()
 	this->bIsRunning = true;
 
 	// Request audio in a loop until this boolean is toggled off.
-	while(this->bIsRunning)
+	while (this->bIsRunning)
 	{
 		int64_t Now = rtc::TimeMillis();
 		int64_t DeltaMs = Now - this->LastAudioRequestTimeMs;
 
 		// Check if the 10ms delta has elapsed, if it has not, then sleep the remaining
-		if(DeltaMs < FAudioPlayoutRequester::RequestIntervalMs)
+		if (DeltaMs < FAudioPlayoutRequester::RequestIntervalMs)
 		{
 			int64_t SleepTimeMs = FAudioPlayoutRequester::RequestIntervalMs - DeltaMs;
 			float SleepTimeSecs = (float)SleepTimeMs / 1000.0f;
@@ -600,9 +596,8 @@ uint32 FAudioPlayoutRequester::Runnable::Run()
 
 		// Actually request playout
 		this->RequestPlayoutFunc();
-
 	}
-	
+
 	return 0;
 }
 

@@ -5,9 +5,9 @@
 #include "PixelStreamingPrivate.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
-#include "Windows/WindowsPlatformMisc.h"
+	#include "Windows/WindowsPlatformMisc.h"
 #elif PLATFORM_LINUX
-#include "Linux/LinuxPlatformMisc.h"
+	#include "Linux/LinuxPlatformMisc.h"
 #endif
 
 #include "RHI.h"
@@ -73,8 +73,7 @@ inline FString ToString(const TSharedPtr<FJsonObject>& JsonObj, bool bPretty = t
 
 inline const TCHAR* ToString(webrtc::PeerConnectionInterface::SignalingState Val)
 {
-	TCHAR const* SignallingStatesStr[] = 
-	{
+	TCHAR const* SignallingStatesStr[] = {
 		TEXT("Stable"),
 		TEXT("HaveLocalOffer"),
 		TEXT("HaveLocalPrAnswer"),
@@ -83,15 +82,12 @@ inline const TCHAR* ToString(webrtc::PeerConnectionInterface::SignalingState Val
 		TEXT("Closed")
 	};
 
-	return ensureMsgf(0 <= Val && Val <= webrtc::PeerConnectionInterface::kClosed, TEXT("Invalid `webrtc::PeerConnectionInterface::SignalingState` value: %d"), static_cast<uint32>(Val)) ?
-		SignallingStatesStr[Val] :
-		TEXT("Unknown");
+	return ensureMsgf(0 <= Val && Val <= webrtc::PeerConnectionInterface::kClosed, TEXT("Invalid `webrtc::PeerConnectionInterface::SignalingState` value: %d"), static_cast<uint32>(Val)) ? SignallingStatesStr[Val] : TEXT("Unknown");
 }
 
 inline const TCHAR* ToString(webrtc::PeerConnectionInterface::IceConnectionState Val)
 {
-	TCHAR const* IceConnectionStatsStr[] = 
-	{
+	TCHAR const* IceConnectionStatsStr[] = {
 		TEXT("IceConnectionNew"),
 		TEXT("IceConnectionChecking"),
 		TEXT("IceConnectionConnected"),
@@ -101,23 +97,28 @@ inline const TCHAR* ToString(webrtc::PeerConnectionInterface::IceConnectionState
 		TEXT("IceConnectionClosed")
 	};
 
-	return ensureMsgf(0 <= Val && Val < webrtc::PeerConnectionInterface::kIceConnectionMax, TEXT("Invalid `webrtc::PeerConnectionInterface::IceConnectionState` value: %d"), static_cast<uint32>(Val)) ?
-		IceConnectionStatsStr[Val] :
-		TEXT("Unknown");
+	return ensureMsgf(
+		0 <= Val && Val < webrtc::PeerConnectionInterface::kIceConnectionMax,
+		TEXT("Invalid `webrtc::PeerConnectionInterface::IceConnectionState` value: %d"),
+		static_cast<uint32>(Val))
+			? IceConnectionStatsStr[Val]
+			: TEXT("Unknown");
 }
 
 inline const TCHAR* ToString(webrtc::PeerConnectionInterface::IceGatheringState Val)
 {
-	TCHAR const* IceGatheringStatsStr[] =
-	{
+	TCHAR const* IceGatheringStatsStr[] = {
 		TEXT("IceGatheringNew"),
 		TEXT("IceGatheringGathering"),
 		TEXT("IceGatheringComplete")
 	};
 
-	return ensureMsgf(0 <= Val && Val <= webrtc::PeerConnectionInterface::kIceGatheringComplete, TEXT("Invalid `webrtc::PeerConnectionInterface::IceGatheringState` value: %d"), static_cast<uint32>(Val)) ?
-		IceGatheringStatsStr[Val] :
-		TEXT("Unknown");
+	return ensureMsgf(
+		0 <= Val && Val <= webrtc::PeerConnectionInterface::kIceGatheringComplete,
+		TEXT("Invalid `webrtc::PeerConnectionInterface::IceGatheringState` value: %d"),
+		static_cast<uint32>(Val))
+			? IceGatheringStatsStr[Val]
+			: TEXT("Unknown");
 }
 
 inline const TCHAR* ToString(webrtc::VideoFrameType FrameType)
@@ -130,9 +131,11 @@ inline const TCHAR* ToString(webrtc::VideoFrameType FrameType)
 		TEXT("VideoFrameDelta")
 	};
 	int FrameTypeInt = (int)FrameType;
-	return ensureMsgf(0 <= FrameTypeInt && FrameTypeInt <= (int)webrtc::VideoFrameType::kVideoFrameDelta, TEXT("Invalid `webrtc::FrameType`: %d"), static_cast<uint32>(FrameType)) ?
-		FrameTypesStr[FrameTypeInt] :
-		TEXT("Unknown");
+	return ensureMsgf(
+		0 <= FrameTypeInt && FrameTypeInt <= (int)webrtc::VideoFrameType::kVideoFrameDelta,
+		TEXT("Invalid `webrtc::FrameType`: %d"), static_cast<uint32>(FrameType))
+			? FrameTypesStr[FrameTypeInt]
+			: TEXT("Unknown");
 }
 
 inline webrtc::SdpVideoFormat CreateH264Format(webrtc::H264::Profile profile, webrtc::H264::Level level)
@@ -140,15 +143,11 @@ inline webrtc::SdpVideoFormat CreateH264Format(webrtc::H264::Profile profile, we
 	const absl::optional<std::string> profile_string =
 		webrtc::H264::ProfileLevelIdToString(webrtc::H264::ProfileLevelId(profile, level));
 	check(profile_string);
-	return webrtc::SdpVideoFormat
-	(
+	return webrtc::SdpVideoFormat(
 		cricket::kH264CodecName,
-		{
-			{cricket::kH264FmtpProfileLevelId, *profile_string},
-			{cricket::kH264FmtpLevelAsymmetryAllowed, "1"},
-			{cricket::kH264FmtpPacketizationMode, "1"}
-		}
-	);
+		{ { cricket::kH264FmtpProfileLevelId, *profile_string },
+			{ cricket::kH264FmtpLevelAsymmetryAllowed, "1" },
+			{ cricket::kH264FmtpPacketizationMode, "1" } });
 }
 
 // returns milliseconds part of current time, useful for logging
@@ -157,7 +156,7 @@ inline uint32 RtcTimeMs()
 	return rtc::TimeMicros() / 1000 % 1000;
 }
 
-template<uint32 SmoothingPeriod>
+template <uint32 SmoothingPeriod>
 class FSmoothedValue
 {
 public:
@@ -179,7 +178,6 @@ public:
 private:
 	TAtomic<double> Value{ 0 };
 };
-
 
 inline void CopyTexture(FTexture2DRHIRef SourceTexture, FTexture2DRHIRef DestinationTexture, FGPUFenceRHIRef& CopyFence)
 {
@@ -214,7 +212,7 @@ inline void CopyTexture(FTexture2DRHIRef SourceTexture, FTexture2DRHIRef Destina
 
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-		if(DestinationTexture->GetSizeX() != SourceTexture->GetSizeX() || DestinationTexture->GetSizeY() != SourceTexture->GetSizeY())
+		if (DestinationTexture->GetSizeX() != SourceTexture->GetSizeX() || DestinationTexture->GetSizeY() != SourceTexture->GetSizeY())
 		{
 			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Bilinear>::GetRHI(), SourceTexture);
 		}
@@ -223,14 +221,14 @@ inline void CopyTexture(FTexture2DRHIRef SourceTexture, FTexture2DRHIRef Destina
 			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceTexture);
 		}
 
-		RendererModule->DrawRectangle(RHICmdList, 0, 0,                // Dest X, Y
-		                              DestinationTexture->GetSizeX(),  // Dest Width
-		                              DestinationTexture->GetSizeY(),  // Dest Height
-		                              0, 0,                            // Source U, V
-		                              1, 1,                            // Source USize, VSize
-		                              DestinationTexture->GetSizeXY(), // Target buffer size
-		                              FIntPoint(1, 1),                 // Source texture size
-		                              VertexShader, EDRF_Default);
+		RendererModule->DrawRectangle(RHICmdList, 0, 0, // Dest X, Y
+			DestinationTexture->GetSizeX(),				// Dest Width
+			DestinationTexture->GetSizeY(),				// Dest Height
+			0, 0,										// Source U, V
+			1, 1,										// Source USize, VSize
+			DestinationTexture->GetSizeXY(),			// Target buffer size
+			FIntPoint(1, 1),							// Source texture size
+			VertexShader, EDRF_Default);
 	}
 
 	RHICmdList.EndRenderPass();
@@ -248,7 +246,7 @@ inline size_t SerializeToBuffer(rtc::CopyOnWriteBuffer& Buffer, size_t Pos, cons
 
 inline void SendArbitraryData(rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel, const TArray<uint8>& DataBytes, const uint8 MessageType)
 {
-	if(!DataChannel)
+	if (!DataChannel)
 	{
 		return;
 	}
@@ -262,12 +260,12 @@ inline void SendArbitraryData(rtc::scoped_refptr<webrtc::DataChannelInterface> D
 	const int32 MaxDataBytesPerMsg = MaxBufferBytes - MessageHeader;
 
 	int32 BytesTransmitted = 0;
-	
-	while(BytesTransmitted < DataSize)
+
+	while (BytesTransmitted < DataSize)
 	{
 		int32 RemainingBytes = DataSize - BytesTransmitted;
 		int32 BytesToTransmit = FGenericPlatformMath::Min(MaxDataBytesPerMsg, RemainingBytes);
-		
+
 		rtc::CopyOnWriteBuffer Buffer(MessageHeader + BytesToTransmit);
 
 		size_t Pos = 0;
@@ -280,13 +278,13 @@ inline void SendArbitraryData(rtc::scoped_refptr<webrtc::DataChannelInterface> D
 		Pos = SerializeToBuffer(Buffer, Pos, DataBytes.GetData() + BytesTransmitted, BytesToTransmit);
 
 		uint64_t BufferBefore = DataChannel->buffered_amount();
-		while(BufferBefore + BytesToTransmit >= 16 * 1024 * 1024) // 16MB (WebRTC Data Channel buffer size)
-		{	
+		while (BufferBefore + BytesToTransmit >= 16 * 1024 * 1024) // 16MB (WebRTC Data Channel buffer size)
+		{
 			FPlatformProcess::Sleep(0.000001f); // sleep 1 microsecond
 			BufferBefore = DataChannel->buffered_amount();
 		}
 
-		if(!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
+		if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 		{
 			UE_LOG(PixelStreamer, Error, TEXT("Failed to send data channel packet"));
 			return;
@@ -305,13 +303,13 @@ inline FTexture2DRHIRef CreateTexture(uint32 Width, uint32 Height)
 	FTexture2DRHIRef Texture;
 	FString RHIName = GDynamicRHI->GetName();
 
-	if(RHIName == TEXT("Vulkan")) {
+	if (RHIName == TEXT("Vulkan"))
+	{
 		Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable | TexCreate_External, ERHIAccess::Present, CreateInfo);
-	} 
+	}
 	else
 	{
 		Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
 	}
 	return Texture;
 }
-

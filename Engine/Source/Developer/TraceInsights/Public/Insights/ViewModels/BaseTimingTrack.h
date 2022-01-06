@@ -24,6 +24,7 @@ class ITimingEventRelation;
 class ITimingEventFilter;
 
 struct FDrawContext;
+struct FGeometry;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -91,6 +92,7 @@ ENUM_CLASS_FLAGS(EDrawEventMode);
 class TRACEINSIGHTS_API ITimingTrackUpdateContext
 {
 public:
+	virtual const FGeometry& GetGeometry() const = 0;
 	virtual const FTimingTrackViewport& GetViewport() const = 0;
 	virtual const FVector2D& GetMousePosition() const = 0;
 	virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const = 0;

@@ -447,6 +447,12 @@ void SRigHierarchy::BindCommands()
 		Commands.TestSpaceSwitching,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleTestSpaceSwitching),
 		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected));
+
+	CommandList->MapAction(
+		Commands.ShowIconColors,
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bShowIconColors = !DisplaySettings.bShowIconColors; RefreshTreeView(); }),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowIconColors; }));
 }
 
 FReply SRigHierarchy::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -860,6 +866,7 @@ TSharedRef< SWidget > SRigHierarchy::CreateFilterMenu()
 	{
 		MenuBuilder.AddMenuEntry(Actions.ShowControls);
 		MenuBuilder.AddMenuEntry(Actions.ShowNulls);
+		MenuBuilder.AddMenuEntry(Actions.ShowIconColors);
 	}
 	MenuBuilder.EndSection();
 

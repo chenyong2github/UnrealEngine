@@ -27,14 +27,14 @@ namespace UnrealGameSync
 
 		IPerforceSettings DefaultPerforceSettings;
 		UpdateMonitor UpdateMonitor;
-		string ApiUrl;
+		string? ApiUrl;
 		DirectoryReference DataFolder;
 		DirectoryReference CacheFolder;
 		bool bRestoreState;
-		string UpdateSpawn;
+		string? UpdateSpawn;
 		bool bUnstable;
 		bool bIsClosing;
-		string Uri;
+		string? Uri;
 
 		IServiceProvider ServiceProvider;
 		ILogger Logger;
@@ -58,7 +58,7 @@ namespace UnrealGameSync
 
 		OIDCTokenManager? OIDCTokenManager;
 
-		public ProgramApplicationContext(IPerforceSettings DefaultPerforceSettings, UpdateMonitor UpdateMonitor, string ApiUrl, DirectoryReference DataFolder, EventWaitHandle ActivateEvent, bool bRestoreState, string UpdateSpawn, string ProjectFileName, bool bUnstable, IServiceProvider ServiceProvider, string Uri)
+		public ProgramApplicationContext(IPerforceSettings DefaultPerforceSettings, UpdateMonitor UpdateMonitor, string? ApiUrl, DirectoryReference DataFolder, EventWaitHandle ActivateEvent, bool bRestoreState, string? UpdateSpawn, string? ProjectFileName, bool bUnstable, IServiceProvider ServiceProvider, string? Uri)
 		{
 			this.DefaultPerforceSettings = DefaultPerforceSettings;
 			this.UpdateMonitor = UpdateMonitor;
@@ -241,7 +241,7 @@ namespace UnrealGameSync
 			}
 
 			// Get the application path
-			string OriginalExe = UpdateSpawn;
+			string? OriginalExe = UpdateSpawn;
 			if (OriginalExe == null)
 			{
 				OriginalExe = Path.ChangeExtension(Assembly.GetExecutingAssembly().Location, ".exe");

@@ -19,8 +19,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	partial class IssueDetailsWindow : Form
@@ -1046,7 +1044,7 @@ namespace UnrealGameSync
 			{
 				List<IssueDiagnosticData> Diagnostics = new List<IssueDiagnosticData>();
 
-				UpdateIssueDetailsTask Task = new UpdateIssueDetailsTask(IssueMonitor.ApiUrl, Issue.Id, Diagnostics);
+				UpdateIssueDetailsTask Task = new UpdateIssueDetailsTask(IssueMonitor.ApiUrl!, Issue.Id, Diagnostics);
 				ModalTask? TaskResult = ModalTask.Execute(Owner, "Fetching data", "Fetching data, please wait...", Task.RunAsync);
 				if (TaskResult == null || !TaskResult.Succeeded)
 				{
@@ -1284,7 +1282,7 @@ namespace UnrealGameSync
 		{
 			if (ContextMenuChange != null)
 			{
-				Utility.SpawnP4VC(String.Format("{0} change {1}", PerforceSettings.GetArgumentsForExternalProgram(true), ContextMenuChange.Number));
+				Program.SpawnP4VC(String.Format("{0} change {1}", PerforceSettings.GetArgumentsForExternalProgram(true), ContextMenuChange.Number));
 			}
 		}
 

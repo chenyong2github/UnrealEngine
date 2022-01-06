@@ -36,6 +36,9 @@ public:
 	void Draw(const ITimingTrackDrawContext& Context) const;
 	void PostDraw(const ITimingTrackDrawContext& Context) const;
 
+	float GetFontScale() const { return FontScale; }
+	void SetFontScale(float InFontScale) { FontScale = InFontScale; }
+
 private:
 	void DrawInternal(const ITimingTrackDrawContext& Context, bool bDrawBackgroundLayer) const;
 
@@ -56,4 +59,5 @@ private:
 	// Slate resources
 	const FSlateBrush* WhiteBrush;
 	const FSlateFontInfo Font;
+	float FontScale;
 };

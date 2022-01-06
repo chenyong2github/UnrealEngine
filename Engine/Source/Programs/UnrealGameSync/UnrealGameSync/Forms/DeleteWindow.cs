@@ -34,25 +34,25 @@ namespace UnrealGameSync
 
 		private void UncheckAll_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem Item in FileList.Items)
+			foreach(ListViewItem? Item in FileList.Items)
 			{
-				Item.Checked = false;
+				Item!.Checked = false;
 			}
 		}
 
 		private void CheckAll_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem Item in FileList.Items)
+			foreach(ListViewItem? Item in FileList.Items)
 			{
-				Item.Checked = true;
+				Item!.Checked = true;
 			}
 		}
 
 		private void ContinueButton_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem Item in FileList.Items)
+			foreach(ListViewItem? Item in FileList.Items)
 			{
-				FilesToDelete[(string)Item.Tag] = Item.Checked;
+				FilesToDelete[(string)Item!.Tag] = Item.Checked;
 			}
 		}
 	}

@@ -13,6 +13,8 @@
 #include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "InputActionValue.h"
+#include "GameFramework/InputSettings.h"
+#include "Editor.h"								// for FEditorDelegates::OnEnableGestureRecognizerChanged
 
 #define LOCTEXT_NAMESPACE "UK2Node_InputDebugKey"
 
@@ -355,12 +357,19 @@ void UK2Node_InputDebugKey::GetMenuActions(FBlueprintActionDatabaseRegistrar& Ac
 		InputNode->InputKey = Key;
 	};
 
+	auto RefreshClassActions = []()
+	{
+		FBlueprintActionDatabase::Get().RefreshClassActions(StaticClass());
+	};
+
 	// actions get registered under specific object-keys; the idea is that
 	// actions might have to be updated (or deleted) if their object-key is
 	// mutated (or removed)... here we use the node's class (so if the node
 	// type disappears, then the action should go with it)
 	UClass* ActionKey = GetClass();
 
+	const bool bAllowGestures = GetDefault<UInputSettings>()->bEnableGestureRecognizer;
+	
 	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and
 	// iterating over keys), first check to make sure that the registrar is
 	// looking for actions of this type (could be regenerating actions for a
@@ -368,10 +377,21 @@ void UK2Node_InputDebugKey::GetMenuActions(FBlueprintActionDatabaseRegistrar& Ac
 	// corresponding to that asset)
 	if (ActionRegistrar.IsOpenForRegistration(ActionKey))
 	{
+		// Refresh the action database of this node when the input settings are changed
+		static bool bRegisterOnce = true;
+		if (bRegisterOnce)
+		{
+			bRegisterOnce = false;
+			FEditorDelegates::OnEnableGestureRecognizerChanged.AddStatic(RefreshClassActions);
+		}
+		
 		for (const FKey& Key : AllKeys)
 		{
-			// AnyKey is not supported as a debug key
-			if (!Key.IsBindableInBlueprints() || Key == EKeys::AnyKey)
+			// Do not show gesture keys if they are not enabled in the settings
+			const bool bInvalidGestureKey = !bAllowGestures && Key.IsGesture();
+			
+			// AnyKey is not supported as a debug key, gestures can only be used if they are turned on in the settings
+			if (!Key.IsBindableInBlueprints() || Key == EKeys::AnyKey || bInvalidGestureKey)
 			{
 				continue;
 			}

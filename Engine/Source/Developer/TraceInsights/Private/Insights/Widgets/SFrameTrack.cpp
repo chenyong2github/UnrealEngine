@@ -93,8 +93,8 @@ void SFrameTrack::Reset()
 	bDrawVerticalAxisLabelsOnLeftSide = false;
 
 	HoveredSample.Reset();
-	TooltipDesiredOpacity = 1.0f;
 	TooltipOpacity = 0.0f;
+	TooltipSizeX = 70.0f;
 
 	//ThisGeometry
 
@@ -489,13 +489,16 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		// Draw tooltip for hovered sample (frame).
 		if (HoveredSample.IsValid())
 		{
+			constexpr float TooltipDesiredOpacity = 1.0f;
 			if (TooltipOpacity < TooltipDesiredOpacity)
 			{
+				// slow fade in
 				TooltipOpacity = TooltipOpacity * 0.9f + TooltipDesiredOpacity * 0.1f;
 			}
 			else
 			{
-				TooltipOpacity = TooltipDesiredOpacity;
+				// fast fade out
+				TooltipOpacity = TooltipOpacity * 0.75f + TooltipDesiredOpacity * 0.25f;
 			}
 
 			// First line: "Rendering Frame 1,234"
@@ -513,8 +516,9 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			StringBuilder.Appendf(TEXT(" (%.1f fps)"), 1.0 / HoveredSample.Sample->LargestFrameDuration);
 			const FString Text2(StringBuilder);
 
-			const FVector2D TextSize1 = FontMeasureService->Measure(Text1, SummaryFont);
-			const FVector2D TextSize2 = FontMeasureService->Measure(Text2, SummaryFont);
+			const float FontScale = DrawContext.Geometry.Scale;
+			const FVector2D TextSize1 = FontMeasureService->Measure(Text1, SummaryFont, FontScale) / FontScale;
+			const FVector2D TextSize2 = FontMeasureService->Measure(Text2, SummaryFont, FontScale) / FontScale;
 
 			const FAxisViewportInt32& ViewportX = Viewport.GetHorizontalAxisViewport();
 
@@ -524,16 +528,26 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			constexpr float DX = 3.0f;
 			const float DX1 = FMath::RoundToFloat(TextSize1.X / 2);
 			const float DX2 = FMath::RoundToFloat(TextSize2.X / 2);
-			const float BoxDX = FMath::Max(DX1, DX2) + DX;
+			const float TooltipDesiredSizeX = FMath::Max(DX1, DX2) + DX;
+
+			if (TooltipSizeX != TooltipDesiredSizeX)
+			{
+				TooltipSizeX = TooltipSizeX * 0.75f + TooltipDesiredSizeX * 0.25f;
+
+				if (FMath::IsNearlyEqual(TooltipSizeX, TooltipDesiredSizeX))
+				{
+					TooltipSizeX = TooltipDesiredSizeX;
+				}
+			}
 
 			float CX = CX0;
-			if (CX > ViewportX.GetSize() - BoxDX)
+			if (CX > ViewportX.GetSize() - TooltipSizeX)
 			{
-				CX = FMath::RoundToFloat(ViewportX.GetSize() - BoxDX);
+				CX = FMath::RoundToFloat(ViewportX.GetSize() - TooltipSizeX);
 			}
-			if (CX - BoxDX < 0)
+			if (CX - TooltipSizeX < 0)
 			{
-				CX = BoxDX;
+				CX = TooltipSizeX;
 			}
 
 			constexpr float BoxY = 11.0f;
@@ -541,7 +555,7 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			constexpr float LineDY = 12.0f;
 
 			const FLinearColor BackgroundColor(0.9f, 0.9f, 0.9f, TooltipOpacity);
-			DrawContext.DrawBox(CX - BoxDX, BoxY, 2 * BoxDX, BoxH, WhiteBrush, BackgroundColor);
+			DrawContext.DrawBox(CX - TooltipSizeX, BoxY, 2 * TooltipSizeX, BoxH, WhiteBrush, BackgroundColor);
 			const int32 ArrowSize = 4;
 			for (int32 ArrowY = 0; ArrowY < ArrowSize; ++ArrowY)
 			{
@@ -561,6 +575,10 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			DrawContext.DrawText(CX - DX2, BoxY + LineDY + 1.0f, Text2, SummaryFont, TextColor2);
 			DrawContext.LayerId++;
 		}
+		else
+		{
+			TooltipOpacity = 0.0f;
+		}
 
 		Stopwatch.Stop();
 		DrawDurationHistory.AddValue(Stopwatch.AccumulatedTime);
@@ -570,7 +588,8 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	const bool bShouldDisplayDebugInfo = FInsightsManager::Get()->IsDebugInfoEnabled();
 	if (bShouldDisplayDebugInfo)
 	{
-		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;
+		const float FontScale = DrawContext.Geometry.Scale;
+		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont, FontScale).Y / FontScale;
 		const float DbgDY = MaxFontCharHeight;
 
 		const float DbgW = 280.0f;
@@ -657,6 +676,7 @@ void SFrameTrack::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBr
 	const FLinearColor TextBgColor(0.05f, 0.05f, 0.05f, 1.0f);
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	const float FontScale = DrawContext.Geometry.Scale;
 
 	// Available axis, pre-ordered by value.
 	struct FAxis
@@ -774,7 +794,7 @@ void SFrameTrack::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBr
 								  (Axis.Value <= 1.0) ? FString::Printf(TEXT("%s (%.0f fps)"), *TimeUtils::FormatTimeAuto(Axis.Value), 1.0 / Axis.Value) :
 														TimeUtils::FormatTimeAuto(Axis.Value);
 
-		const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font);
+		const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font, FontScale) / FontScale;
 		const float LabelX = bDrawVerticalAxisLabelsOnLeftSide ? 0.0f : ViewWidth - LabelTextSize.X - 4.0f;
 
 		// Draw background for value text.
@@ -845,6 +865,7 @@ void SFrameTrack::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlate
 		else
 		{
 			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+			const float FontScale = DrawContext.Geometry.Scale;
 
 			// Draw labels.
 			const FLinearColor LabelBoxColor(0.05f, 0.05f, 0.05f, 1.0f);
@@ -853,7 +874,7 @@ void SFrameTrack::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlate
 			{
 				const float X = FMath::RoundToFloat(ViewportX.GetOffsetForValue(Index));
 				const FString LabelText = FText::AsNumber(Index).ToString();
-				const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font);
+				const FVector2D LabelTextSize = FontMeasureService->Measure(LabelText, Font, FontScale) / FontScale;
 				DrawContext.DrawBox(X, 10.0f, LabelTextSize.X + 4.0f, 12.0f, Brush, LabelBoxColor);
 				DrawContext.DrawText(X + 2.0f, 10.0f, LabelText, Font, LabelTextColor);
 			}

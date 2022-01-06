@@ -140,7 +140,7 @@ half2 SunConstDepthMaskScaleBias()
 void SunMaskPS_Mobile(
 	float4 InUVPos : TEXCOORD0,
 	out HALF_TYPE OutSunShaftAndDof : SV_Target0
-#if !MOBILE_USEDEPTHTEXTURE
+#if MOBILE_USESUN && METAL_MSAA_HDR_DECODE
 	, out HALF4_TYPE OutColor : SV_Target1
 #endif
 	)
@@ -157,6 +157,7 @@ void SunMaskPS_Mobile(
 
 		#if METAL_MSAA_HDR_DECODE
 			SceneColor.rgb *= rcp(SceneColor.r*(-0.299) + SceneColor.g*(-0.587) + SceneColor.b*(-0.114) + 1.0);
+			OutColor = SceneColor;
 		#endif
 
 		half2 DepthMaskScaleBias = SunConstDepthMaskScaleBias();
@@ -176,10 +177,6 @@ void SunMaskPS_Mobile(
 
 	#if MOBILE_USEDOF
 		OutSunShaftAndDof += Coc2(InDepth);
-	#endif
-
-	#if !MOBILE_USEDEPTHTEXTURE
-		OutColor = SceneColor;
 	#endif
 }
 

@@ -1602,7 +1602,9 @@ void FGrid::FindInnerFacePoints()
 		}
 	}
 
-	DisplayLoop(TEXT("FGrid::Loop 2D After move according tol"), GetLoops2D(EGridSpace::UniformScaled), true, false);
+#ifdef DEBUG_FIND_INNER_FACE_POINTS
+	DisplayGridLoop(TEXT("FGrid::Loop 2D After move according tol"), GetLoops2D(EGridSpace::UniformScaled), true, false);
+#endif
 
 	// Intersection along U axis
 	for (const TArray<FPoint2D>& Loop : FaceLoops2D[EGridSpace::UniformScaled])
@@ -1813,124 +1815,6 @@ void FGrid::FindInnerFacePoints()
 	}
 
 	Chronos.FindInnerDomainPointsDuration += FChrono::Elapse(StartTime);
-}
-
-void FGrid::DisplayGridPoints(EGridSpace DisplaySpace) const
-{
-	if (!bDisplay)
-	{
-		return;
-	}
-	int32 NbNum = 0;
-	{
-		F3DDebugSession _(TEXT("FGrid::FindInnerDomainPoints Inside Point"));
-		for (int32 Index = 0; Index < CuttingSize; ++Index)
-		{
-			if (IsInsideFace[Index])
-			{
-				DisplayPoint(Points2D[DisplaySpace][Index], Index);
-				NbNum++;
-			}
-		}
-	}
-	ensureCADKernel(NbNum == CountOfInnerNodes);
-
-	{
-		F3DDebugSession _(TEXT("FGrid::FindInnerDomainPoints Outside Point"));
-		for (int32 Index = 0; Index < CuttingSize; ++Index)
-		{
-			if (!IsInsideFace[Index])
-			{
-				DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::OrangePoint, Index);
-			}
-		}
-	}
-}
-
-void FGrid::DisplayGridNormal() const
-{
-	if (!bDisplay)
-	{
-		return;
-	}
-
-	double NormalLength = FSystem::Get().GetVisu()->GetParameters()->NormalLength;
-	{
-		F3DDebugSession _(TEXT("FGrid::Inner Normal"));
-
-		for (int32 Index = 0; Index < CuttingSize; ++Index)
-		{
-			F3DDebugSegment GraphicSegment(Index);
-			FVector Normal = Normals[Index];
-			Normal.Normalize();
-			Normal *= NormalLength;
-			DrawSegment(Points3D[Index], Points3D[Index] + Normal, EVisuProperty::GreenCurve);
-		}
-	}
-
-	{
-		F3DDebugSession _(TEXT("FGrid::Loop Normal"));
-		for (int32 LoopIndex = 0; LoopIndex < FaceLoops3D.Num(); ++LoopIndex)
-		{
-			const TArray<FPoint>& LoopPoints = FaceLoops3D[LoopIndex];
-			const TArray<FVector>& LoopNormals = NormalsOfFaceLoops[LoopIndex];
-
-			for (int32 Index = 0; Index < LoopPoints.Num(); ++Index)
-			{
-				F3DDebugSegment GraphicSegment(Index);
-				FVector Normal = LoopNormals[Index];
-				Normal.Normalize();
-				Normal *= NormalLength;
-				DrawSegment(LoopPoints[Index], LoopPoints[Index] + Normal, EVisuProperty::YellowCurve);
-			}
-		}
-	}
-}
-
-
-void FGrid::DisplayFindPointsCloseToLoop(EGridSpace DisplaySpace) const
-{
-	if (!bDisplay)
-	{
-		return;
-	}
-
-	F3DDebugSession _(TEXT("FGrid::FindPointsClosedToLoop result"));
-	for (int32 Index = 0; Index < CuttingSize; ++Index)
-	{
-		if (IsCloseToLoop[Index])
-		{
-			DisplayPoint(Points2D[DisplaySpace][Index]);
-		}
-		else
-		{
-			DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::YellowPoint);
-		}
-	}
-}
-
-void FGrid::DisplayGridInnerPoints(EGridSpace DisplaySpace, TCHAR* Message) const
-{
-	if (!bDisplay)
-	{
-		return;
-	}
-
-	F3DDebugSession _(Message);
-	for (int32 Index = 0; Index < CuttingSize; ++Index)
-	{
-		if (IsInsideFace[Index])
-		{
-			if (IsCloseToLoop[Index])
-			{
-				DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::BluePoint, Index);
-			}
-			else
-			{
-				DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::YellowPoint, Index);
-			}
-		}
-	}
 }
 
 bool FGrid::CheckIfDegenerated()

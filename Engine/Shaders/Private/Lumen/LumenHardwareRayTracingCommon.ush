@@ -198,7 +198,7 @@ struct FRayTracedLightingResult
 	float3 Radiance;
 
 	float3 WorldVelocity;
-	uint MeshCardsIndex;
+	bool bValidSurfaceCache;
 	uint MaterialShaderIndex;
 	FLumenRayHitBookmark Bookmark;
 };
@@ -213,7 +213,7 @@ FRayTracedLightingResult CreateRayTracedLightingResult()
 	Result.bIsRadianceCompleted = true;
 	Result.Radiance = 0;
 	Result.WorldVelocity = 0;
-	Result.MeshCardsIndex = LUMEN_INVALID_CARD_INDEX;
+	Result.bValidSurfaceCache = false;
 	Result.MaterialShaderIndex = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
 	Result.Bookmark.PackedData[0] = 0xFFFFFFFF;
 	Result.Bookmark.PackedData[1] = 0xFFFFFFFF;
@@ -352,7 +352,7 @@ float3 CalculateSurfaceCacheLighting(
 	uint SceneInstanceIndex,
 	float3 DiffuseColor,
 	int LightingMode,
-	inout uint MeshCardsIndex
+	inout bool bValidSurfaceCache
 )
 {
 	float3 Radiance = 0;
@@ -376,7 +376,7 @@ float3 CalculateSurfaceCacheLighting(
 		Context.bHiResSurface,
 		AtlasId
 	);
-	MeshCardsIndex = SurfaceCacheSample.MeshCardsIndex;
+	bValidSurfaceCache = SurfaceCacheSample.bValid;
 
 	// Apply shading when evaluating the material
 	if (LightingMode != LIGHTING_FROM_SURFACE_CACHE)
@@ -394,7 +394,7 @@ float3 CalculateRayTracedLightingFromSurfaceCache(
 	FLumenMinimalPayload Payload,
 	float HitDistance,
 	uint SceneInstanceIndex,
-	inout uint MeshCardsIndex
+	inout uint bValidSurfaceCache
 )
 {
 	float3 Radiance = 0;
@@ -402,7 +402,7 @@ float3 CalculateRayTracedLightingFromSurfaceCache(
 	float3 RayHitWorldNormal = Payload.GetWorldNormal();
 	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
 	float3 DiffuseColor = 0;
-	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE, MeshCardsIndex);
+	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE, bValidSurfaceCache);
 	return Radiance;
 }
 
@@ -491,8 +491,8 @@ float3 CalculateRayTracedLighting(
 	}
 	else
 	{
-		uint MeshCardsIndex;
-		Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode, MeshCardsIndex);
+		bool bValidSurfaceCache = false;
+		Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, HitDistance, SceneInstanceIndex, DiffuseColor, LightingMode, bValidSurfaceCache);
 	}
 	return Radiance;
 }
@@ -597,7 +597,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 		}
 
 		uint SceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
-		Result.Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, Result.TraceHitDistance, SceneInstanceIndex, Result.MeshCardsIndex);
+		Result.Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, Result.TraceHitDistance, SceneInstanceIndex, Result.bValidSurfaceCache);
 	}
 #endif
 
@@ -624,12 +624,12 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 			Result.bIsFarField = true;
 
 			uint SceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
-			Result.Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, Result.TraceHitDistance, SceneInstanceIndex, Result.MeshCardsIndex);
+			Result.Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, Result.TraceHitDistance, SceneInstanceIndex, Result.bValidSurfaceCache);
 		}
 	}
 #endif // ENABLE_FAR_FIELD_TRACING
 
-	Result.bIsRadianceCompleted = Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX;
+	Result.bIsRadianceCompleted = Result.bValidSurfaceCache;
 
 	// Force a black hit when reached max iterations without hitting anything
 	if (!Result.bIsHit && !Result.bIsCompleted)

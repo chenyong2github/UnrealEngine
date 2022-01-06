@@ -788,6 +788,26 @@ void FMeshBuildSettingsLayout::GenerateChildContent( IDetailChildrenBuilder& Chi
 	}
 
 	{
+		ChildrenBuilder.AddCustomRow(LOCTEXT("MaxLumenMeshCards", "Max Lumen Mesh Cards"))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("MaxLumenMeshCards", "Max Lumen Mesh Cards"))
+			]
+		.ValueContent()
+			[
+				SNew(SSpinBox<int32>)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			.MinValue(0)
+			.MaxValue(32)
+			.Value(this, &FMeshBuildSettingsLayout::GetMaxLumenMeshCards)
+			.OnValueChanged(this, &FMeshBuildSettingsLayout::OnMaxLumenMeshCardsChanged)
+			.OnValueCommitted(this, &FMeshBuildSettingsLayout::OnMaxLumenMeshCardsCommitted)
+			];
+	}
+
+	{
 		ChildrenBuilder.AddCustomRow( LOCTEXT("ApplyChanges", "Apply Changes") )
 		.RowTag("ApplyChanges")
 		.ValueContent()
@@ -917,6 +937,11 @@ TOptional<float> FMeshBuildSettingsLayout::GetBuildScaleZ() const
 float FMeshBuildSettingsLayout::GetDistanceFieldResolutionScale() const
 {
 	return BuildSettings.DistanceFieldResolutionScale;
+}
+
+int32 FMeshBuildSettingsLayout::GetMaxLumenMeshCards() const
+{
+	return BuildSettings.MaxLumenMeshCards;
 }
 
 void FMeshBuildSettingsLayout::OnRecomputeNormalsChanged(ECheckBoxState NewState)
@@ -1143,6 +1168,21 @@ void FMeshBuildSettingsLayout::OnDistanceFieldResolutionScaleCommitted(float New
 	}
 	OnDistanceFieldResolutionScaleChanged(NewValue);
 }
+
+void FMeshBuildSettingsLayout::OnMaxLumenMeshCardsChanged(int32 NewValue)
+{
+	BuildSettings.MaxLumenMeshCards = NewValue;
+}
+
+void FMeshBuildSettingsLayout::OnMaxLumenMeshCardsCommitted(int32 NewValue, ETextCommit::Type TextCommitType)
+{
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.BuildSettings"), TEXT("MaxLumenMeshCards"), FString::Printf(TEXT("%d"), NewValue));
+	}
+	OnMaxLumenMeshCardsChanged(NewValue);
+}
+
 
 FMeshReductionSettingsLayout::FMeshReductionSettingsLayout( TSharedRef<FLevelOfDetailSettingsLayout> InParentLODSettings, int32 InCurrentLODIndex, bool InCanReduceMyself)
 	: ParentLODSettings( InParentLODSettings )

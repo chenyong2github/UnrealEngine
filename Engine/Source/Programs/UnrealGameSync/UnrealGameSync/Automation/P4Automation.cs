@@ -8,8 +8,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 
@@ -23,7 +21,7 @@ namespace UnrealGameSync
 			string? UserName = null;
 			string? DepotPathSettings = null;
 
-			Utility.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref DepotPathSettings);
+			GlobalSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref DepotPathSettings);
 
 			return Utility.OverridePerforceSettings(PerforceSettings.Default, ServerAndPort, UserName);
 

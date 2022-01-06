@@ -78,16 +78,20 @@ struct TRACEINSIGHTS_API FDrawContext
 
 	inline void DrawTextAligned(EHorizontalAlignment HAlign, const float X, const float Y, const FString& Text, const FSlateFontInfo& Font, const FLinearColor& Color) const
 	{
-		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const float TextWidth = FontMeasureService->Measure(Text, Font).X;
 		float TextX = X;
-		if (HAlign == HAlign_Right)
+		if (HAlign == HAlign_Right || HAlign == HAlign_Center)
 		{
-			TextX -= TextWidth;
-		}
-		else if (HAlign == HAlign_Center)
-		{
-			TextX -= TextWidth / 2;
+			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+			const float FontScale = Geometry.Scale;
+			const float TextWidth = FontMeasureService->Measure(Text, Font, FontScale).X / FontScale;
+			if (HAlign == HAlign_Right)
+			{
+				TextX -= TextWidth;
+			}
+			else
+			{
+				TextX -= TextWidth / 2;
+			}
 		}
 		FSlateDrawElement::MakeText(ElementList, LayerId, MAKE_PAINT_GEOMETRY_PT(Geometry, TextX, Y), Text, Font, DrawEffects, Color);
 	}

@@ -11,8 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	public class PerforceLoginException : Exception
@@ -69,31 +67,36 @@ namespace UnrealGameSync
 			{
 				Func<CancellationToken, Task<T>> RunAsync = CancellationToken => LoginAndExecuteAsync(Password, ConnectAsync, ExecuteAsync, CancellationToken);
 
-				ModalTask<T>? Result = ModalTask.Execute(Owner, Title, Message, RunAsync, Flags);
-				if (Result != null && Result.Failed && Result.Exception is PerforceLoginException && (Flags & ModalTaskFlags.Quiet) == 0)
+				ModalTask<T>? Result = ModalTask.Execute(Owner, Title, Message, RunAsync, ModalTaskFlags.Quiet);
+				if (Result != null && Result.Failed && (Flags & ModalTaskFlags.Quiet) == 0)
 				{
-					string PasswordPrompt;
-					if (String.IsNullOrEmpty(Password))
+					if (Result.Exception is PerforceLoginException)
 					{
-						PasswordPrompt = $"Enter the password for user '{PerforceSettings.UserName}' on server '{PerforceSettings.ServerAndPort}'.";
-					}
-					else
-					{
-						PasswordPrompt = $"Authentication failed. Enter the password for user '{PerforceSettings.UserName}' on server '{PerforceSettings.ServerAndPort}'.";
-					}
+						string PasswordPrompt;
+						if (String.IsNullOrEmpty(Password))
+						{
+							PasswordPrompt = $"Enter the password for user '{PerforceSettings.UserName}' on server '{PerforceSettings.ServerAndPort}'.";
+						}
+						else
+						{
+							PasswordPrompt = $"Authentication failed. Enter the password for user '{PerforceSettings.UserName}' on server '{PerforceSettings.ServerAndPort}'.";
+						}
 
-					PasswordWindow PasswordWindow = new PasswordWindow(PasswordPrompt, Password);
-					if (Owner == null)
-					{
-						PasswordWindow.StartPosition = FormStartPosition.CenterScreen;
-					}
-					if (PasswordWindow.ShowDialog(Owner) != DialogResult.OK)
-					{
-						return null;
-					}
+						PasswordWindow PasswordWindow = new PasswordWindow(PasswordPrompt, Password ?? String.Empty);
+						if (Owner == null)
+						{
+							PasswordWindow.ShowInTaskbar = true;
+							PasswordWindow.StartPosition = FormStartPosition.CenterScreen;
+						}
+						if (PasswordWindow.ShowDialog(Owner) != DialogResult.OK)
+						{
+							return null;
+						}
 
-					Password = PasswordWindow.Password;
-					continue;
+						Password = PasswordWindow.Password;
+						continue;
+					}
+					MessageBox.Show(Owner, Title, Result.Error, MessageBoxButtons.OK);
 				}
 
 				return Result;

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -136,14 +137,14 @@ namespace UnrealGameSync
 			return (WorkspaceTask != null && WorkspaceTask.Succeeded) ? WorkspaceTask.Result : null;
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings DefaultPerforceSettings, string StreamName, string ProjectPath, out WorkspaceInfo? WorkspaceInfo, IServiceProvider ServiceProvider)
+		public static bool ShowModal(IWin32Window Owner, IPerforceSettings DefaultPerforceSettings, string StreamName, string ProjectPath, [NotNullWhen(true)] out WorkspaceInfo? WorkspaceInfo, IServiceProvider ServiceProvider)
 		{
 			string? WorkspaceName = FindDefaultWorkspace(Owner, DefaultPerforceSettings, StreamName, ServiceProvider);
 
 			AutomatedSyncWindow Window = new AutomatedSyncWindow(StreamName, ProjectPath, WorkspaceName, DefaultPerforceSettings, ServiceProvider);
 			if(Window.ShowDialog() == DialogResult.OK)
 			{
-				WorkspaceInfo = Window.SelectedWorkspaceInfo;
+				WorkspaceInfo = Window.SelectedWorkspaceInfo!;
 				return true;
 			}
 			else
@@ -192,7 +193,7 @@ namespace UnrealGameSync
 			OkBtn.Enabled = (WorkspaceNameTextBox.Text.Length > 0);
 		}
 
-		public static bool ValidateWorkspace(IWin32Window Owner, IPerforceSettings Perforce, string WorkspaceName, string StreamName, IServiceProvider ServiceProvider, out WorkspaceInfo? SelectedWorkspaceInfo)
+		public static bool ValidateWorkspace(IWin32Window Owner, IPerforceSettings Perforce, string WorkspaceName, string StreamName, IServiceProvider ServiceProvider, [NotNullWhen(true)] out WorkspaceInfo? SelectedWorkspaceInfo)
 		{
 			ValidateWorkspaceTask ValidateWorkspace = new ValidateWorkspaceTask(WorkspaceName, StreamName);
 

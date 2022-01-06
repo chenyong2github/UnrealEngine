@@ -171,12 +171,14 @@ public:
 			case EBakeMapType::AmbientOcclusion:
 			{
 				InitOcclusionEval(OcclusionEval);
-				OcclusionEval->OcclusionType |= EMeshOcclusionMapType::AmbientOcclusion; 
+				OcclusionEval->OcclusionType |= EMeshOcclusionMapType::AmbientOcclusion;
+				break;
 			}
 			case EBakeMapType::BentNormal:
 			{
 				InitOcclusionEval(OcclusionEval);
 				OcclusionEval->OcclusionType |= EMeshOcclusionMapType::BentNormal;
+				break;
 			}
 			case EBakeMapType::Curvature:
 			{

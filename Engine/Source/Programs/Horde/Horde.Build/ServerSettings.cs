@@ -439,6 +439,11 @@ namespace HordeServer
 		/// Channel to send device notifications to
 		/// </summary>
 		public string? DeviceServiceNotificationChannel { get; set; }
+		
+		/// <summary>
+		/// Slack channel to send job related notifications to
+		/// </summary>
+		public string? JobNotificationChannel { get; set; }
 
 		/// <summary>
 		/// URI to the SmtpServer to use for sending email notifications

@@ -123,21 +123,11 @@ void SSProfilePreIntegratedPS(
 	float UnClampedNoL = UVPos.x * 2.0f - 1.0f;
 	float Curvature = UVPos.y;
 
-	const bool bUseBurley = IsSubsurfaceProfileUseBurley();
-
 	uint SurfaceAlbedoSampleIndex = BSSS_SURFACEALBEDO_OFFSET;
 	uint DiffuseMeanFreePathSampleIndex = BSSS_DMFP_OFFSET;
 
-	if (!bUseBurley)
-	{
-		SurfaceAlbedoSampleIndex = SSSS_APPROXIMATE_SURFACEALBEDO_OFFSET;
-		DiffuseMeanFreePathSampleIndex = SSSS_APPROXIMATE_DMFP_OFFSET;
-	}
-
 	float4 SurfaceAlbedo = GetSourceSubsurfaceProfileTexture(SurfaceAlbedoSampleIndex, SourceSubsurfaceProfileInt);
-
-	float WorldUnitScale = DecodeWorldUnitScale(GetSourceSubsurfaceProfileTexture(SSSS_SUBSURFACE_COLOR_OFFSET, SourceSubsurfaceProfileInt).a) * BURLEY_CM_2_MM;
-
+	float WorldUnitScale = DecodeWorldUnitScale(GetSourceSubsurfaceProfileTexture(SSSS_TINT_SCALE_OFFSET, SourceSubsurfaceProfileInt).a) * BURLEY_CM_2_MM;
 	float4 DiffuseMeanFreePath = max(DecodeDiffuseMeanFreePath(GetSourceSubsurfaceProfileTexture(DiffuseMeanFreePathSampleIndex, SourceSubsurfaceProfileInt)) * WorldUnitScale, 0.01f);;
 
 	float CosTheta = UnClampedNoL;

@@ -93,7 +93,7 @@ private:
 	}
 
 	void UpdateTrackNameAndHeight();
-	void UpdateDrawState(const FTimingTrackViewport& Viewport);
+	void UpdateDrawState(const ITimingTrackUpdateContext& Context);
 
 	void UpdateBookmarkCategory();
 
@@ -121,7 +121,7 @@ private:
 class FTimeMarkerTrackBuilder
 {
 public:
-	explicit FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, const FTimingTrackViewport& InViewport);
+	explicit FTimeMarkerTrackBuilder(FMarkersTimingTrack& InTrack, const FTimingTrackViewport& InViewport, float InFontScale);
 
 	/**
 	 * Non-copyable
@@ -148,6 +148,7 @@ private:
 
 	const TSharedRef<class FSlateFontMeasure> FontMeasureService;
 	const FSlateFontInfo Font;
+	float FontScale;
 
 	const TraceServices::ILogProvider* LogProviderPtr; // valid only between BeginLog() and EndLog()
 

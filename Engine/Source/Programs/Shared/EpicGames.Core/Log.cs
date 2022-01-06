@@ -737,6 +737,52 @@ namespace EpicGames.Core
 	}
 
 	/// <summary>
+	/// Logger which captures the output for rendering later
+	/// </summary>
+	public class CaptureLogger : ILogger
+	{
+		class NullScope : IDisposable
+		{
+			public void Dispose() { }
+		}
+
+		/// <summary>
+		/// List of captured events
+		/// </summary>
+		public List<LogEvent> Events { get; } = new List<LogEvent>();
+
+		/// <summary>
+		/// Renders the captured events as a single string
+		/// </summary>
+		/// <returns>Rendered log text</returns>
+		public string Render() => Render("\n");
+
+		/// <summary>
+		/// Renders the captured events as a single string
+		/// </summary>
+		/// <returns>Rendered log text</returns>
+		public string Render(string NewLine) => String.Join(NewLine, RenderLines());
+
+		/// <summary>
+		/// Renders all the captured events
+		/// </summary>
+		/// <returns>List of rendered log lines</returns>
+		public List<string> RenderLines() => Events.ConvertAll(x => x.ToString());
+
+		/// <inheritdoc/>
+		public IDisposable BeginScope<TState>(TState State) => new NullScope();
+
+		/// <inheritdoc/>
+		public bool IsEnabled(LogLevel LogLevel) => true;
+
+		/// <inheritdoc/>
+		public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception? Exception, Func<TState, Exception?, string> Formatter)
+		{
+			Events.Add(LogEvent.FromState(LogLevel, EventId, State, Exception, Formatter));
+		}
+	}
+
+	/// <summary>
 	/// Default log output device
 	/// </summary>
 	class DefaultLogger : ILogger

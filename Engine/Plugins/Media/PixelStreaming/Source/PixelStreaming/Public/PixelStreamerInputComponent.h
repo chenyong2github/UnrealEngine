@@ -19,11 +19,10 @@ class PIXELSTREAMING_API UPixelStreamerInputComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-
 	UPixelStreamerInputComponent();
 	void BeginPlay() override;
 	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	
+
 	// The delegate which will be notified about a UI interaction.
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInput, const FString&, Descriptor);
 	UPROPERTY(BlueprintAssignable, Category = "PixelStreamer Input")

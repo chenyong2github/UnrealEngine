@@ -461,9 +461,23 @@ public:
 	}
 
 #if ALLOW_OTHER_PLATFORM_CONFIG
-	virtual IConsoleVariable* GetPlatformValueVariable(FName PlatformName)
+
+	/**
+	 * Get a CVar opject that matches this cvar, but contains the value of the platform given.
+	 */
+	virtual TSharedPtr<IConsoleVariable> GetPlatformValueVariable(FName PlatformName)
 	{
-		return nullptr;
+		// this could be called for some special subclass like FConsoleVariableBitRef that don't implement this (yet)
+		unimplemented();
+		return TSharedPtr<IConsoleVariable>();
+	}
+
+	/**
+	 * Used only for debugging/iterating, this will clear all of the other platform's cvar objects, which will 
+	 * force a fresh lookup (with fresh ini files, likely) on next call to GetPlatformValueVariable
+	 */
+	virtual void ClearPlatformVariables(FName PlatformName=NAME_None)
+	{
 	}
 #endif
 

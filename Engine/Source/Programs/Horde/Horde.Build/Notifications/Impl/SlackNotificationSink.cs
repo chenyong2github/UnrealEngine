@@ -278,6 +278,33 @@ namespace HordeServer.Notifications.Impl
 		}
 
 		#endregion
+		
+		/// <inheritdoc/>
+		public async Task NotifyJobScheduledAsync(IPool Pool, bool PoolHasAgentsOnline, IJob Job, IGraph Graph, SubResourceId BatchId)
+		{
+			if (Settings.JobNotificationChannel != null)
+			{
+				Logger.LogInformation("Sending Slack notification for scheduled job {JobId}, batch {BatchId} to channel {SlackChannel}", Job.Id, BatchId, Settings.JobNotificationChannel );
+				await SendJobScheduledOnEmptyAutoScaledPoolMessageAsync($"#{Settings.JobNotificationChannel}", Pool, PoolHasAgentsOnline, Job, Graph, BatchId);
+			}
+		}
+		
+		private Task SendJobScheduledOnEmptyAutoScaledPoolMessageAsync(string Recipient, IPool Pool, bool PoolHasAgentsOnline, IJob Job, IGraph Graph, SubResourceId BatchId)
+		{
+			string JobUrl = Settings.DashboardUrl + "/job/" + Job.Id;
+			
+			Color OutcomeColor = BlockKitAttachmentColors.Warning;
+			BlockKitAttachment Attachment = new BlockKitAttachment();
+			Attachment.Color = OutcomeColor;
+			Attachment.FallbackText = $"Job scheduled in an auto-scaled pool with no agents online. Job ID {Job.Id}";
+
+			Attachment.Blocks.Add(new HeaderBlock($"Job scheduled in empty pool", false, true));
+
+			Attachment.Blocks.Add(new SectionBlock($"A <{JobUrl}|job> was scheduled in an auto-scaled pool but with no current agents online."));
+			Attachment.Blocks.Add(new SectionBlock($"Job {Job.Name}\nJob ID <{JobUrl}|{Job.Id}>\nPool {Pool.Name}"));
+
+			return SendMessageAsync(Recipient, Attachments: new[] { Attachment });
+		}
 
 		#region Job Complete
 

@@ -281,7 +281,7 @@ namespace UnrealGameSync
 			LastNode.Type = Type;
 
 			// Update the maximums along that path
-			for (FileFilterNode UpdateNode = LastNode; UpdateNode != null; UpdateNode = UpdateNode.Parent)
+			for (FileFilterNode? UpdateNode = LastNode; UpdateNode != null; UpdateNode = UpdateNode.Parent)
 			{
 				if (Type == FileFilterType.Include)
 				{
@@ -437,7 +437,7 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Node which this is parented to. Null for the root node.
 		/// </summary>
-		public readonly FileFilterNode Parent;
+		public readonly FileFilterNode? Parent;
 
 		/// <summary>
 		/// Pattern to match for this node. May contain * or ? wildcards.
@@ -472,7 +472,7 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Default constructor.
 		/// </summary>
-		public FileFilterNode(FileFilterNode InParent, string InPattern)
+		public FileFilterNode(FileFilterNode? InParent, string InPattern)
 		{
 			Parent = InParent;
 			Pattern = InPattern;

@@ -243,7 +243,7 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 	
 	if (!FDisplayClusterConfiguratorUtils::IsPrimaryNodeInConfig(BlueprintData))
 	{
-		MessageLog.Warning(*LOCTEXT("NoPrimaryNodeWarning", "Primary cluster node not set. Please set a primary node.").ToString());
+		MessageLog.Error(*LOCTEXT("NoPrimaryNodeError", "Primary cluster node not set. Please set a primary node.").ToString());
 	}
 
 	bool bAtLeastOneViewportFound = false;

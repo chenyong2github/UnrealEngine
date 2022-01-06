@@ -13,52 +13,6 @@
 
 DEFINE_LOG_CATEGORY(LogOculusOpenXRPlugin);
 
-bool FOculusOpenXRHMD::GetCustomLoader(PFN_xrGetInstanceProcAddr* OutGetProcAddr)
-{
-#if PLATFORM_ANDROID
-	// clear errors
-	dlerror();
-
-	LoaderHandle = FPlatformProcess::GetDllHandle(TEXT("libopenxr_loader.so"));
-	if (LoaderHandle == nullptr)
-	{
-		UE_LOG(LogOculusOpenXRPlugin, Error, TEXT("Unable to load libopenxr_loader.so, error %s"), ANSI_TO_TCHAR(dlerror()));
-		return false;
-	}
-
-	// clear errors
-	dlerror();
-
-	PFN_xrGetInstanceProcAddr xrGetInstanceProcAddrPtr = (PFN_xrGetInstanceProcAddr)FPlatformProcess::GetDllExport(LoaderHandle, TEXT("xrGetInstanceProcAddr"));
-	if (xrGetInstanceProcAddrPtr == nullptr)
-	{
-		UE_LOG(LogOculusOpenXRPlugin, Error, TEXT("Unable to load OpenXR xrGetInstanceProcAddr, error %s"), ANSI_TO_TCHAR(dlerror()));
-		return false;
-	}
-	*OutGetProcAddr = xrGetInstanceProcAddrPtr;
-
-	extern struct android_app* GNativeAndroidApp;
-	PFN_xrInitializeLoaderKHR xrInitializeLoaderKHR;
-	xrGetInstanceProcAddrPtr(XR_NULL_HANDLE, "xrInitializeLoaderKHR", (PFN_xrVoidFunction*)&xrInitializeLoaderKHR);
-	if (xrInitializeLoaderKHR == nullptr)
-	{
-		UE_LOG(LogOculusOpenXRPlugin, Error, TEXT("Unable to load OpenXR xrInitializeLoaderKHR"));
-		return false;
-	}
-	XrLoaderInitInfoAndroidKHR LoaderInitializeInfoAndroid;
-	LoaderInitializeInfoAndroid.type = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
-	LoaderInitializeInfoAndroid.next = NULL;
-	LoaderInitializeInfoAndroid.applicationVM = GNativeAndroidApp->activity->vm;
-	LoaderInitializeInfoAndroid.applicationContext = GNativeAndroidApp->activity->clazz;
-	XR_ENSURE(xrInitializeLoaderKHR((XrLoaderInitInfoBaseHeaderKHR*)&LoaderInitializeInfoAndroid));
-
-	UE_LOG(LogOculusOpenXRPlugin, Log, TEXT("Loaded Oculus OpenXR Loader"));
-	return true;
-#else //PLATFORM_ANDROID
-	return false;
-#endif //PLATFORM_ANDROID
-}
-
 bool FOculusOpenXRHMD::GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions)
 {
 	return true;
@@ -147,6 +101,8 @@ const void* FOculusOpenXRHMD::OnEndProjectionLayer(XrSession InSession, int32 In
 	// XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT is required right now because the Oculus mobile runtime blends using alpha otherwise,
 	// and we don't have proper inverse alpha support in OpenXR yet (once OpenXR supports inverse alpha, or we change the runtime behavior, remove this)
 	OutFlags |= XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT;
+	OutFlags |= XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
+
 	return InNext;
 }
 

@@ -159,7 +159,7 @@ private:
 	};
 
 public:
-	explicit FPacketContentViewDrawStateBuilder(FPacketContentViewDrawState& InState, const FPacketContentViewport& InViewport);
+	explicit FPacketContentViewDrawStateBuilder(FPacketContentViewDrawState& InState, const FPacketContentViewport& InViewport, float InFontScale);
 
 	/**
 	 * Non-copyable
@@ -185,6 +185,7 @@ private:
 	TArray<FBoxData> LastBox;
 
 	const FSlateFontInfo EventFont;
+	float FontScale;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

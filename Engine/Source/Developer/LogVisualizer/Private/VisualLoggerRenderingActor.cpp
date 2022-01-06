@@ -3,13 +3,8 @@
 #include "VisualLoggerRenderingActor.h"
 #include "AI/NavigationSystemBase.h"
 #include "VisualLogger/VisualLogger.h"
-#include "LogVisualizerSettings.h"
 #include "VisualLoggerDatabase.h"
 #include "LogVisualizerPublic.h"
-#if WITH_EDITOR
-#include "GeomTools.h"
-#endif // WITH_EDITOR
-#include "VisualLoggerRenderingComponent.h"
 
 AVisualLoggerRenderingActor::AVisualLoggerRenderingActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -18,6 +13,7 @@ AVisualLoggerRenderingActor::AVisualLoggerRenderingActor(const FObjectInitialize
 	{
 		FVisualLoggerDatabase::Get().GetEvents().OnItemSelectionChanged.AddUObject(this, &AVisualLoggerRenderingActor::OnItemSelectionChanged);
 		FVisualLoggerDatabase::Get().GetEvents().OnRowSelectionChanged.AddUObject(this, &AVisualLoggerRenderingActor::ObjectSelectionChanged);
+		FVisualLoggerDatabase::Get().GetEvents().OnRowChangedVisibility.AddUObject(this, &AVisualLoggerRenderingActor::ObjectVisibilityChanged);
 
 		FLogVisualizer::Get().GetEvents().OnFiltersChanged.AddUObject(this, &AVisualLoggerRenderingActor::OnFiltersChanged);
 	}
@@ -33,8 +29,28 @@ AVisualLoggerRenderingActor::~AVisualLoggerRenderingActor()
 	{
 		FVisualLoggerDatabase::Get().GetEvents().OnItemSelectionChanged.RemoveAll(this);
 		FVisualLoggerDatabase::Get().GetEvents().OnRowSelectionChanged.RemoveAll(this);
+		FVisualLoggerDatabase::Get().GetEvents().OnRowChangedVisibility.RemoveAll(this);
 		FLogVisualizer::Get().GetEvents().OnFiltersChanged.RemoveAll(this);
 	}
+}
+
+void AVisualLoggerRenderingActor::ObjectVisibilityChanged(const FName& RowName)
+{
+	if (DebugShapesPerRow.Contains(RowName) == false)
+	{
+		return;
+	}
+
+	FTimelineDebugShapes& ShapesCache = DebugShapesPerRow[RowName];
+	ShapesCache.Reset();
+
+	if (FVisualLoggerDatabase::Get().IsRowVisible(RowName))
+	{
+		const FVisualLoggerDBRow &DBRow = FVisualLoggerDatabase::Get().GetRowByName(RowName);
+		GetDebugShapes(DBRow.GetItems()[DBRow.GetCurrentItemIndex()].Entry, true, ShapesCache);
+	}
+
+	MarkComponentsRenderStateDirty();
 }
 
 void AVisualLoggerRenderingActor::ObjectSelectionChanged(const TArray<FName>& Selection)
@@ -74,14 +90,14 @@ void AVisualLoggerRenderingActor::ObjectSelectionChanged(const TArray<FName>& Se
 	MarkComponentsRenderStateDirty();
 }
 
-void AVisualLoggerRenderingActor::OnItemSelectionChanged(const FVisualLoggerDBRow& DBRow, int32 ItemIndex)
+void AVisualLoggerRenderingActor::OnItemSelectionChanged(const FVisualLoggerDBRow& DBRow, const int32 ItemIndex)
 {
 	const FName RowName = DBRow.GetOwnerName();
 
 	const TMap<FName, FVisualLogExtensionInterface*>& AllExtensions = FVisualLogger::Get().GetAllExtensions();
 	for (auto& Extension : AllExtensions)
 	{
-		Extension.Value->DrawData(FVisualLoggerEditorInterface::Get(), NULL);
+		Extension.Value->DrawData(FVisualLoggerEditorInterface::Get(), nullptr);
 	}
 
 	if (DebugShapesPerRow.Contains(RowName) == false)
@@ -115,7 +131,7 @@ void AVisualLoggerRenderingActor::OnFiltersChanged()
 	const TMap<FName, FVisualLogExtensionInterface*>& AllExtensions = FVisualLogger::Get().GetAllExtensions();
 	for (auto& Extension : AllExtensions)
 	{
-		Extension.Value->DrawData(FVisualLoggerEditorInterface::Get(), NULL);
+		Extension.Value->DrawData(FVisualLoggerEditorInterface::Get(), nullptr);
 	}
 
 	DebugShapesPerRow.Reset();
@@ -183,7 +199,7 @@ void AVisualLoggerRenderingActor::AddDebugRendering()
 }
 #endif
 
-void AVisualLoggerRenderingActor::IterateDebugShapes(TFunction<void(const AVisualLoggerRenderingActorBase::FTimelineDebugShapes& Shapes)> Callback)
+void AVisualLoggerRenderingActor::IterateDebugShapes(const TFunction<void(const AVisualLoggerRenderingActorBase::FTimelineDebugShapes& Shapes)> Callback)
 {
 	for (auto& CurrentShapes : DebugShapesPerRow)
 	{

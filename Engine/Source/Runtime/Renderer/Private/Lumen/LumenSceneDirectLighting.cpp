@@ -909,7 +909,6 @@ void SampleShadowMap(
 			Light.LightSceneInfo,
 			ShadowSetup.DenseShadowMap,
 			0,
-			bUseDenseShadowMap,
 			PassParameters->VolumeShadowingShaderParameters);
 		
 		PassParameters->VirtualShadowMapId = ShadowSetup.VirtualShadowMapId;

@@ -59,8 +59,6 @@ public:
 
 	void BuildHLOD(bool bForceBuild = false);
 	uint32 GetHLODHash() const;
-
-	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 #endif // WITH_EDITOR
 
 protected:

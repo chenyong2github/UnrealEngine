@@ -20,13 +20,10 @@ namespace
 			{
 				// either a 0,0,1 or 0,0,0,1 sequence indicates a new 'nal'
 				size_t nal_maker_length = 3;
-				if (offset < (CodedDataSize - 3) && CodedData[offset] == 0 &&
-					CodedData[offset + 1] == 0 && CodedData[offset + 2] == 1)
+				if (offset < (CodedDataSize - 3) && CodedData[offset] == 0 && CodedData[offset + 1] == 0 && CodedData[offset + 2] == 1)
 				{
 				}
-				else if (offset < (CodedDataSize - 4) && CodedData[offset] == 0 &&
-					CodedData[offset + 1] == 0 && CodedData[offset + 2] == 0 &&
-					CodedData[offset + 3] == 1)
+				else if (offset < (CodedDataSize - 4) && CodedData[offset] == 0 && CodedData[offset + 1] == 0 && CodedData[offset + 2] == 0 && CodedData[offset + 3] == 1)
 				{
 					nal_maker_length = 4;
 				}
@@ -76,7 +73,6 @@ namespace
 			FragHeader.fragmentationLength[i] = NALUIndex.payload_size;
 		}
 
-
 		Image.timing_.packetization_finish_ms = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMilliseconds();
 		Image.timing_.encode_start_ms = InPacket.Timings.StartTs.GetTotalMilliseconds();
 		Image.timing_.encode_finish_ms = InPacket.Timings.FinishTs.GetTotalMilliseconds();
@@ -103,11 +99,11 @@ namespace
 
 		Factory->OnEncodedImage(SourceEncoderId, Image, &CodecInfo, &FragHeader);
 	}
-}
+} // namespace
 
 FPixelStreamingRealEncoder::FPixelStreamingRealEncoder(uint64 EncoderId, int Width, int Height, int MaxBitrate, int TargetBitrate, int MaxFramerate, FPixelStreamingVideoEncoderFactory* InFactory)
-:Id(EncoderId)
-,Factory(InFactory)
+	: Id(EncoderId)
+	, Factory(InFactory)
 {
 	checkf(Factory, TEXT("Encoder factory is null."));
 
@@ -125,8 +121,7 @@ FPixelStreamingRealEncoder::FPixelStreamingRealEncoder(uint64 EncoderId, int Wid
 	Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, FrameFactory.GetOrCreateVideoEncoderInput(EncoderConfig.Width, EncoderConfig.Height), EncoderConfig);
 	checkf(Encoder, TEXT("Pixel Streaming video encoder creation failed, check encoder config."));
 
-	Encoder->SetOnEncodedPacket([EncoderId, InFactory](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket)
-	{
+	Encoder->SetOnEncodedPacket([EncoderId, InFactory](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) {
 		OnEncodedPacket(EncoderId, InFactory, InLayerIndex, InFrame, InPacket);
 	});
 }

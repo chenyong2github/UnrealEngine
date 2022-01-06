@@ -17,6 +17,17 @@ namespace HordeServer.Notifications
 	public interface INotificationSink
 	{
 		/// <summary>
+		/// Send notifications that a job has been scheduled
+		/// </summary>
+		/// <param name="Pool">Pool for which job scheduled in</param>
+		/// <param name="PoolHasAgentsOnline">True if there are agents online in the pool</param>
+		/// <param name="Job">The job containing the batch that has been scheduled</param>
+		/// <param name="Graph">Graph used for the job</param>
+		/// <param name="BatchId">The batch id</param>
+		/// <returns>Async task</returns>
+		Task NotifyJobScheduledAsync(IPool Pool, bool PoolHasAgentsOnline, IJob Job, IGraph Graph, SubResourceId BatchId);
+		
+		/// <summary>
 		/// Send notifications that a job has completed
 		/// </summary>
 		/// <param name="JobStream"></param>

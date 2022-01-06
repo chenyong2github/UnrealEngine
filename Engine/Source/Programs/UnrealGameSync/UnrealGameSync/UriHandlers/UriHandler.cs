@@ -22,8 +22,8 @@ namespace UnrealGameSync
 	class UriResult
 	{
 		public bool Success = false;
-		public string Error;
-		public AutomationRequest Request = null;
+		public string? Error;
+		public AutomationRequest? Request = null;
 	}
 
 	/// <summary>
@@ -38,7 +38,7 @@ namespace UnrealGameSync
 				Uri Uri = new Uri(UriIn);
 
 				// Check if this is a registered uri request
-				if (!Handlers.TryGetValue(Uri.Host, out MethodInfo Info))
+				if (!Handlers.TryGetValue(Uri.Host, out MethodInfo? Info))
 				{
 					return new UriResult() { Error = string.Format("Unknown Uri {0}", Uri.Host) };
 				}
@@ -58,7 +58,7 @@ namespace UnrealGameSync
 							return new UriResult() { Error = string.Format("Uri {0} is missing required parameter {1}", Uri.Host, Param.Name) };
 						}
 
-						Parameters.Add(Param.DefaultValue);
+						Parameters.Add(Param.DefaultValue!);
 						continue;
 					}
 
@@ -102,7 +102,7 @@ namespace UnrealGameSync
 
 				}
 
-				return Info.Invoke(null, Parameters.ToArray()) as UriResult;					
+				return (UriResult)Info.Invoke(null, Parameters.ToArray())!;					
 			}
 			catch (Exception Ex)
 			{
@@ -117,7 +117,7 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Handle URI passed in via command lines
 		/// </summary>
-		public static bool ProcessCommandLine(string[] Args, bool FirstInstance, EventWaitHandle ActivateEvent = null)
+		public static bool ProcessCommandLine(string[] Args, bool FirstInstance, EventWaitHandle? ActivateEvent = null)
 		{
 			if (Args.Any(x => x.Equals(InstallHandlerArg, StringComparison.OrdinalIgnoreCase)))
 			{
@@ -171,14 +171,14 @@ namespace UnrealGameSync
 					return true;
 				}
 
-				MethodInfo Handler;
+				MethodInfo? Handler;
 				if (!Handlers.TryGetValue(Uri.Host, out Handler))
 				{
 					MessageBox.Show(String.Format("Unknown action from URI request ('{0}')", Uri.Host));
 					return true;
 				}
 
-				UriHandlerAttribute Attribute = Handler.GetCustomAttribute<UriHandlerAttribute>();
+				UriHandlerAttribute Attribute = Handler.GetCustomAttribute<UriHandlerAttribute>()!;
 
 				// handle case where we terminate after invoking handler
 				if (Attribute.Terminate)
@@ -283,10 +283,10 @@ namespace UnrealGameSync
 		{
 			public RegistryKey RootKey;
 			public string KeyName;
-			public string ValueName;
+			public string? ValueName;
 			public string Value;
 
-			public RegistrySetting(RegistryKey RootKey, string KeyName, string ValueName, string Value)
+			public RegistrySetting(RegistryKey RootKey, string KeyName, string? ValueName, string Value)
 			{
 				this.RootKey = RootKey;
 				this.KeyName = KeyName;

@@ -247,6 +247,15 @@ namespace LowLevelTasks
 		inline const TCHAR* GetDebugName() const;
 		inline ETaskPriority GetPriority() const;
 		inline bool IsBackgroundTask() const;
+		inline bool AllowBusyWaiting() const;
+
+		struct FInitData
+		{
+			const TCHAR* DebugName;
+			ETaskPriority Priority;
+			bool bAllowBusyWaiting;
+		};
+		inline FInitData GetInitData() const;
 
 		void* GetUserData() const { return UserData; }
 		void SetUserData(void* NewUserData) const { UserData = NewUserData; }
@@ -263,7 +272,6 @@ namespace LowLevelTasks
 		//after calling this function the task can be considered dead
 		inline void ExecuteTask();
 		CORE_API void InheritParentData(const TCHAR*& DebugName, ETaskPriority& Priority);
-		inline bool AllowBusyWaiting() const;
 	};
 
    /******************
@@ -407,6 +415,12 @@ namespace LowLevelTasks
 	inline bool FTask::AllowBusyWaiting() const
 	{
 		return PackedData.load(std::memory_order_relaxed).AllowBusyWaiting();
+	}
+
+	inline FTask::FInitData FTask::GetInitData() const
+	{
+		FPackedData LocalPackedData = PackedData.load(std::memory_order_relaxed);
+		return { LocalPackedData.GetDebugName(), LocalPackedData.GetPriority(), LocalPackedData.AllowBusyWaiting() };
 	}
 
 	enum class ESleepState

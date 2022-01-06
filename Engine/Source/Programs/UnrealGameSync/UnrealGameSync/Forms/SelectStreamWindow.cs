@@ -322,7 +322,7 @@ namespace UnrealGameSync
 			return bExpand || (SelectedStream == Stream.Record.Stream);
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings Perforce, string StreamName, IServiceProvider ServiceProvider, out string? NewStreamName)
+		public static bool ShowModal(IWin32Window Owner, IPerforceSettings Perforce, string StreamName, IServiceProvider ServiceProvider, [NotNullWhen(true)] out string? NewStreamName)
 		{
 			ILogger Logger = ServiceProvider.GetRequiredService<ILogger<SelectStreamWindow>>();
 
@@ -334,7 +334,7 @@ namespace UnrealGameSync
 			}
 
 			SelectStreamWindow SelectStream = new SelectStreamWindow(StreamsTask.Result, StreamName);
-			if(SelectStream.ShowDialog(Owner) == DialogResult.OK)
+			if(SelectStream.ShowDialog(Owner) == DialogResult.OK && SelectStream.SelectedStream != null)
 			{
 				NewStreamName = SelectStream.SelectedStream;
 				return true;

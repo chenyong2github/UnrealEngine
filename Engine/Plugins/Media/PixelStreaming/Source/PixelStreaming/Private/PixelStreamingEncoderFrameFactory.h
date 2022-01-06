@@ -13,28 +13,27 @@
 */
 class FPixelStreamingEncoderFrameFactory
 {
-    public:
-        FPixelStreamingEncoderFrameFactory();
-        ~FPixelStreamingEncoderFrameFactory();
-        AVEncoder::FVideoEncoderInputFrame* GetFrameAndSetTexture(int InWidth, int InHeight, FTexture2DRHIRef InTexture);
-        TSharedPtr<AVEncoder::FVideoEncoderInput> GetOrCreateVideoEncoderInput(int InWidth, int InHeight);
-        void SetResolution(int InWidth, int InHeight);
+public:
+	FPixelStreamingEncoderFrameFactory();
+	~FPixelStreamingEncoderFrameFactory();
+	AVEncoder::FVideoEncoderInputFrame* GetFrameAndSetTexture(int InWidth, int InHeight, FTexture2DRHIRef InTexture);
+	TSharedPtr<AVEncoder::FVideoEncoderInput> GetOrCreateVideoEncoderInput(int InWidth, int InHeight);
+	void SetResolution(int InWidth, int InHeight);
 
-    private:
-        AVEncoder::FVideoEncoderInputFrame* GetOrCreateFrame(int InWidth, int InHeight, const FTexture2DRHIRef InTexture);
-        void FlushFrames();
-        TSharedPtr<AVEncoder::FVideoEncoderInput> CreateVideoEncoderInput(int InWidth, int InHeight) const;
-        void SetTexture(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
-        void SetTextureCUDAVulkan(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
-#if PLATFORM_WINDOWS        
-		void SetTextureCUDAD3D11(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
-		void SetTextureCUDAD3D12(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
+private:
+	AVEncoder::FVideoEncoderInputFrame* GetOrCreateFrame(int InWidth, int InHeight, const FTexture2DRHIRef InTexture);
+	void FlushFrames();
+	TSharedPtr<AVEncoder::FVideoEncoderInput> CreateVideoEncoderInput(int InWidth, int InHeight) const;
+	void SetTexture(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
+	void SetTextureCUDAVulkan(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
+#if PLATFORM_WINDOWS
+	void SetTextureCUDAD3D11(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
+	void SetTextureCUDAD3D12(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
 #endif // PLATFORM_WINDOWS
 
-    private:
-
-        uint64 FrameId = 0;
-        TSharedPtr<AVEncoder::FVideoEncoderInput> EncoderInput;
-        // Store a mapping between raw textures and the FVideoEncoderInputFrames that wrap them
-        TMap<const FTexture2DRHIRef, AVEncoder::FVideoEncoderInputFrame*> TextureToFrameMapping;
+private:
+	uint64 FrameId = 0;
+	TSharedPtr<AVEncoder::FVideoEncoderInput> EncoderInput;
+	// Store a mapping between raw textures and the FVideoEncoderInputFrames that wrap them
+	TMap<const FTexture2DRHIRef, AVEncoder::FVideoEncoderInputFrame*> TextureToFrameMapping;
 };

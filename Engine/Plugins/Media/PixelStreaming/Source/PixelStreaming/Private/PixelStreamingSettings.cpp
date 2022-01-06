@@ -307,7 +307,7 @@ namespace PixelStreamingSettings
 	AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar()
 	{
 		auto const cvarStr = CVarPixelStreamingEncoderRateControl.GetValueOnAnyThread();
-		auto const it	   = RateControlCVarMap.find(cvarStr);
+		auto const it = RateControlCVarMap.find(cvarStr);
 		if (it == std::end(RateControlCVarMap))
 			return AVEncoder::FVideoEncoder::RateControlMode::CBR;
 		return it->second;
@@ -316,7 +316,7 @@ namespace PixelStreamingSettings
 	AVEncoder::FVideoEncoder::MultipassMode GetMultipassCVar()
 	{
 		auto const cvarStr = CVarPixelStreamingEncoderMultipass.GetValueOnAnyThread();
-		auto const it	   = MultipassCVarMap.find(cvarStr);
+		auto const it = MultipassCVarMap.find(cvarStr);
 		if (it == std::end(MultipassCVarMap))
 			return AVEncoder::FVideoEncoder::MultipassMode::FULL;
 		return it->second;
@@ -340,7 +340,7 @@ namespace PixelStreamingSettings
 	AVEncoder::FVideoEncoder::H264Profile GetH264Profile()
 	{
 		auto const cvarStr = CVarPixelStreamingH264Profile.GetValueOnAnyThread();
-		auto const it	   = H264ProfileMap.find(cvarStr);
+		auto const it = H264ProfileMap.find(cvarStr);
 		if (it == std::end(H264ProfileMap))
 			return AVEncoder::FVideoEncoder::H264Profile::BASELINE;
 		return it->second;
@@ -355,9 +355,9 @@ namespace PixelStreamingSettings
 
 		FString StringOptions;
 		bool bPassedSimulcastParams = FParse::Value(FCommandLine::Get(), TEXT("SimulcastParameters="), StringOptions, false);
-		
+
 		// If no simulcast parameters are passed use some default values
-		if(!bPassedSimulcastParams)
+		if (!bPassedSimulcastParams)
 		{
 			StringOptions = FString(TEXT("1.0,5000000,20000000,2.0,1000000,5000000,4.0,50000,1000000"));
 		}
@@ -402,14 +402,8 @@ namespace PixelStreamingSettings
 	{
 		bool bLogStats = Var->GetBool();
 		IPixelStreamingModule& Module = IPixelStreamingModule::Get();
-		
 
-		if(Module.IsReady())
-		{
-
-		}
-
-		if(bLogStats)
+		if (bLogStats)
 		{
 			Module.AddAnyStatChangedCallback(StatsLoggerWeak);
 		}
@@ -480,6 +474,5 @@ namespace PixelStreamingSettings
 		IPixelStreamingModule& Module = IPixelStreamingModule::Get();
 		Module.OnReady().AddStatic(&PixelStreamingSettings::OnStreamerReady);
 	}
-
 
 } // namespace PixelStreamingSettings

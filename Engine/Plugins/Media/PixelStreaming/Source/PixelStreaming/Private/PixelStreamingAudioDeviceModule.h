@@ -14,52 +14,52 @@
 class FSubmixCapturer : public ISubmixBufferListener
 {
 
-	public:
+public:
+	// This magic number is the max volume used in webrtc fake audio device module.
+	static const uint32_t MaxVolumeLevel = 14392;
 
-		// This magic number is the max volume used in webrtc fake audio device module.
-		static const uint32_t MaxVolumeLevel = 14392;	
+	FSubmixCapturer()
+		: bInitialised(false)
+		, bCapturing(false)
+		, TargetSampleRate(48000)
+		, TargetNumChannels(2)
+		, bReportedSampleRateMismatch(false)
+		, AudioCallback(nullptr)
+		, VolumeLevel(FSubmixCapturer::MaxVolumeLevel)
+		, RecordingBuffer()
+		, CriticalSection()
+	{
+	}
 
-		FSubmixCapturer() 
-		:	bInitialised(false)
-		,	bCapturing(false)
-		,	TargetSampleRate(48000)
-		,	TargetNumChannels(2)
-		,	bReportedSampleRateMismatch(false)
-		,	AudioCallback(nullptr)
-		,	VolumeLevel(FSubmixCapturer::MaxVolumeLevel) 
-		,	RecordingBuffer()
-		,	CriticalSection()
-		{}
+	virtual ~FSubmixCapturer() = default;
 
-		virtual ~FSubmixCapturer() = default;
+	bool Init();
+	bool IsInitialised() const;
+	bool IsCapturing() const;
+	void Uninitialise();
+	bool StartCapturing();
+	bool EndCapturing();
+	uint32_t GetVolume() const;
+	void SetVolume(uint32_t NewVolume);
 
-		bool Init();
-		bool IsInitialised() const;
-		bool IsCapturing() const;
-		void Uninitialise();
-		bool StartCapturing();
-		bool EndCapturing();
-		uint32_t GetVolume() const;
-		void SetVolume(uint32_t NewVolume);
+	// ISubmixBufferListener interface
+	void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
 
-		// ISubmixBufferListener interface
-		void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
+	void RegisterAudioCallback(webrtc::AudioTransport* AudioCb);
 
-		void RegisterAudioCallback(webrtc::AudioTransport* AudioCb);
+private:
+	int32 GetSamplesPerDurationSecs(float InSeconds) const;
 
-	private:
-		int32 GetSamplesPerDurationSecs(float InSeconds) const;
-
-	private:
-		FThreadSafeBool bInitialised;
-		FThreadSafeBool bCapturing;
-		uint32 TargetSampleRate;
-		uint8 TargetNumChannels;
-		bool bReportedSampleRateMismatch;
-		webrtc::AudioTransport* AudioCallback;
-		uint32_t VolumeLevel;
-		TArray<int16_t> RecordingBuffer;
-		FCriticalSection CriticalSection; // One thread captures audio from UE, the other controls the state of the capturer.
+private:
+	FThreadSafeBool bInitialised;
+	FThreadSafeBool bCapturing;
+	uint32 TargetSampleRate;
+	uint8 TargetNumChannels;
+	bool bReportedSampleRateMismatch;
+	webrtc::AudioTransport* AudioCallback;
+	uint32_t VolumeLevel;
+	TArray<int16_t> RecordingBuffer;
+	FCriticalSection CriticalSection; // One thread captures audio from UE, the other controls the state of the capturer.
 };
 
 // Requests audio from WebRTC at a regular interval (10ms)
@@ -68,73 +68,71 @@ class FSubmixCapturer : public ISubmixBufferListener
 // there is no demand for audio and does not populate the sinks.
 class FAudioPlayoutRequester
 {
+public:
+	class Runnable : public FRunnable
+	{
 	public:
-
-		class Runnable : public FRunnable
-		{	
-			public:
-				Runnable(TFunction<void()> RequestPlayoutFunc)
-				: bIsRunning(false)
-				, LastAudioRequestTimeMs(0)
-				, RequestPlayoutFunc(RequestPlayoutFunc){}
-				// Begin FRunnable interface.
-				virtual bool Init() override;
-				virtual uint32 Run() override;
-				virtual void Stop() override;
-				virtual void Exit() override;
-				// End FRunnable interface
-			private:
-				bool bIsRunning;
-				int64_t LastAudioRequestTimeMs;
-				TFunction<void()> RequestPlayoutFunc;
-		};
-
-		FAudioPlayoutRequester() 
-			: bIsPlayoutInitialised(false)
-			, bIsPlaying(false)
-			, SampleRate(48000) //webrtc will mix all sources into one big buffer with this sample rate
-			, NumChannels(2)    //webrtc will mix all sources into one big buffer with this many channels
-			, RequesterRunnable()
-			, RequesterThread()
-			, AudioCallback(nullptr)
-			, PlayoutCriticalSection()
-			, PlayoutBuffer(){};
-
-		void InitPlayout();
-		void StartPlayout();
-		void StopPlayout();
-	    bool Playing() const;
-		bool PlayoutIsInitialized() const;
-		void Uninitialise();
-		void RegisterAudioCallback(webrtc::AudioTransport* AudioCallback);
-
-	public:
-		static int16_t const RequestIntervalMs = 10;
-		
+		Runnable(TFunction<void()> RequestPlayoutFunc)
+			: bIsRunning(false)
+			, LastAudioRequestTimeMs(0)
+			, RequestPlayoutFunc(RequestPlayoutFunc) {}
+		// Begin FRunnable interface.
+		virtual bool Init() override;
+		virtual uint32 Run() override;
+		virtual void Stop() override;
+		virtual void Exit() override;
+		// End FRunnable interface
 	private:
-		FThreadSafeBool bIsPlayoutInitialised;
-		FThreadSafeBool bIsPlaying;
-		uint32 SampleRate;
-		uint8 NumChannels;
-		TUniquePtr<FAudioPlayoutRequester::Runnable> RequesterRunnable;
-		TUniquePtr<FRunnableThread> RequesterThread;
-		webrtc::AudioTransport* AudioCallback;
-		FCriticalSection PlayoutCriticalSection;
-		TArray<int16_t> PlayoutBuffer;
+		bool bIsRunning;
+		int64_t LastAudioRequestTimeMs;
+		TFunction<void()> RequestPlayoutFunc;
+	};
+
+	FAudioPlayoutRequester()
+		: bIsPlayoutInitialised(false)
+		, bIsPlaying(false)
+		, SampleRate(48000) //webrtc will mix all sources into one big buffer with this sample rate
+		, NumChannels(2)	//webrtc will mix all sources into one big buffer with this many channels
+		, RequesterRunnable()
+		, RequesterThread()
+		, AudioCallback(nullptr)
+		, PlayoutCriticalSection()
+		, PlayoutBuffer(){};
+
+	void InitPlayout();
+	void StartPlayout();
+	void StopPlayout();
+	bool Playing() const;
+	bool PlayoutIsInitialized() const;
+	void Uninitialise();
+	void RegisterAudioCallback(webrtc::AudioTransport* AudioCallback);
+
+public:
+	static int16_t const RequestIntervalMs = 10;
+
+private:
+	FThreadSafeBool bIsPlayoutInitialised;
+	FThreadSafeBool bIsPlaying;
+	uint32 SampleRate;
+	uint8 NumChannels;
+	TUniquePtr<FAudioPlayoutRequester::Runnable> RequesterRunnable;
+	TUniquePtr<FRunnableThread> RequesterThread;
+	webrtc::AudioTransport* AudioCallback;
+	FCriticalSection PlayoutCriticalSection;
+	TArray<int16_t> PlayoutBuffer;
 };
 
 // A custom audio device module for WebRTC.
-// It lets us receive WebRTC audio in UE 
+// It lets us receive WebRTC audio in UE
 // and also transmit UE audio to WebRTC.
-class FPixelStreamingAudioDeviceModule
-	: public webrtc::AudioDeviceModule
+class FPixelStreamingAudioDeviceModule : public webrtc::AudioDeviceModule
 {
 
 public:
 	FPixelStreamingAudioDeviceModule()
-	:	bInitialized(false)
-	,	Capturer()
-	,	Requester(){};
+		: bInitialized(false)
+		, Capturer()
+		, Requester(){};
 
 	virtual ~FPixelStreamingAudioDeviceModule() = default;
 
@@ -144,7 +142,6 @@ private:
 	FAudioPlayoutRequester Requester;
 
 private:
-
 	//
 	// webrtc::AudioDeviceModule interface
 	//
@@ -310,5 +307,4 @@ private:
 	{
 		return -1;
 	}
-
 };

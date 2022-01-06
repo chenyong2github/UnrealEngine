@@ -24,9 +24,8 @@ private:
 	void CalculateStats(FPixelStreamingStats* PSStats);
 
 private:
-
 	// Some stats have a latest value that is update each time that stats comes and
-	// then also a calculated value that might get updates every 1 second. 
+	// then also a calculated value that might get updates every 1 second.
 	// An example is FPS, where total frames sent is the stat that is tracked but
 	// the calculated stat is frames sent per second.
 	struct FCalculatedStat
@@ -44,29 +43,30 @@ private:
 
 	class FStatsSink
 	{
-		public:
-			virtual ~FStatsSink() = default;
-			// Sink only interested in a single type of stat from WebRTC (e.g. track, outbound-rtp).
-			virtual bool Contains(const FName& StatName) const { return Stats.Contains(StatName);  };
-			virtual bool ContainsCalcStat(const FName& StatName) const { return CalcStats.Contains(StatName); }
-			virtual void Add(FName StatName, int NDecimalPlaces) { Stats.Add(StatName, FStatData(StatName, 0.0, NDecimalPlaces)); }; 
-			virtual void AddForCalculation(FName StatName) { CalcStats.Add(StatName, { FStatData(StatName, 0.0, 2), 0.0 } ); };
-			virtual FStatData* Get(const FName& StatName) { return Stats.Find(StatName); };
-			virtual FCalculatedStat* GetCalcStat(const FName& StatName){ return CalcStats.Find(StatName); }
-		protected:
-			TMap<FName, FStatData> Stats;
-			TMap<FName, FCalculatedStat> CalcStats;
+	public:
+		virtual ~FStatsSink() = default;
+		// Sink only interested in a single type of stat from WebRTC (e.g. track, outbound-rtp).
+		virtual bool Contains(const FName& StatName) const { return Stats.Contains(StatName); };
+		virtual bool ContainsCalcStat(const FName& StatName) const { return CalcStats.Contains(StatName); }
+		virtual void Add(FName StatName, int NDecimalPlaces) { Stats.Add(StatName, FStatData(StatName, 0.0, NDecimalPlaces)); };
+		virtual void AddForCalculation(FName StatName) { CalcStats.Add(StatName, { FStatData(StatName, 0.0, 2), 0.0 }); };
+		virtual FStatData* Get(const FName& StatName) { return Stats.Find(StatName); };
+		virtual FCalculatedStat* GetCalcStat(const FName& StatName) { return CalcStats.Find(StatName); }
+
+	protected:
+		TMap<FName, FStatData> Stats;
+		TMap<FName, FCalculatedStat> CalcStats;
 	};
 
 	class FStreamStatsSink : public FStatsSink
 	{
-		public:
-			FStreamStatsSink(FString InRid);
-			virtual ~FStreamStatsSink() = default;
+	public:
+		FStreamStatsSink(FString InRid);
+		virtual ~FStreamStatsSink() = default;
 
-		private:
-			// Rid is the unique stream identifier.
-			FString Rid;
+	private:
+		// Rid is the unique stream identifier.
+		FString Rid;
 	};
 
 private:
@@ -74,8 +74,8 @@ private:
 
 	mutable int32 RefCount;
 
-	const FString RidStr         = FString(TEXT("rid"));
-	const FString TrackStatsStr	 = FString(TEXT("track"));
+	const FString RidStr = FString(TEXT("rid"));
+	const FString TrackStatsStr = FString(TEXT("track"));
 	const FString StreamStatsStr = FString(TEXT("outbound-rtp"));
 	const FString SourceStatsStr = FString(TEXT("media-source"));
 
@@ -86,5 +86,4 @@ private:
 
 	// Stream stats are further broken down and stored per RID, as some peers (e.g. an SFU) can have multiple streams.
 	TMap<FString, FStatsSink> StreamStatsSinks;
-
 };

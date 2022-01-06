@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "VisualLoggerRenderingActorBase.h"
-#include "VisualLogger/VisualLoggerTypes.h"
-#include "DebugRenderSceneProxy.h"
 #include "VisualLoggerRenderingActor.generated.h"
 
 // enable adding some hard coded shapes to the VisualLoggerRenderingActor for testing
@@ -28,6 +24,7 @@ public:
 	GENERATED_UCLASS_BODY()
 	virtual ~AVisualLoggerRenderingActor();
 	void ResetRendering();
+	void ObjectVisibilityChanged(const FName& RowName);
 	void ObjectSelectionChanged(const TArray<FName>& Selection);
 	void OnItemSelectionChanged(const FVisualLoggerDBRow& BDRow, int32 ItemIndex);
 

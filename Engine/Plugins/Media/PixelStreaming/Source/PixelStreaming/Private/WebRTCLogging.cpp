@@ -41,8 +41,7 @@ private:
 		const char* tag) override
 	{
 #if !NO_LOGGING
-		static const ELogVerbosity::Type RtcToUnrealLogCategoryMap[] =
-		{
+		static const ELogVerbosity::Type RtcToUnrealLogCategoryMap[] = {
 			ELogVerbosity::VeryVerbose,
 			ELogVerbosity::Verbose,
 			ELogVerbosity::Log,
@@ -70,18 +69,26 @@ private:
 
 		switch (severity)
 		{
-		case rtc::LS_VERBOSE:
-			UE_LOG(PixelStreamingWebRTC, Verbose, TEXT("%s"), *Msg);
-			break;
-		case rtc::LS_INFO:
-			UE_LOG(PixelStreamingWebRTC, Log, TEXT("%s"), *Msg);
-			break;
-		case rtc::LS_WARNING:
-			UE_LOG(PixelStreamingWebRTC, Warning, TEXT("%s"), *Msg);
-			break;
-		case rtc::LS_ERROR:
-			UE_LOG(PixelStreamingWebRTC, Error, TEXT("%s"), *Msg);
-			break;
+			case rtc::LS_VERBOSE:
+			{
+				UE_LOG(PixelStreamingWebRTC, Verbose, TEXT("%s"), *Msg);
+				break;
+			}
+			case rtc::LS_INFO:
+			{
+				UE_LOG(PixelStreamingWebRTC, Log, TEXT("%s"), *Msg);
+				break;
+			}
+			case rtc::LS_WARNING:
+			{
+				UE_LOG(PixelStreamingWebRTC, Warning, TEXT("%s"), *Msg);
+				break;
+			}
+			case rtc::LS_ERROR:
+			{
+				UE_LOG(PixelStreamingWebRTC, Error, TEXT("%s"), *Msg);
+				break;
+			}
 		}
 #endif
 	}

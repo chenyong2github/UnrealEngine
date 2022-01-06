@@ -609,6 +609,10 @@ void ShaderYield()
 #define HOIST_DESCRIPTORS
 #endif
 
+#ifndef CALL_SITE_DEBUGLOC
+#define CALL_SITE_DEBUGLOC
+#endif
+
 #ifndef SCHEDULER_MIN_PRESSURE
 #define SCHEDULER_MIN_PRESSURE
 #endif

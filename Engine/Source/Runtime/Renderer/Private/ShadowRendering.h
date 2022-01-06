@@ -873,6 +873,7 @@ private:
 		bool bCameraInsideShadowFrustum,
 		const FInstanceCullingDrawParams& InstanceCullingDrawParams) const;
 
+	void SetupProjectionStencilMaskForHair(FRHICommandList& RHICmdList, const FViewInfo* View) const;
 
 	FORCEINLINE bool TestPrimitiveFarCascadeConditions(bool bPrimitiveCastsFarShadow, const FBoxSphereBounds& Bounds) const;
 

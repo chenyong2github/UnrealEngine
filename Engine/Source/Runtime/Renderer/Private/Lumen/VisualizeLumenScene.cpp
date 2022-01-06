@@ -77,15 +77,16 @@ FAutoConsoleVariableRef CVarLumenVisualizeMode(
 	TEXT("3 - Normals\n")
 	TEXT("4 - Emissive\n")
 	TEXT("5 - Opacity\n")
-	TEXT("6 - Card weights\n")
-	TEXT("7 - Direct lighting\n")
-	TEXT("8 - Indirect lighting\n")
-	TEXT("9 - Local Position (hardware ray-tracing only)\n")
-	TEXT("10 - Velocity (hardware ray-tracing only)\n")
-	TEXT("11 - Direct lighting updates\n")
-	TEXT("12 - Indirect lighting updates")
-	TEXT("13 - Last used pages\n")
-	TEXT("14 - Last used high res pages"),
+	TEXT("6 - Card coverage\n")
+	TEXT("7 - Card weights\n")
+	TEXT("8 - Direct lighting\n")
+	TEXT("9 - Indirect lighting\n")
+	TEXT("10 - Local Position (hardware ray-tracing only)\n")
+	TEXT("11 - Velocity (hardware ray-tracing only)\n")
+	TEXT("12 - Direct lighting updates\n")
+	TEXT("13 - Indirect lighting updates")
+	TEXT("14 - Last used pages\n")
+	TEXT("15 - Last used high res pages"),
 	ECVF_RenderThreadSafe
 );
 
@@ -886,7 +887,7 @@ void VisualizeRayTracingGroups(const FViewInfo& View, const FLumenSceneData& Lum
 
 void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenSceneData, FViewElementPDI& ViewPDI)
 {
-	if (GVisualizeLumenCardPlacement == 0)
+	if (GVisualizeLumenCardPlacement == 0 && GVisualizeLumenCardGenerationCluster == 0)
 	{
 		return;
 	}
@@ -1017,6 +1018,13 @@ void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& Lumen
 						{
 							DrawSurfels(DebugData.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Valid, FLinearColor::Green, ViewPDI);
 							DrawSurfels(DebugData.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Invalid, FLinearColor::Red, ViewPDI);
+
+							for (const FLumenCardBuildDebugData::FRay& Ray : DebugData.SurfelRays)
+							{
+								const FVector Start = PrimitiveToWorld.TransformPosition(Ray.RayStart);
+								const FVector End = PrimitiveToWorld.TransformPosition(Ray.RayEnd);
+								ViewPDI.DrawLine(Start, End, Ray.bHit ? FLinearColor::Red : FLinearColor::White, 0, 0.2f, 0.0f, false);
+							}
 						}
 
 						if (GVisualizeLumenCardGenerationSurfels == 0 && GVisualizeLumenCardGenerationCluster != 0 && GVisualizeLumenCardPlacementIndex >= 0 && PrimitiveGroup.MeshCardsIndex >= 0)

@@ -17,7 +17,7 @@ namespace UnrealGameSync
 		[DllImport("user32.dll", CharSet = CharSet.Unicode)]
 		private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr Wparam, string Lparam);
 
-		private string CueBannerValue;
+		private string CueBannerValue = String.Empty;
 
 		public string CueBanner
 		{

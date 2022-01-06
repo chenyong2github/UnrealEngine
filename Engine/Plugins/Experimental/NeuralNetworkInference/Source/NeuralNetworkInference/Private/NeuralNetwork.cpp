@@ -503,17 +503,17 @@ void UNeuralNetwork::Run()
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."),
 			(int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
-	ComputeStatisticsEstimator.StoreSample(RunTimer.Toc());
+	RunStatisticsEstimator.StoreSample(RunTimer.Toc());
 }
 
 float UNeuralNetwork::GetLastRunTimeMSec() const
 {
-	return ComputeStatisticsEstimator.GetLastSample();
+	return RunStatisticsEstimator.GetLastSample();
 }
 
-FNeuralStatistics UNeuralNetwork::GetInferenceStats() const
+FNeuralStatistics UNeuralNetwork::GetRunStatistics() const
 {
-	return ComputeStatisticsEstimator.GetStats();
+	return RunStatisticsEstimator.GetStats();
 }
 
 FNeuralStatistics UNeuralNetwork::GetInputMemoryTransferStats() const
@@ -523,7 +523,7 @@ FNeuralStatistics UNeuralNetwork::GetInputMemoryTransferStats() const
 
 void UNeuralNetwork::ResetStats()
 {
-	ComputeStatisticsEstimator.ResetStats();
+	RunStatisticsEstimator.ResetStats();
 	InputTransferStatisticsEstimator.ResetStats();
 }
 

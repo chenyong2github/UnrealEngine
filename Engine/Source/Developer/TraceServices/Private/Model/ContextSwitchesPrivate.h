@@ -31,6 +31,7 @@ public:
 	void EnumerateCpuCores(CpuCoreCallback Callback) const override;
 	void EnumerateContextSwitches(uint32 ThreadId, double StartTime, double EndTime, ContextSwitchCallback Callback) const override;
 	void EnumerateCpuCoreEvents(uint32 CoreNumber, double StartTime, double EndTime, CpuCoreEventCallback Callback) const override;
+	void EnumerateCpuCoreEventsBackwards(uint32 CoreNumber, double EndTime, double StartTime, CpuCoreEventCallback Callback) const override;
 
 	void Add(uint32 SystemThreadId, double Start, double End, uint32 CoreNumber);
 	void AddThreadInfo(uint32 ThreadId, uint32 SystemThreadId);

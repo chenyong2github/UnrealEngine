@@ -1311,7 +1311,7 @@ void FAnimationRuntime::MirrorPose(FCompactPose& Pose, const UMirrorDataTable& M
 	if (Skeleton)
 	{
 		TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> MirrorBoneIndexes;
-		MirrorDataTable.FillMirrorBoneIndexes(BoneContainer.GetReferenceSkeleton(), MirrorBoneIndexes);
+		MirrorDataTable.FillMirrorBoneIndexes(Skeleton, MirrorBoneIndexes);
 
 		// Compact pose format of Mirror Bone Map
 		TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex> CompactPoseMirrorBones;

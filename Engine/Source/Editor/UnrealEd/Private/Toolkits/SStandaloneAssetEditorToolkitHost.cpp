@@ -14,7 +14,6 @@
 #include "UObject/Package.h"
 #include "StatusBarSubsystem.h"
 #include "ToolMenus.h"
-#include "IIntroTutorials.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 
@@ -76,9 +75,6 @@ void SStandaloneAssetEditorToolkitHost::SetupInitialContent( const TSharedRef<FT
 
 	if (InHostTab)
 	{
-		IIntroTutorials& IntroTutorials = FModuleManager::LoadModuleChecked<IIntroTutorials>(TEXT("IntroTutorials"));
-		TSharedRef<SWidget> TutorialWidget = IntroTutorials.CreateTutorialsWidget(HostedAssetEditorToolkit->GetToolkitContextFName(), InHostTab->GetParentWindow());
-
 		InHostTab->SetRightContent(
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
@@ -86,13 +82,6 @@ void SStandaloneAssetEditorToolkitHost::SetupInitialContent( const TSharedRef<FT
 			.Padding(8.0f, 0.0f, 8.0f, 0.0f)
 			[
 				MenuOverlayWidgetContent.ToSharedRef()
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(8.0f, 0.0f, 8.0f, 0.0f)
-			.VAlign(VAlign_Center)
-			[
-				TutorialWidget
 			]
 		);
 	}

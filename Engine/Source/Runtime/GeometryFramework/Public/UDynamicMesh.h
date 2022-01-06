@@ -184,7 +184,8 @@ public:
 	void EditMesh(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc,
 				  EDynamicMeshChangeType ChangeType = EDynamicMeshChangeType::GeneralEdit,
 				  EDynamicMeshAttributeChangeFlags ChangeFlags = EDynamicMeshAttributeChangeFlags::Unknown,
-				  bool bDeferChangeEvents = false);
+				  bool bDeferChangeEvents = false,
+				  bool bEnforceAttributeInvariants = true);
 
 	/**
 	 * Take ownership of the internal Mesh, and have it replaced with a new mesh
@@ -271,7 +272,7 @@ protected:
 	/**
 	 * Internal function that edits the Mesh, but broadcasts PreMeshChangedEvent and MeshChangedEvent, and then MeshModifiedBPEvent
 	 */
-	void EditMeshInternal(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo, bool bDeferChangeEvents = false);
+	void EditMeshInternal(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo, bool bDeferChangeEvents = false, bool bEnforceAttributeInvariants = true);
 
 
 public:

@@ -1108,9 +1108,8 @@ static void InjectTranslucentLightArray(
 
 				// InnerSplitIndex: which CSM shadow map level, INDEX_NONE if no directional light
 				int32 InnerSplitIndex = InjectionData.ProjectedShadowInfo ? InjectionData.ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex : INDEX_NONE;
-				const bool bDynamicallyShadowed = InjectionData.ProjectedShadowInfo != NULL;
 
-				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, InjectionData.ProjectedShadowInfo, InnerSplitIndex, bDynamicallyShadowed, PassParameters->PS.VolumeShadowingParameters);
+				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, InjectionData.ProjectedShadowInfo, InnerSplitIndex, PassParameters->PS.VolumeShadowingParameters);
 
 				PassParameters->PS.VirtualShadowMapId = Renderer.VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&View);
 				PassParameters->PS.LightFunctionParameters = FLightFunctionSharedParameters::GetLightFunctionSharedParameters(LightSceneInfo, 1.0f);

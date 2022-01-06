@@ -17,7 +17,8 @@ class FVideoFrameBuffer : public webrtc::VideoFrameBuffer
 public:
 	explicit FVideoFrameBuffer(const FTextureSampleRef& InSample)
 		: Sample(InSample)
-	{}
+	{
+	}
 
 	// ~BEGIN `webrtc::VideoFrameBuffer` impl
 	Type type() const override
@@ -58,7 +59,8 @@ public:
 
 	explicit FVideoSink(FDelegate&& InDelegate)
 		: Delegate(MoveTemp(InDelegate))
-	{}
+	{
+	}
 
 	void OnFrame(const webrtc::VideoFrame& Frame) override
 	{

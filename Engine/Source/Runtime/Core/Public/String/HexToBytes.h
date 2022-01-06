@@ -5,9 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 
-namespace UE
-{
-namespace String
+namespace UE::String
 {
 
 /** 
@@ -22,5 +20,4 @@ CORE_API int32 HexToBytes(FAnsiStringView Hex, uint8* OutBytes);
 CORE_API int32 HexToBytes(FWideStringView Hex, uint8* OutBytes);
 CORE_API int32 HexToBytes(FUtf8StringView Hex, uint8* OutBytes);
 
-}
-}
+} // UE::String

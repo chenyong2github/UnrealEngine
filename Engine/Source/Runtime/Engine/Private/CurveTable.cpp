@@ -539,6 +539,16 @@ void UCurveTable::EmptyTable()
 	UCurveTable::InvalidateAllCachedCurves();
 }
 
+void UCurveTable::RemoveRow(FName RowName)
+{
+	FRealCurve* Curve = nullptr;
+	RowMap.RemoveAndCopyValue(RowName, Curve);
+	if (Curve != nullptr)
+	{
+		delete Curve;
+	}
+}
+
 FRichCurve& UCurveTable::AddRichCurve(FName RowName)
 {
 	check(CurveTableMode != ECurveTableMode::SimpleCurves);

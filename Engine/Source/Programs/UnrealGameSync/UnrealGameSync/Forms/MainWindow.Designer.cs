@@ -35,7 +35,6 @@ namespace UnrealGameSync
 			this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
 			this.TabControl = new UnrealGameSync.TabControl();
 			this.UpdateAlertPositionsTimer = new System.Windows.Forms.Timer(this.components);
-			this.NetCoreTimer = new System.Windows.Forms.Timer(this.components);
 			this.TabPanel.SuspendLayout();
 			this.TabMenu.SuspendLayout();
 			this.tableLayoutPanel1.SuspendLayout();
@@ -185,12 +184,6 @@ namespace UnrealGameSync
 			this.UpdateAlertPositionsTimer.Interval = 1000;
 			this.UpdateAlertPositionsTimer.Tick += new System.EventHandler(this.UpdateAlertPositionsTimer_Tick);
 			// 
-			// NetCoreTimer
-			// 
-			this.NetCoreTimer.Enabled = true;
-			this.NetCoreTimer.Interval = 10800000;
-			this.NetCoreTimer.Tick += new System.EventHandler(this.NetCoreTimer_Tick);
-			// 
 			// MainWindow
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
@@ -232,6 +225,5 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
 		private System.Windows.Forms.Timer UpdateAlertPositionsTimer;
-		private System.Windows.Forms.Timer NetCoreTimer;
 	}
 }

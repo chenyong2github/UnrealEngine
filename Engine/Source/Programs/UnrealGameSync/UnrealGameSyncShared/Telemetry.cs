@@ -28,7 +28,7 @@ namespace UnrealGameSync
 	/// <summary>
 	/// Telemetry sink that discards all events
 	/// </summary>
-	class NullTelemetrySink : ITelemetrySink
+	public class NullTelemetrySink : ITelemetrySink
 	{
 		/// <inheritdoc/>
 		public void Dispose()
@@ -44,7 +44,7 @@ namespace UnrealGameSync
 	/// <summary>
 	/// Epic internal telemetry sink using the data router
 	/// </summary>
-	class EpicTelemetrySink : ITelemetrySink
+	public class EpicTelemetrySink : ITelemetrySink
 	{
 		/// <summary>
 		/// Combined url to post event streams to
@@ -213,7 +213,7 @@ namespace UnrealGameSync
 		/// <summary>
 		/// The current telemetry provider
 		/// </summary>
-		public static ITelemetrySink ActiveSink
+		public static ITelemetrySink? ActiveSink
 		{
 			get; set;
 		}
@@ -225,7 +225,7 @@ namespace UnrealGameSync
 		/// <param name="Attributes">Arbitrary object to include in the payload</param>
 		public static void SendEvent(string EventName, object Attributes)
 		{
-			ActiveSink.SendEvent(EventName, Attributes);
+			ActiveSink?.SendEvent(EventName, Attributes);
 		}
 	}
 }

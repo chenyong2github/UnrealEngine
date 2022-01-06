@@ -11,12 +11,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-#nullable enable
-
 namespace UnrealGameSync
 {
 	[DebuggerDisplay("{FileName}")]
-	class ArchiveManifestFile
+	public class ArchiveManifestFile
 	{
 		public string FileName;
 		public long Length;
@@ -44,7 +42,7 @@ namespace UnrealGameSync
 		}
 	}
 
-	class ArchiveManifest
+	public class ArchiveManifest
 	{
 		const int Signature = ((int)'U' << 24) | ((int)'A' << 16) | ((int)'M' << 8) | 1;
 
@@ -81,7 +79,7 @@ namespace UnrealGameSync
 		}
 	}
 
-	static class ArchiveUtils
+	public static class ArchiveUtils
 	{
 		public static void ExtractFiles(FileReference ArchiveFileName, DirectoryReference BaseDirectoryName, FileReference? ManifestFileName, ProgressValue Progress, ILogger Logger)
 		{

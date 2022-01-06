@@ -51,6 +51,7 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
 					"AugmentedReality",
+					"EngineSettings",
 				}
 				);
 

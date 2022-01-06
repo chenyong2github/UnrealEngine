@@ -8,6 +8,7 @@
 #include "PropertyHandle.h"
 #include "Curves/CurveOwnerInterface.h"
 #include "IDetailChildrenBuilder.h"
+#include "EditorUndoClient.h"
 
 class FDetailWidgetRow;
 class SCurveEditor;

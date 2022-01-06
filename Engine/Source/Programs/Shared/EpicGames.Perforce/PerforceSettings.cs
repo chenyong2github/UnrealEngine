@@ -148,6 +148,27 @@ namespace EpicGames.Perforce
 	public static class PerforceSettingExtensions
 	{
 		/// <summary>
+		/// Update common fields in a IPerforceSettings object
+		/// </summary>
+		public static IPerforceSettings MergeWith(this IPerforceSettings Settings, string? NewServerAndPort = null, string? NewUserName = null, string? NewClientName = null)
+		{
+			PerforceSettings NewSettings = new PerforceSettings(Settings);
+			if (!String.IsNullOrEmpty(NewServerAndPort))
+			{
+				NewSettings.ServerAndPort = NewServerAndPort;
+			}
+			if (!String.IsNullOrEmpty(NewUserName))
+			{
+				NewSettings.UserName = NewUserName;
+			}
+			if (!String.IsNullOrEmpty(NewClientName))
+			{
+				NewSettings.ClientName = NewClientName;
+			}
+			return NewSettings;
+		}
+
+		/// <summary>
 		/// Gets the command line arguments to launch an external program, such as P4V or P4VC
 		/// </summary>
 		/// <param name="Settings"></param>

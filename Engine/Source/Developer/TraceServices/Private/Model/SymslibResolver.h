@@ -20,22 +20,18 @@ namespace TraceServices {
 class FSymslibResolver
 {
 public:
+	typedef TArray<TTuple<uint64, FResolvedSymbol*>> SymbolArray;
+	
 	FSymslibResolver(IAnalysisSession& InSession);
 	~FSymslibResolver();
-	void QueueModuleLoad(const FStringView& ModulePath, uint64 Base, uint32 Size, const uint8* ImageId, uint32 ImageIdSize);
+	void QueueModuleLoad(const uint8* ImageId, uint32 ImageIdSize, FModule* Module);
+	void QueueModuleReload(const FModule* Module, const TCHAR* Path, TFunction<void(SymbolArray&)> ResolveOnSuccess);
 	void QueueSymbolResolve(uint64 Address, FResolvedSymbol* Symbol);
 	void OnAnalysisComplete();
 	void GetStats(IModuleProvider::FStats* OutStats) const;
+	void EnumerateSymbolSearchPaths(TFunctionRef<void(FStringView Path)> Callback) const;
 
 private:
-	enum class EModuleStatus : uint8
-	{
-		Pending,
-		Loaded,
-		VersionMismatch,
-		Failed
-	};
-
 	struct FSymsSymbol
 	{
 		const char* Name;
@@ -61,13 +57,9 @@ private:
 
 	struct FModuleEntry
 	{
-		uint64 Base;
-		uint32 Size;
-		const TCHAR* Name;
-		const TCHAR* Path;
 		FSymsInstance Instance;
-		std::atomic<EModuleStatus> Status;
 		TArray<uint8> ImageId;
+		FModule* Module;
 	};
 
 	struct FQueuedAddress
@@ -101,31 +93,36 @@ private:
 	void ResolveSymbols(TArrayView<FQueuedAddress>& QueuedWork);
 	FModuleEntry* GetModuleForAddress(uint64 Address);
 	static void UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line);
-	void LoadModuleTracked(FModuleEntry* Module);
-	EModuleStatus LoadModule(FModuleEntry* Module);
+	void LoadModuleTracked(FModuleEntry* Entry, FStringView OverrideSearchPath);
+	EModuleStatus LoadModule(FModuleEntry* Entry, FStringView SearchPathView, FStringBuilderBase& OutStatusMessage) const;
 	void ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Target, class FSymbolStringAllocator& StringAllocator);
-	bool ResolveSymbol(uint64 Address, FResolvedSymbol* Target, class FSymbolStringAllocator& StringAllocator);
+	bool ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FSymbolStringAllocator& StringAllocator, FModuleEntry* Entry) const;
+	void WaitForTasks();
 
-	FRWLock ModulesLock;
+	mutable FRWLock ModulesLock;
 	TPagedArray<FModuleEntry> Modules;
 	TArray<FModuleEntry*> SortedModules;
 	FCriticalSection SymbolsQueueLock;
 	TArray<FQueuedAddress, TInlineAllocator<QueuedAddressLength>> ResolveQueue;
 	std::atomic<uint32> TasksInFlight;
+	FCriticalSection CleanupLock;
 	FGraphEventRef CleanupTask;
+	FGraphEventRef ModuleReloadTask;
 	std::atomic<bool> CancelTasks;
+	mutable FRWLock SymbolSearchPathsLock;
+	TArray<FString> SymbolSearchPaths;
 
 	std::atomic<uint32> ModulesDiscovered;
 	std::atomic<uint32> ModulesFailed;
 	std::atomic<uint32> ModulesLoaded;
-	std::atomic<uint32> SymbolsDiscovered;
-	std::atomic<uint32> SymbolsFailed;
-	std::atomic<uint32> SymbolsResolved;
 	std::atomic<uint64> SymbolBytesAllocated;
 	std::atomic<uint64> SymbolBytesWasted;
 
 	IAnalysisSession& Session;
+	FString Platform;
+	FString Project;
 };
+
 
 /////////////////////////////////////////////////////////////////////
 

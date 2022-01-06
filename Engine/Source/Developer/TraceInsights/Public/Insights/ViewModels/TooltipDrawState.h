@@ -82,6 +82,9 @@ public:
 
 	void Draw(const FDrawContext& DrawContext) const;
 
+	void SetFontScale(float InFontScale) { FontScale = InFontScale; }
+	float GetFontScale() const { return FontScale; }
+
 private:
 	const FSlateBrush* WhiteBrush;
 	const FSlateFontInfo Font;
@@ -98,6 +101,8 @@ private:
 
 	float Opacity;
 	float DesiredOpacity;
+
+	float FontScale;
 
 	TArray<FDrawTextInfo> Texts;
 };

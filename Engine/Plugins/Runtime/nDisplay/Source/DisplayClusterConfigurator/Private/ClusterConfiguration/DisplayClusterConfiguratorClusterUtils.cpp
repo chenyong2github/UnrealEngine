@@ -703,10 +703,27 @@ bool FDisplayClusterConfiguratorClusterUtils::RemoveClusterNodeFromCluster(UDisp
 			ClusterNode->Modify();
 
 			ClusterNodeParent->Modify();
+
+			const bool bRemovingPrimaryNode = IsClusterNodePrimary(ClusterNode);
+			if (bRemovingPrimaryNode)
+			{
+				ClusterNodeParent->PrimaryNode.Id.Empty();
+			}
+			
 			RemoveKeyFromMap(ClusterNodeParent, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes), *KeyPtr);
 
 			ClusterNode->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_DoNotDirty);
 			ClusterNode->SetFlags(RF_Transient);
+
+			if (bRemovingPrimaryNode)
+			{
+				for (const TTuple<FString, UDisplayClusterConfigurationClusterNode*>& NodesKeyVal : ClusterNodeParent->Nodes)
+				{
+					SetClusterNodeAsPrimary(NodesKeyVal.Value);
+					break;
+				}
+			}
+			
 			FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(ClusterNodeParent, true);
 			
 			return true;
