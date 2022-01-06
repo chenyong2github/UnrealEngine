@@ -132,15 +132,27 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 				SAssignNew(FunctionNameEditableTextBlock, SInlineEditableTextBlock)
 				.Text_Lambda([this]()
 					{
+						const FText FunctionName = FunctionItem->GetFunctionName();
 						if (FunctionItem->HasValidAttribute())
 						{
-							return FunctionItem->GetFunctionName();
+							return FunctionName;
 						}
-						return LOCTEXT("InvalidAttributeFunctionName", "<Empty Channel - No Attribute Set>");
+						else if (!FunctionName.IsEmpty())
+						{
+							return FText::Format(LOCTEXT("InvalidAttributeFunctionName", "<{0}>"), FunctionItem->GetFunctionName());
+						}
+						else
+						{
+							return LOCTEXT("InvalidAttributeFunctionName", "<Unnamed>");
+						}
 					})
 				.IsEnabled_Lambda([this]()
 					{
 						return FunctionItem->HasValidAttribute();
+					})
+				.ToolTipText_Lambda([this]
+					{
+						return LOCTEXT("InvalidAttributeFunctionNameTooltip", "Empty Channel - No Attribute Set");
 					})
 				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
 				.IsReadOnly(false)
