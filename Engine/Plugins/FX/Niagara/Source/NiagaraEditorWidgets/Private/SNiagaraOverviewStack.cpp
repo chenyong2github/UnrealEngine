@@ -835,7 +835,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			];
 
 		// in case we have at least one inline input, we add a wrap box to make sure we have enough space for both the module name and parameters
-		if(StackModuleItem && StackModuleItem->GetInlineParameterInputs().Num() > 0)
+		if(StackModuleItem && StackModuleItem->GetModuleNode().ScriptIsValid() && StackModuleItem->GetInlineParameterInputs().Num() > 0)
 		{
 			ContentBox = SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
