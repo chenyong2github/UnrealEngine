@@ -496,7 +496,7 @@ private:
 		{
 			return ESubsequentsMode::TrackSubsequents;
 		}
-		void DoTask(ENamedThreads::Type CurrentThread, FGraphEventRef& MyCompletionGraphEvent)
+		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 		{
 			Owner->ProcessObjectArray(*ArrayStruct, MyCompletionGraphEvent);
 		}

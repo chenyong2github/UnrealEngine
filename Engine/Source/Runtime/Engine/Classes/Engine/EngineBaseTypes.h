@@ -266,7 +266,7 @@ private:
 		int32 TickQueuedGFrameCounter;
 
 		/** Pointer to the task, only used during setup. This is often stale. **/
-		void* TaskPointer;
+		FBaseGraphTask* TaskPointer;
 
 		/** The next function in the cooling down list for ticks with an interval*/
 		FTickFunction* Next;

@@ -208,7 +208,6 @@ void FMovieSceneEntitySystemRunner::DoFlushUpdateQueueOnce()
 
 	FTaskGraphInterface::Get().WaitUntilTaskCompletes(CompletionTask->GetCompletionEvent(), ENamedThreads::GameThread_Local);
 
-	// TODO: delete?
 	CompletionTask = nullptr;
 
 	// Now run the post-evaluation logic, which contains stuff we don't want to run from inside a task
