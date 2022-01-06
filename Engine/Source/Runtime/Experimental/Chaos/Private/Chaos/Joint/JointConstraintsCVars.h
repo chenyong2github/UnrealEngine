@@ -26,3 +26,5 @@ extern float Chaos_Joint_LinearVelocityThresholdToApplyRestitution;
 
 extern float Chaos_Joint_AngularVelocityThresholdToApplyRestitution;
 
+extern bool bChaos_Joint_UseCachedSolver;
+
