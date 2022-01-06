@@ -4,6 +4,8 @@
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 
+FReferenceSkeletonModifier::FReferenceSkeletonModifier(USkeleton* InSkeleton) : RefSkeleton(InSkeleton->ReferenceSkeleton), Skeleton(InSkeleton) {}
+
 FReferenceSkeletonModifier::~FReferenceSkeletonModifier()
 {
 	RefSkeleton.RebuildRefSkeleton(Skeleton, true);

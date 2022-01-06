@@ -15,6 +15,8 @@ FSkeletalMeshMerge
 #include "ReferenceSkeleton.h"
 #include "Components.h"
 
+#include "SkeletalMeshMerge.generated.h"
+
 class UMaterialInterface;
 class USkeletalMesh;
 class USkeletalMeshSocket;
@@ -78,19 +80,46 @@ struct FRefPoseOverride
 * Info to map all the sections from a single source skeletal mesh to 
 * a final section entry int he merged skeletal mesh
 */
-struct FSkelMeshMergeSectionMapping
+USTRUCT(BlueprintType)
+struct ENGINE_API FSkelMeshMergeSectionMapping
 {
+	GENERATED_USTRUCT_BODY()
+	
 	/** indices to final section entries of the merged skel mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Merge Parameters")
 	TArray<int32> SectionIDs;
+};
+
+USTRUCT(BlueprintType)
+struct ENGINE_API FSkelMeshMergeMeshUVTransforms
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** A list of how UVs should be transformed on a given mesh, where index represents a specific UV channel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Merge Parameters")
+	TArray<FTransform> UVTransforms;
 };
 
 /** 
 * Info to map all the sections about how to transform their UVs
 */
-struct FSkelMeshMergeUVTransforms
+struct UE_DEPRECATED(5.0, "FSkelMeshMergeUVTransforms has been deprecated, use FSkelMeshMergeMeshUVTransforms instead") FSkelMeshMergeUVTransforms
 {
 	/** For each UV channel on each mesh, how the UVS should be transformed. */
 	TArray<TArray<FTransform>> UVTransformsPerMesh;
+};
+
+/** 
+* Info to map all the sections about how to transform their UVs
+*/
+USTRUCT(BlueprintType)
+struct ENGINE_API FSkelMeshMergeUVTransformMapping
+{
+	GENERATED_USTRUCT_BODY()
+	
+	/** UV coordinates transform datam one entry for each Skeletal Mesh. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh Merge Parameters")
+	TArray<FSkelMeshMergeMeshUVTransforms> UVTransformsPerMesh;
 };
 
 /** 
@@ -114,8 +143,20 @@ public:
 		const TArray<FSkelMeshMergeSectionMapping>& InForceSectionMapping,
 		int32 StripTopLODs,
         EMeshBufferAccess MeshBufferAccess=EMeshBufferAccess::Default,
-		FSkelMeshMergeUVTransforms* InSectionUVTransforms = nullptr
+		const FSkelMeshMergeUVTransformMapping* InSectionUVTransforms = nullptr
 		);
+
+	UE_DEPRECATED(5.0, "FSkelMeshMergeUVTransforms has been replaced with FSkelMeshMergeMeshUVTransforms, use different signature")
+	FSkeletalMeshMerge( 
+    		USkeletalMesh* InMergeMesh, 
+    		const TArray<USkeletalMesh*>& InSrcMeshList, 
+    		const TArray<FSkelMeshMergeSectionMapping>& InForceSectionMapping,
+    		int32 StripTopLODs,
+            EMeshBufferAccess MeshBufferAccess,
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    		FSkelMeshMergeUVTransforms* InSectionUVTransforms
+    		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+    		);
 
 	/**
 	 * Merge/Composite skeleton and meshes together from the list of source meshes.
@@ -168,7 +209,10 @@ private:
 	const TArray<FSkelMeshMergeSectionMapping>& ForceSectionMapping;
 
 	/** optional array to transform UVs in each source mesh */
-	const FSkelMeshMergeUVTransforms* SectionUVTransforms;
+	const FSkelMeshMergeUVTransformMapping* SectionUVTransforms;
+
+	UE_DEPRECATED(5.0, "Used to facilitate backwards compatibility with old constructor")
+	FSkelMeshMergeUVTransformMapping DummySectionUVTransforms;
 
 	/** Matches the Materials array in the final mesh - used for creating the right number of Material slots. */
 	TArray<int32>	MaterialIds;

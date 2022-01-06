@@ -444,7 +444,7 @@ private:
  *		- Bone/track linkup between mesh and animation
  *		- Retargetting related
  */
-UCLASS(hidecategories=Object, MinimalAPI)
+UCLASS(hidecategories=Object, MinimalAPI, BlueprintType)
 class USkeleton : public UObject, public IInterface_AssetUserData, public IInterface_PreviewMeshProvider
 {
 	friend class UAnimationBlueprintLibrary;
@@ -819,6 +819,10 @@ public:
 	DECLARE_EVENT(USkeleton, FSmartNamesChangedEvent);
 	FSmartNamesChangedEvent OnSmartNamesChangedEvent;
 
+public:
+	UFUNCTION(BlueprintCallable, Category=Skeleton)
+	ENGINE_API void AddCompatibleSkeleton(const USkeleton* SourceSkeleton);
+	ENGINE_API void RemoveCompatibleSkeleton(const USkeleton* SourceSkeleton);
 protected:
 	mutable FCriticalSection SkeletonRemappingMutex;
 
@@ -1156,5 +1160,7 @@ protected:
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Skeleton)
 	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
+
+	friend struct FReferenceSkeletonModifier;
 };
 

@@ -28,7 +28,7 @@ FSkeletalMeshMerge::FSkeletalMeshMerge(USkeletalMesh* InMergeMesh,
 									   const TArray<FSkelMeshMergeSectionMapping>& InForceSectionMapping,
 									   int32 InStripTopLODs,
                                        EMeshBufferAccess InMeshBufferAccess,
-									   FSkelMeshMergeUVTransforms* InSectionUVTransforms)
+									   const FSkelMeshMergeUVTransformMapping* InSectionUVTransforms)
 :	MergeMesh(InMergeMesh)
 ,	SrcMeshList(InSrcMeshList)
 ,	StripTopLODs(InStripTopLODs)
@@ -37,6 +37,40 @@ FSkeletalMeshMerge::FSkeletalMeshMerge(USkeletalMesh* InMergeMesh,
 ,	SectionUVTransforms(InSectionUVTransforms)
 {
 	check(MergeMesh);
+}
+
+
+FSkeletalMeshMerge::FSkeletalMeshMerge(USkeletalMesh* InMergeMesh, 
+										const TArray<USkeletalMesh*>& InSrcMeshList, 
+										const TArray<FSkelMeshMergeSectionMapping>& InForceSectionMapping,
+										int32 InStripTopLODs,
+										EMeshBufferAccess InMeshBufferAccess,
+										PRAGMA_DISABLE_DEPRECATION_WARNINGS
+										FSkelMeshMergeUVTransforms* InSectionUVTransforms)
+										PRAGMA_ENABLE_DEPRECATION_WARNINGS
+:	MergeMesh(InMergeMesh)
+,	SrcMeshList(InSrcMeshList)
+,	StripTopLODs(InStripTopLODs)
+,   MeshBufferAccess(InMeshBufferAccess)
+,	ForceSectionMapping(InForceSectionMapping)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+,	SectionUVTransforms(&DummySectionUVTransforms)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+{
+	if (InSectionUVTransforms)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		for (int32 MeshIdx = 0; MeshIdx < InSrcMeshList.Num(); ++MeshIdx)
+		{
+			if (MeshIdx < InSectionUVTransforms->UVTransformsPerMesh.Num())
+			{
+				const TArray<FTransform>& OldPerMeshTransforms = InSectionUVTransforms->UVTransformsPerMesh[MeshIdx];
+				FSkelMeshMergeMeshUVTransforms& NewPerMeshTransforms = DummySectionUVTransforms.UVTransformsPerMesh.AddDefaulted_GetRef();
+				NewPerMeshTransforms.UVTransforms = OldPerMeshTransforms;
+			}
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 }
 
 /** Helper macro to call GenerateLODModel which requires compile time vertex type. */
@@ -330,7 +364,7 @@ void FSkeletalMeshMerge::GenerateNewSectionArray( TArray<FNewSectionInfo>& NewSe
 							TArray<FTransform> SrcUVTransform;
 							if (SectionUVTransforms != nullptr && MeshIdx < SectionUVTransforms->UVTransformsPerMesh.Num())
 							{
-								SrcUVTransform = SectionUVTransforms->UVTransformsPerMesh[MeshIdx];
+								SrcUVTransform = SectionUVTransforms->UVTransformsPerMesh[MeshIdx].UVTransforms;
 							}
 
 							// add the source section as a new merge entry
@@ -367,7 +401,7 @@ void FSkeletalMeshMerge::GenerateNewSectionArray( TArray<FNewSectionInfo>& NewSe
 					TArray<FTransform> SrcUVTransform;
 					if (SectionUVTransforms != nullptr && MeshIdx < SectionUVTransforms->UVTransformsPerMesh.Num())
 					{
-						SrcUVTransform = SectionUVTransforms->UVTransformsPerMesh[MeshIdx];
+						SrcUVTransform = SectionUVTransforms->UVTransformsPerMesh[MeshIdx].UVTransforms;
 					}
 					// add a new merge section entry
 					FMergeSectionInfo& MergeSectionInfo = *new(NewSectionInfo.MergeSections) FMergeSectionInfo(

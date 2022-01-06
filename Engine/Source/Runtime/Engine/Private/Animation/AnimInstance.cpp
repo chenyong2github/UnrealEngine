@@ -2801,7 +2801,7 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 			IAnimClassInterface* LinkedAnimBlueprintClass = IAnimClassInterface::GetFromClass(NewClass);
 			USkeleton* LinkedSkeleton = LinkedAnimBlueprintClass->GetTargetSkeleton();
 			USkeleton* OuterSkeleton = AnimBlueprintClass->GetTargetSkeleton();
-			if(LinkedSkeleton != OuterSkeleton)
+			if(!LinkedSkeleton->IsCompatible(OuterSkeleton))
 			{
 				UE_LOG(LogAnimation, Warning, TEXT("Linking layer: Linked instance class has a mismatched target skeleton. Expected %s, found %s."), OuterSkeleton ? *OuterSkeleton->GetName() : TEXT("null"), LinkedSkeleton ? *LinkedSkeleton->GetName() : TEXT("null"));
 				return;
