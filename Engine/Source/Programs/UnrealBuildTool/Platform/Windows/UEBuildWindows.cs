@@ -307,11 +307,6 @@ namespace UnrealBuildTool
 		public string AdditionalLinkerOptions = "";
 
 		/// <summary>
-		/// True if we allow using addresses larger than 2GB on 32 bit builds
-		/// </summary>
-		public bool bBuildLargeAddressAwareBinary = true;
-
-		/// <summary>
 		/// Create an image that can be hot patched (/FUNCTIONPADMIN)
 		/// </summary>
 		public bool bCreateHotPatchableImage
@@ -610,11 +605,6 @@ namespace UnrealBuildTool
 			get { return Inner.AdditionalLinkerOptions; }
 		}
 
-		public bool bBuildLargeAddressAwareBinary
-		{
-			get { return Inner.bBuildLargeAddressAwareBinary; }
-		}
-
 		public bool bCreateHotpatchableImage
 		{
 			get { return Inner.bCreateHotPatchableImage; }
@@ -866,11 +856,6 @@ namespace UnrealBuildTool
 		/// True if we should use the Clang linker (LLD) when we are compiling with Clang, otherwise we use the MSVC linker
 		/// </summary>
 		public static readonly bool bAllowClangLinker = false;
-
-		/// <summary>
-		/// True if we allow using addresses larger than 2GB on 32 bit builds
-		/// </summary>
-		public static readonly bool bBuildLargeAddressAwareBinary = true;
 
 		MicrosoftPlatformSDK SDK;
 
