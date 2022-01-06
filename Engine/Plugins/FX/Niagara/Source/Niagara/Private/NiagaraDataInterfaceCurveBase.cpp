@@ -327,10 +327,10 @@ bool UNiagaraDataInterfaceCurveBase::Equals(const UNiagaraDataInterface* Other) 
 	return bEqual;
 }
 
-void UNiagaraDataInterfaceCurveBase::CacheStaticBuffers(struct FNiagaraSystemStaticBuffers& StaticBuffers, const struct FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo, ENiagaraSimTarget SimTarget)
+void UNiagaraDataInterfaceCurveBase::CacheStaticBuffers(struct FNiagaraSystemStaticBuffers& StaticBuffers, const struct FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo, bool bUsedByCPU, bool bUsedByGPU)
 {
 	LUTOffset = INDEX_NONE;
-	if (DataInterfaceInfo.IsUserDataInterface() == false && SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	if (bUsedByGPU && DataInterfaceInfo.IsUserDataInterface() == false)
 	{
 		LUTOffset = StaticBuffers.AddGpuData(ShaderLUT);
 	}
