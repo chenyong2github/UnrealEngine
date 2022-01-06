@@ -246,6 +246,11 @@ const TMap<FName, UNiagaraDataInterface*>& FNiagaraCompileRequestDuplicateData::
 	return *SharedNameToDuplicatedDataInterfaceMap.Get();
 }
 
+const UNiagaraScriptSourceBase* FNiagaraCompileRequestDuplicateData::GetScriptSource() const
+{
+	return SourceDeepCopy.Get();
+}
+
 UNiagaraDataInterface* FNiagaraCompileRequestDuplicateData::GetDuplicatedDataInterfaceCDOForClass(UClass* Class) const
 {
 	if (SharedDataInterfaceClassToDuplicatedCDOMap.IsValid())
