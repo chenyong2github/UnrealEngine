@@ -5270,15 +5270,23 @@ void UClass::ClearSparseClassDataStruct()
 	{
 		// Find all subclasses and clear their sparse class data struct as well.
 		TArray<UClass*> SubClasses;
+		TArray<UClass*> SubClassesToClear;
 		GetDerivedClasses(this, SubClasses, true /* bRecursive */);
 		for (UClass* SubClass : SubClasses)
 		{
 			UScriptStruct* SubClassSparseClassDataStruct = SubClass->GetSparseClassDataStruct();
-			if (SubClassSparseClassDataStruct && SubClassSparseClassDataStruct->GetSuperStruct() == SparseClassDataStruct)
+			if (SubClassSparseClassDataStruct && SubClassSparseClassDataStruct->IsChildOf(SparseClassDataStruct))
 			{
-				SubClass->CleanupSparseClassData();
-				SubClassSparseClassDataStruct->SetSuperStruct(nullptr);
+				SubClassesToClear.Add(SubClass);
 			}
+		}
+
+		for(UClass* SubClassToClear : SubClassesToClear)
+		{
+			UScriptStruct* SubClassSparseClassDataStruct = SubClassToClear->GetSparseClassDataStruct();
+			SubClassToClear->CleanupSparseClassData();
+			SubClassToClear->SparseClassDataStruct = nullptr;
+			SubClassSparseClassDataStruct->SetSuperStruct(nullptr);	
 		}
 
 		CleanupSparseClassData();
