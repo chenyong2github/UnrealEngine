@@ -44,6 +44,13 @@ TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapLastCoarseLevel(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapZRangeScale(
+	TEXT("r.Shadow.Virtual.Clipmap.ZRangeScale"),
+	1000.0f,
+	TEXT("Scale of the clipmap level depth range relative to the radius. Should generally be at least 10 or it will result in excessive cache invalidations."),
+	ECVF_RenderThreadSafe
+);
+
 // "Virtual" clipmap level to clipmap radius
 // NOTE: This is the radius of around the clipmap origin that this level must cover
 // The actual clipmap dimensions will be larger due to snapping and other accomodations
@@ -146,9 +153,9 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		// This also better accomodates SMRT where we want to avoid stepping outside of the Z bounds of a given clipmap
 		// NOTE: It's tempting to use a single global Z range for the entire clipmap (which avoids some SMRT overhead too)
 		// but this can cause precision issues with cached pages very near the camera.
-		const float ViewRadiusZMultiplier = 1000.0f;
+		const float ViewRadiusZScale = CVarVirtualShadowMapClipmapZRangeScale.GetValueOnRenderThread();
 
-		float ViewRadiusZ = RawLevelRadius * ViewRadiusZMultiplier;
+		float ViewRadiusZ = RawLevelRadius * ViewRadiusZScale;
 		float ViewCenterDeltaZ = 0.0f;
 
 		if (CacheEntry)
