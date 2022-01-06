@@ -66,18 +66,18 @@ void NetResultToString(FString& OutResultStr, const TCHAR* LexResult, const FStr
 			CurResultStr.Append(TEXT(", "));
 		}
 
-		CurResultStr.Append(TEXT('('));
+		CurResultStr.AppendChar(TEXT('('));
 	}
 
 	CurResultStr.Append(TEXT("Result="));
 	CurResultStr.Append(LexResult);
 	CurResultStr.Append(TEXT(", ErrorContext=\""));
 	CurResultStr.Append(ToCStr(ErrorContext));
-	CurResultStr.Append(TEXT('\"'));
+	CurResultStr.AppendChar(TEXT('\"'));
 
 	if (bIncludeChain)
 	{
-		CurResultStr.Append(TEXT(')'));
+		CurResultStr.AppendChar(TEXT(')'));
 	}
 
 	OutResultStr += CurResultStr.ToString();

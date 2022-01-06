@@ -4445,12 +4445,12 @@ int32 FHlslNiagaraTranslator::GetConstantDirect(int InConstantValue)
 
 bool FHlslNiagaraTranslator::GenerateStructInitializer(TStringBuilder<128>& InitializerString, UStruct* UserDefinedStruct, const void* StructData)
 {
-	InitializerString.Append('{');
+	InitializerString.AppendChar(TEXT('{'));
 	for (FField* ChildProperty = UserDefinedStruct->ChildProperties; ChildProperty; ChildProperty = ChildProperty->Next)
 	{
 		if (ChildProperty != UserDefinedStruct->ChildProperties)
 		{
-			InitializerString.Append(',');
+			InitializerString.AppendChar(TEXT(','));
 		}
 
 		if (FFloatProperty* FloatProperty = CastField<FFloatProperty>(ChildProperty))
@@ -4481,7 +4481,7 @@ bool FHlslNiagaraTranslator::GenerateStructInitializer(TStringBuilder<128>& Init
 			return false;
 		}
 	}
-	InitializerString.Append('}');
+	InitializerString.AppendChar(TEXT('}'));
 	return true;
 }
 
@@ -8070,7 +8070,7 @@ FString FHlslNiagaraTranslator::GenerateFunctionHlslPrototype(FStringView InVari
 		if (FunctionSignature.FunctionSpecifiers.Num())
 		{
 			bool bNeedsComma = false;
-			StringBuilder.Append('<');
+			StringBuilder.AppendChar(TEXT('<'));
 			for (auto SpecifierIt = FunctionSignature.FunctionSpecifiers.CreateConstIterator(); SpecifierIt; ++SpecifierIt)
 			{
 				if (bNeedsComma)
@@ -8080,12 +8080,12 @@ FString FHlslNiagaraTranslator::GenerateFunctionHlslPrototype(FStringView InVari
 				bNeedsComma = true;
 
 				StringBuilder.Append(SpecifierIt.Key().ToString());
-				StringBuilder.Append('=');
-				StringBuilder.Append('"');
+				StringBuilder.AppendChar(TEXT('='));
+				StringBuilder.AppendChar(TEXT('"'));
 				StringBuilder.Append(SpecifierIt.Value().IsNone() ? TEXT("Value") : *SpecifierIt.Value().ToString());
-				StringBuilder.Append('"');
+				StringBuilder.AppendChar(TEXT('"'));
 			}
-			StringBuilder.Append('>');
+			StringBuilder.AppendChar(TEXT('>'));
 		}
 
 		// Build function parameters

@@ -128,7 +128,7 @@ void FNetConnAnalyticsData::SendAnalytics()
 
 					if (!CurFullReason.IsEmpty())
 					{
-						CurFormattedReason.Append(TEXT(','));
+						CurFormattedReason.AppendChar(TEXT(','));
 					}
 
 					CurFormattedReason.Append(ToCStr(CurReason));
@@ -161,7 +161,7 @@ void FNetConnAnalyticsData::SendAnalytics()
 
 					if (!CurFullReason.IsEmpty())
 					{
-						CurFormattedReason.Append(TEXT(','));
+						CurFormattedReason.AppendChar(TEXT(','));
 					}
 
 					CurFormattedReason.Append(ToCStr(CurClientReason));

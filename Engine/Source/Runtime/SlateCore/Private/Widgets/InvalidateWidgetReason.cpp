@@ -69,7 +69,7 @@ FString LexToString(EInvalidateWidgetReason InValue)
 	}
 
 	TStringBuilder<512> Result;
-	#define ENUM_CASE_TO_STRING(Enum) if (EnumHasAnyFlags(InValue, EInvalidateWidgetReason::Enum)) { if (Result.Len() != 0) { Result.Append(TEXT('|')); } Result.Append(TEXT(#Enum)); }
+	#define ENUM_CASE_TO_STRING(Enum) if (EnumHasAnyFlags(InValue, EInvalidateWidgetReason::Enum)) { if (Result.Len() != 0) { Result.AppendChar(TEXT('|')); } Result.Append(TEXT(#Enum)); }
 	ENUM_CASE_TO_STRING(Layout);
 	ENUM_CASE_TO_STRING(Paint);
 	ENUM_CASE_TO_STRING(Volatility);

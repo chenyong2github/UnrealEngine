@@ -1384,9 +1384,9 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 			{
 				TStringBuilder<1024> VisibilityParms;
 
-				VisibilityParms.Append(ToCStr(PackageNameStr));
-				VisibilityParms.Append(TEXT(','));
-				VisibilityParms.Append(ToCStr(FileNameStr));
+				VisibilityParms.Append(PackageNameStr);
+				VisibilityParms.AppendChar(TEXT(','));
+				VisibilityParms.Append(FileNameStr);
 
 				Close({ENetCloseResult::MissingLevelPackage, VisibilityParms.ToString()});
 			}

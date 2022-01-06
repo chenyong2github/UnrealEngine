@@ -1728,7 +1728,7 @@ void FNiagaraDebugHud::DrawGpuComputeOverriew(class FNiagaraWorldManager* WorldM
 		{
 			for ( int32 i=0; i < Columns.Num(); ++i )
 			{
-				Columns[i].AllRowsText.Append(TEXT('\n'));
+				Columns[i].AllRowsText.AppendChar(TEXT('\n'));
 			}
 		}
 
@@ -2308,11 +2308,11 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 					StringBuilder.Appendf(TEXT("Particle(%u)"), iInstance);
 					for (const auto& ParticleVariable : CachedVariables.ParticleVariables[iEmitter])
 					{
-						StringBuilder.Append(Settings.bShowParticleVariablesVertical ? '\n' : ' ');
+						StringBuilder.AppendChar(Settings.bShowParticleVariablesVertical ? TEXT('\n') : TEXT(' '));
 						StringBuilder.Append(ParticleVariable.GetName().ToString());
-						StringBuilder.Append('(');
+						StringBuilder.AppendChar(TEXT('('));
 						ParticleVariable.StringAppend(StringBuilder, DataBuffer, iInstance);
-						StringBuilder.Append(')');
+						StringBuilder.AppendChar(TEXT(')'));
 					}
 
 					const TCHAR* FinalString = StringBuilder.ToString();

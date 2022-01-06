@@ -82,9 +82,9 @@ void WriteBPGCBreadcrumbs(FCrashContextExtendedWriter& Writer, const BPGCBreadcr
 		TStringBuilder<MAX_DATA_SIZE> Builder;
 
 		Params.Object.GetPathName(nullptr, Builder);
-		Builder.Append(TCHAR('\n'));
+		Builder.AppendChar(TEXT('\n'));
 		Params.BPGC.GetPathName(nullptr, Builder);
-		Builder.Append(TCHAR('\n'));
+		Builder.AppendChar(TEXT('\n'));
 
 		if (Params.Ar.GetSerializedProperty() != nullptr)
 		{

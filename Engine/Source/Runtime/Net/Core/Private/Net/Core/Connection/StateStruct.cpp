@@ -32,9 +32,9 @@ const UStatePerObjectConfig* UStatePerObjectConfig::Get(FStateConfigParms Config
 	TStringBuilder<1024> FormattedName;
 
 	FormattedName.Append(ToCStr(ConfigContext));
-	FormattedName.Append(TEXT('_'));
+	FormattedName.AppendChar(TEXT('_'));
 	FormattedName.Append(ToCStr(ConfigSection));
-	FormattedName.Append(TEXT('_'));
+	FormattedName.AppendChar(TEXT('_'));
 	FormattedName.Append(ToCStr(ConfigClass->GetFName().ToString()));
 
 	const TCHAR* FormattedNameStr = FormattedName.ToString();
@@ -47,7 +47,7 @@ const UStatePerObjectConfig* UStatePerObjectConfig::Get(FStateConfigParms Config
 		if (!ConfigContext.IsEmpty())
 		{
 			FullSection.Append(ToCStr(ConfigContext));
-			FullSection.Append(TEXT(' '));
+			FullSection.AppendChar(TEXT(' '));
 		}
 
 		FullSection.Append(ToCStr(ConfigSection));
@@ -113,7 +113,7 @@ void UStatePerObjectConfig::RegisterStateConfig(const TArray<FString>& StateName
 			TStringBuilder<1024> CurSection;
 
 			CurSection.Append(ToCStr(ConfigParms.ConfigSection));
-			CurSection.Append(TEXT('.'));
+			CurSection.AppendChar(TEXT('.'));
 			CurSection.Append(ToCStr(CurStateName));
 
 			const TCHAR* CurSectionStr = CurSection.ToString();

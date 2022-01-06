@@ -72,12 +72,12 @@ FName FMovieSceneSpawnable::GetNetAddressableName(IMovieScenePlayer& Player, FMo
 	// Actor / player Name
 	if (AActor* OuterActor = PlayerObject->GetTypedOuter<AActor>())
 	{
-		AddressableName.Append('_');
+		AddressableName.AppendChar(TEXT('_'));
 		OuterActor->GetFName().AppendString(AddressableName);
 	}
 	else
 	{
-		AddressableName.Append('_');
+		AddressableName.AppendChar(TEXT('_'));
 		PlayerObject->GetFName().AppendString(AddressableName);
 	}
 

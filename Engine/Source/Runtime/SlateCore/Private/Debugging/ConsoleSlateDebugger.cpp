@@ -365,7 +365,7 @@ void FConsoleSlateDebugger::OnRouteInput(ESlateDebuggingInputEvent InputEventTyp
 		Message.Append(StaticEnum<ESlateDebuggingInputEvent>()->GetDisplayNameTextByValue((int64)InputEventType).ToString());
 		Message.Append(TEXT(" ("));
 		Message.Append(RoutedType.ToString());
-		Message.Append(TEXT(')'));
+		Message.AppendChar(TEXT(')'));
 		UE_LOG(LogSlateDebugger, Log, TEXT("%s"), *Message);
 	}
 	

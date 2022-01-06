@@ -825,7 +825,7 @@ static void WriteIndent(int32 IndentLevel, FStringBuilderBase& InOutString)
 	TCHAR* Result = InOutString.GetData() + Offset;
 	for (int32 i = 0; i < IndentLevel; ++i)
 	{
-		*Result++ = TCHAR('\t');
+		*Result++ = TEXT('\t');
 	}
 }
 
@@ -853,7 +853,7 @@ void UE::HLSLTree::FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString
 			check(!CodeDeclaration->NestedScope);
 			WriteIndent(Indent, OutString);
 			OutString.Append(CodeDeclaration->String, CodeDeclaration->Length);
-			OutString.Append(TEXT('\n'));
+			OutString.AppendChar(TEXT('\n'));
 			CodeDeclaration = CodeDeclaration->Next;
 		}
 	}
@@ -866,7 +866,7 @@ void UE::HLSLTree::FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString
 			{
 				WriteIndent(Indent, OutString);
 				OutString.Append(CodeStatement->String, CodeStatement->Length);
-				OutString.Append(TEXT('\n'));
+				OutString.AppendChar(TEXT('\n'));
 			}
 			if (CodeStatement->NestedScope)
 			{

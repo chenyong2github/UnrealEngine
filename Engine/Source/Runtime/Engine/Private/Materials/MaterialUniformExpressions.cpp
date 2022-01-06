@@ -42,10 +42,10 @@ void WriteMaterialUniformAccess(UE::Shader::EValueComponentType ComponentType, u
 		// Can skip writing mask if we're taking all 4 components from the register
 		if (NumComponentsInRegister < 4u)
 		{
-			OutResult.Append(TCHAR('.'));
+			OutResult.AppendChar(TCHAR('.'));
 			for (uint32 i = 0u; i < NumComponentsInRegister; ++i)
 			{
-				OutResult.Append(IndexToMask[RegisterOffset + i]);
+				OutResult.AppendChar(IndexToMask[RegisterOffset + i]);
 			}
 		}
 		NumComponentsToWrite -= NumComponentsInRegister;

@@ -69,12 +69,12 @@ FString FormatTimeAuto(const double InDuration, const int32 NumDigits)
 	if (FMath::IsNegative(Duration))
 	{
 		Duration = -Duration;
-		StrBuilder.Append(TEXT('-'));
+		StrBuilder.AppendChar(TEXT('-'));
 	}
 
 	if (Duration == DBL_MAX || Duration == std::numeric_limits<double>::infinity())
 	{
-		StrBuilder.Append(TEXT('∞'));
+		StrBuilder.AppendChar(TEXT('∞'));
 	}
 	else if (Duration < TimeUtils::Picosecond)
 	{
@@ -163,7 +163,7 @@ FString FormatTimeAuto(const double InDuration, const int32 NumDigits)
 		else
 		{
 			StrBuilder.Append(FormatTimeValue(Duration, NumDigits));
-			StrBuilder.Append(TEXT('s'));
+			StrBuilder.AppendChar(TEXT('s'));
 		}
 	}
 	else if (Duration < TimeUtils::Hour)
@@ -182,9 +182,9 @@ FString FormatTimeAuto(const double InDuration, const int32 NumDigits)
 		}
 		else
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 			StrBuilder.Append(FormatTimeValue(Duration, NumDigits - 1));
-			StrBuilder.Append(TEXT('s'));
+			StrBuilder.AppendChar(TEXT('s'));
 		}
 	}
 	else if (Duration < TimeUtils::Day)
@@ -235,12 +235,12 @@ FString FormatTimeMs(const double InDuration, const int32 NumDigits, bool bAddTi
 	if (FMath::IsNegative(Duration))
 	{
 		Duration = -Duration;
-		StrBuilder.Append(TEXT('-'));
+		StrBuilder.AppendChar(TEXT('-'));
 	}
 
 	if (Duration == DBL_MAX || Duration == std::numeric_limits<double>::infinity())
 	{
-		StrBuilder.Append(TEXT('∞'));
+		StrBuilder.AppendChar(TEXT('∞'));
 	}
 	else
 	{
@@ -289,12 +289,12 @@ FString FormatTime(const double InTime, const double Precision)
 	if (FMath::IsNegative(Time))
 	{
 		Time = -Time;
-		StrBuilder.Append(TEXT('-'));
+		StrBuilder.AppendChar(TEXT('-'));
 	}
 
 	if (Time == DBL_MAX || Time == std::numeric_limits<double>::infinity())
 	{
-		StrBuilder.Append(TEXT('∞'));
+		StrBuilder.AppendChar(TEXT('∞'));
 		return FString(StrBuilder);
 	}
 
@@ -322,7 +322,7 @@ FString FormatTime(const double InTime, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 		StrBuilder.Appendf(TEXT("%dh"), Hours);
 		bIsSpaceNeeded = true;
@@ -343,7 +343,7 @@ FString FormatTime(const double InTime, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 		StrBuilder.Appendf(TEXT("%dm"), Minutes);
 		bIsSpaceNeeded = true;
@@ -395,7 +395,7 @@ FString FormatTime(const double InTime, const double Precision)
 		{
 			if (bIsSpaceNeeded)
 			{
-				StrBuilder.Append(TEXT(' '));
+				StrBuilder.AppendChar(TEXT(' '));
 			}
 			StrBuilder.Appendf(TEXT("%ds"), Seconds);
 		}
@@ -408,7 +408,7 @@ FString FormatTime(const double InTime, const double Precision)
 	//{
 	//	if (bIsSpaceNeeded)
 	//	{
-	//		StrBuilder.Append(TEXT(' '));
+	//		StrBuilder.AppendChar(TEXT(' '));
 	//	}
 	//	int32 Seconds = static_cast<int32>(Time / TimeUtils::Second);
 	//	Time -= static_cast<double>(Seconds) * TimeUtils::Second;
@@ -419,7 +419,7 @@ FString FormatTime(const double InTime, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 #if !PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
 		StrBuilder.Appendf(TEXT("%.*fs"), Digits, Time);
@@ -576,7 +576,7 @@ FString FormatTimeSplit(const FTimeSplit& InTimeSplit, const double Precision)
 
 	if (InTimeSplit.bIsNegative)
 	{
-		StrBuilder.Append(TEXT('-'));
+		StrBuilder.AppendChar(TEXT('-'));
 	}
 
 	bool bIsSpaceNeeded = false;
@@ -600,7 +600,7 @@ FString FormatTimeSplit(const FTimeSplit& InTimeSplit, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 		StrBuilder.Appendf(TEXT("%dh"), InTimeSplit.Hours);
 		bIsSpaceNeeded = true;
@@ -619,7 +619,7 @@ FString FormatTimeSplit(const FTimeSplit& InTimeSplit, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 		StrBuilder.Appendf(TEXT("%dm"), InTimeSplit.Minutes);
 		bIsSpaceNeeded = true;
@@ -638,7 +638,7 @@ FString FormatTimeSplit(const FTimeSplit& InTimeSplit, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 		StrBuilder.Appendf(TEXT("%ds"), InTimeSplit.Seconds);
 		bIsSpaceNeeded = true;
@@ -657,7 +657,7 @@ FString FormatTimeSplit(const FTimeSplit& InTimeSplit, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 		StrBuilder.Appendf(TEXT("%dms"), InTimeSplit.Miliseconds);
 		bIsSpaceNeeded = true;
@@ -676,7 +676,7 @@ FString FormatTimeSplit(const FTimeSplit& InTimeSplit, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 		StrBuilder.Appendf(TEXT("%dµs"), InTimeSplit.Microseconds);
 		bIsSpaceNeeded = true;
@@ -695,7 +695,7 @@ FString FormatTimeSplit(const FTimeSplit& InTimeSplit, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 		StrBuilder.Appendf(TEXT("%dns"), InTimeSplit.Nanoseconds);
 		bIsSpaceNeeded = true;
@@ -714,7 +714,7 @@ FString FormatTimeSplit(const FTimeSplit& InTimeSplit, const double Precision)
 	{
 		if (bIsSpaceNeeded)
 		{
-			StrBuilder.Append(TEXT(' '));
+			StrBuilder.AppendChar(TEXT(' '));
 		}
 		StrBuilder.Appendf(TEXT("%dps"), InTimeSplit.Picoseconds);
 		bIsSpaceNeeded = true;
