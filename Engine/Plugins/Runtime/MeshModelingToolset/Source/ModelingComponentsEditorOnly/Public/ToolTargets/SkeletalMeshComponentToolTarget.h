@@ -33,6 +33,10 @@ class MODELINGCOMPONENTSEDITORONLY_API USkeletalMeshComponentReadOnlyToolTarget 
 	GENERATED_BODY()
 
 public:
+
+	// UToolTarget implementation
+	virtual bool IsValid() const override;
+
 	// IMeshDescriptionProvider implementation
 	virtual const FMeshDescription* GetMeshDescription(const FGetMeshParameters& GetMeshParams = FGetMeshParameters()) override;
 

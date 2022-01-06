@@ -25,7 +25,17 @@ namespace USkeletalMeshToolTargetLocals
 
 bool USkeletalMeshReadOnlyToolTarget::IsValid() const
 {
-	return SkeletalMesh && IsValidChecked(SkeletalMesh) && !SkeletalMesh->IsUnreachable() && SkeletalMesh->IsValidLowLevel();
+	return IsValid(SkeletalMesh);
+}
+
+bool USkeletalMeshReadOnlyToolTarget::IsValid(const USkeletalMesh* SkeletalMeshIn)
+{
+	if (!SkeletalMeshIn || !IsValidChecked(SkeletalMeshIn) || SkeletalMeshIn->IsUnreachable() || !SkeletalMeshIn->IsValidLowLevel())
+	{
+		return false;
+	}
+
+	return true;
 }
 
 int32 USkeletalMeshReadOnlyToolTarget::GetNumMaterials() const
