@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Fonts/SlateFontInfo.h"
 #include "TraceServices/Model/TimingProfiler.h"
 
 // Insights
@@ -16,7 +15,6 @@ class FTimingEventSearchParameters;
 class FGpuTimingTrack;
 class FCpuTimingTrack;
 class STimingView;
-struct FSlateBrush;
 
 namespace Insights
 {
@@ -172,8 +170,6 @@ protected:
 	virtual bool HasCustomFilter() const override;
 
 private:
-	void DrawSelectedEventInfo(const FThreadTrackEvent& SelectedEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const;
-
 	bool FindTimingProfilerEvent(const FThreadTrackEvent& InTimingEvent, TFunctionRef<void(double, double, uint32, const TraceServices::FTimingProfilerEvent&)> InFoundPredicate) const;
 	bool FindTimingProfilerEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const TraceServices::FTimingProfilerEvent&)> InFoundPredicate) const;
 

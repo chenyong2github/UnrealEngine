@@ -2,6 +2,10 @@
 
 #include "Insights/ViewModels/TimingEventsTrack.h"
 
+#include "Fonts/FontMeasure.h"
+
+// Insights
+#include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/ViewModels/TimingEvent.h"
@@ -71,7 +75,7 @@ void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 		int32 MaxDepth = -1;
 
 		{
-			FTimingEventsTrackDrawStateBuilder Builder(*DrawState, Context.GetViewport());
+			FTimingEventsTrackDrawStateBuilder Builder(*DrawState, Context.GetViewport(), Context.GetGeometry().Scale);
 
 			BuildDrawState(Builder, Context);
 
@@ -123,7 +127,7 @@ void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 				FStopwatch Stopwatch;
 				Stopwatch.Start();
 				{
-					FTimingEventsTrackDrawStateBuilder Builder(*FilteredDrawState, Context.GetViewport());
+					FTimingEventsTrackDrawStateBuilder Builder(*FilteredDrawState, Context.GetViewport(), Context.GetGeometry().Scale);
 					BuildFilteredDrawState(Builder, Context);
 					Builder.Flush();
 				}
@@ -452,6 +456,26 @@ TSharedPtr<ITimingEventFilter> FTimingEventsTrack::GetFilterByEvent(const TShare
 		return EventFilterRef;
 	}
 	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingEventsTrack::DrawSelectedEventInfo(const FString& InText, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const
+{
+	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	const float FontScale = DrawContext.Geometry.Scale;
+	const FVector2D Size = FontMeasureService->Measure(InText, Font, FontScale) / FontScale;
+	const float X = Viewport.GetWidth() - Size.X - 23.0f;
+	const float Y = Viewport.GetPosY() + Viewport.GetHeight() - Size.Y - 18.0f;
+
+	const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f);
+	const FLinearColor TextColor(0.7f, 0.7f, 0.7f, 1.0f);
+
+	DrawContext.DrawBox(X - 8.0f, Y - 2.0f, Size.X + 16.0f, Size.Y + 4.0f, WhiteBrush, BackgroundColor);
+	DrawContext.LayerId++;
+
+	DrawContext.DrawText(X, Y, InText, Font, TextColor);
+	DrawContext.LayerId++;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

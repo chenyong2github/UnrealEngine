@@ -44,9 +44,13 @@ public:
 
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
 
+	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
+
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+
+	virtual const TSharedPtr<const ITimingEvent> SearchEvent(const FTimingEventSearchParameters& InSearchParameters) const override;
 
 protected:
 	virtual const TSharedPtr<const ITimingEvent> GetEvent(double InTime, double SecondsPerPixel, int32 Depth) const override;
@@ -54,6 +58,8 @@ protected:
 	virtual bool HasCustomFilter() const override;
 
 	void AddCoreTimingEvent(ITimingEventsTrackDrawStateBuilder& Builder, const TraceServices::FCpuCoreEvent& CpuCoreEvent);
+
+	FString GetThreadName(uint32 InSystemThreadId) const;
 
 private:
 	FContextSwitchesSharedState& SharedState;
