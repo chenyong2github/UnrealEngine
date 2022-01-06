@@ -3,6 +3,7 @@
 #include "Audio.h"
 #include "AudioMixer.h"
 #include "AudioMixerDevice.h"
+#include "DSP/ChannelMap.h"
 #include "Misc/ConfigCacheIni.h"
 
 namespace Audio
@@ -65,188 +66,6 @@ namespace Audio
 			EAudioMixerChannel::SideLeft,
 			EAudioMixerChannel::SideRight
 		}, 
-	};
-
-	// Tables based on Ac-3 down-mixing
-	// Rows: output speaker configuration
-	// Cols: input source channels
-
-	static float ToMonoMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 1] =
-	{
-		// FrontLeft	FrontRight	Center		LowFrequency	SideLeft	SideRight	BackLeft	BackRight  
-		0.707f,			0.707f,		1.0f,		0.0f,			0.5f,		0.5f,		0.5f,		0.5f,		// FrontLeft
-	};
-
-	static float VorbisToMonoMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 8] =
-	{
-		// FrontLeft	Center		FrontRight	SideLeft		SideRight	LowFrequency		
-		0.707f,			1.0f,		0.707f,		0.5f,			0.5f,		0.0f,		// FrontLeft
-	};
-
-	static float ToStereoMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 2] =
-	{
-		// FrontLeft	FrontRight	Center		LowFrequency	SideLeft	SideRight	BackLeft	BackRight  
-		1.0f,			0.0f,		0.707f,		0.0f,			0.707f,		0.0f,		0.707f,		0.0f,		// FrontLeft
-		0.0f,			1.0f,		0.707f,		0.0f,			0.0f,		0.707f,		0.0f,		0.707f,		// FrontRight
-	};
-
-	static float VorbisToStereoMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 8] =
-	{
-		// FrontLeft	Center		FrontRight	SideLeft		SideRight	LowFrequency		
-		1.0f,			0.707f,		0.0f,		0.707f,			0.0f,		0.0f,		// FrontLeft
-		0.0f,			0.707f,		1.0f,		0.0f,			0.707f,		0.0f,		// FrontRight
-	};
-
-	static float ToTriMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 3] =
-	{
-		// FrontLeft	FrontRight	Center		LowFrequency	SideLeft	SideRight	BackLeft	BackRight  
-		1.0f,			0.0f,		0.0f,		0.0f,			0.707f,		0.0f,		0.707f,		0.0f,		// FrontLeft
-		0.0f,			1.0f,		0.0f,		0.0f,			0.0f,		0.707f,		0.0f,		0.707f,		// FrontRight
-		0.0f,			0.0f,		1.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// Center
-	};
-
-	static float VorbisToTriMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 8] =
-	{
-		// FrontLeft	Center		FrontRight	SideLeft		SideRight	LowFrequency		
-		1.0f,			0.0f,		0.0f,		0.707f,			0.0f,		0.0f,		// FrontLeft
-		0.0f,			0.0f,		1.0f,		0.0f,			0.707f,		0.0f,		// FrontRight
-		0.0f,			1.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// Center
-	};
-
-	static float ToQuadMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 4] =
-	{
-		// FrontLeft	FrontRight	Center		LowFrequency	SideLeft	SideRight	BackLeft	BackRight	
-		1.0f,			0.0f,		0.707f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontLeft
-		0.0f,			1.0f,		0.707f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontRight
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		1.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		1.0f,		0.0f,		1.0f,		// SideRight
-	};
-
-	static float VorbisToQuadMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 8] =
-	{
-		// FrontLeft	Center		FrontRight	SideLeft		SideRight	LowFrequency		
-		1.0f,			0.707f,		0.0f,		0.0f,			0.0f,		0.0f,		// FrontLeft
-		0.0f,			0.707f,		1.0f,		0.0f,			0.0f,		0.0f,		// FrontRight
-		0.0f,			0.0f,		0.0f,		1.0f,			0.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		// SideRight
-	};
-
-	static float To5Matrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 5] =
-	{
-		// FrontLeft	FrontRight	Center		LowFrequency	SideLeft	SideRight	BackLeft	BackRight	
-		1.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontLeft
-		0.0f,			1.0f,		0.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontRight
-		0.0f,			0.0f,		1.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// Center
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		1.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		1.0f,		0.0f,		1.0f,		// SideRight
-	};
-
-	static float VorbisTo5Matrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 5] =
-	{
-		// FrontLeft	Center		FrontRight	SideLeft		SideRight	LowFrequency		
-		1.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// FrontLeft
-		0.0f,			0.0f,		1.0f,		0.0f,			0.0f,		0.0f,		// FrontRight
-		0.0f,			1.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// Center
-		0.0f,			0.0f,		0.0f,		1.0f,			0.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		// SideRight
-	};
-
-	static float To5Point1Matrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 6] =
-	{
-		// FrontLeft	FrontRight	Center		LowFrequency	SideLeft	SideRight	BackLeft	BackRight	
-		1.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontLeft
-		0.0f,			1.0f,		0.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontRight
-		0.0f,			0.0f,		1.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// Center
-		0.0f,			0.0f,		0.0f,		1.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// LowFrequency
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		1.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		1.0f,		0.0f,		1.0f,		// SideRight
-	};
-
-	static float VorbisTo5Point1Matrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 6] =
-	{
-		// FrontLeft	Center		FrontRight	SideLeft		SideRight	LowFrequency	
-		1.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// FrontLeft
-		0.0f,			0.0f,		1.0f,		0.0f,			0.0f,		0.0f,		// FrontRight
-		0.0f,			1.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// Center
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		1.0f,		// LowFrequency
-		0.0f,			0.0f,		0.0f,		1.0f,			0.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		// SideRight
-	};
-
-	static float ToHexMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 7] =
-	{
-		// FrontLeft	FrontRight	Center		LowFrequency	SideLeft	SideRight	BackLeft	BackRight	
-		1.0f,			0.0f,		0.707f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontLeft
-		0.0f,			1.0f,		0.707f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontRight
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		1.0f,		0.0f,		// BackLeft
-		0.0f,			0.0f,		0.0f,		1.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// LFE
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		0.0f,		1.0f,		// BackRight
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		0.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		1.0f,		0.0f,		0.0f,		// SideRight
-	};
-
-	static float VorbisToHexMatrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 7] =
-	{
-		// FrontLeft	Center		FrontRight	SideLeft		SideRight	LowFrequency	
-		1.0f,			0.707f,		0.0f,		0.0f,			0.0f,		0.0f,		// FrontLeft
-		0.0f,			0.707f,		1.0f,		0.0f,			0.0f,		0.0f,		// FrontRight
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// BackLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		1.0f,		// LFE
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// BackRight
-		0.0f,			0.0f,		0.0f,		1.0f,			0.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		// SideRight
-	};
-
-	// NOTE: the BackLeft/BackRight and SideLeft/SideRight are reversed than they should be since our 7.1 importer code has it backward
-	static float To7Point1Matrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 8] =
-	{
-		// FrontLeft	FrontRight	Center		LowFrequency	SideLeft	SideRight	BackLeft	BackRight
-		1.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontLeft
-		0.0f,			1.0f,		0.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontRight
-		0.0f,			0.0f,		1.0f,		0.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// FrontCenter
-		0.0f,			0.0f,		0.0f,		1.0f,			0.0f,		0.0f,		0.0f,		0.0f,		// LowFrequency
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		1.0f,		0.0f,		// BackLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		0.0f,		1.0f,		// BackRight
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		0.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		1.0f,		0.0f,		0.0f,		// SideRight
-	};
-
-	static float VorbisTo7Point1Matrix[AUDIO_MIXER_MAX_OUTPUT_CHANNELS * 8] =
-	{
-		// FrontLeft	Center		FrontRight	SideLeft		SideRight	LowFrequency		
-		1.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// FrontLeft
-		0.0f,			0.0f,		1.0f,		0.0f,			0.0f,		0.0f,		// FrontRight
-		0.0f,			1.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// FrontCenter
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		1.0f,		// LowFrequency
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// SideLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			0.0f,		0.0f,		// SideRight
-		0.0f,			0.0f,		0.0f,		1.0f,			0.0f,		0.0f,		// BackLeft
-		0.0f,			0.0f,		0.0f,		0.0f,			1.0f,		0.0f,		// BackRight
-	};
-
-	static float* OutputChannelMaps[AUDIO_MIXER_MAX_OUTPUT_CHANNELS] =
-	{
-		ToMonoMatrix,
-		ToStereoMatrix,
-		ToTriMatrix,	// Experimental
-		ToQuadMatrix,
-		To5Matrix,		// Experimental
-		To5Point1Matrix,
-		ToHexMatrix,	// Experimental
-		To7Point1Matrix
-	};
-
-	// 5.1 Vorbis files have a different channel order than normal
-	static float* VorbisChannelMaps[AUDIO_MIXER_MAX_OUTPUT_CHANNELS] =
-	{
-		VorbisToMonoMatrix,
-		VorbisToStereoMatrix,
-		VorbisToTriMatrix,	// Experimental
-		VorbisToQuadMatrix,
-		VorbisTo5Matrix,		// Experimental
-		VorbisTo5Point1Matrix,
-		VorbisToHexMatrix,	// Experimental
-		VorbisTo7Point1Matrix
 	};
 
 	// Make a channel map cache
@@ -315,135 +134,6 @@ namespace Audio
 		}
 	}
 
-	void FMixerDevice::Get2DChannelMapInternal(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly, TArray<float>& OutChannelMap) const
-	{
-		const int32 OutputChannelMapIndex = NumOutputChannels - 1;
-		check(OutputChannelMapIndex < UE_ARRAY_COUNT(OutputChannelMaps));
-
-		float* RESTRICT Matrix = OutputChannelMaps[OutputChannelMapIndex];
-		check(Matrix != nullptr);
-
-		// Mono input sources have some special cases to take into account
-		if (NumSourceChannels == 1)
-		{
-			// Mono-in mono-out channel map
-			if (NumOutputChannels == 1)
-			{
-				OutChannelMap.Add(1.0f);
-			}
-			else
-			{
-				// If we have more than stereo output (means we have center channel, which is always the 3rd index)
-				// Then we need to only apply 1.0 to the center channel, 0.0 for everything else
-				if ((NumOutputChannels == 3 || NumOutputChannels > 4) && bIsCenterChannelOnly)
-				{
-					for (int32 OutputChannel = 0; OutputChannel < NumOutputChannels; ++OutputChannel)
-					{
-						// Center channel is always 3rd index
-						if (OutputChannel == 2)
-						{
-							OutChannelMap.Add(1.0f);
-						}
-						else
-						{
-							OutChannelMap.Add(0.0f);
-						}
-					}
-				}
-				else
-				{
-					// Mapping out to more than 2 channels, mono sources should be equally spread to left and right
-					switch (MonoChannelUpmixMethod)
-					{
-						case EMonoChannelUpmixMethod::Linear:
-							OutChannelMap.Add(0.5f);
-							OutChannelMap.Add(0.5f);
-							break;
-
-						case EMonoChannelUpmixMethod::EqualPower:
-							OutChannelMap.Add(0.707f);
-							OutChannelMap.Add(0.707f);
-							break;
-
-						case EMonoChannelUpmixMethod::FullVolume:
-							OutChannelMap.Add(1.0f);
-							OutChannelMap.Add(1.0f);
-							break;
-					}
-
-					for (int32 OutputChannel = 2; OutputChannel < NumOutputChannels; ++OutputChannel)
-					{
-						const int32 Index = OutputChannel * AUDIO_MIXER_MAX_OUTPUT_CHANNELS;
-						OutChannelMap.Add(Matrix[Index]);
-					}
-				}
-			}
-		}
-		// Quad has a special-case to map input channels 0 1 2 3 to 0 1 4 5: 
-		else if (NumSourceChannels == 4)
-		{
-			const int32 FrontLeftChannel = 0;
-			for (int32 OutputChannel = 0; OutputChannel < NumOutputChannels; ++OutputChannel)
-			{
-				const int32 Index = OutputChannel * AUDIO_MIXER_MAX_OUTPUT_CHANNELS + FrontLeftChannel;
-				OutChannelMap.Add(Matrix[Index]);
-			}
-
-			const int32 FrontRightChannel = 1;
-			for (int32 OutputChannel = 0; OutputChannel < NumOutputChannels; ++OutputChannel)
-			{
-				const int32 Index = OutputChannel * AUDIO_MIXER_MAX_OUTPUT_CHANNELS + FrontRightChannel;
-				OutChannelMap.Add(Matrix[Index]);
-			}
-
-			const int32 SurroundLeftChannel = 4;
-			for (int32 OutputChannel = 0; OutputChannel < NumOutputChannels; ++OutputChannel)
-			{
-				const int32 Index = OutputChannel * AUDIO_MIXER_MAX_OUTPUT_CHANNELS + SurroundLeftChannel;
-				OutChannelMap.Add(Matrix[Index]);
-			}
-
-			const int32 SurroundRightChannel = 5;
-			for (int32 OutputChannel = 0; OutputChannel < NumOutputChannels; ++OutputChannel)
-			{
-				const int32 Index = OutputChannel * AUDIO_MIXER_MAX_OUTPUT_CHANNELS + SurroundRightChannel;
-				OutChannelMap.Add(Matrix[Index]);
-			}
-		}
-		else
-		{
-			// Compute a vorbis channel map only for 5.1 source files
-			if (NumSourceChannels == 6 && !bIsCenterChannelOnly)
-			{
-				// Get the matrix for the channel map index
-				float* VorbisMatrix = VorbisChannelMaps[OutputChannelMapIndex];
-
-				// Get the tarray for the channel map cache
-				TArray<float>& VorbisChannelMap = VorbisChannelMapCache[OutputChannelMapIndex];
-				VorbisChannelMap.Reset();
-
-				// Build it by looping over the 5.1 source channels
-				for (int32 SourceChannel = 0; SourceChannel < 6; ++SourceChannel)
-				{
-					for (int32 OutputChannel = 0; OutputChannel < NumOutputChannels; ++OutputChannel)
-					{
-						const int32 Index = OutputChannel * 6 + SourceChannel;
-						VorbisChannelMap.Add(VorbisMatrix[Index]);
-					}
-				}
-			}
-
-			for (int32 SourceChannel = 0; SourceChannel < NumSourceChannels; ++SourceChannel)
-			{
-				for (int32 OutputChannel = 0; OutputChannel < NumOutputChannels; ++OutputChannel)
-				{
-					const int32 Index = OutputChannel * AUDIO_MIXER_MAX_OUTPUT_CHANNELS + SourceChannel;
-					OutChannelMap.Add(Matrix[Index]);
-				}
-			}
-		}
-	}
-
 	void FMixerDevice::CacheChannelMap(const int32 NumSourceChannels, const int32 NumOutputChannels, const bool bIsCenterChannelOnly)
 	{
 		if (NumSourceChannels <= 0 ||
@@ -456,7 +146,35 @@ namespace Audio
 		}
 		// Generate the unique cache ID for the channel count configuration
 		const int32 CacheID = GetChannelMapCacheId(NumSourceChannels, NumOutputChannels, bIsCenterChannelOnly);
-		Get2DChannelMapInternal(NumSourceChannels, NumOutputChannels, bIsCenterChannelOnly, ChannelMapCache[CacheID]);
+
+		// Setup parameters for generating channel maps. 
+		FChannelMapParams Params;
+		Params.NumInputChannels = NumSourceChannels;
+		Params.NumOutputChannels = NumOutputChannels;
+		Params.Order = EChannelMapOrder::OutputMajorOrder; // Downmix code expects OutputMajorOrder
+		Params.bIsCenterChannelOnly = bIsCenterChannelOnly;
+
+		switch (MonoChannelUpmixMethod)
+		{
+			case EMonoChannelUpmixMethod::Linear:
+				Params.MonoUpmixMethod = EChannelMapMonoUpmixMethod::Linear;
+				break;
+
+			case EMonoChannelUpmixMethod::EqualPower:
+				Params.MonoUpmixMethod = EChannelMapMonoUpmixMethod::EqualPower;
+				break;
+
+			case EMonoChannelUpmixMethod::FullVolume:
+				Params.MonoUpmixMethod = EChannelMapMonoUpmixMethod::FullVolume;
+				break;
+
+			default:
+				Params.MonoUpmixMethod = EChannelMapMonoUpmixMethod::EqualPower;
+				checkNoEntry();
+		}
+
+		bool bSuccess = Create2DChannelMap(Params, ChannelMapCache[CacheID]);
+		check(bSuccess);
 	}
 
 	void FMixerDevice::InitializeChannelMaps()
@@ -471,13 +189,17 @@ namespace Audio
 			VorbisChannelMapCache.AddZeroed(AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 
 			// Loop through all input to output channel map configurations and cache them
-			for (int32 InputChannelCount = 1; InputChannelCount < AUDIO_MIXER_MAX_OUTPUT_CHANNELS + 1; ++InputChannelCount)
+			for (int32 OutputChannelCount = 1; OutputChannelCount < AUDIO_MIXER_MAX_OUTPUT_CHANNELS + 1; ++OutputChannelCount)
 			{
-				for (int32 OutputChannelCount = 1; OutputChannelCount < AUDIO_MIXER_MAX_OUTPUT_CHANNELS + 1; ++OutputChannelCount)
+				for (int32 InputChannelCount = 1; InputChannelCount < AUDIO_MIXER_MAX_OUTPUT_CHANNELS + 1; ++InputChannelCount)
 				{
-					CacheChannelMap(InputChannelCount, OutputChannelCount, true);
-					CacheChannelMap(InputChannelCount, OutputChannelCount, false);
+					// Cache non-vorbis channel maps
+					CacheChannelMap(InputChannelCount, OutputChannelCount, true /* bIsCenterChannelOnly */);
+					CacheChannelMap(InputChannelCount, OutputChannelCount, false /* bIsCenterChannelOnly */);
 				}
+				// Cache vorbis channel maps. 
+				bool bSuccess = CreateVorbis2DChannelMap(OutputChannelCount, EChannelMapOrder::OutputMajorOrder, VorbisChannelMapCache[OutputChannelCount - 1]);
+				check(bSuccess);
 			}
 		}
 	}
