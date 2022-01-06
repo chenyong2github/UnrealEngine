@@ -167,6 +167,18 @@ void UEnhancedPlayerInput::InjectInputForAction(const UInputAction* Action, FInp
 	InputsInjectedThisTick.FindOrAdd(Action).Injected.Emplace(MoveTemp(Input));
 }
 
+bool UEnhancedPlayerInput::InputKey(const FInputKeyParams& Params)
+{
+	const bool bResult = Super::InputKey(Params);
+
+	if (Params.Key.IsButtonAxis() && Params.Event == IE_Pressed)
+	{
+		KeysPressedThisTick.FindOrAdd(Params.Key, Params.Delta);
+	}
+	
+	return bResult;
+}
+
 void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
 {
 	// We need to grab the down states of all keys before calling Super::ProcessInputStack as it will leave bDownPrevious in the same state as bDown (i.e. this frame, not last).
@@ -244,6 +256,15 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		bool bKeyIsHeld = bKeyIsDown && bDownLastTick;
 
 		EKeyEvent KeyEvent = bKeyIsHeld ? EKeyEvent::Held : ((bKeyIsDown || bKeyIsReleased) ? EKeyEvent::Actuated : EKeyEvent::None);
+
+		FVector* PressedThisTickValue = KeysPressedThisTick.Find(Mapping.Key);
+		
+		// For keys that were pressed and released within the same frame, set their RawValue so that
+		// InputTriggers are aware that they have been pressed
+		if(PressedThisTickValue && bKeyIsDown && KeyState->EventCounts[IE_Pressed].Num() && KeyState->EventCounts[IE_Released].Num() && RawKeyValue.IsZero())
+		{
+			RawKeyValue = *PressedThisTickValue;
+		}
 
 		// Perform update
 		ProcessActionMappingEvent(Mapping.Action, NonDilatedDeltaTime, bGamePaused, RawKeyValue, KeyEvent, Mapping.Modifiers, Mapping.Triggers);
@@ -483,6 +504,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 	}
 
 	LastFrameTime = CurrentTime;
+	KeysPressedThisTick.Reset();
 }
 
 FInputActionValue UEnhancedPlayerInput::GetActionValue(const UInputAction* ForAction) const

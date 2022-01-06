@@ -40,6 +40,8 @@ public:
 	// Input simulation via injection. Runs modifiers and triggers delegates as if the input had come through the underlying input system as FKeys. Applies action modifiers and triggers on top.
 	void InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers = {}, const TArray<UInputTrigger*>& Triggers = {});
 
+	virtual bool InputKey(const FInputKeyParams& Params) override;
+	
 protected:
 
 	// Applies modifiers and triggers without affecting keys read by the base input system
@@ -90,6 +92,13 @@ private:
 
 	/** Actions which had actuated events at the last call to ProcessInputStack (held/pressed/released) */
 	TSet<const UInputAction*> ActionsWithEventsThisTick;
+
+	/**
+	 * A map of Keys to the amount they were depressed this frame. This is reset with each call to ProcessInputStack
+	 * and is populated within UEnhancedPlayerInput::InputKey.
+	 */
+	UPROPERTY(Transient)
+	TMap<FKey, FVector> KeysPressedThisTick;
 
 	struct FInjectedInput
 	{
