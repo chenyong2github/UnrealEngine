@@ -18,31 +18,38 @@ FAppleControllerInterface::FAppleControllerInterface( const TSharedRef< FGeneric
 {
 	if(!IS_PROGRAM)
 	{
-		NSNotificationCenter* notificationCenter = [NSNotificationCenter defaultCenter];
-		NSOperationQueue* currentQueue = [NSOperationQueue currentQueue];
-
-		[notificationCenter addObserverForName:GCControllerDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+		// Clear array and setup unset player index values
+		FMemory::Memzero(Controllers, sizeof(Controllers));
+		for (int32 ControllerIndex = 0; ControllerIndex < UE_ARRAY_COUNT(Controllers); ControllerIndex++)
 		{
-			HandleDisconnect(Notification.object);
+			FUserController& UserController = Controllers[ControllerIndex];
+			UserController.PlayerIndex = PlayerIndex::PlayerUnset;
+		}
+		
+		for (GCController* Cont in [GCController controllers])
+		{
+			HandleConnection(Cont);
+		}
+		
+		NSNotificationCenter* notificationCenter = [NSNotificationCenter defaultCenter];
+		
+		// Not in an operation queue, [NSOperationQueue currentQueue] will return nil on macOS and iOS
+		// Notification callback will always be on the app main thread - defer events for Unreal Engine update thread
+
+		[notificationCenter addObserverForName:GCControllerDidDisconnectNotification object:nil queue:nil usingBlock:^(NSNotification* Notification)
+		{
+			SignalEvent(EAppleControllerEventType::Disconnect, Notification.object);
 		}];
 
-		[notificationCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+		[notificationCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:nil usingBlock:^(NSNotification* Notification)
 		{
-			HandleConnection(Notification.object);
-            SetCurrentController(Notification.object);
+			SignalEvent(EAppleControllerEventType::Connect, Notification.object);
 		}];
 
 		dispatch_async(dispatch_get_main_queue(), ^
 		{
 		   [GCController startWirelessControllerDiscoveryWithCompletionHandler:^{ }];
 		});
-		
-		FMemory::Memzero(Controllers, sizeof(Controllers));
-		
-		for (GCController* Cont in [GCController controllers])
-		{
-			HandleConnection(Cont);
-		}
 	}
 }
 
@@ -51,9 +58,47 @@ void FAppleControllerInterface::SetMessageHandler( const TSharedRef< FGenericApp
 	MessageHandler = InMessageHandler;
 }
 
+void FAppleControllerInterface::SignalEvent(EAppleControllerEventType InEventType, GCController* InController)
+{
+	FScopeLock Lock(&DeferredEventCS);
+	DeferredEvents.Add(FDeferredAppleControllerEvent(InEventType, InController));
+}
+
 void FAppleControllerInterface::Tick( float DeltaTime )
 {
-	// NOP
+	FScopeLock Lock(&DeferredEventCS);
+	
+	for(uint32_t Index = 0;Index < DeferredEvents.Num();++Index)
+	{
+		FDeferredAppleControllerEvent& Event = DeferredEvents[Index];
+		switch(Event.EventType)
+		{
+			case EAppleControllerEventType::Connect:
+			{
+				HandleConnection(Event.Controller);
+				SetCurrentController(Event.Controller);
+				break;
+			}
+			case EAppleControllerEventType::Disconnect:
+			{
+				HandleDisconnect(Event.Controller);
+				break;
+			}
+			case EAppleControllerEventType::BecomeCurrent:
+			{
+				SetCurrentController(Event.Controller);
+				break;
+			}
+			case EAppleControllerEventType::Invalid:
+			default:
+			{
+				// NOP
+				break;
+			}
+		}
+	}
+	
+	DeferredEvents.Empty();
 }
 
 void FAppleControllerInterface::SetControllerType(uint32 ControllerIndex)
@@ -121,7 +166,7 @@ void FAppleControllerInterface::HandleConnection(GCController* Controller)
         }
         
         Controllers[ControllerIndex].PlayerIndex = (PlayerIndex)ControllerIndex;
-        Controllers[ControllerIndex].Controller = Controller;
+        Controllers[ControllerIndex].Controller = [Controller retain];
         SetControllerType(ControllerIndex);
         
         // Deprecated but buttonMenu behavior is unreliable in iOS/tvOS 14
@@ -155,12 +200,20 @@ void FAppleControllerInterface::HandleDisconnect(GCController* Controller)
 	
     for (int32 ControllerIndex = 0; ControllerIndex < UE_ARRAY_COUNT(Controllers); ControllerIndex++)
     {
-        if (Controllers[ControllerIndex].Controller == Controller)
+		FUserController& UserController = Controllers[ControllerIndex];
+        if (UserController.Controller == Controller)
         {
-            FMemory::Memzero(&Controllers[ControllerIndex], sizeof(Controllers[ControllerIndex]));
-            UE_LOG(LogAppleController, Log, TEXT("Controller for playerIndex %d was removed"), Controllers[ControllerIndex].PlayerIndex);
-            return;
+			// Player index of unset(-1) would indicate that it has become unset even though it is now trying to disconnect
+			// This can occur on iOS when bGameSupportsMultipleActiveControllers is false
+			UE_LOG(LogAppleController, Log, TEXT("Controller for playerIndex %d, controller Index %d removed"), UserController.PlayerIndex, ControllerIndex);
+			
+			[UserController.Controller release];
+			[UserController.PreviousExtendedGamepad release];
+			
+            FMemory::Memzero(&UserController, sizeof(Controllers[ControllerIndex]));
+            UserController.PlayerIndex = PlayerIndex::PlayerUnset;
             
+            return;
         }
     }
 }
@@ -170,24 +223,25 @@ void FAppleControllerInterface::SendControllerEvents()
 	@autoreleasepool{
     for(int32 i = 0; i < UE_ARRAY_COUNT(Controllers); ++i)
  	{
+		FUserController& Controller = Controllers[i];
+		
 		// make sure the connection handler has run on this guy
-		if (Controllers[i].PlayerIndex == PlayerIndex::PlayerUnset)
+		if (Controller.PlayerIndex == PlayerIndex::PlayerUnset)
 		{
             continue;
 		}
-
-		FUserController& Controller = Controllers[i];
-		GCController* Cont = Controller.Controller;
+		
+		GCController* ControllerImpl = Controller.Controller;
 
 		// Assumes iOS13, tvOS 13 & macOS 10.15
-        GCExtendedGamepad* ExtendedGamepad = [Cont capture].extendedGamepad;
-		GCMotion* Motion = Cont.motion;
+        GCExtendedGamepad* ExtendedGamepad = [ControllerImpl capture].extendedGamepad;
+		GCMotion* Motion = ControllerImpl.motion;
 		
 		// Workaround for unreliable buttonMenu behavior in iOS/tvOS 14
 		if (Controller.bPauseWasPressed)
         {
-            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
-            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
+            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Controller.PlayerIndex, false);
+            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Controller.PlayerIndex, false);
 
             Controller.bPauseWasPressed = false;
         }

@@ -168,7 +168,7 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
         {
             [notificationCenter addObserverForName:GCControllerDidBecomeCurrentNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
             {
-                SetCurrentController(Notification.object);
+                SignalEvent(EAppleControllerEventType::BecomeCurrent, Notification.object);
             }];
         }
     }
