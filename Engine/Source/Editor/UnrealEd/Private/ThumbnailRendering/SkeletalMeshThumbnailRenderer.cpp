@@ -36,6 +36,16 @@ void USkeletalMeshThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uin
 	ThumbnailScene->SetSkeletalMesh(nullptr);
 }
 
+bool USkeletalMeshThumbnailRenderer::AllowsRealtimeThumbnails(UObject* Object) const
+{
+	if (!Super::AllowsRealtimeThumbnails(Object))
+	{
+		return false;
+	}
+	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object);
+	return SkeletalMesh && SkeletalMesh->GetResourceForRendering();
+}
+
 void USkeletalMeshThumbnailRenderer::BeginDestroy()
 {
 	ThumbnailSceneCache.Clear();
