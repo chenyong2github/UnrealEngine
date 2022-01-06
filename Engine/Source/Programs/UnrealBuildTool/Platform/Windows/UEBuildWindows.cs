@@ -32,11 +32,6 @@ namespace UnrealBuildTool
 		Clang,
 
 		/// <summary>
-		/// Use the Intel C++ compiler
-		/// </summary>
-		Intel,
-
-		/// <summary>
 		/// Visual Studio 2019 (Visual C++ 16.0)
 		/// </summary>
 		VisualStudio2019,
@@ -54,6 +49,16 @@ namespace UnrealBuildTool
 	public static class WindowsCompilerExtensions
 	{
 		/// <summary>
+		/// Returns if this compiler toolchain based on Clang
+		/// </summary>
+		/// <param name="Compiler">The compiler to check</param>
+		/// <returns>true if Clang based</returns>
+		public static bool IsClang(this WindowsCompiler Compiler)
+		{
+			return Compiler == WindowsCompiler.Clang;
+		}
+
+		/// <summary>
 		/// Returns if this compiler toolchain based on MSVC
 		/// </summary>
 		/// <param name="Compiler">The compiler to check</param>
@@ -63,6 +68,7 @@ namespace UnrealBuildTool
 			return Compiler >= WindowsCompiler.VisualStudio2019;
 		}
 	}
+
 
 	/// <summary>
 	/// Which static analyzer to use
@@ -271,7 +277,7 @@ namespace UnrealBuildTool
 		/// Microsoft provides legacy_stdio_definitions library to enable building with VS2015 until they fix everything up.
 		public bool bNeedsLegacyStdioDefinitionsLib
 		{
-			get { return Compiler.IsMSVC() || Compiler == WindowsCompiler.Clang; }
+			get { return Compiler.IsMSVC() || Compiler.IsClang(); }
 		}
 
 		/// <summary>
@@ -442,7 +448,6 @@ namespace UnrealBuildTool
 			switch (Compiler)
 			{
 				case WindowsCompiler.Clang:
-				case WindowsCompiler.Intel:
 				case WindowsCompiler.VisualStudio2019:
 				case WindowsCompiler.VisualStudio2022:
 					return "2015"; // VS2022 is backwards compatible with VS2015 compiler
@@ -863,11 +868,6 @@ namespace UnrealBuildTool
 		public static readonly bool bAllowClangLinker = false;
 
 		/// <summary>
-		/// True if we should use the Intel linker (xilink) when we are compiling with ICL, otherwise we use the MSVC linker
-		/// </summary>
-		public static readonly bool bAllowICLLinker = true;
-
-		/// <summary>
 		/// True if we allow using addresses larger than 2GB on 32 bit builds
 		/// </summary>
 		public static readonly bool bBuildLargeAddressAwareBinary = true;
@@ -938,15 +938,6 @@ namespace UnrealBuildTool
 				Log.TraceInformation("Defaulting static analyzer output type to text");
 			}
 
-			// Disable static analysis if not appropriate for the compiler.
-			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
-			{
-				if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
-				{
-					Target.WindowsPlatform.StaticAnalyzer = WindowsStaticAnalyzer.None;
-				}
-			}
-
 			// Set the compiler version if necessary
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Default)
 			{
@@ -975,20 +966,11 @@ namespace UnrealBuildTool
 			{
 				Target.bUsePCHFiles = false;
 			}
-			else if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang && Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
+			else if (Target.WindowsPlatform.Compiler.IsClang() && Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
 			{
 				Target.bUsePCHFiles = false;
 			}
-
-			// Override PCH settings
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
-			{
-				Target.NumIncludedBytesPerUnityCPP = Math.Min(Target.NumIncludedBytesPerUnityCPP, 256 * 1024);
-
-				Target.bUseSharedPCHs = false;
-
-				Target.bUsePCHFiles = false;
-			}
+			
 
 			// E&C support.
 			if (Target.bSupportEditAndContinue || Target.bAdaptiveUnityEnablesEditAndContinue)
@@ -1289,21 +1271,6 @@ namespace UnrealBuildTool
 								{
 									AddClangToolChain(ToolChainDir, ToolChains);
 								}
-							}
-						}
-					}
-					else if(Compiler == WindowsCompiler.Intel)
-					{
-						// Just check for a manual installation
-						DirectoryReference InstallDir = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86)!, "IntelSWTools", "compilers_and_libraries", "windows");
-						if(DirectoryReference.Exists(InstallDir))
-						{
-							FileReference IclPath = FileReference.Combine(InstallDir, "bin", "intel64", "icl.exe");
-							if(FileReference.Exists(IclPath))
-							{
-								FileVersionInfo VersionInfo = FileVersionInfo.GetVersionInfo(IclPath.FullName);
-								VersionNumber Version = new VersionNumber(VersionInfo.FileMajorPart, VersionInfo.FileMinorPart, VersionInfo.FileBuildPart);
-								ToolChains.Add(new ToolChainInstallation(Version, 0, Version, true, false, null, InstallDir, null));
 							}
 						}
 					}
@@ -2082,18 +2049,6 @@ namespace UnrealBuildTool
 			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.WindowsPlatform.bEnableRayTracing)
 			{
 				CompileEnvironment.Definitions.Add("RHI_RAYTRACING=1");
-			}
-
-			// Add path to Intel math libraries when using ICL based on target platform
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
-			{
-				string Result = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "compiler", "lib", "intel64");
-				if (!Directory.Exists(Result))
-				{
-					throw new BuildException("ICL was selected but the required math libraries were not found.  Could not find: " + Result);
-				}
-
-				LinkEnvironment.SystemLibraryPaths.Add(new DirectoryReference(Result));
 			}
 
 			// Explicitly exclude the MS C++ runtime libraries we're not using, to ensure other libraries we link with use the same

@@ -141,7 +141,7 @@ namespace UnrealBuildTool
 			// Try to use a relative path to shorten command line length. Always need the full path when preprocessing because the output file will be in a different place, where include paths cannot be relative.
 			string IncludePathString = NormalizeCommandLinePath(IncludePath, Compiler, bPreprocessOnly);
 
-			if (Compiler == WindowsCompiler.Clang && bSystemInclude)
+			if (Compiler.IsClang() && bSystemInclude)
 			{
 				// Clang has special treatment for system headers; only system include directories are searched when include directives use angle brackets,
 				// and warnings are disabled to allow compiler toolchains to be upgraded separately.
@@ -220,7 +220,7 @@ namespace UnrealBuildTool
 
 			// NOTE re: clang: the arguments for clang-cl can be found at http://llvm.org/viewvc/llvm-project/cfe/trunk/include/clang/Driver/CLCompatOptions.td?view=markup
 			// This will show the cl.exe options that map to clang.exe ones, which ones are ignored and which ones are unsupported.
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			if (Target.WindowsPlatform.Compiler.IsClang())
 			{
 				// Sync the compatibility version with the MSVC toolchain version (14.xx which maps to advertised
 				// compiler version of 19.xx).
@@ -309,18 +309,18 @@ namespace UnrealBuildTool
 			// Trace includes
 			if (Target.WindowsPlatform.bShowIncludes)
 			{
-				if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+				if (Target.WindowsPlatform.Compiler.IsClang())
 				{
 					Arguments.Add("/clang:--trace-includes");
 				}
-				else if (Target.WindowsPlatform.Compiler.IsMSVC() )
+				else if (Target.WindowsPlatform.Compiler.IsMSVC())
 				{
 					Arguments.Add("/showIncludes");
 				}
 			}
 
 			// Print absolute paths in diagnostics
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			if (Target.WindowsPlatform.Compiler.IsClang())
 			{
 				Arguments.Add("-fdiagnostics-absolute-paths");
 			}
@@ -329,7 +329,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/FC");
 			}
 
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang && Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+			if (Target.WindowsPlatform.Compiler.IsClang() && Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				// Tell the Clang compiler to generate 64-bit code
 				Arguments.Add("--target=x86_64-pc-windows-msvc");
@@ -387,19 +387,13 @@ namespace UnrealBuildTool
 			// Previously %s meant "the current character set" and %S meant "the other one".
 			// Now %s means multibyte and %S means wide. %Ts means "natural width".
 			// Reverting this behaviour until the UE4 source catches up.
-			if (Target.WindowsPlatform.Compiler.IsMSVC() || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
-			{
-				AddDefinition(Arguments, "_CRT_STDIO_LEGACY_WIDE_SPECIFIERS=1");
-			}
+			AddDefinition(Arguments, "_CRT_STDIO_LEGACY_WIDE_SPECIFIERS=1");
 
 			// @todo HoloLens: Silence the hash_map deprecation errors for now. This should be replaced with unordered_map for the real fix.
-			if (Target.WindowsPlatform.Compiler.IsMSVC() || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
-			{
-				AddDefinition(Arguments, "_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS=1");
-			}
+			AddDefinition(Arguments, "_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS=1");
 
 			// Ignore secure CRT warnings on Clang
-			if(Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			if(Target.WindowsPlatform.Compiler.IsClang())
 			{
 				AddDefinition(Arguments, "_CRT_SECURE_NO_WARNINGS");
 			}
@@ -452,7 +446,7 @@ namespace UnrealBuildTool
 				AddDefinition(Arguments, "FORCE_ANSI_ALLOCATOR=1");
 
 				// MSVC has no support for __has_feature(address_sanitizer)
-				if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang)
+				if (Target.WindowsPlatform.Compiler.IsMSVC())
 				{
 					AddDefinition(Arguments, "USING_ADDRESS_SANITISER=1");
 				}
@@ -536,11 +530,8 @@ namespace UnrealBuildTool
 				AddDefinition(Arguments, "PLATFORM_ALWAYS_HAS_AVX=1");
 			}
 
-			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Intel)
-			{
-				// Prompt the user before reporting internal errors to Microsoft.
-				Arguments.Add("/errorReport:prompt");
-			}
+			// Prompt the user before reporting internal errors to Microsoft.
+			Arguments.Add("/errorReport:prompt");
 
 			// Enable C++ exceptions when building with the editor or when building UHT.
 			if (CompileEnvironment.bEnableExceptions)
@@ -610,14 +601,14 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang)
+			if (Target.WindowsPlatform.Compiler.IsMSVC())
 			{
 				// Allow large object files to avoid hitting the 2^16 section limit when running with -StressTestUnity.
 				// Note: not needed for clang, it implicitly upgrades COFF files to bigobj format when necessary.
 				Arguments.Add("/bigobj");
 			}
 
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			if (Target.WindowsPlatform.Compiler.IsClang())
 			{
 				// FMath::Sqrt calls get inlined and when reciprical is taken, turned into an rsqrtss instruction,
 				// which is *too* imprecise for, e.g., TestVectorNormalize_Sqrt in UnrealMathTest.cpp
@@ -713,7 +704,7 @@ namespace UnrealBuildTool
 
 		protected virtual void AppendCLArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang)
+			if (Target.WindowsPlatform.Compiler.IsMSVC())
 			{
 				// Explicitly compile the file as C++.
 				Arguments.Add("/TP");
@@ -752,16 +743,9 @@ namespace UnrealBuildTool
 			}
 
 			// Set warning level.
-			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Intel)
-			{
-				// Restrictive during regular compilation.
-				Arguments.Add("/W4");
-			}
-			else
-			{
-				// If we had /W4 with clang or Intel on windows we would be flooded with warnings. This will be fixed incrementally.
-				Arguments.Add("/W0");
-			}
+			// Restrictive during regular compilation.
+			Arguments.Add("/W4");
+
 
 			// Treat warnings as errors
 			if (CompileEnvironment.bWarningsAsErrors)
@@ -769,49 +753,41 @@ namespace UnrealBuildTool
 				Arguments.Add("/WX");
 			}
 
-			// Intel compiler options.
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Intel)
+			// Note: Should be shared with all Windows-like platforms.
+			switch (CompileEnvironment.CppStandard)
 			{
-				Arguments.Add("/Qstd=c++14");
-			}
-			else
-			{
-				// Note: Should be shared with all Windows-like platforms.
-				switch (CompileEnvironment.CppStandard)
-				{
-					case CppStandardVersion.Cpp14:
-						Arguments.Add("/std:c++14");
-						break;
-					case CppStandardVersion.Cpp17:
-						Arguments.Add("/std:c++17");
-						break;
-					case CppStandardVersion.Cpp20:
-					case CppStandardVersion.Latest:
-						Arguments.Add("/std:c++latest");
+				case CppStandardVersion.Cpp14:
+					Arguments.Add("/std:c++14");
+					break;
+				case CppStandardVersion.Cpp17:
+					Arguments.Add("/std:c++17");
+					break;
+				case CppStandardVersion.Cpp20:
+				case CppStandardVersion.Latest:
+					Arguments.Add("/std:c++latest");
 						
-						// warning C5054: operator ___: deprecated between enumerations of different types
-						// re: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p1120r0.html
+					// warning C5054: operator ___: deprecated between enumerations of different types
+					// re: http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p1120r0.html
 						
-						// It seems unclear whether the deprecation will be enacted in C++23 or not
-						// e.g. http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2139r2.html
-						// Until the path forward is clearer, it seems reasonable to leave things as they are.
-						Arguments.Add("/wd5054");
+					// It seems unclear whether the deprecation will be enacted in C++23 or not
+					// e.g. http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2139r2.html
+					// Until the path forward is clearer, it seems reasonable to leave things as they are.
+					Arguments.Add("/wd5054");
 						
-						break;
-					// Will be added when MSVC is feature-complete.
-					// https://docs.microsoft.com/en-us/cpp/build/reference/std-specify-language-standard-version?view=msvc-160
-					// case CppStandardVersion.Cpp20:
-					//	Arguments.Add("/std:c++20");
-					//  break;
-					default:
-						throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
-				}
+					break;
+				// Will be added when MSVC is feature-complete.
+				// https://docs.microsoft.com/en-us/cpp/build/reference/std-specify-language-standard-version?view=msvc-160
+				// case CppStandardVersion.Cpp20:
+				//	Arguments.Add("/std:c++20");
+				//  break;
+				default:
+					throw new BuildException($"Unsupported C++ standard type set: {CompileEnvironment.CppStandard}");
 			}
 
-			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			if (Target.WindowsPlatform.Compiler.IsClang())
 			{
 				// Enable codeview ghash for faster lld links
-				if (WindowsPlatform.bAllowClangLinker)
+				if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang && WindowsPlatform.bAllowClangLinker)
 				{
 					Arguments.Add("-gcodeview-ghash");
 				}
@@ -966,8 +942,6 @@ namespace UnrealBuildTool
 								Arguments[Arguments.Count - 1] += ":GHASH";
 							}
 							break;
-						case WindowsCompiler.Intel:
-							break;
 						case WindowsCompiler.VisualStudio2019:
 						case WindowsCompiler.VisualStudio2022:
 							Arguments[Arguments.Count - 1] += ":FASTLINK";
@@ -1045,7 +1019,10 @@ namespace UnrealBuildTool
 			// Experimental deterministic compile support
 			if (Target.WindowsPlatform.bDeterministic)
 			{
-				Arguments.Add("/experimental:deterministic");
+				if (Target.WindowsPlatform.Compiler.IsMSVC())
+				{
+					Arguments.Add("/experimental:deterministic");
+				}
 			}
 
 			//
@@ -1260,7 +1237,7 @@ namespace UnrealBuildTool
 					}
 
 					// Experimental: support for JSON output of timing data
-					if(Target.WindowsPlatform.Compiler == WindowsCompiler.Clang && Target.WindowsPlatform.bClangTimeTrace)
+					if(Target.WindowsPlatform.Compiler.IsClang() && Target.WindowsPlatform.bClangTimeTrace)
 					{
 						CompileAction.Arguments.Add("-Xclang -ftime-trace");
 						CompileAction.AdditionalProducedItems.Add(FileItem.GetItemByFileReference(ObjectFile.Location.ChangeExtension(".json")));
@@ -1374,7 +1351,7 @@ namespace UnrealBuildTool
 					{
 						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.json", SourceFile.Location.GetFileName())));
 					}
-					else if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+					else if (Target.WindowsPlatform.Compiler.IsClang())
 					{
 						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.d", SourceFile.Location.GetFileName())));
 					}
@@ -1680,7 +1657,7 @@ namespace UnrealBuildTool
 			CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 			CompileAction.CommandPath = EnvVars.CompilerPath;
 			CompileAction.CommandArguments = String.Join(" ", Arguments);
-			CompileAction.bShouldOutputStatusDescription = (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang);
+			CompileAction.bShouldOutputStatusDescription = Target.WindowsPlatform.Compiler.IsClang();
 			CompileAction.bCanExecuteRemotely = false; // Incompatible with SN-DBS
 
 			// Touch the output header
@@ -1734,7 +1711,7 @@ namespace UnrealBuildTool
 				AppendLinkArguments(LinkEnvironment, Arguments);
 			}
 
-			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang && LinkEnvironment.bPrintTimingInfo)
+			if (Target.WindowsPlatform.Compiler.IsMSVC() && LinkEnvironment.bPrintTimingInfo)
 			{
 				Arguments.Add("/time+");
 			}

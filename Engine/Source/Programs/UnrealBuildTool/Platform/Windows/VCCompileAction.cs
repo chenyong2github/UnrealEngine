@@ -164,7 +164,7 @@ namespace UnrealBuildTool
 		bool IExternalAction.bIsGCCCompiler => false;
 		bool IExternalAction.bProducesImportLibrary => false;
 		string IExternalAction.StatusDescription => (SourceFile == null) ? "Compiling" : SourceFile.Location.GetFileName();
-		bool IExternalAction.bShouldOutputStatusDescription => CompilerType == WindowsCompiler.Clang;
+		bool IExternalAction.bShouldOutputStatusDescription => CompilerType.IsClang();
 
 		/// <inheritdoc/>
 		IEnumerable<FileItem> IExternalAction.PrerequisiteItems
@@ -426,7 +426,7 @@ namespace UnrealBuildTool
 				VCToolChain.AddCreatePchFile(Arguments, PchThroughHeaderFile!, CreatePchFile, CompilerType, PreprocessedFile != null);
 			}
 
-			if (UsingPchFile != null && CompilerType != WindowsCompiler.Clang)
+			if (UsingPchFile != null && CompilerType.IsMSVC())
 			{
 				VCToolChain.AddUsingPchFile(Arguments, PchThroughHeaderFile!, UsingPchFile, CompilerType, PreprocessedFile != null);
 			}
