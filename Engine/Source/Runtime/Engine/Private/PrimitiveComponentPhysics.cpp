@@ -143,6 +143,15 @@ void UPrimitiveComponent::AddImpulseAtLocation(FVector Impulse, FVector Location
 	}
 }
 
+void UPrimitiveComponent::AddVelocityChangeImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
+{
+	if (FBodyInstance* BI = GetBodyInstance(BoneName))
+	{
+		WarnInvalidPhysicsOperations(LOCTEXT("AddImpulseAtLocation", "AddImpulseAtLocation"), BI, BoneName);
+		BI->AddVelocityChangeImpulseAtLocation(Impulse, Location);
+	}
+}
+
 void UPrimitiveComponent::AddRadialImpulse(FVector Origin, float Radius, float Strength, ERadialImpulseFalloff Falloff, bool bVelChange)
 {
 	if(bIgnoreRadialImpulse)
