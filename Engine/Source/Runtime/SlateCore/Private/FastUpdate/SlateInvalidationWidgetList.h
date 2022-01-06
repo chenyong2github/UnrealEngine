@@ -47,18 +47,18 @@ public:
 			check(OrderMin <= OrderMax);
 #endif
 		}
-		bool Include(FSlateInvalidationWidgetSortOrder Other) const
+		UE_NODISCARD bool Include(FSlateInvalidationWidgetSortOrder Other) const
 		{
 			return OrderMin <= Other && Other <= OrderMax;
 		}
-		bool IsValid() const { return InclusiveMin != FSlateInvalidationWidgetIndex::Invalid; }
+		UE_NODISCARD bool IsValid() const { return InclusiveMin != FSlateInvalidationWidgetIndex::Invalid; }
 
 		FSlateInvalidationWidgetIndex GetInclusiveMinWidgetIndex() const { return InclusiveMin; }
 		FSlateInvalidationWidgetIndex GetInclusiveMaxWidgetIndex() const { return InclusiveMax; }
 		FSlateInvalidationWidgetSortOrder GetInclusiveMinWidgetSortOrder() const { return OrderMin; }
 		FSlateInvalidationWidgetSortOrder GetInclusiveMaxWidgetSortOrder() const { return OrderMax; }
 
-		bool operator==(const FIndexRange& Other) const { return Other.InclusiveMin == InclusiveMin && Other.InclusiveMax == InclusiveMax; }
+		UE_NODISCARD bool operator==(const FIndexRange& Other) const { return Other.InclusiveMin == InclusiveMin && Other.InclusiveMax == InclusiveMax; }
 	};
 
 public:
@@ -105,7 +105,7 @@ public:
 		struct FReIndexOperation
 		{
 			FReIndexOperation(const FIndexRange& InRange, FSlateInvalidationWidgetIndex InReIndexTarget) : Range(InRange), ReIndexTarget(InReIndexTarget) {}
-			const FIndexRange& GetRange() const { return Range; }
+			UE_NODISCARD const FIndexRange& GetRange() const { return Range; }
 			UE_NODISCARD FSlateInvalidationWidgetIndex ReIndex(FSlateInvalidationWidgetIndex Index) const;
 		private:
 			const FIndexRange& Range;
@@ -114,7 +114,7 @@ public:
 		struct FReSortOperation
 		{
 			FReSortOperation(const FIndexRange& InRange) : Range(InRange) {}
-			const FIndexRange& GetRange() const { return Range; }
+			UE_NODISCARD const FIndexRange& GetRange() const { return Range; }
 		private:
 			const FIndexRange& Range;
 		};
@@ -158,8 +158,28 @@ public:
 			const int32 ElementNum = ElementList.Num();
 			for (int32 ElementIndex = Data[ArrayIndex].StartIndex; ElementIndex < ElementNum; ++ElementIndex)
 			{
-				SWidget* Widget = ElementList[ElementIndex].GetWidget();
-				if (Widget)
+				if (SWidget* Widget = ElementList[ElementIndex].GetWidget())
+				{
+					Pred(*Widget);
+				}
+			}
+
+			ArrayIndex = Data[ArrayIndex].NextArrayIndex;
+		}
+	}
+
+	/** Performs an operation on all SWidget in the list. */
+	template<typename Predicate>
+	void ForEachWidget(Predicate Pred) const
+	{
+		int32 ArrayIndex = FirstArrayIndex;
+		while (ArrayIndex != INDEX_NONE)
+		{
+			const ElementListType& ElementList = Data[ArrayIndex].ElementList;
+			const int32 ElementNum = ElementList.Num();
+			for (int32 ElementIndex = Data[ArrayIndex].StartIndex; ElementIndex < ElementNum; ++ElementIndex)
+			{
+				if (const SWidget* Widget = ElementList[ElementIndex].GetWidget())
 				{
 					Pred(*Widget);
 				}
@@ -184,6 +204,75 @@ public:
 			}
 
 			ArrayIndex = Data[ArrayIndex].NextArrayIndex;
+		}
+	}
+
+	/** Performs an operation on all InvalidationWidget in the list. */
+	template<typename Predicate>
+	void ForEachInvalidationWidget(Predicate Pred) const
+	{
+		int32 ArrayIndex = FirstArrayIndex;
+		while (ArrayIndex != INDEX_NONE)
+		{
+			const ElementListType& ElementList = Data[ArrayIndex].ElementList;
+			const int32 ElementNum = ElementList.Num();
+			for (int32 ElementIndex = Data[ArrayIndex].StartIndex; ElementIndex < ElementNum; ++ElementIndex)
+			{
+				Pred(ElementList[ElementIndex]);
+			}
+
+			ArrayIndex = Data[ArrayIndex].NextArrayIndex;
+		}
+	}
+
+	/** Performs an operation on all InvalidationWidget in the list bellow the provided (WidgetIndex not including it). */
+	template<typename Predicate>
+	void ForEachInvalidationWidget(FSlateInvalidationWidgetIndex BellowWidgetIndex, Predicate Pred)
+	{
+		check(IsValidIndex(BellowWidgetIndex));
+		const InvalidationWidgetType& BeginInvalidationWidget = (*this)[BellowWidgetIndex];
+		const FSlateInvalidationWidgetIndex EndWidgetIndex = BeginInvalidationWidget.LeafMostChildIndex;
+		const FSlateInvalidationWidgetIndex BeginWidgetIndex = IncrementIndex(BellowWidgetIndex);
+
+		if (BeginWidgetIndex != FSlateInvalidationWidgetIndex::Invalid)
+		{
+			const bool bSameWidgetArrayIndex = BeginWidgetIndex.ArrayIndex == EndWidgetIndex.ArrayIndex;
+			int32 ArrayIndex = BeginWidgetIndex.ArrayIndex;
+			{
+				ElementListType& ElementList = Data[ArrayIndex].ElementList;
+				const int32 ElementNum = bSameWidgetArrayIndex ? EndWidgetIndex.ElementIndex + 1 : ElementList.Num();
+				for (int32 ElementIndex = BeginWidgetIndex.ElementIndex; ElementIndex < ElementNum; ++ElementIndex)
+				{
+					Pred(ElementList[ElementIndex]);
+				}
+
+				ArrayIndex = Data[ArrayIndex].NextArrayIndex;
+			}
+
+			if (!bSameWidgetArrayIndex)
+			{
+				while (ArrayIndex != EndWidgetIndex.ArrayIndex)
+				{
+					ElementListType& ElementList = Data[ArrayIndex].ElementList;
+					const int32 ElementNum = ElementList.Num();
+					for (int32 ElementIndex = Data[ArrayIndex].StartIndex; ElementIndex < ElementNum; ++ElementIndex)
+					{
+						Pred(ElementList[ElementIndex]);
+					}
+
+					ArrayIndex = Data[ArrayIndex].NextArrayIndex;
+				}
+
+				{
+					check(ArrayIndex == EndWidgetIndex.ArrayIndex);
+					ElementListType& ElementList = Data[ArrayIndex].ElementList;
+					const int32 ElementNum = EndWidgetIndex.ElementIndex + 1;
+					for (int32 ElementIndex = Data[ArrayIndex].StartIndex; ElementIndex < ElementNum; ++ElementIndex)
+					{
+						Pred(ElementList[ElementIndex]);
+					}
+				}
+			}
 		}
 	}
 
@@ -227,7 +316,7 @@ public:
 		void AdvanceToNextParent();
 
 		/** Is the iterator pointing to a valid widget index. */
-		bool IsValid() const { return CurrentWidgetIndex != FSlateInvalidationWidgetIndex::Invalid; }
+		UE_NODISCARD bool IsValid() const { return CurrentWidgetIndex != FSlateInvalidationWidgetIndex::Invalid; }
 
 	private:
 		void AdvanceArrayIndex(int32 ArrayIndex);
@@ -259,7 +348,7 @@ public:
 		void Advance();
 
 		/** Is the iterator pointing to a valid widget index. */
-		bool IsValid() const { return CurrentWidgetIndex != FSlateInvalidationWidgetIndex::Invalid; }
+		UE_NODISCARD bool IsValid() const { return CurrentWidgetIndex != FSlateInvalidationWidgetIndex::Invalid; }
 
 	private:
 		void Internal_Advance();
@@ -304,13 +393,13 @@ public:
 	}
 
 	/** Returns true if there is not element in the WidgetList. */
-	bool IsEmpty() const
+	UE_NODISCARD bool IsEmpty() const
 	{
 		return FirstArrayIndex == INDEX_NONE || Data[FirstArrayIndex].ElementList.Num() == 0;
 	}
 
 	/** Returns the first index from the WidgetList. */
-	FSlateInvalidationWidgetIndex FirstIndex() const
+	UE_NODISCARD FSlateInvalidationWidgetIndex FirstIndex() const
 	{
 		return FirstArrayIndex == INDEX_NONE
 			? FSlateInvalidationWidgetIndex::Invalid
@@ -318,7 +407,7 @@ public:
 	}
 
 	/** Returns the last index from the WidgetList. */
-	FSlateInvalidationWidgetIndex LastIndex() const
+	UE_NODISCARD FSlateInvalidationWidgetIndex LastIndex() const
 	{
 		return LastArrayIndex == INDEX_NONE ? FSlateInvalidationWidgetIndex::Invalid : FSlateInvalidationWidgetIndex{ (IndexType)LastArrayIndex, (IndexType)(Data[LastArrayIndex].ElementList.Num() - 1) };
 	}
@@ -328,6 +417,9 @@ public:
 
 	/** Decrement a widget index to the next entry in the WidgetList. */
 	UE_NODISCARD FSlateInvalidationWidgetIndex DecrementIndex(FSlateInvalidationWidgetIndex Index) const;
+
+	/** Find the next widget index that share the same parent. Return Invalid if there is no sibling. */
+	UE_NODISCARD FSlateInvalidationWidgetIndex FindNextSibling(FSlateInvalidationWidgetIndex WidgetIndex) const;
 
 	/** Empties the WidgetList. */
 	void Empty();
@@ -357,7 +449,7 @@ public:
 	bool DeapCompare(const FSlateInvalidationWidgetList& Other) const;
 
 	/** For testing purposes. Log the tree. */
-	void LogWidgetsList();
+	void LogWidgetsList(bool bOnlyVisible) const;
 
 	/** For testing purposes. Verify that every widgets has the correct index. */
 	bool VerifyWidgetsIndex() const;

@@ -781,27 +781,6 @@ void FSlateInvalidationWidgetList::Internal_FindChildren(FSlateInvalidationWidge
 }
 
 
-//FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_FindPreviousSibling(FSlateInvalidationWidgetIndex WidgetIndex) const
-//{
-//	FSlateInvalidationWidgetIndex Result = FSlateInvalidationWidgetIndex::Invalid;
-//	const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
-//	if (InvalidationWidget.ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
-//	{
-//		const FSlateInvalidationWidgetIndex PreviousWidgetIndex = DecrementIndex(WidgetIndex);
-//		const InvalidationWidgetType& PreviousInvalidationWidget = (*this)[WidgetIndex];
-//		if (PreviousInvalidationWidget.ParentIndex == InvalidationWidget.ParentIndex)
-//		{
-//			Result = PreviousWidgetIndex;
-//		}
-//		else
-//		{
-//			Result = PreviousInvalidationWidget.ParentIndex;
-//		}
-//	}
-//	return  Result;
-//}
-
-
 FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::IncrementIndex(FSlateInvalidationWidgetIndex Index) const
 {
 	check(Data.IsValidIndex(Index.ArrayIndex));
@@ -839,6 +818,24 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::DecrementIndex(FSlat
 		--Index.ElementIndex;
 	}
 	return Index;
+}
+
+
+
+FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::FindNextSibling(FSlateInvalidationWidgetIndex WidgetIndex) const
+{
+	FSlateInvalidationWidgetIndex Result = FSlateInvalidationWidgetIndex::Invalid;
+	const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
+	const FSlateInvalidationWidgetIndex NextSiblingIndex = IncrementIndex(InvalidationWidget.LeafMostChildIndex);
+	if (NextSiblingIndex != FSlateInvalidationWidgetIndex::Invalid)
+	{
+		const InvalidationWidgetType& NextSiblingInvalidationWidget = (*this)[NextSiblingIndex];
+		if (NextSiblingInvalidationWidget.ParentIndex == InvalidationWidget.ParentIndex)
+		{
+			Result = NextSiblingIndex;
+		}
+	}
+	return Result;
 }
 
 
@@ -1577,56 +1574,80 @@ bool FSlateInvalidationWidgetList::DeapCompare(const FSlateInvalidationWidgetLis
 }
 
 
-void FSlateInvalidationWidgetList::LogWidgetsList()
+void FSlateInvalidationWidgetList::LogWidgetsList(bool bOnlyVisible) const
 {
-	TStringBuilder<256> Builder;
+	auto GetDepth = [this](FSlateInvalidationWidgetIndex Index)
+	{
+		int32 Depth = 0;
+		while(Index != FSlateInvalidationWidgetIndex::Invalid)
+		{
+			++Depth;
+			Index = (*this)[Index].ParentIndex;
+		}
+		return Depth-1;
+	};
+
+	TStringBuilder<512> Builder;
 	for (FSlateInvalidationWidgetIndex Index = FirstIndex(); Index != FSlateInvalidationWidgetIndex::Invalid; Index = IncrementIndex(Index))
 	{
 		Builder.Reset();
-		const InvalidationWidgetType& InvalidateWidget = (*this)[Index];
-		if (SWidget* Widget = InvalidateWidget.GetWidget())
-		{
-			Builder << FReflectionMetaData::GetWidgetDebugInfo(Widget) << TEXT("(") << Widget->GetTag() << TEXT(")");
-		}
-		else
-		{
-			Builder << TEXT("[None]");
-		}
-		Builder << TEXT("\t");
-		if (InvalidateWidget.ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
-		{
-			if (SWidget* Widget = (*this)[InvalidateWidget.ParentIndex].GetWidget())
-			{
-				Builder << FReflectionMetaData::GetWidgetDebugInfo(Widget) << TEXT("(") << Widget->GetTag() << TEXT(")");
-			}
-			else
-			{
-				Builder << TEXT("[None]");
-			}
-		}
-		else
-		{
-			Builder << TEXT("[---]");
-		}
-		Builder << TEXT("\t");
-		if (InvalidateWidget.LeafMostChildIndex != FSlateInvalidationWidgetIndex::Invalid)
-		{
-			if (SWidget* Widget = (*this)[InvalidateWidget.LeafMostChildIndex].GetWidget())
-			{
-				Builder << FReflectionMetaData::GetWidgetDebugInfo(Widget) << TEXT("(") << Widget->GetTag() << TEXT(")");
-			}
-			else
-			{
-				Builder << TEXT("[None]");
-			}
-		}
-		else
-		{
-			Builder << TEXT("[---]");
-		}
-		Builder << TEXT("\t");
 
-		UE_LOG(LogSlate, Log, TEXT("%s"), Builder.ToString());
+		const InvalidationWidgetType& InvalidateWidget = (*this)[Index];
+		if (!bOnlyVisible || InvalidateWidget.Visibility.IsVisible())
+		{
+			for (int32 Depth = GetDepth(Index); Depth > 0; --Depth)
+			{
+				Builder << TEXT(' ');
+			}
+
+			if (SWidget* Widget = InvalidateWidget.GetWidget())
+			{
+				Builder << FReflectionMetaData::GetWidgetDebugInfo(Widget)
+					<< TEXT('(') << Widget->GetTag() << TEXT(')')
+					<< TEXT('[') << Widget->GetPersistentState().LayerId << TEXT(',') << Widget->GetPersistentState().OutgoingLayerId << TEXT(']');
+			}
+			else
+			{
+				Builder << TEXT("[None]");
+			}
+			Builder << TEXT("\t");
+
+			if (InvalidateWidget.ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
+			{
+				if (SWidget* Widget = (*this)[InvalidateWidget.ParentIndex].GetWidget())
+				{
+					Builder << FReflectionMetaData::GetWidgetDebugInfo(Widget) << TEXT("(") << Widget->GetTag() << TEXT(")");
+				}
+				else
+				{
+					Builder << TEXT("[None]");
+				}
+			}
+			else
+			{
+				Builder << TEXT("[---]");
+			}
+			Builder << TEXT("\t");
+
+			if (InvalidateWidget.LeafMostChildIndex != FSlateInvalidationWidgetIndex::Invalid)
+			{
+				if (SWidget* Widget = (*this)[InvalidateWidget.LeafMostChildIndex].GetWidget())
+				{
+					Builder << FReflectionMetaData::GetWidgetDebugInfo(Widget) << TEXT("(") << Widget->GetTag() << TEXT(")");
+				}
+				else
+				{
+					Builder << TEXT("[None]");
+				}
+			}
+			else
+			{
+				Builder << TEXT("[---]");
+			}
+			Builder << TEXT("\t");
+
+			UE_LOG(LogSlate, Log, TEXT("%s"), Builder.ToString());
+		}
 	}
 }
 
