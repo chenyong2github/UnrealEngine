@@ -110,6 +110,12 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 
 bool FControlRigEditorEditMode::GetCameraTarget(FSphere& OutTarget) const
 {
+	FTransform ComponentToWorld = FTransform::Identity;
+	if(const USceneComponent* SceneComponent = GetHostingSceneComponent())
+	{
+		ComponentToWorld = SceneComponent->GetComponentToWorld();
+	}
+
 	FBox Box(ForceInit);
 	TArray<FRigElementKey> SelectedRigElements = GetSelectedRigElements();
 	for (int32 Index = 0; Index < SelectedRigElements.Num(); ++Index)
@@ -118,12 +124,14 @@ bool FControlRigEditorEditMode::GetCameraTarget(FSphere& OutTarget) const
 		if (SelectedRigElements[Index].Type == ERigElementType::Bone || SelectedRigElements[Index].Type == ERigElementType::Null)
 		{
 			FTransform Transform = OnGetRigElementTransformDelegate.Execute(SelectedRigElements[Index], false, true);
+			Transform = Transform * ComponentToWorld;
 			Box += Transform.TransformPosition(FVector::OneVector * Radius);
 			Box += Transform.TransformPosition(FVector::OneVector * -Radius);
 		}
 		else if (SelectedRigElements[Index].Type == ERigElementType::Control)
 		{
 			FTransform Transform = OnGetRigElementTransformDelegate.Execute(SelectedRigElements[Index], false, true);
+			Transform = Transform * ComponentToWorld;
 			Box += Transform.TransformPosition(FVector::OneVector * Radius);
 			Box += Transform.TransformPosition(FVector::OneVector * -Radius);
 		}
