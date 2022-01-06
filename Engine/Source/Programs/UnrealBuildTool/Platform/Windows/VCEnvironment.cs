@@ -123,8 +123,8 @@ namespace UnrealBuildTool
 
 			// Regardless of the target, if we're linking on a 64 bit machine, we want to use the 64 bit linker (it's faster than the 32 bit linker and can handle large linking jobs)
 			DirectoryReference DefaultLinkerDir = VCToolPath;
-			LinkerPath = GetLinkerToolPath(Params.Platform, Compiler, DefaultLinkerDir);
-			LibraryManagerPath = GetLibraryLinkerToolPath(Params.Platform, Compiler, DefaultLinkerDir);
+			LinkerPath = GetLinkerToolPath(Params.Platform, Compiler, CompilerDir, DefaultLinkerDir);
+			LibraryManagerPath = GetLibraryLinkerToolPath(Params.Platform, Compiler, CompilerDir, DefaultLinkerDir);
 
 			// Get the resource compiler path from the Windows SDK
 			ResourceCompilerPath = GetResourceCompilerToolPath(Params.Platform, WindowsSdkDir, WindowsSdkVersion);
@@ -226,10 +226,6 @@ namespace UnrealBuildTool
 			{
 				return FileReference.Combine(CompilerDir, "bin", "clang-cl.exe");
 			}
-			else if(Compiler == WindowsCompiler.Intel)
-			{
-				return FileReference.Combine(CompilerDir, "bin", "intel64", "icl.exe");
-			}
 			else
 			{
 				return FileReference.Combine(GetVCToolPath(Compiler, CompilerDir, Architecture), "cl.exe");
@@ -239,34 +235,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the linker.
 		/// </summary>
-		static FileReference GetLinkerToolPath(UnrealTargetPlatform Platform, WindowsCompiler Compiler, DirectoryReference DefaultLinkerDir)
+		static FileReference GetLinkerToolPath(UnrealTargetPlatform Platform, WindowsCompiler Compiler, DirectoryReference CompilerDir, DirectoryReference DefaultLinkerDir)
 		{
 			// If we were asked to use Clang, then we'll redirect the path to the compiler to the LLVM installation directory
 			if (Compiler == WindowsCompiler.Clang && WindowsPlatform.bAllowClangLinker)
 			{
-				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles)!, "LLVM", "bin", "lld-link.exe");
-				if (FileReference.Exists(LinkerPath))
-				{
-					return LinkerPath;
-				}
-
-				FileReference LinkerPathX86 = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86)!, "LLVM", "bin", "lld-link.exe");
-				if (FileReference.Exists(LinkerPathX86))
-				{
-					return LinkerPathX86;
-				}
-
-				throw new BuildException("Clang was selected as the Windows compiler, but {0} and {1} were not found.", LinkerPath, LinkerPathX86);
-			}
-			else if(Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowICLLinker)
-			{
-				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86)!, "IntelSWTools", "compilers_and_libraries", "windows", "bin", "intel64", "xilink.exe");
-				if (FileReference.Exists(LinkerPath))
-				{
-					return LinkerPath;
-				}
-
-				throw new BuildException("ICL was selected as the Windows compiler, but {0} was not found.", LinkerPath);
+				return FileReference.Combine(CompilerDir, "bin", "lld-link.exe");
 			}
 			else
 			{
@@ -277,18 +251,13 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the path to the library linker.
 		/// </summary>
-		static FileReference GetLibraryLinkerToolPath(UnrealTargetPlatform Platform, WindowsCompiler Compiler, DirectoryReference DefaultLinkerDir)
+		static FileReference GetLibraryLinkerToolPath(UnrealTargetPlatform Platform, WindowsCompiler Compiler, DirectoryReference CompilerDir, DirectoryReference DefaultLinkerDir)
 		{
 			// Regardless of the target, if we're linking on a 64 bit machine, we want to use the 64 bit linker (it's faster than the 32 bit linker)
-			if (Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowICLLinker)
+			// If we were asked to use Clang, then we'll redirect the path to the compiler to the LLVM installation directory
+			if (Compiler == WindowsCompiler.Clang && WindowsPlatform.bAllowClangLinker)
 			{
-				FileReference LibPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86)!, "IntelSWTools", "compilers_and_libraries", "windows", "bin", "intel64", "xilib.exe");
-				if (FileReference.Exists(LibPath))
-				{
-					return LibPath;
-				}
-
-				throw new BuildException("ICL was selected as the Windows compiler, but does not appear to be installed.  Could not find: " + LibPath);
+				return FileReference.Combine(CompilerDir, "bin", "lld-link.exe");
 			}
 			else
 			{
@@ -509,7 +478,7 @@ namespace UnrealBuildTool
 			WindowsCompiler ToolChain;
 			VersionNumber? SelectedToolChainVersion;
 			DirectoryReference? SelectedToolChainDir;
-			if(Compiler == WindowsCompiler.Clang || Compiler == WindowsCompiler.Intel)
+			if(Compiler.IsClang())
 			{
 				const string DefaultClangVisualStudioVersion = "14.24.28315";
 				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, DefaultClangVisualStudioVersion, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))

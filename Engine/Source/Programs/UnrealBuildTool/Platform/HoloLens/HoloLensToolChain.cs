@@ -386,7 +386,10 @@ namespace UnrealBuildTool
 			// Experimental deterministic compile support
 			if (Target.WindowsPlatform.bDeterministic)
 			{
-				Arguments.Add("/experimental:deterministic");
+				if (Target.WindowsPlatform.Compiler.IsMSVC())
+				{
+					Arguments.Add("/experimental:deterministic");
+				}
 			}
 
 			//
@@ -694,7 +697,7 @@ namespace UnrealBuildTool
 				string[] AdditionalArguments = String.IsNullOrEmpty(CompileEnvironment.AdditionalArguments) ? new string[0] : new string[] { CompileEnvironment.AdditionalArguments };
 
 				if (!ProjectFileGenerator.bGenerateProjectFiles
-					&& Target.WindowsPlatform.Compiler != WindowsCompiler.Clang
+					&& Target.WindowsPlatform.Compiler.IsMSVC()
 					&& CompileAction.ProducedItems.Count > 0)
 				{
 					FileItem TargetFile = CompileAction.ProducedItems[0];
@@ -716,7 +719,7 @@ namespace UnrealBuildTool
 						CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
 						CompileAction.CommandArguments = string.Join(" ", CompileAction.CommandArguments, "/sourceDependencies", $"\"{CompileAction.DependencyListFile.AbsolutePath}\"");
 					}
-					else if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+					else if (Target.WindowsPlatform.Compiler.IsClang())
 					{
 						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.d", SourceFile.Location.GetFileName())));
 						CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
@@ -862,7 +865,7 @@ namespace UnrealBuildTool
 				AppendLinkArguments(LinkEnvironment, Arguments);
 			}
 
-			if (Target.HoloLensPlatform.Compiler != WindowsCompiler.Clang && LinkEnvironment.bPrintTimingInfo)
+			if (Target.HoloLensPlatform.Compiler.IsMSVC() && LinkEnvironment.bPrintTimingInfo)
 			{
 				Arguments.Add("/time+");
 			}

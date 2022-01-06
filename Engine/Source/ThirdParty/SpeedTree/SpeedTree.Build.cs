@@ -25,16 +25,13 @@ public class SpeedTree : ModuleRules
 
             if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				if (Target.WindowsPlatform.Compiler != WindowsCompiler.Intel)
+				if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 				{
-					if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-					{
-						PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Windows/VC14.x64/SpeedTreeCore_Windows_v7.0_VC14_MTDLL64_Static_d.lib");
-					}
-					else
-					{
-						PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Windows/VC14.x64/SpeedTreeCore_Windows_v7.0_VC14_MTDLL64_Static.lib");
-					}
+					PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Windows/VC14.x64/SpeedTreeCore_Windows_v7.0_VC14_MTDLL64_Static_d.lib");
+				}
+				else
+				{
+					PublicAdditionalLibraries.Add(SpeedTreePath + "Lib/Windows/VC14.x64/SpeedTreeCore_Windows_v7.0_VC14_MTDLL64_Static.lib");
 				}
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
