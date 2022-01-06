@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Fonts/SlateFontInfo.h"
 
 // Insights
 #include "Insights/ViewModels/BaseTimingTrack.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FSlateBrush;
 
 class TRACEINSIGHTS_API ITimingEventsTrackDrawStateBuilder
 {
@@ -80,6 +83,8 @@ protected:
 	void DrawHeader(const ITimingTrackDrawContext& Context) const;
 
 	void DrawMarkers(const ITimingTrackDrawContext& Context, float LineY, float LineH) const;
+
+	void DrawSelectedEventInfo(const FString& InText, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const;
 
 	int32 GetHeaderBackgroundLayerId(const ITimingTrackDrawContext& Context) const;
 	int32 GetHeaderTextLayerId(const ITimingTrackDrawContext& Context) const;

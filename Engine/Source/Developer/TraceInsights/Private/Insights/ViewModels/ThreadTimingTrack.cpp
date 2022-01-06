@@ -3,7 +3,6 @@
 #include "ThreadTimingTrack.h"
 
 #include "CborReader.h"
-#include "Fonts/FontMeasure.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Serialization/MemoryReader.h"
@@ -1009,46 +1008,27 @@ void FThreadTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 	{
 		const FThreadTrackEvent& SelectedEvent = SelectedEventPtr->As<FThreadTrackEvent>();
 		const ITimingViewDrawHelper& Helper = Context.GetHelper();
-		DrawSelectedEventInfo(SelectedEvent, Context.GetViewport(), Context.GetDrawContext(), Helper.GetWhiteBrush(), Helper.GetEventFont());
-	}
-}
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		check(Session.IsValid());
 
-void FThreadTimingTrack::DrawSelectedEventInfo(const FThreadTrackEvent& SelectedEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const
-{
-	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-	check(Session.IsValid());
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
 
-	const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerTimerReader* TimerReader;
+		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
 
-	const TraceServices::ITimingProfilerTimerReader* TimerReader;
-	TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+		const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(SelectedEvent.GetTimerIndex());
+		if (Timer != nullptr)
+		{
+			FString Str = FString::Printf(TEXT("%s (Incl.: %s, Excl.: %s)"),
+				Timer->Name,
+				*TimeUtils::FormatTimeAuto(SelectedEvent.GetDuration()),
+				*TimeUtils::FormatTimeAuto(SelectedEvent.GetExclusiveTime()));
 
-	const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(SelectedEvent.GetTimerIndex());
-	if (Timer != nullptr)
-	{
-		FString Str = FString::Printf(TEXT("%s (Incl.: %s, Excl.: %s)"),
-			Timer->Name,
-			*TimeUtils::FormatTimeAuto(SelectedEvent.GetDuration()),
-			*TimeUtils::FormatTimeAuto(SelectedEvent.GetExclusiveTime()));
-
-		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-		const float FontScale = DrawContext.Geometry.Scale;
-		const FVector2D Size = FontMeasureService->Measure(Str, Font, FontScale) / FontScale;
-		const float X = Viewport.GetWidth() - Size.X - 23.0f;
-		const float Y = Viewport.GetPosY() + Viewport.GetHeight() - Size.Y - 18.0f;
-
-		const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f);
-		const FLinearColor TextColor(0.7f, 0.7f, 0.7f, 1.0f);
-
-		DrawContext.DrawBox(X - 8.0f, Y - 2.0f, Size.X + 16.0f, Size.Y + 4.0f, WhiteBrush, BackgroundColor);
-		DrawContext.LayerId++;
-
-		DrawContext.DrawText(X, Y, Str, Font, TextColor);
-		DrawContext.LayerId++;
+			DrawSelectedEventInfo(Str, Context.GetViewport(), Context.GetDrawContext(), Helper.GetWhiteBrush(), Helper.GetEventFont());
+		}
 	}
 }
 
