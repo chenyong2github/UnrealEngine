@@ -1527,20 +1527,35 @@ static FAutoConsoleVariableRef CVarIncrementalGCTimePerFrame(
 	ECVF_Default
 );
 
+void UEngine::SendWorldEndOfFrameUpdates()
+{
+	// Gather worlds that need EOF updates
+	// This must be done in two steps as the object hash table is locked during ForEachObjectOfClass so any NewObject calls would fail
+	TArray<UWorld*, TInlineAllocator<16>> Worlds;
+	ForEachObjectOfClass(UWorld::StaticClass(), [&](UObject* WorldObj)
+	{
+		if (UWorld* World = CastChecked<UWorld>(WorldObj))
+		{
+			if (World->HasEndOfFrameUpdates())
+			{
+				Worlds.Add(World);
+			}
+		}
+	});
+
+	for (UWorld* World : Worlds)
+	{
+		// Make sure deferred component updates have been sent to the rendering thread before deleting any UObjects which the rendering thread may be referencing
+		// This fixes rendering thread crashes in the following order of operations 1) UMeshComponent::SetMaterial 2) GC 3) Rendering command that dereferences the UMaterial
+		World->SendAllEndOfFrameUpdates();
+	}
+}
+
 void UEngine::PreGarbageCollect()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UEngine::PreGarbageCollect);
-	ForEachObjectOfClass(UWorld::StaticClass(), [](UObject* WorldObj)
-	{
-		UWorld* World = CastChecked<UWorld>(WorldObj);
 
-		if (World->HasEndOfFrameUpdates())
-		{
-			// Make sure deferred component updates have been sent to the rendering thread before deleting any UObjects which the rendering thread may be referencing
-			// This fixes rendering thread crashes in the following order of operations 1) UMeshComponent::SetMaterial 2) GC 3) Rendering command that dereferences the UMaterial
-			World->SendAllEndOfFrameUpdates();
-		}
-	});
+	SendWorldEndOfFrameUpdates();
 }
 
 float UEngine::GetTimeBetweenGarbageCollectionPasses() const

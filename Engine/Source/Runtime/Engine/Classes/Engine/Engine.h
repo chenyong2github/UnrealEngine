@@ -2493,6 +2493,11 @@ protected:
 	 */
 	 bool PerformError(const TCHAR* Cmd, FOutputDevice& Out = *GLog);
 
+	 /**
+	  * Dispatches EndOfFrameUpdates for all UWorlds
+	  */
+	 static void SendWorldEndOfFrameUpdates();
+
 public:
 	/** @return the GIsEditor flag setting */
 	bool IsEditor();
