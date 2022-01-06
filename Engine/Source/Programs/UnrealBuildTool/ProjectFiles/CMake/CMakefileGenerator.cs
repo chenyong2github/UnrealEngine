@@ -290,10 +290,6 @@ namespace UnrealBuildTool
 				BuildCommand = "cd \"" + UE4RootPath + "\" && bash \"" + UE4RootPath + "/Engine/Build/BatchFiles/" + HostArchitecture + "/Build.sh\"";
 
 				string? CompilerPath = LinuxCommon.WhichClang();
-				if (CompilerPath == null)
-				{
-					CompilerPath = LinuxCommon.WhichGcc();
-				}
 				SetCompiler = "set(CMAKE_CXX_COMPILER " + CompilerPath + ")\n\n";
 			}
 			else
