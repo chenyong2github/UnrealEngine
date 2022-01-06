@@ -50,7 +50,7 @@ public:
 	bool bFullRevertOnDetach;
 
 	UPROPERTY(transient)
-	TSoftObjectPtr<AActor> ReAttachOnDetach;
+	TSoftObjectPtr<USceneComponent> ReAttachOnDetach;
 
 #endif
 
