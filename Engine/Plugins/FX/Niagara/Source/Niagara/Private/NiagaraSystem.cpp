@@ -1956,6 +1956,7 @@ void UNiagaraSystem::CacheFromCompiledData()
 	// reset the MaxDeltaTime so we get the most up to date values from the emitters
 	MaxDeltaTime.Reset();
 
+	TSet<FName> DataInterfaceGpuUsage;
 	TStringBuilder<128> ExecutionStateNameBuilder;
 	for (int32 i=0; i < EmitterHandles.Num(); ++i)
 	{
@@ -1991,24 +1992,35 @@ void UNiagaraSystem::CacheFromCompiledData()
 			NiagaraEmitter->CacheFromCompiledData(DataSetCompiledData);
 
 			// Allow data interfaces to cache static buffers
-			UNiagaraScript* NiagaraScripts[] =
+			UNiagaraScript* NiagaraEmitterScripts[] =
 			{
 				NiagaraEmitter->SpawnScriptProps.Script,
 				NiagaraEmitter->UpdateScriptProps.Script,
 				NiagaraEmitter->GetGPUComputeScript(),
 			};
-			for (UNiagaraScript* NiagaraScript : NiagaraScripts)
+
+			for (UNiagaraScript* NiagaraScript : NiagaraEmitterScripts)
 			{
 				if (NiagaraScript == nullptr)
 				{
 					continue;
 				}
 
+				const bool bUsedByCPU = NiagaraEmitter->SimTarget == ENiagaraSimTarget::CPUSim;
+				const bool bUsedByGPU = NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
 				for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetCachedDefaultDataInterfaces())
 				{
 					if (UNiagaraDataInterface* DataInterface = DataInterfaceInfo.DataInterface)
 					{
-						DataInterface->CacheStaticBuffers(*StaticBuffers.Get(), DataInterfaceInfo, NiagaraEmitter->SimTarget);
+						DataInterface->CacheStaticBuffers(*StaticBuffers.Get(), DataInterfaceInfo, bUsedByCPU, bUsedByGPU);
+
+						if ( bUsedByGPU )
+						{
+							if (!DataInterfaceInfo.RegisteredParameterMapRead.IsNone())
+							{
+								DataInterfaceGpuUsage.Add(DataInterfaceInfo.RegisteredParameterMapRead);
+							}
+						}
 					}
 				}
 			}
@@ -2016,6 +2028,24 @@ void UNiagaraSystem::CacheFromCompiledData()
 		else
 		{
 			EmitterExecutionStateAccessors.AddDefaulted();
+		}
+	}
+
+	// Loop over system scripts these are more awkward because we need to determine the usage
+	for (UNiagaraScript* NiagaraScript : { SystemSpawnScript, SystemUpdateScript })
+	{
+		if (NiagaraScript == nullptr)
+		{
+			continue;
+		}
+
+		for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : NiagaraScript->GetCachedDefaultDataInterfaces())
+		{
+			if (UNiagaraDataInterface* DataInterface = DataInterfaceInfo.DataInterface)
+			{
+				const bool bUsedByGPU = DataInterfaceGpuUsage.Contains(DataInterfaceInfo.RegisteredParameterMapWrite);
+				DataInterface->CacheStaticBuffers(*StaticBuffers.Get(), DataInterfaceInfo, true, bUsedByGPU);
+			}
 		}
 	}
 
