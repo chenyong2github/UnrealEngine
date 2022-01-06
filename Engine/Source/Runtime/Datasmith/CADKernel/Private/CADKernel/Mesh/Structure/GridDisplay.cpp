@@ -163,9 +163,11 @@ void FGrid::DisplayGridPolyline(EGridSpace Space, const TArray<FLoopNode*>& Node
 		//F3DDebugSession Q(TEXT("Node"));
 		if (bDisplayNode)
 		{
+			int32 Index = 0;
 			for (const FLoopNode* Node : Nodes)
 			{
-				DisplayIsoNode(Space, *Node, Node->GetIndex(), Node->IsDelete() ? EVisuProperty::PurplePoint : (EVisuProperty)((int32)Property - 1));
+				//DisplayIsoNode(Space, *Node, Node->GetIndex(), Node->IsDelete() ? EVisuProperty::PurplePoint : (EVisuProperty)((int32)Property - 1));
+				DisplayIsoNode(Space, *Node, Index++, Node->IsDelete() ? EVisuProperty::PurplePoint : (EVisuProperty)((int32)Property - 1));
 			}
 		}
 	}
