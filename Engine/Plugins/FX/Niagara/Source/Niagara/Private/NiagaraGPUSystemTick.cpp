@@ -40,7 +40,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			FNiagaraDataInterfaceProxy* Proxy = Interface->GetProxy();
 			const int32 Offset = Pair.Value;
 
-			const int32 RTDataSize = Interface->PerInstanceDataPassedToRenderThreadSize();
+			const int32 RTDataSize = Align(Interface->PerInstanceDataPassedToRenderThreadSize(), 16);
 			ensure(RTDataSize > 0);
 			check(Proxy);
 

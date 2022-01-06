@@ -1546,7 +1546,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 				if (GPUDataSize > 0)
 				{
 					GPUDataInterfaces.Emplace(Interface, Pair.Value);
-					GPUDataInterfaceInstanceDataSize += GPUDataSize;
+					GPUDataInterfaceInstanceDataSize += Align(GPUDataSize, 16);
 				}
 			}
 
