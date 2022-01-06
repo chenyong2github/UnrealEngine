@@ -91,7 +91,7 @@ public class LowLevelTests : ModuleRules
 		}
 
 		// UE-133126
-		if (Directory.GetFileSystemEntries(NonPublicFolder).Length == 1 && File.Exists(NonPublicPath))
+		if (File.Exists(NonPublicPath) && Directory.GetFileSystemEntries(NonPublicFolder).Length == 1)
 		{
 			File.Delete(NonPublicPath);
 			Directory.Delete(NonPublicFolder);
