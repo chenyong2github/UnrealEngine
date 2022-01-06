@@ -569,7 +569,7 @@ void SWidgetReflector::Construct( const FArguments& InArgs )
 	TabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateRaw(this, &SWidgetReflector::HandleTabManagerPersistLayout));
 
 	RegisterTrackedTabSpawner(WidgetReflectorTabID::SlateOptions, FOnSpawnTab::CreateSP(this, &SWidgetReflector::SpawnSlateOptionWidgetTab))
-		.SetDisplayName(LOCTEXT("OptionsTab", "Slate Debug Options"));
+		.SetDisplayName(LOCTEXT("OptionsTab", "Toolbar"));
 
 	RegisterTrackedTabSpawner(WidgetReflectorTabID::WidgetHierarchy, FOnSpawnTab::CreateSP(this, &SWidgetReflector::SpawnWidgetHierarchyTab))
 		.SetDisplayName(LOCTEXT("WidgetHierarchyTab", "Widget Hierarchy"));
@@ -679,7 +679,7 @@ void SWidgetReflector::HandlePullDownWindowMenu(FMenuBuilder& MenuBuilder)
 TSharedRef<SDockTab> SWidgetReflector::SpawnSlateOptionWidgetTab(const FSpawnTabArgs& Args)
 {
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("WidgetHierarchyTab", "Widget Hierarchy"))
+		.Label(LOCTEXT("ToolbarTab", "Toolbar"))
 		.ShouldAutosize(true)
 		[
 			SNew(SSlateOptions)
