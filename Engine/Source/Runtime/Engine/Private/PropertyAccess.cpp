@@ -533,7 +533,6 @@ struct FPropertyAccessSystem
 			InAddressFunction(Address);
 		}
 	}
-
 	// Process a single copy
 	static void ProcessCopy(UStruct* InStruct, void* InContainer, const FPropertyAccessLibrary& InLibrary, int32 InCopyIndex, int32 InBatchId, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation)
 	{

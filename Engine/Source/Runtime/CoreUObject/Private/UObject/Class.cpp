@@ -5174,14 +5174,11 @@ void* UClass::CreateSparseClassData()
 	{
 		// initialize per class data from the archetype if we have one
 		const void* SparseArchetypeData = GetArchetypeForSparseClassData();
-		UStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
+		UScriptStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
 
-		if (SparseArchetypeData)
+		if (SparseArchetypeData && SparseClassDataStruct->IsChildOf(SparseClassDataArchetypeStruct))
 		{
-			for (FProperty* P = SparseClassDataArchetypeStruct->PropertyLink; P; P = P->PropertyLinkNext)
-			{
-				P->CopyCompleteValue_InContainer(SparseClassData, SparseArchetypeData);
-			}
+			SparseClassDataArchetypeStruct->CopyScriptStruct(SparseClassData, SparseArchetypeData);
 		}
 	}
 
@@ -5273,15 +5270,23 @@ void UClass::ClearSparseClassDataStruct()
 	{
 		// Find all subclasses and clear their sparse class data struct as well.
 		TArray<UClass*> SubClasses;
+		TArray<UClass*> SubClassesToClear;
 		GetDerivedClasses(this, SubClasses, true /* bRecursive */);
 		for (UClass* SubClass : SubClasses)
 		{
 			UScriptStruct* SubClassSparseClassDataStruct = SubClass->GetSparseClassDataStruct();
-			if (SubClassSparseClassDataStruct && SubClassSparseClassDataStruct->GetSuperStruct() == SparseClassDataStruct)
+			if (SubClassSparseClassDataStruct && SubClassSparseClassDataStruct->IsChildOf(SparseClassDataStruct))
 			{
-				SubClass->CleanupSparseClassData();
-				SubClassSparseClassDataStruct->SetSuperStruct(nullptr);
+				SubClassesToClear.Add(SubClass);
 			}
+		}
+
+		for(UClass* SubClassToClear : SubClassesToClear)
+		{
+			UScriptStruct* SubClassSparseClassDataStruct = SubClassToClear->GetSparseClassDataStruct();
+			SubClassToClear->CleanupSparseClassData();
+			SubClassToClear->SparseClassDataStruct = nullptr;
+			SubClassSparseClassDataStruct->SetSuperStruct(nullptr);	
 		}
 
 		CleanupSparseClassData();
