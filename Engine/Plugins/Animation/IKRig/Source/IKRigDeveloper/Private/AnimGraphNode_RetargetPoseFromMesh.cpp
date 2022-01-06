@@ -83,12 +83,12 @@ void UAnimGraphNode_RetargetPoseFromMesh::ValidateAnimNodeDuringCompilation(USke
 	const TArray<FBoneChain> &TargetBoneChains = Node.IKRetargeterAsset->GetTargetIKRig()->GetRetargetChains();
     for (const FBoneChain &Chain : TargetBoneChains)
     {
-        if (RefSkel.FindBoneIndex(Chain.StartBone) == INDEX_NONE)
+        if (RefSkel.FindBoneIndex(Chain.StartBone.BoneName) == INDEX_NONE)
         {
         	MessageLog.Warning(*LOCTEXT("StartBoneNotFound", "@@ - Start Bone in target IK Rig Bone Chain not found.").ToString(), this);
         }
 
-    	if (RefSkel.FindBoneIndex(Chain.EndBone) == INDEX_NONE)
+    	if (RefSkel.FindBoneIndex(Chain.EndBone.BoneName) == INDEX_NONE)
     	{
     		MessageLog.Warning(*LOCTEXT("EndBoneNotFound", "@@ - End Bone in target IK Rig Bone Chain not found.").ToString(), this);
     	}

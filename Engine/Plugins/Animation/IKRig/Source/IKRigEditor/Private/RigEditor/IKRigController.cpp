@@ -275,7 +275,7 @@ FName UIKRigController::GetRetargetChainStartBone(const FName& ChainName) const
 		return NAME_None;
 	}
 	
-	return Chain->StartBone;
+	return Chain->StartBone.BoneName;
 }
 
 FName UIKRigController::GetRetargetChainEndBone(const FName& ChainName) const
@@ -287,7 +287,7 @@ FName UIKRigController::GetRetargetChainEndBone(const FName& ChainName) const
 		return NAME_None;
 	}
 	
-	return Chain->EndBone;
+	return Chain->EndBone.BoneName;
 }
 
 const TArray<FBoneChain>& UIKRigController::GetRetargetChains() const
@@ -319,8 +319,8 @@ void UIKRigController::SortRetargetChains() const
 {
 	Asset->RetargetDefinition.BoneChains.Sort([this](const FBoneChain& A, const FBoneChain& B)
 	{
-		const int32 IndexA = Asset->Skeleton.GetBoneIndexFromName(A.StartBone);
-		const int32 IndexB = Asset->Skeleton.GetBoneIndexFromName(B.StartBone);
+		const int32 IndexA = Asset->Skeleton.GetBoneIndexFromName(A.StartBone.BoneName);
+		const int32 IndexB = Asset->Skeleton.GetBoneIndexFromName(B.StartBone.BoneName);
 		return IndexA < IndexB;
 	});
 }

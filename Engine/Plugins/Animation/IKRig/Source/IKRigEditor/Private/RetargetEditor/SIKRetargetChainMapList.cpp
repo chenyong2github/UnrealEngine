@@ -13,6 +13,7 @@
 #include "Retargeter/IKRetargeter.h"
 #include "RigEditor/IKRigEditorStyle.h"
 #include "Widgets/Input/SComboBox.h"
+#include "SSearchableComboBox.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 
@@ -81,7 +82,7 @@ TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn( const FNa
 		.VAlign(VAlign_Center)
 		.Padding(3.0f, 1.0f)
 		[
-			SNew(SComboBox<TSharedPtr<FString>>)
+			SNew(SSearchableComboBox)
 			.OptionsSource(&SourceChainOptions)
 			.OnGenerateWidget_Lambda([](TSharedPtr<FString> InItem)
 			{

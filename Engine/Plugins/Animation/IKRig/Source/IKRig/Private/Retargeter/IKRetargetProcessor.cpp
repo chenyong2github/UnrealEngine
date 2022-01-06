@@ -243,8 +243,8 @@ FResolvedBoneChain::FResolvedBoneChain(
 	TArray<int32> &OutBoneIndices)
 {
 	// validate start and end bones exist
-	const int32 StartIndex = Skeleton.FindBoneIndexByName(BoneChain.StartBone);
-	const int32 EndIndex = Skeleton.FindBoneIndexByName(BoneChain.EndBone);
+	const int32 StartIndex = Skeleton.FindBoneIndexByName(BoneChain.StartBone.BoneName);
+	const int32 EndIndex = Skeleton.FindBoneIndexByName(BoneChain.EndBone.BoneName);
 	bFoundStartBone = StartIndex != INDEX_NONE;
 	bFoundEndBone = EndIndex != INDEX_NONE;
 	
@@ -642,21 +642,21 @@ bool FRetargetChainPair::ValidateBoneChainWithSkeletalMesh(
 	if (!ResolvedChain.bFoundStartBone)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, %s, could not find start bone, %s in mesh %s"),
-            *BoneChain.ChainName.ToString(), *BoneChain.StartBone.ToString(), *RetargetSkeleton.SkeletalMesh->GetName());
+            *BoneChain.ChainName.ToString(), *BoneChain.StartBone.BoneName.ToString(), *RetargetSkeleton.SkeletalMesh->GetName());
 	}
 	
 	// warn if END bone not found
 	if (!ResolvedChain.bFoundEndBone)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, %s, could not find end bone, %s in mesh %s"),
-            *BoneChain.ChainName.ToString(), *BoneChain.EndBone.ToString(), *RetargetSkeleton.SkeletalMesh->GetName());
+            *BoneChain.ChainName.ToString(), *BoneChain.EndBone.BoneName.ToString(), *RetargetSkeleton.SkeletalMesh->GetName());
 	}
 
 	// warn if END bone was not a child of START bone
 	if (!ResolvedChain.bEndIsChildOfStart)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("IK Retargeter bone chain, %s, end bone, '%s' was not a child of the start bone '%s'."),
-			*BoneChain.ChainName.ToString(), *BoneChain.EndBone.ToString(), *BoneChain.StartBone.ToString());
+			*BoneChain.ChainName.ToString(), *BoneChain.EndBone.BoneName.ToString(), *BoneChain.StartBone.BoneName.ToString());
 	}
 	
 	return ResolvedChain.IsValid();
