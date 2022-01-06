@@ -134,13 +134,6 @@ DetermineDataPath(const TCHAR* ConfigSection, FString& DataPath)
 		}
 	}
 
-	ON_SCOPE_EXIT
-	{
-		// Persist the data path so that future runs use the same one.
-		DataPath = NormalizeDataPath(DataPath);
-		FPlatformMisc::SetStoredValue(TEXT("Epic Games"), TEXT("Zen"), TEXT("DataPath"), DataPath);
-	};
-
 	// Zen environment
 	DataPathEnvOverrideValue = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-ZenDataPath"));
 	if (!DataPathEnvOverrideValue.IsEmpty())
