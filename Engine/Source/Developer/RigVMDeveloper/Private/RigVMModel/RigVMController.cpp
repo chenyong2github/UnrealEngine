@@ -30,10 +30,6 @@
 #endif
 
 TMap<URigVMController::FControlRigStructPinRedirectorKey, FString> URigVMController::PinPathCoreRedirectors;
-const TCHAR URigVMController::TArrayPrefix[] = TEXT("TArray<");
-const TCHAR URigVMController::TObjectPtrPrefix[] = TEXT("TObjectPtr<");
-const TCHAR URigVMController::TArrayTemplate[] = TEXT("TArray<%s>");
-const TCHAR URigVMController::TObjectPtrTemplate[] = TEXT("TObjectPtr<%s%s>");
 
 FRigVMControllerCompileBracketScope::FRigVMControllerCompileBracketScope(URigVMController* InController)
 : Graph(nullptr), bSuspendNotifications(InController->bSuspendNotifications)
@@ -1038,9 +1034,9 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		ValuePin->CPPTypeObject = ExternalVariable.TypeObject;
 		ValuePin->bIsDynamicArray = ExternalVariable.bIsArray;
 
-		if(ValuePin->bIsDynamicArray && !ValuePin->CPPType.StartsWith(TArrayPrefix))
+		if(ValuePin->bIsDynamicArray && !RigVMTypeUtils::IsArrayType(ValuePin->CPPType))
 		{
-			ValuePin->CPPType = FString::Printf(TArrayTemplate, *ValuePin->CPPType);
+			ValuePin->CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(*ValuePin->CPPType);
 		}
 	}
 	else
@@ -9835,7 +9831,7 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 	AddNodePin(Node, IndexPin);
 
 	URigVMPin* ValuePin = NewObject<URigVMPin>(Node, *URigVMSelectNode::ValueName);
-	ValuePin->CPPType = FString::Printf(TArrayTemplate, *CPPType);
+	ValuePin->CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
 	ValuePin->CPPTypeObject = CPPTypeObject;
 	ValuePin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	ValuePin->Direction = ERigVMPinDirection::Input;
@@ -10100,9 +10096,9 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 			{
 				Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
 			}
-			if(bIsArray && !Pin->CPPType.StartsWith(TArrayPrefix))
+			if(bIsArray && !RigVMTypeUtils::IsArrayType(Pin->CPPType))
 			{
-				Pin->CPPType = FString::Printf(TArrayTemplate, *Pin->CPPType);
+				Pin->CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(*Pin->CPPType);
 			}
 			Pin->Direction = InDirection;
 			Pin->bIsDynamicArray = bIsArray;
@@ -12198,7 +12194,7 @@ FString URigVMController::PostProcessCPPType(const FString& InCPPType, UObject* 
 	
 	if (const UClass* Class = Cast<UClass>(InCPPTypeObject))
 	{
-		CPPType = FString::Printf(TObjectPtrTemplate, Class->GetPrefixCPP(), *Class->GetName());
+		CPPType = FString::Printf(RigVMTypeUtils::TObjectPtrTemplate, Class->GetPrefixCPP(), *Class->GetName());
 	}
 	else if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
 	{
@@ -12372,7 +12368,7 @@ void URigVMController::ResolveUnknownTypePin(URigVMPin* InPinToResolve, const UR
 	FString ResolvedCPPType = InTemplatePin->IsArray() ? InTemplatePin->GetArrayElementCppType() : InTemplatePin->GetCPPType();
 	if(InPinToResolve->IsArray())
 	{
-		ResolvedCPPType = FString::Printf(TArrayTemplate, *ResolvedCPPType);
+		ResolvedCPPType = RigVMTypeUtils::ArrayTypeFromBaseType(ResolvedCPPType);
 	}
 
 	if(!ChangePinType(InPinToResolve, ResolvedCPPType, InTemplatePin->GetCPPTypeObject(), bSetupUndoRedo, false, false, false))

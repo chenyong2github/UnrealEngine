@@ -1367,7 +1367,7 @@ UEdGraphPin* UControlRigGraphSchema::DropPinOnNode(UEdGraphNode* InTargetNode, c
 							FString TypeName = ExternalVar.TypeName.ToString();
 							if (ExternalVar.bIsArray)
 							{
-								TypeName = FString::Printf(URigVMController::TArrayTemplate, *TypeName);
+								TypeName = RigVMTypeUtils::ArrayTypeFromBaseType(*TypeName);
 							}
 							FName TypeObjectPathName = NAME_None;
 							if (ExternalVar.TypeObject)

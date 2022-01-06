@@ -2794,7 +2794,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		if(bIsDebugValue)
 		{
 			// debug values are always stored as arrays
-			CPPType = FString::Printf(URigVMController::TArrayTemplate, *CPPType);
+			CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
 			JoinedDefaultValue = URigVMPin::GetDefaultValueForArray({ JoinedDefaultValue });
 		}
 		else if(Pin->GetDirection() == ERigVMPinDirection::Hidden && Pin->GetNode()->IsA<URigVMUnitNode>())
@@ -2805,7 +2805,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 			if (!Property->HasMetaData(FRigVMStruct::SingletonMetaName))
 			{
-				CPPType = FString::Printf(URigVMController::TArrayTemplate, *CPPType);
+				CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
 				JoinedDefaultValue = URigVMPin::GetDefaultValueForArray({ JoinedDefaultValue });
 			}
 		}
