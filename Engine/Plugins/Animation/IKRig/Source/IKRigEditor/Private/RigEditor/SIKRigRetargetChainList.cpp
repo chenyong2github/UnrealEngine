@@ -14,6 +14,8 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SPositiveActionButton.h"
+#include "SSearchableComboBox.h"
+#include "BoneSelectionWidget.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 
@@ -82,14 +84,10 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 		.VAlign(VAlign_Center)
 		.Padding(3.0f, 1.0f)
 		[
-			SNew(SComboBox<FName>)
-			.OptionsSource(&ChainList.Pin()->EditorController.Pin()->AssetController->GetIKRigSkeleton().BoneNames)
-			.OnGenerateWidget(this, &SIKRigRetargetChainRow::MakeBoneComboEntryWidget)
-			.OnSelectionChanged(this, &SIKRigRetargetChainRow::OnStartBoneComboSelectionChanged)
-			[
-				SNew(STextBlock)
-				.Text(this, &SIKRigRetargetChainRow::GetStartBoneName)
-			]
+			SNew(SBoneSelectionWidget)
+			.OnBoneSelectionChanged(this, &SIKRigRetargetChainRow::OnStartBoneComboSelectionChanged)
+			.OnGetSelectedBone(this, &SIKRigRetargetChainRow::GetStartBoneName)
+			.OnGetReferenceSkeleton(this, &SIKRigRetargetChainRow::GetReferenceSkeleton)
 		];
 		return StartWidget;
 	}
@@ -104,14 +102,10 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 		.VAlign(VAlign_Center)
 		.Padding(3.0f, 1.0f)
 		[
-			SNew(SComboBox<FName>)
-			.OptionsSource(&ChainList.Pin()->EditorController.Pin()->AssetController->GetIKRigSkeleton().BoneNames)
-			.OnGenerateWidget(this, &SIKRigRetargetChainRow::MakeBoneComboEntryWidget)
-			.OnSelectionChanged(this, &SIKRigRetargetChainRow::OnEndBoneComboSelectionChanged)
-			[
-				SNew(STextBlock)
-				.Text(this, &SIKRigRetargetChainRow::GetEndBoneName)
-			]
+			SNew(SBoneSelectionWidget)
+			.OnBoneSelectionChanged(this, &SIKRigRetargetChainRow::OnEndBoneComboSelectionChanged)
+			.OnGetSelectedBone(this, &SIKRigRetargetChainRow::GetEndBoneName)
+			.OnGetReferenceSkeleton(this, &SIKRigRetargetChainRow::GetReferenceSkeleton)
 		];
 		return EndWidget;
 	}
@@ -127,7 +121,7 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 		.VAlign(VAlign_Center)
 		.Padding(3.0f, 1.0f)
 		[
-			SNew(SComboBox<TSharedPtr<FString>>)
+			SNew(SSearchableComboBox)
 			.OptionsSource(&GoalOptions)
 			.OnGenerateWidget(this, &SIKRigRetargetChainRow::MakeGoalComboEntryWidget)
 			.OnSelectionChanged(this, &SIKRigRetargetChainRow::OnGoalComboSelectionChanged)
@@ -140,17 +134,12 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 	}
 }
 
-TSharedRef<SWidget> SIKRigRetargetChainRow::MakeBoneComboEntryWidget(FName InItem) const
-{
-	return SNew(STextBlock).Text(FText::FromName(InItem));
-}
-
 TSharedRef<SWidget> SIKRigRetargetChainRow::MakeGoalComboEntryWidget(TSharedPtr<FString> InItem) const
 {
 	return SNew(STextBlock).Text(FText::FromString(*InItem.Get()));
 }
 
-void SIKRigRetargetChainRow::OnStartBoneComboSelectionChanged(FName InName, ESelectInfo::Type SelectInfo)
+void SIKRigRetargetChainRow::OnStartBoneComboSelectionChanged(FName InName) const
 {
 	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
 	if (!Controller.IsValid())
@@ -162,28 +151,28 @@ void SIKRigRetargetChainRow::OnStartBoneComboSelectionChanged(FName InName, ESel
 	ChainList.Pin()->RefreshView();
 }
 
-FText SIKRigRetargetChainRow::GetStartBoneName() const
+FName SIKRigRetargetChainRow::GetStartBoneName(bool& bMultipleValues) const
 {
 	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
 	if (!Controller.IsValid())
 	{
-		return FText::GetEmpty();
+		return NAME_None;
 	}
-	
-	const FName StartBoneName = Controller->AssetController->GetRetargetChainStartBone(ChainElement.Pin()->ChainName);
-	return FText::FromName(StartBoneName);
+
+	bMultipleValues = false;
+	return Controller->AssetController->GetRetargetChainStartBone(ChainElement.Pin()->ChainName);
 }
 
-FText SIKRigRetargetChainRow::GetEndBoneName() const
+FName SIKRigRetargetChainRow::GetEndBoneName(bool& bMultipleValues) const
 {	
 	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
 	if (!Controller.IsValid())
 	{
-		return FText::GetEmpty();
+		return NAME_None;
 	}
-	
-	const FName EndBoneName = Controller->AssetController->GetRetargetChainEndBone(ChainElement.Pin()->ChainName);
-	return FText::FromName(EndBoneName);
+
+	bMultipleValues = false;
+	return Controller->AssetController->GetRetargetChainEndBone(ChainElement.Pin()->ChainName);
 }
 
 FText SIKRigRetargetChainRow::GetGoalName() const
@@ -198,7 +187,7 @@ FText SIKRigRetargetChainRow::GetGoalName() const
 	return FText::FromName(GoalName);
 }
 
-void SIKRigRetargetChainRow::OnEndBoneComboSelectionChanged(FName InName, ESelectInfo::Type SelectInfo)
+void SIKRigRetargetChainRow::OnEndBoneComboSelectionChanged(FName InName) const
 {
 	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
 	if (!Controller.IsValid())
@@ -234,6 +223,25 @@ void SIKRigRetargetChainRow::OnRenameChain(const FText& InText, ETextCommit::Typ
 	const FName NewName = FName(*InText.ToString());
 	ChainElement.Pin()->ChainName = Controller->AssetController->RenameRetargetChain(OldName, NewName);
 	ChainList.Pin()->RefreshView();
+}
+
+const FReferenceSkeleton& SIKRigRetargetChainRow::GetReferenceSkeleton() const
+{
+	static const FReferenceSkeleton DummySkeleton;
+	
+	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return DummySkeleton; 
+	}
+
+	USkeleton* Skeleton = Controller->AssetController->GetSkeleton();
+	if (Skeleton == nullptr)
+	{
+		return DummySkeleton;
+	}
+	
+	return Skeleton->GetReferenceSkeleton();
 }
 
 void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController)

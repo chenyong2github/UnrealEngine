@@ -61,21 +61,22 @@ public:
 	/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the table row. */
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 
-	TSharedRef<SWidget> MakeBoneComboEntryWidget(FName InItem) const;
-	TSharedRef<SWidget> MakeGoalComboEntryWidget(TSharedPtr<FString> InItem) const;
-	
-	void OnStartBoneComboSelectionChanged(FName InName, ESelectInfo::Type SelectInfo);
-	void OnEndBoneComboSelectionChanged(FName InName, ESelectInfo::Type SelectInfo);
-	void OnGoalComboSelectionChanged(TSharedPtr<FString> InGoalName, ESelectInfo::Type SelectInfo);
-	
-	FText GetStartBoneName() const;
-	FText GetEndBoneName() const;
-	FText GetGoalName() const;
-	
-	void OnRenameChain(const FText& InText, ETextCommit::Type ) const;
-
 private:
 
+	const FReferenceSkeleton& GetReferenceSkeleton() const;
+
+	TSharedRef<SWidget> MakeGoalComboEntryWidget(TSharedPtr<FString> InItem) const;
+	
+	void OnStartBoneComboSelectionChanged(FName InName) const;
+	void OnEndBoneComboSelectionChanged(FName InName) const;
+	void OnGoalComboSelectionChanged(TSharedPtr<FString> InGoalName, ESelectInfo::Type SelectInfo);
+	
+	FName GetStartBoneName(bool& bMultipleValues) const;
+	FName GetEndBoneName(bool& bMultipleValues) const;
+	FText GetGoalName() const;
+
+	void OnRenameChain(const FText& InText, ETextCommit::Type ) const;
+	
 	TArray<TSharedPtr<FString>> GoalOptions;
 	TWeakPtr<FRetargetChainElement> ChainElement;
 	TWeakPtr<SIKRigRetargetChainList> ChainList;
@@ -90,10 +91,11 @@ struct FIKRigRetargetChainSettings
 
 	FIKRigRetargetChainSettings(){};
 	
-	FIKRigRetargetChainSettings(FName InChainName, FName InStartBone, FName InEndBone)
-	:	ChainName(InChainName),
-		StartBone(InStartBone),
-		EndBone(InEndBone){}
+	FIKRigRetargetChainSettings(FName InChainName, const FName& InStartBone, const FName& InEndBone)
+		: ChainName(InChainName)
+		, StartBone(InStartBone)
+		, EndBone(InEndBone)
+	{}
 
 	UPROPERTY(EditAnywhere, Category = "Bone Chain")
 	FName ChainName;

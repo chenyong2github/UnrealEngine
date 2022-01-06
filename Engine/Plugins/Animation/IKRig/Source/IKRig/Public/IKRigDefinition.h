@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "BoneContainer.h"
 #include "UObject/Object.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "IKRigSkeleton.h"
@@ -130,20 +130,21 @@ struct IKRIG_API FBoneChain
 
 	FBoneChain() = default;
 	
-	FBoneChain(FName InName, FName InStartBone, FName InEndBone)
-	: ChainName(InName),
-	StartBone(InStartBone),
-	EndBone(InEndBone),
-	IKGoalName(NAME_None){}
+	FBoneChain(FName InName, const FName& InStartBone, const FName& InEndBone)
+		: ChainName(InName)
+		, StartBone(InStartBone)
+		, EndBone(InEndBone)
+		, IKGoalName(NAME_None)
+	{}
 
 	UPROPERTY(EditAnywhere, Category = BoneChain)
 	FName ChainName;
 
 	UPROPERTY(EditAnywhere, Category = BoneChain)
-	FName StartBone;
+	FBoneReference StartBone;
 
 	UPROPERTY(EditAnywhere, Category = BoneChain)
-	FName EndBone;
+	FBoneReference EndBone;
 	
 	UPROPERTY(EditAnywhere, Category = IK)
 	FName IKGoalName;
