@@ -531,6 +531,13 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	bool bEnableGpuParticleReadback = false;
 
 	/**
+	When enabled the particle index will be displayed along with any attributes.
+	Note: This is the index in the particle data buffer and not the persistent ID index.
+	*/
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables"))
+	bool bShowParticleIndex = false;
+
+	/**
 	List of attributes to show per particle, each entry uses wildcard matching.
 	For example, "*Position" would match all attributes that end in Position.
 	*/
