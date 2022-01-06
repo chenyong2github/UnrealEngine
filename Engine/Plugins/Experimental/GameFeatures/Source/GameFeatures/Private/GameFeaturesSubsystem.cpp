@@ -1025,7 +1025,7 @@ void UGameFeaturesSubsystem::LoadGameFeaturePluginComplete(UGameFeaturePluginSta
 	check(Machine);
 	if (Result.HasValue())
 	{
-		UE_LOG(LogGameFeatures, Display, TEXT("Game feature '%s' loaded successfully."), *Machine->GetGameFeatureName());
+		UE_LOG(LogGameFeatures, Display, TEXT("Game feature '%s' loaded successfully. Ending state: %s"), *Machine->GetGameFeatureName(), *UE::GameFeatures::ToString(Machine->GetCurrentState()));
 	}
 	else
 	{
