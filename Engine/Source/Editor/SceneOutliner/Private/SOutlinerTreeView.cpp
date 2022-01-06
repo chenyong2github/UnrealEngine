@@ -395,7 +395,7 @@ int32 SSceneOutlinerTreeRow::OnPaint( const FPaintArgs& Args, const FGeometry& A
 			HighlightTargetColorAndOpacity );							// Color
 	}
 
-	return LayerId + TextLayer;
+	return StartLayer + TextLayer;
 }
 
 #undef LOCTEXT_NAMESPACE
