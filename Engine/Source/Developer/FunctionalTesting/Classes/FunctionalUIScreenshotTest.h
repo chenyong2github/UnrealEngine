@@ -30,6 +30,9 @@ class AFunctionalUIScreenshotTest : public AScreenshotFunctionalTestBase
 public:
 	AFunctionalUIScreenshotTest(const FObjectInitializer& ObjectInitializer);
 
+public:
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 protected:
 	virtual void PrepareTest() override;
 
@@ -38,7 +41,6 @@ protected:
 	virtual void RequestScreenshot() override;
 	
 protected:
-
 	UPROPERTY(EditAnywhere, Category = "UI")
 	TSubclassOf<UUserWidget> WidgetClass;
 
@@ -50,4 +52,10 @@ protected:
 
 	UPROPERTY(Transient, DuplicateTransient)
 	TObjectPtr<UTextureRenderTarget2D> ScreenshotRT;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	bool bHideDebugCanvas;
+
+private:
+	TOptional<bool> PreviousDebugCanvasVisible;
 };

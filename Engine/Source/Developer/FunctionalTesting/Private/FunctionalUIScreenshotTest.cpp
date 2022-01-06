@@ -19,6 +19,7 @@ AFunctionalUIScreenshotTest::AFunctionalUIScreenshotTest( const FObjectInitializ
 	: AScreenshotFunctionalTestBase(ObjectInitializer)
 {
 	WidgetLocation = EWidgetTestAppearLocation::Viewport;
+	bHideDebugCanvas = true;
 }
 
 /**
@@ -52,6 +53,16 @@ void AFunctionalUIScreenshotTest::PrepareTest()
 {
 	// Resize viewport to screenshot size
 	Super::PrepareTest();
+
+	// Hide all debug info
+	if (bHideDebugCanvas)
+	{
+		if (IConsoleVariable* CVarDebugCanvasVisible = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.GameLayer.DebugCanvasVisible")))
+		{
+			PreviousDebugCanvasVisible = CVarDebugCanvasVisible->GetBool();
+			CVarDebugCanvasVisible->Set(false);
+		}
+	}
 
 	TSharedPtr<SViewport> GameViewportWidget = GEngine->GameViewport->GetGameViewportWidget();
 	check(GameViewportWidget.IsValid());
@@ -107,6 +118,31 @@ void AFunctionalUIScreenshotTest::OnScreenshotTakenAndCompared()
 
 	// Restore viewport size and finish the test
 	Super::OnScreenshotTakenAndCompared();
+
+	// Restore the debug text
+	if (PreviousDebugCanvasVisible.IsSet())
+	{
+		if (IConsoleVariable* CVarDebugCanvasVisible = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.GameLayer.DebugCanvasVisible")))
+		{
+			CVarDebugCanvasVisible->Set(PreviousDebugCanvasVisible.GetValue());
+			PreviousDebugCanvasVisible.Reset();
+		}
+	}
+}
+
+void AFunctionalUIScreenshotTest::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	// Restore the debug text
+	if (PreviousDebugCanvasVisible.IsSet())
+	{
+		if (IConsoleVariable* CVarDebugCanvasVisible = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.GameLayer.DebugCanvasVisible")))
+		{
+			CVarDebugCanvasVisible->Set(PreviousDebugCanvasVisible.GetValue());
+			PreviousDebugCanvasVisible.Reset();
+		}
+	}
 }
 
 /**
