@@ -503,8 +503,7 @@ namespace UnrealBuildTool
 				if (string.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")
 				{
 					if (Target.Architecture.StartsWith("x86_64") ||
-					    Target.Architecture.StartsWith("aarch64") ||
-					    Target.Architecture.StartsWith("i686"))
+					    Target.Architecture.StartsWith("aarch64"))
 					{
 						// libc++ include directories
 						Writer.WriteValue(Path.Combine(EngineDirectory, "Source/ThirdParty/Unix/LibCxx/include/"));
@@ -514,7 +513,7 @@ namespace UnrealBuildTool
 
 				UEBuildPlatform BuildPlatform;
 
-				if (Target.Architecture.StartsWith("x86_64") || Target.Architecture.StartsWith("i686"))
+				if (Target.Architecture.StartsWith("x86_64"))
 				{
 					BuildPlatform = UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.Linux);
 				}

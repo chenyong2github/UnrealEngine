@@ -22,9 +22,6 @@ namespace UnrealBuildTool
 
 		/** Arm64, ARM 64-bit */
 		AArch64UnknownLinuxGnueabi,
-
-		/** i686, Intel 32-bit */
-		I686UnknownLinuxGnu
 	}
 
 	/// <summary>
