@@ -320,15 +320,14 @@ private:
 		}
 		
 		FLoopNode* Node = NodesOfLoop[Index];
-#ifdef DEBUG_LOOP_INTERSECTION_AND_FIX_IT	
 		if (Node->IsDelete())
 		{
+#ifdef DEBUG_LOOP_INTERSECTION_AND_FIX_IT	
 			Wait();
+#endif
+			return nullptr;
 		}
-#endif
-#ifdef CADKERNEL_DEV
-		ensureCADKernel(!Node->IsDelete());
-#endif
+
 		return Node;
 	};
 
@@ -417,6 +416,11 @@ private:
 
 			FLoopNode* Segment0End = GetNodeAt(NextIndex((int32)Intersection.Key));
 			FLoopNode* Segment1Start = GetNodeAt((int32)Intersection.Value);
+
+			if (!Segment0End || !Segment1Start)
+			{
+				return;
+			}
 
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Segment0End, *GetPrevious(Segment0End), 0, EVisuProperty::RedCurve);
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Segment1Start, *GetNext(Segment1Start), 0, EVisuProperty::RedCurve);
