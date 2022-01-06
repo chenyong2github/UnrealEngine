@@ -182,6 +182,8 @@ void FModelingToolsManagerCommands::RegisterCommands()
 	// Note that passing a chord into one of these calls hooks the key press to the respective action. 
 	UI_COMMAND(AcceptOrCompleteActiveTool, "Accept or Complete", "Accept or complete the active tool", EUserInterfaceActionType::Button, FInputChord(EKeys::Enter));
 	UI_COMMAND(CancelOrCompleteActiveTool, "Cancel or Complete", "Cancel or complete the active tool", EUserInterfaceActionType::Button, FInputChord(EKeys::Escape));
+	
+#undef REGISTER_MODELING_TOOL_COMMAND
 }
 
 
