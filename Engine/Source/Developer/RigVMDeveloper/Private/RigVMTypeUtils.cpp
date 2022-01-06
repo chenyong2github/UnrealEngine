@@ -21,7 +21,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromRigVMVariableDescript
 	FRigVMExternalVariable ExternalVariable;
 	ExternalVariable.Name = InVariableDescription.Name;
 
-	if (InVariableDescription.CPPType.StartsWith(TEXT("TArray<")))
+	if (IsArrayType(InVariableDescription.CPPType))
 	{
 		ExternalVariable.bIsArray = true;
 		ExternalVariable.TypeName = *InVariableDescription.CPPType.Mid(7, InVariableDescription.CPPType.Len() - 8);
@@ -258,6 +258,58 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 	return Variable;
 }
 
+FEdGraphPinType RigVMTypeUtils::PinTypeFromCPPType(const FString& InCPPType, UObject* InCPPTypeObject)
+{
+	FEdGraphPinType PinType;
+	PinType.ResetToDefaults();
+	PinType.PinCategory = NAME_None;
+
+	FString BaseCPPType = InCPPType;
+	PinType.ContainerType = EPinContainerType::None;
+	if (RigVMTypeUtils::IsArrayType(InCPPType))
+	{
+		BaseCPPType = RigVMTypeUtils::BaseTypeFromArrayType(InCPPType);
+		PinType.ContainerType = EPinContainerType::Array;
+	}
+
+	if (BaseCPPType == TEXT("bool"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
+	}
+	else if (BaseCPPType == TEXT("int32"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
+	}
+	else if (BaseCPPType == TEXT("float"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
+	}
+	else if (BaseCPPType == TEXT("double"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
+	}
+	else if (BaseCPPType == TEXT("FName"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
+	}
+	else if (BaseCPPType == TEXT("FString"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_String;
+	}
+	else if (Cast<UScriptStruct>(InCPPTypeObject))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
+		PinType.PinSubCategoryObject = InCPPTypeObject;
+	}
+	else if (Cast<UEnum>(InCPPTypeObject))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Byte;
+		PinType.PinSubCategoryObject = InCPPTypeObject;
+	}
+
+	return PinType;
+}
+
 FEdGraphPinType RigVMTypeUtils::PinTypeFromExternalVariable(const FRigVMExternalVariable& InExternalVariable)
 {
 	FEdGraphPinType PinType;
@@ -319,11 +371,10 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromRigVMVariableDescription(
 	PinType.PinCategory = NAME_None;
 
 	FString CurrentCPPType = InVariableDescription.CPPType;
-	if (CurrentCPPType.StartsWith(TEXT("TArray<")))
+	if (IsArrayType(CurrentCPPType))
 	{
 		PinType.ContainerType = EPinContainerType::Array;
-		CurrentCPPType.RemoveFromStart(TEXT("TArray<"));
-		CurrentCPPType.RemoveFromEnd(TEXT(">"));
+		CurrentCPPType = BaseTypeFromArrayType(CurrentCPPType);
 	}
 	else
 	{
@@ -579,6 +630,11 @@ bool RigVMTypeUtils::CPPTypeFromExternalVariable(const FRigVMExternalVariable& I
 	return true;
 }
 
+bool RigVMTypeUtils::AreCompatible(const FString& InCPPTypeA, UObject* InCPPTypeObjectA, const FString& InCPPTypeB,	UObject* InCPPTypeObjectB)
+{
+	return AreCompatible(PinTypeFromCPPType(InCPPTypeA, InCPPTypeObjectA), PinTypeFromCPPType(InCPPTypeB, InCPPTypeObjectB));
+}
+
 bool RigVMTypeUtils::AreCompatible(const FRigVMExternalVariable& InTypeA, const FRigVMExternalVariable& InTypeB, const FString& InSegmentPathA, const FString& InSegmentPathB)
 {
 	return AreCompatible(PinTypeFromExternalVariable(InTypeA), PinTypeFromExternalVariable(InTypeB), InSegmentPathA, InSegmentPathB);
@@ -588,6 +644,15 @@ bool RigVMTypeUtils::AreCompatible(const FEdGraphPinType& InTypeA, const FEdGrap
 {
 	FEdGraphPinType SubPinTypeA = SubPinType(InTypeA, InSegmentPathA);
 	FEdGraphPinType SubPinTypeB = SubPinType(InTypeB, InSegmentPathB);
+
+	// We allow connectiongs between floats and doubles, while EdGraphSchema_K2 does not
+	// Every other case is evaluated by UEdGraphSchema_K2::ArePinTypesCompatible
+	if (SubPinTypeA.ContainerType == SubPinTypeB.ContainerType &&
+		(SubPinTypeA.PinCategory == TEXT("float") && SubPinTypeB.PinCategory == TEXT("double") ||
+		 SubPinTypeA.PinCategory == TEXT("double") && SubPinTypeB.PinCategory == TEXT("float")))
+	{
+		return true;
+	}
 	
 	return UEdGraphSchema_K2::StaticClass()->GetDefaultObject<UEdGraphSchema_K2>()->ArePinTypesCompatible(SubPinTypeA, SubPinTypeB);	
 }

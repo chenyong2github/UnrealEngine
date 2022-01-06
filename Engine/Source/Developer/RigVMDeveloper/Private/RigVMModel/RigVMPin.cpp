@@ -451,12 +451,12 @@ bool URigVMPin::IsStructMember() const
 
 bool URigVMPin::IsUObject() const
 {
-	return CPPType.StartsWith(URigVMController::TObjectPtrPrefix);
+	return RigVMTypeUtils::IsUObjectType(CPPType);
 }
 
 bool URigVMPin::IsArray() const
 {
-	return CPPType.StartsWith(URigVMController::TArrayPrefix);
+	return RigVMTypeUtils::IsArrayType(CPPType);
 }
 
 bool URigVMPin::IsArrayElement() const
@@ -691,8 +691,8 @@ bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
 	}
 
 	FString BaseCPPType = GetCPPType()
-		.Replace(URigVMController::TArrayPrefix, TEXT(""))
-		.Replace(URigVMController::TObjectPtrPrefix, TEXT(""))
+		.Replace(RigVMTypeUtils::TArrayPrefix, TEXT(""))
+		.Replace(RigVMTypeUtils::TObjectPtrPrefix, TEXT(""))
 		.Replace(TEXT(">"), TEXT(""));
 
 	for (const FString& Value : DefaultValues)
@@ -821,8 +821,8 @@ FString URigVMPin::ClampDefaultValueFromMetaData(const FString& InDefaultValue) 
 		
 
 		FString BaseCPPType = GetCPPType()
-			.Replace(URigVMController::TArrayPrefix, TEXT(""))
-			.Replace(URigVMController::TObjectPtrPrefix, TEXT(""))
+			.Replace(RigVMTypeUtils::TArrayPrefix, TEXT(""))
+			.Replace(RigVMTypeUtils::TObjectPtrPrefix, TEXT(""))
 			.Replace(TEXT(">"), TEXT(""));
 
 		RetVals.SetNumZeroed(DefaultValues.Num());
@@ -1102,23 +1102,8 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 	}
 #endif
 
-	if (GetCPPTypeObject() != nullptr)
-	{
-		if (GetCPPTypeObject() != ExternalCPPTypeObject)
-		{
-			return false;
-		}
-	}
-	else
-	{
-		const FString CPPBaseType = IsArray() ? GetArrayElementCppType() : GetCPPType();
-		if (CPPBaseType != ExternalCPPType.ToString())
-		{
-			return false;
-		}
-	}
-
-	return true;
+	const FString CPPBaseType = IsArray() ? GetArrayElementCppType() : GetCPPType();
+	return RigVMTypeUtils::AreCompatible(CPPBaseType, GetCPPTypeObject(), ExternalCPPType.ToString(), ExternalCPPTypeObject);
 }
 
 bool URigVMPin::ShowInDetailsPanelOnly() const
@@ -1529,13 +1514,7 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 			(InSourcePin->CPPType == Double && InTargetPin->CPPType == Float))
 #else
 
-		static const FString FloatArray = TEXT("TArray<float>");
-		static const FString DoubleArray = TEXT("TArray<double>");
-		
-		if((InSourcePin->CPPType == Float && InTargetPin->CPPType == Double) ||
-			(InSourcePin->CPPType == Double && InTargetPin->CPPType == Float) ||
-			(InSourcePin->CPPType == FloatArray && InTargetPin->CPPType == DoubleArray) ||
-			(InSourcePin->CPPType == DoubleArray && InTargetPin->CPPType == FloatArray))
+		if (RigVMTypeUtils::AreCompatible(InSourcePin->CPPType, InSourcePin->CPPTypeObject, InTargetPin->CPPType, InTargetPin->CPPTypeObject))
 #endif
 		{
 			bCPPTypesDiffer = false;
