@@ -16,15 +16,15 @@ namespace AutomationTool.Benchmark
 {
 
 	[Help("Runs benchmarks and reports overall results")]
-	[Help("Example1: RunUAT BenchmarkBuild -all -project=UE4")]
-	[Help("Example2: RunUAT BenchmarkBuild -allcompile -project=UE4+EngineTest -platform=Win64")]
-	[Help("Example3: RunUAT BenchmarkBuild -editor -client -cook -cooknoshaderddc -cooknoddc -xge -noxge -singlecompile -nopcompile -project=UE4+QAGame+EngineTest -platform=WIn64+Android -iterations=3")]
+	[Help("Example1: RunUAT BenchmarkBuild -all -project=Unreal")]
+	[Help("Example2: RunUAT BenchmarkBuild -allcompile -project=Unreal+EngineTest -platform=PS4")]
+	[Help("Example3: RunUAT BenchmarkBuild -editor -client -cook -cooknoshaderddc -cooknoddc -xge -noxge -singlecompile -nopcompile -project=Unreal+QAGame+EngineTest -platform=Win64+PS4+XboxOne+Switch -iterations=3")]
 	[Help("preview", "List everything that will run but don't do it")]
-	[Help("project=<name>", "Do tests on the specified projec(s)t. E.g. -project=UE4+FortniteGame+QAGame")]
+	[Help("project=<name>", "Do tests on the specified projec(s)t. E.g. -project=UE+FortniteGame+QAGame")]
 	[Help("all", "Run all the things (except noddc)")]
 	[Help("allcompile", "Run all the compile things")]
 	[Help("editor", "Build an editor for compile tests")]
-	[Help("client", "Build a client for comple tests (see -platform)")]
+	[Help("client", "Build a client for compile tests (see -platform)")]
 	[Help("platform=<p1+p2>", "Specify the platform(s) to use for client compilation/cooking, if empty the local platform be used if -client or -cook is specified")]
 	[Help("xge", "Do a compile with XGE / FASTBuild")]
 	[Help("noxge", "Do a compile without XGE / FASTBuild")]
@@ -50,7 +50,7 @@ namespace AutomationTool.Benchmark
 		{
 			public bool Preview = false;
 
-			public bool DoUE4Tests = false;
+			public bool DoUETests = false;
 			public IEnumerable<string> ProjectsToTest = Enumerable.Empty<string>();
 			public IEnumerable<UnrealTargetPlatform> PlatformsToTest = Enumerable.Empty<UnrealTargetPlatform>();
 
@@ -91,15 +91,17 @@ namespace AutomationTool.Benchmark
 				bool AllCompile = AllThings | ParseParam("allcompile");
 
 				Preview = ParseParam("preview");
-				DoUE4Tests = AllThings || ParseParam("ue4");
+				DoUETests = AllThings || ParseParam("Unreal");
+				NoClean = ParseParam("NoClean");
 
 				// compilation
-				DoBuildEditorTests = AllCompile | ParseParam("editor");
-				DoBuildClientTests = AllCompile | ParseParam("client");
-				DoNoCompileTests = AllCompile | ParseParam("nopcompile");
-				DoSingleCompileTests = AllCompile | ParseParam("singlecompile");
-				DoAcceleratedCompileTests = AllCompile | ParseParam("xge") | ParseParam("fastbuild");
-				DoNoAcceleratedCompileTests = AllCompile | ParseParam("noxge") | ParseParam("nofastbuild");
+				DoBuildEditorTests = AllCompile || ParseParam("editor");
+				DoBuildClientTests = AllCompile || ParseParam("client");
+				DoNoCompileTests = AllCompile || ParseParam("nopcompile");
+				DoSingleCompileTests = AllCompile || ParseParam("singlecompile");
+				DoAcceleratedCompileTests = AllCompile || ParseParam("xge") || ParseParam("fastbuild");
+				// if the user didn't specify -xge then we do noxge by default so they get something with minimal steps
+				DoNoAcceleratedCompileTests = (AllCompile || !DoAcceleratedCompileTests) || ParseParam("noxge") || ParseParam("nofastbuild");
 
 				// cooking
 				DoCookTests = AllThings | ParseParam("cook");
@@ -234,7 +236,7 @@ namespace AutomationTool.Benchmark
 
 				FileReference ProjectFile = ProjectUtils.FindProjectFileFromName(Project);
 
-				if (ProjectFile == null && !Project.Equals("UE4", StringComparison.OrdinalIgnoreCase))
+				if (ProjectFile == null && !Project.Equals("Unreal", StringComparison.OrdinalIgnoreCase))
 				{
 					throw new AutomationException("Could not find project file for {0}", Project);
 				}
@@ -420,8 +422,12 @@ namespace AutomationTool.Benchmark
 
 				foreach (string CookArgs in CookVariations)
 				{
+
+					bool DoWarmCook = InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC) ||
+										(!InOptions.DDCOptions.HasFlag(DDCTaskOptions.HotDDC) && !InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC));
+
 					// no/warm options
-					if (InOptions.DDCOptions == DDCTaskOptions.None || InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC))
+					if (DoWarmCook)
 					{
 						NewTasks.Add(new BenchmarkCookTask(InProjectFile, InPlatform, CookClient, DDCTaskOptions.WarmDDC, CookArgs));
 					}
@@ -563,13 +569,13 @@ namespace AutomationTool.Benchmark
 		{
 			if (InProjectFile == null)
 			{
-				// UE4
+				// UE
 				return true;
 			}
 
 			ProjectProperties Properties = ProjectUtils.GetProjectProperties(InProjectFile);
 
-			return Properties.Targets.Where(T => T.TargetName.Contains("Client")).Any();
+			return Properties.Targets.Where(T => T.Rules.Type == TargetType.Client).Any();
 		}
 
 

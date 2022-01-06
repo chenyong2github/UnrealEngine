@@ -183,7 +183,7 @@ namespace AutomationTool.Benchmark
 		{
 			get
 			{
-				return ProjectFile == null ? "UE4" : ProjectFile.GetFileNameWithoutAnyExtensions();
+				return ProjectFile == null ? "UE" : ProjectFile.GetFileNameWithoutAnyExtensions();
 			}
 		}
 
