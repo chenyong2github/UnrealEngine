@@ -361,37 +361,20 @@ FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 Lo
 {
 	FFrustumCullData Cull;
 
-	// Transform center and axes to local space
-	float4 C =  mul(mul(float4(Center, 1.0), LocalToWorld), WorldToClip);
+	// Transform corner and axes to local space
+	float4 DX = (2.0f * Extent.x) * mul(LocalToWorld[0], WorldToClip);
+	float4 DY = (2.0f * Extent.y) * mul(LocalToWorld[1], WorldToClip);
+	float4 DZ = (2.0f * Extent.z) * mul(LocalToWorld[2], WorldToClip);
 
-	float4 X = Extent.x * mul(LocalToWorld[0], WorldToClip);
-	float4 Y = Extent.y * mul(LocalToWorld[1], WorldToClip);
-	float4 Z = Extent.z * mul(LocalToWorld[2], WorldToClip);
+	float4 PC000 = mul(mul(float4(Center - Extent, 1.0), LocalToWorld), WorldToClip);
+	float4 PC001 = PC000 + DX;
+	float4 PC010 = PC000 + DY;
+	float4 PC011 = PC010 + DX;
 
-	// Generate clip space positions
-	// Because of the symmetry around the center, if Center + Delta is a vertex, then so is Center - Delta.
-	// So we only need to calculate half of the vertex deltas.
-	// This also applies to the YZ deltas.
-	
-	// The 2 unique Y,Z deltas
-	float4 PZ_PY = Z + Y;
-	float4 PZ_NY = Z - Y;
-	
-	// The 4 unique X,Y,Z deltas
-	float4 PZ_PY_PX = PZ_PY + X;
-	float4 PZ_PY_NX = PZ_PY - X;
-	float4 PZ_NY_PX = PZ_NY + X;
-	float4 PZ_NY_NX = PZ_NY - X;
-	
-	// Add center to get clip space positions
-	float4 PC000 = C - PZ_PY_PX;
-	float4 PC001 = C - PZ_PY_NX;
-	float4 PC010 = C - PZ_NY_PX;
-	float4 PC011 = C - PZ_NY_NX;
-	float4 PC100 = C + PZ_NY_NX;
-	float4 PC101 = C + PZ_NY_PX;
-	float4 PC110 = C + PZ_PY_NX;
-	float4 PC111 = C + PZ_PY_PX;
+	float4 PC100 = PC000 + DZ;
+	float4 PC101 = PC001 + DZ;
+	float4 PC110 = PC010 + DZ;
+	float4 PC111 = PC011 + DZ;
 
 	// Project clip space positions to screen space
 	float3 PS000 = PC000.xyz / PC000.w;
