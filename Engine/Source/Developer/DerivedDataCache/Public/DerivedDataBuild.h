@@ -35,7 +35,7 @@ namespace UE::DerivedData
  * input references into the referenced data. Use FBuildSession::Build() to schedule a definition
  * to build, along with any of its transitive build dependencies.
  *
- * Implement IBuildFunction, with a unique name and version, to add payloads to the build context
+ * Implement a IBuildFunction, with a unique name and version, to add values to the build context
  * based on constants and inputs in the context. Use TBuildFunctionFactory to add the function to
  * the registry at IBuild::GetFunctionRegistry() to allow the build job to find it.
  */
@@ -79,8 +79,7 @@ public:
 	 * Create a build session.
 	 *
 	 * An input resolver is required for the session to perform builds with unresolved inputs, or
-	 * to resolve build payload keys. An input resolver is optional when the session is used only
-	 * to build actions with any inputs provided to the session directly.
+	 * to resolve build value keys.
 	 *
 	 * A default scheduler is used if one is not provided. Using the default is recommended.
 	 *

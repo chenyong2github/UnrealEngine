@@ -5,7 +5,7 @@
 #include "Algo/Accumulate.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataValue.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
@@ -26,21 +26,23 @@ public:
 
 	void SetMeta(FCbObject&& Meta) final;
 
-	void SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) final;
-	void SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) final;
-	void SetValue(const FPayload& Payload) final;
+	void SetValue(const FCompositeBuffer& Buffer, const FValueId& Id, uint64 BlockSize) final;
+	void SetValue(const FSharedBuffer& Buffer, const FValueId& Id, uint64 BlockSize) final;
+	void SetValue(const FValue& Value, const FValueId& Id) final;
+	void SetValue(const FValueWithId& Value) final;
 
-	void AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) final;
-	void AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) final;
-	void AddAttachment(const FPayload& Payload) final;
+	void AddAttachment(const FCompositeBuffer& Buffer, const FValueId& Id, uint64 BlockSize) final;
+	void AddAttachment(const FSharedBuffer& Buffer, const FValueId& Id, uint64 BlockSize) final;
+	void AddAttachment(const FValue& Value, const FValueId& Id) final;
+	void AddAttachment(const FValueWithId& Value) final;
 
 	FCacheRecord Build() final;
 	void BuildAsync(IRequestOwner& Owner, FOnCacheRecordComplete&& OnComplete) final;
 
 	FCacheKey Key;
 	FCbObject Meta;
-	FPayload Value;
-	TArray<FPayload> Attachments;
+	FValueWithId Value;
+	TArray<FValueWithId> Attachments;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,10 +57,10 @@ public:
 
 	const FCacheKey& GetKey() const final;
 	const FCbObject& GetMeta() const final;
-	const FPayload& GetValue() const final;
-	const FPayload& GetAttachment(const FPayloadId& Id) const final;
-	TConstArrayView<FPayload> GetAttachments() const final;
-	const FPayload& GetPayload(const FPayloadId& Id) const final;
+	const FValueWithId& GetValue() const final;
+	const FValueWithId& GetAttachment(const FValueId& Id) const final;
+	TConstArrayView<FValueWithId> GetAttachments() const final;
+	const FValueWithId& GetValue(const FValueId& Id) const final;
 
 	inline void AddRef() const final
 	{
@@ -76,16 +78,16 @@ public:
 private:
 	FCacheKey Key;
 	FCbObject Meta;
-	FPayload Value;
-	TArray<FPayload> Attachments;
+	FValueWithId Value;
+	TArray<FValueWithId> Attachments;
 	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static FPayloadId GetOrCreatePayloadId(const FPayloadId& Id, const FCompressedBuffer& Buffer)
+static FValueId GetOrCreateValueId(const FValueId& Id, const FValue& Value)
 {
-	return Id.IsValid() ? Id : FPayloadId::FromHash(Buffer.GetRawHash());
+	return Id.IsValid() ? Id : FValueId::FromHash(Value.GetRawHash());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,23 +110,23 @@ const FCbObject& FCacheRecordInternal::GetMeta() const
 	return Meta;
 }
 
-const FPayload& FCacheRecordInternal::GetValue() const
+const FValueWithId& FCacheRecordInternal::GetValue() const
 {
 	return Value;
 }
 
-const FPayload& FCacheRecordInternal::GetAttachment(const FPayloadId& Id) const
+const FValueWithId& FCacheRecordInternal::GetAttachment(const FValueId& Id) const
 {
-	const int32 Index = Algo::BinarySearchBy(Attachments, Id, &FPayload::GetId);
-	return Attachments.IsValidIndex(Index) ? Attachments[Index] : FPayload::Null;
+	const int32 Index = Algo::BinarySearchBy(Attachments, Id, &FValueWithId::GetId);
+	return Attachments.IsValidIndex(Index) ? Attachments[Index] : FValueWithId::Null;
 }
 
-TConstArrayView<FPayload> FCacheRecordInternal::GetAttachments() const
+TConstArrayView<FValueWithId> FCacheRecordInternal::GetAttachments() const
 {
 	return Attachments;
 }
 
-const FPayload& FCacheRecordInternal::GetPayload(const FPayloadId& Id) const
+const FValueWithId& FCacheRecordInternal::GetValue(const FValueId& Id) const
 {
 	return Value.GetId() == Id ? Value : GetAttachment(Id);
 }
@@ -142,55 +144,61 @@ void FCacheRecordBuilderInternal::SetMeta(FCbObject&& InMeta)
 	Meta.MakeOwned();
 }
 
-void FCacheRecordBuilderInternal::SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id, const uint64 BlockSize)
+void FCacheRecordBuilderInternal::SetValue(const FCompositeBuffer& Buffer, const FValueId& Id, const uint64 BlockSize)
 {
-	FCompressedBuffer Compressed = FPayload::Compress(Buffer, BlockSize);
-	const FPayloadId ValueId = GetOrCreatePayloadId(Id, Compressed);
-	return SetValue(FPayload(ValueId, MoveTemp(Compressed)));
+	return SetValue(FValue::Compress(Buffer, BlockSize), Id);
 }
 
-void FCacheRecordBuilderInternal::SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id, const uint64 BlockSize)
+void FCacheRecordBuilderInternal::SetValue(const FSharedBuffer& Buffer, const FValueId& Id, const uint64 BlockSize)
 {
-	FCompressedBuffer Compressed = FPayload::Compress(Buffer, BlockSize);
-	const FPayloadId ValueId = GetOrCreatePayloadId(Id, Compressed);
-	return SetValue(FPayload(ValueId, MoveTemp(Compressed)));
+	return SetValue(FValue::Compress(Buffer, BlockSize), Id);
 }
 
-void FCacheRecordBuilderInternal::SetValue(const FPayload& Payload)
+void FCacheRecordBuilderInternal::SetValue(const FValue& InValue, const FValueId& Id)
 {
-	checkf(Payload, TEXT("Failed to set value on %s because the payload is null."), *WriteToString<96>(Key));
+	const FValueId ValueId = GetOrCreateValueId(Id, InValue);
 	checkf(Value.IsNull(),
 		TEXT("Failed to set value on %s with ID %s because it has an existing value with ID %s."),
-		*WriteToString<96>(Key), *WriteToString<32>(Payload.GetId()), *WriteToString<32>(Value.GetId()));
-	checkf(Algo::BinarySearchBy(Attachments, Payload.GetId(), &FPayload::GetId) == INDEX_NONE,
+		*WriteToString<96>(Key), *WriteToString<32>(ValueId), *WriteToString<32>(Value.GetId()));
+	checkf(Algo::BinarySearchBy(Attachments, ValueId, &FValueWithId::GetId) == INDEX_NONE,
 		TEXT("Failed to set value on %s with ID %s because it has an existing attachment with that ID."),
-		*WriteToString<96>(Key), *WriteToString<32>(Payload.GetId()));
-	Value = Payload;
+		*WriteToString<96>(Key), *WriteToString<32>(ValueId));
+	Value = FValueWithId(ValueId, InValue);
 }
 
-void FCacheRecordBuilderInternal::AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id, const uint64 BlockSize)
+void FCacheRecordBuilderInternal::SetValue(const FValueWithId& InValue)
 {
-	FCompressedBuffer Compressed = FPayload::Compress(Buffer, BlockSize);
-	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, Compressed);
-	return AddAttachment(FPayload(AttachmentId, MoveTemp(Compressed)));
+	checkf(InValue, TEXT("Failed to set value on %s because the value is null."), *WriteToString<96>(Key));
+	SetValue(InValue, InValue.GetId());
 }
 
-void FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id, const uint64 BlockSize)
+void FCacheRecordBuilderInternal::AddAttachment(const FCompositeBuffer& Buffer, const FValueId& Id, const uint64 BlockSize)
 {
-	FCompressedBuffer Compressed = FPayload::Compress(Buffer, BlockSize);
-	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, Compressed);
-	return AddAttachment(FPayload(AttachmentId, MoveTemp(Compressed)));
+	return AddAttachment(FValue::Compress(Buffer, BlockSize), Id);
 }
 
-void FCacheRecordBuilderInternal::AddAttachment(const FPayload& Payload)
+void FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffer, const FValueId& Id, const uint64 BlockSize)
 {
-	checkf(Payload, TEXT("Failed to add attachment on %s because the payload is null."), *WriteToString<96>(Key));
-	const FPayloadId& Id = Payload.GetId();
-	const int32 Index = Algo::LowerBoundBy(Attachments, Id, &FPayload::GetId);
+	return AddAttachment(FValue::Compress(Buffer, BlockSize), Id);
+}
+
+void FCacheRecordBuilderInternal::AddAttachment(const FValue& InValue, const FValueId& Id)
+{
+	const FValueId ValueId = GetOrCreateValueId(Id, InValue);
+	checkf(Value.IsNull(),
+		TEXT("Failed to set value on %s with ID %s because it has an existing value with ID %s."),
+		*WriteToString<96>(Key), *WriteToString<32>(ValueId), *WriteToString<32>(Value.GetId()));
+	const int32 Index = Algo::LowerBoundBy(Attachments, Id, &FValueWithId::GetId);
 	checkf(!(Attachments.IsValidIndex(Index) && Attachments[Index].GetId() == Id) && Value.GetId() != Id,
 		TEXT("Failed to add attachment on %s with ID %s because it has an existing attachment or value with that ID."),
 		*WriteToString<96>(Key), *WriteToString<32>(Id));
-	Attachments.Insert(Payload, Index);
+	Attachments.Insert(FValueWithId(ValueId, InValue), Index);
+}
+
+void FCacheRecordBuilderInternal::AddAttachment(const FValueWithId& InValue)
+{
+	checkf(InValue, TEXT("Failed to add attachment on %s because the value is null."), *WriteToString<96>(Key));
+	AddAttachment(InValue, InValue.GetId());
 }
 
 FCacheRecord FCacheRecordBuilderInternal::Build()
@@ -237,30 +245,30 @@ FCbPackage FCacheRecord::Save() const
 	{
 		Writer.AddObject("Meta"_ASV, Meta);
 	}
-	auto SavePayload = [&Package, &Writer](const FPayload& Payload)
+	auto SaveValue = [&Package, &Writer](const FValueWithId& ValueWithId)
 	{
-		if (Payload.HasData())
+		if (ValueWithId.HasData())
 		{
-			Package.AddAttachment(FCbAttachment(Payload.GetData()));
+			Package.AddAttachment(FCbAttachment(ValueWithId.GetData()));
 		}
 		Writer.BeginObject();
-		Writer.AddObjectId("Id"_ASV, Payload.GetId());
-		Writer.AddBinaryAttachment("RawHash"_ASV, Payload.GetRawHash());
-		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
+		Writer.AddObjectId("Id"_ASV, ValueWithId.GetId());
+		Writer.AddBinaryAttachment("RawHash"_ASV, ValueWithId.GetRawHash());
+		Writer.AddInteger("RawSize"_ASV, ValueWithId.GetRawSize());
 		Writer.EndObject();
 	};
-	if (const FPayload& Value = GetValuePayload())
+	if (const FValueWithId& Value = GetValue())
 	{
 		Writer.SetName("Value"_ASV);
-		SavePayload(Value);
+		SaveValue(Value);
 	}
-	TConstArrayView<FPayload> Attachments = GetAttachmentPayloads();
+	TConstArrayView<FValueWithId> Attachments = GetAttachments();
 	if (!Attachments.IsEmpty())
 	{
 		Writer.BeginArray("Attachments"_ASV);
-		for (const FPayload& Attachment : Attachments)
+		for (const FValueWithId& Attachment : Attachments)
 		{
-			SavePayload(Attachment);
+			SaveValue(Attachment);
 		}
 		Writer.EndArray();
 	}
@@ -295,35 +303,35 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 
 	Builder.SetMeta(Object["Meta"_ASV].AsObject());
 
-	auto LoadPayload = [&Attachments](const FCbObjectView& PayloadObject)
+	auto LoadValue = [&Attachments](const FCbObjectView& ValueObject)
 	{
-		const FPayloadId PayloadId = PayloadObject["Id"_ASV].AsObjectId();
-		if (PayloadId.IsNull())
+		const FValueId Id = ValueObject["Id"_ASV].AsObjectId();
+		if (Id.IsNull())
 		{
-			return FPayload();
+			return FValueWithId();
 		}
-		const FIoHash RawHash = PayloadObject["RawHash"_ASV].AsHash();
+		const FIoHash RawHash = ValueObject["RawHash"_ASV].AsHash();
 		if (const FCbAttachment* Attachment = Attachments.FindAttachment(RawHash))
 		{
 			if (const FCompressedBuffer& Compressed = Attachment->AsCompressedBinary())
 			{
-				return FPayload(PayloadId, Compressed);
+				return FValueWithId(Id, Compressed);
 			}
 		}
-		const uint64 RawSize = PayloadObject["RawSize"_ASV].AsUInt64(MAX_uint64);
+		const uint64 RawSize = ValueObject["RawSize"_ASV].AsUInt64(MAX_uint64);
 		if (!RawHash.IsZero() && RawSize != MAX_uint64)
 		{
-			return FPayload(PayloadId, RawHash, RawSize);
+			return FValueWithId(Id, RawHash, RawSize);
 		}
 		else
 		{
-			return FPayload();
+			return FValueWithId();
 		}
 	};
 
 	if (FCbObjectView ValueObject = ObjectView["Value"_ASV].AsObjectView())
 	{
-		FPayload Value = LoadPayload(ValueObject);
+		FValueWithId Value = LoadValue(ValueObject);
 		if (!Value)
 		{
 			return FOptionalCacheRecord();
@@ -333,7 +341,7 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 
 	for (FCbFieldView AttachmentField : ObjectView["Attachments"_ASV])
 	{
-		FPayload Attachment = LoadPayload(AttachmentField.AsObjectView());
+		FValueWithId Attachment = LoadValue(AttachmentField.AsObjectView());
 		if (!Attachment)
 		{
 			return FOptionalCacheRecord();
@@ -363,22 +371,22 @@ namespace UE::DerivedData::Private
 
 uint64 GetCacheRecordCompressedSize(const FCacheRecord& Record)
 {
-	const uint64 ValueSize = Record.GetValuePayload().GetData().GetCompressedSize();
-	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(),
-		[](const FPayload& Payload) { return Payload.GetData().GetCompressedSize(); }, ValueSize));
+	const uint64 ValueSize = Record.GetValue().GetData().GetCompressedSize();
+	return int64(Algo::TransformAccumulate(Record.GetAttachments(),
+		[](const FValueWithId& Value) { return Value.GetData().GetCompressedSize(); }, ValueSize));
 }
 
 uint64 GetCacheRecordTotalRawSize(const FCacheRecord& Record)
 {
-	const uint64 ValueSize = Record.GetValuePayload().GetRawSize();
-	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(), &FPayload::GetRawSize, ValueSize));
+	const uint64 ValueSize = Record.GetValue().GetRawSize();
+	return int64(Algo::TransformAccumulate(Record.GetAttachments(), &FValueWithId::GetRawSize, ValueSize));
 }
 
 uint64 GetCacheRecordRawSize(const FCacheRecord& Record)
 {
-	const uint64 ValueSize = Record.GetValuePayload().GetData().GetRawSize();
-	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(),
-		[](const FPayload& Payload) { return Payload.GetData().GetRawSize(); }, ValueSize));
+	const uint64 ValueSize = Record.GetValue().GetData().GetRawSize();
+	return int64(Algo::TransformAccumulate(Record.GetAttachments(),
+		[](const FValueWithId& Value) { return Value.GetData().GetRawSize(); }, ValueSize));
 }
 
 } // UE::DerivedData::Private

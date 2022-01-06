@@ -10,9 +10,9 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataChunk.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 #include "HAL/PlatformMath.h"
+#include "Memory/SharedBuffer.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -586,10 +586,10 @@ public:
 					};
 					for (FCacheGetRequest& Request : RemainingRequests)
 					{
-						FCacheRecordPolicyBuilder Builder(ConvertPolicy(Request.Policy.GetDefaultPayloadPolicy()));
-						for (const FCachePayloadPolicy& PayloadPolicy : Request.Policy.GetPayloadPolicies())
+						FCacheRecordPolicyBuilder Builder(ConvertPolicy(Request.Policy.GetDefaultValuePolicy()));
+						for (const FCacheValuePolicy& ValuePolicy : Request.Policy.GetValuePolicies())
 						{
-							Builder.AddPayloadPolicy(PayloadPolicy.Id, ConvertPolicy(PayloadPolicy.Policy));
+							Builder.AddValuePolicy(ValuePolicy.Id, ConvertPolicy(ValuePolicy.Policy));
 						}
 						Request.Policy = Builder.Build();
 					}

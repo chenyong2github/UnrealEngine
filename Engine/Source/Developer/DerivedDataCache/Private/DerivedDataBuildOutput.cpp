@@ -9,7 +9,7 @@
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCacheRecord.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataValue.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -91,7 +91,7 @@ public:
 	~FBuildOutputBuilderInternal() final = default;
 
 	void SetMeta(FCbObject&& InMeta) final { Meta = MoveTemp(InMeta); Meta.MakeOwned(); }
-	void AddPayload(const FPayload& Payload) final;
+	void AddValue(const FValueId& Id, const FValue& Value) final;
 	void AddMessage(const FBuildOutputMessage& Message) final;
 	void AddLog(const FBuildOutputLog& Log) final;
 	bool HasError() const final { return bHasError; }
@@ -100,7 +100,7 @@ public:
 	FString Name;
 	FString Function;
 	FCbObject Meta;
-	TArray<FPayload> Payloads;
+	TArray<FValueWithId> Values;
 	FCbWriter MessageWriter;
 	FCbWriter LogWriter;
 	bool bHasMessages = false;
@@ -111,7 +111,7 @@ public:
 class FBuildOutputInternal final : public IBuildOutputInternal
 {
 public:
-	FBuildOutputInternal(FString&& Name, FString&& Function, FCbObject&& Meta, FCbObject&& Output, TArray<FPayload>&& Payloads);
+	FBuildOutputInternal(FString&& Name, FString&& Function, FCbObject&& Meta, FCbObject&& Output, TArray<FValueWithId>&& Values);
 	FBuildOutputInternal(FStringView Name, FStringView Function, const FCbObject& Output, bool& bOutIsValid);
 	FBuildOutputInternal(FStringView Name, FStringView Function, const FCacheRecord& Output, bool& bOutIsValid);
 
@@ -122,8 +122,8 @@ public:
 
 	const FCbObject& GetMeta() const final { return Meta; }
 
-	const FPayload& GetPayload(const FPayloadId& Id) const final;
-	TConstArrayView<FPayload> GetPayloads() const final { return Payloads; }
+	const FValueWithId& GetValue(const FValueId& Id) const final;
+	TConstArrayView<FValueWithId> GetValues() const final { return Values; }
 	TConstArrayView<FBuildOutputMessage> GetMessages() const final { return Messages; }
 	TConstArrayView<FBuildOutputLog> GetLogs() const final { return Logs; }
 	bool HasLogs() const final { return !Logs.IsEmpty(); }
@@ -152,7 +152,7 @@ private:
 	FString Function;
 	FCbObject Meta;
 	FCbObject Output;
-	TArray<FPayload> Payloads;
+	TArray<FValueWithId> Values;
 	TArray<FBuildOutputMessage> Messages;
 	TArray<FBuildOutputLog> Logs;
 	mutable std::atomic<uint32> ReferenceCount{0};
@@ -165,12 +165,12 @@ FBuildOutputInternal::FBuildOutputInternal(
 	FString&& InFunction,
 	FCbObject&& InMeta,
 	FCbObject&& InOutput,
-	TArray<FPayload>&& InPayloads)
+	TArray<FValueWithId>&& InValues)
 	: Name(MoveTemp(InName))
 	, Function(MoveTemp(InFunction))
 	, Meta(MoveTemp(InMeta))
 	, Output(MoveTemp(InOutput))
-	, Payloads(MoveTemp(InPayloads))
+	, Values(MoveTemp(InValues))
 {
 	Meta.MakeOwned();
 	Output.MakeOwned();
@@ -195,17 +195,17 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	, Function(InFunction)
 	, Meta(InOutput.GetMeta())
 	, Output(InOutput.GetValue().GetData().Decompress())
-	, Payloads(InOutput.GetAttachmentPayloads())
+	, Values(InOutput.GetAttachments())
 {
 	checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
 	AssertValidBuildFunctionName(Function, Name);
 	bOutIsValid = TryLoad();
 }
 
-const FPayload& FBuildOutputInternal::GetPayload(const FPayloadId& Id) const
+const FValueWithId& FBuildOutputInternal::GetValue(const FValueId& Id) const
 {
-	const int32 Index = Algo::BinarySearchBy(Payloads, Id, &FPayload::GetId);
-	return Payloads.IsValidIndex(Index) ? Payloads[Index] : FPayload::Null;
+	const int32 Index = Algo::BinarySearchBy(Values, Id, &FValueWithId::GetId);
+	return Values.IsValidIndex(Index) ? Values[Index] : FValueWithId::Null;
 }
 
 bool FBuildOutputInternal::HasError() const
@@ -218,18 +218,18 @@ bool FBuildOutputInternal::TryLoad()
 {
 	const FCbObjectView OutputView = Output;
 
-	if (Payloads.IsEmpty())
+	if (Values.IsEmpty())
 	{
-		for (FCbFieldView Payload : OutputView["Payloads"_ASV])
+		for (FCbFieldView Value : OutputView["Payloads"_ASV])
 		{
-			const FPayloadId Id = Payload["Id"_ASV].AsObjectId();
-			const FIoHash& RawHash = Payload["RawHash"_ASV].AsAttachment();
-			const uint64 RawSize = Payload["RawSize"_ASV].AsUInt64(MAX_uint64);
+			const FValueId Id = Value["Id"_ASV].AsObjectId();
+			const FIoHash& RawHash = Value["RawHash"_ASV].AsAttachment();
+			const uint64 RawSize = Value["RawSize"_ASV].AsUInt64(MAX_uint64);
 			if (Id.IsNull() || RawHash.IsZero() || RawSize == MAX_uint64)
 			{
 				return false;
 			}
-			Payloads.Emplace(Id, RawHash, RawSize);
+			Values.Emplace(Id, RawHash, RawSize);
 		}
 	}
 
@@ -280,15 +280,15 @@ bool FBuildOutputInternal::TryLoad()
 void FBuildOutputInternal::Save(FCbWriter& Writer) const
 {
 	Writer.BeginObject();
-	if (!Payloads.IsEmpty())
+	if (!Values.IsEmpty())
 	{
 		Writer.BeginArray("Payloads"_ASV);
-		for (const FPayload& Payload : Payloads)
+		for (const FValueWithId& Value : Values)
 		{
 			Writer.BeginObject();
-			Writer.AddObjectId("Id"_ASV, Payload.GetId());
-			Writer.AddBinaryAttachment("RawHash"_ASV, Payload.GetRawHash());
-			Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
+			Writer.AddObjectId("Id"_ASV, Value.GetId());
+			Writer.AddBinaryAttachment("RawHash"_ASV, Value.GetRawHash());
+			Writer.AddInteger("RawSize"_ASV, Value.GetRawSize());
 			Writer.EndObject();
 		}
 		Writer.EndArray();
@@ -324,22 +324,21 @@ void FBuildOutputInternal::Save(FCacheRecordBuilder& RecordBuilder) const
 		}
 		RecordBuilder.SetValue(Writer.Save().GetBuffer());
 	}
-	for (const FPayload& Payload : Payloads)
+	for (const FValueWithId& Value : Values)
 	{
-		RecordBuilder.AddAttachment(Payload);
+		RecordBuilder.AddAttachment(Value);
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FBuildOutputBuilderInternal::AddPayload(const FPayload& Payload)
+void FBuildOutputBuilderInternal::AddValue(const FValueId& Id, const FValue& Value)
 {
-	checkf(Payload, TEXT("Null payload added in output for build of '%s' by %s."), *Name, *Function);
-	const FPayloadId& Id = Payload.GetId();
-	const int32 Index = Algo::LowerBoundBy(Payloads, Id, &FPayload::GetId);
-	checkf(!(Payloads.IsValidIndex(Index) && Payloads[Index].GetId() == Id),
-		TEXT("Duplicate ID %s used by payload for build of '%s' by %s."), *WriteToString<32>(Id), *Name, *Function);
-	Payloads.Insert(Payload, Index);
+	checkf(Id.IsValid(), TEXT("Null value added in output for build of '%s' by %s."), *Name, *Function);
+	const int32 Index = Algo::LowerBoundBy(Values, Id, &FValueWithId::GetId);
+	checkf(!(Values.IsValidIndex(Index) && Values[Index].GetId() == Id),
+		TEXT("Duplicate ID %s used by value for build of '%s' by %s."), *WriteToString<32>(Id), *Name, *Function);
+	Values.Insert(FValueWithId(Id, Value), Index);
 }
 
 void FBuildOutputBuilderInternal::AddMessage(const FBuildOutputMessage& Message)
@@ -367,7 +366,7 @@ FBuildOutput FBuildOutputBuilderInternal::Build()
 {
 	if (bHasError)
 	{
-		Payloads.Empty();
+		Values.Empty();
 	}
 	MessageWriter.EndArray();
 	LogWriter.EndArray();
@@ -389,7 +388,7 @@ FBuildOutput FBuildOutputBuilderInternal::Build()
 		Writer.EndObject();
 		Output = Writer.Save().AsObject();
 	}
-	return CreateBuildOutput(new FBuildOutputInternal(MoveTemp(Name), MoveTemp(Function), MoveTemp(Meta), MoveTemp(Output), MoveTemp(Payloads)));
+	return CreateBuildOutput(new FBuildOutputInternal(MoveTemp(Name), MoveTemp(Function), MoveTemp(Meta), MoveTemp(Output), MoveTemp(Values)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -20,7 +20,7 @@ namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FBuildDefinitionBuilder; }
 namespace UE::DerivedData { class FOptionalBuildDefinition; }
 namespace UE::DerivedData { struct FBuildKey; }
-namespace UE::DerivedData { struct FBuildPayloadKey; }
+namespace UE::DerivedData { struct FBuildValueKey; }
 
 namespace UE::DerivedData::Private
 {
@@ -35,7 +35,7 @@ public:
 	virtual bool HasConstants() const = 0;
 	virtual bool HasInputs() const = 0;
 	virtual void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const = 0;
-	virtual void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildPayloadKey& PayloadKey)> Visitor) const = 0;
+	virtual void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildValueKey& ValueKey)> Visitor) const = 0;
 	virtual void IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const = 0;
 	virtual void IterateInputFiles(TFunctionRef<void (FStringView Key, FStringView Path)> Visitor) const = 0;
 	virtual void IterateInputHashes(TFunctionRef<void (FStringView Key, const FIoHash& RawHash)> Visitor) const = 0;
@@ -51,7 +51,7 @@ class IBuildDefinitionBuilderInternal
 public:
 	virtual ~IBuildDefinitionBuilderInternal() = default;
 	virtual void AddConstant(FStringView Key, const FCbObject& Value) = 0;
-	virtual void AddInputBuild(FStringView Key, const FBuildPayloadKey& PayloadKey) = 0;
+	virtual void AddInputBuild(FStringView Key, const FBuildValueKey& ValueKey) = 0;
 	virtual void AddInputBulkData(FStringView Key, const FGuid& BulkDataId) = 0;
 	virtual void AddInputFile(FStringView Key, FStringView Path) = 0;
 	virtual void AddInputHash(FStringView Key, const FIoHash& RawHash) = 0;
@@ -108,8 +108,8 @@ public:
 		return Definition->IterateConstants(Visitor);
 	}
 
-	/** Visits every input build payload in order by key. */
-	inline void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildPayloadKey& PayloadKey)> Visitor) const
+	/** Visits every input build value in order by key. */
+	inline void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildValueKey& ValueKey)> Visitor) const
 	{
 		return Definition->IterateInputBuilds(Visitor);
 	}
@@ -176,10 +176,10 @@ public:
 		DefinitionBuilder->AddConstant(Key, Value);
 	}
 
-	/** Add a payload from another build with a key that is unique within this definition. */
-	inline void AddInputBuild(FStringView Key, const FBuildPayloadKey& PayloadKey)
+	/** Add a value from another build with a key that is unique within this definition. */
+	inline void AddInputBuild(FStringView Key, const FBuildValueKey& ValueKey)
 	{
-		DefinitionBuilder->AddInputBuild(Key, PayloadKey);
+		DefinitionBuilder->AddInputBuild(Key, ValueKey);
 	}
 
 	/**

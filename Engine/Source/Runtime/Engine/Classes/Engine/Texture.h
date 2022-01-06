@@ -43,7 +43,7 @@ class UAssetUserData;
 struct FPropertyChangedEvent;
 
 #if WITH_EDITORONLY_DATA
-namespace UE::DerivedData { struct FPayloadId; }
+namespace UE::DerivedData { struct FValueId; }
 #endif
 
 UENUM()
@@ -771,7 +771,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	FString GetDerivedDataMipKeyString(int32 MipIndex, const FTexture2DMipMap& Mip) const;
-	static UE::DerivedData::FPayloadId MakeMipId(int32 MipIndex);
+	static UE::DerivedData::FValueId MakeMipId(int32 MipIndex);
 #endif // WITH_EDITORONLY_DATA
 
 	/** 

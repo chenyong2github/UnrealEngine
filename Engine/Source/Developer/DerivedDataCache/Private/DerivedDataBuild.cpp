@@ -38,7 +38,7 @@ DEFINE_LOG_CATEGORY(LogDerivedDataBuild);
  * - Key->InputBuffer
  * - From FBuildInputsBuilder via IBuild::CreateInputs()
  * FBuildOutput:
- * - Metadata, Payloads[], Diagnostics[] (Level, Category, Message)
+ * - Metadata, Values[], Messages[] (Message, Level), Logs[] (Level, Category, Message)
  * - From FBuildOutputBuilder via IBuild::CreateOutput()
  * - Serializes to/from FCbObject and FCacheRecord
  * FBuildKey:
@@ -152,48 +152,48 @@ public:
 		}
 	}
 
-	inline TConstArrayView<FBuildPayloadPolicy> GetPayloadPolicies() const final
+	inline TConstArrayView<FBuildValuePolicy> GetValuePolicies() const final
 	{
-		return Payloads;
+		return Values;
 	}
 
-	inline void AddPayloadPolicy(const FBuildPayloadPolicy& Policy) final
+	inline void AddValuePolicy(const FBuildValuePolicy& Policy) final
 	{
-		Payloads.Add(Policy);
+		Values.Add(Policy);
 	}
 
 	inline void Build() final
 	{
-		Algo::SortBy(Payloads, &FBuildPayloadPolicy::Id);
+		Algo::SortBy(Values, &FBuildValuePolicy::Id);
 	}
 
 private:
-	TArray<FBuildPayloadPolicy, TInlineAllocator<14>> Payloads;
+	TArray<FBuildValuePolicy, TInlineAllocator<14>> Values;
 	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
-EBuildPolicy FBuildPolicy::GetPayloadPolicy(const FPayloadId& Id) const
+EBuildPolicy FBuildPolicy::GetValuePolicy(const FValueId& Id) const
 {
 	if (Shared)
 	{
-		if (TConstArrayView<FBuildPayloadPolicy> Payloads = Shared->GetPayloadPolicies(); !Payloads.IsEmpty())
+		if (TConstArrayView<FBuildValuePolicy> Values = Shared->GetValuePolicies(); !Values.IsEmpty())
 		{
-			if (int32 Index = Algo::BinarySearchBy(Payloads, Id, &FBuildPayloadPolicy::Id); Index != INDEX_NONE)
+			if (int32 Index = Algo::BinarySearchBy(Values, Id, &FBuildValuePolicy::Id); Index != INDEX_NONE)
 			{
-				return Payloads[Index].Policy;
+				return Values[Index].Policy;
 			}
 		}
 	}
-	return DefaultPayloadPolicy;
+	return DefaultValuePolicy;
 }
 
-void FBuildPolicyBuilder::AddPayloadPolicy(const FBuildPayloadPolicy& Policy)
+void FBuildPolicyBuilder::AddValuePolicy(const FBuildValuePolicy& Policy)
 {
 	if (!Shared)
 	{
 		Shared = new Private::FBuildPolicyShared;
 	}
-	Shared->AddPayloadPolicy(Policy);
+	Shared->AddValuePolicy(Policy);
 }
 
 FBuildPolicy FBuildPolicyBuilder::Build()
@@ -203,8 +203,8 @@ FBuildPolicy FBuildPolicyBuilder::Build()
 	{
 		Shared->Build();
 		const auto PolicyOr = [](EBuildPolicy A, EBuildPolicy B) { return A | (B & EBuildPolicy::Default); };
-		const TConstArrayView<FBuildPayloadPolicy> Payloads = Shared->GetPayloadPolicies();
-		Policy.CombinedPolicy = Algo::TransformAccumulate(Payloads, &FBuildPayloadPolicy::Policy, BasePolicy, PolicyOr);
+		const TConstArrayView<FBuildValuePolicy> Values = Shared->GetValuePolicies();
+		Policy.CombinedPolicy = Algo::TransformAccumulate(Values, &FBuildValuePolicy::Policy, BasePolicy, PolicyOr);
 		Policy.Shared = MoveTemp(Shared);
 	}
 	return Policy;

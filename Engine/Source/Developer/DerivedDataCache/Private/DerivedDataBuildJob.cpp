@@ -21,7 +21,6 @@
 #include "DerivedDataBuildWorkerRegistry.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheRecord.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataSharedString.h"
 #include "HAL/CriticalSection.h"
@@ -487,10 +486,10 @@ static ECachePolicy MakeCacheQueryPolicy(EBuildPolicy BuildPolicy, const FBuildJ
 
 static FCacheRecordPolicy MakeCacheRecordQueryPolicy(const FBuildPolicy& BuildPolicy, const FBuildJobContext& Context)
 {
-	FCacheRecordPolicyBuilder Builder(MakeCacheQueryPolicy(BuildPolicy.GetDefaultPayloadPolicy(), Context));
-	for (const FBuildPayloadPolicy& PayloadPolicy : BuildPolicy.GetPayloadPolicies())
+	FCacheRecordPolicyBuilder Builder(MakeCacheQueryPolicy(BuildPolicy.GetDefaultValuePolicy(), Context));
+	for (const FBuildValuePolicy& ValuePolicy : BuildPolicy.GetValuePolicies())
 	{
-		Builder.AddPayloadPolicy(PayloadPolicy.Id, MakeCacheQueryPolicy(PayloadPolicy.Policy, Context));
+		Builder.AddValuePolicy(ValuePolicy.Id, MakeCacheQueryPolicy(ValuePolicy.Policy, Context));
 	}
 	return Builder.Build();
 }
@@ -806,10 +805,10 @@ void FBuildJob::BeginExecuteRemote()
 	}
 	else
 	{
-		FBuildPolicyBuilder PolicyBuilder(BuildPolicy.GetDefaultPayloadPolicy() & Mask);
-		for (const FBuildPayloadPolicy& Payload : BuildPolicy.GetPayloadPolicies())
+		FBuildPolicyBuilder PolicyBuilder(BuildPolicy.GetDefaultValuePolicy() & Mask);
+		for (const FBuildValuePolicy& Value : BuildPolicy.GetValuePolicies())
 		{
-			PolicyBuilder.AddPayloadPolicy({Payload.Id, Payload.Policy & Mask});
+			PolicyBuilder.AddValuePolicy({Value.Id, Value.Policy & Mask});
 		}
 		RemoteBuildPolicy = PolicyBuilder.Build();
 	}

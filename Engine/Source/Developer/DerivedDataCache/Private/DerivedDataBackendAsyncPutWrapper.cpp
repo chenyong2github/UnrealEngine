@@ -2,11 +2,12 @@
 
 #include "DerivedDataBackendAsyncPutWrapper.h"
 
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataValueId.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "MemoryDerivedDataBackend.h"
+#include "Memory/SharedBuffer.h"
 #include "Tasks/Task.h"
 
 namespace UE::DerivedData::Backends

@@ -13,14 +13,14 @@ namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FBuildSession; }
 namespace UE::DerivedData { class FOptionalBuildInputs; }
-namespace UE::DerivedData { class FPayload; }
+namespace UE::DerivedData { class FValueWithId; }
 namespace UE::DerivedData { class IRequestOwner; }
-namespace UE::DerivedData { struct FBuildPayloadCompleteParams; }
+namespace UE::DerivedData { struct FBuildValueCompleteParams; }
 
 namespace UE::DerivedData
 {
 
-using FOnBuildPayloadComplete = TUniqueFunction<void (FBuildPayloadCompleteParams&& Params)>;
+using FOnBuildValueComplete = TUniqueFunction<void (FBuildValueCompleteParams&& Params)>;
 
 } // UE::DerivedData
 
@@ -44,11 +44,11 @@ public:
 		const FBuildPolicy& Policy,
 		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete) = 0;
-	virtual void BuildPayload(
-		const FBuildPayloadKey& Payload,
+	virtual void BuildValue(
+		const FBuildValueKey& Value,
 		EBuildPolicy Policy,
 		IRequestOwner& Owner,
-		FOnBuildPayloadComplete&& OnComplete) = 0;
+		FOnBuildValueComplete&& OnComplete) = 0;
 };
 
 FBuildSession CreateBuildSession(IBuildSessionInternal* Session);
@@ -63,7 +63,7 @@ namespace UE::DerivedData
  *
  * The purpose of a session is to group together related builds that use the same input resolver,
  * such as grouping builds by target platform. A request to build one definition can lead to more
- * builds being scheduled if the definition references payloads from other builds as inputs.
+ * builds being scheduled if the definition references values from other builds as inputs.
  */
 class FBuildSession
 {
@@ -117,22 +117,22 @@ public:
 	}
 
 	/**
-	 * Asynchronous request to execute a build according to the policy and return one payload.
+	 * Asynchronous request to execute a build according to the policy and return one value.
 	 *
 	 * The callback will always be called, and may be called from an arbitrary thread.
 	 *
-	 * @param Payload      The key identifying the build definition and the payload to return.
+	 * @param Value        The key identifying the build definition and the value to return.
 	 * @param Policy       Flags to control the behavior of the request. See EBuildPolicy.
 	 * @param Owner        The owner to execute the build within.
 	 * @param OnComplete   A callback invoked when the build completes or is canceled.
 	 */
-	inline void BuildPayload(
-		const FBuildPayloadKey& Payload,
+	inline void BuildValue(
+		const FBuildValueKey& Value,
 		EBuildPolicy Policy,
 		IRequestOwner& Owner,
-		FOnBuildPayloadComplete&& OnComplete)
+		FOnBuildValueComplete&& OnComplete)
 	{
-		Session->BuildPayload(Payload, Policy, Owner, MoveTemp(OnComplete));
+		Session->BuildValue(Value, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 private:
@@ -175,20 +175,20 @@ public:
 	inline void Reset() { *this = FOptionalBuildSession(); }
 };
 
-/** Parameters for the completion callback for build payload requests. */
-struct FBuildPayloadCompleteParams
+/** Parameters for the completion callback for build value requests. */
+struct FBuildValueCompleteParams
 {
-	/** Key for the build request that completed or was canceled. See Payload for ID. */
+	/** Key for the build request that completed or was canceled. See Value for ID. */
 	FBuildKey Key;
 
 	/**
-	 * Payload from the build payload request that completed or was canceled.
+	 * Value from the build value request that completed or was canceled.
 	 *
 	 * The ID is always populated.
 	 * The hash and size are populated when Status is Ok.
 	 * The data is populated when Status is Ok and the data was not skipped by the policy.
 	 */
-	FPayload&& Payload;
+	FValueWithId&& Value;
 
 	/** Status of the build request. */
 	EStatus Status = EStatus::Error;

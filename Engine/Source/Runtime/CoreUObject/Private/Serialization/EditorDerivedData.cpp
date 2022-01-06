@@ -8,7 +8,7 @@
 #include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataCacheInterface.h"
-#include "DerivedDataPayloadId.h"
+#include "DerivedDataValueId.h"
 #include "Memory/CompositeBuffer.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/CoreMisc.h"
@@ -167,9 +167,9 @@ bool FEditorDerivedDataCache::TryGetSize(uint64& OutSize) const
 class FEditorDerivedDataBuild final : public FEditorDerivedData
 {
 public:
-	FEditorDerivedDataBuild(const FBuildDefinition& InBuildDefinition, const FPayloadId& InPayloadId)
+	FEditorDerivedDataBuild(const FBuildDefinition& InBuildDefinition, const FValueId& InValueId)
 		: BuildDefinition(InBuildDefinition)
-		, PayloadId(InPayloadId)
+		, ValueId(InValueId)
 	{
 		unimplemented();
 	}
@@ -181,7 +181,7 @@ public:
 
 private:
 	FBuildDefinition BuildDefinition;
-	FPayloadId PayloadId;
+	FValueId ValueId;
 };
 
 void FEditorDerivedDataBuild::Read(IoStore::FDerivedDataIoRequest Request) const
@@ -218,9 +218,9 @@ TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(FStringView CacheKey, FStri
 
 TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(
 	const FBuildDefinition& BuildDefinition,
-	const FPayloadId& PayloadId)
+	const FValueId& ValueId)
 {
-	return MakeUnique<FEditorDerivedDataBuild>(BuildDefinition, PayloadId);
+	return MakeUnique<FEditorDerivedDataBuild>(BuildDefinition, ValueId);
 }
 
 } // UE::DerivedData::Private

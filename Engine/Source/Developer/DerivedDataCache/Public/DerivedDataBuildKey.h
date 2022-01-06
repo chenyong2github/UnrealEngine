@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
-#include "DerivedDataPayloadId.h"
+#include "DerivedDataValueId.h"
 #include "IO/IoHash.h"
 #include "Templates/TypeHash.h"
 
@@ -33,17 +33,17 @@ struct FBuildActionKey
 
 inline const FBuildActionKey FBuildActionKey::Empty;
 
-/** A key that uniquely identifies a payload within a build output. */
-struct FBuildPayloadKey
+/** A key that uniquely identifies a value within a build output. */
+struct FBuildValueKey
 {
 	FBuildKey BuildKey;
-	FPayloadId Id;
+	FValueId Id;
 
-	/** A payload key with an empty build key and a null payload identifier. */
-	static const FBuildPayloadKey Empty;
+	/** A value key with an empty build key and a null value identifier. */
+	static const FBuildValueKey Empty;
 };
 
-inline const FBuildPayloadKey FBuildPayloadKey::Empty;
+inline const FBuildValueKey FBuildValueKey::Empty;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -103,30 +103,30 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline bool operator==(const FBuildPayloadKey& A, const FBuildPayloadKey& B)
+inline bool operator==(const FBuildValueKey& A, const FBuildValueKey& B)
 {
 	return A.BuildKey == B.BuildKey && A.Id == B.Id;
 }
 
-inline bool operator!=(const FBuildPayloadKey& A, const FBuildPayloadKey& B)
+inline bool operator!=(const FBuildValueKey& A, const FBuildValueKey& B)
 {
 	return A.BuildKey != B.BuildKey || A.Id != B.Id;
 }
 
-inline bool operator<(const FBuildPayloadKey& A, const FBuildPayloadKey& B)
+inline bool operator<(const FBuildValueKey& A, const FBuildValueKey& B)
 {
 	const FBuildKey& KeyA = A.BuildKey;
 	const FBuildKey& KeyB = B.BuildKey;
 	return KeyA == KeyB ? A.Id < B.Id : KeyA < KeyB;
 }
 
-inline uint32 GetTypeHash(const FBuildPayloadKey& Key)
+inline uint32 GetTypeHash(const FBuildValueKey& Key)
 {
 	return HashCombine(GetTypeHash(Key.BuildKey), GetTypeHash(Key.Id));
 }
 
 template <typename CharType>
-inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FBuildPayloadKey& Key)
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FBuildValueKey& Key)
 {
 	return Builder << Key.BuildKey << CharType('/') << Key.Id;
 }

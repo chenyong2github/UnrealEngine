@@ -12,8 +12,8 @@ class FCompressedBuffer;
 namespace UE::DerivedData { class FBuildConfigContext; }
 namespace UE::DerivedData { class FBuildContext; }
 namespace UE::DerivedData { class FCacheBucket; }
-namespace UE::DerivedData { class FPayload; }
-namespace UE::DerivedData { struct FPayloadId; }
+namespace UE::DerivedData { class FValue; }
+namespace UE::DerivedData { struct FValueId; }
 namespace UE::DerivedData { enum class EBuildPolicy : uint32; }
 namespace UE::DerivedData { enum class ECachePolicy : uint32; }
 
@@ -90,12 +90,12 @@ public:
 	/** Returns the input with the matching key, or a null buffer if not found. */
 	virtual FSharedBuffer FindInput(FStringView Key) const = 0;
 
-	/** Adds a payload to the build output. Must have a non-null buffer and a unique ID. */
-	virtual void AddPayload(const FPayload& Payload) = 0;
-	virtual void AddPayload(const FPayloadId& Id, const FCompressedBuffer& Buffer) = 0;
-	virtual void AddPayload(const FPayloadId& Id, const FCompositeBuffer& Buffer, uint64 BlockSize = 0) = 0;
-	virtual void AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer, uint64 BlockSize = 0) = 0;
-	virtual void AddPayload(const FPayloadId& Id, const FCbObject& Object) = 0;
+	/** Adds a value to the build output. Must have a non-null buffer and a unique ID. */
+	virtual void AddValue(const FValueId& Id, const FValue& Value) = 0;
+	virtual void AddValue(const FValueId& Id, const FCompressedBuffer& Buffer) = 0;
+	virtual void AddValue(const FValueId& Id, const FCompositeBuffer& Buffer, uint64 BlockSize = 0) = 0;
+	virtual void AddValue(const FValueId& Id, const FSharedBuffer& Buffer, uint64 BlockSize = 0) = 0;
+	virtual void AddValue(const FValueId& Id, const FCbObject& Object) = 0;
 
 	/** Adds the error to the build output. Must be deterministic and based only on inputs. */
 	virtual void AddError(FStringView Message) = 0;

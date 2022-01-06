@@ -15,7 +15,7 @@ class FIoRequestImpl;
 
 namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FRequestOwner; }
-namespace UE::DerivedData { struct FPayloadId; }
+namespace UE::DerivedData { struct FValueId; }
 namespace UE::DerivedData::IoStore { class FDerivedDataIoRequestQueue; }
 
 namespace UE::DerivedData::IoStore
@@ -65,7 +65,7 @@ TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(FStringView CacheKey, FStri
 
 TUniquePtr<FEditorDerivedData> MakeEditorDerivedData(
 	const DerivedData::FBuildDefinition& BuildDefinition,
-	const DerivedData::FPayloadId& PayloadId);
+	const DerivedData::FValueId& ValueId);
 
 } // UE::DerivedData::Private
 

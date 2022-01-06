@@ -5,8 +5,8 @@
 #include "Async/AsyncFileHandle.h"
 #include "Containers/Array.h"
 #include "DerivedDataCache.h"
-#include "DerivedDataPayloadId.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataValueId.h"
 #include "EditorDomain/EditorDomain.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
@@ -102,22 +102,22 @@ private:
 	 */
 	struct FSegment
 	{
-		FSegment(const UE::DerivedData::FPayloadId& InPayloadId, uint64 InStart)
-			: PayloadId(InPayloadId)
+		FSegment(const UE::DerivedData::FValueId& InValueId, uint64 InStart)
+			: ValueId(InValueId)
 			, Start(InStart)
 		{}
 
 		/** Attachment ID to request from cache for this segment. Read-only. */
-		UE::DerivedData::FPayloadId PayloadId;
+		UE::DerivedData::FValueId ValueId;
 		/** The request that will be (has been) sent for the bytes from cache. Interface-only. */
 		TOptional<UE::DerivedData::FRequestOwner> RequestOwner;
 		/** Offset from the start of the entire archive. Read-only. */
 		uint64 Start;
-		/** Payload bytes. Callback-only before bAsyncComplete, Interface-only after. */
+		/** Value bytes. Callback-only before bAsyncComplete, Interface-only after. */
 		FSharedBuffer Data;
 		/** Interface thread cache of bAsyncComplete. Interface-only. */
 		bool bComplete = false;
-		/** Set to true whent the callback for the cache request has finished writing Data. */
+		/** Set to true when the callback for the cache request has finished writing Data. */
 		std::atomic<bool> bAsyncComplete{ false };
 	};
 
@@ -162,7 +162,7 @@ private:
 	 * Read-only, *pointer requires EditorDomainLocks.Lock.
 	 */
 	TRefCountPtr<FEditorDomain::FPackageSource> PackageSource;
-	/** EditorDomainHash for requesting payloads, copied from PackageSource. Read-only. */
+	/** EditorDomainHash for requesting values, copied from PackageSource. Read-only. */
 	FIoHash EditorDomainHash;
 
 	/**

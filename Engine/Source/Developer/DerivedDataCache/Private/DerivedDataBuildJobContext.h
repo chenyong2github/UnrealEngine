@@ -15,7 +15,6 @@
 #include "Templates/Function.h"
 
 namespace UE::DerivedData { class FBuildOutputBuilder; }
-namespace UE::DerivedData { class FPayload; }
 namespace UE::DerivedData { class IBuildJob; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { enum class EBuildPolicy : uint32; }
@@ -58,11 +57,11 @@ private:
 	FCbObject FindConstant(FStringView Key) const final;
 	FSharedBuffer FindInput(FStringView Key) const final;
 
-	void AddPayload(const FPayload& Payload) final;
-	void AddPayload(const FPayloadId& Id, const FCompressedBuffer& Buffer) final;
-	void AddPayload(const FPayloadId& Id, const FCompositeBuffer& Buffer, uint64 BlockSize) final;
-	void AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer, uint64 BlockSize) final;
-	void AddPayload(const FPayloadId& Id, const FCbObject& Object) final;
+	void AddValue(const FValueId& Id, const FValue& Value) final;
+	void AddValue(const FValueId& Id, const FCompressedBuffer& Buffer) final;
+	void AddValue(const FValueId& Id, const FCompositeBuffer& Buffer, uint64 BlockSize) final;
+	void AddValue(const FValueId& Id, const FSharedBuffer& Buffer, uint64 BlockSize) final;
+	void AddValue(const FValueId& Id, const FCbObject& Object) final;
 
 	void EndBuild();
 	void BeginAsyncBuild() final;

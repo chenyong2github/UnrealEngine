@@ -3,7 +3,7 @@
 #include "TextureBuildFunction.h"
 
 #include "DerivedDataCache.h"
-#include "DerivedDataPayloadId.h"
+#include "DerivedDataValueId.h"
 #include "Engine/TextureDefines.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
@@ -408,7 +408,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 		DescriptionWriter.AddInteger("NumMipsInTail"_ASV, NumMipsInTail);
 
 		DescriptionWriter.BeginArray("Mips"_ASV);
-		int64 MipPayloadOffset = 0;
+		int64 MipOffset = 0;
 		for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
 		{
 			FCompressedImage2D& CompressedMip = CompressedMips[MipIndex];
@@ -427,7 +427,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 			DescriptionWriter.AddInteger("FileRegion"_ASV, static_cast<int32>(FileRegion));
 			if (bIsInlineMip)
 			{
-				DescriptionWriter.AddInteger("PayloadOffset"_ASV, MipPayloadOffset);
+				DescriptionWriter.AddInteger("PayloadOffset"_ASV, MipOffset);
 			}
 			DescriptionWriter.AddInteger("NumBytes"_ASV, CompressedMip.RawData.Num());
 
@@ -435,14 +435,14 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 
 			if (bIsInlineMip)
 			{
-				MipPayloadOffset += CompressedMip.RawData.Num();
+				MipOffset += CompressedMip.RawData.Num();
 			}
 		}
 		DescriptionWriter.EndArray();
 
 		DescriptionWriter.EndObject();
 		FCbObject DescriptionObject = DescriptionWriter.Save().AsObject();
-		Context.AddPayload(UE::DerivedData::FPayloadId::FromName("Description"_ASV), DescriptionObject);
+		Context.AddValue(UE::DerivedData::FValueId::FromName("Description"_ASV), DescriptionObject);
 	}
 
 	// Streaming mips
@@ -452,7 +452,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 		MipName << "Mip"_ASV << MipIndex;
 
 		FSharedBuffer MipData = MakeSharedBufferFromArray(MoveTemp(CompressedMips[MipIndex].RawData));
-		Context.AddPayload(UE::DerivedData::FPayloadId::FromName(MipName), MipData);
+		Context.AddValue(UE::DerivedData::FValueId::FromName(MipName), MipData);
 	}
 
 	// Mip tail
@@ -465,6 +465,6 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	FCompositeBuffer MipTail(MipTailComponents);
 	if (MipTail.GetSize() > 0)
 	{
-		Context.AddPayload(UE::DerivedData::FPayloadId::FromName("MipTail"_ASV), MipTail);
+		Context.AddValue(UE::DerivedData::FValueId::FromName("MipTail"_ASV), MipTail);
 	}
 }

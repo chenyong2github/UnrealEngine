@@ -17,6 +17,7 @@
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
 #include "Algo/AllOf.h"
+#include "Memory/SharedBuffer.h"
 #include "Misc/Base64.h"
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
@@ -27,7 +28,6 @@
 #include "Serialization/MemoryReader.h"
 #include "DerivedDataBackendCorruptionWrapper.h"
 #include "DerivedDataCacheRecord.h"
-#include "DerivedDataPayload.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "DerivedDataPayloadId.h"
 #include "DerivedDataRequestTypes.h"
+#include "DerivedDataValueId.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/RefCounting.h"
 
@@ -25,13 +25,13 @@ using FOnBuildComplete = TUniqueFunction<void (FBuildCompleteParams&& Params)>;
  *
  * The build policy flags can be combined to support a variety of usage patterns. Examples:
  *
- * Build(Default): allow cache get; build if missing; return every payload.
- * Build(Build | CacheStore): never query the cache; always build; return every payload.
- * Build(Cache | CacheSkipData): allow cache get; never build; skip every payload.
+ * Build(Default): allow cache get; build if missing; return every value.
+ * Build(Build | CacheStore): never query the cache; always build; return every value.
+ * Build(Cache | CacheSkipData): allow cache get; never build; skip every value.
  *
- * BuildPayload(Default): allow cache get; build if missing; return one payload.
- * BuildPayload(Build | CacheStore): never get from the cache; always build; return one payload.
- * BuildPayload(Cache | CacheSkipData): allow cache get; never build; skip every payload.
+ * BuildValue(Default): allow cache get; build if missing; return one value.
+ * BuildValue(Build | CacheStore): never get from the cache; always build; return one value.
+ * BuildValue(Cache | CacheSkipData): allow cache get; never build; skip every value.
  */
 enum class EBuildPolicy : uint32
 {
@@ -59,19 +59,19 @@ enum class EBuildPolicy : uint32
 	/** Keep records in the cache for at least the duration of the session. */
 	CacheKeepAlive      = 1 << 5,
 
-	/** Skip fetching or returning data for the payloads. */
+	/** Skip fetching or returning data for the values. */
 	SkipData            = 1 << 6,
 
-	/** Allow cache query+store, allow local+remote build when missed or skipped, and fetch the payload(s). */
+	/** Allow cache query+store, allow local+remote build when missed or skipped, and fetch the value(s). */
 	Default             = Build | Cache,
 };
 
 ENUM_CLASS_FLAGS(EBuildPolicy);
 
-/** A payload ID and the build policy to use for that payload. */
-struct FBuildPayloadPolicy
+/** A value ID and the build policy to use for that value. */
+struct FBuildValuePolicy
 {
-	FPayloadId Id;
+	FValueId Id;
 	EBuildPolicy Policy = EBuildPolicy::Default;
 };
 
@@ -82,48 +82,48 @@ public:
 	virtual ~IBuildPolicyShared() = default;
 	virtual void AddRef() const = 0;
 	virtual void Release() const = 0;
-	virtual TConstArrayView<FBuildPayloadPolicy> GetPayloadPolicies() const = 0;
-	virtual void AddPayloadPolicy(const FBuildPayloadPolicy& Policy) = 0;
+	virtual TConstArrayView<FBuildValuePolicy> GetValuePolicies() const = 0;
+	virtual void AddValuePolicy(const FBuildValuePolicy& Policy) = 0;
 	virtual void Build() = 0;
 };
 
-/** Flags to control the behavior of build requests, with optional overrides by payload. */
+/** Flags to control the behavior of build requests, with optional overrides by value. */
 class FBuildPolicy
 {
 public:
 	/** Construct a build policy that uses the default policy. */
 	FBuildPolicy() = default;
 
-	/** Construct a build policy with a single policy for every payload. */
+	/** Construct a build policy with a single policy for every value. */
 	inline FBuildPolicy(EBuildPolicy Policy)
 		: CombinedPolicy(Policy)
-		, DefaultPayloadPolicy(Policy)
+		, DefaultValuePolicy(Policy)
 	{
 	}
 
-	/** Returns true if every payload uses the same build policy. */
+	/** Returns true if every value uses the same build policy. */
 	inline bool IsUniform() const { return !Shared; }
 
-	/** Returns the build policy combined from the payload policies. */
+	/** Returns the build policy combined from the value policies. */
 	inline EBuildPolicy GetCombinedPolicy() const { return CombinedPolicy; }
 
-	/** Returns the build policy to use for the payload. */
-	UE_API EBuildPolicy GetPayloadPolicy(const FPayloadId& Id) const;
+	/** Returns the build policy to use for the value. */
+	UE_API EBuildPolicy GetValuePolicy(const FValueId& Id) const;
 
-	/** Returns the build policy to use for payloads with no override. */
-	inline EBuildPolicy GetDefaultPayloadPolicy() const { return DefaultPayloadPolicy; }
+	/** Returns the build policy to use for values with no override. */
+	inline EBuildPolicy GetDefaultValuePolicy() const { return DefaultValuePolicy; }
 
-	/** Returns the array of build policy overrides for payloads, sorted by ID. */
-	inline TConstArrayView<FBuildPayloadPolicy> GetPayloadPolicies() const
+	/** Returns the array of build policy overrides for values, sorted by ID. */
+	inline TConstArrayView<FBuildValuePolicy> GetValuePolicies() const
 	{
-		return Shared ? Shared->GetPayloadPolicies() : TConstArrayView<FBuildPayloadPolicy>();
+		return Shared ? Shared->GetValuePolicies() : TConstArrayView<FBuildValuePolicy>();
 	}
 
 private:
 	friend class FBuildPolicyBuilder;
 
 	EBuildPolicy CombinedPolicy = EBuildPolicy::Default;
-	EBuildPolicy DefaultPayloadPolicy = EBuildPolicy::Default;
+	EBuildPolicy DefaultValuePolicy = EBuildPolicy::Default;
 	TRefCountPtr<const Private::IBuildPolicyShared> Shared;
 };
 
@@ -134,15 +134,15 @@ public:
 	/** Construct a policy builder that uses the default policy. */
 	FBuildPolicyBuilder() = default;
 
-	/** Construct a policy builder that uses the provided policy for payloads with no override. */
+	/** Construct a policy builder that uses the provided policy for values with no override. */
 	inline explicit FBuildPolicyBuilder(EBuildPolicy Policy)
 		: BasePolicy(Policy)
 	{
 	}
 
-	/** Adds a build policy override for a payload. */
-	UE_API void AddPayloadPolicy(const FBuildPayloadPolicy& Policy);
-	inline void AddPayloadPolicy(const FPayloadId& Id, EBuildPolicy Policy) { AddPayloadPolicy({Id, Policy}); }
+	/** Adds a build policy override for a value. */
+	UE_API void AddValuePolicy(const FBuildValuePolicy& Policy);
+	inline void AddValuePolicy(const FValueId& Id, EBuildPolicy Policy) { AddValuePolicy({Id, Policy}); }
 
 	/** Build a build policy, which makes this builder subsequently unusable. */
 	UE_API FBuildPolicy Build();
@@ -197,7 +197,7 @@ struct FBuildCompleteParams
 	 *
 	 * The name, function, and diagnostics are always populated.
 	 *
-	 * The payloads are populated when Status is Ok, but with null data if skipped by the policy.
+	 * The values are populated when Status is Ok, but with null data if skipped by the policy.
 	 */
 	FBuildOutput&& Output;
 

@@ -19,10 +19,11 @@ namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FCacheRecordBuilder; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
-namespace UE::DerivedData { class FPayload; }
+namespace UE::DerivedData { class FValue; }
+namespace UE::DerivedData { class FValueWithId; }
 namespace UE::DerivedData { struct FBuildOutputLog; }
 namespace UE::DerivedData { struct FBuildOutputMessage; }
-namespace UE::DerivedData { struct FPayloadId; }
+namespace UE::DerivedData { struct FValueId; }
 
 namespace UE::DerivedData::Private
 {
@@ -34,8 +35,8 @@ public:
 	virtual FStringView GetName() const = 0;
 	virtual FStringView GetFunction() const = 0;
 	virtual const FCbObject& GetMeta() const = 0;
-	virtual const FPayload& GetPayload(const FPayloadId& Id) const = 0;
-	virtual TConstArrayView<FPayload> GetPayloads() const = 0;
+	virtual const FValueWithId& GetValue(const FValueId& Id) const = 0;
+	virtual TConstArrayView<FValueWithId> GetValues() const = 0;
 	virtual TConstArrayView<FBuildOutputMessage> GetMessages() const = 0;
 	virtual TConstArrayView<FBuildOutputLog> GetLogs() const = 0;
 	virtual bool HasLogs() const = 0;
@@ -53,7 +54,7 @@ class IBuildOutputBuilderInternal
 public:
 	virtual ~IBuildOutputBuilderInternal() = default;
 	virtual void SetMeta(FCbObject&& Meta) = 0;
-	virtual void AddPayload(const FPayload& Payload) = 0;
+	virtual void AddValue(const FValueId& Id, const FValue& Value) = 0;
 	virtual void AddMessage(const FBuildOutputMessage& Message) = 0;
 	virtual void AddLog(const FBuildOutputLog& Log) = 0;
 	virtual bool HasError() const = 0;
@@ -103,11 +104,11 @@ struct FBuildOutputLog
 };
 
 /**
- * A build output is an immutable container of payloads, messages, and logs produced by a build.
+ * A build output is an immutable container of values, messages, and logs produced by a build.
  *
- * The output will not contain any payloads if it has any errors.
+ * The output will not contain any values if it has any errors.
  *
- * The output can be requested without data, which means that the payloads will have null data.
+ * The output can be requested without data, which means that the values will have null data.
  */
 class FBuildOutput
 {
@@ -121,11 +122,11 @@ public:
 	/** Returns the optional metadata. */
 	inline const FCbObject& GetMeta() const { return Output->GetMeta(); }
 
-	/** Returns the payload matching the ID. Null if no match. Buffer is null if skipped. */
-	inline const FPayload& GetPayload(const FPayloadId& Id) const { return Output->GetPayload(Id); }
+	/** Returns the value matching the ID. Null if no match. Buffer is null if skipped. */
+	inline const FValueWithId& GetValue(const FValueId& Id) const { return Output->GetValue(Id); }
 
-	/** Returns the payloads in the output in order by ID. */
-	inline TConstArrayView<FPayload> GetPayloads() const { return Output->GetPayloads(); }
+	/** Returns the values in the output in order by ID. */
+	inline TConstArrayView<FValueWithId> GetValues() const { return Output->GetValues(); }
 
 	/** Returns the messages in the order that they were recorded. */
 	inline TConstArrayView<FBuildOutputMessage> GetMessages() const { return Output->GetMessages(); }
@@ -139,7 +140,7 @@ public:
 	/** Returns whether the output has any errors. */
 	inline bool HasError() const { return Output->HasError(); }
 
-	/** Saves the build output to a compact binary object with payloads as attachments. */
+	/** Saves the build output to a compact binary object with values as attachments. */
 	void Save(FCbWriter& Writer) const
 	{
 		Output->Save(Writer);
@@ -184,16 +185,16 @@ private:
 class FBuildOutputBuilder
 {
 public:
-	/** Set the metadata for the build output. Holds a reference and is cloned if not owned. */
+	/** Set the metadata for the output. Holds a reference and is cloned if not owned. */
 	inline void SetMeta(FCbObject&& Meta)
 	{
 		return OutputBuilder->SetMeta(MoveTemp(Meta));
 	}
 
-	/** Add a payload to the output. The ID must be unique in this output. */
-	inline void AddPayload(const FPayload& Payload)
+	/** Add a value to the output. The ID must be unique in this output. */
+	inline void AddValue(const FValueId& Id, const FValue& Value)
 	{
-		OutputBuilder->AddPayload(Payload);
+		OutputBuilder->AddValue(Id, Value);
 	}
 
 	/** Add a message to the output. */

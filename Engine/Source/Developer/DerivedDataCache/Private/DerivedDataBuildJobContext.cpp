@@ -8,8 +8,8 @@
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataBuildTypes.h"
 #include "DerivedDataCache.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataValue.h"
 #include "Hash/Blake3.h"
 #include "Misc/StringBuilder.h"
 #include "UObject/NameTypes.h"
@@ -100,29 +100,29 @@ FSharedBuffer FBuildJobContext::FindInput(FStringView Key) const
 	return FSharedBuffer();
 }
 
-void FBuildJobContext::AddPayload(const FPayload& Payload)
+void FBuildJobContext::AddValue(const FValueId& Id, const FValue& Value)
 {
-	OutputBuilder.AddPayload(Payload);
+	OutputBuilder.AddValue(Id, Value);
 }
 
-void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCompressedBuffer& Buffer)
+void FBuildJobContext::AddValue(const FValueId& Id, const FCompressedBuffer& Buffer)
 {
-	AddPayload(FPayload(Id, Buffer));
+	AddValue(Id, FValue(Buffer));
 }
 
-void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCompositeBuffer& Buffer, const uint64 BlockSize)
+void FBuildJobContext::AddValue(const FValueId& Id, const FCompositeBuffer& Buffer, const uint64 BlockSize)
 {
-	AddPayload(FPayload(Id, FPayload::Compress(Buffer, BlockSize)));
+	AddValue(Id, FValue::Compress(Buffer, BlockSize));
 }
 
-void FBuildJobContext::AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer, const uint64 BlockSize)
+void FBuildJobContext::AddValue(const FValueId& Id, const FSharedBuffer& Buffer, const uint64 BlockSize)
 {
-	AddPayload(FPayload(Id, FPayload::Compress(Buffer, BlockSize)));
+	AddValue(Id, FValue::Compress(Buffer, BlockSize));
 }
 
-void FBuildJobContext::AddPayload(const FPayloadId& Id, const FCbObject& Object)
+void FBuildJobContext::AddValue(const FValueId& Id, const FCbObject& Object)
 {
-	AddPayload(FPayload(Id, FPayload::Compress(Object.GetBuffer())));
+	AddValue(Id, FValue::Compress(Object.GetBuffer()));
 }
 
 void FBuildJobContext::BeginBuild(IRequestOwner& InOwner, TUniqueFunction<void ()>&& InOnEndBuild)

@@ -10,8 +10,8 @@
 #include "DerivedDataBuildInputs.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildSession.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataValue.h"
 #include "HAL/FileManager.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/CommandLine.h"
@@ -299,13 +299,13 @@ void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 		}
 	}
 
-	for (const FPayload& Payload : Output.GetPayloads())
+	for (const FValueWithId& Value : Output.GetValues())
 	{
-		if (Payload.HasData())
+		if (Value.HasData())
 		{
-			if (TUniquePtr<FArchive> Ar = OpenOutput(Output.GetName(), Payload.GetRawHash()))
+			if (TUniquePtr<FArchive> Ar = OpenOutput(Output.GetName(), Value.GetRawHash()))
 			{
-				Payload.GetData().Save(*Ar);
+				Value.GetData().Save(*Ar);
 				if (Ar->Close())
 				{
 					continue;
@@ -313,7 +313,7 @@ void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 			}
 			UE_LOG(LogDerivedDataBuildWorker, Error,
 				TEXT("Failed to store build output %s for build of '%.*s' by %.*s."),
-				*WriteToString<48>(Payload.GetRawHash()), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				*WriteToString<48>(Value.GetRawHash()), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
 		}
 	}
 
