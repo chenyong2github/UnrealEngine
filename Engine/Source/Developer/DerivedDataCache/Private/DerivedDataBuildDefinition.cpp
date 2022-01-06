@@ -36,9 +36,9 @@ public:
 		Add<FCbObject>(Key, Value);
 	}
 
-	void AddInputBuild(FStringView Key, const FBuildPayloadKey& PayloadKey) final
+	void AddInputBuild(FStringView Key, const FBuildValueKey& ValueKey) final
 	{
-		Add<FBuildPayloadKey>(Key, PayloadKey);
+		Add<FBuildValueKey>(Key, ValueKey);
 	}
 
 	void AddInputBulkData(FStringView Key, const FGuid& BulkDataId) final
@@ -58,7 +58,7 @@ public:
 
 	FBuildDefinition Build() final;
 
-	using InputType = TVariant<FCbObject, FBuildPayloadKey, FGuid, FString, FIoHash>;
+	using InputType = TVariant<FCbObject, FBuildValueKey, FGuid, FString, FIoHash>;
 
 	FString Name;
 	FString Function;
@@ -95,7 +95,7 @@ public:
 	bool HasInputs() const final;
 
 	void IterateConstants(TFunctionRef<void (FStringView Key, FCbObject&& Value)> Visitor) const final;
-	void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildPayloadKey& PayloadKey)> Visitor) const final;
+	void IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildValueKey& ValueKey)> Visitor) const final;
 	void IterateInputBulkData(TFunctionRef<void (FStringView Key, const FGuid& BulkDataId)> Visitor) const final;
 	void IterateInputFiles(TFunctionRef<void (FStringView Key, FStringView Path)> Visitor) const final;
 	void IterateInputHashes(TFunctionRef<void (FStringView Key, const FIoHash& RawHash)> Visitor) const final;
@@ -143,7 +143,7 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 		{
 			bHasConstants = true;
 		}
-		else if (Pair.Value.IsType<FBuildPayloadKey>())
+		else if (Pair.Value.IsType<FBuildValueKey>())
 		{
 			bHasBuilds = true;
 		}
@@ -190,12 +190,12 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 		Writer.BeginObject("Builds"_ASV);
 		for (const TPair<FString, FBuildDefinitionBuilderInternal::InputType>& Pair : DefinitionBuilder.Inputs)
 		{
-			if (Pair.Value.IsType<FBuildPayloadKey>())
+			if (Pair.Value.IsType<FBuildValueKey>())
 			{
-				const FBuildPayloadKey& PayloadKey = Pair.Value.Get<FBuildPayloadKey>();
+				const FBuildValueKey& ValueKey = Pair.Value.Get<FBuildValueKey>();
 				Writer.BeginObject(FTCHARToUTF8(Pair.Key));
-				Writer.AddHash("Build"_ASV, PayloadKey.BuildKey.Hash);
-				Writer.AddObjectId("Payload"_ASV, PayloadKey.Id);
+				Writer.AddHash("Build"_ASV, ValueKey.BuildKey.Hash);
+				Writer.AddObjectId("Payload"_ASV, ValueKey.Id);
 				Writer.EndObject();
 			}
 		}
@@ -295,13 +295,13 @@ void FBuildDefinitionInternal::IterateConstants(TFunctionRef<void (FStringView K
 	}
 }
 
-void FBuildDefinitionInternal::IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildPayloadKey& PayloadKey)> Visitor) const
+void FBuildDefinitionInternal::IterateInputBuilds(TFunctionRef<void (FStringView Key, const FBuildValueKey& ValueKey)> Visitor) const
 {
 	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["Builds"_ASV])
 	{
 		const FBuildKey BuildKey{Field["Build"_ASV].AsHash()};
-		const FPayloadId Id = Field["Payload"_ASV].AsObjectId();
-		Visitor(FUTF8ToTCHAR(Field.GetName()), FBuildPayloadKey{BuildKey, Id});
+		const FValueId Id = Field["Payload"_ASV].AsObjectId();
+		Visitor(FUTF8ToTCHAR(Field.GetName()), FBuildValueKey{BuildKey, Id});
 	}
 }
 

@@ -37,9 +37,9 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheKey.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataRequestTypes.h"
+#include "DerivedDataValue.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITextureFormat.h"
@@ -2097,9 +2097,9 @@ FString FTexturePlatformData::GetDerivedDataMipKeyString(int32 MipIndex, const F
 	return FString::Printf(TEXT("%s_MIP%u_%dx%d"), *KeyString, MipIndex, Mip.SizeX, Mip.SizeY);
 }
 
-UE::DerivedData::FPayloadId FTexturePlatformData::MakeMipId(int32 MipIndex)
+UE::DerivedData::FValueId FTexturePlatformData::MakeMipId(int32 MipIndex)
 {
-	return UE::DerivedData::FPayloadId::FromName(WriteToString<16>(TEXT("Mip"_SV), MipIndex));
+	return UE::DerivedData::FValueId::FromName(WriteToString<16>(TEXT("Mip"_SV), MipIndex));
 }
 
 #endif // WITH_EDITORONLY_DATA

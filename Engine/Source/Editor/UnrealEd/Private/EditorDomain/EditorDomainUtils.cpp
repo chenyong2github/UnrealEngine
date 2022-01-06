@@ -12,8 +12,8 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataValue.h"
 #include "Editor.h"
 #include "Engine/StaticMesh.h"
 #include "HAL/FileManager.h"
@@ -962,7 +962,7 @@ public:
 	struct FAttachment
 	{
 		FSharedBuffer Buffer;
-		UE::DerivedData::FPayloadId PayloadId;
+		UE::DerivedData::FValueId ValueId;
 	};
 	/** The Buffer+Id for each section making up the EditorDomain's copy of the package */
 	TConstArrayView<FAttachment> GetAttachments() const
@@ -1056,29 +1056,29 @@ protected:
 			BulkDataSize += AdditionalRecord.Buffer.GetSize();
 		}
 
-		// We use a counter for PayloadIds rather than hashes of the Attachments. We do this because
-		// some attachments may be identical, and Attachments are not allowed to have identical PayloadIds.
+		// We use a counter for ValueIds rather than hashes of the Attachments. We do this because
+		// some attachments may be identical, and Attachments are not allowed to have identical ValueIds.
 		// We need to keep the duplicate copies of identical payloads because BulkDatas were written into
 		// the exports with offsets that expect all attachment segments to exist in the segmented archive.
-		auto IntToPayloadId = [](uint32 Value)
+		auto IntToValueId = [](uint32 Value)
 		{
-			alignas(decltype(Value)) UE::DerivedData::FPayloadId::ByteArray Bytes{};
+			alignas(decltype(Value)) UE::DerivedData::FValueId::ByteArray Bytes{};
 			static_assert(sizeof(Bytes) >= sizeof(Value), "We are storing an integer counter in the Bytes array");
-			// The PayloadIds are sorted as an array of bytes, so the bytes of the integer must be written big-endian
+			// The ValueIds are sorted as an array of bytes, so the bytes of the integer must be written big-endian
 			for (int ByteIndex = 0; ByteIndex < sizeof(Value); ++ByteIndex)
 			{
 				Bytes[sizeof(Bytes) - 1 - ByteIndex] = static_cast<uint8>(Value & 0xff);
 				Value >>= 8;
 			}
-			return UE::DerivedData::FPayloadId(Bytes);
+			return UE::DerivedData::FValueId(Bytes);
 		};
 
-		uint32 AttachmentIndex = 1; // 0 is not a valid value for IntToPayloadId
+		uint32 AttachmentIndex = 1; // 0 is not a valid value for IntToValueId
 		Attachments.Reserve(AttachmentBuffers.Num());
 		FileSize = 0;
 		for (const FSharedBuffer& Buffer : AttachmentBuffers)
 		{
-			Attachments.Add(FAttachment{ Buffer, IntToPayloadId(AttachmentIndex++) });
+			Attachments.Add(FAttachment{ Buffer, IntToValueId(AttachmentIndex++) });
 			FileSize += Buffer.GetSize();
 		}
 		WritePackageRecord = MoveTemp(*Record.Package);
@@ -1319,7 +1319,7 @@ bool TrySavePackage(UPackage* Package)
 	FCacheRecordBuilder RecordBuilder(GetEditorDomainPackageKey(PackageDigest.Hash));
 	for (const FEditorDomainPackageWriter::FAttachment& Attachment : PackageWriter->GetAttachments())
 	{
-		RecordBuilder.AddAttachment(Attachment.Buffer, Attachment.PayloadId);
+		RecordBuilder.AddAttachment(Attachment.Buffer, Attachment.ValueId);
 	}
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
 	FRequestOwner Owner(EPriority::Normal);

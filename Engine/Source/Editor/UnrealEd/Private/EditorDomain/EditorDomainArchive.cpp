@@ -2,12 +2,13 @@
 
 #include "EditorDomain/EditorDomainArchive.h"
 
+#include "Algo/Sort.h"
 #include "AssetRegistry/AssetData.h"
 #include "Async/AsyncFileHandleNull.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataValue.h"
 #include "EditorDomain/EditorDomainSave.h"
 #include "EditorDomain/EditorDomainUtils.h"
 #include "HAL/UnrealMemory.h"
@@ -281,32 +282,32 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 	{
 		FCacheRecord& Record = Params.Record;
 		uint64 FileSize = Record.GetMeta()["FileSize"].AsUInt64();
-		const FPayload& ValuePayload = Record.GetValuePayload();
+		const FValueWithId& RecordValue = Record.GetValue();
 
-		// Sort the attachment payloads by PayloadId, in case they are not already sorted. EditorDomainPackage attachments
-		// are written with PayloadIds in the same order as the segment order
-		TConstArrayView<FPayload> AttachmentPayloads = Record.GetAttachmentPayloads();
-		TArray<const FPayload*, TInlineAllocator<4>> SortedPayloads;
-		SortedPayloads.Reserve(AttachmentPayloads.Num()+1);
-		if (ValuePayload.GetRawSize() > 0)
+		// Sort the attachment values by ValueId, in case they are not already sorted. EditorDomainPackage attachments
+		// are written with ValueIds in the same order as the segment order
+		TConstArrayView<FValueWithId> Attachments = Record.GetAttachments();
+		TArray<const FValueWithId*, TInlineAllocator<4>> SortedValues;
+		SortedValues.Reserve(Attachments.Num()+1);
+		if (RecordValue.GetRawSize() > 0)
 		{
-			SortedPayloads.Add(&ValuePayload);
+			SortedValues.Add(&RecordValue);
 		}
-		for (const FPayload& Payload : AttachmentPayloads)
+		for (const FValueWithId& Attachment : Attachments)
 		{
-			if (Payload.GetRawSize() > 0)
+			if (Attachment.GetRawSize() > 0)
 			{
-				SortedPayloads.Add(&Payload);
+				SortedValues.Add(&Attachment);
 			}
 		}
-		SortedPayloads.Sort([](const FPayload& A, const FPayload& B) { return A.GetId() < B.GetId(); });
+		Algo::SortBy(SortedValues, &FValueWithId::GetId);
 
 		uint64 CompositeSize = 0;
-		Segments.Reserve(SortedPayloads.Num());
-		for (const FPayload* Payload : SortedPayloads)
+		Segments.Reserve(SortedValues.Num());
+		for (const FValueWithId* Value : SortedValues)
 		{
-			Segments.Emplace(Payload->GetId(), CompositeSize);
-			CompositeSize += Payload->GetRawSize();
+			Segments.Emplace(Value->GetId(), CompositeSize);
+			CompositeSize += Value->GetRawSize();
 		}
 
 		if (CompositeSize != FileSize)
@@ -407,7 +408,7 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 
 	// Note that Segment.RequestOwner is Interface-only and so we can write it outside the lock
 	Segment.RequestOwner.Emplace(EPriority::Normal);
-	FCacheChunkRequest SegmentChunk{{PackagePath.GetDebugName()}, UE::EditorDomain::GetEditorDomainPackageKey(EditorDomainHash), Segment.PayloadId};
+	FCacheChunkRequest SegmentChunk{{PackagePath.GetDebugName()}, UE::EditorDomain::GetEditorDomainPackageKey(EditorDomainHash), Segment.ValueId};
 	SegmentChunk.Policy = ECachePolicy::Local;
 	Cache.GetChunks({SegmentChunk}, *Segment.RequestOwner,
 		[this, &Segment](FCacheChunkCompleteParams&& Params)

@@ -7,7 +7,7 @@
 #include "Containers/StringFwd.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataChunk.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataValue.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CountersTrace.h"
@@ -352,10 +352,10 @@ void FZenDerivedDataBackend::AppendZenUri(const FCacheKey& CacheKey, FStringBuil
 	Out << TEXT("/z$/") << CacheKey.Bucket << TEXT('/') << CacheKey.Hash;
 }
 
-void FZenDerivedDataBackend::AppendZenUri(const FCacheKey& CacheKey, const FPayloadId& PayloadId, FStringBuilderBase& Out)
+void FZenDerivedDataBackend::AppendZenUri(const FCacheKey& CacheKey, const FValueId& Id, FStringBuilderBase& Out)
 {
 	AppendZenUri(CacheKey, Out);
-	Out << TEXT('/') << PayloadId;
+	Out << TEXT('/') << Id;
 }
 
 void FZenDerivedDataBackend::AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Uri)
@@ -423,8 +423,8 @@ void FZenDerivedDataBackend::AppendPolicyQueryString(ECachePolicy Policy, FStrin
 uint64 FZenDerivedDataBackend::MeasureCacheRecord(const FCacheRecord& Record)
 {
 	return Record.GetMeta().GetSize() +
-		Record.GetValuePayload().GetRawSize() +
-		Algo::TransformAccumulate(Record.GetAttachmentPayloads(), &FPayload::GetRawSize, uint64(0));
+		Record.GetValue().GetRawSize() +
+		Algo::TransformAccumulate(Record.GetAttachments(), &FValue::GetRawSize, uint64(0));
 }
 
 void FZenDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
@@ -668,17 +668,17 @@ void FZenDerivedDataBackend::Get(
 				BatchRequest.BeginObject("Policy"_ASV);
 				{
 					BatchRequest << "RecordPolicy"_ASV << static_cast<uint32>(Policy.GetRecordPolicy());
-					BatchRequest << "DefaultPayloadPolicy"_ASV << static_cast<uint32>(Policy.GetDefaultPayloadPolicy());
+					BatchRequest << "DefaultPayloadPolicy"_ASV << static_cast<uint32>(Policy.GetDefaultValuePolicy());
 					
-					TConstArrayView<FCachePayloadPolicy> PayloadPolicies = Policy.GetPayloadPolicies();
-					if (PayloadPolicies.Num())
+					TConstArrayView<FCacheValuePolicy> ValuePolicies = Policy.GetValuePolicies();
+					if (ValuePolicies.Num())
 					{
 						BatchRequest.BeginArray("PayloadPolicies"_ASV);
-						for (const FCachePayloadPolicy& PayloadPolicy : PayloadPolicies)
+						for (const FCacheValuePolicy& ValuePolicy : ValuePolicies)
 						{
 							BatchRequest.BeginObject();
-							BatchRequest.AddObjectId("Id"_ASV, PayloadPolicy.Id);
-							BatchRequest << "Policy"_ASV << static_cast<uint32>(PayloadPolicy.Policy);
+							BatchRequest.AddObjectId("Id"_ASV, ValuePolicy.Id);
+							BatchRequest << "Policy"_ASV << static_cast<uint32>(ValuePolicy.Policy);
 							BatchRequest.EndObject();
 						}
 						BatchRequest.EndArray();
@@ -873,7 +873,7 @@ void FZenDerivedDataBackend::GetChunks(
 				}
 				else
 				{
-					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with missing payload '%s' for '%s' from '%s'"),
+					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with missing value '%s' for '%s' from '%s'"),
 						*GetName(), *WriteToString<16>(Request.Id), *WriteToString<96>(Request.Key), *Request.Name);
 					
 					if (OnComplete)
@@ -891,7 +891,7 @@ void FZenDerivedDataBackend::GetChunks(
 			{
 				const FCacheChunkRequest& Request = SortedRequests[ChunkIndex];
 				
-				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with missing payload '%s' for '%s' from '%s'"),
+				UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with missing value '%s' for '%s' from '%s'"),
 					*GetName(), *WriteToString<16>(Request.Id), *WriteToString<96>(Request.Key), *Request.Name);
 				
 				if (OnComplete)

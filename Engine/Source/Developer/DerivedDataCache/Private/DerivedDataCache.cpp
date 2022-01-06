@@ -179,48 +179,48 @@ public:
 		}
 	}
 
-	inline TConstArrayView<FCachePayloadPolicy> GetPayloadPolicies() const final
+	inline TConstArrayView<FCacheValuePolicy> GetValuePolicies() const final
 	{
-		return Payloads;
+		return Values;
 	}
 
-	inline void AddPayloadPolicy(const FCachePayloadPolicy& Policy) final
+	inline void AddValuePolicy(const FCacheValuePolicy& Policy) final
 	{
-		Payloads.Add(Policy);
+		Values.Add(Policy);
 	}
 
 	inline void Build() final
 	{
-		Algo::SortBy(Payloads, &FCachePayloadPolicy::Id);
+		Algo::SortBy(Values, &FCacheValuePolicy::Id);
 	}
 
 private:
-	TArray<FCachePayloadPolicy, TInlineAllocator<14>> Payloads;
+	TArray<FCacheValuePolicy, TInlineAllocator<14>> Values;
 	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
-ECachePolicy FCacheRecordPolicy::GetPayloadPolicy(const FPayloadId& Id) const
+ECachePolicy FCacheRecordPolicy::GetValuePolicy(const FValueId& Id) const
 {
 	if (Shared)
 	{
-		if (TConstArrayView<FCachePayloadPolicy> Payloads = Shared->GetPayloadPolicies(); !Payloads.IsEmpty())
+		if (TConstArrayView<FCacheValuePolicy> Values = Shared->GetValuePolicies(); !Values.IsEmpty())
 		{
-			if (int32 Index = Algo::BinarySearchBy(Payloads, Id, &FCachePayloadPolicy::Id); Index != INDEX_NONE)
+			if (int32 Index = Algo::BinarySearchBy(Values, Id, &FCacheValuePolicy::Id); Index != INDEX_NONE)
 			{
-				return Payloads[Index].Policy;
+				return Values[Index].Policy;
 			}
 		}
 	}
-	return DefaultPayloadPolicy;
+	return DefaultValuePolicy;
 }
 
-void FCacheRecordPolicyBuilder::AddPayloadPolicy(const FCachePayloadPolicy& Policy)
+void FCacheRecordPolicyBuilder::AddValuePolicy(const FCacheValuePolicy& Policy)
 {
 	if (!Shared)
 	{
 		Shared = new Private::FCacheRecordPolicyShared;
 	}
-	Shared->AddPayloadPolicy(Policy);
+	Shared->AddValuePolicy(Policy);
 }
 
 FCacheRecordPolicy FCacheRecordPolicyBuilder::Build()
@@ -230,8 +230,8 @@ FCacheRecordPolicy FCacheRecordPolicyBuilder::Build()
 	{
 		Shared->Build();
 		const auto PolicyOr = [](ECachePolicy A, ECachePolicy B) { return A | (B & ~ECachePolicy::SkipData); };
-		const TConstArrayView<FCachePayloadPolicy> Payloads = Shared->GetPayloadPolicies();
-		Policy.RecordPolicy = Algo::TransformAccumulate(Payloads, &FCachePayloadPolicy::Policy, BasePolicy, PolicyOr);
+		const TConstArrayView<FCacheValuePolicy> Values = Shared->GetValuePolicies();
+		Policy.RecordPolicy = Algo::TransformAccumulate(Values, &FCacheValuePolicy::Policy, BasePolicy, PolicyOr);
 		Policy.Shared = MoveTemp(Shared);
 	}
 	return Policy;

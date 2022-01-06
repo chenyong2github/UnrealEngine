@@ -116,7 +116,7 @@ void FEditorBuildInputResolver::ResolveInputMeta(const FBuildDefinition& Definit
 	FOnBuildInputMetaResolved&& OnResolved)
 {
 	EStatus OtherStatus = EStatus::Ok;
-	Definition.IterateInputBuilds([&OtherStatus, &Definition](FStringView Key, const FBuildPayloadKey& PayloadKey)
+	Definition.IterateInputBuilds([&OtherStatus, &Definition](FStringView Key, const FBuildValueKey& ValueKey)
 		{
 			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver::ResolveInputMeta: resolving InputBuilds is not yet implemented. Context=%.*s, Key=%.*s"),
 				Definition.GetName().Len(), Definition.GetName().GetData(), Key.Len(), Key.GetData());
@@ -152,7 +152,7 @@ void FEditorBuildInputResolver::ResolveInputData(const FBuildDefinition& Definit
 	FOnBuildInputDataResolved&& OnResolved, FBuildInputFilter&& Filter)
 {
 	EStatus OtherStatus = EStatus::Ok;
-	Definition.IterateInputBuilds([&OtherStatus, &Definition](FStringView Key, const FBuildPayloadKey& PayloadKey)
+	Definition.IterateInputBuilds([&OtherStatus, &Definition](FStringView Key, const FBuildValueKey& PayloadKey)
 		{
 			UE_LOG(LogCore, Error, TEXT("FEditorBuildInputResolver::ResolveInputData resolving InputBuilds is not yet implemented. Context=%.*s, Key=%.*s"),
 				Definition.GetName().Len(), Definition.GetName().GetData(), Key.Len(), Key.GetData());

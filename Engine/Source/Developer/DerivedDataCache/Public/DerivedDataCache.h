@@ -6,9 +6,9 @@
 #include "Containers/StringFwd.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
-#include "DerivedDataPayloadId.h"
 #include "DerivedDataRequestTypes.h"
 #include "DerivedDataSharedString.h"
+#include "DerivedDataValueId.h"
 #include "Math/NumericLimits.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
@@ -82,7 +82,7 @@ enum class ECachePolicy : uint32
 	/**
 	 * Skip fetching the data for any requests.
 	 *
-	 * Put requests with skip flags may assume that record existence implies payload existence.
+	 * Put requests with skip flags may assume that record existence implies value existence.
 	 */
 	SkipData        = SkipMeta | SkipValue | SkipAttachments,
 
@@ -95,14 +95,15 @@ enum class ECachePolicy : uint32
 	KeepAlive       = 1 << 7,
 
 	/**
-	 * Partial output will be provided with the error status when a required payload is missing.
+	 * Partial output will be provided with the error status when a required value is missing.
 	 *
-	 * This is meant for cases when the missing payloads can be individually recovered or rebuilt
+	 * This is meant for cases when the missing values can be individually recovered, or rebuilt,
 	 * without rebuilding the whole record. The cache automatically adds this flag when there are
-	 * other cache stores that it may be able to recover missing payloads from.
+	 * other cache stores that it may be able to recover missing values from.
 	 *
-	 * Requests for records would return records where the missing payloads have a hash and size,
-	 * but no data. Requests for chunks or values would return the hash and size, but no data.
+	 * Missing values will be returned in the records or chunks, but with only the hash and size.
+	 *
+	 * Applying this flag for a put of a record allows a partial record to be stored.
 	 */
 	PartialOnError  = 1 << 8,
 
@@ -122,10 +123,10 @@ ENUM_CLASS_FLAGS(ECachePolicy);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A payload ID and the cache policy to use for that payload. */
-struct FCachePayloadPolicy
+/** A value ID and the cache policy to use for that value. */
+struct FCacheValuePolicy
 {
-	FPayloadId Id;
+	FValueId Id;
 	ECachePolicy Policy = ECachePolicy::Default;
 };
 
@@ -136,19 +137,19 @@ public:
 	virtual ~ICacheRecordPolicyShared() = default;
 	virtual void AddRef() const = 0;
 	virtual void Release() const = 0;
-	virtual TConstArrayView<FCachePayloadPolicy> GetPayloadPolicies() const = 0;
-	virtual void AddPayloadPolicy(const FCachePayloadPolicy& Policy) = 0;
+	virtual TConstArrayView<FCacheValuePolicy> GetValuePolicies() const = 0;
+	virtual void AddValuePolicy(const FCacheValuePolicy& Policy) = 0;
 	virtual void Build() = 0;
 };
 
 /**
- * Flags to control the behavior of cache requests, with optional overrides by payload.
+ * Flags to control the behavior of cache requests, with optional overrides by value.
  *
  * Examples:
- * - A base policy of Disable with payload policy overrides of Default will fetch those payloads,
- *   if they exist in the record, and skip data for any other payloads.
- * - A base policy of Default with payload policy overrides of (Query | SkipData) will skip those
- *   payloads, but still check if they exist, and will load any other payloads.
+ * - A base policy of Disable, with value policy overrides of Default, will fetch those values if
+ *   they exist in the record, and skip data for any other values.
+ * - A base policy of Default, with value policy overrides of (Query | SkipData), will skip those
+ *   values, but still check if they exist, and will load any other values.
  */
 class FCacheRecordPolicy
 {
@@ -156,36 +157,36 @@ public:
 	/** Construct a cache record policy that uses the default policy. */
 	FCacheRecordPolicy() = default;
 
-	/** Construct a cache record policy with a uniform policy for the record and every payload. */
+	/** Construct a cache record policy with a uniform policy for the record and every value. */
 	inline FCacheRecordPolicy(ECachePolicy Policy)
 		: RecordPolicy(Policy)
-		, DefaultPayloadPolicy(Policy)
+		, DefaultValuePolicy(Policy)
 	{
 	}
 
-	/** Returns true if the record and every payload use the same cache policy. */
-	inline bool IsUniform() const { return !Shared && RecordPolicy == DefaultPayloadPolicy; }
+	/** Returns true if the record and every value use the same cache policy. */
+	inline bool IsUniform() const { return !Shared && RecordPolicy == DefaultValuePolicy; }
 
 	/** Returns the cache policy to use for the record. */
 	inline ECachePolicy GetRecordPolicy() const { return RecordPolicy; }
 
-	/** Returns the cache policy to use for the payload. */
-	UE_API ECachePolicy GetPayloadPolicy(const FPayloadId& Id) const;
+	/** Returns the cache policy to use for the value. */
+	UE_API ECachePolicy GetValuePolicy(const FValueId& Id) const;
 
-	/** Returns the cache policy to use for payloads with no override. */
-	inline ECachePolicy GetDefaultPayloadPolicy() const { return DefaultPayloadPolicy; }
+	/** Returns the cache policy to use for values with no override. */
+	inline ECachePolicy GetDefaultValuePolicy() const { return DefaultValuePolicy; }
 
-	/** Returns the array of cache policy overrides for payloads, sorted by ID. */
-	inline TConstArrayView<FCachePayloadPolicy> GetPayloadPolicies() const
+	/** Returns the array of cache policy overrides for values, sorted by ID. */
+	inline TConstArrayView<FCacheValuePolicy> GetValuePolicies() const
 	{
-		return Shared ? Shared->GetPayloadPolicies() : TConstArrayView<FCachePayloadPolicy>();
+		return Shared ? Shared->GetValuePolicies() : TConstArrayView<FCacheValuePolicy>();
 	}
 
 private:
 	friend class FCacheRecordPolicyBuilder;
 
 	ECachePolicy RecordPolicy = ECachePolicy::Default;
-	ECachePolicy DefaultPayloadPolicy = ECachePolicy::Default;
+	ECachePolicy DefaultValuePolicy = ECachePolicy::Default;
 	TRefCountPtr<const Private::ICacheRecordPolicyShared> Shared;
 };
 
@@ -196,15 +197,15 @@ public:
 	/** Construct a policy builder that uses the default policy as its base policy. */
 	FCacheRecordPolicyBuilder() = default;
 
-	/** Construct a policy builder that uses the provided policy for the record and payloads with no override. */
+	/** Construct a policy builder that uses the provided policy for the record and values with no override. */
 	inline explicit FCacheRecordPolicyBuilder(ECachePolicy Policy)
 		: BasePolicy(Policy)
 	{
 	}
 
-	/** Adds a cache policy override for a payload. */
-	UE_API void AddPayloadPolicy(const FCachePayloadPolicy& Policy);
-	inline void AddPayloadPolicy(const FPayloadId& Id, ECachePolicy Policy) { AddPayloadPolicy({Id, Policy}); }
+	/** Adds a cache policy override for a value. */
+	UE_API void AddValuePolicy(const FCacheValuePolicy& Policy);
+	inline void AddValuePolicy(const FValueId& Id, ECachePolicy Policy) { AddValuePolicy({Id, Policy}); }
 
 	/** Build a cache record policy, which makes this builder subsequently unusable. */
 	UE_API FCacheRecordPolicy Build();
@@ -235,9 +236,9 @@ public:
 	 * Records may finish storing in any order, and from multiple threads concurrently.
 	 *
 	 * A cache store is free to interpret a record containing only a key as a request to delete that
-	 * record from the store. Records may contain payloads that do not have data, and these payloads
-	 * must reference an existing copy of the payload in the store, if available, and must otherwise
-	 * be stored as a partial record that can attempt recovery of missing payloads when fetched.
+	 * record from the store. Records may contain values that do not have data, and such values must
+	 * reference an existing value in the store, if available. The PartialOnError policy may be used
+	 * to request that a partial record be stored when a value is missing.
 	 *
 	 * @param Requests     Requests with the cache records to store. Records must have a key.
 	 * @param Owner        The owner to execute the request within.
@@ -255,11 +256,12 @@ public:
 	 * Records may become available in any order, and from multiple threads concurrently.
 	 *
 	 * Records may propagate into other cache stores, in accordance with the policy. A propagated
-	 * record may be a partial record, with some payloads missing data, depending on the policy.
+	 * record may be a partial record, containing values without data, depending on the policy. A
+	 * propagated put of a partial record will include the PartialOnError policy.
 	 *
-	 * When payloads are required by the policy, but not available, the status must be Error. The
-	 * cache store must produce a partial record with the available payloads when the policy flag
-	 * PartialOnError is set for the missing payloads.
+	 * When values are required by the policy but not available, the status must be Error. If the
+	 * PartialOnError policy applies to the missing values, the cache store must return a partial
+	 * record containing the available values.
 	 *
 	 * @param Requests     Requests with the keys identifying the cache records to query.
 	 * @param Owner        The owner to execute the request within.
@@ -271,14 +273,14 @@ public:
 		FOnCacheGetComplete&& OnComplete) = 0;
 
 	/**
-	 * Asynchronous request to get chunks, which are subsets of payloads, from cache records.
+	 * Asynchronous request to get chunks, which are subsets of values, from records or values.
 	 *
 	 * The callback will always be called for every chunk, and may be called from an arbitrary thread.
 	 * Chunks may become available in any order, and from multiple threads concurrently.
 	 *
-	 * There is no requirement that the cache store validate the existence of other payloads from
-	 * the requested records. Requests for whole payloads may propagate those payloads into other
-	 * cache stores, in accordance with the policy, through a put of a partial record.
+	 * Values may propagate into other cache stores, in accordance with the policy, if the entire
+	 * value is requested, through a put of a partial record or a value. The cache store does not
+	 * need to verify the existence of unrequested values within requested records.
 	 *
 	 * @param Requests     The keys, IDs, offsets, and sizes of the chunks to query.
 	 * @param Owner        The owner to execute the request within.
@@ -378,7 +380,7 @@ struct FCacheGetCompleteParams
 	 * The key is always populated. The remainder of the record is populated when Status is Ok.
 	 *
 	 * The value, attachments, and metadata may be skipped based on cache policy flags. When a value
-	 * or attachment has been skipped, it will have a payload but its data will be null.
+	 * or attachment has been skipped, it will have a hash and size but its data will be null.
 	 */
 	FCacheRecord&& Record;
 
@@ -389,25 +391,25 @@ struct FCacheGetCompleteParams
 	EStatus Status = EStatus::Error;
 };
 
-/** Parameters to request a chunk, which is a subset of a payload, from a cache record. */
+/** Parameters to request a chunk, which is a subset of a value, from a cache record. */
 struct FCacheChunkRequest
 {
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
 	FCacheRequestName Name;
 
-	/** The key identifying the cache record to fetch the payload from. */
+	/** The key identifying the cache record to fetch the value from. */
 	FCacheKey Key;
 
-	/** The ID of the payload to fetch from the cache record. */
-	FPayloadId Id;
+	/** The ID of the value to fetch from the cache record. */
+	FValueId Id;
 
-	/** The offset into the raw bytes of the payload at which to start fetching. */
+	/** The offset into the raw bytes of the value at which to start fetching. */
 	uint64 RawOffset = 0;
 
-	/** The maximum number of raw bytes of the payload to fetch, starting from the offset. */
+	/** The maximum number of raw bytes of the value to fetch, starting from the offset. */
 	uint64 RawSize = MAX_uint64;
 
-	/** The raw hash of the entire payload to fetch, if available, otherwise zero. */
+	/** The raw hash of the entire value to fetch, if available, otherwise zero. */
 	FIoHash RawHash;
 
 	/** Flags to control the behavior of the request. See ECachePolicy. */
@@ -427,18 +429,18 @@ struct FCacheChunkCompleteParams
 	FCacheKey Key;
 
 	/** ID from the chunk request that completed or was canceled. */
-	FPayloadId Id;
+	FValueId Id;
 
 	/** Offset from the chunk request that completed or was canceled. */
 	uint64 RawOffset = 0;
 
-	/** Size, in bytes, of the subset of the payload that was fetched, if any. */
+	/** Size, in bytes, of the subset of the value that was fetched, if any. */
 	uint64 RawSize = 0;
 
-	/** Hash of the entire payload, even if only a subset was fetched. */
+	/** Hash of the entire value, even if only a subset was fetched. */
 	const FIoHash& RawHash;
 
-	/** Data for the subset of the payload that was fetched when Status is Ok, otherwise null. */
+	/** Data for the subset of the value that was fetched when Status is Ok, otherwise null. */
 	FSharedBuffer&& RawData;
 
 	/** A copy of the value from the request. */

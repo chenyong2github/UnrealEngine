@@ -14,7 +14,7 @@ class FCompressedBuffer;
 class IFileHandle;
 
 namespace UE::DerivedData { class FOptionalCacheRecord; }
-namespace UE::DerivedData { class FPayload; }
+namespace UE::DerivedData { class FValueWithId; }
 
 namespace UE::DerivedData::CacheStore::PakFile
 {
@@ -140,7 +140,7 @@ private:
 		const FStringView ContentName,
 		const ECachePolicy Policy,
 		const ECachePolicy SkipFlag,
-		FPayload& InOutPayload,
+		FValueWithId& InOutValue,
 		EStatus& InOutStatus);
 
 	bool SaveFile(FStringView Path, FStringView DebugName, TFunctionRef<void (FArchive&)> WriteFunction);

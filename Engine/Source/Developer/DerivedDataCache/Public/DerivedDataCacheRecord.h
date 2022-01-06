@@ -3,7 +3,7 @@
 #pragma once
 
 #include "DerivedDataCacheKey.h"
-#include "DerivedDataPayloadId.h"
+#include "DerivedDataValueId.h"
 #include "Memory/MemoryFwd.h"
 #include "Misc/ScopeExit.h"
 #include "Templates/Function.h"
@@ -17,7 +17,8 @@ class FCbPackage;
 
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalCacheRecord; }
-namespace UE::DerivedData { class FPayload; }
+namespace UE::DerivedData { class FValue; }
+namespace UE::DerivedData { class FValueWithId; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { using FOnCacheRecordComplete = TUniqueFunction<void (FCacheRecord&& Record)>; }
 
@@ -32,10 +33,10 @@ public:
 	virtual ~ICacheRecordInternal() = default;
 	virtual const FCacheKey& GetKey() const = 0;
 	virtual const FCbObject& GetMeta() const = 0;
-	virtual const FPayload& GetValue() const = 0;
-	virtual const FPayload& GetAttachment(const FPayloadId& Id) const = 0;
-	virtual TConstArrayView<FPayload> GetAttachments() const = 0;
-	virtual const FPayload& GetPayload(const FPayloadId& Id) const = 0;
+	virtual const FValueWithId& GetValue() const = 0;
+	virtual const FValueWithId& GetAttachment(const FValueId& Id) const = 0;
+	virtual TConstArrayView<FValueWithId> GetAttachments() const = 0;
+	virtual const FValueWithId& GetValue(const FValueId& Id) const = 0;
 	virtual void AddRef() const = 0;
 	virtual void Release() const = 0;
 };
@@ -47,12 +48,14 @@ class ICacheRecordBuilderInternal
 public:
 	virtual ~ICacheRecordBuilderInternal() = default;
 	virtual void SetMeta(FCbObject&& Meta) = 0;
-	virtual void SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) = 0;
-	virtual void SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) = 0;
-	virtual void SetValue(const FPayload& Payload) = 0;
-	virtual void AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) = 0;
-	virtual void AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id, uint64 BlockSize) = 0;
-	virtual void AddAttachment(const FPayload& Payload) = 0;
+	virtual void SetValue(const FCompositeBuffer& Buffer, const FValueId& Id, uint64 BlockSize) = 0;
+	virtual void SetValue(const FSharedBuffer& Buffer, const FValueId& Id, uint64 BlockSize) = 0;
+	virtual void SetValue(const FValue& Value, const FValueId& Id) = 0;
+	virtual void SetValue(const FValueWithId& Value) = 0;
+	virtual void AddAttachment(const FCompositeBuffer& Buffer, const FValueId& Id, uint64 BlockSize) = 0;
+	virtual void AddAttachment(const FSharedBuffer& Buffer, const FValueId& Id, uint64 BlockSize) = 0;
+	virtual void AddAttachment(const FValue& Value, const FValueId& Id) = 0;
+	virtual void AddAttachment(const FValueWithId& Value) = 0;
 	virtual FCacheRecord Build() = 0;
 	virtual void BuildAsync(IRequestOwner& Owner, FOnCacheRecordComplete&& OnComplete) = 0;
 };
@@ -73,11 +76,11 @@ namespace UE::DerivedData
  * spent creating the value.
  *
  * The value and its attachments are compressed, and both the compressed and uncompressed formats
- * of the payloads are exposed by the cache record.
+ * of the values are exposed by the cache record.
  *
  * The value, attachments, and metadata are optional and can be skipped when requesting a record.
- * When the value or attachments have been skipped, the record will contain a payload with a null
- * data but will otherwise be populated.
+ * When the value or attachments have been skipped, the record will contain a value with the hash
+ * and size, but with null data.
  */
 class FCacheRecord
 {
@@ -89,23 +92,16 @@ public:
 	inline const FCbObject& GetMeta() const { return Record->GetMeta(); }
 
 	/** Returns the value. Data is null if skipped by the policy on request. */
-	inline const FPayload& GetValue() const { return Record->GetValue(); }
-
-	/** Returns the value payload. Null if no value. Data is null if skipped by the policy on request. */
-	inline const FPayload& GetValuePayload() const { return Record->GetValue(); }
+	inline const FValueWithId& GetValue() const { return Record->GetValue(); }
 
 	/** Returns the attachment matching the ID. Data is null if skipped by the policy on request. */
-	inline const FPayload& GetAttachment(const FPayloadId& Id) const { return Record->GetAttachment(Id); }
-
-	/** Returns the attachment payload matching the ID. Null if no match. Data is null if skipped by the policy on request. */
-	inline const FPayload& GetAttachmentPayload(const FPayloadId& Id) const { return Record->GetAttachment(Id); }
+	inline const FValueWithId& GetAttachment(const FValueId& Id) const { return Record->GetAttachment(Id); }
 
 	/** Returns a view of the attachments. Always available, but data may be skipped if skipped. */
-	inline TConstArrayView<FPayload> GetAttachments() const { return Record->GetAttachments(); }
-	inline TConstArrayView<FPayload> GetAttachmentPayloads() const { return Record->GetAttachments(); }
+	inline TConstArrayView<FValueWithId> GetAttachments() const { return Record->GetAttachments(); }
 
-	/** Returns the payload matching the ID, whether value or attachment. Null if no match. Data is null if skipped. */
-	inline const FPayload& GetPayload(const FPayloadId& Id) const { return Record->GetPayload(Id); }
+	/** Returns the value matching the ID. Null if no match. Data is null if skipped. */
+	inline const FValueWithId& GetValue(const FValueId& Id) const { return Record->GetValue(Id); }
 
 	/** Save the cache record to a compact binary package. */
 	UE_API FCbPackage Save() const;
@@ -132,9 +128,6 @@ private:
  *
  * Create using a key that uniquely corresponds to the value and attachments for the cache record.
  * Metadata may vary between records of the same key.
- *
- * The value and attachments can be provided as buffers, which will be compressed, or as payloads
- * which were previously compressed and have an identifier assigned.
  *
  * @see FCacheRecord
  */
@@ -163,13 +156,12 @@ public:
 	 * @param Id          An ID for the value that is unique within this cache record.
 	 *                    When omitted, the hash of the buffer will be used as the ID.
 	 * @param BlockSize   The power-of-two block size to encode raw data in. 0 is default.
-	 * @return The ID that was provided or created.
 	 */
-	inline void SetValue(const FCompositeBuffer& Buffer, const FPayloadId& Id = FPayloadId(), const uint64 BlockSize = 0)
+	inline void SetValue(const FCompositeBuffer& Buffer, const FValueId& Id = FValueId(), const uint64 BlockSize = 0)
 	{
 		return RecordBuilder->SetValue(Buffer, Id, BlockSize);
 	}
-	inline void SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId(), const uint64 BlockSize = 0)
+	inline void SetValue(const FSharedBuffer& Buffer, const FValueId& Id = FValueId(), const uint64 BlockSize = 0)
 	{
 		return RecordBuilder->SetValue(Buffer, Id, BlockSize);
 	}
@@ -177,12 +169,15 @@ public:
 	/**
 	 * Set the value for the cache record.
 	 *
-	 * @param Payload   The payload, which must have data unless it is known to be in the cache.
-	 * @return The ID that was provided. Unique within the scope of the cache record.
+	 * @param Value   The value, which must have data unless it is known to be in the cache.
 	 */
-	inline void SetValue(const FPayload& Payload)
+	inline void SetValue(const FValue& Value, const FValueId& Id = FValueId())
 	{
-		return RecordBuilder->SetValue(Payload);
+		return RecordBuilder->SetValue(Value, Id);
+	}
+	inline void SetValue(const FValueWithId& Value)
+	{
+		return RecordBuilder->SetValue(Value);
 	}
 
 	/**
@@ -192,13 +187,12 @@ public:
 	 * @param Id          An ID for the attachment that is unique within this cache record.
 	 *                    When omitted, the hash of the buffer will be used as the ID.
 	 * @param BlockSize   The power-of-two block size to encode raw data in. 0 is default.
-	 * @return The ID that was provided or created.
 	 */
-	inline void AddAttachment(const FCompositeBuffer& Buffer, const FPayloadId& Id = FPayloadId(), const uint64 BlockSize = 0)
+	inline void AddAttachment(const FCompositeBuffer& Buffer, const FValueId& Id = FValueId(), const uint64 BlockSize = 0)
 	{
 		return RecordBuilder->AddAttachment(Buffer, Id, BlockSize);
 	}
-	inline void AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId(), const uint64 BlockSize = 0)
+	inline void AddAttachment(const FSharedBuffer& Buffer, const FValueId& Id = FValueId(), const uint64 BlockSize = 0)
 	{
 		return RecordBuilder->AddAttachment(Buffer, Id, BlockSize);
 	}
@@ -206,12 +200,15 @@ public:
 	/**
 	 * Add an attachment to the cache record.
 	 *
-	 * @param Payload   The payload, which must have data unless it is known to be in the cache.
-	 * @return The ID that was provided. Unique within the scope of the cache record.
+	 * @param Value   The value, which must have data unless it is known to be in the cache.
 	 */
-	inline void AddAttachment(const FPayload& Payload)
+	inline void AddAttachment(const FValue& Value, const FValueId& Id = FValueId())
 	{
-		return RecordBuilder->AddAttachment(Payload);
+		return RecordBuilder->AddAttachment(Value, Id);
+	}
+	inline void AddAttachment(const FValueWithId& Value)
+	{
+		return RecordBuilder->AddAttachment(Value);
 	}
 
 	/**
@@ -229,7 +226,7 @@ public:
 	/**
 	 * Build a cache record asynchronously, which makes this builder subsequently unusable.
 	 *
-	 * Prefer Build() when the value and attachments are added by payload, as compression is already
+	 * Prefer Build() when the value and attachments are added by value, as compression is already
 	 * complete and BuildAsync() will complete immediately in that case.
 	 */
 	inline void BuildAsync(IRequestOwner& Owner, FOnCacheRecordComplete&& OnComplete)

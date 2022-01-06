@@ -8,7 +8,7 @@
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildPrivate.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataValue.h"
 
 namespace UE::DerivedData::Private
 {
@@ -46,11 +46,11 @@ public:
 		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete) final;
 
-	void BuildPayload(
-		const FBuildPayloadKey& Payload,
+	void BuildValue(
+		const FBuildValueKey& Value,
 		EBuildPolicy Policy,
 		IRequestOwner& Owner,
-		FOnBuildPayloadComplete&& OnComplete) final;
+		FOnBuildValueComplete&& OnComplete) final;
 
 	FString Name;
 	ICache& Cache;
@@ -83,33 +83,33 @@ void FBuildSessionInternal::Build(
 		OnComplete ? MoveTemp(OnComplete) : [](FBuildCompleteParams&&){});
 }
 
-void FBuildSessionInternal::BuildPayload(
-	const FBuildPayloadKey& PayloadKey,
+void FBuildSessionInternal::BuildValue(
+	const FBuildValueKey& ValueKey,
 	EBuildPolicy Policy,
 	IRequestOwner& Owner,
-	FOnBuildPayloadComplete&& OnComplete)
+	FOnBuildValueComplete&& OnComplete)
 {
-	// This requests the entire output to get one payload. It will be optimized later to request only one payload.
+	// This requests the entire output to get one value. It will be optimized later to request only one value.
 	FOnBuildComplete OnJobComplete;
 	if (OnComplete)
 	{
-		OnJobComplete = [PayloadKey, OnComplete = MoveTemp(OnComplete)](FBuildCompleteParams&& Params)
+		OnJobComplete = [ValueKey, OnComplete = MoveTemp(OnComplete)](FBuildCompleteParams&& Params)
 		{
-			FPayload Payload;
+			FValueWithId Value;
 			EStatus Status = Params.Status;
 			if (Status == EStatus::Ok)
 			{
-				Payload = Params.Output.GetPayload(PayloadKey.Id);
-				Status = Payload ? EStatus::Ok : EStatus::Error;
+				Value = Params.Output.GetValue(ValueKey.Id);
+				Status = Value ? EStatus::Ok : EStatus::Error;
 			}
-			if (!Payload)
+			if (!Value)
 			{
-				Payload = FPayload(PayloadKey.Id);
+				Value = FValueWithId(ValueKey.Id);
 			}
-			OnComplete({PayloadKey.BuildKey, MoveTemp(Payload), Status});
+			OnComplete({ValueKey.BuildKey, MoveTemp(Value), Status});
 		};
 	}
-	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, PayloadKey.BuildKey, Policy, MoveTemp(OnJobComplete));
+	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, ValueKey.BuildKey, Policy, MoveTemp(OnJobComplete));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

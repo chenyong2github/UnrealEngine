@@ -32,8 +32,8 @@
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheKey.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataValue.h"
 #include "Engine/TextureCube.h"
 #include "Engine/VolumeTexture.h"
 #include "GenericPlatform/GenericPlatformMath.h"
@@ -1118,8 +1118,8 @@ private:
 		using namespace UE::DerivedData;
 		DerivedData.DerivedDataKey.Emplace<FCacheKeyProxy>(Params.CacheKey);
 		bCacheHit = EnumHasAnyFlags(Params.BuildStatus, EBuildStatus::CacheQueryHit);
-		BuildOutputSize = Algo::TransformAccumulate(Params.Output.GetPayloads(),
-			[](const FPayload& Payload) { return Payload.GetData().GetRawSize(); }, uint64(0));
+		BuildOutputSize = Algo::TransformAccumulate(Params.Output.GetValues(),
+			[](const FValue& Value) { return Value.GetData().GetRawSize(); }, uint64(0));
 		if (Params.Status != EStatus::Canceled)
 		{
 			WriteDerivedData(MoveTemp(Params.Output));
@@ -1304,18 +1304,18 @@ public:
 
 private:
 
-	static bool DeserializeTextureFromPayloads(FTexturePlatformData& DerivedData, const UE::DerivedData::FBuildOutput& Output, int32 FirstMipToLoad, bool bInlineMips)
+	static bool DeserializeTextureFromValues(FTexturePlatformData& DerivedData, const UE::DerivedData::FBuildOutput& Output, int32 FirstMipToLoad, bool bInlineMips)
 	{
 		using namespace UE::DerivedData;
-		const FPayload& Payload = Output.GetPayload(FPayloadId::FromName("Description"_ASV));
-		if (!Payload)
+		const FValueWithId& Value = Output.GetValue(FValueId::FromName("Description"_ASV));
+		if (!Value)
 		{
 			UE_LOG(LogTexture, Error, TEXT("Missing texture description for build of '%s' by %s."),
 				*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
 			return false;
 		}
 
-		FCbObject TextureDescription(Payload.GetData().Decompress());
+		FCbObject TextureDescription(Value.GetData().Decompress());
 
 		FCbFieldViewIterator SizeIt = TextureDescription["Size"_ASV].AsArrayView().CreateViewIterator();
 		DerivedData.SizeX = SizeIt++->AsInt32();
@@ -1352,14 +1352,14 @@ private:
 		FSharedBuffer MipTailData;
 		if (NumMips > NumStreamingMips)
 		{
-			const FPayload& MipTailPayload = Output.GetPayload(FPayloadId::FromName("MipTail"_ASV));
-			if (!MipTailPayload)
+			const FValueWithId& MipTailValue = Output.GetValue(FValueId::FromName("MipTail"_ASV));
+			if (!MipTailValue)
 			{
 				UE_LOG(LogTexture, Error, TEXT("Missing texture mip tail for build of '%s' by %s."),
 					*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
 				return false;
 			}
-			MipTailData = MipTailPayload.GetData().Decompress();
+			MipTailData = MipTailValue.GetData().Decompress();
 		}
 
 		int32 MipIndex = 0;
@@ -1388,15 +1388,15 @@ private:
 			}
 			else if (bInlineMips && (MipIndex >= FirstMipToLoad))
 			{
-				const FPayload& StreamingMipPayload = Output.GetPayload(FTexturePlatformData::MakeMipId(MipIndex));
-				if (!StreamingMipPayload)
+				const FValueWithId& StreamingMipValue = Output.GetValue(FTexturePlatformData::MakeMipId(MipIndex));
+				if (!StreamingMipValue)
 				{
 					delete NewMip;
 					UE_LOG(LogTexture, Error, TEXT("Missing texture streaming mip '%d' for build of '%s' by %s."),
 						MipIndex, *WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
 					return false;
 				}
-				FSharedBuffer StreamingMipData = StreamingMipPayload.GetData().Decompress();
+				FSharedBuffer StreamingMipData = StreamingMipValue.GetData().Decompress();
 				uint64 MipSize = StreamingMipData.GetSize();
 
 				NewMip->BulkData.Lock(LOCK_READ_WRITE);
@@ -1473,7 +1473,7 @@ private:
 			return;
 		}
 
-		DeserializeTextureFromPayloads(DerivedData, Output, FirstMipToLoad, bInlineMips);
+		DeserializeTextureFromValues(DerivedData, Output, FirstMipToLoad, bInlineMips);
 	}
 
 	static UE::DerivedData::EPriority ConvertPriority(EQueuedWorkPriority SourcePriority)

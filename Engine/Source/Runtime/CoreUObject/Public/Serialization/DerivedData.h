@@ -17,7 +17,7 @@ class UObject;
 template <typename FuncType> class TFunctionRef;
 
 namespace UE::DerivedData { class FBuildDefinition; }
-namespace UE::DerivedData { struct FPayloadId; }
+namespace UE::DerivedData { struct FValueId; }
 namespace UE::DerivedData::Private { class FEditorDerivedData; }
 
 namespace UE
@@ -65,7 +65,7 @@ public:
 
 	UE_API FDerivedData(FStringView CacheKey, FStringView CacheContext);
 
-	UE_API FDerivedData(const DerivedData::FBuildDefinition& BuildDefinition, const DerivedData::FPayloadId& PayloadId);
+	UE_API FDerivedData(const DerivedData::FBuildDefinition& BuildDefinition, const DerivedData::FValueId& ValueId);
 
 	UE_API void SetFlags(EDerivedDataFlags Flags);
 

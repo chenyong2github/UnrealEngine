@@ -7,7 +7,7 @@
 #if WITH_EDITORONLY_DATA
 
 #include "DerivedDataBuildDefinition.h"
-#include "DerivedDataPayloadId.h"
+#include "DerivedDataValueId.h"
 #include "Serialization/EditorDerivedData.h"
 #include "Serialization/EditorDerivedDataIoStore.h"
 #include "Templates/SharedPointer.h"
@@ -107,8 +107,8 @@ FDerivedData::FDerivedData(FStringView CacheKey, FStringView CacheContext)
 {
 }
 
-FDerivedData::FDerivedData(const DerivedData::FBuildDefinition& BuildDefinition, const DerivedData::FPayloadId& PayloadId)
-	: EditorData(DerivedData::Private::MakeEditorDerivedData(BuildDefinition, PayloadId))
+FDerivedData::FDerivedData(const DerivedData::FBuildDefinition& BuildDefinition, const DerivedData::FValueId& ValueId)
+	: EditorData(DerivedData::Private::MakeEditorDerivedData(BuildDefinition, ValueId))
 	, ChunkId(DerivedData::IoStore::GEditorDerivedDataIoStore->AddData(EditorData.Get()))
 {
 }

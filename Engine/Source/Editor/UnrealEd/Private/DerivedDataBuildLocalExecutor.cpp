@@ -8,9 +8,9 @@
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildTypes.h"
 #include "DerivedDataBuildWorker.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataValue.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
@@ -238,30 +238,30 @@ public:
 		}
 
 		FBuildOutputBuilder OutputBuilder = BuildSystem.CreateOutput(Action.GetName(), Action.GetFunction());
-		for (const FPayload& Payload : RemoteBuildOutput.Get().GetPayloads())
+		for (const FValueWithId& Value : RemoteBuildOutput.Get().GetValues())
 		{
-			if (EnumHasAnyFlags(Policy.GetPayloadPolicy(Payload.GetId()), EBuildPolicy::SkipData))
+			if (EnumHasAnyFlags(Policy.GetValuePolicy(Value.GetId()), EBuildPolicy::SkipData))
 			{
-				OutputBuilder.AddPayload(Payload);
+				OutputBuilder.AddValue(Value.GetId(), Value);
 			}
 			else
 			{
-				FCompressedBuffer BufferForPayload;
+				FCompressedBuffer BufferForValue;
 
 				TStringBuilder<128> Path;
-				FPathViews::Append(Path, SandboxRoot, TEXT("Outputs"), FIoHash(Payload.GetRawHash()));
+				FPathViews::Append(Path, SandboxRoot, TEXT("Outputs"), FIoHash(Value.GetRawHash()));
 				if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileReader(*Path, FILEREAD_Silent)})
 				{
-					BufferForPayload = FCompressedBuffer::Load(*Ar);
+					BufferForValue = FCompressedBuffer::Load(*Ar);
 				}
 
-				if (BufferForPayload.IsNull())
+				if (BufferForValue.IsNull())
 				{
 					UE_LOG(LogDerivedDataBuildLocalExecutor, Warning, TEXT("Remote execution system error: payload blob missing!"));
 					return OnComplete({Action.GetKey(), {}, {}, EStatus::Error});
 				}
 
-				OutputBuilder.AddPayload(FPayload(Payload.GetId(), BufferForPayload));
+				OutputBuilder.AddValue(Value.GetId(), FValue(MoveTemp(BufferForValue)));
 			}
 		}
 

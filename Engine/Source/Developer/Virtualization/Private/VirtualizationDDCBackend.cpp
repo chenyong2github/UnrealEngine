@@ -6,18 +6,18 @@
 #include "Virtualization/PayloadId.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheRecord.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataValue.h"
 
 namespace UE::Virtualization
 {
 
-/** Utility function to help convert from UE::Virtualization types to UE::DerivedData::FPayload */
-UE::DerivedData::FPayload ToDDCPayload(const FPayloadId& Id, const FCompressedBuffer& Payload)
+/** Utility function to help convert from UE::Virtualization types to UE::DerivedData::FValueWithId */
+UE::DerivedData::FValueWithId ToDDCPayload(const FPayloadId& Id, const FCompressedBuffer& Payload)
 {
-	UE::DerivedData::FPayloadId DDCPayloadId = UE::DerivedData::FPayloadId::FromHash(Id.GetIdentifier());
+	UE::DerivedData::FValueId ValueId = UE::DerivedData::FValueId::FromHash(Id.GetIdentifier());
 
-	return UE::DerivedData::FPayload(DDCPayloadId, Payload);
+	return UE::DerivedData::FValueWithId(ValueId, Payload);
 }
 
 FDDCBackend::FDDCBackend(FStringView ConfigName, FStringView InDebugName)
@@ -89,7 +89,7 @@ EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer&
 	Key.Bucket = Bucket;
 	Key.Hash = Id.GetIdentifier();
 
-	UE::DerivedData::FPayload DDCPayload = ToDDCPayload(Id, Payload);
+	UE::DerivedData::FValueWithId DDCPayload = ToDDCPayload(Id, Payload);
 	check(DDCPayload.GetRawHash() == Id.GetIdentifier());
 
 	UE::DerivedData::FCacheRecordBuilder RecordBuilder(Key);
@@ -138,7 +138,7 @@ FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
 		ResultStatus = Params.Status;
 		if (ResultStatus == UE::DerivedData::EStatus::Ok)
 		{
-			ResultData = Params.Record.GetValuePayload().GetData();
+			ResultData = Params.Record.GetValue().GetData();
 		}
 	};
 

@@ -10,9 +10,9 @@
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildTypes.h"
 #include "DerivedDataBuildWorker.h"
-#include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataValue.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
@@ -1015,16 +1015,16 @@ void FRemoteBuildExecutionRequest::OnGetResultPackageComplete(const UE::Zen::FZe
 		OutputBuilder.AddLog(Log);
 	}
 
-	for (const FPayload& Payload : RemoteBuildOutput.Get().GetPayloads())
+	for (const FValueWithId& Value : RemoteBuildOutput.Get().GetValues())
 	{
-		FCompressedBuffer BufferForPayload;
+		FCompressedBuffer BufferForValue;
 
-		if (const FCbAttachment* Attachment = State.ResultPackage.FindAttachment(Payload.GetRawHash()))
+		if (const FCbAttachment* Attachment = State.ResultPackage.FindAttachment(Value.GetRawHash()))
 		{
-			BufferForPayload = Attachment->AsCompressedBinary();
+			BufferForValue = Attachment->AsCompressedBinary();
 		}
 
-		if (BufferForPayload.IsNull())
+		if (BufferForValue.IsNull())
 		{
 			UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: payload blob missing!"));
 			State.Owner.End(this, [this]
@@ -1035,7 +1035,7 @@ void FRemoteBuildExecutionRequest::OnGetResultPackageComplete(const UE::Zen::FZe
 			return;
 		}
 
-		OutputBuilder.AddPayload(FPayload(Payload.GetId(), BufferForPayload));
+		OutputBuilder.AddValue(Value.GetId(), FValue(MoveTemp(BufferForValue)));
 	}
 
 	FBuildOutput BuildOutput = OutputBuilder.Build();
@@ -1045,8 +1045,8 @@ void FRemoteBuildExecutionRequest::OnGetResultPackageComplete(const UE::Zen::FZe
 	State.Owner.End(this, [this, &BuildOutput]() mutable
 		{
 			CompletionCallback({ State.BuildAction.GetKey(), MoveTemp(BuildOutput), {}, EStatus::Ok });
-			CompletionEvent->Trigger();
 		});
+	CompletionEvent->Trigger();
 }
 
 } // namespace UE::DerivedData

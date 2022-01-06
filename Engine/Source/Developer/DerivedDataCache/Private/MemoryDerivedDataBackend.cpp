@@ -4,7 +4,7 @@
 
 #include "Algo/Accumulate.h"
 #include "Algo/AllOf.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataValue.h"
 #include "Misc/ScopeExit.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/UniquePtr.h"
@@ -447,8 +447,8 @@ bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
 
 int64 FMemoryDerivedDataBackend::CalcRawCacheRecordSize(const FCacheRecord& Record) const
 {
-	const uint64 ValueSize = Record.GetValuePayload().GetRawSize();
-	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(), &FPayload::GetRawSize, ValueSize));
+	const uint64 ValueSize = Record.GetValue().GetRawSize();
+	return int64(Algo::TransformAccumulate(Record.GetAttachments(), &FValue::GetRawSize, ValueSize));
 }
 
 int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecord& Record) const
@@ -457,12 +457,12 @@ int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecor
 	uint64 TotalSize = 20;
 	TotalSize += Record.GetKey().Bucket.ToString().Len();
 	TotalSize += Record.GetMeta().GetSize();
-	const auto CalcCachePayloadSize = [](const FPayload& Payload)
+	const auto CalcCacheValueSize = [](const FValueWithId& Value)
 	{
-		return Payload ? Payload.GetData().GetCompressedSize() + 32 : 0;
+		return Value ? Value.GetData().GetCompressedSize() + 32 : 0;
 	};
-	TotalSize += CalcCachePayloadSize(Record.GetValuePayload());
-	TotalSize += Algo::TransformAccumulate(Record.GetAttachmentPayloads(), CalcCachePayloadSize, uint64(0));
+	TotalSize += CalcCacheValueSize(Record.GetValue());
+	TotalSize += Algo::TransformAccumulate(Record.GetAttachments(), CalcCacheValueSize, uint64(0));
 	return int64(TotalSize);
 }
 
@@ -491,10 +491,10 @@ void FMemoryDerivedDataBackend::Put(
 			continue;
 		}
 
-		const FPayload& Value = Record.GetValuePayload();
-		const TConstArrayView<FPayload> Attachments = Record.GetAttachmentPayloads();
+		const FValueWithId& Value = Record.GetValue();
+		const TConstArrayView<FValueWithId> Attachments = Record.GetAttachments();
 
-		if ((Value && !Value.HasData()) || !Algo::AllOf(Attachments, &FPayload::HasData))
+		if ((Value && !Value.HasData()) || !Algo::AllOf(Attachments, &FValue::HasData))
 		{
 			continue;
 		}
@@ -565,23 +565,23 @@ void FMemoryDerivedDataBackend::Get(
 		}
 		if (Record)
 		{
-			if (const FPayload& Payload = Record.Get().GetValuePayload();
-				!Payload.HasData() && !EnumHasAnyFlags(Policy.GetPayloadPolicy(Payload.GetId()), ECachePolicy::SkipValue))
+			if (const FValueWithId& Value = Record.Get().GetValue();
+				!Value.HasData() && !EnumHasAnyFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::SkipValue))
 			{
 				Status = EStatus::Error;
-				if (!EnumHasAllFlags(Policy.GetPayloadPolicy(Payload.GetId()), ECachePolicy::PartialOnError))
+				if (!EnumHasAllFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::PartialOnError))
 				{
 					Record.Reset();
 				}
 			}
 			if (Record)
 			{
-				for (const FPayload& Payload : Record.Get().GetAttachmentPayloads())
+				for (const FValueWithId& Value : Record.Get().GetAttachments())
 				{
-					if (!Payload.HasData() && !EnumHasAnyFlags(Policy.GetPayloadPolicy(Payload.GetId()), ECachePolicy::SkipAttachments))
+					if (!Value.HasData() && !EnumHasAnyFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::SkipAttachments))
 					{
 						Status = EStatus::Error;
-						if (!EnumHasAllFlags(Policy.GetPayloadPolicy(Payload.GetId()), ECachePolicy::PartialOnError))
+						if (!EnumHasAllFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::PartialOnError))
 						{
 							Record.Reset();
 							break;
@@ -613,8 +613,8 @@ void FMemoryDerivedDataBackend::GetChunks(
 	IRequestOwner& Owner,
 	FOnCacheChunkComplete&& OnComplete)
 {
-	FPayload Payload;
-	FCacheKey PayloadKey;
+	FValueWithId Value;
+	FCacheKey ValueKey;
 	FCompressedBufferReader Reader;
 	for (const FCacheChunkRequest& Request : Requests)
 	{
@@ -625,32 +625,32 @@ void FMemoryDerivedDataBackend::GetChunks(
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
 				*GetName(), *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
 		}
-		else if (PayloadKey == Request.Key && Payload.GetId() == Request.Id)
+		else if (ValueKey == Request.Key && Value.GetId() == Request.Id)
 		{
-			// Payload matches the request.
+			// Value matches the request.
 		}
 		else if (FWriteScopeLock ScopeLock(SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(Request.Key))
 		{
 			Reader.ResetSource();
-			Payload.Reset();
-			Payload = Record->GetAttachmentPayload(Request.Id);
-			PayloadKey = Request.Key;
-			Reader.SetSource(Payload.GetData());
+			Value.Reset();
+			Value = Record->GetAttachment(Request.Id);
+			ValueKey = Request.Key;
+			Reader.SetSource(Value.GetData());
 		}
-		if (Payload && Request.RawOffset <= Payload.GetRawSize())
+		if (Value && Request.RawOffset <= Value.GetRawSize())
 		{
-			const uint64 RawSize = FMath::Min(Payload.GetRawSize() - Request.RawOffset, Request.RawSize);
+			const uint64 RawSize = FMath::Min(Value.GetRawSize() - Request.RawOffset, Request.RawSize);
 			COOK_STAT(Timer.AddHit(RawSize));
 			if (OnComplete)
 			{
 				FSharedBuffer Buffer;
-				if (Payload.HasData() && !bExistsOnly)
+				if (Value.HasData() && !bExistsOnly)
 				{
 					Buffer = Reader.Decompress(Request.RawOffset, RawSize);
 				}
 				const EStatus Status = bExistsOnly || Buffer ? EStatus::Ok : EStatus::Error;
 				OnComplete({Request.Name, Request.Key, Request.Id, Request.RawOffset,
-					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Request.UserData, Status});
+					RawSize, Value.GetRawHash(), MoveTemp(Buffer), Request.UserData, Status});
 			}
 		}
 		else

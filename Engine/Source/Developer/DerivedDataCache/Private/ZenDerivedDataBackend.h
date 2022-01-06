@@ -37,8 +37,7 @@ namespace UE::Zen {
 namespace UE::DerivedData {
 	struct FCacheKey;
 	class FOptionalCacheRecord;
-	class FPayload;
-	struct FPayloadId;
+	struct FValueId;
 }
 
 namespace UE::DerivedData::Backends {
@@ -123,7 +122,7 @@ private:
 	bool IsServiceReady();
 	static FString MakeLegacyZenKey(const TCHAR* CacheKey);
 	static void AppendZenUri(const FCacheKey& CacheKey, FStringBuilderBase& Out);
-	static void AppendZenUri(const FCacheKey& CacheKey, const FPayloadId& PayloadId, FStringBuilderBase& Out);
+	static void AppendZenUri(const FCacheKey& CacheKey, const FValueId& Id, FStringBuilderBase& Out);
 	static void AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Out);
 
 	static bool ShouldRetryOnError(int64 ResponseCode);

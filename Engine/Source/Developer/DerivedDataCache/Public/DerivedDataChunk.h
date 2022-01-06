@@ -7,7 +7,7 @@
 namespace UE::DerivedData
 {
 
-/** Binary predicate that compares chunks by key, then payload ID, then raw offset. */
+/** Binary predicate that compares chunks by key, then value ID, then raw offset. */
 struct TChunkEqual
 {
 	template <typename ChunkTypeA, typename ChunkTypeB>
@@ -16,7 +16,7 @@ struct TChunkEqual
 		return A.Key == B.Key && A.Id == B.Id && A.RawOffset == B.RawOffset;
 	}
 };
-/** Binary predicate that compares chunks by key, then payload ID, then raw offset. */
+/** Binary predicate that compares chunks by key, then value ID, then raw offset. */
 struct TChunkLess
 {
 	template <typename ChunkTypeA, typename ChunkTypeB>
