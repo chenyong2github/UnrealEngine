@@ -51,6 +51,9 @@ struct CORE_API FPhysicsObjectVersion
 		// Convex structure data has a list of unique edges (half of the half edges)
 		ChaosConvexHasUniqueEdgeSet,
 
+		// Chaos FGeometryCollectionObject user defined collision shapes support
+		GeometryCollectionUserDefinedCollisionShapes,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

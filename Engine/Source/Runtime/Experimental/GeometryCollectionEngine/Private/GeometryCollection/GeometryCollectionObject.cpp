@@ -141,15 +141,22 @@ FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
 bool FGeometryCollectionSizeSpecificData::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
 	return false;	//We only have this function to mark custom GUID. Still want serialize tagged properties
 }
 
 #if WITH_EDITORONLY_DATA
 void FGeometryCollectionSizeSpecificData::PostSerialize(const FArchive& Ar)
 {
-	const int32 CustomVer = Ar.CustomVer(FUE5MainStreamObjectVersion::GUID);
+	const int32 PhysicsObjectVersion = Ar.CustomVer(FPhysicsObjectVersion::GUID);
+	const int32 StreamObjectVersion = Ar.CustomVer(FUE5MainStreamObjectVersion::GUID);
 	// make sure to load back the deprecated values in the new structure if necessary
-	if (Ar.IsLoading() && CustomVer < FUE5MainStreamObjectVersion::GeometryCollectionUserDefinedCollisionShapes)
+	// IMPORTANT : this was merge backed in UE4 and PhysicsObjectVersion had to be used,
+	//		that's why we need to test both version to make sure backward asset compatibility is maintained
+	if (Ar.IsLoading() && (
+		StreamObjectVersion < FUE5MainStreamObjectVersion::GeometryCollectionUserDefinedCollisionShapes &&
+		PhysicsObjectVersion < FPhysicsObjectVersion::GeometryCollectionUserDefinedCollisionShapes
+		)) 
 	{
 		if (CollisionShapes.Num())
 		{
