@@ -27,6 +27,9 @@ public:
 	/** Get the skeleton. Const - to modify the skeleton you should use the wrapper methods below */
 	virtual const class USkeleton& GetSkeleton() const = 0;
 
+	/** Checks to see if the editable skeleton is valid. It is possible to force-delete the USkeleton. */
+	virtual bool IsSkeletonValid() const = 0;
+	
 	/** Get the blend profiles that this skeleton currently contains */
 	virtual const TArray<class UBlendProfile*>& GetBlendProfiles() const  = 0;
 

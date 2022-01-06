@@ -141,6 +141,11 @@ const USkeleton& FEditableSkeleton::GetSkeleton() const
 	return *Skeleton;
 }
 
+bool FEditableSkeleton::IsSkeletonValid() const
+{
+	return Skeleton != nullptr;
+}
+
 const TArray<class UBlendProfile*>& FEditableSkeleton::GetBlendProfiles() const
 {
 	return Skeleton->BlendProfiles;

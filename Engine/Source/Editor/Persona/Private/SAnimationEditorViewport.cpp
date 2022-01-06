@@ -244,7 +244,7 @@ FText SAnimationEditorViewportTabBody::GetDisplayString() const
 {
 	class UDebugSkelMeshComponent* Component = GetPreviewScene()->GetPreviewMeshComponent();
 	TSharedPtr<IEditableSkeleton> EditableSkeleton = GetPreviewScene()->GetPersonaToolkit()->GetEditableSkeleton();
-	FName TargetSkeletonName = EditableSkeleton.IsValid() ? EditableSkeleton->GetSkeleton().GetFName() : NAME_None;
+	FName TargetSkeletonName = (EditableSkeleton.IsValid() && EditableSkeleton->IsSkeletonValid()) ? EditableSkeleton->GetSkeleton().GetFName() : NAME_None;
 
 	FText DefaultText;
 
