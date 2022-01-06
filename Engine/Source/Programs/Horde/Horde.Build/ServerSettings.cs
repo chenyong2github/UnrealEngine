@@ -486,6 +486,21 @@ namespace HordeServer
 		public bool P4BridgeCanImpersonate { get; set; } = false;
 
 		/// <summary>
+		/// The Jira service account user name
+		/// </summary>
+		public string? JiraUsername { get; set; }
+
+		/// <summary>
+		/// The Jira service account API token
+		/// </summary>
+		public string? JiraApiToken { get; set; }
+
+		/// <summary>
+		/// The Uri for the Jira installation
+		/// </summary>
+		public Uri? JiraUrl { get; set; }
+
+		/// <summary>
 		/// Set the minimum size of the global thread pool
 		/// This value has been found in need of tweaking to avoid timeouts with the Redis client during bursts
 		/// of traffic. Default is 16 for .NET Core CLR. The correct value is dependent on the traffic the Horde Server

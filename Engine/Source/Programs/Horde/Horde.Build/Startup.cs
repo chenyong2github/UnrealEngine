@@ -386,8 +386,8 @@ namespace HordeServer
 			Services.AddSingleton<INotificationSink, SlackNotificationSink>(SP => SP.GetRequiredService<SlackNotificationSink>());
 			Services.AddSingleton<StreamService>();
 			Services.AddSingleton<UpgradeService>();
-
-			Services.AddSingleton<DeviceService>();
+			Services.AddSingleton<DeviceService>();			
+			Services.AddSingleton<JiraService>();
 
 			AWSOptions AwsOptions = Configuration.GetAWSOptions();
 			if (Settings.S3CredentialType == "AssumeRole" && Settings.S3AssumeArn != null)

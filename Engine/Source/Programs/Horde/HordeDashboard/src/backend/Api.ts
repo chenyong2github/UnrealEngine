@@ -3825,3 +3825,18 @@ export type FindIssueResponse = {
 	/// Spans for this issue
 	spans: FindIssueSpanResponse[];
 }
+
+
+/// Jira issue information
+export type GetJiraIssueResponse = {
+
+	key: string;
+	jiraLink: string;
+	statusName?: string;
+	priorityName?: string;
+	resolutionName?: string;
+	assigneeName?: string;
+	assigneeDisplayName?: string;
+	assigneeEmailAddress?: string;
+
+}
