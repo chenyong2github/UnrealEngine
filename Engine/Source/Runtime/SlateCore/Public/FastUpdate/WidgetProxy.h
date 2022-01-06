@@ -225,6 +225,7 @@ struct FSlateWidgetPersistentState
 		, IncomingFlowDirection(EFlowDirection::LeftToRight)
 		, bParentEnabled(true)
 		, bInheritedHittestability(false)
+		, bDeferredPainting(false)
 	{}
 
 	TWeakPtr<SWidget> PaintParent;
@@ -241,6 +242,7 @@ struct FSlateWidgetPersistentState
 	EFlowDirection IncomingFlowDirection;
 	uint8 bParentEnabled : 1;
 	uint8 bInheritedHittestability : 1;
+	uint8 bDeferredPainting : 1;
 
 	static const FSlateWidgetPersistentState NoState;
 };

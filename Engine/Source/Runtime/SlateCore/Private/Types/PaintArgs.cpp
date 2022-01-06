@@ -13,6 +13,7 @@ FPaintArgs::FPaintArgs(const SWidget* PaintParent, FHittestGrid& InRootHittestGr
 	, CurrentTime(InCurrentTime)
 	, DeltaTime(InDeltaTime)
 	, bInheritedHittestability(true)
+	, bDeferredPainting(false)
 {
 }
 
