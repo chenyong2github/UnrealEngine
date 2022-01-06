@@ -2094,7 +2094,7 @@ void FTexturePlatformData::Serialize(FArchive& Ar, UTexture* Owner)
 FString FTexturePlatformData::GetDerivedDataMipKeyString(int32 MipIndex, const FTexture2DMipMap& Mip) const
 {
 	const FString& KeyString = DerivedDataKey.Get<FString>();
-	return FDerivedDataCacheInterface::SanitizeCacheKey(*FString::Printf(TEXT("%s_MIP%u_%dx%d"), *KeyString, MipIndex, Mip.SizeX, Mip.SizeY));
+	return FString::Printf(TEXT("%s_MIP%u_%dx%d"), *KeyString, MipIndex, Mip.SizeX, Mip.SizeY);
 }
 
 UE::DerivedData::FPayloadId FTexturePlatformData::MakeMipId(int32 MipIndex)
