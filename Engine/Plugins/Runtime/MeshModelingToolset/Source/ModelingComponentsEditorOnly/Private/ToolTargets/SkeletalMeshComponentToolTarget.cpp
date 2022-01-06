@@ -21,6 +21,21 @@ namespace USkeletalMeshComponentToolTargetLocals
 // USkeletalMeshComponentReadOnlyToolTarget
 //
 
+bool USkeletalMeshComponentReadOnlyToolTarget::IsValid() const
+{
+	if (!UPrimitiveComponentToolTarget::IsValid())
+	{
+		return false;
+	}
+	USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(Component);
+	if (SkinnedMeshComponent == nullptr)
+	{
+		return false;
+	}
+	const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh;
+
+	return USkeletalMeshReadOnlyToolTarget::IsValid(SkeletalMesh);
+}
 
 int32 USkeletalMeshComponentReadOnlyToolTarget::GetNumMaterials() const
 {
