@@ -310,16 +310,6 @@ namespace UnrealGameSync
 				DirectoryReference.CreateDirectory(WorkspaceSettings.DataFolder);
 				DirectoryReference.CreateDirectory(WorkspaceSettings.CacheFolder);
 
-				// Run any event hooks
-				if (DeploymentSettings.OnDetectProjectSettings != null)
-				{
-					string? Message;
-					if (!DeploymentSettings.OnDetectProjectSettings(WorkspaceSettings, Logger, out Message))
-					{
-						throw new UserErrorException(Message);
-					}
-				}
-
 				return WorkspaceSettings;
 			}
 			finally
