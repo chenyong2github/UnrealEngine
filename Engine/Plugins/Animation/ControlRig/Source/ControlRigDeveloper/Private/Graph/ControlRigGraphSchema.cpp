@@ -927,6 +927,15 @@ bool UControlRigGraphSchema::SupportsPinType(TWeakPtr<const FEdGraphSchemaAction
 bool UControlRigGraphSchema::SupportsPinTypeContainer(TWeakPtr<const FEdGraphSchemaAction> SchemaAction,
 	const FEdGraphPinType& PinType, const EPinContainerType& ContainerType) const
 {
+	// Do not allow containers for execute context type
+	if(const UScriptStruct* ExecuteContextScriptStruct = Cast<UScriptStruct>(PinType.PinSubCategoryObject))
+	{
+		if (ExecuteContextScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+		{
+			return ContainerType == EPinContainerType::None;
+		}
+	}
+	
 	return ContainerType == EPinContainerType::None || ContainerType == EPinContainerType::Array;
 }
 
