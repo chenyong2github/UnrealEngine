@@ -72,7 +72,7 @@ bool GSlateInvalidationRootVerifyWidgetList = false;
 static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyWidgetList(
 	TEXT("Slate.InvalidationRoot.VerifyWidgetList"),
 	GSlateInvalidationRootVerifyWidgetList,
-	TEXT("Each frame, verify that the updated list doesn't match a newly created list.")
+	TEXT("Every tick, verify that the updated list does match a newly created list.")
 );
 void VerifyWidgetList(TSharedRef<SWidget> RootWidget, FSlateInvalidationRootHandle InvalidationRootHandle, FSlateInvalidationWidgetList& WidgetList);
 
@@ -80,29 +80,29 @@ bool GSlateInvalidationRootVerifyWidgetsIndex = false;
 static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyWidgetsIndex(
 	TEXT("Slate.InvalidationRoot.VerifyWidgetsIndex"),
 	GSlateInvalidationRootVerifyWidgetsIndex,
-	TEXT("Each frame, verify that every widgets has the correct index.")
+	TEXT("Every tick, verify that every widgets has the correct corresponding index.")
 );
 
 bool GSlateInvalidationRootVerifyValidWidgets = false;
 static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyValidWidgets(
 	TEXT("Slate.InvalidationRoot.VerifyValidWidgets"),
 	GSlateInvalidationRootVerifyValidWidgets,
-	TEXT("Each frame, verify that every WidgetProxy has a valid SWidget.")
+	TEXT("Every tick, verify that every WidgetProxy has a valid SWidget.")
 );
 
 bool GSlateInvalidationRootVerifyHittestGrid = false;
 static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyHittestGrid(
 	TEXT("Slate.InvalidationRoot.VerifyHittestGrid"),
 	GSlateInvalidationRootVerifyHittestGrid,
-	TEXT("Each frame, verify the hittest grid.")
+	TEXT("Every tick, verify the hittest grid.")
 );
 void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList& WidgetList, FHittestGrid* HittestGrid);
 
 bool GSlateInvalidationRootVerifyWidgetVisibility = false;
-static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyVisibility(
+static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyWidgetVisibility(
 	TEXT("Slate.InvalidationRoot.VerifyWidgetVisibility"),
 	GSlateInvalidationRootVerifyWidgetVisibility,
-	TEXT("Each frame, verify that the cached visibility of the widgets is properly set.")
+	TEXT("Every tick, verify that the cached visibility of the widgets is properly set.")
 );
 void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList);
 
@@ -110,7 +110,7 @@ bool GSlateInvalidationRootVerifyWidgetVolatile = false;
 static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyWidgetVolatile(
 	TEXT("Slate.InvalidationRoot.VerifyWidgetVolatile"),
 	GSlateInvalidationRootVerifyWidgetVolatile,
-	TEXT("Each frame, verify that volatile widgets are mark properly and are in the correct list.")
+	TEXT("Every tick, verify that volatile widgets are mark properly and are in the correct list.")
 );
 void VerifyWidgetVolatile(FSlateInvalidationWidgetList& WidgetList, TArray<FSlateInvalidationWidgetIndex>& FinalUpdateList);
 
@@ -118,7 +118,7 @@ bool GSlateInvalidationRootVerifyWidgetsUpdateList = false;
 static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifyWidgetsUpdateList(
 	TEXT("Slate.InvalidationRoot.VerifyWidgetUpdateList"),
 	GSlateInvalidationRootVerifyWidgetsUpdateList,
-	TEXT("Each frame, verify that pre and post update list contains the correct information and they are sorted.")
+	TEXT("Every tick, verify that pre and post update list contains the correct information and they are sorted.")
 );
 void VerifyWidgetsUpdateList_BeforeProcessPreUpdate(const TSharedRef<SWidget>&, FSlateInvalidationWidgetList*, FSlateInvalidationWidgetPreHeap*, FSlateInvalidationWidgetPostHeap*, TArray<FSlateInvalidationWidgetIndex>&);
 void VerifyWidgetsUpdateList_ProcessPrepassUpdate(FSlateInvalidationWidgetList*, FSlateInvalidationWidgetPrepassHeap*, FSlateInvalidationWidgetPostHeap*);
@@ -126,10 +126,10 @@ void VerifyWidgetsUpdateList_BeforeProcessPostUpdate(const TSharedRef<SWidget>&,
 void VerifyWidgetsUpdateList_AfterProcessPostUpdate(const TSharedRef<SWidget>&, FSlateInvalidationWidgetList*, FSlateInvalidationWidgetPreHeap*, FSlateInvalidationWidgetPostHeap*, TArray<FSlateInvalidationWidgetIndex>&);
 
 bool GSlateInvalidationRootVerifySlateAttribute = false;
-static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifySlateAttributes(
+static FAutoConsoleVariableRef CVarSlateInvalidationRootVerifySlateAttribute(
 	TEXT("Slate.InvalidationRoot.VerifySlateAttribute"),
 	GSlateInvalidationRootVerifySlateAttribute,
-	TEXT("Each frame, verify that the widgets that have registered attribute are correctly updated once and the list contains all the widgets.")
+	TEXT("Every tick, verify that the widgets that have registered attribute are correctly updated once and the list contains all the widgets.")
 );
 void VerifySlateAttribute_BeforeUpdate(FSlateInvalidationWidgetList& FastWidgetPathList);
 void VerifySlateAttribute_AfterUpdate(const FSlateInvalidationWidgetList& FastWidgetPathList);
@@ -1185,7 +1185,7 @@ void LogPostInvalidationItem(const FSlateInvalidationWidgetList& FastWidgetPathL
 	if (!(Test)) \
 	{ \
 		UE_LOG(LogSlate, Error, Message, ##__VA_ARGS__); \
-		FlagToReset = false; \
+		FlagToReset->Set(false); \
 		return; \
 	}
 
@@ -1197,11 +1197,11 @@ void VerifyWidgetList(TSharedRef<SWidget> RootWidget, FSlateInvalidationRootHand
 	if (!bIsIdentical)
 	{
 		UE_LOG(LogSlate, Log, TEXT("**-- New Build List --**"));
-		List.LogWidgetsList();
+		List.LogWidgetsList(true);
 		UE_LOG(LogSlate, Log, TEXT("**-- Invaliation Root List --**"));
-		WidgetList.LogWidgetsList();
+		WidgetList.LogWidgetsList(true);
 
-		UE_SLATE_LOG_ERROR_IF_FALSE(false, GSlateInvalidationRootVerifyWidgetList, TEXT("The updated list doesn't match a newly created list."));
+		UE_SLATE_LOG_ERROR_IF_FALSE(false, CVarSlateInvalidationRootVerifyWidgetList, TEXT("The updated list doesn't match a newly created list."));
 	}
 }
 
@@ -1211,7 +1211,7 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 	check(HittestGrid);
 
 	UE_SLATE_LOG_ERROR_IF_FALSE(WidgetList.VerifySortOrder()
-		, GSlateInvalidationRootVerifyHittestGrid
+		, CVarSlateInvalidationRootVerifyHittestGrid
 		, TEXT("The array's sort order for InvalidationRoot '%s' is not respected.")
 		, *FReflectionMetaData::GetWidgetPath(InvalidationRootWidget));
 
@@ -1232,7 +1232,7 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 	for (const FHittestGrid::FWidgetSortData& Data : WeakHittestGridSortDatas)
 	{
 		TSharedPtr<SWidget> Widget = Data.WeakWidget.Pin();
-		UE_SLATE_LOG_ERROR_IF_FALSE(Widget, GSlateInvalidationRootVerifyHittestGrid, TEXT("A widget is invalid in the HittestGrid"));
+		UE_SLATE_LOG_ERROR_IF_FALSE(Widget, CVarSlateInvalidationRootVerifyHittestGrid, TEXT("A widget is invalid in the HittestGrid"));
 
 		FHittestWidgetSortData SortData = { Widget.Get(), Data.PrimarySort, Data.SecondarySort };
 		HittestGridSortDatas.Add(MoveTemp(SortData));
@@ -1258,7 +1258,7 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 				}
 
 				UE_SLATE_LOG_ERROR_IF_FALSE(Widget.GetProxyHandle().GetWidgetSortOrder() == HittestGridSortDatas[FoundHittestIndex].SecondarySort
-					, GSlateInvalidationRootVerifyHittestGrid
+					, CVarSlateInvalidationRootVerifyHittestGrid
 					, TEXT("The SecondarySort of widget '%s' doesn't match the SecondarySort inside the HittestGrid.")
 					, *FReflectionMetaData::GetWidgetPath(Widget));
 
@@ -1283,7 +1283,7 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 	for (const FHittestWidgetSortData& HittestGridSortData : HittestGridSortDatas)
 	{
 		UE_SLATE_LOG_ERROR_IF_FALSE(HittestGridSortData.Widget != nullptr
-			, GSlateInvalidationRootVerifyHittestGrid
+			, CVarSlateInvalidationRootVerifyHittestGrid
 			, TEXT("A widget in the HittestGrid is invalid and shouldn't be in the HittestGrid."));
 
 		if (!HittestGridSortData.Widget->GetProxyHandle().IsValid(HittestGridSortData.Widget))
@@ -1304,7 +1304,7 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 			if (ParentWidetIndex != FSlateInvalidationWidgetIndex::Invalid)
 			{
 				UE_SLATE_LOG_ERROR_IF_FALSE(WidgetList.IsValidIndex(ParentWidetIndex) && EnumHasAllFlags(WidgetList[ParentWidetIndex].CurrentInvalidateReason, EInvalidateWidgetReason::ChildOrder)
-					, GSlateInvalidationRootVerifyHittestGrid
+					, CVarSlateInvalidationRootVerifyHittestGrid
 					, TEXT("The parent widget doesn't has ChildOrder invaldiation. The hittest grid has an invalid widget."));
 			}
 		}
@@ -1327,13 +1327,13 @@ void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList)
 					{
 						// Confirm that we have the correct parent
 						UE_SLATE_LOG_ERROR_IF_FALSE(WidgetList.IsValidIndex(InvalidationWidget.ParentIndex)
-							, GSlateInvalidationRootVerifyWidgetVisibility
+							, CVarSlateInvalidationRootVerifyWidgetVisibility
 							, TEXT("Widget '%s' Parent index is invalid.")
 							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 
 						const FSlateInvalidationWidgetList::InvalidationWidgetType& ParentInvalidationWidget = WidgetList[InvalidationWidget.ParentIndex];
 						UE_SLATE_LOG_ERROR_IF_FALSE(ParentWidget.Get() == ParentInvalidationWidget.GetWidget()
-							, GSlateInvalidationRootVerifyWidgetVisibility
+							, CVarSlateInvalidationRootVerifyWidgetVisibility
 							, TEXT("Widget '%s' Parent is not '%s'.")
 							, *FReflectionMetaData::GetWidgetDebugInfo(Widget)
 							, *FReflectionMetaData::GetWidgetDebugInfo(ParentWidget.Get()));
@@ -1344,25 +1344,25 @@ void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList)
 					else
 					{
 						UE_SLATE_LOG_ERROR_IF_FALSE(ParentWidget == nullptr || ParentWidget->Advanced_IsInvalidationRoot()
-							, GSlateInvalidationRootVerifyWidgetVisibility
+							, CVarSlateInvalidationRootVerifyWidgetVisibility
 							, TEXT("Widget '%s' Parent is valid and is not an invalidation root.")
 							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 					}
 
 					UE_SLATE_LOG_ERROR_IF_FALSE(InvalidationWidget.Visibility.AreAncestorsVisible() == bParentIsVisible
-						, GSlateInvalidationRootVerifyWidgetVisibility
+						, CVarSlateInvalidationRootVerifyWidgetVisibility
 						, TEXT("Widget '%s' AreAncestorsVisible flag is wrong.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 					UE_SLATE_LOG_ERROR_IF_FALSE(InvalidationWidget.Visibility.IsVisible() == (bParentIsVisible && WidgetVisibility.IsVisible())
-						, GSlateInvalidationRootVerifyWidgetVisibility
+						, CVarSlateInvalidationRootVerifyWidgetVisibility
 						, TEXT("Widget '%s' IsVisible flag is wrong.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 					UE_SLATE_LOG_ERROR_IF_FALSE(InvalidationWidget.Visibility.IsCollapsed() == bParentIsCollapsed || WidgetVisibility == EVisibility::Collapsed
-						, GSlateInvalidationRootVerifyWidgetVisibility
+						, CVarSlateInvalidationRootVerifyWidgetVisibility
 						, TEXT("Widget '%s' IsCollapsed flag is wrong.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 					UE_SLATE_LOG_ERROR_IF_FALSE(InvalidationWidget.Visibility.IsCollapseIndirectly() == bParentIsCollapsed
-					, GSlateInvalidationRootVerifyWidgetVisibility
+						, CVarSlateInvalidationRootVerifyWidgetVisibility
 						, TEXT("Widget '%s' IsCollapseIndirectly flag is wrong.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 				}
@@ -1370,7 +1370,7 @@ void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList)
 					if (!InvalidationWidget.Visibility.IsVisible())
 					{
 						UE_SLATE_LOG_ERROR_IF_FALSE(!Widget->GetPersistentState().CachedElementHandle.HasCachedElements()
-							, GSlateInvalidationRootVerifyWidgetVisibility
+							, CVarSlateInvalidationRootVerifyWidgetVisibility
 							, TEXT("Widget '%s' has cached element and is not visibled.")
 							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 					}
@@ -1397,21 +1397,21 @@ void VerifyWidgetVolatile(FSlateInvalidationWidgetList& WidgetList, TArray<FSlat
 					Widget.CacheVolatility();
 					const bool bIsVolatile = Widget.IsVolatile();
 					UE_SLATE_LOG_ERROR_IF_FALSE(bWasVolatile == bIsVolatile
-						, GSlateInvalidationRootVerifyWidgetVolatile
+						, CVarSlateInvalidationRootVerifyWidgetVolatile
 						, TEXT("Widget '%s' volatily changed without an invalidation.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 				}
 
 				const TSharedPtr<const SWidget> ParentWidget = Widget.GetParentWidget();
 				UE_SLATE_LOG_ERROR_IF_FALSE(ParentWidget
-					, GSlateInvalidationRootVerifyWidgetVolatile
+					, CVarSlateInvalidationRootVerifyWidgetVolatile
 					, TEXT("Parent widget of widget '%s' is invalid.")
 					, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 
 				{
 					const bool bShouldBeVolatileIndirectly = ParentWidget->IsVolatileIndirectly() || ParentWidget->IsVolatile();
 					UE_SLATE_LOG_ERROR_IF_FALSE(Widget.IsVolatileIndirectly() == bShouldBeVolatileIndirectly
-					, GSlateInvalidationRootVerifyWidgetVolatile
+					, CVarSlateInvalidationRootVerifyWidgetVolatile
 					, TEXT("Widget '%s' should be set as %s.")
 					, *FReflectionMetaData::GetWidgetDebugInfo(Widget)
 					, (bShouldBeVolatileIndirectly ? TEXT("volatile indirectly") : TEXT("not volatile indirectly")));
@@ -1420,7 +1420,7 @@ void VerifyWidgetVolatile(FSlateInvalidationWidgetList& WidgetList, TArray<FSlat
 				if (Widget.IsVolatile() && !Widget.IsVolatileIndirectly())
 				{
 					UE_SLATE_LOG_ERROR_IF_FALSE(Widget.HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint)
-						, GSlateInvalidationRootVerifyWidgetVolatile
+						, CVarSlateInvalidationRootVerifyWidgetVolatile
 						, TEXT("Widget '%s' is volatile but doesn't have the update flag NeedsVolatilePaint.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 
@@ -1429,7 +1429,7 @@ void VerifyWidgetVolatile(FSlateInvalidationWidgetList& WidgetList, TArray<FSlat
 						const bool bIsVisible = Widget.GetProxyHandle().GetProxy().Visibility.IsVisible();
 						const bool bIsContains = FinalUpdateList.Contains(Widget.GetProxyHandle().GetWidgetIndex());
 						UE_SLATE_LOG_ERROR_IF_FALSE(bIsContains || !bIsVisible
-							, GSlateInvalidationRootVerifyWidgetVolatile
+							, CVarSlateInvalidationRootVerifyWidgetVolatile
 							, TEXT("Widget '%s' is volatile but is not in the update list.")
 							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 					}
@@ -1452,28 +1452,28 @@ void VerifyWidgetsUpdateList_BeforeProcessPreUpdate(const TSharedRef<SWidget>& R
 	for (FSlateInvalidationWidgetIndex WidgetIndex : FinalUpdateList)
 	{
 		UE_SLATE_LOG_ERROR_IF_FALSE(FastWidgetPathList->IsValidIndex(WidgetIndex)
-			, GSlateInvalidationRootVerifyWidgetsUpdateList
+			, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 			, TEXT("A WidgetIndex is invalid. The Widget can be invalid (because it's not been processed yet)."));
 	}
 
 	UE_SLATE_LOG_ERROR_IF_FALSE(WidgetsNeedingPreUpdate->IsValidHeap_Debug()
-		, GSlateInvalidationRootVerifyWidgetsUpdateList
+		, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 		, TEXT("The PreUpdate list need to stay a valid heap"));
 
 	WidgetsNeedingPreUpdate->ForEachIndexes([FastWidgetPathList](const FSlateInvalidationWidgetPreHeap::FElement& Element)
 		{
 			UE_SLATE_LOG_ERROR_IF_FALSE(FastWidgetPathList->IsValidIndex(Element.GetWidgetIndex())
-				, GSlateInvalidationRootVerifyWidgetsUpdateList
+				, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 				, TEXT("An element is not valid."));
 			const FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[Element.GetWidgetIndex()];
 			if (SWidget* Widget = (*FastWidgetPathList)[Element.GetWidgetIndex()].GetWidget())
 			{
 				UE_SLATE_LOG_ERROR_IF_FALSE(Widget->GetProxyHandle().GetWidgetSortOrder() == Element.GetWidgetSortOrder()
-					, GSlateInvalidationRootVerifyWidgetsUpdateList
+					, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 					, TEXT("The sort order of the widget '%s' do not matches what is in the heap.")
 					, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 				UE_SLATE_LOG_ERROR_IF_FALSE(Widget->GetProxyHandle().GetWidgetIndex() == Element.GetWidgetIndex()
-					, GSlateInvalidationRootVerifyWidgetsUpdateList
+					, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 					, TEXT("The widget index of the widget '%s' do not matches what is in the heap.")
 					, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 			}
@@ -1482,7 +1482,7 @@ void VerifyWidgetsUpdateList_BeforeProcessPreUpdate(const TSharedRef<SWidget>& R
 	FastWidgetPathList->ForEachInvalidationWidget([WidgetsNeedingPreUpdate](FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
 		{
 			UE_SLATE_LOG_ERROR_IF_FALSE(WidgetsNeedingPreUpdate->Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPreHeap
-				, GSlateInvalidationRootVerifyWidgetsUpdateList
+				, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 				, TEXT("Widget '%s' is or is not in the PreUpdate but the flag say otherwise.")
 				, *FReflectionMetaData::GetWidgetDebugInfo(InvalidationWidget.GetWidget()));
 		});
@@ -1496,7 +1496,7 @@ void VerifyWidgetsUpdateList_ProcessPrepassUpdate(FSlateInvalidationWidgetList* 
 			const FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[Element.GetWidgetIndex()];
 			const SWidget* Widget = InvalidationWidget.GetWidget();
 			UE_SLATE_LOG_ERROR_IF_FALSE(WidgetsNeedingPostUpdate->Contains_Debug(Element.GetWidgetIndex())
-				, GSlateInvalidationRootVerifyWidgetsUpdateList
+				, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 				, TEXT("Widget '%s' is in the WidgetsNeedingPrepassUpdate list but not in the WidgetsNeedingPostUpdate.")
 				, *FReflectionMetaData::GetWidgetDebugInfo(InvalidationWidget.GetWidget()));
 		});
@@ -1514,23 +1514,23 @@ void VerifyWidgetsUpdateList_BeforeProcessPostUpdate(const TSharedRef<SWidget>& 
 	}
 
 	UE_SLATE_LOG_ERROR_IF_FALSE(WidgetsNeedingPostUpdate->IsValidHeap_Debug()
-		, GSlateInvalidationRootVerifyWidgetsUpdateList
+		, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 		, TEXT("The PostUpdate list need to stay a valid heap"));
 
 	// Widget in SWidget::Prepass may have added new widget.
 	//This is not desired, it will introduce a frame delay compare to slow path.
 	//UE_SLATE_LOG_ERROR_IF_FALSE(WidgetsNeedingPreUpdate->Num() == 0
-	//	, GSlateInvalidationRootVerifyWidgetsUpdateList
+	//	, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 	//	, TEXT("The PreUpdate list should be empty"));
 
 	UE_SLATE_LOG_ERROR_IF_FALSE(FinalUpdateList.Num() == 0
-		, GSlateInvalidationRootVerifyWidgetsUpdateList
+		, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 		, TEXT("The Final Update list should be empty."));
 
 	WidgetsNeedingPostUpdate->ForEachIndexes([FastWidgetPathList](const FSlateInvalidationWidgetPreHeap::FElement& Element)
 		{
 			UE_SLATE_LOG_ERROR_IF_FALSE(FastWidgetPathList->IsValidIndex(Element.GetWidgetIndex())
-				, GSlateInvalidationRootVerifyWidgetsUpdateList
+				, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 				, TEXT("An element is not valid."));
 
 			const FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[Element.GetWidgetIndex()];
@@ -1540,11 +1540,11 @@ void VerifyWidgetsUpdateList_BeforeProcessPostUpdate(const TSharedRef<SWidget>& 
 			if (Widget)
 			{
 				UE_SLATE_LOG_ERROR_IF_FALSE(Widget->GetProxyHandle().GetWidgetSortOrder() == Element.GetWidgetSortOrder()
-					, GSlateInvalidationRootVerifyWidgetsUpdateList
+					, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 					, TEXT("The sort order of the widget '%s' do not matches what is in the heap.")
 					, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 				UE_SLATE_LOG_ERROR_IF_FALSE(Widget->GetProxyHandle().GetWidgetIndex() == Element.GetWidgetIndex()
-					, GSlateInvalidationRootVerifyWidgetsUpdateList
+					, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 					, TEXT("The widget index of the widget '%s' do not matches what is in the heap.")
 					, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 			}
@@ -1553,7 +1553,7 @@ void VerifyWidgetsUpdateList_BeforeProcessPostUpdate(const TSharedRef<SWidget>& 
 	FastWidgetPathList->ForEachInvalidationWidget([WidgetsNeedingPostUpdate](FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
 		{
 			UE_SLATE_LOG_ERROR_IF_FALSE(WidgetsNeedingPostUpdate->Contains_Debug(InvalidationWidget.Index) == InvalidationWidget.bContainedByWidgetPostHeap
-				, GSlateInvalidationRootVerifyWidgetsUpdateList
+				, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 				, TEXT("Widget '%s' is or is not in the PostUpdate but the flag say otherwise.")
 				, *FReflectionMetaData::GetWidgetDebugInfo(InvalidationWidget.GetWidget()));
 		});
@@ -1571,10 +1571,10 @@ void VerifyWidgetsUpdateList_AfterProcessPostUpdate(const TSharedRef<SWidget>& R
 	}
 
 	UE_SLATE_LOG_ERROR_IF_FALSE(WidgetsNeedingPreUpdate->Num() == 0
-		, GSlateInvalidationRootVerifyWidgetsUpdateList
+		, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 		, TEXT("The list of Pre Update should already been processed."));
 	UE_SLATE_LOG_ERROR_IF_FALSE(WidgetsNeedingPostUpdate->Num() == 0
-		, GSlateInvalidationRootVerifyWidgetsUpdateList
+		, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 		, TEXT("The list of Post Update should already been processed."));
 
 	for(FSlateInvalidationWidgetIndex WidgetIndex : FinalUpdateList)
@@ -1586,11 +1586,11 @@ void VerifyWidgetsUpdateList_AfterProcessPostUpdate(const TSharedRef<SWidget>& R
 		if (Widget)
 		{
 			UE_SLATE_LOG_ERROR_IF_FALSE(InvalidationWidget.CurrentInvalidateReason == EInvalidateWidgetReason::None
-				, GSlateInvalidationRootVerifyWidgetsUpdateList
+				, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 				, TEXT("The widget '%s' is in the update list and it still has a Invalidation Reason.")
 				, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 			UE_SLATE_LOG_ERROR_IF_FALSE(Widget->HasAnyUpdateFlags(EWidgetUpdateFlags::AnyUpdate)
-				, GSlateInvalidationRootVerifyWidgetsUpdateList
+				, CVarSlateInvalidationRootVerifyWidgetsUpdateList
 				, TEXT("The widget '%s' is in the update list but doesn't have an update flag set.")
 				, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 		}
@@ -1609,7 +1609,7 @@ void VerifySlateAttribute_AfterUpdate(const FSlateInvalidationWidgetList& FastWi
 {
 	const bool bElementIndexListValid = FastWidgetPathList.VerifyElementIndexList();
 	UE_SLATE_LOG_ERROR_IF_FALSE(bElementIndexListValid
-		, GSlateInvalidationRootVerifySlateAttribute
+		, CVarSlateInvalidationRootVerifySlateAttribute
 		, TEXT("The VerifySlateAttribute failed in post."));
 }
 
