@@ -57,11 +57,6 @@ namespace UnrealBuildTool
 
 			return null;
 		}
-
-		public static string? WhichGcc()
-		{
-			return Which("g++");
-		}
 	}
 }
 

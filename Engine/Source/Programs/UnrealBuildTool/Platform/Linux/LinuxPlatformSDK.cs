@@ -262,7 +262,7 @@ namespace UnrealBuildTool
 
 			if (ForceUseSystemCompiler())
 			{
-				if (!String.IsNullOrEmpty(LinuxCommon.WhichClang()) || !String.IsNullOrEmpty(LinuxCommon.WhichGcc()))
+				if (!String.IsNullOrEmpty(LinuxCommon.WhichClang()))
 				{
 					return SDKStatus.Valid;
 				}
