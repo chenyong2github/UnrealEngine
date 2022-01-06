@@ -53,6 +53,10 @@ struct POSESEARCH_API FMotionMatchingSettings
 	// Time in seconds to blend out to the new pose. Uses inertial blending and requires an Inertialization node after this node.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
 	float BlendTime = 0.2f;
+
+	// If the pose jump requires a mirroring change and this value is greater than 0, it will be used instead of BlendTime
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0", DislayAfter = "BlendTime"))
+	float MirrorChangeBlendTime = 0.0f;
 	
 	// Don't jump to poses that are less than this many seconds away
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
@@ -84,6 +88,10 @@ struct POSESEARCH_API FMotionMatchingState
 
 	// Updates DbPoseIdx to track DeltaTime and jumps to a follow-up sequence when available
 	UE::PoseSearch::FMotionMatchingContinuityParams ComputeContinuityParameters(const FAnimationUpdateContext& Context) const;
+
+	const FPoseSearchIndexAsset* GetCurrentSearchIndexAsset() const;
+
+	float ComputeJumpBlendTime(const UE::PoseSearch::FSearchResult& Result, const FMotionMatchingSettings& Settings) const;
 
 	// The current pose we're playing from the database
 	UPROPERTY(Transient)

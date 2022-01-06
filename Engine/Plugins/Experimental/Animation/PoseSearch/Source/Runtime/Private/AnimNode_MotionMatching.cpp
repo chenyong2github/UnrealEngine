@@ -24,7 +24,8 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	MotionMatchingState.InitNewDatabaseSearch(Database, Settings.SearchThrottleTime);
 
-	Source.SetLinkNode(&SequencePlayerNode);
+	Source.SetLinkNode(&MirrorNode);
+	MirrorNode.SetSourceLinkNode(&SequencePlayerNode);
 	Source.Initialize(Context);
 }
 
@@ -55,13 +56,15 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	// If a new pose is requested, jump to the pose by updating the embedded sequence player node
 	if ((MotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
 	{
-		const FPoseSearchIndexAsset* SearchIndexAsset = 
-			&MotionMatchingState.CurrentDatabase->SearchIndex.Assets[MotionMatchingState.SearchIndexAssetIdx];
+		const FPoseSearchIndexAsset* SearchIndexAsset = MotionMatchingState.GetCurrentSearchIndexAsset();
 		const FPoseSearchDatabaseSequence& ResultDbSequence = Database->GetSourceAsset(SearchIndexAsset);
 		SequencePlayerNode.SetSequence(ResultDbSequence.Sequence);
 		SequencePlayerNode.SetAccumulatedTime(MotionMatchingState.AssetPlayerTime);
 		SequencePlayerNode.SetLoopAnimation(ResultDbSequence.bLoopAnimation);
 		SequencePlayerNode.SetPlayRate(1.f);
+
+		MirrorNode.SetMirrorDataTable(Database->Schema->MirrorDataTable.Get());
+		MirrorNode.SetMirror(SearchIndexAsset->bMirrored);
 	}
 
 	// Optionally applying dynamic play rate adjustment to chosen sequences based on predictive motion analysis

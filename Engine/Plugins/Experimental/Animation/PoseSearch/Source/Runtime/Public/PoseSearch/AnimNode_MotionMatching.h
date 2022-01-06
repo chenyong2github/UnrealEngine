@@ -4,6 +4,7 @@
 
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_SequencePlayer.h"
+#include "AnimNodes/AnimNode_Mirror.h"
 #include "Animation/MotionTrajectoryTypes.h"
 #include "DynamicPlayRate/DynamicPlayRateLibrary.h"
 #include "PoseSearch/PoseSearch.h"
@@ -59,6 +60,9 @@ private:
 
 	// Embedded sequence player node for playing animations from the motion matching database
 	FAnimNode_SequencePlayer_Standalone SequencePlayerNode;
+
+	// Embedded mirror node to handle mirroring if the pose search results in a mirrored sequence
+	FAnimNode_Mirror MirrorNode;
 
 	// Encapsulated motion matching algorithm and internal state
 	FMotionMatchingState MotionMatchingState;

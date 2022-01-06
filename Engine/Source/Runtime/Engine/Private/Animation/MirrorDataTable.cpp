@@ -352,6 +352,28 @@ void UMirrorDataTable::FillMirrorBoneIndexes(const USkeleton* InSkeleton, TCusto
 	}
 }
 
+void UMirrorDataTable::FillCompactPoseAndComponentRefRotations(
+	const FBoneContainer& BoneContainer,
+	TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex>& OutCompactPoseMirrorBones,
+	TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex>& OutComponentSpaceRefRotations) const
+{
+	TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> MirrorBoneIndexes;
+	FillMirrorBoneIndexes(BoneContainer.GetSkeletonAsset(), MirrorBoneIndexes);
+	FillCompactPoseMirrorBones(BoneContainer, MirrorBoneIndexes, OutCompactPoseMirrorBones);
+
+	const int32 NumBones = BoneContainer.GetCompactPoseNumBones();
+	OutComponentSpaceRefRotations.SetNumUninitialized(NumBones);
+	OutComponentSpaceRefRotations[FCompactPoseBoneIndex(0)] = 
+		BoneContainer.GetRefPoseTransform(FCompactPoseBoneIndex(0)).GetRotation();
+	for (FCompactPoseBoneIndex BoneIndex(1); BoneIndex < NumBones; ++BoneIndex)
+	{
+		const FCompactPoseBoneIndex ParentBoneIndex = BoneContainer.GetParentBoneIndex(BoneIndex);
+		OutComponentSpaceRefRotations[BoneIndex] = 
+			OutComponentSpaceRefRotations[ParentBoneIndex] * BoneContainer.GetRefPoseTransform(BoneIndex).GetRotation();
+	}
+}
+
+
 void UMirrorDataTable::FillMirrorArrays()
 {
 	SyncToMirrorSyncMap.Empty();

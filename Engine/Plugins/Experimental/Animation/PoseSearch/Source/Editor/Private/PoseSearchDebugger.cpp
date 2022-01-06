@@ -42,12 +42,14 @@ public:
 	
 	float GetPoseCost() const { return PoseCostInfo.ChannelCosts.Num() ? PoseCostInfo.ChannelCosts[0] : 0.0f; }
 	float GetTrajectoryCost() const { return PoseCostInfo.ChannelCosts.Num() >= 3 ? PoseCostInfo.ChannelCosts[1] + PoseCostInfo.ChannelCosts[2] : 0.0f; }
+	float GetAddendsCost() const { return PoseCostInfo.NotifyCostAddend + PoseCostInfo.MirrorMismatchCostAddend; }
 
 	int32 PoseIdx = 0;
 	FString AnimSequenceName = "";
 	int32 DbSequenceIdx = 0;
 	int32 AnimFrame = 0;
 	float Time = 0.0f;
+	bool bMirrored = false;
 	FPoseCostInfo PoseCostInfo;
 };
 
@@ -263,22 +265,59 @@ namespace DebuggerDatabaseColumns
 
 		virtual const FSortPredicate& GetSortPredicateAscending() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostInfo.CostAddend < Row1->PoseCostInfo.CostAddend; };
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
+			{ 
+				return Row0->GetAddendsCost() < Row1->GetAddendsCost();
+			};
 			return Predicate;
 		}
 
 		virtual const FSortPredicate& GetSortPredicateDescending() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostInfo.CostAddend >= Row1->PoseCostInfo.CostAddend; };
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
+			{ 
+				return Row0->GetAddendsCost() >= Row1->GetAddendsCost();
+			};
 			return Predicate;
 		}
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
 		{
-			return FText::AsNumber(Row->PoseCostInfo.CostAddend);
+			return FText::AsNumber(Row->GetAddendsCost());
 		}
 	};
 	const FName FCostModifier::Name = "Cost Modifier";
+
+	struct FMirrored : IColumn
+	{
+		using IColumn::IColumn;
+		static const FName Name;
+		virtual FName GetName() const override { return Name; }
+
+		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		{
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
+			{ 
+				return Row0->bMirrored < Row1->bMirrored; 
+			};
+			return Predicate;
+		}
+
+		virtual const FSortPredicate& GetSortPredicateDescending() const override
+		{
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool 
+			{ 
+				return Row0->bMirrored >= Row1->bMirrored; 
+			};
+			return Predicate;
+		}
+
+		virtual FText GetRowText(const FRowDataRef& Row) const override
+		{
+			return FText::Format(LOCTEXT("Mirrored", "{0}"), { Row->bMirrored } );
+		}
+	};
+	const FName FMirrored::Name = "Mirrored";
 }
 
 
@@ -530,6 +569,7 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 			Row->AnimSequenceName = DbSequence.Sequence->GetName();
 			Row->Time = Time;
 			Row->AnimFrame = DbSequence.Sequence->GetFrameAtTime(Time);
+			Row->bMirrored = SearchIndexAsset.bMirrored;
 		}
 	}
 
@@ -544,17 +584,25 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 		CreateRows(Database);
 	}
 	check(ActiveView.Rows.Num() == 1);
-	
+
 	FPoseSearchWeightsContext StateWeights;
 	StateWeights.Update(State.Weights, &Database);
-	
-	const FPoseSearchIndex& SearchIndex = Database.SearchIndex;
 
+	UE::PoseSearch::FSearchContext SearchContext;
+	SearchContext.SetSource(&Database);
+	SearchContext.QueryValues = State.QueryVectorNormalized;
+	SearchContext.WeightsContext = &StateWeights;
+	if (const FPoseSearchIndexAsset* CurrentIndexAsset = Database.SearchIndex.FindAssetForPose(State.DbPoseIdx))
+	{
+		SearchContext.QueryMirrorRequest = CurrentIndexAsset->bMirrored ? 
+			EPoseSearchBooleanRequest::TrueValue : EPoseSearchBooleanRequest::FalseValue;
+	}
+	
 	for(const TSharedRef<FDebuggerDatabaseRowData>& Row : UnfilteredDatabaseRows)
 	{
 		const int32 PoseIdx = Row->PoseIdx;
-		
-		ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &StateWeights, Row->PoseCostInfo);
+
+		ComparePoses(PoseIdx, SearchContext, Row->PoseCostInfo);
 
 		// If we are on the active pose for the frame
 		if (PoseIdx == State.DbPoseIdx)
@@ -594,7 +642,8 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 	AddColumn(MakeShared<FTrajectoryCost>(3));
 	AddColumn(MakeShared<FCostModifier>(4));
 	AddColumn(MakeShared<FFrame>(5));
-	AddColumn(MakeShared<FPoseIdx>(6));
+	AddColumn(MakeShared<FMirrored>(6));
+	AddColumn(MakeShared<FPoseIdx>(7));
 
 	// Active Row
 	ActiveView.HeaderRow = SNew(SHeaderRow);
@@ -847,7 +896,7 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 	Reader.SetValues(State.QueryVector);
 
 	int32 NumSubsamples = Schema->PoseSampleTimes.Num();
-	const int32 NumBones = Schema->Bones.Num();
+	const int32 NumBones = Schema->SampledBones.Num();
 
 	FPoseSearchFeatureDesc Feature;
 	

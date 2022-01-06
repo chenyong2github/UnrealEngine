@@ -111,6 +111,18 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 		// Update features in the query with the latest inputs
 		InOutMotionMatchingState.ComposeQuery(Database, Trajectory);
 
+		UE::PoseSearch::FSearchContext SearchContext;
+		SearchContext.SetSource(InOutMotionMatchingState.CurrentDatabase.Get());
+		SearchContext.QueryValues = InOutMotionMatchingState.ComposedQuery.GetNormalizedValues();
+		SearchContext.WeightsContext = &InOutMotionMatchingState.WeightsContext;
+		if (const FPoseSearchIndexAsset* CurrentIndexAsset = InOutMotionMatchingState.GetCurrentSearchIndexAsset())
+		{
+			SearchContext.QueryMirrorRequest =
+				CurrentIndexAsset->bMirrored ?
+				EPoseSearchBooleanRequest::TrueValue :
+				EPoseSearchBooleanRequest::FalseValue;
+		}
+
 		// Update weight groups
 		InOutMotionMatchingState.WeightsContext.Update(Settings.Weights, Database);
 
@@ -118,26 +130,18 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 		float CurrentDissimilarity = MAX_flt;
 		if (InOutMotionMatchingState.DbPoseIdx != INDEX_NONE)
 		{
-			CurrentDissimilarity = UE::PoseSearch::ComparePoses(
-				Database->SearchIndex,
-				InOutMotionMatchingState.DbPoseIdx,
-				InOutMotionMatchingState.ComposedQuery.GetNormalizedValues(),
-				&InOutMotionMatchingState.WeightsContext
-			);
+			CurrentDissimilarity = UE::PoseSearch::ComparePoses(InOutMotionMatchingState.DbPoseIdx, SearchContext);
 		}
 
 		// Search the database for the nearest match to the updated query vector
-		UE::PoseSearch::FSearchResult Result = UE::PoseSearch::Search(
-			Database,
-			InOutMotionMatchingState.ComposedQuery.GetNormalizedValues(),
-			&InOutMotionMatchingState.WeightsContext
-		);
+		UE::PoseSearch::FSearchResult Result = UE::PoseSearch::Search(SearchContext);
 		if (Result.IsValid() && ((InOutMotionMatchingState.ElapsedPoseJumpTime >= Settings.SearchThrottleTime) || !bCanContinue))
 		{
 			if (!bCanContinue)
 			{
+				const float JumpBlendTime = InOutMotionMatchingState.ComputeJumpBlendTime(Result, Settings);
 				InOutMotionMatchingState.JumpToPose(Result);
-				RequestInertialBlend(Context, Settings.BlendTime);
+				RequestInertialBlend(Context, JumpBlendTime);
 				InOutMotionMatchingState.Flags |= EMotionMatchingFlags::JumpedToPose;
 			}
 			else
@@ -148,7 +152,7 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 				// We'll ignore the candidate pose if it is too near to our current pose
 				bool bNearbyPose = false;
 				const FPoseSearchIndexAsset* StateSearchIndexAsset = 
-					&InOutMotionMatchingState.CurrentDatabase->SearchIndex.Assets[InOutMotionMatchingState.SearchIndexAssetIdx];
+					InOutMotionMatchingState.GetCurrentSearchIndexAsset();
 				if (StateSearchIndexAsset == Result.SearchIndexAsset)
 				{
 					const FPoseSearchDatabaseSequence& ResultDbSequence = Database->GetSourceAsset(Result.SearchIndexAsset);
@@ -164,8 +168,9 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 				// Start playback from the candidate pose if we determined it was a better option
 				if (bBetterPose && !bNearbyPose)
 				{
+					const float JumpBlendTime = InOutMotionMatchingState.ComputeJumpBlendTime(Result, Settings);
 					InOutMotionMatchingState.JumpToPose(Result);
-					RequestInertialBlend(Context, Settings.BlendTime);
+					RequestInertialBlend(Context, JumpBlendTime);
 					InOutMotionMatchingState.Flags |= EMotionMatchingFlags::JumpedToPose;
 				}
 			}
@@ -256,7 +261,7 @@ UE::PoseSearch::FMotionMatchingContinuityParams FMotionMatchingState::ComputeCon
 	{
 		check(SearchIndexAssetIdx != INDEX_NONE);
 
-		const FPoseSearchIndexAsset* SearchIndexAsset = &CurrentDatabase->SearchIndex.Assets[SearchIndexAssetIdx];
+		const FPoseSearchIndexAsset* SearchIndexAsset = GetCurrentSearchIndexAsset();
 		const FPoseSearchDatabaseSequence& DbSequence = CurrentDatabase->GetSourceAsset(SearchIndexAsset);
 		const float AssetLength = DbSequence.Sequence->GetPlayLength();
 		const float DeltaTime = Context.GetDeltaTime();
@@ -291,7 +296,11 @@ UE::PoseSearch::FMotionMatchingContinuityParams FMotionMatchingState::ComputeCon
 			int32 FollowUpSearchIndexAssetIdx = CurrentDatabase->SearchIndex.Assets.IndexOfByPredicate(
 				[&](const FPoseSearchIndexAsset& Entry)
 			{
-				return Entry.SourceAssetIdx == FollowUpDbSequenceIdx && Entry.SamplingInterval.Contains(0.0f);
+				const bool bIsMatch = 
+					Entry.SourceAssetIdx == FollowUpDbSequenceIdx && 
+					Entry.bMirrored == SearchIndexAsset->bMirrored &&
+					Entry.SamplingInterval.Contains(0.0f);
+				return bIsMatch;
 			});
 
 			if (FollowUpSearchIndexAssetIdx != INDEX_NONE)
@@ -315,4 +324,32 @@ UE::PoseSearch::FMotionMatchingContinuityParams FMotionMatchingState::ComputeCon
 		}
 	}
 	return ContinuityParameters;
+}
+
+const FPoseSearchIndexAsset* FMotionMatchingState::GetCurrentSearchIndexAsset() const
+{
+	if (!CurrentDatabase->SearchIndex.Assets.IsValidIndex(SearchIndexAssetIdx))
+	{
+		return nullptr;
+	}
+
+	return &CurrentDatabase->SearchIndex.Assets[SearchIndexAssetIdx];
+}
+
+float FMotionMatchingState::ComputeJumpBlendTime(
+	const UE::PoseSearch::FSearchResult& Result, 
+	const FMotionMatchingSettings& Settings) const
+{
+	const FPoseSearchIndexAsset* SearchIndexAsset = GetCurrentSearchIndexAsset();
+	// Use alternate blend time when changing between mirrored and unmirrored
+	float JumpBlendTime = Settings.BlendTime;
+	if ((SearchIndexAsset != nullptr) && (Settings.MirrorChangeBlendTime > 0.0f))
+	{
+		if (Result.SearchIndexAsset->bMirrored != SearchIndexAsset->bMirrored)
+		{
+			JumpBlendTime = Settings.MirrorChangeBlendTime;
+		}
+	}
+
+	return JumpBlendTime;
 }

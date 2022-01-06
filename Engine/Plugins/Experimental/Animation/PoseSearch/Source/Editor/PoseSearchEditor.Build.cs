@@ -12,6 +12,7 @@ public class PoseSearchEditor : ModuleRules
 			new string[]
 			{
 				"AnimGraph",
+				"AnimGraphRuntime",
 				"AnimationCore",
 				"Core",
 				"CoreUObject",

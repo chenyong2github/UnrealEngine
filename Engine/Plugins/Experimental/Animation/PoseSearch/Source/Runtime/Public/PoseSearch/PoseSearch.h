@@ -55,6 +55,18 @@ enum class EPoseSearchFeatureDomain : int32
 	Invalid = Num UMETA(Hidden)
 };
 
+UENUM()
+enum class EPoseSearchBooleanRequest : int32
+{
+	FalseValue,
+	TrueValue,
+	Indifferent, // if this is used, there will be no cost difference between true and false results
+
+	Num UMETA(Hidden),
+	Invalid = Num UMETA(Hidden)
+};
+
+
 /** Describes each feature of a vector, including data type, sampling options, and buffer offset. */
 USTRUCT()
 struct POSESEARCH_API FPoseSearchFeatureDesc
@@ -127,6 +139,28 @@ enum class EPoseSearchDataPreprocessor : int32
 	Invalid = Num UMETA(Hidden)
 };
 
+USTRUCT()
+struct POSESEARCH_API FPoseSearchBone
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Config)
+	FBoneReference Reference;
+	
+	UPROPERTY(EditAnywhere, Category = Config)
+	bool bUseVelocity = false;
+	
+	UPROPERTY(EditAnywhere, Category = Config)
+	bool bUsePosition = false;
+	
+	UPROPERTY(EditAnywhere, Category = Config)
+	bool bUseRotation = false;
+
+	// this function will return a mask out of EPoseSearchFeatureType based on which features were selected for
+	// the bone.
+	uint32 GetTypeMask() const;
+};
+
 /**
 * Specifies the format of a pose search index. At runtime, queries are built according to the schema for searching.
 */
@@ -145,11 +179,11 @@ public:
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "60"), Category = "Schema")
 	int32 SampleRate = DefaultSampleRate;
 
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	bool bUseBoneVelocities = true;
+	UPROPERTY()
+	bool bUseBoneVelocities_DEPRECATED = true;
 
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	bool bUseBonePositions = true;
+	UPROPERTY()
+	bool bUseBonePositions_DEPRECATED = true;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	bool bUseTrajectoryVelocities = true;
@@ -159,9 +193,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Schema", DisplayName="Use Facing Directions")
 	bool bUseTrajectoryForwardVectors = false;
-
+	
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	TArray<FBoneReference> Bones;
+	TArray<FPoseSearchBone> SampledBones;
+	
+	UPROPERTY()
+	TArray<FBoneReference> Bones_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	TArray<float> PoseSampleTimes;
@@ -171,6 +208,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	TArray<float> TrajectorySampleDistances;
+
+	// If set, this schema will support mirroring pose search databases
+	UPROPERTY(EditAnywhere, Category = "Schema")
+	TObjectPtr<UMirrorDataTable> MirrorDataTable;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Automatic;
@@ -287,14 +328,18 @@ public:
 	FPoseSearchIndexAsset()
 	{}
 
-	FPoseSearchIndexAsset(int32 InSourceAssetIdx, const FFloatInterval& InSamplingInterval)
+	FPoseSearchIndexAsset(int32 InSourceAssetIdx, bool bInMirrored, const FFloatInterval& InSamplingInterval)
 		: SourceAssetIdx(InSourceAssetIdx)
+		, bMirrored(bInMirrored)
 		, SamplingInterval(InSamplingInterval)
 	{}
 
 	// Index of the source asset in search index's container (i.e. UPoseSearchDatabase)
 	UPROPERTY()
 	int32 SourceAssetIdx = INDEX_NONE;
+
+	UPROPERTY()
+	bool bMirrored = false;
 
 	UPROPERTY()
 	FFloatInterval SamplingInterval;
@@ -344,6 +389,7 @@ struct POSESEARCH_API FPoseSearchIndex
 
 	int32 FindAssetIndex(const FPoseSearchIndexAsset* Asset) const;
 	const FPoseSearchIndexAsset* FindAssetForPose(int32 PoseIdx) const;
+	float GetTimeOffset(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const;
 
 	void Reset();
 
@@ -553,6 +599,16 @@ private:
 	TArray<FPoseSearchWeights> ComputedGroupWeights;
 };
 
+UENUM()
+enum class EPoseSearchMirrorOption : int32
+{
+	UnmirroredOnly,
+	MirroredOnly,
+	UnmirroredAndMirrored,
+	
+	Num UMETA(Hidden),
+	Invalid = Num UMETA(Hidden)
+};
 
 /** An entry in a UPoseSearchDatabase. */
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
@@ -568,6 +624,9 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	bool bLoopAnimation = false;
+
+	UPROPERTY(EditAnywhere, Category = "Sequence")
+	EPoseSearchMirrorOption MirrorOption = EPoseSearchMirrorOption::UnmirroredOnly;
 
 	// Used for sampling past pose information at the beginning of the main sequence.
 	// This setting is intended for transitions between cycles. It is optional and only used
@@ -604,6 +663,11 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchWeightParams Weights;
+
+	// If there's a mirroring mismatch between the currently playing sequence and a search candidate, this cost will be 
+	// added to the candidate, making it less likely to be selected
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Database")
+	float MirroringMismatchCost = 0.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
@@ -850,6 +914,24 @@ struct FSearchResult
 	bool IsValid() const { return PoseIdx >= 0; }
 };
 
+struct POSESEARCH_API FSearchContext
+{
+	TArrayView<const float> QueryValues;
+	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
+	const FPoseSearchWeightsContext* WeightsContext = nullptr;
+	FDebugDrawParams DebugDrawParams;
+
+	void SetSource(const UPoseSearchDatabase* InSourceDatabase);
+	void SetSource(const UAnimSequenceBase* InSourceSequence);
+	const FPoseSearchIndex* GetSearchIndex() const;
+	float GetMirrorMismatchCost() const;
+
+private:
+	const UPoseSearchDatabase* SourceDatabase = nullptr;
+	const UAnimSequenceBase* SourceSequence = nullptr;
+	const FPoseSearchIndex* SearchIndex = nullptr;
+	float MirrorMismatchCost = 0.0f;
+};
 
 /**
 * Visualize pose search debug information
@@ -881,43 +963,24 @@ POSESEARCH_API bool BuildIndex(UPoseSearchDatabase* Database);
 
 
 /**
-* Performs a pose search on a sequence's UPoseSearchSequenceMetaData.
-*
-* @param Sequence		The sequence to search within. Must contain a UPoseSearchSequenceMetaData object.
-* @param Query			The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the UPoseSearchSequenceMetaData.
-* @param WeightsContext	Optional weights context used to influence pose search query results
-* @param DrawParams		Visualization options
-* 
-* @return The pose in the sequence that most closely matches the Query.
-*/
-POSESEARCH_API FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayView<const float> Query, FDebugDrawParams DrawParams = FDebugDrawParams());
-
-
-/**
 * Performs a pose search on a UPoseSearchDatabase.
 *
-* @param Database			The database to search within
-* @param Query				The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the Database.
-* @param WeightsContext		Optional weights context used to influence pose search query results
-* @param EndTimeToExclude	Samples this close to the end of an animation sequence will be ignored by the search. 
-* @param DrawParams			Visualization options
+* @param SearchContext	Structure containing search parameters
 * 
 * @return The pose in the database that most closely matches the Query.
 */
-POSESEARCH_API FSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr, FDebugDrawParams DrawParams = FDebugDrawParams());
-
+POSESEARCH_API FSearchResult Search(FSearchContext& SearchContext);
 
 /**
 * Evaluate pose comparison metric between a pose in the search index and an input query
 * 
 * @param SearchIndex	The search index containing the pose to compare to the query
 * @param PoseIdx		The index of the pose in the search index to compare to the query
-* @param Query			The query to compare against. Must have been built using the same schema as the SearchIndex.
-* @param WeightsContext	Optional weights context used to influence pose comparison
+* @param SearchContext	Structure containing search parameters
 * 
 * @return Dissimilarity between the two poses
 */
-POSESEARCH_API float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext);
+POSESEARCH_API float ComparePoses(int32 PoseIdx, FSearchContext& SearchContext);
 
 
 /**
@@ -929,7 +992,9 @@ struct FPoseCostInfo
 	float TotalCost = 0.0f;
 
 	// Contribution from ModifyCost anim notify
-	float CostAddend = 0.0f;
+	float NotifyCostAddend = 0.0f;
+
+	float MirrorMismatchCostAddend = 0.0f;
 
 	// Cost breakdown per channel (e.g. pose cost, time-based trajectory cost, distance-based trajectory cost, etc.)
 	TArray<float> ChannelCosts;
@@ -944,13 +1009,10 @@ struct FPoseCostInfo
 *
 * @param SearchIndex		The search index containing the pose to compare to the query
 * @param PoseIdx			The index of the pose in the search index to compare to the query
-* @param Query				The query to compare against. Must have been built using the same schema as the SearchIndex.
-* @param WeightsContext		Optional weights context used to influence pose comparison
+* @param SearchContext		Structure containing search parameters
 * &param OutPoseCostInfo	Cost details for analysis in the debugger
 *
 * @return Dissimilarity between the two poses
 */
-
-POSESEARCH_API float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext, FPoseCostInfo& OutPoseCostInfo);
-
+POSESEARCH_API float ComparePoses(int32 PoseIdx, FSearchContext& SearchContext, FPoseCostInfo& OutPoseCostInfo);
 }} // namespace UE::PoseSearch

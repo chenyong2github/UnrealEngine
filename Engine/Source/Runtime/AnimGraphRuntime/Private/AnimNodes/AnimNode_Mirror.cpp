@@ -115,18 +115,10 @@ void FAnimNode_MirrorBase::FillCompactPoseAndComponentRefRotations(const FBoneCo
 	UMirrorDataTable* MirrorDataTable = GetMirrorDataTable();
 	if (MirrorDataTable)
 	{
-		TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> MirrorBoneIndexes;
-		MirrorDataTable->FillMirrorBoneIndexes(BoneContainer.GetSkeletonAsset(), MirrorBoneIndexes);
-		MirrorDataTable->FillCompactPoseMirrorBones(BoneContainer, MirrorBoneIndexes, CompactPoseMirrorBones);
-
-		const int32 NumBones = BoneContainer.GetCompactPoseNumBones();
-		ComponentSpaceRefRotations.SetNumUninitialized(NumBones);
-		ComponentSpaceRefRotations[FCompactPoseBoneIndex(0)] = BoneContainer.GetRefPoseTransform(FCompactPoseBoneIndex(0)).GetRotation();
-		for (FCompactPoseBoneIndex BoneIndex(1); BoneIndex < NumBones; ++BoneIndex)
-		{
-			const FCompactPoseBoneIndex ParentBoneIndex = BoneContainer.GetParentBoneIndex(BoneIndex);
-			ComponentSpaceRefRotations[BoneIndex] = ComponentSpaceRefRotations[ParentBoneIndex] * BoneContainer.GetRefPoseTransform(BoneIndex).GetRotation();
-		}
+		MirrorDataTable->FillCompactPoseAndComponentRefRotations(
+			BoneContainer, 
+			CompactPoseMirrorBones, 
+			ComponentSpaceRefRotations);
 	}
 	else
 	{
