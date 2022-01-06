@@ -306,4 +306,12 @@ public:
 		FinalRootMotion.ScaleTranslation(Scale);
 		return FinalRootMotion;
 	}
+
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	static URootMotionModifier_Scale* AddRootMotionModifierScale(
+		UPARAM(DisplayName = "Motion Warping Comp") UMotionWarpingComponent* InMotionWarpingComp,
+		UPARAM(DisplayName = "Animation") const UAnimSequenceBase* InAnimation,
+		UPARAM(DisplayName = "Start Time") float InStartTime,
+		UPARAM(DisplayName = "End Time") float InEndTime,
+		UPARAM(DisplayName = "Scale") FVector InScale = FVector(1.f));
 };
