@@ -2,10 +2,6 @@
 //   Licenced under the Unreal Engine EULA 
 #pragma once
 
-#if defined WINAPI_FAMILY && !defined PLATFORM_WINGDK && !defined _GAMING_XBOX_XBOXONE
-#include "MinWindows.h"
-#endif
-
 #include "binkplugin.h"
 
 #include "HAL/PlatformFileManager.h"
