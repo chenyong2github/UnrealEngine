@@ -110,7 +110,7 @@ public:
 	static FString GetDefaultDeformerGraphAssetPath();
 	static UComputeGraph* LoadDefaultDeformerGraph();
 	void SetAnimFrame(int32 FrameNumber);
-	void CreateMaterials();
+	void CreateHeatMapAssets();
 	void ClampFrameIndex();
 
 	void UpdateIsReadyForTrainingState();
@@ -159,6 +159,9 @@ private:
 
 	/** The heatmap material. */
 	TObjectPtr<UMaterial> HeatMapMaterial;
+
+	/** The heatmap material. */
+	TObjectPtr<UComputeGraph> HeatMapDeformerGraph;
 
 	/** The world that our actors are inside. */
 	TObjectPtr<UWorld> World;

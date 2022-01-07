@@ -657,8 +657,8 @@ void FMLDeformerEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPerso
 	// Start playing the animations.
 	EditorData->InitAssets();
 
-	// Create visualization materials.
-	EditorData->CreateMaterials();
+	// Create visualization assets.
+	EditorData->CreateHeatMapAssets();
 	EditorData->SetHeatMapMaterialEnabled(EditorData->GetDeformerAsset()->GetVizSettings()->GetShowHeatMap());
 
 	VizSettings->SetTempVisualizationMode(VizSettings->GetVisualizationMode());
@@ -739,6 +739,7 @@ void FMLDeformerEditorToolkit::OnFinishedChangingDetails(const FPropertyChangedE
 	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bShowHeatMap))
 	{
 		EditorData->SetHeatMapMaterialEnabled(EditorData->GetDeformerAsset()->GetVizSettings()->GetShowHeatMap());
+		EditorData->UpdateDeformerGraph();
 	}
 	else
 	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, VisualizationMode))
