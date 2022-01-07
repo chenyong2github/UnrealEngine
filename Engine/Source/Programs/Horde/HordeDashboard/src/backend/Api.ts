@@ -2861,9 +2861,6 @@ export type GetUserResponse = {
 	/** Claims for the user */
 	claims?: UserClaim[];
 
-	/** Whether to enable slack notifications for this user */
-	enableIssueNotifications?: boolean;
-
 	/** Whether to enable experimental features for this user */
 	enableExperimentalFeatures?: boolean;
 
@@ -2903,9 +2900,6 @@ export type UpdateUserRequest = {
 
 	/** Job ids to remove from the pinned list */
 	removePinnedJobIds?: string[];
-
-	/** Whether to enable slack notifications for this user */
-	enableIssueNotifications?: boolean;
 
 	/** Whether to enable experimental features for this user */
 	enableExperimentalFeatures?: boolean;

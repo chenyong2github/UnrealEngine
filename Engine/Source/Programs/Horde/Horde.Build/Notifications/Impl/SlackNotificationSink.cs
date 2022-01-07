@@ -641,12 +641,6 @@ namespace HordeServer.Notifications.Impl
 
 		async Task NotifyIssueUpdatedAsync(IUser User, IIssue Issue, IIssueDetails Details)
 		{
-			IUserSettings UserSettings = await UserCollection.GetSettingsAsync(User.Id);
-			if (!UserSettings.EnableIssueNotifications)
-			{
-				Logger.LogInformation("Issue notifications are disabled for user {UserId} ({UserName})", User.Id, User.Name);
-				return;
-			}
 
 			string? SlackUserId = await GetSlackUserId(User);
 			if (SlackUserId == null)

@@ -82,11 +82,6 @@ namespace HordeServer.Models
 		public bool EnableExperimentalFeatures { get; }
 
 		/// <summary>
-		/// Whether to enable Slack notifications
-		/// </summary>
-		public bool EnableIssueNotifications { get; }
-
-		/// <summary>
 		/// Opaque settings dictionary for the dashboard
 		/// </summary>
 		public BsonValue DashboardSettings { get; }

@@ -87,12 +87,11 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="UserId">The user to update</param>
 		/// <param name="EnableExperimentalFeatures"></param>
-		/// <param name="EnableIssueNotifications"></param>
 		/// <param name="DashboardSettings">Opaque settings object for the dashboard</param>
 		/// <param name="AddPinnedJobIds"></param>
 		/// <param name="RemovePinnedJobIds"></param>
 		/// <returns>Updated user object</returns>
-		Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null);
+		Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null);
 	}
 
 	/// <summary>

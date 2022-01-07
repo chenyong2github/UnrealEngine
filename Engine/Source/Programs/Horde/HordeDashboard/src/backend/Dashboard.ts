@@ -133,22 +133,6 @@ export class Dashboard {
         return this.data.pinnedJobIds ?? [];
     }
 
-    get issueNotifications(): boolean {
-
-        return this.data.enableIssueNotifications!;
-    }
-
-    set issueNotifications(value: boolean) {
-
-        backend.updateUser({ enableIssueNotifications: value }).then(() => {
-
-            this.data.enableIssueNotifications = value;
-            this.setUpdated();
-
-        });
-
-    }
-
     get experimentalFeatures(): boolean {
 
         return this.data.enableExperimentalFeatures!;
@@ -484,7 +468,7 @@ export class Dashboard {
 
     serverSettingsChanged: boolean = false;
 
-    private data: GetUserResponse = { id: "", name: "", enableIssueNotifications: false, enableExperimentalFeatures: false, claims: [], pinnedJobIds: [], dashboardSettings: { preferences: new Map() } };
+    private data: GetUserResponse = { id: "", name: "", enableExperimentalFeatures: false, claims: [], pinnedJobIds: [], dashboardSettings: { preferences: new Map() } };
 
     private updateTimeoutId: any = undefined;
 

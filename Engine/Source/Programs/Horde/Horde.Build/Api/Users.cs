@@ -63,11 +63,6 @@ namespace HordeServer.Api
 		public bool? EnableExperimentalFeatures { get; set; }
 
 		/// <summary>
-		/// Whether to enable slack notifications for this user
-		/// </summary>
-		public bool? EnableIssueNotifications { get; set; }
-
-		/// <summary>
 		/// Settings for the dashboard
 		/// </summary>
 		public object? DashboardSettings { get; set; }
@@ -96,7 +91,7 @@ namespace HordeServer.Api
 			if (Settings != null)
 			{
 				this.EnableExperimentalFeatures = Settings.EnableExperimentalFeatures;
-				this.EnableIssueNotifications = Settings.EnableIssueNotifications;
+				
 				this.DashboardSettings = BsonTypeMapper.MapToDotNetValue(Settings.DashboardSettings);
 				this.PinnedJobIds = Settings.PinnedJobIds.ConvertAll(x => x.ToString());
 			}
@@ -160,11 +155,6 @@ namespace HordeServer.Api
 		/// Whether to enable experimental features for this user
 		/// </summary>
 		public bool? EnableExperimentalFeatures { get; set; }
-
-		/// <summary>
-		/// Whether to enable Slack notifications for this user
-		/// </summary>
-		public bool? EnableIssueNotifications { get; set; }
 
 		/// <summary>
 		/// New dashboard settings

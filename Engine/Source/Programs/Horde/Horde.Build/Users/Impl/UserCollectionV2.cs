@@ -94,9 +94,6 @@ namespace HordeServer.Collections.Impl
 			[BsonDefaultValue(false), BsonIgnoreIfDefault]
 			public bool EnableExperimentalFeatures { get; set; }
 
-			[BsonDefaultValue(true), BsonIgnoreIfDefault]
-			public bool EnableIssueNotifications { get; set; } = true;
-
 			public BsonValue DashboardSettings { get; set; } = BsonNull.Value;
 			public List<JobId> PinnedJobIds { get; set; } = new List<JobId>();
 
@@ -117,7 +114,6 @@ namespace HordeServer.Collections.Impl
 				: this(Other.UserId)
 			{
 				this.EnableExperimentalFeatures = Other.EnableExperimentalFeatures;
-				this.EnableIssueNotifications = Other.EnableIssueNotifications;
 				this.DashboardSettings = Other.DashboardSettings;
 				this.PinnedJobIds = new List<JobId>(Other.PinnedJobIds);
 			}
@@ -307,23 +303,12 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures = null, bool? EnableIssueNotifications = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
+		public async Task UpdateSettingsAsync(UserId UserId, bool? EnableExperimentalFeatures = null, BsonValue? DashboardSettings = null, IEnumerable<JobId>? AddPinnedJobIds = null, IEnumerable<JobId>? RemovePinnedJobIds = null)
 		{
 			List<UpdateDefinition<UserSettingsDocument>> Updates = new List<UpdateDefinition<UserSettingsDocument>>();
 			if (EnableExperimentalFeatures != null)
 			{
 				Updates.Add(Builders<UserSettingsDocument>.Update.SetOrUnsetNull(x => x.EnableExperimentalFeatures, EnableExperimentalFeatures));
-			}
-			if (EnableIssueNotifications != null)
-			{
-				if (EnableIssueNotifications.Value)
-				{
-					Updates.Add(Builders<UserSettingsDocument>.Update.Unset(x => x.EnableIssueNotifications));
-				}
-				else
-				{
-					Updates.Add(Builders<UserSettingsDocument>.Update.Set(x => x.EnableIssueNotifications, false));
-				}
 			}
 			if (DashboardSettings != null)
 			{
