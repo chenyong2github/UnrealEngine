@@ -1375,9 +1375,11 @@ static void BuildShaderOutput(
 
 	if (ShaderInput.ExtraSettings.bExtractShaderSource)
 	{
-		TArray<ANSICHAR> CodeOriginal;
-		CodeOriginal.Append(USFSource, FCStringAnsi::Strlen(USFSource) + 1);
-		ShaderOutput.OptionalFinalShaderSource = FString(CodeOriginal.GetData());
+		TArray<ANSICHAR> AssemblyText;
+		if (CrossCompiler::FShaderConductorContext::Disassemble(CrossCompiler::EShaderConductorIR::Spirv, Spirv.GetByteData(), Spirv.GetByteSize(), AssemblyText))
+		{
+			ShaderOutput.OptionalFinalShaderSource = FString(AssemblyText.GetData());
+		}
 	}
 	if (ShaderInput.ExtraSettings.OfflineCompilerPath.Len() > 0)
 	{
