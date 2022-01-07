@@ -28,6 +28,7 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Misc/EmbeddedCommunication.h"
+#include "Misc/CoreDelegates.h"
 
 FEngineLoop GEngineLoop;
 FGameLaunchDaemonMessageHandler GCommandSystem;
@@ -444,12 +445,30 @@ void FAppEntry::Init()
 	// start up the engine
 	GEngineLoop.Init();
 #if !UE_BUILD_SHIPPING
-	UE_LOG(LogInit, Display, TEXT("Initializing TCPConsoleListener."));
+	FIPv4Endpoint ConsoleTCP(FIPv4Address::InternalLoopback, 8888); //TODO: read this from an .ini
 	if (ConsoleListener == nullptr)
 	{
-		FIPv4Endpoint ConsoleTCP(FIPv4Address::InternalLoopback, 8888); //TODO: @csulea read this from some .ini
 		ConsoleListener = new TcpConsoleListener(ConsoleTCP);
 	}
+	// tear down the console listener when backgrounded
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddLambda([]()
+	{
+		if (ConsoleListener)
+		{
+			delete ConsoleListener;
+			ConsoleListener = nullptr;
+		}
+	});
+	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddLambda([ConsoleTCP]()
+	{
+		if (ConsoleListener == nullptr)
+		{
+			ConsoleListener = new TcpConsoleListener(ConsoleTCP);
+		}
+	});
+
+
+
 #endif // UE_BUILD_SHIPPING
 }
 

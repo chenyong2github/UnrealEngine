@@ -139,7 +139,27 @@ bool FIOSTargetDevice::GetUserCredentials(FString& OutUserName, FString& OutUser
 
 inline void FIOSTargetDevice::ExecuteConsoleCommand(const FString& ExecCommand) const
 {
-	// this is where the new console command system execution goes.
+	FString OutStdOut;
+	FString OutStdErr;
+	FString Exe = GetLibImobileDeviceExe("itcpconnect");
+	FString Params = FString::Printf(TEXT(" -u %s 8888"), *DeviceId.GetDeviceName());
+
+	void* StdInPipe_Read = nullptr;
+	void* StdInPipe_Write = nullptr;
+
+	verify(FPlatformProcess::CreatePipe(StdInPipe_Read, StdInPipe_Write, true));
+
+	FProcHandle ProcHandle = FPlatformProcess::CreateProc(*Exe, *Params, true, false, false, nullptr, 0, nullptr, nullptr, StdInPipe_Read);
+	if (ProcHandle.IsValid())
+	{
+		FPlatformProcess::WritePipe(StdInPipe_Write, ExecCommand, nullptr);
+		FPlatformProcess::ClosePipe(StdInPipe_Read, StdInPipe_Write);
+		FPlatformProcess::WaitForProc(ProcHandle);
+	}
+	else
+	{
+		FPlatformProcess::ClosePipe(StdInPipe_Read, StdInPipe_Write);
+	}
 }
 
 inline ITargetDeviceOutputPtr FIOSTargetDevice::CreateDeviceOutputRouter(FOutputDevice* Output) const

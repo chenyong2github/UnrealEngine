@@ -43,24 +43,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
         DeviceConnectionInterface DeviceInterface;
     };
 
-    static FString GetLibImobileDeviceExe(const FString &ExeName)
-    {
-        FString ToReturn;
-#if PLATFORM_WINDOWS
-        ToReturn = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Extras/ThirdPartyNotUE/libimobiledevice/x64/"));
-#elif PLATFORM_MAC
-        ToReturn = FPaths::ConvertRelativePathToFull(FPaths::EngineDir() / TEXT("Extras/ThirdPartyNotUE/libimobiledevice/Mac/"));
-#else
-        UE_LOG(LogIOSDeviceHelper, Error, TEXT("The current platform is unsupported by Libimobile library."));
-#endif
-        ToReturn += ExeName;
-#if PLATFORM_WINDOWS
-		ToReturn += TEXT(".exe");
-#endif
-
-        return ToReturn;
-    }
-
     static TArray<LibIMobileDevice> GetLibIMobileDevices()
     {
         FString OutStdOut;

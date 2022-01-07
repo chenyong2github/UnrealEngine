@@ -5,8 +5,8 @@
 #include "Common/TcpSocketBuilder.h"
 #include "Common/TcpListener.h"
 
-extern void EnqueueConsoleCommand(uint8 *Command);
-TcpConsoleListener *ConsoleListener = nullptr;
+extern void EnqueueConsoleCommand(uint8* Command);
+TcpConsoleListener* ConsoleListener = nullptr;
 
 /* TcpConsoleListener structors
  *****************************************************************************/
@@ -16,13 +16,13 @@ TcpConsoleListener::TcpConsoleListener(const FIPv4Endpoint& InListenEndpoint)
 	, bStopping(false)
 	, Listener(nullptr)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[UE] Console Listener created!\n"));
+	UE_LOG(LogTemp, Display, TEXT("Initializing TCPConsoleListener."));
 	Thread = FRunnableThread::Create(this, TEXT("TcpConsoleListener"), 128 * 1024, TPri_Normal);
 }
 
-
 TcpConsoleListener::~TcpConsoleListener()
 {
+	UE_LOG(LogTemp, Display, TEXT("Stopping TCPConsoleListener."));
 	if (Listener)
 	{
 		delete Listener;
@@ -39,7 +39,6 @@ TcpConsoleListener::~TcpConsoleListener()
 bool TcpConsoleListener::HandleListenerConnectionAccepted(FSocket* ClientSocket, const FIPv4Endpoint& ClientEndpoint)
 {
 	Connections.Add(ClientSocket);
-	
 	return true;
 }
 
@@ -54,7 +53,6 @@ void TcpConsoleListener::Exit()
 
 bool TcpConsoleListener::Init()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[UE] TCP Listener created!\n"));
 	Listener = new FTcpListener(ListenEndpoint);
 	Listener->OnConnectionAccepted().BindRaw(this, &TcpConsoleListener::HandleListenerConnectionAccepted);
 
@@ -82,7 +80,7 @@ uint32 TcpConsoleListener::Run()
 				memset(RecvBuffer, 0, CommandSize);
 				if (Connection->Recv(RecvBuffer, CommandSize, BytesRead))
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[UE] Got TCP console command size %i '%s'"), BytesRead, *FString(UTF8_TO_TCHAR(RecvBuffer)));
+					UE_LOG(LogTemp, Display, TEXT("Received TCP console command '%s'"), *FString(UTF8_TO_TCHAR(RecvBuffer)));
 					EnqueueConsoleCommand(RecvBuffer);
 				}
 				else
@@ -103,7 +101,6 @@ uint32 TcpConsoleListener::Run()
 	return 0;
 }
 
-
 void TcpConsoleListener::Stop()
 {
 	bStopping = true;
@@ -114,5 +111,3 @@ void TcpConsoleListener::Stop()
 		Listener = nullptr;
 	}
 }
-
-
