@@ -1,0 +1,730 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using EpicGames.Core;
+using EpicGames.Perforce;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.Linq;
+using System.Net;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
+using UnrealGameSync;
+
+namespace UnrealGameSyncCmd
+{
+	using ILogger = Microsoft.Extensions.Logging.ILogger;
+
+	sealed class UserErrorException : Exception
+	{
+		public LogEvent Event { get; }
+		public int Code { get; }
+
+		public UserErrorException(LogEvent Event)
+			: base(Event.ToString())
+		{
+			this.Event = Event;
+			this.Code = 1;
+		}
+
+		public UserErrorException(string Message, params object[] Args)
+			: this(LogEvent.Create(LogLevel.Error, Message, Args))
+		{
+		}
+	}
+
+	public class Program
+	{
+		class CommandInfo
+		{
+			public string Name { get; }
+			public Type Type { get; }
+			public string Usage { get; }
+			public string Brief { get; }
+
+			public CommandInfo(string Name, Type Type, string Usage, string Brief)
+			{
+				this.Name = Name;
+				this.Type = Type;
+				this.Usage = Usage;
+				this.Brief = Brief;
+			}
+		}
+
+		static CommandInfo[] Commands =
+		{
+			new CommandInfo("init", typeof(InitCommand),
+				"ugs init [stream-path] [-client=..] [-server=..] [-user=..] [-branch=..] [-project=..]",
+				"Create a client for the given stream, or initializes an existing client for use by UGS."
+			),
+			new CommandInfo("switch", typeof(SwitchCommand),
+				"ugs switch [project name|project path|stream]",
+				"Changes the active project to the one in the workspace with the given name, or switches to a new stream."
+			),
+			new CommandInfo("config", typeof(ConfigCommand),
+				"ugs config",
+				"Updates the configuration for the current workspace."
+			),
+			new CommandInfo("sync", typeof(SyncCommand),
+				"ugs sync [change|'latest'] [-build] [-only]",
+				"Syncs the current workspace to the given changelist, optionally removing all local state."
+			),
+			new CommandInfo("build", typeof(BuildCommand),
+				"ugs build [id] [-list]",
+				"Runs the default build steps for the current project, or a particular step referenced by id."
+			),
+			new CommandInfo("status", typeof(StatusCommand),
+				"ugs status [-update]",
+				"Shows the status of the currently synced branch."
+			)
+		};
+
+		class CommandContext
+		{
+			public CommandLineArguments Arguments { get; }
+			public ILogger Logger { get; }
+			public ILoggerFactory LoggerFactory { get; }
+			public UserSettings UserSettings { get; }
+
+			public CommandContext(CommandLineArguments Arguments, ILogger Logger, ILoggerFactory LoggerFactory, UserSettings UserSettings)
+			{
+				this.Arguments = Arguments;
+				this.Logger = Logger;
+				this.LoggerFactory = LoggerFactory;
+				this.UserSettings = UserSettings;
+			}
+		}
+
+		class ProjectConfigOptions
+		{
+			[CommandLine("-Server=")]
+			public string? ServerAndPort { get; set; }
+
+			[CommandLine("-User=")]
+			public string? UserName { get; set; }
+
+			public void ApplyTo(UserWorkspaceSettings Settings)
+			{
+				if (ServerAndPort != null)
+				{
+					Settings.ServerAndPort = (ServerAndPort.Length == 0) ? null : ServerAndPort;
+				}
+				if (UserName != null)
+				{
+					Settings.UserName = (UserName.Length == 0) ? null : UserName;
+				}
+			}
+		}
+
+		class ProjectInitOptions : ProjectConfigOptions
+		{
+			[CommandLine("-Client=")]
+			public string? ClientName { get; set; }
+
+			[CommandLine("-Branch=")]
+			public string? BranchPath { get; set; }
+
+			[CommandLine("-Project=")]
+			public string? ProjectName { get; set; }
+		}
+
+		public static async Task<int> Main(string[] RawArgs)
+		{
+			DirectoryReference GlobalConfigFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData)!, "UnrealGameSync");
+			DirectoryReference LogFolder = GlobalConfigFolder;
+
+			Serilog.ILogger SerilogLogger = new LoggerConfiguration()
+				.Enrich.FromLogContext()
+				.WriteTo.Console(Serilog.Events.LogEventLevel.Information, outputTemplate: "{Message:lj}{NewLine}")
+				.WriteTo.File(FileReference.Combine(LogFolder, "ugs-cmd.txt").FullName, Serilog.Events.LogEventLevel.Debug, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
+				.CreateLogger();
+
+			using ILoggerFactory LoggerFactory = new Serilog.Extensions.Logging.SerilogLoggerFactory(SerilogLogger, true);
+			ILogger Logger = LoggerFactory.CreateLogger("Main");
+			try
+			{
+				ConfigFile ConfigFile = new ConfigFile();
+				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+				{
+					ConfigFile.TryLoad(FileReference.Combine(GlobalConfigFolder, "UnrealGameSync.ini"), Logger);
+				}
+
+				UserSettings UserSettings = new UserSettings(null!, ConfigFile);
+
+				CommandLineArguments Args = new CommandLineArguments(RawArgs);
+
+				string? CommandName;
+				if (!Args.TryGetPositionalArgument(out CommandName))
+				{
+					PrintHelp();
+					return 0;
+				}
+
+				CommandInfo? Command = Commands.FirstOrDefault(x => x.Name.Equals(CommandName, StringComparison.OrdinalIgnoreCase));
+				if (Command == null)
+				{
+					Logger.LogError($"unknown command '{CommandName}'");
+					Console.WriteLine();
+					PrintHelp();
+					return 1;
+				}
+
+				Command Instance = (Command)Activator.CreateInstance(Command.Type)!;
+				await Instance.ExecuteAsync(new CommandContext(Args, Logger, LoggerFactory, UserSettings));
+				return 0;
+			}
+			catch (UserErrorException Ex)
+			{
+				Logger.Log(Ex.Event.Level, "{Message}", Ex.Event.ToString());
+				return Ex.Code;
+			}
+			catch (PerforceException Ex)
+			{
+				Logger.LogError(Ex, "{Message}", Ex.Message);
+				return 1;
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogError(Ex, "Unhandled exception.\n{Str}", Ex);
+				return 1;
+			}
+		}
+
+		static void PrintHelp()
+		{
+			Console.WriteLine("Usage:");
+			foreach (CommandInfo Command in Commands)
+			{
+				Console.WriteLine();
+				ConsoleUtils.WriteLineWithWordWrap(Command.Usage, 2, 8);
+				ConsoleUtils.WriteLineWithWordWrap(Command.Brief, 4, 4);
+			}
+		}
+
+		public static UserWorkspaceSettings? ReadOptionalUserWorkspaceSettings()
+		{
+			DirectoryReference? Dir = DirectoryReference.GetCurrentDirectory();
+			for (; Dir != null; Dir = Dir.ParentDirectory)
+			{
+				UserWorkspaceSettings? Settings;
+				if (UserWorkspaceSettings.TryLoad(Dir, out Settings))
+				{
+					return Settings;
+				}
+			}
+			return null;
+		}
+
+		public static UserWorkspaceSettings ReadRequiredUserWorkspaceSettings()
+		{
+			UserWorkspaceSettings? Settings = ReadOptionalUserWorkspaceSettings();
+			if (Settings == null)
+			{
+				throw new UserErrorException("Unable to find UGS workspace in current directory.");
+			}
+			return Settings;
+		}
+
+		public static async Task<UserWorkspaceState> ReadWorkspaceState(IPerforceConnection PerforceClient, UserWorkspaceSettings Settings, UserSettings UserSettings, ILogger Logger)
+		{
+			UserWorkspaceState State = UserSettings.FindOrAddWorkspaceState(Settings);
+			if (State.SettingsTimeUtc != Settings.LastModifiedTimeUtc)
+			{
+				Logger.LogDebug("Updating state due to modified settings timestamp");
+				ProjectInfo Info = await ProjectInfo.CreateAsync(PerforceClient, Settings, CancellationToken.None);
+				State.UpdateCachedProjectInfo(Info, Settings.LastModifiedTimeUtc);
+				State.Save();
+			}
+			return State;
+		}
+
+		public static Task<IPerforceConnection> ConnectAsync(string? ServerAndPort, string? UserName, string? ClientName, ILoggerFactory LoggerFactory)
+		{
+			PerforceSettings Settings = new PerforceSettings(PerforceSettings.Default);
+			Settings.ClientName = ClientName;
+			Settings.PreferNativeClient = true;
+			if (!String.IsNullOrEmpty(ServerAndPort))
+			{
+				Settings.ServerAndPort = ServerAndPort;
+			}
+			if (!String.IsNullOrEmpty(UserName))
+			{
+				Settings.UserName = UserName;
+			}
+
+			return PerforceConnection.CreateAsync(Settings, LoggerFactory.CreateLogger("Perforce"));
+		}
+
+		public static Task<IPerforceConnection> ConnectAsync(UserWorkspaceSettings Settings, ILoggerFactory LoggerFactory)
+		{
+			return ConnectAsync(Settings.ServerAndPort, Settings.UserName, Settings.ClientName, LoggerFactory);
+		}
+
+		static string[] ReadSyncFilter(UserWorkspaceSettings WorkspaceSettings, UserSettings UserSettings, ConfigFile ProjectConfig)
+		{
+			Dictionary<Guid, WorkspaceSyncCategory> SyncCategories = ConfigUtils.GetSyncCategories(ProjectConfig);
+			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(SyncCategories, UserSettings.SyncView, UserSettings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
+
+			ConfigSection PerforceSection = ProjectConfig.FindSection("Perforce");
+			if (PerforceSection != null)
+			{
+				IEnumerable<string> AdditionalPaths = PerforceSection.GetValues("AdditionalPathsToSync", new string[0]);
+				CombinedSyncFilter = AdditionalPaths.Union(CombinedSyncFilter).ToArray();
+			}
+
+			return CombinedSyncFilter;
+		}
+
+		static async Task<string> FindProjectPathAsync(IPerforceConnection Perforce, string ClientName, string BranchPath, string? ProjectName)
+		{
+			using IPerforceConnection PerforceClient = await PerforceConnection.CreateAsync(new PerforceSettings(Perforce.Settings) { ClientName = ClientName }, Perforce.Logger);
+
+			// Find or validate the selected project
+			string SearchPath;
+			if (ProjectName == null)
+			{
+				SearchPath = $"//{ClientName}{BranchPath}/*.uprojectdirs";
+			}
+			else if (ProjectName.Contains('.'))
+			{
+				SearchPath = $"//{ClientName}{BranchPath}/{ProjectName.TrimStart('/')}";
+			}
+			else
+			{
+				SearchPath = $"//{ClientName}{BranchPath}/.../{ProjectName}.uproject";
+			}
+
+			List<FStatRecord> ProjectFileRecords = await PerforceClient.FStatAsync(FStatOptions.ClientFileInPerforceSyntax, SearchPath).ToListAsync();
+			ProjectFileRecords.RemoveAll(x => !x.IsMapped);
+
+			List<string> Paths = ProjectFileRecords.Select(x => PerforceUtils.GetClientRelativePath(x.ClientFile!)).Distinct(StringComparer.Ordinal).ToList();
+			if (Paths.Count == 0)
+			{
+				throw new UserErrorException("No project file found matching {SearchPath}", SearchPath);
+			}
+			if (Paths.Count > 1)
+			{
+				throw new UserErrorException("Multiple projects found matching {SearchPath}: {Paths}", SearchPath, String.Join(", ", Paths));
+			}
+
+			return "/" + Paths[0];
+		}
+
+		abstract class Command
+		{
+			public abstract Task ExecuteAsync(CommandContext Context);
+		}
+
+		class InitCommand : Command
+		{
+			public override async Task ExecuteAsync(CommandContext Context)
+			{
+				ILogger Logger = Context.Logger;
+
+				// Get the positional argument indicating the file to look for
+				string? InitName;
+				Context.Arguments.TryGetPositionalArgument(out InitName);
+
+				// Get the config settings from the command line
+				ProjectInitOptions Options = new ProjectInitOptions();
+				Context.Arguments.ApplyTo(Options);
+				Context.Arguments.CheckAllArgumentsUsed();
+
+				// Get the host name
+				using IPerforceConnection Perforce = await ConnectAsync(Options.ServerAndPort, Options.UserName, null, Context.LoggerFactory);
+				InfoRecord PerforceInfo = await Perforce.GetInfoAsync(InfoOptions.ShortOutput);
+				string HostName = PerforceInfo.ClientHost ?? Dns.GetHostName();
+
+				// Create the perforce connection
+				if (InitName != null)
+				{
+					await InitNewClientAsync(Perforce, Context, InitName, HostName, Options, Logger);
+				}
+				else
+				{
+					await InitExistingClientAsync(Perforce, Context, HostName, Options, Logger);
+				}
+			}
+
+			async Task InitNewClientAsync(IPerforceConnection Perforce, CommandContext Context, string StreamName, string HostName, ProjectInitOptions Options, ILogger Logger)
+			{
+				Logger.LogInformation("Checking stream...");
+
+				// Get the given stream
+				PerforceResponse<StreamRecord> StreamResponse = await Perforce.TryGetStreamAsync(StreamName, true);
+				if (!StreamResponse.Succeeded)
+				{
+					throw new UserErrorException($"Unable to find stream '{StreamName}'");
+				}
+				StreamRecord Stream = StreamResponse.Data;
+
+				// Get the new directory for the client
+				DirectoryReference ClientDir = DirectoryReference.Combine(DirectoryReference.GetCurrentDirectory(), Stream.Stream.Replace('/', '+'));
+				DirectoryReference.CreateDirectory(ClientDir);
+
+				// Make up a new client name 
+				string ClientName = Options.ClientName ?? Regex.Replace($"{Perforce.Settings.UserName}_{HostName}_{Stream.Stream.Trim('/')}", "[^0-9a-zA-Z_.-]", "+");
+
+				// Check there are no existing clients under the current path
+				List<ClientsRecord> Clients = await FindExistingClients(Perforce, HostName, ClientDir);
+				if (Clients.Count > 0)
+				{
+					if (Clients.Count == 1 && ClientName.Equals(Clients[0].Name, StringComparison.OrdinalIgnoreCase) && ClientDir == TryParseRoot(Clients[0].Root))
+					{
+						Logger.LogInformation("Reusing existing client for {ClientDir} ({ClientName})", ClientDir, Options.ClientName);
+					}
+					else
+					{
+						throw new UserErrorException("Current directory is already within a Perforce workspace ({ClientName})", Clients[0].Name);
+					}
+				}
+
+				// Create the new client
+				ClientRecord Client = new ClientRecord(ClientName, Perforce.Settings.UserName, ClientDir.FullName);
+				Client.Host = HostName;
+				Client.Stream = Stream.Stream;
+				Client.Options = ClientOptions.Rmdir;
+				await Perforce.CreateClientAsync(Client);
+
+				// Branch root is currently hard-coded at the root
+				string BranchPath = Options.BranchPath ?? String.Empty;
+				string ProjectPath = await FindProjectPathAsync(Perforce, ClientName, BranchPath, Options.ProjectName);
+
+				// Create the settings object
+				UserWorkspaceSettings Settings = new UserWorkspaceSettings();
+				Settings.RootDir = ClientDir;
+				Settings.Init(Perforce.Settings.ServerAndPort, Perforce.Settings.UserName, ClientName, BranchPath, ProjectPath);
+				Options.ApplyTo(Settings);
+				Settings.Save();
+
+				Logger.LogInformation("Initialized {ClientName} with root at {RootDir}", ClientName, ClientDir);
+			}
+
+			static DirectoryReference? TryParseRoot(string Root)
+			{
+				try
+				{
+					return new DirectoryReference(Root);
+				}
+				catch
+				{
+					return null;
+				}
+			}
+
+			async Task InitExistingClientAsync(IPerforceConnection Perforce, CommandContext Context, string HostName, ProjectInitOptions Options, ILogger Logger)
+			{
+				DirectoryReference CurrentDir = DirectoryReference.GetCurrentDirectory();
+
+				// Make sure the client name is set
+				string? ClientName = Options.ClientName;
+				if (ClientName == null)
+				{
+					List<ClientsRecord> Clients = await FindExistingClients(Perforce, HostName, CurrentDir);
+					if (Clients.Count == 0)
+					{
+						throw new UserErrorException("Unable to find client for {HostName} under {ClientDir}", HostName, CurrentDir);
+					}
+					if (Clients.Count > 1)
+					{
+						throw new UserErrorException("Multiple clients found for {HostName} under {ClientDir}: {ClientList}", HostName, CurrentDir, String.Join(", ", Clients.Select(x => x.Name)));
+					}
+
+					ClientName = Clients[0].Name;
+					Logger.LogInformation("Found client {ClientName}", ClientName);
+				}
+
+				// Get the client info
+				ClientRecord Client = await Perforce.GetClientAsync(Options.ClientName);
+				DirectoryReference ClientDir = new DirectoryReference(Client.Root);
+
+				// If a project path was specified in local syntax, try to convert it to client-relative syntax
+				string? ProjectName = Options.ProjectName;
+				if (Options.ProjectName != null && Options.ProjectName.Contains('.'))
+				{
+					Options.ProjectName = FileReference.Combine(CurrentDir, Options.ProjectName).MakeRelativeTo(ClientDir).Replace('\\', '/');
+				}
+
+				// Branch root is currently hard-coded at the root
+				string BranchPath = Options.BranchPath ?? String.Empty;
+				string ProjectPath = await FindProjectPathAsync(Perforce, ClientName, BranchPath, ProjectName);
+
+				// Create the settings object
+				UserWorkspaceSettings Settings = new UserWorkspaceSettings();
+				Settings.RootDir = ClientDir;
+				Settings.Init(Perforce.Settings.ServerAndPort, Perforce.Settings.UserName, ClientName, BranchPath, ProjectPath);
+				Options.ApplyTo(Settings);
+				Settings.Save();
+
+				Logger.LogInformation("Initialized workspace at {RootDir} for {ClientProject}", ClientDir, Settings.ClientProjectPath);
+			}
+
+			static async Task<List<ClientsRecord>> FindExistingClients(IPerforceConnection Perforce, string HostName, DirectoryReference ClientDir)
+			{
+				List<ClientsRecord> MatchingClients = new List<ClientsRecord>();
+
+				List<ClientsRecord> Clients = await Perforce.GetClientsAsync(ClientsOptions.None, Perforce.Settings.UserName);
+				foreach (ClientsRecord Client in Clients)
+				{
+					if (!String.IsNullOrEmpty(Client.Root) && !String.IsNullOrEmpty(Client.Host) && String.Compare(HostName, Client.Host, StringComparison.OrdinalIgnoreCase) == 0)
+					{
+						DirectoryReference? RootDir;
+						try
+						{
+							RootDir = new DirectoryReference(Client.Root);
+						}
+						catch
+						{
+							RootDir = null;
+						}
+
+						if (RootDir != null && ClientDir.IsUnderDirectory(RootDir))
+						{
+							MatchingClients.Add(Client);
+						}
+					}
+				}
+
+				return MatchingClients;
+			}
+		}
+
+		class SyncCommand : Command
+		{
+			class SyncOptions
+			{
+				[CommandLine("-Only")]
+				public bool SingleChange { get; set; }
+
+				[CommandLine("-Build")]
+				public bool Build { get; set; }
+			}
+
+			public override async Task ExecuteAsync(CommandContext Context)
+			{
+				ILogger Logger = Context.Logger;
+				Context.Arguments.TryGetPositionalArgument(out string? ChangeString);
+
+				SyncOptions SyncOptions = new SyncOptions();
+				Context.Arguments.ApplyTo(SyncOptions);
+
+				Context.Arguments.CheckAllArgumentsUsed();
+
+				UserWorkspaceSettings Settings = ReadRequiredUserWorkspaceSettings();
+				using IPerforceConnection PerforceClient = await ConnectAsync(Settings, Context.LoggerFactory);
+				UserWorkspaceState State = await ReadWorkspaceState(PerforceClient, Settings, Context.UserSettings, Logger);
+
+				ChangeString ??= "latest";
+
+				int Change;
+				if (!int.TryParse(ChangeString, out Change))
+				{
+					if (String.Equals(ChangeString, "latest", StringComparison.OrdinalIgnoreCase))
+					{
+						List<ChangesRecord> Changes = await PerforceClient.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, $"//{Settings.ClientName}/...");
+						Change = Changes[0].Number;
+					}
+					else
+					{
+						throw new UserErrorException("Unknown change type for sync '{Change}'", ChangeString);
+					}
+				}
+
+				WorkspaceUpdateOptions Options = SyncOptions.SingleChange? WorkspaceUpdateOptions.SyncSingleChange : WorkspaceUpdateOptions.Sync;
+				if (SyncOptions.Build)
+				{
+					Options |= WorkspaceUpdateOptions.Build;
+				}
+
+				ProjectInfo ProjectInfo = State.CreateProjectInfo();
+				UserProjectSettings ProjectSettings = Context.UserSettings.FindOrAddProjectSettings(ProjectInfo);
+
+				ConfigFile ProjectConfig = await ConfigUtils.ReadProjectConfigFileAsync(PerforceClient, ProjectInfo, Logger, CancellationToken.None);
+				string[] SyncFilter = ReadSyncFilter(Settings, Context.UserSettings, ProjectConfig);
+
+				WorkspaceUpdateContext UpdateContext = new WorkspaceUpdateContext(Change, Options, BuildConfig.Development, SyncFilter, ProjectSettings.BuildSteps, null);
+
+				WorkspaceUpdate Update = new WorkspaceUpdate(UpdateContext);
+				await Update.ExecuteAsync(PerforceClient.Settings, ProjectInfo, State, Context.Logger, CancellationToken.None);
+			}
+		}
+
+		class ConfigCommand : Command
+		{
+			public override async Task ExecuteAsync(CommandContext Context)
+			{
+				ILogger Logger = Context.Logger;
+
+				UserWorkspaceSettings Settings = ReadRequiredUserWorkspaceSettings();
+				if (!Context.Arguments.GetUnusedArguments().Any())
+				{
+					ProcessStartInfo StartInfo = new ProcessStartInfo();
+					StartInfo.FileName = Settings.ConfigFile.FullName;
+					StartInfo.UseShellExecute = true;
+					using (Process? Editor = Process.Start(StartInfo))
+					{
+						if (Editor != null)
+						{
+							await Editor.WaitForExitAsync();
+						}
+					}
+				}
+				else
+				{
+					ProjectConfigOptions Options = new ProjectConfigOptions();
+					Context.Arguments.ApplyTo(Options);
+					Context.Arguments.CheckAllArgumentsUsed(Context.Logger);
+
+					Options.ApplyTo(Settings);
+					Settings.Save();
+
+					Logger.LogInformation("Updated {ConfigFile}", Settings.ConfigFile);
+				}
+			}
+		}
+
+		class BuildCommand : Command
+		{
+			public override async Task ExecuteAsync(CommandContext Context)
+			{
+				ILogger Logger = Context.Logger;
+				Context.Arguments.TryGetPositionalArgument(out string? Target);
+				bool ListOnly = Context.Arguments.HasOption("-List");
+				Context.Arguments.CheckAllArgumentsUsed();
+
+				UserWorkspaceSettings Settings = ReadRequiredUserWorkspaceSettings();
+				using IPerforceConnection PerforceClient = await ConnectAsync(Settings, Context.LoggerFactory);
+				UserWorkspaceState State = await ReadWorkspaceState(PerforceClient, Settings, Context.UserSettings, Logger);
+
+				ProjectInfo ProjectInfo = State.CreateProjectInfo();
+
+				if (ListOnly)
+				{
+					ConfigFile ProjectConfig = await ConfigUtils.ReadProjectConfigFileAsync(PerforceClient, ProjectInfo, Logger, CancellationToken.None);
+
+					FileReference EditorTarget = ConfigUtils.GetEditorTargetFile(ProjectInfo, ProjectConfig);
+
+					Dictionary<Guid, ConfigObject> BuildStepObjects = ConfigUtils.GetDefaultBuildStepObjects(ProjectInfo, EditorTarget.GetFileNameWithoutAnyExtensions(), BuildConfig.Development, ProjectConfig, false);
+
+					Logger.LogInformation("Available build steps:");
+					Logger.LogInformation("");
+					Logger.LogInformation("  Id                                   | Description                              | Type       | Enabled");
+					Logger.LogInformation("  -------------------------------------|------------------------------------------|------------|-----------------");
+					foreach (BuildStep BuildStep in BuildStepObjects.Values.Select(x => new BuildStep(x)).OrderBy(x => x.OrderIndex))
+					{
+						Logger.LogInformation("  {Id,-36} | {Name,-40} | {Type,-10} | {Enabled,-8}", BuildStep.UniqueId, BuildStep.Description, BuildStep.Type, BuildStep.bNormalSync);
+					}
+					return;
+				}
+
+				HashSet<Guid>? Steps = null;
+				if (Target != null)
+				{
+					Guid Id;
+					if (!Guid.TryParse(Target, out Id))
+					{
+						Logger.LogError("Unable to parse '{Target}' as a GUID. Pass -List to show all available build steps and their identifiers.", Target);
+					}
+					Steps = new HashSet<Guid> { Id };
+				}
+
+				WorkspaceUpdateContext UpdateContext = new WorkspaceUpdateContext(State.CurrentChangeNumber, WorkspaceUpdateOptions.Build, BuildConfig.Development, null, new List<ConfigObject>(), Steps);
+
+				WorkspaceUpdate Update = new WorkspaceUpdate(UpdateContext);
+				await Update.ExecuteAsync(PerforceClient.Settings, ProjectInfo, State, Context.Logger, CancellationToken.None);
+			}
+		}
+
+		class StatusCommand : Command
+		{
+			public override async Task ExecuteAsync(CommandContext Context)
+			{
+				ILogger Logger = Context.Logger;
+				bool bUpdate = Context.Arguments.HasOption("-Update");
+				Context.Arguments.CheckAllArgumentsUsed();
+
+				UserWorkspaceSettings Settings = ReadRequiredUserWorkspaceSettings();
+				Logger.LogInformation("User: {UserName}", Settings.UserName);
+				Logger.LogInformation("Server: {ServerAndPort}", Settings.ServerAndPort);
+				Logger.LogInformation("Project: {ClientProjectPath}", Settings.ClientProjectPath);
+
+				using IPerforceConnection PerforceClient = await ConnectAsync(Settings, Context.LoggerFactory);
+
+				UserWorkspaceState State = await ReadWorkspaceState(PerforceClient, Settings, Context.UserSettings, Logger);
+				if (bUpdate)
+				{
+					ProjectInfo NewProjectInfo = await ProjectInfo.CreateAsync(PerforceClient, Settings, CancellationToken.None);
+					State.UpdateCachedProjectInfo(NewProjectInfo, Settings.LastModifiedTimeUtc);
+				}
+
+				string StreamOrBranchName = State.StreamName ?? Settings.BranchPath.TrimStart('/');
+				if (State.LastSyncResultMessage == null)
+				{
+					Logger.LogInformation("Not currently synced to {Stream}", StreamOrBranchName);
+				}
+				else if (State.LastSyncResult == WorkspaceUpdateResult.Success)
+				{
+					Logger.LogInformation("Synced to {Stream} CL {Change}", StreamOrBranchName, State.LastSyncChangeNumber);
+				}
+				else
+				{
+					Logger.LogWarning("Last sync to {Stream} CL {Change} failed: {Result}", StreamOrBranchName, State.LastSyncChangeNumber, State.LastSyncResultMessage);
+				}
+			}
+		}
+
+		class SwitchCommand : Command
+		{
+			public override async Task ExecuteAsync(CommandContext Context)
+			{
+				// Get the positional argument indicating the file to look for
+				string? TargetName;
+				if (!Context.Arguments.TryGetPositionalArgument(out TargetName))
+				{
+					throw new UserErrorException("Missing stream or project name to switch to.");
+				}
+
+				bool Force = TargetName.StartsWith("//", StringComparison.Ordinal) && Context.Arguments.HasOption("-Force");
+
+				// Finish argument parsing
+				Context.Arguments.CheckAllArgumentsUsed();
+
+				// Get a connection to the client for this workspace
+				UserWorkspaceSettings Settings = ReadRequiredUserWorkspaceSettings();
+				using IPerforceConnection PerforceClient = await ConnectAsync(Settings, Context.LoggerFactory);
+
+				// Check whether we're switching stream or project
+				if (TargetName.StartsWith("//", StringComparison.Ordinal))
+				{
+					await SwitchStreamAsync(PerforceClient, TargetName, Force, Context.Logger);
+				}
+				else
+				{
+					await SwitchProjectAsync(PerforceClient, Settings, TargetName, Context.Logger);
+				}
+			}
+
+			public async Task SwitchStreamAsync(IPerforceConnection PerforceClient, string StreamName, bool Force, ILogger Logger)
+			{
+				if (!Force && await PerforceClient.OpenedAsync(OpenedOptions.None, FileSpecList.Any).AnyAsync())
+				{
+					throw new UserErrorException("Client {ClientName} has files opened. Use -Force to switch anyway.", PerforceClient.Settings.ClientName!);
+				}
+
+				await PerforceClient.SwitchClientToStreamAsync(PerforceClient.Settings.ClientName!, StreamName, SwitchClientOptions.IgnoreOpenFiles);
+
+				Logger.LogInformation("Switched to stream {StreamName}", StreamName);
+			}
+
+			public async Task SwitchProjectAsync(IPerforceConnection PerforceClient, UserWorkspaceSettings Settings, string ProjectName, ILogger Logger)
+			{
+				Settings.ProjectPath = await FindProjectPathAsync(PerforceClient, Settings.ClientName, Settings.BranchPath, ProjectName);
+				Settings.Save();
+				Logger.LogInformation("Switched to project {ProjectPath}", Settings.ClientProjectPath);
+			}
+		}
+	}
+}

@@ -121,9 +121,6 @@ namespace UnrealGameSync
 
 	public class UserSelectedProjectSettings
 	{
-		[JsonIgnore]
-		FileReference? File { get; set; }
-
 		public string? ServerAndPort { get; set; }
 		public string? UserName { get; set; }
 		public UserSelectedProjectType Type { get; set; }
@@ -238,7 +235,7 @@ namespace UnrealGameSync
 		public DirectoryReference RootDir { get; set; } = null!;
 
 		[JsonIgnore]
-		public DateTime LastModifiedTimeUtc { get; set; }
+		public long LastModifiedTimeUtc { get; set; }
 
 		// Connection settings
 		public string? ServerAndPort { get; set; }
@@ -291,7 +288,7 @@ namespace UnrealGameSync
 			if (Utility.TryLoadJson(ConfigFile, out Settings))
 			{
 				Settings.RootDir = RootDir;
-				Settings.LastModifiedTimeUtc = FileReference.GetLastWriteTimeUtc(ConfigFile);
+				Settings.LastModifiedTimeUtc = FileReference.GetLastWriteTimeUtc(ConfigFile).Ticks;
 				return true;
 			}
 			else
@@ -308,7 +305,7 @@ namespace UnrealGameSync
 			lock (SyncRoot)
 			{
 				Utility.SaveJson(ConfigFile, this);
-				LastModifiedTimeUtc = FileReference.GetLastWriteTimeUtc(ConfigFile);
+				LastModifiedTimeUtc = FileReference.GetLastWriteTimeUtc(ConfigFile).Ticks;
 			}
 		}
 
@@ -365,9 +362,14 @@ namespace UnrealGameSync
 			return State;
 		}
 
-		public void UpdateCachedProjectInfo(ProjectInfo ProjectInfo, DateTime SettingsTimeUtc)
+		public ProjectInfo CreateProjectInfo()
 		{
-			this.SettingsTimeUtc = SettingsTimeUtc.Ticks;
+			return new ProjectInfo(RootDir, ClientName, BranchPath, ProjectPath, StreamName, ProjectIdentifier, IsEnterpriseProject);
+		}
+
+		public void UpdateCachedProjectInfo(ProjectInfo ProjectInfo, long SettingsTimeUtc)
+		{
+			this.SettingsTimeUtc = SettingsTimeUtc;
 
 			RootDir = ProjectInfo.LocalRootPath;
 			ClientName = ProjectInfo.ClientName;
@@ -425,14 +427,9 @@ namespace UnrealGameSync
 
 	public class UserProjectSettings
 	{
-		[JsonIgnore]
-		public FileReference? File { get; set; }
-
 		public List<ConfigObject> BuildSteps { get; set; } = new List<ConfigObject>();
 		public FilterType FilterType { get; set; }
 		public HashSet<string> FilterBadges { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-		public void Save() => Utility.SaveJson(File!, this);
 	}
 
 	public class UserSettings
@@ -841,6 +838,11 @@ namespace UnrealGameSync
 			return State;
 		}
 
+		public UserWorkspaceState FindOrAddWorkspaceState(UserWorkspaceSettings Settings)
+		{
+			return FindOrAddWorkspaceState(Settings.RootDir, Settings.ClientName, Settings.BranchPath);
+		}
+
 		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath)
 		{
 			UserWorkspaceState? State;
@@ -985,25 +987,10 @@ namespace UnrealGameSync
 			return CurrentWorkspace;
 		}
 
-		public UserProjectSettings FindOrAddProjectSettings(DirectoryReference LocalRoot, string ClientProjectFileName)
+		public UserProjectSettings FindOrAddProjectSettings(ProjectInfo ProjectInfo)
 		{
-			FileReference ConfigFile = FileReference.Combine(GetConfigDir(LocalRoot), $"project_{ClientProjectFileName.Trim('/').Replace('/', '+')}.json");
-			if (!ProjectKeyToSettings.TryGetValue(ConfigFile, out UserProjectSettings? Settings))
-			{
-				if (!Utility.TryLoadJson(ConfigFile, out Settings))
-				{
-					Settings = ImportProjectSettings(ClientProjectFileName);
-					Utility.SaveJson(ConfigFile, Settings);
-				}
+			string ClientProjectFileName = Regex.Replace(ProjectInfo.ClientFileName, "^//[^/]+/", "");
 
-				Settings.File = ConfigFile;
-				ProjectKeyToSettings.Add(ConfigFile, Settings);
-			}
-			return Settings;
-		}
-
-		public UserProjectSettings ImportProjectSettings(string ClientProjectFileName)
-		{
 			// Read the project settings
 			UserProjectSettings CurrentProject = new UserProjectSettings();
 	

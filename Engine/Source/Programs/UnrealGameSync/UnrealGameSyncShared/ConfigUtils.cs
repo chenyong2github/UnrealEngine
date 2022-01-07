@@ -74,6 +74,16 @@ namespace UnrealGameSync
 			}
 		}
 
+		public static Task<ConfigFile> ReadProjectConfigFileAsync(IPerforceConnection Perforce, ProjectInfo ProjectInfo, ILogger Logger, CancellationToken CancellationToken)
+		{
+			return ReadProjectConfigFileAsync(Perforce, ProjectInfo, new List<KeyValuePair<FileReference, DateTime>>(), Logger, CancellationToken);
+		}
+
+		public static Task<ConfigFile> ReadProjectConfigFileAsync(IPerforceConnection Perforce, ProjectInfo ProjectInfo, List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles, ILogger Logger, CancellationToken CancellationToken)
+		{
+			return ReadProjectConfigFileAsync(Perforce, ProjectInfo.ClientRootPath, ProjectInfo.ClientFileName, ProjectInfo.CacheFolder, LocalConfigFiles, Logger, CancellationToken);
+		}
+
 		public static async Task<ConfigFile> ReadProjectConfigFileAsync(IPerforceConnection Perforce, string BranchClientPath, string SelectedClientFileName, DirectoryReference CacheFolder, List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles, ILogger Logger, CancellationToken CancellationToken)
 		{
 			List<string> ConfigFilePaths = Utility.GetDepotConfigPaths(BranchClientPath + "/Engine", SelectedClientFileName);
@@ -122,7 +132,7 @@ namespace UnrealGameSync
 						try
 						{
 							ProjectConfig.Parse(Lines.ToArray());
-							Logger.LogInformation("Read config file from {DepotFile}", FileRecord.DepotFile);
+							Logger.LogDebug("Read config file from {DepotFile}", FileRecord.DepotFile);
 						}
 						catch (Exception Ex)
 						{
@@ -378,6 +388,55 @@ namespace UnrealGameSync
 
 			Value = null;
 			return false;
+		}
+
+		public static Dictionary<Guid, WorkspaceSyncCategory> GetSyncCategories(ConfigFile ProjectConfigFile)
+		{
+			Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToCategory = new Dictionary<Guid, WorkspaceSyncCategory>();
+			if (ProjectConfigFile != null)
+			{
+				string[] CategoryLines = ProjectConfigFile.GetValues("Options.SyncCategory", new string[0]);
+				foreach (string CategoryLine in CategoryLines)
+				{
+					ConfigObject Object = new ConfigObject(CategoryLine);
+
+					Guid UniqueId;
+					if (Guid.TryParse(Object.GetValue("UniqueId", ""), out UniqueId))
+					{
+						WorkspaceSyncCategory? Category;
+						if (!UniqueIdToCategory.TryGetValue(UniqueId, out Category))
+						{
+							Category = new WorkspaceSyncCategory(UniqueId);
+							UniqueIdToCategory.Add(UniqueId, Category);
+						}
+
+						if (Object.GetValue("Clear", false))
+						{
+							Category.Paths = new string[0];
+							Category.Requires = new Guid[0];
+						}
+
+						Category.Name = Object.GetValue("Name", Category.Name);
+						Category.bEnable = Object.GetValue("Enable", Category.bEnable);
+						Category.Paths = Enumerable.Concat(Category.Paths, Object.GetValue("Paths", "").Split(';').Select(x => x.Trim())).Where(x => x.Length > 0).Distinct().OrderBy(x => x).ToArray();
+						Category.bHidden = Object.GetValue("Hidden", Category.bHidden);
+						Category.Requires = Enumerable.Concat(Category.Requires, ParseGuids(Object.GetValue("Requires", "").Split(';'))).Distinct().OrderBy(x => x).ToArray();
+					}
+				}
+			}
+			return UniqueIdToCategory;
+		}
+
+		static IEnumerable<Guid> ParseGuids(IEnumerable<string> Values)
+		{
+			foreach (string Value in Values)
+			{
+				Guid Guid;
+				if (Guid.TryParse(Value, out Guid))
+				{
+					yield return Guid;
+				}
+			}
 		}
 	}
 }

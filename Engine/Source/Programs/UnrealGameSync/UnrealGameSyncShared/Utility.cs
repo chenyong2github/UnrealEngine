@@ -389,7 +389,7 @@ namespace UnrealGameSync
 			FileReference CacheFile = FileReference.Combine(CacheFolder, Digest);
 			if(FileReference.Exists(CacheFile))
 			{
-				Logger.LogInformation("Reading cached copy of {DepotFile} from {LocalFile}", DepotPath, CacheFile);
+				Logger.LogDebug("Reading cached copy of {DepotFile} from {LocalFile}", DepotPath, CacheFile);
 				string[] Lines = FileReference.ReadAllLines(CacheFile);
 				try
 				{
@@ -403,6 +403,8 @@ namespace UnrealGameSync
 			}
 			else
 			{
+				DirectoryReference.CreateDirectory(CacheFolder);
+
 				FileReference TempFile = new FileReference(String.Format("{0}.{1}.temp", CacheFile.FullName, Guid.NewGuid()));
 				PerforceResponse<PrintRecord> Response = await Perforce.TryPrintAsync(TempFile.FullName, DepotPath, CancellationToken);
 				if (!Response.Succeeded)

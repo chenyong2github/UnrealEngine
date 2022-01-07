@@ -184,12 +184,12 @@ namespace UnrealGameSync
 			NotifyIcon.MouseDown += new MouseEventHandler(NotifyIcon_MouseDown);
 
 			// Create the startup tasks
-			List<(UserSelectedProjectSettings, ModalTask<WorkspaceSettings>)> StartupTasks = new List<(UserSelectedProjectSettings, ModalTask<WorkspaceSettings>)>();
+			List<(UserSelectedProjectSettings, ModalTask<OpenProjectInfo>)> StartupTasks = new List<(UserSelectedProjectSettings, ModalTask<OpenProjectInfo>)>();
 			foreach (UserSelectedProjectSettings ProjectSettings in Settings.OpenProjects)
 			{
-				ILogger<WorkspaceSettings> Logger = ServiceProvider.GetRequiredService<ILogger<WorkspaceSettings>>();
-				Task<WorkspaceSettings> WorkspaceSettingsTask = Task.Run(() => WorkspaceSettings.CreateAsync(DefaultPerforceSettings, ProjectSettings, Settings, Logger, StartupCancellationSource.Token), StartupCancellationSource.Token);
-				StartupTasks.Add((ProjectSettings, new ModalTask<WorkspaceSettings>(WorkspaceSettingsTask)));
+				ILogger<OpenProjectInfo> Logger = ServiceProvider.GetRequiredService<ILogger<OpenProjectInfo>>();
+				Task<OpenProjectInfo> StartupTask = Task.Run(() => OpenProjectInfo.CreateAsync(DefaultPerforceSettings, ProjectSettings, Settings, Logger, StartupCancellationSource.Token), StartupCancellationSource.Token);
+				StartupTasks.Add((ProjectSettings, new ModalTask<OpenProjectInfo>(StartupTask)));
 			}
 			StartupTask = Task.WhenAll(StartupTasks.Select(x => x.Item2.Task));
 
@@ -223,7 +223,7 @@ namespace UnrealGameSync
 			return Project;
 		}
 
-		private void OnStartupComplete(List<(UserSelectedProjectSettings, ModalTask<WorkspaceSettings>)> StartupTasks)
+		private void OnStartupComplete(List<(UserSelectedProjectSettings, ModalTask<OpenProjectInfo>)> StartupTasks)
 		{
 			// Close the startup window
 			bool bVisible = StartupWindow!.Visible;

@@ -290,7 +290,7 @@ namespace UnrealGameSync
 		// Placeholder text that is in the control and cleared when the user starts editing.
 		static string AuthorFilterPlaceholderText = "<username>";
 
-		public WorkspaceControl(IWorkspaceControlOwner InOwner, string? InApiUrl, WorkspaceSettings WorkspaceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, OIDCTokenManager? InOidcTokenManager)
+		public WorkspaceControl(IWorkspaceControlOwner InOwner, string? InApiUrl, OpenProjectInfo OpenProjectInfo, IServiceProvider InServiceProvider, UserSettings InSettings, OIDCTokenManager? InOidcTokenManager)
 		{
 			InitializeComponent();
 
@@ -298,17 +298,15 @@ namespace UnrealGameSync
 
 			Owner = InOwner;
 			ApiUrl = InApiUrl;
-			DataFolder = WorkspaceSettings.DataFolder;
+			DataFolder = OpenProjectInfo.ProjectInfo.DataFolder;
 			ServiceProvider = InServiceProvider;
 			Logger = InServiceProvider.GetRequiredService<ILogger<WorkspaceControl>>();
-			PerforceSettings = WorkspaceSettings.PerforceSettings;
-			ProjectInfo = WorkspaceSettings.ProjectInfo;
+			PerforceSettings = OpenProjectInfo.PerforceSettings;
+			ProjectInfo = OpenProjectInfo.ProjectInfo;
 			Settings = InSettings;
-			this.WorkspaceSettings = WorkspaceSettings.UserWorkspaceSettings;
-			this.WorkspaceState = WorkspaceSettings.UserWorkspaceState;
-
-			string ProjectPath = Regex.Replace(WorkspaceSettings.ProjectInfo.ClientFileName, "^//[^/]+/", "");
-			ProjectSettings = InSettings.FindOrAddProjectSettings(WorkspaceSettings.ProjectInfo.LocalRootPath, ProjectPath);
+			this.WorkspaceSettings = OpenProjectInfo.WorkspaceSettings;
+			this.WorkspaceState = OpenProjectInfo.WorkspaceState;
+			ProjectSettings = InSettings.FindOrAddProjectSettings(OpenProjectInfo.ProjectInfo);
 
 			DesiredTaskbarState = Tuple.Create(TaskbarState.NoProgress, 0.0f);
 
@@ -353,36 +351,36 @@ namespace UnrealGameSync
 			}
 
 			// Commit all the new project info
-			IPerforceSettings PerforceClientSettings = WorkspaceSettings.PerforceSettings;
-			SelectedProject = WorkspaceSettings.SelectedProject;
+			IPerforceSettings PerforceClientSettings = OpenProjectInfo.PerforceSettings;
+			SelectedProject = OpenProjectInfo.SelectedProject;
 
 			// Figure out which API server to use
 			string? NewApiUrl;
-			if (TryGetProjectSetting(WorkspaceSettings.LatestProjectConfigFile, "ApiUrl", out NewApiUrl))
+			if (TryGetProjectSetting(OpenProjectInfo.LatestProjectConfigFile, "ApiUrl", out NewApiUrl))
 			{
 				ApiUrl = NewApiUrl;
 			}
 
-			ProjectInfo Project = WorkspaceSettings.ProjectInfo;
+			ProjectInfo Project = OpenProjectInfo.ProjectInfo;
 
-			Workspace = new Workspace(PerforceClientSettings, Project, WorkspaceState, WorkspaceSettings.WorkspaceProjectConfigFile, WorkspaceSettings.WorkspaceProjectStreamFilter, new LogControlTextWriter(SyncLog), ServiceProvider);
+			Workspace = new Workspace(PerforceClientSettings, Project, WorkspaceState, OpenProjectInfo.WorkspaceProjectConfigFile, OpenProjectInfo.WorkspaceProjectStreamFilter, new LogControlTextWriter(SyncLog), ServiceProvider);
 			Workspace.OnUpdateComplete += UpdateCompleteCallback;
 
 			FileReference ProjectLogBaseName = FileReference.Combine(DataFolder, "sync.log");
 
 			ILogger PerforceLogger = ServiceProvider.GetRequiredService<ILogger<PerforceMonitor>>();
-			PerforceMonitor = new PerforceMonitor(PerforceClientSettings, WorkspaceSettings.ProjectInfo, WorkspaceSettings.LatestProjectConfigFile, WorkspaceSettings.CacheFolder, WorkspaceSettings.LocalConfigFiles, ServiceProvider);
+			PerforceMonitor = new PerforceMonitor(PerforceClientSettings, OpenProjectInfo.ProjectInfo, OpenProjectInfo.LatestProjectConfigFile, OpenProjectInfo.ProjectInfo.CacheFolder, OpenProjectInfo.LocalConfigFiles, ServiceProvider);
 			PerforceMonitor.OnUpdate += UpdateBuildListCallback;
 			PerforceMonitor.OnUpdateMetadata += UpdateBuildMetadataCallback;
 			PerforceMonitor.OnStreamChange += StreamChanged;
 			PerforceMonitor.OnLoginExpired += LoginExpired;
 
 			ILogger EventLogger = ServiceProvider.GetRequiredService < ILogger<EventMonitor>>();
-			EventMonitor = new EventMonitor(ApiUrl, PerforceUtils.GetClientOrDepotDirectoryName(SelectedProjectIdentifier), WorkspaceSettings.PerforceSettings.UserName, ServiceProvider);
+			EventMonitor = new EventMonitor(ApiUrl, PerforceUtils.GetClientOrDepotDirectoryName(SelectedProjectIdentifier), OpenProjectInfo.PerforceSettings.UserName, ServiceProvider);
 			EventMonitor.OnUpdatesReady += UpdateReviewsCallback;
 
 			ILogger<JupiterMonitor> JupiterLogger = ServiceProvider.GetRequiredService<ILogger<JupiterMonitor>>();
-			JupiterMonitor = JupiterMonitor.CreateFromConfigFile(InOidcTokenManager, JupiterLogger, WorkspaceSettings.LatestProjectConfigFile, SelectedProjectIdentifier);
+			JupiterMonitor = JupiterMonitor.CreateFromConfigFile(InOidcTokenManager, JupiterLogger, OpenProjectInfo.LatestProjectConfigFile, SelectedProjectIdentifier);
 
 			UpdateColumnSettings(true);
 
@@ -404,7 +402,7 @@ namespace UnrealGameSync
 			StartupCallbacks = new List<WorkspaceStartupCallback>();
 
 			string? IssuesApiUrl = GetIssuesApiUrl();
-			IssueMonitor = InOwner.CreateIssueMonitor(IssuesApiUrl, WorkspaceSettings.PerforceSettings.UserName);
+			IssueMonitor = InOwner.CreateIssueMonitor(IssuesApiUrl, OpenProjectInfo.PerforceSettings.UserName);
 			IssueMonitor.OnIssuesChanged += IssueMonitor_OnIssuesChangedAsync;
 
 			if (SelectedFileName.HasExtension(".uproject"))
@@ -1650,54 +1648,7 @@ namespace UnrealGameSync
 
 		Dictionary<Guid, WorkspaceSyncCategory> GetSyncCategories()
 		{
-			Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToCategory = new Dictionary<Guid, WorkspaceSyncCategory>();
-
-			// Add the custom filters
-			ConfigFile ProjectConfigFile = PerforceMonitor.LatestProjectConfigFile;
-			if (ProjectConfigFile != null)
-			{
-				string[] CategoryLines = ProjectConfigFile.GetValues("Options.SyncCategory", new string[0]);
-				foreach (string CategoryLine in CategoryLines)
-				{
-					ConfigObject Object = new ConfigObject(CategoryLine);
-
-					Guid UniqueId;
-					if (Guid.TryParse(Object.GetValue("UniqueId", ""), out UniqueId))
-					{
-						WorkspaceSyncCategory? Category;
-						if (!UniqueIdToCategory.TryGetValue(UniqueId, out Category))
-						{
-							Category = new WorkspaceSyncCategory(UniqueId);
-							UniqueIdToCategory.Add(UniqueId, Category);
-						}
-
-						if (Object.GetValue("Clear", false))
-						{
-							Category.Paths = new string[0];
-							Category.Requires = new Guid[0];
-						}
-
-						Category.Name = Object.GetValue("Name", Category.Name);
-						Category.bEnable = Object.GetValue("Enable", Category.bEnable);
-						Category.Paths = Enumerable.Concat(Category.Paths, Object.GetValue("Paths", "").Split(';').Select(x => x.Trim())).Where(x => x.Length > 0).Distinct().OrderBy(x => x).ToArray();
-						Category.bHidden = Object.GetValue("Hidden", Category.bHidden);
-						Category.Requires = Enumerable.Concat(Category.Requires, ParseGuids(Object.GetValue("Requires", "").Split(';'))).Distinct().OrderBy(x => x).ToArray();
-					}
-				}
-			}
-			return UniqueIdToCategory;
-		}
-
-		static IEnumerable<Guid> ParseGuids(IEnumerable<string> Values)
-		{
-			foreach(string Value in Values)
-			{
-				Guid Guid;
-				if(Guid.TryParse(Value, out Guid))
-				{
-					yield return Guid;
-				}
-			}
+			return ConfigUtils.GetSyncCategories(PerforceMonitor.LatestProjectConfigFile);
 		}
 
 		List<string> GetProjectRoots(string InUProjectDirsPath)
@@ -5172,7 +5123,7 @@ namespace UnrealGameSync
 
 				// Save the settings
 				ProjectSettings.BuildSteps = ModifiedBuildSteps;
-				ProjectSettings.Save();
+				Settings.Save();
 
 				// Update the custom tools menu, because we might have changed it
 				UpdateBuildSteps();
@@ -5769,7 +5720,7 @@ namespace UnrealGameSync
 			{
 				ProjectSettings.FilterBadges.Add(BadgeName);
 			}
-			ProjectSettings.Save();
+			Settings.Save();
 
 			UpdateBuildListFilter();
 		}
@@ -5778,7 +5729,7 @@ namespace UnrealGameSync
 		{
 			ProjectSettings.FilterBadges.Clear();
 			ProjectSettings.FilterType = FilterType.None;
-			ProjectSettings.Save();
+			Settings.Save();
 
 			Settings.bShowAutomatedChanges = false;
 			Settings.Save();
@@ -5870,7 +5821,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Type_ShowAll_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.None;
-			ProjectSettings.Save();
+			Settings.Save();
 
 			UpdateBuildListFilter();
 		}
@@ -5878,7 +5829,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Type_Code_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.Code;
-			ProjectSettings.Save();
+			Settings.Save();
 
 			UpdateBuildListFilter();
 		}
@@ -5886,7 +5837,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Type_Content_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.Content;
-			ProjectSettings.Save();
+			Settings.Save();
 
 			UpdateBuildListFilter();
 		}

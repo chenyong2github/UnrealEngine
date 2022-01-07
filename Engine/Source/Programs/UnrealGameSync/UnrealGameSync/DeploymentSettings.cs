@@ -69,7 +69,7 @@ namespace UnrealGameSync
 		/// <param name="Logger">The logger</param>
 		/// <param name="Error">Receives an error on failure</param>
 		/// <returns></returns>
-		public delegate bool DetectProjectSettingsEvent(WorkspaceSettings Workspace, ILogger Logger, [NotNullWhen(false)] out string? Error);
+		public delegate bool DetectProjectSettingsEvent(OpenProjectInfo OpenProjectInfo, ILogger Logger, [NotNullWhen(false)] out string? Error);
 
 		/// <summary>
 		/// Called to validate the project settings

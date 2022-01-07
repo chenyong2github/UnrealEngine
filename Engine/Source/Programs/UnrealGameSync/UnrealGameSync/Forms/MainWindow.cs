@@ -119,7 +119,7 @@ namespace UnrealGameSync
 
 		public ToolUpdateMonitor ToolUpdateMonitor { get; private set; }
 
-		public MainWindow(UpdateMonitor InUpdateMonitor, string? InApiUrl, DirectoryReference InDataFolder, DirectoryReference InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, List<(UserSelectedProjectSettings, ModalTask<WorkspaceSettings>)> StartupTasks, IPerforceSettings InDefaultPerforceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, string? InUri, OIDCTokenManager? InOidcTokenManager)
+		public MainWindow(UpdateMonitor InUpdateMonitor, string? InApiUrl, DirectoryReference InDataFolder, DirectoryReference InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, List<(UserSelectedProjectSettings, ModalTask<OpenProjectInfo>)> StartupTasks, IPerforceSettings InDefaultPerforceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, string? InUri, OIDCTokenManager? InOidcTokenManager)
 		{
 			ServiceProvider = InServiceProvider;
 			Logger = ServiceProvider.GetRequiredService<ILogger<MainWindow>>();
@@ -157,7 +157,7 @@ namespace UnrealGameSync
 			SetupDefaultControl();
 
 			int SelectTabIdx = -1;
-			foreach((UserSelectedProjectSettings Project, ModalTask<WorkspaceSettings> StartupTask) in StartupTasks)
+			foreach((UserSelectedProjectSettings Project, ModalTask<OpenProjectInfo> StartupTask) in StartupTasks)
 			{
 				int TabIdx = -1;
 				if (StartupTask.Succeeded)
@@ -1035,15 +1035,15 @@ namespace UnrealGameSync
 
 		public void OpenNewProject()
 		{
-			WorkspaceSettings? WorkspaceSettings = OpenProjectWindow.ShowModal(this, null, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
-			if(WorkspaceSettings != null)
+			OpenProjectInfo? OpenProjectInfo = OpenProjectWindow.ShowModal(this, null, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
+			if(OpenProjectInfo != null)
 			{
-				int NewTabIdx = TryOpenProject(WorkspaceSettings, -1, OpenProjectOptions.None);
+				int NewTabIdx = TryOpenProject(OpenProjectInfo, -1, OpenProjectOptions.None);
 				if(NewTabIdx != -1)
 				{
 					TabControl.SelectTab(NewTabIdx);
 					SaveTabSettings();
-					UpdateRecentProjectsList(WorkspaceSettings.SelectedProject);
+					UpdateRecentProjectsList(OpenProjectInfo.SelectedProject);
 				}
 			}
 		}
@@ -1097,22 +1097,22 @@ namespace UnrealGameSync
 
 		public void EditSelectedProject(int TabIdx, UserSelectedProjectSettings SelectedProject)
 		{
-			WorkspaceSettings? WorkspaceSettings = OpenProjectWindow.ShowModal(this, SelectedProject, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
-			if(WorkspaceSettings != null)
+			OpenProjectInfo? OpenProjectInfo = OpenProjectWindow.ShowModal(this, SelectedProject, Settings, DataFolder, CacheFolder, DefaultPerforceSettings, ServiceProvider);
+			if(OpenProjectInfo != null)
 			{
-				int NewTabIdx = TryOpenProject(WorkspaceSettings, TabIdx, OpenProjectOptions.None);
+				int NewTabIdx = TryOpenProject(OpenProjectInfo, TabIdx, OpenProjectOptions.None);
 				if(NewTabIdx != -1)
 				{
 					TabControl.SelectTab(NewTabIdx);
 					SaveTabSettings();
-					UpdateRecentProjectsList(WorkspaceSettings.SelectedProject);
+					UpdateRecentProjectsList(OpenProjectInfo.SelectedProject);
 				}
 			}
 		}
 
 		int TryOpenProject(UserSelectedProjectSettings Project, int ReplaceTabIdx, OpenProjectOptions Options = OpenProjectOptions.None)
 		{
-			ILogger<WorkspaceSettings> ProjectLogger = ServiceProvider.GetRequiredService<ILogger<WorkspaceSettings>>();
+			ILogger<OpenProjectInfo> ProjectLogger = ServiceProvider.GetRequiredService<ILogger<OpenProjectInfo>>();
 
 			ModalTaskFlags TaskFlags = ModalTaskFlags.None;
 			if((Options & OpenProjectOptions.Quiet) != 0)
@@ -1120,7 +1120,7 @@ namespace UnrealGameSync
 				TaskFlags |= ModalTaskFlags.Quiet;
 			}
 
-			ModalTask<WorkspaceSettings>? SettingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", DefaultPerforceSettings, (p, c) => OpenProjectWindow.DetectSettingsAsync(p, Project, Settings, ProjectLogger, c), ProjectLogger, TaskFlags);
+			ModalTask<OpenProjectInfo>? SettingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", DefaultPerforceSettings, (p, c) => OpenProjectWindow.DetectSettingsAsync(p, Project, Settings, ProjectLogger, c), ProjectLogger, TaskFlags);
 			if (SettingsTask == null || SettingsTask.Failed)
 			{
 				if(SettingsTask != null) CreateErrorPanel(ReplaceTabIdx, Project, SettingsTask.Error);
@@ -1130,7 +1130,7 @@ namespace UnrealGameSync
 			return TryOpenProject(SettingsTask.Result, ReplaceTabIdx, Options);
 		}
 
-		int TryOpenProject(WorkspaceSettings WorkspaceSettings, int ReplaceTabIdx, OpenProjectOptions Options)
+		int TryOpenProject(OpenProjectInfo OpenProjectInfo, int ReplaceTabIdx, OpenProjectOptions Options)
 		{
 			Logger.LogInformation("Trying to open project {Project}", WorkspaceSettings.ProjectInfo.ClientFileName);
 
@@ -1142,7 +1142,7 @@ namespace UnrealGameSync
 					WorkspaceControl? Workspace = TabControl.GetTabData(TabIdx) as WorkspaceControl;
 					if(Workspace != null)
 					{
-						if(Workspace.SelectedFileName == WorkspaceSettings.ProjectInfo.LocalFileName)
+						if(Workspace.SelectedFileName == OpenProjectInfo.ProjectInfo.LocalFileName)
 						{
 							Logger.LogInformation("  Already open in tab {TabIdx}", TabIdx);
 							if((Options & OpenProjectOptions.Quiet) == 0)

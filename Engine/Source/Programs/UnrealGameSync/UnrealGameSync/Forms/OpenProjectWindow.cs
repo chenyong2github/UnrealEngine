@@ -25,7 +25,7 @@ namespace UnrealGameSync
 	{
 		string? ServerAndPortOverride;
 		string? UserNameOverride;
-		WorkspaceSettings? DetectedProjectSettings;
+		OpenProjectInfo? OpenProjectInfo;
 		IPerforceSettings DefaultSettings;
 		IServiceProvider ServiceProvider;
 		UserSettings Settings;
@@ -90,7 +90,7 @@ namespace UnrealGameSync
 			get => Utility.OverridePerforceSettings(DefaultSettings, ServerAndPortOverride, UserNameOverride);
 		}
 
-		public static WorkspaceSettings? ShowModal(IWin32Window Owner, UserSelectedProjectSettings? Project, UserSettings Settings, DirectoryReference DataFolder, DirectoryReference CacheFolder, IPerforceSettings DefaultPerforceSettings, IServiceProvider ServiceProvider)
+		public static OpenProjectInfo? ShowModal(IWin32Window Owner, UserSelectedProjectSettings? Project, UserSettings Settings, DirectoryReference DataFolder, DirectoryReference CacheFolder, IPerforceSettings DefaultPerforceSettings, IServiceProvider ServiceProvider)
 		{
 			OpenProjectWindow Window = new OpenProjectWindow(Project, Settings, DefaultPerforceSettings, ServiceProvider);
 			if(Window.ShowDialog(Owner) == DialogResult.OK)
@@ -284,21 +284,21 @@ namespace UnrealGameSync
 			UserSelectedProjectSettings? SelectedProject;
 			if(TryGetSelectedProject(out SelectedProject))
 			{
-				ILogger<WorkspaceSettings> Logger = ServiceProvider.GetRequiredService<ILogger<WorkspaceSettings>>();
+				ILogger<OpenProjectInfo> Logger = ServiceProvider.GetRequiredService<ILogger<OpenProjectInfo>>();
 
-				ModalTask<WorkspaceSettings>? NewDetectedProjectSettings = PerforceModalTask.Execute(this, "Opening project", "Opening project, please wait...", DefaultSettings, (x, y) => DetectSettingsAsync(x, SelectedProject, Settings, Logger, y), Logger);
-				if (NewDetectedProjectSettings != null && NewDetectedProjectSettings.Succeeded)
+				ModalTask<OpenProjectInfo>? NewOpenProjectInfo = PerforceModalTask.Execute(this, "Opening project", "Opening project, please wait...", DefaultSettings, (x, y) => DetectSettingsAsync(x, SelectedProject, Settings, Logger, y), Logger);
+				if (NewOpenProjectInfo != null && NewOpenProjectInfo.Succeeded)
 				{
-					DetectedProjectSettings = NewDetectedProjectSettings.Result;
+					DetectedProjectSettings = NewOpenProjectInfo.Result;
 					DialogResult = DialogResult.OK;
 					Close();
 				}
 			}
 		}
 
-		public static async Task<WorkspaceSettings> DetectSettingsAsync(IPerforceConnection Perforce, UserSelectedProjectSettings SelectedProject, UserSettings UserSettings, ILogger<WorkspaceSettings> Logger, CancellationToken CancellationToken)
+		public static async Task<OpenProjectInfo> DetectSettingsAsync(IPerforceConnection Perforce, UserSelectedProjectSettings SelectedProject, UserSettings UserSettings, ILogger<OpenProjectInfo> Logger, CancellationToken CancellationToken)
 		{
-			WorkspaceSettings Settings = await WorkspaceSettings.CreateAsync(Perforce, SelectedProject, UserSettings, Logger, CancellationToken);
+			OpenProjectInfo Settings = await OpenProjectInfo.CreateAsync(Perforce, SelectedProject, UserSettings, Logger, CancellationToken);
 			if (DeploymentSettings.OnDetectProjectSettings != null)
 			{
 				string? Message;

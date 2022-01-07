@@ -17,6 +17,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -198,6 +199,11 @@ namespace UnrealGameSync
 		public string TelemetryProjectIdentifier => PerforceUtils.GetClientOrDepotDirectoryName(ProjectIdentifier);
 		public DirectoryReference EngineDir => DirectoryReference.Combine(LocalRootPath, "Engine");
 		public DirectoryReference? ProjectDir => ProjectPath.EndsWith(".uproject")? LocalFileName.Directory : null;
+		public DirectoryReference DataFolder => GetDataFolder(LocalRootPath);
+		public DirectoryReference CacheFolder => GetCacheFolder(LocalRootPath);
+
+		public static DirectoryReference GetDataFolder(DirectoryReference WorkspaceDir) => DirectoryReference.Combine(WorkspaceDir, ".ugs");
+		public static DirectoryReference GetCacheFolder(DirectoryReference WorkspaceDir) => DirectoryReference.Combine(WorkspaceDir, ".ugs", "cache");
 
 		public ProjectInfo(DirectoryReference LocalRootPath, string ClientName, string BranchPath, string ProjectPath, string? StreamName, string ProjectIdentifier, bool bIsEnterpriseProject)
 		{
@@ -211,6 +217,93 @@ namespace UnrealGameSync
 			this.StreamName = StreamName;
 			this.ProjectIdentifier = ProjectIdentifier;
 			this.bIsEnterpriseProject = bIsEnterpriseProject;
+		}
+
+		public static async Task<ProjectInfo> CreateAsync(IPerforceConnection PerforceClient, UserWorkspaceSettings Settings, CancellationToken CancellationToken)
+		{
+			string? StreamName = await PerforceClient.GetCurrentStreamAsync(CancellationToken);
+
+			// Get a unique name for the project that's selected. For regular branches, this can be the depot path. For streams, we want to include the stream name to encode imports.
+			string NewSelectedProjectIdentifier;
+			if (StreamName != null)
+			{
+				string ExpectedPrefix = String.Format("//{0}/", PerforceClient.Settings.ClientName);
+				if (!Settings.ClientProjectPath.StartsWith(ExpectedPrefix, StringComparison.InvariantCultureIgnoreCase))
+				{
+					throw new UserErrorException($"Unexpected client path; expected '{Settings.ClientProjectPath}' to begin with '{ExpectedPrefix}'");
+				}
+				string? StreamPrefix = await TryGetStreamPrefixAsync(PerforceClient, StreamName, CancellationToken);
+				if (StreamPrefix == null)
+				{
+					throw new UserErrorException("Unable to get stream prefix");
+				}
+				NewSelectedProjectIdentifier = String.Format("{0}/{1}", StreamPrefix, Settings.ClientProjectPath.Substring(ExpectedPrefix.Length));
+			}
+			else
+			{
+				List<PerforceResponse<WhereRecord>> Records = await PerforceClient.TryWhereAsync(Settings.ClientProjectPath, CancellationToken).Where(x => !x.Succeeded || !x.Data.Unmap).ToListAsync(CancellationToken);
+				if (!Records.Succeeded() || Records.Count != 1)
+				{
+					throw new UserErrorException($"Couldn't get depot path for {Settings.ClientProjectPath}");
+				}
+
+				NewSelectedProjectIdentifier = Records[0].Data.DepotFile;
+
+				Match Match = Regex.Match(NewSelectedProjectIdentifier, "//([^/]+)/");
+				if (Match.Success)
+				{
+					DepotRecord Depot = await PerforceClient.GetDepotAsync(Match.Groups[1].Value, CancellationToken);
+					if (Depot.Type == "stream")
+					{
+						throw new UserErrorException($"Cannot use a legacy client ({PerforceClient.Settings.ClientName}) with a stream depot ({Depot.Depot}).");
+					}
+				}
+			}
+
+			// Figure out if it's an enterprise project. Use the synced version if we have it.
+			bool bIsEnterpriseProject = false;
+			if (Settings.ClientProjectPath.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+			{
+				string Text;
+				if (FileReference.Exists(Settings.LocalProjectPath))
+				{
+					Text = FileReference.ReadAllText(Settings.LocalProjectPath);
+				}
+				else
+				{
+					PerforceResponse<PrintRecord<string[]>> ProjectLines = await PerforceClient.TryPrintLinesAsync(Settings.ClientProjectPath, CancellationToken);
+					if (!ProjectLines.Succeeded)
+					{
+						throw new UserErrorException($"Unable to get contents of {Settings.ClientProjectPath}");
+					}
+					Text = String.Join("\n", ProjectLines.Data.Contents!);
+				}
+				bIsEnterpriseProject = Utility.IsEnterpriseProjectFromText(Text);
+			}
+
+			return new ProjectInfo(Settings.RootDir, Settings.ClientName, Settings.BranchPath, Settings.ProjectPath, StreamName, NewSelectedProjectIdentifier, bIsEnterpriseProject);
+		}
+
+		static async Task<string?> TryGetStreamPrefixAsync(IPerforceConnection Perforce, string StreamName, CancellationToken CancellationToken)
+		{
+			string? CurrentStreamName = StreamName;
+			while (!String.IsNullOrEmpty(CurrentStreamName))
+			{
+				PerforceResponse<StreamRecord> Response = await Perforce.TryGetStreamAsync(CurrentStreamName, false, CancellationToken);
+				if (!Response.Succeeded)
+				{
+					return null;
+				}
+
+				StreamRecord StreamSpec = Response.Data;
+				if (StreamSpec.Type != "virtual")
+				{
+					return CurrentStreamName;
+				}
+
+				CurrentStreamName = StreamSpec.Parent;
+			}
+			return null;
 		}
 
 		public static void ValidateBranchPath(string BranchPath)
@@ -1588,11 +1681,11 @@ namespace UnrealGameSync
 				{
 					string[] Lines = await File.ReadAllLinesAsync(LocalConfigFile.FullName);
 					ProjectConfig.Parse(Lines);
-					Logger.LogInformation("Read config file from {FileName}", LocalConfigFile.FullName);
+					Logger.LogDebug("Read config file from {FileName}", LocalConfigFile.FullName);
 				}
 				catch (Exception Ex)
 				{
-					Logger.LogInformation(Ex, "Failed to read config file from {FileName}", LocalConfigFile.FullName);
+					Logger.LogWarning(Ex, "Failed to read config file from {FileName}", LocalConfigFile.FullName);
 				}
 			}
 			return ProjectConfig;
