@@ -22,9 +22,6 @@ public:
 	virtual ~FDMXDisplayClusterReplicator();
 
 private:
-	/** Initalizes the replicator */
-	void Initialize();
-
 	/** Called whena cluster event was received */
 	void OnClusterEventReceived(const FDisplayClusterClusterEventBinary& Event);
 
@@ -34,12 +31,6 @@ private:
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
 	//~End FTickableGameObject interface
-
-	/** Force the node to be a DMX Master */
-	bool bForceMaster;
-
-	/** Force the node to be a DMX Slave */
-	bool bForceSlave;
 
 	/** True if it is a cluster event emitter, else it is a cluster event receiver */
 	bool bClusterEventEmitter;
