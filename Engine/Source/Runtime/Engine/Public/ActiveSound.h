@@ -60,7 +60,6 @@ struct FAttenuationFocusData
 		, FocusFactor(1.0f)
 		, DistanceScale(1.0f)
 		, PriorityScale(1.0f)
-		, PriorityHighest(1.0f)
 		, VolumeScale(1.0f)
 	{
 	}
@@ -308,7 +307,7 @@ public:
 	void ClearAudioComponent();
 	void SetAudioComponent(const FActiveSound& ActiveSound);
 	void SetAudioComponent(const UAudioComponent& Component);
-	void SetOwner(AActor* Owner);
+	void SetOwner(const AActor* Owner);
 	FString GetAudioComponentName() const;
 	FString GetOwnerName() const;
 

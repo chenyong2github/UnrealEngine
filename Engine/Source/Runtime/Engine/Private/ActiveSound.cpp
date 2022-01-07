@@ -329,7 +329,7 @@ void FActiveSound::SetAudioComponent(const UAudioComponent& Component)
 	SetOwner(Owner);
 }
 
-void FActiveSound::SetOwner(AActor* Actor)
+void FActiveSound::SetOwner(const AActor* Actor)
 {
 	if (Actor)
 	{

@@ -808,6 +808,10 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 		UActorSoundParameterInterface::Fill(Owner, ActorParams);
 		FAudioParameter::Merge(MoveTemp(ActorParams), SoundParams);
 	}
+	else
+	{
+		UE_LOG(LogAudio, VeryVerbose, TEXT("AudioComponent : '%s' playing sound '%s' has no owner"), *GetFullName(), *Sound->GetName());
+	}
 
 	TArray<FAudioParameter> DefaultParamsCopy = DefaultParameters;
 	FAudioParameter::Merge(MoveTemp(DefaultParamsCopy), SoundParams);
