@@ -201,10 +201,6 @@ class COREUOBJECT_API UPackageMap : public UObject
 	virtual void Serialize(FArchive& Ar) override;
 
 protected:
-
-	UE_DEPRECATED(4.25, "bSuppressLogs will be removed in a future release.")
-	bool					bSuppressLogs;
-
 	bool					bShouldTrackUnmappedGuids;
 	TSet< FNetworkGUID >	TrackedUnmappedNetGuids;
 	TSet< FNetworkGUID >	TrackedMappedDynamicNetGuids;
@@ -484,14 +480,6 @@ public:
 	 *						Only used when reading.
 	 */
 	virtual void NetSerializeStruct(FNetDeltaSerializeInfo& Params) = 0;
-
-	UE_DEPRECATED(4.23, "Please use the version of NetSerializeStruct that accepts an FNetDeltaSerializeInfo reference")
-	virtual void NetSerializeStruct(
-		class UScriptStruct* Struct,
-		class FBitArchive& Ar,
-		class UPackageMap* Map,
-		void* Data,
-		bool& bHasUnmapped);
 
 	/**
 	 * Gathers any guid references for a FastArraySerializer.

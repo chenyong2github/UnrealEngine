@@ -16,6 +16,7 @@
 #include "UObject/CoreNet.h"
 #include "Containers/ArrayView.h"
 #include "Net/Core/Misc/GuidReferences.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "HAL/IConsoleManager.h"
 #include "Templates/EnableIf.h"
 #include "FastArraySerializer.generated.h"
@@ -359,6 +360,10 @@ struct FFastArraySerializer
 	FFastArraySerializer()
 		: IDCounter(0)
 		, ArrayReplicationKey(0)
+#if WITH_PUSH_MODEL
+		, OwningObject(nullptr)
+		, RepIndex(INDEX_NONE)
+#endif // WITH_PUSH_MODEL
 		, CachedNumItems(INDEX_NONE)
 		, CachedNumItemsToConsiderForWriting(INDEX_NONE)
 		, DeltaFlags(EFastArraySerializerDeltaFlags::None)
@@ -383,6 +388,14 @@ struct FFastArraySerializer
 
 	/** List of items that need to be re-serialized when the referenced objects are mapped.*/
 	TMap<int32, FGuidReferencesMap> GuidReferencesMap_StructDelta;
+
+#if WITH_PUSH_MODEL
+	// Object that is replicating this fast array
+	UObject* OwningObject;
+
+	// Property index of this array in the owning object's replication layout
+	int32 RepIndex;
+#endif // WITH_PUSH_MODEL
 	
 	/** This must be called if you add or change an item in the array */
 	void MarkItemDirty(FFastArraySerializerItem & Item)
@@ -418,6 +431,13 @@ struct FFastArraySerializer
 		{
 			ArrayReplicationKey++;
 		}
+
+#if WITH_PUSH_MODEL
+		if (OwningObject != nullptr && RepIndex != INDEX_NONE)
+		{
+			MARK_PROPERTY_DIRTY_UNSAFE(OwningObject, RepIndex);
+		}
+#endif // WITH_PUSH_MODEL
 	}
 
 	/**
@@ -516,6 +536,17 @@ struct FFastArraySerializer
 	{
 		return MaxNumberOfAllowedDeletionsPerUpdate;
 	}
+
+#if WITH_PUSH_MODEL
+	void CachePushModelState(UObject* Object, const uint16 PropertyRepIndex)
+	{
+		if (OwningObject == nullptr && RepIndex == INDEX_NONE)
+		{
+			OwningObject = Object;
+			RepIndex = PropertyRepIndex;
+		}
+	}
+#endif // WITH_PUSH_MODEL
 
 private:
 

@@ -68,6 +68,12 @@ FAutoConsoleVariableRef CVarPushModelSkipUndirtiedReplicators(
 	GbPushModelSkipUndirtiedReplicators,
 	TEXT("When true, skip replicating any objects that we can safely see aren't dirty."));
 
+bool GbPushModelSkipUndirtiedFastArrays = false;
+FAutoConsoleVariableRef CVarPushModelSkipUndirtiedFastArrays(
+	TEXT("net.PushModelSkipUndirtiedFastArrays"),
+	GbPushModelSkipUndirtiedFastArrays,
+	TEXT("When true, include fast arrays when skipping objects that we can safely see aren't dirty."));
+
 extern int32 GNumSkippedObjectEmptyUpdates;
 
 extern NETCORE_API TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
@@ -322,7 +328,11 @@ FObjectReplicator::~FObjectReplicator()
 
 bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, FProperty* Property, uint32 ArrayIndex, FNetBitWriter& OutBunch, TSharedPtr<INetDeltaBaseState>& NewFullState, TSharedPtr<INetDeltaBaseState>& OldState)
 {
-	return SendCustomDeltaProperty(InObject, Property->RepIndex + ArrayIndex, OutBunch, NewFullState, OldState);
+	check(RepLayout);
+
+	const uint16 CustomDeltaIndex = RepLayout->GetCustomDeltaIndexFromPropertyRepIndex(Property->RepIndex + ArrayIndex);
+
+	return SendCustomDeltaProperty(InObject, CustomDeltaIndex, OutBunch, NewFullState, OldState);
 }
 
 bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, uint16 CustomDeltaIndex, FNetBitWriter& OutBunch, TSharedPtr<INetDeltaBaseState>& NewFullState, TSharedPtr<INetDeltaBaseState>& OldState)
@@ -468,20 +478,20 @@ bool FObjectReplicator::ValidateAgainstState( const UObject* ObjectState )
 	return true;
 }
 
-void FObjectReplicator::InitWithObject( UObject* InObject, UNetConnection * InConnection, bool bUseDefaultState )
+void FObjectReplicator::InitWithObject(UObject* InObject, UNetConnection* InConnection, bool bUseDefaultState)
 {
-	check( GetObject() == nullptr );
-	check( ObjectClass == nullptr );
-	check( bLastUpdateEmpty == false );
-	check( Connection == nullptr );
-	check( OwningChannel == nullptr );
-	check( !RepState.IsValid() );
-	check( RemoteFunctions == nullptr );
-	check( !RepLayout.IsValid() );
+	check(GetObject() == nullptr);
+	check(ObjectClass == nullptr);
+	check(bLastUpdateEmpty == false);
+	check(Connection == nullptr);
+	check(OwningChannel == nullptr);
+	check(!RepState.IsValid());
+	check(RemoteFunctions == nullptr);
+	check(!RepLayout.IsValid());
 
-	SetObject( InObject );
+	SetObject(InObject);
 
-	if ( GetObject() == nullptr )
+	if (GetObject() == nullptr)
 	{
 		// This may seem weird that we're checking for nullptr, but the SetObject above will wrap this object with TWeakObjectPtr
 		// If the object is pending kill, it will switch to nullptr, we're just making sure we handle this invalid edge case
@@ -489,16 +499,16 @@ void FObjectReplicator::InitWithObject( UObject* InObject, UNetConnection * InCo
 		return;
 	}
 
-	ObjectClass					= InObject->GetClass();
-	Connection					= InConnection;
-	RemoteFunctions				= nullptr;
-	bHasReplicatedProperties	= false;
-	bOpenAckCalled				= false;
-	RepState					= nullptr;
-	OwningChannel				= nullptr;		// Initially nullptr until StartReplicating is called
-	TrackedGuidMemoryBytes		= 0;
+	ObjectClass = InObject->GetClass();
+	Connection = InConnection;
+	RemoteFunctions = nullptr;
+	bHasReplicatedProperties = false;
+	bOpenAckCalled = false;
+	RepState = nullptr;
+	OwningChannel = nullptr;		// Initially nullptr until StartReplicating is called
+	TrackedGuidMemoryBytes = 0;
 
-	RepLayout = Connection->Driver->GetObjectClassRepLayout( ObjectClass );
+	RepLayout = Connection->Driver->GetObjectClassRepLayout(ObjectClass);
 
 	// Make a copy of the net properties
 	uint8* Source = bUseDefaultState ? (uint8*)GetObject()->GetArchetype() : (uint8*)InObject;
@@ -517,15 +527,24 @@ void FObjectReplicator::InitWithObject( UObject* InObject, UNetConnection * InCo
 		}
 	}
 
-	InitRecentProperties( Source );
+	InitRecentProperties(Source);
 
 	Connection->Driver->AllOwnedReplicators.Add(this);
 
-	bCanUseNonDirtyOptimization =
-		GbPushModelSkipUndirtiedReplicators &&
-		(RepLayout->IsEmpty() || EnumHasAnyFlags(RepLayout->GetFlags(), ERepLayoutFlags::FullPushSupport)) &&
+	if (GbPushModelSkipUndirtiedFastArrays)
+	{
+		bCanUseNonDirtyOptimization =
+			GbPushModelSkipUndirtiedReplicators &&
+			(RepLayout->IsEmpty() || EnumHasAnyFlags(RepLayout->GetFlags(), ERepLayoutFlags::FullPushSupport));
+	}
+	else
+	{
+		bCanUseNonDirtyOptimization =
+			GbPushModelSkipUndirtiedReplicators &&
+			(RepLayout->IsEmpty() || EnumHasAnyFlags(RepLayout->GetFlags(), ERepLayoutFlags::FullPushProperties)) &&
 			RepState->GetSendingRepState() &&
 			RepState->GetSendingRepState()->RecentCustomDeltaState.Num() == 0;
+	}
 }
 
 void FObjectReplicator::CleanUp()
@@ -2017,10 +2036,6 @@ void FObjectReplicator::QueueRemoteFunctionBunch( UFunction* Func, FOutBunch &Bu
 	}
 	
 	RemoteFuncInfo[InfoIdx].LastCallTimestamp = OwningChannel->Connection->Driver->GetElapsedTime();
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	RemoteFuncInfo[InfoIdx].LastCallTime = RemoteFuncInfo[InfoIdx].LastCallTimestamp;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (RemoteFunctions == nullptr)
 	{
