@@ -106,12 +106,11 @@ void USmartObjectSubsystem::AddToSimulation(const FSmartObjectID ID, const USmar
 
 	// Transfer spatial information to the runtime instance
 	Runtime.SetTransform(Transform);
-	Runtime.SetBounds(Bounds);
 
 	// Insert instance in the octree
 	const FSmartObjectOctreeIDSharedRef SharedOctreeID = MakeShareable(new FSmartObjectOctreeID());
 	Runtime.SetOctreeID(SharedOctreeID);
-	SmartObjectOctree.AddNode(Runtime.GetBounds(), ID, SharedOctreeID);
+	SmartObjectOctree.AddNode(Bounds, ID, SharedOctreeID);
 }
 
 void USmartObjectSubsystem::AddToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition)
