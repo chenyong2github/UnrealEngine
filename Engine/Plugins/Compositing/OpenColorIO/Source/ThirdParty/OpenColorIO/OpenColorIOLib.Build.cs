@@ -31,6 +31,15 @@ public class OpenColorIOLib : ModuleRules
 
 				bIsPlatformAdded = true;
 			}
+			else if (Target.Platform == UnrealTargetPlatform.Linux)
+			{
+				string SOName = "libOpenColorIO.so";
+				PublicAdditionalLibraries.Add(Path.Combine(BinaryPath, SOName));
+				RuntimeDependencies.Add(Path.Combine(BinaryPath, SOName));
+				PublicDefinitions.Add("WITH_OCIO=1");
+
+				bIsPlatformAdded = true;
+			}
 		}
 		
 		if(!bIsPlatformAdded)

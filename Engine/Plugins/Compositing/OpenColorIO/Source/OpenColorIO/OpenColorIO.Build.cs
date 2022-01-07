@@ -47,12 +47,6 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bBuildEditor == true)
 			{
-				if (Target.Platform == UnrealTargetPlatform.Win64)
-				{
-					//There are some dynamic_cast in OCIO library.
-					bUseRTTI = true;
-				}
-
 				PrivateDependencyModuleNames.AddRange(
 					new string[]
 					{
