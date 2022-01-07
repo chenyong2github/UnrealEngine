@@ -2,6 +2,7 @@
 
 #include "MLDeformerDataInterface.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "MLDeformerAsset.h"
@@ -13,8 +14,6 @@
 #include "RenderGraphResources.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
-#include "Components/SkeletalMeshComponent.h"
-
 
 FString UMLDeformerDataInterface::GetDisplayName() const
 {
