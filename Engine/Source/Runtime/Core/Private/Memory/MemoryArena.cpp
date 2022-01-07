@@ -477,4 +477,4 @@ FMemoryArena* FArenaMap::MapPtrToArena(const void* VaBase)
 
 //////////////////////////////////////////////////////////////////////////
 
-PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
