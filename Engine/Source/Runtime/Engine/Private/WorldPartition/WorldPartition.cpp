@@ -568,11 +568,14 @@ void UWorldPartition::Uninitialize()
 			if (!IsEngineExitRequested())
 			{
 				// Unload all Editor cells
-				// @todo_ow: Once Metadata is removed from external actor's package, this won't be necessary anymore.
-				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
+				if (EditorHash)
 				{
-					UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false, /*bIsFromUserChange*/false);
-				});
+					// @todo_ow: Once Metadata is removed from external actor's package, this won't be necessary anymore.
+					EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
+					{
+						UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false, /*bIsFromUserChange*/false);
+					});
+				}
 			}
 		}
 
