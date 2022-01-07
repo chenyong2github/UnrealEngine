@@ -465,6 +465,7 @@ namespace ImmediatePhysics_Chaos
 		// @todo(ccaulfield): FActorHandle could remember its index to optimize this
 
 		RemoveFromCollidingPairs(ActorHandle);
+        DestroyActorCollisions(ActorHandle);
 
 		// If any joints reference the particle, we must destroy them
 		TArray<FJointHandle*> ActorJointHandles;
@@ -490,6 +491,11 @@ namespace ImmediatePhysics_Chaos
 
 		Implementation->bActorsDirty = true;
 	}
+
+    void FSimulation::DestroyActorCollisions(FActorHandle* ActorHandle)
+    {
+        Implementation->Collisions.GetConstraintAllocator().RemoveParticle(ActorHandle->GetParticle());
+    }
 
 	FJointHandle* FSimulation::CreateJoint(FConstraintInstance* ConstraintInstance, FActorHandle* Body1, FActorHandle* Body2)
 	{
