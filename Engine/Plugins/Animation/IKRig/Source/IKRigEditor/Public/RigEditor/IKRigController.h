@@ -142,7 +142,7 @@ public:
 	 * 
 	 */
 	/** Add a Chain with the given Name and Start/End bones. Returns true if a new Chain was created. */
-	bool AddRetargetChain(const FName& ChainName, const FName& StartBone, const FName& EndBone) const;
+	void AddRetargetChain(const FName& ChainName, const FName& StartBone, const FName& EndBone) const;
 	/** Remove a Chain with the given name. Returns true if a Chain was removed. */
 	bool RemoveRetargetChain(const FName& ChainName) const;
 	/** Renamed the given Chain. Returns the new name (same as old if unsuccessful). */
@@ -167,6 +167,10 @@ public:
 	FName GetRetargetRoot() const;
 	/** Sorts the Chains from Root to tip based on the Start Bone of each Chain. */
 	void SortRetargetChains() const;
+	/** Make unique name for a retargeting bone chain. Adds a numbered suffix to make it unique.*/
+	FName GetUniqueRetargetChainName(const FName& NameToMakeUnique) const;
+	/** Returns true if this is a valid chain. Produces array of bone indices between start and end (inclusive). */
+	bool ValidateChain(const FName& ChainName, TSet<int32>& OutChainIndices) const;
 	/** END retarget chains */
 
 	// force all currently connected processors to reinitialize using latest asset state

@@ -273,18 +273,7 @@ void FIKRigEditMode::GetAffectedBones(
 			{
 				return;
 			}
-			UIKRigController* AssetController = Controller->AssetController;
-			const FName StartBone = AssetController->GetRetargetChainStartBone(SelectedChainName);
-			const FName EndBone = AssetController->GetRetargetChainEndBone(SelectedChainName);
-			const int32 ChainStartIndex = Skeleton.GetBoneIndexFromName(StartBone);
-			const int32 ChainEndIndex = Skeleton.GetBoneIndexFromName(EndBone);
-			OutSelectedBones.Add(ChainStartIndex);
-			OutAffectedBones.Add(ChainStartIndex);
-			for (int32 BoneIndex=ChainStartIndex; BoneIndex<=ChainEndIndex; ++BoneIndex)
-			{
-				OutSelectedBones.Add(BoneIndex);
-				OutAffectedBones.Add(BoneIndex);
-			}
+			Controller->AssetController->ValidateChain(SelectedChainName, OutSelectedBones);
 		}
 		break;
 		
