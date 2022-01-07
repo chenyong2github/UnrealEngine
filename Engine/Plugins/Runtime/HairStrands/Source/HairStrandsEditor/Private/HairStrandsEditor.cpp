@@ -12,7 +12,6 @@
 #include "EditorStyleSet.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
-#include "FbxHairTranslator.h"
 
 #include "GroomAsset.h"
 #include "GroomBindingAsset.h"
@@ -82,8 +81,6 @@ void FGroomEditor::StartupModule()
 	AssetTools.RegisterAssetTypeActions(GroomCacheActions);
 	RegisteredAssetTypeActions.Add(GroomAssetActions);
 	RegisteredAssetTypeActions.Add(BindingAssetActions);
-
-	RegisterHairTranslator<FFbxHairTranslator>();
 
 	// Only register once
 	if (!StyleSet.IsValid())
