@@ -78,7 +78,7 @@ struct FCollisionShape
 	}
 
 	/** Utility function to Set Box and dimension */
-	void SetBox(const FVector& HalfExtent)
+	void SetBox(const FVector3f& HalfExtent)
 	{
 		ShapeType = ECollisionShape::Box;
 		Box.HalfExtentX = HalfExtent.X;
@@ -102,7 +102,7 @@ struct FCollisionShape
 	}
 
 	/** Utility function to set Capsule from Extent data */
-	void SetCapsule(const FVector& Extent)
+	void SetCapsule(const FVector3f& Extent)
 	{
 		ShapeType = ECollisionShape::Capsule;
 		Capsule.Radius = FMath::Max(Extent.X, Extent.Y);
