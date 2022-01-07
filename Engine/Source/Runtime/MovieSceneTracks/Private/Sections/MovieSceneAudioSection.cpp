@@ -77,6 +77,23 @@ namespace MovieSceneAudioSectionPrivate
 	}
 }
 
+void UMovieSceneAudioSection::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsLoading())
+	{
+		CacheChannelProxy();
+	}
+}
+
+void UMovieSceneAudioSection::PostEditImport()
+{
+	Super::PostEditImport();
+
+	CacheChannelProxy();
+}
+
 EMovieSceneChannelProxyType  UMovieSceneAudioSection::CacheChannelProxy()
 {
 	// Set up the channel proxy
