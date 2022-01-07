@@ -509,7 +509,6 @@ void UMassRepresentationFragmentDestructor::ConfigureQueries()
 
 void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	check(Context.ValidateAuxDataType<FMassRepresentationFragment>());
 	check(RepresentationSubsystem);
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
