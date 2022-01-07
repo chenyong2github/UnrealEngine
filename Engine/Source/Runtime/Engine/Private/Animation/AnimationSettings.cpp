@@ -42,6 +42,7 @@ TArray<FString> UAnimationSettings::GetBoneCustomAttributeNamesToImport() const
 		BoneTimecodeCustomAttributeNameSettings.SecondAttributeName.ToString(),
 		BoneTimecodeCustomAttributeNameSettings.FrameAttributeName.ToString(),
 		BoneTimecodeCustomAttributeNameSettings.SubframeAttributeName.ToString(),
+		BoneTimecodeCustomAttributeNameSettings.RateAttributeName.ToString(),
 		BoneTimecodeCustomAttributeNameSettings.TakenameAttributeName.ToString()
 	};
 
