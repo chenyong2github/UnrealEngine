@@ -41,7 +41,7 @@ static FAutoConsoleVariableRef CVarShaderCompressionFormatChoice(
 	TEXT(" 3: ZLib\n"),
 	ECVF_ReadOnly);
 
-int32 GShaderCompressionOodleAlgo = 1;
+int32 GShaderCompressionOodleAlgo = 2;
 static FAutoConsoleVariableRef CVarShaderCompressionOodleAlgo(
 	TEXT("r.Shaders.CompressionFormat.Oodle.Algo"),
 	GShaderCompressionOodleAlgo,
