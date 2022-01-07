@@ -81,6 +81,8 @@ namespace UnrealGameSync
 
 	public interface IArchiveInfo
 	{
+		public const string EditorArchiveType = "Editor";
+
 		string Name { get; }
 		string Type { get; }
 		string BasePath { get; }
@@ -95,14 +97,14 @@ namespace UnrealGameSync
 		public DateTime StartTime = DateTime.UtcNow;
 		public int ChangeNumber;
 		public WorkspaceUpdateOptions Options;
+		public BuildConfig EditorConfig;
 		public string[]? SyncFilter;
 		public Dictionary<string, Tuple<IArchiveInfo, string>?> ArchiveTypeToArchive = new Dictionary<string, Tuple<IArchiveInfo, string>?>();
 		public Dictionary<string, bool> DeleteFiles = new Dictionary<string,bool>();
 		public Dictionary<string, bool> ClobberFiles = new Dictionary<string,bool>();
-		public Dictionary<Guid,ConfigObject> DefaultBuildSteps;
 		public List<ConfigObject> UserBuildStepObjects;
 		public HashSet<Guid>? CustomBuildSteps;
-		public Dictionary<string, string> Variables;
+		public Dictionary<string, string> AdditionalVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		public PerforceSyncOptions? PerforceSyncOptions;
 		public List<HaveRecord>? HaveFiles; // Cached when sync filter has changed
 
@@ -110,15 +112,14 @@ namespace UnrealGameSync
 		public ConfigFile? ProjectConfigFile;
 		public IReadOnlyList<string>? ProjectStreamFilter;
 
-		public WorkspaceUpdateContext(int InChangeNumber, WorkspaceUpdateOptions InOptions, string[]? InSyncFilter, Dictionary<Guid, ConfigObject> InDefaultBuildSteps, List<ConfigObject> InUserBuildSteps, HashSet<Guid>? InCustomBuildSteps, Dictionary<string, string> InVariables)
+		public WorkspaceUpdateContext(int InChangeNumber, WorkspaceUpdateOptions InOptions, BuildConfig InEditorConfig, string[]? InSyncFilter, List<ConfigObject> InUserBuildSteps, HashSet<Guid>? InCustomBuildSteps)
 		{
 			ChangeNumber = InChangeNumber;
 			Options = InOptions;
+			EditorConfig = InEditorConfig;
 			SyncFilter = InSyncFilter;
-			DefaultBuildSteps = InDefaultBuildSteps;
 			UserBuildStepObjects = InUserBuildSteps;
 			CustomBuildSteps = InCustomBuildSteps;
-			Variables = InVariables;
 		}
 	}
 
@@ -180,18 +181,25 @@ namespace UnrealGameSync
 	public class ProjectInfo
 	{
 		public DirectoryReference LocalRootPath { get; } // ie. local mapping of clientname + branchpath
+
 		public string ClientName { get; }
 		public string BranchPath { get; } // starts with a slash if non-empty. does not end with a slash.
 		public string ProjectPath { get; } // starts with a slash, uses forward slashes
-		public string ProjectIdentifier { get; } // stream path to project
-		public string TelemetryProjectIdentifier { get; }
-		public bool bIsEnterpriseProject { get; }
 
+		public string? StreamName { get; } // name of the current stream
+
+		public string ProjectIdentifier { get; } // stream path to project
+		public bool bIsEnterpriseProject { get; } // whether it's an enterprise project
+
+		// derived properties
 		public FileReference LocalFileName => new FileReference(LocalRootPath.FullName + ProjectPath);
 		public string ClientRootPath => $"//{ClientName}{BranchPath}";
 		public string ClientFileName => $"//{ClientName}{BranchPath}{ProjectPath}";
+		public string TelemetryProjectIdentifier => PerforceUtils.GetClientOrDepotDirectoryName(ProjectIdentifier);
+		public DirectoryReference EngineDir => DirectoryReference.Combine(LocalRootPath, "Engine");
+		public DirectoryReference? ProjectDir => ProjectPath.EndsWith(".uproject")? LocalFileName.Directory : null;
 
-		public ProjectInfo(DirectoryReference LocalRootPath, string ClientName, string BranchPath, string ProjectPath, string ProjectIdentifier, bool bIsEnterpriseProject)
+		public ProjectInfo(DirectoryReference LocalRootPath, string ClientName, string BranchPath, string ProjectPath, string? StreamName, string ProjectIdentifier, bool bIsEnterpriseProject)
 		{
 			ValidateBranchPath(BranchPath);
 			ValidateProjectPath(ProjectPath);
@@ -200,8 +208,8 @@ namespace UnrealGameSync
 			this.ClientName = ClientName;
 			this.BranchPath = BranchPath;
 			this.ProjectPath = ProjectPath;
+			this.StreamName = StreamName;
 			this.ProjectIdentifier = ProjectIdentifier;
-			this.TelemetryProjectIdentifier = PerforceUtils.GetClientOrDepotDirectoryName(ProjectIdentifier);
 			this.bIsEnterpriseProject = bIsEnterpriseProject;
 		}
 
@@ -929,10 +937,7 @@ namespace UnrealGameSync
 							Logger.LogInformation("");
 							Logger.LogInformation("Executing post-sync steps...");
 
-							Dictionary<string, string> PostSyncVariables = new Dictionary<string, string>(Context.Variables);
-							PostSyncVariables["Change"] = Context.ChangeNumber.ToString();
-							PostSyncVariables["CodeChange"] = VersionChangeNumber.ToString();
-
+							Dictionary<string, string> PostSyncVariables = ConfigUtils.GetWorkspaceVariables(Project, Context.ChangeNumber, VersionChangeNumber, null, Context.ProjectConfigFile);
 							foreach (string PostSyncStep in PostSyncSteps.Select(x => x.Trim()))
 							{
 								ConfigObject PostSyncStepObject = new ConfigObject(PostSyncStep);
@@ -962,6 +967,7 @@ namespace UnrealGameSync
 					else
 					{
 						State.CurrentChangeNumber = Context.ChangeNumber;
+						State.CurrentCodeChangeNumber = VersionChangeNumber;
 					}
 					State.Save();
 
@@ -1079,8 +1085,16 @@ namespace UnrealGameSync
 			{
 				Context.ProjectConfigFile ??= await ReadProjectConfigFile(Project.LocalRootPath, Project.LocalFileName, Logger);
 
-				// Compile all the build steps together
-				Dictionary<Guid, ConfigObject> BuildStepObjects = Context.DefaultBuildSteps.ToDictionary(x => x.Key, x => new ConfigObject(x.Value));
+				// Figure out the new editor target
+				TargetReceipt DefaultEditorReceipt = ConfigUtils.CreateDefaultEditorReceipt(Project, Context.ProjectConfigFile, Context.EditorConfig);
+
+				FileReference EditorTargetFile = ConfigUtils.GetEditorTargetFile(Project, Context.ProjectConfigFile);
+				string EditorTargetName = EditorTargetFile.GetFileNameWithoutAnyExtensions();
+				FileReference EditorReceiptFile = ConfigUtils.GetReceiptFile(Project, EditorTargetFile, Context.EditorConfig.ToString());
+
+				// Get the build steps
+				bool UsingPrecompiledEditor = Context.ArchiveTypeToArchive.TryGetValue(IArchiveInfo.EditorArchiveType, out Tuple<IArchiveInfo, string>? ArchiveInfo) && ArchiveInfo != null;
+				Dictionary<Guid, ConfigObject> BuildStepObjects = ConfigUtils.GetDefaultBuildStepObjects(Project, EditorTargetName, Context.EditorConfig, Context.ProjectConfigFile, UsingPrecompiledEditor);
 				BuildStep.MergeBuildStepObjects(BuildStepObjects, Context.ProjectConfigFile.GetValues("Build.Step", new string[0]).Select(x => new ConfigObject(x)));
 				BuildStep.MergeBuildStepObjects(BuildStepObjects, Context.UserBuildStepObjects);
 
@@ -1137,6 +1151,15 @@ namespace UnrealGameSync
 
 						if (Step.IsValid())
 						{
+							// Get the build variables for this step
+							TargetReceipt? EditorReceipt;
+							if (!ConfigUtils.TryReadEditorReceipt(Project, EditorReceiptFile, out EditorReceipt))
+							{
+								EditorReceipt = DefaultEditorReceipt;
+							}
+							Dictionary<string, string> Variables = ConfigUtils.GetWorkspaceVariables(Project, State.CurrentChangeNumber, State.CurrentCodeChangeNumber, EditorReceipt, Context.ProjectConfigFile, Context.AdditionalVariables);
+
+							// Handle all the different types of steps
 							switch (Step.Type)
 							{
 								case BuildStepType.Compile:
@@ -1145,7 +1168,7 @@ namespace UnrealGameSync
 										StepStopwatch.AddData(new { Target = Step.Target });
 
 										FileReference BuildBat = FileReference.Combine(Project.LocalRootPath, "Engine", "Build", "BatchFiles", "Build.bat");
-										string CommandLine = String.Format("{0} {1} {2} {3} -NoHotReloadFromIDE", Step.Target, Step.Platform, Step.Configuration, Utility.ExpandVariables(Step.Arguments ?? "", Context.Variables));
+										string CommandLine = String.Format("{0} {1} {2} {3} -NoHotReloadFromIDE", Step.Target, Step.Platform, Step.Configuration, Utility.ExpandVariables(Step.Arguments ?? "", Variables));
 										if (Context.Options.HasFlag(WorkspaceUpdateOptions.Clean) || bForceClean)
 										{
 											Logger.LogInformation("ubt> Running {FileName} {Arguments}", BuildBat, CommandLine + " -clean");
@@ -1199,9 +1222,9 @@ namespace UnrealGameSync
 									{
 										StepStopwatch.AddData(new { FileName = Path.GetFileNameWithoutExtension(Step.FileName) });
 
-										FileReference ToolFileName = FileReference.Combine(Project.LocalRootPath, Utility.ExpandVariables(Step.FileName ?? "unknown", Context.Variables));
-										string ToolWorkingDir = String.IsNullOrWhiteSpace(Step.WorkingDir) ? ToolFileName.Directory.FullName : Utility.ExpandVariables(Step.WorkingDir, Context.Variables);
-										string ToolArguments = Utility.ExpandVariables(Step.Arguments ?? "", Context.Variables);
+										FileReference ToolFileName = FileReference.Combine(Project.LocalRootPath, Utility.ExpandVariables(Step.FileName ?? "unknown", Variables));
+										string ToolWorkingDir = String.IsNullOrWhiteSpace(Step.WorkingDir) ? ToolFileName.Directory.FullName : Utility.ExpandVariables(Step.WorkingDir, Variables);
+										string ToolArguments = Utility.ExpandVariables(Step.Arguments ?? "", Variables);
 										Logger.LogInformation("tool> Running {0} {1}", ToolFileName, ToolArguments);
 
 										if (Step.bUseLogWindow)

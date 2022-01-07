@@ -200,8 +200,6 @@ namespace UnrealGameSync
 
 		const int BuildListExpandCount = 250;
 
-		const string EditorArchiveType = "Editor";
-
 		IWorkspaceControlOwner Owner;
 		string? ApiUrl;
 		DirectoryReference DataFolder;
@@ -968,7 +966,7 @@ namespace UnrealGameSync
 				CombinedSyncFilter = AdditionalPaths.Union(CombinedSyncFilter).ToArray();
 			}
 
-			WorkspaceUpdateContext Context = new WorkspaceUpdateContext(ChangeNumber, Options, CombinedSyncFilter, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, null, GetWorkspaceVariables(ChangeNumber));
+			WorkspaceUpdateContext Context = new WorkspaceUpdateContext(ChangeNumber, Options, GetEditorBuildConfig(), CombinedSyncFilter, ProjectSettings.BuildSteps, null);
 			if (Options.HasFlag(WorkspaceUpdateOptions.SyncArchives))
 			{
 				IReadOnlyList<IArchiveInfo> Archives = GetArchives();
@@ -987,7 +985,7 @@ namespace UnrealGameSync
 						return;
 					}
 
-					if (Archive.Type == EditorArchiveType)
+					if (Archive.Type == IArchiveInfo.EditorArchiveType)
 					{
 						Context.Options &= ~(WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.GenerateProjectFiles | WorkspaceUpdateOptions.OpenSolutionAfterSync);
 					}
@@ -1038,15 +1036,13 @@ namespace UnrealGameSync
 			{
 				if (!Context.Options.HasFlag(WorkspaceUpdateOptions.ContentOnly) && (Context.CustomBuildSteps == null || Context.CustomBuildSteps.Count == 0))
 				{
+					FileReference TargetFile = ConfigUtils.GetEditorTargetFile(Workspace.Project, Workspace.ProjectConfigFile);
 					foreach (BuildConfig Config in Enum.GetValues(typeof(BuildConfig)).OfType<BuildConfig>())
 					{
-						List<FileReference> EditorReceiptPaths = GetEditorReceiptPaths(Config);
-						foreach (FileReference EditorReceiptPath in EditorReceiptPaths)
+						FileReference ReceiptFile = ConfigUtils.GetReceiptFile(Workspace.Project, TargetFile, Config.ToString());
+						if (FileReference.Exists(ReceiptFile))
 						{
-							if (FileReference.Exists(EditorReceiptPath))
-							{
-								try { FileReference.Delete(EditorReceiptPath); } catch (Exception) { }
-							}
+							try { FileReference.Delete(ReceiptFile); } catch (Exception) { }
 						}
 					}
 				}
@@ -2673,42 +2669,7 @@ namespace UnrealGameSync
 
 		private bool TryGetProjectSetting(ConfigFile ProjectConfigFile, string Name, [NotNullWhen(true)] out string? Value)
 		{
-			string Path = SelectedProjectIdentifier;
-			for(; ;)
-			{
-				ConfigSection ProjectSection = ProjectConfigFile.FindSection(Path);
-				if (ProjectSection != null)
-				{
-					string? NewValue = ProjectSection.GetValue(Name, null);
-					if (NewValue != null)
-					{
-						Value = NewValue;
-						return true;
-					}
-				}
-
-				int LastSlash = Path.LastIndexOf('/');
-				if(LastSlash < 2)
-				{
-					break;
-				}
-
-				Path = Path.Substring(0, LastSlash);
-			}
-
-			ConfigSection DefaultSection = ProjectConfigFile.FindSection("Default");
-			if (DefaultSection != null)
-			{
-				string? NewValue = DefaultSection.GetValue(Name, null);
-				if (NewValue != null)
-				{
-					Value = NewValue;
-					return true;
-				}
-			}
-
-			Value = null;
-			return false;
+			return ConfigUtils.TryGetProjectSetting(ProjectConfigFile, SelectedProjectIdentifier, Name, out Value);
 		}
 
 		private bool TryGetProjectSetting(ConfigFile ProjectConfigFile, string Name, [NotNullWhen(true)] out string[]? Values)
@@ -3035,10 +2996,8 @@ namespace UnrealGameSync
 			{
 				BuildConfig EditorBuildConfig = GetEditorBuildConfig();
 
-				List<FileReference> ReceiptPaths = GetEditorReceiptPaths(EditorBuildConfig);
-
-				FileReference EditorExe = GetEditorExePath(EditorBuildConfig);
-				if (ReceiptPaths.Any(x => FileReference.Exists(x)) && FileReference.Exists(EditorExe))
+				FileReference ReceiptFile = ConfigUtils.GetEditorReceiptFile(Workspace.Project, Workspace.ProjectConfigFile, EditorBuildConfig);
+				if (ConfigUtils.TryReadEditorReceipt(Workspace.Project, ReceiptFile, out TargetReceipt? Receipt) && Receipt.Launch != null && File.Exists(Receipt.Launch))
 				{
 					if (Settings.bEditorArgumentsPrompt && !ModifyEditorArguments())
 					{
@@ -3062,9 +3021,9 @@ namespace UnrealGameSync
 						LaunchArguments.Append(" -debug");
 					}
 
-					if (!Utility.SpawnProcess(EditorExe.FullName, LaunchArguments.ToString()))
+					if (!Utility.SpawnProcess(Receipt.Launch, LaunchArguments.ToString()))
 					{
-						ShowErrorDialog("Unable to spawn {0} {1}", EditorExe, LaunchArguments.ToString());
+						ShowErrorDialog("Unable to spawn {0} {1}", Receipt.Launch, LaunchArguments.ToString());
 					}
 				}
 				else
@@ -3074,7 +3033,7 @@ namespace UnrealGameSync
 						Owner.ShowAndActivate();
 
 						WorkspaceUpdateOptions Options = WorkspaceUpdateOptions.Build | WorkspaceUpdateOptions.RunAfterSync;
-						WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, Options, null, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, null, GetWorkspaceVariables(Workspace.CurrentChangeNumber));
+						WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, Options, Settings.CompiledEditorBuildConfig, null, ProjectSettings.BuildSteps, null);
 						StartWorkspaceUpdate(Context, null);
 					}
 				}
@@ -3089,7 +3048,7 @@ namespace UnrealGameSync
 				List<IArchiveInfo> Archives = GetSelectedArchives(PerforceMonitor.AvailableArchives);
 				foreach(IArchiveInfo Archive in Archives)
 				{
-					if(Archive.Type == EditorArchiveType)
+					if(Archive.Type == IArchiveInfo.EditorArchiveType)
 					{
 						if(Archive.Target != null)
 						{
@@ -3099,53 +3058,6 @@ namespace UnrealGameSync
 				}
 			}
 			return EditorTargetName;
-		}
-
-		private class ReceiptJsonObject
-		{
-			public string? Launch { get; set; }
-		}
-
-		private FileReference GetEditorExePath(BuildConfig Config)
-		{
-			// Try to read the executable path from the target receipt
-			List<FileReference> ReceiptFileNames = GetEditorReceiptPaths(Config);
-			foreach (FileReference ReceiptFileName in ReceiptFileNames)
-			{
-				if (FileReference.Exists(ReceiptFileName))
-				{
-					Logger.LogInformation("Reading {FileName}", ReceiptFileName);
-					try
-					{
-						string Text = FileReference.ReadAllText(ReceiptFileName);
-						ReceiptJsonObject Receipt = JsonSerializer.Deserialize<ReceiptJsonObject>(Text, Utility.DefaultJsonSerializerOptions);
-
-						string? LaunchFileName = Receipt.Launch;
-						if (LaunchFileName != null)
-						{
-							LaunchFileName = LaunchFileName.Replace("$(EngineDir)", DirectoryReference.Combine(BranchDirectoryName, "Engine").FullName);
-							LaunchFileName = LaunchFileName.Replace("$(ProjectDir)", SelectedFileName.Directory.FullName);
-							return new FileReference(LaunchFileName);
-						}
-					}
-					catch (Exception Ex)
-					{
-						Logger.LogError(Ex, "Exception while parsing receipt");
-					}
-					break;
-				}
-			}
-
-			// Get the default editor target name
-			string TargetName = GetDefaultEditorTargetName();
-
-			// Otherwise use the standard editor path
-			string ExeFileName = String.Format("{0}.exe", TargetName);
-			if ((Config != BuildConfig.DebugGame || PerforceMonitor.LatestProjectConfigFile.GetValue("Options.DebugGameHasSeparateExecutable", false)) && Config != BuildConfig.Development)
-			{
-				ExeFileName = String.Format("{0}-Win64-{1}.exe", TargetName, Config.ToString());
-			}
-			return FileReference.Combine(BranchDirectoryName, "Engine", "Binaries", "Win64", ExeFileName);
 		}
 
 		private bool WaitForProgramsToFinish()
@@ -3221,35 +3133,6 @@ namespace UnrealGameSync
 			{
 			}
 			return ProcessFileNames.ToArray();
-		}
-
-		private List<FileReference> GetEditorReceiptPaths(BuildConfig Config)
-		{
-			string ConfigSuffix = (Config == BuildConfig.Development) ? "" : String.Format("-Win64-{0}", Config.ToString());
-
-			List<FileReference> PossiblePaths = new List<FileReference>();
-			string ActualEditorName = TryGetEditorNameFromArchive();
-			if (ActualEditorName != null)
-			{
-				PossiblePaths.Add(FileReference.Combine(SelectedFileName.Directory, "Binaries", "Win64", String.Format("{0}{1}.target", ActualEditorName, ConfigSuffix)));
-			}
-			else if (SelectedFileName.HasExtension(".uproject"))
-			{
-				if (bIsEnterpriseProject)
-				{
-					PossiblePaths.Add(FileReference.Combine(SelectedFileName.Directory, "Binaries", "Win64", String.Format("StudioEditor{0}.target", ConfigSuffix)));
-				}
-				else
-				{
-					PossiblePaths.Add(FileReference.Combine(SelectedFileName.Directory, "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
-					PossiblePaths.Add(FileReference.Combine(Workspace.Project.LocalRootPath, "Engine", "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
-				}
-			}
-			else
-			{
-				PossiblePaths.Add(FileReference.Combine(SelectedFileName.Directory, "Engine", "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
-			}
-			return PossiblePaths;
 		}
 
 		private void TimerCallback(object? Sender, EventArgs Args)
@@ -3348,7 +3231,7 @@ namespace UnrealGameSync
 			DirectoryReference? ToolDir = Owner.ToolUpdateMonitor.GetToolPath(Tool.Name);
 			if (ToolDir != null)
 			{
-				Dictionary<string, string> Variables = GetWorkspaceVariables(Workspace.CurrentChangeNumber);
+				Dictionary<string, string> Variables = Workspace.GetVariables(GetEditorBuildConfig());
 				Variables["ToolDir"] = ToolDir.FullName;
 
 				string FileName = Utility.ExpandVariables(Link.FileName, Variables);
@@ -3763,7 +3646,7 @@ namespace UnrealGameSync
 			string[]? SdkInfoEntries;
 			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "SdkInfo", out SdkInfoEntries))
 			{
-				Dictionary<string, string> Variables = GetWorkspaceVariables(-1);
+				Dictionary<string, string> Variables = Workspace.GetVariables(GetEditorBuildConfig());
 				SdkInfoWindow Window = new SdkInfoWindow(SdkInfoEntries, Variables, BadgeFont!);
 				Window.ShowDialog();
 			}
@@ -4229,7 +4112,7 @@ namespace UnrealGameSync
 						ConfigFile? ProjectConfigFile = PerforceMonitor.LatestProjectConfigFile;
 						if (ProjectConfigFile != null)
 						{
-							Dictionary<string, string> Variables = GetWorkspaceVariables(ContextMenuChange.Number);
+							Dictionary<string, string> Variables = Workspace.GetVariables(GetEditorBuildConfig(), ContextMenuChange.Number, -1);
 
 							string[] ChangeContextMenuEntries = ProjectConfigFile.GetValues("Options.ContextMenu", new string[0]);
 							foreach (string ChangeContextMenuEntry in ChangeContextMenuEntries)
@@ -4446,7 +4329,7 @@ namespace UnrealGameSync
 				OptionsContextMenu_SyncPrecompiledBinaries.ToolTipText = null;
 				OptionsContextMenu_SyncPrecompiledBinaries.Checked = SelectedArchives.Count > 0;
 
-				if (Archives.Count > 1 || Archives[0].Type != EditorArchiveType)
+				if (Archives.Count > 1 || Archives[0].Type != IArchiveInfo.EditorArchiveType)
 				{
 					ToolStripMenuItem DisableItem = new ToolStripMenuItem("Disable (compile locally)");
 					DisableItem.Checked = (SelectedArchives.Count == 0);
@@ -4580,7 +4463,7 @@ namespace UnrealGameSync
 				List<ConfigObject> UserBuildSteps = new List<ConfigObject>();
 				UserBuildSteps.Add(CustomBuildStep.ToConfigObject());
 
-				WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.Build, null, GetDefaultBuildStepObjects(), UserBuildSteps, new HashSet<Guid> { CustomBuildStep.UniqueId }, GetWorkspaceVariables(Workspace.CurrentChangeNumber));
+				WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.Build, GetEditorBuildConfig(), null, UserBuildSteps, new HashSet<Guid> { CustomBuildStep.UniqueId });
 				StartWorkspaceUpdate(Context, null);
 			}
 		}
@@ -5291,7 +5174,8 @@ namespace UnrealGameSync
 						}
 					}
 
-					Dictionary<string, string> Variables = GetWorkspaceVariables(Workspace.CurrentChangeNumber);
+					WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.Build, GetEditorBuildConfig(), null, ProjectSettings.BuildSteps, StepSet);
+
 					if (Step.ToolId != Guid.Empty)
 					{
 						string? ToolName = Owner.ToolUpdateMonitor.GetToolName(Step.ToolId);
@@ -5300,41 +5184,14 @@ namespace UnrealGameSync
 							DirectoryReference? ToolPath = Owner.ToolUpdateMonitor.GetToolPath(ToolName);
 							if (ToolPath != null)
 							{
-								Variables["ToolDir"] = ToolPath.FullName;
+								Context.AdditionalVariables["ToolDir"] = ToolPath.FullName;
 							}
 						}
 					}
 
-					WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.Build, null, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, StepSet, Variables);
 					StartWorkspaceUpdate(Context, null);
 				}
 			}
-		}
-
-		private Dictionary<string, string> GetWorkspaceVariables(int ChangeNumber)
-		{
-			BuildConfig EditorBuildConfig = GetEditorBuildConfig();
-
-			string? SdkInstallerDir;
-			TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "SdkInstallerDir", out SdkInstallerDir);
-
-			Dictionary<string, string> Variables = new Dictionary<string, string>();
-			Variables.Add("Stream", StreamName);
-			Variables.Add("Change", ChangeNumber.ToString());
-			Variables.Add("ClientName", ClientName);
-			Variables.Add("BranchDir", BranchDirectoryName.FullName);
-			Variables.Add("ProjectDir", SelectedFileName.Directory.FullName);
-			Variables.Add("ProjectFile", SelectedFileName.FullName);
-			Variables.Add("UE4EditorExe", GetEditorExePath(EditorBuildConfig).FullName);
-			Variables.Add("UE4EditorCmdExe", GetEditorExePath(EditorBuildConfig).FullName.Replace(".exe", "-Cmd.exe"));
-			Variables.Add("UE4EditorConfig", EditorBuildConfig.ToString());
-			Variables.Add("UE4EditorDebugArg", (EditorBuildConfig == BuildConfig.Debug || EditorBuildConfig == BuildConfig.DebugGame) ? " -debug" : "");
-			Variables.Add("UseIncrementalBuilds", "1");
-			if (!String.IsNullOrEmpty(SdkInstallerDir))
-			{
-				Variables.Add("SdkInstallerDir", SdkInstallerDir);
-			}
-			return Variables;
 		}
 
 		private void OptionsContextMenu_EditBuildSteps_Click(object sender, EventArgs e)
@@ -5361,7 +5218,8 @@ namespace UnrealGameSync
 				List<BuildStep> UserSteps = GetUserBuildSteps(ProjectBuildStepObjects);
 
 				// Show the dialog
-				ModifyBuildStepsWindow EditStepsWindow = new ModifyBuildStepsWindow(TargetNames, UserSteps, new HashSet<Guid>(ProjectBuildStepObjects.Keys), BranchDirectoryName, GetWorkspaceVariables(Workspace.CurrentChangeNumber));
+				Dictionary<string, string> Variables = Workspace.GetVariables(GetEditorBuildConfig());
+				ModifyBuildStepsWindow EditStepsWindow = new ModifyBuildStepsWindow(TargetNames, UserSteps, new HashSet<Guid>(ProjectBuildStepObjects.Keys), BranchDirectoryName, Variables);
 				EditStepsWindow.ShowDialog();
 
 				// Update the user settings
@@ -5412,7 +5270,7 @@ namespace UnrealGameSync
 
 		private bool ShouldSyncPrecompiledEditor
 		{
-			get { return Settings.Archives.Any(x => x.bEnabled && x.Type == EditorArchiveType) && GetArchives().Any(x => x.Type == "Editor"); }
+			get { return Settings.Archives.Any(x => x.bEnabled && x.Type == IArchiveInfo.EditorArchiveType) && GetArchives().Any(x => x.Type == "Editor"); }
 		}
 
 		public BuildConfig GetEditorBuildConfig()
@@ -5420,54 +5278,12 @@ namespace UnrealGameSync
 			return ShouldSyncPrecompiledEditor ? BuildConfig.Development : Settings.CompiledEditorBuildConfig;
 		}
 
-		private string GetDefaultEditorTargetName()
-		{
-			string? EditorTarget;
-			if (!TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "EditorTarget", out EditorTarget))
-			{
-				EditorTarget = "UE4Editor";
-			}
-			return EditorTarget;
-		}
-
-		private Dictionary<Guid, ConfigObject> GetDefaultBuildStepObjects()
-		{
-			string ProjectArgument = "";
-			if (SelectedFileName.HasExtension(".uproject"))
-			{
-				ProjectArgument = String.Format("\"{0}\"", SelectedFileName);
-			}
-
-			string ActualEditorTargetName;
-			if (EditorTargetName != null)
-			{
-				ActualEditorTargetName = EditorTargetName;
-			}
-			else if (SelectedFileName.HasExtension(".uproject") && bIsEnterpriseProject)
-			{
-				ActualEditorTargetName = "StudioEditor";
-			}
-			else
-			{
-				ActualEditorTargetName = GetDefaultEditorTargetName();
-			}
-
-			bool bUseCrashReportClientEditor = PerforceMonitor.LatestProjectConfigFile.GetValue("Options.UseCrashReportClientEditor", false);
-
-			List<BuildStep> DefaultBuildSteps = new List<BuildStep>();
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{01F66060-73FA-4CC8-9CB3-E217FBBA954E}"), 0, "Compile UnrealHeaderTool", "Compiling UnrealHeaderTool...", 1, "UnrealHeaderTool", "Win64", "Development", "", !ShouldSyncPrecompiledEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{F097FF61-C916-4058-8391-35B46C3173D5}"), 1, String.Format("Compile {0}", ActualEditorTargetName), String.Format("Compiling {0}...", ActualEditorTargetName), 10, ActualEditorTargetName, "Win64", Settings.CompiledEditorBuildConfig.ToString(), ProjectArgument, !ShouldSyncPrecompiledEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{C6E633A1-956F-4AD3-BC95-6D06D131E7B4}"), 2, "Compile ShaderCompileWorker", "Compiling ShaderCompileWorker...", 1, "ShaderCompileWorker", "Win64", "Development", "", !ShouldSyncPrecompiledEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{24FFD88C-7901-4899-9696-AE1066B4B6E8}"), 3, "Compile UnrealLightmass", "Compiling UnrealLightmass...", 1, "UnrealLightmass", "Win64", "Development", "", !ShouldSyncPrecompiledEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{FFF20379-06BF-4205-8A3E-C53427736688}"), 4, "Compile CrashReportClient", "Compiling CrashReportClient...", 1, "CrashReportClient", "Win64", "Shipping", "", !ShouldSyncPrecompiledEditor && !bUseCrashReportClientEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{7143D861-58D3-4F83-BADC-BC5DCB2079F6}"), 5, "Compile CrashReportClientEditor", "Compiling CrashReportClientEditor...", 1, "CrashReportClientEditor", "Win64", "Shipping", "", !ShouldSyncPrecompiledEditor && bUseCrashReportClientEditor));
-
-			return DefaultBuildSteps.ToDictionary(x => x.UniqueId, x => x.ToConfigObject());
-		}
-
 		private Dictionary<Guid, ConfigObject> GetProjectBuildStepObjects(ConfigFile ProjectConfigFile)
 		{
-			Dictionary<Guid, ConfigObject> ProjectBuildSteps = GetDefaultBuildStepObjects();
+			FileReference EditorTargetFile = ConfigUtils.GetEditorTargetFile(ProjectInfo, ProjectConfigFile);
+			string EditorTargetName = EditorTargetFile.GetFileNameWithoutAnyExtensions();
+
+			Dictionary<Guid, ConfigObject> ProjectBuildSteps = ConfigUtils.GetDefaultBuildStepObjects(ProjectInfo, EditorTargetName, Settings.CompiledEditorBuildConfig, ProjectConfigFile, ShouldSyncPrecompiledEditor);
 			foreach (string Line in ProjectConfigFile.GetValues("Build.Step", new string[0]))
 			{
 				AddOrUpdateBuildStep(ProjectBuildSteps, new ConfigObject(Line));
@@ -5492,7 +5308,7 @@ namespace UnrealGameSync
 		{
 			if (OptionsContextMenu_SyncPrecompiledBinaries.DropDownItems.Count == 0)
 			{
-				IArchiveInfo EditorArchive = GetArchives().FirstOrDefault(x => x.Type == EditorArchiveType);
+				IArchiveInfo EditorArchive = GetArchives().FirstOrDefault(x => x.Type == IArchiveInfo.EditorArchiveType);
 				if (EditorArchive != null)
 				{
 					SetSelectedArchive(EditorArchive, !OptionsContextMenu_SyncPrecompiledBinaries.Checked);

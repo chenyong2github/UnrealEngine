@@ -148,6 +148,20 @@ namespace UnrealGameSync
 			}
 		}
 
+		public Dictionary<string, string> GetVariables(BuildConfig EditorConfig, int? OverrideChange = null, int? OverrideCodeChange = null)
+		{
+			FileReference EditorReceiptFile = ConfigUtils.GetEditorReceiptFile(Project, ProjectConfigFile, EditorConfig);
+
+			TargetReceipt? EditorReceipt;
+			if (!ConfigUtils.TryReadEditorReceipt(Project, EditorReceiptFile, out EditorReceipt))
+			{
+				EditorReceipt = ConfigUtils.CreateDefaultEditorReceipt(Project, ProjectConfigFile, EditorConfig);
+			}
+
+			Dictionary<string, string> Variables = ConfigUtils.GetWorkspaceVariables(Project, OverrideChange ?? State.CurrentChangeNumber, OverrideCodeChange ?? State.CurrentCodeChangeNumber, EditorReceipt, ProjectConfigFile);
+			return Variables;
+		}
+
 		public bool IsBusy()
 		{
 			return bSyncing;

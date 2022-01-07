@@ -17,6 +17,15 @@ namespace UnrealGameSync
 {
 	public partial class VariablesWindow : Form
 	{
+		static HashSet<string> LegacyVariables = new HashSet<string>()
+		{
+			"UE4EditorConfig",
+			"UE4EditorDebugArg",
+			"UE4EditorExe",
+			"UE4EditorCmdExe",
+			"UseIncrementalBuilds",
+		};
+
 		public delegate void InsertVariableDelegate(string Name);
 
 		public event InsertVariableDelegate? OnInsertVariable;
@@ -33,10 +42,13 @@ namespace UnrealGameSync
 
 			foreach(KeyValuePair<string, string> Pair in Variables)
 			{
-				ListViewItem Item = new ListViewItem(String.Format("$({0})", Pair.Key));
-				Item.SubItems.Add(Pair.Value);
-				Item.Group = CurrentProjectGroup;
-				MacrosList.Items.Add(Item);
+				if (!LegacyVariables.Contains(Pair.Key))
+				{
+					ListViewItem Item = new ListViewItem(String.Format("$({0})", Pair.Key));
+					Item.SubItems.Add(Pair.Value);
+					Item.Group = CurrentProjectGroup;
+					MacrosList.Items.Add(Item);
+				}
 			}
 
 			foreach(DictionaryEntry Entry in Environment.GetEnvironmentVariables().OfType<DictionaryEntry>())
