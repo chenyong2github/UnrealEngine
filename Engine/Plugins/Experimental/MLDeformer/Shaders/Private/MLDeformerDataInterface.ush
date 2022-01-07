@@ -3,6 +3,7 @@
 #include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 
 uint DI_LOCAL(NumVertices);
+uint DI_LOCAL(InputStreamStart);
 float3 DI_LOCAL(VertexDeltaScale);
 float3 DI_LOCAL(VertexDeltaMean);
 float DI_LOCAL(VertexDeltaMultiplier);
@@ -18,7 +19,7 @@ DI_IMPL_READ(ReadNumVertices, uint, void)
 
 DI_IMPL_READ(ReadPositionDelta, float3, uint VertexIndex)
 {
-	uint BufferIndex = DI_LOCAL(VertexMapBuffer)[VertexIndex] * 3;
+	uint BufferIndex = DI_LOCAL(VertexMapBuffer)[VertexIndex + DI_LOCAL(InputStreamStart)] * 3;
 	float3 Delta = float3(DI_LOCAL(PositionDeltaBuffer)[BufferIndex], DI_LOCAL(PositionDeltaBuffer)[BufferIndex + 1], DI_LOCAL(PositionDeltaBuffer)[BufferIndex + 2]);
 	float3 FinalDelta = Delta * DI_LOCAL(VertexDeltaScale) + DI_LOCAL(VertexDeltaMean);
 	return FinalDelta * DI_LOCAL(VertexDeltaMultiplier);

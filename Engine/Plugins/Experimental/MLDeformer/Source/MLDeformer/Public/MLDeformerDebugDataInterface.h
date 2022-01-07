@@ -6,17 +6,22 @@
 #include "MLDeformerAsset.h"
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "MLDeformerGraphDataInterface.generated.h"
+#include "MLDeformerDebugDataInterface.generated.h"
 
 class FRDGBuffer;
 class FRDGBufferSRV;
+struct FMLDeformerMeshMapping;
 class FRHIShaderResourceView;
+class FSkeletalMeshObject;
 class UMLDeformerComponent;
-class UNeuralNetwork;
+class USkeletalMeshComponent;
 
-/** Compute Framework Data Interface for reading skeletal mesh. */
+/** 
+ * Compute Framework Data Interface for MLDefomer debugging data. 
+ * This interfaces to editor only data, and so will only give valid results in that context.
+ */
 UCLASS(Category = ComputeFramework)
-class MLDEFORMER_API UMLDeformerDataInterface : public UOptimusComputeDataInterface
+class MLDEFORMER_API UMLDeformerDebugDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -36,15 +41,25 @@ public:
 };
 
 
-/** Compute Framework Data Provider for reading skeletal mesh. */
+/** Compute Framework Data Provider for MLDeformer debugging data. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class MLDEFORMER_API UMLDeformerDataProvider : public UComputeDataProvider
+class MLDEFORMER_API UMLDeformerDebugDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
+	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
 	TObjectPtr<UMLDeformerComponent> DeformerComponent = nullptr;
+
+#if WITH_EDITORONLY_DATA
+	/* 
+	 * Mesh remapping data between the geometry cache and the rendered vertex buffer. 
+	 * This is calculated (slow) on construction. The data isn't available outside of the editor.
+	 */
+	TArray<FMLDeformerMeshMapping> MeshMappings;
+#endif
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -53,10 +68,13 @@ public:
 };
 
 
-class FMLDeformerDataProviderProxy : public FComputeDataProviderRenderProxy
+/** Compute Framework Data Provider Proxy for MLDeformer debugging data. */
+class FMLDeformerDebugDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FMLDeformerDataProviderProxy(UMLDeformerComponent* DeformerComponent);
+#if WITH_EDITORONLY_DATA
+	FMLDeformerDebugDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerComponent* DeformerComponent, TArray<FMLDeformerMeshMapping> const& MeshMappings);
+#endif
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
@@ -64,13 +82,10 @@ public:
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
-	UNeuralNetwork* NeuralNetwork = nullptr;
+	FSkeletalMeshObject* SkeletalMeshObject;
+	TArray<FVector3f> GroundTruthPositions;
 	FRHIShaderResourceView* VertexMapBufferSRV = nullptr;
-	FRDGBuffer* Buffer = nullptr;
-	FRDGBufferSRV* BufferSRV = nullptr;
-	FVector VertexDeltaScale = FVector(1.0f, 1.0f, 1.0f);
-	FVector VertexDeltaMean = FVector(0.0f, 0.0f, 0.0f);
-	bool bCanRunNeuralNet = false;
-	float VertexDeltaMultiplier = 1.0f;
+	FRDGBuffer* GroundTruthBuffer = nullptr;
+	FRDGBufferSRV* GroundTruthBufferSRV = nullptr;
 	float HeatMapScale = 1.0f;
 };

@@ -46,6 +46,10 @@ namespace UnrealBuildTool.Rules
 					"ToolWidgets",
 					"ComputeFramework",
 					"OptimusDeveloper",
+
+					"OptimusCore",
+					"RenderCore",
+					"RHI",
 				}
 			);
 
