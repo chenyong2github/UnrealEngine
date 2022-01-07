@@ -45,11 +45,11 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlot
 
 	/** Offset relative to the parent object where the slot is located. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
-	FVector Offset;
+	FVector Offset = FVector::ZeroVector;
 
-	/** Direction relative to the parent object that the slot is facing. */
+	/** Rotation relative to the parent object. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
-	FVector Direction;
+	FRotator Rotation = FRotator::ZeroRotator;
 
 	/**
 	 * All available definitions associated to this slot.
@@ -65,7 +65,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlot
 #endif // WITH_EDITORONLY_DATA
 
 	FSmartObjectSlot()
-		: Offset(FVector::ZeroVector), Direction(FVector::ForwardVector)
+		: Offset(FVector::ZeroVector), Rotation(FRotator::ZeroRotator)
 #if WITH_EDITORONLY_DATA
 		, DEBUG_DrawColor(FColor::Yellow)
 #endif // WITH_EDITORONLY_DATA
@@ -117,6 +117,9 @@ public:
 
 	/** Returns a view on all the slot definitions */
 	TConstArrayView<FSmartObjectSlot> GetSlots() const { return Slots; }
+
+	/** Return bounds encapsulating all slots */
+	FBox GetBounds() const;
 
 	/** Adds and returns a reference to a defaulted slot (used for testing purposes) */
 	FSmartObjectSlot& DebugAddSlot() { return Slots.AddDefaulted_GetRef(); }

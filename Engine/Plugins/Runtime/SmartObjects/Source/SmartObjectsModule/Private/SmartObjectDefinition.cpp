@@ -2,8 +2,12 @@
 
 #include "SmartObjectDefinition.h"
 
-#include "AIHelpers.h"
 #include "SmartObjectTypes.h"
+
+namespace UE::SmartObject
+{
+	const FVector DefaultSlotSize(40, 40, 90);
+}
 
 bool USmartObjectDefinition::Validate() const
 {
@@ -68,20 +72,25 @@ const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinit
 	return Definition;
 }
 
+FBox USmartObjectDefinition::GetBounds() const
+{
+	FBox BoundingBox(ForceInitToZero);
+	for (const FSmartObjectSlot& Slot : GetSlots())
+	{
+		BoundingBox += Slot.Offset + UE::SmartObject::DefaultSlotSize;
+		BoundingBox += Slot.Offset - UE::SmartObject::DefaultSlotSize;
+	}
+	 return BoundingBox;
+}
+
 TOptional<FTransform> USmartObjectDefinition::GetSlotTransform(const FTransform& OwnerTransform, const FSmartObjectSlotIndex SlotIndex) const
 {
 	TOptional<FTransform> Transform;
 
-	if (!ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting slot transform for a slot index out of range: %s"), *SlotIndex.Describe()))
+	if (ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting slot transform for an out of range index: %s"), *SlotIndex.Describe()))
 	{
-		return Transform;
-	}
-
-	const FSmartObjectSlot& Slot = Slots[SlotIndex];
-	if (const TOptional<float> Yaw = UE::AI::GetYawFromVector(Slot.Direction))
-	{
-		const FTransform SlotToComponentTransform(FQuat(FVector::UpVector, Yaw.GetValue()), Slot.Offset);
-		Transform = SlotToComponentTransform * OwnerTransform;
+		const FSmartObjectSlot& Slot = Slots[SlotIndex];
+		Transform = FTransform(Slot.Rotation, Slot.Offset) * OwnerTransform;
 	}
 
 	return Transform;
