@@ -33,8 +33,8 @@
 
 UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 {	
-	SizeX = 150.f;
-	SizeY = 150.f;
+	SizeX = 32.f;
+	SizeY = 32.f;
 
 	AttributeR.SetFromName("Red");
 	AttributeG.SetFromName("Green");

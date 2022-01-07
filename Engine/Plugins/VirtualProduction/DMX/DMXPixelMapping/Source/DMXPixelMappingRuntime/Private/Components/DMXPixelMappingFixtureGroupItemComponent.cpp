@@ -28,8 +28,8 @@ DECLARE_CYCLE_STAT(TEXT("Send Fixture Group Item"), STAT_DMXPixelMaping_FixtureG
 UDMXPixelMappingFixtureGroupItemComponent::UDMXPixelMappingFixtureGroupItemComponent()
 	: DownsamplePixelIndex(0)
 {
-	SizeX = 25.f;
-	SizeY = 25.f;
+	SizeX = 32.f;
+	SizeY = 32.f;
 
 	ColorMode = EDMXColorMode::CM_RGB;
 	AttributeRExpose = AttributeGExpose = AttributeBExpose = true;
@@ -43,7 +43,6 @@ UDMXPixelMappingFixtureGroupItemComponent::UDMXPixelMappingFixtureGroupItemCompo
 	ZOrder = 2;
 #endif // WITH_EDITOR
 }
-
 
 void UDMXPixelMappingFixtureGroupItemComponent::PostLoad()
 {
