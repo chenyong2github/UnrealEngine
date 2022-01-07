@@ -289,7 +289,7 @@ void ReflectionCompactTracesCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-#if WAVE_OPS
+#if ORDERED_COMPACTION
 
 	const uint WaveIndex = GroupThreadId / WaveGetLaneCount();
 	const uint LaneIndex = WaveGetLaneIndex();
@@ -330,7 +330,7 @@ void ReflectionCompactTracesCS(
 		RWCompactedTraceTexelData[SharedGlobalTraceTexelStartOffset + PayloadGroupOffset] = TraceTexelForThisThread;
 	}
 
-#else // !WAVE_OPS
+#else // !ORDERED_COMPACTION
 	uint ThreadIndex = GroupThreadId;
 
 	if (ThreadIndex == 0)
@@ -389,12 +389,12 @@ void TraceMeshSDFs(
 
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 	FRayData RayData = GetRayData(ReflectionTracingCoord);
-	bool bHit = false;
 
 	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;
+	float PullbackForSurfaceExpand = SurfaceBias;
 
 	FConeTraceInput TraceInput;
-	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, TraceHitDistance, RayData.TraceDistance, 1.0f);
+	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, max(TraceHitDistance - PullbackForSurfaceExpand, 0.0f), RayData.TraceDistance, 1.0f);
 	TraceInput.VoxelStepFactor = 1.0f;
 	TraceInput.VoxelTraceStartDistance = MaxMeshSDFTraceDistance;
 
@@ -406,7 +406,7 @@ void TraceMeshSDFs(
 	TraceInput.CardInterpolateDepthVisibilityRadius = 10;
 	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
 	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;
-	TraceInput.InitialMaxDistance = TraceHitDistance;
+	TraceInput.InitialMaxDistance = 0;
 
 	FConeTraceResult TraceResult;
 	ConeTraceLumenSceneCards(TraceInput, TraceResult);
@@ -443,6 +443,8 @@ void TraceMeshSDFs(
 		RWTraceRadiance[ReflectionTracingCoord] = Lighting;
 	#endif
 
+	bool bHit = false;
+
 	if (Transparency < InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, 0))
 	{
 		bHit = true;
@@ -478,19 +480,19 @@ void TraceVoxels(
 	float3 SceneNormal = DecodeNormal(SceneTexturesStruct.GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
 	FRayData RayData = GetRayData(ReflectionTracingCoord);
 
-	bool bHit = false;
-
 	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;
 
-	float MinTraceDistance = 0;
-
 	FConeTraceInput TraceInput;
-	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, MinTraceDistance, RayData.TraceDistance, 1.0f);
+	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, 0.0f, RayData.TraceDistance, 1.0f);
 	TraceInput.VoxelStepFactor = 1.0f;
-	TraceInput.VoxelTraceStartDistance = max(MinTraceDistance, TraceHitDistance);
+
+	uint ClipmapForSurfaceExpand = ComputeGlobalDistanceFieldClipmapIndex(WorldPosition + TraceHitDistance * RayData.Direction);
+	// Pull back from where the previous tracing method left off so that we start outside the surface, so that the SDF expansion works properly and prevents leaking through thin objects
+	float PullbackForSurfaceExpand = GlobalVolumeCenterAndExtent[ClipmapForSurfaceExpand].w * GlobalVolumeTexelSize * 4.0f;
+	TraceInput.VoxelTraceStartDistance = max(TraceHitDistance - PullbackForSurfaceExpand, 0.0f);
 	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
 	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;
-	TraceInput.InitialMaxDistance = TraceHitDistance;
+	TraceInput.InitialMaxDistance = 0;
 
 	FConeTraceResult TraceResult = (FConeTraceResult)0;
 	TraceResult.Lighting = 0;
@@ -507,6 +509,8 @@ void TraceVoxels(
 		TraceHairVoxels(ReflectionTracingCoord, SceneDepth, WorldPosition, RayData.Direction, RayData.TraceDistance, true, TraceResult);
 	}
 	#endif
+
+	bool bHit = false;
 
 	if (TraceResult.Transparency <= .5f)
 	{
