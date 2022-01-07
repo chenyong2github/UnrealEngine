@@ -2983,14 +2983,14 @@ bool URigHierarchy::IsDependentOn(FRigBaseElement* InDependent, FRigBaseElement*
 	}
 
 	// check the optional dependency map
-	if(const TArray<int32>* DependentIndicesPtr = InDependencyMap.Find(InDependency->GetIndex()))
+	if(const TArray<int32>* DependentIndicesPtr = InDependencyMap.Find(InDependent->GetIndex()))
 	{
 		const TArray<int32>& DependentIndices = *DependentIndicesPtr;
 		for(int32 DependentIndex : DependentIndices)
 		{
 			ensure(Elements.IsValidIndex(DependentIndex));
 			
-			if(IsDependentOn(InDependent, Elements[DependentIndex], InDependencyMap))
+			if(IsDependentOn(Elements[DependentIndex], InDependency, InDependencyMap))
 			{
 				return true;
 			}
@@ -3948,7 +3948,7 @@ URigHierarchy::TElementDependencyMap URigHierarchy::GetDependenciesForVM(URigVM*
 				{
 					if(ReadTransform != WrittenTransform)
 					{
-						Dependencies.FindOrAdd(ReadTransform).AddUnique(WrittenTransform);
+						Dependencies.FindOrAdd(WrittenTransform).AddUnique(ReadTransform);
 					}
 				}
 			}
