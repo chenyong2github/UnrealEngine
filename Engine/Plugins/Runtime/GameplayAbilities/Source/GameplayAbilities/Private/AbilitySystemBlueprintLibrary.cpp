@@ -2,10 +2,11 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffectAggregator.h"
-#include "GameplayEffect.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
 #include "GameplayEffectUIData.h"
+#include "GameplayAbilitySpec.h"
 
 UAbilitySystemBlueprintLibrary::UAbilitySystemBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
@@ -1076,4 +1077,73 @@ bool UAbilitySystemBlueprintLibrary::RemoveLooseGameplayTags(AActor* Actor, cons
 	}
 
 	return false;
+}
+
+bool UAbilitySystemBlueprintLibrary::EqualEqual_ActiveGameplayEffectHandle(const FActiveGameplayEffectHandle& A, const FActiveGameplayEffectHandle& B)
+{
+	return A == B;
+}
+
+bool UAbilitySystemBlueprintLibrary::NotEqual_ActiveGameplayEffectHandle(const FActiveGameplayEffectHandle& A, const FActiveGameplayEffectHandle& B)
+{
+	return A != B;
+}
+
+const UGameplayEffect* UAbilitySystemBlueprintLibrary::GetGameplayEffectFromActiveEffectHandle(const FActiveGameplayEffectHandle& ActiveHandle)
+{
+	const UAbilitySystemComponent* ASC = ActiveHandle.GetOwningAbilitySystemComponent();
+
+	if (ASC)
+	{
+		return ASC->GetGameplayEffectCDO(ActiveHandle);
+	}
+
+	ABILITY_LOG(Error, TEXT("GetGameplayAbilityFromSpecHandle() called with an invalid Active Gameplay Effect Handle"));
+
+	return nullptr;
+}
+
+const UGameplayAbility* UAbilitySystemBlueprintLibrary::GetGameplayAbilityFromSpecHandle(UAbilitySystemComponent* AbilitySystem, const FGameplayAbilitySpecHandle& AbilitySpecHandle, bool& bIsInstance)
+{
+	// validate the ASC
+	if (!AbilitySystem)
+	{
+		ABILITY_LOG(Error, TEXT("GetGameplayAbilityFromSpecHandle() called with an invalid Ability System Component"));
+
+		bIsInstance = false;
+		return nullptr;
+	}
+
+	// get and validate the ability spec
+	FGameplayAbilitySpec* AbilitySpec = AbilitySystem->FindAbilitySpecFromHandle(AbilitySpecHandle);
+	if (!AbilitySpec)
+	{
+		ABILITY_LOG(Error, TEXT("GetGameplayAbilityFromSpecHandle() Ability Spec not found on passed Ability System Component"));
+
+		bIsInstance = false;
+		return nullptr;
+	}
+
+	// try to get the ability instance
+	UGameplayAbility* AbilityInstance = AbilitySpec->GetPrimaryInstance();
+	bIsInstance = true;
+
+	// default to the CDO if we can't
+	if (!AbilityInstance)
+	{
+		AbilityInstance = AbilitySpec->Ability;
+		bIsInstance = false;
+	}
+
+	return AbilityInstance;
+}
+
+bool UAbilitySystemBlueprintLibrary::EqualEqual_GameplayAbilitySpecHandle(const FGameplayAbilitySpecHandle& A, const FGameplayAbilitySpecHandle& B)
+{
+	return A == B;
+}
+
+bool UAbilitySystemBlueprintLibrary::NotEqual_GameplayAbilitySpecHandle(const FGameplayAbilitySpecHandle& A, const FGameplayAbilitySpecHandle& B)
+{
+	return A != B;
 }

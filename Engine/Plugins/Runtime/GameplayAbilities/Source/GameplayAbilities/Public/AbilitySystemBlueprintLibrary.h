@@ -388,4 +388,44 @@ class GAMEPLAYABILITIES_API UAbilitySystemBlueprintLibrary : public UBlueprintFu
 	/** Returns the UI data for a gameplay effect class (if any) */
 	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect", Meta = (DisplayName = "Get GameplayEffect UI Data", DeterminesOutputType="DataType"))
 	static const UGameplayEffectUIData* GetGameplayEffectUIData(TSubclassOf<UGameplayEffect> EffectClass, TSubclassOf<UGameplayEffectUIData> DataType);
+
+	/** Equality operator for two Active Gameplay Effect Handles */
+	UFUNCTION(BlueprintPure, Category = "Ability|GameplayEffect", meta = (DisplayName = "Equal (Active Gameplay Effect Handle)", CompactNodeTitle = "==", ScriptOperator = "=="))
+	static bool EqualEqual_ActiveGameplayEffectHandle(const FActiveGameplayEffectHandle& A, const FActiveGameplayEffectHandle& B);
+
+	/** Inequality operator for two Active Gameplay Effect Handles */
+	UFUNCTION(BlueprintPure, Category = "Ability|GameplayEffect", meta = (DisplayName = "Not Equal (Active Gameplay Effect Handle)", CompactNodeTitle = "!=", ScriptOperator = "!="))
+	static bool NotEqual_ActiveGameplayEffectHandle(const FActiveGameplayEffectHandle& A, const FActiveGameplayEffectHandle& B);
+
+	/**
+	 * Returns the Gameplay Effect CDO from an active handle.
+	 * This reference should be considered read only,
+	 * but you can use it to read additional Gameplay Effect info, such as icon, description, etc. 
+	 */
+	UFUNCTION(BlueprintPure, Category = "Ability|GameplayEffect")
+	static const UGameplayEffect* GetGameplayEffectFromActiveEffectHandle(const FActiveGameplayEffectHandle& ActiveHandle);
+
+	// -------------------------------------------------------------------------------
+	//		GameplayAbility
+	// -------------------------------------------------------------------------------
+
+	/**
+	 * Provides the Gameplay Ability object associated with an Ability Spec Handle
+	 * This can be either an instanced ability, or in the case of shared abilities, the Class Default Object
+	 * 
+	 * @param AbilitySpec The Gameplay Ability Spec you want to get the object from
+	 * @param bIsInstance Set to true if this is an instanced ability instead of a shared CDO
+	 * 
+	 * @return Pointer to the Gameplay Ability object
+	 */
+	UFUNCTION(BlueprintPure, Category = "Ability|GameplayAbility")
+	static const UGameplayAbility* GetGameplayAbilityFromSpecHandle(UAbilitySystemComponent* AbilitySystem, const FGameplayAbilitySpecHandle& AbilitySpecHandle, bool& bIsInstance);
+
+	/** Equality operator for two Gameplay Ability Spec Handles */
+	UFUNCTION(BlueprintPure, Category = "Ability|GameplayEffect", meta = (DisplayName = "Equal (Gameplay Ability Spec Handle)", CompactNodeTitle = "==", ScriptOperator = "=="))
+	static bool EqualEqual_GameplayAbilitySpecHandle(const FGameplayAbilitySpecHandle& A, const FGameplayAbilitySpecHandle& B);
+
+	/** Inequality operator for two Gameplay Ability Spec Handles */
+	UFUNCTION(BlueprintPure, Category = "Ability|GameplayEffect", meta = (DisplayName = "Not Equal (Gameplay Ability Spec Handle)", CompactNodeTitle = "!=", ScriptOperator = "!="))
+	static bool NotEqual_GameplayAbilitySpecHandle(const FGameplayAbilitySpecHandle& A, const FGameplayAbilitySpecHandle& B);
 };
