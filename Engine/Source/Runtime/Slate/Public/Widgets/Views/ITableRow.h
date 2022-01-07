@@ -32,6 +32,9 @@ public:
 	*/
 	virtual void SetIndexInList(int32 InIndexInList) = 0;
 
+	/** @return  The index of the item for which this widget was generated */
+	virtual int32 GetIndexInList() = 0;
+
 	/** @return true if the corresponding item is expanded; false otherwise*/
 	virtual bool IsItemExpanded() const = 0;
 
