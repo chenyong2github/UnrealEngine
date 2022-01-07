@@ -151,9 +151,9 @@ void InternalTraceScreen(
 		bool bAboveSurface = RayScreenUV.z > TileZ;
 		bool bSkippedTile = IntersectionTime != PlaneIntersectionTimes.z && bAboveSurface;
 
-		if (bAboveSurface)
+		if (bSkippedTile)
 		{
-			LastAboveSurfaceTime = CurrentIntersectionTime;
+			LastAboveSurfaceTime = IntersectionTime;
 		}
 		
 		CurrentIntersectionTime = bAboveSurface ? IntersectionTime : CurrentIntersectionTime;
