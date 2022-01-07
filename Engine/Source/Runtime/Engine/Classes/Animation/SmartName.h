@@ -62,10 +62,7 @@ struct ENGINE_API FSmartNameMapping
 	GENERATED_USTRUCT_BODY();
 
 	FSmartNameMapping();
-	FSmartNameMapping(FRWLock *Lock);
 	
-	void SetLock(FRWLock *Lock) { RWLock = Lock; }
-
 	// Add a name to the mapping, fails if it already exists
 	// @param InName - The name to add
 	// @return FSmartName - populated smart name
@@ -165,8 +162,6 @@ private:
 #endif
 
 	TMap<FName, FCurveMetaData> CurveMetaDataMap;
-
-	FRWLock* RWLock;
 };
 
 USTRUCT()
@@ -201,8 +196,6 @@ private:
 	// Editor copy of the data we loaded, used to preserve determinism during cooking
 	TMap<FName, FSmartNameMapping> LoadedNameMappings;
 #endif
-	
-	mutable FRWLock RWLock;
 };
 
 template<>
