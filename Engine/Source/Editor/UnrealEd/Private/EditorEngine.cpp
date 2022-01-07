@@ -4317,7 +4317,7 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 	// See if the package is a valid candidate for being auto-added to the default changelist.
 	// Only allows the addition of newly created packages while in the editor and then only if the user has the option enabled.
 	bool bAutoAddPkgToSCC = false;
-	if (!bIsCooking)
+	if (!ObjectSaveContext.bProceduralSave)
 	{
 		bAutoAddPkgToSCC = IsPackageValidForAutoAdding( InOuter, Filename );
 	}
