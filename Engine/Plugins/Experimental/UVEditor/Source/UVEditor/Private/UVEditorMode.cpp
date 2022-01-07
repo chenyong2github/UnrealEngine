@@ -613,8 +613,12 @@ void UUVEditorMode::UpdatePreviewMaterialBasedOnBackground()
 	}
 	if (BackgroundVisualization->Settings->bVisible)
 	{
-		for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID) {
-			ToolInputObjects[AssetID]->AppliedPreview->OverrideMaterial = BackgroundVisualization->BackgroundMaterial;
+		for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID) {			
+			TObjectPtr<UMaterialInstanceDynamic> BackgroundMaterialOverride = UMaterialInstanceDynamic::Create(BackgroundVisualization->BackgroundMaterial->Parent, this);
+			BackgroundMaterialOverride->CopyInterpParameters(BackgroundVisualization->BackgroundMaterial);
+			BackgroundMaterialOverride->SetScalarParameterValue(TEXT("UVChannel"), GetDisplayedChannel(AssetID));
+
+			ToolInputObjects[AssetID]->AppliedPreview->OverrideMaterial = BackgroundMaterialOverride;
 		}
 	}
 }
@@ -741,6 +745,7 @@ void UUVEditorMode::ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex)
 	}
 
 	PendingUVLayerIndex[AssetID] = InputObject->UVLayerIndex;
+	UpdatePreviewMaterialBasedOnBackground();
 }
 
 void UUVEditorMode::SetDisplayedUVChannels(const TArray<int32>& LayerPerAsset, bool bEmitUndoTransaction)
