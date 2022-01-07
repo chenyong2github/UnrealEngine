@@ -260,7 +260,8 @@ void TResizableCircularQueue<T, AllocatorT>::PopNoCheck(SIZE_T Count)
 		}
 	}
 
-	Tail += Count;
+	check(SIZE_T(Tail) + Count <= TNumericLimits<IndexT>::Max());
+	Tail += (IndexT)Count;
 }
 
 template<typename T, typename AllocatorT>
