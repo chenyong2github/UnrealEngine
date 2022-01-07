@@ -23,6 +23,9 @@ public:
 	 */
 	virtual bool IsPersistent() const override { return false; }
 
+	/** Material resource stats never requires a synchronous compilation, otherwise opening up empty (newly created) material instance will block compiling default mat's shaders. */
+	virtual bool RequiresSynchronousCompilation() const override { return false; }
+
 	/** this will enable shader source extraction and pass paths to (eventual) offline shader compilers */
 	virtual void SetupExtaCompilationSettings(const EShaderPlatform Platform, FExtraShaderCompilerSettings& Settings) const override;
 };
