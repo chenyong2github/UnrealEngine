@@ -63,6 +63,8 @@ public:
 	/** Will cancel ALL flows, both child ControlFlows and ControlFlows who owns this Flow. You've been warned. */
 	void CancelFlow();
 
+	FControlFlow& SetCancelledNodeAsComplete(bool bCancelledNodeIsComplete);
+
 public:
 
 	template<typename...ArgsT>
@@ -249,6 +251,8 @@ private:
 	static int32 UnnamedControlFlowCounter;
 
 	FString DebugName;
+
+	bool bInterpretCancelledNodeAsComplete = false;
 
 	int32 UnnamedNodeCounter = 0;
 

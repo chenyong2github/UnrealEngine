@@ -58,7 +58,7 @@ void FControlFlow::HandleControlFlowNodeCompleted(TSharedRef<const FControlFlowN
 
 	if (ensure(CurrentNode.IsValid() && &NodeCompleted.Get() == CurrentNode.Get()))
 	{
-		const bool bCancelRequested = NodeCompleted->HasCancelBeenRequested();
+		const bool bCancelRequested = !bInterpretCancelledNodeAsComplete && NodeCompleted->HasCancelBeenRequested();
 		CurrentNode.Reset();
 		CurrentlyRunningTask.Reset();
 
@@ -208,6 +208,12 @@ void FControlFlow::CancelFlow()
 		OnCancelled().ExecuteIfBound();
 		FControlFlowStatics::HandleControlFlowFinishedNotification();
 	}
+}
+
+FControlFlow& FControlFlow::SetCancelledNodeAsComplete(bool bCancelledNodeIsComplete)
+{
+	bInterpretCancelledNodeAsComplete = bCancelledNodeIsComplete;
+	return *this;
 }
 
 FString FControlFlow::FormatOrGetNewNodeDebugName(const FString& FlowNodeDebugName)
