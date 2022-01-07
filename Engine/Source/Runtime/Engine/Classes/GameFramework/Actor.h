@@ -40,6 +40,7 @@ struct FNetViewer;
 struct FNetworkObjectInfo;
 class UDataLayer;
 class AWorldDataLayers;
+class UActorFolder;
 
 // By default, debug and development builds (even cooked) will keep actor labels. Manually define this if you want to make a local build
 // that keep actor labels for Test or Shipping builds.
@@ -898,16 +899,6 @@ public:
 	static TUniquePtr<class FWorldPartitionActorDesc> StaticCreateClassActorDesc(const TSubclassOf<AActor>& ActorClass);
 #endif // WITH_EDITOR
 
-public:
-	/**
-	 * Get the actor packaging mode.
-	 * @return true if the actor is packaged in an external package different than its level package
-	 */
-	bool IsPackageExternal() const
-	{
-		return HasAnyFlags(RF_HasExternalPackage);
-	}
-
 private:
 #if WITH_EDITORONLY_DATA
 	/**
@@ -936,9 +927,17 @@ public:
 
 #if WITH_EDITORONLY_DATA
 private:
-	/** The folder path of this actor in the world (empty=root, / separated)*/
+	/** 
+	 * The folder path of this actor in the world.
+	 * If the actor's level uses the actor folder objects feature, the path is computed using FolderGuid.
+	 * If not, it contains the actual path (empty=root, / separated).
+	 */
 	UPROPERTY()
 	FName FolderPath;
+
+	/** If the actor's level uses the actor folder objects feature, contains the actor folder unique identifier (invalid=root). */
+	UPROPERTY()
+	FGuid FolderGuid;
 
 public:
 	/** Whether this actor is hidden within the editor viewport. */
@@ -2315,10 +2314,19 @@ public:
 
 	/** Returns this actor's folder path. Actor folder paths are only available in development builds. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
-	const FName& GetFolderPath() const;
+	FName GetFolderPath() const;
+
+	/** Returns actor folder guid. If level is not using actor folder objects, returns an invalid guid. */
+	FGuid GetFolderGuid() const;
 
 	/** Returns the actor's folder root object. Null, is interpreted as the actor's world. */
 	FFolder::FRootObject GetFolderRootObject() const;
+	
+	/** Detects and fixes invalid actor folder */
+	void FixupActorFolder();
+
+	/** Creates or updates actor's folder object if necessary. Returns false if an error occured while creating folder. */
+	bool CreateOrUpdateActorFolder();
 
 	/** Returns a FFolder that contains the actor  folder path and its folder root object. */
 	FFolder GetFolder() const;
@@ -3623,6 +3631,11 @@ private:
 	friend struct FActorParentComponentSetter;
 	friend struct FSetActorWantsDestroyDuringBeginPlay;
 #if WITH_EDITOR
+	bool IsActorFolderValid() const;
+	void SetFolderPathInternal(const FName& InNewFolderPath, bool bInBroadcastChange = true);
+	void SetFolderGuidInternal(const FGuid& InFolderGuid, bool bInBroadcastChange = true);
+	UActorFolder* GetActorFolder(bool bSkipDeleted = true) const;
+
 	friend struct FSetActorHiddenInSceneOutliner;
 	friend struct FSetActorGuid;
 	friend struct FSetActorSelectable;

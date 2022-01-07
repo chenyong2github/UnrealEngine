@@ -277,41 +277,55 @@ public:
 	virtual bool CanExecuteRenameRequest(const ISceneOutlinerTreeItem& ItemPtr) const override;
 
 	/**
-		* Add a filter to the scene outliner
-		* @param Filter The filter to apply to the scene outliner
-		* @return The index of the filter.
-		*/
+	 * Add a filter to the scene outliner
+	 * @param Filter The filter to apply to the scene outliner
+	 * @return The index of the filter.
+	 */
 	virtual int32 AddFilter(const TSharedRef<FSceneOutlinerFilter>& Filter) override;
 
 	/**
-		* Remove a filter from the scene outliner
-		* @param Filter The Filter to remove
-		* @return True if the filter was removed.
-		*/
+	 * Remove a filter from the scene outliner
+	 * @param Filter The Filter to remove
+	 * @return True if the filter was removed.
+	 */
 	virtual bool RemoveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter) override;
 
 	/**
-		* Retrieve the filter at the specified index
-		* @param Index The index of the filter to retrive
-		* @return A valid poiter to a filter if the index was valid
-		*/
+	 * Add an interactive filter to the scene outliner
+	 * @param Filter The filter used to determine if scene outliner items are interactive.
+	 * @return The index of the filter.
+	 */
+	virtual int32 AddInteractiveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter) override;
+
+	/**
+	 * Remove an interactive  filter from the scene outliner
+	 * @param Filter The Filter to remove
+	 * @return True if the filter was removed.
+	 */
+	virtual bool RemoveInteractiveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter) override;
+
+	/**
+	 * Retrieve the filter at the specified index
+	 * @param Index The index of the filter to retrive
+	 * @return A valid poiter to a filter if the index was valid
+	 */
 	virtual TSharedPtr<FSceneOutlinerFilter> GetFilterAtIndex(int32 Index) override;
 
 	/** Get number of filters applied to the scene outliner */
 	virtual int32 GetFilterCount() const override;
 
 	/**
-		* Add or replace a column of the scene outliner
-		* Note: The column id must match the id of the column returned by the factory
-		* @param ColumnId The id of the column to add
-		* @param ColumInfo The struct that contains the information on how to present and retrieve the column
-		*/
+	 * Add or replace a column of the scene outliner
+	 * Note: The column id must match the id of the column returned by the factory
+	 * @param ColumnId The id of the column to add
+	 * @param ColumInfo The struct that contains the information on how to present and retrieve the column
+	 */
 	virtual void AddColumn(FName ColumId, const FSceneOutlinerColumnInfo& ColumInfo) override;
 
 	/**
-		* Remove a column of the scene outliner
-		* @param ColumnId The name of the column to remove
-		*/
+	 * Remove a column of the scene outliner
+	 * @param ColumnId The name of the column to remove
+	 */
 	virtual void RemoveColumn(FName ColumId) override;
 
 	void SetColumnVisibility(FName ColumnId, bool bIsVisible);
@@ -508,7 +522,7 @@ private:
 		{
 			FSceneOutlinerTreeItemPtr Result = MakeShareable(new TreeItemType(Data));
 			Result->Flags.bIsFilteredOut = !bPassesFilters;
-			Result->Flags.bInteractive = Filters->GetInteractiveState(*Result);
+			Result->Flags.bInteractive = Filters->GetInteractiveState(*Result) && InteractiveFilters->GetInteractiveState(*Result);
 			return Result;
 		}
 
@@ -797,6 +811,9 @@ private:
 
 	/** A collection of filters used to filter the displayed items and folders in the scene outliner */
 	TSharedPtr< FSceneOutlinerFilters > Filters;
+
+	/** A collection of extra filters applied on top of existing Filters to determine if items are interactive or not in the scene outliner */
+	TSharedPtr< FSceneOutlinerFilters > InteractiveFilters;
 
 	/** The TextFilter attached to the SearchBox widget of the Scene Outliner */
 	TSharedPtr< SceneOutliner::TreeItemTextFilter > SearchBoxFilter;

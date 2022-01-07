@@ -4,6 +4,7 @@
 #include "Containers/StringView.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/PackageName.h"
+#include "Misc/PackagePath.h"
 #include "Misc/Paths.h"
 #include "Settings/ContentBrowserSettings.h"
 
@@ -58,7 +59,8 @@ bool ContentBrowserDataUtils::PathPassesAttributeFilter(const FStringView InPath
 	static const FString ProjectContentRootName = TEXT("Game");
 	static const FString EngineContentRootName = TEXT("Engine");
 	static const FString LocalizationFolderName = TEXT("L10N");
-	static const FString ExternalActorsFolderName = TEXT("__ExternalActors__");
+	static const FString ExternalActorsFolderName = FPackagePath::GetExternalActorsFolderName();
+	static const FString ExternalObjectsFolderName = FPackagePath::GetExternalObjectsFolderName();
 	static const FString DeveloperPathWithoutSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir()).LeftChop(1);
 	static int32 DevelopersFolderDepth = ContentBrowserDataUtils::CalculateFolderDepthOfPath(DeveloperPathWithoutSlash);
 	static int32 MaxFolderDepthToCheck = FMath::Max(DevelopersFolderDepth, 2);
@@ -149,6 +151,10 @@ bool ContentBrowserDataUtils::PathPassesAttributeFilter(const FStringView InPath
 			
 			const FStringView AfterFirstFolder = InPath.RightChop(RootName.Len() + 2);
 			if (AfterFirstFolder.StartsWith(ExternalActorsFolderName) && (AfterFirstFolder.Len() == ExternalActorsFolderName.Len() || AfterFirstFolder[ExternalActorsFolderName.Len()] == TEXT('/')))
+			{
+				return false;
+			}
+			if (AfterFirstFolder.StartsWith(ExternalObjectsFolderName) && (AfterFirstFolder.Len() == ExternalObjectsFolderName.Len() || AfterFirstFolder[ExternalObjectsFolderName.Len()] == TEXT('/')))
 			{
 				return false;
 			}

@@ -133,6 +133,11 @@ FString UObjectBaseUtility::GetFullGroupName( bool bStartWithOuter ) const
 /*** Outer & Package ***/
 /***********************/
 
+bool UObjectBaseUtility::IsPackageExternal() const
+{
+	return HasAnyFlags(RF_HasExternalPackage);
+}
+
 void UObjectBaseUtility::DetachExternalPackage()
 {
 	ClearFlags(RF_HasExternalPackage);

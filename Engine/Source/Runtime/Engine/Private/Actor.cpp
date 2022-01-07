@@ -1198,16 +1198,26 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 	// if we have an external actor and the actor is changing name/outer, we will want to update its package
 	const bool bExternalActor = IsPackageExternal();
 	bool bShouldSetPackageExternal = false;
-	if (!bRenameTest && bExternalActor)
+	if (!bRenameTest)
 	{
 		if (ULevel* MyLevel = GetLevel())
 		{
-			bShouldSetPackageExternal = bChangingOuters || IsMainPackageActor();
-			// If we are changing outers always change the external package because the outer chain as an impact on the filename
-			// but if we are not changing outers only change the external flag if the actor is the main actor in a package. (this is to avoid Child Actors creating packages)
-			if (bShouldSetPackageExternal)
+			if (bExternalActor)
 			{
-				SetPackageExternal(false, MyLevel->IsUsingExternalActors());
+				bShouldSetPackageExternal = bChangingOuters || IsMainPackageActor();
+				// If we are changing outers always change the external package because the outer chain as an impact on the filename
+				// but if we are not changing outers only change the external flag if the actor is the main actor in a package. (this is to avoid Child Actors creating packages)
+				if (bShouldSetPackageExternal)
+				{
+					SetPackageExternal(false, MyLevel->IsUsingExternalActors());
+				}
+			}
+			if (bChangingOuters && MyLevel->IsUsingActorFolders())
+			{
+				// When changing outer, resolve FolderPath.
+				// New level will handle conversion from path to actor folder guid if necessary.
+				FolderPath = GetFolderPath();
+				FolderGuid.Invalidate();
 			}
 		}
 	}
@@ -1259,6 +1269,13 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 				RegisterAllComponents();
 			}
 			RegisterAllActorTickFunctions(true, true); // register all tick functions
+#if WITH_EDITOR
+			// If new outer level uses actor folder objects, update folder path (this will create actor folder if necessary an update actor's FolderGuid)
+			if (MyLevel->IsUsingActorFolders())
+			{
+				SetFolderPath(FolderPath);
+			}
+#endif
 		}
 
 #if WITH_EDITOR
@@ -3291,6 +3308,15 @@ void AActor::PostEditImport()
 	Super::PostEditImport();
 
 	DispatchOnComponentsCreated(this);
+
+	ULevel* Level = GetLevel();
+	if (Level && Level->IsUsingActorFolders())
+	{
+		if (GetFolderPath().IsNone() && !FolderPath.IsNone())
+		{
+			SetFolderPath(FolderPath);
+		}
+	}
 }
 
 bool AActor::IsSelectedInEditor() const

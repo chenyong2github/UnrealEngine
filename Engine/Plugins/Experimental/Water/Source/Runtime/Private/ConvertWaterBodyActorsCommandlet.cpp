@@ -188,7 +188,7 @@ int32 UConvertWaterBodyActorsCommandlet::Main(const FString& Params)
 
 		UPackage* LevelPackage = Level->GetPackage();
 		PackagesToSave.Add(LevelPackage);
-		PackagesToSave.Append(Level->GetLoadedExternalActorPackages());
+		PackagesToSave.Append(Level->GetLoadedExternalObjectPackages());
 	}
 
 	if (UseSourceControl())

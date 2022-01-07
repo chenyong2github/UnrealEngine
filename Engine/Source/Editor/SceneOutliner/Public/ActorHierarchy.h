@@ -7,6 +7,7 @@
 #include "Folder.h"
 
 class FWorldPartitionActorDesc;
+class UActorFolder;
 
 class FActorHierarchy : public ISceneOutlinerHierarchy
 {
@@ -55,6 +56,9 @@ private:
 	void OnComponentsUpdated();
 
 	void OnLevelActorListChanged();
+	
+	void OnActorFolderAdded(UActorFolder* InActorFolder);
+	void OnActorFoldersUpdatedEvent(ULevel* InLevel);
 		
 	void OnLevelAdded(ULevel* InLevel, UWorld* InWorld);
 	void OnLevelRemoved(ULevel* InLevel, UWorld* InWorld);

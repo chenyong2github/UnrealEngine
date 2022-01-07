@@ -31,7 +31,7 @@ protected:
 	static ULevelStreamingLevelInstanceEditor* Load(ALevelInstance* LevelInstanceActor);
 	static void Unload(ULevelStreamingLevelInstanceEditor* LevelStreaming);
 
-	virtual void SetLoadedLevel(ULevel* Level) override;
+	virtual void OnLevelLoadedChanged(ULevel* Level) override;
 private:
 	FLevelInstanceID LevelInstanceID;
 #endif

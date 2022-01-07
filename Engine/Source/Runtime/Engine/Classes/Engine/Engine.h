@@ -49,6 +49,7 @@ class UGameViewportClient;
 class ULocalPlayer;
 class UNetDriver;
 class UTimecodeProvider;
+class UActorFolder;
 
 #if ALLOW_DEBUG_FILES
 class FFineGrainedPerformanceTracker;
@@ -1862,6 +1863,27 @@ public:
 	/** Called by internal engine systems after level actors have changed to notify other subsystems */
 	void BroadcastLevelActorDeleted(AActor* InActor) { LevelActorDeletedEvent.Broadcast(InActor); }
 
+	/** Editor-only event triggered when an actor folder is added to the world */
+	DECLARE_EVENT_OneParam(UEngine, FActorFolderAddedEvent, UActorFolder*);
+	FActorFolderAddedEvent& OnActorFolderAdded() { return ActorFolderAddedEvent; }
+
+	/** Called by internal engine systems after actor folder is added  */
+	void BroadcastActorFolderAdded(UActorFolder* InActorFolder) { ActorFolderAddedEvent.Broadcast(InActorFolder); }
+
+	/** Editor-only event triggered when an actor folder is removed from the world */
+	DECLARE_EVENT_OneParam(UEngine, FActorFolderRemovedEvent, UActorFolder*);
+	FActorFolderRemovedEvent& OnActorFolderRemoved() { return ActorFolderRemovedEvent; }
+
+	/** Called by internal engine systems after actor folder is removed  */
+	void BroadcastActorFolderRemoved(UActorFolder* InActorFolder) { ActorFolderRemovedEvent.Broadcast(InActorFolder); }
+
+	/** Editor-only event triggered when actor folders are updated for a level */
+	DECLARE_EVENT_OneParam(UEngine, FActorFoldersUpdatedEvent, ULevel*);
+	FActorFoldersUpdatedEvent& OnActorFoldersUpdatedEvent() { return ActorFoldersUpdatedEvent; }
+
+	/** Called by internal engine systems after a level has finished updating its actor folder list */
+	void BroadcastActorFoldersUpdated(ULevel* InLevel) { ActorFoldersUpdatedEvent.Broadcast(InLevel); }
+
 	/** Editor-only event triggered when actors outer changes */
 	DECLARE_EVENT_TwoParams(UEngine, FLevelActorOuterChangedEvent, AActor*, UObject*);
 	FLevelActorOuterChangedEvent& OnLevelActorOuterChanged() { return LevelActorOuterChangedEvent; }
@@ -2774,6 +2796,15 @@ private:
 
 	/** Broadcasts whenever an actor is removed. */
 	FLevelActorDeletedEvent LevelActorDeletedEvent;
+
+	/** Broadcasts whenever an actor folder is added. */
+	FActorFolderAddedEvent ActorFolderAddedEvent;
+
+	/** Broadcasts whenever an actor folder is removed. */
+	FActorFolderRemovedEvent ActorFolderRemovedEvent;
+
+	/** Broadcasts whenever a level rebuilds its actor folder list. */
+	FActorFoldersUpdatedEvent ActorFoldersUpdatedEvent;
 
 	/** Broadcasts whenever an actor's outer changes */
 	FLevelActorOuterChangedEvent LevelActorOuterChangedEvent;

@@ -5,6 +5,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "ActorTreeItem.h"
 #include "ActorDescTreeItem.h"
+#include "ActorFolderTreeItem.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
@@ -55,6 +56,16 @@ public:
 								DisconnectSourceControl();
 							}
 						});
+				}
+			}
+			else if (FActorFolderTreeItem* ActorFolderItem = TreeItemPtr->CastTo<FActorFolderTreeItem>())
+			{
+				if (const UActorFolder* ActorFolder = ActorFolderItem->GetActorFolder())
+				{
+					if (ActorFolder->IsPackageExternal())
+					{
+						ExternalPackageName = USourceControlHelpers::PackageFilename(ActorFolder->GetExternalPackage());
+					}
 				}
 			}
 			else if (FActorDescTreeItem* ActorDescItem = TreeItemPtr->CastTo<FActorDescTreeItem>())
@@ -203,7 +214,9 @@ SHeaderRow::FColumn::FArguments FSceneOutlinerActorSCCColumn::ConstructHeaderRow
 
 const TSharedRef<SWidget> FSceneOutlinerActorSCCColumn::ConstructRowWidget(FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row)
 {
-	if (TreeItem->IsA<FActorTreeItem>() || TreeItem->IsA<FActorDescTreeItem>())
+	if (TreeItem->IsA<FActorTreeItem>() || 
+		TreeItem->IsA<FActorDescTreeItem>() || 
+		(TreeItem->IsA<FActorFolderTreeItem>() && TreeItem->CastTo<FActorFolderTreeItem>()->GetActorFolder()))
 	{
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()

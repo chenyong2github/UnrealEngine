@@ -5,6 +5,8 @@
 #include "Algo/Count.h"
 #include "Algo/Find.h"
 #include "AssetData.h"
+#include "ActorFolder.h"
+#include "ActorFolderDesc.h"
 #include "AssetToolsModule.h"
 #include "EditorStyleSet.h"
 #include "ISourceControlModule.h"
@@ -179,7 +181,8 @@ FText FFileTreeItem::GetAssetName()
 
 FString FFileTreeItem::RetrieveAssetName(const FAssetData& InAssetData) const
 {
-	static FName NAME_ActorLabel(TEXT("ActorLabel"));
+	static const FName NAME_ActorLabel(TEXT("ActorLabel"));
+	static const FName NAME_ActorFolder(TEXT("ActorFolder"));
 
 	if (InAssetData.FindTag(NAME_ActorLabel))
 	{
@@ -188,10 +191,16 @@ FString FFileTreeItem::RetrieveAssetName(const FAssetData& InAssetData) const
 		InAssetData.GetTagValue(NAME_ActorLabel, ResultAssetName);
 		return ResultAssetName;
 	}
-	else
+	else if (InAssetData.AssetClass == NAME_ActorFolder)
 	{
-		return InAssetData.AssetName.ToString();
+		FString ActorFolderPath = UActorFolder::GetAssetRegistryInfoFromPackage(InAssetData.PackageName).GetDisplayName();
+		if (!ActorFolderPath.IsEmpty())
+		{
+			return ActorFolderPath;
+		}
 	}
+	
+	return InAssetData.AssetName.ToString();
 }
 
 FString FFileTreeItem::RetrieveAssetPath(const FAssetData& InAssetData) const

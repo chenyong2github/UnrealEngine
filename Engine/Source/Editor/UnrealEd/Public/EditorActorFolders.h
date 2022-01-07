@@ -2,16 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/GCObject.h"
 #include "Folder.h"
-#include "EditorActorFolders.generated.h"
+#include "WorldFolders.h"
 
 class FObjectPostSaveContext;
 class AActor;
+class UActorFolder;
 
 /** Multicast delegates for broadcasting various folder events */
 
@@ -25,33 +25,6 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActorFolderCreated, UWorld&, const FFold
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActorFolderDeleted, UWorld&, const FFolder&);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnActorFolderMoved, UWorld&, const FFolder& /* src */, const FFolder& /* dst */);
 
-USTRUCT()
-struct FActorFolderProps
-{
-	GENERATED_USTRUCT_BODY()
-
-	FActorFolderProps() : bIsExpanded(true) {}
-
-	/** Serializer */
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FActorFolderProps& Folder)
-	{
-		return Ar << Folder.bIsExpanded;
-	}
-
-	bool bIsExpanded;
-};
-
-/** Actor Folder UObject. This is used to support undo/redo reliably */
-UCLASS()
-class UEditorActorFolders : public UObject
-{
-public:
-	GENERATED_BODY()
-public:
-	virtual void Serialize(FArchive& Ar) override;
-
-	TMap<FFolder, FActorFolderProps> Folders;
-};
 
 /** Class responsible for managing an in-memory representation of actor folders in the editor */
 struct UNREALED_API FActorFolders : public FGCObject
@@ -175,6 +148,9 @@ struct UNREALED_API FActorFolders : public FGCObject
 	/** Iterate on all world's folders with the given root object and pass it to the provided operation. */
 	void ForEachFolderWithRootObject(UWorld& InWorld, const FFolder::FRootObject& InFolderRootObject, TFunctionRef<bool(const FFolder&)> Operation);
 
+	/** Get the folder properties for the specified path. Returns nullptr if no properties exist */
+	FActorFolderProps* GetFolderProperties(UWorld& InWorld, const FFolder& InFolder);
+
 private:
 
 	/** Broadcast when actor folder is created. */
@@ -186,20 +162,11 @@ private:
 	/** Broadcast when actor folder has moved. */
 	void BroadcastOnActorFolderMoved(UWorld& InWorld, const FFolder& InSrcFolder, const FFolder& InDstFolder);
 
-	/** Get the folder properties for the specified path. Returns nullptr if no properties exist */
-	FActorFolderProps* GetFolderProperties(UWorld& InWorld, const FFolder& InFolder);
-
-	/** Get a map of folder properties for the specified world (map of folder path -> properties) */
-	const TMap<FFolder, FActorFolderProps>& GetFolderPropertiesForWorld(UWorld& InWorld);
-
-	/** Returns true if folders have been created for the specified world */
-	bool FoldersExistForWorld(UWorld& InWorld) const;
-
 	/** Get or create a folder container for the specified world */
-	UEditorActorFolders& GetOrCreateFoldersForWorld(UWorld& InWorld);
+	UWorldFolders& GetOrCreateWorldFolders(UWorld& InWorld);
 
 	/** Create and update a folder container for the specified world */
-	UEditorActorFolders& InitializeForWorld(UWorld& InWorld);
+	UWorldFolders& CreateWorldFolders(UWorld& InWorld);
 
 	/** Rebuild the folder list for the specified world. This can be very slow as it
 		iterates all actors in memory to rebuild the array of actors for this world */
@@ -210,6 +177,9 @@ private:
 
 	/** Called when the actor list of the current world has changed */
 	void OnLevelActorListChanged();
+
+	/** Called when an actor folder is added */
+	void OnActorFolderAdded(UActorFolder* InActorFolder);
 
 	/** Called when the global map in the editor has changed */
 	void OnMapChange(uint32 MapChangeFlags);
@@ -227,8 +197,10 @@ private:
 	void RemoveFoldersFromWorld(UWorld& InWorld, const TArray<FFolder>& InFolders, bool bBroadcastDelete);
 
 	/** Transient map of folders, keyed on world pointer */
-	TMap<TWeakObjectPtr<UWorld>, UEditorActorFolders*> TemporaryWorldFolders;
+	TMap<TWeakObjectPtr<UWorld>, UWorldFolders*> WorldFolders;
 
 	/** Singleton instance maintained by the editor */
 	static FActorFolders* Singleton;
+
+	friend UWorldFolders;
 };

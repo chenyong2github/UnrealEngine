@@ -404,6 +404,14 @@ void UWorldPartitionLevelStreamingDynamic::OnCleanupLevel()
 		RuntimeLevel = nullptr;
 	}
 }
+
+// Overriding base class to make sure the world outliner doesn't show runtime cell levels as root object.
+// This could become an option in the world outliner when running PIE.
+TOptional<FFolder::FRootObject> UWorldPartitionLevelStreamingDynamic::GetFolderRootObject() const
+{
+	return FFolder::GetDefaultRootObject();
+}
+
 #endif
 
 /*

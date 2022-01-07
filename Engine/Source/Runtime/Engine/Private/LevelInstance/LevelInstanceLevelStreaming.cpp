@@ -14,6 +14,7 @@
 #include "Editor.h"
 #include "EditorLevelUtils.h"
 #include "LevelUtils.h"
+#include "ActorFolder.h"
 #endif
 
 ULevelStreamingLevelInstance::ULevelStreamingLevelInstance(const FObjectInitializer& ObjectInitializer)
@@ -116,12 +117,21 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ALevelI
 					{
 						ResetLoaders(LevelActor->GetExternalPackage());
 						LevelActor->GetPackage()->SetFlags(RF_Transient);
-					}		
+					}
 
 					LevelActor->PushSelectionToProxies();
 					LevelActor->PushLevelInstanceEditingStateToProxies(LevelInstanceActor->IsInEditingLevelInstance());
 				}
 			}
+			Level->ForEachActorFolder([](UActorFolder* ActorFolder)
+			{
+				if (ActorFolder->IsPackageExternal())
+				{
+					ResetLoaders(ActorFolder->GetExternalPackage());
+					ActorFolder->GetPackage()->SetFlags(RF_Transient);
+				}
+				return true;
+			});
 
 			// Create special actor that will handle selection and transform
 			ALevelInstanceEditorInstanceActor::Create(LevelInstanceActor, Level);
@@ -163,17 +173,23 @@ void ULevelStreamingLevelInstance::UnloadInstance(ULevelStreamingLevelInstance* 
 #endif 
 }
 
-void ULevelStreamingLevelInstance::SetLoadedLevel(ULevel* Level)
+void ULevelStreamingLevelInstance::OnLevelLoadedChanged(ULevel* InLevel)
 {
-	Super::SetLoadedLevel(Level);
+	Super::OnLevelLoadedChanged(InLevel);
 
 	if (ULevel* NewLoadedLevel = GetLoadedLevel())
 	{
+		check(InLevel == NewLoadedLevel);
 		if (!NewLoadedLevel->bAlreadyMovedActors)
 		{
 			AWorldSettings* WorldSettings = NewLoadedLevel->GetWorldSettings();
 			check(WorldSettings);
 			LevelTransform = FTransform(WorldSettings->LevelInstancePivotOffset) * LevelTransform;
+		}
+
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
+		{
+			LevelInstanceSubsystem->RegisterLoadedLevelStreamingLevelInstance(this);
 		}
 	}
 }

@@ -66,6 +66,11 @@ Level.cpp: Level-related functions
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Settings/LevelEditorMiscSettings.h"
+#include "ExternalPackageHelper.h"
+#include "ActorFolder.h"
+#include "Misc/MessageDialog.h"
+#include "ScopedTransaction.h"
+#include "EditorActorFolders.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "Engine/LevelStreaming.h"
@@ -100,6 +105,20 @@ static FAutoConsoleVariableRef CVarUseLegacyRouteActorInitialization(
 );
 
 #if WITH_EDITOR
+void FLevelActorFoldersHelper::SetUseActorFolders(ULevel* InLevel, bool bInEnabled)
+{
+	InLevel->SetUseActorFoldersInternal(bInEnabled);
+}
+
+void FLevelActorFoldersHelper::AddActorFolder(ULevel* InLevel, UActorFolder* InActorFolder, bool bInShouldDirtyLevel)
+{
+	InLevel->Modify(bInShouldDirtyLevel);
+	check(InActorFolder->GetGuid().IsValid());
+	InLevel->ActorFolders.Add(InActorFolder->GetGuid(), InActorFolder);
+
+	GEngine->BroadcastActorFolderAdded(InActorFolder);
+}
+
 FLevelPartitionOperationScope::FLevelPartitionOperationScope(ULevel* InLevel)
 {
 	InterfacePtr = InLevel->GetLevelPartition();
@@ -354,11 +373,19 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	ActorPackagingScheme = EActorPackagingScheme::Reduced;
 	bPromptWhenAddingToLevelBeforeCheckout = true;
 	bPromptWhenAddingToLevelOutsideBounds = true;
+	bUseActorFolders = false;
+	bFixupActorFoldersAtLoad = true;
 #endif	
 	bActorClusterCreated = false;
 	bIsPartitioned = false;
 	bStaticComponentsRegisteredInStreamingManager = false;
 	IncrementalComponentState = EIncrementalComponentState::Init;
+#if WITH_EDITOR
+	if (!IsTemplate())
+	{
+		FCoreUObjectDelegates::OnAssetLoaded.AddUObject(this, &ULevel::OnAssetLoaded);
+	}
+#endif
 }
 
 void ULevel::Initialize(const FURL& InURL)
@@ -368,6 +395,12 @@ void ULevel::Initialize(const FURL& InURL)
 
 ULevel::~ULevel()
 {
+#if WITH_EDITOR
+	if (!IsTemplate())
+	{
+		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+	}
+#endif
 	FTickTaskManagerInterface::Get().FreeTickTaskLevel(TickTaskLevel);
 	TickTaskLevel = NULL;
 }
@@ -398,18 +431,17 @@ void ULevel::CleanupLevel(bool bCleanupResources)
 		// if the level contains any actor with an external package, clear their metadata standalone flag so that the packages can be properly unloaded.
 		// Do so for any actors outered to the level and not just from the level actors array
 		ForEachObjectWithOuter(this, [](UObject* InObject)
+		{
+			// Ask directly on all objects since the tests validate against object flags before doing a hash lookup
+			if (UPackage* ExternalPackage = InObject->GetExternalPackage())
 			{
-				// Currently only actors would have external package, 
-				// but we can ask directly on all objects since the tests validate against object flags before doing a hash lookup
-				if (UPackage* ExternalPackage = InObject->GetExternalPackage())
+				ForEachObjectWithPackage(ExternalPackage, [](UObject* Object)
 				{
-					ForEachObjectWithPackage(ExternalPackage, [](UObject* Object)
-						{
-							Object->ClearFlags(RF_Standalone);
-							return true;
-						}, false);
-				}
-			}, false);
+					Object->ClearFlags(RF_Standalone);
+					return true;
+				}, false);
+			}
+		}, false);
 	}
 }
 
@@ -631,6 +663,19 @@ void ULevel::Serialize( FArchive& Ar )
 	}
 
 #if WITH_EDITORONLY_DATA
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::AddLevelActorFolders)
+	{
+		if (IsUsingActorFolders())
+		{
+			// When archive is persistent, serialize ActorFolders array only
+			// if actor folder objects are not stored in their external packages OR if we a duplicating the level
+			if ((!IsUsingExternalObjects() || (Ar.GetPortFlags() & PPF_Duplicate)) && Ar.IsPersistent() && !Ar.IsCooking())
+			{
+				Ar << ActorFolders;
+			}
+		}
+	}
+
 	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
 	{
 		Ar << PlayFromHereActor;
@@ -708,6 +753,11 @@ void ULevel::AddLoadedActor(AActor* Actor)
 			Actor->RerunConstructionScripts();
 			GetWorld()->UpdateCullDistanceVolumes(Actor);
 			Actor->MarkComponentsRenderStateDirty();
+		}
+
+		if (IsUsingActorFolders() && bFixupActorFoldersAtLoad)
+		{
+			Actor->FixupActorFolder();
 		}
 
 		OnLoadedActorAddedToLevelEvent.Broadcast(*Actor);
@@ -823,57 +873,73 @@ void ULevel::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	// if we use external actors, load dynamic actors here
-	if (IsUsingExternalActors() && !bWasDuplicated && !bIsPartitioned)
+	if (IsUsingActorFolders() && IsUsingExternalObjects())
 	{
-		UPackage* LevelPackage = GetPackage();
-		bool bPackageForPIE = LevelPackage->HasAnyPackageFlags(PKG_PlayInEditor);
-		FName PackageResourceName = LevelPackage->GetLoadedPath().GetPackageFName();
-		bool bInstanced = !PackageResourceName.IsNone() && (PackageResourceName != LevelPackage->GetFName());
-
-		// if the level is instanced, create an instancing context for remapping the actor imports
-		FLinkerInstancingContext InstancingContext;
-		if (bInstanced)
+		if (!bWasDuplicated)
 		{
-			InstancingContext.AddMapping(PackageResourceName, LevelPackage->GetFName());
+			// Load all folders for this level
+			FExternalPackageHelper::LoadObjectsFromExternalPackages<UActorFolder>(this, [this](UActorFolder* LoadedFolder)
+			{
+				check(IsValid(LoadedFolder));
+				LoadedExternalActorFolders.Add(LoadedFolder);
+			});
 		}
+	}
 
-		TArray<FString> ActorPackageNames = GetOnDiskExternalActorPackages();
-		TArray<FString> InstancePackageNames;
-		for (const FString& ActorPackageName : ActorPackageNames)
+	// if we use external actors, load dynamic actors here
+	if (IsUsingExternalActors())
+	{
+		if (!bWasDuplicated && !bIsPartitioned)
 		{
+			UPackage* LevelPackage = GetPackage();
+			bool bPackageForPIE = LevelPackage->HasAnyPackageFlags(PKG_PlayInEditor);
+			FName PackageResourceName = LevelPackage->GetLoadedPath().GetPackageFName();
+			bool bInstanced = !PackageResourceName.IsNone() && (PackageResourceName != LevelPackage->GetFName());
+
+			// if the level is instanced, create an instancing context for remapping the actor imports
+			FLinkerInstancingContext InstancingContext;
 			if (bInstanced)
 			{
-				const FString ActorShortPackageName = FPackageName::GetShortName(ActorPackageName);
-				const FString InstancedName = GetExternalActorPackageInstanceName(LevelPackage->GetName(), ActorShortPackageName);
-				InstancePackageNames.Add(InstancedName);
-
-				InstancingContext.AddMapping(FName(*ActorPackageName), FName(*InstancedName));
-			}
-		}
-
-		for (int32 i=0; i < ActorPackageNames.Num(); i++)
-		{
-			const FString& ActorPackageName = ActorPackageNames[i];
-
-			// Propagate RF_Transient from the Level Package in case we are loading an instanced level
-			UPackage* ActorPackage = bInstanced ? CreatePackage( *InstancePackageNames[i]) : nullptr;
-			if (ActorPackage && LevelPackage->HasAnyFlags(RF_Transient))
-			{
-				ActorPackage->SetFlags(RF_Transient);
+				InstancingContext.AddMapping(PackageResourceName, LevelPackage->GetFName());
 			}
 
-			ActorPackage = LoadPackage(ActorPackage, *ActorPackageName, bPackageForPIE ? LOAD_PackageForPIE : LOAD_None, nullptr, &InstancingContext);
-
-			ForEachObjectWithPackage(ActorPackage, [this](UObject* PackageObject)
+			TArray<FString> ActorPackageNames = GetOnDiskExternalActorPackages(/*bTryUsingPackageLoadedPath*/ true);
+			TArray<FString> InstancePackageNames;
+			for (const FString& ActorPackageName : ActorPackageNames)
 			{
-				// There might be multiple actors per package in the case where an actor as a child actor component as we put child actor in the same package as their parent
-				if (PackageObject->IsA<AActor>() && !PackageObject->IsTemplate())
+				if (bInstanced)
 				{
-					Actors.Add((AActor*)PackageObject);
+					const FString ActorShortPackageName = FPackageName::GetShortName(ActorPackageName);
+					const FString InstancedName = GetExternalActorPackageInstanceName(LevelPackage->GetName(), ActorShortPackageName);
+					InstancePackageNames.Add(InstancedName);
+
+					InstancingContext.AddMapping(FName(*ActorPackageName), FName(*InstancedName));
 				}
-				return true;
-			}, false);
+			}
+
+			for (int32 i=0; i < ActorPackageNames.Num(); i++)
+			{
+				const FString& ActorPackageName = ActorPackageNames[i];
+
+				// Propagate RF_Transient from the Level Package in case we are loading an instanced level
+				UPackage* ActorPackage = bInstanced ? CreatePackage( *InstancePackageNames[i]) : nullptr;
+				if (ActorPackage && LevelPackage->HasAnyFlags(RF_Transient))
+				{
+					ActorPackage->SetFlags(RF_Transient);
+				}
+
+				ActorPackage = LoadPackage(ActorPackage, *ActorPackageName, bPackageForPIE ? LOAD_PackageForPIE : LOAD_None, nullptr, &InstancingContext);
+
+				ForEachObjectWithPackage(ActorPackage, [this](UObject* PackageObject)
+				{
+					// There might be multiple actors per package in the case where an actor as a child actor component as we put child actor in the same package as their parent
+					if (PackageObject->IsA<AActor>() && !PackageObject->IsTemplate())
+					{
+						Actors.Add((AActor*)PackageObject);
+					}
+					return true;
+				}, false);
+			}
 		}
 	}
 #endif
@@ -997,30 +1063,42 @@ void ULevel::PreDuplicate(FObjectDuplicationParameters& DupParams)
 		UPackage* SrcPackage = GetPackage();
 		UPackage* DstPackage = DupParams.DestOuter->GetPackage();
 
-		const FString ReplaceFrom = FPaths::GetBaseFilename(*SrcPackage->GetName());
-		const FString ReplaceTo = FPaths::GetBaseFilename(*DstPackage->GetName());
+		FString ReplaceFrom = FPaths::GetBaseFilename(*SrcPackage->GetName());
+		ReplaceFrom = FString::Printf(TEXT("%s.%s:"), *ReplaceFrom, *ReplaceFrom);
+
+		FString ReplaceTo = FPaths::GetBaseFilename(*DstPackage->GetName());
+		ReplaceTo = FString::Printf(TEXT("%s.%s:"), *ReplaceTo, *ReplaceTo);
 
 		for (AActor* Actor : Actors)
 		{
-			UPackage* ActorPackage = Actor ? Actor->GetExternalPackage() : nullptr;
-			if (ActorPackage)
+			if (UPackage* Package = Actor ? Actor->GetExternalPackage() : nullptr)
 			{
-				FString ActorPath = Actor->GetPathName();
-
+				FString Path = Actor->GetPathName();
 				if (DstPackage != SrcPackage)
 				{
-					ActorPath = ActorPath.Replace(
-						*FString::Printf(TEXT("%s.%s:"), *ReplaceFrom, *ReplaceFrom),
-						*FString::Printf(TEXT("%s.%s:"), *ReplaceTo, *ReplaceTo)
-					);
+					Path = Path.Replace(*ReplaceFrom, *ReplaceTo);
 				}
-
-				UPackage* DupActorPackage = CreateActorPackage(DstPackage, GetActorPackagingScheme(), ActorPath);
-
-				DupActorPackage->MarkAsFullyLoaded();
-				DupParams.DuplicationSeed.Add(ActorPackage, DupActorPackage);
+				UPackage* DupPackage = CreateActorPackage(DstPackage, GetActorPackagingScheme(), Path);
+				DupPackage->MarkAsFullyLoaded();
+				DupParams.DuplicationSeed.Add(Package, DupPackage);
 			}
 		}
+
+		ForEachActorFolder([&SrcPackage, &DstPackage, &ReplaceFrom, &ReplaceTo, &DupParams](UActorFolder* ActorFolder)
+		{
+			if (UPackage* Package = ActorFolder ? ActorFolder->GetExternalPackage() : nullptr)
+			{
+				FString Path = ActorFolder->GetPathName();
+				if (DstPackage != SrcPackage)
+				{
+					Path = Path.Replace(*ReplaceFrom, *ReplaceTo);
+				}
+				UPackage* DupPackage = FExternalPackageHelper::CreateExternalPackage(DstPackage, Path, UActorFolder::GetExternalPackageFlags());
+				DupPackage->MarkAsFullyLoaded();
+				DupParams.DuplicationSeed.Add(Package, DupPackage);
+			}
+			return true;
+		});
 	}
 #endif
 }
@@ -1985,7 +2063,7 @@ namespace LevelAssetRegistryHelper
 
 		if (ULevel::GetIsLevelUsingExternalActorsFromPackage(FName(*LevelPackage)))
 		{
-			AssetRegistry.ScanPathsSynchronous({ ULevel::GetExternalActorsPath(LevelPackage) }, /*bForceRescan=*/true);
+			AssetRegistry.ScanPathsSynchronous( ULevel::GetExternalObjectsPaths(LevelPackage), /*bForceRescan=*/true);
 		}
 	}
 }
@@ -2014,6 +2092,21 @@ bool ULevel::GetIsLevelUsingExternalActorsFromPackage(FName LevelPackage)
 		if (Asset.GetTagValue(NAME_LevelIsUsingExternalActors, LevelIsUsingExternalActorsStr))
 		{
 			check(LevelIsUsingExternalActorsStr == TEXT("1"));
+			return true;
+		}
+		return false;
+	});
+}
+
+bool ULevel::GetIsUsingActorFoldersFromPackage(FName LevelPackage)
+{
+	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
+	{
+		FString LevelIsUsingActorFoldersStr;
+		static const FName NAME_LevelIsUsingActorFolders(TEXT("LevelIsUsingActorFolders"));
+		if (Asset.GetTagValue(NAME_LevelIsUsingActorFolders, LevelIsUsingActorFoldersStr))
+		{
+			check(LevelIsUsingActorFoldersStr == TEXT("1"));
 			return true;
 		}
 		return false;
@@ -2160,6 +2253,87 @@ void ULevel::CommitModelSurfaces()
 	}
 }
 
+#if WITH_EDITOR
+
+void ULevel::OnAssetLoaded(UObject* Asset)
+{
+	UWorld* World = Cast<UWorld>(Asset);
+	if (World && World->PersistentLevel == this)
+	{
+		FixupActorFolders();
+	}
+}
+
+void ULevel::FixupActorFolders()
+{
+	if (!IsUsingActorFolders())
+	{
+		return;
+	}
+
+	// At this point, LoadedExternalActorFolders are fully loaded, transfer them to the ActorFolders list.
+	for (UActorFolder* LoadedActorFolder : LoadedExternalActorFolders)
+	{
+		check(LoadedActorFolder->GetGuid().IsValid());
+		ActorFolders.Add(LoadedActorFolder->GetGuid(), LoadedActorFolder);
+	}
+	LoadedExternalActorFolders.Empty();
+	
+	// Discover duplicate paths first to prioritize non-duplicate paths
+	TSet<FName> FolderPaths;
+	TArray<UActorFolder*> DuplicateFolders;
+	ForEachActorFolder([&FolderPaths, &DuplicateFolders](UActorFolder* ActorFolder)
+	{
+		// Detects and clears invalid parent folder
+		ActorFolder->FixupParentFolder();
+
+		bool bIsAlreadyInSet = false;
+		FolderPaths.Add(ActorFolder->GetPath(), &bIsAlreadyInSet);
+		if (bIsAlreadyInSet)
+		{
+			DuplicateFolders.Add(ActorFolder);
+		}
+		return true;
+	}, /*bSkipDeleted*/ true);
+
+	// Rename duplicates to a new valid/unique name
+	for (UActorFolder* ActorFolder : DuplicateFolders)
+	{
+		FFolder Folder = ActorFolder->GetFolder();
+		const FFolder NewPath = FActorFolders::Get().GetFolderName(*GetWorld(), Folder.GetParent(), Folder.GetLeafName());
+		ActorFolder->SetLabel(NewPath.GetLeafName().ToString());
+		bool bIsAlreadyInSet = false;
+		FolderPaths.Add(ActorFolder->GetPath(), &bIsAlreadyInSet);
+		check(!bIsAlreadyInSet);
+		UE_LOG(LogLevel, Warning, TEXT("Found duplicate actor folder %s, renamed to %s."), *Folder.GetPath().ToString(), *NewPath.GetPath().ToString());
+	}
+	
+	// Fixup actors actor folder
+	if (bFixupActorFoldersAtLoad)
+	{
+		for (AActor* Actor : Actors)
+		{
+			if (IsValid(Actor))
+			{
+				Actor->FixupActorFolder();
+			}
+		}
+	}
+	
+	ForEachActorFolder([](UActorFolder* ActorFolder)
+	{
+		GEngine->BroadcastActorFolderAdded(ActorFolder);
+		return true;
+	}, /*bSkipDeleted*/ true);
+}
+#endif
+
+void ULevel::OnLevelLoaded()
+{
+#if WITH_EDITOR
+	FixupActorFolders();
+#endif
+}
 
 void ULevel::BuildStreamingData(UWorld* World, ULevel* TargetLevel/*=NULL*/, UTexture2D* UpdateSpecificTextureOnly/*=NULL*/)
 {
@@ -2745,6 +2919,211 @@ void ULevel::SetUseExternalActors(bool bEnable)
 	{
 		LevelPackage->ClearPackageFlags(PKG_DynamicImports);
 	}
+	CreateOrUpdateActorFolders();
+}
+
+TArray<FString> ULevel::GetExternalObjectsPaths(const FString& InLevelPackageName, const FString& InPackageShortName)
+{
+	TArray<FString> Paths;
+	Paths.Add(GetExternalActorsPath(InLevelPackageName, InPackageShortName));
+	Paths.Add(FExternalPackageHelper::GetExternalObjectsPath(InLevelPackageName, InPackageShortName));
+	return Paths;
+}
+
+bool ULevel::IsUsingExternalObjects() const
+{
+	return IsUsingExternalActors();
+}
+
+UActorFolder* ULevel::GetActorFolder(const FName& InPath, bool bSkipDeleted) const
+{
+	if (!InPath.IsNone() && IsUsingActorFolders())
+	{
+		// @todo_ow : Add an acceleration table
+		for (const auto& Pair : ActorFolders)
+		{
+			UActorFolder* ActorFolder = Pair.Value;
+			if (ActorFolder->GetPath() == InPath)
+			{
+				if (bSkipDeleted && ActorFolder->IsMarkedAsDeleted())
+				{
+					return ActorFolder->GetParent();
+				}
+				return ActorFolder;
+			}
+		}
+		// In PIE, fallback on persistent level
+		if (GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) && (this != GetWorld()->PersistentLevel))
+		{
+			return GetWorld()->PersistentLevel->GetActorFolder(InPath, bSkipDeleted);
+		}
+	}
+	return nullptr;
+}
+
+UActorFolder* ULevel::GetActorFolder(const FGuid& InGuid, bool bSkipDeleted) const
+{
+	if (IsUsingActorFolders() && InGuid.IsValid())
+	{
+		if (const TObjectPtr<UActorFolder>* FoundActorFolder = ActorFolders.Find(InGuid))
+		{
+			UActorFolder* ActorFolder = *FoundActorFolder;
+			if (bSkipDeleted && ActorFolder->IsMarkedAsDeleted())
+			{
+				return ActorFolder->GetParent();
+			}
+			return ActorFolder;
+		}
+		// In PIE, fallback on persistent level
+		if (GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) && (this != GetWorld()->PersistentLevel))
+		{
+			return GetWorld()->PersistentLevel->GetActorFolder(InGuid, bSkipDeleted);
+		}
+	}
+	return nullptr;
+}
+
+bool ULevel::IsUsingActorFolders() const
+{
+	return bUseActorFolders;
+}
+
+bool ULevel::SetUseActorFolders(bool bInEnabled, bool bInInteractiveMode)
+{
+	if (bUseActorFolders == bInEnabled)
+	{
+		return false;
+	}
+
+	const bool bInteractiveMode = bInInteractiveMode && !IsRunningCommandlet();
+
+	if (!bInEnabled)
+	{
+		UE_LOG(LogLevel, Warning, TEXT("Disabling actor folder objects is not supported."));
+		if (bInteractiveMode)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("DisableActorFoldersNotSupported", "Disabling actor folder objects is not supported."));
+		}
+		return false;
+	}
+
+	if (GetWorldPartition())
+	{
+		UClass* WorldPartitionBuilderCommandletClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionBuilderCommandlet"), true);
+		const bool bIsRunningWorldPartitionBuilderCommandlet = WorldPartitionBuilderCommandletClass && GetRunningCommandletClass() && GetRunningCommandletClass()->IsChildOf(WorldPartitionBuilderCommandletClass);
+		if (!bIsRunningWorldPartitionBuilderCommandlet)
+		{
+			if (bInteractiveMode)
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("UseCommandletForActorFoldersOnWorldPartition", "Enabling actor folder objects on a partitioned world requires using the WorldPartitionBuilderCommandlet with the WorldPartitionResaveActorsBuilder (see log for details)."));
+			}
+			UE_LOG(LogLevel, Warning, TEXT("To enable actor folder objects, run WorldPartitionBuilderCommandlet with these options: '-Builder=WorldPartitionResaveActorsBuilder -EnableActorFolders'"));
+			return false;
+		}
+	}
+
+	// Validate we have a saved map
+	UPackage* LevelPackage = GetOutermost();
+	if (LevelPackage == GetTransientPackage()
+		|| LevelPackage->HasAnyFlags(RF_Transient)
+		|| !FPackageName::IsValidLongPackageName(LevelPackage->GetName()))
+	{
+		if (bInteractiveMode)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("UseActorFoldersSaveMap", "You need to save the level before enabling the `Use Actor Folder Objects` option."));
+		}
+		UE_LOG(LogLevel, Warning, TEXT("You need to save the level before enabling the `Use Actor Folder Objects` option."));
+		return false;
+	}
+
+	if (bInteractiveMode)
+	{
+		FText MessageTitle(LOCTEXT("ConvertActorFolderDialog", "Convert Actor Folders"));
+		FText Message(LOCTEXT("ConvertActorFoldersToActorFoldersMsg", "Do you want to convert all actors with a folder to use a actor folder objects?"));
+		EAppReturnType::Type ConvertAnswer = FMessageDialog::Open(EAppMsgType::YesNo, Message, &MessageTitle);
+		if (ConvertAnswer != EAppReturnType::Yes)
+		{
+			return false;
+		}
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("ChangeUseActorFolders", "Change Use Actor Folder Objects"));
+	SetUseActorFoldersInternal(bInEnabled);
+	return true;
+}
+
+void ULevel::SetUseActorFoldersInternal(bool bInEnabled)
+{
+	Modify();
+	bUseActorFolders = bInEnabled;
+	CreateOrUpdateActorFolders();
+}
+
+void ULevel::CreateOrUpdateActorFolders()
+{
+	if (!IsUsingActorFolders())
+	{
+		return;
+	}
+
+	// Here we also do a cleanup of all actor folders marked as deleted.
+	// Find and fixup actors and folders that are referencing them.
+	// Also update actor folders packaging mode.
+	TArray<UActorFolder*> ActorFoldersToDelete;
+	const bool bShouldUsePackageExternal = IsUsingExternalObjects();
+	ForEachActorFolder([&ActorFoldersToDelete, bShouldUsePackageExternal](UActorFolder* ActorFolder)
+	{
+		ActorFolder->Fixup();
+		if (ActorFolder->IsMarkedAsDeleted())
+		{
+			ActorFoldersToDelete.Add(ActorFolder);
+		}
+		// When embedding, still call SetPackageExternal(false) on actor folder marked as deleted to empty the package
+		if (!ActorFolder->IsMarkedAsDeleted() || !bShouldUsePackageExternal)
+		{
+			ActorFolder->SetPackageExternal(bShouldUsePackageExternal);
+		}
+		return true;
+	});
+
+	// Create necessary actor folders
+	for (AActor* Actor : Actors)
+	{
+		if (IsValid(Actor))
+		{
+			Actor->CreateOrUpdateActorFolder();
+		}
+	}
+
+	// Remove actor folders marked as deleted
+	for (UActorFolder* ActorFolderToDelete : ActorFoldersToDelete)
+	{
+		GEngine->BroadcastActorFolderRemoved(ActorFolderToDelete);
+
+		ActorFolders.Remove(ActorFolderToDelete->GetGuid());
+	}
+
+	GEngine->BroadcastActorFoldersUpdated(this);
+}
+
+void ULevel::ForEachActorFolder(TFunctionRef<bool(UActorFolder*)> Operation, bool bSkipDeleted)
+{
+	if (!IsUsingActorFolders())
+	{
+		return;
+	}
+
+	for (const auto& Pair : ActorFolders)
+	{
+		UActorFolder* ActorFolder = Pair.Value;
+		if (!bSkipDeleted || !ActorFolder->IsMarkedAsDeleted())
+		{
+			if (!Operation(ActorFolder))
+			{
+				break;
+			}
+		}
+	}
 }
 
 bool ULevel::ShouldCreateNewExternalActors() const
@@ -2754,6 +3133,8 @@ bool ULevel::ShouldCreateNewExternalActors() const
 
 void ULevel::ConvertAllActorsToPackaging(bool bExternal)
 {
+	SetUseExternalActors(bExternal);
+
 	if (bExternal)
 	{
 		// always force levels to use the reduced packaging scheme
@@ -2798,41 +3179,63 @@ TArray<FString> ULevel::GetOnDiskExternalActorPackages(const FString& ExternalAc
 	return ActorPackageNames;
 }
 
-TArray<FString> ULevel::GetOnDiskExternalActorPackages() const
+TArray<FString> ULevel::GetOnDiskExternalActorPackages(bool bTryUsingPackageLoadedPath) const
 {
 	UWorld* World = GetTypedOuter<UWorld>();
-	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), (World->OriginalWorldName == NAME_None) ? World->GetName() : World->OriginalWorldName.ToString());
+	FString ExternalActorsPath;
+	if (bTryUsingPackageLoadedPath && !World->GetPackage()->GetLoadedPath().IsEmpty())
+	{
+		ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage()->GetLoadedPath().GetPackageName());
+	}
+	else
+	{
+		ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), (World->OriginalWorldName == NAME_None) ? World->GetName() : World->OriginalWorldName.ToString());
+	}
 	return GetOnDiskExternalActorPackages(ExternalActorsPath);
 }
 
-TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
+TArray<UPackage*> ULevel::GetLoadedExternalObjectPackages() const
 {
-	TSet<UPackage*> ActorPackages;
+	TSet<UPackage*> ExternalObjectPackages;
 
 	// Get external packages (including deleted actors)
-	ActorPackages.Append(GetPackage()->GetExternalPackages());
+	ExternalObjectPackages.Append(GetPackage()->GetExternalPackages());
 
-	// We also need to provide empty packages (for actors that were converted to non-external)
-	UWorld* World = GetTypedOuter<UWorld>();
-	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), (World->OriginalWorldName == NAME_None) ? World->GetName() : World->OriginalWorldName.ToString());
-	if (!ExternalActorsPath.IsEmpty())
+	// Make sure we filter out similar external folders
+	auto SanitizeExternalPath = [](const FString& InPath)
 	{
-		// Make sure we filter out similar external folders
-		if (!ExternalActorsPath.EndsWith("/"))
+		if (!InPath.IsEmpty())
 		{
-			ExternalActorsPath += "/";
-		}
-
-		for (TObjectIterator<UPackage> It; It; ++It)
-		{
-			if (!ActorPackages.Contains(*It) && It->GetLoadedPath().GetPackageName().Contains(ExternalActorsPath))
+			if (!InPath.EndsWith("/"))
 			{
-				ActorPackages.Add(*It);
+				return InPath + "/";
+			}
+		}
+		return InPath;
+	};
+
+	// We also need to provide empty packages (for example, actors that were converted to non-external)
+	UWorld* World = GetTypedOuter<UWorld>();
+	TArray<FString> ExternalObjectsPaths;
+	ExternalObjectsPaths.Add(SanitizeExternalPath(ULevel::GetExternalActorsPath(World->GetPackage(), (World->OriginalWorldName == NAME_None) ? World->GetName() : World->OriginalWorldName.ToString())));
+	ExternalObjectsPaths.Add(SanitizeExternalPath(FExternalPackageHelper::GetExternalObjectsPath(World->GetPackage(), (World->OriginalWorldName == NAME_None) ? World->GetName() : World->OriginalWorldName.ToString())));
+	ExternalObjectsPaths = ExternalObjectsPaths.FilterByPredicate([](const FString& Path) { return !Path.IsEmpty(); });
+	
+	for (TObjectIterator<UPackage> It; It; ++It)
+	{
+		if (!ExternalObjectPackages.Contains(*It))
+		{
+			for (const FString& ExternalObjectsPath : ExternalObjectsPaths)
+			{
+				if (It->GetLoadedPath().GetPackageName().Contains(ExternalObjectsPath))
+				{
+					ExternalObjectPackages.Add(*It);
+					break;
+				}
 			}
 		}
 	}
-	
-	return ActorPackages.Array();
+	return ExternalObjectPackages.Array();
 }
 
 UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, EActorPackagingScheme ActorPackagingScheme, const FString& InActorPath)

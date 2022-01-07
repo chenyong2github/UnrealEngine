@@ -98,6 +98,7 @@
 #include "PlatformInfo.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/AutomationTest.h"
+#include "ActorFolder.h"
 
 // needed for the RemotePropagator
 #include "AudioDevice.h"
@@ -4351,10 +4352,10 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 	SlowTask.EnterProgressFrame(10);
 
 	const bool bAutosave = (SaveArgs.SaveFlags & SAVE_FromAutosave) != 0;
-	if (!bSavingConcurrent && !IsRunningCommandlet() && !bAutosave && (World || Cast<AActor>(Asset)))
+	if (!bSavingConcurrent && !IsRunningCommandlet() && !bAutosave && (World || Asset->IsA<AActor>() || Asset->IsA<UActorFolder>()))
 	{
 		// Always reset the transaction buffer on level/actor save to avoid problems with deleted actors (marked pending kill) that gets marked transient by the saving code
-		ResetTransaction( World ? NSLOCTEXT("UnrealEd", "MapSaved", "Map Saved") : NSLOCTEXT("UnrealEd", "ActorSaved", "Actor Saved"));
+		ResetTransaction( World ? NSLOCTEXT("UnrealEd", "MapSaved", "Map Saved") : Asset->IsA<AActor>() ? NSLOCTEXT("UnrealEd", "ActorSaved", "Actor Saved") : NSLOCTEXT("UnrealEd", "ActorFolderSaved", "Actor Folder Saved"));
 	}
 
 	if ( World )

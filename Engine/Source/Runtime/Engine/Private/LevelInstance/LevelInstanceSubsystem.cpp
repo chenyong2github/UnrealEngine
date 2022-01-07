@@ -53,6 +53,9 @@ DEFINE_LOG_CATEGORY(LogLevelInstance);
 
 ULevelInstanceSubsystem::ULevelInstanceSubsystem()
 	: UWorldSubsystem()
+#if WITH_EDITOR
+	, bIsCreatingNewLevelStreamingLevelInstanceEditor(false)
+#endif
 {
 
 }
@@ -247,6 +250,30 @@ void ULevelInstanceSubsystem::UpdateStreamingState()
 #endif
 }
 
+void ULevelInstanceSubsystem::RegisterLoadedLevelStreamingLevelInstance(ULevelStreamingLevelInstance* LevelStreaming)
+{
+	ALevelInstance* LevelInstanceActor = LevelStreaming->GetLevelInstanceActor();
+	const FLevelInstanceID LevelInstanceID = LevelStreaming->GetLevelInstanceActor()->GetLevelInstanceID();
+	check(!LevelInstances.Contains(LevelInstanceID));
+	FLevelInstance& LevelInstance = LevelInstances.Add(LevelInstanceID);
+	LevelInstance.LevelStreaming = LevelStreaming;
+#if WITH_EDITOR
+	LevelInstanceActor->OnLevelInstanceLoaded();
+#endif
+}
+
+#if WITH_EDITOR
+void ULevelInstanceSubsystem::RegisterLoadedLevelStreamingLevelInstanceEditor(ULevelStreamingLevelInstanceEditor* LevelStreaming)
+{
+	if (!bIsCreatingNewLevelStreamingLevelInstanceEditor)
+	{
+		check(!LevelInstanceEdit.IsValid());
+		ALevelInstance* LevelInstanceActor = LevelStreaming->GetLevelInstanceActor();
+		LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, LevelInstanceActor->GetLevelInstanceID());
+	}
+}
+#endif
+
 void ULevelInstanceSubsystem::LoadLevelInstance(ALevelInstance* LevelInstanceActor)
 {
 	check(LevelInstanceActor);
@@ -260,10 +287,8 @@ void ULevelInstanceSubsystem::LoadLevelInstance(ALevelInstance* LevelInstanceAct
 
 	if (ULevelStreamingLevelInstance* LevelStreaming = ULevelStreamingLevelInstance::LoadInstance(LevelInstanceActor))
 	{
-		FLevelInstance& LevelInstance = LevelInstances.Add(LevelInstanceID);
-		LevelInstance.LevelStreaming = LevelStreaming;
 #if WITH_EDITOR
-		LevelInstanceActor->OnLevelInstanceLoaded();
+		check(LevelInstanceActor->GetWorld()->IsGameWorld() || LevelInstances.Contains(LevelInstanceID));
 #endif
 	}
 }
@@ -792,8 +817,14 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		}
 	}
 
-	ULevelStreamingLevelInstanceEditor* LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(
+	ULevelStreamingLevelInstanceEditor* LevelStreaming = nullptr;
+	{
+		check(!bIsCreatingNewLevelStreamingLevelInstanceEditor);
+		TGuardValue<bool> IsCreatingNewLevelStreamingLevelInstanceEditor(bIsCreatingNewLevelStreamingLevelInstanceEditor, true);
+		LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(
 		*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), CreationParams.UseExternalActors(), LevelFilename, &ActorsToMove, CreationParams.TemplateWorld));
+	}
+
 	if (!LevelStreaming)
 	{
 		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to create new Level"));
@@ -803,7 +834,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel();
 	check(LoadedLevel);
 		
-	// Take all actors out of any folders they may have been in since we don't support folders inside of level instances
+	// @todo_ow : Decide if we want to re-create the same hierarchy as the source level.
 	for (AActor* Actor : LoadedLevel->Actors)
 	{
 		if (Actor)
@@ -811,6 +842,9 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 			Actor->SetFolderPath_Recursively(NAME_None);
 		}
 	}
+
+	// Enable actor folder objects on level
+	LoadedLevel->SetUseActorFolders(true);
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.OverrideLevel = CurrentLevel;
@@ -1361,6 +1395,16 @@ FLevelInstanceID ULevelInstanceSubsystem::FLevelInstanceEdit::GetLevelInstanceID
 	return LevelStreaming ? LevelStreaming->GetLevelInstanceID() : FLevelInstanceID();
 }
 
+ULevel* ULevelInstanceSubsystem::GetLevelInstanceEditLevel(const ALevelInstance* LevelInstanceActor) const
+{
+	const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstanceActor);
+	if (UWorld* EditingWorld = CurrentEdit ? CurrentEdit->GetEditWorld() : nullptr)
+	{
+		return EditingWorld->PersistentLevel;
+	}
+	return nullptr;
+}
+
 const ULevelInstanceSubsystem::FLevelInstanceEdit* ULevelInstanceSubsystem::GetLevelInstanceEdit(const ALevelInstance* LevelInstanceActor) const
 {
 	if (LevelInstanceEdit && LevelInstanceEdit->GetLevelInstanceID() == LevelInstanceActor->GetLevelInstanceID())
@@ -1580,7 +1624,9 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 		return false;
 	}
 
-	LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, LevelInstanceActor->GetLevelInstanceID());
+	check(LevelInstanceEdit.IsValid());
+	check(LevelInstanceEdit->GetLevelInstanceID() == LevelInstanceActor->GetLevelInstanceID());
+	check(LevelInstanceEdit->LevelStreaming == LevelStreaming);
 		
 	// Try and select something meaningful
 	AActor* ActorToSelect = nullptr;

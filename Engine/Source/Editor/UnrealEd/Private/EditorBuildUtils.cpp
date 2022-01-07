@@ -942,7 +942,7 @@ bool FEditorBuildUtils::WorldPartitionBuildNavigation(const FString& InLongPacka
 			FString MapToLoad = InLongPackageName;
 			
 			AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
-			AssetRegistry.ScanPathsSynchronous({ ULevel::GetExternalActorsPath(MapToLoad) }, true);
+			AssetRegistry.ScanPathsSynchronous(ULevel::GetExternalObjectsPaths(MapToLoad), true);
 
 			// Force a directory watcher tick for the asset registry to get notified of the changes
 			FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));

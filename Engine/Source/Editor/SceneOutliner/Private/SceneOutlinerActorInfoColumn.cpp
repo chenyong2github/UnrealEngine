@@ -17,6 +17,7 @@
 #include "ActorDescTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "FolderTreeItem.h"
+#include "LevelTreeItem.h"
 #include "WorldTreeItem.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
@@ -47,6 +48,10 @@ struct FGetInfo
 		else if (Item.IsA<FWorldTreeItem>())
 		{
 			return LOCTEXT("WorldTypeName", "World").ToString();
+		}
+		else if (Item.IsA<FLevelTreeItem>())
+		{
+			return LOCTEXT("LevelTypeName", "Level").ToString();
 		}
 		else if (const FComponentTreeItem* ComponentItem = Item.CastTo<FComponentTreeItem>())
 		{

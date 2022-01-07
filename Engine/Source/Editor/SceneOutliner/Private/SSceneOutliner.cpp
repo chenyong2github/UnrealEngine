@@ -64,6 +64,9 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	// We use the filter collection provided, otherwise we create our own
 	Filters = InInitOptions.Filters.IsValid() ? InInitOptions.Filters : MakeShareable(new FSceneOutlinerFilters);
 
+	// The interactive filter collection
+	InteractiveFilters = MakeShareable(new FSceneOutlinerFilters);
+
 	check(InInitOptions.ModeFactory.IsBound());
 	Mode = InInitOptions.ModeFactory.Execute(this);
 	check(Mode);
@@ -974,6 +977,16 @@ bool SSceneOutliner::RemoveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter
 	return  Filters->Remove(Filter) > 0;
 }
 
+int32 SSceneOutliner::AddInteractiveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter)
+{
+	return InteractiveFilters->Add(Filter);
+}
+
+bool SSceneOutliner::RemoveInteractiveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter)
+{
+	return InteractiveFilters->Remove(Filter) > 0;
+}
+
 TSharedPtr<FSceneOutlinerFilter> SSceneOutliner::GetFilterAtIndex(int32 Index)
 {
 	return StaticCastSharedPtr<FSceneOutlinerFilter>(Filters->GetFilterAtIndex(Index));
@@ -1203,7 +1216,7 @@ void SSceneOutliner::AddMoveToFolderOutliner(UToolMenu* Menu) const
 
 		// Filter in/out root items according to whether it is valid to move to/from the root
 		FSceneOutlinerDragDropPayload DraggedObjects(OutlinerTreeView->GetSelectedItems());
-		const bool bMoveToRootValid = Mode->ValidateDrop(FFolderTreeItem(FFolder(NAME_None, TargetRootObject)), DraggedObjects).IsValid();
+		const bool bMoveToRootValid = Mode->ValidateDrop(FFolderTreeItem(FFolder(FFolder::GetEmptyPath(), TargetRootObject)), DraggedObjects).IsValid();
 		if (!bMoveToRootValid)
 		{
 			MiniSceneOutlinerInitOptions.Filters->Add(MakeShared<FFilterRoot>(*this));

@@ -30,6 +30,7 @@
 #include "ToolMenus.h"
 #include "IClassTypeActions.h"
 #include "AssetTypeActions/AssetTypeActions_Actor.h"
+#include "AssetTypeActions/AssetTypeActions_ActorFolder.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
 #include "AssetTypeActions/AssetTypeActions_BlueprintGeneratedClass.h"
 #include "AssetTypeActions/AssetTypeActions_Curve.h"
@@ -218,6 +219,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 	// Register the built-in asset type actions
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Actor));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ActorFolder));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimationAsset));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBlueprint));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_AnimBoneCompressionSettings));
@@ -2805,7 +2807,7 @@ void UAssetToolsImpl::PerformMigratePackages(TArray<FName> PackageNamesToMigrate
 {
 	// Form a full list of packages to move by including the dependencies of the supplied packages
 	TSet<FName> AllPackageNamesToMove;
-	TSet<FString> ExternalActorsPaths;
+	TSet<FString> ExternalObjectsPaths;
 	{
 		FScopedSlowTask SlowTask( PackageNamesToMigrate.Num(), LOCTEXT( "MigratePackages_GatheringDependencies", "Gathering Dependencies..." ) );
 		SlowTask.MakeDialog();
@@ -2822,7 +2824,7 @@ void UAssetToolsImpl::PerformMigratePackages(TArray<FName> PackageNamesToMigrate
 				Path.RemoveFromStart(TEXT("/"));
 				Path.Split("/", &OriginalRootString, &Path, ESearchCase::IgnoreCase, ESearchDir::FromStart);
 				OriginalRootString = TEXT("/") + OriginalRootString;
-				RecursiveGetDependencies(*PackageIt, AllPackageNamesToMove, OriginalRootString, ExternalActorsPaths);
+				RecursiveGetDependencies(*PackageIt, AllPackageNamesToMove, OriginalRootString, ExternalObjectsPaths);
 			}
 		}
 	}
@@ -3083,7 +3085,7 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 	MigrateLog.Notify(LogMessage, Severity, true);
 }
 
-void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FName>& AllDependencies, const FString& OriginalRoot, TSet<FString>& ExternalActorsPaths) const
+void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FName>& AllDependencies, const FString& OriginalRoot, TSet<FString>& OutExternalObjectsPaths) const
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FName> Dependencies;
@@ -3100,7 +3102,7 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 			if ( !bIsEnginePackage && !bIsScriptPackage && bIsInSamePackage )
 			{
 				AllDependencies.Add(*DependsIt);
-				RecursiveGetDependencies(*DependsIt, AllDependencies, OriginalRoot, ExternalActorsPaths);
+				RecursiveGetDependencies(*DependsIt, AllDependencies, OriginalRoot, OutExternalObjectsPaths);
 			}
 		}
 	}
@@ -3114,19 +3116,22 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 		{
 			if (AssetData.GetClass() && AssetData.GetClass()->IsChildOf<UWorld>())
 			{
-				FString ExternalActorsPath = ULevel::GetExternalActorsPath(PackageName.ToString());
-				if (!ExternalActorsPath.IsEmpty() && !ExternalActorsPaths.Contains(ExternalActorsPath))
+				TArray<FString> ExternalObjectsPaths = ULevel::GetExternalObjectsPaths(PackageName.ToString());
+				for (const FString& ExternalObjectsPath : ExternalObjectsPaths)
 				{
-					ExternalActorsPaths.Add(ExternalActorsPath);
-					AssetRegistryModule.Get().ScanPathsSynchronous({ ExternalActorsPath }, /*bForceRescan*/true, /*bIgnoreBlackListScanFilters*/true);
-
-					TArray<FAssetData> ExternalActorAssets;
-					AssetRegistryModule.Get().GetAssetsByPath(FName(*ExternalActorsPath), ExternalActorAssets, /*bRecursive*/true);
-
-					for (const FAssetData& ExternalActorAsset : ExternalActorAssets)
+					if (!ExternalObjectsPath.IsEmpty() && !OutExternalObjectsPaths.Contains(ExternalObjectsPath))
 					{
-						AllDependencies.Add(ExternalActorAsset.PackageName);
-						RecursiveGetDependencies(ExternalActorAsset.PackageName, AllDependencies, OriginalRoot, ExternalActorsPaths);
+						OutExternalObjectsPaths.Add(ExternalObjectsPath);
+						AssetRegistryModule.Get().ScanPathsSynchronous({ ExternalObjectsPath }, /*bForceRescan*/true, /*bIgnoreBlackListScanFilters*/true);
+
+						TArray<FAssetData> ExternalObjectAssets;
+						AssetRegistryModule.Get().GetAssetsByPath(FName(*ExternalObjectsPath), ExternalObjectAssets, /*bRecursive*/true);
+
+						for (const FAssetData& ExternalObjectAsset : ExternalObjectAssets)
+						{
+							AllDependencies.Add(ExternalObjectAsset.PackageName);
+							RecursiveGetDependencies(ExternalObjectAsset.PackageName, AllDependencies, OriginalRoot, OutExternalObjectsPaths);
+						}
 					}
 				}
 			}

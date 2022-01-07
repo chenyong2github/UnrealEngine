@@ -73,6 +73,7 @@ public:
 	inline FName GetActorPath() const { return ActorPath; }
 	inline FName GetActorLabel() const { return ActorLabel; }
 	inline FName GetFolderPath() const { return FolderPath; }
+	inline const FGuid& GetFolderGuid() const { return FolderGuid; }
 	FBox GetBounds() const;
 	inline const FGuid& GetParentActor() const { return ParentActor; }
 
@@ -182,6 +183,7 @@ protected:
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
 	FName							FolderPath;
+	FGuid							FolderGuid;
 
 	FGuid							ParentActor; // Used to validate settings against parent (to warn on layer/placement compatibility issues)
 	

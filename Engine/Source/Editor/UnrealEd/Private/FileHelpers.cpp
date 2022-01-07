@@ -78,6 +78,7 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "PackageSourceControlHelper.h"
+#include "ActorFolder.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
 
@@ -316,31 +317,33 @@ static bool DeleteExistingMapPackages(const FString& ExistingPackageName)
 {
 	// Search for external actor files
 	TArray<FString> ToDeletePackageFilenames;
-	const FString ExternalPackagesPath = ULevel::GetExternalActorsPath(ExistingPackageName);
-	FString ExternalPackagesFilePath = FPackageName::LongPackageNameToFilename(ExternalPackagesPath);
-	if (IFileManager::Get().DirectoryExists(*ExternalPackagesFilePath))
+	const TArray<FString> ExternalPackagesPaths = ULevel::GetExternalObjectsPaths(ExistingPackageName);
+	for (const FString& ExternalPackagesPath : ExternalPackagesPaths)
 	{
-		const bool bSuccess = IFileManager::Get().IterateDirectoryRecursively(*ExternalPackagesFilePath, [&ToDeletePackageFilenames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-			{
-				if (!bIsDirectory)
-				{
-					FString Filename(FilenameOrDirectory);
-					if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
-					{
-						ToDeletePackageFilenames.Add(Filename);
-					}
-				}
-				// Continue Directory Iteration
-				return true;
-			});
-
-		if (!bSuccess)
+		FString ExternalPackagesFilePath = FPackageName::LongPackageNameToFilename(ExternalPackagesPath);
+		if (IFileManager::Get().DirectoryExists(*ExternalPackagesFilePath))
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("UnrealEd", "Error_IteratingExistingExternalActorsFolder", "Failed iterating existing actor package folder {0}."), FText::FromString(ExternalPackagesFilePath)));
-			return false;
+			const bool bSuccess = IFileManager::Get().IterateDirectoryRecursively(*ExternalPackagesFilePath, [&ToDeletePackageFilenames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+				{
+					if (!bIsDirectory)
+					{
+						FString Filename(FilenameOrDirectory);
+						if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+						{
+							ToDeletePackageFilenames.Add(Filename);
+						}
+					}
+					// Continue Directory Iteration
+					return true;
+				});
+
+			if (!bSuccess)
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("UnrealEd", "Error_IteratingExistingExternalPackageFolder", "Failed iterating existing external package folder {0}."), FText::FromString(ExternalPackagesFilePath)));
+				return false;
+			}
 		}
 	}
-	
 			
 	if (ToDeletePackageFilenames.Num() > 0)
 	{	
@@ -870,12 +873,15 @@ static bool SaveWorld(UWorld* World,
 			
 			// Make sure when we exit SaveWorld AssetRegistry is up to date with saved map
 			AssetRegistry.ScanModifiedAssetFiles({ FinalFilename });
+			
+			if (bPackageNeedsRename)
+			{
+				// Force rescan to make sure assets are found on map open or world partition initialize
+				AssetRegistry.ScanPathsSynchronous( ULevel::GetExternalObjectsPaths(NewPackageName) , true);
+			}
 
 			if (bRenamedWorldPartition)
 			{
-				// Force rescan to make sure assets are found on map open or world partition initialize
-				AssetRegistry.ScanPathsSynchronous({ ULevel::GetExternalActorsPath(NewPackageName) }, true);
-
 				// Save Snapshot of loaded Editor Cells
 				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(SaveWorld, LoadedEditorCells);
 			}
@@ -2931,7 +2937,7 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveMapEx(const FStri
 			if (World->PersistentLevel)
 			{
 				TArray<UPackage*> ExternalPackagesToSave;
-				for (UPackage* ExternalPackage : World->PersistentLevel->GetLoadedExternalActorPackages())
+				for (UPackage* ExternalPackage : World->PersistentLevel->GetLoadedExternalObjectPackages())
 				{
 					if (ExternalPackage->IsDirty() && (bForceIfNotInList || DirtyPackagesForAutoSave.Contains(ExternalPackage))
 						&& FPackageName::IsValidLongPackageName(ExternalPackage->GetName(), /*bIncludeReadOnlyRoots=*/false))
@@ -2939,7 +2945,8 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveMapEx(const FStri
 						// Don't try to save external packages that will get deleted
 						ForEachObjectWithPackage(ExternalPackage, [ExternalPackage, &ExternalPackagesToSave](UObject* Object)
 						{
-							if (Cast<AActor>(Object))
+							// @todo_ow: Find better way
+							if (Object->IsA<AActor>() || Object->IsA<UActorFolder>())
 							{
 								if (IsValidChecked(Object))
 								{
@@ -3823,7 +3830,7 @@ bool FEditorFileUtils::SaveCurrentLevel()
 			}
 
 			// Gather the level owned packages (i.e external actors and save them)
-			TArray<UPackage*> PackagesToSave = Level->GetLoadedExternalActorPackages();
+			TArray<UPackage*> PackagesToSave = Level->GetLoadedExternalObjectPackages();
 			for (auto It = PackagesToSave.CreateIterator(); It; ++It)
 			{
 				UPackage* Package = *It;
@@ -4557,7 +4564,7 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 			// Now gather the world external packages and save them if needed
 			if (WorldIt->PersistentLevel)
 			{
-				for (UPackage* ExternalPackage : WorldIt->PersistentLevel->GetLoadedExternalActorPackages())
+				for (UPackage* ExternalPackage : WorldIt->PersistentLevel->GetLoadedExternalObjectPackages())
 				{
 					if (ExternalPackage->IsDirty() && !ShouldIgnorePackageFunction(ExternalPackage))
 					{
@@ -4569,7 +4576,8 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 							bActorPackageNeedsToSave = false;
 							ForEachObjectWithPackage(ExternalPackage, [&bActorPackageNeedsToSave](UObject* Object)
 							{
-								if (Cast<AActor>(Object))
+								// @todo_ow: Find better way
+								if (Object->IsA<AActor>() || Object->IsA<UActorFolder>())
 								{
 									if (IsValidChecked(Object))
 									{

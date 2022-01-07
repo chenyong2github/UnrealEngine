@@ -477,7 +477,7 @@ public:
 	/** Sets the folder path for this level in the world browser. Only available in editor builds */
 	void SetFolderPath(const FName& InFolderPath);
 
-	virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const { return FFolder::GetDefaultRootObject(); }
+	virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const;
 #endif	// WITH_EDITOR
 
 	//~==============================================================================================
@@ -549,6 +549,9 @@ protected:
 
 	/** Sets the value of LoadedLevel */
 	virtual void SetLoadedLevel(ULevel* Level);
+
+	/** Called by SetLoadedLevel */
+	virtual void OnLevelLoadedChanged(ULevel* Level) {}
 
 	/** @return Name of the level package that is currently loaded.																	*/
 	FName GetLoadedLevelPackageName() const;

@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "FolderTreeItem.h"
+#include "ActorFolder.h"
 
 struct SCENEOUTLINER_API FActorFolderTreeItem : public FFolderTreeItem
 {
@@ -20,13 +20,20 @@ public:
 	virtual bool IsValid() const override { return World.IsValid(); }
 	virtual void OnExpansionChanged() override;
 	virtual void Delete(const FFolder& InNewParentFolder) override;
+	virtual bool CanInteract() const override;
 	virtual TSharedRef<SWidget> GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow) override;
 	virtual bool ShouldShowPinnedState() const override;
 	/* End FFolderTreeItem Implementation */
 		
 	/* Begin FFolderTreeItem Implementation */
 	virtual void MoveTo(const FFolder& InNewParentFolder) override;
+	virtual void SetPath(const FName& InNewPath) override;
+	
+	const UActorFolder* GetActorFolder() const { return ActorFolder.Get(); }
 private:
 	virtual void CreateSubFolder(TWeakPtr<SSceneOutliner> WeakOutliner) override;
 	/* End FFolderTreeItem Implementation */
+
+	/** The actor folder object (can be invalid) */
+	TWeakObjectPtr<UActorFolder> ActorFolder;
 };

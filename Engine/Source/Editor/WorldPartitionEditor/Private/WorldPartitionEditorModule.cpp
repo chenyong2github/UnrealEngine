@@ -300,7 +300,7 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 				}
 				
 				AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
-				AssetRegistry.ScanPathsSynchronous({ ULevel::GetExternalActorsPath(MapToLoad) }, true);
+				AssetRegistry.ScanPathsSynchronous( ULevel::GetExternalObjectsPaths(MapToLoad), true);
 				
 				FEditorFileUtils::LoadMap(MapToLoad);
 			}

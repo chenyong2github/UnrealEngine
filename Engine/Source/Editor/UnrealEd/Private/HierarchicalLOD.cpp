@@ -387,7 +387,7 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 			LODActor->Rename(nullptr, InLevel, REN_DoNotDirty);
 
 			// Ensure the new LODActor use it's own package if the level is setup to use external actors.
-			if (InLevel->bUseExternalActors)
+			if (InLevel->IsUsingExternalActors())
 			{
 				LODActor->SetPackageExternal(true, false);
 			}

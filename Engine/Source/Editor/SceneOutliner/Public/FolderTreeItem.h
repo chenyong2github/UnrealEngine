@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "Folder.h"
 #include "ISceneOutlinerTreeItem.h"
@@ -61,7 +60,7 @@ public:
 	/** Delete this folder, children will be reparented to provided new parent path */
 	virtual void Delete(const FFolder& InNewParentFolder) {}
 	
-	void SetPath(const FName& InNewPath);
+	virtual void SetPath(const FName& InNewPath);
 	const FName& GetPath() const { return Path; }
 	const FName& GetLeafName() const { return LeafName; }
 	FFolder GetFolder() const { return FFolder(Path, RootObject); }

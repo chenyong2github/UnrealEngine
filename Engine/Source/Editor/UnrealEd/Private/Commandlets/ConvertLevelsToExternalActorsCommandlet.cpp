@@ -64,8 +64,6 @@ void UConvertLevelsToExternalActorsCommandlet::GetSubLevelsToConvert(ULevel* Mai
 
 bool UConvertLevelsToExternalActorsCommandlet::CheckExternalActors(const FString& Level, bool bRepair)
 {
-	const FString LevelExternalPathActors = ULevel::GetExternalActorsPath(Level);
-
 	// Gather duplicated actor files.
 	TMultiMap<FName, FName> DuplicatedActorFiles;
 	{
@@ -93,7 +91,7 @@ bool UConvertLevelsToExternalActorsCommandlet::CheckExternalActors(const FString
 			DuplicatedActorFiles.Add(AssetData.ObjectPath, AssetData.PackageName);			
 		});
 
-		AssetRegistry.ScanPathsSynchronous({LevelExternalPathActors}, /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/true);
+		AssetRegistry.ScanPathsSynchronous(ULevel::GetExternalObjectsPaths(Level), /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/true);
 
 		AssetRegistry.OnAssetAdded().Remove(AddedCheckHandle);
 		AssetRegistry.OnAssetUpdated().Remove(UpdatedCheckHandle);
@@ -383,11 +381,10 @@ int32 UConvertLevelsToExternalActorsCommandlet::Main(const FString& Params)
 	TArray<UPackage*> PackagesToSave;
 	for(ULevel* Level : LevelsToConvert)
 	{
-		Level->SetUseExternalActors(bConvertToExternal);
 		Level->ConvertAllActorsToPackaging(bConvertToExternal);
 		UPackage* LevelPackage = Level->GetPackage();
 		PackagesToSave.Add(LevelPackage);
-		PackagesToSave.Append(Level->GetLoadedExternalActorPackages());
+		PackagesToSave.Append(Level->GetLoadedExternalObjectPackages());
 	}
 
 	for (UPackage* PackageToSave : PackagesToSave)

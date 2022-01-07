@@ -979,6 +979,11 @@ UObject* ULevelFactory::FactoryCreateText
 									bGrouped = true;
 									FParse::Value(Str, TEXT("GroupFolder="), GroupFolder);
 								}
+								FString ActorFolderPath;
+								if (FParse::Value(Str, TEXT("ActorFolderPath="), ActorFolderPath))
+								{
+									NewActor->SetFolderPath(*ActorFolderPath);
+								}
 
 								uint32 CopyPasteId;
 								if (FParse::Value(Str, TEXT("CopyPasteId="), CopyPasteId))

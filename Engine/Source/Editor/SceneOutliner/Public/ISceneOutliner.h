@@ -61,6 +61,20 @@ public:
 	virtual bool RemoveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter) = 0;
 
 	/** 
+	 * Add an interactive filter to the scene outliner 
+	 * @param Filter The filter used to determine if scene outliner items are interactive.
+	 * @return The index of the filter.
+	 */
+	virtual int32 AddInteractiveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter) = 0;
+
+	/** 
+	 * Remove an interactive  filter from the scene outliner
+	 * @param Filter The Filter to remove
+	 * @return True if the filter was removed.
+	 */
+	virtual bool RemoveInteractiveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter) = 0;
+
+	/** 
 	 * Retrieve the filter at the specified index
 	 * @param Index The index of the filter to retrive
 	 * @return A valid poiter to a filter if the index was valid
