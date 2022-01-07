@@ -128,6 +128,7 @@ namespace Metasound
 				: FromData(InFromDataReference)
 				, ToData(InToDataReference)
 			{
+				Execute();
 			}
 
 			virtual ~FConverterOperator() {}
