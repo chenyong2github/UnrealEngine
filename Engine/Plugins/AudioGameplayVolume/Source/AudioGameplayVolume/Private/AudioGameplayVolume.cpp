@@ -28,11 +28,11 @@ AAudioGameplayVolume::AAudioGameplayVolume(const FObjectInitializer& ObjectIniti
 #endif // WITH_EDITOR
 }
 
-void AAudioGameplayVolume::SetEnabled(bool bNewEnabled)
+void AAudioGameplayVolume::SetEnabled(bool bEnable)
 {
-	if (bNewEnabled != bEnabled)
+	if (bEnable != bEnabled)
 	{
-		bEnabled = bNewEnabled;
+		bEnabled = bEnable;
 		if (CanSupportProxy())
 		{
 			AddProxy();

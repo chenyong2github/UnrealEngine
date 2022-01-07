@@ -33,7 +33,7 @@ public:
 	bool GetEnabled() const { return bEnabled; }
 	
 	UFUNCTION(BlueprintCallable, Category = "AudioGameplay")
-	void SetEnabled(bool bNewEnabled);
+	void SetEnabled(bool bEnable);
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR

@@ -57,19 +57,19 @@ private:
 	virtual void FillMutator(TSharedPtr<FProxyVolumeMutator> Mutator) const override;
 	//~ End UAudioGameplayVolumeComponentBase interface
 
-	// The desired volume of sounds outside the volume when the player is inside the volume
+	// The desired LPF frequency cutoff (in hertz) of sounds outside the volume when the player is inside the volume
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
 	float ExteriorLPF = MAX_FILTER_FREQUENCY;
 
-	// The time over which to interpolate from the current volume to the desired volume of sounds outside the volume when the player enters the volume
+	// The time over which to interpolate from the current LPF to the desired LPF of sounds outside the volume when the player enters the volume
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
 	float ExteriorLPFTime = 0.5f;
 
-	// The desired volume of sounds inside the volume when the player is outside the volume
+	// The desired LPF frequency cutoff (in hertz) of sounds inside the volume when the player is outside the volume
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
 	float InteriorLPF = MAX_FILTER_FREQUENCY;
 
-	// The time over which to interpolate from the current volume to the desired volume of sounds inside the volume when the player enters the volume
+	// The time over which to interpolate from the current LPF to the desired LPF of sounds inside the volume when the player enters the volume
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))
 	float InteriorLPFTime = 0.5f;
 };
