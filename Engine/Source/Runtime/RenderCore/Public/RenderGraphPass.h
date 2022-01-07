@@ -297,6 +297,13 @@ public:
 	}
 #endif
 
+#if WITH_MGPU
+	FRHIGPUMask GetGPUMask() const
+	{
+		return GPUMask;
+	}
+#endif
+
 protected:
 	FRDGBarrierBatchBegin& GetPrologueBarriersToBegin(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
 	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForGraphics(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
