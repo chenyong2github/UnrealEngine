@@ -122,9 +122,6 @@ public:
 	FOnFinishedChangingProperties& OnFinishedChangingProperties() const { return Generator->OnFinishedChangingProperties(); }
 
 protected:
-	// ueent_hotfix Hack for 4.24 allow to refresh the ui in between two frame without any flickering
-	virtual bool CustomPrepass(float InLayoutScaleMultiplier) override;
-	
 	// Begin SWidget overrides.
 	// #ueent_todo: This is temporary until we find a better solution to the splitter issue
 	//				See SConstrainedBox's trick in cpp file
@@ -222,9 +219,6 @@ private:
 
 	/** Points to the currently used column size data. Can be provided via argument as well. */
 	TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData> ColumnSizeData;
-
-	/** If there is a new object to display on the next tick */
-	uint8 bRefreshObjectToDisplay : 1;
 
 	/** Spacing between rows. 0 by default. */
 	float Spacing = 0;

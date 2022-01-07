@@ -689,9 +689,10 @@ struct TRemoteControlTypeTraits<FColor>
 		
 	static Type DefaultMappingValueMax()
 	{
-		return Type(TRemoteControlTypeTraits<uint8>::DefaultMappingValueMax(),
-			TRemoteControlTypeTraits<uint8>::DefaultMappingValueMax(),
-			TRemoteControlTypeTraits<uint8>::DefaultMappingValueMax());
+		// @note: the use of Range instead of Mapping is intentional, by default Mapping is 0-1, but in this case we want 0-255
+		return Type(TRemoteControlTypeTraits<uint8>::DefaultRangeValueMax(),
+			TRemoteControlTypeTraits<uint8>::DefaultRangeValueMax(),
+			TRemoteControlTypeTraits<uint8>::DefaultRangeValueMax());
 	}
 };
 
