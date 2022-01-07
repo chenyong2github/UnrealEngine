@@ -149,6 +149,14 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Content Browser", meta = (DisplayName = "Enable support for long paths (> 260 characters)"))
 	bool bEnableLongPathsSupport;
 
+	/** Allows creating APackedLevelActor blueprint actors */
+	UPROPERTY(EditAnywhere, config, Category = Level)
+	bool bPackedLevelActor;
+
+	/** Allows creating ALevelInstance actors */
+	UPROPERTY(EditAnywhere, config, Category = Level)
+	bool bLevelInstance;
+
 	/**
 	 * Returns an event delegate that is executed when a setting has changed.
 	 *
