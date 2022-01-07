@@ -47,13 +47,39 @@ FMemoryProfilerCommands::FMemoryProfilerCommands()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FMemoryProfilerCommands::~FMemoryProfilerCommands()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // UI_COMMAND takes long for the compiler to optimize
 PRAGMA_DISABLE_OPTIMIZATION
 void FMemoryProfilerCommands::RegisterCommands()
 {
-	UI_COMMAND(ToggleTimingViewVisibility, "Timing", "Toggles the visibility of the main Timing view", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::T));
-	UI_COMMAND(ToggleMemInvestigationViewVisibility, "Investigation", "Toggles the visibility of the Memory Investigation (Alloc Queries) view", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::I));
-	UI_COMMAND(ToggleMemTagTreeViewVisibility, "LLM Tags", "Toggles the visibility of the LLM Tags tree view", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::M));
+	UI_COMMAND(ToggleTimingViewVisibility,
+		"Timing",
+		"Toggles the visibility of the main Timing view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleMemInvestigationViewVisibility,
+		"Investigation",
+		"Toggles the visibility of the Memory Investigation (Alloc Queries) view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleMemTagTreeViewVisibility,
+		"LLM Tags",
+		"Toggles the visibility of the LLM Tags tree view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleModulesViewVisibility,
+		"Modules",
+		"Toggles the visibility of the Modules view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
 }
 PRAGMA_ENABLE_OPTIMIZATION
 
@@ -97,6 +123,7 @@ PRAGMA_ENABLE_OPTIMIZATION
 IMPLEMENT_TOGGLE_COMMAND(ToggleTimingViewVisibility, IsTimingViewVisible, ShowHideTimingView)
 IMPLEMENT_TOGGLE_COMMAND(ToggleMemInvestigationViewVisibility, IsMemInvestigationViewVisible, ShowHideMemInvestigationView)
 IMPLEMENT_TOGGLE_COMMAND(ToggleMemTagTreeViewVisibility, IsMemTagTreeViewVisible, ShowHideMemTagTreeView)
+IMPLEMENT_TOGGLE_COMMAND(ToggleModulesViewVisibility, IsModulesViewVisible, ShowHideModulesView)
 
 #undef IMPLEMENT_TOGGLE_COMMAND
 

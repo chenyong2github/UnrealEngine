@@ -15,10 +15,8 @@ class FMenuBuilder;
 class FMemoryProfilerCommands : public TCommands<FMemoryProfilerCommands>
 {
 public:
-	/** Default constructor. */
 	FMemoryProfilerCommands();
-
-	/** Initialize commands. */
+	virtual ~FMemoryProfilerCommands();
 	virtual void RegisterCommands() override;
 
 public:
@@ -37,6 +35,9 @@ public:
 
 	/** Toggles visibility for the LLM Tags tree view. Global and custom command. */
 	TSharedPtr<FUICommandInfo> ToggleMemTagTreeViewVisibility;
+
+	/** Toggles visibility for the Modules view. Global and custom command. */
+	TSharedPtr<FUICommandInfo> ToggleModulesViewVisibility;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,6 +92,7 @@ protected:\
 	DECLARE_TOGGLE_COMMAND(ToggleTimingViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleMemInvestigationViewVisibility)
 	DECLARE_TOGGLE_COMMAND(ToggleMemTagTreeViewVisibility)
+	DECLARE_TOGGLE_COMMAND(ToggleModulesViewVisibility)
 #undef DECLARE_TOGGLE_COMMAND
 
 	//////////////////////////////////////////////////
