@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MLDeformerGraphDataInterface.h"
+#include "MLDeformerDataInterface.h"
 
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
@@ -12,6 +12,7 @@
 #include "RenderGraphUtils.h"
 #include "RenderGraphResources.h"
 #include "ShaderParameterMetadataBuilder.h"
+#include "SkeletalRenderPublic.h"
 
 FString UMLDeformerDataInterface::GetDisplayName() const
 {
@@ -21,7 +22,6 @@ FString UMLDeformerDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> UMLDeformerDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({ "DebugScale", "ReadDebugScale" });
 	Defs.Add({ "PositionDelta", "ReadPositionDelta", Optimus::DomainName::Vertex, "ReadNumVertices" });
 	return Defs;
 }
@@ -39,15 +39,6 @@ void UMLDeformerDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefiniti
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadDebugScale");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
-		Fn.ParamTypes.Add(ReturnParam);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
 		Fn.Name = TEXT("ReadPositionDelta");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
@@ -60,37 +51,39 @@ void UMLDeformerDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefiniti
 	}
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FSceneDataInterfaceParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FMLDeformerDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, NumVertices)
+	SHADER_PARAMETER(uint32, InputStreamStart)
 	SHADER_PARAMETER(FVector3f, VertexDeltaScale)
 	SHADER_PARAMETER(FVector3f, VertexDeltaMean)
 	SHADER_PARAMETER(float, VertexDeltaMultiplier)
-	SHADER_PARAMETER(float, DebugScale)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, PositionDeltaBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>, VertexMapBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 void UMLDeformerDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
 {
-	OutBuilder.AddNestedStruct<FSceneDataInterfaceParameters>(UID);
+	OutBuilder.AddNestedStruct<FMLDeformerDataInterfaceParameters>(UID);
 }
 
 void UMLDeformerDataInterface::GetHLSL(FString& OutHLSL) const
 {
-	OutHLSL += TEXT("#include \"/Plugin/MLDeformer/Private/MLDeformerGraphDataInterface.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/MLDeformer/Private/MLDeformerDataInterface.ush\"\n");
 }
 
 void UMLDeformerDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
+	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
 	OutSourceTypes.Add(UMLDeformerComponent::StaticClass());
 }
 
 UComputeDataProvider* UMLDeformerDataInterface::CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UMLDeformerDataProvider* Provider = NewObject<UMLDeformerDataProvider>();
-	if (InSourceObjects.Num() == 1)
+	if (InSourceObjects.Num() == 2)
 	{
-		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InSourceObjects[0]);
+		Provider->SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
+		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InSourceObjects[1]);
 	}
 	return Provider;
 }
@@ -98,6 +91,8 @@ UComputeDataProvider* UMLDeformerDataInterface::CreateDataProvider(TArrayView<TO
 bool UMLDeformerDataProvider::IsValid() const
 {
 	return
+		SkeletalMeshComponent != nullptr &&
+		SkeletalMeshComponent->MeshObject != nullptr &&
 		DeformerComponent != nullptr &&
 		DeformerComponent->GetDeformerAsset() != nullptr &&
 		DeformerComponent->GetDeformerAsset()->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr &&
@@ -107,22 +102,22 @@ bool UMLDeformerDataProvider::IsValid() const
 
 FComputeDataProviderRenderProxy* UMLDeformerDataProvider::GetRenderProxy()
 {
-	return new FMLDeformerDataProviderProxy(DeformerComponent);
+	return new FMLDeformerDataProviderProxy(SkeletalMeshComponent, DeformerComponent);
 }
 
-FMLDeformerDataProviderProxy::FMLDeformerDataProviderProxy(UMLDeformerComponent* DeformerComponent)
+FMLDeformerDataProviderProxy::FMLDeformerDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent, UMLDeformerComponent* DeformerComponent)
 {
+	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
+
 	const UMLDeformerAsset* DeformerAsset = DeformerComponent->GetDeformerAsset();
 	NeuralNetwork = DeformerAsset->GetInferenceNeuralNetwork();
+	bCanRunNeuralNet = NeuralNetwork ? (NeuralNetwork->GetInputTensor().Num() == static_cast<int64>(DeformerAsset->GetInputInfo().CalcNumNeuralNetInputs())) : false;
+	
 	VertexMapBufferSRV = DeformerAsset->GetVertexMapBuffer().ShaderResourceViewRHI;
 	VertexDeltaScale = DeformerAsset->GetVertexDeltaScale();
 	VertexDeltaMean = DeformerAsset->GetVertexDeltaMean();
-	bCanRunNeuralNet = NeuralNetwork ? (NeuralNetwork->GetInputTensor().Num() == static_cast<int64>(DeformerAsset->GetInputInfo().CalcNumNeuralNetInputs())) : false;
 
 	VertexDeltaMultiplier = DeformerComponent->GetVertexDeltaMultiplier();
-#if WITH_EDITORONLY_DATA
-	HeatMapScale = DeformerAsset->GetVizSettings()->GetHeatMapScale();
-#endif
 }
 
 void FMLDeformerDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
@@ -143,13 +138,18 @@ void FMLDeformerDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 
 void FMLDeformerDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
 {
-	FSceneDataInterfaceParameters Parameters;
+	const int32 SectionIdx = InvocationIndex;
+	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIdx];
+
+	FMLDeformerDataInterfaceParameters Parameters;
 	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
 	Parameters.NumVertices = 0;
+	Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
 	Parameters.VertexDeltaScale = VertexDeltaScale;
 	Parameters.VertexDeltaMean = VertexDeltaMean;
 	Parameters.VertexDeltaMultiplier = VertexDeltaMultiplier;
-	Parameters.DebugScale = HeatMapScale;
 	Parameters.PositionDeltaBuffer = BufferSRV;
 	Parameters.VertexMapBuffer = VertexMapBufferSRV;
 
