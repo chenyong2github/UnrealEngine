@@ -525,7 +525,9 @@ public:
 	virtual bool IsPlayerMuted(const FString& PlayerName) const = 0;
 
 	/**
-	 * Mute or unmute a player in a given channel
+	 * Mute or unmute a player in a given channel.
+	 * Only has effect if the player is currently in the channel, and only until you/they leave the channel.
+	 * i.e. this is expected to be [re]called by OnVoiceChatPlayerAdded delegates.
 	 *
 	 * @param ChannelName Channel in which to mute the player
 	 * @param PlayerName Player to mute in channel

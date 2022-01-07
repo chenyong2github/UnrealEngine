@@ -129,8 +129,6 @@ protected:
 		bool bTalking = false;
 		// Combined audio mute and isListening state
 		bool bAudioDisabled = false;
-		// Current block state
-		bool bBlocked = false;
 		// Desired channel mute state
 		bool bMutedInChannel = false;
 		// Current audio status
@@ -308,9 +306,9 @@ protected:
 	void ApplyAudioOutputOptions();
 	void ApplyPlayerBlock(const FGlobalParticipant& GlobalParticipant, const FChannelSession& ChannelSession, FChannelParticipant& ChannelParticipant);
 	void ApplyReceivingOptions(const FChannelSession& ChannelSession);
-	void ApplyPlayerReceivingOptions(const FGlobalParticipant& GlobalParticipant, const FChannelSession& ChannelSession, FChannelParticipant& ChannelParticipant, bool bForce = false);
+	void ApplyPlayerReceivingOptions(const FGlobalParticipant& GlobalParticipant, const FChannelSession& ChannelSession, FChannelParticipant& ChannelParticipant);
 	void ApplySendingOptions();
-	void ApplySendingOptions(FChannelSession& ChannelSession, const bool bForce = false);
+	void ApplySendingOptions(FChannelSession& ChannelSession);
 	void BindChannelCallbacks(FChannelSession& ChannelSession);
 	void UnbindChannelCallbacks(FChannelSession& ChannelSession);
 	void LeaveChannelInternal(const FString& ChannelName, const FOnVoiceChatChannelLeaveCompleteDelegate& Delegate);
