@@ -1,4 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+from switchboard.config import SETTINGS, CONFIG
 from .switchboard_dialog import SwitchboardDialog
 from .switchboard_logging import LOGGER
 
@@ -23,6 +24,11 @@ def launch():
 
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
     app = QtWidgets.QApplication(sys.argv)
+
+    # Global variables can be inited after QT has been started (they may show dialogues if there are errors)
+    SETTINGS.init()
+    CONFIG.init(SETTINGS.CONFIG)
+    
     main_window = SwitchboardDialog()
 
     if not main_window.window:
