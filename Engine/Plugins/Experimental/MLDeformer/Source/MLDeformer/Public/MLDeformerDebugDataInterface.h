@@ -87,5 +87,7 @@ private:
 	FRHIShaderResourceView* VertexMapBufferSRV = nullptr;
 	FRDGBuffer* GroundTruthBuffer = nullptr;
 	FRDGBufferSRV* GroundTruthBufferSRV = nullptr;
-	float HeatMapScale = 1.0f;
+	int32 HeatMapMode = 0;
+	float HeatMapScale = 0.0f;
+	float GroundTruthLerp = 0.0f;
 };

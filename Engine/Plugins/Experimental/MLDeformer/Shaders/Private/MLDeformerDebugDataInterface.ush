@@ -4,7 +4,9 @@
 
 uint DI_LOCAL(NumVertices);
 uint DI_LOCAL(InputStreamStart);
+uint DI_LOCAL(HeatMapMode);
 float DI_LOCAL(HeatMapScale);
+float DI_LOCAL(GroundTruthLerp);
 
 StructuredBuffer<float3> DI_LOCAL(PositionGroundTruthBuffer);
 Buffer<uint> DI_LOCAL(VertexMapBuffer);
@@ -20,7 +22,17 @@ DI_IMPL_READ(ReadPositionGroundTruth, float3, uint VertexIndex)
 	return DI_LOCAL(PositionGroundTruthBuffer)[BufferIndex];
 }
 
+DI_IMPL_READ(ReadHeatMapMode, uint, void)
+{
+	return DI_LOCAL(HeatMapMode);
+}
+
 DI_IMPL_READ(ReadHeatMapScale, float, void)
 {
 	return DI_LOCAL(HeatMapScale);
+}
+
+DI_IMPL_READ(ReadGroundTruthLerp, float, void)
+{
+	return DI_LOCAL(GroundTruthLerp);
 }

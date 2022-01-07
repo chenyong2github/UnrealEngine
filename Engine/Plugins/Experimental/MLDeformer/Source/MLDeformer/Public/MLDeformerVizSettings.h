@@ -26,11 +26,10 @@ enum class EMLDeformerVizMode : uint8
 UENUM()
 enum class EMLDeformerHeatMapMode : uint8
 {
-	// Visualize the error versus the ground truth model. Requires a ground truth model to be setup.
-	GroundTruth = 0,
-
 	// Visualize areas where the deformer is applying corrections.
-	Activations
+	Activations = 0,
+	// Visualize the error versus the ground truth model. Requires a ground truth model to be setup.
+	GroundTruth
 };
 
 /**
@@ -69,6 +68,7 @@ public:
 	EMLDeformerVizMode GetTempVisualizationMode() const { return TempVisualizationMode; }
 	EMLDeformerHeatMapMode GetHeatMapMode() const { return HeatMapMode; }
 	float GetHeatMapScale() const { return HeatMapScale; }
+	float GetGroundTruthLerp() const { return GroundTruthLerp; }
 	
 	void SetTempVisualizationMode(EMLDeformerVizMode Mode) { TempVisualizationMode = Mode; }
 	void SetDeformerGraph(UComputeGraph* InDeformerGraph) { DeformerGraph = InDeformerGraph; }
@@ -107,11 +107,15 @@ public:
 
 	/** What should the heatmap visualize? */
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "bShowHeatMap"))
-	EMLDeformerHeatMapMode HeatMapMode = EMLDeformerHeatMapMode::GroundTruth;
+	EMLDeformerHeatMapMode HeatMapMode = EMLDeformerHeatMapMode::Activations;
 
 	/** How many units (centimeters) of error should the most intense color represent? */
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "bShowHeatMap", ClampMin = "0.00001"))
 	float HeatMapScale = 1.0f;
+
+	/** Lerp from ML deformed model to ground truth model when in heat map mode. */
+	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "HeatMapMode==EMLDeformerHeatMapMode::GroundTruth", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float GroundTruthLerp = 0.0f;
 
 	/** Draw the linear skinned actor? */
 	UPROPERTY(EditAnywhere, Category = "Live Settings")

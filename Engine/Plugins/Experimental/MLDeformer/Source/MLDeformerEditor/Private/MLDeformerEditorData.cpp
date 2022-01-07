@@ -215,6 +215,10 @@ void FMLDeformerEditorData::UpdateDeformerGraph()
 		UMLDeformerVizSettings* VizSettings = MLDeformerAsset->GetVizSettings();
 		check(VizSettings);
 		UComputeGraph* ComputeGraph = MLDeformerAsset->GetInferenceNeuralNetwork() ? VizSettings->GetDeformerGraph() : nullptr;
+		
+		const bool bUseHeatMapDeformer = VizSettings->GetShowHeatMap();
+		ComputeGraph = bUseHeatMapDeformer ? HeatMapDeformerGraph.Get() : ComputeGraph;
+		
 		UOptimusMeshDeformer* MeshDeformer = NewObject<UOptimusMeshDeformer>(SkelMeshComponent);
 		MeshDeformer->ComputeGraph = ComputeGraph;
 		SkelMeshComponent->SetMeshDeformer(MeshDeformer);
@@ -517,13 +521,19 @@ FText FMLDeformerEditorData::GetOverlayText()
 	return FText::GetEmpty();
 }
 
-void FMLDeformerEditorData::CreateMaterials()
+void FMLDeformerEditorData::CreateHeatMapAssets()
 {
-	// Try load the heat map material.
-	const FString HeatMapPath = TEXT("/MLDeformer/Materials/HeatMap.HeatMap");
-	UObject* Object = StaticLoadObject(UMaterial::StaticClass(), nullptr, *HeatMapPath);
-	HeatMapMaterial = Cast<UMaterial>(Object);
+	// Could be better to explicitly expose in UI. More flexibility and no sync load required here?
+
+	const FString HeatMapMaterialPath = TEXT("/MLDeformer/Materials/HeatMap.HeatMap");
+	UObject* MaterialObject = StaticLoadObject(UMaterial::StaticClass(), nullptr, *HeatMapMaterialPath);
+	HeatMapMaterial = Cast<UMaterial>(MaterialObject);
 	check(HeatMapMaterial);
+
+	const FString HeatMapDeformerPath = TEXT("/MLDeformer/Deformers/DebugMLDeformerGraph.DebugMLDeformerGraph");
+	UObject* DeformerObject = StaticLoadObject(UComputeGraph::StaticClass(), nullptr, *HeatMapDeformerPath);
+	HeatMapDeformerGraph = Cast<UComputeGraph>(DeformerObject);
+	check(HeatMapDeformerGraph);
 }
 
 void FMLDeformerEditorData::SetHeatMapMaterialEnabled(bool bEnabled)

@@ -26,7 +26,9 @@ FString UMLDeformerDebugDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> UMLDeformerDebugDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
+	Defs.Add({ "HeatMapMode", "ReadHeatMapMode" });
 	Defs.Add({ "HeatMapScale", "ReadHeatMapScale" });
+	Defs.Add({ "GroundTruthLerp", "ReadGroundTruthLerp" });
 	Defs.Add({ "PositionGroundTruth", "ReadPositionGroundTruth", Optimus::DomainName::Vertex, "ReadNumVertices" });
 	return Defs;
 }
@@ -44,7 +46,25 @@ void UMLDeformerDebugDataInterface::GetSupportedInputs(TArray<FShaderFunctionDef
 	}
 	{
 		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadHeatMapMode");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Int);
+		Fn.ParamTypes.Add(ReturnParam);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
 		Fn.Name = TEXT("ReadHeatMapScale");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
+		Fn.ParamTypes.Add(ReturnParam);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadGroundTruthLerp");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
@@ -68,7 +88,9 @@ void UMLDeformerDebugDataInterface::GetSupportedInputs(TArray<FShaderFunctionDef
 BEGIN_SHADER_PARAMETER_STRUCT(FMLDeformerDebugDataInterfaceParameters, )
 	SHADER_PARAMETER(uint32, NumVertices)
 	SHADER_PARAMETER(uint32, InputStreamStart)
+	SHADER_PARAMETER(int32, HeatMapMode)
 	SHADER_PARAMETER(float, HeatMapScale)
+	SHADER_PARAMETER(float, GroundTruthLerp)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float3>, PositionGroundTruthBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>, VertexMapBuffer)
 END_SHADER_PARAMETER_STRUCT()
@@ -201,7 +223,9 @@ FMLDeformerDebugDataProviderProxy::FMLDeformerDebugDataProviderProxy(USkeletalMe
 	
 	UMLDeformerAsset const* DeformerAsset = DeformerComponent->GetDeformerAsset();
 	VertexMapBufferSRV = DeformerAsset->GetVertexMapBuffer().ShaderResourceViewRHI;
-	HeatMapScale = DeformerAsset->GetVizSettings()->GetHeatMapScale();
+	HeatMapMode = (int32)DeformerAsset->GetVizSettings()->GetHeatMapMode();
+	HeatMapScale = 1.f / FMath::Max(DeformerAsset->GetVizSettings()->GetHeatMapScale(), 0.00001f);
+	GroundTruthLerp = DeformerAsset->GetVizSettings()->GetGroundTruthLerp();
 
 	const int32 LODIndex = 0;
 	const float SampleTime = SkeletalMeshComponent->GetPosition();
@@ -229,7 +253,9 @@ void FMLDeformerDebugDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR
 	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
 	Parameters.NumVertices = 0;
 	Parameters.InputStreamStart = RenderSection.BaseVertexIndex;
+	Parameters.HeatMapMode = HeatMapMode;
 	Parameters.HeatMapScale = HeatMapScale;
+	Parameters.GroundTruthLerp = GroundTruthLerp;
 	Parameters.PositionGroundTruthBuffer = GroundTruthBufferSRV;
 	Parameters.VertexMapBuffer = VertexMapBufferSRV;
 
