@@ -557,7 +557,7 @@ void FGenericPlatformProcess::ClosePipe( void* ReadPipe, void* WritePipe )
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::ClosePipe not implemented on this platform"));
 }
 
-bool FGenericPlatformProcess::CreatePipe( void*& ReadPipe, void*& WritePipe )
+bool FGenericPlatformProcess::CreatePipe(void*& ReadPipe, void*& WritePipe, bool bWritePipeLocal)
 {
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::CreatePipe not implemented on this platform"));
 	return false;
