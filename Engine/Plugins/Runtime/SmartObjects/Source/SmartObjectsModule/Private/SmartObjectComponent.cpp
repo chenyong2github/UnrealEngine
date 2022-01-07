@@ -9,10 +9,6 @@
 #include "Engine/World.h"
 #endif
 
-namespace FSmartObject
-{
-	const FVector DefaultSlotSize(40, 40, 90);
-}
 
 USmartObjectComponent::USmartObjectComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -97,19 +93,11 @@ void USmartObjectComponent::OnUnregister()
 FBox USmartObjectComponent::GetSmartObjectBounds() const
 {
 	FBox BoundingBox(ForceInitToZero);
+
 	const AActor* Owner = GetOwner();
-	if (Owner == nullptr || DefinitionAsset == nullptr)
+	if (Owner != nullptr && DefinitionAsset != nullptr)
 	{
-		return BoundingBox;
-	}
-
-	const FTransform LocalToWorld = Owner->GetTransform();
-
-	for (const FSmartObjectSlot& Slot : DefinitionAsset->GetSlots())
-	{
-		const FVector SlotWorldLocation = LocalToWorld.TransformPositionNoScale(Slot.Offset);
-		BoundingBox += SlotWorldLocation + FSmartObject::DefaultSlotSize;
-		BoundingBox += SlotWorldLocation - FSmartObject::DefaultSlotSize;
+		BoundingBox = DefinitionAsset->GetBounds().TransformBy(Owner->GetTransform());
 	}
 
 	return BoundingBox;
