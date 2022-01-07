@@ -2,6 +2,7 @@
 
 #include "AppleControllerInterface.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/ScopeLock.h"
 
 DEFINE_LOG_CATEGORY(LogAppleController);
 
