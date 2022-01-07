@@ -244,12 +244,13 @@ void FShaderMapResourceCode::Finalize()
 
 uint32 FShaderMapResourceCode::GetSizeBytes() const
 {
-	uint32 Size = sizeof(*this) + ShaderHashes.GetAllocatedSize() + ShaderEntries.GetAllocatedSize();
+	uint64 Size = sizeof(*this) + ShaderHashes.GetAllocatedSize() + ShaderEntries.GetAllocatedSize();
 	for (const FShaderEntry& Entry : ShaderEntries)
 	{
 		Size += Entry.Code.GetAllocatedSize();
 	}
-	return Size;
+	check(Size <= TNumericLimits<uint32>::Max());
+	return static_cast<uint32>(Size);
 }
 
 int32 FShaderMapResourceCode::FindShaderIndex(const FSHAHash& InHash) const

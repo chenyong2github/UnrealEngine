@@ -115,7 +115,7 @@ public:
 	// Allocation Methods
 
 	/** Allocates raw memory using an allocator tied to the lifetime of the graph. */
-	void* Alloc(uint32 SizeInBytes, uint32 AlignInBytes);
+	void* Alloc(uint64 SizeInBytes, uint32 AlignInBytes);
 
 	/** Allocates POD memory using an allocator tied to the lifetime of the graph. Does not construct / destruct. */
 	template <typename PODType>

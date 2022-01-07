@@ -257,7 +257,7 @@ struct FInputLatencyTimer
 	uint32	DeltaTime;
 
 	/** Last time we did a measurement (in seconds). */
-	float	LastCaptureTime;
+	double	LastCaptureTime;
 
 	/** How often we should do a measurement (in seconds). */
 	float	UpdateFrequency;

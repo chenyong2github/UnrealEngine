@@ -19,10 +19,10 @@ void FResolveSingleSamplePS::SetParameters(FRHICommandList& RHICmdList, uint32 S
 void FResolveVS::SetParameters(FRHICommandList& RHICmdList, const FResolveRect& SrcBounds, const FResolveRect& DstBounds, uint32 DstSurfaceWidth, uint32 DstSurfaceHeight)
 {
 	// Generate the vertices used to copy from the source surface to the destination surface.
-	const float MinU = SrcBounds.X1;
-	const float MinV = SrcBounds.Y1;
-	const float MaxU = SrcBounds.X2;
-	const float MaxV = SrcBounds.Y2;
+	const float MinU = (float)SrcBounds.X1;
+	const float MinV = (float)SrcBounds.Y1;
+	const float MaxU = (float)SrcBounds.X2;
+	const float MaxV = (float)SrcBounds.Y2;
 	const float MinX = -1.f + DstBounds.X1 / ((float)DstSurfaceWidth * 0.5f);
 	const float MinY = +1.f - DstBounds.Y1 / ((float)DstSurfaceHeight * 0.5f);
 	const float MaxX = -1.f + DstBounds.X2 / ((float)DstSurfaceWidth * 0.5f);

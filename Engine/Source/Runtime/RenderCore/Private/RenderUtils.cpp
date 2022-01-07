@@ -464,7 +464,7 @@ public:
 		const TCHAR* Name = TEXT("SolidColorCube");
 
 		FRHIResourceCreateInfo CreateInfo(Name);
-		FTextureCubeRHIRef TextureCube = RHICreateTextureCube(1, PixelFormat, 1, TexCreate_ShaderResource, CreateInfo);
+		FTextureCubeRHIRef TextureCube = RHICreateTextureCube(1, (uint8)PixelFormat, 1, TexCreate_ShaderResource, CreateInfo);
 		TextureRHI = TextureCube;
 
 		// Write the contents of the texture.
@@ -789,9 +789,9 @@ SIZE_T CalcTextureMipHeightInBlocks(uint32 TextureSizeY, EPixelFormat Format, ui
 
 SIZE_T CalcTextureMipMapSize( uint32 TextureSizeX, uint32 TextureSizeY, EPixelFormat Format, uint32 MipIndex )
 {
-	const uint32 WidthInBlocks = CalcTextureMipWidthInBlocks(TextureSizeX, Format, MipIndex);
-	const uint32 HeightInBlocks = CalcTextureMipHeightInBlocks(TextureSizeY, Format, MipIndex);
-	return static_cast<SIZE_T>(WidthInBlocks) * HeightInBlocks * GPixelFormats[Format].BlockBytes;
+	const SIZE_T WidthInBlocks = CalcTextureMipWidthInBlocks(TextureSizeX, Format, MipIndex);
+	const SIZE_T HeightInBlocks = CalcTextureMipHeightInBlocks(TextureSizeY, Format, MipIndex);
+	return WidthInBlocks * HeightInBlocks * GPixelFormats[Format].BlockBytes;
 }
 
 SIZE_T CalcTextureSize( uint32 SizeX, uint32 SizeY, EPixelFormat Format, uint32 MipCount )
@@ -1547,10 +1547,10 @@ public:
 				for (uint32 X = 0; X < 2; X++)
 				{
 					const FVector4f Vertex = FVector4f(
-					  (X ? -1 : 1),
-					  (Y ? -1 : 1),
-					  (Z ? -1 : 1),
-					  1.0f
+					  (X ? -1.f : 1.f),
+					  (Y ? -1.f : 1.f),
+					  (Z ? -1.f : 1.f),
+					  1.f
 					);
 
 					Verts[GetCubeVertexIndex(X, Y, Z)] = Vertex;

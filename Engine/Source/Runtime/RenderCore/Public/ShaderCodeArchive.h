@@ -128,7 +128,7 @@ public:
 	{
 	}
 
-	uint32 GetAllocatedSize() const
+	int64 GetAllocatedSize() const
 	{
 		return ShaderHashes.GetAllocatedSize() +
 			ShaderEntries.GetAllocatedSize() +
@@ -250,7 +250,7 @@ public:
 
 	virtual bool IsNativeLibrary() const override { return false; }
 
-	uint32 GetSizeBytes() const
+	int64 GetSizeBytes() const
 	{
 		return sizeof(*this) +
 			SerializedShaders.GetAllocatedSize() +

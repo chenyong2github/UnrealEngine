@@ -12,14 +12,14 @@ public:
 	~FRDGAllocator();
 
 	/** Allocates raw memory. */
-	FORCEINLINE void* Alloc(uint32 SizeInBytes, uint32 AlignInBytes)
+	FORCEINLINE void* Alloc(uint64 SizeInBytes, uint32 AlignInBytes)
 	{
 		return GetContext().MemStack.Alloc(SizeInBytes, AlignInBytes);
 	}
 
 	/** Allocates an uninitialized type without destructor tracking. */
 	template <typename PODType>
-	FORCEINLINE PODType* AllocUninitialized(uint32 Count = 1)
+	FORCEINLINE PODType* AllocUninitialized(uint64 Count = 1)
 	{
 		return reinterpret_cast<PODType*>(Alloc(sizeof(PODType) * Count, alignof(PODType)));
 	}

@@ -37,10 +37,10 @@ public:
 	FORCEINLINE FRenderTransform(const FMatrix44d& M)
 	{
 		// LWC_TODO: Precision loss
-		TransformRows[0] = FVector3f(M.M[0][0], M.M[0][1], M.M[0][2]);
-		TransformRows[1] = FVector3f(M.M[1][0], M.M[1][1], M.M[1][2]);
-		TransformRows[2] = FVector3f(M.M[2][0], M.M[2][1], M.M[2][2]);
-		Origin = FVector3f(M.M[3][0], M.M[3][1], M.M[3][2]);
+		TransformRows[0] = FVector3f((float)M.M[0][0], (float)M.M[0][1], (float)M.M[0][2]);
+		TransformRows[1] = FVector3f((float)M.M[1][0], (float)M.M[1][1], (float)M.M[1][2]);
+		TransformRows[2] = FVector3f((float)M.M[2][0], (float)M.M[2][1], (float)M.M[2][2]);
+		Origin = FVector3f((float)M.M[3][0], (float)M.M[3][1], (float)M.M[3][2]);
 	}
 
 	FORCEINLINE FRenderTransform& operator=(const FRenderTransform& From)
@@ -63,10 +63,11 @@ public:
 
 	FORCEINLINE FRenderTransform& operator=(const FMatrix44d& From)
 	{
-		TransformRows[0] = FVector3f(From.M[0][0], From.M[0][1], From.M[0][2]);
-		TransformRows[1] = FVector3f(From.M[1][0], From.M[1][1], From.M[1][2]);
-		TransformRows[2] = FVector3f(From.M[2][0], From.M[2][1], From.M[2][2]);
-		Origin = FVector3f(From.M[3][0], From.M[3][1], From.M[3][2]);
+		// LWC_TODO: Precision loss
+		TransformRows[0] = FVector3f((float)From.M[0][0], (float)From.M[0][1], (float)From.M[0][2]);
+		TransformRows[1] = FVector3f((float)From.M[1][0], (float)From.M[1][1], (float)From.M[1][2]);
+		TransformRows[2] = FVector3f((float)From.M[2][0], (float)From.M[2][1], (float)From.M[2][2]);
+		Origin = FVector3f((float)From.M[3][0], (float)From.M[3][1], (float)From.M[3][2]);
 		return *this;
 	}
 
@@ -452,9 +453,9 @@ struct FCompressedTransform
 
 #if 1
 			// Avoid sign extension in shader by biasing
-			Rotation[0] = FMath::RoundToInt( OctZ.X * 32767.0f ) + 32768;
-			Rotation[1] = FMath::RoundToInt( OctZ.Y * 32767.0f ) + 32768;
-			Rotation[2] = FMath::RoundToInt( Spin0  * 16383.0f * 1.41421356f );	// sqrt(2)
+			Rotation[0] = static_cast<uint16>(FMath::RoundToInt( OctZ.X * 32767.0f ) + 32768);
+			Rotation[1] = static_cast<uint16>(FMath::RoundToInt( OctZ.Y * 32767.0f ) + 32768);
+			Rotation[2] = static_cast<uint16>(FMath::RoundToInt( Spin0  * 16383.0f * 1.41421356f ));	// sqrt(2)
 			
 			Rotation[2] = ( Rotation[2] + 16384 ) & 0x7fff;
 			Rotation[2] |= bSpinIsX ? (1 << 15) : 0;
@@ -475,7 +476,7 @@ struct FCompressedTransform
 			// Need +1 because of losing the implicit leading bit of mantissa
 			// TODO assumes ExpBits == 8
 			// TODO clamp to expressable range
-			uint32 SharedExp = MaxComponent.Components.Exponent + 1;
+			uint16 SharedExp = (uint16)MaxComponent.Components.Exponent + 1;
 	
 			FFloat32 ExpScale( 1.0f );
 			ExpScale.Components.Exponent = 127 + ExpBias + MantissaBits - SharedExp;
@@ -498,7 +499,7 @@ struct FCompressedTransform
 			Scale_SharedExp[3] = SharedExp;
 			for( int i = 0; i < 3; i++ )
 			{
-				Scale_SharedExp[i] = FMath::RoundToInt( Scale[i] * ExpScale.FloatValue ) + (1 << MantissaBits);
+				Scale_SharedExp[i] = static_cast<uint16>(FMath::RoundToInt( Scale[i] * ExpScale.FloatValue ) + (1 << MantissaBits));
 			}
 #endif
 		}
@@ -551,7 +552,7 @@ struct FCompressedTransform
 #else
 			for( int i = 0; i < 3; i++ )
 			{
-				float Scale = (int32)Scale_SharedExp[i] - (1 << MantissaBits);
+				float Scale = static_cast<float>(int32(Scale_SharedExp[i]) - (1 << MantissaBits));
 				Scale *= ExpScale.FloatValue;
 				Out.TransformRows[i] *= Scale;
 			}

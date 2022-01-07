@@ -3312,7 +3312,7 @@ struct FRHIRenderPassInfo
 				break;
 			}
 
-			RenderTargetsInfo.RenderTargetFormats[RenderTargetIndex] = RenderTarget->GetFormat();
+			RenderTargetsInfo.RenderTargetFormats[RenderTargetIndex] = (uint8)RenderTarget->GetFormat();
 			RenderTargetsInfo.RenderTargetFlags[RenderTargetIndex] = RenderTarget->GetFlags();
 			RenderTargetsInfo.NumSamples |= RenderTarget->GetNumSamples();
 		}
@@ -3402,7 +3402,8 @@ struct RHI_API FRHITextureCreateInfo
 		ETextureCreateFlags InFlags,
 		uint8 InNumMips = 1)
 	{
-		return FRHITextureCreateInfo(ETextureDimension::Texture3D, InFlags, InFormat, FIntPoint(InSize.X, InSize.Y), InClearValue, InSize.Z, 1, InNumMips);
+		checkf(InSize.Z >= 0 && InSize.Z <= TNumericLimits<uint16>::Max(), TEXT("Depth parameter (InSize.Z) exceeds valid range"));
+		return FRHITextureCreateInfo(ETextureDimension::Texture3D, InFlags, InFormat, FIntPoint(InSize.X, InSize.Y), InClearValue, (uint16)InSize.Z, 1, InNumMips);
 	}
 
 	static FRHITextureCreateInfo CreateCube(

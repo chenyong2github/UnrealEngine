@@ -243,7 +243,7 @@ void FInputLatencyTimer::GameThreadTick()
 			LastCaptureTime	= FPlatformTime::Seconds();
 			bInitialized	= true;
 		}
-		float CurrentTimeInSeconds = FPlatformTime::Seconds();
+		const double CurrentTimeInSeconds = FPlatformTime::Seconds();
 		if ( (CurrentTimeInSeconds - LastCaptureTime) > UpdateFrequency )
 		{
 			LastCaptureTime		= CurrentTimeInSeconds;

@@ -259,7 +259,7 @@ inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRDGPar
 	{
 		FRDGTextureRef Texture = RenderTarget.GetTexture();
 
-		RenderTargetsInfo.RenderTargetFormats[RenderTargetIndex] = Texture->Desc.Format;
+		RenderTargetsInfo.RenderTargetFormats[RenderTargetIndex] = (uint8)Texture->Desc.Format;
 		RenderTargetsInfo.RenderTargetFlags[RenderTargetIndex] = Texture->Desc.Flags;
 		RenderTargetsInfo.NumSamples |= Texture->Desc.NumSamples;
 		++RenderTargetIndex;

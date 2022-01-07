@@ -523,7 +523,7 @@ uint32 FShaderPipelineCache::NumPrecompilesRemaining()
 		if (CVarPSOFileCacheMaxPrecompileTime.GetValueOnAnyThread() > 0.0 && FPlatformAtomics::AtomicRead(&ShaderPipelineCache->TotalPrecompileTasks) > 0)
 		{
 			float Mult = ShaderPipelineCache->TotalPrecompileWallTime / CVarPSOFileCacheMaxPrecompileTime.GetValueOnAnyThread();
-			NumRemaining = FMath::Max(0.f, 1.f - Mult) * FPlatformAtomics::AtomicRead(&ShaderPipelineCache->TotalPrecompileTasks);
+			NumRemaining = uint32(FMath::Max(0.f, 1.f - Mult) * FPlatformAtomics::AtomicRead(&ShaderPipelineCache->TotalPrecompileTasks));
 		}
 		else
 		{
@@ -550,7 +550,7 @@ uint32 FShaderPipelineCache::NumPrecompilesActive()
 		if (CVarPSOFileCacheMaxPrecompileTime.GetValueOnAnyThread() > 0.0 && FPlatformAtomics::AtomicRead(&ShaderPipelineCache->TotalPrecompileTasks) > 0)
 		{
 			float Mult = ShaderPipelineCache->TotalPrecompileWallTime / CVarPSOFileCacheMaxPrecompileTime.GetValueOnAnyThread();
-			NumRemaining = FMath::Max(0.f, 1.f - Mult) * FPlatformAtomics::AtomicRead(&ShaderPipelineCache->TotalPrecompileTasks);
+			NumRemaining = uint32(FMath::Max(0.f, 1.f - Mult) * FPlatformAtomics::AtomicRead(&ShaderPipelineCache->TotalPrecompileTasks));
 		}
     }
     
@@ -1081,7 +1081,7 @@ bool FShaderPipelineCache::ReadyForAutoSave() const
 	uint32 SaveAfterNum = CVarPSOFileCacheSaveAfterPSOsLogged.GetValueOnAnyThread();
 	uint32 NumLogged = FPipelineFileCache::NumPSOsLogged();
 
-	const float TimeSinceSave = FPlatformTime::Seconds() - LastAutoSaveTime;
+	const double TimeSinceSave = FPlatformTime::Seconds() - LastAutoSaveTime;
 
 	// autosave if its enabled, and we have more than the desired number, or it's been a while since our last save
 	if (SaveAfterNum > 0 && 
@@ -1331,7 +1331,7 @@ void FShaderPipelineCache::Tick( float DeltaTime )
 	{
 		if (LastAutoSaveNum < int32(FPipelineFileCache::NumPSOsLogged()))
 		{
-			const float TimeSinceSave = FPlatformTime::Seconds() - LastAutoSaveTimeLogBoundPSO;
+			const double TimeSinceSave = FPlatformTime::Seconds() - LastAutoSaveTimeLogBoundPSO;
 
 			if (TimeSinceSave >= CVarPSOFileCacheAutoSaveTimeBoundPSO.GetValueOnAnyThread())
 			{

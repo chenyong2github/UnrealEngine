@@ -263,14 +263,14 @@ public:
 	FORCEINLINE TRDGHandle& operator+=(int32 Increment)
 	{
 		check(int64(Index + Increment) <= int64(kNullIndex));
-		Index += Increment;
+		Index += (IndexType)Increment;
 		return *this;
 	}
 
 	FORCEINLINE TRDGHandle& operator-=(int32 Decrement)
 	{
 		check(int64(Index - Decrement) > 0);
-		Index -= Decrement;
+		Index -= (IndexType)Decrement;
 		return *this;
 	}
 

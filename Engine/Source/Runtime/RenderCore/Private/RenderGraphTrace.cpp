@@ -182,7 +182,7 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			const TCHAR* Name{};
 			FRDGPassHandle FirstPass;
 			FRDGPassHandle LastPass;
-			uint32 Depth{};
+			uint16 Depth{};
 		};
 		TArray<FScopeInfo> Scopes;
 		TMap<const FRDGEventScope*, int32> ScopeToIndex;
@@ -207,7 +207,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 							FScopeInfo ScopeInfo;
 							ScopeInfo.Name = Op.Scope->Name.GetTCHAR();
 							ScopeInfo.FirstPass = Handle;
-							ScopeInfo.Depth = Depth;
+							check(Depth >= 0 && Depth <= TNumericLimits<uint16>::Max());
+							ScopeInfo.Depth = static_cast<uint16>(Depth);
 							Scopes.Add(ScopeInfo);
 
 							Depth++;

@@ -2267,7 +2267,8 @@ public:
 		else
 		{
 			// Appending to the archive, track the size of this serialization
-			History.AddValue(Length);
+			check(Length >= 0 && Length <= TNumericLimits<uint32>::Max());
+			History.AddValue((uint32)Length);
 		}
 		HistoryTraversalState.StepForward();
 		

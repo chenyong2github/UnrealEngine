@@ -709,7 +709,7 @@ struct FRDGResourceDumpContext
 				StagingSrcTexture = RHICreateTexture2D(
 					SubresourceDumpDesc.SubResourceExtent.X,
 					SubresourceDumpDesc.SubResourceExtent.Y,
-					SubresourceDumpDesc.PreprocessedPixelFormat,
+					(uint8)SubresourceDumpDesc.PreprocessedPixelFormat,
 					/* NumMips = */ 1,
 					/* NumSamples = */ 1,
 					TexCreate_UAV | TexCreate_ShaderResource | TexCreate_HideInVisualizeTexture,
@@ -747,7 +747,7 @@ struct FRDGResourceDumpContext
 			StagingTexture = RHICreateTexture2D(
 				SubresourceDumpDesc.SubResourceExtent.X,
 				SubresourceDumpDesc.SubResourceExtent.Y,
-				SubresourceDumpDesc.PreprocessedPixelFormat,
+				(uint8)SubresourceDumpDesc.PreprocessedPixelFormat,
 				/* NumMips = */ 1,
 				/* NumSamples = */ 1,
 				TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture,

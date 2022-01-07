@@ -365,7 +365,7 @@ Done:
 					RHICreateTargetableShaderResource2D(
 						Desc.Extent.X,
 						Desc.Extent.Y,
-						Desc.Format,
+						(uint8)Desc.Format,
 						Desc.NumMips,
 						Desc.Flags,
 						Desc.TargetableFlags,
@@ -383,7 +383,7 @@ Done:
 						Desc.Extent.X,
 						Desc.Extent.Y,
 						Desc.ArraySize,
-						Desc.Format,
+						(uint8)Desc.Format,
 						Desc.NumMips,
 						Desc.Flags,
 						Desc.TargetableFlags,
@@ -411,7 +411,7 @@ Done:
 					Desc.Extent.X,
 					Desc.Extent.Y,
 					Desc.Depth,
-					Desc.Format,
+					(uint8)Desc.Format,
 					Desc.NumMips,
 					Desc.Flags | Desc.TargetableFlags,
 					CreateInfo);
@@ -427,7 +427,7 @@ Done:
 					RHICreateTargetableShaderResourceCubeArray(
 						Desc.Extent.X,
 						Desc.ArraySize,
-						Desc.Format,
+						(uint8)Desc.Format,
 						Desc.NumMips,
 						Desc.Flags,
 						Desc.TargetableFlags,
@@ -441,7 +441,7 @@ Done:
 				{
 					RHICreateTargetableShaderResourceCube(
 						Desc.Extent.X,
-						Desc.Format,
+						(uint8)Desc.Format,
 						Desc.NumMips,
 						Desc.Flags,
 						Desc.TargetableFlags,
@@ -467,7 +467,7 @@ Done:
 					Found->RenderTargetItem.ShaderResourceTexture = RHICreateTexture2D(
 						Desc.Extent.X,
 						Desc.Extent.Y,
-						Desc.Format,
+						(uint8)Desc.Format,
 						Desc.NumMips,
 						Desc.NumSamples,
 						Desc.Flags,
@@ -479,7 +479,7 @@ Done:
 						Desc.Extent.X,
 						Desc.Extent.Y,
 						Desc.ArraySize,
-						Desc.Format,
+						(uint8)Desc.Format,
 						Desc.NumMips,
 						Desc.NumSamples,
 						Desc.Flags,
@@ -494,7 +494,7 @@ Done:
 					Desc.Extent.X,
 					Desc.Extent.Y,
 					Desc.Depth,
-					Desc.Format,
+					(uint8)Desc.Format,
 					Desc.NumMips,
 					Desc.Flags,
 					CreateInfo);
@@ -504,12 +504,12 @@ Done:
 				check(Desc.IsCubemap());
 				if (Desc.IsArray())
 				{
-					FTextureCubeRHIRef CubeTexture = RHICreateTextureCubeArray(Desc.Extent.X, Desc.ArraySize, Desc.Format, Desc.NumMips, Desc.Flags | Desc.TargetableFlags | TexCreate_ShaderResource, CreateInfo);
+					FTextureCubeRHIRef CubeTexture = RHICreateTextureCubeArray(Desc.Extent.X, Desc.ArraySize, (uint8)Desc.Format, Desc.NumMips, Desc.Flags | Desc.TargetableFlags | TexCreate_ShaderResource, CreateInfo);
 					Found->RenderTargetItem.TargetableTexture = Found->RenderTargetItem.ShaderResourceTexture = CubeTexture;
 				}
 				else
 				{
-					FTextureCubeRHIRef CubeTexture = RHICreateTextureCube(Desc.Extent.X, Desc.Format, Desc.NumMips, Desc.Flags | Desc.TargetableFlags | TexCreate_ShaderResource, CreateInfo);
+					FTextureCubeRHIRef CubeTexture = RHICreateTextureCube(Desc.Extent.X, (uint8)Desc.Format, Desc.NumMips, Desc.Flags | Desc.TargetableFlags | TexCreate_ShaderResource, CreateInfo);
 					Found->RenderTargetItem.TargetableTexture = Found->RenderTargetItem.ShaderResourceTexture = CubeTexture;
 				}
 			}
@@ -530,7 +530,7 @@ Done:
 					? Desc.UAVFormat
 					: Desc.Format;
 
-				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->RenderTargetItem.TargetableTexture, 0, AliasFormat, 0, 0);
+				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->RenderTargetItem.TargetableTexture, 0, (uint8)AliasFormat, 0, 0);
 			}
 			else
 			{

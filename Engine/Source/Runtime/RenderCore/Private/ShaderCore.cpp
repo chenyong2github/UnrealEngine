@@ -705,7 +705,7 @@ void VerifyShaderSourceFiles(EShaderPlatform ShaderPlatform)
 		// get the list of shader files that can be used
 		TArray<FString> VirtualShaderSourcePaths;
 		GetAllVirtualShaderSourcePaths(VirtualShaderSourcePaths, ShaderPlatform);
-		FScopedSlowTask SlowTask(VirtualShaderSourcePaths.Num());
+		FScopedSlowTask SlowTask((float)VirtualShaderSourcePaths.Num());
 		for( int32 ShaderFileIdx=0; ShaderFileIdx < VirtualShaderSourcePaths.Num(); ShaderFileIdx++ )
 		{
 			SlowTask.EnterProgressFrame(1);
@@ -1259,7 +1259,7 @@ void BuildShaderFileToUniformBufferMap(TMap<FString, TArray<const TCHAR*> >& Sha
 		TArray<FString> ShaderSourceFiles;
 		GetAllVirtualShaderSourcePaths(ShaderSourceFiles, GMaxRHIShaderPlatform);
 
-		FScopedSlowTask SlowTask(ShaderSourceFiles.Num());
+		FScopedSlowTask SlowTask((float)ShaderSourceFiles.Num());
 
 		// Cache UB access strings, make it case sensitive for faster search
 		struct FShaderVariable

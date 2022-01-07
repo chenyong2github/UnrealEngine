@@ -236,7 +236,7 @@ FTickableObjectRenderThread::FRenderingThreadTickableObjectsArray FTickableObjec
 void TickHighFrequencyTickables(double CurTime)
 {
 	static double LastHighFreqTime = FPlatformTime::Seconds();
-	float DeltaSecondsHighFreq = CurTime - LastHighFreqTime;
+	float DeltaSecondsHighFreq = float(CurTime - LastHighFreqTime);
 
 	// tick any high frequency rendering thread tickables.
 	for (int32 ObjectIndex = 0; ObjectIndex < FTickableObjectRenderThread::RenderingThreadHighFrequencyTickableObjects.Num(); ObjectIndex++)
@@ -260,7 +260,7 @@ void TickRenderingTickables()
 
 	// calc how long has passed since last tick
 	double CurTime = FPlatformTime::Seconds();
-	float DeltaSeconds = CurTime - LastTickTime;
+	float DeltaSeconds = float(CurTime - LastTickTime);
 		
 	TickHighFrequencyTickables(CurTime);
 

@@ -635,7 +635,8 @@ public:
 	{
 		FRDGTextureSRVDesc Desc;
 		Desc.Texture = Texture;
-		Desc.MipLevel = MipLevel;
+		check(MipLevel >= -1 && MipLevel <= TNumericLimits<int8>::Max()); 
+		Desc.MipLevel = (int8)MipLevel;
 		Desc.NumMipLevels = 1;
 		return Desc;
 	}

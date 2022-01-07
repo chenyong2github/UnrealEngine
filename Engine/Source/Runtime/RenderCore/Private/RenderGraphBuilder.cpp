@@ -390,10 +390,10 @@ void FRDGBuilder::TickPoolElements()
 	SET_DWORD_STAT(STAT_RDG_PassDependencyCount, GRDGStatPassDependencyCount);
 	SET_DWORD_STAT(STAT_RDG_TextureCount, GRDGStatTextureCount);
 	SET_DWORD_STAT(STAT_RDG_TextureReferenceCount, GRDGStatTextureReferenceCount);
-	SET_FLOAT_STAT(STAT_RDG_TextureReferenceAverage, (float)(GRDGStatTextureReferenceCount / FMath::Max<float>(GRDGStatTextureCount, 1.0f)));
+	SET_FLOAT_STAT(STAT_RDG_TextureReferenceAverage, (float)(GRDGStatTextureReferenceCount / FMath::Max((float)GRDGStatTextureCount, 1.0f)));
 	SET_DWORD_STAT(STAT_RDG_BufferCount, GRDGStatBufferCount);
 	SET_DWORD_STAT(STAT_RDG_BufferReferenceCount, GRDGStatBufferReferenceCount);
-	SET_FLOAT_STAT(STAT_RDG_BufferReferenceAverage, (float)(GRDGStatBufferReferenceCount / FMath::Max<float>(GRDGStatBufferCount, 1.0f)));
+	SET_FLOAT_STAT(STAT_RDG_BufferReferenceAverage, (float)(GRDGStatBufferReferenceCount / FMath::Max((float)GRDGStatBufferCount, 1.0f)));
 	SET_DWORD_STAT(STAT_RDG_ViewCount, GRDGStatViewCount);
 	SET_DWORD_STAT(STAT_RDG_TransientTextureCount, GRDGStatTransientTextureCount);
 	SET_DWORD_STAT(STAT_RDG_TransientBufferCount, GRDGStatTransientBufferCount);
@@ -1919,7 +1919,7 @@ FRDGPass* FRDGBuilder::SetupPass(FRDGPass* Pass)
 		if (Texture->LastPass != PassHandle)
 		{
 			Texture->LastPass = PassHandle;
-			Texture->PassStateIndex = Pass->TextureStates.Num();
+			Texture->PassStateIndex = static_cast<uint16>(Pass->TextureStates.Num());
 
 			PassState = &Pass->TextureStates.Emplace_GetRef(Texture);
 		}

@@ -113,7 +113,7 @@ inline FRDGBufferUAVRef FRDGBuilder::CreateUAV(const FRDGBufferUAVDesc& Desc, ER
 	return UAV;
 }
 
-FORCEINLINE void* FRDGBuilder::Alloc(uint32 SizeInBytes, uint32 AlignInBytes)
+FORCEINLINE void* FRDGBuilder::Alloc(uint64 SizeInBytes, uint32 AlignInBytes)
 {
 	return Allocator.Alloc(SizeInBytes, AlignInBytes);
 }
