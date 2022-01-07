@@ -21,6 +21,7 @@
 
 TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
 TGlobalResource<FLidarPointCloudSharedVertexFactory> GLidarPointCloudSharedVertexFactory;
+TGlobalResource<FLidarPointCloudRenderBuffer> GDummyLidarPointCloudRenderBuffer(4);
 
 //////////////////////////////////////////////////////////// Index Buffer
 
@@ -182,6 +183,12 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 
 	SETSRVPARAM(TreeBuffer);
 	SETSRVPARAM(DataBuffer);
+	if (!UserData->DataBuffer && DataBuffer.IsBound())
+	{
+		FRHIShaderResourceView* Ptr = GDummyLidarPointCloudRenderBuffer.SRV;
+		ShaderBindings.Add(DataBuffer, Ptr);
+	}
+
 	SETPARAM(bEditorView);
 	SETPARAM(SelectionColor);
 	SETPARAM(LocationOffset);

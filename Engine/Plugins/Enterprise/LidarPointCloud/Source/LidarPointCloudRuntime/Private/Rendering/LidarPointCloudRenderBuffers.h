@@ -47,6 +47,9 @@ public:
 class FLidarPointCloudRenderBuffer : public FLidarPointCloudBuffer, public FRenderResource
 {
 public:
+	FLidarPointCloudRenderBuffer() : FLidarPointCloudBuffer() {}
+	FLidarPointCloudRenderBuffer(uint32 Capacity) : FLidarPointCloudBuffer(Capacity) {}
+
 	FBufferRHIRef Buffer;
 	FShaderResourceViewRHIRef SRV;
 
@@ -200,3 +203,4 @@ class FLidarPointCloudSharedVertexFactory : public FLidarPointCloudVertexFactory
 /** A set of global render resources shared between all Lidar Point Cloud proxies */
 extern TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
 extern TGlobalResource<FLidarPointCloudSharedVertexFactory> GLidarPointCloudSharedVertexFactory;
+extern TGlobalResource<FLidarPointCloudRenderBuffer> GDummyLidarPointCloudRenderBuffer;
