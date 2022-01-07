@@ -1407,7 +1407,8 @@ bool FFastArraySerializer::FastArrayDeltaSerialize(TArray<Type> &Items, FNetDelt
 					GuidReferences.Buffer.Empty();
 
 					// Remember the number of bits in the buffer
-					GuidReferences.NumBufferBits = Reader.GetPosBits() - Mark.GetPos();
+					check(Reader.GetPosBits() - Mark.GetPos() <= TNumericLimits<int32>::Max());
+					GuidReferences.NumBufferBits = int32(Reader.GetPosBits() - Mark.GetPos());
 					
 					// Copy the buffer itself
 					Mark.Copy( Reader, GuidReferences.Buffer );
