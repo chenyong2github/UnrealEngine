@@ -86,6 +86,15 @@ namespace Chaos
 		*/
 		void SetCollision(const FPBDCollisionConstraint& Constraint);
 
+		/**
+		 * @brief Whether we want to use manifold restore for this shape type
+		 * @see FParticlePairMidPhase::ShouldRestoreConstraints
+		*/
+		bool EnableManifoldRestore() const
+		{
+			return Flags.bEnableManifoldCheck;
+		}
+
 	private:
 		int32 GenerateCollisionImpl(const FReal CullDistance, const bool bUseCCD, const FReal Dt);
 

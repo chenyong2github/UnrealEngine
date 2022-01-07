@@ -20,18 +20,18 @@ namespace Chaos
 		bool bChaos_Collision_MidPhase_EnableBoundsChecks = true;
 		FAutoConsoleVariableRef CVarChaos_Collision_EnableBoundsChecks(TEXT("p.Chaos.Collision.EnableBoundsChecks"), bChaos_Collision_MidPhase_EnableBoundsChecks, TEXT(""));
 
-		bool bChaos_Collision_EnableManifoldRestore = true;
 		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_NoContact_Position = 0.005f;	// About 0.5cm for a meter cube
 		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_NoContact_Rotation = 0.1f;		// About 10deg
 		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_Contact_Position = 0.02f;		// About 2cm for a meter cube
 		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_Contact_Rotation = 0.1f;		// About 10deg
-		FAutoConsoleVariableRef CVarChaos_Collision_EnableManifoldRestore(TEXT("p.Chaos.Collision.EnableManifoldRestore"), bChaos_Collision_EnableManifoldRestore, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Collision_RestoreTolerance_NoContact_Position(TEXT("p.Chaos.Collision.RestoreTolerance.NoContact.Position"), Chaos_Collision_RestoreTolerance_NoContact_Position, TEXT("Fraction of Size. Particle pairs that move less than this may have their contacts reinstated"));
 		FAutoConsoleVariableRef CVarChaos_Collision_RestoreTolerance_NoContact_Rotation(TEXT("p.Chaos.Collision.RestoreTolerance.NoContact.Rotation"), Chaos_Collision_RestoreTolerance_NoContact_Rotation, TEXT("Quaternion Dot Product Limit. Particle pairs that move less than this may have their contacts reinstated"));
 		FAutoConsoleVariableRef CVarChaos_Collision_RestoreTolerance_Contact_Position(TEXT("p.Chaos.Collision.RestoreTolerance.WithContact.Position"), Chaos_Collision_RestoreTolerance_Contact_Position, TEXT("Fraction of Size. Particle pairs that move less than this may have their contacts reinstated"));
 		FAutoConsoleVariableRef CVarChaos_Collision_RestoreTolerance_Contact_Rotation(TEXT("p.Chaos.Collision.RestoreTolerance.WithContact.Rotation"), Chaos_Collision_RestoreTolerance_Contact_Rotation, TEXT("Quaternion Dot Product Limit. Particle pairs that move less than this may have their contacts reinstated"));
 
+		bool bChaos_Collision_EnableManifoldRestore = true;
 		bool bChaos_Collision_EnableManifoldUpdate = true;
+		FAutoConsoleVariableRef CVarChaos_Collision_EnableManifoldRestore(TEXT("p.Chaos.Collision.EnableManifoldRestore"), bChaos_Collision_EnableManifoldRestore, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Collision_EnableManifoldUpdate(TEXT("p.Chaos.Collision.EnableManifoldUpdate"), bChaos_Collision_EnableManifoldUpdate, TEXT(""));
 
 		Chaos::FRealSingle Chaos_Collision_CullDistanceScaleInverseSize = 0.01f;	// 100cm
@@ -128,18 +128,21 @@ namespace Chaos
 		const EImplicitObjectType ImplicitType1 = (Implicit1 != nullptr) ? GetInnerType(Implicit1->GetCollisionType()) : ImplicitObjectType::Unknown;
 		const bool bIsSphere0 = (ImplicitType0 == ImplicitObjectType::Sphere);
 		const bool bIsSphere1 = (ImplicitType1 == ImplicitObjectType::Sphere);
+		const bool bIsCapsule0 = (ImplicitType0 == ImplicitObjectType::Capsule);
+		const bool bIsCapsule1 = (ImplicitType1 == ImplicitObjectType::Capsule);
 
 		const bool bAllowBoundsChecked = bChaos_Collision_MidPhase_EnableBoundsChecks && bHasBounds0 && bHasBounds1;
-		Flags.bEnableAABBCheck = bAllowBoundsChecked && (!bIsSphere0 || !bIsSphere1);
-		Flags.bEnableOBBCheck0 = bAllowBoundsChecked && !bIsSphere0;
-		Flags.bEnableOBBCheck1 = bAllowBoundsChecked && !bIsSphere1;
+		Flags.bEnableAABBCheck = bAllowBoundsChecked && !(bIsSphere0 && bIsSphere1);	// No AABB test if both are spheres
+		Flags.bEnableOBBCheck0 = bAllowBoundsChecked && !bIsSphere0;					// No OBB test for spheres
+		Flags.bEnableOBBCheck1 = bAllowBoundsChecked && !bIsSphere1;					// No OBB test for spheres
 		
 		if (bAllowBoundsChecked && bIsSphere0 && bIsSphere1)
 		{
-			SphereBoundsCheckSize = Shape0->GetLeafGeometry()->GetMargin() + Shape1->GetLeafGeometry()->GetMargin();
+			SphereBoundsCheckSize = Implicit0->GetMargin() + Implicit1->GetMargin();	// Sphere-Sphere bounds test
 		}
 
-		Flags.bEnableManifoldCheck = bChaos_Collision_EnableManifoldUpdate && !bIsSphere0 && !bIsSphere1;
+		// Do not try to reuse manifold points for capsules or spheres (against anything)
+		Flags.bEnableManifoldCheck = bChaos_Collision_EnableManifoldUpdate && !bIsSphere0 && !bIsSphere1 && !bIsCapsule0 && !bIsCapsule1;
 	}
 
 	FSingleShapePairCollisionDetector::~FSingleShapePairCollisionDetector()
@@ -795,6 +798,14 @@ namespace Chaos
 					const FPerShapeData* Shape1 = Shapes1[ShapeIndex1].Get();
 					TryAddShapePair(Shape0, Shape1);
 				}
+			}
+
+			// If we have only 1 shape pair, we may disable Manifold Restore functionality if it is spheres or capsules
+			// @todo(chaos): make manifold restoration work better with rolling shapes (spheres and capsules)
+			const bool bDisableManifoldRestore = (ShapePairDetectors.Num() == 1) && !ShapePairDetectors[0].EnableManifoldRestore();
+			if (bDisableManifoldRestore)
+			{
+				Flags.bRestorable = false;
 			}
 		}
 	}

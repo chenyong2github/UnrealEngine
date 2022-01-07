@@ -18,6 +18,8 @@
 
 namespace Chaos
 {
+	extern bool bChaos_Collision_EnableManifoldInject;
+
 	FRealSingle Chaos_Manifold_MatchPositionTolerance = 0.3f;		// Fraction of object size position tolerance
 	FRealSingle Chaos_Manifold_MatchNormalTolerance = 0.02f;		// Dot product tolerance
 	FAutoConsoleVariableRef CVarChaos_Manifold_MatchPositionTolerance(TEXT("p.Chaos.Collision.Manifold.MatchPositionTolerance"), Chaos_Manifold_MatchPositionTolerance, TEXT("A tolerance as a fraction of object size used to determine if two contact points are the same"));
@@ -599,13 +601,14 @@ namespace Chaos
 					ManifoldPoint.ContactPoint.ShapeContactPoints[1] = ShapeContactPoint1;
 					ManifoldPoint.ContactPoint.Phi = ContactPhi;
 				}
-				else if (ManifoldPointToRemove == INDEX_NONE)
+				else if ((ManifoldPointToRemove == INDEX_NONE) && bChaos_Collision_EnableManifoldInject)
 				{
+					// We can reject up to 1 point (if we have GJK point injection enabled)
 					ManifoldPointToRemove = ManifoldPointIndex;
 				}
 				else
 				{
-					// We want to remove a second point, but we will never reuse it now so throw away the whole manifold
+					// We want to remove a(nother) point, but we will never reuse the manifold now so throw it away
 					ResetActiveManifoldContacts();
 					return false;
 				}
