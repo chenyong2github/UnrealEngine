@@ -106,7 +106,7 @@ FSceneDataProviderProxy::FSceneDataProviderProxy(USceneComponent* SceneComponent
 	// Don't tick time in Editor unless in PIE.
 	if (GIsEditor)
 	{
-		bUseSceneTime &= (SceneComponent->GetWorld() != nullptr && SceneComponent->GetWorld()->WorldType != EWorldType::Editor);
+		bUseSceneTime &= (bUseSceneTime && SceneComponent->GetWorld() != nullptr && SceneComponent->GetWorld()->WorldType != EWorldType::Editor);
 	}
 #endif
 	GameTime = bUseSceneTime ? SceneComponent->GetWorld()->TimeSeconds : 0;
