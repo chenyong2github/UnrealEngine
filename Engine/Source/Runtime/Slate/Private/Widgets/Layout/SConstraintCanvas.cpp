@@ -95,6 +95,7 @@ void SConstraintCanvas::FSlot::SetZOrder(float InZOrder)
 		ensureMsgf(false, TEXT("The order of the Slot could not be set because it's not added to an existing Widget."));
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /* SConstraintCanvas interface
  *****************************************************************************/
