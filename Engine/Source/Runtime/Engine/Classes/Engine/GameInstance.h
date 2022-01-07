@@ -198,6 +198,7 @@ public:
 	FString PIEMapName;
 #if WITH_EDITOR
 	double PIEStartTime = 0;
+	bool bReportedPIEStartupTime = false;
 #endif
 
 	//~ Begin FExec Interface
@@ -249,6 +250,8 @@ public:
 
 	/** Called as soon as the game mode is spawned, to allow additional PIE setting validation prior to creating the local players / etc... (called on pure clients too, in which case the game mode is nullptr) */
 	virtual FGameInstancePIEResult PostCreateGameModeForPIE(const FGameInstancePIEParameters& Params, AGameModeBase* GameMode);
+
+	void ReportPIEStartupTime();
 #endif
 
 	class UEngine* GetEngine() const;
