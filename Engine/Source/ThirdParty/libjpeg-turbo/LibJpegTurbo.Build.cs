@@ -34,14 +34,13 @@ public class LibJpegTurbo : ModuleRules
 
 			PublicSystemIncludePaths.Add(Path.Combine(IncPath, "Unix", Target.Architecture));
 		}
-
-		// **** NOTE - Only Win64/Linux has been tested - other platforms are usable at your own risk, but have not been tested
-
-/*		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			string LibPath = Path.Combine(ModuleDirectory, "lib/Mac");
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libturbojpeg.dylib"));
+			string LibPathMac = Path.Combine(ModuleDirectory, "lib", Target.Platform.ToString(), "libturbojpeg.a");
+			string IncPathMac = Path.Combine(IncPath,                Target.Platform.ToString());
+
+			PublicAdditionalLibraries.Add(LibPathMac);
+			PublicSystemIncludePaths.Add(IncPathMac);
 		}
-*/
 	}
 }

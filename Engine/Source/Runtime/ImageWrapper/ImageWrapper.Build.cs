@@ -29,8 +29,8 @@ public class ImageWrapper : ModuleRules
 		// Note that currently this module is included at runtime, so consider the increase in exe size before
 		// enabling for any of the console/phone platforms!
 
-		// **** NOTE - Only Win64/Linux has been tested - UnrealTargetPlatform.Mac is available but has not been tested, use at your own risk!
-		if (Target.Platform == UnrealTargetPlatform.Win64 /*|| Target.Platform == UnrealTargetPlatform.Mac*/
+		if (Target.Platform == UnrealTargetPlatform.Win64
+			|| Target.Platform == UnrealTargetPlatform.Mac
 			|| Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			PublicDefinitions.Add("WITH_LIBJPEGTURBO=1");
