@@ -4562,7 +4562,7 @@ void STimingView::CreateDepthLimitMenu(FMenuBuilder& MenuBuilder)
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, FTimingProfilerManager::UnlimitedEventDepth)),
 			LOCTEXT("UnlimitedDepth", "Unlimited"),
-			LOCTEXT("UnlimitedDepth_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have unlimited depth (lanes)."),
+			LOCTEXT("UnlimitedDepth_Desc", "Timing Events tracks (like the CPU Thread tracks) can have unlimited depth (lanes)."),
 			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, FTimingProfilerManager::UnlimitedEventDepth)),
 			EUserInterfaceActionType::RadioButton);
 
@@ -4572,7 +4572,7 @@ void STimingView::CreateDepthLimitMenu(FMenuBuilder& MenuBuilder)
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, (uint32)4)),
 			LOCTEXT("DepthLimit4", "4 Lanes"),
-			LOCTEXT("DepthLimit4_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have maximum 4 lanes."),
+			LOCTEXT("DepthLimit4_Desc", "Timing Events tracks (like the CPU Thread tracks) can have maximum 4 lanes."),
 			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, (uint32)4)),
 			EUserInterfaceActionType::RadioButton);
 
@@ -4582,7 +4582,7 @@ void STimingView::CreateDepthLimitMenu(FMenuBuilder& MenuBuilder)
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, (uint32)1)),
 			LOCTEXT("DepthLimit1", "Single Lane"),
-			LOCTEXT("DepthLimit1_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have a single lane."),
+			LOCTEXT("DepthLimit1_Desc", "Timing Events tracks (like the CPU Thread tracks) can have a single lane."),
 			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, (uint32)1)),
 			EUserInterfaceActionType::RadioButton);
 	}
