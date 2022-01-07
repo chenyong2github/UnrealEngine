@@ -8,7 +8,7 @@ public class Engine : ModuleRules
 	public Engine(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePaths.Add("../Shaders/Shared");
-
+		
 		PrivatePCHHeaderFile = "Private/EnginePrivatePCH.h";
 
 		SharedPCHHeaderFile = "Public/EngineSharedPCH.h";
@@ -19,7 +19,8 @@ public class Engine : ModuleRules
 			new string[] {
 				"Runtime/SynthBenchmark/Public",
 				"Runtime/Engine/Private",
-				"Runtime/Net/Core/Private/Net/Core/PushModel/Types"
+				"Runtime/Net/Core/Private/Net/Core/PushModel/Types",
+				"Developer/Virtualization/Private"
 			}
 		);
 
