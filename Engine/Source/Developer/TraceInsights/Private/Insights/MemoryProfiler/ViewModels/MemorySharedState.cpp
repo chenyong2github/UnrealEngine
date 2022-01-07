@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemorySharedState.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Logging/MessageLog.h"
 #include "TraceServices/AnalysisService.h"
@@ -11,6 +13,7 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
 #include "Insights/MemoryProfiler/ViewModels/MemoryTag.h"
 #include "Insights/MemoryProfiler/ViewModels/MemoryTracker.h"
@@ -28,6 +31,39 @@
 #define LOCTEXT_NAMESPACE "MemorySharedState"
 
 const FName Insights::FQueryTargetWindowSpec::NewWindow = TEXT("New Window");
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FMemoryTimingViewCommands
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FMemoryTimingViewCommands::FMemoryTimingViewCommands()
+	: TCommands<FMemoryTimingViewCommands>(
+		TEXT("MemoryTimingViewCommands"),
+		NSLOCTEXT("Contexts", "MemoryTimingViewCommands", "Insights - Timing View - Memory"),
+		NAME_None,
+		FInsightsStyle::GetStyleSetName())
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FMemoryTimingViewCommands::~FMemoryTimingViewCommands()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// UI_COMMAND takes long for the compiler to optimize
+PRAGMA_DISABLE_OPTIMIZATION
+void FMemoryTimingViewCommands::RegisterCommands()
+{
+	UI_COMMAND(ShowHideAllMemoryTracks,
+		"Memory Tracks",
+		"Shows/hides the Memory tracks.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EModifierKey::Control, EKeys::M));
+}
+PRAGMA_ENABLE_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FMemorySharedState
@@ -346,7 +382,7 @@ void FMemorySharedState::SetTrackHeightMode(EMemoryTrackHeightMode InTrackHeight
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FMemorySharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
+void FMemorySharedState::ExtendOtherTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
 {
 	if (&InSession != TimingView.Get())
 	{
@@ -355,18 +391,25 @@ void FMemorySharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSessio
 
 	InOutMenuBuilder.BeginSection("Memory", LOCTEXT("ContextMenu_Section_Memory", "Memory"));
 	{
-		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("AllMemoryTracks", "Memory Tracks - M"),
-			LOCTEXT("AllMemoryTracks_Tooltip", "Shows or hides the Memory tracks."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FMemorySharedState::ShowHideAllMemoryTracks),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FMemorySharedState::IsAllMemoryTracksToggleOn)),
-			NAME_None, //"QuickFilterSeparator",
-			EUserInterfaceActionType::ToggleButton
-		);
+		InOutMenuBuilder.AddMenuEntry(FMemoryTimingViewCommands::Get().ShowHideAllMemoryTracks);
 	}
 	InOutMenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FMemorySharedState::BindCommands()
+{
+	FMemoryTimingViewCommands::Register();
+
+	TSharedPtr<FUICommandList> CommandList = TimingView->GetCommandList();
+	ensure(CommandList.IsValid());
+
+	CommandList->MapAction(
+		FMemoryTimingViewCommands::Get().ShowHideAllMemoryTracks,
+		FExecuteAction::CreateSP(this, &FMemorySharedState::ShowHideAllMemoryTracks),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FMemorySharedState::IsAllMemoryTracksToggleOn));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

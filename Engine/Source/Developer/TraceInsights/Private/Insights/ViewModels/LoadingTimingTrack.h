@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Commands/Commands.h"
 #include "TraceServices/AnalysisService.h"
 
 // Insights
@@ -11,7 +12,23 @@
 
 class FTimingEventSearchParameters;
 class STimingView;
+
 class FLoadingTimingTrack;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FLoadingTimingViewCommands : public TCommands<FLoadingTimingViewCommands>
+{
+public:
+	FLoadingTimingViewCommands();
+	virtual ~FLoadingTimingViewCommands();
+	virtual void RegisterCommands() override;
+
+public:
+	TSharedPtr<FUICommandInfo> ShowHideAllLoadingTracks;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Defines FLoadingTrackGetEventNameDelegate delegate interface. Returns the name for a timing event in a Loading track. */
 DECLARE_DELEGATE_RetVal_TwoParams(const TCHAR*, FLoadingTrackGetEventNameDelegate, uint32 /*Depth*/, const TraceServices::FLoadTimeProfilerCpuEvent& /*Event*/);
@@ -24,11 +41,17 @@ public:
 	explicit FLoadingSharedState(STimingView* InTimingView) : TimingView(InTimingView) {}
 	virtual ~FLoadingSharedState() = default;
 
-	// ITimingViewExtender
+	//////////////////////////////////////////////////
+	// ITimingViewExtender interface
+
 	virtual void OnBeginSession(Insights::ITimingViewSession& InSession) override;
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
 	virtual void Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) override;
 	virtual void ExtendOtherTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
+
+	//////////////////////////////////////////////////
+
+	void BindCommands();
 
 	const TCHAR* GetEventName(uint32 Depth, const TraceServices::FLoadTimeProfilerCpuEvent& Event) const;
 	void SetColorSchema(int32 Schema);

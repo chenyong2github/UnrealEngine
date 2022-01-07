@@ -36,6 +36,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
@@ -2728,6 +2729,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Enter)
 	{
+		// Enter: Selects the time range of the currently selected timing event.
 		if (SelectedEvent.IsValid())
 		{
 			const double Duration = Viewport.RestrictDuration(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
@@ -2741,60 +2743,13 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		FSlateApplication::Get().QueryCursor();
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::D) // debug: toggles down-sampling on/off
+	else if (InKeyEvent.GetKey() == EKeys::D)
 	{
-		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
+		if (InKeyEvent.GetModifierKeys().IsControlDown() && InKeyEvent.GetModifierKeys().IsShiftDown())
 		{
+			// Ctrl+Shift+D: Toggles down-sampling on/off (for debugging purposes only).
 			FTimingEventsTrack::bUseDownSampling = !FTimingEventsTrack::bUseDownSampling;
 			Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
-			return FReply::Handled();
-		}
-	}
-	else if (InKeyEvent.GetKey() == EKeys::R)
-	{
-		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
-		{
-			FrameSharedState->ShowHideAllFrameTracks();
-			return FReply::Handled();
-		}
-	}
-	else if (InKeyEvent.GetKey() == EKeys::Y)
-	{
-		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
-		{
-			ThreadTimingSharedState->ShowHideAllGpuTracks();
-			return FReply::Handled();
-		}
-	}
-	else if (InKeyEvent.GetKey() == EKeys::U)
-	{
-		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
-		{
-			ThreadTimingSharedState->ShowHideAllCpuTracks();
-			return FReply::Handled();
-		}
-	}
-	else if (InKeyEvent.GetKey() == EKeys::L)
-	{
-		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
-		{
-			LoadingSharedState->ShowHideAllLoadingTracks();
-			return FReply::Handled();
-		}
-	}
-	else if (InKeyEvent.GetKey() == EKeys::I)
-	{
-		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
-		{
-			FileActivitySharedState->ShowHideAllIoTracks();
-			return FReply::Handled();
-		}
-	}
-	else if (InKeyEvent.GetKey() == EKeys::O)
-	{
-		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
-		{
-			FileActivitySharedState->ToggleBackgroundEvents();
 			return FReply::Handled();
 		}
 	}
@@ -2802,6 +2757,7 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	{
 		if (InKeyEvent.GetModifierKeys().IsControlDown())
 		{
+			// Ctrl+A: Selects the entire time range of session.
 			SelectTimeInterval(0, Viewport.GetMaxValidTime());
 			return FReply::Handled();
 		}
@@ -3129,17 +3085,10 @@ void STimingView::BindCommands()
 		FExecuteAction::CreateSP(this, &STimingView::QuickFind_Execute),
 		FCanExecuteAction::CreateSP(this, &STimingView::QuickFind_CanExecute));
 
-	//CommandList->MapAction(
-	//	Commands.ShowAllGpuTracks,
-	//	FExecuteAction::CreateSP(this, &STimingView::ShowHideAllGpuTracks_Execute),
-	//	FCanExecuteAction(), //FCanExecuteAction::CreateLambda([] { return true; }),
-	//	FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllGpuTracks_IsChecked));
-
-	//CommandList->MapAction(
-	//	Commands.ShowAllCpuTracks,
-	//	FExecuteAction::CreateSP(this, &STimingView::ShowHideAllCpuTracks_Execute),
-	//	FCanExecuteAction(), //FCanExecuteAction::CreateLambda([] { return true; }),
-	//	FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllCpuTracks_IsChecked));
+	FrameSharedState->BindCommands();
+	ThreadTimingSharedState->BindCommands();
+	LoadingSharedState->BindCommands();
+	FileActivitySharedState->BindCommands();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4601,77 +4550,41 @@ void STimingView::TogglePanningOnScreenEdges()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void AddMenuEntryRadioButton(
-	FMenuBuilder& InOutMenuBuilder,
-	const FUIAction& InAction,
-	const TAttribute<FText>& InLabel,
-	const TAttribute<FText>& InToolTipText,
-	const TAttribute<FText>& InKeybinding)
-{
-	InOutMenuBuilder.AddMenuEntry(
-		InAction,
-		SNew(SBox)
-		.Padding(FMargin(0.0f))
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(2.0f, 0.0f))
-			.VAlign(VAlign_Center)
-			.FillWidth(1.0f)
-			[
-				SNew(STextBlock)
-				.TextStyle(FAppStyle::Get(), "Menu.Label")
-				.Text(InLabel)
-			]
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(4.0f, 0.0f))
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.TextStyle(FAppStyle::Get(), "Menu.Keybinding")
-				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-				.Text(InKeybinding)
-			]
-		],
-		NAME_None,
-		InToolTipText,
-		EUserInterfaceActionType::RadioButton
-	);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void STimingView::CreateDepthLimitMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("DepthLimit", LOCTEXT("ContextMenu_Section_DepthLimit", "Depth Limit"));
 	{
-		AddMenuEntryRadioButton(MenuBuilder,
+		// Note: We use the custom AddMenuEntry in order to set the same key binding text for multiple menu items.
+
+		FInsightsMenuBuilder::AddMenuEntry(MenuBuilder,
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::SetEventDepthLimit, FTimingProfilerManager::UnlimitedEventDepth),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, FTimingProfilerManager::UnlimitedEventDepth)),
 			LOCTEXT("UnlimitedDepth", "Unlimited"),
 			LOCTEXT("UnlimitedDepth_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have unlimited depth (lanes)."),
-			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, FTimingProfilerManager::UnlimitedEventDepth)));
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, FTimingProfilerManager::UnlimitedEventDepth)),
+			EUserInterfaceActionType::RadioButton);
 
-		AddMenuEntryRadioButton(MenuBuilder,
+		FInsightsMenuBuilder::AddMenuEntry(MenuBuilder,
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::SetEventDepthLimit, (uint32)4),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, (uint32)4)),
 			LOCTEXT("DepthLimit4", "4 Lanes"),
 			LOCTEXT("DepthLimit4_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have maximum 4 lanes."),
-			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, (uint32)4)));
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, (uint32)4)),
+			EUserInterfaceActionType::RadioButton);
 
-		AddMenuEntryRadioButton(MenuBuilder,
+		FInsightsMenuBuilder::AddMenuEntry(MenuBuilder,
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::SetEventDepthLimit, (uint32)1),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, (uint32)1)),
 			LOCTEXT("DepthLimit1", "Single Lane"),
 			LOCTEXT("DepthLimit1_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have a single lane."),
-			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, (uint32)1)));
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &STimingView::GetEventDepthLimitKeybindingText, (uint32)1)),
+			EUserInterfaceActionType::RadioButton);
 	}
 	MenuBuilder.EndSection();
 }

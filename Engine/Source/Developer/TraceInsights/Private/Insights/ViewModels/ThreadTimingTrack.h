@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Commands/Commands.h"
 #include "TraceServices/Model/TimingProfiler.h"
 
 // Insights
@@ -20,6 +21,23 @@ namespace Insights
 {
 	class FFilterConfigurator;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FThreadTimingViewCommands : public TCommands<FThreadTimingViewCommands>
+{
+public:
+	FThreadTimingViewCommands();
+	virtual ~FThreadTimingViewCommands();
+	virtual void RegisterCommands() override;
+
+public:
+	/** Toggles visibility for GPU thread track. */
+	TSharedPtr<FUICommandInfo> ShowHideAllGpuTracks;
+
+	/** Toggles visibility for all CPU thread tracks at once. */
+	TSharedPtr<FUICommandInfo> ShowHideAllCpuTracks;
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -60,6 +78,8 @@ public:
 	virtual void ExtendCpuTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
 
 	//////////////////////////////////////////////////
+
+	void BindCommands();
 
 	bool IsAllGpuTracksToggleOn() const { return bShowHideAllGpuTracks; }
 	void SetAllGpuTracksToggle(bool bOnOff);

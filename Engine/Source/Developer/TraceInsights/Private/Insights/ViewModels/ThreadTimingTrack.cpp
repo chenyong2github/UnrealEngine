@@ -3,6 +3,8 @@
 #include "ThreadTimingTrack.h"
 
 #include "CborReader.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Serialization/MemoryReader.h"
@@ -31,6 +33,46 @@
 
 using namespace Insights;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FThreadTimingViewCommands
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FThreadTimingViewCommands::FThreadTimingViewCommands()
+: TCommands<FThreadTimingViewCommands>(
+	TEXT("ThreadTimingViewCommands"),
+	NSLOCTEXT("Contexts", "ThreadTimingViewCommands", "Insights - Timing View - Threads"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FThreadTimingViewCommands::~FThreadTimingViewCommands()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// UI_COMMAND takes long for the compiler to optimize
+PRAGMA_DISABLE_OPTIMIZATION
+void FThreadTimingViewCommands::RegisterCommands()
+{
+	UI_COMMAND(ShowHideAllGpuTracks,
+		"GPU Track(s)",
+		"Shows/hides the GPU track(s).",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::Y));
+
+	UI_COMMAND(ShowHideAllCpuTracks,
+		"CPU Thread Tracks",
+		"Shows/hides all CPU tracks (and all CPU thread groups).",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::U));
+}
+PRAGMA_ENABLE_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static void AppendMetadataToTooltip(FTooltipDrawState& Tooltip, TArrayView<const uint8>& Metadata)
@@ -546,17 +588,7 @@ void FThreadTimingSharedState::ExtendGpuTracksFilterMenu(Insights::ITimingViewSe
 
 	InOutMenuBuilder.BeginSection("GpuTracks", LOCTEXT("ContextMenu_Section_GpuTracks", "GPU Tracks"));
 	{
-		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
-		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllGpuTracks", "GPU Track(s) - Y"),
-			LOCTEXT("ShowAllGpuTracks_Tooltip", "Show/hide the GPU track(s)."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllGpuTracks),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FThreadTimingSharedState::IsAllGpuTracksToggleOn)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+		InOutMenuBuilder.AddMenuEntry(FThreadTimingViewCommands::Get().ShowHideAllGpuTracks);
 	}
 	InOutMenuBuilder.EndSection();
 }
@@ -572,23 +604,35 @@ void FThreadTimingSharedState::ExtendCpuTracksFilterMenu(Insights::ITimingViewSe
 
 	InOutMenuBuilder.BeginSection("CpuTracks", LOCTEXT("ContextMenu_Section_CpuTracks", "CPU Tracks"));
 	{
-		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
-		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllCpuTracks", "CPU Thread Tracks - U"),
-			LOCTEXT("ShowAllCpuTracks_Tooltip", "Show/hide all CPU tracks (and all CPU thread groups)."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllCpuTracks),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FThreadTimingSharedState::IsAllCpuTracksToggleOn)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+		InOutMenuBuilder.AddMenuEntry(FThreadTimingViewCommands::Get().ShowHideAllCpuTracks);
 	}
 	InOutMenuBuilder.EndSection();
 
 	InOutMenuBuilder.BeginSection("CpuThreadGroups", LOCTEXT("ContextMenu_Section_CpuThreadGroups", "CPU Thread Groups"));
 	CreateThreadGroupsMenu(InOutMenuBuilder);
 	InOutMenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FThreadTimingSharedState::BindCommands()
+{
+	FThreadTimingViewCommands::Register();
+
+	TSharedPtr<FUICommandList> CommandList = TimingView->GetCommandList();
+	ensure(CommandList.IsValid());
+
+	CommandList->MapAction(
+		FThreadTimingViewCommands::Get().ShowHideAllGpuTracks,
+		FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllGpuTracks),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FThreadTimingSharedState::IsAllGpuTracksToggleOn));
+
+	CommandList->MapAction(
+		FThreadTimingViewCommands::Get().ShowHideAllCpuTracks,
+		FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllCpuTracks),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FThreadTimingSharedState::IsAllCpuTracksToggleOn));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
