@@ -11,6 +11,7 @@
 #include "DetailWidgetRow.h"
 #include "EditorStyleSet.h"
 #include "IAssetRegistry.h"
+#include "IPropertyUtilities.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXPortManager.h"
@@ -27,6 +28,8 @@ TSharedRef<IDetailCustomization> FRemoteControlProtocolDMXSettingsDetails::MakeI
 
 void FRemoteControlProtocolDMXSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+	PropertyUtilities = DetailBuilder.GetPropertyUtilities();
+
 	// Customize the InputPortId property view
 	DefaultInputPortIdHandle = DetailBuilder.GetProperty(URemoteControlProtocolDMXSettings::GetDefaultInputPortIdPropertyNameChecked());
 	if (!ensure(DefaultInputPortIdHandle.IsValid()))
@@ -76,10 +79,16 @@ void FRemoteControlProtocolDMXSettingsDetails::CustomizeDetails(IDetailLayoutBui
 
 void FRemoteControlProtocolDMXSettingsDetails::OnPortSelected()
 {
-	FDMXInputPortSharedPtr InputPort = PortSelector->GetSelectedInputPort();
-	FGuid NewPortGuid = InputPort->GetPortGuid();
+	if (FDMXInputPortSharedPtr InputPort = PortSelector->GetSelectedInputPort())
+	{
+		const FGuid NewPortGuid = InputPort->GetPortGuid();
 
-	SetPortGuid(NewPortGuid);
+		SetPortGuid(NewPortGuid);
+	}
+	else
+	{
+		PropertyUtilities->ForceRefresh();
+	}
 }
 
 FGuid FRemoteControlProtocolDMXSettingsDetails::GetPortGuid() const
