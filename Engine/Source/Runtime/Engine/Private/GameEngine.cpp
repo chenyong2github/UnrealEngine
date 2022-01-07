@@ -660,7 +660,7 @@ void UGameEngine::SwitchGameWindowToUseGameViewport()
 		TSharedPtr<SWindow> GameViewportWindowPtr = GameViewportWindow.Pin();
 		
 		GameViewportWindowPtr->SetContent(GameViewportWidgetRef);
-		GameViewportWindowPtr->SlatePrepass();
+		GameViewportWindowPtr->SlatePrepass(FSlateApplication::Get().GetApplicationScale() * GameViewportWindowPtr->GetNativeWindow()->GetDPIScaleFactor());
 		
 		if ( SceneViewport.IsValid() )
 		{
