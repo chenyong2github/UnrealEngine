@@ -803,6 +803,11 @@ public:
 		IndexInList = InIndexInList;
 	}
 
+	virtual int32 GetIndexInList() override
+	{
+		return IndexInList;
+	}
+
 	virtual bool IsItemExpanded() const override
 	{
 		TSharedRef< ITypedTableView<ItemType> > OwnerTable = OwnerTablePtr.Pin().ToSharedRef();

@@ -132,6 +132,16 @@ public:
 		return nullptr;
 	}
 
+	int32 GetIndexInList(const ItemType& Item) const
+	{
+		if (SListView<ItemType>* MyListView = GetMyListView())
+		{
+			TSharedPtr<ITableRow> RowWidget = MyListView->WidgetFromItem(Item);
+			return RowWidget->GetIndexInList();
+		}
+		return INDEX_NONE;
+	}
+
 	int32 GetSelectedItems(TArray<ItemType>& OutSelectedItems) const
 	{
 		SListView<ItemType>* MyListView = GetMyListView();

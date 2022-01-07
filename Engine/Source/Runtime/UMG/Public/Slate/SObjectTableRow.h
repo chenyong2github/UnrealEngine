@@ -164,6 +164,7 @@ public:
 
 	virtual TSharedRef<SWidget> AsWidget() override { return SharedThis(this); }
 	virtual void SetIndexInList(int32 InIndexInList) override { IndexInList = InIndexInList; }
+	virtual int32 GetIndexInList() override { return IndexInList; }
 	virtual TSharedPtr<SWidget> GetContent() override { return ChildSlot.GetChildAt(0); }
 	virtual int32 GetIndentLevel() const override { return OwnerTablePtr.Pin()->Private_GetNestingDepth(IndexInList); }
 	virtual int32 DoesItemHaveChildren() const override { return OwnerTablePtr.Pin()->Private_DoesItemHaveChildren(IndexInList); }
