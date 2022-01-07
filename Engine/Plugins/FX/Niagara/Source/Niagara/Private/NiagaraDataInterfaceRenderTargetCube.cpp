@@ -399,7 +399,7 @@ void UNiagaraDataInterfaceRenderTargetCube::GetParameterDefinitionHLSL(const FNi
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
 	static const TCHAR *FormatDeclarations = TEXT(R"(				
-		RWTexture2DArray<float4> {OutputName};
+		RWTextureCube<float4> {OutputName};
 		TextureCube<float4> {InputName};
 		SamplerState {InputName}SamplerState;
 		int {SizeName};
