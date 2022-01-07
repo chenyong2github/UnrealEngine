@@ -386,12 +386,24 @@ public:
 	/** The max index in MeshToImportVertexMap, ie. the number of imported (raw) verts. */
 	int32						MaxImportVertex;
 
-	/** Editor only data: array of the original point (wedge) indices for each of the vertices in a FSkeletalMeshLODModel */
-	FIntBulkData				RawPointIndices;
-	FWordBulkData				LegacyRawPointIndices;
+	/** Accessor for the RawPointIndice which is editor only data: array of the original point (wedge) indices for each of the vertices in a FSkeletalMeshLODModel */
+	ENGINE_API const TArray<uint32>& GetRawPointIndices() const
+	{
+		return RawPointIndices2;
+	}
 
-	/** Imported raw mesh data. Optional, only the imported mesh LOD has this, generated LOD or old asset will be null. */
-	FRawSkeletalMeshBulkData	RawSkeletalMeshBulkData_DEPRECATED;
+	/** Accessor for the RawPointIndice which is editor only data: array of the original point (wedge) indices for each of the vertices in a FSkeletalMeshLODModel */
+	ENGINE_API TArray<uint32>& GetRawPointIndices()
+	{
+		return RawPointIndices2;
+	}
+	
+	UE_DEPRECATED(5.0, "Please do not access this function anymore. This data is not use anymore.")
+	ENGINE_API FRawSkeletalMeshBulkData& GetRawSkeletalMeshBulkData_DEPRECATED()
+	{
+		return RawSkeletalMeshBulkData_DEPRECATED;
+	}
+
 	/** This ID is use to create the DDC key, it must be set when we save the FRawSkeletalMeshBulkData. */
 	FString						RawSkeletalMeshBulkDataID;
 	bool						bIsBuildDataAvailable;
@@ -435,6 +447,13 @@ public:
 	int32 FindMeshInfoIndex(FName Name) const;
 
 private:
+	/** Editor only data: array of the original point (wedge) indices for each of the vertices in a FSkeletalMeshLODModel */
+	TArray<uint32>				RawPointIndices2;
+
+	FIntBulkData				RawPointIndices_DEPRECATED;
+	FWordBulkData				LegacyRawPointIndices_DEPRECATED;
+	FRawSkeletalMeshBulkData	RawSkeletalMeshBulkData_DEPRECATED;
+
 	//Mutex use by the CopyStructure function. It's a pointer because FCriticalSection privatize the operator= function, which will prevent this class operator= to use the default.
 	//We want to avoid having a custom equal operator that will get deprecated if dev forget to add the new member in this class
 	//The CopyStructure function will copy everything but make sure the destination mutex is set to a new mutex pointer.

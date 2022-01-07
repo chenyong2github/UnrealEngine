@@ -332,14 +332,8 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 		Ar << LODModel->RequiredBones;
 		Ar << LODModel->MeshToImportVertexMap;
 		Ar << LODModel->MaxImportVertex;
-
-		// Unless an async loading query is already in flight, we want to load directly from disk to avoid
-		// accessing the linker which is not thread-safe.
-		if (LODModel->RawPointIndices.IsAsyncLoadingComplete() && !LODModel->RawPointIndices.IsBulkDataLoaded())
-		{
-			LODModel->RawPointIndices.LoadBulkDataWithFileReader();
-		}
-		LODModel->RawPointIndices.Serialize(Ar, Owner);
+		TArray<uint32>& RawPointIndices = LODModel->GetRawPointIndices();
+		Ar << RawPointIndices;
 	};
 
 	{
