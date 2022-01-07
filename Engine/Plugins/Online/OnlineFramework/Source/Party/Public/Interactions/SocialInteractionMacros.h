@@ -21,7 +21,7 @@ public:
 
 	virtual bool IsAvailable(const USocialUser& User) const = 0;
 	virtual void ExecuteInteraction(USocialUser& User) const = 0;
-	virtual void ExecuteInteractionWithContext(USocialUser& User, const FString& AnalyticsContext) const = 0;
+	virtual void ExecuteInteractionWithContext(USocialUser& User, const TMap<FString, FString>& AnalyticsContext) const = 0;
 };
 
 template <typename InteractionT>
@@ -34,7 +34,7 @@ public:
 
 	virtual bool IsAvailable(const USocialUser& User) const override final { return InteractionT::IsAvailable(User); }
 	virtual void ExecuteInteraction(USocialUser& User) const override final { InteractionT::ExecuteInteraction(User); }
-	virtual void ExecuteInteractionWithContext(USocialUser& User, const FString& AnalyticsContext) const override final { InteractionT::ExecuteInteractionWithContext(User, AnalyticsContext); };
+	virtual void ExecuteInteractionWithContext(USocialUser& User, const TMap<FString, FString>& AnalyticsContext) const override final { InteractionT::ExecuteInteractionWithContext(User, AnalyticsContext); };
 
 private:
 	friend InteractionT;
@@ -72,7 +72,7 @@ public:	\
 		return false;	\
 	}	\
 	\
-	static void ExecuteInteractionWithContext(USocialUser& User, const FString& AnalyticsContext)	\
+	static void ExecuteInteractionWithContext(USocialUser& User, const TMap<FString, FString>& AnalyticsContext)	\
 	{	\
 		User.WithContext(AnalyticsContext, [](USocialUser& InUser) {	\
 			ExecuteInteraction(InUser);	\

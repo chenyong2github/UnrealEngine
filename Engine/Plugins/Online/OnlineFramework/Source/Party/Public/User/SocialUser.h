@@ -98,8 +98,8 @@ public:
 	virtual bool RejectFriendInvite(ESocialSubsystem SocialSubsystem) const;
 	virtual bool EndFriendship(ESocialSubsystem SocialSubsystem) const;
 
-	FString GetAnalyticsContext() const { return AnalyticsContext; }
-	void WithContext(const FString& InAnalyticsContext, void(*Func)(USocialUser&));
+	TMap<FString, FString> GetAnalyticsContext() const { return AnalyticsContext; }
+	void WithContext(const TMap<FString, FString>& InAnalyticsContext, void(*Func)(USocialUser&));
 
 	bool ShowPlatformProfile();
 
@@ -189,7 +189,7 @@ protected:
 	virtual void NotifyRequestToJoinReceived(const IOnlinePartyRequestToJoinInfo& Request) {}
 	virtual void NotifyRequestToJoinRemoved(const IOnlinePartyRequestToJoinInfo& Request, EPartyRequestToJoinRemovedReason Reason) {}
 	int32 NumPendingQueries = 0;
-	FString AnalyticsContext;
+	TMap<FString, FString> AnalyticsContext;
 
 	void TryBroadcastInitializationComplete();
 

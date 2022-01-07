@@ -45,7 +45,7 @@ void FSocialInteractionHandle::ExecuteInteraction(USocialUser& User) const
 	}
 }
 
-void FSocialInteractionHandle::ExecuteInteractionWithContext(USocialUser& User, const FString& AnalyticsContext) const
+void FSocialInteractionHandle::ExecuteInteractionWithContext(USocialUser& User, const TMap<FString, FString>& AnalyticsContext) const
 {
 	if (InteractionWrapper)
 	{

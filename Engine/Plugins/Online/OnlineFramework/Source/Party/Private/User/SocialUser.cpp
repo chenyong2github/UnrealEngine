@@ -994,12 +994,12 @@ FString USocialUser::ToDebugString() const
 #endif
 }
 
-void USocialUser::WithContext(const FString& InAnalyticsContext, void(*Func)(USocialUser&))
+void USocialUser::WithContext(const TMap<FString, FString>& InAnalyticsContext, void(*Func)(USocialUser&))
 {
-	const FString PreviousContext = AnalyticsContext;
+	TMap<FString, FString> PreviousContext = MoveTemp(AnalyticsContext);
 	AnalyticsContext = InAnalyticsContext;
 	Func(*this);
-	AnalyticsContext = PreviousContext;
+	AnalyticsContext = MoveTemp(PreviousContext);
 }
 
 bool USocialUser::SendFriendInvite(ESocialSubsystem SubsystemType)
