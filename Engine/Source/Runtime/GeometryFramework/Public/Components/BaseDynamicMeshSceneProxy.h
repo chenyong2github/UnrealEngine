@@ -560,12 +560,12 @@ public:
 	 * Initialize rendering buffers from given attribute overlays.
 	 * Creates three vertices per triangle, IE no shared vertices in buffers.
 	 */
-	template<typename TriangleEnumerable>
+	template<typename TriangleEnumerable, typename UVOverlayListAllocator>
 	void InitializeBuffersFromOverlays(
 		FMeshRenderBufferSet* RenderBuffers,
 		const FDynamicMesh3* Mesh,
 		int NumTriangles, TriangleEnumerable Enumerable,
-		const TArray<const FDynamicMeshUVOverlay*>& UVOverlays,
+		const TArray<const FDynamicMeshUVOverlay*, UVOverlayListAllocator>& UVOverlays,
 		const FDynamicMeshNormalOverlay* NormalOverlay,
 		const FDynamicMeshColorOverlay* ColorOverlay,
 		TFunctionRef<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc,
@@ -832,54 +832,61 @@ public:
 		}
 	}
 
-
-
 	/**
 	 * Update vertex uvs of an existing set of render buffers.
 	 * Assumes that buffers were created with unshared vertices, ie three vertices per triangle, eg by InitializeBuffersFromOverlays()
 	 */
-	template<typename TriangleEnumerable>
+	template<typename TriangleEnumerable, typename UVOverlayListAllocator>
 	void UpdateVertexUVBufferFromOverlays(
 		FMeshRenderBufferSet* RenderBuffers,
 		const FDynamicMesh3* Mesh,
 		int32 NumTriangles, TriangleEnumerable Enumerable,
-		const FDynamicMeshUVOverlay* UVOverlay, int32 UVIndex)
+		const TArray<const FDynamicMeshUVOverlay*, UVOverlayListAllocator>& UVOverlays)
 	{
+		// We align the update to the way we set UV's in InitializeBuffersFromOverlays.
+
 		if (RenderBuffers->TriangleCount == 0)
 		{
 			return;
 		}
 		int NumVertices = NumTriangles * 3;
-		if ( ensure(RenderBuffers->StaticMeshVertexBuffer.GetNumVertices() == NumVertices) == false)
+		if (ensure(RenderBuffers->StaticMeshVertexBuffer.GetNumVertices() == NumVertices) == false)
 		{
 			return;
 		}
 
+		int NumUVOverlays = UVOverlays.Num();
+		int NumTexCoords = RenderBuffers->StaticMeshVertexBuffer.GetNumTexCoords();
+		if (!ensure(NumUVOverlays <= NumTexCoords))
+		{
+			return;
+		}
+
+		// Temporarily stores the UV element indices for all UV channels of a single triangle
+		TArray<FIndex3i, TFixedAllocator<MAX_STATIC_TEXCOORDS>> UVTriangles;
+		UVTriangles.SetNum(NumTexCoords);
+
 		int VertIdx = 0;
 		for (int TriangleID : Enumerable)
 		{
-			if (UVOverlay->IsSetTriangle(TriangleID))
+			for (int32 k = 0; k < NumTexCoords; ++k)
 			{
-				FIndex3i UVTri = UVOverlay->GetTriangle(TriangleID);
-				for (int j = 0; j < 3; ++j)
-				{
-					FVector2f UV = UVOverlay->GetElement(UVTri[j]);
-					RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, UVIndex, (FVector2D)UV);
-					++VertIdx;
-				}
+				UVTriangles[k] = (k < NumUVOverlays && UVOverlays[k] != nullptr) ? UVOverlays[k]->GetTriangle(TriangleID) : FIndex3i::Invalid();
 			}
-			else
+
+			for (int j = 0; j < 3; ++j)
 			{
-				for (int j = 0; j < 3; ++j)
+				for (int32 k = 0; k < NumTexCoords; ++k)
 				{
-					RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, UVIndex, FVector2f::Zero());
-					++VertIdx;
+					FVector2f UV = (UVTriangles[k][j] != FDynamicMesh3::InvalidID) ?
+						UVOverlays[k]->GetElement(UVTriangles[k][j]) : FVector2f::Zero();
+					RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, k, (FVector2D)UV);
 				}
+
+				++VertIdx;
 			}
 		}
 	}
-
-
 
 
 	/**

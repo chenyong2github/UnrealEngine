@@ -180,7 +180,7 @@ public:
 		const FDynamicMesh3* Mesh = ParentComponent->GetRenderMesh();
 
 		// find suitable overlays
-		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
+		TArray<const FDynamicMeshUVOverlay*, TInlineAllocator<8>> UVOverlays;
 		const FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
 		const FDynamicMeshColorOverlay* ColorOverlay = nullptr;
 		if (Mesh->HasAttributes())
@@ -227,7 +227,7 @@ public:
 		const FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 		const FDynamicMeshColorOverlay* ColorOverlay = Mesh->Attributes()->PrimaryColors();
 
-		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
+		TArray<const FDynamicMeshUVOverlay*, TInlineAllocator<8>> UVOverlays;
 		UVOverlays.SetNum(Attributes->NumUVLayers());
 		for (int32 k = 0; k < UVOverlays.Num(); ++k)
 		{
@@ -385,10 +385,15 @@ public:
 		{
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 		}
-		FDynamicMeshUVOverlay* UVOVerlay = nullptr;
+		TArray<const FDynamicMeshUVOverlay*, TInlineAllocator<8>> UVOverlays;
 		if (bUVs && ensure(Mesh->HasAttributes()) )
 		{
-			UVOVerlay = Mesh->Attributes()->PrimaryUV();
+			const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
+			UVOverlays.SetNum(Attributes->NumUVLayers());
+			for (int32 i = 0; i < UVOverlays.Num(); ++i)
+			{
+				UVOverlays[i] = Attributes->GetUVLayer(i);
+			}
 		}
 		FDynamicMeshColorOverlay* ColorOverlay = nullptr;
 		if (bColors && ensure(Mesh->HasAttributes()) )
@@ -414,7 +419,7 @@ public:
 				if (bUVs)
 				{
 					UpdateVertexUVBufferFromOverlays(Buffers, Mesh,
-						Mesh->TriangleCount(), Mesh->TriangleIndicesItr(), UVOVerlay, 0);
+						Mesh->TriangleCount(), Mesh->TriangleIndicesItr(), UVOverlays);
 				}
 
 
@@ -446,7 +451,7 @@ public:
 					if (bUVs)
 					{
 						UpdateVertexUVBufferFromOverlays(Buffers, Mesh,
-							Buffers->Triangles->Num(), Buffers->Triangles.GetValue(), UVOVerlay, 0);
+							Buffers->Triangles->Num(), Buffers->Triangles.GetValue(), UVOverlays);
 					}
 
 					ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyFastUpdateVertices)(
@@ -485,10 +490,15 @@ public:
 		{
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 		}
-		const FDynamicMeshUVOverlay* UVOVerlay = nullptr;
+		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
 		if (bUVs && ensure(Mesh->HasAttributes()))
 		{
-			UVOVerlay = Mesh->Attributes()->PrimaryUV();
+			const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
+			UVOverlays.SetNum(Attributes->NumUVLayers());
+			for (int32 i = 0; i < UVOverlays.Num(); ++i)
+			{
+				UVOverlays[i] = Attributes->GetUVLayer(i);
+			}
 		}
 		const FDynamicMeshColorOverlay* ColorOverlay = nullptr;
 		if (bColors && ensure(Mesh->HasAttributes()))
@@ -519,7 +529,7 @@ public:
 				if (bUVs)
 				{
 					UpdateVertexUVBufferFromOverlays(Buffers, Mesh,
-						Buffers->Triangles->Num(), Buffers->Triangles.GetValue(), UVOVerlay, 0);
+						Buffers->Triangles->Num(), Buffers->Triangles.GetValue(), UVOverlays);
 				}
 
 				ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyFastUpdateVerticesBufferList)(
