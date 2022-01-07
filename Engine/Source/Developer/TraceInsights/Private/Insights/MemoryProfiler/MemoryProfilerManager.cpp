@@ -60,6 +60,7 @@ FMemoryProfilerManager::FMemoryProfilerManager(TSharedRef<FUICommandList> InComm
 	, bIsTimingViewVisible(false)
 	, bIsMemInvestigationViewVisible(false)
 	, bIsMemTagTreeViewVisible(false)
+	, bIsModulesViewVisible(false)
 	, LogListingName(TEXT("MemoryInsights"))
 {
 }
@@ -134,6 +135,7 @@ void FMemoryProfilerManager::BindCommands()
 	ActionManager.Map_ToggleTimingViewVisibility_Global();
 	ActionManager.Map_ToggleMemInvestigationViewVisibility_Global();
 	ActionManager.Map_ToggleMemTagTreeViewVisibility_Global();
+	ActionManager.Map_ToggleModulesViewVisibility_Global();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -365,6 +367,19 @@ void FMemoryProfilerManager::ShowHideMemTagTreeView(const bool bIsVisible)
 	if (Wnd.IsValid())
 	{
 		Wnd->ShowHideTab(FMemoryProfilerTabs::MemTagTreeViewID, bIsVisible);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FMemoryProfilerManager::ShowHideModulesView(const bool bIsVisible)
+{
+	bIsModulesViewVisible = bIsVisible;
+
+	TSharedPtr<SMemoryProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->ShowHideTab(FMemoryProfilerTabs::ModulesViewID, bIsVisible);
 	}
 }
 

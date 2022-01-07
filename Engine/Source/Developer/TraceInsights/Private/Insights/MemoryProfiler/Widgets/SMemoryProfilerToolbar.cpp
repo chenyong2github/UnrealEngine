@@ -46,6 +46,9 @@ void SMemoryProfilerToolbar::Construct(const FArguments& InArgs)
 				ToolbarBuilder.AddToolBarButton(FMemoryProfilerCommands::Get().ToggleMemTagTreeViewVisibility,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
 					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemTagTreeView.ToolBar"));
+				ToolbarBuilder.AddToolBarButton(FMemoryProfilerCommands::Get().ToggleModulesViewVisibility,
+					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ModulesView.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
 		}

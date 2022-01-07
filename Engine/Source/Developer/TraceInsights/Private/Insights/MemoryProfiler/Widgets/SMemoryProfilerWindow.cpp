@@ -49,7 +49,7 @@ const FName FMemoryProfilerTabs::TimingViewID(TEXT("TimingView"));
 const FName FMemoryProfilerTabs::MemInvestigationViewID(TEXT("MemInvestigation"));
 const FName FMemoryProfilerTabs::MemTagTreeViewID(TEXT("LowLevelMemTags"));
 const FName FMemoryProfilerTabs::MemAllocTableTreeViewID(TEXT("MemAllocTableTreeView"));
-const FName FMemoryProfilerTabs::MemModulesViewID(TEXT("MemModules"));
+const FName FMemoryProfilerTabs::ModulesViewID(TEXT("Modules"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -467,18 +467,18 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemModulesView(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_ModulesView(const FSpawnTabArgs& Args)
 {
-	FMemoryProfilerManager::Get()->SetMemModuleViewVisible(true);
+	FMemoryProfilerManager::Get()->SetModulesViewVisible(true);
 
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.ShouldAutosize(false)
 		.TabRole(ETabRole::PanelTab)
 		[
-			SAssignNew(MemModulesView, Insights::SModulesView)
+			SAssignNew(ModulesView, Insights::SModulesView)
 		];
 
-	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemModulesViewClosed));
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnModulesViewClosed));
 
 	return DockTab;
 }
@@ -486,10 +486,10 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SMemoryProfilerWindow::OnMemModulesViewClosed(TSharedRef<SDockTab> TabBeingClosed)
+void SMemoryProfilerWindow::OnModulesViewClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
-	FMemoryProfilerManager::Get()->SetMemModuleViewVisible(false);
-	MemModulesView = nullptr;
+	FMemoryProfilerManager::Get()->SetModulesViewVisible(false);
+	ModulesView = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -522,9 +522,9 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemTagTreeView"))
 		.SetGroup(AppMenuGroup.ToSharedRef());
 
-	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::MemModulesViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemModulesView))
-		.SetDisplayName(LOCTEXT("MemModulesViewTabTitle", "Modules"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemTagTreeView")) //todo: Update icon
+	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::ModulesViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_ModulesView))
+		.SetDisplayName(LOCTEXT("ModulesViewTabTitle", "Modules"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ModulesView"))
 		.SetGroup(AppMenuGroup.ToSharedRef());
 
 	TSharedPtr<FMemoryProfilerManager> MemoryProfilerManager = FMemoryProfilerManager::Get();
@@ -549,7 +549,7 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 				->SetSizeCoefficient(0.23f)
 				->AddTab(FMemoryProfilerTabs::MemInvestigationViewID, ETabState::OpenedTab)
 				->AddTab(FMemoryProfilerTabs::MemTagTreeViewID, ETabState::OpenedTab)
-				->AddTab(FMemoryProfilerTabs::MemModulesViewID, ETabState::OpenedTab)
+				->AddTab(FMemoryProfilerTabs::ModulesViewID, ETabState::OpenedTab)
 				->SetForegroundTab(FMemoryProfilerTabs::MemInvestigationViewID)
 			)
 		);

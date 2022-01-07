@@ -100,10 +100,10 @@ public:
 	void SetMemTagTreeViewVisible(const bool bIsVisible) { bIsMemTagTreeViewVisible = bIsVisible; }
 	void ShowHideMemTagTreeView(const bool bIsVisible);
 
-	const bool IsMemModuleViewVisible() const { return bIsMemModuleViewVisible; }
-	void SetMemModuleViewVisible(const bool bIsVisible) { bIsMemModuleViewVisible = bIsVisible; }
-	void ShowHideMemModuleView(const bool bIsVisible);
-	
+	const bool IsModulesViewVisible() const { return bIsModulesViewVisible; }
+	void SetModulesViewVisible(const bool bIsVisible) { bIsModulesViewVisible = bIsVisible; }
+	void ShowHideModulesView(const bool bIsVisible);
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	const FName& GetLogListingName() const { return LogListingName; }
@@ -154,8 +154,8 @@ private:
 	/** If the LLM Tags tree view is visible or hidden. */
 	bool bIsMemTagTreeViewVisible;
 
-	/** If the modules view is visible or hidden. */
-	bool bIsMemModuleViewVisible;
+	/** If the Modules view is visible or hidden. */
+	bool bIsModulesViewVisible;
 
 	/** The name of the Memory Insights log listing. */
 	FName LogListingName;
