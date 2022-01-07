@@ -41,7 +41,7 @@ public:
 	FText GetAddressRangeText() const
 	{
 		TStringBuilder<64> Sb;
-		Sb.Appendf(TEXT("0x%016x - 0x%016x"), Module->Base, Module->Base + Module->Size);
+		Sb.Appendf(TEXT("0x%016llX - 0x%016llX"), Module->Base, Module->Base + Module->Size);
 		return FText::FromStringView(Sb.ToView());
 	}
 	
