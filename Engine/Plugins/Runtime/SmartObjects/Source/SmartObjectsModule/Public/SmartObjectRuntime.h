@@ -149,9 +149,6 @@ private:
 	const FSmartObjectOctreeIDSharedRef& GetSharedOctreeID() const { return SharedOctreeID; }
 	void SetOctreeID(const FSmartObjectOctreeIDSharedRef Value) { SharedOctreeID = Value; }
 
-	const FBoxCenterAndExtent& GetBounds() const { return Bounds; }
-	void SetBounds(const FBox& Value) { Bounds = Value; }
-
 	FString Describe() const { return FString::Printf(TEXT("Instance using defintion \'%s\' Reg: %s"), *GetDefinition().Describe(), *LexToString(SharedOctreeID->ID.IsValidId())); }
 
 	/**
@@ -193,9 +190,6 @@ private:
 
 	/** Instance specific transform */
 	FTransform Transform;
-
-	/** Instance specific bounds */
-	FBoxCenterAndExtent Bounds;
 
 	/** Tags applied to the current instance */
 	FGameplayTagContainer Tags;
