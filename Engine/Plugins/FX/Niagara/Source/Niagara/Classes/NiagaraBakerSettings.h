@@ -36,10 +36,6 @@ USTRUCT()
 struct FNiagaraBakerTextureSettings
 {
 	GENERATED_BODY()
-
-	/** Optional output name, if left empty a name will be auto generated using the index of the texture/ */
-	UPROPERTY(EditAnywhere, Category = "Texture")
-	FName OutputName;
 	
 	/** Source visualization we should capture, i.e. Scene Color, World Normal, etc */
 	UPROPERTY(EditAnywhere, Category = "Texture")

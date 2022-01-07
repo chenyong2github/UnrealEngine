@@ -8,7 +8,6 @@
 bool FNiagaraBakerTextureSettings::Equals(const FNiagaraBakerTextureSettings& Other) const
 {
 	return
-		OutputName == Other.OutputName &&
 		SourceBinding.SourceName == Other.SourceBinding.SourceName &&
 		bUseFrameSize == Other.bUseFrameSize &&
 		FrameSize == Other.FrameSize &&

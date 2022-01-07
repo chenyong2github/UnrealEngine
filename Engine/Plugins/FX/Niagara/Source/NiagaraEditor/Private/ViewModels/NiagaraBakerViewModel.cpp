@@ -22,6 +22,8 @@
 #include "PackageTools.h"
 #include "AdvancedPreviewScene.h"
 
+#include "Factories/Texture2dFactoryNew.h"
+
 #define LOCTEXT_NAMESPACE "NiagaraBakerViewModel"
 
 FNiagaraBakerViewModel::FNiagaraBakerViewModel()
@@ -229,30 +231,31 @@ void FNiagaraBakerViewModel::RenderBaker()
 		}
 	}
 
+	// Remove existing generated settings to avoid holding references to textures
+	if (UNiagaraSystem* Asset = PreviewComponent->GetAsset())
+	{
+		Asset->SetBakerGeneratedSettings(nullptr);
+	}
+
 	// Send data to generated textures
 	for (int32 iOutputTexture = 0; iOutputTexture < BakerSettings->OutputTextures.Num(); ++iOutputTexture)
 	{
 		FNiagaraBakerTextureSettings& OutputTexture = BakerSettings->OutputTextures[iOutputTexture];
 
-		// If we don't have a texture create one
+		// If we don't already have a generated texture ask the user to create one
 		if (OutputTexture.GeneratedTexture == nullptr)
 		{
-			FString PackagePath = FPaths::GetPath(PreviewComponent->GetAsset()->GetPackage()->GetPathName());
-			if (OutputTexture.OutputName.IsNone())
-			{
-				PackagePath = PackagePath / PreviewComponent->GetAsset()->GetName() + TEXT("_Baker") + FString::FromInt(iOutputTexture);
-			}
-			else
-			{
-				PackagePath = PackagePath / PreviewComponent->GetAsset()->GetName() + OutputTexture.OutputName.ToString();
-			}
-
 			IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-			FString PackageName;
-			FString AssetName;
-			AssetTools.CreateUniqueAssetName(UPackageTools::SanitizePackageName(PackagePath), TEXT(""), PackageName, AssetName);
+			UTexture2DFactoryNew* Texture2DFactory = NewObject<UTexture2DFactoryNew>();
 
-			OutputTexture.GeneratedTexture = NewObject<UTexture2D>(CreatePackage(*PackagePath), FName(*AssetName), RF_Standalone | RF_Public);
+			FString PackagePath = FPaths::GetPath(PreviewComponent->GetAsset()->GetPackage()->GetPathName());
+			FString AssetName = PreviewComponent->GetAsset()->GetName() + TEXT("_Baker") + FString::FromInt(iOutputTexture) + TEXT("Texture");
+			OutputTexture.GeneratedTexture = Cast<UTexture2D>(AssetTools.CreateAssetWithDialog(AssetName, PackagePath, UTexture2D::StaticClass(), Texture2DFactory));
+			if (OutputTexture.GeneratedTexture == nullptr)
+			{
+				// User skipped for some reason
+				continue;
+			}
 		}
 
 		const bool bIsPoT = FMath::IsPowerOfTwo(OutputTexture.TextureSize.X) && FMath::IsPowerOfTwo(OutputTexture.TextureSize.Y);

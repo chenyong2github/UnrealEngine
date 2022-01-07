@@ -256,18 +256,15 @@ TSharedRef<SWidget> SNiagaraBakerViewportToolbar::GenerateOptionsMenu() const
 		const UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings();
 		for ( int32 i=0; i < BakerSettings->OutputTextures.Num(); ++i )
 		{
-			FString TextureName;
-			if ( BakerSettings->OutputTextures[i].OutputName.IsNone() )
+			TStringBuilder<128> TextureName;
+			TextureName.Appendf(TEXT("Texture(%d)"), i);
+			if (UTexture2D* GeneratedTexture = BakerSettings->OutputTextures[i].GeneratedTexture)
 			{
-				TextureName = FString::Printf(TEXT("Output Texture %d"), i);
+				TextureName.Appendf(TEXT(" - %s"), *BakerSettings->OutputTextures[i].GeneratedTexture->GetName());
 			}
-			else
-			{
-				TextureName = BakerSettings->OutputTextures[i].OutputName.ToString();
-			}
-
+			
 			MenuBuilder.AddMenuEntry(
-				FText::FromString(TextureName),
+				FText::FromStringView(TextureName.ToView()),
 				FText(),
 				FSlateIcon(),
 				FUIAction(
