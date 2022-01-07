@@ -75,9 +75,6 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Add support for actor folder objects
 		AddLevelActorFolders,
 
-		// Remove FSkeletalMeshLODModel bulk datas
-		RemoveSkeletalMeshLODModelBulkDatas,
-		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

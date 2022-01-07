@@ -749,9 +749,8 @@ void FMeshUtilities::BuildSkeletalModelFromChunks(FSkeletalMeshLODModel& LODMode
 	// Keep track of index mapping to chunk vertex offsets
 	TArray< TArray<uint32> > VertexIndexRemap;
 	VertexIndexRemap.Empty(LODModel.Sections.Num());
-	TArray<uint32>& RawPointIndices = LODModel.GetRawPointIndices();
-	RawPointIndices.Reset();
 	// Pack the chunk vertices into a single vertex buffer.
+	TArray<uint32> RawPointIndices;
 	LODModel.NumVertices = 0;
 
 	int32 PrevMaterialIndex = -1;
@@ -881,6 +880,16 @@ void FMeshUtilities::BuildSkeletalModelFromChunks(FSkeletalMeshLODModel& LODMode
 			Section.GetNumVertices(),
 			Section.BoneMap.Num()
 			);
+	}
+
+	// Copy raw point indices to LOD model.
+	LODModel.RawPointIndices.RemoveBulkData();
+	if (RawPointIndices.Num())
+	{
+		LODModel.RawPointIndices.Lock(LOCK_READ_WRITE);
+		void* Dest = LODModel.RawPointIndices.Realloc(RawPointIndices.Num());
+		FMemory::Memcpy(Dest, RawPointIndices.GetData(), LODModel.RawPointIndices.GetBulkDataSize());
+		LODModel.RawPointIndices.Unlock();
 	}
 
 	// Finish building the sections.
