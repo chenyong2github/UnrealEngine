@@ -1516,7 +1516,7 @@ void UGameplayStatics::SetGlobalListenerFocusParameters(const UObject* WorldCont
 	}
 }
 
-void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier, float PitchMultiplier, float StartTime, USoundConcurrency* ConcurrencySettings, AActor* OwningActor, bool bIsUISound)
+void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier, float PitchMultiplier, float StartTime, USoundConcurrency* ConcurrencySettings, const AActor* OwningActor, bool bIsUISound)
 {
 	if (!Sound || !GEngine || !GEngine->UseSound())
 	{
@@ -1551,10 +1551,14 @@ void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase
 		NewActiveSound.Priority = Sound->Priority;
 		NewActiveSound.SubtitlePriority = Sound->GetSubtitlePriority();
 
-		NewActiveSound.SetOwner(OwningActor);
+		// If OwningActor isn't supplied to this function, derive an owner from the WorldContextObject
+		const AActor* WorldContextOwner = Cast<const AActor>(WorldContextObject);
+		const AActor* ActiveSoundOwner = OwningActor ? OwningActor : WorldContextOwner;
+
+		NewActiveSound.SetOwner(ActiveSoundOwner);
 
 		TArray<FAudioParameter> Params;
-		UActorSoundParameterInterface::Fill(OwningActor, Params);
+		UActorSoundParameterInterface::Fill(ActiveSoundOwner, Params);
 
 		AudioDevice->AddNewActiveSound(NewActiveSound, &Params);
 	}
@@ -1573,9 +1577,13 @@ UAudioComponent* UGameplayStatics::CreateSound2D(const UObject* WorldContextObje
 		return nullptr;
 	}
 
+	// Derive an owner from the WorldContextObject
+	UObject* MutableWorldContext = const_cast<UObject*>(WorldContextObject);
+	AActor* WorldContextOwner = Cast<AActor>(MutableWorldContext);
+
 	FAudioDevice::FCreateComponentParams Params = bPersistAcrossLevelTransition
 		? FAudioDevice::FCreateComponentParams(ThisWorld->GetAudioDeviceRaw())
-		: FAudioDevice::FCreateComponentParams(ThisWorld);
+		: FAudioDevice::FCreateComponentParams(ThisWorld, WorldContextOwner);
 
 	if (ConcurrencySettings)
 	{
@@ -1585,12 +1593,6 @@ UAudioComponent* UGameplayStatics::CreateSound2D(const UObject* WorldContextObje
 	UAudioComponent* AudioComponent = FAudioDevice::CreateComponent(Sound, Params);
 	if (AudioComponent)
 	{
-		TArray<FAudioParameter> ActorParams;
-		const AActor* ActorFromContext = Cast<AActor>(WorldContextObject);
-
-		UActorSoundParameterInterface::Fill(ActorFromContext, ActorParams);
-
-		AudioComponent->SetParameters(MoveTemp(ActorParams));
 		AudioComponent->SetVolumeMultiplier(VolumeMultiplier);
 		AudioComponent->SetPitchMultiplier(PitchMultiplier);
 		AudioComponent->bAllowSpatialization = false;
@@ -1598,6 +1600,7 @@ UAudioComponent* UGameplayStatics::CreateSound2D(const UObject* WorldContextObje
 		AudioComponent->bAutoDestroy = bAutoDestroy;
 		AudioComponent->bIgnoreForFlushing = bPersistAcrossLevelTransition;
 		AudioComponent->SubtitlePriority = Sound->GetSubtitlePriority();
+		AudioComponent->bStopWhenOwnerDestroyed = false;
 	}
 	return AudioComponent;
 }
@@ -1612,7 +1615,7 @@ UAudioComponent* UGameplayStatics::SpawnSound2D(const UObject* WorldContextObjec
 	return AudioComponent;
 }
 
-void UGameplayStatics::PlaySoundAtLocation(const UObject* WorldContextObject, class USoundBase* Sound, FVector Location, FRotator Rotation, float VolumeMultiplier, float PitchMultiplier, float StartTime, class USoundAttenuation* AttenuationSettings, class USoundConcurrency* ConcurrencySettings, AActor* OwningActor, UInitialActiveSoundParams* InitialParams)
+void UGameplayStatics::PlaySoundAtLocation(const UObject* WorldContextObject, class USoundBase* Sound, FVector Location, FRotator Rotation, float VolumeMultiplier, float PitchMultiplier, float StartTime, class USoundAttenuation* AttenuationSettings, class USoundConcurrency* ConcurrencySettings, const AActor* OwningActor, UInitialActiveSoundParams* InitialParams)
 {
 	if (!Sound || !GEngine || !GEngine->UseSound())
 	{
@@ -1633,9 +1636,13 @@ void UGameplayStatics::PlaySoundAtLocation(const UObject* WorldContextObject, cl
 			Params.Append(MoveTemp(InitialParams->AudioParams));
 		}
 
-		UActorSoundParameterInterface::Fill(OwningActor, Params);
+		// If OwningActor isn't supplied to this function, derive an owner from the WorldContextObject
+		const AActor* WorldContextOwner = Cast<const AActor>(WorldContextObject);
+		const AActor* ActiveSoundOwner = OwningActor ? OwningActor : WorldContextOwner;
 
-		AudioDevice->PlaySoundAtLocation(Sound, ThisWorld, VolumeMultiplier, PitchMultiplier, StartTime, Location, Rotation, AttenuationSettings, ConcurrencySettings, &Params, OwningActor);
+		UActorSoundParameterInterface::Fill(ActiveSoundOwner, Params);
+
+		AudioDevice->PlaySoundAtLocation(Sound, ThisWorld, VolumeMultiplier, PitchMultiplier, StartTime, Location, Rotation, AttenuationSettings, ConcurrencySettings, &Params, ActiveSoundOwner);
 	}
 }
 
@@ -1654,7 +1661,11 @@ UAudioComponent* UGameplayStatics::SpawnSoundAtLocation(const UObject* WorldCont
 
 	const bool bIsInGameWorld = ThisWorld->IsGameWorld();
 
-	FAudioDevice::FCreateComponentParams Params(ThisWorld);
+	// Derive an owner from the WorldContextObject
+	UObject* MutableWorldContext = const_cast<UObject*>(WorldContextObject);
+	AActor* WorldContextOwner = Cast<AActor>(MutableWorldContext);
+
+	FAudioDevice::FCreateComponentParams Params(ThisWorld, WorldContextOwner);
 	Params.SetLocation(Location);
 	Params.AttenuationSettings = AttenuationSettings;
 	
@@ -1667,11 +1678,6 @@ UAudioComponent* UGameplayStatics::SpawnSoundAtLocation(const UObject* WorldCont
 
 	if (AudioComponent)
 	{
-		TArray<FAudioParameter> ActorParams;
-		const AActor* ActorFromContext = Cast<AActor>(WorldContextObject);
-		UActorSoundParameterInterface::Fill(ActorFromContext, ActorParams);
-
-		AudioComponent->SetParameters(MoveTemp(ActorParams));
 		AudioComponent->SetWorldLocationAndRotation(Location, Rotation);
 		AudioComponent->SetVolumeMultiplier(VolumeMultiplier);
 		AudioComponent->SetPitchMultiplier(PitchMultiplier);
@@ -1679,6 +1685,7 @@ UAudioComponent* UGameplayStatics::SpawnSoundAtLocation(const UObject* WorldCont
 		AudioComponent->bIsUISound				= !bIsInGameWorld;
 		AudioComponent->bAutoDestroy			= bAutoDestroy;
 		AudioComponent->SubtitlePriority		= Sound->GetSubtitlePriority();
+		AudioComponent->bStopWhenOwnerDestroyed = false;
 		AudioComponent->Play(StartTime);
 	}
 
@@ -1758,10 +1765,6 @@ UAudioComponent* UGameplayStatics::SpawnSoundAttached(USoundBase* Sound, USceneC
 				}
 			}
 
-			TArray<FAudioParameter> ActorParams;
-			UActorSoundParameterInterface::Fill(AttachToComponent->GetOwner(), ActorParams);
-
-			AudioComponent->SetParameters(MoveTemp(ActorParams));
 			AudioComponent->SetVolumeMultiplier(VolumeMultiplier);
 			AudioComponent->SetPitchMultiplier(PitchMultiplier);
 			AudioComponent->bAllowSpatialization = Params.ShouldUseAttenuation();
