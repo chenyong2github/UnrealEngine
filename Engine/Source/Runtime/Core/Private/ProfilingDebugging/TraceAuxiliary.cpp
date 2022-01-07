@@ -88,6 +88,7 @@ public:
 	void					ResumeChannels();
 	void					PauseChannels();
 	void					EnableCommandlineChannels();
+	void					EnableCommandlineChannelsPostInitialize();
 	void					SetTruncateFile(bool bTruncateFile);
 	void					UpdateCsvStats() const;
 	void					StartWorkerThread();
@@ -364,6 +365,16 @@ void FTraceAuxiliaryImpl::EnableCommandlineChannels()
 		{
 			ChannelPair.Value.bActive = EnableChannel(*ChannelPair.Value.Name);
 		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliaryImpl::EnableCommandlineChannelsPostInitialize()
+{
+	for (auto& ChannelPair : CommandlineChannels)
+	{
+		// Intentionally enable channel without checking current state.
+		ChannelPair.Value.bActive = EnableChannel(*ChannelPair.Value.Name);
 	}
 }
 
@@ -1021,34 +1032,9 @@ static bool StartFromCommandlineArguments(const TCHAR* CommandLine)
 	}
 	
 	// Finally start tracing to the requested connection
-	return FTraceAuxiliary::Start(Type, Target, nullptr, &Opts);
+	return FTraceAuxiliary::Start(Type, Target, *Channels, &Opts);
 #endif
 	return false;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static void SetupChannelsFromCommandline(const TCHAR* CommandLine)
-{
-#if UE_TRACE_ENABLED
-	// Get active channels
-	FString Channels;
-	if (FParse::Value(CommandLine, TEXT("-trace="), Channels, false))
-	{
-	}
-	else if (FParse::Param(CommandLine, TEXT("trace")))
-	{
-		Channels = TEXT("default");
-	}
-	else
-	{
-		return;
-	}
-	
-	GTraceAuxiliary.AddChannels(*Channels);
-	GTraceAuxiliary.EnableChannels();
-	
-	UE_LOG(LogCore, Display, TEXT("Trace channels: %s"), *Channels);
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1225,9 +1211,10 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	});
 	
 	UE::Trace::ThreadRegister(TEXT("GameThread"), FPlatformTLS::GetCurrentThreadId(), -1);
-
-	SetupChannelsFromCommandline(CommandLine);
-
+	
+	// Workaround for the fact that even if StartFromCommandlineArguments will enable channels
+	// specified by the commandline, UE::Trace::Initialize will reset all channels.
+	GTraceAuxiliary.EnableCommandlineChannelsPostInitialize();
 #endif
 }
 
