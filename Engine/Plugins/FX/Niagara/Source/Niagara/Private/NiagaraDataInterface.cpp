@@ -34,6 +34,15 @@ UNiagaraDataInterface::~UNiagaraDataInterface()
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterface::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
+	//-TODO: Currently applied to all, but we only need to hash this in for the iteration source
+	const UNiagaraDataInterface* BaseDataInterface = GetDefault<UNiagaraDataInterface>();
+	if (BaseDataInterface->GetGpuDispatchType() != GetGpuDispatchType())
+	{
+		const FString DataInterfaceName = GetClass()->GetName();
+		InVisitor->UpdatePOD(*FString::Printf(TEXT("%s_GpuDispatchType"), *DataInterfaceName), (int32)GetGpuDispatchType());
+		InVisitor->UpdatePOD(*FString::Printf(TEXT("%s_GpuDispatchNumThreads"), *DataInterfaceName), *FString::Printf(TEXT("%dx%dx%d"), GetGpuDispatchNumThreads().X, GetGpuDispatchNumThreads().Y, GetGpuDispatchNumThreads().Z));
+	}
+
 	return true;
 }
 #endif

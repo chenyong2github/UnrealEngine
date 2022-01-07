@@ -13,6 +13,7 @@
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "NiagaraCommon.h"
+#include "NiagaraScriptBase.h"
 #include "NiagaraShared.h"
 #include "NiagaraShaderType.h"
 #include "SceneRenderTargetParameters.h"
@@ -35,17 +36,22 @@ public:
 	{
 	}
 
-	static uint32 GetGroupSize(EShaderPlatform Platform)
+	static FIntVector GetDefaultThreadGroupSize(ENiagaraGpuDispatchType DispatchType)
 	{
-		const bool bUseWaveIntrinsics = false; // TODO: Some content breaks with this - FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsIntrinsicWaveOnce;
-		return 64; // TODO: Force 64 until we fix the intrinsics // bUseWaveIntrinsics ? 64 : 32;
+		//-TODO: Grab this from FDataDrivenShaderPlatformInfo
+		switch (DispatchType)
+		{
+			case ENiagaraGpuDispatchType::OneD:		return FIntVector(64, 1, 1);
+			case ENiagaraGpuDispatchType::TwoD:		return FIntVector(8, 8, 1);
+			case ENiagaraGpuDispatchType::ThreeD:	return FIntVector(4, 4, 2);
+			default:								return FIntVector(64, 1, 1);
+		}
 	}
 
 	static void ModifyCompilationEnvironment(const FNiagaraShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		const bool bUseWaveIntrinsics = false; // TODO: Some content breaks with this - FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsIntrinsicWaveOnce;
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize(Parameters.Platform));
 		OutEnvironment.SetDefine(TEXT("USE_WAVE_INTRINSICS"), bUseWaveIntrinsics ? 1 : 0);
 	}
 
@@ -56,28 +62,6 @@ public:
 	}
 
 	FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer);
-
-//	FRHIUniformBuffer* GetParameterCollectionBuffer(const FGuid& Id, const FSceneInterface* SceneInterface) const;
-	/*
-	template<typename ShaderRHIParamRef>
-	FORCEINLINE_DEBUGGABLE void SetViewParameters(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View, const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
-	{
-		const auto& ViewUniformBufferParameter = GetUniformBufferParameter<FViewUniformShaderParameters>();
-		const auto& BuiltinSamplersUBParameter = GetUniformBufferParameter<FBuiltinSamplersParameters>();
-		CheckShaderIsValid();
-		SetUniformBufferParameter(RHICmdList, ShaderRHI, ViewUniformBufferParameter, ViewUniformBuffer);
-
-		if (View.bShouldBindInstancedViewUB && View.Family->Views.Num() > 0)
-		{
-			// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-			const EStereoscopicPass StereoPassIndex = (View.StereoPass != EStereoscopicPass::eSSP_FULL) ? EStereoscopicPass::eSSP_RIGHT_EYE : EStereoscopicPass::eSSP_FULL;
-
-			const FSceneView& InstancedView = View.Family->GetStereoEyeView(StereoPassIndex);
-			const auto& InstancedViewUniformBufferParameter = GetUniformBufferParameter<FInstancedViewUniformShaderParameters>();
-			SetUniformBufferParameter(RHICmdList, ShaderRHI, InstancedViewUniformBufferParameter, InstancedView.ViewUniformBuffer);
-		}
-	}
-	*/
 
 	// Bind parameters
 	void BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo, const FShaderParameterMap &ParameterMap);
@@ -113,10 +97,10 @@ public:
 	LAYOUT_FIELD(FShaderParameter, NumParticlesPerEventParam);
 	LAYOUT_FIELD(FShaderParameter, CopyInstancesBeforeStartParam);
 	LAYOUT_FIELD(FShaderParameter, NumSpawnedInstancesParam);
-	LAYOUT_FIELD(FShaderParameter, UpdateStartInstanceParam);
 
 	LAYOUT_FIELD(FShaderParameter, SimulationStageIterationInfoParam);
 	LAYOUT_FIELD(FShaderParameter, SimulationStageNormalizedIterationIndexParam);
+	LAYOUT_FIELD(FShaderParameter, DispatchThreadIdBoundsParam);
 	LAYOUT_FIELD(FShaderParameter, DispatchThreadIdToLinearParam);
 
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeReadParam);

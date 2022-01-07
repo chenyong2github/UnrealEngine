@@ -63,24 +63,29 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 		#define NIAGARA_PARTICLE_PARTIAL_ENABLED 0
 	#endif
 
-	// Used to convert from DispatchThreadId to a linear thread id
-	uint DispatchThreadIdToLinear;
+	// Type of dispatch mode we are in this allows us to customize some HLSL code to avoid / % operations
+	#define NIAGARA_DISPATCH_TYPE_ONE_D		0
+	#define NIAGARA_DISPATCH_TYPE_TWO_D		1
+	#define NIAGARA_DISPATCH_TYPE_THREE_D	2
+	#define NIAGARA_DISPATCH_TYPE_CUSTOM	3
+	#ifndef NIAGARA_DISPATCH_TYPE
+		#define NIAGARA_DISPATCH_TYPE NIAGARA_DISPATCH_TYPE_ONE_D
+	#endif
+
+	uint3 DispatchThreadIdBounds;		// Used to track thread bounds
+	uint3 DispatchThreadIdToLinear;		// Used to convert from DispatchThreadId to a linear thread id
 
 	static uint GLinearThreadId;
 	static uint3 GDispatchThreadId;
 	static uint3 GGroupThreadId;
-	static uint GCurrentPhase;
 	static uint GEmitterTickCounter;
-	static uint GSimStart;
 	static uint GRandomSeedOffset = 0;
 	
-	const static uint GSpawnPhase = 0;
-	const static uint GUpdatePhase = 1;
-
 	// To be removed as well but don't know who is using it
 	#include "/Engine/Private/SceneTexturesCommon.ush"
 
 	// Physics common 
+	//-TOFIX: This should not be included here
 	#if USE_SIMULATION_STAGES == 1
 		#include "NiagaraPhysicsCommon.ush"
 	#endif
@@ -128,17 +133,16 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 
 	static uint GSpawnStartInstance;
 	uint SpawnedInstances;
-	uint UpdateStartInstance;
 
 	void SetupExecIndexForGPU()
 	{
-		GGPUExecIndex = UpdateStartInstance + GLinearThreadId;
+		GGPUExecIndex = GLinearThreadId;
 		Engine_ExecutionCount = GSpawnStartInstance;
 	}
 
 	void SetupExecIndexAndSpawnInfoForGPU()
 	{
-		GGPUExecIndex = UpdateStartInstance + GLinearThreadId - GSpawnStartInstance;
+		GGPUExecIndex = GLinearThreadId - GSpawnStartInstance;
 
 		int SpawnInfoIndex = 0;
 		UNROLL
@@ -540,8 +544,8 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		// End static assert
 
 		// This is the same as ExecIndex() right now, but that function may change in the future to accommodate multiple
-		// spawn infos. Revisit this computation if the change affects the meaning of UpdateStartInstance or GSpawnStartInstance.
-		int SpawnIndex = UpdateStartInstance + GLinearThreadId - GSpawnStartInstance;
+		// spawn infos. Revisit this computation if the change affects the meaning of GSpawnStartInstance.
+		int SpawnIndex = GLinearThreadId - GSpawnStartInstance;
 		IDIndex = FreeIDList[SpawnIndex];
 		IDAcquireTag = EmitterTickCounter;
 	}
@@ -736,22 +740,22 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	 */
 	void OutputDataFloat(int DataSetIndex, int RegisterIndex, int InstanceIndex, float Value)
 	{
-		RWOutputFloat[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex + UpdateStartInstance] = Value;
+		RWOutputFloat[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex] = Value;
 	}
 
 	void OutputDataInt(int DataSetIndex, int RegisterIndex, int InstanceIndex, int Value)
 	{
-		RWOutputInt[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex + UpdateStartInstance] = Value;
+		RWOutputInt[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex] = Value;
 	}
 
 	void OutputDataBool(int DataSetIndex, int RegisterIndex, int InstanceIndex, bool Value)
 	{
-		RWOutputInt[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex + UpdateStartInstance] = Value ? -1 : 0;
+		RWOutputInt[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex] = Value ? -1 : 0;
 	}
 
 	void OutputDataHalf(int DataSetIndex, int RegisterIndex, int InstanceIndex, float Value)
 	{
-		RWOutputHalf[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex + UpdateStartInstance] = Value;
+		RWOutputHalf[RegisterIndex*ComponentBufferSizeWrite + InstanceIndex] = Value;
 	}
 
 	void EnterStatScope(int ID)	{}
@@ -769,7 +773,6 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 			// other branchless construct), because we don't want to call AcquireIndex() at all, since
 			// that manipulates the RWInstanceCounts UAV. The generated code will copy the source count
 			// at the end of the shader.
-			BRANCH
 			if (!bStageKillsParticles)
 			{
 				return GLinearThreadId;

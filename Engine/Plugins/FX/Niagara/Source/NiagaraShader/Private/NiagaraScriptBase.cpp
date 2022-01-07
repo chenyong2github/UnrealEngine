@@ -10,5 +10,7 @@ UNiagaraScriptBase::UNiagaraScriptBase(const FObjectInitializer& ObjectInitializ
 FSimulationStageMetaData::FSimulationStageMetaData()
 	: bWritesParticles(0)
 	, bPartialParticleUpdate(0)
+	, GpuDispatchType(ENiagaraGpuDispatchType::OneD)
+	, GpuDispatchNumThreads(0, 0, 0)
 {
 }
