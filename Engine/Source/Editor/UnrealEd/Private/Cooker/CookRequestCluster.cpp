@@ -667,7 +667,7 @@ void FRequestCluster::FGraphSearch::Poll(TArray<TUniquePtr<FVertexData>>& OutCom
 void FRequestCluster::FGraphSearch::UpdateDisplay()
 {
 	constexpr double WarningTimeout = 10.0;
-	if (FPlatformTime::Seconds() > LastActivityTime + WarningTimeout)
+	if (FPlatformTime::Seconds() > LastActivityTime + WarningTimeout && bCookAttachmentsEnabled)
 	{
 		FScopeLock ScopeLock(&Lock);
 		int32 NumVertices = 0;
@@ -677,7 +677,7 @@ void FRequestCluster::FGraphSearch::UpdateDisplay()
 			NumVertices += Pair.Key->PendingVertices;
 		}
 
-		UE_LOG(LogCook, Warning, TEXT("FRequestCluster waited more than %.0lfs for previous build results from DDC. ")
+		UE_LOG(LogCook, Warning, TEXT("FRequestCluster waited more than %.0lfs for previous build results from the oplog. ")
 			TEXT("NumPendingBatches == %d, NumPendingVertices == %d. Continuing to wait..."),
 			WarningTimeout, NumBatches, NumVertices);
 		LastActivityTime = FPlatformTime::Seconds();
