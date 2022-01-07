@@ -2173,7 +2173,7 @@ void FUntypedBulkData::WaitForAsyncLoading()
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::WaitForAsyncLoading"), STAT_UBD_WaitForAsyncLoading, STATGROUP_Memory);
 	while (!SerializeFuture.WaitFor(FTimespan::FromMilliseconds(1000.0)))
 	{
-		UE_LOG(LogSerialization, Warning, TEXT("Waiting for %s bulk data (%lld) to be loaded longer than 1000ms"), *PackagePath.GetDebugName(PackageSegment), GetBulkDataSize());
+		UE_LOG(LogSerialization, Warning, TEXT("Waiting for '%s' bulk data (size %" INT64_FMT ") to be loaded longer than 1000ms"), *PackagePath.GetDebugName(PackageSegment), GetBulkDataSizeOnDisk());
 	}
 	check(BulkDataAsync);
 }
