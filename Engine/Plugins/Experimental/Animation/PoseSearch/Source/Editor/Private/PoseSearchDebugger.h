@@ -7,6 +7,7 @@
 #include "RewindDebuggerInterface/Public/IRewindDebuggerView.h"
 #include "RewindDebuggerInterface/Public/IRewindDebuggerViewCreator.h"
 #include "Widgets/Views/SHeaderRow.h"
+#include "PoseSearch/PoseSearch.h"
 #include "PoseSearchDebugger.generated.h"
 
 namespace TraceServices { class IAnalysisSession; }
@@ -23,27 +24,75 @@ class SWidgetSwitcher;
 class SSearchBox;
 template <typename ItemType> class SListView;
 
+namespace UE::PoseSearch
+{
+	namespace DebuggerDatabaseColumns { struct IColumn; }
+	struct FDebugDrawParams;
+	struct FTraceMotionMatchingStateMessage;
+	class FFeatureVectorReader;
+	class FDebuggerDatabaseRowData;
+} // namespace UE::PoseSearch
+
+
 /**
  * Used by the reflection UObject to encompass a set of feature vectors
  */
 USTRUCT()
-struct FPoseSearchDebuggerFeatureReflection
+struct FPoseSearchDebuggerPoseVectorChannel
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	// @TODO: Should be ideally enumerated based on all possible schema features
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Channel")
+	bool bShowPositions = false;
 	
-    UPROPERTY(VisibleAnywhere, Category="Query Data")
+	UPROPERTY(VisibleDefaultsOnly, Category = "Channel")
+	bool bShowLinearVelocities = false;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Channel")
+	bool bShowFacingDirections = false;
+
+    UPROPERTY(VisibleAnywhere, EditFixedSize, Category="Channel", meta=(EditCondition="bShowPositions", EditConditionHides))
 	TArray<FVector> Positions;
-	
-    UPROPERTY(VisibleAnywhere, Category="Query Data")
+
+    UPROPERTY(VisibleAnywhere, EditFixedSize, Category="Channel", meta=(EditCondition="bShowLinearVelocities", EditConditionHides))
 	TArray<FVector> LinearVelocities;
 	
-    UPROPERTY(VisibleAnywhere, Category="Query Data")
-	TArray<FVector> AngularVelocities;
+    UPROPERTY(VisibleAnywhere, EditFixedSize, Category="Channel", meta=(EditCondition="bShowFacingDirections", EditConditionHides))
+	TArray<FVector> FacingDirections;
 
-	/** Empty contents of above arrays */
-	void EmptyAll();
+	void Reset();
+	bool IsEmpty() const { return Positions.IsEmpty() && LinearVelocities.IsEmpty() && FacingDirections.IsEmpty(); }
+};
+
+USTRUCT()
+struct FPoseSearchDebuggerPoseVector
+{
+	GENERATED_BODY()
+
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Pose Vector")
+	bool bShowPose = false;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Pose Vector")
+	bool bShowTrajectoryTimeBased = false;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Pose Vector")
+	bool bShowTrajectoryDistanceBased = false;
+
+	UPROPERTY(VisibleAnywhere, Category="Pose Vector", meta=(EditCondition="bShowPose", EditConditionHides))
+	FPoseSearchDebuggerPoseVectorChannel Pose;
+
+	UPROPERTY(VisibleAnywhere, Category="Pose Vector", meta=(EditCondition="bShowTrajectoryTimeBased", EditConditionHides, DisplayName="Trajectory (Time)"))
+	FPoseSearchDebuggerPoseVectorChannel TrajectoryTimeBased;
+
+	UPROPERTY(VisibleAnywhere, Category="Pose Vector", meta=(EditCondition="bShowTrajectoryDistanceBased", EditConditionHides, DisplayName="Trajectory (Distance)"))
+	FPoseSearchDebuggerPoseVectorChannel TrajectoryDistanceBased;
+
+	void Reset();
+	void ExtractFeatures(const UE::PoseSearch::FFeatureVectorReader& Reader);
+	bool IsEmpty() const { return Pose.IsEmpty() && TrajectoryTimeBased.IsEmpty() && TrajectoryDistanceBased.IsEmpty(); }
 };
 
 /**
@@ -52,7 +101,7 @@ struct FPoseSearchDebuggerFeatureReflection
 USTRUCT()
 struct FPoseSearchDebuggerFeatureDrawOptions
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category="Draw Options")
     bool bDisable = false;
@@ -76,7 +125,9 @@ struct FPoseSearchDebuggerFeatureDrawOptions
 UCLASS()
 class POSESEARCHEDITOR_API UPoseSearchDebuggerReflection : public UObject
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+public:
 
 	UPROPERTY(VisibleAnywhere, Category="Motion Matching State", Meta=(DisplayName="Current Database"))
 	FString CurrentDatabaseName = "";
@@ -95,34 +146,33 @@ class POSESEARCHEDITOR_API UPoseSearchDebuggerReflection : public UObject
 	UPROPERTY(EditAnywhere, Category="Draw Options", Meta=(DisplayName="Selected Pose"))
 	FPoseSearchDebuggerFeatureDrawOptions SelectedPoseDrawOptions;
 
-	/** Pose features of the current query vector */
-    UPROPERTY(EditAnywhere, Category="Query Data")
-	FPoseSearchDebuggerFeatureReflection PoseFeatures;
+    UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
+	FPoseSearchDebuggerPoseVector QueryPoseVector;
     	
-	/** Time-based trajectory features of the current query vector */
-    UPROPERTY(EditAnywhere, Category="Query Data")
-	FPoseSearchDebuggerFeatureReflection TimeTrajectoryFeatures;
+    UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
+	FPoseSearchDebuggerPoseVector ActivePoseVector;
 
-	/** Distance-based trajectory features of the current query vector */
-	UPROPERTY(EditAnywhere, Category="Query Data")
-    FPoseSearchDebuggerFeatureReflection DistanceTrajectoryFeatures;
+	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
+	FPoseSearchDebuggerPoseVector SelectedPoseVector;
+
+	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
+	FPoseSearchDebuggerPoseVector CostVector;
 };
 
 
-namespace UE { namespace PoseSearch {
+namespace UE::PoseSearch {
 
-namespace DebuggerDatabaseColumns { struct IColumn; }
-struct FDebugDrawParams;
-struct FTraceMotionMatchingStateMessage;
-class FFeatureVectorReader;
-class FDebuggerDatabaseRowData;
+DECLARE_DELEGATE(FOnPoseSelectionChanged)
 
 /**
  * Database panel view widget of the PoseSearch debugger
  */
+
 class SDebuggerDatabaseView : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SDebuggerDatabaseView) {}
+		SLATE_ARGUMENT(TWeakPtr<class SDebuggerView>, Parent)
+		SLATE_EVENT(FOnPoseSelectionChanged, OnPoseSelectionChanged)
 	SLATE_END_ARGS()
 	
 	void Construct(const FArguments& InArgs);
@@ -171,14 +221,21 @@ private:
 	/** Called when the text in the filter box is modified to update the filtering */
 	void OnFilterTextChanged(const FText& SearchText);
 
+	void OnDatabaseRowSelectionChanged(TSharedPtr<FDebuggerDatabaseRowData> Row, ESelectInfo::Type SelectInfo);
+
 	/** Generates a database row widget for the given data */
 	TSharedRef<ITableRow> HandleGenerateDatabaseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 	
 	/** Generates the active row widget for the given data */
 	TSharedRef<ITableRow> HandleGenerateActiveRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 
+	TWeakPtr<SDebuggerView> ParentDebuggerViewPtr;
+
+	FOnPoseSelectionChanged OnPoseSelectionChanged;
+
 	/** Current column to sort by */
 	FName SortColumn = "";
+
 	/** Current sorting mode */
 	EColumnSortMode::Type SortMode = EColumnSortMode::Ascending;
 	
@@ -229,6 +286,7 @@ private:
 class SDebuggerDetailsView : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SDebuggerDetailsView) {}
+		SLATE_ARGUMENT(TWeakPtr<class SDebuggerView>, Parent)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -243,12 +301,14 @@ private:
 	/** Update our details view object with new state information */
 	void UpdateReflection(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database) const;
 	
+	TWeakPtr<SDebuggerView> ParentDebuggerViewPtr;
+
 	/** Details widget constructed for the MM node */
 	TSharedPtr<IDetailsView> Details;
+
 	/** Last updated reflection data relative to MM state */
 	TObjectPtr<UPoseSearchDebuggerReflection> Reflection = nullptr;
 };
-
 
 /** Callback to update the debugger when node is actively selected */
 DECLARE_DELEGATE_OneParam(FOnUpdateSelection, int32 NodeId);
@@ -291,6 +351,8 @@ public:
 	virtual FName GetName() const override;
 	virtual uint64 GetObjectId() const override;
 
+	TArray<TSharedRef<FDebuggerDatabaseRowData>> GetSelectedDatabaseRows() const;
+
 	virtual ~SDebuggerView() override;
 
 private:
@@ -301,13 +363,17 @@ private:
 	bool UpdateSelection();
 
 	/** Update the database and details views */
-	void UpdateViews(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database) const;
+	void UpdateViews() const;
+
+	void DrawVisualization() const;
 	
 	/** Returns an int32 appropriate to the index of our widget selector */
 	int32 SelectView() const;
 
 	/** Callback when a button in the selection view is clicked */
 	FReply OnUpdateNodeSelection(int32 InSelectedNodeId);
+
+	void OnPoseSelectionChanged();
 
 	/** Generates the message view relaying that there is no data */
 	TSharedRef<SWidget> GenerateNoDataMessageView();
@@ -499,4 +565,4 @@ public:
 };
 
 
-}}
+} // namespace UE::PoseSearch

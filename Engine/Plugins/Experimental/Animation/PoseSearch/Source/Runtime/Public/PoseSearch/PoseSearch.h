@@ -76,30 +76,27 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 	static constexpr int32 TrajectoryBoneIndex = -1; 
 
 	UPROPERTY()
-	int32 SchemaBoneIdx;
+	int32 SchemaBoneIdx = 0;
 
 	UPROPERTY()
-	int32 SubsampleIdx;
+	int32 SubsampleIdx = 0;
 
 	UPROPERTY()
-	EPoseSearchFeatureType Type;
+	EPoseSearchFeatureType Type = EPoseSearchFeatureType::Invalid;
 
 	UPROPERTY()
-	EPoseSearchFeatureDomain Domain;
+	EPoseSearchFeatureDomain Domain = EPoseSearchFeatureDomain::Invalid;
+
+	UPROPERTY()
+	int8 ChannelIdx = 0;
 
 	// Set via FPoseSearchFeatureLayout::Init() and ignored by operator==
 	UPROPERTY()
-	int32 ValueOffset;
+	int32 ValueOffset = 0;
 
 	bool operator==(const FPoseSearchFeatureDesc& Other) const;
 
-	FPoseSearchFeatureDesc()
-		: SchemaBoneIdx(MAX_int32)
-		, SubsampleIdx(MAX_int32)
-		, Type(EPoseSearchFeatureType::Invalid)
-		, Domain(EPoseSearchFeatureDomain::Invalid)
-		, ValueOffset(MAX_int32)
-	{}
+	bool IsValid() const { return Type != EPoseSearchFeatureType::Invalid; }
 };
 
 
@@ -121,6 +118,9 @@ struct POSESEARCH_API FPoseSearchFeatureVectorLayout
 
 	UPROPERTY()
 	int32 NumFloats = 0;
+
+	UPROPERTY()
+	int32 NumChannels = 0;
 
 	bool IsValid(int32 MaxNumBones) const;
 

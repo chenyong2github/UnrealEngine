@@ -240,6 +240,7 @@ void FPoseSearchFeatureVectorLayout::Init()
 {
 	uint32 FloatCount = 0;
 
+	// Initialize value offsets
 	for (FPoseSearchFeatureDesc& Feature : Features)
 	{
 		Feature.ValueOffset = FloatCount;
@@ -248,7 +249,31 @@ void FPoseSearchFeatureVectorLayout::Init()
 		FloatCount += FeatureNumFloats;
 	}
 
+	// Determine channel count
+	TBitArray ChannelsFound;
+	ChannelsFound.Init(false, UE::PoseSearch::MaxChannels);
+	for (FPoseSearchFeatureDesc& Feature : Features)
+	{
+		if (Feature.SchemaBoneIdx != FPoseSearchFeatureDesc::TrajectoryBoneIndex)
+		{
+			ChannelsFound[UE::PoseSearch::ChannelIdxPose] = true;
+		}
+		else if (Feature.Domain == EPoseSearchFeatureDomain::Time)
+		{
+			ChannelsFound[UE::PoseSearch::ChannelIdxTrajectoryTime] = true;
+		}
+		else if (Feature.Domain == EPoseSearchFeatureDomain::Distance)
+		{
+			ChannelsFound[UE::PoseSearch::ChannelIdxTrajectoryDistance] = true;
+		}
+		else
+		{
+			check(false);
+		}
+	}
+
 	NumFloats = FloatCount;
+	NumChannels = ChannelsFound.CountSetBits();
 }
 
 void FPoseSearchFeatureVectorLayout::Reset()
@@ -280,17 +305,9 @@ bool FPoseSearchFeatureVectorLayout::EnumerateBy(int32 ChannelIdx, EPoseSearchFe
 	auto IsChannelMatch = [](int32 ChannelIdx, const FPoseSearchFeatureDesc& Feature) -> bool
 	{
 		bool bChannelMatch = true;
-		if (ChannelIdx == UE::PoseSearch::ChannelIdxPose)
+		if (ChannelIdx >= 0)
 		{
-			bChannelMatch = Feature.SchemaBoneIdx != FPoseSearchFeatureDesc::TrajectoryBoneIndex;
-		}
-		else if (ChannelIdx == UE::PoseSearch::ChannelIdxTrajectoryTime)
-		{
-			bChannelMatch = (Feature.SchemaBoneIdx == FPoseSearchFeatureDesc::TrajectoryBoneIndex) && (Feature.Domain == EPoseSearchFeatureDomain::Time);
-		}
-		else if (ChannelIdx == UE::PoseSearch::ChannelIdxTrajectoryDistance)
-		{
-			bChannelMatch = (Feature.SchemaBoneIdx == FPoseSearchFeatureDesc::TrajectoryBoneIndex) && (Feature.Domain == EPoseSearchFeatureDomain::Distance);
+			bChannelMatch = Feature.ChannelIdx == ChannelIdx;
 		}
 		return bChannelMatch;
 	};
@@ -459,6 +476,7 @@ void UPoseSearchSchema::GenerateLayout()
 		FPoseSearchFeatureDesc Feature;
 		Feature.Domain = Domain;
 		Feature.Type = Type;
+		Feature.ChannelIdx = ChannelIdx;
 
 		if (ChannelIdx == UE::PoseSearch::ChannelIdxPose)
 		{
