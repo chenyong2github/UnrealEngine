@@ -78,10 +78,6 @@ public:
 	{
 		FName FuncName;
 		int32 Calls;
-
-		UE_DEPRECATED(4.25, "Please use LastCallTimestamp instead")
-		float LastCallTime;
-
 		double LastCallTimestamp;
 	};
 
@@ -136,6 +132,7 @@ public:
 	//~ Both of these should be private, IMO, but we'll leave them public for now for back compat
 	//~ in case anyone was using SerializeCustomDeltaProperty already.
 
+	UE_DEPRECATED(5.0, "No longer used.")
 	bool SendCustomDeltaProperty(
 		UObject* InObject,
 		FProperty* Property,

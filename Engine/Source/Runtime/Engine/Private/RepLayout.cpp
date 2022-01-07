@@ -1502,8 +1502,8 @@ static void CompareParentProperties(
 		}
 #endif // WITH_PUSH_VALIDATION_SUPPORT
 
-		// If we have full push model support, then we only need to check properties that are actually dirty.
-		else if (EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::FullPushSupport) && !bRecentlyCollectedGarbage)
+		// If we have full push model property support, then we only need to check properties that are actually dirty.
+		else if (EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::FullPushProperties) && !bRecentlyCollectedGarbage)
 		{
 			for (TConstSetBitIterator<> It = SharedParams.PushModelState->GetDirtyProperties(); It; ++It)
 			{
@@ -4371,6 +4371,13 @@ bool FRepLayout::SendCustomDeltaProperty(FNetDeltaSerializeInfo& Params, uint16 
 		Params.Writer->SerializeIntPacked(StaticArrayIndex);
 	}
 
+#if WITH_PUSH_MODEL
+	if (EnumHasAnyFlags(Parent.Flags, ERepParentFlags::IsFastArray) && IsPushModelProperty(CustomDeltaProperty.PropertyRepIndex))
+	{
+		static_cast<FFastArraySerializer*>(Params.Data)->CachePushModelState(Params.Object, CustomDeltaProperty.PropertyRepIndex);
+	}
+#endif
+
 	TGuardValue<bool> SupportFastArrayDeltaGuard(Params.bSupportsFastArrayDeltaStructSerialization, bSupportsFastArrayDelta);
 	return CppStructOps->NetDeltaSerialize(Params, Params.Data);
 }
@@ -6016,7 +6023,9 @@ void FRepLayout::InitFromClass(
 	// Tracks the number of (non-delta) lifetime properties so we can check that against our
 	// Push Model Enabled properties.
 	int32 NumberOfLifetimeProperties = 0;
-	int32 NumberOfPushModelProperties = 0;
+	int32 NumberOfLifetimePushModelProperties = 0;
+	int32 NumberOfFastArrayProperties = 0;
+	int32 NumberOfFastArrayPushModelProperties = 0;
 
 	// Setup lifetime replicated properties
 	for (int32 i = 0; i < LifetimeProps.Num(); i++)
@@ -6062,7 +6071,7 @@ void FRepLayout::InitFromClass(
 #if WITH_PUSH_MODEL
 			if (bIsPushModelEnabled && LifetimeProps[i].bIsPushBased)
 			{
-				++NumberOfPushModelProperties;
+				++NumberOfLifetimePushModelProperties;
 				PushModelProperties[ParentIndex] = true;
 			}
 #endif
@@ -6131,6 +6140,14 @@ void FRepLayout::InitFromClass(
 									/*FastArrayItemReplicationIdOffset=*/MaybeFastArrayItem->FindPropertyByName(FastArrayItemReplicationIDName)->GetOffset_ForGC()
 								));
 
+								++NumberOfFastArrayProperties;
+#if WITH_PUSH_MODEL
+								if (bIsPushModelEnabled && LifetimeProps[i].bIsPushBased)
+								{
+									++NumberOfFastArrayPushModelProperties;
+									PushModelProperties[ParentIndex] = true;
+								}
+#endif
 								bAddedFastArray = true;
 								break;
 							}
@@ -6141,7 +6158,7 @@ void FRepLayout::InitFromClass(
 				}
 
 				if (!bAddedFastArray)
-		{
+				{
 					UE_LOG(LogRep, Warning, TEXT("FRepLayout::InitFromClass: Unable to find Fast Array Item array in Fast Array Serializer: %s"), *Parents[ParentIndex].CachedPropertyName.ToString());
 				}
 			}
@@ -6171,9 +6188,16 @@ void FRepLayout::InitFromClass(
 	}	
 
 #if WITH_PUSH_MODEL
-	if (bIsPushModelEnabled && NumberOfPushModelProperties > 0)
+	if (bIsPushModelEnabled && ((NumberOfLifetimePushModelProperties > 0) || (NumberOfFastArrayPushModelProperties > 0)))
 	{
-		Flags |= (NumberOfLifetimeProperties == NumberOfPushModelProperties) ?
+		const bool bFullPushProperties = (NumberOfLifetimeProperties == NumberOfLifetimePushModelProperties);
+
+		if (bFullPushProperties)
+		{
+			Flags |= ERepLayoutFlags::FullPushProperties;
+		}
+
+		Flags |= (bFullPushProperties && (NumberOfFastArrayProperties == NumberOfFastArrayPushModelProperties)) ?
 			ERepLayoutFlags::FullPushSupport :
 			ERepLayoutFlags::PartialPushSupport;
 	}
@@ -8035,6 +8059,11 @@ FProperty* FRepLayout::GetLifetimeCustomDeltaProperty(const uint16 CustomDeltaPr
 	return Parents[CustomDeltaProperty.PropertyRepIndex].Property;
 }
 
+const uint16 FRepLayout::GetCustomDeltaIndexFromPropertyRepIndex(const uint16 PropertyRepIndex) const
+{
+	return LifetimeCustomPropertyState->GetCustomDeltaIndexFromPropertyRepIndex(PropertyRepIndex);
+}
+
 const ELifetimeCondition FRepLayout::GetLifetimeCustomDeltaPropertyCondition(const uint16 CustomDeltaPropertyIndex) const
 {
 	const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->GetCustomDeltaProperty(CustomDeltaPropertyIndex);
@@ -8169,6 +8198,8 @@ const TCHAR* LexToString(ERepLayoutFlags Flag)
 		return TEXT("HasObjectOrNetSerializeProperties");
 	case ERepLayoutFlags::NoReplicatedProperties:
 		return TEXT("NoReplicatedProperties");
+	case ERepLayoutFlags::FullPushProperties:
+		return TEXT("FullPushProperties");
 	default:
 		check(false);
 		return TEXT("Unknown");
