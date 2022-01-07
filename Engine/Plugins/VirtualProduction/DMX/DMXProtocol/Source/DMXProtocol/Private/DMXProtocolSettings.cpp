@@ -185,53 +185,56 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 
 		FDMXAttributeName::OnValuesChanged.Broadcast();
 	}
-	else if	(
-		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs) ||
-		(InputPortConfigStruct && InputPortConfigStruct == PropertyOwnerStruct) ||
-		(OutputPortConfigStruct && OutputPortConfigStruct == PropertyOwnerStruct))
-	{
-		if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::Duplicate)
-		{
-			// When duplicating configs, the guid will be duplicated, so we have to create unique ones instead
-
-			int32 ChangedIndex = PropertyChangedChainEvent.GetArrayIndex(PropertyName.ToString());
-			if (ensureAlways(ChangedIndex != INDEX_NONE))
-			{
-				if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs))
-				{
-					const int32 IndexOfDuplicate = InputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXInputPortConfig& InputPortConfig) {
-						return InputPortConfigs[ChangedIndex].GetPortGuid() == InputPortConfig.GetPortGuid();
-						});
-
-					if (ensureAlways(IndexOfDuplicate != ChangedIndex))
-					{
-						InputPortConfigs[IndexOfDuplicate] = FDMXInputPortConfig(FGuid::NewGuid(), InputPortConfigs[ChangedIndex]);
-					}
-				}
-				else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs))
-				{
-					const int32 IndexOfDuplicate = OutputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXOutputPortConfig& OutputPortConfig) {
-						return OutputPortConfigs[ChangedIndex].GetPortGuid() == OutputPortConfig.GetPortGuid();
-						});
-
-					if (ensureAlways(IndexOfDuplicate != ChangedIndex))
-					{
-						OutputPortConfigs[IndexOfDuplicate] = FDMXOutputPortConfig(FGuid::NewGuid(), OutputPortConfigs[ChangedIndex]);
-					}
-				}
-			}
-		}
-
-		FDMXPortManager::Get().UpdateFromProtocolSettings();
-	}
 	else if (
 		PropertyName == FDMXOutputPortConfig::GetDestinationAddressesPropertyNameChecked() ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXOutputPortDestinationAddress, DestinationAddressString))
 	{
 		FDMXPortManager::Get().UpdateFromProtocolSettings();
 	}
-	
+	else if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs) ||
+			(InputPortConfigStruct && InputPortConfigStruct == PropertyOwnerStruct) ||
+			(OutputPortConfigStruct && OutputPortConfigStruct == PropertyOwnerStruct))
+		{
+			if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::Duplicate)
+			{
+				// When duplicating configs, the guid will be duplicated, so we have to create unique ones instead
+
+				int32 ChangedIndex = PropertyChangedChainEvent.GetArrayIndex(PropertyName.ToString());
+				if (ensureAlways(ChangedIndex != INDEX_NONE))
+				{
+					if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs))
+					{
+						const int32 IndexOfDuplicate = InputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXInputPortConfig& InputPortConfig) {
+							return InputPortConfigs[ChangedIndex].GetPortGuid() == InputPortConfig.GetPortGuid();
+							});
+
+						if (ensureAlways(IndexOfDuplicate != ChangedIndex))
+						{
+							InputPortConfigs[IndexOfDuplicate] = FDMXInputPortConfig(FGuid::NewGuid(), InputPortConfigs[ChangedIndex]);
+						}
+					}
+					else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs))
+					{
+						const int32 IndexOfDuplicate = OutputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXOutputPortConfig& OutputPortConfig) {
+							return OutputPortConfigs[ChangedIndex].GetPortGuid() == OutputPortConfig.GetPortGuid();
+							});
+
+						if (ensureAlways(IndexOfDuplicate != ChangedIndex))
+						{
+							OutputPortConfigs[IndexOfDuplicate] = FDMXOutputPortConfig(FGuid::NewGuid(), OutputPortConfigs[ChangedIndex]);
+						}
+					}
+				}
+			}
+
+			constexpr bool bForceUpdateRegistrationWithProtocol = true;
+			FDMXPortManager::Get().UpdateFromProtocolSettings(bForceUpdateRegistrationWithProtocol);
+		}
+	}
+
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 }
 #endif // WITH_EDITOR

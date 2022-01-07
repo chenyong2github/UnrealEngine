@@ -163,7 +163,7 @@ FDMXOutputPortSharedRef FDMXPortManager::FindOutputPortByGuidChecked(const FGuid
 	return InvalidPtr.ToSharedRef();
 }
 
-void FDMXPortManager::UpdateFromProtocolSettings()
+void FDMXPortManager::UpdateFromProtocolSettings(bool bForceUpdateRegistrationWithProtocol)
 {
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 
@@ -213,7 +213,7 @@ void FDMXPortManager::UpdateFromProtocolSettings()
 		{
 			FDMXInputPortSharedRef InputPort = GetOrCreateInputPortFromConfig(InputPortConfig);
 
-			InputPort->UpdateFromConfig(InputPortConfig);
+			InputPort->UpdateFromConfig(InputPortConfig, bForceUpdateRegistrationWithProtocol);
 
 			PortGuidsFromProtocolSettings.AddUnique(InputPort->GetPortGuid());
 		}
@@ -229,7 +229,7 @@ void FDMXPortManager::UpdateFromProtocolSettings()
 		{
 			FDMXOutputPortSharedRef OutputPort = GetOrCreateOutputPortFromConfig(OutputPortConfig);
 
-			OutputPort->UpdateFromConfig(OutputPortConfig);
+			OutputPort->UpdateFromConfig(OutputPortConfig, bForceUpdateRegistrationWithProtocol);
 
 			PortGuidsFromProtocolSettings.AddUnique(OutputPort->GetPortGuid());
 		}

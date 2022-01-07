@@ -116,8 +116,13 @@ public:
 	/** Creates a dmx output port config that corresponds to the port */
 	FDMXOutputPortConfig MakeOutputPortConfig() const;
 
-	/** Updates the Port to use the config of the OutputPortConfig */
-	void UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig);
+	/**
+	 * Updates the Port to use the config of the OutputPortConfig. Makes the config valid if it's invalid.
+	 *
+	 * @param InOutInputPortConfig					The config that is applied. May be changed to a valid config.
+	 * @param bForceUpdateRegistrationWithProtocol	Optional: Forces the port to update its registration with the protocol (useful for runtime changes)
+	 */
+	void UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig, bool bForceUpdateRegistrationWithProtocol = false);
 
 	/** Sends DMX over the port */
 	void SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& ChannelToValueMap);
