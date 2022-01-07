@@ -13,6 +13,8 @@
 #include "RenderGraphResources.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
+#include "Components/SkeletalMeshComponent.h"
+
 
 FString UMLDeformerDataInterface::GetDisplayName() const
 {
