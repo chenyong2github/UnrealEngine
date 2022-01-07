@@ -85,7 +85,7 @@ public:
 		ETextureCreateFlags InFlags,
 		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
-		uint16 InNumMips = 1,
+		uint8 InNumMips = 1,
 		bool InAutowritable = true,
 		bool InCreateRTWriteMask = false,
 		bool InCreateFmask = false)
@@ -125,8 +125,8 @@ public:
 		ETextureCreateFlags InFlags,
 		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
-		uint32 InArraySize,
-		uint16 InNumMips = 1,
+		uint16 InArraySize,
+		uint8 InNumMips = 1,
 		bool InAutowritable = true,
 		bool InCreateRTWriteMask = false,
 		bool InCreateFmask = false)
@@ -163,13 +163,13 @@ public:
 	static FPooledRenderTargetDesc CreateVolumeDesc(
 		uint32 InSizeX,
 		uint32 InSizeY,
-		uint32 InSizeZ,
+		uint16 InSizeZ,
 		EPixelFormat InFormat,
 		const FClearValueBinding& InClearValue,
 		ETextureCreateFlags InFlags,
 		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
-		uint16 InNumMips = 1,
+		uint8 InNumMips = 1,
 		bool InAutowritable = true)
 	{
 		check(InSizeX);
@@ -206,7 +206,7 @@ public:
 		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
 		uint16 InArraySize = 1,
-		uint16 InNumMips = 1,
+		uint8 InNumMips = 1,
 		bool InAutowritable = true)
 	{
 		check(InExtent);
@@ -244,7 +244,7 @@ public:
 		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
 		uint16 InArraySize,
-		uint16 InNumMips = 1,
+		uint8 InNumMips = 1,
 		bool InAutowritable = true)
 	{
 		check(InExtent);

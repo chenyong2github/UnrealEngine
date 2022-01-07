@@ -428,7 +428,7 @@ public:
 
 	void SetCurrentStat(TStatId Stat);
 
-	FORCEINLINE_DEBUGGABLE void* Alloc(int32 AllocSize, int32 Alignment)
+	FORCEINLINE_DEBUGGABLE void* Alloc(int64 AllocSize, int64 Alignment)
 	{
 		checkSlow(!Bypass() && "Can't use RHICommandList in bypass mode.");
 		return MemManager.Alloc(AllocSize, Alignment);
@@ -3377,7 +3377,7 @@ public:
 
 			if (GraphicsPSOInit.RenderTargetFormats[i] != PF_Unknown)
 			{
-				GraphicsPSOInit.NumSamples = PSOContext.CachedRenderTargets[i].Texture->GetNumSamples();
+				GraphicsPSOInit.NumSamples = static_cast<uint16>(PSOContext.CachedRenderTargets[i].Texture->GetNumSamples());
 			}
 		}
 
@@ -3400,7 +3400,7 @@ public:
 
 		if (GraphicsPSOInit.DepthStencilTargetFormat != PF_Unknown)
 		{
-			GraphicsPSOInit.NumSamples = PSOContext.CachedDepthStencilTarget.Texture->GetNumSamples();
+			GraphicsPSOInit.NumSamples =  static_cast<uint16>(PSOContext.CachedDepthStencilTarget.Texture->GetNumSamples());
 		}
 
 		GraphicsPSOInit.SubpassHint = PSOContext.SubpassHint;

@@ -109,7 +109,7 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer_AllocateInternal(
 	uint32 SizeInBytes = sizeof(Type) * Num;
 	FDynamicAllocReadBuffer* Buffer = BufferPool->CurrentBuffer;
 
-	uint32 BufferAlignment = RHIGetMinimumAlignmentForBufferBackedSRV(Format);
+	uint64 BufferAlignment = RHIGetMinimumAlignmentForBufferBackedSRV(Format);
 	uint32 ByteOffset = Buffer == nullptr ? 0 : Align(Buffer->AllocatedByteCount, BufferAlignment);
 
 	if (Buffer == nullptr || ByteOffset + SizeInBytes > Buffer->NumBytes)

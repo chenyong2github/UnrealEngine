@@ -579,7 +579,7 @@ void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture,
 		ERDGPassFlags::Raster,
 		[Parameters, ClearColor, Viewport](FRHICommandList& RHICmdList)
 	{
-		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
+		RHICmdList.SetViewport((float)Viewport.Min.X, (float)Viewport.Min.Y, 0.0f, (float)Viewport.Max.X, (float)Viewport.Max.Y, 1.0f);
 		DrawClearQuad(RHICmdList, ClearColor);
 	});
 }

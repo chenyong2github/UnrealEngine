@@ -602,7 +602,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				{
 					// Align CPU and GPU frames
 					Timestamp.GPUMicroseconds = GpuProfilerEvents[1].GetStartResultMicroseconds(GPUIndex);
-					Timestamp.CPUMicroseconds = FPlatformTime::ToSeconds64(CPUFrameStartTimestamp) * 1000 * 1000;
+					Timestamp.CPUMicroseconds = static_cast<uint64>(FPlatformTime::ToSeconds64(CPUFrameStartTimestamp) * 1000 * 1000);
 				}
 				else
 				{

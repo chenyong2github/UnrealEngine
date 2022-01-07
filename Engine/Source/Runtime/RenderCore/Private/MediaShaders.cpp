@@ -588,7 +588,7 @@ void FRGB10toYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefC
 		//Output texture will be based on a size dividable by 48 (i.e 1280 -> 1296) and divided by 6 (i.e 1296 / 6 = 216)
 		//To map output texture UVs, we get a scale from the source texture original size to the mapped output size
 		//And use the source texture size to get the pixel delta
-		const float PaddedResolution = uint32((RGBATexture->GetSizeX() + 47) / 48) * 48;
+		const float PaddedResolution = float(uint32((RGBATexture->GetSizeX() + 47) / 48) * 48);
 		UB.OnePixelDeltaX = 1.0f / (float)RGBATexture->GetSizeX();
 		UB.PaddingScale = PaddedResolution / (float)RGBATexture->GetSizeX();
 	}
