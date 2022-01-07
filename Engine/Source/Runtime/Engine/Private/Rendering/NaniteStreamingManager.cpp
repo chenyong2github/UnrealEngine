@@ -2080,6 +2080,7 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::EndAsyncUpdate);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	AddPass(GraphBuilder, RDG_EVENT_NAME("Nanite::Streaming"), [this](FRHICommandListImmediate& RHICmdList)
 	{
@@ -2194,6 +2195,11 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 
 void FStreamingManager::ClearStreamingRequestCount(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAVRef)
 {
+	// Need to always clear streaming requests on all GPUs.  We sometimes write to streaming request buffers on a mix of
+	// GPU masks (shadow rendering on all GPUs, other passes on a single GPU), and we need to make sure all are clear
+	// when they get used again.
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
 	FClearStreamingRequestCount_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearStreamingRequestCount_CS::FParameters>();
 	PassParameters->OutStreamingRequests = BufferUAVRef;
 
