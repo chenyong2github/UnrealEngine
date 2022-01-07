@@ -16,6 +16,7 @@
 #include "SPositiveActionButton.h"
 #include "SSearchableComboBox.h"
 #include "BoneSelectionWidget.h"
+#include "Animation/Skeleton.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 
