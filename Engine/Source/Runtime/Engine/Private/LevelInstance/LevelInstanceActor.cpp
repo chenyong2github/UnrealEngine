@@ -743,6 +743,15 @@ bool ALevelInstance::IsEditing() const
 	return false;
 }
 
+ULevel* ALevelInstance::GetLoadedLevel() const
+{
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+	{
+		return LevelInstanceSubsystem->GetLevelInstanceLevel(this);
+	}
+	return nullptr;
+}
+
 bool ALevelInstance::HasChildEdit() const
 {
 	if (HasValidLevelInstanceID())

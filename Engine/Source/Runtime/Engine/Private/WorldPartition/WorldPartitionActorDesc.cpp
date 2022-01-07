@@ -19,6 +19,7 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "Engine/Public/ActorReferencesUtils.h"
+#include "ActorFolder.h"
 #endif
 
 #if WITH_EDITOR
@@ -55,6 +56,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
 	FolderPath = InActor->GetFolderPath();
+	FolderGuid = InActor->GetFolderGuid();
 
 	const AActor* AttachParentActor = InActor->GetAttachParentActor();
 	if (AttachParentActor)
@@ -124,6 +126,7 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		bActorIsHLODRelevant == Other->bActorIsHLODRelevant && 
 		HLODLayer == Other->HLODLayer && 
 		FolderPath == Other->FolderPath &&
+		FolderGuid == Other->FolderGuid &&
 		ParentActor == Other->ParentActor &&
 		DataLayers.Num() == Other->DataLayers.Num() &&
 		References.Num() == Other->References.Num())
@@ -172,7 +175,7 @@ void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FStr
 FString FWorldPartitionActorDesc::ToString() const
 {
 	return FString::Printf(
-		TEXT("Guid:%s Class:%s Name:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s LevelBoundsRelevant:%s HLODRelevant:%s FolderPath:%s Parent:%s"), 
+		TEXT("Guid:%s Class:%s Name:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s LevelBoundsRelevant:%s HLODRelevant:%s FolderPath:%s FolderGuid:%s Parent:%s"), 
 		*Guid.ToString(), 
 		*Class.ToString(), 
 		*GetActorName().ToString(),
@@ -183,6 +186,7 @@ FString FWorldPartitionActorDesc::ToString() const
 		bLevelBoundsRelevant ? TEXT("true") : TEXT("false"),
 		bActorIsHLODRelevant ? TEXT("true") : TEXT("false"),
 		*FolderPath.ToString(),
+		*FolderGuid.ToString(),
 		*ParentActor.ToString()
 	);
 }
@@ -254,6 +258,11 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeAttachParent)
 	{
 		Ar << ParentActor;
+	}
+
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::AddLevelActorFolders)
+	{
+		Ar << FolderGuid;
 	}
 }
 
@@ -414,4 +423,5 @@ void FWorldPartitionActorDesc::UnregisterActor()
 		Container->OnActorDescUnregistered(*this);
 	}
 }
+
 #endif

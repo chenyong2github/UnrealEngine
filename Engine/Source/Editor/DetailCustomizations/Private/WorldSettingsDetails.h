@@ -74,6 +74,12 @@ private:
 	// return the state of `ULevel::bUseExternalActors`
 	ECheckBoxState IsUseExternalActorsChecked(ULevel* Level) const;
 
+	// Called when `ULevel::bUseActorFolders` changes.
+	void OnUseActorFoldersChanged(ECheckBoxState BoxState, ULevel* Level);
+
+	// return the state of `ULevel::bUseActorFolders`
+	ECheckBoxState IsUsingActorFoldersChecked(ULevel* Level) const;
+
 	// Handles checking whether a given asset is acceptable for drag-and-drop.
 	bool HandleAssetDropTargetIsAssetAcceptableForDrop( const UObject* InObject ) const;
 

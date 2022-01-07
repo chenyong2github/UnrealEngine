@@ -27,11 +27,12 @@
 #if WITH_EDITOR
 
 #include "Editor.h"
-#include "EditorActorFolders.h"
-#include "Folder.h"
 #include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "Folder.h"
+#include "ActorFolder.h"
+#include "WorldPersistentFolders.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
@@ -809,6 +810,8 @@ void AActor::SetHLODLayer(class UHLODLayer* InHLODLayer)
 
 void AActor::SetPackageExternal(bool bExternal, bool bShouldDirty)
 {
+	// @todo_ow: Call FExternalPackageHelper::SetPackagingMode and keep calling the actor specific code here (components). 
+	//           The only missing part is GetExternalObjectsPath defaulting to a different folder than the one used by external actors.
 	if (bExternal == IsPackageExternal())
 	{
 		return;
@@ -966,43 +969,192 @@ FFolder AActor::GetFolder() const
 	return FFolder(GetFolderPath(), GetFolderRootObject());
 }
 
-static TOptional<FFolder::FRootObject> GetOptionalFolderRootObject(const AActor* Actor)
+FFolder::FRootObject AActor::GetFolderRootObject() const
 {
-	if (ULevel* Level = Actor->GetLevel())
+	return FFolder::GetOptionalFolderRootObject(GetLevel()).Get(FFolder::GetDefaultRootObject());
+}
+
+static bool IsUsingActorFolders(const AActor* InActor)
+{
+	return InActor && InActor->GetLevel() && InActor->GetLevel()->IsUsingActorFolders();
+}
+
+bool AActor::IsActorFolderValid() const
+{
+	return !IsUsingActorFolders(this) || (FolderPath.IsNone() && !FolderGuid.IsValid()) || GetActorFolder();
+}
+
+bool AActor::CreateOrUpdateActorFolder()
+{
+	check(GetLevel());
+	check(IsUsingActorFolders(this));
+
+	// First time this function is called, FolderPath can be valid and FolderGuid is invalid.
+	if (FolderPath.IsNone() && !FolderGuid.IsValid())
 	{
-		if (ULevelStreaming* LevelStreaming = ULevelStreaming::FindStreamingLevel(Level))
+		// Nothing to do
+		return true;
+	}
+
+	// Remap deleted folder or fixup invalid guid
+	UActorFolder* ActorFolder = nullptr;
+	if (FolderGuid.IsValid())
+	{
+		check(FolderPath.IsNone());
+		ActorFolder = GetActorFolder(/*bSkipDeleted*/false);
+		if (!ActorFolder || ActorFolder->IsMarkedAsDeleted())
 		{
-			return LevelStreaming->GetFolderRootObject();
+			FixupActorFolder();
+			check(IsActorFolderValid());
+			return true;
 		}
 	}
 
-	return FFolder::GetDefaultRootObject();
-}
-
-FFolder::FRootObject AActor::GetFolderRootObject() const
-{
-	return GetOptionalFolderRootObject(this).Get(FFolder::GetDefaultRootObject());
-}
-
-const FName& AActor::GetFolderPath() const
-{
-	static const FName EmptyPath = NAME_None;
-	return GetOptionalFolderRootObject(this) ? FolderPath : EmptyPath;
-}
-
-void AActor::SetFolderPath(const FName& NewFolderPath)
-{
-	if (!NewFolderPath.IsEqual(FolderPath, ENameCase::CaseSensitive))
+	// If not found, create actor folder using FolderPath
+	if (!ActorFolder)
 	{
-		Modify();
+		check(!FolderPath.IsNone());
+		ActorFolder = FWorldPersistentFolders::GetActorFolder(FFolder(FolderPath, GetFolderRootObject()), GetWorld(), /*bAllowCreate*/ true);
+	}
 
-		FName OldPath = FolderPath;
-		FolderPath = NewFolderPath;
+	// At this point, actor folder should always be valid
+	if (ensure(ActorFolder))
+	{
+		SetFolderGuidInternal(ActorFolder ? ActorFolder->GetGuid() : FGuid());
 
-		if (GEngine)
+		// Make sure actor folder is in the correct packaging mode
+		ActorFolder->SetPackageExternal(GetLevel()->IsUsingExternalObjects());
+	}
+	return IsActorFolderValid();
+}
+
+UActorFolder* AActor::GetActorFolder(bool bSkipDeleted) const
+{
+	UActorFolder* ActorFolder = nullptr;
+	if (ULevel* Level = GetLevel())
+	{
+		if (FolderGuid.IsValid())
 		{
-			GEngine->BroadcastLevelActorFolderChanged(this, OldPath);
+			ActorFolder = Level->GetActorFolder(FolderGuid, bSkipDeleted);
 		}
+		else if (!FolderPath.IsNone())
+		{
+			ActorFolder = Level->GetActorFolder(FolderPath, bSkipDeleted);
+		}
+	}
+	return ActorFolder;
+}
+
+void AActor::FixupActorFolder()
+{
+	check(GetLevel());
+	check(IsUsingActorFolders(this));
+	
+	// First detect and fixup reference to deleted actor folders
+	UActorFolder* ActorFolder = GetActorFolder(/*bSkipDeleted*/ false);
+	if (ActorFolder)
+	{
+		// Remap to skip deleted actor folder
+		if (ActorFolder->IsMarkedAsDeleted())
+		{
+			ActorFolder = ActorFolder->GetParent();
+			SetFolderGuidInternal(ActorFolder ? ActorFolder->GetGuid() : FGuid(), /*bBroadcastChange*/ false);
+		}
+		// We found actor folder using its path, update actor folder guid
+		else if (!FolderPath.IsNone())
+		{
+			SetFolderGuidInternal(ActorFolder ? ActorFolder->GetGuid() : FGuid(), /*bBroadcastChange*/ false);
+		}
+	}
+
+	// If still invalid, warn and fallback to root
+	if (!IsActorFolderValid())
+	{
+		UE_LOG(LogLevel, Warning, TEXT("Missing actor folder for actor %s"), *GetName());
+		SetFolderGuidInternal(FGuid(), /*bBroadcastChange*/ false);
+	}
+}
+
+FGuid AActor::GetFolderGuid() const
+{
+	return IsUsingActorFolders(this) ? FolderGuid : FGuid();
+}
+
+FName AActor::GetFolderPath() const
+{
+	static const FName RootPath = FFolder::GetEmptyPath();
+	if (!FFolder::GetOptionalFolderRootObject(GetLevel()))
+	{
+		return RootPath;
+	}
+	if (IsUsingActorFolders(this))
+	{
+		if (UActorFolder* ActorFolder = GetActorFolder())
+		{
+			return ActorFolder->GetPath();
+		}
+		return RootPath;
+	}
+	return FolderPath;
+}
+
+void AActor::SetFolderPath(const FName& InNewFolderPath)
+{
+	if (IsUsingActorFolders(this))
+	{
+		UActorFolder* ActorFolder = nullptr;
+		UWorld* World = GetWorld();
+		if (!InNewFolderPath.IsNone() && World)
+		{
+			FFolder NewFolder(InNewFolderPath, GetFolderRootObject());
+			ActorFolder = FWorldPersistentFolders::GetActorFolder(NewFolder, World);
+			if (!ActorFolder)
+			{
+				ActorFolder = FWorldPersistentFolders::GetActorFolder(NewFolder, World, /*bAllowCreate*/ true);
+			}
+		}
+		SetFolderGuidInternal(ActorFolder ? ActorFolder->GetGuid() : FGuid());
+	}
+	else
+	{
+		SetFolderPathInternal(InNewFolderPath);
+	}
+}
+
+void AActor::SetFolderGuidInternal(const FGuid& InFolderGuid, bool bInBroadcastChange)
+{
+	if ((FolderGuid == InFolderGuid) && FolderPath.IsNone())
+	{
+		return;
+	}
+
+	FName OldPath = !FolderPath.IsNone() ? FolderPath : GetFolderPath();
+	
+	Modify();
+	FolderPath = NAME_None;
+	FolderGuid = InFolderGuid;
+
+	if (GEngine && bInBroadcastChange)
+	{
+		GEngine->BroadcastLevelActorFolderChanged(this, OldPath);
+	}
+}
+
+void AActor::SetFolderPathInternal(const FName& InNewFolderPath, bool bInBroadcastChange)
+{
+	FName OldPath = FolderPath;
+	if (InNewFolderPath.IsEqual(OldPath, ENameCase::CaseSensitive))
+	{
+		return;
+	}
+
+	Modify();
+	FolderPath = InNewFolderPath;
+	FolderGuid.Invalidate();
+
+	if (GEngine && bInBroadcastChange)
+	{
+		GEngine->BroadcastLevelActorFolderChanged(this, OldPath);
 	}
 }
 

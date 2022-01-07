@@ -37,6 +37,7 @@ class ULevelActorContainer;
 class FLevelPartitionOperationScope;
 class FRegisterComponentContext;
 class SNotificationItem;
+class UActorFolder;
 
 UINTERFACE()
 class ULevelPartitionInterface : public UInterface
@@ -63,6 +64,18 @@ private:
 };
 
 #if WITH_EDITOR
+struct ENGINE_API FLevelActorFoldersHelper
+{
+private:
+	static void SetUseActorFolders(ULevel* InLevel, bool bInEnabled);
+	static void AddActorFolder(ULevel* InLevel, UActorFolder* InActorFolder, bool bInShouldDirtyLevel);
+
+	friend class UWorld;
+	friend class UActorFolder;
+	friend class UWorldPartitionConvertCommandlet;
+	friend class FWorldPartitionLevelHelper;
+};
+
 class ENGINE_API FLevelPartitionOperationScope
 {
 public:
@@ -619,6 +632,9 @@ public:
 
 	/** Whether the level has been saved after introducing actor GUIDs */
 	uint8										bContainsStableActorGUIDs:1;
+
+	/** Whether the level should call FixupActorFolders on its actors when loading the level/actors (only used when level is using actor folder objects) */
+	uint8										bFixupActorFoldersAtLoad:1;
 #endif
 	
 	/** The below variables are used temporarily while making a level visible.				*/
@@ -751,6 +767,7 @@ public:
 	ENGINE_API static bool GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds);
 	ENGINE_API static bool GetIsLevelPartitionedFromPackage(FName LevelPackage);
 	ENGINE_API static bool GetIsLevelUsingExternalActorsFromPackage(FName LevelPackage);
+	ENGINE_API static bool GetIsUsingActorFoldersFromPackage(FName LevelPackage);
 
 	ENGINE_API bool GetPromptWhenAddingToLevelOutsideBounds() const;
 	ENGINE_API bool GetPromptWhenAddingToLevelBeforeCheckout() const;
@@ -790,6 +807,18 @@ private:
 	/** When the level is partitioned, this will point to the owner partition (will be the same as this->LevelPartition in case that is the top partition level */
 	UPROPERTY()
 	TSoftObjectPtr<UObject> OwnerLevelPartition;
+
+	/** Use actor folder objects, actor folders of this level will be persistent in their own object. */
+	UPROPERTY(EditInstanceOnly, Category = World)
+	bool bUseActorFolders;
+
+	/** Actor folder objects. They can either be saved inside level or in their own package. */
+	UPROPERTY(Transient)
+	TMap<FGuid, TObjectPtr<UActorFolder>> ActorFolders;
+
+	/** Temporary array containing actor folder objects manually loaded from their external packages (only used while loading the level). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UActorFolder>> LoadedExternalActorFolders;
 #endif // #if WITH_EDITORONLY_DATA
 
 	enum class ERouteActorInitializationState : uint8
@@ -957,6 +986,9 @@ public:
 	FLoadedActorRemovedFromLevelEvent OnLoadedActorRemovedFromLevelEvent;
 #endif
 
+	/* Called when level is loaded. */
+	ENGINE_API void OnLevelLoaded();
+
 	virtual bool IsNameStableForNetworking() const override { return true; }		// For now, assume all levels have stable net names
 
 	/** Handles network initialization for actors in this level */
@@ -1107,6 +1139,35 @@ public:
 	/** Sets if the level uses external actors mode or not. */
 	ENGINE_API void SetUseExternalActors(bool bEnable);
 
+	/**
+	 * Get the folders containing the external objects for this level path
+	 * @param InLevelPackageName The package name to get the external objects path of
+	 * @param InPackageShortName Optional short name to use instead of the package short name
+	 * @return the folders
+	 */
+	static ENGINE_API TArray<FString> GetExternalObjectsPaths(const FString& InLevelPackageName, const FString& InPackageShortName = FString());
+
+	/** Returns true if the level uses external objects. */
+	ENGINE_API bool IsUsingExternalObjects() const;
+
+	/** Returns true if the level uses actor folders mode. */
+	ENGINE_API bool IsUsingActorFolders() const;
+
+	/** Updates all actors/folders that refer to folders marked as deleted, reparent to valid folder, deletes folders marked as deleted. */
+	ENGINE_API void CreateOrUpdateActorFolders();
+
+	/** Sets if the level uses actor folders mode or not. Returns true if succeeded. */
+	ENGINE_API bool SetUseActorFolders(bool bEnabled, bool bInteractive = false);
+
+	/** Finds the level actor folder by its guid. Returns null if not found. */
+	ENGINE_API UActorFolder* GetActorFolder(const FGuid& InGuid, bool bSkipDeleted = true) const;
+
+	/** Finds the level actor folder by its path. Returns null if not found. */
+	ENGINE_API UActorFolder* GetActorFolder(const FName& InPath, bool bSkipDeleted = true) const;
+
+	/** Iterates on all valid level actor folders. */
+	ENGINE_API void ForEachActorFolder(TFunctionRef<bool(UActorFolder*)> Operation, bool bSkipDeleted = false);
+
 	/** Returns true if the level wants newly spawned actors to be external */
 	ENGINE_API bool ShouldCreateNewExternalActors() const;
 
@@ -1137,13 +1198,13 @@ public:
 	 * Get the list of (on disk) external actor packages associated with this level
 	 * @return Array of packages associated with this level
 	 */
-	ENGINE_API TArray<FString> GetOnDiskExternalActorPackages() const;
+	ENGINE_API TArray<FString> GetOnDiskExternalActorPackages(bool bTryUsingPackageLoadedPath = false) const;
 
 	/**
-	 * Get the list of (loaded) external actor packages associated with this level
+	 * Get the list of (loaded) external object packages (actors/folders) associated with this level
 	 * @return Array of packages associated with this level
 	 */
-	ENGINE_API TArray<UPackage*> GetLoadedExternalActorPackages() const;
+	ENGINE_API TArray<UPackage*> GetLoadedExternalObjectPackages() const;
 
 	/**
 	 * Create an package for this actor
@@ -1246,6 +1307,16 @@ private:
 private:
 	/** Attempts to detect and fix any issues with the level script blueprint and associated objects */
 	void RepairLevelScript();
+
+	/** Prepares/fixes actor folder objects once level is fully loaded. */
+	void FixupActorFolders();
+
+	/** Sets the level to use or not the actor folder objects feature. */
+	void SetUseActorFoldersInternal(bool bInEnabled);
+
+	void OnAssetLoaded(UObject* Asset);
+
+	friend struct FLevelActorFoldersHelper;
 
 	/** Replace the existing LSA (if set) by spawning a new one based on this level's script blueprint */
 	void RegenerateLevelScriptActor();

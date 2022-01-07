@@ -366,6 +366,12 @@ public:
 	 */
 	COREUOBJECT_API static const TCHAR* GetExternalActorsFolderName();
 
+	/**
+	 * Get the folder name from which all external objects paths are created
+	 * @return folder name
+	 */
+	COREUOBJECT_API static const TCHAR* GetExternalObjectsFolderName();
+
 public:
 	// Internal API used by low-level PackageResourceManager users
 

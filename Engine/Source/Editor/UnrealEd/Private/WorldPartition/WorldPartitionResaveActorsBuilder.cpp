@@ -12,6 +12,7 @@
 #include "UObject/MetaData.h"
 #include "UObject/SavePackage.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "ActorFolder.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionResaveActorsBuilder, All, All);
@@ -75,6 +76,15 @@ bool UWorldPartitionResaveActorsBuilder::PreRun(UWorld* World, FPackageSourceCon
 		}
 	}
 
+	if (bEnableActorFolders)
+	{
+		if (bResaveDirtyActorDescsOnly)
+		{
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("EnableActorFolders is not compatible with ResaveDirtyActorDescsOnly"));
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -126,14 +136,86 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 		World->PersistentLevel->ActorPackagingScheme = EActorPackagingScheme::Reduced;
 	}
 
+	if (bEnableActorFolders)
+	{
+		if (World->PersistentLevel->IsUsingActorFolders())
+		{
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("World is already using actor folder objects."));
+			return false;
+		}
+
+		World->PersistentLevel->SetUseActorFolders(true);
+		World->PersistentLevel->bFixupActorFoldersAtLoad = false;
+	}
+
 	TArray<FString> PackagesToDelete;
+
+	auto AddAndSavePackage = [&SaveCount, &FailCount, &SCCHelper](UPackage* InPackage, const FString& InPackageType)
+	{
+		// Save the new package and add to source control if needed
+		FString NewPackageFileName = SourceControlHelpers::PackageFilename(InPackage);
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Standalone;
+		if (!UPackage::SavePackage(InPackage, nullptr, *NewPackageFileName, SaveArgs))
+		{
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving %s package %s."), *InPackageType, *InPackage->GetName());
+			++FailCount;
+			return true;
+		}
+
+		if (!SCCHelper.AddToSourceControl(InPackage))
+		{
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error adding %s package to source control %s."), *InPackageType, *InPackage->GetName());
+			++FailCount;
+			return true;
+		}
+
+		UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Saved %s package %s."), *InPackageType, *InPackage->GetName());
+		++SaveCount;
+		return true;
+	};
+
+	auto CheckOutAndSavePackage = [&SaveCount, &FailCount, &SCCHelper](UPackage* InPackage, const FString& InPackageType, bool bErrorAtFailCheckout)
+	{
+		if (SCCHelper.Checkout(InPackage))
+		{
+			// Save package
+			FString PackageFileName = SourceControlHelpers::PackageFilename(InPackage);
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Standalone;
+			if (!UPackage::SavePackage(InPackage, nullptr, *PackageFileName, SaveArgs))
+			{
+				UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving %s package %s."), *InPackageType, *InPackage->GetName());
+				++FailCount;
+				return true;
+			}
+
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Saved %s package %s."), *InPackageType, *InPackage->GetName());
+			++SaveCount;
+			return true;
+		}
+		else
+		{
+			if (bErrorAtFailCheckout)
+			{
+				UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error checking out %s package %s."), *InPackageType, *InPackage->GetName());
+			}
+			else
+			{
+				UE_LOG(LogWorldPartitionResaveActorsBuilder, Warning, TEXT("Error checking out %s package %s."), *InPackageType, *InPackage->GetName());
+			}
+
+			++FailCount;
+			return true;
+		}
+	};
 
 	// Rename pass
 	if (bSwitchActorPackagingSchemeToReduced)
 	{
 		World->PersistentLevel->ActorPackagingScheme = EActorPackagingScheme::Reduced;
 
-		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [this, &LoadCount, &SaveCount, &FailCount, &SCCHelper, &PackagesToDelete, WorldPackage](const FWorldPartitionActorDesc* ActorDesc)
+		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [this, &LoadCount, &SaveCount, &FailCount, &SCCHelper, &PackagesToDelete, WorldPackage, &AddAndSavePackage, &CheckOutAndSavePackage](const FWorldPartitionActorDesc* ActorDesc)
 		{
 			ON_SCOPE_EXIT
 			{
@@ -208,25 +290,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 							DependantObject->Rename(nullptr, NewActorPackage, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 						}
 
-						// Save the new actor package and add to source control if needed
-						FString NewPackageFileName = SourceControlHelpers::PackageFilename(NewActorPackage);
-						if (!UPackage::SavePackage(NewActorPackage, nullptr, *NewPackageFileName, SaveArgs))
-						{
-							UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving package %s."), *NewActorPackage->GetName());
-							++FailCount;
-							return true;
-						}
-
-						if (!SCCHelper.AddToSourceControl(NewActorPackage))
-						{
-							UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error adding package to source control %s."), *NewActorPackage->GetName());
-							++FailCount;
-							return true;
-						}
-
-						UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Saved package %s."), *NewActorPackage->GetName());
-						++SaveCount;
-						return true;
+						return AddAndSavePackage(NewActorPackage, TEXT("Actor"));
 					}
 					else
 					{
@@ -243,7 +307,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 	}
 
 	// Normal save pass
-	FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [this, &LoadCount, &SaveCount, &FailCount, &SCCHelper, &PackagesToDelete](const FWorldPartitionActorDesc* ActorDesc)
+	FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [this, &LoadCount, &SaveCount, &FailCount, &SCCHelper, &PackagesToDelete, &CheckOutAndSavePackage](const FWorldPartitionActorDesc* ActorDesc)
 	{
 		ON_SCOPE_EXIT
 		{
@@ -262,6 +326,16 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 		{
 			++LoadCount;
 
+			if (bEnableActorFolders)
+			{
+				if (!Actor->CreateOrUpdateActorFolder())
+				{
+					UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Failed to create actor folder for actor %s."), *Actor->GetName());
+					++FailCount;
+					return true;
+				}
+			}
+
 			UPackage* Package = Actor->GetExternalPackage();
 			check(Package);
 
@@ -279,30 +353,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 
 			if (!bReportOnly)
 			{
-				if (SCCHelper.Checkout(Package))
-				{
-					// Save package
-					FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-					FSavePackageArgs SaveArgs;
-					SaveArgs.TopLevelFlags = RF_Standalone;
-					if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
-					{
-						UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
-						++FailCount;
-						return true;
-					}
-
-					UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Saved package %s."), *Package->GetName());
-					++SaveCount;
-					return true;
-				}
-				else
-				{
-					// It is possible the resave can't checkout everything. Continue processing.
-					UE_LOG(LogWorldPartitionResaveActorsBuilder, Warning, TEXT("Error checking out package %s."), *Package->GetName());
-					++FailCount;
-					return true;
-				}
+				return CheckOutAndSavePackage(Package, TEXT("Actor"), /*bErrorAtFailCheckout*/ false);
 			}
 		}
 
@@ -312,25 +363,21 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 	if (!bReportOnly)
 	{
 		SCCHelper.Delete(PackagesToDelete);
-	}
 
-	if (bSwitchActorPackagingSchemeToReduced && !bReportOnly)
-	{
-		// checkout world package
-		if (!SCCHelper.Checkout(WorldPackage))
+		if (bEnableActorFolders)
 		{
-			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error checking out world package %s."), *WorldPackage->GetName());
-			return false;
+			World->PersistentLevel->ForEachActorFolder([&AddAndSavePackage](UActorFolder* ActorFolder)
+			{
+				UPackage* NewActorFolderPackage = ActorFolder->GetExternalPackage();
+				check(NewActorFolderPackage);
+				return AddAndSavePackage(NewActorFolderPackage, TEXT("Actor Folder"));
+			});
 		}
 
-		// Save world package
-		FString PackageFileName = SourceControlHelpers::PackageFilename(WorldPackage);
-		FSavePackageArgs SaveArgs;
-		SaveArgs.TopLevelFlags = RF_Standalone;
-		if (!UPackage::SavePackage(WorldPackage, nullptr, *PackageFileName, SaveArgs))
+		const bool bNeedWorldResave = bSwitchActorPackagingSchemeToReduced || bEnableActorFolders;
+		if (bNeedWorldResave)
 		{
-			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving world %s."), *WorldPackage->GetName());
-			return false;
+			return CheckOutAndSavePackage(WorldPackage, TEXT("World"), /*bErrorAtFailCheckout*/ true);
 		}
 	}
 

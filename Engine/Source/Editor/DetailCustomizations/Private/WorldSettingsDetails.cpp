@@ -28,6 +28,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "ScopedTransaction.h"
+#include "ActorFolder.h"
 
 #define LOCTEXT_NAMESPACE "WorldSettingsDetails"
 
@@ -107,10 +108,9 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 	{
 		const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(CustomizedLevel->GetWorld());
 
+		IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
 		if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)
 		{
-			IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
-
 			WorldCategory.AddCustomRow(LOCTEXT("LevelUseExternalActorsRow", "LevelUseExternalActors"), true)
 				.NameContent()
 				[
@@ -126,6 +126,27 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 					.OnCheckStateChanged(this, &FWorldSettingsDetails::OnUseExternalActorsChanged, CustomizedLevel)
 					.IsChecked(this, &FWorldSettingsDetails::IsUseExternalActorsChecked, CustomizedLevel)
 					.IsEnabled(!bIsPartitionedWorld)
+				];
+		}
+
+		const bool bIsUsingActorFolders = CustomizedLevel->IsUsingActorFolders();
+		if (bIsUsingActorFolders || GetDefault<UEditorExperimentalSettings>()->bEnableActorFolderObjectSupport)
+		{
+			WorldCategory.AddCustomRow(LOCTEXT("LevelUseActorFoldersRow", "LevelUseActorFolders"), true)
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("LevelUseActorFolders", "Use Actor Folder Objects"))
+					.ToolTipText(LOCTEXT("LevelUseActorFolders_ToolTip", "Use actor folder objects, actor folders of this level will be persistent in their own object."))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.IsEnabled(!bIsUsingActorFolders)
+				]
+				.ValueContent()
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged(this, &FWorldSettingsDetails::OnUseActorFoldersChanged, CustomizedLevel)
+					.IsChecked(this, &FWorldSettingsDetails::IsUsingActorFoldersChecked, CustomizedLevel)
+					.IsEnabled(!bIsUsingActorFolders)
 				];
 		}
 
@@ -230,6 +251,19 @@ TOptional<uint32> FWorldSettingsDetails::HandleWorldPartitionEditorCellSizeValue
 	}
 
 	return TOptional<uint32>();
+}
+
+void FWorldSettingsDetails::OnUseActorFoldersChanged(ECheckBoxState BoxState, ULevel* Level)
+{
+	if (Level && (BoxState == ECheckBoxState::Checked))
+	{
+		Level->SetUseActorFolders(true, /*bInteractiveMode*/ true);
+	}
+}
+
+ECheckBoxState FWorldSettingsDetails::IsUsingActorFoldersChecked(ULevel* Level) const
+{
+	return Level->IsUsingActorFolders() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 void FWorldSettingsDetails::OnUseExternalActorsChanged(ECheckBoxState BoxState, ULevel* Level)

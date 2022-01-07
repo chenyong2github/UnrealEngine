@@ -31,5 +31,8 @@ private:
 	bool bResaveDirtyActorDescsOnly;
 
 	UPROPERTY()
-	bool bSwitchActorPackagingSchemeToReduced;	
+	bool bSwitchActorPackagingSchemeToReduced;
+
+	UPROPERTY()
+	bool bEnableActorFolders;
 };

@@ -90,6 +90,7 @@ public:
 	bool CanCommit(FText* OutReason = nullptr) const;
 	bool CanDiscard(FText* OutReason = nullptr) const;
 	bool IsEditing() const;
+	ULevel* GetLoadedLevel() const;
 	bool HasChildEdit() const;
 	void Edit(AActor* ContextActor = nullptr);
 	void Commit();

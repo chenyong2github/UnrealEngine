@@ -11,6 +11,7 @@
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ActorTreeItem.h"
+#include "LevelTreeItem.h"
 #include "FolderTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "ActorDescTreeItem.h"
@@ -86,26 +87,43 @@ FActorMode::FActorMode(const FActorModeParams& Params)
 	, bHideUnloadedActors(Params.bHideUnloadedActors)
 {
 	SceneOutliner->AddFilter(MakeShared<FActorFilter>(FActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor)
-		{
-			return IsActorDisplayable(Actor);
-		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
+	{
+		return IsActorDisplayable(Actor);
+	}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 
-	SceneOutliner->AddFilter(MakeShared<FFolderFilter>(FFolderTreeItem::FFilterPredicate::CreateLambda([this](const FFolder& Folder)
+	auto FolderPassesFilter = [this](const FFolder& InFolder, bool bInCheckHideLevelInstanceFlag)
+	{
+		if (!InFolder.HasRootObject())
 		{
-			if (!Folder.HasRootObject())
+			return true;
+		}
+		if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(InFolder.GetRootObjectPtr()))
+		{
+			if (LevelInstance->IsEditing())
 			{
 				return true;
 			}
-			if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(Folder.GetRootObjectPtr()))
+			if (bInCheckHideLevelInstanceFlag)
 			{
-				const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld.IsValid() ? RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>() : nullptr;
-				if (LevelInstanceSubsystem && LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstance))
-				{
-					return true;
-				}
+				return !bHideLevelInstanceHierarchy;
 			}
-			return false;
-		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
+		}
+		if (ULevel* Level = Cast<ULevel>(InFolder.GetRootObjectPtr()))
+		{
+			return true;
+		}
+		return false;
+	};
+
+	SceneOutliner->AddFilter(MakeShared<FFolderFilter>(FFolderTreeItem::FFilterPredicate::CreateLambda([FolderPassesFilter](const FFolder& InFolder)
+	{
+		return FolderPassesFilter(InFolder, /*bCheckHideLevelInstanceFlag*/true);
+	}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
+
+	SceneOutliner->AddInteractiveFilter(MakeShared<FFolderFilter>(FFolderTreeItem::FFilterPredicate::CreateLambda([FolderPassesFilter](const FFolder& InFolder)
+	{
+		return FolderPassesFilter(InFolder, /*bCheckHideLevelInstanceFlag*/false);
+	}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
 FActorMode::~FActorMode()
@@ -349,6 +367,10 @@ int32 FActorMode::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) const
 	if (Item.IsA<FWorldTreeItem>())
 	{
 		return EItemSortOrder::World;
+	}
+	else if (Item.IsA<FLevelTreeItem>())
+	{
+		return EItemSortOrder::Level;
 	}
 	else if (Item.IsA<FFolderTreeItem>())
 	{

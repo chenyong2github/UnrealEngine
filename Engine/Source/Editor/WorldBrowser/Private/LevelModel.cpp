@@ -757,8 +757,7 @@ void FLevelModel::ConvertLevelToExternalActors(bool bUseExternal)
 		return;
 	}
 	Level->Modify();
-	Level->SetUseExternalActors(bUseExternal);
-	Level->ConvertAllActorsToPackaging(Level->IsUsingExternalActors());
+	Level->ConvertAllActorsToPackaging(bUseExternal);
 }
 
 bool FLevelModel::CanConvertLevelToExternalActors(bool bToExternal)

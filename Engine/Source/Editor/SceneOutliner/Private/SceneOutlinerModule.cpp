@@ -17,6 +17,7 @@
 #include "ActorPickingMode.h"
 #include "ActorBrowsingMode.h"
 #include "ActorTreeItem.h"
+#include "ActorFolderTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "ActorDescTreeItem.h"
 #include "FolderTreeItem.h"
@@ -286,35 +287,31 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 	{
 		if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 		{
-			AActor* Actor = ActorItem->Actor.Get();
-			if (!Actor)
+			if (AActor* Actor = ActorItem->Actor.Get())
 			{
-				return FString();
+				return Actor->GetFName().ToString();
 			}
-
-			return Actor->GetFName().ToString();
 		}
 		else if (const FComponentTreeItem* ComponentItem = Item.CastTo<FComponentTreeItem>())
 		{
-			UActorComponent* Component = ComponentItem->Component.Get();
-			if (!Component)
+			if (UActorComponent* Component = ComponentItem->Component.Get())
 			{
-				return FString();
+				return Component->GetFName().ToString();
 			}
-
-			return Component->GetFName().ToString();
-
 		}
 		else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
 		{
-			const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.GetActorDesc();
-
-			if (!ActorDesc)
+			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.GetActorDesc())
 			{
-				return FString();
+				return ActorDesc->GetActorName().ToString();
 			}
-
-			return ActorDesc->GetActorName().ToString();
+		}
+		else if (const FActorFolderTreeItem* ActorFolderItem = Item.CastTo<FActorFolderTreeItem>())
+		{
+			if (const UActorFolder* ActorFolder = Cast<UActorFolder>(ActorFolderItem->GetActorFolder()))
+			{
+				return ActorFolder->GetFName().ToString();
+			}
 		}
 
 		return FString();
@@ -324,25 +321,26 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 	{
 		if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 		{
-			AActor* Actor = ActorItem->Actor.Get();
-			if (!Actor)
+			if (AActor* Actor = ActorItem->Actor.Get())
 			{
-				return FString();
+				return FPackageName::GetShortName(Actor->GetPackage()->GetName());
 			}
-
-			return FPackageName::GetShortName(Actor->GetPackage()->GetName());
 		}
 		else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
 		{
-			const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.GetActorDesc();
-
-			if (!ActorDesc)
+			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.GetActorDesc())
 			{
-				return FString();
+				return FPackageName::GetShortName(ActorDesc->GetActorPackage());
 			}
-
-			return FPackageName::GetShortName(ActorDesc->GetActorPackage());
 		}
+		else if (const FActorFolderTreeItem* ActorFolderItem = Item.CastTo<FActorFolderTreeItem>())
+		{
+			if (const UActorFolder* ActorFolder = Cast<UActorFolder>(ActorFolderItem->GetActorFolder()))
+			{
+				return FPackageName::GetShortName(ActorFolder->GetPackage()->GetName());
+			}
+		}
+
 
 		return FString();
 	});

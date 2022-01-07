@@ -54,6 +54,7 @@
 #include "LandscapeGizmoActor.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "ActorFolder.h"
 
 DEFINE_LOG_CATEGORY(LogWorldPartitionConvertCommandlet);
 
@@ -760,28 +761,30 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		UE_SCOPED_TIMER(TEXT("Deleting existing conversion results"), LogWorldPartitionConvertCommandlet, Display);
 
 		FString OldLevelName = Tokens[0] + ConversionSuffix;
-		FString ExternalActorsPath = ULevel::GetExternalActorsPath(OldLevelName);
-		FString ExternalActorsFilePath = FPackageName::LongPackageNameToFilename(ExternalActorsPath);
-
-		if (IFileManager::Get().DirectoryExists(*ExternalActorsFilePath))
+		TArray<FString> ExternalObjectsPaths = ULevel::GetExternalObjectsPaths(OldLevelName);
+		for (const FString& ExternalObjectsPath : ExternalObjectsPaths)
 		{
-			bool bResult = IFileManager::Get().IterateDirectoryRecursively(*ExternalActorsFilePath, [this](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+			FString ExternalObjectsFilePath = FPackageName::LongPackageNameToFilename(ExternalObjectsPath);
+			if (IFileManager::Get().DirectoryExists(*ExternalObjectsFilePath))
 			{
-				if (!bIsDirectory)
+				bool bResult = IFileManager::Get().IterateDirectoryRecursively(*ExternalObjectsFilePath, [this](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 				{
-					FString Filename(FilenameOrDirectory);
-					if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+					if (!bIsDirectory)
 					{
-						return PackageHelper.Delete(Filename);
+						FString Filename(FilenameOrDirectory);
+						if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+						{
+							return PackageHelper.Delete(Filename);
+						}
 					}
-				}
-				return true;
-			});
+					return true;
+				});
 
-			if (!bResult)
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to delete external actor package(s)"));
-				return 1;
+				if (!bResult)
+				{
+					UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to delete external package(s)"));
+					return 1;
+				}
 			}
 		}
 
@@ -1342,8 +1345,10 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	if (!bReportOnly)
 	{
+		FLevelActorFoldersHelper::SetUseActorFolders(MainLevel, true);
+		MainLevel->SetUseExternalActors(true);
+
 		TSet<FGuid> ActorGuids;
-		
 		for(AActor* Actor: ActorList)
 		{
 			if (!Actor || !IsValidChecked(Actor) || !Actor->SupportsExternalPackaging())
@@ -1366,6 +1371,11 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			}
 						
 			Actor->SetPackageExternal(true);
+
+			if (!Actor->CreateOrUpdateActorFolder())
+			{
+				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to convert actor %s folder to persistent folder."), *Actor->GetName());
+			}
 			
 			UPackage* ActorPackage = Actor->GetExternalPackage();
 			PackagesToSave.Add(ActorPackage);
@@ -1386,7 +1396,14 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			PerformAdditionalActorChanges(Actor);
 		}
 
-		MainLevel->bUseExternalActors = true;
+		MainLevel->ForEachActorFolder([this](UActorFolder* ActorFolder)
+		{
+			UPackage* ActorFolderPackage = ActorFolder->GetExternalPackage();
+			check(ActorFolderPackage);
+			PackagesToSave.Add(ActorFolderPackage);
+			return true;
+		});
+
 		MainWorld->WorldComposition = nullptr;
 		MainLevel->bIsPartitioned = !bOnlyMergeSubLevels;
 
@@ -1407,7 +1424,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(CheckoutPackages);
 
-			UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Checking out %d actor packages."), PackagesToSave.Num());
+			UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Checking out %d packages."), PackagesToSave.Num());
 			for(UPackage* Package: PackagesToSave)
 			{
 				FString PackageFileName = SourceControlHelpers::PackageFilename(Package);

@@ -503,6 +503,12 @@ public:
 	-------------------*/
 
 	/**
+	 * Get the object packaging mode.
+	 * @return true if object has a different package than its outer's package
+	 */
+	bool IsPackageExternal() const;
+
+	/**
 	 * Utility function to temporarily detach the object external package, if any
 	 * GetPackage will report the outer's package once detached
 	 */

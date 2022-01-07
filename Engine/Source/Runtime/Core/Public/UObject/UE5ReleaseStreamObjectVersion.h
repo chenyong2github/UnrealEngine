@@ -72,6 +72,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// PackedLevelActor started using FWorldPartitionActorDesc (not currently checked against but added as a security)
 		PackedLevelActorUseWorldPartitionActorDesc,
 
+		// Add support for actor folder objects
+		AddLevelActorFolders,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -900,6 +900,14 @@ void ULevelStreaming::SetLoadedLevel(ULevel* Level)
 	}
 
 	World->UpdateStreamingLevelShouldBeConsidered(this);
+
+	// Virtual call for derived classes to add their logic
+	OnLevelLoadedChanged(LoadedLevel);
+
+	if (LoadedLevel)
+	{
+		LoadedLevel->OnLevelLoaded();
+	}
 }
 
 void ULevelStreaming::DiscardPendingUnloadLevel(UWorld* PersistentWorld)
@@ -1884,6 +1892,18 @@ void ULevelStreaming::PostEditUndo()
 	{
 		World->UpdateStreamingLevelShouldBeConsidered(this);
 	}
+}
+
+TOptional<FFolder::FRootObject> ULevelStreaming::GetFolderRootObject() const
+{ 
+	// We consider that if either the loaded level or its world persistent level uses actor folder objects, the loaded level is the folder root object.
+	if (LoadedLevel && 
+		(LoadedLevel != LoadedLevel->GetWorld()->PersistentLevel) && 
+		(LoadedLevel->IsUsingActorFolders() || LoadedLevel->GetWorld()->PersistentLevel->IsUsingActorFolders()))
+	{
+		return FFolder::FRootObject(LoadedLevel);
+	}
+	return FFolder::GetDefaultRootObject();
 }
 
 const FName& ULevelStreaming::GetFolderPath() const

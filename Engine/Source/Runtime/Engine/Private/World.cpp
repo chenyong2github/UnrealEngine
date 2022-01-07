@@ -108,6 +108,7 @@
 	#include "AssetCompilingManager.h"
 	#include "WorldPartition/DataLayer/WorldDataLayers.h"
 	#include "PieFixupSerializer.h"
+	#include "ActorFolder.h"
 #endif
 
 
@@ -665,6 +666,16 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 		{
 			Actor->SetPackageExternal(false);
 			Actor->SetPackageExternal(true);
+		}
+
+		if (PersistentLevel->IsUsingExternalObjects())
+		{
+			PersistentLevel->ForEachActorFolder([](UActorFolder* ActorFolder)
+			{
+				ActorFolder->SetPackageExternal(false);
+				ActorFolder->SetPackageExternal(true);
+				return true;
+			});
 		}
 	}
 
@@ -1848,6 +1859,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	PersistentLevel->PrecomputedVisibilityHandler.UpdateScene(Scene);
 	PersistentLevel->PrecomputedVolumeDistanceField.UpdateScene(Scene);
 	PersistentLevel->InitializeRenderingResources();
+	PersistentLevel->OnLevelLoaded();
 
 	IStreamingManager::Get().AddLevel(PersistentLevel);
 
@@ -1937,8 +1949,9 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS, bool bInSkipInit
 	// Check if newly created world should be partitioned
 	if (IVS.bCreateWorldPartition)
 	{
+		// World partition always uses actor folder objects
+		FLevelActorFoldersHelper::SetUseActorFolders(PersistentLevel, true);
 		PersistentLevel->ConvertAllActorsToPackaging(true);
-		PersistentLevel->bUseExternalActors = true;
 		
 		check(!GetStreamingLevels().Num());
 		
@@ -8302,6 +8315,12 @@ void UWorld::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		{
 			static const FName NAME_LevelIsUsingExternalActors(TEXT("LevelIsUsingExternalActors"));
 			OutTags.Add(FAssetRegistryTag(NAME_LevelIsUsingExternalActors, TEXT("1"), FAssetRegistryTag::TT_Hidden));
+		}
+
+		if (PersistentLevel->IsUsingActorFolders())
+		{
+			static const FName NAME_LevelIsUsingActorFolders(TEXT("LevelIsUsingActorFolders"));
+			OutTags.Add(FAssetRegistryTag(NAME_LevelIsUsingActorFolders, TEXT("1"), FAssetRegistryTag::TT_Hidden));
 		}
 	}
 

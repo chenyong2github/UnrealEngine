@@ -3,6 +3,7 @@
 #include "ActorFolderHierarchy.h"
 #include "ISceneOutlinerMode.h"
 #include "WorldTreeItem.h"
+#include "LevelTreeItem.h"
 #include "ActorTreeItem.h"
 #include "ActorFolderTreeItem.h"
 #include "EditorActorFolders.h"
@@ -67,9 +68,17 @@ void FActorFolderHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutl
 
 	if (FFolder::HasRootObject(RootObject))
 	{
-		if (ALevelInstance* RootLevelInstance = Cast<ALevelInstance>(FFolder(NAME_None, RootObject).GetRootObjectPtr()))
+		UObject* RootObjectPtr = FFolder::GetRootObjectPtr(RootObject);
+		if (ALevelInstance* RootLevelInstance = Cast<ALevelInstance>(RootObjectPtr))
 		{
 			if (FSceneOutlinerTreeItemPtr ActorItem = Mode->CreateItemFor<FActorTreeItem>(RootLevelInstance, true))
+			{
+				OutItems.Add(ActorItem);
+			}
+		}
+		else if (ULevel* RootLevel = Cast<ULevel>(RootObjectPtr))
+		{
+			if (FSceneOutlinerTreeItemPtr ActorItem = Mode->CreateItemFor<FLevelTreeItem>(RootLevel, true))
 			{
 				OutItems.Add(ActorItem);
 			}

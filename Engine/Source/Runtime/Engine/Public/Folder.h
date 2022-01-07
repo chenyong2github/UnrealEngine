@@ -2,30 +2,45 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectKey.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/Paths.h"
+#include "Misc/Optional.h"
+
+class ULevel;
 
 struct FFolder
 {
+#if WITH_EDITOR
 	typedef FObjectKey FRootObject;
 
-	FFolder(const FName& InPath = NAME_None, const FRootObject& InRootObject = GetDefaultRootObject())
+	FFolder(const FName& InPath = GetEmptyPath(), const FRootObject& InRootObject = GetDefaultRootObject())
 		: Path(InPath)
 		, RootObject(InRootObject)
 	{}
+
+	ENGINE_API static TOptional<FRootObject> GetOptionalFolderRootObject(const ULevel* InLevel);
 
 	FORCEINLINE static bool HasRootObject(const FRootObject& Key)
 	{
 		return Key != GetDefaultRootObject();
 	}
 
+	FORCEINLINE static FName GetEmptyPath()
+	{
+		return NAME_None;
+	}
+
 	FORCEINLINE static FRootObject GetDefaultRootObject()
 	{
 		return FRootObject();
+	}
+
+	FORCEINLINE static UObject* GetRootObjectPtr(const FRootObject& InRootObject)
+	{
+		return InRootObject.ResolveObjectPtr();
 	}
 
 	FORCEINLINE bool HasRootObject() const
@@ -60,7 +75,7 @@ struct FFolder
 
 	FORCEINLINE UObject* GetRootObjectPtr() const
 	{
-		return RootObject.ResolveObjectPtr();
+		return GetRootObjectPtr(RootObject);
 	}
 
 	FORCEINLINE const FName& GetPath() const
@@ -132,9 +147,12 @@ private:
 
 	FName Path;
 	FRootObject RootObject;
+#endif
 };
 
+#if WITH_EDITOR
 FORCEINLINE uint32 GetTypeHash(const FFolder& InFolder)
 {
 	return HashCombine(GetTypeHash(InFolder.GetPath()), GetTypeHash(InFolder.GetRootObject()));
 }
+#endif

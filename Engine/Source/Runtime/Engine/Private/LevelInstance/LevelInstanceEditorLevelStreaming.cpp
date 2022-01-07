@@ -90,12 +90,14 @@ void ULevelStreamingLevelInstanceEditor::OnLevelActorAdded(AActor* InActor)
 	}
 }
 
-void ULevelStreamingLevelInstanceEditor::SetLoadedLevel(ULevel* Level)
+void ULevelStreamingLevelInstanceEditor::OnLevelLoadedChanged(ULevel* InLevel)
 {
-	Super::SetLoadedLevel(Level);
+	Super::OnLevelLoadedChanged(InLevel);
 
 	if (ULevel* NewLoadedLevel = GetLoadedLevel())
 	{
+		check(InLevel == NewLoadedLevel);
+
 		// Avoid prompts for Level Instance editing
 		NewLoadedLevel->bPromptWhenAddingToLevelBeforeCheckout = false;
 		NewLoadedLevel->bPromptWhenAddingToLevelOutsideBounds = false;
@@ -104,6 +106,11 @@ void ULevelStreamingLevelInstanceEditor::SetLoadedLevel(ULevel* Level)
 		if (AWorldSettings* WorldSettings = NewLoadedLevel->GetWorldSettings())
 		{
 			LevelTransform = FTransform(WorldSettings->LevelInstancePivotOffset) * LevelTransform;
+		}
+
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
+		{
+			LevelInstanceSubsystem->RegisterLoadedLevelStreamingLevelInstanceEditor(this);
 		}
 	}
 }

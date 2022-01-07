@@ -16,26 +16,9 @@
 #include "ScopedTransaction.h"
 #include "UObject/ObjectSaveContext.h"
 #include "LevelInstance/LevelInstanceActor.h"
+#include "ActorFolder.h"
 
 #define LOCTEXT_NAMESPACE "FActorFolders"
-
-void UEditorActorFolders::Serialize(FArchive& Ar)
-{
-	Ar << Folders;
-}
-
-FString GetWorldStateFilename(UPackage* Package)
-{
-	const FString PathName = Package->GetPathName();
-	const uint32 PathNameCrc = FCrc::MemCrc32(*PathName, sizeof(TCHAR) * PathName.Len());
-	return FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("Config"), TEXT("WorldState"), *FString::Printf(TEXT("%u.json"), PathNameCrc));
-}
-
-/** Convert an old path to a new path, replacing an ancestor branch with something else */
-static FName OldPathToNewPath(const FString& InOldBranch, const FString& InNewBranch, const FString& PathToMove)
-{
-	return FName(*(InNewBranch + PathToMove.RightChop(InOldBranch.Len())));
-}
 
 // Static member definitions
 
@@ -57,6 +40,7 @@ FActorFolders::FActorFolders()
 	check(GEngine);
 	GEngine->OnLevelActorFolderChanged().AddRaw(this, &FActorFolders::OnActorFolderChanged);
 	GEngine->OnLevelActorListChanged().AddRaw(this, &FActorFolders::OnLevelActorListChanged);
+	GEngine->OnActorFolderAdded().AddRaw(this, &FActorFolders::OnActorFolderAdded);
 
 	FEditorDelegates::MapChange.AddRaw(this, &FActorFolders::OnMapChange);
 	FEditorDelegates::PostSaveWorldWithContext.AddRaw(this, &FActorFolders::OnWorldSaved);
@@ -67,6 +51,7 @@ FActorFolders::~FActorFolders()
 	check(GEngine);
 	GEngine->OnLevelActorFolderChanged().RemoveAll(this);
 	GEngine->OnLevelActorListChanged().RemoveAll(this);
+	GEngine->OnActorFolderAdded().RemoveAll(this);
 
 	FEditorDelegates::MapChange.RemoveAll(this);
 	FEditorDelegates::PostSaveWorldWithContext.RemoveAll(this);
@@ -75,7 +60,7 @@ FActorFolders::~FActorFolders()
 void FActorFolders::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	// Add references for all our UObjects so they don't get collected
-	Collector.AddReferencedObjects(TemporaryWorldFolders);
+	Collector.AddReferencedObjects(WorldFolders);
 }
 
 FActorFolders& FActorFolders::Get()
@@ -97,7 +82,7 @@ void FActorFolders::Cleanup()
 
 void FActorFolders::Housekeeping()
 {
-	for (auto It = TemporaryWorldFolders.CreateIterator(); It; ++It)
+	for (auto It = WorldFolders.CreateIterator(); It; ++It)
 	{
 		if (!It.Key().Get())
 		{
@@ -178,37 +163,20 @@ void FActorFolders::OnMapChange(uint32 MapChangeFlags)
 void FActorFolders::OnWorldSaved(UWorld* World, FObjectPostSaveContext ObjectSaveContext)
 {
 	// Attempt to save the folder state
-	const UEditorActorFolders* const* ExisingFolders = TemporaryWorldFolders.Find(World);
-
-	if (ExisingFolders)
+	if (UWorldFolders** Folders = WorldFolders.Find(World))
 	{
-		const auto Filename = GetWorldStateFilename(World->GetOutermost());
-		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*Filename));
-		if (Ar)
-		{
-			TSharedRef<FJsonObject> RootObject = MakeShareable(new FJsonObject);
-			TSharedRef<FJsonObject> JsonFolders = MakeShareable(new FJsonObject);
-
-			for (const auto& KeyValue : (*ExisingFolders)->Folders)
-			{
-				// Only write for World root
-				if (!KeyValue.Key.HasRootObject())
-				{
-					TSharedRef<FJsonObject> JsonFolder = MakeShareable(new FJsonObject);
-					JsonFolder->SetBoolField(TEXT("bIsExpanded"), KeyValue.Value.bIsExpanded);
-					JsonFolders->SetObjectField(KeyValue.Key.ToString(), JsonFolder);
-				}
-			}
-
-			RootObject->SetObjectField(TEXT("Folders"), JsonFolders);
-
-			{
-				auto Writer = TJsonWriterFactory<TCHAR>::Create(Ar.Get());
-				FJsonSerializer::Serialize(RootObject, Writer);
-				Ar->Close();
-			}
-		}
+		(*Folders)->OnWorldSaved();
 	}
+}
+
+UWorldFolders& FActorFolders::GetOrCreateWorldFolders(UWorld& InWorld)
+{
+	if (UWorldFolders** Folders = WorldFolders.Find(&InWorld))
+	{
+		return **Folders;
+	}
+
+	return CreateWorldFolders(InWorld);
 }
 
 void FActorFolders::OnActorFolderChanged(const AActor* InActor, FName OldPath)
@@ -228,62 +196,26 @@ void FActorFolders::OnActorFolderChanged(const AActor* InActor, FName OldPath)
 
 void FActorFolders::RebuildFolderListForWorld(UWorld& InWorld)
 {
-	if (TemporaryWorldFolders.Contains(&InWorld))
+	if (UWorldFolders** Folders = WorldFolders.Find(&InWorld))
 	{
 		// For world folders, we don't empty the existing folders so that we keep empty ones.
 		// Explicitly deleted folders will already be removed from the list.
 		
-		// Clear folders with a Root Object.
-		TArray<FFolder> FoldersToRemove;
-		ForEachFolder(InWorld, [&FoldersToRemove](const FFolder& Folder)
-		{
-			if (Folder.HasRootObject())
-			{
-				FoldersToRemove.Add(Folder);
-			}
-			return true;
-		});
-		RemoveFoldersFromWorld(InWorld, FoldersToRemove, /*bBroadcastDelete*/ false);
-
-		// Iterate over every actor in memory. WARNING: This is potentially very expensive!
-		for (FActorIterator ActorIt(&InWorld); ActorIt; ++ActorIt)
-		{
-			AddFolderToWorld(InWorld, ActorIt->GetFolder());
-		}
+		(*Folders)->RebuildList();
 	}
 	else
 	{
 		// No folders exist for this world yet - creating them will ensure they're up to date
-		InitializeForWorld(InWorld);
+		CreateWorldFolders(InWorld);
 	}
 }
 
-const TMap<FFolder, FActorFolderProps>& FActorFolders::GetFolderPropertiesForWorld(UWorld& InWorld)
+FActorFolderProps* FActorFolders::GetFolderProperties(UWorld& InWorld, const FFolder& InFolder)
 {
-	return GetOrCreateFoldersForWorld(InWorld).Folders;
+	return GetOrCreateWorldFolders(InWorld).GetFolderProperties(InFolder);
 }
 
-FActorFolderProps* FActorFolders::GetFolderProperties(UWorld& InWorld, const FFolder& InPath)
-{
-	return GetOrCreateFoldersForWorld(InWorld).Folders.Find(InPath);
-}
-
-bool FActorFolders::FoldersExistForWorld(UWorld& InWorld) const
-{
-	return (TemporaryWorldFolders.Find(&InWorld) != NULL);
-}
-
-UEditorActorFolders& FActorFolders::GetOrCreateFoldersForWorld(UWorld& InWorld)
-{
-	if (UEditorActorFolders** Folders = TemporaryWorldFolders.Find(&InWorld))
-	{
-		return **Folders;
-	}
-
-	return InitializeForWorld(InWorld);
-}
-
-UEditorActorFolders& FActorFolders::InitializeForWorld(UWorld& InWorld)
+UWorldFolders& FActorFolders::CreateWorldFolders(UWorld& InWorld)
 {
 	// Clean up any stale worlds
 	Housekeeping();
@@ -292,41 +224,9 @@ UEditorActorFolders& FActorFolders::InitializeForWorld(UWorld& InWorld)
 
 	// We intentionally don't pass RF_Transactional to ConstructObject so that we don't record the creation of the object into the undo buffer
 	// (to stop it getting deleted on undo as we manage its lifetime), but we still want it to be RF_Transactional so we can record any changes later
-	UEditorActorFolders* Folders = NewObject<UEditorActorFolders>(GetTransientPackage(), NAME_None, RF_NoFlags);
-	Folders->SetFlags(RF_Transactional);
-	TemporaryWorldFolders.Add(&InWorld, Folders);
-
-	// Ensure the list is entirely up to date with the world before we write our serialized properties into it.
-	for (FActorIterator ActorIt(&InWorld); ActorIt; ++ActorIt)
-	{
-		AddFolderToWorld(InWorld, ActorIt->GetFolder());
-	}
-
-	// Attempt to load the folder properties from this user's saved world state directory
-	const auto Filename = GetWorldStateFilename(InWorld.GetOutermost());
-	TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*Filename));
-	if (Ar)
-	{
-		TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject);
-
-		auto Reader = TJsonReaderFactory<TCHAR>::Create(Ar.Get());
-		if (FJsonSerializer::Deserialize(Reader, RootObject))
-		{
-			const TSharedPtr<FJsonObject>& JsonFolders = RootObject->GetObjectField(TEXT("Folders"));
-			for (const auto& KeyValue : JsonFolders->Values)
-			{
-				// Only pull in the folder's properties if this folder still exists in the world.
-				// This means that old stale folders won't re-appear in the world (they'll won't get serialized when the world is saved anyway)
-				if (FActorFolderProps* FolderInWorld = Folders->Folders.Find(FFolder(FName(*KeyValue.Key))))
-				{
-					auto FolderProperties = KeyValue.Value->AsObject();
-					FolderInWorld->bIsExpanded = FolderProperties->GetBoolField(TEXT("bIsExpanded"));
-				}
-			}
-		}
-		Ar->Close();
-	}
-
+	UWorldFolders* Folders = NewObject<UWorldFolders>(GetTransientPackage(), NAME_None, RF_NoFlags);
+	WorldFolders.Add(&InWorld, Folders);
+	Folders->Initialize(&InWorld);
 	return *Folders;
 }
 
@@ -365,7 +265,7 @@ FFolder FActorFolders::GetDefaultFolderForSelection(UWorld& InWorld, TArray<FFol
 		{
 			if (LevelInstance->IsEditing())
 			{
-				Folder = FFolder(Folder.GetPath(), LevelInstance);
+				Folder = FFolder(FFolder::GetEmptyPath(), FFolder::FRootObject(LevelInstance));
 			}
 		}
 		if (!MergeFolders(Folder))
@@ -391,9 +291,8 @@ FFolder FActorFolders::GetDefaultFolderForSelection(UWorld& InWorld, TArray<FFol
 FFolder FActorFolders::GetFolderName(UWorld& InWorld, const FFolder& InParentFolder, const FName& InLeafName)
 {
 	// This is potentially very slow but necessary to find a unique name
-	const auto& ExistingFolders = GetFolderPropertiesForWorld(InWorld);
+	const UWorldFolders& Folders = GetOrCreateWorldFolders(InWorld);
 	const FFolder::FRootObject& RootObject = InParentFolder.GetRootObject();
-
 	const FString LeafNameString = InLeafName.ToString();
 
 	// Find the last non-numeric character
@@ -434,7 +333,7 @@ FFolder FActorFolders::GetFolderName(UWorld& InWorld, const FFolder& InParentFol
 	}
 
 	FName FolderName(*(ParentFolderPath + LeafName.ToString()));
-	while (ExistingFolders.Contains(FFolder(FolderName, RootObject)))
+	while (Folders.ContainsFolder(FFolder(FolderName, RootObject)))
 	{
 		LeafName = FText::Format(LOCTEXT("FolderNamePattern", "{0}{1}"), FText::FromString(LeafNameRoot), FText::AsNumber(Suffix++, &NumberFormat));
 		FolderName = FName(*(ParentFolderPath + LeafName.ToString()));
@@ -452,7 +351,7 @@ FFolder FActorFolders::GetFolderName(UWorld& InWorld, const FFolder& InParentFol
 FFolder FActorFolders::GetDefaultFolderName(UWorld& InWorld, const FFolder& InParentFolder)
 {
 	// This is potentially very slow but necessary to find a unique name
-	const auto& ExistingFolders = GetFolderPropertiesForWorld(InWorld);
+	const UWorldFolders& Folders = GetOrCreateWorldFolders(InWorld);
 	const FFolder::FRootObject& RootObject = InParentFolder.GetRootObject();
 
 	// Create a valid base name for this folder
@@ -468,7 +367,7 @@ FFolder FActorFolders::GetDefaultFolderName(UWorld& InWorld, const FFolder& InPa
 	}
 
 	FName FolderName(*(ParentFolderPath + LeafName.ToString()));
-	while (ExistingFolders.Contains(FFolder(FolderName, RootObject)))
+	while (Folders.ContainsFolder(FFolder(FolderName, RootObject)))
 	{
 		LeafName = FText::Format(LOCTEXT("DefaultFolderNamePattern", "NewFolder{0}"), FText::AsNumber(Suffix++, &NumberFormat));
 		FolderName = FName(*(ParentFolderPath + LeafName.ToString()));
@@ -527,6 +426,15 @@ void FActorFolders::CreateFolder(UWorld& InWorld, const FFolder& InFolder)
 	}
 }
 
+void FActorFolders::OnActorFolderAdded(UActorFolder* InActorFolder)
+{
+	check(InActorFolder && InActorFolder->GetOuterULevel());
+	ULevel* Level = InActorFolder->GetOuterULevel();
+	check(Level->IsUsingActorFolders());
+
+	AddFolderToWorld(*Level->GetWorld(), InActorFolder->GetFolder());
+}
+
 void FActorFolders::OnFolderRootObjectRemoved(UWorld& InWorld, const FFolder::FRootObject& InFolderRootObject)
 {
 	TArray<FFolder> FoldersToDelete;
@@ -542,21 +450,16 @@ void FActorFolders::OnFolderRootObjectRemoved(UWorld& InWorld, const FFolder::FR
 void FActorFolders::DeleteFolder(UWorld& InWorld, const FFolder& InFolderToDelete)
 {
 	const FScopedTransaction Transaction(LOCTEXT("UndoAction_DeleteFolder", "Delete Folder"));
-
-	UEditorActorFolders& Folders = GetOrCreateFoldersForWorld(InWorld);
-	if (Folders.Folders.Contains(InFolderToDelete))
+	if (GetOrCreateWorldFolders(InWorld).RemoveFolder(InFolderToDelete, /*bShouldDeleteFolder*/ true))
 	{
-		Folders.Modify();
-		Folders.Folders.Remove(InFolderToDelete);
 		BroadcastOnActorFolderDeleted(InWorld, InFolderToDelete);
 	}
 }
 
-bool FActorFolders::RenameFolderInWorld(UWorld& World, const FFolder& OldPath, const FFolder& NewPath)
+bool FActorFolders::RenameFolderInWorld(UWorld& InWorld, const FFolder& OldPath, const FFolder& NewPath)
 {
 	// We currently don't support changing the root object
 	check(OldPath.GetRootObject() == NewPath.GetRootObject());
-	const FFolder::FRootObject& RootObject = OldPath.GetRootObject();
 
 	const FString OldPathString = OldPath.ToString();
 	const FString NewPathString = NewPath.ToString();
@@ -567,133 +470,28 @@ bool FActorFolders::RenameFolderInWorld(UWorld& World, const FFolder& OldPath, c
 	}
 
 	const FScopedTransaction Transaction(LOCTEXT("UndoAction_RenameFolder", "Rename Folder"));
-
-	TSet<FFolder> RenamedFolders;
-	bool RenamedFolder = false;
-
-	// Move any folders we currently hold - old ones will be deleted later
-	UEditorActorFolders& FoldersInWorld = GetOrCreateFoldersForWorld(World);
-	FoldersInWorld.Modify();
-
-	auto ExistingFoldersCopy = FoldersInWorld.Folders;
-	for (const auto& Pair : ExistingFoldersCopy)
-	{
-		const FFolder& Path = Pair.Key;
-
-		const FString FolderPath = Path.ToString();
-		if (OldPath == Path || FEditorFolderUtils::PathIsChildOf(FolderPath, OldPathString))
-		{
-			const FFolder NewFolder = FFolder(OldPathToNewPath(OldPathString, NewPathString, FolderPath), RootObject);
-			
-			// Needs to be done this way otherwise case insensitive comparison is used.
-			bool ContainsFolder = false;
-			for (const auto& FolderPair : FoldersInWorld.Folders)
-			{
-				if (FolderPair.Key.GetRootObject() == NewFolder.GetRootObject() && FolderPair.Key.GetPath().IsEqual(NewFolder.GetPath(), ENameCase::CaseSensitive))
-				{
-					ContainsFolder = true;
-					break;
-				}
-			}
-
-			if (!ContainsFolder)
-			{
-				// Use the existing properties for the folder if we have them
-				if (FActorFolderProps* ExistingProperties = FoldersInWorld.Folders.Find(Path))
-				{
-					FoldersInWorld.Folders.Add(NewFolder, *ExistingProperties);
-				}
-				else
-				{
-					// Otherwise use default properties
-					FoldersInWorld.Folders.Add(NewFolder);
-				}
-				BroadcastOnActorFolderMoved(World, Path, NewFolder);
-				BroadcastOnActorFolderCreated(World, NewFolder);
-			}
-
-			// case insensitive compare as we don't want to remove the folder if it has the same name
-			if (Path != NewFolder)
-			{
-				RenamedFolders.Add(Path);
-			}
-
-			RenamedFolder = true;
-		}
-	}
-
-	// Now that we have folders created, move any actors that ultimately reside in that folder too
-	for (auto ActorIt = FActorIterator(&World); ActorIt; ++ActorIt)
-	{
-		// copy, otherwise it returns the new value when set later
-		const FFolder OldActorPath = ActorIt->GetFolder();
-		if (OldActorPath.IsNone())
-		{
-			continue;
-		}
-
-		if (OldActorPath == OldPath || FEditorFolderUtils::PathIsChildOf(OldActorPath.ToString(), OldPathString))
-		{
-			ActorIt->SetFolderPath_Recursively(OldPathToNewPath(OldPathString, NewPathString, OldActorPath.ToString()));
-			const FFolder NewActorPath = ActorIt->GetFolder();
-
-			// case insensitive compare as we don't want to remove the folder if it has the same name
-			if (OldActorPath != NewActorPath)
-			{
-				RenamedFolders.Add(OldActorPath);
-			}
-
-			RenamedFolder = true;
-		}
-	}
-
-	// Cleanup any old folders
-	for (const auto& Path : RenamedFolders)
-	{
-		FoldersInWorld.Folders.Remove(Path);
-		BroadcastOnActorFolderDeleted(World, Path);
-	}
-
-	return RenamedFolder;
+	return GetOrCreateWorldFolders(InWorld).RenameFolder(OldPath, NewPath);
 }
 
 bool FActorFolders::AddFolderToWorld(UWorld& InWorld, const FFolder& InFolder)
 {
-	if (!InFolder.IsNone())
-	{
-		UEditorActorFolders& Folders = GetOrCreateFoldersForWorld(InWorld);
-
-		if (!Folders.Folders.Contains(InFolder))
-		{
-			// Add the parent as well
-			const FFolder ParentFolder = InFolder.GetParent();
-			if (!ParentFolder.IsNone())
-			{
-				AddFolderToWorld(InWorld, ParentFolder);
-			}
-
-			Folders.Modify();
-			Folders.Folders.Add(InFolder);
-
-			return true;
-		}
-	}
-
-	return false;
+	return GetOrCreateWorldFolders(InWorld).AddFolder(InFolder);
 }
 
 void FActorFolders::RemoveFoldersFromWorld(UWorld& InWorld, const TArray<FFolder>& InFolders, bool bBroadcastDelete)
 {
 	if (InFolders.Num() > 0)
 	{
-		UEditorActorFolders& Folders = GetOrCreateFoldersForWorld(InWorld);
+		UWorldFolders& Folders = GetOrCreateWorldFolders(InWorld);
 		Folders.Modify();
 		for (const FFolder& Folder : InFolders)
 		{
-			Folders.Folders.Remove(Folder);
-			if (bBroadcastDelete)
+			if (Folders.RemoveFolder(Folder))
 			{
-				BroadcastOnActorFolderDeleted(InWorld, Folder);
+				if (bBroadcastDelete)
+				{
+					BroadcastOnActorFolderDeleted(InWorld, Folder);
+				}
 			}
 		}
 	}
@@ -706,44 +504,22 @@ bool FActorFolders::ContainsFolder(UWorld& InWorld, const FFolder& InFolder)
 
 bool FActorFolders::IsFolderExpanded(UWorld& InWorld, const FFolder& InFolder)
 {
-	FActorFolderProps* FolderProps = GetFolderProperties(InWorld, InFolder);
-	return FolderProps ? FolderProps->bIsExpanded : false;
+	return GetOrCreateWorldFolders(InWorld).IsFolderExpanded(InFolder);
 }
 
 void FActorFolders::SetIsFolderExpanded(UWorld& InWorld, const FFolder& InFolder, bool bIsExpanded)
 {
-	if (FActorFolderProps* FolderProps = GetFolderProperties(InWorld, InFolder))
-	{
-		FolderProps->bIsExpanded = bIsExpanded;
-	}
+	GetOrCreateWorldFolders(InWorld).SetIsFolderExpanded(InFolder, bIsExpanded);
 }
 
 void FActorFolders::ForEachFolder(UWorld& InWorld, TFunctionRef<bool(const FFolder&)> Operation)
 {
-	UEditorActorFolders& Folders = GetOrCreateFoldersForWorld(InWorld);
-	for (const auto& Pair : Folders.Folders)
-	{
-		if (!Operation(Pair.Key))
-		{
-			break;
-		}
-	}
+	GetOrCreateWorldFolders(InWorld).ForEachFolder(Operation);
 }
 
 void FActorFolders::ForEachFolderWithRootObject(UWorld& InWorld, const FFolder::FRootObject& InFolderRootObject, TFunctionRef<bool(const FFolder&)> Operation)
 {
-	UEditorActorFolders& Folders = GetOrCreateFoldersForWorld(InWorld);
-	for (const auto& Pair : Folders.Folders)
-	{
-		const FFolder& Folder = Pair.Key;
-		if (Folder.GetRootObject() == InFolderRootObject)
-		{
-			if (!Operation(Folder))
-			{
-				break;
-			}
-		}
-	}
+	GetOrCreateWorldFolders(InWorld).ForEachFolderWithRootObject(InFolderRootObject, Operation);
 }
 
 void FActorFolders::ForEachActorInFolders(UWorld& World, const TArray<FName>& Paths, TFunctionRef<bool(AActor*)> Operation, const FFolder::FRootObject& InFolderRootObject)

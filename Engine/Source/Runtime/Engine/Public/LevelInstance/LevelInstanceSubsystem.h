@@ -63,6 +63,7 @@ public:
 	void SaveLevelInstanceAs(ALevelInstance* LevelInstanceActor);
 	bool IsEditingLevelInstanceDirty(const ALevelInstance* LevelInstanceActor) const;
 	bool IsEditingLevelInstance(const ALevelInstance* LevelInstanceActor) const { return GetLevelInstanceEdit(LevelInstanceActor) != nullptr; }
+	ULevel* GetLevelInstanceEditLevel(const ALevelInstance* LevelInstanceActor) const;
 	
 	bool GetLevelInstanceBounds(const ALevelInstance* LevelInstanceActor, FBox& OutBounds) const;
 	static bool GetLevelInstanceBoundsFromPackage(const FTransform& InstanceTransform, FName LevelPackage, FBox& OutBounds);
@@ -105,7 +106,12 @@ private:
 	void ForEachActorInLevel(ULevel* Level, TFunctionRef<bool(AActor * LevelActor)> Operation) const;
 	void ForEachLevelInstanceAncestors(AActor* Actor, TFunctionRef<bool(ALevelInstance*)> Operation) const;
 	ALevelInstance* GetOwningLevelInstance(const ULevel* Level) const;
+	
+	void RegisterLoadedLevelStreamingLevelInstance(ULevelStreamingLevelInstance* LevelStreaming);
+
 #if WITH_EDITOR
+	void RegisterLoadedLevelStreamingLevelInstanceEditor(ULevelStreamingLevelInstanceEditor* LevelStreaming);
+
 	void OnEditChild(FLevelInstanceID LevelInstanceID);
 	void OnCommitChild(FLevelInstanceID LevelInstanceID, bool bChildChanged);
 
@@ -155,9 +161,13 @@ private:
 		bool bIsBeingDestroyed = false;
 	};
 	
+	void RemoveLevelsFromWorld(const TArray<ULevel*>& Levels, bool bResetTrans = true);
+#endif
 	friend ULevelStreamingLevelInstance;
 	friend ULevelStreamingLevelInstanceEditor;
-	void RemoveLevelsFromWorld(const TArray<ULevel*>& Levels, bool bResetTrans = true);
+
+#if WITH_EDITOR
+	bool bIsCreatingNewLevelStreamingLevelInstanceEditor;
 #endif
 
 	struct FLevelInstance

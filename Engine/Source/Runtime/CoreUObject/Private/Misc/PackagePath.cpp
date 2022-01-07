@@ -191,6 +191,11 @@ const TCHAR* FPackagePath::GetExternalActorsFolderName()
 	return TEXT("__ExternalActors__");
 }
 
+const TCHAR* FPackagePath::GetExternalObjectsFolderName()
+{
+	return TEXT("__ExternalObjects__");
+}
+
 FPackagePath::FPackagePath(const FPackagePath& Other)
 {
 	*this = Other;

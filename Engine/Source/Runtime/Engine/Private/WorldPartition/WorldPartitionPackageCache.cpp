@@ -55,19 +55,10 @@ void FWorldPartitionPackageCache::UnloadPackage(UPackage* InPackage)
 	// World specific
 	if (UWorld* PackageWorld = UWorld::FindWorldInPackage(InPackage))
 	{
-		if (PackageWorld->PersistentLevel && PackageWorld->PersistentLevel->IsUsingExternalActors())
+		if (PackageWorld->PersistentLevel)
 		{
-			for (AActor* Actor : PackageWorld->PersistentLevel->Actors)
-			{
-				if (UPackage* ActorPackage = Actor ? Actor->GetExternalPackage() : nullptr)
-				{
-					ForEachObjectWithPackage(ActorPackage, [&](UObject* Object)
-					{
-						Object->ClearFlags(RF_Standalone);
-						return true;
-					}, false);
-				}
-			}
+			// Manual cleanup of level since world was not initialized
+			PackageWorld->PersistentLevel->CleanupLevel(/*bCleanupResources*/ true);
 		}
 	}
 }
@@ -90,11 +81,19 @@ void FWorldPartitionPackageCache::LoadPackage(FName InPackageName, const TCHAR* 
 	// Not found start loading
 	LoadingPackages.Add(InPackageName, { InCompletionDelegate });
 
-	FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([this](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
+	FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([this, bInWorldPackage](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
 	{
 		if (Result == EAsyncLoadingResult::Succeeded)
 		{
 			CachedPackages.Add(LoadedPackageName, LoadedPackage);
+		}
+
+		if (bInWorldPackage)
+		{
+			if (UWorld* PackageWorld = UWorld::FindWorldInPackage(LoadedPackage))
+			{
+				PackageWorld->PersistentLevel->OnLevelLoaded();
+			}
 		}
 	
 		TArray<FLoadPackageAsyncDelegate> CompletionDelegates = LoadingPackages.FindAndRemoveChecked(LoadedPackageName);

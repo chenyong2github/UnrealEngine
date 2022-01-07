@@ -13,6 +13,11 @@
 #include "ToolMenus.h"
 #include "ActorDescTreeItem.h"
 #include "Engine/World.h"
+#include "WorldPersistentFolders.h"
+#include "Engine/Level.h"
+#include "LevelUtils.h"
+#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorFolderTreeItem"
 
@@ -204,6 +209,7 @@ FActorFolderTreeItem::FActorFolderTreeItem(const FFolder& InFolder, const TWeakO
 	: FFolderTreeItem(InFolder, Type)
 	, World(InWorld)
 {
+	SetPath(InFolder.GetPath());
 }
 
 void FActorFolderTreeItem::OnExpansionChanged()
@@ -235,12 +241,20 @@ void FActorFolderTreeItem::Delete(const FFolder& InNewParentFolder)
 			if (AActor* Actor = ActorItem->Actor.Get())
 			{
 				check(Actor->GetFolderRootObject() == NewParentRootObject);
-				Actor->SetFolderPath_Recursively(InNewParentFolder.GetPath());
+				// When using actor folders, no need to update actors since the folder path resolving is dynamic
+				if (!Actor->GetLevel()->IsUsingActorFolders())
+				{
+					Actor->SetFolderPath_Recursively(InNewParentFolder.GetPath());
+				}
 			}
 		}
-		else if (FFolderTreeItem* FolderItem = Child->CastTo<FFolderTreeItem>())
+		else if (FActorFolderTreeItem* FolderItem = Child->CastTo<FActorFolderTreeItem>())
 		{
-			FolderItem->MoveTo(InNewParentFolder);
+			// When using actor folders, no need to update child folders since the folder path resolving is dynamic
+			if (!FolderItem->GetActorFolder())
+			{
+				FolderItem->MoveTo(InNewParentFolder);
+			}
 		}
 	}
 
@@ -255,6 +269,16 @@ void FActorFolderTreeItem::MoveTo(const FFolder& InNewParentFolder)
 		// Get unique name
 		const FFolder NewPath = FActorFolders::Get().GetFolderName(*World, InNewParentFolder, GetLeafName());
 		FActorFolders::Get().RenameFolderInWorld(*World, GetFolder(), NewPath);
+	}
+}
+
+void FActorFolderTreeItem::SetPath(const FName& InNewPath)
+{
+	FFolderTreeItem::SetPath(InNewPath);
+
+	if (World.IsValid())
+	{
+		ActorFolder = FWorldPersistentFolders::GetActorFolder(GetFolder(), World.Get());
 	}
 }
 
@@ -282,6 +306,28 @@ TSharedRef<SWidget> FActorFolderTreeItem::GenerateLabelWidget(ISceneOutliner& Ou
 bool FActorFolderTreeItem::ShouldShowPinnedState() const
 {
 	return GetRootObject() == FFolder::GetDefaultRootObject() && World.IsValid() && World->IsPartitionedWorld();
+}
+
+bool FActorFolderTreeItem::CanInteract() const
+{
+	if (!FFolderTreeItem::CanInteract())
+	{
+		return false;
+	}
+
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World.IsValid() ? World->GetSubsystem<ULevelInstanceSubsystem>() : nullptr)
+	{
+		if (ALevelInstance* EditingLevelInstance = LevelInstanceSubsystem->GetEditingLevelInstance())
+		{
+			if (GetRootObject() != FFolder::FRootObject(EditingLevelInstance))
+			{
+				return false;
+			}
+		}
+	}
+
+	ULevel* Level = ActorFolder.IsValid() ? ActorFolder->GetOuterULevel() : nullptr;
+	return Level ? !FLevelUtils::IsLevelLocked(Level) : true;
 }
 
 #undef LOCTEXT_NAMESPACE

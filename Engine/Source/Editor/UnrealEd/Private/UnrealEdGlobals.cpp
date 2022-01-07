@@ -126,6 +126,9 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 
 	SlowTask.EnterProgressFrame(40);
 
+	// Set up the actor folders singleton
+	FActorFolders::Init();
+
 	// Initialize the misc editor
 	FUnrealEdMisc::Get().OnInit();
 	FCoreDelegates::OnExit.AddLambda([]()
@@ -142,9 +145,6 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 
 	// Prime our array of default directories for loading and saving content files to
 	FEditorDirectories::Get().LoadLastDirectories();
-
-	// Set up the actor folders singleton
-	FActorFolders::Init();
 
 	// Cache the available targets for the current project, so we can display the appropriate options in the package project menu
 	FDesktopPlatformModule::Get()->GetTargetsForCurrentProject();

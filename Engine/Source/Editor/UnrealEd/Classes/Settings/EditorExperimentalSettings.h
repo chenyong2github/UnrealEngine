@@ -129,6 +129,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Tools, meta=(DisplayName="Enable One File Per Actor"))
 	bool bEnableOneFilePerActorSupport;
 
+	/** Whether to enable actor folder object support in the engine. */
+	UPROPERTY(EditAnywhere, config, Category = Tools, meta = (DisplayName = "Enable Actor Folder Objects"))
+	bool bEnableActorFolderObjectSupport;
+
 	/** Enable experimental PIE preview device launch */
 	UPROPERTY(EditAnywhere, config, Category = PIE, meta = (DisplayName = "Enable mobile PIE with preview device launch options."))
 	bool bMobilePIEPreviewDeviceLaunch;
