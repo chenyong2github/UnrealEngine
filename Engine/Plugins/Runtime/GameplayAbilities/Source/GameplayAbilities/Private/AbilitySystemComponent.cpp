@@ -128,7 +128,7 @@ bool UAbilitySystemComponent::HasAttributeSetForAttribute(FGameplayAttribute Att
 	return (Attribute.IsValid() && (Attribute.IsSystemAttribute() || GetAttributeSubobject(Attribute.GetAttributeSetClass()) != nullptr));
 }
 
-void UAbilitySystemComponent::GetAllAttributes(OUT TArray<FGameplayAttribute>& Attributes)
+void UAbilitySystemComponent::GetAllAttributes(TArray<FGameplayAttribute>& OutAttributes)
 {
 	for (const UAttributeSet* Set : GetSpawnedAttributes())
 	{
@@ -141,14 +141,44 @@ void UAbilitySystemComponent::GetAllAttributes(OUT TArray<FGameplayAttribute>& A
 		{
 			if (FFloatProperty* FloatProperty = CastField<FFloatProperty>(*It))
 			{
-				Attributes.Push(FGameplayAttribute(FloatProperty));
+				OutAttributes.Push(FGameplayAttribute(FloatProperty));
 			}
 			else if (FGameplayAttribute::IsGameplayAttributeDataProperty(*It))
 			{
-				Attributes.Push(FGameplayAttribute(*It));
+				OutAttributes.Push(FGameplayAttribute(*It));
 			}
 		}
 	}
+}
+
+const UAttributeSet* UAbilitySystemComponent::GetAttributeSet(TSubclassOf<UAttributeSet> AttributeSetClass) const
+{
+	// get the attribute set
+	const UAttributeSet* AttributeSet = GetAttributeSubobject(AttributeSetClass);
+
+	// return the pointer
+	return AttributeSet;
+}
+
+float UAbilitySystemComponent::GetGameplayAttributeValue(FGameplayAttribute Attribute, OUT bool& bFound) const
+{
+	// validate the attribute
+	if (Attribute.IsValid())
+	{
+		// get the associated AttributeSet
+		const UAttributeSet* InternalAttributeSet = GetAttributeSubobject(Attribute.GetAttributeSetClass());
+
+		if (InternalAttributeSet)
+		{
+			// NOTE: this is currently not taking predicted gameplay effect modifiers into consideration, so the value may not be accurate on client
+			bFound = true;
+			return Attribute.GetNumericValue(InternalAttributeSet);
+		}
+	}
+
+	// the attribute was not found
+	bFound = false;
+	return 0.0f;
 }
 
 void UAbilitySystemComponent::OnRegister()
@@ -212,6 +242,21 @@ void UAbilitySystemComponent::CacheIsNetSimulated()
 const FActiveGameplayEffect* UAbilitySystemComponent::GetActiveGameplayEffect(const FActiveGameplayEffectHandle Handle) const
 {
 	return ActiveGameplayEffects.GetActiveGameplayEffect(Handle);
+}
+
+const UGameplayEffect* UAbilitySystemComponent::GetGameplayEffectCDO(const FActiveGameplayEffectHandle Handle) const
+{
+	// get the active gameplay effect struct
+	const FActiveGameplayEffect* ActiveGE = GetActiveGameplayEffect(Handle);
+
+	if (ActiveGE)
+	{
+		// return the spec's CDO
+		return ActiveGE->Spec.Def;
+	}
+
+	// active effect not found
+	return nullptr;
 }
 
 const FGameplayTagContainer* UAbilitySystemComponent::GetGameplayEffectSourceTagsFromHandle(FActiveGameplayEffectHandle Handle) const
@@ -529,6 +574,13 @@ void UAbilitySystemComponent::UpdateTagMap_Internal(const FGameplayTagContainer&
 			OnTagUpdated(Tag, false);
 		}
 	}
+}
+
+int32 UAbilitySystemComponent::GetGameplayTagCount(FGameplayTag GameplayTag) const
+{
+	// NOTE -- no authority check to allow read-only access on all clients.
+	// This may lead to incorrect values due to network lag. 
+	return GetTagCount(GameplayTag);
 }
 
 FOnGameplayEffectTagCountChanged& UAbilitySystemComponent::RegisterGameplayTagEvent(FGameplayTag Tag, EGameplayTagEventType::Type EventType)

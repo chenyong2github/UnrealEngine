@@ -246,9 +246,20 @@ void UAbilitySystemComponent::RefreshAbilityActorInfo()
 }
 
 FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbility(const FGameplayAbilitySpec& Spec)
-{	
-	check(Spec.Ability);
-	check(IsOwnerActorAuthoritative());	// Should be called on authority
+{
+	if (!IsValid(Spec.Ability))
+	{
+		ABILITY_LOG(Error, TEXT("GiveAbility called with an invalid Ability Class."));
+
+		return FGameplayAbilitySpecHandle();
+	}
+
+	if (!IsOwnerActorAuthoritative())
+	{
+		ABILITY_LOG(Error, TEXT("GiveAbility called on ability %s on the client, not allowed!"), *Spec.Ability->GetName());
+
+		return FGameplayAbilitySpecHandle();
+	}
 
 	// If locked, add to pending list. The Spec.Handle is not regenerated when we receive, so returning this is ok.
 	if (AbilityScopeLockCount > 0)
@@ -274,7 +285,12 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbility(const FGameplayA
 
 FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(FGameplayAbilitySpec& Spec, const FGameplayEventData* GameplayEventData)
 {
-	check(Spec.Ability);
+	if (!IsValid(Spec.Ability))
+	{
+		ABILITY_LOG(Error, TEXT("GiveAbilityAndActivateOnce called with an invalid Ability Class."));
+
+		return FGameplayAbilitySpecHandle();
+	}
 
 	if (Spec.Ability->GetInstancingPolicy() == EGameplayAbilityInstancingPolicy::NonInstanced || Spec.Ability->GetNetExecutionPolicy() == EGameplayAbilityNetExecutionPolicy::LocalOnly)
 	{
@@ -312,6 +328,39 @@ FGameplayAbilitySpecHandle UAbilitySystemComponent::GiveAbilityAndActivateOnce(F
 	return AddedAbilityHandle;
 }
 
+FGameplayAbilitySpecHandle UAbilitySystemComponent::K2_GiveAbility(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level /*= 0*/, int32 InputID /*= -1*/)
+{
+	// build and validate the ability spec
+	FGameplayAbilitySpec AbilitySpec = BuildAbilitySpecFromClass(AbilityClass, Level, InputID);
+
+	// validate the class
+	if (!IsValid(AbilitySpec.Ability))
+	{
+		ABILITY_LOG(Error, TEXT("K2_GiveAbility() called with an invalid Ability Class."));
+
+		return FGameplayAbilitySpecHandle();
+	}
+
+	// grant the ability and return the handle. This will run validation and authority checks
+	return GiveAbility(AbilitySpec);
+}
+
+FGameplayAbilitySpecHandle UAbilitySystemComponent::K2_GiveAbilityAndActivateOnce(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level /* = 0*/, int32 InputID /* = -1*/)
+{
+	// build and validate the ability spec
+	FGameplayAbilitySpec AbilitySpec = BuildAbilitySpecFromClass(AbilityClass, Level, InputID);
+
+	// validate the class
+	if (!IsValid(AbilitySpec.Ability))
+	{
+		ABILITY_LOG(Error, TEXT("K2_GiveAbilityAndActivateOnce() called with an invalid Ability Class."));
+
+		return FGameplayAbilitySpecHandle();
+	}
+
+	return GiveAbilityAndActivateOnce(AbilitySpec);
+}
+
 void UAbilitySystemComponent::SetRemoveAbilityOnEnd(FGameplayAbilitySpecHandle AbilitySpecHandle)
 {
 	FGameplayAbilitySpec* FoundSpec = FindAbilitySpecFromHandle(AbilitySpecHandle);
@@ -330,8 +379,14 @@ void UAbilitySystemComponent::SetRemoveAbilityOnEnd(FGameplayAbilitySpecHandle A
 
 void UAbilitySystemComponent::ClearAllAbilities()
 {
-	check(IsOwnerActorAuthoritative());	// Should be called on authority
 	check(AbilityScopeLockCount == 0);	// We should never be calling this from a scoped lock situation.
+
+	if (!IsOwnerActorAuthoritative())
+	{
+		ABILITY_LOG(Error, TEXT("Attempted to call ClearAllAbilities() without authority."));
+
+		return;
+	}
 
 	// Note we aren't marking any old abilities pending kill. This shouldn't matter since they will be garbage collected.
 	ABILITYLIST_SCOPE_LOCK();
@@ -347,9 +402,28 @@ void UAbilitySystemComponent::ClearAllAbilities()
 	CheckForClearedAbilities();
 }
 
+void UAbilitySystemComponent::ClearAllAbilitiesWithInputID(int32 InputID /*= 0*/)
+{
+	// find all matching abilities
+	TArray<const FGameplayAbilitySpec*> OutSpecs;
+	FindAllAbilitySpecsFromInputID(InputID, OutSpecs);
+
+	// iterate through the bound abilities
+	for (const FGameplayAbilitySpec* CurrentSpec : OutSpecs)
+	{
+		// clear the ability
+		ClearAbility(CurrentSpec->Handle);
+	}
+}
+
 void UAbilitySystemComponent::ClearAbility(const FGameplayAbilitySpecHandle& Handle)
 {
-	check(IsOwnerActorAuthoritative()); // Should be called on authority
+	if (!IsOwnerActorAuthoritative())
+	{
+		ABILITY_LOG(Error, TEXT("Attempted to call ClearAbility() on the client. This is not allowed!"));
+
+		return;
+	}
 
 	bIsNetDirty = true;
 	for (int Idx = 0; Idx < AbilityPendingAdds.Num(); ++Idx)
@@ -726,6 +800,147 @@ FGameplayAbilitySpec* UAbilitySystemComponent::FindAbilitySpecFromInputID(int32 
 		}
 	}
 	return nullptr;
+}
+
+void UAbilitySystemComponent::FindAllAbilitySpecsFromInputID(int32 InputID, TArray<const FGameplayAbilitySpec*>& OutAbilitySpecs) const
+{
+	// ignore invalid inputs
+	if (InputID != INDEX_NONE)
+	{
+		// iterate through all abilities
+		for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+		{
+			// add maching abilities to the list
+			if (Spec.InputID == InputID)
+			{
+				OutAbilitySpecs.Add(&Spec);
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("OutAbilitySpecs count: %i"), OutAbilitySpecs.Num());
+}
+
+FGameplayAbilitySpec UAbilitySystemComponent::BuildAbilitySpecFromClass(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level /*= 0*/, int32 InputID /*= -1*/)
+{
+	// validate the class
+	if (!ensure(AbilityClass))
+	{
+		ABILITY_LOG(Error, TEXT("BuildAbilitySpecFromClass called with an invalid Ability Class."));
+
+		return FGameplayAbilitySpec();
+	}
+
+	// get the CDO. GiveAbility will validate so we don't need to
+	UGameplayAbility* AbilityCDO = AbilityClass->GetDefaultObject<UGameplayAbility>();
+
+	// build the ability spec
+	// we need to initialize this through the constructor,
+	// or the Handle won't be properly set and will cause errors further down the line
+	return FGameplayAbilitySpec(AbilityClass, Level, InputID);
+}
+
+void UAbilitySystemComponent::GetAllAbilities(OUT TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles) const
+{
+	// ensure the output array is empty
+	OutAbilityHandles.Empty(ActivatableAbilities.Items.Num());
+
+	// iterate through all activatable abilities
+	// NOTE: currently this doesn't include abilities that are mid-activation
+	for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+	{
+		// add the spec handle to the list
+		OutAbilityHandles.Add(Spec.Handle);
+	}
+}
+
+void UAbilitySystemComponent::FindAllAbilitiesWithTags(OUT TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles, FGameplayTagContainer Tags, bool bExactMatch /* = true */) const
+{
+	// ensure the output array is empty
+	OutAbilityHandles.Empty();
+
+	// iterate through all Ability Specs
+	for (const FGameplayAbilitySpec& CurrentSpec : ActivatableAbilities.Items)
+	{
+		// try to get the ability instance
+		UGameplayAbility* AbilityInstance = CurrentSpec.GetPrimaryInstance();
+
+		// default to the CDO if we can't
+		if (!AbilityInstance)
+		{
+			AbilityInstance = CurrentSpec.Ability;
+		}
+
+		// ensure the ability instance is valid
+		if (IsValid(AbilityInstance))
+		{
+			// do we want an exact match?
+			if (bExactMatch)
+			{
+				// check if we match all tags
+				if (AbilityInstance->AbilityTags.HasAll(Tags))
+				{
+					// add the matching handle
+					OutAbilityHandles.Add(CurrentSpec.Handle);
+				}
+			}
+			else
+			{
+
+				// check if we match any tags
+				if (AbilityInstance->AbilityTags.HasAny(Tags))
+				{
+					// add the matching handle
+					OutAbilityHandles.Add(CurrentSpec.Handle);
+				}
+			}
+		}
+	}
+}
+
+void UAbilitySystemComponent::FindAllAbilitiesMatchingQuery(OUT TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles, FGameplayTagQuery Query) const
+{
+	// ensure the output array is empty
+	OutAbilityHandles.Empty();
+
+	// iterate through all Ability Specs
+	for (const FGameplayAbilitySpec& CurrentSpec : ActivatableAbilities.Items)
+	{
+		// try to get the ability instance
+		UGameplayAbility* AbilityInstance = CurrentSpec.GetPrimaryInstance();
+
+		// default to the CDO if we can't
+		if (!AbilityInstance)
+		{
+			AbilityInstance = CurrentSpec.Ability;
+		}
+
+		// ensure the ability instance is valid
+		if (IsValid(AbilityInstance))
+		{
+			if (AbilityInstance->AbilityTags.MatchesQuery(Query))
+			{
+				// add the matching handle
+				OutAbilityHandles.Add(CurrentSpec.Handle);
+			}
+		}
+	}
+}
+
+void UAbilitySystemComponent::FindAllAbilitiesWithInputID(OUT TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles, int32 InputID /*= 0*/) const
+{
+	// ensure the output array is empty
+	OutAbilityHandles.Empty();
+
+	// find all ability specs matching the Input ID
+	TArray<const FGameplayAbilitySpec*> MatchingSpecs;
+	FindAllAbilitySpecsFromInputID(InputID, MatchingSpecs);
+
+	// add all matching specs to the out array
+	for (const FGameplayAbilitySpec* CurrentSpec : MatchingSpecs)
+	{
+		OutAbilityHandles.Add(CurrentSpec->Handle);
+	}
 }
 
 FGameplayEffectContextHandle UAbilitySystemComponent::GetEffectContextFromActiveGEHandle(FActiveGameplayEffectHandle Handle)
@@ -2295,6 +2510,16 @@ void UAbilitySystemComponent::AbilityLocalInputReleased(int32 InputID)
 	}
 }
 
+void UAbilitySystemComponent::PressInputID(int32 InputID)
+{
+	AbilityLocalInputPressed(InputID);
+}
+
+void UAbilitySystemComponent::ReleaseInputID(int32 InputID)
+{
+	AbilityLocalInputReleased(InputID);
+}
+
 void UAbilitySystemComponent::ServerSetInputPressed_Implementation(FGameplayAbilitySpecHandle AbilityHandle)
 {
 	FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(AbilityHandle);
@@ -2378,6 +2603,16 @@ void UAbilitySystemComponent::LocalInputCancel()
 	FAbilityConfirmOrCancel Temp = GenericLocalCancelCallbacks;
 	GenericLocalCancelCallbacks.Clear();
 	Temp.Broadcast();
+}
+
+void UAbilitySystemComponent::InputConfirm()
+{
+	LocalInputConfirm();
+}
+
+void UAbilitySystemComponent::InputCancel()
+{
+	LocalInputCancel();
 }
 
 void UAbilitySystemComponent::TargetConfirm()

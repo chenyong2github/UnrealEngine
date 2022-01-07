@@ -63,4 +63,100 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, Category=ExternalDependencies, AdvancedDisplay)
 	bool bAllowNonNetAuthorityDependencyRegistration;
+
+	/**
+	 * Gets the captured magnitude value for the given Attribute
+	 * For this to work correctly, the Attribute needs to be added to the Relevant Attributes to Capture array
+	 *
+	 * @param EffectSpec The Gameplay Effect Spec to get the info from
+	 * @param Attribute The attribute to query
+	 *
+	 * @return The magnitude value if found, zero otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect", meta=(DisplayName="Get Captured Attribute Magnitude", ScriptName="GetCapturedAttributeMagnitude"))
+	float K2_GetCapturedAttributeMagnitude(const FGameplayEffectSpec& EffectSpec, FGameplayAttribute Attribute, const FGameplayTagContainer& SourceTags, const FGameplayTagContainer& TargetTags);
+
+	/**
+	 * Extracts the Set by Caller Magnitude from a Gameplay Effect Spec
+	 *
+	 * @param EffectSpec The Gameplay Effect Spec to get the info from
+	 * @param Tag The effect tag to query
+	 * 
+	 * @return The magnitude value if found, zero otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect")
+	float GetSetByCallerMagnitudeByTag(const FGameplayEffectSpec& EffectSpec, const FGameplayTag& Tag);
+
+	/**
+	 * Extracts the Set by Caller Magnitude from a Gameplay Effect Spec
+	 *
+	 * @param EffectSpec The Gameplay Effect Spec to get the info from
+	 * @param MagnitudeName The effect name to query
+	 * 
+	 * @return The magnitude value if found, zero otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect")
+	float GetSetByCallerMagnitudeByName(const FGameplayEffectSpec& EffectSpec, const FName& MagnitudeName);
+
+	/**
+	 * Copies and returns the source aggregated tags from a Gameplay Effect Spec
+	 *
+	 * @param EffectSpec The Gameplay Effect Spec to get the info from
+	 * 
+	 * @return Gameplay Tag Container with the copied tags. The container will be empty if no captured source tags exist.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect")
+	FGameplayTagContainer GetSourceAggregatedTags(const FGameplayEffectSpec& EffectSpec);
+
+	/**
+	 * Returns the source actor tags from a Gameplay Effect Spec
+	 *
+	 * @param EffectSpec The Gameplay Effect Spec to get the info from
+	 * 
+	 * @return Gameplay Tag Container with the copied tags. The container will be empty if no captured source tags exist.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect")
+	const FGameplayTagContainer& GetSourceActorTags(const FGameplayEffectSpec& EffectSpec);
+
+	/**
+	 * Returns the source spec tags from a Gameplay Effect Spec
+	 *
+	 * @param EffectSpec The Gameplay Effect Spec to get the info from
+	 * 
+	 * @return Gameplay Tag Container with the copied tags. The container will be empty if no captured source tags exist.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect")
+	const FGameplayTagContainer& GetSourceSpecTags(const FGameplayEffectSpec& EffectSpec);
+
+	/**
+	 * Copies and returns the target aggregated tags from a Gameplay Effect Spec
+	 *
+	 * @param EffectSpec The Gameplay Effect Spec to get the info from
+	 * 
+	 * @return Gameplay Tag Container with the copied tags. The container will be empty if no captured source tags exist.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect")
+	FGameplayTagContainer GetTargetAggregatedTags(const FGameplayEffectSpec& EffectSpec);
+
+	/**
+	 * Returns the target actor tags from a Gameplay Effect Spec
+	 * Useful for Modifier Magnitude Calculations
+	 *
+	 * @param EffectSpec The Gameplay Effect Spec to get the info from
+	 * 
+	 * @return Gameplay Tag Container with the copied tags. The container will be empty if no captured source tags exist.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect")
+	const FGameplayTagContainer& GetTargetActorTags(const FGameplayEffectSpec& EffectSpec);
+
+	/**
+	 * Returns the target spec tags from a Gameplay Effect Spec
+	 * Useful for Modifier Magnitude Calculations
+	 *
+	 * @param EffectSpec The Gameplay Effect Spec to get the info from
+	 * 
+	 * @return Gameplay Tag Container with the copied tags. The container will be empty if no captured source tags exist.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect")
+	const FGameplayTagContainer& GetTargetSpecTags(const FGameplayEffectSpec& EffectSpec);
 };

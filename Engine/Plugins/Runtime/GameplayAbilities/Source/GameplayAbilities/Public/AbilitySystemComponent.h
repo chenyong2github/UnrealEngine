@@ -142,9 +142,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 
 	/**
 	 * Does this ability system component have this attribute?
-	 *
+	 * 
 	 * @param Attribute	Handle of the gameplay effect to retrieve target tags from
-	 *
+	 * 
 	 * @return true if Attribute is valid and this ability system component contains an attribute set that contains Attribute. Returns false otherwise.
 	 */
 	bool HasAttributeSetForAttribute(FGameplayAttribute Attribute) const;
@@ -155,8 +155,28 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UFUNCTION(BlueprintCallable, Category="Skills", meta=(DisplayName="InitStats", ScriptName="InitStats"))
 	void K2_InitStats(TSubclassOf<class UAttributeSet> Attributes, const UDataTable* DataTable);
 		
-	/** Returns a list of all attributes for this abiltiy system component */
-	void GetAllAttributes(OUT TArray<FGameplayAttribute>& Attributes);
+	/** Returns a list of all attributes for this abilty system component */
+	UFUNCTION(BlueprintPure, Category="Gameplay Attributes")
+	void GetAllAttributes(TArray<FGameplayAttribute>& OutAttributes);
+
+	/**
+	 * Returns a reference to the Attribute Set instance, if one exists in this component
+	 *
+	 * @param AttributeSetClass The type of attribute set to look for
+	 * @param bFound Set to true if an instance of the Attribute Set exists
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Gameplay Attributes")
+	const UAttributeSet* GetAttributeSet(TSubclassOf<UAttributeSet> AttributeSetClass) const;
+
+	/**
+	 * Returns the current value of the given gameplay attribute, or zero if the attribute is not found.
+	 * NOTE: This doesn't take predicted gameplay effect modifiers into consideration, so the value may not be accurate on clients at all times.
+	 *
+	 * @param Attribute The gameplay attribute to query
+	 * @param bFound Set to true if the attribute exists in this component
+	 */
+	UFUNCTION(BlueprintPure, Category = "Gameplay Attributes")
+	float GetGameplayAttributeValue(FGameplayAttribute Attribute, bool& bFound) const;
 
 	UPROPERTY(EditAnywhere, Category="AttributeTest")
 	TArray<FAttributeDefaults>	DefaultStartingData;
@@ -185,10 +205,8 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/**
 	 *	Applies an in-place mod to the given attribute. This correctly update the attribute's aggregator, updates the attribute set property,
 	 *	and invokes the OnDirty callbacks.
-	 *	
 	 *	This does not invoke Pre/PostGameplayEffectExecute calls on the attribute set. This does no tag checking, application requirements, immunity, etc.
 	 *	No GameplayEffectSpec is created or is applied!
-	 *
 	 *	This should only be used in cases where applying a real GameplayEffectSpec is too slow or not possible.
 	 */
 	void ApplyModToAttribute(const FGameplayAttribute &Attribute, TEnumAsByte<EGameplayModOp::Type> ModifierOp, float ModifierMagnitude);
@@ -299,7 +317,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 
 	/** 
 	 * Remove active gameplay effects whose backing definition are the specified gameplay effect class
-	 *
+	 * 
 	 * @param GameplayEffect					Class of gameplay effect to remove; Does nothing if left null
 	 * @param InstigatorAbilitySystemComponent	If specified, will only remove gameplay effects applied from this instigator ability system component
 	 * @param StacksToRemove					Number of stacks to remove, -1 means remove all
@@ -375,8 +393,11 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Gets the GE Handle of the GE that granted the passed in Ability */
 	FActiveGameplayEffectHandle FindActiveGameplayEffectHandle(FGameplayAbilitySpecHandle Handle) const;
 
-	/** Returns const pointer to the actual active gamepay effect structure */
+	/** Returns const pointer to the actual active gameplay effect structure */
 	const FActiveGameplayEffect* GetActiveGameplayEffect(const FActiveGameplayEffectHandle Handle) const;
+
+	/** Returns a const pointer to the gameplay effect CDO associated with an active handle. */
+	const UGameplayEffect* GetGameplayEffectCDO(const FActiveGameplayEffectHandle Handle) const;
 
 	/**
 	 * Get the source tags from the gameplay spec represented by the specified handle, if possible
@@ -544,9 +565,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 
 	/** 	 
 	 *  Allows GameCode to add loose gameplaytags which are not backed by a GameplayEffect. 
-	 *
 	 *	Tags added this way are not replicated! 
-	 *	
 	 *	It is up to the calling GameCode to make sure these tags are added on clients/server where necessary
 	 */
 	FORCEINLINE void AddLooseGameplayTag(const FGameplayTag& GameplayTag, int32 Count=1)
@@ -573,6 +592,16 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	{
 		SetTagMapCount(GameplayTag, NewCount);
 	}
+
+	/**
+	 * Returns the current count of the given gameplay tag.
+	 * This includes both loose tags, and tags granted by gameplay effects and abilities.
+	 * This function can be called on the client, but it may not display the most current count on the server.
+	 *
+	 * @param GameplayTag The gameplay tag to query
+	 */
+	UFUNCTION(BlueprintPure, Category = "Gameplay Tags")
+	int32 GetGameplayTagCount(FGameplayTag GameplayTag) const;
 
 	/** 	 
 	 * Minimally replicated tags are replicated tags that come from GEs when in bMinimalReplication mode. 
@@ -828,16 +857,66 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	 *	
 	 */
 
-	/** Grants Ability. Returns handle that can be used in TryActivateAbility, etc. */
+	/*
+	 * Grants an Ability.
+	 * This will be ignored if the actor is not authoritative.
+	 * Returns handle that can be used in TryActivateAbility, etc.
+	 * 
+	 * @param AbilitySpec FGameplayAbilitySpec containing information about the ability class, level and input ID to bind it to.
+	 */
 	FGameplayAbilitySpecHandle GiveAbility(const FGameplayAbilitySpec& AbilitySpec);
 
-	/** Grants an ability and attempts to activate it exactly one time, which will cause it to be removed. Only valid on the server! */
+	/*
+	 * Grants an ability and attempts to activate it exactly one time, which will cause it to be removed.
+	 * Only valid on the server, and the ability's Net Execution Policy cannot be set to Local or Local Predicted
+	 * 
+	 * @param AbilitySpec FGameplayAbilitySpec containing information about the ability class, level and input ID to bind it to.
+	 * @param GameplayEventData Optional activation event data. If provided, Activate Ability From Event will be called instead of ActivateAbility, passing the Event Data
+	 */
 	FGameplayAbilitySpecHandle GiveAbilityAndActivateOnce(FGameplayAbilitySpec& AbilitySpec, const FGameplayEventData* GameplayEventData = nullptr);
 
-	/** Wipes all 'given' abilities. */
+	/**
+	 * Grants a Gameplay Ability and returns its handle.
+	 * This will be ignored if the actor is not authoritative.
+	 *
+	 * @param AbilityClass Type of ability to grant
+	 * @param Level Level to grant the ability at
+	 * @param InputID Input ID value to bind ability activation to.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Gameplay Abilities", meta = (DisplayName = "Give Ability", ScriptName = "GiveAbility"))
+	FGameplayAbilitySpecHandle K2_GiveAbility(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level = 0, int32 InputID = -1);
+
+	/**
+	 * Grants a Gameplay Ability, activates it once, and removes it.
+	 * This will be ignored if the actor is not authoritative.
+	 *
+	 * @param AbilityClass Type of ability to grant
+	 * @param Level Level to grant the ability at
+	 * @param InputID Input ID value to bind ability activation to.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Gameplay Abilities", meta = (DisplayName = "Give Ability And Activate Once", ScriptName = "GiveAbilityAndActivateOnce"))
+	FGameplayAbilitySpecHandle K2_GiveAbilityAndActivateOnce(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level = 0, int32 InputID = -1);
+
+	/** Wipes all 'given' abilities. This will be ignored if the actor is not authoritative. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Gameplay Abilities")
 	void ClearAllAbilities();
 
-	/** Removes the specified ability */
+	/**
+	 * Clears all abilities bound to a given Input ID
+	 * This will be ignored if the actor is not authoritative
+	 *
+	 * @param InputID The numeric Input ID of the abilities to remove
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Gameplay Abilities")
+	void ClearAllAbilitiesWithInputID(int32 InputID = 0);
+
+	/** 
+	 * Removes the specified ability.
+	 * This will be ignored if the actor is not authoritative.
+	 * 
+	 * @param Handle Ability Spec Handle of the ability we want to remove
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Gameplay Abilities")
 	void ClearAbility(const FGameplayAbilitySpecHandle& Handle);
 	
 	/** Sets an ability spec to remove when its finished. If the spec is not currently active, it terminates it immediately. Also clears InputID of the Spec. */
@@ -875,6 +954,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	 * Returns true if it thinks it activated, but it may return false positives due to failure later in activation.
 	 * If bAllowRemoteActivation is true, it will remotely activate local/server abilities, if false it will only try to locally activate the ability
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Abilities")
 	bool TryActivateAbility(FGameplayAbilitySpecHandle AbilityToActivate, bool bAllowRemoteActivation = true);
 
 	/** Triggers an ability from a gameplay event, will only trigger on local/server depending on execution flags */
@@ -901,6 +981,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 
 	/** 
 	 * Called from ability activation or native code, will apply the correct ability blocking tags and cancel existing abilities. Subclasses can override the behavior 
+	 * 
 	 * @param AbilityTags The tags of the ability that has block and cancel flags
 	 * @param RequestingAbility The gameplay ability requesting the change, can be NULL for native events
 	 * @param bEnableBlockTags If true will enable the block tags, if false will disable the block tags
@@ -931,12 +1012,13 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	// Functions meant to be called from GameplayAbility and subclasses, but not meant for general use
 	// ----------------------------------------------------------------------------------------------------------------
 
-	/** Returns the list of all activatable abilities */
+	/** Returns the list of all activatable abilities. Read-only. */
 	const TArray<FGameplayAbilitySpec>& GetActivatableAbilities() const
 	{
 		return ActivatableAbilities.Items;
 	}
 
+	/** Returns the list of all activatable abilities. */
 	TArray<FGameplayAbilitySpec>& GetActivatableAbilities()
 	{
 		return ActivatableAbilities.Items;
@@ -957,6 +1039,56 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Returns an ability spec from a handle. If modifying call MarkAbilitySpecDirty */
 	FGameplayAbilitySpec* FindAbilitySpecFromInputID(int32 InputID);
 
+	/**
+	 * Returns all abilities with the given InputID
+	 *
+	 * @param InputID The Input ID to match
+	 * @param OutAbilitySpecs Array of pointers to matching specs
+	 */
+	virtual void FindAllAbilitySpecsFromInputID(int32 InputID, TArray<const FGameplayAbilitySpec*>& OutAbilitySpecs) const;
+
+	/**
+	 * Build a simple FGameplayAbilitySpec from class, level and optional Input ID
+	 */
+	virtual FGameplayAbilitySpec BuildAbilitySpecFromClass(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level = 0, int32 InputID = -1);
+
+	/**
+	 * Returns an array with all granted ability handles
+	 * NOTE: currently this doesn't include abilities that are mid-activation
+	 * 
+	 * @param OutAbilityHandles This array will be filled with the granted Ability Spec Handles
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Gameplay Abilities")
+	void GetAllAbilities(TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles) const;
+
+	/**
+	 * Returns an array with all abilities that match the provided tags
+	 *
+	 * @param OutAbilityHandles This array will be filled with matching Ability Spec Handles
+	 * @param Tags Gameplay Tags to match
+	 * @param bMatchAll If true, tags must be matched exactly. Otherwise, abilities matching any of the tags will be returned
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Gameplay Abilities")
+	void FindAllAbilitiesWithTags(TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles, FGameplayTagContainer Tags, bool bExactMatch = true) const;
+
+	/**
+	 * Returns an array with all abilities that match the provided Gameplay Tag Query
+	 *
+	 * @param OutAbilityHandles This array will be filled with matching Ability Spec Handles
+	 * @param Query Gameplay Tag Query to match
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Gameplay Abilities")
+	void FindAllAbilitiesMatchingQuery(TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles, FGameplayTagQuery Query) const;
+
+	/**
+	 * Returns an array with all abilities bound to an Input ID value
+	 *
+	 * @param OutAbilityHandles This array will be filled with matching Ability Spec Handles
+	 * @param InputID The Input ID to match
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Gameplay Abilities")
+	void FindAllAbilitiesWithInputID(TArray<FGameplayAbilitySpecHandle>& OutAbilityHandles, int32 InputID = 0) const;
+
 	/** Retrieves the EffectContext of the GameplayEffect of the active GameplayEffect. */
 	FGameplayEffectContextHandle GetEffectContextFromActiveGEHandle(FActiveGameplayEffectHandle Handle);
 
@@ -966,7 +1098,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Attempts to activate the given ability, will only work if called from the correct client/server context */
 	bool InternalTryActivateAbility(FGameplayAbilitySpecHandle AbilityToActivate, FPredictionKey InPredictionKey = FPredictionKey(), UGameplayAbility ** OutInstancedAbility = nullptr, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate = nullptr, const FGameplayEventData* TriggerEventData = nullptr);
 
-	// Failure tags used by InternalTryActivateAbility (E.g., this stores the  FailureTags of the last call to InternalTryActivateAbility
+	/** Failure tags used by InternalTryActivateAbility (E.g., this stores the  FailureTags of the last call to InternalTryActivateAbility */
 	FGameplayTagContainer InternalTryActivateAbilityFailureTags;
 
 	/** Called from the ability to let the component know it is ended */
@@ -1139,9 +1271,36 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	virtual void AbilityLocalInputPressed(int32 InputID);
 	virtual void AbilityLocalInputReleased(int32 InputID);
 
+	/*
+	 * Sends a local player Input Pressed event with the provided Input ID, notifying any bound abilities
+	 *
+	 * @param InputID The Input ID to match
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Gameplay Abilities")
+	void PressInputID(int32 InputID);
+
+	/**
+	 * Sends a local player Input Released event with the provided Input ID, notifying any bound abilities
+	 * @param InputID The Input ID to match
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Gameplay Abilities")
+	void ReleaseInputID(int32 InputID);
+
 	/** Handle confirm/cancel for target actors */
 	virtual void LocalInputConfirm();
 	virtual void LocalInputCancel();
+
+	/**
+	 * Sends a local player Input Confirm event, notifying abilities
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Gameplay Abilities")
+	void InputConfirm();
+
+	/**
+	 * Sends a local player Input Cancel event, notifying abilities
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Gameplay Abilities")
+	void InputCancel();
 	
 	/** InputID for binding GenericConfirm/Cancel events */
 	int32 GenericConfirmInputID;
@@ -1656,4 +1815,5 @@ protected:
 	};
 
 	TArray<FAbilityListLockActiveChange*> AbilityListLockActiveChanges;
+	
 };
