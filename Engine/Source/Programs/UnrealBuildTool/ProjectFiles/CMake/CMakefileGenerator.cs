@@ -214,12 +214,12 @@ namespace UnrealBuildTool
 		
 
 		/// <summary>
-		/// Writes the master project file (e.g. Visual Studio Solution file)
+		/// Writes the primary project file (e.g. Visual Studio Solution file)
 		/// </summary>
 		/// <param name="UBTProject">The UnrealBuildTool project</param>
 		/// <param name="PlatformProjectGenerators">The registered platform project generators</param>
 		/// <returns>True if successful</returns>
-		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			return true;
 		}
@@ -592,7 +592,7 @@ namespace UnrealBuildTool
 				CMakefileContent.AppendLine("add_executable(FakeTarget ${ENGINE_HEADER_FILES} ${ENGINE_SOURCE_FILES} ${ENGINE_CSHARP_FILES} ${ENGINE_SHADER_FILES} ${ENGINE_CONFIG_FILES} ${PROJECT_HEADER_FILES} ${PROJECT_SOURCE_FILES} ${PROJECT_CSHARP_FILES} ${PROJECT_SHADER_FILES} ${PROJECT_CONFIG_FILES})");
 			}
 
-			string FullFileName = Path.Combine(MasterProjectPath.FullName, ProjectFileName);
+			string FullFileName = Path.Combine(PrimaryProjectPath.FullName, ProjectFileName);
 
 			// Write out CMake files
 			bool bWriteMakeList = WriteFileIfChanged(FullFileName, CMakefileContent.ToString());
@@ -702,7 +702,7 @@ namespace UnrealBuildTool
 		/// Adds the include directory to the list, after converting it to relative to UE4 root
 		private static string GetIncludeDirectory(string IncludeDir, string ProjectDir)
 		{
-			string FullProjectPath = Path.GetFullPath(MasterProjectPath.FullName);
+			string FullProjectPath = Path.GetFullPath(PrimaryProjectPath.FullName);
 			string FullPath = "";
 			// Check for paths outside of both the engine and the project
 			if (Path.IsPathRooted(IncludeDir) &&
@@ -778,13 +778,13 @@ namespace UnrealBuildTool
 			return new CMakefileProjectFile(InitFilePath, BaseDir);
 		}
 
-		public override void CleanProjectFiles(DirectoryReference InMasterProjectDirectory, string InMasterProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
 		{
 			// Remove Project File
-			FileReference MasterProjectFile = FileReference.Combine(InMasterProjectDirectory, ProjectFileName);
-			if (FileReference.Exists(MasterProjectFile))
+			FileReference PrimaryProjectFile = FileReference.Combine(InPrimaryProjectDirectory, ProjectFileName);
+			if (FileReference.Exists(PrimaryProjectFile))
 			{
-				FileReference.Delete(MasterProjectFile);
+				FileReference.Delete(PrimaryProjectFile);
 			}
 
 			// Remove Headers Files

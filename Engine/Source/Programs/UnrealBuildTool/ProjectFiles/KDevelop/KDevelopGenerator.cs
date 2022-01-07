@@ -37,7 +37,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			bool bSuccess = true;
 			return bSuccess;
@@ -49,7 +49,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="FileContent">File content.</param>
 		/// <param name="Name">Name.</param>
-		private void WriteKDevMasterProjectSection(ref StringBuilder FileContent, string Name)
+		private void WriteKDevPrimaryProjectSection(ref StringBuilder FileContent, string Name)
 		{
 			FileContent.Append("\n");
 			FileContent.Append("[Project] \n");
@@ -272,7 +272,7 @@ namespace UnrealBuildTool
 
 				foreach (string CurPath in KDevelopProject.IntelliSenseIncludeSearchPaths)
 				{
-					string FullProjectPath = ProjectFileGenerator.MasterProjectPath.FullName;
+					string FullProjectPath = ProjectFileGenerator.PrimaryProjectPath.FullName;
 					string FullPath = "";
 
 					// need to test to see if this in the project souce tree
@@ -300,7 +300,7 @@ namespace UnrealBuildTool
 
 				foreach (string CurPath in KDevelopProject.IntelliSenseSystemIncludeSearchPaths)
 				{
-					string FullProjectPath = ProjectFileGenerator.MasterProjectPath.FullName;
+					string FullProjectPath = ProjectFileGenerator.PrimaryProjectPath.FullName;
 					string FullPath = "";
 
 					if (CurPath.StartsWith("/") && !CurPath.StartsWith(FullProjectPath))
@@ -450,48 +450,48 @@ namespace UnrealBuildTool
 			// RAKE! Take one KDevelopProjectFileContent and pass
 			// it through each function that writes out the sections.
 			StringBuilder KDevelopFileContent = new StringBuilder();
-			StringBuilder KDevelopMasterFileContent = new StringBuilder();
+			StringBuilder KDevelopPrimaryFileContent = new StringBuilder();
 
 			// These are temp files until we can write them to the 
 			// *.kdev4 filename directly 
 			StringBuilder DefinesFileContent = new StringBuilder();
 			StringBuilder IncludesFileContent = new StringBuilder();
 
-			string FileName = MasterProjectName + ".kdev4";
+			string FileName = PrimaryProjectName + ".kdev4";
 
 			string DefinesFileName = "Defines.txt"; // RAKE! TEMP!
 			string IncludesFileName = "Includes.txt"; // RAKE! TEMP!
 
-			WriteKDevMasterProjectSection(ref KDevelopMasterFileContent, MasterProjectName);
+			WriteKDevPrimaryProjectSection(ref KDevelopPrimaryFileContent, PrimaryProjectName);
 
 			WriteCommandSection(ref KDevelopFileContent);
 			WriteIncludeSection(ref IncludesFileContent);
 			WriteDefineSection(ref DefinesFileContent);
 			WriteExcludeSection(ref KDevelopFileContent);
 
-			// Write the master kdev file.
-			string FullMasterProjectPath = Path.Combine(MasterProjectPath.FullName, ".kdev4/");
+			// Write the primary kdev file.
+			string FullPrimaryProjectPath = Path.Combine(PrimaryProjectPath.FullName, ".kdev4/");
 
-			if (!Directory.Exists(FullMasterProjectPath))
+			if (!Directory.Exists(FullPrimaryProjectPath))
 			{
-				Directory.CreateDirectory(FullMasterProjectPath);
+				Directory.CreateDirectory(FullPrimaryProjectPath);
 			}
 
-			string FullKDevelopMasterFileName = Path.Combine(MasterProjectPath.FullName, FileName);
-			string FullKDevelopFileName = Path.Combine(FullMasterProjectPath, FileName);
+			string FullKDevelopPrimaryFileName = Path.Combine(PrimaryProjectPath.FullName, FileName);
+			string FullKDevelopFileName = Path.Combine(FullPrimaryProjectPath, FileName);
 
-			string FullDefinesFileName = Path.Combine(FullMasterProjectPath, DefinesFileName);
-			string FullIncludesFileName = Path.Combine(FullMasterProjectPath, IncludesFileName);
+			string FullDefinesFileName = Path.Combine(FullPrimaryProjectPath, DefinesFileName);
+			string FullIncludesFileName = Path.Combine(FullPrimaryProjectPath, IncludesFileName);
 
 			WriteFileIfChanged(FullDefinesFileName, DefinesFileContent.ToString());
 			WriteFileIfChanged(FullIncludesFileName, IncludesFileContent.ToString());
 
-			return WriteFileIfChanged(FullKDevelopMasterFileName, KDevelopMasterFileContent.ToString()) &&
+			return WriteFileIfChanged(FullKDevelopPrimaryFileName, KDevelopPrimaryFileContent.ToString()) &&
 			WriteFileIfChanged(FullKDevelopFileName, KDevelopFileContent.ToString());
 		}
 
 		/// ProjectFileGenerator interface
-		//protected override bool WriteMasterProjectFile( ProjectFile UBTProject )
+		//protected override bool WritePrimaryProjectFile( ProjectFile UBTProject )
 		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			return WriteKDevelopPro();
@@ -510,7 +510,7 @@ namespace UnrealBuildTool
 		}
 
 		/// ProjectFileGenerator interface
-		public override void CleanProjectFiles(DirectoryReference InMasterProjectDirectory, string InMasterProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
 		{
 		}
 	}

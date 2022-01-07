@@ -66,10 +66,10 @@ namespace UnrealBuildTool
 
 		public override bool ShouldGenerateIntelliSenseData() => true;
 
-		public override void CleanProjectFiles(DirectoryReference InMasterProjectDirectory, string InMasterProjectName,
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName,
 			DirectoryReference InIntermediateProjectFilesDirectory)
 		{
-			DirectoryReference.Delete(InMasterProjectDirectory);
+			DirectoryReference.Delete(InPrimaryProjectDirectory);
 		}
 
 		private void ConfigureProjectFileGeneration()
@@ -407,29 +407,29 @@ namespace UnrealBuildTool
 
 			if (bGeneratingGameProjectFiles)
 			{
-				MasterProjectPath = OnlyGameProject!.Directory;
-				MasterProjectName = OnlyGameProject.GetFileNameWithoutExtension();
+				PrimaryProjectPath = OnlyGameProject!.Directory;
+				PrimaryProjectName = OnlyGameProject.GetFileNameWithoutExtension();
 
-				if (!DirectoryReference.Exists(DirectoryReference.Combine(MasterProjectPath, "Source")))
+				if (!DirectoryReference.Exists(DirectoryReference.Combine(PrimaryProjectPath, "Source")))
 				{
-					if (!DirectoryReference.Exists(DirectoryReference.Combine(MasterProjectPath, "Intermediate",
+					if (!DirectoryReference.Exists(DirectoryReference.Combine(PrimaryProjectPath, "Intermediate",
 						"Source")))
 					{
 						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 						{
-							MasterProjectPath = Unreal.EngineDirectory;
+							PrimaryProjectPath = Unreal.EngineDirectory;
 							GameProjectName = "UnrealGame";
 						}
 
-						if (!DirectoryReference.Exists(DirectoryReference.Combine(MasterProjectPath, "Source")))
+						if (!DirectoryReference.Exists(DirectoryReference.Combine(PrimaryProjectPath, "Source")))
 						{
-							throw new BuildException("Directory '{0}' is missing 'Source' folder.", MasterProjectPath);
+							throw new BuildException("Directory '{0}' is missing 'Source' folder.", PrimaryProjectPath);
 						}
 					}
 				}
 
 				IntermediateProjectFilesPath =
-					DirectoryReference.Combine(MasterProjectPath, "Intermediate", "ProjectFiles");
+					DirectoryReference.Combine(PrimaryProjectPath, "Intermediate", "ProjectFiles");
 			}
 
 			SetupSupportedPlatformsAndConfigurations();
@@ -477,7 +477,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override bool WriteMasterProjectFile(ProjectFile? ProjectFile,
+		protected override bool WritePrimaryProjectFile(ProjectFile? ProjectFile,
 			PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			return true;

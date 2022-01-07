@@ -550,9 +550,9 @@ namespace UnrealBuildTool
 
 		static string InsertPathVariables(FileReference Location)
 		{
-			if (Location.IsUnderDirectory(ProjectFileGenerator.MasterProjectPath))
+			if (Location.IsUnderDirectory(ProjectFileGenerator.PrimaryProjectPath))
 			{
-				return String.Format("$(SolutionDir){0}", Location.MakeRelativeTo(ProjectFileGenerator.MasterProjectPath));
+				return String.Format("$(SolutionDir){0}", Location.MakeRelativeTo(ProjectFileGenerator.PrimaryProjectPath));
 			}
 			else
 			{

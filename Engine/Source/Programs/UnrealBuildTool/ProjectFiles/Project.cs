@@ -172,7 +172,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructs a new project file object
 		/// </summary>
-		/// <param name="ProjectFilePath">The path to the project file, relative to the master project file</param>
+		/// <param name="ProjectFilePath">The path to the project file, relative to the primary project file</param>
 		/// <param name="BaseDir">The base directory for files within this project</param>
 		protected ProjectFile(FileReference ProjectFilePath, DirectoryReference BaseDir)
 		{
@@ -208,8 +208,8 @@ namespace UnrealBuildTool
 		}
 
 
-		/// Returns true if this is a "stub" project.  Stub projects function as dumb containers for source files
-		/// and are never actually "built" by the master project.  Stub projects are always "generated" projects.
+		/// Returns true if this is a "stub" project.  Stub projects function as simple containers for source files
+		/// and are never actually "built" by the primary project.  Stub projects are always "generated" projects.
 		public bool IsStubProject
 		{
 			get;
@@ -534,7 +534,7 @@ namespace UnrealBuildTool
 		public static string NormalizeProjectPath(FileSystemReference InputPath)
 		{
 			// Try to make it relative to the solution directory.
-			if (InputPath.IsUnderDirectory(ProjectFileGenerator.MasterProjectPath))
+			if (InputPath.IsUnderDirectory(ProjectFileGenerator.PrimaryProjectPath))
 			{
 				return InputPath.MakeRelativeTo(ProjectFileGenerator.IntermediateProjectFilesPath);
 			}
