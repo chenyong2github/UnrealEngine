@@ -131,7 +131,7 @@ class MultiUserApplication:
                 return
 
             cmdline = f'start "Multi User Server" "{self.exe_path()}"'
-            cmdline += f' -CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME}"'
+            cmdline += f' -CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME.get_value()}"'
             cmdline += f' {CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS.get_value()}'
             cmdline += f' {self.get_mu_server_endpoint_arg()}'
             cmdline += f' {self.get_mu_server_multicast_arg()}'

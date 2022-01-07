@@ -766,8 +766,12 @@ class SwitchboardDialog(QtCore.QObject):
         self.update_current_config_text()
         
     def update_current_config_text(self):
-        file_name = os.path.basename(SETTINGS.CONFIG)
-        self.window.current_config_file_value.setText(file_name)
+        # Can be none when current file is deleted
+        if SETTINGS.CONFIG is not None:
+            file_name = os.path.basename(SETTINGS.CONFIG)
+            self.window.current_config_file_value.setText(file_name)
+        else:
+            self.window.current_config_file_value.setText("No config loaded")
     
     def update_current_ip_address_text(self):
         self.window.current_ip_value.setText(SETTINGS.IP_ADDRESS.get_value())
@@ -809,6 +813,7 @@ class SwitchboardDialog(QtCore.QObject):
             # Update the UI
             self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
             self.refresh_levels()
+            self.update_current_config_text()
 
     def menu_delete_config(self):
         """
