@@ -401,35 +401,45 @@ bool UNiagaraDataInterfaceGrid3D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 	}
 	else if (FunctionInfo.DefinitionName == UNiagaraDataInterfaceRWBase::ExecutionIndexToUnitFunctionName)
 	{
-	static const TCHAR* FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out float3 Out_Unit)
 			{
-				const uint Linear = GLinearThreadId;
-				const uint IndexX = Linear % {NumCellsName}.x;
-				const uint IndexY = (Linear / {NumCellsName}.x) % {NumCellsName}.y;
-				const uint IndexZ = Linear / ({NumCellsName}.x * {NumCellsName}.y);				
+				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_THREE_D
+					Out_Unit = (float3(GDispatchThreadId.x, GDispatchThreadId.y, GDispatchThreadId.z) + .5) / {NumCellsName};
+				#else
+					const uint Linear = GLinearThreadId;
+					const uint IndexX = Linear % {NumCellsName}.x;
+					const uint IndexY = (Linear / {NumCellsName}.x) % {NumCellsName}.y;
+					const uint IndexZ = Linear / ({NumCellsName}.x * {NumCellsName}.y);				
 
-				Out_Unit = (float3(IndexX, IndexY, IndexZ) + .5) / {NumCellsName};				
+					Out_Unit = (float3(IndexX, IndexY, IndexZ) + .5) / {NumCellsName};				
+				#endif
 			}
 		)");
 
-	OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
-	return true;
+		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
+		return true;
 	}
 	else if (FunctionInfo.DefinitionName == UNiagaraDataInterfaceRWBase::ExecutionIndexToGridIndexFunctionName)
 	{
-	static const TCHAR* FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_IndexX, out int Out_IndexY, out int Out_IndexZ)
 			{
-				const uint Linear = GLinearThreadId;
-				Out_IndexX = Linear % {NumCellsName}.x;
-				Out_IndexY = (Linear / {NumCellsName}.x) % {NumCellsName}.y;
-				Out_IndexZ = Linear / ({NumCellsName}.x * {NumCellsName}.y);
+				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_THREE_D
+					Out_IndexX = GDispatchThreadId.x;
+					Out_IndexY = GDispatchThreadId.y;
+					Out_IndexZ = GDispatchThreadId.z;
+				#else
+					const uint Linear = GLinearThreadId;
+					Out_IndexX = Linear % {NumCellsName}.x;
+					Out_IndexY = (Linear / {NumCellsName}.x) % {NumCellsName}.y;
+					Out_IndexZ = Linear / ({NumCellsName}.x * {NumCellsName}.y);
+				#endif
 			}
 		)");
 
-	OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
-	return true;
+		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
+		return true;
 	}
 	else if (FunctionInfo.DefinitionName == UNiagaraDataInterfaceRWBase::CellSizeFunctionName)
 	{
@@ -882,33 +892,41 @@ bool UNiagaraDataInterfaceGrid2D::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 	}
 	else if (FunctionInfo.DefinitionName == UNiagaraDataInterfaceRWBase::ExecutionIndexToUnitFunctionName)
 	{
-	static const TCHAR* FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out float2 Out_Unit)
 			{
-				const uint Linear = GLinearThreadId;
-				const uint IndexX = Linear % {NumCellsName}.x;
-				const uint IndexY = Linear / {NumCellsName}.x;				
-
-				Out_Unit = (float2(IndexX, IndexY) + .5) * {UnitToUVName};			
+				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_TWO_D
+					Out_Unit = (float2(GDispatchThreadId.x, GDispatchThreadId.y) + .5) * {UnitToUVName};			
+				#else
+					const uint Linear = GLinearThreadId;
+					const uint IndexX = Linear % {NumCellsName}.x;
+					const uint IndexY = Linear / {NumCellsName}.x;				
+					Out_Unit = (float2(IndexX, IndexY) + .5) * {UnitToUVName};			
+				#endif
 			}
 		)");
 
-	OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
-	return true;
+		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
+		return true;
 	}
 	else if (FunctionInfo.DefinitionName == UNiagaraDataInterfaceRWBase::ExecutionIndexToGridIndexFunctionName)
 	{
-	static const TCHAR* FormatSample = TEXT(R"(
+		static const TCHAR* FormatSample = TEXT(R"(
 			void {FunctionName}(out int Out_IndexX, out int Out_IndexY)
 			{
-				const uint Linear = GLinearThreadId;
-				Out_IndexX = Linear % {NumCellsName}.x;
-				Out_IndexY = Linear / {NumCellsName}.x;				
+				#if NIAGARA_DISPATCH_TYPE == NIAGARA_DISPATCH_TYPE_TWO_D
+					Out_IndexX = GDispatchThreadId.x;
+					Out_IndexY = GDispatchThreadId.y;
+				#else
+					const uint Linear = GLinearThreadId;
+					Out_IndexX = Linear % {NumCellsName}.x;
+					Out_IndexY = Linear / {NumCellsName}.x;				
+				#endif
 			}
 		)");
 
-	OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
-	return true;
+		OutHLSL += FString::Format(FormatSample, ArgsDeclarations);
+		return true;
 	}
 	else if (FunctionInfo.DefinitionName == UNiagaraDataInterfaceRWBase::CellSizeFunctionName)
 	{

@@ -8,6 +8,7 @@
 #include "Curves/RichCurve.h"
 #include "NiagaraMergeable.h"
 #include "NiagaraDataInterfaceBase.h"
+#include "NiagaraScriptBase.h"
 #include "NiagaraDataInterface.generated.h"
 
 class INiagaraCompiler;
@@ -291,6 +292,9 @@ public:
 	virtual bool GenerateIterationSourceNamespaceWriteAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, const FNiagaraVariable& InIterationSourceVariable, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bSpawnOnly, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const { return false; };
 	/** Used by the translator when dealing with signatures that turn into compiler tags to figure out the precise compiler tag. */
 	virtual bool GenerateCompilerTagPrefix(const FNiagaraFunctionSignature& InSignature, FString& OutPrefix) const  { return false; }
+
+	virtual ENiagaraGpuDispatchType GetGpuDispatchType() const { return ENiagaraGpuDispatchType::OneD; }
+	virtual FIntVector GetGpuDispatchNumThreads() const { return FIntVector(64, 1, 1); }
 #endif
 
 	/** Allows data interfaces to cache any static data that may be shared between instances */

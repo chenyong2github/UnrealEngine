@@ -1286,6 +1286,19 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					SimulationStageMetaData.bWritesParticles = TranslationStages[Index].bWritesParticles;
 					SimulationStageMetaData.bPartialParticleUpdate = TranslationStages[Index].bPartialParticleUpdate;
 
+					// Determine dispatch information from iteration source (if we have one)
+					if ( !SimulationStageMetaData.IterationSource.IsNone() )
+					{
+						if (const FNiagaraVariable* IterationSourceVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == SimulationStageMetaData.IterationSource; }))
+						{
+							if ( UNiagaraDataInterface* IteratinoSourceCDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar->GetType().GetClass()) )
+							{
+								SimulationStageMetaData.GpuDispatchType = IteratinoSourceCDO->GetGpuDispatchType();
+								SimulationStageMetaData.GpuDispatchNumThreads = IteratinoSourceCDO->GetGpuDispatchNumThreads();
+							}
+						}
+					}
+
 					// Increment source stage index
 					++SourceSimStageIndex;
 
@@ -2984,7 +2997,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	/////////////////////////
 	// StoreUpdateVariables()
 
-	HlslOutput += TEXT("void StoreUpdateVariables(in FSimulationContext Context)\n{\n");
+	HlslOutput += TEXT("void StoreUpdateVariables(in FSimulationContext Context, bool bIsValidInstance)\n{\n");
 	{
 		FExpressionPermutationContext PermutationContext(HlslOutput);
 
@@ -3027,13 +3040,13 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				// under dynamic flow control, which is not allowed. Therefore, we must always use the more expensive path when the spawn phase
 				// can kill particles.
 				bWriteInstanceCount = false;
-				HlslOutput += TEXT("\t\tconst bool bValid = Context.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance.Alive;\n");
+				HlslOutput += TEXT("\t\tconst bool bValid = bIsValidInstance && Context.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance.Alive;\n");
 				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, true, bValid);\n");
 			}
 			else
 			{
 				// The stage doesn't kill particles, we can take the simpler path which doesn't need to manage the particle count.
-				HlslOutput += TEXT("\t\tconst bool bValid = GCurrentPhase != -1;\n");
+				HlslOutput += TEXT("\t\tconst bool bValid = bIsValidInstance;\n");
 				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, false, bValid);\n");
 			}
 
@@ -3068,15 +3081,14 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 			if (bWriteInstanceCount)
 			{
+				//-TODO: This path should be deprecated if we ever remove the ability to disable partial writes
 				HlslOutput += TEXT(
 					"\t\t// If a stage doesn't kill particles, StoreUpdateVariables() never calls AcquireIndex(), so the\n"
 					"\t\t// count isn't updated. In that case we must manually copy the original count here.\n"
-					"\t\t#if USE_SIMULATION_STAGES\n"
 					"\t\tif (WriteInstanceCountOffset != 0xFFFFFFFF && GLinearThreadId == 0) \n"
 					"\t\t{\n"
 					"\t\t	RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + SpawnedInstances; \n"
 					"\t\t}\n"
-					"\t\t#endif\n"
 				);
 			}
 		}
@@ -3149,91 +3161,123 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				"		\n");
 	}
 	
+	//////////////////////////////////////////////////////////////////////////
+	// Generate per translation stage logic parts
+	// i.e. ones who vary based upon what we iterate over
+	FString SimRunSpawnUpdateLogicString;
+	FString SimSetupSpawnExecIndexLogicString;
+	for (int32 i=1; i < TranslationStages.Num(); i++)
+	{
+		const FHlslNiagaraTranslationStage& TranslationStage = TranslationStages[i];
+		const TCHAR* IfOrElifText = (i == 1) ? TEXT("#if") : TEXT("#elif");
+
+		SimRunSpawnUpdateLogicString.Appendf(TEXT("%s SimulationStageIndex == %d	// %s\n"), IfOrElifText, TranslationStage.SimulationStageIndex, *TranslationStage.PassNamespace);
+		SimSetupSpawnExecIndexLogicString.Appendf(TEXT("%s SimulationStageIndex == %d	// %s\n"), IfOrElifText, TranslationStage.SimulationStageIndex, *TranslationStage.PassNamespace);
+
+		// Particle iteration stage
+		if ( TranslationStage.IterationSource.IsNone() )
+		{
+			// We combine the update & spawn scripts together on GPU so we only need to check for spawning on the first translation stage
+			// Note: Depending on how spawning inside stages works we may need to enable the spawn logic for those stages *only*			
+			const bool bParticleSpawnStage = i == 1;
+			if (bParticleSpawnStage)
+			{
+				SimRunSpawnUpdateLogicString += TEXT(
+					"	if (ReadInstanceCountOffset == 0xFFFFFFFF)\n"
+					"	{\n"
+					"		GSpawnStartInstance = 0;\n"
+					"	}\n"
+					"	else\n"
+					"	{\n"
+					"		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
+					"	}\n"
+					"	const int MaxInstances = GSpawnStartInstance + SpawnedInstances;\n"
+					"	const bool bRunUpdateLogic = GLinearThreadId < GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
+					"	const bool bRunSpawnLogic = GLinearThreadId >= GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
+				);
+			}
+			else
+			{
+				SimRunSpawnUpdateLogicString += TEXT(
+					"	GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
+					"	const bool bRunUpdateLogic = GLinearThreadId < GSpawnStartInstance;\n"
+					"	const bool bRunSpawnLogic = false;\n"
+				);
+			}
+
+			SimSetupSpawnExecIndexLogicString += TEXT("		SetupExecIndexAndSpawnInfoForGPU();\n");
+		}
+		// Iteration interface stage
+		else
+		{
+			//	if (const FNiagaraVariable* IterationSourceVar = CompileData->EncounteredVariables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == SimulationStageMetaData.IterationSource; }))
+			//	{
+			//		if (UNiagaraDataInterface* IteratinoSourceCDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar->GetType().GetClass()))
+			//		{
+			//			SimulationStageMetaData.GpuDispatchType = IteratinoSourceCDO->GetGpuDispatchType();
+			//			SimulationStageMetaData.GpuDispatchNumThreads = IteratinoSourceCDO->GetGpuDispatchNumThreads();
+			//		}
+			//	}
+
+			//-TODO: We can simplify the logic here with SimulationStage_GetInstanceCount() as only things that can provide an instance count offset
+			//		 can really be variable, everything else is driven from CPU code.
+			SimRunSpawnUpdateLogicString += TEXT(
+				"	const uint MaxInstances = SimulationStage_GetInstanceCount();\n"
+				"	GLinearThreadId = all(DispatchThreadId < DispatchThreadIdBounds) ? GLinearThreadId : MaxInstances;\n"
+				"	GSpawnStartInstance = MaxInstances;\n"
+				"	const bool bRunUpdateLogic = (GLinearThreadId < GSpawnStartInstance) && (SimStart != 1);\n"
+				"	const bool bRunSpawnLogic = (GLinearThreadId < GSpawnStartInstance) && (SimStart == 1);\n"
+			);
+
+			SimSetupSpawnExecIndexLogicString += TEXT("		SetupExecIndexForGPU();\n");
+		}
+	}
+	SimRunSpawnUpdateLogicString.Append(TEXT("#endif\n"));
+	SimSetupSpawnExecIndexLogicString.Append(TEXT("#endif\n"));
+
+	//////////////////////////////////////////////////////////////////////////
+	// Generate main body
 	HlslOutput +=
 		TEXT("\n\n/*\n"
 			"*	CS wrapper for our generated code; calls spawn and update functions on the corresponding instances in the buffer\n"
 			" */\n"
 			"\n"
-			"[numthreads(THREADGROUP_SIZE, 1, 1)]\n"
+			"[numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, THREADGROUP_SIZE_Z)]\n"
 			"void SimulateMainComputeCS(\n"
 			"	uint3 DispatchThreadId : SV_DispatchThreadID,\n"
 			"	uint3 GroupThreadId : SV_GroupThreadID)\n"
 			"{\n"
-			"	GLinearThreadId = DispatchThreadId.x + (DispatchThreadId.y * DispatchThreadIdToLinear);\n"
+			"	GLinearThreadId = DispatchThreadId.x + (DispatchThreadId.y * DispatchThreadIdToLinear.y);\n"
+			"	#if NIAGARA_DISPATCH_TYPE >= NIAGARA_DISPATCH_TYPE_THREE_D\n"
+			"		GLinearThreadId += DispatchThreadId.z * DispatchThreadIdToLinear.z;\n"
+			"	#endif\n"
 			"	GDispatchThreadId = DispatchThreadId;\n"
 			"	GGroupThreadId = GroupThreadId;\n"
-			"	GCurrentPhase = -1;\n"
 			"	GEmitterTickCounter = EmitterTickCounter;\n"
-			"	GSimStart = SimStart;\n"
 			"	GRandomSeedOffset = 0;\n"
+			"\n"
+			) + SimRunSpawnUpdateLogicString + TEXT(
 			"	\n"
-			"	/*\n"
-			"	if(CopyInstancesBeforeStart == 1)\n"
-			"	{\n"
-			"		UpdateStartInstance = 0;\n"
-			"	}\n"
-			"	*/\n"
-			"	\n"
-			"   // The CPU code will set UpdateStartInstance to 0 and ReadInstanceCountOffset to -1 for stages.\n"
-			"	const uint InstanceID = UpdateStartInstance + GLinearThreadId;\n"
-			"	if (ReadInstanceCountOffset == 0xFFFFFFFF)\n"
-			"	{\n"
-			"		GSpawnStartInstance = 0;\n"
-			"	}\n"
-			"	else\n"
-			"	{\n"
-			"		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];				// needed by ExecIndex()\n"
-			"	}\n"
-			"	bool bRunUpdateLogic, bRunSpawnLogic;\n"
-			"	#if USE_SIMULATION_STAGES\n"
-			"	int IterationInterfaceInstanceCount = SimulationStage_GetInstanceCount();\n"
-			"	if (IterationInterfaceInstanceCount > 0)\n"
-			"	{\n"
-			"		bRunUpdateLogic = InstanceID < IterationInterfaceInstanceCount && GSimStart != 1;\n"
-			"		bRunSpawnLogic = InstanceID < IterationInterfaceInstanceCount && GSimStart == 1;\n"
-			"		GSpawnStartInstance = IterationInterfaceInstanceCount;\n"
-			"	}\n"
-			"	else\n"
-			"	#endif // USE_SIMULATION_STAGES\n"
-			"	{\n"
-			"	    const int MaxInstances = GSpawnStartInstance + SpawnedInstances;\n"
-			"		bRunUpdateLogic = InstanceID < GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances;\n"
-			"		bRunSpawnLogic = InstanceID >= GSpawnStartInstance && InstanceID < UpdateStartInstance + MaxInstances;\n"
-			"	}\n"
-			"	\n"
-			"	const float RandomSeedInitialisation = NiagaraInternalNoise(InstanceID * 16384, 0 * 8196, (bRunUpdateLogic ? 4096 : 0) + EmitterTickCounter);	// initialise the random state seed\n"
+			"	const float RandomSeedInitialisation = NiagaraInternalNoise(GLinearThreadId * 16384, 0 * 8196, (bRunUpdateLogic ? 4096 : 0) + EmitterTickCounter);	// initialise the random state seed\n"
 			"	\n"
 			"	FSimulationContext Context = (FSimulationContext)0;\n"
 			"	\n"
 			"	BRANCH\n"
 			"	if (bRunUpdateLogic)\n"
 			"	{\n"
-			"		GCurrentPhase = GUpdatePhase;\n"
 			"		SetupExecIndexForGPU();\n"
 			"		InitConstants(Context);\n"
-			"		LoadUpdateVariables(Context, InstanceID);\n"
+			"		LoadUpdateVariables(Context, GLinearThreadId);\n"
 			"		ReadDataSets(Context);\n"
 			"	}\n"
 			"	else if (bRunSpawnLogic)\n"
 			"	{\n"
-			"		GCurrentPhase = GSpawnPhase;\n"
-			"	#if USE_SIMULATION_STAGES\n"
-			"		// Only process the spawn info for particle-based stages. Stages with an iteration interface expect the exec index to simply be the thread index.\n"
-			"		if (IterationInterfaceInstanceCount > 0)\n"
-			"		{\n"
-			"			SetupExecIndexForGPU();\n"
-			"		}\n"
-			"		else\n"
-			"	#endif\n"
-			"		{\n"
-			"			SetupExecIndexAndSpawnInfoForGPU();\n"
-			"		}\n"
+		) + SimSetupSpawnExecIndexLogicString + TEXT(
 			"		InitConstants(Context);\n"
 			"		InitSpawnVariables(Context);\n"
 			"		ReadDataSets(Context);\n"
 			"		\n") + SpawnLogicString
 			+ TEXT(
-			"		GCurrentPhase = GUpdatePhase;\n"
 			"		\n"
 			"		TransferAttributes(Context);\n"
 			"		\n"
@@ -3241,12 +3285,11 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"\n"
 			"	if (bRunUpdateLogic || bRunSpawnLogic)\n"
 			"	{\n"
-		) + SimDoWorkString
-		+ TEXT(
+		) + SimDoWorkString + TEXT(
 			"		WriteDataSets(Context);\n"
 			"	}\n"
 			"	\n"
-			"	StoreUpdateVariables(Context);\n\n"
+			"	StoreUpdateVariables(Context, bRunUpdateLogic || bRunSpawnLogic);\n\n"
 		);
 
 	HlslOutput += TEXT("}\n");

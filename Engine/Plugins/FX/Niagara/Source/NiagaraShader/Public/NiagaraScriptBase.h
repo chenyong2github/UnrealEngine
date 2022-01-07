@@ -8,6 +8,19 @@
 #include "NiagaraScriptBase.generated.h"
 
 UENUM()
+enum class ENiagaraGpuDispatchType : uint8
+{
+	/* Instances will distribute along X using platforms specific thread counts. */
+	OneD,
+	/* Instances will distribute along X & Y using platforms specific thread counts. */
+	TwoD,
+	/* Instances will distribute along X, Y & Z using platforms specific thread counts. */
+	ThreeD,
+	/* NumThreads will be determined manually. */
+	Custom,
+};
+
+UENUM()
 enum class ENiagaraSimStageExecuteBehavior : uint8
 {
 	/** The stage will run every frame. */
@@ -66,6 +79,14 @@ public:
 		const bool bResetOnly = ExecuteBehavior == ENiagaraSimStageExecuteBehavior::OnSimulationReset;
 		return bAlways || (bResetOnly == bResetData);
 	}
+
+	/** Dispatch type set for this stage. */
+	UPROPERTY()
+	ENiagaraGpuDispatchType GpuDispatchType;
+
+	/** When in custom mode this is the num threads. */
+	UPROPERTY()
+	FIntVector GpuDispatchNumThreads;
 };
 
 UCLASS(MinimalAPI, abstract)
