@@ -68,7 +68,7 @@ public:
 	EMLDeformerVizMode GetTempVisualizationMode() const { return TempVisualizationMode; }
 	EMLDeformerHeatMapMode GetHeatMapMode() const { return HeatMapMode; }
 	float GetHeatMapScale() const { return HeatMapScale; }
-	float GetGroundTruthLerp() const { return GroundTruthLerp; }
+	float GetGroundTruthLerp() const { return HeatMapMode == EMLDeformerHeatMapMode::GroundTruth ? GroundTruthLerp : 0.f; }
 	
 	void SetTempVisualizationMode(EMLDeformerVizMode Mode) { TempVisualizationMode = Mode; }
 	void SetDeformerGraph(UComputeGraph* InDeformerGraph) { DeformerGraph = InDeformerGraph; }
