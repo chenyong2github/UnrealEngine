@@ -33,6 +33,8 @@ namespace ImmediatePhysics_Chaos
 		FActorHandle* CreateActor(EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform);
 		void DestroyActor(FActorHandle* ActorHandle);
 
+		void DestroyActorCollisions(FActorHandle* ActorHandle);
+
 		/** Create a physical joint and add it to the simulation */
 		FJointHandle* CreateJoint(FConstraintInstance* ConstraintInstance, FActorHandle* Body1, FActorHandle* Body2);
 		void DestroyJoint(FJointHandle* JointHandle);
