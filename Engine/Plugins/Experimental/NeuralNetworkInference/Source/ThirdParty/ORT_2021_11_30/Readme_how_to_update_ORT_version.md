@@ -21,27 +21,26 @@ All changes in ORT have been (and should be!) labeled in the code with `WITH_UE`
 ## Upgrading ONNX Runtime
 ### Step 0: Compiling Third Parties
 Francisco Vicente understands this step better, in case of questions, ping him.
-- MLAS (manually remove the old ORT_MLAS folder first, and repeate process for every platform):
+- MLAS: The following script will compile the latest ORT and copy it into NNI (manually repeat the process for every platform).
 ```
-################################################## PARAMETERS ##################################################
-$ORT_MLAS_PARENT_PATH = "D:/Users/gines.hidalgo/Downloads/" # In Epic machine, otherwise: D:/Users/gineshidalgo99/Desktop/ONNXRuntime
+################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
+$ORT_MLAS_PARENT_PATH = "D:/Users/gines.hidalgo/Downloads/" # D:/Users/gines.hidalgo/Downloads or D:/UpdatingMLAS
 $NNI_ORT_MLAS_LOCATION = "D:/P4/ue5_main_pitt64/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/Deps"
-$NNI_ORT_MLAS_FINAL_NAME = "MLAS_2021_10_20"
-$NNI_ORT_MLAS_OLD_NAME = "MLAS_2021_10_19"
+$NNI_ORT_MLAS_FINAL_NAME = "MLAS_2021_11_30"
+$NNI_ORT_MLAS_OLD_NAME = "MLAS_2021_10_20"
 $FINAL_COMMIT_HASH = "4028e51e7e6421fdbeca5f4e4ccd8b4f790d0fd5" # The one NNI's ORT will be using after this merge
 
-################################################## AUTOMATIC SCRIPT ##################################################
+################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
+# Compile latest MLAS
 cd "$ORT_MLAS_PARENT_PATH"
 mkdir ORT_MLAS; cd ORT_MLAS
 git clone --recursive https://github.com/Microsoft/onnxruntime
 cd onnxruntime
-# Checkout ORT master. E.g., on Oct 18th
+# Checkout ORT master. E.g., the latest commit from today
 git reset --hard $FINAL_COMMIT_HASH
 .\build.bat --config Release --parallel --use_dml --use_full_protobuf
-```
-Copy the new MLAS into `{NNI}/Source/ThirdParty/Deps/MLAS_YYYY_MM_DD/`:
-```
-################################################## AUTOMATIC SCRIPT ##################################################
+
+# Copy the new MLAS into `{NNI}/Source/ThirdParty/Deps/MLAS_YYYY_MM_DD/`:
 $NNI_ORT_MLAS_FINAL_PATH = "$NNI_ORT_MLAS_LOCATION/$NNI_ORT_MLAS_FINAL_NAME"
 $NNI_ORT_MLAS_OLD_PATH = "$NNI_ORT_MLAS_LOCATION/$NNI_ORT_MLAS_OLD_NAME"
 mkdir $NNI_ORT_MLAS_FINAL_PATH
@@ -54,32 +53,35 @@ cp -r -fo $NNI_ORT_MLAS_OLD_PATH/MLAS_TPS_README.txt $NNI_ORT_MLAS_FINAL_PATH/ML
 cp -r -fo $NNI_ORT_MLAS_OLD_PATH/ONNXRuntime.tps $NNI_ORT_MLAS_FINAL_PATH/ONNXRuntime.tps
 cp -r -fo $NNI_ORT_MLAS_OLD_PATH/ONNXRuntime${NNI_ORT_MLAS_OLD_NAME}.Build.cs $NNI_ORT_MLAS_FINAL_PATH/ONNXRuntime${NNI_ORT_MLAS_FINAL_NAME}.Build.cs
 ```
+Finally, manually go into `$NNI_ORT_MLAS_FINAL_PATH/ONNXRuntime${NNI_ORT_MLAS_FINAL_NAME}.Build.cs` and rename `ONNXRuntime_MLAS_YYYY_MM_DD` with the new date.
 
 - ONNX: Compile desired ORT version to see ONNX flags + https://github.ol.epicgames.net/francisco-vicente/onnx_nni
 
 
 
 ### Step 1: Prerequisites
+Do this before starting with the scripts:
 1. Create and open the following folders on your explorer:
-	- A wrapper folder `$ORT_TEMP`, e.g., `D:/Users/gineshidalgo99/Desktop/ONNXRuntime`
-	- `${$ORT_TEMP}/ONNXRuntime_code_from_NNI`
-	- `${$ORT_TEMP}/onnxruntime`
-	- `${$ORT_TEMP}/ONNXRuntime_code_to_push_to_NNI`
-2. Fork https://github.com/Microsoft/onnxruntime into your GitHub account, e.g., https://github.com/gineshidalgo99/onnxruntime
+	- A wrapper folder `$ORT_TEMP`, e.g., `D:/Users/gineshidalgo99/Desktop/ONNXRuntime` or `D:/UpdatingORT/ONNXRuntime`
+	- `${ORT_TEMP}/ONNXRuntime_code_from_NNI`
+	- `${ORT_TEMP}/onnxruntime` (this is the actual GitHub)
+	- `${ORT_TEMP}/ONNXRuntime_code_to_push_to_NNI`
+2. Fork https://github.com/Microsoft/onnxruntime into your personal (not Epic enterprise) GitHub account. E.g., open that link from Google Chrome & click "Fork" on the top-right, resulting e.g. in https://github.com/gineshidalgo99/onnxruntime or https://github.com/fkvicente/onnxruntime/.
 
 
 
 ### Step 2: Create Local ONNX Runtime Fork
 (First time only, not needed if you already have your fork of ORT locally) Clone your fork of ORT locally:
 ```
-################################################## PARAMETERS ##################################################
-$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gines.hidalgo/Desktop/ONNXRuntime
+################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
+$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gineshidalgo99/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
+$GITHUB_URL = "https://github.com/gineshidalgo99/onnxruntime" # https://github.com/gineshidalgo99/onnxruntime or https://github.com/fkvicente/onnxruntime/ or https://github.com/Microsoft/onnxruntime
 
-################################################## AUTOMATIC SCRIPT ##################################################
+################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 cd $ORT_PARENT_PATH
 # Recursive not needed if only planning to merge (but not compile)
-# git clone --recursive https://github.com/gineshidalgo99/onnxruntime # git clone --recursive https://github.com/Microsoft/onnxruntime
-git clone https://github.com/gineshidalgo99/onnxruntime
+# git clone --recursive $GITHUB_URL
+git clone $GITHUB_URL
 cd onnxruntime
 ```
 
@@ -88,26 +90,26 @@ cd onnxruntime
 ### Step 3: Add NNI's Changes Locally
 Before running the commands below:
 1. Copy NNI's ONNXRuntime locally:
-	- From `{UE5}/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/ONNXRuntime/`.
-	- Into `${$ORT_TEMP}/ONNXRuntime_code_from_NNI/`.
+	- From `{UE5}/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/ORT_YYYY_MM_DD/` (the one currently being used in production).
+	- Into `${ORT_TEMP}/ONNXRuntime_code_from_NNI/`.
 2. To allow changes, right-click on `ONNXRuntime_code_from_NNI`, "Properties", uncheck "Read-only", and "OK".
 
-You can now run the following commands (idea of what the commands below will automatically do):
-	1. `ONNXRuntime/Internal/`:
-		- Copy subset of `{onnxruntime_path}/include/onnxruntime/core/` into `ONNXRuntime/Internal/core/`.
-	2. `ONNXRuntime/Private/`:
-		- Copy subset of `{onnxruntime_path}/onnxruntime/contrib_ops/cpu/` into `ONNXRuntime/Private/contrib_ops/cpu/`.
-		- Copy subset of `{onnxruntime_path}/onnxruntime/core/` into `ONNXRuntime/Private/core/`.
-		- Copy subset of `{onnxruntime_path}/onnxruntime/test/testdata/custom_op_library/` into `ONNXRuntime/Private/test/testdata/custom_op_library/`.
+DO NOT DO THIS - This is just the idea of what the commands below will automatically do for you (once you modify the "PARAMETERS" section accordingly):
+	1. `ORT_YYYY_MM_DD/Internal/`:
+		- Copy subset of `{onnxruntime_path}/include/onnxruntime/core/` into `ORT_YYYY_MM_DD/Internal/core/`.
+	2. `ORT_YYYY_MM_DD/Private/`:
+		- Copy subset of `{onnxruntime_path}/onnxruntime/contrib_ops/cpu/` into `ORT_YYYY_MM_DD/Private/contrib_ops/cpu/`.
+		- Copy subset of `{onnxruntime_path}/onnxruntime/core/` into `ORT_YYYY_MM_DD/Private/core/`.
+		- Copy subset of `{onnxruntime_path}/onnxruntime/test/testdata/custom_op_library/` into `ORT_YYYY_MM_DD/Private/test/testdata/custom_op_library/`.
 
-With commands:
+DO THIS - You can now run the following commands:
 - Part 1: Reverting your ORT fork (locally) to the right commit:
 ```
-################################################## PARAMETERS ##################################################
-$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gines.hidalgo/Desktop/ONNXRuntime
-$CURRENT_NNI_ORT_COMMIT_HASH = "1aa21df149fe7be5ac39b3d23f80234a6f4d7890" # The one NNI's ORT is using on UE5/Main
+################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
+$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gineshidalgo99/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
+$CURRENT_NNI_ORT_COMMIT_HASH = "740679d3290b0df594d2e14be959dfbdb405f80b" # The one NNI's ORT is using on UE5/Main
 
-################################################## AUTOMATIC SCRIPT ##################################################
+################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 ########## RESETING TO CURRENT_NNI_ORT_COMMIT_HASH ##########
 $ORT_PATH = "${ORT_PARENT_PATH}/onnxruntime"
 $ORT_FROM_NNI = "${ORT_PARENT_PATH}/ONNXRuntime_code_from_NNI"
@@ -120,6 +122,7 @@ git status
 ```
 - Part 2: Adding the new code
 ```
+################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 ########## REMOVING ##########
 # Remove include/onnxruntime
 rm -r -fo $ORT_PATH/include/onnxruntime/core
@@ -155,7 +158,7 @@ cp -r -fo $ORT_FROM_NNI/Internal/core $ORT_PATH/include/onnxruntime/core
 cp -r -fo $ORT_FROM_NNI/Private/contrib_ops/cpu $ORT_PATH/onnxruntime/contrib_ops
 # Copy core
 cp -r -fo $ORT_FROM_NNI/Private/core $ORT_PATH/onnxruntime
-cp -r -fo $ORT_FROM_NNI/Private_DML/Windows/core/ $ORT_PATH/onnxruntime
+cp -r -fo $ORT_FROM_NNI/Private/Windows/core/ $ORT_PATH/onnxruntime
 # Copy custom_op_library
 cp -r -fo $ORT_FROM_NNI/Private/test $ORT_PATH/onnxruntime
 
@@ -183,8 +186,9 @@ git status
 git diff --cached
 ```
 
-See how many files you have updated and make sure ALL changes reported by `git diff` come from lines saying `WITH_UE` (otherwise you might have messed up and merged the wrong version of ORT, believe me, I've done that mistake before, and it's a nightmare, so CHECK IT!):
+(OPTIONAL) See how many files you have updated and make sure ALL changes reported by `git diff` come from lines saying `WITH_UE` (otherwise you might have messed up and merged the wrong version of ORT, believe me, I've done that mistake before, and it's a nightmare, so CHECK IT!):
 ```
+################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 cd $ORT_PATH
 # Using git add will let you see renames more easily, just don't commit/push it!
 git add .
@@ -196,6 +200,7 @@ git reset *
 
 (OPTIONAL) Reset the local changes
 ```
+################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 cd $ORT_PATH
 # Note: To remove untracked files
 git reset *
@@ -207,24 +212,32 @@ git clean -f -d   # https://koukia.ca/how-to-remove-local-untracked-files-from-t
 
 ### Step 4: Merge ORT Master with NNI's Canges and Create Zip to Copy to NNI
 ```
-################################################## PARAMETERS ##################################################
-$FINAL_COMMIT_HASH = "1aa21df149fe7be5ac39b3d23f80234a6f4d7890" # The one NNI's ORT will be using after this merge
-$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # "D:/Users/gines.hidalgo/Desktop/ONNXRuntime"
+################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
+$FINAL_COMMIT_HASH = "740679d3290b0df594d2e14be959dfbdb405f80b" # The one NNI's ORT will be using after this merge
+$ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gineshidalgo99/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
 $FINAL_ZIP_FILE_PATH = "${ORT_PARENT_PATH}/ort_compressed.zip"
 ```
 
 Pull and merge with Microsoft::ONNXRuntime master:
 ```
-################################################## AUTOMATIC SCRIPT ##################################################
+################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 # Push code
 git add .
 git commit -m "NNI"
 
 # Checkout desired version to merged with (e.g., ORT master on Oct 18th)
 git pull https://github.com/microsoft/onnxruntime/ $FINAL_COMMIT_HASH
-# NOTE: Manually fix conflicts locally (if any). E.g., if error(s) about untracked files, just run something like this with whatever files you get an error message about:
-# rm onnxruntime/python/tools/tensorrt/perf/build/Dockerfile.tensorrt-perf
 ```
+NOTE: Manually fix conflicts locally (if any).
+- E.g., if merge conflict in several particular files:
+```
+git diff FILE_WITH_MERGE_CONFLICT_FULL_PATH # Here you can check the changes that occurred and caused conflicts
+subl.exe FILE_WITH_MERGE_CONFLICT_FULL_PATH # Here you manually look for "<<<<" and fix the conflicts
+# After fixing the merges, you can re-add that file
+git add FILE_WITH_MERGE_CONFLICT_FULL_PATH
+git diff --cached FILE_WITH_MERGE_CONFLICT_FULL_PATH # After fixing the merges, you can re-check all the changes that occurred (causing or not conflicts)
+```
+- E.g., if error(s) about untracked files, just run something like this with whatever files you get an error message about: `rm onnxruntime/python/tools/tensorrt/perf/build/Dockerfile.tensorrt-perf`
 
 (OPTIONAL and not needed at all) If no conflicts or after solving them, code ready to be moved to NNI. You can optionally commmit/push it:
 ```
@@ -235,7 +248,7 @@ git push
 
 You can now create the zip file to Copy to NNI:
 ```
-################################################## AUTOMATIC SCRIPT ##################################################
+################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
 $ORT_PATH = "${ORT_PARENT_PATH}/onnxruntime"
 $ORT_FROM_NNI = "${ORT_PARENT_PATH}/ONNXRuntime_code_from_NNI"
 $ORT_CODE_TO_PUSH_TO_NNI = "${ORT_PARENT_PATH}/ONNXRuntime_code_to_push_to_NNI"
@@ -264,7 +277,7 @@ rm -r -fo ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/platform/posix/logging
 rm -r -fo ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/platform/windows
 cp -r -fo ${ORT_PATH}/onnxruntime/core/profile ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/profile
 cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/cpu ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/cpu
-cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/dml ${ORT_CODE_TO_PUSH_TO_NNI}/Private_DML/Windows/core/providers/dml
+cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/dml ${ORT_CODE_TO_PUSH_TO_NNI}/Private/Windows/core/providers/dml
 cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/shared ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/shared
 cp -r -fo ${ORT_PATH}/onnxruntime/core/providers/shared_library ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/shared_library
 rm ${ORT_CODE_TO_PUSH_TO_NNI}/Private/core/providers/shared_library/provider_bridge_provider.cc
@@ -288,9 +301,12 @@ cp $ORT_FROM_NNI/Readme_how_to_update_ORT_version.md ${ORT_CODE_TO_PUSH_TO_NNI}/
 
 rm $FINAL_ZIP_FILE_PATH
 Compress-Archive -LiteralPath ${ORT_CODE_TO_PUSH_TO_NNI} -DestinationPath $FINAL_ZIP_FILE_PATH
+echo "Final zip file in ${ORT_PARENT_PATH}"
+explorer ${ORT_PARENT_PATH}
 ```
+VERY IMPORTANT: If there are errors like `rm : Cannot find path '${ORT_TEMP}\ort_compressed.zip' because it does not exist.` is ok, you can ignore that error, it just means you never created that zip file until now (other errors might be bad though! Make sure to check all the errors!)
 
-This new code zipped as `${$ORT_TEMP}/ort_compressed.zip` can be copied into NNI and tested in there. To test it properly, do the following tests (in this order):
+This new code zipped as `${ORT_TEMP}/ort_compressed.zip` can be manually copied into `NNI/ThirdParty/ONNNXRuntime_YYYY_MM_DD` and tested in there. To test it properly, do the following tests (in this order):
 1. Compile UE and run QA tests to make sure they are successful.
 2. Package game for Windows and run tests on the Windows game to make sure they are successful. Trick: If your game is saved on `D:/Users/gines.hidalgo/Desktop/GameTest/`, the logging of the application will be saved on `D:/Users/gines.hidalgo/Desktop/GameTest/Windows/NNIExample/Saved/Logs/NNIExample.log`.
 3. Package game for Linux from Windows to make sure it compiles on Linux.
@@ -372,7 +388,7 @@ git push origin SOME_BRANCH_NAME
 				- `platform/`
 					- `UE/`
 				- `profile/`
-				- `providers/` (removed non-used providers, dml one moved into `Private_DML/`)
+				- `providers/` (non-used providers removed and `dml` one moved to `Private/Windows/`)
 					- `cpu/`
 					- `nni_cpu/` (eventually)
 					- `nni_hlsl/` (eventually)
@@ -382,7 +398,6 @@ git push origin SOME_BRANCH_NAME
 				- `session/`
 				- `util/`
 			- `test/testdata/custom_op_library/`
-		- `Private_DML/`
 			- `Windows/`
 				- `core/`
 					- `providers/`
