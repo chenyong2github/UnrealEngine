@@ -1419,6 +1419,7 @@ void SetChannelValue(FMovieSceneDoubleChannel* DoubleChannel, FMovieSceneFloatCh
 				}
 				else if (FloatChannel)
 				{
+					bNegate = !bNegate;
 					float Default = bNegate ? -Location.Y : Location.Y;
 					FloatChannel->SetDefault(Default);
 					ImportTransformChannelToFloat(TranslationY, FloatChannel, FrameRate, false, false, StartFrame, bNegate);
