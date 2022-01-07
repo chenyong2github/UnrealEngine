@@ -1409,7 +1409,10 @@ TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModul
 			// Map all for this output node
 			FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
 			Builder.ConstantResolver = ConstantResolver;
-			Builder.AddGraphToCallingGraphContextStack(ScriptSource->NodeGraph);
+			if (ScriptSource != nullptr)
+			{
+				Builder.AddGraphToCallingGraphContextStack(ScriptSource->NodeGraph);
+			}
 			Builder.RegisterEncounterableVariables(EncounterableVariables);
 			Builder.RegisterExternalStaticVariables(StaticVariables);
 
