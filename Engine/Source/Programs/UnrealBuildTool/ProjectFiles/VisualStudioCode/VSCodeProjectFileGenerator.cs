@@ -231,7 +231,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override void CleanProjectFiles(DirectoryReference InMasterProjectDirectory, string InMasterProjectName, DirectoryReference InIntermediateProjectFilesPath)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath)
 		{
 		}
 
@@ -245,9 +245,9 @@ namespace UnrealBuildTool
 			return new VSCodeProject(InitFilePath, BaseDir);
 		}
 
-		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
-			DirectoryReference VSCodeDir = DirectoryReference.Combine(MasterProjectPath, ".vscode");
+			DirectoryReference VSCodeDir = DirectoryReference.Combine(PrimaryProjectPath, ".vscode");
 			DirectoryReference.CreateDirectory(VSCodeDir);
 
 			bForeignProject = !VSCodeDir.IsUnderDirectory(ProjectRoot);
@@ -1499,7 +1499,7 @@ namespace UnrealBuildTool
 					OutFile.AppendLine(PathToExclude.Replace('\\', '/').Replace(WorkspaceRootPath, ""));
 				}
 			}
-			FileReference.WriteAllText(FileReference.Combine(MasterProjectPath, ".ignore"), OutFile.ToString());
+			FileReference.WriteAllText(FileReference.Combine(PrimaryProjectPath, ".ignore"), OutFile.ToString());
 		}
 
 		private void WriteWorkspaceIgnoreFileForPlugins(DirectoryReference PluginBaseDir, List<string> PathsToExclude)
@@ -1585,7 +1585,7 @@ namespace UnrealBuildTool
 			WorkspaceFile.EndRootObject();
 
 			string? WorkspaceName = bForeignProject ? GameProjectName : "UE5";
-			WorkspaceFile.Write(FileReference.Combine(MasterProjectPath, WorkspaceName + ".code-workspace"));
+			WorkspaceFile.Write(FileReference.Combine(PrimaryProjectPath, WorkspaceName + ".code-workspace"));
 		}
 
 		private void GetExcludePathsCPP(DirectoryReference BaseDir, List<string> PathsToExclude)

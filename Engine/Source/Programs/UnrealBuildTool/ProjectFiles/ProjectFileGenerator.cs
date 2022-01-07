@@ -309,8 +309,8 @@ namespace UnrealBuildTool
 		bool bIncludeTempTargets = false;
 
 		/// <summary>
-		/// True if we should reflect "Source" sub-directories on disk in the master project as master project directories.
-		/// This (arguably) adds some visual clutter to the master project but it is truer to the on-disk file organization.
+		/// True if we should reflect "Source" sub-directories on disk in the primary project as project directories.
+		/// This (arguably) adds some visual clutter to the primary project but it is truer to the on-disk file organization.
 		/// </summary>
 		[XmlConfigFile]
 		bool bKeepSourceSubDirectories = true;
@@ -329,9 +329,9 @@ namespace UnrealBuildTool
 		string[]? ConfigurationNames = null;
 
 		/// <summary>
-		/// Relative path to the directory where the master project file will be saved to
+		/// Relative path to the directory where the primary project file will be saved to
 		/// </summary>
-		public static DirectoryReference MasterProjectPath = Unreal.RootDirectory; // We'll save the master project to our "root" folder
+		public static DirectoryReference PrimaryProjectPath = Unreal.RootDirectory; // We'll save the primary project to our "root" folder
 
 		/// <summary>
 		/// Name of the UE4 engine project that contains all of the engine code, config files and other files
@@ -356,17 +356,27 @@ namespace UnrealBuildTool
 		/// </summary>
 		bool bGatherThirdPartySource = false;
 
-		/// <summary>
-		/// Name of the master project file -- for example, the base file name for the Visual Studio solution file, or the Xcode project file on Mac.
-		/// </summary>
-		[XmlConfigFile]
+		/// <exclude/>
+		[Obsolete("Deprecated in 5.0, use PrimaryProjectName instead.")]
+		[XmlConfigFile(Deprecated = true, NewAttributeName = "PrimaryProjectName")]
 		protected string MasterProjectName = "UE5";
 
+		/// <exclude/>
+		[Obsolete("Deprecated in 5.0, use bPrimaryProjecNameFromFolder instead.")]
+		[XmlConfigFile(Deprecated = true, NewAttributeName = "bPrimaryProjectNameFromFolder")]
+		protected bool bMasterProjectNameFromFolder = false;
+
 		/// <summary>
-		/// If true, sets the master project name according to the name of the folder it is in.
+		/// Name of the primary project file -- for example, the base file name for the Visual Studio solution file, or the Xcode project file on Mac.
 		/// </summary>
 		[XmlConfigFile]
-		protected bool bMasterProjectNameFromFolder = false;
+		protected string PrimaryProjectName = "UE5";
+
+		/// <summary>
+		/// If true, sets the primary project name according to the name of the folder it is in.
+		/// </summary>
+		[XmlConfigFile]
+		protected bool bPrimaryProjectNameFromFolder = false;
 
 		/// <summary>
 		/// Maps all module names that were included in generated project files, to actual project file objects.
@@ -763,48 +773,48 @@ namespace UnrealBuildTool
 			{
 				Log.TraceInformation("Discovering modules, targets and source code for project...");
 
-				MasterProjectPath = OnlyGameProject!.Directory;
+				PrimaryProjectPath = OnlyGameProject!.Directory;
 
 				// Set the project file name
-				MasterProjectName = OnlyGameProject.GetFileNameWithoutExtension();
+				PrimaryProjectName = OnlyGameProject.GetFileNameWithoutExtension();
 
-				if (!DirectoryReference.Exists(DirectoryReference.Combine(MasterProjectPath, "Source")))
+				if (!DirectoryReference.Exists(DirectoryReference.Combine(PrimaryProjectPath, "Source")))
 				{
-					if (!DirectoryReference.Exists(DirectoryReference.Combine(MasterProjectPath, "Intermediate", "Source")))
+					if (!DirectoryReference.Exists(DirectoryReference.Combine(PrimaryProjectPath, "Intermediate", "Source")))
 					{
 						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 						{
-							MasterProjectPath = Unreal.EngineDirectory;
+							PrimaryProjectPath = Unreal.EngineDirectory;
 							GameProjectName = "UnrealGame";
 						}
-						if (!DirectoryReference.Exists(DirectoryReference.Combine(MasterProjectPath, "Source")))
+						if (!DirectoryReference.Exists(DirectoryReference.Combine(PrimaryProjectPath, "Source")))
 						{
-							throw new BuildException("Directory '{0}' is missing 'Source' folder.", MasterProjectPath);
+							throw new BuildException("Directory '{0}' is missing 'Source' folder.", PrimaryProjectPath);
 						}
 					}
 				}
-				IntermediateProjectFilesPath = DirectoryReference.Combine(MasterProjectPath, "Intermediate", "ProjectFiles");
+				IntermediateProjectFilesPath = DirectoryReference.Combine(PrimaryProjectPath, "Intermediate", "ProjectFiles");
 			}
 			else
 			{
-				// Set the master project name from the folder name
+				// Set the primary project name from the folder name
 				if (Environment.GetEnvironmentVariable("UE_NAME_PROJECT_AFTER_FOLDER") == "1")
 				{
-					MasterProjectName += "_" + Path.GetFileName(MasterProjectPath.ToString());
+					PrimaryProjectName += "_" + Path.GetFileName(PrimaryProjectPath.ToString());
 				}
-				else if (bMasterProjectNameFromFolder)
+				else if (bPrimaryProjectNameFromFolder)
 				{
-					string NewMasterProjectName = MasterProjectPath.GetDirectoryName();
-					if (!String.IsNullOrEmpty(NewMasterProjectName))
+					string NewPrimaryProjectName = PrimaryProjectPath.GetDirectoryName();
+					if (!String.IsNullOrEmpty(NewPrimaryProjectName))
 					{
-						MasterProjectName = NewMasterProjectName;
+						PrimaryProjectName = NewPrimaryProjectName;
 					}
 				}
 
-				// Write out the name of the master project file, so the runtime knows to use it
-				FileReference MasterProjectNameLocation = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "ProjectFiles", "MasterProjectName.txt");
-				DirectoryReference.CreateDirectory(MasterProjectNameLocation.Directory);
-				FileReference.WriteAllText(MasterProjectNameLocation, MasterProjectName);
+				// Write out the name of the primary project file, so the runtime knows to use it
+				FileReference PrimaryProjectNameLocation = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "ProjectFiles", "MasterProjectName.txt");
+				DirectoryReference.CreateDirectory(PrimaryProjectNameLocation.Directory);
+				FileReference.WriteAllText(PrimaryProjectNameLocation, PrimaryProjectName);
 			}
 
 			// Modify the name if specific platforms were given
@@ -818,23 +828,23 @@ namespace UnrealBuildTool
 				}
 				SortedPlatformNames.Sort();
 
-				MasterProjectName += "_";
+				PrimaryProjectName += "_";
 				foreach (string SortedPlatform in SortedPlatformNames)
 				{
-					MasterProjectName += SortedPlatform;
+					PrimaryProjectName += SortedPlatform;
 					IntermediateProjectFilesPath = new DirectoryReference(IntermediateProjectFilesPath.FullName + SortedPlatform);
 				}
 
-				// the master project name is always read from our intermediate directory and not the overriden one for this set of platforms
-				FileReference MasterProjectNameLocation = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "ProjectFiles", "MasterProjectName.txt");
-				DirectoryReference.CreateDirectory(MasterProjectNameLocation.Directory);
-				FileReference.WriteAllText(MasterProjectNameLocation, MasterProjectName);
+				// the primary project name is always read from our intermediate directory and not the overriden one for this set of platforms
+				FileReference PrimaryProjectNameLocation = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "ProjectFiles", "MasterProjectName.txt");
+				DirectoryReference.CreateDirectory(PrimaryProjectNameLocation.Directory);
+				FileReference.WriteAllText(PrimaryProjectNameLocation, PrimaryProjectName);
 			}
 
 			bool bCleanProjectFiles = Arguments.Any(x => x.Equals("-CleanProjects", StringComparison.InvariantCultureIgnoreCase));
 			if (bCleanProjectFiles)
 			{
-				CleanProjectFiles(MasterProjectPath, MasterProjectName, IntermediateProjectFilesPath);
+				CleanProjectFiles(PrimaryProjectPath, PrimaryProjectName, IntermediateProjectFilesPath);
 			}
 
 			// Figure out which platforms we should generate project files for.
@@ -1049,15 +1059,15 @@ namespace UnrealBuildTool
 				{
 					PrimaryProjectFolder ProgramsFolder = RootFolder.AddSubFolder("Programs");
 
-					// Add UnrealBuildTool to the master project
+					// Add UnrealBuildTool to the primary project
 					AddUnrealBuildToolProject(ProgramsFolder);
 
-					// Add AutomationTool to the master project
+					// Add AutomationTool to the primary project
 					VCSharpProjectFile AutomationToolProject = AddSimpleCSharpProject("AutomationTool", bShouldBuildForAllSolutionTargets: true, bForceDevelopmentConfiguration: true);
 					if (AutomationToolProject != null)
 						ProgramsFolder.ChildProjects.Add(AutomationToolProject);
 
-					// Add automation.csproj files to the master project
+					// Add automation.csproj files to the primary project
 					AddAutomationModules(AllGameProjects, RootFolder, ProgramsFolder);
 
 					// Add shared projects
@@ -1075,10 +1085,10 @@ namespace UnrealBuildTool
 				}
 
 
-				// Eliminate all redundant master project folders.  E.g., folders which contain only one project and that project
+				// Eliminate all redundant project folders.  E.g., folders which contain only one project and that project
 				// has the same name as the folder itself.  To the user, projects "feel like" folders already in the IDE, so we
 				// want to collapse them down where possible.
-				EliminateRedundantMasterProjectSubFolders(RootFolder, "");
+				EliminateRedundantPrimaryProjectSubFolders(RootFolder, "");
 
 				// Figure out which targets we need about IntelliSense for.  We only need to worry about targets for projects
 				// that we're actually generating in this session.
@@ -1177,10 +1187,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Clean project files
 		/// </summary>
-		/// <param name="InMasterProjectDirectory">The master project directory</param>
-		/// <param name="InMasterProjectName">The name of the master project</param>
+		/// <param name="InPrimaryProjectDirectory">The primary project directory</param>
+		/// <param name="InPrimaryProjectName">The name of the primary project</param>
 		/// <param name="InIntermediateProjectFilesDirectory">The intermediate path of project files</param>
-		public abstract void CleanProjectFiles(DirectoryReference InMasterProjectDirectory, string InMasterProjectName, DirectoryReference InIntermediateProjectFilesDirectory);
+		public abstract void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory);
 
 		/// <summary>
 		/// Configures project generator based on command-line options
@@ -1588,14 +1598,14 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Recursively collapses all sub-folders that are redundant.  Should only be called after we're done adding
-		/// files and projects to the master project.
+		/// files and projects to the primary project.
 		/// </summary>
 		/// <param name="Folder">The folder whose sub-folders we should potentially collapse into</param>
-		/// <param name="ParentMasterProjectFolderPath"></param>
-		void EliminateRedundantMasterProjectSubFolders(PrimaryProjectFolder Folder, string ParentMasterProjectFolderPath)
+		/// <param name="ParentPrimaryProjectFolderPath"></param>
+		void EliminateRedundantPrimaryProjectSubFolders(PrimaryProjectFolder Folder, string ParentPrimaryProjectFolderPath)
 		{
 			// NOTE: This is for diagnostics output only
-			string MasterProjectFolderPath = String.IsNullOrEmpty(ParentMasterProjectFolderPath) ? Folder.FolderName : (ParentMasterProjectFolderPath + "/" + Folder.FolderName);
+			string PrimaryProjectFolderPath = String.IsNullOrEmpty(ParentPrimaryProjectFolderPath) ? Folder.FolderName : (ParentPrimaryProjectFolderPath + "/" + Folder.FolderName);
 
 			// We can eliminate folders that meet all of these requirements:
 			//		1) Have only a single project file in them
@@ -1610,7 +1620,7 @@ namespace UnrealBuildTool
 			foreach (PrimaryProjectFolder SubFolder in Folder.SubFolders)
 			{
 				// Recurse
-				EliminateRedundantMasterProjectSubFolders(SubFolder, MasterProjectFolderPath);
+				EliminateRedundantPrimaryProjectSubFolders(SubFolder, PrimaryProjectFolderPath);
 			}
 
 			List<PrimaryProjectFolder> SubFoldersToAdd = new List<PrimaryProjectFolder>();
@@ -1677,7 +1687,7 @@ namespace UnrealBuildTool
 			Folder.SubFolders.AddRange(SubFoldersToAdd);
 
 			// After everything has been collapsed, do a bit of data validation
-			Validate(Folder, ParentMasterProjectFolderPath);
+			Validate(Folder, ParentPrimaryProjectFolderPath);
 		}
 
 		/// <summary>
@@ -1685,8 +1695,8 @@ namespace UnrealBuildTool
 		/// for project file names to be unique!
 		/// </summary>
 		/// <param name="Folder">Folder.</param>
-		/// <param name="MasterProjectFolderPath">Parent master project folder path.</param>
-		protected virtual void Validate(PrimaryProjectFolder Folder, string MasterProjectFolderPath)
+		/// <param name="PrimaryProjectFolderPath">Parent primary project folder path.</param>
+		protected virtual void Validate(PrimaryProjectFolder Folder, string PrimaryProjectFolderPath)
 		{
 			foreach (ProjectFile CurChildProject in Folder.ChildProjects)
 			{
@@ -1696,7 +1706,7 @@ namespace UnrealBuildTool
 					{
 						if (CurChildProject.ProjectFilePath.GetFileName().Equals(OtherChildProject.ProjectFilePath.GetFileNameWithoutExtension(), StringComparison.InvariantCultureIgnoreCase))
 						{
-							throw new BuildException("Detected collision between two project files with the same path in the same master project folder, " + OtherChildProject.ProjectFilePath.FullName + " and " + CurChildProject.ProjectFilePath.FullName + " (master project folder: " + MasterProjectFolderPath + ")");
+							throw new BuildException("Detected collision between two project files with the same path in the same primary project folder, " + OtherChildProject.ProjectFilePath.FullName + " and " + CurChildProject.ProjectFilePath.FullName + " (primary project folder: " + PrimaryProjectFolderPath + ")");
 						}
 					}
 				}
@@ -1711,14 +1721,14 @@ namespace UnrealBuildTool
 				{
 					if (CurChildProject.ProjectFilePath.GetFileNameWithoutExtension().Equals(SubFolder.FolderName, StringComparison.InvariantCultureIgnoreCase))
 					{
-						throw new BuildException("Detected collision between a master project sub-folder " + SubFolder.FolderName + " and a project within the outer folder " + CurChildProject.ProjectFilePath + " (master project folder: " + MasterProjectFolderPath + ")");
+						throw new BuildException("Detected collision between a primary project sub-folder " + SubFolder.FolderName + " and a project within the outer folder " + CurChildProject.ProjectFilePath + " (primary project folder: " + PrimaryProjectFolderPath + ")");
 					}
 				}
 				foreach (string CurFile in Folder.Files)
 				{
 					if (Path.GetFileName(CurFile).Equals(SubFolder.FolderName, StringComparison.InvariantCultureIgnoreCase))
 					{
-						throw new BuildException("Detected collision between a master project sub-folder " + SubFolder.FolderName + " and a file within the outer folder " + CurFile + " (master project folder: " + MasterProjectFolderPath + ")");
+						throw new BuildException("Detected collision between a primary project sub-folder " + SubFolder.FolderName + " and a file within the outer folder " + CurFile + " (primary project folder: " + PrimaryProjectFolderPath + ")");
 					}
 				}
 				foreach (PrimaryProjectFolder CurFolder in Folder.SubFolders)
@@ -1727,7 +1737,7 @@ namespace UnrealBuildTool
 					{
 						if (CurFolder.FolderName.Equals(SubFolder.FolderName, StringComparison.InvariantCultureIgnoreCase))
 						{
-							throw new BuildException("Detected collision between a master project sub-folder " + SubFolder.FolderName + " and a sibling folder " + CurFolder.FolderName + " (master project folder: " + MasterProjectFolderPath + ")");
+							throw new BuildException("Detected collision between a primary project sub-folder " + SubFolder.FolderName + " and a sibling folder " + CurFolder.FolderName + " (primary project folder: " + PrimaryProjectFolderPath + ")");
 						}
 					}
 				}
@@ -1735,7 +1745,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Adds UnrealBuildTool to the master project
+		/// Adds UnrealBuildTool to the primary project
 		/// </summary>
 		private void AddUnrealBuildToolProject(PrimaryProjectFolder ProgramsFolder)
 		{
@@ -1770,7 +1780,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Adds a C# project to the master project
+		/// Adds a C# project to the primary project
 		/// </summary>
 		/// <param name="ProjectName">Name of project file to add</param>
 		/// <param name="bShouldBuildForAllSolutionTargets"></param>
@@ -2776,7 +2786,7 @@ namespace UnrealBuildTool
 		{
 			using (ProgressWriter Progress = new ProgressWriter("Writing project files...", true))
 			{
-				int TotalProjectFileCount = GeneratedProjectFiles.Count + 1;    // +1 for the master project file, which we'll save next
+				int TotalProjectFileCount = GeneratedProjectFiles.Count + 1;    // +1 for the primary project file, which we'll save next
 
 				for (int ProjectFileIndex = 0; ProjectFileIndex < GeneratedProjectFiles.Count; ++ProjectFileIndex)
 				{
@@ -2789,7 +2799,7 @@ namespace UnrealBuildTool
 					Progress.Write(ProjectFileIndex + 1, TotalProjectFileCount);
 				}
 
-				WriteMasterProjectFile(UBTProject, PlatformProjectGenerators);
+				WritePrimaryProjectFile(UBTProject, PlatformProjectGenerators);
 				Progress.Write(TotalProjectFileCount, TotalProjectFileCount);
 			}
 
@@ -2797,12 +2807,12 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Writes the master project file (e.g. Visual Studio Solution file)
+		/// Writes the primary project file (e.g. Visual Studio Solution file)
 		/// </summary>
 		/// <param name="UBTProject">The UnrealBuildTool project</param>
 		/// <param name="PlatformProjectGenerators">The platform project file generators</param>
 		/// <returns>True if successful</returns>
-		protected abstract bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators);
+		protected abstract bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators);
 
 
 		/// <summary>
@@ -3065,7 +3075,7 @@ namespace UnrealBuildTool
 
 		protected readonly List<ProjectFile> AutomationProjectFiles = new List<ProjectFile>();
 
-		/// List of top-level folders in the master project file
+		/// List of top-level folders in the primary project file
 		protected PrimaryProjectFolder RootFolder;
 	}
 

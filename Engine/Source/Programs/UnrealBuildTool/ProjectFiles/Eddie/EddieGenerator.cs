@@ -23,12 +23,12 @@ namespace UnrealBuildTool
 			}
 		}
 		
-		public override void CleanProjectFiles(DirectoryReference InMasterProjectDirectory, string InMasterProjectName, DirectoryReference InIntermediateProjectFilesPath)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath)
 		{
-			FileReference MasterProjDeleteFilename = FileReference.Combine(InMasterProjectDirectory, InMasterProjectName + ".wkst");
-			if (FileReference.Exists(MasterProjDeleteFilename))
+			FileReference PrimaryProjDeleteFilename = FileReference.Combine(InPrimaryProjectDirectory, InPrimaryProjectName + ".wkst");
+			if (FileReference.Exists(PrimaryProjDeleteFilename))
 			{
-				File.Delete(MasterProjDeleteFilename.FullName);
+				File.Delete(PrimaryProjDeleteFilename.FullName);
 			}
 
 			// Delete the project files folder
@@ -57,7 +57,7 @@ namespace UnrealBuildTool
 			
 			StringBuilder WorksetDataContent = new StringBuilder();
 			WorksetDataContent.Append("# @Eddie Workset@" + ProjectFileGenerator.NewLine);
-			WorksetDataContent.Append("AddWorkset \"" + MasterProjectName + ".wkst\" \"" + MasterProjectPath + "\"" + ProjectFileGenerator.NewLine);
+			WorksetDataContent.Append("AddWorkset \"" + PrimaryProjectName + ".wkst\" \"" + PrimaryProjectPath + "\"" + ProjectFileGenerator.NewLine);
 			
 			System.Action< String /*Path*/, List<PrimaryProjectFolder> /* Folders */>? AddProjectsFunction = null;
 			AddProjectsFunction = (Path, FolderList) =>
@@ -81,17 +81,17 @@ namespace UnrealBuildTool
 						WorksetDataContent.Append("EndFileGroup \"" + NewPath + "\"" + ProjectFileGenerator.NewLine);
 					}
 				};
-			AddProjectsFunction(MasterProjectName, RootFolder.SubFolders);
+			AddProjectsFunction(PrimaryProjectName, RootFolder.SubFolders);
 			
-			string ProjectName = MasterProjectName;
-			string FilePath = MasterProjectPath + "/" + ProjectName + ".wkst";
+			string ProjectName = PrimaryProjectName;
+			string FilePath = PrimaryProjectPath + "/" + ProjectName + ".wkst";
 			
 			bSuccess = WriteFileIfChanged(FilePath, WorksetDataContent.ToString(), new UTF8Encoding());
 			
 			return bSuccess;
 		}
 		
-		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			return WriteEddieWorkset();
 		}

@@ -144,33 +144,33 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// </summary>
-		public override void CleanProjectFiles(DirectoryReference InMasterProjectDirectory, string InMasterProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
 		{
-			FileReference MasterProjectFile = FileReference.Combine(InMasterProjectDirectory, InMasterProjectName);
-			FileReference MasterProjDeleteFilename = MasterProjectFile + ".sln";
-			if (FileReference.Exists(MasterProjDeleteFilename))
+			FileReference PrimaryProjectFile = FileReference.Combine(InPrimaryProjectDirectory, InPrimaryProjectName);
+			FileReference PrimaryProjDeleteFilename = PrimaryProjectFile + ".sln";
+			if (FileReference.Exists(PrimaryProjDeleteFilename))
 			{
-				FileReference.Delete(MasterProjDeleteFilename);
+				FileReference.Delete(PrimaryProjDeleteFilename);
 			}
-			MasterProjDeleteFilename = MasterProjectFile + ".sdf";
-			if (FileReference.Exists(MasterProjDeleteFilename))
+			PrimaryProjDeleteFilename = PrimaryProjectFile + ".sdf";
+			if (FileReference.Exists(PrimaryProjDeleteFilename))
 			{
-				FileReference.Delete(MasterProjDeleteFilename);
+				FileReference.Delete(PrimaryProjDeleteFilename);
 			}
-			MasterProjDeleteFilename = MasterProjectFile + ".suo";
-			if (FileReference.Exists(MasterProjDeleteFilename))
+			PrimaryProjDeleteFilename = PrimaryProjectFile + ".suo";
+			if (FileReference.Exists(PrimaryProjDeleteFilename))
 			{
-				FileReference.Delete(MasterProjDeleteFilename);
+				FileReference.Delete(PrimaryProjDeleteFilename);
 			}
-			MasterProjDeleteFilename = MasterProjectFile + ".v11.suo";
-			if (FileReference.Exists(MasterProjDeleteFilename))
+			PrimaryProjDeleteFilename = PrimaryProjectFile + ".v11.suo";
+			if (FileReference.Exists(PrimaryProjDeleteFilename))
 			{
-				FileReference.Delete(MasterProjDeleteFilename);
+				FileReference.Delete(PrimaryProjDeleteFilename);
 			}
-			MasterProjDeleteFilename = MasterProjectFile + ".v12.suo";
-			if (FileReference.Exists(MasterProjDeleteFilename))
+			PrimaryProjDeleteFilename = PrimaryProjectFile + ".v12.suo";
+			if (FileReference.Exists(PrimaryProjDeleteFilename))
 			{
-				FileReference.Delete(MasterProjDeleteFilename);
+				FileReference.Delete(PrimaryProjDeleteFilename);
 			}
 
 			// Delete the project files folder
@@ -469,11 +469,11 @@ namespace UnrealBuildTool
 		}
 
 
-		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			bool bSuccess = true;
 
-			string SolutionFileName = MasterProjectName + ".sln";
+			string SolutionFileName = PrimaryProjectName + ".sln";
 
 			// Setup solution file content
 			StringBuilder VCSolutionFileContent = new StringBuilder();
@@ -546,7 +546,7 @@ namespace UnrealBuildTool
 					// Use the existing project's GUID that's already known to us
 					string ProjectGUID = CurProject.ProjectGUID.ToString("B").ToUpperInvariant();
 
-					VCSolutionFileContent.AppendLine("Project(\"" + ProjectTypeGUID + "\") = \"" + ProjectNameInSolution + "\", \"" + CurProject.ProjectFilePath.MakeRelativeTo(ProjectFileGenerator.MasterProjectPath) + "\", \"" + ProjectGUID + "\"");
+					VCSolutionFileContent.AppendLine("Project(\"" + ProjectTypeGUID + "\") = \"" + ProjectNameInSolution + "\", \"" + CurProject.ProjectFilePath.MakeRelativeTo(ProjectFileGenerator.PrimaryProjectPath) + "\", \"" + ProjectGUID + "\"");
 
 					// Setup dependency on UnrealBuildTool, if we need that.  This makes sure that UnrealBuildTool is
 					// freshly compiled before kicking off any build operations on this target project
@@ -584,7 +584,7 @@ namespace UnrealBuildTool
 				// Add the visualizers at the solution level. Doesn't seem to be picked up from a makefile project in VS2017 15.8.5.
 				VCSolutionFileContent.AppendLine(String.Format("Project(\"{0}\") = \"Visualizers\", \"Visualizers\", \"{{1CCEC849-CC72-4C59-8C36-2F7C38706D4C}}\"", SolutionFolderEntryGUID));
 				VCSolutionFileContent.AppendLine("\tProjectSection(SolutionItems) = preProject");
-				VCSolutionFileContent.AppendLine("\t\t{0} = {0}", VisualizersFile.MakeRelativeTo(MasterProjectPath));
+				VCSolutionFileContent.AppendLine("\t\t{0} = {0}", VisualizersFile.MakeRelativeTo(PrimaryProjectPath));
 				VCSolutionFileContent.AppendLine("\tEndProjectSection");
 				VCSolutionFileContent.AppendLine("EndProject");
 			}
@@ -755,9 +755,9 @@ namespace UnrealBuildTool
 						// filter) to.  This sets up the hierarchical solution explorer tree for all solution folders and projects.
 
 						System.Action<StringBuilder /* VCSolutionFileContent */, List<PrimaryProjectFolder> /* Folders */ >? FolderProcessorFunction = null;
-						FolderProcessorFunction = (LocalVCSolutionFileContent, LocalMasterProjectFolders) =>
+						FolderProcessorFunction = (LocalVCSolutionFileContent, LocalPrimaryProjectFolders) =>
 							{
-								foreach (PrimaryProjectFolder CurFolder in LocalMasterProjectFolders)
+								foreach (PrimaryProjectFolder CurFolder in LocalPrimaryProjectFolders)
 								{
 									string CurFolderGUIDString = ProjectFolderGuids[CurFolder].ToString("B").ToUpperInvariant();
 
@@ -790,7 +790,7 @@ namespace UnrealBuildTool
 			// Save the solution file
 			if (bSuccess)
 			{
-				string SolutionFilePath = FileReference.Combine(MasterProjectPath, SolutionFileName).FullName;
+				string SolutionFilePath = FileReference.Combine(PrimaryProjectPath, SolutionFileName).FullName;
 				bSuccess = WriteFileIfChanged(SolutionFilePath, VCSolutionFileContent.ToString());
 			}
 
@@ -803,10 +803,10 @@ namespace UnrealBuildTool
 				switch (Settings.ProjectFileFormat)
 				{
 					case VCProjectFileFormat.VisualStudio2019:
-						SolutionOptionsFileName = FileReference.Combine(MasterProjectPath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v16", ".suo");
+						SolutionOptionsFileName = FileReference.Combine(PrimaryProjectPath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v16", ".suo");
 						break;
 					case VCProjectFileFormat.VisualStudio2022:
-						SolutionOptionsFileName = FileReference.Combine(MasterProjectPath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v17", ".suo");
+						SolutionOptionsFileName = FileReference.Combine(PrimaryProjectPath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v17", ".suo");
 						break;
 					default:
 						throw new BuildException("Unsupported Visual Studio version");

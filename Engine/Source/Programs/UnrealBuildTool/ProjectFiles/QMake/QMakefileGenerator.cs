@@ -38,7 +38,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			bool bSuccess = true;
 			return bSuccess;
@@ -69,7 +69,7 @@ namespace UnrealBuildTool
 		/// Adds the include directory to the list, after converting it to relative to UE4 root
 		private void AddIncludeDirectory(ref List<string> IncludeDirectories, string IncludeDir, string ProjectDir)
 		{
-			string FullProjectPath = ProjectFileGenerator.MasterProjectPath.FullName;
+			string FullProjectPath = ProjectFileGenerator.PrimaryProjectPath.FullName;
 			string FullPath = "";
 			if (IncludeDir.StartsWith("/") && !IncludeDir.StartsWith(FullProjectPath))
 			{
@@ -100,10 +100,10 @@ namespace UnrealBuildTool
 
 			// DefineList.Add ("");
 
-			string QMakeIncludesFileName = MasterProjectName + "Includes.pri";
+			string QMakeIncludesFileName = PrimaryProjectName + "Includes.pri";
 			StringBuilder QMakeIncludesPriFileContent = new StringBuilder();
 
-			string QMakeDefinesFileName = MasterProjectName + "Defines.pri";
+			string QMakeDefinesFileName = PrimaryProjectName + "Defines.pri";
 			StringBuilder QMakeDefinesPriFileContent = new StringBuilder();
 
 			string GameProjectPath = "";
@@ -219,11 +219,11 @@ namespace UnrealBuildTool
 
 			string UnrealRootPath = Unreal.RootDirectory.FullName;
 
-			string FileName = MasterProjectName + ".pro";
+			string FileName = PrimaryProjectName + ".pro";
 
-			string QMakeSourcePriFileName = MasterProjectName + "Source.pri";
-			string QMakeHeaderPriFileName = MasterProjectName + "Header.pri";
-			string QMakeConfigPriFileName = MasterProjectName + "Config.pri";
+			string QMakeSourcePriFileName = PrimaryProjectName + "Source.pri";
+			string QMakeHeaderPriFileName = PrimaryProjectName + "Header.pri";
+			string QMakeConfigPriFileName = PrimaryProjectName + "Config.pri";
 
 			StringBuilder QMakeFileContent = new StringBuilder();
 
@@ -392,13 +392,13 @@ namespace UnrealBuildTool
 
 			QMakeFileContent.Append(QMakeTargetList.TrimEnd('\\'));
 
-			string FullFileName = Path.Combine(MasterProjectPath.FullName, FileName);
+			string FullFileName = Path.Combine(PrimaryProjectPath.FullName, FileName);
 
-			string FullQMakeDefinesFileName = Path.Combine(MasterProjectPath.FullName, QMakeDefinesFileName);
-			string FullQMakeIncludesFileName = Path.Combine(MasterProjectPath.FullName, QMakeIncludesFileName);
-			string FullQMakeSourcePriFileName = Path.Combine(MasterProjectPath.FullName, QMakeSourcePriFileName);
-			string FullQMakeHeaderPriFileName = Path.Combine(MasterProjectPath.FullName, QMakeHeaderPriFileName);
-			string FullQMakeConfigPriFileName = Path.Combine(MasterProjectPath.FullName, QMakeConfigPriFileName);
+			string FullQMakeDefinesFileName = Path.Combine(PrimaryProjectPath.FullName, QMakeDefinesFileName);
+			string FullQMakeIncludesFileName = Path.Combine(PrimaryProjectPath.FullName, QMakeIncludesFileName);
+			string FullQMakeSourcePriFileName = Path.Combine(PrimaryProjectPath.FullName, QMakeSourcePriFileName);
+			string FullQMakeHeaderPriFileName = Path.Combine(PrimaryProjectPath.FullName, QMakeHeaderPriFileName);
+			string FullQMakeConfigPriFileName = Path.Combine(PrimaryProjectPath.FullName, QMakeConfigPriFileName);
 
 			WriteFileIfChanged(FullQMakeDefinesFileName, QMakeDefinesPriFileContent.ToString());
 			WriteFileIfChanged(FullQMakeIncludesFileName, QMakeIncludesPriFileContent.ToString());
@@ -411,7 +411,7 @@ namespace UnrealBuildTool
 		}
 
 		/// ProjectFileGenerator interface
-		//protected override bool WriteMasterProjectFile( ProjectFile UBTProject )
+		//protected override bool WritePrimaryProjectFile( ProjectFile UBTProject )
 		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			return WriteQMakePro();
@@ -430,7 +430,7 @@ namespace UnrealBuildTool
 		}
 
 		/// ProjectFileGenerator interface
-		public override void CleanProjectFiles(DirectoryReference InMasterProjectDirectory, string InMasterProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
 		{
 		}
 	}
