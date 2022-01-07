@@ -90,7 +90,7 @@ struct FBodyCollisionData
 	FBodyCollisionFlags CollisionFlags;
 };
 
-static void SetupNonUniformHelper(FVector InScale3D, float& OutMinScale, float& OutMinScaleAbs, FVector& OutScale3DAbs)
+static void SetupNonUniformHelper(FVector InScale3D, double& OutMinScale, double& OutMinScaleAbs, FVector& OutScale3DAbs)
 {
 	// if almost zero, set min scale
 	// @todo fixme
@@ -112,6 +112,15 @@ static void SetupNonUniformHelper(FVector InScale3D, float& OutMinScale, float& 
 		OutMinScaleAbs = 0.1f;
 	}
 }
+
+static void SetupNonUniformHelper(FVector InScale3D, float& OutMinScale, float& OutMinScaleAbs, FVector& OutScale3DAbs)
+{
+	double OutMinScaleD, OutMinScaleAbsD;
+	SetupNonUniformHelper(InScale3D, OutMinScaleD, OutMinScaleAbsD, OutScale3DAbs);
+	OutMinScale = static_cast<float>(OutMinScaleD);	// LWC_TODO: Precision loss?
+	OutMinScaleAbs = static_cast<float>(OutMinScaleAbsD);
+}
+
 
 /** Util to determine whether to use NegX version of mesh, and what transform (rotation) to apply. */
 static bool CalcMeshNegScaleCompensation(const FVector& InScale3D, FTransform& OutTransform)
@@ -349,7 +358,7 @@ typedef ChaosFlags<FChaosQueryFlag::Enum, uint16> FChaosQueryFlags;
 
 inline FChaosQueryFlags U2CQueryFlags(FQueryFlags Flags)
 {
-	uint32 Result = 0;
+	uint16 Result = 0;
 	if (Flags & EQueryFlags::PreFilter)
 	{
 		Result |= FChaosQueryFlag::ePREFILTER;

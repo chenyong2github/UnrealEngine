@@ -53,7 +53,7 @@ namespace ChaosInterface
 		FHitFlags Flags;
 		FVector WorldPosition;
 		FVector WorldNormal;
-		float Distance;
+		FVector::FReal Distance;
 
 		void Serialize(Chaos::FChaosArchive& Ar);
 
