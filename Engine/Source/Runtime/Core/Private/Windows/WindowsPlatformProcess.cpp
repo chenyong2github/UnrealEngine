@@ -1471,7 +1471,7 @@ void FWindowsPlatformProcess::ClosePipe( void* ReadPipe, void* WritePipe )
 	}
 }
 
-bool FWindowsPlatformProcess::CreatePipe( void*& ReadPipe, void*& WritePipe )
+bool FWindowsPlatformProcess::CreatePipe( void*& ReadPipe, void*& WritePipe, bool bWritePipeLocal )
 {
 	SECURITY_ATTRIBUTES Attr = { sizeof(SECURITY_ATTRIBUTES), NULL, true };
 	
@@ -1480,7 +1480,7 @@ bool FWindowsPlatformProcess::CreatePipe( void*& ReadPipe, void*& WritePipe )
 		return false;
 	}
 
-	if (!::SetHandleInformation(ReadPipe, HANDLE_FLAG_INHERIT, 0))
+	if (!::SetHandleInformation(bWritePipeLocal ? WritePipe : ReadPipe, HANDLE_FLAG_INHERIT, 0))
 	{
 		return false;
 	}

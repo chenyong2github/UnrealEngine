@@ -1309,7 +1309,7 @@ void FMacPlatformProcess::ClosePipe( void* ReadPipe, void* WritePipe )
 	}
 }
 
-bool FMacPlatformProcess::CreatePipe( void*& ReadPipe, void*& WritePipe )
+bool FMacPlatformProcess::CreatePipe( void*& ReadPipe, void*& WritePipe, bool bWritePipeLocal )
 {
 	SCOPED_AUTORELEASE_POOL;
 	int pipefd[2];

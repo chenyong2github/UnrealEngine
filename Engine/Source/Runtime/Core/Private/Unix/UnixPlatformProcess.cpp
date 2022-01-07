@@ -513,7 +513,7 @@ void FUnixPlatformProcess::ClosePipe( void* ReadPipe, void* WritePipe )
 	}
 }
 
-bool FUnixPlatformProcess::CreatePipe( void*& ReadPipe, void*& WritePipe )
+bool FUnixPlatformProcess::CreatePipe(void*& ReadPipe, void*& WritePipe, bool bWritePipeLocal)
 {
 	int PipeFd[2];
 	if (-1 == pipe(PipeFd))

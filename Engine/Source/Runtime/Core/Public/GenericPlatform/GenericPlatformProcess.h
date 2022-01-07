@@ -614,10 +614,11 @@ struct CORE_API FGenericPlatformProcess
 	 *
 	 * @param ReadPipe Will hold the handle to the read end of the pipe.
 	 * @param WritePipe Will hold the handle to the write end of the pipe.
+	 * @parm bWritePipeLocal indicates that the write pipe end will be used locally, instead of the read pipe
 	 * @return true on success, false otherwise.
 	 * @see ClosePipe, ReadPipe
 	 */
-	static bool CreatePipe( void*& ReadPipe, void*& WritePipe );
+	static bool CreatePipe(void*& ReadPipe, void*& WritePipe, bool bWritePipeLocal = false);
 
 	/**
 	 * Reads all pending data from an anonymous pipe, such as STDOUT or STDERROR of a process.
