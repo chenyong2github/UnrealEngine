@@ -41,7 +41,7 @@ namespace AudioModulation
 					1, // Major Version
 					0, // Minor Version
 					LOCTEXT("MixModulatorsNode_Name", "Mix Modulators"),
-					LOCTEXT("MixModulatorsNode_Description", "Mixes two modulators using the parameterized mix function. Returns 'Normalized' if set to true, or unit space if false"),
+					LOCTEXT("MixModulatorsNode_Description", "Mixes two modulators using the parameterized mix function. Returns the 'Normalized' value (0-1) if true, or the value in unit space (dB, Frequency, etc.) if set to false."),
 					AudioModulation::PluginAuthor,
 					AudioModulation::PluginNodeMissingPrompt,
 					GetDefaultInterface(),
