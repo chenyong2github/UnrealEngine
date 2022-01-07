@@ -259,8 +259,8 @@ void UUVEditorRecomputeUVsTool::RecordAnalytics()
 	}
 	if (Settings->UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging)
 	{
-		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MergingDistortionLimit"), Settings->MergingDistortionLimit));
-		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MergingAngleLimit"), Settings->MergingAngleLimit));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MergingDistortionThreshold"), Settings->MergingDistortionThreshold));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.MergingAngleThreshold"), Settings->MergingAngleThreshold));
 	}
 	
 	Attributes.Add(AnalyticsEventAttributeEnum(TEXT("Settings.LayoutType"), Settings->LayoutType));

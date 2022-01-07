@@ -208,7 +208,6 @@ bool UParameterizeMeshTool::CanAccept() const
 
 TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 {
-	FAxisAlignedBox3d MeshBounds = Preview->PreviewMesh->GetMesh()->GetBounds();
 	TUniquePtr<FParameterizeMeshOp> ParameterizeMeshOp = MakeUnique<FParameterizeMeshOp>();
 
 	ParameterizeMeshOp->InputMesh = InputMesh;
@@ -216,8 +215,8 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 	ParameterizeMeshOp->Method = (EParamOpBackend)(int)Settings->Method;
 
 	// uvatlas options
-	ParameterizeMeshOp->Stretch   = UVAtlasProperties->ChartStretch;
-	ParameterizeMeshOp->NumCharts = UVAtlasProperties->NumCharts;
+	ParameterizeMeshOp->Stretch   = UVAtlasProperties->IslandStretch;
+	ParameterizeMeshOp->NumCharts = UVAtlasProperties->NumIslands;
 	
 	// xatlas options
 	ParameterizeMeshOp->XAtlasMaxIterations = XAtlasProperties->MaxIterations;
@@ -230,11 +229,11 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 		ParameterizeMeshOp->InputGroupLayer = PolygroupLayerProperties->GetSelectedLayer(*InputMesh);
 	}
 	ParameterizeMeshOp->PatchCurvatureAlignmentWeight = PatchBuilderProperties->CurvatureAlignment;
-	ParameterizeMeshOp->PatchMergingMetricThresh = PatchBuilderProperties->MergingThreshold;
-	ParameterizeMeshOp->PatchMergingAngleThresh = PatchBuilderProperties->MaxAngleDeviation;
+	ParameterizeMeshOp->PatchMergingMetricThresh = PatchBuilderProperties->MergingDistortionThreshold;
+	ParameterizeMeshOp->PatchMergingAngleThresh = PatchBuilderProperties->MergingAngleThreshold;
 	ParameterizeMeshOp->ExpMapNormalSmoothingSteps = PatchBuilderProperties->SmoothingSteps;
 	ParameterizeMeshOp->ExpMapNormalSmoothingAlpha = PatchBuilderProperties->SmoothingAlpha;
-	ParameterizeMeshOp->bEnablePacking = PatchBuilderProperties->bAutoPack;
+	ParameterizeMeshOp->bEnablePacking = PatchBuilderProperties->bRepack;
 	ParameterizeMeshOp->Width = ParameterizeMeshOp->Height = PatchBuilderProperties->TextureResolution;
 
 

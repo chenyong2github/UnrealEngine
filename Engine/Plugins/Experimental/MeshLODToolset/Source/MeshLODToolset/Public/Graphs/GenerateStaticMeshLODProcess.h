@@ -180,11 +180,11 @@ struct FGenerateStaticMeshLODProcess_UVSettings_PatchBuilder
 	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.01", ClampMax = "100.0"))
 	float CurvatureAlignment = 1.0f;
 
-	/** Number of smoothing steps to apply in the ExpMap UV Generation method (Smoothing slightly increases distortion but produces more stable results) */
+	/** Number of smoothing steps to apply; this slightly increases distortion but produces more stable results. */
 	UPROPERTY(EditAnywhere, Category = "PatchBuilder", AdvancedDisplay, meta = (UIMin = "0", UIMax = "25", ClampMin = "0", ClampMax = "1000"))
 	int SmoothingSteps = 5;
 
-	/** Smoothing parameter, larger values result in faster smoothing in each step */
+	/** Smoothing parameter; larger values result in faster smoothing in each step. */
 	UPROPERTY(EditAnywhere, Category = "PatchBuilder", AdvancedDisplay, meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0"))
 	float SmoothingAlpha = 0.25f;
 };

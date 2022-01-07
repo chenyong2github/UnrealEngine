@@ -3,10 +3,7 @@
 #include "UVEditorParameterizeMeshTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-#include "ToolSetupUtil.h"
-#include "ModelingToolTargetUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "FaceGroupUtil.h"
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 #include "Properties/ParameterizeMeshProperties.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
@@ -254,19 +251,19 @@ void UUVEditorParameterizeMeshTool::RecordAnalytics()
 		case EParameterizeMeshUVMethod::PatchBuilder:
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.InitialPatches"), *MethodName), PatchBuilderProperties->InitialPatches));
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.CurvatureAlignment"), *MethodName), PatchBuilderProperties->CurvatureAlignment));
-			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MergingThreshold"), *MethodName), PatchBuilderProperties->MergingThreshold));
-			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MaxAngleDeviation"), *MethodName), PatchBuilderProperties->MaxAngleDeviation));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MergingDistortionThreshold"), *MethodName), PatchBuilderProperties->MergingDistortionThreshold));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MergingAngleThreshold"), *MethodName), PatchBuilderProperties->MergingAngleThreshold));
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.SmoothingSteps"), *MethodName), PatchBuilderProperties->SmoothingSteps));
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.SmoothingAlpha"), *MethodName), PatchBuilderProperties->SmoothingAlpha));
-			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.AutoPack"), *MethodName), PatchBuilderProperties->bAutoPack));
-			if (PatchBuilderProperties->bAutoPack)
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.Repack"), *MethodName), PatchBuilderProperties->bRepack));
+			if (PatchBuilderProperties->bRepack)
 			{
 				Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.TextureResolution"), *MethodName), PatchBuilderProperties->TextureResolution));
 			}
 			break;
 		case EParameterizeMeshUVMethod::UVAtlas:
-			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.ChartStretch"), *MethodName), UVAtlasProperties->ChartStretch));
-			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.NumCharts"), *MethodName), UVAtlasProperties->NumCharts));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.IslandStretch"), *MethodName), UVAtlasProperties->IslandStretch));
+			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.NumIslands"), *MethodName), UVAtlasProperties->NumIslands));
 			break;
 		case EParameterizeMeshUVMethod::XAtlas:
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.%s.MaxIterations"), *MethodName), XAtlasProperties->MaxIterations));

@@ -411,8 +411,8 @@ TUniquePtr<FDynamicMeshOperator> URecomputeUVsOpFactory::MakeNewOperator()
 	RecomputeUVsOp->NormalSmoothingRounds = Settings->SmoothingSteps;
 	RecomputeUVsOp->NormalSmoothingAlpha = Settings->SmoothingAlpha;
 
-	RecomputeUVsOp->MergingThreshold = Settings->MergingDistortionLimit;
-	RecomputeUVsOp->MaxNormalDeviationDeg = Settings->MergingAngleLimit;
+	RecomputeUVsOp->MergingThreshold = Settings->MergingDistortionThreshold;
+	RecomputeUVsOp->MaxNormalDeviationDeg = Settings->MergingAngleThreshold;
 
 	RecomputeUVsOp->bPackUVs = false;
 	RecomputeUVsOp->bNormalizeAreas = false;
