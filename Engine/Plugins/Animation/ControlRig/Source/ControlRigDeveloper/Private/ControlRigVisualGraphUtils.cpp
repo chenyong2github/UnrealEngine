@@ -233,9 +233,9 @@ FString FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(URigHierarchy* I
 
 			for(const URigHierarchy::TElementDependencyMapPair& Dependency : Dependencies)
 			{
-				const int32 SourceElementIndex = Dependency.Key;
+				const int32 TargetElementIndex = Dependency.Key;
 				
-				for(const int32 TargetElementIndex : Dependency.Value)
+				for(const int32 SourceElementIndex : Dependency.Value)
 				{
 					FName EdgeName = *FString::Printf(TEXT("Dependency_%d_%d"), SourceElementIndex, TargetElementIndex);
 					if(Graph.FindEdge(EdgeName) != INDEX_NONE)
