@@ -4,15 +4,19 @@
 
 #include "Algo/BinarySearch.h"
 #include "Fonts/FontMeasure.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/ViewModels/TimingEvent.h"
@@ -25,9 +29,65 @@
 
 #define LOCTEXT_NAMESPACE "FileActivityTimingTrack"
 
-// The FileActivity (I/O) timelines are just prototypes for now.
-// Below code will be removed once the functionality is moved in analyzer.
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FFileActivityTimingViewCommands
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FFileActivityTimingViewCommands::FFileActivityTimingViewCommands()
+: TCommands<FFileActivityTimingViewCommands>(
+	TEXT("FileActivityTimingViewCommands"),
+	NSLOCTEXT("Contexts", "FileActivityTimingViewCommands", "Insights - Timing View - File Activity"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FFileActivityTimingViewCommands::~FFileActivityTimingViewCommands()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// UI_COMMAND takes long for the compiler to optimize
+PRAGMA_DISABLE_OPTIMIZATION
+void FFileActivityTimingViewCommands::RegisterCommands()
+{
+	// This command is used only for its key binding (to toggle both ShowHideIoOverviewTrack and ShowHideIoActivityTrack in the same time).
+	UI_COMMAND(ShowHideAllIoTracks,
+		"File Activity Tracks",
+		"Shows/hides the File Activity tracks.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::I));
+
+	UI_COMMAND(ShowHideIoOverviewTrack,
+		"I/O Overview Track",
+		"Shows/hides the I/O Overview track.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleOnlyErrors,
+		"Only Errors (I/O Overview Track)",
+		"Shows only the events with errors, in the I/O Overview track.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ShowHideIoActivityTrack,
+		"I/O Activity Track",
+		"Shows/hides the I/O Activity track.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleBackgroundEvents,
+		"Background Events (I/O Activity Track)",
+		"Shows/hides background events for file activities, in the I/O Activity track.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::O));
+}
+PRAGMA_ENABLE_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const TCHAR* GetFileActivityTypeName(TraceServices::EFileActivityType Type)
@@ -366,53 +426,78 @@ void FFileActivitySharedState::ExtendOtherTracksFilterMenu(Insights::ITimingView
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FFileActivitySharedState::BindCommands()
+{
+	FFileActivityTimingViewCommands::Register();
+
+	TSharedPtr<FUICommandList> CommandList = TimingView->GetCommandList();
+	ensure(CommandList.IsValid());
+
+	// This command is used only for its key binding (to toggle both ShowHideIoOverviewTrack and ShowHideIoActivityTrack in the same time).
+	CommandList->MapAction(
+		FFileActivityTimingViewCommands::Get().ShowHideAllIoTracks,
+		FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideAllIoTracks),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsAllIoTracksToggleOn));
+
+	CommandList->MapAction(
+		FFileActivityTimingViewCommands::Get().ShowHideIoOverviewTrack,
+		FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoOverviewTrack),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsIoOverviewTrackVisible));
+
+	CommandList->MapAction(
+		FFileActivityTimingViewCommands::Get().ToggleOnlyErrors,
+		FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleOnlyErrors),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsOnlyErrorsToggleOn));
+
+	CommandList->MapAction(
+		FFileActivityTimingViewCommands::Get().ShowHideIoActivityTrack,
+		FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoActivityTrack),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsIoActivityTrackVisible));
+
+	CommandList->MapAction(
+		FFileActivityTimingViewCommands::Get().ToggleBackgroundEvents,
+		FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleBackgroundEvents),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FFileActivitySharedState::AreBackgroundEventsVisible));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
 {
 	InOutMenuBuilder.BeginSection("File Activity", LOCTEXT("ContextMenu_Section_FileActivity", "File Activity"));
 	{
-		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowIoOverviewTrack", "I/O Overview Track - I"),
-			LOCTEXT("ShowIoOverviewTrack_Tooltip", "Shows or hides the I/O Overview track."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoOverviewTrack),
+		// Note: We use the custom AddMenuEntry in order to set the same key binding text for multiple menu items.
+
+		//InOutMenuBuilder.AddMenuEntry(FFileActivityTimingViewCommands::Get().ShowHideIoOverviewTrack);
+		FInsightsMenuBuilder::AddMenuEntry(InOutMenuBuilder,
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoOverviewTrack),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsIoOverviewTrackVisible)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+			FFileActivityTimingViewCommands::Get().ShowHideIoOverviewTrack->GetLabel(),
+			FFileActivityTimingViewCommands::Get().ShowHideIoOverviewTrack->GetDescription(),
+			LOCTEXT("FileActivityTracksKeybinding", "I"),
+			EUserInterfaceActionType::ToggleButton);
 
-		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowOnlyErrors", "Only Errors (I/O Overview Track)"),
-			LOCTEXT("ShowOnlyErrors_Tooltip", "Shows only the events with errors, in the I/O Overview track."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleOnlyErrors),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsOnlyErrorsToggleOn)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+		InOutMenuBuilder.AddMenuEntry(FFileActivityTimingViewCommands::Get().ToggleOnlyErrors);
 
-		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowIoActivityTrack", "I/O Activity Track - I"),
-			LOCTEXT("ShowIoActivityTrack_Tooltip", "Shows or hides the I/O Activity track."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoActivityTrack),
+		//InOutMenuBuilder.AddMenuEntry(FFileActivityTimingViewCommands::Get().ShowHideIoActivityTrack);
+		FInsightsMenuBuilder::AddMenuEntry(InOutMenuBuilder,
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoActivityTrack),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsIoActivityTrackVisible)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+			FFileActivityTimingViewCommands::Get().ShowHideIoActivityTrack->GetLabel(),
+			FFileActivityTimingViewCommands::Get().ShowHideIoActivityTrack->GetDescription(),
+			LOCTEXT("FileActivityTracksKeybinding", "I"),
+			EUserInterfaceActionType::ToggleButton);
 
-		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowBackgroundEvents", "Background Events (I/O Activity Track) - O"),
-			LOCTEXT("ShowBackgroundEvents_Tooltip", "Shows background events for file activities, in the I/O Activity track."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleBackgroundEvents),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::AreBackgroundEventsVisible)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+		InOutMenuBuilder.AddMenuEntry(FFileActivityTimingViewCommands::Get().ToggleBackgroundEvents);
 	}
 	InOutMenuBuilder.EndSection();
 }

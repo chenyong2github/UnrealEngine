@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Commands/Commands.h"
 #include "TraceServices/Model/AllocationsProvider.h"
 
 // Insights
@@ -22,6 +23,8 @@ struct FReportConfig;
 struct FReportTypeConfig;
 struct FReportTypeGraphConfig;
 class FMemoryTracker;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMemoryRuleSpec
 {
@@ -51,6 +54,8 @@ private:
 	FText Description;     // ex.: "Allocations allocated and freed between time A and time B (A <= a <= f <= B)."
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FQueryTargetWindowSpec
 {
 public:
@@ -70,7 +75,22 @@ private:
 	FName Name;
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace Insights
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FMemoryTimingViewCommands : public TCommands<FMemoryTimingViewCommands>
+{
+public:
+	FMemoryTimingViewCommands();
+	virtual ~FMemoryTimingViewCommands();
+	virtual void RegisterCommands() override;
+
+public:
+	TSharedPtr<FUICommandInfo> ShowHideAllMemoryTracks;
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -94,11 +114,17 @@ public:
 	EMemoryTrackHeightMode GetTrackHeightMode() const { return TrackHeightMode; }
 	void SetTrackHeightMode(EMemoryTrackHeightMode InTrackHeightMode);
 
-	// ITimingViewExtender
+	//////////////////////////////////////////////////
+	// ITimingViewExtender interface
+
 	virtual void OnBeginSession(Insights::ITimingViewSession& InSession) override;
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
 	virtual void Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) override;
-	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
+	virtual void ExtendOtherTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder) override;
+
+	//////////////////////////////////////////////////
+
+	void BindCommands();
 
 	bool IsAllMemoryTracksToggleOn() const { return bShowHideAllMemoryTracks; }
 	void SetAllMemoryTracksToggle(bool bOnOff);

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Commands/Commands.h"
 
 // Insights
 #include "Insights/ITimingViewExtender.h"
@@ -13,6 +14,23 @@ class STimingView;
 
 class FOverviewFileActivityTimingTrack;
 class FDetailedFileActivityTimingTrack;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FFileActivityTimingViewCommands : public TCommands<FFileActivityTimingViewCommands>
+{
+public:
+	FFileActivityTimingViewCommands();
+	virtual ~FFileActivityTimingViewCommands();
+	virtual void RegisterCommands() override;
+
+public:
+	TSharedPtr<FUICommandInfo> ShowHideAllIoTracks;
+	TSharedPtr<FUICommandInfo> ShowHideIoOverviewTrack;
+	TSharedPtr<FUICommandInfo> ToggleOnlyErrors;
+	TSharedPtr<FUICommandInfo> ShowHideIoActivityTrack;
+	TSharedPtr<FUICommandInfo> ToggleBackgroundEvents;
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -55,11 +73,17 @@ public:
 	explicit FFileActivitySharedState(STimingView* InTimingView) : TimingView(InTimingView) {}
 	virtual ~FFileActivitySharedState() = default;
 
-	// ITimingViewExtender
+	//////////////////////////////////////////////////
+	// ITimingViewExtender interface
+
 	virtual void OnBeginSession(Insights::ITimingViewSession& InSession) override;
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
 	virtual void Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) override;
 	virtual void ExtendOtherTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder) override;
+
+	//////////////////////////////////////////////////
+
+	void BindCommands();
 
 	const TArray<FIoTimingEvent>& GetAllEvents() const { return AllIoEvents; }
 

@@ -47,17 +47,57 @@ FTimingProfilerCommands::FTimingProfilerCommands()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FTimingProfilerCommands::~FTimingProfilerCommands()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // UI_COMMAND takes long for the compiler to optimize
 PRAGMA_DISABLE_OPTIMIZATION
 void FTimingProfilerCommands::RegisterCommands()
 {
-	UI_COMMAND(ToggleFramesTrackVisibility, "Frames", "Toggles the visibility of the Frames track", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleTimingViewVisibility, "Timing", "Toggles the visibility of the main Timing view", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleTimersViewVisibility, "Timers", "Toggles the visibility of the Timers view", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleCallersTreeViewVisibility, "Callers", "Toggles the visibility of the Callers tree view", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleCalleesTreeViewVisibility, "Callees", "Toggles the visibility of the Callees tree view", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleStatsCountersViewVisibility, "Counters", "Toggles the visibility of the Counters view", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleLogViewVisibility, "Log", "Toggles the visibility of the Log view", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleFramesTrackVisibility,
+		"Frames",
+		"Toggles the visibility of the Frames track.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleTimingViewVisibility,
+		"Timing",
+		"Toggles the visibility of the main Timing view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleTimersViewVisibility,
+		"Timers",
+		"Toggles the visibility of the Timers view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleCallersTreeViewVisibility,
+		"Callers",
+		"Toggles the visibility of the Callers tree view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleCalleesTreeViewVisibility,
+		"Callees",
+		"Toggles the visibility of the Callees tree view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleStatsCountersViewVisibility,
+		"Counters",
+		"Toggles the visibility of the Counters view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
+	UI_COMMAND(ToggleLogViewVisibility,
+		"Log",
+		"Toggles the visibility of the Log view.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
 }
 PRAGMA_ENABLE_OPTIMIZATION
 
@@ -71,6 +111,12 @@ FTimingViewCommands::FTimingViewCommands()
 	NSLOCTEXT("Contexts", "TimingViewCommands", "Insights - Timing View"),
 	NAME_None,
 	FInsightsStyle::GetStyleSetName())
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTimingViewCommands::~FTimingViewCommands()
 {
 }
 
@@ -100,7 +146,7 @@ void FTimingViewCommands::RegisterCommands()
 
 	UI_COMMAND(ShowMainGraphTrack,
 		"Graph Track",
-		"Show/hide the main Graph track.",
+		"Shows/hides the main Graph track.",
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord(EKeys::G));
 
@@ -109,9 +155,6 @@ void FTimingViewCommands::RegisterCommands()
 		"Quick find or filter events in the timing view.",
 		EUserInterfaceActionType::Button,
 		FInputChord(EModifierKey::Control, EKeys::F));
-
-	//UI_COMMAND(ShowAllGpuTracks, "GPU Track(s)", "Show/hide the GPU track(s).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Y));
-	//UI_COMMAND(ShowAllCpuTracks, "CPU Thread Tracks", "Show/hide all CPU tracks (and all CPU thread groups).", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::U));
 }
 PRAGMA_ENABLE_OPTIMIZATION
 

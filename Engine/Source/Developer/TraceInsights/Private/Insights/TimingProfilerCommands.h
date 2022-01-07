@@ -15,10 +15,8 @@ class FMenuBuilder;
 class FTimingProfilerCommands : public TCommands<FTimingProfilerCommands>
 {
 public:
-	/** Default constructor. */
 	FTimingProfilerCommands();
-
-	/** Initialize commands. */
+	virtual ~FTimingProfilerCommands();
 	virtual void RegisterCommands() override;
 
 public:
@@ -56,10 +54,8 @@ public:
 class FTimingViewCommands : public TCommands<FTimingViewCommands>
 {
 public:
-	/** Default constructor. */
 	FTimingViewCommands();
-
-	/** Initialize commands. */
+	virtual ~FTimingViewCommands();
 	virtual void RegisterCommands() override;
 
 public:
@@ -77,12 +73,6 @@ public:
 
 	/** Opens the Quick Find widget. */
 	TSharedPtr<FUICommandInfo> QuickFind;
-
-	/** Toggles visibility for GPU thread track. */
-	//TSharedPtr<FUICommandInfo> ShowAllGpuTracks;
-
-	/** Toggles visibility for all CPU thread tracks at once. */
-	//TSharedPtr<FUICommandInfo> ShowAllCpuTracks;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -249,6 +249,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 		];
 
 	SharedState->SetTimingView(TimingView);
+	SharedState->BindCommands();
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, &SharedState.Get());
 
 	TimingView->Reset(true);

@@ -3,6 +3,8 @@
 #include "LoadingTimingTrack.h"
 
 #include "Fonts/FontMeasure.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
@@ -11,6 +13,7 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
@@ -19,6 +22,39 @@
 #include "Insights/Widgets/STimingView.h"
 
 #define LOCTEXT_NAMESPACE "LoadingTimingTrack"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FLoadingTimingViewCommands
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLoadingTimingViewCommands::FLoadingTimingViewCommands()
+: TCommands<FLoadingTimingViewCommands>(
+	TEXT("LoadingTimingViewCommands"),
+	NSLOCTEXT("Contexts", "LoadingTimingViewCommands", "Insights - Timing View - Asset Loading"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLoadingTimingViewCommands::~FLoadingTimingViewCommands()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// UI_COMMAND takes long for the compiler to optimize
+PRAGMA_DISABLE_OPTIMIZATION
+void FLoadingTimingViewCommands::RegisterCommands()
+{
+	UI_COMMAND(ShowHideAllLoadingTracks,
+		"Asset Loading Tracks",
+		"Shows/hides the Asset Loading tracks.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::L));
+}
+PRAGMA_ENABLE_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FLoadingSharedState
@@ -120,18 +156,25 @@ void FLoadingSharedState::ExtendOtherTracksFilterMenu(Insights::ITimingViewSessi
 
 	InOutMenuBuilder.BeginSection("Asset Loading", LOCTEXT("ContextMenu_Section_AssetLoading", "Asset Loading"));
 	{
-		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllLoadingTracks", "Asset Loading Tracks - L"),
-			LOCTEXT("ShowAllLoadingTracks_Tooltip", "Shows or hides the Asset Loading tracks."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FLoadingSharedState::ShowHideAllLoadingTracks),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FLoadingSharedState::IsAllLoadingTracksToggleOn)),
-			NAME_None, //"QuickFilterSeparator",
-			EUserInterfaceActionType::ToggleButton
-		);
+		InOutMenuBuilder.AddMenuEntry(FLoadingTimingViewCommands::Get().ShowHideAllLoadingTracks);
 	}
 	InOutMenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLoadingSharedState::BindCommands()
+{
+	FLoadingTimingViewCommands::Register();
+
+	TSharedPtr<FUICommandList> CommandList = TimingView->GetCommandList();
+	ensure(CommandList.IsValid());
+
+	CommandList->MapAction(
+		FLoadingTimingViewCommands::Get().ShowHideAllLoadingTracks,
+		FExecuteAction::CreateSP(this, &FLoadingSharedState::ShowHideAllLoadingTracks),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FLoadingSharedState::IsAllLoadingTracksToggleOn));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

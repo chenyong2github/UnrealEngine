@@ -3,6 +3,8 @@
 #include "FrameTimingTrack.h"
 
 #include "Fonts/FontMeasure.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Styling/SlateBrush.h"
@@ -11,6 +13,7 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/ViewModels/FrameTrackHelper.h"
 #include "Insights/ViewModels/TimerNode.h"
@@ -21,6 +24,39 @@
 #include "Insights/Widgets/STimingView.h"
 
 #define LOCTEXT_NAMESPACE "FrameTimingTrack"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FFrameTimingViewCommands
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FFrameTimingViewCommands::FFrameTimingViewCommands()
+: TCommands<FFrameTimingViewCommands>(
+	TEXT("FrameTimingViewCommands"),
+	NSLOCTEXT("Contexts", "FrameTimingViewCommands", "Insights - Timing View - Frames"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FFrameTimingViewCommands::~FFrameTimingViewCommands()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// UI_COMMAND takes long for the compiler to optimize
+PRAGMA_DISABLE_OPTIMIZATION
+void FFrameTimingViewCommands::RegisterCommands()
+{
+	UI_COMMAND(ShowHideAllFrameTracks,
+		"Frame Tracks",
+		"Shows/hides all Frame tracks.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EKeys::R));
+}
+PRAGMA_ENABLE_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FFrameSharedState
@@ -125,19 +161,25 @@ void FFrameSharedState::ExtendOtherTracksFilterMenu(Insights::ITimingViewSession
 
 	InOutMenuBuilder.BeginSection("FrameTracks", LOCTEXT("ContextMenu_Section_FrameTracks", "Frames"));
 	{
-		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllFrameTracks);
-		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllFrameTracks", "Frame Tracks - R"),
-			LOCTEXT("ShowAllFrameTracks_Tooltip", "Show/hide all Frame tracks."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FFrameSharedState::ShowHideAllFrameTracks),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FFrameSharedState::IsAllFrameTracksToggleOn)),
-			NAME_None, //"QuickFilterSeparator",
-			EUserInterfaceActionType::ToggleButton
-		);
+		InOutMenuBuilder.AddMenuEntry(FFrameTimingViewCommands::Get().ShowHideAllFrameTracks);
 	}
 	InOutMenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FFrameSharedState::BindCommands()
+{
+	FFrameTimingViewCommands::Register();
+
+	TSharedPtr<FUICommandList> CommandList = TimingView->GetCommandList();
+	ensure(CommandList.IsValid());
+
+	CommandList->MapAction(
+		FFrameTimingViewCommands::Get().ShowHideAllFrameTracks,
+		FExecuteAction::CreateSP(this, &FFrameSharedState::ShowHideAllFrameTracks),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FFrameSharedState::IsAllFrameTracksToggleOn));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

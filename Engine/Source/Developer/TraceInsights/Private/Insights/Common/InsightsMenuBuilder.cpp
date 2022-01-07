@@ -13,6 +13,8 @@
 #define LOCTEXT_NAMESPACE "InsightsMenuBuilder"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// FInsightsMenuBuilder
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FInsightsMenuBuilder::FInsightsMenuBuilder()
 #if !WITH_EDITOR
@@ -84,6 +86,48 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 	}
 #endif // !UE_BUILD_SHIPPING
 #endif // !WITH_EDITOR
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsMenuBuilder::AddMenuEntry(
+	FMenuBuilder& InOutMenuBuilder,
+	const FUIAction& InAction,
+	const TAttribute<FText>& InLabel,
+	const TAttribute<FText>& InToolTipText,
+	const TAttribute<FText>& InKeybinding,
+	const EUserInterfaceActionType InUserInterfaceActionType)
+{
+	InOutMenuBuilder.AddMenuEntry(
+		InAction,
+		SNew(SBox)
+		.Padding(FMargin(0.0f))
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(2.0f, 0.0f))
+			.VAlign(VAlign_Center)
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.TextStyle(FAppStyle::Get(), "Menu.Label")
+				.Text(InLabel)
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(4.0f, 0.0f))
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.TextStyle(FAppStyle::Get(), "Menu.Keybinding")
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text(InKeybinding)
+			]
+		],
+		NAME_None,
+		InToolTipText,
+		InUserInterfaceActionType
+	);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

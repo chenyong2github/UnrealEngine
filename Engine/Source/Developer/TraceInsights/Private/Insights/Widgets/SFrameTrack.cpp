@@ -1150,7 +1150,7 @@ void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_ShowGameFrames", "Game Frames"),
-			LOCTEXT("ContextMenu_ShowGameFrames_Desc", "Shows or hides the Game frames."),
+			LOCTEXT("ContextMenu_ShowGameFrames_Desc", "Shows/hides the Game frames."),
 			FSlateIcon(),
 			Action_ShowGameFrames,
 			NAME_None,
@@ -1166,7 +1166,7 @@ void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_ShowRenderingFrames", "Rendering Frames"),
-			LOCTEXT("ContextMenu_ShowRenderingFrames_Desc", "Shows or hides the Rendering frames."),
+			LOCTEXT("ContextMenu_ShowRenderingFrames_Desc", "Shows/hides the Rendering frames."),
 			FSlateIcon(),
 			Action_ShowRenderingFrames,
 			NAME_None,

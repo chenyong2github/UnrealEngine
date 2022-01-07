@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
+#include "Framework/Commands/Commands.h"
 #include "TraceServices/Model/Frames.h"
 
 // Insights
@@ -17,6 +18,19 @@ class FTimingEventSearchParameters;
 class FFrameTimingTrack;
 class STimingView;
 struct FSlateBrush;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FFrameTimingViewCommands : public TCommands<FFrameTimingViewCommands>
+{
+public:
+	FFrameTimingViewCommands();
+	virtual ~FFrameTimingViewCommands();
+	virtual void RegisterCommands() override;
+
+public:
+	TSharedPtr<FUICommandInfo> ShowHideAllFrameTracks;
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -39,6 +53,8 @@ public:
 	virtual void ExtendOtherTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
 
 	//////////////////////////////////////////////////
+
+	void BindCommands();
 
 	bool IsAllFrameTracksToggleOn() const { return bShowHideAllFrameTracks; }
 	void SetAllFrameTracksToggle(bool bOnOff);
