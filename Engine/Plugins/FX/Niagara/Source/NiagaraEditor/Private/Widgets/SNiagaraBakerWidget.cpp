@@ -121,16 +121,13 @@ FText SNiagaraBakerWidget::GetSelectedTextureAsText() const
 			const int32 PrevewTextureIndex = ViewModel->GetPreviewTextureIndex();
 			if ( BakerSettings->OutputTextures.IsValidIndex(PrevewTextureIndex) )
 			{
-				FString TextureName;
-				if (BakerSettings->OutputTextures[PrevewTextureIndex].OutputName.IsNone())
+				TStringBuilder<128> TextureName;
+				TextureName.Appendf(TEXT("Texture(%d)"), PrevewTextureIndex);
+				if (UTexture2D* GeneratedTexture = BakerSettings->OutputTextures[PrevewTextureIndex].GeneratedTexture)
 				{
-					TextureName = FString::Printf(TEXT("Output Texture %d"), PrevewTextureIndex);
+					TextureName.Appendf(TEXT(" - %s"), *BakerSettings->OutputTextures[PrevewTextureIndex].GeneratedTexture->GetName());
 				}
-				else
-				{
-					TextureName = BakerSettings->OutputTextures[PrevewTextureIndex].OutputName.ToString();
-				}
-				return FText::FromString(TextureName);
+				return FText::FromStringView(TextureName.ToView());
 			}
 		}
 	}
