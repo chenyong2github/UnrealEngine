@@ -135,11 +135,11 @@ namespace Metasound
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
 				TInputDataVertexModel<float>(GetInputBPMTempoName(), LOCTEXT("BPMToSecsBPMTT", "Input BPM (Beats Per Minute)."), 90.0f),
-				TInputDataVertexModel<float>(GetInputBeatMultiplierName(), LOCTEXT("BPMToSecsBeatMultiplierTT", "The multipilier of the BPM."), 1.0f),
+				TInputDataVertexModel<float>(GetInputBeatMultiplierName(), LOCTEXT("BPMToSecsBeatMultiplierTT", "The multiplier of the BPM."), 1.0f),
 				TInputDataVertexModel<float>(GetInputDivisionsOfWholeNoteName(), LOCTEXT("BPMToSecsDivOfWholeNoteTT", "Divisions of a whole note."), 4.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTime>(GetOutputTimeSecondsName(), LOCTEXT("BPMToSecsOutputTimeTT", "The output time in seconds give the BPM inputs."))
+				TOutputDataVertexModel<FTime>(GetOutputTimeSecondsName(), LOCTEXT("BPMToSecsOutputTimeTT", "The output time in seconds, given the BPM inputs."))
 			)
 		);
 

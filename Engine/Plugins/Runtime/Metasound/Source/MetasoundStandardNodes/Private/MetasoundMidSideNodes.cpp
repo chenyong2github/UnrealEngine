@@ -26,7 +26,7 @@ namespace Metasound
 		METASOUND_PARAM(InputEqualPower, "Equal Power", "Whether an equal power relationship between the mid and side signals should be maintained.");
 
 		METASOUND_PARAM(OutputAudioMid, "Out Mid", "The Mid content from the audio signal.");
-		METASOUND_PARAM(OutputAudioSide, "Out Side", "the Side content from the audio signal.");
+		METASOUND_PARAM(OutputAudioSide, "Out Side", "The Side content from the audio signal.");
 	}
 
 	// Operator Class
@@ -250,7 +250,7 @@ namespace Metasound
 		METASOUND_PARAM(InputEqualPower, "Equal Power", "Whether an equal power relationship between the mid and side signals should be maintained.");
 	
 		METASOUND_PARAM(OutputAudioLeft, "Out Left", "The left audio channel which has been processed.");
-		METASOUND_PARAM(OutputAudioRight, "Out Right", "the Right audio channel which has been processed.");
+		METASOUND_PARAM(OutputAudioRight, "Out Right", "The Right audio channel which has been processed.");
 	}
 
 	// Operator Class

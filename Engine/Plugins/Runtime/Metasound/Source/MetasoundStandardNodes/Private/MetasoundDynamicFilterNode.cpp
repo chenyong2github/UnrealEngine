@@ -20,7 +20,7 @@ namespace Metasound
 	namespace DynamicFilterNode
 	{
 		METASOUND_PARAM(InputAudio, "Audio", "Incoming audio signal.");
-		METASOUND_PARAM(InputSidechain, "Sidechain", "(Optional) external audio signal to control the filter with. If empty, uses the input audio signal.");
+		METASOUND_PARAM(InputSidechain, "Sidechain", "(Optional) External audio signal to control the filter with. If empty, uses the input audio signal.");
 		METASOUND_PARAM(InputFilterType, "FilterType", "Filter shape to use.");
 		METASOUND_PARAM(InputFrequency, "Frequency", "The center frequency of the filter.");
 		METASOUND_PARAM(InputQ, "Q", "Filter Q, or resonance, controls the steepness of the filter.");
