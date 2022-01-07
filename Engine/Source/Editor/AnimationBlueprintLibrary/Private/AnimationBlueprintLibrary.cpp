@@ -14,6 +14,7 @@
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimationSettings.h"
 #include "BonePose.h" 
+#include "CommonFrameRates.h"
 #include "Algo/Transform.h"
 #include "Misc/FrameRate.h"
 #include "Misc/FrameTime.h"
@@ -2200,6 +2201,7 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 	FName TCSecondAttrName(TEXT("TCSecond"));
 	FName TCFrameAttrName(TEXT("TCFrame"));
 	FName TCSubframeAttrName(TEXT("TCSubframe"));
+	FName TCRateAttrName(TEXT("TCRate"));
 
 	if (const UAnimationSettings* AnimationSettings = UAnimationSettings::Get())
 	{
@@ -2208,14 +2210,17 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 		TCSecondAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.SecondAttributeName;
 		TCFrameAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.FrameAttributeName;
 		TCSubframeAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.SubframeAttributeName;
+		TCRateAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.RateAttributeName;
 	}
 
-	const TArray<FName> TimecodeBoneAttributeNames = { TCHourAttrName, TCMinuteAttrName, TCSecondAttrName, TCFrameAttrName, TCSubframeAttrName };
+	const TArray<FName> TimecodeBoneAttributeNames = { TCHourAttrName, TCMinuteAttrName, TCSecondAttrName, TCFrameAttrName, TCSubframeAttrName, TCRateAttrName };
 
 	bool bHasTimecodeBoneAttributes = false;
 
 	FTimecode Timecode;
 	float SubFrame = 0.0f;
+
+	double TimecodeRateAsDecimal = 0.0;
 
 	for (const FAnimatedBoneAttribute* RootBoneAttribute : RootBoneAttributes)
 	{
@@ -2283,6 +2288,12 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 			SubFrame = FloatValue;
 			bHasTimecodeBoneAttributes = true;
 		}
+		else if (BoneAttributeName.IsEqual(TCRateAttrName))
+		{
+			TimecodeRateAsDecimal = FloatValue;
+			// Don't consider this attribute when determining whether timecode value attributes are
+			// present, since it can't be useful on its own.
+		}
 	}
 
 	if (!bHasTimecodeBoneAttributes)
@@ -2294,7 +2305,18 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 	// original source frame rate.
 	FFrameRate FrameRate = AnimationSequenceBase->GetSamplingFrameRate();
 
-	if (const UAnimSequence* AnimSequence = AnimDataModel->GetAnimationSequence())
+	if (TimecodeRateAsDecimal > 1.0)
+	{
+		if (const FCommonFrameRateInfo* TimecodeRateInfo = FCommonFrameRates::Find(TimecodeRateAsDecimal))
+		{
+			FrameRate = TimecodeRateInfo->FrameRate;
+		}
+		else
+		{
+			FrameRate = FFrameRate(FMath::TruncToInt(TimecodeRateAsDecimal), 1);
+		}
+	}
+	else if (const UAnimSequence* AnimSequence = AnimDataModel->GetAnimationSequence())
 	{
 		if (AnimSequence->ImportFileFramerate > 0.0f)
 		{

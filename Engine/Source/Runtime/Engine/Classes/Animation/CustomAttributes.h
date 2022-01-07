@@ -66,6 +66,12 @@ struct ENGINE_API FTimecodeCustomAttributeNameSettings
 	UPROPERTY(EditAnywhere, Category = TimecodeCustomAttributeNameSettings)
 	FName SubframeAttributeName;
 
+	/** Name of the custom attribute representing the timecode rate. This may be different from
+	    the animation or capture frame rate, for example when capturing "high" frame rate data
+		at 120 frames per second but recording SMPTE timecode at 30 frames per second. */
+	UPROPERTY(EditAnywhere, Category = TimecodeCustomAttributeNameSettings)
+	FName RateAttributeName;
+
 	/** Name of the custom attribute representing the name of a take. */
 	UPROPERTY(EditAnywhere, Category = TimecodeCustomAttributeNameSettings)
 	FName TakenameAttributeName;

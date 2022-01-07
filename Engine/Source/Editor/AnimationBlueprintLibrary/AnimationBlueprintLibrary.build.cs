@@ -14,6 +14,7 @@ public class AnimationBlueprintLibrary : ModuleRules
 				"Engine",
 				"Kismet",
 				"AnimGraph",
+				"TimeManagement"
 			}
 		);
 
