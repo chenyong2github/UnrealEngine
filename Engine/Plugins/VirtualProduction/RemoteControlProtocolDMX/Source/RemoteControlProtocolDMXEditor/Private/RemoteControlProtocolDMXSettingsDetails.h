@@ -5,6 +5,7 @@
 #include "IDetailCustomization.h"
 
 class IPropertyHandle;
+class IPropertyUtilities;
 class SDMXPortSelector;
 
 /**
@@ -37,4 +38,7 @@ private:
 
 	/** Widget to select a port */
 	TSharedPtr<SDMXPortSelector> PortSelector;
+
+	/** Property utilities for this customization */
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 };
