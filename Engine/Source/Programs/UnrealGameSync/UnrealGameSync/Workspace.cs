@@ -70,6 +70,7 @@ namespace UnrealGameSync
 			get; private set;
 		}
 
+		CancellationTokenSource? PrevCancellationSource;
 		Task PrevUpdateTask = Task.CompletedTask;
 
 		public void Update(WorkspaceUpdateContext Context)
@@ -77,16 +78,28 @@ namespace UnrealGameSync
 			CancelUpdate();
 
 			Task PrevUpdateTaskCopy = PrevUpdateTask;
-			CurrentUpdate = new WorkspaceUpdate(Context, (Update, CancellationToken) => UpdateWorkspaceMini(Update, PrevUpdateTaskCopy, CancellationToken));
+
+			WorkspaceUpdate Update = new WorkspaceUpdate(Context);
+			CurrentUpdate = Update;
+
+			CancellationTokenSource CancellationSource = new CancellationTokenSource();
+			PrevCancellationSource = CancellationSource;
+			PrevUpdateTask = Task.Run(() => UpdateWorkspaceMini(Update, PrevUpdateTaskCopy, CancellationSource.Token));
 		}
 
 		public void CancelUpdate()
 		{
 			// Cancel the current task. We actually terminate the operation asynchronously, but we can signal the cancellation and 
 			// send a cancelled event, then wait for the heavy lifting to finish in the new update task.
-			if (CurrentUpdate != null)
+			if (PrevCancellationSource != null)
 			{
-				PrevUpdateTask = CurrentUpdate.DisposeAsync().AsTask();
+				CancellationTokenSource PrevCancellationSourceCopy = PrevCancellationSource;
+				PrevCancellationSourceCopy.Cancel();
+				PrevUpdateTask = PrevUpdateTask.ContinueWith(Task => PrevCancellationSourceCopy.Dispose());
+				PrevCancellationSource = null;
+			}
+			if(CurrentUpdate != null)
+			{
 				CompleteUpdate(CurrentUpdate, WorkspaceUpdateResult.Canceled, "Cancelled");
 			}
 		}

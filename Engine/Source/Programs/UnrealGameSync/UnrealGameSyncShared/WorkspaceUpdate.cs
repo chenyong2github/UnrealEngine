@@ -234,7 +234,7 @@ namespace UnrealGameSync
 		}
 	}
 
-	public class WorkspaceUpdate : IAsyncDisposable
+	public class WorkspaceUpdate
 	{
 		const string BuildVersionFileName = "/Engine/Build/Build.version";
 		const string VersionHeaderFileName = "/Engine/Source/Runtime/Launch/Resources/Version.h";
@@ -397,32 +397,12 @@ namespace UnrealGameSync
 			}
 		}
 
-		CancellationTokenSource CancellationSource;
 		public WorkspaceUpdateContext Context { get; }
 		public ProgressValue Progress { get; } = new ProgressValue();
-		public Task UpdateTask { get; }
 
-		public WorkspaceUpdate(WorkspaceUpdateContext Context, Func<WorkspaceUpdate, CancellationToken, Task> TaskFunc)
+		public WorkspaceUpdate(WorkspaceUpdateContext Context)
 		{
-			this.CancellationSource = new CancellationTokenSource();
 			this.Context = Context;
-			this.UpdateTask = Task.Run(() => TaskFunc(this, CancellationSource.Token));
-		}
-
-		public void Cancel()
-		{
-			CancellationSource.Cancel();
-		}
-
-		public ValueTask DisposeAsync()
-		{
-			Task DisposeTask = Task.CompletedTask;
-			if (UpdateTask != null)
-			{
-				CancellationSource.Cancel();
-				DisposeTask = UpdateTask.ContinueWith(Task => CancellationSource.Dispose());
-			}
-			return new ValueTask(DisposeTask);
 		}
 
 		class SyncFile

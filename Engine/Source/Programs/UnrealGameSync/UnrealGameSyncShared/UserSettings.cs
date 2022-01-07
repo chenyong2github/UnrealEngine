@@ -237,6 +237,9 @@ namespace UnrealGameSync
 		[JsonIgnore]
 		public DirectoryReference RootDir { get; set; } = null!;
 
+		[JsonIgnore]
+		public DateTime LastModifiedTimeUtc { get; set; }
+
 		// Connection settings
 		public string? ServerAndPort { get; set; }
 		public string? UserName { get; set; }
@@ -245,7 +248,7 @@ namespace UnrealGameSync
 		// Path to the root of the branch within this client, with a trailing slash if non-empty
 		public string BranchPath { get; set; } = String.Empty;
 
-		// The currently selected project
+		// The currently selected project, relative to the root directory
 		public string ProjectPath { get; set; } = String.Empty;
 
 		// Workspace specific SyncFilters
@@ -267,12 +270,28 @@ namespace UnrealGameSync
 		[JsonIgnore]
 		public string ClientProjectPath => $"//{ClientName}{BranchPath}{ProjectPath}";
 
+		[JsonIgnore]
+		public FileReference LocalProjectPath => new FileReference(RootDir.FullName + ProjectPath);
+
+		public void Init(string? ServerAndPort, string? UserName, string ClientName, string BranchPath, string ProjectPath)
+		{
+			ProjectInfo.ValidateBranchPath(BranchPath);
+			ProjectInfo.ValidateProjectPath(ProjectPath);
+
+			this.ServerAndPort = ServerAndPort;
+			this.UserName = UserName;
+			this.ClientName = ClientName;
+			this.BranchPath = BranchPath;
+			this.ProjectPath = ProjectPath;
+		}
+
 		public static bool TryLoad(DirectoryReference RootDir, [NotNullWhen(true)] out UserWorkspaceSettings? Settings)
 		{
 			FileReference ConfigFile = GetConfigFile(RootDir);
 			if (Utility.TryLoadJson(ConfigFile, out Settings))
 			{
 				Settings.RootDir = RootDir;
+				Settings.LastModifiedTimeUtc = FileReference.GetLastWriteTimeUtc(ConfigFile);
 				return true;
 			}
 			else
@@ -289,6 +308,7 @@ namespace UnrealGameSync
 			lock (SyncRoot)
 			{
 				Utility.SaveJson(ConfigFile, this);
+				LastModifiedTimeUtc = FileReference.GetLastWriteTimeUtc(ConfigFile);
 			}
 		}
 
@@ -303,8 +323,16 @@ namespace UnrealGameSync
 		[JsonIgnore]
 		public DirectoryReference RootDir { get; set; } = null!;
 
+		// Cached state about the project, configured using UserWorkspaceSettings and taken from computed values in ProjectInfo. Assumed valid unless manually updated.
+		public long SettingsTimeUtc { get; set; }
+		public string ClientName { get; set; } = String.Empty;
+		public string BranchPath { get; set; } = String.Empty;
+		public string ProjectPath { get; set; } = String.Empty;
+		public string? StreamName { get; set; }
+		public string ProjectIdentifier { get; set; } = String.Empty; // Should be fully reset if this changes
+		public bool IsEnterpriseProject { get; set; }
+
 		// Settings for the currently synced project in this workspace. CurrentChangeNumber is only valid for this workspace if CurrentProjectPath is the current project.
-		public string? CurrentProjectIdentifier { get; set; }
 		public int CurrentChangeNumber { get; set; } = -1;
 		public int CurrentCodeChangeNumber { get; set; } = -1;
 		public string? CurrentSyncFilterHash { get; set; }
@@ -327,7 +355,33 @@ namespace UnrealGameSync
 		public List<BisectEntry> BisectChanges { get; set; } = new List<BisectEntry>();
 
 		// Path to the config file
+		[JsonIgnore]
 		public FileReference ConfigFile => GetConfigFile(RootDir);
+
+		public static UserWorkspaceState CreateNew(DirectoryReference RootDir)
+		{
+			UserWorkspaceState State = new UserWorkspaceState();
+			State.RootDir = RootDir;
+			return State;
+		}
+
+		public void UpdateCachedProjectInfo(ProjectInfo ProjectInfo, DateTime SettingsTimeUtc)
+		{
+			this.SettingsTimeUtc = SettingsTimeUtc.Ticks;
+
+			RootDir = ProjectInfo.LocalRootPath;
+			ClientName = ProjectInfo.ClientName;
+			BranchPath = ProjectInfo.BranchPath;
+			ProjectPath = ProjectInfo.ProjectPath;
+			StreamName = ProjectInfo.StreamName;
+			ProjectIdentifier = ProjectInfo.ProjectIdentifier;
+			IsEnterpriseProject = ProjectInfo.bIsEnterpriseProject;
+		}
+
+		public bool IsValid(ProjectInfo ProjectInfo)
+		{
+			return ProjectInfo.Equals(ProjectInfo.ProjectIdentifier, StringComparison.Ordinal);
+		}
 
 		public void SetBisectState(int Change, BisectState State)
 		{
@@ -394,7 +448,7 @@ namespace UnrealGameSync
 		};
 
 		FileReference FileName;
-		ConfigFile ConfigFile = new ConfigFile();
+		ConfigFile ConfigFile;
 
 		// General settings
 		public UserSettingsVersion Version = UserSettingsVersion.Latest;
@@ -410,7 +464,6 @@ namespace UnrealGameSync
 		public bool bShowLocalTimes;
 		public bool bKeepInTray;
 		public Guid[] EnabledTools;
-		public bool bShowNetCoreInfo;
 		public int FilterIndex;
 		public UserSelectedProjectSettings? LastProject;
 		public List<UserSelectedProjectSettings> OpenProjects;
@@ -494,9 +547,21 @@ namespace UnrealGameSync
 		}
 
 		public UserSettings(FileReference InFileName, ILogger Logger)
+			: this(InFileName, TryLoad(InFileName, Logger))
 		{
-			FileName = InFileName;
+		}
+
+		static ConfigFile TryLoad(FileReference FileName, ILogger Logger)
+		{
+			ConfigFile ConfigFile = new ConfigFile();
 			ConfigFile.TryLoad(FileName, Logger);
+			return ConfigFile;
+		}
+
+		public UserSettings(FileReference InFileName, ConfigFile InConfigFile)
+		{
+			this.FileName = InFileName;
+			this.ConfigFile = InConfigFile;
 
 			// General settings
 			Version = (UserSettingsVersion)ConfigFile.GetValue("General.Version", (int)UserSettingsVersion.Initial);
@@ -528,7 +593,6 @@ namespace UnrealGameSync
 			}
 			this.EnabledTools = EnabledTools.ToArray();
 
-			bShowNetCoreInfo = ConfigFile.GetValue("General.ShowNetCoreInfo", true);
 			int.TryParse(ConfigFile.GetValue("General.FilterIndex", "0"), out FilterIndex);
 
 			string? LastProjectString = ConfigFile.GetValue("General.LastProject", null);
@@ -745,28 +809,6 @@ namespace UnrealGameSync
 			return ConfigDir;
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(UserWorkspaceSettings Settings)
-		{
-			UserWorkspaceState? State;
-			if (!WorkspaceDirToState.TryGetValue(Settings.RootDir, out State))
-			{
-				if (!UserWorkspaceState.TryLoad(Settings.RootDir, out State))
-				{
-					State = ImportWorkspaceState(Settings.RootDir, Settings.ClientName, Settings.BranchPath);
-					State.Save();
-				}
-				WorkspaceDirToState.Add(Settings.RootDir, State);
-			}
-			if (!String.Equals(Settings.ClientProjectPath, State.CurrentProjectIdentifier))
-			{
-				State = new UserWorkspaceState();
-				State.RootDir = Settings.RootDir;
-				State.CurrentProjectIdentifier = Settings.ClientProjectPath;
-				WorkspaceDirToState[Settings.RootDir] = State;
-			}
-			return State;
-		}
-
 		public UserWorkspaceSettings FindOrAddWorkspaceSettings(DirectoryReference RootDir, string? ServerAndPort, string? UserName, string ClientName, string BranchPath, string ProjectPath)
 		{
 			ProjectInfo.ValidateBranchPath(BranchPath);
@@ -782,14 +824,32 @@ namespace UnrealGameSync
 				WorkspaceDirToSettings[RootDir] = Settings;
 			}
 
-			Settings.ServerAndPort = ServerAndPort;
-			Settings.UserName = UserName;
-			Settings.ClientName = ClientName;
-			Settings.BranchPath = BranchPath;
-			Settings.ProjectPath = ProjectPath;
+			Settings.Init(ServerAndPort, UserName, ClientName, BranchPath, ProjectPath);
 			Settings.Save();
 
 			return Settings;
+		}
+
+		public UserWorkspaceState FindOrAddWorkspaceState(ProjectInfo ProjectInfo, UserWorkspaceSettings Settings)
+		{
+			UserWorkspaceState State = FindOrAddWorkspaceState(ProjectInfo.LocalRootPath, ProjectInfo.ClientName, ProjectInfo.BranchPath);
+			if (!State.IsValid(ProjectInfo))
+			{
+				State = new UserWorkspaceState();
+			}
+			State.UpdateCachedProjectInfo(ProjectInfo, Settings.LastModifiedTimeUtc);
+			return State;
+		}
+
+		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath)
+		{
+			UserWorkspaceState? State;
+			if (!UserWorkspaceState.TryLoad(RootDir, out State))
+			{
+				State = ImportWorkspaceState(RootDir, ClientName, BranchPath);
+				State.Save();
+			}
+			return State;
 		}
 
 		UserWorkspaceState ImportWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath)
@@ -818,7 +878,7 @@ namespace UnrealGameSync
 						int ChangeNumber;
 						if(int.TryParse(CurrentSync.Substring(AtIdx + 1), out ChangeNumber))
 						{
-							CurrentWorkspace.CurrentProjectIdentifier = CurrentSync.Substring(0, AtIdx);
+							CurrentWorkspace.ProjectIdentifier = CurrentSync.Substring(0, AtIdx);
 							CurrentWorkspace.CurrentChangeNumber = ChangeNumber;
 						}
 					}
@@ -845,7 +905,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				CurrentWorkspace.CurrentProjectIdentifier = WorkspaceSection.GetValue("CurrentProjectPath");
+				CurrentWorkspace.ProjectIdentifier = WorkspaceSection.GetValue("CurrentProjectPath", "");
 				CurrentWorkspace.CurrentChangeNumber = WorkspaceSection.GetValue("CurrentChangeNumber", -1);
 				CurrentWorkspace.CurrentSyncFilterHash = WorkspaceSection.GetValue("CurrentSyncFilterHash", null);
 				foreach(string AdditionalChangeNumberString in WorkspaceSection.GetValues("AdditionalChangeNumbers", new string[0]))
@@ -985,7 +1045,6 @@ namespace UnrealGameSync
 			GeneralSection.SetValues("OpenProjects", OpenProjects.Select(x => x.ToConfigEntry()).ToArray());
 			GeneralSection.SetValue("KeepInTray", bKeepInTray);
 			GeneralSection.SetValues("EnabledTools", EnabledTools);
-			GeneralSection.SetValue("ShowNetCoreInfo", bShowNetCoreInfo);
 			GeneralSection.SetValue("FilterIndex", FilterIndex);
 			GeneralSection.SetValues("RecentProjects", RecentProjects.Select(x => x.ToConfigEntry()).ToArray());
 			GeneralSection.SetValues("SyncFilter", SyncView);

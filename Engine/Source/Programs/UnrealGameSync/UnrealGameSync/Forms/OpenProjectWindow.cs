@@ -286,7 +286,7 @@ namespace UnrealGameSync
 			{
 				ILogger<WorkspaceSettings> Logger = ServiceProvider.GetRequiredService<ILogger<WorkspaceSettings>>();
 
-				ModalTask<WorkspaceSettings>? NewDetectedProjectSettings = PerforceModalTask.Execute(this, "Opening project", "Opening project, please wait...", DefaultSettings, (x, y) => DetectSettingsAsync(x, SelectedProject, Logger, y), Logger);
+				ModalTask<WorkspaceSettings>? NewDetectedProjectSettings = PerforceModalTask.Execute(this, "Opening project", "Opening project, please wait...", DefaultSettings, (x, y) => DetectSettingsAsync(x, SelectedProject, Settings, Logger, y), Logger);
 				if (NewDetectedProjectSettings != null && NewDetectedProjectSettings.Succeeded)
 				{
 					DetectedProjectSettings = NewDetectedProjectSettings.Result;
@@ -296,9 +296,9 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static async Task<WorkspaceSettings> DetectSettingsAsync(IPerforceConnection Perforce, UserSelectedProjectSettings SelectedProject, ILogger<WorkspaceSettings> Logger, CancellationToken CancellationToken)
+		public static async Task<WorkspaceSettings> DetectSettingsAsync(IPerforceConnection Perforce, UserSelectedProjectSettings SelectedProject, UserSettings UserSettings, ILogger<WorkspaceSettings> Logger, CancellationToken CancellationToken)
 		{
-			WorkspaceSettings Settings = await WorkspaceSettings.CreateAsync(Perforce, SelectedProject, Logger, CancellationToken);
+			WorkspaceSettings Settings = await WorkspaceSettings.CreateAsync(Perforce, SelectedProject, UserSettings, Logger, CancellationToken);
 			if (DeploymentSettings.OnDetectProjectSettings != null)
 			{
 				string? Message;

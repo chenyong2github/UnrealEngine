@@ -468,7 +468,7 @@ namespace UnrealGameSync
 			FileInfo FileInfo = FileName.ToFileInfo();
 			if (FileInfo.Exists)
 			{
-				Logger.LogInformation("Loading config file from {File} ({Size} bytes)", FileInfo.FullName, FileInfo.Length);
+				Logger.LogDebug("Loading config file from {File} ({Size} bytes)", FileInfo.FullName, FileInfo.Length);
 				Load(FileName);
 				return true;
 			}
@@ -478,12 +478,12 @@ namespace UnrealGameSync
 			FileInfo TempFileInfo = TempFileName.ToFileInfo();
 			if (TempFileInfo.Exists)
 			{
-				Logger.LogInformation("Loading temporary config file from {File} ({Size} bytes)", TempFileInfo.FullName, TempFileInfo.Length);
+				Logger.LogDebug("Loading temporary config file from {File} ({Size} bytes)", TempFileInfo.FullName, TempFileInfo.Length);
 				Load(TempFileName);
 				return true;
 			}
 
-			Logger.LogInformation("No existing config file at {File}", FileName);
+			Logger.LogDebug("No existing config file at {File}", FileName);
 			return false;
 		}
 

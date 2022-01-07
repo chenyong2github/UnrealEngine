@@ -1120,7 +1120,7 @@ namespace UnrealGameSync
 				TaskFlags |= ModalTaskFlags.Quiet;
 			}
 
-			ModalTask<WorkspaceSettings>? SettingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", DefaultPerforceSettings, (p, c) => OpenProjectWindow.DetectSettingsAsync(p, Project, ProjectLogger, c), ProjectLogger, TaskFlags);
+			ModalTask<WorkspaceSettings>? SettingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", DefaultPerforceSettings, (p, c) => OpenProjectWindow.DetectSettingsAsync(p, Project, Settings, ProjectLogger, c), ProjectLogger, TaskFlags);
 			if (SettingsTask == null || SettingsTask.Failed)
 			{
 				if(SettingsTask != null) CreateErrorPanel(ReplaceTabIdx, Project, SettingsTask.Error);
@@ -1184,7 +1184,7 @@ namespace UnrealGameSync
 			}
 
 			// Now that we have the project settings, we can construct the tab
-			WorkspaceControl NewWorkspace = new WorkspaceControl(this, ApiUrl, OriginalExecutableFileName, bUnstable, WorkspaceSettings, ServiceProvider, Settings, OIDCTokenManager);
+			WorkspaceControl NewWorkspace = new WorkspaceControl(this, ApiUrl, WorkspaceSettings, ServiceProvider, Settings, OIDCTokenManager);
 			
 			NewWorkspace.Parent = TabPanel;
 			NewWorkspace.Dock = DockStyle.Fill;
@@ -1260,7 +1260,7 @@ namespace UnrealGameSync
 			switch (Settings.TabLabels)
 			{
 				case TabLabels.Stream:
-					TabName = Workspace.StreamName;
+					TabName = Workspace.StreamName ?? TabName;
 					break;
 				case TabLabels.ProjectFile:
 					TabName = Workspace.SelectedFileName.FullName;

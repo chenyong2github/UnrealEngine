@@ -188,7 +188,7 @@ namespace UnrealGameSync
 			foreach (UserSelectedProjectSettings ProjectSettings in Settings.OpenProjects)
 			{
 				ILogger<WorkspaceSettings> Logger = ServiceProvider.GetRequiredService<ILogger<WorkspaceSettings>>();
-				Task<WorkspaceSettings> WorkspaceSettingsTask = Task.Run(() => WorkspaceSettings.CreateAsync(DefaultPerforceSettings, ProjectSettings, Logger, StartupCancellationSource.Token), StartupCancellationSource.Token);
+				Task<WorkspaceSettings> WorkspaceSettingsTask = Task.Run(() => WorkspaceSettings.CreateAsync(DefaultPerforceSettings, ProjectSettings, Settings, Logger, StartupCancellationSource.Token), StartupCancellationSource.Token);
 				StartupTasks.Add((ProjectSettings, new ModalTask<WorkspaceSettings>(WorkspaceSettingsTask)));
 			}
 			StartupTask = Task.WhenAll(StartupTasks.Select(x => x.Item2.Task));

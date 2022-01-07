@@ -16,27 +16,28 @@ namespace UnrealGameSync
 {
 	public class WorkspaceSettings
 	{
-		public IPerforceSettings PerforceSettings;
 		public UserSelectedProjectSettings SelectedProject { get; }
-		public ProjectInfo ProjectInfo { get; private set; }
-		public string NewSelectedProjectIdentifier;
-		public string NewProjectEditorTarget;
-		public string StreamName;
+
+		public IPerforceSettings PerforceSettings { get; }
+		public ProjectInfo ProjectInfo { get; }
+		public UserWorkspaceSettings UserWorkspaceSettings { get; }
+		public UserWorkspaceState UserWorkspaceState { get; }
+		public ConfigFile LatestProjectConfigFile { get; }
+		public ConfigFile WorkspaceProjectConfigFile { get; }
+		public IReadOnlyList<string>? WorkspaceProjectStreamFilter { get; }
+		public List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles { get; }
+
 		public DirectoryReference DataFolder => GetDataFolder(ProjectInfo.LocalRootPath);
 		public DirectoryReference CacheFolder => GetCacheFolder(ProjectInfo.LocalRootPath);
-		public ConfigFile LatestProjectConfigFile;
-		public ConfigFile WorkspaceProjectConfigFile;
-		public IReadOnlyList<string>? WorkspaceProjectStreamFilter;
-		public List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles;
 
-		public WorkspaceSettings(IPerforceSettings PerforceSettings, UserSelectedProjectSettings ProjectSettings, ProjectInfo ProjectInfo, string NewSelectedProjectIdentifier, string NewProjectEditorTarget, string StreamName, ConfigFile LatestProjectConfigFile, ConfigFile WorkspaceProjectConfigFile, IReadOnlyList<string>? WorkspaceProjectStreamFilter, List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles)
+		public WorkspaceSettings(UserSelectedProjectSettings SelectedProject, IPerforceSettings PerforceSettings, ProjectInfo ProjectInfo, UserWorkspaceSettings UserWorkspaceSettings, UserWorkspaceState UserWorkspaceState, ConfigFile LatestProjectConfigFile, ConfigFile WorkspaceProjectConfigFile, IReadOnlyList<string>? WorkspaceProjectStreamFilter, List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles)
 		{
+			this.SelectedProject = SelectedProject;
+
 			this.PerforceSettings = PerforceSettings;
-			this.SelectedProject = ProjectSettings;
 			this.ProjectInfo = ProjectInfo;
-			this.NewSelectedProjectIdentifier = NewSelectedProjectIdentifier;
-			this.NewProjectEditorTarget = NewProjectEditorTarget;
-			this.StreamName = StreamName;
+			this.UserWorkspaceSettings = UserWorkspaceSettings;
+			this.UserWorkspaceState = UserWorkspaceState;
 			this.LatestProjectConfigFile = LatestProjectConfigFile;
 			this.WorkspaceProjectConfigFile = WorkspaceProjectConfigFile;
 			this.WorkspaceProjectStreamFilter = WorkspaceProjectStreamFilter;
@@ -46,7 +47,7 @@ namespace UnrealGameSync
 		public static DirectoryReference GetDataFolder(DirectoryReference WorkspaceDir) => DirectoryReference.Combine(WorkspaceDir, ".ugs");
 		public static DirectoryReference GetCacheFolder(DirectoryReference WorkspaceDir) => DirectoryReference.Combine(WorkspaceDir, ".ugs", "cache");
 
-		public static async Task<WorkspaceSettings> CreateAsync(IPerforceSettings DefaultPerforceSettings, UserSelectedProjectSettings SelectedProject, ILogger<WorkspaceSettings> Logger, CancellationToken CancellationToken)
+		public static async Task<WorkspaceSettings> CreateAsync(IPerforceSettings DefaultPerforceSettings, UserSelectedProjectSettings SelectedProject, UserSettings UserSettings, ILogger<WorkspaceSettings> Logger, CancellationToken CancellationToken)
 		{
 			PerforceSettings PerforceSettings = Utility.OverridePerforceSettings(DefaultPerforceSettings, SelectedProject.ServerAndPort, SelectedProject.UserName);
 			using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
@@ -59,10 +60,10 @@ namespace UnrealGameSync
 			}
 
 			// Execute like a regular task
-			return await CreateAsync(Perforce, SelectedProject, Logger, CancellationToken);
+			return await CreateAsync(Perforce, SelectedProject, UserSettings, Logger, CancellationToken);
 		}
 
-		public static async Task<WorkspaceSettings> CreateAsync(IPerforceConnection DefaultConnection, UserSelectedProjectSettings SelectedProject, ILogger<WorkspaceSettings> Logger, CancellationToken CancellationToken)
+		public static async Task<WorkspaceSettings> CreateAsync(IPerforceConnection DefaultConnection, UserSelectedProjectSettings SelectedProject, UserSettings UserSettings, ILogger<WorkspaceSettings> Logger, CancellationToken CancellationToken)
 		{
 			using IDisposable LoggerScope = Logger.BeginScope("Project {SelectedProject}", SelectedProject.ToString());
 			Logger.LogInformation("Detecting settings for {Project}", SelectedProject);
@@ -164,6 +165,13 @@ namespace UnrealGameSync
 					NewSelectedClientFileName = Records[0].ClientFile;
 				}
 
+				// Make sure the drive containing the project exists, to prevent other errors down the line
+				string PathRoot = Path.GetPathRoot(NewSelectedFileName.FullName)!;
+				if (!Directory.Exists(PathRoot))
+				{
+					throw new UserErrorException($"Path '{NewSelectedFileName}' is invalid");
+				}
+
 				// Make sure the path case is correct. This can cause UBT intermediates to be out of date if the case mismatches.
 				NewSelectedFileName = FileReference.FindCorrectCase(NewSelectedFileName);
 
@@ -206,91 +214,17 @@ namespace UnrealGameSync
 
 				Logger.LogInformation("Found branch root at {RootPath}", BranchClientPath);
 
-				// Find the editor target for this project
-				string? NewProjectEditorTarget = null;
-				if (NewSelectedFileName.HasExtension(".uproject"))
-				{
-					List<FStatRecord> Records = await PerforceClient.FStatAsync(PerforceUtils.GetClientOrDepotDirectoryName(NewSelectedClientFileName) + "/Source/*Editor.Target.cs", CancellationToken).ToListAsync(CancellationToken);
+				// Read the existing workspace settings from disk, and update them with any info computed here
+				int BranchIdx = BranchClientPath.IndexOf('/', 2);
+				string BranchPath = (BranchIdx == -1) ? String.Empty : BranchClientPath.Substring(BranchIdx);
+				string ProjectPath = NewSelectedClientFileName.Substring(BranchClientPath.Length);
+				UserWorkspaceSettings UserWorkspaceSettings = UserSettings.FindOrAddWorkspaceSettings(BranchDirectoryName, PerforceSettings.ServerAndPort, PerforceSettings.UserName, PerforceSettings.ClientName!, BranchPath, ProjectPath);
 
-					FStatRecord Record = Records.FirstOrDefault(x => x.Action != FileAction.Delete || x.Action != FileAction.MoveDelete);
-					if (Record != null)
-					{
-						string DepotPath = Record.DepotFile!;
-						NewProjectEditorTarget = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(DepotPath.Substring(DepotPath.LastIndexOf('/') + 1)));
-						Logger.LogInformation("Using {TargetName} as editor target name (from {DepotPath})", NewProjectEditorTarget, DepotPath);
-					}
+				// Now compute the updated project info
+				ProjectInfo ProjectInfo = await CreateProjectInfoAsync(PerforceClient, UserWorkspaceSettings, CancellationToken);
 
-					if (NewProjectEditorTarget == null)
-					{
-						Logger.LogInformation("Couldn't find any editor targets for this project.");
-					}
-				}
-
-				string NewSelectedProjectIdentifier;
-				// Get a unique name for the project that's selected. For regular branches, this can be the depot path. For streams, we want to include the stream name to encode imports.
-				string? StreamName = await PerforceClient.GetCurrentStreamAsync(CancellationToken);
-				if (StreamName != null)
-				{
-					string ExpectedPrefix = String.Format("//{0}/", PerforceClient.Settings.ClientName);
-					if (!NewSelectedClientFileName.StartsWith(ExpectedPrefix, StringComparison.InvariantCultureIgnoreCase))
-					{
-						throw new UserErrorException($"Unexpected client path; expected '{NewSelectedClientFileName}' to begin with '{ExpectedPrefix}'");
-					}
-					string? StreamPrefix = await TryGetStreamPrefixAsync(PerforceClient, StreamName, CancellationToken);
-					if (StreamPrefix == null)
-					{
-						throw new UserErrorException("Unable to get stream prefix");
-					}
-					NewSelectedProjectIdentifier = String.Format("{0}/{1}", StreamPrefix, NewSelectedClientFileName.Substring(ExpectedPrefix.Length));
-				}
-				else
-				{
-					List<PerforceResponse<WhereRecord>> Records = await PerforceClient.TryWhereAsync(NewSelectedClientFileName, CancellationToken).Where(x => !x.Succeeded || !x.Data.Unmap).ToListAsync(CancellationToken);
-					if (!Records.Succeeded() || Records.Count != 1)
-					{
-						throw new UserErrorException($"Couldn't get depot path for {NewSelectedFileName}");
-					}
-
-					NewSelectedProjectIdentifier = Records[0].Data.DepotFile;
-
-					Match Match = Regex.Match(NewSelectedProjectIdentifier, "//([^/]+)/");
-					if (Match.Success)
-					{
-						DepotRecord Depot = await PerforceClient.GetDepotAsync(Match.Groups[1].Value, CancellationToken);
-						if (Depot.Type == "stream")
-						{
-							throw new UserErrorException($"Cannot use a legacy client ({PerforceClient.Settings.ClientName}) with a stream depot ({Depot.Depot}).");
-						}
-					}
-				}
-
-				// Figure out if it's an enterprise project. Use the synced version if we have it.
-				bool bIsEnterpriseProject = false;
-				if (NewSelectedClientFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
-				{
-					string Text;
-					if (FileReference.Exists(NewSelectedFileName))
-					{
-						Text = FileReference.ReadAllText(NewSelectedFileName);
-					}
-					else
-					{
-						PerforceResponse<PrintRecord<string[]>> ProjectLines = await PerforceClient.TryPrintLinesAsync(NewSelectedClientFileName, CancellationToken);
-						if (!ProjectLines.Succeeded)
-						{
-							throw new UserErrorException($"Unable to get contents of {NewSelectedClientFileName}");
-						}
-						Text = String.Join("\n", ProjectLines.Data.Contents!);
-					}
-					bIsEnterpriseProject = Utility.IsEnterpriseProjectFromText(Text);
-				}
-
-				// Make sure the drive containing the project exists, to prevent other errors down the line
-				string PathRoot = Path.GetPathRoot(NewSelectedFileName.FullName)!;
-				if (!Directory.Exists(PathRoot))
-				{
-					throw new UserErrorException($"Path '{NewSelectedFileName}' is invalid");
-				}
+				// Update the cached workspace state
+				UserWorkspaceState UserWorkspaceState = UserSettings.FindOrAddWorkspaceState(ProjectInfo, UserWorkspaceSettings);
 
 				// Read the initial config file
 				List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles = new List<KeyValuePair<FileReference, DateTime>>();
@@ -300,13 +234,7 @@ namespace UnrealGameSync
 				ConfigFile WorkspaceProjectConfigFile = await WorkspaceUpdate.ReadProjectConfigFile(BranchDirectoryName, NewSelectedFileName, Logger);
 				IReadOnlyList<string>? WorkspaceProjectStreamFilter = await WorkspaceUpdate.ReadProjectStreamFilter(PerforceClient, WorkspaceProjectConfigFile, Logger, CancellationToken);
 
-				int BranchIdx = BranchClientPath.IndexOf('/', 2);
-				string BranchPath = (BranchIdx == -1) ? String.Empty : BranchClientPath.Substring(BranchIdx);
-				string ProjectPath = NewSelectedClientFileName.Substring(BranchClientPath.Length);
-
-				ProjectInfo ProjectInfo = new ProjectInfo(BranchDirectoryName, PerforceSettings.ClientName!, BranchPath, ProjectPath, StreamName, NewSelectedProjectIdentifier, bIsEnterpriseProject);
-
-				WorkspaceSettings WorkspaceSettings = new WorkspaceSettings(PerforceSettings, SelectedProject, ProjectInfo, NewSelectedProjectIdentifier, NewProjectEditorTarget!, StreamName!, LatestProjectConfigFile, WorkspaceProjectConfigFile, WorkspaceProjectStreamFilter, LocalConfigFiles);
+				WorkspaceSettings WorkspaceSettings = new WorkspaceSettings(SelectedProject, PerforceSettings, ProjectInfo, UserWorkspaceSettings, UserWorkspaceState, LatestProjectConfigFile, WorkspaceProjectConfigFile, WorkspaceProjectStreamFilter, LocalConfigFiles);
 				DirectoryReference.CreateDirectory(WorkspaceSettings.DataFolder);
 				DirectoryReference.CreateDirectory(WorkspaceSettings.CacheFolder);
 
@@ -316,6 +244,71 @@ namespace UnrealGameSync
 			{
 				PerforceClient?.Dispose();
 			}
+		}
+
+		static async Task<ProjectInfo> CreateProjectInfoAsync(IPerforceConnection PerforceClient, UserWorkspaceSettings Settings, CancellationToken CancellationToken)
+		{
+			string? StreamName = await PerforceClient.GetCurrentStreamAsync(CancellationToken);
+
+			// Get a unique name for the project that's selected. For regular branches, this can be the depot path. For streams, we want to include the stream name to encode imports.
+			string NewSelectedProjectIdentifier;
+			if (StreamName != null)
+			{
+				string ExpectedPrefix = String.Format("//{0}/", PerforceClient.Settings.ClientName);
+				if (!Settings.ClientProjectPath.StartsWith(ExpectedPrefix, StringComparison.InvariantCultureIgnoreCase))
+				{
+					throw new UserErrorException($"Unexpected client path; expected '{Settings.ClientProjectPath}' to begin with '{ExpectedPrefix}'");
+				}
+				string? StreamPrefix = await TryGetStreamPrefixAsync(PerforceClient, StreamName, CancellationToken);
+				if (StreamPrefix == null)
+				{
+					throw new UserErrorException("Unable to get stream prefix");
+				}
+				NewSelectedProjectIdentifier = String.Format("{0}/{1}", StreamPrefix, Settings.ClientProjectPath.Substring(ExpectedPrefix.Length));
+			}
+			else
+			{
+				List<PerforceResponse<WhereRecord>> Records = await PerforceClient.TryWhereAsync(Settings.ClientProjectPath, CancellationToken).Where(x => !x.Succeeded || !x.Data.Unmap).ToListAsync(CancellationToken);
+				if (!Records.Succeeded() || Records.Count != 1)
+				{
+					throw new UserErrorException($"Couldn't get depot path for {Settings.ClientProjectPath}");
+				}
+
+				NewSelectedProjectIdentifier = Records[0].Data.DepotFile;
+
+				Match Match = Regex.Match(NewSelectedProjectIdentifier, "//([^/]+)/");
+				if (Match.Success)
+				{
+					DepotRecord Depot = await PerforceClient.GetDepotAsync(Match.Groups[1].Value, CancellationToken);
+					if (Depot.Type == "stream")
+					{
+						throw new UserErrorException($"Cannot use a legacy client ({PerforceClient.Settings.ClientName}) with a stream depot ({Depot.Depot}).");
+					}
+				}
+			}
+
+			// Figure out if it's an enterprise project. Use the synced version if we have it.
+			bool bIsEnterpriseProject = false;
+			if (Settings.ClientProjectPath.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+			{
+				string Text;
+				if (FileReference.Exists(Settings.LocalProjectPath))
+				{
+					Text = FileReference.ReadAllText(Settings.LocalProjectPath);
+				}
+				else
+				{
+					PerforceResponse<PrintRecord<string[]>> ProjectLines = await PerforceClient.TryPrintLinesAsync(Settings.ClientProjectPath, CancellationToken);
+					if (!ProjectLines.Succeeded)
+					{
+						throw new UserErrorException($"Unable to get contents of {Settings.ClientProjectPath}");
+					}
+					Text = String.Join("\n", ProjectLines.Data.Contents!);
+				}
+				bIsEnterpriseProject = Utility.IsEnterpriseProjectFromText(Text);
+			}
+
+			return new ProjectInfo(Settings.RootDir, Settings.ClientName, Settings.BranchPath, Settings.ProjectPath, StreamName, NewSelectedProjectIdentifier, bIsEnterpriseProject);
 		}
 
 		static async Task<List<IPerforceSettings>> FilterClients(List<ClientsRecord> Clients, FileReference NewSelectedFileName, IPerforceSettings DefaultPerforceSettings, string? HostName, ILogger Logger, CancellationToken CancellationToken)

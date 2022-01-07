@@ -215,44 +215,17 @@ namespace UnrealGameSync
 
 		bool bUserHasOpenIssues = false;
 
-		public UserSelectedProjectSettings SelectedProject
-		{
-			get;
-			private set;
-		}
+		public UserSelectedProjectSettings SelectedProject { get; }
 
-		public FileReference SelectedFileName
-		{
-			get;
-			private set;
-		}
-
-		string SelectedProjectIdentifier;
-
-		public DirectoryReference BranchDirectoryName
-		{
-			get;
-			private set;
-		}
-
-		public string StreamName
-		{
-			get;
-			private set;
-		}
-
-		public string ClientName
-		{
-			get;
-			private set;
-		}
+		public FileReference SelectedFileName => ProjectInfo.LocalFileName;
+		string SelectedProjectIdentifier => ProjectInfo.ProjectIdentifier;
+		public DirectoryReference BranchDirectoryName => ProjectInfo.LocalRootPath;
+		public string? StreamName => ProjectInfo.StreamName;
+		public string ClientName => ProjectInfo.ClientName;
 
 		SynchronizationContext MainThreadSynchronizationContext;
 		bool bIsDisposing;
 
-		bool bUnstable;
-		string EditorTargetName;
-		bool bIsEnterpriseProject;
 		JupiterMonitor JupiterMonitor;
 		PerforceMonitor PerforceMonitor;
 		Workspace Workspace;
@@ -283,8 +256,6 @@ namespace UnrealGameSync
 		List<KeyValuePair<string, string>> BadgeNameAndGroupPairs = new List<KeyValuePair<string, string>>();
 		Dictionary<string, Size> BadgeLabelToSize = new Dictionary<string, Size>();
 		List<ServiceBadgeInfo> ServiceBadges = new List<ServiceBadgeInfo>();
-
-		string OriginalExecutableFileName;
 
 		NotificationWindow NotificationWindow;
 
@@ -319,7 +290,7 @@ namespace UnrealGameSync
 		// Placeholder text that is in the control and cleared when the user starts editing.
 		static string AuthorFilterPlaceholderText = "<username>";
 
-		public WorkspaceControl(IWorkspaceControlOwner InOwner, string? InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, WorkspaceSettings WorkspaceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, OIDCTokenManager? InOidcTokenManager)
+		public WorkspaceControl(IWorkspaceControlOwner InOwner, string? InApiUrl, WorkspaceSettings WorkspaceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, OIDCTokenManager? InOidcTokenManager)
 		{
 			InitializeComponent();
 
@@ -328,15 +299,13 @@ namespace UnrealGameSync
 			Owner = InOwner;
 			ApiUrl = InApiUrl;
 			DataFolder = WorkspaceSettings.DataFolder;
-			OriginalExecutableFileName = InOriginalExecutableFileName;
-			bUnstable = bInUnstable;
 			ServiceProvider = InServiceProvider;
 			Logger = InServiceProvider.GetRequiredService<ILogger<WorkspaceControl>>();
 			PerforceSettings = WorkspaceSettings.PerforceSettings;
 			ProjectInfo = WorkspaceSettings.ProjectInfo;
 			Settings = InSettings;
-			this.WorkspaceSettings = InSettings.FindOrAddWorkspaceSettings(ProjectInfo.LocalRootPath, PerforceSettings.ServerAndPort, PerforceSettings.UserName, ProjectInfo.ClientName, ProjectInfo.BranchPath, ProjectInfo.ProjectPath);
-			WorkspaceState = InSettings.FindOrAddWorkspaceState(this.WorkspaceSettings);
+			this.WorkspaceSettings = WorkspaceSettings.UserWorkspaceSettings;
+			this.WorkspaceState = WorkspaceSettings.UserWorkspaceState;
 
 			string ProjectPath = Regex.Replace(WorkspaceSettings.ProjectInfo.ClientFileName, "^//[^/]+/", "");
 			ProjectSettings = InSettings.FindOrAddProjectSettings(WorkspaceSettings.ProjectInfo.LocalRootPath, ProjectPath);
@@ -385,25 +354,7 @@ namespace UnrealGameSync
 
 			// Commit all the new project info
 			IPerforceSettings PerforceClientSettings = WorkspaceSettings.PerforceSettings;
-			ClientName = PerforceClientSettings.ClientName!;
 			SelectedProject = WorkspaceSettings.SelectedProject;
-			SelectedProjectIdentifier = WorkspaceSettings.NewSelectedProjectIdentifier;
-			SelectedFileName = WorkspaceSettings.ProjectInfo.LocalFileName;
-			EditorTargetName = WorkspaceSettings.NewProjectEditorTarget;
-			bIsEnterpriseProject = WorkspaceSettings.ProjectInfo.bIsEnterpriseProject;
-			StreamName = WorkspaceSettings.StreamName;
-
-			// Update the branch directory
-			BranchDirectoryName = WorkspaceSettings.ProjectInfo.LocalRootPath;
-
-			// Check if we've the project we've got open in this workspace is the one we're actually synced to
-			int CurrentChangeNumber = -1;
-			string? CurrentSyncFilterHash = null;
-			if (String.Compare(WorkspaceState.CurrentProjectIdentifier, SelectedProjectIdentifier, true) == 0)
-			{
-				CurrentChangeNumber = WorkspaceState.CurrentChangeNumber;
-				CurrentSyncFilterHash = WorkspaceState.CurrentSyncFilterHash;
-			}
 
 			// Figure out which API server to use
 			string? NewApiUrl;
@@ -3040,26 +2991,6 @@ namespace UnrealGameSync
 			}
 		}
 
-		// returns the default editor target name if not syncing pcbs or Target isn't specified
-		private string TryGetEditorNameFromArchive()
-		{
-			if(ShouldSyncPrecompiledEditor)
-			{
-				List<IArchiveInfo> Archives = GetSelectedArchives(PerforceMonitor.AvailableArchives);
-				foreach(IArchiveInfo Archive in Archives)
-				{
-					if(Archive.Type == IArchiveInfo.EditorArchiveType)
-					{
-						if(Archive.Target != null)
-						{
-							return Archive.Target;
-						}
-					}
-				}
-			}
-			return EditorTargetName;
-		}
-
 		private bool WaitForProgramsToFinish()
 		{
 			FileReference[] ProcessFileNames = GetProcessesRunningInWorkspace();
@@ -3192,7 +3123,7 @@ namespace UnrealGameSync
 						string? Name = Config.GetValue("Name", null);
 						string? Pattern = Config.GetValue("Pattern", null);
 
-						if(Name != null && Pattern != null)
+						if(Name != null && Pattern != null && StreamName != null)
 						{
 							string? DepotName;
 							if (PerforceUtils.TryGetDepotName(StreamName, out DepotName))
