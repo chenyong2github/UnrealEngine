@@ -830,6 +830,12 @@ bool FWmfMediaStreamSink::IsVideoSampleQueueFull() const
 
 void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 {
+	// CopyTextureAndEnqueueSample might get called after we have shutdown, so check first...
+	if (!CurrentMediaType.IsValid())
+	{
+		return;
+	}
+
 	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::CopyTextureAndEnqueueSample Queue Size: %d"), VideoSampleQueue->Num());
 
 	if (IsVideoSampleQueueFull())
