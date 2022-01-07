@@ -269,7 +269,7 @@ namespace FbxAnimUtils
 			FbxAnimCurveNode* CurveNode = Property.GetCurveNode();
 			const FString PropertyName = UTF8_TO_TCHAR(Property.GetName());
 			const EFbxType PropertyType = Property.GetPropertyDataType().GetType();
-			const bool bIsTypeSupported = FbxAnimUtils::IsSupportedCurveDataType(PropertyType) || eFbxString == PropertyType;
+			const bool bIsTypeSupported = FbxAnimUtils::IsSupportedCurveDataType(PropertyType) || PropertyType == eFbxString || PropertyType == eFbxEnum;
 
 			if (Property.GetFlag(FbxPropertyFlags::eUserDefined) && bIsTypeSupported 
 				&& (bImportAllCustomAttributes || CustomAttributeNamesToImport.Contains(PropertyName)))
