@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Rigs/RigHierarchyDefines.h"
 #include "RigSpacePickerBakeSettings.generated.h"
 
 USTRUCT(BlueprintType)
