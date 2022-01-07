@@ -144,7 +144,7 @@ public:
 		EditCondition = "ProjectionType == EUVProjectionMethod::ExpMap", EditConditionHides))
 	int ExpMapSmoothingSteps = 0;
 
-	/** Smoothing parameter, larger values result in faster smoothing in each step. */
+	/** Smoothing parameter; larger values result in faster smoothing in each step. */
 	UPROPERTY(EditAnywhere, Category = "ExpMap Projection", meta = (DisplayName = "Smoothing Alpha", UIMin = "0", UIMax = "1",
 		EditCondition = "ProjectionType == EUVProjectionMethod::ExpMap", EditConditionHides))
 	float ExpMapSmoothingAlpha = 0.25f;
@@ -295,7 +295,7 @@ protected:
 	UPROPERTY()
 	TObjectPtr<USingleClickInputBehavior> ClickToSetPlaneBehavior;
 
-	void UpdatePlaneFromClick(const FVector3d& Position, const FVector3d& Normal, bool bTransationOnly);
+	void UpdatePlaneFromClick(const FVector3d& Position, const FVector3d& Normal, bool bTransitionOnly);
 
 	//
 	// Support for Action Buttons

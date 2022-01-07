@@ -418,11 +418,11 @@ void UUVProjectionTool::OnMeshUpdated(UMeshOpPreviewWithBackgroundCompute* Previ
 }
 
 
-void UUVProjectionTool::UpdatePlaneFromClick(const FVector3d& Position, const FVector3d& Normal, bool bTransationOnly)
+void UUVProjectionTool::UpdatePlaneFromClick(const FVector3d& Position, const FVector3d& Normal, bool bTransitionOnly)
 {
 	FFrame3d CurrentFrame(TransformProxy->GetTransform());
 	CurrentFrame.Origin = Position;
-	if (bTransationOnly == false)
+	if (bTransitionOnly == false)
 	{
 		CurrentFrame.AlignAxis(2, Normal);
 	}

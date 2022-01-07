@@ -13,7 +13,7 @@
 
 #include "ParameterizeMeshTool.generated.h"
 
-// predeclarations
+// Forward declarations
 class UDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
@@ -38,11 +38,9 @@ class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolPatchBuilderGroupLaye
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, Category = PolygroupLayers)
+	UPROPERTY(EditAnywhere, Category = "PolyGroup Layer", meta = (DisplayName = "Constrain to PolyGroups"))
 	bool bConstrainToPolygroups = false;
-
 };
-
 
 
 /**
@@ -98,11 +96,9 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UUVLayoutPreview> UVLayoutView = nullptr;
 
-protected:
 	UPROPERTY()
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
-protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 
 	void OnMethodTypeChanged();

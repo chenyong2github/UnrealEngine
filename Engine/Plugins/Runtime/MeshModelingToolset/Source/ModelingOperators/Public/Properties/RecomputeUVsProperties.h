@@ -82,20 +82,20 @@ public:
 		EditCondition = "UnwrapType == ERecomputeUVsPropertiesUnwrapType::ExpMap || UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging"))
 	int SmoothingSteps = 5;
 
-	/** Smoothing parameter, larger values result in faster smoothing in each step. This is only enabled if the Unwrap Type is set to ExpMap or Island Merging. */
+	/** Smoothing parameter; larger values result in faster smoothing in each step. This is only enabled if the Unwrap Type is set to ExpMap or Island Merging. */
 	UPROPERTY(EditAnywhere, Category = "UV Unwrap", meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0",
 		EditCondition = "UnwrapType == ERecomputeUVsPropertiesUnwrapType::ExpMap || UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging"))
 	float SmoothingAlpha = 0.25f;
 
 	/** Threshold for stretching and distortion below which island merging is allowed; larger values increase the allowable UV distortion. This is only enabled if the Unwrap Type is set to Island Merging. */
-	UPROPERTY(EditAnywhere, Category = "UV Unwrap", meta = (UIMin = "1.0", UIMax = "5.0", ClampMin = "1.0",
+	UPROPERTY(EditAnywhere, Category = "UV Unwrap", meta = (DisplayName = "Distortion Threshold", UIMin = "1.0", UIMax = "5.0", ClampMin = "1.0",
 		EditCondition = "UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging"))
-	float MergingDistortionLimit = 1.5f;
+	float MergingDistortionThreshold = 1.5f;
 
 	/** Threshold for the average face normal deviation below  which island merging is allowed. This is only enabled if the Unwrap Type is set to Island Merging. */
-	UPROPERTY(EditAnywhere, Category = "UV Unwrap", meta = (UIMin = "0.0", UIMax = "90.0", ClampMin = "0.0", ClampMax = "180.0",
+	UPROPERTY(EditAnywhere, Category = "UV Unwrap", meta = (DisplayName = "Angle Threshold", UIMin = "0.0", UIMax = "90.0", ClampMin = "0.0", ClampMax = "180.0",
 		EditCondition = "UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging"))
-	float MergingAngleLimit = 45.0f;
+	float MergingAngleThreshold = 45.0f;
 
 	/** Uniformly scale and translate UV islands collectively to pack them into the unit square, i.e. fit between 0 and 1 with no overlap. */
 	UPROPERTY(EditAnywhere, Category = "UV Layout")

@@ -10,13 +10,15 @@
 UENUM()
 enum class EParameterizeMeshUVMethod
 {
-	// keep values the same as UE::Geometry::EParamOpBackend!
-	/** Compute Automatic UVs using PatchBuilder */
+	// Keep values the same as UE::Geometry::EParamOpBackend!
+	// The order is different on purpose to have them sorted alphabetically in the UI.
+
+	/** Compute automatic UVs using the Patch Builder technique */
 	PatchBuilder = 0,
-	/** Compute Automatic UVs using XAtlas */
-	XAtlas = 1,
-	/** Compute Automatic UVs using UVAtlas */
+	/** Compute automatic UVs using the UVAtlas technique */
 	UVAtlas = 2,
+	/** Compute automatic UVs using the XAtlas technique */
+	XAtlas = 1,
 };
 
 
@@ -25,8 +27,8 @@ class MODELINGOPERATORSEDITORONLY_API UParameterizeMeshToolProperties : public U
 {
 	GENERATED_BODY()
 public:
-	/** Automatic UV Generation technique to use */
-	UPROPERTY(EditAnywhere, Category = Options)
+	/** Automatic UV generation technique to use */
+	UPROPERTY(EditAnywhere, Category = AutoUV)
 	EParameterizeMeshUVMethod Method = EParameterizeMeshUVMethod::PatchBuilder;
 };
 
@@ -39,13 +41,13 @@ class MODELINGOPERATORSEDITORONLY_API UParameterizeMeshToolUVAtlasProperties : p
 {
 	GENERATED_BODY()
 public:
-	/** Maximum amount of stretch, from none to any.  If zero stretch is specified each triangle will likely be its own chart */
+	/** Maximum amount of stretch, from none to unbounded. If zero stretch is specified, each triangle will likely be its own UV island. */
 	UPROPERTY(EditAnywhere, Category = UVAtlas, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float ChartStretch = 0.11f;
+	float IslandStretch = 0.11f;
 
-	/** Hint at number of Charts. 0 (Default) means UVAtlas will decide */
+	/** Hint at number of UV islands. The default of 0 means it is determined automatically. */
 	UPROPERTY(EditAnywhere, Category = UVAtlas, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "10000"))
-	int NumCharts = 0;
+	int NumIslands = 0;
 };
 
 
@@ -54,7 +56,7 @@ class MODELINGOPERATORSEDITORONLY_API UParameterizeMeshToolXAtlasProperties : pu
 {
 	GENERATED_BODY()
 public:
-	/** Number of solve iterations. Higher values generally result in better charts. */
+	/** Number of solve iterations; higher values generally result in better UV islands. */
 	UPROPERTY(EditAnywhere, Category = XAtlas, meta = (UIMin = "1", UIMax = "10", ClampMin = "1", ClampMax = "1000"))
 	int MaxIterations = 1;
 };
@@ -65,36 +67,35 @@ class MODELINGOPERATORSEDITORONLY_API UParameterizeMeshToolPatchBuilderPropertie
 {
 	GENERATED_BODY()
 public:
-	/** Number of initial patches mesh will be split into before computing island merging */
-	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "1", UIMax = "1000", ClampMin = "1", ClampMax = "99999999"))
+	/** Number of initial patches the mesh will be split into before island merging. */
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (UIMin = "1", UIMax = "1000", ClampMin = "1", ClampMax = "99999999"))
 	int InitialPatches = 100;
 
-	/** This parameter controls alignment of the initial patches to creases in the mesh */
-	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.01", ClampMax = "100.0"))
+	/** Alignment of the initial patches to creases in the mesh.*/
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.01", ClampMax = "100.0"))
 	float CurvatureAlignment = 1.0f;
 
-	/** Distortion/Stretching Threshold for island merging - larger values increase the allowable UV stretching */
-	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "1.0", UIMax = "5.0", ClampMin = "1.0"))
-	float MergingThreshold = 1.5f;
+	/** Threshold for stretching and distortion below which island merging is allowed; larger values increase the allowable UV distortion. */
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (DisplayName = "Distortion Threshold", UIMin = "1.0", UIMax = "5.0", ClampMin = "1.0"))
+	float MergingDistortionThreshold = 1.5f;
 
-	/** UV islands will not be merged if their average face normals deviate by larger than this amount */
-	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "0.0", UIMax = "90.0", ClampMin = "0.0", ClampMax = "180.0"))
-	float MaxAngleDeviation = 45.0f;
+	/** Threshold for the average face normal deviation below which island merging is allowed. */
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (DisplayName = "Angle Threshold", UIMin = "0.0", UIMax = "90.0", ClampMin = "0.0", ClampMax = "180.0"))
+	float MergingAngleThreshold = 45.0f;
 
-	/** Number of smoothing steps to apply in the ExpMap UV Generation method (Smoothing slightly increases distortion but produces more stable results) */
-	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "0", UIMax = "25", ClampMin = "0", ClampMax = "1000"))
+	/** Number of smoothing steps to apply; this slightly increases distortion but produces more stable results. */
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (UIMin = "0", UIMax = "25", ClampMin = "0", ClampMax = "1000"))
 	int SmoothingSteps = 5;
 
-	/** Smoothing parameter, larger values result in faster smoothing in each step */
-	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0"))
+	/** Smoothing parameter; larger values result in faster smoothing in each step. */
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0"))
 	float SmoothingAlpha = 0.25f;
 
+	/** Automatically pack result UVs into the unit square, i.e. fit between 0 and 1 with no overlap. */
+	UPROPERTY(EditAnywhere, Category = PatchBuilder)
+	bool bRepack = true;
 
-	/** If enabled, result UVs are automatically packed into the standard UV 0-1 square */
-	UPROPERTY(EditAnywhere, Category = "PatchBuilder")
-	bool bAutoPack = true;
-
-	/** Target texture resolution used for UV packing, which determines gutter size */
-	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096", EditCondition = bAutoPack))
+	/** Expected resolution of the output textures; this controls spacing left between UV islands to avoid interpolation artifacts. This is only enabled when Repack is enabled. */
+	UPROPERTY(EditAnywhere, Category = PatchBuilder, meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096", EditCondition = bAutoPack))
 	int TextureResolution = 1024;
 };

@@ -461,18 +461,18 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshOperatorFactory::MakeNewOperat
 		Op->Method = EParamOpBackend::PatchBuilder;
 		Op->InitialPatchCount = PatchBuilderProperties->InitialPatches;
 		Op->PatchCurvatureAlignmentWeight = PatchBuilderProperties->CurvatureAlignment;
-		Op->PatchMergingMetricThresh = PatchBuilderProperties->MergingThreshold;
-		Op->PatchMergingAngleThresh = PatchBuilderProperties->MaxAngleDeviation;
+		Op->PatchMergingMetricThresh = PatchBuilderProperties->MergingDistortionThreshold;
+		Op->PatchMergingAngleThresh = PatchBuilderProperties->MergingAngleThreshold;
 		Op->ExpMapNormalSmoothingSteps = PatchBuilderProperties->SmoothingSteps;
 		Op->ExpMapNormalSmoothingAlpha = PatchBuilderProperties->SmoothingAlpha;
-		Op->bEnablePacking = PatchBuilderProperties->bAutoPack;
+		Op->bEnablePacking = PatchBuilderProperties->bRepack;
 		Op->Width = PatchBuilderProperties->TextureResolution;
 		Op->Height = PatchBuilderProperties->TextureResolution;
 		break;
 	case EParameterizeMeshUVMethod::UVAtlas:
 		Op->Method = EParamOpBackend::UVAtlas;		
-		Op->Stretch = UVAtlasProperties->ChartStretch;
-		Op->NumCharts = UVAtlasProperties->NumCharts;
+		Op->Stretch = UVAtlasProperties->IslandStretch;
+		Op->NumCharts = UVAtlasProperties->NumIslands;
 		break;
 	case EParameterizeMeshUVMethod::XAtlas:
 		Op->Method = EParamOpBackend::XAtlas;
