@@ -1890,7 +1890,12 @@ class Config(object):
 
         self.file_path = get_absolute_config_path(file_path)
         self.init_switchboard_settings()
-        self.init_project_settings({ "project_name": self.file_path.stem })
+        self.init_project_settings(
+            { 
+                "project_name": self.file_path.stem, 
+                "uproject": uproject, 
+                "engine_dir": engine_dir,
+            } | p4_settings)
         self.init_unreal_insights()
         self.init_muserver()
 
@@ -1930,7 +1935,7 @@ class Config(object):
                 data.get('uproject', ''),
                 tool_tip="Path to uProject"
             ),
-            "engine_dir": FilePathSetting(
+            "engine_dir": DirectoryPathSetting(
                 "engine_dir",
                 "Engine Directory",
                 data.get('engine_dir', ''),

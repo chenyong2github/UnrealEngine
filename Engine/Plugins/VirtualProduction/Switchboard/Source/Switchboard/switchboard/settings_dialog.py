@@ -37,7 +37,10 @@ class SettingsDialog(QtCore.QObject):
         dialog_layout = QtWidgets.QVBoxLayout(self.ui)
         dialog_layout.setContentsMargins(2, 2, 2, 2)
         self.ui.setWindowTitle("Settings")
-        self.ui.finished.connect(self._on_finished)
+        self.ui.finished.connect(
+            lambda result, config=config:
+                self._on_finished(result, config)
+        )
 
         self._create_search_area(dialog_layout)
         self.general_settings_list = [
@@ -99,7 +102,9 @@ class SettingsDialog(QtCore.QObject):
         self._search_settings_again()
         return
 
-    def _on_finished(self, result: int):
+    def _on_finished(self, result: int, config: Config):
+        config.P4_ENABLED.signal_setting_changed.disconnect(self._on_source_control_setting_changed)
+        
         # Currently, the only way to dismiss the settings dialog is by using
         # the close button as opposed to ok/cancel buttons, so we intercept the
         # close to issue a warning if the config path was changed and we're
@@ -193,7 +198,7 @@ class SettingsDialog(QtCore.QObject):
         self._config_paths = config.list_config_paths()
         self.set_config_path(SETTINGS.CONFIG)
         
-        return self.ui.config_path_layout;
+        return self.ui.config_path_layout
         
     def _create_switchboard_settings(self, settings: UserSettings, config: Config):
         self.ui.switchboard_settings_group = CollapsibleGroupBox()
@@ -241,7 +246,16 @@ class SettingsDialog(QtCore.QObject):
         )
         form_layout = QtWidgets.QFormLayout(self.ui.source_control_settings_group)
         layout.addWidget(self.ui.source_control_settings_group)
-        self._create_settings_section(config.source_control_settings, form_layout)
+
+        # Source control setting UI is fully enabled / disabled depending on P4_ENABLED
+        self.ui.source_control_settings_group.setChecked(config.P4_ENABLED.get_value())
+        config.P4_ENABLED.signal_setting_changed.connect(self._on_source_control_setting_changed)
+        settings_to_show = {key: setting for (key, setting) in config.source_control_settings.items() if setting != config.P4_ENABLED}
+        
+        self._create_settings_section(settings_to_show, form_layout)
+        
+    def _on_source_control_setting_changed(self, old_value: bool, new_value: bool):
+        self.ui.source_control_settings_group.setChecked(new_value)
     
     def _create_multi_user_server_settings(self, config: Config):
         self.ui.multi_user_settings = CollapsibleGroupBox()
