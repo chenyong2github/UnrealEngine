@@ -84,7 +84,6 @@ protected:
 
 	void AddSpawnOwnershipMenu(FMenuBuilder& MenuBuilder);
 	void AddSpawnLevelMenu(FMenuBuilder& MenuBuilder);
-	void AddAssignActorMenu(FMenuBuilder& MenuBuilder);
 	void AddTagMenu(FMenuBuilder& MenuBuilder);
 	void AddChangeClassMenu(FMenuBuilder& MenuBuilder);
 

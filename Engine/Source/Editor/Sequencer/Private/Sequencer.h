@@ -528,8 +528,6 @@ public:
 	void AddActorsToBinding(FGuid ObjectBinding, const TArray<AActor*>& InActors);
 	void ReplaceBindingWithActors(FGuid ObjectBinding, const TArray<AActor*>& InActors);
 	void RemoveActorsFromBinding(FGuid ObjectBinding, const TArray<AActor*>& InActors);
-	void RemoveAllBindings(FGuid ObjectBinding);
-	void RemoveInvalidBindings(FGuid ObjectBinding);
 
 	/** Called when a user executes the delete node menu item */
 	void DeleteNode(TSharedRef<FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState);
