@@ -190,9 +190,12 @@ void UVCamComponent::CheckForErrors()
 {
 	Super::CheckForErrors();
 
-	if (!GetTargetCamera())
+	if (!HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
 	{
-		UE_LOG(LogVCamComponent, Error, TEXT("Attached Parent should be a CineCamera derived component."));
+		if (!GetTargetCamera())
+		{
+			UE_LOG(LogVCamComponent, Error, TEXT("Attached Parent should be a CineCamera derived component."));
+		}
 	}
 }
 
