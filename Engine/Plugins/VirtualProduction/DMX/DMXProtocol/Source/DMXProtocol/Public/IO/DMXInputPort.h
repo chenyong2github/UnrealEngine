@@ -44,8 +44,13 @@ public:
 	/** Creates a dmx input port config that corresponds to the port */
 	FDMXInputPortConfig MakeInputPortConfig() const;
 
-	/** Updates the Port to use the config of the InputPortConfig. Makes the config valid if it's invalid. */
-	void UpdateFromConfig(FDMXInputPortConfig& InputPortConfig);
+	/** 
+	 * Updates the Port to use the config of the InputPortConfig. Makes the config valid if it's invalid. 
+	 *
+	 * @param InOutInputPortConfig					The config that is applied. May be changed to a valid config.
+	 * @param bForceUpdateRegistrationWithProtocol	Optional: Forces the port to update its registration with the protocol (useful for runtime changes)
+	 */
+	void UpdateFromConfig(FDMXInputPortConfig& InOutInputPortConfig, bool bForceUpdateRegistrationWithProtocol = false);
 
 	//~ Begin DMXPort Interface 
 	virtual bool IsRegistered() const override;

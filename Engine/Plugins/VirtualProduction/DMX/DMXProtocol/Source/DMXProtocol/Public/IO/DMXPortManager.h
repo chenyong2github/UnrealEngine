@@ -98,8 +98,11 @@ public:
 	/** Returns the output port matching the port guid, checked version. */
 	FDMXOutputPortSharedRef FindOutputPortByGuidChecked(const FGuid& PortGuid) const;
 
-	/** Updates ports from protocol settings. Useful when project settings were modified in some way */
-	void UpdateFromProtocolSettings();
+	/** 
+	 * Updates ports from protocol settings. Useful when project settings were modified in some way. 
+	 * If optional bForceUpdateRegistrationWithProtocol is set to true, ports will reregister with the protocol.
+	*/
+	void UpdateFromProtocolSettings(bool bForceUpdateRegistrationWithProtocol = false);
 
 	/** 
 	 * Thread-safe: Suspends the protocols irrevocably, and with it all sending and receiving of DMX via the protocols. 

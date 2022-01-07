@@ -29,7 +29,8 @@
 		FDMXOutputPortConfigParams OutputPortConfigParams = FDMXOutputPortConfigParams(OldOutputPortConfig); \
 		OutputPortConfigParams.MemberName = Value; \
 		FDMXOutputPortConfig NewOutputPortConfig((*OutputPortPtr)->GetPortGuid(), OutputPortConfigParams); \
-		(*OutputPortPtr)->UpdateFromConfig(NewOutputPortConfig); \
+		constexpr bool bForceUpdateRegistrationWithProtocol = true; \
+		(*OutputPortPtr)->UpdateFromConfig(NewOutputPortConfig, bForceUpdateRegistrationWithProtocol); \
 	} \
 }
 
@@ -426,10 +427,13 @@ FDMXOutputPortConfig FDMXOutputPort::MakeOutputPortConfig() const
 	return FDMXOutputPortConfig(PortGuid, Params);
 }
 
-void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig)
+void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& InOutOutputPortConfig, bool bForceUpdateRegistrationWithProtocol)
 {	
 	// Need a valid config for the port
-	OutputPortConfig.MakeValid();
+	InOutOutputPortConfig.MakeValid();
+
+	// Avoid further changes to the config
+	const FDMXOutputPortConfig& OutputPortConfig = InOutOutputPortConfig;
 
 	// Can only use configs that correspond to project settings
 	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
@@ -439,8 +443,13 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig)
 	checkf(bConfigIsInProjectSettings, TEXT("Can only use configs with a guid that corresponds to a config in project settings"));
 
 	// Find if the port needs update its registration with the protocol
-	const bool bNeedsUpdateRegistration = [this, &OutputPortConfig]()
+	const bool bNeedsUpdateRegistration = [this, &OutputPortConfig, bForceUpdateRegistrationWithProtocol]()
 	{
+		if (bForceUpdateRegistrationWithProtocol)
+		{
+			return true;
+		}
+
 		if (IsRegistered() != CommunicationDeterminator.IsSendDMXEnabled())
 		{
 			return true;

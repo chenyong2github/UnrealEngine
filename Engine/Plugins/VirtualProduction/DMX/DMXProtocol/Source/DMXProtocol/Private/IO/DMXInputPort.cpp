@@ -29,7 +29,8 @@ DECLARE_CYCLE_STAT(TEXT("Input Port Tick"), STAT_DMXInputPortTick, STATGROUP_DMX
 		FDMXInputPortConfigParams InputPortConfigParams = FDMXInputPortConfigParams(OldInputPortConfig); \
 		InputPortConfigParams.MemberName = Value; \
 		FDMXInputPortConfig NewInputPortConfig((*InputPortPtr)->GetPortGuid(), InputPortConfigParams); \
-		(*InputPortPtr)->UpdateFromConfig(NewInputPortConfig); \
+		constexpr bool bForceUpdateRegistrationWithProtocol = true; \
+		(*InputPortPtr)->UpdateFromConfig(NewInputPortConfig, bForceUpdateRegistrationWithProtocol); \
 	} \
 }
 
@@ -282,14 +283,19 @@ FDMXInputPortConfig FDMXInputPort::MakeInputPortConfig() const
 	Params.LocalUniverseStart = LocalUniverseStart;
 	Params.NumUniverses = NumUniverses;
 	Params.ExternUniverseStart = ExternUniverseStart;
+	Params.PriorityStrategy = PriorityStrategy;
+	Params.Priority = Priority;
 
 	return FDMXInputPortConfig(PortGuid, Params);
 }
 
-void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
+void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InOutInputPortConfig, bool bForceUpdateRegistrationWithProtocol)
 {
 	// Need a valid config for the port
-	InputPortConfig.MakeValid();
+	InOutInputPortConfig.MakeValid();
+
+	// Avoid further changes to the config
+	const FDMXInputPortConfig& InputPortConfig = InOutInputPortConfig;
 
 	// Can only use configs that correspond to project settings
 	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
@@ -299,8 +305,13 @@ void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 	checkf(bConfigIsInProjectSettings, TEXT("Can only use configs with a guid that corresponds to a config in project settings"));
 
 	// Find if the port needs update its registration with the protocol
-	const bool bNeedsUpdateRegistration = [this, &InputPortConfig]()
+	const bool bNeedsUpdateRegistration = [this, &InputPortConfig, bForceUpdateRegistrationWithProtocol]()
 	{
+		if (bForceUpdateRegistrationWithProtocol)
+		{
+			return true;
+		}
+
 		if (IsRegistered() != bReceiveDMXEnabled)
 		{
 			return true;
@@ -347,6 +358,7 @@ void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 	{
 		Register();
 	}
+
 
 	OnPortUpdated.Broadcast();
 }
