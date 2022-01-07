@@ -58,7 +58,6 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	ToolkitCommands = InToolkitCommands;
 	bPendingRefresh = false;
 	bParameterItemsPendingChange = false;
-	const FVector2D ViewOptionsShadowOffset = FNiagaraEditorStyle::Get().GetVector("NiagaraEditor.Stack.ViewOptionsShadowOffset");
 	ParametersWithNamespaceModifierRenamePending = MakeShared<TArray<FName>>();
 
 	ParameterPanelViewModel->GetOnRequestRefreshDelegate().BindSP(this, &SNiagaraParameterPanel::Refresh);
