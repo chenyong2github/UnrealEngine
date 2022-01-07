@@ -143,20 +143,16 @@ bool UIKRigController::DoesBoneHaveSettings(const FName& BoneName) const
 	return false;
 }
 
-bool UIKRigController::AddRetargetChain(const FName& ChainName, const FName& StartBone, const FName& EndBone) const
+void UIKRigController::AddRetargetChain(const FName& ChainName, const FName& StartBone, const FName& EndBone) const
 {
-	if (Asset->GetRetargetChainByName(ChainName))
-	{
-		return false; // bone chain already exists with that name
-	}
+	FName UniqueChainName = GetUniqueRetargetChainName(ChainName);
 
 	FScopedTransaction Transaction(LOCTEXT("AddRetargetChain_Label", "Add Retarget Chain"));
 	Asset->Modify();
 	
-	Asset->RetargetDefinition.BoneChains.Emplace(ChainName, StartBone, EndBone);
+	Asset->RetargetDefinition.BoneChains.Emplace(UniqueChainName, StartBone, EndBone);
 	SortRetargetChains();
 	BroadcastNeedsReinitialized();
-	return true;
 }
 
 bool UIKRigController::RemoveRetargetChain(const FName& ChainName) const
@@ -321,8 +317,87 @@ void UIKRigController::SortRetargetChains() const
 	{
 		const int32 IndexA = Asset->Skeleton.GetBoneIndexFromName(A.StartBone.BoneName);
 		const int32 IndexB = Asset->Skeleton.GetBoneIndexFromName(B.StartBone.BoneName);
+		if (IndexA == IndexB)
+		{
+			// fallback to sorting alphabetically
+			return A.ChainName.LexicalLess(B.ChainName);
+		}
 		return IndexA < IndexB;
 	});
+}
+
+FName UIKRigController::GetUniqueRetargetChainName(const FName& NameToMakeUnique) const
+{
+	if (!Asset->GetRetargetChainByName(NameToMakeUnique))
+	{
+		return NameToMakeUnique; // name is already unique
+	}
+	
+	auto IsNameBeingUsed = [this](const FName& NameToTry)->bool
+	{
+		for (const FBoneChain& Chain : Asset->RetargetDefinition.BoneChains)
+		{
+			if (Chain.ChainName == NameToTry)
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+	FString ChainName = NameToMakeUnique.ToString();
+	int8 SuffixInt = 0;
+	while (true)
+	{
+		const FName ChainNameToTry = FName(*FString::Format(TEXT("{0}_{1}"), {ChainName, FString::FromInt(SuffixInt)}));
+		if (!IsNameBeingUsed(ChainNameToTry))
+		{
+			return ChainNameToTry;
+		}
+		++SuffixInt;
+	}
+}
+
+bool UIKRigController::ValidateChain(const FName& ChainName, TSet<int32>& OutChainIndices) const
+{
+	const FBoneChain* Chain = Asset->GetRetargetChainByName(ChainName);
+	if (!Chain)
+	{
+		return false; // chain doesn't exist
+	}
+
+	const FIKRigSkeleton &Skeleton = GetIKRigSkeleton();
+	const int32 StartBoneIndex = Skeleton.GetBoneIndexFromName(Chain->StartBone.BoneName);
+	const int32 EndBoneIndex = Skeleton.GetBoneIndexFromName(Chain->EndBone.BoneName);
+	
+	if (StartBoneIndex == INDEX_NONE)
+	{
+		return false; // no start bone specified, not allowed
+	}
+
+	if (EndBoneIndex == INDEX_NONE)
+	{
+		OutChainIndices.Add(StartBoneIndex);
+		return true; // no end bone specified, this is a single bone "chain" which is fine
+	}
+
+	// this chain has a start AND an end bone so we must verify that end bone is child of start bone
+	int32 NextBoneIndex = EndBoneIndex;
+	while (true)
+	{
+		OutChainIndices.Add(NextBoneIndex);
+		if (StartBoneIndex == NextBoneIndex)
+		{
+			return true;
+		}
+		
+		NextBoneIndex = Skeleton.GetParentIndex(NextBoneIndex);
+		if (NextBoneIndex == INDEX_NONE)
+		{
+			// oops, we walked all the way past the root without finding the start bone
+			return false;
+		}
+	}
 }
 
 // -------------------------------------------------------

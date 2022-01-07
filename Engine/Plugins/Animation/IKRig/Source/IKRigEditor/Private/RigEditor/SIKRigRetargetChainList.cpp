@@ -130,6 +130,35 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 				SNew(STextBlock)
 				.Text(this, &SIKRigRetargetChainRow::GetGoalName)
 			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.Padding(3)
+		[
+			SNew(SButton)
+			.ToolTipText(LOCTEXT("DeleteChain", "Remove retarget bone chain from list."))
+			.OnClicked_Lambda([this]() -> FReply
+			{
+				const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
+				if (!Controller.IsValid())
+				{
+					return FReply::Unhandled();
+				}
+
+				UIKRigController* AssetController = Controller->AssetController;
+				AssetController->RemoveRetargetChain(ChainElement.Pin()->ChainName);
+
+				ChainList.Pin()->RefreshView();
+				return FReply::Handled();
+			})
+			.Content()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
 		];
 		return GoalWidget;
 	}
@@ -264,7 +293,7 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 			.AutoWidth()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
-			.Padding(3.0f, 0.0f)
+			.Padding(3.0f, 3.0f)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("RetargetRootLabel", "Retarget Root:"))
@@ -275,7 +304,7 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 			.AutoWidth()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
-			.Padding(3.0f, 0.0f)
+			.Padding(3.0f, 3.0f)
 			[
 				SAssignNew(RetargetRootTextBox, SEditableTextBox)
 				.Text(FText::FromName(InEditorController->AssetController->GetRetargetRoot()))
@@ -283,6 +312,26 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 				.IsReadOnly(true)
 			]
         ]
+        
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		[
+			SNew(SPositiveActionButton)
+			.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+			.Text(LOCTEXT("AddNewChainLabel", "Add New Chain"))
+			.ToolTipText(LOCTEXT("AddNewChainToolTip", "Add a new retarget bone chain."))
+			.OnClicked_Lambda([this]()
+			{
+				const UIKRigController* Controller = EditorController.Pin()->AssetController;
+				static FText NewChainText = LOCTEXT("NewRetargetChainLabel", "NewRetargetChain");
+				static FName NewChainName = FName(*NewChainText.ToString());
+				Controller->AddRetargetChain(NewChainName, NAME_None, NAME_None);
+				RefreshView();
+				return FReply::Handled();
+			})
+		]
 
         +SVerticalBox::Slot()
 		[
