@@ -353,6 +353,30 @@ void FLevelSimplificationDetails::PostLoadDeprecated()
 
 TMap<FName, TWeakObjectPtr<UWorld> > ULevel::StreamedLevelsOwningWorld;
 
+#if WITH_EDITOR
+struct FOnWorldLoadedHandler
+{
+	static void Init()
+	{
+		if (!bIsInitialized)
+		{
+			bIsInitialized = true;
+			FCoreUObjectDelegates::OnAssetLoaded.AddLambda([](UObject* Asset)
+			{
+				UWorld* World = Cast<UWorld>(Asset);
+				if (World && World->PersistentLevel)
+				{
+					World->PersistentLevel->OnLevelLoaded();
+				}
+			});
+		}
+	}
+private:
+	static bool bIsInitialized;
+};
+bool FOnWorldLoadedHandler::bIsInitialized = false;
+#endif
+
 ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	:	UObject( ObjectInitializer )
 	,	Actors()
@@ -381,10 +405,7 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	bStaticComponentsRegisteredInStreamingManager = false;
 	IncrementalComponentState = EIncrementalComponentState::Init;
 #if WITH_EDITOR
-	if (!IsTemplate())
-	{
-		FCoreUObjectDelegates::OnAssetLoaded.AddUObject(this, &ULevel::OnAssetLoaded);
-	}
+	FOnWorldLoadedHandler::Init();
 #endif
 }
 
@@ -395,16 +416,9 @@ void ULevel::Initialize(const FURL& InURL)
 
 ULevel::~ULevel()
 {
-#if WITH_EDITOR
-	if (!IsTemplate())
-	{
-		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
-	}
-#endif
 	FTickTaskManagerInterface::Get().FreeTickTaskLevel(TickTaskLevel);
 	TickTaskLevel = NULL;
 }
-
 
 void ULevel::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
@@ -2254,16 +2268,6 @@ void ULevel::CommitModelSurfaces()
 }
 
 #if WITH_EDITOR
-
-void ULevel::OnAssetLoaded(UObject* Asset)
-{
-	UWorld* World = Cast<UWorld>(Asset);
-	if (World && World->PersistentLevel == this)
-	{
-		FixupActorFolders();
-	}
-}
-
 void ULevel::FixupActorFolders()
 {
 	if (!IsUsingActorFolders())

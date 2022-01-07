@@ -1314,8 +1314,6 @@ private:
 	/** Sets the level to use or not the actor folder objects feature. */
 	void SetUseActorFoldersInternal(bool bInEnabled);
 
-	void OnAssetLoaded(UObject* Asset);
-
 	friend struct FLevelActorFoldersHelper;
 
 	/** Replace the existing LSA (if set) by spawning a new one based on this level's script blueprint */
