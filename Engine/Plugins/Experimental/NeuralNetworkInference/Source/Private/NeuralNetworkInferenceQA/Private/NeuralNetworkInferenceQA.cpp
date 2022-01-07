@@ -34,15 +34,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNeuralNetworkInferenceTest, "System.Engine.Mac
 
 bool FNeuralNetworkInferenceTest::RunTest(const FString& Parameters)
 {
-// #if WITH_EDITOR
 	if (!UNeuralNetworkInferenceQA::UnitTesting())
 	{
 		AddError(TEXT("FNeuralNetworkInferenceTest::RunTest(): UNeuralNetworkInferenceQA::UnitTesting() returned false. See log above.")); // Both AddWarning/AddError would work
 	}
-// #else //WITH_EDITOR
-// 	UE_LOG(LogNeuralNetworkInferenceQA, Warning, TEXT("@todo: FNeuralNetworkInferenceTest::RunTest() temporarily disabled on game due to JIRA"
-// 		" jira.it.epicgames.com/browse/UE-134683, UAssets not found on the Horde cooked tests."));
-// #endif //WITH_EDITOR
 	return true;
 }
 
