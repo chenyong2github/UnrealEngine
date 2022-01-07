@@ -32,7 +32,7 @@ struct SEQUENCER_API FSequencerUtilities
 	 */
 	static FName GetUniqueName(FName CandidateName, const TArray<FName>& ExistingNames);
 
-	static FGuid DoAssignActor(ISequencer* InSequencerPtr, AActor* const* InActors, int32 NumActors, FGuid InObjectBinding);
+	static FGuid DoAssignActor(ISequencer* InSequencerPtr, AActor* Actor, FGuid InObjectBinding);
 
 	static void UpdateBindingIDs(ISequencer* InSequencerPtr, UMovieSceneCompiledDataManager* InCompiledDataManagerPtr, FGuid OldGuid, FGuid NewGuid);
 

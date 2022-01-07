@@ -51,11 +51,36 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	void FixActorReferences();
 
+	/** Assigns the given actors to the binding */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	void AddActorsToBinding(const TArray<AActor*>& Actors, const FSequencerBindingProxy& ObjectBinding);
+
+	/** Replaces the binding with the given actors */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	void ReplaceBindingWithActors(const TArray<AActor*>& Actors, const FSequencerBindingProxy& ObjectBinding);
+
+	/** Removes the given actors from the binding */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	void RemoveActorsFromBinding(const TArray<AActor*>& Actors, const FSequencerBindingProxy& ObjectBinding);
+
+	/** Remove all bound actors from this track */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	void RemoveAllBindings(const FSequencerBindingProxy& ObjectBinding);
+
+	/** Remove missing objects bound to this track */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	void RemoveInvalidBindings(const FSequencerBindingProxy& ObjectBinding);
+
 private:
 
 	TSharedPtr<ISequencer> GetActiveSequencer();
 	
 	void BakeTransformInternal();
+	void AddActorsToBindingInternal();
+	void ReplaceBindingWithActorsInternal();
+	void RemoveActorsFromBindingInternal();
+	void RemoveAllBindingsInternal();
+	void RemoveInvalidBindingsInternal();
 
 	FDelegateHandle OnSequencerCreatedHandle;
 
@@ -66,4 +91,6 @@ private:
 
 	TSharedPtr<FExtender> BakeTransformMenuExtender;
 	TSharedPtr<FExtender> FixActorReferencesMenuExtender;
+
+	TSharedPtr<FExtender> AssignActorMenuExtender;
 };

@@ -295,18 +295,11 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		}
 		else
 		{
-			
-			if (ObjectClass->IsChildOf(AActor::StaticClass()))
-			{
-				FFormatNamedArguments Args;
-
-				MenuBuilder.AddSubMenu(
-					FText::Format(LOCTEXT("AssignActor", "Assign Actor"), Args),
-					FText::Format(LOCTEXT("AssignActorTooltip", "Assign an actor to this track"), Args),
-					FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::AddAssignActorMenu));
-			}
+			MenuBuilder.BeginSection("Possessable");
 
 			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ConvertToSpawnable );
+
+			MenuBuilder.EndSection();
 		}
 
 		MenuBuilder.BeginSection("Import/Export", LOCTEXT("ImportExportMenuSectionName", "Import/Export"));
@@ -541,60 +534,6 @@ void FSequencerObjectBindingNode::HandleTemplateActorClassPicked(UClass* ChosenC
 		GetSequencer().ForceEvaluate();
 	}
 }
-
-
-void FSequencerObjectBindingNode::AddAssignActorMenu(FMenuBuilder& MenuBuilder)
-{
-	TArray<AActor*> SelectedActors;
-	GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AddSelectedToBinding", "Add Selected"),
-		LOCTEXT("AddSelectedToBindingTooltip", "Add selected actors to this track"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=] { GetSequencer().AddActorsToBinding(ObjectBinding, SelectedActors); }),
-			FCanExecuteAction::CreateLambda([=] { return SelectedActors.Num() > 0; })
-			)
-		);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ReplaceBindingWithSelected", "Replace with Selected"),
-		LOCTEXT("ReplaceBindingWithSelectedTooltip", "Replace the object binding with selected actors"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=] { GetSequencer().ReplaceBindingWithActors(ObjectBinding, SelectedActors); }),
-			FCanExecuteAction::CreateLambda([=] { return SelectedActors.Num() > 0; })
-		)
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("RemoveSelectedFromBinding", "Remove Selected"),
-		LOCTEXT("RemoveSelectedFromBindingTooltip", "Remove selected actors from this track"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=] { GetSequencer().RemoveActorsFromBinding(ObjectBinding, SelectedActors); }),
-			FCanExecuteAction::CreateLambda([=] { return SelectedActors.Num() > 0; })
-		)
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("RemoveAllBindings", "Remove All"),
-		LOCTEXT("RemoveAllBindingsTooltip", "Remove all bound actors from this track"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=] { GetSequencer().RemoveAllBindings(ObjectBinding); })
-		)
-	);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("RemoveMissing", "Remove Missing"),
-		LOCTEXT("RemoveMissingooltip", "Remove missing objects bound to this track"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=] { GetSequencer().RemoveInvalidBindings(ObjectBinding); })
-		)
-	);
-
-	GetSequencer().AssignActor(MenuBuilder, ObjectBinding);
-}
-
 
 void FSequencerObjectBindingNode::AddTagMenu(FMenuBuilder& MenuBuilder)
 {

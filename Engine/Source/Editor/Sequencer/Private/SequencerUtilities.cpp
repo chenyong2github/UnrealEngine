@@ -346,17 +346,8 @@ TArray<FString> FSequencerUtilities::GetAssociatedMapPackages(const ULevelSequen
 	return AssociatedMaps;
 }
 
-FGuid FSequencerUtilities::DoAssignActor(ISequencer * InSequencerPtr, AActor* const* InActors, int32 NumActors, FGuid InObjectBinding)
+FGuid FSequencerUtilities::DoAssignActor(ISequencer * InSequencerPtr, AActor* Actor, FGuid InObjectBinding)
 {
-	if (NumActors <= 0)
-	{
-		return FGuid();
-	}
-
-	//@todo: this code doesn't work with multiple actors, or when the existing binding is bound to multiple actors
-
-	AActor* Actor = InActors[0];
-
 	if (Actor == nullptr)
 	{
 		return FGuid();

@@ -7535,7 +7535,7 @@ void FSequencer::AssignActor(FMenuBuilder& MenuBuilder, FGuid InObjectBinding)
 				FOnActorPicked::CreateLambda([=](AActor* Actor){
 					// Create a new binding for this actor
 					FSlateApplication::Get().DismissAllMenus();
-					FSequencerUtilities::DoAssignActor(this, &Actor, 1, InObjectBinding);
+					FSequencerUtilities::DoAssignActor(this, Actor, InObjectBinding);
 				})
 			)
 		];
@@ -7725,70 +7725,6 @@ void FSequencer::RemoveActorsFromBinding(FGuid InObjectBinding, const TArray<AAc
 			}
 		}
 	}
-
-	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
-}
-
-void FSequencer::RemoveAllBindings(FGuid InObjectBinding)
-{
-	FScopedTransaction RemoveAllBindings(NSLOCTEXT("Sequencer", "RemoveAllBindings", "Remove All Bound Objects"));
-
-	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
-	UMovieScene* OwnerMovieScene = OwnerSequence->GetMovieScene();
-
-	OwnerSequence->Modify();
-	OwnerMovieScene->Modify();
-
-	// Unbind objects
-	OwnerSequence->UnbindPossessableObjects(InObjectBinding);
-
-	RestorePreAnimatedState();
-
-	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
-}
-
-void FSequencer::RemoveInvalidBindings(FGuid InObjectBinding)
-{
-	FScopedTransaction RemoveInvalidBindings(NSLOCTEXT("Sequencer", "RemoveMissing", "Remove Missing Objects"));
-
-	UMovieSceneSequence* OwnerSequence = GetFocusedMovieSceneSequence();
-	UMovieScene* OwnerMovieScene = OwnerSequence->GetMovieScene();
-
-	OwnerSequence->Modify();
-	OwnerMovieScene->Modify();
-
-	// Unbind objects
-	OwnerSequence->UnbindInvalidObjects(InObjectBinding, GetPlaybackContext());
-
-	// Update label
-	UClass* ActorClass = nullptr;
-
-	TArray<AActor*> ValidActors;
-	for (TWeakObjectPtr<> Ptr : FindObjectsInCurrentSequence(InObjectBinding))
-	{
-		if (AActor* Actor = Cast<AActor>(Ptr.Get()))
-		{
-			ActorClass = Actor->GetClass();
-			ValidActors.Add(Actor);
-		}
-	}
-
-	FMovieScenePossessable* Possessable = OwnerMovieScene->FindPossessable(InObjectBinding);
-	if (Possessable && ActorClass != nullptr && ValidActors.Num() != 0)
-	{
-		if (ValidActors.Num() > 1)
-		{
-			FString NewLabel = ActorClass->GetName() + FString::Printf(TEXT(" (%d)"), ValidActors.Num());
-
-			Possessable->SetName(NewLabel);
-		}
-		else
-		{
-			Possessable->SetName(ValidActors[0]->GetActorLabel());
-		}
-	}
-
-	RestorePreAnimatedState();
 
 	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 }
@@ -9031,7 +8967,7 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, UMovieSceneFol
 
 					if (!ExistingGuid.IsValid())
 					{
-						FGuid NewGuid = FSequencerUtilities::DoAssignActor(this, &Actor, 1, Possessable->GetGuid());
+						FGuid NewGuid = FSequencerUtilities::DoAssignActor(this, Actor, Possessable->GetGuid());
 
 						// If assigning produces a new guid, update the possessable guids and the bindings pasted data
 						if (NewGuid.IsValid())
