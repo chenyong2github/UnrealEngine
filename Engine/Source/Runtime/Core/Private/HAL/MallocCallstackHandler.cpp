@@ -146,11 +146,10 @@ int32 FMallocCallstackHandler::GetCallStackIndex()
 	// Capture callstack and create FCallStackMapKey.
 	uint64 FullCallStack[MaxCallStackDepth + CallStackEntriesToSkipCount] = { 0 };
 	// CRC is filled in by the CaptureStackBackTrace, not all platforms calculate this for you.
-	uint32 CRC = 0;
-	FPlatformStackWalk::CaptureStackBackTrace(&FullCallStack[0], MaxCallStackDepth + CallStackEntriesToSkipCount, &CRC);
+	FPlatformStackWalk::CaptureStackBackTrace(&FullCallStack[0], MaxCallStackDepth + CallStackEntriesToSkipCount);
 	// Skip first n entries as they are inside the allocator.
 	uint64* CallStack = &FullCallStack[CallStackEntriesToSkipCount];
-	FCallStackMapKey CallStackMapKey(CRC, CallStack);
+	FCallStackMapKey CallStackMapKey(CallStack);
 	RWLock.ReadLock();
 	int32* IndexPtr = CallStackMapKeyToCallStackIndexMap.Find(CallStackMapKey);
 	if (IndexPtr)
