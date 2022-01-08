@@ -87,16 +87,19 @@ namespace ImmediatePhysics_Chaos
 			const int32 JointPushOutIts,
 			const int32 CollisionPushOutIts);
 
+		/** Explicit debug draw path if the use case needs it to happen at a point outside of the simulation **/
+		void DebugDraw();
+
 	private:
 		void RemoveFromCollidingPairs(FActorHandle* ActorHandle);
 		void PackCollidingPairs();
 		void UpdateActivePotentiallyCollidingPairs();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
-		void DebugDrawStaticParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
-		void DebugDrawKinematicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
-		void DebugDrawDynamicParticles(const int32 MinDebugLevel, const int32 MaxDebugLevel, const float ColorScale);
-		void DebugDrawConstraints(const int32 MinDebugLevel, const int32 MaxDebugLevel, const FRealSingle ColorScale);
+		void DebugDrawStaticParticles();
+		void DebugDrawKinematicParticles();
+		void DebugDrawDynamicParticles();
+		void DebugDrawConstraints();
 		void DebugDrawSimulationSpace();
 
 		struct FImplementation;
