@@ -72,7 +72,9 @@ FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityZ(TEXT("p.Ri
 #endif
 
 bool bRBAN_UseDeferredTask = false;
+bool bRBAN_DebugDraw = false;
 FAutoConsoleVariableRef CVarRigidBodyNodeDeferredSimulation(TEXT("p.RigidBodyNode.UseDeferredTask"), bRBAN_UseDeferredTask, TEXT("Whether to defer the simulation results by one frame so that they can run in a task"), ECVF_Default);
+FAutoConsoleVariableRef CVarRigidBodyNodeDebugDraw(TEXT("p.RigidBodyNode.DebugDraw"), bRBAN_DebugDraw, TEXT("Whether to debug draw the rigid body simulation state. Requires p.Chaos.DebugDraw.Enabled 1 to function as well."), ECVF_Default);
 
 // Array of priorities that can be indexed into with CVars, since task priorities cannot be set from scalability .ini
 static FAutoConsoleTaskPriority GRigidBodyNodeTaskPriorities[] =
@@ -905,6 +907,14 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			{
 				RunPhysicsSimulation(DeltaSeconds, SimSpaceGravity);
 			}
+
+#if WITH_CHAOS
+			// Draw here even if the simulation is deferred since we want the shapes drawn relative to the current transform
+			if (bRBAN_DebugDraw)
+			{
+				PhysicsSimulation->DebugDraw();
+			}
+#endif
 		}
 		
 		//write back to animation system
