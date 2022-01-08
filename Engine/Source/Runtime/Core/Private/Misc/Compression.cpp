@@ -1015,4 +1015,4 @@ bool FCompression::VerifyCompressionFlagsValid(int32 InCompressionFlags)
 /***********************
   Deprecated functions
 ***********************/
-PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
