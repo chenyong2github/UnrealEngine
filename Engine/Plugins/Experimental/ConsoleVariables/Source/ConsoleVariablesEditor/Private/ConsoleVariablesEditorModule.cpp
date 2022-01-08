@@ -217,7 +217,7 @@ void FConsoleVariablesEditorModule::RegisterMenuItem()
 		ConsoleVariablesToolkitPanelTabId,
 		FOnSpawnTab::CreateRaw(this, & FConsoleVariablesEditorModule::SpawnMainPanelTab))
 			.SetIcon(FSlateIcon(FConsoleVariablesEditorStyle::Get().GetStyleSetName(), "ConsoleVariables.ToolbarButton", "ConsoleVariables.ToolbarButton.Small"))
-			.SetDisplayName(LOCTEXT("OpenConsoleVariablesEditorMenuItem", "Console Variables Editor"))
+			.SetDisplayName(LOCTEXT("OpenConsoleVariablesEditorMenuItem", "Console Variables"))
 			.SetTooltipText(LOCTEXT("OpenConsoleVariablesEditorTooltip", "Open the Console Variables Editor"))
 			.SetMenuType(ETabSpawnerMenuType::Enabled);
 

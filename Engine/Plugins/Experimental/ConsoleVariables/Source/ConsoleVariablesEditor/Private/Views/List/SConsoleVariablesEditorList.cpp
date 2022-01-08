@@ -25,10 +25,11 @@
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
 const FName SConsoleVariablesEditorList::CustomSortOrderColumnName(TEXT("Order"));
-const FName SConsoleVariablesEditorList::CheckBoxColumnName(TEXT("Column"));
+const FName SConsoleVariablesEditorList::CheckBoxColumnName(TEXT("Checkbox"));
 const FName SConsoleVariablesEditorList::VariableNameColumnName(TEXT("Name"));
 const FName SConsoleVariablesEditorList::ValueColumnName(TEXT("Value"));
 const FName SConsoleVariablesEditorList::SourceColumnName(TEXT("Source"));
+const FName SConsoleVariablesEditorList::ActionButtonColumnName(TEXT("Action"));
 
 void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef<FConsoleVariablesEditorList> ListModel)
 {
@@ -52,19 +53,21 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 		+ SVerticalBox::Slot()
 		.VAlign(VAlign_Top)
 		.AutoHeight()
+		.Padding(FMargin(8.f, 0.f, 8.f, 0.f))
 		[
 			SNew(SHorizontalBox)
 
 			+SHorizontalBox::Slot()
-			.Padding(10.f, 1.f, 0.f, 1.f)
+			.Padding(0.f, 1.f, 0.f, 1.f)
 			[
 				SAssignNew(ListSearchBoxPtr, SSearchBox)
 				.HintText(LOCTEXT("ConsoleVariablesEditorList_SearchHintText", "Search tracked variables, values, sources or help text..."))
 				.OnTextChanged_Raw(this, &SConsoleVariablesEditorList::OnListViewSearchTextChanged)
 			]
 
+			// Global Search
 			+SHorizontalBox::Slot()
-			.Padding(4.f, 0.f, 2.f, 0.f)
+			.Padding(8.f, 1.f, 0.f, 1.f)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
@@ -84,12 +87,15 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 				]
 			]
 
+			// Show Options
 			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(10.f, 1.f, 15.f, 1.f)
 			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(8.f, 1.f, 0.f, 1.f)
 			[
 				SAssignNew( ViewOptionsComboButton, SComboButton )
+				.ToolTipText(LOCTEXT("ShowOptions_Tooltip", "Show options to affect the visibility of items in the Console Variables Editor list"))
 				.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButtonWithIcon" ) // Use the tool bar item style for this button
 				.OnGetMenuContent( this, &SConsoleVariablesEditorList::BuildShowOptionsMenu)
 				.HasDownArrow(false)
@@ -699,7 +705,7 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 		SHeaderRow::Column(CheckBoxColumnName)
 			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableCheckboxHeaderText", "Checkbox"))
 			.HAlignHeader(EHorizontalAlignment::HAlign_Center)
-			.FixedWidth(50.f)
+			.FixedWidth(25.f)
 			.ShouldGenerateWidget(true)
 			.HeaderContent()
 			[
@@ -740,6 +746,7 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableValueHeaderText", "Value"))
 			.HAlignHeader(EHorizontalAlignment::HAlign_Left)
 			.ShouldGenerateWidget(true)
+			.FillWidth(0.8f)
 	);
 
 	HeaderRow->AddColumn(
@@ -749,6 +756,18 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 			.HAlignHeader(EHorizontalAlignment::HAlign_Left)
 			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortModeForColumn, SourceColumnName)
 			.OnSort_Raw(this, &SConsoleVariablesEditorList::OnSortColumnCalled)
+			);
+	
+	HeaderRow->AddColumn(
+		SHeaderRow::Column(ActionButtonColumnName)
+			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableActionButtonHeaderText", "Action"))
+			.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+			.FixedWidth(25.f)
+			.ShouldGenerateWidget(true)
+			.HeaderContent()
+			[
+				SNew(SBox)
+			]
 	);
 
 	return HeaderRow;

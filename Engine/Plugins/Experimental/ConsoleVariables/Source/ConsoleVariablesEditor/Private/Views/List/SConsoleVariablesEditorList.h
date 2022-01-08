@@ -109,6 +109,7 @@ public:
 	static const FName VariableNameColumnName;
 	static const FName ValueColumnName;
 	static const FName SourceColumnName;
+	static const FName ActionButtonColumnName;
 
 private:
 
