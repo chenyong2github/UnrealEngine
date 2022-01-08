@@ -440,7 +440,7 @@ namespace UnrealGameSyncCmd
 				}
 
 				// Get the client info
-				ClientRecord Client = await Perforce.GetClientAsync(Options.ClientName);
+				ClientRecord Client = await Perforce.GetClientAsync(ClientName);
 				DirectoryReference ClientDir = new DirectoryReference(Client.Root);
 
 				// If a project path was specified in local syntax, try to convert it to client-relative syntax

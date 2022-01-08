@@ -9,6 +9,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -800,7 +801,10 @@ namespace UnrealGameSync
 			if (!ConfigDirInfo.Exists)
 			{
 				ConfigDirInfo.Create();
-				ConfigDirInfo.Attributes = FileAttributes.Directory | FileAttributes.Hidden;
+				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+				{
+					ConfigDirInfo.Attributes = FileAttributes.Directory | FileAttributes.Hidden;
+				}
 			}
 
 			return ConfigDir;
