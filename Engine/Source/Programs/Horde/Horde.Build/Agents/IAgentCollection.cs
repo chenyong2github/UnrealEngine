@@ -60,14 +60,13 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// Finds all agents matching certain criteria
 		/// </summary>
-		/// <param name="Pool">The pool containing the agent</param>
 		/// <param name="PoolId">The pool ID in string form containing the agent</param>
 		/// <param name="ModifiedAfter">If set, only returns agents modified after this time</param>
 		/// <param name="Status">Status to look for</param>
 		/// <param name="Index">Index of the first result</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>List of agents matching the given criteria</returns>
-		Task<List<IAgent>> FindAsync(ObjectId? Pool = null, string? PoolId = null, DateTime? ModifiedAfter = null, AgentStatus? Status = null, int? Index = null, int? Count = null);
+		Task<List<IAgent>> FindAsync(PoolId? PoolId = null, DateTime? ModifiedAfter = null, AgentStatus? Status = null, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Finds all the expried agents

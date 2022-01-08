@@ -81,7 +81,7 @@ namespace HordeServer.Controllers
 		/// <summary>
 		/// Finds the agents matching specified criteria.
 		/// </summary>
-		/// <param name="Pool">The pool containing the agent</param>
+		/// <param name="PoolId">The pool containing the agent</param>
 		/// <param name="Index">First result to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <param name="ModifiedAfter">If set, only returns agents modified after this time</param>
@@ -90,10 +90,10 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/agents")]
 		[ProducesResponseType(typeof(List<GetAgentResponse>), 200)]
-		public async Task<ActionResult<List<object>>> FindAgentsAsync([FromQuery] string? Pool = null, [FromQuery] int? Index = null, [FromQuery] int? Count = null, [FromQuery] DateTimeOffset? ModifiedAfter = null, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> FindAgentsAsync([FromQuery] PoolId? PoolId = null, [FromQuery] int? Index = null, [FromQuery] int? Count = null, [FromQuery] DateTimeOffset? ModifiedAfter = null, [FromQuery] PropertyFilter? Filter = null)
 		{
 			GlobalPermissionsCache PermissionsCache = new GlobalPermissionsCache();
-			List<IAgent> Agents = await AgentService.FindAgentsAsync(Pool?.ToObjectId(), ModifiedAfter?.UtcDateTime, Index, Count);
+			List<IAgent> Agents = await AgentService.FindAgentsAsync(PoolId, ModifiedAfter?.UtcDateTime, Index, Count);
 
 			List<object> Responses = new List<object>();
 			foreach (IAgent Agent in Agents)

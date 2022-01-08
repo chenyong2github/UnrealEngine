@@ -173,14 +173,14 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Finds all agents matching certain criteria
 		/// </summary>
-		/// <param name="Pool">The pool containing the agent</param>
+		/// <param name="PoolId">The pool containing the agent</param>
 		/// <param name="ModifiedAfter">If set, only returns agents modified after this time</param>
 		/// <param name="Index">Index within the list of results</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>List of agents matching the given criteria</returns>
-		public Task<List<IAgent>> FindAgentsAsync(ObjectId? Pool, DateTime? ModifiedAfter, int? Index, int? Count)
+		public Task<List<IAgent>> FindAgentsAsync(PoolId? PoolId, DateTime? ModifiedAfter, int? Index, int? Count)
 		{
-			return Agents.FindAsync(Pool, null, ModifiedAfter, null, Index, Count);
+			return Agents.FindAsync(PoolId, ModifiedAfter, null, Index, Count);
 		}
 
 		/// <summary>

@@ -193,15 +193,11 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IAgent>> FindAsync(ObjectId? Pool, string? PoolId, DateTime? ModifiedAfter, AgentStatus? Status, int? Index, int? Count)
+		public async Task<List<IAgent>> FindAsync(PoolId? PoolId, DateTime? ModifiedAfter, AgentStatus? Status, int? Index, int? Count)
 		{
 			FilterDefinitionBuilder<AgentDocument> FilterBuilder = new FilterDefinitionBuilder<AgentDocument>();
 
 			FilterDefinition<AgentDocument> Filter = FilterBuilder.Ne(x => x.Deleted, true);
-			if (Pool != null)
-			{
-				Filter &= FilterBuilder.Eq(nameof(AgentDocument.Pools), Pool);
-			}
 			
 			if (PoolId != null)
 			{
