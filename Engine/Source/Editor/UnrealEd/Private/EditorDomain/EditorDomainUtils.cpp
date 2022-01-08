@@ -79,7 +79,7 @@ bool bGGlobalAddedCustomVersionsInitialized = false;
 int64 GMaxBulkDataSize = -1;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("D0A667ED7E374A60962A4AA61B63E6B5");
+const TCHAR* EditorDomainVersion = TEXT("3237D60426C74B8B93E8F6BA49488E84");
 
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
@@ -903,16 +903,22 @@ UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FIoHash& EditorDomain
 	return UE::DerivedData::FCacheKey{EditorDomainPackageCacheBucket, EditorDomainHash };
 }
 
-UE::DerivedData::FCacheKey GetBulkDataListKey(const FIoHash& EditorDomainHash)
+static UE::DerivedData::FCacheKey GetBulkDataListKey(const FIoHash& EditorDomainHash)
 {
 	static UE::DerivedData::FCacheBucket EditorDomainBulkDataListBucket(EditorDomainBulkDataListBucketName);
 	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataListBucket, EditorDomainHash };
 }
 
-UE::DerivedData::FCacheKey GetBulkDataPayloadIdKey(const FIoHash& PackageAndGuidHash)
+static UE::DerivedData::FCacheKey GetBulkDataPayloadIdKey(const FIoHash& PackageAndGuidHash)
 {
 	static UE::DerivedData::FCacheBucket EditorDomainBulkDataPayloadIdBucket(EditorDomainBulkDataPayloadIdBucketName);
 	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataPayloadIdBucket, PackageAndGuidHash };
+}
+
+static UE::DerivedData::FValueId GetBulkDataValueId()
+{
+	static UE::DerivedData::FValueId Id = UE::DerivedData::FValueId::FromName(ANSITEXTVIEW("Value"));
+	return Id;
 }
 
 void RequestEditorDomainPackage(const FPackagePath& PackagePath,
@@ -1319,7 +1325,7 @@ bool TrySavePackage(UPackage* Package)
 	FCacheRecordBuilder RecordBuilder(GetEditorDomainPackageKey(PackageDigest.Hash));
 	for (const FEditorDomainPackageWriter::FAttachment& Attachment : PackageWriter->GetAttachments())
 	{
-		RecordBuilder.AddAttachment(Attachment.Buffer, Attachment.ValueId);
+		RecordBuilder.AddValue(Attachment.ValueId, Attachment.Buffer);
 	}
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
 	FRequestOwner Owner(EPriority::Normal);
@@ -1369,7 +1375,7 @@ void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, T
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
 		{
 			bool bOk = Params.Status == EStatus::Ok;
-			InnerCallback(bOk ? Params.Record.GetValue().GetData().Decompress() : FSharedBuffer());
+			InnerCallback(bOk ? Params.Record.GetValue(GetBulkDataValueId()).GetData().Decompress() : FSharedBuffer());
 		});
 }
 
@@ -1396,7 +1402,7 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 	ICache& Cache = GetCache();
 	FRequestOwner Owner(EPriority::Normal);
 	FCacheRecordBuilder RecordBuilder(GetBulkDataListKey(PackageDigest.Hash));
-	RecordBuilder.SetValue(Buffer);
+	RecordBuilder.AddValue(GetBulkDataValueId(), Buffer);
 	Cache.Put({{{WriteToString<128>(PackageName)}, RecordBuilder.Build()}}, Owner);
 	Owner.KeepAlive();
 }
@@ -1440,7 +1446,7 @@ void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::Derive
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
 		{
 			bool bOk = Params.Status == EStatus::Ok;
-			InnerCallback(bOk ? Params.Record.GetValue().GetData().Decompress() : FSharedBuffer());
+			InnerCallback(bOk ? Params.Record.GetValue(GetBulkDataValueId()).GetData().Decompress() : FSharedBuffer());
 		});
 }
 
@@ -1468,7 +1474,7 @@ void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuf
 	ICache& Cache = GetCache();
 	FRequestOwner Owner(EPriority::Normal);
 	FCacheRecordBuilder RecordBuilder(GetBulkDataPayloadIdKey(PackageAndGuidHash));
-	RecordBuilder.SetValue(Buffer);
+	RecordBuilder.AddValue(GetBulkDataValueId(), Buffer);
 	Cache.Put({{{WriteToString<128>(PackageName)}, RecordBuilder.Build()}}, Owner);
 	Owner.KeepAlive();
 }

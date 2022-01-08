@@ -137,9 +137,6 @@ private:
 		return (Key.Len() + 1) * sizeof(TCHAR) + sizeof(FCacheValue::Age) + Data.Num();
 	}
 
-	int64 CalcRawCacheRecordSize(const FCacheRecord& Record) const;
-	int64 CalcSerializedCacheRecordSize(const FCacheRecord& Record) const;
-
 	/** Name of this cache (used for debugging) */
 	FString Name;
 

@@ -120,26 +120,22 @@ public:
 		FOnCacheChunkComplete&& OnComplete) override;
 
 private:
-	uint64 MeasureCompressedCacheRecord(const FCacheRecord& Record) const;
-	uint64 MeasureRawCacheRecord(const FCacheRecord& Record) const;
-
-	bool PutCacheRecord(const FCacheRecord& Record, FStringView RecordName, const FCacheRecordPolicy& Policy);
-	bool PutCacheContent(const FCompressedBuffer& Content, const FStringView ContentName);
+	bool PutCacheRecord(FStringView Name, const FCacheRecord& Record, const FCacheRecordPolicy& Policy);
+	bool PutCacheContent(FStringView Name, const FCompressedBuffer& Content);
 
 	FOptionalCacheRecord GetCacheRecordOnly(
+		FStringView Name,
 		const FCacheKey& Key,
-		const FStringView RecordName,
 		const FCacheRecordPolicy& Policy);
 	FOptionalCacheRecord GetCacheRecord(
+		FStringView Name,
 		const FCacheKey& Key,
-		const FStringView RecordName,
 		const FCacheRecordPolicy& Policy,
 		EStatus& OutStatus);
 	void GetCacheContent(
+		FStringView Name,
 		const FCacheKey& Key,
-		const FStringView ContentName,
-		const ECachePolicy Policy,
-		const ECachePolicy SkipFlag,
+		ECachePolicy Policy,
 		FValueWithId& InOutValue,
 		EStatus& InOutStatus);
 

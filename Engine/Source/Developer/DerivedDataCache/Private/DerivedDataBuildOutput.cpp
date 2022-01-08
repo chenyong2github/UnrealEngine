@@ -17,6 +17,16 @@
 namespace UE::DerivedData::Private
 {
 
+static const ANSICHAR GBuildOutputValueName[] = "$Output";
+static const FValueId GBuildOutputValueId = FValueId::FromName(GBuildOutputValueName);
+
+FValueId GetBuildOutputValueId()
+{
+	return GBuildOutputValueId;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 static FUtf8StringView LexToString(EBuildOutputMessageLevel Level)
 {
 	switch (Level)
@@ -194,11 +204,12 @@ FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFun
 	: Name(InName)
 	, Function(InFunction)
 	, Meta(InOutput.GetMeta())
-	, Output(InOutput.GetValue().GetData().Decompress())
-	, Values(InOutput.GetAttachments())
+	, Output(InOutput.GetValue(GBuildOutputValueId).GetData().Decompress())
+	, Values(InOutput.GetValues())
 {
 	checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
 	AssertValidBuildFunctionName(Function, Name);
+	Values.RemoveAll([](const FValueWithId& Value) { return Value.GetId() == GBuildOutputValueId; });
 	bOutIsValid = TryLoad();
 }
 
@@ -220,7 +231,7 @@ bool FBuildOutputInternal::TryLoad()
 
 	if (Values.IsEmpty())
 	{
-		for (FCbFieldView Value : OutputView["Payloads"_ASV])
+		for (FCbFieldView Value : OutputView["Values"_ASV])
 		{
 			const FValueId Id = Value["Id"_ASV].AsObjectId();
 			const FIoHash& RawHash = Value["RawHash"_ASV].AsAttachment();
@@ -282,7 +293,7 @@ void FBuildOutputInternal::Save(FCbWriter& Writer) const
 	Writer.BeginObject();
 	if (!Values.IsEmpty())
 	{
-		Writer.BeginArray("Payloads"_ASV);
+		Writer.BeginArray("Values"_ASV);
 		for (const FValueWithId& Value : Values)
 		{
 			Writer.BeginObject();
@@ -322,11 +333,11 @@ void FBuildOutputInternal::Save(FCacheRecordBuilder& RecordBuilder) const
 		{
 			Writer.AddField("Logs"_ASV, LogsField);
 		}
-		RecordBuilder.SetValue(Writer.Save().GetBuffer());
+		RecordBuilder.AddValue(GBuildOutputValueId, Writer.Save().GetBuffer());
 	}
 	for (const FValueWithId& Value : Values)
 	{
-		RecordBuilder.AddAttachment(Value);
+		RecordBuilder.AddValue(Value);
 	}
 }
 
@@ -335,6 +346,9 @@ void FBuildOutputInternal::Save(FCacheRecordBuilder& RecordBuilder) const
 void FBuildOutputBuilderInternal::AddValue(const FValueId& Id, const FValue& Value)
 {
 	checkf(Id.IsValid(), TEXT("Null value added in output for build of '%s' by %s."), *Name, *Function);
+	checkf(Id != GBuildOutputValueId,
+		TEXT("Value added with reserved ID %s from name '%hs' for build of '%s' by %s."),
+		*WriteToString<32>(Id), GBuildOutputValueName, *Name, *Function);
 	const int32 Index = Algo::LowerBoundBy(Values, Id, &FValueWithId::GetId);
 	checkf(!(Values.IsValidIndex(Index) && Values[Index].GetId() == Id),
 		TEXT("Duplicate ID %s used by value for build of '%s' by %s."), *WriteToString<32>(Id), *Name, *Function);

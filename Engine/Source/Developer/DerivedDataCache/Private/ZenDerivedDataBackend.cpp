@@ -3,11 +3,10 @@
 
 #if WITH_ZEN_DDC_BACKEND
 
-#include "Algo/Accumulate.h"
 #include "Containers/StringFwd.h"
+#include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataChunk.h"
-#include "DerivedDataValue.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CountersTrace.h"
@@ -407,24 +406,17 @@ void FZenDerivedDataBackend::AppendPolicyQueryString(ECachePolicy Policy, FStrin
 		if (EnumHasAnyFlags(Policy, ECachePolicy::StoreRemote)) { AppendValue(TEXT("remote")); }
 		if (!EnumHasAnyFlags(Policy, ECachePolicy::Store)) { AppendValue(TEXT("none")); }
 	}
-	if (EnumHasAnyFlags(Policy, ECachePolicy::SkipData))
+	if (EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta | ECachePolicy::SkipData))
 	{
 		AppendKey(TEXT("skip="));
-		if (EnumHasAllFlags(Policy, ECachePolicy::SkipData)) { AppendValue(TEXT("data")); }
+		if (EnumHasAllFlags(Policy, ECachePolicy::SkipMeta | ECachePolicy::SkipData)) { AppendValue(TEXT("data")); }
 		else
 		{
 			if (EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta)) { AppendValue(TEXT("meta")); }
-			if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue)) { AppendValue(TEXT("value")); }
-			if (EnumHasAnyFlags(Policy, ECachePolicy::SkipAttachments)) { AppendValue(TEXT("attachments")); }
+			if (EnumHasAnyFlags(Policy, ECachePolicy::SkipData)) { AppendValue(TEXT("value")); }
+			if (EnumHasAnyFlags(Policy, ECachePolicy::SkipData)) { AppendValue(TEXT("attachments")); }
 		}
 	}
-}
-
-uint64 FZenDerivedDataBackend::MeasureCacheRecord(const FCacheRecord& Record)
-{
-	return Record.GetMeta().GetSize() +
-		Record.GetValue().GetRawSize() +
-		Algo::TransformAccumulate(Record.GetAttachments(), &FValue::GetRawSize, uint64(0));
 }
 
 void FZenDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
@@ -612,7 +604,7 @@ void FZenDerivedDataBackend::Put(
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache put complete for %s from '%s'"),
 				*GetName(), *WriteToString<96>(Record.GetKey()), *Request.Name);
-			COOK_STAT(Timer.AddHit(MeasureCacheRecord(Record)));
+			COOK_STAT(Timer.AddHit(Private::GetCacheRecordCompressedSize(Record)));
 			if (OnComplete)
 			{
 				OnComplete({ Request.Name, Record.GetKey(), Request.UserData, EStatus::Ok });
@@ -620,7 +612,7 @@ void FZenDerivedDataBackend::Put(
 		}
 		else
 		{
-			COOK_STAT(Timer.AddMiss(MeasureCacheRecord(Record)));
+			COOK_STAT(Timer.AddMiss());
 			if (OnComplete)
 			{
 				OnComplete({ Request.Name, Record.GetKey(), Request.UserData, EStatus::Error });
@@ -729,7 +721,7 @@ void FZenDerivedDataBackend::Get(
 						*GetName(), *WriteToString<96>(Key), *Request.Name);
 					
 					TRACE_COUNTER_ADD(ZenDDC_GetHit, int64(1));
-					int64 ReceivedSize = MeasureCacheRecord(Record.Get());
+					int64 ReceivedSize = Private::GetCacheRecordCompressedSize(Record.Get());
 					TRACE_COUNTER_ADD(ZenDDC_BytesReceived, ReceivedSize);
 					COOK_STAT(Timer.AddHit(ReceivedSize));
 

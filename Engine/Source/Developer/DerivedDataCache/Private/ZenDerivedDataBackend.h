@@ -126,7 +126,6 @@ private:
 	static void AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Out);
 
 	static bool ShouldRetryOnError(int64 ResponseCode);
-	static uint64 MeasureCacheRecord(const FCacheRecord& Record);
 
 	/* Debug helpers */
 	bool ShouldSimulateMiss(const TCHAR* InKey);

@@ -12,12 +12,10 @@
 namespace UE::Virtualization
 {
 
-/** Utility function to help convert from UE::Virtualization types to UE::DerivedData::FValueWithId */
-UE::DerivedData::FValueWithId ToDDCPayload(const FPayloadId& Id, const FCompressedBuffer& Payload)
+/** Utility function to help convert from UE::Virtualization::FPayloadId to UE::DerivedData::FValueId */
+static UE::DerivedData::FValueId ToDerivedDataValueId(const FPayloadId& Id)
 {
-	UE::DerivedData::FValueId ValueId = UE::DerivedData::FValueId::FromHash(Id.GetIdentifier());
-
-	return UE::DerivedData::FValueWithId(ValueId, Payload);
+	return UE::DerivedData::FValueId::FromHash(Id.GetIdentifier());
 }
 
 FDDCBackend::FDDCBackend(FStringView ConfigName, FStringView InDebugName)
@@ -89,11 +87,11 @@ EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer&
 	Key.Bucket = Bucket;
 	Key.Hash = Id.GetIdentifier();
 
-	UE::DerivedData::FValueWithId DDCPayload = ToDDCPayload(Id, Payload);
-	check(DDCPayload.GetRawHash() == Id.GetIdentifier());
+	UE::DerivedData::FValue DerivedDataValue(Payload);
+	check(DerivedDataValue.GetRawHash() == Id.GetIdentifier());
 
 	UE::DerivedData::FCacheRecordBuilder RecordBuilder(Key);
-	RecordBuilder.SetValue(DDCPayload);
+	RecordBuilder.AddValue(ToDerivedDataValueId(Id), DerivedDataValue);
 
 	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Blocking);
 
@@ -133,12 +131,12 @@ FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
 	FCompressedBuffer ResultData;
 	UE::DerivedData::EStatus ResultStatus;
 
-	auto Callback = [&ResultData, &ResultStatus](UE::DerivedData::FCacheGetCompleteParams&& Params)
+	auto Callback = [&Id, &ResultData, &ResultStatus](UE::DerivedData::FCacheGetCompleteParams&& Params)
 	{
 		ResultStatus = Params.Status;
 		if (ResultStatus == UE::DerivedData::EStatus::Ok)
 		{
-			ResultData = Params.Record.GetValue().GetData();
+			ResultData = Params.Record.GetValue(ToDerivedDataValueId(Id)).GetData();
 		}
 	};
 

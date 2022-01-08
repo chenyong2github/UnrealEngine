@@ -195,7 +195,7 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FBuildDefinitionBuilderIntern
 				const FBuildValueKey& ValueKey = Pair.Value.Get<FBuildValueKey>();
 				Writer.BeginObject(FTCHARToUTF8(Pair.Key));
 				Writer.AddHash("Build"_ASV, ValueKey.BuildKey.Hash);
-				Writer.AddObjectId("Payload"_ASV, ValueKey.Id);
+				Writer.AddObjectId("Id"_ASV, ValueKey.Id);
 				Writer.EndObject();
 			}
 		}
@@ -267,7 +267,7 @@ FBuildDefinitionInternal::FBuildDefinitionInternal(FStringView InName, FCbObject
 			{
 				return Field.GetName().Len() > 0 && Field.IsObject()
 					&& Field["Build"_ASV].IsHash()
-					&& Field["Payload"_ASV].IsObjectId();
+					&& Field["Id"_ASV].IsObjectId();
 			})
 		&& Algo::AllOf(Definition.AsView()["Inputs"_ASV]["BulkData"_ASV],
 			[](FCbFieldView Field) { return Field.GetName().Len() > 0 && Field.IsUuid(); })
@@ -300,7 +300,7 @@ void FBuildDefinitionInternal::IterateInputBuilds(TFunctionRef<void (FStringView
 	for (FCbFieldView Field : Definition.AsView()["Inputs"_ASV]["Builds"_ASV])
 	{
 		const FBuildKey BuildKey{Field["Build"_ASV].AsHash()};
-		const FValueId Id = Field["Payload"_ASV].AsObjectId();
+		const FValueId Id = Field["Id"_ASV].AsObjectId();
 		Visitor(FUTF8ToTCHAR(Field.GetName()), FBuildValueKey{BuildKey, Id});
 	}
 }

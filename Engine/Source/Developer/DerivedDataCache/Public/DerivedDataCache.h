@@ -75,24 +75,8 @@ enum class ECachePolicy : uint32
 
 	/** Skip fetching the metadata for record requests. */
 	SkipMeta        = 1 << 4,
-	/** Skip fetching the value for record, chunk, or value requests. */
-	SkipValue       = 1 << 5,
-	/** Skip fetching the attachments for record requests. */
-	SkipAttachments = 1 << 6,
-	/**
-	 * Skip fetching the data for any requests.
-	 *
-	 * Put requests with skip flags may assume that record existence implies value existence.
-	 */
-	SkipData        = SkipMeta | SkipValue | SkipAttachments,
-
-	/**
-	 * Keep records in the cache for at least the duration of the session.
-	 *
-	 * This is a hint that the record may be accessed again in this session. This is mainly meant
-	 * to be used when subsequent accesses will not tolerate a cache miss.
-	 */
-	KeepAlive       = 1 << 7,
+	/** Skip fetching the data for values. */
+	SkipData        = 1 << 5,
 
 	/**
 	 * Partial output will be provided with the error status when a required value is missing.
@@ -105,7 +89,15 @@ enum class ECachePolicy : uint32
 	 *
 	 * Applying this flag for a put of a record allows a partial record to be stored.
 	 */
-	PartialOnError  = 1 << 8,
+	PartialOnError  = 1 << 6,
+
+	/**
+	 * Keep records in the cache for at least the duration of the session.
+	 *
+	 * This is a hint that the record may be accessed again in this session. This is mainly meant
+	 * to be used when subsequent accesses will not tolerate a cache miss.
+	 */
+	KeepAlive       = 1 << 7,
 
 	/** Allow cache requests to query and store records and values in local caches. */
 	Local           = QueryLocal | StoreLocal,
@@ -379,8 +371,8 @@ struct FCacheGetCompleteParams
 	 *
 	 * The key is always populated. The remainder of the record is populated when Status is Ok.
 	 *
-	 * The value, attachments, and metadata may be skipped based on cache policy flags. When a value
-	 * or attachment has been skipped, it will have a hash and size but its data will be null.
+	 * The metadata or the data for values may be skipped based on cache policy flags. Values for
+	 * which data has been skipped will have a hash and size but null data.
 	 */
 	FCacheRecord&& Record;
 
