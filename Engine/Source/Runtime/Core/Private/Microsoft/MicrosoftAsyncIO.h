@@ -517,4 +517,4 @@ const TCHAR* FMicrosoftReadRequest::GetFileNameForErrorMessagesAndPanicRetry()
 	return *Owner->FileNameForErrorMessagesAndPanicRetry;
 }
 
-PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
+PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
