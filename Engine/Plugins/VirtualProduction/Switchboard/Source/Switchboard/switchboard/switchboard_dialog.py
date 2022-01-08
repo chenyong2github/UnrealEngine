@@ -1015,6 +1015,7 @@ class SwitchboardDialog(QtCore.QObject):
         device.device_qt_handler.signal_device_client_disconnected.connect(self.device_client_disconnected, QtCore.Qt.QueuedConnection)
         device.device_qt_handler.signal_device_project_changelist_changed.connect(self.device_project_changelist_changed, QtCore.Qt.QueuedConnection)
         device.device_qt_handler.signal_device_engine_changelist_changed.connect(self.device_engine_changelist_changed, QtCore.Qt.QueuedConnection)
+        device.device_qt_handler.signal_device_built_engine_changelist_changed.connect(self.device_built_engine_changelist_changed, QtCore.Qt.QueuedConnection)
         device.device_qt_handler.signal_device_status_changed.connect(self.device_status_changed, QtCore.Qt.QueuedConnection)
         device.device_qt_handler.signal_device_sync_failed.connect(self.device_sync_failed, QtCore.Qt.QueuedConnection)
         device.device_qt_handler.signal_device_is_recording_device_changed.connect(self.device_is_recording_device_changed, QtCore.Qt.QueuedConnection)
@@ -1276,17 +1277,12 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Check if all of the devices are on the right changelist
         for device in self.device_manager.devices():
-            if not device.project_changelist:
-                continue
-
-            device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
-            if value == EMPTY_SYNC_ENTRY:
-                device_widget.project_changelist_display_warning(False)
-            else:
-                if device.project_changelist == self.project_changelist:
-                    device_widget.project_changelist_display_warning(False)
-                else:
-                    device_widget.project_changelist_display_warning(True)
+            if device.project_changelist:
+                device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
+                device_widget.update_project_changelist(
+                    required_cl=self.project_changelist if self.project_changelist != EMPTY_SYNC_ENTRY else None,
+                    current_device_cl=device.project_changelist
+                )
 
     @property
     def engine_changelist(self):
@@ -1296,25 +1292,21 @@ class SwitchboardDialog(QtCore.QObject):
     def engine_changelist(self, value):
         self._set_engine_changelist(value)
 
-    def _set_engine_changelist(self, value):
-        self._engine_changelist = value
+    def _set_engine_changelist(self, changelist_value):
+        self._engine_changelist = changelist_value
 
         if self.window.engine_cl_combo_box.currentText() != self._engine_changelist:
             self.window.engine_cl_combo_box.setText(self._engine_changelist)
 
         # Check if all of the devices are on the right changelist
         for device in self.device_manager.devices():
-            if not device.engine_changelist:
-                continue
-
-            device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
-            if value == EMPTY_SYNC_ENTRY:
-                device_widget.engine_changelist_display_warning(False)
-            else:
-                if device.engine_changelist == self.engine_changelist:
-                    device_widget.engine_changelist_display_warning(False)
-                else:
-                    device_widget.engine_changelist_display_warning(True)
+            if device.engine_changelist:
+                device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
+                device_widget.update_engine_changelist(
+                    required_cl=self.engine_changelist if self.engine_changelist != EMPTY_SYNC_ENTRY else None, 
+                    current_device_cl=device.engine_changelist,
+                    built_device_cl=device.engine_changelist
+                )
 
     @QtCore.Slot(object)
     def device_widget_connect(self, device_widget):
@@ -1410,28 +1402,42 @@ class SwitchboardDialog(QtCore.QObject):
     @QtCore.Slot(object)
     def device_project_changelist_changed(self, device):
         device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
-        device_widget.update_project_changelist(device.project_changelist)
-
-        if self.project_changelist == EMPTY_SYNC_ENTRY:
-            device_widget.project_changelist_display_warning(False)
-        else:
-            if device.project_changelist == self.project_changelist:
-                device_widget.project_changelist_display_warning(False)
-            else:
-                device_widget.project_changelist_display_warning(True)
+        device_widget.update_project_changelist(
+            required_cl=self.project_changelist if self.project_changelist != EMPTY_SYNC_ENTRY else None,
+            current_device_cl=device.project_changelist
+        )
+        
+        cl = device.project_changelist
+        ip = device.ip_address
+        for device in self.device_manager.devices():
+            if device.ip_address == ip and device.project_changelist and device.project_changelist != cl:
+                device.project_changelist = cl
 
     @QtCore.Slot(object)
     def device_engine_changelist_changed(self, device):
         device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
-        device_widget.update_engine_changelist(device.engine_changelist)
+        device_widget.update_engine_changelist(
+            required_cl=self.engine_changelist if self.engine_changelist != EMPTY_SYNC_ENTRY else None,
+            current_device_cl=device.engine_changelist,
+            built_device_cl=device.built_engine_changelist
+        )
 
-        if self.engine_changelist == EMPTY_SYNC_ENTRY:
-            device_widget.engine_changelist_display_warning(False)
-        else:
-            if device.engine_changelist == self.engine_changelist:
-                device_widget.engine_changelist_display_warning(False)
-            else:
-                device_widget.engine_changelist_display_warning(True)
+        cl = device.engine_changelist
+        ip = device.ip_address
+        for device in self.device_manager.devices():
+            if device.ip_address == ip and device.engine_changelist and device.engine_changelist != cl:
+                device.engine_changelist = cl
+
+    @QtCore.Slot(object)
+    def device_built_engine_changelist_changed(self, device):
+        device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
+        device_widget.update_build_info(current_cl=device.engine_changelist, built_cl=device.built_engine_changelist)
+
+        cl = device.built_engine_changelist
+        ip = device.ip_address
+        for device in self.device_manager.devices():
+            if device.ip_address == ip and device.built_engine_changelist and device.built_engine_changelist != cl:
+                device.built_engine_changelist = cl
 
     @QtCore.Slot(object)
     def device_status_changed(self, device, previous_status):

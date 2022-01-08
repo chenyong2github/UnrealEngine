@@ -51,6 +51,7 @@ class DeviceQtHandler(QtCore.QObject):
     signal_device_client_disconnected = QtCore.Signal(object)
     signal_device_project_changelist_changed = QtCore.Signal(object)
     signal_device_engine_changelist_changed = QtCore.Signal(object)
+    signal_device_built_engine_changelist_changed = QtCore.Signal(object)
     signal_device_sync_failed = QtCore.Signal(object)
     signal_device_is_recording_device_changed = QtCore.Signal(object, int)
 
@@ -92,6 +93,7 @@ class Device(QtCore.QObject):
 
         self._project_changelist: Optional[int] = None
         self._engine_changelist: Optional[int] = None
+        self._built_engine_changelist: Optional[int] = None
 
         self._status = DeviceStatus.DISCONNECTED
 
@@ -250,6 +252,17 @@ class Device(QtCore.QObject):
         self._engine_changelist = value
         self.device_qt_handler.signal_device_engine_changelist_changed.emit(
             self)
+        
+    @property
+    def built_engine_changelist(self):
+        return self._built_engine_changelist
+
+    @built_engine_changelist.setter
+    def built_engine_changelist(self, value: Optional[int]):
+        self._built_engine_changelist = value
+        self.device_qt_handler.signal_device_built_engine_changelist_changed.emit(
+            self
+        )
 
     def set_slate(self, value):
         pass
