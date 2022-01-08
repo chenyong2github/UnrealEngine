@@ -142,4 +142,4 @@ int64 FArchiveLoadCompressedProxy::Tell()
 	return RawBytesSerialized;
 }
 
-PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

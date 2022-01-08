@@ -2114,6 +2114,6 @@ void FWindowsPlatformProcess::SetThreadName( const TCHAR* ThreadName )
 	WindowsPlatformProcessImpl::SetThreadName(TCHAR_TO_ANSI(ThreadName));
 }
 
-PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 #include "Windows/HideWindowsPlatformTypes.h"
