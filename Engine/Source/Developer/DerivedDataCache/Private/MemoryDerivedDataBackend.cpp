@@ -2,8 +2,8 @@
 
 #include "MemoryDerivedDataBackend.h"
 
-#include "Algo/Accumulate.h"
 #include "Algo/AllOf.h"
+#include "DerivedDataCachePrivate.h"
 #include "DerivedDataValue.h"
 #include "Misc/ScopeExit.h"
 #include "Serialization/CompactBinary.h"
@@ -445,27 +445,6 @@ bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
 	return false;
 }
 
-int64 FMemoryDerivedDataBackend::CalcRawCacheRecordSize(const FCacheRecord& Record) const
-{
-	const uint64 ValueSize = Record.GetValue().GetRawSize();
-	return int64(Algo::TransformAccumulate(Record.GetAttachments(), &FValue::GetRawSize, ValueSize));
-}
-
-int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecord& Record) const
-{
-	// Estimate the serialized size of the cache record.
-	uint64 TotalSize = 20;
-	TotalSize += Record.GetKey().Bucket.ToString().Len();
-	TotalSize += Record.GetMeta().GetSize();
-	const auto CalcCacheValueSize = [](const FValueWithId& Value)
-	{
-		return Value ? Value.GetData().GetCompressedSize() + 32 : 0;
-	};
-	TotalSize += CalcCacheValueSize(Record.GetValue());
-	TotalSize += Algo::TransformAccumulate(Record.GetAttachments(), CalcCacheValueSize, uint64(0));
-	return int64(TotalSize);
-}
-
 void FMemoryDerivedDataBackend::Put(
 	const TConstArrayView<FCachePutRequest> Requests,
 	IRequestOwner& Owner,
@@ -491,15 +470,14 @@ void FMemoryDerivedDataBackend::Put(
 			continue;
 		}
 
-		const FValueWithId& Value = Record.GetValue();
-		const TConstArrayView<FValueWithId> Attachments = Record.GetAttachments();
+		const TConstArrayView<FValueWithId> Values = Record.GetValues();
 
-		if ((Value && !Value.HasData()) || !Algo::AllOf(Attachments, &FValue::HasData))
+		if (!Algo::AllOf(Values, &FValue::HasData))
 		{
 			continue;
 		}
 
-		if (!Value && Attachments.IsEmpty())
+		if (Values.IsEmpty())
 		{
 			FWriteScopeLock ScopeLock(SynchronizationObject);
 			if (bDisabled)
@@ -509,7 +487,7 @@ void FMemoryDerivedDataBackend::Put(
 			if (const FCacheRecord* Existing = CacheRecords.Find(Key))
 			{
 				CacheRecords.Remove(Key);
-				CurrentCacheSize -= CalcSerializedCacheRecordSize(*Existing);
+				CurrentCacheSize -= Private::GetCacheRecordCompressedSize(*Existing);
 				bMaxSizeExceeded = false;
 			}
 			Status = EStatus::Ok;
@@ -517,7 +495,7 @@ void FMemoryDerivedDataBackend::Put(
 		else
 		{
 			COOK_STAT(auto Timer = UsageStats.TimePut());
-			const int64 RecordSize = CalcSerializedCacheRecordSize(Record);
+			const int64 RecordSize = Private::GetCacheRecordCompressedSize(Record);
 
 			FWriteScopeLock ScopeLock(SynchronizationObject);
 			Status = CacheRecords.Contains(Key) ? EStatus::Ok : EStatus::Error;
@@ -565,34 +543,22 @@ void FMemoryDerivedDataBackend::Get(
 		}
 		if (Record)
 		{
-			if (const FValueWithId& Value = Record.Get().GetValue();
-				!Value.HasData() && !EnumHasAnyFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::SkipValue))
+			for (const FValueWithId& Value : Record.Get().GetValues())
 			{
-				Status = EStatus::Error;
-				if (!EnumHasAllFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::PartialOnError))
+				if (!Value.HasData() && !EnumHasAnyFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::SkipData))
 				{
-					Record.Reset();
-				}
-			}
-			if (Record)
-			{
-				for (const FValueWithId& Value : Record.Get().GetAttachments())
-				{
-					if (!Value.HasData() && !EnumHasAnyFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::SkipAttachments))
+					Status = EStatus::Error;
+					if (!EnumHasAllFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::PartialOnError))
 					{
-						Status = EStatus::Error;
-						if (!EnumHasAllFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::PartialOnError))
-						{
-							Record.Reset();
-							break;
-						}
+						Record.Reset();
+						break;
 					}
 				}
 			}
 		}
 		if (Record)
 		{
-			COOK_STAT(Timer.AddHit(CalcRawCacheRecordSize(Record.Get())));
+			COOK_STAT(Timer.AddHit(Private::GetCacheRecordCompressedSize(Record.Get())));
 			if (OnComplete)
 			{
 				OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
@@ -618,7 +584,7 @@ void FMemoryDerivedDataBackend::GetChunks(
 	FCompressedBufferReader Reader;
 	for (const FCacheChunkRequest& Request : Requests)
 	{
-		const bool bExistsOnly = EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipValue);
+		const bool bExistsOnly = EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData);
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
 		if (ShouldSimulateMiss(Request.Key))
 		{
@@ -633,7 +599,7 @@ void FMemoryDerivedDataBackend::GetChunks(
 		{
 			Reader.ResetSource();
 			Value.Reset();
-			Value = Record->GetAttachment(Request.Id);
+			Value = Record->GetValue(Request.Id);
 			ValueKey = Request.Key;
 			Reader.SetSource(Value.GetData());
 		}

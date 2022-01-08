@@ -280,34 +280,19 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 	int32 InitialRequestIndex = -1;
 	if (Params.Status == EStatus::Ok)
 	{
-		FCacheRecord& Record = Params.Record;
-		uint64 FileSize = Record.GetMeta()["FileSize"].AsUInt64();
-		const FValueWithId& RecordValue = Record.GetValue();
+		const FCacheRecord& Record = Params.Record;
+		const uint64 FileSize = Record.GetMeta()["FileSize"].AsUInt64();
 
-		// Sort the attachment values by ValueId, in case they are not already sorted. EditorDomainPackage attachments
-		// are written with ValueIds in the same order as the segment order
-		TConstArrayView<FValueWithId> Attachments = Record.GetAttachments();
-		TArray<const FValueWithId*, TInlineAllocator<4>> SortedValues;
-		SortedValues.Reserve(Attachments.Num()+1);
-		if (RecordValue.GetRawSize() > 0)
-		{
-			SortedValues.Add(&RecordValue);
-		}
-		for (const FValueWithId& Attachment : Attachments)
-		{
-			if (Attachment.GetRawSize() > 0)
-			{
-				SortedValues.Add(&Attachment);
-			}
-		}
-		Algo::SortBy(SortedValues, &FValueWithId::GetId);
-
+		TConstArrayView<FValueWithId> Values = Record.GetValues();
+		Segments.Reserve(Values.Num());
 		uint64 CompositeSize = 0;
-		Segments.Reserve(SortedValues.Num());
-		for (const FValueWithId* Value : SortedValues)
+		for (const FValueWithId& Value : Values)
 		{
-			Segments.Emplace(Value->GetId(), CompositeSize);
-			CompositeSize += Value->GetRawSize();
+			if (const uint64 ValueSize = Value.GetRawSize())
+			{
+				Segments.Emplace(Value.GetId(), CompositeSize);
+				CompositeSize += ValueSize;
+			}
 		}
 
 		if (CompositeSize != FileSize)

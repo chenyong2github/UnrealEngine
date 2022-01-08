@@ -1378,7 +1378,7 @@ private:
 			if (MipIndex >= NumStreamingMips)
 			{
 				uint64 MipSize = MipObjectView["NumBytes"_ASV].AsUInt64();
-				FMemoryView MipView = MipTailData.GetView().Mid(MipObjectView["PayloadOffset"_ASV].AsUInt64(), MipSize);
+				FMemoryView MipView = MipTailData.GetView().Mid(MipObjectView["MipOffset"_ASV].AsUInt64(), MipSize);
 
 				NewMip->BulkData.Lock(LOCK_READ_WRITE);
 				void* MipAllocData = NewMip->BulkData.Realloc(int64(MipSize));

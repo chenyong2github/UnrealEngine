@@ -478,7 +478,7 @@ static ECachePolicy MakeCacheQueryPolicy(EBuildPolicy BuildPolicy, const FBuildJ
 	}
 	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::SkipData))
 	{
-		EnumAddFlags(CachePolicy, ECachePolicy::SkipAttachments);
+		EnumAddFlags(CachePolicy, ECachePolicy::SkipData);
 	}
 	CachePolicy &= Context.GetCachePolicyMask();
 	return CachePolicy;
@@ -486,11 +486,24 @@ static ECachePolicy MakeCacheQueryPolicy(EBuildPolicy BuildPolicy, const FBuildJ
 
 static FCacheRecordPolicy MakeCacheRecordQueryPolicy(const FBuildPolicy& BuildPolicy, const FBuildJobContext& Context)
 {
-	FCacheRecordPolicyBuilder Builder(MakeCacheQueryPolicy(BuildPolicy.GetDefaultValuePolicy(), Context));
+	const ECachePolicy DefaultCachePolicy = MakeCacheQueryPolicy(BuildPolicy.GetDefaultValuePolicy(), Context);
+	const ECachePolicy CombinedCachePolicy = MakeCacheQueryPolicy(BuildPolicy.GetCombinedPolicy(), Context);
+
+	FCacheRecordPolicyBuilder Builder(DefaultCachePolicy);
 	for (const FBuildValuePolicy& ValuePolicy : BuildPolicy.GetValuePolicies())
 	{
 		Builder.AddValuePolicy(ValuePolicy.Id, MakeCacheQueryPolicy(ValuePolicy.Policy, Context));
 	}
+
+	// Output can only be loaded if its value is present. Add a policy for the output value which
+	// is compatible with the combined policy if that differs from the default policy.
+	if (EnumHasAnyFlags(CombinedCachePolicy, ECachePolicy::Query) &&
+		(EnumHasAnyFlags(DefaultCachePolicy, ECachePolicy::SkipData) ||
+		(CombinedCachePolicy & ECachePolicy::Default) != (DefaultCachePolicy & ECachePolicy::Default)))
+	{
+		Builder.AddValuePolicy(GetBuildOutputValueId(), CombinedCachePolicy & ~ECachePolicy::SkipData);
+	}
+
 	return Builder.Build();
 }
 

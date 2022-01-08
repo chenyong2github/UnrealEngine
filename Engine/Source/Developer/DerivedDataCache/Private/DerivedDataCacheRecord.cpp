@@ -3,6 +3,7 @@
 #include "DerivedDataCacheRecord.h"
 
 #include "Algo/Accumulate.h"
+#include "Algo/IsSorted.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataValue.h"
@@ -26,23 +27,14 @@ public:
 
 	void SetMeta(FCbObject&& Meta) final;
 
-	void SetValue(const FCompositeBuffer& Buffer, const FValueId& Id, uint64 BlockSize) final;
-	void SetValue(const FSharedBuffer& Buffer, const FValueId& Id, uint64 BlockSize) final;
-	void SetValue(const FValue& Value, const FValueId& Id) final;
-	void SetValue(const FValueWithId& Value) final;
-
-	void AddAttachment(const FCompositeBuffer& Buffer, const FValueId& Id, uint64 BlockSize) final;
-	void AddAttachment(const FSharedBuffer& Buffer, const FValueId& Id, uint64 BlockSize) final;
-	void AddAttachment(const FValue& Value, const FValueId& Id) final;
-	void AddAttachment(const FValueWithId& Value) final;
+	void AddValue(const FValueId& Id, const FValue& Value) final;
 
 	FCacheRecord Build() final;
 	void BuildAsync(IRequestOwner& Owner, FOnCacheRecordComplete&& OnComplete) final;
 
 	FCacheKey Key;
 	FCbObject Meta;
-	FValueWithId Value;
-	TArray<FValueWithId> Attachments;
+	TArray<FValueWithId> Values;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,10 +49,8 @@ public:
 
 	const FCacheKey& GetKey() const final;
 	const FCbObject& GetMeta() const final;
-	const FValueWithId& GetValue() const final;
-	const FValueWithId& GetAttachment(const FValueId& Id) const final;
-	TConstArrayView<FValueWithId> GetAttachments() const final;
 	const FValueWithId& GetValue(const FValueId& Id) const final;
+	TConstArrayView<FValueWithId> GetValues() const final;
 
 	inline void AddRef() const final
 	{
@@ -78,25 +68,16 @@ public:
 private:
 	FCacheKey Key;
 	FCbObject Meta;
-	FValueWithId Value;
-	TArray<FValueWithId> Attachments;
+	TArray<FValueWithId> Values;
 	mutable std::atomic<uint32> ReferenceCount{0};
 };
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-static FValueId GetOrCreateValueId(const FValueId& Id, const FValue& Value)
-{
-	return Id.IsValid() ? Id : FValueId::FromHash(Value.GetRawHash());
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCacheRecordInternal::FCacheRecordInternal(FCacheRecordBuilderInternal&& RecordBuilder)
 	: Key(RecordBuilder.Key)
 	, Meta(MoveTemp(RecordBuilder.Meta))
-	, Value(MoveTemp(RecordBuilder.Value))
-	, Attachments(MoveTemp(RecordBuilder.Attachments))
+	, Values(MoveTemp(RecordBuilder.Values))
 {
 }
 
@@ -110,25 +91,15 @@ const FCbObject& FCacheRecordInternal::GetMeta() const
 	return Meta;
 }
 
-const FValueWithId& FCacheRecordInternal::GetValue() const
-{
-	return Value;
-}
-
-const FValueWithId& FCacheRecordInternal::GetAttachment(const FValueId& Id) const
-{
-	const int32 Index = Algo::BinarySearchBy(Attachments, Id, &FValueWithId::GetId);
-	return Attachments.IsValidIndex(Index) ? Attachments[Index] : FValueWithId::Null;
-}
-
-TConstArrayView<FValueWithId> FCacheRecordInternal::GetAttachments() const
-{
-	return Attachments;
-}
-
 const FValueWithId& FCacheRecordInternal::GetValue(const FValueId& Id) const
 {
-	return Value.GetId() == Id ? Value : GetAttachment(Id);
+	const int32 Index = Algo::BinarySearchBy(Values, Id, &FValueWithId::GetId);
+	return Values.IsValidIndex(Index) ? Values[Index] : FValueWithId::Null;
+}
+
+TConstArrayView<FValueWithId> FCacheRecordInternal::GetValues() const
+{
+	return Values;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -144,65 +115,23 @@ void FCacheRecordBuilderInternal::SetMeta(FCbObject&& InMeta)
 	Meta.MakeOwned();
 }
 
-void FCacheRecordBuilderInternal::SetValue(const FCompositeBuffer& Buffer, const FValueId& Id, const uint64 BlockSize)
+void FCacheRecordBuilderInternal::AddValue(const FValueId& Id, const FValue& Value)
 {
-	return SetValue(FValue::Compress(Buffer, BlockSize), Id);
-}
-
-void FCacheRecordBuilderInternal::SetValue(const FSharedBuffer& Buffer, const FValueId& Id, const uint64 BlockSize)
-{
-	return SetValue(FValue::Compress(Buffer, BlockSize), Id);
-}
-
-void FCacheRecordBuilderInternal::SetValue(const FValue& InValue, const FValueId& Id)
-{
-	const FValueId ValueId = GetOrCreateValueId(Id, InValue);
-	checkf(Value.IsNull(),
-		TEXT("Failed to set value on %s with ID %s because it has an existing value with ID %s."),
-		*WriteToString<96>(Key), *WriteToString<32>(ValueId), *WriteToString<32>(Value.GetId()));
-	checkf(Algo::BinarySearchBy(Attachments, ValueId, &FValueWithId::GetId) == INDEX_NONE,
-		TEXT("Failed to set value on %s with ID %s because it has an existing attachment with that ID."),
+	checkf(Id, TEXT("Failed to add value on %s because the ID is null."), *WriteToString<96>(Key));
+	checkf(!(Value == FValue::Null), TEXT("Failed to add value on %s because the value is null."), *WriteToString<96>(Key));
+	const FValueId ValueId = Id ? Id : FValueId::FromHash(Value.GetRawHash());
+	const int32 Index = Algo::LowerBoundBy(Values, ValueId, &FValueWithId::GetId);
+	checkf(!(Values.IsValidIndex(Index) && Values[Index].GetId() == ValueId),
+		TEXT("Failed to add value on %s with ID %s because it has an existing value with that ID."),
 		*WriteToString<96>(Key), *WriteToString<32>(ValueId));
-	Value = FValueWithId(ValueId, InValue);
-}
-
-void FCacheRecordBuilderInternal::SetValue(const FValueWithId& InValue)
-{
-	checkf(InValue, TEXT("Failed to set value on %s because the value is null."), *WriteToString<96>(Key));
-	SetValue(InValue, InValue.GetId());
-}
-
-void FCacheRecordBuilderInternal::AddAttachment(const FCompositeBuffer& Buffer, const FValueId& Id, const uint64 BlockSize)
-{
-	return AddAttachment(FValue::Compress(Buffer, BlockSize), Id);
-}
-
-void FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffer, const FValueId& Id, const uint64 BlockSize)
-{
-	return AddAttachment(FValue::Compress(Buffer, BlockSize), Id);
-}
-
-void FCacheRecordBuilderInternal::AddAttachment(const FValue& InValue, const FValueId& Id)
-{
-	const FValueId ValueId = GetOrCreateValueId(Id, InValue);
-	checkf(Value.IsNull(),
-		TEXT("Failed to set value on %s with ID %s because it has an existing value with ID %s."),
-		*WriteToString<96>(Key), *WriteToString<32>(ValueId), *WriteToString<32>(Value.GetId()));
-	const int32 Index = Algo::LowerBoundBy(Attachments, Id, &FValueWithId::GetId);
-	checkf(!(Attachments.IsValidIndex(Index) && Attachments[Index].GetId() == Id) && Value.GetId() != Id,
-		TEXT("Failed to add attachment on %s with ID %s because it has an existing attachment or value with that ID."),
-		*WriteToString<96>(Key), *WriteToString<32>(Id));
-	Attachments.Insert(FValueWithId(ValueId, InValue), Index);
-}
-
-void FCacheRecordBuilderInternal::AddAttachment(const FValueWithId& InValue)
-{
-	checkf(InValue, TEXT("Failed to add attachment on %s because the value is null."), *WriteToString<96>(Key));
-	AddAttachment(InValue, InValue.GetId());
+	Values.Insert(FValueWithId(ValueId, Value), Index);
 }
 
 FCacheRecord FCacheRecordBuilderInternal::Build()
 {
+	checkf(Algo::IsSortedBy(Values, &FValueWithId::GetId),
+		TEXT("Values in the cache record %s are expected to be sorted when added."),
+		*WriteToString<96>(Key));
 	return CreateCacheRecord(new FCacheRecordInternal(MoveTemp(*this)));
 }
 
@@ -245,30 +174,21 @@ FCbPackage FCacheRecord::Save() const
 	{
 		Writer.AddObject("Meta"_ASV, Meta);
 	}
-	auto SaveValue = [&Package, &Writer](const FValueWithId& ValueWithId)
+	TConstArrayView<FValueWithId> Values = GetValues();
+	if (!Values.IsEmpty())
 	{
-		if (ValueWithId.HasData())
+		Writer.BeginArray("Values"_ASV);
+		for (const FValueWithId& Value : Values)
 		{
-			Package.AddAttachment(FCbAttachment(ValueWithId.GetData()));
-		}
-		Writer.BeginObject();
-		Writer.AddObjectId("Id"_ASV, ValueWithId.GetId());
-		Writer.AddBinaryAttachment("RawHash"_ASV, ValueWithId.GetRawHash());
-		Writer.AddInteger("RawSize"_ASV, ValueWithId.GetRawSize());
-		Writer.EndObject();
-	};
-	if (const FValueWithId& Value = GetValue())
-	{
-		Writer.SetName("Value"_ASV);
-		SaveValue(Value);
-	}
-	TConstArrayView<FValueWithId> Attachments = GetAttachments();
-	if (!Attachments.IsEmpty())
-	{
-		Writer.BeginArray("Attachments"_ASV);
-		for (const FValueWithId& Attachment : Attachments)
-		{
-			SaveValue(Attachment);
+			if (Value.HasData())
+			{
+				Package.AddAttachment(FCbAttachment(Value.GetData()));
+			}
+			Writer.BeginObject();
+			Writer.AddObjectId("Id"_ASV, Value.GetId());
+			Writer.AddBinaryAttachment("RawHash"_ASV, Value.GetRawHash());
+			Writer.AddInteger("RawSize"_ASV, Value.GetRawSize());
+			Writer.EndObject();
 		}
 		Writer.EndArray();
 	}
@@ -281,6 +201,12 @@ FCbPackage FCacheRecord::Save() const
 FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCbObject& Object)
 {
 	const FCbObjectView ObjectView = Object;
+
+	// Check for the previous format of cache record. Remove this check in 5.1.
+	if (ObjectView["Value"_ASV] || ObjectView["Attachments"_ASV])
+	{
+		return FOptionalCacheRecord();
+	}
 
 	FCacheKey Key;
 	FCbObjectView KeyObject = ObjectView["Key"_ASV].AsObjectView();
@@ -329,24 +255,14 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 		}
 	};
 
-	if (FCbObjectView ValueObject = ObjectView["Value"_ASV].AsObjectView())
+	for (FCbFieldView ValueField : ObjectView["Values"_ASV])
 	{
-		FValueWithId Value = LoadValue(ValueObject);
+		FValueWithId Value = LoadValue(ValueField.AsObjectView());
 		if (!Value)
 		{
 			return FOptionalCacheRecord();
 		}
-		Builder.SetValue(Value);
-	}
-
-	for (FCbFieldView AttachmentField : ObjectView["Attachments"_ASV])
-	{
-		FValueWithId Attachment = LoadValue(AttachmentField.AsObjectView());
-		if (!Attachment)
-		{
-			return FOptionalCacheRecord();
-		}
-		Builder.AddAttachment(Attachment);
+		Builder.AddValue(Value);
 	}
 
 	return Builder.Build();
@@ -362,6 +278,21 @@ FCacheRecordBuilder::FCacheRecordBuilder(const FCacheKey& Key)
 {
 }
 
+void FCacheRecordBuilder::AddValue(const FValueId& Id, const FCompositeBuffer& Buffer, const uint64 BlockSize)
+{
+	return RecordBuilder->AddValue(Id, FValue::Compress(Buffer, BlockSize));
+}
+
+void FCacheRecordBuilder::AddValue(const FValueId& Id, const FSharedBuffer& Buffer, const uint64 BlockSize)
+{
+	return RecordBuilder->AddValue(Id, FValue::Compress(Buffer, BlockSize));
+}
+
+void FCacheRecordBuilder::AddValue(const FValueWithId& Value)
+{
+	return RecordBuilder->AddValue(Value.GetId(), Value);
+}
+
 } // UE::DerivedData
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -371,22 +302,22 @@ namespace UE::DerivedData::Private
 
 uint64 GetCacheRecordCompressedSize(const FCacheRecord& Record)
 {
-	const uint64 ValueSize = Record.GetValue().GetData().GetCompressedSize();
-	return int64(Algo::TransformAccumulate(Record.GetAttachments(),
-		[](const FValueWithId& Value) { return Value.GetData().GetCompressedSize(); }, ValueSize));
+	const uint64 MetaSize = Record.GetMeta().GetSize();
+	return int64(Algo::TransformAccumulate(Record.GetValues(),
+		[](const FValueWithId& Value) { return Value.GetData().GetCompressedSize(); }, MetaSize));
 }
 
 uint64 GetCacheRecordTotalRawSize(const FCacheRecord& Record)
 {
-	const uint64 ValueSize = Record.GetValue().GetRawSize();
-	return int64(Algo::TransformAccumulate(Record.GetAttachments(), &FValueWithId::GetRawSize, ValueSize));
+	const uint64 MetaSize = Record.GetMeta().GetSize();
+	return int64(Algo::TransformAccumulate(Record.GetValues(), &FValueWithId::GetRawSize, MetaSize));
 }
 
 uint64 GetCacheRecordRawSize(const FCacheRecord& Record)
 {
-	const uint64 ValueSize = Record.GetValue().GetData().GetRawSize();
-	return int64(Algo::TransformAccumulate(Record.GetAttachments(),
-		[](const FValueWithId& Value) { return Value.GetData().GetRawSize(); }, ValueSize));
+	const uint64 MetaSize = Record.GetMeta().GetSize();
+	return int64(Algo::TransformAccumulate(Record.GetValues(),
+		[](const FValueWithId& Value) { return Value.GetData().GetRawSize(); }, MetaSize));
 }
 
 } // UE::DerivedData::Private

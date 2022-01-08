@@ -427,7 +427,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 			DescriptionWriter.AddInteger("FileRegion"_ASV, static_cast<int32>(FileRegion));
 			if (bIsInlineMip)
 			{
-				DescriptionWriter.AddInteger("PayloadOffset"_ASV, MipOffset);
+				DescriptionWriter.AddInteger("MipOffset"_ASV, MipOffset);
 			}
 			DescriptionWriter.AddInteger("NumBytes"_ASV, CompressedMip.RawData.Num());
 

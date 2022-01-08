@@ -28,6 +28,7 @@ namespace UE::DerivedData { class IBuildWorkerRegistry; }
 namespace UE::DerivedData { class ICache; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildKey; }
+namespace UE::DerivedData { struct FValueId; }
 
 namespace UE::DerivedData::Private
 {
@@ -57,6 +58,7 @@ FBuildInputsBuilder CreateBuildInputs(FStringView Name);
 
 // Implemented in DerivedDataBuildOutput.cpp
 FBuildOutputBuilder CreateBuildOutput(FStringView Name, FStringView Function);
+FValueId GetBuildOutputValueId();
 
 // Implemented in DerivedDataBuildSession.cpp
 FBuildSession CreateBuildSession(
