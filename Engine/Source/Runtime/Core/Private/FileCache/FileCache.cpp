@@ -227,7 +227,7 @@ public:
 	{
 		return BlockIDType(FMath::DivideAndRoundDown(Offset, BlockIDType::GetSize()));
 	}
-	PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
+	PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 	template<typename BlockIDType> inline int32 GetNumBlocks(int64 Offset, int64 Size)
 	{

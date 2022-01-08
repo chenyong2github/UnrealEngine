@@ -311,4 +311,4 @@ void FBitReaderMark::Copy( FBitReader& Reader, TArray<uint8> &Buffer )
 	}
 }
 
-PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

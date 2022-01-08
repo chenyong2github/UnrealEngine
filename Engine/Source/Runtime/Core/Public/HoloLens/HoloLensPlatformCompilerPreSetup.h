@@ -32,26 +32,13 @@
 #ifndef PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 	#define PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS \
 		__pragma (warning(push)) \
-		__pragma (warning(disable: 4244)) /* 'argument': conversion from 'type1' to 'type2', possible loss of data */	\
-		__pragma (warning(disable: 4838)) /* 'argument': conversion from 'type1' to 'type2' requires a narrowing conversion */
+		__pragma (warning(disable: 4244)) /* 'argument': conversion from 'type1' to 'type2', possible loss of data */
 #endif // PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 #ifndef PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 	#define PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS \
-		DEPRECATED_MACRO(5.0, "The PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS macro has been deprecated in favor of PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS. To force enable warnings use PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS.")
-#endif // PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
-
-#ifndef PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS
-	#define PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS \
-		__pragma (warning(push)) \
-		__pragma (warning(error: 4244)) /* 'argument': conversion from 'type1' to 'type2', possible loss of data */	\
-		__pragma (warning(error: 4838)) /* 'argument': conversion from 'type1' to 'type2' requires a narrowing conversion */
-#endif // PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS
-
-#ifndef PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
-	#define PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS \
 		__pragma(warning(pop))
-#endif // PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
+#endif // PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 #ifndef PRAGMA_DISABLE_UNDEFINED_IDENTIFIER_WARNINGS
 	#define PRAGMA_DISABLE_UNDEFINED_IDENTIFIER_WARNINGS \

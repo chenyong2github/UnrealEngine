@@ -723,7 +723,7 @@ public:
 	static void* AllocateMetaDataMemory(SIZE_T Size);
 };
 
-PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 #define BINNED3_INLINE (1)
 #if BINNED3_INLINE // during development, it helps with iteration time to not include these here, but rather in the .cpp

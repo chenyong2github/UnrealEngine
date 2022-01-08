@@ -79,22 +79,10 @@
 #define DISABLE_IMPLICIT_FLOAT_CONVERSION_FRAGMENT
 #endif
 
-#if __has_warning("-Wimplicit-float-conversion")
-#define FORCE_IMPLICIT_FLOAT_CONVERSION_FRAGMENT _Pragma("clang diagnostic warning \"-Wimplicit-float-conversion\"")
-#else
-#define FORCE_IMPLICIT_FLOAT_CONVERSION_FRAGMENT
-#endif
-
 #if __has_warning("-Wimplicit-int-conversion")
 #define DISABLE_IMPLICIT_INT_CONVERSION_FRAGMENT _Pragma("clang diagnostic ignored \"-Wimplicit-int-conversion\"")
 #else
 #define DISABLE_IMPLICIT_INT_CONVERSION_FRAGMENT
-#endif
-
-#if __has_warning("-Wimplicit-int-conversion")
-#define FORCE_IMPLICIT_INT_CONVERSION_FRAGMENT _Pragma("clang diagnostic warning \"-Wimplicit-int-conversion\"")
-#else
-#define FORCE_IMPLICIT_INT_CONVERSION_FRAGMENT
 #endif
 
 #ifndef PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
@@ -108,21 +96,7 @@
 
 #ifndef PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 	#define PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS \
-		DEPRECATED_MACRO(5.0, "The PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS macro has been deprecated in favor of PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS. To force enable warnings use PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS.")
-#endif // PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
-
-#ifndef PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS
-	#define PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS \
-		_Pragma("clang diagnostic push") \
-		_Pragma("clang diagnostic warning \"-Wfloat-conversion\"") \
-		FORCE_IMPLICIT_FLOAT_CONVERSION_FRAGMENT \
-		FORCE_IMPLICIT_INT_CONVERSION_FRAGMENT \
-		_Pragma("clang diagnostic warning \"-Wc++11-narrowing\"")
-#endif // PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
-
-#ifndef PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
-	#define PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS \
-	_Pragma("clang diagnostic pop")
+		_Pragma("clang diagnostic pop")
 #endif // PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 #ifndef PRAGMA_DISABLE_UNDEFINED_IDENTIFIER_WARNINGS

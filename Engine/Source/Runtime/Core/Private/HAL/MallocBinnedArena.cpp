@@ -1353,4 +1353,4 @@ void FMallocBinnedArena::DumpAllocatorStats(class FOutputDevice& Ar)
 }
 #endif
 
-PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
+PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

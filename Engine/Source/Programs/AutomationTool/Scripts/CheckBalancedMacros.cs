@@ -41,12 +41,8 @@ namespace AutomationTool
 			},
 			{
 				"PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS",
-				"PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS"
+				"PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS"
 			},
-			{
-				"PRAGMA_FORCE_UNSAFE_TYPECAST_WARNINGS",
-				"PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS"
-			},			
 			{
 				"PRAGMA_DISABLE_UNDEFINED_IDENTIFIER_WARNINGS",
 				"PRAGMA_ENABLE_UNDEFINED_IDENTIFIER_WARNINGS"
@@ -54,6 +50,10 @@ namespace AutomationTool
 			{
 				"PRAGMA_DISABLE_MISSING_VIRTUAL_DESTRUCTOR_WARNINGS",
 				"PRAGMA_ENABLE_MISSING_VIRTUAL_DESTRUCTOR_WARNINGS"
+			},
+			{
+				"BEGIN_FUNCTION_BUILD_OPTIMIZATION",
+				"END_FUNCTION_BUILD_OPTIMIZATION"
 			},
 			{
 				"BEGIN_FUNCTION_BUILD_OPTIMIZATION",
@@ -82,19 +82,11 @@ namespace AutomationTool
 		public override void ExecuteBuild()
 		{
 			// Build a lookup of flags to set and clear for each identifier
-			Dictionary<string, List<int>> IdentifierToIndex = new Dictionary<string, List<int>>();
+			Dictionary<string, int> IdentifierToIndex = new Dictionary<string, int>();
 			for(int Idx = 0; Idx < MacroPairs.GetLength(0); Idx++)
 			{
-				for (int SubIdx = 0; SubIdx < 2; SubIdx++)
-				{
-					ref string Key = ref MacroPairs[Idx, SubIdx];
-					if (!IdentifierToIndex.ContainsKey(Key))
-					{
-						IdentifierToIndex[Key] = new List<int>();
-					}
-
-					IdentifierToIndex[Key].Add(SubIdx == 0 ? Idx : ~Idx);
-				}
+				IdentifierToIndex[MacroPairs[Idx, 0]] = Idx;
+				IdentifierToIndex[MacroPairs[Idx, 1]] = ~Idx;
 			}
 
 			// Check if we want to just parse a single file
@@ -219,7 +211,7 @@ namespace AutomationTool
 		/// <param name="SourceFile"></param>
 		/// <param name="IdentifierToIndex">Map of macro identifier to bit index. The complement of an index is used to indicate the end of the pair.</param>
 		/// <param name="LogLock">Object used to marshal access to the global log instance</param>
-		void CheckSourceFile(FileReference SourceFile, Dictionary<string, List<int>> IdentifierToIndex, object LogLock)
+		void CheckSourceFile(FileReference SourceFile, Dictionary<string, int> IdentifierToIndex, object LogLock)
 		{
 			// Read the text
 			string Text = FileReference.ReadAllText(SourceFile);
@@ -241,44 +233,28 @@ namespace AutomationTool
 					string Identifier = Text.Substring(StartIdx, Idx - StartIdx);
 
 					// Find the matching flag
-					List<int> Index;
+					int Index;
 					if(IdentifierToIndex.TryGetValue(Identifier, out Index))
 					{
-						if(Index[0] >= 0)
+						if(Index >= 0)
 						{
 							// Set the flag (should not already be set)
-							int Flag = 1 << Index[0];
+							int Flag = 1 << Index;
 							if((Flags & Flag) != 0)
 							{
-								EpicGames.Core.Log.TraceWarningTask(SourceFile, GetLineNumber(Text, StartIdx), "{0} macro appears a second time without matching {1} macro", Identifier, MacroPairs[Index[0], 1]);
+								EpicGames.Core.Log.TraceWarningTask(SourceFile, GetLineNumber(Text, StartIdx), "{0} macro appears a second time without matching {1} macro", Identifier, MacroPairs[Index, 1]);
 							}
 							Flags |= Flag;
 						}
 						else
 						{
-							bool bMatched = false;
-							// Check for any flag. We clear the first we find when validating, even if that's not technically the correct match. TODO: This means we may report the wrong tag as left over where tags are nested and there's a missing end tag.
-							foreach (int SubIndex in Index)
+							// Clear the flag (should already be set)
+							int Flag = 1 << ~Index;
+							if((Flags & Flag) == 0)
 							{
-								int Flag = 1 << ~SubIndex;
-								// Clear the flag (should already be set)
-								if((Flags & Flag) != 0)
-								{
-									Flags &= ~Flag;
-									bMatched = true;
-									break;
-								}
+								EpicGames.Core.Log.TraceWarningTask(SourceFile, GetLineNumber(Text, StartIdx), "{0} macro appears without matching {1} macro", Identifier, MacroPairs[~Index, 0]);
 							}
-							
-							if (!bMatched)
-							{
-								string MissingMatching = "";
-								foreach (int SubIndex in Index)
-								{
-									MissingMatching += (MissingMatching.Length > 0 ? ", " : "") +  MacroPairs[~SubIndex, 0];
-								}
-								EpicGames.Core.Log.TraceWarningTask(SourceFile, GetLineNumber(Text, StartIdx), "{0} macro appears without matching {1} macro", Identifier, MissingMatching);
-							}
+							Flags &= ~Flag;
 						}
 					}
 				}
