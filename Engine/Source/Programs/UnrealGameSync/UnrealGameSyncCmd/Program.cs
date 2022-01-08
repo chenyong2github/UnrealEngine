@@ -12,6 +12,8 @@ using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using UnrealGameSync;
 
 namespace UnrealGameSyncCmd
@@ -554,7 +556,7 @@ namespace UnrealGameSyncCmd
 
 		class ConfigCommand : Command
 		{
-			public override async Task ExecuteAsync(CommandContext Context)
+			public override Task ExecuteAsync(CommandContext Context)
 			{
 				ILogger Logger = Context.Logger;
 
@@ -568,7 +570,7 @@ namespace UnrealGameSyncCmd
 					{
 						if (Editor != null)
 						{
-							await Editor.WaitForExitAsync();
+							Editor.WaitForExit();
 						}
 					}
 				}
@@ -583,6 +585,8 @@ namespace UnrealGameSyncCmd
 
 					Logger.LogInformation("Updated {ConfigFile}", Settings.ConfigFile);
 				}
+				
+				return Task.CompletedTask;
 			}
 		}
 

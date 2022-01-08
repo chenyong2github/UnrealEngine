@@ -53,6 +53,9 @@
     <None Include="..\..\Shared\EpicGames.Perforce.Native\bin\linux-x64\Release\EpicGames.Perforce.Native.so" Visible="false">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\..\Shared\EpicGames.Perforce.Native\bin\mac-x64\Release\EpicGames.Perforce.Native.dylib" Visible="false">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

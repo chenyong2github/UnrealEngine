@@ -81,7 +81,7 @@ namespace EpicGames.Perforce
 		/// <returns></returns>
 		public static async Task<IPerforceConnection> CreateAsync(IPerforceSettings Settings, ILogger Logger)
 		{
-			if (Settings.PreferNativeClient && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+			if (Settings.PreferNativeClient)
 			{
 				return await NativePerforceConnection.CreateAsync(Settings, Logger);
 			}
