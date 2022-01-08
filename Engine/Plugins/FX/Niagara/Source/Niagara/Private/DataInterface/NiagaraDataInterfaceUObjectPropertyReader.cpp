@@ -684,6 +684,7 @@ bool UNiagaraDataInterfaceUObjectPropertyReader::PerInstanceTick(void* PerInstan
 				}
 			}
 
+			check(ObjectBinding != nullptr);	// Fixes CIS warning
 			for (FNDIPropertyGetter& PropertyGetter : InstanceData_GT->PropertyGetters)
 			{
 				BindPropertyGetter(PropertyGetter, ObjectBinding);
