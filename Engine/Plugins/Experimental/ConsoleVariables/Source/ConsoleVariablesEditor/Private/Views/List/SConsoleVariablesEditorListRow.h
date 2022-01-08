@@ -83,6 +83,9 @@ private:
 
 	const float FlashAnimationDuration = 0.75f;
 	const FLinearColor FlashColor = FLinearColor::White;
+
+	/** The offset applied to text widgets so that the text aligns with the column header text */
+	float TextBlockLeftPadding = 3.0f;
 	
 	bool bIsHovered = false;
 };

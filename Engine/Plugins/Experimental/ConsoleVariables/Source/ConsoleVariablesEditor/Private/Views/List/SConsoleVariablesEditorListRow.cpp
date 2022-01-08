@@ -15,6 +15,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
@@ -107,10 +108,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateWidgetForColumn(cons
 
 	FlashImages.Add(FlashImage);
 
-	return SNew(SBox)
-		.Visibility(EVisibility::SelfHitTestInvisible)
-		[
-			SNew(SOverlay)
+	return SNew(SOverlay)
 			.Visibility(EVisibility::SelfHitTestInvisible)
 
 			+ SOverlay::Slot()
@@ -127,8 +125,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateWidgetForColumn(cons
 				[
 					CellWidget.ToSharedRef()
 				]
-			]
-		];
+			];
 }
 
 void SConsoleVariablesEditorListRow::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -394,10 +391,18 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 				PinnedItem->GetCommandInfo().Pin()->Command,
 				PinnedItem->GetCommandInfo().Pin()->GetHelpText());
 		}
-		return SNew(STextBlock)
-				.Visibility(EVisibility::Visible)
-				.Text(FText::FromString(PinnedItem->GetCommandInfo().Pin()->Command))
-				.ToolTip(HoverToolTip);
+		return SNew(SBox)
+				.Visibility(EVisibility::SelfHitTestInvisible)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(TextBlockLeftPadding, 0.f, 0.f, 0.f))
+				[
+					SNew(STextBlock)
+					.Visibility(EVisibility::Visible)
+					.Justification(ETextJustify::Left)
+					.Text(FText::FromString(PinnedItem->GetCommandInfo().Pin()->Command))
+					.ToolTip(HoverToolTip)
+				];
 	}
 	if (InColumnName.IsEqual(SConsoleVariablesEditorList::ValueColumnName))
 	{
@@ -405,28 +410,23 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 	}
 	if (InColumnName.IsEqual(SConsoleVariablesEditorList::SourceColumnName))
 	{
-		return SNew(SOverlay)
-			.Visibility(EVisibility::SelfHitTestInvisible)
-
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Visibility(EVisibility::SelfHitTestInvisible)
-				.Text_Lambda([this]()
-                {
-	                return Item.Pin()->GetCommandInfo().Pin()->GetSourceAsText();
-                })
-			]
-
-			+ SOverlay::Slot()
-		    .HAlign(HAlign_Right)
-		    .VAlign(VAlign_Center)
-			[
-				SAssignNew(HoverableWidgetsPtr, SConsoleVariablesEditorListRowHoverWidgets, Item)
-				.Visibility(EVisibility::Collapsed)
-			];
+		return SNew(SBox)
+				.Visibility(EVisibility::HitTestInvisible)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(TextBlockLeftPadding, 0.f, 0.f, 0.f))
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]()
+	                {
+		                return Item.Pin()->GetCommandInfo().Pin()->GetSourceAsText();
+	                })
+				];
+	}
+	if (InColumnName.IsEqual(SConsoleVariablesEditorList::ActionButtonColumnName))
+	{
+		return SAssignNew(HoverableWidgetsPtr, SConsoleVariablesEditorListRowHoverWidgets, Item)
+				.Visibility(EVisibility::Collapsed);
 	}
 
 	return SNullWidget::NullWidget;
@@ -600,20 +600,25 @@ void SConsoleVariablesEditorListRowHoverWidgets::Construct(const FArguments& InA
 
 	ChildSlot
 	[
-		// Remove Button
+		// Action Button
 		SAssignNew(ActionButtonPtr, SButton)
+		.Visibility(EVisibility::Visible)
 		.ToolTipText(ButtonTooltip)
 		.ButtonColorAndOpacity(FStyleColors::Transparent)
+		.ContentPadding(0.f)
 		.OnClicked_Lambda([this]()
 		{
 			SetVisibility(EVisibility::Collapsed);
 			return Item.Pin()->OnActionButtonClicked();
 		})
 		[
-			SNew(SImage)
-			.Visibility(EVisibility::SelfHitTestInvisible)
-			.Image(FAppStyle::Get().GetBrush(ButtonImageName))
-			.ColorAndOpacity(FSlateColor::UseForeground())
+			SNew(SScaleBox)
+			[
+				SNew(SImage)
+				.Visibility(EVisibility::SelfHitTestInvisible)
+				.Image(FAppStyle::Get().GetBrush(ButtonImageName))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
 		]
 	];
 }
