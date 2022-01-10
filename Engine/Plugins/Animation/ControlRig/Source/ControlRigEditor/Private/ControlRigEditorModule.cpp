@@ -1372,7 +1372,10 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								LOCTEXT("EjectLastNode_Tooltip", "Eject the last injected node"),
 								FSlateIcon(),
 								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
-									Controller->EjectNodeFromPin(ModelPin->GetPinPath(), true, true);
+									Controller->OpenUndoBracket(TEXT("Eject node from pin"));
+									URigVMNode* Node = Controller->EjectNodeFromPin(ModelPin->GetPinPath(), true, true);
+									Controller->SelectNode(Node, true, true, true);
+									Controller->CloseUndoBracket();
 								})
 							));
 						}
@@ -1430,6 +1433,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 										LOCTEXT("AddAlphaInterp_Tooltip", "Injects an interpolate node"),
 										FSlateIcon(),
 										FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, ScriptStruct]() {
+											Controller->OpenUndoBracket(TEXT("Add injected node"));
 											URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, FRigUnit::GetMethodName(), TEXT("Value"), TEXT("Result"), FString(), true, true);
 											if (Injection)
 											{
@@ -1437,6 +1441,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 												NodeNames.Add(Injection->Node->GetFName());
 												Controller->SetNodeSelection(NodeNames);
 											}
+											Controller->CloseUndoBracket();
 										})
 									));
 								}
@@ -1459,7 +1464,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 										LOCTEXT("RemoveAlphaInterp_Tooltip", "Removes the interpolate node"),
 										FSlateIcon(),
 										FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, InterpNode]() {
-											Controller->RemoveNodeByName(InterpNode->GetFName(), true, false, true);
+											Controller->RemoveInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, true);
 										})
 									));
 								}

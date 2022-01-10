@@ -2047,6 +2047,10 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 		return nullptr;
 	}
 
+	// 1.- Create unit node
+	// 2.- Rewire links
+	// 3.- Inject node into pin
+
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	FRigVMBaseAction Action;
 	if (bSetupUndoRedo)
@@ -2055,112 +2059,109 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 		ActionStack->BeginAction(Action);
 	}
 
+	// 1.- Create unit node
 	URigVMUnitNode* UnitNode = nullptr;
+	URigVMPin* InputPin = nullptr;
+	URigVMPin* OutputPin = nullptr;
 	{
-		TGuardValue<bool> GuardNotifications(bSuspendNotifications, true);
-		UnitNode = AddUnitNode(InScriptStruct, InMethodName, FVector2D::ZeroVector, InNodeName, false);
-	}
-	if (UnitNode == nullptr)
-	{
-		if (bSetupUndoRedo)
 		{
-			ActionStack->CancelAction(Action);
+			TGuardValue<bool> GuardNotifications(bSuspendNotifications, true);
+			UnitNode = AddUnitNode(InScriptStruct, InMethodName, FVector2D::ZeroVector, InNodeName, bSetupUndoRedo);
 		}
-		return nullptr;
-	}
-	else if (UnitNode->IsMutable())
-	{
-		ReportErrorf(TEXT("Injected node %s is mutable."), *InScriptStruct->GetName());
-		RemoveNode(UnitNode, false);
-		if (bSetupUndoRedo)
+		if (UnitNode == nullptr)
 		{
-			ActionStack->CancelAction(Action);
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return nullptr;
 		}
-		return nullptr;
-	}
-
-	URigVMPin* InputPin = UnitNode->FindPin(InInputPinName.ToString());
-	check(InputPin);
-	URigVMPin* OutputPin = UnitNode->FindPin(InOutputPinName.ToString());
-	check(OutputPin);
-
-	if (InputPin->GetCPPType() != OutputPin->GetCPPType() ||
-		InputPin->IsArray() != OutputPin->IsArray())
-	{
-		ReportErrorf(TEXT("Injected node %s is using incompatible input and output pins."), *InScriptStruct->GetName());
-		RemoveNode(UnitNode, false);
-		if (bSetupUndoRedo)
+		else if (UnitNode->IsMutable())
 		{
-			ActionStack->CancelAction(Action);
+			ReportErrorf(TEXT("Injected node %s is mutable."), *InScriptStruct->GetName());
+			RemoveNode(UnitNode, false);
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return nullptr;
 		}
-		return nullptr;
-	}
 
-	if (InputPin->GetCPPType() != Pin->GetCPPType() ||
-		InputPin->IsArray() != Pin->IsArray())
-	{
-		ReportErrorf(TEXT("Injected node %s is using incompatible pin."), *InScriptStruct->GetName());
-		RemoveNode(UnitNode, false);
-		if (bSetupUndoRedo)
+		InputPin = UnitNode->FindPin(InInputPinName.ToString());
+		check(InputPin);
+		OutputPin = UnitNode->FindPin(InOutputPinName.ToString());
+		check(OutputPin);
+
+		if (InputPin->GetCPPType() != OutputPin->GetCPPType() ||
+			InputPin->IsArray() != OutputPin->IsArray())
 		{
-			ActionStack->CancelAction(Action);
+			ReportErrorf(TEXT("Injected node %s is using incompatible input and output pins."), *InScriptStruct->GetName());
+			RemoveNode(UnitNode, false);
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return nullptr;
 		}
-		return nullptr;
-	}
 
-	URigVMInjectionInfo* InjectionInfo = NewObject<URigVMInjectionInfo>(Pin);
-
-	// re-parent the unit node to be under the injection info
-	RenameObject(UnitNode, nullptr, InjectionInfo);
-
-	InjectionInfo->Node = UnitNode;
-	InjectionInfo->bInjectedAsInput = bAsInput;
-	InjectionInfo->InputPin = InputPin;
-	InjectionInfo->OutputPin = OutputPin;
-
-	if (bSetupUndoRedo)
-	{
-		ActionStack->AddAction(FRigVMAddInjectedNodeAction(InjectionInfo));
-	}
-
-	URigVMPin* PreviousInputPin = Pin;
-	URigVMPin* PreviousOutputPin = Pin;
-	if (Pin->InjectionInfos.Num() > 0)
-	{
-		PreviousInputPin = Pin->InjectionInfos.Last()->InputPin;
-		PreviousOutputPin = Pin->InjectionInfos.Last()->OutputPin;
-	}
-	Pin->InjectionInfos.Add(InjectionInfo);
-
-	Notify(ERigVMGraphNotifType::NodeAdded, UnitNode);
-
-	// now update all of the links
-	if (bAsInput)
-	{
-		FString PinDefaultValue = PreviousInputPin->GetDefaultValue();
-		if (!PinDefaultValue.IsEmpty())
+		if (InputPin->GetCPPType() != Pin->GetCPPType() ||
+			InputPin->IsArray() != Pin->IsArray())
 		{
-			SetPinDefaultValue(InjectionInfo->InputPin, PinDefaultValue, true, false, false);
-		}
-		TArray<URigVMLink*> Links = PreviousInputPin->GetSourceLinks(true /* recursive */);
-		BreakAllLinks(PreviousInputPin, true, false);
-		AddLink(InjectionInfo->OutputPin, PreviousInputPin, false);
-		if (Links.Num() > 0)
-		{
-			RewireLinks(PreviousInputPin, InjectionInfo->InputPin, true, false, Links);
-		}
-	}
-	else
-	{
-		TArray<URigVMLink*> Links = PreviousOutputPin->GetTargetLinks(true /* recursive */);
-		BreakAllLinks(PreviousOutputPin, false, false);
-		AddLink(PreviousOutputPin, InjectionInfo->InputPin, false);
-		if (Links.Num() > 0)
-		{
-			RewireLinks(PreviousOutputPin, InjectionInfo->OutputPin, false, false, Links);
+			ReportErrorf(TEXT("Injected node %s is using incompatible pin."), *InScriptStruct->GetName());
+			RemoveNode(UnitNode, false);
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return nullptr;
 		}
 	}
 
+	// 2.- Rewire links
+	TArray<URigVMLink*> NewLinks;
+	{
+		URigVMPin* PreviousInputPin = Pin;
+		URigVMPin* PreviousOutputPin = Pin;
+		if (Pin->InjectionInfos.Num() > 0)
+		{
+			PreviousInputPin = Pin->InjectionInfos.Last()->InputPin;
+			PreviousOutputPin = Pin->InjectionInfos.Last()->OutputPin;
+		}
+		if (bAsInput)
+		{
+			FString PinDefaultValue = PreviousInputPin->GetDefaultValue();
+			if (!PinDefaultValue.IsEmpty())
+			{
+				SetPinDefaultValue(InputPin, PinDefaultValue, true, bSetupUndoRedo, false);
+			}
+			TArray<URigVMLink*> Links = PreviousInputPin->GetSourceLinks(true /* recursive */);
+			if (Links.Num() > 0)
+			{
+				RewireLinks(PreviousInputPin, InputPin, true, bSetupUndoRedo, Links);
+				NewLinks = InputPin->GetSourceLinks();
+			}
+			AddLink(OutputPin, PreviousInputPin, bSetupUndoRedo);
+		}
+		else
+		{
+			TArray<URigVMLink*> Links = PreviousOutputPin->GetTargetLinks(true /* recursive */);
+			if (Links.Num() > 0)
+			{
+				RewireLinks(PreviousOutputPin, OutputPin, false, bSetupUndoRedo, Links);
+				NewLinks = OutputPin->GetTargetLinks();
+			}
+			AddLink(PreviousOutputPin, InputPin, bSetupUndoRedo);
+		}
+	}
+
+	// 3.- Inject node into pin
+	URigVMInjectionInfo* InjectionInfo = InjectNodeIntoPin(InPinPath, bAsInput, InInputPinName, InOutputPinName, bSetupUndoRedo);
+
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
+	
 	if (bSetupUndoRedo)
 	{
 		ActionStack->EndAction(Action);
@@ -2203,7 +2204,259 @@ URigVMInjectionInfo* URigVMController::AddInjectedNodeFromStructPath(const FStri
 	return AddInjectedNode(InPinPath, bAsInput, ScriptStruct, InMethodName, InInputPinName, InOutputPinName, InNodeName, bSetupUndoRedo);
 }
 
+bool URigVMController::RemoveInjectedNode(const FString& InPinPath, bool bAsInput, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add injected nodes to function library graphs."));
+		return false;
+	}
+
+	URigVMPin* Pin = Graph->FindPin(InPinPath);
+	if (Pin == nullptr)
+	{
+		return false;
+	}
+
+	if (!Pin->HasInjectedNodes())
+	{
+		return false;
+	}
+
+
+	// 1.- Eject node
+	// 2.- Rewire links
+	// 3.- Remove node
+
+	FRigVMControllerCompileBracketScope CompileScope(this);
+	FRigVMBaseAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action.Title = FString::Printf(TEXT("Remove Injected Node"));
+		ActionStack->BeginAction(Action);
+	}
+
+	URigVMInjectionInfo* InjectionInfo = Pin->InjectionInfos.Last();
+	URigVMPin* InputPin = InjectionInfo->InputPin;
+	URigVMPin* OutputPin = InjectionInfo->OutputPin;
+
+	// 1.- Eject node
+	URigVMNode* NodeEjected = EjectNodeFromPin(InPinPath, bSetupUndoRedo);
+	if (!NodeEjected)
+	{
+		ActionStack->CancelAction(Action);
+		return false;
+	}
+
+	// 2.- Rewire links
+	if (bAsInput)
+	{
+		BreakLink(OutputPin, Pin, bSetupUndoRedo);
+		if (InputPin)
+		{
+			TArray<URigVMLink*> Links = InputPin->GetSourceLinks();
+			RewireLinks(InputPin, Pin, true, bSetupUndoRedo, Links);
+		}
+	}
+	else
+	{
+		BreakLink(Pin, InputPin, bSetupUndoRedo);
+		TArray<URigVMLink*> Links = InputPin->GetTargetLinks();
+		RewireLinks(OutputPin, Pin, false, bSetupUndoRedo, Links);
+	}
+	
+	// 3.- Remove node
+	if (!RemoveNode(NodeEjected))
+	{
+		ActionStack->CancelAction(Action);
+		return false;
+	}
+
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
+	
+	if (bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action);
+	}
+
+	if (bPrintPythonCommand)
+	{
+		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
+		
+		RigVMPythonUtils::Print(GetGraphOuterName(), 
+							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').remove_injected_node('%s', %s)"),
+											*GraphName,
+											*GetSanitizedPinPath(InPinPath),
+											(bAsInput) ? TEXT("True") : TEXT("False")));
+	}
+
+	return true;
+}
+
+URigVMInjectionInfo* URigVMController::InjectNodeIntoPin(const FString& InPinPath, bool bAsInput, const FName& InInputPinName, const FName& InOutputPinName, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMPin* Pin = Graph->FindPin(InPinPath);
+	if (!Pin)
+	{
+		return nullptr;
+	}
+
+	return InjectNodeIntoPin(Pin, bAsInput, InInputPinName, InOutputPinName, bSetupUndoRedo);
+}
+
+URigVMInjectionInfo* URigVMController::InjectNodeIntoPin(URigVMPin* InPin, bool bAsInput, const FName& InInputPinName, const FName& InOutputPinName, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot inject nodes in function library graphs."));
+		return nullptr;
+	}
+
+	URigVMPin* PinForLink = InPin->GetPinForLink();
+
+	URigVMNode* NodeToInject = nullptr;
+	TArray<URigVMPin*> ConnectedPins = bAsInput ? PinForLink->GetLinkedSourcePins(true) : PinForLink->GetLinkedTargetPins(true);
+	if (ConnectedPins.Num() < 1)
+	{
+		ReportErrorf(TEXT("Cannot find node connected to pin '%s' as %s."), *InPin->GetPinPath(), bAsInput ? TEXT("input") : TEXT("output"));
+		return nullptr;
+	}
+
+	NodeToInject = ConnectedPins[0]->GetNode();
+	for (int32 i = 1; i < ConnectedPins.Num(); ++i)
+	{
+		if (ConnectedPins[i]->GetNode() != NodeToInject)
+		{
+			ReportErrorf(TEXT("Found more than one node connected to pin '%s' as %s."), *InPin->GetPinPath(), bAsInput ? TEXT("input") : TEXT("output"));
+			return nullptr;
+		}
+	}
+
+	URigVMPin* InputPin = nullptr;
+	URigVMPin* OutputPin = nullptr;
+	if (NodeToInject->IsA<URigVMUnitNode>())
+	{
+		InputPin = NodeToInject->FindPin(InInputPinName.ToString());
+		if (!InputPin)
+		{
+			ReportErrorf(TEXT("Could not find pin '%s' in node %s."), *InInputPinName.ToString(), *NodeToInject->GetNodePath());
+			return nullptr;
+		}
+	}
+	OutputPin = NodeToInject->FindPin(InOutputPinName.ToString());
+	if (!OutputPin)
+	{
+		ReportErrorf(TEXT("Could not find pin '%s' in node %s."), *InOutputPinName.ToString(), *NodeToInject->GetNodePath());
+		return nullptr;
+	}
+
+	FRigVMControllerCompileBracketScope CompileScope(this);
+	FRigVMBaseAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action.Title = FString::Printf(TEXT("Inject Node"));
+		ActionStack->BeginAction(Action);
+	}
+	
+	
+	URigVMInjectionInfo* InjectionInfo = NewObject<URigVMInjectionInfo>(InPin);
+	{
+		Notify(ERigVMGraphNotifType::NodeRemoved, NodeToInject);
+		
+		// re-parent the unit node to be under the injection info
+		RenameObject(NodeToInject, nullptr, InjectionInfo);
+		
+		InjectionInfo->Node = NodeToInject;
+		InjectionInfo->bInjectedAsInput = bAsInput;
+		InjectionInfo->InputPin = InputPin;
+		InjectionInfo->OutputPin = OutputPin;
+	
+		InPin->InjectionInfos.Add(InjectionInfo);
+
+		Notify(ERigVMGraphNotifType::NodeAdded, NodeToInject);
+	}
+
+	// Notify the change in links (after the node is injected)
+	{
+		TArray<URigVMLink*> NewLinks;
+		if (bAsInput)
+		{
+			if (InputPin)
+			{
+				NewLinks = InputPin->GetSourceLinks();
+			}
+		}
+		else
+		{
+			NewLinks = OutputPin->GetTargetLinks();
+		}
+		for (URigVMLink* Link : NewLinks)
+		{
+			Notify(ERigVMGraphNotifType::LinkAdded, Link);
+		}
+	}
+
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
+
+	if (bSetupUndoRedo)
+	{
+		ActionStack->AddAction(FRigVMInjectNodeIntoPinAction(InjectionInfo));
+		ActionStack->EndAction(Action);
+	}
+
+	return InjectionInfo;
+}
+
 URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMPin* Pin = Graph->FindPin(InPinPath);
+	if (!Pin)
+	{
+		return nullptr;
+	}
+
+	return EjectNodeFromPin(Pin, bSetupUndoRedo, bPrintPythonCommand);
+}
+
+URigVMNode* URigVMController::EjectNodeFromPin(URigVMPin* InPin, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
 	{
@@ -2219,46 +2472,27 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 		return nullptr;
 	}
 
-	URigVMPin* Pin = Graph->FindPin(InPinPath);
-	if (Pin == nullptr)
+	if (!InPin->HasInjectedNodes())
 	{
-		ReportErrorf(TEXT("Cannot find pin '%s'."), *InPinPath);
+		ReportErrorf(TEXT("Pin '%s' has no injected nodes."), *InPin->GetPinPath());
 		return nullptr;
 	}
 
-	if (!Pin->HasInjectedNodes())
-	{
-		ReportErrorf(TEXT("Pin '%s' has no injected nodes."), *InPinPath);
-		return nullptr;
-	}
+	URigVMInjectionInfo* Injection = InPin->InjectionInfos.Last();
 
-	URigVMInjectionInfo* Injection = Pin->InjectionInfos.Last();
-
-	FName NodeName = Injection->Node->GetFName();
 	
-	TMap<FName, FString> DefaultValues;
-	for (URigVMPin* PinOnNode : Injection->Node->GetPins())
-	{
-		if (PinOnNode->GetDirection() == ERigVMPinDirection::Input ||
-			PinOnNode->GetDirection() == ERigVMPinDirection::Visible ||
-			PinOnNode->GetDirection() == ERigVMPinDirection::IO)
-		{
-			FString DefaultValue = PinOnNode->GetDefaultValue();
-			PostProcessDefaultValue(PinOnNode, DefaultValue);
-			DefaultValues.Add(PinOnNode->GetFName(), DefaultValue);
-		}
-	}
-
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMBaseAction Action;
+	FRigVMInverseAction InverseAction;
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Eject Node"));
-		ActionStack->BeginAction(Action);
+		InverseAction.Title = TEXT("Eject node");
+
+		ActionStack->BeginAction(InverseAction);
+		ActionStack->AddAction(FRigVMInjectNodeIntoPinAction(Injection));
 	}
 
-	FVector2D Position = Pin->GetNode()->GetPosition() + FVector2D(0.f, 12.f) * float(Pin->GetPinIndex());
-	if (Pin->GetDirection() == ERigVMPinDirection::Output)
+	FVector2D Position = InPin->GetNode()->GetPosition() + FVector2D(0.f, 12.f) * float(InPin->GetPinIndex());
+	if (InPin->GetDirection() == ERigVMPinDirection::Output)
 	{
 		Position += FVector2D(250.f, 0.f);
 	}
@@ -2267,83 +2501,44 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 		Position -= FVector2D(250.f, 0.f);
 	}
 
-	URigVMNode* EjectedNode = nullptr;
-	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Injection->Node))
-	{
-		EjectedNode = AddUnitNode(UnitNode->GetScriptStruct(), UnitNode->GetMethodName(), Position, FString(), bSetupUndoRedo);
-	}
-	else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Injection->Node))
-	{
-		EjectedNode = AddVariableNode(VariableNode->GetVariableName(), VariableNode->GetCPPType(), VariableNode->GetCPPTypeObject(), true, VariableNode->GetDefaultValue(), Position, FString(), bSetupUndoRedo);
-	}
 
-	if (!EjectedNode)
+	URigVMNode* NodeToEject = Injection->Node;
+	URigVMPin* InputPin = Injection->InputPin;
+	URigVMPin* OutputPin = Injection->OutputPin;
+	Notify(ERigVMGraphNotifType::NodeRemoved, NodeToEject);
+	if (Injection->bInjectedAsInput)
 	{
-		ReportErrorf(TEXT("Could not eject node."));
-		if (bSetupUndoRedo)
+		if (InputPin)
 		{
-			ActionStack->CancelAction(Action);
-		}
-		return nullptr;
-	}
-
-	for (const TPair<FName, FString>& Pair : DefaultValues)
-	{
-		if (Pair.Value.IsEmpty())
-		{
-			continue;
-		}
-		if (URigVMPin* PinOnNode = EjectedNode->FindPin(Pair.Key.ToString()))
-		{
-			SetPinDefaultValue(PinOnNode, Pair.Value, true, bSetupUndoRedo, false);
+			Notify(ERigVMGraphNotifType::LinkRemoved, InputPin->GetSourceLinks(true)[0]);
 		}
 	}
-
-	TArray<URigVMLink*> PreviousLinks;
-	if (Injection->InputPin)
+	else
 	{
-		Injection->InputPin->GetSourceLinks(true);
+		Notify(ERigVMGraphNotifType::LinkRemoved, OutputPin->GetTargetLinks(true)[0]);
 	}
-	if (Injection->OutputPin)
+	
+	
+	RenameObject(NodeToEject, nullptr, Graph);
+	SetNodePosition(NodeToEject, Position, false);
+	InPin->InjectionInfos.Remove(Injection);
+	DestroyObject(Injection);
+
+	Notify(ERigVMGraphNotifType::NodeAdded, NodeToEject);
+	if (InputPin)
 	{
-		PreviousLinks.Append(Injection->OutputPin->GetTargetLinks(true));
+		Notify(ERigVMGraphNotifType::LinkAdded, InputPin->GetSourceLinks(true)[0]);
 	}
-	for (URigVMLink* PreviousLink : PreviousLinks)
+	Notify(ERigVMGraphNotifType::LinkAdded, OutputPin->GetTargetLinks(true)[0]);
+		
+	if (!bSuspendNotifications)
 	{
-		PreviousLink->PrepareForCopy();
-		PreviousLink->SourcePin = PreviousLink->TargetPin = nullptr;
+		Graph->MarkPackageDirty();
 	}
-
-	RemoveNode(Injection->Node, bSetupUndoRedo);
-
-	FString OldNodeNamePrefix = NodeName.ToString() + TEXT(".");
-	FString NewNodeNamePrefix = EjectedNode->GetName() + TEXT(".");
-
-	for (URigVMLink* PreviousLink : PreviousLinks)
-	{
-		FString SourcePinPath = PreviousLink->SourcePinPath;
-		if (SourcePinPath.StartsWith(OldNodeNamePrefix))
-		{
-			SourcePinPath = NewNodeNamePrefix + SourcePinPath.RightChop(OldNodeNamePrefix.Len());
-		}
-		FString TargetPinPath = PreviousLink->TargetPinPath;
-		if (TargetPinPath.StartsWith(OldNodeNamePrefix))
-		{
-			TargetPinPath = NewNodeNamePrefix + TargetPinPath.RightChop(OldNodeNamePrefix.Len());
-		}
-
-		URigVMPin* SourcePin = Graph->FindPin(SourcePinPath);
-		URigVMPin* TargetPin = Graph->FindPin(TargetPinPath);
-		AddLink(SourcePin, TargetPin, bSetupUndoRedo);
-	}
-
-	TArray<FName> NodeNamesToSelect;
-	NodeNamesToSelect.Add(EjectedNode->GetFName());
-	SetNodeSelection(NodeNamesToSelect, bSetupUndoRedo);
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->EndAction(Action);
+		ActionStack->EndAction(InverseAction);
 	}
 
 	if (bPrintPythonCommand)
@@ -2353,10 +2548,10 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 		RigVMPythonUtils::Print(GetGraphOuterName(), 
 							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').eject_node_from_pin('%s')"),
 											*GraphName,
-											*GetSanitizedPinPath(InPinPath)));
+											*GetSanitizedPinPath(InPin->GetPinPath())));
 	}
 
-	return EjectedNode;
+	return NodeToEject;
 }
 
 
@@ -4743,6 +4938,16 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
+	if (InNode->IsInjected())
+	{
+		URigVMInjectionInfo* InjectionInfo = InNode->GetInjectionInfo();
+		if (InjectionInfo->GetPin()->GetInjectedNodes().Last() != InjectionInfo)
+		{
+			ReportErrorf(TEXT("Cannot remove injected node %s as it is not the last injection on the pin"), *InNode->GetNodePath());
+			return false;
+		}
+	}
+
 	if (bSetupUndoRedo)
 	{
 		// don't allow deletion of function entry / return nodes
@@ -4829,22 +5034,26 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 		URigVMPin* Pin = InjectionInfo->GetPin();
 		check(Pin);
 
-		Pin->InjectionInfos.Remove(InjectionInfo);
-
+		if (!EjectNodeFromPin(Pin->GetPinPath(), bSetupUndoRedo))
+		{
+			ActionStack->CancelAction(Action);
+			return false;
+		}
+		
 		if (InjectionInfo->bInjectedAsInput)
 		{
 			if (InjectionInfo->InputPin)
 			{
-				URigVMPin* LastInputPin = Pin;
-				RewireLinks(InjectionInfo->InputPin, LastInputPin, true, false);
+				URigVMPin* LastInputPin = Pin->GetPinForLink();
+				RewireLinks(InjectionInfo->InputPin, LastInputPin, true, bSetupUndoRedo);
 			}
 		}
 		else
 		{
 			if (InjectionInfo->OutputPin)
 			{
-				URigVMPin* LastOutputPin = Pin;
-				RewireLinks(InjectionInfo->OutputPin, LastOutputPin, false, false);
+				URigVMPin* LastOutputPin = Pin->GetPinForLink();
+				RewireLinks(InjectionInfo->OutputPin, LastOutputPin, false, bSetupUndoRedo);
 			}
 		}
 	}
@@ -4930,9 +5139,9 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 		for (URigVMPin* Pin : InNode->GetPins())
 		{
 			TArray<URigVMInjectionInfo*> InjectedNodes = Pin->GetInjectedNodes();
-			for (URigVMInjectionInfo* InjectedNode : InjectedNodes)
+			for (int32 i=InjectedNodes.Num()-1; i >= 0; --i)
 			{
-				RemoveNode(InjectedNode->Node, bSetupUndoRedo, bRecursive);
+				RemoveNode(InjectedNodes[i]->Node, bSetupUndoRedo, bRecursive);
 			}
 
 			BreakAllLinks(Pin, true, bSetupUndoRedo);
@@ -6907,6 +7116,7 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 		ActionStack->BeginAction(Action);
 	}
 
+	// Unbind any other variables, remove any other injections, and break all links to the input pin
 	{
 		if (InPin->IsBoundToVariable())
 		{
@@ -6915,16 +7125,11 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 		TArray<URigVMInjectionInfo*> Infos = InPin->GetInjectedNodes();
 		for (URigVMInjectionInfo* Info : Infos)
 		{
-			RemoveNode(Info->Node, bSetupUndoRedo);
+			RemoveInjectedNode(Info->GetPin()->GetPinPath(), Info->bInjectedAsInput, bSetupUndoRedo);
 		}
 		BreakAllLinks(InPin, true, bSetupUndoRedo);
 	}
 
-	if (bSetupUndoRedo)
-	{
-		ActionStack->AddAction(FRigVMSetPinBoundVariableAction(InPin, InNewBoundVariablePath));
-	}		
-	
 	// Create variable node
 	URigVMVariableNode* VariableNode = nullptr;
 	{
@@ -6933,7 +7138,7 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 			FString CPPType;
 			UObject* CPPTypeObject;
 			RigVMTypeUtils::CPPTypeFromExternalVariable(Variable, CPPType, &CPPTypeObject);
-			VariableNode = AddVariableNode(*VariableName, CPPType, CPPTypeObject, true, FString(), FVector2D::ZeroVector, InVariableNodeName, false);
+			VariableNode = AddVariableNode(*VariableName, CPPType, CPPTypeObject, true, FString(), FVector2D::ZeroVector, InVariableNodeName, bSetupUndoRedo);
 		}
 		if (VariableNode == nullptr)
 		{
@@ -6946,35 +7151,33 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 	}
 	
 	URigVMPin* ValuePin = VariableNode->FindPin(URigVMVariableNode::ValueName);
-	if (!SegmentPath.IsEmpty())
+	// Connect value pin to input pin
 	{
-		ValuePin = ValuePin->FindSubPin(SegmentPath);
-	}
-
-	// Add injection 
-	URigVMInjectionInfo* InjectionInfo = NewObject<URigVMInjectionInfo>(InPin);
-	{
-		// re-parent the unit node to be under the injection info
-		RenameObject(VariableNode, nullptr, InjectionInfo);
-		
-		InjectionInfo->Node = VariableNode;
-		InjectionInfo->bInjectedAsInput = true;
-		InjectionInfo->InputPin = nullptr;
-		InjectionInfo->OutputPin = ValuePin;
-	
-		InPin->InjectionInfos.Add(InjectionInfo);
-		Notify(ERigVMGraphNotifType::NodeAdded, VariableNode);
-	}
-
-	{		
-		if (!AddLink(ValuePin, InPin, false))
+		if (!SegmentPath.IsEmpty())
 		{
-			if (bSetupUndoRedo)
-			{
-				ActionStack->CancelAction(Action);
-			}
-			return false;
+			ValuePin = ValuePin->FindSubPin(SegmentPath);
 		}
+
+		{		
+			if (!AddLink(ValuePin, InPin, bSetupUndoRedo))
+			{
+				if (bSetupUndoRedo)
+				{
+					ActionStack->CancelAction(Action);
+				}
+				return false;
+			}
+		}
+	}
+
+	// Inject into pin
+	if (!InjectNodeIntoPin(InPin->GetPinPath(), true, FName(), ValuePin->GetFName(), bSetupUndoRedo))
+	{
+		if (bSetupUndoRedo)
+		{
+			ActionStack->CancelAction(Action);
+		}
+		return false;
 	}
 	
 	if (bSetupUndoRedo)
@@ -7044,20 +7247,7 @@ bool URigVMController::UnbindPinFromVariable(URigVMPin* InPin, bool bSetupUndoRe
 		ActionStack->BeginAction(Action);
 	}
 
-	if (bSetupUndoRedo)
-	{
-		ActionStack->AddAction(FRigVMSetPinBoundVariableAction(InPin, FString()));
-	}
-
-	URigVMInjectionInfo* Info = nullptr;
-	for (URigVMInjectionInfo* InjectionInfo : InPin->GetInjectedNodes())
-	{
-		if (InjectionInfo->Node->IsA<URigVMVariableNode>())
-		{
-			BreakAllLinks(InPin, true, false);
-			RemoveNode(InjectionInfo->Node, false);
-		}
-	}	
+	RemoveInjectedNode(InPin->GetPinPath(), true, bSetupUndoRedo);
 
 	if (bSetupUndoRedo)
 	{
@@ -12582,8 +12772,8 @@ void URigVMController::RewireLinks(URigVMPin* InOldPin, URigVMPin* InNewPin, boo
 			URigVMPin* NewPin = SegmentPath.IsEmpty() ? InNewPin : InNewPin->FindSubPin(SegmentPath);
 			check(NewPin);
 
-			BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), false);
-			AddLink(Link->GetSourcePin(), NewPin, false);
+			BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
+			AddLink(Link->GetSourcePin(), NewPin, bSetupUndoRedo);
 		}
 	}
 	else
@@ -12600,8 +12790,8 @@ void URigVMController::RewireLinks(URigVMPin* InOldPin, URigVMPin* InNewPin, boo
 			URigVMPin* NewPin = SegmentPath.IsEmpty() ? InNewPin : InNewPin->FindSubPin(SegmentPath);
 			check(NewPin);
 
-			BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), false);
-			AddLink(NewPin, Link->GetTargetPin(), false);
+			BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
+			AddLink(NewPin, Link->GetTargetPin(), bSetupUndoRedo);
 		}
 	}
 }

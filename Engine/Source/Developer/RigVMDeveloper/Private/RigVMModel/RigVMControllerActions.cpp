@@ -618,18 +618,16 @@ bool FRigVMAddPrototypeNodeAction::Redo(URigVMController* InController)
 	return false;
 }
 
-FRigVMAddInjectedNodeAction::FRigVMAddInjectedNodeAction()
+FRigVMInjectNodeIntoPinAction::FRigVMInjectNodeIntoPinAction()
 	: PinPath()
 	, bAsInput(false)
-	, ScriptStructPath()
-	, MethodName(NAME_None)
 	, InputPinName(NAME_None)
 	, OutputPinName(NAME_None)
 	, NodePath()
 {
 }
 
-FRigVMAddInjectedNodeAction::FRigVMAddInjectedNodeAction(URigVMInjectionInfo* InInjectionInfo)
+FRigVMInjectNodeIntoPinAction::FRigVMInjectNodeIntoPinAction(URigVMInjectionInfo* InInjectionInfo)
 	: PinPath(InInjectionInfo->GetPin()->GetPinPath())
 	, bAsInput(InInjectionInfo->bInjectedAsInput)
 	, NodePath(InInjectionInfo->Node->GetName())
@@ -642,35 +640,23 @@ FRigVMAddInjectedNodeAction::FRigVMAddInjectedNodeAction(URigVMInjectionInfo* In
 	{
 		OutputPinName = InInjectionInfo->OutputPin->GetFName();
 	}
-	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InInjectionInfo->Node))
-	{
-		ScriptStructPath = UnitNode->GetScriptStruct()->GetPathName();
-		MethodName = UnitNode->GetMethodName();
-	}
-	else
-	{
-		checkNoEntry();
-	}
 }
 
-bool FRigVMAddInjectedNodeAction::Undo(URigVMController* InController)
+bool FRigVMInjectNodeIntoPinAction::Undo(URigVMController* InController)
 {
 	if (!FRigVMBaseAction::Undo(InController))
 	{
 		return false;
 	}
-	return InController->RemoveNodeByName(*NodePath, false, true);
+	return InController->EjectNodeFromPin(*PinPath, false, true) != nullptr;
 }
 
-bool FRigVMAddInjectedNodeAction::Redo(URigVMController* InController)
+bool FRigVMInjectNodeIntoPinAction::Redo(URigVMController* InController)
 {
 #if WITH_EDITOR
-	if (!ScriptStructPath.IsEmpty())
+	if (URigVMInjectionInfo* InjectionInfo = InController->InjectNodeIntoPin(PinPath, bAsInput, InputPinName, OutputPinName, false))
 	{
-		if (URigVMInjectionInfo* InjectionInfo = InController->AddInjectedNodeFromStructPath(PinPath, bAsInput, ScriptStructPath, MethodName, InputPinName, OutputPinName, NodePath, false))
-		{
-			return FRigVMBaseAction::Redo(InController);
-		}
+		return FRigVMBaseAction::Redo(InController);
 	}
 #endif
 	return false;
@@ -682,23 +668,7 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 
 	if (URigVMInjectionInfo* InjectionInfo = InNode->GetInjectionInfo())
 	{
-		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InjectionInfo->Node))
-		{
-			InverseAction.AddAction(FRigVMAddInjectedNodeAction(InjectionInfo));
-		}
-		else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InjectionInfo->Node))
-		{
-			InverseAction.AddAction(FRigVMSetPinBoundVariableAction(InjectionInfo->GetPin(), InjectionInfo->GetPin()->GetBoundVariablePath()));
-		}
-
-		for (URigVMPin* Pin : InNode->GetPins())
-		{
-			if (Pin->GetDirection() == ERigVMPinDirection::Input ||
-				Pin->GetDirection() == ERigVMPinDirection::Visible)
-			{
-				InverseAction.AddAction(FRigVMSetPinDefaultValueAction(Pin, Pin->GetDefaultValue()));
-			}
-		}
+		ensure(false);
 	}
 	else if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
 	{
@@ -1456,46 +1426,6 @@ bool FRigVMChangePinTypeAction::Redo(URigVMController* InController)
 	{
 		return false;
 	}
-	return FRigVMBaseAction::Redo(InController);
-}
-
-FRigVMSetPinBoundVariableAction::FRigVMSetPinBoundVariableAction(URigVMPin* InPin, const FString& InNewBoundVariablePath)
-	: PinPath(InPin->GetPinPath())
-	, OldBoundVariablePath(InPin->GetBoundVariablePath())
-	, NewBoundVariablePath(InNewBoundVariablePath)
-{
-	
-}
-
-bool FRigVMSetPinBoundVariableAction::Merge(const FRigVMBaseAction* Other)
-{
-	if (!FRigVMBaseAction::Merge(Other))
-	{
-		return false;
-	}
-
-	const FRigVMSetPinBoundVariableAction* Action = (const FRigVMSetPinBoundVariableAction*)Other;
-	if (PinPath != Action->PinPath)
-	{
-		return false;
-	}
-
-	NewBoundVariablePath = Action->NewBoundVariablePath;
-	return true;
-}
-
-bool FRigVMSetPinBoundVariableAction::Undo(URigVMController* InController)
-{
-	if (!FRigVMBaseAction::Undo(InController))
-	{
-		return false;
-	}
-	return InController->BindPinToVariable(PinPath, OldBoundVariablePath, false);
-}
-
-bool FRigVMSetPinBoundVariableAction::Redo(URigVMController* InController)
-{
-	InController->BindPinToVariable(PinPath, NewBoundVariablePath, false);
 	return FRigVMBaseAction::Redo(InController);
 }
 
