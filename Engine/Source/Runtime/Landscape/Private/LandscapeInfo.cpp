@@ -12,17 +12,4 @@ LANDSCAPE_API FLandscapeInfoLayerSettings::FLandscapeInfoLayerSettings(ULandscap
 	, DebugColorChannel(0)
 	, bValid(false)
 #endif
-{
-}
-
-#if WITH_EDITOR
-
-void ULandscapeInfo::BeginDestroy()
-{
-	// Release WorldPartition Actor Handles
-	ProxyHandles.Empty();
-	SplineHandles.Empty();
-	Super::BeginDestroy();
-}
-
-#endif // WITH_EDITOR
+{}

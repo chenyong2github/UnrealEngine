@@ -317,8 +317,6 @@ void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 	check(!bIsPIE);
 	bIsPIE = true;
 
-	check(IsMainWorldPartition());
-
 	OnBeginPlay();
 }
 
@@ -344,8 +342,6 @@ void UWorldPartition::OnCancelPIE()
 
 void UWorldPartition::OnEndPlay()
 {
-	check(IsMainWorldPartition());
-
 	RuntimeHash->FlushStreaming();
 	RuntimeHash->OnEndPlay();
 
@@ -382,8 +378,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	UWorld* OuterWorld = GetTypedOuter<UWorld>();
 	check(OuterWorld);
-
-	check(IsMainWorldPartition());
 
 	RegisterDelegates();
 
@@ -593,12 +587,6 @@ void UWorldPartition::Uninitialize()
 bool UWorldPartition::IsInitialized() const
 {
 	return InitState == EWorldPartitionInitState::Initialized;
-}
-
-bool UWorldPartition::IsMainWorldPartition() const
-{
-	check(World);
-	return World == GetTypedOuter<UWorld>();
 }
 
 void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot)
@@ -1113,15 +1101,6 @@ void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 	EditorHash->UnhashActor(ActorHandle);
 }
 #endif
-
-void UWorldPartition::BeginDestroy()
-{
-	Super::BeginDestroy();
-
-#if WITH_EDITOR
-	LoadedSubobjects.Empty();
-#endif
-}
 
 bool UWorldPartition::ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists)
 {

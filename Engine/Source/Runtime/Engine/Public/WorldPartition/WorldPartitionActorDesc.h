@@ -126,6 +126,11 @@ protected:
 		return HardRefCount;
 	}
 
+	UActorDescContainer* GetContainer() const
+	{
+		return Container;
+	}
+
 public:
 	const TArray<FGuid>& GetReferences() const
 	{

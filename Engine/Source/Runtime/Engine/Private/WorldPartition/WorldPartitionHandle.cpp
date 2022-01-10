@@ -15,6 +15,11 @@ TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleUtils::GetActorDesc(U
 	return nullptr;
 }
 
+UActorDescContainer* FWorldPartitionHandleUtils::GetActorDescContainer(TUniquePtr<FWorldPartitionActorDesc>* ActorDesc)
+{
+	return ActorDesc ? ActorDesc->Get()->GetContainer() : nullptr;
+}
+
 bool FWorldPartitionHandleUtils::IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc)
 {
 	return ActorDesc->IsLoaded();

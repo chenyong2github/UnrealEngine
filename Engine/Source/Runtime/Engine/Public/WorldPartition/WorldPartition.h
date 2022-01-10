@@ -106,10 +106,6 @@ private:
 	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) override;
 #endif
 
-	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
-	//~ End UObject Interface
-
 	static void WorldPartitionOnLevelRemovedFromWorld(class ULevel* Level, UWorld* InWorld);
 
 public:
@@ -217,7 +213,6 @@ private:
 	FWorldPartitionReference WorldDataLayersActor;
 #endif
 
-	bool IsMainWorldPartition() const;
 	void OnWorldMatchStarting();
 
 	void OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot);
