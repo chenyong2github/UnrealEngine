@@ -654,12 +654,12 @@ void FMLDeformerEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPerso
 		GroundTruthLabelColor,
 		GroundTruthWireColor);
 
-	// Start playing the animations.
-	EditorData->InitAssets();
-
 	// Create visualization assets.
 	EditorData->CreateHeatMapAssets();
 	EditorData->SetHeatMapMaterialEnabled(EditorData->GetDeformerAsset()->GetVizSettings()->GetShowHeatMap());
+
+	// Start playing the animations.
+	EditorData->InitAssets();
 
 	VizSettings->SetTempVisualizationMode(VizSettings->GetVisualizationMode());
 	EditorData->GetDeformerAsset()->SetTempTrainingInputs(EditorData->GetDeformerAsset()->GetTrainingInputs());
