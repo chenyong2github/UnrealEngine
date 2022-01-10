@@ -747,6 +747,7 @@ public:
 		const TCHAR* IniSection,
 		FString& Host,
 		FString& Namespace,
+		FString& StructuredNamespace,
 		FString& OAuthProvider,
 		FString& OAuthClientId,
 		FString& OAuthSecret,
@@ -759,7 +760,7 @@ public:
 			const TCHAR* ServerSection = TEXT("HordeStorageServers");
 			if (GConfig->GetString(ServerSection, *ServerId, ServerEntry, IniFilename))
 			{
-				ParseHttpCacheParams(NodeName, *ServerEntry, IniFilename, IniSection, Host, Namespace, OAuthProvider, OAuthClientId, OAuthSecret, bReadOnly);
+				ParseHttpCacheParams(NodeName, *ServerEntry, IniFilename, IniSection, Host, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, bReadOnly);
 			}
 			else
 			{
@@ -790,6 +791,7 @@ public:
 		}
 
 		FParse::Value(Entry, TEXT("Namespace="), Namespace);
+		FParse::Value(Entry, TEXT("StructuredNamespace="), StructuredNamespace);
 		FParse::Value(Entry, TEXT("OAuthProvider="), OAuthProvider);
 		FParse::Value(Entry, TEXT("OAuthClientId="), OAuthClientId);
 		FParse::Value(Entry, TEXT("OAuthSecret="), OAuthSecret);
@@ -808,12 +810,13 @@ public:
 #if WITH_HTTP_DDC_BACKEND
 		FString Host;
 		FString Namespace;
+		FString StructuredNamespace;
 		FString OAuthProvider;
 		FString OAuthClientId;
 		FString OAuthSecret;
 		bool bReadOnly = false;
 
-		ParseHttpCacheParams(NodeName, Entry, IniFilename, IniSection, Host, Namespace, OAuthProvider, OAuthClientId, OAuthSecret, bReadOnly);
+		ParseHttpCacheParams(NodeName, Entry, IniFilename, IniSection, Host, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, bReadOnly);
 
 		if (Host.IsEmpty())
 		{
@@ -831,6 +834,11 @@ public:
 		{
 			Namespace = FApp::GetProjectName();
 			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'Namespace', falling back to '%s'"), NodeName, *Namespace);
+		}
+
+		if (StructuredNamespace.IsEmpty())
+		{
+			StructuredNamespace = Namespace;
 		}
 
 		if (OAuthProvider.IsEmpty())
@@ -877,7 +885,7 @@ public:
 			}
 		}
 
-		FHttpDerivedDataBackend* Backend = new FHttpDerivedDataBackend(*Host, *Namespace, *OAuthProvider, *OAuthClientId, *OAuthSecret, bReadOnly);
+		FHttpDerivedDataBackend* Backend = new FHttpDerivedDataBackend(*Host, *Namespace, *StructuredNamespace, *OAuthProvider, *OAuthClientId, *OAuthSecret, bReadOnly);
 
 		if (ForceSpeedClass != FDerivedDataBackendInterface::ESpeedClass::Unknown)
 		{

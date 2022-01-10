@@ -3,15 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Compression/CompressedBuffer.h"
+#include "Containers/StringView.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataCacheKey.h"
+#include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 
-// Macro for whether to enable the S3 backend. libcurl is not currently available on Mac.
+// Macro for whether to enable the Jupiter backend. libcurl is not currently available on Mac.
 #if !defined(WITH_HTTP_DDC_BACKEND)
 	#define WITH_HTTP_DDC_BACKEND 0
 #endif
 
 #if WITH_HTTP_DDC_BACKEND
+
+class FCbPackage;
 
 namespace UE::DerivedData::Backends
 {
@@ -30,15 +36,17 @@ public:
 	/**
 	 * Creates the backend, checks health status and attempts to acquire an access token.
 	 *
-	 * @param ServiceUrl	Base url to the service including schema.
-	 * @param Namespace		Namespace to use.
-	 * @param OAuthProvider	Url to OAuth provider, for example "https://myprovider.com/oauth2/v1/token".
-	 * @param OAuthClientId	OAuth client identifier.
-	 * @param OAuthData		OAuth form data to send to login service. Can either be the raw form data or a Windows network file address (starting with "\\").
+	 * @param ServiceUrl			Base url to the service including schema.
+	 * @param Namespace				Namespace to use.
+	 * @param StructuredNamespace	Namespace to use for structured cache operations.
+	 * @param OAuthProvider			Url to OAuth provider, for example "https://myprovider.com/oauth2/v1/token".
+	 * @param OAuthClientId			OAuth client identifier.
+	 * @param OAuthData				OAuth form data to send to login service. Can either be the raw form data or a Windows network file address (starting with "\\").
 	 */
 	FHttpDerivedDataBackend(
 		const TCHAR* ServiceUrl, 
 		const TCHAR* Namespace, 
+		const TCHAR* StructuredNamespace, 
 		const TCHAR* OAuthProvider, 
 		const TCHAR* OAuthClientId, 
 		const TCHAR* OAuthData,
@@ -93,9 +101,17 @@ public:
 		return AnyInstance;
 	}
 
+	const FString& GetDomain() const { return Domain; }
+	const FString& GetNamespace() const { return Namespace; }
+	const FString& GetStructuredNamespace() const { return StructuredNamespace; }
+	const FString& GetOAuthProvider() const { return OAuthProvider; }
+	const FString& GetOAuthClientId() const { return OAuthClientId; }
+	const FString& GetOAuthSecret() const { return OAuthSecret; }
+
 private:
 	FString Domain;
 	FString Namespace;
+	FString StructuredNamespace;
 	FString DefaultBucket;
 	FString OAuthProvider;
 	FString OAuthClientId;
@@ -105,6 +121,7 @@ private:
 	FBackendDebugOptions DebugOptions;
 	FCriticalSection MissedKeysCS;
 	TSet<FName> DebugMissedKeys;
+	TSet<FCacheKey> DebugMissedCacheKeys;
 	TUniquePtr<struct FRequestPool> GetRequestPools[2];
 	TUniquePtr<struct FRequestPool> PutRequestPools[2];
 	TUniquePtr<struct FHttpAccessToken> Access;
@@ -118,6 +135,29 @@ private:
 	bool AcquireAccessToken();
 	bool ShouldRetryOnError(int64 ResponseCode);
 	bool ShouldSimulateMiss(const TCHAR* InKey);
+	bool ShouldSimulateMiss(const FCacheKey& Key);
+
+	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, const FCacheRecordPolicy& Policy, uint64& OutWriteSize);
+	uint64 PutRef(const FCacheRecord& Record, const FCbPackage& Package, FStringView Bucket, bool bFinalize, TArray<FIoHash>& OutNeededBlobHashes, bool& bOutPutCompletedSuccessfully);
+
+	FOptionalCacheRecord GetCacheRecordOnly(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const FCacheRecordPolicy& Policy);
+	FOptionalCacheRecord GetCacheRecord(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const FCacheRecordPolicy& Policy,
+		EStatus& OutStatus);
+	bool TryGetCachedDataBatch(
+		const FCacheKey& Key,
+		TArrayView<FValueWithId> Values,
+		const FStringView Context,
+		TArray<FCompressedBuffer>& OutBuffers);
+	bool CachedDataProbablyExistsBatch(
+		const FCacheKey& Key,
+		TConstArrayView<FValueWithId> Values,
+		const FStringView Context);
 };
 
 } // UE::DerivedData::Backends

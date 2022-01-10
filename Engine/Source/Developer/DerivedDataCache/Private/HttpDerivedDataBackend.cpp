@@ -11,11 +11,14 @@
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
+#include "Algo/Accumulate.h"
 #include "Algo/Transform.h"
 #include "Algo/Find.h"
 #include "Containers/StaticArray.h"
 #include "Containers/Ticker.h"
+#include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataValue.h"
 #include "Dom/JsonObject.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
@@ -29,6 +32,9 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Serialization/BufferArchive.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryPackage.h"
+#include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
@@ -114,6 +120,8 @@ public:
 	{
 		Get,
 		Put,
+		PutCompactBinary,
+		PutCompressedBlob,
 		Post,
 		PostJson,
 		Delete,
@@ -231,17 +239,28 @@ public:
 	template<RequestVerb V>
 	Result PerformBlockingUpload(const TCHAR* Uri, TArrayView<const uint8> Buffer)
 	{
-		static_assert(V == Put || V == Post || V == PostJson, "Upload should use either Put or Post verbs.");
+		static_assert(V == Put || V == PutCompactBinary || V == PutCompressedBlob || V == Post || V == PostJson, "Upload should use either Put or Post verbs.");
 		
 		uint32 ContentLength = 0u;
 
-		if (V == Put)
+		if constexpr (V == Put || V == PutCompactBinary || V == PutCompressedBlob)
 		{
 			curl_easy_setopt(Curl, CURLOPT_UPLOAD, 1L);
 			curl_easy_setopt(Curl, CURLOPT_INFILESIZE, Buffer.Num());
 			curl_easy_setopt(Curl, CURLOPT_READDATA, this);
 			curl_easy_setopt(Curl, CURLOPT_READFUNCTION, StaticReadFn);
-			Headers.Add(FString(TEXT("Content-Type: application/octet-stream")));
+			if constexpr (V == PutCompactBinary)
+			{
+				Headers.Add(FString(TEXT("Content-Type: application/x-ue-cb")));
+			}
+			else if constexpr (V == PutCompressedBlob)
+			{
+				Headers.Add(FString(TEXT("Content-Type: application/x-ue-comp")));
+			}
+			else
+			{
+				Headers.Add(FString(TEXT("Content-Type: application/octet-stream")));
+			}
 			ContentLength = Buffer.Num();
 			ReadDataView = Buffer;
 		}
@@ -500,6 +519,8 @@ private:
 				AdditionalInfo = FString::Printf(TEXT("Received: %d bytes."), BytesReceived);
 				break;
 			case Put:
+			case PutCompactBinary:
+			case PutCompressedBlob:
 				bSuccess = IsSuccessResponse(ResponseCode);
 				VerbStr = TEXT("updating");
 				AdditionalInfo = FString::Printf(TEXT("Sent: %d bytes."), BytesSent);
@@ -1901,6 +1922,11 @@ bool ShouldAbortForShutdown()
 	return !GIsBuildMachine && FDerivedDataBackend::Get().IsShuttingDown();
 }
 
+TConstArrayView<uint8> MakeArrayView(FSharedBuffer Buffer)
+{
+	return TConstArrayView<uint8>(reinterpret_cast<const uint8*>(Buffer.GetData()), Buffer.GetSize());
+}
+
 //----------------------------------------------------------------------------------------------------------
 // FHttpAccessToken
 //----------------------------------------------------------------------------------------------------------
@@ -1933,12 +1959,14 @@ uint32 FHttpAccessToken::GetSerial() const
 FHttpDerivedDataBackend::FHttpDerivedDataBackend(
 	const TCHAR* InServiceUrl, 
 	const TCHAR* InNamespace, 
+	const TCHAR* InStructuredNamespace, 
 	const TCHAR* InOAuthProvider,
 	const TCHAR* InOAuthClientId,
 	const TCHAR* InOAuthSecret,
 	const bool bInReadOnly)
 	: Domain(InServiceUrl)
 	, Namespace(InNamespace)
+	, StructuredNamespace(InStructuredNamespace)
 	, DefaultBucket(TEXT("default"))
 	, OAuthProvider(InOAuthProvider)
 	, OAuthClientId(InOAuthClientId)
@@ -2163,12 +2191,479 @@ bool FHttpDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 	if (DebugOptions.ShouldSimulateMiss(InKey))
 	{
 		FScopeLock Lock(&MissedKeysCS);
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
 		DebugMissedKeys.AddByHash(Hash, Key);
 		return true;
 	}
 
 	return false;
+}
+
+bool FHttpDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
+{
+	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
+	{
+		return false;
+	}
+
+	const uint32 Hash = GetTypeHash(Key);
+
+	if (FScopeLock Lock(&MissedKeysCS); DebugMissedCacheKeys.ContainsByHash(Hash, Key))
+	{
+		return true;
+	}
+
+	if (DebugOptions.ShouldSimulateMiss(Key))
+	{
+		FScopeLock Lock(&MissedKeysCS);
+		DebugMissedCacheKeys.AddByHash(Hash, Key);
+		return true;
+	}
+
+	return false;
+}
+
+uint64 FHttpDerivedDataBackend::PutRef(const FCacheRecord& Record, const FCbPackage& Package, FStringView Bucket, bool bFinalize, TArray<FIoHash>& OutNeededBlobHashes, bool& bOutPutCompletedSuccessfully)
+{
+	bOutPutCompletedSuccessfully = false;
+
+	uint64 BytesSent = 0;
+	const FCacheKey& Key = Record.GetKey();
+	TStringBuilder<256> RefsUri;
+	RefsUri << "api/v1/refs/" << StructuredNamespace << "/" << Bucket << "/" << Key.Hash;
+	if (bFinalize)
+	{
+		RefsUri << "/finalize/" << Package.GetObjectHash();
+	}
+
+	int64 ResponseCode = 0;
+	for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
+	{
+		FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+
+		if (bFinalize)
+		{
+			Request->PerformBlockingUpload<FHttpRequest::Post>(*RefsUri, TArrayView<const uint8>());
+		}
+		else
+		{
+			Request->SetHeader(TEXT("X-Jupiter-IoHash"), *WriteToString<48>(Package.GetObjectHash()));
+			Request->PerformBlockingUpload<FHttpRequest::PutCompactBinary>(*RefsUri, MakeArrayView(Package.GetObject().GetBuffer().ToShared()));
+		}
+		ResponseCode = Request->GetResponseCode();
+
+		if (FHttpRequest::IsSuccessResponse(ResponseCode))
+		{
+			BytesSent += Request->GetBytesSent();
+			if (TSharedPtr<FJsonObject> ResponseObject = Request->GetResponseAsJsonObject())
+			{
+				TArray<FString> NeedsArrayStrings;
+				ResponseObject->TryGetStringArrayField(TEXT("needs"), NeedsArrayStrings);
+
+				OutNeededBlobHashes.Empty(NeedsArrayStrings.Num());
+				for (const FString& NeededString : NeedsArrayStrings)
+				{
+					FIoHash BlobHash;
+					LexFromString(BlobHash, *NeededString);
+					if (!BlobHash.IsZero())
+					{
+						OutNeededBlobHashes.Add(BlobHash);
+					}
+				}
+			}
+			else
+			{
+				OutNeededBlobHashes.Empty();
+			}
+
+			if (OutNeededBlobHashes.IsEmpty())
+			{
+				bOutPutCompletedSuccessfully = true;
+			}
+			break;
+		}
+		else
+		{
+			OutNeededBlobHashes.Empty();
+		}
+	}
+
+	return BytesSent;
+}
+
+bool FHttpDerivedDataBackend::PutCacheRecord(
+	const FCacheRecord& Record,
+	const FStringView Context,
+	const FCacheRecordPolicy& Policy,
+	uint64& OutWriteSize)
+{
+	OutWriteSize = 0;
+
+	if (!IsWritable())
+	{
+		UE_LOG(LogDerivedDataCache, VeryVerbose,
+			TEXT("%s: Skipped put of %s from '%.*s' because this cache store is read-only"),
+			*GetName(), *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
+		return false;
+	}
+
+	const FCacheKey& Key = Record.GetKey();
+	const ECachePolicy CombinedValuePolicy = Algo::TransformAccumulate(
+		Policy.GetValuePolicies(), &FCacheValuePolicy::Policy, Policy.GetDefaultValuePolicy(), UE_PROJECTION(operator|));
+	const ECachePolicy CombinedPolicy = Policy.GetRecordPolicy() | CombinedValuePolicy;
+
+	// Skip the request if storing to the cache is disabled.
+	// Http backends won't generally be "local" but including handling for this possibility for consistency
+	const ECachePolicy StoreFlag = SpeedClass == ESpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote;
+	if (!EnumHasAnyFlags(CombinedPolicy, StoreFlag))
+	{
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
+			*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+		return false;
+	}
+
+	if (ShouldSimulateMiss(Key))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
+			*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+		return false;
+	}
+
+	// TODO: Jupiter currently always overwrites.  It doesn't have a "write if not present" feature (for records or attachments),
+	//		 but would require one to implement all policy correctly.
+
+	TStringConversion<TStringConvert<ANSICHAR, TCHAR>> BucketStringConversion(Key.Bucket.ToString());
+	FString Bucket(FStringView(BucketStringConversion.Get(), BucketStringConversion.Length()));
+	Bucket.ToLowerInline();
+
+	bool bPutCompletedSuccessfully = false;
+
+	FCbPackage Package = Record.Save();
+	TArray<FIoHash> NeededBlobHashes;
+
+	// Initial record upload
+	size_t PutRefBytesSent = PutRef(Record, Package, Bucket, false, NeededBlobHashes, bPutCompletedSuccessfully);
+	OutWriteSize += PutRefBytesSent;
+
+	// TODO: blob uploading and finalization should be replaced with a single batch compressed blob upload endpoint in the future.
+
+	// Needed blob upload (if any missing)
+	for (const FIoHash& NeededBlobHash : NeededBlobHashes)
+	{
+		TStringBuilder<256> CompressedBlobsUri;
+		CompressedBlobsUri << "api/v1/compressed-blobs/" << StructuredNamespace << "/" << NeededBlobHash;
+
+		if (const FCbAttachment* Attachment = Package.FindAttachment(NeededBlobHash))
+		{
+			FSharedBuffer TempBuffer;
+			TConstArrayView<uint8> BlobArrayView;
+			if (Attachment->IsCompressedBinary())
+			{
+				TempBuffer = Attachment->AsCompressedBinary().GetCompressed().ToShared();
+				BlobArrayView = MakeArrayView(TempBuffer);
+			}
+			else if (Attachment->IsBinary())
+			{
+				TempBuffer = FCompressedBuffer::Compress(Attachment->AsCompositeBinary()).GetCompressed().ToShared();
+				BlobArrayView = MakeArrayView(TempBuffer);
+			}
+			else
+			{
+				TempBuffer = FCompressedBuffer::Compress(Attachment->AsObject().GetBuffer()).GetCompressed().ToShared();
+				BlobArrayView = MakeArrayView(TempBuffer);
+			}
+
+			int64 ResponseCode = 0;
+			for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
+			{
+				FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+				Request->PerformBlockingUpload<FHttpRequest::PutCompressedBlob>(*CompressedBlobsUri, BlobArrayView);
+
+				ResponseCode = Request->GetResponseCode();
+
+				if (FHttpRequest::IsSuccessResponse(ResponseCode))
+				{
+					OutWriteSize += Request->GetBytesSent();
+					break;
+				}
+			}
+		}
+	}
+
+	// Finalization (if any blobs needed)
+	if (!NeededBlobHashes.IsEmpty())
+	{
+		size_t FinalizeRefBytesSent = PutRef(Record, Package, Bucket, true, NeededBlobHashes, bPutCompletedSuccessfully);
+		OutWriteSize += FinalizeRefBytesSent;
+	}
+
+	return bPutCompletedSuccessfully;
+}
+
+FOptionalCacheRecord FHttpDerivedDataBackend::GetCacheRecordOnly(
+	const FCacheKey& Key,
+	const FStringView Context,
+	const FCacheRecordPolicy& Policy)
+{
+	if (!IsUsable())
+	{
+		UE_LOG(LogDerivedDataCache, VeryVerbose,
+			TEXT("%s: Skipped get of %s from '%.*s' because this cache store is not available"),
+			*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+		return FOptionalCacheRecord();
+	}
+
+	// Skip the request if querying the cache is disabled.
+	const ECachePolicy QueryPolicy = SpeedClass == ESpeedClass::Local
+		? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote;
+	if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), QueryPolicy))
+	{
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' due to cache policy"),
+			*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+		return FOptionalCacheRecord();
+	}
+
+	if (ShouldSimulateMiss(Key))
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
+			*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+		return FOptionalCacheRecord();
+	}
+
+	FOptionalCacheRecord Record;
+	{
+		TStringConversion<TStringConvert<ANSICHAR, TCHAR>> BucketStringConversion(Key.Bucket.ToString());
+		FString Bucket(FStringView(BucketStringConversion.Get(), BucketStringConversion.Length()));
+		Bucket.ToLowerInline();
+
+		TStringBuilder<256> RefsUri;
+		RefsUri << "api/v1/refs/" << StructuredNamespace << "/" << Bucket << "/" << Key.Hash;
+
+		FSharedBuffer ResponseBuffer;
+		int64 ResponseCode = 0;
+		for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
+		{
+			FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+
+			TArray<uint8> ByteArray;
+			Request->SetHeader(TEXT("Accept"), TEXT("application/x-ue-cb"));
+			Request->PerformBlockingDownload(*RefsUri, &ByteArray);
+			ResponseCode = Request->GetResponseCode();
+
+			if (FHttpRequest::IsSuccessResponse(ResponseCode))
+			{
+				ResponseBuffer = MakeSharedBufferFromArray(MoveTemp(ByteArray));
+				break;
+			}
+		}
+
+		if (ValidateCompactBinary(ResponseBuffer, ECbValidateMode::Default) != ECbValidateError::None)
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid package for %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			return FOptionalCacheRecord();
+		}
+
+		Record = FCacheRecord::Load(FCbPackage(FCbObject(ResponseBuffer)));
+		if (Record.IsNull())
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with record load failure for %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			return Record;
+		}
+	}
+
+	return Record;
+}
+
+FOptionalCacheRecord FHttpDerivedDataBackend::GetCacheRecord(
+	const FCacheKey& Key,
+	const FStringView Context,
+	const FCacheRecordPolicy& Policy,
+	EStatus& OutStatus)
+{
+	FOptionalCacheRecord Record = GetCacheRecordOnly(Key, Context, Policy);
+	if (Record.IsNull())
+	{
+		OutStatus = EStatus::Error;
+		return Record;
+	}
+
+	OutStatus = EStatus::Ok;
+
+	FCacheRecordBuilder RecordBuilder(Key);
+
+	if (!EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipMeta))
+	{
+		RecordBuilder.SetMeta(FCbObject(Record.Get().GetMeta()));
+	}
+
+	// TODO: There is not currently a batched GET endpoint for Jupiter.  Once there is, all payload data should be fetched in one call.
+	//		 In the meantime, we try to keep the code structured in a way that is friendly to future batching of GETs.
+
+	TArray<FValueWithId> RequiredGets;
+	TArray<FValueWithId> RequiredHeads;
+
+	auto IsValueDataReady = [](FValueWithId& Value, const ECachePolicy Policy, const ECachePolicy SkipFlag)
+	{
+		if (!EnumHasAnyFlags(Policy, ECachePolicy::Query))
+		{
+			Value = Value.RemoveData();
+			return true;
+		}
+
+		if (Value.HasData())
+		{
+			if (EnumHasAnyFlags(Policy, SkipFlag))
+			{
+				Value = Value.RemoveData();
+			}
+			return true;
+		}
+		return false;
+	};
+
+	for (FValueWithId Value : Record.Get().GetValues())
+	{
+		const ECachePolicy ValuePolicy = Policy.GetValuePolicy(Value.GetId());
+		const ECachePolicy SkipFlag = ECachePolicy::SkipData;
+		if (IsValueDataReady(Value, ValuePolicy, SkipFlag))
+		{
+			RecordBuilder.AddValue(MoveTemp(Value));
+		}
+		else
+		{
+			if (EnumHasAnyFlags(ValuePolicy, SkipFlag))
+			{
+				RequiredHeads.Emplace(Value);
+			}
+			else
+			{
+				RequiredGets.Emplace(Value);
+			}
+		}
+	}
+
+	if (!CachedDataProbablyExistsBatch(Key, RequiredHeads, Context))
+	{
+		OutStatus = EStatus::Error;
+		return FOptionalCacheRecord();
+	}
+
+	TArray<FCompressedBuffer> FetchedBuffers;
+	if (!TryGetCachedDataBatch(Key, RequiredGets, Context, FetchedBuffers))
+	{
+		OutStatus = EStatus::Error;
+		return FOptionalCacheRecord();
+	}
+
+	for (int32 Index = 0; Index < RequiredHeads.Num(); ++Index)
+	{
+		RecordBuilder.AddValue(RequiredHeads[Index].RemoveData());
+	}
+
+	for (int32 Index = 0; Index < RequiredGets.Num(); ++Index)
+	{
+		RecordBuilder.AddValue(FValueWithId(RequiredGets[Index].GetId(), FetchedBuffers[Index]));
+	}
+
+	return RecordBuilder.Build();
+}
+
+bool FHttpDerivedDataBackend::TryGetCachedDataBatch(
+	const FCacheKey& Key,
+	TArrayView<FValueWithId> Values,
+	const FStringView Context,
+	TArray<FCompressedBuffer>& OutBuffers)
+{
+	for (const FValueWithId& Value : Values)
+	{
+		const FIoHash& RawHash = Value.GetRawHash();
+		TStringBuilder<256> CompressedBlobsUri;
+		CompressedBlobsUri << "api/v1/compressed-blobs/" << StructuredNamespace << "/" << RawHash;
+
+		bool bHit = false;
+		FCompressedBuffer CompressedBuffer;
+		int64 ResponseCode = 0;
+		for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
+		{
+			FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+
+			TArray<uint8> ByteArray;
+			const FHttpRequest::Result Result = Request->PerformBlockingDownload(*CompressedBlobsUri, &ByteArray);
+			ResponseCode = Request->GetResponseCode();
+
+			if (FHttpRequest::IsSuccessResponse(ResponseCode))
+			{
+				CompressedBuffer = FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(ByteArray)));
+				bHit = true;
+				break;
+			}
+		}
+
+		if (!bHit)
+		{
+			UE_LOG(LogDerivedDataCache, Verbose,
+				TEXT("%s: Cache miss with missing value %s with hash %s for %s from '%.*s'"),
+				*GetName(), *WriteToString<16>(Value.GetId()), *WriteToString<48>(RawHash), *WriteToString<96>(Key),
+				Context.Len(), Context.GetData());
+			return false;
+		}
+		else if (CompressedBuffer.GetRawHash() != RawHash)
+		{
+			UE_LOG(LogDerivedDataCache, Display,
+				TEXT("%s: Cache miss with corrupted value %s with hash %s for %s from '%.*s'"),
+				*GetName(), *WriteToString<16>(Value.GetId()), *WriteToString<48>(RawHash),
+				*WriteToString<96>(Key), Context.Len(), Context.GetData());
+			return false;
+		}
+		else
+		{
+			OutBuffers.Add(CompressedBuffer);
+		}
+	}
+	return true;
+}
+
+bool FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(
+	const FCacheKey& Key,
+	TConstArrayView<FValueWithId> Values,
+	const FStringView Context)
+{
+	for (const FValueWithId& Value : Values)
+	{
+		const FIoHash& RawHash = Value.GetRawHash();
+		TStringBuilder<256> CompressedBlobsUri;
+		CompressedBlobsUri << "api/v1/compressed-blobs/" << StructuredNamespace << "/" << RawHash;
+
+		bool bIsHit = false;
+		int64 ResponseCode = 0;
+		for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
+		{
+			FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+
+			//TODO: This should be a HEAD operation, but those are returning 404 from this endpoint.  Issue has been reported and will change to HEAD when resolved.
+			//const FHttpRequest::Result Result = Request->PerformBlockingQuery<FHttpRequest::Head>(*CompressedBlobsUri);
+			TArray<uint8> ByteArray;
+			const FHttpRequest::Result Result = Request->PerformBlockingDownload(*CompressedBlobsUri, &ByteArray);
+			ResponseCode = Request->GetResponseCode();
+
+			if (FHttpRequest::IsSuccessResponse(ResponseCode) || ResponseCode == 400)
+			{
+				bIsHit = (Result == FHttpRequest::Success && FHttpRequest::IsSuccessResponse(ResponseCode));
+				break;
+			}
+		}
+
+		if (!bIsHit)
+		{
+			UE_LOG(LogDerivedDataCache, Verbose,
+				TEXT("%s: Cache miss with missing value %s with hash %s for %s from '%.*s'"),
+				*GetName(), *WriteToString<16>(Value.GetId()), *WriteToString<48>(RawHash), *WriteToString<96>(Key),
+				Context.Len(), Context.GetData());
+			return false;
+		}
+	}
+	return true;
 }
 
 bool FHttpDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
@@ -2531,11 +3026,28 @@ void FHttpDerivedDataBackend::Put(
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
-	if (OnComplete)
+	for (const FCachePutRequest& Request : Requests)
 	{
-		for (const FCachePutRequest& Request : Requests)
+		const FCacheRecord& Record = Request.Record;
+		COOK_STAT(auto Timer = UsageStats.TimePut());
+		uint64 BytesSent = 0;
+		if (PutCacheRecord(Record, Request.Name, Request.Policy, BytesSent))
 		{
-			OnComplete({Request.Name, Request.Record.GetKey(), Request.UserData, EStatus::Error});
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache put complete for %s from '%s'"),
+				*GetName(), *WriteToString<96>(Record.GetKey()), *Request.Name);
+			TRACE_COUNTER_ADD(HttpDDC_BytesSent, int64(BytesSent));
+			COOK_STAT(Timer.AddHit(BytesSent));
+			if (OnComplete)
+			{
+				OnComplete({Request.Name, Record.GetKey(), Request.UserData, EStatus::Ok});
+			}
+		}
+		else
+		{
+			if (OnComplete)
+			{
+				OnComplete({Request.Name, Record.GetKey(), Request.UserData, EStatus::Error});
+			}
 		}
 	}
 }
@@ -2545,11 +3057,27 @@ void FHttpDerivedDataBackend::Get(
 	IRequestOwner& Owner,
 	FOnCacheGetComplete&& OnComplete)
 {
-	if (OnComplete)
+	for (const FCacheGetRequest& Request : Requests)
 	{
-		for (const FCacheGetRequest& Request : Requests)
+		COOK_STAT(auto Timer = UsageStats.TimeGet());
+		EStatus Status = EStatus::Ok;
+		if (FOptionalCacheRecord Record = GetCacheRecord(Request.Key, Request.Name, Request.Policy, Status))
 		{
-			OnComplete({Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, EStatus::Error});
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%s'"),
+				*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
+			TRACE_COUNTER_ADD(HttpDDC_BytesReceived, Private::GetCacheRecordCompressedSize(Record.Get()));
+			COOK_STAT(Timer.AddHit(Private::GetCacheRecordCompressedSize(Record.Get())));
+			if (OnComplete)
+			{
+				OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
+			}
+		}
+		else
+		{
+			if (OnComplete)
+			{
+				OnComplete({Request.Name, FCacheRecordBuilder(Request.Key).Build(), Request.UserData, Status});
+			}
 		}
 	}
 }
