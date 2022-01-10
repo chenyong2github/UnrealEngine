@@ -41,9 +41,8 @@ public:
 	{
 	}
 
-	const UDataLayer* GetDataLayer() const { return DataLayer.Get(); }
-	UDataLayer* GetDataLayer() { return DataLayer.Get(); }
-
+	UDataLayer* GetDataLayer() const { return DataLayer.Get(); }
+	
 	static uint32 ComputeTreeItemID(const FGuid& InActorGuid, const UDataLayer* InDataLayer)
 	{
 		return HashCombine(GetTypeHash(InActorGuid), GetTypeHash(FObjectKey(InDataLayer)));

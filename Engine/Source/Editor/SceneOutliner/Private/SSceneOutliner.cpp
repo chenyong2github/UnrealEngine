@@ -751,7 +751,7 @@ FSceneOutlinerTreeItemPtr SSceneOutliner::EnsureParentForItem(FSceneOutlinerTree
 {
 	if (SharedData->bShowParentTree)
 	{
-		FSceneOutlinerTreeItemPtr Parent = Mode->GetHierarchy()->FindParent(*Item, TreeItemMap);
+		FSceneOutlinerTreeItemPtr Parent = Mode->GetHierarchy()->FindOrCreateParentItem(*Item, TreeItemMap, /*bCreate=*/false);
 		if (Parent.IsValid())
 		{
 			return Parent;
@@ -759,13 +759,7 @@ FSceneOutlinerTreeItemPtr SSceneOutliner::EnsureParentForItem(FSceneOutlinerTree
 		else
 		{
 			// Try to find the parent in the pending items
-			Parent = Mode->GetHierarchy()->FindParent(*Item, PendingTreeItemMap);
-			if (!Parent.IsValid())
-			{
-				// If there isn't already a parent for this item, try to create one for it
-				Parent = Mode->GetHierarchy()->CreateParentItem(Item);
-			}
-				
+			Parent = Mode->GetHierarchy()->FindOrCreateParentItem(*Item, PendingTreeItemMap, /*bCreate=*/true);				
 			if (Parent.IsValid())
 			{
 				AddUnfilteredItemToTree(Parent.ToSharedRef());
@@ -2201,10 +2195,10 @@ void SSceneOutliner::UnpinSelectedItems()
 
 FSceneOutlinerTreeItemPtr SSceneOutliner::FindParent(const ISceneOutlinerTreeItem& InItem) const
 {
-	FSceneOutlinerTreeItemPtr Parent = Mode->GetHierarchy()->FindParent(InItem, TreeItemMap);
+	FSceneOutlinerTreeItemPtr Parent = Mode->GetHierarchy()->FindOrCreateParentItem(InItem, TreeItemMap, /*bCreate=*/false);
 	if (!Parent.IsValid())
 	{
-		Parent = Mode->GetHierarchy()->FindParent(InItem, PendingTreeItemMap);
+		Parent = Mode->GetHierarchy()->FindOrCreateParentItem(InItem, PendingTreeItemMap, /*bCreate=*/false);
 	}
 	return Parent;
 }
