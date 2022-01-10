@@ -289,6 +289,22 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 		int32 MaxIdx = -1;
 		if (PlayRate >= 0.0f)
 		{
+			// Is the start index the same as the end index?
+			if (StartIndex == EndIndex)
+			{
+				// Is StartTime less than the time of StartIndex?
+				FTimespan CurrentStartTime = FrameNumberToTime(StartIndex);
+				if (StartTime < CurrentStartTime)
+				{
+					// Yes. TimeToFrameNumber rounded up, but we really dont want that
+					// so adjust StartIndex.
+					if (StartIndex > 0)
+					{
+						StartIndex--;
+					}
+				}
+			}
+
 			// Forward...
 			if (StartIndex > EndIndex)
 			{
