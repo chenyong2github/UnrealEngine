@@ -906,7 +906,7 @@ namespace UnrealGameSync
 				}
 			}
 
-			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.Global.SyncView, Settings.Global.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
+			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.Global.Filter, WorkspaceSettings.Filter);
 
 			ConfigSection PerforceSection = PerforceMonitor.LatestProjectConfigFile.FindSection("Perforce");
 			if (PerforceSection != null)
@@ -957,11 +957,11 @@ namespace UnrealGameSync
 			{
 				Context.Options |= WorkspaceUpdateOptions.AutoResolveChanges;
 			}
-			if (WorkspaceSettings.bSyncAllProjects ?? Settings.Global.bSyncAllProjects)
+			if (WorkspaceSettings.Filter.AllProjects ?? Settings.Global.Filter.AllProjects ?? false)
 			{
 				Context.Options |= WorkspaceUpdateOptions.SyncAllProjects | WorkspaceUpdateOptions.IncludeAllProjectsInSolution;
 			}
-			if (WorkspaceSettings.bIncludeAllProjectsInSolution ?? Settings.Global.bIncludeAllProjectsInSolution)
+			if (WorkspaceSettings.Filter.AllProjectsInSln ?? Settings.Global.Filter.AllProjectsInSln ?? false)
 			{
 				Context.Options |= WorkspaceUpdateOptions.IncludeAllProjectsInSolution;
 			}
@@ -4944,8 +4944,8 @@ namespace UnrealGameSync
 				ExtraSafeToDeleteExtensions = "";
 			}
 
-			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.Global.SyncView, Settings.Global.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
-			List<string> SyncPaths = WorkspaceUpdate.GetSyncPaths(Workspace.Project, WorkspaceSettings.bSyncAllProjects ?? Settings.Global.bSyncAllProjects, CombinedSyncFilter);
+			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.Global.Filter, WorkspaceSettings.Filter);
+			List<string> SyncPaths = WorkspaceUpdate.GetSyncPaths(Workspace.Project, WorkspaceSettings.Filter.AllProjects ?? Settings.Global.Filter.AllProjects ?? false, CombinedSyncFilter);
 
 			CleanWorkspaceWindow.DoClean(ParentForm, PerforceSettings, BranchDirectoryName, Workspace.Project.ClientRootPath, SyncPaths, ExtraSafeToDeleteFolders.Split('\n'), ExtraSafeToDeleteExtensions.Split('\n'), ServiceProvider.GetRequiredService<ILogger<CleanWorkspaceWindow>>());
 		}
@@ -5225,19 +5225,13 @@ namespace UnrealGameSync
 
 		private void OptionsContextMenu_SyncFilter_Click(object sender, EventArgs e)
 		{
-			SyncFilter Filter = new SyncFilter(GetSyncCategories(), Settings.Global.SyncView, Settings.Global.SyncCategories, Settings.Global.bSyncAllProjects, Settings.Global.bIncludeAllProjectsInSolution, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict, WorkspaceSettings.bSyncAllProjects, WorkspaceSettings.bIncludeAllProjectsInSolution);
+			SyncFilter Filter = new SyncFilter(GetSyncCategories(), Settings.Global.Filter, WorkspaceSettings.Filter);
 			if (Filter.ShowDialog() == DialogResult.OK)
 			{
-				Settings.Global.SyncCategories = Filter.GlobalSyncCategories;
-				Settings.Global.SyncView = Filter.GlobalView;
-				Settings.Global.bSyncAllProjects = Filter.bGlobalSyncAllProjects;
-				Settings.Global.bIncludeAllProjectsInSolution = Filter.bGlobalIncludeAllProjectsInSolution;
+				Settings.Global.Filter = Filter.GlobalFilter;
 				Settings.Save();
 
-				WorkspaceSettings.SyncCategoriesDict = Filter.WorkspaceSyncCategories;
-				WorkspaceSettings.SyncView = Filter.WorkspaceView;
-				WorkspaceSettings.bSyncAllProjects = Filter.bWorkspaceSyncAllProjects;
-				WorkspaceSettings.bIncludeAllProjectsInSolution = Filter.bWorkspaceIncludeAllProjectsInSolution;
+				WorkspaceSettings.Filter = Filter.WorkspaceFilter;
 				WorkspaceSettings.Save();
 			}
 		}
