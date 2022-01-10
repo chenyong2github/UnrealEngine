@@ -28,15 +28,15 @@ namespace UE::DatasmithImporter
 	class FDirectLinkAutoReconnectManager
 	{
 	public:
-		FDirectLinkAutoReconnectManager(FDirectLinkManager& InManager)
-			: Manager(InManager)
-			, bShouldRun(true)
-		{}
+		FDirectLinkAutoReconnectManager(FDirectLinkManager& InManager);
 
 		~FDirectLinkAutoReconnectManager()
 		{
-			Stop();
-			CompletedFuture.Wait();
+			if (CompletedFuture.IsValid())
+			{
+				Stop();
+				CompletedFuture.Wait();
+			}
 		}
 
 		bool Start();
@@ -53,6 +53,10 @@ namespace UE::DatasmithImporter
 		TFuture<void> CompletedFuture;
 
 		float LastTryTime = 0;
+
+		bool bAutoReconnectEnabled = false;
+
+		float ReconnectionDelayInSeconds = 1;
 	};
 
 	class FDirectLinkManager: public IDirectLinkManager, public DirectLink::IEndpointObserver

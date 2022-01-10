@@ -61,6 +61,13 @@ enum class EVisibility
 	Private,   // The connection point is not expected to be contacted from a remote
 };
 
+enum class EStreamConnectionState
+{
+	Uninitialized,
+	RequestSent,
+	Active,
+	Closed,
+};
 
 struct FCommunicationStatus
 {

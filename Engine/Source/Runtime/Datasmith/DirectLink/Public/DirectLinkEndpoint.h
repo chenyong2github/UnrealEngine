@@ -63,7 +63,7 @@ struct FRawInfo
 		FStreamPort StreamId = InvalidStreamPort;
 		FGuid Source;
 		FGuid Destination;
-		bool bIsActive = false;
+		EStreamConnectionState ConnectionState;
 		FCommunicationStatus CommunicationStatus;
 	};
 	FMessageAddress ThisEndpointAddress;
