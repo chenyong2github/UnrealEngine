@@ -44,8 +44,6 @@ ENUM_CLASS_FLAGS(EUniqueIdEncodingFlags);
 
 /** Use highest value for type for other (out of engine) oss type */
 const uint8 TypeHash_Other = 31;
-/** Use next highest value for V2 net id */
-const uint8 TypeHash_V2 = 30;
 
 FArchive& operator<<(FArchive& Ar, FUniqueNetIdRepl& UniqueNetId)
 {
@@ -110,32 +108,17 @@ inline uint8 GetTypeHashFromEncoding(EUniqueIdEncodingFlags inFlags)
  */
 void FUniqueNetIdRepl::MakeReplicationData()
 {
+	//LOG_SCOPE_VERBOSITY_OVERRIDE(LogNet, ELogVerbosity::VeryVerbose);
+	//UE_LOG(LogNet, VeryVerbose, TEXT("MakeReplicationData %s"), *ToString());
+
+	FString Contents;
 	if (IsValid())
 	{
-		if (IsV1())
-		{
-			MakeReplicationDataV1();
-		}
-		else
-		{
-			MakeReplicationDataV2();
-		}
+		Contents = UniqueNetId->ToString();
 	}
-	else
-	{
-		EUniqueIdEncodingFlags EncodingFlags = (EUniqueIdEncodingFlags::IsEncoded | EUniqueIdEncodingFlags::IsEmpty);
 
-		ReplicationBytes.Empty();
-		FMemoryWriter Writer(ReplicationBytes);
-		Writer << EncodingFlags;
-	}
-}
-
-void FUniqueNetIdRepl::MakeReplicationDataV1()
-{
-	FString Contents = GetUniqueNetId()->ToString();
 	const int32 Length = Contents.Len();
-	if (ensure(Length > 0))
+	if (Length > 0)
 	{
 		// For now don't allow odd chars (HexToBytes adds a 0)
 		const bool bEvenChars = (Length % 2) == 0;
@@ -219,30 +202,8 @@ void FUniqueNetIdRepl::MakeReplicationDataV1()
 		ReplicationBytes.Empty();
 		FMemoryWriter Writer(ReplicationBytes);
 		Writer << EncodingFlags;
+		//UE_LOG(LogNet, VeryVerbose, TEXT("Empty/Invalid UniqueId, serializing %d bytes"), ReplicationBytes.Num());
 	}
-}
-
-void FUniqueNetIdRepl::MakeReplicationDataV2()
-{
-	EUniqueIdEncodingFlags EncodingFlags = EUniqueIdEncodingFlags::IsEncoded;
-	EncodingFlags |= static_cast<EUniqueIdEncodingFlags>(TypeHash_V2 << 3);
-
-	UE::Online::FOnlineAccountIdHandle Handle = GetV2();
-	UE::Online::EOnlineServices OnlineServicesType = Handle.GetOnlineServicesType();
-
-	TArray<uint8> ReplicationData;
-	const UE::Online::IOnlineAccountIdRegistry* Registry = UE::Online::FOnlineIdRegistryRegistry::Get().GetAccountIdRegistry(OnlineServicesType);
-	if (ensure(Registry))
-	{
-		ReplicationData = Registry->ToReplicationData(Handle);
-		check(!ReplicationData.IsEmpty());
-	}
-
-	ReplicationBytes.Empty();
-	FMemoryWriter Writer(ReplicationBytes);
-	Writer << EncodingFlags;
-	Writer << OnlineServicesType;
-	Writer << ReplicationData;
 }
 
 void FUniqueNetIdRepl::UniqueIdFromString(FName Type, const FString& Contents)
@@ -270,25 +231,92 @@ bool FUniqueNetIdRepl::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 	else if (Ar.IsLoading())
 	{
 		// @note: start by assuming a replicated nullptr unique id
-		SetUniqueNetId(nullptr);
+		UniqueNetId.Reset();
 
 		EUniqueIdEncodingFlags EncodingFlags = EUniqueIdEncodingFlags::NotEncoded;
 		Ar << EncodingFlags;
 		if (!Ar.IsError())
 		{
-			
 			if (EnumHasAllFlags(EncodingFlags, EUniqueIdEncodingFlags::IsEncoded))
 			{
 				if (!EnumHasAllFlags(EncodingFlags, EUniqueIdEncodingFlags::IsEmpty))
 				{
-					const uint8 TypeHash = GetTypeHashFromEncoding(EncodingFlags);
-					if (TypeHash == TypeHash_V2)
+					// Non empty and hex encoded
+					uint8 TypeHash = GetTypeHashFromEncoding(EncodingFlags);
+					if (TypeHash == 0)
 					{
-						NetSerializeLoadV2(Ar, EncodingFlags, bOutSuccess);
+						// If no type was encoded, assume default
+						TypeHash = UOnlineEngineInterface::Get()->GetReplicationHashForSubsystem(UOnlineEngineInterface::Get()->GetDefaultOnlineSubsystemName());
+					}
+					FName Type;
+					bool bValidTypeHash = TypeHash != 0;
+					if (TypeHash == TypeHash_Other)
+					{
+						FString TypeString;
+						Ar << TypeString;
+						Type = FName(*TypeString);
+						if (Ar.IsError() || Type == NAME_None)
+						{
+							bValidTypeHash = false;
+						}
 					}
 					else
 					{
-						NetSerializeLoadV1Encoded(Ar, EncodingFlags, bOutSuccess);
+						Type = UOnlineEngineInterface::Get()->GetSubsystemFromReplicationHash(TypeHash);
+					}
+
+					if (bValidTypeHash)
+					{
+						// Get the size
+						uint8 EncodedSize = 0;
+						Ar << EncodedSize;
+						if (!Ar.IsError())
+						{
+							if (EncodedSize > 0)
+							{
+								uint8* TempBytes = (uint8*)FMemory_Alloca(EncodedSize);
+								Ar.Serialize(TempBytes, EncodedSize);
+								if (!Ar.IsError())
+								{
+									FString Contents = BytesToHex(TempBytes, EncodedSize);
+									if (Contents.Len() > 0)
+									{
+										if (Type != NAME_None)
+										{
+											// BytesToHex loses case
+											Contents.ToLowerInline();
+											if (EnumHasAllFlags(EncodingFlags, EUniqueIdEncodingFlags::IsPadded))
+											{
+												Contents.RightChopInline(1); // remove padded character
+											}
+											UniqueIdFromString(Type, Contents);
+										}
+										else
+										{
+											UE_LOG(LogNet, Warning, TEXT("Error with unique id type"));
+										}
+									}
+								}
+								else
+								{
+									UE_LOG(LogNet, Warning, TEXT("Error with encoded unique id contents"));
+								}
+							}
+							else
+							{
+								UE_LOG(LogNet, Warning, TEXT("Empty Encoding!"));
+							}
+
+							bOutSuccess = (EncodedSize == 0) || IsValid();
+						}
+						else
+						{
+							UE_LOG(LogNet, Warning, TEXT("Error with encoded unique id size"));
+						}
+					}
+					else
+					{
+						UE_LOG(LogNet, Warning, TEXT("Error with encoded type hash"));
 					}
 				}
 				else
@@ -299,7 +327,55 @@ bool FUniqueNetIdRepl::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 			}
 			else
 			{
-				NetSerializeLoadV1Unencoded(Ar, EncodingFlags, bOutSuccess);
+				// Original FString serialization goes here
+				uint8 TypeHash = GetTypeHashFromEncoding(EncodingFlags);
+				if (TypeHash == 0)
+				{
+					// If no type was encoded, assume default
+					TypeHash = UOnlineEngineInterface::Get()->GetReplicationHashForSubsystem(UOnlineEngineInterface::Get()->GetDefaultOnlineSubsystemName());
+				}
+				FName Type;
+				bool bValidTypeHash = TypeHash != 0;
+				if (TypeHash == TypeHash_Other)
+				{
+					FString TypeString;
+					Ar << TypeString;
+					Type = FName(*TypeString);
+					if (Ar.IsError() || Type == NAME_None)
+					{
+						bValidTypeHash = false;
+					}
+				}
+				else
+				{
+					Type = UOnlineEngineInterface::Get()->GetSubsystemFromReplicationHash(TypeHash);
+				}
+
+				if (bValidTypeHash)
+				{
+					FString Contents;
+					Ar << Contents;
+					if (!Ar.IsError())
+					{
+						if (Type != NAME_None)
+						{
+							UniqueIdFromString(Type, Contents);
+							bOutSuccess = !Contents.IsEmpty();
+						}
+						else
+						{
+							UE_LOG(LogNet, Warning, TEXT("Error with unique id type"));
+						}
+					}
+					else
+					{
+						UE_LOG(LogNet, Warning, TEXT("Error with unencoded unique id"));
+					}
+				}
+				else
+				{
+					UE_LOG(LogNet, Warning, TEXT("Error with encoded type hash"));
+				}
 			}
 		}
 		else
@@ -309,155 +385,6 @@ bool FUniqueNetIdRepl::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 	}
 
 	return true;
-}
-
-void FUniqueNetIdRepl::NetSerializeLoadV1Encoded(FArchive& Ar, const EUniqueIdEncodingFlags EncodingFlags, bool& bOutSuccess)
-{
-	// Non empty and hex encoded
-	uint8 TypeHash = GetTypeHashFromEncoding(EncodingFlags);
-	if (TypeHash == 0)
-	{
-		// If no type was encoded, assume default
-		TypeHash = UOnlineEngineInterface::Get()->GetReplicationHashForSubsystem(UOnlineEngineInterface::Get()->GetDefaultOnlineSubsystemName());
-	}
-	FName Type;
-	bool bValidTypeHash = TypeHash != 0;
-	if (TypeHash == TypeHash_Other)
-	{
-		FString TypeString;
-		Ar << TypeString;
-		Type = FName(*TypeString);
-		if (Ar.IsError() || Type == NAME_None)
-		{
-			bValidTypeHash = false;
-		}
-	}
-	else
-	{
-		Type = UOnlineEngineInterface::Get()->GetSubsystemFromReplicationHash(TypeHash);
-	}
-
-	if (bValidTypeHash)
-	{
-		// Get the size
-		uint8 EncodedSize = 0;
-		Ar << EncodedSize;
-		if (!Ar.IsError())
-		{
-			if (EncodedSize > 0)
-			{
-				uint8* TempBytes = (uint8*)FMemory_Alloca(EncodedSize);
-				Ar.Serialize(TempBytes, EncodedSize);
-				if (!Ar.IsError())
-				{
-					FString Contents = BytesToHex(TempBytes, EncodedSize);
-					if (Contents.Len() > 0)
-					{
-						if (Type != NAME_None)
-						{
-							// BytesToHex loses case
-							Contents.ToLowerInline();
-							if (EnumHasAllFlags(EncodingFlags, EUniqueIdEncodingFlags::IsPadded))
-							{
-								Contents.RightChopInline(1); // remove padded character
-							}
-							UniqueIdFromString(Type, Contents);
-						}
-						else
-						{
-							UE_LOG(LogNet, Warning, TEXT("Error with unique id type"));
-						}
-					}
-				}
-				else
-				{
-					UE_LOG(LogNet, Warning, TEXT("Error with encoded unique id contents"));
-				}
-			}
-			else
-			{
-				UE_LOG(LogNet, Warning, TEXT("Empty Encoding!"));
-			}
-
-			bOutSuccess = (EncodedSize == 0) || IsValid();
-		}
-		else
-		{
-			UE_LOG(LogNet, Warning, TEXT("Error with encoded unique id size"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogNet, Warning, TEXT("Error with encoded type hash"));
-	}
-}
-
-void FUniqueNetIdRepl::NetSerializeLoadV1Unencoded(FArchive& Ar, const EUniqueIdEncodingFlags EncodingFlags, bool& bOutSuccess)
-{
-	uint8 TypeHash = GetTypeHashFromEncoding(EncodingFlags);
-	if (TypeHash == 0)
-	{
-		// If no type was encoded, assume default
-		TypeHash = UOnlineEngineInterface::Get()->GetReplicationHashForSubsystem(UOnlineEngineInterface::Get()->GetDefaultOnlineSubsystemName());
-	}
-	FName Type;
-	bool bValidTypeHash = TypeHash != 0;
-	if (TypeHash == TypeHash_Other)
-	{
-		FString TypeString;
-		Ar << TypeString;
-		Type = FName(*TypeString);
-		if (Ar.IsError() || Type == NAME_None)
-		{
-			bValidTypeHash = false;
-		}
-	}
-	else
-	{
-		Type = UOnlineEngineInterface::Get()->GetSubsystemFromReplicationHash(TypeHash);
-	}
-
-	if (bValidTypeHash)
-	{
-		FString Contents;
-		Ar << Contents;
-		if (!Ar.IsError())
-		{
-			if (Type != NAME_None)
-			{
-				UniqueIdFromString(Type, Contents);
-				bOutSuccess = !Contents.IsEmpty();
-			}
-			else
-			{
-				UE_LOG(LogNet, Warning, TEXT("Error with unique id type"));
-			}
-		}
-		else
-		{
-			UE_LOG(LogNet, Warning, TEXT("Error with unencoded unique id"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogNet, Warning, TEXT("Error with encoded type hash"));
-	}
-}
-
-void FUniqueNetIdRepl::NetSerializeLoadV2(FArchive& Ar, const EUniqueIdEncodingFlags EncodingFlags, bool& bOutSuccess)
-{
-	UE::Online::EOnlineServices OnlineServicesType;
-	Ar << OnlineServicesType;
-	TArray<uint8> ReplicationData;
-	Ar << ReplicationData;
-
-	UE::Online::IOnlineAccountIdRegistry* Registry = UE::Online::FOnlineIdRegistryRegistry::Get().GetAccountIdRegistry(OnlineServicesType);
-	if (ensure(Registry))
-	{
-		const UE::Online::FOnlineAccountIdHandle Handle = Registry->FromReplicationData(ReplicationData);
-		check(Handle.IsValid());
-		SetAccountId(Handle);
-	}
 }
 
 bool FUniqueNetIdRepl::Serialize(FArchive& Ar)
@@ -475,21 +402,14 @@ bool FUniqueNetIdRepl::ExportTextItem(FString& ValueStr, FUniqueNetIdRepl const&
 
 	if (IsValid())
 	{
-		if (IsV1())
+		FName Type = UniqueNetId->GetType();
+		if (Type == UOnlineEngineInterface::Get()->GetDefaultOnlineSubsystemName())
 		{
-			FName Type = GetType();
-			if (Type == UOnlineEngineInterface::Get()->GetDefaultOnlineSubsystemName())
-			{
-				ValueStr += ToString();
-			}
-			else
-			{
-				ValueStr += FString::Printf(TEXT("%s:%s"), *Type.ToString(), *ToString());
-			}
+			ValueStr += FString::Printf(TEXT("%s"), *UniqueNetId->ToString());
 		}
 		else
 		{
-			ValueStr += ToDebugString();
+			ValueStr += FString::Printf(TEXT("%s:%s"), *Type.ToString(), *UniqueNetId->ToString());
 		}
 	}
 	else
@@ -564,7 +484,7 @@ TSharedRef<FJsonValue> FUniqueNetIdRepl::ToJson() const
 {
 	if (IsValid())
 	{
-		const FString JsonString = FString::Printf(TEXT("%s:%s"), *GetType().ToString(), *ToString());
+		const FString JsonString = FString::Printf(TEXT("%s:%s"), *UniqueNetId->GetType().ToString(), *ToString());
 		return MakeShareable(new FJsonValueString(JsonString));
 	}
 	else

@@ -226,10 +226,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ensure(SubsystemNameToHash.Num() == (HashId - 1));
 		ensure(HashToSubsystemName.Num() == (HashId - 1));
 
-		// FUniqueNetIdRepl uses 5 bits to transmit the HashId
-		// 31 is used for OnlineSubsystems not included in this list
-		// 30 is used for OnlineServices (v2) net ids
-		check(HashId < 30);
+		// FUniqueNetIdRepl uses 5 bits to transmit the HashId and 31 is used for OnlineSubsystems not included in this list
+		check(HashId < 31);
 	}
 
 	/** If false it will not try to do online PIE at all */

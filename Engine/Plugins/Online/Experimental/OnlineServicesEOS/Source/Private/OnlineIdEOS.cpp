@@ -2,10 +2,8 @@
 
 #include "OnlineIdEOS.h"
 
-#include "Online/OnlineAsyncOp.h"
-#include "String/HexToBytes.h"
-#include "String/BytesToHex.h"
 #include "OnlineServicesEOSTypes.h"
+#include "Online/OnlineAsyncOp.h"
 
 #include "eos_connect_types.h"
 #include "eos_connect.h"
@@ -162,93 +160,6 @@ FString FOnlineAccountIdRegistryEOS::ToLogString(const FOnlineAccountIdHandle& H
 		Result = TEXT("Invalid");
 	}
 	return Result;
-}
-
-enum class EEOSAccountIdElements : uint8
-{	
-	None = 0,
-	EAS = 1 << 0,
-	EOS = 1 << 1
-};
-ENUM_CLASS_FLAGS(EEOSAccountIdElements);
-const uint8 OnlineIdEOSUtf8BufferLength = 32;
-const uint8 OnlineIdEOSHexBufferLength = 16;
-
-TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FOnlineAccountIdHandle& Handle) const
-{
-	TArray<uint8> ReplicationData;
-	if (ValidateOnlineId(Handle))
-	{
-		const FOnlineAccountIdDataEOS& IdData = GetIdData(Handle);
-		EEOSAccountIdElements Elements = EEOSAccountIdElements::None;
-
-		char EasBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
-		if (EOS_EpicAccountId_IsValid(IdData.EpicAccountId))
-		{
-			int32 EasBufferLength = sizeof(EasBuffer);
-			const EOS_EResult EosResult = EOS_EpicAccountId_ToString(IdData.EpicAccountId, EasBuffer, &EasBufferLength);
-			if (ensure(EosResult == EOS_EResult::EOS_Success))
-			{
-				check(EasBufferLength-1 == OnlineIdEOSUtf8BufferLength);
-				Elements |= EEOSAccountIdElements::EAS;
-			}
-		}
-
-		char EosBuffer[EOS_PRODUCTUSERID_MAX_LENGTH + 1] = { 0 };
-		if (EOS_ProductUserId_IsValid(IdData.ProductUserId))
-		{
-			int32 EosBufferLength = sizeof(EosBuffer);
-			const EOS_EResult EosResult = EOS_ProductUserId_ToString(IdData.ProductUserId, EosBuffer, &EosBufferLength);
-			if (ensure(EosResult == EOS_EResult::EOS_Success))
-			{
-				check(EosBufferLength-1 == OnlineIdEOSUtf8BufferLength);
-				Elements |= EEOSAccountIdElements::EOS;
-			}
-		}
-
-		const int EasHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EAS) ? OnlineIdEOSHexBufferLength : 0;
-		const int EosHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EOS) ? OnlineIdEOSHexBufferLength : 0;
-		ReplicationData.SetNumUninitialized(1 + EasHexBufferLength + EosHexBufferLength);
-		ReplicationData[0] = uint8(Elements);
-		if (EasHexBufferLength > 0)
-		{
-			UE::String::HexToBytes(FUtf8StringView(EasBuffer, OnlineIdEOSUtf8BufferLength), ReplicationData.GetData() + 1);
-		}
-		if (EosHexBufferLength > 0)
-		{
-			UE::String::HexToBytes(FUtf8StringView(EosBuffer, OnlineIdEOSUtf8BufferLength), ReplicationData.GetData() + 1 + EasHexBufferLength);
-		}
-	}
-	else
-	{
-		check(!Handle.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
-	}
-	return ReplicationData;
-}
-
-FOnlineAccountIdHandle FOnlineAccountIdRegistryEOS::FromReplicationData(const TArrayView<uint8> ReplicationData)
-{
-	const EEOSAccountIdElements Elements = EEOSAccountIdElements(ReplicationData[0]);
-	const int EasHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EAS) ? OnlineIdEOSHexBufferLength : 0;
-	const int EosHexBufferLength = EnumHasAnyFlags(Elements, EEOSAccountIdElements::EOS) ? OnlineIdEOSHexBufferLength : 0;
-
-	EOS_EpicAccountId EpicAccountId = nullptr;
-	if (EasHexBufferLength > 0)
-	{
-		char EasBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
-		UE::String::BytesToHex(TConstArrayView<uint8>(ReplicationData.GetData() + 1, EasHexBufferLength), EasBuffer);
-		EpicAccountId = EOS_EpicAccountId_FromString(EasBuffer);
-	}
-
-	EOS_ProductUserId ProductUserId = nullptr;
-	if (EosHexBufferLength > 0)
-	{
-		char EosBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
-		UE::String::BytesToHex(TConstArrayView<uint8>(ReplicationData.GetData() + 1 + EasHexBufferLength, EosHexBufferLength), EosBuffer);
-		ProductUserId = EOS_ProductUserId_FromString(EosBuffer);
-	}
-	
-	return Create(EpicAccountId, ProductUserId);
 }
 
 EOS_EpicAccountId GetEpicAccountId(const FOnlineAccountIdHandle& Handle)

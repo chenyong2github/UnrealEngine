@@ -4,7 +4,7 @@
 
 #include "Async/Future.h"
 #include "Delegates/Delegate.h"
-#include "Online/CoreOnline.h"
+#include "Online/OnlineId.h"
 #include "Online/OnlineIdCommon.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
@@ -39,11 +39,7 @@ public:
 
 	// Begin IOnlineAccountIdRegistry
 	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) const override;
-	virtual TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const override;
-	virtual FOnlineAccountIdHandle FromReplicationData(const TArrayView<uint8> ReplicationString) override;
 	// End IOnlineAccountIdRegistry
-
-	virtual ~FOnlineAccountIdRegistryEOS() = default;
 
 private:
 	mutable FRWLock Lock;
@@ -53,6 +49,7 @@ private:
 	TMap<EOS_EpicAccountId, FOnlineAccountIdHandle> EpicAccountIdToHandle; // Map of EOS_EpicAccountId to the associated handle.
 	TMap<EOS_ProductUserId, FOnlineAccountIdHandle> ProductUserIdToHandle; // Map of EOS_ProductUserId to the associated handle.
 
+	virtual ~FOnlineAccountIdRegistryEOS() = default;
 };
 
 EOS_EpicAccountId GetEpicAccountId(const FOnlineAccountIdHandle& Handle);
