@@ -2462,7 +2462,8 @@ ALevelScriptActor* ULevel::GetLevelScriptActor() const
 void ULevel::InitializeNetworkActors()
 {
 	check( OwningWorld );
-	bool			bIsServer				= OwningWorld->IsServer();
+
+	const bool bIsClient = OwningWorld->IsNetMode(NM_Client);
 
 	// Kill non relevant client actors and set net roles correctly
 	for( int32 ActorIndex=0; ActorIndex<Actors.Num(); ActorIndex++ )
@@ -2487,7 +2488,7 @@ void ULevel::InitializeNetworkActors()
 					}
 				}
 
-				if (!bIsServer)
+				if (bIsClient)
 				{
 					if (!Actor->bNetLoadOnClient)
 					{

@@ -515,7 +515,7 @@ void AActor::RerunConstructionScripts()
 
 		// Exchange net roles before running construction scripts
 		UWorld *OwningWorld = GetWorld();
-		if (OwningWorld && !OwningWorld->IsServer())
+		if (OwningWorld && OwningWorld->IsNetMode(NM_Client))
 		{
 			ExchangeNetRoles(true);
 		}

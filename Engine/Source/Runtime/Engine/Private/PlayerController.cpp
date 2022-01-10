@@ -547,7 +547,7 @@ void APlayerController::ServerNotifyLoadedWorld_Implementation(FName WorldPackag
 
 	// Only valid for calling, for PC's in the process of seamless traveling
 	// NOTE: SeamlessTravelCount tracks client seamless travel, through the serverside gameplay code; this should not be replaced.
-	if (CurWorld != NULL && CurWorld->IsServer() && SeamlessTravelCount > 0 && LastCompletedSeamlessTravelCount < SeamlessTravelCount)
+	if (CurWorld != NULL && !CurWorld->IsNetMode(NM_Client) && SeamlessTravelCount > 0 && LastCompletedSeamlessTravelCount < SeamlessTravelCount)
 	{
 		// Update our info on what world the client is in
 		UNetConnection* const Connection = Cast<UNetConnection>(Player);
