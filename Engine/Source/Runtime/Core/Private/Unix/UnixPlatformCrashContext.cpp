@@ -32,6 +32,8 @@
 #include "HAL/ThreadHeartBeat.h"
 #include "BuildSettings.h"
 
+#include <sys/mman.h>
+
 #include <atomic>
 
 extern CORE_API bool GIsGPUCrashed;
@@ -1008,8 +1010,39 @@ void FUnixPlatformMisc::SetGracefulTerminationHandler()
 	sigaction(SIGHUP, &Action, nullptr);	//  this should actually cause the server to just re-read configs (restart?)
 }
 
-// reserve stack for the main thread in BSS
-char FRunnableThreadUnix::MainThreadSignalHandlerStack[FRunnableThreadUnix::EConstants::CrashHandlerStackSize];
+// Stack pointer for the main thread
+void *FRunnableThreadUnix::MainThreadSignalHandlerStack = nullptr;
+
+void *FRunnableThreadUnix::AllocCrashHandlerStack()
+{
+	uint64 StackBufferSize = GetCrashHandlerStackSize();
+
+	return mmap(nullptr, StackBufferSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+}
+
+void FRunnableThreadUnix::FreeCrashHandlerStack(void *StackBuffer)
+{
+	if (StackBuffer)
+	{
+		munmap(StackBuffer, GetCrashHandlerStackSize());
+	}
+}
+
+// Defined in UnixPlatformMemory, set via -crashhandlerstacksize command line.
+extern uint64 GCrashHandlerStackSize;
+
+uint64 FRunnableThreadUnix::GetCrashHandlerStackSize()
+{
+	if (GCrashHandlerStackSize == 0)
+	{
+		GCrashHandlerStackSize = EConstants::CrashHandlerStackSize;
+	}
+	else if (GCrashHandlerStackSize < EConstants::CrashHandlerStackSizeMin)
+	{
+		GCrashHandlerStackSize = EConstants::CrashHandlerStackSizeMin;
+	}
+	return GCrashHandlerStackSize;
+}
 
 // Defined in UnixPlatformMemory.cpp. Allows settings a specific signal to maintain its default handler rather then ignoring it
 extern int32 GSignalToDefault;
@@ -1096,5 +1129,10 @@ void FUnixPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCras
 
 	checkf(IsInGameThread(), TEXT("Crash handler for the game thread should be set from the game thread only."));
 
-	FRunnableThreadUnix::SetupSignalHandlerStack(FRunnableThreadUnix::MainThreadSignalHandlerStack, sizeof(FRunnableThreadUnix::MainThreadSignalHandlerStack), nullptr);
+	if (!FRunnableThreadUnix::MainThreadSignalHandlerStack)
+	{
+		FRunnableThreadUnix::MainThreadSignalHandlerStack = FRunnableThreadUnix::AllocCrashHandlerStack();
+	}
+
+	FRunnableThreadUnix::SetupSignalHandlerStack(FRunnableThreadUnix::MainThreadSignalHandlerStack, FRunnableThreadUnix::GetCrashHandlerStackSize(), nullptr);
 }

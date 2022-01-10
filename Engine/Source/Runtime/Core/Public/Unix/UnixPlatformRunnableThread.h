@@ -28,12 +28,14 @@ class FRunnableThreadUnix : public FRunnableThreadPThread
 		enum
 		{
 			UnixThreadNameLimit = 15,			// the limit for thread name is just 15 chars :( http://man7.org/linux/man-pages/man3/pthread_setname_np.3.html
-			CrashHandlerStackSize = SIGSTKSZ + 192 * 1024	// should be at least SIGSTKSIZE, plus 192K because we do logging and symbolication in crash handler
+
+			CrashHandlerStackSize = SIGSTKSZ + 192 * 1024,	// should be at least SIGSTKSIZE, plus 192K because we do logging and symbolication in crash handler
+			CrashHandlerStackSizeMin = SIGSTKSZ + 8 * 1024  // minimum allowed stack size
 		};
 	};
 
 	/** Each thread needs a separate stack for the signal handler, so possible stack overflows in the thread are handled */
-	char ThreadCrashHandlingStack[EConstants::CrashHandlerStackSize];
+	void* ThreadCrashHandlingStack;
 
 	/** Address of stack guard page - if nullptr, the page wasn't set */
 	void* StackGuardPageAddress;
@@ -47,10 +49,15 @@ class FRunnableThreadUnix : public FRunnableThreadPThread
 public:
 
 	/** Separate stack for the signal handler (so possible stack overflows don't go unnoticed), for the main thread specifically. */
-	static char MainThreadSignalHandlerStack[EConstants::CrashHandlerStackSize];
+	static void *MainThreadSignalHandlerStack;
+
+	static void *AllocCrashHandlerStack();
+	static void FreeCrashHandlerStack(void *StackBuffer);
+	static uint64 GetCrashHandlerStackSize();
 
 	FRunnableThreadUnix()
 		:	FRunnableThreadPThread()
+		,	ThreadCrashHandlingStack(nullptr)
 		,	StackGuardPageAddress(nullptr)
 		,	BaselineNiceValue(0)
 		,	bGotBaselineNiceValue(false)
@@ -77,6 +84,13 @@ public:
 	 */
 	static bool SetupSignalHandlerStack(void* StackBuffer, const size_t StackBufferSize, void** OutStackGuardPageAddress)
 	{
+		if (!StackBuffer)
+		{
+			return false;
+		}
+
+		// Added by CL 11188846 for ASan, TSan, and UBSan
+		// #jira UE-62784 UE-62803 UE-62804
 		if (FORCE_ANSI_ALLOCATOR)
 		{
 			return true;
@@ -254,7 +268,9 @@ private:
 		}
 
 		// set the alternate stack for handling crashes due to stack overflow
-		SetupSignalHandlerStack(ThreadCrashHandlingStack, sizeof(ThreadCrashHandlingStack), &StackGuardPageAddress);
+		check(ThreadCrashHandlingStack == nullptr);
+		ThreadCrashHandlingStack = AllocCrashHandlerStack();
+		SetupSignalHandlerStack(ThreadCrashHandlingStack, FRunnableThreadUnix::GetCrashHandlerStackSize(), &StackGuardPageAddress);
 	}
 
 	virtual void PostRun() override
@@ -270,6 +286,12 @@ private:
 			}
 
 			StackGuardPageAddress = nullptr;
+		}
+
+		if (ThreadCrashHandlingStack != nullptr)
+		{
+			FreeCrashHandlerStack(ThreadCrashHandlingStack);
+			ThreadCrashHandlingStack = nullptr;
 		}
 	}
 
