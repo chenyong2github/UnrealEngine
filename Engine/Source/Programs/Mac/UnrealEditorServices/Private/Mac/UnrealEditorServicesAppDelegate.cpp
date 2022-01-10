@@ -427,7 +427,7 @@
 {
 	return AppBundle && ([[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditor"] || [[AppBundle bundleIdentifier] isEqualToString:@"com.epicgames.UnrealEditorServices"])
 					 && [[[AppBundle bundlePath] stringByDeletingLastPathComponent] hasSuffix:@"Engine/Binaries/Mac"]
-					 && [[AppBundle bundlePath] rangeOfString:@".app/Contents/UE4"].location == NSNotFound;
+					 && [[AppBundle bundlePath] rangeOfString:@".app/Contents/UE"].location == NSNotFound;
 }
 
 - (NSString*)enginePathForAppBundle:(NSBundle*)AppBundle

@@ -1171,7 +1171,7 @@ namespace UnrealBuildTool
 			int IntPart = (int)TargetFloat;
 			int FracPart = (int)((TargetFloat - IntPart) * 10);
 			int TargetNum = IntPart * 10000 + FracPart * 100;
-			CompileEnvironment.Definitions.Add("MINIMUM_UE4_COMPILED_IOS_VERSION=" + TargetNum);
+			CompileEnvironment.Definitions.Add("MINIMUM_UE_COMPILED_IOS_VERSION=" + TargetNum);
 
 			LinkEnvironment.AdditionalFrameworks.Add(new UEBuildFramework("GameKit"));
 			LinkEnvironment.AdditionalFrameworks.Add(new UEBuildFramework("StoreKit"));
