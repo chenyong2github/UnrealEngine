@@ -186,6 +186,11 @@ void FCommandAddFragmentInstance::Execute(UMassEntitySubsystem& System) const
 	System.AddFragmentInstanceListToEntity(TargetEntity, MakeArrayView(&Struct, 1));
 }
 
+void FMassCommandAddFragmentInstanceList::Execute(UMassEntitySubsystem& System) const
+{
+	System.AddFragmentInstanceListToEntity(TargetEntity, FragmentList);
+}
+
 void FCommandSwapTags::Execute(UMassEntitySubsystem& System) const
 {
 	if (System.IsEntityValid(TargetEntity) == false)
