@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Online/OnlineId.h"
+#include "Online/CoreOnline.h"
 #include "Templates/SharedPointer.h"
 
 class FString;

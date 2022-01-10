@@ -13,6 +13,7 @@
 #include "OnlineReplStructs.generated.h"
 
 class FJsonValue;
+enum class EUniqueIdEncodingFlags : uint8;
 
 /**
  * Wrapper for opaque type FUniqueNetId
@@ -30,7 +31,7 @@ struct FUniqueNetIdRepl : public FUniqueNetIdWrapper
 	}
 
 	FUniqueNetIdRepl(const FUniqueNetIdRepl& InWrapper)
-		: FUniqueNetIdWrapper(InWrapper.UniqueNetId)
+		: FUniqueNetIdWrapper(InWrapper.Variant)
 	{
 	}
 
@@ -51,10 +52,16 @@ struct FUniqueNetIdRepl : public FUniqueNetIdWrapper
 
 	virtual ~FUniqueNetIdRepl() {}
 
-	virtual void SetUniqueNetId(const FUniqueNetIdPtr& InUniqueNetId) override
+	virtual void SetUniqueNetId(const FUniqueNetIdPtr& UniqueNetId) override
 	{
 		ReplicationBytes.Empty();
-		FUniqueNetIdWrapper::SetUniqueNetId(InUniqueNetId);
+		FUniqueNetIdWrapper::SetUniqueNetId(UniqueNetId);
+	}
+
+	virtual void SetAccountId(const UE::Online::FOnlineAccountIdHandle& Handle) override
+	{
+		ReplicationBytes.Empty();
+		FUniqueNetIdWrapper::SetAccountId(Handle);
 	}
 
 	/** Export contents of this struct as a string */
@@ -65,6 +72,10 @@ struct FUniqueNetIdRepl : public FUniqueNetIdWrapper
 
 	/** Network serialization */
 	ENGINE_API bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+
+	void NetSerializeLoadV1Encoded(FArchive& Ar, const EUniqueIdEncodingFlags EncodingFlags, bool& bOutSuccess);
+	void NetSerializeLoadV1Unencoded(FArchive& Ar, const EUniqueIdEncodingFlags EncodingFlags, bool& bOutSuccess);
+	void NetSerializeLoadV2(FArchive& Ar, const EUniqueIdEncodingFlags EncodingFlags, bool& bOutSuccess);
 
 	/** Serialization to any FArchive */
 	ENGINE_API friend FArchive& operator<<( FArchive& Ar, FUniqueNetIdRepl& UniqueNetId);
@@ -99,6 +110,8 @@ protected:
 	void UniqueIdFromString(FName Type, const FString& Contents);
 	/** Helper to make network serializable representation */
 	void MakeReplicationData();
+	void MakeReplicationDataV1();
+	void MakeReplicationDataV2();
 	/** Network serialized data cache */
 	UPROPERTY(Transient)
 	TArray<uint8> ReplicationBytes;

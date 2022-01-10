@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "Online/CoreOnline.h"
 #include "Online/OnlineAsyncOp.h"
-#include "Online/OnlineId.h"
 #include "Containers/Map.h"
 #include "Templates/SharedPointer.h"
 
