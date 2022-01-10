@@ -247,17 +247,7 @@ namespace UnrealGameSync
 		public string ProjectPath { get; set; } = String.Empty;
 
 		// Workspace specific SyncFilters
-		public string[] SyncView { get; set; } = Array.Empty<string>();
-		public List<SyncCategory> SyncCategories { get; set; } = new List<SyncCategory>();
-		public bool? bSyncAllProjects { get; set; }
-		public bool? bIncludeAllProjectsInSolution { get; set; }
-
-		[JsonIgnore]
-		public Dictionary<Guid, bool> SyncCategoriesDict
-		{
-			get => SyncCategories.ToDictionary(x => x.Id, x => x.Enable);
-			set => SyncCategories = value.Select(x => new SyncCategory { Id = x.Key, Enable = x.Value }).ToList();
-		}
+		public FilterSettings Filter { get; set; } = new FilterSettings();
 
 		[JsonIgnore]
 		public FileReference ConfigFile => GetConfigFile(RootDir);
@@ -555,10 +545,10 @@ namespace UnrealGameSync
 			else
 			{
 				CoreSettingsData = new GlobalSettings();
-				CoreSettingsData.SyncView = ConfigFile.GetValues("General.SyncFilter", new string[0]);
-				CoreSettingsData.SyncCategories = GetCategorySettings(ConfigFile.FindSection("General"), "SyncIncludedCategories", "SyncExcludedCategories");
-				CoreSettingsData.bSyncAllProjects = ConfigFile.GetValue("General.SyncAllProjects", false);
-				CoreSettingsData.bIncludeAllProjectsInSolution = ConfigFile.GetValue("General.IncludeAllProjectsInSolution", false);
+				CoreSettingsData.Filter.View = ConfigFile.GetValues("General.SyncFilter", new string[0]).ToList();
+				CoreSettingsData.Filter.SetCategories(GetCategorySettings(ConfigFile.FindSection("General"), "SyncIncludedCategories", "SyncExcludedCategories"));
+				CoreSettingsData.Filter.AllProjects = ConfigFile.GetValue("General.SyncAllProjects", false);
+				CoreSettingsData.Filter.AllProjectsInSln = ConfigFile.GetValue("General.IncludeAllProjectsInSolution", false);
 			}
 
 			return new UserSettings(FileName, ConfigFile, CoreFileName, CoreSettingsData);
@@ -919,14 +909,14 @@ namespace UnrealGameSync
 			ConfigSection WorkspaceSection = ConfigFile.FindSection(ClientName + BranchPath);
 			if (WorkspaceSection != null)
 			{
-				CurrentWorkspace.SyncView = WorkspaceSection.GetValues("SyncFilter", new string[0]);
-				CurrentWorkspace.SyncCategories = GetCategorySettings(WorkspaceSection, "SyncIncludedCategories", "SyncExcludedCategories").Select(x => new SyncCategory { Id = x.Key, Enable = x.Value }).ToList();
+				CurrentWorkspace.Filter.View = WorkspaceSection.GetValues("SyncFilter", new string[0]).ToList();
+				CurrentWorkspace.Filter.SetCategories(GetCategorySettings(WorkspaceSection, "SyncIncludedCategories", "SyncExcludedCategories"));
 
 				int SyncAllProjects = WorkspaceSection.GetValue("SyncAllProjects", -1);
-				CurrentWorkspace.bSyncAllProjects = (SyncAllProjects == 0) ? (bool?)false : (SyncAllProjects == 1) ? (bool?)true : (bool?)null;
+				CurrentWorkspace.Filter.AllProjects = (SyncAllProjects == 0) ? (bool?)false : (SyncAllProjects == 1) ? (bool?)true : (bool?)null;
 
 				int IncludeAllProjectsInSolution = WorkspaceSection.GetValue("IncludeAllProjectsInSolution", -1);
-				CurrentWorkspace.bIncludeAllProjectsInSolution = (IncludeAllProjectsInSolution == 0) ? (bool?)false : (IncludeAllProjectsInSolution == 1) ? (bool?)true : (bool?)null;
+				CurrentWorkspace.Filter.AllProjectsInSln = (IncludeAllProjectsInSolution == 0) ? (bool?)false : (IncludeAllProjectsInSolution == 1) ? (bool?)true : (bool?)null;
 			}
 		}
 

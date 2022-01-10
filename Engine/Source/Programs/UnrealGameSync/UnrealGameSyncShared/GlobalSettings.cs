@@ -11,36 +11,47 @@ using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
+	public class FilterSettings
+	{
+		public List<Guid> IncludeCategories { get; set; } = new List<Guid>();
+		public List<Guid> ExcludeCategories { get; set; } = new List<Guid>();
+		public List<string> View { get; set; } = new List<string>();
+		public bool? AllProjects { get; set; }
+		public bool? AllProjectsInSln { get; set; }
+
+		public void Reset()
+		{
+			IncludeCategories.Clear();
+			ExcludeCategories.Clear();
+			View.Clear();
+			AllProjects = null;
+			AllProjectsInSln = null;
+		}
+
+		public void SetCategories(Dictionary<Guid, bool> Categories)
+		{
+			IncludeCategories = Categories.Where(x => x.Value).Select(x => x.Key).ToList();
+			ExcludeCategories = Categories.Where(x => !x.Value).Select(x => x.Key).ToList();
+		}
+
+		public Dictionary<Guid, bool> GetCategories()
+		{
+			Dictionary<Guid, bool> Categories = new Dictionary<Guid, bool>();
+			foreach (Guid IncludeCategory in IncludeCategories)
+			{
+				Categories[IncludeCategory] = true;
+			}
+			foreach (Guid ExcludeCategory in ExcludeCategories)
+			{
+				Categories[ExcludeCategory] = false;
+			}
+			return Categories;
+		}
+	}
+
 	public class GlobalSettings
 	{
-		public string[] SyncView { get; set; } = Array.Empty<string>();
-		public List<Guid> IncludeSyncCategories { get; set; } = new List<Guid>();
-		public List<Guid> ExcludeSyncCategories { get; set; } = new List<Guid>();
-		public bool bSyncAllProjects { get; set; } = false;
-		public bool bIncludeAllProjectsInSolution { get; set; } = false;
-
-		[JsonIgnore]
-		public Dictionary<Guid, bool> SyncCategories
-		{
-			get
-			{
-				Dictionary<Guid, bool> Categories = new Dictionary<Guid, bool>();
-				foreach (Guid IncludeCategory in IncludeSyncCategories)
-				{
-					Categories[IncludeCategory] = true;
-				}
-				foreach (Guid ExcludeCategory in ExcludeSyncCategories)
-				{
-					Categories[ExcludeCategory] = false;
-				}
-				return Categories;
-			}
-			set
-			{
-				IncludeSyncCategories = value.Where(x => x.Value).Select(x => x.Key).ToList();
-				ExcludeSyncCategories = value.Where(x => !x.Value).Select(x => x.Key).ToList();
-			}
-		}
+		public FilterSettings Filter { get; set; } = new FilterSettings();
 	}
 
 	public class GlobalSettingsFile
@@ -129,13 +140,16 @@ namespace UnrealGameSync
 			return Settings;
 		}
 
-		public static string[] GetCombinedSyncFilter(Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToFilter, string[] GlobalView, Dictionary<Guid, bool> GlobalCategoryIdToSetting, string[] WorkspaceView, Dictionary<Guid, bool> WorkspaceCategoryIdToSetting)
+		public static string[] GetCombinedSyncFilter(Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToFilter, FilterSettings GlobalFilter, FilterSettings WorkspaceFilter)
 		{
 			List<string> Lines = new List<string>();
-			foreach (string ViewLine in Enumerable.Concat(GlobalView, WorkspaceView).Select(x => x.Trim()).Where(x => x.Length > 0 && !x.StartsWith(";")))
+			foreach (string ViewLine in Enumerable.Concat(GlobalFilter.View, WorkspaceFilter.View).Select(x => x.Trim()).Where(x => x.Length > 0 && !x.StartsWith(";")))
 			{
 				Lines.Add(ViewLine);
 			}
+
+			Dictionary<Guid, bool> GlobalCategoryIdToSetting = GlobalFilter.GetCategories();
+			Dictionary<Guid, bool> WorkspaceCategoryIdToSetting = WorkspaceFilter.GetCategories();
 
 			HashSet<Guid> Enabled = new HashSet<Guid>();
 			foreach (WorkspaceSyncCategory Filter in UniqueIdToFilter.Values)

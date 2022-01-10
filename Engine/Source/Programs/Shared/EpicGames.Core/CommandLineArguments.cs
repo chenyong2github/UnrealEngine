@@ -720,36 +720,9 @@ namespace EpicGames.Core
 		/// Applies these arguments to fields with the [CommandLine] attribute in the given object.
 		/// </summary>
 		/// <param name="TargetObject">The object to configure</param>
-		/// <param name="Logger">Sink for error/warning messages</param>
 		public void ApplyTo(object TargetObject)
 		{
 			ApplyTo(TargetObject, Log.Logger);
-		}
-
-		static List<ArgumentTarget> GetArgumentTargetsForType(Type? TargetType)
-		{
-			List<ArgumentTarget> Targets = new List<ArgumentTarget>();
-			while (TargetType != null && TargetType != typeof(object))
-			{
-				foreach (FieldInfo FieldInfo in TargetType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
-				{
-					IEnumerable<CommandLineAttribute> Attributes = FieldInfo.GetCustomAttributes<CommandLineAttribute>();
-					if (Attributes.Any())
-					{
-						Targets.Add(new ArgumentTarget(FieldInfo, FieldInfo.FieldType, FieldInfo.SetValue, FieldInfo.GetValue, Attributes.ToArray()));
-					}
-				}
-				foreach (PropertyInfo PropertyInfo in TargetType.GetProperties(BindingFlags.Instance | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
-				{
-					IEnumerable<CommandLineAttribute> Attributes = PropertyInfo.GetCustomAttributes<CommandLineAttribute>();
-					if (Attributes.Any())
-					{
-						Targets.Add(new ArgumentTarget(PropertyInfo, PropertyInfo.PropertyType, PropertyInfo.SetValue, PropertyInfo.GetValue, Attributes.ToArray()));
-					}
-				}
-				TargetType = TargetType.BaseType;
-			}
-			return Targets;
 		}
 
 		/// <summary>
@@ -851,6 +824,43 @@ namespace EpicGames.Core
 					throw new CommandLineArgumentException(String.Format("Missing {0} arguments", StringUtils.FormatList(MissingArguments.Select(x => x.Replace("=", "=...")))));
 				}
 			}
+		}
+
+		/// <summary>
+		/// Applies these arguments to fields with the [CommandLine] attribute in the given object.
+		/// </summary>
+		/// <param name="Logger">Sink for error/warning messages</param>
+		public T ApplyTo<T>(ILogger Logger) where T : new()
+		{
+			T Object = new T();
+			ApplyTo(Object, Logger);
+			return Object;
+		}
+
+		static List<ArgumentTarget> GetArgumentTargetsForType(Type? TargetType)
+		{
+			List<ArgumentTarget> Targets = new List<ArgumentTarget>();
+			while (TargetType != null && TargetType != typeof(object))
+			{
+				foreach (FieldInfo FieldInfo in TargetType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+				{
+					IEnumerable<CommandLineAttribute> Attributes = FieldInfo.GetCustomAttributes<CommandLineAttribute>();
+					if (Attributes.Any())
+					{
+						Targets.Add(new ArgumentTarget(FieldInfo, FieldInfo.FieldType, FieldInfo.SetValue, FieldInfo.GetValue, Attributes.ToArray()));
+					}
+				}
+				foreach (PropertyInfo PropertyInfo in TargetType.GetProperties(BindingFlags.Instance | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+				{
+					IEnumerable<CommandLineAttribute> Attributes = PropertyInfo.GetCustomAttributes<CommandLineAttribute>();
+					if (Attributes.Any())
+					{
+						Targets.Add(new ArgumentTarget(PropertyInfo, PropertyInfo.PropertyType, PropertyInfo.SetValue, PropertyInfo.GetValue, Attributes.ToArray()));
+					}
+				}
+				TargetType = TargetType.BaseType;
+			}
+			return Targets;
 		}
 
 		/// <summary>

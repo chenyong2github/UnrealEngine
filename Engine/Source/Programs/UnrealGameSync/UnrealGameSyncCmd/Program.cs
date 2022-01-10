@@ -74,6 +74,10 @@ namespace UnrealGameSyncCmd
 				"ugs config",
 				"Updates the configuration for the current workspace."
 			),
+			new CommandInfo("filter", typeof(FilterCommand),
+				"ugs filter [-reset] [-include=..] [-exclude=..] [-view=..] [-addview=..] [-removeview=..] [-global]",
+				"Displays or updates the workspace or global sync filter"
+			),
 			new CommandInfo("sync", typeof(SyncCommand),
 				"ugs sync [change|'latest'] [-build] [-only]",
 				"Syncs the current workspace to the given changelist, optionally removing all local state."
@@ -300,7 +304,7 @@ namespace UnrealGameSyncCmd
 		static string[] ReadSyncFilter(UserWorkspaceSettings WorkspaceSettings, GlobalSettingsFile UserSettings, ConfigFile ProjectConfig)
 		{
 			Dictionary<Guid, WorkspaceSyncCategory> SyncCategories = ConfigUtils.GetSyncCategories(ProjectConfig);
-			string[] CombinedSyncFilter = GlobalSettingsFile.GetCombinedSyncFilter(SyncCategories, UserSettings.Global.SyncView, UserSettings.Global.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
+			string[] CombinedSyncFilter = GlobalSettingsFile.GetCombinedSyncFilter(SyncCategories, UserSettings.Global.Filter, WorkspaceSettings.Filter);
 
 			ConfigSection PerforceSection = ProjectConfig.FindSection("Perforce");
 			if (PerforceSection != null)
@@ -684,6 +688,183 @@ namespace UnrealGameSyncCmd
 				}
 				
 				return Task.CompletedTask;
+			}
+		}
+
+		class FilterCommand : Command
+		{
+			class FilterCommandOptions
+			{
+				[CommandLine("-Reset")]
+				public bool Reset = false;
+
+				[CommandLine("-Include=")]
+				public List<string> Include { get; set; } = new List<string>();
+
+				[CommandLine("-Exclude=")]
+				public List<string> Exclude { get; set; } = new List<string>();
+
+				[CommandLine("-View=", ListSeparator = ';')]
+				public List<string>? View { get; set; } 
+
+				[CommandLine("-AddView=", ListSeparator = ';')]
+				public List<string> AddView { get; set; } = new List<string>();
+
+				[CommandLine("-RemoveView=", ListSeparator = ';')]
+				public List<string> RemoveView { get; set; } = new List<string>();
+
+				[CommandLine("-AllProjects", Value = "true")]
+				[CommandLine("-OnlyCurrent", Value = "false")]
+				public bool? AllProjects = null;
+
+				[CommandLine("-GpfAllProjects", Value ="true")]
+				[CommandLine("-GpfOnlyCurrent", Value = "false")]
+				public bool? AllProjectsInSln = null;
+
+				[CommandLine("-Global")]
+				public bool Global { get; set; }
+			}
+
+			public override async Task ExecuteAsync(CommandContext Context)
+			{
+				ILogger Logger = Context.Logger;
+
+				UserWorkspaceSettings WorkspaceSettings = ReadRequiredUserWorkspaceSettings();
+				using IPerforceConnection PerforceClient = await ConnectAsync(WorkspaceSettings, Context.LoggerFactory);
+				UserWorkspaceState WorkspaceState = await ReadWorkspaceState(PerforceClient, WorkspaceSettings, Context.UserSettings, Logger);
+				ProjectInfo ProjectInfo = WorkspaceState.CreateProjectInfo();
+
+				ConfigFile ProjectConfig = await ConfigUtils.ReadProjectConfigFileAsync(PerforceClient, ProjectInfo, Logger, CancellationToken.None);
+				Dictionary<Guid, WorkspaceSyncCategory> SyncCategories = ConfigUtils.GetSyncCategories(ProjectConfig);
+
+				FilterSettings GlobalFilter = Context.UserSettings.Global.Filter;
+				FilterSettings WorkspaceFilter = WorkspaceSettings.Filter;
+
+				FilterCommandOptions Options = Context.Arguments.ApplyTo<FilterCommandOptions>(Logger);
+				Context.Arguments.CheckAllArgumentsUsed(Context.Logger);
+
+				if (Options.Global)
+				{
+					ApplyCommandOptions(Context.UserSettings.Global.Filter, Options, SyncCategories.Values, Logger);
+					Context.UserSettings.Save();
+				}
+				else
+				{
+					ApplyCommandOptions(WorkspaceSettings.Filter, Options, SyncCategories.Values, Logger);
+					WorkspaceSettings.Save();
+				}
+
+				Dictionary<Guid, bool> GlobalCategories = GlobalFilter.GetCategories();
+				Dictionary<Guid, bool> WorkspaceCategories = WorkspaceFilter.GetCategories();
+
+				Logger.LogInformation("Categories:");
+				foreach (WorkspaceSyncCategory SyncCategory in SyncCategories.Values)
+				{
+					bool bEnabled;
+
+					string Scope = "(Default)";
+					if (GlobalCategories.TryGetValue(SyncCategory.UniqueId, out bEnabled))
+					{
+						Scope = "(Global)";
+					}
+					else if (WorkspaceCategories.TryGetValue(SyncCategory.UniqueId, out bEnabled))
+					{
+						Scope = "(Workspace)";
+					}
+					else
+					{
+						bEnabled = SyncCategory.bEnable;
+					}
+
+					Logger.LogInformation("  {Id,30} {Enabled,3} {Scope,-9} {Name}", SyncCategory.UniqueId, bEnabled? "Yes" : "No", Scope, SyncCategory.Name);
+				}
+
+				if (GlobalFilter.View.Count > 0)
+				{
+					Logger.LogInformation("");
+					Logger.LogInformation("Global View:");
+					foreach (string Line in GlobalFilter.View)
+					{
+						Logger.LogInformation("  {Line}", Line);
+					}
+				}
+				if (WorkspaceFilter.View.Count > 0)
+				{
+					Logger.LogInformation("");
+					Logger.LogInformation("Workspace View:");
+					foreach (string Line in WorkspaceFilter.View)
+					{
+						Logger.LogInformation("  {Line}", Line);
+					}
+				}
+
+				string[] Filter = ReadSyncFilter(WorkspaceSettings, Context.UserSettings, ProjectConfig);
+
+				Logger.LogInformation("");
+				Logger.LogInformation("Combined view:");
+				foreach (string FilterLine in Filter)
+				{
+					Logger.LogInformation("  {FilterLine}", FilterLine);
+				}
+			}
+
+			static void ApplyCommandOptions(FilterSettings Settings, FilterCommandOptions CommandOptions, IEnumerable<WorkspaceSyncCategory> SyncCategories, ILogger Logger)
+			{
+				if (CommandOptions.Reset)
+				{
+					Logger.LogInformation("Resetting settings...");
+					Settings.Reset();
+				}
+
+				HashSet<Guid> IncludeCategories = new HashSet<Guid>(CommandOptions.Include.Select(x => GetCategoryId(x, SyncCategories)));
+				HashSet<Guid> ExcludeCategories = new HashSet<Guid>(CommandOptions.Exclude.Select(x => GetCategoryId(x, SyncCategories)));
+
+				Guid Id = IncludeCategories.FirstOrDefault(x => ExcludeCategories.Contains(x));
+				if (Id != Guid.Empty)
+				{
+					throw new UserErrorException("Category {Id} cannot be both included and excluded", Id);
+				}
+
+				IncludeCategories.ExceptWith(Settings.IncludeCategories);
+				Settings.IncludeCategories.AddRange(IncludeCategories);
+
+				ExcludeCategories.ExceptWith(Settings.ExcludeCategories);
+				Settings.ExcludeCategories.AddRange(ExcludeCategories);
+
+				if (CommandOptions.View != null)
+				{
+					Settings.View = CommandOptions.View;
+				}
+				if (CommandOptions.RemoveView.Count > 0)
+				{
+					HashSet<string> ViewRemove = new HashSet<string>(CommandOptions.RemoveView, StringComparer.OrdinalIgnoreCase);
+					Settings.View.RemoveAll(x => ViewRemove.Contains(x));
+				}
+				if (CommandOptions.AddView.Count > 0)
+				{
+					HashSet<string> ViewLines = new HashSet<string>(Settings.View, StringComparer.OrdinalIgnoreCase);
+					Settings.View.AddRange(CommandOptions.AddView.Where(x => !ViewLines.Contains(x)));
+				}
+
+				Settings.AllProjects = CommandOptions.AllProjects ?? Settings.AllProjects;
+				Settings.AllProjectsInSln = CommandOptions.AllProjectsInSln ?? Settings.AllProjectsInSln;
+			}
+
+			static Guid GetCategoryId(string Text, IEnumerable<WorkspaceSyncCategory> SyncCategories)
+			{
+				Guid Id;
+				if (Guid.TryParse(Text, out Id))
+				{
+					return Id;
+				}
+
+				WorkspaceSyncCategory? Category = SyncCategories.FirstOrDefault(x => x.Name.Equals(Text, StringComparison.OrdinalIgnoreCase));
+				if (Category != null)
+				{
+					return Category.UniqueId;
+				}
+
+				throw new UserErrorException("Unable to find category '{Category}'", Text);
 			}
 		}
 
