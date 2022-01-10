@@ -619,18 +619,18 @@ public:
 };
 
 /**
- * An action adding an injected node to the graph.
+ * An action injecting a node into a pin
  */
 USTRUCT()
-struct FRigVMAddInjectedNodeAction : public FRigVMBaseAction
+struct FRigVMInjectNodeIntoPinAction : public FRigVMBaseAction
 {
 	GENERATED_BODY()
 
 public:
 
-	FRigVMAddInjectedNodeAction();
-	FRigVMAddInjectedNodeAction(URigVMInjectionInfo* InInjectionInfo);
-	virtual ~FRigVMAddInjectedNodeAction() {};
+	FRigVMInjectNodeIntoPinAction();
+	FRigVMInjectNodeIntoPinAction(URigVMInjectionInfo* InInjectionInfo);
+	virtual ~FRigVMInjectNodeIntoPinAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
 
@@ -639,12 +639,6 @@ public:
 
 	UPROPERTY()
 	bool bAsInput;
-
-	UPROPERTY()
-	FString ScriptStructPath;
-
-	UPROPERTY()
-	FName MethodName;
 
 	UPROPERTY()
 	FName InputPinName;
@@ -1227,33 +1221,6 @@ public:
 
 	UPROPERTY()
 	bool bRemoveSubPins;
-};
-
-/**
- * An action changing a pin's bound variable
- */
-USTRUCT()
-struct FRigVMSetPinBoundVariableAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMSetPinBoundVariableAction() {}
-	FRigVMSetPinBoundVariableAction(URigVMPin* InPin, const FString& InNewBoundVariablePath);
-	virtual ~FRigVMSetPinBoundVariableAction() {};
-	virtual bool Merge(const FRigVMBaseAction* Other);
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FString PinPath;
-
-	UPROPERTY()
-	FString OldBoundVariablePath;
-
-	UPROPERTY()
-	FString NewBoundVariablePath;
 };
 
 /**
