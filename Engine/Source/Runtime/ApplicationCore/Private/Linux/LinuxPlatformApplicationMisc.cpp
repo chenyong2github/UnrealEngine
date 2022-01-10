@@ -238,7 +238,7 @@ void UngrabAllInputImpl()
 			SDL_SetWindowGrab(GrabbedWindow, SDL_FALSE);
 			SDL_SetWindowKeyboardGrab(GrabbedWindow, SDL_FALSE);
 		}
-		SDL_ConfineCursor(nullptr, nullptr);
+		SDL_SetWindowMouseRect(nullptr, nullptr);
 		SDL_CaptureMouse(SDL_FALSE);
 	}
 }

@@ -195,6 +195,8 @@ X11_CreatePixmapCursor(SDL_Surface * surface, int hot_x, int hot_y)
                                  &fg, &bg, hot_x, hot_y);
     X11_XFreePixmap(display, data_pixmap);
     X11_XFreePixmap(display, mask_pixmap);
+    SDL_free(data_bits);
+    SDL_free(mask_bits);
 
     return cursor;
 }
@@ -322,16 +324,14 @@ X11_WarpMouse(SDL_Window * window, int x, int y)
 {
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-    // If we have no barrier, we need to warp
+#if SDL_VIDEO_DRIVER_X11_XFIXES
+    /* If we have no barrier, we need to warp */
     if (data->pointer_barrier_active == SDL_FALSE) {
         WarpMouseInternal(data->xwindow, x, y);
     }
 #else
     WarpMouseInternal(data->xwindow, x, y);
 #endif
-/* EG END */
 }
 
 static int

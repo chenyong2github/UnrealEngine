@@ -53,7 +53,7 @@ BuildWithOptions()
 	# Building with OGL breaks SDL_CreateWindow() on embedded devices w/o proper GL libraries
 	#   http://lists.libsdl.org/pipermail/commits-libsdl.org/2017-September/001967.html
 	if [[ ${ARCH} == 'aarch64' ]]; then
-		Options+=' -DVIDEO_OPENGL=OFF'
+		Options+=' -DSDL_VIDEO_OPENGL=OFF'
 	fi
 
 	set -x
@@ -71,7 +71,7 @@ set -e
 OPTS=()
 OPTS+=(-DSDL_SHARED_ENABLED_BY_DEFAULT=OFF)
 OPTS+=(-DSDL_STATIC_ENABLED_BY_DEFAULT=ON)
-OPTS+=(-DVIDEO_KMSDRM=OFF)
+OPTS+=(-DSDL_KMSDRM=OFF)
 OPTS+=(-DCMAKE_C_FLAGS=-gdwarf-4)
 
 # build Debug with -fPIC so it's usable in any type of build

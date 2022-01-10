@@ -344,7 +344,7 @@ void FLinuxCursor::Lock( const RECT* const Bounds )
 	// Lock/Unlock the cursor
 	if ( Bounds == nullptr )
 	{
-		SDL_ConfineCursor(CurrentFocusWindow->GetHWnd(), nullptr);
+		SDL_SetWindowMouseRect(CurrentFocusWindow->GetHWnd(), nullptr);
 	}
 	else
 	{
@@ -353,7 +353,7 @@ void FLinuxCursor::Lock( const RECT* const Bounds )
 		// We dont want to set a negative bounding region. If Top, Left, Bottom, Right are all 0
 		if (CursorClipRect.x >= 0 && CursorClipRect.y >= 0 && CursorClipRect.w > 0 && CursorClipRect.h > 0)
 		{
-			SDL_ConfineCursor(CurrentFocusWindow->GetHWnd(), &CursorClipRect);
+			SDL_SetWindowMouseRect(CurrentFocusWindow->GetHWnd(), &CursorClipRect);
 		}
 	}
 }
