@@ -252,6 +252,11 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<IUser> FindOrAddUserByLoginAsync(string Login, string? Name, string? Email)
 		{
+			if (Login.Contains(' ', StringComparison.Ordinal))
+			{
+				Logger.LogWarning("Potentially invalid login name: {Login} (from {Trace})", Login, Environment.StackTrace);
+			}
+
 			UpdateDefinition<UserDocument> Update = Builders<UserDocument>.Update.SetOnInsert(x => x.Id, UserId.GenerateNewId()).SetOnInsert(x => x.Login, Login).Unset(x => x.Hidden);
 
 			if (Name == null)
