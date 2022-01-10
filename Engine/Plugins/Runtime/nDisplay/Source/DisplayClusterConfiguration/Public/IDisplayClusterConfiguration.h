@@ -17,7 +17,7 @@ class UDisplayClusterConfigurationData;
 class IDisplayClusterConfiguration : public IModuleInterface
 {
 public:
-	static constexpr auto ModuleName = TEXT("DisplayClusterConfiguration");
+	static constexpr const TCHAR* ModuleName = TEXT("DisplayClusterConfiguration");
 
 public:
 	virtual ~IDisplayClusterConfiguration() = default;

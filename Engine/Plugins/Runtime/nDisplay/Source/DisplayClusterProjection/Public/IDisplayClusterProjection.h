@@ -14,7 +14,7 @@ class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterProjection : public IModuleInterface
 {
 public:
-	static constexpr auto ModuleName = TEXT("DisplayClusterProjection");
+	static constexpr const TCHAR* ModuleName = TEXT("DisplayClusterProjection");
 
 public:
 	virtual ~IDisplayClusterProjection() = default;

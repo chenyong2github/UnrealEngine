@@ -22,7 +22,7 @@ class IDisplayCluster
 	: public IModuleInterface
 {
 public:
-	static constexpr auto ModuleName = TEXT("DisplayCluster");
+	static constexpr const TCHAR* ModuleName = TEXT("DisplayCluster");
 
 public:
 	virtual ~IDisplayCluster() = default;

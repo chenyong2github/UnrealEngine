@@ -12,7 +12,7 @@ enum class EDisplayClusterConfigurationVersion : uint8
 
 namespace DisplayClusterConfiguration
 {
-	static constexpr auto GetCurrentConfigurationSchemeMarker()
+	static constexpr const TCHAR* GetCurrentConfigurationSchemeMarker()
 	{
 		return TEXT("5.00");
 	}

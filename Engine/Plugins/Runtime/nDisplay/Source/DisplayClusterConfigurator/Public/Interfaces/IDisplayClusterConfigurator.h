@@ -18,7 +18,7 @@ class IDisplayClusterConfigurator :
 	public IModuleInterface
 {
 public:
-	static constexpr auto ModuleName = TEXT("DisplayClusterConfigurator");
+	static constexpr const TCHAR* ModuleName = TEXT("DisplayClusterConfigurator");
 
 public:
 	virtual ~IDisplayClusterConfigurator() = default;

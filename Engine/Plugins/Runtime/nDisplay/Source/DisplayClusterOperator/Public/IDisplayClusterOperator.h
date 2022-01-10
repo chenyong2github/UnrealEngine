@@ -20,7 +20,7 @@ DECLARE_EVENT_OneParam(IDisplayClusterOperator, FOnDetailObjectsChanged, const T
 class IDisplayClusterOperator : public IModuleInterface
 {
 public:
-	static constexpr auto ModuleName = TEXT("DisplayClusterOperator");
+	static constexpr const TCHAR* ModuleName = TEXT("DisplayClusterOperator");
 
 public:
 	virtual ~IDisplayClusterOperator() = default;

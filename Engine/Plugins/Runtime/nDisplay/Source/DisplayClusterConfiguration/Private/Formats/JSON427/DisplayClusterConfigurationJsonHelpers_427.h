@@ -18,9 +18,9 @@ namespace JSON427
 			{
 				namespace overscan
 				{
-					static constexpr auto OverscanNone = TEXT("none");
-					static constexpr auto OverscanPixels = TEXT("pixels");
-					static constexpr auto OverscanPercent = TEXT("percent");
+					static constexpr const TCHAR* OverscanNone = TEXT("none");
+					static constexpr const TCHAR* OverscanPixels = TEXT("pixels");
+					static constexpr const TCHAR* OverscanPercent = TEXT("percent");
 				}
 			}
 		}

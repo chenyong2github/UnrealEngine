@@ -8,16 +8,16 @@ namespace DisplayClusterViewportStrings
 {
 	namespace prefix
 	{
-		static constexpr auto projection = TEXT("proj");
+		static constexpr const TCHAR* projection = TEXT("proj");
 	}
 
 	// ICVFXstrings
 	namespace icvfx
 	{
-		static constexpr auto prefix         = TEXT("icvfx");
-		static constexpr auto camera         = TEXT("incamera");
-		static constexpr auto chromakey      = TEXT("chromakey");
-		static constexpr auto lightcard      = TEXT("lightcard");
-		static constexpr auto lightcard_OCIO = TEXT("lightcard_ocio");
+		static constexpr const TCHAR* prefix         = TEXT("icvfx");
+		static constexpr const TCHAR* camera         = TEXT("incamera");
+		static constexpr const TCHAR* chromakey      = TEXT("chromakey");
+		static constexpr const TCHAR* lightcard      = TEXT("lightcard");
+		static constexpr const TCHAR* lightcard_OCIO = TEXT("lightcard_ocio");
 	}
 };

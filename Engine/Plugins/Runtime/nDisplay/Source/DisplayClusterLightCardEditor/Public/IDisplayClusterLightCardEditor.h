@@ -12,7 +12,7 @@
 class IDisplayClusterLightCardEditor : public IModuleInterface
 {
 public:
-	static constexpr auto ModuleName = TEXT("DisplayClusterLightCardEditor");
+	static constexpr const TCHAR* ModuleName = TEXT("DisplayClusterLightCardEditor");
 
 public:
 	virtual ~IDisplayClusterLightCardEditor() = default;

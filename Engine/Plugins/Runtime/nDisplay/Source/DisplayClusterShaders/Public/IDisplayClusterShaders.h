@@ -22,7 +22,7 @@ class IDisplayClusterWarpBlendManager;
 class IDisplayClusterShaders : public IModuleInterface
 {
 public:
-	static constexpr auto ModuleName = TEXT("DisplayClusterShaders");
+	static constexpr const TCHAR* ModuleName = TEXT("DisplayClusterShaders");
 
 public:
 	virtual ~IDisplayClusterShaders() = default;
