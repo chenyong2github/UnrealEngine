@@ -80,5 +80,7 @@ public class ModelingToolsEditorMode : ModuleRules
 			}
 			);
 
+		PublicDefinitions.Add("WITH_PROXYLOD=" + (Target.Platform == UnrealTargetPlatform.Win64 ? '1' : '0'));
+
 	}
 }

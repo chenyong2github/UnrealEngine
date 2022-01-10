@@ -13,16 +13,13 @@
 #include "DynamicSubmesh3.h"
 #include "XAtlasWrapper.h"
 
-// ProxyLOD currently only available on Windows. On other platforms we will make this a no-op
-#if PLATFORM_WINDOWS
-#define HAVE_PROXYLOD 1
-#else
-#define HAVE_PROXYLOD 0
-#endif
-
-#if HAVE_PROXYLOD
+// The ProxyLOD plugin is currently only available on Windows.
+#if WITH_PROXYLOD
 #include "ProxyLODParameterization.h"
-#endif
+#endif	// WITH_PROXYLOD
+
+// We do not have UVAtlas available if ProxyLOD is not available.
+#define NO_UVATLAS WITH_PROXYLOD ? 0 : 1
 
 using namespace UE::Geometry;
 
@@ -235,6 +232,13 @@ void FParameterizeMeshOp::CopyNewUVsToMesh(
 
 bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<bool(float)>& Interrupter)
 {
+#if NO_UVATLAS
+
+	ensureMsgf(false, TEXT("UVAtlas not available; this should not be called!"));
+	return false;
+
+#else	// NO_UVATLAS
+	
 	TRACE_CPUPROFILER_EVENT_SCOPE(ParameterizeMeshOp_ComputeUVs_UVAtlas);
 
 	// the UVAtlas code is unhappy if you feed it a single degenerate triangle
@@ -277,17 +281,11 @@ bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<boo
 	float MaxStretch     = Stretch;
 	int32 MaxChartNumber = NumCharts;
 
-#if HAVE_PROXYLOD
 	TUniquePtr<IProxyLODParameterization> ParameterizationTool = IProxyLODParameterization::CreateTool();
 	bool bSuccess = ParameterizationTool->GenerateUVs(Width, Height, Gutter, LinearMesh.VertexBuffer,
 	                                                  LinearMesh.IndexBuffer, LinearMesh.AdjacencyBuffer, Interrupter,
 	                                                  UVVertexBuffer, UVIndexBuffer, VertexRemapArray, MaxStretch,
 	                                                  MaxChartNumber);
-#else
-	ensureMsgf(false, TEXT("ProxyLOD not available, this should not be called"));
-	bool bSuccess = false;
-#endif
-
 
 	// Add the UVs to the FDynamicMesh
 	if (bSuccess)
@@ -300,6 +298,8 @@ bool FParameterizeMeshOp::ComputeUVs_UVAtlas(FDynamicMesh3& Mesh,  TFunction<boo
 	}
 
 	return bSuccess;
+
+#endif	// NO_UVATLAS
 }
 
 
@@ -424,11 +424,12 @@ void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 	// The UV atlas callback uses a float progress-based interrupter. 
 	TFunction<bool(float)> Interrupter = [Progress](float)->bool {return !(Progress && Progress->Cancelled()); };
 
-#if HAVE_PROXYLOD
-	bool bUseXAtlas = (Method == EParamOpBackend::XAtlas);
-#else
-	bool bUseXAtlas = true;
-#endif
+#if NO_UVATLAS
+	constexpr bool bUseXAtlas = true;
+	UE_LOG(LogGeometry, Warning, TEXT("AutoUV method UVAtlas not available; falling back to XAtlas instead."));
+#else	// NO_UVATLAS
+	const bool bUseXAtlas = (Method == EParamOpBackend::XAtlas);
+#endif	// NO_UVATLAS
 
 	NewResultInfo = FGeometryResult(EGeometryResultType::InProgress);
 

@@ -53,7 +53,9 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 			}
 			);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		bool bWithProxyLOD = Target.Platform == UnrealTargetPlatform.Win64;
+		PrivateDefinitions.Add("WITH_PROXYLOD=" + (bWithProxyLOD ? '1' : '0'));
+		if (bWithProxyLOD)
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

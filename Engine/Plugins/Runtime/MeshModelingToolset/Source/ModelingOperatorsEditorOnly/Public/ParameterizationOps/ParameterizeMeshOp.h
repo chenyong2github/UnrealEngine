@@ -23,8 +23,8 @@ namespace Geometry
 enum class EParamOpBackend
 {
 	PatchBuilder = 0,
-	XAtlas = 1,
-	UVAtlas = 2
+	UVAtlas = 1,
+	XAtlas = 2
 };
 
 class MODELINGOPERATORSEDITORONLY_API FParameterizeMeshOp : public FDynamicMeshOperator

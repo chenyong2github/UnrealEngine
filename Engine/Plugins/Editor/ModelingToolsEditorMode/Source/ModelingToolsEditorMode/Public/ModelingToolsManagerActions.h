@@ -84,8 +84,12 @@ public:
 	TSharedPtr<FUICommandInfo> BeginHoleFillTool;
 	TSharedPtr<FUICommandInfo> BeginLatticeDeformerTool;
 	TSharedPtr<FUICommandInfo> BeginPolygonCutTool;
+
+#if WITH_PROXYLOD
 	TSharedPtr<FUICommandInfo> BeginVoxelMergeTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelBooleanTool;
+#endif	// WITH_PROXYLOD
+
 	TSharedPtr<FUICommandInfo> BeginVoxelSolidifyTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelBlendTool;
 	TSharedPtr<FUICommandInfo> BeginVoxelMorphologyTool;
