@@ -1432,10 +1432,6 @@ static void TFO_Plugins_Init()
 	// plugins to Core/Tex/Net are independent
 	GConfig->GetBool(TEXT("TextureFormatOodleSettings"), TEXT("UseOodleExampleJobify"), OodleJobifyUseExampleJobify, GEngineIni);
 
-	// @todo Oodle Texture TEMP force use of jobify system to avoid Task IsCompleted bug
-	OodleJobifyUseExampleJobify = true;
-	// end TEMP
-
 	if (OodleJobifyUseExampleJobify)
 	{
 		UE_LOG(LogTextureFormatOodle, Display, TEXT("Using Oodle Example Jobify"));
