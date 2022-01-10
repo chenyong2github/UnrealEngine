@@ -871,5 +871,13 @@ void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
 #endif
 }
 
+void FPBDRigidsEvolutionGBF::DestroyParticleCollisionsInAllocator(FGeometryParticleHandle* Particle)
+{
+	if (Particle != nullptr)
+	{
+		CollisionConstraints.GetConstraintAllocator().RemoveParticle(Particle);
+	}
+}
+
 }
 

@@ -175,6 +175,8 @@ namespace Chaos
 
 		void DestroyConstraint(FConstraintHandle* Constraint);
 
+		void DestroyParticleCollisionsInAllocator(FGeometryParticleHandle* Particle);
+
 		CHAOS_API inline void EndFrame(FReal Dt)
 		{
 			Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle, int32 Index) {
