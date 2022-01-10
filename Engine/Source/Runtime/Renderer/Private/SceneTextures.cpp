@@ -633,7 +633,6 @@ FSceneTextures& FMinimalSceneTextures::Create(FRDGBuilder& GraphBuilder, const F
 							 FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_DepthStencil, Config.DepthClearValue, Flags));
 		Desc.NumSamples = Config.NumSamples;
 		SceneTextures.Depth = GraphBuilder.CreateTexture(Desc, TEXT("SceneDepthZ"));
-		SceneTextures.Depth.Target->SetNonTransient();
 
 		if (Desc.NumSamples > 1)
 		{
@@ -646,7 +645,6 @@ FSceneTextures& FMinimalSceneTextures::Create(FRDGBuilder& GraphBuilder, const F
 			else
 			{
 				SceneTextures.Depth.Resolve = GraphBuilder.CreateTexture(Desc, TEXT("SceneDepthZ"));
-				SceneTextures.Depth.Resolve->SetNonTransient();
 			}
 		}
 
@@ -686,11 +684,6 @@ FSceneTextures& FMinimalSceneTextures::Create(FRDGBuilder& GraphBuilder, const F
 			}
 
 			SceneTextures.Color.Resolve = GraphBuilder.CreateTexture(Desc, SceneColorName);
-		}
-
-		if (FRDGBuilder::IsDrainEnabled())
-		{
-			SceneTextures.Color.Resolve->SetNonTransient();
 		}
 	}
 
@@ -791,14 +784,6 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTe
 		{
 			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, GetGBufferFFormat(), FClearValueBinding({ 0.5f, 0.5f, 0.5f, 0.5f }), TexCreate_RenderTargetable | TexCreate_ShaderResource | FlagsToAdd | GFastVRamConfig.GBufferF);
 			SceneTextures.GBufferF = GraphBuilder.CreateTexture(Desc, TEXT("GBufferF"));
-		}
-
-		// Lighting features may require GBuffer history.
-		if (FRDGBuilder::IsDrainEnabled())
-		{
-			SceneTextures.GBufferA->SetNonTransient();
-			SceneTextures.GBufferB->SetNonTransient();
-			SceneTextures.GBufferC->SetNonTransient();
 		}
 	}
 
@@ -926,7 +911,7 @@ void FSceneTextureExtracts::QueueExtractions(FRDGBuilder& GraphBuilder, const FS
 	{
 		if (HasBeenProduced(Texture) && !EnumHasAnyFlags(Texture->Desc.Flags, TexCreate_Memoryless))
 		{
-			GraphBuilder.QueueTextureExtraction(Texture, &OutTarget);
+			GraphBuilder.QueueTextureExtraction(Texture, &OutTarget, ERDGResourceExtractionFlags::AllowTransient);
 		}
 	};
 
