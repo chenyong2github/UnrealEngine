@@ -42,6 +42,7 @@ public:
 	uint32 GetTag() const;
 	const FGuid& GetParentActor() const;
 	FName GetActorName() const;
+	const FGuid& GetFolderGuid() const;
 
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 

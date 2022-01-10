@@ -68,12 +68,12 @@ struct ENGINE_API FLevelActorFoldersHelper
 {
 private:
 	static void SetUseActorFolders(ULevel* InLevel, bool bInEnabled);
-	static void AddActorFolder(ULevel* InLevel, UActorFolder* InActorFolder, bool bInShouldDirtyLevel);
+	static void AddActorFolder(ULevel* InLevel, UActorFolder* InActorFolder, bool bInShouldDirtyLevel, bool bInShouldBroadcast = true);
 
 	friend class UWorld;
 	friend class UActorFolder;
 	friend class UWorldPartitionConvertCommandlet;
-	friend class FWorldPartitionLevelHelper;
+	friend class UWorldPartitionLevelStreamingDynamic;
 };
 
 class ENGINE_API FLevelPartitionOperationScope

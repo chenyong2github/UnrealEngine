@@ -56,6 +56,7 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	StreamingPriority = 0;
 	ChildPackages = InCell.GetPackages();
 	ActorContainer = InCell.ActorContainer;
+	ActorFolders = InCell.GetActorFolders().Array();
 
 	UWorld* OuterWorld = InCell.GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
 	OriginalLevelPackageName = OuterWorld->GetPackage()->GetLoadedPath().GetPackageFName();
@@ -90,6 +91,19 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 	const FString WorldAssetPackageName = FPackageName::ObjectPathToPackageName(WorldAssetPath) + TEXT("_AsyncLoad.") + FPackageName::ObjectPathToObjectName(WorldAssetPath);
 	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(PlayWorld, WorldAssetPackageName);
 	check(RuntimeLevel);
+
+	// Propagate ActorFolder flag to the runtime level and prepare its ActorFolders list
+	if (PlayWorld->PersistentLevel->IsUsingActorFolders() && ActorFolders.Num())
+	{
+		FLevelActorFoldersHelper::SetUseActorFolders(RuntimeLevel, true);
+		for (const FGuid& ActorFolderGuid : ActorFolders)
+		{
+			if (UActorFolder* ActorFolder = PlayWorld->PersistentLevel->GetActorFolder(ActorFolderGuid))
+			{
+				FLevelActorFoldersHelper::AddActorFolder(RuntimeLevel, ActorFolder, /*bInShouldDirtyLevel*/ false, /*bInShouldBroadcast*/ false);
+			}
+		}
+	}
 
 	// Set flag here as this level isn't async loaded
 	RuntimeLevel->bClientOnlyVisible = bClientOnlyVisible;
@@ -191,7 +205,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 			check(UWorld::FindWorldInPackage(CellLevelPackage));
 			check(RuntimeLevel->OwningWorld);
 			check(RuntimeLevel->OwningWorld->WorldType == EWorldType::PIE || ((IsRunningGame() || IsRunningDedicatedServer()) && RuntimeLevel->OwningWorld->WorldType == EWorldType::Game));
-	
+
 			if (IssueLoadRequests())
 			{
 				// Editor immediately blocks on load and we also block if background level streaming is disabled.

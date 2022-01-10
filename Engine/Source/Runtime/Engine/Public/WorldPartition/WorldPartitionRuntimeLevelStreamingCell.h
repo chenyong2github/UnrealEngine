@@ -41,6 +41,7 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	//~End UWorldPartitionRuntimeCell Interface
 
 	const TArray<FWorldPartitionRuntimeCellObjectMapping>& GetPackages() const { return Packages; }
+	const TSet<FGuid>& GetActorFolders() const { return ActorFolders; }
 #endif
 
 private:
@@ -61,6 +62,9 @@ private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FWorldPartitionRuntimeCellObjectMapping> Packages;
+
+	UPROPERTY()
+	TSet<FGuid> ActorFolders;
 #endif
 
 	UPROPERTY()

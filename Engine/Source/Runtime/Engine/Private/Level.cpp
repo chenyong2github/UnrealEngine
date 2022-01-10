@@ -110,13 +110,16 @@ void FLevelActorFoldersHelper::SetUseActorFolders(ULevel* InLevel, bool bInEnabl
 	InLevel->SetUseActorFoldersInternal(bInEnabled);
 }
 
-void FLevelActorFoldersHelper::AddActorFolder(ULevel* InLevel, UActorFolder* InActorFolder, bool bInShouldDirtyLevel)
+void FLevelActorFoldersHelper::AddActorFolder(ULevel* InLevel, UActorFolder* InActorFolder, bool bInShouldDirtyLevel, bool bInShouldBroadcast)
 {
 	InLevel->Modify(bInShouldDirtyLevel);
 	check(InActorFolder->GetGuid().IsValid());
 	InLevel->ActorFolders.Add(InActorFolder->GetGuid(), InActorFolder);
 
-	GEngine->BroadcastActorFolderAdded(InActorFolder);
+	if (bInShouldBroadcast)
+	{
+		GEngine->BroadcastActorFolderAdded(InActorFolder);
+	}
 }
 
 FLevelPartitionOperationScope::FLevelPartitionOperationScope(ULevel* InLevel)
@@ -351,31 +354,16 @@ void FLevelSimplificationDetails::PostLoadDeprecated()
 
 }
 
-TMap<FName, TWeakObjectPtr<UWorld> > ULevel::StreamedLevelsOwningWorld;
-
-#if WITH_EDITOR
-struct FOnWorldLoadedHandler
+static bool IsActorFolderObjectsFeatureAvailable()
 {
-	static void Init()
-	{
-		if (!bIsInitialized)
-		{
-			bIsInitialized = true;
-			FCoreUObjectDelegates::OnAssetLoaded.AddLambda([](UObject* Asset)
-			{
-				UWorld* World = Cast<UWorld>(Asset);
-				if (World && World->PersistentLevel)
-				{
-					World->PersistentLevel->OnLevelLoaded();
-				}
-			});
-		}
-	}
-private:
-	static bool bIsInitialized;
-};
-bool FOnWorldLoadedHandler::bIsInitialized = false;
+#if WITH_EDITOR
+	return !IsRunningCookCommandlet() && !IsRunningGame();
+#else
+	return false;
 #endif
+}
+
+TMap<FName, TWeakObjectPtr<UWorld> > ULevel::StreamedLevelsOwningWorld;
 
 ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	:	UObject( ObjectInitializer )
@@ -398,15 +386,12 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	bPromptWhenAddingToLevelBeforeCheckout = true;
 	bPromptWhenAddingToLevelOutsideBounds = true;
 	bUseActorFolders = false;
-	bFixupActorFoldersAtLoad = true;
+	bFixupActorFoldersAtLoad = IsActorFolderObjectsFeatureAvailable();
 #endif	
 	bActorClusterCreated = false;
 	bIsPartitioned = false;
 	bStaticComponentsRegisteredInStreamingManager = false;
 	IncrementalComponentState = EIncrementalComponentState::Init;
-#if WITH_EDITOR
-	FOnWorldLoadedHandler::Init();
-#endif
 }
 
 void ULevel::Initialize(const FURL& InURL)
@@ -887,7 +872,7 @@ void ULevel::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	if (IsUsingActorFolders() && IsUsingExternalObjects())
+	if (IsUsingActorFolders() && IsUsingExternalObjects() && IsActorFolderObjectsFeatureAvailable())
 	{
 		if (!bWasDuplicated)
 		{
@@ -2270,7 +2255,7 @@ void ULevel::CommitModelSurfaces()
 #if WITH_EDITOR
 void ULevel::FixupActorFolders()
 {
-	if (!IsUsingActorFolders())
+	if (!IsUsingActorFolders() || !IsActorFolderObjectsFeatureAvailable())
 	{
 		return;
 	}
@@ -2956,11 +2941,6 @@ UActorFolder* ULevel::GetActorFolder(const FName& InPath, bool bSkipDeleted) con
 				return ActorFolder;
 			}
 		}
-		// In PIE, fallback on persistent level
-		if (GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) && (this != GetWorld()->PersistentLevel))
-		{
-			return GetWorld()->PersistentLevel->GetActorFolder(InPath, bSkipDeleted);
-		}
 	}
 	return nullptr;
 }
@@ -2977,11 +2957,6 @@ UActorFolder* ULevel::GetActorFolder(const FGuid& InGuid, bool bSkipDeleted) con
 				return ActorFolder->GetParent();
 			}
 			return ActorFolder;
-		}
-		// In PIE, fallback on persistent level
-		if (GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) && (this != GetWorld()->PersistentLevel))
-		{
-			return GetWorld()->PersistentLevel->GetActorFolder(InGuid, bSkipDeleted);
 		}
 	}
 	return nullptr;
