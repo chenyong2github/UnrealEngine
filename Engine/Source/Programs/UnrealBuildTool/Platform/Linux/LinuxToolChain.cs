@@ -501,8 +501,8 @@ namespace UnrealBuildTool
 
 		private static bool ShouldUseLibcxx(string Architecture)
 		{
-			// set UE4_LINUX_USE_LIBCXX to either 0 or 1. If unset, defaults to 1.
-			string? UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE4_LINUX_USE_LIBCXX");
+			// set UE_LINUX_USE_LIBCXX to either 0 or 1. If unset, defaults to 1.
+			string? UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE_LINUX_USE_LIBCXX");
 			if (string.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")
 			{
 				// at the moment ARM32 libc++ remains missing

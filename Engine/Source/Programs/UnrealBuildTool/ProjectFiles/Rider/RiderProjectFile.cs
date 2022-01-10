@@ -499,7 +499,7 @@ namespace UnrealBuildTool
 			{
 				var EngineDirectory = Unreal.EngineDirectory.ToString();
 
-				string? UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE4_LINUX_USE_LIBCXX");
+				string? UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE_LINUX_USE_LIBCXX");
 				if (string.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")
 				{
 					if (Target.Architecture.StartsWith("x86_64") ||
