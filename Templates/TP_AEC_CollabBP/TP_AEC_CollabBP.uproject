@@ -58,21 +58,6 @@
 			]
 		},
 		{
-			"Name": "MagicLeapMedia",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Lumin"
-			]
-		},
-		{
-			"Name": "MagicLeap",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Lumin",
-				"Win64"
-			]
-		},
-		{
 			"Name": "DatasmithRuntime",
 			"Enabled": true
 		},
