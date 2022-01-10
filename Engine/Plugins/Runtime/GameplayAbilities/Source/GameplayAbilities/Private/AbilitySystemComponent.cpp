@@ -210,6 +210,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// so we don't need to mark it dirty.
 	MinimalReplicationTags.Owner = this;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ReplicatedLooseTags.Owner = this;
 
 	/** Allocate an AbilityActorInfo. Note: this goes through a global function and is a SharedPtr so projects can make their own AbilityActorInfo */
 	if(!AbilityActorInfo.IsValid())
@@ -1576,6 +1577,7 @@ void UAbilitySystemComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProper
 	Params.Condition = COND_SkipOwner;
 	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, MinimalReplicationGameplayCues, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, MinimalReplicationTags, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(UAbilitySystemComponent, ReplicatedLooseTags, Params);
 
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
@@ -2916,6 +2918,17 @@ FMinimalReplicationTagCountMap& UAbilitySystemComponent::GetMinimalReplicationTa
 const FMinimalReplicationTagCountMap& UAbilitySystemComponent::GetMinimalReplicationTags() const
 {
 	return MinimalReplicationTags;
+}
+
+FMinimalReplicationTagCountMap& UAbilitySystemComponent::GetReplicatedLooseTags_Mutable()
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(UAbilitySystemComponent, ReplicatedLooseTags, this);
+	return ReplicatedLooseTags;
+}
+
+const FMinimalReplicationTagCountMap& UAbilitySystemComponent::GetReplicatedLooseTags() const
+{
+	return ReplicatedLooseTags;
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -1671,6 +1671,19 @@ struct GAMEPLAYABILITIES_API FMinimalReplicationTagCountMap
 		}
 	}
 
+	void SetTagCount(const FGameplayTag& Tag, int32 NewCount)
+	{
+		MapID++;
+		int32& Count = TagMap.FindOrAdd(Tag);
+		Count = NewCount;
+		
+		if (Count == 0)
+		{
+			// Remove from map so that we do not replicate
+			TagMap.Remove(Tag);
+		}
+	}
+
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 	TMap<FGameplayTag, int32>	TagMap;

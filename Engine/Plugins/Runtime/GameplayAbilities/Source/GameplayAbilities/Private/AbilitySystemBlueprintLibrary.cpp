@@ -1044,11 +1044,34 @@ FString UAbilitySystemBlueprintLibrary::GetActiveGameplayEffectDebugString(FActi
 	return Str;
 }
 
-bool UAbilitySystemBlueprintLibrary::AddLooseGameplayTags(AActor* Actor, const FGameplayTagContainer& GameplayTags)
+bool UAbilitySystemBlueprintLibrary::AddLooseGameplayTags(AActor* Actor, const FGameplayTagContainer& GameplayTags, bool bShouldReplicate)
 {
 	if (UAbilitySystemComponent* AbilitySysComp = GetAbilitySystemComponent(Actor))
 	{
 		AbilitySysComp->AddLooseGameplayTags(GameplayTags);
+
+		if (bShouldReplicate)
+		{
+			AbilitySysComp->AddReplicatedLooseGameplayTags(GameplayTags);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UAbilitySystemBlueprintLibrary::RemoveLooseGameplayTags(AActor* Actor, const FGameplayTagContainer& GameplayTags, bool bShouldReplicate)
+{
+	if (UAbilitySystemComponent* AbilitySysComp = GetAbilitySystemComponent(Actor))
+	{
+		AbilitySysComp->RemoveLooseGameplayTags(GameplayTags);
+
+		if (bShouldReplicate)
+		{
+			AbilitySysComp->RemoveReplicatedLooseGameplayTags(GameplayTags);
+		}
+
 		return true;
 	}
 
@@ -1066,17 +1089,6 @@ const UGameplayEffectUIData* UAbilitySystemBlueprintLibrary::GetGameplayEffectUI
 		}
 	}
 	return nullptr;
-}
-
-bool UAbilitySystemBlueprintLibrary::RemoveLooseGameplayTags(AActor* Actor, const FGameplayTagContainer& GameplayTags)
-{
-	if (UAbilitySystemComponent* AbilitySysComp = GetAbilitySystemComponent(Actor))
-	{
-		AbilitySysComp->RemoveLooseGameplayTags(GameplayTags);
-		return true;
-	}
-
-	return false;
 }
 
 bool UAbilitySystemBlueprintLibrary::EqualEqual_ActiveGameplayEffectHandle(const FActiveGameplayEffectHandle& A, const FActiveGameplayEffectHandle& B)

@@ -25,6 +25,8 @@ UAbilitySystemGlobals::UAbilitySystemGlobals(const FObjectInitializer& ObjectIni
 
 	PredictTargetGameplayEffects = true;
 
+	ReplicateActivationOwnedTags = true;
+
 	MinimalReplicationTagCountBits = 5;
 
 	bAllowGameplayModEvaluationChannels = false;
@@ -189,6 +191,11 @@ UAbilitySystemComponent* UAbilitySystemGlobals::GetAbilitySystemComponentFromAct
 bool UAbilitySystemGlobals::ShouldPredictTargetGameplayEffects() const
 {
 	return PredictTargetGameplayEffects;
+}
+
+bool UAbilitySystemGlobals::ShouldReplicateActivationOwnedTags() const
+{
+	return ReplicateActivationOwnedTags;
 }
 
 // --------------------------------------------------------------------
