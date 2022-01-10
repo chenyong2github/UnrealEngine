@@ -164,6 +164,128 @@ void SanitizeParameters(TArray<ParameterType>& Parameters)
 int32 PreviousNumScalarParameters = 0;
 int32 PreviousNumVectorParameters = 0;
 
+bool UMaterialParameterCollection::SetScalarParameterDefaultValueByInfo(FCollectionScalarParameter ScalarParameter)
+{
+	if(GetScalarParameterByName(ScalarParameter.ParameterName))
+	{
+		// if the input parameter exists, pass the name and value down to SetScalarParameterDefaultValue
+		// since we want to preserve the Guid of the parameter that's already on the asset
+		return SetScalarParameterDefaultValue(ScalarParameter.ParameterName, ScalarParameter.DefaultValue);
+	}
+	// otherwise, return false
+	return false;
+}
+
+bool UMaterialParameterCollection::SetScalarParameterDefaultValue(FName ParameterName, const float Value)
+{
+	// make sure the input parameter name exists in the array
+	const int32 ParameterIndex = GetScalarParameterIndexByName(ParameterName);
+	if(ParameterIndex == -1)
+	{
+		return false;
+	}
+	// if so, change the value on the parameter in the array itself to maintain its GUID
+	ScalarParameters[ParameterIndex].DefaultValue = Value;
+
+	// and return a positive result
+	return true;
+}
+
+bool UMaterialParameterCollection::SetVectorParameterDefaultValueByInfo(FCollectionVectorParameter VectorParameter)
+{
+	if(GetScalarParameterByName(VectorParameter.ParameterName))
+    {
+    	// if the input parameter exists, pass the name and value down to SetVectorParameterDefaultValue
+    	// since we want to preserve the Guid of the parameter that's already on the asset
+    	return SetVectorParameterDefaultValue(VectorParameter.ParameterName, VectorParameter.DefaultValue);
+    }
+	// otherwise, return false
+    return false;
+}
+
+bool UMaterialParameterCollection::SetVectorParameterDefaultValue(FName ParameterName, const FLinearColor& Value)
+{
+	// make sure the input parameter name exists in the array
+	const int32 ParameterIndex = GetVectorParameterIndexByName(ParameterName);
+	if(ParameterIndex == -1)
+	{
+		return false;
+	}
+	// if so, change the value on the parameter in the array itself to maintain its GUID
+	VectorParameters[ParameterIndex].DefaultValue = Value;
+
+	// and return a positive result
+	return true;
+}
+
+int32 UMaterialParameterCollection::GetScalarParameterIndexByName(FName ParameterName)
+{
+	// loop over all the available scalar parameters and look for a name match
+	for (int32 ParameterIndex = 0; ParameterIndex < ScalarParameters.Num(); ParameterIndex++)
+	{
+		if(ScalarParameters[ParameterIndex].ParameterName == ParameterName)
+		{
+			return ParameterIndex;
+		}
+	}
+	// if not found, return -1
+	return -1;
+}
+
+int32 UMaterialParameterCollection::GetVectorParameterIndexByName(FName ParameterName)
+{
+	// loop over all the available vector parameters and look for a name match
+	for (int32 ParameterIndex = 0; ParameterIndex < VectorParameters.Num(); ParameterIndex++)
+	{
+		if(VectorParameters[ParameterIndex].ParameterName == ParameterName)
+		{
+			return ParameterIndex;
+		}
+	}
+	// if not found, return -1
+	return -1;
+}
+
+TArray<FName> UMaterialParameterCollection::GetScalarParameterNames()
+{
+	TArray<FName> Names;
+	GetParameterNames(Names, false);
+	return Names;
+}
+
+TArray<FName> UMaterialParameterCollection::GetVectorParameterNames()
+{
+	TArray<FName> Names;
+	GetParameterNames(Names, true);
+	return Names;
+}
+
+float UMaterialParameterCollection::GetScalarParameterDefaultValue(FName ParameterName, bool& bParameterFound)
+{
+	const int32 ParameterIndex = GetScalarParameterIndexByName(ParameterName);
+	bParameterFound = true;
+	if(ParameterIndex == -1)
+	{
+		bParameterFound = false;
+		return 0.0;
+	}
+	
+	return ScalarParameters[ParameterIndex].DefaultValue;
+}
+
+FLinearColor UMaterialParameterCollection::GetVectorParameterDefaultValue(FName ParameterName, bool& bParameterFound)
+{
+	const int32 ParameterIndex = GetVectorParameterIndexByName(ParameterName);
+	bParameterFound = true;
+	if(ParameterIndex == -1)
+	{
+		bParameterFound = false;
+		return FLinearColor::Black;
+	}
+	
+	return VectorParameters[ParameterIndex].DefaultValue;
+}
+
 void UMaterialParameterCollection::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	Super::PreEditChange(PropertyThatWillChange);

@@ -28,7 +28,7 @@ struct FCollectionParameterBase
 	{
 		FPlatformMisc::CreateGuid(Id);
 	}
-
+	
 	/** The name of the parameter.  Changing this name will break any blueprints that reference the parameter. */
 	UPROPERTY(EditAnywhere, Category=Parameter)
 	FName ParameterName;
@@ -65,7 +65,7 @@ struct FCollectionVectorParameter : public FCollectionParameterBase
 	{
 		ParameterName = FName(TEXT("Vector"));
 	}
-
+	
 	UPROPERTY(EditAnywhere, Category=Parameter)
 	FLinearColor DefaultValue;
 };
@@ -88,7 +88,51 @@ class UMaterialParameterCollection : public UObject
 
 	UPROPERTY(EditAnywhere, Category=Material, Meta = (TitleProperty = "ParameterName"))
 	TArray<FCollectionVectorParameter> VectorParameters;
+	
+#if WITH_EDITOR
+	/** Set the default value of a scalar parameter on the Material Parameter Collection asset itself by struct **/
+	bool SetScalarParameterDefaultValueByInfo(FCollectionScalarParameter ScalarParameter);
 
+	/** Set the default value of a scalar parameter on the Material Parameter Collection asset itself by name **/
+	bool SetScalarParameterDefaultValue(FName ParameterName, const float Value);
+
+	/** Set the default value of a vector parameter on the Material Parameter Collection asset itself by struct **/
+	bool SetVectorParameterDefaultValueByInfo(FCollectionVectorParameter VectorParameter);
+	
+	/** Set the default value of a vector parameter on the Material Parameter Collection asset itself by name **/
+	bool SetVectorParameterDefaultValue(FName ParameterName, const FLinearColor& Value);
+#endif // WITH_EDITOR
+
+	/** Get the index in the ScalarParameters array of the parameter matching the input parameter name, returns -1 if not found **/
+	int32 GetScalarParameterIndexByName(FName ParameterName);
+
+	/** Get the index in the VectorParameters array of the parameter matching the input parameter name, returns -1 if not found **/
+	int32 GetVectorParameterIndexByName(FName ParameterName);
+
+	/** Returns an array of the names of all the scalar parameters in this Material Parameter Collection **/
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material", meta=(Keywords="GetScalarParameterNames"))
+	TArray<FName> GetScalarParameterNames();
+
+	/** Returns an array of the names of all the vector parameters in this Material Parameter Collection **/
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material", meta=(Keywords="GetVectorParameterNames"))
+	TArray<FName> GetVectorParameterNames();
+
+	/** Gets the default value of a scalar parameter from a material collection.
+	 * @param ParameterName - The name of the value to get the value of
+	 * @param bParameterFound - if a parameter with the input name was found
+	 * @returns the value of the parameter
+	 **/
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material", meta=(Keywords="GetFloatParameterDefaultValue"))
+	float GetScalarParameterDefaultValue(FName ParameterName, bool& bParameterFound);
+
+	/** Gets the default value of a scalar parameter from a material collection.
+	 * @param ParameterName - The name of the value to get the value of
+	 * @param bParameterFound - if a parameter with the input name was found
+	 * @returns the value of the parameter
+	 **/
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material", meta=(Keywords="GetFloatParameterDefaultValue"))
+	FLinearColor GetVectorParameterDefaultValue(FName ParameterName, bool& bParameterFound);
+	
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
 	using Super::PreEditChange;
