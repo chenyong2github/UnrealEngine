@@ -128,6 +128,29 @@ void FBlueprintNamespaceRegistry::GetNamesUnderPath(const FString& InPath, TArra
 	}
 }
 
+void FBlueprintNamespaceRegistry::GetAllRegisteredPaths(TArray<FString>& OutPaths) const
+{
+	PathTree->ForeachNode([&OutPaths](const TArray<FName>& CurrentPath, TSharedRef<FBlueprintNamespacePathTree::FNode> Node)
+	{
+		if (Node->bIsAddedPath)
+		{
+			// Note: This is not a hard limit on namespace path identifier string length, it's an optimization to try and avoid reallocation during path construction.
+			TStringBuilder<128> PathBuilder;
+			for (FName PathSegment : CurrentPath)
+			{
+				if (PathBuilder.Len() > 0)
+				{
+					PathBuilder += TEXT(".");
+				}
+				PathBuilder += PathSegment.ToString();
+			}
+
+			FString FullPath = PathBuilder.ToString();
+			OutPaths.Add(MoveTemp(FullPath));
+		}
+	});
+}
+
 void FBlueprintNamespaceRegistry::FindAndRegisterAllNamespaces()
 {
 	// Register loaded class type namespace identifiers.
@@ -191,22 +214,24 @@ void FBlueprintNamespaceRegistry::FindAndRegisterAllNamespaces()
 	}
 }
 
+void FBlueprintNamespaceRegistry::RegisterNamespace(const FString& InPath)
+{
+	if (!InPath.IsEmpty())
+	{
+		PathTree->AddPath(InPath);
+	}
+}
+
 void FBlueprintNamespaceRegistry::RegisterNamespace(const UObject* InObject)
 {
 	FString ObjectNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(InObject);
-	if (!ObjectNamespace.IsEmpty())
-	{
-		PathTree->AddPath(ObjectNamespace);
-	}
+	RegisterNamespace(ObjectNamespace);
 }
 
 void FBlueprintNamespaceRegistry::RegisterNamespace(const FAssetData& AssetData)
 {
 	FString AssetNamespace = FBlueprintNamespaceUtilities::GetAssetNamespace(AssetData);
-	if (!AssetNamespace.IsEmpty())
-	{
-		PathTree->AddPath(AssetNamespace);
-	}
+	RegisterNamespace(AssetNamespace);
 }
 
 void FBlueprintNamespaceRegistry::ToggleDefaultNamespace()
@@ -229,30 +254,17 @@ void FBlueprintNamespaceRegistry::DumpAllRegisteredPaths()
 		Initialize();
 	}
 
+	TArray<FString> AllPaths;
+	GetAllRegisteredPaths(AllPaths);
+
 	UE_LOG(LogNamespace, Log, TEXT("=== Registered Blueprint namespace paths:"));
 
-	int32 PathCounter = 0;
-	PathTree->ForeachNode([&PathCounter](const TArray<FName>& CurrentPath, TSharedRef<FBlueprintNamespacePathTree::FNode> Node)
+	for (const FString& Path : AllPaths)
 	{
-		if (Node->bIsAddedPath)
-		{
-			TStringBuilder<128> PathBuilder;
-			for (FName PathSegment : CurrentPath)
-			{
-				if (PathBuilder.Len() > 0)
-				{
-					PathBuilder += TEXT(".");
-				}
-				PathBuilder += PathSegment.ToString();
-			}
+		UE_LOG(LogNamespace, Log, TEXT("%s"), *Path);
+	}
 
-			++PathCounter;
-
-			UE_LOG(LogNamespace, Log, TEXT("%s"), PathBuilder.ToString());
-		}
-	});
-
-	UE_LOG(LogNamespace, Log, TEXT("=== (end) %d total paths ==="), PathCounter);
+	UE_LOG(LogNamespace, Log, TEXT("=== (end) %d total paths ==="), AllPaths.Num());
 }
 
 void FBlueprintNamespaceRegistry::OnDefaultNamespaceTypeChanged()

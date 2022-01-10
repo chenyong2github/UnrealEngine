@@ -769,10 +769,9 @@ protected:
 	virtual void OnRemoveItem(const FManagedListItem& Item) override;
 	/** END FBlueprintManagedListDetails interface */
 
-	bool IsAddImportEntryButtonEnabled() const;
-	FReply OnAddImportEntryButtonClicked();
+	void OnNamespaceSelected(const FString& InNamespace);
+	void OnFilterNamespaceList(TArray<FString>& InOutNamespaceList);
 	void HandleImportEntryTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType);
-	void OnShowingImportSuggestions(const FString& InputText, TArray<FString>& OutSuggestions);
 
 private:
 	TSharedPtr<SSuggestionTextBox> ImportEntryTextBox;
@@ -857,12 +856,18 @@ protected:
 	/** Returns the tooltip explaining deprecation */
 	FText GetDeprecatedTooltip() const;
 
+	/** Callback for when a new Blueprint namespace value is entered */
+	void OnNamespaceValueCommitted(const FString& InNamespace);
+
 private:
 	/** Weak reference to the Blueprint editor */
 	TWeakPtr<FBlueprintEditor> BlueprintEditorPtr;
 
 	/** Combo button used to choose a parent class */
 	TSharedPtr<SComboButton> ParentClassComboButton;
+
+	/** Desired width for namespace value customization */
+	static float NamespacePropertyValueCustomization_MinDesiredWidth;
 };
 
 

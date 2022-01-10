@@ -41,6 +41,18 @@ public:
 	 */
 	void GetNamesUnderPath(const FString& InPath, TArray<FName>& OutNames) const;
 
+	/**
+	 * @param OutPaths	On output, contains the full set of all currently-registered namespace identifier paths.
+	 */
+	void GetAllRegisteredPaths(TArray<FString>& OutPaths) const;
+
+	/**
+	 * Adds an explicit namespace identifier to the registry if not already included.
+	 * 
+	 * @param InPath	Path identifier string (e.g. "X.Y").
+	 */
+	void RegisterNamespace(const FString& InPath);
+
 protected:
 	FBlueprintNamespaceRegistry();
 
