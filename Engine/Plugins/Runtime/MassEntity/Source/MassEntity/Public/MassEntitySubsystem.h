@@ -8,6 +8,7 @@
 #include "InstancedStruct.h"
 #include "MassEntityQuery.h"
 #include "StructUtilsTypes.h"
+#include "MassObserverManager.h"
 #include "MassEntitySubsystem.generated.h"
 
 
@@ -74,6 +75,7 @@ public:
 
 	//~USubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void PostInitialize() override;
 	virtual void Deinitialize() override;
 	//~End of USubsystem interface
 	
@@ -126,12 +128,30 @@ public:
 	 * @return FMassEntityHandle id of the newly created entity */
 	FMassEntityHandle CreateEntity(TConstArrayView<FInstancedStruct> FragmentInstanceList);
 
+	/**
+	 * A dedicated structure for ensuring the "on entities creation" observers get notified only once all other 
+	 * initialization operations are done and this creation context instance gets released. */
+	struct FEntityCreationContext
+	{
+		explicit FEntityCreationContext(const int32 InNumSpawned = 0)
+			: NumberSpawned(InNumSpawned)
+		{}
+		~FEntityCreationContext() { if (OnSpawningFinished) OnSpawningFinished(*this); }
+
+		const FArchetypeChunkCollection& GetChunkCollection() const { return ChunkCollection; }
+	private:
+		friend UMassEntitySubsystem;
+		int32 NumberSpawned;
+		FArchetypeChunkCollection ChunkCollection;
+		TFunction<void(FEntityCreationContext&)> OnSpawningFinished;
+	};
+
 	/** A version of CreateEntity that's creating a number of entities (Count) at one go
 	 *  @param Archetype you want this entity to be
 	 *  @param Count number of entities to create
 	 *  @param OutEntities the newly created entities are appended to given array, i.e. the pre-existing content of OutEntities won't be affected by the call
-	 *  @return number of entities created */
-	int32 BatchCreateEntities(const FArchetypeHandle Archetype, const int32 Count, TArray<FMassEntityHandle>& OutEntities);
+	 *  @return a creation context that will notify all the interested observers about newly created fragments once the context is released */
+	TSharedRef<FEntityCreationContext> BatchCreateEntities(const FArchetypeHandle Archetype, const int32 Count, TArray<FMassEntityHandle>& OutEntities);
 
 	/**
 	 * Destroys a fully built entity, use ReleaseReservedEntity if entity was not yet built.
@@ -192,6 +212,8 @@ public:
 	 */
 	void AddCompositionToEntity_GetDelta(FMassEntityHandle Entity, FMassArchetypeCompositionDescriptor& InOutDescriptor);
 	void RemoveCompositionFromEntity(FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& InDescriptor);
+
+	const FMassArchetypeCompositionDescriptor& GetArchetypeComposition(const FArchetypeHandle& ArchetypeHandle) const;
 
 	/** 
 	 * Moves an entity over to a new archetype by copying over fragments common to both archetypes
@@ -297,6 +319,8 @@ public:
 		}
 	}
 
+	FMassObserverManager& GetObserverManager() { return ObserverManager; }
+
 #if WITH_MASSENTITY_DEBUG
 	void DebugPrintEntity(int32 Index, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
 	void DebugPrintEntity(FMassEntityHandle Entity, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
@@ -305,6 +329,7 @@ public:
 	void DebugGetArchetypesStringDetails(FOutputDevice& Ar, const bool bIncludeEmpty = true);
 	void DebugGetArchetypeFragmentTypes(const FArchetypeHandle& Archetype, TArray<const UScriptStruct*>& InOutFragmentList) const;
 	int32 DebugGetArchetypeEntitiesCount(const FArchetypeHandle& Archetype) const;	
+	int32 DebugGetArchetypeEntitiesCountPerChunk(const FArchetypeHandle& Archetype) const;
 	int32 DebugGetEntityCount() const { return Entities.Num() - NumReservedEntities - EntityFreeIndexList.Num(); }
 	int32 DebugGetArchetypesCount() const { return FragmentHashToArchetypeMap.Num(); }
 	void DebugRemoveAllEntities();
@@ -362,6 +387,9 @@ private:
 	TArray<FSharedStruct> SharedFragments;
 	// Hash/Index in array pair
 	TMap<uint32, int32> SharedFragmentsMap;
+
+	UPROPERTY(Transient)
+	FMassObserverManager ObserverManager;
 };
 
 

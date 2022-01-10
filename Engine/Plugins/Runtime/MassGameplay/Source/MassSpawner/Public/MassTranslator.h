@@ -5,6 +5,7 @@
 #include "MassProcessor.h"
 #include "MassCommonTypes.h"
 #include "MassEntityTypes.h"
+#include "MassObserverProcessor.h"
 #include "MassTranslator.generated.h"
 
 
@@ -49,47 +50,4 @@ protected:
 	/** These are the tag fragments expected by this translator that let other code (like entity traits) hint to 
 	 *  the system which translators they'd want their entity to be processed by. */
 	FMassTagBitSet RequiredTags;
-};
-
-UCLASS(abstract)
-class MASSSPAWNER_API UMassFragmentBuilder : public UMassProcessor
-{
-	GENERATED_BODY()
-
-public:
-	UMassFragmentBuilder();
-
-	/** Override to register this fragment builder to the registry */
-	virtual void Register() PURE_VIRTUAL(UMassFragmentBuilder::Register, );
-
-protected:
-	virtual void PostInitProperties() override;
-
-protected:
-	/** Set in class' constructor and determines for which Fragment type this given UMassFragmentBuilder will be used 
-	 *  as the default initializer/deinitializer (as returned by the UMassTranslatorRegistry). If set to null will
-	 *  require the user to manually add this UMassFragmentBuilder as initializer/deinitializer 
-	 *  (@see FMassEntityTemplateBuildContext.AddInitializer and FMassEntityTemplateBuildContext.AddDeinitializer) */
-	UPROPERTY()
-	UScriptStruct* FragmentType;
-};
-
-UCLASS(abstract)
-class MASSSPAWNER_API UMassFragmentInitializer : public UMassFragmentBuilder
-{
-	GENERATED_BODY()
-
-public:
-	/** adds this FragmentInitializer to the MassTranslatorRegistry to be used to initialize fragments of FragmentType */
-	virtual void Register();
-};
-
-UCLASS(abstract)
-class MASSSPAWNER_API UMassFragmentDestructor : public UMassFragmentBuilder
-{
-	GENERATED_BODY()
-
-public:
-	/** adds this FragmentDestructor to the MassTranslatorRegistry to be used to initialize fragments of FragmentType */
-	virtual void Register();
 };

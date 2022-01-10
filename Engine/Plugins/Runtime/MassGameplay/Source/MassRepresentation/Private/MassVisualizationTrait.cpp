@@ -11,8 +11,6 @@
 UMassVisualizationTrait::UMassVisualizationTrait()
 {
 	RepresentationSubsystemClass = UMassRepresentationSubsystem::StaticClass();
-	// @todo the following line will be cut once new de/initializers are in
-	RepresentationFragmentDeinitializerClass = UMassRepresentationFragmentDestructor::StaticClass();
 	RepresentationDestructorTag = FMassRepresentationDefaultDestructorTag::StaticStruct();
 }
 
@@ -37,8 +35,6 @@ void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 		RepresentationFragment.HighResTemplateActorIndex = HighResTemplateActor.Get() ? RepresentationSubsystem->FindOrAddTemplateActor(HighResTemplateActor.Get()) : INDEX_NONE;
 		RepresentationFragment.LowResTemplateActorIndex = LowResTemplateActor.Get() ? RepresentationSubsystem->FindOrAddTemplateActor(LowResTemplateActor.Get()) : INDEX_NONE;
 
-		// @todo the following line will be cut once new de/initializers are in
-		BuildContext.AddDeinitializer(*(RepresentationFragmentDeinitializerClass->GetDefaultObject<UMassProcessor>()));
 		if (ensureMsgf(RepresentationDestructorTag, TEXT("RepresentationDestructorTag is never expected to be empty")))
 		{
 			BuildContext.AddTag(*RepresentationDestructorTag);

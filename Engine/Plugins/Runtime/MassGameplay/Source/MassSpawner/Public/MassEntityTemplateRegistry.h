@@ -6,7 +6,6 @@
 #include "UObject/Object.h"
 #include "MassCommonTypes.h"
 #include "MassEntityTemplate.h"
-#include "MassTranslatorRegistry.h"
 #include "MassTranslator.h"
 #include "MassEntityTemplateRegistry.generated.h"
 
@@ -36,57 +35,14 @@ struct FMassEntityTemplateBuildContext
 	}
 
 	template<typename T>
-	T& AddFragmentWithDefaultInitializer_GetRef()
-	{
-		AddDefaultInitializer<T>();
-		return AddFragment_GetRef<T>();
-	}
-
-	template<typename T>
-	T& AddFragmentWithInitializer_GetRef(const UMassProcessor& Initializer)
-	{
-		AddInitializer(Initializer);
-		return AddFragment_GetRef<T>();
-	}
-
-	template<typename T>
 	void AddFragment()
 	{
 		Template.AddFragment<T>();
 	}
 
-	template<typename T>
-	void AddFragmentWithDefaultInitializer()
-	{
-		AddFragment<T>();
-		AddDefaultInitializer<T>();
-	}
-
-	template<typename T>
-	void AddFragmentWithInitializer(const UMassProcessor& Initializer)
-	{
-		AddFragment<T>();
-		AddInitializer(Initializer);
-	}
-
 	void AddFragment(FConstStructView InFragment)
 	{ 
 		Template.AddFragment(InFragment);
-	}
-
-	void AddFragmentWithDefaultInitializer(FConstStructView InFragment)
-	{
-		AddFragment(InFragment);
-		if (InFragment.GetScriptStruct())
-		{
-			AddDefaultInitializer(*InFragment.GetScriptStruct());
-		}
-	}
-
-	void AddFragmentWithInitializer(FConstStructView InFragment, const UMassProcessor& Initializer)
-	{
-		AddFragment(InFragment);
-		AddInitializer(Initializer);
 	}
 
 	template<typename T>
@@ -146,54 +102,6 @@ struct FMassEntityTemplateBuildContext
 	}
 
 	//----------------------------------------------------------------------//
-	// Initializers
-	//----------------------------------------------------------------------//
-	void AddInitializer(const UMassProcessor& Initializer) { Handlers.Initializers.AddUnique(&Initializer); }
-	
-	void AddDefaultInitializer(const UScriptStruct& FragmentType)
-	{
-		const UMassTranslatorRegistry& Registry = UMassTranslatorRegistry::Get();
-		if (const UMassFragmentInitializer* Initializer = Registry.GetFragmentInitializer(FragmentType))
-		{
-			Handlers.DefaultInitializers.AddUnique(Initializer);
-		}
-	}
-
-	template<typename T>
-	void AddDefaultInitializer()
-	{
-		const UMassTranslatorRegistry& Registry = UMassTranslatorRegistry::Get();
-		if (const UMassFragmentInitializer* Initializer = Registry.GetFragmentInitializer(*T::StaticStruct()))
-		{
-			Handlers.DefaultInitializers.AddUnique(Initializer);
-		}
-	}
-
-	//----------------------------------------------------------------------//
-	// Deinitializers
-	//----------------------------------------------------------------------//
-	void AddDeinitializer(const UMassProcessor& Deinitializer) { Handlers.Deinitializers.AddUnique(&Deinitializer); }
-
-	void AddDefaultDeinitializer(const UScriptStruct& FragmentType)
-	{
-		const UMassTranslatorRegistry& Registry = UMassTranslatorRegistry::Get();
-		if (const UMassFragmentDestructor* Deinitializer = Registry.GetFragmentDestructor(FragmentType))
-		{
-			Handlers.Deinitializers.AddUnique(Deinitializer);
-		}
-	}
-
-	template<typename T>
-	void AddDefaultDeinitializer()
-	{
-		const UMassTranslatorRegistry& Registry = UMassTranslatorRegistry::Get();
-		if (const UMassFragmentDestructor* Deinitializer = Registry.GetFragmentDestructor(*T::StaticStruct()))
-		{
-			Handlers.Deinitializers.AddUnique(Deinitializer);
-		}
-	}
-
-	//----------------------------------------------------------------------//
 	// Translators
 	//----------------------------------------------------------------------//
 	template<typename T>
@@ -209,7 +117,6 @@ struct FMassEntityTemplateBuildContext
 	FMassEntityTemplateID GetTemplateID() const { return Template.GetTemplateID(); }
 	TArray<FMassEntityTemplate::FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return Template.GetMutableObjectFragmentInitializers(); }
 
-	FMassObjectHandlers Handlers;
 protected:
 	FMassEntityTemplate& Template;
 };

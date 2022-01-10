@@ -18,7 +18,7 @@ void UMassDebugVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext
 	if (DebugMesh)
 	{
 #if WITH_EDITORONLY_DATA
-		FSimDebugVisComponent& DebugVisFragment = BuildContext.AddFragmentWithDefaultInitializer_GetRef<FSimDebugVisComponent>();
+		FSimDebugVisComponent& DebugVisFragment = BuildContext.AddFragment_GetRef<FSimDebugVisComponent>();
 		UMassDebuggerSubsystem* Debugger = World.GetSubsystem<UMassDebuggerSubsystem>();
 		if (ensure(Debugger))
 		{
@@ -29,22 +29,20 @@ void UMassDebugVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext
 			}
 			// @todo this path requires a fragment destructor that will remove the mesh from the debugger.
 		}
-
-		BuildContext.AddDefaultInitializer<FSimDebugVisComponent>();
 #endif // WITH_EDITORONLY_DATA
 	}
 	// add fragments needed whenever we have debugging capabilities
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	BuildContext.AddTag<FMassDebuggableTag>();
 #if WITH_EDITORONLY_DATA
-	BuildContext.AddFragmentWithDefaultInitializer_GetRef<FDataFragment_DebugVis>().Shape = DebugShape.WireShape;
+	BuildContext.AddFragment_GetRef<FDataFragment_DebugVis>().Shape = DebugShape.WireShape;
 #else
 	// DebugShape unavailable, will used default instead
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_DebugVis>();
+	BuildContext.AddFragment<FDataFragment_DebugVis>();
 #endif // WITH_EDITORONLY_DATA
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_AgentRadius>();
+	BuildContext.AddFragment<FDataFragment_AgentRadius>();
 
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_Transform>();
+	BuildContext.AddFragment<FDataFragment_Transform>();
 #endif // if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 }

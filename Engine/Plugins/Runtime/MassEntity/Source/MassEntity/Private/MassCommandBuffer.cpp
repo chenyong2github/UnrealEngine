@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassCommandBuffer.h"
+#include "MassObserverManager.h"
+#include "MassEntityUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "VisualLogger/VisualLogger.h"
+
 
 //////////////////////////////////////////////////////////////////////
 // FMassCommandBuffer
@@ -66,12 +70,59 @@ void GetCommandStatNames(FStructView Entry, FString& OutName, ANSIName*& OutANSI
 #endif
 } // UE::FLWCCommand
 
-void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* System)
+void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntitySystem)
 {
-	check(System);
+	check(EntitySystem);
+
+	// short-circuit exit
+	if (EntitiesToDestroy.Num() == 0 && PendingCommands.IsEmpty())
+	{
+		return;
+	}
+
+	FMassObserverManager& ObserverManager = EntitySystem->GetObserverManager();
+
+	const FMassFragmentBitSet& ObservedAddFragments = ObserverManager.GetObservedAddFragmentsBitSet();
+	const FMassFragmentBitSet& ObservedRemoveFragments = ObserverManager.GetObservedRemoveFragmentsBitSet();
+
+	if (ObservedRemoveFragments.IsEmpty() == false)
+	{
+		for (auto It : FragmentsToRemove)
+		{
+			check(It.Key);
+			if (ObservedRemoveFragments.Contains(*It.Key))
+			{
+				TArray<FArchetypeChunkCollection> ChunkCollections;
+				UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, ChunkCollections);
+				for (FArchetypeChunkCollection& Collection : ChunkCollections)
+				{
+					check(It.Key);
+					ObserverManager.OnPreFragmentRemoved(*It.Key, Collection);
+				}
+			}
+		}
+	
+		TArray<FArchetypeChunkCollection> EntityChunksToDestroy;
+		if (EntitiesToDestroy.Num())
+		{
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, EntitiesToDestroy, EntityChunksToDestroy);
+			for (FArchetypeChunkCollection& Collection : EntityChunksToDestroy)
+			{
+				ObserverManager.OnPreEntitiesDestroyed(Collection);
+				EntitySystem->BatchDestroyEntityChunks(Collection);
+			}
+		}
+	}
+	else if (EntitiesToDestroy.Num())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("ECS Deferred Commands Destroy Entities");
+		EntitySystem->BatchDestroyEntities(MakeArrayView(EntitiesToDestroy));
+	}
+	EntitiesToDestroy.Reset();
+
 
 	UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
-	PendingCommands.ForEach([System](FStructView Entry)
+	PendingCommands.ForEach([EntitySystem](FStructView Entry)
 	{
 		const FCommandBufferEntryBase* Command = Entry.GetPtr<FCommandBufferEntryBase>();
 		checkf(Command, TEXT("Either the entry is null or the command does not derive from FCommandBufferEntryBase"));
@@ -89,25 +140,36 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* System)
 		FCsvProfiler::RecordCustomStat(*Name, CSV_CATEGORY_INDEX(MassEntitiesCounters), 1, ECsvCustomStatOp::Accumulate);
 #endif // CSV_PROFILER
 
-		Command->Execute(*System);
+		Command->Execute(*EntitySystem);
 	});
 
 	// Using Clear() instead of Reset(), as otherwise the chunks moved into the PendingCommands in MoveAppend() can accumulate.
 	PendingCommands.Clear();
 
-	if (EntitiesToDestroy.Num())
+	for (auto It : FragmentsToAdd)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_STR("ECS Deferred Commands Destroy Entities");
-		System->BatchDestroyEntities(MakeArrayView(EntitiesToDestroy));
-		EntitiesToDestroy.Reset();
+		check(It.Key);
+		if (ObservedAddFragments.Contains(*It.Key))
+		{
+			TArray<FArchetypeChunkCollection> ChunkCollections;
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, ChunkCollections);
+			for (FArchetypeChunkCollection& Collection : ChunkCollections)
+			{
+				check(It.Key);
+				ObserverManager.OnPostFragmentAdded(*It.Key, Collection);
+			}
+		}
 	}
+
+	FragmentsToAdd.Reset();
+	FragmentsToRemove.Reset();
 }
 
 void FMassCommandBuffer::MoveAppend(FMassCommandBuffer& Other)
 {
 	// @todo optimize, there surely a way to do faster then this.
 	UE_MT_SCOPED_READ_ACCESS(Other.PendingCommandsDetector);
-	if (Other.GetPendingCommandsCount() || Other.EntitiesToDestroy.Num())
+	if (Other.HasPendingCommands() || Other.EntitiesToDestroy.Num())
 	{
 		FScopeLock Lock(&AppendingCommandsCS);
 		UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
@@ -178,7 +240,7 @@ void FCommandRemoveFragmentList::Execute(UMassEntitySubsystem& System) const
 void FCommandAddTag::Execute(UMassEntitySubsystem & System) const 
 {
 	if (System.IsEntityValid(TargetEntity) == false)
-{
+	{
 		return;
 	}
 

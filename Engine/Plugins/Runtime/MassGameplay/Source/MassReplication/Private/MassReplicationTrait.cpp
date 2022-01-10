@@ -15,10 +15,10 @@ void UMassReplicationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Build
 		return;
 	}
 
-	FDataFragment_ReplicationTemplateID& TemplateIDFragment = BuildContext.AddFragmentWithDefaultInitializer_GetRef<FDataFragment_ReplicationTemplateID>();
+	FDataFragment_ReplicationTemplateID& TemplateIDFragment = BuildContext.AddFragment_GetRef<FDataFragment_ReplicationTemplateID>();
 	TemplateIDFragment.ID = BuildContext.GetTemplateID();
 
-	BuildContext.AddFragmentWithDefaultInitializer<FMassNetworkIDFragment>();
+	BuildContext.AddFragment<FMassNetworkIDFragment>();
 	BuildContext.AddFragment<FMassReplicatedAgentFragment>();
 	BuildContext.AddFragment<FMassReplicationViewerInfoFragment>();
 	BuildContext.AddFragment<FMassReplicationLODFragment>();

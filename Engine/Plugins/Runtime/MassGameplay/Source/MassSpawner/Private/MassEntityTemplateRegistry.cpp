@@ -128,7 +128,6 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 	Builder.Execute(World, StructInstance, Context);
 	if (ensure(!OutTemplate.IsEmpty())) // need at least one fragment to create an Archetype
 	{
-		OutTemplate.SetUpProcessors(Context.Handlers, *this);
 		InitializeEntityTemplate(OutTemplate);
 
 		UE_VLOG(this, LogMassSpawner, Log, TEXT("Created entity template for %s:\n%s"), *GetNameSafe(StructInstance.GetScriptStruct())
@@ -149,7 +148,7 @@ void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 	UMassEntitySubsystem* EntitySys = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 	check(EntitySys);
 
-	// Sort anything there is to sort for later comparaison purposes
+	// Sort anything there is to sort for later comparison purposes
 	OutTemplate.Sort();
 
 	const FArchetypeHandle ArchetypeHandle = EntitySys->CreateArchetype(OutTemplate.GetCompositionDescriptor(), OutTemplate.GetSharedFragmentValues());
