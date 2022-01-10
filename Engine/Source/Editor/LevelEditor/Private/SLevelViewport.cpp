@@ -190,11 +190,12 @@ void SLevelViewport::Construct(const FArguments& InArgs, const FAssetEditorViewp
 	ConfigKey = InConstructionArguments.ConfigKey;
 	LevelViewportClient = InArgs._LevelEditorViewportClient;
 
-	DebuggingBorder = FEditorStyle::GetBrush( "LevelViewport.DebugBorder" );
-	BlackBackground = FEditorStyle::GetBrush( "LevelViewport.BlackBackground" );
-	StartingPlayInEditorBorder = FEditorStyle::GetBrush( "LevelViewport.StartingPlayInEditorBorder" );
-	StartingSimulateBorder = FEditorStyle::GetBrush( "LevelViewport.StartingSimulateBorder" );
-	ReturningToEditorBorder = FEditorStyle::GetBrush( "LevelViewport.ReturningToEditorBorder" );
+	DebuggingBorder = FAppStyle::Get().GetBrush( "LevelViewport.DebugBorder" );
+	BlackBackground = FAppStyle::Get().GetBrush( "LevelViewport.BlackBackground" );
+	StartingPlayInEditorBorder = FAppStyle::Get().GetBrush( "LevelViewport.StartingPlayInEditorBorder" );
+	StartingSimulateBorder = FAppStyle::Get().GetBrush( "LevelViewport.StartingSimulateBorder" );
+	ReturningToEditorBorder = FAppStyle::Get().GetBrush( "LevelViewport.ReturningToEditorBorder" );
+	NonMaximizedBorder = FAppStyle::Get().GetBrush("LevelViewport.NonMaximizedBorder");
 
 	// Default level viewport client values for settings that could appear in layout config ini
 	FLevelEditorViewportInstanceSettings ViewportInstanceSettings;
@@ -1711,6 +1712,10 @@ const FSlateBrush* SLevelViewport::OnGetViewportBorderBrush() const
 					BorderBrush = ReturningToEditorBorder;
 					break;
 			}
+		}
+		else if(!IsMaximized())
+		{
+			BorderBrush = NonMaximizedBorder;
 		}
 	}
 	else
