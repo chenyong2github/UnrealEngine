@@ -7,5 +7,5 @@
 void UMassCrowdMemberTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
 	BuildContext.AddTag<FTagFragment_MassCrowd>();
-	BuildContext.AddFragmentWithDefaultInitializer<FMassCrowdLaneTrackingFragment>();	
+	BuildContext.AddFragment<FMassCrowdLaneTrackingFragment>();	
 }

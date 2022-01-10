@@ -38,7 +38,7 @@ void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	// Variable ticking from simulation LOD
 	if(bEnableVariableTicking)
 	{
-		BuildContext.AddFragmentWithDefaultInitializer<FMassSimulationVariableTickFragment>();
+		BuildContext.AddFragment<FMassSimulationVariableTickFragment>();
 		BuildContext.AddChunkFragment<FMassSimulationVariableTickChunkFragment>();
 
 		uint32 VariableTickConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(VariableTickConfig));

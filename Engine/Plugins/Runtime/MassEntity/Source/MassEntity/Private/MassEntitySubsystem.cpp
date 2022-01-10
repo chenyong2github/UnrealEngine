@@ -18,6 +18,7 @@ const FMassEntityHandle UMassEntitySubsystem::InvalidEntity;
 // UMassEntitySubsystem
 
 UMassEntitySubsystem::UMassEntitySubsystem()
+	: ObserverManager(*this)
 {
 }
 
@@ -70,6 +71,13 @@ void UMassEntitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			ChunkFragments.Add(*CastChecked<UScriptStruct>(*StructIt));
 		}
 	}
+}
+
+void UMassEntitySubsystem::PostInitialize()
+{
+	// this needs to be done after all the subsystems have been initialized since some processors might want to access
+	// them during processors' initialization
+	ObserverManager.Initialize();
 }
 
 void UMassEntitySubsystem::Deinitialize()
@@ -302,11 +310,11 @@ void UMassEntitySubsystem::BuildEntity(FMassEntityHandle Entity, TConstArrayView
 	EntityData.CurrentArchetype->SetFragmentsData(Entity, FragmentInstanceList);
 }
 
-int32 UMassEntitySubsystem::BatchCreateEntities(const FArchetypeHandle Archetype, const int32 Count, TArray<FMassEntityHandle>& OutEntities)
+TSharedRef<UMassEntitySubsystem::FEntityCreationContext> UMassEntitySubsystem::BatchCreateEntities(const FArchetypeHandle Archetype, const int32 Count, TArray<FMassEntityHandle>& OutEntities)
 {
 	FMassArchetypeData* ArchetypePtr = Archetype.DataPtr.Get();
 	check(ArchetypePtr);
-	check(Count >= 0);
+	check(Count > 0);
 	
 	int32 Index = OutEntities.Num();
 	OutEntities.AddDefaulted(Count);
@@ -324,8 +332,19 @@ int32 UMassEntitySubsystem::BatchCreateEntities(const FArchetypeHandle Archetype
 		
 		ArchetypePtr->AddEntity(Result);
 	}
+		
+	FEntityCreationContext* CreationContext = new FEntityCreationContext(Count);
+	// @todo this could probably be optimized since one would assume we're adding elements to OutEntities in order.
+	// Then again, if that's the case, the sorting will be almost instant
+	new (&CreationContext->ChunkCollection)FArchetypeChunkCollection(Archetype, MakeArrayView(&OutEntities[OutEntities.Num() - Count], Count));
+	if (ObserverManager.HasOnAddedObserversForFragments(ArchetypePtr->GetCompositionDescriptor().Fragments))
+	{
+		CreationContext->OnSpawningFinished = [this](FEntityCreationContext& Context){
+			ObserverManager.OnPostEntitiesCreated(Context.ChunkCollection);
+		};
+	}
 
-	return Count;
+	return MakeShareable(CreationContext);
 }
 
 void UMassEntitySubsystem::DestroyEntity(FMassEntityHandle Entity)
@@ -384,6 +403,11 @@ void UMassEntitySubsystem::BatchDestroyEntityChunks(const FArchetypeChunkCollect
 
 	checkf(IsProcessing() == false, TEXT("Synchronous API function %s called during mass processing. Use asynchronous API instead."), ANSI_TO_TCHAR(__FUNCTION__));
 
+	FMassProcessingContext ProcessingContext(*this, /*TimeDelta=*/0.0f);
+	ProcessingContext.bFlushCommandBuffer = false;
+	ProcessingContext.CommandBuffer = MakeShareable(new FMassCommandBuffer());
+	ObserverManager.OnPreEntitiesDestroyed(ProcessingContext, Chunks);
+
 	check(Chunks.GetArchetype().IsValid());
 	TArray<FMassEntityHandle> EntitiesRemoved;
 	Chunks.GetArchetype().DataPtr->BatchDestroyEntityChunks(Chunks, EntitiesRemoved);
@@ -401,6 +425,8 @@ void UMassEntitySubsystem::BatchDestroyEntityChunks(const FArchetypeChunkCollect
 			EntityFreeIndexList.Add(Entity.Index);
 		}
 	}
+
+	ensure(ProcessingContext.CommandBuffer->HasPendingCommands() == false);
 }
 
 void UMassEntitySubsystem::AddFragmentToEntity(FMassEntityHandle Entity, const UScriptStruct* FragmentType)
@@ -448,6 +474,8 @@ void UMassEntitySubsystem::AddCompositionToEntity_GetDelta(FMassEntityHandle Ent
 			check(NewArchetype);
 			EntityData.CurrentArchetype->MoveEntityToAnotherArchetype(Entity, *NewArchetype);
 			EntityData.CurrentArchetype = NewArchetypeHandle.DataPtr;
+
+			ObserverManager.OnPostCompositionAdded(Entity, InDescriptor);
 		}
 	}
 }
@@ -469,20 +497,28 @@ void UMassEntitySubsystem::RemoveCompositionFromEntity(FMassEntityHandle Entity,
 		ensureMsgf(InDescriptor.ChunkFragments.IsEmpty(), TEXT("Removing chunk fragments is not supported"));
 		ensureMsgf(InDescriptor.SharedFragments.IsEmpty(), TEXT("Removing shared fragments is not supported"));
 
-		if (NewDescriptor.IsEquivalent(InDescriptor) == false)
-	{
+		if (NewDescriptor.IsEquivalent(OldArchetype->GetCompositionDescriptor()) == false)
+		{
+			ensureMsgf(OldArchetype->GetCompositionDescriptor().HasAll(InDescriptor), TEXT("Some of the elements being removed are already missing from entity\'s composition."));
+			ObserverManager.OnPreCompositionRemoved(Entity, InDescriptor);
+
 			const FArchetypeHandle NewArchetypeHandle = CreateArchetype(NewDescriptor, OldArchetype->GetSharedFragmentValues());
 
-		if (ensure(NewArchetypeHandle.DataPtr != EntityData.CurrentArchetype))
-		{
-			// Move the entity over
-			FMassArchetypeData* NewArchetype = NewArchetypeHandle.DataPtr.Get();
-			check(NewArchetype);
-			EntityData.CurrentArchetype->MoveEntityToAnotherArchetype(Entity, *NewArchetype);
-			EntityData.CurrentArchetype = NewArchetypeHandle.DataPtr;
+			if (ensure(NewArchetypeHandle.DataPtr != EntityData.CurrentArchetype))
+			{
+				// Move the entity over
+				FMassArchetypeData* NewArchetype = NewArchetypeHandle.DataPtr.Get();
+				check(NewArchetype);
+				EntityData.CurrentArchetype->MoveEntityToAnotherArchetype(Entity, *NewArchetype);
+				EntityData.CurrentArchetype = NewArchetypeHandle.DataPtr;
+			}
 		}
 	}
 }
+
+const FMassArchetypeCompositionDescriptor& UMassEntitySubsystem::GetArchetypeComposition(const FArchetypeHandle& ArchetypeHandle) const
+{
+	return ArchetypeHandle.DataPtr->GetCompositionDescriptor();
 }
 
 void UMassEntitySubsystem::InternalBuildEntity(FMassEntityHandle Entity, const FArchetypeHandle Archetype)
@@ -995,6 +1031,11 @@ void UMassEntitySubsystem::DebugGetArchetypeFragmentTypes(const FArchetypeHandle
 int32 UMassEntitySubsystem::DebugGetArchetypeEntitiesCount(const FArchetypeHandle& Archetype) const
 {
 	return Archetype.DataPtr.IsValid() ? Archetype.DataPtr->GetNumEntities() : 0;
+}
+
+int32 UMassEntitySubsystem::DebugGetArchetypeEntitiesCountPerChunk(const FArchetypeHandle& Archetype) const
+{
+	return Archetype.DataPtr.IsValid() ? Archetype.DataPtr->GetNumEntitiesPerChunk() : 0;
 }
 
 void UMassEntitySubsystem::DebugRemoveAllEntities()

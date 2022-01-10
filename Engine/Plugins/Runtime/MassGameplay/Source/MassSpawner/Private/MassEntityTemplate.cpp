@@ -22,18 +22,6 @@ void FMassEntityTemplate::SetArchetype(const FArchetypeHandle& InArchetype)
 	Archetype = InArchetype;
 }
 
-void FMassEntityTemplate::SetUpProcessors(const FMassObjectHandlers& ObjectHandlers, UObject& PipelineOwner)
-{
-	TArray<const UMassProcessor*> Initializers;
-	Initializers.Reserve(ObjectHandlers.DefaultInitializers.Num() + ObjectHandlers.Initializers.Num());
-	Initializers.Append(ObjectHandlers.DefaultInitializers);
-	Initializers.Append(ObjectHandlers.Initializers);
-
-	// @todo do we want to copy the Processors or just use the CDOs?
-	InitializationPipeline.InitializeFromArray(Initializers, PipelineOwner);
-	DeinitializationPipeline.InitializeFromArray(ObjectHandlers.Deinitializers, PipelineOwner);
-}
-
 FString FMassEntityTemplate::DebugGetDescription(UMassEntitySubsystem* EntitySubsystem) const
 { 
 	FStringOutputDevice Ar;
@@ -51,9 +39,6 @@ FString FMassEntityTemplate::DebugGetDescription(UMassEntitySubsystem* EntitySub
 		Composition.DebugOutputDescription(Ar);
 	}
 
-	Ar += TEXT("\nInitialization Processors:\n");
-	InitializationPipeline.DebugOutputDescription(Ar);
-	
 #endif // WITH_MASSGAMEPLAY_DEBUG
 	return MoveTemp(Ar);
 }

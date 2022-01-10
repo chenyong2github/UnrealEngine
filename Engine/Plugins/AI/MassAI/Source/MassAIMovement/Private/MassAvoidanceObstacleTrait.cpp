@@ -11,9 +11,8 @@
 void UMassAvoidanceObstacleTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
 	// UAvoidanceObstacleProcessor
-	BuildContext.AddFragmentWithDefaultInitializer<FMassAvoidanceObstacleGridCellLocationFragment>();
-	BuildContext.AddDeinitializer(*GetDefault<UMassAvoidanceObstacleRemoverFragmentDestructor>());
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_AgentRadius>();
+	BuildContext.AddFragment<FMassAvoidanceObstacleGridCellLocationFragment>();
+	BuildContext.AddFragment<FDataFragment_AgentRadius>();
 
 	if (bExtendToEdgeObstacle)
 	{

@@ -32,7 +32,7 @@ void UMassStateTreeTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCo
 	const FMassStateTreeHandle Handle = MassStateTreeSubsystem->RegisterStateTreeAsset(StateTree);
 
 	// Add fragment describing which StateTree to run
-	FMassStateTreeFragment& StateTreeFragment = BuildContext.AddFragmentWithDefaultInitializer_GetRef<FMassStateTreeFragment>();
+	FMassStateTreeFragment& StateTreeFragment = BuildContext.AddFragment_GetRef<FMassStateTreeFragment>();
 	StateTreeFragment.StateTreeHandle = Handle;
 
 	// Add runtime storage as a fragment

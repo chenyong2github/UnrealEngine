@@ -22,7 +22,7 @@ void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuild
 
 	if (UMassCrowdRepresentationSubsystem* RepresentationSubsystem = World.GetSubsystem<UMassCrowdRepresentationSubsystem>())
 	{
-		FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragmentWithDefaultInitializer_GetRef<FMassRepresentationFragment>();
+		FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();
 		RepresentationFragment.StaticMeshDescIndex = INDEX_NONE;
 		RepresentationFragment.HighResTemplateActorIndex = TemplateActor.Get() ? RepresentationSubsystem->FindOrAddTemplateActor(TemplateActor.Get()) : INDEX_NONE;
 		RepresentationFragment.LowResTemplateActorIndex = INDEX_NONE;

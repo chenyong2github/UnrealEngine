@@ -22,18 +22,6 @@ enum class EMassEntityTemplateIDType : uint8
 	Instance
 };
 
-USTRUCT()
-struct MASSSPAWNER_API FMassObjectHandlers
-{
-	GENERATED_BODY()
-	UPROPERTY()
-	TArray<const UMassFragmentInitializer*> DefaultInitializers;
-	UPROPERTY()
-	TArray<const UMassProcessor*> Initializers;
-	UPROPERTY()
-	TArray<const UMassProcessor*> Deinitializers;
-};
-
 //ID of the template an entity is using
 USTRUCT()
 struct MASSSPAWNER_API FMassEntityTemplateID
@@ -87,14 +75,6 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	/** InArchetype is expected to be valid. The function will crash-check it. */
 	void SetArchetype(const FArchetypeHandle& InArchetype);
 	const FArchetypeHandle& GetArchetype() const { return Archetype; }
-	/** Configures initialization and deinitialization pipeline from ObjectHandlers */
-	void SetUpProcessors(const FMassObjectHandlers& ObjectHandlers, UObject& PipelineOwner);
-	
-	const FMassRuntimePipeline& GetInitializationPipeline() const { return InitializationPipeline; }
-	FMassRuntimePipeline& GetMutableInitializationPipeline() { return InitializationPipeline; }
-
-	const FMassRuntimePipeline& GetDeinitializationPipeline() const { return DeinitializationPipeline; }
-	FMassRuntimePipeline& GetMutableDeinitializationPipeline() { return DeinitializationPipeline; }
 
 	TConstArrayView<FObjectFragmentInitializerFunction> GetObjectFragmentInitializers() const { return ObjectInitializers; }
 	TArray<FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return ObjectInitializers; }
@@ -262,12 +242,6 @@ private:
 	
 	// Initial fragment values, this is not part of the archetype as it is the spawner job to set them.
 	TArray<FInstancedStruct> InitialFragmentValues;
-
-	UPROPERTY()
-	FMassRuntimePipeline InitializationPipeline;
-	
-	UPROPERTY()
-	FMassRuntimePipeline DeinitializationPipeline;
 
 	// These functions will be called to initialize entity's UObject-based fragments
 	TArray<FObjectFragmentInitializerFunction> ObjectInitializers;

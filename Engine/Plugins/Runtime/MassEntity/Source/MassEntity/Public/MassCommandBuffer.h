@@ -9,6 +9,14 @@
 
 #include "MassCommandBuffer.generated.h"
 
+
+namespace ECommandBufferOperationType
+{
+	constexpr int None = 1 << 0;
+	constexpr int Add = 1 << 1;
+	constexpr int Remove = 1 << 2;
+};
+
 //@TODO: Consider debug information in case there is an assert when replaying the command buffer
 // (e.g., which system added the command, or even file/line number in development builds for the specific call via a macro)
 //@TODO: Support more commands
@@ -27,6 +35,7 @@ struct MASSENTITY_API FCommandBufferEntryBase
 		: TargetEntity(InEntity)
 	{}
 
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved) { ensure(false); }
 	virtual void Execute(UMassEntitySubsystem& System) const PURE_VIRTUAL(FCommandBufferEntryBase::Execute, );
 };
 template<> struct TStructOpsTypeTraits<FCommandBufferEntryBase> : public TStructOpsTypeTraitsBase2<FCommandBufferEntryBase> { enum { WithPureVirtual = true, }; };
@@ -38,6 +47,11 @@ USTRUCT()
 struct MASSENTITY_API FDeferredCommand : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
+
+	enum 
+	{
+		Type = ECommandBufferOperationType::None
+	};
 
 	FDeferredCommand() = default;
 
@@ -62,11 +76,21 @@ struct MASSENTITY_API FBuildEntityFromFragmentInstance : public FCommandBufferEn
 {
 	GENERATED_BODY()
 
+	enum 
+	{
+		Type = ECommandBufferOperationType::Add
+	};
+
 	FBuildEntityFromFragmentInstance() = default;
 	FBuildEntityFromFragmentInstance(const FMassEntityHandle Entity, FStructView InStruct)
 		: FCommandBufferEntryBase(Entity)
 		, Struct(InStruct)
 	{}
+
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
+	{
+		OutAdded.FindOrAdd(Struct.GetScriptStruct()).AddUnique(TargetEntity);
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -82,11 +106,24 @@ struct MASSENTITY_API FBuildEntityFromFragmentInstances : public FCommandBufferE
 {
 	GENERATED_BODY()
 
+	enum
+	{
+		Type = ECommandBufferOperationType::Add
+	};
+
 	FBuildEntityFromFragmentInstances() = default;
 	FBuildEntityFromFragmentInstances(const FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> InInstances)
 		: FCommandBufferEntryBase(Entity)
 		, Instances(InInstances)
 	{}
+
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
+	{
+		for (const FInstancedStruct& Struct : Instances)
+		{
+			OutAdded.FindOrAdd(Struct.GetScriptStruct()).AddUnique(TargetEntity);
+		}
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -102,11 +139,21 @@ struct MASSENTITY_API FCommandAddFragment : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
+	enum
+	{
+		Type = ECommandBufferOperationType::Add
+	};
+
 	FCommandAddFragment() = default;
 	FCommandAddFragment(FMassEntityHandle InEntity, UScriptStruct* InStruct)
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
+
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
+	{
+		OutAdded.FindOrAdd(StructParam).AddUnique(TargetEntity);
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -122,11 +169,21 @@ struct MASSENTITY_API FCommandAddFragmentInstance : public FCommandBufferEntryBa
 {
 	GENERATED_BODY()
 
+	enum
+	{
+		Type = ECommandBufferOperationType::Add
+	};
+
 	FCommandAddFragmentInstance() = default;
 	FCommandAddFragmentInstance(const FMassEntityHandle InEntity, FStructView InStruct)
         : FCommandBufferEntryBase(InEntity)
         , Struct(InStruct)
 	{}
+
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
+	{
+		OutAdded.FindOrAdd(Struct.GetScriptStruct()).AddUnique(TargetEntity);
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -142,11 +199,21 @@ struct MASSENTITY_API FCommandRemoveFragment : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
+	enum
+	{
+		Type = ECommandBufferOperationType::Remove
+	};
+	
 	FCommandRemoveFragment() = default;
 	FCommandRemoveFragment(FMassEntityHandle InEntity, UScriptStruct* InStruct)
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
+
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
+	{
+		OutRemoved.FindOrAdd(StructParam).AddUnique(TargetEntity);
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -162,11 +229,24 @@ struct MASSENTITY_API FCommandAddFragmentList : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
+	enum
+	{
+		Type = ECommandBufferOperationType::Add
+	};
+
 	FCommandAddFragmentList() = default;
 	FCommandAddFragmentList(FMassEntityHandle InEntity, TConstArrayView<const UScriptStruct*> InFragmentList)
 		: FCommandBufferEntryBase(InEntity)
 		, FragmentList(InFragmentList)
 	{}
+
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
+	{
+		for (const UScriptStruct* StructParam : FragmentList)
+		{
+			OutAdded.FindOrAdd(StructParam).AddUnique(TargetEntity);
+		}
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -182,11 +262,24 @@ struct MASSENTITY_API FCommandRemoveFragmentList : public FCommandBufferEntryBas
 {
 	GENERATED_BODY()
 
+	enum
+	{
+		Type = ECommandBufferOperationType::Remove
+	};
+
 	FCommandRemoveFragmentList() = default;
 	FCommandRemoveFragmentList(FMassEntityHandle InEntity, TConstArrayView<const UScriptStruct*> InFragmentList)
 		: FCommandBufferEntryBase(InEntity)
 		, FragmentList(InFragmentList)
 	{}
+
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
+	{
+		for (const UScriptStruct* StructParam : FragmentList)
+		{
+			OutRemoved.FindOrAdd(StructParam).AddUnique(TargetEntity);
+		}
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -201,6 +294,11 @@ USTRUCT()
 struct MASSENTITY_API FCommandAddTag: public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
+
+	enum
+	{
+		Type = ECommandBufferOperationType::None
+	};
 
 	FCommandAddTag() = default;
 	FCommandAddTag(FMassEntityHandle InEntity, UScriptStruct* InStruct)
@@ -221,6 +319,11 @@ USTRUCT()
 struct MASSENTITY_API FCommandRemoveTag : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
+
+	enum
+	{
+		Type = ECommandBufferOperationType::None
+	};
 
 	FCommandRemoveTag() = default;
 	FCommandRemoveTag(FMassEntityHandle InEntity, UScriptStruct* InStruct)
@@ -243,8 +346,12 @@ struct MASSENTITY_API FCommandSwapTags : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
-	FCommandSwapTags() = default;
+	enum
+	{
+		Type = ECommandBufferOperationType::None //ECommandBufferOperationType::Add | ECommandBufferOperationType::Remove
+	};
 
+	FCommandSwapTags() = default;
 	FCommandSwapTags(const FMassEntityHandle InEntity, const UScriptStruct* InOldTagType, const UScriptStruct* InNewTagType)
 		: FCommandBufferEntryBase(InEntity)
 		, OldTagType(InOldTagType)
@@ -269,11 +376,31 @@ struct MASSENTITY_API FCommandRemoveComposition : public FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
+	enum
+	{
+		Type = ECommandBufferOperationType::Remove
+	};
+
 	FCommandRemoveComposition() = default;
 	FCommandRemoveComposition(FMassEntityHandle InEntity, const FMassArchetypeCompositionDescriptor& InDescriptor)
 		: FCommandBufferEntryBase(InEntity)
 		, Descriptor(InDescriptor)
 	{}
+
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
+	{
+		if (Descriptor.Fragments.IsEmpty() == false)
+		{
+			// @todo this is way too slow and I hate it. I'm considering adding abother flag to EOperationType to indicate
+			// a composition-based operation and call a different function or process those at flush time. Thoughts?
+			TArray<const UScriptStruct*> Fragments;
+			Descriptor.Fragments.ExportTypes(Fragments);
+			for (const UScriptStruct* StructParam : Fragments)
+			{
+				OutRemoved.FindOrAdd(StructParam).AddUnique(TargetEntity);
+			}
+		}
+	}
 
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
@@ -284,6 +411,7 @@ protected:
 struct MASSENTITY_API FMassCommandBuffer
 {
 public:
+	FMassCommandBuffer() = default;
 
 	/** Push any command, requires to derive from FCommandBufferEntryBase */
 	template< typename T, typename = typename TEnableIf<TIsDerivedFrom<typename TRemoveReference<T>::Type, FCommandBufferEntryBase>::IsDerived, void>::Type >
@@ -296,8 +424,7 @@ public:
 	template< typename T, typename = typename TEnableIf<TIsDerivedFrom<typename TRemoveReference<T>::Type, FCommandBufferEntryBase>::IsDerived, void>::Type, typename... TArgs >
 	void EmplaceCommand(TArgs&&... InArgs)
 	{
-		UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
-		return PendingCommands.Emplace<T>(Forward<TArgs>(InArgs)...);
+		EmplaceCommand_GetRef<T>(Forward<TArgs>(InArgs)...);
 	}
 
 	/** Emplace any command and return its ref, requires to derive from FCommandBufferEntryBase */
@@ -305,9 +432,15 @@ public:
 	T& EmplaceCommand_GetRef(TArgs&&... InArgs)
 	{
 		UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
-		return PendingCommands.Emplace_GetRef<T>(Forward<TArgs>(InArgs)...);
+		T& Command = PendingCommands.Emplace_GetRef<T>(Forward<TArgs>(InArgs)...); 
+		if (constexpr bool bIsModifyingComposition = ((T::Type & (ECommandBufferOperationType::Add | ECommandBufferOperationType::Remove)) != 0))
+		{	
+			Command.GetAffectedTypes(FragmentsToAdd, FragmentsToRemove);
+		}
+		return Command;
 	}
-
+	
+public:
 	template<typename T>
 	void AddFragment(FMassEntityHandle Entity)
 	{
@@ -357,7 +490,7 @@ public:
 	 */
 	void MoveAppend(FMassCommandBuffer& InOutOther);
 
-	int32 GetPendingCommandsCount() const { return PendingCommands.Num(); }
+	bool HasPendingCommands() const { return PendingCommands.Num() > 0 || EntitiesToDestroy.Num() > 0; }
 
 private:
 	FInstancedStructStream PendingCommands;
@@ -365,4 +498,7 @@ private:
 	FCriticalSection AppendingCommandsCS;
 
 	TArray<FMassEntityHandle> EntitiesToDestroy;
+
+	TMap<const UScriptStruct*, TArray<FMassEntityHandle>> FragmentsToAdd;
+	TMap<const UScriptStruct*, TArray<FMassEntityHandle>> FragmentsToRemove;
 };

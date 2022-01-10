@@ -7,5 +7,5 @@
 
 void UMassSmartObjectUserTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
-	BuildContext.AddFragmentWithDefaultInitializer<FMassSmartObjectUserFragment>();
+	BuildContext.AddFragment<FMassSmartObjectUserFragment>();
 }

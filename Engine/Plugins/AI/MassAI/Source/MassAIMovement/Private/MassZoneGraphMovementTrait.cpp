@@ -19,13 +19,13 @@ void UMassZoneGraphMovementTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 		return;
 	}
 
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_AgentRadius>();
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_Transform>();
-	BuildContext.AddFragmentWithDefaultInitializer<FMassVelocityFragment>();
+	BuildContext.AddFragment<FDataFragment_AgentRadius>();
+	BuildContext.AddFragment<FDataFragment_Transform>();
+	BuildContext.AddFragment<FMassVelocityFragment>();
 
 	BuildContext.AddFragment<FMassMoveTargetFragment>();
 	
-	BuildContext.AddFragmentWithDefaultInitializer<FMassZoneGraphLaneLocationFragment>();
+	BuildContext.AddFragment<FMassZoneGraphLaneLocationFragment>();
 	
 	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
 	check(Settings);

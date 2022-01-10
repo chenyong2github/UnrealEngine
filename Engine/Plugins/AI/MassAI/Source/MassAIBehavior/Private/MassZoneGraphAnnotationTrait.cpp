@@ -7,6 +7,6 @@
 
 void UMassZoneGraphAnnotationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
-	BuildContext.AddFragmentWithDefaultInitializer<FMassZoneGraphAnnotationTagsFragment>();
+	BuildContext.AddFragment<FMassZoneGraphAnnotationTagsFragment>();
 	BuildContext.AddChunkFragment<FMassZoneGraphAnnotationVariableTickChunkFragment>();
 }

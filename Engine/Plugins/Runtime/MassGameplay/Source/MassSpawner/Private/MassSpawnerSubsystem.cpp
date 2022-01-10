@@ -10,53 +10,11 @@
 #include "InstancedStruct.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassSpawner.h"
-#include "MassTranslator.h"
-#include "MassTranslatorRegistry.h"
+#include "MassObserverProcessor.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "MassSimulationSubsystem.h"
+#include "MassProcessor.h"
 #include "MassEntityUtils.h"
-
-
-namespace UE::Mass::SpawnerSubsystem 
-{
-
-	bool RunFragmentDestructors(const FArchetypeChunkCollection& Chunks, UMassSpawnerSubsystem& SpawnerSubSystem, UMassEntitySubsystem& EntitySystem)
-	{
-		const FArchetypeHandle ArchetypeHandle = Chunks.GetArchetype();
-		// @todo this is a temporary measure to skip entities we've destroyed without the
-		// UMassSpawnerSubsystem::DestroyEntities' caller knowledge. Should be removed once that's addressed.
-		if (ArchetypeHandle.IsValid() == false)
-		{
-			return false;
-		}
-
-		// @Todo: should queue up the entity destruction and apply in batch
-		const UMassTranslatorRegistry& Registry = UMassTranslatorRegistry::Get();
-		TArray<const UMassProcessor*> Destructors;
-
-		EntitySystem.ForEachArchetypeFragmentType(ArchetypeHandle, [&Registry, &Destructors](const UScriptStruct* FragmentType)
-		{
-			check(FragmentType);
-			const UMassFragmentDestructor* Destructor = Registry.GetFragmentDestructor(*FragmentType);
-			if (Destructor)
-			{
-				Destructors.AddUnique(Destructor);
-			}
-		});
-
-		if (Destructors.Num())
-		{
-			FMassRuntimePipeline DestructionPipeline;
-			DestructionPipeline.InitializeFromArray(Destructors, SpawnerSubSystem);
-
-			FMassProcessingContext ProcessingContext(EntitySystem, /*TimeDelta=*/0.0f);
-
-			UE::Mass::Executor::RunSparse(DestructionPipeline, ProcessingContext, Chunks);
-		}
-
-		return Destructors.Num() > 0;
-	}
-} // namespace UE::Mass::SpawnerSubsystem
 
 //----------------------------------------------------------------------//
 //  UMassSpawnerSubsystem
@@ -68,8 +26,9 @@ void UMassSpawnerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// making sure UMassSimulationSubsystem gets created before the MassActorManager
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 
-	SimulationSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(GetWorld());
-	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
+	UWorld* World = GetWorld();
+	SimulationSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(World);
+	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 	check(EntitySystem);
 }
 
@@ -156,61 +115,13 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 	UWorld* World = GetWorld();
 	check(World);
 
-	// Run deinitializers and destructor processors on all entities.
-	const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance->FindTemplateFromTemplateID(TemplateID);
-	if (EntityTemplate)
+
+	TArray<FArchetypeChunkCollection> ChunkCollections;
+	UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
+
+	for (const FArchetypeChunkCollection& Chunks : ChunkCollections)
 	{
-		// There's no certainty all Entities still belong to the original archetype, the MutableEntityTemplate.GetArchetype().
-		// We need to figure out the separate, per-archetype sparse chunks
-		TArray<FArchetypeChunkCollection> ChunkCollections;
-		UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
-
-		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
-
-		// Run destructors
-		bool bDestructorsRun = false;
-		for (const FArchetypeChunkCollection& Chunks : ChunkCollections)
-		{
-			bDestructorsRun = UE::Mass::SpawnerSubsystem::RunFragmentDestructors(Chunks, *this, *EntitySystem) || bDestructorsRun;
-		}
-
-		// if any destructors were called it's possible the entities changed archetypes. Need to 
-		// recalculate the chunks
-		if (bDestructorsRun)
-		{
-			ChunkCollections.Reset();
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
-		}
-		
-		// Run template deinitializers
-		FMassEntityTemplate& MutableEntityTemplate = const_cast<FMassEntityTemplate&>(*EntityTemplate);
-		if (MutableEntityTemplate.GetDeinitializationPipeline().Processors.Num())
-		{
-			for (const FArchetypeChunkCollection& Chunks : ChunkCollections)
-			{
-				if (Chunks.GetArchetype().IsValid())
-				{
-					UE::Mass::Executor::RunSparse(MutableEntityTemplate.GetMutableDeinitializationPipeline(), ProcessingContext, Chunks);
-				}
-			}
-		}
-
-		// if any deinitializer were called it's possible the entities changed archetypes. Need to 
-		// recalculate the chunks
-		if (MutableEntityTemplate.GetDeinitializationPipeline().Processors.Num())
-		{
-			ChunkCollections.Reset();
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
-		}
-
-		for (const FArchetypeChunkCollection& Chunks : ChunkCollections)
-		{
-			EntitySystem->BatchDestroyEntityChunks(Chunks);
-		}
-	}
-	else
-	{
-		EntitySystem->BatchDestroyEntities(Entities);
+		EntitySystem->BatchDestroyEntityChunks(Chunks);
 	}
 }
 
@@ -244,19 +155,25 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	check(EntityTemplate.GetArchetype().IsValid());
 	UE_VLOG(this, LogMassSpawner, Log, TEXT("Spawning with EntityTemplate:\n%s"), *EntityTemplate.DebugGetDescription(EntitySystem));
 
+	if (NumToSpawn <= 0)
+	{
+		UE_VLOG(this, LogMassSpawner, Warning, TEXT("%s: Trying to spawn %d entities. Ignoring."), ANSI_TO_TCHAR(__FUNCTION__), NumToSpawn);
+		return;
+	}
+
 	//TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassSpawnerSubsystem DoSpawning");
 
 	// 1. Create required number of entities with EntityTemplate.Archetype
 	// 2. Copy data from FMassEntityTemplate.Fragments.
 	//		a. @todo, could be done as part of creation?
-	// 3. Run all EntityTemplate.Translators to configure remaining values (i.e. not set via FMassEntityTemplate.Fragments).
+	// 3. Run SpawlLocationInitializer if set
+	// 4. "OnEntitiesCreated" notifies will be sent out once the CreationContext gets destroyed (via its destructor).
 
 	TArray<FMassEntityHandle> SpawnedEntities;
-	EntitySystem->BatchCreateEntities(EntityTemplate.GetArchetype(), NumToSpawn, SpawnedEntities);
+	TSharedRef<UMassEntitySubsystem::FEntityCreationContext> CreationContext = EntitySystem->BatchCreateEntities(EntityTemplate.GetArchetype(), NumToSpawn, SpawnedEntities);
 
 	TConstArrayView<FInstancedStruct> FragmentInstances = EntityTemplate.GetInitialFragmentValues();
-	const FArchetypeChunkCollection ChunkCollection(EntityTemplate.GetArchetype(), SpawnedEntities);
-	EntitySystem->BatchSetEntityFragmentsValues(ChunkCollection, FragmentInstances);
+	EntitySystem->BatchSetEntityFragmentsValues(CreationContext->GetChunkCollection(), FragmentInstances);
 	
 	UMassProcessor* SpawnLocationInitializer = SpawnData.IsValid() ? GetSpawnLocationInitializer(InitializerClass) : nullptr;
 
@@ -264,15 +181,7 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	{
 		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
 		ProcessingContext.AuxData = SpawnData;
-		UE::Mass::Executor::RunProcessorsView(MakeArrayView(&SpawnLocationInitializer, 1), ProcessingContext, &ChunkCollection);
-	}
-
-	if (EntityTemplate.GetInitializationPipeline().Processors.Num())
-	{
-		FMassEntityTemplate& MutableEntityTemplate = const_cast<FMassEntityTemplate&>(EntityTemplate);
-
-		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
-		UE::Mass::Executor::RunSparse(MutableEntityTemplate.GetMutableInitializationPipeline(), ProcessingContext, ChunkCollection);
+		UE::Mass::Executor::RunProcessorsView(MakeArrayView(&SpawnLocationInitializer, 1), ProcessingContext, &CreationContext->GetChunkCollection());
 	}
 
 	OutEntities.Append(MoveTemp(SpawnedEntities));

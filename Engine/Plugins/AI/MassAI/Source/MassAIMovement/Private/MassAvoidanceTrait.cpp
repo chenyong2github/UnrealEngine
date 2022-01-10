@@ -11,10 +11,10 @@
 void UMassAvoidanceTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
 	// UMassAvoidanceProcessor
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_AgentRadius>(); // From UMassProcessor_AgentMovement
-	BuildContext.AddFragmentWithDefaultInitializer<FMassNavigationEdgesFragment>();
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_Transform>(); // From UMassProcessor_Movement
-	BuildContext.AddFragmentWithDefaultInitializer<FMassVelocityFragment>(); // From UMassProcessor_Movement
-	BuildContext.AddFragmentWithDefaultInitializer<FMassSteeringFragment>();
-	BuildContext.AddFragmentWithDefaultInitializer<FMassMoveTargetFragment>();
+	BuildContext.AddFragment<FDataFragment_AgentRadius>(); // From UMassProcessor_AgentMovement
+	BuildContext.AddFragment<FMassNavigationEdgesFragment>();
+	BuildContext.AddFragment<FDataFragment_Transform>(); // From UMassProcessor_Movement
+	BuildContext.AddFragment<FMassVelocityFragment>(); // From UMassProcessor_Movement
+	BuildContext.AddFragment<FMassSteeringFragment>();
+	BuildContext.AddFragment<FMassMoveTargetFragment>();
 }

@@ -14,7 +14,7 @@ void UMassAssortedFragmentsTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 			CA_ASSUME(Type);
 			if (Type->IsChildOf(FMassFragment::StaticStruct()))
 			{
-				BuildContext.AddFragmentWithDefaultInitializer(Fragment);
+				BuildContext.AddFragment(Fragment);
 			}
 			else if (Type->IsChildOf(FMassTag::StaticStruct()))
 			{
