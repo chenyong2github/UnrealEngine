@@ -226,7 +226,7 @@ void FPackageData::UpdateRequestData(const TConstArrayView<const ITargetPlatform
 	}
 	else if (InRequestedPlatforms.Num() > 0)
 	{
-		SetRequestData(InRequestedPlatforms, bInIsUrgent, MoveTemp(InCompletionCallback), MoveTemp(Instigator));
+		SetRequestData(InRequestedPlatforms, bInIsUrgent, MoveTemp(InCompletionCallback), MoveTemp(InInstigator));
 		SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
 	}
 }
