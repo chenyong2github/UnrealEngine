@@ -622,6 +622,9 @@ void UStaticMeshComponent::NotifyIfStaticMeshChanged()
 	{
 		KnownStaticMesh = StaticMesh;
 		FObjectCacheEventSink::NotifyStaticMeshChanged_Concurrent(this);
+
+		// Update this component streaming data.
+		IStreamingManager::Get().NotifyPrimitiveUpdated(this);
 	}
 #endif
 }
