@@ -3,9 +3,7 @@
 #pragma once
 
 #include "MassProcessor.h"
-#include "MassCommonTypes.h"
 #include "MassEntityTypes.h"
-#include "MassObserverProcessor.h"
 #include "MassTranslator.generated.h"
 
 

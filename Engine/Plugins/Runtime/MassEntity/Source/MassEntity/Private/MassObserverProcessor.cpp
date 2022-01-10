@@ -34,9 +34,9 @@ void UMassFragmentInitializer::Register()
 }
 
 //----------------------------------------------------------------------//
-//  UMassFragmentDestructor
+//  UMassFragmentDeinitializer
 //----------------------------------------------------------------------//
-void UMassFragmentDestructor::Register()
+void UMassFragmentDeinitializer::Register()
 {
 	check(FragmentType);
 	UMassObserverRegistry::GetMutable().RegisterFragmentDeinitializer(*FragmentType, GetClass());

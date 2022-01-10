@@ -4,6 +4,7 @@
 
 #include "MassCommonFragments.h"
 #include "MassTranslator.h"
+#include "MassObserverProcessor.h"
 #include "MassCharacterMovementTranslators.generated.h"
 
 class UCharacterMovementComponent;

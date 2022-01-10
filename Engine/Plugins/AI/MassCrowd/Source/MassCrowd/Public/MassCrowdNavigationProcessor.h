@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassSignalProcessorBase.h"
-#include "MassTranslator.h"
+#include "MassObserverProcessor.h"
 #include "NavigationProcessor.h"
 #include "MassCrowdNavigationProcessor.generated.h"
 
@@ -31,7 +31,7 @@ protected:
 
 /** Processors that cleans up the lane tracking on entity destruction. */
 UCLASS()
-class MASSCROWD_API UMassCrowdLaneTrackingDestructor : public UMassFragmentDestructor
+class MASSCROWD_API UMassCrowdLaneTrackingDestructor : public UMassFragmentDeinitializer
 {
 	GENERATED_BODY()
 

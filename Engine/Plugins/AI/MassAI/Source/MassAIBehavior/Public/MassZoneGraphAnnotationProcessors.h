@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassSignalProcessorBase.h"
-#include "MassTranslator.h"
+#include "MassObserverProcessor.h"
 #include "MassZoneGraphAnnotationProcessors.generated.h"
 
 class UMassSignalSubsystem;

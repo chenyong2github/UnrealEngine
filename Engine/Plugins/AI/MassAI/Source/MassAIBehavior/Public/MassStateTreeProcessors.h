@@ -4,7 +4,7 @@
 
 #include "MassSignals/Public/MassSignalProcessorBase.h"
 #include "MassStateTreeFragments.h"
-#include "MassTranslator.h"
+#include "MassObserverProcessor.h"
 #include "MassLODTypes.h"
 #include "MassStateTreeProcessors.generated.h"
 
@@ -14,7 +14,7 @@ struct FMassStateTreeExecutionContext;
  * Processor to stop and uninitialize StateTrees on entities.
  */
 UCLASS()
-class MASSAIBEHAVIOR_API UMassStateTreeFragmentDestructor : public UMassFragmentDestructor
+class MASSAIBEHAVIOR_API UMassStateTreeFragmentDestructor : public UMassFragmentDeinitializer
 {
 	GENERATED_BODY()
 

@@ -41,7 +41,7 @@ protected:
 };
 
 UCLASS(abstract)
-class MASSENTITY_API UMassFragmentDestructor : public UMassObserverProcessor
+class MASSENTITY_API UMassFragmentDeinitializer : public UMassObserverProcessor
 {
 	GENERATED_BODY()
 
