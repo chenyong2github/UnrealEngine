@@ -183,7 +183,7 @@ public:
 
 			for (const FRawInfo::FStreamInfo& StreamInfo : RawInfo.StreamsInfo)
 			{
-				if (!StreamInfo.bIsActive)
+				if (StreamInfo.ConnectionState != EStreamConnectionState::Active)
 				{
 					continue;
 				}
