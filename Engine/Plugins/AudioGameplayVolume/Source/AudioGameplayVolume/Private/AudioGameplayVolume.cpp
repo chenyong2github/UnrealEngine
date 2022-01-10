@@ -143,6 +143,11 @@ void AAudioGameplayVolume::AddProxy() const
 	if (UAudioGameplayVolumeSubsystem* VolumeSubsystem = GetSubsystem())
 	{
 		VolumeSubsystem->AddVolumeComponent(AGVComponent);
+		if (AGVComponent)
+		{
+			AGVComponent->OnProxyEnter.AddUniqueDynamic(this, &AAudioGameplayVolume::OnListenerEnter);
+			AGVComponent->OnProxyExit.AddUniqueDynamic(this, &AAudioGameplayVolume::OnListenerExit);
+		}
 	}
 }
 
@@ -151,6 +156,11 @@ void AAudioGameplayVolume::RemoveProxy() const
 	if (UAudioGameplayVolumeSubsystem* VolumeSubsystem = GetSubsystem())
 	{
 		VolumeSubsystem->RemoveVolumeComponent(AGVComponent);
+		if (AGVComponent)
+		{
+			AGVComponent->OnProxyEnter.RemoveAll(this);
+			AGVComponent->OnProxyExit.RemoveAll(this);
+		}
 	}
 }
 
