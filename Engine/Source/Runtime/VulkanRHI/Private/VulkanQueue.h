@@ -58,6 +58,11 @@ public:
 		return SubmitCounter;
 	}
 
+	inline VkPipelineStageFlags GetSupportedStageBits()
+	{
+		return SupportedStages;
+	}
+
 private:
 	VkQueue Queue;
 	uint32 FamilyIndex;
@@ -68,6 +73,8 @@ private:
 	FVulkanCmdBuffer* LastSubmittedCmdBuffer;
 	uint64 LastSubmittedCmdBufferFenceCounter;
 	uint64 SubmitCounter;
+	VkPipelineStageFlags SupportedStages;
 
 	void UpdateLastSubmittedCommandBuffer(FVulkanCmdBuffer* CmdBuffer);
+	void FillSupportedStageBits();
 };

@@ -560,7 +560,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 	const ERHIPipeline SrcPipelines = CreateInfo.SrcPipelines;
 	const ERHIPipeline DstPipelines = CreateInfo.DstPipelines;
 
-	checkf(FMath::IsPowerOfTwo((uint32)SrcPipelines) && FMath::IsPowerOfTwo((uint32)DstPipelines), TEXT("Support for multi-pipe resources is not yet implemented."));
+	//checkf(FMath::IsPowerOfTwo((uint32)SrcPipelines) && FMath::IsPowerOfTwo((uint32)DstPipelines), TEXT("Support for multi-pipe resources is not yet implemented."));
 
 	FVulkanPipelineBarrier* Data = new (Transition->GetPrivateData<FVulkanPipelineBarrier>()) FVulkanPipelineBarrier;
 	Data->SrcPipelines = SrcPipelines;
@@ -571,8 +571,8 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 	{
 		Data->Semaphore = new VulkanRHI::FSemaphore(*Device);
 
-		uint32 GfxQueueIndex = Device->GetGraphicsQueue()->GetFamilyIndex();
-		uint32 ComputeQueueIndex = Device->GetComputeQueue()->GetFamilyIndex();
+		const uint32 GfxQueueIndex = Device->GetGraphicsQueue()->GetFamilyIndex();
+		const uint32 ComputeQueueIndex = Device->GetComputeQueue()->GetFamilyIndex();
 
 		if (SrcPipelines == ERHIPipeline::Graphics)
 		{
@@ -769,17 +769,17 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 			}
 		}
 
-		// In case of async compute, override the stage and access flags computed above, since only the compute shader stage is relevant.
+		// In case of async compute, override the stage and access flags computed above, since only a subset of stages is relevant.
 		if (SrcPipelines == ERHIPipeline::AsyncCompute)
 		{
-			SrcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+			SrcStageMask = SrcStageMask & Device->GetComputeQueue()->GetSupportedStageBits();
 			SrcAccessFlags = SrcAccessFlags & (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
 		}
 
 		if (DstPipelines == ERHIPipeline::AsyncCompute)
 		{
-			DstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-			DstAccessFlags = SrcAccessFlags & (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
+			DstStageMask = DstStageMask & Device->GetComputeQueue()->GetSupportedStageBits();
+			DstAccessFlags = DstAccessFlags & (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
 		}
 
 
@@ -1052,6 +1052,11 @@ void FVulkanCommandListContext::RHIBeginTransitions(TArrayView<const FRHITransit
 			// We don't update the image layout here. That will be done in RHIEndTransitions.
 		}
 
+		if (EnumHasAnyFlags(Data->SrcPipelines, ERHIPipeline::AsyncCompute))
+		{
+			RealSrcStageMask = RealSrcStageMask & Queue->GetSupportedStageBits();
+		}
+
 		VulkanRHI::vkCmdPipelineBarrier(CmdBuffer->GetHandle(), RealSrcStageMask, RealDstStageMask, 0, 0, nullptr, RealBufferBarriers.Num(), RealBufferBarriers.GetData(), RealImageBarriers.Num(), RealImageBarriers.GetData());
 
 		check(Data->Semaphore);
@@ -1122,11 +1127,19 @@ void FVulkanCommandListContext::RHIEndTransitions(TArrayView<const FRHITransitio
 
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
 
+	const ERHIPipeline CurrentPipeline = Device->IsRealAsyncComputeContext(this) ? ERHIPipeline::AsyncCompute : ERHIPipeline::Graphics;
+
 	bool bSeenWaitSemaphore = false;
 	for (const FRHITransition* Transition : Transitions)
 	{
 		const FVulkanPipelineBarrier* Data = Transition->GetPrivateData<FVulkanPipelineBarrier>();
 		if (Data->Semaphore == nullptr)
+		{
+			continue;
+		}
+
+		// If the source matches our current queue, we don't need a semaphore (avoid unnecessary semaphores when DstPipelines is ERHIPipeline::All)
+		if (EnumHasAllFlags(Data->DstPipelines, Data->SrcPipelines) && (Data->SrcPipelines == CurrentPipeline))
 		{
 			continue;
 		}
@@ -1270,6 +1283,11 @@ void FVulkanCommandListContext::RHIEndTransitions(TArrayView<const FRHITransitio
 		if ((!RealMemoryBarrier.bHasMemoryBarrier) && (RealBufferBarriers.Num() == 0) && (RealImageBarriers.Num() == 0))
 		{
 			continue;
+		}
+
+		if (EnumHasAnyFlags(Data->DstPipelines, ERHIPipeline::AsyncCompute))
+		{
+			RealDstStageMask = RealDstStageMask & Queue->GetSupportedStageBits();
 		}
 
 		VulkanRHI::vkCmdPipelineBarrier(CmdBuffer->GetHandle(), RealSrcStageMask, RealDstStageMask, 0, RealMemoryBarrier.bHasMemoryBarrier ? 1 : 0, &RealMemoryBarrier.MemoryBarrier, RealBufferBarriers.Num(), RealBufferBarriers.GetData(), RealImageBarriers.Num(), RealImageBarriers.GetData());
