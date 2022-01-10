@@ -76,7 +76,7 @@ namespace UnrealGameSync
 			this.ToolUpdateMonitor = ToolUpdateMonitor;
 			this.Logger = Logger;
 
-			GlobalSettings.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath);
+			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath);
 			bInitialUnstable = bUnstable;
 
 			InitialAutomationPortNumber = AutomationServer.GetPortNumber();
@@ -207,7 +207,7 @@ namespace UnrealGameSync
 				}
 
 				bRestartUnstable = UseUnstableBuildCheckBox.Checked;
-				GlobalSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
+				GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
 				AutomationServer.SetPortNumber(AutomationPortNumber);
 			}
 

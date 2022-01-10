@@ -70,7 +70,7 @@ namespace UnrealGameSync
 			string? ServerAndPort = null;
 			string? UserName = null;
 			string? BaseUpdatePath = null;
-			GlobalSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath);
+			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath);
 
 			List<string> RemainingArgs = new List<string>(Args);
 
@@ -143,7 +143,7 @@ namespace UnrealGameSync
 						Logger.LogInformation("Missing server settings; finding defaults.");
 						ServerAndPort ??= PerforceSettings.Default.ServerAndPort;
 						UserName ??= PerforceSettings.Default.UserName;
-						GlobalSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
+						GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
 					}
 
 					ILogger TelemetryLogger = LoggerProvider.CreateLogger("Telemetry");

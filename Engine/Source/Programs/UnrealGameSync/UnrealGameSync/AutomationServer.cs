@@ -190,7 +190,7 @@ namespace UnrealGameSync
 		{
 			if(PortNumber <= 0)
 			{
-				GlobalSettings.DeleteRegistryKey(Registry.CurrentUser, "Software\\Epic Games\\UnrealGameSync", "AutomationPort");
+				GlobalPerforceSettings.DeleteRegistryKey(Registry.CurrentUser, "Software\\Epic Games\\UnrealGameSync", "AutomationPort");
 			}
 			else
 			{

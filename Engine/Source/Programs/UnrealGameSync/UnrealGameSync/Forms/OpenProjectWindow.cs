@@ -35,7 +35,7 @@ namespace UnrealGameSync
 			InitializeComponent();
 
 			this.Settings = Settings;
-			this.DetectedProjectSettings = null;
+			this.OpenProjectInfo = null;
 			this.DefaultSettings = DefaultSettings;
 			this.ServiceProvider = ServiceProvider;
 
@@ -95,7 +95,7 @@ namespace UnrealGameSync
 			OpenProjectWindow Window = new OpenProjectWindow(Project, Settings, DefaultPerforceSettings, ServiceProvider);
 			if(Window.ShowDialog(Owner) == DialogResult.OK)
 			{
-				return Window.DetectedProjectSettings;
+				return Window.OpenProjectInfo;
 			}
 			else
 			{
@@ -289,7 +289,7 @@ namespace UnrealGameSync
 				ModalTask<OpenProjectInfo>? NewOpenProjectInfo = PerforceModalTask.Execute(this, "Opening project", "Opening project, please wait...", DefaultSettings, (x, y) => DetectSettingsAsync(x, SelectedProject, Settings, Logger, y), Logger);
 				if (NewOpenProjectInfo != null && NewOpenProjectInfo.Succeeded)
 				{
-					DetectedProjectSettings = NewOpenProjectInfo.Result;
+					OpenProjectInfo = NewOpenProjectInfo.Result;
 					DialogResult = DialogResult.OK;
 					Close();
 				}

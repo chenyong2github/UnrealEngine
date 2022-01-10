@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -11,10 +10,8 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
@@ -433,7 +430,7 @@ namespace UnrealGameSync
 		public HashSet<string> FilterBadges { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 	}
 
-	public class UserSettings
+	public class UserSettings : GlobalSettingsFile
 	{
 		/// <summary>
 		/// Enum that decribes which robomerge changes to show
@@ -466,10 +463,6 @@ namespace UnrealGameSync
 		public UserSelectedProjectSettings? LastProject;
 		public List<UserSelectedProjectSettings> OpenProjects;
 		public List<UserSelectedProjectSettings> RecentProjects;
-		public string[] SyncView;
-		public Dictionary<Guid, bool> SyncCategories;
-		public bool bSyncAllProjects;
-		public bool bIncludeAllProjectsInSolution;
 		public LatestChangeType SyncType;
 		public BuildConfig CompiledEditorBuildConfig; // NB: This assumes not using precompiled editor. See CurrentBuildConfig.
 		public TabLabels TabLabels;
@@ -544,19 +537,35 @@ namespace UnrealGameSync
 			return Projects;
 		}
 
-		public UserSettings(FileReference InFileName, ILogger Logger)
-			: this(InFileName, TryLoad(InFileName, Logger))
+		public static UserSettings Create(DirectoryReference SettingsDir, ILogger Logger)
 		{
+			return Create(FileReference.Combine(SettingsDir, "UnrealGameSync.ini"), FileReference.Combine(SettingsDir, "Global.json"), Logger);
 		}
 
-		static ConfigFile TryLoad(FileReference FileName, ILogger Logger)
+		public static UserSettings Create(FileReference FileName, FileReference CoreFileName, ILogger Logger)
 		{
 			ConfigFile ConfigFile = new ConfigFile();
 			ConfigFile.TryLoad(FileName, Logger);
-			return ConfigFile;
+
+			GlobalSettings? CoreSettingsData;
+			if(FileReference.Exists(CoreFileName))
+			{
+				CoreSettingsData = Utility.LoadJson<GlobalSettings>(CoreFileName);
+			}
+			else
+			{
+				CoreSettingsData = new GlobalSettings();
+				CoreSettingsData.SyncView = ConfigFile.GetValues("General.SyncFilter", new string[0]);
+				CoreSettingsData.SyncCategories = GetCategorySettings(ConfigFile.FindSection("General"), "SyncIncludedCategories", "SyncExcludedCategories");
+				CoreSettingsData.bSyncAllProjects = ConfigFile.GetValue("General.SyncAllProjects", false);
+				CoreSettingsData.bIncludeAllProjectsInSolution = ConfigFile.GetValue("General.IncludeAllProjectsInSolution", false);
+			}
+
+			return new UserSettings(FileName, ConfigFile, CoreFileName, CoreSettingsData);
 		}
 
-		public UserSettings(FileReference InFileName, ConfigFile InConfigFile)
+		public UserSettings(FileReference InFileName, ConfigFile InConfigFile, FileReference InCoreFileName, GlobalSettings InCoreSettingsData)
+			: base(InCoreFileName, InCoreSettingsData)
 		{
 			this.FileName = InFileName;
 			this.ConfigFile = InConfigFile;
@@ -609,11 +618,6 @@ namespace UnrealGameSync
 
 			OpenProjects = ReadProjectList("General.OpenProjects", "General.OpenProjectFileNames");
 			RecentProjects = ReadProjectList("General.RecentProjects", "General.OtherProjectFileNames");
-			SyncView = ConfigFile.GetValues("General.SyncFilter", new string[0]);
-			SyncCategories = GetCategorySettings(ConfigFile.FindSection("General"), "SyncIncludedCategories", "SyncExcludedCategories");
-
-			bSyncAllProjects = ConfigFile.GetValue("General.SyncAllProjects", false);
-			bIncludeAllProjectsInSolution = ConfigFile.GetValue("General.IncludeAllProjectsInSolution", false);
 			if(!Enum.TryParse(ConfigFile.GetValue("General.SyncType", ""), out SyncType))
 			{
 				SyncType = LatestChangeType.Good;
@@ -810,59 +814,8 @@ namespace UnrealGameSync
 			return ConfigDir;
 		}
 
-		public UserWorkspaceSettings FindOrAddWorkspaceSettings(DirectoryReference RootDir, string? ServerAndPort, string? UserName, string ClientName, string BranchPath, string ProjectPath)
+		protected override void ImportWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath, UserWorkspaceState CurrentWorkspace)
 		{
-			ProjectInfo.ValidateBranchPath(BranchPath);
-			ProjectInfo.ValidateProjectPath(ProjectPath);
-
-			UserWorkspaceSettings? Settings;
-			if (!WorkspaceDirToSettings.TryGetValue(RootDir, out Settings))
-			{
-				if (!UserWorkspaceSettings.TryLoad(RootDir, out Settings))
-				{
-					Settings = ImportWorkspaceSettings(RootDir, ClientName, BranchPath);
-				}
-				WorkspaceDirToSettings[RootDir] = Settings;
-			}
-
-			Settings.Init(ServerAndPort, UserName, ClientName, BranchPath, ProjectPath);
-			Settings.Save();
-
-			return Settings;
-		}
-
-		public UserWorkspaceState FindOrAddWorkspaceState(ProjectInfo ProjectInfo, UserWorkspaceSettings Settings)
-		{
-			UserWorkspaceState State = FindOrAddWorkspaceState(ProjectInfo.LocalRootPath, ProjectInfo.ClientName, ProjectInfo.BranchPath);
-			if (!State.IsValid(ProjectInfo))
-			{
-				State = new UserWorkspaceState();
-			}
-			State.UpdateCachedProjectInfo(ProjectInfo, Settings.LastModifiedTimeUtc);
-			return State;
-		}
-
-		public UserWorkspaceState FindOrAddWorkspaceState(UserWorkspaceSettings Settings)
-		{
-			return FindOrAddWorkspaceState(Settings.RootDir, Settings.ClientName, Settings.BranchPath);
-		}
-
-		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath)
-		{
-			UserWorkspaceState? State;
-			if (!UserWorkspaceState.TryLoad(RootDir, out State))
-			{
-				State = ImportWorkspaceState(RootDir, ClientName, BranchPath);
-				State.Save();
-			}
-			return State;
-		}
-
-		UserWorkspaceState ImportWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath)
-		{
-			UserWorkspaceState CurrentWorkspace = new UserWorkspaceState();
-			CurrentWorkspace.RootDir = RootDir;
-
 			// Read the workspace settings
 			ConfigSection WorkspaceSection = ConfigFile.FindSection(ClientName + BranchPath);
 			if(WorkspaceSection == null)
@@ -959,24 +912,12 @@ namespace UnrealGameSync
 					}
 				}
 			}
-
-			return CurrentWorkspace;
 		}
 
-		UserWorkspaceSettings ImportWorkspaceSettings(DirectoryReference RootDir, string ClientName, string BranchPath)
+		protected override void ImportWorkspaceSettings(DirectoryReference RootDir, string ClientName, string BranchPath, UserWorkspaceSettings CurrentWorkspace)
 		{
-			UserWorkspaceSettings CurrentWorkspace = new UserWorkspaceSettings();
-			CurrentWorkspace.RootDir = RootDir;
-
 			ConfigSection WorkspaceSection = ConfigFile.FindSection(ClientName + BranchPath);
-			if (WorkspaceSection == null)
-			{
-				CurrentWorkspace.SyncView = new string[0];
-				CurrentWorkspace.SyncCategories = new List<SyncCategory>();
-				CurrentWorkspace.bSyncAllProjects = null;
-				CurrentWorkspace.bIncludeAllProjectsInSolution = null;
-			}
-			else
+			if (WorkspaceSection != null)
 			{
 				CurrentWorkspace.SyncView = WorkspaceSection.GetValues("SyncFilter", new string[0]);
 				CurrentWorkspace.SyncCategories = GetCategorySettings(WorkspaceSection, "SyncIncludedCategories", "SyncExcludedCategories").Select(x => new SyncCategory { Id = x.Key, Enable = x.Value }).ToList();
@@ -987,11 +928,9 @@ namespace UnrealGameSync
 				int IncludeAllProjectsInSolution = WorkspaceSection.GetValue("IncludeAllProjectsInSolution", -1);
 				CurrentWorkspace.bIncludeAllProjectsInSolution = (IncludeAllProjectsInSolution == 0) ? (bool?)false : (IncludeAllProjectsInSolution == 1) ? (bool?)true : (bool?)null;
 			}
-
-			return CurrentWorkspace;
 		}
 
-		public UserProjectSettings FindOrAddProjectSettings(ProjectInfo ProjectInfo)
+		public override UserProjectSettings FindOrAddProjectSettings(ProjectInfo ProjectInfo)
 		{
 			string ClientProjectFileName = Regex.Replace(ProjectInfo.ClientFileName, "^//[^/]+/", "");
 
@@ -1013,8 +952,10 @@ namespace UnrealGameSync
 			return CurrentProject;
 		}
 
-		public void Save()
+		public override void Save()
 		{
+			base.Save();
+
 			// General settings
 			ConfigSection GeneralSection = ConfigFile.FindOrAddSection("General");
 			GeneralSection.Clear();
@@ -1038,10 +979,6 @@ namespace UnrealGameSync
 			GeneralSection.SetValues("EnabledTools", EnabledTools);
 			GeneralSection.SetValue("FilterIndex", FilterIndex);
 			GeneralSection.SetValues("RecentProjects", RecentProjects.Select(x => x.ToConfigEntry()).ToArray());
-			GeneralSection.SetValues("SyncFilter", SyncView);
-			SetCategorySettings(GeneralSection, "SyncIncludedCategories", "SyncExcludedCategories", SyncCategories);
-			GeneralSection.SetValue("SyncAllProjects", bSyncAllProjects);
-			GeneralSection.SetValue("IncludeAllProjectsInSolution", bIncludeAllProjectsInSolution);
 			GeneralSection.SetValue("SyncType", SyncType.ToString());
 
 			// Build configuration
@@ -1145,63 +1082,6 @@ namespace UnrealGameSync
 
 			// Save the file
 			ConfigFile.Save(FileName);
-		}
-
-		public static string[] GetCombinedSyncFilter(Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToFilter, string[] GlobalView, Dictionary<Guid, bool> GlobalCategoryIdToSetting, string[] WorkspaceView, Dictionary<Guid, bool> WorkspaceCategoryIdToSetting)
-		{
-			List<string> Lines = new List<string>();
-			foreach(string ViewLine in Enumerable.Concat(GlobalView, WorkspaceView).Select(x => x.Trim()).Where(x => x.Length > 0 && !x.StartsWith(";")))
-			{
-				Lines.Add(ViewLine);
-			}
-
-			HashSet<Guid> Enabled = new HashSet<Guid>();
-			foreach (WorkspaceSyncCategory Filter in UniqueIdToFilter.Values)
-			{
-				bool bEnable = Filter.bEnable;
-
-				bool bGlobalEnable;
-				if (GlobalCategoryIdToSetting.TryGetValue(Filter.UniqueId, out bGlobalEnable))
-				{
-					bEnable = bGlobalEnable;
-				}
-
-				bool bWorkspaceEnable;
-				if (WorkspaceCategoryIdToSetting.TryGetValue(Filter.UniqueId, out bWorkspaceEnable))
-				{
-					bEnable = bWorkspaceEnable;
-				}
-
-				if(bEnable)
-				{
-					EnableFilter(Filter.UniqueId, Enabled, UniqueIdToFilter);
-				}
-			}
-
-			foreach (WorkspaceSyncCategory Filter in UniqueIdToFilter.Values.OrderBy(x => x.Name))
-			{
-				if (!Enabled.Contains(Filter.UniqueId))
-				{
-					Lines.AddRange(Filter.Paths.Select(x => "-" + x.Trim()));
-				}
-			}
-
-			return Lines.ToArray();
-		}
-
-		static void EnableFilter(Guid UniqueId, HashSet<Guid> Enabled, Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToFilter)
-		{
-			if(Enabled.Add(UniqueId))
-			{
-				WorkspaceSyncCategory? Category;
-				if(UniqueIdToFilter.TryGetValue(UniqueId, out Category))
-				{
-					foreach(Guid RequiresUniqueId in Category.Requires)
-					{
-						EnableFilter(RequiresUniqueId, Enabled, UniqueIdToFilter);
-					}
-				}
-			}
 		}
 
 		[return: NotNullIfNotNull("Text")]

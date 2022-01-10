@@ -88,6 +88,8 @@ namespace UnrealGameSync
 		static JsonSerializerOptions GetDefaultJsonSerializerOptions()
 		{
 			JsonSerializerOptions Options = new JsonSerializerOptions();
+			Options.AllowTrailingCommas = true;
+			Options.ReadCommentHandling = JsonCommentHandling.Skip;
 			Options.PropertyNameCaseInsensitive = true;
 			Options.Converters.Add(new JsonStringEnumConverter());
 			return Options;
@@ -117,11 +119,8 @@ namespace UnrealGameSync
 
 		public static T LoadJson<T>(FileReference File)
 		{
-			JsonSerializerOptions Options = new JsonSerializerOptions { AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip };
-			Options.Converters.Add(new JsonStringEnumConverter());
-
 			byte[] Data = FileReference.ReadAllBytes(File);
-			return JsonSerializer.Deserialize<T>(Data, Options);
+			return JsonSerializer.Deserialize<T>(Data, DefaultJsonSerializerOptions);
 		}
 
 		public static void SaveJson<T>(FileReference File, T Object)

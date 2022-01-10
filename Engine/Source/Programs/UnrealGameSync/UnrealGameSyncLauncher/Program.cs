@@ -46,7 +46,7 @@ namespace UnrealGameSyncLauncher
 				string? ServerAndPort = null;
 				string? UserName = null;
 				string? DepotPath = DeploymentSettings.DefaultDepotPath;
-				GlobalSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref DepotPath);
+				GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref DepotPath);
 
 				// If the shift key is held down, immediately show the settings window
 				SettingsWindow.SyncAndRunDelegate SyncAndRunWrapper = (Perforce, DepotParam, bUnstableParam, LogWriter, CancellationToken) => SyncAndRun(Perforce, DepotParam, bUnstableParam, Args, InstanceMutex, LogWriter, CancellationToken);

@@ -93,9 +93,9 @@ namespace UnrealGameSyncCmd
 			public CommandLineArguments Arguments { get; }
 			public ILogger Logger { get; }
 			public ILoggerFactory LoggerFactory { get; }
-			public UserSettings UserSettings { get; }
+			public GlobalSettingsFile UserSettings { get; }
 
-			public CommandContext(CommandLineArguments Arguments, ILogger Logger, ILoggerFactory LoggerFactory, UserSettings UserSettings)
+			public CommandContext(CommandLineArguments Arguments, ILogger Logger, ILoggerFactory LoggerFactory, GlobalSettingsFile UserSettings)
 			{
 				this.Arguments = Arguments;
 				this.Logger = Logger;
@@ -140,7 +140,7 @@ namespace UnrealGameSyncCmd
 		public static async Task<int> Main(string[] RawArgs)
 		{
 			DirectoryReference GlobalConfigFolder;
-			if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				GlobalConfigFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData)!, "UnrealGameSync");
 			}
@@ -152,12 +152,12 @@ namespace UnrealGameSyncCmd
 
 			string LogName;
 			DirectoryReference LogFolder;
-			if(RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 			{
 				LogFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.UserProfile)!, "Library", "Logs", "Unreal Engine", "UnrealGameSync");
 				LogName = "UnrealGameSync-.log";
 			}
-			else if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{
 				LogFolder = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.UserProfile)!;
 				LogName = ".ugs-.log";
@@ -178,13 +178,15 @@ namespace UnrealGameSyncCmd
 			ILogger Logger = LoggerFactory.CreateLogger("Main");
 			try
 			{
-				ConfigFile ConfigFile = new ConfigFile();
+				GlobalSettingsFile Settings;
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					ConfigFile.TryLoad(FileReference.Combine(GlobalConfigFolder, "UnrealGameSync.ini"), Logger);
+					Settings = UserSettings.Create(FileReference.Combine(GlobalConfigFolder, "UnrealGameSync.ini"), FileReference.Combine(GlobalConfigFolder, "Global.json"), Logger);
 				}
-
-				UserSettings UserSettings = new UserSettings(null!, ConfigFile);
+				else
+				{
+					Settings = GlobalSettingsFile.Create(FileReference.Combine(GlobalConfigFolder, "Global.json"));
+				}
 
 				CommandLineArguments Args = new CommandLineArguments(RawArgs);
 
@@ -205,7 +207,7 @@ namespace UnrealGameSyncCmd
 				}
 
 				Command Instance = (Command)Activator.CreateInstance(Command.Type)!;
-				await Instance.ExecuteAsync(new CommandContext(Args, Logger, LoggerFactory, UserSettings));
+				await Instance.ExecuteAsync(new CommandContext(Args, Logger, LoggerFactory, Settings));
 				return 0;
 			}
 			catch (UserErrorException Ex)
@@ -260,7 +262,7 @@ namespace UnrealGameSyncCmd
 			return Settings;
 		}
 
-		public static async Task<UserWorkspaceState> ReadWorkspaceState(IPerforceConnection PerforceClient, UserWorkspaceSettings Settings, UserSettings UserSettings, ILogger Logger)
+		public static async Task<UserWorkspaceState> ReadWorkspaceState(IPerforceConnection PerforceClient, UserWorkspaceSettings Settings, GlobalSettingsFile UserSettings, ILogger Logger)
 		{
 			UserWorkspaceState State = UserSettings.FindOrAddWorkspaceState(Settings);
 			if (State.SettingsTimeUtc != Settings.LastModifiedTimeUtc)
@@ -295,10 +297,10 @@ namespace UnrealGameSyncCmd
 			return ConnectAsync(Settings.ServerAndPort, Settings.UserName, Settings.ClientName, LoggerFactory);
 		}
 
-		static string[] ReadSyncFilter(UserWorkspaceSettings WorkspaceSettings, UserSettings UserSettings, ConfigFile ProjectConfig)
+		static string[] ReadSyncFilter(UserWorkspaceSettings WorkspaceSettings, GlobalSettingsFile UserSettings, ConfigFile ProjectConfig)
 		{
 			Dictionary<Guid, WorkspaceSyncCategory> SyncCategories = ConfigUtils.GetSyncCategories(ProjectConfig);
-			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(SyncCategories, UserSettings.SyncView, UserSettings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
+			string[] CombinedSyncFilter = GlobalSettingsFile.GetCombinedSyncFilter(SyncCategories, UserSettings.Global.SyncView, UserSettings.Global.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategoriesDict);
 
 			ConfigSection PerforceSection = ProjectConfig.FindSection("Perforce");
 			if (PerforceSection != null)

@@ -10,7 +10,7 @@ using System.Windows.Forms;
 
 namespace UnrealGameSync
 {
-	internal class GlobalSettings
+	internal class GlobalPerforceSettings
 	{
 		public static void ReadGlobalPerforceSettings(ref string? ServerAndPort, ref string? UserName, ref string? DepotPath)
 		{

@@ -1132,7 +1132,7 @@ namespace UnrealGameSync
 
 		int TryOpenProject(OpenProjectInfo OpenProjectInfo, int ReplaceTabIdx, OpenProjectOptions Options)
 		{
-			Logger.LogInformation("Trying to open project {Project}", WorkspaceSettings.ProjectInfo.ClientFileName);
+			Logger.LogInformation("Trying to open project {Project}", OpenProjectInfo.ProjectInfo.ClientFileName);
 
 			// Check that none of the other tabs already have it open
 			for(int TabIdx = 0; TabIdx < TabControl.GetTabCount(); TabIdx++)
@@ -1151,9 +1151,9 @@ namespace UnrealGameSync
 							}
 							return TabIdx;
 						}
-						else if(WorkspaceSettings.ProjectInfo.LocalFileName.IsUnderDirectory(Workspace.BranchDirectoryName))
+						else if(OpenProjectInfo.ProjectInfo.LocalFileName.IsUnderDirectory(Workspace.BranchDirectoryName))
 						{
-							if((Options & OpenProjectOptions.Quiet) == 0 && MessageBox.Show(String.Format("{0} is already open under {1}.\n\nWould you like to close it?", Workspace.SelectedFileName.GetFileNameWithoutExtension(), Workspace.BranchDirectoryName, WorkspaceSettings.ProjectInfo.LocalFileName.GetFileNameWithoutExtension()), "Branch already open", MessageBoxButtons.YesNo) == System.Windows.Forms.DialogResult.Yes)
+							if((Options & OpenProjectOptions.Quiet) == 0 && MessageBox.Show(String.Format("{0} is already open under {1}.\n\nWould you like to close it?", Workspace.SelectedFileName.GetFileNameWithoutExtension(), Workspace.BranchDirectoryName, OpenProjectInfo.ProjectInfo.LocalFileName.GetFileNameWithoutExtension()), "Branch already open", MessageBoxButtons.YesNo) == System.Windows.Forms.DialogResult.Yes)
 							{
 								Logger.LogInformation("  Another project already open in this workspace, tab {TabIdx}. Replacing.", TabIdx);
 								TabControl.RemoveTab(TabIdx);
@@ -1178,13 +1178,13 @@ namespace UnrealGameSync
 				if(OldWorkspace != null)
 				{
 					OldWorkspace.Hide();
-					TabControl.SetTabData(ReplaceTabIdx, new ErrorPanel(WorkspaceSettings.SelectedProject));
+					TabControl.SetTabData(ReplaceTabIdx, new ErrorPanel(OpenProjectInfo.SelectedProject));
 					OldWorkspace.Dispose();
 				}
 			}
 
 			// Now that we have the project settings, we can construct the tab
-			WorkspaceControl NewWorkspace = new WorkspaceControl(this, ApiUrl, WorkspaceSettings, ServiceProvider, Settings, OIDCTokenManager);
+			WorkspaceControl NewWorkspace = new WorkspaceControl(this, ApiUrl, OpenProjectInfo, ServiceProvider, Settings, OIDCTokenManager);
 			
 			NewWorkspace.Parent = TabPanel;
 			NewWorkspace.Dock = DockStyle.Fill;

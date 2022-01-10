@@ -85,7 +85,7 @@ namespace UnrealGameSyncLauncher
 				DepotPath = null;
 			}
 
-			GlobalSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
+			GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
 
 			PerforceSettings PerforceSettings = new PerforceSettings(PerforceSettings.Default);
 			if (!String.IsNullOrEmpty(ServerAndPort))
@@ -107,7 +107,7 @@ namespace UnrealGameSyncLauncher
 			{
 				if(Task.Succeeded)
 				{
-					GlobalSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
+					GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
 					DialogResult = DialogResult.OK;
 					Close();
 				}

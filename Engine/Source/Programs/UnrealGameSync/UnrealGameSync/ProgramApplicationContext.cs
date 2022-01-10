@@ -87,7 +87,7 @@ namespace UnrealGameSync
 			MainThreadSynchronizationContext = SynchronizationContext.Current!;
 
 			// Read the user's settings
-			Settings = new UserSettings(FileReference.Combine(DataFolder, "UnrealGameSync.ini"), ServiceProvider.GetRequiredService<ILogger<UserSettings>>());
+			Settings = UserSettings.Create(DataFolder, ServiceProvider.GetRequiredService<ILogger<UserSettings>>());
 			if(!String.IsNullOrEmpty(ProjectFileName))
 			{
 				string FullProjectFileName = Path.GetFullPath(ProjectFileName);
