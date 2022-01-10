@@ -39,6 +39,7 @@ void FIKRetargetEditorController::BindToIKRigAsset(UIKRigDefinition* InIKRig) co
 	{
 		Controller->OnIKRigNeedsInitialized().AddSP(this, &FIKRetargetEditorController::OnIKRigNeedsInitialized);
 		Controller->OnRetargetChainRenamed().AddSP(this, &FIKRetargetEditorController::OnRetargetChainRenamed);
+		Controller->OnRetargetChainRemoved().AddSP(this, &FIKRetargetEditorController::OnRetargetChainRemoved);
 	}
 }
 
@@ -65,6 +66,13 @@ void FIKRetargetEditorController::OnRetargetChainRenamed(UIKRigDefinition* Modif
 	check(ModifiedIKRig)
 	
 	AssetController->OnRetargetChainRenamed(ModifiedIKRig, OldName, NewName);
+}
+
+void FIKRetargetEditorController::OnRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const
+{
+	check(ModifiedIKRig)
+	AssetController->OnRetargetChainRemoved(ModifiedIKRig, InChainRemoved);
+	RefreshAllViews();
 }
 
 void FIKRetargetEditorController::OnRetargeterNeedsInitialized(const UIKRetargeter* Retargeter) const

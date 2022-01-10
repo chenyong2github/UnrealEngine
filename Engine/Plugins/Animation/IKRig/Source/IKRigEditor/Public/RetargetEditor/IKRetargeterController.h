@@ -59,6 +59,8 @@ public:
 	void AutoMapChains();
 	/** Callback when IK Rig chain is renamed. Retains existing mappings using the new name */
 	void OnRetargetChainRenamed(UIKRigDefinition* IKRig, FName OldChainName, FName NewChainName) const;
+	/** Callback when IK Rig chain is removed. */
+	void OnRetargetChainRemoved(UIKRigDefinition* IKRig, const FName& InChainRemoved) const;
 	/** Set the source chain to map to a given target chain */
 	void SetSourceChainForTargetChain(FName TargetChain, FName SourceChainToMapTo);
 	/** Get the source chain mapped to a given target chain */

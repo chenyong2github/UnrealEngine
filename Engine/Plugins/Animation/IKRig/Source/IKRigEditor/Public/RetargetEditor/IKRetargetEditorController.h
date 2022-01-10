@@ -29,6 +29,8 @@ public:
 	void OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const;
 	/** callback when IK Rig asset's retarget chain has been renamed */
 	void OnRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const;
+	/** callback when IK Rig asset's retarget chain has been removed */
+	void OnRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const;
 	/** callback when IK Retargeter asset requires reinitialization */
 	void OnRetargeterNeedsInitialized(const UIKRetargeter* Retargeter) const;
 	
