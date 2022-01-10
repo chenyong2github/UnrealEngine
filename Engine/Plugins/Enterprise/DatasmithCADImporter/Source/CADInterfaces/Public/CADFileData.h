@@ -9,322 +9,323 @@
 
 namespace CADLibrary
 {
-	class FCADFileData
+
+class FCADFileData
+{
+public:
+	FCADFileData(const FImportParameters& InImportParameters, const FFileDescriptor& InFileDescription, const FString& InCachePath)
+		: ImportParameters(InImportParameters)
+		, CachePath(InCachePath)
+		, bIsCacheDefined(!InCachePath.IsEmpty())
+		, FileDescription(InFileDescription)
 	{
-	public:
-		FCADFileData(const FImportParameters& InImportParameters, const FFileDescriptor& InFileDescription, const FString& InCachePath)
-			: ImportParameters(InImportParameters)
-			, CachePath(InCachePath)
-			, bIsCacheDefined(!InCachePath.IsEmpty())
-			, FileDescription(InFileDescription)
+		SceneGraphArchive.FullPath = FileDescription.GetSourcePath();
+		SceneGraphArchive.CADFileName = FileDescription.GetFileName();
+	}
+
+	uint32 GetSceneFileHash() const
+	{
+		if (!SceneFileHash)
 		{
-			SceneGraphArchive.FullPath = FileDescription.GetSourcePath();
-			SceneGraphArchive.CADFileName = FileDescription.GetFileName();
+			SceneFileHash = HashCombine(FileDescription.GetDescriptorHash(), ::GetTypeHash(ImportParameters.GetStitchingTechnique()));
+			SceneFileHash = HashCombine(SceneFileHash, ::GetTypeHash(CADLibrary::GCADLibrary));
 		}
+		return SceneFileHash;
+	}
 
-		uint32 GetSceneFileHash() const
+	uint32 GetGeomFileHash() const
+	{
+		if (!GeomFileHash)
 		{
-			if (!SceneFileHash)
-			{
-				SceneFileHash = HashCombine(FileDescription.GetDescriptorHash(), ::GetTypeHash(ImportParameters.GetStitchingTechnique()));
-				SceneFileHash = HashCombine(SceneFileHash, ::GetTypeHash(CADLibrary::GCADLibrary));
-			}
-			return SceneFileHash;
+			GeomFileHash = GetSceneFileHash();
+			GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters));
 		}
+		return GeomFileHash;
+	}
 
-		uint32 GetGeomFileHash() const
+	void SetArchiveNames()
+	{
+		SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), GetSceneFileHash());
+		MeshArchiveFile = FString::Printf(TEXT("UEx%08x"), GetGeomFileHash());
+	}
+
+	const FString GetSceneGraphFilePath() const
+	{
+		if (IsCacheDefined())
 		{
-			if (!GeomFileHash)
-			{
-				GeomFileHash = GetSceneFileHash();
-				GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters));
-			}
-			return GeomFileHash;
+			return FPaths::Combine(CachePath, TEXT("scene"), SceneGraphArchive.ArchiveFileName + TEXT(".sg"));
 		}
+		return FString();
+	}
 
-		void SetArchiveNames()
+	const FString GetMeshArchiveFilePath() const
+	{
+		if (IsCacheDefined())
 		{
-			SceneGraphArchive.ArchiveFileName = FString::Printf(TEXT("UEx%08x"), GetSceneFileHash());
-			MeshArchiveFile = FString::Printf(TEXT("UEx%08x"), GetGeomFileHash());
+			return FPaths::Combine(CachePath, TEXT("mesh"), MeshArchiveFile + TEXT(".gm"));
 		}
+		return FString();
+	}
 
-		const FString GetSceneGraphFilePath() const
+	const FString GetBodyCachePath(uint32 BodyHash) const
+	{
+		if (IsCacheDefined())
 		{
-			if (IsCacheDefined())
-			{
-				return FPaths::Combine(CachePath, TEXT("scene"), SceneGraphArchive.ArchiveFileName + TEXT(".sg"));
-			}
-			return FString();
+			return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), BodyHash);
 		}
+		return FString();
+	}
 
-		const FString GetMeshArchiveFilePath() const
+	/**
+	 * @return the path of CAD cache file
+	 */
+	const FString GetCADCachePath() const
+	{
+		if (IsCacheDefined())
 		{
-			if (IsCacheDefined())
-			{
-				return FPaths::Combine(CachePath, TEXT("mesh"), MeshArchiveFile + TEXT(".gm"));
-			}
-			return FString();
+			return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("cad"), FileDescription.GetDescriptorHash());
 		}
+		return FString();
+	}
 
-		const FString GetBodyCachePath(uint32 BodyHash) const
+	const FString GetCachePath() const
+	{
+		if (IsCacheDefined())
 		{
-			if (IsCacheDefined())
-			{
-				return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("body"), BodyHash);
-			}
-			return FString();
+			return CachePath;
 		}
+		return FString();
+	}
 
-		/**
-		 * @return the path of CAD cache file
-		 */
-		const FString GetCADCachePath() const
-		{
-			if (IsCacheDefined())
-			{
-				return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("cad"), FileDescription.GetDescriptorHash());
-			}
-			return FString();
-		}
+	bool IsCacheDefined() const
+	{
+		return bIsCacheDefined;
+	}
 
-		const FString GetCachePath() const
-		{
-			if (IsCacheDefined())
-			{
-				return CachePath;
-			}
-			return FString();
-		}
+	void AddWarningMessages(const FString& Message)
+	{
+		WarningMessages.Add(Message);
+	}
 
-		bool IsCacheDefined() const
-		{
-			return bIsCacheDefined;
-		}
+	void LoadSceneGraphArchive()
+	{
+		FString SceneGraphFilePath = GetSceneGraphFilePath();
+		SceneGraphArchive.DeserializeMockUpFile(*SceneGraphFilePath);
+	}
 
-		void AddWarningMessages(const FString& Message)
-		{
-			WarningMessages.Add(Message);
-		}
+	void ExportSceneGraphFile()
+	{
+		FString SceneGraphFilePath = GetSceneGraphFilePath();
+		SceneGraphArchive.SerializeMockUp(*SceneGraphFilePath);
+	}
 
-		void LoadSceneGraphArchive()
-		{
-			FString SceneGraphFilePath = GetSceneGraphFilePath();
-			SceneGraphArchive.DeserializeMockUpFile(*SceneGraphFilePath);
-		}
-
-		void ExportSceneGraphFile()
-		{
-			FString SceneGraphFilePath = GetSceneGraphFilePath();
-			SceneGraphArchive.SerializeMockUp(*SceneGraphFilePath);
-		}
-
-		bool HasComponentOfId(FCadId ComponentId) const
-		{
-			return SceneGraphArchive.CADIdToComponentIndex.Find(ComponentId) != nullptr;
-		}
+	bool HasComponentOfId(FCadId ComponentId) const
+	{
+		return SceneGraphArchive.CADIdToComponentIndex.Find(ComponentId) != nullptr;
+	}
 
 
-		int32 AddComponent(FCadId ComponentId)
-		{
-			int32 Index = SceneGraphArchive.Components.Emplace(ComponentId);
-			SceneGraphArchive.CADIdToComponentIndex.Add(ComponentId, Index);
-			return Index;
-		}
+	int32 AddComponent(FCadId ComponentId)
+	{
+		int32 Index = SceneGraphArchive.Components.Emplace(ComponentId);
+		SceneGraphArchive.CADIdToComponentIndex.Add(ComponentId, Index);
+		return Index;
+	}
 
-		FArchiveComponent& GetComponentAt(int32 Index)
-		{
-			return SceneGraphArchive.Components[Index];
-		}
-
-
-		bool HasInstanceOfId(FCadId InstanceId) const
-		{
-			return SceneGraphArchive.CADIdToInstanceIndex.Find(InstanceId) != nullptr;
-		}
-
-		int32 AddInstance(FCadId InstanceId)
-		{
-			int32 Index = SceneGraphArchive.Instances.Emplace(InstanceId);
-			SceneGraphArchive.CADIdToInstanceIndex.Add(InstanceId, Index);
-			return Index;
-		}
-
-		FArchiveInstance& GetInstanceAt(int32 Index)
-		{
-			return SceneGraphArchive.Instances[Index];
-		}
+	FArchiveComponent& GetComponentAt(int32 Index)
+	{
+		return SceneGraphArchive.Components[Index];
+	}
 
 
-		bool HasBodyOfId(FCadId BodyId) const
-		{
-			return SceneGraphArchive.CADIdToBodyIndex.Find(BodyId) != nullptr;
-		}
+	bool HasInstanceOfId(FCadId InstanceId) const
+	{
+		return SceneGraphArchive.CADIdToInstanceIndex.Find(InstanceId) != nullptr;
+	}
 
-		int32 AddBody(FCadId BodyId)
-		{
-			int32 Index = SceneGraphArchive.Bodies.Emplace(BodyId);
-			SceneGraphArchive.CADIdToBodyIndex.Add(BodyId, Index);
-			return Index;
-		}
+	int32 AddInstance(FCadId InstanceId)
+	{
+		int32 Index = SceneGraphArchive.Instances.Emplace(InstanceId);
+		SceneGraphArchive.CADIdToInstanceIndex.Add(InstanceId, Index);
+		return Index;
+	}
 
-		FArchiveBody& GetBodyAt(int32 Index)
-		{
-			return SceneGraphArchive.Bodies[Index];
-		}
+	FArchiveInstance& GetInstanceAt(int32 Index)
+	{
+		return SceneGraphArchive.Instances[Index];
+	}
 
 
-		int32* FindUnloadedComponentOfId(FCadId ComponentId)
-		{
-			return SceneGraphArchive.CADIdToUnloadedComponentIndex.Find(ComponentId);
-		}
+	bool HasBodyOfId(FCadId BodyId) const
+	{
+		return SceneGraphArchive.CADIdToBodyIndex.Find(BodyId) != nullptr;
+	}
 
-		bool HasUnloadedComponentOfId(FCadId ComponentId)
-		{
-			return FindUnloadedComponentOfId(ComponentId) != nullptr;
-		}
+	int32 AddBody(FCadId BodyId)
+	{
+		int32 Index = SceneGraphArchive.Bodies.Emplace(BodyId);
+		SceneGraphArchive.CADIdToBodyIndex.Add(BodyId, Index);
+		return Index;
+	}
 
-		int32 AddUnloadedComponent(FCadId ComponentId)
-		{
-			int32 Index = SceneGraphArchive.UnloadedComponents.Emplace(ComponentId);
-			SceneGraphArchive.CADIdToUnloadedComponentIndex.Add(ComponentId, Index);
-			return Index;
-		}
+	FArchiveBody& GetBodyAt(int32 Index)
+	{
+		return SceneGraphArchive.Bodies[Index];
+	}
 
-		FArchiveUnloadedComponent& GetUnloadedComponentAt(int32 Index)
-		{
-			return SceneGraphArchive.UnloadedComponents[Index];
-		}
 
-		FFileDescriptor& GetExternalReferences(int32 Index)
-		{
-			return SceneGraphArchive.ExternalReferences[Index];
-		}
+	int32* FindUnloadedComponentOfId(FCadId ComponentId)
+	{
+		return SceneGraphArchive.CADIdToUnloadedComponentIndex.Find(ComponentId);
+	}
 
-		FFileDescriptor& AddExternalRef(const TCHAR* InFilePath, const TCHAR* InConfiguration, const TCHAR* InRootFilePath)
-		{
-			return SceneGraphArchive.ExternalReferences.Emplace_GetRef(InFilePath, InConfiguration, InRootFilePath);
-		}
+	bool HasUnloadedComponentOfId(FCadId ComponentId)
+	{
+		return FindUnloadedComponentOfId(ComponentId) != nullptr;
+	}
 
-		FFileDescriptor& AddExternalRef(const FFileDescriptor& InFileDescription)
-		{
-			return SceneGraphArchive.ExternalReferences.Emplace_GetRef(InFileDescription);
-		}
+	int32 AddUnloadedComponent(FCadId ComponentId)
+	{
+		int32 Index = SceneGraphArchive.UnloadedComponents.Emplace(ComponentId);
+		SceneGraphArchive.CADIdToUnloadedComponentIndex.Add(ComponentId, Index);
+		return Index;
+	}
 
-		/** return a unique value that will be used to define the static mesh name */
-		uint32 GetStaticMeshHash(const int32 BodyId)
-		{
-			return HashCombine(GetSceneFileHash(), ::GetTypeHash(BodyId));
-		}
+	FArchiveUnloadedComponent& GetUnloadedComponentAt(int32 Index)
+	{
+		return SceneGraphArchive.UnloadedComponents[Index];
+	}
 
-		FBodyMesh& AddBodyMesh(FCadId BodyId, FArchiveBody& Body)
-		{
-			FBodyMesh& BodyMesh = BodyMeshes.Emplace_GetRef(BodyId);
-			BodyMesh.MeshActorName = GetStaticMeshHash(BodyId);
-			Body.MeshActorName = BodyMesh.MeshActorName;
-			return BodyMesh;
-		}
+	FFileDescriptor& GetExternalReferences(int32 Index)
+	{
+		return SceneGraphArchive.ExternalReferences[Index];
+	}
 
-		void ExportMeshArchiveFile()
-		{
-			FString MeshArchiveFilePath = GetMeshArchiveFilePath();
-			SerializeBodyMeshSet(*MeshArchiveFilePath, BodyMeshes);
-		}
+	FFileDescriptor& AddExternalRef(const TCHAR* InFilePath, const TCHAR* InConfiguration, const TCHAR* InRootFilePath)
+	{
+		return SceneGraphArchive.ExternalReferences.Emplace_GetRef(InFilePath, InConfiguration, InRootFilePath);
+	}
 
-		const TArray<FFileDescriptor>& GetExternalRefSet() const 
-		{
-			return SceneGraphArchive.ExternalReferences;
-		}
+	FFileDescriptor& AddExternalRef(const FFileDescriptor& InFileDescription)
+	{
+		return SceneGraphArchive.ExternalReferences.Emplace_GetRef(InFileDescription);
+	}
 
-		const FString& GetSceneGraphFileName() const
-		{
-			return SceneGraphArchive.ArchiveFileName;
-		}
+	/** return a unique value that will be used to define the static mesh name */
+	uint32 GetStaticMeshHash(const int32 BodyId)
+	{
+		return HashCombine(GetSceneFileHash(), ::GetTypeHash(BodyId));
+	}
 
-		const FString& GetMeshFileName() const
-		{
-			return MeshArchiveFile;
-		}
+	FBodyMesh& AddBodyMesh(FCadId BodyId, FArchiveBody& Body)
+	{
+		FBodyMesh& BodyMesh = BodyMeshes.Emplace_GetRef(BodyId);
+		BodyMesh.MeshActorName = GetStaticMeshHash(BodyId);
+		Body.MeshActorName = BodyMesh.MeshActorName;
+		return BodyMesh;
+	}
 
-		const TArray<FString>& GetWarningMessages() const
-		{
-			return WarningMessages;
-		}
+	void ExportMeshArchiveFile()
+	{
+		FString MeshArchiveFilePath = GetMeshArchiveFilePath();
+		SerializeBodyMeshSet(*MeshArchiveFilePath, BodyMeshes);
+	}
 
-		const FArchiveSceneGraph& GetSceneGraphArchive() const
-		{
-			return SceneGraphArchive;
-		}
+	const TArray<FFileDescriptor>& GetExternalRefSet() const
+	{
+		return SceneGraphArchive.ExternalReferences;
+	}
 
-		FArchiveSceneGraph& GetSceneGraphArchive()
-		{
-			return SceneGraphArchive;
-		}
+	const FString& GetSceneGraphFileName() const
+	{
+		return SceneGraphArchive.ArchiveFileName;
+	}
 
-		FArchiveMaterial* FindMaterial(uint32 MaterialId)
-		{
-			return SceneGraphArchive.MaterialHIdToMaterial.Find(MaterialId);
-		}
+	const FString& GetMeshFileName() const
+	{
+		return MeshArchiveFile;
+	}
 
-		FArchiveMaterial& AddMaterial(uint32 MaterialId)
-		{
-			return SceneGraphArchive.MaterialHIdToMaterial.Emplace(MaterialId, MaterialId);
-		}
+	const TArray<FString>& GetWarningMessages() const
+	{
+		return WarningMessages;
+	}
 
-		FArchiveColor* FindColor(uint32 ColorId)
-		{
-			return SceneGraphArchive.ColorHIdToColor.Find(ColorId);
-		}
+	const FArchiveSceneGraph& GetSceneGraphArchive() const
+	{
+		return SceneGraphArchive;
+	}
 
-		FArchiveColor& AddColor(uint32 ColorId)
-		{
-			return SceneGraphArchive.ColorHIdToColor.Emplace(ColorId, ColorId);
-		}
+	FArchiveSceneGraph& GetSceneGraphArchive()
+	{
+		return SceneGraphArchive;
+	}
 
-		const TArray<FBodyMesh>& GetBodyMeshes() const
-		{
-			return BodyMeshes;
-		}
+	FArchiveMaterial* FindMaterial(uint32 MaterialId)
+	{
+		return SceneGraphArchive.MaterialHIdToMaterial.Find(MaterialId);
+	}
 
-		TArray<FBodyMesh>& GetBodyMeshes()
-		{
-			return BodyMeshes;
-		}
+	FArchiveMaterial& AddMaterial(uint32 MaterialId)
+	{
+		return SceneGraphArchive.MaterialHIdToMaterial.Emplace(MaterialId, MaterialId);
+	}
 
-		const FFileDescriptor& GetCADFileDescription() const
-		{
-			return FileDescription;
-		}
+	FArchiveColor* FindColor(uint32 ColorId)
+	{
+		return SceneGraphArchive.ColorHIdToColor.Find(ColorId);
+	}
 
-		FFileDescriptor& GetCADFileDescription()
-		{
-			return FileDescription;
-		}
+	FArchiveColor& AddColor(uint32 ColorId)
+	{
+		return SceneGraphArchive.ColorHIdToColor.Emplace(ColorId, ColorId);
+	}
 
-		void ReserveBodyMeshes(int32 MaxBodyCount)
-		{
-			BodyMeshes.Reserve(MaxBodyCount);
-		}
+	const TArray<FBodyMesh>& GetBodyMeshes() const
+	{
+		return BodyMeshes;
+	}
 
-		const FImportParameters& GetImportParameters() const
-		{
-			return ImportParameters;
-		}
+	TArray<FBodyMesh>& GetBodyMeshes()
+	{
+		return BodyMeshes;
+	}
 
-	private:
-		const FImportParameters ImportParameters;
-		const FString CachePath;
-		const bool bIsCacheDefined;
+	const FFileDescriptor& GetCADFileDescription() const
+	{
+		return FileDescription;
+	}
 
-		FFileDescriptor FileDescription;
+	FFileDescriptor& GetCADFileDescription()
+	{
+		return FileDescription;
+	}
 
-		FString MeshArchiveFile;
+	void ReserveBodyMeshes(int32 MaxBodyCount)
+	{
+		BodyMeshes.Reserve(MaxBodyCount);
+	}
 
-		FArchiveSceneGraph SceneGraphArchive;
-		TArray<FBodyMesh> BodyMeshes;
+	const FImportParameters& GetImportParameters() const
+	{
+		return ImportParameters;
+	}
 
-		TArray<FString> WarningMessages;
+private:
+	const FImportParameters ImportParameters;
+	const FString CachePath;
+	const bool bIsCacheDefined;
 
-		mutable uint32 SceneFileHash = 0;
-		mutable uint32 GeomFileHash = 0;
-	};
+	FFileDescriptor FileDescription;
+
+	FString MeshArchiveFile;
+
+	FArchiveSceneGraph SceneGraphArchive;
+	TArray<FBodyMesh> BodyMeshes;
+
+	TArray<FString> WarningMessages;
+
+	mutable uint32 SceneFileHash = 0;
+	mutable uint32 GeomFileHash = 0;
+};
 }
