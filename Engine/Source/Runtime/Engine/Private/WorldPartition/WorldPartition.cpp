@@ -1085,6 +1085,17 @@ void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& Ac
 	}
 }
 
+bool UWorldPartition::GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const
+{
+	if (InstancingContext.IsInstanced())
+	{
+		OutInstancingContext = &InstancingContext;
+		OutSoftObjectPathFixupArchive = InstancingSoftObjectPathFixupArchive.Get();
+		return true;
+	}
+	return false;
+}
+
 void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 {
 	check(ActorDesc);

@@ -96,7 +96,7 @@ private:
 	void OnBeginPlay();
 	void OnEndPlay();
 
-	// UActorDescContainer events
+	//~ Begin UActorDescContainer Interface
 	virtual void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc) override;
 	virtual void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc) override;
 	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) override;
@@ -104,6 +104,9 @@ private:
 
 	virtual void OnActorDescRegistered(const FWorldPartitionActorDesc&) override;
 	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) override;
+
+	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const override;
+	//~ End UActorDescContainer Interface
 #endif
 
 	static void WorldPartitionOnLevelRemovedFromWorld(class ULevel* Level, UWorld* InWorld);

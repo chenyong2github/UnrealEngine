@@ -328,10 +328,10 @@ AActor* FWorldPartitionActorDesc::Load() const
 	{
 		const FLinkerInstancingContext* InstancingContext = nullptr;
 		FSoftObjectPathFixupArchive* SoftObjectPathFixupArchive = nullptr;
-		if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(Container); WorldPartition && WorldPartition->InstancingContext.IsInstanced())
+
+		if (Container)
 		{
-			InstancingContext = &WorldPartition->InstancingContext;
-			SoftObjectPathFixupArchive = WorldPartition->InstancingSoftObjectPathFixupArchive.Get();
+			Container->GetInstancingContext(InstancingContext, SoftObjectPathFixupArchive);
 		}
 
 		UPackage* Package = nullptr;
