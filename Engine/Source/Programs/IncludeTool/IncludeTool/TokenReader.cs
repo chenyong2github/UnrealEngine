@@ -214,23 +214,17 @@ namespace IncludeTool
 		/// <returns>True if we were able to find another token</returns>
 		public bool MoveToNextLine()
 		{
-			int NextLineIdx = TokenLocation.LineIdx;
-
-			// Skip past all the escaped newlines
-			while(NextLineIdx < Text.Lines.Length && Text.Lines[NextLineIdx].EndsWith("\\"))
+			for (; ; )
 			{
-				NextLineIdx++;
+				if (Current.Text == "\n")
+				{
+					return MoveNext();
+				}
+				if (!MoveNext())
+				{
+					return false;
+				}
 			}
-
-			// And move to the next line
-			if(NextLineIdx < Text.Lines.Length)
-			{
-				NextLineIdx++;
-			}
-
-			// Read a token
-			TokenEndLocation = new TextLocation(NextLineIdx, 0);
-			return MoveNext();
 		}
 
 		/// <summary>
