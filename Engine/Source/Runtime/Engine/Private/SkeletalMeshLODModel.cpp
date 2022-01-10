@@ -740,6 +740,7 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	if (StripFlags.IsDataStrippedForServer())
 	{
@@ -851,7 +852,27 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 
 	if (!StripFlags.IsEditorDataStripped())
 	{
-		RawPointIndices.Serialize(Ar, Owner);
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemoveSkeletalMeshLODModelBulkDatas)
+		{
+			RawPointIndices_DEPRECATED.Serialize(Ar, Owner);
+			if (RawPointIndices_DEPRECATED.GetBulkDataSize())
+			{
+				if (RawPointIndices_DEPRECATED.IsAsyncLoadingComplete() && !RawPointIndices_DEPRECATED.IsBulkDataLoaded())
+				{
+					RawPointIndices_DEPRECATED.LoadBulkDataWithFileReader();
+				}
+			
+				RawPointIndices2.Empty(RawPointIndices_DEPRECATED.GetElementCount());
+				RawPointIndices2.AddUninitialized(RawPointIndices_DEPRECATED.GetElementCount());
+				FMemory::Memcpy(RawPointIndices2.GetData(), RawPointIndices_DEPRECATED.Lock(LOCK_READ_ONLY), RawPointIndices_DEPRECATED.GetBulkDataSize());
+				RawPointIndices_DEPRECATED.Unlock();
+			}
+			RawPointIndices_DEPRECATED.RemoveBulkData();
+		}
+		else
+		{
+			Ar << RawPointIndices2;
+		}
 		if (Ar.IsLoading()
 			&& (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::NewSkeletalMeshImporterWorkflow)
 			&& (Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshMoveEditorSourceDataToPrivateAsset))
@@ -1080,8 +1101,7 @@ void FSkeletalMeshLODModel::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 	CumulativeResourceSize.AddUnknownMemoryBytes(RequiredBones.GetAllocatedSize());
 	CumulativeResourceSize.AddUnknownMemoryBytes(IndexBuffer.GetAllocatedSize());
 
-	CumulativeResourceSize.AddUnknownMemoryBytes(RawPointIndices.GetBulkDataSize());
-	CumulativeResourceSize.AddUnknownMemoryBytes(LegacyRawPointIndices.GetBulkDataSize());
+	CumulativeResourceSize.AddUnknownMemoryBytes(RawPointIndices2.GetAllocatedSize());
 	CumulativeResourceSize.AddUnknownMemoryBytes(MeshToImportVertexMap.GetAllocatedSize());
 }
 
@@ -1340,19 +1360,7 @@ void FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, co
 
 	FCriticalSection* DestinationBulkDataReadMutex = Destination->BulkDataReadMutex;
 
-	//Empty the Destination BulkData to avoid leaks
-	Destination->RawPointIndices.RemoveBulkData();
-	Destination->LegacyRawPointIndices.RemoveBulkData();
-	Destination->RawSkeletalMeshBulkData_DEPRECATED.EmptyBulkData();
-
-	// Bulk data arrays need to be locked before a copy can be made.
-	Source->RawPointIndices.LockReadOnly();
-	Source->LegacyRawPointIndices.LockReadOnly();
-	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().LockReadOnly();
 	*Destination = *Source;
-	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Unlock();
-	Source->RawPointIndices.Unlock();
-	Source->LegacyRawPointIndices.Unlock();
 
 	//Make sure the mutex of the copy is set back to the original destination mutex, we can recycle the pointer.
 	Destination->BulkDataReadMutex = DestinationBulkDataReadMutex;
