@@ -192,6 +192,40 @@ protected:
 };
 
 /**
+ * Command that adds a list of instanced fragments to a given entity
+ */
+USTRUCT()
+struct MASSENTITY_API FMassCommandAddFragmentInstanceList : public FCommandBufferEntryBase
+{
+	GENERATED_BODY()
+
+		enum
+	{
+		Type = ECommandBufferOperationType::Add
+	};
+
+	FMassCommandAddFragmentInstanceList() = default;
+
+	FMassCommandAddFragmentInstanceList(const FMassEntityHandle InEntity, std::initializer_list<FInstancedStruct> InitList)
+		: FCommandBufferEntryBase(InEntity)
+		, FragmentList(InitList)
+	{}
+
+	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
+	{
+		for (const FInstancedStruct& Struct : FragmentList)
+		{
+			OutAdded.FindOrAdd(Struct.GetScriptStruct()).AddUnique(TargetEntity);
+		}
+	}
+
+protected:
+	virtual void Execute(UMassEntitySubsystem& System) const override;
+
+	TArray<FInstancedStruct> FragmentList;
+};
+
+/**
  * Command dedicated to remove a fragment from an existing entity
  */
 USTRUCT()
