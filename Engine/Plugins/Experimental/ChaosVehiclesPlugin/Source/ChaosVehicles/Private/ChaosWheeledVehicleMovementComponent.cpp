@@ -558,7 +558,8 @@ void UChaosWheeledVehicleSimulation::ApplyWheelFrictionForces(float DeltaTime)
 		}
 		else
 		{
-			PWheel.SetVehicleGroundSpeed(WheelState.LocalWheelVelocity[WheelIdx]);
+			PWheel.SetVehicleGroundSpeed(FVector::ZeroVector);
+			PWheel.SetWheelLoadForce(0.f);
 			PWheel.Simulate(DeltaTime);
 		}
 
@@ -651,6 +652,8 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 		else
 		{
 			PSuspension.SetSuspensionLength(PSuspension.GetTraceLength(PWheel.GetEffectiveRadius()), PWheel.Setup().WheelRadius);
+			PWheel.SetWheelLoadForce(0.f);
+
 		}
 
 	}
