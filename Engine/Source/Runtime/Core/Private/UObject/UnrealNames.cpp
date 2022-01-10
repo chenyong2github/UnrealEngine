@@ -596,6 +596,9 @@ template<class CharType>
 FORCENOINLINE FNameHash HashLowerCase(const CharType* Str, uint32 Len)
 {
 	CharType LowerStr[NAME_SIZE];
+	UE_CLOG(Len > NAME_SIZE, LogCore, Fatal,
+		TEXT("FName length is too long; HashLowerCase value is undefined. Length = %d, MaxLength = %d, Name=%.*s..."),
+		Len, NAME_SIZE, NAME_SIZE, StringCast<TCHAR>(Str, NAME_SIZE).Get());
 	for (uint32 I = 0; I < Len; ++I)
 	{
 		LowerStr[I] = TChar<CharType>::ToLower(Str[I]);
