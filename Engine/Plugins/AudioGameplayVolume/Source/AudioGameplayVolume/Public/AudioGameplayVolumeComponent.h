@@ -52,7 +52,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAudioGameplayVolumeProxyStateChange);
  *  UAudioGameplayVolumeProxyComponent - Component used to drive interaction with AudioGameplayVolumeSubsystem.
  *   NOTE: Do not inherit from this class, use UAudioGameplayVolumeComponentBase to create extendable functionality
  */
-UCLASS(Config = Game, ClassGroup = ("AudioGameplay"), meta = (BlueprintSpawnableComponent, DisplayName = "Volume Proxy"))
+UCLASS(Config = Game, ClassGroup = ("AudioGameplay"), meta = (BlueprintSpawnableComponent, IsBlueprintBase = false, DisplayName = "Volume Proxy"))
 class AUDIOGAMEPLAYVOLUME_API UAudioGameplayVolumeProxyComponent final : public UAudioGameplayComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -73,19 +73,19 @@ public:
 	/** Called when the proxy is 'exited' - This is when the proxy goes from at least one listeners to zero. */
 	void ExitProxy() const;
 
+	/** Blueprint event for proxy enter */
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FOnAudioGameplayVolumeProxyStateChange OnProxyEnter;
+
+	/** Blueprint event for proxy exit */
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FOnAudioGameplayVolumeProxyStateChange OnProxyExit;
+
 protected:
 
 	// A representation of this volume for the audio thread
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "AudioGameplay", Meta = (ShowOnlyInnerProperties, AllowPrivateAccess = "true"))
 	UAudioGameplayVolumeProxy* Proxy = nullptr;
-
-	/** Blueprint event for proxy enter */
-	UPROPERTY(BlueprintAssignable, Category = Events, meta = (AllowPrivateAccess = "true"))
-	FOnAudioGameplayVolumeProxyStateChange OnProxyEnter;
-
-	/** Blueprint event for proxy exit */
-	UPROPERTY(BlueprintAssignable, Category = Events, meta = (AllowPrivateAccess = "true"))
-	FOnAudioGameplayVolumeProxyStateChange OnProxyExit;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

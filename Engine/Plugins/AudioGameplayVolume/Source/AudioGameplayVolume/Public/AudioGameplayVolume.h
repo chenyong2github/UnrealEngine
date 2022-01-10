@@ -35,6 +35,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AudioGameplay")
 	void SetEnabled(bool bEnable);
 
+	/** Blueprint event for listener enter */
+	UFUNCTION(BlueprintImplementableEvent, Category = Events)
+	void OnListenerEnter();
+
+	/** Blueprint event for listener exit */
+	UFUNCTION(BlueprintImplementableEvent, Category = Events)
+	void OnListenerExit();
+
 	//~ Begin UObject Interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
