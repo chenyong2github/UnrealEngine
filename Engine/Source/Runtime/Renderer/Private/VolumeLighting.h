@@ -29,6 +29,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParameters, )
 	SHADER_PARAMETER(FVector4f, StaticShadowBufferSize)
 END_SHADER_PARAMETER_STRUCT()
 
+// InnerSplitIndex: which CSM shadow map level, It should be INDEX_NONE if LightSceneInfo is not a directional light
 void GetVolumeShadowingShaderParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
