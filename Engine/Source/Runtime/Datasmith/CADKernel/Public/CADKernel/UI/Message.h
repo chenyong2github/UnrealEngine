@@ -7,75 +7,76 @@
 
 namespace CADKernel
 {
-	extern const char* VerboseLevelConstNames[];
-	extern const char* VerboseConstDescHelp[];
+extern const char* VerboseLevelConstNames[];
+extern const char* VerboseConstDescHelp[];
 
 
-	class CADKERNEL_API FMessage
+class CADKERNEL_API FMessage
+{
+	friend class FProgressManager;
+
+private:
+	static int32 NumberOfIndentation;
+	static int32 OldPercent;
+
+	static void VPrintf(EVerboseLevel Level, const TCHAR* Text, ...);
+
+#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
+	static void VQaPrintF(const TCHAR* Header, const TCHAR* Text, ...);
+#endif
+
+public:
+
+	template <typename FmtType, typename... Types>
+	static void Printf(EVerboseLevel Level, const FmtType& Text, Types... Args)
 	{
-		friend class FProgressManager;
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
+		VPrintf(Level, Text, Args...);
+	}
 
-	private:
-		static int32 NumberOfIndentation;
-		static int32 OldPercent;
+	template <typename FmtType, typename... Types>
+	static void Error(const FmtType& Text, Types... Args)
+	{
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
+		FString CompleteText = TEXT("ERROR: ");
+		CompleteText += Text;
+		VPrintf(Log, *CompleteText, Args...);
+	}
 
-		static void VPrintf(EVerboseLevel Level, const TCHAR* Text, ...);
-
-#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
-		static void VQaPrintF(const TCHAR* Header, const TCHAR* Text, ...);
-#endif
-
-	public:
-
-		template <typename FmtType, typename... Types>
-		static void Printf(EVerboseLevel Level, const FmtType& Text, Types... Args)
-		{
-			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
-			VPrintf(Level, Text, Args...);
-		}
-
-		template <typename FmtType, typename... Types>
-		static void Error(const FmtType& Text, Types... Args)
-		{
-			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
-			FString CompleteText = TEXT("ERROR: ");
-			CompleteText += Text;
-			VPrintf(Log, *CompleteText, Args...);
-		}
-
-		template <typename FmtType, typename... Types>
-		static void Warning(const FmtType& Text, Types... Args)
-		{
-			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
-			FString CompleteText = TEXT("WARNING: ");
-			CompleteText += Text;
-			VPrintf(Log, *CompleteText, Args...);
-		}
+	template <typename FmtType, typename... Types>
+	static void Warning(const FmtType& Text, Types... Args)
+	{
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
+		FString CompleteText = TEXT("WARNING: ");
+		CompleteText += Text;
+		VPrintf(Log, *CompleteText, Args...);
+	}
 
 #if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
-		template <typename FmtType, typename... Types>
-		static void FillQaDataFile(const FmtType& Header, const FmtType& Text, Types... Args)
-		{
-			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
-			VQaPrintF(Header, Text, Args...);
-		}
+	template <typename FmtType, typename... Types>
+	static void FillQaDataFile(const FmtType& Header, const FmtType& Text, Types... Args)
+	{
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
+		VQaPrintF(Header, Text, Args...);
+	}
 #endif
 
-		static void Indent(int32 InNumberOfIndent = 1)
-		{
-			NumberOfIndentation += InNumberOfIndent;
-		}
+	static void Indent(int32 InNumberOfIndent = 1)
+	{
+		NumberOfIndentation += InNumberOfIndent;
+	}
 
-		static void Deindent(int32 InNumberOfIndent = 1)
+	static void Deindent(int32 InNumberOfIndent = 1)
+	{
+		NumberOfIndentation -= InNumberOfIndent;
+		if (NumberOfIndentation < 0)
 		{
-			NumberOfIndentation -= InNumberOfIndent;
-			if (NumberOfIndentation < 0)
-			{
-				NumberOfIndentation = 0;
-			}
+			NumberOfIndentation = 0;
 		}
+	}
 
-	};
+};
+
 } // namespace CADKernel
 
 #define ERROR_FUNCTION_CALL_NOT_EXPECTED \

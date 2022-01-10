@@ -9,18 +9,51 @@
 namespace CADKernel
 {
 
-struct CADKERNEL_API FMesherLog
+class CADKERNEL_API FMesherLog
 {
-	int32 CountOfIntersectingLoopCorrectionFailures = 0;
-	int32 CountOfSelfIntersectingCycles = 0;
-	int32 CountOfDegeneratedGrids = 0;
-	int32 CountOfDegeneratedLoops = 0;
+private:
 
+	int32 CountOfRemoveLoopSelfIntersectionFailure = 0;
+	int32 CountOfCrossingLoopsFailure = 0;
+
+	int32 CountOfDegeneratedGrid = 0;
+	int32 CountOfDegeneratedLoop = 0;
+	int32 CountOfMeshingFailure = 0;
+	int32 CountOfCycleMeshingFailure = 0;
+
+public:
 	FMesherLog()
 	{}
 
-	void PrintBilan() const
+	void PrintReport() const
 	{
+	}
+
+	void AddRemoveCrossingLoopsFailure()
+	{
+		CountOfCrossingLoopsFailure++;
+	}
+
+	void AddRemoveSelfIntersectionFailure()
+	{
+		CountOfRemoveLoopSelfIntersectionFailure++;
+	}
+
+	void AddCycleMeshingFailure()
+	{
+		CountOfCycleMeshingFailure++;
+	}
+
+	void AddDegeneratedLoop()
+	{
+		CountOfDegeneratedLoop++;
+		CountOfMeshingFailure++;
+	}
+
+	void AddDegeneratedGrid()
+	{
+		CountOfDegeneratedGrid++;
+		CountOfMeshingFailure++;
 	}
 };
 
@@ -39,7 +72,6 @@ struct CADKERNEL_API FMesherChronos
 	FDuration GlobalThinZones;
 
 	FDuration GlobalFindThinZones;
-	//FDuration GlobalScaleGrid;
 	FDuration GlobalMeshThinZones;
 
 	FMesherChronos()
@@ -55,7 +87,6 @@ struct CADKERNEL_API FMesherChronos
 		, GlobalMeshEdges(FChrono::Init())
 		, GlobalThinZones(FChrono::Init())
 		, GlobalFindThinZones(FChrono::Init())
-		//, GlobalScaleGrid(FChrono::Init())
 		, GlobalMeshThinZones(FChrono::Init())
 	{}
 
@@ -74,12 +105,22 @@ struct CADKERNEL_API FMesherChronos
 		FChrono::PrintClockElapse(Log, TEXT("  |   |  "), TEXT("TriangulateDuration "), GlobalTriangulateDuration);
 		FChrono::PrintClockElapse(Log, TEXT("  |   |   |  "), TEXT("Delaunay Duration "), GlobalDelaunayDuration);
 	}
+
+	void PrintReport() const
+	{
+	}
 };
 
 struct CADKERNEL_API FMesherReport
 {
 	FMesherLog Logs;
 	FMesherChronos Chronos;
+
+	void Print()
+	{
+		Logs.PrintReport();
+		Chronos.PrintReport();
+	}
 };
 
 }
