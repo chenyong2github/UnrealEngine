@@ -23,7 +23,7 @@ namespace Private
 struct FCacheKeyProxy : private TAlignedBytes<sizeof(UE::DerivedData::Private::FCacheKeyDummy), alignof(UE::DerivedData::Private::FCacheKeyDummy)>
 {
 	FCacheKeyProxy(const FCacheKey& InKey);
-	~FCacheKeyProxy();
+	ENGINE_API ~FCacheKeyProxy();
 	FCacheKey* AsCacheKey() { return (FCacheKey*)this;  }
 	const FCacheKey* AsCacheKey() const { return (const FCacheKey*)this; }
 };

@@ -38,6 +38,9 @@
 
 #include "Texture.generated.h"
 
+namespace FOodleDataCompression {enum class ECompressor : uint8; enum class ECompressionLevel : int8; }
+
+
 class ITargetPlatform;
 class UAssetUserData;
 struct FPropertyChangedEvent;
@@ -855,6 +858,11 @@ public:
 	bool TryCancelCache();
 	void CancelCache();
 	ENGINE_API bool TryInlineMipData(int32 FirstMipToLoad = 0, FStringView DebugContext=FStringView());
+	ENGINE_API TFuture<TTuple<uint64, uint64>> LaunchEstimateOnDiskSizeTask(
+		FOodleDataCompression::ECompressor InOodleCompressor,
+		FOodleDataCompression::ECompressionLevel InOodleCompressionLevel,
+		uint32 InCompressionBlockSize,
+		FStringView InDebugContext);
 	bool AreDerivedMipsAvailable(FStringView Context) const;
 	bool AreDerivedVTChunksAvailable(FStringView Context) const;
 	UE_DEPRECATED(5.00, "Use AreDerivedMipsAvailable with the context instead.")

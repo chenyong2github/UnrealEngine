@@ -44,12 +44,16 @@
 #include "TextureEditorSettings.h"
 #include "TextureCompiler.h"
 #include "Widgets/Input/SSlider.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Menus/TextureEditorViewOptionsMenu.h"
 #include "MediaTexture.h"
 #include "TextureEncodingSettings.h"
 #include "EditorWidgets/Public/SEnumCombo.h"
 #include "Widgets/Layout/SHeader.h"
+#include "DerivedDataCache/Public/DerivedDataCacheKey.h"
+#include "Settings/ProjectPackagingSettings.h"
+#include "Compression/OodleDataCompressionUtil.h"
 
 #define LOCTEXT_NAMESPACE "FTextureEditorToolkit"
 
@@ -96,7 +100,7 @@ EPixelFormatChannelFlags GetPixelFormatChannelFlagForButton(ETextureChannelButto
 	return EPixelFormatChannelFlags::None;
 }
 
-static void PostTextureRecode(UTexture* Texture)
+void FTextureEditorToolkit::PostTextureRecode()
 {
 	// Each time we change a custom encode setting we want to re-encode the texture
 	// as though we changed a compression setting on the actual texture, so we just
@@ -105,6 +109,9 @@ static void PostTextureRecode(UTexture* Texture)
 	FProperty* Property = FindFProperty<FProperty>(UTexture::StaticClass(), "CompressionSettings");
 	FPropertyChangedEvent PropertyChangedEvent(Property);
 	Texture->PostEditChangeProperty(PropertyChangedEvent);
+
+	// Clear the key we have so we know when we have new data
+	OodleCompressedPreviewDDCKey.Set<FString>(FString());
 }
 
 
@@ -138,7 +145,7 @@ FTextureEditorToolkit::~FTextureEditorToolkit( )
 	{
 		// reencode the texture with normal settings.
 		CustomEncoding->bUseCustomEncode = false;
-		PostTextureRecode(Texture);
+		PostTextureRecode();
 	}
 }
 
@@ -531,6 +538,60 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 		}
 		else
 		{
+			//
+			// Check if we need to compress new Oodle preview once we know we have
+			// valid results.
+			//
+			FTexturePlatformData* PlatformData = PlatformDataPtr[0];
+
+			bool AlreadyHaveResults = false;
+			if (PlatformData->DerivedDataKey.GetIndex() == OodleCompressedPreviewDDCKey.GetIndex())
+			{
+				if (PlatformData->DerivedDataKey.IsType<FString>())
+				{
+					if (PlatformData->DerivedDataKey.Get<FString>() == OodleCompressedPreviewDDCKey.Get<FString>())
+					{
+						AlreadyHaveResults = true;
+					}
+				}
+				else
+				{
+					if (*PlatformData->DerivedDataKey.Get<UE::DerivedData::FCacheKeyProxy>().AsCacheKey() == *OodleCompressedPreviewDDCKey.Get<UE::DerivedData::FCacheKeyProxy>().AsCacheKey())
+					{
+						AlreadyHaveResults = true;
+					}
+				}
+			}
+
+			if (AlreadyHaveResults == false)
+			{
+				if (bEstimateCompressionEnabled)
+				{
+					OutstandingEstimation = PlatformData->LaunchEstimateOnDiskSizeTask(OodleCompressor, OodleCompressionLevel, CompressionBlockSize, Texture->GetPathName());
+				}
+
+				OodleCompressedPreviewDDCKey = PlatformDataPtr[0]->DerivedDataKey;
+			}
+
+			// If we have an outstanding estimation task, update UI when complete.
+			if (OutstandingEstimation.IsValid())
+			{
+				if (OutstandingEstimation.IsReady())
+				{
+					TTuple<uint64, uint64> Result = OutstandingEstimation.Get();
+
+					OodleEstimateRaw->SetText(FText::AsMemory(Result.Get<1>()));
+					OodleEstimateCompressed->SetText(FText::AsMemory(Result.Get<0>()));
+
+					OutstandingEstimation = TFuture<TTuple<uint64, uint64>>();
+				}
+				else
+				{
+					OodleEstimateRaw->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_Working", "Working..."));
+					OodleEstimateCompressed->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_Working", "Working..."));
+				}
+			}
+
 			OodleEncoderText->SetText(FText::FromName(ResultMetadata.Encoder));
 
 			if (ResultMetadata.bSupportsEncodeSpeed == false)
@@ -1023,253 +1084,481 @@ TSharedRef<SWidget> FTextureEditorToolkit::BuildTexturePropertiesWidget( )
 	return TexturePropertiesWidget.ToSharedRef();
 }
 
-void FTextureEditorToolkit::CreateInternalWidgets( )
+void FTextureEditorToolkit::CreateInternalWidgets()
 {
+	//
+	// Convert the packaging settings names into enums we can use.
+	//
+	UProjectPackagingSettings const* ProjectSettings = GetDefault<UProjectPackagingSettings>();
+	
+	PackagingSettingsNames.Add(MakeShared<FString>(TEXT("DebugDevelopment")));
+	PackagingSettingsNames.Add(MakeShared<FString>(TEXT("TestShipping")));
+	PackagingSettingsNames.Add(MakeShared<FString>(TEXT("Distribution")));
+	
+	// Default to Distribution
+	TSharedPtr<FString> InitialPackagingSetting = PackagingSettingsNames[2];
+
+	// Determine which oodle encoder they are using.
+	const TCHAR* CompressorName = 0;
+	{
+		// Validity check the string by trying to convert to enum.
+		const FString& LookupCompressor = ProjectSettings->PackageCompressionMethod;
+		FOodleDataCompression::ECompressor PackageCompressor = FOodleDataCompression::ECompressor::Kraken;
+		if (FOodleDataCompression::ECompressorFromString(LookupCompressor, PackageCompressor))
+		{
+			OodleCompressor = PackageCompressor;
+		}
+		else
+		{
+			UE_LOG(LogTextureEditor, Warning, TEXT("Project packaging settings not using Oodle? Failed to recognize compression: %s - using Kraken for estimation."), *LookupCompressor);
+			OodleCompressor = FOodleDataCompression::ECompressor::Kraken;
+		}
+
+		FOodleDataCompression::ECompressorToString(OodleCompressor, &CompressorName);
+	}
+
+	OodleCompressionLevel = FOodleDataCompression::ECompressionLevel::Optimal3;
+	const TCHAR* LevelName;
+	{		 
+		FOodleDataCompression::ECompressionLevelFromValue(ProjectSettings->PackageCompressionLevel_Distribution, OodleCompressionLevel);
+		FOodleDataCompression::ECompressionLevelToString(OodleCompressionLevel, &LevelName);
+	}
+
+	// Grab the compression block size in the settings.
+	{
+		FString CompBlockSizeString;
+		if (FParse::Value(*ProjectSettings->PackageAdditionalCompressionOptions, TEXT("-compressionblocksize="), CompBlockSizeString) &&
+			FParse::Value(*ProjectSettings->PackageAdditionalCompressionOptions, TEXT("-compressionblocksize="), CompressionBlockSize))
+		{
+			if (CompBlockSizeString.EndsWith(TEXT("MB")))
+			{
+				CompressionBlockSize *= 1024 * 1024;
+			}
+			else if (CompBlockSizeString.EndsWith(TEXT("KB")))
+			{
+				CompressionBlockSize *= 1024;
+			}
+		}
+		else
+		{
+			UE_LOG(LogTextureEditor, Warning, TEXT("No compression block size found in settings - using 256KB"));
+			CompressionBlockSize = 256*1024;
+		}
+	}
+
 	TextureViewport = SNew(STextureEditorViewport, SharedThis(this));
 
 	OodleTabContainer = SNew(SVerticalBox)
+
+	//
+	// Oodle relevant details container
+	//
 	+ SVerticalBox::Slot()
-	.AutoHeight()
-	.Padding(4.0f)
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.FillWidth(0.5f)
+		.AutoHeight()
+		.Padding(4.0f)
 		[
-			SNew(SVerticalBox)
+			SNew(SHorizontalBox)
 
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
+			//
+			// Details label container
+			//
+			+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
 				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("OodleTab_Label_Encoder", "Encoder:"))
-						.ToolTipText(LOCTEXT("OodleTab_Tooltip_Encoder", "Which texture encoder was used to encode the texture."))
-				]
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SNew(STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_Encoder", "Encoder:"))
+								.ToolTipText(LOCTEXT("OodleTab_Tooltip_Encoder", "Which texture encoder was used to encode the texture."))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SNew(STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_EncodeSpeed", "Encode Speed:"))
+								.ToolTipText(LOCTEXT("OodleTab_Tooltip_EncodeSpeed", "Which of the encode speeds was used for this texture encode, if the encoder supports encode speed."))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleRDOEnabledLabel, STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_RDOEnabled", "RDO Lambda:"))
+								.ToolTipText(LOCTEXT("OodleTab_Tooltip_RDOEnabled", "Whether or not the texture was encoded with RDO enabled. If enabled, shows the lambda used to encode. Excludes any global ini specific adjustments (e.g. GlobalLambdaMultiplier)"))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleRDOSourceLabel, STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_RDOSource", "RDO Lambda Source:"))
+								.ToolTipText(LOCTEXT("OodleTab_Tooltip_RDOSource", "This is where the build system found the lambda to use, due to defaults and fallbacks. (Lambda) means a direct lambda value (Lossy Compression Amount) means it was converted from that property."))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleEffortLabel, STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_Effort", "Effort:"))
+								.ToolTipText(LOCTEXT("OodleTab_ToolTip_Effort", "Which effort value was used when encoding this texture. Pulled from the encode speed options. Effort represents how much CPU time was spent finding better results."))
+						]
 
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("OodleTab_Label_EncodeSpeed", "Encode Speed:"))
-						.ToolTipText(LOCTEXT("OodleTab_Tooltip_EncodeSpeed", "Which of the encode speeds was used for this texture encode, if the encoder supports encode speed."))
-				]
-	
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(OodleRDOEnabledLabel, STextBlock)
-						.Text(LOCTEXT("OodleTab_Label_RDOEnabled", "RDO Lambda:"))
-						.ToolTipText(LOCTEXT("OodleTab_Tooltip_RDOEnabled", "Whether or not the texture was encoded with RDO enabled. If enabled, shows the lambda used to encode. Excludes any global ini specific adjustments (e.g. GlobalLambdaMultiplier)"))
-				]
-
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(OodleRDOSourceLabel, STextBlock)
-						.Text(LOCTEXT("OodleTab_Label_RDOSource", "RDO Lambda Source:"))
-						.ToolTipText(LOCTEXT("OodleTab_Tooltip_RDOSource", "This is where the build system found the lambda to use, due to defaults and fallbacks. (Lambda) means a direct lambda value (Lossy Compression Amount) means it was converted from that property."))
-				]
-	
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(OodleEffortLabel, STextBlock)
-						.Text(LOCTEXT("OodleTab_Label_Effort", "Effort:"))
-						.ToolTipText(LOCTEXT("OodleTab_ToolTip_Effort", "Which effort value was used when encoding this texture. Pulled from the encode speed options. Effort represents how much CPU time was spent finding better results."))
-				]
-
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(OodleTilingLabel, STextBlock)
-						.Text(LOCTEXT("OodleTab_Label_UniversalTiling", "Universal Tiling:"))
-						.ToolTipText(LOCTEXT("OodleTab_ToolTip_UniversalTiling", "Which universal tiling setting was used when encoding this texture. Specified with encode speed. Universal Tiling is a technique to save on-disc space for platforms that expect tiled textures."))
-				]
-		]
-
-		+ SHorizontalBox::Slot()
-		.FillWidth(0.5f)
-		[
-			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(OodleEncoderText, STextBlock)
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleTilingLabel, STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_UniversalTiling", "Universal Tiling:"))
+								.ToolTipText(LOCTEXT("OodleTab_ToolTip_UniversalTiling", "Which universal tiling setting was used when encoding this texture. Specified with encode speed. Universal Tiling is a technique to save on-disk space for platforms that expect tiled textures."))
+						]
 				]
 
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
+			//
+			// Details controls container
+			//
+			+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
 				[
-					SAssignNew(OodleEncodeSpeedText, STextBlock)
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleEncoderText, STextBlock)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleEncodeSpeedText, STextBlock)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleRDOText, STextBlock)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleRDOSourceText, STextBlock)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleEffortText, STextBlock)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(4.0f)
+						[
+							SAssignNew(OodleTilingText, STextBlock)
+						]
 				]
+		] // end oodle details.
 
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(OodleRDOText, STextBlock)
-				]
-
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(OodleRDOSourceText, STextBlock)
-				]
-
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(OodleEffortText, STextBlock)
-				]
-
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(OodleTilingText, STextBlock)
-				]
-		]
-	]
+	//
+	// Header for oodle rdo experiments
+	//
 	+ SVerticalBox::Slot()
 		.AutoHeight()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SHeader)
 				.HAlign(EHorizontalAlignment::HAlign_Fill)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("OodleTab_Label_TryHeader", "Try Encodings"))
-			]
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("OodleTab_Label_TryHeader", "Try Encodings"))
+				]
 		]
 
+	//
+	// Container for oodle rdo experiments labels/controls
+	//
 	+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(4.0f)
 		[
+			//
+			// Labels for oodle rdo experiments.
+			//
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 				.FillWidth(0.5f)
 				[
-					SNew(SVerticalBox)						
-
-						+ SVerticalBox::Slot()
-							.AutoHeight()
-							.VAlign(VAlign_Center)
-							.Padding(6)
-							[
-								SNew(STextBlock)
-								.Text(LOCTEXT("OodleTab_Label_OverrideCompression", "Enabled:"))
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_OverrideCompression", "Enabled:"))
 							.ToolTipText(LOCTEXT("OodleTab_ToolTip_OverrideCompression", "If checked, allows you to experiment with Oodle RDO compression settings to visualize results."))
-
-							]
-						+ SVerticalBox::Slot()
-							.AutoHeight()
-							.VAlign(VAlign_Center)
-							.Padding(6)
-							[
-								SNew(STextBlock)
-								.Text(LOCTEXT("OodleTab_Label_OverrideRDO", "RDO Lambda:"))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_OverrideRDO", "RDO Lambda:"))
 							.ToolTipText(LOCTEXT("OodleTab_ToolTip_OverrideRDO", "The RDO lambda to encode with for experimentation. 0 disables RDO entirely. 1 is largest filesize, 100 is smallest."))
-
-							]
-						+ SVerticalBox::Slot()
-							.AutoHeight()
-							.VAlign(VAlign_Center)
-							.Padding(6)
-							[
-								SNew(STextBlock)
-								.Text(LOCTEXT("OodleTab_Label_OverrideEffort", "Effort:"))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_OverrideEffort", "Effort:"))
 							.ToolTipText(LOCTEXT("OodleTab_ToolTip_OverrideEffort", "The encoding effort to try. Effort controls how much CPU time spent on finding better results. See the Oodle Texture documentation for detailed information."))
-
-							]
-						+ SVerticalBox::Slot()
-							.AutoHeight()
-							.VAlign(VAlign_Center)
-							.Padding(6)
-							[
-								SNew(STextBlock)
-								.Text(LOCTEXT("OodleTab_Label_OverrideTiling", "Universal Tiling:"))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_OverrideTiling", "Universal Tiling:"))
 							.ToolTipText(LOCTEXT("OodleTab_ToolTip_OverrideTiling", "The universal tiling to try. See the Oodle Texture documentation for detailed information."))
-
-							]
+						]
 				]
 
+			//
+			// Controls for oodle rdo experiments
+			//
 			+ SHorizontalBox::Slot()
 				.FillWidth(0.5f)
 				[
 					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(2)
+						[
+							SAssignNew(OodleOverrideCheck, SCheckBox)
+							.OnCheckStateChanged(this, &FTextureEditorToolkit::OnUseEditorOodleSettingsChanged)
+							.IsChecked(this, &FTextureEditorToolkit::UseEditorOodleSettingsChecked)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(2)
+						[
+							SNew(SNumericEntryBox<int32>)
+							.Value(this, &FTextureEditorToolkit::GetEditorOodleSettingsRDO)
+							.OnValueCommitted(this, &FTextureEditorToolkit::EditorOodleSettingsRDOCommitted)
+							.IsEnabled(this, &FTextureEditorToolkit::EditorOodleSettingsEnabled)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(2)
+						[
+							SNew(SEnumComboBox, StaticEnum< ETextureEncodeEffort >())
+							.CurrentValue(this, &FTextureEditorToolkit::GetEditorOodleSettingsEffort)
+							.OnEnumSelectionChanged(this, &FTextureEditorToolkit::EditorOodleSettingsEffortChanged)
+							.IsEnabled(this, &FTextureEditorToolkit::EditorOodleSettingsEnabled)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(2)
+						[
+							SNew(SEnumComboBox, StaticEnum< ETextureUniversalTiling >())
+							.CurrentValue(this, &FTextureEditorToolkit::GetEditorOodleSettingsTiling)
+							.OnEnumSelectionChanged(this, &FTextureEditorToolkit::EditorOodleSettingsTilingChanged)
+							.IsEnabled(this, &FTextureEditorToolkit::EditorOodleSettingsEnabled)
+						]
+				] // end controls
+		] // end oodle rdo experiment labels/controls
 
-
-						+ SVerticalBox::Slot()
-							.AutoHeight()
-							.VAlign(VAlign_Center)
-							.Padding(2)
-							[
-								SAssignNew(OodleOverrideCheck, SCheckBox)
-								.OnCheckStateChanged(this, &FTextureEditorToolkit::OnUseEditorOodleSettingsChanged)
-								.IsChecked(this, &FTextureEditorToolkit::UseEditorOodleSettingsChecked)
-							]
-
-						+ SVerticalBox::Slot()
-							.AutoHeight()
-							.VAlign(VAlign_Center)
-							.Padding(2)
-							[
-								SNew(SNumericEntryBox<int32>)
-								.Value(this, &FTextureEditorToolkit::GetEditorOodleSettingsRDO)
-								.OnValueCommitted(this, &FTextureEditorToolkit::EditorOodleSettingsRDOCommitted)
-								.IsEnabled(this, &FTextureEditorToolkit::EditorOodleSettingsEnabled)
-							]
-
-						+ SVerticalBox::Slot()
-							.AutoHeight()
-							.VAlign(VAlign_Center)
-							.Padding(2)
-							[
-								SNew(SEnumComboBox, StaticEnum< ETextureEncodeEffort >())
-								.CurrentValue(this, &FTextureEditorToolkit::GetEditorOodleSettingsEffort)
-								.OnEnumSelectionChanged(this, &FTextureEditorToolkit::EditorOodleSettingsEffortChanged)
-								.IsEnabled(this, &FTextureEditorToolkit::EditorOodleSettingsEnabled)
-							]
-
-						+ SVerticalBox::Slot()
-							.AutoHeight()
-							.VAlign(VAlign_Center)
-							.Padding(2)
-							[
-								SNew(SEnumComboBox, StaticEnum< ETextureUniversalTiling >())
-								.CurrentValue(this, &FTextureEditorToolkit::GetEditorOodleSettingsTiling)
-								.OnEnumSelectionChanged(this, &FTextureEditorToolkit::EditorOodleSettingsTilingChanged)
-								.IsEnabled(this, &FTextureEditorToolkit::EditorOodleSettingsEnabled)
-							]
+	//
+	// Header for the on disk estimates
+	//
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHeader)
+			.HAlign(EHorizontalAlignment::HAlign_Fill)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("OodleTab_Label_EstimatesHeader", "On-disk Sizes"))
+				.ToolTipText(LOCTEXT("OodleTab_ToolTip_EstimatesHeader", "RDO encoding only helps on-disk texture sizes when package compression is enabled. It does not affect runtime memory usage."))
+			]
+		]
+	//
+	// Container for the on disk estimate labels/controls.
+	//
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(4.0f)
+		[
+			//
+			// Labels for the on disk estimates
+			//
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_EstimatesEnabled", "Enabled:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_EstimatesEnabled", "If checked, texture data will be compressed in the same manner as project packaging in order to estimate the benefits of RDO encoding of the texture."))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_EncoderSettings", "Packaging Configuration:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_EncoderSettings", "Which packaging configuration to pull from for determining which Oodle encoder and compression level to use."))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_EstimateEncoder", "Oodle Encoder:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_EstimateEncoder", "The oodle encoder to use for estimating. Pulled from the packaging configuration specified above."))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_EstimateLevel", "Oodle Compression Level:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_EstimateLevel", "The compression level. Pulled from the packaging configuration specified above."))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_BlockSize", "Compression Block Size:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_BlockSize", "The size of chunks used when compressing. Pulled from the packaging configuration 'Package Compression Commandline Options'."))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_EstimateRaw", "Uncompressed size:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_EstimateRaw", "The size of the mip or virtual texture data for the texture."))
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("OodleTab_Label_EstimateCompressed", "Compressed size (estimate):"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_EstimateCompressed", "The size of the compressed mip or virtual texture data for the texture."))
+						]
 				]
-		];
 
-
-
+			//
+			// Controls for the on disk estimates
+			//
+			+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(2)
+						[
+							SAssignNew(OodleEstimateCheck, SCheckBox)
+							.OnCheckStateChanged(this, &FTextureEditorToolkit::OnEstimateCompressionChanged)
+							.IsChecked(this, &FTextureEditorToolkit::EstimateCompressionChecked)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(2)
+						[
+							SNew(STextComboBox)
+							.OptionsSource(&PackagingSettingsNames)
+							.OnSelectionChanged(this, &FTextureEditorToolkit::PackagingSettingsChanged)
+							.IsEnabled(this, &FTextureEditorToolkit::EstimateCompressionEnabled)
+							.InitiallySelectedItem(InitialPackagingSetting)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(8)
+						[
+							SAssignNew(OodleEncoderUsed, STextBlock)
+							.Text(FText::AsCultureInvariant(CompressorName))
+							.IsEnabled(this, &FTextureEditorToolkit::EstimateCompressionEnabled)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SAssignNew(OodleLevelUsed, STextBlock)
+							.Text(FText::FromString(FString::Printf(TEXT("%s (%d)"), LevelName, (int8)OodleCompressionLevel)))
+							.IsEnabled(this, &FTextureEditorToolkit::EstimateCompressionEnabled)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SAssignNew(OodleCompressionBlockUsed, STextBlock)
+							.Text(FText::AsMemory(CompressionBlockSize))
+							.IsEnabled(this, &FTextureEditorToolkit::EstimateCompressionEnabled)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SAssignNew(OodleEstimateRaw, STextBlock)
+							.IsEnabled(this, &FTextureEditorToolkit::EstimateCompressionEnabled)
+						]
+					+ SVerticalBox::Slot()
+						.AutoHeight()
+						.VAlign(VAlign_Center)
+						.Padding(6)
+						[
+							SAssignNew(OodleEstimateCompressed, STextBlock)
+							.IsEnabled(this, &FTextureEditorToolkit::EstimateCompressionEnabled)
+						]
+				]
+		]; // end on disk estimates controls
 
 
 	TextureProperties = SNew(SVerticalBox)
@@ -2115,11 +2404,13 @@ int32 FTextureEditorToolkit::GetEditorOodleSettingsEffort() const
 
 void FTextureEditorToolkit::EditorOodleSettingsEffortChanged(int32 NewValue, ESelectInfo::Type SelectionType)
 {
+	bool bChanged = CustomEncoding->OodleEncodeEffort != NewValue;
+
 	CustomEncoding->OodleEncodeEffort = NewValue;
 
-	if (CustomEncoding->bUseCustomEncode)
+	if (CustomEncoding->bUseCustomEncode || bChanged)
 	{
-		PostTextureRecode(Texture);
+		PostTextureRecode();
 	}
 }
 
@@ -2130,11 +2421,12 @@ int32 FTextureEditorToolkit::GetEditorOodleSettingsTiling() const
 
 void FTextureEditorToolkit::EditorOodleSettingsTilingChanged(int32 NewValue, ESelectInfo::Type SelectionType)
 {
+	bool bChanged = CustomEncoding->OodleUniversalTiling != NewValue;
 	CustomEncoding->OodleUniversalTiling = NewValue;
 
-	if (CustomEncoding->bUseCustomEncode)
+	if (CustomEncoding->bUseCustomEncode && bChanged)
 	{
-		PostTextureRecode(Texture);
+		PostTextureRecode();
 	}
 }
 
@@ -2154,11 +2446,13 @@ void FTextureEditorToolkit::EditorOodleSettingsRDOCommitted(int32 NewValue, ETex
 		NewValue = 0;
 	}
 
+	bool bChanged = CustomEncoding->OodleRDOLambda != (int8)NewValue;
+
 	CustomEncoding->OodleRDOLambda = (int8)NewValue;
 
-	if (CustomEncoding->bUseCustomEncode)
+	if (CustomEncoding->bUseCustomEncode && bChanged)
 	{
-		PostTextureRecode(Texture);
+		PostTextureRecode();
 	}
 }
 
@@ -2179,7 +2473,7 @@ void FTextureEditorToolkit::OnUseEditorOodleSettingsChanged(ECheckBoxState NewSt
 	// that they need to update, so we do this by faking a compression method property change.
 	CustomEncoding->bUseCustomEncode = NewState == ECheckBoxState::Checked ? true : false;
 
-	PostTextureRecode(Texture);
+	PostTextureRecode();
 }
 
 TSharedRef<SWidget> FTextureEditorToolkit::MakeChannelControlWidget()
@@ -2511,6 +2805,49 @@ TSharedRef<SWidget> FTextureEditorToolkit::MakeZoomControlWidget()
 		];
 
 	return ZoomControl;
+}
+
+void FTextureEditorToolkit::OnEstimateCompressionChanged(ECheckBoxState NewState)
+{
+	OodleCompressedPreviewDDCKey.Set<FString>(FString());
+	bEstimateCompressionEnabled = NewState == ECheckBoxState::Checked;
+}
+ECheckBoxState FTextureEditorToolkit::EstimateCompressionChecked() const
+{
+	return bEstimateCompressionEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FTextureEditorToolkit::PackagingSettingsChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo)
+{
+	if (Selection.IsValid())
+	{
+		UProjectPackagingSettings const* ProjectSettings = GetDefault<UProjectPackagingSettings>();
+		int8 CompressionLevelFromSettings = (int8)FOodleDataCompression::ECompressionLevel::Optimal3;
+		if (*Selection == TEXT("DebugDevelopment"))
+		{
+			CompressionLevelFromSettings = ProjectSettings->PackageCompressionLevel_DebugDevelopment;
+		}
+		else if (*Selection == TEXT("TestShipping"))
+		{
+			CompressionLevelFromSettings = ProjectSettings->PackageCompressionLevel_TestShipping;
+		}
+		else if (*Selection == TEXT("Distribution"))
+		{
+			CompressionLevelFromSettings = ProjectSettings->PackageCompressionLevel_Distribution;
+		}
+
+		FOodleDataCompression::ECompressionLevel OldLevel = OodleCompressionLevel;
+		FOodleDataCompression::ECompressionLevelFromValue(CompressionLevelFromSettings, OodleCompressionLevel);
+
+		const TCHAR* LevelName;
+		FOodleDataCompression::ECompressionLevelToString(OodleCompressionLevel, &LevelName);
+		OodleLevelUsed->SetText(FText::FromString(FString::Printf(TEXT("%s (%d)"), LevelName, CompressionLevelFromSettings)));
+
+		if (OldLevel != OodleCompressionLevel)
+		{
+			OodleCompressedPreviewDDCKey.Set<FString>(FString());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
