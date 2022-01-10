@@ -116,8 +116,6 @@ void FMemorySharedState::OnBeginSession(Insights::ITimingViewSession& InSession)
 	bShowHideAllMemoryTracks = true;
 
 	CreatedDefaultTracks.Reset();
-
-	CurrentMemoryRule = MemoryRules[0];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -143,8 +141,6 @@ void FMemorySharedState::OnEndSession(Insights::ITimingViewSession& InSession)
 	bShowHideAllMemoryTracks = false;
 
 	CreatedDefaultTracks.Reset();
-
-	CurrentMemoryRule = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

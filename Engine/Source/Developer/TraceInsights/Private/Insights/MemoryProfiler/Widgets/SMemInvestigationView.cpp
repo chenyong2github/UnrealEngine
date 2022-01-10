@@ -247,6 +247,11 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructTimeMarkerWidget(uint32 Time
 	}
 
 	const TSharedRef<Insights::FTimeMarker>& TimeMarker = ProfilerWindow->GetCustomTimeMarker(TimeMarkerIndex);
+	TSharedPtr<Insights::FTimeMarker> PreviousTimeMarker;
+	if (TimeMarkerIndex > 0)
+	{
+		PreviousTimeMarker = ProfilerWindow->GetCustomTimeMarker(TimeMarkerIndex - 1);
+	}
 
 	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
 		.Visibility_Lambda([TimeMarker]()
@@ -276,10 +281,11 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructTimeMarkerWidget(uint32 Time
 				{
 					return FText::FromString(FString::Printf(TEXT("%.9f"), TimeMarker->GetTime()));
 				})
-			.OnTextCommitted_Lambda([TimeMarker](const FText& InText, ETextCommit::Type InCommitType)
+			.OnTextCommitted_Lambda([TimeMarker, ProfilerWindow](const FText& InText, ETextCommit::Type InCommitType)
 				{
 					const double Time = FCString::Atod(*InText.ToString());
 					TimeMarker->SetTime(Time);
+					ProfilerWindow->OnTimeMarkerChanged(Insights::ETimeChangedFlags::None, TimeMarker);
 				})
 		]
 
@@ -289,9 +295,18 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructTimeMarkerWidget(uint32 Time
 		.Padding(4.0f, 1.0f, 0.0f, 1.0f)
 		[
 			SNew(STextBlock)
-			.Text_Lambda([TimeMarker]()
+			.Text_Lambda([TimeMarker, PreviousTimeMarker]()
 				{
-					return FText::FromString(TimeUtils::FormatTime(TimeMarker->GetTime(), 0.1));
+					if (PreviousTimeMarker.IsValid())
+					{
+						return FText::FromString(FString::Printf(TEXT("%s (+%s)"),
+							*TimeUtils::FormatTime(TimeMarker->GetTime(), 0.1),
+							*TimeUtils::FormatTime(TimeMarker->GetTime() - PreviousTimeMarker->GetTime(), 0.1)));
+					}
+					else
+					{
+						return FText::FromString(TimeUtils::FormatTime(TimeMarker->GetTime(), 0.1));
+					}
 				})
 		];
 
@@ -353,7 +368,7 @@ void SMemInvestigationView::QueryRule_OnSelectionChanged(TSharedPtr<Insights::FM
 		{
 			FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
 			SharedState.SetCurrentMemoryRule(InRule);
-			ProfilerWindow->UpdateTimingViewMarkers();
+			ProfilerWindow->OnMemoryRuleChanged();
 		}
 	}
 }

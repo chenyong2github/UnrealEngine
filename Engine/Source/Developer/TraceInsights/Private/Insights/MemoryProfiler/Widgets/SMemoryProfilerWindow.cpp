@@ -57,6 +57,7 @@ SMemoryProfilerWindow::SMemoryProfilerWindow()
 	: SharedState(MakeShared<FMemorySharedState>())
 	, DurationActive(0.0f)
 {
+	CreateTimingViewMarkers();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,68 +112,6 @@ void SMemoryProfilerWindow::Reset()
 
 	UpdateMemInvestigationView();
 	UpdateTableTreeViews();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::ResetTimingViewMarkers()
-{
-	TSharedRef<FTimeRulerTrack> TimeRulerTrack = TimingView->GetTimeRulerTrack();
-
-	TimeRulerTrack->RemoveAllTimeMarkers();
-	CustomTimeMarkers.Reset();
-
-	constexpr uint32 MaxNumTimeMarkers = 5;
-
-	TCHAR TimeMarkerName[2];
-	TimeMarkerName[1] = 0;
-
-	for (uint32 Index = 0; Index < MaxNumTimeMarkers; ++Index)
-	{
-		// Keep (re-add) the "Default Time Marker" as the first time marker and create new ones for the rest.
-		TSharedRef<Insights::FTimeMarker> TimeMarker = (Index == 0) ? TimingView->GetDefaultTimeMarker() : MakeShared<Insights::FTimeMarker>();
-
-		TimeMarkerName[0] = TEXT('A') + Index; // "A", "B", "C", etc.
-		TimeMarker->SetName(TimeMarkerName);
-
-		const uint32 HueStep = 256 / MaxNumTimeMarkers;
-		const uint8 H = uint8(HueStep * Index);
-		const uint8 S = 192;
-		const uint8 V = 255;
-		const FLinearColor Color = FLinearColor::MakeFromHSV8(H, S, V);
-		TimeMarker->SetColor(Color);
-
-		TimeMarker->SetTime((Index + 1) * 10.0); // 10s, 20s, 30s, etc.
-
-		TimeRulerTrack->AddTimeMarker(TimeMarker);
-		CustomTimeMarkers.Add(TimeMarker);
-	}
-
-	UpdateTimingViewMarkers();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::UpdateTimingViewMarkers()
-{
-	TSharedPtr<Insights::FMemoryRuleSpec> Rule = SharedState->GetCurrentMemoryRule();
-	const uint32 NumVisibleTimeMarkers = Rule ? Rule->GetNumTimeMarkers() : 0;
-
-	const uint32 NumTimeMarkers = CustomTimeMarkers.Num();
-	ensure(NumVisibleTimeMarkers <= NumTimeMarkers);
-
-	for (uint32 Index = 0; Index < NumTimeMarkers; ++Index)
-	{
-		TSharedRef<Insights::FTimeMarker>& TimeMarker = CustomTimeMarkers[Index];
-		if (Index < NumVisibleTimeMarkers)
-		{
-			TimeMarker->SetVisibility(true);
-		}
-		else
-		{
-			TimeMarker->SetVisibility(false);
-		}
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,6 +192,8 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, &SharedState.Get());
 
 	TimingView->Reset(true);
+	TimingView->OnSelectionChanged().AddSP(this, &SMemoryProfilerWindow::OnTimeSelectionChanged);
+	TimingView->OnCustomTimeMarkerChanged().AddSP(this, &SMemoryProfilerWindow::OnTimeMarkerChanged);
 	ResetTimingViewMarkers();
 	TimingView->HideAllDefaultTracks();
 
@@ -266,12 +207,17 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SMemoryProfilerWindow::OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
+	FMemoryProfilerManager::Get()->SetTimingViewVisible(false);
+
+	if (TimingView)
+	{
+		TimingView->OnSelectionChanged().RemoveAll(this);
+		TimingView->OnCustomTimeMarkerChanged().RemoveAll(this);
+		TimingView = nullptr;
+	}
+
 	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, &SharedState.Get());
 	SharedState->SetTimingView(nullptr);
-
-	TimingView = nullptr;
-
-	FMemoryProfilerManager::Get()->SetTimingViewVisible(false);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -762,6 +708,169 @@ FReply SMemoryProfilerWindow::OnDrop(const FGeometry& MyGeometry, const FDragDro
 	}
 
 	return SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::OnTimeSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime)
+{
+	if (InFlags != Insights::ETimeChangedFlags::Interactive)
+	{
+		if (InStartTime < InEndTime)
+		{
+			const uint32 NumTimeMarkers = CustomTimeMarkers.Num();
+			if (NumTimeMarkers >= 1)
+			{
+				CustomTimeMarkers[0]->SetTime(InStartTime);
+			}
+			if (NumTimeMarkers >= 2)
+			{
+				CustomTimeMarkers[1]->SetTime(InEndTime);
+			}
+
+			double Time = InEndTime;
+			for (uint32 Index = 2; Index < NumTimeMarkers; ++Index)
+			{
+				const double TimeMarkerTime = CustomTimeMarkers[Index]->GetTime();
+				if (TimeMarkerTime < Time)
+				{
+					CustomTimeMarkers[Index]->SetTime(Time);
+				}
+				else
+				{
+					Time = TimeMarkerTime;
+				}
+			}
+
+			UpdateMemInvestigationView();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::CreateTimingViewMarkers()
+{
+	check(CustomTimeMarkers.Num() == 0);
+
+	constexpr uint32 MaxNumTimeMarkers = 5;
+
+	TCHAR TimeMarkerName[2];
+	TimeMarkerName[1] = 0;
+
+	for (uint32 Index = 0; Index < MaxNumTimeMarkers; ++Index)
+	{
+		TSharedRef<Insights::FTimeMarker> TimeMarker = MakeShared<Insights::FTimeMarker>();
+
+		TimeMarkerName[0] = TEXT('A') + Index; // "A", "B", "C", etc.
+		TimeMarker->SetName(TimeMarkerName);
+
+		const uint32 HueStep = 256 / MaxNumTimeMarkers;
+		const uint8 H = uint8(HueStep * Index);
+		const uint8 S = 192;
+		const uint8 V = 255;
+		const FLinearColor Color = FLinearColor::MakeFromHSV8(H, S, V);
+		TimeMarker->SetColor(Color);
+
+		TimeMarker->SetTime((Index + 1) * 10.0); // 10s, 20s, 30s, etc.
+		TimeMarker->SetVisibility(false);
+
+		CustomTimeMarkers.Add(TimeMarker);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::ResetTimingViewMarkers()
+{
+	TSharedRef<FTimeRulerTrack> TimeRulerTrack = TimingView->GetTimeRulerTrack();
+
+	TimeRulerTrack->RemoveAllTimeMarkers();
+
+	// Hide the "Default Time Marker".
+	TSharedRef<Insights::FTimeMarker> DefaultTimeMarker = TimingView->GetDefaultTimeMarker();
+	DefaultTimeMarker->SetVisibility(false);
+
+	const uint32 NumTimeMarkers = CustomTimeMarkers.Num();
+	for (uint32 Index = 0; Index < NumTimeMarkers; ++Index)
+	{
+		TSharedRef<Insights::FTimeMarker>& TimeMarker = CustomTimeMarkers[Index];
+		TimeMarker->SetTime((Index + 1) * 10.0); // 10s, 20s, 30s, etc.
+		TimeRulerTrack->AddTimeMarker(TimeMarker);
+	}
+
+	UpdateTimingViewMarkers();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::OnMemoryRuleChanged()
+{
+	UpdateTimingViewMarkers();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::UpdateTimingViewMarkers()
+{
+	TSharedPtr<Insights::FMemoryRuleSpec> Rule = SharedState->GetCurrentMemoryRule();
+	const uint32 NumVisibleTimeMarkers = Rule ? Rule->GetNumTimeMarkers() : 0;
+
+	const uint32 NumTimeMarkers = CustomTimeMarkers.Num();
+	ensure(NumVisibleTimeMarkers <= NumTimeMarkers);
+
+	for (uint32 Index = 0; Index < NumTimeMarkers; ++Index)
+	{
+		TSharedRef<Insights::FTimeMarker>& TimeMarker = CustomTimeMarkers[Index];
+		if (Index < NumVisibleTimeMarkers)
+		{
+			TimeMarker->SetVisibility(true);
+		}
+		else
+		{
+			TimeMarker->SetVisibility(false);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::OnTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, TSharedRef<Insights::ITimeMarker> InTimeMarker)
+{
+	const uint32 NumTimeMarkers = CustomTimeMarkers.Num();
+
+	// Find index of the changing time marker.
+	uint32 ChangedTimeMarkerIndex = -1;
+	for (uint32 Index = 0; Index < NumTimeMarkers; ++Index)
+	{
+		TSharedRef<Insights::FTimeMarker>& TimeMarker = CustomTimeMarkers[Index];
+		if (TimeMarker == InTimeMarker)
+		{
+			ChangedTimeMarkerIndex = Index;
+			break;
+		}
+	}
+
+	// Ensure the rest of time markers are orderd by time.
+	if (ChangedTimeMarkerIndex >= 0)
+	{
+		for (uint32 Index = 0; Index < ChangedTimeMarkerIndex; ++Index)
+		{
+			TSharedRef<Insights::FTimeMarker>& TimeMarker = CustomTimeMarkers[Index];
+			if (TimeMarker->GetTime() > InTimeMarker->GetTime())
+			{
+				TimeMarker->SetTime(InTimeMarker->GetTime());
+			}
+		}
+		for (uint32 Index = ChangedTimeMarkerIndex + 1; Index < NumTimeMarkers; ++Index)
+		{
+			TSharedRef<Insights::FTimeMarker>& TimeMarker = CustomTimeMarkers[Index];
+			if (TimeMarker->GetTime() < InTimeMarker->GetTime())
+			{
+				TimeMarker->SetTime(InTimeMarker->GetTime());
+			}
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

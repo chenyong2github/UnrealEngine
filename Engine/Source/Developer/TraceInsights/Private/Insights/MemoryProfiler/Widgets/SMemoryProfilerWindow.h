@@ -14,6 +14,7 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/ITimingViewSession.h"
 #include "Insights/Widgets/SModulesView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,8 +63,6 @@ public:
 	SLATE_END_ARGS()
 
 	void Reset();
-	void ResetTimingViewMarkers();
-	void UpdateTimingViewMarkers();
 	void UpdateTableTreeViews();
 	void UpdateMemInvestigationView();
 	void UpdateMemTagTreeView();
@@ -93,6 +92,9 @@ public:
 
 	void CloseMemAllocTableTreeTabs();
 
+	void OnMemoryRuleChanged();
+	void OnTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, TSharedRef<Insights::ITimeMarker> InTimeMarker);
+
 private:
 	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
 	void OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
@@ -108,7 +110,7 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_ModulesView(const FSpawnTabArgs& Args);
 	void OnModulesViewClosed(TSharedRef<SDockTab> TabBeingClosed);
-	
+
 	/**
 	 * Fill the main menu with menu items.
 	 *
@@ -179,6 +181,12 @@ private:
 	 * @return A reply that indicated whether this event was handled.
 	 */
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
+
+	void OnTimeSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime);
+
+	void CreateTimingViewMarkers();
+	void ResetTimingViewMarkers();
+	void UpdateTimingViewMarkers();
 
 private:
 	TSharedRef<FMemorySharedState> SharedState;

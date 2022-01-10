@@ -7,6 +7,7 @@
 
 // Insights
 #include "Insights/ViewModels/BaseTimingTrack.h"
+#include "Insights/ITimingViewSession.h"
 
 struct FDrawContext;
 class FMenuBuilder;
@@ -18,7 +19,7 @@ namespace Insights
 
 class ITimingViewExtender;
 
-class FTimeMarker
+class FTimeMarker : public  ITimeMarker
 {
 public:
 	FTimeMarker()
@@ -30,8 +31,10 @@ public:
 		, CrtTextWidth(0.0f)
 	{}
 
-	double GetTime() const { return Time; }
-	void SetTime(const double  InTime) { Time = InTime; }
+	virtual ~FTimeMarker() {}
+
+	double GetTime() const override { return Time; }
+	void SetTime(const double  InTime) override { Time = InTime; }
 
 	const FString& GetName() const { return Name; }
 	void SetName(const FString& InName) { Name = InName; }

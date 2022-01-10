@@ -26,11 +26,25 @@ ENUM_CLASS_FLAGS(ETimeChangedFlags);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class TRACEINSIGHTS_API ITimeMarker
+{
+public:
+	virtual ~ITimeMarker() = default;
+
+	virtual double GetTime() const = 0;
+	virtual void SetTime(const double  InTime) = 0;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /** The delegate to be invoked when the selection have been changed */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FSelectionChangedDelegate, ETimeChangedFlags /*InFlags*/, double /*StartTime*/, double /*EndTime*/);
 
 /** The delegate to be invoked when the time marker has changed */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FTimeMarkerChangedDelegate, ETimeChangedFlags /*InFlags*/, double /*TimeMarker*/);
+
+/** The delegate to be invoked when a custom time marker has changed */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FCustomTimeMarkerChangedDelegate, ETimeChangedFlags /*InFlags*/, TSharedRef<ITimeMarker> /*TimeMarker*/);
 
 /** The delegate to be invoked when the timing track being hovered by the mouse has changed */
 DECLARE_MULTICAST_DELEGATE_OneParam(FHoveredTrackChangedDelegate, const TSharedPtr<FBaseTimingTrack> /*InTrack*/);
@@ -97,6 +111,8 @@ public:
 	virtual FSelectionChangedDelegate& OnSelectionChanged() = 0;
 	/** Gets the delegate to be invoked when the time marker has changed. */
 	virtual FTimeMarkerChangedDelegate& OnTimeMarkerChanged() = 0;
+	/** Gets the delegate to be invoked when a custom time marker has changed. */
+	virtual FCustomTimeMarkerChangedDelegate& OnCustomTimeMarkerChanged() = 0;
 
 	/** Gets the delegate to be invoked when the timing track being hovered by the mouse has changed. */
 	virtual FHoveredTrackChangedDelegate& OnHoveredTrackChanged() = 0;

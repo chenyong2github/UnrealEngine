@@ -51,6 +51,8 @@ const FName FLoadingProfilerTabs::RequestsTreeViewID(TEXT("Requests"));
 
 SLoadingProfilerWindow::SLoadingProfilerWindow()
 	: DurationActive(0.0f)
+	, SelectionStartTime(0.0f)
+	, SelectionEndTime(0.0f)
 {
 }
 
@@ -162,9 +164,6 @@ void SLoadingProfilerWindow::UpdateEventAggregationTreeView()
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
 
-			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
-			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
-
 			TraceServices::ITable<TraceServices::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
 			EventAggregationTreeView->UpdateSourceTable(MakeShareable(EventAggregationTable));
 		}
@@ -186,9 +185,6 @@ void SLoadingProfilerWindow::UpdateObjectTypeAggregationTreeView()
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
-			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
 
 			TraceServices::ITable<TraceServices::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
 			ObjectTypeAggregationTreeView->UpdateSourceTable(MakeShareable(ObjectTypeAggregationTable));
@@ -212,9 +208,6 @@ void SLoadingProfilerWindow::UpdatePackageDetailsTreeView()
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
 
-			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
-			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
-
 			TraceServices::ITable<TraceServices::FPackagesTableRow>* PackageDetailsTable = LoadTimeProfilerProvider.CreatePackageDetailsTable(SelectionStartTime, SelectionEndTime);
 			PackageDetailsTreeView->UpdateSourceTable(MakeShareable(PackageDetailsTable));
 		}
@@ -236,9 +229,6 @@ void SLoadingProfilerWindow::UpdateExportDetailsTreeView()
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			const double SelectionStartTime = TimingView ? TimingView->GetSelectionStartTime() : 0.0;
-			const double SelectionEndTime = TimingView ? TimingView->GetSelectionEndTime() : 0.0;
 
 			TraceServices::ITable<TraceServices::FExportsTableRow>* ExportDetailsTable = LoadTimeProfilerProvider.CreateExportDetailsTable(SelectionStartTime, SelectionEndTime);
 			ExportDetailsTreeView->UpdateSourceTable(MakeShareable(ExportDetailsTable));
@@ -302,6 +292,8 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_TimingView(const FSpawnTab
 
 	TimingView->EnableAssetLoadingMode();
 	TimingView->Reset(true);
+	TimingView->OnSelectionChanged().AddSP(this, &SLoadingProfilerWindow::OnTimeSelectionChanged);
+	TimingView->SelectTimeInterval(SelectionStartTime, SelectionEndTime - SelectionStartTime);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnTimingViewTabClosed));
 
@@ -314,7 +306,11 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SLoadingProfilerWindow::OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
 	FLoadingProfilerManager::Get()->SetTimingViewVisible(false);
-	TimingView = nullptr;
+	if (TimingView)
+	{
+		TimingView->OnSelectionChanged().RemoveAll(this);
+		TimingView = nullptr;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -768,6 +764,21 @@ FReply SLoadingProfilerWindow::OnDrop(const FGeometry& MyGeometry, const FDragDr
 	}
 
 	return SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLoadingProfilerWindow::OnTimeSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime)
+{
+	if (InFlags != Insights::ETimeChangedFlags::Interactive)
+	{
+		if (InStartTime < InEndTime)
+		{
+			SelectionStartTime = InStartTime;
+			SelectionEndTime = InEndTime;
+			UpdateTableTreeViews();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
