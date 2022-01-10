@@ -3,6 +3,8 @@
 
 #include "CoreMinimal.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "UObject/WeakObjectPtr.h"
 
 #if WITH_EDITOR
 class UActorDescContainer;
@@ -11,6 +13,7 @@ class FWorldPartitionActorDesc;
 struct ENGINE_API FWorldPartitionHandleUtils
 {
 	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid);
+	static UActorDescContainer* GetActorDescContainer(TUniquePtr<FWorldPartitionActorDesc>* ActorDesc);
 	static bool IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc);
 };
 
@@ -23,7 +26,8 @@ public:
 	{}
 
 	FORCEINLINE TWorldPartitionHandle(TUniquePtr<FWorldPartitionActorDesc>* InActorDesc)
-		: ActorDesc(InActorDesc)
+		: Container(FWorldPartitionHandleUtils::GetActorDescContainer(InActorDesc))
+		, ActorDesc(InActorDesc)
 	{
 		if (IsValid())
 		{
@@ -32,7 +36,8 @@ public:
 	}
 
 	FORCEINLINE TWorldPartitionHandle(UActorDescContainer* Container, const FGuid& ActorGuid)
-		: ActorDesc(FWorldPartitionHandleUtils::GetActorDesc(Container, ActorGuid))
+		: Container(Container)
+		, ActorDesc(FWorldPartitionHandleUtils::GetActorDesc(Container, ActorGuid))
 	{
 		if (IsValid())
 		{
@@ -41,13 +46,15 @@ public:
 	}
 
 	FORCEINLINE TWorldPartitionHandle(const TWorldPartitionHandle& Other)
-		: ActorDesc(nullptr)
+		: Container(nullptr)
+		, ActorDesc(nullptr)
 	{
 		*this = Other;
 	}
 
 	FORCEINLINE TWorldPartitionHandle(TWorldPartitionHandle&& Other)
-		: ActorDesc(nullptr)
+		: Container(nullptr)
+		, ActorDesc(nullptr)
 	{
 		*this = MoveTemp(Other);
 	}
@@ -84,6 +91,7 @@ public:
 				DecRefCount();
 			}
 
+			Container = Other.Container;
 			ActorDesc = Other.ActorDesc;
 
 			if (IsValid())
@@ -104,7 +112,10 @@ public:
 				DecRefCount();
 			}
 
+			Container = Other.Container;
 			ActorDesc = Other.ActorDesc;
+			
+			Other.Container = nullptr;
 			Other.ActorDesc = nullptr;
 		}
 
@@ -120,6 +131,7 @@ public:
 			DecRefCount();
 		}
 
+		Container = Other.Container;
 		ActorDesc = Other.ActorDesc;
 
 		if (IsValid())
@@ -138,12 +150,15 @@ public:
 			DecRefCount();
 		}
 
+		Container = Other.Container;
 		ActorDesc = Other.ActorDesc;
 
 		if (IsValid())
 		{
 			IncRefCount();
 			Other.DecRefCount();
+
+			Other.Container = nullptr;
 			Other.ActorDesc = nullptr;
 		}
 
@@ -162,7 +177,7 @@ public:
 
 	FORCEINLINE bool IsValid() const
 	{
-		return ActorDesc && ActorDesc->IsValid();
+		return Container.IsValid() && ActorDesc && ActorDesc->IsValid();
 	}
 
 	FORCEINLINE bool IsLoaded() const
@@ -177,6 +192,7 @@ public:
 
 	FORCEINLINE void Reset()
 	{
+		Container = nullptr;
 		ActorDesc = nullptr;
 	}
 	
@@ -219,6 +235,7 @@ public:
 		Impl::DecRefCount(ActorDesc->Get());
 	}
 
+	TWeakObjectPtr<UActorDescContainer> Container;
 	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc;
 };
 

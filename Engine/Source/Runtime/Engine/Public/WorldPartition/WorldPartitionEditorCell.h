@@ -70,8 +70,6 @@ public:
 	typedef TActorHandle<FWorldPartitionHandle> FActorHandle;
 	typedef TActorHandle<FWorldPartitionReference> FActorReference;
 
-	virtual void BeginDestroy() override;
-
 	void AddActor(const FWorldPartitionHandle& ActorHandle);
 	void AddActor(const FGuid& Source, const FWorldPartitionHandle& ActorHandle);
 	void RemoveActor(const FWorldPartitionHandle& ActorHandle);

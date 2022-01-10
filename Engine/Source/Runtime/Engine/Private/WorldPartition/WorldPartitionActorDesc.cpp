@@ -77,11 +77,10 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 
 	ActorLabel = *InActor->GetActorLabel(false);
 
-	// Only set ActorPtr/Container on WorldPartition ActorDescs
-	if (UWorldPartition* WorldPartition = InActor->GetLevel()->GetWorldPartition())
+	if (UActorDescContainer* ActorContainer = InActor->GetLevel()->GetWorldPartition())
 	{
 		ActorPtr = (AActor*)InActor;
-		Container = WorldPartition;
+		Container = ActorContainer;
 	}
 }
 
@@ -103,12 +102,8 @@ void FWorldPartitionActorDesc::Init(UActorDescContainer* InContainer, const FWor
 	// Serialize metadata payload
 	Serialize(MetadataAr);
 
-	// Only set ActorPtr/Container on WorldPartition ActorDescs
-	if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(InContainer))
-	{
-		Container = InContainer;
-		ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
-	}
+	Container = InContainer;
+	ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
 }
 
 bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
@@ -312,13 +307,6 @@ UHLODLayer* FWorldPartitionActorDesc::GetHLODLayer() const
 
 bool FWorldPartitionActorDesc::IsLoaded(bool bEvenIfPendingKill) const
 {
-#if WITH_DEV_AUTOMATION_TESTS
-	if (GIsAutomationTesting)
-	{
-		return HardRefCount > 0;
-	}
-#endif
-
 	return ActorPtr.IsValid(bEvenIfPendingKill);
 }
 
@@ -338,13 +326,9 @@ AActor* FWorldPartitionActorDesc::Load() const
 	// The, if the actor isn't loaded, load it
 	if (ActorPtr.IsExplicitlyNull())
 	{
-		// For now we assume that an ActorDesc that gets loaded is owned by an actual WorldPartition
-		UWorldPartition* WorldPartition = Container ? CastChecked<UWorldPartition>(Container) : nullptr;
-		check(WorldPartition || GIsAutomationTesting);
-
 		const FLinkerInstancingContext* InstancingContext = nullptr;
 		FSoftObjectPathFixupArchive* SoftObjectPathFixupArchive = nullptr;
-		if (WorldPartition && WorldPartition->InstancingContext.IsInstanced())
+		if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(Container); WorldPartition && WorldPartition->InstancingContext.IsInstanced())
 		{
 			InstancingContext = &WorldPartition->InstancingContext;
 			SoftObjectPathFixupArchive = WorldPartition->InstancingSoftObjectPathFixupArchive.Get();
@@ -361,7 +345,6 @@ AActor* FWorldPartitionActorDesc::Load() const
 		}
 
 		Package = LoadPackage(Package, *ActorPackage.ToString(), LOAD_None, nullptr, InstancingContext);
-		check(Package || GIsAutomationTesting);
 
 		if (Package)
 		{

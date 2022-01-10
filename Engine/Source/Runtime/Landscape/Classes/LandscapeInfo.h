@@ -175,8 +175,6 @@ public:
 #endif
 
 #if WITH_EDITOR
-	virtual void BeginDestroy() override;
-
 	// @todo document 
 	// all below.
 	LANDSCAPE_API bool SupportsLandscapeEditing() const;

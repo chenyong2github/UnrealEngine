@@ -41,14 +41,6 @@ void UWorldPartitionEditorCell::AddReferencedObjects(UObject* InThis, FReference
 	Super::AddReferencedObjects(InThis, Collector);
 }
 
-void UWorldPartitionEditorCell::BeginDestroy()
-{
-	// Release handles/references
-	Actors.Empty();
-	LoadedActors.Empty();
-	Super::BeginDestroy();
-}
-
 void UWorldPartitionEditorCell::AddActor(const FWorldPartitionHandle& ActorHandle)
 {
 	AddActor(ActorHandle->GetGuid(), ActorHandle);
