@@ -2404,6 +2404,7 @@ private:
 	bool bRequiresDistanceFieldShadowingPass;
 	bool bIsFullDepthPrepassEnabled;
 	bool bIsMaskedOnlyDepthPrepassEnabled;
+	bool bRequiresSceneDepthAux;
 
 	ETranslucencyPass::Type StandardTranslucencyPass;
 	EMeshPass::Type StandardTranslucencyMeshPass;
