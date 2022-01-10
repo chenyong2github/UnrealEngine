@@ -23,6 +23,7 @@
 #include "Modules/ModuleManager.h"
 #include "IO/IoContainerHeader.h"
 #include "Serialization/MemoryReader.h"
+#include "FileCache/FileCache.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -895,6 +896,10 @@ TIoStatusOr<FIoContainerHeader> FFileIoStoreReader::ReadContainerHeader() const
 	const int32 PartitionIndex = int32(CompressionBlockEntry->GetOffset() / ContainerFile.PartitionSize);
 	const FFileIoStoreContainerFilePartition& Partition = ContainerFile.Partitions[PartitionIndex];
 	const uint64 RawOffset = CompressionBlockEntry->GetOffset() % ContainerFile.PartitionSize;
+
+#if !UE_BUILD_SHIPPING
+	FileCache_PostIoStoreCompressionBlockSize(CompressionBlockSize, Partition.FilePath);
+#endif
 
 	FIoBuffer IoBuffer(Align(Size, FAES::AESBlockSize));
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();

@@ -64,3 +64,11 @@ public:
 	 */
 	virtual void WaitAll() = 0;
 };
+
+#if !UE_BUILD_SHIPPING
+//
+// Called by the IoStore system to inform the FileCache of used compression block sizes,
+// for usage warning purposes. (FFileIoStoreReader::ReadContainerHeader)
+//
+void CORE_API FileCache_PostIoStoreCompressionBlockSize(uint32 InCompressionBlockSize, FString const& InContainerFilePath);
+#endif // !UE_BUILD_SHIPPING
