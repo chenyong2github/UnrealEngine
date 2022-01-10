@@ -79,7 +79,16 @@ public:
 	inline void SetTexture(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanTextureBase* TextureBase, VkImageLayout Layout)
 	{
 		check(TextureBase && TextureBase->PartialView);
-		MarkDirty(DSWriter[DescriptorSet].WriteImage(BindingIndex, *TextureBase->PartialView, Layout));
+
+		// If the texture doesn't support sampling, then we read it through a UAV
+		if (TextureBase->Surface.SupportsSampling())
+		{
+			MarkDirty(DSWriter[DescriptorSet].WriteImage(BindingIndex, *TextureBase->PartialView, Layout));
+		}
+		else
+		{
+			MarkDirty(DSWriter[DescriptorSet].WriteStorageImage(BindingIndex, *TextureBase->PartialView, Layout));
+		}
 	}
 
 	inline void SetSRVBufferViewState(uint8 DescriptorSet, uint32 BindingIndex, const FVulkanBufferView* View)

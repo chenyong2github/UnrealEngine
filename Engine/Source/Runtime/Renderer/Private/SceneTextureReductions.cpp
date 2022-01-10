@@ -60,7 +60,7 @@ class FHZBBuildCS : public FGlobalShader
 
 	static constexpr int32 kMaxMipBatchSize = 4;
 
-	class FDimVisBufferFormat : SHADER_PERMUTATION_INT("VIS_BUFFER_FORMAT", 3);
+	class FDimVisBufferFormat : SHADER_PERMUTATION_INT("VIS_BUFFER_FORMAT", 4);
 	class FDimFurthest : SHADER_PERMUTATION_BOOL("DIM_FURTHEST");
 	class FDimClosest : SHADER_PERMUTATION_BOOL("DIM_CLOSEST");
 	class FDimMipLevelCount : SHADER_PERMUTATION_RANGE_INT("DIM_MIP_LEVEL_COUNT", 1, kMaxMipBatchSize);
@@ -183,7 +183,23 @@ void BuildHZB(
 			int32 VisBufferFormat = 0;
 			if( VisBufferTexture && StartDestMip == 0 )
 			{
-				VisBufferFormat = VisBufferTexture->Desc.Format == PF_R32_UINT ? 2 : 1;
+				const int32 VisBufferFormatR32G32 = 1;
+				const int32 VisBufferFormatR32 = 2;
+				const int32 VisBufferFormatR64 = 3;
+
+				if (VisBufferTexture->Desc.Format == PF_R32_UINT)
+				{
+					VisBufferFormat = VisBufferFormatR32;
+				}
+				else if (VisBufferTexture->Desc.Format == PF_R64_UINT)
+				{
+					// Vulkan uses a single UlongType that can't be viewed as a R32G32
+					VisBufferFormat = VisBufferFormatR64;
+				}
+				else
+				{
+					VisBufferFormat = VisBufferFormatR32G32;
+				}
 			}
 
 			FHZBBuildCS::FPermutationDomain PermutationVector;

@@ -162,7 +162,7 @@ static VkPipelineStageFlags GetVkStageFlagsForLayout(VkImageLayout Layout)
 //
 // Get the Vulkan stage flags, access flags and image layout (if relevant) corresponding to an ERHIAccess value from the public API.
 //
-static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::EType ResourceType, uint32 UsageFlags, bool bIsDepthStencil, VkPipelineStageFlags& StageFlags, VkAccessFlags& AccessFlags, VkImageLayout& Layout, bool bIsSourceState)
+static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::EType ResourceType, uint32 UsageFlags, bool bIsDepthStencil, bool bSupportsReadOnlyOptimal, VkPipelineStageFlags& StageFlags, VkAccessFlags& AccessFlags, VkImageLayout& Layout, bool bIsSourceState)
 {
 	// From Vulkan's point of view, when performing a multisample resolve via a render pass attachment, resolve targets are the same as render targets .
 	// The caller signals this situation by setting both the RTV and ResolveDst flags, and we simply remove ResolveDst in that case,
@@ -177,7 +177,9 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 
 	// The layout to use if SRV access is requested. In case of depth/stencil buffers, we don't need to worry about different states for the separate aspects, since that's handled explicitly elsewhere,
 	// and this function is never called for depth-only or stencil-only transitions.
-	const VkImageLayout SRVLayout = bIsDepthStencil ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	const VkImageLayout SRVLayout = 
+		bIsDepthStencil ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : 
+		bSupportsReadOnlyOptimal ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
 
 	// States which cannot be combined.
 	switch (RHIAccess)
@@ -754,8 +756,11 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		}
 		else
 		{
-			GetVkStageAndAccessFlags(Info.AccessBefore, UnderlyingType, UsageFlags, bIsDepthStencil, SrcStageMask, SrcAccessFlags, SrcLayout, true);
-			GetVkStageAndAccessFlags(Info.AccessAfter, UnderlyingType, UsageFlags, bIsDepthStencil, DstStageMask, DstAccessFlags, DstLayout, false);
+			
+			const bool bSupportsReadOnlyOptimal = (Texture == nullptr) || Texture->Surface.SupportsSampling();
+
+			GetVkStageAndAccessFlags(Info.AccessBefore, UnderlyingType, UsageFlags, bIsDepthStencil, bSupportsReadOnlyOptimal, SrcStageMask, SrcAccessFlags, SrcLayout, true);
+			GetVkStageAndAccessFlags(Info.AccessAfter, UnderlyingType, UsageFlags, bIsDepthStencil, bSupportsReadOnlyOptimal, DstStageMask, DstAccessFlags, DstLayout, false);
 
 			// If not compute, remove vertex pipeline bits as only compute updates vertex buffers
 			if (!(SrcStageMask & VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT))
@@ -1409,12 +1414,13 @@ void FVulkanPipelineBarrier::AddImageAccessTransition(const FVulkanSurface& Surf
 	// This function should only be used for known states.
 	check(DstAccess != ERHIAccess::Unknown);
 	const bool bIsDepthStencil = Surface.IsDepthOrStencilAspect();
+	const bool bSupportsReadOnlyOptimal = Surface.SupportsSampling();
 
 	VkPipelineStageFlags ImgSrcStage, ImgDstStage;
 	VkAccessFlags SrcAccessFlags, DstAccessFlags;
 	VkImageLayout SrcLayout, DstLayout;
-	GetVkStageAndAccessFlags(SrcAccess, FRHITransitionInfo::EType::Texture, 0, bIsDepthStencil, ImgSrcStage, SrcAccessFlags, SrcLayout, true);
-	GetVkStageAndAccessFlags(DstAccess, FRHITransitionInfo::EType::Texture, 0, bIsDepthStencil, ImgDstStage, DstAccessFlags, DstLayout, false);
+	GetVkStageAndAccessFlags(SrcAccess, FRHITransitionInfo::EType::Texture, 0, bIsDepthStencil, bSupportsReadOnlyOptimal, ImgSrcStage, SrcAccessFlags, SrcLayout, true);
+	GetVkStageAndAccessFlags(DstAccess, FRHITransitionInfo::EType::Texture, 0, bIsDepthStencil, bSupportsReadOnlyOptimal, ImgDstStage, DstAccessFlags, DstLayout, false);
 
 	// If not compute, remove vertex pipeline bits as only compute updates vertex buffers
 	if (!(ImgSrcStage & VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT))

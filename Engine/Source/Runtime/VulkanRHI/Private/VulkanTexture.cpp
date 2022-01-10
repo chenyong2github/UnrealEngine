@@ -439,37 +439,38 @@ void FVulkanSurface::GenerateImageCreateInfo(
 		InDevice.GetFormatProperties()[ImageCreateInfo.format].linearTilingFeatures : 
 		InDevice.GetFormatProperties()[ImageCreateInfo.format].optimalTilingFeatures;
 
-	if ((FormatFlags & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) == 0)
+	if (!VKHasAnyFlags(FormatFlags, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
 	{
-		ensure((ImageCreateInfo.usage & VK_IMAGE_USAGE_SAMPLED_BIT) == 0);
+		// Some formats don't support sampling and that's ok, we'll use a STORAGE_IMAGE
+		check(EnumHasAnyFlags(UEFlags, TexCreate_UAV));
 		ImageCreateInfo.usage &= ~VK_IMAGE_USAGE_SAMPLED_BIT;
 	}
 
-	if ((FormatFlags & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) == 0)
+	if (!VKHasAnyFlags(FormatFlags, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
 	{
 		ensure((ImageCreateInfo.usage & VK_IMAGE_USAGE_STORAGE_BIT) == 0);
 		ImageCreateInfo.usage &= ~VK_IMAGE_USAGE_STORAGE_BIT;
 	}
 
-	if ((FormatFlags & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) == 0)
+	if (!VKHasAnyFlags(FormatFlags, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT))
 	{
 		ensure((ImageCreateInfo.usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) == 0);
 		ImageCreateInfo.usage &= ~VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	}
 
-	if ((FormatFlags & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
+	if (!VKHasAnyFlags(FormatFlags, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT))
 	{
 		ensure((ImageCreateInfo.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0);
 		ImageCreateInfo.usage &= ~VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	}
 
-	if ((FormatFlags & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT) == 0)
+	if (!VKHasAnyFlags(FormatFlags, VK_FORMAT_FEATURE_TRANSFER_SRC_BIT))
 	{
 		// this flag is used unconditionally, strip it without warnings 
 		ImageCreateInfo.usage &= ~VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	}
 		
-	if ((FormatFlags & VK_FORMAT_FEATURE_TRANSFER_DST_BIT) == 0)
+	if (!VKHasAnyFlags(FormatFlags, VK_FORMAT_FEATURE_TRANSFER_DST_BIT))
 	{
 		// this flag is used unconditionally, strip it without warnings 
 		ImageCreateInfo.usage &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -532,7 +533,7 @@ struct FRHICommandOnDestroyImage final : public FRHICommand<FRHICommandOnDestroy
 	}
 };
 
-static VkImageLayout GetInitialLayoutFromRHIAcess(ERHIAccess RHIAccess, ETextureCreateFlags UEFlags)
+static VkImageLayout GetInitialLayoutFromRHIAccess(ERHIAccess RHIAccess, ETextureCreateFlags UEFlags, bool bSupportReadOnlyOptimal)
 {
 	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::RTV) || RHIAccess == ERHIAccess::Present)
 	{
@@ -551,7 +552,12 @@ static VkImageLayout GetInitialLayoutFromRHIAcess(ERHIAccess RHIAccess, ETexture
 
 	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::SRVMask))
 	{
-		return EnumHasAnyFlags(UEFlags, TexCreate_DepthStencilTargetable) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		if (EnumHasAnyFlags(UEFlags, TexCreate_DepthStencilTargetable))
+		{
+			return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		}
+
+		return bSupportReadOnlyOptimal ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
 	}
 
 	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::UAVMask))
@@ -709,8 +715,8 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 	Tiling = ImageCreateInfo.ImageCreateInfo.tiling;
 	check(Tiling == VK_IMAGE_TILING_LINEAR || Tiling == VK_IMAGE_TILING_OPTIMAL);
 
-	VkImageLayout InitialLayout = GetInitialLayoutFromRHIAcess(InResourceState, UEFlags);
-	const bool bDoInitialClear = (ImageCreateInfo.ImageCreateInfo.usage & VK_IMAGE_USAGE_SAMPLED_BIT) && EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable);
+	const VkImageLayout InitialLayout = GetInitialLayoutFromRHIAccess(InResourceState, UEFlags, SupportsSampling());
+	const bool bDoInitialClear = VKHasAnyFlags(ImageCreateInfo.ImageCreateInfo.usage, VK_IMAGE_USAGE_SAMPLED_BIT) && EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable);
 
 	if (InitialLayout != VK_IMAGE_LAYOUT_UNDEFINED || bDoInitialClear)
 	{
@@ -1941,7 +1947,7 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 
 	if (ResourceType != VK_IMAGE_VIEW_TYPE_MAX_ENUM)
 	{
-		DefaultView.Create(Device, Surface.Image, ResourceType, Surface.GetFullAspectMask(), Surface.PixelFormat, Surface.ViewFormat, 0, FMath::Max(NumMips, 1u), 0, bArray ? FMath::Max(1u, ArraySize) : FMath::Max(1u, SizeZ));
+		DefaultView.Create(Device, Surface.Image, ResourceType, Surface.GetFullAspectMask(), Surface.PixelFormat, Surface.ViewFormat, 0, FMath::Max(NumMips, 1u), 0, bArray ? FMath::Max(1u, ArraySize) : FMath::Max(1u, SizeZ), !Surface.SupportsSampling());
 	}
 
 	if (Surface.FullAspectMask == Surface.PartialAspectMask)
@@ -2011,7 +2017,7 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 
 	if (ResourceType != VK_IMAGE_VIEW_TYPE_MAX_ENUM && Surface.Image != VK_NULL_HANDLE)
 	{
-		DefaultView.Create(Device, Surface.Image, ResourceType, Surface.GetFullAspectMask(), Format, Surface.ViewFormat, 0, FMath::Max(Surface.NumMips, 1u), 0, bArray ? FMath::Max(1u, ArraySize) : FMath::Max(1u, SizeZ));
+		DefaultView.Create(Device, Surface.Image, ResourceType, Surface.GetFullAspectMask(), Format, Surface.ViewFormat, 0, FMath::Max(Surface.NumMips, 1u), 0, bArray ? FMath::Max(1u, ArraySize) : FMath::Max(1u, SizeZ), !Surface.SupportsSampling());
 	}
 
 	if (Surface.FullAspectMask == Surface.PartialAspectMask)
@@ -2150,7 +2156,7 @@ void FVulkanTextureBase::InvalidateViews(FVulkanDevice& Device)
 
 	if(Surface.ViewType != VK_IMAGE_VIEW_TYPE_MAX_ENUM)
 	{
-		DefaultView.Create(Device, Surface.Image, Surface.ViewType, Surface.GetFullAspectMask(), Surface.PixelFormat, Surface.ViewFormat, 0, FMath::Max(NumMips, 1u), 0, SizeZOrArraySize);
+		DefaultView.Create(Device, Surface.Image, Surface.ViewType, Surface.GetFullAspectMask(), Surface.PixelFormat, Surface.ViewFormat, 0, FMath::Max(NumMips, 1u), 0, SizeZOrArraySize, !Surface.SupportsSampling());
 	}
 	if(PartialView != &DefaultView)
 	{

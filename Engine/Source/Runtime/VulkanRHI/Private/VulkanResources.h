@@ -454,6 +454,11 @@ public:
 		return (ImageOwnerType == EImageOwnerType::LocalOwner);
 	}
 
+	inline bool SupportsSampling() const
+	{
+		return EnumHasAllFlags(GPixelFormats[PixelFormat].Capabilities, EPixelFormatCapabilities::TextureSample);
+	}
+
 	VULKANRHI_API VkDeviceMemory GetAllocationHandle() const;
 	VULKANRHI_API uint64 GetAllocationOffset() const;
 

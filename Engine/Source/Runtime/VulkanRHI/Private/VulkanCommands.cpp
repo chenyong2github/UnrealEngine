@@ -330,7 +330,8 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 		case UBMT_RDG_TEXTURE:
 		{
 			const VkDescriptorType DescriptorType = BindingToDescriptorType(DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex]);
-			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+			// Tolerate STORAGE_IMAGE for now, it is sometimes used on formats that don't support sampling
+			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER || DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 			FRHITexture* TexRef = (FRHITexture*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
 			if (TexRef)
 			{
@@ -340,6 +341,9 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 					BaseTexture = FVulkanTextureBase::Cast(GBlackTexture->TextureRHI.GetReference());
 				}
 
+				// If the descriptor is a storage image in a slot expecting to read only, make sure it's because we don't support sampling
+				ensure(DescriptorType != VK_DESCRIPTOR_TYPE_STORAGE_IMAGE || !BaseTexture->Surface.SupportsSampling());
+
 #if ENABLE_RHI_VALIDATION
 				if (Context->Tracker)
 				{
@@ -347,7 +351,7 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 				}
 #endif
 
-				VkImageLayout Layout = Context->GetLayoutManager().FindLayoutChecked(BaseTexture->Surface.Image);
+				const VkImageLayout Layout = Context->GetLayoutManager().FindLayoutChecked(BaseTexture->Surface.Image);
 				State->SetTextureForUBResource(GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewDescriptorSet, GlobalRemappingInfo[ResourceInfo.GlobalIndex].NewBindingIndex, BaseTexture, Layout);
 				TexRef->SetLastRenderTime(CurrentTime);
 			}
