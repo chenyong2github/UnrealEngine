@@ -134,9 +134,9 @@ void FContextSwitchesSharedState::OnBeginSession(Insights::ITimingViewSession& I
 				AddCommands();
 			}
 		}
-		else if(TimingView == nullptr && FTimingProfilerManager::Get()->IsTimingViewVisible())
+		else if (TimingView == nullptr && FTimingProfilerManager::Get()->IsTimingViewVisible())
 		{
-			TimingView = (STimingView *)&InSession;
+			TimingView = (STimingView*)&InSession;
 			AddCommands();
 		}
 		else
