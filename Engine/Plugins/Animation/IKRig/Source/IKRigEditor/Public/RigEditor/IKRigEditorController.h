@@ -113,6 +113,8 @@ public:
 	void ShowDetailsForSolver(const int32 SolverIndex);
 	/** show nothing in details view */
 	void ShowEmptyDetails();
+	/** show selected items in details view */
+	void ShowDetailsForElements(const TArray<TSharedPtr<FIKRigTreeElement>>& InItems);
 
 	/** create a new retarget chain */
 	void AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone);

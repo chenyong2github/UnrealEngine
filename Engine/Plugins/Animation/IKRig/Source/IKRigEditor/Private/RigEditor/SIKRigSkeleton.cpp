@@ -1370,6 +1370,17 @@ void SIKRigSkeleton::HandleGetChildrenForTree(
 
 void SIKRigSkeleton::OnSelectionChanged(TSharedPtr<FIKRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+
+	// update details view
+	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
+	Controller->ShowDetailsForElements(SelectedItems);
+
+	// NOTE: we may want to set the last selected item here
 }
 
 TSharedPtr<SWidget> SIKRigSkeleton::CreateContextMenu()
@@ -1388,24 +1399,6 @@ void SIKRigSkeleton::OnItemClicked(TSharedPtr<FIKRigTreeElement> InItem)
 		return;
 	}
 	
-	// update details view
-	if (InItem->ElementType == IKRigTreeElementType::BONE)
-	{
-		Controller->ShowDetailsForBone(InItem->BoneName);
-	}
-	else if (InItem->ElementType == IKRigTreeElementType::GOAL)
-	{
-		Controller->ShowDetailsForGoal(InItem->GoalName);
-	}
-	else if (InItem->ElementType == IKRigTreeElementType::SOLVERGOAL)
-	{
-		Controller->ShowDetailsForGoalSettings(InItem->SolverGoalName, InItem->SolverGoalIndex);
-	}
-	else if (InItem->ElementType == IKRigTreeElementType::BONE_SETTINGS)
-	{
-		Controller->ShowDetailsForBoneSettings(InItem->BoneSettingBoneName, InItem->BoneSettingsSolverIndex);
-	}
-
 	// to rename an item, you have to select it first, then click on it again within a time limit (slow double click)
 	const bool ClickedOnSameItem = TreeView->LastSelected.Pin().Get() == InItem.Get();
 	const uint32 CurrentCycles = FPlatformTime::Cycles();
