@@ -629,8 +629,10 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelSolidifyTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBlendTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMorphologyTool);
+#if WITH_PROXYLOD
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelBooleanTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVoxelMergeTool);
+#endif	// WITH_PROXYLOD
 	}
 	else if (PaletteIndex == TriModelingTabName)
 	{

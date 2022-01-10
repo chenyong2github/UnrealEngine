@@ -11,14 +11,13 @@ UENUM()
 enum class EParameterizeMeshUVMethod
 {
 	// Keep values the same as UE::Geometry::EParamOpBackend!
-	// The order is different on purpose to have them sorted alphabetically in the UI.
 
 	/** Compute automatic UVs using the Patch Builder technique */
 	PatchBuilder = 0,
 	/** Compute automatic UVs using the UVAtlas technique */
-	UVAtlas = 2,
+	UVAtlas = 1,
 	/** Compute automatic UVs using the XAtlas technique */
-	XAtlas = 1,
+	XAtlas = 2,
 };
 
 

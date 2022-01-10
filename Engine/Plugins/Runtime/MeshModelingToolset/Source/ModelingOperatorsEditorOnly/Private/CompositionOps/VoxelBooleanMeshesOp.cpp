@@ -9,23 +9,16 @@
 #include "MeshConstraintsUtil.h"
 #include "CleaningOps/EditNormalsOp.h"
 
-
-// ProxyLOD currently only available on Windows. On other platforms we will make this a no-op
-#if PLATFORM_WINDOWS
-#define HAVE_PROXYLOD 1
-#else
-#define HAVE_PROXYLOD 0
-#endif
-
-#if HAVE_PROXYLOD
+// The ProxyLOD plugin is currently only available on Windows. On other platforms we will make this a no-op.
+#if WITH_PROXYLOD
 #include "ProxyLODVolume.h"
-#endif
+#endif	// WITH_PROXYLOD
 
 using namespace UE::Geometry;
 
 void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
-#if HAVE_PROXYLOD
+#if WITH_PROXYLOD
 	FMeshDescription ResultMeshDescription;
 	FStaticMeshAttributes Attributes(ResultMeshDescription);
 	Attributes.Register();
@@ -177,13 +170,13 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 		ResultMesh = EditNormalsOp.ExtractResult(); // return the edit normals operator copy to this tool.
 	}
 
-#else	// HAVE_PROXYLOD
+#else	// WITH_PROXYLOD
 
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(InputMeshArray[0].Mesh, *ResultMesh);
 	ResultTransform = FTransform3d(InputMeshArray[0].Transform);
 
-#endif	// HAVE_PROXYLOD
+#endif	// WITH_PROXYLOD
 
 }
 
