@@ -58,33 +58,8 @@
 			]
 		},
 		{
-			"Name": "MagicLeapMedia",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Lumin"
-			]
-		},
-		{
-			"Name": "MagicLeap",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Lumin",
-				"Mac",
-				"Win64"
-			]
-		},
-		{
 			"Name": "DatasmithRuntime",
 			"Enabled": true
-		},
-		{
-			"Name": "MagicLeapPassableWorld",
-			"Enabled": false,
-			"SupportedTargetPlatforms": [
-				"Lumin",
-				"Mac",
-				"Win64"
-			]
 		},
 		{
 			"Name": "OculusVR",
