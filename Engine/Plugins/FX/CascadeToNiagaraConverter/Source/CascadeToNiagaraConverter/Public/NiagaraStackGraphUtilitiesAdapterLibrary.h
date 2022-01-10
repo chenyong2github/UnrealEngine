@@ -110,6 +110,7 @@ enum class ENiagaraScriptInputType : uint8
 	Enum,
 	DataInterface,
 	Bool,
+	Position,
 
 	NONE
 };
