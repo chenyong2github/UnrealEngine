@@ -796,7 +796,8 @@ private:
 	const FSlateBrush* StartingSimulateBorder;
 	/** The brush to use when returning back to the editor from PIE or SIE mode */
 	const FSlateBrush* ReturningToEditorBorder;
-
+	/** The brush to use when the viewport is not maximized */
+	const FSlateBrush* NonMaximizedBorder;
 	/** Array of objects dropped during the OnDrop event */
 	TArray<UObject*> DroppedObjects;
 
