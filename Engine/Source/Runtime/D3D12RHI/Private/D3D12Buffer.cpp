@@ -722,17 +722,22 @@ void FD3D12DynamicRHI::UnlockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12
 		{
 			// Update all of the resources in the LDA chain
 			check(Buffer->IsHeadLink());
+			FD3D12Buffer* LastBuffer = Buffer->GetLinkedObject(Buffer->GetLinkedObjectsGPUMask().GetLastIndex());
+
 			for (FD3D12Buffer::FLinkedObjectIterator CurrentBuffer(Buffer); CurrentBuffer; ++CurrentBuffer)
 			{
 				// If we are on the render thread, queue up the copy on the RHIThread so it happens at the correct time.
 				if (ShouldDeferBufferLockOperation(RHICmdList))
 				{
-					if (GNumExplicitGPUsForRendering == 1)
+					if (CurrentBuffer.Get() == LastBuffer)
 					{
+						// Command associated with last buffer (will be only buffer if single GPU) receives ownership of locked data
 						ALLOC_COMMAND_CL(*RHICmdList, FRHICommandUpdateBuffer)(&CurrentBuffer->ResourceLocation, LockedData.ResourceLocation, LockedData.LockedOffset, LockedData.LockedPitch);
 					}
-					else // The resource location must be copied because the constructor in FRHICommandUpdateBuffer transfers ownership and clears it.
+					else
 					{
+						// Other commands receive a reference copy of the locked data.  Commands get replayed in order, with the
+						// last command handling clean up the locked data after it has been propagated to all GPUs.
 						FD3D12ResourceLocation NodeResourceLocation(LockedData.ResourceLocation.GetParentDevice());
 						FD3D12ResourceLocation::ReferenceNode(NodeResourceLocation.GetParentDevice(), NodeResourceLocation, LockedData.ResourceLocation);
 						ALLOC_COMMAND_CL(*RHICmdList, FRHICommandUpdateBuffer)(&CurrentBuffer->ResourceLocation, NodeResourceLocation, LockedData.LockedOffset, LockedData.LockedPitch);

@@ -39,6 +39,7 @@ void FRHIPoolAllocationData::Reset()
 	Owner = nullptr;
 	PreviousAllocation = nullptr;
 	NextAllocation = nullptr;
+	AliasAllocation = nullptr;
 }
 
 void FRHIPoolAllocationData::InitAsHead(int16 InPoolIndex)
@@ -97,10 +98,32 @@ void FRHIPoolAllocationData::MoveFrom(FRHIPoolAllocationData& InAllocated, bool 
 	Locked = InLocked;
 	
 	// Update linked list
-	InAllocated.PreviousAllocation->NextAllocation = this;
-	InAllocated.NextAllocation->PreviousAllocation = this;
-	PreviousAllocation = InAllocated.PreviousAllocation;
-	NextAllocation = InAllocated.NextAllocation;
+	if (InAllocated.PreviousAllocation)
+	{
+		InAllocated.PreviousAllocation->NextAllocation = this;
+		InAllocated.NextAllocation->PreviousAllocation = this;
+		PreviousAllocation = InAllocated.PreviousAllocation;
+		NextAllocation = InAllocated.NextAllocation;
+
+		// Update aliases (if present) to point to new parent
+		for (FRHIPoolAllocationData* Alias = InAllocated.GetFirstAlias(); Alias; Alias = Alias->GetNext())
+		{
+			Alias->AliasAllocation = this;
+		}
+		AliasAllocation = InAllocated.AliasAllocation;
+	}
+	else
+	{
+		// If there is no linked list, it means we are being passed an alias to a resource referenced by multiple GPUs.
+		// For this case, we need to remove "InAllocated" from its original parent, and replace it with "this".  This is
+		// a rare edge case, used in FD3D12DynamicRHI::UnlockBuffer in D3D12Buffer.cpp, where we are uploading a
+		// single CPU staging buffer to multiple GPU mirror copies.
+		FRHIPoolAllocationData* AliasParent = InAllocated.AliasAllocation;		// Get original parent of "InAllocated"
+		check(AliasParent);
+
+		InAllocated.RemoveAlias();				// Remove "InAllocated" as alias from original parent
+		AliasParent->AddAlias(this);			// Add "this" as alias to original parent
+	}
 
 	InAllocated.Reset();
 }
