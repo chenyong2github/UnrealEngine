@@ -143,7 +143,7 @@ namespace EpicGames.Core
 				int MaxIdx = GetWordWrapLineEnd(Text, MinIdx, MaxWidthForLine);
 
 				int PrintMaxIdx = MaxIdx;
-				while (PrintMaxIdx > MinIdx && Text[PrintMaxIdx - 1] == ' ')
+				while (PrintMaxIdx > MinIdx && Char.IsWhiteSpace(Text[PrintMaxIdx - 1]))
 				{
 					PrintMaxIdx--;
 				}
@@ -162,13 +162,23 @@ namespace EpicGames.Core
 		/// </summary>
 		static int GetWordWrapLineEnd(string Text, int MinIdx, int MaxWidth)
 		{
-			int MaxIdx = MinIdx + MaxWidth;
-			if (MaxIdx >= Text.Length)
+			MaxWidth = Math.Min(MaxWidth, Text.Length - MinIdx);
+
+			int MaxIdx = Text.IndexOf('\n', MinIdx, MaxWidth);
+			if (MaxIdx == -1)
 			{
-				return Text.Length;
+				MaxIdx = MinIdx + MaxWidth;
+			}
+			else
+			{
+				return MaxIdx + 1;
 			}
 
-			if (Text[MaxIdx] == ' ')
+			if (MaxIdx == Text.Length)
+			{
+				return MaxIdx;
+			}
+			else if (Char.IsWhiteSpace(Text[MaxIdx]))
 			{
 				for (; ; MaxIdx++)
 				{
@@ -558,6 +568,21 @@ namespace EpicGames.Core
 			}
 
 			return Line;
+		}
+
+		/// <summary>
+		/// Truncates the given string to the maximum length, appending an elipsis if it is longer than allowed.
+		/// </summary>
+		/// <param name="Text"></param>
+		/// <param name="MaxLength"></param>
+		/// <returns></returns>
+		public static string Truncate(string Text, int MaxLength)
+		{
+			if (Text.Length > MaxLength)
+			{
+				Text = Text.Substring(0, MaxLength - 3) + "...";
+			}
+			return Text;
 		}
 	}
 }

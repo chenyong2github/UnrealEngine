@@ -66,6 +66,10 @@ namespace UnrealGameSyncCmd
 				"ugs switch [project name|project path|stream]",
 				"Changes the active project to the one in the workspace with the given name, or switches to a new stream."
 			),
+			new CommandInfo("changes", typeof(ChangesCommand),
+				"ugs changes",
+				"List recently submitted changes to the current branch."
+			),
 			new CommandInfo("config", typeof(ConfigCommand),
 				"ugs config",
 				"Updates the configuration for the current workspace."
@@ -577,6 +581,71 @@ namespace UnrealGameSyncCmd
 
 				WorkspaceUpdate Update = new WorkspaceUpdate(UpdateContext);
 				await Update.ExecuteAsync(PerforceClient.Settings, ProjectInfo, State, Context.Logger, CancellationToken.None);
+			}
+		}
+
+		class ChangesCommand : Command
+		{
+			public override async Task ExecuteAsync(CommandContext Context)
+			{
+				ILogger Logger = Context.Logger;
+
+				int Count = Context.Arguments.GetIntegerOrDefault("-Count=", 10);
+				int LineCount = Context.Arguments.GetIntegerOrDefault("-Lines=", 3);
+				Context.Arguments.CheckAllArgumentsUsed(Context.Logger);
+
+				UserWorkspaceSettings Settings = ReadRequiredUserWorkspaceSettings();
+				using IPerforceConnection PerforceClient = await ConnectAsync(Settings, Context.LoggerFactory);
+
+				List<ChangesRecord> Changes = await PerforceClient.GetChangesAsync(ChangesOptions.None, Count, ChangeStatus.Submitted, $"//{Settings.ClientName}/...");
+				foreach(IEnumerable<ChangesRecord> ChangesBatch in Changes.Batch(10))
+				{
+					List<DescribeRecord> DescribeRecords = await PerforceClient.DescribeAsync(ChangesBatch.Select(x => x.Number).ToArray());
+
+					Logger.LogInformation("  Change    Type     Author          Description");
+					foreach (DescribeRecord DescribeRecord in DescribeRecords)
+					{
+						PerforceChangeDetails Details = new PerforceChangeDetails(DescribeRecord);
+
+						string Type;
+						if (Details.bContainsCode)
+						{
+							if (Details.bContainsContent)
+							{
+								Type = "Both";
+							}
+							else
+							{
+								Type = "Code";
+							}
+						}
+						else
+						{
+							if (Details.bContainsContent)
+							{
+								Type = "Content";
+							}
+							else
+							{
+								Type = "None";
+							}
+						}
+
+						string Author = StringUtils.Truncate(DescribeRecord.User, 15);
+
+						List<string> Lines = StringUtils.WordWrap(Details.Description, Math.Max(ConsoleUtils.WindowWidth - 40, 10)).ToList();
+						if (Lines.Count == 0)
+						{
+							Lines.Add(String.Empty);
+						}
+
+						Logger.LogInformation("  {Change,-9} {Type,-8} {Author,-15} {Description}", DescribeRecord.Number, Type, Author, Lines[0]);
+						for (int LineIndex = 1; LineIndex < LineCount; LineIndex++)
+						{
+							Logger.LogInformation("                                     {Description}", Lines[LineIndex]);
+						}
+					}
+				}
 			}
 		}
 
