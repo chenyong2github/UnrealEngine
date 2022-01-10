@@ -894,7 +894,7 @@ namespace UnrealBuildTool
 				}
 				else if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
 				{
-					SharedIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
+					SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense(), null) + ";");
 				}
 			}
 
@@ -1776,7 +1776,7 @@ namespace UnrealBuildTool
 				{
 					TargetRules TargetRulesObject = Combination.ProjectTarget.TargetRules!;
 
-					if (Combination.Platform!.Value.IsInGroup(UnrealPlatformGroup.Windows) || (Combination.Platform == UnrealTargetPlatform.HoloLens))
+					if (Combination.Platform!.Value.IsInGroup(UnrealPlatformGroup.Windows) || Combination.Platform!.Value.IsInGroup(UnrealPlatformGroup.HoloLens))
 					{
 						VCUserFileContent.AppendLine("  <PropertyGroup {0}>", ConditionString);
 						if (TargetRulesObject.Type != TargetType.Game)

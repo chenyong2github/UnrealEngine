@@ -298,7 +298,7 @@ float FHttpRetrySystem::FManager::GetLockoutPeriodSeconds(const FHttpRetryReques
 	return LockoutPeriod;
 }
 
-static FRandomStream temp(4435261);
+static FRandomStream TempRandomStream(4435261);
 
 bool FHttpRetrySystem::FManager::Update(uint32* FileCount, uint32* FailingCount, uint32* FailedCount, uint32* CompletedCount)
 {
@@ -386,7 +386,7 @@ bool FHttpRetrySystem::FManager::Update(uint32* FileCount, uint32* FailingCount,
 					// Code to simulate request failure
 					if (RequestStatus == EHttpRequestStatus::Succeeded && RandomFailureRate.IsSet())
 					{
-						float random = temp.GetFraction();
+						float random = TempRandomStream.GetFraction();
 						if (random < RandomFailureRate.GetValue())
 						{
 							forceFail = true;

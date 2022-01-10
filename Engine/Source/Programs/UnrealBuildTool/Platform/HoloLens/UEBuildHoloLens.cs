@@ -149,15 +149,12 @@ namespace UnrealBuildTool
 		#endregion
 	}
 
-	class HoloLens : UEBuildPlatform
+	class HoloLensPlatform : WindowsPlatform
 	{
 		public static readonly Version MinimumSDKVersionRecommended = new Version(10, 0, 17763, 0);
 		public static readonly Version MaximumSDKVersionTested = new Version(10, 0, 18362, int.MaxValue);
-		public static readonly Version MaximumSDKVersionForVS2015 = new Version(10, 0, 14393, int.MaxValue);
-		public static readonly Version MinimumSDKVersionForD3D12RHI = new Version(10, 0, 15063, 0);
 
-
-		public HoloLens(MicrosoftPlatformSDK InSDK) 
+		public HoloLensPlatform(MicrosoftPlatformSDK InSDK) 
 			: base(UnrealTargetPlatform.HoloLens, InSDK)
 		{
 		}
@@ -208,6 +205,7 @@ namespace UnrealBuildTool
 			Target.WindowsPlatform.Architecture = Target.HoloLensPlatform.Architecture;
 			Target.WindowsPlatform.bPixProfilingEnabled = Target.HoloLensPlatform.bPixProfilingEnabled;
 			Target.WindowsPlatform.bUseWindowsSDK10 = true;
+			Target.WindowsPlatform.bStrictConformanceMode = false;
 
 			Target.bDeployAfterCompile = true;
 			Target.bCompileNvCloth = false;      // requires CUDA
@@ -227,23 +225,18 @@ namespace UnrealBuildTool
 			// Be resilient to SDKs being uninstalled but still referenced in the INI file
 			VersionNumber? SelectedWindowsSdkVersion;
 			DirectoryReference? SelectedWindowsSdkDir;
-			if (!WindowsPlatform.TryGetWindowsSdkDir(Target.HoloLensPlatform.Win10SDKVersionString, out SelectedWindowsSdkVersion, out SelectedWindowsSdkDir))
+			if (WindowsPlatform.TryGetWindowsSdkDir(Target.HoloLensPlatform.Win10SDKVersionString, out SelectedWindowsSdkVersion, out SelectedWindowsSdkDir))
 			{
-				Target.HoloLensPlatform.Win10SDKVersionString = "Latest";
+				Target.WindowsPlatform.WindowsSdkVersion = Target.HoloLensPlatform.Win10SDKVersionString;
 			}
 
-			// Initialize the VC environment for the target, and set all the version numbers to the concrete values we chose.
-			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.HoloLensPlatform.Win10SDKVersionString, null);
-			Target.WindowsPlatform.Environment = Environment;
-			Target.WindowsPlatform.Compiler = Environment.Compiler;
-			Target.WindowsPlatform.CompilerVersion = Environment.CompilerVersion.ToString();
-			Target.WindowsPlatform.WindowsSdkVersion = Environment.WindowsSdkVersion.ToString();
+			base.ValidateTarget(Target);
 
 			// Windows 10 SDK version
 			// Auto-detect latest compatible by default (recommended), allow for explicit override if necessary
 			// Validate that the SDK isn't too old, and that the combination of VS and SDK is supported.
 
-			Target.HoloLensPlatform.Win10SDKVersion = new Version(Environment.WindowsSdkVersion.ToString());
+			Target.HoloLensPlatform.Win10SDKVersion = new Version(Target.WindowsPlatform.Environment!.WindowsSdkVersion.ToString());
 
 			if(!Target.bGenerateProjectFiles)
 			{
@@ -273,26 +266,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Determines if the given name is a build product for a target.
-		/// </summary>
-		/// <param name="FileName">The name to check</param>
-		/// <param name="NamePrefixes">Target or application names that may appear at the start of the build product name (eg. "UnrealEditor", "ShooterGameEditor")</param>
-		/// <param name="NameSuffixes">Suffixes which may appear at the end of the build product name</param>
-		/// <returns>True if the string matches the name of a build product, false otherwise</returns>
-		public override bool IsBuildProduct(string FileName, string[] NamePrefixes, string[] NameSuffixes)
-		{
-			return IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".exe")
-				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".dll")
-				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".dll.response")
-				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".lib")
-				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".pdb")
-				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".exp")
-				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".obj")
-				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".map")
-				|| IsBuildProductName(FileName, NamePrefixes, NameSuffixes, ".objpaths");
-		}
-
-		/// <summary>
 		/// Get the extension to use for the given binary type
 		/// </summary>
 		/// <param name="InBinaryType"> The binrary type being built</param>
@@ -301,35 +274,12 @@ namespace UnrealBuildTool
 		{
 			switch (InBinaryType)
 			{
-				case UEBuildBinaryType.DynamicLinkLibrary:
-					return ".dll";
-				case UEBuildBinaryType.Executable:
-					return ".exe";
-				case UEBuildBinaryType.StaticLibrary:
-					return ".lib";
 				case UEBuildBinaryType.Object:
 					return ".obj";
 				case UEBuildBinaryType.PrecompiledHeader:
 					return ".pch";
 			}
 			return base.GetBinaryExtension(InBinaryType);
-		}
-
-		/// <summary>
-		/// Get the extension to use for debug info for the given binary type
-		/// </summary>
-		/// <param name="Target">The target being built</param>
-		/// <param name="InBinaryType"> The binary type being built</param>
-		/// <returns>string	The debug info extension (i.e. 'pdb')</returns>
-		public override string[] GetDebugInfoExtensions(ReadOnlyTargetRules Target, UEBuildBinaryType InBinaryType)
-		{
-			switch (InBinaryType)
-			{
-				case UEBuildBinaryType.DynamicLinkLibrary:
-				case UEBuildBinaryType.Executable:
-					return new string[] { ".pdb" };
-			}
-			return new string[] { "" };
 		}
 
 		internal static DirectoryReference? GetCppCXMetadataLocation(WindowsCompiler Compiler, string CompilerVersion)
@@ -393,7 +343,6 @@ namespace UnrealBuildTool
 			if (DirectoryReference.Exists(ReferenceDir))
 			{
 				// Prefer a contract from a suitable SDK-versioned subdir of the references folder when available (starts with 15063 SDK)
-				//Version WindowsSDKVersionMaxForToolchain = Compiler <= WindowsCompiler.VisualStudio2019 ? HoloLens.MaximumSDKVersionForVS2015 : null;
 				DirectoryReference SDKVersionedReferenceDir = DirectoryReference.Combine(ReferenceDir, SDKVersion.ToString());
 				DirectoryReference ContractDir = DirectoryReference.Combine(SDKVersionedReferenceDir, ApiContract);
 				Version? ContractLatestVersion = null;
@@ -518,7 +467,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private void ExpandWinMDReferences(ReadOnlyTargetRules Target, string SDKFolder, string SDKVersion, ref List<string> WinMDReferences)
+		internal static void ExpandWinMDReferences(ReadOnlyTargetRules Target, string SDKFolder, string SDKVersion, ref List<string> WinMDReferences)
 		{
 			// Code below will fail when not using the Win10 SDK.  Early out to avoid warning spam.
 			if (!Target.WindowsPlatform.bUseWindowsSDK10)
@@ -591,7 +540,7 @@ namespace UnrealBuildTool
 			{
 				WinMDReferenceArguments.AppendFormat(@" /FU""{0}""", WinMDReference);
 			}
-			CompileEnvironment.AdditionalArguments += WinMDReferenceArguments;
+			CompileEnvironment.AdditionalArguments += WinMDReferenceArguments.ToString().Trim();
 
 			CompileEnvironment.Definitions.Add("EXCEPTIONS_DISABLED=0");
 
@@ -645,7 +594,11 @@ namespace UnrealBuildTool
 				LinkEnvironment.SystemLibraries.Add("msvcprt.lib");
 			}
 			LinkEnvironment.SystemLibraries.Add("legacy_stdio_wide_specifiers.lib");
-			LinkEnvironment.SystemLibraries.Add("uuid.lib"); 
+			LinkEnvironment.SystemLibraries.Add("uuid.lib");
+
+			// Static CRT not supported for HoloLens
+			CompileEnvironment.bUseStaticCRT = false;
+			CompileEnvironment.bEnableExceptions = true;
 		}
 
 		/// <summary>
@@ -749,7 +702,7 @@ namespace UnrealBuildTool
 			// for GetValidSoftwareVersionRange reasons we probably want a HoloLensePlatformSDK class
 			MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK();
 
-			UEBuildPlatform.RegisterBuildPlatform(new HoloLens(SDK));
+			UEBuildPlatform.RegisterBuildPlatform(new HoloLensPlatform(SDK));
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.HoloLens);
 		}
