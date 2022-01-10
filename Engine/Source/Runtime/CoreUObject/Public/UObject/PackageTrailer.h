@@ -136,7 +136,7 @@ struct FLookupTableEntry
 class COREUOBJECT_API FPackageTrailerBuilder
 {
 public:
-	using AdditionalDataCallback = TFunction<void(FLinkerSave& LinkerSave, class FPackageTrailer& Trailer)>;
+	using AdditionalDataCallback = TFunction<void(FLinkerSave& LinkerSave, const class FPackageTrailer& Trailer)>;
 
 	/**
 	 * Creates a builder from an already loaded FPackageTrailer. 
@@ -241,6 +241,13 @@ public:
 	/** Try to load a trailer from a given package path. Note that it will always try to load the trailer from the workspace domain */
 	[[nodiscard]] static bool TryLoadFromPackage(const FPackagePath& PackagePath, FPackageTrailer& OutTrailer);
 
+	/** 
+	 * Create a new trailer that references the payloads stored elsewhere rather than storing them locally.
+	 * 
+	 * @param SourceTrailer The trailer that currently stores the payloads (typically in the workspace domain)
+	 */
+	[[nodiscard]] static FPackageTrailer CreateReference(const FPackageTrailer& SourceTrailer);
+
 	FPackageTrailer() = default;
 	~FPackageTrailer() = default;
 
@@ -249,6 +256,9 @@ public:
 
 	FPackageTrailer(FPackageTrailer&& Other) = default;
 	FPackageTrailer& operator=(FPackageTrailer&& Other) = default;
+
+	/** Serializes the trailer to the given archive */
+	[[nodiscard]] bool TrySave(FArchive& Ar);
 
 	/** 
 	 * Serializes the trailer from the given archive assuming that the seek position of the archive is already at the correct position
@@ -332,6 +342,9 @@ public:
 		EPayloadAccessMode AccessMode = EPayloadAccessMode::Relative;
 		/** Lookup table for the payloads on disk */
 		TArray<Private::FLookupTableEntry> PayloadLookupTable;
+
+		/** Serialization operator */
+		friend FArchive& operator<<(FArchive& Ar, FHeader& Header);
 	};
 
 	struct FFooter
@@ -350,10 +363,16 @@ public:
 		uint64 TrailerLength = 0;	
 		/** End the trailer with PACKAGE_FILE_TAG, which we expect all package files to end with */
 		uint32 PackageTag = 0;
+
+		/** Serialization operator */
+		friend FArchive& operator<<(FArchive& Ar, FFooter& Footer);
 	};
 
 private:
 	friend class FPackageTrailerBuilder;
+
+	/** Create a valid footer for the current trailer */
+	FFooter CreateFooter() const;
 
 	/** Where in the workspace domain package file the trailer is located */
 	int64 TrailerPositionInFile = INDEX_NONE;

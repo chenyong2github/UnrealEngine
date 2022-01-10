@@ -1724,6 +1724,8 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 
 [[nodiscard]] ESavePackageResult BuildAndWriteTrailer(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
 {
+	SaveContext.Linker->Summary.PayloadTocOffset = INDEX_NONE;
+
 	if (SaveContext.Linker->PackageTrailerBuilder.IsValid())
 	{
 		checkf(SaveContext.GetPackageWriter() == nullptr, TEXT("Attempting to build a package trailer with a package writer '%s', this is not supported!"), *SaveContext.GetPackage()->GetName());
@@ -1735,9 +1737,22 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 			return ESavePackageResult::Error;
 		}
 	}
-	else
-	{	
-		SaveContext.Linker->Summary.PayloadTocOffset = INDEX_NONE;
+	else if ((SaveContext.GetSaveArgs().SaveFlags & SAVE_BulkDataByReference) != 0)
+	{
+		check(SaveContext.GetPackage() != nullptr);
+		
+		if (const FLinkerLoad* LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(SaveContext.GetPackage()))
+		{
+			if (const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer())
+			{
+				UE::FPackageTrailer ReferenceTrailer = UE::FPackageTrailer::CreateReference(*Trailer);
+				SaveContext.Linker->Summary.PayloadTocOffset = SaveContext.Linker->Tell();
+				if (!ReferenceTrailer.TrySave(*SaveContext.Linker))
+				{
+					return ESavePackageResult::Error;
+				}
+			}
+		}
 	}
 
 	return ESavePackageResult::Success;

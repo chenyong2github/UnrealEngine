@@ -123,21 +123,17 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 	// 100% under our control. This will allow people to create external scripts that can
 	// parse and manipulate the trailer without needing to worry that we might change how
 	// our containers serialize. 
+	
+	// First we build a trailer structure
 	FPackageTrailer Trailer;
 	
-	Trailer.TrailerPositionInFile = DataArchive.Tell();
-
 	Trailer.Header.Tag = FPackageTrailer::FHeader::HeaderTag;
 	Trailer.Header.Version = (int32)EPackageTrailerVersion::AUTOMATIC_VERSION;
-
-	DataArchive << Trailer.Header.Tag;
-	DataArchive << Trailer.Header.Version;
 
 	const uint32 DynamicHeaderSizeOnDisk = ((LocalEntries.Num() + VirtualizedEntries.Num()) * Private::FLookupTableEntry::SizeOnDisk); // Add the length of the lookup table
 	
 	Trailer.Header.HeaderLength = FPackageTrailer::FHeader::StaticHeaderSizeOnDisk + DynamicHeaderSizeOnDisk;
-	DataArchive << Trailer.Header.HeaderLength;
-
+	
 	Trailer.Header.PayloadsDataLength = 0;
 	Trailer.Header.PayloadLookupTable.Reserve(LocalEntries.Num() + VirtualizedEntries.Num());
 
@@ -165,18 +161,13 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 		Entry.RawSize = It.Value.RawSize;
 	}
 
-	DataArchive << Trailer.Header.PayloadsDataLength;
-
 	Trailer.Header.AccessMode = AccessMode;
-	DataArchive << Trailer.Header.AccessMode;
 
-	int32 NumPayloads = Trailer.Header.PayloadLookupTable.Num();
-	DataArchive << NumPayloads;
+	// Now that we have the complete trailer we can serialize it to the archive
 
-	for (Private::FLookupTableEntry& Entry : Trailer.Header.PayloadLookupTable)
-	{
-		DataArchive << Entry;
-	}
+	Trailer.TrailerPositionInFile = DataArchive.Tell();
+
+	DataArchive << Trailer.Header;
 
 	checkf((Trailer.TrailerPositionInFile + Trailer.Header.HeaderLength) == DataArchive.Tell(), TEXT("Header length was calculated as %d bytes but we wrote %" INT64_FMT " bytes!"), Trailer.Header.HeaderLength, DataArchive.Tell() - Trailer.TrailerPositionInFile);
 
@@ -189,18 +180,13 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	checkf((PayloadPosInFile + Trailer.Header.PayloadsDataLength) == DataArchive.Tell(), TEXT("Total payload length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), Trailer.Header.PayloadsDataLength, DataArchive.Tell() - PayloadPosInFile);
 
-	FPackageTrailer::FFooter Footer;
-	
-	Footer.Tag = FPackageTrailer::FFooter::FooterTag;
-	Footer.TrailerLength = Trailer.Header.HeaderLength + Trailer.Header.PayloadsDataLength + FPackageTrailer::FFooter::SizeOnDisk;
-	Footer.PackageTag = PACKAGE_FILE_TAG;
-	
-	DataArchive << Footer.Tag;
-	DataArchive << Footer.TrailerLength;
-	DataArchive << Footer.PackageTag;
+	FPackageTrailer::FFooter Footer = Trailer.CreateFooter();
+	DataArchive << Footer;
 
 	checkf((Trailer.TrailerPositionInFile + Footer.TrailerLength) == DataArchive.Tell(), TEXT("Trailer length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), Footer.TrailerLength, DataArchive.Tell() - Trailer.TrailerPositionInFile);
 
+	// Invoke any registered callbacks and pass in the trailer, this allows the callbacks to poll where 
+	// in the output archive the payload has been stored.
 	for (const AdditionalDataCallback& Callback : Callbacks)
 	{
 		Callback(*Linker, Trailer);
@@ -224,28 +210,6 @@ bool FPackageTrailer::IsEnabled()
 		{		
 			GConfig->GetBool(TEXT("Core.System"), TEXT("UsePackageTrailer"), bEnabled, GEngineIni);
 			UE_LOG(LogSerialization, Log, TEXT("UsePackageTrailer: '%s'"), bEnabled ? TEXT("true") : TEXT("false"));
-
-			// Check to make sure that the editor domain is not also enabled and assert if it is.
-			// Currently the package trailer system will not work correctly with the editor domain and as
-			// it is an opt in feature in development we should just prevent people running with both
-			// options enabled.
-			// We check the config values directly to avoid needing to introduce dependencies between modules.
-			if (bEnabled)
-			{
-				FConfigFile PlatformEngineIni;
-				FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Editor"), true);
-
-				bool bEditorDomainEnabled = false;
-				if (GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainEnabled"), bEditorDomainEnabled, GEditorIni))
-				{
-					checkf(!bEditorDomainEnabled, TEXT("The package trailer system does not yet work with the editor domain!"));
-				}
-
-				if (GConfig->GetBool(TEXT("EditorDomain"), TEXT("EditorDomainEnabled"), bEditorDomainEnabled, GEditorIni))
-				{
-					checkf(!bEditorDomainEnabled, TEXT("The package trailer system does not yet work with the editor domain!"));
-				}
-			}
 		}
 	} UsePackageTrailer;
 
@@ -267,6 +231,52 @@ bool FPackageTrailer::TryLoadFromPackage(const FPackagePath& PackagePath, FPacka
 		LogPackageOpenFailureMessage(PackagePath);
 		return false;
 	}	
+}
+
+FPackageTrailer FPackageTrailer::CreateReference(const FPackageTrailer& OriginalTrailer)
+{
+	check(OriginalTrailer.TrailerPositionInFile != INDEX_NONE);
+
+	FPackageTrailer ReferenceTrailer;
+	ReferenceTrailer.Header = OriginalTrailer.Header;
+	ReferenceTrailer.Header.AccessMode = EPayloadAccessMode::Referenced; // This trailer will reference payloads stored in another trailer
+	ReferenceTrailer.Header.PayloadsDataLength = 0; // This trailer will contain no payload data
+
+	// Convert the payload offsets into absolute offsets
+	const int64 PayloadOffset = OriginalTrailer.TrailerPositionInFile + OriginalTrailer.Header.HeaderLength;
+	for (Private::FLookupTableEntry& Entry : ReferenceTrailer.Header.PayloadLookupTable)
+	{
+		if (!Entry.IsVirtualized())
+		{
+			Entry.OffsetInFile += PayloadOffset;
+		}
+	}
+
+	return ReferenceTrailer;
+}
+
+bool FPackageTrailer::TrySave(FArchive& Ar)
+{
+	if (Header.AccessMode != EPayloadAccessMode::Referenced)
+	{
+		// Can only save reference trailers directly.
+		return false;
+	}
+
+	check(Header.PayloadsDataLength == 0);
+
+	const int64 PositionInArchive = Ar.Tell();
+
+	Ar << Header;
+	checkf((PositionInArchive + Header.HeaderLength) == Ar.Tell(), TEXT("Header length was calculated as %d bytes but we wrote %" INT64_FMT " bytes!"), Header.HeaderLength, Ar.Tell() - PositionInArchive);
+
+	FFooter Footer = CreateFooter();
+
+	Ar << Footer;
+
+	checkf((PositionInArchive + Footer.TrailerLength) == Ar.Tell(), TEXT("Trailer length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), Footer.TrailerLength, Ar.Tell() - PositionInArchive);
+
+	return true;
 }
 
 bool FPackageTrailer::TryLoad(FArchive& Ar)
@@ -298,6 +308,11 @@ bool FPackageTrailer::TryLoad(FArchive& Ar)
 	{
 		Private::FLookupTableEntry& Entry = Header.PayloadLookupTable.AddDefaulted_GetRef();
 		Ar << Entry;
+	}
+
+	if (Header.AccessMode == EPayloadAccessMode::Referenced)
+	{
+		TrailerPositionInFile = INDEX_NONE;
 	}
 
 	return !Ar.IsError();
@@ -478,6 +493,45 @@ int32 FPackageTrailer::GetNumPayloads(EPayloadFilter Type) const
 EPayloadAccessMode FPackageTrailer::GetAccessMode() const
 {
 	return Header.AccessMode;
+}
+
+FPackageTrailer::FFooter FPackageTrailer::CreateFooter() const
+{
+	FFooter Footer;
+
+	Footer.Tag = FPackageTrailer::FFooter::FooterTag;
+	Footer.TrailerLength = Header.HeaderLength + Header.PayloadsDataLength + FPackageTrailer::FFooter::SizeOnDisk;
+	Footer.PackageTag = PACKAGE_FILE_TAG;
+
+	return Footer;
+}
+
+FArchive& operator<<(FArchive& Ar, FPackageTrailer::FHeader& Header)
+{
+	Ar << Header.Tag;
+	Ar << Header.Version;
+	Ar << Header.HeaderLength;
+	Ar << Header.PayloadsDataLength;
+	Ar << Header.AccessMode;
+
+	int32 NumPayloads = Header.PayloadLookupTable.Num();
+	Ar << NumPayloads;
+
+	for (Private::FLookupTableEntry& Entry : Header.PayloadLookupTable)
+	{
+		Ar << Entry;
+	}
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FPackageTrailer::FFooter& Footer)
+{
+	Ar << Footer.Tag;
+	Ar << Footer.TrailerLength;
+	Ar << Footer.PackageTag;
+
+	return Ar;
 }
 
 bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter Filter, TArray<Virtualization::FPayloadId>& OutPayloadIds)

@@ -339,11 +339,13 @@ private:
 		HasRegistered				= 1 << 6,
 		/** The BulkData object is a copy used only to represent the id and payload; it does not communicate with the BulkDataRegistry, and will point DDC jobs toward the original BulkData */
 		IsTornOff					= 1 << 7,
-		/** The bulkdata object references a pyaload stored in a WorkspaceDomain file  */
+		/** The bulkdata object references a payload stored in a WorkspaceDomain file  */
 		ReferencesWorkspaceDomain	= 1 << 8,
 
 		TransientFlags				= HasRegistered | IsTornOff,
 	};
+
+	FRIEND_ENUM_CLASS_FLAGS(EFlags);
 
 	/** Used to control what level of error reporting we return from some methods */
 	enum ErrorVerbosity
@@ -353,8 +355,6 @@ private:
 		/** Everything should be logged */
 		All
 	};
-
-	FRIEND_ENUM_CLASS_FLAGS(EFlags);
 
 	/** Old legacy path that saved the payload to the end of the package */
 	void SerializeToLegacyPath(FLinkerSave& LinkerSave, int64 OffsetPos, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
@@ -387,7 +387,12 @@ private:
 
 	bool IsDataVirtualized() const 
 	{ 
-		return EnumHasAnyFlags(Flags, EFlags::IsVirtualized); 
+		return IsDataVirtualized(Flags);
+	}
+
+	static bool IsDataVirtualized(EFlags InFlags)
+	{
+		return EnumHasAnyFlags(InFlags, EFlags::IsVirtualized);
 	}
 
 	bool HasPayloadSidecarFile() const 

@@ -1656,11 +1656,13 @@ struct FPackageExportTagger
 	}
 };
 
-[[nodiscard]] ESavePackageResult BuildAndWriteTrailer(UPackage* Package, FLinkerSave* Linker, FStructuredArchive::FRecord& StructuredArchiveRoot, IPackageWriter* PackageWriter, bool bTextFormat)
+[[nodiscard]] ESavePackageResult BuildAndWriteTrailer(UPackage* Package, FLinkerSave* Linker, FStructuredArchive::FRecord& StructuredArchiveRoot, IPackageWriter* PackageWriter, uint32 SaveFlags, bool bTextFormat)
 {
 	check(Package != nullptr);
 	check(Linker != nullptr);
-	
+
+	Linker->Summary.PayloadTocOffset = INDEX_NONE;
+
 	if (Linker->PackageTrailerBuilder.IsValid())
 	{
 		checkf(PackageWriter == nullptr, TEXT("Attempting to build a package trailer with a package writer '%s', this is not supported!"), *Package->GetName());
@@ -1672,9 +1674,20 @@ struct FPackageExportTagger
 			return ESavePackageResult::Error;
 		}
 	}
-	else
+	else if ((SaveFlags & SAVE_BulkDataByReference) != 0)
 	{
-		Linker->Summary.PayloadTocOffset = INDEX_NONE;
+		if (const FLinkerLoad* LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(Package))
+		{
+			if (const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer())
+			{
+				UE::FPackageTrailer ReferenceTrailer = UE::FPackageTrailer::CreateReference(*Trailer);
+				Linker->Summary.PayloadTocOffset = Linker->Tell();
+				if (!ReferenceTrailer.TrySave(*Linker))
+				{
+					return ESavePackageResult::Error;
+				}
+			}
+		}
 	}
 
 	return ESavePackageResult::Success;
@@ -3864,7 +3877,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 					// Now that the package is written out we can write the package trailer that is appended
 					// to the file. This should be the last thing written to the file!
 					SlowTask.EnterProgressFrame();
-					ESavePackageResult TrailerResult = BuildAndWriteTrailer(InOuter, Linker.Get(), StructuredArchiveRoot, PackageWriter, bTextFormat);
+					ESavePackageResult TrailerResult = BuildAndWriteTrailer(InOuter, Linker.Get(), StructuredArchiveRoot, PackageWriter, SaveFlags, bTextFormat);
 					if (TrailerResult != ESavePackageResult::Success)
 					{
 						return TrailerResult;
