@@ -38,7 +38,7 @@ FValueId::FValueId(const FCbObjectId& Id)
 
 FValueId::operator FCbObjectId() const
 {
-	return FCbObjectId(ImplicitConv<const ByteArray&>(*this));
+	return FCbObjectId(GetBytes());
 }
 
 FValueId FValueId::FromHash(const FIoHash& Hash)

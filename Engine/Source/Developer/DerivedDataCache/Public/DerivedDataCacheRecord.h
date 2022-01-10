@@ -130,7 +130,6 @@ public:
 	 * Add a value to the cache record.
 	 *
 	 * @param Id          An ID for the value that is unique within this cache record.
-	 *                    When omitted, the hash of the buffer will be used as the ID.
 	 * @param Buffer      The value, which is compressed by the builder, and cloned if not owned.
 	 * @param BlockSize   The power-of-two block size to encode raw data in. 0 is default.
 	 */
@@ -148,7 +147,6 @@ public:
 	 * Add a value to the cache record.
 	 *
 	 * @param Id   An ID for the value that is unique within this cache record.
-	 *             When omitted, the hash of the value will be used as the ID.
 	 */
 	inline void AddValue(const FValueId& Id, const FValue& Value)
 	{

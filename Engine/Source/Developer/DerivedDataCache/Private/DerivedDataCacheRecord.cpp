@@ -117,14 +117,13 @@ void FCacheRecordBuilderInternal::SetMeta(FCbObject&& InMeta)
 
 void FCacheRecordBuilderInternal::AddValue(const FValueId& Id, const FValue& Value)
 {
-	checkf(Id, TEXT("Failed to add value on %s because the ID is null."), *WriteToString<96>(Key));
+	checkf(Id.IsValid(), TEXT("Failed to add value on %s because the ID is null."), *WriteToString<96>(Key));
 	checkf(!(Value == FValue::Null), TEXT("Failed to add value on %s because the value is null."), *WriteToString<96>(Key));
-	const FValueId ValueId = Id ? Id : FValueId::FromHash(Value.GetRawHash());
-	const int32 Index = Algo::LowerBoundBy(Values, ValueId, &FValueWithId::GetId);
-	checkf(!(Values.IsValidIndex(Index) && Values[Index].GetId() == ValueId),
+	const int32 Index = Algo::LowerBoundBy(Values, Id, &FValueWithId::GetId);
+	checkf(!(Values.IsValidIndex(Index) && Values[Index].GetId() == Id),
 		TEXT("Failed to add value on %s with ID %s because it has an existing value with that ID."),
-		*WriteToString<96>(Key), *WriteToString<32>(ValueId));
-	Values.Insert(FValueWithId(ValueId, Value), Index);
+		*WriteToString<96>(Key), *WriteToString<32>(Id));
+	Values.Insert(FValueWithId(Id, Value), Index);
 }
 
 FCacheRecord FCacheRecordBuilderInternal::Build()
