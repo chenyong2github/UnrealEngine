@@ -206,7 +206,24 @@ public:
 public:
 	// Constructors.
 	FProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
+
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags);
+
+	/**
+	 * Constructor used for constructing compiled-in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FProperty(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithOffset& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
+
+	/**
+	 * Constructor used for constructing compiled-in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FProperty(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithoutOffset& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
+
 #if WITH_EDITORONLY_DATA
 	explicit FProperty(UField* InField);
 #endif // WITH_EDITORONLY_DATA
@@ -1142,11 +1159,28 @@ public:
 		SetElementSize();
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	TProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags | TTypeFundamentals::GetComputedFlagsPropertyFlags())
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		SetElementSize();
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	template <typename PropertyParamsType>
+	TProperty(FFieldVariant InOwner, PropertyParamsType& Prop)
+		: Super(InOwner, Prop, TTypeFundamentals::GetComputedFlagsPropertyFlags())
+	{
+		SetElementSize();
+	}
+
+public:
 
 #if WITH_EDITORONLY_DATA
 	explicit TProperty(UField* InField)
@@ -1258,8 +1292,21 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	TProperty_WithEqualityAndSerializer(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	TProperty_WithEqualityAndSerializer(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithOffset& Prop)
+		: Super(InOwner, Prop)
 	{
 	}
 
@@ -1293,11 +1340,23 @@ class COREUOBJECT_API FNumericProperty : public FProperty
 
 	FNumericProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
 		: FProperty(InOwner, InName, InObjectFlags)
-	{}
+	{
+	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FNumericProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FProperty(InOwner, InName, InObjectFlags, InOffset, InFlags)
-	{}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FNumericProperty(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithOffset& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
 
 #if WITH_EDITORONLY_DATA
 	explicit FNumericProperty(UField* InField)
@@ -1432,8 +1491,21 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	TProperty_Numeric(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	TProperty_Numeric(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithOffset& Prop)
+		: Super(InOwner, Prop)
 	{
 	}
 
@@ -1656,11 +1728,21 @@ class COREUOBJECT_API FByteProperty : public TProperty_Numeric<uint8>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FByteProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum = nullptr)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	,	Enum( InEnum )
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FByteProperty(FFieldVariant InOwner, const UECodeGen_Private::FBytePropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FByteProperty(UField* InField);
@@ -1714,10 +1796,20 @@ class COREUOBJECT_API FInt8Property : public TProperty_Numeric<int8>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FInt8Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FInt8Property(FFieldVariant InOwner, const UECodeGen_Private::FInt8PropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FInt8Property(UField* InField)
@@ -1743,10 +1835,20 @@ class COREUOBJECT_API FInt16Property : public TProperty_Numeric<int16>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FInt16Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FInt16Property(FFieldVariant InOwner, const UECodeGen_Private::FInt16PropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FInt16Property(UField* InField)
@@ -1773,10 +1875,20 @@ class COREUOBJECT_API FIntProperty : public TProperty_Numeric<int32>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FIntProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FIntProperty(FFieldVariant InOwner, const UECodeGen_Private::FIntPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FIntProperty(UField* InField)
@@ -1802,10 +1914,20 @@ class COREUOBJECT_API FInt64Property : public TProperty_Numeric<int64>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FInt64Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FInt64Property(FFieldVariant InOwner, const UECodeGen_Private::FInt64PropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FInt64Property(UField* InField)
@@ -1831,10 +1953,20 @@ class COREUOBJECT_API FUInt16Property : public TProperty_Numeric<uint16>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FUInt16Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FUInt16Property(FFieldVariant InOwner, const UECodeGen_Private::FFInt16PropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FUInt16Property(UField* InField)
@@ -1860,10 +1992,20 @@ class COREUOBJECT_API FUInt32Property : public TProperty_Numeric<uint32>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FUInt32Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	:	TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FUInt32Property(FFieldVariant InOwner, const UECodeGen_Private::FUInt32PropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FUInt32Property(UField* InField)
@@ -1889,10 +2031,20 @@ class COREUOBJECT_API FUInt64Property : public TProperty_Numeric<uint64>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FUInt64Property(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FUInt64Property(FFieldVariant InOwner, const UECodeGen_Private::FUnsizedIntPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FUInt64Property(UField* InField)
@@ -1941,10 +2093,20 @@ class COREUOBJECT_API FFloatProperty : public TProperty_Numeric<float>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FFloatProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FFloatProperty(FFieldVariant InOwner, const UECodeGen_Private::FFloatPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FFloatProperty(UField* InField)
@@ -1974,10 +2136,20 @@ class COREUOBJECT_API FDoubleProperty : public TProperty_Numeric<double>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FDoubleProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_Numeric(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FDoubleProperty(FFieldVariant InOwner, const UECodeGen_Private::FDoublePropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FDoubleProperty(UField* InField)
@@ -2039,7 +2211,15 @@ public:
 	 * @param InElementSize Sizeof of the boolean type this property represents.
 	 * @param bIsNativeBool true if this property represents C++ bool type.
 	 */
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FBoolProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, uint32 InBitMask, uint32 InElementSize, bool bIsNativeBool);
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FBoolProperty(FFieldVariant InOwner, const UECodeGen_Private::FBoolPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FBoolProperty(UField* InField);
@@ -2158,10 +2338,21 @@ public:
 		, PropertyClass(nullptr)
 	{}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FObjectPropertyBase(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass = NULL)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FProperty(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, PropertyClass(InClass)
 	{}
+
+	/**
+	 * Constructor used for constructing compiled-in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FObjectPropertyBase(FFieldVariant InOwner, const UECodeGen_Private::FObjectPropertyParams& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
+	FObjectPropertyBase(FFieldVariant InOwner, const UECodeGen_Private::FObjectPropertyParamsWithoutClass& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
 
 #if WITH_EDITORONLY_DATA
 	explicit FObjectPropertyBase(UField* InField);
@@ -2317,12 +2508,37 @@ public:
 		this->PropertyClass = nullptr;
 	}
 
-
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	TFObjectPropertyBase(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		this->PropertyClass = InClass;
 	}
+
+	/**
+	 * Constructor used for constructing compiled-in properties
+	 * @param InOwner Owner of the property
+	 * @param Prop Pointer to the compiled in structure describing the property
+	 **/
+	TFObjectPropertyBase(FFieldVariant InOwner, const UECodeGen_Private::FObjectPropertyParams& Prop)
+		: Super(InOwner, Prop)
+	{
+		this->PropertyClass = Prop.ClassFunc ? Prop.ClassFunc() : nullptr;
+	}
+	/**
+	 * Constructor used for constructing compiled-in properties
+	 * @param InOwner Owner of the property
+	 * @param Prop Pointer to the compiled in structure describing the property
+	 * @param InClass Class of the object this property represents
+	 **/
+	TFObjectPropertyBase(FFieldVariant InOwner, const UECodeGen_Private::FObjectPropertyParamsWithoutClass& Prop, UClass* InClass)
+		: Super(InOwner, Prop)
+	{
+		this->PropertyClass = InClass;
+	}
+	
 
 #if WITH_EDITORONLY_DATA
 	explicit TFObjectPropertyBase(UField* InField)
@@ -2361,10 +2577,20 @@ class COREUOBJECT_API FObjectProperty : public TFObjectPropertyBase<UObject*>
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TFObjectPropertyBase(InOwner, InName, InObjectFlags, InOffset, InFlags, InClass)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FObjectProperty(FFieldVariant InOwner, const UECodeGen_Private::FObjectPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FObjectProperty(UField* InField)
@@ -2450,11 +2676,21 @@ class COREUOBJECT_API FWeakObjectProperty : public TFObjectPropertyBase<FWeakObj
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FWeakObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TFObjectPropertyBase(InOwner, InName, InObjectFlags, InOffset, InFlags, InClass)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
 	
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FWeakObjectProperty(FFieldVariant InOwner, const UECodeGen_Private::FWeakObjectPropertyParams& Prop);
+
 #if WITH_EDITORONLY_DATA
 	explicit FWeakObjectProperty(UField* InField)
 		: TFObjectPropertyBase(InField)
@@ -2495,10 +2731,20 @@ class COREUOBJECT_API FLazyObjectProperty : public TFObjectPropertyBase<FLazyObj
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FLazyObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TFObjectPropertyBase(InOwner, InName, InObjectFlags, InOffset, InFlags, InClass)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FLazyObjectProperty(FFieldVariant InOwner, const UECodeGen_Private::FLazyObjectPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FLazyObjectProperty(UField* InField)
@@ -2541,11 +2787,31 @@ class COREUOBJECT_API FSoftObjectProperty : public TFObjectPropertyBase<FSoftObj
 
 	FSoftObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
 		: TFObjectPropertyBase(InOwner, InName, InObjectFlags)
-	{}
+	{
+	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FSoftObjectProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InClass)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TFObjectPropertyBase(InOwner, InName, InObjectFlags, InOffset, InFlags, InClass)
-	{}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+	}
+
+	/**
+	 * Constructor used for constructing compiled-in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FSoftObjectProperty(FFieldVariant InOwner, const UECodeGen_Private::FSoftObjectPropertyParams& Prop);
+
+	/**
+	 * Constructor used for constructing compiled-in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 * @param Class Class of the object this property represents
+	 **/
+	FSoftObjectProperty(FFieldVariant InOwner, const UECodeGen_Private::FObjectPropertyParamsWithoutClass& Prop, UClass* InClass);
 
 #if WITH_EDITORONLY_DATA
 	explicit FSoftObjectProperty(UField* InField)
@@ -2623,11 +2889,21 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FClassProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass, UClass* InClassType)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FObjectProperty(InOwner, InName, InObjectFlags, InOffset, InFlags, InClassType ? InClassType : UClass::StaticClass())
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, MetaClass(InMetaClass)
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FClassProperty(FFieldVariant InOwner, const UECodeGen_Private::FClassPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FClassProperty(UField* InField);
@@ -2731,10 +3007,20 @@ public:
 		, MetaClass(nullptr)
 	{}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FSoftClassProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags, UClass::StaticClass())
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, MetaClass(InMetaClass)
 	{}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FSoftClassProperty(FFieldVariant InOwner, const UECodeGen_Private::FSoftClassPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FSoftClassProperty(UField* InField);
@@ -2805,11 +3091,21 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FInterfaceProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UClass* InInterfaceClass)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FInterfaceProperty_Super(InOwner, InName, InObjectFlags, InOffset, (InFlags & ~CPF_InterfaceClearMask))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, InterfaceClass(InInterfaceClass)
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FInterfaceProperty(FFieldVariant InOwner, const UECodeGen_Private::FInterfacePropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FInterfaceProperty(UField* InField);
@@ -2885,10 +3181,20 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FNameProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FNameProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FNameProperty(FFieldVariant InOwner, const UECodeGen_Private::FNamePropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FNameProperty(UField* InField)
@@ -2929,10 +3235,20 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FStrProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FStrProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FStrProperty(FFieldVariant InOwner, const UECodeGen_Private::FStrPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FStrProperty(UField* InField)
@@ -3000,13 +3316,23 @@ public:
 		SetElementSize();
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FArrayProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, EArrayPropertyFlags InArrayPropertyFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FArrayProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, Inner(nullptr)
 	{
 		ArrayFlags = InArrayPropertyFlags;
 		SetElementSize();
 	}
+
+	/** 
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FArrayProperty(FFieldVariant InOwner, const UECodeGen_Private::FArrayPropertyParams& Prop);
 
 	virtual ~FArrayProperty();
 
@@ -3130,7 +3456,16 @@ public:
 	typedef TTypeFundamentals::TCppType TCppType;
 
 	FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, EMapPropertyFlags InMapFlags=EMapPropertyFlags::None);
+
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, EMapPropertyFlags InMapFlags);
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FMapProperty(FFieldVariant InOwner, const UECodeGen_Private::FMapPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FMapProperty(UField* InField);
@@ -3261,7 +3596,16 @@ public:
 	typedef TTypeFundamentals::TCppType TCppType;
 
 	FSetProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
+
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FSetProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags);
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FSetProperty(FFieldVariant InOwner, const UECodeGen_Private::FSetPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FSetProperty(UField* InField);
@@ -5090,7 +5434,16 @@ class COREUOBJECT_API FStructProperty : public FProperty
 	class UScriptStruct* Struct;
 public:
 	FStructProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
+
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FStructProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UScriptStruct* InStruct);
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FStructProperty(FFieldVariant InOwner, const UECodeGen_Private::FStructPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FStructProperty(UField* InField);
@@ -5176,11 +5529,21 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = NULL)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FDelegateProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, SignatureFunction(InSignatureFunction)
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FDelegateProperty(FFieldVariant InOwner, const UECodeGen_Private::FDelegatePropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FDelegateProperty(UField* InField);
@@ -5236,11 +5599,21 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FMulticastDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = NULL)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FProperty(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, SignatureFunction(InSignatureFunction)
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FMulticastDelegateProperty(FFieldVariant InOwner, const UECodeGen_Private::FMulticastDelegatePropertyParams& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
 
 #if WITH_EDITORONLY_DATA
 	explicit FMulticastDelegateProperty(UField* InField);
@@ -5307,8 +5680,11 @@ public:
 		this->SignatureFunction = nullptr;
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	TProperty_MulticastDelegate(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		this->SignatureFunction = InSignatureFunction;
 	}
@@ -5316,6 +5692,17 @@ public:
 	TProperty_MulticastDelegate(EInternal InInernal, FFieldClass* InClass)
 		: Super(EC_InternalUseOnlyConstructor, InClass)
 	{
+	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	TProperty_MulticastDelegate(FFieldVariant InOwner, const UECodeGen_Private::FMulticastDelegatePropertyParams& Prop)
+		: Super(InOwner, Prop)
+	{
+		this->SignatureFunction = Prop.SignatureFunctionFunc ? Prop.SignatureFunctionFunc() : nullptr;
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -5344,10 +5731,20 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FMulticastInlineDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_MulticastDelegate(InOwner, InName, InObjectFlags, InOffset, InFlags, InSignatureFunction)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FMulticastInlineDelegateProperty(FFieldVariant InOwner, const UECodeGen_Private::FMulticastDelegatePropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FMulticastInlineDelegateProperty(UField* InField)
@@ -5385,10 +5782,20 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FMulticastSparseDelegateProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UFunction* InSignatureFunction = nullptr)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: TProperty_MulticastDelegate(InOwner, InName, InObjectFlags, InOffset, InFlags, InSignatureFunction)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FMulticastSparseDelegateProperty(FFieldVariant InOwner, const UECodeGen_Private::FMulticastDelegatePropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FMulticastSparseDelegateProperty(UField* InField)

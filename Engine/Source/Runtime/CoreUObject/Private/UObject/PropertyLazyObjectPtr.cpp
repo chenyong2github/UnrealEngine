@@ -11,6 +11,11 @@
 -----------------------------------------------------------------------------*/
 IMPLEMENT_FIELD(FLazyObjectProperty)
 
+FLazyObjectProperty::FLazyObjectProperty(FFieldVariant InOwner, const UECodeGen_Private::FLazyObjectPropertyParams& Prop)
+	: TFObjectPropertyBase(InOwner, Prop)
+{
+}
+
 FString FLazyObjectProperty::GetCPPType(FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/) const
 {
 	return GetCPPTypeCustom(ExtendedTypeText, CPPExportFlags,

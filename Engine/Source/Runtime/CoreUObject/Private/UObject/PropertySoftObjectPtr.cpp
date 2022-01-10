@@ -12,6 +12,16 @@
 -----------------------------------------------------------------------------*/
 IMPLEMENT_FIELD(FSoftObjectProperty)
 
+FSoftObjectProperty::FSoftObjectProperty(FFieldVariant InOwner, const UECodeGen_Private::FSoftObjectPropertyParams& Prop)
+	: TFObjectPropertyBase(InOwner, Prop)
+{
+}
+
+FSoftObjectProperty::FSoftObjectProperty(FFieldVariant InOwner, const UECodeGen_Private::FObjectPropertyParamsWithoutClass& Prop, UClass* InClass)
+	: TFObjectPropertyBase(InOwner, Prop, InClass)
+{
+}
+
 FString FSoftObjectProperty::GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName) const
 {
 	ensure(!InnerNativeTypeName.IsEmpty());

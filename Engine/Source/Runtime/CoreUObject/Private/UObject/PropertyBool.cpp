@@ -29,13 +29,55 @@ FBoolProperty::FBoolProperty(FFieldVariant InOwner, const FName& InName, EObject
 }
 
 FBoolProperty::FBoolProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, uint32 InBitMask, uint32 InElementSize, bool bIsNativeBool)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	: FProperty(InOwner, InName, InObjectFlags, InOffset, InFlags | CPF_HasGetValueTypeHash)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, FieldSize(0)
 	, ByteOffset(0)
 	, ByteMask(1)
 	, FieldMask(1)
 {
 	SetBoolSize(InElementSize, bIsNativeBool, InBitMask);
+}
+
+FBoolProperty::FBoolProperty(FFieldVariant InOwner, const UECodeGen_Private::FBoolPropertyParams& Prop)
+	: FProperty(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithoutOffset&)Prop)
+	, FieldSize(0)
+	, ByteOffset(0)
+	, ByteMask(1)
+	, FieldMask(1)
+{
+	auto DoDetermineBitfieldOffsetAndMask = [](uint32& Offset, uint32& BitMask, void (*SetBit)(void* Obj), const SIZE_T SizeOf)
+	{
+		TUniquePtr<uint8[]> Buffer = MakeUnique<uint8[]>(SizeOf);
+
+		SetBit(Buffer.Get());
+
+		// Here we are making the assumption that bitfields are aligned in the struct. Probably true.
+		// If not, it may be ok unless we are on a page boundary or something, but the check will fire in that case.
+		// Have faith.
+		for (uint32 TestOffset = 0; TestOffset < SizeOf; TestOffset++)
+		{
+			if (uint8 Mask = Buffer[TestOffset])
+			{
+				Offset = TestOffset;
+				BitMask = (uint32)Mask;
+				check(FMath::RoundUpToPowerOfTwo(BitMask) == BitMask); // better be only one bit on
+				break;
+			}
+		}
+	};
+
+	uint32 Offset = 0;
+	uint32 BitMask = 0;
+	if (Prop.SetBitFunc)
+	{
+		DoDetermineBitfieldOffsetAndMask(Offset, BitMask, Prop.SetBitFunc, Prop.SizeOfOuter);
+		check(BitMask);
+	}
+
+	SetOffset_Internal(Offset);
+	SetBoolSize(Prop.ElementSize, !!(Prop.Flags & UECodeGen_Private::EPropertyGenFlags::NativeBool), BitMask);
 }
 
 #if WITH_EDITORONLY_DATA

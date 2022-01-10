@@ -21,6 +21,13 @@
 -----------------------------------------------------------------------------*/
 IMPLEMENT_FIELD(FInterfaceProperty)
 
+FInterfaceProperty::FInterfaceProperty(FFieldVariant InOwner, const UECodeGen_Private::FInterfacePropertyParams& Prop)
+	: FInterfaceProperty_Super(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop)
+{
+	this->PropertyFlags &= (~CPF_InterfaceClearMask);
+	this->InterfaceClass = Prop.InterfaceClassFunc ? Prop.InterfaceClassFunc() : nullptr;
+}
+
 #if WITH_EDITORONLY_DATA
 FInterfaceProperty::FInterfaceProperty(UField* InField)
 	: FInterfaceProperty_Super(InField)

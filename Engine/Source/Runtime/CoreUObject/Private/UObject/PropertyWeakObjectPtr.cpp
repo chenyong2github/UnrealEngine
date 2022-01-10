@@ -9,6 +9,11 @@
 -----------------------------------------------------------------------------*/
 IMPLEMENT_FIELD(FWeakObjectProperty)
 
+FWeakObjectProperty::FWeakObjectProperty(FFieldVariant InOwner, const UECodeGen_Private::FWeakObjectPropertyParams& Prop)
+	: TFObjectPropertyBase(InOwner, Prop)
+{
+}
+
 FString FWeakObjectProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
 	return GetCPPTypeCustom(ExtendedTypeText, CPPExportFlags,

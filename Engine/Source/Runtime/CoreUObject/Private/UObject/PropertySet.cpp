@@ -173,7 +173,16 @@ FSetProperty::FSetProperty(FFieldVariant InOwner, const FName& InName, EObjectFl
 }
 
 FSetProperty::FSetProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 : FSetProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+{
+	// This is expected to be set post-construction by AddCppProperty
+	ElementProp = nullptr;
+}
+
+FSetProperty::FSetProperty(FFieldVariant InOwner, const UECodeGen_Private::FSetPropertyParams& Prop)
+	: FSetProperty_Super(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop)
 {
 	// This is expected to be set post-construction by AddCppProperty
 	ElementProp = nullptr;

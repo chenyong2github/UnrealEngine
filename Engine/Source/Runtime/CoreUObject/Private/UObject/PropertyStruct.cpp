@@ -54,10 +54,29 @@ FStructProperty::FStructProperty(FFieldVariant InOwner, const FName& InName, EOb
 }
 
 FStructProperty::FStructProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UScriptStruct* InStruct)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	: FProperty(InOwner, InName, InObjectFlags, InOffset, InStruct->GetCppStructOps() ? InStruct->GetCppStructOps()->GetComputedPropertyFlags() | InFlags : InFlags)
-	,	Struct( InStruct )
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	, Struct( InStruct )
 {
 	ElementSize = Struct->PropertiesSize;
+}
+
+static EPropertyFlags GetStructComputedPropertyFlags(const UECodeGen_Private::FStructPropertyParams& Prop)
+{
+	EPropertyFlags ComputedPropertyFlags = CPF_None;
+	UScriptStruct* Struct = Prop.ScriptStructFunc ? Prop.ScriptStructFunc() : nullptr;
+	if (Struct && Struct->GetCppStructOps())
+	{
+		ComputedPropertyFlags = Struct->GetCppStructOps()->GetComputedPropertyFlags();
+	}
+	return ComputedPropertyFlags;
+}
+
+FStructProperty::FStructProperty(FFieldVariant InOwner, const UECodeGen_Private::FStructPropertyParams& Prop)
+	: FProperty(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop, GetStructComputedPropertyFlags(Prop))
+{
+	Struct = Prop.ScriptStructFunc ? Prop.ScriptStructFunc() : nullptr;
 }
 
 #if WITH_EDITORONLY_DATA

@@ -721,6 +721,40 @@ FProperty::FProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags In
 	Init();
 }
 
+FProperty::FProperty(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithOffset& Prop, EPropertyFlags AdditionalPropertyFlags /*= CPF_None*/)
+	: FField(InOwner, UTF8_TO_TCHAR(Prop.NameUTF8), Prop.ObjectFlags)
+	, ArrayDim(1)
+	, ElementSize(0)
+	, PropertyFlags(Prop.PropertyFlags | AdditionalPropertyFlags)
+	, RepIndex(0)
+	, BlueprintReplicationCondition(COND_None)
+	, Offset_Internal(0)
+	, PropertyLinkNext(nullptr)
+	, NextRef(nullptr)
+	, DestructorLinkNext(nullptr)
+	, PostConstructLinkNext(nullptr)
+{
+	this->Offset_Internal = Prop.Offset;
+
+	Init();
+}
+
+FProperty::FProperty(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithoutOffset& Prop, EPropertyFlags AdditionalPropertyFlags /*= CPF_None*/)
+	: FField(InOwner, UTF8_TO_TCHAR(Prop.NameUTF8), Prop.ObjectFlags)
+	, ArrayDim(1)
+	, ElementSize(0)
+	, PropertyFlags(Prop.PropertyFlags | AdditionalPropertyFlags)
+	, RepIndex(0)
+	, BlueprintReplicationCondition(COND_None)
+	, Offset_Internal(0)
+	, PropertyLinkNext(nullptr)
+	, NextRef(nullptr)
+	, DestructorLinkNext(nullptr)
+	, PostConstructLinkNext(nullptr)
+{
+	Init();
+}
+
 #if WITH_EDITORONLY_DATA
 FProperty::FProperty(UField* InField)
 	: Super(InField)

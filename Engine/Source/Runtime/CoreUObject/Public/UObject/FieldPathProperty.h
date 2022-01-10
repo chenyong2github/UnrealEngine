@@ -25,11 +25,21 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
 	FFieldPathProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, FFieldClass* InPropertyClass)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FFieldPathProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, PropertyClass(InPropertyClass)
 	{
 	}
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param PropBase Pointer to the compiled in structure describing the property
+	 **/
+	FFieldPathProperty(FFieldVariant InOwner, const UECodeGen_Private::FFieldPathPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
 	explicit FFieldPathProperty(UField* InField);

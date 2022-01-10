@@ -4350,16 +4350,29 @@ FString FAssetMsg::GetAssetLogString(const UObject* Object, const FString& Messa
 
 namespace UECodeGen_Private
 {
+	template <typename PropertyType, typename PropertyParamsType>
+	PropertyType* NewFProperty(FFieldVariant Outer, const FPropertyParamsBase& PropBase)
+	{
+		const PropertyParamsType& Prop = (const PropertyParamsType&)PropBase;
+		PropertyType* NewProp = new PropertyType(Outer, Prop);
+
+#if WITH_METADATA
+		if (Prop.NumMetaData)
+		{
+			for (const FMetaDataPairParam* MetaDataData = Prop.MetaDataArray, *MetaDataEnd = MetaDataData + Prop.NumMetaData; MetaDataData != MetaDataEnd; ++MetaDataData)
+			{
+				NewProp->SetMetaData(UTF8_TO_TCHAR(MetaDataData->NameUTF8), UTF8_TO_TCHAR(MetaDataData->ValueUTF8));
+			}
+		}
+#endif
+		return NewProp;
+	}
+
 	void ConstructFProperty(FFieldVariant Outer, const FPropertyParamsBase* const*& PropertyArray, int32& NumProperties)
 	{
 		const FPropertyParamsBase* PropBase = *--PropertyArray;
 
 		uint32 ReadMore = 0;
-
-#if WITH_METADATA
-		const FMetaDataPairParam* MetaDataArray = nullptr;
-		int32                     NumMetaData   = 0;
-#endif
 
 		FProperty* NewProp = nullptr;
 		switch (PropBase->Flags & PropertyTypeMask)
@@ -4372,121 +4385,61 @@ namespace UECodeGen_Private
 
 			case EPropertyGenFlags::Byte:
 			{
-				const FBytePropertyParams* Prop = (const FBytePropertyParams*)PropBase;
-				NewProp = new FByteProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->EnumFunc ? Prop->EnumFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FByteProperty, FBytePropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Int8:
 			{
-				const FInt8PropertyParams* Prop = (const FInt8PropertyParams*)PropBase;
-				NewProp = new FInt8Property(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FInt8Property, FInt8PropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Int16:
 			{
-				const FInt16PropertyParams* Prop = (const FInt16PropertyParams*)PropBase;
-				NewProp = new FInt16Property(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FInt16Property, FInt16PropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Int:
 			{
-				const FIntPropertyParams* Prop = (const FIntPropertyParams*)PropBase;
-				NewProp = new FIntProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FIntProperty, FIntPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Int64:
 			{
-				const FInt64PropertyParams* Prop = (const FInt64PropertyParams*)PropBase;
-				NewProp = new FInt64Property(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FInt64Property, FInt64PropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::UInt16:
 			{
-				const FFInt16PropertyParams* Prop = (const FFInt16PropertyParams*)PropBase;
-				NewProp = new FUInt16Property(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FUInt16Property, FFInt16PropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::UInt32:
 			{
-				const FUInt32PropertyParams* Prop = (const FUInt32PropertyParams*)PropBase;
-				NewProp = new FUInt32Property(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FUInt32Property, FUInt32PropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::UInt64:
 			{
-				const FFInt64PropertyParams* Prop = (const FFInt64PropertyParams*)PropBase;
-				NewProp = new FUInt64Property(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FUInt64Property, FFInt64PropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::UnsizedInt:
 			{
-				const FUnsizedIntPropertyParams* Prop = (const FUnsizedIntPropertyParams*)PropBase;
-				NewProp = new FUInt64Property(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FUInt64Property, FUnsizedIntPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::UnsizedUInt:
 			{
-				const FUnsizedFIntPropertyParams* Prop = (const FUnsizedFIntPropertyParams*)PropBase;
-				NewProp = new FUInt64Property(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FUInt64Property, FUnsizedFIntPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
@@ -4495,13 +4448,7 @@ namespace UECodeGen_Private
 #endif
 			case EPropertyGenFlags::Float:
 			{
-				const FFloatPropertyParams* Prop = (const FFloatPropertyParams*)PropBase;
-				NewProp = new FFloatProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FFloatProperty, FFloatPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
@@ -4510,54 +4457,13 @@ namespace UECodeGen_Private
 #endif
 			case EPropertyGenFlags::Double:
 			{
-				const FDoublePropertyParams* Prop = (const FDoublePropertyParams*)PropBase;
-				NewProp = new FDoubleProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FDoubleProperty, FDoublePropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Bool:
 			{
-				auto DoDetermineBitfieldOffsetAndMask = [](uint32& Offset, uint32& BitMask, void (*SetBit)(void* Obj), const SIZE_T SizeOf)
-				{
-					TUniquePtr<uint8[]> Buffer = MakeUnique<uint8[]>(SizeOf);
-
-					SetBit(Buffer.Get());
-
-					// Here we are making the assumption that bitfields are aligned in the struct. Probably true.
-					// If not, it may be ok unless we are on a page boundary or something, but the check will fire in that case.
-					// Have faith.
-					for (uint32 TestOffset = 0; TestOffset < SizeOf; TestOffset++)
-					{
-						if (uint8 Mask = Buffer[TestOffset])
-						{
-							Offset = TestOffset;
-							BitMask = (uint32)Mask;
-							check(FMath::RoundUpToPowerOfTwo(BitMask) == BitMask); // better be only one bit on
-							break;
-						}
-					}
-				};
-
-				const FBoolPropertyParams* Prop = (const FBoolPropertyParams*)PropBase;
-				uint32 Offset = 0;
-				uint32 BitMask = 0;
-				if (Prop->SetBitFunc)
-				{
-					DoDetermineBitfieldOffsetAndMask(Offset, BitMask, Prop->SetBitFunc, Prop->SizeOfOuter);
-					check(BitMask);
-				}
-
-				NewProp = new FBoolProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Offset, Prop->PropertyFlags, BitMask, Prop->ElementSize, !!(Prop->Flags & EPropertyGenFlags::NativeBool));
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FBoolProperty, FBoolPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
@@ -4565,60 +4471,30 @@ namespace UECodeGen_Private
 			{
 				if (EnumHasAllFlags(PropBase->Flags, EPropertyGenFlags::ObjectPtr))
 				{
-					const FObjectPtrPropertyParams* Prop = (const FObjectPtrPropertyParams*)PropBase;
-					NewProp = new FObjectPtrProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
-
-#if WITH_METADATA
-					MetaDataArray = Prop->MetaDataArray;
-					NumMetaData   = Prop->NumMetaData;
-#endif
+					NewProp = NewFProperty<FObjectPtrProperty, FObjectPtrPropertyParams>(Outer, *PropBase);
 				}
 				else
 				{
-					const FObjectPropertyParams* Prop = (const FObjectPropertyParams*)PropBase;
-					NewProp = new FObjectProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
-
-#if WITH_METADATA
-					MetaDataArray = Prop->MetaDataArray;
-					NumMetaData   = Prop->NumMetaData;
-#endif
+					NewProp = NewFProperty<FObjectProperty, FObjectPropertyParams>(Outer, *PropBase);
 				}
 			}
 			break;
 
 			case EPropertyGenFlags::WeakObject:
 			{
-				const FWeakObjectPropertyParams* Prop = (const FWeakObjectPropertyParams*)PropBase;
-				NewProp = new FWeakObjectProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FWeakObjectProperty, FWeakObjectPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::LazyObject:
 			{
-				const FLazyObjectPropertyParams* Prop = (const FLazyObjectPropertyParams*)PropBase;
-				NewProp = new FLazyObjectProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FLazyObjectProperty, FLazyObjectPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::SoftObject:
 			{
-				const FSoftObjectPropertyParams* Prop = (const FSoftObjectPropertyParams*)PropBase;
-				NewProp = new FSoftObjectProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FSoftObjectProperty, FSoftObjectPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
@@ -4626,217 +4502,111 @@ namespace UECodeGen_Private
 			{
 				if (EnumHasAllFlags(PropBase->Flags, EPropertyGenFlags::ObjectPtr))
 				{
-					const FClassPtrPropertyParams* Prop = (const FClassPtrPropertyParams*)PropBase;
-					NewProp = new FClassPtrProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->MetaClassFunc ? Prop->MetaClassFunc() : nullptr, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
-
-#if WITH_METADATA
-					MetaDataArray = Prop->MetaDataArray;
-					NumMetaData   = Prop->NumMetaData;
-#endif
+					NewProp = NewFProperty<FClassPtrProperty, FClassPtrPropertyParams>(Outer, *PropBase);
 				}
 				else
 				{
-					const FClassPropertyParams* Prop = (const FClassPropertyParams*)PropBase;
-					NewProp = new FClassProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->MetaClassFunc ? Prop->MetaClassFunc() : nullptr, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
-
-#if WITH_METADATA
-					MetaDataArray = Prop->MetaDataArray;
-					NumMetaData   = Prop->NumMetaData;
-#endif
+					NewProp = NewFProperty<FClassProperty, FClassPropertyParams>(Outer, *PropBase);
 				}
 			}
 			break;
 
 			case EPropertyGenFlags::SoftClass:
 			{
-				const FSoftClassPropertyParams* Prop = (const FSoftClassPropertyParams*)PropBase;
-				NewProp = new FSoftClassProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->MetaClassFunc ? Prop->MetaClassFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FSoftClassProperty, FSoftClassPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Interface:
 			{
-				const FInterfacePropertyParams* Prop = (const FInterfacePropertyParams*)PropBase;
-				NewProp = new FInterfaceProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->InterfaceClassFunc ? Prop->InterfaceClassFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FInterfaceProperty, FInterfacePropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Name:
 			{
-				const FNamePropertyParams* Prop = (const FNamePropertyParams*)PropBase;
-				NewProp = new FNameProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FNameProperty, FNamePropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Str:
 			{
-				const FStrPropertyParams* Prop = (const FStrPropertyParams*)PropBase;
-				NewProp = new FStrProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FStrProperty, FStrPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Array:
 			{
-				const FArrayPropertyParams* Prop = (const FArrayPropertyParams*)PropBase;
-				NewProp = new FArrayProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ArrayFlags);
+				NewProp = NewFProperty<FArrayProperty, FArrayPropertyParams>(Outer, *PropBase);
 
 				// Next property is the array inner
 				ReadMore = 1;
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
 			}
 			break;
 
 			case EPropertyGenFlags::Map:
 			{
-				const FMapPropertyParams* Prop = (const FMapPropertyParams*)PropBase;
-				NewProp = new FMapProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->MapFlags);
+				NewProp = NewFProperty<FMapProperty, FMapPropertyParams>(Outer, *PropBase);
 
 				// Next two properties are the map key and value inners
 				ReadMore = 2;
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
 			}
 			break;
 
 			case EPropertyGenFlags::Set:
 			{
-				const FSetPropertyParams* Prop = (const FSetPropertyParams*)PropBase;
-				NewProp = new FSetProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
+				NewProp = NewFProperty<FSetProperty, FSetPropertyParams>(Outer, *PropBase);
 
 				// Next property is the set inner
 				ReadMore = 1;
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
 			}
 			break;
 
 			case EPropertyGenFlags::Struct:
 			{
-				const FStructPropertyParams* Prop = (const FStructPropertyParams*)PropBase;
-				NewProp = new FStructProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ScriptStructFunc ? Prop->ScriptStructFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FStructProperty, FStructPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Delegate:
 			{
-				const FDelegatePropertyParams* Prop = (const FDelegatePropertyParams*)PropBase;
-				NewProp = new FDelegateProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->SignatureFunctionFunc ? Prop->SignatureFunctionFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FDelegateProperty, FDelegatePropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::InlineMulticastDelegate:
 			{
-				const FMulticastDelegatePropertyParams* Prop = (const FMulticastDelegatePropertyParams*)PropBase;
-				NewProp = new FMulticastInlineDelegateProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->SignatureFunctionFunc ? Prop->SignatureFunctionFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FMulticastInlineDelegateProperty, FMulticastDelegatePropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::SparseMulticastDelegate:
 			{
-				const FMulticastDelegatePropertyParams* Prop = (const FMulticastDelegatePropertyParams*)PropBase;
-				NewProp = new FMulticastSparseDelegateProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->SignatureFunctionFunc ? Prop->SignatureFunctionFunc() : nullptr);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FMulticastSparseDelegateProperty, FMulticastDelegatePropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Text:
 			{
-				const FTextPropertyParams* Prop = (const FTextPropertyParams*)PropBase;
-				NewProp = new FTextProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags);
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FTextProperty, FTextPropertyParams>(Outer, *PropBase);
 			}
 			break;
 
 			case EPropertyGenFlags::Enum:
 			{
-				const FEnumPropertyParams* Prop = (const FEnumPropertyParams*)PropBase;
-				NewProp = new FEnumProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->EnumFunc ? Prop->EnumFunc() : nullptr);
+				NewProp = NewFProperty<FEnumProperty, FEnumPropertyParams>(Outer, *PropBase);
 
 				// Next property is the underlying integer property
 				ReadMore = 1;
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
-#endif
 			}
 			break;
 
 			case EPropertyGenFlags::FieldPath:
 			{
-				const FFieldPathPropertyParams* Prop = (const FFieldPathPropertyParams*)PropBase;
-				NewProp = new FFieldPathProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->PropertyClassFunc());
-
-#if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData = Prop->NumMetaData;
-#endif
+				NewProp = NewFProperty<FFieldPathProperty, FFieldPathPropertyParams>(Outer, *PropBase);
 			}
 			break;
 		}
-
-#if WITH_METADATA
-		if (NumMetaData)
-		{
-			for (const FMetaDataPairParam* MetaDataData = MetaDataArray, *MetaDataEnd = MetaDataData + NumMetaData; MetaDataData != MetaDataEnd; ++MetaDataData)
-			{
-				NewProp->SetMetaData(UTF8_TO_TCHAR(MetaDataData->NameUTF8), UTF8_TO_TCHAR(MetaDataData->ValueUTF8));
-			}
-		}
-#endif
 
 		NewProp->ArrayDim = PropBase->ArrayDim;
 		if (PropBase->RepNotifyFuncUTF8)

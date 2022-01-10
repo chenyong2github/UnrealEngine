@@ -56,7 +56,9 @@ FEnumProperty::FEnumProperty(FFieldVariant InOwner, const FName& InName, EObject
 }
 
 FEnumProperty::FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, UEnum* InEnum)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	: FProperty(InOwner, InName, InObjectFlags, 0, CPF_HasGetValueTypeHash)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, Enum(InEnum)
 {
 	// This is expected to be set post-construction by AddCppProperty
@@ -64,9 +66,20 @@ FEnumProperty::FEnumProperty(FFieldVariant InOwner, const FName& InName, EObject
 }
 
 FEnumProperty::FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	: FProperty(InOwner, InName, InObjectFlags, InOffset, InFlags | CPF_HasGetValueTypeHash)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, Enum(InEnum)
 {
+	// This is expected to be set post-construction by AddCppProperty
+	UnderlyingProp = nullptr;
+}
+
+FEnumProperty::FEnumProperty(FFieldVariant InOwner, const UECodeGen_Private::FEnumPropertyParams& Prop)
+	: FProperty(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop, CPF_HasGetValueTypeHash)
+{
+	Enum = Prop.EnumFunc ? Prop.EnumFunc() : nullptr;
+
 	// This is expected to be set post-construction by AddCppProperty
 	UnderlyingProp = nullptr;
 }

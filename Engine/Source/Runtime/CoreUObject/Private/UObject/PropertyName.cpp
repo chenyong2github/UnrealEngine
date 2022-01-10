@@ -11,6 +11,11 @@
 -----------------------------------------------------------------------------*/
 IMPLEMENT_FIELD(FNameProperty)
 
+FNameProperty::FNameProperty(FFieldVariant InOwner, const UECodeGen_Private::FNamePropertyParams& Prop)
+	: FNameProperty_Super(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop)
+{
+}
+
 void FNameProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	FName Temp = *(FName*)PropertyValue;

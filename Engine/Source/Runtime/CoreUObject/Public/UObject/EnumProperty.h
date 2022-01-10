@@ -17,6 +17,14 @@ public:
 	FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
 	FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, UEnum* InEnum);
 	FEnumProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum);
+
+	/**
+	 * Constructor used for constructing compiled in properties
+	 * @param InOwner Owner of the property
+	 * @param Prop Pointer to the compiled in structure describing the property
+	 **/
+	FEnumProperty(FFieldVariant InOwner, const UECodeGen_Private::FEnumPropertyParams& Prop);
+
 #if WITH_EDITORONLY_DATA
 	explicit FEnumProperty(UField* InField);
 #endif // WITH_EDITORONLY_DATA

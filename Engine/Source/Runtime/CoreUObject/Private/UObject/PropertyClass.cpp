@@ -18,6 +18,16 @@
 -----------------------------------------------------------------------------*/
 IMPLEMENT_FIELD(FClassProperty)
 
+FClassProperty::FClassProperty(FFieldVariant InOwner, const UECodeGen_Private::FClassPropertyParams& Prop)
+	: FObjectProperty(InOwner, (const UECodeGen_Private::FObjectPropertyParams&)Prop)
+{
+	if (!PropertyClass)
+	{
+		PropertyClass = UClass::StaticClass();
+	}
+	MetaClass = Prop.MetaClassFunc ? Prop.MetaClassFunc() : nullptr;
+}
+
 #if WITH_EDITORONLY_DATA
 FClassProperty::FClassProperty(UField* InField)
 	: FObjectProperty(InField)

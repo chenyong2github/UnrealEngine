@@ -14,6 +14,12 @@
 
 FMulticastScriptDelegate::FInvocationList FMulticastDelegateProperty::EmptyList;
 
+FMulticastDelegateProperty::FMulticastDelegateProperty(FFieldVariant InOwner, const UECodeGen_Private::FMulticastDelegatePropertyParams& Prop, EPropertyFlags AdditionalPropertyFlags /*= CPF_None*/)
+	: FProperty(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop, AdditionalPropertyFlags)
+{
+	SignatureFunction = Prop.SignatureFunctionFunc ? Prop.SignatureFunctionFunc() : nullptr;
+}
+
 #if WITH_EDITORONLY_DATA
 FMulticastDelegateProperty::FMulticastDelegateProperty(UField* InField)
 	: FProperty(InField)
@@ -373,6 +379,11 @@ void FMulticastDelegateProperty::AddReferencedObjects(FReferenceCollector& Colle
 
 IMPLEMENT_FIELD(FMulticastDelegateProperty)
 
+FMulticastInlineDelegateProperty::FMulticastInlineDelegateProperty(FFieldVariant InOwner, const UECodeGen_Private::FMulticastDelegatePropertyParams& Prop)
+	: TProperty_MulticastDelegate(InOwner, Prop)
+{
+}
+
 const FMulticastScriptDelegate* FMulticastInlineDelegateProperty::GetMulticastDelegate(const void* PropertyValue) const
 {
 	return (const FMulticastScriptDelegate*)PropertyValue;
@@ -440,6 +451,11 @@ void FMulticastInlineDelegateProperty::ClearDelegate(UObject* Parent, void* Prop
 }
 
 IMPLEMENT_FIELD(FMulticastInlineDelegateProperty)
+
+FMulticastSparseDelegateProperty::FMulticastSparseDelegateProperty(FFieldVariant InOwner, const UECodeGen_Private::FMulticastDelegatePropertyParams& Prop)
+	: TProperty_MulticastDelegate(InOwner, Prop)
+{
+}
 
 const FMulticastScriptDelegate* FMulticastSparseDelegateProperty::GetMulticastDelegate(const void* PropertyValue) const
 {

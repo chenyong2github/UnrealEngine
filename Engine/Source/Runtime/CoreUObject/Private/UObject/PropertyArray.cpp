@@ -17,6 +17,14 @@
 -----------------------------------------------------------------------------*/
 IMPLEMENT_FIELD(FArrayProperty)
 
+FArrayProperty::FArrayProperty(FFieldVariant InOwner, const UECodeGen_Private::FArrayPropertyParams& Prop)
+	: Super(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop)
+	, Inner(nullptr)
+{
+	ArrayFlags = Prop.ArrayFlags;
+	SetElementSize();
+}
+
 #if WITH_EDITORONLY_DATA
 FArrayProperty::FArrayProperty(UField* InField)
 	: FArrayProperty_Super(InField)

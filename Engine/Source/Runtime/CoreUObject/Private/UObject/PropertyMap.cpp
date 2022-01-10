@@ -194,13 +194,25 @@ FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFl
 }
 
 FMapProperty::FMapProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, EMapPropertyFlags InMapFlags)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	: FMapProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 {
 	// These are expected to be set post-construction by AddCppProperty
 	KeyProp   = nullptr;
 	ValueProp = nullptr;
 
 	MapFlags = InMapFlags;
+}
+
+FMapProperty::FMapProperty(FFieldVariant InOwner, const UECodeGen_Private::FMapPropertyParams& Prop)
+	: FMapProperty_Super(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop)
+{
+	// These are expected to be set post-construction by AddCppProperty
+	KeyProp = nullptr;
+	ValueProp = nullptr;
+
+	MapFlags = Prop.MapFlags;
 }
 
 #if WITH_EDITORONLY_DATA

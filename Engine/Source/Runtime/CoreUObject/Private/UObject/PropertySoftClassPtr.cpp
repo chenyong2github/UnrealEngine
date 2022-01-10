@@ -15,6 +15,12 @@
 -----------------------------------------------------------------------------*/
 IMPLEMENT_FIELD(FSoftClassProperty)
 
+FSoftClassProperty::FSoftClassProperty(FFieldVariant InOwner, const UECodeGen_Private::FSoftClassPropertyParams& Prop)
+	: Super(InOwner, (const UECodeGen_Private::FObjectPropertyParamsWithoutClass&)Prop, UClass::StaticClass())
+{
+	this->MetaClass = Prop.MetaClassFunc ? Prop.MetaClassFunc() : nullptr;
+}
+
 #if WITH_EDITORONLY_DATA
 FSoftClassProperty::FSoftClassProperty(UField* InField)
 	: Super(InField)
