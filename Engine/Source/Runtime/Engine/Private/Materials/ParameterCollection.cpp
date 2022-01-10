@@ -161,9 +161,6 @@ void SanitizeParameters(TArray<ParameterType>& Parameters)
 	}
 }
 
-int32 PreviousNumScalarParameters = 0;
-int32 PreviousNumVectorParameters = 0;
-
 bool UMaterialParameterCollection::SetScalarParameterDefaultValueByInfo(FCollectionScalarParameter ScalarParameter)
 {
 	if(GetScalarParameterByName(ScalarParameter.ParameterName))
@@ -218,73 +215,8 @@ bool UMaterialParameterCollection::SetVectorParameterDefaultValue(FName Paramete
 	return true;
 }
 
-int32 UMaterialParameterCollection::GetScalarParameterIndexByName(FName ParameterName)
-{
-	// loop over all the available scalar parameters and look for a name match
-	for (int32 ParameterIndex = 0; ParameterIndex < ScalarParameters.Num(); ParameterIndex++)
-	{
-		if(ScalarParameters[ParameterIndex].ParameterName == ParameterName)
-		{
-			return ParameterIndex;
-		}
-	}
-	// if not found, return -1
-	return -1;
-}
-
-int32 UMaterialParameterCollection::GetVectorParameterIndexByName(FName ParameterName)
-{
-	// loop over all the available vector parameters and look for a name match
-	for (int32 ParameterIndex = 0; ParameterIndex < VectorParameters.Num(); ParameterIndex++)
-	{
-		if(VectorParameters[ParameterIndex].ParameterName == ParameterName)
-		{
-			return ParameterIndex;
-		}
-	}
-	// if not found, return -1
-	return -1;
-}
-
-TArray<FName> UMaterialParameterCollection::GetScalarParameterNames()
-{
-	TArray<FName> Names;
-	GetParameterNames(Names, false);
-	return Names;
-}
-
-TArray<FName> UMaterialParameterCollection::GetVectorParameterNames()
-{
-	TArray<FName> Names;
-	GetParameterNames(Names, true);
-	return Names;
-}
-
-float UMaterialParameterCollection::GetScalarParameterDefaultValue(FName ParameterName, bool& bParameterFound)
-{
-	const int32 ParameterIndex = GetScalarParameterIndexByName(ParameterName);
-	bParameterFound = true;
-	if(ParameterIndex == -1)
-	{
-		bParameterFound = false;
-		return 0.0;
-	}
-	
-	return ScalarParameters[ParameterIndex].DefaultValue;
-}
-
-FLinearColor UMaterialParameterCollection::GetVectorParameterDefaultValue(FName ParameterName, bool& bParameterFound)
-{
-	const int32 ParameterIndex = GetVectorParameterIndexByName(ParameterName);
-	bParameterFound = true;
-	if(ParameterIndex == -1)
-	{
-		bParameterFound = false;
-		return FLinearColor::Black;
-	}
-	
-	return VectorParameters[ParameterIndex].DefaultValue;
-}
+int32 PreviousNumScalarParameters = 0;
+int32 PreviousNumVectorParameters = 0;
 
 void UMaterialParameterCollection::PreEditChange(FProperty* PropertyThatWillChange)
 {
@@ -391,6 +323,75 @@ void UMaterialParameterCollection::PostEditChangeProperty(FPropertyChangedEvent&
 }
 
 #endif // WITH_EDITOR
+
+int32 UMaterialParameterCollection::GetScalarParameterIndexByName(FName ParameterName)
+{
+	// loop over all the available scalar parameters and look for a name match
+	for (int32 ParameterIndex = 0; ParameterIndex < ScalarParameters.Num(); ParameterIndex++)
+	{
+		if(ScalarParameters[ParameterIndex].ParameterName == ParameterName)
+		{
+			return ParameterIndex;
+		}
+	}
+	// if not found, return -1
+	return -1;
+}
+
+int32 UMaterialParameterCollection::GetVectorParameterIndexByName(FName ParameterName)
+{
+	// loop over all the available vector parameters and look for a name match
+	for (int32 ParameterIndex = 0; ParameterIndex < VectorParameters.Num(); ParameterIndex++)
+	{
+		if(VectorParameters[ParameterIndex].ParameterName == ParameterName)
+		{
+			return ParameterIndex;
+		}
+	}
+	// if not found, return -1
+	return -1;
+}
+
+TArray<FName> UMaterialParameterCollection::GetScalarParameterNames()
+{
+	TArray<FName> Names;
+	GetParameterNames(Names, false);
+	return Names;
+}
+
+TArray<FName> UMaterialParameterCollection::GetVectorParameterNames()
+{
+	TArray<FName> Names;
+	GetParameterNames(Names, true);
+	return Names;
+}
+
+float UMaterialParameterCollection::GetScalarParameterDefaultValue(FName ParameterName, bool& bParameterFound)
+{
+	const int32 ParameterIndex = GetScalarParameterIndexByName(ParameterName);
+	bParameterFound = true;
+	if(ParameterIndex == -1)
+	{
+		bParameterFound = false;
+		return 0.0;
+	}
+	
+	return ScalarParameters[ParameterIndex].DefaultValue;
+}
+
+FLinearColor UMaterialParameterCollection::GetVectorParameterDefaultValue(FName ParameterName, bool& bParameterFound)
+{
+	const int32 ParameterIndex = GetVectorParameterIndexByName(ParameterName);
+	bParameterFound = true;
+	if(ParameterIndex == -1)
+	{
+		bParameterFound = false;
+		return FLinearColor::Black;
+	}
+	
+	return VectorParameters[ParameterIndex].DefaultValue;
+}
+
 
 FName UMaterialParameterCollection::GetParameterName(const FGuid& Id) const
 {
