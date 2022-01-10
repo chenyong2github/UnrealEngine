@@ -53,6 +53,7 @@ private:
 	FName OriginalLevelPackageName;
 	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackages;
 	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackagesToLoad;
+	TArray<FGuid> ActorFolders;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

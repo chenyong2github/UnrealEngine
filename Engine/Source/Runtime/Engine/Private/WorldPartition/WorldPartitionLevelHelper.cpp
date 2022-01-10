@@ -214,12 +214,6 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	check(InWorld->PersistentLevel->Model && NewLevel->Model);
 	NewLevel->Model->LightingGuid = InWorld->PersistentLevel->Model->LightingGuid;
 
-	// Propagate ActorFolder flag to new levels
-	if (InWorld->IsPlayInEditor() && InWorld->PersistentLevel->IsUsingActorFolders())
-	{
-		FLevelActorFoldersHelper::SetUseActorFolders(NewLevel, true);
-	}
-
 	return NewLevel;
 }
 
