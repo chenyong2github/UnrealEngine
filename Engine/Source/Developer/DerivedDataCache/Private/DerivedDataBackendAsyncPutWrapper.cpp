@@ -519,6 +519,70 @@ void FDerivedDataBackendAsyncPutWrapper::Get(
 	}
 }
 
+void FDerivedDataBackendAsyncPutWrapper::PutValue(
+	const TConstArrayView<FCachePutValueRequest> Requests,
+	IRequestOwner& Owner,
+	FOnCachePutValueComplete&& OnComplete)
+{
+	if (Owner.GetPriority() == EPriority::Blocking || !GDDCIOThreadPool)
+	{
+		InnerBackend->PutValue(Requests, Owner, MoveTemp(OnComplete));
+	}
+	else
+	{
+		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
+			[this, Requests = TArray<FCachePutValueRequest>(Requests), OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			{
+				if (!bCancel)
+				{
+					FRequestOwner BlockingOwner(EPriority::Blocking);
+					InnerBackend->PutValue(Requests, BlockingOwner, MoveTemp(OnComplete));
+					BlockingOwner.Wait();
+				}
+				else if (OnComplete)
+				{
+					for (const FCachePutValueRequest& Request : Requests)
+					{
+						OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Canceled});
+					}
+				}
+			});
+		Request->Start(Owner.GetPriority());
+	}
+}
+
+void FDerivedDataBackendAsyncPutWrapper::GetValue(
+	const TConstArrayView<FCacheGetValueRequest> Requests,
+	IRequestOwner& Owner,
+	FOnCacheGetValueComplete&& OnComplete)
+{
+	if (Owner.GetPriority() == EPriority::Blocking || !GDDCIOThreadPool)
+	{
+		InnerBackend->GetValue(Requests, Owner, MoveTemp(OnComplete));
+	}
+	else
+	{
+		FDerivedDataAsyncWrapperRequest* Request = new FDerivedDataAsyncWrapperRequest(Owner,
+			[this, Requests = TArray<FCacheGetValueRequest>(Requests), OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			{
+				if (!bCancel)
+				{
+					FRequestOwner BlockingOwner(EPriority::Blocking);
+					InnerBackend->GetValue(Requests, BlockingOwner, MoveTemp(OnComplete));
+					BlockingOwner.Wait();
+				}
+				else if (OnComplete)
+				{
+					for (const FCacheGetValueRequest& Request : Requests)
+					{
+						OnComplete({Request.Name, Request.Key, {}, Request.UserData, EStatus::Canceled});
+					}
+				}
+			});
+		Request->Start(Owner.GetPriority());
+	}
+}
+
 void FDerivedDataBackendAsyncPutWrapper::GetChunks(
 	TConstArrayView<FCacheChunkRequest> Requests,
 	IRequestOwner& Owner,

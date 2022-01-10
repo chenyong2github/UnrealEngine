@@ -606,6 +606,135 @@ public:
 		}
 	}
 
+	virtual void PutValue(
+		TConstArrayView<FCachePutValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutValueComplete&& OnComplete) override
+	{
+		FRequestOwner AsyncOwner(FPlatformMath::Min(Owner.GetPriority(), EPriority::Highest));
+		FRequestBarrier AsyncBarrier(AsyncOwner);
+		AsyncOwner.KeepAlive();
+
+		TSet<FCacheKey> RequestsOk;
+
+		{
+			FReadScopeLock LockScope(Lock);
+
+			for (int32 PutCacheIndex = 0; PutCacheIndex < InnerBackends.Num(); PutCacheIndex++)
+			{
+				if (InnerBackends[PutCacheIndex]->IsWritable())
+				{
+					// Every record must put synchronously before switching to async calls.
+					if (RequestsOk.Num() < Requests.Num())
+					{
+						FRequestOwner BlockingOwner(EPriority::Blocking);
+						InnerBackends[PutCacheIndex]->PutValue(Requests, BlockingOwner,
+							[&OnComplete, &RequestsOk](FCachePutValueCompleteParams&& Params)
+							{
+								if (Params.Status == EStatus::Ok)
+								{
+									bool bIsAlreadyInSet = false;
+									RequestsOk.FindOrAdd(Params.Key, &bIsAlreadyInSet);
+									if (OnComplete && !bIsAlreadyInSet)
+									{
+										OnComplete(MoveTemp(Params));
+									}
+								}
+							});
+						BlockingOwner.Wait();
+					}
+					else
+					{
+						AsyncPutInnerBackends[PutCacheIndex]->PutValue(Requests, AsyncOwner);
+					}
+				}
+			}
+		}
+
+		if (OnComplete && RequestsOk.Num() < Requests.Num())
+		{
+			for (const FCachePutValueRequest& Request : Requests)
+			{
+				if (!RequestsOk.Contains(Request.Key))
+				{
+					OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Error});
+				}
+			}
+		}
+	}
+
+	virtual void GetValue(
+		TConstArrayView<FCacheGetValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheGetValueComplete&& OnComplete) override
+	{
+		TArray<FCacheGetValueRequest, TInlineAllocator<16>> RemainingRequests(Requests);
+
+		{
+			FReadScopeLock LockScope(Lock);
+			TSet<FCacheKey> KeysOk;
+
+			bool bHadMiss = false;
+
+			for (int32 GetCacheIndex = 0; GetCacheIndex < InnerBackends.Num() && !RemainingRequests.IsEmpty(); ++GetCacheIndex)
+			{
+				// Block on this because backends in this hierarchy are not expected to be asynchronous.
+				FRequestOwner BlockingOwner(EPriority::Blocking);
+				InnerBackends[GetCacheIndex]->GetValue(RemainingRequests, BlockingOwner,
+					[this, GetCacheIndex, &Owner, &OnComplete, &KeysOk](FCacheGetValueCompleteParams&& Params)
+					{
+						if (Params.Status == EStatus::Ok)
+						{
+							FRequestOwner AsyncOwner(FPlatformMath::Min(Owner.GetPriority(), EPriority::Highest));
+							FRequestBarrier AsyncBarrier(AsyncOwner);
+							AsyncOwner.KeepAlive();
+							for (int32 FillCacheIndex = 0; FillCacheIndex < InnerBackends.Num(); ++FillCacheIndex)
+							{
+								if (GetCacheIndex != FillCacheIndex)
+								{
+									AsyncPutInnerBackends[FillCacheIndex]->PutValue({{Params.Name, Params.Key, Params.Value, ECachePolicy::Default}}, AsyncOwner);
+								}
+							}
+
+							KeysOk.Add(Params.Key);
+							if (OnComplete)
+							{
+								OnComplete(MoveTemp(Params));
+							}
+						}
+					});
+				BlockingOwner.Wait();
+
+				RemainingRequests.RemoveAll([&KeysOk](const FCacheGetValueRequest& Request) { return KeysOk.Contains(Request.Key); });
+
+				if (!bHadMiss && !RemainingRequests.IsEmpty() && InnerBackends[GetCacheIndex]->IsWritable())
+				{
+					bHadMiss = true;
+					const auto ConvertPolicy = [](ECachePolicy P) -> ECachePolicy
+					{
+						if (EnumHasAnyFlags(P, ECachePolicy::Store))
+						{
+							EnumRemoveFlags(P, ECachePolicy::SkipData);
+						}
+						return P;
+					};
+					for (FCacheGetValueRequest& Request : RemainingRequests)
+					{
+						Request.Policy = ConvertPolicy(Request.Policy);
+					}
+				}
+			}
+		}
+
+		if (OnComplete)
+		{
+			for (const FCacheGetValueRequest& Request : RemainingRequests)
+			{
+				OnComplete({Request.Name, Request.Key, {}, Request.UserData, EStatus::Error});
+			}
+		}
+	}
+
 	virtual void GetChunks(
 		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,
