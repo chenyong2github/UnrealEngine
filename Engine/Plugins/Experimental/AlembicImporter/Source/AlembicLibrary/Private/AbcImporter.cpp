@@ -1621,7 +1621,9 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 	LODModel.NumVertices = 0;
 	LODModel.IndexBuffer.Empty();
 
-	TArray<uint32> RawPointIndices;
+	TArray<uint32>& RawPointIndices = LODModel.GetRawPointIndices();
+	RawPointIndices.Reset();
+
 	TArray< TArray<uint32> > VertexIndexRemap;
 	VertexIndexRemap.Empty(MeshSections.Num());
 
@@ -1719,16 +1721,6 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 
 	// Only using bone zero
 	LODModel.ActiveBoneIndices.Add(0);
-
-	// Copy raw point indices to LOD model.
-	LODModel.RawPointIndices.RemoveBulkData();
-	if (RawPointIndices.Num())
-	{
-		LODModel.RawPointIndices.Lock(LOCK_READ_WRITE);
-		void* Dest = LODModel.RawPointIndices.Realloc(RawPointIndices.Num());
-		FMemory::Memcpy(Dest, RawPointIndices.GetData(), LODModel.RawPointIndices.GetBulkDataSize());
-		LODModel.RawPointIndices.Unlock();
-	}
 
 	// Finish building the sections.
 	for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)

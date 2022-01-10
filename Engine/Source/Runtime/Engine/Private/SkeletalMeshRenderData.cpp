@@ -186,7 +186,7 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("6F80DD35A8954A16ACFD2341CF8FCA65")
+#define SKELETALMESH_DERIVEDDATA_VER TEXT("B0E9C5D0DA6A4C07815CB825A5C1DE1A")
 
 const FString& GetSkeletalMeshDerivedDataVersion()
 {
@@ -332,14 +332,8 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 		Ar << LODModel->RequiredBones;
 		Ar << LODModel->MeshToImportVertexMap;
 		Ar << LODModel->MaxImportVertex;
-
-		// Unless an async loading query is already in flight, we want to load directly from disk to avoid
-		// accessing the linker which is not thread-safe.
-		if (LODModel->RawPointIndices.IsAsyncLoadingComplete() && !LODModel->RawPointIndices.IsBulkDataLoaded())
-		{
-			LODModel->RawPointIndices.LoadBulkDataWithFileReader();
-		}
-		LODModel->RawPointIndices.Serialize(Ar, Owner);
+		TArray<uint32>& RawPointIndices = LODModel->GetRawPointIndices();
+		Ar << RawPointIndices;
 	};
 
 	{
