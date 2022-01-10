@@ -394,34 +394,18 @@ void FRequestCluster::StartAsync(const FCookerTimer& CookerTimer, bool& bOutComp
 	FEditorDomain* EditorDomain = FEditorDomain::Get();
 	if (EditorDomain)
 	{
-		// Disable BatchDownload until cache storage implements fetch-head requests in response to a Get with SkipData
 		bool bBatchDownloadEnabled = true;
 		GConfig->GetBool(TEXT("EditorDomain"), TEXT("BatchDownloadEnabled"), bBatchDownloadEnabled, GEditorIni);
 		if (bBatchDownloadEnabled)
 		{
 			// If the EditorDomain is active, then batch-download all packages to cook from remote cache into local
-			TArray<FCacheGetRequest> CacheRequests;
-			CacheRequests.Reserve(Requests.Num());
-
-			ECachePolicy CachePolicy = ECachePolicy::Default | UE::DerivedData::ECachePolicy::SkipData;
+			TArray<FName> BatchDownload;
+			BatchDownload.Reserve(Requests.Num());
 			for (FPackageData* PackageData : Requests)
 			{
-				FName PackageName = PackageData->GetPackageName();
-				FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
-				if (PackageDigest.IsSuccessful() && EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::LoadEnabled))
-				{
-					TStringBuilder<256> RequestName;
-					RequestName << PackageName << TEXT(" [RequestCluster]");
-					CacheRequests.Add({{RequestName}, GetEditorDomainPackageKey(PackageDigest.Hash), CachePolicy});
-				}
-			}
-
-			if (!CacheRequests.IsEmpty())
-			{
-				FRequestOwner Owner(EPriority::Highest);
-				Owner.KeepAlive();
-				GetCache().Get(CacheRequests, Owner, [](FCacheGetCompleteParams&& Params) {});
-			}
+				BatchDownload.Add(PackageData->GetPackageName());
+			};
+			EditorDomain->BatchDownload(BatchDownload);
 		}
 	}
 
