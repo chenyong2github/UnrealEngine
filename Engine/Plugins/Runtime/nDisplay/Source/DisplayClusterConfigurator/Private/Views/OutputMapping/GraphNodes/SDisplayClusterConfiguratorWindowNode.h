@@ -33,15 +33,13 @@ public:
 
 	//~ Begin SGraphNode interface
 	virtual void UpdateGraphNode() override;
-	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true) override;
-	virtual bool CanBeSelected(const FVector2D& MousePositionInNode) const override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	virtual FVector2D GetPosition() const override;
 	//~ End SGraphNode interface
 
 	//~ Begin SDisplayClusterConfiguratorBaseNode interface
 	virtual bool CanNodeBeSnapAligned() const override { return true; }
-	virtual bool CanNodeBeResized() const { return !IsClusterNodeLocked(); }
+	virtual bool CanNodeBeResized() const { return IsNodeUnlocked(); }
 	virtual bool IsAspectRatioFixed() const override;
 
 protected:
@@ -56,6 +54,7 @@ private:
 	const FSlateBrush* GetNodeShadowBrush() const;
 	FMargin GetBackgroundPosition() const;
 	FSlateColor GetCornerColor() const;
+	FSlateColor GetTextColor() const;
 	FVector2D GetPreviewImageSize() const;
 	EVisibility GetPreviewImageVisibility() const;
 	int32 GetNodeTitleLayerOffset() const;

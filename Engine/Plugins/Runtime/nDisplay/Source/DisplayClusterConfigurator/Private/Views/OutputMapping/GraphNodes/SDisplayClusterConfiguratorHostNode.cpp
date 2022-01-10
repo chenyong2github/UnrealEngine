@@ -117,12 +117,12 @@ public:
 			.AutoSize(true)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 				.Padding(5)
 				[
 					SNew(STextBlock)
 					.Text(this, &SNodeOrigin::GetOriginText)
-					.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Small"))
+					.TextStyle(&FDisplayClusterConfiguratorStyle::Get().GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Small"))
 				]
 			]
 		];
@@ -268,7 +268,7 @@ void SDisplayClusterConfiguratorHostNode::UpdateGraphNode()
 					[
 						SNew(SImage)
 						.ColorAndOpacity(this, &SDisplayClusterConfiguratorHostNode::GetBorderColor)
-						.Image(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body"))
+						.Image(FAppStyle::Get().GetBrush("WhiteBrush"))
 					]
 
 					+ SOverlay::Slot()
@@ -282,71 +282,99 @@ void SDisplayClusterConfiguratorHostNode::UpdateGraphNode()
 						.StretchDirection(EStretchDirection::Both)
 						.VAlign(VAlign_Center)
 						[
-							SNew(SHorizontalBox)
-
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.HAlign(HAlign_Center)
-							.VAlign(VAlign_Center)
+							SNew(SBorder)
+							.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+							.ForegroundColor(this, &SDisplayClusterConfiguratorHostNode::GetTextColor)
 							[
-								SNew(SBox)
-								.WidthOverride(48)
-								.HeightOverride(48)
+								SNew(SHorizontalBox)
+
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.HAlign(HAlign_Center)
+								.VAlign(VAlign_Center)
 								[
-									SNew(SImage)
-									.Image(FDisplayClusterConfiguratorStyle::GetBrush(TEXT("DisplayClusterConfigurator.TreeItems.Host")))
+									SNew(SBox)
+									.WidthOverride(48)
+									.HeightOverride(48)
+									[
+										SNew(SImage)
+										.Image(FDisplayClusterConfiguratorStyle::Get().GetBrush(TEXT("DisplayClusterConfigurator.TreeItems.Host")))
+										.ColorAndOpacity(FSlateColor::UseForeground())
+									]
 								]
-							]
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							[
-								SNew(SSpacer)
-								.Size(FVector2D(25, 1))
-							]
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SNew(SSpacer)
+									.Size(FVector2D(25, 1))
+								]
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-								.Text(this, &SDisplayClusterConfiguratorHostNode::GetHostNameText)
-								.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Host.Text.Title"))
-								.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.Regular"))
-							]
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(STextBlock)
+									.Text(this, &SDisplayClusterConfiguratorHostNode::GetHostNameText)
+									.TextStyle(&FDisplayClusterConfiguratorStyle::Get().GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Host.Text.Title"))
+									.ColorAndOpacity(FSlateColor::UseForeground())
+								]
 
-							+ SHorizontalBox::Slot()
-							.FillWidth(1)
-							.Padding(20, 0)
-							[
-								SNew(SSpacer)
-							]
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SNew(SSpacer)
+									.Size(FVector2D(25, 1))
+								]
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-								.Text(this, &SDisplayClusterConfiguratorHostNode::GetHostResolutionText)
-								.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Host.Text.Title"))
-								.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.Regular"))
-							]
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(SBox)
+									.WidthOverride(48)
+									.HeightOverride(48)
+									.Visibility(this, &SDisplayClusterConfiguratorHostNode::GetLockIconVisibility)
+									[
+										SNew(SImage)
+										.Image(FAppStyle::Get().GetBrush(TEXT("PropertyWindow.Locked")))
+										.ColorAndOpacity(FSlateColor::UseForeground())
+									]
+								]
 
-							+ SHorizontalBox::Slot()
-							.FillWidth(1)
-							.Padding(20, 0)
-							[
-								SNew(SSpacer)
-							]
+								+ SHorizontalBox::Slot()
+								.FillWidth(1)
+								.Padding(20, 0)
+								[
+									SNew(SSpacer)
+								]
 
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-								.Text(this, &SDisplayClusterConfiguratorHostNode::GetHostIPText)
-								.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Host.Text.Title"))
-								.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.Regular"))
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(STextBlock)
+									.Text(this, &SDisplayClusterConfiguratorHostNode::GetHostResolutionText)
+									.TextStyle(&FDisplayClusterConfiguratorStyle::Get().GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Host.Text.Title"))
+									.ColorAndOpacity(FSlateColor::UseForeground())
+								]
+
+								+ SHorizontalBox::Slot()
+								.FillWidth(1)
+								.Padding(20, 0)
+								[
+									SNew(SSpacer)
+								]
+
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(STextBlock)
+									.Text(this, &SDisplayClusterConfiguratorHostNode::GetHostIPText)
+									.TextStyle(&FDisplayClusterConfiguratorStyle::Get().GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Host.Text.Title"))
+									.ColorAndOpacity(FSlateColor::UseForeground())
+								]
 							]
 						]
 					]
@@ -357,8 +385,8 @@ void SDisplayClusterConfiguratorHostNode::UpdateGraphNode()
 					.Padding(BorderThickness)
 					[
 						SNew(SImage)
-						.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Host.Inner.Background"))
-						.Image(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body"))
+						.ColorAndOpacity(FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Host.Inner.Background"))
+						.Image(FAppStyle::Get().GetBrush("WhiteBrush"))
 					]
 				]
 			]
@@ -469,12 +497,29 @@ FSlateColor SDisplayClusterConfiguratorHostNode::GetBorderColor() const
 	if (GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode))
 	{
 		// Selected Case
-		return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Color.Selected");
+		return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Color.Selected");
 	}
 
 	// Regular case
 	UDisplayClusterConfiguratorHostNode* PCEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorHostNode>();
 	return PCEdNode->GetHostColor();
+}
+
+
+FSlateColor SDisplayClusterConfiguratorHostNode::GetTextColor() const
+{
+	if (GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode))
+	{
+		// Selected Case
+		return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Text.Color.Selected");
+	}
+
+	return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Text.Color.Regular");
+}
+
+EVisibility SDisplayClusterConfiguratorHostNode::GetLockIconVisibility() const
+{
+	return !IsNodeUnlocked() ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 #undef LOCTEXT_NAMESPACE

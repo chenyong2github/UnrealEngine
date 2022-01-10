@@ -13,19 +13,18 @@ class FDisplayClusterConfiguratorOutputMappingCommands
 public:
 	FDisplayClusterConfiguratorOutputMappingCommands()
 		: TCommands<FDisplayClusterConfiguratorOutputMappingCommands>(TEXT("DisplayClusterConfigurator.OutputMapping"), 
-			NSLOCTEXT("Contexts", "DisplayClusterConfiguratorOutputMapping", "Display Cluster Configurator Output Mapping"), NAME_None, FDisplayClusterConfiguratorStyle::GetStyleSetName())
+			NSLOCTEXT("Contexts", "DisplayClusterConfiguratorOutputMapping", "Display Cluster Configurator Output Mapping"), NAME_None, FDisplayClusterConfiguratorStyle::Get().GetStyleSetName())
 	{ }
 
 	virtual void RegisterCommands() override;
 
 public:
-	TSharedPtr<FUICommandInfo> ToggleWindowInfo;
-	TSharedPtr<FUICommandInfo> ToggleWindowCornerImage;
+	TSharedPtr<FUICommandInfo> ShowWindowInfo;
+	TSharedPtr<FUICommandInfo> ShowWindowCorner;
+	TSharedPtr<FUICommandInfo> ShowWindowNone;
 	TSharedPtr<FUICommandInfo> ToggleOutsideViewports;
 	TSharedPtr<FUICommandInfo> ToggleClusterItemOverlap;
 	TSharedPtr<FUICommandInfo> ToggleLockClusterNodesInHosts;
-	TSharedPtr<FUICommandInfo> ToggleLockViewports;
-	TSharedPtr<FUICommandInfo> ToggleLockClusterNodes;
 	TSharedPtr<FUICommandInfo> ToggleTintViewports;
 	TSharedPtr<FUICommandInfo> ZoomToFit;
 	TSharedPtr<FUICommandInfo> BrowseDocumentation;

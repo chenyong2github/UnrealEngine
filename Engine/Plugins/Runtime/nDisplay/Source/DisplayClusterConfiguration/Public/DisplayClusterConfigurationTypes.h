@@ -340,7 +340,7 @@ public:
 	bool bIsVisible;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (HideProperty))
-	bool bIsEnabled;
+	bool bIsUnlocked;
 
 	/** Binds a background preview image for easier output mapping */
 	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
@@ -404,7 +404,7 @@ public:
 	bool bIsVisible;
 
 	UPROPERTY()
-	bool bIsEnabled;
+	bool bIsUnlocked;
 };
 
 UCLASS(Blueprintable)

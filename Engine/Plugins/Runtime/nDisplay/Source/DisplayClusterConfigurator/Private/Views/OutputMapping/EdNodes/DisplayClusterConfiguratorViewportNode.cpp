@@ -78,7 +78,7 @@ bool UDisplayClusterConfiguratorViewportNode::IsNodeVisible() const
 	return Viewport->bIsVisible;
 }
 
-bool UDisplayClusterConfiguratorViewportNode::IsNodeEnabled() const
+bool UDisplayClusterConfiguratorViewportNode::IsNodeUnlocked() const
 {
 	if (!IsObjectValid())
 	{
@@ -86,7 +86,7 @@ bool UDisplayClusterConfiguratorViewportNode::IsNodeEnabled() const
 	}
 
 	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
-	return Viewport->bIsEnabled;
+	return Viewport->bIsUnlocked;
 }
 
 void UDisplayClusterConfiguratorViewportNode::DeleteObject()

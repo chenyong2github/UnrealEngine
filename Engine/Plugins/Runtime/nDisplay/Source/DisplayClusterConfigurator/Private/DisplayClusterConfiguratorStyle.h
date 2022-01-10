@@ -5,36 +5,24 @@
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyle.h"
 
-class FDisplayClusterConfiguratorStyle
+class FDisplayClusterConfiguratorStyle : public FSlateStyleSet
 {
 public:
+	FDisplayClusterConfiguratorStyle();
+	~FDisplayClusterConfiguratorStyle();
 
-	static void Initialize();
-
-	static void Shutdown();
+	static FDisplayClusterConfiguratorStyle& Get()
+	{
+		static FDisplayClusterConfiguratorStyle Inst;
+		return Inst;
+	}
 
 	static void ReloadTextures();
 
-	static const ISlateStyle& Get();
-
-	static FName GetStyleSetName();
-
-	static const FLinearColor& GetColor(FName PropertyName, const ANSICHAR* Specifier = nullptr);
-
-	static const FLinearColor& GetCornerColor(uint32 Index);
-
-	static const FMargin& GetMargin(FName PropertyName, const ANSICHAR* Specifier = nullptr);
-
-	static const FSlateBrush* GetBrush(FName PropertyName, const ANSICHAR* Specifier = nullptr);
-
-	template< typename WidgetStyleType >
-	static const WidgetStyleType& GetWidgetStyle(FName PropertyName, const ANSICHAR* Specifier = nullptr)
-	{
-		return StyleInstance->GetWidgetStyle<WidgetStyleType>(PropertyName, Specifier);
-	}
+	const FLinearColor& GetDefaultColor(uint32 Index);
 
 private:
-	static TSharedRef<FSlateStyleSet> Create();
+	void Initialize();
 
 	struct FCornerColor
 	{
@@ -50,8 +38,5 @@ private:
 		FLinearColor Color;
 	};
 
-	static TArray<FCornerColor> CornerColors;
-
-private:
-	static TSharedPtr<FSlateStyleSet> StyleInstance;
+	TArray<FCornerColor> DefaultColors;
 };

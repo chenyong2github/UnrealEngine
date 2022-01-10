@@ -45,27 +45,28 @@ public:
 		EditorViewport = InArgs._EditorViewport;
 
 		static const FName DefaultForegroundName("DefaultForeground");
+		const FMargin ToolbarSlotPadding(4.0f, 1.0f);
 
 		this->ChildSlot
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-			.ForegroundColor(FEditorStyle::GetSlateColor(DefaultForegroundName))
+			.BorderImage(FAppStyle::Get().GetBrush("EditorViewportToolBar.Background"))
+			.ForegroundColor(FAppStyle::Get().GetSlateColor(DefaultForegroundName))
 			[
 				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(2.0f, 2.0f)
+				.Padding(ToolbarSlotPadding)
 				[
 					SNew(SEditorViewportToolbarMenu)
 					.ParentToolBar(SharedThis(this))
 					.Cursor(EMouseCursor::Default)
-					.Image("EditorViewportToolBar.MenuDropdown")
+					.Image("EditorViewportToolBar.OptionsDropdown")
 					.OnGetMenuContent(this, &SDisplayClusterConfiguratorSCSEditorViewportToolBar::GeneratePreviewMenu)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(2.0f, 2.0f)
+				.Padding(ToolbarSlotPadding)
 				[
 					SNew( SEditorViewportToolbarMenu )
 					.ParentToolBar( SharedThis( this ) )
@@ -76,7 +77,7 @@ public:
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(2.0f, 2.0f)
+				.Padding(ToolbarSlotPadding)
 				[
 					SNew( SEditorViewportToolbarMenu )
 					.ParentToolBar( SharedThis( this ) )
@@ -87,7 +88,7 @@ public:
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(2.0f, 2.0f)
+				.Padding(ToolbarSlotPadding)
 				[
 					SNew( SEditorViewportToolbarMenu )
 					.ParentToolBar( SharedThis( this ) )
@@ -96,8 +97,8 @@ public:
 					.OnGetMenuContent(this, &SDisplayClusterConfiguratorSCSEditorViewportToolBar::GenerateViewportsMenu)
 				]
 				+ SHorizontalBox::Slot()
-				.Padding( 3.0f, 1.0f )
-				.HAlign( HAlign_Right )
+				.Padding(ToolbarSlotPadding)
+				.HAlign(HAlign_Right)
 				[
 					SNew(STransformViewportToolBar)
 					.Viewport(EditorViewport.Pin().ToSharedRef())
@@ -156,7 +157,7 @@ public:
 			return GetCameraMenuLabelIconFromViewportType( EditorViewport.Pin()->GetViewportClient()->GetViewportType() );
 		}
 
-		return FEditorStyle::GetBrush(NAME_None);
+		return FAppStyle::Get().GetBrush(NAME_None);
 	}
 
 	TSharedRef<SWidget> GenerateCameraMenu() const
@@ -231,7 +232,7 @@ public:
 			}
 		}
 
-		return FEditorStyle::GetBrush(Icon);
+		return FAppStyle::Get().GetBrush(Icon);
 	}
 
 	TSharedRef<SWidget> GenerateViewMenu() const
@@ -351,7 +352,7 @@ public:
 		{
 			FToolBarBuilder OnePaneButton(CommandList, FMultiBoxCustomization::None);
 			OnePaneButton.SetLabelVisibility(EVisibility::Collapsed);
-			OnePaneButton.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+			OnePaneButton.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 			OnePaneButton.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_OnePane);
 
@@ -376,7 +377,7 @@ public:
 		{
 			FToolBarBuilder TwoPaneButtons(CommandList, FMultiBoxCustomization::None);
 			TwoPaneButtons.SetLabelVisibility(EVisibility::Collapsed);
-			TwoPaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+			TwoPaneButtons.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 			TwoPaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_TwoPanesH, NAME_None, FText());
 			TwoPaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_TwoPanesV, NAME_None, FText());
@@ -402,7 +403,7 @@ public:
 		{
 			FToolBarBuilder ThreePaneButtons(CommandList, FMultiBoxCustomization::None);
 			ThreePaneButtons.SetLabelVisibility(EVisibility::Collapsed);
-			ThreePaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+			ThreePaneButtons.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 			ThreePaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_ThreePanesLeft, NAME_None, FText());
 			ThreePaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_ThreePanesRight, NAME_None, FText());
@@ -430,7 +431,7 @@ public:
 		{
 			FToolBarBuilder FourPaneButtons(CommandList, FMultiBoxCustomization::None);
 			FourPaneButtons.SetLabelVisibility(EVisibility::Collapsed);
-			FourPaneButtons.SetStyle(&FEditorStyle::Get(), "ViewportLayoutToolbar");
+			FourPaneButtons.SetStyle(&FAppStyle::Get(), "ViewportLayoutToolbar");
 
 			FourPaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_FourPanes2x2, NAME_None, FText());
 			FourPaneButtons.AddToolBarButton(FEditorViewportCommands::Get().ViewportConfig_FourPanesLeft, NAME_None, FText());

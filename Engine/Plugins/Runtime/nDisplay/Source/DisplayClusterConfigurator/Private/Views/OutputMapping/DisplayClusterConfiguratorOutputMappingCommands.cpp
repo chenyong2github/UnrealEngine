@@ -7,13 +7,12 @@
 
 void FDisplayClusterConfiguratorOutputMappingCommands::RegisterCommands()
 {	
-	UI_COMMAND(ToggleWindowInfo, "Show Window Info", "Enables or disables showing the window information", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::W));
-	UI_COMMAND(ToggleWindowCornerImage, "Show Window Corner Image", "Enables or disables showing the window corner image", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::E));
-	UI_COMMAND(ToggleOutsideViewports, "Show Viewports outside the Window", "Enables or disables showing the viewport which is compleatly outside window", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::R));
+	UI_COMMAND(ShowWindowInfo, "Info Bar", "Shows the information bar on cluster nodes", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(ShowWindowCorner, "Corner", "Shows only the corner nub on cluster nodes", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(ShowWindowNone, "None", "Hides both the information bar and corner nub on cluster nodes", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(ToggleOutsideViewports, "Show Viewports outside the Window", "Toggles displaying viewports that are entirely outside a cluster node", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::R));
 	UI_COMMAND(ToggleClusterItemOverlap, "Allow Cluster Item Overlap", "Enables or disables allowing cluster items to overlap when being manipulated", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleLockClusterNodesInHosts, "Keep Cluster Nodes inside Hosts", "Prevents cluster nodes from being moved outside of hosts when being manipulated", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleLockViewports, "Lock Viewports in place", "Locks viewports in place, preventing them from being selected or dragged", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleLockClusterNodes, "Lock Cluster Nodes in place", "Locks cluster nodes in place, preventing them from being selected or dragged", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleTintViewports, "Tint Selected Viewports", "Toggles tinting selected viewports orange to better indicate that they are selected", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ZoomToFit, "Zoom To Fit", "Zoom To Fit In Graph", EUserInterfaceActionType::Button, FInputChord(EKeys::Z));
 

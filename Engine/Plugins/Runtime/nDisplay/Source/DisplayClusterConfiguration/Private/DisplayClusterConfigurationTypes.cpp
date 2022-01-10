@@ -169,7 +169,7 @@ UDisplayClusterConfigurationViewport::UDisplayClusterConfigurationViewport()
 {
 #if WITH_EDITORONLY_DATA
 	bIsVisible = true;
-	bIsEnabled = true;
+	bIsUnlocked = true;
 #endif
 }
 
@@ -201,14 +201,14 @@ UDisplayClusterConfigurationClusterNode::UDisplayClusterConfigurationClusterNode
 	: bIsSoundEnabled(false)
 #if WITH_EDITORONLY_DATA
 	, bIsVisible(true)
-	, bIsEnabled(true)
+	, bIsUnlocked(true)
 #endif
 {
 }
 
 UDisplayClusterConfigurationHostDisplayData::UDisplayClusterConfigurationHostDisplayData()
 	: bIsVisible(true)
-	, bIsEnabled(true)
+	, bIsUnlocked(true)
 {
 	SetFlags(RF_Public);
 }

@@ -19,12 +19,11 @@ public:
 			UObject* InObjectToEdit);
 
 	void SetVisible(bool bIsVisible);
-	void SetEnabled(bool bIsEnabled);
+	void SetUnlocked(bool bIsUnlocked);
 
 	//~ Begin FDisplayClusterConfiguratorTreeItem Interface
 	virtual void OnSelection() override;
 
-	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName, TSharedPtr<ITableRow> TableRow, const TAttribute<FText>& FilterText, FIsSelected InIsSelected) override;
 	virtual void DeleteItem() const override;
 	virtual bool CanHideItem() const override { return true; }
 	virtual void SetItemHidden(bool bIsHidden) { SetVisible(!bIsHidden); }
@@ -37,19 +36,22 @@ public:
 
 protected:
 	virtual void OnDisplayNameCommitted(const FText& NewText, ETextCommit::Type CommitInfo) override;
+
+	virtual bool CanClusterItemBeHidden() const override { return true; }
+	virtual bool CanClusterItemBeLocked() const override { return true; }
+	virtual bool IsClusterItemGrouped() const override { return true; }
+
+	virtual bool IsClusterItemVisible() const override;
+	virtual bool IsClusterItemUnlocked() const override;
+
+	virtual void ToggleClusterItemVisibility() override;
+	virtual void ToggleClusterItemLock() override;
+
+	virtual FSlateColor GetClusterItemGroupColor() const override;
+	virtual FReply OnClusterItemGroupClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	//~ End FDisplayClusterConfiguratorTreeItem Interface
 
 private:
 	FSlateColor GetHostColor() const;
 	FReply OnHostClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
-
-	const FSlateBrush* GetVisibilityButtonBrush() const;
-	FReply OnVisibilityButtonClicked();
-
-	const FSlateBrush* GetEnabledButtonBrush() const;
-	FReply OnEnabledButtonClicked();
-
-private:
-	TSharedPtr<SButton> VisibilityButton;
-	TSharedPtr<SButton> EnabledButton;
 };

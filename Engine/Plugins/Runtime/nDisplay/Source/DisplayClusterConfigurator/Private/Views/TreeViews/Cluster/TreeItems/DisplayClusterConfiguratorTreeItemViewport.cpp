@@ -41,7 +41,7 @@ void FDisplayClusterConfiguratorTreeItemViewport::SetVisible(bool bIsVisible)
 	PropertyView->GetPropertyHandle()->SetValue(bIsVisible);
 }
 
-void FDisplayClusterConfiguratorTreeItemViewport::SetEnabled(bool bIsEnabled)
+void FDisplayClusterConfiguratorTreeItemViewport::SetUnlocked(bool bIsUnlocked)
 {
 	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
 
@@ -49,9 +49,9 @@ void FDisplayClusterConfiguratorTreeItemViewport::SetEnabled(bool bIsEnabled)
 	SaveToTransactionBuffer(Viewport, false);
 
 	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
-		Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, bIsEnabled));
+		Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, bIsUnlocked));
 	
-	PropertyView->GetPropertyHandle()->SetValue(bIsEnabled);
+	PropertyView->GetPropertyHandle()->SetValue(bIsUnlocked);
 }
 
 void FDisplayClusterConfiguratorTreeItemViewport::OnSelection()
@@ -81,50 +81,6 @@ void FDisplayClusterConfiguratorTreeItemViewport::OnSelection()
 	{
 		ToolkitPtr.Pin()->SelectAncillaryComponents(AssociatedComponents);
 	}
-}
-
-TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItemViewport::GenerateWidgetForColumn(const FName& ColumnName, TSharedPtr<ITableRow> TableRow, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
-{
-	if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Host)
-	{
-		return SNew(SImage)
-			.ColorAndOpacity(this, &FDisplayClusterConfiguratorTreeItemViewport::GetHostColor)
-			.OnMouseButtonDown(this, &FDisplayClusterConfiguratorTreeItemViewport::OnHostClicked)
-			.Image(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body"))
-			.Cursor(EMouseCursor::Hand);
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Visible)
-	{
-		return SAssignNew(VisibilityButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("VisibilityButton_Tooltip", "Hides or shows this viewport in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemViewport::OnVisibilityButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemViewport::GetVisibilityButtonBrush)
-			];
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Enabled)
-	{
-		return SAssignNew(EnabledButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("EnabledButton_Tooltip", "Enables or disables this viewport in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemViewport::OnEnabledButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemViewport::GetEnabledButtonBrush)
-			];
-	}
-
-	return FDisplayClusterConfiguratorTreeItemCluster::GenerateWidgetForColumn(ColumnName, TableRow, FilterText, InIsSelected);
 }
 
 void FDisplayClusterConfiguratorTreeItemViewport::DeleteItem() const
@@ -255,7 +211,49 @@ void FDisplayClusterConfiguratorTreeItemViewport::OnDisplayNameCommitted(const F
 	}
 }
 
-FSlateColor FDisplayClusterConfiguratorTreeItemViewport::GetHostColor() const
+bool FDisplayClusterConfiguratorTreeItemViewport::IsClusterItemVisible() const
+{
+	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
+	return Viewport->bIsVisible;
+}
+
+void FDisplayClusterConfiguratorTreeItemViewport::ToggleClusterItemVisibility()
+{
+	const FScopedTransaction Transaction(LOCTEXT("ToggleViewportVisibility", "Toggle Viewport Visibilty"));
+
+	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
+
+	// Use SaveToTransactionBuffer to avoid marking the package as dirty
+	SaveToTransactionBuffer(Viewport, false);
+
+	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
+		Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, bIsVisible));
+
+	PropertyView->GetPropertyHandle()->SetValue(!Viewport->bIsVisible);
+}
+
+bool FDisplayClusterConfiguratorTreeItemViewport::IsClusterItemUnlocked() const
+{
+	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
+	return Viewport->bIsUnlocked;
+}
+
+void FDisplayClusterConfiguratorTreeItemViewport::ToggleClusterItemLock()
+{
+	const FScopedTransaction Transaction(LOCTEXT("ToggleViewportLock", "Toggle Viewport Lock"));
+
+	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
+
+	// Use SaveToTransactionBuffer to avoid marking the package as dirty
+	SaveToTransactionBuffer(Viewport, false);
+
+	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
+		Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, bIsUnlocked));
+
+	PropertyView->GetPropertyHandle()->SetValue(!Viewport->bIsUnlocked);
+}
+
+FSlateColor FDisplayClusterConfiguratorTreeItemViewport::GetClusterItemGroupColor() const
 {
 	TSharedPtr<IDisplayClusterConfiguratorTreeItem> ParentItem = Parent.Pin();
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = nullptr;
@@ -273,7 +271,7 @@ FSlateColor FDisplayClusterConfiguratorTreeItemViewport::GetHostColor() const
 
 	if (ToolkitPtr.Pin()->IsObjectSelected(HostDisplayData))
 	{
-		return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Color.Selected");
+		return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Color.Selected");
 	}
 	else
 	{
@@ -281,7 +279,7 @@ FSlateColor FDisplayClusterConfiguratorTreeItemViewport::GetHostColor() const
 	}
 }
 
-FReply FDisplayClusterConfiguratorTreeItemViewport::OnHostClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply FDisplayClusterConfiguratorTreeItemViewport::OnClusterItemGroupClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	TSharedPtr<IDisplayClusterConfiguratorTreeItem> ParentItem = GetParent();
 
@@ -295,66 +293,6 @@ FReply FDisplayClusterConfiguratorTreeItemViewport::OnHostClicked(const FGeometr
 	}
 
 	return FReply::Unhandled();
-}
-
-const FSlateBrush* FDisplayClusterConfiguratorTreeItemViewport::GetVisibilityButtonBrush() const
-{
-	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
-
-	if (Viewport->bIsVisible)
-	{
-		return VisibilityButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.VisibleHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.VisibleIcon16x"));
-	}
-	else
-	{
-		return VisibilityButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.NotVisibleHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
-	}
-}
-
-FReply FDisplayClusterConfiguratorTreeItemViewport::OnVisibilityButtonClicked()
-{
-	const FScopedTransaction Transaction(LOCTEXT("ToggleViewportVisibility", "Set Viewport Visibility"));
-
-	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
-
-	// Use SaveToTransactionBuffer to avoid marking the package as dirty
-	SaveToTransactionBuffer(Viewport, false);
-
-	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
-		Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, bIsVisible));
-
-	PropertyView->GetPropertyHandle()->SetValue(!Viewport->bIsVisible);
-	return FReply::Handled();
-}
-
-const FSlateBrush* FDisplayClusterConfiguratorTreeItemViewport::GetEnabledButtonBrush() const
-{
-	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
-
-	if (Viewport->bIsEnabled)
-	{
-		return EnabledButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.UnlockedHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.UnlockedIcon16x"));
-	}
-	else
-	{
-		return EnabledButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.LockedHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.LockedIcon16x"));
-	}
-}
-
-FReply FDisplayClusterConfiguratorTreeItemViewport::OnEnabledButtonClicked()
-{
-	const FScopedTransaction Transaction(LOCTEXT("ToggleViewportEnabled", "Set Viewport Enabled"));
-
-	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
-
-	// Use SaveToTransactionBuffer to avoid marking the package as dirty
-	SaveToTransactionBuffer(Viewport, false);
-
-	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
-		Viewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, bIsEnabled));
-
-	PropertyView->GetPropertyHandle()->SetValue(!Viewport->bIsEnabled);
-	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE 

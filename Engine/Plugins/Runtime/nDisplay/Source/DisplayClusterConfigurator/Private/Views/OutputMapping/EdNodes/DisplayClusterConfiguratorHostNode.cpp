@@ -188,7 +188,7 @@ bool UDisplayClusterConfiguratorHostNode::IsNodeVisible() const
 	return bIsChildVisible;
 }
 
-bool UDisplayClusterConfiguratorHostNode::IsNodeEnabled() const
+bool UDisplayClusterConfiguratorHostNode::IsNodeUnlocked() const
 {
 	if (!IsObjectValid())
 	{
@@ -196,24 +196,7 @@ bool UDisplayClusterConfiguratorHostNode::IsNodeEnabled() const
 	}
 
 	UDisplayClusterConfigurationHostDisplayData* HostDisplayData = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
-
-	if (HostDisplayData->bIsEnabled)
-	{
-		return true;
-	}
-
-	// If all children of the host node are disabled, make the host node disabled as well.
-	bool bIsChildEnabled = false;
-	for (UDisplayClusterConfiguratorBaseNode* Child : Children)
-	{
-		if (Child->IsNodeEnabled())
-		{
-			bIsChildEnabled = true;
-			break;
-		}
-	}
-
-	return bIsChildEnabled;
+	return HostDisplayData->bIsUnlocked;
 }
 
 void UDisplayClusterConfiguratorHostNode::DeleteObject()

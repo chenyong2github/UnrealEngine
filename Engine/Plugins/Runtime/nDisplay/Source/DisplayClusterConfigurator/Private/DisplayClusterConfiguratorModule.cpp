@@ -89,7 +89,7 @@ void FDisplayClusterConfiguratorModule::StartupModule()
 	RegisterSettings();
 	RegisterPlacementModeItems();
 	
-	FDisplayClusterConfiguratorStyle::Initialize();
+	FDisplayClusterConfiguratorStyle::Get();
 
 	FDisplayClusterConfiguratorCommands::Register();
 	FDisplayClusterConfiguratorOutputMappingCommands::Register();
@@ -126,7 +126,6 @@ void FDisplayClusterConfiguratorModule::ShutdownModule()
 	UnregisterCustomLayouts();
 	UnregisterPlacementModeItems();
 
-	FDisplayClusterConfiguratorStyle::Shutdown();
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
 

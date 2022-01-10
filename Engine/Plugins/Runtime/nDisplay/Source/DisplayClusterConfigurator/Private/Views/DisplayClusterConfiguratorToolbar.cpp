@@ -25,7 +25,7 @@ public:
 	{
 		SBorder::Construct(
 			SBorder::FArguments()
-			.BorderImage(FEditorStyle::GetBrush("BlueprintEditor.PipelineSeparator"))
+			.BorderImage(FAppStyle::Get().GetBrush("BlueprintEditor.PipelineSeparator"))
 			.Padding(0.0f)
 		);
 	}
@@ -61,13 +61,13 @@ void FDisplayClusterConfiguratorToolbar::FillModesToolbar(FToolBarBuilder& Toolb
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FDisplayClusterConfiguratorStyle::GetStyleSetName(), "DisplayClusterConfigurator.Toolbar.Import"));
+		FSlateIcon(FDisplayClusterConfiguratorStyle::Get().GetStyleSetName(), "DisplayClusterConfigurator.Toolbar.Import"));
 
 	ToolbarBuilder.AddToolBarButton(Commands.Export,
 		NAME_None,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FDisplayClusterConfiguratorStyle::GetStyleSetName(), "DisplayClusterConfigurator.Toolbar.SaveToFile"));
+		FSlateIcon(FDisplayClusterConfiguratorStyle::Get().GetStyleSetName(), "DisplayClusterConfigurator.Toolbar.SaveToFile"));
 	
 	ToolbarBuilder.AddComboButton(FUIAction(),
 		FOnGetContent::CreateRaw(this, &FDisplayClusterConfiguratorToolbar::GenerateExportMenu),

@@ -66,7 +66,6 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 					.HAlign(HAlign_Fill)
 					[
 						SNew(SBorder)
-						.BorderImage(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Window.Border.Brush"))
 						.Padding(FMargin(0.f))
 						[
 							BackgroundImage.ToSharedRef()
@@ -86,8 +85,9 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 							.VAlign(VAlign_Center)
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+								.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
 								.BorderBackgroundColor(this, &SDisplayClusterConfiguratorViewportNode::GetTextBoxColor)
+								.ForegroundColor(this, &SDisplayClusterConfiguratorViewportNode::GetTextColor)
 								.Padding(8.0f)
 								[
 									SNew( SVerticalBox )
@@ -99,8 +99,8 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 										SNew(STextBlock)
 										.Text(FText::FromString(ViewportEdNode->GetNodeName()))
 										.Justification(ETextJustify::Center)
-										.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Bold"))
-										.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.Regular"))
+										.TextStyle(&FDisplayClusterConfiguratorStyle::Get().GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Bold"))
+										.ColorAndOpacity(FSlateColor::UseForeground())
 									]
 
 									+ SVerticalBox::Slot()
@@ -110,8 +110,8 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 										SNew(STextBlock)
 										.Text(this, &SDisplayClusterConfiguratorViewportNode::GetPositionAndSizeText)
 										.Justification(ETextJustify::Center)
-										.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
-										.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.WhiteGray"))
+										.TextStyle(&FDisplayClusterConfiguratorStyle::Get().GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
+										.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 									]
 
 									+ SVerticalBox::Slot()
@@ -121,8 +121,8 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 										SNew(STextBlock)
 										.Text(this, &SDisplayClusterConfiguratorViewportNode::GetTransformText)
 										.Justification(ETextJustify::Center)
-										.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
-										.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.WhiteGray"))
+										.TextStyle(&FDisplayClusterConfiguratorStyle::Get().GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
+										.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 										.Visibility(this, &SDisplayClusterConfiguratorViewportNode::GetTransformTextVisibility)
 									]
 
@@ -138,7 +138,8 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 										.Visibility(this, &SDisplayClusterConfiguratorViewportNode::GetLockIconVisibility)
 										[
 											SNew(SImage)
-											.Image(FEditorStyle::GetBrush(TEXT("GenericLock")))
+											.Image(FAppStyle::Get().GetBrush(TEXT("PropertyWindow.Locked")))
+											.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 										]
 									]
 								]
@@ -164,16 +165,6 @@ void SDisplayClusterConfiguratorViewportNode::Tick(const FGeometry& AllottedGeom
 	SDisplayClusterConfiguratorBaseNode::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
 	UpdatePreviewTexture();
-}
-
-void SDisplayClusterConfiguratorViewportNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
-{
-	if (IsViewportLocked())
-	{
-		NodeFilter.Add(SharedThis(this));
-	}
-
-	SDisplayClusterConfiguratorBaseNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 }
 
 bool SDisplayClusterConfiguratorViewportNode::IsNodeVisible() const
@@ -214,7 +205,7 @@ FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
 
 	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
 	const bool bHasImageBackground = BackgroundActiveBrush.GetResourceObject() != nullptr;
-	const bool bIsLocked = IsViewportLocked();
+	const bool bIsLocked = !IsNodeUnlocked();
 	const bool bTintBackground = OutputMapping->GetOutputMappingSettings().bTintSelectedViewports;
 
 	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
@@ -223,12 +214,12 @@ FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
 		if (bIsSelected)
 		{
 			// Selected Case
-			return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Selected");
+			return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Selected");
 		}
 		else
 		{
 			// Regular case
-			return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Regular");
+			return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Regular");
 		}
 	}
 	else
@@ -237,11 +228,11 @@ FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
 		{
 			if (bIsSelected && bTintBackground)
 			{
-				return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundImage.Selected");
+				return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundImage.Selected");
 			}
 			else if (bIsLocked)
 			{
-				return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundImage.Locked");
+				return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundImage.Locked");
 			}
 			else
 			{
@@ -253,12 +244,12 @@ FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
 			if (bIsSelected && bTintBackground)
 			{
 				// Selected Case
-				return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Selected");
+				return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Selected");
 			}
 			else
 			{
 				// Regular case
-				return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Regular");
+				return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Regular");
 			}
 		}
 	}
@@ -273,7 +264,7 @@ const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetBackgroundBrush()
 	}
 	else
 	{
-		return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body");
+		return FAppStyle::Get().GetBrush("WhiteBrush");
 	}
 }
 
@@ -313,44 +304,47 @@ TOptional<FSlateRenderTransform> SDisplayClusterConfiguratorViewportNode::GetBac
 
 const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetNodeShadowBrush() const
 {
-	return FEditorStyle::GetBrush(TEXT("Graph.Node.Shadow"));
+	return FAppStyle::Get().GetBrush(TEXT("Graph.Node.Shadow"));
 }
 
 const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetBorderBrush() const
 {
 	if (GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode))
 	{
-		return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Viewport.Border.Brush.Selected");
+		return FDisplayClusterConfiguratorStyle::Get().GetBrush("DisplayClusterConfigurator.Node.Viewport.Border.Brush.Selected");
 	}
 	else
 	{
 		UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
 		if (ViewportEdNode->IsOutsideParentBoundary())
 		{
-			return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Viewport.Border.OutsideBrush.Regular");
+			return FDisplayClusterConfiguratorStyle::Get().GetBrush("DisplayClusterConfigurator.Node.Viewport.Border.Brush.Outside");
 		}
 		else
 		{
-			return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Viewport.Border.Brush.Regular");
+			return FDisplayClusterConfiguratorStyle::Get().GetBrush("DisplayClusterConfigurator.Node.Viewport.Border.Brush.Regular");
 		}
 	}
 }
 
 FSlateColor SDisplayClusterConfiguratorViewportNode::GetTextBoxColor() const
 {
-	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
-	const bool bIsLocked = IsViewportLocked();
-	
-	if (bIsSelected)
+	if (GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode))
 	{
-		return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Color.Selected");
-	}
-	else if (bIsLocked)
-	{
-		return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.Text.Background.Locked");
+		return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Color.Selected");
 	}
 
-	return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.Text.Background");
+	return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Viewport.Text.Background");
+}
+
+FSlateColor SDisplayClusterConfiguratorViewportNode::GetTextColor() const
+{
+	if (GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode))
+	{
+		return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Text.Color.Selected");
+	}
+
+	return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Text.Color.Regular");
 }
 
 FText SDisplayClusterConfiguratorViewportNode::GetPositionAndSizeText() const
@@ -431,7 +425,7 @@ bool SDisplayClusterConfiguratorViewportNode::IsViewportLocked() const
 
 EVisibility SDisplayClusterConfiguratorViewportNode::GetLockIconVisibility() const
 {
-	return IsViewportLocked() ? EVisibility::Visible : EVisibility::Collapsed;
+	return !IsNodeUnlocked() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SDisplayClusterConfiguratorViewportNode::UpdatePreviewTexture()
