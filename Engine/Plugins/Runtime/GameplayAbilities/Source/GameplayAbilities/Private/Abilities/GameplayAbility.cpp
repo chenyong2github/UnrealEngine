@@ -636,6 +636,7 @@ void UGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const
 
 		if (GetInstancingPolicy() != EGameplayAbilityInstancingPolicy::NonInstanced)
 		{
+			bIsActive = false;
 			bIsAbilityEnding = false;
 		}
 
@@ -649,12 +650,6 @@ void UGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const
 			}
 		}
 		ActiveTasks.Reset();	// Empty the array but don't resize memory, since this object is probably going to be destroyed very soon anyways.
-
-		// We mark the ability as no longer active after ending the tasks so they can broadcast delegates
-		if (GetInstancingPolicy() != EGameplayAbilityInstancingPolicy::NonInstanced)
-		{
-			bIsActive = false;
-		}
 
 		if (UAbilitySystemComponent* const AbilitySystemComponent = ActorInfo->AbilitySystemComponent.Get())
 		{
