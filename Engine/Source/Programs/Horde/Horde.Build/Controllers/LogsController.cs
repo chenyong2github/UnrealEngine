@@ -20,6 +20,7 @@ using HordeServer.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 
 namespace HordeServer.Controllers
@@ -51,39 +52,22 @@ namespace HordeServer.Controllers
 	[Route("[controller]")]
 	public class LogsController : ControllerBase
 	{
-		/// <summary>
-		/// Instance of the LogFile service
-		/// </summary>
 		private readonly ILogFileService LogFileService;
-
-		/// <summary>
-		/// Instance of the issue collection
-		/// </summary>
 		private readonly IIssueCollection IssueCollection;
-
-		/// <summary>
-		/// Instance of the ACL service
-		/// </summary>
 		private readonly AclService AclService;
-
-		/// <summary>
-		/// Instance of the Job service
-		/// </summary>
 		private readonly JobService JobService;
+		private readonly ILogger Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="LogFileService">The Logfile service</param>
-		/// <param name="IssueCollection">The issue collection</param>
-		/// <param name="AclService">The ACL service</param>
-		/// <param name="JobService">The Job service</param>
-		public LogsController(ILogFileService LogFileService, IIssueCollection IssueCollection, AclService AclService, JobService JobService)
+		public LogsController(ILogFileService LogFileService, IIssueCollection IssueCollection, AclService AclService, JobService JobService, ILogger<LogsController> Logger)
 		{
 			this.LogFileService = LogFileService;
 			this.IssueCollection = IssueCollection;
 			this.AclService = AclService;
 			this.JobService = JobService;
+			this.Logger = Logger;
 		}
 
 		/// <summary>
@@ -138,7 +122,7 @@ namespace HordeServer.Controllers
 			Func<Stream, ActionContext, Task> CopyTask;
 			if (Format == LogOutputFormat.Text && LogFile.Type == LogType.Json)
 			{
-				CopyTask = (OutputStream, Context) => LogFileService.CopyPlainTextStreamAsync(LogFile, Offset, Length, OutputStream);
+				CopyTask = (OutputStream, Context) => LogFileService.CopyPlainTextStreamAsync(LogFile, Offset, Length, OutputStream, Logger);
 			}
 			else
 			{
