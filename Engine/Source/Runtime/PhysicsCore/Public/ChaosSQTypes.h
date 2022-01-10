@@ -53,7 +53,7 @@ namespace ChaosInterface
 		FHitFlags Flags;
 		FVector WorldPosition;
 		FVector WorldNormal;
-		FVector::FReal Distance;
+		float Distance;	// LWC_TODO: Should be FVector::FReal, but that causes precision issues resulting in collision failures. Investigate!
 
 		void Serialize(Chaos::FChaosArchive& Ar);
 
