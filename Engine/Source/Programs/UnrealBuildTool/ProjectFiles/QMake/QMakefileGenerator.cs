@@ -66,7 +66,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		/// Adds the include directory to the list, after converting it to relative to UE4 root
+		/// Adds the include directory to the list, after converting it to relative to Unreal root
 		private void AddIncludeDirectory(ref List<string> IncludeDirectories, string IncludeDir, string ProjectDir)
 		{
 			string FullProjectPath = ProjectFileGenerator.PrimaryProjectPath.FullName;
@@ -251,7 +251,7 @@ namespace UnrealBuildTool
 				"CONFIG -= console\n" +
 				"CONFIG -= app_bundle\n" +
 				"CONFIG -= qt\n\n" +
-				"TARGET = UE4 \n\n" +
+				"TARGET = UE5 \n\n" +
 				"unrealRootPath=" + UnrealRootPath + "\n" +
 				GameProjectRootPath +
 				QMakeGameProjectFile +

@@ -223,7 +223,7 @@ namespace UnrealBuildTool
 			PreprocessorDefines.Add("WITH_FORWARDED_MODULE_RULES_CTOR");
 			PreprocessorDefines.Add("WITH_FORWARDED_TARGET_RULES_CTOR");
 
-			// Define macros for the UE4 version, starting with 4.17
+			// Define macros for the Unreal engine version, starting with 4.17
 			BuildVersion? Version;
 			if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out Version))
 			{

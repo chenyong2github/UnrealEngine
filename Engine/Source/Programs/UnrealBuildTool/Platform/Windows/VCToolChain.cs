@@ -383,10 +383,10 @@ namespace UnrealBuildTool
 				Arguments.Add("/Zc:strictStrings-"); // Have to disable strict const char* semantics due to Windows headers not being compliant.
 			}
 
-			// @todo HoloLens: UE4 is non-compliant when it comes to use of %s and %S
+			// @todo HoloLens: UE is non-compliant when it comes to use of %s and %S
 			// Previously %s meant "the current character set" and %S meant "the other one".
 			// Now %s means multibyte and %S means wide. %Ts means "natural width".
-			// Reverting this behaviour until the UE4 source catches up.
+			// Reverting this behaviour until the UE source catches up.
 			AddDefinition(Arguments, "_CRT_STDIO_LEGACY_WIDE_SPECIFIERS=1");
 
 			// @todo HoloLens: Silence the hash_map deprecation errors for now. This should be replaced with unordered_map for the real fix.

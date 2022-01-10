@@ -19,7 +19,7 @@ namespace UnrealBuildTool
 	public class BuildVersion
 	{
 		/// <summary>
-		/// The major engine version (4 for UE4)
+		/// The major engine version (5 for UE5)
 		/// </summary>
 		public int MajorVersion;
 

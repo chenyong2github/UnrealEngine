@@ -74,7 +74,7 @@ namespace UnrealBuildTool
 								}
 							}
 
-							// All paths within the manifest are UE4 root directory relative.
+							// All paths within the manifest are Unreal root directory relative.
 							// UBT's working directory is Engine\Source so add "..\..\" to each of the entires.
 							if (bIsValidJunkLine)
 							{

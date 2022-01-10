@@ -22,7 +22,7 @@ using OpenTracing.Util;
 namespace UnrealBuildTool
 {
 	// This enum has to be compatible with the one defined in the
-	// UE4\Engine\Source\Runtime\Core\Public\Misc\ComplilationResult.h 
+	// Engine\Source\Runtime\Core\Public\Misc\ComplilationResult.h 
 	// to keep communication between UHT, UBT and Editor compiling
 	// processes valid.
 	enum CompilationResult
@@ -1266,7 +1266,7 @@ namespace UnrealBuildTool
 						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && 
 							(int)(UHTResult) < 0)
 						{
-							Log.TraceError(String.Format("UnrealHeaderTool failed with exit code 0x{0:X} - check that UE4 prerequisites are installed.", (int)UHTResult));
+							Log.TraceError(String.Format("UnrealHeaderTool failed with exit code 0x{0:X} - check that Unreal Engine prerequisites are installed.", (int)UHTResult));
 						}
 
 						throw new CompilationResultException(UHTResult);

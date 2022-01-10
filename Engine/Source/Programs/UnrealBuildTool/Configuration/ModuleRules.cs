@@ -963,7 +963,7 @@ namespace UnrealBuildTool
 		public List<string>? SubclassRules;
 
 		/// <summary>
-		/// Whether this module requires the IMPLEMENT_MODULE macro to be implemented. Most UE4 modules require this, since we use the IMPLEMENT_MODULE macro
+		/// Whether this module requires the IMPLEMENT_MODULE macro to be implemented. Most UE modules require this, since we use the IMPLEMENT_MODULE macro
 		/// to do other global overloads (eg. operator new/delete forwarding to GMalloc).
 		/// </summary>
 		public bool? bRequiresImplementModule;

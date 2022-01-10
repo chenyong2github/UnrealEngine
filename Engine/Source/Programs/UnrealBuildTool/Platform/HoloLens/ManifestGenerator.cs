@@ -1285,7 +1285,7 @@ namespace UnrealBuildTool
 
 				XmlElement Identity = AppxManifestXmlDocument.CreateElement("Identity");
 				{
-					XmlAttribute PackageName = CreateStringAttribute("Name", "PackageName", "Package.Identity.Name", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "DefaultUE4Project", ValidatePackageName);
+					XmlAttribute PackageName = CreateStringAttribute("Name", "PackageName", "Package.Identity.Name", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "DefaultUnrealProject", ValidatePackageName);
 					Identity.Attributes.Append(PackageName);
 					XmlAttribute PublisherName = CreateStringAttribute("Publisher", "PublisherName", "Package.Identity.Publisher", "/Script/EngineSettings.GeneralProjectSettings", "CompanyDistinguishedName", "CN=NoPublisher");
 					Identity.Attributes.Append(PublisherName);
@@ -1828,7 +1828,7 @@ namespace UnrealBuildTool
 
 			if (!IsDlc)
 			{
-				XmlAttribute PackageName = CreateStringAttribute("Name", "PackageName", "Package.Identity.Name", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "DefaultUE4Project", ValidatePackageName);
+				XmlAttribute PackageName = CreateStringAttribute("Name", "PackageName", "Package.Identity.Name", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "DefaultUnrealProject", ValidatePackageName);
 				Identity.Attributes.Append(PackageName);
 			}
 			else
@@ -1872,7 +1872,7 @@ namespace UnrealBuildTool
 			XmlElement DisplayName = AppxManifestXmlDocument.CreateElement("DisplayName");
 			DisplayName.InnerText = "ms-resource:PackageDisplayName";
 			Properties.AppendChild(DisplayName);
-			AddResourceEntry("PackageDisplayName", "PackageDisplayName", "Package.Properties.DisplayName", "/Script/EngineSettings.GeneralProjectSettings", "ProjectDisplayedTitle", "DefaultUE4Project");
+			AddResourceEntry("PackageDisplayName", "PackageDisplayName", "Package.Properties.DisplayName", "/Script/EngineSettings.GeneralProjectSettings", "ProjectDisplayedTitle", "DefaultUnrealProject");
 
 			XmlElement PublisherDisplayName = AppxManifestXmlDocument.CreateElement("PublisherDisplayName");
 			PublisherDisplayName.InnerText = "ms-resource:PublisherDisplayName";
@@ -1945,7 +1945,7 @@ namespace UnrealBuildTool
 				XmlElement PackageDependency = AppxManifestXmlDocument.CreateElement("uap3:MainPackageDependency", "http://schemas.microsoft.com/appx/manifest/uap/windows10/3");
 				Dependencies.AppendChild(PackageDependency);
 
-				XmlAttribute NameAttribute = CreateStringAttribute("Name", "PackageName", "Package.Identity.Name", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "DefaultUE4Project", ValidatePackageName);
+				XmlAttribute NameAttribute = CreateStringAttribute("Name", "PackageName", "Package.Identity.Name", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "DefaultUnrealProject", ValidatePackageName);
 				PackageDependency.Attributes.Append(NameAttribute);
 			}
 

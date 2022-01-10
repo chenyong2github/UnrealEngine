@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 		Default,
 
 		/// <summary>
-		/// Any target using the UE4 runtime
+		/// Any target using the UE runtime
 		/// </summary>
 		Runtime,
 
