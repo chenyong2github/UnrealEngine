@@ -12,6 +12,8 @@ UE_TRACE_CHANNEL_EXTERN(RDGChannel, RENDERCORE_API);
 class RENDERCORE_API FRDGTrace
 {
 public:
+	FRDGTrace();
+
 	void OutputGraphBegin();
 	void OutputGraphEnd(const FRDGBuilder& GraphBuilder);
 
@@ -19,12 +21,14 @@ public:
 	void AddTexturePassDependency(FRDGTexture* Texture, FRDGPass* Pass);
 	void AddBufferPassDependency(FRDGBuffer* Buffer, FRDGPass* Pass);
 
-	void SetTransientHeapStats(const FRHITransientHeapStats& Stats) { TransientHeapStats = Stats; }
+	FRHITransientAllocationStats TransientAllocationStats;
+
+	bool IsEnabled() const;
 
 private:
-	FRHITransientHeapStats TransientHeapStats;
 	uint64 GraphStartCycles{};
 	uint32 ResourceOrder{};
+	bool bEnabled;
 };
 
 #endif

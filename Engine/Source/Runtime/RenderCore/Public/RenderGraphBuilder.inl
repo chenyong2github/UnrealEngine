@@ -268,30 +268,31 @@ inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, FRDGBufferIniti
 	Buffer->bQueuedForUpload = 1;
 }
 
-inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, ERHIAccess AccessFinal)
+inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, ERHIAccess AccessFinal, ERDGResourceExtractionFlags Flags)
 {
-	QueueTextureExtraction(Texture, OutTexturePtr);
-
-	if (Texture->bTransient)
-	{
-		return;
-	}
-
+	QueueTextureExtraction(Texture, OutTexturePtr, Flags);
 	SetTextureAccessFinal(Texture, AccessFinal);
 }
 
-inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr)
+inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, ERDGResourceExtractionFlags Flags)
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExtractTexture(Texture, OutTexturePtr));
 
-	if (Texture->bTransient)
-	{
-		return;
-	}
+	*OutTexturePtr = nullptr;
 
 	Texture->ReferenceCount++;
 	Texture->bExtracted = true;
 	Texture->bCulled = false;
+
+	if (EnumHasAnyFlags(Flags, ERDGResourceExtractionFlags::AllowTransient))
+	{
+		Texture->bAllowTransientExtracted = 1;
+	}
+	else
+	{
+		Texture->bForceNonTransient = 1;
+	}
+
 	ExtractedTextures.Emplace(Texture, OutTexturePtr);
 
 	if (Texture->AccessFinal == ERHIAccess::Unknown)
@@ -304,9 +305,12 @@ inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPt
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExtractBuffer(Buffer, OutBufferPtr));
 
+	*OutBufferPtr = nullptr;
+
 	Buffer->ReferenceCount++;
 	Buffer->bExtracted = true;
 	Buffer->bCulled = false;
+	Buffer->bForceNonTransient = true;
 	ExtractedBuffers.Emplace(Buffer, OutBufferPtr);
 
 	if (Buffer->AccessFinal == ERHIAccess::Unknown)

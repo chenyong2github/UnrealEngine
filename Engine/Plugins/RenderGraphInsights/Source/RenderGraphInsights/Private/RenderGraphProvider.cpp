@@ -66,10 +66,22 @@ FResourcePacket::FResourcePacket(const UE::Trace::IAnalyzer::FOnEventContext& Co
 	, bExtracted(Context.EventData.GetValue<bool>("IsExtracted"))
 	, bCulled(Context.EventData.GetValue<bool>("IsCulled"))
 	, bTransient(Context.EventData.GetValue<bool>("IsTransient"))
+	, bTransientUntracked(Context.EventData.GetValue<bool>("IsTransientUntracked"))
+	, bTransientCacheHit(Context.EventData.GetValue<bool>("IsTransientCacheHit"))
 {
-	TransientStats.HeapIndex = Context.EventData.GetValue<uint16>("TransientHeapIndex");
-	TransientStats.HeapOffsetMin = Context.EventData.GetValue<uint64>("TransientHeapOffsetMin");
-	TransientStats.HeapOffsetMax = Context.EventData.GetValue<uint64>("TransientHeapOffsetMax");
+	const auto TransientAllocationOffsetMins   = Context.EventData.GetArrayView<uint64>("TransientAllocationOffsetMins");
+	const auto TransientAllocationOffsetMaxs   = Context.EventData.GetArrayView<uint64>("TransientAllocationOffsetMaxs");
+	const auto TransientAllocationMemoryRanges = Context.EventData.GetArrayView<uint16>("TransientAllocationMemoryRanges");
+	check(TransientAllocationOffsetMins.Num() == TransientAllocationOffsetMaxs.Num() && TransientAllocationOffsetMaxs.Num() == TransientAllocationMemoryRanges.Num());
+
+	TransientAllocations.SetNum(TransientAllocationOffsetMins.Num());
+
+	for (int32 LocalIndex = 0; LocalIndex < TransientAllocationOffsetMins.Num(); ++LocalIndex)
+	{
+		TransientAllocations[LocalIndex].OffsetMin = TransientAllocationOffsetMins[LocalIndex];
+		TransientAllocations[LocalIndex].OffsetMax = TransientAllocationOffsetMaxs[LocalIndex];
+		TransientAllocations[LocalIndex].MemoryRangeIndex = TransientAllocationMemoryRanges[LocalIndex];
+	}
 
 	if (Passes.Num())
 	{
@@ -141,20 +153,21 @@ FGraphPacket::FGraphPacket(TraceServices::ILinearAllocator& Allocator, const UE:
 {
 	NormalizedPassDuration = (EndTime - StartTime) / double(PassCount);
 
-	TConstArrayView<uint64> WatermarkSizes(Context.EventData.GetArrayView<uint64>("TransientHeapWatermarkSizes"));
-	TConstArrayView<uint64> Capacities(Context.EventData.GetArrayView<uint64>("TransientHeapCapacities"));
-	check(WatermarkSizes.Num() == Capacities.Num());
+	const auto CommitSizes = Context.EventData.GetArrayView<uint64>("TransientMemoryCommitSizes");
+	const auto Capacities  = Context.EventData.GetArrayView<uint64>("TransientMemoryCapacities");
+	check(CommitSizes.Num() == Capacities.Num());
 
-	uint64 currentOffset = 0;
+	uint64 CurrentOffset = 0;
+	TransientMemoryRangeByteOffsets.Reserve(CommitSizes.Num());
 
-	for (int32 Index = 0; Index < WatermarkSizes.Num(); ++Index)
+	for (int32 Index = 0; Index < CommitSizes.Num(); ++Index)
 	{
-		auto& Heap = TransientHeapStats.Heaps.AddDefaulted_GetRef();
-		Heap.WatermarkSize = WatermarkSizes[Index];
-		Heap.Capacity = Capacities[Index];
+		auto& MemoryRange = TransientAllocationStats.MemoryRanges.AddDefaulted_GetRef();
+		MemoryRange.CommitSize = CommitSizes[Index];
+		MemoryRange.Capacity = Capacities[Index];
 
-		TransientHeapOffsets.Emplace(currentOffset);
-		currentOffset += Heap.WatermarkSize;
+		TransientMemoryRangeByteOffsets.Emplace(CurrentOffset);
+		CurrentOffset += MemoryRange.CommitSize;
 	}
 }
 
@@ -215,12 +228,12 @@ void FRenderGraphProvider::SetupResource(FResourcePacket& Resource)
 	const FPassPacket* FirstPass = CurrentGraph->GetPass(Resource.FirstPass);
 	const FPassPacket* LastPass  = CurrentGraph->GetPass(Resource.LastPass);
 
-	if (Resource.bExternal)
+	if (Resource.bExternal || Resource.bTransientUntracked)
 	{
 		FirstPass = CurrentGraph->GetProloguePass();
 	}
 
-	if (Resource.bExtracted)
+	if (Resource.bExtracted || Resource.bTransientUntracked)
 	{
 		LastPass = CurrentGraph->GetEpiloguePass();
 	}

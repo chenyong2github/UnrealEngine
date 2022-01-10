@@ -177,6 +177,17 @@ enum class ERDGViewType : uint8
 	MAX
 };
 
+enum class ERDGResourceExtractionFlags : uint8
+{
+	None = 0,
+
+	// Allows the resource to remain transient. Only use this flag if you intend to register the resource back
+	// into the graph and release the reference. This should not be used if the resource is cached for a long
+	// period of time.
+	AllowTransient = 1,
+};
+ENUM_CLASS_FLAGS(ERDGResourceExtractionFlags);
+
 enum class ERDGInitialDataFlags : uint8
 {
 	/** Specifies the default behavior, which is to make a copy of the initial data for replay when
@@ -522,7 +533,6 @@ class FRDGBarrierValidation;
 class FRDGBuilder;
 class FRDGEventName;
 class FRDGUserValidation;
-class FRenderGraphResourcePool;
 
 class FRDGResource;
 using FRDGResourceRef = FRDGResource*;
@@ -581,6 +591,8 @@ using FRDGBufferBitArray = TRDGHandleBitArray<FRDGBufferHandle>;
 
 class FRDGPooledTexture;
 class FRDGPooledBuffer;
+class FRDGBufferPool;
+class FRDGTransientRenderTarget;
 
 template <typename TUniformStruct> class TRDGUniformBuffer;
 template <typename TUniformStruct> using TRDGUniformBufferRef = TRDGUniformBuffer<TUniformStruct>*;

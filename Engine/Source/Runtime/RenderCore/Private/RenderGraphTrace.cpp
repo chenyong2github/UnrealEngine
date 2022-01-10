@@ -14,8 +14,8 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, GraphMessage)
 	UE_TRACE_EVENT_FIELD(uint64, StartCycles)
 	UE_TRACE_EVENT_FIELD(uint64, EndCycles)
 	UE_TRACE_EVENT_FIELD(uint16, PassCount)
-	UE_TRACE_EVENT_FIELD(uint64[], TransientHeapWatermarkSizes)
-	UE_TRACE_EVENT_FIELD(uint64[], TransientHeapCapacities)
+	UE_TRACE_EVENT_FIELD(uint64[], TransientMemoryCommitSizes)
+	UE_TRACE_EVENT_FIELD(uint64[], TransientMemoryCapacities)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(RDGTrace, GraphEndMessage)
@@ -52,13 +52,15 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, BufferMessage)
 	UE_TRACE_EVENT_FIELD(uint16, NextOwnerHandle)
 	UE_TRACE_EVENT_FIELD(uint16, Order)
 	UE_TRACE_EVENT_FIELD(uint16[], Passes)
-	UE_TRACE_EVENT_FIELD(uint16, TransientHeapIndex)
-	UE_TRACE_EVENT_FIELD(uint64, TransientHeapOffsetMin)
-	UE_TRACE_EVENT_FIELD(uint64, TransientHeapOffsetMax)
+	UE_TRACE_EVENT_FIELD(uint64[], TransientAllocationOffsetMins)
+	UE_TRACE_EVENT_FIELD(uint64[], TransientAllocationOffsetMaxs)
+	UE_TRACE_EVENT_FIELD(uint16[], TransientAllocationMemoryRanges)
 	UE_TRACE_EVENT_FIELD(bool, IsExternal)
 	UE_TRACE_EVENT_FIELD(bool, IsExtracted)
 	UE_TRACE_EVENT_FIELD(bool, IsCulled)
 	UE_TRACE_EVENT_FIELD(bool, IsTransient)
+	UE_TRACE_EVENT_FIELD(bool, IsTransientUntracked)
+	UE_TRACE_EVENT_FIELD(bool, IsTransientCacheHit)
 UE_TRACE_EVENT_END()
  
 UE_TRACE_EVENT_BEGIN(RDGTrace, TextureMessage)
@@ -69,9 +71,9 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, TextureMessage)
 	UE_TRACE_EVENT_FIELD(uint16, NextOwnerHandle)
 	UE_TRACE_EVENT_FIELD(uint16, Order)
 	UE_TRACE_EVENT_FIELD(uint16[], Passes)
-	UE_TRACE_EVENT_FIELD(uint16, TransientHeapIndex)
-	UE_TRACE_EVENT_FIELD(uint64, TransientHeapOffsetMin)
-	UE_TRACE_EVENT_FIELD(uint64, TransientHeapOffsetMax)
+	UE_TRACE_EVENT_FIELD(uint64[], TransientAllocationOffsetMins)
+	UE_TRACE_EVENT_FIELD(uint64[], TransientAllocationOffsetMaxs)
+	UE_TRACE_EVENT_FIELD(uint16[], TransientAllocationMemoryRanges)
 	UE_TRACE_EVENT_FIELD(uint64, SizeInBytes)
 	UE_TRACE_EVENT_FIELD(uint64, CreateFlags)
 	UE_TRACE_EVENT_FIELD(uint32, Dimension)
@@ -86,6 +88,8 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, TextureMessage)
 	UE_TRACE_EVENT_FIELD(bool, IsExtracted)
 	UE_TRACE_EVENT_FIELD(bool, IsCulled)
 	UE_TRACE_EVENT_FIELD(bool, IsTransient)
+	UE_TRACE_EVENT_FIELD(bool, IsTransientUntracked)
+	UE_TRACE_EVENT_FIELD(bool, IsTransientCacheHit)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(RDGTrace, ScopeMessage)
@@ -99,14 +103,18 @@ static_assert(sizeof(FRDGPassHandle) == sizeof(uint16), "Expected 16 bit pass ha
 static_assert(sizeof(FRDGTextureHandle) == sizeof(uint16), "Expected 16 bit texture handles.");
 static_assert(sizeof(FRDGBufferHandle) == sizeof(uint16), "Expected 16 bit buffer handles.");
 
-bool IsTraceEnabled()
+FRDGTrace::FRDGTrace()
+	: bEnabled(UE_TRACE_CHANNELEXPR_IS_ENABLED(RDGChannel) && !IsImmediateMode())
+{}
+
+bool FRDGTrace::IsEnabled() const
 {
-	return UE_TRACE_CHANNELEXPR_IS_ENABLED(RDGChannel) && !IsImmediateMode();
+	return bEnabled;
 }
 
 void FRDGTrace::OutputGraphBegin()
 {
-	if (!IsTraceEnabled())
+	if (!IsEnabled())
 	{
 		return;
 	}
@@ -116,7 +124,7 @@ void FRDGTrace::OutputGraphBegin()
 
 void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 {
-	if (!IsTraceEnabled())
+	if (!IsEnabled())
 	{
 		return;
 	}
@@ -132,13 +140,16 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 	{
 		const TCHAR* Name = GraphBuilder.BuilderName.GetTCHAR();
 
-		TArray<uint64, TInlineAllocator<8>> TransientHeapWatermarkSizes;
-		TArray<uint64, TInlineAllocator<8>> TransientHeapCapacities;
+		TArray<uint64> TransientMemoryCommitSizes;
+		TArray<uint64> TransientMemoryCapacities;
 
-		for (const auto& Heap : TransientHeapStats.Heaps)
+		TransientMemoryCommitSizes.Reserve(TransientAllocationStats.MemoryRanges.Num());
+		TransientMemoryCapacities.Reserve(TransientAllocationStats.MemoryRanges.Num());
+
+		for (const auto& MemoryRange : TransientAllocationStats.MemoryRanges)
 		{
-			TransientHeapWatermarkSizes.Emplace(Heap.WatermarkSize);
-			TransientHeapCapacities.Emplace(Heap.Capacity);
+			TransientMemoryCommitSizes.Emplace(MemoryRange.CommitSize);
+			TransientMemoryCapacities.Emplace(MemoryRange.Capacity);
 		}
 
 		UE_TRACE_LOG(RDGTrace, GraphMessage, RDGChannel)
@@ -146,8 +157,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< GraphMessage.StartCycles(GraphStartCycles)
 			<< GraphMessage.EndCycles(FPlatformTime::Cycles64())
 			<< GraphMessage.PassCount(uint16(Passes.Num()))
-			<< GraphMessage.TransientHeapWatermarkSizes(TransientHeapWatermarkSizes.GetData(), (uint16)TransientHeapWatermarkSizes.Num())
-			<< GraphMessage.TransientHeapCapacities(TransientHeapCapacities.GetData(), (uint16)TransientHeapCapacities.Num());
+			<< GraphMessage.TransientMemoryCommitSizes(TransientMemoryCommitSizes.GetData(), (uint16)TransientMemoryCommitSizes.Num())
+			<< GraphMessage.TransientMemoryCapacities(TransientMemoryCapacities.GetData(), (uint16)TransientMemoryCapacities.Num());
 	}
 
 	for (FRDGPassHandle Handle = Passes.Begin(); Handle != Passes.End(); ++Handle)
@@ -249,6 +260,37 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 	}
 #endif
 
+	struct FTransientAllocation
+	{
+		TArray<uint64> OffsetMins;
+		TArray<uint64> OffsetMaxs;
+		TArray<uint16> MemoryRanges;
+		bool bCacheHit = false;
+
+		void Reset()
+		{
+			OffsetMins.Reset();
+			OffsetMaxs.Reset();
+			MemoryRanges.Reset();
+			bCacheHit = false;
+		}
+
+		void Fill(const FRHITransientAllocationStats& Stats, const FRHITransientResource* Resource)
+		{
+			const FRHITransientAllocationStats::FAllocationArray& Allocations = Stats.Resources.FindChecked(Resource);
+
+			for (const FRHITransientAllocationStats::FAllocation& Allocation : Allocations)
+			{
+				OffsetMins.Emplace(Allocation.OffsetMin);
+				OffsetMaxs.Emplace(Allocation.OffsetMax);
+				MemoryRanges.Emplace(Allocation.MemoryRangeIndex);
+			}
+
+			bCacheHit = Resource->GetAcquireCount() > 1;
+		}
+
+	} TransientAllocation;
+
 	for (FRDGTextureHandle Handle = Textures.Begin(); Handle != Textures.End(); ++Handle)
 	{
 		const FRDGTexture* Texture = Textures[Handle];
@@ -259,11 +301,13 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			SizeInBytes = RHIComputeMemorySize(TextureRHI);
 		}
 
-		FRHITransientResourceStats TransientStats;
+		TransientAllocation.Reset();
 
 		if (Texture->bTransient)
 		{
-			TransientStats = Texture->TransientTexture->GetStats();
+			const FRHITransientResource* Resource = Texture->TransientTexture;
+			TransientAllocation.Fill(TransientAllocationStats, Resource);
+			TransientAllocationStats.Resources.Remove(Resource);
 		}
 
 		UE_TRACE_LOG(RDGTrace, TextureMessage, RDGChannel)
@@ -272,9 +316,9 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< TextureMessage.NextOwnerHandle(Texture->NextOwner.GetIndexUnchecked())
 			<< TextureMessage.Order(Texture->TraceOrder)
 			<< TextureMessage.Passes((const uint16*)Texture->TracePasses.GetData(), (uint16)Texture->TracePasses.Num())
-			<< TextureMessage.TransientHeapIndex(TransientStats.HeapIndex)
-			<< TextureMessage.TransientHeapOffsetMin(TransientStats.HeapOffsetMin)
-			<< TextureMessage.TransientHeapOffsetMax(TransientStats.HeapOffsetMax)
+			<< TextureMessage.TransientAllocationOffsetMins(TransientAllocation.OffsetMins.GetData(), TransientAllocation.OffsetMins.Num())
+			<< TextureMessage.TransientAllocationOffsetMaxs(TransientAllocation.OffsetMaxs.GetData(), TransientAllocation.OffsetMaxs.Num())
+			<< TextureMessage.TransientAllocationMemoryRanges(TransientAllocation.MemoryRanges.GetData(), TransientAllocation.MemoryRanges.Num())
 			<< TextureMessage.SizeInBytes(SizeInBytes)
 			<< TextureMessage.CreateFlags(uint32(Texture->Desc.Flags))
 			<< TextureMessage.Dimension(uint32(Texture->Desc.Dimension))
@@ -288,18 +332,22 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< TextureMessage.IsExternal(bool(Texture->bExternal))
 			<< TextureMessage.IsExtracted(bool(Texture->bExtracted))
 			<< TextureMessage.IsCulled(bool(Texture->bCulled))
-			<< TextureMessage.IsTransient(bool(Texture->bTransient));
+			<< TextureMessage.IsTransient(bool(Texture->bTransient))
+			<< TextureMessage.IsTransientUntracked(false)
+			<< TextureMessage.IsTransientCacheHit(TransientAllocation.bCacheHit);
 	}
 
 	for (FRDGBufferHandle Handle = Buffers.Begin(); Handle != Buffers.End(); ++Handle)
 	{
 		const FRDGBuffer* Buffer = Buffers[Handle];
 
-		FRHITransientResourceStats TransientStats;
+		TransientAllocation.Reset();
 
 		if (Buffer->bTransient)
 		{
-			TransientStats = Buffer->TransientBuffer->GetStats();
+			const FRHITransientResource* Resource = Buffer->TransientBuffer;
+			TransientAllocation.Fill(TransientAllocationStats, Resource);
+			TransientAllocationStats.Resources.Remove(Resource);
 		}
 
 		UE_TRACE_LOG(RDGTrace, BufferMessage, RDGChannel)
@@ -308,16 +356,86 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< BufferMessage.NextOwnerHandle(Buffer->NextOwner.GetIndexUnchecked())
 			<< BufferMessage.Order(Buffer->TraceOrder)
 			<< BufferMessage.Passes((const uint16*)Buffer->TracePasses.GetData(), (uint16)Buffer->TracePasses.Num())
-			<< BufferMessage.TransientHeapIndex(TransientStats.HeapIndex)
-			<< BufferMessage.TransientHeapOffsetMin(TransientStats.HeapOffsetMin)
-			<< BufferMessage.TransientHeapOffsetMax(TransientStats.HeapOffsetMax)
+			<< BufferMessage.TransientAllocationOffsetMins(TransientAllocation.OffsetMins.GetData(), TransientAllocation.OffsetMins.Num())
+			<< BufferMessage.TransientAllocationOffsetMaxs(TransientAllocation.OffsetMaxs.GetData(), TransientAllocation.OffsetMaxs.Num())
+			<< BufferMessage.TransientAllocationMemoryRanges(TransientAllocation.MemoryRanges.GetData(), TransientAllocation.MemoryRanges.Num())
 			<< BufferMessage.UsageFlags(uint32(Buffer->Desc.Usage))
 			<< BufferMessage.BytesPerElement(Buffer->Desc.BytesPerElement)
 			<< BufferMessage.NumElements(Buffer->Desc.NumElements)
 			<< BufferMessage.IsExternal(bool(Buffer->bExternal))
 			<< BufferMessage.IsExtracted(bool(Buffer->bExtracted))
 			<< BufferMessage.IsCulled(bool(Buffer->bCulled))
-			<< BufferMessage.IsTransient(bool(Buffer->bTransient));
+			<< BufferMessage.IsTransient(bool(Buffer->bTransient))
+			<< BufferMessage.IsTransientUntracked(false)
+			<< BufferMessage.IsTransientCacheHit(TransientAllocation.bCacheHit);
+	}
+
+	int32 TextureIndex = Textures.Num();
+	int32 BufferIndex = Buffers.Num();
+
+	for (auto KeyValue : TransientAllocationStats.Resources)
+	{
+		const FRHITransientResource* Resource = KeyValue.Key;
+
+		if (!Resource->IsAcquired())
+		{
+			continue;
+		}
+
+		TransientAllocation.Reset();
+		TransientAllocation.Fill(TransientAllocationStats, Resource);
+
+		if (Resource->GetResourceType() == ERHITransientResourceType::Texture)
+		{
+			const FRHITransientTexture* Texture = static_cast<const FRHITransientTexture*>(Resource);
+
+			UE_TRACE_LOG(RDGTrace, TextureMessage, RDGChannel)
+				<< TextureMessage.Name(Texture->GetName(), uint16(FCString::Strlen(Texture->GetName())))
+				<< TextureMessage.Handle(TextureIndex)
+				<< TextureMessage.TransientAllocationOffsetMins(TransientAllocation.OffsetMins.GetData(), TransientAllocation.OffsetMins.Num())
+				<< TextureMessage.TransientAllocationOffsetMaxs(TransientAllocation.OffsetMaxs.GetData(), TransientAllocation.OffsetMaxs.Num())
+				<< TextureMessage.TransientAllocationMemoryRanges(TransientAllocation.MemoryRanges.GetData(), TransientAllocation.MemoryRanges.Num())
+				<< TextureMessage.SizeInBytes(Resource->GetSize())
+				<< TextureMessage.CreateFlags(uint32(Texture->CreateInfo.Flags))
+				<< TextureMessage.Dimension(uint32(Texture->CreateInfo.Dimension))
+				<< TextureMessage.Format(uint32(Texture->CreateInfo.Format))
+				<< TextureMessage.ExtentX(Texture->CreateInfo.Extent.X)
+				<< TextureMessage.ExtentY(Texture->CreateInfo.Extent.Y)
+				<< TextureMessage.Depth(Texture->CreateInfo.Depth)
+				<< TextureMessage.ArraySize(Texture->CreateInfo.ArraySize)
+				<< TextureMessage.NumMips(Texture->CreateInfo.NumMips)
+				<< TextureMessage.NumSamples(Texture->CreateInfo.NumSamples)
+				<< TextureMessage.IsExternal(false)
+				<< TextureMessage.IsExtracted(false)
+				<< TextureMessage.IsCulled(false)
+				<< TextureMessage.IsTransient(true)
+				<< TextureMessage.IsTransientUntracked(true)
+				<< TextureMessage.IsTransientCacheHit(TransientAllocation.bCacheHit);
+
+			TextureIndex++;
+		}
+		else
+		{
+			const FRHITransientBuffer* Buffer = static_cast<const FRHITransientBuffer*>(Resource);
+
+			UE_TRACE_LOG(RDGTrace, BufferMessage, RDGChannel)
+				<< BufferMessage.Name(Buffer->GetName(), uint16(FCString::Strlen(Buffer->GetName())))
+				<< BufferMessage.Handle(BufferIndex)
+				<< BufferMessage.TransientAllocationOffsetMins(TransientAllocation.OffsetMins.GetData(), TransientAllocation.OffsetMins.Num())
+				<< BufferMessage.TransientAllocationOffsetMaxs(TransientAllocation.OffsetMaxs.GetData(), TransientAllocation.OffsetMaxs.Num())
+				<< BufferMessage.TransientAllocationMemoryRanges(TransientAllocation.MemoryRanges.GetData(), TransientAllocation.MemoryRanges.Num())
+				<< BufferMessage.UsageFlags(uint32(Buffer->CreateInfo.Usage))
+				<< BufferMessage.BytesPerElement(Buffer->CreateInfo.Stride)
+				<< BufferMessage.NumElements(Buffer->CreateInfo.Size / Buffer->CreateInfo.Stride)
+				<< BufferMessage.IsExternal(false)
+				<< BufferMessage.IsExtracted(false)
+				<< BufferMessage.IsCulled(false)
+				<< BufferMessage.IsTransient(true)
+				<< BufferMessage.IsTransientUntracked(true)
+				<< BufferMessage.IsTransientCacheHit(TransientAllocation.bCacheHit);
+
+			BufferIndex++;
+		}
 	}
 
 	UE_TRACE_LOG(RDGTrace, GraphEndMessage, RDGChannel);
@@ -330,7 +448,7 @@ void FRDGTrace::AddResource(FRDGParentResource* Resource)
 
 void FRDGTrace::AddTexturePassDependency(FRDGTexture* Texture, FRDGPass* Pass)
 {
-	if (!IsTraceEnabled())
+	if (!IsEnabled())
 	{
 		return;
 	}
@@ -341,7 +459,7 @@ void FRDGTrace::AddTexturePassDependency(FRDGTexture* Texture, FRDGPass* Pass)
 
 void FRDGTrace::AddBufferPassDependency(FRDGBuffer* Buffer, FRDGPass* Pass)
 {
-	if (!IsTraceEnabled())
+	if (!IsEnabled())
 	{
 		return;
 	}

@@ -38,6 +38,7 @@ constexpr uint32 kNoParameterPassColor = 0xff4D4D4D;
 constexpr uint32 kAsyncComputePassColor = 0xff2D7f2d;
 constexpr uint32 kTextureColor = 0xff89cff0;
 constexpr uint32 kBufferColor = 0xff66D066;
+constexpr uint32 kUntrackedColor = 0x2f2f2f2f;
 
 static uint32 GetPassColor(const FPassPacket& Packet)
 {
@@ -81,6 +82,13 @@ inline uint32 GetResourceColorBySize(uint64 Size, uint64 MaxSize)
 	return FLinearColor::LerpUsingHSV(Low, High, Percentage).ToFColor(false).ToPackedARGB();
 }
 
+inline uint32 GetResourceColorByTransientCache(bool bHit)
+{
+	static const uint32 HitColor = FLinearColor(0.01, 0.01, 0.01, 0.25f).ToFColor(false).ToPackedARGB();
+	static const uint32 MissColor = FLinearColor(1.0, 0.1, 0.1, 1.0f).ToFColor(false).ToPackedARGB();
+	return bHit ? HitColor : MissColor;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 template <typename VisibleItemType>
@@ -89,8 +97,8 @@ static VisibleItemType& AddVisibleItem(TArray<VisibleItemType>& VisibleItems, co
 	const uint32 VisibleIndex = VisibleItems.Num();
 
 	VisibleItemType& VisibleItem = VisibleItems.Emplace_GetRef(InVisibleItem);
-	check(VisibleItem.Packet->VisibleIndex == kInvalidVisibleIndex);
-	VisibleItem.Packet->VisibleIndex = VisibleIndex;
+	check(VisibleItem.GetPacket().VisibleIndex == kInvalidVisibleIndex);
+	VisibleItem.GetPacket().VisibleIndex = VisibleIndex;
 	VisibleItem.Index = VisibleIndex;
 	return VisibleItem;
 }
@@ -100,10 +108,32 @@ static void ResetVisibleItemArray(TArray<VisibleItemType>& VisibleItems)
 {
 	for (VisibleItemType& VisibleItem : VisibleItems)
 	{
-		check(VisibleItem.Packet->VisibleIndex == VisibleItem.Index);
-		VisibleItem.Packet->VisibleIndex = kInvalidVisibleIndex;
+		check(VisibleItem.GetPacket().VisibleIndex == VisibleItem.Index);
+		VisibleItem.GetPacket().VisibleIndex = kInvalidVisibleIndex;
 	}
 	VisibleItems.Empty();
+}
+
+template <typename VisibleResourceType>
+static VisibleResourceType& AddVisibleResource(TArray<VisibleResourceType>& VisibleResources, const VisibleResourceType& InVisibleResource)
+{
+	const uint32 VisibleIndex = VisibleResources.Num();
+
+	VisibleResourceType& VisibleResource = VisibleResources.Emplace_GetRef(InVisibleResource);
+	check(!VisibleResource.GetPacket().VisibleItems.Contains(VisibleIndex));
+	VisibleResource.GetPacket().VisibleItems.Emplace(VisibleIndex);
+	VisibleResource.Index = VisibleIndex;
+	return VisibleResource;
+}
+
+template <typename VisibleResourceType>
+static void ResetVisibleResourceArray(TArray<VisibleResourceType>& VisibleResources)
+{
+	for (VisibleResourceType& VisibleResource : VisibleResources)
+	{
+		VisibleResource.GetPacket().VisibleItems.Reset();
+	}
+	VisibleResources.Empty();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -127,6 +157,7 @@ public:
 
 	virtual const FVisibleItem& GetItem() const = 0;
 	virtual const FPacket& GetPacket() const = 0;
+	virtual uint32 GetAllocationIndex() const { return 0; };
 };
 
 template <typename ItemType>
@@ -181,6 +212,8 @@ public:
 	FVisibleTextureEvent(const TSharedRef<const FBaseTimingTrack>& InTrack, const FVisibleTexture& InItem)
 		: TRenderGraphTimingEventHelper<FVisibleTexture>(InTrack, InItem)
 	{}
+
+	uint32 GetAllocationIndex() const override { return GetItem().AllocationIndex; };
 };
 
 class FVisibleBufferEvent final : public TRenderGraphTimingEventHelper<FVisibleBuffer>
@@ -190,6 +223,8 @@ public:
 	FVisibleBufferEvent(const TSharedRef<const FBaseTimingTrack>& InTrack, const FVisibleBuffer& InItem)
 		: TRenderGraphTimingEventHelper<FVisibleBuffer>(InTrack, InItem)
 	{}
+
+	uint32 GetAllocationIndex() const override { return GetItem().AllocationIndex; };
 };
 
 inline const FPassPacket* TryGetPassPacket(const TSharedPtr<const ITimingEvent>& TimingEventBase)
@@ -216,6 +251,7 @@ public:
 		: Event(InEvent)
 		, Packet(&InEvent->GetPacket())
 		, Graph(Packet->Graph)
+		, AllocationIndex(InEvent->GetAllocationIndex())
 	{}
 	~FPacketFilter() {}
 
@@ -265,6 +301,11 @@ public:
 		return *Graph;
 	}
 
+	uint32 GetAllocationIndex() const
+	{
+		return AllocationIndex;
+	}
+
 private:
 	//! ITimingEventFilter
 	bool FilterTrack(const FBaseTimingTrack& InTrack) const override { return true; }
@@ -276,6 +317,7 @@ private:
 	TSharedPtr<const FRenderGraphTimingEvent> Event;
 	const FPacket* Packet{};
 	const FGraphPacket* Graph{};
+	uint32 AllocationIndex = 0;
 };
 
 inline bool TryFilterPacket(const FPacketFilter* Filter, const FPacket& Packet)
@@ -322,8 +364,8 @@ void FVisibleGraph::Reset()
 {
 	ResetVisibleItemArray(Scopes);
 	ResetVisibleItemArray(Passes);
-	ResetVisibleItemArray(Textures);
-	ResetVisibleItemArray(Buffers);
+	ResetVisibleResourceArray(Textures);
+	ResetVisibleResourceArray(Buffers);
 }
 
 void FVisibleGraph::AddScope(const FVisibleScope& VisibleScope)
@@ -343,14 +385,14 @@ void FVisibleGraph::AddPass(const FVisiblePass& InVisiblePass)
 
 void FVisibleGraph::AddTexture(const FVisibleTexture& VisibleTexture)
 {
-	AddVisibleItem(Textures, VisibleTexture);
+	AddVisibleResource(Textures, VisibleTexture);
 
 	DepthH = FMath::Max(DepthH, VisibleTexture.DepthY + VisibleTexture.DepthH);
 }
 
 void FVisibleGraph::AddBuffer(const FVisibleBuffer& VisibleBuffer)
 {
-	AddVisibleItem(Buffers, VisibleBuffer);
+	AddVisibleResource(Buffers, VisibleBuffer);
 
 	DepthH = FMath::Max(DepthH, VisibleBuffer.DepthY + VisibleBuffer.DepthH);
 }
@@ -421,32 +463,61 @@ FRenderGraphTrack::FRenderGraphTrack(const FRenderGraphTimingViewSession& InShar
 
 uint32 FRenderGraphTrack::GetTextureColor(const FTexturePacket& Texture, uint64 MaxSizeInBytes) const
 {
+	if (Texture.bTransientUntracked)
+	{
+		return kUntrackedColor;
+	}
+
 	if (ResourceColor == EResourceColor::Type)
 	{
 		return kTextureColor;
 	}
-
-	return GetResourceColorBySize(Texture.SizeInBytes, MaxSizeInBytes);
+	else if (ResourceColor == EResourceColor::TransientCache)
+	{
+		return GetResourceColorByTransientCache(!Texture.bTransient || Texture.bTransientCacheHit);
+	}
+	else
+	{
+		return GetResourceColorBySize(Texture.SizeInBytes, MaxSizeInBytes);
+	}
 }
 
-uint32 FRenderGraphTrack::GetBufferColor(const FBufferPacket& Texture, uint64 MaxSizeInBytes) const
+uint32 FRenderGraphTrack::GetBufferColor(const FBufferPacket& Buffer, uint64 MaxSizeInBytes) const
 {
+	if (Buffer.bTransientUntracked)
+	{
+		return kUntrackedColor;
+	}
+
 	if (ResourceColor == EResourceColor::Type)
 	{
 		return kBufferColor;
 	}
-
-	return GetResourceColorBySize(Texture.SizeInBytes, MaxSizeInBytes);
+	else if (ResourceColor == EResourceColor::TransientCache)
+	{
+		return GetResourceColorByTransientCache(!Buffer.bTransient || Buffer.bTransientCacheHit);
+	}
+	else
+	{
+		return GetResourceColorBySize(Buffer.SizeInBytes, MaxSizeInBytes);
+	}
 }
 
-float FRenderGraphTrack::TransientHeapOffsetToDepth(uint64 HeapOffset) const
+float FRenderGraphTrack::TransientByteOffsetToDepth(uint64 MemoryOffset) const
 {
-	return (float)HeapOffset / TransientHeapBytesPerDepthSlot;
+	if (MemoryOffset == 0)
+	{
+		return 0;
+	}
+	else
+	{
+		return FMath::Max((float)MemoryOffset / TransientBytesPerDepthSlot, 1.0f / 16.0f);
+	}
 }
 
-float FRenderGraphTrack::TransientHeapOffsetToSlateY(const FTimingViewLayout& Layout, uint64 HeapOffset) const
+float FRenderGraphTrack::TransientByteOffsetToSlateY(const FTimingViewLayout& Layout, uint64 MemoryOffset) const
 {
-	return (Layout.EventH + Layout.EventDY) * TransientHeapOffsetToDepth(HeapOffset);
+	return (Layout.EventH + Layout.EventDY) * TransientByteOffsetToDepth(MemoryOffset);
 }
 
 void FRenderGraphTrack::Reset()
@@ -826,10 +897,10 @@ void FRenderGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 		}
 
 		////////////////////////////////////////////////////////////////////////////////////
-		// Draw transient heap vertical lines and size markers
+		// Draw transient memory vertical lines and size markers
 		////////////////////////////////////////////////////////////////////////////////////
 
-		if (Visualizer == EVisualizer::TransientHeaps)
+		if (Visualizer == EVisualizer::TransientMemory)
 		{
 			const FLinearColor MBLineColor(0.8f, 0.1f, 0.1f, 0.2f);
 			const FLinearColor MBTextColor(0.8f, 0.1f, 0.1f, 0.8f);
@@ -840,7 +911,7 @@ void FRenderGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 			const uint64 MiB = 1024 * 1024;
 
-			const auto DrawMibText = [&](float Depth, uint64 Offset, uint32 HeapIndex, uint32 HeapSizeInMB)
+			const auto DrawMibText = [&](float Depth, uint64 Offset, uint32 MemoryRangeIndex, uint32 MemoryRangeSizeInMB)
 			{
 				FString Text;
 				FLinearColor TextColor = MBTextColor;
@@ -851,7 +922,7 @@ void FRenderGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 				}
 				else
 				{
-					Text = FString::Printf(TEXT("Heap[%d] %uMiB"), HeapIndex, HeapSizeInMB);
+					Text = FString::Printf(TEXT("Memory Range [%d] %uMiB"), MemoryRangeIndex, MemoryRangeSizeInMB);
 					TextColor.A = 1.0f;
 				}
 
@@ -868,20 +939,20 @@ void FRenderGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 			const float SinglePixelDepth = 1.0f / Layout.EventH;
 
-			for (int32 HeapIndex = 0; HeapIndex < Graph.TransientHeapOffsets.Num(); ++HeapIndex)
+			for (int32 MemoryRangeIndex = 0; MemoryRangeIndex < Graph.TransientMemoryRangeByteOffsets.Num(); ++MemoryRangeIndex)
 			{
-				const float HeapStartDepth = StartDepth + VisibleGraph.TransientHeapDepths[HeapIndex];
+				const float MemoryRangeStartDepth = StartDepth + VisibleGraph.TransientMemoryRangeDepthOffsets[MemoryRangeIndex];
 
-				const auto& TransientHeap = Graph.TransientHeapStats.Heaps[HeapIndex];
+				const auto& TransientMemoryRange = Graph.TransientAllocationStats.MemoryRanges[MemoryRangeIndex];
 
 				uint64 Offset = 0;
 				uint32 OffsetIndex = 0;
 
 				const uint32 TicksPerText = 4;
 
-				while (Offset < TransientHeap.WatermarkSize)
+				while (Offset < TransientMemoryRange.CommitSize)
 				{
-					const float Depth = HeapStartDepth + TransientHeapOffsetToDepth(Offset);
+					const float Depth = MemoryRangeStartDepth + TransientByteOffsetToDepth(Offset);
 
 					FLinearColor LineColor = MBLineColor;
 
@@ -897,13 +968,13 @@ void FRenderGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 					if (bDrawText && bMajorTick)
 					{
-						LineStartX = DrawMibText(Depth, Offset, HeapIndex, TransientHeap.Capacity / MiB);
+						LineStartX = DrawMibText(Depth, Offset, MemoryRangeIndex, TransientMemoryRange.Capacity / MiB);
 						LineWidth -= LineStartX - VisibleGraph.SlateX;
 					}
 
 					DrawHelper.DrawBox(*this, LineStartX, Depth, LineWidth, SinglePixelDepth, LineColor, EDrawLayer::Background);
 
-					Offset += TransientHeapBytesPerDepthSlot * (Layout.bIsCompactMode ? 3 : 1);
+					Offset += TransientBytesPerDepthSlot * (Layout.bIsCompactMode ? 3 : 1);
 					OffsetIndex++;
 				}
 			}
@@ -987,18 +1058,8 @@ void FRenderGraphTrack::BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builde
 		VisibleGraph.DepthH = DepthOffset;
 	};
 
-	if (Visualizer == EVisualizer::TransientHeaps)
+	if (Visualizer == EVisualizer::TransientMemory)
 	{
-		struct FResourceEntry
-		{
-			double StartTime{};
-			double EndTime{};
-			FRHITransientResourceStats TransientStats;
-			ERDGParentResourceType Type = ERDGParentResourceType::Texture;
-		};
-
-		TArray<FResourceEntry> Resources;
-
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
 		const FRenderGraphProvider::TGraphTimeline& GraphTimeline = RenderGraphProvider->GetGraphTimeline();
@@ -1019,48 +1080,105 @@ void FRenderGraphTrack::BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builde
 
 			const float YOffset = Layout.GetLaneY(DepthOffset);
 
+			const auto IsPacketCulled = [&](const FResourcePacket& Packet)
+			{
+				if (!Packet.bTransient)
+				{
+					return true;
+				}
+
+				if (!Packet.bTransientUntracked && !ShowTracked())
+				{
+					return true;
+				}
+
+				if (FilterSize > 0.0f && Packet.SizeInBytes < uint64(FilterSize * 1024.0f * 1024.0f))
+				{
+					return true;
+				}
+
+				if (!FilterText.IsEmpty() && !Packet.Name.Contains(FilterText))
+				{
+					return true;
+				}
+
+				return false;
+			};
+
+			uint64 MaxSizeInBytes = 0;
+
 			for (uint32 TextureIndex = 0, TextureCount = Graph->Textures.Num(); TextureIndex < TextureCount; ++TextureIndex)
 			{
 				FTexturePacket& Texture = Graph->Textures[TextureIndex];
 
-				if (!Texture.bTransient)
+				if (!IsPacketCulled(Texture))
 				{
-					continue;
+					MaxSizeInBytes = FMath::Max(MaxSizeInBytes, Texture.SizeInBytes);
 				}
-
-				const float HeapOffsetDepthBase = VisibleGraph.TransientHeapDepths[Texture.TransientStats.HeapIndex];
-
-				const float DepthY = TransientHeapOffsetToDepth(Texture.TransientStats.HeapOffsetMin) + HeapOffsetDepthBase + DepthOffset;
-				const float DepthH = TransientHeapOffsetToDepth(Texture.TransientStats.HeapOffsetMax - Texture.TransientStats.HeapOffsetMin);
-				const double StartTime = Texture.StartTime + SinglePixelTimeMargin;
-				const double EndTime = Texture.EndTime;
-				const uint32 Color = kTextureColor;
-
-				const FVisibleTexture VisibleTexture(Viewport, Texture, Color, StartTime, EndTime, DepthY, DepthH);
-				VisibleTexture.Draw(Builder);
-				VisibleGraph.AddTexture(VisibleTexture);
 			}
 
 			for (uint32 BufferIndex = 0, BufferCount = Graph->Buffers.Num(); BufferIndex < BufferCount; ++BufferIndex)
 			{
 				FBufferPacket& Buffer = Graph->Buffers[BufferIndex];
 
-				if (!Buffer.bTransient)
+				if (!IsPacketCulled(Buffer))
+				{
+					MaxSizeInBytes = FMath::Max(MaxSizeInBytes, Buffer.SizeInBytes);
+				}
+			}
+
+			for (uint32 TextureIndex = 0, TextureCount = Graph->Textures.Num(); TextureIndex < TextureCount; ++TextureIndex)
+			{
+				FTexturePacket& Texture = Graph->Textures[TextureIndex];
+
+				if (IsPacketCulled(Texture))
 				{
 					continue;
 				}
-				
-				const float HeapOffsetDepthBase = VisibleGraph.TransientHeapDepths[Buffer.TransientStats.HeapIndex];
 
-				const float DepthY = TransientHeapOffsetToDepth(Buffer.TransientStats.HeapOffsetMin) + HeapOffsetDepthBase + DepthOffset;
-				const float DepthH = TransientHeapOffsetToDepth(Buffer.TransientStats.HeapOffsetMax - Buffer.TransientStats.HeapOffsetMin);
-				const double StartTime = Buffer.StartTime + SinglePixelTimeMargin;
-				const double EndTime = Buffer.EndTime;
-				const uint32 Color = kBufferColor;
+				for (int32 AllocationIndex = 0; AllocationIndex < Texture.TransientAllocations.Num(); ++AllocationIndex)
+				{
+					const FRHITransientAllocationStats::FAllocation& Allocation = Texture.TransientAllocations[AllocationIndex];
 
-				const FVisibleBuffer VisibleBuffer(Viewport, Buffer, Color, StartTime, EndTime, DepthY, DepthH);
-				VisibleBuffer.Draw(Builder);
-				VisibleGraph.AddBuffer(VisibleBuffer);
+					const float MemoryRangeOffsetDepthBase = VisibleGraph.TransientMemoryRangeDepthOffsets[Allocation.MemoryRangeIndex];
+
+					const float DepthY = TransientByteOffsetToDepth(Allocation.OffsetMin) + MemoryRangeOffsetDepthBase + DepthOffset;
+					const float DepthH = TransientByteOffsetToDepth(Allocation.OffsetMax - Allocation.OffsetMin);
+					const double StartTime = Texture.StartTime + SinglePixelTimeMargin;
+					const double EndTime = Texture.EndTime;
+					const uint32 Color = GetTextureColor(Texture, MaxSizeInBytes);
+
+					const FVisibleTexture VisibleTexture(Viewport, Texture, Color, StartTime, EndTime, DepthY, DepthH, AllocationIndex);
+					VisibleTexture.Draw(Builder);
+					VisibleGraph.AddTexture(VisibleTexture);
+				}
+			}
+
+			for (uint32 BufferIndex = 0, BufferCount = Graph->Buffers.Num(); BufferIndex < BufferCount; ++BufferIndex)
+			{
+				FBufferPacket& Buffer = Graph->Buffers[BufferIndex];
+
+				if (IsPacketCulled(Buffer))
+				{
+					continue;
+				}
+
+				for (int32 AllocationIndex = 0; AllocationIndex < Buffer.TransientAllocations.Num(); ++AllocationIndex)
+				{
+					const FRHITransientAllocationStats::FAllocation& Allocation = Buffer.TransientAllocations[AllocationIndex];
+
+					const float MemoryRangeOffsetDepthBase = VisibleGraph.TransientMemoryRangeDepthOffsets[Allocation.MemoryRangeIndex];
+
+					const float DepthY = TransientByteOffsetToDepth(Allocation.OffsetMin) + MemoryRangeOffsetDepthBase + DepthOffset;
+					const float DepthH = TransientByteOffsetToDepth(Allocation.OffsetMax - Allocation.OffsetMin);
+					const double StartTime = Buffer.StartTime + SinglePixelTimeMargin;
+					const double EndTime = Buffer.EndTime;
+					const uint32 Color = GetBufferColor(Buffer, MaxSizeInBytes);
+
+					const FVisibleBuffer VisibleBuffer(Viewport, Buffer, Color, StartTime, EndTime, DepthY, DepthH, AllocationIndex);
+					VisibleBuffer.Draw(Builder);
+					VisibleGraph.AddBuffer(VisibleBuffer);
+				}
 			}
 
 			return TraceServices::EEventEnumerate::Continue;
@@ -1110,7 +1228,7 @@ void FRenderGraphTrack::BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builde
 
 			const auto IsPacketCulled = [&](const FResourcePacket& Packet)
 			{
-				if (Packet.bCulled)
+				if (Packet.bCulled || Packet.bTransientUntracked)
 				{
 					return true;
 				}
@@ -1125,7 +1243,17 @@ void FRenderGraphTrack::BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builde
 					return true;
 				}
 
-				if (!Packet.bTransient && !Packet.bExternal && !ShowPooled())
+				if (Packet.bExtracted && !ShowExtracted())
+				{
+					return true;
+				}
+
+				if (!Packet.bExternal && !Packet.bExtracted && !ShowInternal())
+				{
+					return true;
+				}
+
+				if (!Packet.bTransient && !ShowPooled())
 				{
 					return true;
 				}
@@ -1348,10 +1476,11 @@ void FRenderGraphTrack::BuildFilteredDrawState(FRenderGraphTrackDrawStateBuilder
 			for (FRDGTextureHandle TextureHandle : Pass.Textures)
 			{
 				const FTexturePacket& Texture = *Graph.GetTexture(TextureHandle);
-				if (const FVisibleTexture* VisibleTexture = VisibleGraph->GetVisibleTexture(Texture))
+
+				VisibleGraph->EnumerateVisibleTextures(Texture, [&](const FVisibleTexture& VisibleTexture)
 				{
-					VisibleItems.Add(VisibleTexture);
-				}
+					VisibleItems.Add(&VisibleTexture);
+				});
 			}
 		}
 
@@ -1360,10 +1489,11 @@ void FRenderGraphTrack::BuildFilteredDrawState(FRenderGraphTrackDrawStateBuilder
 			for (FRDGBufferHandle BufferHandle : Pass.Buffers)
 			{
 				const FBufferPacket& Buffer = *Graph.GetBuffer(BufferHandle);
-				if (const FVisibleBuffer* VisibleBuffer = VisibleGraph->GetVisibleBuffer(Buffer))
+
+				VisibleGraph->EnumerateVisibleBuffers(Buffer, [&](const FVisibleBuffer& VisibleBuffer)
 				{
-					VisibleItems.Add(VisibleBuffer);
-				}
+					VisibleItems.Add(&VisibleBuffer);
+				});
 			}
 		}
 
@@ -1396,35 +1526,38 @@ void FRenderGraphTrack::BuildFilteredDrawState(FRenderGraphTrackDrawStateBuilder
 
 	const FTimingViewLayout& Layout = Context.GetViewport().GetLayout();
 
-	const auto AddResourcePassEvents = [&](const FVisibleItem& VisibleResource, TArrayView<const FRDGPassHandle> Passes)
+	const auto AddResourcePassEvents = [&](const auto& VisibleResource, TArrayView<const FRDGPassHandle> Passes, uint32 AllocationIndex)
 	{
 		VisibleResource.Draw(Builder);
 
-		for (FRDGPassHandle PassHandle : Passes)
+		if (VisibleResource.AllocationIndex == AllocationIndex)
 		{
-			const FPassPacket& Pass = *Graph.GetPass(PassHandle);
-			const FVisiblePass& VisiblePass = VisibleGraph->GetVisiblePass(Pass);
-
-			VisiblePass.Draw(Builder);
-
-			const float DepthY = VisiblePass.DepthY + VisiblePass.DepthH;
-
-			FSplinePrimitive Spline;
-			Spline.Start.X = VisiblePass.SlateX + (VisiblePass.SlateW * 0.5f);
-			Spline.Start.Y = DepthY;
-			Spline.StartDir = FVector2D(0, -1);
-			Spline.End = FVector2D(0, VisibleResource.DepthY - DepthY);
-			Spline.EndDir = FVector2D(0, 1);
-			Spline.Thickness = 1.0f;
-			Spline.Tint = FLinearColor(0.8f, 0.8f, 0.8f, 0.7f);
-			Builder.AddSpline(Spline);
-
-			for (const FVisibleScope& VisibleScope : VisibleGraph->Scopes)
+			for (FRDGPassHandle PassHandle : Passes)
 			{
-				const FScopePacket& Scope = VisibleScope.GetPacket();
-				if (Intersects(Scope, Pass))
+				const FPassPacket& Pass = *Graph.GetPass(PassHandle);
+				const FVisiblePass& VisiblePass = VisibleGraph->GetVisiblePass(Pass);
+
+				VisiblePass.Draw(Builder);
+
+				const float DepthY = VisiblePass.DepthY + VisiblePass.DepthH;
+
+				FSplinePrimitive Spline;
+				Spline.Start.X = VisiblePass.SlateX + (VisiblePass.SlateW * 0.5f);
+				Spline.Start.Y = DepthY;
+				Spline.StartDir = FVector2D(0, -1);
+				Spline.End = FVector2D(0, VisibleResource.DepthY - DepthY);
+				Spline.EndDir = FVector2D(0, 1);
+				Spline.Thickness = 1.0f;
+				Spline.Tint = FLinearColor(0.8f, 0.8f, 0.8f, 0.7f);
+				Builder.AddSpline(Spline);
+
+				for (const FVisibleScope& VisibleScope : VisibleGraph->Scopes)
 				{
-					VisibleItems.Add(&VisibleScope);
+					const FScopePacket& Scope = VisibleScope.GetPacket();
+					if (Intersects(Scope, Pass))
+					{
+						VisibleItems.Add(&VisibleScope);
+					}
 				}
 			}
 		}
@@ -1438,7 +1571,7 @@ void FRenderGraphTrack::BuildFilteredDrawState(FRenderGraphTrackDrawStateBuilder
 
 			if (PacketFilter->FilterPacketExact(Texture))
 			{
-				AddResourcePassEvents(VisibleTexture, Texture.Passes);
+				AddResourcePassEvents(VisibleTexture, Texture.Passes, PacketFilter->GetAllocationIndex());
 			}
 		}
 	}
@@ -1451,7 +1584,7 @@ void FRenderGraphTrack::BuildFilteredDrawState(FRenderGraphTrackDrawStateBuilder
 
 			if (PacketFilter->FilterPacketExact(Buffer))
 			{
-				AddResourcePassEvents(VisibleBuffer, Buffer.Passes);
+				AddResourcePassEvents(VisibleBuffer, Buffer.Passes, PacketFilter->GetAllocationIndex());
 			}
 		}
 	}
@@ -1560,19 +1693,77 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this, TimingViewSession]()
 				{
-					Visualizer = EVisualizer::TransientHeaps;
+					Visualizer = EVisualizer::TransientMemory;
 					TimingViewSession->ResetSelectedEvent();
 					TimingViewSession->ResetEventFilter();
 					ResourceShow = EResourceShow::All;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this]() { return Visualizer == EVisualizer::TransientHeaps; })
+				FIsActionChecked::CreateLambda([this]() { return Visualizer == EVisualizer::TransientMemory; })
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
 	}
+	MenuBuilder.EndSection();
+	
+	MenuBuilder.BeginSection("Color", LOCTEXT("ColorMenuHeader", "Track Resource Coloration"));
+
+	MenuBuilder.AddMenuEntry
+	(
+		LOCTEXT("ColorType", "By Type"),
+		LOCTEXT("ColorType_Tooltip", "Each type of resource has a unique color."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				ResourceColor = EResourceColor::Type;
+				SetDirtyFlag();
+			}),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() { return ResourceColor == EResourceColor::Type; })
+		),
+		NAME_None,
+		EUserInterfaceActionType::RadioButton
+	);
+
+	MenuBuilder.AddMenuEntry
+	(
+		LOCTEXT("ColorSize", "By Size"),
+		LOCTEXT("ColorSize_Tooltip", "Larger resources are more brightly colored."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				ResourceColor = EResourceColor::Size;
+				SetDirtyFlag();
+			}),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() { return ResourceColor == EResourceColor::Size; })
+		),
+		NAME_None,
+		EUserInterfaceActionType::RadioButton
+	);
+		
+	MenuBuilder.AddMenuEntry
+	(
+		LOCTEXT("ColorTransientCache", "By Transient Cache"),
+		LOCTEXT("ColorTransientCache_Tooltip", "Resources that cause a cache miss are brightly colored."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				ResourceColor = EResourceColor::TransientCache;
+				SetDirtyFlag();
+			}),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() { return ResourceColor == EResourceColor::TransientCache; })
+		),
+		NAME_None,
+		EUserInterfaceActionType::RadioButton
+	);
+
 	MenuBuilder.EndSection();
 
 	if (Visualizer == EVisualizer::Resources)
@@ -1632,7 +1823,7 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
-		
+
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ShowExternal", "Show External"),
@@ -1653,6 +1844,42 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		
 		MenuBuilder.AddMenuEntry
 		(
+			LOCTEXT("ShowInternal", "Show Internal"),
+			LOCTEXT("ShowInternal_Tooltip", "Show internal resources in the lifetime view."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceShow ^= EResourceShow::Internal;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return EnumHasAnyFlags(ResourceShow, EResourceShow::Internal); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+		
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ShowExtracted", "Show Extracted"),
+			LOCTEXT("ShowExtracted_Tooltip", "Show extracted resources in the lifetime view."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceShow ^= EResourceShow::Extracted;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return EnumHasAnyFlags(ResourceShow, EResourceShow::Extracted); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
 			LOCTEXT("ShowPooled", "Show Pooled"),
 			LOCTEXT("ShowPooled_Tooltip", "Show pooled resources in the lifetime view."),
 			FSlateIcon(),
@@ -1668,7 +1895,7 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
-
+		
 		MenuBuilder.EndSection();
 		MenuBuilder.BeginSection("Sort", LOCTEXT("SortMenuHeader", "Track Sort By"));
 
@@ -1763,90 +1990,8 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		);
 
 		MenuBuilder.EndSection();
-		MenuBuilder.BeginSection("Color", LOCTEXT("ColorMenuHeader", "Track Resource Coloration"));
-
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ColorType", "By Type"),
-			LOCTEXT("ColorType_Tooltip", "Each type of resource has a unique color."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this]()
-				{
-					ResourceColor = EResourceColor::Type;
-					SetDirtyFlag();
-				}),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this]() { return ResourceColor == EResourceColor::Type; })
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ColorSize", "By Size"),
-			LOCTEXT("ColorSize_Tooltip", "Larger resources are more brightly colored."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this]()
-				{
-					ResourceColor = EResourceColor::Size;
-					SetDirtyFlag();
-				}),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this]() { return ResourceColor == EResourceColor::Size; })
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-
-		MenuBuilder.EndSection();
-		MenuBuilder.BeginSection("FilterText", LOCTEXT("FilterTextHeader", "Track Resource Filter"));
-
-		MenuBuilder.AddWidget(
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(5.f)
-			[
-				// Search box allows for filtering
-				SNew(SSearchBox)
-				.InitialText(FText::FromString(FilterText))
-				.HintText(LOCTEXT("SearchHint", "Filter By Name"))
-				.OnTextChanged_Lambda([this](const FText& InText) { FilterText = InText.ToString(); SetDirtyFlag(); })
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(5.f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("SizeThreshold", "Filter By Size (MB)"))
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SSpinBox<float>)
-					.MinValue(0)
-					.MaxValue(1024)
-					.Value(FilterSize)
-					.MaxFractionalDigits(3)
-					.MinDesiredWidth(60)
-					.OnValueCommitted_Lambda([this](float InValue, ETextCommit::Type) { FilterSize = InValue; SetDirtyFlag(); })
-				]
-			],
-			FText::GetEmpty(),
-			true
-		);
-	
-		MenuBuilder.EndSection();
 	}
-	else if (Visualizer == EVisualizer::TransientHeaps)
+	else if (Visualizer == EVisualizer::TransientMemory)
 	{
 		const uint64 KiB = 1024;
 		const uint64 MiB = 1024 * KiB;
@@ -1861,11 +2006,11 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this, MiB]()
 				{
-					TransientHeapBytesPerDepthSlot = 4 * MiB;
+					TransientBytesPerDepthSlot = 4 * MiB;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this, MiB]() { return TransientHeapBytesPerDepthSlot == 4 * MiB; })
+				FIsActionChecked::CreateLambda([this, MiB]() { return TransientBytesPerDepthSlot == 4 * MiB; })
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -1879,11 +2024,11 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this, MiB]()
 				{
-					TransientHeapBytesPerDepthSlot = 2 * MiB;
+					TransientBytesPerDepthSlot = 2 * MiB;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this, MiB]() { return TransientHeapBytesPerDepthSlot == 2 * MiB; })
+				FIsActionChecked::CreateLambda([this, MiB]() { return TransientBytesPerDepthSlot == 2 * MiB; })
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -1897,11 +2042,11 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this, MiB]()
 				{
-					TransientHeapBytesPerDepthSlot = MiB;
+					TransientBytesPerDepthSlot = MiB;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this, MiB]() { return TransientHeapBytesPerDepthSlot == MiB; })
+				FIsActionChecked::CreateLambda([this, MiB]() { return TransientBytesPerDepthSlot == MiB; })
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -1915,11 +2060,11 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this, KiB]()
 				{
-					TransientHeapBytesPerDepthSlot = 512 * KiB;
+					TransientBytesPerDepthSlot = 512 * KiB;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this, KiB]() { return TransientHeapBytesPerDepthSlot == 512 * KiB; })
+				FIsActionChecked::CreateLambda([this, KiB]() { return TransientBytesPerDepthSlot == 512 * KiB; })
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -1933,11 +2078,11 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this, KiB]()
 				{
-					TransientHeapBytesPerDepthSlot = 256 * KiB;
+					TransientBytesPerDepthSlot = 256 * KiB;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this, KiB]() { return TransientHeapBytesPerDepthSlot == 256 * KiB; })
+				FIsActionChecked::CreateLambda([this, KiB]() { return TransientBytesPerDepthSlot == 256 * KiB; })
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -1951,11 +2096,11 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this, KiB]()
 				{
-					TransientHeapBytesPerDepthSlot = 128 * KiB;
+					TransientBytesPerDepthSlot = 128 * KiB;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this, KiB]() { return TransientHeapBytesPerDepthSlot == 128 * KiB; })
+				FIsActionChecked::CreateLambda([this, KiB]() { return TransientBytesPerDepthSlot == 128 * KiB; })
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
@@ -1969,18 +2114,84 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this, KiB]()
 				{
-					TransientHeapBytesPerDepthSlot = 64 * KiB;
+					TransientBytesPerDepthSlot = 64 * KiB;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this, KiB]() { return TransientHeapBytesPerDepthSlot == 64 * KiB; })
+				FIsActionChecked::CreateLambda([this, KiB]() { return TransientBytesPerDepthSlot == 64 * KiB; })
 			),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
 		);
 
 		MenuBuilder.EndSection();
+
+		MenuBuilder.BeginSection("Show", LOCTEXT("ShowMenuHeader", "Track Show Flags"));
+
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ShowTracked", "Show Tracked"),
+			LOCTEXT("ShowTracked_Tooltip", "Show Tracked resources in the lifetime view."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceShow ^= EResourceShow::Tracked;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return EnumHasAnyFlags(ResourceShow, EResourceShow::Tracked); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.EndSection();
 	}
+	
+	MenuBuilder.BeginSection("FilterText", LOCTEXT("FilterTextHeader", "Track Resource Filter"));
+
+	MenuBuilder.AddWidget(
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(5.f)
+		[
+			// Search box allows for filtering
+			SNew(SSearchBox)
+			.InitialText(FText::FromString(FilterText))
+			.HintText(LOCTEXT("SearchHint", "Filter By Name"))
+			.OnTextChanged_Lambda([this](const FText& InText) { FilterText = InText.ToString(); SetDirtyFlag(); })
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(5.f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SizeThreshold", "Filter By Size (MB)"))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SSpinBox<float>)
+				.MinValue(0)
+				.MaxValue(1024)
+				.Value(FilterSize)
+				.MaxFractionalDigits(3)
+				.MinDesiredWidth(60)
+				.OnValueCommitted_Lambda([this](float InValue, ETextCommit::Type) { FilterSize = InValue; SetDirtyFlag(); })
+			]
+		],
+		FText::GetEmpty(),
+		true
+	);
+	
+	MenuBuilder.EndSection();
 }
 
 void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& InTooltipEvent) const
@@ -1991,11 +2202,24 @@ void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEve
 	{
 		const auto AddCommonResourceText = [&](const FResourcePacket& Resource)
 		{
-			if (Resource.TransientStats.HeapOffsetMax > 0)
+			if (Resource.bTransient)
 			{
-				Tooltip.AddNameValueTextLine(TEXT("Heap Index:"), FString::Printf(TEXT("%u"), Resource.TransientStats.HeapIndex));
-				Tooltip.AddNameValueTextLine(TEXT("Heap Start:"), FString::Printf(TEXT("%.3fMB"), (double)Resource.TransientStats.HeapOffsetMin / (1024.0 * 1024.0)));
-				Tooltip.AddNameValueTextLine(TEXT("Heap End:"), FString::Printf(TEXT("%.3fMB"), (double)Resource.TransientStats.HeapOffsetMax / (1024.0 * 1024.0)));
+				Tooltip.AddTextLine(TEXT("Transient"), FLinearColor::Red);
+				Tooltip.AddNameValueTextLine(TEXT("Transient Cache Hit:"), Resource.bTransientCacheHit ? TEXT("Yes") : TEXT("No"));
+			}
+
+			if (!Resource.TransientAllocations.IsEmpty())
+			{
+				for (const FRHITransientAllocationStats::FAllocation& Allocation : Resource.TransientAllocations)
+				{
+					Tooltip.AddNameValueTextLine(TEXT("Transient Memory:"),
+						FString::Printf(TEXT("Range: %u, Start: %.3fMb, End: %.3fMb"),
+							Allocation.MemoryRangeIndex,
+							(float)Allocation.OffsetMin / (1024.0f * 1024.0f),
+							(float)Allocation.OffsetMax / (1024.0f * 1024.0f)
+						)
+					);
+				}
 			}
 
 			if (Resource.bExtracted)
@@ -2008,9 +2232,9 @@ void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEve
 				Tooltip.AddTextLine(TEXT("External"), FLinearColor::Red);
 			}
 
-			if (Resource.bTransient)
+			if (Resource.bTransientUntracked)
 			{
-				Tooltip.AddTextLine(TEXT("Transient"), FLinearColor::Red);
+				Tooltip.AddTextLine(TEXT("Untracked by RDG"), FLinearColor::Red);
 			}
 		};
 

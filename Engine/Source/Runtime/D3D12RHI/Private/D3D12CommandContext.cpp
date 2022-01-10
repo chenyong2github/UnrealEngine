@@ -1027,7 +1027,7 @@ void FD3D12DynamicRHI::RHIReleaseTransition(FRHITransition* Transition)
 
 IRHITransientResourceAllocator* FD3D12DynamicRHI::RHICreateTransientResourceAllocator()
 {
-	return new FD3D12TransientResourceAllocator(GetAdapter().GetTransientResourceSystem());
+	return new FD3D12TransientResourceHeapAllocator(GetAdapter().GetOrCreateTransientHeapCache());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////

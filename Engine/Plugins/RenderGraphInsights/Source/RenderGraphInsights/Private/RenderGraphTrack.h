@@ -115,8 +115,28 @@ public:
 };
 
 using FVisibleScope   = TVisibleItemHelper<FScopePacket>;
-using FVisibleTexture = TVisibleItemHelper<FTexturePacket>;
-using FVisibleBuffer  = TVisibleItemHelper<FBufferPacket>;
+
+template <typename InPacketType>
+class TVisibleResourceHelper : public FVisibleItem
+{
+public:
+	using PacketType = InPacketType;
+
+	TVisibleResourceHelper(const FTimingTrackViewport& Viewport, const PacketType& InPacket, uint32 InColor, double InStartTime, double InEndTime, float InDepthY, float InDepthH = 1.0f, uint32 InAllocationIndex = 0)
+		: FVisibleItem(Viewport, InPacket, InColor, InStartTime, InEndTime, InDepthY, InDepthH)
+		, AllocationIndex(InAllocationIndex)
+	{}
+
+	const PacketType& GetPacket() const
+	{
+		return static_cast<const PacketType&>(*Packet);
+	}
+
+	uint32 AllocationIndex;
+};
+
+using FVisibleTexture = TVisibleResourceHelper<FTexturePacket>;
+using FVisibleBuffer  = TVisibleResourceHelper<FBufferPacket>;
 
 class FVisibleGraph final : public TVisibleItemHelper<FGraphPacket>
 {
@@ -144,24 +164,22 @@ public:
 		return Passes[Pass.VisibleIndex];
 	}
 
-	const FVisibleTexture* GetVisibleTexture(const FTexturePacket& Texture) const
+	template <typename FunctionType>
+	void EnumerateVisibleTextures(const FTexturePacket& Texture, FunctionType Function) const
 	{
-		if (Texture.VisibleIndex == kInvalidVisibleIndex)
+		for (int32 VisibleIndex : Texture.VisibleItems)
 		{
-			return nullptr;
+			Function(Textures[VisibleIndex]);
 		}
-
-		return &Textures[Texture.VisibleIndex];
 	}
 
-	const FVisibleBuffer* GetVisibleBuffer(const FBufferPacket& Buffer) const
+	template <typename FunctionType>
+	void EnumerateVisibleBuffers(const FBufferPacket& Buffer, FunctionType Function) const
 	{
-		if (Buffer.VisibleIndex == kInvalidVisibleIndex)
+		for (int32 VisibleIndex : Buffer.VisibleItems)
 		{
-			return nullptr;
+			Function(Buffers[VisibleIndex]);
 		}
-
-		return &Buffers[Buffer.VisibleIndex];
 	}
 
 	void Draw(FRenderGraphTrackDrawStateBuilder& Builder) const override;
@@ -176,7 +194,7 @@ public:
 	TArray<FVisibleTexture> Textures;
 	TArray<FVisibleBuffer> Buffers;
 	TArray<uint32> AsyncComputePasses;
-	TArray<float, TInlineAllocator<8>> TransientHeapDepths;
+	TArray<float> TransientMemoryRangeDepthOffsets;
 	float HeaderEndDepth{};
 	float HeaderPassBarDepth{};
 };
@@ -213,13 +231,13 @@ private:
 	{
 		const uint32 VisibleIndex = VisibleGraphs.Num();
 		FVisibleGraph& VisibleGraph = VisibleGraphs.Emplace_GetRef(Viewport, Graph, Color, 1.0f);
-		check(VisibleGraph.Packet->VisibleIndex == kInvalidVisibleIndex);
-		VisibleGraph.Packet->VisibleIndex = VisibleIndex;
+		check(VisibleGraph.GetPacket().VisibleIndex == kInvalidVisibleIndex);
+		VisibleGraph.GetPacket().VisibleIndex = VisibleIndex;
 		VisibleGraph.Index = VisibleIndex;
 
-		for (uint64 HeapOffset : Graph.TransientHeapOffsets)
+		for (uint64 ByteOffset : Graph.TransientMemoryRangeByteOffsets)
 		{
-			VisibleGraph.TransientHeapDepths.Emplace(FMath::CeilToFloat(TransientHeapOffsetToDepth(HeapOffset)));
+			VisibleGraph.TransientMemoryRangeDepthOffsets.Emplace(FMath::CeilToFloat(TransientByteOffsetToDepth(ByteOffset)));
 		}
 
 		return VisibleGraph;
@@ -234,9 +252,9 @@ private:
 		return nullptr;
 	}
 
-	float TransientHeapOffsetToDepth(uint64 HeapOffset) const;
-	float TransientHeapOffsetToDepthAligned(uint64 HeapOffset) const;
-	float TransientHeapOffsetToSlateY(const FTimingViewLayout& Layout, uint64 HeapOffset) const;
+	float TransientByteOffsetToDepth(uint64 ByteOffset) const;
+	float TransientByteOffsetToDepthAligned(uint64 ByteOffset) const;
+	float TransientByteOffsetToSlateY(const FTimingViewLayout& Layout, uint64 ByteOffset) const;
 
 	float MouseSlateX{};
 	float MouseSlateY{};
@@ -263,7 +281,10 @@ private:
 	bool ShowBuffers() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Buffers); }
 	bool ShowTransient() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Transient); }
 	bool ShowExternal() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::External); }
-	bool ShowPooled() const		{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Pooled);}
+	bool ShowInternal() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Internal); }
+	bool ShowExtracted() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Extracted); }
+	bool ShowPooled() const		{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Pooled); }
+	bool ShowTracked() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Tracked); }
 
 	enum class EResourceShow
 	{
@@ -271,8 +292,11 @@ private:
 		Buffers			= 1 << 1,
 		Transient		= 1 << 2,
 		External		= 1 << 3,
-		Pooled			= 1 << 4,
-		All				= Textures | Buffers | Transient | External | Pooled
+		Internal		= 1 << 4,
+		Extracted		= 1 << 5,
+		Pooled			= 1 << 6,
+		Tracked			= 1 << 7,
+		All				= Textures | Buffers | Transient | External | Internal | Extracted | Pooled | Tracked
 	};
 	FRIEND_ENUM_CLASS_FLAGS(FRenderGraphTrack::EResourceShow);
 
@@ -288,13 +312,14 @@ private:
 	enum class EResourceColor
 	{
 		Type,
-		Size
+		Size,
+		TransientCache
 	};
 
 	enum class EVisualizer
 	{
 		Resources,
-		TransientHeaps
+		TransientMemory
 	};
 
 	EResourceShow ResourceShow = EResourceShow::All;
@@ -303,7 +328,7 @@ private:
 	EVisualizer Visualizer = EVisualizer::Resources;
 	FString FilterText;
 	float FilterSize{};
-	uint64 TransientHeapBytesPerDepthSlot = 1024 * 1024;
+	uint64 TransientBytesPerDepthSlot = 1024 * 1024;
 
 	FTooltipDrawState SelectedTooltipState;
 

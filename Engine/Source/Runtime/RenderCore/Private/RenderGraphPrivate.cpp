@@ -319,6 +319,14 @@ FAutoConsoleVariableRef CVarRDGUseTransientAllocator(
 	TEXT(" 2: enables the transient allocator for resources with FastVRAM flag only"),
 	ECVF_RenderThreadSafe);
 
+int32 GRDGTransientExtractedResources = 1;
+FAutoConsoleVariableRef CVarRDGTransientExtractedResource(
+	TEXT("r.RDG.TransientExtractedResources"), GRDGTransientExtractedResources,
+	TEXT("RDG will allocate extracted resources as transient, unless explicitly marked non-transient by the user.")
+	TEXT(" 0: disables external transient resources;")
+	TEXT(" 1: enables external transient resources (default);"),
+	ECVF_RenderThreadSafe);
+
 int32 GRDGParallelExecute = 1;
 FAutoConsoleVariableRef CVarRDGParallelExecute(
 	TEXT("r.RDG.ParallelExecute"), GRDGParallelExecute,

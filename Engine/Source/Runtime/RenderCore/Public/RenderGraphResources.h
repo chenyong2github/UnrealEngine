@@ -84,7 +84,7 @@ using FRDGTextureSubresourceState = TRDGTextureSubresourceArray<FRDGSubresourceS
 using FRDGTextureTransientSubresourceState = TRDGTextureSubresourceArray<FRDGSubresourceState, FRDGArrayAllocator>;
 using FRDGTextureTransientSubresourceStateIndirect = TRDGTextureSubresourceArray<FRDGSubresourceState*, FRDGArrayAllocator>;
 
-using FRDGPooledTextureArray = TArray<TRefCountPtr<FPooledRenderTarget>, FRDGArrayAllocator>;
+using FRDGPooledTextureArray = TArray<TRefCountPtr<IPooledRenderTarget>, FRDGArrayAllocator>;
 using FRDGPooledBufferArray = TArray<TRefCountPtr<FRDGPooledBuffer>, FRDGArrayAllocator>;
 
 /** Generic graph resource. */
@@ -254,6 +254,11 @@ public:
 		return bExtracted;
 	}
 
+	bool IsCulled() const
+	{
+		return bCulled;
+	}
+
 	/** Whether a prior pass added to the graph produced contents for this resource. External resources are not considered produced
 	 *  until used for a write operation. This is a union of all subresources, so any subresource write will set this to true.
 	 */
@@ -266,7 +271,7 @@ public:
 	void SetNonTransient()
 	{
 		check(!bTransient);
-		bUserSetNonTransient = 1;
+		bForceNonTransient = 1;
 	}
 
 protected:
@@ -284,8 +289,11 @@ protected:
 	/** Whether this resource is allocated through the transient resource allocator. */
 	uint8 bTransient : 1;
 
-	/** Whether this resource is set to be non-transient by the user. */
-	uint8 bUserSetNonTransient : 1;
+	/** Whether this resource cannot be made transient. */
+	uint8 bForceNonTransient : 1;
+
+	/** Whether this resource is allowed to be both transient and extracted. */
+	uint8 bAllowTransientExtracted : 1;
 
 	/** (External | Extracted only) If true, the resource is locked in its current state and will not be transitioned any more. */
 	uint8 bFinalizedAccess : 1;
@@ -482,14 +490,14 @@ private:
 		bSwapChain = EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::Presentable);
 	}
 
-	/** Assigns a pooled render target as the backing RHI resource. */
-	void SetRHI(FPooledRenderTarget* PooledRenderTarget);
+	/** Assigns a render target as the backing RHI resource. */
+	void SetRHI(IPooledRenderTarget* PooledRenderTarget);
 
-	/** Assigns a pooled buffer as the backing RHI resource. */
+	/** Assigns a pooled texture as the backing RHI resource. */
 	void SetRHI(FRDGPooledTexture* PooledTexture);
 
-	/** Assigns a transient buffer as the backing RHI resource. */
-	void SetRHI(FRHITransientTexture* TransientTexture, FRDGAllocator& Allocator);
+	/** Assigns a transient texture as the backing RHI resource. */
+	void SetRHI(FRHITransientTexture* TransientTexture, FRDGTextureSubresourceState* TransientTextureState);
 
 	/** Finalizes the texture for execution; no other transitions are allowed after calling this. */
 	void Finalize(FRDGPooledTextureArray& PooledTextureArray);
@@ -522,7 +530,7 @@ private:
 	const uint32 SubresourceCount;
 
 	/** The assigned pooled render target to use during execution. Never reset. */
-	FPooledRenderTarget* PooledRenderTarget = nullptr;
+	IPooledRenderTarget* PooledRenderTarget = nullptr;
 
 	union
 	{
@@ -995,7 +1003,7 @@ private:
 	const uint32 NumAllocatedElements;
 	uint32 LastUsedFrame = 0;
 
-	friend FRenderGraphResourcePool;
+	friend FRDGBufferPool;
 	friend FRDGBuilder;
 	friend FRDGBuffer;
 	friend FRDGAllocator;

@@ -240,7 +240,6 @@ void FRDGUserValidation::ValidateRegisterExternalTexture(
 {
 	checkf(Name, TEXT("Attempted to register external texture with NULL name."));
 	checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture."));
-	checkf(ExternalPooledTexture->IsCompatibleWithRDG(), TEXT("Pooled render target %s is not a compatible type for RDG."), Name);
 	ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
 }
 
@@ -416,10 +415,6 @@ void FRDGUserValidation::ValidateExtractBuffer(FRDGBufferRef Buffer, TRefCountPt
 void FRDGUserValidation::ValidateExtractResource(FRDGParentResourceRef Resource)
 {
 	check(Resource);
-
-	checkf(!bHasExecuteBegun || !Resource->bTransient,
-		TEXT("Unable to queue the extraction of the resource %s because passes in the graph have already executed and it was made transient."),
-		Resource->Name);
 
 	checkf(Resource->bProduced || Resource->bExternal || Resource->bQueuedForUpload,
 		TEXT("Unable to queue the extraction of the resource %s because it has not been produced by any pass."),

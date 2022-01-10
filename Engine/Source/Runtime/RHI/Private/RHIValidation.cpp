@@ -1536,13 +1536,11 @@ TLockFreePointerListUnordered<FValidationContext, PLATFORM_CACHE_LINE_SIZE> FVal
 
 FValidationTransientResourceAllocator::~FValidationTransientResourceAllocator()
 {
-	check(bFrozen);
-	check(bReleased);
+	delete RHIAllocator;
 }
 
 FRHITransientTexture* FValidationTransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex)
 {
-	check(!bFrozen);
 	check(FRHITextureCreateInfo::CheckValidity(InCreateInfo, InDebugName));
 	checkf(!EnumHasAnyFlags(InCreateInfo.Flags, TexCreate_Transient), TEXT("Attempted to create transient texture %s using legacy TexCreate_Transient flag."), InDebugName);
 
@@ -1559,7 +1557,6 @@ FRHITransientTexture* FValidationTransientResourceAllocator::CreateTexture(const
 	FAllocatedResourceData ResourceData;
 	ResourceData.DebugName = InDebugName;
 	ResourceData.ResourceType = FAllocatedResourceData::EType::Texture;
-	ResourceData.bMemoryAllocated = true;
 	ResourceData.Texture.Flags = InCreateInfo.Flags;
 	ResourceData.Texture.Format = InCreateInfo.Format;
 	ResourceData.Texture.ArraySize = InCreateInfo.ArraySize;
@@ -1583,7 +1580,6 @@ FRHITransientTexture* FValidationTransientResourceAllocator::CreateTexture(const
 
 FRHITransientBuffer* FValidationTransientResourceAllocator::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex)
 {
-	check(!bFrozen);
 	checkf(!EnumHasAnyFlags(InCreateInfo.Usage, BUF_Transient), TEXT("Attempted to create transient buffer %s using legacy BUF_Transient flag."), InDebugName);
 
 	FRHITransientBuffer* TransientBuffer = RHIAllocator->CreateBuffer(InCreateInfo, InDebugName, InPassIndex);
@@ -1599,7 +1595,6 @@ FRHITransientBuffer* FValidationTransientResourceAllocator::CreateBuffer(const F
 	FAllocatedResourceData ResourceData;
 	ResourceData.DebugName = InDebugName;
 	ResourceData.ResourceType = FAllocatedResourceData::EType::Buffer;
-	ResourceData.bMemoryAllocated = true;
 	AllocatedResourceMap.Add(RHIBuffer, ResourceData);
 
 	if (!RHIBuffer->IsBarrierTrackingInitialized())
@@ -1616,32 +1611,26 @@ FRHITransientBuffer* FValidationTransientResourceAllocator::CreateBuffer(const F
 
 void FValidationTransientResourceAllocator::DeallocateMemory(FRHITransientTexture* InTransientTexture, uint32 InPassIndex)
 {
-	check(!bFrozen);
+	check(InTransientTexture);
 
 	RHIAllocator->DeallocateMemory(InTransientTexture, InPassIndex);
 
-	// Mark memory as freed
-	FAllocatedResourceData* ResourceData = AllocatedResourceMap.Find(InTransientTexture->GetRHI());
-	check(ResourceData);
-	ResourceData->bMemoryAllocated = false;
+	checkf(AllocatedResourceMap.Contains(InTransientTexture->GetRHI()), TEXT("DeallocateMemory called on texture %s, but it is not marked as allocated."), InTransientTexture->GetName());
+	AllocatedResourceMap.Remove(InTransientTexture->GetRHI());
 }
 
 void FValidationTransientResourceAllocator::DeallocateMemory(FRHITransientBuffer* InTransientBuffer, uint32 InPassIndex)
 {
-	check(!bFrozen);
+	check(InTransientBuffer);
 
 	RHIAllocator->DeallocateMemory(InTransientBuffer, InPassIndex);
 
-	// Mark memory as freed
-	FAllocatedResourceData* ResourceData = AllocatedResourceMap.Find(InTransientBuffer->GetRHI());
-	check(ResourceData);
-	ResourceData->bMemoryAllocated = false;
+	checkf(AllocatedResourceMap.Contains(InTransientBuffer->GetRHI()), TEXT("DeallocateMemory called on buffer %s, but it is not marked as allocated."), InTransientBuffer->GetName());
+	AllocatedResourceMap.Remove(InTransientBuffer->GetRHI());
 }
 
-void FValidationTransientResourceAllocator::Flush(FRHICommandListImmediate& RHICmdList)
+void FValidationTransientResourceAllocator::Flush(FRHICommandListImmediate& RHICmdList, FRHITransientAllocationStats* OutHeapStats)
 {
-	check(!bFrozen);
-
 	RHICmdList.EnqueueLambda([AllocatedResourcesToInit = MoveTemp(AllocatedResourcesToInit)](FRHICommandListImmediate& InRHICmdList)
 	{
 		// Tracking will be re-initialized, so we need to flush any remaining references.
@@ -1649,60 +1638,33 @@ void FValidationTransientResourceAllocator::Flush(FRHICommandListImmediate& RHIC
 		InitBarrierTracking(AllocatedResourcesToInit);
 	});
 
-	RHIAllocator->Flush(RHICmdList);
+	RHIAllocator->Flush(RHICmdList, OutHeapStats);
 }
 
-void FValidationTransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList, FRHITransientHeapStats& OutHeapStats)
+void FValidationTransientResourceAllocator::Release(FRHICommandListImmediate& RHICmdList)
 {
-	check(!bFrozen);
-
 	// Check all allocated resource data and make sure all memory is freed again
 	{
-		TArray<const FAllocatedResourceData*> AllocatedResources;
-
-		for (const auto& KeyValue : AllocatedResourceMap)
-		{
-			const FAllocatedResourceData& ResourceData = KeyValue.Value;
-			if (ResourceData.bMemoryAllocated)
-			{
-				AllocatedResources.Emplace(&ResourceData);
-			}
-		}
-
-		if (AllocatedResources.Num() > 0)
+		if (AllocatedResourceMap.Num() > 0)
 		{
 			FString ErrorMessage = FString::Printf(
 				TRANSIENT_RESOURCE_LOG_PREFIX_REASON("Open transient allocations")
-				TEXT("%d Transient Resource allocations still have memory allocated. Call 'DeallocateMemory' on all transient allocated resources before calling Freeze.\n\n")
+				TEXT("%d Transient Resource allocations still have memory allocated. Call 'DeallocateMemory' on all transient allocated resources prior to releasing the allocator.\n\n")
 				TEXT("Resources with Allocated Memory:\n"),
-				AllocatedResources.Num());
-			for (const FAllocatedResourceData* ResourceData : AllocatedResources)
+				AllocatedResourceMap.Num());
+
+			for (const auto KeyValue : AllocatedResourceMap)
 			{
-				ErrorMessage += FString::Printf(TEXT("         %s (%s)\n"), ResourceData->DebugName, ResourceData->ResourceType == FAllocatedResourceData::EType::Texture ? TEXT("Texture") : TEXT("Buffer"));
+				const FAllocatedResourceData& ResourceData = KeyValue.Value;
+
+				ErrorMessage += FString::Printf(TEXT("         %s (%s)\n"), ResourceData.DebugName, ResourceData.ResourceType == FAllocatedResourceData::EType::Texture ? TEXT("Texture") : TEXT("Buffer"));
 			}
 			ErrorMessage += FString::Printf(TRANSIENT_RESOURCE_LOG_SUFFIX);
 			FValidationRHI::ReportValidationFailure(*ErrorMessage);
 		}
 	}
 
-	RHICmdList.EnqueueLambda([AllocatedResourcesToInit = MoveTemp(AllocatedResourcesToInit)](FRHICommandListImmediate& InRHICmdList)
-	{
-		// Tracking will be re-initialized, so we need to flush any remaining references.
-		static_cast<FValidationContext&>(InRHICmdList.GetContext()).FlushValidationOps();
-		InitBarrierTracking(AllocatedResourcesToInit);
-	});
-
-	bFrozen = true;
-
-	RHIAllocator->Freeze(RHICmdList, OutHeapStats);
-}
-
-void FValidationTransientResourceAllocator::Release(FRHICommandListImmediate& RHICmdList)
-{
-	check(bFrozen);
-
 	RHIAllocator->Release(RHICmdList);
-	bReleased = true;
 	delete this;
 }
 

@@ -3,6 +3,7 @@
 #include "RenderGraphResources.h"
 #include "RenderGraphPass.h"
 #include "RenderGraphPrivate.h"
+#include "RenderGraphResourcePool.h"
 
 inline bool NeedsUAVBarrier(FRDGViewHandle PreviousHandle, FRDGViewHandle NextHandle)
 {
@@ -27,7 +28,8 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 	, bExtracted(0)
 	, bProduced(0)
 	, bTransient(0)
-	, bUserSetNonTransient(0)
+	, bForceNonTransient(0)
+	, bAllowTransientExtracted(0)
 	, bFinalizedAccess(0)
 	, bLastOwner(1)
 	, bCulled(1)
@@ -206,17 +208,29 @@ IPooledRenderTarget* FRDGTexture::GetPooledRenderTarget() const
 	return PooledRenderTarget;
 }
 
-void FRDGTexture::SetRHI(FPooledRenderTarget* InPooledRenderTarget)
+void FRDGTexture::SetRHI(IPooledRenderTarget* InPooledRenderTarget)
 {
-	Allocation = TRefCountPtr<FPooledRenderTarget>(InPooledRenderTarget);
-	PooledRenderTarget = InPooledRenderTarget;
-
-	if (!InPooledRenderTarget->HasRDG())
+	if (FRHITransientTexture* LocalTransientTexture = InPooledRenderTarget->GetTransientTexture())
 	{
-		InPooledRenderTarget->InitRDG();
+		FRDGTransientRenderTarget* LocalRenderTarget = static_cast<FRDGTransientRenderTarget*>(InPooledRenderTarget);
+		Allocation = TRefCountPtr<FRDGTransientRenderTarget>(LocalRenderTarget);
+
+		SetRHI(LocalTransientTexture, &LocalRenderTarget->State);
+	}
+	else
+	{
+		FPooledRenderTarget* LocalRenderTarget = static_cast<FPooledRenderTarget*>(InPooledRenderTarget);
+		Allocation = TRefCountPtr<FPooledRenderTarget>(LocalRenderTarget);
+
+		if (!LocalRenderTarget->HasRDG())
+		{
+			LocalRenderTarget->InitRDG();
+		}
+
+		SetRHI(LocalRenderTarget->GetRDG(RenderTargetTexture));
 	}
 
-	SetRHI(InPooledRenderTarget->GetRDG(RenderTargetTexture));
+	PooledRenderTarget = InPooledRenderTarget;
 }
 
 void FRDGTexture::SetRHI(FRDGPooledTexture* InPooledTexture)
@@ -239,13 +253,12 @@ void FRDGTexture::SetRHI(FRDGPooledTexture* InPooledTexture)
 	ResourceRHI = PooledTexture->GetRHI();
 }
 
-void FRDGTexture::SetRHI(FRHITransientTexture* InTransientTexture, FRDGAllocator& Allocator)
+void FRDGTexture::SetRHI(FRHITransientTexture* InTransientTexture, FRDGTextureSubresourceState* InTransientTextureState)
 {
 	TransientTexture = InTransientTexture;
-	State = Allocator.AllocNoDestruct<FRDGTextureSubresourceState>();
+	State = InTransientTextureState;
 	ViewCache = &InTransientTexture->ViewCache;
 	ResourceRHI = InTransientTexture->GetRHI();
-
 	bTransient = true;
 }
 
@@ -258,20 +271,31 @@ void FRDGTexture::Finalize(FRDGPooledTextureArray& PooledTextureArray)
 	{
 		if (bTransient)
 		{
-			// Manually deconstruct the allocated state so as not to invoke overhead from the allocators destructor tracking.
-			State->~FRDGTextureSubresourceState();
-			State = nullptr;
-		}
-		else
-		{
-			// External and extracted resources are user controlled, so we cannot assume the texture stays in its final state.
-			if (bExternal || bExtracted)
+			if (PooledRenderTarget)
 			{
-				PooledTexture->Reset();
+				InitAsWholeResource(*State, {});
+				PooledTextureArray.Emplace(MoveTemp(Allocation));
 			}
 			else
 			{
-				PooledTexture->Finalize();
+				// Manually deconstruct the allocated state so as not to invoke overhead from the allocators destructor tracking.
+				State->~FRDGTextureSubresourceState();
+				State = nullptr;
+			}
+		}
+		else
+		{
+			if (PooledTexture)
+			{
+				// External and extracted resources are user controlled, so we cannot assume the texture stays in its final state.
+				if (bExternal || bExtracted)
+				{
+					PooledTexture->Reset();
+				}
+				else
+				{
+					PooledTexture->Finalize();
+				}
 			}
 
 			// Restore the reference to the last owner in the aliasing chain; not necessary for the transient resource allocator.
@@ -282,8 +306,7 @@ void FRDGTexture::Finalize(FRDGPooledTextureArray& PooledTextureArray)
 		}
 	}
 
-	// This releases the reference without invoking a virtual function call.
-	TRefCountPtr<FPooledRenderTarget>(MoveTemp(Allocation));
+	Allocation = nullptr;
 }
 
 void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer)
