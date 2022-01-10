@@ -277,6 +277,40 @@ void UIKRetargeterController::OnRetargetChainRenamed(UIKRigDefinition* IKRig, FN
 	}
 }
 
+void UIKRetargeterController::OnRetargetChainRemoved(UIKRigDefinition* IKRig, const FName& InChainRemoved) const
+{
+	const bool bIsSourceRig = IKRig == Asset->SourceIKRigAsset;
+	check(bIsSourceRig || IKRig == Asset->TargetIKRigAsset)
+
+	// set source chain name to NONE if it has been deleted 
+	if (bIsSourceRig)
+	{
+		for (FRetargetChainMap& ChainMap : Asset->ChainMapping)
+		{
+			FName& SourceChainToUpdate = ChainMap.SourceChain;
+			if (SourceChainToUpdate == InChainRemoved)
+			{
+				SourceChainToUpdate = NAME_None;
+				BroadcastNeedsReinitialized();
+				return;
+			}
+		}
+		return;
+	}
+	
+	// remove target mapping if the target chain has been removed
+	const int32 ChainIndex = Asset->ChainMapping.IndexOfByPredicate([&InChainRemoved](const FRetargetChainMap& ChainMap)
+	{
+		return ChainMap.TargetChain == InChainRemoved;
+	});
+	
+	if (ChainIndex != INDEX_NONE)
+	{
+		Asset->ChainMapping.RemoveAt(ChainIndex);
+		BroadcastNeedsReinitialized();
+	}
+}
+
 void UIKRetargeterController::SetSourceChainForTargetChain(FName TargetChain, FName SourceChainToMapTo)
 {
 	FScopedTransaction Transaction(LOCTEXT("SetRetargetChainSource", "Set Retarget Chain Source"));

@@ -189,11 +189,16 @@ private:
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnRetargetChainRenamed, UIKRigDefinition*, FName /*old name*/, FName /*new name*/);
 	FOnRetargetChainRenamed RetargetChainRenamed;
 
+	/** Called whenever a retarget chain is removed.*/
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRetargetChainRemoved, UIKRigDefinition*, const FName& /*chain name*/);
+	FOnRetargetChainRemoved RetargetChainRemoved;
+
 public:
 	
 	FOnIKRigNeedsInitialized& OnIKRigNeedsInitialized(){ return IKRigNeedsInitialized; };
 
 	FOnRetargetChainRenamed& OnRetargetChainRenamed(){ return RetargetChainRenamed; };
+	FOnRetargetChainRemoved& OnRetargetChainRemoved(){ return RetargetChainRemoved; };
 
 private:
 

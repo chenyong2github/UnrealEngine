@@ -172,6 +172,7 @@ bool UIKRigController::RemoveRetargetChain(const FName& ChainName) const
 	
 	if (Asset->RetargetDefinition.BoneChains.RemoveAll(Pred) > 0)
 	{
+		RetargetChainRemoved.Broadcast(Asset, ChainName);
 		SortRetargetChains();
 		BroadcastNeedsReinitialized();
 		return true;
