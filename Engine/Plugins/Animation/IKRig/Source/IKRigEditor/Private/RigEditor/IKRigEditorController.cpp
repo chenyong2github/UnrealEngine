@@ -371,6 +371,42 @@ void FIKRigEditorController::ShowEmptyDetails()
 	DetailsView->SetObject(AssetController->GetAsset());
 }
 
+void FIKRigEditorController::ShowDetailsForElements(const TArray<TSharedPtr<FIKRigTreeElement>>& InItems)
+{
+	// TODO
+	// this function is currently only dealing with displaying a single element in the details panel (the last one)
+	// as this is the current state of the details panel in the IKRig editor. However, it should be able to handle
+	// multiple items. This is a new feature that has to be done that's why this function's interface takes an array
+	// of items as parameter for future implementation.
+	
+	if (InItems.Num() > 0)
+	{
+		const TSharedPtr<FIKRigTreeElement>& LastItem = InItems.Last();
+		switch (LastItem->ElementType)
+		{
+			case IKRigTreeElementType::BONE:
+				ShowDetailsForBone(LastItem->BoneName);
+				break;
+			
+			case IKRigTreeElementType::GOAL:
+				ShowDetailsForGoal(LastItem->GoalName);
+				break;
+			
+			case IKRigTreeElementType::SOLVERGOAL:
+				ShowDetailsForGoalSettings(LastItem->SolverGoalName, LastItem->SolverGoalIndex);
+				break;
+			
+			case IKRigTreeElementType::BONE_SETTINGS:
+				ShowDetailsForBoneSettings(LastItem->BoneSettingBoneName, LastItem->BoneSettingsSolverIndex);
+				break;
+			
+			default:
+				ensure(false);
+				break;
+		}
+	}
+}
+
 void FIKRigEditorController::AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone)
 {
 	FIKRigRetargetChainSettings Settings(ChainName, StartBone, EndBone);
