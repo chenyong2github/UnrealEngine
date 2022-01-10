@@ -57,12 +57,13 @@ void FLandscapeSplineActorDesc::OnUnregister()
 {
 	FWorldPartitionActorDesc::OnUnregister();
 
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(Container->GetWorld(), LandscapeGuid))
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), LandscapeGuid))
 	{
 		FWorldPartitionHandle Handle(Container, GetGuid());
-		check(Handle.IsValid());
-		LandscapeInfo->SplineHandles.Remove(Handle);
+		if (Handle.IsValid())
+		{
+			LandscapeInfo->SplineHandles.Remove(Handle);
+		}
 	}
 }
-
 #endif
