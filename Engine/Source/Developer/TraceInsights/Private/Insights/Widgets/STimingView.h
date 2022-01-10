@@ -267,6 +267,7 @@ public:
 
 	virtual Insights::FSelectionChangedDelegate& OnSelectionChanged() override { return OnSelectionChangedDelegate; }
 	virtual Insights::FTimeMarkerChangedDelegate& OnTimeMarkerChanged() override { return OnTimeMarkerChangedDelegate; }
+	virtual Insights::FCustomTimeMarkerChangedDelegate& OnCustomTimeMarkerChanged() override { return OnCustomTimeMarkerChangedDelegate; }
 	virtual Insights::FHoveredTrackChangedDelegate& OnHoveredTrackChanged() override { return OnHoveredTrackChangedDelegate; }
 	virtual Insights::FHoveredEventChangedDelegate& OnHoveredEventChanged() override { return OnHoveredEventChangedDelegate; }
 	virtual Insights::FSelectedTrackChangedDelegate& OnSelectedTrackChanged() override { return OnSelectedTrackChangedDelegate; }
@@ -701,6 +702,7 @@ protected:
 
 	Insights::FSelectionChangedDelegate OnSelectionChangedDelegate;
 	Insights::FTimeMarkerChangedDelegate OnTimeMarkerChangedDelegate;
+	Insights::FCustomTimeMarkerChangedDelegate OnCustomTimeMarkerChangedDelegate;
 	Insights::FHoveredTrackChangedDelegate OnHoveredTrackChangedDelegate;
 	Insights::FHoveredEventChangedDelegate OnHoveredEventChangedDelegate;
 	Insights::FSelectedTrackChangedDelegate OnSelectedTrackChangedDelegate;

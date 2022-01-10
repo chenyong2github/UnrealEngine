@@ -427,6 +427,7 @@ void STimingView::Reset(bool bIsFirstReset)
 	bIsSelecting = false;
 	SelectionStartTime = 0.0;
 	SelectionEndTime = 0.0;
+	RaiseSelectionChanged();
 
 	if (HoveredTrack.IsValid())
 	{
@@ -685,7 +686,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 			: TimingView(InTimingView)
 			, Geometry(InGeometry)
 			, CurrentTime(InCurrentTime)
-			, DeltaTime(InDeltaTime)		
+			, DeltaTime(InDeltaTime)
 		{}
 
 		virtual const FGeometry& GetGeometry() const override { return Geometry; }
@@ -2860,7 +2861,7 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 		bHasAnyActions |= Extender->ExtendGlobalContextMenu(*this, MenuBuilder);
 	}
 
-	if(!bHasAnyActions)
+	if (!bHasAnyActions)
 	{
 		MenuBuilder.BeginSection(TEXT("Empty"));
 		{
@@ -3358,13 +3359,6 @@ void STimingView::RaiseSelectionChanging()
 void STimingView::RaiseSelectionChanged()
 {
 	OnSelectionChangedDelegate.Broadcast(Insights::ETimeChangedFlags::None, SelectionStartTime, SelectionEndTime);
-
-	FTimingProfilerManager::Get()->SetSelectedTimeRange(SelectionStartTime, SelectionEndTime);
-
-	if (SelectionStartTime < SelectionEndTime)
-	{
-		UpdateAggregatedStats();
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3376,6 +3370,7 @@ void STimingView::RaiseTimeMarkerChanging(TSharedRef<Insights::FTimeMarker> InTi
 		const double Time = DefaultTimeMarker->GetTime();
 		OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::Interactive, Time);
 	}
+	OnCustomTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::Interactive, InTimeMarker);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3387,6 +3382,7 @@ void STimingView::RaiseTimeMarkerChanged(TSharedRef<Insights::FTimeMarker> InTim
 		const double Time = DefaultTimeMarker->GetTime();
 		OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::None, Time);
 	}
+	OnCustomTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::None, InTimeMarker);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3414,20 +3410,6 @@ void STimingView::AddOverlayWidget(const TSharedRef<SWidget>& InWidget)
 		[
 			InWidget
 		];
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::UpdateAggregatedStats()
-{
-	if (bAssetLoadingMode)
-	{
-		TSharedPtr<SLoadingProfilerWindow> LoadingProfilerWnd = FLoadingProfilerManager::Get()->GetProfilerWindow();
-		if (LoadingProfilerWnd.IsValid())
-		{
-			LoadingProfilerWnd->UpdateTableTreeViews();
-		}
 	}
 }
 
@@ -4869,13 +4851,8 @@ void STimingView::OnTrackVisibilityChanged()
 	}
 	Tooltip.SetDesiredOpacity(0.0f);
 
-	//TODO: ThreadFilterChangedEvent.Broadcast();
+	//TODO: TrackVisibilityChangedEvent.Broadcast();
 	FTimingProfilerManager::Get()->OnThreadFilterChanged();
-
-	if (SelectionStartTime < SelectionEndTime)
-	{
-		UpdateAggregatedStats();
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

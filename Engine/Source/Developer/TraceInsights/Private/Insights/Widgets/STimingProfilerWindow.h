@@ -14,7 +14,7 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
-#include "Insights/IUnrealInsightsModule.h"
+#include "Insights/ITimingViewSession.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -154,6 +154,8 @@ private:
 	 * @return A reply that indicated whether this event was handled.
 	 */
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
+
+	void OnTimeSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime);
 
 private:
 	/** The Frame track widget */

@@ -199,6 +199,10 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 		];
 
 	TimingView->Reset(true);
+	TimingView->OnSelectionChanged().AddSP(this, &STimingProfilerWindow::OnTimeSelectionChanged);
+	const double SelectionStartTime = FTimingProfilerManager::Get()->GetSelectionStartTime();
+	const double SelectionEndTime = FTimingProfilerManager::Get()->GetSelectionEndTime();
+	TimingView->SelectTimeInterval(SelectionStartTime, SelectionEndTime - SelectionStartTime);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnTimingViewTabClosed));
 
@@ -211,7 +215,11 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void STimingProfilerWindow::OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
 	FTimingProfilerManager::Get()->SetTimingViewVisible(false);
-	TimingView = nullptr;
+	if (TimingView)
+	{
+		TimingView->OnSelectionChanged().RemoveAll(this);
+		TimingView = nullptr;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -728,6 +736,16 @@ FReply STimingProfilerWindow::OnDrop(const FGeometry& MyGeometry, const FDragDro
 	}
 
 	return SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingProfilerWindow::OnTimeSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime)
+{
+	if (InFlags != Insights::ETimeChangedFlags::Interactive)
+	{
+		FTimingProfilerManager::Get()->SetSelectedTimeRange(InStartTime, InEndTime);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

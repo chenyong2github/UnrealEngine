@@ -14,6 +14,7 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/ITimingViewSession.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -169,6 +170,8 @@ private:
 	 */
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
 
+	void OnTimeSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime);
+
 private:
 	/** The Timing view (multi-track) widget */
 	TSharedPtr<STimingView> TimingView;
@@ -196,4 +199,7 @@ private:
 
 	/** The number of seconds the profiler has been active */
 	float DurationActive;
+
+	double SelectionStartTime;
+	double SelectionEndTime;
 };
