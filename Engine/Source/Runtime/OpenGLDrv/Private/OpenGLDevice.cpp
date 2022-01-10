@@ -494,6 +494,7 @@ static inline void SetupTextureFormat( EPixelFormat Format, const FOpenGLTexture
 {
 	GOpenGLTextureFormats[Format] = GLFormat;
 	GPixelFormats[Format].Supported = (GLFormat.Format != GL_NONE && (GLFormat.InternalFormat[0] != GL_NONE || GLFormat.InternalFormat[1] != GL_NONE));
+	GPixelFormats[Format].PlatformFormat = GLFormat.InternalFormat[0];
 }
 
 

@@ -62,6 +62,9 @@ FOpenXRRenderBridge* CreateRenderBridge_D3D11(XrInstance InInstance, XrSystemId 
 #ifdef XR_USE_GRAPHICS_API_D3D12
 FOpenXRRenderBridge* CreateRenderBridge_D3D12(XrInstance InInstance, XrSystemId InSystem);
 #endif
+#ifdef XR_USE_GRAPHICS_API_OPENGL_ES
+FOpenXRRenderBridge* CreateRenderBridge_OpenGLES(XrInstance InInstance, XrSystemId InSystem);
+#endif
 #ifdef XR_USE_GRAPHICS_API_OPENGL
 FOpenXRRenderBridge* CreateRenderBridge_OpenGL(XrInstance InInstance, XrSystemId InSystem);
 #endif

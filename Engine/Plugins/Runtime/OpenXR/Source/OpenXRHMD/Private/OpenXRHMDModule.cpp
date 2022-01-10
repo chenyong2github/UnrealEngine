@@ -272,20 +272,19 @@ bool FOpenXRHMDModule::InitRenderBridge()
 	}
 	else
 #endif
-#ifdef XR_USE_GRAPHICS_API_OPENGL
-	#if PLATFORM_ANDROID
+#if defined(XR_USE_GRAPHICS_API_OPENGL_ES) && defined(XR_USE_PLATFORM_ANDROID)
 	if (RHIString == TEXT("OpenGL") && IsExtensionEnabled(XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME))
 	{
 		RenderBridge = CreateRenderBridge_OpenGLES(Instance, System);
 	}
 	else
-	#else
+#endif
+#ifdef XR_USE_GRAPHICS_API_OPENGL
 	if (RHIString == TEXT("OpenGL") && IsExtensionEnabled(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME))
 	{
 		RenderBridge = CreateRenderBridge_OpenGL(Instance, System);
 	}
 	else
-	#endif
 #endif
 #ifdef XR_USE_GRAPHICS_API_VULKAN
 	if (RHIString == TEXT("Vulkan") && IsExtensionEnabled(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
