@@ -24,6 +24,7 @@ namespace Chaos
 		, Re(SetupIn->WheelRadius)
 		, Omega(0.f)
 		, Sx(0.f)
+		, Inertia(0.5f * SetupIn->WheelMass * SetupIn->WheelRadius * SetupIn->WheelRadius)
 		, DriveTorque(0.f)
 		, BrakeTorque(0.f)
 		, ForceIntoSurface(0.f)
@@ -169,6 +170,12 @@ namespace Chaos
 				}
 			}
 		}
+		else
+		{
+			SlipOmega = DriveTorque / Inertia * DeltaTime;
+			SlipOmega = FMath::Clamp(SlipOmega, -Setup().MaxSpinRotation, Setup().MaxSpinRotation);
+		}
+
 
 		if (WheelLocked)
 		{

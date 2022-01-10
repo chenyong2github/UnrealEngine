@@ -191,7 +191,7 @@ public:
 	}
 
 	/** Set the vehicle's speed at the wheels location in local wheel coords */
-	void SetVehicleGroundSpeed(FVector& VIn)
+	void SetVehicleGroundSpeed(const FVector& VIn)
 	{
 		GroundVelocityVector = VIn;
 	}
@@ -402,6 +402,7 @@ public:
 	float Re;		// [cm] Effective Wheel Radius could change dynamically if get a flat?, tire shreds
 	float Omega;	// [radians/sec] Wheel Rotation Angular Velocity
 	float Sx;
+	float Inertia;
 	// In
 	float DriveTorque;				// [N.m]
 	float BrakeTorque;				// [N.m]
