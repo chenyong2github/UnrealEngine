@@ -416,7 +416,8 @@ namespace DatasmithRuntime
 
 		for ( const FRawInfo::FStreamInfo& StreamInfo : RawInfo.StreamsInfo)
 		{
-			if (!StreamInfo.bIsActive)
+			if (!(StreamInfo.ConnectionState == DirectLink::EStreamConnectionState::Active 
+				|| StreamInfo.ConnectionState == DirectLink::EStreamConnectionState::RequestSent))
 			{
 				continue;
 			}

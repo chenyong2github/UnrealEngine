@@ -421,7 +421,9 @@ void SDirectLinkStreamManager::UpdateData(const DirectLink::FRawInfo& RawInfo)
 	for ( const FRawInfo::FStreamInfo& StreamInfo : RawInfo.StreamsInfo )
 	{
 		TSharedPtr<FDestinationData> DestinationData;
-		if ( StreamInfo.bIsActive )
+		const bool bIsActive = StreamInfo.ConnectionState == EStreamConnectionState::Active;
+
+		if ( bIsActive )
 		{
 			if ( DestinationsMap.Contains( StreamInfo.Destination ) )
 			{
@@ -436,18 +438,18 @@ void SDirectLinkStreamManager::UpdateData(const DirectLink::FRawInfo& RawInfo)
 			TSharedRef<FStreamData>& StreamData = *StreamDataPtr;
 
 			// Made with the assumption that the source and destionation data can't change
-			if ( StreamData->bIsActive != StreamInfo.bIsActive )
+			if ( StreamData->bIsActive != bIsActive )
 			{
-				StreamData->bIsActive = StreamInfo.bIsActive;
+				StreamData->bIsActive = bIsActive;
 				bDirtyStreamList = true;
 			}
 		}
-		else if ( StreamInfo.bIsActive )
+		else if ( bIsActive )
 		{
 			TSharedRef<FSourceData>* SourceData = SourcesMap.Find( StreamInfo.Source );
 			if ( DestinationData.IsValid() && SourceData != nullptr )
 			{
-				TSharedRef<FStreamData> StreamData = MakeShared<FStreamData>( StreamInfo.bIsActive, *SourceData, DestinationData.ToSharedRef() );
+				TSharedRef<FStreamData> StreamData = MakeShared<FStreamData>( bIsActive, *SourceData, DestinationData.ToSharedRef() );
 				StreamMap.AddByHash( StreamIdHash, StreamId, StreamData );
 				bDirtyStreamList = true;
 			}

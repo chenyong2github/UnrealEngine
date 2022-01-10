@@ -14,14 +14,6 @@ namespace DirectLink
 
 struct FStreamDescription
 {
-	enum class EConnectionState
-	{
-		Uninitialized,
-		RequestSent,
-		Active,
-		Closed,
-	};
-
 	bool bThisIsSource = false;
 
 	FGuid SourcePoint;
@@ -29,7 +21,7 @@ struct FStreamDescription
 	FStreamPort LocalStreamPort = 0; // works like an Id within that endpoint
 	FMessageAddress RemoteAddress;
 	FStreamPort RemoteStreamPort = 0;
-	EConnectionState Status = EConnectionState::Uninitialized;
+	EStreamConnectionState Status = EStreamConnectionState::Uninitialized;
 
 	TUniquePtr<IStreamReceiver> Receiver;
 	TSharedPtr<IStreamSender> Sender;

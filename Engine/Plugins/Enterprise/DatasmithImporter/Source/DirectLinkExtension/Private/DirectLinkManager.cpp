@@ -24,10 +24,20 @@ DEFINE_LOG_CATEGORY(LogDirectLinkManager);
 
 namespace UE::DatasmithImporter
 {
+	FDirectLinkAutoReconnectManager::FDirectLinkAutoReconnectManager(FDirectLinkManager& InManager)
+		: Manager(InManager)
+		, bShouldRun(true)
+	{
+		if (const UDirectLinkExtensionSettings* DefaultSettings = GetDefault<UDirectLinkExtensionSettings>())
+		{
+			bAutoReconnectEnabled = DefaultSettings->bAutoReconnect;
+			ReconnectionDelayInSeconds = DefaultSettings->ReconnectionDelayInSeconds;
+		}
+	}
+
 	bool FDirectLinkAutoReconnectManager::Start()
 	{
-		if (GetDefault<UDirectLinkExtensionSettings>()->bAutoReconnect
-			&& (!CompletedFuture.IsValid() || CompletedFuture.IsReady()))
+		if (bAutoReconnectEnabled && (!CompletedFuture.IsValid() || CompletedFuture.IsReady()))
 		{
 			bShouldRun = true;
 			CompletedFuture = Async(EAsyncExecution::ThreadPool, [this]() {	Run(); });
@@ -47,7 +57,6 @@ namespace UE::DatasmithImporter
 	{
 		const float CurrentTime = FPlatformTime::Seconds();
 		const float TimeSinceLastTry = CurrentTime - LastTryTime;
-		const float ReconnectionDelayInSeconds = GetDefault<UDirectLinkExtensionSettings>()->ReconnectionDelayInSeconds;
 
 		if (TimeSinceLastTry < ReconnectionDelayInSeconds)
 		{
@@ -263,7 +272,8 @@ namespace UE::DatasmithImporter
 		TSet<DirectLink::FDestinationHandle> ActiveStreamsSources;
 		for (const DirectLink::FRawInfo::FStreamInfo& StreamInfo : RawInfoCache.StreamsInfo)
 		{
-			if (!StreamInfo.bIsActive)
+			if (!(StreamInfo.ConnectionState == DirectLink::EStreamConnectionState::Active
+				|| StreamInfo.ConnectionState == DirectLink::EStreamConnectionState::RequestSent))
 			{
 				continue;
 			}
@@ -325,7 +335,7 @@ namespace UE::DatasmithImporter
 				// We can infer that a DirectLink source is empty (no scene synced) by looking at if its stream is planning to send any data.
 				// #ueent_todo: Ideally it would be better to not allow an AsyncLoad to take place in the first time, but we can't know a source is empty 
 				//				before actually connecting to it, so this is the best we can do at the current time.
-				const bool bStreamIsEmpty = StreamInfo.bIsActive
+				const bool bStreamIsEmpty = StreamInfo.ConnectionState == DirectLink::EStreamConnectionState::Active
 					&& !StreamInfo.CommunicationStatus.IsTransmitting()
 					&& StreamInfo.CommunicationStatus.TaskTotal == 0;
 

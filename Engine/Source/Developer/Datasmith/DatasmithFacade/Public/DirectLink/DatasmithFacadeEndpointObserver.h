@@ -91,7 +91,7 @@ struct DATASMITHFACADE_API FDatasmithFacadeRawInfo
 		uint32 GetStreamId() const { return StreamInfo.StreamId; }
 		FGuid GetSource() const { return StreamInfo.Source; }
 		FGuid GetDestination() const { return StreamInfo.Destination; }
-		bool IsActive() const { return StreamInfo.bIsActive; }
+		bool IsActive() const { return StreamInfo.ConnectionState == DirectLink::EStreamConnectionState::Active; }
 
 #ifdef SWIG_FACADE
 	private:
