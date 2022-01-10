@@ -2024,7 +2024,7 @@ void FBlueprintEditor::ImportNamespace(const FString& InNamespace)
 		if (UBlueprint* BlueprintObj = Cast<UBlueprint>(EditingObj))
 		{
 			// Add it into the Blueprint's user-facing import set.
-			if (!BlueprintObj->ImportedNamespaces.Contains(InNamespace))
+			if (BlueprintObj->BlueprintNamespace != InNamespace && !BlueprintObj->ImportedNamespaces.Contains(InNamespace))
 			{
 				BlueprintObj->Modify();
 				BlueprintObj->ImportedNamespaces.Add(InNamespace);

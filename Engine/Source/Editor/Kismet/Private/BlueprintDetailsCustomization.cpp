@@ -65,6 +65,7 @@
 #include "BlueprintNamespaceHelper.h"
 #include "BlueprintNamespaceRegistry.h"
 #include "BlueprintNamespaceUtilities.h"
+#include "SBlueprintNamespaceEntry.h"
 #include "Widgets/Input/SSuggestionTextBox.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 
@@ -5678,25 +5679,15 @@ FBlueprintImportsLayout::FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobal
 
 TSharedPtr<SWidget> FBlueprintImportsLayout::MakeAddItemRowWidget()
 {
-	return SNew(SHorizontalBox)
-	+ SHorizontalBox::Slot()
-	.FillWidth(1.0f)
-	[
-		SAssignNew(ImportEntryTextBox, SSuggestionTextBox)
-		.MinDesiredWidth(200.0f)
-		.Font(IDetailLayoutBuilder::GetDetailFont())
-		.OnTextCommitted(this, &FBlueprintImportsLayout::HandleImportEntryTextCommitted)
-		.OnShowingSuggestions(this, &FBlueprintImportsLayout::OnShowingImportSuggestions)
-	]
-	+ SHorizontalBox::Slot()
-	.AutoWidth()
-	.Padding(4.0f, 0.0f)
-	[
-		SNew(SButton)
-		.Text(LOCTEXT("BlueprintAddImportButtonText", "Add"))
-		.IsEnabled(this, &FBlueprintImportsLayout::IsAddImportEntryButtonEnabled)
-		.OnClicked(this, &FBlueprintImportsLayout::OnAddImportEntryButtonClicked)
-	];
+	return SNew(SBlueprintNamespaceEntry)
+		.AllowTextEntry(false)
+		.OnNamespaceSelected(this, &FBlueprintImportsLayout::OnNamespaceSelected)
+		.OnFilterNamespaceList(this, &FBlueprintImportsLayout::OnFilterNamespaceList)
+		.ButtonContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("BlueprintAddImportButton", "Add"))
+		];
 }
 
 void FBlueprintImportsLayout::GetManagedListItems(TArray<FManagedListItem>& OutListItems) const
@@ -5737,29 +5728,16 @@ void FBlueprintImportsLayout::OnRemoveItem(const FManagedListItem& Item)
 	OnRefreshInDetailsView();
 }
 
-bool FBlueprintImportsLayout::IsAddImportEntryButtonEnabled() const
-{
-	FString CurrentEntryAsString = ImportEntryTextBox->GetText().ToString();
-	return FBlueprintNamespaceRegistry::Get().IsRegisteredPath(CurrentEntryAsString);
-}
-
-FReply FBlueprintImportsLayout::OnAddImportEntryButtonClicked()
-{
-	HandleImportEntryTextCommitted(ImportEntryTextBox->GetText(), ETextCommit::OnEnter);
-	return FReply::Handled();
-}
-
-void FBlueprintImportsLayout::HandleImportEntryTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType)
+void FBlueprintImportsLayout::OnNamespaceSelected(const FString& InNamespace)
 {
 	bool bWasAdded = false;
-	const FString& Namespace = NewLabel.ToString();
 
 	// Add to the blueprint's list of imports.
-	if (!Namespace.IsEmpty())
+	if (!InNamespace.IsEmpty())
 	{
 		UBlueprint* Blueprint = GetBlueprintObjectChecked();
 
-		if (FBlueprintEditorUtils::AddNamespaceToImportList(Blueprint, Namespace))
+		if (FBlueprintEditorUtils::AddNamespaceToImportList(Blueprint, InNamespace))
 		{
 			bWasAdded = true;
 		}
@@ -5775,50 +5753,18 @@ void FBlueprintImportsLayout::HandleImportEntryTextCommitted(const FText& NewLab
 		TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
 		if (BlueprintEditorPtr.IsValid())
 		{
-			BlueprintEditorPtr->ImportNamespace(Namespace);
+			BlueprintEditorPtr->ImportNamespace(InNamespace);
 		}
 	}
 }
 
-void FBlueprintImportsLayout::OnShowingImportSuggestions(const FString& InputText, TArray<FString>& OutSuggestions)
+void FBlueprintImportsLayout::OnFilterNamespaceList(TArray<FString>& InOutNamespaceList)
 {
-	int32 PathEnd;
-	FString CurrentPath;
-	FString CurrentName;
-	if (InputText.FindLastChar(TEXT('.'), PathEnd))
+	const UBlueprint* Blueprint = GetBlueprintObjectChecked();
+	InOutNamespaceList.RemoveSwap(Blueprint->BlueprintNamespace);
+	for (const FString& ImportedNamespace : Blueprint->ImportedNamespaces)
 	{
-		CurrentPath = InputText.LeftChop(InputText.Len() - PathEnd);
-		CurrentName = InputText.RightChop(PathEnd + 1);
-	}
-	else
-	{
-		CurrentName = InputText;
-	}
-
-	TArray<FName> SuggestedNames;
-	FBlueprintNamespaceRegistry::Get().GetNamesUnderPath(CurrentPath, SuggestedNames);
-
-	Algo::Sort(SuggestedNames, FNameLexicalLess());
-
-	TStringBuilder<128> PathBuilder;
-	UBlueprint* Blueprint = GetBlueprintObjectChecked();
-	for (FName SuggestedName : SuggestedNames)
-	{
-		FString SuggestedNameAsString = SuggestedName.ToString();
-		if (CurrentName.IsEmpty() || SuggestedNameAsString.StartsWith(CurrentName))
-		{
-			PathBuilder += CurrentPath;
-			PathBuilder += TEXT(".");
-			PathBuilder += SuggestedNameAsString;
-			
-			FString SuggestedNamespace = PathBuilder.ToString();
-			if (!Blueprint->ImportedNamespaces.Contains(SuggestedNamespace))
-			{
-				OutSuggestions.Add(SuggestedNamespace);
-			}
-
-			PathBuilder.Reset();
-		}
+		InOutNamespaceList.RemoveSwap(ImportedNamespace);
 	}
 }
 
@@ -5975,6 +5921,9 @@ TSharedRef<SWidget> FBlueprintInterfaceLayout::OnGetAddInterfaceMenuContent()
 		];
 }
 
+// Double the size of the default details view width for string values, which is otherwise too narrow since the customization adds a combo button.
+float FBlueprintGlobalOptionsDetails::NamespacePropertyValueCustomization_MinDesiredWidth = 250.0f;
+
 UBlueprint* FBlueprintGlobalOptionsDetails::GetBlueprintObj() const
 {
 	if(BlueprintEditorPtr.IsValid())
@@ -6070,6 +6019,46 @@ FText FBlueprintGlobalOptionsDetails::GetDeprecatedTooltip() const
 	}
 	
 	return LOCTEXT("DisabledDeprecateBlueprintTooltip", "This Blueprint is deprecated because of a parent, it is not possible to remove deprecation from it!");
+}
+
+void FBlueprintGlobalOptionsDetails::OnNamespaceValueCommitted(const FString& InNamespace)
+{
+	if (UBlueprint* Blueprint = GetBlueprintObj())
+	{
+		// Skip if the value has not been changed.
+		if (Blueprint->BlueprintNamespace == InNamespace)
+		{
+			return;
+		}
+
+		FProperty* NamespaceProperty = UBlueprint::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBlueprint, BlueprintNamespace));
+		check(NamespaceProperty);
+
+		// Notify that the property is about to change.
+		Blueprint->PreEditChange(NamespaceProperty);
+
+		// Update the Blueprint's current namespace value.
+		Blueprint->BlueprintNamespace = InNamespace;
+		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+
+		// Call PostEditChange() to alert others to the value change.
+		FPropertyChangedEvent PropertyChangedEvent(NamespaceProperty, EPropertyChangeType::ValueSet);
+		Blueprint->PostEditChangeProperty(PropertyChangedEvent);
+
+		// Ensure that the new path is added into the namespace registry.
+		// @todo_namespaces - Find and remove old path if no longer in use.
+		FBlueprintNamespaceRegistry::Get().RegisterNamespace(InNamespace);
+
+		if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+		{
+			// Auto-import the namespace into the current editor context.
+			TSharedPtr<FBlueprintEditor> BlueprintEditor = GetBlueprintEditorPtr().Pin();
+			if (BlueprintEditor.IsValid())
+			{
+				BlueprintEditor->ImportNamespace(InNamespace);
+			}
+		}
+	}
 }
 
 void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
@@ -6182,6 +6171,23 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 					.ToolTipText( this, &FBlueprintGlobalOptionsDetails::GetDeprecatedTooltip )
 				];
 		}
+
+		static FName BlueprintNamespacePropertyName = GET_MEMBER_NAME_CHECKED(UBlueprint, BlueprintNamespace);
+		TSharedRef<IPropertyHandle> NamespacePropertyHandle = DetailLayout.GetProperty(BlueprintNamespacePropertyName);
+		DetailLayout.EditDefaultProperty(NamespacePropertyHandle)->CustomWidget()
+			.NameContent()
+			[
+				NamespacePropertyHandle->CreatePropertyNameWidget()
+			]
+			.ValueContent()
+			.MinDesiredWidth(NamespacePropertyValueCustomization_MinDesiredWidth)
+			[
+				SNew(SBlueprintNamespaceEntry)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.AllowTextEntry(true)
+				.CurrentNamespace(Blueprint->BlueprintNamespace)
+				.OnNamespaceSelected(this, &FBlueprintGlobalOptionsDetails::OnNamespaceValueCommitted)
+			];
 	}
 }
 
