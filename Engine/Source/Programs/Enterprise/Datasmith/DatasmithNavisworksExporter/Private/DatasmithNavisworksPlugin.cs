@@ -667,6 +667,12 @@ namespace DatasmithNavisworks
 					return -1;
 				}
 
+				if (ActiveDocument.IsClear)
+				{
+					DisplayWarning("Opened document is required for Datasmith Export");
+					return -1;
+				}
+
 				ExportParameters ExportParameters = ParseParameters(Parameters, out string FilePath);
 
 				// todo: just check for FilePath existence/null/empty?
