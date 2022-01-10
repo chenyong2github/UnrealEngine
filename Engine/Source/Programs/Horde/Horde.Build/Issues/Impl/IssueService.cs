@@ -543,6 +543,8 @@ namespace HordeServer.Services.Impl
 			Scope.Span.SetTag("BatchId", BatchId.ToString());
 			Scope.Span.SetTag("StepId", StepId.ToString());
 
+			Logger.LogInformation("Updating issues for {JobId}:{BatchId}:{StepId}", Job.Id, BatchId, StepId);
+
 			IStream? Stream = await Streams.GetStreamAsync(Job.StreamId);
 			if (Stream == null)
 			{
