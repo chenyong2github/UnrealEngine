@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "Online/CoreOnline.h"
 #include "Online/OnlineAsyncOpHandle.h"
-#include "Online/OnlineId.h"
 #include "Online/OnlineMeta.h"
 
 namespace UE::Online {

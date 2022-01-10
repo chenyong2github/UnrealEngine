@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Online/OnlineId.h"
+#include "Online/CoreOnline.h"
 
 #include "Misc/LazySingleton.h"
 
@@ -54,5 +54,31 @@ FString ToLogString(const FOnlineAccountIdHandle& Id)
 	return Result;
 }
 
+}	/* UE::Online */
 
-/* UE::Online */ }
+FString FUniqueNetIdWrapper::ToDebugString() const
+{
+	FString Result;
+	if (IsValid())
+	{
+		if (Variant.IsType<FUniqueNetIdPtr>())
+		{
+			const FUniqueNetIdPtr& Ptr = Variant.Get<FUniqueNetIdPtr>();
+			Result = FString::Printf(TEXT("%s:%s"), *Ptr->GetType().ToString(), *Ptr->ToDebugString());
+		}
+		else if (Variant.IsType<UE::Online::FOnlineAccountIdHandle>())
+		{
+			const UE::Online::FOnlineAccountIdHandle& Handle = Variant.Get<UE::Online::FOnlineAccountIdHandle>();
+			Result = ToLogString(Handle);
+		}
+		else
+		{
+			checkNoEntry();
+		}
+	}
+	else
+	{
+		Result = TEXT("INVALID");
+	}
+	return Result;
+}

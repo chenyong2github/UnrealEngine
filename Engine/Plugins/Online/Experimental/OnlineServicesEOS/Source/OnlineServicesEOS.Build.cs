@@ -17,6 +17,7 @@ public class OnlineServicesEOS : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"CoreOnline",
 				"EOSSDK",
 				"EOSShared",
 			}

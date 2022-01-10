@@ -54,6 +54,7 @@ public class OnlineSubsystemUtils : ModuleRules
 			new string[]
 			{
 				"Core",
+				"CoreOnline",
 				"CoreUObject",
 				"NetCore"
 			}
