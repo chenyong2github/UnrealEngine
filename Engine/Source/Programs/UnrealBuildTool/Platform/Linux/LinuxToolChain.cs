@@ -58,6 +58,11 @@ namespace UnrealBuildTool
 		/// When we support larger the 4GB files with objcopy.exe this can be removed!
 		/// </summary>
 		DisableSplitDebugInfoWithObjCopy = 0x40,
+
+		/// <summary>
+		/// Enable tuning of debug info for LLDB
+		/// </summary>
+		TuneDebugInfoForLLDB = 0x80,
 	}
 
 	class LinuxToolChain : ISPCToolChain
@@ -694,6 +699,11 @@ namespace UnrealBuildTool
 					// Generate .debug_pubnames and .debug_pubtypes sections in a format suitable for conversion into a
 					// GDB index. This option is only useful with a linker that can produce GDB index version 7.
 					Result += " -ggnu-pubnames";
+				}
+
+				if (Options.HasFlag(LinuxToolChainOptions.TuneDebugInfoForLLDB))
+				{
+					Result += " -glldb";
 				}
 			}
 

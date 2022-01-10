@@ -70,6 +70,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/LinuxPlatform.LinuxTargetSettings")]
 		public bool bPreservePSYM = false;
+
+		/// <summary>
+		/// Turns on tuning of debug info for LLDB
+		/// </summary>
+		[CommandLine("-EnableLLDB")]
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bTuneDebugInfoForLLDB")]
+		public bool bTuneDebugInfoForLLDB = false;
 	}
 
 	/// <summary>
@@ -117,6 +124,11 @@ namespace UnrealBuildTool
 		public bool bEnableMemorySanitizer
 		{
 			get { return Inner.bEnableMemorySanitizer; }
+		}
+
+		public bool bTuneDebugInfoForLLDB
+		{
+			get { return Inner.bTuneDebugInfoForLLDB; }
 		}
 
 		#pragma warning restore CS1591
@@ -569,6 +581,11 @@ namespace UnrealBuildTool
 				(Target.Type == TargetType.Editor))
 			{
 				Options |= LinuxToolChainOptions.DisableSplitDebugInfoWithObjCopy;
+			}
+
+			if (Target.LinuxPlatform.bTuneDebugInfoForLLDB)
+			{
+				Options |= LinuxToolChainOptions.TuneDebugInfoForLLDB;
 			}
 
 			// Disable color logging if we are on a build machine
