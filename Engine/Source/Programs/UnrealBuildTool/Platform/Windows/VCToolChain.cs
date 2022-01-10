@@ -967,7 +967,7 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if (LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+			if (LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows) || LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.HoloLens))
 			{
 				Arguments.Add(string.Format("/MACHINE:{0}", WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)));
 
@@ -1100,7 +1100,7 @@ namespace UnrealBuildTool
 			Arguments.Add("/ignore:4099");      // warning LNK4099: PDB '<file>' was not found with '<file>'
 		}
 
-		void AppendLibArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
+		protected virtual void AppendLibArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
 			// Prevents the linker from displaying its logo for each invocation.
 			Arguments.Add("/NOLOGO");
@@ -1111,7 +1111,7 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if (LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+			if (LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows) || LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.HoloLens))
 			{
 				Arguments.Add(string.Format("/MACHINE:{0}", WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)));
 
@@ -1304,6 +1304,32 @@ namespace UnrealBuildTool
 				if (!String.IsNullOrEmpty(CompileEnvironment.AdditionalArguments))
 				{
 					CompileAction.Arguments.Add(CompileEnvironment.AdditionalArguments);
+				}
+
+				if (CompileEnvironment.Platform.IsInGroup(UnrealPlatformGroup.HoloLens) && Target.HoloLensPlatform.bRunNativeCodeAnalysis)
+				{
+					// Add the analysis log to the produced item list.
+					FileItem AnalysisLogFile = FileItem.GetItemByFileReference(
+						FileReference.Combine(
+							OutputDir,
+							Path.GetFileName(SourceFile.AbsolutePath) + ".nativecodeanalysis.xml"
+							)
+						); ;
+					CompileAction.AdditionalProducedItems.Add(AnalysisLogFile);
+					// Peform code analysis with results in a log file
+					CompileAction.Arguments.AddFormat("/analyze:log \"{0}\"", AnalysisLogFile.AbsolutePath);
+					// Suppress code analysis output
+					CompileAction.Arguments.Add("/analyze:quiet");
+					string? rulesetFile = Target.HoloLensPlatform.NativeCodeAnalysisRuleset;
+					if (!String.IsNullOrEmpty(rulesetFile))
+					{
+						if (!Path.IsPathRooted(rulesetFile))
+						{
+							rulesetFile = FileReference.Combine(Target.ProjectFile!.Directory, rulesetFile).FullName;
+						}
+						// A non default ruleset was specified
+						CompileAction.Arguments.AddFormat("/analyze:ruleset \"{0}\"", rulesetFile);
+					}
 				}
 
 				if (SourceFile.HasExtension(".ixx"))
