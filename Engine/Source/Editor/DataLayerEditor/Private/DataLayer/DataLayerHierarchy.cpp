@@ -202,68 +202,51 @@ void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItem
 	}
 }
 
-FSceneOutlinerTreeItemPtr FDataLayerHierarchy::FindParent(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items) const
+FSceneOutlinerTreeItemPtr FDataLayerHierarchy::FindOrCreateParentItem(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, bool bCreate)
 {
 	if (const FDataLayerTreeItem* DataLayerTreeItem = Item.CastTo<FDataLayerTreeItem>())
 	{
-		if (const UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer())
+		if (UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer())
 		{
-			if (const UDataLayer* ParentDataLayer = DataLayer->GetParent())
+			if (UDataLayer* ParentDataLayer = DataLayer->GetParent())
 			{
 				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentDataLayer))
 				{
 					return *ParentItem;
+				}
+				else if (bCreate)
+				{
+					return CreateDataLayerTreeItem(ParentDataLayer, true);
 				}
 			}
 		}
 	}
 	else if (const FDataLayerActorTreeItem* DataLayerActorTreeItem = Item.CastTo<FDataLayerActorTreeItem>())
 	{
-		if (const UDataLayer* DataLayer = DataLayerActorTreeItem->GetDataLayer())
+		if (UDataLayer* DataLayer = DataLayerActorTreeItem->GetDataLayer())
 		{
 			if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(DataLayer))
 			{
 				return *ParentItem;
+			}
+			else if (bCreate)
+			{
+				return CreateDataLayerTreeItem(DataLayer, true);
 			}
 		}
 	}
 	else if (const FDataLayerActorDescTreeItem* DataLayerActorDescTreeItem = Item.CastTo<FDataLayerActorDescTreeItem>())
 	{
-		if (const UDataLayer* DataLayer = DataLayerActorDescTreeItem->GetDataLayer())
+		if (UDataLayer* DataLayer = DataLayerActorDescTreeItem->GetDataLayer())
 		{
 			if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(DataLayer))
 			{
 				return *ParentItem;
 			}
-		}
-	}
-	return nullptr;
-}
-
-FSceneOutlinerTreeItemPtr FDataLayerHierarchy::CreateParentItem(const FSceneOutlinerTreeItemPtr& Item) const
-{
-	if (FDataLayerTreeItem* DataLayerTreeItem = Item->CastTo<FDataLayerTreeItem>())
-	{
-		if (UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer())
-		{
-			if (UDataLayer* ParentDataLayer = DataLayer->GetParent())
+			else if (bCreate)
 			{
-				return CreateDataLayerTreeItem(ParentDataLayer, true);
+				return CreateDataLayerTreeItem(DataLayer, true);
 			}
-		}
-	}
-	else if (FDataLayerActorTreeItem* DataLayerActorTreeItem = Item->CastTo<FDataLayerActorTreeItem>())
-	{
-		if (UDataLayer* DataLayer = DataLayerActorTreeItem->GetDataLayer())
-		{
-			return CreateDataLayerTreeItem(DataLayer, true);
-		}
-	}
-	else if (FDataLayerActorDescTreeItem* DataLayerActorDescTreeItem = Item->CastTo<FDataLayerActorDescTreeItem>())
-	{
-		if (UDataLayer* DataLayer = DataLayerActorDescTreeItem->GetDataLayer())
-		{
-			return CreateDataLayerTreeItem(DataLayer, true);
 		}
 	}
 	return nullptr;

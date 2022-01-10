@@ -37,9 +37,8 @@ public:
 	{
 	}
 
-	const UDataLayer* GetDataLayer() const { return DataLayer.Get(); }
-	UDataLayer* GetDataLayer() { return DataLayer.Get(); }
-
+	UDataLayer* GetDataLayer() const { return DataLayer.Get(); }
+	
 	const AActor* GetActor() const { return Actor.Get(); }
 	AActor* GetActor() { return Actor.Get(); }
 
