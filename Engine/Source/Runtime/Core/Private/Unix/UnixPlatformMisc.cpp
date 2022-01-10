@@ -121,6 +121,7 @@ void UnixPlatform_UpdateCacheLineSize()
 // Defined in UnixPlatformMemory
 extern bool GUseKSM;
 extern bool GKSMMergeAllPages;
+extern uint64 GCrashHandlerStackSize;
 
 static void UnixPlatForm_CheckIfKSMUsable()
 {
@@ -282,6 +283,7 @@ void FUnixPlatformMisc::PlatformInit()
 	UE_LOG(LogInit, Log, TEXT(" -ksmmergeall - marks all mmap'd memory pages suitable for KSM (%s)"), GKSMMergeAllPages ? TEXT("ON") : TEXT("OFF"));
 	UE_LOG(LogInit, Log, TEXT(" -preloadmodulesymbols - Loads the main module symbols file into memory (%s)"), bPreloadedModuleSymbolFile ? TEXT("ON") : TEXT("OFF"));
 	UE_LOG(LogInit, Log, TEXT(" -sigdfl=SIGNAL - Allows a specific signal to be set to its default handler rather then ignoring the signal"));
+	UE_LOG(LogInit, Log, TEXT(" -crashhandlerstacksize - Allows setting crash handler stack sizes (%lu)"), GCrashHandlerStackSize);
 	UE_LOG(LogInit, Log, TEXT(" -noexclusivelockonwrite - disables marking files created by the engine as exclusive locked while the engine has them opened"));
 
 	// [RCL] FIXME: this should be printed in specific modules, if at all
