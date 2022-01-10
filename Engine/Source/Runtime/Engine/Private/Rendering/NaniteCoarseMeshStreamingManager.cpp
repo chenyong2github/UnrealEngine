@@ -252,19 +252,10 @@ namespace Nanite
 		}
 				
 		UStaticMesh* StaticMesh = ((UStaticMeshComponent*)Primitive)->GetStaticMesh();
-		if (!bCheckStaticMeshChanged)
-		{
-			// Has valid Nanite data?
-			if (StaticMesh == nullptr || !StaticMesh->HasValidNaniteData())
-			{
-				return;
-			}
-		}
-
-		FScopeLock ScopeLock(&UpdateCS);
-
 		if (bCheckStaticMeshChanged && Primitive->bAttachedToCoarseMeshStreamingManager)
 		{
+			FScopeLock ScopeLock(&UpdateCS);
+
 			UStreamableRenderAsset** RegisteredAsset = ComponentToRenderAssetLookUpMap.Find(Primitive);
 			check(RegisteredAsset);
 
@@ -280,6 +271,8 @@ namespace Nanite
 		{
 			return;
 		}
+
+		FScopeLock ScopeLock(&UpdateCS);
 
 		TArray<const UPrimitiveComponent*>* Components = RegisteredComponentsMap.Find(StaticMesh);
 		if (Components == nullptr)
