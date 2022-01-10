@@ -88,6 +88,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	/** Returns true if the ability system should try to predict gameplay effects applied to non local targets */
 	bool ShouldPredictTargetGameplayEffects() const;
 
+	/** Returns true if tags granted to owners from ability activations should be replicated */
+	bool ShouldReplicateActivationOwnedTags() const;
+
 	/** Searches the passed in class to look for a UFunction implementing the gameplay cue tag, sets MatchedTag to the exact tag found */
 	UFunction* GetGameplayCueFunction(const FGameplayTag &Tag, UClass* Class, FName &MatchedTag);
 
@@ -374,6 +377,10 @@ protected:
 	/** Set to true if you want clients to try to predict gameplay effects done to targets. If false it will only predict self effects */
 	UPROPERTY(config)
 	bool PredictTargetGameplayEffects;
+
+	/** Set to true if you want tags granted to owners from ability activations to be replicated. If false, ActivationOwnedTags are only applied locally. */
+	UPROPERTY(config)
+	bool ReplicateActivationOwnedTags;
 
 	/** Manager for all gameplay cues */
 	UPROPERTY()

@@ -666,6 +666,11 @@ void UGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const
 			// Remove tags we added to owner
 			AbilitySystemComponent->RemoveLooseGameplayTags(ActivationOwnedTags);
 
+			if (UAbilitySystemGlobals::Get().ShouldReplicateActivationOwnedTags())
+			{
+				AbilitySystemComponent->RemoveReplicatedLooseGameplayTags(ActivationOwnedTags);
+			}
+
 			// Remove tracked GameplayCues that we added
 			for (FGameplayTag& GameplayCueTag : TrackedGameplayCues)
 			{
@@ -765,7 +770,13 @@ void UGameplayAbility::PreActivate(const FGameplayAbilitySpecHandle Handle, cons
 	SetCurrentInfo(Handle, ActorInfo, ActivationInfo);
 
 	Comp->HandleChangeAbilityCanBeCanceled(AbilityTags, this, true);
+
 	Comp->AddLooseGameplayTags(ActivationOwnedTags);
+
+	if (UAbilitySystemGlobals::Get().ShouldReplicateActivationOwnedTags())
+	{
+		Comp->AddReplicatedLooseGameplayTags(ActivationOwnedTags);
+	}
 
 	if (OnGameplayAbilityEndedDelegate)
 	{

@@ -565,7 +565,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 
 	/** 	 
 	 *  Allows GameCode to add loose gameplaytags which are not backed by a GameplayEffect. 
-	 *	Tags added this way are not replicated! 
+	 *	Tags added this way are not replicated! Use the 'Replicated' versions of these functions if replication is needed.
 	 *	It is up to the calling GameCode to make sure these tags are added on clients/server where necessary
 	 */
 	FORCEINLINE void AddLooseGameplayTag(const FGameplayTag& GameplayTag, int32 Count=1)
@@ -602,6 +602,41 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	 */
 	UFUNCTION(BlueprintPure, Category = "Gameplay Tags")
 	int32 GetGameplayTagCount(FGameplayTag GameplayTag) const;
+
+	/**
+	 *  Allows GameCode to add loose gameplaytags which are not backed by a GameplayEffect. Tags added using 
+	 *  these functions will be replicated. Note that replicated loose tags will override any locally-set tag counts
+	 *  on simulated proxies.
+	 */
+	FORCEINLINE void AddReplicatedLooseGameplayTag(const FGameplayTag& GameplayTag)
+	{
+		GetReplicatedLooseTags_Mutable().AddTag(GameplayTag);
+		bIsNetDirty = true;
+	}
+
+	FORCEINLINE void AddReplicatedLooseGameplayTags(const FGameplayTagContainer& GameplayTags)
+	{
+		GetReplicatedLooseTags_Mutable().AddTags(GameplayTags);
+		bIsNetDirty = true;
+	}
+
+	FORCEINLINE void RemoveReplicatedLooseGameplayTag(const FGameplayTag& GameplayTag)
+	{
+		GetReplicatedLooseTags_Mutable().RemoveTag(GameplayTag);
+		bIsNetDirty = true;
+	}
+
+	FORCEINLINE void RemoveReplicatedLooseGameplayTags(const FGameplayTagContainer& GameplayTags)
+	{
+		GetReplicatedLooseTags_Mutable().RemoveTags(GameplayTags);
+		bIsNetDirty = true;
+	}
+
+	FORCEINLINE void SetReplicatedLooseGameplayTagCount(const FGameplayTag& GameplayTag, int32 NewCount)
+	{
+		GetReplicatedLooseTags_Mutable().SetTagCount(GameplayTag, NewCount);
+		bIsNetDirty = true;
+	}
 
 	/** 	 
 	 * Minimally replicated tags are replicated tags that come from GEs when in bMinimalReplication mode. 
@@ -1750,6 +1785,9 @@ protected:
 	FMinimalReplicationTagCountMap& GetMinimalReplicationTags_Mutable();
 	const FMinimalReplicationTagCountMap& GetMinimalReplicationTags() const;
 
+	FMinimalReplicationTagCountMap& GetReplicatedLooseTags_Mutable();
+	const FMinimalReplicationTagCountMap& GetReplicatedLooseTags() const;
+
 	void ResetTagMap();
 
 	void NotifyTagMap_StackCountChange(const FGameplayTagContainer& Container);
@@ -1779,6 +1817,9 @@ private:
 	FDelegateHandle MonitoredTagChangedDelegateHandle;
 	FTimerHandle    OnRep_ActivateAbilitiesTimerHandle;
 
+	/** Container used for replicating loose gameplay tags */
+	UPROPERTY(Replicated)
+	FMinimalReplicationTagCountMap ReplicatedLooseTags;
 
 	uint8 bDestroyActiveStateInitiated : 1;
 public:

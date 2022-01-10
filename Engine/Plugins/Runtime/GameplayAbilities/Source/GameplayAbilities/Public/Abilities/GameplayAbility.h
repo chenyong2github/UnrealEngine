@@ -738,7 +738,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="AbilityTagCategory"))
 	FGameplayTagContainer BlockAbilitiesWithTag;
 
-	/** Tags to apply to activating owner while this ability is active */
+	/** Tags to apply to activating owner while this ability is active. These are replicated if ReplicateActivationOwnedTags is enabled in AbilitySystemGlobals. */
 	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="OwnedTagsCategory"))
 	FGameplayTagContainer ActivationOwnedTags;
 
