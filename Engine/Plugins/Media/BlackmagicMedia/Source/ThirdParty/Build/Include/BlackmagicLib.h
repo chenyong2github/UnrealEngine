@@ -10,7 +10,7 @@
 	#endif
 #else // _WINDOWS
 	#ifdef UEBLACKMAGICDESIGN_EXPORTS
-		#define UE4BLACKMAGICDESIGN_API __attribute__ ((visibility ("default")))
+		#define UEBLACKMAGICDESIGN_API __attribute__ ((visibility ("default")))
 	#else
 		#define UEBLACKMAGICDESIGN_API
 	#endif
