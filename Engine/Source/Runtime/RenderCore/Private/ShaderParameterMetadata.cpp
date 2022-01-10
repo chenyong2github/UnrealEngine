@@ -481,6 +481,8 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 			BaseType == UBMT_UINT32 ||
 			BaseType == UBMT_FLOAT32);
 
+		LayoutInitializer.bHasNonGraphOutputs |= BaseType == UBMT_UAV;
+
 		if (DO_CHECK)
 		{
 			auto GetMemberErrorPrefix = [&]()
@@ -656,24 +658,6 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 				else if (BaseType == UBMT_REFERENCED_STRUCT)
 				{
 					LayoutInitializer.UniformBuffers.Add(ResourceParameter);
-				}
-			}
-		}
-
-		if (BaseType == UBMT_UAV)
-		{
-			LayoutInitializer.bHasNonGraphOutputs = true;
-		}
-		else if (BaseType == UBMT_REFERENCED_STRUCT || BaseType == UBMT_RDG_UNIFORM_BUFFER)
-		{
-			if (ChildStruct)
-			{
-				for (const FShaderParametersMetadata::FMember& Member : ChildStruct->GetMembers())
-				{
-					if (Member.GetBaseType() == UBMT_UAV)
-					{
-						LayoutInitializer.bHasNonGraphOutputs = true;
-					}
 				}
 			}
 		}
