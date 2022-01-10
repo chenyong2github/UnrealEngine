@@ -237,6 +237,34 @@ FCacheRecordPolicy FCacheRecordPolicyBuilder::Build()
 	return Policy;
 }
 
+void ICacheStore::PutValue(
+	const TConstArrayView<FCachePutValueRequest> Requests,
+	IRequestOwner& Owner,
+	FOnCachePutValueComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCachePutValueRequest& Request : Requests)
+		{
+			OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Error});
+		}
+	}
+}
+
+void ICacheStore::GetValue(
+	const TConstArrayView<FCacheGetValueRequest> Requests,
+	IRequestOwner& Owner,
+	FOnCacheGetValueComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCacheGetValueRequest& Request : Requests)
+		{
+			OnComplete({Request.Name, Request.Key, {}, Request.UserData, EStatus::Error});
+		}
+	}
+}
+
 } // UE::DerivedData
 
 namespace UE::DerivedData::Private
@@ -799,6 +827,22 @@ public:
 		FOnCacheGetComplete&& OnComplete) final
 	{
 		return FDerivedDataBackend::Get().GetRoot().Get(Requests, Owner, MoveTemp(OnComplete));
+	}
+
+	void PutValue(
+		TConstArrayView<FCachePutValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutValueComplete&& OnComplete) final
+	{
+		return FDerivedDataBackend::Get().GetRoot().PutValue(Requests, Owner, MoveTemp(OnComplete));
+	}
+
+	void GetValue(
+		TConstArrayView<FCacheGetValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheGetValueComplete&& OnComplete) final
+	{
+		return FDerivedDataBackend::Get().GetRoot().GetValue(Requests, Owner, MoveTemp(OnComplete));
 	}
 
 	void GetChunks(

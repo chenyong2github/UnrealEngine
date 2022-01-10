@@ -284,6 +284,52 @@ public:
 	#endif
 	}
 
+	virtual void PutValue(
+		TConstArrayView<FCachePutValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutValueComplete&& OnComplete) override
+	{
+	#if ENABLE_COOK_STATS
+		return InnerBackend->PutValue(Requests, Owner,
+			[this, OnComplete = MoveTemp(OnComplete)](FCachePutValueCompleteParams&& Params)
+			{
+				if (Params.Status == EStatus::Ok)
+				{
+					UsageStats.TimePut().AddHit(0);
+				}
+				if (OnComplete)
+				{
+					OnComplete(MoveTemp(Params));
+				}
+			});
+	#else
+		return InnerBackend->PutValue(Requests, Owner, MoveTemp(OnComplete));
+	#endif
+	}
+
+	virtual void GetValue(
+		TConstArrayView<FCacheGetValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheGetValueComplete&& OnComplete) override
+	{
+	#if ENABLE_COOK_STATS
+		return InnerBackend->GetValue(Requests, Owner,
+			[this, OnComplete = MoveTemp(OnComplete)](FCacheGetValueCompleteParams&& Params)
+			{
+				if (Params.Status == EStatus::Ok)
+				{
+					UsageStats.TimeGet().AddHit(0);
+				}
+				if (OnComplete)
+				{
+					OnComplete(MoveTemp(Params));
+				}
+			});
+	#else
+		return InnerBackend->GetValue(Requests, Owner, MoveTemp(OnComplete));
+	#endif
+	}
+
 	virtual void GetChunks(
 		TConstArrayView<FCacheChunkRequest> Requests,
 		IRequestOwner& Owner,

@@ -8,8 +8,10 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataRequestTypes.h"
 #include "DerivedDataSharedString.h"
+#include "DerivedDataValue.h"
 #include "DerivedDataValueId.h"
 #include "Math/NumericLimits.h"
+#include "Memory/SharedBuffer.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
@@ -22,8 +24,12 @@ namespace UE::DerivedData { struct FCacheChunkCompleteParams; }
 namespace UE::DerivedData { struct FCacheChunkRequest; }
 namespace UE::DerivedData { struct FCacheGetCompleteParams; }
 namespace UE::DerivedData { struct FCacheGetRequest; }
+namespace UE::DerivedData { struct FCacheGetValueCompleteParams; }
+namespace UE::DerivedData { struct FCacheGetValueRequest; }
 namespace UE::DerivedData { struct FCachePutCompleteParams; }
 namespace UE::DerivedData { struct FCachePutRequest; }
+namespace UE::DerivedData { struct FCachePutValueCompleteParams; }
+namespace UE::DerivedData { struct FCachePutValueRequest; }
 namespace UE::DerivedData::Private { class ICacheRecordPolicyShared; }
 
 namespace UE::DerivedData
@@ -33,6 +39,8 @@ using FCacheRequestName = FSharedString;
 
 using FOnCachePutComplete = TUniqueFunction<void (FCachePutCompleteParams&& Params)>;
 using FOnCacheGetComplete = TUniqueFunction<void (FCacheGetCompleteParams&& Params)>;
+using FOnCachePutValueComplete = TUniqueFunction<void (FCachePutValueCompleteParams&& Params)>;
+using FOnCacheGetValueComplete = TUniqueFunction<void (FCacheGetValueCompleteParams&& Params)>;
 using FOnCacheChunkComplete = TUniqueFunction<void (FCacheChunkCompleteParams&& Params)>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,7 +143,7 @@ public:
 };
 
 /**
- * Flags to control the behavior of cache requests, with optional overrides by value.
+ * Flags to control the behavior of cache record requests, with optional overrides by value.
  *
  * Examples:
  * - A base policy of Disable, with value policy overrides of Default, will fetch those values if
@@ -210,7 +218,7 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Interface to a store of cache records.
+ * Interface to a store of cache records and cache values.
  *
  * Functions on this interface may be called from any thread. When a callback is provided, it may
  * be invoked from a different thread than the request was made on, and may be invoked before the
@@ -255,7 +263,7 @@ public:
 	 * PartialOnError policy applies to the missing values, the cache store must return a partial
 	 * record containing the available values.
 	 *
-	 * @param Requests     Requests with the keys identifying the cache records to query.
+	 * @param Requests     Requests with the keys identifying the cache records to fetch.
 	 * @param Owner        The owner to execute the request within.
 	 * @param OnComplete   A callback invoked for every key as it completes or is canceled.
 	 */
@@ -263,6 +271,16 @@ public:
 		TConstArrayView<FCacheGetRequest> Requests,
 		IRequestOwner& Owner,
 		FOnCacheGetComplete&& OnComplete) = 0;
+
+	UE_API virtual void PutValue(
+		TConstArrayView<FCachePutValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutValueComplete&& OnComplete = FOnCachePutValueComplete());
+
+	UE_API virtual void GetValue(
+		TConstArrayView<FCacheGetValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheGetValueComplete&& OnComplete);
 
 	/**
 	 * Asynchronous request to get chunks, which are subsets of values, from records or values.
@@ -274,7 +292,7 @@ public:
 	 * value is requested, through a put of a partial record or a value. The cache store does not
 	 * need to verify the existence of unrequested values within requested records.
 	 *
-	 * @param Requests     The keys, IDs, offsets, and sizes of the chunks to query.
+	 * @param Requests     The keys, IDs, offsets, and sizes of the chunks to fetch.
 	 * @param Owner        The owner to execute the request within.
 	 * @param OnComplete   A callback invoked for every chunk as it completes or is canceled.
 	 */
@@ -289,7 +307,7 @@ public:
 /**
  * Interface to the cache.
  *
- * @see ICacheStore for cache record storage.
+ * @see ICacheStore for cache record and cache value storage.
  */
 class ICache : public ICacheStore
 {
@@ -318,7 +336,7 @@ struct FCachePutRequest
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
 	FCacheRequestName Name;
 
-	/** The cache record to put. */
+	/** A record to store. */
 	FCacheRecord Record;
 
 	/** Flags to control the behavior of the request. See FCacheRecordPolicy. */
@@ -334,23 +352,23 @@ struct FCachePutCompleteParams
 	/** A copy of the name from the request. */
 	FCacheRequestName Name;
 
-	/** Key for the part of the put request that completed or was canceled. */
+	/** A copy of the key from the request. */
 	FCacheKey Key;
 
 	/** A copy of the value from the request. */
 	uint64 UserData = 0;
 
-	/** Status of the cache request. */
+	/** The status of the request. */
 	EStatus Status = EStatus::Error;
 };
 
-/** Parameters to request a cache record. */
+/** Parameters to request to get a cache record. */
 struct FCacheGetRequest
 {
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
 	FCacheRequestName Name;
 
-	/** The key identifying the cache record to fetch. */
+	/** A key identifying the record to fetch. */
 	FCacheKey Key;
 
 	/** Flags to control the behavior of the request. See FCacheRecordPolicy. */
@@ -367,32 +385,107 @@ struct FCacheGetCompleteParams
 	FCacheRequestName Name;
 
 	/**
-	 * Record for the part of the get request that completed or was canceled.
+	 * Record for the request that completed or was canceled.
 	 *
 	 * The key is always populated. The remainder of the record is populated when Status is Ok.
 	 *
 	 * The metadata or the data for values may be skipped based on cache policy flags. Values for
 	 * which data has been skipped will have a hash and size but null data.
 	 */
-	FCacheRecord&& Record;
+	FCacheRecord Record;
 
 	/** A copy of the value from the request. */
 	uint64 UserData = 0;
 
-	/** Status of the cache request. */
+	/** The status of the request. */
 	EStatus Status = EStatus::Error;
 };
 
-/** Parameters to request a chunk, which is a subset of a value, from a cache record. */
+/** Parameters to request to put a cache value. */
+struct FCachePutValueRequest
+{
+	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
+	FCacheRequestName Name;
+
+	/** A key that will uniquely identify the value in the cache. */
+	FCacheKey Key;
+
+	/** A value to store. */
+	FValue Value;
+
+	/** Flags to control the behavior of the request. See ECachePolicy. */
+	ECachePolicy Policy = ECachePolicy::Default;
+
+	/** A value that will be returned in the completion callback. */
+	uint64 UserData = 0;
+};
+
+/** Parameters for the completion callback for cache value put requests. */
+struct FCachePutValueCompleteParams
+{
+	/** A copy of the name from the request. */
+	FCacheRequestName Name;
+
+	/** A copy of the key from the request. */
+	FCacheKey Key;
+
+	/** A copy of the value from the request. */
+	uint64 UserData = 0;
+
+	/** The status of the request. */
+	EStatus Status = EStatus::Error;
+};
+
+/** Parameters to request to get a cache value. */
+struct FCacheGetValueRequest
+{
+	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
+	FCacheRequestName Name;
+
+	/** A key identifying the value to fetch. */
+	FCacheKey Key;
+
+	/** Flags to control the behavior of the request. See ECachePolicy. */
+	ECachePolicy Policy = ECachePolicy::Default;
+
+	/** A value that will be returned in the completion callback. */
+	uint64 UserData = 0;
+};
+
+/** Parameters for the completion callback for cache value get requests. */
+struct FCacheGetValueCompleteParams
+{
+	/** A copy of the name from the request. */
+	FCacheRequestName Name;
+
+	/** A copy of the key from the request. */
+	FCacheKey Key;
+
+	/**
+	 * Value for the request that completed or was canceled.
+	 *
+	 * The data may be skipped based on cache policy flags. A value for which data has been skipped
+	 * will have a hash and size but null data.
+	 */
+	FValue Value;
+
+	/** A copy of the value from the request. */
+	uint64 UserData = 0;
+
+	/** The status of the request. */
+	EStatus Status = EStatus::Error;
+};
+
+/** Parameters to request a chunk, which is a subset of a value, from a cache record or cache value. */
 struct FCacheChunkRequest
 {
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
 	FCacheRequestName Name;
 
-	/** The key identifying the cache record to fetch the value from. */
+	/** A key identifying the record or value to fetch the chunk from. */
 	FCacheKey Key;
 
-	/** The ID of the value to fetch from the cache record. */
+	/** An ID identifying the value to fetch, if fetching from a record, otherwise null. */
 	FValueId Id;
 
 	/** The offset into the raw bytes of the value at which to start fetching. */
@@ -417,28 +510,28 @@ struct FCacheChunkCompleteParams
 	/** A copy of the name from the request. */
 	FCacheRequestName Name;
 
-	/** Key from the chunk request that completed or was canceled. */
+	/** A copy of the key from the request. */
 	FCacheKey Key;
 
-	/** ID from the chunk request that completed or was canceled. */
+	/** A copy of the ID from the request. */
 	FValueId Id;
 
-	/** Offset from the chunk request that completed or was canceled. */
+	/** A copy of the offset from the request. */
 	uint64 RawOffset = 0;
 
-	/** Size, in bytes, of the subset of the value that was fetched, if any. */
+	/** The size, in bytes, of the subset of the value that was fetched, if any. */
 	uint64 RawSize = 0;
 
-	/** Hash of the entire value, even if only a subset was fetched. */
+	/** The hash of the entire value, even if only a subset was fetched. */
 	const FIoHash& RawHash;
 
 	/** Data for the subset of the value that was fetched when Status is Ok, otherwise null. */
-	FSharedBuffer&& RawData;
+	FSharedBuffer RawData;
 
 	/** A copy of the value from the request. */
 	uint64 UserData = 0;
 
-	/** Status of the cache request. */
+	/** The status of the request. */
 	EStatus Status = EStatus::Error;
 };
 
