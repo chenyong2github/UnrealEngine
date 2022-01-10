@@ -903,12 +903,14 @@ void SampleShadowMap(
 		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, Light.LightSceneInfo, PassParameters->DeferredLightUniforms);
 		PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 
+		// InnerSplitIndex: which CSM shadow map level, INDEX_NONE if no directional light
+		int32 InnerSplitIndex = ShadowSetup.DenseShadowMap ? ShadowSetup.DenseShadowMap->CascadeSettings.ShadowSplitIndex : INDEX_NONE;
 		GetVolumeShadowingShaderParameters(
 			GraphBuilder,
 			View,
 			Light.LightSceneInfo,
 			ShadowSetup.DenseShadowMap,
-			0,
+			InnerSplitIndex,
 			PassParameters->VolumeShadowingShaderParameters);
 		
 		PassParameters->VirtualShadowMapId = ShadowSetup.VirtualShadowMapId;

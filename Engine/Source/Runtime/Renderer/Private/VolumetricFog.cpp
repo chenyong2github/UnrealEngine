@@ -546,7 +546,9 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 
 				const FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo);
 				const bool bDynamicallyShadowed = ProjectedShadowInfo != NULL;
-				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ProjectedShadowInfo, 0, PassParameters->VolumeShadowingShaderParameters);
+				// InnerSplitIndex: which CSM shadow map level, INDEX_NONE if no directional light
+				int32 InnerSplitIndex = ProjectedShadowInfo ? ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex : INDEX_NONE;
+				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ProjectedShadowInfo, InnerSplitIndex, PassParameters->VolumeShadowingShaderParameters);
 
 				FInjectShadowedLocalLightPS::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FInjectShadowedLocalLightPS::FDynamicallyShadowed >(bDynamicallyShadowed);
