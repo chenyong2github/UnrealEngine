@@ -214,15 +214,13 @@ bool UCollectSurfacePathMechanic::RayToPathPoint(const FRay3d& Ray, FFrame3d& Po
 
 	PointOut = NearestHitFrame;
 
-	// try snapping to close if we are in loop mode
+	// try snapping to close/end
 	bool bHaveSnapped = false;
-	if (DoneMode == ECollectSurfacePathDoneMode::SnapCloseLoop && HitPath.Num() > 2)
+	bool bWouldCloseLoop = false;
+	if (CheckGeometricClosure(PointOut, &bWouldCloseLoop))
 	{
-		if (SpatialSnapPointsFunc(PointOut.Origin, HitPath.Last().Origin))
-		{
-			PointOut = HitPath.Last();
-			bHaveSnapped = true;
-		}
+		bHaveSnapped = true;
+		PointOut = bWouldCloseLoop ? HitPath[0] : HitPath.Last();
 	}
 
 	// try snapping to other things, if we haven't yet

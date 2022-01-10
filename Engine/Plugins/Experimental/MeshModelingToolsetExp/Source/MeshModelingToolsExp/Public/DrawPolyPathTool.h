@@ -42,6 +42,16 @@ enum class EDrawPolyPathWidthMode
 };
 
 UENUM()
+enum class EDrawPolyPathRadiusMode
+{
+	/** Fixed radius determined by the CornerRadius property. */
+	Fixed,
+
+	/** Set the radius interactively by clicking in the viewport.  */
+	Interactive
+};
+
+UENUM()
 enum class EDrawPolyPathExtrudeMode
 {
 	/** Flat path without extrusion */
@@ -72,16 +82,23 @@ public:
 	EDrawPolyPathWidthMode WidthMode = EDrawPolyPathWidthMode::Interactive;
 
 	/** Width of the drawn path when using Fixed width mode; also shows the width in Interactive width mode */
-	UPROPERTY(EditAnywhere, Category = Path, meta = (EditCondition = "WidthMode == EDrawPolyPathWidthMode::Fixed", UIMin = "0.0001", UIMax = "1000", ClampMin = "0", ClampMax = "999999"))
+	UPROPERTY(EditAnywhere, Category = Path, meta = (EditCondition = "WidthMode == EDrawPolyPathWidthMode::Fixed", 
+		UIMin = "0.0001", UIMax = "1000", ClampMin = "0.0001", ClampMax = "999999"))
 	float Width = 10.0f;
 
 	/** Use arc segments instead of straight lines in corners */
 	UPROPERTY(EditAnywhere, Category = Path)
 	bool bRoundedCorners = false;
 
-	/** Radius of the corner arcs, as a fraction of path width. This is only available if Rounded Corners is enabled */
-	UPROPERTY(EditAnywhere, Category = Path, meta = (EditCondition = "WidthMode == EDrawPolyPathWidthMode::Fixed && bRoundedCorners", UIMin = "0.01", UIMax = "2.0", ClampMin = "0.01", ClampMax = "999999"))
-	float CornerRadius = 0.01f;
+	/** How the rounded corner radius gets set */
+	UPROPERTY(EditAnywhere, Category = Path, meta = (EditCondition = "bRoundedCorners"))
+	EDrawPolyPathRadiusMode RadiusMode = EDrawPolyPathRadiusMode::Interactive;
+
+	/** Radius of the corner arcs, as a fraction of path width. This is only available if Rounded Corners is enabled. */
+	UPROPERTY(EditAnywhere, Category = Path, meta = (
+		EditCondition = "RadiusMode == EDrawPolyPathRadiusMode::Fixed && bRoundedCorners", 
+		UIMin = "0", UIMax = "2.0", ClampMin = "0", ClampMax = "999999"))
+	float CornerRadius = 0.5f;
 
 	/** Number of radial subdivisions for rounded corners */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Path, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "10000",
@@ -107,10 +124,6 @@ public:
 		EditCondition = "ExtrudeMode == EDrawPolyPathExtrudeMode::RampFixed || ExtrudeMode == EDrawPolyPathExtrudeMode::RampInteractive",
 		UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "100.0"))
 	float RampStartRatio = 0.05f;
-
-	/** If true, allows snapping to world grid according to editor settings */
-	UPROPERTY(EditAnywhere, Category = Snapping)
-	bool bSnapToWorldGrid = true;
 };
 
 
@@ -156,6 +169,7 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
+	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
@@ -175,6 +189,9 @@ public:
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 	virtual void OnEndHover() override {}
 
+	// IModifierToggleBehaviorTarget
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+
 protected:
 	UWorld* TargetWorld;
 
@@ -192,6 +209,15 @@ protected:
 	TObjectPtr<UNewMeshMaterialProperties> MaterialProperties;
 
 protected:
+	enum class EState
+	{
+		DrawingPath,
+		SettingWidth,
+		SettingRadius,
+		SettingHeight
+	};
+	EState State = EState::DrawingPath;
+
 	// camera state at last render
 	UE::Geometry::FTransform3d WorldTransform;
 	FViewCameraState CameraState;
@@ -212,14 +238,17 @@ protected:
 	TArray<double> OffsetScaleFactors;
 	TArray<FVector3d> CurPolyLine;
 	double CurPathLength;
-	double CurWidth;
-	double CurRadius;
 	double CurHeight;
 	bool bHasSavedWidth = false;
 	float SavedWidth;
+	bool bHasSavedRadius = false;
+	float SavedRadius;
 	bool bHasSavedExtrudeHeight = false;
 	float SavedExtrudeHeight;
 	bool bPathIsClosed = false;		// If true, CurPathPoints are assumed to define a closed path
+
+	static const int ShiftModifierID = 1;
+	bool bIgnoreSnappingToggle = false;		// toggled by hotkey (shift)
 
 	TArray<FVector3d> CurPolyLoop;
 	TArray<FVector3d> SecondPolyLoop;
@@ -240,15 +269,15 @@ protected:
 	void UpdateSurfacePathPlane();
 	void OnCompleteSurfacePath();
 
-	void BeginInteractiveWidth();
-	void BeginConstantWidth();
+	void BeginSettingWidth();
 	void OnCompleteWidth();
 
-	void BeginInteractiveRadius();
-	void BeginConstantRadius();
+	void BeginSettingRadius();
 	void OnCompleteRadius();
 
+	void BeginSettingHeight();
 	void BeginInteractiveExtrudeHeight();
+	void BeginConstantExtrudeHeight();
 	void UpdateExtrudePreview();
 	void OnCompleteExtrudeHeight();
 
@@ -267,7 +296,7 @@ protected:
 
 	friend class FDrawPolyPathStateChange;
 	int32 CurrentCurveTimestamp = 1;
-	void UndoCurrentOperation();
+	void UndoCurrentOperation(EState DestinationState);
 	bool CheckInCurve(int32 Timestamp) const { return CurrentCurveTimestamp == Timestamp; }
 };
 
@@ -279,9 +308,11 @@ class MESHMODELINGTOOLSEXP_API FDrawPolyPathStateChange : public FToolCommandCha
 public:
 	bool bHaveDoneUndo = false;
 	int32 CurveTimestamp = 0;
-	FDrawPolyPathStateChange(int32 CurveTimestampIn)
+	UDrawPolyPathTool::EState PreviousState = UDrawPolyPathTool::EState::DrawingPath;
+	FDrawPolyPathStateChange(int32 CurveTimestampIn, UDrawPolyPathTool::EState PreviousStateIn)
+		: CurveTimestamp(CurveTimestampIn)
+		, PreviousState(PreviousStateIn)
 	{
-		CurveTimestamp = CurveTimestampIn;
 	}
 	virtual void Apply(UObject* Object) override {}
 	virtual void Revert(UObject* Object) override;
