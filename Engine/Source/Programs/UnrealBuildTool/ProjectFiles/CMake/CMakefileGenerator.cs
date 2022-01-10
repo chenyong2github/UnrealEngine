@@ -165,7 +165,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				return "cmake-headers-ue4" + CMakeExtension;
+				return "cmake-headers-ue" + CMakeExtension;
 			}
 		}
 		/// <summary>
