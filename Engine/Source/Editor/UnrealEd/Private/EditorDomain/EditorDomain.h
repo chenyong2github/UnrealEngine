@@ -10,6 +10,7 @@
 #include "IO/IoHash.h"
 #include "Logging/LogMacros.h"
 #include "Templates/RefCounting.h"
+#include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectSaveContext.h"
@@ -21,6 +22,7 @@ class IAssetRegistry;
 class UObject;
 class UPackage;
 struct FAssetData;
+namespace UE::DerivedData { class FRequestOwner; }
 
 namespace UE::EditorDomain
 {
@@ -148,6 +150,9 @@ public:
 	 */
 	UE::EditorDomain::FPackageDigest GetPackageDigest(FName PackageDigest);
 
+	/** Request the download of the given packages from the upstream DDC server. */
+	void BatchDownload(TArrayView<FName> PackageNames);
+
 private:
 	/**
 	 * Reference-counted struct holding the locks used for multithreaded synchronization.
@@ -166,13 +171,22 @@ private:
 	 */
 	struct FPackageSource : public FThreadSafeRefCountedObject
 	{
+		FPackageSource()
+			:bHasSaved(false), bHasLoaded(false), bHasQueriedCatalog(false), bLoadedAfterCatalogLoaded(false)
+		{
+		}
+
+		/** Return whether we should call TrySavePackage into the EditorDomain. */
+		bool NeedsEditorDomainSave(FEditorDomain& EditorDomain) const;
+		/** Mark that a load is being attempted, which can impact whether we need to save. */
+		void SetHasLoaded();
+
 		UE::EditorDomain::FPackageDigest Digest;
 		EPackageSource Source = EPackageSource::Undecided;
-		bool bHasSaved = false;
-		bool NeedsEditorDomainSave() const
-		{
-			return !bHasSaved && Source == EPackageSource::Workspace;
-		}
+		bool bHasSaved : 1;
+		bool bHasLoaded : 1;
+		bool bHasQueriedCatalog : 1;
+		bool bLoadedAfterCatalogLoaded : 1;
 	};
 
 	/** Disallow copy constructors */
@@ -197,6 +211,9 @@ private:
 		FObjectPostSaveContext ObjectSaveContext);
 	/** AssetUpdated event to invalidate our information about where it should be loaded from. */
 	void OnAssetUpdatedOnDisk(const FAssetData& AssetData);
+	/** Same As GetPackageDigest, but assumes lock is already held. */
+	UE::EditorDomain::FPackageDigest GetPackageDigest_WithinLock(FName PackageDigest);
+
 
 	/** Subsystem used to request the save of missing packages into the EditorDomain from a separate process. */
 	TUniquePtr<FEditorDomainSaveClient> SaveClient;
@@ -208,12 +225,20 @@ private:
 	TRefCountPtr<FLocks> Locks;
 	/** Digests previously found for a package. Used for optimization, but also to record loaded-from-domain. */
 	TMap<FName, TRefCountPtr<FPackageSource>> PackageSources;
+	/** RequestOwner used for BatchDownloads from upstream server. */
+	TUniquePtr<UE::DerivedData::FRequestOwner> BatchDownloadOwner;
+
 	/** True by default, set to false when reading is disabled for testing. */
 	bool bEditorDomainReadEnabled = true;
 	/** If true, use an out-of-process EditorDomainSaveServer for saves, else save in process in EndLoad */
 	bool bExternalSave = false;
 	/** Marker for whether our PostEngineInit callback has been called */
 	bool bHasPassedPostEngineInit = false;
+	/**
+	 * Configuration value for whether saves into the EditorDomain should be skipped for packages loaded before
+	 * the DDC server reports whether they exist in the upstream DDC.
+	 */
+	bool bSkipSavesUntilCatalogLoaded = false;
 
 	static FEditorDomain* RegisteredEditorDomain;
 

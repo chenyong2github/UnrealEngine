@@ -7,6 +7,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/AsyncFileHandleNull.h"
 #include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheRecord.h"
 #include "EditorDomain/EditorDomainArchive.h"
@@ -77,6 +78,8 @@ FEditorDomain::FEditorDomain()
 	{
 		SaveClient.Reset(new FEditorDomainSaveClient());
 	}
+	bSkipSavesUntilCatalogLoaded = GIsBuildMachine;
+
 	AssetRegistry = IAssetRegistry::Get();
 	// We require calling SearchAllAssets, because we rely on being able to call WaitOnAsset
 	// without needing to call ScanPathsSynchronous
@@ -100,6 +103,14 @@ FEditorDomain::FEditorDomain()
 
 FEditorDomain::~FEditorDomain()
 {
+	TUniquePtr<UE::DerivedData::FRequestOwner> LocalBatchDownloadOwner;
+	{
+		FScopeLock ScopeLock(&Locks->Lock);
+		LocalBatchDownloadOwner = MoveTemp(BatchDownloadOwner);
+	}
+	// BatchDownloadOwner must be deleted (which calls Cancel) outside of the lock, since its callback takes the lock
+	LocalBatchDownloadOwner.Reset();
+
 	FScopeLock ScopeLock(&Locks->Lock);
 	// AssetRegistry has already been destructed by this point, do not try to access it.
 	// AssetRegistry->OnAssetUpdatedOnDisk().RemoveAll(this);
@@ -194,11 +205,17 @@ bool FEditorDomain::TryFindOrAddPackageSource(FName PackageName,
 
 UE::EditorDomain::FPackageDigest FEditorDomain::GetPackageDigest(FName PackageName)
 {
+	FScopeLock ScopeLock(&Locks->Lock);
+	return GetPackageDigest_WithinLock(PackageName);
+}
+
+UE::EditorDomain::FPackageDigest FEditorDomain::GetPackageDigest_WithinLock(FName PackageName)
+{
+	// Called within &Locks->Lock
 	using namespace UE::EditorDomain;
 
 	TRefCountPtr<FPackageSource> PackageSource;
 	FPackageDigest ErrorDigest;
-	FScopeLock ScopeLock(&Locks->Lock);
 	if (!TryFindOrAddPackageSource(PackageName, PackageSource, &ErrorDigest))
 	{
 		return ErrorDigest;
@@ -271,6 +288,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		{
 			return Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
 		}
+		PackageSource->SetHasLoaded();
 
 		auto MetaDataGetComplete =
 			[&FileSize, &PackageSource, &PackagePath, PackageSegment, Locks=this->Locks, OutUpdatedPath]
@@ -334,6 +352,7 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 	{
 		return Workspace->OpenReadPackage(PackagePath, PackageSegment, OutUpdatedPath);
 	}
+	PackageSource->SetHasLoaded();
 
 	// TODO: Change priority to High instead of Blocking once we have removed the GetPackageFormat below
 	// and don't need to block on the result before exiting this function
@@ -391,6 +410,7 @@ FOpenAsyncPackageResult FEditorDomain::OpenAsyncReadPackage(const FPackagePath& 
 	{
 		return Workspace->OpenAsyncReadPackage(PackagePath, PackageSegment);
 	}
+	PackageSource->SetHasLoaded();
 
 	// TODO: Change priority to Normal instead of Blocking once we have removed the GetPackageFormat below
 	// and don't need to block on the result before exiting this function
@@ -552,7 +572,7 @@ void FEditorDomain::FilterKeepPackagesToSave(TArray<UPackage*>& InOutPackagesToS
 		if (FPackagePath::TryFromPackageName(Package->GetFName(), PackagePath))
 		{
 			TRefCountPtr<FPackageSource> PackageSource = FindPackageSource(PackagePath);
-			if (PackageSource && PackageSource->NeedsEditorDomainSave())
+			if (PackageSource && PackageSource->NeedsEditorDomainSave(*this))
 			{
 				PackageSource->bHasSaved = true;
 				bKeep = true;
@@ -566,6 +586,63 @@ void FEditorDomain::FilterKeepPackagesToSave(TArray<UPackage*>& InOutPackagesToS
 		{
 			InOutPackagesToSave.RemoveAtSwap(Index);
 		}
+	}
+}
+
+bool FEditorDomain::FPackageSource::NeedsEditorDomainSave(FEditorDomain& EditorDomain) const
+{
+	return !bHasSaved && Source == EPackageSource::Workspace &&
+		(!EditorDomain.bSkipSavesUntilCatalogLoaded || bLoadedAfterCatalogLoaded);
+}
+
+void FEditorDomain::FPackageSource::SetHasLoaded()
+{
+	if (bHasLoaded)
+	{
+		return;
+	}
+	bHasLoaded = true;
+	bLoadedAfterCatalogLoaded = bHasQueriedCatalog;
+}
+
+void FEditorDomain::BatchDownload(TArrayView<FName> PackageNames)
+{
+	using namespace UE::EditorDomain;
+	using namespace UE::DerivedData;
+
+	FScopeLock ScopeLock(&Locks->Lock);
+	if (!BatchDownloadOwner)
+	{
+		BatchDownloadOwner = MakeUnique<FRequestOwner>(EPriority::Highest);
+	}
+
+	TArray<FCacheGetRequest> CacheRequests;
+	CacheRequests.Reserve(PackageNames.Num());
+	ECachePolicy CachePolicy = ECachePolicy::Default | ECachePolicy::SkipData;
+	for (FName PackageName : PackageNames)
+	{
+		FPackageDigest PackageDigest = GetPackageDigest_WithinLock(PackageName);
+		if (PackageDigest.IsSuccessful() && EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::LoadEnabled))
+		{
+			CacheRequests.Add({ { WriteToString<256>(PackageName) }, GetEditorDomainPackageKey(PackageDigest.Hash),
+				CachePolicy });
+		}
+	}
+
+	if (!CacheRequests.IsEmpty())
+	{
+		FRequestBarrier Barrier(*BatchDownloadOwner);
+		GetCache().Get(CacheRequests, *BatchDownloadOwner, [this](FCacheGetCompleteParams&& Params)
+			{
+				FScopeLock ScopeLock(&Locks->Lock);
+				TRefCountPtr<FPackageSource> PackageSource;
+				FPackageDigest ErrorDigest;
+				FName PackageName = FName(*Params.Name);
+				if (TryFindOrAddPackageSource(PackageName, PackageSource, &ErrorDigest))
+				{
+					PackageSource->bHasQueriedCatalog = true;
+				}
+			});
 	}
 }
 
