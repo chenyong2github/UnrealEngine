@@ -14,7 +14,7 @@ namespace Geometry
 /**
  * FSmallListSet stores a set of short integer-valued variable-size lists.
  * The lists are encoded into a few large TDynamicVector buffers, with internal pooling,
- * so adding/removing lists usually does not involve any or delete ops.
+ * so adding/removing lists usually does not involve any new or delete ops.
  * 
  * The lists are stored in two parts. The first N elements are stored in a linear
  * subset of a TDynamicVector. If the list spills past these N elements, the extra elements
@@ -36,7 +36,7 @@ protected:
 	/** offset from start of linear-memory portion of list that contains pointer to head of variable-length linked list */
 	static constexpr int32 BLOCK_LIST_OFFSET = BLOCKSIZE + 1;
 
-	/** mapping from list index to offset into block_store that contains list data */
+	/** mapping from list index to offset into ListBlocks that contains list data */
 	TDynamicVector<int32> ListHeads{};
 
 	/** 
@@ -45,7 +45,7 @@ protected:
 	 */
 	TDynamicVector<int32> ListBlocks{};
 
-	/** list of free blocks as indices/offsets into block_store */
+	/** list of free blocks as indices/offsets into ListBlocks */
 	TDynamicVector<int32> FreeBlocks{};
 
 	/** number of allocated lists */

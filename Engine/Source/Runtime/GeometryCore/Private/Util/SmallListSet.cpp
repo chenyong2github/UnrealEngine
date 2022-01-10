@@ -111,7 +111,7 @@ bool FSmallListSet::Remove(int32 ListIndex, int32 Value)
 			{
 				ListBlocks[j - 1] = ListBlocks[j];
 			}
-			//block_store[iEnd] = -2;     // OPTIONAL
+			//ListBlocks[iEnd] = -2;     // OPTIONAL
 
 			if (N > BLOCKSIZE) 
 			{
