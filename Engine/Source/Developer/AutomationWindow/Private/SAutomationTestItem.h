@@ -145,6 +145,15 @@ protected:
 	EVisibility ItemStatus_GetStatusVisibility( const int32 ClusterIndex, const bool bForInProcessThrobber ) const;
 
 	/**
+	 * Helper for internal nodes to ensure throbber is visible when children are in process and icon is visible when children completed.
+	 *
+	 * @param ClusterIndex The cluster index.
+	 * @param bForInProcessThrobber If throbbing is in process.
+	 * @return The visibility state.
+	 */
+	EVisibility ItemStatus_GetChildrenStatusVisibility( const int32 ClusterIndex, const bool bForInProcessThrobber ) const;
+
+	/**
 	 * Color of progress bar for internal tree test nodes.
 	 *
 	 * @param ClusterIndex The cluster index.
@@ -167,6 +176,14 @@ protected:
 	 * @return the status image.
 	 */
 	const FSlateBrush* ItemStatus_StatusImage( const int32 ClusterIndex ) const;
+
+	/**
+	 * Returns image that denotes the status of a test category as implied by its children, on the given platform cluster.
+	 *
+	 * @param ClusterIndex The cluster index.
+	 * @return the status image.
+	 */
+	const FSlateBrush* ItemChildrenStatus_StatusImage(const int32 ClusterIndex) const;
 	
 	/**
 	 * The number of participants required for this test item in string form.
