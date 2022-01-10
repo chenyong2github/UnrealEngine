@@ -56,14 +56,14 @@ void SDisplayClusterConfiguratorComponentClassCombo::Construct(const FArguments&
 	[
 		SAssignNew(AddNewButton, SPositiveActionButton)
 		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
-		.Text(LOCTEXT("AddComponent", "Add Component"))
+		.Text(LOCTEXT("AddComponent", "Add"))
 		.OnComboBoxOpened(this, &SDisplayClusterConfiguratorComponentClassCombo::ClearSelection)
 		.MenuContent()
 		[
 			SNew(SListViewSelectorDropdownMenu<FComponentClassComboEntryPtr>, SearchBox, ComponentClassListView)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::Get().GetBrush("Menu.Background"))
 				.Padding(2)
 				[
 					SNew(SBox)
@@ -291,7 +291,7 @@ TSharedRef<ITableRow> SDisplayClusterConfiguratorComponentClassCombo::GenerateAd
 	{
 		return 
 			SNew( STableRow< TSharedPtr<FString> >, OwnerTable )
-				.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
+				.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
 				.ShowSelection(false)
 			[
 				SNew(SBox)
@@ -299,7 +299,7 @@ TSharedRef<ITableRow> SDisplayClusterConfiguratorComponentClassCombo::GenerateAd
 				[
 					SNew(STextBlock)
 					.Text(FText::FromString(Entry->GetHeadingText()))
-					.TextStyle(FEditorStyle::Get(), TEXT("Menu.Heading"))
+					.TextStyle(FAppStyle::Get(), TEXT("Menu.Heading"))
 				]
 			];
 	}
@@ -307,11 +307,11 @@ TSharedRef<ITableRow> SDisplayClusterConfiguratorComponentClassCombo::GenerateAd
 	{
 		return 
 			SNew( STableRow< TSharedPtr<FString> >, OwnerTable )
-				.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
+				.Style(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
 				.ShowSelection(false)
 			[
 				SNew(SSeparator)
-				.SeparatorImage(FEditorStyle::Get().GetBrush("Menu.Separator"))
+				.SeparatorImage(FAppStyle::Get().GetBrush("Menu.Separator"))
 				.Thickness(1.0f)
 			];
 	}

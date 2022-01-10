@@ -472,7 +472,7 @@ UDisplayClusterConfigurationHostDisplayData* FDisplayClusterConfiguratorClusterU
 		const FString HostName = GetUniqueNameForHost(DefaultNewHostName, Cluster, true);
 		UDisplayClusterConfigurationHostDisplayData* NewData = NewObject<UDisplayClusterConfigurationHostDisplayData>(Cluster, NAME_None, RF_Transactional);
 		NewData->HostName = FText::FromString(HostName);
-		NewData->Color = FDisplayClusterConfiguratorStyle::GetCornerColor(Cluster->HostDisplayData.Num()).CopyWithNewOpacity(1.0f);
+		NewData->Color = FDisplayClusterConfiguratorStyle::Get().GetDefaultColor(Cluster->HostDisplayData.Num()).CopyWithNewOpacity(1.0f);
 
 		Cluster->HostDisplayData.Add(HostIPAddress, NewData);
 	}

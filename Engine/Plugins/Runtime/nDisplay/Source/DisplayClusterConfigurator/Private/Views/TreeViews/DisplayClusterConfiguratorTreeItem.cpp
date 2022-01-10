@@ -26,16 +26,28 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItem::GenerateWidgetForColumn
 {
 	if (ColumnName == IDisplayClusterConfiguratorViewTree::Columns::Item)
 	{
-		TSharedPtr<SHorizontalBox> RowBox = SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SExpanderArrow, TableRow)
-			];
-
+		TSharedPtr<SHorizontalBox> RowBox = SNew(SHorizontalBox);
 		FillItemColumn(RowBox, FilterText, InIsSelected);
 
-		return RowBox.ToSharedRef();
+		return SNew(SBox)
+			.MinDesiredHeight(20.0f)
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(6, 0, 0, 0)
+				[
+					SNew(SExpanderArrow, TableRow)
+					.IndentAmount(12)
+				]
+
+				+SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				[
+					RowBox.ToSharedRef()
+				]
+			];
 	}
 
 	return SNullWidget::NullWidget;
@@ -141,23 +153,26 @@ void FDisplayClusterConfiguratorTreeItem::FillItemColumn(TSharedPtr<SHorizontalB
 {
 	Box->AddSlot()
 		.AutoWidth()
-		.Padding(FMargin(0.0f, 1.0f))
+		.Padding(FMargin(0.f, 1.f, 6.f, 1.f))
 		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Center)
 		[
-			SNew(SImage)
-			.ColorAndOpacity(FSlateColor::UseForeground())
-			.Image(FDisplayClusterConfiguratorStyle::GetBrush(*GetIconStyle()))
+			SNew(SBox)
+			.WidthOverride(16)
+			.HeightOverride(16)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FDisplayClusterConfiguratorStyle::Get().GetBrush(*GetIconStyle()))
+			]
 		];
 
 	Box->AddSlot()
 		.AutoWidth()
-		.Padding(2, 0, 0, 0)
 		.VAlign(VAlign_Center)
 		[
 			SAssignNew(DisplayNameTextBlock, SInlineEditableTextBlock)
 			.Text(this, &FDisplayClusterConfiguratorTreeItem::GetRowItemText)
-			.HighlightText( FilterText )
+			.HighlightText(FilterText)
 			.IsReadOnly(this, &FDisplayClusterConfiguratorTreeItem::IsReadOnly)
 			.OnTextCommitted(this, &FDisplayClusterConfiguratorTreeItem::OnDisplayNameCommitted)
 		];

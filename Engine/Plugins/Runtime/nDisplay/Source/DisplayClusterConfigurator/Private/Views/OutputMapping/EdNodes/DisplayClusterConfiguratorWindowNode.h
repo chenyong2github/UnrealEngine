@@ -41,7 +41,7 @@ public:
 
 	//~ Begin UDisplayClusterConfiguratorBaseNode Interface
 	virtual bool IsNodeVisible() const override;
-	virtual bool IsNodeEnabled() const override;
+	virtual bool IsNodeUnlocked() const override;
 	virtual bool CanNodeOverlapSiblings() const override { return false; }
 	virtual bool CanNodeExceedParentBounds() const override;
 

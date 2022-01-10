@@ -19,6 +19,7 @@
 #include "UnrealExporter.h"
 #include "Exporters/Exporter.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorViewCluster"
 
@@ -47,18 +48,44 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorViewCluster::CreateWidget()
 
 void FDisplayClusterConfiguratorViewCluster::ConstructColumns(TArray<SHeaderRow::FColumn::FArguments>& OutColumnArgs) const
 {
-	OutColumnArgs.Add(SHeaderRow::Column(FDisplayClusterConfiguratorViewCluster::Columns::Visible)
-		.DefaultLabel(LOCTEXT("VisibleColumn_Label", "Visible"))
-		.FixedWidth(18));
-
-	OutColumnArgs.Add(SHeaderRow::Column(FDisplayClusterConfiguratorViewCluster::Columns::Enabled)
-		.DefaultLabel(LOCTEXT("EnabledColumn_Label", "Enabled"))
-		.FixedWidth(18));
-
 	// For the cluster view, use the group column to indicate which host the cluster nodes belong to with a colored band
 	OutColumnArgs.Add(SHeaderRow::Column(FDisplayClusterConfiguratorViewCluster::Columns::Host)
-		.DefaultLabel(LOCTEXT("HiostColumn_Label", "Host"))
-		.FixedWidth(8));
+		.DefaultLabel(FText::GetEmpty())
+		.DefaultTooltip(LOCTEXT("HostColumn_ToolTip", "Host"))
+		.FixedWidth(12)
+	);
+
+	OutColumnArgs.Add(SHeaderRow::Column(FDisplayClusterConfiguratorViewCluster::Columns::Visible)
+		.DefaultLabel(LOCTEXT("VisibleColumn_Label", "Visible"))
+		.FixedWidth(24)
+		.HAlignHeader(HAlign_Left)
+		.VAlignHeader(VAlign_Center)
+		.HAlignCell(HAlign_Center)
+		.VAlignCell(VAlign_Center)
+		.DefaultTooltip(LOCTEXT("VisibleColumn_ToolTip", "Visible"))
+		.HeaderContentPadding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::Get().GetBrush("Level.VisibleIcon16x"))
+		]
+	);
+
+	OutColumnArgs.Add(SHeaderRow::Column(FDisplayClusterConfiguratorViewCluster::Columns::Enabled)
+		.DefaultLabel(LOCTEXT("EnabledColumn_Label", "Locked"))
+		.FixedWidth(24)
+		.HAlignHeader(HAlign_Left)
+		.VAlignHeader(VAlign_Center)
+		.HAlignCell(HAlign_Center)
+		.VAlignCell(VAlign_Center)
+		.DefaultTooltip(LOCTEXT("EnabledColumn_ToolTip", "Locked"))
+		.HeaderContentPadding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::Get().GetBrush("PropertyWindow.Locked"))
+		]
+	);
 
 	FDisplayClusterConfiguratorViewTree::ConstructColumns(OutColumnArgs);
 }

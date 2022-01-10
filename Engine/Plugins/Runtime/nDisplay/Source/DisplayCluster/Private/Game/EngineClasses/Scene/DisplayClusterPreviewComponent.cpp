@@ -95,7 +95,7 @@ void UDisplayClusterPreviewComponent::UpdatePreviewMeshMaterial(bool bRestoreOri
 
 	if (PreviewMesh)
 	{
-		bool bViewportPreviewEnabled = (ViewportConfig && ViewportConfig->bIsEnabled && RootActor && RootActor->bPreviewEnable);
+		bool bViewportPreviewEnabled = (ViewportConfig && RootActor && RootActor->bPreviewEnable);
 
 		if (bRestoreOriginalMaterial || !bViewportPreviewEnabled)
 		{

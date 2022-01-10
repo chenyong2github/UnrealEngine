@@ -30,50 +30,6 @@ void FDisplayClusterConfiguratorTreeItemHost::Initialize()
 	HostDisplayData->OnPostEditChangeChainProperty.Add(UDisplayClusterConfigurationHostDisplayData::FOnPostEditChangeChainProperty::FDelegate::CreateSP(this, &FDisplayClusterConfiguratorTreeItemHost::OnPostEditChangeChainProperty));
 }
 
-TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItemHost::GenerateWidgetForColumn(const FName& ColumnName, TSharedPtr<ITableRow> TableRow, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
-{
-	if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Host)
-	{
-		return SNew(SImage)
-			.ColorAndOpacity(this, &FDisplayClusterConfiguratorTreeItemHost::GetHostColor)
-			.OnMouseButtonDown(this, &FDisplayClusterConfiguratorTreeItemHost::OnHostClicked)
-			.Image(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body"))
-			.Cursor(EMouseCursor::Hand);
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Visible)
-	{
-		return SAssignNew(VisibilityButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("VisibilityButton_Tooltip", "Hides or shows this host and its children in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemHost::OnVisibilityButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemHost::GetVisibilityButtonBrush)
-			];
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Enabled)
-	{
-		return SAssignNew(EnabledButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("EnabledButton_Tooltip", "Enables or disables this host and its children in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemHost::OnEnabledButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemHost::GetEnabledButtonBrush)
-			];
-	}
-
-	return FDisplayClusterConfiguratorTreeItemCluster::GenerateWidgetForColumn(ColumnName, TableRow, FilterText, InIsSelected);
-}
-
 void FDisplayClusterConfiguratorTreeItemHost::DeleteItem() const
 {
 	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
@@ -234,62 +190,13 @@ void FDisplayClusterConfiguratorTreeItemHost::OnDisplayNameCommitted(const FText
 	Name = *NewText.ToString();
 }
 
-FText FDisplayClusterConfiguratorTreeItemHost::GetHostAddress() const
+bool FDisplayClusterConfiguratorTreeItemHost::IsClusterItemVisible() const
 {
 	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
-	return FText::Format(LOCTEXT("HostAddressFormattedLabel", "({0})"), FText::FromString(FDisplayClusterConfiguratorClusterUtils::GetAddressForHost(Host)));
+	return Host->bIsVisible;
 }
 
-FSlateColor FDisplayClusterConfiguratorTreeItemHost::GetHostColor() const
-{
-	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
-	if (ToolkitPtr.Pin()->IsObjectSelected(Host))
-	{
-		return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Color.Selected");
-	}
-	else
-	{
-		return Host->Color;
-	}
-}
-
-FReply FDisplayClusterConfiguratorTreeItemHost::OnHostClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
-	TArray<UObject*> Objects { Host };
-	ToolkitPtr.Pin()->SelectObjects(Objects);
-
-	return FReply::Handled();
-}
-
-bool FDisplayClusterConfiguratorTreeItemHost::CanDropClusterNodes(TSharedPtr<FDisplayClusterConfiguratorClusterNodeDragDropOp> ClusterNodeDragDropOp, FText& OutErrorMessage) const
-{
-	if (ClusterNodeDragDropOp.IsValid())
-	{
-		UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
-		bool bCanAcceptClusterNodes = true;
-
-		return bCanAcceptClusterNodes;
-	}
-
-	return false;
-}
-
-const FSlateBrush* FDisplayClusterConfiguratorTreeItemHost::GetVisibilityButtonBrush() const
-{
-	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
-
-	if (Host->bIsVisible)
-	{
-		return VisibilityButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.VisibleHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.VisibleIcon16x"));
-	}
-	else
-	{
-		return VisibilityButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.NotVisibleHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
-	}
-}
-
-FReply FDisplayClusterConfiguratorTreeItemHost::OnVisibilityButtonClicked()
+void FDisplayClusterConfiguratorTreeItemHost::ToggleClusterItemVisibility()
 {
 	const FScopedTransaction Transaction(LOCTEXT("ToggleHostVisibility", "Set Host Visibility"));
 
@@ -308,25 +215,15 @@ FReply FDisplayClusterConfiguratorTreeItemHost::OnVisibilityButtonClicked()
 			ClusterNodeTreeItem->SetVisible(Host->bIsVisible);
 		}
 	}
-
-	return FReply::Handled();
 }
 
-const FSlateBrush* FDisplayClusterConfiguratorTreeItemHost::GetEnabledButtonBrush() const
+bool FDisplayClusterConfiguratorTreeItemHost::IsClusterItemUnlocked() const
 {
 	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
-
-	if (Host->bIsEnabled)
-	{
-		return EnabledButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.UnlockedHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.UnlockedIcon16x"));
-	}
-	else
-	{
-		return EnabledButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.LockedHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.LockedIcon16x"));
-	}
+	return Host->bIsUnlocked;
 }
 
-FReply FDisplayClusterConfiguratorTreeItemHost::OnEnabledButtonClicked()
+void FDisplayClusterConfiguratorTreeItemHost::ToggleClusterItemLock()
 {
 	const FScopedTransaction Transaction(LOCTEXT("ToggleHostEnabled", "Set Host Enabled"));
 
@@ -334,7 +231,7 @@ FReply FDisplayClusterConfiguratorTreeItemHost::OnEnabledButtonClicked()
 
 	// Use SaveToTransactionBuffer to avoid marking the package as dirty
 	SaveToTransactionBuffer(Host, false);
-	Host->bIsEnabled = !Host->bIsEnabled;
+	Host->bIsUnlocked = !Host->bIsUnlocked;
 
 	// Set the enabled state of this host's children to match it.
 	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> Child : Children)
@@ -342,11 +239,50 @@ FReply FDisplayClusterConfiguratorTreeItemHost::OnEnabledButtonClicked()
 		TSharedPtr<FDisplayClusterConfiguratorTreeItemClusterNode> ClusterNodeTreeItem = StaticCastSharedPtr<FDisplayClusterConfiguratorTreeItemClusterNode>(Child);
 		if (ClusterNodeTreeItem.IsValid())
 		{
-			ClusterNodeTreeItem->SetEnabled(Host->bIsEnabled);
+			ClusterNodeTreeItem->SetUnlocked(Host->bIsUnlocked);
 		}
 	}
+}
+
+FSlateColor FDisplayClusterConfiguratorTreeItemHost::GetClusterItemGroupColor() const
+{
+	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
+	if (ToolkitPtr.Pin()->IsObjectSelected(Host))
+	{
+		return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Color.Selected");
+	}
+	else
+	{
+		return Host->Color;
+	}
+}
+
+FReply FDisplayClusterConfiguratorTreeItemHost::OnClusterItemGroupClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
+	TArray<UObject*> Objects { Host };
+	ToolkitPtr.Pin()->SelectObjects(Objects);
 
 	return FReply::Handled();
+}
+
+FText FDisplayClusterConfiguratorTreeItemHost::GetHostAddress() const
+{
+	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
+	return FText::Format(LOCTEXT("HostAddressFormattedLabel", "({0})"), FText::FromString(FDisplayClusterConfiguratorClusterUtils::GetAddressForHost(Host)));
+}
+
+bool FDisplayClusterConfiguratorTreeItemHost::CanDropClusterNodes(TSharedPtr<FDisplayClusterConfiguratorClusterNodeDragDropOp> ClusterNodeDragDropOp, FText& OutErrorMessage) const
+{
+	if (ClusterNodeDragDropOp.IsValid())
+	{
+		UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
+		bool bCanAcceptClusterNodes = true;
+
+		return bCanAcceptClusterNodes;
+	}
+
+	return false;
 }
 
 void FDisplayClusterConfiguratorTreeItemHost::OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent)

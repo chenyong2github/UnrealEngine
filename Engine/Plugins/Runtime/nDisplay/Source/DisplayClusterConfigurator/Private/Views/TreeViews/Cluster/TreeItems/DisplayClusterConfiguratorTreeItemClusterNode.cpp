@@ -66,7 +66,7 @@ void FDisplayClusterConfiguratorTreeItemClusterNode::SetVisible(bool bIsVisible)
 	}
 }
 
-void FDisplayClusterConfiguratorTreeItemClusterNode::SetEnabled(bool bIsEnabled)
+void FDisplayClusterConfiguratorTreeItemClusterNode::SetUnlocked(bool bIsUnlocked)
 {
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 
@@ -74,9 +74,9 @@ void FDisplayClusterConfiguratorTreeItemClusterNode::SetEnabled(bool bIsEnabled)
 	SaveToTransactionBuffer(ClusterNode, false);
 
 	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
-		ClusterNode, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, bIsEnabled));
+		ClusterNode, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, bIsUnlocked));
 
-	PropertyView->GetPropertyHandle()->SetValue(bIsEnabled);
+	PropertyView->GetPropertyHandle()->SetValue(bIsUnlocked);
 
 	// Set the enabled state of this cluster node's children to match it.
 	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> Child : Children)
@@ -84,53 +84,9 @@ void FDisplayClusterConfiguratorTreeItemClusterNode::SetEnabled(bool bIsEnabled)
 		TSharedPtr<FDisplayClusterConfiguratorTreeItemViewport> ViewportTreeItem = StaticCastSharedPtr<FDisplayClusterConfiguratorTreeItemViewport>(Child);
 		if (ViewportTreeItem.IsValid())
 		{
-			ViewportTreeItem->SetEnabled(ClusterNode->bIsEnabled);
+			ViewportTreeItem->SetUnlocked(ClusterNode->bIsUnlocked);
 		}
 	}
-}
-
-TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItemClusterNode::GenerateWidgetForColumn(const FName& ColumnName, TSharedPtr<ITableRow> TableRow, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
-{
-	if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Host)
-	{
-		return SNew(SImage)
-			.ColorAndOpacity(this, &FDisplayClusterConfiguratorTreeItemClusterNode::GetHostColor)
-			.OnMouseButtonDown(this, &FDisplayClusterConfiguratorTreeItemClusterNode::OnHostClicked)
-			.Image(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body"))
-			.Cursor(EMouseCursor::Hand);
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Visible)
-	{
-		return SAssignNew(VisibilityButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("VisibilityButton_Tooltip", "Hides or shows this cluster node and its child viewports in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemClusterNode::OnVisibilityButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemClusterNode::GetVisibilityButtonBrush)
-			];
-	}
-	else if (ColumnName == FDisplayClusterConfiguratorViewCluster::Columns::Enabled)
-	{
-		return SAssignNew(EnabledButton, SButton)
-			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("EnabledButton_Tooltip", "Enables or disables this cluster node and its child viewports in the Output Mapping editor"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemClusterNode::OnEnabledButtonClicked)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(this, &FDisplayClusterConfiguratorTreeItemClusterNode::GetEnabledButtonBrush)
-			];
-	}
-
-	return FDisplayClusterConfiguratorTreeItemCluster::GenerateWidgetForColumn(ColumnName, TableRow, FilterText, InIsSelected);
 }
 
 void FDisplayClusterConfiguratorTreeItemClusterNode::DeleteItem() const
@@ -348,35 +304,6 @@ EVisibility FDisplayClusterConfiguratorTreeItemClusterNode::GetPrimaryLabelVisib
 	return bIsPrimary ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-FSlateColor FDisplayClusterConfiguratorTreeItemClusterNode::GetHostColor() const
-{
-	if (!HostObject.IsValid())
-	{
-		return FLinearColor::Transparent;
-	}
-
-	if (ToolkitPtr.Pin()->IsObjectSelected(HostObject.Get()))
-	{
-		return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Color.Selected");
-	}
-	else
-	{
-		return HostObject.Get()->Color;
-	}
-}
-
-FReply FDisplayClusterConfiguratorTreeItemClusterNode::OnHostClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	if (!HostObject.IsValid())
-	{
-		return FReply::Unhandled();
-	}
-
-	SelectHostDisplayData();
-
-	return FReply::Handled();
-}
-
 bool FDisplayClusterConfiguratorTreeItemClusterNode::CanDropViewports(TSharedPtr<FDisplayClusterConfiguratorViewportDragDropOp> ViewportDragDropOp, FText& OutErrorMessage) const
 {
 	if (ViewportDragDropOp.IsValid())
@@ -406,23 +333,15 @@ bool FDisplayClusterConfiguratorTreeItemClusterNode::CanDropViewports(TSharedPtr
 	return false;
 }
 
-const FSlateBrush* FDisplayClusterConfiguratorTreeItemClusterNode::GetVisibilityButtonBrush() const
+bool FDisplayClusterConfiguratorTreeItemClusterNode::IsClusterItemVisible() const
 {
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
-
-	if (ClusterNode->bIsVisible)
-	{
-		return VisibilityButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.VisibleHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.VisibleIcon16x"));
-	}
-	else
-	{
-		return VisibilityButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.NotVisibleHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
-	}
+	return ClusterNode->bIsVisible;
 }
 
-FReply FDisplayClusterConfiguratorTreeItemClusterNode::OnVisibilityButtonClicked()
+void FDisplayClusterConfiguratorTreeItemClusterNode::ToggleClusterItemVisibility()
 {
-	const FScopedTransaction Transaction(LOCTEXT("ToggleClusterNodeVisibility", "Set Cluster Node Visibility"));
+	const FScopedTransaction Transaction(LOCTEXT("ToggleClusterNodeVisibility", "Toggle Cluster Node Visibility"));
 
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 
@@ -444,27 +363,17 @@ FReply FDisplayClusterConfiguratorTreeItemClusterNode::OnVisibilityButtonClicked
 			ViewportTreeItem->SetVisible(ClusterNode->bIsVisible);
 		}
 	}
-
-	return FReply::Handled();
 }
 
-const FSlateBrush* FDisplayClusterConfiguratorTreeItemClusterNode::GetEnabledButtonBrush() const
+bool FDisplayClusterConfiguratorTreeItemClusterNode::IsClusterItemUnlocked() const
 {
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
-
-	if (ClusterNode->bIsEnabled)
-	{
-		return EnabledButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.UnlockedHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.UnlockedIcon16x"));
-	}
-	else
-	{
-		return EnabledButton->IsHovered() ? FEditorStyle::GetBrush(TEXT("Level.LockedHighlightIcon16x")) : FEditorStyle::GetBrush(TEXT("Level.LockedIcon16x"));
-	}
+	return ClusterNode->bIsUnlocked;
 }
 
-FReply FDisplayClusterConfiguratorTreeItemClusterNode::OnEnabledButtonClicked()
+void FDisplayClusterConfiguratorTreeItemClusterNode::ToggleClusterItemLock()
 {
-	const FScopedTransaction Transaction(LOCTEXT("ToggleClusterNodeEnabled", "Set Cluster Node Enabled"));
+	const FScopedTransaction Transaction(LOCTEXT("ToggleClusterNodeLock", "Toggle Cluster Node Lock"));
 
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
 
@@ -472,9 +381,9 @@ FReply FDisplayClusterConfiguratorTreeItemClusterNode::OnEnabledButtonClicked()
 	SaveToTransactionBuffer(ClusterNode, false);
 
 	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
-		ClusterNode, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, bIsEnabled));
+		ClusterNode, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, bIsUnlocked));
 
-	PropertyView->GetPropertyHandle()->SetValue(!ClusterNode->bIsEnabled);
+	PropertyView->GetPropertyHandle()->SetValue(!ClusterNode->bIsUnlocked);
 
 	// Set the enabled state of this cluster node's children to match it.
 	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> Child : Children)
@@ -483,9 +392,36 @@ FReply FDisplayClusterConfiguratorTreeItemClusterNode::OnEnabledButtonClicked()
 
 		if (ViewportTreeItem.IsValid())
 		{
-			ViewportTreeItem->SetEnabled(ClusterNode->bIsEnabled);
+			ViewportTreeItem->SetUnlocked(ClusterNode->bIsUnlocked);
 		}
 	}
+}
+
+FSlateColor FDisplayClusterConfiguratorTreeItemClusterNode::GetClusterItemGroupColor() const
+{
+	if (!HostObject.IsValid())
+	{
+		return FLinearColor::Transparent;
+	}
+
+	if (ToolkitPtr.Pin()->IsObjectSelected(HostObject.Get()))
+	{
+		return FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.Node.Color.Selected");
+	}
+	else
+	{
+		return HostObject.Get()->Color;
+	}
+}
+
+FReply FDisplayClusterConfiguratorTreeItemClusterNode::OnClusterItemGroupClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (!HostObject.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	SelectHostDisplayData();
 
 	return FReply::Handled();
 }

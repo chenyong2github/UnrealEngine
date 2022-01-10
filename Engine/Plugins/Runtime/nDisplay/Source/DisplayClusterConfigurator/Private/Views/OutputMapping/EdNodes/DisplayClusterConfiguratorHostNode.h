@@ -39,7 +39,7 @@ public:
 	virtual FBox2D GetNodeBounds(bool bAsParent = false) const override;
 	virtual FNodeAlignmentAnchors GetNodeAlignmentAnchors(bool bAsParent = false) const override;
 	virtual bool IsNodeVisible() const override;
-	virtual bool IsNodeEnabled() const override;
+	virtual bool IsNodeUnlocked() const override;
 	virtual bool IsNodeAutoPositioned() const { return !CanUserMoveNode(); }
 	virtual bool IsNodeAutosized() const override { return !CanUserResizeNode(); }
 	virtual bool CanNodeOverlapSiblings() const override { return false; }

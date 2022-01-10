@@ -105,6 +105,11 @@ public:
 	virtual bool IsNodeEnabled() const;
 
 	/**
+	 * @return true if the node should be locked, meaning it can't be selected, moved, or resized
+	 */
+	virtual bool IsNodeUnlocked() const;
+
+	/**
 	 * @return The intended size of the node, taken from the backing EdGraphNode 
 	 */
 	virtual FVector2D GetSize() const;

@@ -24,7 +24,7 @@ void SAlignmentRuler::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		.Padding(FMargin(0.5f))
-		.BorderImage(FEditorStyle::GetBrush("WhiteBrush"))
+		.BorderImage(FAppStyle::Get().GetBrush("WhiteBrush"))
 		.BorderBackgroundColor(InArgs._ColorAndOpacity)
 		[
 			SAssignNew(BoxWidget, SBox)
@@ -157,6 +157,12 @@ FVector2D SDisplayClusterConfiguratorBaseNode::ComputeDesiredSize(float) const
 
 void SDisplayClusterConfiguratorBaseNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty)
 {
+	if (!IsNodeUnlocked())
+	{
+		NodeFilter.Add(SharedThis(this));
+		return;
+	}
+
 	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
 	check(Toolkit.IsValid());
 
@@ -315,12 +321,12 @@ void SDisplayClusterConfiguratorBaseNode::EndUserInteraction() const
 
 const FSlateBrush* SDisplayClusterConfiguratorBaseNode::GetShadowBrush(bool bSelected) const
 {
-	return FEditorStyle::GetNoBrush();
+	return FStyleDefaults::GetNoBrush();
 }
 
 bool SDisplayClusterConfiguratorBaseNode::CanBeSelected(const FVector2D& MousePositionInNode) const
 {
-	return IsNodeEnabled();
+	return IsNodeEnabled() && IsNodeUnlocked();
 }
 
 bool SDisplayClusterConfiguratorBaseNode::ShouldAllowCulling() const
@@ -457,6 +463,12 @@ bool SDisplayClusterConfiguratorBaseNode::IsNodeEnabled() const
 {
 	UDisplayClusterConfiguratorBaseNode* EdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorBaseNode>();
 	return EdNode->IsNodeEnabled();
+}
+
+bool SDisplayClusterConfiguratorBaseNode::IsNodeUnlocked() const
+{
+	UDisplayClusterConfiguratorBaseNode* EdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorBaseNode>();
+	return EdNode->IsNodeUnlocked();
 }
 
 FVector2D SDisplayClusterConfiguratorBaseNode::GetSize() const

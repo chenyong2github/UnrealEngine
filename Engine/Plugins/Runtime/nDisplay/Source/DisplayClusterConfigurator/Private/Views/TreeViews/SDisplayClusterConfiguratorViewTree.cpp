@@ -67,7 +67,7 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 				// Add a border if we are being used as a picker
 				SNew(SBorder)
 				.Visibility_Lambda([this](){ return Mode == EDisplayClusterConfiguratorTreeMode::Picker ? EVisibility::Visible: EVisibility::Collapsed; })
-				.BorderImage(FEditorStyle::Get().GetBrush("Menu.Background"))
+				.BorderImage(FAppStyle::Get().GetBrush("Menu.Background"))
 			]
 			+SOverlay::Slot()
 			[
@@ -79,7 +79,7 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 				[
 					SNew(SBorder)
 					.Padding(0)
-					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+					.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryTop"))
 					.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 					[
 						SNew(SHorizontalBox)
@@ -90,7 +90,7 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 						[
 					
 							SNew(SPositiveActionButton)
-							.Text(LOCTEXT("AddNewItem", "Add New"))
+							.Text(LOCTEXT("AddNewItem", "Add"))
 							.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 							.ToolTipText(LOCTEXT("AddNewClusterItemTooltip", "Adds a new Cluster Item to the Cluster"))
 							.Visibility(this, &SDisplayClusterConfiguratorViewTree::GetAddNewComboButtonVisibility)
@@ -103,7 +103,7 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 						.Padding(3.0f, 3.0f)
 						[
 							SAssignNew(FilterComboButton, SComboButton)
-							.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+							.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
 							.ForegroundColor(FLinearColor::White)
 							.Visibility(this, &SDisplayClusterConfiguratorViewTree::GetFilterOptionsComboButtonVisibility)
 							.ContentPadding(0.0f)
@@ -118,8 +118,8 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 								.VAlign(VAlign_Center)
 								[
 									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+									.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
+									.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
 									.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
 								]
 								+SHorizontalBox::Slot()
@@ -127,8 +127,8 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 								.Padding(2, 0, 0, 0)
 								.VAlign(VAlign_Center)
 								[
-									SNew( STextBlock )
-									.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+									SNew(STextBlock)
+									.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
 									.Text( LOCTEXT("FilterMenuLabel", "Options") )
 								]
 							]
@@ -177,7 +177,7 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 					.AutoWidth()
 					[
 						SNew(SComboButton)
-						.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+						.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
 						.ForegroundColor(FLinearColor::White)
 						.Visibility(this, &SDisplayClusterConfiguratorViewTree::GetViewOptionsComboButtonVisibility)
 						.ContentPadding(0)
@@ -192,7 +192,7 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 							.AutoWidth()
 							.VAlign(VAlign_Center)
 							[
-								SNew(SImage).Image(FEditorStyle::GetBrush("GenericViewButton"))
+								SNew(SImage).Image(FAppStyle::Get().GetBrush("GenericViewButton"))
 							]
 
 							+ SHorizontalBox::Slot()
@@ -214,7 +214,7 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 			[
 				SNew(STextBlock)
 				.Visibility(EVisibility::HitTestInvisible)
-				.TextStyle(FEditorStyle::Get(), "Graph.CornerText")
+				.TextStyle(FAppStyle::Get(), "Graph.CornerText")
 				.Text(this, &SDisplayClusterConfiguratorViewTree::GetCornerText)
 			]
 		],
@@ -239,9 +239,7 @@ void SDisplayClusterConfiguratorViewTree::Refresh()
 
 void SDisplayClusterConfiguratorViewTree::CreateTreeColumns()
 {
-	TSharedRef<SHeaderRow> TreeHeaderRow =
-		SNew(SHeaderRow)
-		.Visibility(EVisibility::Collapsed);
+	TSharedRef<SHeaderRow> TreeHeaderRow = SNew(SHeaderRow);
 
 	TArray<SHeaderRow::FColumn::FArguments> Columns;
 	ViewTreePtr.Pin()->ConstructColumns(Columns);

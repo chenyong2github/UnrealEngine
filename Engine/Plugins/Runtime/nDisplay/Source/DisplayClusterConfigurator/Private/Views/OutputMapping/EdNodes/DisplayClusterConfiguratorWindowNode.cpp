@@ -119,7 +119,7 @@ bool UDisplayClusterConfiguratorWindowNode::IsNodeVisible() const
 	return bIsChildVisible;
 }
 
-bool UDisplayClusterConfiguratorWindowNode::IsNodeEnabled() const
+bool UDisplayClusterConfiguratorWindowNode::IsNodeUnlocked() const
 {
 	if (!IsObjectValid())
 	{
@@ -127,24 +127,7 @@ bool UDisplayClusterConfiguratorWindowNode::IsNodeEnabled() const
 	}
 
 	UDisplayClusterConfigurationClusterNode* ClusterNode = GetObjectChecked<UDisplayClusterConfigurationClusterNode>();
-
-	if (ClusterNode->bIsEnabled)
-	{
-		return true;
-	}
-
-	// If this node is marked as disabled but it has a child that is enabled, This node needs to remain enabled.
-	bool bIsChildEnabled = false;
-	for (UDisplayClusterConfiguratorBaseNode* Child : Children)
-	{
-		if (Child->IsNodeEnabled())
-		{
-			bIsChildEnabled = true;
-			break;
-		}
-	}
-
-	return bIsChildEnabled;
+	return ClusterNode->bIsUnlocked;
 }
 
 bool UDisplayClusterConfiguratorWindowNode::CanNodeExceedParentBounds() const

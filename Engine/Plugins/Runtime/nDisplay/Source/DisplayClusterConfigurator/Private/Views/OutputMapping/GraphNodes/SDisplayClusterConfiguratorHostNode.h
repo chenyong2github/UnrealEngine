@@ -45,6 +45,9 @@ private:
 	FText GetHostResolutionText() const;
 
 	FSlateColor GetBorderColor() const;
+	FSlateColor GetTextColor() const;
+
+	EVisibility GetLockIconVisibility() const;
 
 private:
 	FMargin BorderThickness;

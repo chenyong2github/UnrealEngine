@@ -30,7 +30,7 @@ void SDisplayClusterConfiguratorCanvasNode::UpdateGraphNode()
 	TAttribute<const FSlateBrush*> SelectedBrush = TAttribute<const FSlateBrush*>::Create(TAttribute<const FSlateBrush*>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorCanvasNode::GetSelectedBrush));
 
 	CanvasSizeTextWidget = SNew(SBorder)
-	.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+	.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
@@ -46,7 +46,7 @@ void SDisplayClusterConfiguratorCanvasNode::UpdateGraphNode()
 			[
 				SNew(STextBlock)
 				.Text(this, &SDisplayClusterConfiguratorCanvasNode::GetCanvasSizeText)
-				.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
+				.TextStyle(&FDisplayClusterConfiguratorStyle::Get().GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
 				.Justification(ETextJustify::Center)
 			]
 		]
@@ -57,7 +57,7 @@ void SDisplayClusterConfiguratorCanvasNode::UpdateGraphNode()
 	.VAlign(VAlign_Fill)
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+		.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
@@ -117,11 +117,11 @@ const FSlateBrush* SDisplayClusterConfiguratorCanvasNode::GetSelectedBrush() con
 	if (GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GetNodeObj()))
 	{
 		// Selected Case
-		return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Selected.Canvas.Brush");
+		return FDisplayClusterConfiguratorStyle::Get().GetBrush("DisplayClusterConfigurator.Selected.Canvas.Brush");
 	}
 
 	// Regular case
-	return FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Regular.Canvas.Brush");
+	return FDisplayClusterConfiguratorStyle::Get().GetBrush("DisplayClusterConfigurator.Regular.Canvas.Brush");
 }
 
 FMargin SDisplayClusterConfiguratorCanvasNode::GetBackgroundPosition() const

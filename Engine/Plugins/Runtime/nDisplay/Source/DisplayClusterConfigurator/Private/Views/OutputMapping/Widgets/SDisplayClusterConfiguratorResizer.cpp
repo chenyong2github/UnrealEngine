@@ -31,7 +31,7 @@ void SDisplayClusterConfiguratorResizer::Construct(const FArguments& InArgs, con
 	ChildSlot
 		[
 			SNew(SImage)
-			.Image(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.OutputMapping.ResizeAreaHandle"))
+			.Image(FDisplayClusterConfiguratorStyle::Get().GetBrush("DisplayClusterConfigurator.OutputMapping.ResizeAreaHandle"))
 		];
 }
 
