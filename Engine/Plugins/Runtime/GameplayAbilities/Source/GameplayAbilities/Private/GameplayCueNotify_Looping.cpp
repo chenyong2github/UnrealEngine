@@ -42,7 +42,7 @@ bool AGameplayCueNotify_Looping::Recycle()
 	RecurringSpawnResults.Reset();
 	RemovalSpawnResults.Reset();
 
-	bLoopingEffectsRemoved = false;
+	bLoopingEffectsRemoved = true;
 
 	return true;
 }
