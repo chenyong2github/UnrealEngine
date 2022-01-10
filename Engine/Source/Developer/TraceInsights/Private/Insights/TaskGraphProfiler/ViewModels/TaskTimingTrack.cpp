@@ -70,8 +70,8 @@ public:
 // FTaskTimingSharedState
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTaskTimingSharedState::FTaskTimingSharedState(STimingView* InTimingView) 
-	: TimingView(InTimingView) 
+FTaskTimingSharedState::FTaskTimingSharedState(STimingView* InTimingView)
+	: TimingView(InTimingView)
 {
 }
 
@@ -142,7 +142,7 @@ void FTaskTimingSharedState::Tick(Insights::ITimingViewSession& InSession, const
 	if (bResetOnNextTick)
 	{
 		bResetOnNextTick = false;
-		if (!TimingView->GetSelectedEvent().IsValid() && 
+		if (!TimingView->GetSelectedEvent().IsValid() &&
 			(!TimingView->GetSelectedTrack().IsValid() || TimingView->GetSelectedTrack().Get() != TaskTrack.Get()))
 		{
 			SetTaskId(TaskTrace::InvalidId);
@@ -445,7 +445,7 @@ void FTaskTimingSharedState::OnTaskSettingsChanged()
 		return;
 	}
 
-	if(TaskTrack->GetTaskId() != TaskTrace::InvalidId)
+	if (TaskTrack->GetTaskId() != TaskTrace::InvalidId)
 	{
 		FTaskGraphProfilerManager::Get()->ShowTaskRelations(TaskTrack->GetTaskId());
 	}
@@ -725,7 +725,7 @@ void FTaskTimingTrack::GetEventRelations(const FThreadTrackEvent& InSelectedEven
 		STimingView* TimingView = SharedState.GetTimingView();
 		TSharedRef<const FThreadTimingTrack> EventTrack = StaticCastSharedRef<const FThreadTimingTrack>(InSelectedEvent.GetTrack());
 		uint32 ThreadId = EventTrack->GetThreadId();
-		
+
 		FTaskGraphProfilerManager::Get()->ShowTaskRelations(&InSelectedEvent, ThreadId);
 
 		// if it's an event waiting for tasks completeness, add relations to these tasks
