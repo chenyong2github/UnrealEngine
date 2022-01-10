@@ -1977,6 +1977,133 @@ static bool BuildShaderOutputFromSpirv(
 	return true;
 }
 
+// Replaces OpImageFetch with OpImageRead for 64bit samplers
+static void Patch64bitSamplers(FVulkanSpirv& Spirv)
+{
+	uint32_t ULongSampledTypeId = 0;
+	uint32_t LongSampledTypeId = 0;
+
+	TArray<uint32_t, TInlineAllocator<2>> ImageTypeIDs;
+	TArray<uint32_t, TInlineAllocator<2>> LoadedIDs;
+
+
+	// Count instructions inside functions
+	for (FSpirvIterator Iter = Spirv.begin(); Iter != Spirv.end(); ++Iter)
+	{
+		switch (Iter.Opcode())
+		{
+
+		case SpvOpTypeInt:
+		{
+			// Operands:
+			// 1 - Result Id
+			// 2 - Width specifies how many bits wide the type is
+			// 3 - Signedness: 0 indicates unsigned
+
+			const uint32_t IntWidth = Iter.Operand(2);
+			if (IntWidth == 64)
+			{
+				const uint32_t IntSignedness = Iter.Operand(3);
+				if (IntSignedness == 1)
+				{
+					check(LongSampledTypeId == 0);
+					LongSampledTypeId = Iter.Operand(1);
+				}
+				else
+				{
+					check(ULongSampledTypeId == 0);
+					ULongSampledTypeId = Iter.Operand(1);
+				}
+			}
+		}
+		break;
+
+		case SpvOpTypeImage:
+		{
+			// Operands:
+			// 1 - Result Id
+			// 2 - Sampled Type is the type of the components that result from sampling or reading from this image type
+			// 3 - Dim is the image dimensionality (Dim).
+			// 4 - Depth : 0 indicates not a depth image, 1 indicates a depth image, 2 means no indication as to whether this is a depth or non-depth image
+			// 5 - Arrayed : 0 indicates non-arrayed content, 1 indicates arrayed content
+			// 6 - MS : 0 indicates single-sampled content, 1 indicates multisampled content
+			// 7 - Sampled : 0 indicates this is only known at run time, not at compile time, 1 indicates used with sampler, 2 indicates used without a sampler (a storage image)
+			// 8 - Image Format
+
+			if ((Iter.Operand(7) == 1) && (Iter.Operand(6) == 0) && (Iter.Operand(5) == 0))
+			{
+				// Patch the node info and the SPIRV
+				const uint32_t SampledTypeId = Iter.Operand(2);
+				const uint32_t WithoutSampler = 2;
+				if (SampledTypeId == LongSampledTypeId)
+				{
+					uint32* CurrentOpPtr = *Iter;
+					CurrentOpPtr[7] = WithoutSampler;
+					CurrentOpPtr[8] = (uint32_t)SpvImageFormatR64i;
+					ImageTypeIDs.Add(Iter.Operand(1));
+				}
+				else if (SampledTypeId == ULongSampledTypeId)
+				{
+					uint32* CurrentOpPtr = *Iter;
+					CurrentOpPtr[7] = WithoutSampler;
+					CurrentOpPtr[8] = (uint32_t)SpvImageFormatR64ui;
+					ImageTypeIDs.Add(Iter.Operand(1));
+				}
+			}
+		}
+		break;
+
+		case SpvOpLoad:
+		{
+			// Operands:
+			// 1 - Result Type Id
+			// 2 - Result Id
+			// 3 - Pointer
+
+			// Find loaded images of this type
+			if (ImageTypeIDs.Find(Iter.Operand(1)) != INDEX_NONE)
+			{
+				LoadedIDs.Add(Iter.Operand(2));
+			}
+		}
+		break;
+
+		case SpvOpImageFetch:
+		{
+			// Operands:
+			// 1 - Result Type Id
+			// 2 - Result Id
+			// 3 - Image Id
+			// 4 - Coordinate
+			// 5 - Image Operands
+
+			// If this is one of the modified images, patch the node and the SPIRV.
+			if (LoadedIDs.Find(Iter.Operand(3)) != INDEX_NONE)
+			{
+				const uint32_t OldWordCount = Iter.WordCount();
+				const uint32_t NewWordCount = 5;
+				check(OldWordCount >= NewWordCount);
+				const uint32_t EncodedOpImageRead = (NewWordCount << 16) | ((uint32_t)SpvOpImageRead & 0xFFFF);
+				uint32* CurrentOpPtr = *Iter;
+				(*CurrentOpPtr) = EncodedOpImageRead;
+
+				// Remove unsupported image operands (mostly force LOD 0)
+				const uint32_t NopWordCount = 1;
+				const uint32_t EncodedOpNop = (NopWordCount << 16) | ((uint32_t)SpvOpNop & 0xFFFF);
+				for (uint32_t ImageOperandIndex = NewWordCount; ImageOperandIndex < OldWordCount; ++ImageOperandIndex)
+				{
+					CurrentOpPtr[ImageOperandIndex] = EncodedOpNop;
+				}
+			}
+		}
+		break;
+
+		default:
+		break;
+		}
+	}
+}
+
 static bool CompileWithShaderConductor(
 	const FString&			PreprocessedShader,
 	const FString&			EntryPointName,
@@ -2043,6 +2170,10 @@ static bool CompileWithShaderConductor(
 		CompilerContext.FlushErrors(Output.Errors);
 		return false;
 	}
+
+	// If this shader samples R64 image formats, they need to get converted to STORAGE_IMAGE
+	// todo-jnmo: Scope this with a CFLAG if it affects compilation times 
+	Patch64bitSamplers(Spirv);
 
 	// Build shader output and binding table
 	Output.bSucceeded = BuildShaderOutputFromSpirv(CompilerContext, Spirv, Input, Output, BindingTable, EntryPointName, bStripReflect, bIsRayTracingShader, bDebugDump);

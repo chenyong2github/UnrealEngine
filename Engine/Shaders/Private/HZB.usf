@@ -101,7 +101,7 @@ void OutputMipLevel(uint MipLevel, uint2 OutputPixelPos, float FurthestDeviceZ, 
 
 #if VIS_BUFFER_FORMAT == 1
 
-// 64b VisBuffer
+// 64b VisBuffer as uint2
 Texture2D<uint2> VisBufferTexture;
 float4 Gather4VisZ(float2 BufferUV, uint2 PixelCoord)
 {
@@ -119,6 +119,25 @@ float4 Gather4VisZ(float2 BufferUV, uint2 PixelCoord)
 	Out.w = VisBufferTexture[ClampedPixelCoord4.xy].g;	// (-, -)
 	return asfloat(Out);
 #endif
+}
+
+
+#elif VIS_BUFFER_FORMAT == 3
+
+// 64b VisBuffer as UlongType
+Texture2D<UlongType> VisBufferTexture;
+float4 Gather4VisZ(float2 BufferUV, uint2 PixelCoord)
+{
+	// Workaround for Gather not being support for R32G32_UINT on D3D11. We can't alias the texture with R3232_FLOAT as that isn't supported in Unreal.
+	uint2 ClampedPixelCoord = min(PixelCoord.xy, PixelViewPortMinMax.zw - 1);
+	uint4 ClampedPixelCoord4 = uint4(ClampedPixelCoord.xy, ClampedPixelCoord.xy + 1);
+
+	uint4 Out;
+	Out.x = UnpackUlongType(VisBufferTexture[ClampedPixelCoord4.xw]).g;	// (-, +)
+	Out.y = UnpackUlongType(VisBufferTexture[ClampedPixelCoord4.zw]).g;	// (+, +)
+	Out.z = UnpackUlongType(VisBufferTexture[ClampedPixelCoord4.zy]).g;	// (+, -)
+	Out.w = UnpackUlongType(VisBufferTexture[ClampedPixelCoord4.xy]).g;	// (-, -)
+	return asfloat(Out);
 }
 
 #else
