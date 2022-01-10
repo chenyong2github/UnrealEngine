@@ -23,6 +23,9 @@ namespace WorldPartitionTests
 		FWorldPartitionHandle Handle = FWorldPartitionHandle(ActorDescContainer, FGuid(TEXT("5D9F93BA407A811AFDDDAAB4F1CECC6A")));
 		FWorldPartitionReference Reference = FWorldPartitionReference(ActorDescContainer, FGuid(TEXT("0D2B04D240BE5DE58FE437A8D2DBF5C9")));
 
+		TestTrue(TEXT("Handle container"), Handle->GetContainer() == ActorDescContainer);
+		TestTrue(TEXT("Reference container"), Reference->GetContainer() == ActorDescContainer);
+
 		TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 1);
 		TestTrue(TEXT("Handle hard refcount"), Handle->GetHardRefCount() == 0);
 		TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 0);

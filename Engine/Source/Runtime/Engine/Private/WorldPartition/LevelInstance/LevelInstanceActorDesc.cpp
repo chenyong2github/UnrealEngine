@@ -51,12 +51,12 @@ void FLevelInstanceActorDesc::Init(const AActor* InActor)
 	DesiredRuntimeBehavior = LevelInstanceActor->GetDesiredRuntimeBehavior();
 }
 
-void FLevelInstanceActorDesc::Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData)
+void FLevelInstanceActorDesc::Init(const FWorldPartitionActorDescInitData& DescData)
 {
 	ALevelInstance* CDO = DescData.NativeClass->GetDefaultObject<ALevelInstance>();
 	DesiredRuntimeBehavior = CDO->GetDefaultRuntimeBehavior();
 
-	FWorldPartitionActorDesc::Init(InContainer, DescData);
+	FWorldPartitionActorDesc::Init(DescData);
 }
 
 bool FLevelInstanceActorDesc::Equals(const FWorldPartitionActorDesc* Other) const

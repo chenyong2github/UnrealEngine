@@ -131,6 +131,12 @@ protected:
 		return Container;
 	}
 
+	void SetContainer(UActorDescContainer* InContainer)
+	{
+		check(!Container || !InContainer);
+		Container = InContainer;
+	}
+
 public:
 	const TArray<FGuid>& GetReferences() const
 	{
@@ -149,7 +155,7 @@ public:
 	void UnregisterActor();
 
 	virtual void Init(const AActor* InActor);
-	virtual void Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData);
+	virtual void Init(const FWorldPartitionActorDescInitData& DescData);
 
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const;
 
@@ -162,6 +168,7 @@ protected:
 
 	virtual void TransferFrom(const FWorldPartitionActorDesc* From)
 	{
+		Container = From->Container;
 		SoftRefCount = From->SoftRefCount;
 		HardRefCount = From->HardRefCount;
 	}
