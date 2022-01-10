@@ -245,8 +245,8 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 	FString SectionSuffix = *FString::Printf(TEXT(" %s"), *UDeviceProfile::StaticClass()->GetName());
 
 #if WITH_EDITOR
-	TSet<FString> PreviewAllowlistCVars;
-	TSet<FString> PreviewDenylistCVars;
+	TArray<FString> PreviewAllowlistCVars;
+	TArray<FString> PreviewDenylistCVars;
 	bool bFoundAllowDeny = false;
 	if (Mode == EDeviceProfileMode::DPM_CacheValues)
 	{
@@ -255,19 +255,8 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 			PreviewAllowlistCVars.Num()==0 && PreviewDenylistCVars.Num()==0 && !CurrentProfileName.IsEmpty() && AvailableProfiles.Contains(CurrentSectionName);
 			CurrentProfileName = GConfig->GetStr(*CurrentSectionName, TEXT("BaseProfileName"), GDeviceProfilesIni), CurrentSectionName = CurrentProfileName + SectionSuffix)
 		{
-			TArray<FString> TempAllowlist;
-			GConfig->GetArray(*CurrentSectionName, TEXT("PreviewAllowlistCVars"), TempAllowlist, GDeviceProfilesIni);
-			for( FString& Item : TempAllowlist)
-			{
-				PreviewAllowlistCVars.Add(Item);
-			}
-
-			TArray<FString> TempDenylist;
-			GConfig->GetArray(*CurrentSectionName, TEXT("PreviewDenylistCVars"), TempDenylist, GDeviceProfilesIni);
-			for (FString& Item : TempDenylist)
-			{
-				PreviewDenylistCVars.Add(Item);
-			}
+			ConfigSystem->GetArray(*CurrentSectionName, TEXT("PreviewAllowlistCVars"), PreviewAllowlistCVars, GDeviceProfilesIni);
+			ConfigSystem->GetArray(*CurrentSectionName, TEXT("PreviewDenylistCVars"), PreviewDenylistCVars, GDeviceProfilesIni);
 		}
 	}
 #endif
@@ -406,13 +395,13 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 #if WITH_EDITOR
 							if (Mode == EDeviceProfileMode::DPM_CacheValues)
 							{
-								if (PreviewDenylistCVars.Contains(CVarKey))
+								if (PreviewDenylistCVars.ContainsByPredicate([&CVarKey](const FString& Entry) { return CVarKey.StartsWith(Entry); }))
 								{
 									UE_LOG(LogInit, Log, TEXT("Skipping Device Profile CVar due to PreviewDenylistCVars: [[%s]]"), *CVarKey);
 									continue;
 								}
 
-								if (PreviewAllowlistCVars.Num() > 0 && !PreviewAllowlistCVars.Contains(CVarKey))
+								if (PreviewAllowlistCVars.Num() > 0 && !PreviewAllowlistCVars.ContainsByPredicate([&CVarKey](const FString& Entry) { return CVarKey.StartsWith(Entry); }))
 								{
 									UE_LOG(LogInit, Log, TEXT("Skipping Device Profile CVar due to PreviewAllowlistCVars: [[%s]]"), *CVarKey);
 									continue;
