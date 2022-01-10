@@ -112,7 +112,7 @@ namespace Gauntlet
 
 					// check both binary AND Engine content. Regular Unreal builds won't have the latter
 					if (Directory.Exists(MacOSDir)
-						&& Directory.Exists(Path.Combine(Di.FullName, "Contents", "UE4")))
+						&& Directory.Exists(Path.Combine(Di.FullName, "Contents", "UE")))
 					{
 						// Check there's an executable
 						FileInfo Executable = new DirectoryInfo(MacOSDir).GetFiles().Where(Fi => Fi.Name.StartsWith(ShortName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();

@@ -465,7 +465,7 @@ public class MacPlatform : Platform
 				}
 			}
 
-			string TargetPath = CombinePaths(BundlePath, "Contents", "UE4");
+			string TargetPath = CombinePaths(BundlePath, "Contents", "UE");
 			if (!SC.bIsCombiningMultiplePlatforms)
 			{
 				if (Directory.Exists(BundlePath))

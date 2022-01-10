@@ -1026,11 +1026,11 @@ const TCHAR* FMacPlatformProcess::BaseDir()
 				NSString* BundledBinariesPath = NULL;
 				if (!FApp::IsProjectNameEmpty())
 				{
-					BundledBinariesPath = [BasePath stringByAppendingPathComponent : [NSString stringWithFormat : @"Contents/UE4/%s/Binaries/Mac", TCHAR_TO_UTF8(FApp::GetProjectName())]];
+					BundledBinariesPath = [BasePath stringByAppendingPathComponent : [NSString stringWithFormat : @"Contents/UE/%s/Binaries/Mac", TCHAR_TO_UTF8(FApp::GetProjectName())]];
 				}
 				if (!BundledBinariesPath || ![FileManager fileExistsAtPath:BundledBinariesPath])
 				{
-					BundledBinariesPath = [BasePath stringByAppendingPathComponent: @"Contents/UE4/Engine/Binaries/Mac"];
+					BundledBinariesPath = [BasePath stringByAppendingPathComponent: @"Contents/UE/Engine/Binaries/Mac"];
 				}
 				if ([FileManager fileExistsAtPath: BundledBinariesPath])
 				{
