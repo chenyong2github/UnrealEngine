@@ -322,7 +322,7 @@ SetXRandRDisplayName(Display *dpy, Atom EDID, char *name, const size_t namelen, 
                     dump_monitor_info(info);
 #endif
                     SDL_strlcpy(name, info->dsc_product_name, namelen);
-                    free(info);
+                    SDL_free(info);
                 }
                 X11_XFree(prop);
             }
@@ -358,7 +358,7 @@ GetXftDPI(Display* dpy)
     }
 
     /*
-     * It's possible for SDL_atoi to call strtol, if it fails due to a
+     * It's possible for SDL_atoi to call SDL_strtol, if it fails due to a
      * overflow or an underflow, it will return LONG_MAX or LONG_MIN and set
      * errno to ERANGE. So we need to check for this so we dont get crazy dpi
      * values
@@ -494,19 +494,6 @@ X11_InitModes_XRandR(_THIS)
                 displaydata->depth = vinfo.depth;
                 displaydata->hdpi = display_mm_width ? (((float) mode.w) * 25.4f / display_mm_width) : 0.0f;
                 displaydata->vdpi = display_mm_height ? (((float) mode.h) * 25.4f / display_mm_height) : 0.0f;
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-                {
-                    int xft_dpi_value = GetXftDPI(dpy);
-
-                    if (xft_dpi_value > 0)
-                    {
-                        displaydata->hdpi = xft_dpi_value;
-                        displaydata->vdpi = xft_dpi_value;
-                    }
-                }
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
                 displaydata->ddpi = SDL_ComputeDiagonalDPI(mode.w, mode.h, ((float) display_mm_width) / 25.4f,((float) display_mm_height) / 25.4f);
 
                 /* if xft dpi is available we will use this over xrandr */
@@ -810,9 +797,9 @@ X11_InitModes(_THIS)
                 displaydata->vdpi = xft_dpi_value;
             }
         }
-#else
 #endif /* SDL_WITH_EPIC_EXTENSIONS */
 /* EG END */
+
         displaydata->ddpi = SDL_ComputeDiagonalDPI(DisplayWidth(data->display, displaydata->screen),
                                                    DisplayHeight(data->display, displaydata->screen),
                                                    (float)DisplayWidthMM(data->display, displaydata->screen) / 25.4f,
@@ -877,6 +864,16 @@ X11_InitModes(_THIS)
     if (_this->num_displays == 0) {
         return SDL_SetError("No available displays");
     }
+
+#if SDL_VIDEO_DRIVER_X11_XVIDMODE
+    if (use_vidmode) {  /* we intend to remove support for XVidMode soon. */
+        SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "SDL is using XVidMode to manage your displays!");
+        SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "This almost always means either SDL was misbuilt");
+        SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "or your X server is insufficient. Please check your setup!");
+        SDL_LogWarn(SDL_LOG_CATEGORY_VIDEO, "Fullscreen and/or multiple displays will not work well.");
+    }
+#endif
+
     return 0;
 }
 
@@ -1068,11 +1065,20 @@ X11_SetDisplayMode(_THIS, SDL_VideoDisplay * sdl_display, SDL_DisplayMode * mode
             return SDL_SetError("Couldn't get XRandR crtc info");
         }
 
+        if (crtc->mode == modedata->xrandr_mode) {
+#ifdef X11MODES_DEBUG
+            printf("already in desired mode 0x%lx (%ux%u), nothing to do\n",
+                   crtc->mode, crtc->width, crtc->height);
+#endif
+            status = Success;
+            goto freeInfo;
+        }
+
         X11_XGrabServer(display);
         status = X11_XRRSetCrtcConfig(display, res, output_info->crtc, CurrentTime,
           0, 0, None, crtc->rotation, NULL, 0);
         if (status != Success) {
-            goto setCrtcError;
+            goto ungrabServer;
         }
 
         mm_width = mode->w * DisplayWidthMM(display, data->screen) / DisplayWidth(display, data->screen);
@@ -1095,8 +1101,9 @@ X11_SetDisplayMode(_THIS, SDL_VideoDisplay * sdl_display, SDL_DisplayMode * mode
           crtc->x, crtc->y, modedata->xrandr_mode, crtc->rotation,
           &data->xrandr_output, 1);
 
-setCrtcError:
+ungrabServer:
         X11_XUngrabServer(display);
+freeInfo:
         X11_XRRFreeCrtcInfo(crtc);
         X11_XRRFreeOutputInfo(output_info);
         X11_XRRFreeScreenResources(res);

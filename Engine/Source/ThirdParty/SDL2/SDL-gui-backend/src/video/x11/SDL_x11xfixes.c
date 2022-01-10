@@ -21,17 +21,13 @@
 
 #include "../../SDL_internal.h"
 
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-
-#if SDL_VIDEO_DRIVER_X11
+#if SDL_VIDEO_DRIVER_X11 && SDL_VIDEO_DRIVER_X11_XFIXES
 
 #include "SDL_x11video.h"
 #include "SDL_x11xfixes.h"
 #include "../../events/SDL_mouse_c.h"
 #include "../../events/SDL_touch_c.h"
 
-#if SDL_VIDEO_DRIVER_X11_XFIXES
 static int xfixes_initialized = 0;
 
 static int
@@ -48,19 +44,17 @@ xfixes_version_atleast(const int version, const int wantmajor, const int wantmin
     return (version >= ((wantmajor * 1000) + wantminor));
 }
 
-#endif /* SDL_VIDEO_DRIVER_X11_XFIXES */
-
 void
-X11_InitXFixes(_THIS)
+X11_InitXfixes(_THIS)
 {
-#if SDL_VIDEO_DRIVER_X11_XFIXES
     SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 
     int version = 0;
     int event, error;
     int fixes_opcode;
 
-    if (!X11_XQueryExtension(data->display, "XFIXES", &fixes_opcode, &event, &error)) {
+    if (!SDL_X11_HAVE_XFIXES ||
+        !X11_XQueryExtension(data->display, "XFIXES", &fixes_opcode, &event, &error)) {
         return;
     }
 
@@ -71,34 +65,45 @@ X11_InitXFixes(_THIS)
     }
 
     xfixes_initialized = 1;
-
-#endif
 }
 
 int
-X11_XFixesIsInitialized()
+X11_XfixesIsInitialized()
 {
-#if SDL_VIDEO_DRIVER_X11_XFIXES
     return xfixes_initialized;
-#else
-    return 0;
-#endif
 }
 
-SDL_bool
-X11_ConfineCursor(_THIS, SDL_Window * window, const SDL_Rect * rect, int flags)
+void
+X11_SetWindowMouseRect(_THIS, SDL_Window * window)
 {
-#if SDL_VIDEO_DRIVER_X11_XFIXES
+    if (SDL_RectEmpty(&window->mouse_rect)) {
+        X11_ConfineCursorWithFlags(_this, window, NULL, 0);
+    } else {
+        if (window->flags & SDL_WINDOW_INPUT_FOCUS) {
+            X11_ConfineCursorWithFlags(_this, window, &window->mouse_rect, 0);
+        } else {
+            /* Save the state for when we get focus again */
+            SDL_WindowData *wdata = (SDL_WindowData *) window->driverdata;
 
+            SDL_memcpy(&wdata->barrier_rect, &window->mouse_rect, sizeof(wdata->barrier_rect));
+
+            wdata->pointer_barrier_active = SDL_TRUE;
+        }
+    }
+}
+
+int
+X11_ConfineCursorWithFlags(_THIS, SDL_Window * window, const SDL_Rect * rect, int flags)
+{
     /* Yaakuro: For some reason Xfixes when confining inside a rect where the
      * edges exactly match, a rectangle the cursor 'slips' out of the barrier.
      * To prevent that the lines for the barriers will span the whole screen.
      */
     SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_WindowData *wdata;
 
-    if (!X11_XFixesIsInitialized()) {
-        SDL_Unsupported();
-        return SDL_FALSE;
+    if (!X11_XfixesIsInitialized()) {
+        return SDL_Unsupported();
     }
 
     /* If there is already a set of barriers active, disable them. */
@@ -106,91 +111,80 @@ X11_ConfineCursor(_THIS, SDL_Window * window, const SDL_Rect * rect, int flags)
          X11_DestroyPointerBarrier(_this, data->active_cursor_confined_window);
     }
 
-    /* If the user specified a valid window, use it to calculate the barrier rectangle else destroy
-     * all barriers for all windows */
-    if (window) {
-        SDL_WindowData *wdata = (SDL_WindowData *) window->driverdata;
+    SDL_assert(window != NULL);
+    wdata = (SDL_WindowData *) window->driverdata;
 
-        /* If user did not specify an area to confine, destroy the barrier that was/is assigned to
-         * this window it was assigned*/
-        if (rect) {
-            int x1, y1, x2, y2;
-            SDL_Rect bounds;
-            /* Find the windows's monitor.*/
-            int displayIndex = SDL_GetWindowDisplayIndex(window);
-            SDL_zero(bounds);
-            SDL_GetDisplayBounds(displayIndex, &bounds);
+    /* If user did not specify an area to confine, destroy the barrier that was/is assigned to
+     * this window it was assigned */
+    if (rect) {
+        int x1, y1, x2, y2;
+        SDL_Rect bounds;
+        SDL_GetWindowPosition(window, &bounds.x, &bounds.y);
+        SDL_GetWindowSize(window, &bounds.w, &bounds.h);
 
-            /** Negative values are not allowed. Clip values relative to the specified window. */
-            x1 = rect->x >= 0 ? rect->x : 0;
-            y1 = rect->y >= 0 ? rect->y : 0;
-/* EG BEGIN */
-            x2 = (x1 + rect->w) <= bounds.x + bounds.w ? (x1 + rect->w) : bounds.x + bounds.w; /* Do we have to do this? */
-            y2 = (y1 + rect->h) <= bounds.y + bounds.h ? (y1 + rect->h) : bounds.y + bounds.h; /* Do we have to do this? */
-/* EG END */
+        /** Negative values are not allowed. Clip values relative to the specified window. */
+        x1 = bounds.x + SDL_max(rect->x, 0);
+        y1 = bounds.y + SDL_max(rect->y, 0);
+        x2 = SDL_min(bounds.x + rect->x + rect->w, bounds.x + bounds.w);
+        y2 = SDL_min(bounds.y + rect->y + rect->h, bounds.y + bounds.h);
 
-            if ((wdata->barrier_rect.x != rect->x) ||
-                (wdata->barrier_rect.y != rect->y) ||
-                (wdata->barrier_rect.w != rect->w) ||
-                (wdata->barrier_rect.h != rect->h)) {
-                wdata->barrier_rect = *rect;
-            }
-/* EG BEGIN */
-            /** Create the left barrier */
-            wdata->barrier[0] = X11_XFixesCreatePointerBarrier(data->display, wdata->xwindow,
-                                                 x1, bounds.y,
-                                                 x1, bounds.y + bounds.h,
-                                                 BarrierPositiveX,
-                                                 0, NULL);
-            /** Create the right barrier */
-            wdata->barrier[1] = X11_XFixesCreatePointerBarrier(data->display, wdata->xwindow,
-                                                 x2, bounds.y,
-                                                 x2, bounds.y + bounds.h,
-                                                 BarrierNegativeX,
-                                                 0, NULL);
-            /** Create the top barrier */
-            wdata->barrier[2] = X11_XFixesCreatePointerBarrier(data->display, wdata->xwindow,
-                                                 bounds.x, y1,
-                                                 bounds.x + bounds.w, y1,
-                                                 BarrierPositiveY,
-                                                 0, NULL);
-            /** Create the bottom barrier */
-            wdata->barrier[3] = X11_XFixesCreatePointerBarrier(data->display, wdata->xwindow,
-                                                 bounds.x, y2,
-                                                 bounds.x + bounds.w, y2,
-                                                 BarrierNegativeY,
-                                                 0, NULL);
-/* EG END */
-            X11_XFlush(data->display);
+        if ((wdata->barrier_rect.x != rect->x) ||
+            (wdata->barrier_rect.y != rect->y) ||
+            (wdata->barrier_rect.w != rect->w) ||
+            (wdata->barrier_rect.h != rect->h)) {
+            wdata->barrier_rect = *rect;
+        }
 
-            /* Lets remember current active confined window. */
-            data->active_cursor_confined_window = window;
+        /* Use the display bounds to ensure the barriers don't have corner gaps */
+        SDL_GetDisplayBounds(SDL_GetWindowDisplayIndex(window), &bounds);
 
-            /* User activated the confinement for this window. We use this later to reactivate
-             * the confinement if it got deactivated by FocusOut or UnmapNotify */
-            wdata->pointer_barrier_active = SDL_TRUE;
+        /** Create the left barrier */
+        wdata->barrier[0] = X11_XFixesCreatePointerBarrier(data->display, wdata->xwindow,
+                                             x1, bounds.y,
+                                             x1, bounds.y + bounds.h,
+                                             BarrierPositiveX,
+                                             0, NULL);
+        /** Create the right barrier */
+        wdata->barrier[1] = X11_XFixesCreatePointerBarrier(data->display, wdata->xwindow,
+                                             x2, bounds.y,
+                                             x2, bounds.y + bounds.h,
+                                             BarrierNegativeX,
+                                             0, NULL);
+        /** Create the top barrier */
+        wdata->barrier[2] = X11_XFixesCreatePointerBarrier(data->display, wdata->xwindow,
+                                             bounds.x, y1,
+                                             bounds.x + bounds.w, y1,
+                                             BarrierPositiveY,
+                                             0, NULL);
+        /** Create the bottom barrier */
+        wdata->barrier[3] = X11_XFixesCreatePointerBarrier(data->display, wdata->xwindow,
+                                             bounds.x, y2,
+                                             bounds.x + bounds.w, y2,
+                                             BarrierNegativeY,
+                                             0, NULL);
 
-            return SDL_TRUE;
-      } else {
-          X11_DestroyPointerBarrier(_this, window);
+        X11_XFlush(data->display);
 
-          /* Only set barrier inactive when user specified NULL and not handled by focus out. */
-          if (flags != X11_BARRIER_HANDLED_BY_EVENT) {
-              wdata->pointer_barrier_active = SDL_FALSE;
-          }
-          return SDL_TRUE;
-      }
+        /* Lets remember current active confined window. */
+        data->active_cursor_confined_window = window;
+
+        /* User activated the confinement for this window. We use this later to reactivate
+         * the confinement if it got deactivated by FocusOut or UnmapNotify */
+        wdata->pointer_barrier_active = SDL_TRUE;
     } else {
-        X11_DestroyAllPointerBarrier(_this);
+        X11_DestroyPointerBarrier(_this, window);
+
+        /* Only set barrier inactive when user specified NULL and not handled by focus out. */
+        if (flags != X11_BARRIER_HANDLED_BY_EVENT) {
+            wdata->pointer_barrier_active = SDL_FALSE;
+        }
     }
-#endif
-    return SDL_FALSE;
+    return 0;
 }
 
 void
 X11_DestroyPointerBarrier(_THIS, SDL_Window * window)
 {
-#if SDL_VIDEO_DRIVER_X11_XFIXES
     int i;
     SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
     if (window) {
@@ -205,36 +199,8 @@ X11_DestroyPointerBarrier(_THIS, SDL_Window * window)
         X11_XFlush(data->display);
     }
     data->active_cursor_confined_window = NULL;
-#endif
 }
 
-void
-X11_DestroyAllPointerBarrier(_THIS)
-{
-#if SDL_VIDEO_DRIVER_X11_XFIXES
-    int i, windowidx;
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
-    int numwindows = data->numwindows;
-    SDL_WindowData **windowlist = data->windowlist;
-
-    if (windowlist) {
-        for (windowidx = 0; windowidx < numwindows; ++windowidx) {
-            for (i = 0; i < 4; i++) {
-                if (windowlist[windowidx]->barrier[i] > 0) {
-                    X11_XFixesDestroyPointerBarrier(data->display, windowlist[windowidx]->barrier[i]);
-                    windowlist[windowidx]->barrier[i] = 0;
-                }
-            }
-        }
-        X11_XFlush(data->display);
-    }
-    data->active_cursor_confined_window = NULL;
-#endif
-}
-
-#endif /* SDL_VIDEO_DRIVER_X11 */
-
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
+#endif /* SDL_VIDEO_DRIVER_X11 && SDL_VIDEO_DRIVER_X11_XFIXES */
 
 /* vi: set ts=4 sw=4 expandtab: */
