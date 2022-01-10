@@ -92,7 +92,7 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile"></param>
 		/// <param name="Config"></param>
 		/// <param name="ProjectDirectory"></param>
-		/// <param name="bIsUE4Game"></param>
+		/// <param name="bIsUnrealGame"></param>
 		/// <param name="GameName"></param>
 		/// <param name="bIsClient"></param>
 		/// <param name="ProjectName"></param>
@@ -102,10 +102,10 @@ namespace UnrealBuildTool
 		/// <param name="bSupportsPortrait"></param>
 		/// <param name="bSupportsLandscape"></param>
 		/// <returns></returns>
-		public static bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, DirectoryReference ProjectDirectory, bool bIsUE4Game, string GameName, bool bIsClient, string ProjectName, DirectoryReference InEngineDir, DirectoryReference AppDirectory, FileReference BuildReceiptFileName, out bool bSupportsPortrait, out bool bSupportsLandscape)
+		public static bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, DirectoryReference ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, DirectoryReference InEngineDir, DirectoryReference AppDirectory, FileReference BuildReceiptFileName, out bool bSupportsPortrait, out bool bSupportsLandscape)
 		{
 			TargetReceipt Receipt = TargetReceipt.Read(BuildReceiptFileName);
-			return new UEDeployIOS().GeneratePList(ProjectFile, Config, ProjectDirectory.FullName, bIsUE4Game, GameName, bIsClient, ProjectName, InEngineDir.FullName, AppDirectory.FullName, Receipt, out bSupportsPortrait, out bSupportsLandscape);
+			return new UEDeployIOS().GeneratePList(ProjectFile, Config, ProjectDirectory.FullName, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir.FullName, AppDirectory.FullName, Receipt, out bSupportsPortrait, out bSupportsLandscape);
 		}
 
 		/// <summary>
@@ -134,7 +134,7 @@ namespace UnrealBuildTool
 			bool bUserImagesExist = false;
 			DirectoryReference ResourcesDir = IOSToolChain.GenerateAssetCatalog(ProjectFile, Platform, ref bUserImagesExist);
 
-			// Don't attempt to do anything remotely if the user is using the default UE4 images.
+			// Don't attempt to do anything remotely if the user is using the default UE images.
 			if (!bUserImagesExist)
 			{
 				return;

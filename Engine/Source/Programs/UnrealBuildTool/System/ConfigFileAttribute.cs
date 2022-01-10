@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace UnrealBuildTool
 {
 	/// <summary>
-	/// Attribute indicating a value which should be populated from a UE4 .ini config file
+	/// Attribute indicating a value which should be populated from a UE .ini config file
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Field)]
 	public class ConfigFileAttribute : Attribute

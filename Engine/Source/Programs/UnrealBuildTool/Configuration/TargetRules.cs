@@ -449,7 +449,7 @@ namespace UnrealBuildTool
 		public bool bUseChaosMemoryTracking = false;
 
 		/// <summary>
-		/// Whether scene query acceleration is done by UE4. The physx scene query structure is still created, but we do not use it.
+		/// Whether scene query acceleration is done by UE. The physx scene query structure is still created, but we do not use it.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bCustomSceneQueryStructure = false;

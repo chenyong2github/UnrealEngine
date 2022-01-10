@@ -557,7 +557,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Attempts to parse the given line as a UE4 config object (eg. (Name="Foo",Number=1234)).
+		/// Attempts to parse the given line as a UE config object (eg. (Name="Foo",Number=1234)).
 		/// </summary>
 		/// <param name="Line">Line of text to parse</param>
 		/// <param name="Properties">Receives key/value pairs for the config object</param>
@@ -739,7 +739,7 @@ namespace UnrealBuildTool
 
 
 		/// <summary>
-		/// Attempts to parse the given line as a UE4 config array (eg. ("one", "two", "three") ).
+		/// Attempts to parse the given line as a UE config array (eg. ("one", "two", "three") ).
 		/// </summary>
 		/// <param name="Line">Line of text to parse</param>
 		/// <param name="Array">Receives array for the config array</param>

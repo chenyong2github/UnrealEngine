@@ -334,7 +334,7 @@ namespace UnrealBuildTool
 		public static DirectoryReference PrimaryProjectPath = Unreal.RootDirectory; // We'll save the primary project to our "root" folder
 
 		/// <summary>
-		/// Name of the UE4 engine project that contains all of the engine code, config files and other files
+		/// Name of the UE engine project that contains all of the engine code, config files and other files
 		/// </summary>
 		public const string EngineProjectFileNameBase = "UE5";
 
@@ -533,7 +533,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Finds all csproj within Engine/Source/Programs, and add them if their UE4CSharp.prog file exists.
+		/// Finds all csproj within Engine/Source/Programs, and add them if their .uprogram file exists.
 		/// </summary>
 		void DiscoverCSharpProgramProjects(List<FileReference> AllGameProjects, PrimaryProjectFolder ProgramsFolder)
 		{
@@ -659,7 +659,7 @@ namespace UnrealBuildTool
 				{
 					break;
 				}
-				// For csproj files, add them to the sln if the UE4CSharp.prog file also exists.
+				// For csproj files, add them to the sln if the .uprogram file also exists.
 				if (bIsCsProj && FileReference.Exists(File.ChangeExtension(".uprogram")))
 				{
 					FoundProjects.Add(File);

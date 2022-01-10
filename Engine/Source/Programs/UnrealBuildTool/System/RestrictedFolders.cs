@@ -185,7 +185,7 @@ namespace UnrealBuildTool
 		public static RestrictedFolder EpicInternal = FindOrAddByName("EpicInternal");
 
 		/// <summary>
-		/// Can be used by UE4 but not required
+		/// Can be used by UE but not required
 		/// </summary>
 		public static RestrictedFolder CarefullyRedist = FindOrAddByName("CarefullyRedist");
 

@@ -737,7 +737,7 @@ namespace UnrealBuildTool
 			Project.ShouldBuildForAllSolutionTargets = false;
 			Project.ShouldBuildByDefaultForSolutionTargets = false;
 
-			return Success ? new Tuple<ProjectFile, string>(Project, "UE4 Android Debug Projects") : null;
+			return Success ? new Tuple<ProjectFile, string>(Project, "Unreal Android Debug Projects") : null;
 
 		}
 

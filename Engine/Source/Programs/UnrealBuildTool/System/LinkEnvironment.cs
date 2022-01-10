@@ -164,7 +164,7 @@ namespace UnrealBuildTool
 		public bool bIsBuildingConsoleApplication = false;
 
 		/// <summary>
-		/// If set, overrides the program entry function on Windows platform.  This is used by the base UE4
+		/// If set, overrides the program entry function on Windows platform.  This is used by the base Unreal
 		/// program so we can link in either command-line mode or windowed mode without having to recompile the Launch module.
 		/// </summary>
 		public string WindowsEntryPointOverride = String.Empty;
