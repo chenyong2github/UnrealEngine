@@ -45,7 +45,6 @@ public:
 
 	/** Returns a reference to the raw byte array for the ID. */
 	inline const ByteArray& GetBytes() const { return Bytes; }
-	inline operator const ByteArray&() const { return Bytes; }
 
 	/** Returns a view of the raw byte array for the ID. */
 	inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
