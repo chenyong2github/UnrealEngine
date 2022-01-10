@@ -11,7 +11,6 @@
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
 #include "DynamicMesh/MeshIndexUtil.h"
-#include "Generators/RectangleMeshGenerator.h"
 #include "Generators/PolygonEdgeMeshGenerator.h"
 #include "Distance/DistLine3Line3.h"
 #include "ModelingObjectsCreationAPI.h"
@@ -74,85 +73,52 @@ namespace DrawPolyPathToolLocals
 		ComputeArcLengths(UsePathPoints, ArcLengths);
 		double PathLength = ArcLengths.Last();
 
-		if (bPathIsClosed)
+		const double PathWidth = 2.0 * OffsetDistance;
+		const double CornerRadius = CornerRadiusFraction * PathWidth;
+		
+		FPolygonEdgeMeshGenerator MeshGen(UsePathPoints, bPathIsClosed, UseOffsetScaleFactors, PathWidth, FVector3d::UnitZ(), bRoundedCorners, CornerRadius, bLimitCornerRadius, NumCornerArcPoints);
+		MeshGen.bSinglePolyGroup = bSinglePolyGroup;
+		MeshGen.UVWidth = PathLength;
+		MeshGen.UVHeight = 2 * OffsetDistance;
+		MeshGen.Generate();
+		Mesh.Copy(&MeshGen);
+
+		Mesh.EnableVertexUVs(FVector2f::Zero());
+
+		if (bRampMode)
 		{
-			double CornerRadius = 2.0 * CornerRadiusFraction * OffsetDistance;
-			FPolygonEdgeMeshGenerator MeshGen(UsePathPoints, UseOffsetScaleFactors, OffsetDistance, FVector3d::UnitZ(), bRoundedCorners, CornerRadius, bLimitCornerRadius, NumCornerArcPoints);
-			MeshGen.bSinglePolyGroup = bSinglePolyGroup;
-			MeshGen.UVWidth = PathLength;
-			MeshGen.UVHeight = 2 * OffsetDistance;
-			MeshGen.Generate();
-			Mesh.Copy(&MeshGen);
+			// Temporarily set vertex UVs to arclengths, for use in interpolating height in ramp mode
 
-			Mesh.EnableVertexUVs(FVector2f::Zero());
-
-			if (bRampMode)
+			if (bRoundedCorners)
 			{
-				// Temporarily set vertex UVs to arclengths, for use in interpolating height in ramp mode
-
-				if (bRoundedCorners)
+				// If we added arcs to the corners, recompute arc lengths
+				const int N = Mesh.VertexCount() / 2;
+				ArcLengths.Init(0.0, N);
+				double CurPathLength = 0;
+				for (int k = 1; k < N; ++k)
 				{
-					// If we added arcs to the corners, recompute arc lengths
-					const int N = Mesh.VertexCount() / 2;
-					ArcLengths.Init(0.0, N);
-					double CurPathLength = 0;
-					for (int k = 1; k < N; ++k)
-					{
-						CurPathLength += Distance(Mesh.GetVertex(2 * k), Mesh.GetVertex(2 * (k - 1)));
-						ArcLengths[k] = CurPathLength;
-					}
-					PathLength = ArcLengths.Last();
+					CurPathLength += Distance(Mesh.GetVertex(2 * k), Mesh.GetVertex(2 * (k - 1)));
+					ArcLengths[k] = CurPathLength;
 				}
+				PathLength = ArcLengths.Last();
+			}
 
-				int NumMeshVertices = Mesh.VertexCount();
-				ensure(NumMeshVertices == Mesh.MaxVertexID());
-				ensure(NumMeshVertices == 2 * ArcLengths.Num());
+			int NumMeshVertices = Mesh.VertexCount();
+			ensure(NumMeshVertices == Mesh.MaxVertexID());
+			ensure(NumMeshVertices == 2 * ArcLengths.Num());
 
-				for (int k = 0; k < NumMeshVertices/2; ++k)
-				{
-					const float Alpha = (float)ArcLengths[k] / PathLength;
-					Mesh.SetVertexUV(2 * k, FVector2f(Alpha, (float)k));
-					Mesh.SetVertexUV(2 * k + 1, FVector2f(Alpha, (float)k));
-				}
+			for (int k = 0; k < NumMeshVertices/2; ++k)
+			{
+				const float Alpha = static_cast<float>(ArcLengths[k] / PathLength);
+				Mesh.SetVertexUV(2 * k, FVector2f(Alpha, static_cast<float>(k)));
+				Mesh.SetVertexUV(2 * k + 1, FVector2f(Alpha, static_cast<float>(k)));
+			}
 
+			if (bPathIsClosed)
+			{
 				// Set last vertex positions to match first vertex locations so we can construct the vertical wall
 				Mesh.SetVertex(NumMeshVertices - 2, Mesh.GetVertex(0));
 				Mesh.SetVertex(NumMeshVertices - 1, Mesh.GetVertex(1));
-			}
-		}
-		else
-		{
-			FRectangleMeshGenerator MeshGen;
-			MeshGen.bSinglePolyGroup = bSinglePolyGroup;
-			MeshGen.Width = PathLength;
-			MeshGen.Height = 2 * OffsetDistance;
-			MeshGen.Normal = FVector3f::UnitZ();
-			MeshGen.Origin = FVector3d(PathLength / 2, 0, 0);
-			MeshGen.HeightVertexCount = 2;
-			MeshGen.WidthVertexCount = NumPoints;
-			MeshGen.Generate();
-			Mesh.Copy(&MeshGen);
-			Mesh.EnableVertexUVs(FVector2f::Zero());		// we will store arc length for each vtx in VertexUV
-
-			double ShiftX = 0;
-			double DeltaX = PathLength / (double)(NumPoints - 1);
-			for (int32 k = 0; k < NumPoints; ++k)
-			{
-				FFrame3d PathFrame = UsePathPoints[k];
-				FVector3d V0 = Mesh.GetVertex(k);
-				V0.X -= ShiftX;
-				V0.Y *= UseOffsetScaleFactors[k];
-				V0 = PathFrame.FromFramePoint(V0);
-				Mesh.SetVertex(k, V0);
-				const float Alpha = (float)ArcLengths[k] / PathLength;
-				Mesh.SetVertexUV(k, FVector2f(Alpha, (float)k));
-				FVector3d V1 = Mesh.GetVertex(NumPoints + k);
-				V1.X -= ShiftX;
-				V1.Y *= UseOffsetScaleFactors[k];
-				V1 = PathFrame.FromFramePoint(V1);
-				Mesh.SetVertex(NumPoints + k, V1);
-				Mesh.SetVertexUV(NumPoints + k, FVector2f(Alpha, (float)k));
-				ShiftX += DeltaX;
 			}
 		}
 	}

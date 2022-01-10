@@ -20,6 +20,9 @@ private:
 	// self-intersections or degenerate edges, result is undefined.
 	TArray<FFrame3d> Polygon;
 
+	// True if Polygon represents a closed path
+	bool bClosed;
+
 	// For each polygon vertex, a scale factor for the patch width at that vertex. It's a variable offset in order to keep the overall 
 	// width constant going around acute corners. 
 	TArray<double> OffsetScaleFactors;
@@ -52,6 +55,7 @@ public:
 	int NumArcVertices;
 
 	FPolygonEdgeMeshGenerator(const TArray<FFrame3d>& InPolygon,
+		bool bInClosed,
 		const TArray<double>& InOffsetScaleFactors,
 		double InWidth = 1.0,
 		FVector3d InNormal = FVector3d::UnitZ(),
@@ -63,6 +67,15 @@ public:
 	// Generate triangulation
 	// TODO: Enable more subdivisions along the width and length dimensions if requested
 	virtual FMeshShapeGenerator& Generate() final;
+
+private:
+
+	void CurvePath(const TArray<FVector3d>& InPath,
+		const TArray<bool>& InteriorAngleFlag,
+		const TArray<double>& MaxCornerRadii,
+		const TArray<double>& OtherSideMaxCornerRadii,
+		const FFrame3d& PolygonFrame,
+		TArray<FVector3d>& OutPath) const;
 
 };
 
