@@ -579,7 +579,6 @@ void FDynamicMesh3::EnumerateVertexTriangles(int32 VertexID, TFunctionRef<void(i
 		{
 			ApplyFunc(Edge.Tri[0]);
 		}
-		const int et1 = Edge.Tri[1];
 		if (Edge.Tri[1] != InvalidID && TriHasSequentialVertices(Edge.Tri[1], VertexID, vOther))
 		{
 			ApplyFunc(Edge.Tri[1]);
