@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassEntityTraitBase.h"
-#include "MassTranslator.h"
+#include "MassObserverProcessor.h"
 #include "MassVelocityRandomizerTrait.generated.h"
 
 

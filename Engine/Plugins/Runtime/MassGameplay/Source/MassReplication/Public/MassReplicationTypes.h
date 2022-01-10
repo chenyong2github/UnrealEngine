@@ -6,7 +6,7 @@
 #include "MassLODManager.h"
 #include "IndexedHandle.h"
 #include "MassEntityTemplate.h"
-#include "MassTranslator.h"
+#include "MassObserverProcessor.h"
 #include "MassLODLogic.h"
 
 #include "MassReplicationTypes.generated.h"

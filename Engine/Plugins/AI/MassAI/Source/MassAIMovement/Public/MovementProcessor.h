@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassProcessor.h"
-#include "MassTranslator.h"
+#include "MassObserverProcessor.h"
 #include "MassMovementSubsystem.h"
 #include "MovementProcessor.generated.h"
 
@@ -37,7 +37,7 @@ protected:
 
 /** Destructor processor to remove avoidance obstacles from the avoidance obstacle grid */
 UCLASS()
-class MASSAIMOVEMENT_API UMassAvoidanceObstacleRemoverFragmentDestructor : public UMassFragmentDestructor
+class MASSAIMOVEMENT_API UMassAvoidanceObstacleRemoverFragmentDestructor : public UMassFragmentDeinitializer
 {
 	GENERATED_BODY()
 

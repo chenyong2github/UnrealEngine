@@ -2,7 +2,7 @@
 
 #pragma once 
 
-#include "MassTranslator.h"
+#include "MassObserverProcessor.h"
 #include "MassMoveTargetFragmentInitializer.generated.h"
 
 

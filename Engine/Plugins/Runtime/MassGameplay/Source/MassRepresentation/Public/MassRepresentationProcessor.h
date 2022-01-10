@@ -4,7 +4,7 @@
 
 #include "MassRepresentationFragments.h"
 #include "MassActorSpawnerSubsystem.h"
-#include "MassTranslator.h"
+#include "MassObserverProcessor.h"
 
 #include "MassRepresentationProcessor.generated.h"
 
@@ -216,7 +216,7 @@ struct FMassRepresentationDefaultDestructorTag : public FMassTag
 };
 
 UCLASS()
-class MASSREPRESENTATION_API UMassRepresentationFragmentDestructor : public UMassFragmentDestructor
+class MASSREPRESENTATION_API UMassRepresentationFragmentDestructor : public UMassFragmentDeinitializer
 {
 	GENERATED_BODY()
 
