@@ -4620,7 +4620,7 @@ void UWorld::ClearNetDriver(UNetDriver* Driver)
 
 bool UWorld::SetGameMode(const FURL& InURL)
 {
-	if( IsServer() && !AuthorityGameMode )
+	if (!IsNetMode(NM_Client) && !AuthorityGameMode)
 	{
 		AuthorityGameMode = GetGameInstance()->CreateGameModeForURL(InURL, this);
 		if( AuthorityGameMode != NULL )
@@ -6089,10 +6089,12 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 				{
 					if (ChildIndex >= 0)
 					{
-						SwapConnection = Connection->Children.IsValidIndex(ChildIndex) ? ToRawPtr(Connection->Children[ChildIndex]) : NULL;
+						SwapConnection = Connection->Children.IsValidIndex(ChildIndex) ? ToRawPtr(Connection->Children[ChildIndex]) : nullptr;
 					}
+
 					bool bSuccess = false;
-					if (SwapConnection != NULL)
+
+					if (SwapConnection != nullptr)
 					{
 						bSuccess = DestroySwappedPC(SwapConnection);
 					}

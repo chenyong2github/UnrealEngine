@@ -281,7 +281,7 @@ void ULocalPlayer::PlayerRemoved()
 bool ULocalPlayer::SpawnPlayActor(const FString& URL,FString& OutError, UWorld* InWorld)
 {
 	check(InWorld);
-	if ( InWorld->IsServer() )
+	if (!InWorld->IsNetMode(NM_Client))
 	{
 		FURL PlayerURL(NULL, *URL, TRAVEL_Absolute);
 

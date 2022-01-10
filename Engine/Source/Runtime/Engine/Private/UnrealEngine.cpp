@@ -13042,7 +13042,7 @@ bool UEngine::HandleStreamMapCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorl
 #if WITH_SERVER_CODE
 bool UEngine::HandleServerTravelCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld )
 {
-	if( InWorld->IsServer() )
+	if (!InWorld->IsNetMode(NM_Client))
 	{
 		FString URL(Cmd);
 		FString MapName, Options;
@@ -15283,7 +15283,7 @@ bool UEngine::CommitMapChange( FWorldContext &Context )
 					StreamingLevel->SetShouldBeVisible(true);
 
 #if WITH_SERVER_CODE
-					if (Context.World()->IsServer())
+					if (!Context.World()->IsNetMode(NM_Client))
 					{
 						const bool bShouldBeLoaded = StreamingLevel->ShouldBeLoaded();
 						const bool bShouldBeVisible = StreamingLevel->ShouldBeVisible();

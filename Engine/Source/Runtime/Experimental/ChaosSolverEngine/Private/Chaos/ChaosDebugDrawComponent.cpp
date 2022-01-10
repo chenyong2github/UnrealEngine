@@ -303,7 +303,7 @@ void UChaosDebugDrawComponent::HandlePostWorldInitialization(UWorld* World, cons
 void UChaosDebugDrawComponent::CreateDebugDrawActor(UWorld* World)
 {
 #if CHAOS_DEBUG_DRAW
-	if (!World->IsClient())
+	if (!World->IsNetMode(NM_Client))
 		return;
 
 	static FName NAME_ChaosDebugDrawActor = TEXT("ChaosDebugDrawActor");
