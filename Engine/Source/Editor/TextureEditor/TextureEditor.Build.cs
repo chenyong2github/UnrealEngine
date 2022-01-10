@@ -47,7 +47,9 @@ public class TextureEditor : ModuleRules
                 "PropertyEditor",
 				"MediaUtils",
 				"EditorWidgets",
-				"MediaAssets"
+				"MediaAssets",
+				"DerivedDataCache",
+				"DeveloperToolSettings"
 			}
 		);
 	}

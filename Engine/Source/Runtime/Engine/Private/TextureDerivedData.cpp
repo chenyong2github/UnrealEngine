@@ -50,6 +50,8 @@
 #include "TextureCompiler.h"
 #include "TextureEncodingSettings.h"
 #include "ColorSpace.h"
+#include "Compression/OodleDataCompressionUtil.h"
+
 
 /*------------------------------------------------------------------------------
 	Versioning for texture derived data.
@@ -1363,6 +1365,313 @@ static void CheckMipSize(FTexture2DMipMap& Mip, EPixelFormat PixelFormat, int32 
 			);
 	}
 	#endif
+}
+
+//
+// Retrieve all built texture data in to the associated arrays, and don't return unless there's an error
+// or we have the data.
+//
+static bool FetchAllTextureDataSynchronous(FTexturePlatformData* PlatformData, FStringView DebugContext, TArray<TArray<uint8>>& OutMipData, TArray<TArray<uint8>>& OutVTChunkData)
+{
+	OutMipData.Empty();
+	OutVTChunkData.Empty();
+
+	using namespace UE::DerivedData;
+	FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
+
+	OutMipData.AddDefaulted(PlatformData->Mips.Num());
+
+	// This only handles non-vt mips that are paged to derived data.
+	// (some mips are inline). Doesn't handle excluded mips due to 
+	// platform settings.
+	FAsyncMipHandles MipHandles;
+	if (!BeginLoadDerivedMips(*PlatformData, 0, DebugContext, MipHandles,
+			[&OutMipData](int32 MipIndex, FSharedBuffer MipBuffer)
+				{
+					OutMipData[MipIndex].Append((uint8*)MipBuffer.GetData(), MipBuffer.GetSize());
+				}
+			)
+		)
+	{
+		return false;
+	}
+
+	// DDC1 fetches are async, so we need to wait on the handles,
+	// and if it's not paged to derived data we need to copy the
+	// data from bulk
+	for (int32 MipIndex = 0; MipIndex < PlatformData->Mips.Num(); ++MipIndex)
+	{
+		FTexture2DMipMap& Mip = PlatformData->Mips[MipIndex];
+		if (Mip.IsPagedToDerivedData() == false)
+		{
+			OutMipData[MipIndex].Append((uint8*)Mip.BulkData.LockReadOnly(), Mip.BulkData.GetBulkDataSize());
+			Mip.BulkData.Unlock();
+			continue;
+		}
+
+		// Here we either got the data synchronously with the DDC2 path in BeginLoadDerivedMips,
+		// or we didn't if we are DDC1. BeginLoadDerivedMips only allocates the async handles
+		// in the ddc1 path, so we use that to tell.
+		if (MipHandles.Num() == 0)
+		{
+			// skip, ddc1. This is the same for all mips but we still need to check for paged
+			// data above.
+			continue;
+		}
+
+		uint32 AsyncHandle = MipHandles[MipIndex];
+		DDC.WaitAsynchronousCompletion(AsyncHandle);
+		bool bLoadedFromDDC = DDC.GetAsynchronousResults(AsyncHandle, OutMipData[MipIndex]);
+		if (bLoadedFromDDC == false)
+		{
+			return false;
+		}
+	}
+	
+	if (PlatformData->VTData)
+	{
+		OutVTChunkData.AddDefaulted(PlatformData->VTData->Chunks.Num());
+
+		FAsyncVTChunkHandles AsyncVTHandles;
+		BeginLoadDerivedVTChunks(PlatformData->VTData->Chunks, DebugContext, AsyncVTHandles);
+
+		for (int32 ChunkIndex = 0; ChunkIndex < PlatformData->VTData->Chunks.Num(); ++ChunkIndex)
+		{
+			FVirtualTextureDataChunk& Chunk = PlatformData->VTData->Chunks[ChunkIndex];
+			if (Chunk.DerivedDataKey.IsEmpty())
+			{
+				// The data is resident and we can just copy it.
+				OutVTChunkData[ChunkIndex].Append((uint8*)Chunk.BulkData.LockReadOnly(), Chunk.BulkData.GetBulkDataSize());
+				Chunk.BulkData.Unlock();
+			}
+			else
+			{
+				// The data was fetched and we need to wait on the result.
+				uint32 AsyncHandle = AsyncVTHandles[ChunkIndex];
+				DDC.WaitAsynchronousCompletion(AsyncHandle);
+				bool bLoadedFromDDC = DDC.GetAsynchronousResults(AsyncHandle, OutVTChunkData[ChunkIndex]);
+
+				if (bLoadedFromDDC == false)
+				{
+					return false;
+				}
+			}
+		} // end each vt chunk
+	} // end if virtual texture
+
+	return true;
+}
+
+//
+// Chunk the input data in to blocks of the compression block size, then
+// run Oodle on the separate chunks in order to get an estimate of how
+// much space on disk the texture will take during deployment. This
+// exists so the editor can show the benefits of increasing RDO levels 
+// on a texture.
+//
+// This is not exact! Due to the nature of iostore, we can't know exactly
+// whether our data will be chunked on the boundaries we've chosen. However
+// it is illustrative.
+//
+static void EstimateOnDiskCompressionForTextureData(
+	TArray<TArray<uint8>> InMipData,
+	TArray<TArray<uint8>> InVTChunkData,
+	FOodleDataCompression::ECompressor InOodleCompressor,
+	FOodleDataCompression::ECompressionLevel InOodleCompressionLevel,
+	uint32 InCompressionBlockSize,
+	uint64& OutUncompressedByteCount,
+	uint64& OutCompressedByteCount
+)
+{
+	//
+	// This is written such that you can have both classic mip data and
+	// virtual texture data, however actual unreal textures don't have
+	// both.
+	//
+	uint64 UncompressedByteCount = 0;
+	for (TArray<uint8>& Mip : InMipData)
+	{
+		UncompressedByteCount += Mip.Num();
+	}
+	for (TArray<uint8>& VTChunk : InVTChunkData)
+	{
+		UncompressedByteCount += VTChunk.Num();
+	}
+
+	OutUncompressedByteCount = UncompressedByteCount;
+
+	if (UncompressedByteCount == 0)
+	{
+		OutCompressedByteCount = 0;
+		return;
+	}
+
+	int32 MipIndex = 0;
+	int32 VTChunkIndex = 0;
+	int32 CurrentOffsetInContainer = 0;
+	uint64 CompressedByteCount = 0;
+
+	// Array for compressed data so we don't have to realloc.
+	TArray<uint8> Compressed;
+	Compressed.Reserve(InCompressionBlockSize + 1024);
+
+	// When we cross our input array boundaries, we accumulate in to here.
+	TArray<uint8> ContinuousMemory;
+	for (;;)
+	{
+		TArray<uint8>& CurrentContainer = MipIndex < InMipData.Num() ? InMipData[MipIndex] : InVTChunkData[VTChunkIndex];
+
+		uint32 NeedBytes = InCompressionBlockSize - ContinuousMemory.Num();
+		uint32 CopyBytes = CurrentContainer.Num() - CurrentOffsetInContainer;
+		if (CopyBytes > NeedBytes)
+		{
+			CopyBytes = NeedBytes;
+		}
+
+		// Can we compressed without an intervening copy?
+		if (NeedBytes == InCompressionBlockSize && // We don't have a partial block copied
+			CopyBytes == InCompressionBlockSize) // we can fit in this chunk
+		{
+			// Direct.
+			Compressed.Empty();
+			FOodleCompressedArray::CompressData(
+				Compressed,
+				CurrentContainer.GetData() + CurrentOffsetInContainer,
+				InCompressionBlockSize,
+				InOodleCompressor,
+				InOodleCompressionLevel);
+
+			CompressedByteCount += Compressed.Num();
+		}
+		else
+		{
+			// Need to accumulate in to our temp buffer.
+
+			if (ContinuousMemory.Num() == 0)
+			{
+				ContinuousMemory.Reserve(InCompressionBlockSize);
+			}
+
+			ContinuousMemory.Append(CurrentContainer.GetData() + CurrentOffsetInContainer, CopyBytes);
+
+			if (ContinuousMemory.Num() == InCompressionBlockSize)
+			{
+				// Filled a block - kick.
+				Compressed.Empty();
+				FOodleCompressedArray::CompressData(
+					Compressed,
+					ContinuousMemory.GetData(),
+					InCompressionBlockSize,
+					InOodleCompressor,
+					InOodleCompressionLevel);
+
+				CompressedByteCount += Compressed.Num();
+				ContinuousMemory.Empty();
+			}
+		}
+
+		// Advance read cursor.
+		CurrentOffsetInContainer += CopyBytes;
+		if (CurrentOffsetInContainer >= CurrentContainer.Num())
+		{
+			CurrentOffsetInContainer = 0;
+
+			if (MipIndex < InMipData.Num())
+			{
+				MipIndex++;
+			}
+			else if (VTChunkIndex < InVTChunkData.Num())
+			{
+				VTChunkIndex++;
+			}
+
+			if (MipIndex >= InMipData.Num() && VTChunkIndex >= InVTChunkData.Num())
+			{
+				// No more source data.
+				break;
+			}
+		}
+	}
+
+	if (ContinuousMemory.Num())
+	{
+		// If we ran out of source data before we completely filled, kick here.
+		Compressed.Empty();
+		FOodleCompressedArray::CompressData(
+			Compressed,
+			ContinuousMemory.GetData(),
+			ContinuousMemory.Num(),
+			InOodleCompressor,
+			InOodleCompressionLevel);
+
+		CompressedByteCount += Compressed.Num();
+	}
+
+	OutCompressedByteCount = CompressedByteCount;
+}
+
+//
+// Grabs the texture data and then kicks off a task to block compress it
+// in order to try and mimic how iostore does on disk compression.
+//
+// Returns the future result of the compression, with the compressed byte count
+// in the first of the pair and the total in the second.
+//
+TFuture<TTuple<uint64, uint64>> FTexturePlatformData::LaunchEstimateOnDiskSizeTask(
+	FOodleDataCompression::ECompressor InOodleCompressor,
+	FOodleDataCompression::ECompressionLevel InOodleCompressionLevel,
+	uint32 InCompressionBlockSize,
+	FStringView InDebugContext
+	)
+{
+	TArray<TArray<uint8>> MipData;
+	TArray<TArray<uint8>> VTChunkData;
+	if (FetchAllTextureDataSynchronous(this, InDebugContext, MipData, VTChunkData) == false)
+	{
+		return TFuture<TTuple<uint64, uint64>>();
+	}
+	
+	struct FAsyncEstimateState
+	{
+		TPromise<TPair<uint64, uint64>> Promise;
+		TArray<TArray<uint8>> MipData;
+		TArray<TArray<uint8>> VTChunkData;
+		FOodleDataCompression::ECompressor OodleCompressor;
+		FOodleDataCompression::ECompressionLevel OodleCompressionLevel;
+		uint32 CompressionBlockSize;
+	};
+	
+	FAsyncEstimateState* State = new FAsyncEstimateState();
+	State->MipData = MoveTemp(MipData);
+	State->VTChunkData = MoveTemp(VTChunkData);
+	State->OodleCompressor = InOodleCompressor;
+	State->OodleCompressionLevel = InOodleCompressionLevel;
+	State->CompressionBlockSize = InCompressionBlockSize;
+
+	// Grab the future before we kick the task so there's no race.
+	// (unlikely since compression is so long...)
+	TFuture<TTuple<uint64, uint64>> ResultFuture = State->Promise.GetFuture();
+
+	// Kick off a task with no dependencies that does the compression
+	// and posts the result to the future.
+	FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([State]()
+	{
+		uint64 CompressedByteCount=0, UncompressedByteCount=0;
+
+		EstimateOnDiskCompressionForTextureData(
+			State->MipData, 
+			State->VTChunkData,
+			State->OodleCompressor,
+			State->OodleCompressionLevel,
+			State->CompressionBlockSize,
+			UncompressedByteCount,
+			CompressedByteCount);
+
+		State->Promise.SetValue(TTuple<uint64, uint64>(CompressedByteCount, UncompressedByteCount));
+		delete State;
+	}, TStatId(), nullptr, ENamedThreads::AnyBackgroundThreadNormalTask);
+
+	return ResultFuture;
 }
 
 bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, FStringView DebugContext)

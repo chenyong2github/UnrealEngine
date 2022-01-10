@@ -17,6 +17,8 @@ class STextureEditorViewport;
 class UFactory;
 class UTexture;
 
+namespace FOodleDataCompression { enum class ECompressor : uint8; enum class ECompressionLevel : int8; }
+
 enum class ETextureChannelButton : uint8
 {
 	Red,
@@ -420,6 +422,43 @@ private:
 	int32 GetEditorOodleSettingsTiling() const;
 	void EditorOodleSettingsTilingChanged(int32 NewValue, ESelectInfo::Type SelectionType);
 
+	// This is the key we have compressed for oodle preview, so we can catch changes.
+	TVariant<FString, UE::DerivedData::FCacheKeyProxy> OodleCompressedPreviewDDCKey;
+
+	
+	//
+	// -- Start on disc estimation controls/fns
+	//
+	bool bEstimateCompressionEnabled = false;
+	bool EstimateCompressionEnabled() const { return bEstimateCompressionEnabled; }
+
+	// Parsed from packaging settings.
+	FOodleDataCompression::ECompressionLevel OodleCompressionLevel;
+	FOodleDataCompression::ECompressor OodleCompressor;
+	uint32 CompressionBlockSize;
+
+	// Valid if we've kicked off an estimation task and are waiting for the result.
+	TFuture<TTuple<uint64, uint64>> OutstandingEstimation;
+
+	// Controls
+	TSharedPtr<class SCheckBox> OodleEstimateCheck;
+	void OnEstimateCompressionChanged(ECheckBoxState NewState);
+	ECheckBoxState EstimateCompressionChecked() const;
+
+	TSharedPtr<STextBlock> OodleEncoderUsed;
+	TSharedPtr<STextBlock> OodleLevelUsed;
+	TSharedPtr<STextBlock> OodleCompressionBlockUsed;
+	TSharedPtr<STextBlock> OodleEstimateRaw;
+	TSharedPtr<STextBlock> OodleEstimateCompressed;
+
+	// For the packaging settings combo box 
+	TArray< TSharedPtr< FString > > PackagingSettingsNames;
+	void PackagingSettingsChanged(TSharedPtr<FString> Selection, ESelectInfo::Type SelectInfo);
+	//
+	// -- End on disc estimation controls/fns
+	//
+
+	void PostTextureRecode();
 public:
 	// These are on a separate object so then engine can share the type without needing
 	// our module.
