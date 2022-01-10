@@ -118,8 +118,10 @@ FName UFXConverterUtilitiesLibrary::GetNiagaraScriptInputTypeName(ENiagaraScript
 		return FNiagaraTypeDefinition::GetQuatDef().GetFName();
 	case ENiagaraScriptInputType::Bool:
 		return FNiagaraTypeDefinition::GetBoolDef().GetFName();
+	case ENiagaraScriptInputType::Position:
+		return FNiagaraTypeDefinition::GetPositionDef().GetFName();
 	};
-	checkf(false, TEXT("Tried to get FName for unknown ENiagaraScriptInputType!"));
+	ensureMsgf(false, TEXT("Tried to get FName for unknown ENiagaraScriptInputType!"));
 	return FName();
 }
 
@@ -1806,7 +1808,7 @@ void UNiagaraEmitterConversionContext::InternalFinalizeStackEntryAddActions()
 				ExecutionSubcategoryName = UNiagaraStackEntry::FExecutionSubcategoryNames::Update;
 				break;
 			default:
-				checkf(false, TEXT("Encountered unexpected EScriptExecutionCategory!"));
+				ensureMsgf(false, TEXT("Encountered unexpected EScriptExecutionCategory!"));
 			};
 
 			auto FilterStackEntryForItemGroup = [ExecutionCategoryName, ExecutionSubcategoryName](UNiagaraStackItemGroup* ItemGroup)-> bool {
