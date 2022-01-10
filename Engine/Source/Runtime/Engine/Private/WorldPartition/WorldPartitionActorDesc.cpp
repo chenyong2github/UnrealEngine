@@ -13,7 +13,7 @@
 #include "Editor/GroupActor.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
-#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
@@ -64,7 +64,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 		ParentActor = AttachParentActor->GetActorGuid();
 	}
 	
-	TArray<AActor*> ActorReferences = ActorsReferencesUtils::GetExternalActorReferences((AActor*)InActor);
+	TArray<AActor*> ActorReferences = ActorsReferencesUtils::GetExternalActorReferences(const_cast<AActor*>(InActor));
 
 	if (ActorReferences.Num())
 	{
@@ -77,14 +77,11 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 
 	ActorLabel = *InActor->GetActorLabel(false);
 
-	if (UActorDescContainer* ActorContainer = InActor->GetLevel()->GetWorldPartition())
-	{
-		ActorPtr = (AActor*)InActor;
-		Container = ActorContainer;
-	}
+	Container = nullptr;
+	ActorPtr = const_cast<AActor*>(InActor);
 }
 
-void FWorldPartitionActorDesc::Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData)
+void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& DescData)
 {
 	ActorPackage = DescData.PackageName;
 	ActorPath = DescData.ActorPath;
@@ -102,7 +99,7 @@ void FWorldPartitionActorDesc::Init(UActorDescContainer* InContainer, const FWor
 	// Serialize metadata payload
 	Serialize(MetadataAr);
 
-	Container = InContainer;
+	Container = nullptr;
 	ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
 }
 

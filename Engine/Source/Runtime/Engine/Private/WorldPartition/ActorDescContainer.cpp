@@ -84,7 +84,7 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, TFunc
 
 				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::StaticCreateClassActorDesc(ActorDescInitData.NativeClass));
 
-				NewActorDesc->Init(this, ActorDescInitData);
+				NewActorDesc->Init(ActorDescInitData);
 			
 				//check(bIsValidClass || (NewActorDesc->GetActorIsEditorOnly() && IsRunningGame()));
 
@@ -106,6 +106,7 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, TFunc
 
 		if (ActorDesc.IsValid())
 		{
+			ActorDesc->SetContainer(this);
 			AddActorDescriptor(ActorDesc.Release());
 		}
 	}
@@ -208,6 +209,7 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 				else
 				{
 					FWorldPartitionActorDesc* const AddedActorDesc = AddActor(Actor);
+					AddedActorDesc->SetContainer(this);
 					OnActorDescAdded(AddedActorDesc);
 				}
 			}
@@ -249,6 +251,7 @@ void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 	{
 		OnActorDescRemoved(ExistingActorDesc->Get());
 		RemoveActorDescriptor(ExistingActorDesc->Get());
+		ExistingActorDesc->Get()->SetContainer(nullptr);
 		ExistingActorDesc->Reset();
 	}
 }
