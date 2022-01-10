@@ -49,9 +49,12 @@ namespace UE::DatasmithImporter
 
 	void FDirectLinkAssetObserver::AssetUpdatedEvent(const FAssetData& AssetData)
 	{
-		if (UObject* UpdatedAsset = AssetData.GetAsset())
+		if (AssetData.IsAssetLoaded())
 		{
-			Manager.UpdateModifiedRegisteredAsset(UpdatedAsset);
+			if (UObject* UpdatedAsset = AssetData.GetAsset())
+			{
+				Manager.UpdateModifiedRegisteredAsset(UpdatedAsset);
+			}
 		}
 	}
 
