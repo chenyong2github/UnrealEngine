@@ -2331,8 +2331,8 @@ public:
 				FString RelativeProjectPath = Path;
 				bool bRelative = FPaths::MakePathRelativeTo(RelativeProjectPath, *FPaths::RootDir());
 
-				bool bIsUnderUE4Root = bRelative && !(RelativeProjectPath.StartsWith(FString("../"), ESearchCase::CaseSensitive));
-				if (bIsUnderUE4Root)
+				bool bIsUnderUERoot = bRelative && !(RelativeProjectPath.StartsWith(FString("../"), ESearchCase::CaseSensitive));
+				if (bIsUnderUERoot)
 				{
 					ShareableProjectPath = RelativeProjectPath;
 				}
@@ -2900,7 +2900,7 @@ private:
 	// Holds the full absolute path to the Unreal project used by this profile.
 	FString FullProjectPath;
 
-	// Holds the path that might be shareable between people.  Only works if the project is under the UE4 root.
+	// Holds the path that might be shareable between people.  Only works if the project is under the UE root.
 	// otherwise this is an absolute path.
 	FString ShareableProjectPath;
 

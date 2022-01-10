@@ -72,7 +72,7 @@ public:
 #if WITH_EDITOR
 		ExecutableName = FString(FPlatformProcess::ExecutablePath());
 #if PLATFORM_WINDOWS
-		// turn UE4editor into UE4editor-cmd
+		// turn UnreadEditor into UnrealEditor-cmd
 		if (ExecutableName.EndsWith(".exe", ESearchCase::IgnoreCase) && !FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
 		{
 			FString NewExeName = ExecutableName.Left(ExecutableName.Len() - 4) + "-Cmd.exe";
@@ -82,7 +82,7 @@ public:
 			}
 		}
 #elif PLATFORM_MAC
-		// turn UE4editor into UE4editor-cmd
+		// turn UnrealEditor into UnrealEditor-cmd
 		if (!FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
 		{
 			FString NewExeName = ExecutableName + "-Cmd";
