@@ -1,11 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HttpDerivedDataBackend.h"
+#include "ZenDerivedDataBackend.h"
 
 #include "Async/ParallelFor.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataCacheKey.h"
+#include "DerivedDataCacheRecord.h"
+#include "DerivedDataRequestOwner.h"
+#include "DerivedDataValue.h"
+#include "DerivedDataValueId.h"
+#include "Memory/CompositeBuffer.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 // Test is targeted at HttpDerivedDataBackend but with some backend test interface it could be generalized
 // to function against all backends.
@@ -51,6 +60,7 @@ public:
 	}
 
 protected:
+
 	void ConcurrentTestWithStats(TFunctionRef<void()> TestFunction, int32 ThreadCount, double Duration)
 	{
 		std::atomic<uint64> Requests{ 0 };
@@ -144,6 +154,121 @@ protected:
 		return CachedBackend;
 	}
 
+	bool GetRecords(TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy, TArray<UE::DerivedData::FCacheRecord>& OutRecords)
+	{
+		using namespace UE::DerivedData;
+		UE::DerivedData::ICacheStore* TestBackend = GetTestBackend();
+
+		TArray<FCacheGetRequest> Requests;
+		Requests.Reserve(Records.Num());
+
+		for (int32 RecordIndex = 0; RecordIndex < Records.Num(); ++RecordIndex)
+		{
+			const FCacheRecord& Record = Records[RecordIndex];
+			Requests.Add({ {TEXT("FHttpDerivedDataTestBase")}, Record.GetKey(), Policy, static_cast<uint64>(RecordIndex) });
+		}
+
+		struct FGetOutput
+		{
+			FCacheRecord Record;
+			EStatus Status = EStatus::Error;
+		};
+
+		TArray<TOptional<FGetOutput>> GetOutputs;
+		GetOutputs.SetNum(Records.Num());
+		FRequestOwner RequestOwner(EPriority::Blocking);
+		TestBackend->Get(Requests, RequestOwner, [&GetOutputs](FCacheGetCompleteParams&& Params)
+			{
+				FCacheRecordBuilder RecordBuilder(Params.Record.GetKey());
+
+				if (Params.Record.GetMeta())
+				{
+					RecordBuilder.SetMeta(FCbObject::Clone(Params.Record.GetMeta()));
+				}
+
+				for (const FValueWithId& Value : Params.Record.GetValues())
+				{
+					if (Value)
+					{
+						RecordBuilder.AddValue(Value);
+					}
+				}
+				GetOutputs[Params.UserData].Emplace(FGetOutput{ RecordBuilder.Build(), Params.Status });
+			});
+		RequestOwner.Wait();
+
+		for (int32 RecordIndex = 0; RecordIndex < Records.Num(); ++RecordIndex)
+		{
+			FGetOutput& ReceivedOutput = GetOutputs[RecordIndex].GetValue();
+			if (ReceivedOutput.Status != EStatus::Ok)
+			{
+				return false;
+			}
+			OutRecords.Add(MoveTemp(ReceivedOutput.Record));
+		}
+
+		return true;
+	}
+	
+	void ValidateRecords(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> RecordsToTest, TConstArrayView<UE::DerivedData::FCacheRecord> ReferenceRecords, UE::DerivedData::FCacheRecordPolicy Policy)
+	{
+		using namespace UE::DerivedData;
+
+		if (!TestEqual(FString::Printf(TEXT("%s::Record quantity"), Name), RecordsToTest.Num(), ReferenceRecords.Num()))
+		{
+			return;
+		}
+
+		for (int32 RecordIndex = 0; RecordIndex < RecordsToTest.Num(); ++RecordIndex)
+		{
+			const FCacheRecord& ExpectedRecord = ReferenceRecords[RecordIndex];
+			const FCacheRecord& RecordToTest = RecordsToTest[RecordIndex];
+
+			if (EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipMeta))
+			{
+				TestTrue(FString::Printf(TEXT("%s::Get meta null"), Name), !RecordToTest.GetMeta());
+			}
+			else
+			{
+				TestTrue(FString::Printf(TEXT("%s::Get meta equality"), Name), ExpectedRecord.GetMeta().Equals(RecordToTest.GetMeta()));
+			}
+
+			TestEqual(FString::Printf(TEXT("%s::Get value quantity"), Name), ExpectedRecord.GetValues().Num(), RecordToTest.GetValues().Num());
+
+			const TConstArrayView<FValueWithId> ExpectedValues = ExpectedRecord.GetValues();
+			const TConstArrayView<FValueWithId> ReceivedValues = RecordToTest.GetValues();
+			for (int32 ValueIndex = 0; ValueIndex < ExpectedValues.Num(); ++ValueIndex)
+			{
+				if (EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipData))
+				{
+					TestTrue(FString::Printf(TEXT("%s::Get value[%d] !HasData"), Name, ValueIndex), !ReceivedValues[ValueIndex].HasData());
+				}
+				else
+				{
+					TestTrue(FString::Printf(TEXT("%s::Get value[%d] HasData"), Name, ValueIndex), ReceivedValues[ValueIndex].HasData());
+					TestTrue(FString::Printf(TEXT("%s::Get value[%d] equality"), Name, ValueIndex), ExpectedValues[ValueIndex] == ReceivedValues[ValueIndex]);
+					TestTrue(FString::Printf(TEXT("%s::Get value[%d] data equality"), Name, ValueIndex), FIoHash::HashBuffer(ReceivedValues[ValueIndex].GetData().GetCompressed()) == FIoHash::HashBuffer(ExpectedValues[ValueIndex].GetData().GetCompressed()));
+				}
+			}
+		}
+	}
+
+	TArray<UE::DerivedData::FCacheRecord> GetAndValidateRecords(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy)
+	{
+		using namespace UE::DerivedData;
+		TArray<FCacheRecord> ReceivedRecords;
+		bool bGetSuccessful = GetRecords(Records, Policy, ReceivedRecords);
+		TestTrue(FString::Printf(TEXT("%s::Get status"), Name), bGetSuccessful);
+
+		if (!bGetSuccessful)
+		{
+			return TArray<FCacheRecord>();
+		}
+
+		ValidateRecords(Name, ReceivedRecords, Records, Policy);
+		return ReceivedRecords;
+	}
+
 private:
 	UE::DerivedData::Backends::FHttpDerivedDataBackend* FetchTestBackend_Internal() const
 	{
@@ -172,6 +297,64 @@ TArray<FString> CreateTestCacheKeys(UE::DerivedData::Backends::FHttpDerivedDataB
 		InTestBackend->PutCachedData(*NewKey, KeyContents, false);
 	}
 	return Keys;
+}
+
+TArray<UE::DerivedData::FCacheRecord> CreateTestCacheRecords(UE::DerivedData::ICacheStore* InTestBackend, uint32 InNumKeys, uint32 InNumValues, FCbObject MetaContents = FCbObject(), const char* BucketName = nullptr)
+{
+	using namespace UE::DerivedData;
+	FCacheBucket TestCacheBucket(BucketName ? BucketName : "AutoTestDummy");
+
+	TArray<FCacheRecord> CacheRecords;
+	TArray<FCachePutRequest> PutRequests;
+	PutRequests.Reserve(InNumKeys);
+
+	for (uint32 KeyIndex = 0; KeyIndex < InNumKeys; ++KeyIndex)
+	{
+		FIoHashBuilder HashBuilder;
+
+		TArray<FSharedBuffer> Values;
+		for (uint32 ValueIndex = 0; ValueIndex < InNumValues; ++ValueIndex)
+		{
+			TArray<uint8> ValueContents;
+			// Add N zeroed bytes where N corresponds to the value index.
+			ValueContents.AddUninitialized(ValueIndex+1);
+			for (uint32 ContentIndex = 0; ContentIndex < (ValueIndex+1); ++ContentIndex)
+			{
+				ValueContents[ContentIndex] = (uint8)KeyIndex;
+			}
+			Values.Emplace(MakeSharedBufferFromArray(MoveTemp(ValueContents)));
+			HashBuilder.Update(Values.Last().GetView());
+		}
+
+		FCacheKey Key;
+		Key.Bucket = TestCacheBucket;
+		Key.Hash = HashBuilder.Finalize();
+
+		FCacheRecordBuilder RecordBuilder(Key);
+
+		for (const FSharedBuffer& ValueBuffer : Values)
+		{
+			FIoHash ValueHash(FIoHash::HashBuffer(ValueBuffer));
+			RecordBuilder.AddValue(FValueId::FromHash(ValueHash), ValueBuffer);
+		}
+
+		if (MetaContents)
+		{
+			RecordBuilder.SetMeta(MoveTemp(MetaContents));
+		}
+
+		PutRequests.Add({ {TEXT("AutoTest")}, RecordBuilder.Build(), ECachePolicy::Default, KeyIndex });
+	}
+
+	FRequestOwner Owner(EPriority::Blocking);
+	InTestBackend->Put(PutRequests, Owner, [&CacheRecords, &PutRequests] (FCachePutCompleteParams&& Params)
+	{
+		check(Params.Status == EStatus::Ok);
+		CacheRecords.Add(PutRequests[Params.UserData].Record);
+	});
+	Owner.Wait();
+
+	return CacheRecords;
 }
 
 IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FConcurrentCachedDataProbablyExistsBatch, TEXT(".FConcurrentCachedDataProbablyExistsBatch"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -243,6 +426,95 @@ bool FConcurrentExistsAndGetForSameKeyBatch::RunTest(const FString& Parameters)
 			}
 		}
 	);
+	return true;
+}
+
+// Tests basic functionality for structured cache operations
+IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(CacheStore, TEXT(".CacheStore"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool CacheStore::RunTest(const FString& Parameters)
+{
+	using namespace UE::DerivedData;
+	UE::DerivedData::Backends::FHttpDerivedDataBackend* TestBackend = GetTestBackend();
+
+#if WITH_ZEN_DDC_BACKEND
+	using namespace UE::Zen;
+	FServiceSettings ZenTestServiceSettings;
+	FServiceAutoLaunchSettings& ZenTestAutoLaunchSettings = ZenTestServiceSettings.SettingsVariant.Get<FServiceAutoLaunchSettings>();
+	ZenTestAutoLaunchSettings.DataPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineSavedDir(), "ZenUnitTest"));
+	ZenTestAutoLaunchSettings.ExtraArgs = FString::Printf(TEXT("--http asio --upstream-jupiter-url \"%s\" --upstream-jupiter-oauth-url \"%s\" --upstream-jupiter-oauth-clientid \"%s\" --upstream-jupiter-oauth-clientsecret \"%s\" --upstream-jupiter-namespace-ddc \"%s\" --upstream-jupiter-namespace \"%s\""),
+		*TestBackend->GetDomain(),
+		*TestBackend->GetOAuthProvider(),
+		*TestBackend->GetOAuthClientId(),
+		*TestBackend->GetOAuthSecret(),
+		*TestBackend->GetNamespace(),
+		*TestBackend->GetStructuredNamespace()
+	);
+	ZenTestAutoLaunchSettings.DesiredPort = 13337; // Avoid the normal default port
+	ZenTestAutoLaunchSettings.bShowConsole = true;
+	ZenTestAutoLaunchSettings.bLimitProcessLifetime = true;
+
+	FScopeZenService ScopeZenService(MoveTemp(ZenTestServiceSettings));
+	TUniquePtr<Backends::FZenDerivedDataBackend> ZenIntermediaryBackend = MakeUnique<UE::DerivedData::Backends::FZenDerivedDataBackend>(ScopeZenService.GetInstance().GetURL(), *TestBackend->GetNamespace());
+	auto WaitForZenPushToUpstream = [](Backends::FZenDerivedDataBackend* ZenBackend, TConstArrayView<FCacheRecord> Records)
+	{
+		// TODO: Expecting a legitimate means to wait for zen to finish pushing records to its upstream in the future
+		FPlatformProcess::Sleep(1.0f);
+	};
+#endif // WITH_ZEN_DDC_BACKEND
+
+	const uint32 RecordsInBatch = 3;
+
+	{
+		TArray<FCacheRecord> PutRecords = CreateTestCacheRecords(TestBackend, RecordsInBatch, 1);
+		TArray<FCacheRecord> RecievedRecords = GetAndValidateRecords(TEXT("SimpleValue"), PutRecords, ECachePolicy::Default);
+		TArray<FCacheRecord> RecievedRecordsSkipMeta = GetAndValidateRecords(TEXT("SimpleValueSkipMeta"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipMeta);
+		TArray<FCacheRecord> RecievedRecordsSkipData = GetAndValidateRecords(TEXT("SimpleValueSkipData"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipData);
+
+#if WITH_ZEN_DDC_BACKEND
+		TArray<FCacheRecord> PutRecordsZen = CreateTestCacheRecords(ZenIntermediaryBackend.Get(), RecordsInBatch, 1, FCbObject(), "AutoTestDummyZen");
+		WaitForZenPushToUpstream(ZenIntermediaryBackend.Get(), PutRecordsZen);
+		ValidateRecords(TEXT("SimpleValueZenAndDirect"), GetAndValidateRecords(TEXT("SimpleValueZen"), PutRecordsZen, ECachePolicy::Default), RecievedRecords, ECachePolicy::Default);
+		ValidateRecords(TEXT("SimpleValueSkipMetaZenAndDirect"), GetAndValidateRecords(TEXT("SimpleValueSkipMetaZen"), PutRecordsZen, ECachePolicy::Default | ECachePolicy::SkipMeta), RecievedRecordsSkipMeta, ECachePolicy::Default | ECachePolicy::SkipMeta);
+		ValidateRecords(TEXT("SimpleValueSkipDataZenAndDirect"), GetAndValidateRecords(TEXT("SimpleValueSkipDataZen"), PutRecordsZen, ECachePolicy::Default | ECachePolicy::SkipData), RecievedRecordsSkipData, ECachePolicy::Default | ECachePolicy::SkipData);
+#endif // WITH_ZEN_DDC_BACKEND
+	}
+
+	{
+		TCbWriter<64> MetaWriter;
+		MetaWriter.BeginObject();
+		MetaWriter.AddInteger("MetaKey"_ASV, 42);
+		MetaWriter.EndObject();
+		FCbObject MetaObject = MetaWriter.Save().AsObject();
+
+		TArray<FCacheRecord> PutRecords = CreateTestCacheRecords(TestBackend, RecordsInBatch, 1, MetaObject);
+		TArray<FCacheRecord> RecievedRecords = GetAndValidateRecords(TEXT("SimpleValueWithMeta"), PutRecords, ECachePolicy::Default);
+		TArray<FCacheRecord> RecievedRecordsSkipMeta = GetAndValidateRecords(TEXT("SimpleValueWithMetaSkipMeta"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipMeta);
+		TArray<FCacheRecord> RecievedRecordsSkipData = GetAndValidateRecords(TEXT("SimpleValueWithMetaSkipData"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipData);
+
+#if WITH_ZEN_DDC_BACKEND
+		TArray<FCacheRecord> PutRecordsZen = CreateTestCacheRecords(ZenIntermediaryBackend.Get(), RecordsInBatch, 1, MetaObject, "AutoTestDummyZen");
+		WaitForZenPushToUpstream(ZenIntermediaryBackend.Get(), PutRecordsZen);
+		ValidateRecords(TEXT("SimpleValueWithMetaZenAndDirect"), GetAndValidateRecords(TEXT("SimpleValueWithMetaZen"), PutRecordsZen, ECachePolicy::Default), RecievedRecords, ECachePolicy::Default);
+		ValidateRecords(TEXT("SimpleValueWithMetaSkipMetaZenAndDirect"), GetAndValidateRecords(TEXT("SimpleValueWithMetaSkipMetaZen"), PutRecordsZen, ECachePolicy::Default | ECachePolicy::SkipMeta), RecievedRecordsSkipMeta, ECachePolicy::Default | ECachePolicy::SkipMeta);
+		ValidateRecords(TEXT("SimpleValueWithMetaSkipDataZenAndDirect"), GetAndValidateRecords(TEXT("SimpleValueWithMetaSkipDataZen"), PutRecordsZen, ECachePolicy::Default | ECachePolicy::SkipData), RecievedRecordsSkipData, ECachePolicy::Default | ECachePolicy::SkipData);
+#endif // WITH_ZEN_DDC_BACKEND
+	}
+
+	{
+		TArray<FCacheRecord> PutRecords = CreateTestCacheRecords(TestBackend, RecordsInBatch, 5);
+		TArray<FCacheRecord> RecievedRecords = GetAndValidateRecords(TEXT("MultiValue"), PutRecords, ECachePolicy::Default);
+		TArray<FCacheRecord> RecievedRecordsSkipMeta = GetAndValidateRecords(TEXT("MultiValueSkipMeta"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipMeta);
+		TArray<FCacheRecord> RecievedRecordsSkipData = GetAndValidateRecords(TEXT("MultiValueSkipData"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipData);
+
+#if WITH_ZEN_DDC_BACKEND
+		TArray<FCacheRecord> PutRecordsZen = CreateTestCacheRecords(ZenIntermediaryBackend.Get(), RecordsInBatch, 5, FCbObject(), "AutoTestDummyZen");
+		WaitForZenPushToUpstream(ZenIntermediaryBackend.Get(), PutRecordsZen);
+		ValidateRecords(TEXT("MultiValueZenAndDirect"), GetAndValidateRecords(TEXT("MultiValueZen"), PutRecordsZen, ECachePolicy::Default), RecievedRecords, ECachePolicy::Default);
+		ValidateRecords(TEXT("MultiValueSkipMetaZenAndDirect"), GetAndValidateRecords(TEXT("MultiValueSkipMetaZen"), PutRecordsZen, ECachePolicy::Default | ECachePolicy::SkipMeta), RecievedRecordsSkipMeta, ECachePolicy::Default | ECachePolicy::SkipMeta);
+		ValidateRecords(TEXT("MultiValueSkipDataZenAndDirect"), GetAndValidateRecords(TEXT("MultiValueSkipDataZen"), PutRecordsZen, ECachePolicy::Default | ECachePolicy::SkipData), RecievedRecordsSkipData, ECachePolicy::Default | ECachePolicy::SkipData);
+#endif // WITH_ZEN_DDC_BACKEND
+	}
+
 	return true;
 }
 
