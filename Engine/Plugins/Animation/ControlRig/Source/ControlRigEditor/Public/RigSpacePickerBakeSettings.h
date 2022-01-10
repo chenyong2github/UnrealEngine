@@ -20,7 +20,7 @@ struct CONTROLRIGEDITOR_API FRigSpacePickerBakeSettings
 		Tolerance = 0.001f;
 	}
 
-	UPROPERTY(BlueprintReadWrite, Category = "Settings")
+	UPROPERTY(VisibleAnywhere,BlueprintReadWrite, Category = "Settings")
 	FRigElementKey TargetSpace;
 
 	UPROPERTY(BlueprintReadWrite,EditAnywhere, Category = "Settings")
