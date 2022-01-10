@@ -861,12 +861,6 @@ void FVulkanDynamicRHI::InitInstance()
 			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
 		}
 		
-		if (Device->GetPhysicalFeatures().tessellationShader)
-		{
-			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
-			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
-		}
-
 		FHardwareInfo::RegisterHardwareInfo(NAME_RHI, TEXT("Vulkan"));
 
 		SavePipelineCacheCmd = IConsoleManager::Get().RegisterConsoleCommand(

@@ -31,6 +31,8 @@ FVulkanQueue::FVulkanQueue(FVulkanDevice* InDevice, uint32 InFamilyIndex)
 	, SubmitCounter(0)
 {
 	VulkanRHI::vkGetDeviceQueue(Device->GetInstanceHandle(), FamilyIndex, QueueIndex, &Queue);
+
+	FillSupportedStageBits();
 }
 
 FVulkanQueue::~FVulkanQueue()
@@ -121,4 +123,62 @@ void FVulkanQueue::UpdateLastSubmittedCommandBuffer(FVulkanCmdBuffer* CmdBuffer)
 	LastSubmittedCmdBuffer = CmdBuffer;
 	LastSubmittedCmdBufferFenceCounter = CmdBuffer->GetFenceSignaledCounterH();
 	++SubmitCounter;
+}
+
+void FVulkanQueue::FillSupportedStageBits()
+{
+	check(Device);
+	check((int32)FamilyIndex < Device->GetQueueFamilyProps().Num());
+
+	const VkQueueFamilyProperties& QueueProps = Device->GetQueueFamilyProps()[FamilyIndex];
+
+	SupportedStages = 
+		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | 
+		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT |
+		VK_PIPELINE_STAGE_HOST_BIT |
+		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+
+	if (VKHasAnyFlags(QueueProps.queueFlags, VK_QUEUE_GRAPHICS_BIT))
+	{
+		SupportedStages |=
+			VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT |
+			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT |
+			VK_PIPELINE_STAGE_VERTEX_SHADER_BIT |
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+			VK_PIPELINE_STAGE_TRANSFER_BIT |
+			VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+
+		if (Device->GetPhysicalFeatures().geometryShader)
+		{
+			SupportedStages |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+		}
+
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		SupportedStages |= VK_PIPELINE_STAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+		SupportedStages |= VK_PIPELINE_STAGE_FRAGMENT_DENSITY_PROCESS_BIT_EXT;
+#endif
+	}
+
+	if (VKHasAnyFlags(QueueProps.queueFlags, VK_QUEUE_COMPUTE_BIT))
+	{
+		SupportedStages |=
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+			VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT |
+			VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+#if VULKAN_RHI_RAYTRACING
+		SupportedStages |= VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+#endif
+	}
+
+	if (VKHasAnyFlags(QueueProps.queueFlags, VK_QUEUE_TRANSFER_BIT))
+	{
+		SupportedStages |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+	}
 }

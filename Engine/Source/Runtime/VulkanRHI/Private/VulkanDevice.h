@@ -518,7 +518,11 @@ public:
 	VkSamplerYcbcrConversion CreateSamplerColorConversion(const VkSamplerYcbcrConversionCreateInfo& CreateInfo);
 #endif
 
-	void*	Hotfix = nullptr;
+	inline const TArray<VkQueueFamilyProperties>& GetQueueFamilyProps()
+	{
+		return QueueFamilyProps;
+	}
+
 
 private:
 	const VkFormatProperties& GetFormatProperties(VkFormat InFormat);
