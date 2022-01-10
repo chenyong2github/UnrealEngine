@@ -38,7 +38,6 @@
 
 namespace UE::Virtualization
 {
-
 /** This console variable should only exist for testing */
 static TAutoConsoleVariable<bool> CVarShouldLoadFromSidecar(
 	TEXT("Serialization.LoadFromSidecar"),
@@ -64,8 +63,16 @@ static TAutoConsoleVariable<bool> CVarShouldAllowSidecarSyncing(
 	false,
 	TEXT("When true FVirtualizedUntypedBulkData will attempt to sync it's .upayload file via sourcecontrol if the first attempt to load from it fails"));
 
-/** Might expose this as an option but for now set to false only */
+/** When enabled the bulkdata object will try pushing the payload when saved to disk as part of a package.
+  * This is legacy behavior and likely to be removed
+  */
 static constexpr bool bAllowVirtualizationOnSave = false;
+
+/** When enabled virtualized payloads will be pulled and stored locally when the bulkdata object is saved
+  * to disk as part of a package. This is currently required but will likely be changed to be a config 
+  * option when we can support it.
+  */
+static constexpr bool bForceRehydrationOnSave = true;
 
 /** Wrapper around the config file option [Core.System.Experimental]EnablePackageSidecarSaving */
 bool ShouldSaveToPackageSidecar()
@@ -626,7 +633,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			}
 			else
 			{
-				bWriteOutPayload = !bAllowVirtualizationOnSave || !IsDataVirtualized();
+				bWriteOutPayload = !IsDataVirtualized(UpdatedFlags);
 			}
 
 			if (bWriteOutPayload)
@@ -696,7 +703,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 					UpdateArchiveData(Ar, OffsetPos, DataStartOffset);
 				}
 			}
-
+			
 			if (CanUnloadData())
 			{
 				this->CompressionSettings.Reset();
@@ -707,14 +714,32 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 		{
 			const FPackageTrailer* Trailer = GetTrailerFromOwner(Owner);
 
-			if (Trailer != nullptr && Trailer->FindPayloadStatus(PayloadContentId) == EPayloadStatus::StoredVirtualized)
+			if (IsDataVirtualized())
 			{
+				// The payload was already virtualized when the bulkdata object was serialized
+
+				// We aren't going to use these members so reset them
+				OffsetInFile = INDEX_NONE;
+
+				PackagePath.Empty();
+				PackageSegment = EPackageSegment::Header;
+			}
+			else if (Trailer != nullptr && Trailer->FindPayloadStatus(PayloadContentId) == EPayloadStatus::StoredVirtualized)
+			{
+				// The payload was stored locally in the package trailer when the bulkdata object was 
+				// serialized but the trailer was later virtualized.
+
 				check(!IsReferencingByPackagePath()); // This should not be possible
 
 				EnumAddFlags(Flags, EFlags::IsVirtualized);
 
 				Ar << OffsetInFile;
+
+				// We aren't going to use these members so reset them
 				OffsetInFile = INDEX_NONE;
+
+				PackagePath.Empty();
+				PackageSegment = EPackageSegment::Header;
 			}
 			else if (IsReferencingByPackagePath())
 			{
@@ -723,19 +748,20 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 				Ar << OffsetInFile;
 				ensure(FPackagePath::TryFromPackageName(*PackageNameStr, this->PackagePath));
 				PackageSegment = EPackageSegment::Header;
-			}
-			else if (IsDataVirtualized())
-			{
-				// TODO: Remove once safe to do so
-				// Legacy path for packages that were saved as virtualized
-			
-				// We aren't going to use these members so reset them
-				OffsetInFile = INDEX_NONE;
 
-				PackagePath.Empty();
-				PackageSegment = EPackageSegment::Header;
+#if VBD_ALLOW_LINKERLOADER_ATTACHMENT
+				FArchive* CacheableArchive = Ar.GetCacheableArchive();
+				if (Ar.IsAllowingLazyLoading() && CacheableArchive != nullptr)
+				{
+					AttachedAr = CacheableArchive;
+					if (AttachedAr != nullptr)
+					{
+						AttachedAr->AttachBulkData(this);
+					}
+				}
+#endif //VBD_ALLOW_LINKERLOADER_ATTACHMENT
 			}
-			else
+			else 
 			{
 				// If we can lazy load then find the PackagePath, otherwise we will want
 				// to serialize immediately.
@@ -937,6 +963,8 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromPackageTrailer() const
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::LoadFromPackageTrailer);
 
 	UE_LOG(LogVirtualization, Verbose, TEXT("Attempting to load payload from the package trailer: '%s'"), *PackagePath.GetLocalFullPath(PackageSegment));
+
+	// TODO: Could just get the trailer from the owning FLinkerLoad if still attached
 
 	// Open a reader to the file
 	TUniquePtr<FArchive> BulkArchive;
@@ -1252,6 +1280,15 @@ void FVirtualizedUntypedBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePaylo
 		OffsetInFile = INDEX_NONE;
 
 		EnumRemoveFlags(Flags, EFlags::ReferencesLegacyFile | EFlags::ReferencesWorkspaceDomain | EFlags::LegacyFileIsCompressed);
+
+		if (PayloadSize > 0)
+		{
+			Register(nullptr);
+		}
+		else
+		{
+			Unregister();
+		}
 	}
 
 	AttachedAr = nullptr;	
@@ -1326,7 +1363,7 @@ void FVirtualizedUntypedBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave,
 
 void FVirtualizedUntypedBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, int64 OffsetPos, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner)
 {
-	auto OnPayloadWritten = [this, OffsetPos, UpdatedFlags](FLinkerSave& LinkerSave, FPackageTrailer& Trailer) mutable
+	auto OnPayloadWritten = [this, OffsetPos, UpdatedFlags](FLinkerSave& LinkerSave, const FPackageTrailer& Trailer) mutable
 	{
 		checkf(LinkerSave.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
 
@@ -1665,9 +1702,12 @@ FVirtualizedUntypedBulkData::EFlags FVirtualizedUntypedBulkData::BuildFlagsForSe
 			}
 			else
 			{
-				// If we are re-hydrating packages on save then we need to remove the virtualization flag
 				EnumRemoveFlags(UpdatedFlags, EFlags::HasPayloadSidecarFile);
-				if (LinkerSave != nullptr && bAllowVirtualizationOnSave == false)
+
+				// Remove the virtualization flag if we are rehydrating packages on save unless
+				// referencing the payload data is allowed, in which case we can continue to save
+				// as virtualized.
+				if (LinkerSave != nullptr && !bKeepFileDataByReference && bForceRehydrationOnSave)
 				{
 					EnumRemoveFlags(UpdatedFlags, EFlags::IsVirtualized);
 				}
