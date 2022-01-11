@@ -158,6 +158,8 @@ void UDrawPolygonTool::Setup()
 
 	SnapProperties = NewObject<UDrawPolygonToolSnapProperties>(this);
 	SnapProperties->RestoreProperties(this);
+	SnapProperties->bSnapToWorldGrid = GetToolManager()->GetContextQueriesAPI()
+		->GetCurrentSnappingSettings().bEnablePositionGridSnapping;
 
 	// register tool properties
 	if (OutputTypeProperties->ShouldShowPropertySet())
@@ -246,6 +248,16 @@ void UDrawPolygonTool::OnTick(float DeltaTime)
 	{
 		// faster to do this as an override rather than destroying/recreating the gizmo via UpdateShowGizmoState
 		PlaneTransformGizmo->SetVisibility(AllowDrawPlaneUpdates());
+	}
+	if (SnapProperties)
+	{
+		bool bSnappingEnabledInViewport = GetToolManager()->GetContextQueriesAPI()
+			->GetCurrentSnappingSettings().bEnablePositionGridSnapping;
+		if (SnapProperties->bSnapToWorldGrid != bSnappingEnabledInViewport)
+		{
+			SnapProperties->bSnapToWorldGrid = bSnappingEnabledInViewport;
+			NotifyOfPropertyChangeByTool(SnapProperties);
+		}
 	}
 }
 
@@ -552,16 +564,13 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 	}
 	else 
 	{
-		if (SnapProperties->bSnapToWorldGrid)
+		FVector3d WorldGridSnapPos;
+		if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, HitPos, WorldGridSnapPos))
 		{
-			FVector3d WorldGridSnapPos;
-			if (ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, HitPos, WorldGridSnapPos))
-			{
-				WorldGridSnapPos = Frame.ToPlane(WorldGridSnapPos, 2);
-				SnapEngine.AddPointTarget(WorldGridSnapPos, CurrentGridSnapID, 
-					FBasePositionSnapSolver3::FCustomMetric::Replace(999), SnapEngine.MinInternalPriority() - 5);
-				LastGridSnapPoint = WorldGridSnapPos;
-			}
+			WorldGridSnapPos = Frame.ToPlane(WorldGridSnapPos, 2);
+			SnapEngine.AddPointTarget(WorldGridSnapPos, CurrentGridSnapID, 
+				FBasePositionSnapSolver3::FCustomMetric::Replace(999), SnapEngine.MinInternalPriority() - 5);
+			LastGridSnapPoint = WorldGridSnapPos;
 		}
 
 		if (SnapProperties->bSnapToVertices || SnapProperties->bSnapToEdges)
@@ -607,8 +616,8 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 	}
 
 
-	// if not snap and we want to hit objects, do that
-	if (SnapProperties->bSnapToSurfaces)
+	// if not yet snapped and we want to hit objects, do that
+	if (SnapProperties->bSnapToSurfaces && !bIgnoreSnappingToggle)
 	{
 		FHitResult Result;
 		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, ClickPos.WorldRay);
@@ -976,7 +985,7 @@ void UDrawPolygonTool::BeginInteractiveExtrude()
 	};
 	HeightMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
 	{
-		if (bIgnoreSnappingToggle == false && SnapProperties->bEnableSnapping && SnapProperties->bSnapToWorldGrid)
+		if (bIgnoreSnappingToggle == false && SnapProperties->bEnableSnapping)
 		{
 			return ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, WorldPos, SnapPos);
 		}
