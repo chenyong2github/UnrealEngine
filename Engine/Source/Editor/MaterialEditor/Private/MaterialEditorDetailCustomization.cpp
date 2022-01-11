@@ -837,6 +837,41 @@ void FMaterialDetailCustomization::CustomizeDetails( IDetailLayoutBuilder& Detai
 	}
 }
 
+TSharedRef<class IDetailCustomization> FMaterialFunctionDetailCustomization::MakeInstance()
+{
+	return MakeShareable(new FMaterialFunctionDetailCustomization);
+}
+
+void FMaterialFunctionDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+{
+	static const auto CVarMaterialEnableControlFlow = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableControlFlow"));
+	static const auto CVarMaterialEnableNewHLSLGenerator = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableNewHLSLGenerator"));
+
+	// MaterialFunction category
+	{
+		IDetailCategoryBuilder& MaterialCategory = DetailLayout.EditCategory(TEXT("MaterialFunction"));
+
+		TArray<TSharedRef<IPropertyHandle>> AllProperties;
+		MaterialCategory.GetDefaultProperties(AllProperties);
+
+		for (TSharedRef<IPropertyHandle>& PropertyHandle : AllProperties)
+		{
+			FProperty* Property = PropertyHandle->GetProperty();
+			FName PropertyName = Property->GetFName();
+
+			if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialFunction, bEnableExecWire) && !CVarMaterialEnableControlFlow->GetValueOnAnyThread())
+			{
+				DetailLayout.HideProperty(PropertyHandle);
+			}
+
+			if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialFunction, bEnableNewHLSLGenerator) && !CVarMaterialEnableNewHLSLGenerator->GetValueOnAnyThread())
+			{
+				DetailLayout.HideProperty(PropertyHandle);
+			}
+		}
+	}
+}
+
 TSharedRef<class IDetailCustomization> FMaterialExpressionLayersParameterDetails::MakeInstance(FOnCollectParameterGroups InCollectGroupsDelegate)
 {
 	return MakeShareable(new FMaterialExpressionLayersParameterDetails(InCollectGroupsDelegate));

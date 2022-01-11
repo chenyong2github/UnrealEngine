@@ -1482,6 +1482,7 @@ void FMaterialEditor::CreateInternalWidgets()
 	MaterialDetailsView->OnFinishedChangingProperties().AddSP(this, &FMaterialEditor::OnFinishedChangingProperties);
 
 	PropertyEditorModule.RegisterCustomClassLayout( UMaterial::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FMaterialDetailCustomization::MakeInstance ) );
+	PropertyEditorModule.RegisterCustomClassLayout( UMaterialFunction::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FMaterialFunctionDetailCustomization::MakeInstance) );
 
 	MaterialEditorInstance = NewObject<UMaterialEditorPreviewParameters>(GetTransientPackage(), NAME_None, RF_Transactional);
 	MaterialEditorInstance->PreviewMaterial = Material;
