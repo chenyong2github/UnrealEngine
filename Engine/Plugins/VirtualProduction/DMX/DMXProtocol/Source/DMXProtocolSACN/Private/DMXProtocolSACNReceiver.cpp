@@ -142,32 +142,26 @@ void FDMXProtocolSACNReceiver::UnassignInputPort(const TSharedPtr<FDMXInputPort,
 	check(AssignedInputPorts.Contains(InputPort));
 	AssignedInputPorts.Remove(InputPort);
 
-	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-	TSharedRef<FInternetAddr> MulticastGroupAddrToLeave = SocketSubsystem->CreateInternetAddr();
-
 	// Leave multicast groups outside of remaining port's universe ranges
-	for (const TTuple<uint32, uint16>& MulticastGroupAddrToUniverseIDKvp : MulticastGroupAddrToUniverseIDMap)
+	for (const TTuple<uint32, uint16>& MulticastGroupAddrToUniverseIDKvp : TMap<uint32, uint16>(MulticastGroupAddrToUniverseIDMap))
 	{
-		MulticastGroupAddrToLeave->SetIp(MulticastGroupAddrToUniverseIDKvp.Key);
-		MulticastGroupAddrToLeave->SetPort(ACN_PORT);
-		uint16 UniverseID = MulticastGroupAddrToUniverseIDKvp.Value;
-
-		bool bGroupInUse = true;
-		for (const FDMXInputPortSharedPtr& Port : AssignedInputPorts)
-		{
-			if (Port->GetExternUniverseStart() >= UniverseID &&
-				Port->GetExternUniverseEnd() <= UniverseID)
+		const uint32 MulticastGroupAddr = MulticastGroupAddrToUniverseIDKvp.Key;
+		const uint16 UniverseID = MulticastGroupAddrToUniverseIDKvp.Value;
+		const bool bUniverseStillInUse = AssignedInputPorts.Array().ContainsByPredicate([UniverseID](const FDMXInputPortSharedPtr& OtherInputPort)
 			{
-				continue;
-			}
+				return OtherInputPort->IsExternUniverseInPortRange(UniverseID);
+			});
 
-			bGroupInUse = false;
-			break;
-		}
-
-		if (!bGroupInUse)
+		if (!bUniverseStillInUse)
 		{
+			ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+			TSharedRef<FInternetAddr> MulticastGroupAddrToLeave = SocketSubsystem->CreateInternetAddr();
+			MulticastGroupAddrToLeave->SetIp(MulticastGroupAddr);
+			MulticastGroupAddrToLeave->SetPort(ACN_PORT);
+
 			Socket->LeaveMulticastGroup(*MulticastGroupAddrToLeave);
+
+			MulticastGroupAddrToUniverseIDMap.Remove(MulticastGroupAddr);
 		}
 	}
 }
