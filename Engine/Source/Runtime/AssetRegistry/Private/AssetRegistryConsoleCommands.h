@@ -28,27 +28,27 @@ public:
 	FAssetRegistryConsoleCommands()
 		: GetByNameCommand(
 		TEXT( "AssetRegistry.GetByName" ),
-		*LOCTEXT("CommandText_GetByName", "Query the asset registry for assets matching the supplied package name").ToString(),
+		*LOCTEXT("CommandText_GetByName", "<PackageName> //Query the asset registry for assets matching the supplied package name").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw( this, &FAssetRegistryConsoleCommands::GetByName ) )
 	,	GetByPathCommand(
 		TEXT( "AssetRegistry.GetByPath" ),
-		*LOCTEXT("CommandText_GetByPath", "Query the asset registry for assets matching the supplied package path").ToString(),
+		*LOCTEXT("CommandText_GetByPath", "<Path> //Query the asset registry for assets matching the supplied package path").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw( this, &FAssetRegistryConsoleCommands::GetByPath ) )
 	,	GetByClassCommand(
 		TEXT( "AssetRegistry.GetByClass" ),
-		*LOCTEXT("CommandText_GetByClass", "Query the asset registry for assets matching the supplied class").ToString(),
+		*LOCTEXT("CommandText_GetByClass", "<ClassName> //Query the asset registry for assets matching the supplied class").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw( this, &FAssetRegistryConsoleCommands::GetByClass ) )
 	,	GetByTagCommand(
 		TEXT( "AssetRegistry.GetByTag" ),
-		*LOCTEXT("CommandText_GetByTag", "Query the asset registry for assets matching the supplied tag and value").ToString(),
+		*LOCTEXT("CommandText_GetByTag", "<TagName> <TagValue> //Query the asset registry for assets matching the supplied tag and value").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw( this, &FAssetRegistryConsoleCommands::GetByTag ) )
 	,	GetDependenciesCommand(
 		TEXT( "AssetRegistry.GetDependencies" ),
-		*LOCTEXT("CommandText_GetDependencies", "Query the asset registry for dependencies for the specified package").ToString(),
+		*LOCTEXT("CommandText_GetDependencies", "<PackageName> //Query the asset registry for dependencies for the specified package").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw( this, &FAssetRegistryConsoleCommands::GetDependencies ) )
 	,	GetReferencersCommand(
 		TEXT( "AssetRegistry.GetReferencers" ),
-		*LOCTEXT("CommandText_GetReferencers", "Query the asset registry for referencers for the specified package").ToString(),
+		*LOCTEXT("CommandText_GetReferencers", "<ObjectPath> //Query the asset registry for referencers for the specified package").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw( this, &FAssetRegistryConsoleCommands::GetReferencers ) )
 	,	FindInvalidUAssetsCommand(
 		TEXT( "AssetRegistry.Debug.FindInvalidUAssets" ),
@@ -56,7 +56,7 @@ public:
 		FConsoleCommandWithArgsDelegate::CreateRaw( this, &FAssetRegistryConsoleCommands::FindInvalidUAssets ) )
 	, ScanPathCommand(
 		TEXT("AssetRegistry.ScanPath"),
-		*LOCTEXT("CommandText_ScanPath", "Scan the given filename or directoryname for package files and load them into the assetregistry. Extra string parameters: -forcerescan, -ignoreDenyLists, -asfile, -asdir").ToString(),
+		*LOCTEXT("CommandText_ScanPath", "<PathToScan> //Scan the given filename or directoryname for package files and load them into the assetregistry. Extra string parameters: -forcerescan, -ignoreDenyLists, -asfile, -asdir").ToString(),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FAssetRegistryConsoleCommands::ScanPath ) )
 	{}
 

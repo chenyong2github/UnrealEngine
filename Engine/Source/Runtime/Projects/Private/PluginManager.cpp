@@ -189,6 +189,29 @@ const TSharedPtr<FJsonObject>& FPlugin::GetDescriptorJson()
 }
 #endif // WITH_EDITOR
 
+const FString& EnumToString(const EPluginType& InPluginType)
+{
+	// Const enum strings, special case no error.
+	static const FString Engine(TEXT("Engine"));
+	static const FString Enterprise(TEXT("Enterprise"));
+	static const FString Project(TEXT("Project"));
+	static const FString External(TEXT("External"));
+	static const FString Mod(TEXT("Mod"));
+	static const FString ErrorString(TEXT("Unknown plugin type, has EPluginType been changed?"));
+
+	switch (InPluginType)
+	{
+	case EPluginType::Engine: return Engine;
+	case EPluginType::Enterprise: return Enterprise;
+	case EPluginType::Project: return Project;
+	case EPluginType::External: return External;
+	case EPluginType::Mod: return Mod;
+	default:
+		check(!"Unknown plugin type, has EPluginType been changed?");
+		return ErrorString;
+	}
+}
+
 FPluginManager::FPluginManager()
 {
 	SCOPED_BOOT_TIMING("DiscoverAllPlugins");
@@ -338,6 +361,8 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 	// If we didn't find any manifests, do a recursive search for plugins
 	if (ManifestFileNames.Num() == 0)
 	{
+		UE_LOG(LogPluginManager, Verbose, TEXT("No *.upluginmanifest files found, looking for *.uplugin files instead."))
+		
 		// Find "built-in" plugins.  That is, plugins situated right within the Engine directory.
 		TArray<FString> EnginePluginDirs = FPaths::GetExtensionDirs(FPaths::EngineDir(), TEXT("Plugins"));
 		for (const FString& EnginePluginDir : EnginePluginDirs)
@@ -1038,7 +1063,8 @@ bool FPluginManager::ConfigureEnabledPlugins()
 			{
 				FString PlatformName = FPlatformProperties::PlatformName();
 				FPlugin& Plugin = *PluginsArray[Index];
-				UE_LOG(LogPluginManager, Log, TEXT("Mounting plugin %s"), *Plugin.GetName());
+				UE_LOG(LogPluginManager, Log, TEXT("Mounting %s plugin %s"), *EnumToString(Plugin.Type), *Plugin.GetName());
+				UE_LOG(LogPluginManager, Verbose, TEXT("Plugin path: %s"), *Plugin.FileName);
 
 				// Load <PluginName>.ini config file if it exists
 				FString PluginConfigDir = FPaths::GetPath(Plugin.FileName) / TEXT("Config/");

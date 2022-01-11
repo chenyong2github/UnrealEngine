@@ -237,6 +237,7 @@ private:
 		Options.ParallelWorkers = FMath::Clamp(MaxWorkers, 0, 16);
 
 		const bool bLoaded = LoadAssetRegistry(GetPath(), Options, State);
+		UE_CLOG(bLoaded, LogAssetRegistry, Verbose, TEXT("AssetRegistry.bin loaded from '%s'"), GetPath())
 		checkf(bLoaded, TEXT("Failed to load %s"), GetPath());
 	}
 
@@ -3490,6 +3491,8 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 
 			if (bIsInRequestedPaths)
 			{
+				UE_LOG(LogAssetRegistry, VeryVerbose, TEXT("FAssetRegistryImpl::ScanPathsSynchronous: Found Asset: %s"),
+					*AssetData->ObjectPath.ToString());	
 				Context.OutFoundAssets->Add(AssetData->ObjectPath);
 			}
 		}
@@ -3596,6 +3599,10 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 			// Populate the path tree
 			AddAssetPath(EventContext, PackagePath);
 		}
+		else
+		{
+			UE_LOG(LogAssetRegistry, Warning, TEXT("AssetRegistry: An asset has been loaded with an invalid mount point: '%s', Mount Point: '%s'"), *BackgroundResult->ObjectPath.ToString(), *PackagePathString)
+		}
 
 		// Check to see if we have run out of time in this tick
 		if (!bFlushFullBuffer && (FPlatformTime::Seconds() - TickStartTime) > Impl::MaxSecondsPerFrame)
@@ -3626,6 +3633,10 @@ void FAssetRegistryImpl::PathDataGathered(Impl::FEventContext& EventContext, con
 		if (!bVerifyMountPointAfterGather || Utils::IsPathMounted(Path, MountPoints, PackageRoot))
 		{
 			AddAssetPath(EventContext, FName(*Path));
+		}
+		else
+		{
+			UE_LOG(LogAssetRegistry, Warning, TEXT("AssetRegistry: A path has been loaded with an invalid mount point: '%s'"), *Path)
 		}
 
 		// Check to see if we have run out of time in this tick
