@@ -17,6 +17,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailGroup.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #endif
 
