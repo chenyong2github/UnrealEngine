@@ -68,7 +68,6 @@ public:
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
 	class UHLODLayer* GetHLODLayer() const;
 	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
-	TArray<const UDataLayer*> GetDataLayerObjects() const;
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FName GetActorPath() const { return ActorPath; }
 	inline FName GetActorLabel() const { return ActorLabel; }
@@ -160,6 +159,8 @@ public:
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const;
 
 	void SerializeTo(TArray<uint8>& OutData);
+
+	UWorld* GetWorld() const;
 
 protected:
 	FWorldPartitionActorDesc();

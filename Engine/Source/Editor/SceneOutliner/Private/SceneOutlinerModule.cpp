@@ -234,7 +234,6 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 
 		TArray<const UDataLayer*> DataLayerObjects;
 
-
 		if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 		{
 			AActor* Actor = ActorItem->Actor.Get();
@@ -250,7 +249,13 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 
 			if (ActorDesc)
 			{
-				DataLayerObjects = ActorDesc->GetDataLayerObjects();
+				if (UWorld* World = ActorDesc->GetWorld())
+				{
+					if (AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
+					{
+						DataLayerObjects = WorldDataLayers->GetDataLayerObjects(ActorDesc->GetDataLayers());
+					}
+				}
 			}
 		}
 

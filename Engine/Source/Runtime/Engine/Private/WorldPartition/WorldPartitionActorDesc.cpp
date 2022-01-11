@@ -10,16 +10,12 @@
 #include "Algo/Transform.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
-#include "Editor/GroupActor.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/ActorDescContainer.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "Engine/Public/ActorReferencesUtils.h"
-#include "ActorFolder.h"
 #endif
 
 #if WITH_EDITOR
@@ -157,6 +153,11 @@ void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 	OutData.Append(PayloadData);
 }
 
+UWorld* FWorldPartitionActorDesc::GetWorld() const
+{
+	return Container ? Container->GetWorld() : nullptr;
+}
+
 void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FString& To)
 {
 	check(!HardRefCount);
@@ -271,30 +272,6 @@ FName FWorldPartitionActorDesc::GetActorName() const
 FName FWorldPartitionActorDesc::GetActorLabelOrName() const
 {
 	return GetActorLabel().IsNone() ? GetActorName() : GetActorLabel();
-};
-
-
-TArray<const UDataLayer*> FWorldPartitionActorDesc::GetDataLayerObjects() const
-{
-	if (Container)
-	{
-		if (AWorldDataLayers* WorldDataLayers = Container->GetWorld()->GetWorldDataLayers())
-		{
-			TArray<const UDataLayer*> DataLayerObjects;
-			DataLayerObjects.Reserve(DataLayers.Num());
-			for (const FName& DataLayerName : DataLayers)
-			{
-				if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
-				{
-					DataLayerObjects.Add(DataLayer);
-				}
-			}
-
-			return DataLayerObjects;
-		}
-	}
-
-	return TArray<const UDataLayer*>();
 }
 
 UHLODLayer* FWorldPartitionActorDesc::GetHLODLayer() const
@@ -403,5 +380,4 @@ void FWorldPartitionActorDesc::UnregisterActor()
 		Container->OnActorDescUnregistered(*this);
 	}
 }
-
 #endif
