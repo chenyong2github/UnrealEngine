@@ -5,7 +5,6 @@
 #include "CoreTypes.h"
 #include "Algo/BinarySearch.h"
 #include "Containers/ArrayView.h"
-#include "DerivedDataBackendAsyncPutWrapper.h"
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
@@ -19,6 +18,13 @@
 #include "Templates/UniquePtr.h"
 
 extern bool GVerifyDDC;
+
+namespace UE::DerivedData::CacheStore::AsyncPut
+{
+
+FDerivedDataBackendInterface* CreateAsyncPutDerivedDataBackend(FDerivedDataBackendInterface* InnerBackend, bool bCacheInFlightPuts);
+
+} // UE::DerivedData::CacheStore::AsyncPut
 
 namespace UE::DerivedData::Backends
 {
@@ -93,7 +99,7 @@ private:
 			// async puts to allow us to fill all levels without holding up the engine
 			// we need to cache inflight puts to avoid having inconsistent miss and redownload on lower cache levels while puts are still async
 			const bool bCacheInFlightPuts = true;
-			AsyncPutInnerBackends.Emplace(new FDerivedDataBackendAsyncPutWrapper(InnerBackends[CacheIndex], bCacheInFlightPuts));
+			AsyncPutInnerBackends.Emplace(CacheStore::AsyncPut::CreateAsyncPutDerivedDataBackend(InnerBackends[CacheIndex], bCacheInFlightPuts));
 		}
 	}
 

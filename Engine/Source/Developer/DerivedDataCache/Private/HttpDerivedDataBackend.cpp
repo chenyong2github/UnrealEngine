@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "HttpDerivedDataBackend.h"
+
+#include "DerivedDataBackendInterface.h"
 
 #if WITH_HTTP_DDC_BACKEND
 
@@ -12,14 +13,19 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 #include "Algo/Accumulate.h"
-#include "Algo/Transform.h"
 #include "Algo/Find.h"
+#include "Algo/Transform.h"
+#include "Compression/CompressedBuffer.h"
 #include "Containers/StaticArray.h"
+#include "Containers/StringView.h"
 #include "Containers/Ticker.h"
+#include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataValue.h"
 #include "Dom/JsonObject.h"
+#include "Experimental/Containers/FAAArrayQueue.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "IO/IoHash.h"
@@ -27,18 +33,17 @@
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/SecureHash.h"
-#include "Experimental/Containers/FAAArrayQueue.h"
 #include "Misc/StringBuilder.h"
-#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/BufferArchive.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/JsonReader.h"
-#include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Serialization/JsonWriter.h"
 
 #if WITH_SSL
 #include "Ssl.h"
@@ -73,7 +78,7 @@
 #define UE_HTTPDDC_BATCH_HEAD_WEIGHT 1
 #define UE_HTTPDDC_BATCH_WEIGHT_HINT 12
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::Http
 {
 
 TRACE_DECLARE_INT_COUNTER(HttpDDC_Exist, TEXT("HttpDDC Exist"));
@@ -86,6 +91,9 @@ TRACE_DECLARE_INT_COUNTER(HttpDDC_BytesReceived, TEXT("HttpDDC Bytes Received"))
 TRACE_DECLARE_INT_COUNTER(HttpDDC_BytesSent, TEXT("HttpDDC Bytes Sent"));
 
 static CURLcode sslctx_function(CURL * curl, void * sslctx, void * parm);
+
+typedef TSharedPtr<class IHttpRequest> FHttpRequestPtr;
+typedef TSharedPtr<class IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 
 /**
  * Encapsulation for access token shared by all requests.
@@ -1956,6 +1964,140 @@ uint32 FHttpAccessToken::GetSerial() const
 // FHttpDerivedDataBackend
 //----------------------------------------------------------------------------------------------------------
 
+/**
+ * Backend for a HTTP based caching service (Jupiter).
+ **/
+class FHttpDerivedDataBackend : public FDerivedDataBackendInterface
+{
+public:
+	
+	/**
+	 * Creates the backend, checks health status and attempts to acquire an access token.
+	 *
+	 * @param ServiceUrl			Base url to the service including schema.
+	 * @param Namespace				Namespace to use.
+	 * @param StructuredNamespace	Namespace to use for structured cache operations.
+	 * @param OAuthProvider			Url to OAuth provider, for example "https://myprovider.com/oauth2/v1/token".
+	 * @param OAuthClientId			OAuth client identifier.
+	 * @param OAuthData				OAuth form data to send to login service. Can either be the raw form data or a Windows network file address (starting with "\\").
+	 */
+	FHttpDerivedDataBackend(
+		const TCHAR* ServiceUrl, 
+		const TCHAR* Namespace, 
+		const TCHAR* StructuredNamespace, 
+		const TCHAR* OAuthProvider, 
+		const TCHAR* OAuthClientId, 
+		const TCHAR* OAuthData,
+		bool bReadOnly);
+
+	~FHttpDerivedDataBackend();
+
+	/**
+	 * Checks is backend is usable (reachable and accessible).
+	 * @return true if usable
+	 */
+	bool IsUsable() const { return bIsUsable; }
+
+	/** return true if this cache is writable **/
+	virtual bool IsWritable() const override
+	{
+		return !bReadOnly && bIsUsable;
+	}
+
+	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
+	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override;
+	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
+	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
+	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
+	
+	virtual FString GetName() const override;
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
+	virtual ESpeedClass GetSpeedClass() const override;
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
+
+	void SetSpeedClass(ESpeedClass InSpeedClass) { SpeedClass = InSpeedClass; }
+
+	virtual void Put(
+		TConstArrayView<FCachePutRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutComplete&& OnComplete) override;
+
+	virtual void Get(
+		TConstArrayView<FCacheGetRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheGetComplete&& OnComplete) override;
+
+	virtual void GetChunks(
+		TConstArrayView<FCacheChunkRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheChunkComplete&& OnComplete) override;
+
+	static FHttpDerivedDataBackend* GetAny()
+	{
+		return AnyInstance;
+	}
+
+	const FString& GetDomain() const { return Domain; }
+	const FString& GetNamespace() const { return Namespace; }
+	const FString& GetStructuredNamespace() const { return StructuredNamespace; }
+	const FString& GetOAuthProvider() const { return OAuthProvider; }
+	const FString& GetOAuthClientId() const { return OAuthClientId; }
+	const FString& GetOAuthSecret() const { return OAuthSecret; }
+
+private:
+	FString Domain;
+	FString Namespace;
+	FString StructuredNamespace;
+	FString DefaultBucket;
+	FString OAuthProvider;
+	FString OAuthClientId;
+	FString OAuthSecret;
+	FCriticalSection AccessCs;
+	FDerivedDataCacheUsageStats UsageStats;
+	FBackendDebugOptions DebugOptions;
+	FCriticalSection MissedKeysCS;
+	TSet<FName> DebugMissedKeys;
+	TSet<FCacheKey> DebugMissedCacheKeys;
+	TUniquePtr<struct FRequestPool> GetRequestPools[2];
+	TUniquePtr<struct FRequestPool> PutRequestPools[2];
+	TUniquePtr<struct FHttpAccessToken> Access;
+	bool bIsUsable;
+	bool bReadOnly;
+	uint32 FailedLoginAttempts;
+	ESpeedClass SpeedClass;
+	static inline FHttpDerivedDataBackend* AnyInstance = nullptr;
+
+	bool IsServiceReady();
+	bool AcquireAccessToken();
+	bool ShouldRetryOnError(int64 ResponseCode);
+	bool ShouldSimulateMiss(const TCHAR* InKey);
+	bool ShouldSimulateMiss(const FCacheKey& Key);
+
+	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, const FCacheRecordPolicy& Policy, uint64& OutWriteSize);
+	uint64 PutRef(const FCacheRecord& Record, const FCbPackage& Package, FStringView Bucket, bool bFinalize, TArray<FIoHash>& OutNeededBlobHashes, bool& bOutPutCompletedSuccessfully);
+
+	FOptionalCacheRecord GetCacheRecordOnly(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const FCacheRecordPolicy& Policy);
+	FOptionalCacheRecord GetCacheRecord(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const FCacheRecordPolicy& Policy,
+		EStatus& OutStatus);
+	bool TryGetCachedDataBatch(
+		const FCacheKey& Key,
+		TArrayView<FValueWithId> Values,
+		const FStringView Context,
+		TArray<FCompressedBuffer>& OutBuffers);
+	bool CachedDataProbablyExistsBatch(
+		const FCacheKey& Key,
+		TConstArrayView<FValueWithId> Values,
+		const FStringView Context);
+};
+
 FHttpDerivedDataBackend::FHttpDerivedDataBackend(
 	const TCHAR* InServiceUrl, 
 	const TCHAR* InNamespace, 
@@ -3093,6 +3235,52 @@ void FHttpDerivedDataBackend::GetChunks(
 	}
 }
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore::Http
 
-#endif //WITH_HTTP_DDC_BACKEND
+#endif // WITH_HTTP_DDC_BACKEND
+
+namespace UE::DerivedData::CacheStore::Http
+{
+
+FDerivedDataBackendInterface* CreateHttpDerivedDataBackend(
+	const TCHAR* NodeName,
+	const TCHAR* ServiceUrl,
+	const TCHAR* Namespace,
+	const TCHAR* StructuredNamespace,
+	const TCHAR* OAuthProvider,
+	const TCHAR* OAuthClientId,
+	const TCHAR* OAuthData,
+	const FDerivedDataBackendInterface::ESpeedClass* ForceSpeedClass,
+	bool bReadOnly)
+{
+#if WITH_HTTP_DDC_BACKEND
+	FHttpDerivedDataBackend* Backend = new FHttpDerivedDataBackend(ServiceUrl, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthData, bReadOnly);
+	if (Backend->IsUsable())
+	{
+		return Backend;
+	}
+	UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s could not contact the service (%s), will not use it"), NodeName, *ServiceUrl);
+	delete Backend;
+	return nullptr;
+#else
+	UE_LOG(LogDerivedDataCache, Warning, TEXT("HTTP backend is not yet supported in the current build configuration."));
+	return nullptr;
+#endif
+}
+
+FDerivedDataBackendInterface* GetAnyHttpDerivedDataBackend(
+	FString& OutDomain,
+	FString& OutOAuthProvider,
+	FString& OutOAuthClientId,
+	FString& OutOAuthSecret,
+	FString& OutNamespace,
+	FString& OutStructuredNamespace)
+{
+#if WITH_HTTP_DDC_BACKEND
+	return FHttpDerivedDataBackend::GetAny();
+#else
+	return nullptr;
+#endif
+}
+
+} // UE::DerivedData::CacheStore::Http
