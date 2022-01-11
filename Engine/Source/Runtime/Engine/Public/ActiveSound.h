@@ -34,35 +34,28 @@ struct FAttenuationListenerData;
 struct FAttenuationFocusData
 {
 	/** Azimuth of the active sound relative to the listener. Used by sound focus. */
-	float Azimuth;
+	float Azimuth = 0.0f;
 
 	/** Absolute azimuth of the active sound relative to the listener. Used for 3d audio calculations. */
-	float AbsoluteAzimuth;
+	float AbsoluteAzimuth = 0.0f;
 
 	/** Value used to allow smooth interpolation in/out of focus */
-	float FocusFactor;
+	float FocusFactor = 1.0f;
 
 	/** Cached calculation of the amount distance is scaled due to focus */
-	float DistanceScale;
+	float DistanceScale = 1.0f;
 
 	/** The amount priority is scaled due to focus */
-	float PriorityScale;
+	float PriorityScale = 1.0f;
 
 	/** Cached highest priority of the parent active sound's wave instances. */
-	float PriorityHighest;
+	float PriorityHighest = 1.0f;
 
 	/** The amount volume is scaled due to focus */
-	float VolumeScale;
+	float VolumeScale = 1.0f;
 
-	FAttenuationFocusData()
-		: Azimuth(0.0f)
-		, AbsoluteAzimuth(0.0f)
-		, FocusFactor(1.0f)
-		, DistanceScale(1.0f)
-		, PriorityScale(1.0f)
-		, VolumeScale(1.0f)
-	{
-	}
+	/** If this is the first update for focus. Handles edge case of starting a sound in-focus or out-of-focus. */
+	bool bFirstFocusUpdate = true;
 };
 
 /**
