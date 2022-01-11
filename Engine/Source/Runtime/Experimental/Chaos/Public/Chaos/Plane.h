@@ -69,10 +69,11 @@ public:
 	}
 
 	// Scale the plane and assume that none of the scale components are zero
-	static TPlaneConcrete<T> MakeScaledUnsafe(const TPlaneConcrete<T>& Plane, const TVec3<T>& Scale)
+	template <typename U>
+	static TPlaneConcrete<T> MakeScaledUnsafe(const TPlaneConcrete<U>& Plane, const TVec3<T>& Scale)
 	{
-		const TVec3<T> ScaledX = Plane.MX * Scale;
-		TVec3<T> ScaledN = Plane.MNormal / Scale;
+		const TVec3<T> ScaledX = TVec3<T>(Plane.X()) * Scale;
+		TVec3<T> ScaledN = TVec3<T>(Plane.Normal()) / Scale;
 
 		// We don't handle zero scales, but we could still end up with a small normal
 		const T ScaleN2 = ScaledN.SizeSquared();
@@ -82,10 +83,16 @@ public:
 		}
 		else
 		{
-			ScaledN = Plane.MNormal;
+			ScaledN = TVec3<T>(Plane.Normal());
 		}
 
 		return TPlaneConcrete<T>(ScaledX, ScaledN);
+	}
+
+	template <typename U>
+	static TPlaneConcrete<T> MakeFrom(const TPlaneConcrete<U>& Plane)
+	{
+		return TPlaneConcrete<T>(TVec3<T>(Plane.X()), TVec3<T>(Plane.Normal()));
 	}
 
 
@@ -100,9 +107,10 @@ public:
 	/**
 	 * Phi is positive on the side of the normal, and negative otherwise.
 	 */
-	FReal SignedDistance(const FVec3& x) const
+	template <typename U>
+	U SignedDistance(const TVec3<U>& x) const
 	{
-		return FVec3::DotProduct(x - (FVec3)MX, (FVec3)MNormal);
+		return TVec3<U>::DotProduct(x - TVec3<U>(MX), TVec3<U>(MNormal));
 	}
 
 	/**

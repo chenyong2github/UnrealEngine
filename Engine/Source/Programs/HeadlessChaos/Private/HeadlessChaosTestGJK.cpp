@@ -549,7 +549,7 @@ namespace ChaosTest
 
 		{
 			//Tetrahedron
-			TArray<Chaos::FVec3> HullParticles;
+			TArray<FConvex::FVec3Type> HullParticles;
 			HullParticles.SetNum(4);
 			HullParticles[0] = { -1,-1,-1 };
 			HullParticles[1] = { 1,-1,-1 };
@@ -584,7 +584,7 @@ namespace ChaosTest
 
 		{
 			//Triangle
-			TArray<Chaos::FVec3> TriangleParticles;
+			TArray<FConvex::FVec3Type> TriangleParticles;
 			TriangleParticles.SetNum(3);
 			TriangleParticles[0] = { -1,-1,-1 };
 			TriangleParticles[1] = { 1,-1,-1 };
@@ -919,7 +919,7 @@ namespace ChaosTest
 	void GJKSphereConvexSweep()
 	{
 		//Tetrahedron
-		TArray<Chaos::FVec3> HullParticles;
+		TArray<FConvex::FVec3Type> HullParticles;
 		HullParticles.SetNum(4);
 		HullParticles[0] = { 3,0,4 };
 		HullParticles[1] = { 3,1,0 };
@@ -1349,7 +1349,7 @@ namespace ChaosTest
 
 		{
 			//based on real sweep from game
-			TArray<Chaos::FVec3> ConvexParticles;
+			TArray<FConvex::FVec3Type> ConvexParticles;
 			ConvexParticles.SetNum(10);
 
 			ConvexParticles[0] = { 51870.2305, 54369.6719, 19200.0000 };
@@ -1387,7 +1387,7 @@ namespace ChaosTest
 	GTEST_TEST(GJKTests, DISABLED_TestGJKCapsuleConvexInitialOverlapSweep_Fixed)
 	{
 		{
-			TArray<Chaos::FVec3> ConvexParticles;
+			TArray<FConvex::FVec3Type> ConvexParticles;
 			ConvexParticles.SetNum(8);
 
 			ConvexParticles[0] ={-256.000031,12.0000601,384.000061};
@@ -1424,7 +1424,7 @@ namespace ChaosTest
 	void GJKCapsuleConvexInitialOverlapSweep()
 	{
 		{
-			TArray<FVec3> ConvexParticles;
+			TArray<FConvex::FVec3Type> ConvexParticles;
 			ConvexParticles.SetNum(16);
 
 			ConvexParticles[0] ={-127.216454,203.240234,124.726524};
@@ -1493,7 +1493,7 @@ namespace ChaosTest
 
 		{
 			//capsule vs triangle as we make the sweep longer the world space point of impact should stay the same
-			TArray<FVec3> ConvexParticles;
+			TArray<FConvex::FVec3Type> ConvexParticles;
 			ConvexParticles.SetNum(3);
 
 			ConvexParticles[0] ={7400.00000, 12600.0000, 206.248123};
@@ -1704,7 +1704,7 @@ namespace ChaosTest
 	void GJKConvexConvexEPABoundaryCondition()
 	{
 		// These verts are those from a rectangular box with bevelled edges
-		TArray<FVec3> CoreShapeVerts = 
+		TArray<FConvex::FVec3Type> CoreShapeVerts =
 		{
 			{3.54999995f, -1.04999995f, 0.750000000f},
 			{3.75000000f, 1.04999995f, 0.549999952f},
@@ -1786,7 +1786,7 @@ namespace ChaosTest
 
 	void NegativeScaleConvexTest()
 	{
-		TArray<FVec3> ConvexVerts =
+		TArray<FConvex::FVec3Type> ConvexVerts =
 		{
 			{512.000061, -1279.99988, -383.999939},
 			{511.999969, 6.81566016e-05, 2.23802308e-05},
@@ -1797,7 +1797,7 @@ namespace ChaosTest
 			{7.96019594e-05, -1280.00000, -383.999969},
 			{512.000061, -1023.99994, -383.999939}
 		};
-		TArray<FVec3> ConvexVertices(MoveTemp(ConvexVerts));
+		TArray<FConvex::FVec3Type> ConvexVertices(MoveTemp(ConvexVerts));
 		TUniquePtr<FImplicitConvex3> CoreConvex = MakeUnique<FImplicitConvex3>(ConvexVertices, 0.0f);
 		const TImplicitObjectScaled<FImplicitConvex3> ScaledConvex(MakeSerializable(CoreConvex), FVec3(-1,1,1), 38.4000015);
 		const TSphere<FReal, 3> Sphere(FVec3(0,0,0), 32);
@@ -1825,7 +1825,7 @@ namespace ChaosTest
 		//	{-2.36513770e-05, -1.52587909e-05, -2.84217094e-14},
 		//	{1.80563184e-05, -256.000031, -2.84217094e-14},
 		//};
-		TArray<FVec3> ConvexVerts =
+		TArray<FConvex::FVec3Type> ConvexVerts =
 		{
 			// subset of verts from above test.
 			FVec3(-512, -1280, -384),
@@ -1834,7 +1834,7 @@ namespace ChaosTest
 			FVec3(0, 0, 0),
 			FVec3(0, -256, 0),
 		};
-		TArray<FVec3> ConvexVertices(MoveTemp(ConvexVerts));
+		TArray<FConvex::FVec3Type> ConvexVertices(MoveTemp(ConvexVerts));
 		FImplicitConvex3 CoreConvex = FImplicitConvex3(ConvexVertices, 38.4000015);
 		const TSphere<FReal, 3> Sphere(FVec3(0, 0, 0), 32);
 		const FRigidTransform3 StartTM(FVec3(-172.000000, -48.0000000, 52.0000000), FRotation3::FromIdentity());

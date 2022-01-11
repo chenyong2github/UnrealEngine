@@ -19,21 +19,14 @@ namespace ChaosTest
 	// Check that convex creation with face merging is working correctly.
 	// The initial creation generates a set of triangles, and the merge step should
 	// leave the hull with only one face per normal.
-	void TestConvexBuilderConvexBoxFaceMerge(const FVec3* Vertices, const int32 NumVertices)
+	void TestConvexBuilderConvexBoxFaceMerge(const TArray<FConvex::FVec3Type>& Vertices)
 	{
-		TArray<Chaos::FVec3> Particles;
-		Particles.SetNum(NumVertices);
-		for (int32 ParticleIndex = 0; ParticleIndex < NumVertices; ++ParticleIndex)
-		{
-			Particles[ParticleIndex] = Vertices[ParticleIndex];
-		}
-
-		TArray<TPlaneConcrete<FReal, 3>> Planes;
+		TArray<FConvex::FPlaneType> Planes;
 		TArray<TArray<int32>> FaceVertices;
-		TArray<Chaos::FVec3> SurfaceParticles;
-		TAABB<FReal, 3> LocalBounds;
+		TArray<Chaos::FConvex::FVec3Type> SurfaceParticles;
+		FConvex::FAABB3Type LocalBounds;
 
-		FConvexBuilder::Build(Particles, Planes, FaceVertices, SurfaceParticles, LocalBounds);
+		FConvexBuilder::Build(Vertices, Planes, FaceVertices, SurfaceParticles, LocalBounds);
 		FConvexBuilder::MergeFaces(Planes, FaceVertices, SurfaceParticles, 1.0f);
 
 		// Check that we have the right number of faces and particles
@@ -71,19 +64,19 @@ namespace ChaosTest
 	// Check that face merging works for a convex box
 	GTEST_TEST(ConvexStructureTests, TestConvexBoxFaceMerge)
 	{
-		const FVec3 Vertices[] =
+		const TArray<FConvex::FVec3Type> Vertices =
 		{
-			FVec3(-50,		-50,	-50),
-			FVec3(-50,		-50,	50),
-			FVec3(-50,		50,		-50),
-			FVec3(-50,		50,		50),
-			FVec3(50,		-50,	-50),
-			FVec3(50,		-50,	50),
-			FVec3(50,		50,		-50),
-			FVec3(50,		50,		50),
+			{-50,	-50,	-50},
+			{-50,	-50,	50},
+			{-50,	50,		-50},
+			{-50,	50,		50},
+			{50,	-50,	-50},
+			{50,	-50,	50},
+			{50,	50,		-50},
+			{50,	50,		50},
 		};
 
-		TestConvexBuilderConvexBoxFaceMerge(Vertices, UE_ARRAY_COUNT(Vertices));
+		TestConvexBuilderConvexBoxFaceMerge(Vertices);
 	}
 
 	// Check that the convex structure data is consistent (works for TBox and TConvex)
@@ -99,7 +92,7 @@ namespace ChaosTest
 			// All vertices should be on the plane
 			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < Convex.NumPlaneVertices(PlaneIndex); ++PlaneVertexIndex)
 			{
-				const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
+				const auto Plane = Convex.GetPlane(PlaneIndex);
 				const int32 VertexIndex = Convex.GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
 				const FVec3 Vertex = Convex.GetVertex(VertexIndex);
 				const FReal VertexDistance = FVec3::DotProduct(Plane.Normal(), Vertex - Plane.X());
@@ -118,7 +111,7 @@ namespace ChaosTest
 
 			for (int32 PlaneIndex : PlaneIndices)
 			{
-				const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
+				const auto Plane = Convex.GetPlane(PlaneIndex);
 				const FVec3 Vertex = Convex.GetVertex(VertexIndex);
 				const FReal VertexDistance = FVec3::DotProduct(Plane.Normal(), Vertex - Plane.X());
 				EXPECT_NEAR(VertexDistance, 0.0f, Tolerance);
@@ -127,65 +120,56 @@ namespace ChaosTest
 	}
 
 	// Check that the convex structure data is consistent
-	void TestConvexStructureData(const FVec3* Vertices, const int32 NumVertices)
+	void TestConvexStructureData(const TArray<FConvex::FVec3Type>& Vertices)
 	{
-		TArray<Chaos::FVec3> Particles;
-		Particles.SetNum(NumVertices);
-		for (int32 ParticleIndex = 0; ParticleIndex < NumVertices; ++ParticleIndex)
-		{
-			Particles[ParticleIndex] = Vertices[ParticleIndex];
-		}
-
-		FConvex Convex(Particles, 0.0f);
-
+		FConvex Convex(Vertices, 0.0f);
 		TestConvexStructureDataImpl(Convex);
 	}
 
 	// Check that the convex structure data is consistent for a simple convex box
 	GTEST_TEST(ConvexStructureTests, TestConvexStructureData)
 	{
-		const FVec3 Vertices[] =
+		const TArray<FConvex::FVec3Type> Vertices =
 		{
-			FVec3(-50,		-50,	-50),
-			FVec3(-50,		-50,	50),
-			FVec3(-50,		50,		-50),
-			FVec3(-50,		50,		50),
-			FVec3(50,		-50,	-50),
-			FVec3(50,		-50,	50),
-			FVec3(50,		50,		-50),
-			FVec3(50,		50,		50),
+			{-50,		-50,	-50},
+			{-50,		-50,	50},
+			{-50,		50,		-50},
+			{-50,		50,		50},
+			{50,		-50,	-50},
+			{50,		-50,	50},
+			{50,		50,		-50},
+			{50,		50,		50},
 		};
 
-		TestConvexStructureData(Vertices, UE_ARRAY_COUNT(Vertices));
+		TestConvexStructureData(Vertices);
 	}
 
 	// Check that the convex structure data is consistent for a complex convex shape
 	GTEST_TEST(ConvexStructureTests, TestConvexStructureData2)
 	{
-		const FVec3 Vertices[] =
-
+		const TArray<FConvex::FVec3Type> Vertices =
 		{
-			FVec3(0, 0, 12.0f),
-			FVec3(-0.707f, -0.707f, 10.0f),
-			FVec3(0, -1, 10.0f),
-			FVec3(0.707f, -0.707f, 10.0f),
-			FVec3(1, 0, 10.0f),
-			FVec3(0.707f, 0.707f, 10.0f),
-			FVec3(0.0f, 1.0f, 10.0f),
-			FVec3(-0.707f, 0.707f, 10.0f),
-			FVec3(-1.0f, 0.0f, 10.0f),
-			FVec3(-0.707f, -0.707f, 0.0f),
-			FVec3(0, -1, 0.0f),
-			FVec3(0.707f, -0.707f, 0.0f),
-			FVec3(1, 0, 0.0f),
-			FVec3(0.707f, 0.707f, 0.0f),
-			FVec3(0.0f, 1.0f, 0.0f),
-			FVec3(-0.707f, 0.707f, 0.0f),
-			FVec3(-1.0f, 0.0f, 0.0f),
-			FVec3(0, 0, -2.0f),
+			{0, 0, 12.0f},
+			{-0.707f, -0.707f, 10.0f},
+			{0, -1, 10.0f},
+			{0.707f, -0.707f, 10.0f},
+			{1, 0, 10.0f},
+			{0.707f, 0.707f, 10.0f},
+			{0.0f, 1.0f, 10.0f},
+			{-0.707f, 0.707f, 10.0f},
+			{-1.0f, 0.0f, 10.0f},
+			{-0.707f, -0.707f, 0.0f},
+			{0, -1, 0.0f},
+			{0.707f, -0.707f, 0.0f},
+			{1, 0, 0.0f},
+			{0.707f, 0.707f, 0.0f},
+			{0.0f, 1.0f, 0.0f},
+			{-0.707f, 0.707f, 0.0f},
+			{-1.0f, 0.0f, 0.0f},
+			{0, 0, -2.0f},
 		};
 
-		TestConvexStructureData(Vertices, UE_ARRAY_COUNT(Vertices));
+		TestConvexStructureData(Vertices);
 	}
 
 	// Check that the convex structure data is consistent for a standard box
@@ -236,16 +220,15 @@ namespace ChaosTest
 		const FReal Radius = 1000.0f;
 
 		const int32 NumVertices = TestGeometry2::RawVertexArray.Num() / 3;
-		TArray<FVec3> Particles;
+		TArray<FConvex::FVec3Type> Particles;
 		Particles.SetNum(NumVertices);
 		for (int32 ParticleIndex = 0; ParticleIndex < NumVertices; ++ParticleIndex)
 		{
-			const FVec3 VertexPos = FVec3(
+			Particles[ParticleIndex] = FConvex::FVec3Type(
 				TestGeometry2::RawVertexArray[3 * ParticleIndex + 0],
 				TestGeometry2::RawVertexArray[3 * ParticleIndex + 1],
 				TestGeometry2::RawVertexArray[3 * ParticleIndex + 2]
 			);
-			Particles[ParticleIndex] = VertexPos;
 		}
 
 		FConvex Convex(Particles, 0.0f);
@@ -266,14 +249,13 @@ namespace ChaosTest
 		const int32 NumVertices = 50000;
 
 		// Make a convex with points on a sphere.
-		TArray<FVec3> Vertices;
+		TArray<FConvex::FVec3Type> Vertices;
 		Vertices.SetNum(NumVertices);
 		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 		{
-			const FReal Theta = FMath::RandRange(-PI, PI);
-			const FReal Phi = FMath::RandRange(-0.5f * PI, 0.5f * PI);
-			const FVec3 VertexPos = Radius * FVec3(FMath::Cos(Theta), FMath::Sin(Theta), FMath::Sin(Phi));
-			Vertices[VertexIndex] = VertexPos;
+			const FConvex::FRealType Theta = FMath::RandRange(-PI, PI);
+			const FConvex::FRealType Phi = FMath::RandRange(-0.5f * PI, 0.5f * PI);
+			Vertices[VertexIndex] = Radius * FConvex::FVec3Type(FMath::Cos(Theta), FMath::Sin(Theta), FMath::Sin(Phi));
 		}
 		FConvex Convex(Vertices, 0.0f);
 
@@ -291,18 +273,18 @@ namespace ChaosTest
 		// Create a long mesh with a extremely small end (YZ plane) 
 		// so that it generate extremely sized triangle that will produce extremely small (unormalized) normals
 		const float SmallNumber = 0.001f;
-		const FVec3 Range{ 100.0f, SmallNumber, SmallNumber };
+		const FConvex::FVec3Type Range{ 100.0f, SmallNumber, SmallNumber };
 
-		const FVec3 Vertices[] =
+		const TArray<FConvex::FVec3Type> Vertices =
 		{
-			FVec3(0, 0, 0),
-			FVec3(Range.X, 0, 0),
-			FVec3(Range.X, Range.Y, 0),
-			FVec3(Range.X, Range.Y, Range.Z),
-			FVec3(Range.X+ SmallNumber, Range.Y*0.5f, Range.Z * 0.5f),
+			{0, 0, 0},
+			{Range.X, 0, 0},
+			{Range.X, Range.Y, 0},
+			{Range.X, Range.Y, Range.Z},
+			{Range.X + SmallNumber, Range.Y * 0.5f, Range.Z * 0.5f},
 		};
 
-		TestConvexStructureData(Vertices, UE_ARRAY_COUNT(Vertices));
+		TestConvexStructureData(Vertices);
 	}
 
 	GTEST_TEST(ConvexStructureTests, TestConvexFailsSafelyOnPlanarObject)
@@ -313,7 +295,7 @@ namespace ChaosTest
 		// a check to fire inside the convex builder as we classified the object incorrectly and didn't
 		// safely handle a failure due to a planar object. This test verifies that the builder can
 		// safely fail to build a convex from a plane.
-		const TArray<FVec3> Vertices =
+		const TArray<FConvex::FVec3Type> Vertices =
 		{
 			{-15.1425571, 16.9698563, 0.502334476},
 			{-15.1425571, 16.9698563, 0.502334476},
@@ -365,10 +347,10 @@ namespace ChaosTest
 			{15.1425571, -16.9698563, -0.502334476}
 		};
 
-		TArray <TPlaneConcrete<FReal, 3>> Planes;
+		TArray<FConvex::FPlaneType> Planes;
 		TArray<TArray<int32>> FaceIndices;
-		TArray<FVec3> FinalVertices;
-		TAABB<FReal, 3> LocalBounds;
+		TArray<FConvex::FVec3Type> FinalVertices;
+		FConvex::FAABB3Type LocalBounds;
 
 		{
 			// Temporarily set LogChaos to error, we're expecting this to fire warnings and don't want that to fail a CIS run.
@@ -382,7 +364,7 @@ namespace ChaosTest
 
 	GTEST_TEST(ConvexStructureTests, TestConvexHalfEdgeStructureData_Box)
 	{
-		const TArray<FVec3> InputVertices =
+		const TArray<FConvex::FVec3Type> InputVertices =
 		{
 			FVec3(-50,		-50,	-50),
 			FVec3(-50,		-50,	50),
@@ -394,10 +376,10 @@ namespace ChaosTest
 			FVec3(50,		50,		50),
 		};
 
-		TArray<TPlaneConcrete<FReal, 3>> Planes;
+		TArray<FConvex::FPlaneType> Planes;
 		TArray<TArray<int32>> FaceVertices;
-		TArray<Chaos::FVec3> Vertices;
-		TAABB<FReal, 3> LocalBounds;
+		TArray<FConvex::FVec3Type> Vertices;
+		FConvex::FAABB3Type LocalBounds;
 		FConvexBuilder::Build(InputVertices, Planes, FaceVertices, Vertices, LocalBounds);
 		FConvexBuilder::MergeFaces(Planes, FaceVertices, Vertices, 1.0f);
 

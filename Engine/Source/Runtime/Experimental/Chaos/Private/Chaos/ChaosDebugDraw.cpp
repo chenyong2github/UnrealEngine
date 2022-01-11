@@ -616,14 +616,16 @@ namespace Chaos
 				// Warning: extremely expensive!
 				if (bChaosDebugDebugDrawExactCoreShapes)
 				{
-					const FRigidTransform3 ShrunkScaledTransform = FRigidTransform3(ShapeTransform.GetTranslation(), ShapeTransform.GetRotation());
-					TArray<FVec3> ScaledVerts = Convex->GetVertices();
-					for (FVec3& Vert : ScaledVerts)
+					TArray<FConvex::FVec3Type> ScaledVerts(Convex->GetVertices());
+					FConvex::FVec3Type Scale(ShapeTransform.GetScale3D());
+					for (FConvex::FVec3Type& Vert : ScaledVerts)
 					{
-						Vert = Vert * ShapeTransform.GetScale3D();
+						Vert *= Scale;
 					}
-					FConvex ShrunkScaledConvex(ScaledVerts, 0.0f);
-					ShrunkScaledConvex.MovePlanesAndRebuild(-Margin);
+					FConvex ShrunkScaledConvex(ScaledVerts, FReal(0));
+					ShrunkScaledConvex.MovePlanesAndRebuild(FConvex::FRealType(-Margin)); // potential loss of precision but margin should remain within the float range
+
+					const FRigidTransform3 ShrunkScaledTransform = FRigidTransform3(ShapeTransform.GetTranslation(), ShapeTransform.GetRotation());
 					DrawShapesConvexImpl(Particle, ShrunkScaledTransform, &ShrunkScaledConvex, 0.0f, FColor::Red, Settings);
 				}
 				break;
@@ -1454,7 +1456,7 @@ namespace Chaos
 
 			virtual void Box(const FAABB3& InBox, const TVec3<FReal>& InLinearColor, float InThickness) override
 			{
-				FDebugDrawQueue::GetInstance().DrawDebugBox(InBox.Center(), InBox.Extents(), FQuat::Identity, FLinearColor(InLinearColor).ToFColor(false), false, -1.f, Settings.DrawPriority, InThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugBox(InBox.Center(), InBox.Extents() * FReal(0.5), FQuat::Identity, FLinearColor(InLinearColor).ToFColor(false), false, -1.f, Settings.DrawPriority, InThickness);
 			}
 
 			virtual void Line(const TVec3<FReal>& InBegin, const TVec3<FReal>& InEnd, const TVec3<FReal>& InLinearColor, float InThickness) override

@@ -27,11 +27,11 @@ namespace Chaos
 
 
 
-	void FConvexBuilder::Build(const TArray<FVec3>& InVertices, TArray <TPlaneConcrete<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3>& OutVertices, FAABB3& OutLocalBounds)
+	void FConvexBuilder::Build(const TArray<FVec3Type>& InVertices, TArray <FPlaneType>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3Type>& OutVertices, FAABB3Type& OutLocalBounds)
 	{
 		OutPlanes.Reset();
 		OutVertices.Reset();
-		OutLocalBounds = FAABB3::EmptyAABB();
+		OutLocalBounds = FAABB3Type::EmptyAABB();
 
 		const int32 NumVerticesIn = InVertices.Num();
 		if (NumVerticesIn == 0)
@@ -40,11 +40,11 @@ namespace Chaos
 		}
 
 
-		const TArray<FVec3>* VerticesToUse = &InVertices;
-		TArray<FVec3> ModifiedVertices;
+		const TArray<FVec3Type>* VerticesToUse = &InVertices;
+		TArray<FVec3Type> ModifiedVertices;
 
 		// For triangles and planar shapes, create a very thin prism as a convex
-		auto Inflate = [](const TArray<FVec3>& Source, TArray<FVec3>& Destination, const FVec3& Normal, FReal Inflation)
+		auto Inflate = [](const TArray<FVec3Type>& Source, TArray<FVec3Type>& Destination, const FVec3Type& Normal, FRealType Inflation)
 		{
 			const int32 NumSource = Source.Num();
 			Destination.Reset();
@@ -57,7 +57,7 @@ namespace Chaos
 			}
 		};
 
-		FVec3 PlanarNormal(0);
+		FVec3Type PlanarNormal(0);
 		if (NumVerticesIn == 3)
 		{
 			const bool bIsValidTriangle = IsValidTriangle(InVertices[0], InVertices[1], InVertices[2], PlanarNormal);
@@ -83,7 +83,7 @@ namespace Chaos
 
 		const int32 NumVerticesToUse = VerticesToUse->Num();
 
-		OutLocalBounds = FAABB3((*VerticesToUse)[0], (*VerticesToUse)[0]);
+		OutLocalBounds = FAABB3Type((*VerticesToUse)[0], (*VerticesToUse)[0]);
 		for (int32 VertexIndex = 0; VertexIndex < NumVerticesToUse; ++VertexIndex)
 		{
 			OutLocalBounds.GrowToInclude((*VerticesToUse)[VertexIndex]);
@@ -98,8 +98,8 @@ namespace Chaos
 
 			if (bUseGeometryTConvexHull3) // Use the newer Geometry Tools code path for generating convex hulls.
 			{
-				UE::Geometry::TConvexHull3<FReal> HullCompute;
-				if (HullCompute.Solve<FVec3>(*VerticesToUse))
+				UE::Geometry::TConvexHull3<FRealType> HullCompute;
+				if (HullCompute.Solve<FVec3Type>(*VerticesToUse))
 				{
 					// Get Planes, FaceIndices, Vertices, and LocalBoundingBox
 					TMap<int32, int32> HullVertMap;
@@ -110,7 +110,7 @@ namespace Chaos
 								int32 Index = Triangle[j];
 								if (HullVertMap.Contains(Index) == false)
 								{
-									const FVec3& OrigPos = (*VerticesToUse)[Index];
+									const FVec3Type& OrigPos = (*VerticesToUse)[Index];
 									int32 NewVID = OutVertices.Num();
 									OutVertices.Add(OrigPos);
 									HullVertMap.Add(Index, NewVID);
@@ -125,13 +125,13 @@ namespace Chaos
 							// Winding is backwards from what Chaos expects
 							OutFaceIndices.Add({ Triangle[0], Triangle[2], Triangle[1] });
 
-							UE::Geometry::THalfspace3<FReal> Halfspace(OutVertices[Triangle[0]], OutVertices[Triangle[1]], OutVertices[Triangle[2]]);
-							const FVec3& Normal = Halfspace.Normal;
-							const FVec3& Point = OutVertices[Triangle[0]];
-							OutPlanes.Add(TPlaneConcrete<FReal, 3>{ Point, Normal });
+							UE::Geometry::THalfspace3<FRealType> Halfspace(OutVertices[Triangle[0]], OutVertices[Triangle[1]], OutVertices[Triangle[2]]);
+							const FVec3Type& Normal = Halfspace.Normal;
+							const FVec3Type& Point = OutVertices[Triangle[0]];
+							OutPlanes.Add(FPlaneType{ Point, Normal });
 						});
 
-					OutLocalBounds = FAABB3(OutVertices[0], OutVertices[0]);
+					OutLocalBounds = FAABB3Type(OutVertices[0], OutVertices[0]);
 					for (int32 VertexIndex = 1; VertexIndex < OutVertices.Num(); ++VertexIndex)
 					{
 						OutLocalBounds.GrowToInclude(OutVertices[VertexIndex]);
@@ -161,9 +161,9 @@ namespace Chaos
 
 				for (const TVec3<int32>& Idx : Indices)
 				{
-					FVec3 Vs[3] = { (*VerticesToUse)[Idx[0]], (*VerticesToUse)[Idx[1]], (*VerticesToUse)[Idx[2]] };
-					const FVec3 Normal = FVec3::CrossProduct(Vs[1] - Vs[0], Vs[2] - Vs[0]).GetUnsafeNormal();
-					OutPlanes.Add(TPlaneConcrete<FReal, 3>(Vs[0], Normal));
+					FVec3Type Vs[3] = { (*VerticesToUse)[Idx[0]], (*VerticesToUse)[Idx[1]], (*VerticesToUse)[Idx[2]] };
+					const FVec3Type Normal = FVec3Type::CrossProduct(Vs[1] - Vs[0], Vs[2] - Vs[0]).GetUnsafeNormal();
+					OutPlanes.Add(FPlaneType(Vs[0], Normal));
 					TArray<int32> FaceIndices;
 					FaceIndices.SetNum(3);
 					FaceIndices[0] = AddIndex(Idx[0]);

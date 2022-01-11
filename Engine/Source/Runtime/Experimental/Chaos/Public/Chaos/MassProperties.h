@@ -35,8 +35,11 @@ namespace Chaos
 
 	FRotation3 CHAOS_API TransformToLocalSpace(FMatrix33& Inertia);
 
-	template<typename TSurfaces>
-	void CHAOS_API CalculateVolumeAndCenterOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
+	template<typename T, typename TSurfaces>
+	void CHAOS_API CalculateVolumeAndCenterOfMass(const TParticles<T,3>& Vertices, const TSurfaces& Surfaces, T& OutVolume, TVec3<T>& OutCenterOfMass);
+
+	template<typename T, typename TSurfaces>
+	void CHAOS_API CalculateVolumeAndCenterOfMass(const TArray<TVec3<T>>& Vertices, const TSurfaces& Surfaces, T& OutVolume, TVec3<T>& OutCenterOfMass);
 
 	template<typename TSurfaces>
 	FMassProperties CHAOS_API CalculateMassProperties(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Mass);

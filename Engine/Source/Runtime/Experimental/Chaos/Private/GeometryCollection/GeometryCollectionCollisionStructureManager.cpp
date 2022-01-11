@@ -255,12 +255,14 @@ FCollisionStructureManager::NewImplicitConvex(
 	const FTransform& MassTransform,
 	const Chaos::FReal CollisionMarginFraction)
 {
+	using FConvexVec3 = Chaos::FConvex::FVec3Type;
+
 	if (ConvexIndices.Num())
 	{
 		TArray<TUniquePtr<Chaos::FImplicitObject>> Implicits;
 		for (auto& Index : ConvexIndices)
 		{
-			TArray<Chaos::FVec3> ConvexVertices = (*ConvexGeometry)[Index]->GetVertices();
+			TArray<FConvexVec3> ConvexVertices = (*ConvexGeometry)[Index]->GetVertices();
 			for (int32 Idx = 0; Idx < ConvexVertices.Num(); Idx++)
 			{
 				ConvexVertices[Idx] = MassTransform.InverseTransformPosition(ConvexVertices[Idx]);

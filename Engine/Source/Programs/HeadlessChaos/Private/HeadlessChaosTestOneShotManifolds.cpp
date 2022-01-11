@@ -227,21 +227,21 @@ namespace ChaosTest
 	GTEST_TEST(OneShotManifoldTests, TestConvexMarginEdgeEdge)
 	{
 		FReal Dt = 1 / 30.0f;
-		FReal HalfSize = 100.0f;
+		FConvex::FRealType HalfSize = 100.0f;
 		FReal Margin = 0.2f * HalfSize;
 		float ExpectedPhi = 0.0f;
 		float Offset = 2.0f * HalfSize * FMath::Sqrt(2.0f);
 
-		TArray<FVec3> BoxVerts = 
+		TArray<FConvex::FVec3Type> BoxVerts =
 		{
-			FVec3(-HalfSize, -HalfSize, -HalfSize),
-			FVec3(-HalfSize,  HalfSize, -HalfSize),
-			FVec3( HalfSize,  HalfSize, -HalfSize),
-			FVec3( HalfSize, -HalfSize, -HalfSize),
-			FVec3(-HalfSize, -HalfSize,  HalfSize),
-			FVec3(-HalfSize,  HalfSize,  HalfSize),
-			FVec3( HalfSize,  HalfSize,  HalfSize),
-			FVec3( HalfSize, -HalfSize,  HalfSize),
+			{-HalfSize, -HalfSize, -HalfSize},
+			{-HalfSize,  HalfSize, -HalfSize},
+			{ HalfSize,  HalfSize, -HalfSize},
+			{ HalfSize, -HalfSize, -HalfSize},
+			{-HalfSize, -HalfSize,  HalfSize},
+			{-HalfSize,  HalfSize,  HalfSize},
+			{ HalfSize,  HalfSize,  HalfSize},
+			{ HalfSize, -HalfSize,  HalfSize},
 		};
 
 		// First box rotated 45 degrees about Z and placed at the oirigin

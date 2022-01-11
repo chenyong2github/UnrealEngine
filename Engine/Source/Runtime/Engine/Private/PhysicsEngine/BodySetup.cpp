@@ -2027,7 +2027,7 @@ TArray<int32> FKConvexElem::GetChaosConvexIndices() const
 	const int32 NumVerts = VertexData.Num();
 	if (NumVerts > 0)
 	{
-		TArray<Chaos::FVec3> ConvexVertices;
+		TArray<Chaos::FConvex::FVec3Type> ConvexVertices;
 		ConvexVertices.SetNum(NumVerts);
 
 		for (int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)

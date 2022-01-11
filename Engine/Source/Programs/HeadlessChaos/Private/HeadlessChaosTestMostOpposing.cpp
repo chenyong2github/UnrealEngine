@@ -76,15 +76,15 @@ namespace ChaosTest
 		FVec3 Normal;
 		int32 FaceIndex;
 
-		TArray<FVec3> Particles;
+		TArray<FConvex::FVec3Type> Particles;
 		Particles.SetNum(6);
-		Particles[0] = FVec3(1, 1, 1);
-		Particles[1] = FVec3(5, 1, 1);
-		Particles[2] = FVec3(1, 5, 1);
+		Particles[0] = { 1, 1, 1 };
+		Particles[1] = { 5, 1, 1 };
+		Particles[2] = { 1, 5, 1 };
 
-		Particles[3] = FVec3(1, 1, 1);
-		Particles[4] = FVec3(1, 5, 1);
-		Particles[5] = FVec3(1, 1, -5);
+		Particles[3] = { 1, 1, 1 };
+		Particles[4] = { 1, 5, 1 };
+		Particles[5] = { 1, 1, -5};
 
 		FConvex Convex(MoveTemp(Particles), 0.0f);
 
@@ -130,15 +130,15 @@ namespace ChaosTest
 		FVec3 Normal;
 		int32 FaceIndex;
 
-		TArray<FVec3> Particles;
+		TArray<FConvex::FVec3Type> Particles;
 		Particles.SetNum(6);
-		Particles[0] = FVec3(0, -1, 1);
-		Particles[1] = FVec3(1, -1, -1);
-		Particles[2] = FVec3(0, 1, 1);
+		Particles[0] = { 0, -1, 1 };
+		Particles[1] = { 1, -1, -1 };
+		Particles[2] = { 0, 1, 1 };
 
-		Particles[3] = FVec3(0, -1, 1);
-		Particles[4] = FVec3(0, 1, 1);
-		Particles[5] = FVec3(-1, -1, -1);
+		Particles[3] = { 0, -1, 1 };
+		Particles[4] = { 0, 1, 1 };
+		Particles[5] = { -1, -1, -1 };
 
 		TUniquePtr<FImplicitObject> Convex = MakeUnique<FConvex>(MoveTemp(Particles), 0.0f);
 
