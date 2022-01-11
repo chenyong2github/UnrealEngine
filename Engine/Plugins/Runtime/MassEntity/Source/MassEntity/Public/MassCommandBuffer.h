@@ -89,7 +89,7 @@ struct MASSENTITY_API FBuildEntityFromFragmentInstance : public FCommandBufferEn
 
 	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
 	{
-		OutAdded.FindOrAdd(Struct.GetScriptStruct()).AddUnique(TargetEntity);
+		OutAdded.FindOrAdd(Struct.GetScriptStruct()).Add(TargetEntity);
 	}
 
 protected:
@@ -121,7 +121,7 @@ struct MASSENTITY_API FBuildEntityFromFragmentInstances : public FCommandBufferE
 	{
 		for (const FInstancedStruct& Struct : Instances)
 		{
-			OutAdded.FindOrAdd(Struct.GetScriptStruct()).AddUnique(TargetEntity);
+			OutAdded.FindOrAdd(Struct.GetScriptStruct()).Add(TargetEntity);
 		}
 	}
 
@@ -152,7 +152,7 @@ struct MASSENTITY_API FCommandAddFragment : public FCommandBufferEntryBase
 
 	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
 	{
-		OutAdded.FindOrAdd(StructParam).AddUnique(TargetEntity);
+		OutAdded.FindOrAdd(StructParam).Add(TargetEntity);
 	}
 
 protected:
@@ -182,7 +182,7 @@ struct MASSENTITY_API FCommandAddFragmentInstance : public FCommandBufferEntryBa
 
 	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
 	{
-		OutAdded.FindOrAdd(Struct.GetScriptStruct()).AddUnique(TargetEntity);
+		OutAdded.FindOrAdd(Struct.GetScriptStruct()).Add(TargetEntity);
 	}
 
 protected:
@@ -215,7 +215,7 @@ struct MASSENTITY_API FMassCommandAddFragmentInstanceList : public FCommandBuffe
 	{
 		for (const FInstancedStruct& Struct : FragmentList)
 		{
-			OutAdded.FindOrAdd(Struct.GetScriptStruct()).AddUnique(TargetEntity);
+			OutAdded.FindOrAdd(Struct.GetScriptStruct()).Add(TargetEntity);
 		}
 	}
 
@@ -246,7 +246,7 @@ struct MASSENTITY_API FCommandRemoveFragment : public FCommandBufferEntryBase
 
 	void GetAffectedTypes(TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutAdded, TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& OutRemoved)
 	{
-		OutRemoved.FindOrAdd(StructParam).AddUnique(TargetEntity);
+		OutRemoved.FindOrAdd(StructParam).Add(TargetEntity);
 	}
 
 protected:
@@ -278,7 +278,7 @@ struct MASSENTITY_API FCommandAddFragmentList : public FCommandBufferEntryBase
 	{
 		for (const UScriptStruct* StructParam : FragmentList)
 		{
-			OutAdded.FindOrAdd(StructParam).AddUnique(TargetEntity);
+			OutAdded.FindOrAdd(StructParam).Add(TargetEntity);
 		}
 	}
 
@@ -311,7 +311,7 @@ struct MASSENTITY_API FCommandRemoveFragmentList : public FCommandBufferEntryBas
 	{
 		for (const UScriptStruct* StructParam : FragmentList)
 		{
-			OutRemoved.FindOrAdd(StructParam).AddUnique(TargetEntity);
+			OutRemoved.FindOrAdd(StructParam).Add(TargetEntity);
 		}
 	}
 
@@ -431,7 +431,7 @@ struct MASSENTITY_API FCommandRemoveComposition : public FCommandBufferEntryBase
 			Descriptor.Fragments.ExportTypes(Fragments);
 			for (const UScriptStruct* StructParam : Fragments)
 			{
-				OutRemoved.FindOrAdd(StructParam).AddUnique(TargetEntity);
+				OutRemoved.FindOrAdd(StructParam).Add(TargetEntity);
 			}
 		}
 	}
