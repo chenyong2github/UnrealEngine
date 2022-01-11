@@ -1,33 +1,104 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "HLSLTree/HLSLTree.h"
+#include "HLSLTree/HLSLTreeEmit.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/MemStack.h"
 #include "Misc/MemStackUtility.h"
 #include "Shader/ShaderTypes.h"
-#include "MaterialShared.h" // TODO - split preshader out into its own module
-#include "Misc/LargeWorldRenderPosition.h"
-
-static FSHAHash HashString(const TCHAR* String, int32 Length)
-{
-	FSHAHash Hash;
-	FSHA1::HashBuffer(String, Length * sizeof(TCHAR), Hash.Hash);
-	return Hash;
-}
-
-static FSHAHash HashString(const FStringBuilderBase& StringBuilder)
-{
-	return HashString(StringBuilder.GetData(), StringBuilder.Len());
-}
-
-static FSHAHash HashString(FStringView String)
-{
-	return HashString(String.GetData(), String.Len());
-}
+#include "Shader/Preshader.h"
 
 namespace UE
 {
 namespace HLSLTree
 {
+
+/**
+ * Represents a phi node (see various topics on single static assignment)
+ * A phi node takes on a value based on the previous scope that was executed.
+ * In practice, this means the generated HLSL code will declare a local variable before all the previous scopes, then assign that variable the proper value from within each scope
+ */
+class FExpressionLocalPHI final : public FExpression
+{
+public:
+	FExpressionLocalPHI(const FName& InLocalName, TArrayView<FScope*> InPreviousScopes) : LocalName(InLocalName), NumValues(InPreviousScopes.Num())
+	{
+		for (int32 i = 0; i < InPreviousScopes.Num(); ++i)
+		{
+			Scopes[i] = InPreviousScopes[i];
+			Values[i] = nullptr;
+		}
+	}
+
+	FExpressionLocalPHI(const FExpressionLocalPHI* Source, EDerivativeCoordinate Coord);
+
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual bool PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+
+	TArray<EDerivativeCoordinate, TInlineAllocator<8>> DerivativeChain;
+	FName LocalName;
+	FScope* Scopes[MaxNumPreviousScopes];
+	FExpression* Values[MaxNumPreviousScopes];
+	int32 NumValues = 0;
+};
+
+/**
+ * Represents a call to a function that includes its own scope/control-flow
+ * Scope for the function will be linked into the generated material
+ */
+class FExpressionFunctionCall final : public FExpression
+{
+public:
+	FExpressionFunctionCall(FFunction* InFunction, TArrayView<FExpression*> InInputExpressions, int32 InOutputIndex) : Function(InFunction), InputExpressions(InInputExpressions), OutputIndex(InOutputIndex) {}
+
+	virtual bool PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+
+	FFunction* Function;
+	TArray<FExpression*, TInlineAllocator<8>> InputExpressions;
+	int32 OutputIndex;
+};
+
+FUnaryOpDescription::FUnaryOpDescription()
+	: Name(nullptr), Operator(nullptr), PreshaderOpcode(Shader::EPreshaderOpcode::Nop)
+{}
+
+FUnaryOpDescription::FUnaryOpDescription(const TCHAR* InName, const TCHAR* InOperator, Shader::EPreshaderOpcode InOpcode)
+	: Name(InName), Operator(InOperator), PreshaderOpcode(InOpcode)
+{}
+
+FBinaryOpDescription::FBinaryOpDescription()
+	: Name(nullptr), Operator(nullptr), PreshaderOpcode(Shader::EPreshaderOpcode::Nop)
+{}
+
+FBinaryOpDescription::FBinaryOpDescription(const TCHAR* InName, const TCHAR* InOperator, Shader::EPreshaderOpcode InOpcode)
+	: Name(InName), Operator(InOperator), PreshaderOpcode(InOpcode)
+{}
+
+FUnaryOpDescription GetUnaryOpDesription(EUnaryOp Op)
+{
+	switch (Op)
+	{
+	case EUnaryOp::None: return FUnaryOpDescription(TEXT("None"), TEXT(""), Shader::EPreshaderOpcode::Nop); break;
+	case EUnaryOp::Neg: return FUnaryOpDescription(TEXT("Neg"), TEXT("-"), Shader::EPreshaderOpcode::Neg); break;
+	case EUnaryOp::Rcp: return FUnaryOpDescription(TEXT("Rcp"), TEXT("/"), Shader::EPreshaderOpcode::Rcp); break;
+	default: checkNoEntry(); return FUnaryOpDescription();
+	}
+}
+
+FBinaryOpDescription GetBinaryOpDesription(EBinaryOp Op)
+{
+	switch (Op)
+	{
+	case EBinaryOp::None: return FBinaryOpDescription(TEXT("None"), TEXT(""), Shader::EPreshaderOpcode::Nop); break;
+	case EBinaryOp::Add: return FBinaryOpDescription(TEXT("Add"), TEXT("+"), Shader::EPreshaderOpcode::Add); break;
+	case EBinaryOp::Sub: return FBinaryOpDescription(TEXT("Subtract"), TEXT("-"), Shader::EPreshaderOpcode::Sub); break;
+	case EBinaryOp::Mul: return FBinaryOpDescription(TEXT("Multiply"), TEXT("*"), Shader::EPreshaderOpcode::Mul); break;
+	case EBinaryOp::Div: return FBinaryOpDescription(TEXT("Divide"), TEXT("/"), Shader::EPreshaderOpcode::Div); break;
+	case EBinaryOp::Less: return FBinaryOpDescription(TEXT("Less"), TEXT("<"), Shader::EPreshaderOpcode::Nop); break;
+	default: checkNoEntry(); return FBinaryOpDescription();
+	}
+}
 
 EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionEvaluation Rhs)
 {
@@ -54,437 +125,9 @@ EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionE
 	return EExpressionEvaluation::Preshader;
 }
 
-FEmitContext::FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry)
-	: Allocator(&InAllocator)
-	, Errors(&InErrors)
-	, TypeRegistry(&InTypeRegistry)
-{
-}
-
-FEmitContext::~FEmitContext()
-{
-}
-
-const TCHAR* FEmitContext::AcquireLocalDeclarationCode()
-{
-	return MemStack::AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
-}
-
-namespace Private
-{
-void MoveToScope(FEmitShaderCode* ShaderValue, FScope* Scope)
-{
-	if (ShaderValue->Scope != Scope)
-	{
-		FScope* NewScope = FScope::FindSharedParent(ShaderValue->Scope, Scope);
-		check(NewScope);
-
-		ShaderValue->Scope = NewScope;
-		for (FEmitShaderCode* Dependency : ShaderValue->Dependencies)
-		{
-			MoveToScope(Dependency, NewScope);
-		}
-	}
-}
-
-void FormatArg_ShaderValue(FEmitShaderCode* ShaderValue, FEmitShaderValueDependencies& OutDependencies, FStringBuilderBase& OutCode)
-{
-	OutDependencies.Add(ShaderValue);
-	OutCode.Append(ShaderValue->Reference);
-}
-
-} // namespace Private
-
-FEmitShaderCode* FEmitContext::EmitFormatCodeInternal(const Shader::FType& Type, const TCHAR* Format, bool bInline, const FFormatArgList& ArgList)
-{
-	check(!Type.IsVoid());
-
-	TStringBuilder<1024> FormattedCode;
-	FEmitShaderValueDependencies Dependencies;
-	int32 ArgIndex = 0;
-	while (true)
-	{
-		const TCHAR Char = *Format++;
-		if (Char == 0)
-		{
-			break;
-		}
-		else if (Char == TEXT('%'))
-		{
-			const FFormatArgVariant& Arg = ArgList[ArgIndex++];
-			switch (Arg.Type)
-			{
-			case EFormatArgType::ShaderValue: Private::FormatArg_ShaderValue(Arg.ShaderValue, Dependencies, FormattedCode); break;
-			case EFormatArgType::String: FormattedCode.Append(Arg.String); break;
-			case EFormatArgType::Int: FormattedCode.Appendf(TEXT("%d"), Arg.Int); break;
-			default:
-				checkNoEntry();
-				break;
-			}
-		}
-		else
-		{
-			FormattedCode.AppendChar(Char);
-		}
-	}
-	checkf(ArgIndex == ArgList.Num(), TEXT("%d args were provided, but %d were used"), ArgList.Num(), ArgIndex);
-
-	return EmitCodeInternal(Type, FormattedCode.ToView(), bInline, Dependencies);
-}
-
-FEmitShaderCode* FEmitContext::EmitCodeInternal(const Shader::FType& Type, FStringView Code, bool bInline, TArrayView<FEmitShaderCode*> Dependencies)
-{
-	FScope* CurrentScope = ScopeStack.Last();
-	check(IsScopeLive(CurrentScope));
-
-	FEmitShaderCode* ShaderValue = nullptr;
-
-	// Check to see if we've already generated code for an equivalent expression
-	const FSHAHash ShaderHash = HashString(Code);
-	FEmitShaderCode** const PrevShaderValue = ShaderValueMap.Find(ShaderHash);
-	if (PrevShaderValue)
-	{
-		ShaderValue = *PrevShaderValue;
-		check(ShaderValue->Type == Type);
-		Private::MoveToScope(ShaderValue, CurrentScope);
-	}
-	else
-	{
-		ShaderValue = new(*Allocator) FEmitShaderCode(CurrentScope, Type);
-		ShaderValue->Hash = ShaderHash;
-		ShaderValue->Dependencies = MemStack::AllocateArrayView(*Allocator, Dependencies);
-		if (bInline)
-		{
-			ShaderValue->Reference = MemStack::AllocateString(*Allocator, Code);
-		}
-		else
-		{
-			ShaderValue->Reference = AcquireLocalDeclarationCode();
-			ShaderValue->Value = MemStack::AllocateString(*Allocator, Code);
-			ShaderValueMap.Add(ShaderHash, ShaderValue);
-		}
-	}
-
-	return ShaderValue;
-}
-
-namespace Private
-{
-void WriteMaterialUniformAccess(Shader::EValueComponentType ComponentType, uint32 NumComponents, uint32 UniformOffset, FStringBuilderBase& OutResult)
-{
-	static const TCHAR IndexToMask[] = TEXT("xyzw");
-	uint32 RegisterIndex = UniformOffset / 4;
-	uint32 RegisterOffset = UniformOffset % 4;
-	uint32 NumComponentsToWrite = NumComponents;
-	bool bConstructor = false;
-
-	check(ComponentType == Shader::EValueComponentType::Float || ComponentType == Shader::EValueComponentType::Int);
-	const bool bIsInt = (ComponentType == Shader::EValueComponentType::Int);
-
-	while (NumComponentsToWrite > 0u)
-	{
-		const uint32 NumComponentsInRegister = FMath::Min(NumComponentsToWrite, 4u - RegisterOffset);
-		if (NumComponentsInRegister < NumComponents && !bConstructor)
-		{
-			// Uniform will be split across multiple registers, so add the constructor to concat them together
-			OutResult.Appendf(TEXT("%s%d("), Shader::GetComponentTypeName(ComponentType), NumComponents);
-			bConstructor = true;
-		}
-
-		if (bIsInt)
-		{
-			// PreshaderBuffer is typed as float4, so reinterpret as 'int' if needed
-			OutResult.Append(TEXT("asint("));
-		}
-
-		OutResult.Appendf(TEXT("Material.PreshaderBuffer[%u]"), RegisterIndex);
-		// Can skip writing mask if we're taking all 4 components from the register
-		if (NumComponentsInRegister < 4u)
-		{
-			OutResult.AppendChar(TCHAR('.'));
-			for (uint32 i = 0u; i < NumComponentsInRegister; ++i)
-			{
-				OutResult.AppendChar(IndexToMask[RegisterOffset + i]);
-			}
-		}
-
-		if (bIsInt)
-		{
-			OutResult.Append(TEXT(")"));
-		}
-
-		NumComponentsToWrite -= NumComponentsInRegister;
-		RegisterIndex++;
-		RegisterOffset = 0u;
-		if (NumComponentsToWrite > 0u)
-		{
-			OutResult.Append(TEXT(", "));
-		}
-	}
-	if (bConstructor)
-	{
-		OutResult.Append(TEXT(")"));
-	}
-}
-} // namespace Private
-
-FEmitShaderCode* FEmitContext::EmitPreshaderOrConstant(const FRequestedType& RequestedType, FExpression* Expression)
-{
-	Shader::FPreshaderData LocalPreshader;
-	Expression->EmitValuePreshader(*this, RequestedType, LocalPreshader);
-
-	const Shader::FType Type = RequestedType.GetType();
-
-	FSHA1 Hasher;
-	Hasher.Update((uint8*)&Type, sizeof(Type));
-	LocalPreshader.AppendHash(Hasher);
-	const FSHAHash Hash = Hasher.Finalize();
-	FEmitShaderCode* const* PrevShaderValue = PreshaderValueMap.Find(Hash);
-	if (PrevShaderValue)
-	{
-		FScope* CurrentScope = ScopeStack.Last();
-		check(IsScopeLive(CurrentScope));
-
-		FEmitShaderCode* ShaderValue = *PrevShaderValue;
-		check(ShaderValue->Type == Type);
-		Private::MoveToScope(ShaderValue, CurrentScope);
-		return ShaderValue;
-	}
-
-	Shader::FPreshaderStack Stack;
-	const Shader::FPreshaderValue ConstantValue = LocalPreshader.EvaluateConstant(*Material, Stack);
-
-	TStringBuilder<1024> FormattedCode;
-	if (Type.IsStruct())
-	{
-		FormattedCode.Append(TEXT("{ "));
-	}
-
-	FMaterialUniformPreshaderHeader* PreshaderHeader = nullptr;
-	uint32 CurrentBoolUniformOffset = ~0u;
-	uint32 CurrentNumBoolComponents = 32u;
-
-	int32 ComponentIndex = 0;
-	for (int32 FieldIndex = 0; FieldIndex < Type.GetNumFlatFields(); ++FieldIndex)
-	{
-		if (FieldIndex > 0)
-		{
-			FormattedCode.Append(TEXT(", "));
-		}
-
-		const Shader::EValueType FieldType = Type.GetFlatFieldType(FieldIndex);
-		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(FieldType);
-		const int32 NumFieldComponents = TypeDesc.NumComponents;
-		const EExpressionEvaluation FieldEvaluation = Expression->GetPreparedType().GetFieldEvaluation(ComponentIndex, NumFieldComponents);
-
-		if (FieldEvaluation == EExpressionEvaluation::Preshader)
-		{
-			// Only need to allocate uniform buffer for non-constant components
-			// Constant components can have their value inlined into the shader directly
-			FUniformExpressionSet& UniformExpressionSet = MaterialCompilationOutput->UniformExpressionSet;
-			if (!PreshaderHeader)
-			{
-				// Allocate a preshader header the first time we hit a non-constant field
-				PreshaderHeader = &UniformExpressionSet.UniformPreshaders.AddDefaulted_GetRef();
-				PreshaderHeader->FieldIndex = UniformExpressionSet.UniformPreshaderFields.Num();
-				PreshaderHeader->NumFields = 0u;
-				PreshaderHeader->OpcodeOffset = UniformExpressionSet.UniformPreshaderData.Num();
-				Expression->EmitValuePreshader(*this, RequestedType, UniformExpressionSet.UniformPreshaderData);
-				PreshaderHeader->OpcodeSize = UniformExpressionSet.UniformPreshaderData.Num() - PreshaderHeader->OpcodeOffset;
-			}
-
-			FMaterialUniformPreshaderField& PreshaderField = UniformExpressionSet.UniformPreshaderFields.AddDefaulted_GetRef();
-			PreshaderField.ComponentIndex = ComponentIndex;
-			PreshaderField.Type = FieldType;
-			PreshaderHeader->NumFields++;
-
-			if (TypeDesc.ComponentType == Shader::EValueComponentType::Bool)
-			{
-				// 'Bool' uniforms are packed into bits
-				if (CurrentNumBoolComponents + NumFieldComponents > 32u)
-				{
-					CurrentBoolUniformOffset = UniformPreshaderOffset++;
-					CurrentNumBoolComponents = 0u;
-				}
-
-				const uint32 RegisterIndex = CurrentBoolUniformOffset / 4;
-				const uint32 RegisterOffset = CurrentBoolUniformOffset % 4;
-				FormattedCode.Appendf(TEXT("UnpackUniform_%s(asuint(Material.PreshaderBuffer[%u][%u]), %u)"),
-					TypeDesc.Name,
-					RegisterIndex,
-					RegisterOffset,
-					CurrentNumBoolComponents);
-
-				PreshaderField.BufferOffset = CurrentBoolUniformOffset * 32u + CurrentNumBoolComponents;
-				CurrentNumBoolComponents += NumFieldComponents;
-			}
-			else if (TypeDesc.ComponentType == Shader::EValueComponentType::Double)
-			{
-				// Double uniforms are split into Tile/Offset components to make FLWCScalar/FLWCVectors
-				PreshaderField.BufferOffset = UniformPreshaderOffset;
-
-				if (NumFieldComponents > 1)
-				{
-					FormattedCode.Appendf(TEXT("MakeLWCVector%d("), NumFieldComponents);
-				}
-				else
-				{
-					FormattedCode.Append(TEXT("MakeLWCScalar("));
-				}
-
-				// Write the tile uniform
-				Private::WriteMaterialUniformAccess(Shader::EValueComponentType::Float, NumFieldComponents, UniformPreshaderOffset, FormattedCode);
-				UniformPreshaderOffset += NumFieldComponents;
-				FormattedCode.Append(TEXT(", "));
-
-				// Write the offset uniform
-				Private::WriteMaterialUniformAccess(Shader::EValueComponentType::Float, NumFieldComponents, UniformPreshaderOffset, FormattedCode);
-				UniformPreshaderOffset += NumFieldComponents;
-				FormattedCode.Append(TEXT(")"));
-			}
-			else
-			{
-				// Float/Int uniforms are written directly to the uniform buffer
-				const uint32 RegisterOffset = UniformPreshaderOffset % 4;
-				if (RegisterOffset + NumFieldComponents > 4u)
-				{
-					// If this uniform would span multiple registers, align offset to the next register to avoid this
-					// TODO - we could keep track of this empty padding space, and pack other smaller uniform types here
-					UniformPreshaderOffset = Align(UniformPreshaderOffset, 4u);
-				}
-
-				PreshaderField.BufferOffset = UniformPreshaderOffset;
-				Private::WriteMaterialUniformAccess(TypeDesc.ComponentType, NumFieldComponents, UniformPreshaderOffset, FormattedCode);
-				UniformPreshaderOffset += NumFieldComponents;
-			}
-		}
-		else
-		{
-			// We allow FieldEvaluation to be 'None', since in that case we still need to fill in a value for the HLSL initializer
-			check(FieldEvaluation == EExpressionEvaluation::Constant || FieldEvaluation == EExpressionEvaluation::None);
-
-			// The type generated by the preshader might not match the expected type
-			// In the future, with new HLSLTree, preshader could potentially include explicit cast opcodes, and avoid implicit conversions
-			Shader::FValue FieldConstantValue(ConstantValue.Type.GetComponentType(ComponentIndex), NumFieldComponents);
-			for (int32 i = 0; i < NumFieldComponents; ++i)
-			{
-				// Allow replicating scalar values
-				FieldConstantValue.Component[i] = ConstantValue.Component.Num() == 1 ? ConstantValue.Component[0] : ConstantValue.Component[ComponentIndex + i];
-			}
-
-			if (TypeDesc.ComponentType == Shader::EValueComponentType::Double)
-			{
-				const Shader::FDoubleValue DoubleValue = FieldConstantValue.AsDouble();
-				TStringBuilder<256> TileValue;
-				TStringBuilder<256> OffsetValue;
-				for (int32 Index = 0; Index < NumFieldComponents; ++Index)
-				{
-					if (Index > 0)
-					{
-						TileValue.Append(TEXT(", "));
-						OffsetValue.Append(TEXT(", "));
-					}
-
-					const FLargeWorldRenderScalar Value(DoubleValue[Index]);
-					TileValue.Appendf(TEXT("%#.9gf"), Value.GetTile());
-					OffsetValue.Appendf(TEXT("%#.9gf"), Value.GetOffset());
-				}
-
-				if (NumFieldComponents > 1)
-				{
-					FormattedCode.Appendf(TEXT("MakeLWCVector%d(float%d(%s), float%d(%s))"), NumFieldComponents, NumFieldComponents, TileValue.ToString(), NumFieldComponents, OffsetValue.ToString());
-				}
-				else
-				{
-					FormattedCode.Appendf(TEXT("MakeLWCScalar(%s, %s)"), TileValue.ToString(), OffsetValue.ToString());
-				}
-			}
-			else
-			{
-				const Shader::FValue CastFieldConstantValue = Shader::Cast(FieldConstantValue, FieldType);
-				if (NumFieldComponents > 1)
-				{
-					FormattedCode.Appendf(TEXT("%s("), TypeDesc.Name);
-				}
-				for (int32 Index = 0; Index < NumFieldComponents; ++Index)
-				{
-					if (Index > 0)
-					{
-						FormattedCode.Append(TEXT(", "));
-					}
-					CastFieldConstantValue.Component[Index].ToString(TypeDesc.ComponentType, FormattedCode);
-				}
-				if (NumFieldComponents > 1)
-				{
-					FormattedCode.Append(TEXT(")"));
-				}
-			}
-		}
-		ComponentIndex += NumFieldComponents;
-	}
-	check(ComponentIndex == Type.GetNumComponents());
-
-	if (Type.IsStruct())
-	{
-		FormattedCode.Append(TEXT(" }"));
-	}
-
-	const bool bInline = !Type.IsStruct(); // struct declarations can't be inline, due to HLSL syntax
-	FEmitShaderCode* ShaderValue = EmitCodeInternal(Type, FormattedCode.ToView(), bInline, TArrayView<FEmitShaderCode*>());
-	PreshaderValueMap.Add(Hash, ShaderValue);
-
-	return ShaderValue;
-}
-
-FEmitShaderCode* FEmitContext::EmitConstantZero(const Shader::FType& Type)
-{
-	return EmitInlineCode(Type, TEXT("((%)0)"), Type.GetName());
-}
-
-namespace Private
-{
-void EmitShaderValue(FEmitContext& Context, FEmitShaderCode* ShaderValue)
-{
-	if (ShaderValue->Scope)
-	{
-		// Emit dependencies first
-		for (FEmitShaderCode* Dependency : ShaderValue->Dependencies)
-		{
-			EmitShaderValue(Context, Dependency);
-		}
-		// Don't need a declaration for inline values
-		if (!ShaderValue->IsInline())
-		{
-			ShaderValue->Scope->EmitDeclarationf(Context, TEXT("const %s %s = %s;"),
-				ShaderValue->Type.GetName(),
-				ShaderValue->Reference,
-				ShaderValue->Value);
-		}
-		ShaderValue->Scope = nullptr; // Don't emit again
-	}
-}
-}
-
-void FEmitContext::Finalize()
-{
-	check(ScopeStack.Num() == 0);
-	for (const auto& It : ShaderValueMap)
-	{
-		Private::EmitShaderValue(*this, It.Value);
-	}
-
-	ShaderValueMap.Reset();
-	PreshaderValueMap.Reset();
-	LocalPHIs.Reset();
-
-	MaterialCompilationOutput->UniformExpressionSet.UniformPreshaderBufferSize = (UniformPreshaderOffset + 3u) / 4u;
-}
-
 void FScope::Reset()
 {
 	State = EScopeState::Uninitialized;
-	Declarations = FCodeList();
-	Statements = FCodeList();
 }
 
 FScope* FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
@@ -526,12 +169,8 @@ void FExpressionLocalPHI::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDer
 {
 	// We don't have values assigned at the time analytic derivatives are computed
 	// It's possible the derivatives will be end up being invalid, but that case will need to be detected later, during PrepareValue
-	FExpressionLocalPHI* ExpressionDdx = Tree.NewExpression<FExpressionLocalPHI>(this, EDerivativeCoordinate::Ddx);
-	FExpressionLocalPHI* ExpressionDdy = Tree.NewExpression<FExpressionLocalPHI>(this, EDerivativeCoordinate::Ddy);
-	Tree.PHIExpressions.Add(ExpressionDdx);
-	Tree.PHIExpressions.Add(ExpressionDdy);
-	OutResult.ExpressionDdx = ExpressionDdx;
-	OutResult.ExpressionDdy = ExpressionDdy;
+	OutResult.ExpressionDdx = Tree.NewExpression<FExpressionLocalPHI>(this, EDerivativeCoordinate::Ddx);
+	OutResult.ExpressionDdy = Tree.NewExpression<FExpressionLocalPHI>(this, EDerivativeCoordinate::Ddy);
 }
 
 bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
@@ -636,71 +275,104 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 	return true;
 }
 
-void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	int32 LocalPHIIndex = Context.LocalPHIs.Find(this);
-	if (LocalPHIIndex == INDEX_NONE)
+	FEmitShaderExpression* const* PrevEmitExpression = Context.EmitLocalPHIMap.Find(this);
+	FEmitShaderExpression* EmitExpression = PrevEmitExpression ? *PrevEmitExpression : nullptr;
+	if (!EmitExpression)
 	{
+		const int32 LocalPHIIndex = Context.NumExpressionLocalPHIs++;
+		const FRequestedType LocalType = GetRequestedType();
+
 		// This is the first time we've emitted shader code for this PHI
-		// First add it to the list, so if this is called recursively, this path will only be taken the first time
-		LocalPHIIndex = Context.LocalPHIs.Add(this);
+		// Create an expression and add it to the map first, so if this is called recursively this path will only be taken the first time
+		EmitExpression = OutResult.Code = Context.EmitInlineExpression(Scope,
+			LocalType.GetType(),
+			TEXT("LocalPHI%"), LocalPHIIndex);
+		Context.EmitLocalPHIMap.Add(this, EmitExpression);
 
 		// Find the outermost scope to declare our local variable
-		FScope* DeclarationScope = Context.ScopeStack.Last();
+		FEmitShaderScope* EmitDeclarationScope = &Scope;
+		FEmitShaderScope* EmitValueScopes[MaxNumPreviousScopes] = { nullptr };
 		for (int32 i = 0; i < NumValues; ++i)
 		{
-			DeclarationScope = FScope::FindSharedParent(DeclarationScope, Scopes[i]);
-			if (!DeclarationScope)
+			EmitValueScopes[i] = Context.AcquireEmitScope(Scopes[i]);
+			EmitDeclarationScope = FEmitShaderScope::FindSharedParent(EmitDeclarationScope, EmitValueScopes[i]);
+			if (!EmitDeclarationScope)
 			{
 				Context.Errors->AddError(TEXT("Invalid LocalPHI"));
 				return;
 			}
 		}
 
-		const FRequestedType LocalType = GetRequestedType();
-
-		bool bNeedToAddDeclaration = true;
+		FEmitShaderStatement* EmitDeclaration = nullptr;
 		for (int32 i = 0; i < NumValues; ++i)
 		{
-			FScope* ValueScope = Scopes[i];
-			check(IsScopeLive(ValueScope));
-
-			Context.ScopeStack.Add(ValueScope);
-			FEmitShaderCode* ShaderValue = Values[i]->GetValueShader(Context, LocalType);
-			Context.ScopeStack.Pop();
-
-			if (ValueScope == DeclarationScope)
+			FEmitShaderScope* EmitValueScope = EmitValueScopes[i];
+			if (EmitValueScope == EmitDeclarationScope)
 			{
-				ValueScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%d = %s;"),
+				FEmitShaderExpression* ShaderValue = Values[i]->GetValueShader(Context, *EmitValueScope, LocalType);
+				EmitDeclaration = Context.EmitStatement(*EmitValueScope, TEXT("% LocalPHI% = %;"),
 					LocalType.GetName(),
 					LocalPHIIndex,
-					ShaderValue->Reference);
-				bNeedToAddDeclaration = false;
-			}
-			else
-			{
-				ValueScope->EmitStatementf(Context, TEXT("LocalPHI%d = %s;"),
-					LocalPHIIndex,
-					ShaderValue->Reference);
+					ShaderValue);
+				break;
 			}
 		}
-
-		if (bNeedToAddDeclaration)
+		if (!EmitDeclaration)
 		{
-			check(IsScopeLive(DeclarationScope));
-			DeclarationScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%d;"),
+			EmitDeclaration = Context.EmitStatement(*EmitDeclarationScope, TEXT("% LocalPHI%;"),
 				LocalType.GetName(),
 				LocalPHIIndex);
 		}
+
+		FEmitShaderNode* Dependencies[MaxNumPreviousScopes] = { nullptr };
+		int32 NumDependencies = 0;
+		for (int32 i = 0; i < NumValues; ++i)
+		{
+			FEmitShaderScope* EmitValueScope = EmitValueScopes[i];
+			if (EmitValueScope != EmitDeclarationScope)
+			{
+				FEmitShaderExpression* ShaderValue = Values[i]->GetValueShader(Context, *EmitValueScope, LocalType);
+				FEmitShaderStatement* EmitAssignment = Context.EmitStatementWithDependency(*EmitValueScope, EmitDeclaration, TEXT("LocalPHI% = %;"),
+					LocalPHIIndex,
+					ShaderValue);
+				Dependencies[NumDependencies++] = EmitAssignment;
+			}
+		}
+
+		// Fill in the expression's dependencies
+		EmitExpression->Dependencies = MemStack::AllocateArrayView(*Context.Allocator, MakeArrayView(Dependencies, NumDependencies));
 	}
 
-	const Shader::FType LocalType = GetType();
-	OutResult.Code = Context.EmitInlineCode(LocalType, TEXT("LocalPHI%"), LocalPHIIndex);
+	OutResult.Code = EmitExpression;
 }
 
-void FStatement::Reset()
+bool FExpressionFunctionCall::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	bEmitShader = false;
+	if (!PrepareScope(Context, Function->RootScope))
+	{
+		return false;
+	}
+
+	FPreparedType OutputType = PrepareExpressionValue(Context, Function->OutputExpressions[OutputIndex], RequestedType);
+	return OutResult.SetType(Context, RequestedType, OutputType);
+}
+
+void FExpressionFunctionCall::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+{
+	FEmitShaderNode* const* PrevDependency = Context.EmitFunctionMap.Find(Function);
+	FEmitShaderNode* Dependency = PrevDependency ? *PrevDependency : nullptr;
+	if (!Dependency)
+	{
+		// Inject the function's root scope at scope where it's called
+		FEmitShaderScope* EmitCalledScope = Context.AcquireEmitScope(Function->CalledScope);
+		Dependency = Context.EmitNextScope(*EmitCalledScope, Function->RootScope);
+		Context.EmitFunctionMap.Add(Function, Dependency);
+	}
+
+	FEmitShaderExpression* EmitFunctionOutput = Function->OutputExpressions[OutputIndex]->GetValueShader(Context, Scope, RequestedType);
+	OutResult.Code = Context.EmitInlineExpressionWithDependencies(Scope, MakeArrayView(&Dependency, 1), EmitFunctionOutput->Type, TEXT("%"), EmitFunctionOutput);
 }
 
 void FExpression::Reset()
@@ -1165,13 +837,12 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 
 bool FPrepareValueResult::SetForwardValue(FEmitContext& Context, const FRequestedType& RequestedType, FExpression* InForwardValue)
 {
-	check(InForwardValue);
 	if (InForwardValue != ForwardValue)
 	{
 		PreparedType = PrepareExpressionValue(Context, InForwardValue, RequestedType);
 		ForwardValue = InForwardValue;
 	}
-	return true;
+	return (bool)InForwardValue;
 }
 
 void FExpression::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
@@ -1179,7 +850,7 @@ void FExpression::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives
 	// nop
 }
 
-void FExpression::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpression::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	check(false);
 }
@@ -1189,42 +860,42 @@ void FExpression::EmitValuePreshader(FEmitContext& Context, const FRequestedType
 	check(false);
 }
 
-FEmitShaderCode* FExpression::GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType, const Shader::FType& ResultType)
+FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	if (PrepareValueResult.ForwardValue)
 	{
-		return PrepareValueResult.ForwardValue->GetValueShader(Context, RequestedType, ResultType);
+		return PrepareValueResult.ForwardValue->GetValueShader(Context, Scope, RequestedType, ResultType);
 	}
 
 	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(RequestedType);
 	check(Evaluation != EExpressionEvaluation::None);
 
-	FEmitShaderCode* Value = nullptr;
+	FEmitShaderExpression* Value = nullptr;
 	if (Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::Preshader)
 	{
-		Value = Context.EmitPreshaderOrConstant(RequestedType, this);
+		Value = Context.EmitPreshaderOrConstant(Scope, RequestedType, this);
 	}
 	else
 	{
 		check(Evaluation == EExpressionEvaluation::Shader);
 		FEmitValueShaderResult Result;
-		EmitValueShader(Context, RequestedType, Result);
+		EmitValueShader(Context, Scope, RequestedType, Result);
 		Value = Result.Code;
 	}
 
-	Value = Context.EmitCast(Value, ResultType);
+	Value = Context.EmitCast(Scope, Value, ResultType);
 	return Value;
 }
 
-FEmitShaderCode* FExpression::GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType)
+FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType)
 {
-	return GetValueShader(Context, RequestedType, RequestedType.GetType());
+	return GetValueShader(Context, Scope, RequestedType, RequestedType.GetType());
 }
 
-FEmitShaderCode* FExpression::GetValueShader(FEmitContext& Context)
+FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitShaderScope& Scope)
 {
-	return GetValueShader(Context, GetRequestedType());
+	return GetValueShader(Context, Scope, GetRequestedType());
 }
 
 void FExpression::GetValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader)
@@ -1243,11 +914,16 @@ void FExpression::GetValuePreshader(FEmitContext& Context, const FRequestedType&
 		EmitValuePreshader(Context, RequestedType, OutPreshader);
 		bReentryFlag = false;
 	}
-	else
+	else if (Evaluation == EExpressionEvaluation::Constant)
 	{
-		check(Evaluation == EExpressionEvaluation::Constant);
 		const Shader::FValue ConstantValue = GetValueConstant(Context, RequestedType);
 		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(ConstantValue);
+	}
+	else
+	{
+		// Value is not used, write a dummy value
+		check(Evaluation == EExpressionEvaluation::None);
+		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(Shader::EValueType::Float1);
 	}
 }
 
@@ -1302,39 +978,6 @@ void FScope::AddPreviousScope(FScope& Scope)
 	PreviousScope[NumPreviousScopes++] = &Scope;
 }
 
-void FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* Scope, const TCHAR* String, int32 Length)
-{
-	if (Scope && Scope->ContainedStatement && !Scope->ContainedStatement->bEmitShader)
-	{
-		Scope->ContainedStatement->bEmitShader = true;
-		Context.ScopeStack.Add(Scope);
-		Scope->ContainedStatement->EmitShader(Context);
-		Context.ScopeStack.Pop();
-	}
-
-	const int32 SizeofString = sizeof(TCHAR) * Length;
-	void* Memory = Context.Allocator->Alloc(sizeof(FCodeEntry) + SizeofString, alignof(FCodeEntry));
-	FCodeEntry* CodeEntry = new(Memory) FCodeEntry();
-	FMemory::Memcpy(CodeEntry->String, String, SizeofString);
-	CodeEntry->String[Length] = 0;
-	CodeEntry->Length = Length;
-	CodeEntry->Scope = Scope;
-	CodeEntry->ScopeFormat = ScopeFormat;
-	CodeEntry->Next = nullptr;
-
-	if (!List.First)
-	{
-		List.First = CodeEntry;
-		List.Last = CodeEntry;
-	}
-	else
-	{
-		List.Last->Next = CodeEntry;
-		List.Last = CodeEntry;
-	}
-	List.Num++;
-}
-
 bool PrepareScope(FEmitContext& Context, FScope* InScope)
 {
 	if (InScope && InScope->State == EScopeState::Uninitialized)
@@ -1384,17 +1027,6 @@ void FTree::Destroy(FTree* Tree)
 	}
 }
 
-//
-static void WriteIndent(int32 IndentLevel, FStringBuilderBase& InOutString)
-{
-	const int32 Offset = InOutString.AddUninitialized(IndentLevel);
-	TCHAR* Result = InOutString.GetData() + Offset;
-	for (int32 i = 0; i < IndentLevel; ++i)
-	{
-		*Result++ = TEXT('\t');
-	}
-}
-
 void FScope::MarkLive()
 {
 	if (State == EScopeState::Uninitialized)
@@ -1421,54 +1053,6 @@ void FScope::MarkDead()
 	State = EScopeState::Dead;
 }
 
-void FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const
-{
-	{
-		const FCodeEntry* CodeDeclaration = Declarations.First;
-		while (CodeDeclaration)
-		{
-			check(!CodeDeclaration->Scope);
-			WriteIndent(Indent, OutString);
-			OutString.Append(CodeDeclaration->String, CodeDeclaration->Length);
-			OutString.AppendChar(TEXT('\n'));
-			CodeDeclaration = CodeDeclaration->Next;
-		}
-	}
-
-	{
-		const FCodeEntry* CodeStatement = Statements.First;
-		while (CodeStatement)
-		{
-			if (CodeStatement->Length > 0)
-			{
-				WriteIndent(Indent, OutString);
-				OutString.Append(CodeStatement->String, CodeStatement->Length);
-				OutString.AppendChar(TEXT('\n'));
-			}
-			if (CodeStatement->Scope)
-			{
-				int32 NextIndent = Indent;
-				bool bNeedToCloseScope = false;
-				if (CodeStatement->ScopeFormat == ENextScopeFormat::Scoped)
-				{
-					WriteIndent(Indent, OutString);
-					OutString.Append(TEXT("{\n"));
-					NextIndent++;
-					bNeedToCloseScope = true;
-				}
-
-				CodeStatement->Scope->WriteHLSL(NextIndent, OutString);
-				if (bNeedToCloseScope)
-				{
-					WriteIndent(Indent, OutString);
-					OutString.Append(TEXT("}\n"));
-				}
-			}
-			CodeStatement = CodeStatement->Next;
-		}
-	}
-}
-
 void FOwnerContext::PushOwner(UObject* Owner)
 {
 	OwnerStack.Add(Owner);
@@ -1482,6 +1066,12 @@ UObject* FOwnerContext::PopOwner()
 UObject* FOwnerContext::GetCurrentOwner() const
 {
 	return (OwnerStack.Num() > 0) ? OwnerStack.Last() : nullptr;
+}
+
+uint64 Private::GetNextTypeHash()
+{
+	static uint64 Hash = 1;
+	return Hash++;
 }
 
 void FTree::ResetNodes()
@@ -1526,16 +1116,30 @@ bool FTree::Finalize()
 
 bool FTree::EmitShader(FEmitContext& Context, FStringBuilderBase& OutCode) const
 {
-	if (RootScope->ContainedStatement)
+	FEmitShaderScope* EmitRootScope = Context.AcquireEmitScope(RootScope);
+	
+	// Link all nodes to their proper scope
+	for (FEmitShaderNode* EmitNode : Context.EmitNodes)
 	{
-		RootScope->ContainedStatement->bEmitShader = true;
-		Context.ScopeStack.Add(RootScope);
-		RootScope->ContainedStatement->EmitShader(Context);
-		Context.ScopeStack.Pop(false);
+		FEmitShaderScope* EmitScope = EmitNode->Scope;
+		if (EmitScope)
+		{
+			EmitNode->NextScopedNode = EmitScope->FirstNode;
+			EmitScope->FirstNode = EmitNode;
+		}
+	}
+
+	{
+		FEmitShaderScopeStack Stack;
+		TStringBuilder<1024> ScopeCode;
+		Stack.Emplace(EmitRootScope, 1, ScopeCode);
+		EmitRootScope->EmitShaderCode(Stack);
+		check(Stack.Num() == 1);
+		OutCode.Append(ScopeCode.ToView());
 	}
 
 	Context.Finalize();
-	RootScope->WriteHLSL(1, OutCode);
+
 	return true;
 }
 
@@ -1546,8 +1150,25 @@ void FTree::RegisterNode(FNode* Node)
 	Nodes = Node;
 }
 
-void FTree::RegisterExpression(FExpression* Expression)
+FExpression* FTree::FindExpression(FXxHash64 Hash) const
 {
+	FExpression* const* FoundExpression = ExpressionMap.Find(Hash);
+	if (FoundExpression)
+	{
+		return *FoundExpression;
+	}
+	return nullptr;
+}
+
+void FTree::RegisterExpression(FExpression* Expression, FXxHash64 Hash)
+{
+	ExpressionMap.Add(Hash, Expression);
+}
+
+void FTree::RegisterExpression(FExpressionLocalPHI* Expression, FXxHash64 Hash)
+{
+	PHIExpressions.Add(Expression);
+	RegisterExpression(static_cast<FExpression*>(Expression), Hash);
 }
 
 void FTree::RegisterStatement(FScope& Scope, FStatement* Statement)
@@ -1574,14 +1195,7 @@ FExpression* FTree::AcquireLocal(FScope& Scope, const FName& LocalName)
 	const TArrayView<FScope*> PreviousScopes = Scope.GetPreviousScopes();
 	if (PreviousScopes.Num() > 1)
 	{
-		FExpressionLocalPHI* Expression = NewExpression<FExpressionLocalPHI>();
-		Expression->LocalName = LocalName;
-		Expression->NumValues = PreviousScopes.Num();
-		for (int32 i = 0; i < PreviousScopes.Num(); ++i)
-		{
-			Expression->Scopes[i] = PreviousScopes[i];
-		}
-		PHIExpressions.Add(Expression);
+		FExpression* Expression = NewExpression<FExpressionLocalPHI>(LocalName, PreviousScopes);
 		Scope.LocalMap.Add(LocalName, Expression);
 		return Expression;
 	}
@@ -1592,6 +1206,18 @@ FExpression* FTree::AcquireLocal(FScope& Scope, const FName& LocalName)
 	}
 
 	return nullptr;
+}
+
+FExpression* FTree::NewFunctionCall(FScope& Scope, FFunction* Function, TArrayView<FExpression*> InputExpressions, int32 OutputIndex)
+{
+	FScope* CalledScope = &Scope;
+	if (Function->CalledScope)
+	{
+		CalledScope = FScope::FindSharedParent(CalledScope, Function->CalledScope);
+		check(CalledScope);
+	}
+	Function->CalledScope = CalledScope;
+	return NewExpression<FExpressionFunctionCall>(Function, InputExpressions, OutputIndex);
 }
 
 const FExpressionDerivatives& FTree::GetAnalyticDerivatives(FExpression* InExpression)
@@ -1630,6 +1256,13 @@ FScope* FTree::NewOwnedScope(FStatement& Owner)
 	NewScope->NestedLevel = NewScope->ParentScope->NestedLevel + 1;
 	NewScope->NumPreviousScopes = 0;
 	return NewScope;
+}
+
+FFunction* FTree::NewFunction()
+{
+	FFunction* NewFunction = NewNode<FFunction>();
+	NewFunction->RootScope = NewNode<FScope>();
+	return NewFunction;
 }
 
 FTextureParameterDeclaration* FTree::NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue)

@@ -120,18 +120,30 @@ void UMaterialGraph::RebuildGraphInternal(const TMap<UMaterialExpression*, TArra
 		//^^^ New material properties go above here. ^^^^
 		MaterialInputs.Add(FMaterialInputInfo(LOCTEXT("MaterialAttributes", "Material Attributes"), MP_MaterialAttributes, LOCTEXT("MaterialAttributesToolTip", "Material Attributes")));
 
-		if (Material->IsCompiledWithExecutionFlow())
-		{
-			check(Material->ExpressionExecBegin);
-			InitExpressionNewNode<UMaterialGraphNode>(this, Material->ExpressionExecBegin, false);
-		}
-		
 		// Add Root Node
 		{
 			FGraphNodeCreator<UMaterialGraphNode_Root> NodeCreator(*this);
 			RootNode = NodeCreator.CreateNode();
 			RootNode->Material = Material;
 			NodeCreator.Finalize();
+		}
+	}
+
+	if (Material->IsUsingControlFlow())
+	{
+		if (ensure(Material->ExpressionExecBegin))
+		{
+			InitExpressionNewNode<UMaterialGraphNode>(this, Material->ExpressionExecBegin, false);
+		}
+		
+		if (MaterialFunction)
+		{
+			check(MaterialFunction->ExpressionExecBegin == Material->ExpressionExecBegin);
+			check(MaterialFunction->ExpressionExecEnd == Material->ExpressionExecEnd);
+			if (ensure(Material->ExpressionExecEnd))
+			{
+				InitExpressionNewNode<UMaterialGraphNode>(this, Material->ExpressionExecEnd, false);
+			}
 		}
 	}
 
@@ -380,9 +392,10 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 				UMaterialExpression* ConnectedExpression = ExecOutput->GetExpression();
 				if (ConnectedExpression)
 				{
-					if (ConnectedExpression == Material->ExpressionExecEnd)
+					if (ConnectedExpression == Material->ExpressionExecEnd && RootNode)
 					{
-						// Exec end point is the root node
+						// Exec end point is the root node (assuming there is a RootNode)
+						// MaterialFunctions currently do not have a RootNode, and instead have the ExecEnd node as a stand-alone
 						Pin->MakeLinkTo(RootNode->GetExecInputPin());
 					}
 					else if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(ConnectedExpression->GraphNode))

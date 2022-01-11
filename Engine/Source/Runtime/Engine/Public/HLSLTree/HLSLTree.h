@@ -9,6 +9,7 @@
 #include "Containers/List.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/MemStack.h"
+#include "Hash/xxhash.h"
 #include "HLSLTree/HLSLTreeTypes.h"
 
 class FMaterial;
@@ -33,9 +34,13 @@ namespace HLSLTree
 
 class FNode;
 class FScope;
+class FFunction;
 class FExpressionLocalPHI;
 class FRequestedType;
-struct FEmitShaderCode;
+
+class FEmitContext;
+class FEmitShaderScope;
+class FEmitShaderExpression;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
 
@@ -104,123 +109,59 @@ private:
 	int32 NumErrors = 0;
 };
 
-enum class ECastFlags : uint32
-{
-	None = 0u,
-	ReplicateScalar = (1u << 0),
-	AllowTruncate = (1u << 1),
-	AllowAppendZeroes = (1u << 2),
-
-	ValidCast = ReplicateScalar | AllowTruncate,
-};
-ENUM_CLASS_FLAGS(ECastFlags);
-
-struct FEmitShaderCode
-{
-	FEmitShaderCode(FScope* InScope, const Shader::FType& InType) : Scope(InScope), Type(InType) {}
-
-	inline bool IsInline() const { return Value == nullptr; }
-
-	FScope* Scope = nullptr;
-	const TCHAR* Reference = nullptr;
-	const TCHAR* Value = nullptr;
-	Shader::FType Type;
-	TArrayView<FEmitShaderCode*> Dependencies;
-	FSHAHash Hash;
-};
-
-using FEmitShaderValueDependencies = TArray<FEmitShaderCode*, TInlineAllocator<8>>;
-
-enum class EFormatArgType : uint8
-{
-	Void,
-	ShaderValue,
-	String,
-	Int,
-};
-
-struct FFormatArgVariant
-{
-	FFormatArgVariant() {}
-	FFormatArgVariant(FEmitShaderCode* InValue) : Type(EFormatArgType::ShaderValue), ShaderValue(InValue) { check(InValue); }
-	FFormatArgVariant(const TCHAR* InValue) : Type(EFormatArgType::String), String(InValue) { check(InValue); }
-	FFormatArgVariant(int32 InValue) : Type(EFormatArgType::Int), Int(InValue) {}
-
-	EFormatArgType Type = EFormatArgType::Void;
-	union
-	{
-		FEmitShaderCode* ShaderValue;
-		const TCHAR* String;
-		int32 Int;
-	};
-};
-
-using FFormatArgList = TArray<FFormatArgVariant, TInlineAllocator<8>>;
-
-inline void BuildFormatArgList(FFormatArgList&) {}
-
-template<typename Type, typename... Types>
-inline void BuildFormatArgList(FFormatArgList& OutList, Type Arg, Types... Args)
-{
-	OutList.Add(Arg);
-	BuildFormatArgList(OutList, Forward<Types>(Args)...);
-}
-
-/** Tracks shared state while emitting HLSL code */
-class FEmitContext
+class FHasher
 {
 public:
-	explicit FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry);
-	~FEmitContext();
+	FXxHash64 Finalize() { return Builder.Finalize(); }
+	FHasher& AppendData(const void* Data, uint64 Size) { Builder.Update(Data, Size); return *this; }
 
-	void Finalize();
-
-	/** Get a unique local variable name */
-	const TCHAR* AcquireLocalDeclarationCode();
-
-	FEmitShaderCode* EmitCodeInternal(const Shader::FType& Type, FStringView Code, bool bInline, TArrayView<FEmitShaderCode*> Dependencies);
-	FEmitShaderCode* EmitFormatCodeInternal(const Shader::FType& Type, const TCHAR* Format, bool bInline, const FFormatArgList& ArgList);
-
-	template<typename FormatType, typename... Types>
-	FEmitShaderCode* EmitCode(const Shader::FType& Type, const FormatType& Format, Types... Args)
+	template<typename T>
+	inline FHasher& AppendValue(const T& Value)
 	{
-		FFormatArgList ArgList;
-		BuildFormatArgList(ArgList, Forward<Types>(Args)...);
-		return EmitFormatCodeInternal(Type, Format, false, ArgList);
+		return AppendData(&Value, sizeof(Value));
 	}
 
-	template<typename FormatType, typename... Types>
-	FEmitShaderCode* EmitInlineCode(const Shader::FType& Type, const FormatType& Format, Types... Args)
+	template<typename T>
+	inline FHasher& AppendValue(TArrayView<T> Value)
 	{
-		FFormatArgList ArgList;
-		BuildFormatArgList(ArgList, Forward<Types>(Args)...);
-		return EmitFormatCodeInternal(Type, Format, true, ArgList);
+		for (const T& Element : Value)
+		{
+			AppendValue(Element);
+		}
+		return *this;
 	}
 
-	
-	FEmitShaderCode* EmitPreshaderOrConstant(const FRequestedType& RequestedType, FExpression* Expression);
-	FEmitShaderCode* EmitConstantZero(const Shader::FType& Type);
-	FEmitShaderCode* EmitCast(FEmitShaderCode* ShaderValue, const Shader::FType& DestType);
-	
-	FMemStackBase* Allocator = nullptr;
-	FErrorHandlerInterface* Errors = nullptr;
-	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
+	inline FHasher& AppendValue(const FName& Value)
+	{
+		return AppendValue(Value.GetComparisonIndex()).AppendValue(Value.GetNumber());
+	}
 
-	TArray<FScope*, TInlineAllocator<16>> ScopeStack;
-	TMap<FSHAHash, FEmitShaderCode*> ShaderValueMap;
-	TMap<FSHAHash, FEmitShaderCode*> PreshaderValueMap;
-	TArray<const FExpressionLocalPHI*> LocalPHIs;
+	inline FHasher& AppendValue(const Shader::FType& Type)
+	{
+		if (Type.IsStruct()) return AppendValue(Type.StructType);
+		else return AppendValue(Type.ValueType);
+	}
 
-	// TODO - remove preshader material dependency
-	const FMaterial* Material = nullptr;
-	const FStaticParameterSet* StaticParameters = nullptr;
-	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
-	TMap<Shader::FValue, uint32> DefaultUniformValues;
-	uint32 UniformPreshaderOffset = 0u;
-	bool bReadMaterialNormal = false;
+	inline FHasher& AppendValue(const Shader::FValue& Value)
+	{
+		AppendValue(Value.Type);
+		for (int32 i = 0; i < Value.Type.GetNumComponents(); ++i)
+		{
+			AppendValue(Value.TryGetComponent(i));
+		}
+		return *this;
+	}
 
-	int32 NumExpressionLocals = 0;
-	int32 NumTexCoords = 0;
+	inline FHasher& AppendValues() { return *this; }
+
+	template<typename T, typename... ArgTypes>
+	inline FHasher& AppendValues(const T& Value, ArgTypes&&... Args)
+	{
+		return AppendValue(Value).AppendValues(Forward<ArgTypes>(Args)...);
+	}
+
+private:
+	FXxHash64Builder Builder;
 };
 
 /** Root class of the HLSL AST */
@@ -250,12 +191,10 @@ private:
 class FStatement : public FNode
 {
 public:
-	virtual void Reset() override;
 	virtual void Prepare(FEmitContext& Context) const = 0;
-	virtual void EmitShader(FEmitContext& Context) const = 0;
+	virtual void EmitShader(FEmitContext& Context, FEmitShaderScope& Scope) const = 0;
 
 	FScope* ParentScope = nullptr;
-	bool bEmitShader = false;
 };
 
 /**
@@ -378,7 +317,7 @@ private:
 
 struct FEmitValueShaderResult
 {
-	FEmitShaderCode* Code = nullptr;
+	FEmitShaderExpression* Code = nullptr;
 };
 
 enum class EDerivativeCoordinate : uint8
@@ -415,17 +354,17 @@ public:
 
 	friend const FPreparedType& PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
 
-	FEmitShaderCode* GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType, const Shader::FType& ResultType);
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType);
 	void GetValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader);
 	Shader::FValue GetValueConstant(FEmitContext& Context, const FRequestedType& RequestedType);
 
-	FEmitShaderCode* GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType);
-	FEmitShaderCode* GetValueShader(FEmitContext& Context);
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType);
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitShaderScope& Scope);
 
 protected:
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const;
 	virtual bool PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const;
 
 private:
@@ -464,27 +403,14 @@ public:
 	FExpression* Expression;
 };
 
-
-/**
- * Represents a phi node (see various topics on single static assignment)
- * A phi node takes on a value based on the previous scope that was executed.
- * In practice, this means the generated HLSL code will declare a local variable before all the previous scopes, then assign that variable the proper value from within each scope
- */
-class FExpressionLocalPHI final : public FExpression
+class FFunction final : public FNode
 {
 public:
-	FExpressionLocalPHI() = default;
-	FExpressionLocalPHI(const FExpressionLocalPHI* Source, EDerivativeCoordinate Coord);
+	FScope& GetRootScope() const { return *RootScope; }
 
-	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
-	virtual bool PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
-
-	TArray<EDerivativeCoordinate, TInlineAllocator<8>> DerivativeChain;
-	FName LocalName;
-	FScope* Scopes[MaxNumPreviousScopes];
-	FExpression* Values[MaxNumPreviousScopes];
-	int32 NumValues = 0;
+	FScope* RootScope = nullptr;
+	FScope* CalledScope = nullptr;
+	TArray<FExpression*, TInlineAllocator<8>> OutputExpressions;
 };
 
 /**
@@ -512,9 +438,9 @@ enum class EScopeState : uint8
 class FScope final : public FNode
 {
 public:
-	virtual void Reset() override;
-
 	static FScope* FindSharedParent(FScope* Lhs, FScope* Rhs);
+
+	virtual void Reset() override;
 
 	inline FScope* GetParentScope() const { return ParentScope; }
 	inline bool IsLive() const { return State == EScopeState::Live; }
@@ -532,79 +458,20 @@ public:
 
 	friend bool PrepareScope(FEmitContext& Context, FScope* InScope);
 
-	template<typename FormatType, typename... Types>
-	void EmitDeclarationf(FEmitContext& Context, const FormatType& Format, Types... Args)
-	{
-		InternalEmitCodef(Context, Declarations, ENextScopeFormat::None, nullptr, Format, Forward<Types>(Args)...);
-	}
-
-	template<typename FormatType, typename... Types>
-	void EmitStatementf(FEmitContext& Context, const FormatType& Format, Types... Args)
-	{
-		InternalEmitCodef(Context, Statements, ENextScopeFormat::None, nullptr, Format, Forward<Types>(Args)...);
-	}
-
-	void EmitScope(FEmitContext& Context, FScope* NestedScope)
-	{
-		InternalEmitCode(Context, Statements, ENextScopeFormat::Unscoped, NestedScope, nullptr, 0);
-	}
-
-	template<typename FormatType, typename... Types>
-	void EmitNestedScopef(FEmitContext& Context, FScope* NestedScope, const FormatType& Format, Types... Args)
-	{
-		InternalEmitCodef(Context, Statements, ENextScopeFormat::Scoped, NestedScope, Format, Forward<Types>(Args)...);
-	}
-
 	void MarkLive();
 	void MarkLiveRecursive();
 	void MarkDead();
 
-	void WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const;
-
 private:
 	friend class FTree;
 	friend class FExpression;
-
-	enum class ENextScopeFormat : uint8
-	{
-		None,
-		Unscoped,
-		Scoped,
-	};
-
-	struct FCodeEntry
-	{
-		FCodeEntry* Next;
-		FScope* Scope;
-		int32 Length;
-		ENextScopeFormat ScopeFormat;
-		TCHAR String[1];
-	};
-
-	struct FCodeList
-	{
-		FCodeEntry* First = nullptr;
-		FCodeEntry* Last = nullptr;
-		int32 Num = 0;
-	};
-
-	void InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* Scope, const TCHAR* String, int32 Length);
-
-	template<typename FormatType, typename... Types>
-	void InternalEmitCodef(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* Scope, const FormatType& Format, Types... Args)
-	{
-		TStringBuilder<2048> String;
-		String.Appendf(Format, Forward<Types>(Args)...);
-		InternalEmitCode(Context, List, ScopeFormat, Scope, String.ToString(), String.Len());
-	}
+	friend class FEmitContext;
 
 	FStatement* OwnerStatement = nullptr;
 	FScope* ParentScope = nullptr;
 	FStatement* ContainedStatement = nullptr;
 	FScope* PreviousScope[MaxNumPreviousScopes];
 	TMap<FName, FExpression*> LocalMap;
-	FCodeList Declarations;
-	FCodeList Statements;
 	int32 NumPreviousScopes = 0;
 	int32 NestedLevel = 0;
 	EScopeState State = EScopeState::Uninitialized;
@@ -631,6 +498,20 @@ inline void MarkScopeDead(FScope* InScope)
 	}
 }
 
+namespace Private
+{
+uint64 GetNextTypeHash();
+template<typename T>
+struct TTypeHasher
+{
+	static uint64 GetHash()
+	{
+		static uint64 Hash = GetNextTypeHash();
+		return Hash;
+	}
+};
+}
+
 /**
  * The HLSL AST.  Basically a wrapper around the root scope, with some helper methods
  */
@@ -651,10 +532,19 @@ public:
 	FScope& GetRootScope() const { return *RootScope; }
 
 	template<typename T, typename... ArgTypes>
-	inline T* NewExpression(ArgTypes&&... Args)
+	inline FExpression* NewExpression(ArgTypes&&... Args)
 	{
-		T* Expression = NewNode<T>(Forward<ArgTypes>(Args)...);
-		RegisterExpression(Expression);
+		FHasher Hasher;
+		Hasher.AppendValue(Private::TTypeHasher<T>::GetHash());
+		Hasher.AppendValues(Forward<ArgTypes>(Args)...);
+		const FXxHash64 Hash = Hasher.Finalize();
+		FExpression* Expression = FindExpression(Hash);
+		if (!Expression)
+		{
+			T* TypedExpression = NewNode<T>(Forward<ArgTypes>(Args)...);
+			RegisterExpression(TypedExpression, Hash);
+			Expression = TypedExpression;
+		}
 		return Expression;
 	}
 
@@ -669,10 +559,13 @@ public:
 	void AssignLocal(FScope& Scope, const FName& LocalName, FExpression* Value);
 	FExpression* AcquireLocal(FScope& Scope, const FName& LocalName);
 
+	FExpression* NewFunctionCall(FScope& Scope, FFunction* Function, TArrayView<FExpression*> InputExpressions, int32 OutputIndex);
+
 	const FExpressionDerivatives& GetAnalyticDerivatives(FExpression* InExpression);
 
 	FScope* NewScope(FScope& Scope);
 	FScope* NewOwnedScope(FStatement& Owner);
+	FFunction* NewFunction();
 
 	/** Shortcuts to create various common expression types */
 	FExpression* NewConstant(const Shader::FValue& Value);
@@ -700,12 +593,15 @@ private:
 	}
 
 	void RegisterNode(FNode* Node);
-	void RegisterExpression(FExpression* Expression);
+	void RegisterExpression(FExpression* Expression, FXxHash64 Hash);
+	void RegisterExpression(FExpressionLocalPHI* Expression, FXxHash64 Hash);
 	void RegisterStatement(FScope& Scope, FStatement* Statement);
+	FExpression* FindExpression(FXxHash64 Hash) const;
 
 	FMemStackBase* Allocator = nullptr;
 	FNode* Nodes = nullptr;
 	FScope* RootScope = nullptr;
+	TMap<FXxHash64, FExpression*> ExpressionMap;
 	TArray<FExpressionLocalPHI*> PHIExpressions;
 	TArray<UObject*, TInlineAllocator<8>> OwnerStack;
 

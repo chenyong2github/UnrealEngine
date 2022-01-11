@@ -1871,7 +1871,7 @@ public:
 	ENGINE_API bool IsCompilationFinished() const;
 
 	/** Should the material be compiled using exec pin? */
-	virtual bool IsCompiledWithExecutionFlow() const { return false; }
+	virtual bool IsUsingControlFlow() const { return false; }
 
 	/** Is the material using the new (WIP) HLSL generator? */
 	virtual bool IsUsingNewHLSLGenerator() const { return false; }
@@ -2772,7 +2772,7 @@ public:
 	/** Allows to associate the shader resources with the asset for load order. */
 	ENGINE_API virtual FName GetAssetPath() const override;
 	ENGINE_API virtual bool ShouldInlineShaderCode() const override;
-	ENGINE_API virtual bool IsCompiledWithExecutionFlow() const override;
+	ENGINE_API virtual bool IsUsingControlFlow() const override;
 	ENGINE_API virtual bool IsUsingNewHLSLGenerator() const override;
 #endif // WITH_EDITOR
 

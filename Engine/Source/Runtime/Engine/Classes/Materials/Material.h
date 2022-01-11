@@ -1090,7 +1090,7 @@ public:
 	/** Like IsPropertyActive(), but considers any state overriden by DerivedMaterial */
 	ENGINE_API bool IsPropertyActiveInDerived(EMaterialProperty InProperty, const UMaterialInterface* DerivedMaterial) const;
 
-	ENGINE_API bool IsCompiledWithExecutionFlow() const;
+	ENGINE_API bool IsUsingControlFlow() const;
 
 	ENGINE_API bool IsUsingNewHLSLGenerator() const;
 

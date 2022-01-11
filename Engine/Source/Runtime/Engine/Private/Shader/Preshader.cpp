@@ -5,6 +5,7 @@
 #include "Materials/MaterialUniformExpressions.h"
 #include "Engine/Texture.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "Hash/xxhash.h"
 #include "ExternalTexture.h"
 
 IMPLEMENT_TYPE_LAYOUT(UE::Shader::FPreshaderData);
@@ -276,9 +277,21 @@ static void EvaluateSetField(FPreshaderStack& Stack, FPreshaderDataContext& REST
 	const int32 ComponentNum = ReadPreshaderValue<int32>(Data);
 	
 	// Modify the struct value in-place
-	for (int32 Index = 0; Index < ComponentNum; ++Index)
+	if (Value.Component.Num() == 1)
 	{
-		StructValue.Component[ComponentIndex + Index] = Value.Component[Index];
+		// Splat scalar
+		const FValueComponent Component = Value.Component[0];
+		for (int32 Index = 0; Index < ComponentNum; ++Index)
+		{
+			StructValue.Component[ComponentIndex + Index] = Component;
+		}
+	}
+	else
+	{
+		for (int32 Index = 0; Index < ComponentNum; ++Index)
+		{
+			StructValue.Component[ComponentIndex + Index] = Value.Component[Index];
+		}
 	}
 }
 
@@ -575,19 +588,12 @@ FPreshaderValue FPreshaderData::EvaluateConstant(const FMaterial& Material, FPre
 	return EvaluatePreshader(nullptr, FMaterialRenderContext(nullptr, Material, nullptr), Stack, PreshaderContext);
 }
 
-void FPreshaderData::AppendHash(FSHA1& OutHasher) const
+void FPreshaderData::AppendHash(FXxHash64Builder& OutHasher) const
 {
-	OutHasher.Update((uint8*)Names.GetData(), Names.Num() * Names.GetTypeSize());
-	OutHasher.Update((uint8*)StructTypes.GetData(), StructTypes.Num() * StructTypes.GetTypeSize());
-	OutHasher.Update((uint8*)StructComponentTypes.GetData(), StructComponentTypes.Num() * StructComponentTypes.GetTypeSize());
-	OutHasher.Update((uint8*)Data.GetData(), Data.Num() * Data.GetTypeSize());
-}
-
-FSHAHash FPreshaderData::GetHash() const
-{
-	FSHA1 Hasher;
-	AppendHash(Hasher);
-	return Hasher.Finalize();
+	OutHasher.Update(Names.GetData(), Names.Num() * Names.GetTypeSize());
+	OutHasher.Update(StructTypes.GetData(), StructTypes.Num() * StructTypes.GetTypeSize());
+	OutHasher.Update(StructComponentTypes.GetData(), StructComponentTypes.Num() * StructComponentTypes.GetTypeSize());
+	OutHasher.Update(Data.GetData(), Data.Num() * Data.GetTypeSize());
 }
 
 } // namespace Shader

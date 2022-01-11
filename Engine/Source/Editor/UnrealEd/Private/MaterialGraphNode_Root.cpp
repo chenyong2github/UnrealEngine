@@ -76,7 +76,7 @@ void UMaterialGraphNode_Root::CreateInputPins()
 {
 	UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
 
-	if (Material->IsCompiledWithExecutionFlow())
+	if (Material->IsUsingControlFlow())
 	{
 		// Create the execution pin
 		UEdGraphPin* NewPin = CreatePin(EGPD_Input, UMaterialGraphSchema::PC_Exec, NAME_None, NAME_None);

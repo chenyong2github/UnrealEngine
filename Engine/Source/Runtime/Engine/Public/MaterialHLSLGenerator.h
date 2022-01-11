@@ -161,18 +161,18 @@ private:
 		}
 	};
 
-	struct FFunctionInput
-	{
-		const UMaterialExpressionFunctionInput* FunctionInputExpression = nullptr;
-		UMaterialExpression* ConnectedExpression = nullptr;
-		int32 ConnectedOutputIndex = INDEX_NONE;
-	};
-	using FFunctionInputArray = TArray<FFunctionInput, TInlineAllocator<4>>;
+	using FFunctionInputArray = TArray<const UMaterialExpressionFunctionInput*, TInlineAllocator<4>>;
+	using FFunctionOutputArray = TArray<const UMaterialExpressionFunctionOutput*, TInlineAllocator<4>>;
+	using FConnectedInputArray = TArray<UE::HLSLTree::FExpression*, TInlineAllocator<4>>;
 
 	struct FFunctionCallEntry
 	{
-		UMaterialFunctionInterface* Function = nullptr;
-		FFunctionInputArray Inputs;
+		UMaterialFunctionInterface* MaterialFunction = nullptr;
+		UE::HLSLTree::FFunction* HLSLFunction = nullptr;
+		FFunctionInputArray FunctionInputs;
+		FFunctionOutputArray FunctionOutputs;
+		FConnectedInputArray ConnectedInputs;
+		bool bGeneratedResult = false;
 	};
 
 	struct FStatementEntry
@@ -201,6 +201,7 @@ private:
 	TMap<UE::HLSLTree::FTextureDescription, UE::HLSLTree::FTextureParameterDeclaration*> TextureDeclarationMap;
 	TMap<FName, UE::HLSLTree::FTextureParameterDeclaration*> TextureParameterDeclarationMap;
 	TMap<FSHAHash, FFunctionCallEntry*> FunctionCallMap;
+	TMap<UMaterialFunctionInterface*, UE::HLSLTree::FFunction*> FunctionMap;
 	TMap<UMaterialExpression*, FStatementEntry> StatementMap;
 	TMap<FExpressionDataKey, void*> ExpressionDataMap;
 	bool bGeneratedResult;

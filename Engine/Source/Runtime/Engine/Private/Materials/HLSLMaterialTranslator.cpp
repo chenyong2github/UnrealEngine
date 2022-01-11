@@ -648,7 +648,7 @@ bool FHLSLMaterialTranslator::Translate()
 		Material->CompileErrors.Empty();
 		Material->ErrorExpressions.Empty();
 
-		bEnableExecutionFlow = Material->IsCompiledWithExecutionFlow();
+		bEnableExecutionFlow = Material->IsUsingControlFlow();
 
 		bCompileForComputeShader = Material->IsLightFunction();
 

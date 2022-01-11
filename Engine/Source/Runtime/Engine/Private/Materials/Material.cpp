@@ -3305,7 +3305,7 @@ void UMaterial::PropagateDataToMaterialProxy()
 	UpdateMaterialRenderProxy(*DefaultMaterialInstance);
 }
 
-bool UMaterial::IsCompiledWithExecutionFlow() const
+bool UMaterial::IsUsingControlFlow() const
 {
 	if (bEnableExecWire)
 	{
@@ -3538,7 +3538,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 
 void UMaterial::CreateExecutionFlowExpressions()
 {
-	if (IsCompiledWithExecutionFlow())
+	if (IsUsingControlFlow())
 	{
 		if (!ExpressionExecBegin)
 		{
@@ -4986,7 +4986,7 @@ int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& At
 {
 	const EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(AttributeID);
 
-	if (IsCompiledWithExecutionFlow())
+	if (IsUsingControlFlow())
 	{
 		check(ExpressionExecBegin);
 		return ExpressionExecBegin->Compile(Compiler, UMaterialExpression::CompileExecutionOutputIndex);

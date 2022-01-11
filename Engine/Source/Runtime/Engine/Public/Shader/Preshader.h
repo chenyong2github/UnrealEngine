@@ -9,6 +9,7 @@
 class FUniformExpressionSet;
 struct FMaterialRenderContext;
 class FMaterial;
+class FXxHash64Builder;
 
 namespace UE
 {
@@ -87,8 +88,7 @@ public:
 		return !operator==(Lhs, Rhs);
 	}
 
-	FSHAHash GetHash() const;
-	void AppendHash(FSHA1& OutHasher) const;
+	void AppendHash(FXxHash64Builder& OutHasher) const;
 
 	FPreshaderValue Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FPreshaderStack& Stack) const;
 	FPreshaderValue EvaluateConstant(const FMaterial& Material, FPreshaderStack& Stack) const;

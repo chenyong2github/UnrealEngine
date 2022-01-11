@@ -12669,6 +12669,27 @@ void UMaterialFunction::UpdateDependentFunctionCandidates()
 void UMaterialFunction::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialFunction, bEnableExecWire))
+	{
+		CreateExecutionFlowExpressions();
+	}
+
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterialFunction, bEnableNewHLSLGenerator))
+	{
+		if (EditorMaterial)
+		{
+			EditorMaterial->bEnableNewHLSLGenerator = bEnableNewHLSLGenerator;
+		}
+	}
+
+	// many property changes can require rebuild of graph so always mark as changed
+	// not interested in PostEditChange calls though as the graph may have instigated it
+	if (PropertyThatChanged && MaterialGraph)
+	{
+		MaterialGraph->NotifyGraphChanged();
+	}
 }
 
 void UMaterialFunction::ForceRecompileForRendering(FMaterialUpdateContext& UpdateContext, UMaterial* InPreviewMaterial)
@@ -13295,7 +13316,55 @@ bool UMaterialFunction::SetStaticComponentMaskParameterValueEditorOnly(FName Par
 	Meta.ExpressionGuid = OutExpressionGuid;
 	return SetParameterValueEditorOnly(ParameterName, Meta);
 };
-#endif //WITH_EDITORONLY_DATA
+
+bool UMaterialFunction::IsUsingControlFlow() const
+{
+	if (bEnableExecWire)
+	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableControlFlow"));
+		return CVar->GetValueOnAnyThread() != 0;
+	}
+	return false;
+}
+
+bool UMaterialFunction::IsUsingNewHLSLGenerator() const
+{
+	if (bEnableNewHLSLGenerator)
+	{
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableNewHLSLGenerator"));
+		return CVar->GetValueOnAnyThread() != 0;
+	}
+	return false;
+}
+
+void UMaterialFunction::CreateExecutionFlowExpressions()
+{
+	const bool bUsingControlFlow = IsUsingControlFlow();
+	if (bUsingControlFlow)
+	{
+		if (!ExpressionExecBegin)
+		{
+			ExpressionExecBegin = NewObject<UMaterialExpressionExecBegin>(this);
+			ExpressionExecBegin->Function = this;
+			FunctionExpressions.Add(ExpressionExecBegin);
+		}
+
+		if (!ExpressionExecEnd)
+		{
+			ExpressionExecEnd = NewObject<UMaterialExpressionExecEnd>(this);
+			ExpressionExecEnd->Function = this;
+			FunctionExpressions.Add(ExpressionExecEnd);
+		}
+	}
+
+	if (EditorMaterial)
+	{
+		EditorMaterial->bEnableExecWire = bUsingControlFlow;
+		EditorMaterial->ExpressionExecBegin = ExpressionExecBegin;
+		EditorMaterial->ExpressionExecEnd = ExpressionExecEnd;
+	}
+}
+#endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialFunctionInstance

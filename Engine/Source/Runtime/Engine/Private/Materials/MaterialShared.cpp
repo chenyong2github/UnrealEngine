@@ -1341,7 +1341,7 @@ bool FMaterialResource::IsVolumetricPrimitive() const { return Material->Materia
 bool FMaterialResource::IsSpecialEngineMaterial() const { return Material->bUsedAsSpecialEngineMaterial; }
 bool FMaterialResource::HasVertexPositionOffsetConnected() const { return Material->HasVertexPositionOffsetConnected(); }
 bool FMaterialResource::HasPixelDepthOffsetConnected() const { return Material->HasPixelDepthOffsetConnected(); }
-bool FMaterialResource::HasMaterialAttributesConnected() const { return (Material->bUseMaterialAttributes && Material->MaterialAttributes.IsConnected()) || Material->bEnableExecWire; }
+bool FMaterialResource::HasMaterialAttributesConnected() const { return (Material->bUseMaterialAttributes && Material->MaterialAttributes.IsConnected()); }
 EMaterialShadingRate FMaterialResource::GetShadingRate() const { return Material->ShadingRate; }
 FString FMaterialResource::GetBaseMaterialPathName() const { return Material->GetPathName(); }
 FString FMaterialResource::GetDebugName() const
@@ -1839,11 +1839,11 @@ bool FMaterialResource::ShouldInlineShaderCode() const
 	return bNeedsToBeInlined;
 }
 
-bool FMaterialResource::IsCompiledWithExecutionFlow() const
+bool FMaterialResource::IsUsingControlFlow() const
 {
 	if (Material)
 	{
-		return Material->IsCompiledWithExecutionFlow();
+		return Material->IsUsingControlFlow();
 	}
 	return false;
 }

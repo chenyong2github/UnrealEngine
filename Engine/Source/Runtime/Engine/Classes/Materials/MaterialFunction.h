@@ -38,6 +38,13 @@ class UMaterialFunction : public UMaterialFunctionInterface
 	/** Array of material expressions, excluding Comments.  Used by the material editor. */
 	UPROPERTY()
 	TArray<TObjectPtr<UMaterialExpression>> FunctionExpressions;
+
+	/** The execution begin expression, if material is using an exec wire */
+	UPROPERTY()
+	TObjectPtr<class UMaterialExpressionExecBegin> ExpressionExecBegin;
+
+	UPROPERTY()
+	TObjectPtr<class UMaterialExpressionExecEnd> ExpressionExecEnd;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Whether to list this function in the material function library, which is a window in the material editor that lists categorized functions. */
@@ -47,6 +54,12 @@ class UMaterialFunction : public UMaterialFunctionInterface
 	/** If true, parameters in this function will have a prefix added to their group name. */
 	UPROPERTY(EditAnywhere, Category=MaterialFunction)
 	uint8 bPrefixParameterNames:1;
+
+	UPROPERTY(EditAnywhere, Category = MaterialFunction)
+	uint8 bEnableExecWire : 1;
+
+	UPROPERTY(EditAnywhere, Category = MaterialFunction)
+	uint8 bEnableNewHLSLGenerator : 1;
 
 #if WITH_EDITORONLY_DATA
 	/** 
@@ -72,12 +85,17 @@ class UMaterialFunction : public UMaterialFunctionInterface
 	UPROPERTY(transient)
 	TObjectPtr<UMaterial> PreviewMaterial;
 
+	// The UMaterial which represents this function while the function itself is open in the material editor
+	TObjectPtr<UMaterial> EditorMaterial;
+
 	UPROPERTY()
 	TArray<TObjectPtr<class UMaterialExpressionMaterialFunctionCall>> DependentFunctionExpressionCandidates;
 
 	/** Determines the blend mode when previewing a material function. */
 	UPROPERTY(EditAnywhere, Category = Preview, AssetRegistrySearchable)
 	TEnumAsByte<enum EBlendMode> PreviewBlendMode = BLEND_Opaque;
+
+	class UMaterialGraph* MaterialGraph = nullptr;
 private:
 	/** Transient flag used to track re-entrance in recursive functions like IsDependent. */
 	UPROPERTY(transient)
@@ -172,5 +190,10 @@ public:
 	ENGINE_API bool SetFontParameterValueEditorOnly(FName ParameterName, class UFont* InFontValue, int32 InFontPage);
 	ENGINE_API bool SetStaticComponentMaskParameterValueEditorOnly(FName ParameterName, bool R, bool G, bool B, bool A, FGuid OutExpressionGuid);
 	ENGINE_API bool SetStaticSwitchParameterValueEditorOnly(FName ParameterName, bool OutValue, FGuid OutExpressionGuid);
+
+	virtual bool IsUsingControlFlow() const override;
+	virtual bool IsUsingNewHLSLGenerator() const override;
+
+	void CreateExecutionFlowExpressions();
 #endif // WITH_EDITOR
 };

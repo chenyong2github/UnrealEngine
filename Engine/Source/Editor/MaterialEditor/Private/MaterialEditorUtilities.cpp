@@ -240,7 +240,7 @@ void FMaterialEditorUtilities::GetVisibleMaterialParameters(const UMaterial* Mat
 	TArray<FGetVisibleMaterialParametersFunctionState*> FunctionStack;
 	FunctionStack.Push(FunctionState.Get());
 
-	if (Material->IsCompiledWithExecutionFlow())
+	if (Material->IsUsingControlFlow())
 	{
 		GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Material->ExpressionExecBegin, INDEX_NONE), MaterialInstance, VisibleExpressions, FunctionStack);
 	}

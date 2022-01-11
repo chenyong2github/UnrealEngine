@@ -14,6 +14,7 @@
 #include "MaterialHLSLGenerator.h"
 #include "ShaderCore.h"
 #include "HLSLTree/HLSLTree.h"
+#include "HLSLTree/HLSLTreeEmit.h"
 #include "Containers/LazyPrintf.h"
 
 static bool SharedPixelProperties[CompiledMP_MAX];
