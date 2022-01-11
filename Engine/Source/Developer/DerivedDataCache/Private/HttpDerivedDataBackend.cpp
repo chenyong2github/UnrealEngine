@@ -2641,10 +2641,7 @@ bool FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(
 		{
 			FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
 
-			//TODO: This should be a HEAD operation, but those are returning 404 from this endpoint.  Issue has been reported and will change to HEAD when resolved.
-			//const FHttpRequest::Result Result = Request->PerformBlockingQuery<FHttpRequest::Head>(*CompressedBlobsUri);
-			TArray<uint8> ByteArray;
-			const FHttpRequest::Result Result = Request->PerformBlockingDownload(*CompressedBlobsUri, &ByteArray);
+			const FHttpRequest::Result Result = Request->PerformBlockingQuery<FHttpRequest::Head>(*CompressedBlobsUri);
 			ResponseCode = Request->GetResponseCode();
 
 			if (FHttpRequest::IsSuccessResponse(ResponseCode) || ResponseCode == 400)
