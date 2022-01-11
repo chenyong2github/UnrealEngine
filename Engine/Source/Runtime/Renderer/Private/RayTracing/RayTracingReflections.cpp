@@ -302,7 +302,7 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FFogUniformParameters, FogUniformParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
-		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, Forward)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, Forward)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingSkylight, SkylightParameters)
 
@@ -691,7 +691,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.ImaginaryReflectionGBuffer = GraphBuilder.CreateUAV(ImaginaryReflectionGBuffer);
 	CommonParameters.SortTileSize = SortTileSize;
 	CommonParameters.ReflectionCapture = View.ReflectionCaptureUniformBuffer;
-	CommonParameters.Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+	CommonParameters.Forward = View.ForwardLightingResources.ForwardLightUniformBuffer;
 
 	// Fill Sky Light parameters
 	FSkyLightData SkyLightData;

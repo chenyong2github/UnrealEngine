@@ -688,86 +688,65 @@ public:
 
 const int32 GMaxForwardShadowCascades = 4;
 
-#define FORWARD_GLOBAL_LIGHT_DATA_UNIFORM_BUFFER_MEMBER_TABLE \
-	SHADER_PARAMETER(uint32,NumLocalLights) \
-	SHADER_PARAMETER(uint32, NumReflectionCaptures) \
-	SHADER_PARAMETER(uint32, HasDirectionalLight) \
-	SHADER_PARAMETER(uint32, NumGridCells) \
-	SHADER_PARAMETER(FIntVector, CulledGridSize) \
-	SHADER_PARAMETER(uint32, MaxCulledLightsPerCell) \
-	SHADER_PARAMETER(uint32, LightGridPixelSizeShift) \
-	SHADER_PARAMETER(FVector3f, LightGridZParams) \
-	SHADER_PARAMETER(FVector3f, DirectionalLightDirection) \
-	SHADER_PARAMETER(FVector3f, DirectionalLightColor) \
-	SHADER_PARAMETER(float, DirectionalLightVolumetricScatteringIntensity) \
-	SHADER_PARAMETER(uint32, DirectionalLightShadowMapChannelMask) \
-	SHADER_PARAMETER(FVector2f, DirectionalLightDistanceFadeMAD) \
-	SHADER_PARAMETER(uint32, NumDirectionalLightCascades) \
-	SHADER_PARAMETER(int32, DirectionalLightVSM) \
-	SHADER_PARAMETER(FVector4f, CascadeEndDepths) \
-	SHADER_PARAMETER_ARRAY(FMatrix44f, DirectionalLightWorldToShadowMatrix, [GMaxForwardShadowCascades]) \
-	SHADER_PARAMETER_ARRAY(FVector4f, DirectionalLightShadowmapMinMax, [GMaxForwardShadowCascades]) \
-	SHADER_PARAMETER(FVector4f, DirectionalLightShadowmapAtlasBufferSize) \
-	SHADER_PARAMETER(float, DirectionalLightDepthBias) \
-	SHADER_PARAMETER(uint32, DirectionalLightUseStaticShadowing) \
-	SHADER_PARAMETER(uint32, SimpleLightsEndIndex) \
-	SHADER_PARAMETER(uint32, ClusteredDeferredSupportedEndIndex) \
-	SHADER_PARAMETER(FVector4f, DirectionalLightStaticShadowBufferSize) \
-	SHADER_PARAMETER(FMatrix44f, DirectionalLightWorldToStaticShadow) \
-	SHADER_PARAMETER(uint32, DirectLightingShowFlag) \
-	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightShadowmapAtlas) \
-	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowmapSampler) \
-	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightStaticShadowmap) \
-	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowmapSampler) \
-	SHADER_PARAMETER_SRV(Buffer<float4>, ForwardLocalLightBuffer) \
-	SHADER_PARAMETER_SRV(Buffer<uint>, NumCulledLightsGrid) \
-	SHADER_PARAMETER_SRV(Buffer<uint>, CulledLightDataGrid) \
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FForwardLightData, )
+	SHADER_PARAMETER(uint32,NumLocalLights)
+	SHADER_PARAMETER(uint32, NumReflectionCaptures)
+	SHADER_PARAMETER(uint32, HasDirectionalLight)
+	SHADER_PARAMETER(uint32, NumGridCells)
+	SHADER_PARAMETER(FIntVector, CulledGridSize)
+	SHADER_PARAMETER(uint32, MaxCulledLightsPerCell)
+	SHADER_PARAMETER(uint32, LightGridPixelSizeShift)
+	SHADER_PARAMETER(FVector3f, LightGridZParams)
+	SHADER_PARAMETER(FVector3f, DirectionalLightDirection)
+	SHADER_PARAMETER(FVector3f, DirectionalLightColor)
+	SHADER_PARAMETER(float, DirectionalLightVolumetricScatteringIntensity)
+	SHADER_PARAMETER(uint32, DirectionalLightShadowMapChannelMask)
+	SHADER_PARAMETER(FVector2f, DirectionalLightDistanceFadeMAD)
+	SHADER_PARAMETER(uint32, NumDirectionalLightCascades)
+	SHADER_PARAMETER(int32, DirectionalLightVSM)
+	SHADER_PARAMETER(FVector4f, CascadeEndDepths)
+	SHADER_PARAMETER_ARRAY(FMatrix44f, DirectionalLightWorldToShadowMatrix, [GMaxForwardShadowCascades])
+	SHADER_PARAMETER_ARRAY(FVector4f, DirectionalLightShadowmapMinMax, [GMaxForwardShadowCascades])
+	SHADER_PARAMETER(FVector4f, DirectionalLightShadowmapAtlasBufferSize)
+	SHADER_PARAMETER(float, DirectionalLightDepthBias)
+	SHADER_PARAMETER(uint32, DirectionalLightUseStaticShadowing)
+	SHADER_PARAMETER(uint32, SimpleLightsEndIndex)
+	SHADER_PARAMETER(uint32, ClusteredDeferredSupportedEndIndex)
+	SHADER_PARAMETER(FVector4f, DirectionalLightStaticShadowBufferSize)
+	SHADER_PARAMETER(FMatrix44f, DirectionalLightWorldToStaticShadow)
+	SHADER_PARAMETER(uint32, DirectLightingShowFlag)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectionalLightShadowmapAtlas)
+	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowmapSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightStaticShadowmap)
+	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowmapSampler)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ForwardLocalLightBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumCulledLightsGrid)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledLightDataGrid)
 	SHADER_PARAMETER_TEXTURE(Texture2D, DummyRectLightSourceTexture)
-
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FForwardLightData,)
-	FORWARD_GLOBAL_LIGHT_DATA_UNIFORM_BUFFER_MEMBER_TABLE
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+extern TRDGUniformBufferRef<FForwardLightData> CreateDummyForwardLightUniformBuffer(FRDGBuilder& GraphBuilder);
 
 class FForwardLightingViewResources
 {
 public:
-	FForwardLightData ForwardLightData;
+	void SetUniformBuffer(TRDGUniformBufferRef<FForwardLightData> UniformBuffer)
+	{
+		check(UniformBuffer);
+		ForwardLightUniformBuffer = UniformBuffer;
+		ForwardLightData = UniformBuffer->GetContents();
+	}
+
+	const FForwardLightData* ForwardLightData = nullptr;
+	TRDGUniformBufferRef<FForwardLightData> ForwardLightUniformBuffer = nullptr;
+
 	const FLightSceneProxy* SelectedForwardDirectionalLightProxy = nullptr;
 
-	TUniformBufferRef<FForwardLightData> ForwardLightDataUniformBuffer;
-	FDynamicReadBuffer ForwardLocalLightBuffer;
-	FRWBuffer NumCulledLightsGrid;
-	FRWBuffer CulledLightDataGrid;
 	// Index into FSceneRenderer::VisibleLightInfos for each light in the ForwardLocalLightBuffer (these are copied when the light grid is built)
 	TArray<int32> LocalLightVisibleLightInfosIndex;
-
-	void Release()
-	{
-		ForwardLightDataUniformBuffer.SafeRelease();
-		ForwardLocalLightBuffer.Release();
-		NumCulledLightsGrid.Release();
-		CulledLightDataGrid.Release();
-	}
 };
 
 #define ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA 1
-
-class FForwardLightingCullingResources
-{
-public:
-
-#if ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
-	FDynamicReadBuffer ViewSpacePosAndRadiusData;
-	FDynamicReadBuffer ViewSpaceDirAndPreprocAngleData;
-#endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
-	void Release()
-	{
-#if ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
-		ViewSpacePosAndRadiusData.Release();
-		ViewSpaceDirAndPreprocAngleData.Release();
-#endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
-	}
-};
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FVolumetricFogGlobalData,) 
 	SHADER_PARAMETER(FIntVector, GridSizeInt)
@@ -1431,9 +1410,7 @@ public:
 	// We need to extract that RDG resource because the RHI must be accessed to setup FTranslucentLightingInjectPS & TVolumetricFogLightScatteringCS
 	TRefCountPtr<IPooledRenderTarget> VolumetricCloudShadowExtractedRenderTarget[NUM_ATMOSPHERE_LIGHTS] = {};
 
-	/** Used when there is no view state, buffers reallocate every frame. */
-	TUniquePtr<FForwardLightingViewResources> ForwardLightingResourcesStorage;
-
+	FForwardLightingViewResources ForwardLightingResources;
 	FVolumetricFogViewResources VolumetricFogResources;
 
 	// Size of the HZB's mipmap 0
@@ -2481,13 +2458,6 @@ inline void SetBlackAlpha13DIfNull(FRHITexture*& Tex)
 		// we fall back to 2D which are unbound mobile parameters
 		SetBlack2DIfNull(Tex); // This is actually a rgb=0, a=1 texture
 	}
-}
-
-extern TAutoConsoleVariable<int32> CVarTransientResourceAliasing_Buffers;
-
-FORCEINLINE bool IsTransientResourceBufferAliasingEnabled()
-{
-	return (GSupportsTransientResourceAliasing && CVarTransientResourceAliasing_Buffers.GetValueOnRenderThread() != 0);
 }
 
 struct FFastVramConfig

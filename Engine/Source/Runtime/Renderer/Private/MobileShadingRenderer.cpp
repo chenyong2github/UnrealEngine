@@ -548,23 +548,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	{
 		FViewInfo& View = Views[ViewIndex];
 		
-		if (bDeferredShading)
-		{
-			if (View.ViewState)
-			{
-				if (!View.ViewState->ForwardLightingResources)
-				{
-					View.ViewState->ForwardLightingResources.Reset(new FForwardLightingViewResources());
-				}
-				View.ForwardLightingResources = View.ViewState->ForwardLightingResources.Get();
-			}
-			else
-			{
-				View.ForwardLightingResourcesStorage.Reset(new FForwardLightingViewResources());
-				View.ForwardLightingResources = View.ForwardLightingResourcesStorage.Get();
-			}
-		}
-	
 		if (View.ViewState)
 		{
 			View.ViewState->UpdatePreExposure(View);

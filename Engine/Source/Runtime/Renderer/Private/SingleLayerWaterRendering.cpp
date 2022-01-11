@@ -132,7 +132,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSingleLayerWaterCommonShaderParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
-	SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -403,7 +403,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 				SetupReflectionUniformParameters(View, ReflectionUniformParameters);
 				Parameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 			}
-			Parameters.ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+			Parameters.ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 			if (Strata::IsStrataEnabled())
 			{
 				Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);

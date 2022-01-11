@@ -1067,8 +1067,6 @@ public:
 
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
 
-	FForwardLightingCullingResources ForwardLightingCullingResources;
-
 	TRefCountPtr<IPooledRenderTarget> LightScatteringHistory;
 	TRefCountPtr<IPooledRenderTarget> PrevLightScatteringConservativeDepthTexture;
 

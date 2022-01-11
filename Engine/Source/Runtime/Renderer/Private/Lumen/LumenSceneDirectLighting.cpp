@@ -483,7 +483,7 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
 		SHADER_PARAMETER(uint32, LightIndex)
 		SHADER_PARAMETER(uint32, DummyZeroForFixingShaderCompilerBug)
-		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
@@ -901,7 +901,7 @@ void SampleShadowMap(
 		PassParameters->LightIndex = Light.LightIndex;
 		PassParameters->DummyZeroForFixingShaderCompilerBug = 0;
 		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, Light.LightSceneInfo, PassParameters->DeferredLightUniforms);
-		PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+		PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 
 		GetVolumeShadowingShaderParameters(
 			GraphBuilder,

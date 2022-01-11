@@ -19,7 +19,6 @@
 #include "RendererInterface.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 
-class FForwardLightingViewResources;
 class FSceneView;
 class FSceneViewFamily;
 class FSceneViewStateInterface;
@@ -1213,9 +1212,6 @@ public:
 	FTextureRHIRef AtmosphereTransmittanceTexture;
 	FTextureRHIRef AtmosphereIrradianceTexture;
 	FTextureRHIRef AtmosphereInscatterTexture;
-
-	/** Points to the view state's resources if a view state exists. */
-	FForwardLightingViewResources* ForwardLightingResources;
 
 	/** Water rendering related data */
 	FShaderResourceViewRHIRef WaterIndirectionBuffer;

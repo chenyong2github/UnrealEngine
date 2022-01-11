@@ -939,8 +939,6 @@ void FViewInfo::Init()
 	bCustomDepthStencilValid = false;
 	bUsesCustomDepthStencilInTranslucentMaterials = false;
 
-	ForwardLightingResources = nullptr;
-
 	NumBoxReflectionCaptures = 0;
 	NumSphereReflectionCaptures = 0;
 	FurthestReflectionCaptureDistance = 0;

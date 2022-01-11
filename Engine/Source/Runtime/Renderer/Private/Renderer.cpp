@@ -136,10 +136,6 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 		Mesh.MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(FeatureLevel);
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
-		//Apply the minimal forward lighting resources
-		extern FForwardLightingViewResources* GetMinimalDummyForwardLightingResources();
-		View.ForwardLightingResources = GetMinimalDummyForwardLightingResources();
-
 		FSinglePrimitiveStructured& SinglePrimitiveStructured = GTilePrimitiveBuffer;
 
 		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, EVertexInputStreamType::PositionOnly) >= 0)
@@ -199,7 +195,10 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 			}
 		}
 
+		FRDGBuilder& GraphBuilder = RenderContext.GraphBuilder;
+
 		View.InitRHIResources();
+		View.ForwardLightingResources.SetUniformBuffer(CreateDummyForwardLightUniformBuffer(GraphBuilder));
 
 		TUniformBufferRef<FReflectionCaptureShaderData> EmptyReflectionCaptureUniformBuffer;
 
@@ -211,8 +210,6 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 		//get the blend mode of the material
 		const FMaterial& MeshMaterial = Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
 		const EBlendMode MaterialBlendMode = MeshMaterial.GetBlendMode();
-
-		FRDGBuilder& GraphBuilder = RenderContext.GraphBuilder;
 
 		const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
 		// Materials sampling VTs need FVirtualTextureSystem to be updated before being rendered :

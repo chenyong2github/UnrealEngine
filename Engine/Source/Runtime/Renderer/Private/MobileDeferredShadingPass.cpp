@@ -42,7 +42,7 @@ class FMobileDirectLightFunctionPS : public FMaterialShader
 	using FPermutationDomain = TShaderPermutationDomain< FUseClustred, FApplySkyReflection, FApplyCSM, FApplyReflection, FShadowQuality>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, Forward)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, Forward)
 		SHADER_PARAMETER_STRUCT_REF(FMobileDirectionalLightShaderParameters, MobileDirectionalLight)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
@@ -249,7 +249,7 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 	FMobileDirectLightFunctionPS::FParameters PassParameters;
-	PassParameters.Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+	PassParameters.Forward = View.ForwardLightingResources.ForwardLightUniformBuffer;
 	PassParameters.MobileDirectionalLight = Scene.UniformBuffers.MobileDirectionalLightUniformBuffers[1];
 	PassParameters.ReflectionCaptureData = GetShaderBinding(View.ReflectionCaptureUniformBuffer);
 	FReflectionUniformParameters ReflectionUniformParameters;

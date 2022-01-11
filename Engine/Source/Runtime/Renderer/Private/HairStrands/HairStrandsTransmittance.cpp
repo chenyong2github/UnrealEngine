@@ -196,7 +196,7 @@ class FHairStrandsVoxelTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayMarchMaskTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutTransmittanceMask)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 
 		RDG_BUFFER_ACCESS(IndirectArgsBuffer, ERHIAccess::IndirectArgs)
 
@@ -245,7 +245,7 @@ static FRDGBufferRef AddHairStrandsVoxelTransmittanceMaskPass(
 	{
 		check(VirtualShadowMapArray != nullptr);
 		Parameters->VirtualShadowMap = VirtualShadowMapArray->GetSamplingParameters(GraphBuilder);
-		Parameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+		Parameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 		Parameters->RayMarchMaskTexture = nullptr;
 		Parameters->ShadowMaskBitsTexture = ShadowMaskTexture;
 	}

@@ -805,7 +805,7 @@ template <typename ElementType>
 FORCEINLINE FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,
 	const TCHAR* Name,
-	const TConstArrayView<ElementType>& InitialData,
+	TConstArrayView<ElementType> InitialData,
 	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None)
 {
 	static const ElementType DummyElement = ElementType();
@@ -857,6 +857,21 @@ FORCEINLINE FRDGBufferRef CreateUploadBuffer(
 	const FRDGUploadData<ElementType>& InitialData)
 {
 	return CreateUploadBuffer(GraphBuilder, Name, sizeof(ElementType), InitialData.Num(), InitialData);
+}
+
+template <typename ElementType>
+FORCEINLINE FRDGBufferRef CreateUploadBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	TConstArrayView<ElementType> InitialData,
+	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None)
+{
+	static const ElementType DummyElement = ElementType();
+	if (InitialData.Num() == 0)
+	{
+		return CreateUploadBuffer(GraphBuilder, Name, sizeof(ElementType), 1, &DummyElement, sizeof(ElementType), ERDGInitialDataFlags::NoCopy);
+	}
+	return CreateUploadBuffer(GraphBuilder, Name, sizeof(ElementType), InitialData.Num(), InitialData.GetData(), sizeof(ElementType) * InitialData.Num(), InitialDataFlags);
 }
 
 /** Creates a vertex buffer with initial data by creating an upload pass. */
