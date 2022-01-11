@@ -126,7 +126,7 @@ class FStructuredArchiveArray;
 class FStructuredArchiveStream;
 class FStructuredArchiveMap;
 
-namespace UE4StructuredArchive_Private
+namespace StructuredArchive_Private
 {
 	struct FElementId
 	{
@@ -229,7 +229,7 @@ namespace UE4StructuredArchive_Private
  * and can merely have a value serialized into it. That value may be a literal (eg. int, float) or compound object
  * (eg. object, array, map).
  */
-class CORE_API FStructuredArchiveSlot final : public UE4StructuredArchive_Private::FSlotBase
+class CORE_API FStructuredArchiveSlot final : public StructuredArchive_Private::FSlotBase
 {
 public:
 	FStructuredArchiveRecord EnterRecord();
@@ -313,14 +313,14 @@ private:
 	friend FStructuredArchiveStream;
 	friend FStructuredArchiveMap;
 
-	using UE4StructuredArchive_Private::FSlotBase::FSlotBase;
+	using StructuredArchive_Private::FSlotBase::FSlotBase;
 };
 
 /**
  * Represents a record in the structured archive. An object contains slots that are identified by FArchiveName,
  * which may be compiled out with binary-only archives.
  */
-class CORE_API FStructuredArchiveRecord final : public UE4StructuredArchive_Private::FSlotBase
+class CORE_API FStructuredArchiveRecord final : public StructuredArchive_Private::FSlotBase
 {
 public:
 	FStructuredArchiveSlot EnterField(FArchiveFieldName Name);
@@ -344,14 +344,14 @@ private:
 	friend FStructuredArchive;
 	friend FStructuredArchiveSlot;
 
-	using UE4StructuredArchive_Private::FSlotBase::FSlotBase;
+	using StructuredArchive_Private::FSlotBase::FSlotBase;
 };
 
 /**
  * Represents an array in the structured archive. An object contains slots that are identified by a FArchiveFieldName,
  * which may be compiled out with binary-only archives.
  */
-class CORE_API FStructuredArchiveArray final : public UE4StructuredArchive_Private::FSlotBase
+class CORE_API FStructuredArchiveArray final : public StructuredArchive_Private::FSlotBase
 {
 public:
 	FStructuredArchiveSlot EnterElement();
@@ -367,13 +367,13 @@ private:
 	friend FStructuredArchive;
 	friend FStructuredArchiveSlot;
 
-	using UE4StructuredArchive_Private::FSlotBase::FSlotBase;
+	using StructuredArchive_Private::FSlotBase::FSlotBase;
 };
 
 /**
  * Represents an unsized sequence of slots in the structured archive (similar to an array, but without a known size).
  */
-class CORE_API FStructuredArchiveStream final : public UE4StructuredArchive_Private::FSlotBase
+class CORE_API FStructuredArchiveStream final : public StructuredArchive_Private::FSlotBase
 {
 public:
 	FStructuredArchiveSlot EnterElement();
@@ -389,14 +389,14 @@ private:
 	friend FStructuredArchive;
 	friend FStructuredArchiveSlot;
 
-	using UE4StructuredArchive_Private::FSlotBase::FSlotBase;
+	using StructuredArchive_Private::FSlotBase::FSlotBase;
 };
 
 /**
  * Represents a map in the structured archive. A map is similar to a record, but keys can be read back out from an archive.
  * (This is an important distinction for binary archives).
  */
-class CORE_API FStructuredArchiveMap final : public UE4StructuredArchive_Private::FSlotBase
+class CORE_API FStructuredArchiveMap final : public StructuredArchive_Private::FSlotBase
 {
 public:
 	FStructuredArchiveSlot EnterElement(FString& Name);
@@ -406,7 +406,7 @@ private:
 	friend FStructuredArchive;
 	friend FStructuredArchiveSlot;
 
-	using UE4StructuredArchive_Private::FSlotBase::FSlotBase;
+	using StructuredArchive_Private::FSlotBase::FSlotBase;
 };
 
 /**
@@ -488,10 +488,10 @@ private:
 
 	struct FElement
 	{
-		UE4StructuredArchive_Private::FElementId Id;
-		UE4StructuredArchive_Private::EElementType Type;
+		StructuredArchive_Private::FElementId Id;
+		StructuredArchive_Private::EElementType Type;
 
-		FElement(UE4StructuredArchive_Private::FElementId InId, UE4StructuredArchive_Private::EElementType InType)
+		FElement(StructuredArchive_Private::FElementId InId, StructuredArchive_Private::EElementType InType)
 			: Id(InId)
 			, Type(InType)
 		{
@@ -500,9 +500,9 @@ private:
 
 	struct FIdGenerator
 	{
-		UE4StructuredArchive_Private::FElementId Generate()
+		StructuredArchive_Private::FElementId Generate()
 		{
-			return UE4StructuredArchive_Private::FElementId(NextId++);
+			return StructuredArchive_Private::FElementId(NextId++);
 		}
 
 	private:
@@ -517,12 +517,12 @@ private:
 	/**
 	 * The ID of the root element.
 	 */
-	UE4StructuredArchive_Private::FElementId RootElementId;
+	StructuredArchive_Private::FElementId RootElementId;
 
 	/**
 	 * The element ID assigned for the current slot. Slots are transient, and only exist as placeholders until something is written into them. This is reset to 0 when something is created in a slot, and the created item can assume the element id.
 	 */
-	UE4StructuredArchive_Private::FElementId CurrentSlotElementId;
+	StructuredArchive_Private::FElementId CurrentSlotElementId;
 
 	/**
 	 * Tracks the current stack of objects being written. Used by SetScope() to ensure that scopes are always closed correctly in the underlying formatter,
@@ -542,19 +542,19 @@ private:
 	/**
 	 * Whether or not we've just entered an attribute
 	 */
-	UE4StructuredArchive_Private::EEnteringAttributeState CurrentEnteringAttributeState = UE4StructuredArchive_Private::EEnteringAttributeState::NotEnteringAttribute;
+	StructuredArchive_Private::EEnteringAttributeState CurrentEnteringAttributeState = StructuredArchive_Private::EEnteringAttributeState::NotEnteringAttribute;
 
 	/**
 	 * Enters the current slot for serializing a value. Asserts if the archive is not in a state about to write to an empty-slot.
 	 */
-	void EnterSlot(UE4StructuredArchive_Private::FSlotPosition Slot, bool bEnteringAttributedValue = false);
+	void EnterSlot(StructuredArchive_Private::FSlotPosition Slot, bool bEnteringAttributedValue = false);
 
 	/**
 	 * Enters the current slot, adding an element onto the stack. Asserts if the archive is not in a state about to write to an empty-slot.
 	 *
 	 * @return  The depth of the newly-entered slot.
 	 */
-	int32 EnterSlotAsType(UE4StructuredArchive_Private::FSlotPosition Slot, UE4StructuredArchive_Private::EElementType ElementType);
+	int32 EnterSlotAsType(StructuredArchive_Private::FSlotPosition Slot, StructuredArchive_Private::EElementType ElementType);
 
 	/**
 	 * Leaves slot at the top of the current scope
@@ -564,16 +564,16 @@ private:
 	/**
 	 * Switches to the scope for the given slot.
 	 */
-	void SetScope(UE4StructuredArchive_Private::FSlotPosition Slot);
+	void SetScope(StructuredArchive_Private::FSlotPosition Slot);
 #endif
 };
 
-FORCEINLINE FArchive& UE4StructuredArchive_Private::FSlotBase::GetUnderlyingArchive() const
+FORCEINLINE FArchive& StructuredArchive_Private::FSlotBase::GetUnderlyingArchive() const
 {
 	return Ar.GetUnderlyingArchive();
 }
 
-FORCEINLINE const FArchiveState& UE4StructuredArchive_Private::FSlotBase::GetArchiveState() const
+FORCEINLINE const FArchiveState& StructuredArchive_Private::FSlotBase::GetArchiveState() const
 {
 	return Ar.GetArchiveState();
 }
