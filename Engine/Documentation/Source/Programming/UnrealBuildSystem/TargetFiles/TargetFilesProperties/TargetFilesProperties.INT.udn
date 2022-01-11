@@ -82,7 +82,7 @@ $ bUseChaosChecked (Boolean): Whether to compile in checked chaos features for d
 
 $ bUseChaosMemoryTracking (Boolean): Whether to compile in chaos memory tracking features
 
-$ bCustomSceneQueryStructure (Boolean): Whether scene query acceleration is done by UE4. The physx scene query structure is still created, but we do not use it.
+$ bCustomSceneQueryStructure (Boolean): Whether scene query acceleration is done by UE. The physx scene query structure is still created, but we do not use it.
 
 $ bCompilePhysX (Boolean): Whether to include PhysX support.
 
