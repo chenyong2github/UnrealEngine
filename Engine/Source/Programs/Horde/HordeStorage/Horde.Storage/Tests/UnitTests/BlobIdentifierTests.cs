@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Horde.Storage.Implementation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json;
