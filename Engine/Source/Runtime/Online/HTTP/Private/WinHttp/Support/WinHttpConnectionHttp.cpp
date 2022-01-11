@@ -943,7 +943,7 @@ bool FWinHttpConnectionHttp::FinishRequest(const EHttpRequestStatus::Type NewFin
 	// Log-level Log if successful, Warning if failure
 	if (FinalState == EHttpRequestStatus::Succeeded)
 	{
-		UE_LOG(LogWinHttp, Log, TEXT("WinHttp Http[%p]: Request Complete. State=[%s]"), this, EHttpRequestStatus::ToString(FinalState.GetValue()));
+		UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Request Complete. State=[%s]"), this, EHttpRequestStatus::ToString(FinalState.GetValue()));
 	}
 	else
 	{
