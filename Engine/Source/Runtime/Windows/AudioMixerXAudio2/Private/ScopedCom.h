@@ -2,6 +2,13 @@
 
 #pragma once
 
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/MinWindows.h"
+
+THIRD_PARTY_INCLUDES_START
+#include <combaseapi.h>
+THIRD_PARTY_INCLUDES_END
+
 namespace Audio
 {
 	struct FScopeComString final
@@ -10,7 +17,7 @@ namespace Audio
 
 		UE_NONCOPYABLE(FScopeComString)
 
-			const LPTSTR Get() const
+		const LPTSTR Get() const
 		{
 			return StringPtr;
 		}
@@ -33,3 +40,5 @@ namespace Audio
 		}
 	};
 }
+
+#include "Windows/HideWindowsPlatformTypes.h"
