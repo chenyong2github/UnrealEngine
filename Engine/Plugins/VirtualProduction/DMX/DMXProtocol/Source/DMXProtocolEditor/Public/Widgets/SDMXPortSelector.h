@@ -108,6 +108,12 @@ public:
 	/** Selects specified Port by Port Guid. If the Guid is not valid, clears the selection */
 	void SelectPort(const FGuid& PortGuid);
 
+	/** 
+	 * Instead of showing a selected port, the widget displays 'Multiple Values' and no longer returns a selected port.
+	 * The widget will no longer display 'Multiple Values' when a selection was made. 
+	 */
+	void SetHasMultipleValues();
+
 private:
 	/** Called to generate entries in the port name combo box */
 	TSharedRef<SWidget> GenerateComboBoxEntry(TSharedPtr<FDMXPortSelectorItem> Item);
@@ -129,6 +135,9 @@ private:
 
 	/** Called when ports changed */
 	void OnPortsChanged();
+
+	/** State where the widget was set to have multiple values */
+	bool bHasMultipleValues = false;
 
 	/** The combo box that holds all ports */
 	TSharedPtr<SComboBox<TSharedPtr<FDMXPortSelectorItem>>> PortNameComboBox;
