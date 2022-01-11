@@ -58,11 +58,6 @@ namespace AudioModulation
 	};
 } // namespace AudioModulation
 
-#if WITH_AUDIOMODULATION
-
-#if !UE_BUILD_SHIPPING
-#include "AudioModulationDebugger.h"
-#endif // !UE_BUILD_SHIPPING
 
 #if WITH_AUDIOMODULATION
 namespace AudioModulation
