@@ -104,6 +104,7 @@ namespace UnrealGameSync
 			if (!UserWorkspaceState.TryLoad(RootDir, out State))
 			{
 				State = new UserWorkspaceState();
+				State.RootDir = RootDir;
 				ImportWorkspaceState(RootDir, ClientName, BranchPath, State);
 				State.Save();
 			}
