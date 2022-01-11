@@ -1929,6 +1929,11 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 	ResultOut.Reset();
 	IndexMaps.Initialize(Mesh);
 
+	if (SourceMesh->HasTriangleGroups())
+	{
+		Mesh->EnableTriangleGroups();
+	}
+
 	for (int SourceTriangleID : SourceTriangles)
 	{
 		check(SourceMesh->IsTriangle(SourceTriangleID));
