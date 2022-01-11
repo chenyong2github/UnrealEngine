@@ -5075,7 +5075,7 @@ CORE_API void OnSetCVarFromIniEntry(const TCHAR *IniFile, const TCHAR *Key, cons
 
 		if(bAllowChange)
 		{
-			UE_LOG(LogConfig, Log, TEXT("Setting CVar [[%s:%s]]"), Key, Value);
+			UE_LOG(LogConfig, Verbose, TEXT("Setting CVar [[%s:%s]]"), Key, Value);
 			if (SetBy == ECVF_SetByMask)
 			{
 				CVar->SetWithCurrentPriority(Value);

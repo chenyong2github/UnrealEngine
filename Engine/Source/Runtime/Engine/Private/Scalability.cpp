@@ -351,7 +351,7 @@ void ApplyScalabilityGroupFromPlatformIni(const TCHAR* InSectionName, const TCHA
 			}
 
 			// Apply the platform override
-			UE_LOG(LogConfig, Log, TEXT("Setting CVar [[%s:%s]]"), *KeyString, *ValueString);
+			UE_LOG(LogConfig, Verbose, TEXT("Setting scalability CVar [[%s:%s]]"), *KeyString, *ValueString);
 			CVar->Set(*ValueString, ECVF_SetByScalability);
 		}			   
 	};
