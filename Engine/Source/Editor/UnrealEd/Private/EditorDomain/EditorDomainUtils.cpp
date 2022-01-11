@@ -1372,10 +1372,10 @@ void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, T
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
 	Cache.Get({{{WriteToString<128>(PackageName)}, GetBulkDataListKey(PackageDigest.Hash)}}, Owner,
-		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
+		[InnerCallback = MoveTemp(Callback)](FCacheGetResponse&& Response)
 		{
-			bool bOk = Params.Status == EStatus::Ok;
-			InnerCallback(bOk ? Params.Record.GetValue(GetBulkDataValueId()).GetData().Decompress() : FSharedBuffer());
+			bool bOk = Response.Status == EStatus::Ok;
+			InnerCallback(bOk ? Response.Record.GetValue(GetBulkDataValueId()).GetData().Decompress() : FSharedBuffer());
 		});
 }
 
@@ -1443,10 +1443,10 @@ void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::Derive
 	ICache& Cache = GetCache();
 	Cache.Get({{{WriteToString<192>(PackageName, TEXT("/"), BulkDataId)}, GetBulkDataPayloadIdKey(PackageAndGuidHash)}},
 		Owner,
-		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
+		[InnerCallback = MoveTemp(Callback)](FCacheGetResponse&& Response)
 		{
-			bool bOk = Params.Status == EStatus::Ok;
-			InnerCallback(bOk ? Params.Record.GetValue(GetBulkDataValueId()).GetData().Decompress() : FSharedBuffer());
+			bool bOk = Response.Status == EStatus::Ok;
+			InnerCallback(bOk ? Response.Record.GetValue(GetBulkDataValueId()).GetData().Decompress() : FSharedBuffer());
 		});
 }
 

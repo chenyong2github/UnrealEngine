@@ -245,15 +245,15 @@ public:
 	{
 	#if ENABLE_COOK_STATS
 		return InnerBackend->Put(Requests, Owner,
-			[this, OnComplete = MoveTemp(OnComplete)](FCachePutCompleteParams&& Params)
+			[this, OnComplete = MoveTemp(OnComplete)](FCachePutResponse&& Response)
 			{
-				if (Params.Status == EStatus::Ok)
+				if (Response.Status == EStatus::Ok)
 				{
 					UsageStats.TimePut().AddHit(0);
 				}
 				if (OnComplete)
 				{
-					OnComplete(MoveTemp(Params));
+					OnComplete(MoveTemp(Response));
 				}
 			});
 	#else
@@ -268,15 +268,15 @@ public:
 	{
 	#if ENABLE_COOK_STATS
 		return InnerBackend->Get(Requests, Owner,
-			[this, OnComplete = MoveTemp(OnComplete)](FCacheGetCompleteParams&& Params)
+			[this, OnComplete = MoveTemp(OnComplete)](FCacheGetResponse&& Response)
 			{
-				if (Params.Status == EStatus::Ok)
+				if (Response.Status == EStatus::Ok)
 				{
 					UsageStats.TimeGet().AddHit(0);
 				}
 				if (OnComplete)
 				{
-					OnComplete(MoveTemp(Params));
+					OnComplete(MoveTemp(Response));
 				}
 			});
 	#else
@@ -291,15 +291,15 @@ public:
 	{
 	#if ENABLE_COOK_STATS
 		return InnerBackend->PutValue(Requests, Owner,
-			[this, OnComplete = MoveTemp(OnComplete)](FCachePutValueCompleteParams&& Params)
+			[this, OnComplete = MoveTemp(OnComplete)](FCachePutValueResponse&& Response)
 			{
-				if (Params.Status == EStatus::Ok)
+				if (Response.Status == EStatus::Ok)
 				{
 					UsageStats.TimePut().AddHit(0);
 				}
 				if (OnComplete)
 				{
-					OnComplete(MoveTemp(Params));
+					OnComplete(MoveTemp(Response));
 				}
 			});
 	#else
@@ -314,15 +314,15 @@ public:
 	{
 	#if ENABLE_COOK_STATS
 		return InnerBackend->GetValue(Requests, Owner,
-			[this, OnComplete = MoveTemp(OnComplete)](FCacheGetValueCompleteParams&& Params)
+			[this, OnComplete = MoveTemp(OnComplete)](FCacheGetValueResponse&& Response)
 			{
-				if (Params.Status == EStatus::Ok)
+				if (Response.Status == EStatus::Ok)
 				{
 					UsageStats.TimeGet().AddHit(0);
 				}
 				if (OnComplete)
 				{
-					OnComplete(MoveTemp(Params));
+					OnComplete(MoveTemp(Response));
 				}
 			});
 	#else
@@ -337,15 +337,15 @@ public:
 	{
 	#if ENABLE_COOK_STATS
 		return InnerBackend->GetChunks(Requests, Owner,
-			[this, OnComplete = MoveTemp(OnComplete)](FCacheChunkCompleteParams&& Params)
+			[this, OnComplete = MoveTemp(OnComplete)](FCacheChunkResponse&& Response)
 			{
-				if (Params.Status == EStatus::Ok)
+				if (Response.Status == EStatus::Ok)
 				{
 					UsageStats.TimeGet().AddHit(0);
 				}
 				if (OnComplete)
 				{
-					OnComplete(MoveTemp(Params));
+					OnComplete(MoveTemp(Response));
 				}
 			});
 	#else

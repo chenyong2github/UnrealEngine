@@ -1304,11 +1304,11 @@ static bool BeginLoadDerivedMips(FTexturePlatformData& PlatformData, int32 First
 			check(Callback);
 			bool bMiss = false;
 			FRequestOwner RequestOwner(EPriority::Blocking);
-			GetCache().GetChunks(MipKeys, RequestOwner, [Callback = MoveTemp(Callback), &bMiss](FCacheChunkCompleteParams&& Params)
+			GetCache().GetChunks(MipKeys, RequestOwner, [Callback = MoveTemp(Callback), &bMiss](FCacheChunkResponse&& Response)
 			{
-				if (Params.Status == EStatus::Ok)
+				if (Response.Status == EStatus::Ok)
 				{
-					Callback(int32(Params.UserData), MoveTemp(Params.RawData));
+					Callback(int32(Response.UserData), MoveTemp(Response.RawData));
 				}
 				else
 				{

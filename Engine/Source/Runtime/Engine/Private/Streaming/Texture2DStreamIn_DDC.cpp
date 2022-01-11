@@ -182,13 +182,13 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 
 			if (MipKeys.Num())
 			{
-				GetCache().GetChunks(MipKeys, DDCRequestOwner, [this](FCacheChunkCompleteParams&& Params)
+				GetCache().GetChunks(MipKeys, DDCRequestOwner, [this](FCacheChunkResponse&& Response)
 				{
-					if (Params.Status == EStatus::Ok)
+					if (Response.Status == EStatus::Ok)
 					{
-						const int32 MipIndex = int32(Params.UserData);
+						const int32 MipIndex = int32(Response.UserData);
 						check(!DDCBuffers[MipIndex]);
-						DDCBuffers[MipIndex] = MoveTemp(Params.RawData);
+						DDCBuffers[MipIndex] = MoveTemp(Response.RawData);
 					}
 				});
 			}

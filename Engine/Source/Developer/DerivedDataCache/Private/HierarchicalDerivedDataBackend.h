@@ -499,15 +499,15 @@ public:
 					{
 						FRequestOwner BlockingOwner(EPriority::Blocking);
 						InnerBackends[PutCacheIndex]->Put(Requests, BlockingOwner,
-							[&OnComplete, &RequestsOk](FCachePutCompleteParams&& Params)
+							[&OnComplete, &RequestsOk](FCachePutResponse&& Response)
 							{
-								if (Params.Status == EStatus::Ok)
+								if (Response.Status == EStatus::Ok)
 								{
 									bool bIsAlreadyInSet = false;
-									RequestsOk.FindOrAdd(Params.Key, &bIsAlreadyInSet);
+									RequestsOk.FindOrAdd(Response.Key, &bIsAlreadyInSet);
 									if (OnComplete && !bIsAlreadyInSet)
 									{
-										OnComplete(MoveTemp(Params));
+										OnComplete(MoveTemp(Response));
 									}
 								}
 							});
@@ -551,9 +551,9 @@ public:
 				// Block on this because backends in this hierarchy are not expected to be asynchronous.
 				FRequestOwner BlockingOwner(EPriority::Blocking);
 				InnerBackends[GetCacheIndex]->Get(RemainingRequests, BlockingOwner,
-					[this, GetCacheIndex, &Owner, &OnComplete, &KeysOk](FCacheGetCompleteParams&& Params)
+					[this, GetCacheIndex, &Owner, &OnComplete, &KeysOk](FCacheGetResponse&& Response)
 					{
-						if (Params.Status == EStatus::Ok)
+						if (Response.Status == EStatus::Ok)
 						{
 							FRequestOwner AsyncOwner(FPlatformMath::Min(Owner.GetPriority(), EPriority::Highest));
 							FRequestBarrier AsyncBarrier(AsyncOwner);
@@ -562,14 +562,14 @@ public:
 							{
 								if (GetCacheIndex != FillCacheIndex)
 								{
-									AsyncPutInnerBackends[FillCacheIndex]->Put({{Params.Name, Params.Record, ECachePolicy::Default}}, AsyncOwner);
+									AsyncPutInnerBackends[FillCacheIndex]->Put({{Response.Name, Response.Record, ECachePolicy::Default}}, AsyncOwner);
 								}
 							}
 
-							KeysOk.Add(Params.Record.GetKey());
+							KeysOk.Add(Response.Record.GetKey());
 							if (OnComplete)
 							{
-								OnComplete(MoveTemp(Params));
+								OnComplete(MoveTemp(Response));
 							}
 						}
 					});
@@ -633,15 +633,15 @@ public:
 					{
 						FRequestOwner BlockingOwner(EPriority::Blocking);
 						InnerBackends[PutCacheIndex]->PutValue(Requests, BlockingOwner,
-							[&OnComplete, &RequestsOk](FCachePutValueCompleteParams&& Params)
+							[&OnComplete, &RequestsOk](FCachePutValueResponse&& Response)
 							{
-								if (Params.Status == EStatus::Ok)
+								if (Response.Status == EStatus::Ok)
 								{
 									bool bIsAlreadyInSet = false;
-									RequestsOk.FindOrAdd(Params.Key, &bIsAlreadyInSet);
+									RequestsOk.FindOrAdd(Response.Key, &bIsAlreadyInSet);
 									if (OnComplete && !bIsAlreadyInSet)
 									{
-										OnComplete(MoveTemp(Params));
+										OnComplete(MoveTemp(Response));
 									}
 								}
 							});
@@ -685,9 +685,9 @@ public:
 				// Block on this because backends in this hierarchy are not expected to be asynchronous.
 				FRequestOwner BlockingOwner(EPriority::Blocking);
 				InnerBackends[GetCacheIndex]->GetValue(RemainingRequests, BlockingOwner,
-					[this, GetCacheIndex, &Owner, &OnComplete, &KeysOk](FCacheGetValueCompleteParams&& Params)
+					[this, GetCacheIndex, &Owner, &OnComplete, &KeysOk](FCacheGetValueResponse&& Response)
 					{
-						if (Params.Status == EStatus::Ok)
+						if (Response.Status == EStatus::Ok)
 						{
 							FRequestOwner AsyncOwner(FPlatformMath::Min(Owner.GetPriority(), EPriority::Highest));
 							FRequestBarrier AsyncBarrier(AsyncOwner);
@@ -696,14 +696,14 @@ public:
 							{
 								if (GetCacheIndex != FillCacheIndex)
 								{
-									AsyncPutInnerBackends[FillCacheIndex]->PutValue({{Params.Name, Params.Key, Params.Value, ECachePolicy::Default}}, AsyncOwner);
+									AsyncPutInnerBackends[FillCacheIndex]->PutValue({{Response.Name, Response.Key, Response.Value, ECachePolicy::Default}}, AsyncOwner);
 								}
 							}
 
-							KeysOk.Add(Params.Key);
+							KeysOk.Add(Response.Key);
 							if (OnComplete)
 							{
-								OnComplete(MoveTemp(Params));
+								OnComplete(MoveTemp(Response));
 							}
 						}
 					});
@@ -759,19 +759,19 @@ public:
 				TArray<FCacheChunkRequest, TInlineAllocator<16>> ErrorChunks;
 				FRequestOwner BlockingOwner(EPriority::Blocking);
 				InnerBackend->GetChunks(RemainingRequests, BlockingOwner,
-					[&OnComplete, &RemainingRequests, &ErrorChunks](FCacheChunkCompleteParams&& Params)
+					[&OnComplete, &RemainingRequests, &ErrorChunks](FCacheChunkResponse&& Response)
 					{
-						if (Params.Status == EStatus::Error)
+						if (Response.Status == EStatus::Error)
 						{
-							const int32 ChunkIndex = Algo::BinarySearch(RemainingRequests, Params, TChunkLess());
+							const int32 ChunkIndex = Algo::BinarySearch(RemainingRequests, Response, TChunkLess());
 							checkf(ChunkIndex != INDEX_NONE, TEXT("Failed to find remaining chunk %s ")
 								TEXT(" with raw offset %") UINT64_FMT TEXT("."),
-								*WriteToString<96>(Params.Key, '/', Params.Id), Params.RawOffset);
+								*WriteToString<96>(Response.Key, '/', Response.Id), Response.RawOffset);
 							ErrorChunks.Add(RemainingRequests[ChunkIndex]);
 						}
 						else if (OnComplete)
 						{
-							OnComplete(MoveTemp(Params));
+							OnComplete(MoveTemp(Response));
 						}
 					});
 				BlockingOwner.Wait();

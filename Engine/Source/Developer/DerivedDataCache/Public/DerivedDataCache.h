@@ -20,28 +20,28 @@
 
 namespace UE::DerivedData { class ICacheStoreMaintainer; }
 namespace UE::DerivedData { class IRequestOwner; }
-namespace UE::DerivedData { struct FCacheChunkCompleteParams; }
 namespace UE::DerivedData { struct FCacheChunkRequest; }
-namespace UE::DerivedData { struct FCacheGetCompleteParams; }
+namespace UE::DerivedData { struct FCacheChunkResponse; }
 namespace UE::DerivedData { struct FCacheGetRequest; }
-namespace UE::DerivedData { struct FCacheGetValueCompleteParams; }
+namespace UE::DerivedData { struct FCacheGetResponse; }
 namespace UE::DerivedData { struct FCacheGetValueRequest; }
-namespace UE::DerivedData { struct FCachePutCompleteParams; }
+namespace UE::DerivedData { struct FCacheGetValueResponse; }
 namespace UE::DerivedData { struct FCachePutRequest; }
-namespace UE::DerivedData { struct FCachePutValueCompleteParams; }
+namespace UE::DerivedData { struct FCachePutResponse; }
 namespace UE::DerivedData { struct FCachePutValueRequest; }
+namespace UE::DerivedData { struct FCachePutValueResponse; }
 namespace UE::DerivedData::Private { class ICacheRecordPolicyShared; }
 
 namespace UE::DerivedData
 {
 
-using FCacheRequestName = FSharedString;
+using FCacheRequestName UE_DEPRECATED(5.0, "Use FSharedString.") = FSharedString;
 
-using FOnCachePutComplete = TUniqueFunction<void (FCachePutCompleteParams&& Params)>;
-using FOnCacheGetComplete = TUniqueFunction<void (FCacheGetCompleteParams&& Params)>;
-using FOnCachePutValueComplete = TUniqueFunction<void (FCachePutValueCompleteParams&& Params)>;
-using FOnCacheGetValueComplete = TUniqueFunction<void (FCacheGetValueCompleteParams&& Params)>;
-using FOnCacheChunkComplete = TUniqueFunction<void (FCacheChunkCompleteParams&& Params)>;
+using FOnCachePutComplete = TUniqueFunction<void (FCachePutResponse&& Response)>;
+using FOnCacheGetComplete = TUniqueFunction<void (FCacheGetResponse&& Response)>;
+using FOnCachePutValueComplete = TUniqueFunction<void (FCachePutValueResponse&& Response)>;
+using FOnCacheGetValueComplete = TUniqueFunction<void (FCacheGetValueResponse&& Response)>;
+using FOnCacheChunkComplete = TUniqueFunction<void (FCacheChunkResponse&& Response)>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -334,7 +334,7 @@ public:
 struct FCachePutRequest
 {
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/** A record to store. */
 	FCacheRecord Record;
@@ -347,10 +347,10 @@ struct FCachePutRequest
 };
 
 /** Parameters for the completion callback for cache put requests. */
-struct FCachePutCompleteParams
+struct FCachePutResponse
 {
 	/** A copy of the name from the request. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/** A copy of the key from the request. */
 	FCacheKey Key;
@@ -362,11 +362,13 @@ struct FCachePutCompleteParams
 	EStatus Status = EStatus::Error;
 };
 
+using FCachePutCompleteParams UE_DEPRECATED(5.0, "Use FCachePutResponse.") = FCachePutResponse;
+
 /** Parameters to request to get a cache record. */
 struct FCacheGetRequest
 {
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/** A key identifying the record to fetch. */
 	FCacheKey Key;
@@ -379,10 +381,10 @@ struct FCacheGetRequest
 };
 
 /** Parameters for the completion callback for cache get requests. */
-struct FCacheGetCompleteParams
+struct FCacheGetResponse
 {
 	/** A copy of the name from the request. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/**
 	 * Record for the request that completed or was canceled.
@@ -401,11 +403,13 @@ struct FCacheGetCompleteParams
 	EStatus Status = EStatus::Error;
 };
 
+using FCacheGetCompleteParams UE_DEPRECATED(5.0, "Use FCacheGetResponse.") = FCacheGetResponse;
+
 /** Parameters to request to put a cache value. */
 struct FCachePutValueRequest
 {
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/** A key that will uniquely identify the value in the cache. */
 	FCacheKey Key;
@@ -421,10 +425,10 @@ struct FCachePutValueRequest
 };
 
 /** Parameters for the completion callback for cache value put requests. */
-struct FCachePutValueCompleteParams
+struct FCachePutValueResponse
 {
 	/** A copy of the name from the request. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/** A copy of the key from the request. */
 	FCacheKey Key;
@@ -436,11 +440,13 @@ struct FCachePutValueCompleteParams
 	EStatus Status = EStatus::Error;
 };
 
+using FCachePutValueCompleteParams UE_DEPRECATED(5.0, "Use FCachePutValueResponse.") = FCachePutValueResponse;
+
 /** Parameters to request to get a cache value. */
 struct FCacheGetValueRequest
 {
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/** A key identifying the value to fetch. */
 	FCacheKey Key;
@@ -453,10 +459,10 @@ struct FCacheGetValueRequest
 };
 
 /** Parameters for the completion callback for cache value get requests. */
-struct FCacheGetValueCompleteParams
+struct FCacheGetValueResponse
 {
 	/** A copy of the name from the request. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/** A copy of the key from the request. */
 	FCacheKey Key;
@@ -476,11 +482,13 @@ struct FCacheGetValueCompleteParams
 	EStatus Status = EStatus::Error;
 };
 
+using FCacheGetValueCompleteParams UE_DEPRECATED(5.0, "Use FCacheGetValueResponse.") = FCacheGetValueResponse;
+
 /** Parameters to request a chunk, which is a subset of a value, from a cache record or cache value. */
 struct FCacheChunkRequest
 {
 	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/** A key identifying the record or value to fetch the chunk from. */
 	FCacheKey Key;
@@ -505,10 +513,10 @@ struct FCacheChunkRequest
 };
 
 /** Parameters for the completion callback for cache chunk requests. */
-struct FCacheChunkCompleteParams
+struct FCacheChunkResponse
 {
 	/** A copy of the name from the request. */
-	FCacheRequestName Name;
+	FSharedString Name;
 
 	/** A copy of the key from the request. */
 	FCacheKey Key;
@@ -534,6 +542,8 @@ struct FCacheChunkCompleteParams
 	/** The status of the request. */
 	EStatus Status = EStatus::Error;
 };
+
+using FCacheChunkCompleteParams UE_DEPRECATED(5.0, "Use FCacheChunkResponse.") = FCacheChunkResponse;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -292,13 +292,13 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 
 		auto MetaDataGetComplete =
 			[&FileSize, &PackageSource, &PackagePath, PackageSegment, Locks=this->Locks, OutUpdatedPath]
-			(UE::DerivedData::FCacheGetCompleteParams&& Params)
+			(UE::DerivedData::FCacheGetResponse&& Response)
 		{
 			FScopeLock ScopeLock(&Locks->Lock);
 			if ((PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor) &&
-				Params.Status == UE::DerivedData::EStatus::Ok)
+				Response.Status == UE::DerivedData::EStatus::Ok)
 			{
-				const FCbObject& MetaData = Params.Record.GetMeta();
+				const FCbObject& MetaData = Response.Record.GetMeta();
 				FileSize = MetaData["FileSize"].AsInt64();
 				PackageSource->Source = EPackageSource::Editor;
 			}
@@ -368,10 +368,10 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 	ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
 	RequestEditorDomainPackage(PackagePath, PackageEditorHash,
 		SkipFlags, Result->GetRequestOwner(),
-		[Result](FCacheGetCompleteParams&& Params)
+		[Result](FCacheGetResponse&& Response)
 		{
 			// Note that ~FEditorDomainReadArchive waits for this callback to be called, so Result cannot dangle
-			Result->OnRecordRequestComplete(MoveTemp(Params));
+			Result->OnRecordRequestComplete(MoveTemp(Response));
 		});
 
 	// Precache the exports segment
@@ -426,10 +426,10 @@ FOpenAsyncPackageResult FEditorDomain::OpenAsyncReadPackage(const FPackagePath& 
 	// Fetch meta-data only in the initial request
 	ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
 	RequestEditorDomainPackage(PackagePath, EditorDomainHash, SkipFlags, Result->GetRequestOwner(),
-		[Result](FCacheGetCompleteParams&& Params)
+		[Result](FCacheGetResponse&& Response)
 		{
 			// Note that ~FEditorDomainAsyncReadFileHandle waits for this callback to be called, so Result cannot dangle
-			Result->OnRecordRequestComplete(MoveTemp(Params));
+			Result->OnRecordRequestComplete(MoveTemp(Response));
 		});
 
 	const EPackageFormat Format = bHasEditorSource ? EPackageFormat::Binary : Result->GetPackageFormat();
@@ -632,12 +632,12 @@ void FEditorDomain::BatchDownload(TArrayView<FName> PackageNames)
 	if (!CacheRequests.IsEmpty())
 	{
 		FRequestBarrier Barrier(*BatchDownloadOwner);
-		GetCache().Get(CacheRequests, *BatchDownloadOwner, [this](FCacheGetCompleteParams&& Params)
+		GetCache().Get(CacheRequests, *BatchDownloadOwner, [this](FCacheGetResponse&& Response)
 			{
 				FScopeLock ScopeLock(&Locks->Lock);
 				TRefCountPtr<FPackageSource> PackageSource;
 				FPackageDigest ErrorDigest;
-				FName PackageName = FName(*Params.Name);
+				FName PackageName = FName(*Response.Name);
 				if (TryFindOrAddPackageSource(PackageName, PackageSource, &ErrorDigest))
 				{
 					PackageSource->bHasQueriedCatalog = true;
