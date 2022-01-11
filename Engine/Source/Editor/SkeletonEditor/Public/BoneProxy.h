@@ -141,4 +141,10 @@ public:
 		ETransformType TransformType,
 		TArrayView<UBoneProxy*> BoneProxies,
 		bool bIsCommit);
+
+	// Returns true if a given transform component differs from the reference
+	bool DiffersFromDefault(ESlateTransformComponent::Type Component, ETransformType TransformType) const;
+
+	// Resets the bone transform's component to its reference
+	void ResetToDefault(ESlateTransformComponent::Type InComponent, ETransformType TransformType);
 };
