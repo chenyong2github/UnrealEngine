@@ -11,6 +11,15 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandInfo.h"
 
+#if WITH_EDITOR
+
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "IDetailGroup.h"
+
+#endif
+
 namespace ESlateTransformComponent
 {
 	enum Type
@@ -64,6 +73,18 @@ public:
 
 	/** Notification for toggle checkstate change */
 	DECLARE_DELEGATE_FourParams(FOnToggleChanged, ESlateTransformComponent::Type, ESlateRotationRepresentation::Type, ESlateTransformSubComponent::Type, ECheckBoxState);
+
+	/** Delegate to fire when a row or the whole transform (type == max) is being copied to the clipboard */
+	DECLARE_DELEGATE_OneParam(FOnCopyToClipboard, ESlateTransformComponent::Type);
+
+	/** Delegate to fire when a row or the whole transform (type == max) is being pasted into from the clipboard */
+	DECLARE_DELEGATE_OneParam(FOnPasteFromClipboard, ESlateTransformComponent::Type);
+
+	/** Delegate to fire when a row or the whole transform (type == max) needs to be reset to its default */
+	DECLARE_DELEGATE_OneParam(FOnResetToDefault, ESlateTransformComponent::Type);
+
+	/** Delegate to determine if the row or the whole transform (type == max) differs from its default */
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FDiffersFromDefault, ESlateTransformComponent::Type);
 
 	SLATE_BEGIN_ARGS( SAdvancedTransformInputBox )
 		: _ConstructLocation(true)
@@ -187,6 +208,18 @@ public:
 
 		/** Padding around the toggle checkbox */
 		SLATE_ARGUMENT( FMargin, TogglePadding )
+
+		/** Delegate to react to copy to clipboard */
+		SLATE_EVENT( FOnCopyToClipboard, OnCopyToClipboard )
+
+		/** Delegate to react to paste from clipboard */
+		SLATE_EVENT( FOnPasteFromClipboard, OnPasteFromClipboard )
+
+		/** Delegate to react to reset to default */
+		SLATE_EVENT( FOnResetToDefault, OnResetToDefault )
+
+		/** Delegate to determine if a row (or the whole transform) differs from its default */
+		SLATE_EVENT( FDiffersFromDefault, DiffersFromDefault )
 
 	SLATE_END_ARGS()
 
@@ -1057,6 +1090,113 @@ public:
 		static FSlateIcon WorldIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), WorldIconName);
 		return WorldIcon;
 	}
+
+#if WITH_EDITOR
+	
+	static void ConstructGroupedTransformRows(
+		IDetailCategoryBuilder& InCategory,
+		const FText& InLabel,
+		const FText& InTooltip,
+		typename SAdvancedTransformInputBox<TransformType>::FArguments WidgetArgs
+		)
+	{
+		auto ConstructComponentWidgetRow = [WidgetArgs](FDetailWidgetRow& WidgetRow, ESlateTransformComponent::Type InComponent)
+		{
+			if(WidgetArgs._OnCopyToClipboard.IsBound() && WidgetArgs._OnPasteFromClipboard.IsBound())
+			{
+				WidgetRow
+				.CopyAction(FUIAction(
+					FExecuteAction::CreateLambda([WidgetArgs, InComponent]()
+					{
+						WidgetArgs._OnCopyToClipboard.ExecuteIfBound(InComponent);
+					}),
+					FCanExecuteAction())
+				);
+
+				WidgetRow.PasteAction(FUIAction(
+				FExecuteAction::CreateLambda([WidgetArgs, InComponent]()
+				{
+					WidgetArgs._OnPasteFromClipboard.ExecuteIfBound(InComponent);
+				}),
+				FCanExecuteAction::CreateLambda([WidgetArgs]() -> bool
+				{
+					return WidgetArgs._IsEnabled.Get();
+				})));
+			}
+
+			if(WidgetArgs._OnResetToDefault.IsBound() && WidgetArgs._DiffersFromDefault.IsBound())
+			{
+				WidgetRow.OverrideResetToDefault(FResetToDefaultOverride::Create(
+					TAttribute<bool>::CreateLambda([WidgetArgs, InComponent]() -> bool
+					{
+						if(!WidgetArgs._IsEnabled.Get())
+						{
+							return false;
+						}
+						return WidgetArgs._DiffersFromDefault.Execute(InComponent);
+					}),
+					FSimpleDelegate::CreateLambda([WidgetArgs, InComponent]()
+					{
+						WidgetArgs._OnResetToDefault.Execute(InComponent);
+					})
+				));
+			}
+			
+			if(InComponent != ESlateTransformComponent::Max)
+			{
+				WidgetRow
+				.NameContent()
+				.HAlign(HAlign_Fill)
+				[
+					SAdvancedTransformInputBox<TransformType>::ConstructLabel(WidgetArgs, InComponent)
+				]
+				.ValueContent()
+				.MinDesiredWidth(375.f)
+				.MaxDesiredWidth(375.f)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					[
+						SAdvancedTransformInputBox<TransformType>::ConstructWidget(WidgetArgs, InComponent)
+					]
+				];
+			}			
+		};
+		
+		IDetailGroup& Group = InCategory.AddGroup(*InLabel.ToString(), InLabel, false, true);
+		FDetailWidgetRow& HeaderRow = Group.HeaderRow();
+		ConstructComponentWidgetRow(HeaderRow, ESlateTransformComponent::Max);
+
+		HeaderRow
+		.Visibility(WidgetArgs._Visibility)
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(InLabel)
+			.ToolTipText(InTooltip)
+		];
+
+		if(WidgetArgs._ConstructLocation)
+		{
+			FDetailWidgetRow& WidgetRow = Group.AddWidgetRow();
+			ConstructComponentWidgetRow(WidgetRow, ESlateTransformComponent::Location);
+		}
+
+		if(WidgetArgs._ConstructRotation)
+		{
+			FDetailWidgetRow& WidgetRow = Group.AddWidgetRow();
+			ConstructComponentWidgetRow(WidgetRow, ESlateTransformComponent::Rotation);
+		}
+
+		if(WidgetArgs._ConstructScale)
+		{
+			FDetailWidgetRow& WidgetRow = Group.AddWidgetRow();
+			ConstructComponentWidgetRow(WidgetRow, ESlateTransformComponent::Scale);
+		}
+	}
+
+#endif
 
 	static const TArray<FText>& GetRotationRepresentationLabels()
 	{

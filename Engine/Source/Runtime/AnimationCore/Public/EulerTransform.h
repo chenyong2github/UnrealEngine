@@ -102,3 +102,8 @@ struct ANIMATIONCORE_API FEulerTransform
 	FORCEINLINE void SetScale3D(const FVector& InValue) { Scale = InValue; }
 	FORCEINLINE void NormalizeRotation() {}
 };
+
+template<> struct TBaseStructure<FEulerTransform>
+{
+	ANIMATIONCORE_API static UScriptStruct* Get() { return FEulerTransform::StaticStruct(); }
+};

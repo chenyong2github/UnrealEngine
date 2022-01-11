@@ -2,9 +2,6 @@
 
 #include "ControlRigElementDetails.h"
 #include "Widgets/SWidget.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
-#include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -16,7 +13,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Editor/SControlRigGizmoNameList.h"
 #include "ControlRigBlueprint.h"
-#include "IDetailGroup.h"
 #include "Graph/ControlRigGraph.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SEnumCombo.h"
@@ -26,6 +22,8 @@
 #include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "ScopedTransaction.h"
+#include "AnimationCoreLibrary.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigElementDetails"
 
@@ -900,6 +898,36 @@ TArray<FRigElementKey> FRigBaseElementDetails::GetElementKeys() const
 	return Keys;
 }
 
+bool FRigBaseElementDetails::IsAnyElementOfType(ERigElementType InType) const
+{
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+	{
+		if(ObjectBeingCustomized.IsValid())
+		{
+			if(ObjectBeingCustomized->GetContent<FRigBaseElement>().GetKey().Type == InType)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool FRigBaseElementDetails::IsAnyElementNotOfType(ERigElementType InType) const
+{
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+	{
+		if(ObjectBeingCustomized.IsValid())
+		{
+			if(ObjectBeingCustomized->GetContent<FRigBaseElement>().GetKey().Type != InType)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 bool FRigBaseElementDetails::IsAnyControlOfType(ERigControlType InType) const
 {
 	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
@@ -949,6 +977,17 @@ void FRigBaseElementDetails::RegisterSectionMappings(FPropertyEditorModule& Prop
 {
 }
 
+namespace ERigTransformElementDetailsTransform
+{
+	enum Type
+	{
+		Initial,
+		Current,
+		Offset,
+		Max
+	};
+}
+
 void FRigTransformElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	FRigBaseElementDetails::CustomizeDetails(DetailBuilder);
@@ -965,51 +1004,577 @@ void FRigTransformElementDetails::RegisterSectionMappings(FPropertyEditorModule&
 
 void FRigTransformElementDetails::CustomizeTransform(IDetailLayoutBuilder& DetailBuilder)
 {
-	IDetailCategoryBuilder& TransformCategory = DetailBuilder.EditCategory(TEXT("Transform"), LOCTEXT("Transform", "Transform"));
+	URigHierarchy* HierarchyBeingDebugged = HierarchyBeingCustomized;
+	bool IsSetupModeEnabled = false;
+	if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 	{
-		const TSharedPtr<IPropertyHandle> PoseHandle = DetailBuilder.GetProperty(TEXT("Pose"));
-		const TSharedPtr<IPropertyHandle> InitialHandle = PoseHandle->GetChildHandle(TEXT("Initial"));
-		const TSharedPtr<IPropertyHandle> CurrentHandle = PoseHandle->GetChildHandle(TEXT("Current"));
-
-		// setup initial global
+		IsSetupModeEnabled = DebuggedRig->IsSetupModeEnabled(); 
+ 		if(!IsSetupModeEnabled)
 		{
-			const TSharedPtr<IPropertyHandle> GlobalHandle = InitialHandle->GetChildHandle(TEXT("Global"));
-			const TSharedPtr<IPropertyHandle> TransformHandle = GlobalHandle->GetChildHandle(TEXT("Transform"));
+			HierarchyBeingDebugged = DebuggedRig->GetHierarchy();
+		}
+	}
 
-			TransformCategory.AddProperty(TransformHandle.ToSharedRef(), EPropertyLocation::Advanced)
-				.DisplayName(FText::FromString(TEXT("Initial Global")))
-				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
+	TArray<FRigElementKey> Keys = GetElementKeys();
+	Keys = HierarchyBeingDebugged->SortKeys(Keys);
+	const bool bAllControls = !IsAnyElementNotOfType(ERigElementType::Control);
+	TArray<ERigTransformElementDetailsTransform::Type> TransformTypes;
+	TArray<FText> ButtonLabels;
+	TArray<FText> ButtonTooltips;
+
+	if(bAllControls)
+	{
+		TransformTypes = {
+			ERigTransformElementDetailsTransform::Initial,
+			ERigTransformElementDetailsTransform::Current,
+			ERigTransformElementDetailsTransform::Offset
+		};
+		ButtonLabels = {
+			LOCTEXT("Initial", "Initial"),
+			LOCTEXT("Current", "Current"),
+			LOCTEXT("Offset", "Offset")
+		};
+		ButtonTooltips = {
+			LOCTEXT("InitialTooltip", "Initial transform in the reference pose"),
+			LOCTEXT("CurrentTooltip", "Current animation transform"),
+			LOCTEXT("OffsetTooltip", "Offset transform under the control")
+		};
+	}
+	else
+	{
+		TransformTypes = {
+			ERigTransformElementDetailsTransform::Initial,
+			ERigTransformElementDetailsTransform::Current
+		};
+		ButtonLabels = {
+			LOCTEXT("Initial", "Initial"),
+			LOCTEXT("Current", "Current")
+		};
+		ButtonTooltips = {
+			LOCTEXT("InitialTooltip", "Initial transform in the reference pose"),
+			LOCTEXT("CurrentTooltip", "Current animation transform")
+		};
+	}
+
+	TArray<bool> bTransformsEnabled;
+
+	// determine if the transforms are enabled
+	for(int32 Index = 0; Index < TransformTypes.Num(); Index++)
+	{
+		ERigTransformElementDetailsTransform::Type CurrentTransformType = (ERigTransformElementDetailsTransform::Type)Index;
+
+		bool bIsTransformEnabled = true;
+		if (IsAnyElementOfType(ERigElementType::Control))
+		{
+			bIsTransformEnabled = IsAnyControlOfType(ERigControlType::EulerTransform) ||
+				IsAnyControlOfType(ERigControlType::Transform) ||
+				CurrentTransformType == ERigTransformElementDetailsTransform::Offset;
+
+			if(!bIsTransformEnabled)
+			{
+				ButtonTooltips[Index] = FText::FromString(
+					FString::Printf(TEXT("%s\n%s"),
+						*ButtonTooltips[Index].ToString(), 
+						TEXT("Only transform controls can be edited here. Refer to the 'Value' section instead.")));
+			}
+		}
+		else if (IsAnyElementOfType(ERigElementType::Bone) && CurrentTransformType == ERigTransformElementDetailsTransform::Initial)
+		{
+			for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+			{
+				if(ObjectBeingCustomized.IsValid())
+				{
+					if(ObjectBeingCustomized->IsChildOf<FRigBoneElement>())
+					{
+						const FRigBoneElement BoneElement = ObjectBeingCustomized->GetContent<FRigBoneElement>();
+						bIsTransformEnabled = BoneElement.BoneType == ERigBoneType::User;
+
+						if(!bIsTransformEnabled)
+						{
+							ButtonTooltips[Index] = FText::FromString(
+								FString::Printf(TEXT("%s\n%s"),
+									*ButtonTooltips[Index].ToString(), 
+									TEXT("Imported Bones' initial transform cannot be edited.")));
+						}
+					}
+				}
+			}			
 		}
 
-		// setup initial local
+		bTransformsEnabled.Add(bIsTransformEnabled);
+	}
+
+	static TAttribute<TArray<ERigTransformElementDetailsTransform::Type>> PickedTransforms = 
+		TArray<ERigTransformElementDetailsTransform::Type>({ERigTransformElementDetailsTransform::Current});
+
+	TSharedPtr<SSegmentedControl<ERigTransformElementDetailsTransform::Type>> TransformChoiceWidget =
+		SSegmentedControl<ERigTransformElementDetailsTransform::Type>::Create(
+			TransformTypes,
+			ButtonLabels,
+			ButtonTooltips,
+			PickedTransforms
+		);
+
+	IDetailCategoryBuilder& TransformCategory = DetailBuilder.EditCategory(TEXT("Transform"), LOCTEXT("Transform", "Transform"));
+	AddChoiceWidgetRow(TransformCategory, FText::FromString(TEXT("TransformType")), TransformChoiceWidget.ToSharedRef());
+	
+	TSharedRef<UE::Math::TVector<float>> IsComponentRelative = MakeShareable(new UE::Math::TVector<float>(1.f, 1.f, 1.f));
+
+	using TransformType = FEulerTransform;
+	using NumericType = FVector::FReal;
+
+	SAdvancedTransformInputBox<TransformType>::FArguments TransformWidgetArgs = SAdvancedTransformInputBox<TransformType>::FArguments()
+		.DisplayToggle(false)
+		.DisplayRelativeWorld(true)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.OnGetIsComponentRelative_Lambda(
+			[IsComponentRelative](ESlateTransformComponent::Type InComponent)
+			{
+				return IsComponentRelative->operator[]((int32)InComponent) > 0.f;
+			})
+		.OnIsComponentRelativeChanged_Lambda(
+			[IsComponentRelative](ESlateTransformComponent::Type InComponent, bool bIsRelative)
+			{
+				IsComponentRelative->operator[]((int32)InComponent) = bIsRelative ? 1.f : 0.f;
+			});
+	
+	for(int32 Index = 0; Index < ButtonLabels.Num(); Index++)
+	{
+		ERigTransformElementDetailsTransform::Type CurrentTransformType = (ERigTransformElementDetailsTransform::Type)Index;
+
+		auto GetRelativeAbsoluteTransforms = [CurrentTransformType, Keys, HierarchyBeingDebugged](
+			const FRigElementKey& Key,
+			ERigTransformElementDetailsTransform::Type InTransformType = ERigTransformElementDetailsTransform::Max
+			) -> TPair<TransformType, TransformType>
 		{
-			const TSharedPtr<IPropertyHandle> LocalHandle = InitialHandle->GetChildHandle(TEXT("Local"));
-			const TSharedPtr<IPropertyHandle> TransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
+			if(InTransformType == ERigTransformElementDetailsTransform::Max)
+			{
+				InTransformType = CurrentTransformType;
+			}
 
-			TransformCategory.AddProperty(TransformHandle.ToSharedRef(), EPropertyLocation::Advanced)
-				.DisplayName(FText::FromString(TEXT("Initial Local")))
-				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
-		}
+			TransformType RelativeTransform = TransformType::Identity;
+			TransformType AbsoluteTransform = TransformType::Identity;
 
-		// setup current global
+			const bool bInitial = InTransformType == ERigTransformElementDetailsTransform::Initial; 
+			if(bInitial || InTransformType == ERigTransformElementDetailsTransform::Current)
+			{
+				RelativeTransform = HierarchyBeingDebugged->GetLocalTransform(Key, bInitial);
+				AbsoluteTransform = HierarchyBeingDebugged->GetGlobalTransform(Key, bInitial);
+			}
+			else
+			{
+				if(FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
+				{
+					RelativeTransform = HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, bInitial ? ERigTransformType::InitialLocal : ERigTransformType::CurrentLocal);
+					AbsoluteTransform = HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, bInitial ? ERigTransformType::InitialGlobal : ERigTransformType::CurrentGlobal);
+				}
+			}
+
+			return TPair<FTransform, FTransform>(RelativeTransform, AbsoluteTransform);
+		};
+
+		auto GetCombinedTransform = [IsComponentRelative, GetRelativeAbsoluteTransforms](
+			const FRigElementKey& Key,
+			ERigTransformElementDetailsTransform::Type InTransformType = ERigTransformElementDetailsTransform::Max
+			) -> TransformType
 		{
-			const TSharedPtr<IPropertyHandle> GlobalHandle = CurrentHandle->GetChildHandle(TEXT("Global"));
-			const TSharedPtr<IPropertyHandle> TransformHandle = GlobalHandle->GetChildHandle(TEXT("Transform"));
+			const TPair<TransformType, TransformType> TransformPair = GetRelativeAbsoluteTransforms(Key, InTransformType);
+			const TransformType RelativeTransform = TransformPair.Key;
+			const TransformType AbsoluteTransform = TransformPair.Value;
 
-			TransformCategory.AddProperty(TransformHandle.ToSharedRef(), EPropertyLocation::Advanced)
-				.DisplayName(FText::FromString(TEXT("Current Global")))
-				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
-		}
+			TransformType Xfo;
+			Xfo.SetLocation((IsComponentRelative->X > 0.f) ? RelativeTransform.GetLocation() : AbsoluteTransform.GetLocation());
+			Xfo.SetRotation((IsComponentRelative->Y > 0.f) ? RelativeTransform.GetRotation() : AbsoluteTransform.GetRotation());
+			Xfo.SetScale3D((IsComponentRelative->Z > 0.f) ? RelativeTransform.GetScale3D() : AbsoluteTransform.GetScale3D());
 
-		// setup current local
+			return Xfo;
+		};
+
+		auto GetSingleTransform = [GetRelativeAbsoluteTransforms](
+			const FRigElementKey& Key,
+			bool bIsRelative,
+			ERigTransformElementDetailsTransform::Type InTransformType = ERigTransformElementDetailsTransform::Max
+			) -> TransformType
 		{
-			const TSharedPtr<IPropertyHandle> LocalHandle = CurrentHandle->GetChildHandle(TEXT("Local"));
-			const TSharedPtr<IPropertyHandle> TransformHandle = LocalHandle->GetChildHandle(TEXT("Transform"));
+			const TPair<TransformType, TransformType> TransformPair = GetRelativeAbsoluteTransforms(Key, InTransformType);
+			const TransformType RelativeTransform = TransformPair.Key;
+			const TransformType AbsoluteTransform = TransformPair.Value;
+			return bIsRelative ? RelativeTransform : AbsoluteTransform;
+		};
 
-			TransformCategory.AddProperty(TransformHandle.ToSharedRef())
-				.DisplayName(FText::FromString(TEXT("Current Local")))
-				.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigTransformElementDetails::IsCurrentLocalEnabled)));
-		}
+		auto SetSingleTransform = [CurrentTransformType, GetRelativeAbsoluteTransforms, this, IsSetupModeEnabled, HierarchyBeingDebugged](
+			const FRigElementKey& Key,
+			TransformType InTransform,
+			bool bIsRelative)
+		{
+			const bool bInitial = CurrentTransformType == ERigTransformElementDetailsTransform::Initial; 
+
+			TArray<URigHierarchy*> HierarchiesToUpdate;
+			HierarchiesToUpdate.Add(HierarchyBeingDebugged);
+			if(bInitial || IsSetupModeEnabled)
+			{
+				HierarchiesToUpdate.Add(HierarchyBeingCustomized);
+			}
+
+			for(URigHierarchy* HierarchyToUpdate : HierarchiesToUpdate)
+			{
+				if(bInitial || CurrentTransformType == ERigTransformElementDetailsTransform::Current)
+				{
+					if(bIsRelative)
+					{
+						HierarchyToUpdate->SetLocalTransform(Key, InTransform, bInitial, true, true);
+					}
+					else
+					{
+						HierarchyToUpdate->SetGlobalTransform(Key, InTransform, bInitial, true, true);
+					}
+				}
+				else
+				{
+					if(!bIsRelative)
+					{
+						const FTransform ParentTransform = HierarchyToUpdate->GetParentTransform(Key, bInitial);
+						InTransform = FTransform(InTransform).GetRelativeTransform(ParentTransform);
+					}
+							
+					if(FRigControlElement* ControlElement = HierarchyToUpdate->Find<FRigControlElement>(Key))
+					{
+						HierarchyToUpdate->SetControlOffsetTransform(Key, InTransform, bInitial, true, true);
+					}
+				}
+			}
+		};
+
+		TransformWidgetArgs.Visibility_Lambda([TransformChoiceWidget, Index]() -> EVisibility
+		{
+			return TransformChoiceWidget->HasValue((ERigTransformElementDetailsTransform::Type)Index) ? EVisibility::Visible : EVisibility::Collapsed;
+		});
+
+		TransformWidgetArgs.IsEnabled(bTransformsEnabled[Index]);
+
+		TransformWidgetArgs.OnGetNumericValue_Lambda([Keys, GetCombinedTransform](
+			ESlateTransformComponent::Type Component,
+			ESlateRotationRepresentation::Type Representation,
+			ESlateTransformSubComponent::Type SubComponent) -> TOptional<NumericType>
+		{
+			TOptional<NumericType> FirstValue;
+
+			for(int32 Index = 0; Index < Keys.Num(); Index++)
+			{
+				const FRigElementKey& Key = Keys[Index];
+				TransformType Xfo = GetCombinedTransform(Key);
+
+				TOptional<NumericType> CurrentValue = SAdvancedTransformInputBox<TransformType>::GetNumericValueFromTransform(Xfo, Component, Representation, SubComponent);
+				if(!CurrentValue.IsSet())
+				{
+					return CurrentValue;
+				}
+
+				if(Index == 0)
+				{
+					FirstValue = CurrentValue;
+				}
+				else
+				{
+					if(!FMath::IsNearlyEqual(FirstValue.GetValue(), CurrentValue.GetValue()))
+					{
+						return TOptional<NumericType>();
+					}
+				}
+			}
+			
+			return FirstValue;
+		});
+
+		TransformWidgetArgs.OnNumericValueChanged_Lambda([
+			Keys,
+			this,
+			IsComponentRelative,
+			GetSingleTransform,
+			SetSingleTransform
+		](
+			ESlateTransformComponent::Type Component,
+			ESlateRotationRepresentation::Type Representation,
+			ESlateTransformSubComponent::Type SubComponent,
+			NumericType InNumericValue)
+		{
+			const bool bIsRelative = IsComponentRelative->Component((int32)Component) > 0.f;
+
+			FScopedTransaction Transaction(LOCTEXT("ChangeNumericValue", "Change Numeric Value"));
+
+			for(const FRigElementKey& Key : Keys)
+			{
+				TransformType Transform = GetSingleTransform(Key, bIsRelative);
+				SAdvancedTransformInputBox<TransformType>::ApplyNumericValueChange(Transform, InNumericValue, Component, Representation, SubComponent);
+				SetSingleTransform(Key, Transform, bIsRelative);
+			}
+		});
+
+		TransformWidgetArgs.OnCopyToClipboard_Lambda([Keys, IsComponentRelative, GetSingleTransform](
+			ESlateTransformComponent::Type InComponent
+			)
+		{
+			if(Keys.Num() == 0)
+			{
+				return;
+			}
+
+			// make sure that we use the same relative setting on all components when copying
+			IsComponentRelative->Y = IsComponentRelative->Z = IsComponentRelative->X;
+			const bool bIsRelative = IsComponentRelative->Y > 0.f; 
+
+			const FRigElementKey& FirstKey = Keys[0];
+			TransformType Xfo = GetSingleTransform(FirstKey, bIsRelative);
+
+			FString Content;
+			switch(InComponent)
+			{
+				case ESlateTransformComponent::Location:
+				{
+					const FVector Data = Xfo.GetLocation();
+					TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+					break;
+				}
+				case ESlateTransformComponent::Rotation:
+				{
+					const FRotator Data = Xfo.Rotator();
+					TBaseStructure<FRotator>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+					break;
+				}
+				case ESlateTransformComponent::Scale:
+				{
+					const FVector Data = Xfo.GetScale3D();
+					TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+					break;
+				}
+				case ESlateTransformComponent::Max:
+				default:
+				{
+					TBaseStructure<TransformType>::Get()->ExportText(Content, &Xfo, &Xfo, nullptr, PPF_None, nullptr);
+					break;
+				}
+			}
+
+			if(!Content.IsEmpty())
+			{
+				FPlatformApplicationMisc::ClipboardCopy(*Content);
+			}
+		});
+
+		TransformWidgetArgs.OnPasteFromClipboard_Lambda([Keys, IsComponentRelative, GetSingleTransform, SetSingleTransform](
+			ESlateTransformComponent::Type InComponent
+			)
+		{
+			if(Keys.Num() == 0)
+			{
+				return;
+			}
+			
+			
+			// make sure that we use the same relative setting on all components when pasting
+			IsComponentRelative->Y = IsComponentRelative->Z = IsComponentRelative->X;
+			const bool bIsRelative = IsComponentRelative->Y > 0.f; 
+
+			FString Content;
+			FPlatformApplicationMisc::ClipboardPaste(Content);
+
+			if(Content.IsEmpty())
+			{
+				return;
+			}
+
+			FScopedTransaction Transaction(LOCTEXT("PasteTransform", "Paste Transform"));
+
+			for(const FRigElementKey& Key : Keys)
+			{
+				TransformType Xfo = GetSingleTransform(Key, bIsRelative);
+
+				{
+					class FRigPasteTransformWidgetErrorPipe : public FOutputDevice
+					{
+					public:
+
+						int32 NumErrors;
+
+						FRigPasteTransformWidgetErrorPipe()
+							: FOutputDevice()
+							, NumErrors(0)
+						{
+						}
+
+						virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+						{
+							UE_LOG(LogControlRig, Error, TEXT("Error Pasting to Widget: %s"), V);
+							NumErrors++;
+						}
+					};
+
+					FRigPasteTransformWidgetErrorPipe ErrorPipe;
+					
+					switch(InComponent)
+					{
+						case ESlateTransformComponent::Location:
+						{
+							FVector Data = Xfo.GetLocation();
+							TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
+							Xfo.SetLocation(Data);
+							break;
+						}
+						case ESlateTransformComponent::Rotation:
+						{
+							FRotator Data = Xfo.Rotator();
+							TBaseStructure<FRotator>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FRotator>::Get()->GetName(), true);
+							Xfo.SetRotator(Data);
+							break;
+						}
+						case ESlateTransformComponent::Scale:
+						{
+							FVector Data = Xfo.GetScale3D();
+							TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
+							Xfo.SetScale3D(Data);
+							break;
+						}
+						case ESlateTransformComponent::Max:
+						default:
+						{
+							TBaseStructure<TransformType>::Get()->ImportText(*Content, &Xfo, nullptr, PPF_None, &ErrorPipe, TBaseStructure<TransformType>::Get()->GetName(), true);
+							break;
+						}
+					}
+
+					if(ErrorPipe.NumErrors == 0)
+					{
+						SetSingleTransform(Key, Xfo, bIsRelative);
+					}
+				}
+			}
+		});
+
+		TransformWidgetArgs.DiffersFromDefault_Lambda([
+			CurrentTransformType,
+			Keys,
+			GetSingleTransform
+			
+		](
+			ESlateTransformComponent::Type InComponent) -> bool
+		{
+			for(const FRigElementKey& Key : Keys)
+			{
+				const TransformType CurrentTransform = GetSingleTransform(Key, true);
+				TransformType DefaultTransform;
+
+				switch(CurrentTransformType)
+				{
+					case ERigTransformElementDetailsTransform::Current:
+					{
+						DefaultTransform = GetSingleTransform(Key, true, ERigTransformElementDetailsTransform::Initial);
+						break;
+					}
+					default:
+					{
+						DefaultTransform = TransformType::Identity; 
+						break;
+					}
+				}
+
+				switch(InComponent)
+				{
+					case ESlateTransformComponent::Location:
+					{
+						if(!DefaultTransform.GetLocation().Equals(CurrentTransform.GetLocation()))
+						{
+							return true;
+						}
+						break;
+					}
+					case ESlateTransformComponent::Rotation:
+					{
+						if(!DefaultTransform.Rotator().Equals(CurrentTransform.Rotator()))
+						{
+							return true;
+						}
+						break;
+					}
+					case ESlateTransformComponent::Scale:
+					{
+						if(!DefaultTransform.GetScale3D().Equals(CurrentTransform.GetScale3D()))
+						{
+							return true;
+						}
+						break;
+					}
+					default: // also no component whole transform
+					{
+						if(!DefaultTransform.GetLocation().Equals(CurrentTransform.GetLocation()) ||
+							!DefaultTransform.Rotator().Equals(CurrentTransform.Rotator()) ||
+							!DefaultTransform.GetScale3D().Equals(CurrentTransform.GetScale3D()))
+						{
+							return true;
+						}
+						break;
+					}
+				}
+			}
+			return false;
+		});
+
+		TransformWidgetArgs.OnResetToDefault_Lambda([CurrentTransformType, Keys, GetSingleTransform, SetSingleTransform](
+			ESlateTransformComponent::Type InComponent)
+		{
+			FScopedTransaction Transaction(LOCTEXT("ResetTransformToDefault", "Reset Transform to Default"));
+			
+			for(const FRigElementKey& Key : Keys)
+			{
+				TransformType CurrentTransform = GetSingleTransform(Key, true);
+				TransformType DefaultTransform;
+
+				switch(CurrentTransformType)
+				{
+					case ERigTransformElementDetailsTransform::Current:
+					{
+						DefaultTransform = GetSingleTransform(Key, true, ERigTransformElementDetailsTransform::Initial);
+						break;
+					}
+					default:
+					{
+						DefaultTransform = TransformType::Identity; 
+						break;
+					}
+				}
+
+				switch(InComponent)
+				{
+					case ESlateTransformComponent::Location:
+					{
+						CurrentTransform.SetLocation(DefaultTransform.GetLocation());
+						break;
+					}
+					case ESlateTransformComponent::Rotation:
+					{
+						CurrentTransform.SetRotator(DefaultTransform.Rotator());
+						break;
+					}
+					case ESlateTransformComponent::Scale:
+					{
+						CurrentTransform.SetScale3D(DefaultTransform.GetScale3D());
+						break;
+					}
+					default: // whole transform / max component
+					{
+						CurrentTransform = DefaultTransform;
+						break;
+					}
+				}
+
+				SetSingleTransform(Key, CurrentTransform, true);
+			}
+		});
+
+		SAdvancedTransformInputBox<TransformType>::ConstructGroupedTransformRows(
+			TransformCategory, 
+			ButtonLabels[Index], 
+			ButtonTooltips[Index], 
+			TransformWidgetArgs);
 	}
 }
 
@@ -1026,6 +1591,25 @@ bool FRigTransformElementDetails::IsCurrentLocalEnabled() const
 		}
 	}
 	return true;
+}
+
+void FRigTransformElementDetails::AddChoiceWidgetRow(IDetailCategoryBuilder& InCategory, const FText& InSearchText, TSharedRef<SWidget> InWidget)
+{
+	InCategory.AddCustomRow(FText::FromString(TEXT("TransformType")))
+	.ValueContent()
+	.MinDesiredWidth(375.f)
+	.MaxDesiredWidth(375.f)
+	.HAlign(HAlign_Left)
+	[
+		SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		[
+			InWidget
+		]
+	];
 }
 
 void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
