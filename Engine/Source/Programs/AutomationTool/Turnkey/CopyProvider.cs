@@ -24,7 +24,7 @@ namespace Turnkey
 	abstract class CopyProvider
 	{
 		/// <summary>
-		/// Unique provider token to direct a copy operation ("perforce://UE4/Main/...)
+		/// Unique provider token to direct a copy operation ("perforce://UE5/Main/...)
 		/// </summary>
 		public abstract string ProviderToken { get; }
 
@@ -32,7 +32,7 @@ namespace Turnkey
 		/// Perform the copy operation
 		/// </summary>
 		/// <param name="Operation">Description for the operation</param>
-		/// <returns>The output path of the copied file, or a directory that contains all of the wildcards in the operation ("perforce://UE4/SDKs/.../Windows/*" would return something like "d:\UE4\Sdks")</returns>
+		/// <returns>The output path of the copied file, or a directory that contains all of the wildcards in the operation ("perforce://depot/CarefullyRedist/.../Windows/*" would return something like "d:\\sdks")</returns>
 		public abstract string Execute(string Operation, CopyExecuteSpecialMode SpecialMode, string SpecialModeHint);
 
 		/// <summary>

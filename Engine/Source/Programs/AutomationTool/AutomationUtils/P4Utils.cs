@@ -3930,7 +3930,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
+		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE5/...")</param>
 		/// <returns>List of streams matching the given criteria</returns>
 		public List<P4StreamRecord> Streams(string StreamPath)
 		{
@@ -3940,7 +3940,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Enumerates all streams in a depot
 		/// </summary>
-		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE4/...")</param>
+		/// <param name="StreamPath">The path for streams to enumerate (eg. "//UE5/...")</param>
 		/// <param name="MaxResults">Maximum number of results to return</param>
 		/// <param name="Filter">Additional filter to be applied to the results</param>
 		/// <param name="bUnloaded">Whether to enumerate unloaded workspaces</param>

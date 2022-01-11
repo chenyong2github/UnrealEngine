@@ -42,7 +42,7 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// The current branch containing UAT. This may be a depot path (eg. //depot/UE4) or the name of a stream (eg. //UE4/Main).
+		/// The current branch containing UAT. This may be a depot path (e.g. //depot/UE4) or the name of a stream (e.g. //UE5/Main).
 		/// </summary>
 		public string Branch
 		{
@@ -51,7 +51,7 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Path to the root of the branch as a client path (//MyClient/UE4).
+		/// Path to the root of the branch as a client path (//MyClient/UE).
 		/// </summary>
 		public string ClientRoot
 		{

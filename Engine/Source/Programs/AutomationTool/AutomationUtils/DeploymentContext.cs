@@ -162,7 +162,7 @@ public class DeploymentContext //: ProjectParams
 	public string CustomConfig;
 
 	/// <summary>
-	/// This is the root directory that contains the engine: d:\a\UE4\
+	/// This is the root directory that contains the engine: d:\a\UE\
 	/// </summary>
 	public DirectoryReference LocalRoot;
 
@@ -172,7 +172,7 @@ public class DeploymentContext //: ProjectParams
 	public DirectoryReference EngineRoot;
 
 	/// <summary>
-	/// The directory that contains the project: d:\a\UE4\ShooterGame
+	/// The directory that contains the project: d:\a\UE\ShooterGame
 	/// </summary>
 	public DirectoryReference ProjectRoot;
 

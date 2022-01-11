@@ -364,7 +364,7 @@ namespace AutomationToolDriver
             ExitCode ReturnCode = ExitCode.Success;
 			try
 			{
-				// Set the working directory to the UE4 root
+				// Set the working directory to the Unreal root directory
 				Environment.CurrentDirectory = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetOriginalLocation()), "..", "..", "..", ".."));
 
 				// Ensure we can resolve any external assemblies as necessary.

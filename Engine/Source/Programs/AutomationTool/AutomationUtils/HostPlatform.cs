@@ -53,7 +53,7 @@ namespace AutomationTool
 		abstract public string GetDotnetMsbuildExe();
 
 		/// <summary>
-		/// Folder under UE4/ to the platform's binaries.
+		/// Folder under UE/ to the platform's binaries.
 		/// </summary>
 		abstract public string RelativeBinariesFolder { get; }
 

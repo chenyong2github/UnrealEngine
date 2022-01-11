@@ -25,7 +25,7 @@ namespace Turnkey.Commands
 				@"googledrive:'1O6V1JO-LNZYxcB6wIqCiHjQ44mz4tv7S'/*",
 				@"file:D:\Engine\*\Build\*.xml",
 				@"file:D:\Engine\*\*",
-				@"perforce://UE4/Main/*/Build/*.xml",
+				@"perforce://UE5/Main/*/Build/*.xml",
 			};
 
 			foreach (string Test in TestEnumerates)

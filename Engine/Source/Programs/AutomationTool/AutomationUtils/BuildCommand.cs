@@ -256,13 +256,13 @@ namespace AutomationTool
 			if (bForeign)
 			{
 				var DestSample = ParseParamValue("DestSample", "CopiedHoverShip");
-				var Dest = ParseParamValue("ForeignDest", CombinePaths(@"C:\testue4\foreign\", DestSample + "_ _Dir"));
+				var Dest = ParseParamValue("ForeignDest", CombinePaths(@"C:\testue\foreign\", DestSample + "_ _Dir"));
 				ProjectFullPath = new FileReference(CombinePaths(Dest, DestSample + ".uproject"));
 			}
 			else if (bForeignCode)
 			{
 				var DestSample = ParseParamValue("DestSample", "PlatformerGame");
-				var Dest = ParseParamValue("ForeignDest", CombinePaths(@"C:\testue4\foreign\", DestSample + "_ _Dir"));
+				var Dest = ParseParamValue("ForeignDest", CombinePaths(@"C:\testue\foreign\", DestSample + "_ _Dir"));
 				ProjectFullPath = new FileReference(CombinePaths(Dest, DestSample + ".uproject"));
 			}
 			else
