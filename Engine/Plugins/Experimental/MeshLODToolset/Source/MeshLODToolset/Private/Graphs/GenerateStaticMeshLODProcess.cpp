@@ -1694,6 +1694,8 @@ void UGenerateStaticMeshLODProcess::UpdateSourceStaticMeshAsset(bool bSetNewHDSo
 {
 	GEditor->BeginTransaction(LOCTEXT("UpdateExistingAssetMessage", "Added Generated LOD"));
 
+	SourceStaticMesh->Modify();
+
 	FStaticMeshSourceModel& SrcModel = SourceStaticMesh->GetSourceModel(0);
 	SourceStaticMesh->ModifyMeshDescription(0);
 
