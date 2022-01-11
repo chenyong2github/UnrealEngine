@@ -778,66 +778,71 @@ public:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const
 	{
+		// #dxr_todo do we need this call to the base?
+		FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, nullptr, ShaderBindings, VertexStreams);
+
 		// todo: Add more context into VertexFactoryUserData about whether this is skin cache/mesh deformer/ray tracing etc.
 		// For now it just holds a skin cache pointer which is null if using other mesh deformers.
 		FGPUSkinBatchElementUserData* BatchUserData = (FGPUSkinBatchElementUserData*)BatchElement.VertexFactoryUserData;
+		const bool bUsesSkinCache = BatchUserData != nullptr;
 
 		check(VertexFactory->GetType() == &FGPUSkinPassthroughVertexFactory::StaticType);
-		FGPUSkinPassthroughVertexFactory const* LocalVertexFactory = static_cast<FGPUSkinPassthroughVertexFactory const*>(VertexFactory);
-		
-		FRHIUniformBuffer* VertexFactoryUniformBuffer = nullptr;
-		VertexFactoryUniformBuffer = LocalVertexFactory->GetUniformBuffer();
+		FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory = static_cast<FGPUSkinPassthroughVertexFactory const*>(VertexFactory);
 
-		// #dxr_todo do we need this call to the base?
-		FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
+		// Bone data is updated whenever animation triggers a dynamic update, animation can skip frames hence the frequency is not necessary every frame.
+		// So check if bone data is updated this frame, if not then the previous frame data is stale and not suitable for motion blur.
+		bool bBoneDataUpdatedThisFrame = (View->Family->FrameNumber == PassthroughVertexFactory->GetUpdatedFrameNumber());
+		// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
+		bool bVerticesInMotion = !View->Family->bWorldIsPaused_IncludingSimulatingInEditor && bBoneDataUpdatedThisFrame;
 
-		const bool bUsesSkinCache = BatchUserData != nullptr;
 		if (bUsesSkinCache)
 		{
-			GetElementShaderBindingsSkinCache(View, Shader, LocalVertexFactory, BatchElement, BatchUserData, ShaderBindings, VertexStreams);
+			GetElementShaderBindingsSkinCache(PassthroughVertexFactory, BatchUserData, bVerticesInMotion, ShaderBindings, VertexStreams);
 		}
 		else
 		{
-			GetElementShaderBindingsMeshDeformer(View, Shader, LocalVertexFactory, BatchElement, ShaderBindings, VertexStreams);
+			GetElementShaderBindingsMeshDeformer(PassthroughVertexFactory, bVerticesInMotion, ShaderBindings, VertexStreams);
 		}
 	}
 
 	void GetElementShaderBindingsSkinCache(
-		FSceneView const* View,
-		FMeshMaterialShader const* Shader,
-		FGPUSkinPassthroughVertexFactory const* VertexFactory, 
-		FMeshBatchElement const& BatchElement,
+		FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
 		FGPUSkinBatchElementUserData* BatchUserData,
-		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		bool bVerticesInMotion,
+		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const
 	{
 		FGPUSkinCache::GetShaderBindings(
-			BatchUserData->Entry, BatchUserData->Section, 
-			Shader, VertexFactory, BatchElement.MinVertexIndex, 
+			BatchUserData->Entry, BatchUserData->Section, bVerticesInMotion,
+			PassthroughVertexFactory,
 			GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer, 
-			ShaderBindings, VertexStreams, View);
+			ShaderBindings, VertexStreams);
 	}
 
 	void GetElementShaderBindingsMeshDeformer(
-		FSceneView const* View,
-		FMeshMaterialShader const* Shader,
-		FGPUSkinPassthroughVertexFactory const* VertexFactory,
-		FMeshBatchElement const& BatchElement,
-		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
+		bool bVerticesInMotion,
+		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const
 	{
-		if (VertexFactory->PositionRDG.IsValid())
+		if (PassthroughVertexFactory->PositionRDG.IsValid())
 		{
-			VertexStreams.Add(FVertexInputStream(VertexFactory->GetPositionStreamIndex(), 0, VertexFactory->PositionRDG->GetRHI()));
-			ShaderBindings.Add(GPUSkinCachePositionBuffer, VertexFactory->PositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)));
+			VertexStreams.Add(FVertexInputStream(PassthroughVertexFactory->GetPositionStreamIndex(), 0, PassthroughVertexFactory->PositionRDG->GetRHI()));
+			ShaderBindings.Add(GPUSkinCachePositionBuffer, PassthroughVertexFactory->GetPositionsSRV());
 		}
-		if (VertexFactory->TangentRDG.IsValid() && VertexFactory->GetTangentStreamIndex() > -1)
+		if (PassthroughVertexFactory->TangentRDG.IsValid() && PassthroughVertexFactory->GetTangentStreamIndex() > -1)
 		{
-			VertexStreams.Add(FVertexInputStream(VertexFactory->GetTangentStreamIndex(), 0, VertexFactory->TangentRDG->GetRHI()));
+			VertexStreams.Add(FVertexInputStream(PassthroughVertexFactory->GetTangentStreamIndex(), 0, PassthroughVertexFactory->TangentRDG->GetRHI()));
 		}
 
-		// todo: Need to track previous position buffer for mesh deformers
-		ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, VertexFactory->GetPositionsSRV());
+		if (bVerticesInMotion && PassthroughVertexFactory->PrevPositionRDG)
+		{
+			ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, PassthroughVertexFactory->PrevPositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)));
+		}
+		else
+		{
+			ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, PassthroughVertexFactory->GetPositionsSRV());
+		}
 	}
 
 private:
@@ -886,6 +891,7 @@ void FGPUSkinPassthroughVertexFactory::ReleaseRHI()
 
 	// When adding anything else to this function be aware of the bypassing code in InternalUpdateVertexDeclaration.
 	PositionRDG = nullptr;
+	PrevPositionRDG = nullptr;
 	TangentRDG = nullptr;
 	ColorRDG = nullptr;
 	PositionVBAlias.ReleaseRHI();
@@ -953,7 +959,6 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseS
 	// Find added streams
 	PositionStreamIndex = -1;
 	TangentStreamIndex = -1;
-	ColorStreamIndex = -1;
 
 	for (int32 Index = 0; Index < Streams.Num(); ++Index)
 	{
@@ -968,13 +973,6 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseS
 				TangentStreamIndex = Index;
 			}
 		}
-		if (ColorVBAlias.VertexBufferRHI != nullptr)
-		{
-			if (Streams[Index].VertexBuffer->VertexBufferRHI.GetReference() == Data.ColorComponent.VertexBuffer->VertexBufferRHI.GetReference())
-			{
-				ColorStreamIndex = Index;
-			}
-		}
 	}
 	checkf(PositionStreamIndex != -1, TEXT("Unable to find stream for RWBuffer Vertex buffer!"));
 }
@@ -985,6 +983,7 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
 	struct FRWBuffer* TangentRWBuffer)
 {
 	PositionRDG = nullptr;
+	PrevPositionRDG = nullptr;
 	TangentRDG = nullptr;
 	ColorRDG = nullptr;
 
@@ -993,6 +992,7 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
 	ColorVBAlias.VertexBufferRHI = nullptr;
 
 	PositionSRVAlias = PositionRWBuffer ? PositionRWBuffer->SRV : nullptr;
+	PrevPositionSRVAlias = nullptr;
 	TangentSRVAlias = TangentRWBuffer ? TangentRWBuffer->SRV : nullptr;
 	ColorSRVAlias = nullptr;
 
@@ -1008,6 +1008,7 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
 {
 	if (EnumHasAnyFlags(OverrideFlags, EOverrideFlags::Position))
 	{
+		PrevPositionRDG = PositionBuffer.IsValid() ? PositionRDG : nullptr;
 		PositionRDG = PositionBuffer;
 	}
 	if (EnumHasAnyFlags(OverrideFlags, EOverrideFlags::Tangent))
@@ -1024,6 +1025,7 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
 	ColorVBAlias.VertexBufferRHI = ColorRDG.IsValid() ? ColorRDG->GetRHI() : nullptr;
 
 	PositionSRVAlias = PositionRDG.IsValid() ? PositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)) : nullptr;
+	PrevPositionSRVAlias = PrevPositionRDG.IsValid() ? PrevPositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)) : nullptr;
 	const EPixelFormat TangentsFormat = IsOpenGLPlatform(GMaxRHIShaderPlatform) ? PF_R16G16B16A16_SINT : PF_R16G16B16A16_SNORM;
 	TangentSRVAlias = TangentRDG.IsValid() ? TangentRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(TangentsFormat)) : nullptr;
 	ColorSRVAlias = ColorRDG.IsValid() ? ColorRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R8G8B8A8)) : nullptr;

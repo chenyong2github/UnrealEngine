@@ -175,16 +175,14 @@ public:
 		);
 
 	static void GetShaderBindings(
-		FGPUSkinCacheEntry* Entry,
+		const FGPUSkinCacheEntry* Entry,
 		int32 Section,
-		const FShader* Shader,
+		bool bVerticesInMotion,
 		const FGPUSkinPassthroughVertexFactory* VertexFactory,
-		uint32 BaseVertexIndex,
 		FShaderResourceParameter GPUSkinCachePositionBuffer,
 		FShaderResourceParameter GPUSkinCachePreviousPositionBuffer,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams,
-		const FSceneView* View);
+		FVertexInputStreamArray& VertexStreams);
 
 	static void Release(FGPUSkinCacheEntry*& SkinCacheEntry);
 

@@ -467,6 +467,8 @@ public:
 
 	void SetData(const FDataType& InData);
 
+	uint32 GetUpdatedFrameNumber() const { return UpdatedFrameNumber; }
+
 	//TODO should be supported
 	bool SupportsPositionOnlyStream() const override { return false; }
 	bool SupportsPositionAndNormalOnlyStream() const override { return false; }
@@ -475,7 +477,7 @@ public:
 	{
 		PositionStreamIndex = -1;
 		TangentStreamIndex = -1;
-		ColorStreamIndex = -1;
+
 		PositionVBAlias.ReleaseRHI();
 		TangentVBAlias.ReleaseRHI();
 		ColorVBAlias.ReleaseRHI();
@@ -489,6 +491,7 @@ public:
 		struct FRWBuffer* PositionRWBuffer, 
 		struct FRWBuffer* TangentRWBuffer)
 	{
+		UpdatedFrameNumber = SourceVertexFactory->GetShaderData().UpdatedFrameNumber;
 		if (PositionStreamIndex == -1)
 		{
 			InternalUpdateVertexDeclaration(SourceVertexFactory, PositionRWBuffer, TangentRWBuffer);
@@ -513,6 +516,7 @@ public:
 		TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
 		TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer)
 	{
+		UpdatedFrameNumber = SourceVertexFactory->GetShaderData().UpdatedFrameNumber;
 		if (PositionStreamIndex == -1)
 		{
 			InternalUpdateVertexDeclaration(OverrideFlags, SourceVertexFactory, PositionBuffer, TangentBuffer, ColorBuffer);
@@ -524,6 +528,7 @@ protected:
 
 	// Reference holders for RDG buffers
 	TRefCountPtr<FRDGPooledBuffer> PositionRDG;
+	TRefCountPtr<FRDGPooledBuffer> PrevPositionRDG;
 	TRefCountPtr<FRDGPooledBuffer> TangentRDG;
 	TRefCountPtr<FRDGPooledBuffer> ColorRDG;
 	// Vertex buffer required for creating the Vertex Declaration
@@ -532,11 +537,14 @@ protected:
 	FVertexBuffer ColorVBAlias;
 	// SRVs required for binding
 	FRHIShaderResourceView* PositionSRVAlias;
+	FRHIShaderResourceView* PrevPositionSRVAlias;
 	FRHIShaderResourceView* TangentSRVAlias;
 	FRHIShaderResourceView* ColorSRVAlias;
 	// Cached stream indices
 	int32 PositionStreamIndex;
 	int32 TangentStreamIndex;
+	// Frame number of the bone data that is last updated
+	uint32 UpdatedFrameNumber = 0;
 
 	void InternalUpdateVertexDeclaration(
 		FGPUBaseSkinVertexFactory* SourceVertexFactory);
