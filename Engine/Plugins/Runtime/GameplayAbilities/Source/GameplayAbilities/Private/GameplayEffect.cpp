@@ -2545,6 +2545,33 @@ void FActiveGameplayEffectsContainer::SetActiveGameplayEffectLevel(FActiveGamepl
 	}
 }
 
+void FActiveGameplayEffectsContainer::UpdateActiveGameplayEffectSetByCallerMagnitude(FActiveGameplayEffectHandle ActiveHandle, const FGameplayTag& SetByCallerTag, float NewValue)
+{
+	if (FActiveGameplayEffect* Effect = GetActiveGameplayEffect(ActiveHandle))
+	{
+		Effect->Spec.SetSetByCallerMagnitude(SetByCallerTag, NewValue);
+		Effect->Spec.CalculateModifierMagnitudes();
+		MarkItemDirty(*Effect);
+
+		UpdateAllAggregatorModMagnitudes(*Effect);
+	}
+}
+
+void FActiveGameplayEffectsContainer::UpdateActiveGameplayEffectSetByCallerMagnitudes(FActiveGameplayEffectHandle ActiveHandle, const TMap<FGameplayTag, float>& NewSetByCallerValues)
+{
+	if (FActiveGameplayEffect* Effect = GetActiveGameplayEffect(ActiveHandle))
+	{
+		for (const TPair<FGameplayTag, float>& CurPair : NewSetByCallerValues)
+		{
+			Effect->Spec.SetSetByCallerMagnitude(CurPair.Key, CurPair.Value);
+		}
+		Effect->Spec.CalculateModifierMagnitudes();
+		MarkItemDirty(*Effect);
+
+		UpdateAllAggregatorModMagnitudes(*Effect);
+	}
+}
+
 const FGameplayTagContainer* FActiveGameplayEffectsContainer::GetGameplayEffectSourceTagsFromHandle(FActiveGameplayEffectHandle Handle) const
 {
 	// @todo: Need to consider this with tag changes
