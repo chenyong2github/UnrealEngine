@@ -34,7 +34,8 @@ EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
 	return ExecutionFlags;
 }
 
-void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities, TArray<FArchetypeChunkCollection>& OutChunkCollections)
+void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
+	, const FArchetypeChunkCollection::EDuplicatesHandling DuplicatesHandling, TArray<FArchetypeChunkCollection>& OutChunkCollections)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass_CreateSparseChunks");
 
@@ -53,7 +54,7 @@ void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstAr
 		// UMassSpawnerSubsystem::DestroyEntities' caller knowledge. Should be removed once that's addressed.
 		if (Pair.Key.IsValid())
 		{
-			OutChunkCollections.Add(FArchetypeChunkCollection(Pair.Key, Pair.Value, FArchetypeChunkCollection::NoDuplicates));
+			OutChunkCollections.Add(FArchetypeChunkCollection(Pair.Key, Pair.Value, DuplicatesHandling));
 		}
 	}
 }

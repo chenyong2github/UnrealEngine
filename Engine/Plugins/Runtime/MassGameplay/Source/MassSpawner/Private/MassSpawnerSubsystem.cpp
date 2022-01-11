@@ -117,7 +117,7 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 
 
 	TArray<FArchetypeChunkCollection> ChunkCollections;
-	UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
+	UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, FArchetypeChunkCollection::NoDuplicates, ChunkCollections);
 
 	for (const FArchetypeChunkCollection& Chunks : ChunkCollections)
 	{

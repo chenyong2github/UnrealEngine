@@ -93,7 +93,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 			if (ObservedRemoveFragments.Contains(*It.Key))
 			{
 				TArray<FArchetypeChunkCollection> ChunkCollections;
-				UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, ChunkCollections);
+				UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FArchetypeChunkCollection::FoldDuplicates, ChunkCollections);
 				for (FArchetypeChunkCollection& Collection : ChunkCollections)
 				{
 					check(It.Key);
@@ -105,7 +105,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		TArray<FArchetypeChunkCollection> EntityChunksToDestroy;
 		if (EntitiesToDestroy.Num())
 		{
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, EntitiesToDestroy, EntityChunksToDestroy);
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, EntitiesToDestroy, FArchetypeChunkCollection::FoldDuplicates, EntityChunksToDestroy);
 			for (FArchetypeChunkCollection& Collection : EntityChunksToDestroy)
 			{
 				ObserverManager.OnPreEntitiesDestroyed(Collection);
@@ -152,7 +152,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		if (ObservedAddFragments.Contains(*It.Key))
 		{
 			TArray<FArchetypeChunkCollection> ChunkCollections;
-			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, ChunkCollections);
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, It.Value, FArchetypeChunkCollection::FoldDuplicates, ChunkCollections);
 			for (FArchetypeChunkCollection& Collection : ChunkCollections)
 			{
 				check(It.Key);

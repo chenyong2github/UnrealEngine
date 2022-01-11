@@ -3,11 +3,11 @@
 #pragma once
 
 #include "MassProcessingTypes.h"
+#include "MassArchetypeTypes.h"
 
 class UWorld;
 class UMassEntitySubsystem;
 struct FMassEntityHandle;
-struct FArchetypeChunkCollection;
 
 namespace UE::Mass::Utils
 {
@@ -17,8 +17,9 @@ MASSENTITY_API extern EProcessorExecutionFlags GetProcessorExecutionFlagsForWold
 
 /** 
  * Fills OutChunkCollections with per-archetype FArchetypeChunkCollection instances. 
- * Note that it's caller responsibility to guarantee Entities does not contain duplicates.
+ * @param DuplicatesHandling used to inform the function whether to expect duplicates.
  */
-MASSENTITY_API extern void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities, TArray<FArchetypeChunkCollection>& OutChunkCollections);
+MASSENTITY_API extern void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
+	, const FArchetypeChunkCollection::EDuplicatesHandling DuplicatesHandling, TArray<FArchetypeChunkCollection>& OutChunkCollections);
 
 } // namespace UE::Mass::Utils
