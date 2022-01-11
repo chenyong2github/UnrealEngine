@@ -79,39 +79,36 @@ void FDMXPortReferenceCustomizationBase::CustomizeChildren(TSharedRef<IPropertyH
 	// a) This is an existing port reference, with a corresponding port config
 	// b) This is an existing port reference, but the corresponding port config got deleted in settings
 	// c) This is a new port reference and doesn't point to any port yet
-	// d) There are no ports specified in project settings
+	// d) The port references are multiselected
 
-	TSharedPtr<FDMXPort, ESPMode::ThreadSafe> Port = FindPortItem();
-	if(Port.IsValid())
+	const TArray<FDMXPortSharedPtr> Ports = FindPortItems();
+	if(Ports.Num() == 1 && Ports[0].IsValid())
 	{
-		// a) This is an existing port reference, with a corresponding port config
-		PortSelector->SelectPort(Port->GetPortGuid());
+		// a) This is a single existing port reference, with a corresponding port config
+		const FGuid PortGuid = Ports[0]->GetPortGuid();
+		PortSelector->SelectPort(PortGuid);
 	}
 	else
 	{
-		FGuid PortGuid = GetPortGuid();
-		if (PortGuid.IsValid())
+		const TArray<FGuid> PortGuids = GetPortGuids();
+		if (PortGuids.Num() == 1 && PortGuids[0].IsValid())
 		{
 			// b) This is an existing port reference, but the corresponding port config got deleted in settings
 
 			// Let the port remain invalid, but let users know
-			ErrorText = LOCTEXT("PortReferenceNoLongerValid", "The referenced Port was deleted. Please select another port.");
-			UE_LOG(LogDMXProtocol, Error, TEXT("The referenced Port was deleted. Please review your libraries."));
+			UE_LOG(LogDMXProtocol, Error, TEXT("The referenced Port was deleted from project settings."));
+		}
+		else if(PortGuids.Num() == 0 && PortSelector->HasSelection())
+		{
+			// c) This is a new port reference and doesn't point to any port yet
+			//	  The port selector makes an initial selection already, so if it's valid there are ports
+			//    It only needs be applied on the new reference.
+			ApplySelectedPortGuid();
 		}
 		else
 		{
-			if (PortSelector->HasSelection())
-			{
-				// c) This is a new port reference and doesn't point to any port yet
-				//	  The port selector makes an initial selection already, so if it's valid there are ports
-				//    It only needs be applied on the new reference.
-				ApplySelectedPortGuid();
-			}
-			else
-			{
-				// d) There are no ports specified in project settings
-				ErrorText = LOCTEXT("NoPortAvailableText", "No ports available. Please create DMX Ports in Project Settings -> Plugins -> DMX Plugin.");
-			}
+			// d) This is multi selected in some way
+			PortSelector->SetHasMultipleValues();
 		}
 	}
 
@@ -133,32 +130,36 @@ void FDMXPortReferenceCustomizationBase::OnPortsChanged()
 	}
 }
 
-TSharedPtr<FDMXPort, ESPMode::ThreadSafe> FDMXPortReferenceCustomizationBase::FindPortItem() const
+TArray<FDMXPortSharedPtr> FDMXPortReferenceCustomizationBase::FindPortItems() const
 {
-	const FGuid PortGuid = GetPortGuid();
+	const TArray<FGuid> PortGuids = GetPortGuids();
 
-	if (PortGuid.IsValid())
+	TArray<FDMXPortSharedPtr> Result;
+	for (const FGuid& PortGuid : PortGuids)
 	{
-		const FDMXInputPortSharedRef* InputPortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([&PortGuid](const FDMXInputPortSharedRef& InputPort) {
-			return InputPort->GetPortGuid() == PortGuid;
-			});
-
-		if (InputPortPtr)
+		if (PortGuid.IsValid())
 		{
-			return *InputPortPtr;
-		}
+			const FDMXInputPortSharedRef* InputPortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([&PortGuid](const FDMXInputPortSharedRef& InputPort) {
+				return InputPort->GetPortGuid() == PortGuid;
+				});
 
-		const FDMXOutputPortSharedRef* OutputPortPtr = FDMXPortManager::Get().GetOutputPorts().FindByPredicate([&PortGuid](const FDMXOutputPortSharedRef& OutputPort) {
+			if (InputPortPtr)
+			{
+				Result.Add(*InputPortPtr);
+			}
+
+			const FDMXOutputPortSharedRef* OutputPortPtr = FDMXPortManager::Get().GetOutputPorts().FindByPredicate([&PortGuid](const FDMXOutputPortSharedRef& OutputPort) {
 				return OutputPort->GetPortGuid() == PortGuid;
-			});
+				});
 
-		if (OutputPortPtr)
-		{
-			return *OutputPortPtr;
+			if (OutputPortPtr)
+			{
+				Result.Add(*OutputPortPtr);
+			}
 		}
 	}
 
-	return nullptr;
+	return Result;
 }
 
 void FDMXPortReferenceCustomizationBase::ApplySelectedPortGuid()
@@ -181,43 +182,44 @@ void FDMXPortReferenceCustomizationBase::ApplySelectedPortGuid()
 		return FGuid();
 	}();
 
-	const TSharedPtr<IPropertyHandle>& PortGuidHandle = GetPortGuidHandle();
-	check(PortGuidHandle.IsValid() && PortGuidHandle->IsValidHandle());
-
-	PortGuidHandle->NotifyPreChange();
-
-	TArray<void*> RawData;
-	PortGuidHandle->AccessRawData(RawData);
-
-	for(void* RawElement : RawData)
+	if (!GetPortGuids().Contains(SelectedGuid))
 	{
-		FMemory::Memcpy(RawElement, &SelectedGuid, sizeof(FGuid));
-	}
+		const TSharedPtr<IPropertyHandle>& PortGuidHandle = GetPortGuidHandle();
+		check(PortGuidHandle.IsValid() && PortGuidHandle->IsValidHandle());
 
-	PortGuidHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+		PortGuidHandle->NotifyPreChange();
+
+		TArray<void*> RawDataArray;
+		PortGuidHandle->AccessRawData(RawDataArray);
+
+		for (void* RawData : RawDataArray)
+		{
+			FMemory::Memcpy(RawData, &SelectedGuid, sizeof(FGuid));
+		}
+
+		PortGuidHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+	}
 }
 
-FGuid FDMXPortReferenceCustomizationBase::GetPortGuid() const
+TArray<FGuid> FDMXPortReferenceCustomizationBase::GetPortGuids() const
 {
 	const TSharedPtr<IPropertyHandle>& PortGuidHandle = GetPortGuidHandle();
 	check(PortGuidHandle.IsValid() && PortGuidHandle->IsValidHandle());
 
-	TArray<void*> RawData;
-	PortGuidHandle->AccessRawData(RawData);
+	TArray<void*> RawDataArray;
+	PortGuidHandle->AccessRawData(RawDataArray);
 
-	if (ensureMsgf(RawData.Num() == 1, TEXT("The port configs reside in an array, multi-editing is unexpected")))
+	TArray<FGuid> Result;
+	for (const void* RawData : RawDataArray)
 	{
-		FGuid* PortGuidPtr = reinterpret_cast<FGuid*>(RawData[0]);
-		if (ensureMsgf(PortGuidPtr, TEXT("Expected to be valid")))
+		const FGuid* PortGuidPtr = reinterpret_cast<const FGuid*>(RawData);
+		if (PortGuidPtr && PortGuidPtr->IsValid())
 		{
-			if (PortGuidPtr->IsValid())
-			{
-				return *PortGuidPtr;
-			};
+			Result.Add(*PortGuidPtr);
 		}
 	}
 
-	return FGuid();
+	return Result;
 }
 
 #undef LOCTEXT_NAMESPACE

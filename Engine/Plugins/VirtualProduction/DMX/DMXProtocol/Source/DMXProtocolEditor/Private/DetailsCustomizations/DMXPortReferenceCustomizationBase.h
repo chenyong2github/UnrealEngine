@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "DMXProtocolCommon.h"
+
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
 #include "Templates/SharedPointer.h"
@@ -43,13 +45,13 @@ private:
 	void OnPortsChanged();
 
 	/** Helper function that finds the corresponding input port, or nullptr if no corresponding port */
-	TSharedPtr<FDMXPort, ESPMode::ThreadSafe> FindPortItem() const;
+	TArray<FDMXPortSharedPtr> FindPortItems() const;
 
 	/** Applies the selected port Guid to the customized struct */
 	void ApplySelectedPortGuid();
 
-	/** Helper function that gets the Guid of the edited port */
-	FGuid GetPortGuid() const;
+	/** Helper function that gets the Guid of the edited port(s) */
+	TArray<FGuid> GetPortGuids() const;
 
 	/** Port selector widget */
 	TSharedPtr<SDMXPortSelector> PortSelector;
