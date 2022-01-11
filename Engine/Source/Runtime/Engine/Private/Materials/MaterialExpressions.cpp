@@ -13362,6 +13362,18 @@ void UMaterialFunction::CreateExecutionFlowExpressions()
 		EditorMaterial->bEnableExecWire = bUsingControlFlow;
 		EditorMaterial->ExpressionExecBegin = ExpressionExecBegin;
 		EditorMaterial->ExpressionExecEnd = ExpressionExecEnd;
+		if (ExpressionExecBegin)
+		{
+			EditorMaterial->Expressions.AddUnique(ExpressionExecBegin);
+			ExpressionExecBegin->Function = nullptr;
+			ExpressionExecBegin->Material = EditorMaterial;
+		}
+		if (ExpressionExecEnd)
+		{
+			EditorMaterial->Expressions.AddUnique(ExpressionExecEnd);
+			ExpressionExecEnd->Function = nullptr;
+			ExpressionExecEnd->Material = EditorMaterial;
+		}
 	}
 }
 #endif // WITH_EDITOR

@@ -489,10 +489,14 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 
 	FStatementEntry& Entry = StatementMap.FindOrAdd(MaterialExpression);
 	check(Entry.NumInputs >= 0);
-	check(Entry.NumInputs < MaterialExpression->NumExecutionInputs);
+
+	if (Entry.NumInputs >= MaterialExpression->NumExecutionInputs)
+	{
+		return Errors.AddErrorf(TEXT("Bad control flow, found %d inputs out of %d reported"), Entry.NumInputs, MaterialExpression->NumExecutionInputs);
+	}
 	if (Entry.NumInputs == MaxNumPreviousScopes)
 	{
-		return Errors.AddError(TEXT("Bad control flow"));
+		return Errors.AddErrorf(TEXT("Bad control flow, too many execution inputs"));
 	}
 
 	Entry.PreviousScope[Entry.NumInputs++] = &Scope;

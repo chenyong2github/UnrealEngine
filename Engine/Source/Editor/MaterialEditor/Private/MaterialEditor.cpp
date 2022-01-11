@@ -2387,6 +2387,8 @@ void FMaterialEditor::UpdatePreviewMaterial( bool bForce )
 		ExpressionPreviewMaterial->Expressions = Material->Expressions;
 		ExpressionPreviewMaterial->ExpressionExecBegin = Material->ExpressionExecBegin;
 		ExpressionPreviewMaterial->ExpressionExecEnd = Material->ExpressionExecEnd;
+		ExpressionPreviewMaterial->bEnableExecWire = Material->IsUsingControlFlow();
+		ExpressionPreviewMaterial->bEnableNewHLSLGenerator = Material->IsUsingNewHLSLGenerator();
 
 		if (MaterialFunction)
 		{
@@ -2490,8 +2492,6 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 		// Copy the expressions back from the preview material
 		MaterialFunction->FunctionExpressions = Material->Expressions;
 		MaterialFunction->FunctionEditorComments = Material->EditorComments;
-		MaterialFunction->ExpressionExecBegin = Material->ExpressionExecBegin;
-		MaterialFunction->ExpressionExecEnd = Material->ExpressionExecEnd;
 
 		// Preserve the thumbnail info
 		UThumbnailInfo* OriginalThumbnailInfo = MaterialFunction->ParentFunction->ThumbnailInfo;
