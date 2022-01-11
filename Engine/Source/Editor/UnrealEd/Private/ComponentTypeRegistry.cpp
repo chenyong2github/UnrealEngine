@@ -561,14 +561,25 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 
 		if (OnDiskClasses.Num() > 0)
 		{
-			// GetAssetsByClass call is a kludge to get the full asset paths for the blueprints we care about, Bob T. thinks 
-			// that the Asset Registry could just keep asset paths:
-			TArray<FAssetData> BlueprintAssetData;
-			AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), BlueprintAssetData, true);
 			TMap<FString, FAssetData> BlueprintNames;
-			for (const FAssetData& Blueprint : BlueprintAssetData)
 			{
-				BlueprintNames.Add(Blueprint.AssetName.ToString(), Blueprint);
+				// GetAssetsByClass call is a kludge to get the full asset paths for the blueprints we care about
+				// Bob T. thinks that the Asset Registry could just keep asset paths
+				TArray<FAssetData> Assets;
+				AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetFName(), Assets, true);
+				for (FAssetData& Asset : Assets)
+				{
+					BlueprintNames.Add(Asset.AssetName.ToString(), MoveTemp(Asset));
+				}
+
+				Assets.Reset();
+				AssetRegistryModule.Get().GetAssetsByClass(UBlueprintGeneratedClass::StaticClass()->GetFName(), Assets, true);
+				for (FAssetData& Asset : Assets)
+				{
+					FString BlueprintName = Asset.AssetName.ToString();
+					BlueprintName.RemoveFromEnd(TEXT("_C"));
+					BlueprintNames.Add(MoveTemp(BlueprintName), MoveTemp(Asset));
+				}
 			}
 
 			for (const FName& OnDiskClass : OnDiskClasses)
