@@ -1595,18 +1595,30 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 		return false;
 	}
 
+	// We're only creating a 1x target here, but we don't know whether it'll be the targeted texture
+	// or the resolve texture. Because of this, we unify the input flags.
+	ETextureCreateFlags UnifiedCreateFlags = Flags | TargetableTextureFlags;
+
 	// This is not a static swapchain
-	Flags |= TexCreate_Dynamic;
+	UnifiedCreateFlags |= TexCreate_Dynamic;
 
 	// We need to ensure we can sample from the texture in CopyTexture
-	TargetableTextureFlags |= TexCreate_ShaderResource;
+	UnifiedCreateFlags |= TexCreate_ShaderResource;
+
+	// We assume this could be used as a resolve target
+	UnifiedCreateFlags |= TexCreate_ResolveTargetable;
+
+	// Some render APIs require us to present in RT layouts/configs,
+	// so even if app won't use this texture as RT, we need the flag.
+	UnifiedCreateFlags |= TexCreate_RenderTargetable;
 
 	// On mobile without HDR all render targets need to be marked sRGB
 	bool MobileHWsRGB = IsMobileColorsRGB() && IsMobilePlatform(GMaxRHIShaderPlatform);
 	if (MobileHWsRGB)
 	{
-		TargetableTextureFlags |= TexCreate_SRGB;
+		UnifiedCreateFlags |= TexCreate_SRGB;
 	}
+
 
 	// Temporary workaround to swapchain formats - OpenXR doesn't support 10-bit sRGB swapchains, so prefer 8-bit sRGB instead.
 	if (Format == PF_A2B10G10R10)
@@ -1622,7 +1634,7 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	{
 		ensureMsgf(NumSamples == 1, TEXT("OpenXR supports MSAA swapchains, but engine logic expects the swapchain target to be 1x."));
 
-		Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMips, NumSamples, Flags, TargetableTextureFlags, ClearColor);
+		Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMips, NumSamples, UnifiedCreateFlags, ClearColor);
 		if (!Swapchain)
 		{
 			return false;
@@ -1667,8 +1679,18 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 		return false;
 	}
 
+	// We're only creating a 1x target here, but we don't know whether it'll be the targeted texture
+	// or the resolve texture. Because of this, we unify the input flags.
+	ETextureCreateFlags UnifiedCreateFlags = Flags | TargetableTextureFlags;
+
 	// This is not a static swapchain
-	Flags |= TexCreate_Dynamic;
+	UnifiedCreateFlags |= TexCreate_Dynamic;
+
+	// We assume this could be used as a resolve target
+	UnifiedCreateFlags |= TexCreate_DepthStencilResolveTarget;
+
+	// We can't use the depth swapchain w/o this flag, so client should always pass it in
+	ensure(EnumHasAllFlags(UnifiedCreateFlags, TexCreate_DepthStencilTargetable));
 
 	FXRSwapChainPtr& Swapchain = PipelinedLayerStateRendering.DepthSwapchain;
 	const FRHITexture2D* const DepthSwapchainTexture = Swapchain == nullptr ? nullptr : Swapchain->GetTexture2DArray() ? Swapchain->GetTexture2DArray() : Swapchain->GetTexture2D();
@@ -1676,7 +1698,7 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 	{
 		ensureMsgf(NumSamples == 1, TEXT("OpenXR supports MSAA swapchains, but engine logic expects the swapchain target to be 1x."));
 
-		Swapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, FMath::Max(NumMips, 1u), NumSamples, Flags, TargetableTextureFlags, FClearValueBinding::DepthFar);
+		Swapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, FMath::Max(NumMips, 1u), NumSamples, UnifiedCreateFlags, FClearValueBinding::DepthFar);
 		if (!Swapchain)
 		{
 			return false;
@@ -1738,8 +1760,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			1,
 			Texture->GetNumMips(),
 			Texture->GetNumSamples(),
-			Texture->GetFlags() | Flags,
-			TexCreate_RenderTargetable,
+			Texture->GetFlags() | Flags | TexCreate_RenderTargetable,
 			Texture->GetClearBinding());
 	};
 	if (GetStereoLayersDirty())
