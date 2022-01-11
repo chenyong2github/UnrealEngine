@@ -14,7 +14,7 @@
 
 THIRD_PARTY_INCLUDES_START
 #pragma warning(push)
-#pragma warning(disable: 4582 4583 4596 6319 6323)
+#pragma warning(disable: 4596 6319 6323)
 
 #pragma warning(pop)
 THIRD_PARTY_INCLUDES_END

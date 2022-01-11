@@ -15,7 +15,7 @@ THIRD_PARTY_INCLUDES_START
 	// C6319: Use of the comma-operator in a tested expression causes the left argument to be ignored when it has no side-effects.
 	// C6323: Use of arithmetic operator on Boolean type(s).
 	#pragma warning(push)
-	#pragma warning(disable : 4582 4583 6319 6323)
+	#pragma warning(disable : 6319 6323)
 
 #endif // PLATFORM_WINDOWS
 
