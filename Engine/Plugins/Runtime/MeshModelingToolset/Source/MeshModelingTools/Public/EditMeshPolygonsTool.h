@@ -25,6 +25,7 @@ class UDragAlignmentMechanic;
 class UMeshOpPreviewWithBackgroundCompute; 
 class FMeshVertexChangeBuilder;
 class UPersistentMeshSelection;
+class UEditMeshPolygonsTool;
 class UPolyEditActivityContext;
 class UPolyEditInsertEdgeActivity;
 class UPolyEditInsertEdgeLoopActivity;
@@ -583,8 +584,7 @@ protected:
 	// Emit an undoable change to CurrentMesh and update related structures (preview, spatial, etc)
 	void EmitCurrentMeshChangeAndUpdate(const FText& TransactionLabel,
 		TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn,
-		const UE::Geometry::FGroupTopologySelection& OutputSelection,
-		bool bTopologyChanged);
+		const UE::Geometry::FGroupTopologySelection& OutputSelection);
 
 	// Emit an undoable start of an activity
 	void EmitActivityStart(const FText& TransactionLabel);
@@ -671,9 +671,8 @@ protected:
 class MESHMODELINGTOOLS_API FEditMeshPolygonsToolMeshChange : public FToolCommandChange
 {
 public:
-	FEditMeshPolygonsToolMeshChange(TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn, bool bGroupTopologyModified)
+	FEditMeshPolygonsToolMeshChange(TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn)
 		: MeshChange(MoveTemp(MeshChangeIn))
-		, bGroupTopologyModified(bGroupTopologyModified)
 	{};
 
 	virtual void Apply(UObject* Object) override;
@@ -682,7 +681,6 @@ public:
 
 protected:
 	TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChange;
-	bool bGroupTopologyModified;
 };
 
 

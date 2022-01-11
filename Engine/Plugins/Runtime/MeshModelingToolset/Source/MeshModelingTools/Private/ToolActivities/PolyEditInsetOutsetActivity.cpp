@@ -189,7 +189,7 @@ void UPolyEditInsetOutsetActivity::ApplyInset()
 
 	// Emit undo (also updates relevant structures)
 	ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshInsetOutsetChange", "Inset/Outset"),
-		Inset.ChangeTracker->EndChange(), ActiveSelection, true);
+		Inset.ChangeTracker->EndChange(), ActiveSelection);
 }
 
 void UPolyEditInsetOutsetActivity::Clear()

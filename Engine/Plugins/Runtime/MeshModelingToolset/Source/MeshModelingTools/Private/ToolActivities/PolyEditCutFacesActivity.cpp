@@ -186,7 +186,7 @@ void UPolyEditCutFacesActivity::ApplyCutFaces()
 
 	// Emit undo (also updates relevant structures)
 	ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshCutFacesChange", "Cut Faces"),
-		ChangeTracker.EndChange(), OutputSelection, true);
+		ChangeTracker.EndChange(), OutputSelection);
 
 	// End activity
 	Clear();

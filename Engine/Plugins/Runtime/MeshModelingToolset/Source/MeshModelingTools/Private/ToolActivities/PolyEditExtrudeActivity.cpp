@@ -455,7 +455,7 @@ void UPolyEditExtrudeActivity::ApplyExtrude()
 
 	// Emit undo  (also updates relevant structures)
 	ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshExtrudeChange", "Extrude"),
-		ChangeTracker.EndChange(), NewSelection, true);
+		ChangeTracker.EndChange(), NewSelection);
 
 	ActiveSelection = NewSelection;
 }
