@@ -44,6 +44,9 @@ public:
 		/** The maximum width for text entry */
 		SLATE_ATTRIBUTE( float, MaxWidth )
 
+		/** Called whenever the text is changed programmatically or interactively by the user */
+		SLATE_EVENT( FOnVerifyTextChanged, OnVerifyTextChanged )
+
 		/** Provide a alternative mechanism for error reporting. */
 		SLATE_ARGUMENT( TSharedPtr<class IErrorReportingWidget>, ErrorReporting )
 

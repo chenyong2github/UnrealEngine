@@ -463,7 +463,11 @@ void SBlendProfilePicker::OnCreateNewProfile(EBlendProfileMode InMode)
 {
 	TSharedRef<STextEntryPopup> TextEntry = SNew(STextEntryPopup)
 		.Label(LOCTEXT("NewProfileName", "Profile Name"))
-		.OnTextCommitted(this, &SBlendProfilePicker::OnCreateNewProfileComitted, InMode);
+		.OnTextCommitted(this, &SBlendProfilePicker::OnCreateNewProfileComitted, InMode)
+		.OnVerifyTextChanged_Lambda([](const FText& InNewText, FText& OutErrorMessage) -> bool
+		{
+			return FName::IsValidXName(InNewText.ToString(), INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS, &OutErrorMessage);
+		});
 
 	FSlateApplication::Get().PushMenu(
 		AsShared(),
