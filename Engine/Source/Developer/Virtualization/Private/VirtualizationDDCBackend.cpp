@@ -95,10 +95,10 @@ EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer&
 
 	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Blocking);
 
-	UE::DerivedData::FCachePutCompleteParams Result;
-	auto Callback = [&Result](UE::DerivedData::FCachePutCompleteParams&& Params)
+	UE::DerivedData::FCachePutResponse Result;
+	auto Callback = [&Result](UE::DerivedData::FCachePutResponse&& Response)
 	{
-		Result = Params;
+		Result = Response;
 	};
 
 	// TODO: Improve the name when we start passing more context to this function
@@ -131,12 +131,12 @@ FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
 	FCompressedBuffer ResultData;
 	UE::DerivedData::EStatus ResultStatus;
 
-	auto Callback = [&Id, &ResultData, &ResultStatus](UE::DerivedData::FCacheGetCompleteParams&& Params)
+	auto Callback = [&Id, &ResultData, &ResultStatus](UE::DerivedData::FCacheGetResponse&& Response)
 	{
-		ResultStatus = Params.Status;
+		ResultStatus = Response.Status;
 		if (ResultStatus == UE::DerivedData::EStatus::Ok)
 		{
-			ResultData = Params.Record.GetValue(ToDerivedDataValueId(Id)).GetData();
+			ResultData = Response.Record.GetValue(ToDerivedDataValueId(Id)).GetData();
 		}
 	};
 
@@ -161,9 +161,9 @@ bool FDDCBackend::DoesPayloadExist(const FPayloadId& Id)
 	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Blocking);
 	
 	UE::DerivedData::EStatus ResultStatus;
-	auto Callback = [&ResultStatus](UE::DerivedData::FCacheGetCompleteParams&& Params)
+	auto Callback = [&ResultStatus](UE::DerivedData::FCacheGetResponse&& Response)
 	{
-		ResultStatus = Params.Status;
+		ResultStatus = Response.Status;
 	};
 
 	// TODO: Improve the name when we start passing more context to this function

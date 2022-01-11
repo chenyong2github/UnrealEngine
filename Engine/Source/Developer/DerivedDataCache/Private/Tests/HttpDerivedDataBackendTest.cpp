@@ -189,23 +189,23 @@ protected:
 		TArray<TOptional<FGetOutput>> GetOutputs;
 		GetOutputs.SetNum(Records.Num());
 		FRequestOwner RequestOwner(EPriority::Blocking);
-		TestBackend->Get(Requests, RequestOwner, [&GetOutputs](FCacheGetCompleteParams&& Params)
+		TestBackend->Get(Requests, RequestOwner, [&GetOutputs](FCacheGetResponse&& Response)
 			{
-				FCacheRecordBuilder RecordBuilder(Params.Record.GetKey());
+				FCacheRecordBuilder RecordBuilder(Response.Record.GetKey());
 
-				if (Params.Record.GetMeta())
+				if (Response.Record.GetMeta())
 				{
-					RecordBuilder.SetMeta(FCbObject::Clone(Params.Record.GetMeta()));
+					RecordBuilder.SetMeta(FCbObject::Clone(Response.Record.GetMeta()));
 				}
 
-				for (const FValueWithId& Value : Params.Record.GetValues())
+				for (const FValueWithId& Value : Response.Record.GetValues())
 				{
 					if (Value)
 					{
 						RecordBuilder.AddValue(Value);
 					}
 				}
-				GetOutputs[Params.UserData].Emplace(FGetOutput{ RecordBuilder.Build(), Params.Status });
+				GetOutputs[Response.UserData].Emplace(FGetOutput{ RecordBuilder.Build(), Response.Status });
 			});
 		RequestOwner.Wait();
 
@@ -361,10 +361,10 @@ TArray<UE::DerivedData::FCacheRecord> CreateTestCacheRecords(UE::DerivedData::IC
 	}
 
 	FRequestOwner Owner(EPriority::Blocking);
-	InTestBackend->Put(PutRequests, Owner, [&CacheRecords, &PutRequests] (FCachePutCompleteParams&& Params)
+	InTestBackend->Put(PutRequests, Owner, [&CacheRecords, &PutRequests] (FCachePutResponse&& Response)
 	{
-		check(Params.Status == EStatus::Ok);
-		CacheRecords.Add(PutRequests[Params.UserData].Record);
+		check(Response.Status == EStatus::Ok);
+		CacheRecords.Add(PutRequests[Response.UserData].Record);
 	});
 	Owner.Wait();
 

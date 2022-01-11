@@ -153,8 +153,8 @@ private:
 	void BeginExecuteRemote();
 	void BeginExecuteLocal();
 
-	void EndCacheQuery(FCacheGetCompleteParams&& Params);
-	void EndCacheStore(FCachePutCompleteParams&& Params);
+	void EndCacheQuery(FCacheGetResponse&& Response);
+	void EndCacheStore(FCachePutResponse&& Response);
 	void EndResolveKey(FBuildKeyResolvedParams&& Params);
 	void EndResolveInputMeta(FBuildInputMetaResolvedParams&& Params);
 	void EndResolveInputData(FBuildInputDataResolvedParams&& Params);
@@ -522,18 +522,18 @@ void FBuildJob::BeginCacheQuery()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::CacheQuery);
 	EnumAddFlags(BuildStatus, EBuildStatus::CacheQuery);
 	Cache.Get({{Name, Context->GetCacheKey(), MakeCacheRecordQueryPolicy(BuildPolicy, *Context)}}, Owner,
-		[this](FCacheGetCompleteParams&& Params) { EndCacheQuery(MoveTemp(Params)); });
+		[this](FCacheGetResponse&& Response) { EndCacheQuery(MoveTemp(Response)); });
 }
 
-void FBuildJob::EndCacheQuery(FCacheGetCompleteParams&& Params)
+void FBuildJob::EndCacheQuery(FCacheGetResponse&& Response)
 {
-	if (Params.Status == EStatus::Canceled)
+	if (Response.Status == EStatus::Canceled)
 	{
 		return CompleteWithError("Build was canceled."_ASV);
 	}
-	if (Params.Status == EStatus::Ok)
+	if (Response.Status == EStatus::Ok)
 	{
-		if (FOptionalBuildOutput CacheOutput = FBuildOutput::Load(Name, FunctionName, Params.Record))
+		if (FOptionalBuildOutput CacheOutput = FBuildOutput::Load(Name, FunctionName, Response.Record))
 		{
 			EnumAddFlags(BuildStatus, EBuildStatus::CacheQueryHit);
 			return SetOutputNoCheck(MoveTemp(CacheOutput).Get());
@@ -588,12 +588,12 @@ void FBuildJob::BeginCacheStore()
 	FCacheRecordBuilder RecordBuilder(Context->GetCacheKey());
 	Output.Get().Save(RecordBuilder);
 	Cache.Put({{Name, RecordBuilder.Build(), MakeCacheStorePolicy(BuildPolicy.GetCombinedPolicy(), *Context)}}, Owner,
-		[this](FCachePutCompleteParams&& Params) { EndCacheStore(MoveTemp(Params)); });
+		[this](FCachePutResponse&& Response) { EndCacheStore(MoveTemp(Response)); });
 }
 
-void FBuildJob::EndCacheStore(FCachePutCompleteParams&& Params)
+void FBuildJob::EndCacheStore(FCachePutResponse&& Response)
 {
-	if (Params.Status == EStatus::Ok)
+	if (Response.Status == EStatus::Ok)
 	{
 		EnumAddFlags(BuildStatus, EBuildStatus::CacheStoreHit);
 	}

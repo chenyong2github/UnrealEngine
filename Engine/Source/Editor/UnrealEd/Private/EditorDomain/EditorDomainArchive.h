@@ -19,7 +19,7 @@
 #include "UObject/PackageResourceManager.h"
 
 class FAssetPackageData;
-namespace UE { namespace DerivedData { struct FCacheGetCompleteParams; } }
+namespace UE { namespace DerivedData { struct FCacheGetResponse; } }
 
 /**
  * Helper class for archive classes that server either an EditorDomain version of a package
@@ -47,7 +47,7 @@ public:
 	/** Get the request owner for requests that will feed this archive. */
 	UE::DerivedData::IRequestOwner& GetRequestOwner() { return RequestOwner; }
 	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
-	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params,
+	void OnRecordRequestComplete(UE::DerivedData::FCacheGetResponse&& Response,
 		TUniqueFunction<void(bool bValid)>&& CreateSegmentData,
 		TUniqueFunction<bool(FEditorDomain& EditorDomain)>&& TryCreateFallbackData);
 
@@ -204,7 +204,7 @@ public:
 	/** Get the request owner for requests that will feed this archive. */
 	UE::DerivedData::IRequestOwner& GetRequestOwner() { return Segments.GetRequestOwner(); }
 	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
-	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
+	void OnRecordRequestComplete(UE::DerivedData::FCacheGetResponse&& Response);
 	/** Get the PackageFormat, which depends on the domain the data is read from. */
 	EPackageFormat GetPackageFormat() const;
 	FEditorDomain::EPackageSource GetPackageSource() const;
@@ -244,7 +244,7 @@ public:
 	/** Get the request owner for requests that will feed this archive. */
 	UE::DerivedData::IRequestOwner& GetRequestOwner() { return Segments.GetRequestOwner(); }
 	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
-	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
+	void OnRecordRequestComplete(UE::DerivedData::FCacheGetResponse&& Response);
 	/** Get the PackageFormat, which depends on the domain the data is read from. */
 	EPackageFormat GetPackageFormat() const;
 	FEditorDomain::EPackageSource GetPackageSource() const;

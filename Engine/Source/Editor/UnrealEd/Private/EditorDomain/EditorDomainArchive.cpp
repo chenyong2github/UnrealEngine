@@ -259,7 +259,7 @@ FEditorDomainPackageSegments::FSegment* FEditorDomainPackageSegments::EnsureSegm
 	return StartSegment;
 }
 
-void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params,
+void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCacheGetResponse&& Response,
 	TUniqueFunction<void(bool bValid)>&& CreateSegmentData,
 	TUniqueFunction<bool(FEditorDomain& EditorDomain)>&& TryCreateFallbackData)
 {
@@ -278,9 +278,9 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 
 	ESource NewAsyncSource = ESource::Uninitialized;
 	int32 InitialRequestIndex = -1;
-	if (Params.Status == EStatus::Ok)
+	if (Response.Status == EStatus::Ok)
 	{
-		const FCacheRecord& Record = Params.Record;
+		const FCacheRecord& Record = Response.Record;
 		const uint64 FileSize = Record.GetMeta()["FileSize"].AsUInt64();
 
 		TConstArrayView<FValueWithId> Values = Record.GetValues();
@@ -396,7 +396,7 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 	FCacheChunkRequest SegmentChunk{{PackagePath.GetDebugName()}, UE::EditorDomain::GetEditorDomainPackageKey(EditorDomainHash), Segment.ValueId};
 	SegmentChunk.Policy = ECachePolicy::Local;
 	Cache.GetChunks({SegmentChunk}, *Segment.RequestOwner,
-		[this, &Segment](FCacheChunkCompleteParams&& Params)
+		[this, &Segment](FCacheChunkResponse&& Response)
 		{
 			if (AsyncSource == ESource::Closed)
 			{
@@ -408,13 +408,13 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 				return;
 			}
 
-			if (Params.Status != EStatus::Ok)
+			if (Response.Status != EStatus::Ok)
 			{
 				UE_LOG(LogEditorDomain, Error, TEXT("Package %s is missing cache data in segment %d."), *PackagePath.GetDebugName(), (int32)(&Segment - &Segments[0]));
 			}
 			else
 			{
-				Segment.Data = MoveTemp(Params.RawData);
+				Segment.Data = MoveTemp(Response.RawData);
 				uint64 SegmentEnd = &Segment < &Segments.Last() ? (&Segment + 1)->Start : Size;
 				uint64 SegmentSize = SegmentEnd - Segment.Start;
 				if (Segment.Data.GetSize() != SegmentSize)
@@ -468,9 +468,9 @@ void FEditorDomainReadArchive::WaitForReady() const
 	}
 }
 
-void FEditorDomainReadArchive::OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params)
+void FEditorDomainReadArchive::OnRecordRequestComplete(UE::DerivedData::FCacheGetResponse&& Response)
 {
-	Segments.OnRecordRequestComplete(MoveTemp(Params),
+	Segments.OnRecordRequestComplete(MoveTemp(Response),
 		[this](bool bValid) { CreateSegmentData(bValid); },
 		[this](FEditorDomain& EditorDomain) { return TryCreateFallbackData(EditorDomain); }
 	);
@@ -731,14 +731,14 @@ protected:
 
 FEditorDomainAsyncReadFileHandle::FEditorDomainAsyncReadFileHandle(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource,
-	UE::DerivedData::EPriority Priority)
-	: Segments(InLocks, InPackagePath, InPackageSource, Priority)
+	UE::DerivedData::EPriority InPriority)
+	: Segments(InLocks, InPackagePath, InPackageSource, InPriority)
 {
 }
 
-void FEditorDomainAsyncReadFileHandle::OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params)
+void FEditorDomainAsyncReadFileHandle::OnRecordRequestComplete(UE::DerivedData::FCacheGetResponse&& Response)
 {
-	Segments.OnRecordRequestComplete(MoveTemp(Params),
+	Segments.OnRecordRequestComplete(MoveTemp(Response),
 		[this](bool bValid) { CreateSegmentData(bValid); },
 		[this](FEditorDomain& EditorDomain) { return TryCreateFallbackData(EditorDomain); }
 	);

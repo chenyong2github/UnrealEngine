@@ -183,13 +183,13 @@ public:
 		});
 
 		InnerBackend->Put(Requests, Owner,
-			[this, RecordSizes = MoveTemp(RecordSizes), State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCachePutCompleteParams&& Params)
+			[this, RecordSizes = MoveTemp(RecordSizes), State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCachePutResponse&& Response)
 			{
-				const FRecordSize* Size = Algo::FindBy(RecordSizes, Params.Key, &FRecordSize::Key);
+				const FRecordSize* Size = Algo::FindBy(RecordSizes, Response.Key, &FRecordSize::Key);
 				CloseThrottlingScope(State, FThrottlingState(this, Size ? Size->Size : 0));
 				if (OnComplete)
 				{
-					OnComplete(MoveTemp(Params));
+					OnComplete(MoveTemp(Response));
 				}
 			});
 	}
@@ -200,12 +200,12 @@ public:
 		FOnCacheGetComplete&& OnComplete) override
 	{
 		InnerBackend->Get(Requests, Owner,
-			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheGetCompleteParams&& Params)
+			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheGetResponse&& Response)
 			{
-				CloseThrottlingScope(State, FThrottlingState(this, Private::GetCacheRecordCompressedSize(Params.Record)));
+				CloseThrottlingScope(State, FThrottlingState(this, Private::GetCacheRecordCompressedSize(Response.Record)));
 				if (OnComplete)
 				{
-					OnComplete(MoveTemp(Params));
+					OnComplete(MoveTemp(Response));
 				}
 			});
 	}
@@ -216,12 +216,12 @@ public:
 		FOnCacheChunkComplete&& OnComplete) override
 	{
 		InnerBackend->GetChunks(Requests, Owner,
-			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheChunkCompleteParams&& Params)
+			[this, State = EnterThrottlingScope(), OnComplete = MoveTemp(OnComplete)](FCacheChunkResponse&& Response)
 			{
-				CloseThrottlingScope(State, FThrottlingState(this, Params.RawData.GetSize()));
+				CloseThrottlingScope(State, FThrottlingState(this, Response.RawData.GetSize()));
 				if (OnComplete)
 				{
-					OnComplete(MoveTemp(Params));
+					OnComplete(MoveTemp(Response));
 				}
 			});
 	}
