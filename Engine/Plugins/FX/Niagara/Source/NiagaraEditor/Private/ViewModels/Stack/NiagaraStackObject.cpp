@@ -72,6 +72,13 @@ UObject* UNiagaraStackObject::GetDisplayedObject() const
 	return WeakObject.Get();
 }
 
+void UNiagaraStackObject::InvalidateDetailRows()
+{
+	PropertyRowGenerator.Reset();
+
+	RefreshChildren();
+}
+
 void UNiagaraStackObject::FinalizeInternal()
 {
 	if (PropertyRowGenerator.IsValid())

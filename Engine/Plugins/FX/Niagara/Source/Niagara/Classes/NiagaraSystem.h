@@ -294,7 +294,8 @@ class NIAGARA_API UNiagaraSystem : public UFXSystemAsset, public INiagaraParamet
 public:
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemCompiled, UNiagaraSystem*);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemPostEditChange, UNiagaraSystem*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSystemPostEditChange, UNiagaraSystem*);	
+	DECLARE_MULTICAST_DELEGATE(FOnPropertiesChanged);
 #endif
 	//TestChange
 
@@ -472,6 +473,9 @@ public:
 	/** Delegate called on PostEditChange.*/
 	FOnSystemPostEditChange& OnSystemPostEditChange();
 
+	/** Delegate called when a property is changed **/
+	FOnPropertiesChanged& OnPropertiesChanged();
+	
 	/** Gets editor specific data stored with this system. */
 	UNiagaraEditorDataBase* GetEditorData();
 
@@ -702,7 +706,7 @@ public:
 	const TArray<FName>& GetUserDINamesReadInSystemScripts() const;
 
 	FBox GetFixedBounds() const;
-	FORCEINLINE void SetFixedBounds(const FBox& Box) { FixedBounds = Box;  }
+	void SetFixedBounds(const FBox& Box);
 
 #if WITH_EDITOR
 	void SetEffectType(UNiagaraEffectType* EffectType);
@@ -867,6 +871,8 @@ protected:
 
 	/** A multicast delegate which is called whenever this system's properties are changed. */
 	FOnSystemPostEditChange OnSystemPostEditChangeDelegate;
+
+	FOnPropertiesChanged OnPropertiesChangedDelegate;
 #endif
 
 	/** The fixed bounding box value. bFixedBounds is the condition whether the fixed bounds can be edited. */
