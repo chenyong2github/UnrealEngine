@@ -2316,7 +2316,7 @@ void main(void)
 			raw_channel_count = 4;
 			raw_channel_format = 'unorm';
 
-			if (ue_pixel_format === 'PF_B8G8R8A8')
+			if (ue_pixel_format === 'PF_B8G8R8A8' && g_infos['RHI'] !== 'OpenGL')
 			{
 				raw_channel_swizzling = [2, 1, 0, 3];
 			}

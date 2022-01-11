@@ -472,9 +472,7 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 			&& SrcRect.Size() == DestRect.Size()
 			&& SrcRect.Width() > 0
 			&& SrcRect.Height() > 0
-#if PLATFORM_ANDROID
 			&& SourceTexture->Target == DestTexture->Target // glCopyImageSubData() doesn't like copying from a texture to a renderbuffer on Android
-#endif
 			;
 		
 		if ( !bTrueBlit || !FOpenGL::SupportsCopyImage() )

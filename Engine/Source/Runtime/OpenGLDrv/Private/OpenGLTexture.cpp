@@ -835,14 +835,18 @@ void TOpenGLTexture<RHIResourceType>::Resolve(uint32 MipIndex,uint32 ArrayIndex)
 			}
 			else
 			{
+				// Get framebuffer for texture
+				FOpenGLTextureBase* Texture = this;
+				GLuint SourceFramebuffer = OpenGLRHI->GetOpenGLFramebuffer(1, &Texture, (bCubemap ? &ArrayIndex : nullptr), &MipIndex, nullptr);
+				// Bind the framebuffer
+				glBindFramebuffer(UGL_READ_FRAMEBUFFER, SourceFramebuffer);
+				FOpenGL::ReadBuffer(GL_COLOR_ATTACHMENT0);
+
 				glPixelStorei(GL_PACK_ALIGNMENT, 1);
-				FOpenGL::GetTexImage(
-									 bCubemap ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + ArrayIndex : Target,
-									 MipIndex,
-									 GLFormat.Format,
-									 GLFormat.Type,
-									 0);	// offset into PBO
+				glReadPixels(0, 0, MipSizeX, MipSizeY, GLFormat.Format, GLFormat.Type, 0);
 				glPixelStorei(GL_PACK_ALIGNMENT, 4);
+
+				OpenGLRHI->GetContextStateForCurrentContext().Framebuffer = (GLuint)-1;
 			}
 		}
 	}
