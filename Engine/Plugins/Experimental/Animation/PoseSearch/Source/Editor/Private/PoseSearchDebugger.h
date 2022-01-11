@@ -3,12 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/PoseableMeshComponent.h"
 #include "RewindDebuggerInterface/Public/IRewindDebuggerExtension.h"
 #include "RewindDebuggerInterface/Public/IRewindDebuggerView.h"
 #include "RewindDebuggerInterface/Public/IRewindDebuggerViewCreator.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "PoseSearch/PoseSearch.h"
 #include "PoseSearchDebugger.generated.h"
+
+struct FPoseSearchDatabaseSequence;
+class UAnimSequence;
 
 namespace TraceServices { class IAnalysisSession; }
 enum class EPoseSearchFeatureDomain;
@@ -32,6 +36,33 @@ namespace UE::PoseSearch
 	class FFeatureVectorReader;
 	class FDebuggerDatabaseRowData;
 } // namespace UE::PoseSearch
+
+
+UCLASS()
+class UPoseSearchMeshComponent : public UPoseableMeshComponent
+{
+	GENERATED_BODY()
+public:
+
+	struct FUpdateContext
+	{
+		const UAnimSequence* Sequence = nullptr;
+		float SequenceStartTime = 0.0f;
+		float SequenceTime = 0.0f;
+		bool bLoop = false;
+		bool bMirrored = false;
+		const UMirrorDataTable* MirrorDataTable = nullptr;
+		TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex>* CompactPoseMirrorBones = nullptr;
+		TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex>* ComponentSpaceRefRotations = nullptr;
+	};
+
+	void Refresh();
+	void ResetToStart();
+	void UpdatePose(const FUpdateContext& UpdateContext);
+	void Initialize(const FTransform& InComponentToWorld);
+	FTransform StartingTransform = FTransform::Identity;
+	FTransform LastRootMotionDelta = FTransform::Identity;
+};
 
 
 /**
@@ -146,6 +177,12 @@ public:
 	UPROPERTY(EditAnywhere, Category="Draw Options", Meta=(DisplayName="Selected Pose"))
 	FPoseSearchDebuggerFeatureDrawOptions SelectedPoseDrawOptions;
 
+	UPROPERTY(EditAnywhere, Category = "Draw Options")
+	bool bDrawActiveSkeleton = true;
+	
+	UPROPERTY(EditAnywhere, Category = "Draw Options")
+	bool bDrawSelectedSkeleton = true;
+
     UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
 	FPoseSearchDebuggerPoseVector QueryPoseVector;
     	
@@ -162,7 +199,24 @@ public:
 
 namespace UE::PoseSearch {
 
-DECLARE_DELEGATE(FOnPoseSelectionChanged)
+/** Draw flags for the view's debug draw */
+enum class ESkeletonDrawFlags : uint32
+{
+	None              = 0,
+	ActivePose	  = 1 << 0,
+	SelectedPose  = 1 << 1,
+	AnimSequence  = 1 << 2
+};
+ENUM_CLASS_FLAGS(ESkeletonDrawFlags)
+
+struct FSkeletonDrawParams
+{
+	ESkeletonDrawFlags Flags = ESkeletonDrawFlags::None;
+};
+
+/** Sets model selection data on row selection */
+DECLARE_DELEGATE_TwoParams(FOnPoseSelectionChanged, int32, float)
+class FDebuggerViewModel;
 
 /**
  * Database panel view widget of the PoseSearch debugger
@@ -221,6 +275,7 @@ private:
 	/** Called when the text in the filter box is modified to update the filtering */
 	void OnFilterTextChanged(const FText& SearchText);
 
+	/** Row selection to update model view */
 	void OnDatabaseRowSelectionChanged(TSharedPtr<FDebuggerDatabaseRowData> Row, ESelectInfo::Type SelectInfo);
 
 	/** Generates a database row widget for the given data */
@@ -289,14 +344,15 @@ class SDebuggerDetailsView : public SCompoundWidget
 		SLATE_ARGUMENT(TWeakPtr<class SDebuggerView>, Parent)
 	SLATE_END_ARGS()
 
+	SDebuggerDetailsView() = default;
+	virtual ~SDebuggerDetailsView() override;
+	
 	void Construct(const FArguments& InArgs);
 	void Update(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database) const;
 
 	/** Get a const version of our reflection object */
 	const TObjectPtr<UPoseSearchDebuggerReflection>& GetReflection() const { return Reflection; }
 	
-	virtual ~SDebuggerDetailsView() override;
-
 private:
 	/** Update our details view object with new state information */
 	void UpdateReflection(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database) const;
@@ -309,16 +365,6 @@ private:
 	/** Last updated reflection data relative to MM state */
 	TObjectPtr<UPoseSearchDebuggerReflection> Reflection = nullptr;
 };
-
-/** Callback to update the debugger when node is actively selected */
-DECLARE_DELEGATE_OneParam(FOnUpdateSelection, int32 NodeId);
-
-/**
- * Callback to update the debugger when view update occurs, updating the motion matching state
- * relative to the selected anim instance.
- */
-DECLARE_DELEGATE_OneParam(FOnUpdate, uint64 AnimInstanceId);
-
 /** Callback to relay closing of the view to destroy the debugger instance */
 DECLARE_DELEGATE_OneParam(FOnViewClosed, uint64 AnimInstanceId);
 
@@ -328,32 +374,20 @@ DECLARE_DELEGATE_OneParam(FOnViewClosed, uint64 AnimInstanceId);
 class SDebuggerView : public IRewindDebuggerView
 {
 public:
-	SDebuggerView() = default;
-
 	SLATE_BEGIN_ARGS(SDebuggerView){}
-		SLATE_ATTRIBUTE(const FTraceMotionMatchingStateMessage*, MotionMatchingState)
-		SLATE_ATTRIBUTE(const UPoseSearchDatabase*, PoseSearchDatabase)
-		SLATE_ATTRIBUTE(const TArray<int32>*, MotionMatchingNodeIds)
-		SLATE_ATTRIBUTE(bool, IsPIESimulating)
-		SLATE_ATTRIBUTE(bool, IsRecording)
-		SLATE_ATTRIBUTE(double, RecordingDuration)
-		SLATE_ATTRIBUTE(int32, NodesNum)
-		SLATE_ATTRIBUTE(const UWorld*, World)
-		SLATE_ATTRIBUTE(const FTransform*, RootTransform)
-		SLATE_EVENT(FOnUpdateSelection, OnUpdateSelection)
-		SLATE_EVENT(FOnUpdate, OnUpdate)
+		SLATE_ATTRIBUTE(TSharedPtr<FDebuggerViewModel>, ViewModel)
 		SLATE_EVENT(FOnViewClosed, OnViewClosed)
 	SLATE_END_ARGS()
+
+	SDebuggerView() = default;
+    virtual ~SDebuggerView() override;
 
 	void Construct(const FArguments& InArgs, uint64 InAnimInstanceId);
 	virtual void SetTimeMarker(double InTimeMarker) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FName GetName() const override;
 	virtual uint64 GetObjectId() const override;
-
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> GetSelectedDatabaseRows() const;
-
-	virtual ~SDebuggerView() override;
 
 private:
 	/** Called each frame to draw features of the query vector & database selections */
@@ -373,49 +407,22 @@ private:
 	/** Callback when a button in the selection view is clicked */
 	FReply OnUpdateNodeSelection(int32 InSelectedNodeId);
 
-	void OnPoseSelectionChanged();
+	void OnPoseSelectionChanged(int32 PoseIdx, float Time);
+
+	/** Button interaction to toggle play / stop of the anim sequence */
+	FReply TogglePlaySelectedSequences() const;
 
 	/** Generates the message view relaying that there is no data */
 	TSharedRef<SWidget> GenerateNoDataMessageView();
 
 	/** Generates the return button to go back to the selection mode */
-	TSharedRef<SWidget> GenerateReturnButtonView();
+	TSharedRef<SHorizontalBox> GenerateReturnButtonView();
 
 	/** Generates the entire node debugger widget, including database and details view */
 	TSharedRef<SWidget> GenerateNodeDebuggerView();
 
-	/** Gets all MM nodes being traced in this frame */
-	TAttribute<const TArray<int32>*> MotionMatchingNodeIds;
-	
-	/** Retrieves the MM state from the debugger */
-	TAttribute<const FTraceMotionMatchingStateMessage*> MotionMatchingState;
-	
-	/** Retrieves the PoseSearch Database from the debugger */
-	TAttribute<const UPoseSearchDatabase*> PoseSearchDatabase;
-	
-	/** Whether the game is un-paused and currently simulating */
-	TAttribute<bool> IsPIESimulating;
-	
-	/** Whether the Rewind Debugger is currently recording gameplay */
-	TAttribute<bool> IsRecording;
-	
- 	/** Length of the recorded sequence (if any) */
-	TAttribute<double> RecordingDuration;
-	
- 	/** Number of active nodes at the current frame */
-	TAttribute<int32> NodesNum;
-	
-	/** Current world the Rewind Debugger is functioning in */
-	TAttribute<const UWorld*> World;
-	
-	/** Current Component to World Space transform of the Skeletal Mesh Component */
-	TAttribute<const FTransform*> RootTransform;
-	
-	/** Update current debugger data when node selection is changed */
-	FOnUpdateSelection OnUpdateSelection;
-	
-	/** Update current debugger data when update occurs */
-	FOnUpdate OnUpdate;
+	/** Pointer to the debugger instance / model for this view */
+	TAttribute<TSharedPtr<FDebuggerViewModel>> ViewModel;
 	
 	/** Destroy the debugger instanced when closed */
 	FOnViewClosed OnViewClosed;
@@ -473,12 +480,12 @@ private:
 	static constexpr int32 ConsecutiveFramesUpdateThreshold = 10;
 };
 
-class FDebuggerInstance : public TSharedFromThis<FDebuggerInstance>
+class FDebuggerViewModel : public TSharedFromThis<FDebuggerViewModel>
 {
 public:
-	explicit FDebuggerInstance(uint64 InAnimInstanceId);
+	explicit FDebuggerViewModel(uint64 InAnimInstanceId);
+	virtual ~FDebuggerViewModel();
 
-private:
 	// Used for view callbacks
     const FTraceMotionMatchingStateMessage* GetMotionMatchingState() const;
     const UPoseSearchDatabase* GetPoseSearchDatabase() const;
@@ -487,13 +494,50 @@ private:
 	const FTransform* GetRootTransform() const;
 
 	/** Update motion matching states for frame */
-	void OnUpdate(uint64 InAnimInstanceId);
+	void OnUpdate();
 	
 	/** Updates active motion matching state based on node selection */
-	void OnUpdateSelection(int32 InNodeId);
+	void OnUpdateNodeSelection(int32 InNodeId);
 
-	/** Update the list of states for this frame */	
-	void UpdateMotionMatchingStates(uint64 InAnimInstanceId);
+	/** Updates internal Skeletal Mesh Component depending on input */
+	void OnDraw(FSkeletonDrawParams& DrawParams);
+	
+	/** Get an animation sequence from the sequence ID of the active database */
+	const FPoseSearchDatabaseSequence* GetAnimSequence(int32 SequenceIdx) const;
+	
+	/** Sets the selected pose skeleton*/
+	void ShowSelectedSkeleton(int32 PoseIdx, float Time);
+	
+	/** Clears the selected pose skeleton */
+	void ClearSelectedSkeleton();
+	
+	/** Plays the selected row upon button press */
+	void PlaySelection(int32 PoseIdx, float Time);
+
+	/** Stops the playing selection upon button press */
+	void StopSelection();
+	
+	/** If there is a sequence selection playing */
+	bool IsPlayingSelections() const { return SequenceData.bActive; }
+	
+	/** Play Rate of the sequence selection player */
+	void ChangePlayRate(float PlayRate) { SequencePlayRate = PlayRate; }
+	
+	/** Current play rate of the sequence selection player */
+	float GetPlayRate() const { return SequencePlayRate; }
+	
+	/** Callback to reset debug skeletons for the active world */
+	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+
+	/** Updates the current playing sequence */
+	void UpdateAnimSequence();
+
+private:
+	/** Update the list of states for this frame */
+	void UpdateFromTimeline();
+
+	/** Populates arrays used for mirroring the animation pose */
+	void FillCompactPoseAndComponentRefRotations();
 	
 	/** List of all Node IDs associated with motion matching states */
 	TArray<int32> NodeIds;
@@ -504,11 +548,78 @@ private:
 	/** Currently active motion matching state based on node selection in the view */
 	const FTraceMotionMatchingStateMessage* ActiveMotionMatchingState = nullptr;
 
-	/** Stored Rewind Debugger instance provided by the extension */
-	const IRewindDebugger* RewindDebugger = nullptr;
+	/** Current Skeletal Mesh Component Id for the AnimInstance */
+	uint64 SkeletalMeshComponentId = 0;
+
+	/** Currently active root transform on the skeletal mesh */
+	const FTransform* RootTransform = nullptr;
+
+	/** Pointer to the active rewind debugger in the scene */
+	TAttribute<const IRewindDebugger*> RewindDebugger;
 
 	/** Anim Instance associated with this debugger instance */
 	uint64 AnimInstanceId = 0;
+
+	/** Compact pose format of Mirror Bone Map */
+	TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex> CompactPoseMirrorBones;
+
+	/** Pre-calculated component space rotations of reference pose */
+	TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex> ComponentSpaceRefRotations;
+
+	/** Debug visualization skeleton actor */
+	struct FSkeleton
+	{
+		/** Actor object for the skeleton */
+		TWeakObjectPtr<AActor> Actor = nullptr;
+
+		/** Derived skeletal mesh for setting the skeleton in the scene */
+		UPoseSearchMeshComponent* Component = nullptr;
+	
+		/** Active sequence index being used for this setting this skeleton */
+		int32 SequenceIdx = 0;
+		
+		/** Time in the sequence this skeleton is accessing */
+		float Time = 0.0f;
+
+		bool bMirrored = false;
+	};
+	
+	/** Index for each type of skeleton we store for debug visualization */
+	enum ESkeletonIndex
+	{
+		ActivePose = 0,
+		SelectedPose,
+		AnimSequence,
+
+		Num
+	};
+
+	/** Skeleton container for each type */
+	TArray<FSkeleton, TFixedAllocator<ESkeletonIndex::Num>> Skeletons;
+
+	/** Whether the skeletons have been initialized for this world */
+	bool bSkeletonsInitialized = false;
+	
+	/** If we currently have a selection active in the view */
+	bool bSelecting = false;
+	
+	/** Data of the active playing sequence */
+	struct FSequence
+	{
+		/** How long to stop upon reaching target */
+		static constexpr float StopDuration = 2.0f;
+		/** Time since the start of play */
+		float AccumulatedTime = 0.0f;
+
+		/** Start time of the sequence */
+		float StartTime = 0.0f;
+		/** If we are currently playing a sequence */
+		bool bActive = false;
+
+	} SequenceData;
+	
+	/** Current play rate of the sequence selection player */
+	float SequencePlayRate = 1.0f;
 
 	/** Limits some public API */
 	friend class FDebugger;
@@ -529,21 +640,30 @@ public:
 	static void Shutdown();
 	static const FName ModularFeatureName;
 
+	// Shared data from the Rewind Debugger singleton
+	static bool IsPIESimulating();
+	static bool IsRecording();
+	static double GetRecordingDuration();
+	static UWorld* GetWorld();
+	static const IRewindDebugger* GetRewindDebugger();
+
 	/** Generates the slate debugger view widget */
 	TSharedPtr<SDebuggerView> GenerateInstance(uint64 InAnimInstanceId);
+
 private:
-	bool IsPIESimulating() const;
-	bool IsRecording() const;
-	double GetRecordingDuration() const;
-	const UWorld* GetWorld() const;
-	void OnViewClosed(uint64 InAnimInstanceId);
+	/** Removes the reference from the model array when closed, destroying the model */
+	static void OnViewClosed(uint64 InAnimInstanceId);
+
+	/** Acquire view model from the array */
+	static TSharedPtr<FDebuggerViewModel> GetViewModel(uint64 InAnimInstanceId);
 
 	/** Last stored Rewind Debugger */
 	const IRewindDebugger* RewindDebugger = nullptr;
 
 	/** List of all active debugger instances */
-	TArray<TSharedRef<FDebuggerInstance>> DebuggerInstances;
+	TArray<TSharedRef<FDebuggerViewModel>> ViewModels;
 	
+	/** Internal instance */
 	static FDebugger* Debugger;
 };
 
