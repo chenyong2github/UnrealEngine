@@ -66,8 +66,7 @@ public:
 	 */
 	TUniqueFunction<void (const FText& TransactionLabel,
 			TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn,
-			const UE::Geometry::FGroupTopologySelection& OutputSelection,
-			bool bGroupTopologyChanged)> 
+			const UE::Geometry::FGroupTopologySelection& OutputSelection)> 
 		EmitCurrentMeshChangeAndUpdate;
 
 	/**

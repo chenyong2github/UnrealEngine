@@ -344,10 +344,9 @@ void UEditMeshPolygonsTool::Setup()
 	};
 	ActivityContext->EmitCurrentMeshChangeAndUpdate = [this](const FText& TransactionLabel,
 		TUniquePtr<UE::Geometry::FDynamicMeshChange> MeshChangeIn,
-		const UE::Geometry::FGroupTopologySelection& OutputSelection, 
-		bool bTopologyModified) 
+		const UE::Geometry::FGroupTopologySelection& OutputSelection) 
 	{
-		EmitCurrentMeshChangeAndUpdate(TransactionLabel, MoveTemp(MeshChangeIn), OutputSelection, bTopologyModified);
+		EmitCurrentMeshChangeAndUpdate(TransactionLabel, MoveTemp(MeshChangeIn), OutputSelection);
 	};
 	GetToolManager()->GetContextObjectStore()->RemoveContextObjectsOfType(UPolyEditActivityContext::StaticClass());
 	GetToolManager()->GetContextObjectStore()->AddContextObject(ActivityContext);
@@ -1167,7 +1166,8 @@ void UEditMeshPolygonsTool::ApplyMerge()
 		NewSelection.SelectedGroupIDs.Add(NewGroupID);
 	}
 	
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshMergeChange", "Merge"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshMergeChange", "Merge"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1203,7 +1203,8 @@ void UEditMeshPolygonsTool::ApplyDelete()
 	Editor.RemoveTriangles(ActiveTriangleSelection, true);
 
 	FGroupTopologySelection NewSelection;
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshDeleteChange", "Delete"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshDeleteChange", "Delete"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1231,9 +1232,9 @@ void UEditMeshPolygonsTool::ApplyRecalcNormals()
 
 	// We actually don't even need any of the wrapper around this change since we're not altering
 	// positions or topology (so no other structures need updating), but we go ahead and go the
-	// same route as everything else.
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshRecalcNormalsChange", "Recalc Normals"), 
-		ChangeTracker.EndChange(), ActiveSelection, false);
+	// same route as everything else. See :HandlePositionOnlyMeshChanges
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshRecalcNormalsChange", "Recalculate Normals"), 
+		ChangeTracker.EndChange(), ActiveSelection);
 }
 
 
@@ -1263,7 +1264,7 @@ void UEditMeshPolygonsTool::ApplyFlipNormals()
 
 	// Note the topology can change in that the ordering of edge elements can reverse
 	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshFlipNormalsChange", "Flip Normals"), 
-		ChangeTracker.EndChange(), ActiveSelection, true);
+		ChangeTracker.EndChange(), ActiveSelection);
 }
 
 
@@ -1343,8 +1344,8 @@ void UEditMeshPolygonsTool::ApplyRetriangulate()
 		GetToolManager()->DisplayMessage(LOCTEXT("OnRetriangulateFailures", "Some faces could not be retriangulated"), EToolMessageLevel::UserWarning);
 	}
 
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshRetriangulateChange", "Retriangulate"), 
-		ChangeTracker.EndChange(), ActiveSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshRetriangulateChange", "Retriangulate"),
+		ChangeTracker.EndChange(), ActiveSelection);
 }
 
 
@@ -1365,7 +1366,8 @@ void UEditMeshPolygonsTool::SimplifyByGroups()
 
 	FGroupTopologySelection NewSelection; // Empty the selection
 
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshSimplifyByGroup", "Simplify by Group"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshSimplifyByGroup", "Simplify by Group"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1394,8 +1396,8 @@ void UEditMeshPolygonsTool::ApplyDecompose()
 		}
 	}
 
-
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshDecomposeChange", "Decompose"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshDecomposeChange", "Decompose"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1420,7 +1422,8 @@ void UEditMeshPolygonsTool::ApplyDisconnect()
 	FDynamicMeshEditor Editor(Mesh);
 	Editor.DisconnectTriangles(AllTriangles, false);
 
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshDisconnectChange", "Disconnect"), ChangeTracker.EndChange(), ActiveSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshDisconnectChange", "Disconnect"),
+		ChangeTracker.EndChange(), ActiveSelection);
 }
 
 
@@ -1451,7 +1454,8 @@ void UEditMeshPolygonsTool::ApplyDuplicate()
 	FGroupTopologySelection NewSelection;
 	NewSelection.SelectedGroupIDs.Append(bTriangleMode ? EditResult.NewTriangles : EditResult.NewGroups);
 
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshDisconnectChange", "Disconnect"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshDisconnectChange", "Disconnect"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1489,7 +1493,8 @@ void UEditMeshPolygonsTool::ApplyCollapseEdge()
 
 	// emit undo
 	FGroupTopologySelection NewSelection;
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshEdgeCollapseChange", "Collapse"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshEdgeCollapseChange", "Collapse"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1528,7 +1533,8 @@ void UEditMeshPolygonsTool::ApplyWeldEdges()
 	}
 
 	FGroupTopologySelection NewSelection;
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshWeldEdgeChange", "Weld Edges"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshWeldEdgeChange", "Weld Edges"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1563,9 +1569,14 @@ void UEditMeshPolygonsTool::ApplyStraightenEdges()
 		}
 	}
 
+	// TODO :HandlePositionOnlyMeshChanges Due to the group topology storing edge IDs that do not stay the same across
+	// undo/redo events even when the mesh topology stays the same after a FDynamicMeshChange, we actually have to treat
+	// all FDynamicMeshChange-based transactions as affecting group topology. Here we only changed vertex positions so
+	// we could add a separate overload that takes a FMeshVertexChange, and possibly one that takes an attribute change
+	// (or unify the three via an interface)
 	FGroupTopologySelection NewSelection;
 	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshStraightenEdgeChange", "Straighten Edges"), 
-		ChangeTracker.EndChange(), NewSelection, false);
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1622,7 +1633,8 @@ void UEditMeshPolygonsTool::ApplyFillHole()
 		}
 	}
 
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshFillHoleChange", "Fill Hole"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshFillHoleChange", "Fill Hole"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1652,7 +1664,8 @@ void UEditMeshPolygonsTool::ApplyPokeSingleFace()
 		}
 	}
 
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshPokeChange", "Poke Faces"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshPokeChange", "Poke Faces"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1683,7 +1696,8 @@ void UEditMeshPolygonsTool::ApplyFlipSingleEdge()
 	}
 
 	// Group topology may or may not change, but just assume that it does.
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshFlipChange", "Flip Edges"), ChangeTracker.EndChange(), ActiveSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshFlipChange", "Flip Edges"),
+		ChangeTracker.EndChange(), ActiveSelection);
 }
 
 void UEditMeshPolygonsTool::ApplyCollapseSingleEdge()
@@ -1726,7 +1740,7 @@ void UEditMeshPolygonsTool::ApplyCollapseSingleEdge()
 	}
 
 	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshCollapseChange", "Collapse Edges"), 
-		ChangeTracker.EndChange(), FGroupTopologySelection(), true);
+		ChangeTracker.EndChange(), FGroupTopologySelection());
 }
 
 void UEditMeshPolygonsTool::ApplySplitSingleEdge()
@@ -1766,7 +1780,8 @@ void UEditMeshPolygonsTool::ApplySplitSingleEdge()
 		}
 	}
 
-	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshSplitChange", "Split Edges"), ChangeTracker.EndChange(), NewSelection, true);
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshSplitChange", "Split Edges"),
+		ChangeTracker.EndChange(), NewSelection);
 }
 
 
@@ -1801,8 +1816,7 @@ bool UEditMeshPolygonsTool::BeginMeshFaceEditChange()
 
 void UEditMeshPolygonsTool::EmitCurrentMeshChangeAndUpdate(const FText& TransactionLabel,
 	TUniquePtr<FDynamicMeshChange> MeshChangeIn,
-	const FGroupTopologySelection& OutputSelection, 
-	bool bGroupTopologyModified)
+	const FGroupTopologySelection& OutputSelection)
 {
 	// open top-level transaction
 	GetToolManager()->BeginUndoTransaction(TransactionLabel);
@@ -1819,11 +1833,11 @@ void UEditMeshPolygonsTool::EmitCurrentMeshChangeAndUpdate(const FText& Transact
 	const FGroupTopologySelection* OutputSelectionToUse = &OutputSelection;
 
 	// If the selection is going to be cleared, we need to do it explicitly ourselves so that we can emit a change.
-	if (!SelectionMechanic->GetActiveSelection().IsEmpty() && (bSelectionModified || bGroupTopologyModified))
+	if (!SelectionMechanic->GetActiveSelection().IsEmpty() && bSelectionModified)
 	{
 		if (bReferencingSameSelection)
 		{
-			// Need to make a copy because OutputSelection will get cleared due to bGroupTopologyModified
+			// Need to make a copy because OutputSelection will get cleared
 			TempSelection = OutputSelection;
 			OutputSelectionToUse = &TempSelection;
 		}
@@ -1834,16 +1848,16 @@ void UEditMeshPolygonsTool::EmitCurrentMeshChangeAndUpdate(const FText& Transact
 	}
 
 	GetToolManager()->EmitObjectChange(this, 
-		MakeUnique<FEditMeshPolygonsToolMeshChange>(MoveTemp(MeshChangeIn), bGroupTopologyModified),
+		MakeUnique<FEditMeshPolygonsToolMeshChange>(MoveTemp(MeshChangeIn)),
 		TransactionLabel);
 
 	// Update related structures
-	UpdateFromCurrentMesh(bGroupTopologyModified);
-	ModifiedTopologyCounter += bGroupTopologyModified;
+	UpdateFromCurrentMesh(true);
+	ModifiedTopologyCounter += 1;
 
 	// Set output selection either if we changed selections (to something non-empty), or if
 	// our selection got cleared due to bGroupTopologyModified.
-	if (!OutputSelectionToUse->IsEmpty() && (bSelectionModified || bGroupTopologyModified))
+	if (!OutputSelectionToUse->IsEmpty() && bSelectionModified)
 	{
 		SelectionMechanic->BeginChange();
 		SelectionMechanic->SetSelection(*OutputSelectionToUse);
@@ -1981,6 +1995,10 @@ void FEditMeshPolygonsToolMeshChange::Apply(UObject* Object)
 {
 	UEditMeshPolygonsTool* Tool = Cast<UEditMeshPolygonsTool>(Object);
 	
+	// This function currently only supports FDynamicMeshChange but that should be issued only when the mesh changes
+	// topology. For now we use it even when eg vertex postions change. See :HandlePositionOnlyMeshChanges
+	bool bGroupTopologyModified = true;
+	
 	MeshChange->Apply(Tool->CurrentMesh.Get(), false);
 	Tool->UpdateFromCurrentMesh(bGroupTopologyModified);
 	Tool->ModifiedTopologyCounter += bGroupTopologyModified;
@@ -1990,6 +2008,10 @@ void FEditMeshPolygonsToolMeshChange::Apply(UObject* Object)
 void FEditMeshPolygonsToolMeshChange::Revert(UObject* Object)
 {
 	UEditMeshPolygonsTool* Tool = Cast<UEditMeshPolygonsTool>(Object);
+	
+	// This function currently only supports FDynamicMeshChange but that should be issued only when the mesh changes
+	// topology. For now we use it even when eg vertex postions change. See :HandlePositionOnlyMeshChanges
+	bool bGroupTopologyModified = true;
 	
 	MeshChange->Apply(Tool->CurrentMesh.Get(), true);
 	Tool->UpdateFromCurrentMesh(bGroupTopologyModified);

@@ -295,7 +295,7 @@ void UPolyEditInsertEdgeLoopActivity::Tick(float DeltaTime)
 			// Emit transaction
 			FGroupTopologySelection EmptySelection;
 			ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("EdgeLoopInsertionTransactionName", "Edge Loop Insertion"),
-				ChangeTracker.EndChange(), EmptySelection, true);
+				ChangeTracker.EndChange(), EmptySelection);
 		}
 
 		PreviewEdges.Reset();

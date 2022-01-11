@@ -195,9 +195,10 @@ void UPolyEditPlanarProjectionUVActivity::ApplySetUVs()
 	FDynamicMeshEditor Editor(ActivityContext->CurrentMesh.Get());
 	Editor.SetTriangleUVsFromProjection(ActiveTriangleSelection, PlanarFrame, UVScale, FVector2f::Zero(), false, 0);
 
-	// Emit undo (also updates relevant structures)
+	// Emit undo (also updates relevant structures). We didn't change the mesh topology here but for now we use
+	// the same route as everything else. See :HandlePositionOnlyMeshChanges
 	ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshSetUVsChange", "Set UVs"),
-		ChangeTracker.EndChange(), ActiveSelection, false);
+		ChangeTracker.EndChange(), ActiveSelection);
 
 	// End activity
 	Clear();

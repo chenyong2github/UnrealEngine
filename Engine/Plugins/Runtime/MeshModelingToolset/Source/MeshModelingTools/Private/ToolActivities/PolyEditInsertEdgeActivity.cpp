@@ -253,7 +253,7 @@ void UPolyEditInsertEdgeActivity::Tick(float DeltaTime)
 			// Emit transaction
 			FGroupTopologySelection EmptySelection;
 			ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("EdgeInsertionTransactionName", "Edge Insertion"),
-				ChangeTracker.EndChange(), EmptySelection, true);
+				ChangeTracker.EndChange(), EmptySelection);
 
 			ToolState = EState::GettingStart;
 		}

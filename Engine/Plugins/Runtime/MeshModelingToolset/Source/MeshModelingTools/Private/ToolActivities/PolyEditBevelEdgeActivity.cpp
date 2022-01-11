@@ -287,7 +287,7 @@ void UPolyEditBevelEdgeActivity::ApplyBevel()
 
 	// Emit undo  (also updates relevant structures)
 	ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshBevelChange", "Bevel"),
-		ChangeTracker.EndChange(), NewSelection, true);
+		ChangeTracker.EndChange(), NewSelection);
 
 	ActiveSelection = NewSelection;
 }
