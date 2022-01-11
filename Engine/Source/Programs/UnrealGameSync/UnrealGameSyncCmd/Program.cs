@@ -539,6 +539,10 @@ namespace UnrealGameSyncCmd
 
 				[CommandLine("-Build")]
 				public bool Build { get; set; }
+
+				[CommandLine("-NoGPF", Value = "false")]
+				[CommandLine("-NoProjectFiles", Value = "false")]
+				public bool ProjectFiles { get; set; } = true;
 			}
 
 			public override async Task ExecuteAsync(CommandContext Context)
@@ -575,6 +579,10 @@ namespace UnrealGameSyncCmd
 				if (SyncOptions.Build)
 				{
 					Options |= WorkspaceUpdateOptions.Build;
+				}
+				if (SyncOptions.ProjectFiles)
+				{
+					Options |= WorkspaceUpdateOptions.GenerateProjectFiles;
 				}
 
 				ProjectInfo ProjectInfo = State.CreateProjectInfo();
