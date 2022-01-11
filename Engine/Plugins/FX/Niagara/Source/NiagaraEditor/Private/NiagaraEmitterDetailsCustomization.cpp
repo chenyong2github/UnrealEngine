@@ -15,7 +15,6 @@ TSharedRef<IDetailCustomization> FNiagaraEmitterDetails::MakeInstance(UNiagaraSy
 	return MakeShareable(new FNiagaraEmitterDetails(System));
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
 void FNiagaraEmitterDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	TSharedPtr<IPropertyHandle> EventHandlersPropertyHandle = DetailBuilder.GetProperty(UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps);
