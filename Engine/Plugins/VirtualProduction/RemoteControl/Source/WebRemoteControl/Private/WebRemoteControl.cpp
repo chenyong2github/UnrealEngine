@@ -1097,6 +1097,14 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 		return true;
 	}
 
+	if (!RemoteControlProperty->IsBound())
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Exposed entity was found but not bound to any object."), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
 	TArray<uint8> WorkingBuffer;
 	FMemoryWriter Writer(WorkingBuffer);
 
