@@ -169,9 +169,14 @@ void UActorDescContainer::OnWorldRenamed(UWorld* RenamedWorld)
 {
 	if (GetWorld() == RenamedWorld)
 	{
-		// Update container package
-		ContainerPackageName = RenamedWorld->GetPackage()->GetFName();
+		OnWorldRenamed();
 	}
+}
+
+void UActorDescContainer::OnWorldRenamed()
+{
+	// Update container package
+	ContainerPackageName = GetWorld()->GetPackage()->GetFName();
 }
 
 bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)

@@ -739,7 +739,8 @@ static bool SaveWorld(UWorld* World,
 
 		// Rename the package and the object, as necessary
 		UWorld* DuplicatedWorld = nullptr;
-		bool bRenamedWorldPartition = false;
+		UWorldPartition* RenamedWorldPartition = nullptr;
+	
 
 		// Save Loaded cells
 		TArray<FName> LoadedEditorCells;
@@ -754,11 +755,11 @@ static bool SaveWorld(UWorld* World,
 					return false;
 				}
 
+				RenamedWorldPartition = World->GetWorldPartition();
 				// Load all unloaded actors before rename. If this is causing issues (oom or other) map will need to be renamed through a provided builder commandlet
-				if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+				if (RenamedWorldPartition)
 				{
-					bRenamedWorldPartition = true;
-					LoadedEditorCells = WorldPartition->GetUserLoadedEditorGridCells();
+					LoadedEditorCells = RenamedWorldPartition->GetUserLoadedEditorGridCells();
 					if (AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
 					{
 						WorldDataLayers->ForEachDataLayer([](UDataLayer* DataLayer)
@@ -771,10 +772,10 @@ static bool SaveWorld(UWorld* World,
 						});
 					}
 					// Make sure AlwaysLoaded DL cells get loaded
-					WorldPartition->RefreshLoadedEditorCells(false);
+					RenamedWorldPartition->RefreshLoadedEditorCells(false);
 					// Load all the rest
 					const FBox All(FVector(-WORLD_MAX), FVector(WORLD_MAX));
-					WorldPartition->LoadEditorCells(All, false);
+					RenamedWorldPartition->LoadEditorCells(All, false);
 				}
 
 				// If we are doing a SaveAs on a world that already exists on disk, we need to duplicate it:
@@ -880,10 +881,11 @@ static bool SaveWorld(UWorld* World,
 				AssetRegistry.ScanPathsSynchronous( ULevel::GetExternalObjectsPaths(NewPackageName) , true);
 			}
 
-			if (bRenamedWorldPartition)
+			if (RenamedWorldPartition)
 			{
 				// Save Snapshot of loaded Editor Cells
 				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(SaveWorld, LoadedEditorCells);
+				RenamedWorldPartition->LoadEditorCells(LoadedEditorCells, /*bIsFromUserChange=*/true);
 			}
 		}
 

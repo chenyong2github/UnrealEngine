@@ -97,6 +97,8 @@ private:
 	void OnEndPlay();
 
 	//~ Begin UActorDescContainer Interface
+	virtual void OnWorldRenamed() override;
+
 	virtual void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc) override;
 	virtual void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc) override;
 	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) override;
@@ -120,6 +122,7 @@ public:
 	FName GetWorldPartitionEditorName() const;
 
 	void LoadEditorCells(const FBox& Box, bool bIsFromUserChange);
+	void LoadEditorCells(const TArray<FName>& CellNames, bool bIsFromUserChange);
 	void UnloadEditorCells(const FBox& Box, bool bIsFromUserChange);
 	bool AreEditorCellsLoaded(const FBox& Box);
 	bool RefreshLoadedEditorCells(bool bIsFromUserChange);
