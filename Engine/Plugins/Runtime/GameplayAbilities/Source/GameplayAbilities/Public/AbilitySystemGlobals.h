@@ -378,7 +378,10 @@ protected:
 	UPROPERTY(config)
 	bool PredictTargetGameplayEffects;
 
-	/** Set to true if you want tags granted to owners from ability activations to be replicated. If false, ActivationOwnedTags are only applied locally. */
+	/** 
+	 * Set to true if you want tags granted to owners from ability activations to be replicated. If false, ActivationOwnedTags are only applied locally. 
+	 * This should only be disabled for legacy game code that depends on non-replication of ActivationOwnedTags.
+	 */
 	UPROPERTY(config)
 	bool ReplicateActivationOwnedTags;
 
