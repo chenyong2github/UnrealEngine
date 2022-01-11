@@ -150,7 +150,6 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 				FExecuteAction::CreateLambda([this]()
 				{
 					UMLDeformerAsset* DeformerAsset = EditorData->GetDeformerAsset();
-					DeformerAsset->SetInputInfo(DeformerAsset->CreateInputInfo());
 
 					// Ask if we want to retrain the network if we already have something trained.
 					if (DeformerAsset->GetInferenceNeuralNetwork() != nullptr)

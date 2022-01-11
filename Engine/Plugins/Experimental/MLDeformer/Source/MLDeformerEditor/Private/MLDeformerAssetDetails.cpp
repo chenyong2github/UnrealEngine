@@ -16,12 +16,14 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailsView.h"
+#include "IDetailGroup.h"
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBox.h"
 #include "DetailLayoutBuilder.h"
 
 #include "SWarningOrErrorBox.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerAssetDetails"
 
@@ -236,6 +238,22 @@ void FMLDeformerAssetDetails::CustomizeDetails(class IDetailLayoutBuilder& Detai
 
 	InputOutputCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, DeltaCutoffLength));
 
+	// Bone include list group.
+	IDetailGroup& BoneIncludeGroup = InputOutputCategoryBuilder.AddGroup("BoneIncludeGroup", LOCTEXT("BoneIncludeGroup", "Bones"), false, true);
+	BoneIncludeGroup.AddWidgetRow()
+		//.WholeRowContent()
+		.ValueContent()
+		//.NameContent()
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Text(LOCTEXT("AnimatedBonesButton", "Animated Bones Only"))
+			.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerAssetDetails::OnFilterAnimatedBonesOnly, DeformerAsset))
+			.IsEnabled_Lambda([DeformerAsset](){ return (DeformerAsset->GetTrainingInputs() == ETrainingInputs::BonesAndCurves) || (DeformerAsset->GetTrainingInputs() == ETrainingInputs::BonesOnly); })
+		];
+	BoneIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, BoneIncludeList)));
+
 	// Training settings.
 	IDetailCategoryBuilder& SettingsCategoryBuilder = DetailBuilder.EditCategory("Training Settings", FText::GetEmpty(), ECategoryPriority::Important);
 	SettingsCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, NumHiddenLayers));
@@ -300,6 +318,13 @@ bool FMLDeformerAssetDetails::FilterAnimSequences(const FAssetData& AssetData, U
 	}
 
 	return true;
+}
+
+FReply FMLDeformerAssetDetails::OnFilterAnimatedBonesOnly(UMLDeformerAsset* DeformerAsset) const
+{
+	DeformerAsset->InitBoneIncludeListToAnimatedBonesOnly();
+	DetailLayoutBuilder->ForceRefreshDetails();
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

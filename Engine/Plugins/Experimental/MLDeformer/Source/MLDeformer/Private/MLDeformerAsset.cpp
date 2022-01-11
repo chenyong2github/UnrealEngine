@@ -12,6 +12,7 @@
 #include "NeuralNetwork.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimData/AnimDataModel.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerAsset"
 
@@ -84,6 +85,19 @@ void UMLDeformerAsset::PostLoad()
 	}
 
 	InitGPUData();
+}
+
+// Used for the FBoenReference, so it knows what skeleton to pick bones from.
+USkeleton* UMLDeformerAsset::GetSkeleton(bool& bInvalidSkeletonIsError)
+{
+	bInvalidSkeletonIsError = false;
+#if WITH_EDITOR
+	if (SkeletalMesh)
+	{
+		return SkeletalMesh->GetSkeleton();
+	}
+#endif
+	return nullptr;
 }
 
 #if WITH_EDITOR
@@ -308,6 +322,93 @@ void UMLDeformerAsset::InitVertexMap()
 	}
 }
 
+void UMLDeformerAsset::InitBoneIncludeListToAnimatedBonesOnly()
+{
+	if (!AnimSequence)
+	{
+		UE_LOG(LogMLDeformer, Warning, TEXT("Cannot initialize bone list as no Anim Sequence has been picked."));
+		return;
+	}
+
+	const UAnimDataModel* DataModel = AnimSequence->GetDataModel();
+	if (!DataModel)
+	{
+		UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));
+		return;
+	}
+
+	if (!SkeletalMesh)
+	{
+		UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has not been set."));
+		return;
+	}
+
+	USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
+	if (!Skeleton)
+	{
+		UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has no skeleton."));
+		return;
+	}
+
+	// Iterate over all bones that are both in the skeleton and the animation.
+	TArray<FName> AnimatedBoneList;
+	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
+	const int32 NumBones = RefSkeleton.GetNum();
+	for (int32 Index = 0; Index < NumBones; ++Index)
+	{
+		const FName BoneName = RefSkeleton.GetBoneName(Index);
+		const int32 BoneTrackIndex = DataModel->GetBoneTrackIndexByName(BoneName);
+		if (BoneTrackIndex == INDEX_NONE)
+		{
+			continue;
+		}
+
+		// Check if there is actually animation data.
+		const FBoneAnimationTrack& BoneAnimTrack = DataModel->GetBoneTrackByIndex(BoneTrackIndex);
+		const TArray<FQuat4f>& Rotations = BoneAnimTrack.InternalTrackData.RotKeys;
+		bool bIsAnimated = false;
+		if (!Rotations.IsEmpty())
+		{
+			const FQuat4f FirstQuat = Rotations[0];
+			for (const FQuat4f KeyValue : Rotations)
+			{
+				if (!KeyValue.Equals(FirstQuat))
+				{
+					bIsAnimated = true;
+					break;
+				}
+			}
+
+			if (!bIsAnimated)
+			{
+				UE_LOG(LogMLDeformer, Display, TEXT("Bone '%s' has keyframes but isn't animated."), *BoneName.ToString());
+			}
+		}
+
+		if (bIsAnimated)
+		{
+			AnimatedBoneList.Add(BoneName);
+		}
+	}
+
+	// Init the bone include list using the animated bones.
+	if (!AnimatedBoneList.IsEmpty())
+	{
+		BoneIncludeList.Empty();
+		BoneIncludeList.Reserve(AnimatedBoneList.Num());
+		for (FName BoneName : AnimatedBoneList)
+		{
+			BoneIncludeList.AddDefaulted();
+			FBoneReference& BoneRef = BoneIncludeList.Last();
+			BoneRef.BoneName = BoneName;
+		}
+	}
+	else
+	{
+		UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated bone rotations in Anim Sequence '%s'."), *AnimSequence->GetName());
+	}
+}
+
 int32 UMLDeformerAsset::GetNumFramesForTraining() const 
 { 
 	return FMath::Min(GetNumFrames(), GetTrainingFrameLimit()); 
@@ -492,8 +593,31 @@ FMLDeformerInputInfo UMLDeformerAsset::CreateInputInfo() const
 	Settings.TargetMesh = GeometryCache;
 	Settings.bIncludeBones = (TrainingInputs == ETrainingInputs::BonesAndCurves || TrainingInputs == ETrainingInputs::BonesOnly);
 	Settings.bIncludeCurves = (TrainingInputs == ETrainingInputs::BonesAndCurves || TrainingInputs == ETrainingInputs::CurvesOnly);
-	Result.Init(Settings);
 
+	// Set the list of bones to use, from the bone references.
+	if (!BoneIncludeList.IsEmpty())
+	{
+		FString BoneName;
+		for (const FBoneReference& BoneReference : BoneIncludeList)
+		{
+			if (SkeletalMesh && SkeletalMesh->GetSkeleton() && BoneReference.BoneName.IsValid())
+			{
+				BoneName = BoneReference.BoneName.ToString();
+				const int32 BoneId = SkeletalMesh->GetRefSkeleton().FindRawBoneIndex(BoneReference.BoneName);
+				if (BoneId != INDEX_NONE && !Settings.BoneNamesToInclude.Contains(BoneName))
+				{
+					Settings.BoneNamesToInclude.Add(BoneName);
+					UE_LOG(LogMLDeformer, Display, TEXT("Including bone '%s' in training."), *BoneName);
+				}
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogMLDeformer, Display, TEXT("Including ALL bones of skeleton in training."));
+	}
+
+	Result.Init(Settings);
 	return Result;
 }
 
