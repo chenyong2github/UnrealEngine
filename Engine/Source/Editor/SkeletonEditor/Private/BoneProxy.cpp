@@ -268,6 +268,89 @@ void UBoneProxy::OnMultiNumericValueCommitted(
 	}
 }
 
+bool UBoneProxy::DiffersFromDefault(ESlateTransformComponent::Type Component, ETransformType TransformType) const
+{
+	if(TransformType == TransformType_Bone)
+	{
+		switch(Component)
+		{
+			case ESlateTransformComponent::Location:
+			{
+				return !Location.Equals(ReferenceLocation);
+			}
+			case ESlateTransformComponent::Rotation:
+			{
+				return !Rotation.Equals(ReferenceRotation);
+			}
+			case ESlateTransformComponent::Scale:
+			{
+				return !Scale.Equals(ReferenceScale);
+			}
+			default:
+			{
+				return DiffersFromDefault(ESlateTransformComponent::Location, TransformType) ||
+					DiffersFromDefault(ESlateTransformComponent::Rotation, TransformType) ||
+						DiffersFromDefault(ESlateTransformComponent::Scale, TransformType);
+			}
+		}
+	}
+	return false;
+}
+
+void UBoneProxy::ResetToDefault(ESlateTransformComponent::Type InComponent, ETransformType TransformType)
+{
+	if(TransformType == TransformType_Bone)
+	{
+		if (UDebugSkelMeshComponent* Component = SkelMeshComponent.Get())
+		{
+			if (Component->PreviewInstance && Component->AnimScriptInstance == Component->PreviewInstance)
+			{
+				int32 BoneIndex = Component->GetBoneIndex(BoneName);
+				if (BoneIndex != INDEX_NONE && BoneIndex < Component->GetNumComponentSpaceTransforms())
+				{
+					Component->PreviewInstance->SetFlags(RF_Transactional);
+					Component->PreviewInstance->Modify();
+
+					FAnimNode_ModifyBone& ModifyBone = Component->PreviewInstance->ModifyBone(BoneName);
+
+					switch(InComponent)
+					{
+						case ESlateTransformComponent::Location:
+						{
+							ModifyBone.Translation = ReferenceLocation;
+							break;
+						}
+						case ESlateTransformComponent::Rotation:
+						{
+							ModifyBone.Rotation = ReferenceRotation;
+							break;
+						}
+						case ESlateTransformComponent::Scale:
+						{
+							ModifyBone.Scale = ReferenceScale;
+							break;
+						}
+						default:
+						{
+							ModifyBone.Translation = ReferenceLocation;
+							ModifyBone.Rotation = ReferenceRotation;
+							ModifyBone.Scale = ReferenceScale;
+							break;
+						}
+					}
+
+					if(ModifyBone.Translation.Equals(ReferenceLocation) &&
+						ModifyBone.Rotation.Equals(ReferenceRotation) &&
+						ModifyBone.Scale.Equals(ReferenceScale))
+					{
+						Component->PreviewInstance->RemoveBoneModification(BoneName);
+					}
+				}
+			}
+		}
+	}
+}
+
 void UBoneProxy::PreEditChange(FEditPropertyChain& PropertyAboutToChange)
 {
 	if (UDebugSkelMeshComponent* Component = SkelMeshComponent.Get())
