@@ -621,7 +621,8 @@ namespace UnrealBuildTool
 				Arguments.Add("/fp:fast");
 			}
 
-			if (CompileEnvironment.bOptimizeCode)
+			// Intel oneAPI compiler does not support /Zo
+			if (CompileEnvironment.bOptimizeCode && Target.WindowsPlatform.Compiler != WindowsCompiler.Intel)
 			{
 				// Allow optimized code to be debugged more easily.  This makes PDBs a bit larger, but doesn't noticeably affect
 				// compile times.  The executable code is not affected at all by this switch, only the debugging information.
@@ -925,40 +926,20 @@ namespace UnrealBuildTool
 			if (LinkEnvironment.bCreateDebugInfo || Target.WindowsPlatform.bEnableAddressSanitizer)
 			{
 				// Output debug info for the linked executable.
-				Arguments.Add("/DEBUG");
+				// Beginning in Visual Studio 2017 /DEBUG defaults to /DEBUG:FASTLINK for debug builds
+				Arguments.Add("/DEBUG:FULL");
 			}
 
-			if (LinkEnvironment.bCreateDebugInfo)
+			if (LinkEnvironment.bCreateDebugInfo && LinkEnvironment.bUseFastPDBLinking)
 			{
 				// Allow partial PDBs for faster linking
-				if (LinkEnvironment.bUseFastPDBLinking)
+				if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang && WindowsPlatform.bAllowClangLinker)
 				{
-					switch (Target.WindowsPlatform.Compiler)
-					{
-						case WindowsCompiler.Default:
-							break;
-						case WindowsCompiler.Clang:
-							if (WindowsPlatform.bAllowClangLinker)
-							{
-								Arguments[Arguments.Count - 1] += ":GHASH";
-							}
-							break;
-						case WindowsCompiler.VisualStudio2019:
-						case WindowsCompiler.VisualStudio2022:
-							Arguments[Arguments.Count - 1] += ":FASTLINK";
-							break;
-					}
+					Arguments[Arguments.Count - 1] = "/DEBUG:GHASH";
 				}
 				else
 				{
-					// Beginning in Visual Studio 2017 /DEBUG defaults to /DEBUG:FASTLINK for debug builds
-					switch (Target.WindowsPlatform.Compiler)
-					{
-						case WindowsCompiler.VisualStudio2019:
-						case WindowsCompiler.VisualStudio2022:
-							Arguments[Arguments.Count - 1] += ":FULL";
-							break;
-					}
+					Arguments[Arguments.Count - 1] = "/DEBUG:FASTLINK";
 				}
 			}
 

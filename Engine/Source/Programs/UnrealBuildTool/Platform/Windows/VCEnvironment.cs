@@ -226,10 +226,11 @@ namespace UnrealBuildTool
 			{
 				return FileReference.Combine(CompilerDir, "bin", "clang-cl.exe");
 			}
-			else
+			else if (Compiler == WindowsCompiler.Intel)
 			{
-				return FileReference.Combine(GetVCToolPath(Compiler, CompilerDir, Architecture), "cl.exe");
+				return FileReference.Combine(CompilerDir, "windows", "bin", "icx.exe");
 			}
+			return FileReference.Combine(GetVCToolPath(Compiler, CompilerDir, Architecture), "cl.exe");
 		}
 
 		/// <summary>
@@ -242,7 +243,10 @@ namespace UnrealBuildTool
 			{
 				return FileReference.Combine(CompilerDir, "bin", "lld-link.exe");
 			}
-
+			else if (Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowIntelLinker)
+			{
+				return FileReference.Combine(CompilerDir, "windows", "bin", "intel64", "xilink.exe");
+			}
 			return FileReference.Combine(DefaultLinkerDir, "link.exe");
 
 		}
@@ -258,7 +262,10 @@ namespace UnrealBuildTool
 				// @todo: lld-link is not currently working for building .lib
 				//return FileReference.Combine(CompilerDir, "bin", "lld-link.exe");
 			}
-
+			else if (Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowIntelLinker)
+			{
+				return FileReference.Combine(CompilerDir, "windows", "bin", "intel64", "xilib.exe");
+			}
 			return FileReference.Combine(DefaultLinkerDir, "lib.exe");
 		}
 
@@ -382,6 +389,13 @@ namespace UnrealBuildTool
 
 				DirectoryReference LibraryRootDir = DirectoryReference.Combine(WindowsSdkDir, "lib", "winv6.3");
 				LibraryPaths.Add(DirectoryReference.Combine(LibraryRootDir, "um", ArchFolder));
+			}
+
+			// Add path to Intel math libraries when using Intel oneAPI
+			if (Compiler == WindowsCompiler.Intel)
+			{
+				IncludePaths.Add(DirectoryReference.Combine(CompilerDir, "windows", "compiler", "include"));
+				LibraryPaths.Add(DirectoryReference.Combine(CompilerDir, "windows", "compiler", "lib", "intel64"));
 			}
 		}
 
