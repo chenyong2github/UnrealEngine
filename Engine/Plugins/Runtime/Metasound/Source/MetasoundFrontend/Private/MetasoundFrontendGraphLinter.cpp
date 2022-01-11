@@ -57,6 +57,53 @@ namespace Metasound
 			return bCausesLoop;
 		}
 
+
+		bool FGraphLinter::IsReachableDownstream(const INodeController& InFromNode, const INodeController& InToNode)
+		{
+			bool bIsReachable = false;
+			const FGuid ToNodeID = InToNode.GetID();
+
+			// Sets bCausesLoop if the FromNode has a path to the ToNode
+			FGraphLinter::DepthFirstTraversal(InFromNode, [&](const INodeController& Node) -> TSet<FGuid>
+			{
+				TSet<FGuid> Children;
+
+				if (ToNodeID == Node.GetID())
+				{
+					bIsReachable = true;
+				}
+
+				if (!bIsReachable)
+				{
+					// Only produce children if bIsReachbable is not set to avoid wasting CPU. 
+					if (Node.IsValid())
+					{
+						TArray<FConstOutputHandle> NodeOutputs = Node.GetConstOutputs();
+						for (const FConstOutputHandle& Output : NodeOutputs)
+						{
+							TArray<FConstInputHandle> ConnectedInputs = Output->GetConstConnectedInputs();
+							for (const FConstInputHandle& Input : ConnectedInputs)
+							{
+								Children.Add(Input->GetOwningNode()->GetID());
+							}
+						}
+						
+					}
+				}
+
+				return Children;
+			});
+			
+			return bIsReachable;
+		}
+
+		bool FGraphLinter::IsReachableUpstream(const INodeController& InFromNode, const INodeController& InToNode)
+		{
+			// Searching upstream is equivalent to swapping the order of the nodes 
+			// and searching downstream.
+			return IsReachableDownstream(InToNode, InFromNode);
+		}
+
 		void FGraphLinter::DepthFirstTraversal(const INodeController& Node, FDepthFirstVisitFunction Visit)
 		{
 			// Non recursive depth first traversal.

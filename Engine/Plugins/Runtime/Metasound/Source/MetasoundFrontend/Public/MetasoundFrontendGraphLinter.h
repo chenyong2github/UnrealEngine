@@ -25,6 +25,15 @@ namespace Metasound
 			 */
 			static bool DoesConnectionCauseLoop(const IInputController& InInputController, const IOutputController& InOutputController);
 
+			/** Returns true if the FromNode can reach the ToNode by traversing the graph 
+			 * in the forward direction. */
+			static bool IsReachableDownstream(const INodeController& InFromNode, const INodeController& InToNode);
+
+			/** Returns true if the FromNode can reach the ToNode by traversing the graph backwards
+			 * (aka by traversing the transpose graph).
+			 */
+			static bool IsReachableUpstream(const INodeController& InFromNode, const INodeController& InToNode);
+
 			/** Visits nodes using depth first traversals. */
 			static void DepthFirstTraversal(const INodeController& Node, FDepthFirstVisitFunction Visit);
 		};
