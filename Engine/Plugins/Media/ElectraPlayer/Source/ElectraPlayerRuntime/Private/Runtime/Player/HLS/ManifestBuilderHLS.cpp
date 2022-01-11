@@ -1542,7 +1542,7 @@ FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManife
 				// Is there an EXT-X-PROGRAM-DATE-TIME ?
 				if (GetSegmentTagString(AttrValue, HLSPlaylistParser::ExtXProgramDateTime))
 				{
-					if (ISO8601::ParseDateTime(Seg.AbsoluteDateTime, AttrValue)== UEMEDIA_ERROR_OK)
+					if (ISO8601::ParseDateTime(Seg.AbsoluteDateTime, AttrValue))
 					{
 						if (nSeg)
 						{

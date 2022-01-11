@@ -3156,7 +3156,7 @@ static bool ParseConditionalUIntAttribute(IDashMPDElement::FBoolUInt64& OutValue
 
 static bool ParseDuration(FTimeValue& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber)
 {
-	if (ISO8601::ParseDuration(OutValue, AttributeValue) != UEMEDIA_ERROR_OK)
+	if (!ISO8601::ParseDuration(OutValue, AttributeValue))
 	{
 		return Builder->SetLastError(FString::Printf(TEXT("Failed to parse time attribute '@%s'=%s of element <%s> in line %d"), AttributeName, AttributeValue, *Builder->GetCurrentElementName(), XmlLineNumber), ERRCODE_DASH_MPD_PARSER_BAD_TIME_VALUE);
 	}
@@ -3165,7 +3165,7 @@ static bool ParseDuration(FTimeValue& OutValue, FManifestParserDASH* Builder, co
 
 static bool ParseDateTime(FTimeValue& OutValue, FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue, int32 XmlLineNumber)
 {
-	if (ISO8601::ParseDateTime(OutValue, FString(AttributeValue)) != UEMEDIA_ERROR_OK)
+	if (!ISO8601::ParseDateTime(OutValue, FString(AttributeValue)))
 	{
 		return Builder->SetLastError(FString::Printf(TEXT("Failed to parse datetime attribute '@%s'=%s of element <%s> in line %d"), AttributeName, AttributeValue, *Builder->GetCurrentElementName(), XmlLineNumber), ERRCODE_DASH_MPD_PARSER_BAD_TIME_VALUE);
 	}
