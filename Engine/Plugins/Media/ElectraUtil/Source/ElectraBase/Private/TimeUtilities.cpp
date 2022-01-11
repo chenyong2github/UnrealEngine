@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PlayerTime.h"
+#include "Utilities/TimeUtilities.h"
 #include "Utilities/StringHelpers.h"
 
 namespace Electra
@@ -97,7 +97,7 @@ namespace Electra
 	namespace ISO8601
 	{
 
-		UEMediaError ParseDateTime(FTimeValue& OutTimeValue, const FString& DateTime)
+		bool ParseDateTime(FTimeValue& OutTimeValue, const FString& DateTime)
 		{
 			// Is this a valid date time string in extended format (we require colons and dashes)
 			// 		YYYY-MM-DDTHH:MM:SS[.s*][Z]
@@ -186,7 +186,7 @@ namespace Electra
 											}
 											else
 											{
-												return UEMEDIA_ERROR_FORMAT_ERROR;
+												return false;
 											}
 										}
 										else if (Suffix[0] == TCHAR('Z'))
@@ -196,7 +196,7 @@ namespace Electra
 										}
 										if (Suffix[0] != TCHAR('\0'))
 										{
-											return UEMEDIA_ERROR_FORMAT_ERROR;
+											return false;
 										}
 									}
 								}
@@ -208,14 +208,14 @@ namespace Electra
 				if (TimeComponents.IsValidUTC())
 				{
 					OutTimeValue = TimeComponents.ToUTC();
-					return UEMEDIA_ERROR_OK;
+					return true;
 				}
 			}
-			return UEMEDIA_ERROR_FORMAT_ERROR;
+			return false;
 		}
 
 
-		UEMediaError ParseDuration(FTimeValue& OutTimeValue, const TCHAR* InDuration)
+		bool ParseDuration(FTimeValue& OutTimeValue, const TCHAR* InDuration)
 		{
 			// Parse an xs:duration element.
 			// We interpret 'years'/'months'/'days' as per the DASH-IF specification where
@@ -262,7 +262,7 @@ namespace Electra
 						}
 						else
 						{
-							return UEMEDIA_ERROR_FORMAT_ERROR;
+							return false;
 						}
 					}
 					// Years
@@ -278,7 +278,7 @@ namespace Electra
 						}
 						else
 						{
-							return UEMEDIA_ERROR_FORMAT_ERROR;
+							return false;
 						}
 					}
 					// Months / Minutes
@@ -301,7 +301,7 @@ namespace Electra
 						}
 						else
 						{
-							return UEMEDIA_ERROR_FORMAT_ERROR;
+							return false;
 						}
 					}
 					// Days
@@ -317,7 +317,7 @@ namespace Electra
 						}
 						else
 						{
-							return UEMEDIA_ERROR_FORMAT_ERROR;
+							return false;
 						}
 					}
 					// Hours
@@ -333,7 +333,7 @@ namespace Electra
 						}
 						else
 						{
-							return UEMEDIA_ERROR_FORMAT_ERROR;
+							return false;
 						}
 					}
 					// Seconds
@@ -376,7 +376,7 @@ namespace Electra
 						}
 						else
 						{
-							return UEMEDIA_ERROR_FORMAT_ERROR;
+							return false;
 						}
 					}
 					// Decimal point? We allow both period and comma here.
@@ -392,21 +392,21 @@ namespace Electra
 						}
 						else
 						{
-							return UEMEDIA_ERROR_FORMAT_ERROR;
+							return false;
 						}
 					}
 					else
 					{
-						return UEMEDIA_ERROR_FORMAT_ERROR;
+						return false;
 					}
 				}
 				if (Anchor == nullptr && Decimal == nullptr)
 				{
 					OutTimeValue.SetFromHNS(TotalSeconds * 10000000L + HNSFraction);
-					return UEMEDIA_ERROR_OK;
+					return true;
 				}
 			}
-			return UEMEDIA_ERROR_FORMAT_ERROR;
+			return false;
 		}
 
 
@@ -421,7 +421,7 @@ namespace Electra
 	namespace RFC7231
 	{
 
-		UEMediaError ParseDateTime(FTimeValue& OutTimeValue, const FString& DateTime)
+		bool ParseDateTime(FTimeValue& OutTimeValue, const FString& DateTime)
 		{
 			static const TCHAR* const MonthNames[] = { TEXT("Jan"), TEXT("Feb"), TEXT("Mar"), TEXT("Apr"), TEXT("May"), TEXT("Jun"), TEXT("Jul"), TEXT("Aug"), TEXT("Sep"), TEXT("Oct"), TEXT("Nov"), TEXT("Dec") };
 
@@ -442,7 +442,7 @@ namespace Electra
 					TCHAR* Group = Groups[NumGroups];
 					if (++NumGroups > 6)
 					{
-						return UEMEDIA_ERROR_FORMAT_ERROR;
+						return false;
 					}
 					int32 GroupLen = 0;
 					while (*s && *s != TCHAR(' ') && *s != TCHAR(','))
@@ -451,7 +451,7 @@ namespace Electra
 						// Check that we do not exceed our fixed size array (including one to add terminating NUL char)
 						if (++GroupLen == sizeof(Groups[0]) - 1)
 						{
-							return UEMEDIA_ERROR_FORMAT_ERROR;
+							return false;
 						}
 					}
 					// Terminate the group.
@@ -469,7 +469,7 @@ namespace Electra
 				TimeComponents.Seconds = ParseSubStringToInt(Groups[4] + 6, 2);
 				LexFromString(TimeComponents.Days, Groups[1]);
 				LexFromString(TimeComponents.Years, Groups[3]);
-				for (int32 Month = 0; Month < FMEDIA_STATIC_ARRAY_COUNT(MonthNames); ++Month)
+				for (int32 Month = 0; Month < UE_ARRAY_COUNT(MonthNames); ++Month)
 				{
 					if (FCString::Strcmp(Groups[2], MonthNames[Month]) == 0)
 					{
@@ -487,13 +487,13 @@ namespace Electra
 
 				if (FCString::Strlen(Groups[1]) != 9)
 				{
-					return UEMEDIA_ERROR_FORMAT_ERROR;
+					return false;
 				}
 				TimeComponents.Days = ParseSubStringToInt(Groups[1], 2);
 				TimeComponents.Years = ParseSubStringToInt(Groups[1] + 7, 2);
 				// 1970-2069
 				TimeComponents.Years += TimeComponents.Years >= 70 ? 1900 : 2000;
-				for (int32 Month = 0; Month < FMEDIA_STATIC_ARRAY_COUNT(MonthNames); ++Month)
+				for (int32 Month = 0; Month < UE_ARRAY_COUNT(MonthNames); ++Month)
 				{
 					if (FCString::Strncmp(Groups[1] + 3, MonthNames[Month], 3) == 0)
 					{
@@ -510,7 +510,7 @@ namespace Electra
 				TimeComponents.Seconds = ParseSubStringToInt(Groups[3] + 6, 2);
 				LexFromString(TimeComponents.Days, Groups[2]);
 				LexFromString(TimeComponents.Years, Groups[4]);
-				for (int32 Month = 0; Month < FMEDIA_STATIC_ARRAY_COUNT(MonthNames); ++Month)
+				for (int32 Month = 0; Month < UE_ARRAY_COUNT(MonthNames); ++Month)
 				{
 					if (FCString::Strcmp(Groups[1], MonthNames[Month]) == 0)
 					{
@@ -521,15 +521,15 @@ namespace Electra
 			}
 			else
 			{
-				return UEMEDIA_ERROR_FORMAT_ERROR;
+				return false;
 			}
 
 			if (TimeComponents.IsValidUTC())
 			{
 				OutTimeValue = TimeComponents.ToUTC();
-				return UEMEDIA_ERROR_OK;
+				return true;
 			}
-			return UEMEDIA_ERROR_FORMAT_ERROR;
+			return false;
 		}
 
 	} // namespace RFC7231

@@ -664,7 +664,7 @@ void FPlaylistReaderDASH::TriggerTimeSynchronization()
 				if (UTCTimings[i]->GetSchemeIdUri().Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_direct2014))
 				{
 					FTimeValue DirectTime;
-					if (ISO8601::ParseDateTime(DirectTime, UTCTimings[i]->GetValue()) == UEMEDIA_ERROR_OK)
+					if (ISO8601::ParseDateTime(DirectTime, UTCTimings[i]->GetValue()))
 					{
 						PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime);
 						// Remove this timing element. It can not be used indefinitely and we best get rid of it now.
@@ -1138,8 +1138,8 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 			{
 				// Parse the header
 				FTimeValue DateFromHeader;
-				UEMediaError DateParseError = RFC7231::ParseDateTime(DateFromHeader, ConnInfo->ResponseHeaders[i].Value);
-				if (DateParseError == UEMEDIA_ERROR_OK && DateFromHeader.IsValid())
+				bool bDateParsedOk = RFC7231::ParseDateTime(DateFromHeader, ConnInfo->ResponseHeaders[i].Value);
+				if (bDateParsedOk && DateFromHeader.IsValid())
 				{
 					PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(ConnInfo->RequestStartTime, DateFromHeader);
 				}
@@ -1412,8 +1412,8 @@ void FPlaylistReaderDASH::Timesync_httphead_Completed(FResourceLoadRequestPtr Re
 				{
 					// Parse the header
 					FTimeValue DateFromHeader;
-					UEMediaError DateParseError = RFC7231::ParseDateTime(DateFromHeader, ConnInfo->ResponseHeaders[i].Value);
-					if (DateParseError == UEMEDIA_ERROR_OK && DateFromHeader.IsValid())
+					bool bDateParsedOk = RFC7231::ParseDateTime(DateFromHeader, ConnInfo->ResponseHeaders[i].Value);
+					if (bDateParsedOk && DateFromHeader.IsValid())
 					{
 						PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DateFromHeader);
 					}
@@ -1438,7 +1438,7 @@ void FPlaylistReaderDASH::Timesync_httpxsdate_Completed(FResourceLoadRequestPtr 
 			// Note: Yes, this is a bit weird, but the xs:dateTime format is actually exactly the same as ISO-8601
 			//       so it is not clear why there is a distinction made in the UTCTiming scheme.
 			//       We keep the different callback handlers here though for completeness sake.
-			if (ISO8601::ParseDateTime(NewTime, Response) == UEMEDIA_ERROR_OK)
+			if (ISO8601::ParseDateTime(NewTime, Response))
 			{
 				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(NewTime);
 			}
@@ -1463,7 +1463,7 @@ void FPlaylistReaderDASH::Timesync_httpiso_Completed(FResourceLoadRequestPtr Req
 		if (GetResponseString(Response, Request).IsOK())
 		{
 			FTimeValue NewTime;
-			if (ISO8601::ParseDateTime(NewTime, Response) == UEMEDIA_ERROR_OK)
+			if (ISO8601::ParseDateTime(NewTime, Response))
 			{
 				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(NewTime);
 			}

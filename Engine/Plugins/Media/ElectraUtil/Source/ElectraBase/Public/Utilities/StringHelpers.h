@@ -2,39 +2,40 @@
 
 #pragma once
 
-#include "PlayerCore.h"
+#include <CoreMinimal.h>
 
-inline void LexFromStringHex(int32& OutValue, const TCHAR* Buffer) { OutValue = FCString::Strtoi(Buffer, nullptr, 16); }
-inline void LexFromStringHex64(int64& OutValue, const TCHAR* Buffer) { OutValue = FCString::Strtoi64(Buffer, nullptr, 16); }
-inline void LexFromStringHexU64(uint64& OutValue, const TCHAR* Buffer) { OutValue = FCString::Strtoui64(Buffer, nullptr, 16); }
 
 namespace Electra
 {
 
+	inline void LexFromStringHex(int32& OutValue, const TCHAR* Buffer) { OutValue = FCString::Strtoi(Buffer, nullptr, 16); }
+	inline void LexFromStringHex64(int64& OutValue, const TCHAR* Buffer) { OutValue = FCString::Strtoi64(Buffer, nullptr, 16); }
+	inline void LexFromStringHexU64(uint64& OutValue, const TCHAR* Buffer) { OutValue = FCString::Strtoui64(Buffer, nullptr, 16); }
+
 	namespace StringHelpers
 	{
 
-		int32 FindFirstOf(const FString& InString, const FString& SplitAt, int32 FirstPos = 0);
+		int32 ELECTRABASE_API FindFirstOf(const FString& InString, const FString& SplitAt, int32 FirstPos = 0);
 
-		int32 FindFirstNotOf(const FString& InString, const FString& InNotOfChars, int32 FirstPos = 0);
+		int32 ELECTRABASE_API FindFirstNotOf(const FString& InString, const FString& InNotOfChars, int32 FirstPos = 0);
 
-		int32 FindLastNotOf(const FString& InString, const FString& InNotOfChars, int32 StartPos = MAX_int32);
+		int32 ELECTRABASE_API FindLastNotOf(const FString& InString, const FString& InNotOfChars, int32 StartPos = MAX_int32);
 
-		void SplitByDelimiter(TArray<FString>& OutSplits, const FString& InString, const FString& SplitAt);
+		void ELECTRABASE_API SplitByDelimiter(TArray<FString>& OutSplits, const FString& InString, const FString& SplitAt);
 
-		bool StringEquals(const TCHAR * const s1, const TCHAR * const s2);
+		bool ELECTRABASE_API StringEquals(const TCHAR * const s1, const TCHAR * const s2);
 
-		bool StringStartsWith(const TCHAR * const s1, const TCHAR * const s2, SIZE_T n);
+		bool ELECTRABASE_API StringStartsWith(const TCHAR * const s1, const TCHAR * const s2, SIZE_T n);
 
-		void StringToArray(TArray<uint8>& OutArray, const FString& InString);
+		void ELECTRABASE_API StringToArray(TArray<uint8>& OutArray, const FString& InString);
 
-		FString ArrayToString(const TArray<uint8>& InArray);
+		FString ELECTRABASE_API ArrayToString(const TArray<uint8>& InArray);
 
 		/**
 		 * There is a known anomaly in the FString::TConstIterator. It iterates all TCHARs in the string *including* the terminating zero character.
 		 * This is not the behaviour we want and setup some helper iterator here which is not including the terminating zero.
 		 */
-		class FStringIterator
+		class ELECTRABASE_API FStringIterator
 		{
 		public:
 			FStringIterator(const FString& InString, int32 StartIndex = 0)

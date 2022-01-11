@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "PlayerCore.h"
+#include <CoreMinimal.h>
 #include "Utilities/StringHelpers.h"
 
 
 namespace Electra
 {
 
-	class FURL_RFC3986
+	class ELECTRABASE_API FURL_RFC3986
 	{
 	public:
 		// Parses the given URL.
