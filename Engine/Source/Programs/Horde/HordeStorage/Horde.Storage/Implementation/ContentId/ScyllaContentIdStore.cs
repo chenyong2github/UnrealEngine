@@ -41,6 +41,7 @@ namespace Horde.Storage.Implementation
 
             Task<bool> blobStoreExistsTask = _blobStore.Exists(ns, contentId);
 
+            BlobIdentifier[]? resolvedBlobs = null;
             // lower content_weight means its a better candidate to resolve to
             foreach (ScyllaContentId? resolvedContentId in await _mapper.FetchAsync<ScyllaContentId>("WHERE content_id = ? ORDER BY content_weight DESC", new ScyllaBlobIdentifier(contentId)))
             {
@@ -57,6 +58,8 @@ namespace Horde.Storage.Implementation
                         return blobs;
                 }
                 // blobs are missing continue testing with the next content id in the weighted list as that might exist
+
+                resolvedBlobs = blobs;
             }
 
             // if no content id is found, but we have a blob that matches the content id (so a unchunked and uncompressed version of the data) we use that instead
@@ -64,6 +67,12 @@ namespace Horde.Storage.Implementation
 
             if (contentIdBlobExists)
                 return new[] { contentId };
+            
+            if (resolvedBlobs != null)
+            {
+                // content id found, but blobs is missing, still we know which blobs it was so we return that list
+                return resolvedBlobs;
+            }
 
             // unable to resolve the content id
             return null;

@@ -48,7 +48,7 @@ namespace Horde.Storage.Controllers
         [Authorize("Storage.read")]
         [ProducesResponseType(type: typeof(byte[]), 200)]
         [ProducesResponseType(type: typeof(ValidationProblemDetails), 400)]
-        [Produces(MediaTypeNames.Application.Json, CustomMediaTypeNames.UnrealCompactBinary, CustomMediaTypeNames.UnrealCompressedBuffer)]
+        [Produces(CustomMediaTypeNames.UnrealCompressedBuffer)]
 
         public async Task<IActionResult> Get(
             [Required] NamespaceId ns,
@@ -91,15 +91,15 @@ namespace Horde.Storage.Controllers
                 return Forbid();
             }
             BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, id);
-            if (chunks == null)
+            if (chunks == null || chunks.Length == 0)
             {
-                return NotFound(new ValidationProblemDetails { Title = $"Content-id {id} not found"});
+                return NotFound();
             }
 
             Task<bool>[] tasks = new Task<bool>[chunks.Length];
             for (int i = 0; i < chunks.Length; i++)
             {
-                tasks[i] = _storage.Exists(ns, id);
+                tasks[i] = _storage.Exists(ns, chunks[i]);
             }
 
             await Task.WhenAll(tasks);
@@ -108,7 +108,7 @@ namespace Horde.Storage.Controllers
 
             if (!exists)
             {
-                return NotFound(new ValidationProblemDetails { Title = $"Object {id} not found"});
+                return NotFound();
             }
 
             return Ok();
@@ -160,11 +160,18 @@ namespace Horde.Storage.Controllers
         private async Task<BlobContents> GetImpl(NamespaceId ns, BlobIdentifier contentId)
         {
             BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, contentId);
-            if (chunks == null)
+            if (chunks == null || chunks.Length == 0)
             {
                 throw new ContentIdResolveException(contentId);
             }
 
+            // single chunk, we just return that chunk
+            if (chunks.Length == 1)
+            {
+                return await _storage.GetObject(ns, chunks[0]);
+            }
+
+            // chunked content, combine the chunks into a single stream
             using Scope _ = Tracer.Instance.StartActive("blob.combine");
             Task<BlobContents>[] tasks = new Task<BlobContents>[chunks.Length];
             for (int i = 0; i < chunks.Length; i++)
