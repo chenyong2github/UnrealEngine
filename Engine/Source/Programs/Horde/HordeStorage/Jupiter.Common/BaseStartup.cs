@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Amazon;
 using Datadog.Trace;
+using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -70,6 +71,8 @@ namespace Jupiter
 
             services.AddOptions<JupiterSettings>().Bind(Configuration.GetSection("Jupiter")).ValidateDataAnnotations();
             services.AddOptions<NamespaceSettings>().Bind(Configuration.GetSection("Namespaces")).ValidateDataAnnotations();
+
+            services.AddSingleton(typeof(INamespacePolicyResolver), typeof(NamespacePolicyResolver));
 
             // this is the same as invoke MvcBuilder.AddJsonOptions but with a service provider passed so we can use DI in the options creation
             // see https://stackoverflow.com/questions/53288633/net-core-api-custom-json-resolver-based-on-request-values
@@ -471,18 +474,6 @@ namespace Jupiter
         {
             public string[] Claims { get; set; } = Array.Empty<string>();
             public string StoragePool { get; set; } = "";
-        }
-
-        public PerNamespaceSettings GetPoliciesForNs(NamespaceId ns)
-        {
-            return Policies[ns.ToString()];
-        /*
-            if(Policies.TryGetValue(ns.ToString(), out PerNamespaceSettings? settings))
-            {
-                return settings;
-            }
-
-            return DefaultNamespaceSettings;*/
         }
     }
 

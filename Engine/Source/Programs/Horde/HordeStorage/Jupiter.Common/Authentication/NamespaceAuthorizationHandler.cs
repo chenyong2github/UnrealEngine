@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
@@ -13,11 +14,11 @@ namespace Jupiter
     // verifies that you have access to a namespace by checking if you have a corresponding claim to that namespace
     public class NamespaceAuthorizationHandler : AuthorizationHandler<NamespaceAccessRequirement, NamespaceId>
     {
-        private readonly IOptionsMonitor<NamespaceSettings> _namespaceSettings;
+        private readonly INamespacePolicyResolver _namespacePolicyResolver;
 
-        public NamespaceAuthorizationHandler(IOptionsMonitor<NamespaceSettings> namespaceSettings)
+        public NamespaceAuthorizationHandler(INamespacePolicyResolver namespacePolicyResolver)
         {
-            _namespaceSettings = namespaceSettings;
+            _namespacePolicyResolver = namespacePolicyResolver;
         }
 
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, NamespaceAccessRequirement requirement,
@@ -29,7 +30,7 @@ namespace Jupiter
                 return Task.CompletedTask;
             }
 
-            NamespaceSettings.PerNamespaceSettings settings = _namespaceSettings.CurrentValue.GetPoliciesForNs(namespaceName);
+            NamespaceSettings.PerNamespaceSettings settings = _namespacePolicyResolver.GetPoliciesForNs(namespaceName);
             // These are ANDed, e.g. all claims needs to be present
             foreach (string expectedClaim in settings.Claims)
             {

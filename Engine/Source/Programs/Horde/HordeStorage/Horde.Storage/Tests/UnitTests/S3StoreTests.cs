@@ -10,6 +10,7 @@ using Amazon.S3.Model;
 using Horde.Storage.Implementation;
 using Horde.Storage.Implementation.Blob;
 using Jupiter;
+using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -29,18 +30,13 @@ namespace Horde.Storage.UnitTests
             S3Settings settings = new S3Settings{BucketName = "tests-foo"};
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
 
-            NamespaceSettings namespaceSettings = new NamespaceSettings{ Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
-            {
-                {
-                    Namespace.ToString(), new NamespaceSettings.PerNamespaceSettings {
-                        StoragePool = ""
-                    }
-                }
-                
-            }};
-            IOptionsMonitor<NamespaceSettings> namespaceSettingsMock = Mock.Of<IOptionsMonitor<NamespaceSettings>>(_ => _.CurrentValue == namespaceSettings);
+            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
+                                                  new NamespaceSettings.PerNamespaceSettings
+                                                  {
+                                                      StoragePool = ""
+                                                  });
 
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespaceSettingsMock);
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver);
             byte[] content = Encoding.ASCII.GetBytes("test content");
             BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(content);
             Task task = store.PutObject(Namespace, content.AsMemory(), blobIdentifier);
@@ -61,19 +57,14 @@ namespace Horde.Storage.UnitTests
             Mock<IAmazonS3> s3Mock = new Mock<IAmazonS3>();
             S3Settings settings = new S3Settings{BucketName = "tests-foo"};
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
-
-            NamespaceSettings namespaceSettings = new NamespaceSettings{ Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
-            {
+            
+            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
+                new NamespaceSettings.PerNamespaceSettings
                 {
-                    Namespace.ToString(), new NamespaceSettings.PerNamespaceSettings {
-                        StoragePool = "storagepool"
-                    }
-                }
-                
-            }};
-            IOptionsMonitor<NamespaceSettings> namespaceSettingsMock = Mock.Of<IOptionsMonitor<NamespaceSettings>>(_ => _.CurrentValue == namespaceSettings);
+                    StoragePool = "storagepool"
+                });
 
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespaceSettingsMock);
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver);
             byte[] content = Encoding.ASCII.GetBytes("test content");
             BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(content);
             Task task = store.PutObject(Namespace, content.AsMemory(), blobIdentifier);
@@ -98,19 +89,13 @@ namespace Horde.Storage.UnitTests
             Mock<IAmazonS3> s3Mock = new Mock<IAmazonS3>();
             S3Settings settings = new S3Settings{BucketName = "tests-foo"};
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
-            NamespaceSettings namespaceSettings = new NamespaceSettings{ Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
-            {
+            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
+                new NamespaceSettings.PerNamespaceSettings
                 {
-                    Namespace.ToString(), new NamespaceSettings.PerNamespaceSettings {
-                        StoragePool = ""
-                    }
-                }
-                
-            }};
-            IOptionsMonitor<NamespaceSettings> namespaceSettingsMock = Mock.Of<IOptionsMonitor<NamespaceSettings>>(_ => _.CurrentValue == namespaceSettings);
-
+                    StoragePool = ""
+                });
             s3Mock.Setup(s3 => s3.PutObjectAsync(It.IsAny<PutObjectRequest>(), default)).Throws<Exception>();
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespaceSettingsMock);
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver);
             Task task = store.PutObject(Namespace, content, blob);
             await task;
 
@@ -131,18 +116,12 @@ namespace Horde.Storage.UnitTests
             S3Settings settings = new S3Settings{BucketName = "tests-foo"};
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
 
-            NamespaceSettings namespaceSettings = new NamespaceSettings{ Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
-            {
+            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
+                new NamespaceSettings.PerNamespaceSettings
                 {
-                    Namespace.ToString(), new NamespaceSettings.PerNamespaceSettings {
-                        StoragePool = ""
-                    }
-                }
-                
-            }};
-            IOptionsMonitor<NamespaceSettings> namespaceSettingsMock = Mock.Of<IOptionsMonitor<NamespaceSettings>>(_ => _.CurrentValue == namespaceSettings);
-
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespaceSettingsMock);
+                    StoragePool = ""
+                });
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver);
             await using BlobContents blobContents = await store.GetObject(Namespace, blob);
 
             s3Mock.Verify(s3 => s3.GetObjectAsync("tests-foo", blob.AsS3Key(), default));
@@ -157,18 +136,13 @@ namespace Horde.Storage.UnitTests
             S3Settings settings = new S3Settings{BucketName = "tests-foo"};
             IOptionsMonitor<S3Settings> settingsMock = Mock.Of<IOptionsMonitor<S3Settings>>(_ => _.CurrentValue == settings);
 
-            NamespaceSettings namespaceSettings = new NamespaceSettings{ Policies = new Dictionary<string, NamespaceSettings.PerNamespaceSettings>()
-            {
+            INamespacePolicyResolver namespacePolicyResolver = Mock.Of<INamespacePolicyResolver>(_ => _.GetPoliciesForNs(Namespace) ==
+                new NamespaceSettings.PerNamespaceSettings
                 {
-                    Namespace.ToString(), new NamespaceSettings.PerNamespaceSettings {
-                        StoragePool = ""
-                    }
-                }
-                
-            }};
-            IOptionsMonitor<NamespaceSettings> namespaceSettingsMock = Mock.Of<IOptionsMonitor<NamespaceSettings>>(_ => _.CurrentValue == namespaceSettings);
+                    StoragePool = ""
+                });
 
-            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespaceSettingsMock);
+            AmazonS3Store store = new AmazonS3Store(s3Mock.Object, settingsMock, Mock.Of<IBlobIndex>(), namespacePolicyResolver);
             Task task = store.DeleteObject(Namespace, blob);
             await task;
 

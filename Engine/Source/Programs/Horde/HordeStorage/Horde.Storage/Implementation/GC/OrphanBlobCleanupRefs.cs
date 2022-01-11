@@ -10,6 +10,7 @@ using Dasync.Collections;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation.Blob;
 using Jupiter;
+using Jupiter.Common;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -23,18 +24,18 @@ namespace Horde.Storage.Implementation
         private readonly IBlobIndex _blobIndex;
         private readonly ILeaderElection _leaderElection;
         private readonly IOptionsMonitor<GCSettings> _gcSettings;
-        private readonly IOptionsMonitor<NamespaceSettings> _namespaceSettings;
+        private readonly INamespacePolicyResolver _namespacePolicyResolver;
         private readonly ILogger _logger = Log.ForContext<OrphanBlobCleanupRefs>();
 
         // ReSharper disable once UnusedMember.Global
-        public OrphanBlobCleanupRefs(IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, IOptionsMonitor<GCSettings> gcSettings, IOptionsMonitor<NamespaceSettings> namespaceSettings)
+        public OrphanBlobCleanupRefs(IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, IOptionsMonitor<GCSettings> gcSettings, INamespacePolicyResolver namespacePolicyResolver)
         {
             _blobService = blobService;
             _objectService = objectService;
             _blobIndex = blobIndex;
             _leaderElection = leaderElection;
             _gcSettings = gcSettings;
-            _namespaceSettings = namespaceSettings;
+            _namespacePolicyResolver = namespacePolicyResolver;
         }
 
         public async Task<List<BlobIdentifier>> Cleanup(CancellationToken cancellationToken)
@@ -67,10 +68,10 @@ namespace Horde.Storage.Implementation
                         break;
 
                     bool found = false;
-                    NamespaceSettings.PerNamespaceSettings policy = _namespaceSettings.CurrentValue.GetPoliciesForNs(@namespace);
+                    NamespaceSettings.PerNamespaceSettings policy = _namespacePolicyResolver.GetPoliciesForNs(@namespace);
                     
                     // check all other namespaces that share the same storage pool for presence of the blob
-                    foreach (NamespaceId blobNamespace in namespaces.Where(ns => _namespaceSettings.CurrentValue.GetPoliciesForNs(ns).StoragePool == policy.StoragePool))
+                    foreach (NamespaceId blobNamespace in namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool))
                     {
                         IBlobIndex.BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob);
 
