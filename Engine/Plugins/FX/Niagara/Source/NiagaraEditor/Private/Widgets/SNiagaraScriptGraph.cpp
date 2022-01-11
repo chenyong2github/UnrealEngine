@@ -307,6 +307,12 @@ void SNiagaraScriptGraph::OnNodeTitleCommitted(const FText& NewText, ETextCommit
 			const FScopedTransaction Transaction(LOCTEXT("RenameNode", "Rename Node"));
 			NodeBeingChanged->Modify();
 			NodeBeingChanged->OnRenameNode(NewText.ToString());
+
+			// If the node isn't a NiagarNode, like say a comment, go ahead and mark it dirty
+			if (!NodeBeingChanged->IsA(UNiagaraNode::StaticClass()))
+			{
+				ViewModel->GetGraph()->NotifyGraphNeedsRecompile();
+			}
 		}
 	}
 }
