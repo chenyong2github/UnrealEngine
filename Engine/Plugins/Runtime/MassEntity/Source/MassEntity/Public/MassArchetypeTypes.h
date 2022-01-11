@@ -53,7 +53,7 @@ private:
 
 /** A struct that converts an arbitrary array of entities of given Archetype into a sequence of continuous
  *  entity chunks. The goal is to have the user create an instance of this struct once and run through a bunch of
- *  systems. The runtime code usually uses FMassArchetypeChunkIterator to iterate on the chunk collection
+ *  systems. The runtime code usually uses FMassArchetypeChunkIterator to iterate on the chunk collection.
  */
 struct MASSENTITY_API FArchetypeChunkCollection
 {
@@ -69,7 +69,22 @@ public:
 		explicit FChunkInfo(const int32 InChunkIndex, const int32 InSubchunkStart = 0, const int32 InLength = 0) : ChunkIndex(InChunkIndex), SubchunkStart(InSubchunkStart), Length(InLength) {}
 		/** Note that we consider invalid-length chunks valid as long as ChunkIndex and SubchunkStart are valid */
 		bool IsSet() const { return ChunkIndex != INDEX_NONE && SubchunkStart >= 0; }
+
+		bool operator==(const FChunkInfo& Other) const
+		{
+			return ChunkIndex == Other.ChunkIndex && SubchunkStart == Other.SubchunkStart && Length == Other.Length;
+		}
+		bool operator!=(const FChunkInfo& Other) const { return !(*this == Other); }
 	};
+
+	enum EDuplicatesHandling
+	{
+		NoDuplicates,	// indicates that the caller guarantees there are no duplicates in the input Entities collection
+						// note that in no-shipping builds a `check` will fail if duplicates are present.
+		FoldDuplicates,	// indicates that it's possible that Entities contains duplicates. The input Entities collection 
+						// will be processed and duplicates will be removed.
+	};
+
 private:
 	TArray<FChunkInfo> Chunks;
 	/** entity indices indicated by SubChunks are only valid with given Archetype */
@@ -77,7 +92,7 @@ private:
 
 public:
 	FArchetypeChunkCollection() = default;
-	FArchetypeChunkCollection(const FArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities);
+	FArchetypeChunkCollection(const FArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities, EDuplicatesHandling DuplicatesHandling);
 	explicit FArchetypeChunkCollection(FArchetypeHandle& InArchetypeHandle);
 	explicit FArchetypeChunkCollection(TSharedPtr<FMassArchetypeData>& InArchetype);
 
@@ -90,6 +105,9 @@ public:
 		Archetype = FArchetypeHandle();
 		Chunks.Reset();
 	}
+
+	/** The comparison function that checks if Other is identical to this. Intended for diagnostics/debugging. */
+	bool IsSame(const FArchetypeChunkCollection& Other) const;
 
 private:
 	void GatherChunksFromArchetype(TSharedPtr<FMassArchetypeData>& InArchetype);

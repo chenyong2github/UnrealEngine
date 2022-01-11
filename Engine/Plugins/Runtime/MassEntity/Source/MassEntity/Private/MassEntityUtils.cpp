@@ -53,7 +53,7 @@ void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstAr
 		// UMassSpawnerSubsystem::DestroyEntities' caller knowledge. Should be removed once that's addressed.
 		if (Pair.Key.IsValid())
 		{
-			OutChunkCollections.Add(FArchetypeChunkCollection(Pair.Key, Pair.Value));
+			OutChunkCollections.Add(FArchetypeChunkCollection(Pair.Key, Pair.Value, FArchetypeChunkCollection::NoDuplicates));
 		}
 	}
 }

@@ -21,10 +21,16 @@ uint32 GetTypeHash(const FArchetypeHandle& Instance)
 //////////////////////////////////////////////////////////////////////
 // FArchetypeChunkCollection
 
-FArchetypeChunkCollection::FArchetypeChunkCollection(const FArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities)
+FArchetypeChunkCollection::FArchetypeChunkCollection(const FArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities, EDuplicatesHandling DuplicatesHandling)
 	: Archetype(InArchetype)
 {
 	check(InArchetype.IsValid());
+
+	if (InEntities.Num() <= 0)
+	{
+		return;
+	}
+
 	const FMassArchetypeData& ArchetypeData = *InArchetype.DataPtr.Get();
 	const int32 NumEntitiesPerChunk = ArchetypeData.GetNumEntitiesPerChunk();
 
@@ -38,6 +44,44 @@ FArchetypeChunkCollection::FArchetypeChunkCollection(const FArchetypeHandle& InA
 		++i;
 	}
 	TrueIndices.Sort();
+
+#if DO_GUARD_SLOW
+	if (DuplicatesHandling == NoDuplicates)
+	{
+		// ensure there are no duplicates. 
+		int32 PrevIndex = TrueIndices[0];
+		for (int j = 1; j < TrueIndices.Num(); ++j)
+		{
+			checkf(TrueIndices[j] != PrevIndex, TEXT("InEntities contains duplicate while DuplicatesHandling is set to NoDuplicates"));
+			if (TrueIndices[j] == PrevIndex)
+			{
+				// fix it, for development's sake
+				DuplicatesHandling = FoldDuplicates;
+				break;
+			}
+			PrevIndex = TrueIndices[j];
+		}
+	}
+#endif // DO_GUARD_SLOW
+
+	if (DuplicatesHandling == FoldDuplicates)
+	{
+		int32 PrevIndex = TrueIndices[0];
+		for (int j = 1; j < TrueIndices.Num(); ++j)
+		{
+			if (TrueIndices[j] == PrevIndex)
+			{
+				const int32 Num = TrueIndices.Num();
+				int Skip = 0;
+				while ((j + ++Skip) < Num && TrueIndices[j + Skip] == PrevIndex);
+				
+				TrueIndices.RemoveAt(j, Skip, /*bAllowShrinking=*/false);
+				--j;
+				continue;
+			}
+			PrevIndex = TrueIndices[j];
+		}
+	}
 
 	// the following block of code is splitting up sorted AbsoluteIndices into 
 	// continuous chunks
@@ -89,4 +133,21 @@ void FArchetypeChunkCollection::GatherChunksFromArchetype(TSharedPtr<FMassArchet
 	{
 		Chunks.Add(FChunkInfo(i));
 	}
+}
+
+bool FArchetypeChunkCollection::IsSame(const FArchetypeChunkCollection& Other) const
+{
+	if (Archetype != Other.Archetype || Chunks.Num() != Other.Chunks.Num())
+	{
+		return false;
+	}
+
+	for (int i = 0; i < Chunks.Num(); ++i)
+	{
+		if (Chunks[i] != Other.Chunks[i])
+		{
+			return false;
+		}
+	}
+	return true;
 }
