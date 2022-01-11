@@ -18,9 +18,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "Styling/StyleColors.h"
+#include "ScopedTransaction.h"
 #include "NiagaraEmitterEditorData.h"
-#include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
-#include "ViewModels/Stack/NiagaraStackInputCategory.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackTableRow"
 
