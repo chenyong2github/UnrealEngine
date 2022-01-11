@@ -23,6 +23,7 @@ using System.Text;
 using System.Threading.Tasks;
 using HordeServer.Collections.Impl;
 using HordeCommon;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace HordeServerTests
 {
@@ -85,7 +86,7 @@ namespace HordeServerTests
 
 			// Read the data back out and check it's the same
 			byte[] ReadData = new byte[Data.Length];
-			using (Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, 0, Data.Length))
+			using (Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, 0, Data.Length, NullLogger.Instance))
 			{
 				int ReadSize = await Stream.ReadAsync(ReadData, 0, ReadData.Length);
 				Assert.AreEqual(ReadData.Length, ReadSize);
