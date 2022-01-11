@@ -477,12 +477,7 @@ namespace UnrealBuildTool
 			DirectoryReference? SelectedToolChainDir;
 			if(Compiler.IsClang())
 			{
-				const string DefaultClangVisualStudioVersion = "14.24.28315";
-				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, DefaultClangVisualStudioVersion, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
-				{
-					ToolChain = WindowsCompiler.VisualStudio2019;
-				}
-				else if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, null, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
+				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, null, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 				{
 					ToolChain = WindowsCompiler.VisualStudio2019;
 				}
