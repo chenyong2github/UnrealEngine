@@ -1313,7 +1313,8 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	check( AllocatedPagesSize <= ( 1u << 31 ) );	// 2GB seems to be some sort of limit.
 													// TODO: Is it a GPU/API limit or is it a signed integer bug on our end?
 
-	if(GNaniteStreamingImposters)
+	const bool bUploadImposters = GNaniteStreamingImposters && ImposterData.TotalUpload > 0;
+	if(bUploadImposters)
 	{
 		uint32 WidthInTiles = 12;
 		uint32 TileSize = 12;
@@ -1393,7 +1394,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		}
 		
 		Hierarchy.UploadBuffer.Add( Resources->HierarchyOffset, Resources->HierarchyNodes.GetData(), Resources->HierarchyNodes.Num() );
-		if(GNaniteStreamingImposters && Resources->ImposterAtlas.Num() > 0)
+		if(bUploadImposters && Resources->ImposterAtlas.Num() > 0)
 		{
 			ImposterData.UploadBuffer.Add( Resources->ImposterIndex, Resources->ImposterAtlas.GetData() );
 		}
@@ -1410,7 +1411,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		TArray<FRHITransitionInfo, TInlineAllocator<3>> UAVTransitions;
 		UAVTransitions.Add(FRHITransitionInfo(ClusterPageData.DataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		UAVTransitions.Add(FRHITransitionInfo(Hierarchy.DataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		if(GNaniteStreamingImposters)
+		if(bUploadImposters)
 		{
 			UAVTransitions.Add(FRHITransitionInfo(ImposterData.DataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		}
@@ -1422,7 +1423,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 		PageUploader->ResourceUploadTo(GraphBuilder.RHICmdList, ClusterPageData.DataBuffer);
 
-		if (GNaniteStreamingImposters)
+		if (bUploadImposters)
 		{
 			ImposterData.TotalUpload = 0;
 			ImposterData.UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, ImposterData.DataBuffer, false);
