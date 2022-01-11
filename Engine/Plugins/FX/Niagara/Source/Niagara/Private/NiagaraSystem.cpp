@@ -1093,6 +1093,8 @@ void UNiagaraSystem::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 
 	UpdateContext.CommitUpdate();
 
+	OnPropertiesChangedDelegate.Broadcast();
+	
 	static FName SkipReset = TEXT("SkipSystemResetOnChange");
 	bool bPropertyHasSkip = PropertyChangedEvent.Property && PropertyChangedEvent.Property->HasMetaData(SkipReset);
 	bool bMemberHasSkip = PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->HasMetaData(SkipReset);
@@ -2068,6 +2070,20 @@ FBox UNiagaraSystem::GetFixedBounds() const
 	return FixedBounds;
 }
 
+void UNiagaraSystem::SetFixedBounds(const FBox& NewBounds)
+{
+	if (!bFixedBounds || FixedBounds != NewBounds)
+	{
+		bFixedBounds = true;
+		FixedBounds = NewBounds;
+
+#if WITH_EDITOR		
+		FPropertyChangedEvent FixedBoundsPropertyChangedEvent(FindFProperty<FProperty>(StaticClass(), "FixedBounds"), EPropertyChangeType::ValueSet);
+		PostEditChangeProperty(FixedBoundsPropertyChangedEvent);
+#endif
+	}
+}
+
 void CheckDICompileInfo(const TArray<FNiagaraScriptDataInterfaceCompileInfo>& ScriptDICompileInfos, bool& bOutbHasSystemDIsWithPerInstanceData, TArray<FName>& OutUserDINamesReadInSystemScripts)
 {
 	for (const FNiagaraScriptDataInterfaceCompileInfo& ScriptDICompileInfo : ScriptDICompileInfos)
@@ -2346,6 +2362,11 @@ UNiagaraSystem::FOnSystemCompiled& UNiagaraSystem::OnSystemCompiled()
 UNiagaraSystem::FOnSystemPostEditChange& UNiagaraSystem::OnSystemPostEditChange()
 {
 	return OnSystemPostEditChangeDelegate;
+}
+
+UNiagaraSystem::FOnPropertiesChanged& UNiagaraSystem::OnPropertiesChanged()
+{
+	return OnPropertiesChangedDelegate;
 }
 
 void UNiagaraSystem::ForceGraphToRecompileOnNextCheck()

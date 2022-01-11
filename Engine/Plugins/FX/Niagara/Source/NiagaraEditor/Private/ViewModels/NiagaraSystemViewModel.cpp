@@ -2214,7 +2214,6 @@ void FNiagaraSystemViewModel::UpdateSystemFixedBounds()
 	{
 		GetSystem().Modify();
 		
-		GetSystem().bFixedBounds = true;
 		GetSystem().SetFixedBounds(SystemInstance->GetLocalBounds());
 
 		PreviewComponent->MarkRenderTransformDirty();

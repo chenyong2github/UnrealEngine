@@ -980,14 +980,13 @@ void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpac
 		return;
 
 	CachedEmitter->Modify();
-	CachedEmitter->bFixedBounds = true;
 	if (CachedEmitter->bLocalSpace)
 	{
-		CachedEmitter->FixedBounds = Bounds;
+		CachedEmitter->SetFixedBounds(Bounds);
 	}
 	else
 	{
-		CachedEmitter->FixedBounds = Bounds.TransformBy(ToWorldSpace);
+		CachedEmitter->SetFixedBounds(Bounds.TransformBy(ToWorldSpace));
 	}
 
 	CachedBounds = Bounds;
