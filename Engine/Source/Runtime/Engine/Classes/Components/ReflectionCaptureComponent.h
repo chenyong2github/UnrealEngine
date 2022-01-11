@@ -169,6 +169,6 @@ private:
 	friend class FReflectionCaptureProxy;
 };
 
-ENGINE_API extern float GetMaxValueRGBM(const TArray<uint8>& FullHDRData, int32 CubemapSize, float Brightness);
-ENGINE_API extern void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize, float Brightness, float MaxValueRGBM, TArray<uint8>& OutEncodedHDRData);
+ENGINE_API extern float GetMaxValueRGBM(const TArray<uint8>& FullHDRData, int32 CubemapSize);
+ENGINE_API extern void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize, float MaxValueRGBM, TArray<uint8>& OutEncodedHDRData);
 ENGINE_API extern void GenerateEncodedHDRTextureCube(class UMapBuildDataRegistry* Registry, class FReflectionCaptureData& CaptureBuildData, FString& TextureName, float MaxValueRGBM, class UReflectionCaptureComponent* CaptureComponent = nullptr, bool bIsReflectionCaptureCompressionProjectSetting = false);

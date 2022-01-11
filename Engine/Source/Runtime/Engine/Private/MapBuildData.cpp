@@ -299,10 +299,19 @@ FArchive& operator<<(FArchive& Ar, FReflectionCaptureMapBuildData& ReflectionCap
 	Ar << ReflectionCaptureMapBuildData.CubemapSize;
 	Ar << ReflectionCaptureMapBuildData.AverageBrightness;
 
-	if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::StoreReflectionCaptureBrightnessForCooking)
+	float Brightness = 1.0f;
+	if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::StoreReflectionCaptureBrightnessForCooking 
+		&& Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ExcludeBrightnessFromEncodedHDRCubemap)
 	{
-		Ar << ReflectionCaptureMapBuildData.Brightness;
+		Ar << Brightness;
 	}
+
+#if WITH_EDITOR
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ExcludeBrightnessFromEncodedHDRCubemap && Brightness != 1.0f)
+	{
+		ReflectionCaptureMapBuildData.bBrightnessBakedInEncodedHDRCubemap = true;
+	}
+#endif
 
 	static FName FullHDR(TEXT("FullHDR"));
 	static FName EncodedHDR(TEXT("EncodedHDR"));
@@ -449,6 +458,7 @@ void UMapBuildDataRegistry::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FMobileObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReflectionCaptureObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	if (!StripFlags.IsDataStrippedForServer())
 	{
@@ -533,7 +543,7 @@ void UMapBuildDataRegistry::HandleLegacyEncodedCubemapData()
 		for (TMap<FGuid, FReflectionCaptureMapBuildData>::TIterator It(ReflectionCaptureBuildData); It; ++It)
 		{
 			FReflectionCaptureMapBuildData& CaptureBuildData = It.Value();
-			if (CaptureBuildData.EncodedCaptureData == nullptr && CaptureBuildData.FullHDRCapturedData.Num() != 0)
+			if ((CaptureBuildData.EncodedCaptureData == nullptr || CaptureBuildData.bBrightnessBakedInEncodedHDRCubemap) && CaptureBuildData.FullHDRCapturedData.Num() != 0)
 			{
 				FString TextureName = TEXT("DeprecatedTexture");
 				TextureName += LexToString(It.Key());

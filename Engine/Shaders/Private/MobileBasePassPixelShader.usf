@@ -336,7 +336,8 @@ void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
 		CompositedAverageBrightness.x += AverageBrightness * DistanceAlpha * CompositedAverageBrightness.y;
 		CompositedAverageBrightness.y *= 1 - DistanceAlpha;
 #else
-		ImageBasedReflections.rgb = SpecularIBL * ImageBasedReflections.a;
+		half ReflectionCaptureBrightness = MobileReflectionCapture.Params.w;
+		ImageBasedReflections.rgb = SpecularIBL * ImageBasedReflections.a * ReflectionCaptureBrightness;
 #if ALLOW_STATIC_LIGHTING
 		//To keep ImageBasedReflectionLighting conherence with PC, use ComputeMixingWeight instead of InvReflectionAverageBrightness to calulate the IBL constribution
 		ImageBasedReflections.rgb *= MobileComputeMixingWeight(IndirectIrradiance, MobileReflectionCapture.Params.x, Roughness);

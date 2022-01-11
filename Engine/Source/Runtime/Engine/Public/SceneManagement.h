@@ -1103,7 +1103,7 @@ inline bool PrimitiveNeedsDistanceFieldSceneData(bool bTrackAllPrimitives,
 
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters,ENGINE_API)
-	SHADER_PARAMETER(FVector4f, Params) // x - inv average brightness, y - sky cubemap max mip, z - Max value for RGBM, w - unused
+	SHADER_PARAMETER(FVector4f, Params) // x - inv average brightness, y - sky cubemap max mip, z - Max value for RGBM, w - brightness of reflection capture
 	SHADER_PARAMETER_TEXTURE(TextureCube, Texture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()

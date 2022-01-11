@@ -1214,9 +1214,6 @@ void FScene::GetReflectionCaptureData(UReflectionCaptureComponent* Component, FR
 
 	// Necessary since the RT is writing to OutDerivedData directly
 	FlushRenderingCommands();
-
-	// Required for cooking of Encoded HDR data
-	OutCaptureData.Brightness = Component->Brightness;
 }
 
 void UploadReflectionCapture_RenderingThread(FScene* Scene, const FReflectionCaptureData* CaptureData, const UReflectionCaptureComponent* CaptureComponent)
