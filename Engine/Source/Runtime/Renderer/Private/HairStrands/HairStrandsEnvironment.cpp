@@ -259,7 +259,7 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
-		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -393,7 +393,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs();
 		LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, ParametersPS->RadianceCache);
 	}
-	PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+	PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 	PassParameters->OutLightingBuffer = nullptr;
 
 	if (ShaderDrawDebug::IsEnabled(View))

@@ -143,7 +143,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 	TArray<FLightSceneInfo*> LocalLightsToEvaluate;
 
 	// The only directional light we can accept in the volumetric fog because we use the forward lighting data in the Scattering compute shader.
-	const FLightSceneProxy* SelectedForwardDirectionalLightProxy = View.ForwardLightingResources ? View.ForwardLightingResources->SelectedForwardDirectionalLightProxy : NULL;
+	const FLightSceneProxy* SelectedForwardDirectionalLightProxy = View.ForwardLightingResources.SelectedForwardDirectionalLightProxy;
 	// Default directional light properties
 	OutDirectionalLightFunctionWorldToShadow = FMatrix::Identity;
 	bOutUseDirectionalLightShadowing = false;

@@ -543,7 +543,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutPageRequestFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, DirectionalLightIds)
@@ -1167,7 +1167,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			const FViewInfo &View = Views[ViewIndex];
 
 			// This view contained no local lights (that were stored in the light grid), and no directional lights, so nothing to do.
-			if (View.ForwardLightingResources->LocalLightVisibleLightInfosIndex.Num() + DirectionalLightIds.Num() == 0)
+			if (View.ForwardLightingResources.LocalLightVisibleLightInfosIndex.Num() + DirectionalLightIds.Num() == 0)
 			{
 				continue;
 			}
@@ -1199,7 +1199,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 						PassParameters->View = View.ViewUniformBuffer;
 						PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
-						PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+						PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 						PassParameters->DirectionalLightIds = GraphBuilder.CreateSRV(DirectionalLightIdsRDG);
 						PassParameters->ResolutionLodBiasLocal = CVarResolutionLodBiasLocal.GetValueOnRenderThread();
 						PassParameters->PageDilationBorderSizeLocal = CVarPageDilationBorderSizeLocal.GetValueOnRenderThread();

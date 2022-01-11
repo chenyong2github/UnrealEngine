@@ -268,7 +268,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
-		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, Forward)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, Forward)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -538,7 +538,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	CommonParameters.SSProfilesTexture       = View.RayTracingSubSurfaceProfileTexture;
 	CommonParameters.ReflectionStruct        = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	CommonParameters.ReflectionCapture       = View.ReflectionCaptureUniformBuffer;
-	CommonParameters.Forward                 = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+	CommonParameters.Forward                 = View.ForwardLightingResources.ForwardLightUniformBuffer;
 	CommonParameters.ReflectionMaxNormalBias = GetRaytracingMaxNormalBias();
 
 	if (!CommonParameters.SceneTextures.GBufferVelocityTexture)

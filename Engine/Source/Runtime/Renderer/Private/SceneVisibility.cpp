@@ -4916,21 +4916,6 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 		{
 			FViewInfo& View = Views[ViewIndex];
 
-			if (View.ViewState)
-			{
-				if (!View.ViewState->ForwardLightingResources)
-				{
-					View.ViewState->ForwardLightingResources.Reset(new FForwardLightingViewResources());
-				}
-
-				View.ForwardLightingResources = View.ViewState->ForwardLightingResources.Get();
-			}
-			else
-			{
-				View.ForwardLightingResourcesStorage.Reset(new FForwardLightingViewResources());
-				View.ForwardLightingResources = View.ForwardLightingResourcesStorage.Get();
-			}
-
 #if RHI_RAYTRACING
 			View.IESLightProfileResource = View.ViewState ? &View.ViewState->IESLightProfileResources : nullptr;
 #endif

@@ -744,7 +744,6 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 #endif
 	, AntiAliasingMethod(AAM_None)
 	, PrimaryScreenPercentageMethod(EPrimaryScreenPercentageMethod::SpatialUpscale)
-	, ForwardLightingResources(nullptr)
 	, FeatureLevel(InitOptions.ViewFamily ? InitOptions.ViewFamily->GetFeatureLevel() : GMaxRHIFeatureLevel)
 #if RHI_RAYTRACING
 	, IESLightProfileResource(nullptr)

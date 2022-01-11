@@ -506,19 +506,19 @@ void SetupSharedBasePassParameters(
 	const FViewInfo& View,
 	FSharedBasePassUniformParameters& SharedParameters)
 {
-	SharedParameters.Forward = View.ForwardLightingResources->ForwardLightData;
+	SharedParameters.Forward = *View.ForwardLightingResources.ForwardLightData;
 
 	SetupFogUniformParameters(GraphBuilder, View, SharedParameters.Fog);
 
 	if (View.IsInstancedStereoPass())
 	{
-		const FSceneView& RightEye = *View.Family->Views[1];
-		SharedParameters.ForwardISR = RightEye.ForwardLightingResources->ForwardLightData;
+		const FViewInfo& RightEye = static_cast<const FViewInfo&>(*View.Family->Views[1]);
+		SharedParameters.ForwardISR = *RightEye.ForwardLightingResources.ForwardLightData;
 		SetupFogUniformParameters(GraphBuilder, (FViewInfo&)RightEye, SharedParameters.FogISR);
 	}
 	else
 	{
-		SharedParameters.ForwardISR = View.ForwardLightingResources->ForwardLightData;
+		SharedParameters.ForwardISR = *View.ForwardLightingResources.ForwardLightData;
 		SharedParameters.FogISR = SharedParameters.Fog;
 	}
 

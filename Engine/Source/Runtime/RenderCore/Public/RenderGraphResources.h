@@ -211,6 +211,11 @@ public:
 		return static_cast<const TRDGParameterStruct<ParameterStructType>&>(FRDGUniformBuffer::GetParameters());
 	}
 
+	FORCEINLINE const ParameterStructType* GetContents() const
+	{
+		return Parameters;
+	}
+
 	FORCEINLINE TUniformBufferRef<ParameterStructType> GetRHIRef() const
 	{
 		return TUniformBufferRef<ParameterStructType>(GetRHI());
