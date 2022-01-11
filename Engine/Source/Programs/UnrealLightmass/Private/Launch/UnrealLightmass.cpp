@@ -250,7 +250,10 @@ int LightmassMain(int argc, ANSICHAR* argv[])
 	FEngineLoop::AppPreExit();
 	FModuleManager::Get().UnloadModulesAtShutdown();
 
-	FTaskGraphInterface::Shutdown();
+	// Similar to CL 16324633. If we shut down FTaskGraphInterface right here, in AppExit
+	//   FThreadStats::StopThread could get called and that will try and execute some stats
+	//   commands which use FTaskGraphInterface and --> crashes. FEngineLoop::AppExit() calls
+	//   FTaskGraphInterface::Shutdown() after calling FThreadStats::StopThread() if needed.
 	FEngineLoop::AppExit();
 #endif
 
