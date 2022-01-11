@@ -185,18 +185,24 @@ class FReflectionCaptureData
 public:
 	int32 CubemapSize;
 	float AverageBrightness;
-	/** Needed for EncodedHDRCapturedData cooking. */
-	float Brightness;
 
 	TArray<uint8> FullHDRCapturedData;
 	UTextureCube* EncodedCaptureData;
 
+#if WITH_EDITOR
+	/** Whether the brightness is baked in the EncodedHDRCubemap*/
+	bool bBrightnessBakedInEncodedHDRCubemap;
+#endif
+
 	FReflectionCaptureData() :
 		CubemapSize(0),
 		AverageBrightness(0.0f),
-		Brightness(0.0f),
 		EncodedCaptureData(nullptr),
+#if WITH_EDITOR
+		bBrightnessBakedInEncodedHDRCubemap(false),
+#endif
 		bUploadedFinal(false)
+
 	{}
 
 	bool HasBeenUploadedFinal() const

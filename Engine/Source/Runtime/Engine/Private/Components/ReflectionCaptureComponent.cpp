@@ -505,7 +505,7 @@ static void EdgeWalkSetup( bool ReverseDirection, int32 Edge, int32 MipSize, int
 	}
 }
 
-float GetMaxValueRGBM(const TArray<uint8>& FullHDRData, int32 CubemapSize, float Brightness)
+float GetMaxValueRGBM(const TArray<uint8>& FullHDRData, int32 CubemapSize)
 {
 	const int32 NumMips = FMath::CeilLogTwo(CubemapSize) + 1;
 	// get MaxValue from Mip0
@@ -524,7 +524,7 @@ float GetMaxValueRGBM(const TArray<uint8>& FullHDRData, int32 CubemapSize, float
 			for (int32 x = 0; x < MipSize; x++)
 			{
 				int32 TexelIndex = x + y * MipSize;
-				const FLinearColor LinearColor = FLinearColor(FaceSourceData[TexelIndex]) * Brightness;
+				const FLinearColor LinearColor = FLinearColor(FaceSourceData[TexelIndex]);
 				float MaxValueTexel = FMath::Max(FMath::Max(LinearColor.R, LinearColor.G), FMath::Max(LinearColor.B, DELTA));
 				if (MaxValue < MaxValueTexel)
 				{
@@ -538,7 +538,7 @@ float GetMaxValueRGBM(const TArray<uint8>& FullHDRData, int32 CubemapSize, float
 	return MaxValue;
 }
 
-void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize, float Brightness, float MaxValueRGBM, TArray<uint8>& OutEncodedHDRData)
+void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize, float MaxValueRGBM, TArray<uint8>& OutEncodedHDRData)
 {
 	check(FullHDRData.Num() > 0);
 	const int32 NumMips = FMath::CeilLogTwo(CubemapSize) + 1;
@@ -593,7 +593,7 @@ void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize,
 			for( int32 Corner = 0; Corner < 4; Corner++ )
 			{
 				const FLinearColor LinearColor = AvgCornerColors[ CubeCornerList[Face][Corner] ] / 3.0f;
-				FaceDstData[ CornerTable[Corner] ] = RGBMEncode( LinearColor * Brightness, MaxValueRGBM);
+				FaceDstData[ CornerTable[Corner] ] = RGBMEncode( LinearColor, MaxValueRGBM);
 			}
 		}
 
@@ -634,7 +634,7 @@ void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize,
 				const FLinearColor EdgeColorB = FLinearColor( FaceSrcDataB[ EdgeTexelB ] );
 				const FLinearColor AvgColor = 0.5f * ( EdgeColorA + EdgeColorB );
 				
-				FaceDstDataA[ EdgeTexelA ] = FaceDstDataB[ EdgeTexelB ] = RGBMEncode( AvgColor * Brightness, MaxValueRGBM);
+				FaceDstDataA[ EdgeTexelA ] = FaceDstDataB[ EdgeTexelB ] = RGBMEncode( AvgColor, MaxValueRGBM);
 			}
 		}
 #endif // MOBILE_AVERAGE_CUBEMAP_EDGES
@@ -648,7 +648,6 @@ void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize,
 			FColor* FaceDestData = (FColor*)&OutEncodedHDRData[FaceDestIndex];
 
 			// Convert each texel from linear space FP16 to RGBM FColor
-			// Note: Brightness on the capture is baked into the encoded HDR data
 			// Skip edges
 			const int32 SkipEdges = MOBILE_AVERAGE_CUBEMAP_EDGES ? 1 : 0;
 
@@ -658,7 +657,7 @@ void GenerateEncodedHDRData(const TArray<uint8>& FullHDRData, int32 CubemapSize,
 				for (int32 x = SkipEdges; x < MipSize - SkipEdges; x++)
 				{
 					int32 TexelIndex = x + y * MipSize;
-					const FLinearColor LinearColor = FLinearColor(FaceSourceData[TexelIndex]) * Brightness;
+					const FLinearColor LinearColor = FLinearColor(FaceSourceData[TexelIndex]);
 					FaceDestData[ TexelIndex ] = RGBMEncode( LinearColor, MaxValueRGBM);
 				}
 			}
@@ -676,13 +675,13 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 	UTextureFactory* TextureFactory = NewObject<UTextureFactory>();
 
 	TextureFactory->CompressionSettings = TC_EncodedReflectionCapture;
-	UTextureCube* TextureCube = TextureFactory->CreateTextureCube(Registry, FName(TextureName), RF_Public);
+	UTextureCube* TextureCube = ReflectionCaptureData.EncodedCaptureData != nullptr ? ReflectionCaptureData.EncodedCaptureData : TextureFactory->CreateTextureCube(Registry, FName(TextureName), RF_Public);
 
 	if (TextureCube)
 	{
 		TArray<uint8> TemporaryEncodedHDRCapturedData;
 
-		GenerateEncodedHDRData(ReflectionCaptureData.FullHDRCapturedData, ReflectionCaptureData.CubemapSize, ReflectionCaptureData.Brightness, MaxValueRGBM, TemporaryEncodedHDRCapturedData);
+		GenerateEncodedHDRData(ReflectionCaptureData.FullHDRCapturedData, ReflectionCaptureData.CubemapSize, MaxValueRGBM, TemporaryEncodedHDRCapturedData);
 		const int32 NumMips = FMath::CeilLogTwo(ReflectionCaptureData.CubemapSize) + 1;
 		TextureCube->Source.Init(
 			ReflectionCaptureData.CubemapSize,
@@ -715,6 +714,7 @@ void GenerateEncodedHDRTextureCube(UMapBuildDataRegistry* Registry, FReflectionC
 		TextureCube->MarkPackageDirty();
 	}
 	ReflectionCaptureData.EncodedCaptureData = TextureCube;
+	ReflectionCaptureData.bBrightnessBakedInEncodedHDRCubemap = false;
 #endif
 }
 
@@ -830,6 +830,7 @@ void UReflectionCaptureComponent::SerializeLegacyData(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReflectionCaptureObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	if (Ar.CustomVer(FReflectionCaptureObjectVersion::GUID) < FReflectionCaptureObjectVersion::MoveReflectionCaptureDataToMapBuildData)
 	{
@@ -901,7 +902,6 @@ void UReflectionCaptureComponent::SerializeLegacyData(FArchive& Ar)
 					}
 
 					LegacyMapBuildData->AverageBrightness = AverageBrightness;
-					LegacyMapBuildData->Brightness = Brightness;
 
 					FReflectionCaptureMapBuildLegacyData LegacyComponentData;
 					LegacyComponentData.Id = MapBuildDataId;
@@ -1286,7 +1286,7 @@ void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 		
 	FMobileReflectionCaptureShaderParameters Parameters;
 	//To keep ImageBasedReflectionLighting coherence with PC, use AverageBrightness instead of InvAverageBrightness to calculate the IBL contribution
-	Parameters.Params = FVector4(EncodedHDRAverageBrightness, 0.f, MaxValueRGBM <= 0.0f ? 16.0f: MaxValueRGBM, 0.f);
+	Parameters.Params = FVector4(EncodedHDRAverageBrightness, 0.f, MaxValueRGBM <= 0.0f ? 16.0f: MaxValueRGBM, Brightness);
 	Parameters.Texture = CaptureTexture->TextureRHI;
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 

@@ -78,6 +78,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Remove FSkeletalMeshLODModel bulk datas
 		RemoveSkeletalMeshLODModelBulkDatas,
 		
+		// Exclude brightness from the EncodedHDRCubemap,
+		ExcludeBrightnessFromEncodedHDRCubemap,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
