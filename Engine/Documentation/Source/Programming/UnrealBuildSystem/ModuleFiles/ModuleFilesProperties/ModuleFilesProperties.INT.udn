@@ -132,7 +132,7 @@ $ AdditionalCodeGenDirectories (List&lt;String&gt;): External directories contai
 
 $ SubclassRules (List&lt;String&gt;): Subclass rules files which invalidate the makefile if modified.
 
-$ bRequiresImplementModule (Nullable&lt;Boolean&gt;): Whether this module requires the IMPLEMENT_MODULE macro to be implemented. Most UE4 modules require this, since we use the IMPLEMENT_MODULE macro to do other global overloads (eg. operator new/delete forwarding to GMalloc).
+$ bRequiresImplementModule (Nullable&lt;Boolean&gt;): Whether this module requires the IMPLEMENT_MODULE macro to be implemented. Most UE modules require this, since we use the IMPLEMENT_MODULE macro to do other global overloads (eg. operator new/delete forwarding to GMalloc).
 
 $ CppStandard (CppStandardVersion): Which stanard to use for compiling this module
 
