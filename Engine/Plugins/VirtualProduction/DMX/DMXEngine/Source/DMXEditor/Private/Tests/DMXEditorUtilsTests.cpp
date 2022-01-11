@@ -21,13 +21,18 @@ namespace
 		FFixtureTestSetup(const int32 FixtureChannelLength)
 		{
 			Library							= NewObject<UDMXLibrary>();
-			DummyFixtureType				= UDMXEntityFixtureType::CreateFixtureTypeInLibrary(Library);
-			FDMXEntityFixtureTypeRef FixtureTypeRef(DummyFixtureType);
 
-			FirstManualFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
-			SecondManualFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
-			FirstAutoFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
-			SecondAutoFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
+			FDMXEntityFixtureTypeConstructionParams FixtureTypeConstructionParams;
+			FixtureTypeConstructionParams.ParentDMXLibrary = Library;
+			DummyFixtureType				= UDMXEntityFixtureType::CreateFixtureTypeInLibrary(FixtureTypeConstructionParams);
+
+			FDMXEntityFixturePatchConstructionParams FixturePatchConstructionParams;
+			FixturePatchConstructionParams.FixtureTypeRef = FDMXEntityFixtureTypeRef(DummyFixtureType);
+
+			FirstManualFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams);
+			SecondManualFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams);
+			FirstAutoFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams);
+			SecondAutoFixture				= UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams);
 
 			DummyFixtureType->Modes.Add([FixtureChannelLength]()
 				{

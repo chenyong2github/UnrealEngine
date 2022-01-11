@@ -66,21 +66,21 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	 * The list of Attributes can be edited on
 	 * Project Settings->Plugins->DMX Protocol->Fixture Settings->Fixture Function Attributes
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Attribute Mapping", DisplayPriority = "11"), Category = "Function Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Attribute Mapping", DisplayPriority = "11"), Category = "Function Settings")
 	FDMXAttributeName Attribute;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "10"), Category = "Function Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "10"), Category = "Function Settings")
 	FString FunctionName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20"), Category = "Function Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "20"), Category = "Function Settings")
 	FString Description;
 
 	/** The Default Value of the function, imported from GDTF. The plugin doesn't make use of this value, but it can be used in blueprints */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30"), Category = "Function Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "30"), Category = "Function Settings")
 	int64 DefaultValue;
 
 	/** This function's starting channel (use editor above to make changes) */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (DisplayName = "Channel Assignment", DisplayPriority = "2"), Category = "Function Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (DisplayName = "Channel Assignment", DisplayPriority = "2"), Category = "Function Settings")
 	int32 Channel;
 
 	/** DEPRECATED 5.0. Instead the 'Channel' property is EditAnywhere so any function can be assigned freely */
@@ -88,7 +88,7 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	int32 ChannelOffset_DEPRECATED;
 
 	/** This function's data type. Defines the used number of channels (bytes) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "5"), Category = "Function Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "5"), Category = "Function Settings")
 	EDMXFixtureSignalFormat DataType;
 
 	/**
@@ -103,7 +103,7 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	 * In MSB mode, the example above would be interpreted in binary as 0x00 0x01, which means 1.
 	 * The first byte (0) became the highest part in binary form and the following byte (1), the lowest.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "Function Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "Function Settings")
 	bool bUseLSBMode = false;
 };
 
@@ -131,18 +131,18 @@ struct DMXRUNTIME_API FDMXFixtureCellAttribute
 	 * The list of Attributes can be edited on
 	 * Project Settings->Plugins->DMX Protocol->Fixture Settings->Fixture Function Attributes
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Attribute Mapping", DisplayPriority = "11"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Attribute Mapping", DisplayPriority = "11"), Category = "DMX")
 	FDMXAttributeName Attribute;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "Description"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "20", DisplayName = "Description"), Category = "DMX")
 	FString Description;
 
 	/** Initial value for this function when no value is set */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "Default Value"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "30", DisplayName = "Default Value"), Category = "DMX")
 	int64 DefaultValue;
 
 	/** This function's data type. Defines the used number of channels (bytes) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "5", DisplayName = "Data Type"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "5", DisplayName = "Data Type"), Category = "DMX")
 	EDMXFixtureSignalFormat DataType;
 
 	/**
@@ -158,7 +158,7 @@ struct DMXRUNTIME_API FDMXFixtureCellAttribute
 	 * In MSB mode, the example above would be interpreted in binary as 00000000 00000001, which means 1.
 	 * The first byte (0) became the highest part in binary form and the following byte (1), the lowest.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "DMX")
 	bool bUseLSBMode;
 };
 
@@ -182,19 +182,19 @@ struct DMXRUNTIME_API FDMXFixtureMatrix
 	UE_DEPRECATED(5.0, "Deprecated to reduce redundant code. Instead use UDMXFixturePatch::GetMatrixCellChannelsRelative")
 	bool GetChannelsFromCell(FIntPoint CellCoordinate, FDMXAttributeName Attribute, TArray<int32>& Channels) const;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "60", DisplayName = "Cell Attributes"), Category = "Mode Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "60", DisplayName = "Cell Attributes"), Category = "Mode Settings")
 	TArray<FDMXFixtureCellAttribute> CellAttributes;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1", ClampMax = "512"), Category = "Mode Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1", ClampMax = "512"), Category = "Mode Settings")
 	int32 FirstCellChannel = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "X Cells", ClampMin = "1"), Category = "Mode Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "30", DisplayName = "X Cells", ClampMin = "1"), Category = "Mode Settings")
 	int32 XCells = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "40", DisplayName = "Y Cells", ClampMin = "1"), Category = "Mode Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "40", DisplayName = "Y Cells", ClampMin = "1"), Category = "Mode Settings")
 	int32 YCells = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "50", DisplayName = "PixelMapping Distribution"), Category = "Mode Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "50", DisplayName = "PixelMapping Distribution"), Category = "Mode Settings")
 	EDMXPixelMappingDistribution PixelMappingDistribution = EDMXPixelMappingDistribution::TopLeftToRight;
 };
 
@@ -204,11 +204,11 @@ struct DMXRUNTIME_API FDMXCell
 	GENERATED_BODY()
 
 	/** The cell index in a 1D Array (row order), starting from 0 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "Cell ID", ClampMin = "0"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "20", DisplayName = "Cell ID", ClampMin = "0"), Category = "DMX")
 	int32 CellID;
 
 	/** The cell coordinate in a 2D Array, starting from (0, 0) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "Coordinate"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "30", DisplayName = "Coordinate"), Category = "DMX")
 	FIntPoint Coordinate;
 
 	FDMXCell()
@@ -222,10 +222,10 @@ struct DMXRUNTIME_API FDMXFixtureMode
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "10"), Category = "Mode Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "10"), Category = "Mode Settings")
 	FString ModeName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20"), Category = "Mode Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayPriority = "20"), Category = "Mode Settings")
 	TArray<FDMXFixtureFunction> Functions;
 
 	/**
@@ -237,10 +237,10 @@ struct DMXRUNTIME_API FDMXFixtureMode
 	bool bAutoChannelSpan = true;
 
 	/** Number of channels (bytes) used by this mode's functions */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode Settings", meta = (ClampMin = "4", ClampMax = "512", DisplayPriority = "40", EditCondition = "!bAutoChannelSpan"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mode Settings", meta = (ClampMin = "4", ClampMax = "512", DisplayPriority = "40", EditCondition = "!bAutoChannelSpan"))
 	int32 ChannelSpan = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode Settings", meta = (DisplayPriority = "60"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mode Settings", meta = (DisplayPriority = "60"))
 	bool bFixtureMatrixEnabled = false;
 
 	UPROPERTY(EditAnywhere, Category = "Mode Settings", meta = (DisplayPriority = "70"))
@@ -253,6 +253,25 @@ struct DMXRUNTIME_API FDMXFixtureMode
 #endif
 };
 
+
+/** Parameters to construct a Fixture Type. */
+USTRUCT(BlueprintType)
+struct DMXRUNTIME_API FDMXEntityFixtureTypeConstructionParams
+{
+	GENERATED_BODY()
+
+	/** The DMX Library in which the Fixture Type will be constructed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fixture Type")
+	UDMXLibrary* ParentDMXLibrary;
+
+	/** The Category of the Fixture, useful for Filtering */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fixture Type")
+	FDMXFixtureCategory DMXCategory;
+
+	/** The Modes of the Fixture Type */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fixture Type")
+	TArray<FDMXFixtureMode> Modes;
+};
 
 #if WITH_EDITOR
 /** Notification when data type changed */
@@ -274,7 +293,7 @@ class DMXRUNTIME_API UDMXEntityFixtureType
 public:
 	/** Creates a new Fixture Type in the DMX Library */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	static UDMXEntityFixtureType* CreateFixtureTypeInLibrary(UDMXLibrary* ParentDMXLibrary, const FString& DesiredName = TEXT(""), bool bMarkDMXLibraryDirty = true);
+	static UDMXEntityFixtureType* CreateFixtureTypeInLibrary(FDMXEntityFixtureTypeConstructionParams ConstructionParams, const FString& DesiredName = TEXT(""), bool bMarkDMXLibraryDirty = true);
 
 	/** Removes a Fixture Type from a DMX Library */
 	UFUNCTION(BlueprintCallable, Category = "DMX")

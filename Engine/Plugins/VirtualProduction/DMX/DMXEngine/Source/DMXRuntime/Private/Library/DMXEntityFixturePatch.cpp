@@ -38,9 +38,9 @@ UDMXEntityFixturePatch::UDMXEntityFixturePatch()
 #endif // WITH_EDITORONLY_DATA
 {}
 
-UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef, const FString& DesiredName, bool bMarkDMXLibraryDirty)
+UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMXEntityFixturePatchConstructionParams ConstructionParams, const FString& DesiredName, bool bMarkDMXLibraryDirty)
 {
-	UDMXEntityFixtureType* FixtureType = FixtureTypeRef.GetFixtureType();
+	UDMXEntityFixtureType* FixtureType = ConstructionParams.FixtureTypeRef.GetFixtureType();
 
 	if (ensureMsgf(FixtureType, TEXT("Cannot create Fixture Patch when Fixture Type is invalid.")))
 	{
@@ -60,6 +60,9 @@ UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMX
 			UDMXEntityFixturePatch* NewFixturePatch = NewObject<UDMXEntityFixturePatch>(DMXLibrary, UDMXEntityFixturePatch::StaticClass(), NAME_None, RF_Transactional);
 			NewFixturePatch->SetName(EntityName);
 			NewFixturePatch->SetFixtureType(FixtureType);
+			NewFixturePatch->SetUniverseID(ConstructionParams.UniverseID);
+			NewFixturePatch->SetStartingChannel(ConstructionParams.StartingAddress);
+			NewFixturePatch->SetActiveModeIndex(ConstructionParams.ActiveMode);
 
 			return NewFixturePatch;
 

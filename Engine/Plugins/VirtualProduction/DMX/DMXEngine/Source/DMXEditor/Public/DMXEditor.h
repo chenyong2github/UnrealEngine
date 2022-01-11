@@ -49,7 +49,7 @@ public:
 	FReply OnAddNewEntity_OnClick(TSubclassOf<UDMXEntity> InEntityClass) { OnAddNewEntity(InEntityClass); return FReply::Handled(); }
 
 	UE_DEPRECATED(5.0, "Deprecated, this always yields true.")
-	bool CanAddNewEntity(TSubclassOf<UDMXEntity> InEntityClass) const;
+	bool CanAddNewEntity(TSubclassOf<UDMXEntity> InEntityClass) const { return true; }
 
 	bool NewEntity_IsVisibleForType(TSubclassOf<UDMXEntity> InEntityClass) const;
 

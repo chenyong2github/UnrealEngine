@@ -26,6 +26,30 @@ struct FPropertyChangedEvent;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnFixturePatchChangedDelegate, const UDMXEntityFixturePatch* /** ChangedFixturePatch */);
 
+
+/** Parameters to construct a Fixture Patch. */
+USTRUCT(BlueprintType)
+struct DMXRUNTIME_API FDMXEntityFixturePatchConstructionParams
+{
+	GENERATED_BODY()
+	
+	/** Property to point to the template parent fixture for details panel purposes */
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Fixture Patch", meta = (DisplayName = "Fixture Type"))
+	FDMXEntityFixtureTypeRef FixtureTypeRef;
+
+	/** The Index of the Mode in the Fixture Type the Patch uses */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
+	int32 ActiveMode = 0;
+
+	/** The local universe of the patch */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fixture Patch", meta = (ClampMin = 0, DisplayName = "Universe"))
+	int32 UniverseID = 1;
+
+	/** Starting channel for when auto-assign address is false */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fixture Patch", meta = (EditCondition = "!bAutoAssignAddress", DisplayName = "Manual Starting Address", UIMin = "1", UIMax = "512", ClampMin = "1", ClampMax = "512"))
+	int32 StartingAddress = 1;
+};
+
 /** 
  * A DMX fixture patch that can be patch to channels in a DMX Universe via the DMX Library Editor. 
  * 
@@ -45,7 +69,7 @@ public:
 
 	/** Creates a new Fixture Patch in the DMX Library using the specified Fixture Type */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	static UDMXEntityFixturePatch* CreateFixturePatchInLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef, const FString& DesiredName = TEXT(""), bool bMarkDMXLibraryDirty = true);
+	static UDMXEntityFixturePatch* CreateFixturePatchInLibrary(FDMXEntityFixturePatchConstructionParams ConstructionParams, const FString& DesiredName = TEXT(""), bool bMarkDMXLibraryDirty = true);
 
 	/** Removes a fixture patch from the DMX Library */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
@@ -123,6 +147,7 @@ public:
 	FORCEINLINE UDMXEntityFixtureType* GetFixtureType() const { return ParentFixtureTypeTemplate; }
 
 	/** Sets the fixture type this is using */
+	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
 	void SetFixtureType(UDMXEntityFixtureType* NewFixtureType);
 
 	/** Returns the universe ID of the patch*/
@@ -208,7 +233,7 @@ protected:
 	int32 AutoStartingAddress;
 
 	/** Property to point to the template parent fixture for details panel purposes */
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Fixture Patch", meta = (DisplayName = "Fixture Type"))
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, BlueprintSetter = SetFixtureType, Category = "Fixture Patch", meta = (DisplayName = "Fixture Type"))
 	UDMXEntityFixtureType* ParentFixtureTypeTemplate;
 
 	/** The Index of the Mode in the Fixture Type the Patch uses */
