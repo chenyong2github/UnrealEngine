@@ -443,7 +443,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						// Get the main view shadow info for the cloud shadows in reflection.
 						if (!CloudRC.bSkipAtmosphericLightShadowmap && AtmosphericLight0 && ProjectedShadowInfo0)
 						{
-							SetVolumeShadowingShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0, MainView, AtmosphericLight0Info, ProjectedShadowInfo0, INDEX_NONE);
+							SetVolumeShadowingShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0, MainView, AtmosphericLight0Info, ProjectedShadowInfo0);
 						}
 						else
 						{

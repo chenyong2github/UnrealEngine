@@ -330,7 +330,7 @@ void GetSkyAtmosphereLightsUniformBuffers(
 	if (bShouldSampleOpaqueShadow && LightShadowData.LightVolumetricShadowSceneinfo0)
 	{
 		SetVolumeShadowingShaderParameters(GraphBuilder, LightShadowShaderParams0, ViewInfo,
-			LightShadowData.LightVolumetricShadowSceneinfo0, LightShadowData.ProjectedShadowInfo0, INDEX_NONE);
+			LightShadowData.LightVolumetricShadowSceneinfo0, LightShadowData.ProjectedShadowInfo0);
 	}
 	else
 	{
@@ -339,7 +339,7 @@ void GetSkyAtmosphereLightsUniformBuffers(
 	if (bShouldSampleOpaqueShadow && LightShadowData.LightVolumetricShadowSceneinfo1)
 	{
 		SetVolumeShadowingShaderParameters(GraphBuilder, LightShadowShaderParams1, ViewInfo,
-			LightShadowData.LightVolumetricShadowSceneinfo1, LightShadowData.ProjectedShadowInfo1, INDEX_NONE);
+			LightShadowData.LightVolumetricShadowSceneinfo1, LightShadowData.ProjectedShadowInfo1);
 	}
 	else
 	{

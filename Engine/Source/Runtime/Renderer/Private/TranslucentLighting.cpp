@@ -1106,10 +1106,7 @@ static void InjectTranslucentLightArray(
 				*DeferredLightStruct = GetDeferredLightParameters(View, *LightSceneInfo);
 				PassParameters->PS.DeferredLight = GraphBuilder.CreateUniformBuffer(DeferredLightStruct);
 
-				// InnerSplitIndex: which CSM shadow map level, INDEX_NONE if no directional light
-				int32 InnerSplitIndex = InjectionData.ProjectedShadowInfo ? InjectionData.ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex : INDEX_NONE;
-
-				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, InjectionData.ProjectedShadowInfo, InnerSplitIndex, PassParameters->PS.VolumeShadowingParameters);
+				GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, InjectionData.ProjectedShadowInfo, PassParameters->PS.VolumeShadowingParameters);
 
 				PassParameters->PS.VirtualShadowMapId = Renderer.VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&View);
 				PassParameters->PS.LightFunctionParameters = FLightFunctionSharedParameters::GetLightFunctionSharedParameters(LightSceneInfo, 1.0f);
