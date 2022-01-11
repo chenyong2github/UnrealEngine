@@ -2303,10 +2303,14 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 		}
 	}
 
-	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::MaterialLayerStacksAreNotParameters ||
-		Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::TerrainLayerWeightsAreNotParameters)
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::MaterialLayerStacksAreNotParameters)
 	{
-		StaticParameters.UpdateLegacyData();
+		StaticParameters.UpdateLegacyMaterialLayersData();
+	}
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::TerrainLayerWeightsAreNotParameters)
+	{
+		StaticParameters.UpdateLegacyTerrainLayerWeightData();
 	}
 #endif // WITH_EDITOR
 

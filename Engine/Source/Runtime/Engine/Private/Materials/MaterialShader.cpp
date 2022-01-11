@@ -304,7 +304,7 @@ void FStaticParameterSet::SerializeLegacy(FArchive& Ar)
 	}
 }
 
-void FStaticParameterSet::UpdateLegacyData()
+void FStaticParameterSet::UpdateLegacyTerrainLayerWeightData()
 {
 	int32 ParameterIndex = 0;
 	while (ParameterIndex < TerrainLayerWeightParameters.Num())
@@ -321,7 +321,10 @@ void FStaticParameterSet::UpdateLegacyData()
 			TerrainLayerWeightParameters.RemoveAt(ParameterIndex);
 		}
 	}
+}
 
+void FStaticParameterSet::UpdateLegacyMaterialLayersData()
+{
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (MaterialLayersParameters_DEPRECATED.Num() > 0)
 	{
