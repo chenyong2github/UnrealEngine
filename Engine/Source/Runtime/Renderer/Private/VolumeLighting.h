@@ -35,7 +35,6 @@ void GetVolumeShadowingShaderParameters(
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
 	const FProjectedShadowInfo* ShadowInfo,
-	int32 InnerSplitIndex,
 	FVolumeShadowingShaderParameters& OutParameters);
 
 
@@ -65,15 +64,13 @@ void SetVolumeShadowingShaderParameters(
 	FVolumeShadowingShaderParametersGlobal0& ShaderParams,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
-	const FProjectedShadowInfo* ShadowInfo,
-	int32 InnerSplitIndex);
+	const FProjectedShadowInfo* ShadowInfo);
 void SetVolumeShadowingShaderParameters(
 	FRDGBuilder& GraphBuilder,
 	FVolumeShadowingShaderParametersGlobal1& ShaderParams,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
-	const FProjectedShadowInfo* ShadowInfo,
-	int32 InnerSplitIndex);
+	const FProjectedShadowInfo* ShadowInfo);
 
 void SetVolumeShadowingDefaultShaderParameters(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParametersGlobal0& ShaderParams);
 void SetVolumeShadowingDefaultShaderParameters(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParametersGlobal1& ShaderParams);

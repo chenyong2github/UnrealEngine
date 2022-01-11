@@ -61,7 +61,6 @@ void GetVolumeShadowingShaderParameters(
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
 	const FProjectedShadowInfo* ShadowInfo,
-	int32 InnerSplitIndex,
 	FVolumeShadowingShaderParameters& OutParameters)
 {
 	const bool bDynamicallyShadowed = ShadowInfo != nullptr;
@@ -80,12 +79,10 @@ void GetVolumeShadowingShaderParameters(
 	// .zw:DistanceFadeMAD to use MAD for efficiency in the shader, default to ignore the plane
 	FVector4f ShadowInjectParamValue(1, 1, 0, 0);
 
+	int32 InnerSplitIndex = ShadowInfo ? ShadowInfo->CascadeSettings.ShadowSplitIndex : INDEX_NONE;
 	if (InnerSplitIndex != INDEX_NONE)
 	{
-		FShadowCascadeSettings ShadowCascadeSettings;
-
-		LightSceneInfo->Proxy->GetShadowSplitBounds(View, InnerSplitIndex, LightSceneInfo->IsPrecomputedLightingValid(), &ShadowCascadeSettings);
-		ensureMsgf(ShadowCascadeSettings.ShadowSplitIndex != INDEX_NONE, TEXT("FLightSceneProxy::GetShadowSplitBounds did not return an initialized ShadowCascadeSettings"));
+		const FShadowCascadeSettings& ShadowCascadeSettings = ShadowInfo->CascadeSettings;
 
 		// near cascade plane
 		{
@@ -163,15 +160,14 @@ void SetVolumeShadowingShaderParameters(
 	FVolumeShadowingShaderParametersGlobal0& ShaderParams,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
-	const FProjectedShadowInfo* ShadowInfo,
-	int32 InnerSplitIndex)
+	const FProjectedShadowInfo* ShadowInfo)
 {
 	FLightShaderParameters LightParameters;
 	LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 	ShaderParams.Position = LightParameters.Position;
 	ShaderParams.InvRadius = LightParameters.InvRadius;
 
-	GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ShadowInfo, InnerSplitIndex, ShaderParams.VolumeShadowingShaderParameters);
+	GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ShadowInfo, ShaderParams.VolumeShadowingShaderParameters);
 }
 
 void SetVolumeShadowingShaderParameters(
@@ -179,15 +175,14 @@ void SetVolumeShadowingShaderParameters(
 	FVolumeShadowingShaderParametersGlobal1& ShaderParams,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
-	const FProjectedShadowInfo* ShadowInfo,
-	int32 InnerSplitIndex)
+	const FProjectedShadowInfo* ShadowInfo)
 {
 	FLightShaderParameters LightParameters;
 	LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 	ShaderParams.Position = LightParameters.Position;
 	ShaderParams.InvRadius = LightParameters.InvRadius;
 
-	GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ShadowInfo, InnerSplitIndex, ShaderParams.VolumeShadowingShaderParameters);
+	GetVolumeShadowingShaderParameters(GraphBuilder, View, LightSceneInfo, ShadowInfo, ShaderParams.VolumeShadowingShaderParameters);
 }
 
 void SetVolumeShadowingDefaultShaderParameters(FRDGBuilder& GraphBuilder, FVolumeShadowingShaderParametersGlobal0& ShaderParams)
