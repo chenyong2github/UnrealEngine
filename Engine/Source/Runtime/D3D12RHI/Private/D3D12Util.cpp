@@ -668,8 +668,7 @@ void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPage
 } // namespace D3D12RHI
 
 void LogMemoryInfo(FD3D12Adapter* InAdapter)
-{
-	InAdapter->UpdateMemoryInfo();
+{	
 	const FD3D12MemoryInfo& MemoryInfo = InAdapter->GetMemoryInfo();
 
 	UE_LOG(LogD3D12RHI, Error, TEXT("Memory Info from frame ID %d:"), MemoryInfo.UpdateFrameNumber);
