@@ -702,14 +702,25 @@ struct FRDGResourceDumpContext
 
 		// Preprocess
 		FTextureRHIRef StagingSrcTexture;
+		EPixelFormat PreprocessedPixelFormat = SubresourceDumpDesc.PreprocessedPixelFormat;
+		SIZE_T SubresourceByteSize = SubresourceDumpDesc.ByteSize;
 		if (SubresourceDumpDesc.bPreprocessForStaging)
 		{
+			// Some RHIs (GL) only support 32Bit single channel images as CS output
+			if (IsOpenGLPlatform(GMaxRHIShaderPlatform) &&
+				GPixelFormats[PreprocessedPixelFormat].NumComponents == 1 && 
+				GPixelFormats[PreprocessedPixelFormat].BlockBytes < 4)
+			{
+				SubresourceByteSize*= (4 / GPixelFormats[PreprocessedPixelFormat].BlockBytes);
+				PreprocessedPixelFormat = PF_R32_UINT;
+			}
+						
 			{
 				FRHIResourceCreateInfo CreateInfo(TEXT("DumpGPU.PreprocessTexture"));
 				StagingSrcTexture = RHICreateTexture2D(
 					SubresourceDumpDesc.SubResourceExtent.X,
 					SubresourceDumpDesc.SubResourceExtent.Y,
-					(uint8)SubresourceDumpDesc.PreprocessedPixelFormat,
+					(uint8)PreprocessedPixelFormat,
 					/* NumMips = */ 1,
 					/* NumSamples = */ 1,
 					TexCreate_UAV | TexCreate_ShaderResource | TexCreate_HideInVisualizeTexture,
@@ -747,7 +758,7 @@ struct FRDGResourceDumpContext
 			StagingTexture = RHICreateTexture2D(
 				SubresourceDumpDesc.SubResourceExtent.X,
 				SubresourceDumpDesc.SubResourceExtent.Y,
-				(uint8)SubresourceDumpDesc.PreprocessedPixelFormat,
+				(uint8)PreprocessedPixelFormat,
 				/* NumMips = */ 1,
 				/* NumSamples = */ 1,
 				TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture,
@@ -792,9 +803,9 @@ struct FRDGResourceDumpContext
 		if (Content)
 		{
 			TArray64<uint8> Array;
-			Array.SetNumUninitialized(SubresourceDumpDesc.ByteSize);
+			Array.SetNumUninitialized(SubresourceByteSize);
 
-			SIZE_T BytePerPixel = SIZE_T(GPixelFormats[SubresourceDumpDesc.PreprocessedPixelFormat].BlockBytes);
+			SIZE_T BytePerPixel = SIZE_T(GPixelFormats[PreprocessedPixelFormat].BlockBytes);
 
 			const uint8* SrcData = static_cast<const uint8*>(Content);
 
@@ -808,6 +819,30 @@ struct FRDGResourceDumpContext
 			}
 
 			RHICmdList.UnmapStagingSurface(StagingTexture, GPUIndex);
+
+			if (PreprocessedPixelFormat != SubresourceDumpDesc.PreprocessedPixelFormat)
+			{
+				// Convert 32Bit values back to 16 or 8bit
+				const int32 DstPixelNumBytes = GPixelFormats[SubresourceDumpDesc.PreprocessedPixelFormat].BlockBytes;
+				const uint32* SrcData32 = (const uint32*)Array.GetData();
+				uint8* DstData8 = Array.GetData();
+				uint16* DstData16 = (uint16*)Array.GetData();
+											
+				for (int32 Index = 0; Index < Array.Num()/4; Index++)
+				{
+					uint32 Value32 = SrcData32[Index];
+					if (DstPixelNumBytes == 2)
+					{
+						DstData16[Index] = (uint16)Value32;
+					}
+					else
+					{
+						DstData8[Index] = (uint8)Value32;
+					}
+				}
+
+				Array.SetNum(Array.Num() / (4 / DstPixelNumBytes));
+			}
 
 			DumpBinaryToFile(Array, DumpFilePath);
 		}
@@ -1162,8 +1197,7 @@ struct FRDGResourceDumpContext
 		return bDumpPass;
 	}
 };
-
-bool bIsDumpingFrame_GameThread = false;
+static uint64 DumpingFrameCounter_GameThread = 0;
 FRDGResourceDumpContext GRDGResourceDumpContext;
 
 }
@@ -1177,7 +1211,7 @@ FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 {
 	check(IsInGameThread());
 
-	if (bIsDumpingFrame_GameThread)
+	if (DumpingFrameCounter_GameThread != 0)
 	{
 		return FString();
 	}
@@ -1284,7 +1318,7 @@ FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 		#endif
 	});
 
-	bIsDumpingFrame_GameThread = true;
+	DumpingFrameCounter_GameThread = GFrameCounter;
 
 	if (NewResourceDumpContext.bEnableDiskWrite)
 	{
@@ -1297,7 +1331,8 @@ void FRDGBuilder::EndResourceDump()
 {
 	check(IsInGameThread());
 
-	if (!bIsDumpingFrame_GameThread)
+	if (DumpingFrameCounter_GameThread == 0 ||
+		DumpingFrameCounter_GameThread >= GFrameCounter) // make sure at least one frame has passed since we start a resource dump
 	{
 		return;
 	}
@@ -1343,7 +1378,7 @@ void FRDGBuilder::EndResourceDump()
 	#endif
 
 	GRDGResourceDumpContext = FRDGResourceDumpContext();
-	bIsDumpingFrame_GameThread = false;
+	DumpingFrameCounter_GameThread = 0;
 }
 
 static const TCHAR* GetPassEventNameWithGPUMask(const FRDGPass* Pass, FString& OutNameStorage)
@@ -1782,6 +1817,11 @@ void FRDGBuilder::EndPassDump(const FRDGPass* Pass)
 }
 
 // static
+bool FRDGBuilder::IsDumpingFrame()
+{
+	return GRDGResourceDumpContext.IsDumpingFrame();
+}
+
 bool FRDGBuilder::IsDumpingDraws()
 {
 	if (!GRDGResourceDumpContext.IsDumpingFrame())

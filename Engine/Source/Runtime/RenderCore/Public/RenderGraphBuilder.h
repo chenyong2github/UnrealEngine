@@ -302,6 +302,9 @@ public:
 #if RDG_DUMP_RESOURCES
 	static FString BeginResourceDump(const TArray<FString>& Args);
 	static void EndResourceDump();
+	static bool IsDumpingFrame();
+#else
+	static bool IsDumpingFrame() { return false; }
 #endif
 
 #if RDG_DUMP_RESOURCES_AT_EACH_DRAW
