@@ -40,7 +40,7 @@ public:
 
 	void GetSelectedSettings(TArray<UMoviePipelineSetting*>& OutSettings) const;
 	void SetSelectedSettings(const TArray<UMoviePipelineSetting*>& Settings);
-
+	void InvalidateCachedSettingsSerialNumber() { CachedSettingsSerialNumber = -1; }
 private:
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;

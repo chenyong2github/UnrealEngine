@@ -72,6 +72,7 @@ private:
 
 	EVisibility IsValidationWarningVisible() const;
 	FText GetValidationWarningText() const;
+	void OnBlueprintReinstanced();
 private:
 
 	bool bRequestDetailsRefresh;
