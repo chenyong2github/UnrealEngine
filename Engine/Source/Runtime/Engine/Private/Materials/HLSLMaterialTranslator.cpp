@@ -4794,10 +4794,6 @@ int32 FHLSLMaterialTranslator::PixelDepth()
 	{
 		return Errorf(TEXT("Invalid node used in hull/domain shader input!"));
 	}
-	if (Material->IsTranslucencyWritingVelocity())
-	{
-		return Errorf(TEXT("Translucenct material with 'Output Velocity' enabled will write to depth buffer, therefore cannot read from depth buffer at the same time."));
-	}
 	return AddInlinedCodeChunk(MCT_Float, TEXT("GetPixelDepth(Parameters)"));
 }
 
@@ -4829,6 +4825,11 @@ int32 FHLSLMaterialTranslator::SceneDepth(int32 Offset, int32 ViewportUV, bool b
 	{
 		// mobile currently does not support this, we need to read a separate copy of the depth, we must disable framebuffer fetch and force scene texture reads.
 		return Errorf(TEXT("Cannot read scene depth from the vertex shader with feature level ES3.1 or below."));
+	}
+
+	if (Material->IsTranslucencyWritingVelocity())
+	{
+		return Errorf(TEXT("Translucenct material with 'Output Velocity' enabled will write to depth buffer, therefore cannot read from depth buffer at the same time."));
 	}
 
 	if (Offset == INDEX_NONE && bUseOffset)
