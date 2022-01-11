@@ -642,6 +642,38 @@ void FNiagaraRendererComponents::TickPropertyBindings(
 						PropertyType = FNiagaraTypeDefinition(StructProp->Struct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
 						break;
 					}
+
+					// we can't determine the struct type, but since it's the same size we assume it's the same type as the source var
+					FNiagaraTypeDefinition VarType = DataVariable.GetType();
+					if (Property->GetSize() == VarType.GetSize())
+					{
+						break;
+					}
+
+					// the property is missing the struct info and has a different size. In case of LWC types we try to guess the type if it fits the size.
+					bool bDoubleSize = Property->GetSize() == VarType.GetSize() * 2;
+					if (VarType == FNiagaraTypeDefinition::GetVec2Def() && bDoubleSize)
+					{
+						PropertyType = UNiagaraComponentRendererProperties::GetFVector2DDef();
+					}
+					else if ((VarType == FNiagaraTypeDefinition::GetVec3Def() || VarType == FNiagaraTypeDefinition::GetPositionDef()) && bDoubleSize)
+					{
+						PropertyType = UNiagaraComponentRendererProperties::GetFVectorDef();
+					}
+					else if (VarType == FNiagaraTypeDefinition::GetVec4Def() && bDoubleSize)
+					{
+						PropertyType = UNiagaraComponentRendererProperties::GetFVector4Def();
+					}
+					else if (VarType == FNiagaraTypeDefinition::GetQuatDef() && bDoubleSize)
+					{
+						PropertyType = UNiagaraComponentRendererProperties::GetFQuatDef();
+					}
+					else
+					{
+						// unable to resolve the type, invalidate everything to skip the tick
+						PropertyType = FNiagaraTypeDefinition();
+						DataVariable = FNiagaraVariable();
+					}
 				}
 			}
 		}

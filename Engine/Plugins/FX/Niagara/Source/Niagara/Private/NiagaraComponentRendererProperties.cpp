@@ -11,7 +11,6 @@
 #include "Widgets/Images/SImage.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/SWidget.h"
-#include "Styling/SlateBrush.h"
 #include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
 #endif
@@ -71,7 +70,32 @@ NIAGARA_API FNiagaraTypeDefinition UNiagaraComponentRendererProperties::ToNiagar
 		FStructProperty* StructProperty = (FStructProperty*)Property;
 		if (StructProperty->Struct)
 		{
-			return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct));
+			if (StructProperty->Struct->GetFName() == NAME_Vector2D || StructProperty->Struct->GetFName() == NAME_Vector2d) 
+			{
+				return GetFVector2DDef();
+			}
+
+			if (StructProperty->Struct->GetFName() == NAME_Vector || StructProperty->Struct->GetFName() == NAME_Vector3d)
+			{
+				return GetFVectorDef();
+			}
+
+			if (StructProperty->Struct->GetFName() == NAME_Vector4 || StructProperty->Struct->GetFName() == NAME_Vector4d)
+			{
+				return GetFVector4Def();
+			}
+
+			if (StructProperty->Struct->GetFName() == NAME_Quat || StructProperty->Struct->GetFName() == NAME_Quat4d)
+			{
+				return GetFQuatDef();
+			}
+
+			if (StructProperty->Struct->GetFName() == FName("NiagaraPosition"))
+			{
+				return FNiagaraTypeDefinition::GetPositionStruct();
+			}
+
+			return FNiagaraTypeDefinition(StructProperty->Struct);
 		}
 	}
 
@@ -191,6 +215,23 @@ void UNiagaraComponentRendererProperties::PostLoad()
 				break;
 			}
 		}
+
+#if WITH_EDITOR
+		// check if any of the bound properties was changed (e.g. to a lwc type) and regenerate the bindings if necessary
+		if (!TemplateComponent)
+		{
+			continue;
+		}
+		for (TFieldIterator<FProperty> PropertyIt(TemplateComponent->GetClass()); PropertyIt; ++PropertyIt)
+		{
+			FProperty* Property = *PropertyIt;
+			if (Property && Property->GetFName() == Binding.PropertyName)
+			{
+				Binding.PropertyType = ToNiagaraType(Property);
+				break;
+			}
+		}
+#endif
 	}
 	EnabledBinding.PostLoad(InSourceMode);
 	RendererVisibilityTagBinding.PostLoad(InSourceMode);
