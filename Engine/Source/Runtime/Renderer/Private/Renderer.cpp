@@ -197,6 +197,11 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 
 		FRDGBuilder& GraphBuilder = RenderContext.GraphBuilder;
 
+		if (!FRDGSystemTextures::IsValid(GraphBuilder))
+		{
+			FRDGSystemTextures::Create(GraphBuilder);
+		}
+
 		View.InitRHIResources();
 		View.ForwardLightingResources.SetUniformBuffer(CreateDummyForwardLightUniformBuffer(GraphBuilder));
 
@@ -219,11 +224,6 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
 			FVirtualTextureSystem::Get().CallPendingCallbacks();
 			FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
-		}
-
-		if (!FRDGSystemTextures::IsValid(GraphBuilder))
-		{
-			FRDGSystemTextures::Create(GraphBuilder);
 		}
 
 		RDG_EVENT_SCOPE(GraphBuilder, "DrawTileMesh");
