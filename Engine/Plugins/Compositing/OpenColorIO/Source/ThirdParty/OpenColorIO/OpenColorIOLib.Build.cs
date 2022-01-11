@@ -36,6 +36,7 @@ public class OpenColorIOLib : ModuleRules
 				string SOName = "libOpenColorIO.so";
 				PublicAdditionalLibraries.Add(Path.Combine(BinaryPath, SOName));
 				RuntimeDependencies.Add(Path.Combine(BinaryPath, SOName));
+				RuntimeDependencies.Add(Path.Combine(BinaryPath, "libOpenColorIO.so.2.1"));
 				PublicDefinitions.Add("WITH_OCIO=1");
 
 				bIsPlatformAdded = true;
