@@ -140,7 +140,6 @@ namespace HordeServer.Services
 				}
 
 				Globals.ConfigRevision = Revision;
-				Globals.Notices = CachedGlobalConfig.Notices;
 				Globals.PerforceClusters = CachedGlobalConfig.PerforceClusters;
 				Globals.ScheduledDowntime = CachedGlobalConfig.Downtime;
 				Globals.MaxConformCount = CachedGlobalConfig.MaxConformCount;

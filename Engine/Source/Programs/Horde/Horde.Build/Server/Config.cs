@@ -29,11 +29,6 @@ namespace HordeServer.Models
 		public List<ProjectConfigRef> Projects { get; set; } = new List<ProjectConfigRef>();
 
 		/// <summary>
-		/// Manually added status messages
-		/// </summary>
-		public List<Notice> Notices { get; set; } = new List<Notice>();
-
-		/// <summary>
 		/// List of scheduled downtime
 		/// </summary>
 		public List<ScheduledDowntime> Downtime { get; set; } = new List<ScheduledDowntime>();

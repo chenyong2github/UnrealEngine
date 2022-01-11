@@ -316,6 +316,7 @@ namespace HordeServer
 			Services.AddSingleton<IUgsMetadataCollection, UgsMetadataCollection>();
 			Services.AddSingleton<IUserCollection, UserCollectionV2>();
 			Services.AddSingleton<IDeviceCollection, DeviceCollection>();
+			Services.AddSingleton<INoticeCollection, NoticeCollection>();
 
 			// Auditing
 			Services.AddSingleton<IAuditLog<AgentId>>(SP => SP.GetRequiredService<IAuditLogFactory<AgentId>>().Create("Agents.Log", "AgentId"));
@@ -388,6 +389,7 @@ namespace HordeServer
 			Services.AddSingleton<UpgradeService>();
 			Services.AddSingleton<DeviceService>();			
 			Services.AddSingleton<JiraService>();
+			Services.AddSingleton<NoticeService>();
 
 			AWSOptions AwsOptions = Configuration.GetAWSOptions();
 			if (Settings.S3CredentialType == "AssumeRole" && Settings.S3AssumeArn != null)

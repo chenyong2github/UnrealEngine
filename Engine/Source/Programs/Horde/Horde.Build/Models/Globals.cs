@@ -16,6 +16,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using UserId = ObjectId<IUser>;
+
 	/// <summary>
 	/// Base class for singleton documents
 	/// </summary>
@@ -150,32 +152,6 @@ namespace HordeServer.Models
 				return false;
 			}
 		}
-	}
-
-	/// <summary>
-	/// User notice
-	/// </summary>
-	public class Notice
-	{
-		/// <summary>
-		/// Unique id for this notice
-		/// </summary>
-		public string Id { get; set; } = String.Empty;
-
-		/// <summary>
-		/// Start time to display this message
-		/// </summary>
-		public DateTime? StartTime { get; set; }
-
-		/// <summary>
-		/// Finish time to display this message
-		/// </summary>
-		public DateTime? FinishTime { get; set; }
-
-		/// <summary>
-		/// Message to display
-		/// </summary>
-		public string Message { get; set; } = String.Empty;
 	}
 
 	/// <summary>
@@ -314,11 +290,6 @@ namespace HordeServer.Models
 		/// The config revision
 		/// </summary>
 		public string? ConfigRevision { get; set; }
-
-		/// <summary>
-		/// Manually added status messages
-		/// </summary>
-		public List<Notice> Notices { get; set; } = new List<Notice>();
 
 		/// <summary>
 		/// List of Perforce clusters
