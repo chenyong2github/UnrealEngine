@@ -57,18 +57,16 @@ namespace HordeServer.Controllers
 		private readonly IIssueCollection IssueCollection;
 		private readonly AclService AclService;
 		private readonly JobService JobService;
-		private readonly ILogger Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogsController(ILogFileService LogFileService, IIssueCollection IssueCollection, AclService AclService, JobService JobService, ILogger<LogsController> Logger)
+		public LogsController(ILogFileService LogFileService, IIssueCollection IssueCollection, AclService AclService, JobService JobService)
 		{
 			this.LogFileService = LogFileService;
 			this.IssueCollection = IssueCollection;
 			this.AclService = AclService;
 			this.JobService = JobService;
-			this.Logger = Logger;
 		}
 
 		/// <summary>
@@ -110,8 +108,6 @@ namespace HordeServer.Controllers
 		[Route("/api/v1/logs/{LogFileId}/data")]
 		public async Task<ActionResult> GetLogData(LogId LogFileId, [FromQuery] LogOutputFormat Format = LogOutputFormat.Raw, [FromQuery] long Offset = 0, [FromQuery] long Length = long.MaxValue, [FromQuery] string? FileName = null, [FromQuery] bool Download = false)
 		{
-			Logger.LogInformation("Requesting log {LogId}", LogFileId);
-
 			ILogFile? LogFile = await LogFileService.GetLogFileAsync(LogFileId);
 			if (LogFile == null)
 			{
@@ -125,12 +121,10 @@ namespace HordeServer.Controllers
 			Func<Stream, ActionContext, Task> CopyTask;
 			if (Format == LogOutputFormat.Text && LogFile.Type == LogType.Json)
 			{
-				Logger.LogInformation("Creating plain text stream for {LogId}", LogFileId);
-				CopyTask = (OutputStream, Context) => LogFileService.CopyPlainTextStreamAsync(LogFile, Offset, Length, OutputStream, Logger);
+				CopyTask = (OutputStream, Context) => LogFileService.CopyPlainTextStreamAsync(LogFile, Offset, Length, OutputStream);
 			}
 			else
 			{
-				Logger.LogInformation("Creating raw stream for {LogId}", LogFileId);
 				CopyTask = (OutputStream, Context) => LogFileService.CopyRawStreamAsync(LogFile, Offset, Length, OutputStream);
 			}
 
@@ -166,7 +160,7 @@ namespace HordeServer.Controllers
 			Count = MaxIndex - MinIndex;
 
 			byte[] Result;
-			using (System.IO.Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, MinOffset, MaxOffset - MinOffset, NullLogger.Instance))
+			using (System.IO.Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, MinOffset, MaxOffset - MinOffset))
 			{
 				Result = new byte[Stream.Length];
 				await Stream.ReadFixedSizeDataAsync(Result, 0, Result.Length);

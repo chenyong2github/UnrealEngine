@@ -116,7 +116,7 @@ namespace HordeServerTests
         
         protected static async Task<string> ReadLogFile(ILogFileService LogFileService, ILogFile LogFile, long Offset, long Length)
         {
-	        Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, Offset, Length, NullLogger.Instance);
+	        Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, Offset, Length);
 	        return new StreamReader(Stream).ReadToEnd();
         }
         
