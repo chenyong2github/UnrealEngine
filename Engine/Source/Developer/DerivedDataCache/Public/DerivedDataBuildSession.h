@@ -4,7 +4,6 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
-#include "DerivedDataBuildKey.h"
 #include "DerivedDataBuildTypes.h"
 #include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
@@ -13,16 +12,8 @@ namespace UE::DerivedData { class FBuildAction; }
 namespace UE::DerivedData { class FBuildDefinition; }
 namespace UE::DerivedData { class FBuildSession; }
 namespace UE::DerivedData { class FOptionalBuildInputs; }
-namespace UE::DerivedData { class FValueWithId; }
 namespace UE::DerivedData { class IRequestOwner; }
-namespace UE::DerivedData { struct FBuildValueCompleteParams; }
-
-namespace UE::DerivedData
-{
-
-using FOnBuildValueComplete = TUniqueFunction<void (FBuildValueCompleteParams&& Params)>;
-
-} // UE::DerivedData
+namespace UE::DerivedData { struct FBuildKey; }
 
 namespace UE::DerivedData::Private
 {
@@ -32,6 +23,11 @@ class IBuildSessionInternal
 public:
 	virtual ~IBuildSessionInternal() = default;
 	virtual FStringView GetName() const = 0;
+	virtual void Build(
+		const FBuildKey& Key,
+		const FBuildPolicy& Policy,
+		IRequestOwner& Owner,
+		FOnBuildComplete&& OnComplete) = 0;
 	virtual void Build(
 		const FBuildDefinition& Definition,
 		const FOptionalBuildInputs& Inputs,
@@ -44,11 +40,6 @@ public:
 		const FBuildPolicy& Policy,
 		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete) = 0;
-	virtual void BuildValue(
-		const FBuildValueKey& Value,
-		EBuildPolicy Policy,
-		IRequestOwner& Owner,
-		FOnBuildValueComplete&& OnComplete) = 0;
 };
 
 FBuildSession CreateBuildSession(IBuildSessionInternal* Session);
@@ -72,6 +63,25 @@ public:
 	inline FStringView GetName() const
 	{
 		return Session->GetName();
+	}
+
+	/**
+	 * Asynchronous request to execute a build according to the policy.
+	 *
+	 * The callback will always be called, and may be called from an arbitrary thread.
+	 *
+	 * @param Key          The key of the build definition to resolve and build.
+	 * @param Policy       Flags to control the behavior of the request. See FBuildPolicy.
+	 * @param Owner        The owner to execute the build within.
+	 * @param OnComplete   A callback invoked when the build completes or is canceled.
+	 */
+	inline void Build(
+		const FBuildKey& Key,
+		const FBuildPolicy& Policy,
+		IRequestOwner& Owner,
+		FOnBuildComplete&& OnComplete)
+	{
+		Session->Build(Key, Policy, Owner, MoveTemp(OnComplete));
 	}
 
 	/**
@@ -116,25 +126,6 @@ public:
 		Session->Build(Action, Inputs, Policy, Owner, MoveTemp(OnComplete));
 	}
 
-	/**
-	 * Asynchronous request to execute a build according to the policy and return one value.
-	 *
-	 * The callback will always be called, and may be called from an arbitrary thread.
-	 *
-	 * @param Value        The key identifying the build definition and the value to return.
-	 * @param Policy       Flags to control the behavior of the request. See EBuildPolicy.
-	 * @param Owner        The owner to execute the build within.
-	 * @param OnComplete   A callback invoked when the build completes or is canceled.
-	 */
-	inline void BuildValue(
-		const FBuildValueKey& Value,
-		EBuildPolicy Policy,
-		IRequestOwner& Owner,
-		FOnBuildValueComplete&& OnComplete)
-	{
-		Session->BuildValue(Value, Policy, Owner, MoveTemp(OnComplete));
-	}
-
 private:
 	friend class FOptionalBuildSession;
 	friend FBuildSession Private::CreateBuildSession(Private::IBuildSessionInternal* Session);
@@ -173,25 +164,6 @@ public:
 	inline explicit operator bool() const { return IsValid(); }
 
 	inline void Reset() { *this = FOptionalBuildSession(); }
-};
-
-/** Parameters for the completion callback for build value requests. */
-struct FBuildValueCompleteParams
-{
-	/** Key for the build request that completed or was canceled. See Value for ID. */
-	FBuildKey Key;
-
-	/**
-	 * Value from the build value request that completed or was canceled.
-	 *
-	 * The ID is always populated.
-	 * The hash and size are populated when Status is Ok.
-	 * The data is populated when Status is Ok and the data was not skipped by the policy.
-	 */
-	FValueWithId&& Value;
-
-	/** Status of the build request. */
-	EStatus Status = EStatus::Error;
 };
 
 } // UE::DerivedData

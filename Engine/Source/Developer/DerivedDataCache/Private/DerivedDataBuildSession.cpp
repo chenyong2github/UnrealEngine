@@ -33,6 +33,12 @@ public:
 	FStringView GetName() const final { return Name; }
 
 	void Build(
+		const FBuildKey& Key,
+		const FBuildPolicy& Policy,
+		IRequestOwner& Owner,
+		FOnBuildComplete&& OnComplete) final;
+
+	void Build(
 		const FBuildDefinition& Definition,
 		const FOptionalBuildInputs& Inputs,
 		const FBuildPolicy& Policy,
@@ -46,12 +52,6 @@ public:
 		IRequestOwner& Owner,
 		FOnBuildComplete&& OnComplete) final;
 
-	void BuildValue(
-		const FBuildValueKey& Value,
-		EBuildPolicy Policy,
-		IRequestOwner& Owner,
-		FOnBuildValueComplete&& OnComplete) final;
-
 	FString Name;
 	ICache& Cache;
 	IBuild& BuildSystem;
@@ -60,6 +60,16 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FBuildSessionInternal::Build(
+	const FBuildKey& Key,
+	const FBuildPolicy& Policy,
+	IRequestOwner& Owner,
+	FOnBuildComplete&& OnComplete)
+{
+	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, Key, Policy,
+		OnComplete ? MoveTemp(OnComplete) : [](FBuildCompleteParams&&){});
+}
 
 void FBuildSessionInternal::Build(
 	const FBuildDefinition& Definition,
@@ -81,35 +91,6 @@ void FBuildSessionInternal::Build(
 {
 	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, Action, Inputs, Policy,
 		OnComplete ? MoveTemp(OnComplete) : [](FBuildCompleteParams&&){});
-}
-
-void FBuildSessionInternal::BuildValue(
-	const FBuildValueKey& ValueKey,
-	EBuildPolicy Policy,
-	IRequestOwner& Owner,
-	FOnBuildValueComplete&& OnComplete)
-{
-	// This requests the entire output to get one value. It will be optimized later to request only one value.
-	FOnBuildComplete OnJobComplete;
-	if (OnComplete)
-	{
-		OnJobComplete = [ValueKey, OnComplete = MoveTemp(OnComplete)](FBuildCompleteParams&& Params)
-		{
-			FValueWithId Value;
-			EStatus Status = Params.Status;
-			if (Status == EStatus::Ok)
-			{
-				Value = Params.Output.GetValue(ValueKey.Id);
-				Status = Value ? EStatus::Ok : EStatus::Error;
-			}
-			if (!Value)
-			{
-				Value = FValueWithId(ValueKey.Id);
-			}
-			OnComplete({ValueKey.BuildKey, MoveTemp(Value), Status});
-		};
-	}
-	CreateBuildJob({Cache, BuildSystem, Scheduler, InputResolver, Owner}, ValueKey.BuildKey, Policy, MoveTemp(OnJobComplete));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
