@@ -11,27 +11,39 @@
 
 #if PLATFORM_LINUX
 
-TOptional<FInstallInfo> FRiderPathLocator::GetInstallInfoFromRiderPath(const FString& PathToRiderApp, FInstallInfo::EInstallType InstallType)
+TOptional<FInstallInfo> FRiderPathLocator::GetInstallInfoFromRiderPath(const FString& Path, FInstallInfo::EInstallType InstallType)
 {
-	if(!FPaths::DirectoryExists(PathToRiderApp))
+	if(!FPaths::FileExists(Path))
+	{
+		return {};
+	}
+	
+	const FString PatternString(TEXT("(.*)(?:\\\\|/)bin"));
+	const FRegexPattern Pattern(PatternString);
+	FRegexMatcher RiderPathMatcher(Pattern, Path);
+	if (!RiderPathMatcher.FindNext())
 	{
 		return {};
 	}
 
-	const FString RiderCppPluginPath = FPaths::Combine(PathToRiderApp, TEXT("plugins"), TEXT("rider-cpp"));
-
+	const FString RiderDir = RiderPathMatcher.GetCaptureGroup(1);
+	const FString RiderCppPluginPath = FPaths::Combine(RiderDir, TEXT("plugins"), TEXT("rider-cpp"));
 	if (!FPaths::DirectoryExists(RiderCppPluginPath))
 	{
 		return {};
 	}
-
+	
 	FInstallInfo Info;
-	Info.Path = FPaths::Combine(PathToRiderApp, TEXT("bin"), TEXT("rider.sh"));
+	Info.Path = Path;
 	Info.InstallType = InstallType;
-	const FString ProductInfoJsonPath = FPaths::Combine(PathToRiderApp, TEXT("product-info.json"));
+	const FString ProductInfoJsonPath = FPaths::Combine(RiderDir, TEXT("product-info.json"));
 	if (FPaths::FileExists(ProductInfoJsonPath))
 	{
 		ParseProductInfoJson(Info, ProductInfoJsonPath);
+	}
+	if(!Info.Version.IsInitialized())
+	{
+		Info.Version = FPaths::GetBaseFilename(RiderDir);
 	}
 	return Info;
 }
