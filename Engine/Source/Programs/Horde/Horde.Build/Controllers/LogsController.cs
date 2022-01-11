@@ -21,6 +21,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using MongoDB.Bson;
 
 namespace HordeServer.Controllers
@@ -165,7 +166,7 @@ namespace HordeServer.Controllers
 			Count = MaxIndex - MinIndex;
 
 			byte[] Result;
-			using (System.IO.Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, MinOffset, MaxOffset - MinOffset))
+			using (System.IO.Stream Stream = await LogFileService.OpenRawStreamAsync(LogFile, MinOffset, MaxOffset - MinOffset, NullLogger.Instance))
 			{
 				Result = new byte[Stream.Length];
 				await Stream.ReadFixedSizeDataAsync(Result, 0, Result.Length);
