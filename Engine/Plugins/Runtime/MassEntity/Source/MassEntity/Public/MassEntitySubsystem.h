@@ -328,7 +328,7 @@ public:
 	static void DebugGetStringDesc(const FArchetypeHandle& Archetype, FOutputDevice& Ar);
 	void DebugGetArchetypesStringDetails(FOutputDevice& Ar, const bool bIncludeEmpty = true);
 	void DebugGetArchetypeFragmentTypes(const FArchetypeHandle& Archetype, TArray<const UScriptStruct*>& InOutFragmentList) const;
-	int32 DebugGetArchetypeEntitiesCount(const FArchetypeHandle& Archetype) const;	
+	int32 DebugGetArchetypeEntitiesCount(const FArchetypeHandle& Archetype) const;
 	int32 DebugGetArchetypeEntitiesCountPerChunk(const FArchetypeHandle& Archetype) const;
 	int32 DebugGetEntityCount() const { return Entities.Num() - NumReservedEntities - EntityFreeIndexList.Num(); }
 	int32 DebugGetArchetypesCount() const { return FragmentHashToArchetypeMap.Num(); }

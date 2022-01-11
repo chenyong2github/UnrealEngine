@@ -138,7 +138,8 @@ bool FMassObserverManager::OnPostCompositionAdded(const FMassEntityHandle Entity
 	{
 		FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
 		const FArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
-		HandleFragmentsImpl(ProcessingContext, FArchetypeChunkCollection(ArchetypeHandle, MakeArrayView(&Entity, 1)), Overlap, OnFragmentAddedObservers);
+		HandleFragmentsImpl(ProcessingContext, FArchetypeChunkCollection(ArchetypeHandle, MakeArrayView(&Entity, 1)
+			, FArchetypeChunkCollection::NoDuplicates), Overlap, OnFragmentAddedObservers);
 		return true;
 	}
 
@@ -152,7 +153,8 @@ bool FMassObserverManager::OnPreCompositionRemoved(const FMassEntityHandle Entit
 	{
 		FMassProcessingContext ProcessingContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
 		const FArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
-		HandleFragmentsImpl(ProcessingContext, FArchetypeChunkCollection(ArchetypeHandle, MakeArrayView(&Entity, 1)), Overlap, OnFragmentRemovedObservers);
+		HandleFragmentsImpl(ProcessingContext, FArchetypeChunkCollection(ArchetypeHandle, MakeArrayView(&Entity, 1)
+			, FArchetypeChunkCollection::NoDuplicates), Overlap, OnFragmentRemovedObservers);
 		return true;
 	}
 

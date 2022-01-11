@@ -57,12 +57,10 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 			void Reset()
 			{
 				Entities.Reset();
-				AddedEntities.Reset();
 			}
 
 			FArchetypeHandle Archetype;
 			TArray<FMassEntityHandle> Entities;
-			TSet<FMassEntityHandle> AddedEntities;
 		};
 		TArray<FEntitySet> EntitySets;
 
@@ -103,12 +101,8 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 					FEntitySet* Set = PrevSet->Archetype == Archetype ? PrevSet : EntitySets.FindByPredicate([&Archetype](const FEntitySet& Set) { return Archetype == Set.Archetype; });
 					if (Set != nullptr)
 					{
-						// Add only unique entities in the array.
-						if (!Set->AddedEntities.Contains(Entity))
-						{
-							Set->Entities.Add(Entity);
-							Set->AddedEntities.Add(Entity);
-						}
+						// We don't care about duplicates here, the FArchetypeChunkCollection creation below will handle it
+						Set->Entities.Add(Entity);
 						SignalNameLookup.AddSignalToEntity(Entity, SignalFlag);
 						PrevSet = Set;
 					}
@@ -123,7 +117,7 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 			{
 				if (Set.Entities.Num() > 0)
 				{
-					Context.SetChunkCollection(FArchetypeChunkCollection(Set.Archetype, Set.Entities));
+					Context.SetChunkCollection(FArchetypeChunkCollection(Set.Archetype, Set.Entities, FArchetypeChunkCollection::FoldDuplicates));
 					SignalEntities(EntitySubsystem, Context, SignalNameLookup);
 					Context.ClearChunkCollection();
 				}

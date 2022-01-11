@@ -33,7 +33,7 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pr
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunSparseEntities");
 
-	const FArchetypeChunkCollection ChunkCollection(Archetype, Entities);
+	const FArchetypeChunkCollection ChunkCollection(Archetype, Entities, FArchetypeChunkCollection::NoDuplicates);
 	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &ChunkCollection);
 }
 
