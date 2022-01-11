@@ -400,6 +400,36 @@ public:
 		}
 	}
 
+	static  TSharedPtr<SSegmentedControl<OptionType>> Create(
+		const TArray<OptionType>& InKeys,
+		const TArray<FText>& InLabels,
+		const TArray<FText>& InTooltips,
+		const TAttribute<TArray<OptionType>>& InValues,
+		bool bSupportsMultiSelection = true,
+		FOnValuesChanged OnValuesChanged = FOnValuesChanged())
+	{
+		TSharedPtr<SSegmentedControl<OptionType>> Widget;
+
+		SAssignNew(Widget, SSegmentedControl<OptionType>)
+		.SupportsMultiSelection(bSupportsMultiSelection)
+		.Values(InValues)
+		.OnValuesChanged(OnValuesChanged);
+
+		ensure(InKeys.Num() == InLabels.Num());
+		ensure(InKeys.Num() == InTooltips.Num());
+
+		for(int32 Index = 0; Index < InKeys.Num(); Index++)
+		{
+			Widget->AddSlot(InKeys[Index], false)
+			.Text(InLabels[Index])
+			.ToolTip(InTooltips[Index]);
+		}
+
+		Widget->RebuildChildren();
+
+		return Widget;
+	}
+
 private:
 	
 	TAttribute<ECheckBoxState> GetCheckBoxStateAttribute(OptionType InValue) const

@@ -16,6 +16,12 @@
 #include "IPropertyUtilities.h"
 #include "SSearchableComboBox.h"
 #include "DetailsViewWrapperObject.h"
+#include "Widgets/Input/SSegmentedControl.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "IDetailGroup.h"
+#include "SAdvancedTransformInputBox.h"
 
 class IPropertyHandle;
 
@@ -199,11 +205,8 @@ public:
 protected:
 
 	bool IsCurrentLocalEnabled() const;
-	
-	FEditPropertyChain PoseInitialGlobal;
-	FEditPropertyChain PoseInitialLocal;
-	FEditPropertyChain PoseCurrentGlobal;
-	FEditPropertyChain PoseCurrentLocal;
+
+	void AddChoiceWidgetRow(IDetailCategoryBuilder& InCategory, const FText& InSearchText, TSharedRef<SWidget> InWidget);
 };
 
 class FRigBoneElementDetails : public FRigTransformElementDetails

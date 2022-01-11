@@ -84,6 +84,7 @@ namespace UnrealBuildTool.Rules
 					"PythonScriptPlugin",
 					"AdvancedPreviewScene",
 					"ToolWidgets",
+                    "AnimationWidgets",
 				}
             );
 
