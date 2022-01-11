@@ -353,7 +353,9 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 			{
 				if (Allocation.LayerInfo)
 				{
-					StaticParameters.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(Allocation.GetLayerName(), Allocation.WeightmapTextureIndex, !Allocation.LayerInfo->bNoWeightBlend));
+					FName LayerName = Allocation.GetLayerName();
+					check(LayerName != NAME_None);
+					StaticParameters.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(LayerName, Allocation.WeightmapTextureIndex, !Allocation.LayerInfo->bNoWeightBlend));
 				}
 			}
 

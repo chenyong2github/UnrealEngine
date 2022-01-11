@@ -412,7 +412,8 @@ struct FStaticParameterSet
 
 #if WITH_EDITOR
 	void SerializeLegacy(FArchive& Ar);
-	void UpdateLegacyData();
+	void UpdateLegacyTerrainLayerWeightData();
+	void UpdateLegacyMaterialLayersData();
 #endif // WITH_EDITOR
 
 	/** 
