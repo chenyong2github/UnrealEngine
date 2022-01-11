@@ -79,6 +79,7 @@
 #include "Toolkits/IToolkitHost.h"
 #include "ControlRigEditModeSettings.h"
 #include "ControlRigSpaceChannelEditors.h"
+#include "Misc/ScopedSlowTask.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 
@@ -2348,6 +2349,39 @@ void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRi
 	}
 }
 
+void FControlRigParameterTrackEditor::HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+{
+	//Only handle renamed events, the other ones like ERigHierarchyNotification::ElementRemoved will get handle when we recompile.
+	switch (InNotification)
+	{
+
+	case ERigHierarchyNotification::ElementRenamed:
+	{
+		if (const FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement))
+		{
+			if (!GetSequencer().IsValid() || !GetSequencer()->IsAllowedToChange())
+			{
+				return;
+			}
+			UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
+			const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+			for (const FMovieSceneBinding& Binding : Bindings)
+			{
+				UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
+				if (Track && Track->GetControlRig() && Track->GetControlRig()->GetHierarchy() == InHierarchy)
+				{
+
+				}
+			}
+
+		}
+		break;
+	}
+	default:
+		break;
+	}
+	
+}
 
 void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* ControlRig, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context)
 {
@@ -2778,7 +2812,6 @@ void FControlRigParameterTrackEditor::AddControlKeys(USceneComponent* InSceneCom
 	AnimatablePropertyChanged(FOnKeyProperty::CreateLambda(OnKeyProperty));
 
 }
-
 
 bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(UObject* Object, UControlRig* InControlRig, FName RigControlName, UMovieSceneTrack* Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
@@ -3385,6 +3418,7 @@ bool FControlRigParameterTrackEditor::CollapseAllLayers(TSharedPtr<ISequencer>& 
 			return false;
 		}
 		FScopedTransaction Transaction(LOCTEXT("CollapseAllSections", "CollapseAllSections"));
+		ParameterSection->Modify();
 		UControlRig* ControlRig = ParameterSection->GetControlRig();
 		TRange<FFrameNumber> Range = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
 		FFrameNumber StartFrame = Range.GetLowerBoundValue();
@@ -3441,13 +3475,17 @@ bool FControlRigParameterTrackEditor::CollapseAllLayers(TSharedPtr<ISequencer>& 
 			}
 		}
 
-		ParameterSection->RemoveAllKeys(false); //remove all keys but the space keys.
 		FRigControlModifiedContext Context;
 		Context.SetKey = EControlRigSetKey::Always;
+
+
+		FScopedSlowTask Feedback(Frames.Num(), LOCTEXT("CollapsingSections", "Collapsing Sections"));
+		Feedback.MakeDialog(true);
 
 		Index = 0;
 		for (Index = 0; Index < Frames.Num(); ++Index)
 		{
+			Feedback.EnterProgressFrame(1, LOCTEXT("CollapsingSections", "Collapsing Sections"));
 			const FFrameNumber& FrameNumber = Frames[Index];
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(FrameNumber));
 			//need to do the twice hack since controls aren't really in order
@@ -3455,8 +3493,17 @@ bool FControlRigParameterTrackEditor::CollapseAllLayers(TSharedPtr<ISequencer>& 
 			{
 				for (TPair<FName, TArray<FTransform>>& TrailControlTransform : ControlLocalTransforms)
 				{
-					ControlRig->SetControlLocalTransform(TrailControlTransform.Key, TrailControlTransform.Value[Index], true, Context, false);
+					ControlRig->SetControlLocalTransform(TrailControlTransform.Key, TrailControlTransform.Value[Index],false, Context, false);
 				}
+			}
+			ControlRig->Evaluate_AnyThread();
+			ParameterSection->RecordControlRigKey(FrameNumber, true, bKeyReduce);
+
+			if (Feedback.ShouldCancel())
+			{
+				Transaction.Cancel();
+				SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+				return false;
 			}
 		}
 		if (bKeyReduce)
