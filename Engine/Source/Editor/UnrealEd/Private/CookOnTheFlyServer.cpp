@@ -6225,7 +6225,7 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, TMap<FN
 		}
 		if (FilesInPath.Num() == InitialNum && !bCookAll)
 		{
-			LogCookerMessage(TEXT("Cooker found no package requests specified on commandlien or ini. Run cookcommandlet with -helpcookusage to see request options."),
+			LogCookerMessage(TEXT("Cooker found no package requests specified on commandline or ini. Run cookcommandlet with -helpcookusage to see request options."),
 				EMessageSeverity::Info);
 		}
 	}
