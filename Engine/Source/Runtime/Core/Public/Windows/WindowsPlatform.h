@@ -108,6 +108,7 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define WINDOWS_USE_FEATURE_PLATFORMHTTP_CLASS				1
 #define WINDOWS_USE_FEATURE_LAUNCH							1
 #define WINDOWS_USE_FEATURE_DYNAMIC_RHI						1
+#define WINDOWS_USE_DEFAULT_OSVERSIONHELPER					1
 
 // Q: Why is there a __nop() before __debugbreak()?
 // A: VS' debug engine has a bug where it will silently swallow explicit
