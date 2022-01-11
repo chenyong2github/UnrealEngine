@@ -835,6 +835,17 @@ void UCubeGridTool::Setup()
 	Settings->SilentUpdateWatched();
 
 	UpdateComputeInputs();
+
+	if (Target)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("EditingExistingAssetLabel", "Editing existing asset."), 
+			EToolMessageLevel::UserWarning);
+	}
+	else
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("CreatingNewAssetLabel", "Creating new asset."),
+			EToolMessageLevel::UserWarning);
+	}
 }
 
 void UCubeGridTool::UpdateComputeInputs()
@@ -1840,25 +1851,25 @@ void UCubeGridTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		TEXT("PullBlock"),
 		LOCTEXT("PullAction", "Pull Out Blocks"),
 		LOCTEXT("PullTooltip", ""),
-		EModifierKey::None, EKeys::Q,
+		EModifierKey::None, EKeys::E,
 		[this]() { RequestAction(ECubeGridToolAction::Pull); });
 	ActionSet.RegisterAction(this, ActionID++,
 		TEXT("PushBlock"),
 		LOCTEXT("PushAction", "Push In Holes"),
 		LOCTEXT("PushTooltip", ""),
-		EModifierKey::None, EKeys::E,
+		EModifierKey::None, EKeys::Q,
 		[this]() { RequestAction(ECubeGridToolAction::Push); });
 	ActionSet.RegisterAction(this, ActionID++,
 		TEXT("SlideBack"),
 		LOCTEXT("SlideBackAction", "Slide Selection Back"),
 		LOCTEXT("SlideBackTooltip", ""),
-		EModifierKey::Shift, EKeys::Q,
+		EModifierKey::Shift, EKeys::E,
 		[this]() { RequestAction(ECubeGridToolAction::SlideBack); });
 	ActionSet.RegisterAction(this, ActionID++,
 		TEXT("SlideForward"),
 		LOCTEXT("SlideForwardAction", "Slide Selection Forward"),
 		LOCTEXT("SlideForwardTooltip", ""),
-		EModifierKey::Shift, EKeys::E,
+		EModifierKey::Shift, EKeys::Q,
 		[this]() { RequestAction(ECubeGridToolAction::SlideForward); });
 
 	ActionSet.RegisterAction(this, ActionID++,
