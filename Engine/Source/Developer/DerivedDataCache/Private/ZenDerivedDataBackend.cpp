@@ -1,22 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "ZenDerivedDataBackend.h"
 
-#if WITH_ZEN_DDC_BACKEND
+#include "DerivedDataBackendInterface.h"
+#include "ZenServerInterface.h"
 
+#if UE_WITH_ZEN
+
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringFwd.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataChunk.h"
+#include "HAL/CriticalSection.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Serialization/BufferArchive.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
+#include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryWriter.h"
-#include "Serialization/CompactBinarySerialization.h"
-#include "Serialization/BufferArchive.h"
 #include "ZenBackendUtils.h"
 #include "ZenSerialization.h"
 #include "ZenServerHttp.h"
@@ -33,7 +39,8 @@ TRACE_DECLARE_INT_COUNTER(ZenDDC_BytesSent,		TEXT("ZenDDC Bytes Sent"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_CacheRecordRequestCount, TEXT("ZenDDC CacheRecord Request Count"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_ChunkRequestCount, TEXT("ZenDDC Chunk Request Count"));
 
-namespace UE::DerivedData::Backends {
+namespace UE::DerivedData::CacheStore::ZenCache
+{
 
 template<typename T>
 void ForEachBatch(const int32 BatchSize, const int32 TotalCount, T&& Fn)
@@ -58,6 +65,116 @@ void ForEachBatch(const int32 BatchSize, const int32 TotalCount, T&& Fn)
 //----------------------------------------------------------------------------------------------------------
 // FZenDerivedDataBackend
 //----------------------------------------------------------------------------------------------------------
+
+/**
+ * Backend for a HTTP based caching service (Zen)
+ **/
+class FZenDerivedDataBackend : public FDerivedDataBackendInterface
+{
+public:
+	
+	/**
+	 * Creates the backend, checks health status and attempts to acquire an access token.
+	 *
+	 * @param ServiceUrl	Base url to the service including schema.
+	 * @param Namespace		Namespace to use.
+	 */
+	FZenDerivedDataBackend(const TCHAR* ServiceUrl, const TCHAR* Namespace);
+
+	~FZenDerivedDataBackend();
+
+	/**
+	 * Checks is backend is usable (reachable and accessible).
+	 * @return true if usable
+	 */
+	bool IsUsable() const { return bIsUsable; }
+
+	virtual bool IsWritable() const override;
+	virtual ESpeedClass GetSpeedClass() const override;
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
+
+	/**
+	 * Synchronous attempt to make sure the cached data will be available as optimally as possible.
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
+	 * @return				true if the data will probably be found in a fast backend on a future request.
+	 */
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
+
+	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
+	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
+	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
+
+	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
+	
+	virtual FString GetName() const override;
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
+
+	// ICacheStore
+
+	virtual void Put(
+		TConstArrayView<FCachePutRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutComplete&& OnComplete = FOnCachePutComplete()) override;
+
+	virtual void Get(
+		TConstArrayView<FCacheGetRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheGetComplete&& OnComplete) override;
+
+	virtual void GetChunks(
+		TConstArrayView<FCacheChunkRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheChunkComplete&& OnComplete) override;
+
+private:
+	enum class EGetResult
+	{
+		Success,
+		NotFound,
+		Corrupted
+	};
+	EGetResult GetZenData(FStringView Uri, TArray64<uint8>* OutData, Zen::EContentType ContentType) const;
+
+	// TODO: need ability to specify content type
+	FDerivedDataBackendInterface::EPutStatus PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, Zen::EContentType ContentType);
+	EGetResult GetZenData(const FCacheKey& Key, ECachePolicy CachePolicy, FCbPackage& OutPackage) const;
+
+	bool PutCacheRecord(const FCacheRecord& Record, const FCacheRecordPolicy& Policy);
+
+	bool IsServiceReady();
+	static FString MakeLegacyZenKey(const TCHAR* CacheKey);
+	static void AppendZenUri(const FCacheKey& CacheKey, FStringBuilderBase& Out);
+	static void AppendZenUri(const FCacheKey& CacheKey, const FValueId& Id, FStringBuilderBase& Out);
+	static void AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Out);
+
+	static bool ShouldRetryOnError(int64 ResponseCode);
+
+	/* Debug helpers */
+	bool ShouldSimulateMiss(const TCHAR* InKey);
+	bool ShouldSimulateMiss(const FCacheKey& InKey);
+
+private:
+	FString Namespace;
+	UE::Zen::FScopeZenService ZenService;
+	mutable FDerivedDataCacheUsageStats UsageStats;
+	TUniquePtr<UE::Zen::FZenHttpRequestPool> RequestPool;
+	bool bIsUsable = false;
+	bool bIsRemote = false;
+	uint32 FailedLoginAttempts = 0;
+	uint32 MaxAttempts = 4;
+	int32 CacheRecordBatchSize = 8;
+	int32 CacheChunksBatchSize = 8;
+
+	/** Debug Options */
+	FBackendDebugOptions DebugOptions;
+
+	/** Keys we ignored due to miss rate settings */
+	FCriticalSection MissedKeysCS;
+	TSet<FName> DebugMissedKeys;
+	TSet<FCacheKey> DebugMissedCacheKeys;
+};
 
 FZenDerivedDataBackend::FZenDerivedDataBackend(
 	const TCHAR* InServiceUrl,
@@ -919,6 +1036,30 @@ bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, const FC
 	return true;
 }
 
-} // namespace UE::DerivedData::Backends
+FDerivedDataBackendInterface* CreateZenDerivedDataBackend(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace)
+{
+	FZenDerivedDataBackend* Backend = new FZenDerivedDataBackend(ServiceUrl, Namespace);
+	if (Backend->IsUsable())
+	{
+		return Backend;
+	}
+	UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *Backend->GetName());
+	delete Backend;
+	return nullptr;
+}
 
-#endif //WITH_HTTP_DDC_BACKEND
+} // namespace UE::DerivedData::CacheStore::ZenCache
+
+#else
+
+namespace UE::DerivedData::CacheStore::ZenCache
+{
+
+FDerivedDataBackendInterface* CreateZenDerivedDataBackend(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace)
+{
+	return nullptr;
+}
+
+} // UE::DerivedData::CacheStore::ZenCache
+
+#endif // UE_WITH_ZEN

@@ -1,17 +1,186 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DerivedDataBackendAsyncPutWrapper.h"
-
+#include "Async/AsyncWork.h"
+#include "DerivedDataBackendInterface.h"
+#include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValueId.h"
 #include "Experimental/Async/LazyEvent.h"
-#include "MemoryDerivedDataBackend.h"
+#include "FileBackedDerivedDataBackend.h"
 #include "Memory/SharedBuffer.h"
+#include "Misc/ScopeLock.h"
+#include "ProfilingDebugging/CookStats.h"
+#include "Stats/Stats.h"
 #include "Tasks/Task.h"
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::Memory
 {
+
+FFileBackedDerivedDataBackend* CreateMemoryDerivedDataBackend(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
+
+} // UE::DerivedData::CacheStore::Memory
+
+namespace UE::DerivedData::CacheStore::AsyncPut
+{
+
+/** 
+ * Thread safe set helper
+**/
+struct FThreadSet
+{
+	FCriticalSection	SynchronizationObject;
+	TSet<FString>		FilesInFlight;
+
+	void Add(const FString& Key)
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		check(Key.Len());
+		FilesInFlight.Add(Key);
+	}
+	void Remove(const FString& Key)
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		FilesInFlight.Remove(Key);
+	}
+	bool Exists(const FString& Key)
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		return FilesInFlight.Contains(Key);
+	}
+	bool AddIfNotExists(const FString& Key)
+	{
+		FScopeLock ScopeLock(&SynchronizationObject);
+		check(Key.Len());
+		if (!FilesInFlight.Contains(Key))
+		{
+			FilesInFlight.Add(Key);
+			return true;
+		}
+		return false;
+	}
+};
+
+/** 
+ * A backend wrapper that coordinates async puts. This means that a Get will hit an in-memory cache while the async put is still in flight.
+**/
+class FDerivedDataBackendAsyncPutWrapper : public FDerivedDataBackendInterface
+{
+public:
+
+	/**
+	 * Constructor
+	 *
+	 * @param	InInnerBackend		Backend to use for storage, my responsibilities are about async puts
+	 * @param	bCacheInFlightPuts	if true, cache in-flight puts in a memory cache so that they hit immediately
+	 */
+	FDerivedDataBackendAsyncPutWrapper(FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts);
+
+	/** Return a name for this interface */
+	virtual FString GetName() const override
+	{
+		return FString::Printf(TEXT("AsyncPutWrapper (%s)"), *InnerBackend->GetName());
+	}
+
+	/** return true if this cache is writable **/
+	virtual bool IsWritable() const override;
+
+	/** Returns a class of speed for this interface **/
+	virtual ESpeedClass GetSpeedClass() const override;
+
+	/** Return true if hits on this cache should propagate to lower cache level. */
+	virtual bool BackfillLowerCacheLevels() const override;
+
+	/**
+	 * Synchronous test for the existence of a cache item
+	 *
+	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
+	 * @return				true if the data probably will be found, this can't be guaranteed because of concurrency in the backends, corruption, etc
+	 */
+	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
+
+	/**
+	 * Synchronous test for the existence of multiple cache items
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore key of the cache items
+	 * @return				A bit array with bits indicating whether the data for the corresponding key will probably be found
+	 */
+	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override;
+
+	/**
+	 * Attempt to make sure the cached data will be available as optimally as possible.
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
+	 * @return				true if the data will probably be found in a fast backend on a future request.
+	 */
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
+
+	/**
+	 * Allows the DDC backend to determine if it wants to cache the provided data. Reasons for returning false could be a slow connection,
+	 * a file size limit, etc.
+	 */
+	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
+
+	/**
+	 * Synchronous retrieve of a cache item
+	 *
+	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
+	 * @param	OutData		Buffer to receive the results, if any were found
+	 * @return				true if any data was found, and in this case OutData is non-empty
+	 */
+	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
+
+	/**
+	 * Asynchronous, fire-and-forget placement of a cache item
+	 *
+	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
+	 * @param	InData		Buffer containing the data to cache, can be destroyed after the call returns, immediately
+	 * @param	bPutEvenIfExists	If true, then do not attempt skip the put even if CachedDataProbablyExists returns true
+	 */
+	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
+
+	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
+
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
+
+	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
+
+	virtual void Put(
+		TConstArrayView<FCachePutRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutComplete&& OnComplete) override;
+
+	virtual void Get(
+		TConstArrayView<FCacheGetRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheGetComplete&& OnComplete) override;
+
+	virtual void PutValue(
+		TConstArrayView<FCachePutValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCachePutValueComplete&& OnComplete) override;
+
+	virtual void GetValue(
+		TConstArrayView<FCacheGetValueRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheGetValueComplete&& OnComplete) override;
+
+	virtual void GetChunks(
+		TConstArrayView<FCacheChunkRequest> Requests,
+		IRequestOwner& Owner,
+		FOnCacheChunkComplete&& OnComplete) override;
+
+private:
+	FDerivedDataCacheUsageStats UsageStats;
+	FDerivedDataCacheUsageStats PutSyncUsageStats;
+
+	/** Backend to use for storage, my responsibilities are about async puts **/
+	FDerivedDataBackendInterface*					InnerBackend;
+	/** Memory based cache to deal with gets that happen while an async put is still in flight **/
+	TUniquePtr<FDerivedDataBackendInterface>		InflightCache;
+	/** We remember outstanding puts so that we don't do them redundantly **/
+	FThreadSet										FilesInFlight;
+};
 
 /** 
  * Async task to handle the fire and forget async put
@@ -170,7 +339,7 @@ public:
 
 FDerivedDataBackendAsyncPutWrapper::FDerivedDataBackendAsyncPutWrapper(FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts)
 	: InnerBackend(InInnerBackend)
-	, InflightCache(bCacheInFlightPuts ? (new FMemoryDerivedDataBackend(TEXT("InflightMemoryCache"))) : NULL)
+	, InflightCache(bCacheInFlightPuts ? Memory::CreateMemoryDerivedDataBackend(TEXT("InflightMemoryCache"), /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false) : nullptr)
 {
 	check(InnerBackend);
 }
@@ -615,4 +784,9 @@ void FDerivedDataBackendAsyncPutWrapper::GetChunks(
 	}
 }
 
-} // UE::DerivedData::Backends
+FDerivedDataBackendInterface* CreateAsyncPutDerivedDataBackend(FDerivedDataBackendInterface* InnerBackend, bool bCacheInFlightPuts)
+{
+	return new FDerivedDataBackendAsyncPutWrapper(InnerBackend, bCacheInFlightPuts);
+}
+
+} // UE::DerivedData::CacheStore::AsyncPut

@@ -1,35 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "HAL/PlatformFileManager.h"
-#include "HAL/FileManager.h"
-#include "Misc/CommandLine.h"
-#include "Misc/Paths.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "Misc/Guid.h"
-#include "HAL/IConsoleManager.h"
-#include "Misc/App.h"
+#include "CoreTypes.h"
+#include "Containers/StringView.h"
 #include "DerivedDataBackendInterface.h"
-#include "DerivedDataCacheUsageStats.h"
-#include "MemoryDerivedDataBackend.h"
-#include "HttpDerivedDataBackend.h"
-#include "DerivedDataBackendAsyncPutWrapper.h"
-#include "PakFileDerivedDataBackend.h"
-#include "S3DerivedDataBackend.h"
-#include "ZenDerivedDataBackend.h"
-#include "HierarchicalDerivedDataBackend.h"
-#include "DerivedDataLimitKeyLengthWrapper.h"
 #include "DerivedDataBackendThrottleWrapper.h"
 #include "DerivedDataBackendVerifyWrapper.h"
-#include "Misc/EngineBuildSettings.h"
-#include "Modules/ModuleManager.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Containers/StringFwd.h"
-#include "Misc/StringBuilder.h"
-#include "ProfilingDebugging/CookStats.h"
-#include "Math/UnitConversion.h"
+#include "DerivedDataCacheUsageStats.h"
+#include "DerivedDataLimitKeyLengthWrapper.h"
+#include "FileBackedDerivedDataBackend.h"
+#include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/PlatformFileManager.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "HierarchicalDerivedDataBackend.h"
 #include "Internationalization/FastDecimalFormat.h"
 #include "Math/BasicMathExpressionEvaluator.h"
+#include "Math/UnitConversion.h"
+#include "Misc/App.h"
+#include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/EngineBuildSettings.h"
+#include "Misc/Guid.h"
+#include "Misc/Paths.h"
+#include "Misc/StringBuilder.h"
+#include "Modules/ModuleManager.h"
+#include "PakFileDerivedDataBackend.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include <atomic>
 
@@ -38,12 +34,44 @@ DEFINE_LOG_CATEGORY(LogDerivedDataCache);
 #define MAX_BACKEND_KEY_LENGTH (120)
 #define LOCTEXT_NAMESPACE "DerivedDataBackendGraph"
 
+namespace UE::DerivedData::CacheStore::AsyncPut
+{
+FDerivedDataBackendInterface* CreateAsyncPutDerivedDataBackend(FDerivedDataBackendInterface* InnerBackend, bool bCacheInFlightPuts);
+} // UE::DerivedData::CacheStore::AsyncPut
+
 namespace UE::DerivedData::CacheStore::FileSystem
 {
-
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName = nullptr);
-
+FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* Params, const TCHAR* AccessLogFileName);
 } // UE::DerivedData::CacheStore::FileSystem
+
+namespace UE::DerivedData::CacheStore::Http
+{
+FDerivedDataBackendInterface* CreateHttpDerivedDataBackend(
+	const TCHAR* NodeName,
+	const TCHAR* ServiceUrl,
+	const TCHAR* Namespace,
+	const TCHAR* StructuredNamespace,
+	const TCHAR* OAuthProvider,
+	const TCHAR* OAuthClientId,
+	const TCHAR* OAuthData, 
+	const FDerivedDataBackendInterface::ESpeedClass* ForceSpeedClass,
+	bool bReadOnly);
+} // UE::DerivedData::CacheStore::Http
+
+namespace UE::DerivedData::CacheStore::Memory
+{
+FFileBackedDerivedDataBackend* CreateMemoryDerivedDataBackend(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
+} // UE::DerivedData::CacheStore::Memory
+
+namespace UE::DerivedData::CacheStore::S3
+{
+FDerivedDataBackendInterface* CreateS3DerivedDataBackend(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
+} // UE::DerivedData::CacheStore::S3
+
+namespace UE::DerivedData::CacheStore::ZenCache
+{
+FDerivedDataBackendInterface* CreateZenDerivedDataBackend(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace);
+} // UE::DerivedData::CacheStore::ZenCache
 
 namespace UE::DerivedData::Backends
 {
@@ -124,7 +152,7 @@ public:
 		// Make sure AsyncPutWrapper and KeyLengthWrapper are created
 		if( !AsyncPutWrapper )
 		{
-			AsyncPutWrapper = new FDerivedDataBackendAsyncPutWrapper( RootCache, true );
+			AsyncPutWrapper = CacheStore::AsyncPut::CreateAsyncPutDerivedDataBackend( RootCache, /*bCacheInFlightPuts*/ true );
 			check(AsyncPutWrapper);
 			CreatedBackends.Add( AsyncPutWrapper );
 			RootCache = AsyncPutWrapper;
@@ -410,7 +438,7 @@ public:
 		FDerivedDataBackendInterface* AsyncNode = NULL;
 		if( InnerNode )
 		{
-			AsyncNode = new FDerivedDataBackendAsyncPutWrapper( InnerNode, true );
+			AsyncNode = CacheStore::AsyncPut::CreateAsyncPutDerivedDataBackend( InnerNode, /*bCacheInFlightPuts*/ true );
 		}
 		else
 		{
@@ -674,7 +702,6 @@ public:
 	 */
 	FDerivedDataBackendInterface* ParseS3Cache(const TCHAR* NodeName, const TCHAR* Entry)
 	{
-#if WITH_S3_DDC_BACKEND
 		FString ManifestPath;
 		if (!FParse::Value(Entry, TEXT("Manifest="), ManifestPath))
 		{
@@ -733,11 +760,13 @@ public:
 			}
 		}
 
-		return new CacheStore::S3::FS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *CachePath);
-#else
+		if (FDerivedDataBackendInterface* Backend = CacheStore::S3::CreateS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *CachePath))
+		{
+			return Backend;
+		}
+
 		UE_LOG(LogDerivedDataCache, Log, TEXT("S3 backend is not supported on the current platform."));
 		return nullptr;
-#endif
 	}
 
 	void ParseHttpCacheParams(
@@ -807,7 +836,6 @@ public:
 		const FString& IniFilename,
 		const TCHAR* IniSection)
 	{
-#if WITH_HTTP_DDC_BACKEND
 		FString Host;
 		FString Namespace;
 		FString StructuredNamespace;
@@ -885,25 +913,14 @@ public:
 			}
 		}
 
-		FHttpDerivedDataBackend* Backend = new FHttpDerivedDataBackend(*Host, *Namespace, *StructuredNamespace, *OAuthProvider, *OAuthClientId, *OAuthSecret, bReadOnly);
-
 		if (ForceSpeedClass != FDerivedDataBackendInterface::ESpeedClass::Unknown)
 		{
 			UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s found speed class override ForceSpeedClass=%s"), NodeName, *ForceSpeedClassValue);
-			Backend->SetSpeedClass(ForceSpeedClass);
 		}
 
-		if (!Backend->IsUsable())
-		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s could not contact the service (%s), will not use it"), NodeName, *Host);
-			delete Backend;
-			return nullptr;
-		}
-		return Backend;
-#else
-		UE_LOG(LogDerivedDataCache, Warning, TEXT("HTTP backend is not yet supported in the current build configuration."));
-		return nullptr;
-#endif
+		return CacheStore::Http::CreateHttpDerivedDataBackend(
+			NodeName, *Host, *Namespace, *StructuredNamespace, *OAuthProvider, *OAuthClientId, *OAuthSecret,
+			ForceSpeedClass == FDerivedDataBackendInterface::ESpeedClass::Unknown ? nullptr : &ForceSpeedClass, bReadOnly);
 	}
 
 	/**
@@ -911,7 +928,6 @@ public:
 	 */
 	FDerivedDataBackendInterface* ParseZenCache(const TCHAR* NodeName, const TCHAR* Entry)
 	{
-#if WITH_ZEN_DDC_BACKEND
 		FString ServiceUrl;
 		FParse::Value(Entry, TEXT("Host="), ServiceUrl);
 
@@ -922,18 +938,13 @@ public:
 			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'Namespace', falling back to '%s'"), NodeName, *Namespace);
 		}
 
-		FZenDerivedDataBackend* backend = new FZenDerivedDataBackend(*ServiceUrl, *Namespace);
-		if (!backend->IsUsable())
+		if (FDerivedDataBackendInterface* Backend = CacheStore::ZenCache::CreateZenDerivedDataBackend(NodeName, *ServiceUrl, *Namespace))
 		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *backend->GetName());
-			delete backend;
-			return nullptr;
+			return Backend;
 		}
-		return backend;
-#else
+		
 		UE_LOG(LogDerivedDataCache, Warning, TEXT("Zen backend is not yet supported in the current build configuration."));
 		return nullptr;
-#endif
 	}
 
 	/**
@@ -946,7 +957,7 @@ public:
 	 */
 	FFileBackedDerivedDataBackend* ParseBootCache( const TCHAR* NodeName, const TCHAR* Entry, FString& OutFilename )
 	{
-		FMemoryDerivedDataBackend* Cache = NULL;
+		FFileBackedDerivedDataBackend* Cache = nullptr;
 
 		// Only allow boot cache with the editor. We don't want other tools and utilities (eg. SCW) writing to the same file.
 #if WITH_EDITOR
@@ -966,7 +977,7 @@ public:
 			MaxCacheSize = FMath::Min(MaxCacheSize, MaxSupportedCacheSize);
 
 			UE_LOG( LogDerivedDataCache, Display, TEXT("Max Cache Size: %d MB"), MaxCacheSize);
-			Cache = new FMemoryDerivedDataBackend(TEXT("Boot"), MaxCacheSize * 1024 * 1024, true /* bCanBeDisabled */);
+			Cache = CacheStore::Memory::CreateMemoryDerivedDataBackend(TEXT("Boot"), MaxCacheSize * 1024 * 1024, /*bCanBeDisabled*/ true);
 
 			if( Cache && Filename.Len() )
 			{
@@ -1002,13 +1013,13 @@ public:
 	 * @param Entry Node definition.
 	 * @return Memory data cache backend interface instance or NULL if unsuccessfull
 	 */
-	FMemoryDerivedDataBackend* ParseMemoryCache( const TCHAR* NodeName, const TCHAR* Entry )
+	FFileBackedDerivedDataBackend* ParseMemoryCache( const TCHAR* NodeName, const TCHAR* Entry )
 	{
-		FMemoryDerivedDataBackend* Cache = NULL;
+		FFileBackedDerivedDataBackend* Cache = nullptr;
 		FString Filename;
 
 		FParse::Value( Entry, TEXT("Filename="), Filename );
-		Cache = new FMemoryDerivedDataBackend(NodeName);
+		Cache = CacheStore::Memory::CreateMemoryDerivedDataBackend(NodeName, /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false);
 		if( Cache && Filename.Len() )
 		{
 			if( Cache->LoadCache( *Filename ) )
