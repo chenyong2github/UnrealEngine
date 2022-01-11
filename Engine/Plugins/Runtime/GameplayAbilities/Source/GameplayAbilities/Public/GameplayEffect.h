@@ -1587,6 +1587,23 @@ struct GAMEPLAYABILITIES_API FActiveGameplayEffectsContainer : public FFastArray
 
 	void SetActiveGameplayEffectLevel(FActiveGameplayEffectHandle ActiveHandle, int32 NewLevel);
 
+	/**
+	 * Update a set-by-caller magnitude for the active effect to match the new value, if possible
+	 * 
+	 * @param ActiveHandle		Handle of the active effect to update
+	 * @param SetByCallerTag	Set-by-caller tag to update
+	 * @param NewValue			New value of the set-by-caller magnitude
+	 */
+	void UpdateActiveGameplayEffectSetByCallerMagnitude(FActiveGameplayEffectHandle ActiveHandle, const FGameplayTag& SetByCallerTag, float NewValue);
+
+	/**
+	 * Update set-by-caller magnitudes for the active effect to match the new values, if possible; Replaces existing values
+	 *
+	 * @param ActiveHandle			Handle of the active effect to update
+	 * @param NewSetByCallerValues	Map of set-by-caller tag to new magnitude
+	 */
+	void UpdateActiveGameplayEffectSetByCallerMagnitudes(FActiveGameplayEffectHandle ActiveHandle, const TMap<FGameplayTag, float>& NewSetByCallerValues);
+
 	void SetAttributeBaseValue(FGameplayAttribute Attribute, float NewBaseValue);
 
 	float GetAttributeBaseValue(FGameplayAttribute Attribute) const;
