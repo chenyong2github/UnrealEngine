@@ -300,19 +300,19 @@ struct FEvaluatedControlRigParameterSectionChannelMasks : IPersistentEvaluationD
 		{
 			const FScalarParameterNameAndCurve& Scalar = Scalars[Index];
 			ChannelInfo = Section->ControlChannelMap.Find(Scalar.ParameterName);
-			ScalarCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+			ScalarCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->MaskIndex]);
 		}
 		for (int32 Index = 0; Index < Bools.Num(); ++Index)
 		{
 			const FBoolParameterNameAndCurve& Bool = Bools[Index];
 			ChannelInfo = Section->ControlChannelMap.Find(Bool.ParameterName);
-			BoolCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+			BoolCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->MaskIndex]);
 		}
 		for (int32 Index = 0; Index < Integers.Num(); ++Index)
 		{
 			const FIntegerParameterNameAndCurve& Integer = Integers[Index];
 			ChannelInfo = Section->ControlChannelMap.Find(Integer.ParameterName);
-			IntegerCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+			IntegerCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->MaskIndex]);
 		}
 		for (int32 Index = 0; Index < Enums.Num(); ++Index)
 		{
@@ -324,25 +324,25 @@ struct FEvaluatedControlRigParameterSectionChannelMasks : IPersistentEvaluationD
 		{
 			const FVector2DParameterNameAndCurves& Vector2D = Vector2Ds[Index];
 			ChannelInfo = Section->ControlChannelMap.Find(Vector2D.ParameterName);
-			Vector2DCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+			Vector2DCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->MaskIndex]);
 		}
 		for (int32 Index = 0; Index < Vectors.Num(); ++Index)
 		{
 			const FVectorParameterNameAndCurves& Vector = Vectors[Index];
 			ChannelInfo = Section->ControlChannelMap.Find(Vector.ParameterName);
-			VectorCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+			VectorCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->MaskIndex]);
 		}
 		for (int32 Index = 0; Index < Colors.Num(); ++Index)
 		{
 			const FColorParameterNameAndCurves& Color = Colors[Index];
 			ChannelInfo = Section->ControlChannelMap.Find(Color.ParameterName);
-			ColorCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+			ColorCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->MaskIndex]);
 		}
 		for (int32 Index = 0; Index < Transforms.Num(); ++Index)
 		{
 			const FTransformParameterNameAndCurves& Transform = Transforms[Index];
 			ChannelInfo = Section->ControlChannelMap.Find(Transform.ParameterName);
-			TransformCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+			TransformCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->MaskIndex]);
 		}
 	}
 };
