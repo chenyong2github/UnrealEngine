@@ -876,6 +876,7 @@ void FPBDRigidsEvolutionGBF::DestroyParticleCollisionsInAllocator(FGeometryParti
 	if (Particle != nullptr)
 	{
 		CollisionConstraints.GetConstraintAllocator().RemoveParticle(Particle);
+		Particle->ParticleCollisions().Reset();
 	}
 }
 
