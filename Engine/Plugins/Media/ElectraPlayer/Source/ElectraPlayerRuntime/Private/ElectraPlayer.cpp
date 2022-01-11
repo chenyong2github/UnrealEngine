@@ -84,15 +84,16 @@ class FMetaDataDecoderOutput : public IMetaDataDecoderOutput
 {
 public:
 	virtual ~FMetaDataDecoderOutput() = default;
-	virtual const void* GetData() override						{ return Data.GetData(); }
-	virtual FTimespan GetDuration() const override				{ return Duration; }
-	virtual uint32 GetSize() const override						{ return (uint32) Data.Num(); }
-	virtual FDecoderTimeStamp GetTime() const override			{ return PresentationTime; }
-	virtual EOrigin GetOrigin() const override					{ return Origin; }
-	virtual EDispatchedMode GetDispatchedMode() const override	{ return DispatchedMode; }
-	virtual const FString& GetSchemeIdUri() const override		{ return SchemeIdUri; }
-	virtual const FString& GetValue() const override			{ return Value; }
-	virtual const FString& GetID() const override				{ return ID; }
+	virtual const void* GetData() override									{ return Data.GetData(); }
+	virtual FTimespan GetDuration() const override							{ return Duration; }
+	virtual uint32 GetSize() const override									{ return (uint32) Data.Num(); }
+	virtual FDecoderTimeStamp GetTime() const override						{ return PresentationTime; }
+	virtual EOrigin GetOrigin() const override								{ return Origin; }
+	virtual EDispatchedMode GetDispatchedMode() const override				{ return DispatchedMode; }
+	virtual const FString& GetSchemeIdUri() const override					{ return SchemeIdUri; }
+	virtual const FString& GetValue() const override						{ return Value; }
+	virtual const FString& GetID() const override							{ return ID; }
+	virtual TOptional<FDecoderTimeStamp> GetTrackBaseTime() const override	{ return TrackBaseTime; }
 
 	TArray<uint8> Data;
 	FDecoderTimeStamp PresentationTime;
@@ -102,6 +103,7 @@ public:
 	FString SchemeIdUri;
 	FString Value;
 	FString ID;
+	TOptional<FDecoderTimeStamp> TrackBaseTime;
 };
 
 //-----------------------------------------------------------------------------
@@ -1572,8 +1574,12 @@ void FElectraPlayer::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingP
 #endif
 
 	TSharedPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> PinnedAdapterDelegate = AdapterDelegate.Pin();
-	if (PinnedAdapterDelegate.IsValid())
+	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+	if (PinnedAdapterDelegate.IsValid() && LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
 	{
+		Electra::FTimeRange MediaTimeline;
+		LockedPlayer->AdaptivePlayer->GetTimelineRange(MediaTimeline);
+
 		// Create a binary media sample of our extended format and pass it up.
 		TSharedPtr<FMetaDataDecoderOutput, ESPMode::ThreadSafe> Meta = MakeShared<FMetaDataDecoderOutput, ESPMode::ThreadSafe>();
 		switch(InDispatchMode)
@@ -1615,6 +1621,10 @@ void FElectraPlayer::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingP
 		Meta->ID = InEvent->GetID(),
 		Meta->Duration = InEvent->GetDuration().GetAsTimespan();
 		Meta->PresentationTime = FDecoderTimeStamp(InEvent->GetPresentationTime().GetAsTimespan(), 0);
+		// Set the current timeline start as the metadata track's zero point. This is only useful if the timeline does not
+		// actually change over time. The use of the base time is therefore tied to knowledge by the using code that the
+		// timeline will be fixed.
+		Meta->TrackBaseTime = FDecoderTimeStamp(MediaTimeline.Start.GetAsTimespan(), MediaTimeline.Start.GetSequenceIndex());
 		PinnedAdapterDelegate->PresentMetadataSample(Meta);
 	}
 }

@@ -54,4 +54,8 @@ public:
 
 	// Returns the event's ID.
 	virtual const FString& GetID() const = 0;
+
+	// Returns the base time (the "zero point") of the track, if available, to calculate the relative time
+	// of this metadata from GetTime() if this is based on some non-zero anchor.
+	virtual TOptional<FMediaTimeStamp> GetTrackBaseTime() const = 0;
 };

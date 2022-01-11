@@ -103,12 +103,12 @@ class FElectraBinarySample : public IElectraBinarySample
 {
 public:
 	virtual ~FElectraBinarySample() = default;
-	virtual const void* GetData() override						{ return Metadata->GetData(); }
-	virtual uint32 GetSize() const override						{ return Metadata->GetSize(); }
-	virtual FGuid GetGUID() const override						{ return IElectraBinarySample::GetSampleTypeGUID(); }
-	virtual const FString& GetSchemeIdUri() const override		{ return Metadata->GetSchemeIdUri(); }
-	virtual const FString& GetValue() const override			{ return Metadata->GetValue(); }
-	virtual const FString& GetID() const override				{ return Metadata->GetID(); }
+	virtual const void* GetData() override							{ return Metadata->GetData(); }
+	virtual uint32 GetSize() const override							{ return Metadata->GetSize(); }
+	virtual FGuid GetGUID() const override							{ return IElectraBinarySample::GetSampleTypeGUID(); }
+	virtual const FString& GetSchemeIdUri() const override			{ return Metadata->GetSchemeIdUri(); }
+	virtual const FString& GetValue() const override				{ return Metadata->GetValue(); }
+	virtual const FString& GetID() const override					{ return Metadata->GetID(); }
 
 	virtual EDispatchedMode GetDispatchedMode() const override
 	{
@@ -162,6 +162,17 @@ public:
 			Duration = FTimespan::FromMilliseconds(1);
 		}
 		return Duration;
+	}
+
+	virtual TOptional<FMediaTimeStamp> GetTrackBaseTime() const	override
+	{ 
+		TOptional<FMediaTimeStamp> ms;
+		TOptional<FDecoderTimeStamp> ts = Metadata->GetTime(); 
+		if (ts.IsSet())
+		{
+			ms = FMediaTimeStamp(ts.GetValue().Time, ts.GetValue().SequenceIndex);
+		}
+		return ms;
 	}
 
 	IMetaDataDecoderOutputPtr Metadata;
