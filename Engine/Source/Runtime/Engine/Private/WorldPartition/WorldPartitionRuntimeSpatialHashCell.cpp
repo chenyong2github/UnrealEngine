@@ -28,15 +28,15 @@ void UWorldPartitionRuntimeSpatialHashCell::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
 
-	if (ActorContainer)
+	if (UnsavedActorsContainer)
 	{
 		// Make sure actor container isn't under PIE World so those template actors will never be considered part of the world.
-		ActorContainer->Rename(nullptr, GetPackage());
+		UnsavedActorsContainer->Rename(nullptr, GetPackage());
 
-		for (auto& ActorPair : ActorContainer->Actors)
+		for (auto& ActorPair : UnsavedActorsContainer->Actors)
 		{
 			// Don't use AActor::Rename here since the actor is not par of the world, it's only a duplication template.
-			ActorPair.Value->UObject::Rename(nullptr, ActorContainer);
+			ActorPair.Value->UObject::Rename(nullptr, UnsavedActorsContainer);
 		}
 	}
 }

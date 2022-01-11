@@ -70,7 +70,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TObjectPtr<UActorContainer> ActorContainer;
+	TObjectPtr<UActorContainer> UnsavedActorsContainer;
 #endif
 
 	UPROPERTY()

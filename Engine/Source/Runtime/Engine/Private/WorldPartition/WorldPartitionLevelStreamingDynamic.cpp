@@ -55,7 +55,7 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
 	StreamingPriority = 0;
 	ChildPackages = InCell.GetPackages();
-	ActorContainer = InCell.ActorContainer;
+	UnsavedActorsContainer = InCell.UnsavedActorsContainer;
 	ActorFolders = InCell.GetActorFolders().Array();
 
 	UWorld* OuterWorld = InCell.GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
@@ -253,13 +253,13 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 		bool bNeedDup = false;
 		if (ChildPackage.ContainerID.IsMainContainer())
 		{
-			if (ActorContainer)
+			if (UnsavedActorsContainer)
 			{
 				FString SubObjectName;
 				FString SubObjectContext;
 				if (ChildPackage.LoadedPath.ToString().Split(TEXT("."), &SubObjectContext, &SubObjectName, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
 				{
-					if (AActor* ActorModifiedForPIE = ActorContainer->Actors.FindRef(*SubObjectName))
+					if (AActor* ActorModifiedForPIE = UnsavedActorsContainer->Actors.FindRef(*SubObjectName))
 					{
 						bNeedDup = true;
 					}
@@ -274,10 +274,10 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	}
 
 	// Duplicate unsaved actors
-	if (ActorContainer)
+	if (UnsavedActorsContainer)
 	{
-		FObjectDuplicationParameters Parameters(ActorContainer, RuntimeLevel);
-		Parameters.DestClass = ActorContainer->GetClass();
+		FObjectDuplicationParameters Parameters(UnsavedActorsContainer, RuntimeLevel);
+		Parameters.DestClass = UnsavedActorsContainer->GetClass();
 		Parameters.FlagMask = RF_AllFlags & ~(RF_MarkAsRootSet | RF_MarkAsNative | RF_HasExternalPackage);
 		Parameters.InternalFlagMask = EInternalObjectFlags::AllFlags;
 		Parameters.DuplicateMode = EDuplicateMode::PIE;
