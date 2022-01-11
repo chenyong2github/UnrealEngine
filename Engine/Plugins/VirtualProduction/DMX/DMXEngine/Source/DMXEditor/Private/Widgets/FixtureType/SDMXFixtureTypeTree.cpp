@@ -585,7 +585,10 @@ FReply SDMXFixtureTypeTree::OnAddNewFixtureTypeClicked()
 	{		
 		const FScopedTransaction Transaction(LOCTEXT("CreateFixtureTypeTransaction", "Create DMX Fixture Type"));
 
-		UDMXEntityFixtureType* NewFixtureType = UDMXEntityFixtureType::CreateFixtureTypeInLibrary(PinnedEditor->GetDMXLibrary());
+		FDMXEntityFixtureTypeConstructionParams FixtureTypeConstructionParams;
+		FixtureTypeConstructionParams.ParentDMXLibrary = PinnedEditor->GetDMXLibrary();
+
+		UDMXEntityFixtureType* NewFixtureType = UDMXEntityFixtureType::CreateFixtureTypeInLibrary(FixtureTypeConstructionParams);
 
 		FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>({ NewFixtureType }));
 

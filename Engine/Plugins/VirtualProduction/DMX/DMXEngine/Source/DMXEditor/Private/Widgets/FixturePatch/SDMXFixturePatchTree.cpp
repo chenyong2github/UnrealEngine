@@ -775,7 +775,7 @@ void SDMXFixturePatchTree::OnUniverseSelected()
 	const int32 SelectedUniverse = FixturePatchSharedData->GetSelectedUniverse();
 
 	if (AutoExpandedUniverseCategoryNode.IsValid() &&
-		UserExpandedUniverseCategoryNodes.Contains(AutoExpandedUniverseCategoryNode))
+		!UserExpandedUniverseCategoryNodes.Contains(AutoExpandedUniverseCategoryNode))
 	{
 		SetNodeExpansion(AutoExpandedUniverseCategoryNode, false);
 	}
@@ -881,8 +881,10 @@ void SDMXFixturePatchTree::OnAddNewFixturePatchClicked(UDMXEntity* InSelectedFix
 
 			const FScopedTransaction Transaction(LOCTEXT("CreateFixturePatchTransaction", "Create DMX Fixture Patch"));
 
-			const FDMXEntityFixtureTypeRef FixtureTypeRef = FDMXEntityFixtureTypeRef(FixtureType);
-			UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef, FixtureType->Name);
+			FDMXEntityFixturePatchConstructionParams FixturePatchConstructionParams;
+			FixturePatchConstructionParams.FixtureTypeRef = FDMXEntityFixtureTypeRef(FixtureType);
+
+			UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams, FixtureType->Name);
 			if (NewFixturePatch)
 			{
 				FDMXEditorUtils::UpdatePatchColors(NewFixturePatch->GetParentLibrary());

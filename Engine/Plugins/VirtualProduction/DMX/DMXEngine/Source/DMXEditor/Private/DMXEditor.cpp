@@ -152,7 +152,10 @@ void FDMXEditor::OnAddNewEntity(TSubclassOf<UDMXEntity> InEntityClass)
 
 	if (InEntityClass == UDMXEntityFixtureType::StaticClass())
 	{
-		UDMXEntityFixtureType* FixtureType = UDMXEntityFixtureType::CreateFixtureTypeInLibrary(DMXLibrary);
+		FDMXEntityFixtureTypeConstructionParams FixtureTypeConstructionParams;
+		FixtureTypeConstructionParams.ParentDMXLibrary = DMXLibrary;
+
+		UDMXEntityFixtureType* FixtureType = UDMXEntityFixtureType::CreateFixtureTypeInLibrary(FixtureTypeConstructionParams);
 		FixtureTypeSharedData->SelectFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>({ FixtureType }));
 	}
 	else if (InEntityClass == UDMXEntityFixturePatch::StaticClass())
@@ -174,8 +177,10 @@ void FDMXEditor::OnAddNewEntity(TSubclassOf<UDMXEntity> InEntityClass)
 
 			if (LastAddedFixtureType)
 			{
-				const FDMXEntityFixtureTypeRef FixtureTypeRef = FDMXEntityFixtureTypeRef(LastAddedFixtureType);
-				UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
+				FDMXEntityFixturePatchConstructionParams FixturePatchConstructionParams;
+				FixturePatchConstructionParams.FixtureTypeRef = FDMXEntityFixtureTypeRef(LastAddedFixtureType);
+
+				UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams);
 				FixturePatchSharedData->SelectFixturePatch(NewFixturePatch);
 
 				return;
@@ -186,8 +191,10 @@ void FDMXEditor::OnAddNewEntity(TSubclassOf<UDMXEntity> InEntityClass)
 			const TArray<UDMXEntityFixtureType*> FixtureTypesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixtureType>();
 			if (FixtureTypesInLibrary.Num() > 0)
 			{
-				const FDMXEntityFixtureTypeRef FixtureTypeRef = FDMXEntityFixtureTypeRef(FixtureTypesInLibrary[0]);
-				UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixtureTypeRef);
+				FDMXEntityFixturePatchConstructionParams FixturePatchConstructionParams;
+				FixturePatchConstructionParams.FixtureTypeRef = FDMXEntityFixtureTypeRef(FixtureTypesInLibrary[0]);
+
+				UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams);
 				FixturePatchSharedData->SelectFixturePatch(NewFixturePatch);
 			}
 			else
