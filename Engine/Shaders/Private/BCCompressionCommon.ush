@@ -167,7 +167,7 @@ uint2 GetPackedAlphaBlockIndices( in float Block[16], in float MinAlpha, in floa
 }
 
 // Compress a BC1 block
-uint2 CompressBC1Block( in float3 Block[16] )
+uint4 CompressBC1Block( in float3 Block[16] )
 {
 	float3 MinColor, MaxColor;
 	GetMinMax( Block, MinColor, MaxColor );
@@ -181,12 +181,12 @@ uint2 CompressBC1Block( in float3 Block[16] )
 		Indices = GetPackedColorBlockIndices( Block, MinColor, MaxColor );
 	}
 
-	return uint2((MinColor565 << 16) | MaxColor565, Indices);
+	return uint4(MaxColor565, MinColor565, Indices & 0xffff, Indices >> 16);
 }
 
 // Compress a BC1 block that will be sampled as sRGB
 // We expect linear colors as input and convert internally
-uint2 CompressBC1Block_SRGB( in float3 Block[16] )
+uint4 CompressBC1Block_SRGB( in float3 Block[16] )
 {
 #if (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
 	// mobile uses linear color for RVT
@@ -205,7 +205,7 @@ uint2 CompressBC1Block_SRGB( in float3 Block[16] )
 		Indices = GetPackedColorBlockIndices( Block, MinColor, MaxColor );
 	}
 
-	return uint2((MinColor565 << 16) | MaxColor565, Indices);
+	return uint4(MaxColor565, MinColor565, Indices & 0xffff, Indices >> 16);
 }
 
 // Compress a BC3 block
@@ -275,7 +275,7 @@ uint4 CompressBC3Block_SRGB( in float3 BlockRGB[16], in float BlockA[16] )
 }
 
 // Compress a BC4 block
-uint2 CompressBC4Block( in float Block[16] )
+uint4 CompressBC4Block( in float Block[16] )
 {
 	float MinAlpha, MaxAlpha;
 	GetMinMax( Block, MinAlpha, MaxAlpha );
@@ -289,7 +289,7 @@ uint2 CompressBC4Block( in float Block[16] )
 		Indices = GetPackedAlphaBlockIndices( Block, MinAlpha, MaxAlpha );
 	}
 
-	return uint2((MinAlphaUint << 8) | MaxAlphaUint | Indices.x, Indices.y);
+	return uint4((MinAlphaUint << 8) | MaxAlphaUint, Indices.x >> 16, Indices.y & 0xffff, Indices.y >> 16);
 }
 
 // Compress a BC5 block
