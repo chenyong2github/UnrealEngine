@@ -301,6 +301,7 @@ bool FSwitchboardListener::Tick()
 				StatePacket.OsVersionNumber = FPlatformMisc::GetOSVersion();
 
 				StatePacket.TotalPhysicalMemory = FPlatformMemory::GetConstants().TotalPhysical;
+				StatePacket.PlatformBinaryDirectory = FPlatformProcess::GetBinariesSubdirectory();
 
 				for (const auto& RunningProcess : RunningProcesses)
 				{

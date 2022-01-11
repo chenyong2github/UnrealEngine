@@ -81,6 +81,10 @@ struct FSwitchboardStatePacket : public FSwitchboardPacket
 
 	UPROPERTY()
 	uint64 TotalPhysicalMemory;
+
+	/** The name of the platform as it appears in Engine/Binaries */
+	UPROPERTY()
+	FString PlatformBinaryDirectory;
 };
 
 USTRUCT()
