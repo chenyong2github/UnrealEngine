@@ -159,17 +159,21 @@ namespace Jupiter.Implementation
         }  
     }
 
-    public class BlobIdentifierConverter : JsonConverter<BlobIdentifier>
+    public class BlobIdentifierConverter : JsonConverter<BlobIdentifier?>
     {
         public override void WriteJson(JsonWriter writer, BlobIdentifier? value, JsonSerializer serializer)
         {
             writer.WriteValue(value!.ToString());
         }
 
-        public override BlobIdentifier ReadJson(JsonReader reader, Type objectType, BlobIdentifier? existingValue, bool hasExistingValue, Newtonsoft.Json.JsonSerializer serializer)
+        public override BlobIdentifier? ReadJson(JsonReader reader, Type objectType, BlobIdentifier? existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
+            if (reader.TokenType == JsonToken.Null) 
+                return null;
             string? s = (string?)reader.Value;
 
+            if (s == null)
+                return null;
             return new BlobIdentifier(s!);
         }
     }
