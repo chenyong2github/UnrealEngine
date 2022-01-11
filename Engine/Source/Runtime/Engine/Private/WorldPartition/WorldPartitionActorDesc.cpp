@@ -274,11 +274,6 @@ FName FWorldPartitionActorDesc::GetActorLabelOrName() const
 	return GetActorLabel().IsNone() ? GetActorName() : GetActorLabel();
 }
 
-UHLODLayer* FWorldPartitionActorDesc::GetHLODLayer() const
-{
-	return HLODLayer.IsNone() ? nullptr : Cast<UHLODLayer>(FSoftObjectPath(HLODLayer).TryLoad());
-}
-
 bool FWorldPartitionActorDesc::IsLoaded(bool bEvenIfPendingKill) const
 {
 	return ActorPtr.IsValid(bEvenIfPendingKill);

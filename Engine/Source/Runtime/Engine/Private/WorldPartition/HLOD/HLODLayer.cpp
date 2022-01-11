@@ -60,7 +60,8 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDescView& InActor
 {
 	check(InWorldPartition);
 
-	if (UHLODLayer* HLODLayer = InActorDesc.GetHLODLayer())
+	const FName HLODLayerName = InActorDesc.GetHLODLayer();
+	if (UHLODLayer* HLODLayer = HLODLayerName.IsNone() ? nullptr : Cast<UHLODLayer>(FSoftObjectPath(HLODLayerName).TryLoad()))
 	{
 		return HLODLayer;
 	}
