@@ -231,6 +231,7 @@ bool EditOrPreviewAssetFileItems(TArrayView<const TSharedRef<const FContentBrows
 
 	// Now that we have created our map, load and activate all the lists of objects for each asset type action.
 	const bool bHasOpenActivationMethod = (ActivationMethod == EAssetTypeActivationMethod::DoubleClicked || ActivationMethod == EAssetTypeActivationMethod::Opened);
+	bool bSuccessfulEditorOpen = true;
 	for (auto& TypeActionToObjectsPair : TypeActionsToAssetData)
 	{
 		SlowTask.EnterProgressFrame(25.0f / TypeActionsToAssetData.Num());
@@ -265,11 +266,11 @@ bool EditOrPreviewAssetFileItems(TArrayView<const TSharedRef<const FContentBrows
 
 		if (bOpenEditorForAssets)
 		{
-			AssetEditorSubsystem->OpenEditorForAssets(ObjList);
+			bSuccessfulEditorOpen &= AssetEditorSubsystem->OpenEditorForAssets(ObjList);
 		}
 	}
 
-	return true;
+	return bSuccessfulEditorOpen;
 }
 
 bool EditOrPreviewItems(IAssetTools* InAssetTools, const UContentBrowserDataSource* InOwnerDataSource, TArrayView<const FContentBrowserItemData> InItems, const bool bIsPreview)

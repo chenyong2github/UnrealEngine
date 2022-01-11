@@ -27,6 +27,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Docking/TabManager.h"
 #include "EditorStyleSet.h"
 #include "EditorFontGlyphs.h"
@@ -2675,8 +2676,18 @@ void SContentBrowser::OnItemsActivated(TArrayView<const FContentBrowserItem> Act
 					AssetViewUtils::ShowErrorNotifcation(EditErrorMsg);
 				}
 			}
+			
+			if (!SourceAndItemsPair.Key->BulkEditItems(SourceAndItemsPair.Value))
+			{
+				static const FText ErrorMessage = LOCTEXT("EditItemsFailure", "Failed to load assets");
 
-			SourceAndItemsPair.Key->BulkEditItems(SourceAndItemsPair.Value);
+				FNotificationInfo WarningNotification(ErrorMessage);
+				WarningNotification.ExpireDuration = 5.0f;
+				WarningNotification.Hyperlink = FSimpleDelegate::CreateStatic([](){ FMessageLog("LoadErrors").Open(EMessageSeverity::Info, true); });
+				WarningNotification.HyperlinkText = LOCTEXT("LoadObjectHyperlink", "Show Message Log");
+				WarningNotification.bFireAndForget = true;
+				FSlateNotificationManager::Get().AddNotification(WarningNotification);
+			}
 		}
 	}
 }
