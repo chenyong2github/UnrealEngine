@@ -28,8 +28,6 @@ FThread FStudioAnalytics::TimerThread;
 TSharedPtr<IAnalyticsProviderET> FStudioAnalytics::Analytics;
 TArray<FAnalyticsEventAttribute> FStudioAnalytics::DefaultAttributes;
 
-using namespace UE::Virtualization;
-
 void FStudioAnalytics::SetProvider(TSharedRef<IAnalyticsProviderET> InAnalytics)
 {
 	checkf(!Analytics.IsValid(), TEXT("FStudioAnalytics::SetProvider called more than once."));
@@ -146,6 +144,8 @@ void FStudioAnalytics::RecordEvent(const FString& EventName, const TArray<FAnaly
 
 void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double SecondsSpentLoading, const TArray<FAnalyticsEventAttribute>& InAttributes)
 {
+	using namespace UE::Virtualization;
+
 	// Ignore anything less than a 1/4th a second.
 	if (SecondsSpentLoading < 0.250)
 	{
