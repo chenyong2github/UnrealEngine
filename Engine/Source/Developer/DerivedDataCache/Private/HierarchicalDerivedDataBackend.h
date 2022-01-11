@@ -21,12 +21,10 @@ extern bool GVerifyDDC;
 
 namespace UE::DerivedData::CacheStore::AsyncPut
 {
-
 FDerivedDataBackendInterface* CreateAsyncPutDerivedDataBackend(FDerivedDataBackendInterface* InnerBackend, bool bCacheInFlightPuts);
-
 } // UE::DerivedData::CacheStore::AsyncPut
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::Hierarchical
 {
 
 /** 
@@ -99,7 +97,7 @@ private:
 			// async puts to allow us to fill all levels without holding up the engine
 			// we need to cache inflight puts to avoid having inconsistent miss and redownload on lower cache levels while puts are still async
 			const bool bCacheInFlightPuts = true;
-			AsyncPutInnerBackends.Emplace(CacheStore::AsyncPut::CreateAsyncPutDerivedDataBackend(InnerBackends[CacheIndex], bCacheInFlightPuts));
+			AsyncPutInnerBackends.Emplace(AsyncPut::CreateAsyncPutDerivedDataBackend(InnerBackends[CacheIndex], bCacheInFlightPuts));
 		}
 	}
 
@@ -810,4 +808,4 @@ private:
 	bool bHasWritableRemoteBackends;
 };
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore::Hierarchical
