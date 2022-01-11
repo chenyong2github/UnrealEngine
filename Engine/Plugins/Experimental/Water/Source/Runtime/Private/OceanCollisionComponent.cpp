@@ -94,7 +94,7 @@ void UOceanCollisionComponent::UpdateBodySetup(const TArray<FKConvexElem>& Conve
 	for (FKConvexElem& Elem : CachedBodySetup->AggGeom.ConvexElems)
 	{
 		int32 NumHullVerts = Elem.VertexData.Num();
-		TArray<Chaos::FVec3> ConvexVertices;
+		TArray<Chaos::FConvex::FVec3Type> ConvexVertices;
 		ConvexVertices.SetNum(NumHullVerts);
 		for (int32 VertIndex = 0; VertIndex < NumHullVerts; ++VertIndex)
 		{

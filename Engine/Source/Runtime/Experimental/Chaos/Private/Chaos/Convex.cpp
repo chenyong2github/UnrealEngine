@@ -31,7 +31,7 @@ namespace Chaos
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
 		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
 		{
-			const TPlaneConcrete<FReal, 3>& Plane = Planes[Idx];
+			const FPlaneType& Plane = Planes[Idx];
 			const FReal Distance = Plane.SignedDistance(Position);
 			if (FMath::Abs(Distance) < SearchDist)
 			{
@@ -59,7 +59,7 @@ namespace Chaos
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
 		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
 		{
-			const TPlaneConcrete<FReal, 3> Plane = TPlaneConcrete<FReal, 3>::MakeScaledUnsafe(Planes[Idx], Scale);
+			const FPlaneType Plane = FPlaneType::MakeScaledUnsafe(Planes[Idx], Scale);
 			const FReal Distance = Plane.SignedDistance(Position);
 			if (FMath::Abs(Distance) < SearchDist)
 			{
@@ -90,7 +90,7 @@ namespace Chaos
 		TSet<int32> IncludedParticles;
 		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
 		{
-			const TPlaneConcrete<FReal, 3>& Plane = Planes[Idx];
+			const FPlaneType& Plane = Planes[Idx];
 			FReal AbsOfSignedDistance = FMath::Abs(Plane.SignedDistance(Position));
 			if (AbsOfSignedDistance < SearchDist)
 			{
@@ -118,7 +118,7 @@ namespace Chaos
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
 		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
 		{
-			const TPlaneConcrete<FReal, 3>& Plane = Planes[Idx];
+			const FPlaneType& Plane = Planes[Idx];
 			const FReal Dot = FVec3::DotProduct(Plane.Normal(), Normal);
 			if (Dot < MostOpposingDot)
 			{
@@ -138,7 +138,7 @@ namespace Chaos
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
 		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
 		{
-			const TPlaneConcrete<FReal, 3>& Plane = Planes[Idx];
+			const FPlaneType& Plane = Planes[Idx];
 			const FVec3 ScaledNormal = (Plane.Normal() / Scale).GetSafeNormal();
 			const FReal Dot = FVec3::DotProduct(ScaledNormal, Normal);
 			if (Dot < MostOpposingDot)
@@ -285,10 +285,10 @@ namespace Chaos
 		StructureData.SetPlaneVertices(MoveTemp(PlaneVertexIndices), Vertices.Num());
 	}
 
-	void FConvex::MovePlanesAndRebuild(const FReal InDelta)
+	void FConvex::MovePlanesAndRebuild(const FRealType InDelta)
 	{
 		TArray<FPlane4f> NewPlanes;
-		TArray<FVec3> NewPoints;
+		TArray<FVec3Type> NewPoints;
 		NewPlanes.Reserve(Planes.Num());
 
 		// Move all the planes inwards
@@ -300,15 +300,15 @@ namespace Chaos
 
 		// Recalculate the set of points from the intersection of all combinations of 3 planes
 		// There will be NC3 of these (N! / (3! * (N-3)!)
-		const FReal PointTolerance = 1e-2f;
+		const FRealType PointTolerance = 1e-2f;
 		for (int32 PlaneIndex0 = 0; PlaneIndex0 < NewPlanes.Num(); ++PlaneIndex0)
 		{
 			for (int32 PlaneIndex1 = PlaneIndex0 + 1; PlaneIndex1 < NewPlanes.Num(); ++PlaneIndex1)
 			{
 				for (int32 PlaneIndex2 = PlaneIndex1 + 1; PlaneIndex2 < NewPlanes.Num(); ++PlaneIndex2)
 				{
-					FVec3 PlanesPos;
-					if (FMath::IntersectPlanes3<FReal>(PlanesPos, NewPlanes[PlaneIndex0], NewPlanes[PlaneIndex1], NewPlanes[PlaneIndex2]))
+					FVec3Type PlanesPos;
+					if (FMath::IntersectPlanes3<FRealType>(PlanesPos, NewPlanes[PlaneIndex0], NewPlanes[PlaneIndex1], NewPlanes[PlaneIndex2]))
 					{
 						// Reject duplicate points
 						int32 NewPointIndex = INDEX_NONE;
@@ -330,14 +330,14 @@ namespace Chaos
 		}
 
 		// Reject points outside the planes to get down to a sensible number for the build step
-		const FReal PointPlaneTolerance = PointTolerance;
+		const FRealType PointPlaneTolerance = PointTolerance;
 		int32 NumNewPoints = NewPoints.Num();
 		for (int32 PointIndex = 0; PointIndex < NumNewPoints; ++PointIndex)
 		{
 			const int32 NumNewPlanes = NewPlanes.Num();
 			for (int32 PlaneIndex = 0; PlaneIndex < NumNewPlanes; ++PlaneIndex)
 			{
-				const FReal PointPlaneDistance = NewPlanes[PlaneIndex].PlaneDot(NewPoints[PointIndex]);
+				const FRealType PointPlaneDistance = NewPlanes[PlaneIndex].PlaneDot(NewPoints[PointIndex]);
 				if (PointPlaneDistance > PointPlaneTolerance)
 				{
 					NewPoints.RemoveAtSwap(PointIndex);

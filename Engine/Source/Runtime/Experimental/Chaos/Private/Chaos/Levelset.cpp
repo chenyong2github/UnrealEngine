@@ -1486,7 +1486,13 @@ void GetGeomSurfaceSamples(const FCapsule& InGeom, TArray<FVec3>& OutSamples)
 
 void GetGeomSurfaceSamples(const FConvex& InGeom, TArray<FVec3>& OutSamples)
 {
-	OutSamples = InGeom.GetVertices();
+	// because Convex store in single precision we need to convert to FReal precision
+	const TArray<FConvex::FVec3Type>& ConvexVertices = InGeom.GetVertices();
+	OutSamples.Reset(ConvexVertices.Num());
+	for (const FConvex::FVec3Type& Vertex : ConvexVertices)
+	{
+		OutSamples.Add(FVec3{ Vertex }); // conversion from single to double precision
+	}
 }
 
 template<typename InnerT>

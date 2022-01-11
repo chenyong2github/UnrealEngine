@@ -670,7 +670,7 @@ namespace ChaosTest
 					{{768.000000, -448.000000, 3.81469727e-06}, {6.62273836e-09, 6.62273836e-09, -1.00000000}}
 				});
 
-			TArray<FVec3> SurfaceParticles(
+			TArray<FConvex::FVec3Type> SurfaceParticles(
 				{
 					{0.000000000, -1024.00000, 2.84217094e-14},
 					{768.000000, -1024.00000, 2.84217094e-14},
@@ -766,7 +766,7 @@ namespace ChaosTest
 					{{0.000000000,0.000000000,0.000000000},{-0.000000000,0.000000000,1.00000000}}
 					});
 
-				TArray<FVec3> SurfaceParticles(
+				TArray<FConvex::FVec3Type> SurfaceParticles(
 					{
 						{0.000000000,-512.000000,-32.0000000},
 					{512.000000,0.000000000,-32.0000000},
@@ -821,7 +821,7 @@ namespace ChaosTest
 		}
 
 		// Defining boat geom data outside of single test scope as it's used in multiple.
-		const TArray<Chaos::FVec3> BoatSurfaceVertices(
+		const TArray<FConvex::FVec3Type> BoatSurfaceVertices(
 			{
 				{-118.965088, -100.379936, 105.818298},
 				{-128.562881, 80.0933762, 107.703270},
@@ -1031,7 +1031,7 @@ namespace ChaosTest
 					{{0.000000000,0.000000000,0.000000000},{-0.000000000,0.000000000,1.00000000}}
 				});
 
-			TArray<FVec3> GroundSurfaceParticles(
+			TArray<FConvex::FVec3Type> GroundSurfaceParticles(
 				{
 					{0.000000000,-512.000000,-32.0000000},
 					{512.000000,0.000000000,-32.0000000},
@@ -1197,7 +1197,7 @@ namespace ChaosTest
 		GTEST_TEST(EPATests, EPARealFailures_ConvexTrimeshRotationalDifferencesBreakNormal)
 		{
 			using namespace Chaos;
-			TArray<FVec3> ConvexBoxSurfaceParticles(
+			TArray<FConvex::FVec3Type> ConvexBoxSurfaceParticles(
 				{
 				{50.0999985, -50.1124992, -50.1250000},
 				{-50.0999985, 50.1250000, -50.1250000},

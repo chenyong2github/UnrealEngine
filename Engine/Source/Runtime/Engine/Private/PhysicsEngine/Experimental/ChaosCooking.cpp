@@ -163,13 +163,13 @@ namespace Chaos
 					}
 
 					// Create the corner vertices for the convex
-					TArray<FVec3> ConvexVertices;
+					TArray<FConvex::FVec3Type> ConvexVertices;
 					ConvexVertices.SetNumZeroed(NumHullVerts);
 
 					for(int32 VertIndex = 0; VertIndex < NumHullVerts; ++VertIndex)
 					{
 						const FVector& HullVert = HullVerts[VertIndex];
-						ConvexVertices[VertIndex] = FVector(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
+						ConvexVertices[VertIndex] = FConvex::FVec3Type(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
 					}
 
 					// Margin is always zero on convex shapes - they are intended to be instanced

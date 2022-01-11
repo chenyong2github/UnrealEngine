@@ -258,7 +258,7 @@ void UWaterBodyRiverComponent::UpdateSplineMesh(USplineMeshComponent* MeshComp, 
 			for (FKConvexElem& Elem : MeshComp->GetBodySetup()->AggGeom.ConvexElems)
 			{
 				const int32 NumHullVerts = Elem.VertexData.Num();
-				TArray<Chaos::FVec3> ConvexVertices;
+				TArray<Chaos::FConvex::FVec3Type> ConvexVertices;
 				ConvexVertices.SetNum(NumHullVerts);
 				for (int32 VertIndex = 0; VertIndex < NumHullVerts; ++VertIndex)
 				{

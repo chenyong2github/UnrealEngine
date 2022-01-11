@@ -127,12 +127,12 @@ public:
 		return MObject->GetDoCollide();
 	}
 
-	virtual T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const override
+	virtual FReal PhiWithNormal(const FVec3& X, FVec3& Normal) const override
 	{
 		return MObject->PhiWithNormal(X, Normal);
 	}
 
-	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
+	virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override
 	{
 		return MObject->Raycast(StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
 	}
@@ -144,40 +144,40 @@ public:
 		Ar << MObject;
 	}
 
-	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
+	virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override
 	{
 		return MObject->FindMostOpposingFace(Position, UnitDir, HintFaceIndex, SearchDist);
 	}
 
-	virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 HintFaceIndex, const TVector<T, d>& OriginalNormal) const override
+	virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 HintFaceIndex, const FVec3& OriginalNormal) const override
 	{
 		return MObject->FindGeometryOpposingNormal(DenormDir, HintFaceIndex, OriginalNormal);
 	}
 
-	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const override
+	virtual bool Overlap(const FVec3& Point, const FReal Thickness) const override
 	{
 		return MObject->Overlap(Point, Thickness);
 	}
 
 	// The support position from the specified direction
-	FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness, int32& VertexIndex) const
+	FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
 	{
 		return MObject->Support(Direction, Thickness, VertexIndex); 
 	}
 
 	// this shouldn't be called, but is required until we remove the explicit function implementations in CollisionResolution.cpp
-	FORCEINLINE TVector<T, d> SupportScaled(const TVector<T, d>& Direction, const T Thickness, const FVec3& Scale, int32& VertexIndex) const
+	FORCEINLINE FVec3 SupportScaled(const FVec3& Direction, const T Thickness, const FVec3& Scale, int32& VertexIndex) const
 	{
 		return MObject->SupportScaled(Direction, Thickness, Scale, VertexIndex);
 	}
 
 	// The support position from the specified direction, if the shape is reduced by the margin
-	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
+	FORCEINLINE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 	{
 		return MObject->SupportCore(Direction, InMargin, OutSupportDelta, VertexIndex);
 	}
 
-	virtual const TAABB<T, d> BoundingBox() const override 
+	virtual const FAABB3 BoundingBox() const override 
 	{ 
 		return MObject->BoundingBox();
 	}
@@ -388,7 +388,7 @@ public:
 	using ObjectType = typename TChooseClass<bInstanced, TSerializablePtr<TConcrete>, TUniquePtr<TConcrete>>::Result;
 	using FImplicitObject::GetTypeName;
 
-	TImplicitObjectScaled(ObjectType Object, const TVector<T, d>& Scale, T InMargin = 0)
+	TImplicitObjectScaled(ObjectType Object, const FVec3& Scale, FReal InMargin = 0)
 	    : FImplicitObjectScaled(EImplicitObject::HasBoundingBox, Object->GetType())
 	    , MObject(MoveTemp(Object))
 		, MSharedPtrForRefCount(nullptr)
@@ -409,7 +409,7 @@ public:
 		SetScale(Scale);
 	}
 
-	TImplicitObjectScaled(TSharedPtr<TConcrete, ESPMode::ThreadSafe> Object, const TVector<T, d>& Scale, T InMargin = 0)
+	TImplicitObjectScaled(TSharedPtr<TConcrete, ESPMode::ThreadSafe> Object, const FVec3& Scale, FReal InMargin = 0)
 	    : FImplicitObjectScaled(EImplicitObject::HasBoundingBox, Object->GetType())
 	    , MObject(MakeSerializable<TConcrete, ESPMode::ThreadSafe>(Object))
 		, MSharedPtrForRefCount(Object)
@@ -430,7 +430,7 @@ public:
 		SetScale(Scale);
 	}
 
-	TImplicitObjectScaled(ObjectType Object, TUniquePtr<Chaos::FImplicitObject> &&ObjectOwner, const TVector<T, d>& Scale, T InMargin = 0)
+	TImplicitObjectScaled(ObjectType Object, TUniquePtr<Chaos::FImplicitObject> &&ObjectOwner, const FVec3& Scale, FReal InMargin = 0)
 	    : FImplicitObjectScaled(EImplicitObject::HasBoundingBox, Object->GetType())
 	    , MObject(Object)
 		, MSharedPtrForRefCount(nullptr)
@@ -550,34 +550,34 @@ public:
 		return (MObject->GetRadius() > 0.0f) ? Margin : 0.0f;
 	}
 	
-	virtual T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const override
+	virtual FReal PhiWithNormal(const FVec3& X, FVec3& Normal) const override
 	{
 		return MObject->PhiWithNormalScaled(X, MScale, Normal);
 	}
 
-	virtual bool Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
+	virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override
 	{
 		ensure(Length > 0);
 		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
 		ensure(Thickness == 0 || (FMath::IsNearlyEqual(MScale[0], MScale[1]) && FMath::IsNearlyEqual(MScale[0], MScale[2])));	//non uniform turns sphere into an ellipsoid so no longer a raycast and requires a more expensive sweep
 
-		const TVector<T, d> UnscaledStart = MInvScale * StartPoint;
-		const TVector<T, d> UnscaledDirDenorm = MInvScale * Dir;
-		const T LengthScale = UnscaledDirDenorm.Size();
-		if (ensure(LengthScale > TNumericLimits<T>::Min()))
+		const FVec3 UnscaledStart = MInvScale * StartPoint;
+		const FVec3 UnscaledDirDenorm = MInvScale * Dir;
+		const FReal LengthScale = UnscaledDirDenorm.Size();
+		if (ensure(LengthScale > TNumericLimits<FReal>::Min()))
 		{
-			const T LengthScaleInv = 1.f / LengthScale;
-			const T UnscaledLength = Length * LengthScale;
-			const TVector<T, d> UnscaledDir = UnscaledDirDenorm * LengthScaleInv;
+			const FReal LengthScaleInv = FReal(1) / LengthScale;
+			const FReal UnscaledLength = Length * LengthScale;
+			const FVec3 UnscaledDir = UnscaledDirDenorm * LengthScaleInv;
 			
-			TVector<T, d> UnscaledPosition;
-			TVector<T, d> UnscaledNormal;
-			T UnscaledTime;
+			FVec3 UnscaledPosition;
+			FVec3 UnscaledNormal;
+			FReal UnscaledTime;
 
 			if (MObject->Raycast(UnscaledStart, UnscaledDir, UnscaledLength, Thickness * MInvScale[0], UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex))
 			{
 				//We double check that NewTime < Length because of potential precision issues. When that happens we always keep the shortest hit first
-				const T NewTime = LengthScaleInv * UnscaledTime;
+				const FReal NewTime = LengthScaleInv * UnscaledTime;
 				if (NewTime == 0) // Normal/Position output may be uninitialized with TOI 0 so we use ray information for that as the ray origin is likely inside the shape
 				{
 					OutPosition = StartPoint;
@@ -588,7 +588,7 @@ public:
 				else if (NewTime < Length) 
 				{
 					OutPosition = MScale * UnscaledPosition;
-					OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal(TNumericLimits<T>::Min());
+					OutNormal = (MInvScale * UnscaledNormal).GetSafeNormal(TNumericLimits<FReal>::Min());
 					OutTime = NewTime;
 					return true;
 				}
@@ -761,55 +761,55 @@ public:
 	}
 
 
-	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
+	virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override
 	{
-		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), FReal(1), FReal(KINDA_SMALL_NUMBER)));
 		return MObject->FindMostOpposingFaceScaled(Position, UnitDir, HintFaceIndex, SearchDist, MScale);
 	}
 
-	virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 HintFaceIndex, const TVector<T, d>& OriginalNormal) const override
+	virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 HintFaceIndex, const FVec3& OriginalNormal) const override
 	{
 		// @todo(chaos): we need a virtual FindGeometryOpposingNormal. Some types (Convex, Box) can just return the
 		// normal from the face index without needing calculating the unscaled normals.
-		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
+		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), FReal(1), FReal(KINDA_SMALL_NUMBER)));
 
 		// Get unscaled dir and normal
-		const TVector<T, 3> LocalDenormDir = DenormDir * MScale;
-		const TVector<T, 3> LocalOriginalNormalDenorm = OriginalNormal * MScale;
-		const T NormalLengthScale = LocalOriginalNormalDenorm.Size();
-		const TVector<T, 3> LocalOriginalNormal
+		const FVec3 LocalDenormDir = DenormDir * MScale;
+		const FVec3 LocalOriginalNormalDenorm = OriginalNormal * MScale;
+		const FReal NormalLengthScale = LocalOriginalNormalDenorm.Size();
+		const FVec3 LocalOriginalNormal
 			= ensure(NormalLengthScale > SMALL_NUMBER)
 			? LocalOriginalNormalDenorm / NormalLengthScale
-			: TVector<T, d>(0, 0, 1);
+			: FVec3(0, 0, 1);
 
 		// Compute final normal
-		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, HintFaceIndex, LocalOriginalNormal);
-		TVector<T, d> Normal = LocalNormal * MInvScale;
-		FReal NormalLength = Normal.SafeNormalize(TNumericLimits<T>::Min());
+		const FVec3 LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, HintFaceIndex, LocalOriginalNormal);
+		FVec3 Normal = LocalNormal * MInvScale;
+		FReal NormalLength = Normal.SafeNormalize(TNumericLimits<FReal>::Min());
 		if (NormalLength == 0)
 		{
 			CHAOS_ENSURE(false);
-			Normal = TVector<T, 3>(0, 0, 1);
+			Normal = FVec3(0, 0, 1);
 		}
 
 		return Normal;
 	}
 
-	virtual bool Overlap(const TVector<T, d>& Point, const T Thickness) const override
+	virtual bool Overlap(const FVec3& Point, const FReal Thickness) const override
 	{
-		const TVector<T, d> UnscaledPoint = MInvScale * Point;
+		const FVec3 UnscaledPoint = MInvScale * Point;
 
 		// TODO: consider alternative that handles thickness scaling properly in 3D, only works for uniform scaling right now
-		const T UnscaleThickness = MInvScale[0] * Thickness; 
+		const FReal UnscaleThickness = MInvScale[0] * Thickness; 
 
 		return MObject->Overlap(UnscaledPoint, UnscaleThickness);
 	}
 
-	virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const override
+	virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 	{
 		ensure(OuterMargin == 0);	//not supported: do we care?
-		const TVector<T,d> UnscaledStart = MInvScale * StartPoint;
-		const TVector<T, d> UnscaledEnd = MInvScale * EndPoint;
+		const FVec3 UnscaledStart = MInvScale * StartPoint;
+		const FVec3 UnscaledEnd = MInvScale * EndPoint;
 		auto ClosestIntersection = MObject->FindClosestIntersection(UnscaledStart, UnscaledEnd, Thickness);
 		if (ClosestIntersection.Second)
 		{
@@ -818,7 +818,7 @@ public:
 		return ClosestIntersection;
 	}
 
-	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01f) const override
+	virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = FReal(0.01)) const override
 	{
 		const FVec3 UnscaledPoint = MInvScale * Position;
 		const FReal UnscaledSearchDist = SearchDist * MInvScale.Max();	//this is not quite right since it's no longer a sphere, but the whole thing is fuzzy anyway
@@ -834,7 +834,7 @@ public:
 	}
 
 
-	FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness, int32& VertexIndex) const
+	FORCEINLINE_DEBUGGABLE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
 	{
 		// Support_obj(dir) = pt => for all x in obj, pt \dot dir >= x \dot dir
 		// We want Support_objScaled(dir) = Support_obj(dir') where dir' is some modification of dir so we can use the unscaled support function
@@ -842,11 +842,11 @@ public:
 		// But this is the same as pt \dot dir >= dir^T Ax = (dir^TA) x = (A^T dir)^T x
 		//So let dir' = A^T dir.
 		//Since we only support scaling on the principal axes A is a diagonal (and therefore symmetric) matrix and so a simple component wise multiplication is sufficient
-		const TVector<T, d> UnthickenedPt = MObject->Support(Direction * MScale, 0.0f, VertexIndex) * MScale;
-		return Thickness > 0 ? TVector<T, d>(UnthickenedPt + Direction.GetSafeNormal() * Thickness) : UnthickenedPt;
+		const FVec3 UnthickenedPt = MObject->Support(Direction * MScale, 0.0f, VertexIndex) * MScale;
+		return Thickness > 0 ? FVec3(UnthickenedPt + Direction.GetSafeNormal() * Thickness) : UnthickenedPt;
 	}
 
-	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
+	FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 	{
 		return MObject->SupportCoreScaled(Direction, InMargin, MScale, OutSupportDelta, VertexIndex);
 	}
@@ -901,7 +901,7 @@ public:
 		FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
 		FImplicitObject::SerializeImp(Ar);
 		Ar << MObject << MScale << MInvScale;
-		TBox<T,d>::SerializeAsAABB(Ar, MLocalBoundingBox);
+		TBox<FReal,d>::SerializeAsAABB(Ar, MLocalBoundingBox);
 		ensure(OuterMargin == 0);	//not supported: do we care?
 
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
@@ -949,10 +949,10 @@ private:
 
 	void UpdateBounds()
 	{
-		const TAABB<T, d> UnscaledBounds = MObject->BoundingBox();
-		const TVector<T, d> Vector1 = UnscaledBounds.Min() * MScale;
-		MLocalBoundingBox = TAABB<T, d>(Vector1, Vector1);	//need to grow it out one vector at a time in case scale is negative
-		const TVector<T, d> Vector2 = UnscaledBounds.Max() *MScale;
+		const FAABB3 UnscaledBounds = MObject->BoundingBox();
+		const FVec3 Vector1 = UnscaledBounds.Min() * MScale;
+		MLocalBoundingBox = FAABB3(Vector1, Vector1);	//need to grow it out one vector at a time in case scale is negative
+		const FVec3 Vector2 = UnscaledBounds.Max() * MScale;
 		MLocalBoundingBox.GrowToInclude(Vector2);
 	}
 

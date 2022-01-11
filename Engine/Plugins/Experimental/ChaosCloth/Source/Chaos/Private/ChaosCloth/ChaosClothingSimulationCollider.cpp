@@ -205,7 +205,7 @@ void FClothingSimulationCollider::FLODData::Add(
 			BoneIndices[Index] = GetMappedBoneIndex(UsedBoneIndices, Convex.BoneIndex);
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision convex on bone index %d."), BoneIndices[Index]);
 
-			TArray<TPlaneConcrete<FReal, 3>> Planes;
+			TArray<FConvex::FPlaneType> Planes;
 			TArray<TArray<int32>> FaceIndices;
 
 			const int32 NumSurfacePoints = Convex.SurfacePoints.Num();
@@ -238,9 +238,9 @@ void FClothingSimulationCollider::FLODData::Add(
 						UE_LOG(LogChaosCloth, Warning, TEXT("Invalid convex collision: no face indices, this asset might be using a deprecated Apex collision shape."));
 						break;
 					}
-					const FVec3 Normal(static_cast<FVector>(NormalizedPlane));
-					const FVec3 Base = Normal * NormalizedPlane.W * InScale;
-					Planes.Add(TPlaneConcrete<FReal, 3>(Base, Normal));
+					const FConvex::FVec3Type Normal(static_cast<FVector>(NormalizedPlane));
+					const FConvex::FVec3Type Base = Normal * NormalizedPlane.W * InScale;
+					Planes.Add(FConvex::FPlaneType(Base, Normal));
 					FaceIndices.Add(Face.Indices);
 				}
 			}
@@ -250,7 +250,7 @@ void FClothingSimulationCollider::FLODData::Add(
 				check(Planes.Num() == FaceIndices.Num());
 
 				// Retrieve the convex vertices and face indices
-				TArray<FVec3> Vertices;
+				TArray<FConvex::FVec3Type> Vertices;
 				Vertices.SetNum(NumSurfacePoints);
 				for (int32 ParticleIndex = 0; ParticleIndex < NumSurfacePoints; ++ParticleIndex)
 				{
@@ -523,14 +523,14 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				const FConvex& ChaosConvex = ChaosConvexMesh.GetObjectChecked<FConvex>();
 
 				// Copy faces' planes and indices
-				const TArray<TPlaneConcrete<FReal, 3>>& Faces = ChaosConvex.GetFaces();
+				const TArray<FConvex::FPlaneType>& Faces = ChaosConvex.GetFaces();
 				Convex.Faces.SetNum(Faces.Num());
 				for (int32 FaceIndex = 0; FaceIndex < Faces.Num(); ++FaceIndex)
 				{
 					FClothCollisionPrim_ConvexFace& Face = Convex.Faces[FaceIndex];
 
 					// Copy face plane
-					const TPlaneConcrete<FReal, 3>& PlaneConcrete = Faces[FaceIndex];
+					const FConvex::FPlaneType& PlaneConcrete = Faces[FaceIndex];
 					Face.Plane = FPlane(PlaneConcrete.X(), PlaneConcrete.Normal());
 
 					// Copy face indices

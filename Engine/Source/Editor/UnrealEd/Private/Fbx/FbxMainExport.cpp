@@ -3890,7 +3890,7 @@ private:
 		{
 			return;
 		}
-		const TArray<Chaos::TPlaneConcrete<Chaos::FReal, 3>>& Faces = ConvexMesh->GetFaces();
+		const TArray<Chaos::FConvex::FPlaneType>& Faces = ConvexMesh->GetFaces();
 		for (int32 PolyIndex = 0; PolyIndex < Faces.Num(); ++PolyIndex)
 		{
 			FVector Normal = Faces[PolyIndex].Normal().GetSafeNormal();

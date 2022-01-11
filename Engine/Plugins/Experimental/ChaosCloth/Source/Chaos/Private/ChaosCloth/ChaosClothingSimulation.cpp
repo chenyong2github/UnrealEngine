@@ -1182,29 +1182,29 @@ static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const FTaperedCyli
 
 static void DrawConvex(FPrimitiveDrawInterface* PDI, const FConvex& Convex, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
-	const TArray<TPlaneConcrete<FReal, 3>>& Planes = Convex.GetFaces();
+	const TArray<FConvex::FPlaneType>& Planes = Convex.GetFaces();
 	for (int32 PlaneIndex1 = 0; PlaneIndex1 < Planes.Num(); ++PlaneIndex1)
 	{
-		const TPlaneConcrete<FReal, 3>& Plane1 = Planes[PlaneIndex1];
+		const FConvex::FPlaneType& Plane1 = Planes[PlaneIndex1];
 
 		for (int32 PlaneIndex2 = PlaneIndex1 + 1; PlaneIndex2 < Planes.Num(); ++PlaneIndex2)
 		{
-			const TPlaneConcrete<FReal, 3>& Plane2 = Planes[PlaneIndex2];
+			const FConvex::FPlaneType& Plane2 = Planes[PlaneIndex2];
 
 			// Find the two surface points that belong to both Plane1 and Plane2
 			uint32 ParticleIndex1 = INDEX_NONE;
 
-			const TArray<FVec3>& Vertices = Convex.GetVertices();
+			const TArray<FConvex::FVec3Type>& Vertices = Convex.GetVertices();
 			for (int32 ParticleIndex = 0; ParticleIndex < Vertices.Num(); ++ParticleIndex)
 			{
-				const FVec3& X = Vertices[ParticleIndex];
+				const FConvex::FVec3Type& X = Vertices[ParticleIndex];
 
 				if (FMath::Square(Plane1.SignedDistance(X)) < KINDA_SMALL_NUMBER && 
 					FMath::Square(Plane2.SignedDistance(X)) < KINDA_SMALL_NUMBER)
 				{
 					if (ParticleIndex1 != INDEX_NONE)
 					{
-						const FVec3& X1 = Vertices[ParticleIndex1];
+						const FVector X1(Vertices[ParticleIndex1]);
 						const FVector Position1 = Position + Rotation.RotateVector(X1);
 						const FVector Position2 = Position + Rotation.RotateVector(X);
 						DrawLine(PDI, Position1, Position2, Color);

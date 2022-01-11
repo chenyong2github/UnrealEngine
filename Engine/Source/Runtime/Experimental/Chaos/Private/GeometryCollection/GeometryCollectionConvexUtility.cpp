@@ -70,7 +70,7 @@ namespace
 typedef Chaos::TPlaneConcrete<Chaos::FReal, 3> FChaosPlane;
 
 // filter points s.t. they are spaced at least more than SimplificationDistanceThreshold apart (after starting with the 4 'extreme' points to ensure we cover a volume)
-void FilterHullPoints(const TArray<Chaos::FVec3>& InPts, TArray<Chaos::FVec3>& OutPts, double SimplificationDistanceThreshold)
+void FilterHullPoints(const TArray<Chaos::FConvex::FVec3Type>& InPts, TArray<Chaos::FConvex::FVec3Type>& OutPts, double SimplificationDistanceThreshold)
 {
 	if (SimplificationDistanceThreshold > 0)
 	{
@@ -145,21 +145,21 @@ void FilterHullPoints(const TArray<Chaos::FVec3>& InPts, TArray<Chaos::FVec3>& O
 	}
 }
 
-void FilterHullPoints(TArray<Chaos::FVec3>& InOutPts, double SimplificationDistanceThreshold)
+void FilterHullPoints(TArray<Chaos::FConvex::FVec3Type>& InOutPts, double SimplificationDistanceThreshold)
 {
 	if (SimplificationDistanceThreshold > 0)
 	{
-		TArray<Chaos::FVec3> FilteredPts;
+		TArray<Chaos::FConvex::FVec3Type> FilteredPts;
 		FilterHullPoints(InOutPts, FilteredPts, SimplificationDistanceThreshold);
 		InOutPts = MoveTemp(FilteredPts);
 	}
 }
 
-Chaos::FConvex MakeHull(const TArray<Chaos::FVec3>& Pts, double SimplificationDistanceThreshold)
+Chaos::FConvex MakeHull(const TArray<Chaos::FConvex::FVec3Type>& Pts, double SimplificationDistanceThreshold)
 {
 	if (SimplificationDistanceThreshold > 0)
 	{
-		TArray<Chaos::FVec3> FilteredPts;
+		TArray<Chaos::FConvex::FVec3Type> FilteredPts;
 		FilterHullPoints(Pts, FilteredPts, SimplificationDistanceThreshold);
 		
 		return Chaos::FConvex(FilteredPts, KINDA_SMALL_NUMBER);
@@ -172,9 +172,9 @@ Chaos::FConvex MakeHull(const TArray<Chaos::FVec3>& Pts, double SimplificationDi
 
 /// Cut hull with plane, generating the point set of a new hull
 /// @return false if plane did not cut any points on the hull
-bool CutHull(const Chaos::FConvex& HullIn, FChaosPlane Plane, bool KeepSide, TArray<Chaos::FVec3>& HullPtsOut)
+bool CutHull(const Chaos::FConvex& HullIn, FChaosPlane Plane, bool KeepSide, TArray<Chaos::FConvex::FVec3Type>& HullPtsOut)
 {
-	const TArray<Chaos::FVec3>& Vertices = HullIn.GetVertices();
+	const TArray<Chaos::FConvex::FVec3Type>& Vertices = HullIn.GetVertices();
 	const Chaos::FConvexStructureData& HullData = HullIn.GetStructureData();
 	bool bHasOutside = false;
 	for (int VertIdx = 0; VertIdx < Vertices.Num(); VertIdx++)
@@ -223,7 +223,7 @@ bool CutHull(const Chaos::FConvex& HullIn, FChaosPlane Plane, bool KeepSide, TAr
 /// @return false if plane did not cut any points on the hull
 bool SplitHull(const Chaos::FConvex& HullIn, FChaosPlane Plane, bool KeepSide, TArray<Chaos::FVec3>& InsidePtsOut, TArray<Chaos::FVec3>& OutsidePtsOut)
 {
-	const TArray<Chaos::FVec3>& Vertices = HullIn.GetVertices();
+	const TArray<Chaos::FConvex::FVec3Type>& Vertices = HullIn.GetVertices();
 	const Chaos::FConvexStructureData& HullData = HullIn.GetStructureData();
 	bool bHasOutside = false;
 	for (int VertIdx = 0; VertIdx < Vertices.Num(); VertIdx++)
@@ -252,8 +252,8 @@ bool SplitHull(const Chaos::FConvex& HullIn, FChaosPlane Plane, bool KeepSide, T
 		for (int32 PlaneVertexIdx = 0; PlaneVertexIdx < NumPlaneVerts; PlaneVertexIdx++)
 		{
 			int32 NextVertIdx = (PlaneVertexIdx + 1) % NumPlaneVerts;
-			const Chaos::FVec3& V0 = Vertices[HullData.GetPlaneVertex(PlaneIdx, PlaneVertexIdx)];
-			const Chaos::FVec3& V1 = Vertices[HullData.GetPlaneVertex(PlaneIdx, NextVertIdx)];
+			const Chaos::FVec3 V0 = Vertices[HullData.GetPlaneVertex(PlaneIdx, PlaneVertexIdx)];
+			const Chaos::FVec3 V1 = Vertices[HullData.GetPlaneVertex(PlaneIdx, NextVertIdx)];
 			if ((Plane.SignedDistance(V0) < 0) != (Plane.SignedDistance(V1) < 0))
 			{
 				Chaos::Pair<Chaos::FVec3, bool> Res = Plane.FindClosestIntersection(V0, V1, 0);
@@ -476,7 +476,7 @@ void CreateNonoverlappingConvexHulls(
 				return false;
 			}
 			FChaosPlane CutPlane(IdealCenter, IdealNormal);
-			TArray<Chaos::FVec3> CutHullPts;
+			TArray<Chaos::FConvex::FVec3Type> CutHullPts;
 			if (CutHull(*Convexes[ConvexA], CutPlane, true, CutHullPts))
 			{
 				*Convexes[ConvexA] = MakeHull(CutHullPts, SimplificationDistanceThreshold);
@@ -584,7 +584,7 @@ void CreateNonoverlappingConvexHulls(
 			{
 				if (TransformToConvexIndices[Bone].Num() == 0)
 				{
-					TArray<Chaos::FVec3> JoinedHullPts;
+					TArray<Chaos::FConvex::FVec3Type> JoinedHullPts;
 					for (int32 Child : Children[Bone])
 					{
 						for (int32 ConvexIdx : TransformToConvexIndices[Child])
@@ -660,7 +660,7 @@ void CreateNonoverlappingConvexHulls(
 		{
 			if (Depths[Bone] == ProcessDepth && Children[Bone].Num() > 0 && !SkipBone(Bone))
 			{
-				TArray<Chaos::FVec3> JoinedHullPts;
+				TArray<Chaos::FConvex::FVec3Type> JoinedHullPts;
 				for (int32 Child : Children[Bone])
 				{
 					for (int32 ConvexIdx : TransformToConvexIndices[Child])
@@ -694,7 +694,7 @@ void CreateNonoverlappingConvexHulls(
 			// Tentatively create the clipped hulls
 			Chaos::FConvex CutHullA, CutHullB;
 			bool bCreatedA = false, bCreatedB = false;
-			TArray<Chaos::FVec3> CutHullPts;
+			TArray<Chaos::FConvex::FVec3Type> CutHullPts;
 			if (CutHull(*Convexes[ConvexA], CutPlane, true, CutHullPts))
 			{
 				if (CutHullPts.Num() < 4) // immediate reject zero-volume results
@@ -850,7 +850,7 @@ void HullsFromGeometry(
 			int32 VStart = Geometry.VertexStart[GeomIdx];
 			int32 VCount = Geometry.VertexCount[GeomIdx];
 			int32 VEnd = VStart + VCount;
-			TArray<Chaos::FVec3> HullPts;
+			TArray<Chaos::FConvex::FVec3Type> HullPts;
 			HullPts.Reserve(VCount);
 			for (int32 VIdx = VStart; VIdx < VEnd; VIdx++)
 			{
@@ -862,18 +862,18 @@ void HullsFromGeometry(
 			if (Convexes[ConvexIdx]->NumVertices() == 0 && HullPts.Num() > 0)
 			{
 				// if we've failed to make a convex hull, add a tiny bounding box just to ensure every geometry has a hull
-				Chaos::FAABB3 AABB = Convexes[ConvexIdx]->BoundingBox();
-				AABB.Thicken((Chaos::FReal).001);
-				Chaos::FVec3 Min = AABB.Min();
-				Chaos::FVec3 Max = AABB.Max();
+				Chaos::FConvex::FAABB3Type AABB = Convexes[ConvexIdx]->GetLocalBoundingBox();
+				AABB.Thicken(.001f);
+				Chaos::FConvex::FVec3Type Min = AABB.Min();
+				Chaos::FConvex::FVec3Type Max = AABB.Max();
 				HullPts.Add(Min);
 				HullPts.Add(Max);
-				HullPts.Add(Chaos::FVec3(Min.X, Min.Y, Max.Z));
-				HullPts.Add(Chaos::FVec3(Min.X, Max.Y, Max.Z));
-				HullPts.Add(Chaos::FVec3(Max.X, Min.Y, Max.Z));
-				HullPts.Add(Chaos::FVec3(Max.X, Max.Y, Min.Z));
-				HullPts.Add(Chaos::FVec3(Max.X, Min.Y, Min.Z));
-				HullPts.Add(Chaos::FVec3(Min.X, Max.Y, Min.Z));
+				HullPts.Add({Min.X, Min.Y, Max.Z});
+				HullPts.Add({Min.X, Max.Y, Max.Z});
+				HullPts.Add({Max.X, Min.Y, Max.Z});
+				HullPts.Add({Max.X, Max.Y, Min.Z});
+				HullPts.Add({Max.X, Min.Y, Min.Z});
+				HullPts.Add({Min.X, Max.Y, Min.Z});
 				// note: Do not use SimplificationDistanceThreshold for this fixed tiny hull
 				*Convexes[ConvexIdx] = Chaos::FConvex(HullPts, KINDA_SMALL_NUMBER);
 			}
@@ -892,11 +892,11 @@ void TransformHullsToLocal(
 	for (int32 Bone = 0; Bone < TransformToConvexIndices.Num(); Bone++)
 	{
 		FTransform& Transform = GlobalTransformArray[Bone];
-		TArray<Chaos::FVec3> HullPts;
+		TArray<Chaos::FConvex::FVec3Type> HullPts;
 		for (int32 ConvexIdx : TransformToConvexIndices[Bone])
 		{
 			HullPts.Reset();
-			for (const Chaos::FVec3& P : Convexes[ConvexIdx]->GetVertices())
+			for (const Chaos::FConvex::FVec3Type& P : Convexes[ConvexIdx]->GetVertices())
 			{
 				HullPts.Add(Transform.InverseTransformPosition(P));
 			}
@@ -960,7 +960,7 @@ TUniquePtr<Chaos::FConvex> FGeometryCollectionConvexUtility::FindConvexHull(cons
 	int32 VertexCount = GeometryCollection->VertexCount[GeometryIndex];
 	int32 VertexStart = GeometryCollection->VertexStart[GeometryIndex];
 
-	TArray<Chaos::FVec3> Vertices;
+	TArray<Chaos::FConvex::FVec3Type> Vertices;
 	Vertices.SetNum(VertexCount);
 	for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
