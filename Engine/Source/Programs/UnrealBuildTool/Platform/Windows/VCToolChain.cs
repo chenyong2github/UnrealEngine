@@ -1174,10 +1174,7 @@ namespace UnrealBuildTool
 						BaseCompileAction.Arguments.Add("/Bt+ /d2cgsummary");
 					}
 
-					if(EnvVars.ToolChainVersion >= VersionNumber.Parse("14.14.26316"))
-					{
-						BaseCompileAction.Arguments.Add("/d1reportTime");
-					}
+					BaseCompileAction.Arguments.Add("/d1reportTime");
 				}
 			}
 
@@ -1374,7 +1371,7 @@ namespace UnrealBuildTool
 
 				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
-					if (EnvVars.ToolChainVersion >= VersionNumber.Parse("14.27") && Target.WindowsPlatform.Compiler.IsMSVC() && !CompileAction.ForceClFilter)
+					if (Target.WindowsPlatform.Compiler.IsMSVC() && !CompileAction.ForceClFilter)
 					{
 						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.json", SourceFile.Location.GetFileName())));
 					}

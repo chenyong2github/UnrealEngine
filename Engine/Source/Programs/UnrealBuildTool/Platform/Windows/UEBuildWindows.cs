@@ -822,6 +822,8 @@ namespace UnrealBuildTool
 			VersionNumberRange.Parse("11.0.0", "11.999"),
 			VersionNumberRange.Parse("10.0.0", "10.999")
 		};
+		
+		static readonly VersionNumber MinimumClangVersion = new VersionNumber(10, 0, 0);
 
 		/// <summary>
 		/// Ranges of tested compiler toolchains to be used, in order of preference. If multiple toolchains in a range are present, the latest version will be preferred.
@@ -829,8 +831,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly VersionNumberRange[] PreferredVisualCppVersions = new VersionNumberRange[]
 		{
-			VersionNumberRange.Parse("14.24.27905", "14.29.31033") // VS2019 16.2.3 -> 19.1
+			VersionNumberRange.Parse("14.29.30133", "14.29.30136"), // VS2019 16.11.5
 		};
+
+		static readonly VersionNumber MinimumVisualCppVersion = new VersionNumber(14, 29, 30133);
 
 		/// <summary>
 		/// Visual Studio installations
@@ -1376,8 +1380,15 @@ namespace UnrealBuildTool
 
 				int Rank = PreferredClangVersions.TakeWhile(x => !x.Contains(Version)).Count();
 				bool Is64Bit = Is64BitExecutable(CompilerFile);
+
+				string? Error = null;
+				if (Version < MinimumClangVersion)
+				{
+					Error = $"UnrealBuildTool requires at minimum the Clang {MinimumClangVersion} toolchain. Please install a later toolchain from LLVM.";
+				}
+
 				Log.TraceLog("Found Clang toolchain: {0} (Version={1}, Is64Bit={2}, Rank={3})", ToolChainDir, Version, Is64Bit, Rank);
-				ToolChains.Add(new ToolChainInstallation(Version, Rank, Version, Is64Bit, false, null, ToolChainDir, null));
+				ToolChains.Add(new ToolChainInstallation(Version, Rank, Version, Is64Bit, false, Error, ToolChainDir, null));
 			}
 		}
 
@@ -1444,9 +1455,9 @@ namespace UnrealBuildTool
 			int FamilyRank = PreferredVisualCppVersions.TakeWhile(x => !x.Contains(Family)).Count();
 
 			string? Error = null;
-			if (Version >= new VersionNumber(14, 23, 0) && Version < new VersionNumber(14, 23, 28107))
+			if (Version < MinimumVisualCppVersion)
 			{
-				Error = String.Format("The Visual C++ 14.23 toolchain is known to have code-generation issues with UE4. Please install a later toolchain from the Visual Studio installer. See here for more information: https://developercommunity.visualstudio.com/content/problem/734585/msvc-142328019-compilation-bug.html");
+				Error = $"UnrealBuildTool requires at minimum the MSVC {MinimumVisualCppVersion} toolchain. Please install a later toolchain from the Visual Studio installer.";
 			}
 
 			Log.TraceLog("Found Visual Studio toolchain: {0} (Family={1}, FamilyRank={2}, Version={3}, Is64Bit={4}, Preview={5}, Error={6}, Redist={7})", ToolChainDir, Family, FamilyRank, Version, Is64Bit, bPreview, Error != null, RedistDir);
@@ -1520,37 +1531,6 @@ namespace UnrealBuildTool
 		public static bool HasCompiler(WindowsCompiler Compiler)
 		{
 			return FindToolChainInstallations(Compiler).Count > 0;
-		}
-
-		/// <summary>
-		/// Checks if a given Visual C++ toolchain version is compatible with UE4
-		/// </summary>
-		/// <param name="Version">The version number to check</param>
-		/// <returns>True if the toolchain is compatible with UE4</returns>
-		static bool IsCompatibleVisualCppToolChain(VersionNumber Version)
-		{
-			string? Message;
-			return IsCompatibleVisualCppToolChain(Version, out Message);
-		}
-
-		/// <summary>
-		/// Checks if a given Visual C++ toolchain version is compatible with UE4
-		/// </summary>
-		/// <param name="Version">The version number to check</param>
-		/// <param name="Message">Receives a message describing why the toolchain is not compatible</param>
-		/// <returns>True if the toolchain is compatible with UE4</returns>
-		static bool IsCompatibleVisualCppToolChain(VersionNumber Version, [NotNullWhen(false)] out string? Message)
-		{
-			if (Version >= new VersionNumber(14, 23, 0) && Version < new VersionNumber(14, 23, 28107))
-			{
-				Message = String.Format("The Visual C++ 14.23 toolchain is known to have code-generation issues with UE4. Please install an earlier or later toolchain from the Visual Studio installer. See here for more information: https://developercommunity.visualstudio.com/content/problem/734585/msvc-142328019-compilation-bug.html");
-				return false;
-			}
-			else
-			{
-				Message = null;
-				return true;
-			}
 		}
 
 		/// <summary>

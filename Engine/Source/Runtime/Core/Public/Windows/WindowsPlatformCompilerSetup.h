@@ -16,7 +16,7 @@
 //
 // We require at least Visual Studio 2019 to compile
 //
-static_assert(_MSC_VER >= 1924, "Visual Studio 2019 v16.4 or greater is required to build Unreal Engine.");
+static_assert(_MSC_VER >= 1929, "Visual Studio 2019 v16.11 or greater is required to build Unreal Engine.");
 
 //
 // Manually enable all warnings as errors, except ones that are explicitly skipped.
