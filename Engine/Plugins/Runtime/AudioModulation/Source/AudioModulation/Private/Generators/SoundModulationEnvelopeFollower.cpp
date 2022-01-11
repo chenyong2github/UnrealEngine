@@ -3,6 +3,7 @@
 #include "Generators/SoundModulationEnvelopeFollower.h"
 
 #include "Algo/MaxElement.h"
+#include "AudioDefines.h"
 #include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
 #include "AudioModulation.h"
@@ -26,13 +27,25 @@ namespace AudioModulation
 	class AUDIOMODULATION_API FEnvelopeFollowerGenerator : public IGenerator
 	{
 	public:
-		FEnvelopeFollowerGenerator() = default;
-		FEnvelopeFollowerGenerator(const FEnvelopeFollowerGeneratorParams& InGeneratorParams, Audio::FDeviceId InDeviceId)
-			: IGenerator(InDeviceId)
-			, Gain(InGeneratorParams.Gain)
+		FEnvelopeFollowerGenerator(const FEnvelopeFollowerGenerator& InGenerator)
+			: AudioBusPatch(InGenerator.AudioBusPatch)
+			, TempBuffer(InGenerator.TempBuffer)
+			, EnvelopeFollower(InGenerator.EnvelopeFollower)
+			, InitParams(InGenerator.InitParams)
+			, BusId(InGenerator.BusId)
+			, CurrentValue(InGenerator.CurrentValue)
+			, Gain(InGenerator.Gain)
+			, bBypass(InGenerator.bBypass)
+			, bInvert(InGenerator.bInvert)
+			, bBusRequiresPatch(InGenerator.bBusRequiresPatch)
+		{
+		}
+
+		FEnvelopeFollowerGenerator(const FEnvelopeFollowerGeneratorParams& InGeneratorParams)
+			: Gain(InGeneratorParams.Gain)
 			, bBypass(InGeneratorParams.bBypass ? 1 : 0)
 			, bInvert(InGeneratorParams.bInvert ? 1 : 0)
-			, bInitialized(0)
+			, bBusRequiresPatch(1)
 		{
 			if (UAudioBus* AudioBus = InGeneratorParams.AudioBus)
 			{
@@ -40,20 +53,9 @@ namespace AudioModulation
 				InitParams.NumChannels = AudioBus->GetNumChannels();
 			}
 
-			if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-			{
-				FAudioDevice* AudioDevice = DeviceManager->GetAudioDeviceRaw(InDeviceId);
-				if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice))
-				{
-					InitParams.SampleRate = MixerDevice->SampleRate;
-				}
-			}
-
 			InitParams.AttackTimeMsec = InGeneratorParams.AttackTime * 1000.0f;
 			InitParams.ReleaseTimeMsec = InGeneratorParams.ReleaseTime * 1000.0f;
 			InitParams.Mode = Audio::EPeakMode::Peak;
-
-			EnvelopeFollower = Audio::FEnvelopeFollower(InitParams);
 
 			if (bInvert)
 			{
@@ -119,7 +121,7 @@ namespace AudioModulation
 				{
 					BusId = Generator->BusId;
 					Gain = Generator->Gain;
-					bInitialized = false;
+					bBusRequiresPatch = true;
 				}
 			});
 		}
@@ -129,19 +131,21 @@ namespace AudioModulation
 			return CurrentValue;
 		}
 
-		void InitBus()
+		virtual void Init(Audio::FDeviceId InDeviceId) override
 		{
-			if (BusId != INDEX_NONE)
+			if (AudioDeviceId == INDEX_NONE)
 			{
+				AudioDeviceId = InDeviceId;
 				if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 				{
-					FAudioDevice* AudioDevice = DeviceManager->GetAudioDeviceRaw(AudioDeviceId);
+					FAudioDevice* AudioDevice = DeviceManager->GetAudioDeviceRaw(InDeviceId);
 					if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice))
 					{
-						AudioBusPatch = MixerDevice->AddPatchForAudioBus(BusId, Gain);
-						bInitialized = true;
+						InitParams.SampleRate = MixerDevice->SampleRate;
 					}
 				}
+
+				EnvelopeFollower = Audio::FEnvelopeFollower(InitParams);
 			}
 		}
 
@@ -152,9 +156,9 @@ namespace AudioModulation
 
 		virtual void Update(double InElapsed) override
 		{
-			if (!bInitialized)
+			if (bBusRequiresPatch)
 			{
-				InitBus();
+				CreatePatchForBus();
 			}
 
 			if (AudioBusPatch.IsValid() && !AudioBusPatch->IsInputStale())
@@ -178,21 +182,30 @@ namespace AudioModulation
 					MaxValue = FMath::Clamp(*MaxEnvelopePtr, 0.f, 1.f);
 				}
 
-				if (bInvert)
-				{
-					CurrentValue = 1.0f - MaxValue;
-				}
-				else
-				{
-					CurrentValue = MaxValue;
-				}
+				CurrentValue = bInvert ? 1.0f - MaxValue : MaxValue;
 			}
 			else
 			{
-				bInitialized = false;
-				CurrentValue = 0.f;
+				bBusRequiresPatch = true;
+				CurrentValue = bInvert ? 1.f : 0.f;
 			}
 
+		}
+
+		void CreatePatchForBus()
+		{
+			if (BusId != INDEX_NONE)
+			{
+				if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+				{
+					FAudioDevice* AudioDevice = DeviceManager->GetAudioDeviceRaw(AudioDeviceId);
+					if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice))
+					{
+						AudioBusPatch = MixerDevice->AddPatchForAudioBus(BusId, Gain);
+						bBusRequiresPatch = false;
+					}
+				}
+			}
 		}
 
 	private:
@@ -207,13 +220,13 @@ namespace AudioModulation
 		float Gain = 1.0f;
 		uint8 bBypass : 1;
 		uint8 bInvert : 1;
-		uint8 bInitialized : 1;
+		uint8 bBusRequiresPatch : 1;
 	};
 } // namespace AudioModulation
 
-AudioModulation::FGeneratorPtr USoundModulationGeneratorEnvelopeFollower::CreateInstance(Audio::FDeviceId InDeviceId) const
+AudioModulation::FGeneratorPtr USoundModulationGeneratorEnvelopeFollower::CreateInstance() const
 {
 	using namespace AudioModulation;
 
-	return FGeneratorPtr(new FEnvelopeFollowerGenerator(Params, InDeviceId));
+	return FGeneratorPtr(new FEnvelopeFollowerGenerator(Params));
 }

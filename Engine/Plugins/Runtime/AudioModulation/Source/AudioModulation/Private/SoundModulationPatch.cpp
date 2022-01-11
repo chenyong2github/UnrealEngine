@@ -7,8 +7,9 @@
 #include "AudioModulationStatics.h"
 #include "AudioModulationSystem.h"
 #include "SoundControlBus.h"
+#include "SoundModulationParameter.h"
+#include "SoundModulationPatchProxy.h"
 #include "SoundModulationTransform.h"
-#include "SoundModulatorAssetProxy.h"
 
 
 #define LOCTEXT_NAMESPACE "SoundModulationPatch"
@@ -22,13 +23,24 @@ USoundModulationPatch::USoundModulationPatch(const FObjectInitializer& ObjectIni
 TUniquePtr<Audio::IProxyData> USoundModulationPatch::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
 	using namespace AudioModulation;
-	return MakeUnique<TSoundModulatorAssetProxy<USoundModulationPatch>>(*this);
+	return MakeUnique<FSoundModulatorAssetProxy>(*this);
+}
+
+TUniquePtr<Audio::IModulatorSettings> USoundModulationPatch::CreateProxySettings() const
+{
+	using namespace AudioModulation;
+	return TUniquePtr<Audio::IModulatorSettings>(new FModulationPatchSettings(*this));
+}
+
+const Audio::FModulationParameter& USoundModulationPatch::GetOutputParameter() const
+{
+	return AudioModulation::GetOrRegisterParameter(PatchSettings.OutputParameter, *this);
 }
 
 #if WITH_EDITOR
 void USoundModulationPatch::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
 {
-	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+	AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 	{
 		OutModulation.UpdateModulator(*this);
 	});
@@ -38,7 +50,7 @@ void USoundModulationPatch::PostEditChangeProperty(FPropertyChangedEvent& InProp
 
 void USoundModulationPatch::PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent)
 {
-	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+	AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 	{
 		OutModulation.UpdateModulator(*this);
 	});

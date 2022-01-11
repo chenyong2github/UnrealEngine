@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AudioDefines.h"
+#include "AudioModulation.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundSourceInterface.h"
 #include "SoundModulatorAsset.h"
 
 #define LOCTEXT_NAMESPACE "AudioModulationNodes"
@@ -64,13 +68,14 @@ namespace AudioModulation
 			FSoundModulatorAssetReadRef ModulatorReadRef = InputCollection.GetDataReadReferenceOrConstruct<FSoundModulatorAsset>("Modulator");
 			FBoolReadRef NormalizedReadRef = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, "Normalized", InParams.OperatorSettings);
 
-			return MakeUnique<FGetModulatorValueNodeOperator>(InParams.OperatorSettings, ModulatorReadRef, NormalizedReadRef);
+			return MakeUnique<FGetModulatorValueNodeOperator>(InParams, ModulatorReadRef, NormalizedReadRef);
 		}
 
-		FGetModulatorValueNodeOperator(const Metasound::FOperatorSettings& InSettings, const FSoundModulatorAssetReadRef& InModulator, const Metasound::FBoolReadRef& InNormalized)
-			: Modulator(InModulator)
+		FGetModulatorValueNodeOperator(const Metasound::FCreateOperatorParams& InParams, const FSoundModulatorAssetReadRef& InModulator, const Metasound::FBoolReadRef& InNormalized)
+			: DeviceId(InParams.Environment.GetValue<Audio::FDeviceId>(Metasound::Frontend::SourceInterface::Environment::DeviceID))
+			, Modulator(InModulator)
 			, Normalized(InNormalized)
-			, OutValue(Metasound::TDataWriteReferenceFactory<float>::CreateAny(InSettings))
+			, OutValue(Metasound::TDataWriteReferenceFactory<float>::CreateAny(InParams.OperatorSettings))
 		{
 		}
 
@@ -100,28 +105,39 @@ namespace AudioModulation
 		void Execute()
 		{
 			const FSoundModulatorAsset& ModulatorAsset = *Modulator;
-			if (ModulatorAsset.IsValid())
-			{
-				float Value = ModulatorAsset->GetValue();
 
-				if (!*Normalized)
+			// Checks if handle needs refresh.  This can happen if the incoming modulator is changed or nulled.
+			if (ModulatorAsset.GetModulatorId() != ModHandle.GetModulatorId())
+			{
+				if (IAudioModulationManager* InModulation = AudioModulation::GetDeviceModulationManager(DeviceId))
 				{
-					const Audio::FModulationParameter& Parameter = ModulatorAsset->GetParameter();
-					if (Parameter.bRequiresConversion)
-					{
-						Parameter.UnitFunction(Value);
-					}
+					ModHandle = ModulatorAsset->CreateModulatorHandle(*InModulation);
 				}
+			}
 
-				*OutValue = Value;
-			}
-			else
+			float Value = 1.0f;
+			if (ModHandle.IsValid())
 			{
-				*OutValue = 1.0f;
+				ModHandle.GetValueThreadSafe(Value);
 			}
+
+			if (!*Normalized)
+			{
+				const Audio::FModulationParameter& Parameter = ModHandle.GetParameter();
+				if (Parameter.bRequiresConversion)
+				{
+					Parameter.UnitFunction(Value);
+				}
+			}
+
+			*OutValue = Value;
 		}
 
 	private:
+		Audio::FDeviceId DeviceId;
+
+		Audio::FModulatorHandle ModHandle;
+
 		FSoundModulatorAssetReadRef Modulator;
 		Metasound::FBoolReadRef Normalized;
 		Metasound::TDataWriteReference<float> OutValue;

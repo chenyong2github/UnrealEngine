@@ -15,6 +15,7 @@
 #include "Engine/World.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/IConsoleManager.h"
+#include "IAudioModulation.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Parse.h"
@@ -1691,7 +1692,7 @@ namespace Audio
 		Y += FontHeight;
 
 		bool bDisplayedSoundModulationInfo = false;
-		if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
+		if (IAudioModulationManager* Modulation = AudioDevice->ModulationInterface.Get())
 		{
 			const int32 YInit = Y;
 			Y = Modulation->OnRenderStat(Viewport, Canvas, X, Y, *GetStatsFont(), ViewLocation, ViewRotation);
@@ -2317,7 +2318,7 @@ namespace Audio
 
 		if (AudioDevice->IsModulationPluginEnabled())
 		{
-			if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
+			if (IAudioModulationManager* Modulation = AudioDevice->ModulationInterface.Get())
 			{
 				if (!Modulation->OnToggleStat(ViewportClient, Stream))
 				{
@@ -2341,7 +2342,7 @@ namespace Audio
 		{
 			if (AudioDevice->IsModulationPluginEnabled())
 			{
-				if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
+				if (IAudioModulationManager* Modulation = AudioDevice->ModulationInterface.Get())
 				{
 					if (!Modulation->OnPostHelp(ViewportClient, Stream))
 					{

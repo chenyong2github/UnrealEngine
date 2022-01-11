@@ -19,13 +19,13 @@ namespace AudioModulation
 {
 	const FBusMixId InvalidBusMixId = INDEX_NONE;
 
-	FModulatorBusMixStageSettings::FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage, Audio::FDeviceId InDeviceId)
+	FModulatorBusMixStageSettings::FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage)
 		: TModulatorBase<FBusId>(InStage.Bus->GetName(), InStage.Bus->GetUniqueID())
 		, Address(InStage.Bus->Address)
 		, ParamClassId(INDEX_NONE)
 		, ParamId(INDEX_NONE)
 		, Value(InStage.Value)
-		, BusSettings(FControlBusSettings(*InStage.Bus, InDeviceId))
+		, BusSettings(FControlBusSettings(*InStage.Bus))
 	{
 		if (USoundModulationParameter* Parameter = InStage.Bus->Parameter)
 		{
@@ -49,14 +49,14 @@ namespace AudioModulation
 	{
 	}
 
-	FModulatorBusMixSettings::FModulatorBusMixSettings(const USoundControlBusMix& InBusMix, Audio::FDeviceId InDeviceId)
+	FModulatorBusMixSettings::FModulatorBusMixSettings(const USoundControlBusMix& InBusMix)
 		: TModulatorBase<FBusMixId>(InBusMix.GetName(), InBusMix.GetUniqueID())
 	{
 		for (const FSoundControlBusMixStage& Stage : InBusMix.MixStages)
 		{
 			if (Stage.Bus)
 			{
-				Stages.Add(FModulatorBusMixStageSettings(Stage, InDeviceId));
+				Stages.Add(FModulatorBusMixStageSettings(Stage));
 			}
 			else
 			{

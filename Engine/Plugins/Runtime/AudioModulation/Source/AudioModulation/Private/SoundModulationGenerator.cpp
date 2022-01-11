@@ -6,7 +6,7 @@
 #include "AudioModulationLogging.h"
 #include "AudioModulationSystem.h"
 #include "Engine/World.h"
-#include "SoundModulatorAssetProxy.h"
+#include "SoundModulationGeneratorProxy.h"
 #include "Templates/Function.h"
 
 
@@ -34,7 +34,7 @@ void USoundModulationGenerator::PostEditChangeProperty(FPropertyChangedEvent& In
 	// Guards against slamming the modulation system with changes when using sliders.
 	if (InPropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+		AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 		{
 			OutModulation.UpdateModulator(*this);
 		});
@@ -47,7 +47,13 @@ void USoundModulationGenerator::PostEditChangeProperty(FPropertyChangedEvent& In
 TUniquePtr<Audio::IProxyData> USoundModulationGenerator::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
 	using namespace AudioModulation;
-	return MakeUnique<TSoundModulatorAssetProxy<USoundModulationGenerator>>(*this);
+	return MakeUnique<FSoundModulatorAssetProxy>(*this);
+}
+
+TUniquePtr<Audio::IModulatorSettings> USoundModulationGenerator::CreateProxySettings() const
+{
+	using namespace AudioModulation;
+	return TUniquePtr<Audio::IModulatorSettings>(new FModulationGeneratorSettings(*this));
 }
 
 void USoundModulationGenerator::BeginDestroy()
@@ -60,9 +66,9 @@ void USoundModulationGenerator::BeginDestroy()
 		if (AudioDevice.IsValid())
 		{
 			check(AudioDevice->IsModulationPluginEnabled());
-			if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
+			if (IAudioModulationManager* ModulationInterface = AudioDevice->ModulationInterface.Get())
 			{
-				FAudioModulation* Modulation = static_cast<FAudioModulation*>(ModulationInterface);
+				FAudioModulationManager* Modulation = static_cast<FAudioModulationManager*>(ModulationInterface);
 				check(Modulation);
 				Modulation->DeactivateGenerator(*this);
 			}

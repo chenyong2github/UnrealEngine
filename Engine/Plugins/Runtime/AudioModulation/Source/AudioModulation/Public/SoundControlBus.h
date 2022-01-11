@@ -4,7 +4,7 @@
 #include "AudioDefines.h"
 #include "AudioDeviceManager.h"
 #include "AudioDevice.h"
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "IAudioModulation.h"
 #include "SoundModulationGenerator.h"
 #include "SoundModulationParameter.h"
@@ -46,6 +46,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly)
 	USoundModulationParameter* Parameter;
 
+	/* UObject Implementation */
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
@@ -55,18 +56,13 @@ public:
 
 	virtual void BeginDestroy() override;
 
+	/* USoundModulatorBase Implementation */
+	virtual TUniquePtr<Audio::IModulatorSettings> CreateProxySettings() const override;
 	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual const Audio::FModulationParameter& GetOutputParameter() const override;
 
 	const Audio::FModulationMixFunction GetMixFunction() const;
 
 	float GetDefaultNormalizedValue() const { return Parameter ? Parameter->Settings.ValueNormalized : 1.0f; }
 
-	FName GetOutputParameterName() const override
-	{
-		if (Parameter)
-		{
-			return Parameter->GetFName();
-		}
-		return Super::GetOutputParameterName();
-	}
 };

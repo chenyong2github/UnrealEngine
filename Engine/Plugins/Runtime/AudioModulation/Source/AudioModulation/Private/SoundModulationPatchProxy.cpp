@@ -17,6 +17,12 @@ namespace AudioModulation
 {
 	const FPatchId InvalidPatchId = INDEX_NONE;
 
+	Audio::FModulatorTypeId FModulationPatchSettings::Register(Audio::FModulatorHandleId HandleId, IAudioModulationManager& InModulation) const
+	{
+		FAudioModulationSystem& ModSystem = static_cast<FAudioModulationManager&>(InModulation).GetSystem();
+		return ModSystem.RegisterModulator(HandleId, *this);
+	}
+
 	FModulationInputProxy::FModulationInputProxy(FModulationInputSettings&& InSettings, FAudioModulationSystem& OutModSystem)
 		: BusHandle(FBusHandle::Create(MoveTemp(InSettings.BusSettings), OutModSystem.RefProxies.Buses, OutModSystem))
 		, Transform(MoveTemp(InSettings.Transform))
@@ -38,7 +44,7 @@ namespace AudioModulation
 	void FModulationPatchProxy::Init(FModulationPatchSettings&& InSettings, FAudioModulationSystem& OutModSystem)
 	{
 		bBypass = InSettings.bBypass;
-		DefaultValue = InSettings.DefaultOutputValue;
+		DefaultValue = InSettings.OutputParameter.DefaultValue;
 
 		// Cache existing proxies to avoid releasing bus state (and potentially referenced bus state) when reinitializing
 		const TArray<FModulationInputProxy> CachedProxies = InputProxies;
@@ -49,7 +55,7 @@ namespace AudioModulation
 			InputProxies.Emplace(MoveTemp(Input), OutModSystem);
 		}
 
-		OutputProxy = FModulationOutputProxy(InSettings.DefaultOutputValue, MoveTemp(InSettings.MixFunction));
+		OutputProxy = FModulationOutputProxy(InSettings.OutputParameter.DefaultValue, MoveTemp(InSettings.OutputParameter.MixFunction));
 	}
 
 	bool FModulationPatchProxy::IsBypassed() const

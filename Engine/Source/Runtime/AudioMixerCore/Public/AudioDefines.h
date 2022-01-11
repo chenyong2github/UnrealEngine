@@ -1,20 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
-/*=============================================================================
-	AudioDefines.h: Defines for audio system
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 
 
-/** 
+/**
  * Maximum number of channels that can be set using the ini setting
  */
 #define MAX_AUDIOCHANNELS				64
 
-/** 
+/**
  * Length of sound in seconds to be considered as looping forever
  */
 #define INDEFINITELY_LOOPING_DURATION	10000.0f
@@ -53,3 +48,12 @@
  * Debugger is Available on non-shipping builds
  */
 #define ENABLE_AUDIO_DEBUG !UE_BUILD_SHIPPING
+
+/** Common Audio namespace Type Definitions/Identifiers */
+namespace Audio
+{
+	/**
+	 * Typed identifier for Audio Device Id
+	 */
+	using FDeviceId = uint32;
+}

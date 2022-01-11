@@ -8,35 +8,33 @@ namespace AudioModulation
 	const FText PluginAuthor = NSLOCTEXT("AudioModulation", "PluginAuthor", "Epic Games, Inc.");
 	const FText PluginNodeMissingPrompt = NSLOCTEXT("AudioModulation", "DefaultMissingNodePrompt", "The node was likely removed, renamed, or the AudioModulation plugin is not loaded.");
 
-	FSoundModulatorAsset::FSoundModulatorAsset(const Audio::IProxyDataPtr& InInitData)
+	FSoundModulatorAsset::FSoundModulatorAsset(const Audio::IProxyDataPtr& InProxyPtr)
 	{
-		if (!InInitData.IsValid())
+		if (!InProxyPtr.IsValid())
 		{
 			return;
 		}
 
-		if (!ensure(InInitData->CheckTypeCast<FSoundModulatorAssetProxy>()))
+		if (ensure(InProxyPtr->CheckTypeCast<FSoundModulatorAssetProxy>()))
 		{
-			return;
+			FSoundModulatorAssetProxy* ModulatorProxy = static_cast<FSoundModulatorAssetProxy*>(InProxyPtr.Get());
+			Proxy = MakeShared<FSoundModulatorAssetProxy, ESPMode::ThreadSafe>(*ModulatorProxy);
 		}
-
-		FSoundModulatorAssetProxy* NewProxy = static_cast<FSoundModulatorAssetProxy*>(InInitData->Clone().Release());
-		Proxy = TSharedPtr<FSoundModulatorAssetProxy, ESPMode::ThreadSafe>(NewProxy);
 	}
 
-	FSoundModulationParameterAsset::FSoundModulationParameterAsset(const Audio::IProxyDataPtr& InInitData)
+	FSoundModulationParameterAsset::FSoundModulationParameterAsset(const Audio::IProxyDataPtr& InProxyPtr)
 	{
-		if (!InInitData.IsValid())
+		if (!InProxyPtr.IsValid())
 		{
 			return;
 		}
 
-		if (!ensure(InInitData->CheckTypeCast<FSoundModulationParameterAssetProxy>()))
+		if (ensure(InProxyPtr->CheckTypeCast<FSoundModulationParameterAssetProxy>()))
 		{
-			return;
-		}
+			FSoundModulationParameterAssetProxy* ParamProxy = static_cast<FSoundModulationParameterAssetProxy*>(InProxyPtr.Get());
+			check(ParamProxy);
 
-		FSoundModulationParameterAssetProxy* NewProxy = static_cast<FSoundModulationParameterAssetProxy*>(InInitData->Clone().Release());
-		Proxy = TSharedPtr<FSoundModulationParameterAssetProxy, ESPMode::ThreadSafe>(NewProxy);
+			Proxy = MakeShared<FSoundModulationParameterAssetProxy, ESPMode::ThreadSafe>(*ParamProxy);
+		}
 	}
 } // namespace AudioModulation

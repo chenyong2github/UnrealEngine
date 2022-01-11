@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AudioModulation.h"
 #include "IAudioModulation.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundSourceInterface.h"
 #include "SoundModulatorAsset.h"
 
 #define LOCTEXT_NAMESPACE "AudioModulationNodes"
@@ -69,20 +72,21 @@ namespace AudioModulation
 			FSoundModulationParameterAssetReadRef ParameterReadRef = InputCollection.GetDataReadReferenceOrConstruct<FSoundModulationParameterAsset>("MixParameter");
 			FBoolReadRef NormalizedReadRef = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, "Normalized", InParams.OperatorSettings);
 
-			return MakeUnique<FMixModulatorsNodeOperator>(InParams.OperatorSettings, Modulator1ReadRef, Modulator2ReadRef, ParameterReadRef, NormalizedReadRef);
+			return MakeUnique<FMixModulatorsNodeOperator>(InParams, Modulator1ReadRef, Modulator2ReadRef, ParameterReadRef, NormalizedReadRef);
 		}
 
 		FMixModulatorsNodeOperator(
-			const Metasound::FOperatorSettings& InSettings,
+			const Metasound::FCreateOperatorParams& InParams,
 			const FSoundModulatorAssetReadRef& InModulator1,
 			const FSoundModulatorAssetReadRef& InModulator2,
 			const FSoundModulationParameterAssetReadRef& InParameter,
 			const Metasound::FBoolReadRef& InNormalized)
-			: Modulator1(InModulator1)
+			: DeviceId(InParams.Environment.GetValue<Audio::FDeviceId>(Metasound::Frontend::SourceInterface::Environment::DeviceID))
+			, Modulator1(InModulator1)
 			, Modulator2(InModulator2)
 			, Normalized(InNormalized)
 			, Parameter(InParameter)
-			, OutValue(Metasound::TDataWriteReferenceFactory<float>::CreateAny(InSettings))
+			, OutValue(Metasound::TDataWriteReferenceFactory<float>::CreateAny(InParams.OperatorSettings))
 		{
 		}
 
@@ -113,19 +117,30 @@ namespace AudioModulation
 
 		void Execute()
 		{
-			float Value1 = 1.0f;
-			const FSoundModulatorAsset& ModulatorAsset1 = *Modulator1;
-			if (ModulatorAsset1.IsValid())
+			auto UpdateValue = [](const FSoundModulatorAssetReadRef& ReadRef, Audio::FDeviceId InDeviceId, Audio::FModulatorHandle& OutHandle)
 			{
-				Value1 = ModulatorAsset1->GetValue();
-			}
+				float Value = 1.0f;
+				const FSoundModulatorAsset& ModulatorAsset = *ReadRef;
 
-			float Value2 = 1.0f;
-			const FSoundModulatorAsset& ModulatorAsset2 = *Modulator2;
-			if (ModulatorAsset2.IsValid())
-			{
-				Value2 = ModulatorAsset2->GetValue();
-			}
+				// Checks if handle needs refresh.  This can happen if the incoming modulator is changed or nulled.
+				if (ModulatorAsset.GetModulatorId() != OutHandle.GetModulatorId())
+				{
+					if (IAudioModulationManager* InModulation = AudioModulation::GetDeviceModulationManager(InDeviceId))
+					{
+						OutHandle = ModulatorAsset->CreateModulatorHandle(*InModulation);
+					}
+				}
+
+				if (OutHandle.IsValid())
+				{
+					Value = OutHandle.GetValueThreadSafe(Value);
+				}
+
+				return Value;
+			};
+
+			float Value1 = UpdateValue(Modulator1, DeviceId, ModHandle1);
+			const float Value2 = UpdateValue(Modulator2, DeviceId, ModHandle2);
 
 			const FSoundModulationParameterAsset& ParameterAsset = *Parameter;
 			if (ParameterAsset.IsValid())
@@ -141,6 +156,11 @@ namespace AudioModulation
 		}
 
 	private:
+		const Audio::FDeviceId DeviceId;
+
+		Audio::FModulatorHandle ModHandle1;
+		Audio::FModulatorHandle ModHandle2;
+
 		FSoundModulatorAssetReadRef Modulator1;
 		FSoundModulatorAssetReadRef Modulator2;
 		Metasound::FBoolReadRef Normalized;

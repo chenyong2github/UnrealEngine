@@ -3,6 +3,7 @@
 
 #include "Algo/Transform.h"
 #include "AssetRegistryModule.h"
+#include "AudioDeviceManager.h"
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
@@ -35,38 +36,72 @@
 
 #define LOCTEXT_NAMESPACE "MetaSound"
 
-namespace MetaSoundSourcePrivate
+namespace Metasound
 {
-	using FFormatOutputVertexKeyMap = TMap<EMetasoundSourceAudioFormat, TArray<Metasound::FVertexName>>;
-
-	const FFormatOutputVertexKeyMap& GetFormatOutputVertexKeys()
+	namespace SourcePrivate
 	{
-		auto CreateVertexKeyMap = []()
+		using FFormatOutputVertexKeyMap = TMap<EMetasoundSourceAudioFormat, TArray<Metasound::FVertexName>>;
+
+		// Creates a base Metasound Environment that contains basic
+		// data associated with the AudioEngine (non-source/instance specific data).
+		FMetasoundEnvironment CreateEnvironment(UWorld* World)
 		{
-			using namespace Metasound::Frontend;
+			using namespace Frontend;
 
-			return FFormatOutputVertexKeyMap
+			FMetasoundEnvironment Environment;
+			// Add audio device ID to environment.
+			Audio::FDeviceId AudioDeviceID = INDEX_NONE;
+
+			if (World)
 			{
+				FAudioDeviceHandle DeviceHandle = World->GetAudioDevice();
+				if (DeviceHandle.IsValid())
 				{
-					EMetasoundSourceAudioFormat::Mono,
-					{
-						OutputFormatMonoInterface::Outputs::MonoOut
-					}
-				},
-				{
-					EMetasoundSourceAudioFormat::Stereo,
-					{
-						OutputFormatStereoInterface::Outputs::LeftOut,
-						OutputFormatStereoInterface::Outputs::RightOut,
-					}
+					AudioDeviceID = DeviceHandle.GetDeviceID();
 				}
-			};
-		};
-		static const FFormatOutputVertexKeyMap Map = CreateVertexKeyMap();
-		return Map;
-	}
-}
+			}
 
+			if (INDEX_NONE == AudioDeviceID)
+			{
+				if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+				{
+					AudioDeviceID = DeviceManager->GetMainAudioDeviceID();
+				}
+			}
+
+			Environment.SetValue<Audio::FDeviceId>(SourceInterface::Environment::DeviceID, AudioDeviceID);
+
+			return Environment;
+		}
+
+		const FFormatOutputVertexKeyMap& GetFormatOutputVertexKeys()
+		{
+			auto CreateVertexKeyMap = []()
+			{
+				using namespace Metasound::Frontend;
+
+				return FFormatOutputVertexKeyMap
+				{
+					{
+						EMetasoundSourceAudioFormat::Mono,
+						{
+							OutputFormatMonoInterface::Outputs::MonoOut
+						}
+					},
+					{
+						EMetasoundSourceAudioFormat::Stereo,
+						{
+							OutputFormatStereoInterface::Outputs::LeftOut,
+							OutputFormatStereoInterface::Outputs::RightOut,
+						}
+					}
+				};
+			};
+			static const FFormatOutputVertexKeyMap Map = CreateVertexKeyMap();
+			return Map;
+		}
+	} // namespace SourcePrivate
+} // namespace Metasound
 
 FAutoConsoleVariableRef CVarMetaSoundBlockRate(
 	TEXT("au.MetaSound.BlockRate"),
@@ -725,31 +760,9 @@ Metasound::FOperatorSettings UMetaSoundSource::GetOperatorSettings(Metasound::FS
 Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment() const
 {
 	using namespace Metasound;
-	using namespace Metasound::Engine;
 	using namespace Metasound::Frontend;
 
-	FMetasoundEnvironment Environment;
-	// Add audio device ID to environment.
-	Audio::FDeviceId AudioDeviceID = INDEX_NONE;
-
-	if (UWorld* World = GetWorld())
-	{
-		FAudioDeviceHandle DeviceHandle = World->GetAudioDevice();
-		if (DeviceHandle.IsValid())
-		{
-			AudioDeviceID = DeviceHandle.GetDeviceID();
-		}
-	}
-
-	if (INDEX_NONE == AudioDeviceID)
-	{
-		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-		{
-			AudioDeviceID = DeviceManager->GetMainAudioDeviceID();
-		}
-	}
-
-	Environment.SetValue<Audio::FDeviceId>(SourceInterface::Environment::DeviceID, AudioDeviceID);
+	FMetasoundEnvironment Environment = SourcePrivate::CreateEnvironment(GetWorld());
 	Environment.SetValue<uint32>(SourceInterface::Environment::SoundUniqueID, GetUniqueID());
 
 	return Environment;
@@ -786,7 +799,7 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const Audio
 
 const TArray<Metasound::FVertexName>& UMetaSoundSource::GetAudioOutputVertexKeys() const
 {
-	using namespace MetaSoundSourcePrivate;
+	using namespace Metasound::SourcePrivate;
 
 	if (const TArray<Metasound::FVertexName>* ArrayKeys = GetFormatOutputVertexKeys().Find(OutputFormat))
 	{

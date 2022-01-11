@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioDefines.h"
 #include "AudioDeviceManager.h"
 #include "Containers/Queue.h"
 #include "DSP/LFO.h"
@@ -21,22 +22,6 @@ namespace AudioModulation
 	class AUDIOMODULATION_API IGenerator
 	{
 	public:
-		IGenerator() = default;
-		IGenerator(const IGenerator& InGenerator)
-			: AudioDeviceId(InGenerator.AudioDeviceId)
-		{
-		}
-
-		IGenerator(IGenerator&& InGenerator)
-			: AudioDeviceId(InGenerator.AudioDeviceId)
-		{
-		}
-
-		IGenerator(Audio::FDeviceId InDeviceId)
-			: AudioDeviceId(InDeviceId)
-		{
-		}
-
 		virtual ~IGenerator() = default;
 
 		/** Pumps commands from Audio Thread to the generator's modulation processing thread.*/
@@ -55,6 +40,9 @@ namespace AudioModulation
 
 		/** Returns current value of the generator. */
 		virtual float GetValue() const = 0;
+
+		/** (Optional) Initializer step where the generator is provided the associated parent AudioDevice's Id. */
+		virtual void Init(Audio::FDeviceId InDeviceId) { }
 
 		/** Returns whether or not the generator is bypassed. */
 		virtual bool IsBypassed() const = 0;
@@ -78,7 +66,6 @@ namespace AudioModulation
 
 	private:
 		TQueue<TUniqueFunction<void()>> CommandQueue;
-
 	};
 } // namespace AudioModulation
 
@@ -92,12 +79,15 @@ class AUDIOMODULATION_API USoundModulationGenerator : public USoundModulatorBase
 	GENERATED_BODY()
 
 public:
-	virtual AudioModulation::FGeneratorPtr CreateInstance(Audio::FDeviceId AudioDeviceId) const
+	// Create and return pointer to new instance of generator to be processed on the AudioRenderThread.
+	virtual AudioModulation::FGeneratorPtr CreateInstance() const
 	{
 		return nullptr;
 	}
 
+	/* USoundModulatorBase Implementation */
 	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual TUniquePtr<Audio::IModulatorSettings> CreateProxySettings() const override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;

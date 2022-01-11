@@ -10,6 +10,7 @@
 
 #include "SoundModulationParameter.generated.h"
 
+
 USTRUCT(BlueprintType)
 struct AUDIOMODULATION_API FSoundModulationParameterSettings
 {
@@ -110,6 +111,9 @@ public:
 	void RefreshNormalizedValue();
 	void RefreshUnitValue();
 #endif // WITH_EDITOR
+
+	Audio::FModulationParameter CreateParameter() const;
+
 };
 
 // Linearly scaled value between unit minimum and maximum.
@@ -254,13 +258,12 @@ namespace AudioModulation
 	{
 	public:
 		explicit FSoundModulationPluginParameterAssetProxy(USoundModulationParameter* InParameter);
+		FSoundModulationPluginParameterAssetProxy(const FSoundModulationPluginParameterAssetProxy& InProxy) = default;
 
 		virtual Audio::IProxyDataPtr Clone() const override;
 
 		virtual const Audio::FModulationParameter& GetParameter() const override;
-
-	private:
-		Audio::FModulatorHandle ModHandle;
-		Audio::FModulationParameter Parameter;
 	};
+
+	AUDIOMODULATION_API const Audio::FModulationParameter& GetOrRegisterParameter(const USoundModulationParameter* InParameter, const USoundModulatorBase& InReferencingModulator);
 } // namespace AudioModulation
