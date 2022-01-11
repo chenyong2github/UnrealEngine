@@ -6,9 +6,11 @@
 #include "UObject/NoExportTypes.h"
 #include "MLDeformerVizSettings.h"
 #include "MLDeformerInputInfo.h"
+#include "BoneContainer.h"
 #include "RenderCommandFence.h"
 #include "UObject/Object.h"
 #include "RenderResource.h"
+#include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 #include "MLDeformerAsset.generated.h"
 
 // Forward declarations.
@@ -17,6 +19,7 @@ class USkeletalMesh;
 class UGeometryCache;
 class UAnimSequence;
 class UMLDeformerAsset;
+class USkeleton;
 
 /** The activation function to use during the ML Deformer training process. */
 UENUM()
@@ -104,7 +107,9 @@ struct MLDEFORMER_API FMLDeformerMeshMapping
  * In the editor it contains the skeletal mesh and geometry cache that are required to calculate vertex position deltas.
  */
 UCLASS(BlueprintType, hidecategories=Object)
-class MLDEFORMER_API UMLDeformerAsset : public UObject
+class MLDEFORMER_API UMLDeformerAsset 
+	: public UObject
+	, public IBoneReferenceSkeletonProvider
 {
 	GENERATED_BODY()
 
@@ -120,6 +125,12 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~End of UObject interface
+
+
+	//~IBoneReferenceSkeletonProvider interface
+	USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError) override;
+	//~End of IBoneReferenceSkeletonProvider interface
+
 
 #if WITH_EDITOR
 	FText GetGeomCacheErrorText(UGeometryCache* InGeomCache) const;
@@ -139,6 +150,8 @@ public:
 	void UpdateCachedNumVertices();
 	bool IsCompatibleWithNeuralNet() const;
 	FMLDeformerInputInfo CreateInputInfo() const;
+
+	void InitBoneIncludeListToAnimatedBonesOnly();
 #endif
 
 	void InitVertexMap();
@@ -170,6 +183,9 @@ public:
 
 	const UMLDeformerVizSettings* GetVizSettings() const { return VizSettings; }
 	UMLDeformerVizSettings* GetVizSettings() { return VizSettings; }
+
+	TArray<FBoneReference>& GetBoneIncludeList() { return BoneIncludeList; }
+	const TArray<FBoneReference>& GetBoneIncludeList() const { return BoneIncludeList; }
 
 	int32 GetNumFrames() const;
 	int32 GetTrainingFrameLimit() const { return MaxTrainingFrames; }
@@ -313,5 +329,9 @@ public:
 	  * Deltas that are longer than the cutoff value (in units), will be ignored and set to zero length. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Delta Generation", meta = (ClampMin = "0.01"))
 	float DeltaCutoffLength = 30.0f;
+
+	/** The bones to include during training. When none are provided, all bones of the Skeleton will be included. */
+	UPROPERTY(EditAnywhere, Category = "Inputs and Output", meta = (EditCondition = "TrainingInputs == ETrainingInputs::BonesAndCurves || TrainingInputs == ETrainingInputs::BonesOnly"))
+	TArray<FBoneReference> BoneIncludeList;
 #endif // WITH_EDITORONLY_DATA
 };

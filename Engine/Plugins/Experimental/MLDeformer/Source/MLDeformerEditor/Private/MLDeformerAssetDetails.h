@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 #include "AssetRegistry/AssetData.h"
+#include "Input/Reply.h"
 
-class FMLDeformerEditorData;
 class IDetailLayoutBuilder;
 class USkeleton;
+class UMLDeformerAsset;
 
 class FMLDeformerAssetDetails : public IDetailCustomization
 {
@@ -23,13 +24,11 @@ public:
 
 private:
 	bool FilterAnimSequences(const FAssetData& AssetData, USkeleton* Skeleton);
+	FReply OnFilterAnimatedBonesOnly(UMLDeformerAsset* DeformerAsset) const;
 
 private:
 	/** Associated detail layout builder. */
 	IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
-
-	/** A pointer to the editor data. */
-	FMLDeformerEditorData* EditorData = nullptr;
 
 	/** The error text to show in the target mesh category. Empty if no error. */
 	FText TargetMeshErrorText;
