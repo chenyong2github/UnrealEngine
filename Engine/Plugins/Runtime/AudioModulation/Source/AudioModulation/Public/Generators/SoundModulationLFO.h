@@ -66,5 +66,5 @@ public:
 	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (ShowOnlyInnerProperties))
 	FSoundModulationLFOParams Params;
 
-	virtual AudioModulation::FGeneratorPtr CreateInstance(Audio::FDeviceId InDeviceId) const override;
+	virtual AudioModulation::FGeneratorPtr CreateInstance() const override;
 };

@@ -751,6 +751,7 @@ namespace Audio
 		PitchMod.UpdateModulator(InitParams.ModulationSettings.PitchModulationDestination.Modulator);
 
 		FModulationDestination HighpassMod;
+		PitchMod.Init(MixerDevice->DeviceID, FName("Pitch"), false /* bInIsBuffered */);
 		HighpassMod.Init(MixerDevice->DeviceID, FName("HPFCutoffFrequency"), false /* bInIsBuffered */);
 		HighpassMod.UpdateModulator(InitParams.ModulationSettings.HighpassModulationDestination.Modulator);
 
@@ -1492,13 +1493,13 @@ namespace Audio
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
 		AudioMixerThreadCommand([this, SourceId, InHPFFrequency]()
-			{
-				AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+		{
+			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-				FSourceInfo& SourceInfo = SourceInfos[SourceId];
-				SourceInfo.HighpassModulationBase = InHPFFrequency;
-				SourceInfo.bModFiltersUpdated = true;
-			});
+			FSourceInfo& SourceInfo = SourceInfos[SourceId];
+			SourceInfo.HighpassModulationBase = InHPFFrequency;
+			SourceInfo.bModFiltersUpdated = true;
+		});
 	}
 
 	void FMixerSourceManager::SetModVolume(const int32 SourceId, const float InModVolume)
@@ -1523,12 +1524,12 @@ namespace Audio
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 
 		AudioMixerThreadCommand([this, SourceId, InModPitch]()
-			{
-				AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+		{
+			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-				FSourceInfo& SourceInfo = SourceInfos[SourceId];
-				SourceInfo.PitchModulationBase = InModPitch;
-			});
+			FSourceInfo& SourceInfo = SourceInfos[SourceId];
+			SourceInfo.PitchModulationBase = InModPitch;
+		});
 	}
 
 	void FMixerSourceManager::SetSubmixSendInfo(const int32 SourceId, const FMixerSourceSubmixSend& InSubmixSend)

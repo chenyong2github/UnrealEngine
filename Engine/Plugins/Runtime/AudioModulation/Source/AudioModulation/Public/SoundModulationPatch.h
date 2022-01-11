@@ -64,17 +64,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation, meta = (ShowOnlyInnerProperties))
 	FSoundControlModulationPatch PatchSettings;
 
-	virtual FName GetOutputParameterName() const override
-	{
-		if (PatchSettings.OutputParameter)
-		{
-			return PatchSettings.OutputParameter->GetFName();
-		}
-
-		return Super::GetOutputParameterName();
-	}
-
+	/* USoundModulatorBase Implementation */
 	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual const Audio::FModulationParameter& GetOutputParameter() const override;
+
+	virtual TUniquePtr<Audio::IModulatorSettings> CreateProxySettings() const override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;

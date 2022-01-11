@@ -24,7 +24,7 @@
 
 namespace ModDestinationLayoutUtils
 {
-	IAudioModulation* GetEditorModulationInterface()
+	IAudioModulationManager* GetEditorModulationManager()
 	{
 		if (GEditor)
 		{
@@ -43,7 +43,7 @@ namespace ModDestinationLayoutUtils
 
 	bool IsModulationEnabled()
 	{
-		return GetEditorModulationInterface() != nullptr;
+		return GetEditorModulationManager() != nullptr;
 	}
 
 	FName GetParameterNameFromMetaData(const TSharedRef<IPropertyHandle>& InHandle)
@@ -80,23 +80,20 @@ namespace ModDestinationLayoutUtils
 			return false;
 		}
 
-		if (IAudioModulation* ModulationInterface = ModDestinationLayoutUtils::GetEditorModulationInterface())
+		const FName ModParamName = ModBase->GetOutputParameter().ParameterName;
+		const FName DestParamName = ModDestinationLayoutUtils::GetParameterNameFromMetaData(StructPropertyHandle);
+		if (ModParamName != FName() && DestParamName != FName() && ModParamName != DestParamName)
 		{
-			const FName ModParamName = ModBase->GetOutputParameterName();
-			const FName DestParamName = ModDestinationLayoutUtils::GetParameterNameFromMetaData(StructPropertyHandle);
-			if (ModParamName != FName() && DestParamName != FName() && ModParamName != DestParamName)
+			if (OutModParamName)
 			{
-				if (OutModParamName)
-				{
-					*OutModParamName = ModParamName;
-				}
-
-				if (OutDestParamName)
-				{
-					*OutDestParamName = DestParamName;
-				}
-				return true;
+				*OutModParamName = ModParamName;
 			}
+
+			if (OutDestParamName)
+			{
+				*OutDestParamName = DestParamName;
+			}
+			return true;
 		}
 
 		return false;
@@ -126,20 +123,16 @@ namespace ModDestinationLayoutUtils
 		OutParamName = ModDestinationLayoutUtils::GetParameterNameFromMetaData(StructPropertyHandle);
 		if (OutParamName != FName())
 		{
-			// If parameter was provided, it overrides ClampMin/Max.  User data however overrides UIMin/Max if its
-			// in clamp range.
-			if (IAudioModulation* ModulationInterface = ModDestinationLayoutUtils::GetEditorModulationInterface())
+			// If parameter was provided, it overrides ClampMin/Max.  User data however overrides UIMin/Max if its in clamp range.
+			const Audio::FModulationParameter& Parameter = Audio::GetModulationParameter(OutParamName);
+			UIMinValue = Parameter.MinValue;
+			UIMaxValue = Parameter.MaxValue;
+			ClampMinValue = UIMinValue;
+			ClampMaxValue = UIMaxValue;
+			OutUnitDisplayText = Parameter.UnitDisplayName;
+			if (bClampValuesSet)
 			{
-				Audio::FModulationParameter Parameter = ModulationInterface->GetParameter(OutParamName);
-				UIMinValue = Parameter.MinValue;
-				UIMaxValue = Parameter.MaxValue;
-				ClampMinValue = UIMinValue;
-				ClampMaxValue = UIMaxValue;
-				OutUnitDisplayText = Parameter.UnitDisplayName;
-				if (bClampValuesSet)
-				{
-					UE_LOG(LogAudioEditor, Warning, TEXT("ClampMin/Max overridden by AudioModulation plugin asset with ParamName '%s'."), *OutParamName.ToString());
-				}
+				UE_LOG(LogAudioEditor, Warning, TEXT("ClampMin/Max overridden by AudioModulation plugin asset with ParamName '%s'."), *OutParamName.ToString());
 			}
 
 			if (StructPropertyHandle->HasMetaData("UIMin"))
@@ -236,24 +229,15 @@ namespace ModDestinationLayoutUtils
 						float CurrentValue = 0.0f;
 						ValueHandle->GetValue(CurrentValue);
 
-						if (IAudioModulation* ModulationInterface = ModDestinationLayoutUtils::GetEditorModulationInterface())
-						{
-							Audio::FModulationParameter Parameter = ModulationInterface->GetParameter(ParamName);
-								
-							return Parameter.DefaultValue == CurrentValue
-								? EVisibility::Hidden
-								: EVisibility::Visible;
-						}
-
-						return EVisibility::Hidden;
+						const Audio::FModulationParameter& Parameter = Audio::GetModulationParameter(ParamName);
+						return Parameter.DefaultValue == CurrentValue
+							? EVisibility::Hidden
+							: EVisibility::Visible;
 					}))
 					.OnClicked(FOnClicked::CreateLambda([ParamName, ValueHandle]()
 					{
-						if (IAudioModulation* ModulationInterface = ModDestinationLayoutUtils::GetEditorModulationInterface())
-						{
-							Audio::FModulationParameter Parameter = ModulationInterface->GetParameter(ParamName);
-							ValueHandle->SetValue(Parameter.DefaultValue);
-						}
+						Audio::FModulationParameter Parameter = Audio::GetModulationParameter(ParamName);
+						ValueHandle->SetValue(Parameter.DefaultValue);
 
 						return FReply::Handled();
 					}))
@@ -271,14 +255,8 @@ namespace ModDestinationLayoutUtils
 			EnablementHandle->GetValue(bEnabled);
 			if (bEnabled)
 			{
-				Audio::FModulationParameter Parameter;
-
-				if (IAudioModulation* ModulationInterface = ModDestinationLayoutUtils::GetEditorModulationInterface())
-				{
-					const FName ParamName = ModDestinationLayoutUtils::GetParameterNameFromMetaData(StructPropertyHandle);
-					Parameter = ModulationInterface->GetParameter(ParamName);
-				}
-
+				const FName ParamName = ModDestinationLayoutUtils::GetParameterNameFromMetaData(StructPropertyHandle);
+				const Audio::FModulationParameter& Parameter = Audio::GetModulationParameter(ParamName);
 				ValueHandle->SetValue(Parameter.DefaultValue);
 			}
 			else

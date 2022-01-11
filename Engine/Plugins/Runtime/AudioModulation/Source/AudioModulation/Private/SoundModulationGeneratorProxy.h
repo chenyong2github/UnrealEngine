@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioDefines.h"
 #include "AudioDeviceManager.h"
+#include "IAudioModulation.h"
 #include "SoundModulationGenerator.h"
 #include "SoundModulationProxy.h"
 
@@ -21,15 +23,15 @@ namespace AudioModulation
 	using FGeneratorProxyMap = TMap<FGeneratorId, FModulatorGeneratorProxy>;
 	using FGeneratorHandle = TProxyHandle<FGeneratorId, FModulatorGeneratorProxy, FModulationGeneratorSettings>;
 
-	struct FModulationGeneratorSettings : public TModulatorBase<FGeneratorId>
+	struct FModulationGeneratorSettings : public TModulatorBase<FGeneratorId>, public Audio::IModulatorSettings
 	{
 		FGeneratorPtr Generator;
 
 		FModulationGeneratorSettings() = default;
 
-		FModulationGeneratorSettings(const USoundModulationGenerator& InGenerator, Audio::FDeviceId InDeviceId)
+		FModulationGeneratorSettings(const USoundModulationGenerator& InGenerator)
 			: TModulatorBase<FGeneratorId>(InGenerator.GetName(), InGenerator.GetUniqueID())
-			, Generator(InGenerator.CreateInstance(InDeviceId))
+			, Generator(InGenerator.CreateInstance())
 		{
 		}
 
@@ -44,6 +46,20 @@ namespace AudioModulation
 			, Generator(MoveTemp(InSettings.Generator))
 		{
 		}
+
+		virtual TUniquePtr<IModulatorSettings> Clone() const override
+		{
+			return TUniquePtr<IModulatorSettings>(new FModulationGeneratorSettings(*this));
+		}
+
+
+		virtual Audio::FModulatorId GetModulatorId() const override
+		{
+			return static_cast<Audio::FModulatorId>(GetId());
+		}
+
+		virtual const Audio::FModulationParameter& GetOutputParameter() const override;
+		virtual Audio::FModulatorTypeId Register(Audio::FModulatorHandleId HandleId, IAudioModulationManager& InModulation) const override;
 	};
 
 	class FModulatorGeneratorProxy : public TModulatorProxyRefType<FGeneratorId, FModulatorGeneratorProxy, FModulationGeneratorSettings>
@@ -59,6 +75,11 @@ namespace AudioModulation
 		float GetValue() const
 		{
 			return Generator->GetValue();
+		}
+
+		void Init(Audio::FDeviceId InDeviceId)
+		{
+			Generator->Init(InDeviceId);
 		}
 
 		bool IsBypassed() const

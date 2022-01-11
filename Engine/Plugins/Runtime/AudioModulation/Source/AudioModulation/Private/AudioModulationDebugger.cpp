@@ -24,7 +24,7 @@ namespace AudioModulation
 {
 	namespace Debug
 	{
-		using FDebugViewUpdateFunction = TUniqueFunction<void(FAudioModulation& /*InModulation*/, const FString* /*InFilter*/)>;
+		using FDebugViewUpdateFunction = TUniqueFunction<void(FAudioModulationManager& /*InModulation*/, const FString* /*InFilter*/)>;
 		void UpdateObjectFilter(const TArray<FString>& Args, UWorld* World, FDebugViewUpdateFunction InUpdateViewFunc)
 		{
 			if (!World)
@@ -46,9 +46,9 @@ namespace AudioModulation
 					GEngine->Exec(World, TEXT("au.Debug.SoundModulators 1"));
 				}
 
-				if (IAudioModulation* Modulation = DeviceHandle->ModulationInterface.Get())
+				if (IAudioModulationManager* Modulation = DeviceHandle->ModulationInterface.Get())
 				{
-					FAudioModulation& ModulationImpl = *static_cast<FAudioModulation*>(Modulation);
+					FAudioModulationManager& ModulationImpl = *static_cast<FAudioModulationManager*>(Modulation);
 					InUpdateViewFunc(ModulationImpl, FilterString);
 				}
 			}
@@ -72,7 +72,7 @@ static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugBuses(
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		using namespace AudioModulation;
-		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulationManager& InModulation, const FString* InFilter)
 		{
 			InModulation.SetDebugBusFilter(InFilter);
 		});
@@ -85,7 +85,7 @@ static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugMixes(
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		using namespace AudioModulation;
-		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulationManager& InModulation, const FString* InFilter)
 		{
 			InModulation.SetDebugMixFilter(InFilter);
 		});
@@ -98,7 +98,7 @@ static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugMatrix(
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		using namespace AudioModulation;
-		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulationManager& InModulation, const FString* InFilter)
 		{
 			if (InFilter)
 			{
@@ -116,7 +116,7 @@ static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationSetDebugGeneratorF
 	{
 		using namespace AudioModulation;
 
-		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulationManager& InModulation, const FString* InFilter)
 		{
 			InModulation.SetDebugGeneratorFilter(InFilter);
 		});
@@ -136,7 +136,7 @@ static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationSetDebugGeneratorF
 		{
 			bEnabled = Args[1].ToBool();
 		}
-		Debug::UpdateObjectFilter(Args, World, [bEnabled](FAudioModulation& InModulation, const FString* InFilter)
+		Debug::UpdateObjectFilter(Args, World, [bEnabled](FAudioModulationManager& InModulation, const FString* InFilter)
 		{
 			InModulation.SetDebugGeneratorTypeFilter(InFilter, bEnabled);
 		});
@@ -149,7 +149,7 @@ static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugEnableGenerat
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 	{
 		using namespace AudioModulation;
-		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulationManager& InModulation, const FString* InFilter)
 		{
 			if (InFilter)
 			{

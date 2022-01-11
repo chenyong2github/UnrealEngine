@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "Engine/DeveloperSettings.h"
+#include "Misc/Build.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPath.h"
+#include "UObject/UnrealType.h"
 
 #include "AudioModulationSettings.generated.h"
 
@@ -19,4 +19,10 @@ public:
 	// Array of loaded Modulation Parameters
 	UPROPERTY(config, EditAnywhere, Category = "Parameters", meta = (AllowedClasses = "SoundModulationParameter"))
 	TArray<FSoftObjectPath> Parameters;
+
+	void RegisterParameters() const;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 };

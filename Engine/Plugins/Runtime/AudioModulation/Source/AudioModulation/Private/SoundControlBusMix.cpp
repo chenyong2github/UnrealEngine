@@ -48,9 +48,9 @@ void USoundControlBusMix::BeginDestroy()
 		{
 			if (AudioDevice->IsModulationPluginEnabled())
 			{
-				if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
+				if (IAudioModulationManager* ModulationInterface = AudioDevice->ModulationInterface.Get())
 				{
-					FAudioModulation* Modulation = static_cast<FAudioModulation*>(ModulationInterface);
+					FAudioModulationManager* Modulation = static_cast<FAudioModulationManager*>(ModulationInterface);
 					check(Modulation);
 					Modulation->DeactivateBusMix(*this);
 				}
@@ -61,7 +61,7 @@ void USoundControlBusMix::BeginDestroy()
 
 void USoundControlBusMix::ActivateMix()
 {
-	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+	AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 	{
 		OutModulation.ActivateBusMix(*this);
 	});
@@ -69,7 +69,7 @@ void USoundControlBusMix::ActivateMix()
 
 void USoundControlBusMix::DeactivateMix()
 {
-	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+	AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 	{
 		OutModulation.DeactivateBusMix(*this);
 	});
@@ -77,7 +77,7 @@ void USoundControlBusMix::DeactivateMix()
 
 void USoundControlBusMix::DeactivateAllMixes()
 {
-	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+	AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 	{
 		OutModulation.DeactivateAllBusMixes();
 	});
@@ -147,7 +147,7 @@ void USoundControlBusMix::OnPropertyChanged(FProperty* Property, EPropertyChange
 		}
 	}
 
-	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+	AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 	{
 		OutModulation.UpdateMix(*this);
 	});
@@ -175,7 +175,7 @@ void USoundControlBusMix::SaveMixToProfile()
 
 void USoundControlBusMix::SoloMix()
 {
-	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
+	AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 	{
 		OutModulation.SoloBusMix(*this);
 	});

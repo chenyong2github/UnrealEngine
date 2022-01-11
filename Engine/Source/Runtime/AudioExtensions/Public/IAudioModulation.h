@@ -5,7 +5,6 @@
 #include "DSP/BufferVectorOperations.h"
 #include "IAudioExtensionPlugin.h"
 #include "IAudioProxyInitializer.h"
-#include "Internationalization/Text.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 
@@ -13,7 +12,7 @@
 
 
 // Forward Declarations
-class IAudioModulation;
+class IAudioModulationManager;
 class ISoundModulatable;
 class USoundModulatorBase;
 class UObject;
@@ -77,11 +76,37 @@ namespace Audio
 		static const FModulationNormalizedConversionFunction& GetDefaultNormalizedConversionFunction();
 	};
 
-	/** Handle to a modulator which interacts with the modulation API to manage lifetime of internal objects */
+	AUDIOEXTENSIONS_API bool IsModulationParameterRegistered(FName InName);
+	AUDIOEXTENSIONS_API void RegisterModulationParameter(FName InName, FModulationParameter&& InParameter);
+	AUDIOEXTENSIONS_API bool UnregisterModulationParameter(FName InName);
+	AUDIOEXTENSIONS_API void UnregisterAllModulationParameters();
+	AUDIOEXTENSIONS_API const FModulationParameter& GetModulationParameter(FName InName);
+
+	/** Interface for cached off Modulator UObject data used as default settings to
+	  * be converted to instanced proxy data per AudioDevice on the AudioRenderThread.
+	  * If proxy is already active, implementation is expected to ignore register call
+	  * and return existing modulator proxy's type Id & set parameter accordingly.
+	  */
+	class AUDIOEXTENSIONS_API IModulatorSettings
+	{
+	public:
+		virtual ~IModulatorSettings() = default;
+		virtual TUniquePtr<IModulatorSettings> Clone() const = 0;
+		virtual FModulatorId GetModulatorId() const = 0;
+		virtual const Audio::FModulationParameter& GetOutputParameter() const = 0;
+		virtual Audio::FModulatorTypeId Register(
+			Audio::FModulatorHandleId HandleId,
+			IAudioModulationManager& InModulation) const = 0;
+	};
+
+	/** Handle to a modulator which interacts with the modulation API to manage lifetime
+	  * of modulator proxy objects internal to modulation plugin implementation.
+	  */
 	struct AUDIOEXTENSIONS_API FModulatorHandle
 	{
 		FModulatorHandle() = default;
-		FModulatorHandle(IAudioModulation& InModulation, const USoundModulatorBase* InModulatorBase, FName InParameterName);
+		FModulatorHandle(Audio::FModulationParameter&& InParameter);
+		FModulatorHandle(IAudioModulationManager& InModulation, const Audio::IModulatorSettings& InModulatorSettings, Audio::FModulationParameter&& InParameter);
 		FModulatorHandle(const FModulatorHandle& InOther);
 		FModulatorHandle(FModulatorHandle&& InOther);
 
@@ -103,18 +128,15 @@ namespace Audio
 		FModulatorHandleId HandleId = INDEX_NONE;
 		FModulatorTypeId ModulatorTypeId = INDEX_NONE;
 		FModulatorId ModulatorId = INDEX_NONE;
-		TWeakPtr<IAudioModulation> Modulation;
+		TWeakPtr<IAudioModulationManager> Modulation;
 	};
 } // namespace Audio
 
-class AUDIOEXTENSIONS_API IAudioModulation : public TSharedFromThis<IAudioModulation>
+class AUDIOEXTENSIONS_API IAudioModulationManager : public TSharedFromThis<IAudioModulationManager>
 {
 public:
 	/** Virtual destructor */
-	virtual ~IAudioModulation() { }
-
-	/** Returns parameter info for the given parameter name */
-	virtual Audio::FModulationParameter GetParameter(FName InParamName) { return Audio::FModulationParameter(); }
+	virtual ~IAudioModulationManager() { }
 
 	/** Initialize the modulation plugin with the same rate and number of sources */
 	virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) { }
@@ -142,7 +164,6 @@ public:
 	virtual void UpdateModulator(const USoundModulatorBase& InModulator) { }
 
 protected:
-	virtual Audio::FModulatorTypeId RegisterModulator(uint32 InHandleId, const USoundModulatorBase* InModulatorBase, Audio::FModulationParameter& OutParameter) { return INDEX_NONE; }
 	virtual void RegisterModulator(uint32 InHandleId, Audio::FModulatorId InModulatorId) { }
 
 	// Get the modulator value from the AudioRender Thread
@@ -165,14 +186,12 @@ class AUDIOEXTENSIONS_API USoundModulatorBase : public UObject, public IAudioPro
 	GENERATED_BODY()
 
 public:
-	virtual FName GetOutputParameterName() const
-	{
-		return FName();
-	}
+	virtual const Audio::FModulationParameter& GetOutputParameter() const;
 
 	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
-};
 
+	virtual TUniquePtr<Audio::IModulatorSettings> CreateProxySettings() const;
+};
 
 /** Proxy to modulator, allowing for modulator to be referenced by the Audio Render Thread independently
   * from the implementing modulation plugin (ex. for MetaSound implementation).
@@ -182,21 +201,40 @@ class AUDIOEXTENSIONS_API FSoundModulatorAssetProxy : public Audio::TProxyData<F
 public:
 	IMPL_AUDIOPROXY_CLASS(FSoundModulatorAssetProxy);
 
-	virtual Audio::IProxyDataPtr Clone() const override
+	FSoundModulatorAssetProxy(const FSoundModulatorAssetProxy& InAssetProxy)
+		: Parameter(InAssetProxy.Parameter)
+		, ModulatorSettings(InAssetProxy.ModulatorSettings.IsValid() ? InAssetProxy.ModulatorSettings->Clone() : nullptr)
 	{
-		return Audio::IProxyDataPtr();
 	}
 
-	virtual float GetValue() const
+	FSoundModulatorAssetProxy(const USoundModulatorBase& InModulatorBase)
+		: Parameter(InModulatorBase.GetOutputParameter())
+		, ModulatorSettings(InModulatorBase.CreateProxySettings())
 	{
-		return 1.0f;
 	}
 
-	virtual const Audio::FModulationParameter& GetParameter() const
+	virtual Audio::IProxyDataPtr Clone() const
 	{
-		static const Audio::FModulationParameter DefaultParam;
-		return DefaultParam;
+		return MakeUnique<FSoundModulatorAssetProxy>(*this);
 	}
+
+	virtual Audio::FModulatorHandle CreateModulatorHandle(IAudioModulationManager& InModulation) const
+	{
+		check(ModulatorSettings.IsValid());
+
+		Audio::FModulationParameter HandleParameter = Parameter;
+		return Audio::FModulatorHandle(InModulation, *ModulatorSettings.Get(), MoveTemp(HandleParameter));
+	}
+
+	virtual Audio::FModulatorId GetModulatorId() const
+	{
+		check(ModulatorSettings.IsValid())
+		return ModulatorSettings->GetModulatorId();
+	}
+
+protected:
+	Audio::FModulationParameter Parameter;
+	TUniquePtr<Audio::IModulatorSettings> ModulatorSettings;
 };
 using FSoundModulatorAssetProxyPtr = TSharedPtr<FSoundModulatorAssetProxy, ESPMode::ThreadSafe>;
 
@@ -218,10 +256,14 @@ public:
 		static const Audio::FModulationParameter DefaultParam;
 		return DefaultParam;
 	}
+
+	protected:
+	Audio::FModulatorHandle ModHandle;
+	Audio::FModulationParameter Parameter;
 };
 using FSoundModulationParameterAssetProxyPtr = TSharedPtr<FSoundModulationParameterAssetProxy, ESPMode::ThreadSafe>;
 
-/** Interface to sound that is modulateable, allowing for certain specific
+/** Interface to sound that is modulatable, allowing for certain specific
   * behaviors to be controlled on the sound level by the modulation system.
   */
 class AUDIOEXTENSIONS_API ISoundModulatable

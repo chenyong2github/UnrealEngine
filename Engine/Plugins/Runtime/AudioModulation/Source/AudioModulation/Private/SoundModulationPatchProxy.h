@@ -23,15 +23,15 @@ namespace AudioModulation
 		FSoundModulationTransform Transform;
 		uint8 bSampleAndHold : 1;
 
-		FModulationInputSettings(const FSoundControlModulationInput& InInput, Audio::FDeviceId InDeviceId)
-			: BusSettings(InInput.GetBusChecked(), InDeviceId)
+		FModulationInputSettings(const FSoundControlModulationInput& InInput)
+			: BusSettings(InInput.GetBusChecked())
 			, Transform(InInput.Transform)
 			, bSampleAndHold(InInput.bSampleAndHold)
 		{
 		}
 
-		FModulationInputSettings(FSoundControlModulationInput&& InInput, Audio::FDeviceId InDeviceId)
-			: BusSettings(InInput.GetBusChecked(), InDeviceId)
+		FModulationInputSettings(FSoundControlModulationInput&& InInput)
+			: BusSettings(InInput.GetBusChecked())
 			, Transform(MoveTemp(InInput.Transform))
 			, bSampleAndHold(InInput.bSampleAndHold)
 		{
@@ -70,65 +70,46 @@ namespace AudioModulation
 		float DefaultValue = 1.0f;
 	};
 
-	struct FModulationPatchSettings : public TModulatorBase<FPatchId>
+	struct FModulationPatchSettings : public TModulatorBase<FPatchId>, public Audio::IModulatorSettings
 	{
-		float DefaultOutputValue = 1.0f;
-
 		TArray<FModulationInputSettings> InputSettings;
 		bool bBypass = true;
 
-		/** Function used to mix patch inputs together */
-		Audio::FModulationMixFunction MixFunction;
+		Audio::FModulationParameter OutputParameter;
 
-		FModulationPatchSettings()
-			: MixFunction(Audio::FModulationParameter::GetDefaultMixFunction())
-		{
-		}
+		FModulationPatchSettings() = default;
+		FModulationPatchSettings(const FModulationPatchSettings& InPatchSettings) = default;
 
-		FModulationPatchSettings(const FSoundControlModulationPatch& InPatch, Audio::FDeviceId InDeviceId)
-			: bBypass(InPatch.bBypass)
-		{
-			if (InPatch.OutputParameter)
-			{
-				DefaultOutputValue = InPatch.OutputParameter->Settings.ValueNormalized;
-				MixFunction = InPatch.OutputParameter->GetMixFunction();
-			}
-			else
-			{
-				MixFunction = Audio::FModulationParameter::GetDefaultMixFunction();
-			}
-
-			for (const FSoundControlModulationInput& Input : InPatch.Inputs)
-			{
-				if (Input.GetBus())
-				{
-					InputSettings.Emplace(Input, InDeviceId);
-				}
-			}
-		}
-
-		FModulationPatchSettings(const USoundModulationPatch& InPatch, Audio::FDeviceId InDeviceId)
+		FModulationPatchSettings(const USoundModulationPatch& InPatch)
 			: TModulatorBase<FPatchId>(InPatch.GetName(), InPatch.GetUniqueID())
 			, bBypass(InPatch.PatchSettings.bBypass)
+			, OutputParameter(InPatch.GetOutputParameter())
 		{
-			if (USoundModulationParameter* Parameter = InPatch.PatchSettings.OutputParameter)
-			{
-				DefaultOutputValue = Parameter->Settings.ValueNormalized;
-				MixFunction = Parameter->GetMixFunction();
-			}
-			else
-			{
-				MixFunction = Audio::FModulationParameter::GetDefaultMixFunction();
-			}
-
 			for (const FSoundControlModulationInput& Input : InPatch.PatchSettings.Inputs)
 			{
 				if (Input.GetBus())
 				{
-					InputSettings.Emplace(Input, InDeviceId);
+					InputSettings.Add(FModulationInputSettings(Input));
 				}
 			}
 		}
+
+		virtual TUniquePtr<IModulatorSettings> Clone() const override
+		{
+			return TUniquePtr<IModulatorSettings>(new FModulationPatchSettings(*this));
+		}
+
+		virtual Audio::FModulatorId GetModulatorId() const override
+		{
+			return static_cast<Audio::FModulatorId>(GetId());
+		}
+
+		virtual const Audio::FModulationParameter& GetOutputParameter() const override
+		{
+			return OutputParameter;
+		}
+
+		virtual Audio::FModulatorTypeId Register(Audio::FModulatorHandleId HandleId, IAudioModulationManager& InAudioModulation) const override;
 	};
 
 	class FModulationPatchProxy

@@ -24,7 +24,7 @@ namespace AudioModulation
 	class FModulatorBusMixStageSettings : public TModulatorBase<FBusId>
 	{
 	public:
-		FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage, Audio::FDeviceId InDeviceId);
+		FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage);
 
 		FString Address;
 		uint32 ParamClassId = INDEX_NONE;
@@ -36,7 +36,7 @@ namespace AudioModulation
 	class FModulatorBusMixSettings : public TModulatorBase<FBusMixId>
 	{
 	public:
-		FModulatorBusMixSettings(const USoundControlBusMix& InBusMix, Audio::FDeviceId InDeviceId);
+		FModulatorBusMixSettings(const USoundControlBusMix& InBusMix);
 		FModulatorBusMixSettings(FModulatorBusMixSettings&& InSettings);
 
 		TArray<FModulatorBusMixStageSettings> Stages;

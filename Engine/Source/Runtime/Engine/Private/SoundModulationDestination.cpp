@@ -72,6 +72,7 @@ namespace Audio
 		ValueTarget = MoveTemp(InModulationDestination.ValueTarget);
 		bIsBuffered = MoveTemp(InModulationDestination.bIsBuffered);
 		bValueNormalized = MoveTemp(InModulationDestination.bValueNormalized);
+		bHasProcessed = MoveTemp(InModulationDestination.bHasProcessed);
 		OutputBuffer = MoveTemp(InModulationDestination.OutputBuffer);
 		{
 			FScopeLock OtherLock(&InModulationDestination.HandleCritSection);
@@ -79,15 +80,18 @@ namespace Audio
 			Handle = MoveTemp(InModulationDestination.Handle);
 		}
 
+
 		ParameterName = MoveTemp(InModulationDestination.ParameterName);
 
 		return *this;
 	}
 
-	void FModulationDestination::ClearHandle()
+	void FModulationDestination::ResetHandle()
 	{
+		Audio::FModulationParameter Parameter = Audio::GetModulationParameter(ParameterName);
+
 		FScopeLock Lock(&HandleCritSection);
-		Handle = FModulatorHandle();
+		Handle = FModulatorHandle(MoveTemp(Parameter));
 	}
 
 	void FModulationDestination::Init(FDeviceId InDeviceId, bool bInIsBuffered, bool bInValueNormalized)
@@ -104,7 +108,7 @@ namespace Audio
 		OutputBuffer.Reset();
 		ParameterName = InParameterName;
 
-		ClearHandle();
+		ResetHandle();
 	}
 
 	bool FModulationDestination::IsActive()
@@ -210,22 +214,28 @@ namespace Audio
 
 	void FModulationDestination::UpdateModulator(const USoundModulatorBase* InModulator)
 	{
-		const TWeakObjectPtr<const USoundModulatorBase> ModPtr(InModulator);
-		auto UpdateHandleLambda = [this, ModPtr]()
+		if (!InModulator)
+		{
+			return;
+		}
+
+		Audio::FModulationParameter OutputParam = InModulator->GetOutputParameter();
+		auto UpdateHandleLambda = [this, ModSettings = InModulator->CreateProxySettings(), Parameter = MoveTemp(OutputParam)]() mutable
 		{
 			if (FAudioDevice* AudioDevice = FAudioDeviceManager::Get()->GetAudioDeviceRaw(DeviceId))
 			{
 				if (AudioDevice->IsModulationPluginEnabled() && AudioDevice->ModulationInterface.IsValid())
 				{
-					if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
+					if (IAudioModulationManager* Modulation = AudioDevice->ModulationInterface.Get())
 					{
-						SetHandle(FModulatorHandle(*Modulation, ModPtr.Get(), ParameterName));
+						check(ModSettings.IsValid());
+						SetHandle(FModulatorHandle(*Modulation, *ModSettings.Get(), MoveTemp(Parameter)));
 					}
 					return;
 				}
 			}
 
-			ClearHandle();
+			ResetHandle();
 		};
 
 		FAudioThread::RunCommandOnAudioThread(MoveTemp(UpdateHandleLambda));

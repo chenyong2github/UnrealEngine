@@ -14,6 +14,12 @@ namespace AudioModulation
 {
 	const FBusId InvalidBusId = INDEX_NONE;
 
+	Audio::FModulatorTypeId FControlBusSettings::Register(Audio::FModulatorHandleId HandleId, IAudioModulationManager& InModulation) const
+	{
+		FAudioModulationSystem& ModSystem = static_cast<FAudioModulationManager&>(InModulation).GetSystem();
+		return ModSystem.RegisterModulator(HandleId, *this);
+	}
+
 	FControlBusProxy::FControlBusProxy()
 		: DefaultValue(0.0f)
 		, GeneratorValue(1.0f)

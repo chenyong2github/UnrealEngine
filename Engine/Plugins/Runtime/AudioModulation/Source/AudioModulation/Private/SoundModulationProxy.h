@@ -12,7 +12,7 @@ namespace AudioModulation
 	class FAudioModulationSystem;
 
 	/*
-	 * Handle for all ref-counted proxy types, to be used only on the audio thread (not thread safe). 
+	 * Handle for all ref-counted proxy types, to be used only on the modulator processing thread (not thread safe).
 	 */
 	template<typename IdType, typename ProxyType, typename ProxySettings>
 	class TProxyHandle

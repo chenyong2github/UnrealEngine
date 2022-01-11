@@ -30,7 +30,9 @@ namespace AudioModulation
 			FLFOGenerator() = default;
 
 			FLFOGenerator(const FLFOGenerator& InGenerator)
-				: IGenerator(InGenerator.AudioDeviceId)
+				: LFO(InGenerator.LFO)
+				, Value(InGenerator.Value)
+				, Params(InGenerator.Params)
 			{
 			}
 
@@ -167,7 +169,7 @@ namespace AudioModulation
 	};
 } // namespace AudioModulation
 
-AudioModulation::FGeneratorPtr USoundModulationGeneratorLFO::CreateInstance(Audio::FDeviceId InDeviceId) const
+AudioModulation::FGeneratorPtr USoundModulationGeneratorLFO::CreateInstance() const
 {
 	using namespace AudioModulation;
 

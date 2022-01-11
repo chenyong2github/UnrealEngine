@@ -140,7 +140,7 @@ namespace Audio
 			void UpdateModulator(const USoundModulatorBase* InModulator);
 
 		private:
-			void ClearHandle();
+			void ResetHandle();
 			void SetHandle(const FModulatorHandle& InHandle);
 			void SetHandle(FModulatorHandle&& InHandle);
 

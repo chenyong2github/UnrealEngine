@@ -3,6 +3,9 @@
 
 #include "AudioDevice.h"
 #include "AudioDeviceManager.h"
+#include "AudioModulation.h"
+#include "AudioModulationLogging.h"
+#include "IAudioModulation.h"
 
 
 TUniquePtr<Audio::IProxyData> USoundModulationParameter::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
@@ -32,6 +35,25 @@ void USoundModulationParameter::RefreshUnitValue()
 	}
 }
 #endif // WITH_EDITOR
+
+Audio::FModulationParameter USoundModulationParameter::CreateParameter() const
+{
+	Audio::FModulationParameter Parameter;
+	Parameter.ParameterName = GetFName();
+	Parameter.bRequiresConversion = RequiresUnitConversion();
+	Parameter.MixFunction = GetMixFunction();
+	Parameter.UnitFunction = GetUnitConversionFunction();
+	Parameter.NormalizedFunction = GetNormalizedConversionFunction();
+	Parameter.DefaultValue = GetUnitDefault();
+	Parameter.MinValue = GetUnitMin();
+	Parameter.MaxValue = GetUnitMax();
+
+#if WITH_EDITORONLY_DATA
+	Parameter.UnitDisplayName = Settings.UnitDisplayName;
+#endif // WITH_EDITORONLY_DATA
+
+	return Parameter;
+}
 
 bool USoundModulationParameterFrequencyBase::RequiresUnitConversion() const
 {
@@ -202,34 +224,40 @@ float USoundModulationParameterVolume::GetUnitMax() const
 
 namespace AudioModulation
 {
+	const Audio::FModulationParameter& GetOrRegisterParameter(const USoundModulationParameter* InParameter, const USoundModulatorBase& InReferencingModulator)
+	{
+		FName ParamName;
+		if (InParameter)
+		{
+			ParamName = InParameter->GetFName();
+			if (!Audio::IsModulationParameterRegistered(ParamName))
+			{
+				UE_LOG(LogAudioModulation, Display,
+					TEXT("Parameter '%s' not registered.  Registration forced via activating referrencing modulator '%s'."),
+					*ParamName.ToString(),
+					*InReferencingModulator.GetName());
+			}
+
+			Audio::RegisterModulationParameter(ParamName, InParameter->CreateParameter());
+		}
+
+		// Returns default modulation parameter if no parameter provided.
+		return Audio::GetModulationParameter(ParamName);
+	}
+
 	FSoundModulationPluginParameterAssetProxy::FSoundModulationPluginParameterAssetProxy(USoundModulationParameter* InParameter)
 	{
 		using namespace Audio;
 
-		if (!InParameter || !GEngine)
-		{
-			return;
-		}
-
-		FAudioDeviceHandle AudioDevice;
-		if (UWorld* World = GEngine->GetWorldFromContextObject(InParameter, EGetWorldErrorMode::ReturnNull))
-		{
-			if (!World->bAllowAudioPlayback || World->IsNetMode(NM_DedicatedServer))
-			{
-				return;
-			}
-
-			AudioDevice = World->GetAudioDevice();
-		}
-		else
-		{
-			AudioDevice = GEngine->GetMainAudioDevice();
-		}
-
-		if (IAudioModulation* Modulation = AudioDevice->ModulationInterface.Get())
+		if (InParameter)
 		{
 			const FName ParameterName = InParameter->GetFName();
-			Parameter = Modulation->GetParameter(ParameterName);
+			Parameter = Audio::GetModulationParameter(ParameterName);
+
+			if (ParameterName != Parameter.ParameterName)
+			{
+				UE_LOG(LogAudioModulation, Log, TEXT("Parameter '%s' not registered. Using default parameter."), *ParameterName.ToString());
+			}
 		}
 	}
 

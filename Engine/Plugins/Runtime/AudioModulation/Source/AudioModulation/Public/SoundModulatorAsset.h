@@ -38,6 +38,16 @@ namespace AudioModulation
 
 		FSoundModulatorAsset(const Audio::IProxyDataPtr& InInitData);
 
+		Audio::FModulatorId GetModulatorId() const
+		{
+			if (Proxy.IsValid())
+			{
+				return Proxy->GetModulatorId();
+			}
+
+			return INDEX_NONE;
+		}
+
 		bool IsValid() const
 		{
 			return Proxy.IsValid();

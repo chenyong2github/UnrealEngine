@@ -20,7 +20,7 @@ class FSoundEffectBase;
 class FSoundEffectSource;
 class FSoundEffectSubmix;
 struct FWaveInstance;
-class IAudioModulation;
+class IAudioModulationManager;
 class IAudioOcclusion;
 class IAudioPluginListener;
 class IAudioReverb;
@@ -53,7 +53,7 @@ using TSoundEffectSourcePtr   = TSharedPtr<FSoundEffectSource, ESPMode::ThreadSa
 using TSoundEffectSubmixPtr   = TSharedPtr<FSoundEffectSubmix, ESPMode::ThreadSafe>;
 using TAudioSpatializationPtr = TSharedPtr<IAudioSpatialization, ESPMode::ThreadSafe>;
 using TAudioSourceDataOverridePtr = TSharedPtr<IAudioSourceDataOverride, ESPMode::ThreadSafe>;
-using TAudioModulationPtr     = TSharedPtr<IAudioModulation, ESPMode::ThreadSafe>;
+using TAudioModulationPtr     = TSharedPtr<IAudioModulationManager, ESPMode::ThreadSafe>;
 using TAudioOcclusionPtr      = TSharedPtr<IAudioOcclusion, ESPMode::ThreadSafe>;
 using TAudioReverbPtr         = TSharedPtr<IAudioReverb, ESPMode::ThreadSafe>;
 using TAudioPluginListenerPtr = TSharedPtr<IAudioPluginListener, ESPMode::ThreadSafe>;

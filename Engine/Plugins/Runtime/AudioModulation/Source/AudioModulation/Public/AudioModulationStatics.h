@@ -13,7 +13,7 @@
 // Forward Declarations
 namespace AudioModulation
 {
-	class FAudioModulation;
+	class FAudioModulationManager;
 	class FAudioModulationSystem;
 } // namespace AudioModulation
 
@@ -32,7 +32,7 @@ public:
 	/**
 	 * Returns modulation implementation associated with the provided world
 	 */
-	static AudioModulation::FAudioModulation* GetModulation(UWorld* World);
+	static AudioModulation::FAudioModulationManager* GetModulation(UWorld* World);
 
 	/** Manually activates a modulation bus. If called, deactivation will only occur
 	 * if bus is manually deactivated or destroyed (i.e. will not deactivate
