@@ -7,7 +7,7 @@ CUR_DIR="`dirname "$0"`"
 cd $CUR_DIR
 
 if [ ! -d ninja ]; then
-	git clone git://github.com/ninja-build/ninja.git && cd ninja
+	git clone https://github.com/ninja-build/ninja.git && cd ninja
 	git checkout release
 
 	./configure.py --bootstrap
