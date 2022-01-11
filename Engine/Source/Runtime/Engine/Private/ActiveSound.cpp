@@ -40,6 +40,14 @@ FAutoConsoleVariableRef CVarGatherInteriorDataFromIActiveSoundUpdate(
 	TEXT("0: Disabled, 1: Enabled (default)"),
 	ECVF_Default);
 
+static int32 InitializeFocusFactorOnFirstUpdateCVar = 1;
+FAutoConsoleVariableRef CVarInitializeFocusFactorOnFirstUpdateCVar(
+	TEXT("au.FocusData.InitializeFocusFactorOnFirstUpdate"),
+	InitializeFocusFactorOnFirstUpdateCVar,
+	TEXT("When set to 1, focus factor will be initialized on first update to the proper value, instead of interpolating from 0 to the proper value.\n")
+	TEXT("0: Disabled, 1: Enabled (default)"),
+	ECVF_Default);
+
 FTraceDelegate FActiveSound::ActiveSoundTraceDelegate;
 TMap<FTraceHandle, FActiveSound::FAsyncTraceDetails> FActiveSound::TraceToActiveSoundMap;
 
@@ -1496,8 +1504,12 @@ void FActiveSound::UpdateFocusData(float DeltaTime, const FAttenuationListenerDa
 	const FGlobalFocusSettings& FocusSettings = AudioDevice->GetGlobalFocusSettings();
 	const float TargetFocusFactor = AudioDevice->GetFocusFactor(FocusDataToUpdate->Azimuth, *ListenerData.AttenuationSettings);
 
+	// Enabling InitializeFocusVolumeBeforeInterpCVar will fix a bug related to focus factor always needing to interpolate up from 0 to the correct value.
+	// Could affect game mix, so enable with caution.
+	const bool bShouldInterpolateFocusFactor = (!FocusDataToUpdate->bFirstFocusUpdate || !InitializeFocusFactorOnFirstUpdateCVar);
+
 	// User opt-in for focus interpolation
-	if (ListenerData.AttenuationSettings->bEnableFocusInterpolation)
+	if (ListenerData.AttenuationSettings->bEnableFocusInterpolation && bShouldInterpolateFocusFactor)
 	{
 		// Determine which interpolation speed to use (attack/release)
 		float InterpSpeed;
@@ -1517,6 +1529,9 @@ void FActiveSound::UpdateFocusData(float DeltaTime, const FAttenuationListenerDa
 		// Set focus directly to target value
 		FocusDataToUpdate->FocusFactor = TargetFocusFactor;
 	}
+
+	// No longer first update
+	FocusDataToUpdate->bFirstFocusUpdate = false;
 
 	// Scale the volume-weighted priority scale value we use for sorting this sound for voice-stealing
 	FocusDataToUpdate->PriorityScale = ListenerData.AttenuationSettings->GetFocusPriorityScale(FocusSettings, FocusDataToUpdate->FocusFactor);
@@ -1627,6 +1642,9 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 	{
 		// Feed prior focus factor on update to allow for proper interpolation.
 		FocusDataToApply.FocusFactor = FocusData.FocusFactor;
+
+		// Feed first update flag
+		FocusDataToApply.bFirstFocusUpdate = FocusData.bFirstFocusUpdate;
 
 		// Update azimuth angles prior to updating focus as it uses this in calculating
 		// in and out of focus values.
