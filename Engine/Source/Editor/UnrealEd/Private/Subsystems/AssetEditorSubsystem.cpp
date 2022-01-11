@@ -553,7 +553,7 @@ bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject* 
 		}
 	}
 
-	return true;
+	return NumNullAssets == 0;
 }
 
 bool UAssetEditorSubsystem::OpenEditorForAssets(const TArray<UObject*>& Assets)
