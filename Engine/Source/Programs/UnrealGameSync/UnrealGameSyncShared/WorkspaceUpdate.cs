@@ -41,6 +41,7 @@ namespace UnrealGameSync
 		UpdateFilter = 0x800,
 		SyncAllProjects = 0x1000,
 		IncludeAllProjectsInSolution = 0x2000,
+		RemoveFilteredFiles = 0x4000,
 	}
 
 	public enum WorkspaceUpdateResult
@@ -668,7 +669,7 @@ namespace UnrealGameSync
 							}
 
 							// Check if there are any paths outside the regular sync paths
-							if (RemoveDepotPaths.Count > 0)
+							if (RemoveDepotPaths.Count > 0 && (Context.Options & WorkspaceUpdateOptions.RemoveFilteredFiles) == 0)
 							{
 								bool bDeleteListMatches = true;
 
