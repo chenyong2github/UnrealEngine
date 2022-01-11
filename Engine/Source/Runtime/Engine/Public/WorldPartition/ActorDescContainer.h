@@ -24,18 +24,9 @@ public:
 	virtual UWorld* GetWorld() const override;
 
 #if WITH_EDITOR
-	// Events
-	virtual void OnWorldRenamed(UWorld* RenamedWorld);
 	virtual void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
 	virtual void OnPackageDeleted(UPackage* Package);
 	virtual void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);
-
-	void SetContainerPackage(const FName& InContainerPackageName)
-	{
-		// Should only be called on empty container
-		check(GetActorDescCount() == 0);
-		ContainerPackageName = InContainerPackageName;
-	}
 
 	FName GetContainerPackage() const { return ContainerPackageName; }
 
@@ -66,6 +57,10 @@ protected:
 	//~ End UObject Interface
 
 #if WITH_EDITOR
+	// Events
+	void OnWorldRenamed(UWorld* RenamedWorld);
+	virtual void OnWorldRenamed();
+
 	virtual void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc);
 	virtual void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
 	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) {}

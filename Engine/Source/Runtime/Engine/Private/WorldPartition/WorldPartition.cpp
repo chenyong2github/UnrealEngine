@@ -477,13 +477,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			{
 				TArray<FName> EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(InWorld);
 
-				for (FName EditorGridLastLoadedCell : EditorGridLastLoadedCells)
-				{
-					if (UWorldPartitionEditorCell* Cell = FindObject<UWorldPartitionEditorCell>(EditorHash, *EditorGridLastLoadedCell.ToString()))
-					{
-						UpdateLoadingEditorCell(Cell, true, true);
-					}
-				}
+				LoadEditorCells(EditorGridLastLoadedCells, /*bIsFromUserChange=*/true);
 			}
 		}
 		
@@ -769,6 +763,17 @@ void UWorldPartition::LoadEditorCells(const FBox& Box, bool bIsFromUserChange)
 		for (UWorldPartitionEditorCell* Cell : CellsToLoad)
 		{
 			SlowTask.EnterProgressFrame(Cell->Actors.Num() - Cell->LoadedActors.Num());
+			UpdateLoadingEditorCell(Cell, true, bIsFromUserChange);
+		}
+	}
+}
+
+void UWorldPartition::LoadEditorCells(const TArray<FName>& CellNames, bool bIsFromUserChange)
+{
+	for (FName CellName : CellNames)
+	{
+		if (UWorldPartitionEditorCell* Cell = FindObject<UWorldPartitionEditorCell>(EditorHash, *CellName.ToString()))
+		{
 			UpdateLoadingEditorCell(Cell, true, bIsFromUserChange);
 		}
 	}
@@ -1331,6 +1336,15 @@ uint32 UWorldPartition::GetWantedEditorCellSize() const
 void UWorldPartition::SetEditorWantedCellSize(uint32 InCellSize)
 {
 	EditorHash->SetEditorWantedCellSize(InCellSize);
+}
+
+void UWorldPartition::OnWorldRenamed()
+{
+	UActorDescContainer::OnWorldRenamed();
+
+	// World was renamed so existing context is invalid.
+	InstancingContext = FLinkerInstancingContext();
+	InstancingSoftObjectPathFixupArchive.Reset();
 }
 
 void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
