@@ -55,7 +55,7 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid, const FDMXOu
 	, NumUniverses(InitializationData.NumUniverses)
 	, ExternUniverseStart(InitializationData.ExternUniverseStart)
 	, Priority(InitializationData.Priority)
-	, Delay(InitializationData.DelaySeconds)
+	, Delay(InitializationData.DelaySeconds * InitializationData.DelayFrameRate.AsDecimal())
 	, DelayFrameRate(InitializationData.DelayFrameRate)
 	, PortGuid(InPortGuid)
 {
