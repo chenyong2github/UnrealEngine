@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 
 #if WITH_EDITOR
-class UHLODLayer;
 class FWorldPartitionActorDesc;
 class UActorDescContainer;
 class UWorldPartition;
@@ -31,7 +30,7 @@ public:
 	bool GetActorIsEditorOnly() const;
 	bool GetLevelBoundsRelevant() const;
 	bool GetActorIsHLODRelevant() const;
-	UHLODLayer* GetHLODLayer() const;
+	inline FName GetHLODLayer() const;
 	const TArray<FName>& GetDataLayers() const;
 	FName GetActorPackage() const;
 	FName GetActorPath() const;
