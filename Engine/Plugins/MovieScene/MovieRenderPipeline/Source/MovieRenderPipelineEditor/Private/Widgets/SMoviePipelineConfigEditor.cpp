@@ -43,6 +43,7 @@
 #include "IDetailsView.h"
 #include "MovieRenderPipelineStyle.h"
 #include "FrameNumberDetailsCustomization.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineEditor"
 
@@ -145,6 +146,9 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 			]
 		]
 	];
+
+	// Register a callback so that we can refresh the details panel after it is reinstanced.
+	GEditor->OnBlueprintReinstanced().AddSP(this, &SMoviePipelineConfigEditor::OnBlueprintReinstanced);
 }
 
 TSharedRef<SWidget> SMoviePipelineConfigEditor::MakeAddSettingButton()
@@ -195,6 +199,12 @@ TSharedRef<SWidget> SMoviePipelineConfigEditor::MakeAddSettingButton()
 		];
 }
 PRAGMA_ENABLE_OPTIMIZATION
+
+void SMoviePipelineConfigEditor::OnBlueprintReinstanced()
+{
+	SettingsWidget->InvalidateCachedSettingsSerialNumber();
+	bRequestDetailsRefresh = true;
+}
 
 void SMoviePipelineConfigEditor::CheckForNewSettingsObject()
 {

@@ -2,6 +2,7 @@
 
 #include "MoviePipelineConfigBase.h"
 #include "MoviePipelineSetting.h"
+#include "MovieRenderPipelineCoreModule.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineConfigBase"
 
@@ -29,6 +30,12 @@ void UMoviePipelineConfigBase::CopyFrom(UMoviePipelineConfigBase* InConfig)
 	// Only access the direct Settings array
 	for (UMoviePipelineSetting* Setting : InConfig->Settings)
 	{
+		if (!Setting)
+		{
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Null setting found in config: %s - Did you disable a plugin that contained this setting?"), *GetNameSafe(InConfig));
+			continue;
+		}
+
 		UMoviePipelineSetting* Duplicate = Cast<UMoviePipelineSetting>(StaticDuplicateObject(Setting, this, Setting->GetFName()));
 		Duplicate->ValidateState();
 

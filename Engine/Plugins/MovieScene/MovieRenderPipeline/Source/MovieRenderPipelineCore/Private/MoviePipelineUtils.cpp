@@ -32,6 +32,7 @@ namespace UE
 
 			FARFilter Filter;
 			Filter.ClassNames.Add(UMoviePipelineSetting::StaticClass()->GetFName());
+			Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
 
 			// Include any Blueprint based objects as well, this includes things like Blutilities, UMG, and GameplayAbility objects
 			Filter.bRecursiveClasses = true;
@@ -41,18 +42,47 @@ namespace UE
 
 			for (const FAssetData& Data : ClassList)
 			{
-				UClass* Class = Data.GetClass();
-				if (Class)
+				// We don't want to load every blueprint class to find out if it's an MRQ related one, so we'll look up their native class
+				// based on the asset registry metadata before deciding if it needs to be loaded.
+				UClass* ParentClass = nullptr;
+				FString ParentClassName;
+
+				if (!Data.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
 				{
-					Classes.Add(Class);
+					Data.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassName);
 				}
+
+				if (!ParentClassName.IsEmpty())
+				{
+					UObject* Outer = nullptr;
+					ResolveName(Outer, ParentClassName, false, false);
+
+					ParentClass = FindObject<UClass>(ANY_PACKAGE, *ParentClassName);
+
+					if (!ParentClass->IsChildOf(UMoviePipelineSetting::StaticClass()))
+					{
+						continue;
+					}
+				}
+
+				// Now attempt to load it as it's an MRQ related setting. This will cause it to show up in the class iterator
+				// below.
+				UBlueprint* LoadedBlueprint = Cast<UBlueprint>(Data.ToSoftObjectPath().TryLoad());
 			}
 
+			// Now iterate through the loaded classes.
 			for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)
 			{
 				if (ClassIterator->IsChildOf(UMoviePipelineSetting::StaticClass()) && !ClassIterator->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
 				{
-					Classes.Add(*ClassIterator);
+					// While a blueprint is being compiled, there can be some transient instances of the class. We don't want these to show up in the list
+					// so just manually skip over them as they will go away next time GC is run anyways.
+					if (ClassIterator->GetName().StartsWith(TEXT("SKEL_")) || ClassIterator->GetName().StartsWith(TEXT("REINST_")))
+					{
+						continue;
+					}
+
+					Classes.AddUnique(*ClassIterator);
 				}
 			}
 

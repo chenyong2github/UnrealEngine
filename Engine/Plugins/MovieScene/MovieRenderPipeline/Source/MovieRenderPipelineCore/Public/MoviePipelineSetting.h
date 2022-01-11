@@ -20,7 +20,7 @@ enum class EMoviePipelineValidationState : uint8
 /**
 * A base class for all Movie Render Pipeline settings.
 */
-UCLASS(Blueprintable, Abstract)
+UCLASS(BlueprintType, Abstract)
 class MOVIERENDERPIPELINECORE_API UMoviePipelineSetting : public UObject
 {
 	GENERATED_BODY()

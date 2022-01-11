@@ -55,7 +55,7 @@ public:
 
 		for (UMoviePipelineSetting* Setting : AllSettings)
 		{
-			if (Setting->IsA<SettingType>() && (Setting->IsEnabled() || bIncludeDisabledSettings))
+			if (Setting && Setting->IsA<SettingType>() && (Setting->IsEnabled() || bIncludeDisabledSettings))
 			{
 				FoundSettings.Add(Cast<SettingType>(Setting));
 			}
