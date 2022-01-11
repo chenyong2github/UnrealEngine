@@ -613,6 +613,7 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSL
 	else
 	{
 		FFunction* HLSLFunction = FunctionCall->HLSLFunction;
+		check(HLSLFunction);
 		check(HLSLFunction->OutputExpressions.Num() == FunctionOutputs.Num());
 		if (HLSLFunction->OutputExpressions[OutputIndex])
 		{
