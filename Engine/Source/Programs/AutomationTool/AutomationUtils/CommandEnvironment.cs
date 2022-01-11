@@ -46,7 +46,7 @@ namespace AutomationTool
 	public class CommandEnvironment
 	{
 		/// <summary>
-		/// Path to a file we know to always exist under the UE4 root directory.
+		/// Path to a file we know to always exist under the Unreal root directory.
 		/// </summary>
 		public static readonly string KnownFileRelativeToRoot = @"Engine/Config/BaseEngine.ini";
 

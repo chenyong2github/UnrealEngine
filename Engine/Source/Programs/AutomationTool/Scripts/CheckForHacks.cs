@@ -14,7 +14,7 @@ namespace AutomationTool
 {
 	[Help("Audits the current branch for comments denoting a hack that was not meant to leave another branch, following a given format (\"BEGIN XXXX HACK\", where XXXX is one or more tags separated by spaces).")]
 	[Help("Allowed tags may be specified manually on the command line. At least one must match, otherwise it will print a warning.")]
-	[Help("The current branch name and fragments of the branch path will also be added by default, so running from //UE4/Main will add \"//UE4/Main\", \"UE4\", and \"Main\".")]
+	[Help("The current branch name and fragments of the branch path will also be added by default, so running from //UE5/Main will add \"//UE5/Main\", \"UE5\", and \"Main\".")]
 	[Help("-Allow", "Specifies additional tags which are allowed in the BEGIN ... HACK tag list")]
 	class CheckForHacks : BuildCommand
 	{

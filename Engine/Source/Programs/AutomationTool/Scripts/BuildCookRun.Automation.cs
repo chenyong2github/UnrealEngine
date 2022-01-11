@@ -229,7 +229,7 @@ public class BuildCookRun : BuildCommand
 			throw new AutomationException("Can't find source directory to make foreign sample {0}.", Src);
 		}
 
-		var Dest = ParseParamValue("ForeignDest", CombinePaths(@"C:\testue4\foreign\", DestSample + "_ _Dir"));
+		var Dest = ParseParamValue("ForeignDest", CombinePaths(@"C:\testue\foreign\", DestSample + "_ _Dir"));
 		LogInformation("Make a foreign sample {0} -> {1}", Src, Dest);
 
 		CloneDirectory(Src, Dest);
@@ -255,7 +255,7 @@ public class BuildCookRun : BuildCommand
 			throw new AutomationException("Can't find source directory to make foreign sample {0}.", Src);
 		}
 
-		var Dest = ParseParamValue("ForeignDest", CombinePaths(@"C:\testue4\foreign\", DestSample + "_ _Dir"));
+		var Dest = ParseParamValue("ForeignDest", CombinePaths(@"C:\testue\foreign\", DestSample + "_ _Dir"));
 		LogInformation("Make a foreign sample {0} -> {1}", Src, Dest);
 
 		CloneDirectory(Src, Dest);

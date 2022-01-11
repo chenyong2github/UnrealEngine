@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
 using AutomationTool;
@@ -15,7 +15,7 @@ namespace AutomationScripts.Automation
 
 			var GlobalParams = new ProjectParams(
 				Command: this,
-				RawProjectPath: new FileReference(@"D:\UE-Main\UE4\Samples\Games\TappyChicken\TappyChicken.uproject")
+				RawProjectPath: new FileReference(@"D:\UE\Samples\Games\TappyChicken\TappyChicken.uproject")
 				);
 
 			if (ParseParam("android"))

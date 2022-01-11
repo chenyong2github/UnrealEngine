@@ -825,7 +825,7 @@ namespace AutomationTool
 	            {
 	                int Retry = 0;
 	                int NumRetries = 60;
-	                if(!Directoryname.Contains("UE4"))
+	                if(!Directoryname.Contains("UE"))
 	                {
 	                    NumRetries = 2;
 	                }

@@ -893,12 +893,12 @@ public class AndroidPlatform : Platform
 			bool bHaveAPK = !bEnableBundle;     // do not have a standard APK if bundle enabled
 			if (!SC.IsCodeBasedProject)
 			{
-				string UE4SOName = GetFinalApkName(Params, SC.StageExecutables[0], false, bMakeSeparateApks ? Architecture : "");
-                UE4SOName = UE4SOName.Replace(".apk", ".so");
-                if (FileExists_NoExceptions(UE4SOName) == false)
+				string UnrealSOName = GetFinalApkName(Params, SC.StageExecutables[0], false, bMakeSeparateApks ? Architecture : "");
+                UnrealSOName = UnrealSOName.Replace(".apk", ".so");
+                if (FileExists_NoExceptions(UnrealSOName) == false)
 				{
-					LogInformation("Failed to find game .so " + UE4SOName);
-                    throw new AutomationException(ExitCode.Error_MissingExecutable, "Stage Failed. Could not find .so {0}. You may need to build the UE project with your target configuration and platform.", UE4SOName);
+					LogInformation("Failed to find game .so " + UnrealSOName);
+                    throw new AutomationException(ExitCode.Error_MissingExecutable, "Stage Failed. Could not find .so {0}. You may need to build the UE project with your target configuration and platform.", UnrealSOName);
 				}
 			}
 				

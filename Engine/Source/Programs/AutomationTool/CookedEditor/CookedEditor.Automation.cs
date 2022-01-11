@@ -1025,7 +1025,7 @@ public class MakeCookedEditor : BuildCommand
 		foreach (string AProp in Props)
 		{
 			string Prop = AProp.Trim(" \t".ToCharArray());
-			// find the first = (UE4 properties can't have an equal sign, so it's valid to do)
+			// find the first = (UE properties can't have an equal sign, so it's valid to do)
 			int Equals = Prop.IndexOf('=');
 			// we must have one
 			if (Equals == -1)
