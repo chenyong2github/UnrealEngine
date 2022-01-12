@@ -784,6 +784,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 	ReferenceView = MakeShared<FViewInfo>(ViewInitOptions);
 	FViewInfo& View = *ReferenceView;
+	ViewFamily.Views.Add(ReferenceView.Get());
 	View.ViewRect = View.UnscaledViewRect;
 
 	{
