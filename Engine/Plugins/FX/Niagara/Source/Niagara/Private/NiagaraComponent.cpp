@@ -899,7 +899,7 @@ bool UNiagaraComponent::InitializeSystem()
 		OverrideParameters.MarkParametersDirty(); // new system instance means new lwc tile, so any position user params need to be re-evaluated
 
 		SystemInstanceController = MakeShared<FNiagaraSystemInstanceController, ESPMode::ThreadSafe>();
-		SystemInstanceController->Initialize(*World, *Asset, &OverrideParameters, this, TickBehavior, bPooled, RandomSeedOffset, bForceSolo);
+		SystemInstanceController->Initialize(*World, *Asset, &OverrideParameters, this, TickBehavior, bPooled, RandomSeedOffset, RequiresSoloMode());
 		SystemInstanceController->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
 		SystemInstanceController->SetOnComplete(FNiagaraSystemInstance::FOnComplete::CreateUObject(this, &UNiagaraComponent::OnSystemComplete));
 
@@ -3501,9 +3501,23 @@ void UNiagaraComponent::SetForceSolo(bool bInForceSolo)
 	if (bForceSolo != bInForceSolo)
 	{
 		bForceSolo = bInForceSolo;
-		DestroyInstance();
-		SetComponentTickEnabled(bInForceSolo);
+		UpdateInstanceSoloMode();
 	}
+}
+
+bool UNiagaraComponent::RequiresSoloMode() const
+{
+	return bForceSolo || !FMath::IsNearlyEqual(CustomTimeDilation, 1.0f);
+}
+
+void UNiagaraComponent::UpdateInstanceSoloMode()
+{
+	const bool bRequireSoloMode = RequiresSoloMode();
+	if (SystemInstanceController)
+	{
+		SystemInstanceController->SetForceSolo(bRequireSoloMode);
+	}
+	SetComponentTickEnabled(bRequireSoloMode);
 }
 
 void UNiagaraComponent::SetGpuComputeDebug(bool bEnableDebug)
@@ -3520,12 +3534,11 @@ void UNiagaraComponent::SetGpuComputeDebug(bool bEnableDebug)
 
 void UNiagaraComponent::SetCustomTimeDilation(float Dilation)
 {
-	if ( !bForceSolo )
+	if ( !FMath::IsNearlyEqual(CustomTimeDilation, Dilation) )
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Attempting to set custom time dilation on a NiagaraComponent(%s) that is not in solo mode, value will be ignored."), *GetNameSafe(this));
-		return;
+		CustomTimeDilation = Dilation;
+		UpdateInstanceSoloMode();
 	}
-	CustomTimeDilation = Dilation;
 }
 
 void UNiagaraComponent::SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule)

@@ -88,7 +88,6 @@ public:
 	/** Dumps system instance state and info to the log (Used by fx.Niagara.DumpComponents commandlet) */
 	void DebugDump(bool bFullDump);
 
-
 	// Deferred methods - With NIAGARA_SYSTEM_INSTANCE_CONTROLLER_ASYNC, these are executed in a deferred queue
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_DEFFERED_METHOD(Reset)
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_DEFFERED_METHOD(AdvanceSimulation)
@@ -114,6 +113,7 @@ public:
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_SHIM(GetAge, const)
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_SHIM(GetComputeDispatchInterface, const)
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_SHIM(IsSolo, const)
+	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_SHIM(SetForceSolo,)
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_SHIM(IsComplete, const)
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_SHIM(IsPendingSpawn, const)
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_SHIM(Reset,)

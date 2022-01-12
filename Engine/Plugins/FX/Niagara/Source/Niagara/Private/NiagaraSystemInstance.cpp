@@ -81,6 +81,32 @@ static FAutoConsoleVariableRef CVarNiagaraAllowDeferredReset(
 	ECVF_Default
 );
 
+bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const FNiagaraUserRedirectionParameterStore* OverrideParameters)
+{
+	if (FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
+	{
+		if (System.HasSystemScriptDIsWithPerInstanceData())
+		{
+			return true;
+		}
+
+		const TArray<FName>& UserDINamesReadInSystemScripts = System.GetUserDINamesReadInSystemScripts();
+		if (OverrideParameters != nullptr && UserDINamesReadInSystemScripts.Num() > 0)
+		{
+			TArray<FNiagaraVariable> OverrideParameterVariables;
+			OverrideParameters->GetParameters(OverrideParameterVariables);
+			for (const FNiagaraVariable& OverrideParameterVariable : OverrideParameterVariables)
+			{
+				if (OverrideParameterVariable.IsDataInterface() && UserDINamesReadInSystemScripts.Contains(OverrideParameterVariable.GetName()))
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& InAsset, FNiagaraUserRedirectionParameterStore* InOverrideParameters,
                                                USceneComponent* InAttachComponent, ENiagaraTickBehavior InTickBehavior, bool bInPooled)
 	: SystemInstanceIndex(INDEX_NONE)
@@ -473,6 +499,8 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 	}
 	else
 	{
+		ensureMsgf(DoSystemDataInterfacesRequireSolo(*GetSystem(), OverrideParameters) == false, TEXT("Disabling solo mode but data interfaces require it"));
+
 		const ETickingGroup TickGroup = CalculateTickGroup();
 		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = GetWorldManager()->GetSystemSimulation(TickGroup, System);
 
@@ -993,32 +1021,6 @@ bool FNiagaraSystemInstance::IsReadyToRun() const
 		}
 	}
 	return bAllReadyToRun;
-}
-
-bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const FNiagaraUserRedirectionParameterStore* OverrideParameters)
-{
-	if (FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
-	{
-		if (System.HasSystemScriptDIsWithPerInstanceData())
-		{
-			return true;
-		}
-
-		const TArray<FName>& UserDINamesReadInSystemScripts = System.GetUserDINamesReadInSystemScripts();
-		if (OverrideParameters != nullptr && UserDINamesReadInSystemScripts.Num() > 0)
-		{
-			TArray<FNiagaraVariable> OverrideParameterVariables;
-			OverrideParameters->GetParameters(OverrideParameterVariables);
-			for (const FNiagaraVariable& OverrideParameterVariable : OverrideParameterVariables)
-			{
-				if (OverrideParameterVariable.IsDataInterface() && UserDINamesReadInSystemScripts.Contains(OverrideParameterVariable.GetName()))
-				{
-					return true;
-				}
-			}
-		}
-	}
-	return false;
 }
 
 void FNiagaraSystemInstance::ReInitInternal()
@@ -2652,6 +2654,22 @@ FNiagaraEmitterInstance* FNiagaraSystemInstance::GetEmitterByID(FGuid InID)
 		}
 	}
 	return nullptr;
+}
+
+void FNiagaraSystemInstance::SetForceSolo(bool bInForceSolo)
+{
+	// We may be forced into solo mode so if we match nothing to do here
+	bForceSolo = bInForceSolo;
+	if ( bSolo == bInForceSolo )
+	{
+		return;
+	}
+
+	const bool bNewSolo = bForceSolo || DoSystemDataInterfacesRequireSolo(*GetSystem(), OverrideParameters);
+	if (bNewSolo != bSolo)
+	{
+		SetSolo(bNewSolo);
+	}
 }
 
 void FNiagaraSystemInstance::EvaluateBoundFunction(FName FunctionName, bool& UsedOnCpu, bool& UsedOnGpu) const

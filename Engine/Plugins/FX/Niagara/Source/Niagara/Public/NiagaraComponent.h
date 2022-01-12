@@ -250,6 +250,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Is In Forced Solo Mode"))
 	bool GetForceSolo()const { return bForceSolo; }
 
+private:
+	bool RequiresSoloMode() const;
+	void UpdateInstanceSoloMode();
+public:
+
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	void SetGpuComputeDebug(bool bEnableDebug);
 

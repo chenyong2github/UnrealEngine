@@ -242,6 +242,7 @@ public:
 
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
 
+	void SetForceSolo(bool bForceSolo);
 	FORCEINLINE bool IsSolo() const { return bSolo; }
 
 	FORCEINLINE bool NeedsGPUTick() const { return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}

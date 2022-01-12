@@ -2365,6 +2365,15 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 						StringBuilder.Appendf(TEXT("Pooled - %s\n"), *PoolingMethodEnum->GetNameStringByIndex((int32)NiagaraComponent->PoolingMethod));
 					}
 
+					if (SystemInstanceController->IsSolo())
+					{
+						if ( NiagaraComponent->GetForceSolo() )
+						{
+							StringBuilder.Append(TEXT("ForceSolo "));
+						}
+						StringBuilder.Append(TEXT("IsSolo\n"));
+					}
+
 					if ( NiagaraComponent->bHiddenInGame || !NiagaraComponent->GetVisibleFlag() || (OwnerActor && OwnerActor->IsHidden()) )
 					{
 						StringBuilder.Appendf(TEXT("HiddenInGame(%d) Visible(%d)"), NiagaraComponent->bHiddenInGame, NiagaraComponent->GetVisibleFlag());
