@@ -59,9 +59,6 @@ namespace EditorAnimUtils
 
 		/** Duplicates the assets stored for retargetting, populating maps of original assets to new asset */
 		void DuplicateAssetsToRetarget(UPackage* DestinationPackage, const FNameDuplicationRule* NameRule);
-
-		/** Retarget the contained assets */
-		void RetargetAnimations(USkeleton* OldSkeleton, USkeleton* NewSkeleton);
 	
 		void AddRemappedAsset(UAnimationAsset* OriginalAsset, UAnimationAsset* NewAsset);
 
@@ -85,40 +82,7 @@ namespace EditorAnimUtils
 		/** Initialize the object, only to be called by constructors */
 		void Initialize(TArray<TWeakObjectPtr<UObject>> AssetsToRetarget, bool bRetargetReferredAssets);
 	};
-
-	/**
-	 * Retargets the supplied UObjects (as long as they are an animation asset), optionally duplicating them and retargetting their reference assets too
-	 *
-	 * @param NewSkeleton						The skeleton the supplied assets should be retargeted to
-	 * @param AssetsToRetarget					The animation assets to copy/retarget
-	 * @param bRetargetReferredAssets			If true retargets any assets referred to by assets in AssetsToRetarget. If false then the references are cleared.
-	 * @param bDuplicatedAssetsBeforeRetarget	If true the assets are duplicated and then the duplicates are retargetted
-	 * @param bConvertSpace						Do the conversion in component space of the animation to match new target
-	 */
-	UNREALED_API UObject* RetargetAnimations(USkeleton* OldSkeleton, USkeleton* NewSkeleton, TArray<TWeakObjectPtr<UObject>> AssetsToRetarget, bool bRetargetReferredAssets, const FNameDuplicationRule* NameRule, bool bConvertSpace);
-
-	/**
-	 * Retargets the supplied FAssetDatas (as long as they are an animation asset), optionally duplicating them and retargetting their reference assets too
-	 *
-	 * @param NewSkeleton						The skeleton the supplied assets should be retargeted to
-	 * @param AssetsToRetarget					The animation assets to copy/retarget
-	 * @param bRetargetReferredAssets			If true retargets any assets referred to by assets in AssetsToRetarget. If false then the references are cleared.
-	 * @param bDuplicatedAssetsBeforeRetarget	If true the assets are duplicated and then the duplicates are retargetted
-	 * @param bConvertSpace						Do the conversion in component space of the animation to match new target
-	 */
-	UNREALED_API UObject* RetargetAnimations(USkeleton* OldSkeleton, USkeleton* NewSkeleton, const TArray<FAssetData>& AssetsToRetarget, bool bRetargetReferredAssets, const FNameDuplicationRule* NameRule, bool bConvertSpace);
-
-	/**
-	 * Retargets the supplied FAnimationRetargetContext, optionally duplicating the assets and retargetting the assets reference assets too. Is called by other overloads of RetargetAnimations
-	 *
-	 * @param NewSkeleton						The skeleton the supplied assets should be retargeted to
-	 * @param AssetsToRetarget					The animation assets to copy/retarget
-	 * @param bRetargetReferredAssets			If true retargets any assets referred to by assets in AssetsToRetarget. If false then the references are cleared.
-	 * @param bDuplicatedAssetsBeforeRetarget	If true the assets are duplicated and then the duplicates are retargetted
-	 * @param bConvertSpace						Do the conversion in component space of the animation to match new target
-	 */
-	UNREALED_API UObject* RetargetAnimations(USkeleton* OldSkeleton, USkeleton* NewSkeleton, FAnimationRetargetContext& RetargetContext, bool bRetargetReferredAssets, const FNameDuplicationRule* NameRule);
-
+	
 	// Populates the supplied TArrays with any animation assets that this blueprint refers too
 	UNREALED_API void GetAllAnimationSequencesReferredInBlueprint(UAnimBlueprint* AnimBlueprint, TArray<UAnimationAsset*>& AnimationAsset);
 

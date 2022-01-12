@@ -214,7 +214,7 @@ void FSkeletonEditor::ExtendToolbar()
 			ToolbarBuilder.BeginSection("Skeleton");
 			{
 				ToolbarBuilder.AddToolBarButton(FSkeletonEditorCommands::Get().AnimNotifyWindow);
-				ToolbarBuilder.AddToolBarButton(FSkeletonEditorCommands::Get().RetargetManager, NAME_None, LOCTEXT("Toolbar_RetargetManager", "Retarget Manager"));
+				ToolbarBuilder.AddToolBarButton(FSkeletonEditorCommands::Get().RetargetManager, NAME_None, LOCTEXT("Toolbar_RetargetSources", "Retarget Sources"));
 				ToolbarBuilder.AddToolBarButton(FSkeletonEditorCommands::Get().ImportMesh);
 			}
 			ToolbarBuilder.EndSection();
