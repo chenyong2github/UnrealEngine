@@ -262,7 +262,7 @@ namespace AutomationTool
 		/// <returns>True to generate a digest for this file, rather than relying on timestamps</returns>
 		bool GenerateDigest()
 		{
-			return RelativePath.EndsWith(".modules", StringComparison.OrdinalIgnoreCase);
+			return RelativePath.EndsWith(".version", StringComparison.OrdinalIgnoreCase) || RelativePath.EndsWith(".modules", StringComparison.OrdinalIgnoreCase);
 		}
 
 		/// <summary>
