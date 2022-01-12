@@ -10,6 +10,7 @@
 #include "Animation/MorphTarget.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
+#include "UObject/GarbageCollection.h"
 
 /** compare based on base mesh source vertex indices */
 struct FCompareMorphTargetDeltas
@@ -168,13 +169,15 @@ TUniquePtr<FFinishBuildMorphTargetData> UMorphTarget::CreateFinishBuildMorphTarg
 
 void FFinishBuildMorphTargetData::ApplyEditorData(USkeletalMesh * SkeletalMesh) const
 {
-	check(IsInGameThread());
 	//Return if we do not need to apply data
 	if (!bApplyMorphTargetsData)
 	{
 		return;
 	}
 	
+	//Make sure we do not create new morph target during a gc
+	FGCScopeGuard GCScopeGuard;
+
 	FSkeletalMeshModel * SkelMeshModel = SkeletalMesh->GetImportedModel();
 	check(SkelMeshModel);
 	
@@ -215,13 +218,17 @@ void FFinishBuildMorphTargetData::ApplyEditorData(USkeletalMesh * SkeletalMesh) 
 	//Rebuild the mapping and rehook the curve data
 	SkeletalMesh->InitMorphTargets();
 	
+	//Clear any async flags after the morphtargets have been set to the skeletalmesh
+	for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
+	{
+		const EInternalObjectFlags AsyncFlags = EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading;
+		MorphTarget->ClearInternalFlags(AsyncFlags);
+	}
+
 	for (UMorphTarget* ToDeleteMorphTarget : ToDeleteMorphTargets)
 	{
 		ToDeleteMorphTarget->BaseSkelMesh = nullptr;
 		ToDeleteMorphTarget->EmptyMorphLODModels();
-		
-		//Move the unused asset in the transient package and mark it pending kill
-		ToDeleteMorphTarget->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 		ToDeleteMorphTarget->MarkAsGarbage();
 	}
 }
