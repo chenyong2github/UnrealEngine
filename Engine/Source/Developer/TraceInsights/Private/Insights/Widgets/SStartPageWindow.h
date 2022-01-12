@@ -298,6 +298,7 @@ private:
 	TSharedPtr<SVerticalBox> MainContentPanel;
 	TSharedPtr<SEditableTextBox> TraceRecorderAddressTextBox;
 	TSharedPtr<SEditableTextBox> RunningInstanceAddressTextBox;
+	TSharedPtr<SEditableTextBox> ChannelsTextBox;
 
 	/** Widget for the non-intrusive notifications. */
 	TSharedPtr<SNotificationList> NotificationList;

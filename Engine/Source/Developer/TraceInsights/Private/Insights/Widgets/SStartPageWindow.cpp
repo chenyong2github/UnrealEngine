@@ -1866,6 +1866,54 @@ TSharedRef<SWidget> SConnectionWindow::ConstructConnectPanel()
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.HAlign(HAlign_Fill)
+		.Padding(12.0f, 12.0f, 12.0f, 0.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Top)
+			[
+				SNew(SBox)
+				.MinDesiredWidth(180.0f)
+				.HAlign(HAlign_Right)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("TraceRecorderChannelsText", "Initial channels"))
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			.Padding(6.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Fill)
+				[
+					 SNew(SBox)
+					 .MinDesiredWidth(120.0f)
+					 [
+						 SAssignNew(ChannelsTextBox, SEditableTextBox)
+					 ]
+				]
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Fill)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("TraceRecorderChannelNoteText", "Comma-separated list of channel names (or \"default\"= cpu,gpu,frame,log,bookmark) to enable when connected."))
+				]
+			]
+		]
+	
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
 		.Padding(12.0f, 8.0f, 12.0f, 12.0f)
 		[
 			SNew(SBox)
@@ -1909,6 +1957,7 @@ TSharedRef<SWidget> SConnectionWindow::ConstructConnectPanel()
 	}
 
 	RunningInstanceAddressTextBox->SetText(LocalHost);
+	ChannelsTextBox->SetText(FText::FromStringView(TEXT("default")));
 
 	return Widget;
 }
@@ -1942,9 +1991,11 @@ FReply SConnectionWindow::Connect_OnClicked()
 		Prerequisites.Add(ConnectTask);
 		PrerequisitesPtr = &Prerequisites;
 	}
+	
+	const FString ChannelsExpandedStr = ChannelsTextBox->GetText().ToString().Replace(TEXT("default"), TEXT("cpu,gpu,frame,log,bookmark"));
 
 	FGraphEventRef PreConnectTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
-		[this, TraceRecorderAddressStr, RunningInstanceAddressStr]
+		[this, TraceRecorderAddressStr, RunningInstanceAddressStr, ChannelsExpandedStr]
 		{
 			bIsConnecting = true;
 
@@ -1955,6 +2006,8 @@ FReply SConnectionWindow::Connect_OnClicked()
 			{
 				UE_LOG(TraceInsights, Log, TEXT("[Connection] SendSendTo(\"%s\")..."), *TraceRecorderAddressStr);
 				ControlClient.SendSendTo(*TraceRecorderAddressStr);
+				UE_LOG(TraceInsights, Log, TEXT("[Connection] ToggleChannel(\"%s\")..."), *ChannelsExpandedStr);
+				ControlClient.SendToggleChannel(*ChannelsExpandedStr, true);
 				bIsConnectedSuccessfully = true;
 			}
 			else
