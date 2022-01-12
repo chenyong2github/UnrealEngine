@@ -25,16 +25,17 @@ class FScope;
 class FExpression;
 class FFunction;
 class FRequestedType;
-class FEmitShaderScope;
+class FPreparedType;
+class FEmitScope;
 class FEmitShaderExpression;
 class FEmitShaderStatement;
 
 struct FEmitShaderScopeEntry
 {
 	FEmitShaderScopeEntry() = default;
-	FEmitShaderScopeEntry(FEmitShaderScope* InScope, int32 InIndent, FStringBuilderBase& InCode) : Scope(InScope), Code(&InCode), Indent(InIndent) {}
+	FEmitShaderScopeEntry(FEmitScope* InScope, int32 InIndent, FStringBuilderBase& InCode) : Scope(InScope), Code(&InCode), Indent(InIndent) {}
 
-	FEmitShaderScope* Scope = nullptr;
+	FEmitScope* Scope = nullptr;
 	FStringBuilderBase* Code = nullptr;
 	int32 Indent = 0;
 };
@@ -47,9 +48,9 @@ public:
 	virtual FEmitShaderExpression* AsExpression() { return nullptr; }
 	virtual FEmitShaderStatement* AsStatement() { return nullptr; }
 
-	FEmitShaderNode(FEmitShaderScope& InScope, TArrayView<FEmitShaderNode*> InDependencies);
+	FEmitShaderNode(FEmitScope& InScope, TArrayView<FEmitShaderNode*> InDependencies);
 
-	FEmitShaderScope* Scope = nullptr;
+	FEmitScope* Scope = nullptr;
 	FEmitShaderNode* NextScopedNode = nullptr;
 	TArrayView<FEmitShaderNode*> Dependencies;
 };
@@ -58,7 +59,7 @@ using FEmitShaderDependencies = TArray<FEmitShaderNode*, TInlineAllocator<8>>;
 class FEmitShaderExpression final : public FEmitShaderNode
 {
 public:
-	FEmitShaderExpression(FEmitShaderScope& InScope, TArrayView<FEmitShaderNode*> InDependencies, const Shader::FType& InType, FXxHash64 InHash)
+	FEmitShaderExpression(FEmitScope& InScope, TArrayView<FEmitShaderNode*> InDependencies, const Shader::FType& InType, FXxHash64 InHash)
 		: FEmitShaderNode(InScope, InDependencies)
 		, Type(InType)
 		, Hash(InHash)
@@ -84,17 +85,16 @@ enum class EEmitScopeFormat : uint8
 class FEmitShaderStatement final : public FEmitShaderNode
 {
 public:
-	FEmitShaderStatement(FEmitShaderScope& InScope, TArrayView<FEmitShaderNode*> InDependencies)
+	FEmitShaderStatement(FEmitScope& InScope, TArrayView<FEmitShaderNode*> InDependencies)
 		: FEmitShaderNode(InScope, InDependencies)
 	{}
 
 	virtual void EmitShaderCode(FEmitShaderScopeStack& Stack, int32 Indent, FStringBuilderBase& OutString) override;
 	virtual FEmitShaderStatement* AsStatement() override { return this; }
 
-	FEmitShaderScope* NestedScopes[2] = { nullptr };
+	FEmitScope* NestedScopes[2] = { nullptr };
 	FStringView Code[2];
 	EEmitScopeFormat ScopeFormat;
-	int8 NumEntries = 0;
 };
 
 enum class EFormatArgType : uint8
@@ -158,16 +158,25 @@ void FormatStrings(FStringBuilderBase& OutString0, FStringBuilderBase& OutString
 	Private::InternalFormatStrings(&OutString0, &OutString1, OutDependencies, Format0, Format1, ArgList);
 }
 
-class FEmitShaderScope
+enum class EEmitScopeState : uint8
+{
+	Uninitialized,
+	Initializing,
+	Live,
+	Dead,
+};
+
+class FEmitScope
 {
 public:
-	static FEmitShaderScope* FindSharedParent(FEmitShaderScope* Lhs, FEmitShaderScope* Rhs);
+	static FEmitScope* FindSharedParent(FEmitScope* Lhs, FEmitScope* Rhs);
 
 	void EmitShaderCode(FEmitShaderScopeStack& Stack);
 
-	FEmitShaderScope* ParentScope = nullptr;
+	FEmitScope* ParentScope = nullptr;
 	FEmitShaderNode* FirstNode;
 	int32 NestedLevel = 0;
+	EEmitScopeState State = EEmitScopeState::Uninitialized;
 };
 
 /** Tracks shared state while emitting HLSL code */
@@ -177,6 +186,17 @@ public:
 	explicit FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry);
 	~FEmitContext();
 
+	const FPreparedType& PrepareExpression(FExpression* InExpression, const FRequestedType& RequestedType);
+
+	FEmitScope* InternalPrepareScope(FScope* Scope, FScope* ParentScope, bool bMarkDead);
+	bool PrepareScope(FScope* Scope);
+	bool PrepareScopeWithParent(FScope* Scope, FScope* ParentScope);
+	bool MarkScopeDead(FScope* Scope);
+
+	FEmitScope* AcquireEmitScopeWithParent(const FScope* Scope, FEmitScope* EmitParentScope);
+	FEmitScope* AcquireEmitScope(const FScope* Scope);
+	FEmitScope* InternalEmitScope(const FScope* Scope);
+
 	template<typename T>
 	static TArrayView<FEmitShaderNode*> MakeDependencies(T*& Dependency)
 	{
@@ -185,55 +205,52 @@ public:
 
 	void Finalize();
 
-	/** Get a unique local variable name */
-	const TCHAR* AcquireLocalDeclarationCode();
-
-	FEmitShaderExpression* EmitExpressionInternal(FEmitShaderScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, bool bInline, const Shader::FType& Type, FStringView Code);
+	FEmitShaderExpression* InternalEmitExpression(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, bool bInline, const Shader::FType& Type, FStringView Code);
 
 	template<typename FormatType, typename... Types>
-	FEmitShaderExpression* EmitExpressionWithDependencies(FEmitShaderScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, const Shader::FType& Type, const FormatType& Format, Types... Args)
+	FEmitShaderExpression* EmitExpressionWithDependencies(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, const Shader::FType& Type, const FormatType& Format, Types... Args)
 	{
 		TStringBuilder<2048> String;
 		FEmitShaderDependencies LocalDependencies(Dependencies);
 		FormatString(String, LocalDependencies, Format, Forward<Types>(Args)...);
-		return EmitExpressionInternal(Scope, LocalDependencies, false, Type, String.ToView());
+		return InternalEmitExpression(Scope, LocalDependencies, false, Type, String.ToView());
 	}
 
 	template<typename FormatType, typename... Types>
-	FEmitShaderExpression* EmitInlineExpressionWithDependencies(FEmitShaderScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, const Shader::FType& Type, const FormatType& Format, Types... Args)
+	FEmitShaderExpression* EmitInlineExpressionWithDependencies(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, const Shader::FType& Type, const FormatType& Format, Types... Args)
 	{
 		TStringBuilder<2048> String;
 		FEmitShaderDependencies LocalDependencies(Dependencies);
 		FormatString(String, LocalDependencies, Format, Forward<Types>(Args)...);
-		return EmitExpressionInternal(Scope, LocalDependencies, true, Type, String.ToView());
+		return InternalEmitExpression(Scope, LocalDependencies, true, Type, String.ToView());
 	}
 
 	template<typename FormatType, typename... Types>
-	FEmitShaderExpression* EmitInlineExpressionWithDependency(FEmitShaderScope& Scope, FEmitShaderNode* Dependency, const Shader::FType& Type, const FormatType& Format, Types... Args)
+	FEmitShaderExpression* EmitInlineExpressionWithDependency(FEmitScope& Scope, FEmitShaderNode* Dependency, const Shader::FType& Type, const FormatType& Format, Types... Args)
 	{
 		return EmitInlineExpressionWithDependencies(Scope, MakeDependencies(Dependency), Type, Format, Forward<Types>(Args)...);
 	}
 
 	template<typename FormatType, typename... Types>
-	FEmitShaderExpression* EmitExpression(FEmitShaderScope& Scope, const Shader::FType& Type, const FormatType& Format, Types... Args)
+	FEmitShaderExpression* EmitExpression(FEmitScope& Scope, const Shader::FType& Type, const FormatType& Format, Types... Args)
 	{
 		return EmitExpressionWithDependencies(Scope, TArrayView<FEmitShaderNode*>(), Type, Format, Forward<Types>(Args)...);
 	}
 
 	template<typename FormatType, typename... Types>
-	FEmitShaderExpression* EmitInlineExpression(FEmitShaderScope& Scope, const Shader::FType& Type, const FormatType& Format, Types... Args)
+	FEmitShaderExpression* EmitInlineExpression(FEmitScope& Scope, const Shader::FType& Type, const FormatType& Format, Types... Args)
 	{
 		return EmitInlineExpressionWithDependencies(Scope, TArrayView<FEmitShaderNode*>(), Type, Format, Forward<Types>(Args)...);
 	}
 
-	FEmitShaderStatement* EmitStatementInternal(FEmitShaderScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, EEmitScopeFormat ScopeFormat, FEmitShaderScope* NestedScope0, FEmitShaderScope* NestedScope1, FStringView Code0, FStringView Code1);
+	FEmitShaderStatement* InternalEmitStatement(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, EEmitScopeFormat ScopeFormat, FEmitScope* NestedScope0, FEmitScope* NestedScope1, FStringView Code0, FStringView Code1);
 
 	template<typename FormatType0, typename FormatType1, typename... Types>
-	FEmitShaderStatement* EmitFormatStatementInternal(FEmitShaderScope& Scope,
+	FEmitShaderStatement* EmitFormatStatementInternal(FEmitScope& Scope,
 		TArrayView<FEmitShaderNode*> Dependencies,
 		EEmitScopeFormat ScopeFormat,
-		FEmitShaderScope* NestedScope0,
-		FEmitShaderScope* NestedScope1,
+		FEmitScope* NestedScope0,
+		FEmitScope* NestedScope1,
 		const FormatType0& Format0,
 		const FormatType1& Format1,
 		Types... Args)
@@ -242,66 +259,93 @@ public:
 		TStringBuilder<1024> String1;
 		FEmitShaderDependencies LocalDependencies(Dependencies);
 		FormatStrings(String0, String1, LocalDependencies, Format0, Format1, Forward<Types>(Args)...);
-		return EmitStatementInternal(Scope, LocalDependencies, ScopeFormat, NestedScope0, NestedScope1, String0.ToView(), String1.ToView());
+		return InternalEmitStatement(Scope, LocalDependencies, ScopeFormat, NestedScope0, NestedScope1, String0.ToView(), String1.ToView());
 	}
 
 	template<typename FormatType, typename... Types>
-	FEmitShaderStatement* EmitStatementWithDependencies(FEmitShaderScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, const FormatType& Format, Types... Args)
+	FEmitShaderStatement* EmitStatementWithDependencies(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, const FormatType& Format, Types... Args)
 	{
-		return EmitFormatStatementInternal(Scope, Dependencies, EEmitScopeFormat::None, nullptr, nullptr, Format, FStringView(), Forward<Types>(Args)...);
+		TStringBuilder<1024> String;
+		FEmitShaderDependencies LocalDependencies(Dependencies);
+		FormatString(String, LocalDependencies, Format, Forward<Types>(Args)...);
+		return InternalEmitStatement(Scope, LocalDependencies, EEmitScopeFormat::None, nullptr, nullptr, String.ToView(), FStringView());
 	}
 
 	template<typename FormatType, typename... Types>
-	FEmitShaderStatement* EmitStatementWithDependency(FEmitShaderScope& Scope, FEmitShaderNode* Dependency, const FormatType& Format, Types... Args)
+	FEmitShaderStatement* EmitStatementWithDependency(FEmitScope& Scope, FEmitShaderNode* Dependency, const FormatType& Format, Types... Args)
 	{
 		return EmitStatementWithDependencies(Scope, MakeDependencies(Dependency), Format, Forward<Types>(Args)...);
 	}
 
 	template<typename FormatType, typename... Types>
-	FEmitShaderStatement* EmitStatement(FEmitShaderScope& Scope, const FormatType& Format, Types... Args)
+	FEmitShaderStatement* EmitStatement(FEmitScope& Scope, const FormatType& Format, Types... Args)
 	{
 		return EmitStatementWithDependencies(Scope, TArrayView<FEmitShaderNode*>(), Format, Forward<Types>(Args)...);
 	}
 
-	FEmitShaderStatement* EmitNextScopeWithDependency(FEmitShaderScope& Scope, FEmitShaderNode* Dependency, FScope* NextScope)
+	FEmitShaderStatement* EmitNextScopeWithDependency(FEmitScope& Scope, FEmitShaderNode* Dependency, FScope* NextScope)
 	{
-		FEmitShaderScope* EmitScope = AcquireEmitScope(NextScope, &Scope);
-		return EmitStatementInternal(Scope, MakeDependencies(Dependency), EEmitScopeFormat::Unscoped, EmitScope, nullptr, FStringView(), FStringView());
+		FEmitScope* EmitScope = InternalEmitScope(NextScope);
+		if (EmitScope)
+		{
+			return InternalEmitStatement(Scope, MakeDependencies(Dependency), EEmitScopeFormat::Unscoped, EmitScope, nullptr, FStringView(), FStringView());
+		}
+		return nullptr;
 	}
 
-	FEmitShaderStatement* EmitNextScope(FEmitShaderScope& Scope, FScope* NextScope)
+	FEmitShaderStatement* EmitNextScope(FEmitScope& Scope, FScope* NextScope)
 	{
 		return EmitNextScopeWithDependency(Scope, nullptr, NextScope);
 	}
 
 	template<typename FormatType, typename... Types>
-	FEmitShaderStatement* EmitNestedScope(FEmitShaderScope& Scope, FScope* NestedScope, const FormatType& Format, Types... Args)
+	FEmitShaderStatement* EmitNestedScope(FEmitScope& Scope, FScope* NestedScope, const FormatType& Format, Types... Args)
 	{
-		FEmitShaderScope* EmitScope = AcquireEmitScope(NestedScope, &Scope);
-		return EmitFormatStatementInternal(Scope, TArrayView<FEmitShaderNode*>(), EEmitScopeFormat::Scoped, EmitScope, nullptr, Format, FStringView(), Forward<Types>(Args)...);
+		FEmitScope* EmitScope = InternalEmitScope(NestedScope);
+		if (EmitScope)
+		{
+			TStringBuilder<1024> String;
+			FEmitShaderDependencies LocalDependencies;
+			FormatString(String, LocalDependencies, Format, Forward<Types>(Args)...);
+			return InternalEmitStatement(Scope, LocalDependencies, EEmitScopeFormat::Scoped, EmitScope, nullptr, String.ToView(), FStringView());
+		}
+		return nullptr;
 	}
 
 	template<typename FormatType0, typename FormatType1, typename... Types>
-	FEmitShaderStatement* EmitNestedScopes(FEmitShaderScope& Scope, FScope* NestedScope0, FScope* NestedScope1, const FormatType0& Format0, const FormatType1& Format1, Types... Args)
+	FEmitShaderStatement* EmitNestedScopes(FEmitScope& Scope, FScope* NestedScope0, FScope* NestedScope1, const FormatType0& Format0, const FormatType1& Format1, Types... Args)
 	{
-		FEmitShaderScope* EmitScope0 = AcquireEmitScope(NestedScope0, &Scope);
-		FEmitShaderScope* EmitScope1 = AcquireEmitScope(NestedScope1, &Scope);
-		return EmitFormatStatementInternal(Scope, TArrayView<FEmitShaderNode*>(), EEmitScopeFormat::Scoped, EmitScope0, EmitScope1, Format0, Format1, Forward<Types>(Args)...);
+		FEmitScope* EmitScope0 = InternalEmitScope(NestedScope0);
+		FEmitScope* EmitScope1 = InternalEmitScope(NestedScope1);
+		if (EmitScope1)
+		{
+			TStringBuilder<1024> String0;
+			TStringBuilder<1024> String1;
+			FEmitShaderDependencies LocalDependencies;
+			FormatStrings(String0, String1, LocalDependencies, Format0, Format1, Forward<Types>(Args)...);
+			return InternalEmitStatement(Scope, LocalDependencies, EEmitScopeFormat::Scoped, EmitScope0, EmitScope1, String0.ToView(), String1.ToView());
+		}
+		else if (EmitScope0)
+		{
+			TStringBuilder<1024> String;
+			FEmitShaderDependencies LocalDependencies;
+			FormatString(String, LocalDependencies, Format0, Forward<Types>(Args)...);
+			return InternalEmitStatement(Scope, LocalDependencies, EEmitScopeFormat::Scoped, EmitScope0, nullptr, String.ToView(), FStringView());
+		}
+
+		return nullptr;
 	}
 
-	FEmitShaderScope* AcquireEmitScope(FScope* Scope, FEmitShaderScope* OverrideParent = nullptr);
-	FEmitShaderScope* FindEmitScope(FScope* Scope) const;
-
-	FEmitShaderExpression* EmitPreshaderOrConstant(FEmitShaderScope& Scope, const FRequestedType& RequestedType, FExpression* Expression);
-	FEmitShaderExpression* EmitConstantZero(FEmitShaderScope& Scope, const Shader::FType& Type);
-	FEmitShaderExpression* EmitCast(FEmitShaderScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType);
+	FEmitShaderExpression* EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* Expression);
+	FEmitShaderExpression* EmitConstantZero(FEmitScope& Scope, const Shader::FType& Type);
+	FEmitShaderExpression* EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType);
 
 	FMemStackBase* Allocator = nullptr;
 	FErrorHandlerInterface* Errors = nullptr;
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
 
 	TArray<FEmitShaderNode*> EmitNodes;
-	TMap<const FScope*, FEmitShaderScope*> EmitScopeMap;
+	TMap<const FScope*, FEmitScope*> EmitScopeMap;
 	TMap<const FExpression*, FEmitShaderExpression*> EmitLocalPHIMap;
 	TMap<FXxHash64, FEmitShaderExpression*> EmitExpressionMap;
 	TMap<FXxHash64, FEmitShaderExpression*> EmitPreshaderMap;
@@ -313,6 +357,8 @@ public:
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
 	uint32 UniformPreshaderOffset = 0u;
+	uint32 CurrentBoolUniformOffset = ~0u;
+	uint32 CurrentNumBoolComponents = 32u;
 	bool bReadMaterialNormal = false;
 
 	int32 NumExpressionLocals = 0;

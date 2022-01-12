@@ -221,7 +221,7 @@ bool FExpressionExternalInput::PrepareValue(FEmitContext& Context, const FReques
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, InputDesc.Type);
 }
 
-void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const int32 TypeIndex = (int32)InputType;
 	if (IsTexCoord(InputType))
@@ -274,14 +274,14 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitShade
 
 bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	PrepareExpressionValue(Context, TexCoordExpression, Shader::EValueType::Float2);
-	PrepareExpressionValue(Context, TexCoordDerivatives.ExpressionDdx, Shader::EValueType::Float2);
-	PrepareExpressionValue(Context, TexCoordDerivatives.ExpressionDdy, Shader::EValueType::Float2);
+	Context.PrepareExpression(TexCoordExpression, Shader::EValueType::Float2);
+	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdx, Shader::EValueType::Float2);
+	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdy, Shader::EValueType::Float2);
 
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float4);
 }
 
-void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const FTextureDescription& Desc = Declaration->Description;
 	const EMaterialValueType MaterialValueType = Desc.Texture->GetMaterialType();
@@ -440,7 +440,7 @@ bool FExpressionGetStructField::PrepareValue(FEmitContext& Context, const FReque
 	FRequestedType RequestedStructType(StructType, false);
 	RequestedStructType.SetField(Field, RequestedType);
 
-	const FPreparedType& StructPreparedType = PrepareExpressionValue(Context, StructExpression, RequestedStructType);
+	const FPreparedType& StructPreparedType = Context.PrepareExpression(StructExpression, RequestedStructType);
 	if (!StructPreparedType.IsVoid() && StructPreparedType.StructType != StructType)
 	{
 		return Context.Errors->AddErrorf(TEXT("Expected type %s"), StructType->Name);
@@ -449,7 +449,7 @@ bool FExpressionGetStructField::PrepareValue(FEmitContext& Context, const FReque
 	return OutResult.SetType(Context, RequestedType, StructPreparedType.GetFieldType(Field));
 }
 
-void FExpressionGetStructField::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionGetStructField::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	FRequestedType RequestedStructType(StructType, false);
 	RequestedStructType.SetField(Field, RequestedType);
@@ -492,13 +492,13 @@ bool FExpressionSetStructField::PrepareValue(FEmitContext& Context, const FReque
 	FRequestedType RequestedStructType(RequestedType);
 	RequestedStructType.ClearFieldRequested(Field);
 
-	const FPreparedType& StructPreparedType = PrepareExpressionValue(Context, StructExpression, RequestedStructType);
+	const FPreparedType& StructPreparedType = Context.PrepareExpression(StructExpression, RequestedStructType);
 	if (!StructPreparedType.IsVoid() && StructPreparedType.StructType != StructType)
 	{
 		return Context.Errors->AddErrorf(TEXT("Expected type %s"), StructType->Name);
 	}
 
-	const FPreparedType& FieldPreparedType = PrepareExpressionValue(Context, FieldExpression, RequestedType.GetField(Field));
+	const FPreparedType& FieldPreparedType = Context.PrepareExpression(FieldExpression, RequestedType.GetField(Field));
 	if (FieldPreparedType.IsVoid())
 	{
 		return OutResult.SetForwardValue(Context, RequestedType, StructExpression);
@@ -515,7 +515,7 @@ bool FExpressionSetStructField::PrepareValue(FEmitContext& Context, const FReque
 	}
 }
 
-void FExpressionSetStructField::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionSetStructField::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	FRequestedType RequestedStructType(RequestedType);
 	RequestedStructType.ClearFieldRequested(Field);
@@ -572,15 +572,15 @@ void FExpressionSetStructField::EmitValuePreshader(FEmitContext& Context, const 
 
 bool FExpressionSelect::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPreparedType& ConditionType = PrepareExpressionValue(Context, ConditionExpression, 1);
+	const FPreparedType& ConditionType = Context.PrepareExpression(ConditionExpression, 1);
 	if (ConditionType.GetEvaluation(Shader::EValueType::Bool1) == EExpressionEvaluation::Constant)
 	{
 		const bool bCondition = ConditionExpression->GetValueConstant(Context, Shader::EValueType::Bool1).AsBoolScalar();
 		return OutResult.SetForwardValue(Context, RequestedType, bCondition ? TrueExpression : FalseExpression);
 	}
 
-	const FPreparedType& LhsType = PrepareExpressionValue(Context, FalseExpression, RequestedType);
-	const FPreparedType& RhsType = PrepareExpressionValue(Context, TrueExpression, RequestedType);
+	const FPreparedType& LhsType = Context.PrepareExpression(FalseExpression, RequestedType);
+	const FPreparedType& RhsType = Context.PrepareExpression(TrueExpression, RequestedType);
 	
 	if (LhsType.ValueComponentType != RhsType.ValueComponentType ||
 		LhsType.StructType != RhsType.StructType)
@@ -591,7 +591,7 @@ bool FExpressionSelect::PrepareValue(FEmitContext& Context, const FRequestedType
 	return OutResult.SetType(Context, RequestedType, MergePreparedTypes(LhsType, RhsType));
 }
 
-void FExpressionSelect::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionSelect::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	FEmitShaderExpression* TrueValue = TrueExpression->GetValueShader(Context, Scope, RequestedType);
 	FEmitShaderExpression* FalseValue = FalseExpression->GetValueShader(Context, Scope, RequestedType);
@@ -640,7 +640,7 @@ void FExpressionUnaryOp::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDeri
 
 bool FExpressionUnaryOp::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPreparedType& InputType = PrepareExpressionValue(Context, Input, RequestedType);
+	const FPreparedType& InputType = Context.PrepareExpression(Input, RequestedType);
 	if (InputType.IsVoid())
 	{
 		return false;
@@ -662,7 +662,7 @@ bool FExpressionUnaryOp::PrepareValue(FEmitContext& Context, const FRequestedTyp
 	return OutResult.SetType(Context, RequestedType, ResultType);
 }
 
-void FExpressionUnaryOp::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionUnaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	FEmitShaderExpression* InputValue = Input->GetValueShader(Context, Scope, RequestedType);
 	Shader::FType ResultType = InputValue->Type;
@@ -765,8 +765,8 @@ void FExpressionBinaryOp::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDer
 
 bool FExpressionBinaryOp::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPreparedType& LhsType = PrepareExpressionValue(Context, Lhs, RequestedType);
-	const FPreparedType& RhsType = PrepareExpressionValue(Context, Rhs, RequestedType);
+	const FPreparedType& LhsType = Context.PrepareExpression(Lhs, RequestedType);
+	const FPreparedType& RhsType = Context.PrepareExpression(Rhs, RequestedType);
 	if (LhsType.IsVoid() || RhsType.IsVoid())
 	{
 		return false;
@@ -808,7 +808,7 @@ FRequestedType GetBinaryOpInputType(const FRequestedType& RequestedType, EBinary
 }
 } // namespace Private
 
-void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const FRequestedType InputType = Private::GetBinaryOpInputType(RequestedType, Op, Lhs->GetRequestedType(), Rhs->GetRequestedType());
 	const Shader::EValueComponentType InputComponentType = InputType.ValueComponentType;
@@ -899,7 +899,7 @@ void FExpressionSwizzle::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDeri
 bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FRequestedType RequestedInputType = Parameters.GetRequestedInputType(RequestedType);
-	const FPreparedType& InputType = PrepareExpressionValue(Context, Input, RequestedInputType);
+	const FPreparedType& InputType = Context.PrepareExpression(Input, RequestedInputType);
 
 	FPreparedType ResultType(InputType.ValueComponentType);
 	for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
@@ -911,7 +911,7 @@ bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, const FRequestedTyp
 	return OutResult.SetType(Context, RequestedType, ResultType);
 }
 
-void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const FRequestedType RequestedInputType = Parameters.GetRequestedInputType(RequestedType);
 
@@ -968,7 +968,7 @@ void FExpressionAppend::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDeriv
 
 bool FExpressionAppend::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPreparedType& LhsType = PrepareExpressionValue(Context, Lhs, RequestedType);
+	const FPreparedType& LhsType = Context.PrepareExpression(Lhs, RequestedType);
 	const int32 NumRequestedComponents = RequestedType.GetNumComponents();
 	const int32 NumLhsComponents = FMath::Min(LhsType.GetNumComponents(), NumRequestedComponents);
 
@@ -978,7 +978,7 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, const FRequestedType
 		RhsRequestedType.SetComponentRequest(Index - NumLhsComponents, RequestedType.IsComponentRequested(Index));
 	}
 
-	const FPreparedType& RhsType = PrepareExpressionValue(Context, Rhs, RhsRequestedType);
+	const FPreparedType& RhsType = Context.PrepareExpression(Rhs, RhsRequestedType);
 	const int32 NumRhsComponents = FMath::Min(RhsType.GetNumComponents(), NumRequestedComponents - NumLhsComponents);
 
 	if (LhsType.ValueComponentType != RhsType.ValueComponentType)
@@ -1031,7 +1031,7 @@ FAppendTypes GetAppendTypes(const FRequestedType& RequestedType, const FRequeste
 }
 } // namespace Private
 
-void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Lhs->GetRequestedType(), Rhs->GetRequestedType());
 	FEmitShaderExpression* LhsValue = Lhs->GetValueShader(Context, Scope, Types.LhsType);
@@ -1076,99 +1076,98 @@ bool FExpressionReflectionVector::PrepareValue(FEmitContext& Context, const FReq
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float3);
 }
 
-void FExpressionReflectionVector::EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionReflectionVector::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	OutResult.Code = Context.EmitInlineExpression(Scope, Shader::EValueType::Float3, TEXT("Parameters.ReflectionVector"));
 }
 
-void FStatementBreak::Prepare(FEmitContext& Context) const
+bool FStatementBreak::Prepare(FEmitContext& Context) const
 {
+	return true;
 }
 
-void FStatementBreak::EmitShader(FEmitContext& Context, FEmitShaderScope& Scope) const
+void FStatementBreak::EmitShader(FEmitContext& Context, FEmitScope& Scope) const
 {
 	Context.EmitStatement(Scope, TEXT("break;"));
 }
 
-void FStatementReturn::Prepare(FEmitContext& Context) const
+bool FStatementReturn::Prepare(FEmitContext& Context) const
 {
+	return true;
 }
 
-void FStatementReturn::EmitShader(FEmitContext& Context, FEmitShaderScope& Scope) const
+void FStatementReturn::EmitShader(FEmitContext& Context, FEmitScope& Scope) const
 {
 	Context.EmitStatement(Scope, TEXT("return %;"), Expression->GetValueShader(Context, Scope));
 }
 
-void FStatementIf::Prepare(FEmitContext& Context) const
+bool FStatementIf::Prepare(FEmitContext& Context) const
 {
-	const FPreparedType& ConditionType = PrepareExpressionValue(Context, ConditionExpression, 1);
-	if (ConditionType.GetEvaluation(Shader::EValueType::Bool1) == EExpressionEvaluation::Constant)
+	const FPreparedType& ConditionType = Context.PrepareExpression(ConditionExpression, 1);
+	if (ConditionType.IsVoid())
+	{
+		return false;
+	}
+
+	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Shader::EValueType::Bool1);
+	check(ConditionEvaluation != EExpressionEvaluation::None);
+	if (ConditionEvaluation == EExpressionEvaluation::Constant)
 	{
 		const bool bCondition = ConditionExpression->GetValueConstant(Context, Shader::EValueType::Bool1).AsBoolScalar();
 		if (bCondition)
 		{
-			MarkScopeLive(ThenScope);
-			MarkScopeDead(ElseScope);
+			Context.PrepareScope(ThenScope);
+			Context.MarkScopeDead(ElseScope);
 		}
 		else
 		{
-			MarkScopeDead(ThenScope);
-			MarkScopeLive(ElseScope);
-		}
-	}
-	else if(!ConditionType.IsVoid())
-	{
-		MarkScopeLive(ThenScope);
-		MarkScopeLive(ElseScope);
-	}
-}
-
-void FStatementIf::EmitShader(FEmitContext& Context, FEmitShaderScope& Scope) const
-{
-	FEmitShaderNode* Dependency = nullptr;
-	if (ConditionExpression->GetEvaluation(Shader::EValueType::Bool1) == EExpressionEvaluation::Constant)
-	{
-		const bool bCondition = ConditionExpression->GetValueConstant(Context, Shader::EValueType::Bool1).AsBoolScalar();
-		if (bCondition && IsScopeLive(ThenScope))
-		{
-			Dependency = Context.EmitNextScope(Scope, ThenScope);
-		}
-		else if(!bCondition && IsScopeLive(ElseScope))
-		{
-			Dependency = Context.EmitNextScope(Scope, ElseScope);
+			Context.MarkScopeDead(ThenScope);
+			Context.PrepareScope(ElseScope);
 		}
 	}
 	else
 	{
-		if (IsScopeLive(ThenScope) || IsScopeLive(ElseScope))
+		Context.PrepareScope(ThenScope);
+		Context.PrepareScope(ElseScope);
+	}
+
+	return true;
+}
+
+void FStatementIf::EmitShader(FEmitContext& Context, FEmitScope& Scope) const
+{
+	FEmitShaderNode* Dependency = nullptr;
+	const EExpressionEvaluation ConditionEvaluation = ConditionExpression->GetEvaluation(Shader::EValueType::Bool1);
+	if (ConditionEvaluation == EExpressionEvaluation::Constant)
+	{
+		const bool bCondition = ConditionExpression->GetValueConstant(Context, Shader::EValueType::Bool1).AsBoolScalar();
+		if (bCondition)
 		{
-			FEmitShaderExpression* ConditionValue = ConditionExpression->GetValueShader(Context, Scope, Shader::EValueType::Bool1);
-			if (IsScopeLive(ElseScope))
-			{
-				Dependency = Context.EmitNestedScopes(Scope, ThenScope, ElseScope, TEXT("if (%)"), TEXT("else"), ConditionValue);
-			}
-			else
-			{
-				Dependency = Context.EmitNestedScope(Scope, ThenScope, TEXT("if (%)"), ConditionValue);
-			}
+			Dependency = Context.EmitNextScope(Scope, ThenScope);
 		}
+		else if(!bCondition)
+		{
+			Dependency = Context.EmitNextScope(Scope, ElseScope);
+		}
+	}
+	else if(ConditionEvaluation != EExpressionEvaluation::None)
+	{
+		FEmitShaderExpression* ConditionValue = ConditionExpression->GetValueShader(Context, Scope, Shader::EValueType::Bool1);
+		Dependency = Context.EmitNestedScopes(Scope, ThenScope, ElseScope, TEXT("if (%)"), TEXT("else"), ConditionValue);
 	}
 
 	Context.EmitNextScopeWithDependency(Scope, Dependency, NextScope);
 }
 
-void FStatementLoop::Prepare(FEmitContext& Context) const
+bool FStatementLoop::Prepare(FEmitContext& Context) const
 {
-	MarkScopeLive(LoopScope);
+	Context.PrepareScope(LoopScope);
+	return true;
 }
 
-void FStatementLoop::EmitShader(FEmitContext& Context, FEmitShaderScope& Scope) const
+void FStatementLoop::EmitShader(FEmitContext& Context, FEmitScope& Scope) const
 {
-	FEmitShaderNode* Dependency = nullptr;
-	if (IsScopeLive(LoopScope))
-	{
-		Dependency = Context.EmitNestedScope(Scope, LoopScope, TEXT("while (true)"));
-	}
+	FEmitShaderNode* Dependency = Context.EmitNestedScope(Scope, LoopScope, TEXT("while (true)"));
 	Context.EmitNextScopeWithDependency(Scope, Dependency, NextScope);
 }
 

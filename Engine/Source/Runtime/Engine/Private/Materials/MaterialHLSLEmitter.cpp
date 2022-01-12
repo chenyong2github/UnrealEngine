@@ -732,15 +732,10 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	const FStructField* NormalField = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(MP_Normal));
 	check(NormalField);
 
-	if (!PrepareScope(EmitContext, Generator.GetResultStatement()->ParentScope))
-	{
-		return false;
-	}
-
 	// Prepare all fields *except* normal
 	FRequestedType RequestedMaterialAttributesType(Generator.GetMaterialAttributesType());
 	RequestedMaterialAttributesType.ClearFieldRequested(NormalField);
-	if (PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialAttributesType).IsVoid())
+	if (EmitContext.PrepareExpression(Generator.GetResultExpression(), RequestedMaterialAttributesType).IsVoid())
 	{
 		return false;
 	}
@@ -753,7 +748,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	{
 		// No access to material normal, can execute everything in phase0
 		RequestedMaterialAttributesType.SetFieldRequested(NormalField);
-		if (PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialAttributesType).IsVoid())
+		if (EmitContext.PrepareExpression(Generator.GetResultExpression(), RequestedMaterialAttributesType).IsVoid())
 		{
 			return false;
 		}
@@ -767,15 +762,11 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 
 		// Reset state
 		HLSLTree->ResetNodes();
-		if (!PrepareScope(EmitContext, Generator.GetResultStatement()->ParentScope))
-		{
-			return false;
-		}
 
 		// Prepare code for just the normal
 		FRequestedType RequestedMaterialNormal(Generator.GetMaterialAttributesType(), false);
 		RequestedMaterialNormal.SetFieldRequested(NormalField);
-		if (PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialNormal).IsVoid())
+		if (EmitContext.PrepareExpression(Generator.GetResultExpression(), RequestedMaterialNormal).IsVoid())
 		{
 			return false;
 		}

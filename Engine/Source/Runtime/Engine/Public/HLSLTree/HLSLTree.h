@@ -39,7 +39,7 @@ class FExpressionLocalPHI;
 class FRequestedType;
 
 class FEmitContext;
-class FEmitShaderScope;
+class FEmitScope;
 class FEmitShaderExpression;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
@@ -191,10 +191,17 @@ private:
 class FStatement : public FNode
 {
 public:
-	virtual void Prepare(FEmitContext& Context) const = 0;
-	virtual void EmitShader(FEmitContext& Context, FEmitShaderScope& Scope) const = 0;
+	FScope& GetParentScope() const { return *ParentScope; }
 
+protected:
+	virtual bool Prepare(FEmitContext& Context) const = 0;
+	virtual void EmitShader(FEmitContext& Context, FEmitScope& Scope) const = 0;
+
+private:
 	FScope* ParentScope = nullptr;
+
+	friend class FTree;
+	friend class FEmitContext;
 };
 
 /**
@@ -352,19 +359,17 @@ public:
 
 	virtual void Reset() override;
 
-	friend const FPreparedType& PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
-
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType);
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType);
 	void GetValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader);
 	Shader::FValue GetValueConstant(FEmitContext& Context, const FRequestedType& RequestedType);
 
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType);
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitShaderScope& Scope);
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType);
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope);
 
 protected:
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const;
 	virtual bool PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
-	virtual void EmitValueShader(FEmitContext& Context, FEmitShaderScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const;
 
 private:
@@ -425,13 +430,6 @@ public:
 	FTextureDescription Description;
 };
 
-enum class EScopeState : uint8
-{
-	Uninitialized,
-	Live,
-	Dead,
-};
-
 /**
  * Represents an HLSL scope.  A scope contains a single statement, along with any expressions required by that statement
  */
@@ -440,11 +438,7 @@ class FScope final : public FNode
 public:
 	static FScope* FindSharedParent(FScope* Lhs, FScope* Rhs);
 
-	virtual void Reset() override;
-
 	inline FScope* GetParentScope() const { return ParentScope; }
-	inline bool IsLive() const { return State == EScopeState::Live; }
-	inline bool IsDead() const { return State == EScopeState::Dead; }
 
 	inline TArrayView<FScope*> GetPreviousScopes() const
 	{
@@ -456,11 +450,6 @@ public:
 
 	void AddPreviousScope(FScope& Scope);
 
-	friend bool PrepareScope(FEmitContext& Context, FScope* InScope);
-
-	void MarkLive();
-	void MarkLiveRecursive();
-	void MarkDead();
 
 private:
 	friend class FTree;
@@ -474,29 +463,7 @@ private:
 	TMap<FName, FExpression*> LocalMap;
 	int32 NumPreviousScopes = 0;
 	int32 NestedLevel = 0;
-	EScopeState State = EScopeState::Uninitialized;
 };
-
-inline bool IsScopeLive(const FScope* InScope)
-{
-	return (bool)InScope && InScope->IsLive();
-}
-
-inline void MarkScopeLive(FScope* InScope)
-{
-	if (InScope)
-	{
-		InScope->MarkLive();
-	}
-}
-
-inline void MarkScopeDead(FScope* InScope)
-{
-	if (InScope)
-	{
-		InScope->MarkDead();
-	}
-}
 
 namespace Private
 {
@@ -559,7 +526,7 @@ public:
 	void AssignLocal(FScope& Scope, const FName& LocalName, FExpression* Value);
 	FExpression* AcquireLocal(FScope& Scope, const FName& LocalName);
 
-	FExpression* NewFunctionCall(FScope& Scope, FFunction* Function, TArrayView<FExpression*> InputExpressions, int32 OutputIndex);
+	FExpression* NewFunctionCall(FScope& Scope, FFunction* Function, int32 OutputIndex);
 
 	const FExpressionDerivatives& GetAnalyticDerivatives(FExpression* InExpression);
 
@@ -607,10 +574,6 @@ private:
 
 	friend class FExpressionLocalPHI;
 };
-
-//Shader::EValueType RequestExpressionType(FEmitContext& Context, FExpression* InExpression, int8 InRequestedNumComponents); // friend of FExpression
-//EExpressionEvaluation PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression); // friend of FExpression
-//void PrepareScopeValues(FEmitContext& Context, const FScope* InScope); // friend of FScope
 
 } // namespace HLSLTree
 } // namespace UE

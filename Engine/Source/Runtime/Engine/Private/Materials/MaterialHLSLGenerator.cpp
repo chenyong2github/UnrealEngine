@@ -333,7 +333,7 @@ UE::HLSLTree::FScope* FMaterialHLSLGenerator::NewScope(UE::HLSLTree::FScope& Sco
 UE::HLSLTree::FScope* FMaterialHLSLGenerator::NewOwnedScope(UE::HLSLTree::FStatement& Owner)
 {
 	UE::HLSLTree::FScope* NewScope = HLSLTree->NewOwnedScope(Owner);
-	NewScope->AddPreviousScope(*Owner.ParentScope);
+	NewScope->AddPreviousScope(Owner.GetParentScope());
 	return NewScope;
 }
 
@@ -617,7 +617,7 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSL
 		check(HLSLFunction->OutputExpressions.Num() == FunctionOutputs.Num());
 		if (HLSLFunction->OutputExpressions[OutputIndex])
 		{
-			Result = HLSLTree->NewFunctionCall(Scope, HLSLFunction, FunctionCall->ConnectedInputs, OutputIndex);
+			Result = HLSLTree->NewFunctionCall(Scope, HLSLFunction, OutputIndex);
 		}
 		else
 		{
