@@ -160,7 +160,14 @@ namespace Horde.Storage.Implementation
         {
             using Scope findReplicationBucketScope = Tracer.Instance.StartActive("scylla.find_replication_buckets");
 
+
             DateTime startBucketTime;
+            if (lastBucket == "now")
+            {
+                // for debug purposes we allow you to list the latest bucket
+                lastBucket = DateTime.Now.ToHourlyBucket().ToReplicationBucketIdentifier();
+            }
+
             if (lastBucket != null)
             {
                 long bucket = FromReplicationBucketIdentifier(lastBucket);

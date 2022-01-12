@@ -93,7 +93,7 @@ namespace Horde.Storage.Controllers
                 return Forbid();
             }
 
-            if ((lastBucket == null && lastEvent.HasValue) || (lastBucket != null && !lastEvent.HasValue))
+            if (((lastBucket == null && lastEvent.HasValue) || (lastBucket != null && !lastEvent.HasValue)) && lastBucket != "now")
             {
                 return BadRequest(new ProblemDetails
                 {
