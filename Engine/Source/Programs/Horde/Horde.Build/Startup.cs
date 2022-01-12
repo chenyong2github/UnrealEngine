@@ -81,6 +81,8 @@ using EpicGames.Horde.Compute;
 using HordeServer.Compute.Impl;
 using HordeServer.Compute;
 using System.Net.Http.Headers;
+using Amazon.SecurityToken.Model;
+using Horde.Build.Utilities;
 using Serilog.Events;
 using HordeServer.Jobs;
 using Microsoft.AspNetCore.Mvc;
@@ -404,6 +406,12 @@ namespace HordeServer
 			{
 				// Using the fallback credentials from the AWS SDK, it will pick up credentials through a number of default mechanisms.
 				AwsOptions.Credentials = FallbackCredentialsFactory.GetCredentials();
+			}
+			else if(Settings.S3CredentialType == "SharedCredentials" && Settings.S3AwsProfile != null)
+			{
+				// This SharedCredentials option is primarily for development purposes.
+				var (AccessKey, SecretAccessKey, SecretToken) = AwsHelper.ReadAwsCredentials(Settings.S3AwsProfile);
+				AwsOptions.Credentials = new Credentials(AccessKey, SecretAccessKey, SecretToken, DateTime.Now + TimeSpan.FromHours(12));
 			}
 			
 			Services.AddSingleton(AwsOptions);

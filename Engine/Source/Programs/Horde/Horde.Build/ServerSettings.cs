@@ -338,9 +338,14 @@ namespace HordeServer
 		/// S3 bucket region for logfile storage
 		/// </summary>
 		public string S3BucketRegion { get; set; } = null!;
+		
+		/// <summary>
+		/// AWS profile name. Used when S3CredentialType is set to "SharedCredentials".
+		/// </summary>
+		public string? S3AwsProfile { get; set; }
 
 		/// <summary>
-		/// Arn to assume for s3.  "Basic", "AssumeRole", "AssumeRoleWebIdentity" only
+		/// Arn to assume for s3.  "Basic", "AssumeRole", "AssumeRoleWebIdentity", "SharedCredentials" only
 		/// </summary>
 		public string? S3CredentialType { get; set; }
 
