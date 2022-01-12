@@ -442,10 +442,57 @@ void FAssetTypeActions_Skeleton::GetActions(const TArray<UObject*>& InObjects, F
 			false, 
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
 			);
+
+	// only show if one is selected. It won't work since I changed the window to be normal window
+	if (Skeletons.Num() == 1)
+	{
+		Section.AddMenuEntry(
+			"Skeleton_Retarget",
+			LOCTEXT("Skeleton_Retarget", "Retarget to Another Skeleton"),
+			LOCTEXT("Skeleton_RetargetTooltip", "Allow all animation assets for this skeleton retarget to another skeleton."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.RetargetSkeleton"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_Skeleton::ExecuteRetargetSkeleton, Skeletons),
+				FCanExecuteAction()
+				)
+			);
+	}
+
+	// @todo ImportAnimation
+	/*
+	Section.AddMenuEntry(
+		"Skeleton_ImportAnimation",
+		LOCTEXT("Skeleton_ImportAnimation", "Import Animation"),
+		LOCTEXT("Skeleton_ImportAnimationTooltip", "Imports an animation for the selected skeleton."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP( this, &FAssetTypeActions_Skeleton::ExecuteImportAnimation, Skeletons ),
+			FCanExecuteAction()
+			)
+		);
+	*/;
 }
 
 void FAssetTypeActions_Skeleton::FillCreateMenu(FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<USkeleton>> Skeletons) const
 {
+	// create rig
+	if (Skeletons.Num() == 1)
+	{
+		MenuBuilder.BeginSection("CreateRig", LOCTEXT("CreateRigMenuHeading", "Rig"));
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("Skeleton_CreateRig", "Create Rig"),
+				LOCTEXT("Skeleton_CreateRigTooltip", "Create Rig from this skeleton."),
+				FSlateIcon(),
+				FUIAction(
+				FExecuteAction::CreateSP(const_cast<FAssetTypeActions_Skeleton*>(this), &FAssetTypeActions_Skeleton::ExecuteCreateRig, Skeletons),
+				FCanExecuteAction()
+				)
+				);
+		}
+		MenuBuilder.EndSection();
+	}
+
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	Algo::Transform(Skeletons, Objects, [](const TWeakObjectPtr<USkeleton>& Skeleton) { return Skeleton; });
 	AnimationEditorUtils::FillCreateAssetMenu(MenuBuilder, Objects, FAnimAssetCreated::CreateSP(const_cast<FAssetTypeActions_Skeleton*>(this), &FAssetTypeActions_Skeleton::OnAssetCreated));
@@ -472,6 +519,469 @@ void FAssetTypeActions_Skeleton::OpenAssetEditor( const TArray<UObject*>& InObje
 				ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::LoadModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
 				SkeletonEditorModule.CreateSkeletonEditor(Mode, EditWithinLevelEditor, Skeleton);
 			}
+		}
+	}
+}
+
+/** Handler for when Create Rig is selected */
+void FAssetTypeActions_Skeleton::ExecuteCreateRig(TArray<TWeakObjectPtr<USkeleton>> Skeletons)
+{
+	if (Skeletons.Num() == 1)
+	{
+		CreateRig(Skeletons[0]);
+	}
+}
+
+void FAssetTypeActions_Skeleton::CreateRig(const TWeakObjectPtr<USkeleton> Skeleton)
+{
+	if(Skeleton.IsValid())
+	{
+		FCreateRigDlg CreateRigDlg(Skeleton.Get());
+		if(CreateRigDlg.ShowModal() == FCreateRigDlg::Confirm)
+		{
+			check(CreateRigDlg.RequiredBones.Num() > 0);
+
+			// Determine an appropriate name
+			FString Name;
+			FString PackageName;
+			CreateUniqueAssetName(Skeleton->GetOutermost()->GetName(), TEXT("Rig"), PackageName, Name);
+
+			// Create the asset, and assign its skeleton
+			FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
+			URig* NewAsset = Cast<URig>(AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), URig::StaticClass(), NULL));
+
+			if(NewAsset)
+			{
+				NewAsset->CreateFromSkeleton(Skeleton.Get(), CreateRigDlg.RequiredBones);
+				NewAsset->MarkPackageDirty();
+
+
+				TArray<UObject*> ObjectsToSync;
+				ObjectsToSync.Add(NewAsset);
+				FAssetTools::Get().SyncBrowserToAssets(ObjectsToSync);
+			}
+		}
+	}
+}
+
+void FAssetTypeActions_Skeleton::RetargetAnimationHandler(USkeleton* OldSkeleton, USkeleton* NewSkeleton, bool bRemapReferencedAssets, bool bAllowRemapToExisting, bool bConvertSpaces, const EditorAnimUtils::FNameDuplicationRule* NameRule)
+{
+	if(OldSkeleton == nullptr || OldSkeleton->GetPreviewMesh(true) == nullptr)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("OldSkeletonName"), FText::FromString(GetNameSafe(OldSkeleton)));
+		Args.Add(TEXT("NewSkeletonName"), FText::FromString(GetNameSafe(NewSkeleton)));
+		FNotificationInfo Info(FText::Format(LOCTEXT("Retarget Failed", "Old Skeleton {OldSkeletonName} and New Skeleton {NewSkeletonName} need to have Preview Mesh set up to convert animation"), Args));
+		Info.ExpireDuration = 5.0f;
+		Info.bUseLargeFont = false;
+		TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+		if(Notification.IsValid())
+		{
+			Notification->SetCompletionState(SNotificationItem::CS_Fail);
+		}
+
+		return;
+	}
+
+	// namerule should be null
+	// find all assets who references old skeleton
+	TArray<FName> Packages;
+
+	// If the asset registry is still loading assets, we cant check for referencers, so we must open the rename dialog
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	AssetRegistryModule.Get().GetReferencers(OldSkeleton->GetOutermost()->GetFName(), Packages);
+
+	if(AssetRegistryModule.Get().IsLoadingAssets())
+	{
+		// Open a dialog asking the user to wait while assets are being discovered
+		SDiscoveringAssetsDialog::OpenDiscoveringAssetsDialog(
+			SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateSP(this, &FAssetTypeActions_Skeleton::PerformRetarget, OldSkeleton, NewSkeleton, Packages, bConvertSpaces)
+			);
+	}
+	else
+	{
+		PerformRetarget(OldSkeleton, NewSkeleton, Packages, bConvertSpaces);
+	}
+}
+void FAssetTypeActions_Skeleton::ExecuteRetargetSkeleton(TArray<TWeakObjectPtr<USkeleton>> Skeletons)
+{
+	TArray<UObject*> AllEditedAssets;
+#if WITH_EDITOR
+	AllEditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
+#endif
+
+	for (auto SkelIt = Skeletons.CreateConstIterator(); SkelIt; ++SkelIt)
+	{	
+		USkeleton* OldSkeleton = (*SkelIt).Get();
+
+		// Close any assets that reference this skeleton
+		for(UObject* EditedAsset : AllEditedAssets)
+		{
+			bool bCloseAssetEditor = false;
+			if (USkeleton* Skeleton = Cast<USkeleton>(EditedAsset))
+			{
+				bCloseAssetEditor = OldSkeleton == Skeleton;
+			}
+			else if (UAnimationAsset* AnimationAsset = Cast<UAnimationAsset>(EditedAsset))
+			{
+				bCloseAssetEditor = OldSkeleton == AnimationAsset->GetSkeleton();
+			}
+			else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(EditedAsset))
+			{
+				bCloseAssetEditor = OldSkeleton == SkeletalMesh->GetSkeleton();
+			}
+			else if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(EditedAsset))
+			{
+				bCloseAssetEditor = OldSkeleton == AnimBlueprint->TargetSkeleton;
+			}
+			else if (UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(EditedAsset))
+			{
+				USkeletalMesh* PhysicsSkeletalMesh = PhysicsAsset->PreviewSkeletalMesh.LoadSynchronous();
+				if(PhysicsSkeletalMesh != nullptr)
+				{
+					bCloseAssetEditor = OldSkeleton == PhysicsSkeletalMesh->GetSkeleton();
+				}
+			}
+
+			if(bCloseAssetEditor)
+			{
+#if WITH_EDITOR
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(EditedAsset);
+#endif
+			}
+		}
+
+		const FText Message = LOCTEXT("RetargetSkeleton_Warning", "This only converts animation data -i.e. animation assets and Anim Blueprints. \nIf you'd like to convert SkeletalMesh, use the context menu (Assign Skeleton) for each mesh. \n\nIf you'd like to convert mesh as well, please do so before converting animation data. \nOtherwise you will lose any extra track that is in the new mesh.");
+		// ask user what they'd like to change to 
+		SAnimationRemapSkeleton::ShowWindow(OldSkeleton, Message, false, FOnRetargetAnimation::CreateSP(this, &FAssetTypeActions_Skeleton::RetargetAnimationHandler));
+	}
+}
+
+void FAssetTypeActions_Skeleton::PerformRetarget(USkeleton *OldSkeleton, USkeleton *NewSkeleton, TArray<FName> Packages, bool bConvertSpaces) const
+{
+	TArray<FAssetToRemapSkeleton> AssetsToRemap;
+
+	// populate AssetsToRemap
+	AssetsToRemap.Empty(Packages.Num());
+
+	for ( int32 AssetIndex=0; AssetIndex<Packages.Num(); ++AssetIndex)
+	{
+		AssetsToRemap.Add( FAssetToRemapSkeleton(Packages[AssetIndex]) );
+	}
+
+	// Load all packages 
+	TArray<UPackage*> PackagesToSave;
+	LoadPackages(AssetsToRemap, PackagesToSave);
+
+	// Update the source control state for the packages containing the assets we are remapping
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	if ( ISourceControlModule::Get().IsEnabled() )
+	{
+		SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackagesToSave);
+	}
+
+	// Prompt to check out all referencing packages, leave redirectors for assets referenced by packages that are not checked out and remove those packages from the save list.
+	const bool bUserAcceptedCheckout = CheckOutPackages(AssetsToRemap, PackagesToSave);
+
+	if ( bUserAcceptedCheckout )
+	{
+		// If any referencing packages are left read-only, the checkout failed or SCC was not enabled. Trim them from the save list and leave redirectors.
+		DetectReadOnlyPackages(AssetsToRemap, PackagesToSave);
+
+		// retarget skeleton
+		RetargetSkeleton(AssetsToRemap, OldSkeleton, NewSkeleton, bConvertSpaces);
+
+		// Save all packages that were referencing any of the assets that were moved without redirectors
+		SavePackages(PackagesToSave);
+
+		// Finally, report any failures that happened during the rename
+		ReportFailures(AssetsToRemap);
+	}
+}
+
+void FAssetTypeActions_Skeleton::LoadPackages(TArray<FAssetToRemapSkeleton>& AssetsToRemap, TArray<UPackage*>& OutPackagesToSave) const
+{
+	const FText StatusUpdate = LOCTEXT("RemapSkeleton_LoadPackage", "Loading Packages");
+	GWarn->BeginSlowTask( StatusUpdate, true );
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
+	// go through all assets try load
+	for ( int32 AssetIdx = 0; AssetIdx < AssetsToRemap.Num(); ++AssetIdx )
+	{
+		GWarn->StatusUpdate( AssetIdx, AssetsToRemap.Num(), StatusUpdate );
+
+		FAssetToRemapSkeleton& RemapData = AssetsToRemap[AssetIdx];
+
+		const FString PackageName = RemapData.PackageName.ToString();
+
+		// load package
+		UPackage* Package = LoadPackage(NULL, *PackageName, LOAD_None);
+		if ( !Package )
+		{
+			RemapData.ReportFailed( LOCTEXT("RemapSkeletonFailed_LoadPackage", "Could not load the package."));
+			continue;
+		}
+
+		// get all the objects
+		TArray<UObject*> Objects;
+		GetObjectsWithOuter(Package, Objects);
+
+		// see if we have skeletalmesh
+		bool bSkeletalMeshPackage = false;
+		for (auto Iter=Objects.CreateIterator(); Iter; ++Iter)
+		{
+			// we only care animation asset or animation blueprint
+			if ((*Iter)->GetClass()->IsChildOf(UAnimationAsset::StaticClass()) ||
+				(*Iter)->GetClass()->IsChildOf(UAnimBlueprint::StaticClass()))
+			{
+				// add to asset 
+				RemapData.Asset = (*Iter);
+				break;
+			}
+			else if ((*Iter)->GetClass()->IsChildOf(USkeletalMesh::StaticClass()) )
+			{
+				bSkeletalMeshPackage = true;
+				break;
+			}
+		}
+
+		// if we have skeletalmesh, we ignore this package, do not report as error
+		if ( bSkeletalMeshPackage )
+		{
+			continue;
+		}
+
+		// if none was relevant - skeletal mesh is going to get here
+		if ( !RemapData.Asset.IsValid() )
+		{
+			RemapData.ReportFailed( LOCTEXT("RemapSkeletonFailed_LoadObject", "Could not load any related object."));
+			continue;
+		}
+
+		OutPackagesToSave.Add(Package);
+	}
+
+	GWarn->EndSlowTask();
+}
+
+bool FAssetTypeActions_Skeleton::CheckOutPackages(TArray<FAssetToRemapSkeleton>& AssetsToRemap, TArray<UPackage*>& InOutPackagesToSave) const
+{
+	bool bUserAcceptedCheckout = true;
+	
+	if ( InOutPackagesToSave.Num() > 0 )
+	{
+		if ( ISourceControlModule::Get().IsEnabled() )
+		{
+			TArray<UPackage*> PackagesCheckedOutOrMadeWritable;
+			TArray<UPackage*> PackagesNotNeedingCheckout;
+			bUserAcceptedCheckout = FEditorFileUtils::PromptToCheckoutPackages( false, InOutPackagesToSave, &PackagesCheckedOutOrMadeWritable, &PackagesNotNeedingCheckout );
+			if ( bUserAcceptedCheckout )
+			{
+				TArray<UPackage*> PackagesThatCouldNotBeCheckedOut = InOutPackagesToSave;
+
+				for ( auto PackageIt = PackagesCheckedOutOrMadeWritable.CreateConstIterator(); PackageIt; ++PackageIt )
+				{
+					PackagesThatCouldNotBeCheckedOut.Remove(*PackageIt);
+				}
+
+				for ( auto PackageIt = PackagesNotNeedingCheckout.CreateConstIterator(); PackageIt; ++PackageIt )
+				{
+					PackagesThatCouldNotBeCheckedOut.Remove(*PackageIt);
+				}
+
+				for ( auto PackageIt = PackagesThatCouldNotBeCheckedOut.CreateConstIterator(); PackageIt; ++PackageIt )
+				{
+					const FName NonCheckedOutPackageName = (*PackageIt)->GetFName();
+
+					for ( auto RenameDataIt = AssetsToRemap.CreateIterator(); RenameDataIt; ++RenameDataIt )
+					{
+						FAssetToRemapSkeleton& RemapData = *RenameDataIt;
+
+						if (RemapData.Asset.IsValid() && RemapData.Asset.Get()->GetOutermost() == *PackageIt)
+						{
+							RemapData.ReportFailed( LOCTEXT("RemapSkeletonFailed_CheckOutFailed", "Check out failed"));
+						}
+					}
+
+					InOutPackagesToSave.Remove(*PackageIt);
+				}
+			}
+		}
+	}
+
+	return bUserAcceptedCheckout;
+}
+
+void FAssetTypeActions_Skeleton::DetectReadOnlyPackages(TArray<FAssetToRemapSkeleton>& AssetsToRemap, TArray<UPackage*>& InOutPackagesToSave) const
+{
+	// For each valid package...
+	for ( int32 PackageIdx = InOutPackagesToSave.Num() - 1; PackageIdx >= 0; --PackageIdx )
+	{
+		UPackage* Package = InOutPackagesToSave[PackageIdx];
+
+		if ( Package )
+		{
+			// Find the package filename
+			FString Filename;
+			if ( FPackageName::DoesPackageExist(Package->GetName(), &Filename) )
+			{
+				// If the file is read only
+				if ( IFileManager::Get().IsReadOnly(*Filename) )
+				{
+					FName PackageName = Package->GetFName();
+
+					for ( auto RenameDataIt = AssetsToRemap.CreateIterator(); RenameDataIt; ++RenameDataIt )
+					{
+						FAssetToRemapSkeleton& RenameData = *RenameDataIt;
+
+						if (RenameData.Asset.IsValid() && RenameData.Asset.Get()->GetOutermost() == Package)
+						{
+							RenameData.ReportFailed( LOCTEXT("RemapSkeletonFailed_FileReadOnly", "File still read only"));
+						}
+					}				
+
+					// Remove the package from the save list
+					InOutPackagesToSave.RemoveAt(PackageIdx);
+				}
+			}
+		}
+	}
+}
+
+void FAssetTypeActions_Skeleton::SavePackages(const TArray<UPackage*> PackagesToSave) const
+{
+	if ( PackagesToSave.Num() > 0 )
+	{
+		const bool bCheckDirty = false;
+		const bool bPromptToSave = false;
+		FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptToSave);
+
+		ISourceControlModule::Get().QueueStatusUpdate(PackagesToSave);
+	}
+}
+
+void FAssetTypeActions_Skeleton::ReportFailures(const TArray<FAssetToRemapSkeleton>& AssetsToRemap) const
+{
+	TArray<FText> FailedToRemap;
+	for ( auto RenameIt = AssetsToRemap.CreateConstIterator(); RenameIt; ++RenameIt )
+	{
+		const FAssetToRemapSkeleton& RemapData = *RenameIt;
+		if ( RemapData.bRemapFailed )
+		{
+			UObject* Asset = RemapData.Asset.Get();
+			if ( Asset )
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("FailureReason"), RemapData.FailureReason);
+				Args.Add(TEXT("AssetName"), FText::FromString(Asset->GetOutermost()->GetName()));
+
+				FailedToRemap.Add(FText::Format(LOCTEXT("AssetRemapFailure", "{AssetName} - {FailureReason}"), Args));
+			}
+			else
+			{
+				FailedToRemap.Add(LOCTEXT("RemapSkeletonFailed_InvalidAssetText", "Invalid Asset"));
+			}
+		}
+	}
+
+	if ( FailedToRemap.Num() > 0 )
+	{
+		SRemapFailures::OpenRemapFailuresDialog(FailedToRemap);
+	}
+}
+
+void FAssetTypeActions_Skeleton::RetargetSkeleton(TArray<FAssetToRemapSkeleton>& AssetsToRemap, USkeleton* OldSkeleton, USkeleton* NewSkeleton, bool bConvertSpaces) const
+{
+	TArray<UAnimBlueprint*>	AnimBlueprints;
+
+	// first we convert all individual assets
+	for ( auto RenameIt = AssetsToRemap.CreateIterator(); RenameIt; ++RenameIt )
+	{
+		FAssetToRemapSkeleton& RenameData = *RenameIt;
+		if ( RenameData.bRemapFailed == false  )
+		{
+			UObject* Asset = RenameData.Asset.Get();
+			if ( Asset )
+			{
+				if ( UAnimationAsset* AnimAsset = Cast<UAnimationAsset>(Asset) )
+				{
+					TUniquePtr<IAnimationDataController::FScopedBracket> ScopedBracket;
+
+					if (UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(AnimAsset))
+					{
+						IAnimationDataController& Controller = SequenceBase->GetController();
+						ScopedBracket = MakeUnique<IAnimationDataController::FScopedBracket>(Controller, LOCTEXT("FAssetTypeActions_Skeleton_Bracket", "Retargeting Skeleton"));
+
+						Controller.FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Float);
+						
+						if (UAnimSequence* Sequence = Cast<UAnimSequence>(SequenceBase))
+						{
+							Controller.FindOrAddCurveNamesOnSkeleton(NewSkeleton, ERawCurveTrackTypes::RCT_Transform);
+						}
+					}
+					
+					AnimAsset->ReplaceSkeleton(NewSkeleton, bConvertSpaces);
+				}
+				else if ( UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Asset) )
+				{
+					AnimBlueprints.Add(AnimBlueprint);
+				}
+			}
+		}
+	}
+
+	// convert all Animation Blueprints and compile 
+	for ( auto AnimBPIter = AnimBlueprints.CreateIterator(); AnimBPIter; ++AnimBPIter )
+	{
+		UAnimBlueprint * AnimBlueprint = (*AnimBPIter);
+		AnimBlueprint->TargetSkeleton = NewSkeleton;
+		
+		FBlueprintEditorUtils::RefreshAllNodes(AnimBlueprint);
+		FKismetEditorUtilities::CompileBlueprint(AnimBlueprint, EBlueprintCompileOptions::SkipGarbageCollection);
+	}
+
+	// Copy sockets IF the socket doesn't exists on target skeleton and if the joint exists
+	if (OldSkeleton && OldSkeleton->Sockets.Num() > 0 && NewSkeleton)
+	{
+		const FReferenceSkeleton& NewRefSkeleton = NewSkeleton->GetReferenceSkeleton();
+		// if we have sockets from old skeleton, see if we can trasnfer
+		for (const auto& OldSocket : OldSkeleton->Sockets)
+		{
+			bool bExistingOnNewSkeleton = false;
+
+			for (auto& NewSocket : NewSkeleton->Sockets)
+			{
+				if (OldSocket->SocketName == NewSocket->SocketName)
+				{
+					// if name is same, we can't copy over
+					bExistingOnNewSkeleton = true;
+				}
+			}
+
+			if (!bExistingOnNewSkeleton)
+			{
+				// make sure the joint still exists
+				if (NewRefSkeleton.FindBoneIndex(OldSocket->BoneName) != INDEX_NONE)
+				{
+					USkeletalMeshSocket* NewSocketInst = NewObject<USkeletalMeshSocket>(NewSkeleton);
+					if (NewSocketInst)
+					{
+						NewSocketInst->CopyFrom(OldSocket);
+						NewSkeleton->Sockets.Add(NewSocketInst);
+						NewSkeleton->MarkPackageDirty();
+					}
+				}
+			}
+		}
+	}
+
+	// now update any running instance
+	for (FThreadSafeObjectIterator Iter(USkeletalMeshComponent::StaticClass()); Iter; ++Iter)
+	{
+		USkeletalMeshComponent * MeshComponent = Cast<USkeletalMeshComponent>(*Iter);
+		if (MeshComponent->SkeletalMesh && MeshComponent->SkeletalMesh->GetSkeleton() == OldSkeleton)
+		{
+			MeshComponent->InitAnim(true);
 		}
 	}
 }

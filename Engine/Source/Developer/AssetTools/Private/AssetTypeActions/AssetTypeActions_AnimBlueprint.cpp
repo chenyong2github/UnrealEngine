@@ -141,6 +141,58 @@ void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjec
 				)
 			);
 	}
+	
+	Section.AddSubMenu(
+		"RetargetBlueprintSubmenu",
+		LOCTEXT("RetargetBlueprintSubmenu", "Retarget Anim Blueprints"),
+		LOCTEXT("RetargetBlueprintSubmenu_ToolTip", "Opens the retarget blueprints menu"),
+		FNewToolMenuDelegate::CreateSP( this, &FAssetTypeActions_AnimBlueprint::FillRetargetMenu, InObjects),
+		false,
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.RetargetManager")
+		);
+}
+
+void FAssetTypeActions_AnimBlueprint::FillRetargetMenu(UToolMenu* MenuBuilder, const TArray<UObject*> InObjects)
+{
+	bool bAllSkeletonsNull = true;
+
+	for(auto Iter = InObjects.CreateConstIterator(); Iter; ++Iter)
+	{
+		if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(*Iter))
+		{
+			if(AnimBlueprint->TargetSkeleton)
+			{
+				bAllSkeletonsNull = false;
+				break;
+			}
+		}
+	}
+
+	FToolMenuSection& Section = MenuBuilder->AddSection("Section");
+	if(bAllSkeletonsNull)
+	{
+		Section.AddMenuEntry(
+			"AnimBlueprint_RetargetSkeletonInPlace",
+			LOCTEXT("AnimBlueprint_RetargetSkeletonInPlace", "Retarget skeleton on existing Anim Blueprints"),
+			LOCTEXT("AnimBlueprint_RetargetSkeletonInPlaceTooltip", "Retargets the selected Anim Blueprints to a new skeleton (and optionally all referenced animations too)"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.RetargetManager"),
+			FUIAction(
+			FExecuteAction::CreateSP( this, &FAssetTypeActions_AnimBlueprint::RetargetAssets, InObjects, false ), // false = do not duplicate assets first
+			FCanExecuteAction()
+			)
+			);
+	}
+
+	Section.AddMenuEntry(
+		"AnimBlueprint_DuplicateAndRetargetSkeleton",
+		LOCTEXT("AnimBlueprint_DuplicateAndRetargetSkeleton", "Duplicate Anim Blueprints and Retarget"),
+		LOCTEXT("AnimBlueprint_DuplicateAndRetargetSkeletonTooltip", "Duplicates and then retargets the selected Anim Blueprints to a new skeleton (and optionally all referenced animations too)"),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.RetargetManager"),
+		FUIAction(
+		FExecuteAction::CreateSP( this, &FAssetTypeActions_AnimBlueprint::RetargetAssets, InObjects, true ), // true = duplicate assets and retarget them
+		FCanExecuteAction()
+		)
+		);
 }
 
 UThumbnailInfo* FAssetTypeActions_AnimBlueprint::GetThumbnailInfo(UObject* Asset) const
@@ -182,17 +234,35 @@ void FAssetTypeActions_AnimBlueprint::OpenAssetEditor( const TArray<UObject*>& I
 		auto AnimBlueprint = Cast<UAnimBlueprint>(*ObjIt);
 		if (AnimBlueprint != NULL && AnimBlueprint->SkeletonGeneratedClass && AnimBlueprint->GeneratedClass)
 		{
-			const bool bBringToFrontIfOpen = true;
-#if WITH_EDITOR
-			if (IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, bBringToFrontIfOpen))
+			if(AnimBlueprint->BlueprintType != BPTYPE_Interface && !AnimBlueprint->TargetSkeleton && !AnimBlueprint->bIsTemplate)
 			{
-				EditorInstance->FocusWindow(AnimBlueprint);
+				FText ShouldRetargetMessage = LOCTEXT("ShouldRetarget_Message", "Could not find the skeleton for Anim Blueprint '{BlueprintName}' Would you like to choose a new one?");
+				
+				FFormatNamedArguments Arguments;
+				Arguments.Add( TEXT("BlueprintName"), FText::FromString(AnimBlueprint->GetName()));
+
+				if ( FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(ShouldRetargetMessage, Arguments)) == EAppReturnType::Yes )
+				{
+					bool bDuplicateAssets = false;
+					TArray<UObject*> AnimBlueprints;
+					AnimBlueprints.Add(AnimBlueprint);
+					RetargetAssets(AnimBlueprints, bDuplicateAssets);
+				}
 			}
 			else
-#endif
 			{
-				IAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::LoadModuleChecked<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
-				AnimationBlueprintEditorModule.CreateAnimationBlueprintEditor(Mode, EditWithinLevelEditor, AnimBlueprint);
+				const bool bBringToFrontIfOpen = true;
+#if WITH_EDITOR
+				if (IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, bBringToFrontIfOpen))
+				{
+					EditorInstance->FocusWindow(AnimBlueprint);
+				}
+				else
+#endif
+				{
+					IAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::LoadModuleChecked<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
+					AnimationBlueprintEditorModule.CreateAnimationBlueprintEditor(Mode, EditWithinLevelEditor, AnimBlueprint);
+				}
 			}
 		}
 		else
@@ -260,6 +330,52 @@ void FAssetTypeActions_AnimBlueprint::ExecuteFindSkeleton(TArray<TWeakObjectPtr<
 		FText ShouldRetargetMessage = LOCTEXT("NoSkeletonFound", "Could not find the skeleton");
 		FMessageDialog::Open(EAppMsgType::Ok, ShouldRetargetMessage);
 	}
+}
+
+void FAssetTypeActions_AnimBlueprint::RetargetAnimationHandler(USkeleton* OldSkeleton, USkeleton* NewSkeleton, bool bRemapReferencedAssets, bool bAllowRemapToExisting, bool bConvertSpaces, const EditorAnimUtils::FNameDuplicationRule* NameRule, TArray<TWeakObjectPtr<UObject>> AnimBlueprints)
+{
+	if(!OldSkeleton || OldSkeleton->GetPreviewMesh(true))
+	{
+		FAnimationRetargetContext RetargetContext(AnimBlueprints, bRemapReferencedAssets, bConvertSpaces);
+
+		if(bAllowRemapToExisting)
+		{
+			SAnimationRemapAssets::ShowWindow(RetargetContext, NewSkeleton);
+		}
+
+		EditorAnimUtils::RetargetAnimations(OldSkeleton, NewSkeleton, RetargetContext, bRemapReferencedAssets, NameRule);
+	}
+	else
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("OldSkeletonName"), FText::FromString(GetNameSafe(OldSkeleton)));
+		Args.Add(TEXT("NewSkeletonName"), FText::FromString(GetNameSafe(NewSkeleton)));
+		FNotificationInfo Info(FText::Format(LOCTEXT("Retarget Failed", "Old Skeleton {OldSkeletonName} and New Skeleton {NewSkeletonName} need to have Preview Mesh set up to convert animation"), Args));
+		Info.ExpireDuration = 5.0f;
+		Info.bUseLargeFont = false;
+		TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+		if(Notification.IsValid())
+		{
+			Notification->SetCompletionState(SNotificationItem::CS_Fail);
+		}
+	}
+}
+
+void FAssetTypeActions_AnimBlueprint::RetargetAssets(TArray<UObject*> InAnimBlueprints, bool bDuplicateAssets)
+{
+	bool bRemapReferencedAssets = false;
+	USkeleton* OldSkeleton = NULL;
+
+	if ( InAnimBlueprints.Num() > 0 )
+	{
+		UAnimBlueprint * AnimBP = CastChecked<UAnimBlueprint>(InAnimBlueprints[0]);
+		OldSkeleton = AnimBP->TargetSkeleton;
+	}
+
+	const FText Message = LOCTEXT("RemapSkeleton_Warning", "Select the skeleton to remap this asset to.");
+	auto AnimBlueprints = GetTypedWeakObjectPtrs<UObject>(InAnimBlueprints);
+
+	SAnimationRemapSkeleton::ShowWindow(OldSkeleton, Message, bDuplicateAssets, FOnRetargetAnimation::CreateSP(this, &FAssetTypeActions_AnimBlueprint::RetargetAnimationHandler, AnimBlueprints));
 }
 
 TSharedPtr<SWidget> FAssetTypeActions_AnimBlueprint::GetThumbnailOverlay(const FAssetData& AssetData) const

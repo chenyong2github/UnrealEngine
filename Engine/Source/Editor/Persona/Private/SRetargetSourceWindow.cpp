@@ -180,6 +180,20 @@ void SRetargetSourceWindow::Construct(const FArguments& InArgs, const TSharedRef
 		.AutoHeight()
 		[
 			SNew( SHorizontalBox )
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("Skeleton_Label", "Current Skeleton "))
+				.Font(FEditorStyle::GetFontStyle("Persona.RetargetManager.BoldFont"))
+			]
+
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			[
+				SNew(STextBlock)
+				.Text(SkeletonName)
+			]
 
 			+SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
@@ -191,7 +205,7 @@ void SRetargetSourceWindow::Construct(const FArguments& InArgs, const TSharedRef
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.Text(LOCTEXT("AddRetargetSourceButton_Label", "Add New"))
-				.ToolTipText(LOCTEXT("AddRetargetSourceButton_ToolTip", "Select a Skeletal Mesh asset to become a new retarget source for this Skeleton asset.\n\nRetarget Sources indicate what proportions a sequence was authored with so that animation is correctly retargeted to other proportions.\n\nThese become 'Retarget Source' options on sequences.\n\nRetarget Sources are only needed when an animation sequence is authored on a skeletal mesh with proportions that are different than the default skeleton asset."))
+				.ToolTipText(LOCTEXT("AddRetargetSourceButton_ToolTip", "Add new retarget source to the list. It won't add if one already exists."))
 			]
 
 			+SHorizontalBox::Slot()
@@ -204,7 +218,7 @@ void SRetargetSourceWindow::Construct(const FArguments& InArgs, const TSharedRef
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.Text(LOCTEXT("UpdateAllRetargetSourceButton_Label", "Update All"))
-				.ToolTipText(LOCTEXT("UpdateAllRetargetSourceButton_ToolTip", "Use this to update all retarget source poses with latest mesh proportions. If you want to update individually, use the context menu."))
+				.ToolTipText(LOCTEXT("UpdateAllRetargetSourceButton_ToolTip", "Use this to update all retarget source poses with latest mesh. If you want to update individual, use the context menu."))
 			]
 		]
 

@@ -301,6 +301,207 @@ private:
 	bool IsVisible() const override;
 };
 
+/////////////////////////////////////////////
+/** 
+ * Slate panel for choose Skeleton for assets to relink
+ */
+
+DECLARE_DELEGATE_SixParams(FOnRetargetAnimation, USkeleton* /*OldSkeleton*/, USkeleton* /*NewSkeleton*/, bool /*bRemapReferencedAssets*/, bool /*bAllowRemapToExisting*/, bool /*bConvertSpaces*/, const FNameDuplicationRule* /*NameRule*/)
+
+class SAnimationRemapSkeleton : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(SAnimationRemapSkeleton)
+		: _CurrentSkeleton(NULL)
+		, _WidgetWindow(NULL)
+		, _WarningMessage()
+		, _ShowRemapOption(false)
+		, _ShowExistingRemapOption(false)
+		{}
+
+		/** The anim sequences to compress */
+		SLATE_ARGUMENT( USkeleton*, CurrentSkeleton )
+		SLATE_ARGUMENT( TSharedPtr<SWindow>, WidgetWindow )
+		SLATE_ARGUMENT( FText, WarningMessage )
+		SLATE_ARGUMENT( bool, ShowRemapOption )
+		SLATE_ARGUMENT( bool, ShowExistingRemapOption )
+		SLATE_ARGUMENT( bool, ShowConvertSpacesOption )
+		SLATE_ARGUMENT( bool, ShowCompatibleDisplayOption )
+		SLATE_ARGUMENT( bool, ShowDuplicateAssetOption )
+		SLATE_EVENT(FOnRetargetAnimation, OnRetargetDelegate)
+	SLATE_END_ARGS()	
+
+	/**
+	 * Constructs this widget
+	 *
+	 * @param	InArgs	The declaration data for this widget
+	 */
+	void Construct( const FArguments& InArgs );
+
+	/**
+	 * Old Skeleton that was mapped 
+	 * This data is needed to prevent users from selecting same skeleton
+	 */
+	USkeleton *OldSkeleton;
+	/**
+	 * New Skeleton that they would like to map to
+	 */
+	USkeleton *NewSkeleton;
+
+private:
+	/**
+	 * Whether we are remapping assets that are referenced by the assets the user selects to remap
+	 */
+	bool bRemapReferencedAssets;
+
+	/**
+	 * Whether we allow remapping to existing assets for the new skeleton
+	 */
+	bool bAllowRemappingToExistingAssets;
+
+	/**
+	 * Whether we are remapping assets that are referenced by the assets the user selects to remap
+	 */
+	bool bConvertSpaces;
+
+	/**
+	 * Whether to show skeletons with the same rig set up
+	*/
+	bool bShowOnlyCompatibleSkeletons;
+
+	TSharedPtr<SBasePoseViewport> SourceViewport;
+	TSharedPtr<SBasePoseViewport> TargetViewport;
+
+	TSharedPtr<SBox> AssetPickerBox;
+
+	TWeakPtr<SWindow> WidgetWindow;
+
+	FOnRetargetAnimation OnRetargetAnimationDelegate;
+
+	/** Handlers for check box for remapping assets option */
+	ECheckBoxState IsRemappingReferencedAssets() const;
+	void OnRemappingReferencedAssetsChanged(ECheckBoxState InNewRadioState);
+
+	/** Handlers for check box for remapping to existing assets */
+	ECheckBoxState IsRemappingToExistingAssetsChecked() const;
+	bool IsRemappingToExistingAssetsEnabled() const;
+	void OnRemappingToExistingAssetsChanged(ECheckBoxState InNewRadioState);
+
+	/** Handlers for check box for converting spaces*/
+	ECheckBoxState IsConvertSpacesChecked() const;
+	void OnConvertSpacesCheckChanged(ECheckBoxState InNewRadioState);
+
+	/** Handlers for check box for converting spaces*/
+	ECheckBoxState IsShowOnlyCompatibleSkeletonsChecked() const;
+	bool IsShowOnlyCompatibleSkeletonsEnabled() const;
+	void OnShowOnlyCompatibleSkeletonsCheckChanged(ECheckBoxState InNewRadioState);
+
+	/** should filter asset */
+	bool OnShouldFilterAsset(const struct FAssetData& AssetData);
+
+	/**
+	 * return true if it can apply 
+	 */
+	bool CanApply() const;
+
+	FReply OnApply();
+	FReply OnCancel();
+
+	void CloseWindow();
+
+	/** Handler for dialog window close button */
+	void OnRemapDialogClosed(const TSharedRef<SWindow>& Window);
+
+	/**
+	 * Handler for when asset is selected
+	 */
+	void OnAssetSelectedFromPicker(const FAssetData& AssetData);
+
+	/*
+	* Refreshes asset picker - call when asset picker option changes
+	*/
+	void UpdateAssetPicker();
+
+	/*
+	 * Duplicate Name Rule 
+	 */
+	FNameDuplicationRule NameDuplicateRule;
+	FText ExampleText;
+
+	FText GetPrefixName() const
+	{
+		return FText::FromString(NameDuplicateRule.Prefix);
+	}
+
+	void SetPrefixName(const FText &InText)
+	{
+		NameDuplicateRule.Prefix = InText.ToString();
+		UpdateExampleText();
+	}
+
+	FText GetSuffixName() const
+	{
+		return FText::FromString(NameDuplicateRule.Suffix);
+	}
+
+	void SetSuffixName(const FText &InText)
+	{
+		NameDuplicateRule.Suffix = InText.ToString();
+		UpdateExampleText();
+	}
+
+	FText GetReplaceFrom() const
+	{
+		return FText::FromString(NameDuplicateRule.ReplaceFrom);
+	}
+
+	void SetReplaceFrom(const FText &InText)
+	{
+		NameDuplicateRule.ReplaceFrom = InText.ToString();
+		UpdateExampleText();
+	}
+
+	FText GetReplaceTo() const
+	{
+		return FText::FromString(NameDuplicateRule.ReplaceTo);
+	}
+
+	void SetReplaceTo(const FText &InText)
+	{
+		NameDuplicateRule.ReplaceTo = InText.ToString();
+		UpdateExampleText();
+	}
+
+	FText GetExampleText() const
+	{
+		return ExampleText;
+	}
+
+	void UpdateExampleText();
+
+	FReply ShowFolderOption();
+	FText GetFolderPath() const
+	{
+		return FText::FromString(NameDuplicateRule.FolderPath);
+	}
+
+public:
+
+	/**
+	 *  Show window
+	 *
+	 * @param OldSkeleton		Old Skeleton to change from
+	 *
+	 * @return true if successfully selected new skeleton
+	 */
+	static UNREALED_API void ShowWindow(USkeleton* OldSkeleton, const FText& WarningMessage, bool bDuplicateAssets, FOnRetargetAnimation RetargetDelegate);
+
+	static TSharedPtr<SWindow> DialogWindow;
+
+	bool bShowDuplicateAssetOption;
+};
+
 //////////////////////////////////////////////////////////////////////////
 
 class FDisplayedAssetEntryInfo
@@ -318,6 +519,130 @@ protected:
 	FDisplayedAssetEntryInfo(UObject* InAsset, USkeleton* InNewSkeleton);
 };
 
+class SAssetEntryRow : public SMultiColumnTableRow<TSharedPtr<FDisplayedAssetEntryInfo>>
+{
+public:
+	SLATE_BEGIN_ARGS(SAssetEntryRow)
+	{}
+
+		SLATE_ARGUMENT(TSharedPtr<FDisplayedAssetEntryInfo>, DisplayedInfo)
+
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView);
+
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
+
+protected:
+
+	TSharedRef<SWidget> GetRemapMenuContent();
+	FText GetRemapMenuButtonText() const;
+	void OnAssetSelected(const FAssetData& AssetData);
+	bool OnShouldFilterAsset(const FAssetData& AssetData) const;
+
+	TSharedPtr<FDisplayedAssetEntryInfo> DisplayedInfo;
+
+	TWeakObjectPtr<UObject> RemapAsset;
+
+	FString SkeletonExportName;
+};
+
+typedef SListView<TSharedPtr<FDisplayedAssetEntryInfo>> SRemapAssetEntryList;
+
+class SAnimationRemapAssets : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(SAnimationRemapAssets)
+		: _NewSkeleton(nullptr)
+		, _RetargetContext(nullptr)
+	{}
+
+		SLATE_ARGUMENT(USkeleton*, NewSkeleton)
+		SLATE_ARGUMENT(FAnimationRetargetContext*, RetargetContext)
+		SLATE_ARGUMENT(TSharedPtr<SWindow>, WidgetWindow)
+
+	SLATE_END_ARGS()
+	
+	void Construct(const FArguments& InArgs);
+
+	static UNREALED_API void ShowWindow(FAnimationRetargetContext& RetargetContext, USkeleton* RetargetToSkeleton);
+	static TSharedPtr<SWindow> DialogWindow;
+
+private:
+
+	TSharedRef<ITableRow> OnGenerateMontageReferenceRow( TSharedPtr<FDisplayedAssetEntryInfo> Item, const TSharedRef<STableViewBase>& OwnerTable );
+
+	void OnDialogClosed(const TSharedRef<SWindow>& Window);
+
+	/** Button Handlers */
+	FReply OnOkClicked();
+	FReply OnBestGuessClicked();
+
+	/** Best guess functions to try and match asset names */
+	const FAssetData* FindBestGuessMatch(const FAssetData& AssetName, const TArray<FAssetData>& PossibleAssets) const;
+
+	/** The retargetting context we're managing*/
+	FAnimationRetargetContext* RetargetContext;
+
+	/** List of entries to the remap list*/
+	TArray<TSharedPtr<FDisplayedAssetEntryInfo>> AssetListInfo;
+
+	/** Skeleton we're about to retarget to*/
+	USkeleton* NewSkeleton;
+
+	/** The list viewing AssetListInfo*/
+	TSharedPtr<SRemapAssetEntryList> ListWidget;
+};
+
+////////////////////////////////////////////////////
+/** 
+* FDlgRemapSkeleton
+* 
+* Wrapper class for SAnimationRemapSkeleton. This class creates and launches a dialog then awaits the
+* result to return to the user. 
+*/
+class UNREALED_API FDlgRemapSkeleton 
+{
+public:
+	FDlgRemapSkeleton( USkeleton* Skeleton );
+
+	/**  Shows the dialog box and waits for the user to respond. */
+	bool ShowModal();
+
+	/** New Skeleton that is chosen **/
+	USkeleton* NewSkeleton;
+
+	/** true if you'd like to retarget skeletal meshes as well **/
+	bool RetargetSkeletalMesh;
+
+private:
+
+	/** Cached pointer to the modal window */
+	TSharedPtr<SWindow> DialogWindow;
+
+	/** Cached pointer to the LOD Chain widget */
+	TSharedPtr<class SAnimationRemapSkeleton> DialogWidget;
+};
+
+
+class SRemapFailures : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SRemapFailures){}
+		SLATE_ARGUMENT(TArray<FText>, FailedRemaps)
+	SLATE_END_ARGS()
+
+	void Construct( const FArguments& InArgs );
+	static UNREALED_API void OpenRemapFailuresDialog(const TArray<FText>& InFailedRemaps);
+
+private:
+	TSharedRef<ITableRow> MakeListViewWidget(TSharedRef<FText> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	FReply CloseClicked();
+
+private:
+	TArray< TSharedRef<FText> > FailedRemaps;
+};
 
 /////////////////////////////////////////////
 /** 
