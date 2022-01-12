@@ -18,7 +18,7 @@ struct ENGINE_API FWorldPartitionHandleUtils
 };
 
 template <typename Impl>
-class ENGINE_API TWorldPartitionHandle
+class TWorldPartitionHandle
 {
 public:
 	FORCEINLINE TWorldPartitionHandle()
