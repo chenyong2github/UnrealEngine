@@ -1337,6 +1337,16 @@ EVisibility SGraphPin::GetPinVisiblity() const
 	return EVisibility::Visible;
 }
 
+TSharedPtr<SWidget> SGraphPin::GetPinImageWidget() const
+{
+	return PinImage;
+}
+
+void SGraphPin::SetPinImageWidget(TSharedRef<SWidget> NewWidget)
+{
+	PinImage = NewWidget;
+}
+
 void SGraphPin::SetCustomPinIcon(const FSlateBrush* InConnectedBrush, const FSlateBrush* InDisconnectedBrush)
 {
 	Custom_Brush_Connected = InConnectedBrush;

@@ -270,6 +270,14 @@ protected:
 	/** Determines the pin's visibility based on the LOD factor, when it is low LOD, no hit test will occur */
 	EVisibility GetPinVisiblity() const;
 
+public:
+
+	/** Returns the current pin image widget that is being used */
+	TSharedPtr<SWidget> GetPinImageWidget() const;
+
+	/** Sets the pin widget for this pin */
+	void SetPinImageWidget(TSharedRef<SWidget> NewWidget);
+
 protected:
 	/** The GraphNode that owns this pin */
 	TWeakPtr<SGraphNode> OwnerNodePtr;

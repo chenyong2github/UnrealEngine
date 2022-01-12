@@ -33,13 +33,14 @@
 #include "K2Node_SpawnActorFromClass.h"
 #include "K2Node_Switch.h"
 #include "K2Node_Timeline.h"
-
+#include "K2Node_PromotableOperator.h"
 
 #include "SGraphNodeDefault.h"
 #include "SGraphNodeComment.h"
 #include "SGraphNodeDocumentation.h"
 #include "EdGraph/EdGraphNode_Documentation.h"
 #include "SGraphNodeKnot.h"
+#include "SGraphNodePromotableOperator.h"
 
 #include "KismetNodes/SGraphNodeK2Default.h"
 #include "KismetNodes/SGraphNodeK2Var.h"
@@ -150,6 +151,10 @@ TSharedPtr<SGraphNode> FNodeFactory::CreateNodeWidget(UEdGraphNode* InNode)
 		else if (UK2Node_Switch* SwitchNode = Cast<UK2Node_Switch>(InNode))
 		{
 			return SNew(SGraphNodeSwitchStatement, SwitchNode);
+		}
+		else if(UK2Node_PromotableOperator* PromotableOperator = Cast<UK2Node_PromotableOperator>(InNode))
+		{
+			return SNew(SGraphNodePromotableOperator, PromotableOperator);
 		}
 		else if (InNode->GetClass()->ImplementsInterface(UK2Node_AddPinInterface::StaticClass()))
 		{

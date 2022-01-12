@@ -5263,6 +5263,9 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set("Kismet.VariableList.MapValueTypeIcon", new IMAGE_BRUSH_SVG( "Starship/Blueprints/pillmapvalue", Icon16x16));
 		Set("Kismet.VariableList.MapKeyTypeIcon", new IMAGE_BRUSH_SVG( "Starship/Blueprints/pillmapkey", Icon16x16));
 
+		Set("Kismet.VariableList.PromotableTypeOuterIcon", new IMAGE_BRUSH_SVG( "Starship/Blueprints/promotable_type_outer_icon", Icon14x14));
+		Set("Kismet.VariableList.PromotableTypeInnerIcon", new IMAGE_BRUSH_SVG( "Starship/Blueprints/promotable_type_inner_icon", Icon14x14));
+
 		Set("Kismet.VariableList.ExposeForInstance", new CORE_IMAGE_BRUSH_SVG("Starship/Common/visible", Icon16x16));
 		Set("Kismet.VariableList.HideForInstance", new CORE_IMAGE_BRUSH_SVG("Starship/Common/hidden", Icon16x16));
 
