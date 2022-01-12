@@ -52,13 +52,85 @@ void FPrimaryAssetIdCustomization::CustomizeHeader(TSharedRef<class IPropertyHan
 		}
 	}
 
+	bool bShowThumbnail = true;
+	if (StructPropertyHandle->HasMetaData("DisplayThumbnail"))
+	{
+		const FString& ShowThumbnailString = StructPropertyHandle->GetMetaData("DisplayThumbnail");
+		bShowThumbnail = ShowThumbnailString.Len() == 0 || ShowThumbnailString == TEXT("true");
+	}
+
+	TSharedRef<SHorizontalBox> ValueBox = SNew(SHorizontalBox);
+
+	if (bShowThumbnail)
+	{
+		const int32 ThumbnailSize = 64;
+		AssetThumbnail = MakeShareable(new FAssetThumbnail(FAssetData(), ThumbnailSize, ThumbnailSize, StructCustomizationUtils.GetThumbnailPool()));
+		UpdateThumbnail();
+
+		ValueBox->AddSlot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 4, 0)
+			[
+				SNew(SOverlay)
+				+ SOverlay::Slot()
+				.Padding(1)
+				[
+					SAssignNew(ThumbnailBorder, SBorder)
+					.Padding(0)
+					.BorderImage(FStyleDefaults::GetNoBrush())
+					.OnMouseDoubleClick(this, &FPrimaryAssetIdCustomization::OnAssetThumbnailDoubleClick)
+					[
+						SNew(SBox)
+						.WidthOverride(ThumbnailSize)
+						.HeightOverride(ThumbnailSize)
+						[
+							AssetThumbnail->MakeThumbnailWidget()
+						]
+					]
+				]
+				+ SOverlay::Slot()
+				[
+					SNew(SImage)
+					.Image(this, &FPrimaryAssetIdCustomization::GetThumbnailBorder)
+					.Visibility(EVisibility::SelfHitTestInvisible)
+				]
+			];
+	}
+
 	// Can the field be cleared
 	const bool bAllowClear = !(StructPropertyHandle->GetMetaDataProperty()->PropertyFlags & CPF_NoClear);
 
-	int32 ThumbnailSize = 64;
-	AssetThumbnail = MakeShareable( new FAssetThumbnail( FAssetData(), ThumbnailSize, ThumbnailSize, StructCustomizationUtils.GetThumbnailPool() ) );
-	UpdateThumbnail();
+	ValueBox->AddSlot()
+		.FillWidth(1.0f)
+		.VAlign(VAlign_Center)
+		[
+			IAssetManagerEditorModule::MakePrimaryAssetIdSelector(
+				FOnGetPrimaryAssetDisplayText::CreateSP(this, &FPrimaryAssetIdCustomization::GetDisplayText),
+				FOnSetPrimaryAssetId::CreateSP(this, &FPrimaryAssetIdCustomization::OnIdSelected),
+				bAllowClear, AllowedTypes)
+		];
 
+	ValueBox->AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			PropertyCustomizationHelpers::MakeUseSelectedButton(FSimpleDelegate::CreateSP(this, &FPrimaryAssetIdCustomization::OnUseSelected))
+		];
+
+	ValueBox->AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateSP(this, &FPrimaryAssetIdCustomization::OnBrowseTo))
+		];
+
+	ValueBox->AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &FPrimaryAssetIdCustomization::OnClear))
+		];
 	HeaderRow
 	.NameContent()
 	[
@@ -68,63 +140,7 @@ void FPrimaryAssetIdCustomization::CustomizeHeader(TSharedRef<class IPropertyHan
 	.MinDesiredWidth(250.0f)
 	.MaxDesiredWidth(0.0f)
 	[
-		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.Padding(0, 0, 4, 0)
-		[
-			SNew(SOverlay)
-			+SOverlay::Slot()
-			.Padding(1)
-			[
-				SAssignNew(ThumbnailBorder, SBorder)
-				.Padding(0)
-				.BorderImage(FStyleDefaults::GetNoBrush())
-				.OnMouseDoubleClick(this, &FPrimaryAssetIdCustomization::OnAssetThumbnailDoubleClick)
-				[
-					SNew(SBox)
-					.WidthOverride(ThumbnailSize)
-					.HeightOverride(ThumbnailSize)
-					[
-						AssetThumbnail->MakeThumbnailWidget()
-					]
-				]
-			]
-			+ SOverlay::Slot()
-			[
-				SNew(SImage)
-				.Image(this, &FPrimaryAssetIdCustomization::GetThumbnailBorder)
-				.Visibility(EVisibility::SelfHitTestInvisible)
-			]
-		]
-		+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		.VAlign(VAlign_Center)
-		[
-			IAssetManagerEditorModule::MakePrimaryAssetIdSelector(
-				FOnGetPrimaryAssetDisplayText::CreateSP(this, &FPrimaryAssetIdCustomization::GetDisplayText),
-				FOnSetPrimaryAssetId::CreateSP(this, &FPrimaryAssetIdCustomization::OnIdSelected),
-				bAllowClear, AllowedTypes)
-		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			PropertyCustomizationHelpers::MakeUseSelectedButton(FSimpleDelegate::CreateSP(this, &FPrimaryAssetIdCustomization::OnUseSelected))
-		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			PropertyCustomizationHelpers::MakeBrowseButton(FSimpleDelegate::CreateSP(this, &FPrimaryAssetIdCustomization::OnBrowseTo))
-		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &FPrimaryAssetIdCustomization::OnClear))
-		]
+		ValueBox
 	];
 }
 
@@ -178,16 +194,17 @@ FPrimaryAssetId FPrimaryAssetIdCustomization::GetCurrentPrimaryAssetId() const
 
 void FPrimaryAssetIdCustomization::UpdateThumbnail()
 {
-	check(AssetThumbnail.IsValid());
-
-	FAssetData AssetData;
-	FPrimaryAssetId PrimaryAssetId = GetCurrentPrimaryAssetId();
-	if (PrimaryAssetId.IsValid())
+	if (AssetThumbnail.IsValid())
 	{
-		UAssetManager::Get().GetPrimaryAssetData(PrimaryAssetId, AssetData);
-	}
+		FAssetData AssetData;
+		FPrimaryAssetId PrimaryAssetId = GetCurrentPrimaryAssetId();
+		if (PrimaryAssetId.IsValid())
+		{
+			UAssetManager::Get().GetPrimaryAssetData(PrimaryAssetId, AssetData);
+		}
 
-	AssetThumbnail->SetAsset(AssetData);
+		AssetThumbnail->SetAsset(AssetData);
+	}
 }
 
 void FPrimaryAssetIdCustomization::OnBrowseTo()
