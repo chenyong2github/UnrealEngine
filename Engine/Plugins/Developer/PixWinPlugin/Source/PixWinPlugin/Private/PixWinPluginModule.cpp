@@ -2,15 +2,20 @@
 
 #include "PixWinPluginModule.h"
 
+#include "CoreMinimal.h"
 #include "RenderingThread.h"
 #include "RHI.h"
 
 #define PIX_PLUGIN_ENABLED (PLATFORM_WINDOWS && !UE_BUILD_SHIPPING)
 
 #if PIX_PLUGIN_ENABLED
+#define USE_PIX 1
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include "Microsoft/COMPointer.h"
-#include <dxgi1_3.h>
+THIRD_PARTY_INCLUDES_START
+	#include <dxgi1_3.h>
+	#include <DXProgrammableCapture.h>
+THIRD_PARTY_INCLUDES_END
+#include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(PixWinPlugin, Log, All);
@@ -19,19 +24,6 @@ DEFINE_LOG_CATEGORY_STATIC(PixWinPlugin, Log, All);
 
 namespace Impl
 {
-#if PIX_PLUGIN_ENABLED
-	// Dynamic load DXGIGetDebugInterface1 because it's not available on Windows 7.
-	typedef HRESULT(WINAPI* FDXGIGetDebugInterface1)(UINT, REFIID, void**);
-
-	// UUID hook into PIX for windows, temporary until we get the header dependency for <DXProgrammableCapture.h> which is included in the windows 10 SDK
-	interface DECLSPEC_UUID("9f251514-9d4d-4902-9d60-18988ab7d4b5") DECLSPEC_NOVTABLE
-	IDXGraphicsAnalysis : public IUnknown
-	{
-		STDMETHOD_(void, BeginCapture)() PURE;
-		STDMETHOD_(void, EndCapture)() PURE;
-	};
-#endif
-
 	/** Container for graphics analysis com interface. */
 	class FPixGraphicsAnalysisInterface
 	{
@@ -39,24 +31,23 @@ namespace Impl
 		FPixGraphicsAnalysisInterface()
 		{
 #if PIX_PLUGIN_ENABLED
+			// Dynamic load DXGIGetDebugInterface1 because it's not available on Windows 7.
 			// DXGIGetDebugInterface1 is Windows 8 and above.
-			if (FPlatformMisc::VerifyWindowsVersion(6, 2))
+			if (FPlatformMisc::VerifyWindowsVersion(8, 0))
 			{
+				typedef HRESULT(WINAPI* FDXGIGetDebugInterface1)(UINT, REFIID, void**);
 				FDXGIGetDebugInterface1 DXGIGetDebugInterface1FnPtr = nullptr;
 
-				HMODULE DxgiDLL = LoadLibraryA("dxgi.dll");
-				if (DxgiDLL)
+				if (HMODULE DxgiDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll")))
 				{
-#pragma warning(push)
-#pragma warning(disable: 4191) // disable the "unsafe conversion from 'FARPROC' to 'blah'" warning
-					DXGIGetDebugInterface1FnPtr = (FDXGIGetDebugInterface1)(GetProcAddress(DxgiDLL, "DXGIGetDebugInterface1"));
-#pragma warning(pop)
-					FreeLibrary(DxgiDLL);
+					DXGIGetDebugInterface1FnPtr = (FDXGIGetDebugInterface1)(void*)::GetProcAddress(DxgiDLL, "DXGIGetDebugInterface1");
+
+					FPlatformProcess::FreeDllHandle(DxgiDLL);
 				}
 
 				if (DXGIGetDebugInterface1FnPtr)
 				{
-					DXGIGetDebugInterface1FnPtr(0, IID_PPV_ARGS(&GAPtr));
+					DXGIGetDebugInterface1FnPtr(0, IID_PPV_ARGS(GraphicsAnalysis.GetInitReference()));
 				}
 			}
 #endif // PIX_PLUGIN_ENABLED
@@ -65,7 +56,7 @@ namespace Impl
 		bool IsValid()
 		{
 #if PIX_PLUGIN_ENABLED
-			return GAPtr.Get() != nullptr;
+			return GraphicsAnalysis != nullptr;
 #else
 			return false;
 #endif
@@ -75,7 +66,7 @@ namespace Impl
 		{
 #if PIX_PLUGIN_ENABLED
 			check(IsValid());
-			GAPtr->BeginCapture();
+			GraphicsAnalysis->BeginCapture();
 #endif
 		}
 
@@ -83,13 +74,13 @@ namespace Impl
 		{
 #if PIX_PLUGIN_ENABLED
 			check(IsValid());
-			GAPtr->EndCapture();
+			GraphicsAnalysis->EndCapture();
 #endif
 		}
 
 	private:
 #if PIX_PLUGIN_ENABLED
-		TComPtr<IDXGraphicsAnalysis> GAPtr;
+		TRefCountPtr<IDXGraphicsAnalysis> GraphicsAnalysis;
 #endif
 	};
 
@@ -123,7 +114,7 @@ namespace Impl
 
 void FPixWinPluginModule::StartupModule()
 {
-	PixGraphicsAnalysisInterface = new Impl::FPixGraphicsAnalysisInterface;
+	PixGraphicsAnalysisInterface = new Impl::FPixGraphicsAnalysisInterface();
 	if (PixGraphicsAnalysisInterface->IsValid())
 	{
 		// Register modular features.
@@ -212,9 +203,5 @@ void FPixWinPluginModule::Tick(float DeltaTime)
 }
 
 #undef LOCTEXT_NAMESPACE
-
-#if PIX_PLUGIN_ENABLED
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
 
 IMPLEMENT_MODULE(FPixWinPluginModule, PixWinPlugin)

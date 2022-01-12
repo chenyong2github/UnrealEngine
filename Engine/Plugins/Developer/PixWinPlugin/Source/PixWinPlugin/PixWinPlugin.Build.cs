@@ -2,13 +2,11 @@
 
 namespace UnrealBuildTool.Rules
 {
-	using System.IO;
-
 	public class PixWinPlugin : ModuleRules
 	{
 		public PixWinPlugin(ReadOnlyTargetRules Target) : base(Target)
         {
-			PublicDependencyModuleNames.AddRange(new string[]
+			PrivateDependencyModuleNames.AddRange(new string[]
 			{
 				"ApplicationCore",
 				"Core",
@@ -18,7 +16,11 @@ namespace UnrealBuildTool.Rules
 				"RHI",
 			});
 
-			PublicSystemLibraries.Add("dxgi.lib");
+			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+			{
+				PrivateDependencyModuleNames.Add("WinPixEventRuntime");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+			}
 		}
 	}
 }
