@@ -88,6 +88,16 @@ class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
 	void SortConstraints();
 
 	/**
+	 * Set the island group index
+	 */
+	FORCEINLINE void SetGroupIndex(const int32 GroupIndex) { IslandGroup = GroupIndex; }
+	
+	/**
+	* Get the island group index
+	*/
+	FORCEINLINE const int32& GetGroupIndex() const { return IslandGroup; }
+
+	/**
 	* Return the list of particles within the solver island
 	*/
 	FORCEINLINE const TArray<FGeometryParticleHandle*>& GetParticles() const { return IslandParticles; }
@@ -119,6 +129,8 @@ class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
 	FORCEINLINE int32 GetSleepCounter() const { return SleepCounter; }
 	FORCEINLINE void SetSleepCounter(const int32 SleepCounterIn) { SleepCounter = SleepCounterIn; }
 	FORCEINLINE bool SleepingChanged() const { return bSleepingChanged; }
+	FORCEINLINE void SetIsUsingCache(const bool bIsUsingCacheIn ) { bIsUsingCache = bIsUsingCacheIn; }
+	FORCEINLINE bool IsUsingCache() const { return bIsUsingCache; }
 	
 	// template<typename ConstraintType>
 	// void GatherSolverInput(const FReal Dt, const int32 IslandIndex, const int32 ContainerId);
@@ -148,6 +160,13 @@ class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
 
 	/** List of all the island constraints handles */
 	TArray<FConstraintHandleHolder> IslandConstraints;
+
+	/** Island Group in which the solver belongs */
+	int32 IslandGroup = 0;
+	
+	/** Check if the island is using the cache or not */
+	bool bIsUsingCache = false;
+	
 };
 	
 // template<typename ConstraintType>

@@ -61,6 +61,9 @@ void FPBDIslandSolver::AddConstraint(FConstraintHandle* ConstraintHandle)
 	if (ConstraintHandle)
 	{
 		IslandConstraints.Add(ConstraintHandle);
+
+		const int32 ContainerId = ConstraintHandle->GetContainerId();
+		ConstraintCounts[ConstraintHandle->GetContainerId()]++;
 	}
 }
 

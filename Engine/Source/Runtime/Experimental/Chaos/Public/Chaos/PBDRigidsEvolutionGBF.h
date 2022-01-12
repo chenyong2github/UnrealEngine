@@ -173,6 +173,20 @@ namespace Chaos
 		FORCEINLINE FPBDSuspensionConstraints& GetSuspensionConstraints() { return SuspensionConstraints; }
 		FORCEINLINE const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return SuspensionConstraints; }
 
+		/**
+		 * Reload the particles cache within an island
+		 * @param Island Index of the island in which the cache will be used
+		 */
+		void ReloadParticlesCache(const int32 Island);
+
+		/**
+		 * Build the list of disables particles and update the sleeping flag on the island
+		 * @param Island Index of the island in which the cache will be used
+		 * @param DisabledParticles List of islands disabled particles
+		 * @param SleepedIslands List of islands sleeping state 
+		 */
+		void BuildDisabledParticles(const int32 Island, TArray<TArray<FPBDRigidParticleHandle*>>& DisabledParticles, TArray<bool>& SleepedIslands);
+
 		void DestroyConstraint(FConstraintHandle* Constraint);
 
 		void DestroyParticleCollisionsInAllocator(FGeometryParticleHandle* Particle);
@@ -314,15 +328,15 @@ namespace Chaos
 		// First phase of constraint solver
 		// For GBF this is the velocity solve phase
 		// For PBD/QuasiPBD this is the position solve phase
-		void ApplyConstraintsPhase1(const FReal Dt, int32 Island);
+		void ApplyConstraintsPhase1(const FReal Dt, int32 GroupIndex);
 
 		// Calculate the implicit velocites based on the change in position from ApplyConstraintsPhase1
-		void SetImplicitVelocities(const FReal Dt, int32 Island);
+		void SetImplicitVelocities(const FReal Dt, int32 GroupIndex);
 		
 		// Second phase of constraint solver (after implicit velocity calculation following results of phase 1)
 		// For GBF this is the pushout phase
 		// For QuasiPBD this is the velocity solve phase
-		void ApplyConstraintsPhase2(const FReal Dt, int32 Island);
+		void ApplyConstraintsPhase2(const FReal Dt, int32 GroupIndex);
 
 
 		CHAOS_API void Serialize(FChaosArchive& Ar);
@@ -339,8 +353,8 @@ namespace Chaos
 
 		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FSubStepInfo& SubStepInfo);
 
-		void GatherSolverInput(FReal Dt, int32 Island);
-		void ScatterSolverOutput(FReal Dt, int32 Island);
+		void GatherSolverInput(FReal Dt, int32 GroupIndex);
+		void ScatterSolverOutput(FReal Dt, int32 GroupIndex);
 
 		FEvolutionResimCache* GetCurrentStepResimCache()
 		{

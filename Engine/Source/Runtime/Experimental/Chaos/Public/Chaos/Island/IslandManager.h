@@ -10,6 +10,7 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/Island/IslandGraph.h"
 #include "Chaos/Island/SolverIsland.h"
+#include "Chaos/Island/IslandGroup.h"
 
 namespace Chaos
 {
@@ -134,7 +135,7 @@ public:
 	  * @param PBDRigids Rigid particles that will be used to fill the solver islands
 	  * @param Particles SOA used in the evolution
 	  */
-	void UpdateIslands(const TParticleView<FPBDRigidParticles>& PBDRigids, FPBDRigidsSOAs& Particles);
+	void UpdateIslands(const TParticleView<FPBDRigidParticles>& PBDRigids, FPBDRigidsSOAs& Particles, const int32 NumContainers);
 
 	/**
 	  * @brief Put all particles and constraints in an island to sleep
@@ -188,6 +189,15 @@ public:
 	{
 		return IslandIndexing.Num();
 	}
+
+	/**
+	* The number of groups in the graph.
+	* @return the number of groups
+	*/
+	FORCEINLINE int32 NumGroups() const
+	{
+		return IslandGroups.Num();
+	}
 	
 	/**
 	 * The number of islands in the graph.
@@ -229,6 +239,10 @@ public:
 	template<typename ConstraintType>
 	void AddConstraintDatas(const int32 ContainerId)
 	{
+		for(auto& IslandGroup : IslandGroups)
+		{
+			IslandGroup->AddConstraintDatas<ConstraintType>(ContainerId);
+		}
 		for(auto& IslandSolver : IslandSolvers)
 		{
 			IslandSolver->AddConstraintDatas<ConstraintType>(ContainerId);
@@ -247,9 +261,21 @@ public:
 	// 	}
 	// }
 
+	/** Accessors of the graph group */
+	const FPBDIslandGroup* GetIslandGroup(const int32 GroupIndex) const {return IslandGroups.IsValidIndex(GroupIndex) ? IslandGroups[GroupIndex].Get() : nullptr; }
+	FPBDIslandGroup* GetIslandGroup(const int32 GroupIndex) {return IslandGroups.IsValidIndex(GroupIndex) ? IslandGroups[GroupIndex].Get()  : nullptr; }
+
 	/** Accessors of the graph island */
 	const FPBDIslandSolver* GetSolverIsland(const int32 IslandIndex) const {return IslandIndexing.IsValidIndex(IslandIndex) ? IslandSolvers[IslandIndexing[IslandIndex]].Get() : nullptr; }
 	FPBDIslandSolver* GetSolverIsland(const int32 IslandIndex) {return IslandIndexing.IsValidIndex(IslandIndex) ? IslandSolvers[IslandIndexing[IslandIndex]].Get() : nullptr; }
+
+	/** Accessors of the group islands */
+	const TArray<FPBDIslandSolver*>& GetGroupIslands(const int32 GroupIndex) const {return IslandGroups[GroupIndex]->GetIslands(); }
+	TArray<FPBDIslandSolver*>& GetGroupIslands(const int32 GroupIndex) {return IslandGroups[GroupIndex]->GetIslands(); }
+
+	/** Accessors of all the graph groups */
+	const TArray<TUniquePtr<FPBDIslandGroup>>& GetIslandGroups() const {return IslandGroups; }
+	TArray<TUniquePtr<FPBDIslandGroup>>& GetIslandGroups() {return IslandGroups; }
 
 	/** Get the graph nodes */
 	const TSparseArray<GraphType::FGraphNode>& GetGraphNodes() const { return IslandGraph->GraphNodes; }
@@ -266,9 +292,19 @@ public:
 protected:
 
 	/**
+	* Initialize the groups according to the number of threads
+	*/
+	void InitializeGroups();
+
+	/**
+	 * Build all the island groups
+	 */
+	void BuildGroups(const int32 NumContainers);
+
+	/**
 	* Sync the IslandSolvers with the IslandGraph
 	*/
-	void SyncIslands(FPBDRigidsSOAs& Particles);
+	void SyncIslands(FPBDRigidsSOAs& Particles, const int32 NumContainers);
 
 	/** List of solver islands in the manager */
 	TSparseArray<TUniquePtr<FPBDIslandSolver>> IslandSolvers;
@@ -281,5 +317,11 @@ protected:
 
 	/** Maximum particle index that we have in the graph*/
 	int32									MaxParticleIndex = INDEX_NONE;
+	
+	/** List of island groups in the manager */
+	TArray<TUniquePtr<FPBDIslandGroup>> IslandGroups;
+
+	/** Sorted list of islands */
+	TArray<int32>							SortedIslands;
 };
 }

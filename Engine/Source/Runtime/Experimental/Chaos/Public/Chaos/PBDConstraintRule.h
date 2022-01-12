@@ -115,19 +115,19 @@ namespace Chaos
 		virtual void BindToGraph(FPBDConstraintGraph& InContactGraph, uint32 InContainerId) {}
 
 		// Collect all the data required to solve the constraints in the specified island. This also fills the SolverBodies
-		virtual void GatherSolverInput(const FReal Dt, int32 Island) {}
+		virtual void GatherSolverInput(const FReal Dt, int32 GroupIndex) {}
 
 		// Scatter the results of the islands constraint solver(s) out to the appropriate places (e.g., impulses, break flags, etc)
-		virtual void ScatterSolverOutput(const FReal Dt, int32 Island) {}
+		virtual void ScatterSolverOutput(const FReal Dt, int32 GroupIndex) {}
 
 		/** Called once per tick to allow constraint containers to create/alter their constraints based on particle position */
 		virtual void UpdatePositionBasedState(const FReal Dt) {}
 
 		/** Apply all corrections for constraints in the specified island. Return true if more iterations are needed. */
-		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) { return false; }
+		virtual bool ApplyConstraints(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) { return false; }
 
 		/** Apply push out for constraints in the specified island. Return true if more iterations are needed. */
-		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) { return false; }
+		virtual bool ApplyPushOut(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) { return false; }
 
 		/** Add all constraints to the connectivity graph */
 		virtual void AddToGraph() {}
@@ -136,7 +136,7 @@ namespace Chaos
 		virtual void InitializeAccelerationStructures() {}
 
 		/** Set up the perf-acceleration structures for the specified island. May be called in parallel for islands */
-		virtual void UpdateAccelerationStructures(const FReal Dt, const int32 Island) {}
+		virtual void UpdateAccelerationStructures(const FReal Dt, const int32 GroupIndex) {}
 
 		/** Sort constraints if necessary  */
 		virtual void SortConstraints() {}
@@ -237,17 +237,17 @@ namespace Chaos
 
 		virtual ~TPBDConstraintIslandRule();
 
-		virtual void GatherSolverInput(const FReal Dt, int32 Island) override;
+		virtual void GatherSolverInput(const FReal Dt, int32 GroupIndex) override;
 
-		virtual void ScatterSolverOutput(const FReal Dt, int32 Island) override;
+		virtual void ScatterSolverOutput(const FReal Dt, int32 GroupIndex) override;
 
-		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override;
+		virtual bool ApplyConstraints(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) override;
 
-		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override;
+		virtual bool ApplyPushOut(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) override;
 
 		virtual void InitializeAccelerationStructures() override;
 		
-		virtual void UpdateAccelerationStructures(const FReal Dt, const int32 Island) override;
+		virtual void UpdateAccelerationStructures(const FReal Dt, const int32 GroupIndex) override;
 
 	protected:
 		using Base::Constraints;
@@ -278,11 +278,11 @@ namespace Chaos
 			Constraints.UpdatePositionBasedState(Dt);
 		}
 
-		virtual void GatherSolverInput(const FReal Dt, int32 Island) override;
+		virtual void GatherSolverInput(const FReal Dt, int32 GroupIndex) override;
 
-		virtual void ScatterSolverOutput(const FReal Dt, int32 Island) override;
+		virtual void ScatterSolverOutput(const FReal Dt, int32 GroupIndex) override;
 
-		virtual bool ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override;
+		virtual bool ApplyConstraints(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) override;
 
 		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& InConstraints)
 		{
@@ -294,11 +294,11 @@ namespace Chaos
 			Constraints.Reset();
 		}
 
-		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override;
+		virtual bool ApplyPushOut(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts) override;
 
 		virtual void InitializeAccelerationStructures() override;
 
-		virtual void UpdateAccelerationStructures(const FReal Dt, const int32 Island) override;
+		virtual void UpdateAccelerationStructures(const FReal Dt, const int32 GroupIndex) override;
 
 		/** Sort constraints according to island/level/color*/
 		virtual void SortConstraints() override;

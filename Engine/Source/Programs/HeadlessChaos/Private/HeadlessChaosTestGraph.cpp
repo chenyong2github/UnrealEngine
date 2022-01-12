@@ -60,6 +60,7 @@ namespace ChaosTest {
 		TMockGraphConstraints()
 			: FPBDIndexedConstraintContainer(FConstraintContainerHandle::StaticType())
 		{
+			SetContainerId(T_TYPEID);
 		}
 
 		int32 NumConstraints() const { return Constraints.Num(); }
@@ -213,7 +214,7 @@ namespace ChaosTest {
 		}
 		
 		// Generate the constraint/particle islands
-		Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(), SOAs);
+		Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(), SOAs,2);
 		
 		// Islands should be end up with the following particles (note: particle 17 is infinite mass and can appear in multiple islands)
 		TArray<TSet<TGeometryParticleHandle<FReal, 3>*>> ExpectedIslandParticles = {
@@ -519,7 +520,7 @@ namespace ChaosTest {
 			}
 
 			// Generate the constraint/particle islands
-			Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(), SOAs);
+			Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(), SOAs, 1);
 
 			// Check the number of islands
 			EXPECT_EQ(IterData.ExpectedIslandParticleIndices.Num(), Graph.NumIslands());
@@ -611,7 +612,7 @@ namespace ChaosTest {
 			Graph.AddConstraint(0,Constraints.Handles[ConstraintIndex],TVec2<TGeometryParticleHandle<FReal,3>*>(Particles[Indices[0]],Particles[Indices[1]]));
 		}
 
-		Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(),SOAs);
+		Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(),SOAs, 1);
 		for (int32 IslandIndex = 0; IslandIndex < Graph.NumIslands(); ++IslandIndex)
 		{
 			const bool bSleeped = Graph.SleepInactive(IslandIndex,PhysicsMaterials,PhysicalMaterials);
@@ -1052,7 +1053,7 @@ namespace ChaosTest {
 			const TVec2<int32>& Indices = Constraints.ConstraintParticleIndices(ConstraintIndex);
 			Graph.AddConstraint(ContainerId, Constraints.Handles[ConstraintIndex], TVec2<TGeometryParticleHandle<FReal, 3>*>(AllParticles[Indices[0]], AllParticles[Indices[1]]) );
 		}
-		Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(), SOAs);
+		Graph.UpdateIslands(SOAs.GetNonDisabledDynamicView(), SOAs, 1);
 
 		// It's a connected grid, so only one island
 		EXPECT_EQ(Graph.NumIslands(), 1);

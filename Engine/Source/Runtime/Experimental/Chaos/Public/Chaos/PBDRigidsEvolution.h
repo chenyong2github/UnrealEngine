@@ -885,7 +885,7 @@ protected:
 
 	void CreateIslands()
 	{
-		ConstraintGraph.UpdateIslands(Particles.GetNonDisabledDynamicView(), Particles);
+		ConstraintGraph.UpdateIslands(Particles.GetNonDisabledDynamicView(), Particles, ConstraintRules.Num());
 
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{

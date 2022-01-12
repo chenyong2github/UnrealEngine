@@ -146,30 +146,37 @@ namespace Chaos
 	}
 
 	template<class ConstraintType>
-	void TPBDConstraintIslandRule<ConstraintType>::GatherSolverInput(const FReal Dt, int32 Island)
+	void TPBDConstraintIslandRule<ConstraintType>::GatherSolverInput(const FReal Dt, int32 GroupIndex)
 	{
-		if(FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island))
+		if(FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex))
 		{
-			const TArray<FConstraintHandleHolder>& IslandConstraints = ConstraintGraph->GetIslandConstraints(Island);
-
 			// This will reset the number of constraints inside the solver datas. For now we keep this function since according
 			// to the constraints we can use the handles, the indices or the container. when only the container will be used
 			// we can replace this call by :
 			// IslandSolver->template GetConstraintContainer<typename ConstraintType::FSolverConstraintContainerType>(ContainerId)->Reset();
-			Constraints.SetNumIslandConstraints(IslandConstraints.Num(), *IslandSolver);
-
-			for (FConstraintHandle* ConstraintHandle : IslandConstraints)
+			Constraints.SetNumIslandConstraints(IslandGroup->ConstraintCount(Constraints.GetContainerId()), *IslandGroup);
+			IslandGroup->InitConstraintIndex(Constraints.GetContainerId());
+			
+			for (auto& IslandSolver : IslandGroup->GetIslands() )
 			{
-				if (ConstraintHandle->GetContainerId() == GetContainerId())
+				if(!IslandSolver->IsSleeping() && !IslandSolver->IsUsingCache())
 				{
-					FConstraintContainerHandle* Constraint = ConstraintHandle->As<FConstraintContainerHandle>();
-
-					// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
-					// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
-					if (Constraint->IsEnabled())
+					const TArray<FConstraintHandleHolder>& IslandConstraints = ConstraintGraph->GetIslandConstraints(IslandSolver->GetIslandIndex());
+					
+					for (FConstraintHandle* ConstraintHandle : IslandConstraints)
 					{
-						// @todo(chaos): we should provide Particle Levels in the island rule as well (see TPBDConstraintColorRule)
-						Constraint->GatherInput(Dt, INDEX_NONE, INDEX_NONE, *IslandSolver);
+						if (ConstraintHandle->GetContainerId() == GetContainerId())
+						{
+							FConstraintContainerHandle* Constraint = ConstraintHandle->As<FConstraintContainerHandle>();
+
+							// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
+							// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
+							if (Constraint->IsEnabled())
+							{
+								// @todo(chaos): we should provide Particle Levels in the island rule as well (see TPBDConstraintColorRule)
+								Constraint->GatherInput(Dt, INDEX_NONE, INDEX_NONE, *IslandGroup);
+							}
+						}
 					}
 				}
 			}
@@ -177,26 +184,26 @@ namespace Chaos
 	}
 
 	template<class ConstraintType>
-	void TPBDConstraintIslandRule<ConstraintType>::ScatterSolverOutput(const FReal Dt, int32 Island)
+	void TPBDConstraintIslandRule<ConstraintType>::ScatterSolverOutput(const FReal Dt, int32 GroupIndex)
 	{
-		if(FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island))
+		if(FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex))
 		{
-			Constraints.ScatterOutput(Dt, *IslandSolver);
+			Constraints.ScatterOutput(Dt, *IslandGroup);
 		}
 	}
 	
 	template<class ConstraintType>
-	bool TPBDConstraintIslandRule<ConstraintType>::ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts)
+	bool TPBDConstraintIslandRule<ConstraintType>::ApplyConstraints(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts)
 	{
-		FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island);
-		return IslandSolver ? Constraints.ApplyPhase1Serial(Dt, It, NumIts, *IslandSolver) : false;
+		FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex);
+		return IslandGroup ? Constraints.ApplyPhase1Serial(Dt, It, NumIts, *IslandGroup) : false;
 	}
 
 	template<class ConstraintType>
-	bool TPBDConstraintIslandRule<ConstraintType>::ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts)
+	bool TPBDConstraintIslandRule<ConstraintType>::ApplyPushOut(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts)
 	{
-		FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island);
-		return IslandSolver  ? Constraints.ApplyPhase2Serial(Dt, It, NumIts, *IslandSolver) : false;
+		FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex);
+		return IslandGroup  ? Constraints.ApplyPhase2Serial(Dt, It, NumIts, *IslandGroup) : false;
 	}
 
 	template<class ConstraintType>
@@ -206,7 +213,7 @@ namespace Chaos
 	}
 
 	template<class ConstraintType>
-	void TPBDConstraintIslandRule<ConstraintType>::UpdateAccelerationStructures(const FReal Dt, const int32 Island)
+	void TPBDConstraintIslandRule<ConstraintType>::UpdateAccelerationStructures(const FReal Dt, const int32 GroupIndex)
 	{
 	}
 	
@@ -229,7 +236,7 @@ namespace Chaos
 	}
 
 	template<class ConstraintType>
-	void TPBDConstraintColorRule<ConstraintType>::GatherSolverInput(const FReal Dt, int32 Island)
+	void TPBDConstraintColorRule<ConstraintType>::GatherSolverInput(const FReal Dt, int32 GroupIndex)
 	{
 		FPBDConstraintGraph* LocalGraph = ConstraintGraph;
 		auto GetParticleLevel = [LocalGraph](TGeometryParticleHandle<FReal, 3>* ConstrainedParticle) -> int32
@@ -246,64 +253,79 @@ namespace Chaos
 		};
 		if (IsSortingEnabled())
 		{
-			if (FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island))
+			if (FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex))
 			{
-				const int32 GraphIndex = ConstraintGraph->GetGraphIndex(Island);
-				if(ConstraintGraph->GetIslandGraph()->GraphIslands.IsValidIndex(GraphIndex))
+				bool bResizeDone = false;
+				TArray<TPair<int32, int32>>& IslandConstraintSets = ConstraintSets[GroupIndex];
+				IslandConstraintSets.Reset();
+				int32 ConstraintSetBegin = 0, ConstraintSetEnd = 0;
+				
+				for (auto& IslandSolver : IslandGroup->GetIslands() )
 				{
-					const int32 MaxColor = IsSortingUsingColors() ? FMath::Max(1,ConstraintGraph->GetIslandGraph()->GraphIslands[GraphIndex].MaxColors+1) : 1;
-					const int32 MaxLevel = IsSortingUsingLevels() ? FMath::Max(1,ConstraintGraph->GetIslandGraph()->GraphIslands[GraphIndex].MaxLevels+1) : 1;
-					
-					TArray<TPair<int32, int32>>& IslandConstraintSets = ConstraintSets[Island];
-					IslandConstraintSets.Reset(MaxLevel * MaxColor);	// Pessimistic array size - we could store the actual required size in coloring algorithm
-					int32 ConstraintSetEnd = 0;
-					
-					Constraints.SetNumIslandConstraints(ConstraintGraph->GetIslandConstraints(Island).Num(), *IslandSolver);
-					IslandSolver->InitConstraintIndex(Constraints.GetContainerId());
-
-					for (int32 Level = 0; Level < MaxLevel; ++Level)
+					ConstraintSetBegin = ConstraintSetEnd;
+					if(!IslandSolver->IsSleeping() && !IslandSolver->IsUsingCache())
 					{
-						for (int32 Color = 0; Color < MaxColor; ++Color)
+						if(!bResizeDone)
 						{
-							const int32 OffsetIndex = IslandOffsets[Island] + Level * MaxColor + Color;
-							const int32 OffsetBegin = (OffsetIndex == 0) ? 0 : ConstraintOffsets[OffsetIndex-1];
-							const int32 OffsetEnd = ConstraintOffsets[OffsetIndex];
+							IslandGroup->InitConstraintIndex(Constraints.GetContainerId());
+							Constraints.SetNumIslandConstraints(IslandGroup->ConstraintCount(Constraints.GetContainerId()), *IslandGroup);
+							bResizeDone = true;
+						}
+						const int32 Island = IslandSolver->GetIslandIndex();
+				
+						const int32 GraphIndex = ConstraintGraph->GetGraphIndex(Island);
+						if(ConstraintGraph->GetIslandGraph()->GraphIslands.IsValidIndex(GraphIndex))
+						{
+							const int32 MaxColor = IsSortingUsingColors() ? FMath::Max(1,ConstraintGraph->GetIslandGraph()->GraphIslands[GraphIndex].MaxColors+1) : 1;
+							const int32 MaxLevel = IsSortingUsingLevels() ? FMath::Max(1,ConstraintGraph->GetIslandGraph()->GraphIslands[GraphIndex].MaxLevels+1) : 1;
 							
-							 if (OffsetEnd != OffsetBegin)
-							 {
-							 	// Calculate the range of indices for this color as a set of independent contacts
-							 	TPair<int32, int32> ColorConstrainSet(ConstraintSetEnd, ConstraintSetEnd);
-							 	for(int32 ConstraintIndex = OffsetBegin; ConstraintIndex < OffsetEnd; ++ConstraintIndex)
-							 	{
-							 		FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
-							 		if (Constraint->IsEnabled())
-							 		{
-							 			// Levels that should be assigned to the bodies for shock propagation
-							 			// @todo(chaos): optimize the lookup
-							 			const TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstrainedParticles = Constraint->GetConstrainedParticles();
-							 			const int32 Particle0Level = GetParticleLevel(ConstrainedParticles[0]);
-							 			const int32 Particle1Level = GetParticleLevel(ConstrainedParticles[1]);
-							
-							 			// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
-							 			// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
-							 			Constraint->GatherInput(Dt, Particle0Level, Particle1Level, *IslandSolver);
-							
-							 			// Update the current constraint set of this color
-							 			ColorConstrainSet.Value = ++ConstraintSetEnd;
-							 		}
-							 	}
-							 	// Remember the set of constraints of this color
-							 	if (IsSortingUsingColors()) 
-							 	{
-							 		IslandConstraintSets.Add(ColorConstrainSet);
-							 	}
-							 }
+							IslandConstraintSets.Reserve(IslandConstraintSets.Num()+MaxLevel * MaxColor);	// Pessimistic array size - we could store the actual required size in coloring algorithm
+
+							for (int32 Level = 0; Level < MaxLevel; ++Level)
+							{
+								for (int32 Color = 0; Color < MaxColor; ++Color)
+								{
+									const int32 OffsetIndex = IslandOffsets[Island] + Level * MaxColor + Color;
+									const int32 OffsetBegin = (OffsetIndex == 0) ? 0 : ConstraintOffsets[OffsetIndex-1];
+									const int32 OffsetEnd = ConstraintOffsets[OffsetIndex];
+									
+									if (OffsetEnd != OffsetBegin)
+									{
+										// Calculate the range of indices for this color as a set of independent contacts
+										TPair<int32, int32> ColorConstrainSet(ConstraintSetEnd, ConstraintSetEnd);
+										for(int32 ConstraintIndex = OffsetBegin; ConstraintIndex < OffsetEnd; ++ConstraintIndex)
+										{
+											FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
+											if (Constraint->IsEnabled())
+											{
+												// Levels that should be assigned to the bodies for shock propagation
+												// @todo(chaos): optimize the lookup
+												const TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstrainedParticles = Constraint->GetConstrainedParticles();
+												const int32 Particle0Level = GetParticleLevel(ConstrainedParticles[0]);
+												const int32 Particle1Level = GetParticleLevel(ConstrainedParticles[1]);
+									
+												// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
+												// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
+												Constraint->GatherInput(Dt, Particle0Level, Particle1Level, *IslandGroup);
+									
+												// Update the current constraint set of this color
+												ColorConstrainSet.Value = ++ConstraintSetEnd;
+											}
+										}
+										// Remember the set of constraints of this color
+										if (IsSortingUsingColors()) 
+										{
+											IslandConstraintSets.Add(ColorConstrainSet);
+										}
+									}
+								}
+							}
 						}
 					}
 					// If we aren't coloring, we have a single group of all constraints (they have been created in level order above)
 					if (!IsSortingUsingColors())
 					{
-						const TPair<int32, int32> ConstrainSet(0, ConstraintSetEnd);
+						const TPair<int32, int32> ConstrainSet(ConstraintSetBegin, ConstraintSetEnd);
 						IslandConstraintSets.Add(ConstrainSet);
 					}
 				}
@@ -311,51 +333,51 @@ namespace Chaos
 		}
 		else
 		{
-			Base::GatherSolverInput(Dt, Island);
+			Base::GatherSolverInput(Dt, GroupIndex);
 		}
 	}
 
 	template<class ConstraintType>
-	void TPBDConstraintColorRule<ConstraintType>::ScatterSolverOutput(const FReal Dt, int32 Island)
+	void TPBDConstraintColorRule<ConstraintType>::ScatterSolverOutput(const FReal Dt, int32 GroupIndex)
 	{
 		if (IsSortingEnabled())
 		{
-			if (FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island))
+			if (FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex))
 			{
-				const TArray<TPair<int32, int32>>& IslandConstraintSets = ConstraintSets[Island];
+				const TArray<TPair<int32, int32>>& IslandConstraintSets = ConstraintSets[GroupIndex];
 				for (const TPair<int32, int32>& ConstraintSet : IslandConstraintSets)
 				{
-					Constraints.ScatterOutput(Dt, ConstraintSet.Key, ConstraintSet.Value, *IslandSolver);
+					Constraints.ScatterOutput(Dt, ConstraintSet.Key, ConstraintSet.Value, *IslandGroup);
 				}
 			}
 		}
 		else
 		{
-			return Base::ScatterSolverOutput(Dt, Island);
+			return Base::ScatterSolverOutput(Dt, GroupIndex);
 		}
 	}
 
 	template<class ConstraintType>
-	bool TPBDConstraintColorRule<ConstraintType>::ApplyConstraints(const FReal Dt, int32 Island, const int32 It, const int32 NumIts)
+	bool TPBDConstraintColorRule<ConstraintType>::ApplyConstraints(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts)
 	{
 		if (IsSortingEnabled())
 		{
 			bool bNeedsAnotherIteration = false;
-			if (FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island))
+			if (FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex))
 			{
-				const TArray<TPair<int32, int32>>& IslandConstraintSets = ConstraintSets[Island];
+				const TArray<TPair<int32, int32>>& IslandConstraintSets = ConstraintSets[GroupIndex];
 				if (!IsSortingUsingColors())
 				{
 					for (const TPair<int32, int32>& ConstraintSet : IslandConstraintSets)
 					{
-						bNeedsAnotherIteration |= Constraints.ApplyPhase1Serial(Dt, It, NumIts, ConstraintSet.Key, ConstraintSet.Value, *IslandSolver);
+						bNeedsAnotherIteration |= Constraints.ApplyPhase1Serial(Dt, It, NumIts, ConstraintSet.Key, ConstraintSet.Value, *IslandGroup);
 					}
 				}
 				else
 				{
 					for (const TPair<int32, int32>& ConstraintSet : IslandConstraintSets)
 					{
-						bNeedsAnotherIteration |= Constraints.ApplyPhase1Parallel(Dt, It, NumIts, ConstraintSet.Key, ConstraintSet.Value, *IslandSolver);
+						bNeedsAnotherIteration |= Constraints.ApplyPhase1Parallel(Dt, It, NumIts, ConstraintSet.Key, ConstraintSet.Value, *IslandGroup);
 					}
 				}
 			}
@@ -363,31 +385,31 @@ namespace Chaos
 		}
 		else
 		{
-			return Base::ApplyConstraints(Dt, Island, It, NumIts);
+			return Base::ApplyConstraints(Dt, GroupIndex, It, NumIts);
 		}
 	}
 
 	template<class ConstraintType>
-	bool TPBDConstraintColorRule<ConstraintType>::ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts)
+	bool TPBDConstraintColorRule<ConstraintType>::ApplyPushOut(const FReal Dt, int32 GroupIndex, const int32 It, const int32 NumIts)
 	{
 		if (IsSortingEnabled())
 		{
 			bool bNeedsAnotherIteration = false;
-			if (FPBDIslandSolver* IslandSolver = ConstraintGraph->GetSolverIsland(Island))
+			if (FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex))
 			{
-				const TArray<TPair<int32, int32>>& IslandConstraintSets = ConstraintSets[Island];
+				const TArray<TPair<int32, int32>>& IslandConstraintSets = ConstraintSets[GroupIndex];
 				if (!IsSortingUsingColors())
 				{
 					for (const TPair<int32, int32>& ConstraintSet : IslandConstraintSets)
 					{
-						bNeedsAnotherIteration |= Constraints.ApplyPhase2Serial(Dt, It, NumIts, ConstraintSet.Key, ConstraintSet.Value, *IslandSolver);
+						bNeedsAnotherIteration |= Constraints.ApplyPhase2Serial(Dt, It, NumIts, ConstraintSet.Key, ConstraintSet.Value, *IslandGroup);
 					}
 				}
 				else
 				{
 					for (const TPair<int32, int32>& ConstraintSet : IslandConstraintSets)
 					{
-						bNeedsAnotherIteration |= Constraints.ApplyPhase2Parallel(Dt, It, NumIts, ConstraintSet.Key, ConstraintSet.Value, *IslandSolver);
+						bNeedsAnotherIteration |= Constraints.ApplyPhase2Parallel(Dt, It, NumIts, ConstraintSet.Key, ConstraintSet.Value, *IslandGroup);
 					}
 				}
 			}
@@ -395,7 +417,7 @@ namespace Chaos
 		}
 		else
 		{
-			return Base::ApplyPushOut(Dt, Island, It, NumIts);
+			return Base::ApplyPushOut(Dt, GroupIndex, It, NumIts);
 		}
 	}
 
@@ -404,7 +426,7 @@ namespace Chaos
 	{
 		if (IsSortingEnabled())
 		{
-			ConstraintSets.SetNum(ConstraintGraph->NumIslands());
+			ConstraintSets.SetNum(ConstraintGraph->NumGroups());
 			ConstraintGraph->template AddConstraintDatas<ConstraintType>(Constraints.GetContainerId());
 		}
 		else
@@ -414,7 +436,7 @@ namespace Chaos
 	}
 
 	template<class ConstraintType>
-	void TPBDConstraintColorRule<ConstraintType>::UpdateAccelerationStructures(const FReal Dt, const int32 Island)
+	void TPBDConstraintColorRule<ConstraintType>::UpdateAccelerationStructures(const FReal Dt, const int32 GroupIndex)
 	{}
 	
 	template<class ConstraintType>
