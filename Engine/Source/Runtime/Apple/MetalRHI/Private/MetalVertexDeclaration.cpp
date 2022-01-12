@@ -147,7 +147,7 @@ void FMetalVertexDeclaration::GenerateLayout(const FVertexDeclarationElementList
 				Stride = TranslateElementTypeToSize(Element.Type);
 			}
 
-			// look for any unset strides coming from UE4 (this can be removed when all are fixed)
+			// look for any unset strides coming from the Engine (this can be removed when all are fixed)
 			if (Element.Stride == 0xFFFF)
 			{
 				NSLog(@"Setting illegal stride - break here if you want to find out why, but this won't break until we try to render with it");

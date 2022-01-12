@@ -115,7 +115,7 @@ enum EMetalCommandEncoderType
 /**
  * FMetalCommandEncoder:
  *	Wraps the details of switching between different command encoders on the command-buffer, allowing for restoration of the render encoder if needed.
- * 	UE4 expects the API to serialise commands in-order, but Metal expects applications to work with command-buffers directly so we need to implement 
+ * 	UnrealEngine expects the API to serialise commands in-order, but Metal expects applications to work with command-buffers directly so we need to implement 
  *	the RHI semantics by switching between encoder types. This class hides the ugly details. Eventually it might be possible to move some of the operations
  *	into pre- & post- command-buffers so that we avoid encoder switches but that will take changes to the RHI and high-level code too, so it won't happen soon.
  */
