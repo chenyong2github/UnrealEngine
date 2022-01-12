@@ -81,6 +81,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Exclude brightness from the EncodedHDRCubemap,
 		ExcludeBrightnessFromEncodedHDRCubemap,
 
+		// Unified volumetric cloud component quality sample count slider between main and reflection views for consistency
+		VolumetricCloudSampleCountUnification,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

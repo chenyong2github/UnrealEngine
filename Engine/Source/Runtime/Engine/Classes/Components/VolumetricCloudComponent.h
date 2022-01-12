@@ -70,27 +70,31 @@ class UVolumetricCloudComponent : public USceneComponent
 	 * Scale the tracing sample count in primary views. Quality level scalability CVARs affect the maximum range.
 	 * The sample count resolution is still clamped according to scalability setting to 'r.VolumetricCloud.ViewRaySampleCountMax'.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "0.05", UIMax = "8", ClampMin = "0.05", SliderExponent = 1.0))
 	float ViewSampleCountScale;
 	/**
 	 * Scale the tracing sample count in reflection views. Quality level scalability CVARs affect the maximum range.
 	 * The sample count resolution is still clamped according to scalability setting to 'r.VolumetricCloud.ReflectionRaySampleMaxCount'.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
-	float ReflectionSampleCountScale;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "0.05", UIMax = "8", ClampMin = "0.05", SliderExponent = 1.0))
+	float ReflectionViewSampleCountScale;
+	UPROPERTY()
+	float ReflectionSampleCountScale_DEPRECATED;
 
 	/**
 	 * Scale the shadow tracing sample count in primary views, only used with Advanced Output ray marched shadows. Quality level scalability CVARs affect the maximum range.
 	 * The sample count resolution is still clamped according to scalability setting to 'r.VolumetricCloud.Shadow.ViewRaySampleMaxCount'.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "0.05", UIMax = "8", ClampMin = "0.05", SliderExponent = 1.0))
 	float ShadowViewSampleCountScale;
 	/**
 	 * Scale the shadow tracing sample count in reflection views, only used with Advanced Output ray marched shadows. Quality level scalability CVARs affect the maximum range.
 	 * The sample count resolution is still clamped according to scalability setting to 'r.VolumetricCloud.Shadow.ReflectionRaySampleMaxCount'.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 1.0))
-	float ShadowReflectionSampleCountScale;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "0.05", UIMax = "8", ClampMin = "0.05", SliderExponent = 1.0))
+	float ShadowReflectionViewSampleCountScale;
+	UPROPERTY()
+	float ShadowReflectionSampleCountScale_DEPRECATED;
 
 	/**
 	 * The shadow tracing distance in kilometers, only used with Advanced Output ray marched shadows.
@@ -124,17 +128,25 @@ class UVolumetricCloudComponent : public USceneComponent
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetViewSampleCountScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	ENGINE_API void SetReflectionSampleCountScale(float NewValue);
+	ENGINE_API void SetReflectionViewSampleCountScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetShadowViewSampleCountScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	ENGINE_API void SetShadowReflectionSampleCountScale(float NewValue);
+	ENGINE_API void SetShadowReflectionViewSampleCountScale(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetShadowTracingDistance(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetStopTracingTransmittanceThreshold(float NewValue);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetMaterial(UMaterialInterface* NewValue);
+
+	// Deprecated functions but still valid because they forward data correctly.
+	UE_DEPRECATED(5.0, "This function has been replaced by SetReflectionViewSampleCountScale.")
+	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by SetReflectionViewSampleCountScale."))
+	ENGINE_API void SetReflectionSampleCountScale(float NewValue);
+	UE_DEPRECATED(5.0, "This function has been replaced by SetShadowReflectionViewSampleCountScale.")
+	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by SetShadowReflectionViewSampleCountScale."))
+	ENGINE_API void SetShadowReflectionSampleCountScale(float NewValue);
 
 
 protected:
@@ -158,6 +170,14 @@ public:
 	virtual void CheckForErrors() override;
 #endif // WITH_EDITOR
 	//~ End UActorComponent Interface.
+
+
+	// Those values should never be changed wihtout data conversion, that in order to maintain performance in case default values are used.
+	static constexpr float BaseViewRaySampleCount = 96.0f;
+	static constexpr float BaseShadowRaySampleCount = 10.0f;
+	// Those values are part of a data conversion and should never be changed. CVars and component sample count controls should be enough.
+	static constexpr float OldToNewReflectionViewRaySampleCount = 10.0f / BaseViewRaySampleCount;
+	static constexpr float OldToNewReflectionShadowRaySampleCount = 3.0f / BaseShadowRaySampleCount;
 
 private:
 

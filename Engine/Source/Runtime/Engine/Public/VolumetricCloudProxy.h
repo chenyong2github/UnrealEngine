@@ -41,9 +41,9 @@ public:
 	float SkyLightCloudBottomOcclusion;
 	
 	float ViewSampleCountScale;
-	float ReflectionSampleCountScale;
+	float ReflectionViewSampleCountScale;
 	float ShadowViewSampleCountScale;
-	float ShadowReflectionSampleCountScale;
+	float ShadowReflectionViewSampleCountScale;
 	float ShadowTracingDistance;
 	float StopTracingTransmittanceThreshold;
 private:
