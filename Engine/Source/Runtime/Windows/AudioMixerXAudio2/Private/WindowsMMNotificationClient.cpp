@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
+#include "WindowsMMNotificationClient.h"
 
 #if PLATFORM_WINDOWS
-
-#include "WindowsMMNotificationClient.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 
