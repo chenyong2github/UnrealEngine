@@ -267,5 +267,10 @@ void FCommandRemoveTag::Execute(UMassEntitySubsystem& System) const
 
 void FCommandRemoveComposition::Execute(UMassEntitySubsystem& System) const
 {
+	if (System.IsEntityValid(TargetEntity) == false)
+	{
+		return;
+	}
+
 	System.RemoveCompositionFromEntity(TargetEntity, Descriptor);
 }

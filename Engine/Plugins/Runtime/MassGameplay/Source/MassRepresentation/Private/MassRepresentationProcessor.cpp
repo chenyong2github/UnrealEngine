@@ -488,7 +488,7 @@ UMassRepresentationFragmentDestructor::UMassRepresentationFragmentDestructor()
 {
 	// By putting this to null, this Deinitializer needs to be explicitly added via a Entity traits and will no longer be automatically called
 	// This FragmentType should be deprecated and we should always use the traits.
-	FragmentType = nullptr; // FMassRepresentationFragment::StaticStruct();
+	FragmentType = FMassRepresentationFragment::StaticStruct();
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::All);
 }
 
