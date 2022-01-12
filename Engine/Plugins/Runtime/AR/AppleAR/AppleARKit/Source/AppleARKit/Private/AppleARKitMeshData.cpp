@@ -254,7 +254,15 @@ void FARKitMeshData::UpdateMeshData()
 		}
 #else // USE_ARKIT_NORMALS
 		{
-			FAccumulatedNormal::CalculateVertexNormals(AccumulatedNormals, Vertices, Indices, TangentData, BoundingBox.GetCenter(), 100.f);
+			// TODO: Revisit LWC and AR geometry; temp fix to unbreak build.
+			TArray<FVector> LwcVertices;
+			LwcVertices.SetNumUninitialized(Vertices.Num());
+			for (int32 i = 0; i < Vertices.Num(); ++i)
+			{
+				LwcVertices[i] = FVector(Vertices[i].X, Vertices[i].Y, Vertices[i].Z);
+			}
+
+			FAccumulatedNormal::CalculateVertexNormals(AccumulatedNormals, LwcVertices, Indices, TangentData, BoundingBox.GetCenter(), 100.f);
 		}
 #endif // USE_ARKIT_NORMALS
 		
