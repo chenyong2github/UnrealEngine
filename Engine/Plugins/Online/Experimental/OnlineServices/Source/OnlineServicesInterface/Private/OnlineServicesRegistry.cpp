@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Online/OnlineServicesRegistry.h"
+#include "Online/OnlineServicesDelegates.h"
 
 #include "Misc/LazySingleton.h"
 
@@ -34,6 +35,16 @@ void FOnlineServicesRegistry::UnregisterServicesFactory(EOnlineServices OnlineSe
 	}
 }
 
+bool FOnlineServicesRegistry::IsLoaded(EOnlineServices OnlineServices, FName InstanceName) const
+{
+	bool bExists = false;
+	if (const TMap<FName, TSharedRef<IOnlineServices>>* OnlineServicesInstances = NamedServiceInstances.Find(OnlineServices))
+	{
+		bExists = OnlineServicesInstances->Find(InstanceName) != nullptr;
+	}
+	return bExists;
+}
+
 TSharedPtr<IOnlineServices> FOnlineServicesRegistry::GetNamedServicesInstance(EOnlineServices OnlineServices, FName InstanceName)
 {
 	TSharedPtr<IOnlineServices> Services;
@@ -48,6 +59,7 @@ TSharedPtr<IOnlineServices> FOnlineServicesRegistry::GetNamedServicesInstance(EO
 		if (Services.IsValid())
 		{
 			NamedServiceInstances.FindOrAdd(OnlineServices).Add(InstanceName, Services.ToSharedRef());
+			OnOnlineServicesCreated.Broadcast(Services.ToSharedRef());
 		}
 	}
 
@@ -76,6 +88,17 @@ TSharedPtr<IOnlineServices> FOnlineServicesRegistry::CreateServices(EOnlineServi
 	}
 
 	return Services;
+}
+
+void FOnlineServicesRegistry::GetAllServicesInstances(TArray<TSharedRef<IOnlineServices>>& OutOnlineServices) const
+{
+	for (const TPair<EOnlineServices, TMap<FName, TSharedRef<IOnlineServices>>>& OnlineServiceTypesMaps : NamedServiceInstances)
+	{
+		for (const TPair<FName, TSharedRef<IOnlineServices>>& NamedInstance : OnlineServiceTypesMaps.Value)
+		{
+			OutOnlineServices.Emplace(NamedInstance.Value);
+		}
+	}
 }
 
 FOnlineServicesRegistry::~FOnlineServicesRegistry()

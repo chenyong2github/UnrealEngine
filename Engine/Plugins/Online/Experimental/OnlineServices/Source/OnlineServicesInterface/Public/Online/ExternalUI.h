@@ -45,6 +45,13 @@ struct FExternalUIShowFriendsUI
 	};
 };
 
+/** Struct for ExternalUIStatusChanged event */
+struct FExternalUIStatusChanged
+{
+	/** Whether the external UI is being opened or not */
+	bool bIsOpening = false;
+};
+
 class IExternalUI
 {
 public:
@@ -57,6 +64,11 @@ public:
 	 * Shows the online service's friends UI
 	 */
 	virtual TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> ShowFriendsUI(FExternalUIShowFriendsUI::Params&& Params) = 0;
+
+	/**
+	 * Event triggered when an external UI's status changes
+	 */
+	virtual TOnlineEvent<void(const FExternalUIStatusChanged&)> OnExternalUIStatusChanged() = 0;
 };
 
 namespace Meta {
@@ -76,6 +88,10 @@ BEGIN_ONLINE_STRUCT_META(FExternalUIShowFriendsUI::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FExternalUIShowFriendsUI::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FExternalUIStatusChanged)
+	ONLINE_STRUCT_FIELD(FExternalUIStatusChanged, bIsOpening)
 END_ONLINE_STRUCT_META()
 
 /* Meta*/ }

@@ -63,6 +63,16 @@ public:
 	ONLINESERVICESINTERFACE_API void UnregisterServicesFactory(EOnlineServices OnlineServices, int32 Priority = 0);
 
 	/**
+	 * Check if an online service instance is loaded
+	 *
+	 * @param OnlineServices Type of online services for the IOnlineServices instance
+	 * @param InstanceName Name of the instance
+	 *
+	 * @return true if the instance is loaded
+	 */
+	ONLINESERVICESINTERFACE_API bool IsLoaded(EOnlineServices OnlineServices, FName InstanceName) const;
+
+	/**
 	 * Get a named instance of a specific IOnlineServices
 	 * 
 	 * @param OnlineServices Type of online services for the IOnlineServices instance
@@ -89,6 +99,12 @@ public:
 	 */
 	ONLINESERVICESINTERFACE_API TSharedPtr<IOnlineServices> CreateServices(EOnlineServices OnlineServices);
 
+	/**
+	 * Get list of all instantiated OnlineServices
+	 * 
+	 * @param OutOnlineServices Array of online services to fill
+	 */
+	ONLINESERVICESINTERFACE_API void GetAllServicesInstances(TArray<TSharedRef<IOnlineServices>>& OutOnlineServices) const;
 private:
 	struct FFactoryAndPriority
 	{

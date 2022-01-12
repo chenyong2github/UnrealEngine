@@ -51,7 +51,16 @@ public:
 };
 
 /**
- * Get an instance of the online subsystem
+ * Check if an instance of the online service is loaded
+ *
+ * @param OnlineServices Type of online services to retrieve
+ * @param InstanceName Name of the services instance to retrieve
+ * @return The services instance or an invalid pointer if the services is unavailable
+ */
+ONLINESERVICESINTERFACE_API bool IsLoaded(EOnlineServices OnlineServices = EOnlineServices::Default, FName InstanceName = NAME_None);
+
+/**
+ * Get an instance of the online service
  *
  * @param OnlineServices Type of online services to retrieve
  * @param InstanceName Name of the services instance to retrieve
@@ -72,7 +81,7 @@ TSharedPtr<ServicesClass> GetServices(FName InstanceName = NAME_None)
 }
 
 /**
- * Destroy an instance of the online subsystem
+ * Destroy an instance of the online service
  *
  * @param OnlineServices Type of online services to destroy
  * @param InstanceName Name of the services instance to destroy

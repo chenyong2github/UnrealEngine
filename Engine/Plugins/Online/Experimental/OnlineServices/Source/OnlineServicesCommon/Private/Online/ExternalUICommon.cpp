@@ -32,4 +32,9 @@ TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> FExternalUICommon::ShowFriendsUI(
 	return Operation->GetHandle();
 }
 
+TOnlineEvent<void(const FExternalUIStatusChanged&)> FExternalUICommon::OnExternalUIStatusChanged()
+{
+	return OnExternalUIStatusChangedEvent;
+}
+
 /* UE::Online */ }

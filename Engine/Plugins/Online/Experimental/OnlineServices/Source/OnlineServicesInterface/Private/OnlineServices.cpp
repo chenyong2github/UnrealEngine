@@ -6,6 +6,11 @@
 
 namespace UE::Online {
 
+bool IsLoaded(EOnlineServices OnlineServices, FName InstanceName)
+{
+	return FOnlineServicesRegistry::Get().IsLoaded(OnlineServices, InstanceName);
+}
+
 TSharedPtr<IOnlineServices> GetServices(EOnlineServices OnlineServices, FName InstanceName)
 {
 	return FOnlineServicesRegistry::Get().GetNamedServicesInstance(OnlineServices, InstanceName);
