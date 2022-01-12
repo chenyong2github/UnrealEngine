@@ -148,6 +148,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = Action)
 	float ElapsedTriggeredTime = 0.f;
 
+	// The last time that this evaluated to a Triggered State
+	UPROPERTY(BlueprintReadOnly, Category = Action)
+	float LastTriggeredWorldTime = 0.0f;
+
 	// Trigger state
 	UPROPERTY(BlueprintReadOnly, Category = Action)
 	ETriggerEvent TriggerEvent = ETriggerEvent::None;
@@ -167,6 +171,9 @@ public:
 
 	// Time the action has been actively triggered (Triggered only)
 	float GetTriggeredTime() const { return ElapsedTriggeredTime; }
+
+	// Time that this action was last actively triggered
+	float GetLastTriggeredWorldTime() const { return LastTriggeredWorldTime; }
 
 	const TArray<UInputTrigger*>& GetTriggers() const { return Triggers; }
 	const TArray<UInputModifier*>& GetModifiers() const { return Modifiers; }

@@ -355,6 +355,11 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		// Evaluate time per action after establishing the internal trigger state across all mappings
 		ActionData.ElapsedProcessedTime += TriggerState != ETriggerState::None ? NonDilatedDeltaTime : 0.f;
 		ActionData.ElapsedTriggeredTime += (ActionData.TriggerEvent == ETriggerEvent::Triggered) ? NonDilatedDeltaTime : 0.f;
+		// Track the time that this trigger was last used
+		if(TriggerState == ETriggerState::Triggered)
+		{
+			ActionData.LastTriggeredWorldTime = CurrentTime;
+		}
 	}
 
 
