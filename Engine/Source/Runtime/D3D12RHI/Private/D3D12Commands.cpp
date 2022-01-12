@@ -1495,7 +1495,11 @@ void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 	// Query data isn't ready until it has been resolved.
 	ensure(Query->bResultIsCached == false && Query->bResolved == false);
 
-	bIsDoingQuery = false;
+	if (Query->Type == RQT_Occlusion)
+	{
+		check(bIsDoingQuery);
+		bIsDoingQuery = false;
+	}
 }
 
 void FD3D12CommandContext::RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
