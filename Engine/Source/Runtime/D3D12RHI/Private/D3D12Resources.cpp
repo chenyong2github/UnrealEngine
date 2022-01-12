@@ -313,6 +313,14 @@ FD3D12Resource::~FD3D12Resource()
 		GFSDK_Aftermath_DX12_UnregisterResource(AftermathHandle);
 	}
 #endif
+
+	if (bBackBuffer)
+	{
+		// Don't make the windows association call and release back buffer at the same time (see notes on critical section)
+		FScopeLock Lock(&FD3D12Viewport::DXGIBackBufferLock);
+		bBackBuffer = false;
+		Resource.SafeRelease();
+	}
 }
 
 ID3D12Pageable* FD3D12Resource::GetPageable()

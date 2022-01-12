@@ -128,7 +128,7 @@ void FD3D12Viewport::Init()
 
 		VERIFYD3D12RESULT(Factory4->CreateSwapChainForCoreWindow(
 			pCommandQueue,
-			reinterpret_cast< IUnknown* >(Windows::UI::Core::CoreWindow::GetForCurrentThread()),
+			reinterpret_cast<IUnknown*>(Windows::UI::Core::CoreWindow::GetForCurrentThread()),
 			&SwapChainDesc,
 			NULL,
 			SwapChain1.GetInitReference()
@@ -223,7 +223,7 @@ void FD3D12Viewport::Init()
 
 					VERIFYD3D12RESULT(hr);
 				}
-				
+
 				VERIFYD3D12RESULT(SwapChain->QueryInterface(IID_PPV_ARGS(SwapChain1.GetInitReference())));
 
 				// Get a SwapChain4 if supported.
@@ -231,12 +231,17 @@ void FD3D12Viewport::Init()
 			}
 		}
 	}
-// Change from Microsoft for HoloLens support, may require further review: : BEGIN HoloLens support
+	// Change from Microsoft for HoloLens support, may require further review: : BEGIN HoloLens support
 #endif
 // : END HoloLens support
 
-	// Set the DXGI message hook to not change the window behind our back.
-	Adapter->GetDXGIFactory2()->MakeWindowAssociation(WindowHandle, DXGI_MWA_NO_WINDOW_CHANGES);
+	{
+		// Don't make the windows association call and release back buffer at the same time (see notes on critical section)
+		FScopeLock Lock(&DXGIBackBufferLock);
+
+		// Set the DXGI message hook to not change the window behind our back.
+		Adapter->GetDXGIFactory2()->MakeWindowAssociation(WindowHandle, DXGI_MWA_NO_WINDOW_CHANGES);
+	}
 
 	// Resize to setup mGPU correctly.
 	Resize(BufferDesc.Width, BufferDesc.Height, bIsFullscreen, PixelFormat);

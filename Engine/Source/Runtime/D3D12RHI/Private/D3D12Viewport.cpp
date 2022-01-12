@@ -106,6 +106,8 @@ namespace D3D12RHI
 }
 using namespace D3D12RHI;
 
+FCriticalSection FD3D12Viewport::DXGIBackBufferLock;
+
 #if WITH_MGPU
 FD3D12FramePacing::FD3D12FramePacing(FD3D12Adapter* Parent)
 	: FD3D12AdapterChild(Parent)
