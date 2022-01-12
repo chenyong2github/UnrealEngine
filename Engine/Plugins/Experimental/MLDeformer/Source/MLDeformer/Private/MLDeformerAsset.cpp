@@ -88,7 +88,7 @@ void UMLDeformerAsset::PostLoad()
 }
 
 // Used for the FBoenReference, so it knows what skeleton to pick bones from.
-USkeleton* UMLDeformerAsset::GetSkeleton(bool& bInvalidSkeletonIsError)
+USkeleton* UMLDeformerAsset::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
 {
 	bInvalidSkeletonIsError = false;
 #if WITH_EDITOR

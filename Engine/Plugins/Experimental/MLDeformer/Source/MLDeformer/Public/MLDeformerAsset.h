@@ -20,6 +20,7 @@ class UGeometryCache;
 class UAnimSequence;
 class UMLDeformerAsset;
 class USkeleton;
+class IPropertyHandle;
 
 /** The activation function to use during the ML Deformer training process. */
 UENUM()
@@ -128,7 +129,7 @@ public:
 
 
 	//~IBoneReferenceSkeletonProvider interface
-	USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError) override;
+	USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 	//~End of IBoneReferenceSkeletonProvider interface
 
 
