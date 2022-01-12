@@ -702,9 +702,9 @@ void INiagaraParameterPanelViewModel::SelectParameterItemByName(const FName Para
 
 void INiagaraParameterPanelViewModel::SubscribeParameterToLibraryIfMatchingDefinition(const UNiagaraScriptVariable* ScriptVarToModify, const FName ScriptVarName) const
 {
-	const TArray<FReservedParameter>* ReservedParametersForName = FNiagaraEditorModule::Get().GetReservedParametersManager()->FindReservedParametersByName(ScriptVarName);
+	const TArray<const UNiagaraScriptVariable*> ReservedParametersForName = FNiagaraParameterDefinitionsUtilities::FindReservedParametersByName(ScriptVarName);
 
-	if (ReservedParametersForName == nullptr || ReservedParametersForName->Num() == 0)
+	if (ReservedParametersForName.Num() == 0)
 	{
 		// Do not call SetParameterIsSubscribedToLibrary() unless ScriptVarToModify is already marked as SubscribedToParameterDefinitions.
 		if (ScriptVarToModify->GetIsSubscribedToParameterDefinitions())
@@ -712,18 +712,18 @@ void INiagaraParameterPanelViewModel::SubscribeParameterToLibraryIfMatchingDefin
 			SetParameterIsSubscribedToLibrary(ScriptVarToModify, false);
 		}
 	}
-	else if (ReservedParametersForName->Num() == 1)
+	else if (ReservedParametersForName.Num() == 1)
 	{
-		const FReservedParameter& ReservedParameterDefinition = (*ReservedParametersForName)[0];
-		if (ReservedParameterDefinition.GetParameter().GetType() != ScriptVarToModify->Variable.GetType())
+		const UNiagaraScriptVariable* ReservedParameterDefinition = (ReservedParametersForName)[0];
+		if (ReservedParameterDefinition->Variable.GetType() != ScriptVarToModify->Variable.GetType())
 		{
 			const FText TypeMismatchWarningTemplate = LOCTEXT("RenameParameter_DefinitionTypeMismatch", "Renamed parameter \"{0}\" with type {1}. Type does not match existing parameter definition \"{0}\" with type {2} from {3}! ");
 			FText TypeMismatchWarning = FText::Format(
 				TypeMismatchWarningTemplate,
 				FText::FromName(ScriptVarName),
 				ScriptVarToModify->Variable.GetType().GetNameText(),
-				ReservedParameterDefinition.GetParameter().GetType().GetNameText(),
-				FText::FromString(ReservedParameterDefinition.GetReservingDefinitionsAsset()->GetName()));
+				ReservedParameterDefinition->Variable.GetType().GetNameText(),
+				FText::FromString(ReservedParameterDefinition->GetTypedOuter<UNiagaraParameterDefinitions>()->GetName()));
 			FNiagaraEditorUtilities::WarnWithToastAndLog(TypeMismatchWarning);
 
 			// Do not call SetParameterIsSubscribedToLibrary() unless ScriptVarToModify is already marked as SubscribedToParameterDefinitions.
@@ -1506,7 +1506,6 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 	TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> ParameterToScriptVariableMap;
 	const TArray<UNiagaraGraph*> EditableGraphs = GetEditableGraphsConst();
 	const TArray<UNiagaraGraph*> AllGraphs = GetAllGraphsConst();
-	const UNiagaraReservedParametersManager* ReservedParametersManager = FNiagaraEditorModule::Get().GetReservedParametersManager();
 
 	// Collect all metadata to be packaged with the FNiagaraParameterPanelItems.
 	for (const UNiagaraGraph* EditableGraph : EditableGraphs)
@@ -1516,7 +1515,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 	ParameterToScriptVariableMap.Append(TransientParameterToScriptVarMap);
 
 	// Helper lambda to get all FNiagaraVariable parameters from a UNiagaraParameterCollection as FNiagaraParameterPanelItemArgs.
-	auto CollectParamStore = [this, &ParameterToScriptVariableMap, &VisitedParameterToItemMap, ReservedParametersManager](const FNiagaraParameterStore* ParamStore){
+	auto CollectParamStore = [this, &ParameterToScriptVariableMap, &VisitedParameterToItemMap](const FNiagaraParameterStore* ParamStore){
 		TArray<FNiagaraVariable> Vars;
 		ParamStore->GetParameters(Vars);
 		for (const FNiagaraVariable& Var : Vars)
@@ -1542,8 +1541,8 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 			Item.bSourcedFromCustomStackContext = false;
 			Item.ReferenceCount = 0;
 			
-			// Determine whether the item is name aliasing a parameter definitions's parameter.
-			Item.DefinitionMatchState = ReservedParametersManager->GetDefinitionMatchStateForParameter(ScriptVar->Variable);
+			// Determine whether the item is name aliasing a parameter definition's parameter.
+			Item.DefinitionMatchState = FNiagaraParameterDefinitionsUtilities::GetDefinitionMatchStateForParameter(ScriptVar->Variable);
 
 			VisitedParameterToItemMap.Add(Var, Item);
 		}
@@ -1565,8 +1564,8 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 		Item.bSourcedFromCustomStackContext = false;
 		Item.ReferenceCount = 0;
 
-		// Determine whether the item is name aliasing a parameter definitions's parameter.
-		Item.DefinitionMatchState = ReservedParametersManager->GetDefinitionMatchStateForParameter(EditorOnlyScriptVar->Variable);
+		// Determine whether the item is name aliasing a parameter definition's parameter.
+		Item.DefinitionMatchState = FNiagaraParameterDefinitionsUtilities::GetDefinitionMatchStateForParameter(EditorOnlyScriptVar->Variable);
 
 		VisitedParameterToItemMap.Add(Var, Item);
 	}
@@ -1716,8 +1715,8 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 						}
 					}
 
-					// Determine whether the item is name aliasing a parameter definitions's parameter.
-					Item.DefinitionMatchState = ReservedParametersManager->GetDefinitionMatchStateForParameter(Item.ScriptVariable->Variable);
+					// Determine whether the item is name aliasing a parameter definition's parameter.
+					Item.DefinitionMatchState = FNiagaraParameterDefinitionsUtilities::GetDefinitionMatchStateForParameter(Item.ScriptVariable->Variable);
 
 					// -Increment the reference count.
 					Item.ReferenceCount += Builder.Histories[0].PerVariableReadHistory[VariableIndex].Num() + Builder.Histories[0].PerVariableWriteHistory[VariableIndex].Num();
@@ -2579,7 +2578,6 @@ TArray<FNiagaraParameterPanelItem> FNiagaraScriptToolkitParameterPanelViewModel:
 
 	TMap<FNiagaraVariable, FNiagaraParameterPanelItem> VisitedParameterToItemMap;
 	TArray<FNiagaraVariable> VisitedInvalidParameters;
-	const UNiagaraReservedParametersManager* ReservedParametersManager = FNiagaraEditorModule::Get().GetReservedParametersManager();
 
 	// For scripts we use the reference maps cached in the graph to collect parameters.
 	for (const UNiagaraGraph* Graph : GetEditableGraphsConst())
@@ -2651,8 +2649,8 @@ TArray<FNiagaraParameterPanelItem> FNiagaraScriptToolkitParameterPanelViewModel:
 				Item.bExternallyReferenced = false;
 				Item.bSourcedFromCustomStackContext = false;
 
-				// Determine whether the item is name aliasing a parameter definitions's parameter.
-				Item.DefinitionMatchState = ReservedParametersManager->GetDefinitionMatchStateForParameter(ScriptVar->Variable);
+				// Determine whether the item is name aliasing a parameter definition's parameter.
+				Item.DefinitionMatchState = FNiagaraParameterDefinitionsUtilities::GetDefinitionMatchStateForParameter(ScriptVar->Variable);
 
 				// -Increment the reference count.
 				Item.ReferenceCount += ParameterElement.Value.ParameterReferences.Num();
@@ -2913,7 +2911,7 @@ bool FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::GetCanRenamePar
 			OutCanRenameParameterToolTip = LOCTEXT("ParameterPanelLibraryViewModel_RenameParameter_NameAlias", "Cannot Rename Parameter: A Parameter with this name already exists in this definition asset.");
 			return false;
 		}
-		else if (FNiagaraEditorModule::Get().GetReservedParametersManager()->GetNumReservedParametersByName(NewVariableName) > 0)
+		else if (FNiagaraParameterDefinitionsUtilities::GetNumParametersReservedForName(NewVariableName) > 0)
 		{
 			OutCanRenameParameterToolTip = LOCTEXT("ParameterPanelLibraryViewModel_RenameParameter_ReservedDefinitionName", "Cannot Rename Parameter: A Parameter with this name already exists in another definition asset.");
 			return false;

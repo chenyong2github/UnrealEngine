@@ -3632,4 +3632,48 @@ void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(const TArray<FN
 	}
 }
 
+TArray<const UNiagaraScriptVariable*> FNiagaraParameterDefinitionsUtilities::FindReservedParametersByName(const FName ParameterName)
+{
+	TArray<const UNiagaraScriptVariable*> OutScriptVars;
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	const TArray<TWeakObjectPtr<UNiagaraParameterDefinitions>>& CachedParameterDefinitionsAssets = NiagaraEditorModule.GetCachedParameterDefinitionsAssets();
+	for (const TWeakObjectPtr<UNiagaraParameterDefinitions>& CachedParameterDefinitionsAsset : CachedParameterDefinitionsAssets)
+	{
+		for (const UNiagaraScriptVariable* ScriptVar : CachedParameterDefinitionsAsset->GetParametersConst())
+		{
+			if (ScriptVar->Variable.GetName() == ParameterName)
+			{
+				OutScriptVars.Add(ScriptVar);
+			}
+		}
+	}
+	return OutScriptVars;
+}
+
+int32 FNiagaraParameterDefinitionsUtilities::GetNumParametersReservedForName(const FName ParameterName)
+{
+	return FindReservedParametersByName(ParameterName).Num();
+}
+
+EParameterDefinitionMatchState FNiagaraParameterDefinitionsUtilities::GetDefinitionMatchStateForParameter(const FNiagaraVariableBase& Parameter)
+{
+	const TArray<const UNiagaraScriptVariable*> ReservedScriptVarsForName = FindReservedParametersByName(Parameter.GetName());
+	if (ReservedScriptVarsForName.Num() == 0)
+	{
+		return EParameterDefinitionMatchState::NoMatchingDefinitions;
+	}
+	else if (ReservedScriptVarsForName.Num() == 1)
+	{
+		if (ReservedScriptVarsForName[0]->Variable.GetType() == Parameter.GetType())
+		{
+			return EParameterDefinitionMatchState::MatchingOneDefinition;
+		}
+		return EParameterDefinitionMatchState::MatchingDefinitionNameButNotType;
+	}
+	else
+	{
+		return EParameterDefinitionMatchState::MatchingMoreThanOneDefinition;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -400,3 +400,10 @@ namespace FNiagaraParameterUtilities
 
 	NIAGARAEDITOR_API void FilterToRelevantStaticVariables(const TArray<FNiagaraVariable>& InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased);
 };
+
+namespace FNiagaraParameterDefinitionsUtilities
+{
+	TArray<const UNiagaraScriptVariable*>  FindReservedParametersByName(const FName ParameterName);
+	int32 GetNumParametersReservedForName(const FName ParameterName);
+	EParameterDefinitionMatchState GetDefinitionMatchStateForParameter(const FNiagaraVariableBase& Parameter);
+};

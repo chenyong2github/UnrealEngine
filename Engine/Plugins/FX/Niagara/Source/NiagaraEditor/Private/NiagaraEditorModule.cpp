@@ -10,7 +10,6 @@
 #include "ISettingsModule.h"
 #include "SequencerChannelInterface.h"
 #include "SequencerSettings.h"
-#include "AssetRegistryModule.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Stats/Stats.h"
 #include "Subsystems/ImportSubsystem.h"
@@ -805,7 +804,8 @@ void FNiagaraEditorModule::StartupModule()
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		AssetRegistryModule.Get().OnFilesLoaded().AddLambda([this]()
 		{
-			RefreshParameterCollections(true /*AllowLoading*/);
+			ParameterCollectionAssetCache.RefreshCache(true /*bAllowLoading*/);
+			ParameterDefinitionsAssetCache.RefreshCache(true /*bAllowLoading*/);
 		});
 	}
 
@@ -1310,8 +1310,9 @@ void FNiagaraEditorModule::OnPostEngineInit()
 		UE_LOG(LogNiagaraEditor, Log, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
 	}
 
-	// ensure that the known parameter collections are loaded 
-	RefreshParameterCollections(true /*AllowLoading*/);
+	// ensure that all cached asset types are fully loaded.
+	ParameterCollectionAssetCache.RefreshCache(true /*bAllowLoading*/);
+	ParameterDefinitionsAssetCache.RefreshCache(true /*bAllowLoading*/);
 
 #if WITH_NIAGARA_DEBUGGER
 	Debugger = MakeShared<FNiagaraDebugger>();
@@ -1533,20 +1534,6 @@ FNiagaraClipboard& FNiagaraEditorModule::GetClipboard() const
 	return Clipboard.Get();
 }
 
-UNiagaraReservedParametersManager* FNiagaraEditorModule::GetReservedParametersManager()
-{
-	if (ReservedParametersManagerSingleton != nullptr)
-	{
-		return ReservedParametersManagerSingleton;
-	}
-
-	ReservedParametersManagerSingleton = NewObject<UNiagaraReservedParametersManager>(GetTransientPackage());
-	ReservedParametersManagerSingleton->AddToRoot();
-	ReservedParametersManagerSingleton->SetFlags(RF_Transactional);
-	ReservedParametersManagerSingleton->InitReservedParameters();
-	return ReservedParametersManagerSingleton;
-}
-
 void FNiagaraEditorModule::GetDataInterfaceFeedbackSafe(UNiagaraDataInterface* InDataInterface, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
 {
 	if (!InDataInterface)
@@ -1595,6 +1582,11 @@ void FNiagaraEditorModule::EnsureReservedDefinitionUnique(FGuid& UniqueId)
 	}
 
 	ReservedDefinitionIds.Add(UniqueId);
+}
+
+const TArray<TWeakObjectPtr<UNiagaraParameterDefinitions>>& FNiagaraEditorModule::GetCachedParameterDefinitionsAssets()
+{
+	return ParameterDefinitionsAssetCache.Get();
 }
 
 void FNiagaraEditorModule::GetTargetSystemAndEmitterForDataInterface(UNiagaraDataInterface* InDataInterface, UNiagaraSystem*& OutOwningSystem, UNiagaraEmitter*& OutOwningEmitter)
@@ -1746,30 +1738,11 @@ bool FNiagaraEditorModule::DeferredDestructObjects(float InDeltaTime)
 	return false;
 }
 
-void FNiagaraEditorModule::RefreshParameterCollections(bool AllowLoading)
-{
-	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	TArray<FAssetData> ParameterCollectionAssetData;
-	AssetRegistryModule.GetRegistry().GetAssetsByClass(UNiagaraParameterCollection::StaticClass()->GetFName(), ParameterCollectionAssetData);
-
-	CachedParameterCollections.Reset(ParameterCollectionAssetData.Num());
-	for (const FAssetData& ParameterCollectionAssetDatum : ParameterCollectionAssetData)
-	{
-		if (ParameterCollectionAssetDatum.IsAssetLoaded() || AllowLoading)
-		{
-			if (UNiagaraParameterCollection* Collection = Cast<UNiagaraParameterCollection>(ParameterCollectionAssetDatum.GetAsset()))
-			{
-				CachedParameterCollections.Add(MakeWeakObjectPtr(Collection));
-			}
-		}
-	}
-}
-
 UNiagaraParameterCollection* FNiagaraEditorModule::FindCollectionForVariable(const FString& VariableName)
 {
 	auto FindCachedCollectionByPrefix = [this](const FString& Prefix)
 	{
-		for (TWeakObjectPtr<UNiagaraParameterCollection>& CollectionPtr : CachedParameterCollections)
+		for (const TWeakObjectPtr<UNiagaraParameterCollection>& CollectionPtr : ParameterCollectionAssetCache.Get())
 		{
 			if (UNiagaraParameterCollection* Collection = CollectionPtr.Get())
 			{
@@ -1788,7 +1761,7 @@ UNiagaraParameterCollection* FNiagaraEditorModule::FindCollectionForVariable(con
 		return Collection;
 	}
 
-	RefreshParameterCollections(!FUObjectThreadContext::Get().IsRoutingPostLoad /*AllowLoading*/);
+	ParameterCollectionAssetCache.RefreshCache(!FUObjectThreadContext::Get().IsRoutingPostLoad /*bAllowLoading*/);
 
 	return FindCachedCollectionByPrefix(VariableName);
 }
@@ -1847,94 +1820,6 @@ void FNiagaraEditorModule::OnPerfBaselineWindowClosed(const TSharedRef<SWindow>&
 	ClosedWindow->SetContent(SNullWidget::NullWidget);
 	BaselineViewport.Reset();
 }
-
 #endif
-
-const TArray<FReservedParameter>* UNiagaraReservedParametersManager::FindReservedParametersByName(const FName ParameterName) const
-{
-	const FReservedParameterArray* ReservedParameterArrWrapperPtr = ReservedParameters.Find(ParameterName);
-	if (ReservedParameterArrWrapperPtr != nullptr)
-	{
-		return &(ReservedParameterArrWrapperPtr->Arr);
-	}
-	return nullptr;
-}
-
-int32 UNiagaraReservedParametersManager::GetNumReservedParametersByName(const FName ParameterName) const
-{
-	if (const FReservedParameterArray* FoundReservedParametersWrapperPtr = ReservedParameters.Find(ParameterName))
-	{
-		return FoundReservedParametersWrapperPtr->Arr.Num();
-	}
-	return 0;
-}
-
-EParameterDefinitionMatchState UNiagaraReservedParametersManager::GetDefinitionMatchStateForParameter(const FNiagaraVariableBase& Parameter) const
-{
-	const TArray<FReservedParameter>* ReservedParametersForNamePtr = FindReservedParametersByName(Parameter.GetName());
-	if (ReservedParametersForNamePtr == nullptr || ReservedParametersForNamePtr->Num() == 0)
-	{
-		return EParameterDefinitionMatchState::NoMatchingDefinitions;
-	}
-
-	const TArray<FReservedParameter>& ReservedParametersForName = *ReservedParametersForNamePtr;
-	if (ReservedParametersForNamePtr->Num() == 1)
-	{
-		if (ReservedParametersForName[0].GetParameter().GetType() == Parameter.GetType())
-		{
-			return EParameterDefinitionMatchState::MatchingOneDefinition;
-		}
-		return EParameterDefinitionMatchState::MatchingDefinitionNameButNotType;
-	}
-	else
-	{
-		return EParameterDefinitionMatchState::MatchingMoreThanOneDefinition;
-	}
-}
-
-void UNiagaraReservedParametersManager::AddReservedParameter(const FNiagaraVariableBase& Parameter, const UNiagaraParameterDefinitions* ReservingDefinitionsAsset)
-{
-	Modify();
-	ReservedParameters.FindOrAdd(Parameter.GetName()).Arr.AddUnique(FReservedParameter(Parameter, ReservingDefinitionsAsset));
-}
-
-void UNiagaraReservedParametersManager::RemoveReservedParameter(const FNiagaraVariableBase& Parameter, const UNiagaraParameterDefinitions* ReservingDefinitionsAsset)
-{
-	Modify();
-	FReservedParameterArray* ReservedParametersForNameWrapperPtr = ReservedParameters.Find(Parameter.GetName());
-	if (ReservedParametersForNameWrapperPtr != nullptr)
-	{
-		TArray<FReservedParameter>& ReservedParametersForName = ReservedParametersForNameWrapperPtr->Arr;
-		for (int32 Idx = ReservedParametersForName.Num() - 1; Idx > -1; --Idx)
-		{
-			const FReservedParameter& ReservedParameter = ReservedParametersForName[Idx];
-			if (ReservedParameter.GetParameter() == Parameter && ReservedParameter.GetReservingDefinitionsAsset()->GetDefinitionsUniqueId() == ReservingDefinitionsAsset->GetDefinitionsUniqueId())
-			{
-				ReservedParametersForName.RemoveAtSwap(Idx);
-			}
-		}
-	}
-}
-
-void UNiagaraReservedParametersManager::InitReservedParameters()
-{
-	TArray<FAssetData> ParameterDefinitionsAssetData;
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	AssetRegistryModule.GetRegistry().GetAssetsByClass(UNiagaraParameterDefinitions::StaticClass()->GetFName(), ParameterDefinitionsAssetData);
-	for (const FAssetData& ParameterDefinitionsAssetDatum : ParameterDefinitionsAssetData)
-	{
-		const UNiagaraParameterDefinitions* ParameterDefinitions = Cast<UNiagaraParameterDefinitions>(ParameterDefinitionsAssetDatum.GetAsset());
-		if (ParameterDefinitions == nullptr)
-		{
-			ensureMsgf(false, TEXT("Failed to load parameter definitions when initializing reserved parameters"));
-			continue;
-		}
-
-		for (const UNiagaraScriptVariable* ScriptVar : ParameterDefinitions->GetParametersConst())
-		{
-			ReservedParameters.FindOrAdd(ScriptVar->Variable.GetName()).Arr.AddUnique(FReservedParameter(ScriptVar->Variable, ParameterDefinitions));
-		}
-	}
-}
 
 #undef LOCTEXT_NAMESPACE

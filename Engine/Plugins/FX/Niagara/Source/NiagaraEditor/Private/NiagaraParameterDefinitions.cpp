@@ -48,7 +48,6 @@ void UNiagaraParameterDefinitions::AddParameter(const FNiagaraVariable& NewVaria
 	NewScriptVariable->Init(NewVariable, FNiagaraVariableMetaData());
 	NewScriptVariable->SetIsStaticSwitch(false);
 	NewScriptVariable->SetIsSubscribedToParameterDefinitions(true);
-	FNiagaraEditorModule::Get().GetReservedParametersManager()->AddReservedParameter(NewVariable, this);
 	NotifyParameterDefinitionsChanged();
 }
 
@@ -62,7 +61,6 @@ void UNiagaraParameterDefinitions::RemoveParameter(const FNiagaraVariable& Varia
 		// Make sure to remove any links to binding name subscriptions to external parameter libraries.
 		UnsubscribeBindingNameFromExternalParameterDefinitions(RemovedScriptVarGuid);
 		ScriptVariables.RemoveAtSwap(Idx, 1, false);
-		FNiagaraEditorModule::Get().GetReservedParametersManager()->RemoveReservedParameter(VariableToRemove, this);
 		NotifyParameterDefinitionsChanged();
 	}
 }
@@ -77,9 +75,6 @@ void UNiagaraParameterDefinitions::RenameParameter(const FNiagaraVariable& Varia
 		ScriptVariable->Modify();
 		ScriptVariable->Variable.SetName(NewName);
 		ScriptVariable->UpdateChangeId();
-		UNiagaraReservedParametersManager* ReservedParametersManager = FNiagaraEditorModule::Get().GetReservedParametersManager();
-		ReservedParametersManager->RemoveReservedParameter(OldVariable, this);
-		ReservedParametersManager->AddReservedParameter(ScriptVariable->Variable, this);
 		NotifyParameterDefinitionsChanged();
 	}
 }

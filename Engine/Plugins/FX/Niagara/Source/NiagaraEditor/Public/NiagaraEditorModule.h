@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AssetRegistryModule.h"
 #include "Modules/ModuleInterface.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "NiagaraTypes.h"
@@ -198,7 +199,7 @@ public:
 	TSharedPtr<FNiagaraDebugger> GetDebugger(){ return Debugger; }
 #endif
 
-	UNiagaraReservedParametersManager* GetReservedParametersManager();
+	const TArray<TWeakObjectPtr<UNiagaraParameterDefinitions>>& GetCachedParameterDefinitionsAssets();
 
 	NIAGARAEDITOR_API void GetTargetSystemAndEmitterForDataInterface(UNiagaraDataInterface* InDataInterface, UNiagaraSystem*& OutOwningSystem, UNiagaraEmitter*& OutOwningEmitter);
 	NIAGARAEDITOR_API void GetDataInterfaceFeedbackSafe(UNiagaraDataInterface* InDataInterface, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info);
@@ -235,6 +236,35 @@ private:
 		TSharedPtr<const T> ObjectToDestuct;
 	};
 
+	template<class AssetType>
+	class TAssetPreloadCache
+	{
+	public:
+		void RefreshCache(bool bAllowLoading)
+		{
+			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			TArray<FAssetData> AssetData;
+			AssetRegistryModule.GetRegistry().GetAssetsByClass(AssetType::StaticClass()->GetFName(), AssetData);
+
+			CachedAssets.Reset(AssetData.Num());
+			for (const FAssetData& AssetDatum : AssetData)
+			{
+				if (AssetDatum.IsAssetLoaded() || bAllowLoading)
+				{
+					if (AssetType* Asset = Cast<AssetType>(AssetDatum.GetAsset()))
+					{
+						CachedAssets.Add(MakeWeakObjectPtr(Asset));
+					}
+				}
+			}
+		};
+
+		const TArray<TWeakObjectPtr<AssetType>>& Get() const { return CachedAssets; };
+
+	private:
+		TArray<TWeakObjectPtr<AssetType>> CachedAssets;
+	};
+
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FName& PropertyName, const UNiagaraSettings* Settings);
 	void OnPreGarbageCollection();
@@ -262,8 +292,6 @@ private:
 	{
 		StackIssueGenerators.Add(StructName) = Generator;
 	}
-
-	void RefreshParameterCollections(bool AllowLoading);
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -354,42 +382,6 @@ private:
 
 	TUniquePtr<FNiagaraGraphDataCache> GraphDataCache;
 
-	TArray<TWeakObjectPtr<UNiagaraParameterCollection>> CachedParameterCollections;
-};
-
-USTRUCT()
-struct FReservedParameterArray
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(Transient)
-	TArray<FReservedParameter> Arr;
-};
-
-/** Manager singleton for tracking parameters that are reserved by parameter definitions assets.
- *  Implements UObject to support undo/redo transactions on the map of definitions asset ptrs to parameter names.
- */
-UCLASS()
-class UNiagaraReservedParametersManager : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	// UNiagaraReservedParametersManager is lazy initialized inside FNiagaraEditorModule::GetReservedParametersByName(), so delegate this method as a friend so that it may call InitReservedParameters().
-	friend UNiagaraReservedParametersManager* FNiagaraEditorModule::GetReservedParametersManager();
-
-public:
-	const TArray<FReservedParameter>* FindReservedParametersByName(const FName ParameterName) const;
-	int32 GetNumReservedParametersByName(const FName ParameterName) const;
-	EParameterDefinitionMatchState GetDefinitionMatchStateForParameter(const FNiagaraVariableBase& Parameter) const;
-	void AddReservedParameter(const FNiagaraVariableBase& Parameter, const UNiagaraParameterDefinitions* ReservingDefinitionsAsset);
-	void RemoveReservedParameter(const FNiagaraVariableBase& Parameter, const UNiagaraParameterDefinitions* ReservingDefinitionsAsset);
-
-private:
-	UPROPERTY(Transient)
-	TMap<FName, FReservedParameterArray> ReservedParameters;
-
-private:
-	void InitReservedParameters();
+	TAssetPreloadCache<UNiagaraParameterCollection> ParameterCollectionAssetCache;
+	TAssetPreloadCache<UNiagaraParameterDefinitions> ParameterDefinitionsAssetCache;
 };
