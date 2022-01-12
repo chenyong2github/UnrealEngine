@@ -2697,6 +2697,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	GammaCorrection(CVS.GammaCorrection),
 	SecondaryViewFraction(1.0f),
 	SecondaryScreenPercentageMethod(ESecondaryScreenPercentageMethod::LowerPixelDensitySimulation),
+	ProfileSceneRenderTime(nullptr),
 	ScreenPercentageInterface(nullptr),
 	TemporalUpscalerInterface(nullptr),
 	PrimarySpatialUpscalerInterface(nullptr),

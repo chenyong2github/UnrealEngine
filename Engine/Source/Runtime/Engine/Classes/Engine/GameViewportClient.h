@@ -145,6 +145,9 @@ public:
 	/** Returns a relative world context for this viewport.	 */
 	virtual UWorld* GetWorld() const override;
 
+	/* Create the game viewport */
+	virtual FSceneViewport* CreateGameViewport(TSharedPtr<SViewport> InViewportWidget);
+
 	/* Returns the game viewport */
 	FSceneViewport* GetGameViewport();
 	const FSceneViewport* GetGameViewport() const;

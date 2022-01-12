@@ -26,9 +26,11 @@
 
 #if HAS_GPU_STATS
 	#if STATS
-		#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName) FRDGGPUStatScopeGuard PREPROCESSOR_JOIN(__RDG_GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), GET_STATID(Stat_GPU_##StatName).GetName(), &DrawcallCountCategory_##StatName.Counters);
+		#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName) FRDGGPUStatScopeGuard PREPROCESSOR_JOIN(__RDG_GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), GET_STATID(Stat_GPU_##StatName).GetName(), nullptr, &DrawcallCountCategory_##StatName.Counters);
+		#define RDG_GPU_STAT_SCOPE_VERBOSE(GraphBuilder, StatName, Description) FRDGGPUStatScopeGuard PREPROCESSOR_JOIN(__RDG_GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), GET_STATID(Stat_GPU_##StatName).GetName(), Description, &DrawcallCountCategory_##StatName.Counters);
 	#else
-		#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName) FRDGGPUStatScopeGuard PREPROCESSOR_JOIN(__RDG_GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), FName(), &DrawcallCountCategory_##StatName.Counters);
+		#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName) FRDGGPUStatScopeGuard PREPROCESSOR_JOIN(__RDG_GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), FName(), nullptr, &DrawcallCountCategory_##StatName.Counters);
+		#define RDG_GPU_STAT_SCOPE_VERBOSE(GraphBuilder, StatName, Description) FRDGGPUStatScopeGuard PREPROCESSOR_JOIN(__RDG_GPUStatEvent_##StatName,__LINE__) ((GraphBuilder), CSV_STAT_FNAME(StatName), FName(), Description, &DrawcallCountCategory_##StatName.Counters);
 	#endif
 #else
 	#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName)
@@ -447,16 +449,22 @@ private:
 class FRDGGPUStatScope final
 {
 public:
-	FRDGGPUStatScope(const FRDGGPUStatScope* InParentScope, const FName& InName, const FName& InStatName, int32 (*InDrawCallCounter)[MAX_NUM_GPUS])
+	FRDGGPUStatScope(const FRDGGPUStatScope* InParentScope, const FName& InName, const FName& InStatName, const TCHAR* InDescription, int32 (*InDrawCallCounter)[MAX_NUM_GPUS])
 		: ParentScope(InParentScope)
 		, Name(InName)
 		, StatName(InStatName)
 		, DrawCallCounter(InDrawCallCounter)
-	{}
+	{
+		if (InDescription)
+		{
+			Description = InDescription;
+		}
+	}
 
 	const FRDGGPUStatScope* const ParentScope;
 	const FName Name;
 	const FName StatName;
+	FString Description;
 	int32 (*DrawCallCounter)[MAX_NUM_GPUS];
 };
 
@@ -505,12 +513,12 @@ public:
 #endif
 	{}
 
-	inline void BeginScope(const FName& Name, const FName& StatName, int32(*DrawCallCounter)[MAX_NUM_GPUS])
+	inline void BeginScope(const FName& Name, const FName& StatName, const TCHAR* Description, int32(*DrawCallCounter)[MAX_NUM_GPUS])
 	{
 		if (IsEnabled())
 		{
 			check(DrawCallCounter != nullptr);
-			ScopeStack.BeginScope(Name, StatName, DrawCallCounter);
+			ScopeStack.BeginScope(Name, StatName, Description, DrawCallCounter);
 		}
 	}
 
@@ -565,7 +573,7 @@ private:
 class RENDERCORE_API FRDGGPUStatScopeGuard final
 {
 public:
-	FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, int32 (*DrawCallCounter)[MAX_NUM_GPUS]);
+	FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, const TCHAR* Description, int32 (*DrawCallCounter)[MAX_NUM_GPUS]);
 	FRDGGPUStatScopeGuard(const FRDGGPUStatScopeGuard&) = delete;
 	~FRDGGPUStatScopeGuard();
 
@@ -659,9 +667,9 @@ struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
 		AsyncCompute.Event.EndScope();
 	}
 
-	inline void BeginStatScope(const FName& Name, const FName& StatName, int32(*DrawCallCounter)[MAX_NUM_GPUS])
+	inline void BeginStatScope(const FName& Name, const FName& StatName, const TCHAR* Description, int32(*DrawCallCounter)[MAX_NUM_GPUS])
 	{
-		Graphics.Stat.BeginScope(Name, StatName, DrawCallCounter);
+		Graphics.Stat.BeginScope(Name, StatName, Description, DrawCallCounter);
 	}
 
 	inline void EndStatScope()

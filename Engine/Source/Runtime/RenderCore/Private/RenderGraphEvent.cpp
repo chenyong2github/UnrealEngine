@@ -186,10 +186,10 @@ FRDGEventScopeOpArray FRDGEventScopeStack::CompilePassEpilogue()
 	return MoveTemp(Ops);
 }
 
-FRDGGPUStatScopeGuard::FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, int32(*NumDrawCallsPtr)[MAX_NUM_GPUS])
+FRDGGPUStatScopeGuard::FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, const TCHAR* Description, int32(*NumDrawCallsPtr)[MAX_NUM_GPUS])
 	: GraphBuilder(InGraphBuilder)
 {
-	GraphBuilder.GPUScopeStacks.BeginStatScope(Name, StatName, NumDrawCallsPtr);
+	GraphBuilder.GPUScopeStacks.BeginStatScope(Name, StatName, Description, NumDrawCallsPtr);
 }
 
 FRDGGPUStatScopeGuard::~FRDGGPUStatScopeGuard()
@@ -208,7 +208,7 @@ FRDGGPUStatScopeOpArray::FRDGGPUStatScopeOpArray(TRDGScopeOpArray<FRDGGPUStatSco
 
 		if (Op.IsPush())
 		{
-			Op.Query = FRealtimeGPUProfiler::Get()->PushEvent(GPUMask, Op.Scope->Name, Op.Scope->StatName);
+			Op.Query = FRealtimeGPUProfiler::Get()->PushEvent(GPUMask, Op.Scope->Name, Op.Scope->StatName, *Op.Scope->Description);
 		}
 		else
 		{

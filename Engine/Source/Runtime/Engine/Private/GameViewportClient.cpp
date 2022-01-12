@@ -398,6 +398,11 @@ void UGameViewportClient::DetachViewportClient()
 	RemoveFromRoot();
 }
 
+FSceneViewport* UGameViewportClient::CreateGameViewport(TSharedPtr<SViewport> InViewportWidget)
+{
+	return new FSceneViewport(this, InViewportWidget);
+}
+
 FSceneViewport* UGameViewportClient::GetGameViewport()
 {
 	if (Viewport && Viewport->GetViewportType() == NAME_SceneViewport)

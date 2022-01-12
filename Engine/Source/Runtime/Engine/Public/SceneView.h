@@ -1768,6 +1768,16 @@ public:
 	bool bNullifyWorldSpacePosition;
 #endif
 
+	// Optional description of view family for Unreal Insights profiling
+	FString ProfileDescription;
+
+	/**
+	 * Optional tracking of scene render time in seconds, useful when rendering multiple scenes (such as via UDisplayClusterViewportClient)
+	 * where the user may want a live breakdown of where render time is going per scene, which the stat system otherwise doesn't provide.
+	 * The destination memory location needs to be persistent and safe to access in any thread (for example, a standalone allocated buffer). 
+	 */
+	float* ProfileSceneRenderTime;
+
 	/** Initialization constructor. */
 	FSceneViewFamily( const ConstructionValues& CVS );
 	~FSceneViewFamily();

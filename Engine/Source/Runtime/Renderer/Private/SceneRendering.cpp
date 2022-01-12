@@ -2979,7 +2979,7 @@ void FSceneRenderer::DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask 
 						{
 							if (!ViewInfo.GPUMask.Contains(RenderTargetGPUIndex))
 							{
-								FTransferResourceParams Param(static_cast<FRHITexture2D*>(ViewFamilyTexture->GetRHI()), TransferRect, ViewInfo.GPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, true);
+								FTransferResourceParams Param(static_cast<FRHITexture2D*>(ViewFamilyTexture->GetRHI()), TransferRect, ViewInfo.GPUMask.GetFirstIndex(), RenderTargetGPUIndex, false, false);
 								RHICmdList.TransferResources(TArrayView<const FTransferResourceParams>(&Param, 1));
 							}
 						}
@@ -4052,8 +4052,8 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	}
 
 	{
-		SCOPE_CYCLE_COUNTER(STAT_TotalSceneRenderingTime);
-	
+		SCOPE_CYCLE_COUNTER_VERBOSE(STAT_TotalSceneRenderingTime, ViewFamily.ProfileDescription.IsEmpty() ? nullptr : *ViewFamily.ProfileDescription);
+
 		{
 			const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
 
@@ -4333,14 +4333,20 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 
 		SceneRenderer->ViewFamily.DisplayInternalsData.Setup(World);
 
-		const uint32 DrawSceneEnqueue = FPlatformTime::Cycles();
+		const uint64 DrawSceneEnqueue = FPlatformTime::Cycles64();
 		ENQUEUE_RENDER_COMMAND(FDrawSceneCommand)(
 			[SceneRenderer, DrawSceneEnqueue](FRHICommandListImmediate& RHICmdList)
 			{
-				const float StartDelayMillisec = FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - DrawSceneEnqueue);
+				uint64 SceneRenderStart = FPlatformTime::Cycles64();
+				const float StartDelayMillisec = FPlatformTime::ToMilliseconds64(SceneRenderStart - DrawSceneEnqueue);
 				CSV_CUSTOM_STAT_GLOBAL(DrawSceneCommand_StartDelay, StartDelayMillisec, ECsvCustomStatOp::Set);
 				RenderViewFamily_RenderThread(RHICmdList, SceneRenderer);
 				FlushPendingDeleteRHIResources_RenderThread();
+
+				if (SceneRenderer->ViewFamily.ProfileSceneRenderTime)
+				{
+					*SceneRenderer->ViewFamily.ProfileSceneRenderTime = (float)FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - SceneRenderStart);
+				}
 			});
 
 		// Force kick the RT if we've got RT polling on.

@@ -215,11 +215,23 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 
 	{
 		// Workaround for 4.14. Limit the number of GPU stats on D3D12 due to an issue with high memory overhead with render queries (Jira UE-38139)
-		//@TODO: Remove this when render query issues are fixed
+		// @TODO: Remove this when render query issues are fixed.
+		// 
+		// I think the high memory issues were fixed in 5.0 or some time before.  In the current implementation, a single 64K padded readback buffer is
+		// used for the query pool, with 8 bytes per entry.  So an increase from 1K to 8K should take no extra graphics memory, and this was confirmed
+		// by zero observed change to the D3D12RHI::Memory statistics.  Technically, this is the number of queries for four frames
+		// (NumGPUProfilerBufferedFrames == 4), and a real world test case with multiple views was hitting 880 queries per frame, so the number needed
+		// to be at least 3600 to not run out...  There will be some memory increase from FD3D12RenderQuery structures on the CPU, but it's fairly
+		// trivial (under 300K).
+		// 
+		// I considered removing the limit entirely, but that causes a different code path to run, which hasn't run in a long time on PC (over 5 years
+		// it has been in place), and I wasn't sure how to fully unit test the change, so I figured it was safer to simply increase the existing limit
+		// a bit.
+		//
 		static IConsoleVariable* GPUStatsEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUStatsMaxQueriesPerFrame"));
 		if (GPUStatsEnabledCVar)
 		{
-			GPUStatsEnabledCVar->Set(1024); // 1024*64KB = 64MB
+			GPUStatsEnabledCVar->Set(8192);
 		}
 	}
 

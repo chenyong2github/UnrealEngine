@@ -276,9 +276,11 @@ struct RENDERCORE_API FBreadcrumbEvent
  #define DEFINE_GPU_STAT(StatName) DEFINE_STAT(Stat_GPU_##StatName); CSV_DEFINE_STAT(GPU,StatName); FDrawCallCategoryName DrawcallCountCategory_##StatName;
  #define DEFINE_GPU_DRAWCALL_STAT(StatName) DEFINE_STAT(Stat_GPU_##StatName); CSV_DEFINE_STAT(GPU,StatName); FDrawCallCategoryName DrawcallCountCategory_##StatName((TCHAR*)TEXT(#StatName));
 #if STATS
-  #define SCOPED_GPU_STAT(RHICmdList, StatName) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), GET_STATID( Stat_GPU_##StatName ).GetName(), &DrawcallCountCategory_##StatName.Counters);
- #else
-  #define SCOPED_GPU_STAT(RHICmdList, StatName) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), FName(), &DrawcallCountCategory_##StatName.Counters);
+  #define SCOPED_GPU_STAT(RHICmdList, StatName) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), GET_STATID( Stat_GPU_##StatName ).GetName(), nullptr, &DrawcallCountCategory_##StatName.Counters);
+  #define SCOPED_GPU_STAT_VERBOSE(RHICmdList, StatName, Description) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), GET_STATID( Stat_GPU_##StatName ).GetName(), Description, &DrawcallCountCategory_##StatName.Counters);
+#else
+  #define SCOPED_GPU_STAT(RHICmdList, StatName) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), FName(), nullptr, &DrawcallCountCategory_##StatName.Counters);
+  #define SCOPED_GPU_STAT_VERBOSE(RHICmdList, StatName, Description) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), FName(), Description, &DrawcallCountCategory_##StatName.Counters);
 #endif
  #define GPU_STATS_BEGINFRAME(RHICmdList) FRealtimeGPUProfiler::Get()->BeginFrame(RHICmdList);
  #define GPU_STATS_ENDFRAME(RHICmdList) FRealtimeGPUProfiler::Get()->EndFrame(RHICmdList);
@@ -327,6 +329,39 @@ private:
 	FRHIRenderQuery* Query{};
 };
 
+#if GPUPROFILERTRACE_ENABLED
+struct FRealtimeGPUProfilerHistoryItem
+{
+	FRealtimeGPUProfilerHistoryItem();
+
+	static const uint64 HistoryCount = 64;
+
+	// Constructor memsets everything to zero, assuming structure is Plain Old Data.  If any dynamic structures are
+	// added, you'll need a more generalized constructor that zeroes out all the uninitialized data.
+	bool UpdatedThisFrame;
+	FRHIGPUMask LastGPUMask;
+	uint64 NextWriteIndex;
+	uint64 AccumulatedTime;				// Accumulated time could be computed, but may also be useful to inspect in the debugger
+	TStaticArray<uint64, HistoryCount> Times;
+};
+
+struct FRealtimeGPUProfilerHistoryByDescription
+{
+	TMap<FString, FRealtimeGPUProfilerHistoryItem> History;
+	mutable FRWLock Mutex;
+};
+
+struct RENDERCORE_API FRealtimeGPUProfilerDescriptionResult
+{
+	// Times are in microseconds
+	FString Description;
+	FRHIGPUMask GPUMask;
+	uint64 AverageTime;
+	uint64 MinTime;
+	uint64 MaxTime;
+};
+#endif  // GPUPROFILERTRACE_ENABLED
+
 /**
 * FRealtimeGPUProfiler class. This manages recording and reporting all for GPU stats
 */
@@ -349,7 +384,7 @@ public:
 	RENDERCORE_API void Release();
 
 	/** Push/pop events */
-	FRealtimeGPUProfilerQuery PushEvent(FRHIGPUMask GPUMask, const FName& Name, const FName& StatName);
+	FRealtimeGPUProfilerQuery PushEvent(FRHIGPUMask GPUMask, const FName& Name, const FName& StatName, const TCHAR* Description);
 	FRealtimeGPUProfilerQuery PopEvent();
 
 	int32 GetCurrentEventIndex() const;
@@ -358,8 +393,12 @@ public:
 	void PopEventOverride();
 
 	/** Push/pop stats which do additional draw call tracking on top of events. */
-	void PushStat(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS]);
+	void PushStat(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS]);
 	void PopStat(FRHICommandListImmediate& RHICmdList, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS]);
+
+#if GPUPROFILERTRACE_ENABLED
+	RENDERCORE_API void FetchPerfByDescription(TArray<FRealtimeGPUProfilerDescriptionResult> & OutResults) const;
+#endif
 
 private:
 	FRealtimeGPUProfiler();
@@ -379,6 +418,10 @@ private:
 	bool bStatGatheringPaused;
 	bool bInBeginEndBlock;
 	bool bLocked = false;
+
+#if GPUPROFILERTRACE_ENABLED
+	FRealtimeGPUProfilerHistoryByDescription HistoryByDescription;
+#endif
 };
 
 /**
@@ -411,7 +454,7 @@ public:
 	/**
 	* Start/Stop functions for timer stats
 	*/
-	RENDERCORE_API void Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS]);
+	RENDERCORE_API void Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, const TCHAR* Description, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS]);
 	RENDERCORE_API void End();
 };
 #endif // HAS_GPU_STATS

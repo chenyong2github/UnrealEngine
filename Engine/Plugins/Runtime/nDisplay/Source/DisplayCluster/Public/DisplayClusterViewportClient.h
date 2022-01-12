@@ -19,6 +19,8 @@ public:
 	virtual void Init(struct FWorldContext& WorldContext, UGameInstance* OwningGameInstance, bool bCreateNewAudioDevice = true) override;
 	virtual void Draw(FViewport* Viewport, FCanvas* SceneCanvas) override;
 
+	virtual FSceneViewport* CreateGameViewport(TSharedPtr<SViewport> InViewportWidget) override;
+
 protected:
 #if WITH_EDITOR
 	bool Draw_PIE(FViewport* InViewport, FCanvas* SceneCanvas);

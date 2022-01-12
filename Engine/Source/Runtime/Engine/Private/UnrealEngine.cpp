@@ -11576,7 +11576,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		int32 Y = FMath::TruncToInt(TextureSize.Y * 0.20f) / Canvas->GetDPIScale();
 
 		// give the viewport first shot at drawing stats
-		Y = Viewport->DrawStatsHUD(Canvas, X, Y);
+		Y = Viewport->DrawStatsHUD(Canvas, StatsXOffset, Y);
 
 		// Render all the simple stats
 		GEngine->RenderEngineStats(World, Viewport, Canvas, StatsXOffset, MessageY, X, Y, &ViewLocation, &ViewRotation);
