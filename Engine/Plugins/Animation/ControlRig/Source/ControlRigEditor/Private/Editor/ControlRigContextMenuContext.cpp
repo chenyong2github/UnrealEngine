@@ -13,7 +13,12 @@ FString FControlRigRigHierarchyToGraphDragAndDropContext::GetSectionTitle() cons
 	{
 		ElementNameStrings.Add(Element.Name.ToString());
 	}
-	return FString::Join(ElementNameStrings, TEXT(","));
+	FString SectionTitle = FString::Join(ElementNameStrings, TEXT(","));
+	if(SectionTitle.Len() > 64)
+	{
+		SectionTitle = SectionTitle.Left(61) + TEXT("...");
+	}
+	return SectionTitle;
 }
 
 void UControlRigContextMenuContext::Init(TWeakPtr<FControlRigEditor> InControlRigEditor, const FControlRigMenuSpecificContext& InMenuSpecificContext)
