@@ -576,6 +576,18 @@ void UARMeshComponent::UpdateVisualization_Implementation()
 
 void FAccumulatedNormal::CalculateVertexNormals(TArray<FAccumulatedNormal>& AccumulatedNormals, const TArray<FVector>& Vertices, const TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FPackedNormal>& OutTangentData, FVector MeshCenter, float PositionScale)
 {
+	// TODO: Revisit LWC and AR geometry; temp fix to unbreak build.
+	TArray<FVector3f> FloatVertices;
+	FloatVertices.SetNumUninitialized(Vertices.Num());
+	for (int32 i = 0; i < Vertices.Num(); ++i)
+	{
+		FloatVertices[i] = static_cast<FVector3f>(Vertices[i]);
+	}
+	CalculateVertexNormals(AccumulatedNormals, FloatVertices, Indices, OutTangentData, MeshCenter, PositionScale);
+}
+
+void FAccumulatedNormal::CalculateVertexNormals(TArray<FAccumulatedNormal>& AccumulatedNormals, const TArray<FVector3f>& Vertices, const TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FPackedNormal>& OutTangentData, FVector MeshCenter, float PositionScale)
+{
 	SCOPE_CYCLE_COUNTER(STAT_CalculateVertexNormals);
 	
 	const auto NumVertices = Vertices.Num();
