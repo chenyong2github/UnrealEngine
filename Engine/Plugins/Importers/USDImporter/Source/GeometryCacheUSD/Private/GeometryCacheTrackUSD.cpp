@@ -2,6 +2,7 @@
 
 #include "GeometryCacheTrackUSD.h"
 
+#include "USDLog.h"
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -16,7 +17,7 @@ UGeometryCacheTrackUsd::UGeometryCacheTrackUsd()
 
 void UGeometryCacheTrackUsd::BeginDestroy()
 {
-	CurrentStage = UE::FUsdStage();
+	UnloadUsdStage();
 
 	IGeometryCacheStreamer::Get().UnregisterTrack( this );
 	UsdStream.Reset();
@@ -117,6 +118,48 @@ bool UGeometryCacheTrackUsd::GetMeshData(int32 SampleIndex, FGeometryCacheMeshDa
 	return false;
 }
 
+bool UGeometryCacheTrackUsd::LoadUsdStage()
+{
+	if ( CurrentStagePinned )
+	{
+		// Already loaded
+		return true;
+	}
+
+	if ( CurrentStageWeak )
+	{
+		// Upgrade our weak pointer if its not invalid already
+		CurrentStagePinned = CurrentStageWeak;
+		return true;
+	}
+	else if ( !StageRootLayerPath.IsEmpty() )
+	{
+		UE_LOG( LogUsd, Warning, TEXT( "UGeometryCacheTrackUsd is reopening the stage '%s' to stream in frames for the geometry cache generated for prim '%s'" ), *StageRootLayerPath, *PrimPath );
+
+		// Reopen the stage. If our weak pointer is no longer valid then nothing cared about keeping that
+		// stage alive anyway, so it's likely not a problem if we start reading frames from the reopened stage
+		// and abandon any previous in-memory changes we had, if any.
+		// Keep in mind currently it's effectively impossible to get in here at all anyway, as we'll only
+		// have UGeometryCacheTrackUsd streaming stuff if a stage actor caused it to stream more frames,
+		// and in that case that stage actor would have kept our stage opened.
+		// Not using the stage cache here because there's currently no way of knowing when to erase it from the cache
+		// after we're done with it, and the UGeometryCacheTrackUsd shouldn't have authority to blindly just remove it
+		// from the cache as the user may have place it there intentionally
+		const bool bUseStageCache = false;
+		CurrentStagePinned = UnrealUSDWrapper::OpenStage( *StageRootLayerPath, EUsdInitialLoadSet::LoadAll, bUseStageCache );
+		CurrentStageWeak = CurrentStagePinned;
+		return true;
+	}
+
+	UE_LOG( LogUsd, Warning, TEXT( "UGeometryCacheTrackUsd track failed to access USD stage to stream requested frames" ) );
+	return false;
+}
+
+void UGeometryCacheTrackUsd::UnloadUsdStage()
+{
+	CurrentStagePinned = UE::FUsdStage();
+}
+
 void UGeometryCacheTrackUsd::Initialize(
 	const UE::FUsdStage& InStage,
 	const FString& InPrimPath,
@@ -127,8 +170,9 @@ void UGeometryCacheTrackUsd::Initialize(
 	FReadUsdMeshFunction InReadFunc
 )
 {
-	CurrentStage = InStage;
-	StageRootLayerPath = CurrentStage ? CurrentStage.GetRootLayer().GetRealPath() : FString();
+	CurrentStagePinned = InStage;
+	CurrentStageWeak = CurrentStagePinned;
+	StageRootLayerPath = CurrentStagePinned ? CurrentStagePinned.GetRootLayer().GetRealPath() : FString();
 
 	PrimPath = InPrimPath;
 	RenderContext = InRenderContext;

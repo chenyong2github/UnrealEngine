@@ -56,8 +56,8 @@ FGeometryCacheUsdStream::FGeometryCacheUsdStream(UGeometryCacheTrackUsd* InUsdTr
 	kUsdReadConcurrency,
 	FGeometryCacheStreamDetails{
 		InUsdTrack->GetEndFrameIndex() - InUsdTrack->GetStartFrameIndex(),
-		float((InUsdTrack->GetEndFrameIndex() - InUsdTrack->GetStartFrameIndex()) / InUsdTrack->CurrentStage.GetFramesPerSecond()),
-		float(1.0f / InUsdTrack->CurrentStage.GetFramesPerSecond()),
+		float((InUsdTrack->GetEndFrameIndex() - InUsdTrack->GetStartFrameIndex()) / InUsdTrack->CurrentStagePinned.GetFramesPerSecond()),
+		float(1.0f / InUsdTrack->CurrentStagePinned.GetFramesPerSecond()),
 		InUsdTrack->GetStartFrameIndex(),
 		InUsdTrack->GetEndFrameIndex()})
 , UsdTrack(InUsdTrack)
@@ -88,16 +88,34 @@ bool FGeometryCacheUsdStream::GetFrameData(int32 FrameIndex, FGeometryCacheMeshD
 	return true;
 }
 
+void FGeometryCacheUsdStream::UpdateRequestStatus( TArray<int32>& OutFramesCompleted )
+{
+	FGeometryCacheStreamBase::UpdateRequestStatus( OutFramesCompleted );
+
+	// We're fully done fetching what we need from USD for now, we can drop the track's strong stage reference so that the stage
+	// can close if needed
+	if ( FramesNeeded.Num() == 0 && FramesRequested.Num() == 0 && UsdTrack && UsdTrack->CurrentStagePinned )
+	{
+		UsdTrack->UnloadUsdStage();
+	}
+}
+
 void FGeometryCacheUsdStream::GetMeshData(int32 FrameIndex, int32 ConcurrencyIndex, FGeometryCacheMeshData& OutMeshData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGeometryCacheUsdStream::GetMeshData);
+
+	// Do this before calling the ReadFunc as FUsdStreamDDCUtils::GetUsdStreamDDCKey also needs a valid stage to work with
+	if ( !UsdTrack->LoadUsdStage() )
+	{
+		return;
+	}
 
 #if USE_USD_SDK
 	// Get the mesh data straight from the Alembic file or from the DDC if it's already cached
 	if (GUsdStreamCacheInDDC)
 	{
 		const FString& UsdPrimPath = UsdTrack->PrimPath;
-		const FString DerivedDataKey = FUsdStreamDDCUtils::GetUsdStreamDDCKey(UsdTrack->CurrentStage, UsdPrimPath, FrameIndex);
+		const FString DerivedDataKey = FUsdStreamDDCUtils::GetUsdStreamDDCKey(UsdTrack->CurrentStagePinned, UsdPrimPath, FrameIndex);
 
 		if (!DerivedDataKey.IsEmpty())
 		{

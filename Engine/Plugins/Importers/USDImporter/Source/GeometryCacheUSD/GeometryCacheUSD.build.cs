@@ -21,6 +21,7 @@ public class GeometryCacheUSD : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"UnrealUSDWrapper",
+				"USDClasses",
 				"USDUtilities"
             }
         );

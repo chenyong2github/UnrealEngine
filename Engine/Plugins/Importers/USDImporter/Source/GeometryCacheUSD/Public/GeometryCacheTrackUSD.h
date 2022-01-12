@@ -48,6 +48,12 @@ public:
 
 	bool GetMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData);
 
+	// Upgrades our CurrentStageWeak into CurrentStagePinned, or re-opens the stage if its stale. Returns whether the stage was successfully opened or not
+	bool LoadUsdStage();
+
+	// Discards our CurrentStagePinned to release the stage
+	void UnloadUsdStage();
+
 public:
 	FName RenderContext;
 	int32 StartFrameIndex;
@@ -56,7 +62,8 @@ public:
 
 	FString PrimPath;
 
-	UE::FUsdStage CurrentStage;
+	UE::FUsdStage CurrentStagePinned;
+	UE::FUsdStageWeak CurrentStageWeak;
 	FString StageRootLayerPath;
 
 private:

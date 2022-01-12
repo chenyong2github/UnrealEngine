@@ -821,21 +821,12 @@ namespace UsdGeomMeshTranslatorImpl
 						return;
 					}
 
-					if ( !Track->CurrentStage )
-					{
-						if ( !Track->StageRootLayerPath.IsEmpty() )
-						{
-							const bool bUseStageCache = true;
-							Track->CurrentStage = UnrealUSDWrapper::OpenStage( *Track->StageRootLayerPath, EUsdInitialLoadSet::LoadAll, bUseStageCache );
-							UE_LOG( LogUsd, Warning, TEXT( "UGeometryCacheTrackUsd is reopening the stage '%s' to stream in frames for the geometry cache generated for prim '%s'" ), *Track->StageRootLayerPath, *InPrimPath );
-						}
-					}
-					if ( !Track->CurrentStage )
+					if ( !Track->CurrentStagePinned )
 					{
 						return;
 					}
 
-					UE::FUsdPrim Prim = Track->CurrentStage.GetPrimAtPath( UE::FSdfPath{ *Track->PrimPath } );
+					UE::FUsdPrim Prim = Track->CurrentStagePinned.GetPrimAtPath( UE::FSdfPath{ *Track->PrimPath } );
 					if ( !Prim )
 					{
 						return;

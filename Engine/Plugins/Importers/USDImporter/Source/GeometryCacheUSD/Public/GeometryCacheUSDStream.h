@@ -14,6 +14,7 @@ public:
 
 	//~ Begin IGeometryCacheStream Interface
 	virtual bool GetFrameData(int32 FrameIndex, FGeometryCacheMeshData& OutMeshData) override;
+	virtual void UpdateRequestStatus( TArray<int32>& OutFramesCompleted ) override;
 
 protected:
 	virtual void GetMeshData(int32 FrameIndex, int32 ConcurrencyIndex, FGeometryCacheMeshData& OutMeshData) override;
