@@ -257,11 +257,6 @@ public:
 	virtual void UpdateDisplayString() override;
 	//~ End FTextHistory Interface
 
-protected:
-	//~ Begin FTextHistory Interface
-	virtual bool CanRebuildLocalizedDisplayString() { return false; }
-	//~ End FTextHistory Interface
-
 private:
 	/** The ID for an FText (if any) */
 	FTextId TextId;
@@ -637,11 +632,6 @@ public:
 	//~ End FTextHistory Interface
 
 	void GetTableIdAndKey(FName& OutTableId, FTextKey& OutKey) const;
-
-protected:
-	//~ Begin FTextHistory Interface
-	virtual bool CanRebuildLocalizedDisplayString() { return false; }
-	//~ End FTextHistory Interface
 
 private:
 	enum class EStringTableLoadingPhase : uint8
