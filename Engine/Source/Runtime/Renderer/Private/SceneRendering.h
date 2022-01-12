@@ -2381,7 +2381,6 @@ private:
 	bool bShouldRenderVelocities;
 	bool bShouldRenderHZB;
 	bool bRequiresDistanceField;
-	bool bRequiresDistanceFieldShadowingPass;
 	bool bIsFullDepthPrepassEnabled;
 	bool bIsMaskedOnlyDepthPrepassEnabled;
 	bool bRequiresSceneDepthAux;

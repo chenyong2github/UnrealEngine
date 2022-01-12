@@ -229,7 +229,6 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequiresAmbientOcclusionPass = false;
-	bRequiresDistanceFieldShadowingPass = false;
 	bIsFullDepthPrepassEnabled = Scene->EarlyZPassMode == DDM_AllOpaque;
 	bIsMaskedOnlyDepthPrepassEnabled = Scene->EarlyZPassMode == DDM_MaskedOnly;
 	bRequiresSceneDepthAux = MobileRequiresSceneDepthAux(ShaderPlatform);
@@ -433,8 +432,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
 		&& !ViewFamily.UseDebugViewPS();
 
-	bRequiresDistanceFieldShadowingPass = bRequiresDistanceField && IsMobileDistanceFieldShadowingEnabled(ShaderPlatform);
-
 	bShouldRenderHZB = ShouldRenderHZB();
 		
 
@@ -449,7 +446,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		bRequiresMultiPass ||
 		bForceDepthResolve ||
 		bRequiresAmbientOcclusionPass ||
-		bRequiresDistanceFieldShadowingPass ||
+		bRequiresDistanceField ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
@@ -500,7 +497,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		InitSkyAtmosphereForViews(RHICmdList);
 	}
 
-	if (bRequiresDistanceFieldShadowingPass)
+	if (bRequiresDistanceField)
 	{
 		InitMobileSDFShadowingOutputs(RHICmdList, SceneTexturesConfig.Extent);
 	}
@@ -830,7 +827,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::SceneDepth;
 		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures.MobileSetupMode);
 
-		if (bRequiresDistanceFieldShadowingPass)
+		if (bRequiresDistanceField)
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderMobileShadowProjections);
 			RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowProjection);
