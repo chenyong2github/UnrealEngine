@@ -308,7 +308,7 @@ struct FMeshProxySettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ProxySettings)
 	uint8 bReuseMeshLightmapUVs:1;
 
-	/** Bake identical meshes (or mesh instances) only once. Can lead to discrepancies with the source mesh visual, especially if WPO is used in the material(s). However, this will result in better quality baked textures & greatly reduce baking time. */
+	/** Bake identical meshes (or mesh instances) only once. Can lead to discrepancies with the source mesh visual, especially for materials that are using world position or per instance data. However, this will result in better quality baked textures & greatly reduce baking time. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ProxySettings)
 	uint8 bGroupIdenticalMeshesForBaking:1;
 

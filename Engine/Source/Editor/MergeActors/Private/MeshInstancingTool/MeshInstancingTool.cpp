@@ -44,9 +44,19 @@ TSharedRef<SWidget> FMeshInstancingTool::GetWidget()
 	return InstancingDialog.ToSharedRef();
 }
 
+FName FMeshInstancingTool::GetIconName() const
+{
+	return "MergeActors.MeshInstancingTool";
+}
+
+FText FMeshInstancingTool::GetToolNameText() const
+{
+	return LOCTEXT("MeshInstancingToolName", "Batch");
+}
+
 FText FMeshInstancingTool::GetTooltipText() const
 {
-	return LOCTEXT("MeshInstancingToolTooltip", "Merge to an actor with instanced static mesh components");
+	return LOCTEXT("MeshInstancingToolTooltip", "Batch the source actors components to use instancing as much as possible. Will generate an actor with instanced static mesh component(s).");
 }
 
 FString FMeshInstancingTool::GetDefaultPackageName() const

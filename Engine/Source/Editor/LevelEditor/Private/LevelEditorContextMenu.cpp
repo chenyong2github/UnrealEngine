@@ -1418,7 +1418,7 @@ void FLevelEditorContextMenuImpl::FillMergeActorsMenu(UToolMenu* Menu)
 
 		Section.AddMenuEntry(
 			NAME_None,
-			Tool->GetTooltipText(),
+			Tool->GetToolNameText(),
 			Tool->GetTooltipText(),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), Tool->GetIconName()),
 			MergeActorToolAction);
@@ -1431,7 +1431,7 @@ void FLevelEditorContextMenuImpl::FillMergeActorsMenu(UToolMenu* Menu)
 
 	Section.AddMenuEntry(
 		FLevelEditorCommands::Get().OpenMergeActor,
-		LOCTEXT("OpenMergeActor", "Merge Actors Settings"),
+		LOCTEXT("OpenMergeActor", "Merge Actors Settings..."),
 		LOCTEXT("OpenMergeActor_ToolTip", "Click to open the Merge Actor panel"),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.GameSettings"));
 }

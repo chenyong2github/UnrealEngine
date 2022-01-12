@@ -48,9 +48,19 @@ TSharedRef<SWidget> FMeshProxyTool::GetWidget()
 	return ProxyDialog.ToSharedRef();
 }
 
+FName FMeshProxyTool::GetIconName() const
+{
+	return "MergeActors.MeshProxyTool";
+}
+
+FText FMeshProxyTool::GetToolNameText() const
+{
+	return LOCTEXT("MeshProxyToolName", "Simplify");
+}
+
 FText FMeshProxyTool::GetTooltipText() const
 {
-	return LOCTEXT("MeshProxyToolTooltip", "Merge and simplify to a single static mesh actor");
+	return LOCTEXT("MeshProxyToolTooltip", "Merge source actors meshes and perform a simplification pass. Will generate a single static mesh with baked textures.");
 }
 
 FString FMeshProxyTool::GetDefaultPackageName() const
@@ -211,12 +221,20 @@ bool FMeshProxyTool::RunMerge(const FString& PackageName, const TArray<TSharedPt
 	return true;
 }
 
+FName FThirdPartyMeshProxyTool::GetIconName() const 
+{
+	return "MergeActors.MeshProxyTool";
+}
+
+FText FThirdPartyMeshProxyTool::GetToolNameText() const
+{
+	return LOCTEXT("ThirdPartyMeshProxyToolName", "Third-Party Simplification");
+}
 
 FText FThirdPartyMeshProxyTool::GetTooltipText() const
 {
-	return LOCTEXT("ThirdPartyMeshProxyToolTooltip", "Merge and simplify meshes into a single mesh.");
+	return LOCTEXT("ThirdPartyMeshProxyToolTooltip", "Merge source actors meshes and perform a simplification pass. Will generate a single static mesh with baked textures.");
 }
-
 
 FString FThirdPartyMeshProxyTool::GetDefaultPackageName() const
 {

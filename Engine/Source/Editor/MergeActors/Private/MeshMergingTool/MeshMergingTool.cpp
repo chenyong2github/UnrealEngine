@@ -44,9 +44,19 @@ TSharedRef<SWidget> FMeshMergingTool::GetWidget()
 	return MergingDialog.ToSharedRef();
 }
 
+FName FMeshMergingTool::GetIconName() const
+{
+	return "MergeActors.MeshMergingTool";
+}
+
+FText FMeshMergingTool::GetToolNameText() const
+{
+	return LOCTEXT("MeshMergingToolName", "Merge");
+}
+
 FText FMeshMergingTool::GetTooltipText() const
 {
-	return LOCTEXT("MeshMergingToolTooltip", "Merge to a single static mesh actor");
+	return LOCTEXT("MeshMergingToolTooltip", "Merge the source actors components to generate a single mesh. No simplification pass is performed. Will generate a single static mesh & optionally bake down textures.");
 }
 
 FString FMeshMergingTool::GetDefaultPackageName() const

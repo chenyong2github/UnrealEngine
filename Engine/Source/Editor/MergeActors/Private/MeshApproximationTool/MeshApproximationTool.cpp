@@ -59,9 +59,19 @@ TSharedRef<SWidget> FMeshApproximationTool::GetWidget()
 	return ProxyDialog.ToSharedRef();
 }
 
+FName FMeshApproximationTool::GetIconName() const
+{
+	return "MergeActors.Approximate";
+}
+
+FText FMeshApproximationTool::GetToolNameText() const
+{
+	return LOCTEXT("MeshApproximationToolName", "Approximate");
+}
+
 FText FMeshApproximationTool::GetTooltipText() const
 {
-	return LOCTEXT("MeshApproximationToolTooltip", "Approximate selected Actors with combined Actors");
+	return LOCTEXT("MeshApproximationToolTooltip", "Merge source actors meshes and perform an approximation pass. Will generate a single static mesh with baked textures.");
 }
 
 FString FMeshApproximationTool::GetDefaultPackageName() const

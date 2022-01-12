@@ -48,10 +48,11 @@ public:
 private:
 	struct FDropDownItem
 	{
-		FDropDownItem(const FText& InName, const FName& InIconName);
+		FDropDownItem(const FText& InName, const FName& InIconName, const FText& InDescription);
 
 		FText Name;
 		FName IconName;
+		FText Description;
 	};
 
 	/** Called to create the combo box entries */

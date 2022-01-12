@@ -69,7 +69,8 @@ public:
 
 	// IMergeActorsTool interface
 	virtual TSharedRef<SWidget> GetWidget() override;
-	virtual FName GetIconName() const override { return "MergeActors.MeshProxyTool"; }
+	virtual FName GetIconName() const override;
+	virtual FText GetToolNameText() const override;
 	virtual FText GetTooltipText() const override;
 	virtual FString GetDefaultPackageName() const override;
 
@@ -97,7 +98,8 @@ public:
 
 	// IMergeActorsTool interface
 	virtual TSharedRef<SWidget> GetWidget() override;
-	virtual FName GetIconName() const override { return "MergeActors.MeshProxyTool"; }
+	virtual FName GetIconName() const override;
+	virtual FText GetToolNameText() const override;
 	virtual FText GetTooltipText() const override;
 	virtual FString GetDefaultPackageName() const override;
 	virtual bool GetReplaceSourceActors() const override { return bReplaceSourceActors; }

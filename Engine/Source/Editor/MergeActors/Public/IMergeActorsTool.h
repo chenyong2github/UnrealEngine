@@ -26,6 +26,11 @@ public:
 	virtual FName GetIconName() const = 0;
 
 	/**
+	 * Get tool name text to be displayed in the menus & Merge Actors toolbar
+	 */
+	virtual FText GetToolNameText() const = 0;
+
+	/**
 	 * Get Tooltip text displayed in the Merge Actors toolbar
 	 */
 	virtual FText GetTooltipText() const = 0;

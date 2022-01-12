@@ -174,8 +174,10 @@ void SMergeActorsToolbar::RemoveTool(IMergeActorsTool* Tool)
 	}
 }
 
-SMergeActorsToolbar::FDropDownItem::FDropDownItem(const FText& InName, const FName& InIconName)
-	: Name(InName), IconName(InIconName)
+SMergeActorsToolbar::FDropDownItem::FDropDownItem(const FText& InName, const FName& InIconName, const FText& InDescription)
+	: Name(InName)
+	, IconName(InIconName)
+	, Description(InDescription)
 {}
 
 void SMergeActorsToolbar::UpdateToolbar()
@@ -186,7 +188,7 @@ void SMergeActorsToolbar::UpdateToolbar()
 	for(int32 ToolIndex = 0; ToolIndex < RegisteredTools.Num(); ++ToolIndex)
 	{
 		const IMergeActorsTool* Tool = RegisteredTools[ToolIndex];
-		ToolDropDownEntries.Add(MakeShareable(new FDropDownItem(Tool->GetTooltipText(), Tool->GetIconName())));
+		ToolDropDownEntries.Add(MakeShareable(new FDropDownItem(Tool->GetToolNameText(), Tool->GetIconName(), Tool->GetTooltipText())));
 	}
 
 	// Build combo box
@@ -222,27 +224,56 @@ void SMergeActorsToolbar::UpdateToolbar()
 			]
 		];
 
-	TSharedRef<SHorizontalBox> ToolbarContent =
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.AutoWidth()
+	TSharedRef<SVerticalBox> ToolbarContent =
+		SNew(SVerticalBox)
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("MergeMethodLabel", "Merge Method"))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("MergeMethodLabel", "Merge Method"))
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(10.0, 0, 0, 0)
+			[
+				ComboBox
+			]
+			// Filler so that the combo box is just the right size
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SBorder)
+				.BorderImage(FStyleDefaults::GetNoBrush())
+			]
 		]
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.Padding(10.0, 0, 0, 0)
+		+ SVerticalBox::Slot()
+		.Padding(10, 10, 10, 10)
+		.AutoHeight()
 		[
-			ComboBox
-		]
-		// Filler so that the combo box is just the right size
-		+ SHorizontalBox::Slot()
-		[
-			SNew(SBorder)
-			.BorderImage(FStyleDefaults::GetNoBrush())
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Image(FEditorStyle::Get().GetBrush("Icons.Info"))
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(10, 0, 0, 0)
+			[
+				SNew(STextBlock)
+				.AutoWrapText(true)
+				.Text_Lambda([this]() -> FText {
+					return ToolDropDownEntries[CurrentlySelectedTool]->Description;
+				})
+			]
 		];
 
 	ToolbarContainer->SetContent(ToolbarContent);
