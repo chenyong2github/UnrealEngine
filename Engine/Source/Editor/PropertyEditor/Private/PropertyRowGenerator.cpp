@@ -70,7 +70,10 @@ public:
 
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override 
 	{
-		Generator->OnFinishedChangingProperties().Broadcast(PropertyChangedEvent);
+		if (Generator)
+		{
+			Generator->OnFinishedChangingProperties().Broadcast(PropertyChangedEvent);
+		}
 	}
 
 	virtual bool DontUpdateValueWhileEditing() const override { return false; }
