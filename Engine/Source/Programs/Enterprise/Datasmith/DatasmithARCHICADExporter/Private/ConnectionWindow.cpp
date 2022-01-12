@@ -360,6 +360,7 @@ class FConnectionDialog : public DG::Palette,
 				{
 					UE_AC_TraceF("FConnectionDialog::ButtonClicked - New cache folder is \"%s\"\n", CachePath.ToUtf8());
 					FSyncDatabase::SetCachePath(CachePath);
+					UpdateCacheDirectoryText();
 				}
 				else
 				{
@@ -372,6 +373,11 @@ class FConnectionDialog : public DG::Palette,
 		{
 			UE_AC::ShellOpenDocument(FSyncDatabase::GetCachePath().ToUtf8());
 		}
+	}
+	
+	void UpdateCacheDirectoryText()
+	{
+		CacheFolderText.SetText(GetGSName(kName_CacheDirectory) + FSyncDatabase::GetCachePath());
 	}
 };
 
@@ -430,7 +436,7 @@ FConnectionDialog::FConnectionDialog()
 	Attach(*this);
 	AttachToAllItems(*this);
 
-	CacheFolderText.SetText(GetGSName(kName_CacheDirectory) + FSyncDatabase::GetCachePath());
+	UpdateCacheDirectoryText();
 
 	bool SendForInactiveApp = false;
 	EnableIdleEvent(SendForInactiveApp);
