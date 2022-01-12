@@ -326,7 +326,7 @@ struct FLongPackagePathsSingleton
 	bool MountPointExists(const FString& RootPath)
 	{
 		FReadScopeLock ScopeLock(ContentMountPointCriticalSection);
-		return MountPointRootPaths.Contains(RootPath);
+		return GetValidLongPackageRoots(true/*bIncludeReadOnlyRoots*/).Contains(RootPath);
 	}
 
 private:
