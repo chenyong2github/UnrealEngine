@@ -301,7 +301,7 @@ void FGeometryCacheStreamBase::UpdateFramesNeeded(int32 StartFrameIndex, int32 N
 	}
 
 	// Populate the list of frame indices from given StartFrameIndex up to NumFrames or EndIndex
-	for (int32 Index = StartFrameIndex; NumFrames > 0 && Index < EndIndex; ++Index)
+	for (int32 Index = StartFrameIndex; NumFrames > 0 && Index < EndIndex + 1; ++Index)
 	{
 		AddFrameIndex(Index);
 	}
