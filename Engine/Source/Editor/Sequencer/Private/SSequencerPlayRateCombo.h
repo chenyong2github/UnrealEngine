@@ -69,6 +69,8 @@ private:
 	EVisibility GetClockSourceVisibility() const;
 	const FSlateBrush* GetClockSourceImage() const;
 
+	bool GetIsSequenceReadOnly() const;
+
 	/** Sequencer pointer */
 	TWeakPtr<FSequencer> WeakSequencer;
 	TWeakPtr<SSequencer> WeakSequencerWidget;
