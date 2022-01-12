@@ -16,6 +16,70 @@
 #define THREADGROUP_SIZE 1
 #endif
 
+StructuredBuffer<uint> CardPageIndexAllocator;
+StructuredBuffer<uint> CardPageIndexData;
+RWStructuredBuffer<uint> RWCardTileAllocator;
+RWStructuredBuffer<uint> RWCardTiles;
+
+/**
+ * Splice card pages into N card tiles
+ */
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void SpliceCardPagesIntoTilesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	// One thread per tile
+	uint LinearLightTileOffset = (GroupId.x % 4);
+	uint IndexInIndexBuffer = GroupId.x / 4;
+
+	uint2 TileCoord;
+	TileCoord.x = (LinearLightTileOffset % 2) * 8 + GroupThreadId.x;
+	TileCoord.y = (LinearLightTileOffset / 2) * 8 + GroupThreadId.y;
+
+	if (IndexInIndexBuffer < CardPageIndexAllocator[0])
+	{
+		uint CardPageIndex = CardPageIndexData[IndexInIndexBuffer];
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
+		if (CardPage.CardIndex >= 0)
+		{
+			FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+
+			const uint2 SizeInTiles = CardPage.SizeInTexels / CARD_TILE_SIZE;
+
+			if (all(TileCoord < SizeInTiles))
+			{
+				FCardTileData CardTile;
+				CardTile.CardPageIndex = CardPageIndex;
+				CardTile.TileCoord = TileCoord;
+
+				uint CardTileIndex = 0;
+				InterlockedAdd(RWCardTileAllocator[0], 1, CardTileIndex);
+				RWCardTiles[CardTileIndex] = PackCardTileData(CardTile);
+			}
+		}
+	}
+}
+
+StructuredBuffer<uint> CardTileAllocator;
+StructuredBuffer<uint> CardTiles;
+RWBuffer<uint> RWDispatchCardTilesIndirectArgs;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void InitializeCardTileIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (DispatchThreadId.x == 0)
+	{
+		uint NumCardTiles = CardTileAllocator[0];
+
+		// One thread per card tile
+		RWDispatchCardTilesIndirectArgs[0] = (NumCardTiles + 63) / 64;
+		RWDispatchCardTilesIndirectArgs[1] = 1;
+		RWDispatchCardTilesIndirectArgs[2] = 1;
+	}
+}
+
 bool SphereIntersectCone(float4 SphereCenterAndRadius, float3 ConeVertex, float3 ConeAxis, float ConeAngleCos, float ConeAngleSin)
 {
 	float3 U = ConeVertex - (SphereCenterAndRadius.w / ConeAngleSin) * ConeAxis;
@@ -62,6 +126,12 @@ bool DoesLightAffectCardPageUVRange(FLumenLight LumenLight, FLumenCardPageData C
 	const float3 LightDirection = LumenLight.ProxyDirection;
 	const float LightRadius = LumenLight.ProxyRadius;
 
+	// Fast out
+	if (LightType != LIGHT_TYPE_DIRECTIONAL && !bCardAffectedByInfluenceSphere)
+	{
+		return false;
+	}
+
 	if (LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
 		return true;
@@ -105,12 +175,10 @@ bool DoesLightAffectCardPage(FLumenLight LumenLight, FLumenCardPageData CardPage
 	return DoesLightAffectCardPageUVRange(LumenLight, CardPage, Card, UVMin, UVMax);
 }
 
-StructuredBuffer<uint> CardPageIndexAllocator;
-StructuredBuffer<uint> CardPageIndexData;
-
 RWStructuredBuffer<uint> RWLightTileAllocator;
 RWStructuredBuffer<uint2> RWLightTiles;
 RWStructuredBuffer<uint> RWLightTileAllocatorPerLight;
+RWStructuredBuffer<uint> RWLightAllocatorPerTile;
 
 uint MaxLightsPerTile;
 uint NumLights;
@@ -118,67 +186,59 @@ uint NumLights;
 /**
  * Pick N most important lights per tile in page selected to update to update this frame, and output a list of light tiles
  */
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+[numthreads(THREADGROUP_SIZE, 1, 1)]
 void BuildLightTilesCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	// One thread per tile
-	uint LinearLightTileOffset = (GroupId.x % 4);
-	uint IndexInIndexBuffer = GroupId.x / 4;
+	uint CardTileIndex = DispatchThreadId.x;
 
-	uint2 TileCoord;
-	TileCoord.x = (LinearLightTileOffset % 2) * 8 + GroupThreadId.x;
-	TileCoord.y = (LinearLightTileOffset / 2) * 8 + GroupThreadId.y;
-
-	if (IndexInIndexBuffer < CardPageIndexAllocator[0])
+	if (CardTileIndex < CardTileAllocator[0])
 	{
-		uint CardPageIndex = CardPageIndexData[IndexInIndexBuffer];
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
+		FCardTileData CardTile = UnpackCardTileData(CardTiles[CardTileIndex]);
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+
 		if (CardPage.CardIndex >= 0)
 		{
 			FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 
 			const uint2 SizeInTiles = CardPage.SizeInTexels / CARD_TILE_SIZE;
+			float2 UVMin = float2(CardTile.TileCoord) / SizeInTiles;
+			float2 UVMax = float2(CardTile.TileCoord + 1) / SizeInTiles;
 
-			if (all(TileCoord < SizeInTiles))
+			float SwapY = UVMin.y;
+			UVMin.y = 1.0f - UVMax.y;
+			UVMax.y = 1.0f - SwapY;
+
+			// Loop over lights to select N most important lights
+			uint NumCulledLightsPerTile = 0;
+			for (uint LightIndex = 0; LightIndex < NumLights; ++LightIndex)
 			{
-				float2 UVMin = float2(TileCoord) / SizeInTiles;
-				float2 UVMax = float2(TileCoord + 1) / SizeInTiles;
+				FLumenLight LumenLight = LoadLumenLight(LightIndex);
 
-				float SwapY = UVMin.y;
-				UVMin.y = 1.0f - UVMax.y;
-				UVMax.y = 1.0f - SwapY;
-
-				// Loop over lights to select N most important lights
-				uint NumCulledLightsPerTile = 0;
-				for (uint LightIndex = 0; LightIndex < NumLights; ++LightIndex)
+				bool bLightAffectsCard = DoesLightAffectCardPageUVRange(LumenLight, CardPage, Card, UVMin, UVMax);
+				if (bLightAffectsCard)
 				{
-					FLumenLight LumenLight = LoadLumenLight(LightIndex);
+					// Write light tile
+					FLightTile LightTile;
+					LightTile.LightIndex = LightIndex;
+					LightTile.CardPageIndex = CardTile.CardPageIndex;
+					LightTile.TileCoord = CardTile.TileCoord;
 
-					bool bLightAffectsCard = DoesLightAffectCardPageUVRange(LumenLight, CardPage, Card, UVMin, UVMax);
-					if (bLightAffectsCard)
+					// Add to global light tile array
+					uint CardTileIndex = 0;
+					InterlockedAdd(RWLightTileAllocator[0], 1, CardTileIndex);
+					RWLightTiles[CardTileIndex] = PackLightTile(LightTile);
+
+					InterlockedAdd(RWLightTileAllocatorPerLight[LightIndex], 1);
+
+					// Stop when we reached the limit of cards per current tile
+					++NumCulledLightsPerTile;
+					if (NumCulledLightsPerTile >= MaxLightsPerTile)
 					{
-						// Write light tile
-						FLightTile LightTile;
-						LightTile.LightIndex = LightIndex;
-						LightTile.CardPageIndex = CardPageIndex;
-						LightTile.TileCoord = TileCoord;
-
-						// Add to global light tile array
-						uint CardTileIndex = 0;
-						InterlockedAdd(RWLightTileAllocator[0], 1, CardTileIndex);
-						RWLightTiles[CardTileIndex] = PackLightTile(LightTile);
-
-						InterlockedAdd(RWLightTileAllocatorPerLight[LightIndex], 1);
-
-						// Stop when we reached the limit of cards per current tile
-						++NumCulledLightsPerTile;
-						if (NumCulledLightsPerTile >= MaxLightsPerTile)
-						{
-							break;
-						}
+						break;
 					}
 				}
 			}
@@ -207,6 +267,7 @@ void ComputeLightTileOffsetsPerLightCS(uint3 DispatchThreadId : SV_DispatchThrea
 }
 
 RWStructuredBuffer<uint2> RWCompactedLightTiles;
+RWStructuredBuffer<uint> RWCompactedLightTileAllocatorPerLight;
 StructuredBuffer<uint> LightTileAllocator;
 StructuredBuffer<uint2> LightTiles;
 StructuredBuffer<uint> LightTileOffsetsPerLight;
@@ -224,7 +285,7 @@ void CompactLightTilesCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
 
 		uint CompactedLightTileIndex = 0;
-		InterlockedAdd(RWLightTileAllocatorPerLight[LightTile.LightIndex], 1, CompactedLightTileIndex);
+		InterlockedAdd(RWCompactedLightTileAllocatorPerLight[LightTile.LightIndex], 1, CompactedLightTileIndex);
 		CompactedLightTileIndex += LightTileOffsetsPerLight[LightTile.LightIndex];
 
 		RWCompactedLightTiles[CompactedLightTileIndex] = PackLightTile(LightTile);

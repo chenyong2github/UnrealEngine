@@ -1109,7 +1109,7 @@ protected:
 	/** True if the primitive casts dynamic shadows. */
 	uint8 bCastDynamicShadow : 1;
 
-	/** True if the primitive casts Reflective Shadow Map shadows (meaning it affects Light Propagation Volumes). */
+	/** True if the primitive influences dynamic indirect lighting. */
 	uint8 bAffectDynamicIndirectLighting : 1;
 
 	uint8 bAffectDistanceFieldLighting : 1;

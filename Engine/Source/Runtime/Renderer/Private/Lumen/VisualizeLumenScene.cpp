@@ -84,7 +84,7 @@ FAutoConsoleVariableRef CVarLumenVisualizeMode(
 	TEXT("10 - Local Position (hardware ray-tracing only)\n")
 	TEXT("11 - Velocity (hardware ray-tracing only)\n")
 	TEXT("12 - Direct lighting updates\n")
-	TEXT("13 - Indirect lighting updates")
+	TEXT("13 - Indirect lighting updates\n")
 	TEXT("14 - Last used pages\n")
 	TEXT("15 - Last used high res pages"),
 	ECVF_RenderThreadSafe
