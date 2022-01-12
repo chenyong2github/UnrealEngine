@@ -37,6 +37,8 @@ public:
 	void UnpinActor(const FGuid& ActorGuid);
 	bool IsActorPinned(const FGuid& ActorGuid) const { return PinnedActors.Contains(ActorGuid); }
 
+	void LoadAllActors(TArray<FWorldPartitionReference>& OutReferences);
+
 	/** Instancing support */
 	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const { return false; }
 

@@ -73,9 +73,8 @@
 #include "AnalyticsEventAttribute.h"
 #include "HierarchicalLOD.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
+#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "PackageSourceControlHelper.h"
 #include "ActorFolder.h"
@@ -740,7 +739,7 @@ static bool SaveWorld(UWorld* World,
 		// Rename the package and the object, as necessary
 		UWorld* DuplicatedWorld = nullptr;
 		UWorldPartition* RenamedWorldPartition = nullptr;
-	
+		TArray<FWorldPartitionReference> ActorReferences;
 
 		// Save Loaded cells
 		TArray<FName> LoadedEditorCells;
@@ -760,22 +759,7 @@ static bool SaveWorld(UWorld* World,
 				if (RenamedWorldPartition)
 				{
 					LoadedEditorCells = RenamedWorldPartition->GetUserLoadedEditorGridCells();
-					if (AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
-					{
-						WorldDataLayers->ForEachDataLayer([](UDataLayer* DataLayer)
-						{
-							if (!DataLayer->IsLoadedInEditor())
-							{
-								DataLayer->SetIsLoadedInEditor(true, /*bFromUserChange*/false);
-							}
-							return true;
-						});
-					}
-					// Make sure AlwaysLoaded DL cells get loaded
-					RenamedWorldPartition->RefreshLoadedEditorCells(false);
-					// Load all the rest
-					const FBox All(FVector(-WORLD_MAX), FVector(WORLD_MAX));
-					RenamedWorldPartition->LoadEditorCells(All, false);
+					RenamedWorldPartition->LoadAllActors(ActorReferences);
 				}
 
 				// If we are doing a SaveAs on a world that already exists on disk, we need to duplicate it:

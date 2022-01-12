@@ -314,6 +314,16 @@ void UActorDescContainer::UnpinActor(const FGuid& ActorGuid)
 	PinnedActorRefs.Remove(ActorGuid);
 }
 
+void UActorDescContainer::LoadAllActors(TArray<FWorldPartitionReference>& OutReferences)
+{
+	OutReferences.Reserve(OutReferences.Num() + GetActorDescCount());
+	for (FActorDescList::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	{
+		FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
+		OutReferences.Emplace(this, ActorDesc->GetGuid());
+	}
+}
+
 void UActorDescContainer::RegisterEditorDelegates()
 {
 	if (GEditor && !IsTemplate() && World && !World->IsGameWorld())
