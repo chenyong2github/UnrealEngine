@@ -12,6 +12,12 @@
 #include "RigEditor/SIKRigSolverStack.h"
 #include "RigEditor/IKRigAnimInstance.h"
 
+#if WITH_EDITOR
+
+#include "HAL/PlatformApplicationMisc.h"
+
+#endif
+
 #define LOCTEXT_NAMESPACE "IKRigEditorController"
 
 bool UIKRigBoneDetails::CurrentTransformRelative[3] = {true, true, true};
@@ -103,6 +109,60 @@ void UIKRigBoneDetails::OnComponentRelativeChanged(
 		}
 	}
 }
+
+#if WITH_EDITOR
+
+void UIKRigBoneDetails::OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType)
+{
+	TOptional<FTransform> Optional = GetTransform(TransformType);
+	if(!Optional.IsSet())
+	{
+		return;
+	}
+
+	const FTransform Xfo = Optional.GetValue();
+	
+	FString Content;
+	switch(Component)
+	{
+	case ESlateTransformComponent::Location:
+		{
+			const FVector Data = Xfo.GetLocation();
+			TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			break;
+		}
+	case ESlateTransformComponent::Rotation:
+		{
+			const FRotator Data = Xfo.Rotator();
+			TBaseStructure<FRotator>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			break;
+		}
+	case ESlateTransformComponent::Scale:
+		{
+			const FVector Data = Xfo.GetScale3D();
+			TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			break;
+		}
+	case ESlateTransformComponent::Max:
+	default:
+		{
+			TBaseStructure<FTransform>::Get()->ExportText(Content, &Xfo, &Xfo, nullptr, PPF_None, nullptr);
+			break;
+		}
+	}
+
+	if(!Content.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*Content);
+	}
+}
+
+void UIKRigBoneDetails::OnPasteFromClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType)
+{
+	// paste is not supported yet.
+}
+
+#endif
 
 void FIKRigEditorController::Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit, UIKRigDefinition* IKRigAsset)
 {

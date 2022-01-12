@@ -31,5 +31,14 @@ public class IKRig : ModuleRules
 			{
 				// ... add any modules that your module loads dynamically here ...
 			});
+		
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"ApplicationCore",
+				});
+		}
 	}
 }

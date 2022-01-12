@@ -90,8 +90,14 @@ void FIKRigGenericDetailCustomization::CustomizeDetailsForClass<UIKRigBoneDetail
 		LOCTEXT("ReferenceBoneTransformTooltip", "The reference transform of the bone")
 	};
 
-	static TSharedRef<TArray<EIKRigTransformType::Type>> VisibleTransforms =
-		MakeShareable(new TArray<EIKRigTransformType::Type>({EIKRigTransformType::Current}));
+	const TArray<EIKRigTransformType::Type> TransformTypes =
+	{
+		EIKRigTransformType::Current,
+		EIKRigTransformType::Reference
+	};
+
+	static TAttribute<TArray<EIKRigTransformType::Type>> VisibleTransforms =
+		TArray<EIKRigTransformType::Type>({EIKRigTransformType::Current});
 
 	TArray<TSharedRef<IPropertyHandle>> Properties;
 	Properties.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UIKRigBoneDetails, CurrentTransform)));
@@ -102,7 +108,13 @@ void FIKRigGenericDetailCustomization::CustomizeDetailsForClass<UIKRigBoneDetail
 		DetailBuilder.HideProperty(Property);
 	}
 
-	TSharedPtr<SSegmentedControl<EIKRigTransformType::Type>> TransformChoiceWidget;
+	TSharedPtr<SSegmentedControl<EIKRigTransformType::Type>> TransformChoiceWidget =
+		SSegmentedControl<EIKRigTransformType::Type>::Create(
+			TransformTypes,
+			ButtonLabels,
+			ButtonTooltips,
+			VisibleTransforms
+		);
 
 	DetailBuilder.EditCategory(TEXT("Selection")).SetSortOrder(1);
 
@@ -120,22 +132,7 @@ void FIKRigGenericDetailCustomization::CustomizeDetailsForClass<UIKRigBoneDetail
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
-			SAssignNew(TransformChoiceWidget, SSegmentedControl<EIKRigTransformType::Type>)
-			.SupportsMultiSelection(true)
-			.Values_Lambda([]()
-			{
-				return VisibleTransforms.Get();
-			})
-			.OnValuesChanged_Lambda([](TArray<EIKRigTransformType::Type> Values)
-			{
-				VisibleTransforms.Get() = Values;
-			})
-			+ SSegmentedControl<EIKRigTransformType::Type>::Slot(EIKRigTransformType::Current)
-			.Text(ButtonLabels[0])
-			.ToolTip(ButtonTooltips[0])
-			+ SSegmentedControl<EIKRigTransformType::Type>::Slot(EIKRigTransformType::Reference)
-			.Text(ButtonLabels[1])
-			.ToolTip(ButtonTooltips[1])
+			TransformChoiceWidget.ToSharedRef()
 		]
 	];
 
@@ -151,66 +148,22 @@ void FIKRigGenericDetailCustomization::CustomizeDetailsForClass<UIKRigBoneDetail
 	{
 		const EIKRigTransformType::Type TransformType = (EIKRigTransformType::Type)PropertyIndex; 
 
-		TransformWidgetArgs
-		.OnGetIsComponentRelative_UObject(BoneDetails, &UIKRigBoneDetails::IsComponentRelative, TransformType)
-		.OnIsComponentRelativeChanged_UObject(BoneDetails, &UIKRigBoneDetails::OnComponentRelativeChanged, TransformType)
-		.Transform_UObject(BoneDetails, &UIKRigBoneDetails::GetTransform, TransformType);
-		
-		IDetailGroup& Group = CategoryBuilder.AddGroup(*ButtonLabels[PropertyIndex].ToString(), ButtonLabels[PropertyIndex], false, true);
-		Group.HeaderRow()
-		.Visibility( TAttribute<EVisibility>::CreateLambda([TransformChoiceWidget, TransformType]() -> EVisibility
+		TransformWidgetArgs.OnGetIsComponentRelative_UObject(BoneDetails, &UIKRigBoneDetails::IsComponentRelative, TransformType);
+		TransformWidgetArgs.OnIsComponentRelativeChanged_UObject(BoneDetails, &UIKRigBoneDetails::OnComponentRelativeChanged, TransformType);
+		TransformWidgetArgs.Transform_UObject(BoneDetails, &UIKRigBoneDetails::GetTransform, TransformType);
+		TransformWidgetArgs.OnCopyToClipboard_UObject(BoneDetails, &UIKRigBoneDetails::OnCopyToClipboard, TransformType);
+		TransformWidgetArgs.OnPasteFromClipboard_UObject(BoneDetails, &UIKRigBoneDetails::OnPasteFromClipboard, TransformType);
+
+		TransformWidgetArgs.Visibility_Lambda([TransformChoiceWidget, TransformType]() -> EVisibility
 		{
 			return TransformChoiceWidget->HasValue(TransformType) ? EVisibility::Visible : EVisibility::Collapsed;
-		}))
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(ButtonLabels[PropertyIndex])
-			.ToolTipText(ButtonTooltips[PropertyIndex])
-		];
+		});
 
-		Group.AddPropertyRow(Properties[PropertyIndex])
-		.CustomWidget()
-		.NameContent()
-		.HAlign(HAlign_Fill)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructLabel(TransformWidgetArgs, ESlateTransformComponent::Location)
-		]
-		.ValueContent()
-		.MinDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		.MaxDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructWidget(TransformWidgetArgs, ESlateTransformComponent::Location)
-		];
-
-		Group.AddPropertyRow(Properties[PropertyIndex])
-		.CustomWidget()
-		.NameContent()
-		.HAlign(HAlign_Fill)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructLabel(TransformWidgetArgs, ESlateTransformComponent::Rotation)
-		]
-		.ValueContent()
-		.MinDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		.MaxDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructWidget(TransformWidgetArgs, ESlateTransformComponent::Rotation)
-		];
-
-		Group.AddPropertyRow(Properties[PropertyIndex])
-		.CustomWidget()
-		.NameContent()
-		.HAlign(HAlign_Fill)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructLabel(TransformWidgetArgs, ESlateTransformComponent::Scale)
-		]
-		.ValueContent()
-		.MinDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		.MaxDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructWidget(TransformWidgetArgs, ESlateTransformComponent::Scale)
-		];
+		SAdvancedTransformInputBox<FTransform>::ConstructGroupedTransformRows(
+			CategoryBuilder, 
+			ButtonLabels[PropertyIndex], 
+			ButtonTooltips[PropertyIndex], 
+			TransformWidgetArgs);
 	}
 }
 
@@ -237,8 +190,14 @@ void FIKRigGenericDetailCustomization::CustomizeDetailsForClass<UIKRigEffectorGo
 		LOCTEXT("ReferenceGoalTransformTooltip", "The reference transform of the goal")
 	};
 
-	static TSharedRef<TArray<EIKRigTransformType::Type>> VisibleTransforms =
-		MakeShareable(new TArray<EIKRigTransformType::Type>({EIKRigTransformType::Current}));
+	const TArray<EIKRigTransformType::Type> TransformTypes =
+	{
+		EIKRigTransformType::Current,
+		EIKRigTransformType::Reference
+	};
+
+	static TAttribute<TArray<EIKRigTransformType::Type>> VisibleTransforms =
+		TArray<EIKRigTransformType::Type>({EIKRigTransformType::Current});
 
 	TArray<TSharedRef<IPropertyHandle>> Properties;
 	Properties.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UIKRigEffectorGoal, CurrentTransform)));
@@ -249,7 +208,13 @@ void FIKRigGenericDetailCustomization::CustomizeDetailsForClass<UIKRigEffectorGo
 		DetailBuilder.HideProperty(Property);
 	}
 
-	TSharedPtr<SSegmentedControl<EIKRigTransformType::Type>> TransformChoiceWidget;
+	TSharedPtr<SSegmentedControl<EIKRigTransformType::Type>> TransformChoiceWidget =
+		SSegmentedControl<EIKRigTransformType::Type>::Create(
+			TransformTypes,
+			ButtonLabels,
+			ButtonTooltips,
+			VisibleTransforms
+		);
 
 	DetailBuilder.EditCategory(TEXT("Goal Settings")).SetSortOrder(1);
 	DetailBuilder.EditCategory(TEXT("Viewport Goal Settings")).SetSortOrder(3);
@@ -268,22 +233,7 @@ void FIKRigGenericDetailCustomization::CustomizeDetailsForClass<UIKRigEffectorGo
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
-			SAssignNew(TransformChoiceWidget, SSegmentedControl<EIKRigTransformType::Type>)
-			.SupportsMultiSelection(true)
-			.Values_Lambda([]()
-			{
-				return VisibleTransforms.Get();
-			})
-			.OnValuesChanged_Lambda([](TArray<EIKRigTransformType::Type> Values)
-			{
-				VisibleTransforms.Get() = Values;
-			})
-			+ SSegmentedControl<EIKRigTransformType::Type>::Slot(EIKRigTransformType::Current)
-			.Text(ButtonLabels[0])
-			.ToolTip(ButtonTooltips[0])
-			+ SSegmentedControl<EIKRigTransformType::Type>::Slot(EIKRigTransformType::Reference)
-			.Text(ButtonLabels[1])
-			.ToolTip(ButtonTooltips[1])
+			TransformChoiceWidget.ToSharedRef()
 		]
 	];
 
@@ -305,74 +255,28 @@ void FIKRigGenericDetailCustomization::CustomizeDetailsForClass<UIKRigEffectorGo
 			.IsEnabled(false)
 			.DisplayScaleLock(false);
 		}
-
-		TransformWidgetArgs
-		.OnGetNumericValue_UObject(EffectorGoal, &UIKRigEffectorGoal::GetNumericValue, TransformType);
 		
-		IDetailGroup& Group = CategoryBuilder.AddGroup(*ButtonLabels[PropertyIndex].ToString(), ButtonLabels[PropertyIndex], false, true);
-		Group.HeaderRow()
-		.Visibility( TAttribute<EVisibility>::CreateLambda([TransformChoiceWidget, TransformType]() -> EVisibility
+		TransformWidgetArgs.OnGetNumericValue_UObject(EffectorGoal, &UIKRigEffectorGoal::GetNumericValue, TransformType);
+		TransformWidgetArgs.OnNumericValueChanged_UObject(EffectorGoal, &UIKRigEffectorGoal::OnNumericValueChanged, ETextCommit::Default, TransformType);
+		TransformWidgetArgs.OnNumericValueCommitted_UObject(EffectorGoal, &UIKRigEffectorGoal::OnNumericValueChanged, TransformType);
+
+		TransformWidgetArgs.OnCopyToClipboard_UObject(EffectorGoal, &UIKRigEffectorGoal::OnCopyToClipboard, TransformType);
+		TransformWidgetArgs.OnPasteFromClipboard_UObject(EffectorGoal, &UIKRigEffectorGoal::OnPasteFromClipboard, TransformType);
+
+		const TSharedPtr<IPropertyHandle> PropertyHandle = Properties[PropertyIndex];
+		TransformWidgetArgs.DiffersFromDefault_UObject(EffectorGoal, &UIKRigEffectorGoal::TransformDiffersFromDefault, PropertyHandle);
+		TransformWidgetArgs.OnResetToDefault_UObject(EffectorGoal, &UIKRigEffectorGoal::ResetTransformToDefault, PropertyHandle);
+
+		TransformWidgetArgs.Visibility_Lambda([TransformChoiceWidget, TransformType]() -> EVisibility
 		{
 			return TransformChoiceWidget->HasValue(TransformType) ? EVisibility::Visible : EVisibility::Collapsed;
-		}))
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(ButtonLabels[PropertyIndex])
-			.ToolTipText(ButtonTooltips[PropertyIndex])
-		];
+		});
 
-		Group.AddPropertyRow(Properties[PropertyIndex])
-		.OverrideResetToDefault(FResetToDefaultOverride::Create(
-			FIsResetToDefaultVisible::CreateUObject(EffectorGoal, &UIKRigEffectorGoal::TransformDiffersFromDefault, ESlateTransformComponent::Location),
-			FResetToDefaultHandler::CreateUObject(EffectorGoal, &UIKRigEffectorGoal::ResetTransformToDefault, ESlateTransformComponent::Location)))
-		.CustomWidget()
-		.NameContent()
-		.HAlign(HAlign_Fill)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructLabel(TransformWidgetArgs, ESlateTransformComponent::Location)
-		]
-		.ValueContent()
-		.MinDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		.MaxDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructWidget(TransformWidgetArgs, ESlateTransformComponent::Location)
-		];
-
-		Group.AddPropertyRow(Properties[PropertyIndex])
-		.OverrideResetToDefault(FResetToDefaultOverride::Create(
-			FIsResetToDefaultVisible::CreateUObject(EffectorGoal, &UIKRigEffectorGoal::TransformDiffersFromDefault, ESlateTransformComponent::Rotation),
-			FResetToDefaultHandler::CreateUObject(EffectorGoal, &UIKRigEffectorGoal::ResetTransformToDefault, ESlateTransformComponent::Rotation)))
-		.CustomWidget()
-		.NameContent()
-		.HAlign(HAlign_Fill)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructLabel(TransformWidgetArgs, ESlateTransformComponent::Rotation)
-		]
-		.ValueContent()
-		.MinDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		.MaxDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructWidget(TransformWidgetArgs, ESlateTransformComponent::Rotation)
-		];
-
-		Group.AddPropertyRow(Properties[PropertyIndex])
-		.OverrideResetToDefault(FResetToDefaultOverride::Create(
-			FIsResetToDefaultVisible::CreateUObject(EffectorGoal, &UIKRigEffectorGoal::TransformDiffersFromDefault, ESlateTransformComponent::Scale),
-			FResetToDefaultHandler::CreateUObject(EffectorGoal, &UIKRigEffectorGoal::ResetTransformToDefault, ESlateTransformComponent::Scale)))
-		.CustomWidget()
-		.NameContent()
-		.HAlign(HAlign_Fill)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructLabel(TransformWidgetArgs, ESlateTransformComponent::Scale)
-		]
-		.ValueContent()
-		.MinDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		.MaxDesiredWidth(IKRigDetailCustomizationsConstants::ItemWidth * 3.0f)
-		[
-			SAdvancedTransformInputBox<FTransform>::ConstructWidget(TransformWidgetArgs, ESlateTransformComponent::Scale)
-		];
+		SAdvancedTransformInputBox<FTransform>::ConstructGroupedTransformRows(
+			CategoryBuilder, 
+			ButtonLabels[PropertyIndex], 
+			ButtonTooltips[PropertyIndex], 
+			TransformWidgetArgs);
 	}
 }
 

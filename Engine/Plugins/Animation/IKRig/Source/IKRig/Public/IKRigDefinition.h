@@ -117,8 +117,11 @@ public:
 		EIKRigTransformType::Type TransformType
 	);
 
-	bool TransformDiffersFromDefault(TSharedPtr<IPropertyHandle> PropertyHandle, ESlateTransformComponent::Type Component) const;
-	void ResetTransformToDefault(TSharedPtr<IPropertyHandle> PropertyHandle, ESlateTransformComponent::Type Component);
+	void OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType);
+	void OnPasteFromClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType);
+
+	bool TransformDiffersFromDefault(ESlateTransformComponent::Type Component, TSharedPtr<IPropertyHandle> PropertyHandle) const;
+	void ResetTransformToDefault(ESlateTransformComponent::Type Component, TSharedPtr<IPropertyHandle> PropertyHandle);
 	
 #endif
 };

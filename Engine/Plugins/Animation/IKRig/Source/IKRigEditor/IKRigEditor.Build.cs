@@ -47,6 +47,7 @@ namespace UnrealBuildTool.Rules
 					"ToolWidgets",
 					"AnimationCore",
                     "AnimationWidgets",
+                    "ApplicationCore",
 				}
             );
 

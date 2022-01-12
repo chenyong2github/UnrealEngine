@@ -5,6 +5,12 @@
 #include "IKRigObjectVersion.h"
 #include "Engine/SkeletalMesh.h"
 
+#if WITH_EDITOR
+
+#include "HAL/PlatformApplicationMisc.h"
+
+#endif
+
 #define LOCTEXT_NAMESPACE	"IKRigDefinition"
 
 #if WITH_EDITOR
@@ -76,8 +82,128 @@ void UIKRigEffectorGoal::OnNumericValueChanged(ESlateTransformComponent::Type Co
 	}
 }
 
-bool UIKRigEffectorGoal::TransformDiffersFromDefault(TSharedPtr<IPropertyHandle> PropertyHandle,
-	ESlateTransformComponent::Type Component) const
+void UIKRigEffectorGoal::OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType)
+{
+	const FTransform Xfo = TransformType == EIKRigTransformType::Current ? CurrentTransform : InitialTransform;
+	
+	FString Content;
+	switch(Component)
+	{
+	case ESlateTransformComponent::Location:
+		{
+			const FVector Data = Xfo.GetLocation();
+			TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			break;
+		}
+	case ESlateTransformComponent::Rotation:
+		{
+			const FRotator Data = Xfo.Rotator();
+			TBaseStructure<FRotator>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			break;
+		}
+	case ESlateTransformComponent::Scale:
+		{
+			const FVector Data = Xfo.GetScale3D();
+			TBaseStructure<FVector>::Get()->ExportText(Content, &Data, &Data, nullptr, PPF_None, nullptr);
+			break;
+		}
+	case ESlateTransformComponent::Max:
+	default:
+		{
+			TBaseStructure<FTransform>::Get()->ExportText(Content, &Xfo, &Xfo, nullptr, PPF_None, nullptr);
+			break;
+		}
+	}
+
+	if(!Content.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*Content);
+	}
+}
+
+void UIKRigEffectorGoal::OnPasteFromClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType)
+{
+	FString Content;
+	FPlatformApplicationMisc::ClipboardPaste(Content);
+
+	if(Content.IsEmpty())
+	{
+		return;
+	}
+
+	FTransform& Xfo = TransformType == EIKRigTransformType::Current ? CurrentTransform : InitialTransform;
+	
+	Modify();
+
+	class FIKRigEffectorGoalErrorPipe : public FOutputDevice
+	{
+	public:
+
+		int32 NumErrors;
+
+		FIKRigEffectorGoalErrorPipe()
+			: FOutputDevice()
+			, NumErrors(0)
+		{
+		}
+
+		virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+		{
+			NumErrors++;
+		}
+	};
+
+	FIKRigEffectorGoalErrorPipe ErrorPipe;
+				
+	switch(Component)
+	{
+		case ESlateTransformComponent::Location:
+		{
+			FVector Data = Xfo.GetLocation();
+			TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
+			if(ErrorPipe.NumErrors == 0)
+			{
+				Xfo.SetLocation(Data);
+			}
+			break;
+		}
+		case ESlateTransformComponent::Rotation:
+		{
+			FRotator Data = Xfo.Rotator();
+			TBaseStructure<FRotator>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FRotator>::Get()->GetName(), true);
+			if(ErrorPipe.NumErrors == 0)
+			{
+				Xfo.SetRotation(FQuat(Data));
+			}
+			break;
+		}
+		case ESlateTransformComponent::Scale:
+		{
+			FVector Data = Xfo.GetScale3D();
+			TBaseStructure<FVector>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FVector>::Get()->GetName(), true);
+			if(ErrorPipe.NumErrors == 0)
+			{
+				Xfo.SetScale3D(Data);
+			}
+			break;
+		}
+		case ESlateTransformComponent::Max:
+		default:
+		{
+			FTransform Data = Xfo;
+			TBaseStructure<FTransform>::Get()->ImportText(*Content, &Data, nullptr, PPF_None, &ErrorPipe, TBaseStructure<FTransform>::Get()->GetName(), true);
+			if(ErrorPipe.NumErrors == 0)
+			{
+				Xfo = Data;
+			}
+			break;
+		}
+	}
+}
+
+bool UIKRigEffectorGoal::TransformDiffersFromDefault(
+	ESlateTransformComponent::Type Component,
+	TSharedPtr<IPropertyHandle> PropertyHandle) const
 {
 	if(PropertyHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UIKRigEffectorGoal, CurrentTransform))
 	{
@@ -100,8 +226,9 @@ bool UIKRigEffectorGoal::TransformDiffersFromDefault(TSharedPtr<IPropertyHandle>
 	return false;
 }
 
-void UIKRigEffectorGoal::ResetTransformToDefault(TSharedPtr<IPropertyHandle> PropertyHandle,
-	ESlateTransformComponent::Type Component)
+void UIKRigEffectorGoal::ResetTransformToDefault(
+	ESlateTransformComponent::Type Component,
+	TSharedPtr<IPropertyHandle> PropertyHandle)
 {
 	switch(Component)
 	{
