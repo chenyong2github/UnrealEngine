@@ -917,9 +917,8 @@ void SubsurfaceRecombinePS(in FScreenVertexOutput Input, out float4 OutColor : S
 #endif
 
 	if (!bUseSSSProfile)
-	{
-		// Ingore the copy of non-scattering pixels with zero alpha.  
-		OutColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+	{  
+		OutColor = Texture2DSample(SubsurfaceInput0_Texture, SharedSubsurfaceSampler0, BufferUV);
 		return;
 	}
 
@@ -1007,29 +1006,14 @@ void SubsurfaceRecombinePS(in FScreenVertexOutput Input, out float4 OutColor : S
 	// combine potentially half res with full res
 	float3 SubsurfaceLighting = lerp(DiffuseAndSpecular.Diffuse, SSSColor, FadedTint);
 
-	OutColor = float4(SubsurfaceLighting * StoredBaseColor + ExtractedNonSubsurface, 1.0f);
+	OutColor = float4(SubsurfaceLighting * StoredBaseColor + ExtractedNonSubsurface, 0.0f);
 }
 
 void SubsurfaceRecombineCopyPS(in FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
 {
 	const float2 BufferUV = Input.UV.xy;
 
-#if STRATA_ENABLED
-	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);
-	const bool bUseSSSProfile = SSSData.bIsValid;
-#else
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
-	const bool bUseSSSProfile = UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID);
-#endif
-
-	if (bUseSSSProfile)
-	{
-		OutColor = float4(Texture2DSampleLevel(SubsurfaceInput0_Texture, SharedSubsurfaceSampler0, BufferUV,0).rgb,1.0f);
-	}
-	else
-	{
-		OutColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
-	}
+	OutColor = Texture2DSampleLevel(SubsurfaceInput0_Texture, SharedSubsurfaceSampler0, BufferUV, 0);
 }
 
 void SubsurfaceViewportCopyPS(noperspective float4 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
