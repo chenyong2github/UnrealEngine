@@ -608,7 +608,7 @@ void SGraphNodeK2Base::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGrap
 								WatchName += TEXT(" ");
 								WatchName += Schema->GetPinDisplayName(WatchPin).ToString();
 
-								WatchText = PinInfo->Value.ToString();
+								WatchText = PinInfo->GetWatchText();
 							}
 							else
 							{
@@ -618,7 +618,7 @@ void SGraphNodeK2Base::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGrap
 									WatchName = UEdGraphSchema_K2::TypeToText(PropWatch->Property.Get()).ToString();
 									WatchName += TEXT(" ");
 
-									WatchText = PropWatch->Value.ToString();
+									WatchText = PropWatch->GetWatchText();
 								}
 								else
 								{

@@ -80,6 +80,9 @@ struct FPropertyInstanceInfo
 
 	/** Resolves the PathToProperty treating this PropertyInstance as the head of the path */
 	UNREALED_API TSharedPtr<FPropertyInstanceInfo> ResolvePathToProperty(const TArray<FName>& InPathToProperty);
+
+	/** Returns the watch text for info popup bubbles on the graph */
+	UNREALED_API FString GetWatchText() const;
 	
 	FText Name;
 	FText DisplayName;

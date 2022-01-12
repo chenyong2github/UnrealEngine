@@ -2273,7 +2273,25 @@ TSharedPtr<FPropertyInstanceInfo> FPropertyInstanceInfo::ResolvePathToProperty(c
 	return ThisDebugInfo;
 }
 
+FString FPropertyInstanceInfo::GetWatchText() const
+{
+	FProperty* Prop = Property.Get();
+	if (Prop)
+	{
+		if (Prop->IsA<FSetProperty>() || Prop->IsA<FArrayProperty>() || Prop->IsA<FMapProperty>())
+		{
+			FString WatchText;
+			for (const TSharedPtr<FPropertyInstanceInfo>& ContainerElement : Children)
+			{
+				WatchText.Append(FText::Format(LOCTEXT("WatchTextFmt", "{0} {1}\n"), ContainerElement->DisplayName, ContainerElement->Value).ToString());
+			}
 
+			return WatchText;
+		}
+	}
+
+	return Value.ToString();
+}
 
 FText FKismetDebugUtilities::GetAndClearLastExceptionMessage()
 {
