@@ -474,6 +474,13 @@ void FD3D12Buffer::Swap(FD3D12Buffer& Other)
 
 void FD3D12Buffer::ReleaseUnderlyingResource()
 {
+	int64 BufferSize = ResourceLocation.GetSize();
+	bool bTransient = ResourceLocation.IsTransient();
+	if (!bTransient)
+	{
+		UpdateBufferStats((EBufferUsageFlags)GetUsage(), -BufferSize);
+	}
+
 	check(IsHeadLink());
 	for (FLinkedObjectIterator NextBuffer(this); NextBuffer; ++NextBuffer)
 	{
