@@ -118,6 +118,14 @@ struct CORE_API FFileHelper
 	static bool LoadFileToStringArrayWithPredicate(TArray<FString>& Result, const TCHAR* Filename, TFunctionRef<bool(const FString&)> Predicate, EHashOptions VerifyFlags);
 
 	/**
+	 * Load a text file and invoke a visitor for each line. Supports all combination of ANSI/Unicode files and platforms.
+	 *
+	 * @param Filename     Name of the file to load
+	 * @param Visitor      Visitor to invoke for each non-empty line in the file
+	 */
+	static bool LoadFileToStringWithLineVisitor(const TCHAR* Filename, TFunctionRef<void(FStringView Line)> Visitor);
+
+	/**
 	 * Save a binary array to a file.
 	 */
 	static bool SaveArrayToFile(TArrayView<const uint8> Array, const TCHAR* Filename, IFileManager* FileManager=&IFileManager::Get(), uint32 WriteFlags = 0);
