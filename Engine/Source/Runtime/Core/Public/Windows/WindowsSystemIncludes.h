@@ -17,7 +17,9 @@ THIRD_PARTY_INCLUDES_START
 #include <intrin.h>
 
 #include <stdint.h>
+#include "HAL/HideTCHAR.h"
 #include <tchar.h>
+#include "HAL/AllowTCHAR.h"
 
 // When compiling under Windows, these headers cause us particular problems.  We need to make sure they're included before we pull in our 
 // 'DoNotUseOldUE4Type' namespace.  This is because these headers will redeclare various numeric typedefs, but under the Clang and Visual
