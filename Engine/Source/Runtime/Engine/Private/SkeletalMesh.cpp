@@ -1684,30 +1684,12 @@ bool USkeletalMesh::IsReadyForFinishDestroy()
 }
 
 #if WITH_EDITOR
-void CacheRunningPlatform(USkeletalMesh* Mesh)
+void CachePlatform(USkeletalMesh* Mesh, const ITargetPlatform* TargetPlatform, FSkeletalMeshRenderData* PlatformRenderData)
 {
-	//Cache the running platform, dcc should be valid so it will be fast
-	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-	check(RunningPlatform);
+	//Cache the platform, dcc should be valid so it will be fast
+	check(TargetPlatform);
 	FSkeletalMeshBuildContext Context;
-	FSkeletalMeshRenderData RunningPlatformRenderData;
-	RunningPlatformRenderData.Cache(RunningPlatform, Mesh, &Context);
-
-	auto ApplyContext = [Mesh, Context = MoveTemp(Context)]()
-	{
-		check(IsInGameThread());
-		Context.FinishBuildInternalData.ApplyEditorData(Mesh);
-	};
-
-	if (IsInGameThread())
-	{
-		ApplyContext();
-	}
-	else
-	{
-		//Always apply context data on the game thread
-		Async(EAsyncExecution::TaskGraphMainThread, MoveTemp(ApplyContext));
-	}
+	PlatformRenderData->Cache(TargetPlatform, Mesh, &Context);
 }
 
 FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* SkelMesh);
@@ -1731,30 +1713,10 @@ static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh*
 	{
 		// Cache render data for this platform and insert it in to the linked list.
 		PlatformRenderData = new FSkeletalMeshRenderData();
-		FSkeletalMeshBuildContext Context;
-		PlatformRenderData->Cache(TargetPlatform, Mesh, &Context);
-		//No need to apply the context editor data to the mesh when the target is not the running target
-		
+		CachePlatform(Mesh, TargetPlatform, PlatformRenderData);
 		check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
 		Swap(PlatformRenderData->NextCachedRenderData, Mesh->GetResourceForRendering()->NextCachedRenderData);
 		Mesh->GetResourceForRendering()->NextCachedRenderData = TUniquePtr<FSkeletalMeshRenderData>(PlatformRenderData);
-
-		{
-			//If the running platform DDC key is not equal to the target platform DDC key.
-			//We need to cache the skeletalmesh ddc with the running platform to retrieve the ddc editor data LODModel which can be different because of chunking and reduction
-			//Normally it should just take back the ddc for the running platform, since the ddc was cache when we have load the asset to cook it.
-			ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-			check(RunningPlatform);
-			//The running platform was loaded before getting here, so we should not have an null PlatformRenderData if someone call
-			//GetPlatformSkeletalMeshRenderData with a platform using the same ddc key
-			const FString RunningPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(RunningPlatform, Mesh);
-			if (RunningPlatformDerivedDataKey != PlatformDerivedDataKey)
-			{
-				//Force a cache of the running platform to put back the running platform editor data (FSkeletalMeshLODModel and MorphTargets)
-				//Editor data do not have "DDC key linked list". Maybe we should move this data in the FSkeletalMeshRenderData.
-				CacheRunningPlatform(Mesh);
-			}
-		}
 	}
 	check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
 	check(PlatformRenderData);
@@ -1841,6 +1803,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 			}
 			else if (Ar.IsSaving())
 			{
+				ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 				FSkeletalMeshRenderData* LocalSkeletalMeshRenderData = GetSkeletalMeshRenderData();
 #if WITH_EDITORONLY_DATA
 				const ITargetPlatform* ArchiveCookingTarget = Ar.CookingTarget();
@@ -1851,7 +1814,6 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 				else
 				{
 					//Fall back in case we use an archive that the cooking target has not been set (i.e. Duplicate archive)
-					ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 					check(RunningPlatform != NULL);
 					LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, RunningPlatform);
 				}
@@ -1879,6 +1841,22 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 					}
 				}
 				LocalSkeletalMeshRenderData->Serialize(Ar, this);
+
+#if WITH_EDITOR
+				//We need to get the skeletalmesh ddc cache with the running platform to retrieve the ddc editor data LODModel which can be different because of chunking, reduction and morph targets.
+				//Normally it should just take back the ddc for the running platform, since the ddc was cache when we have load the asset to cook it.
+				if(ArchiveCookingTarget && ArchiveCookingTarget != RunningPlatform)
+				{
+					check(RunningPlatform != NULL);
+					const FString CookPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(ArchiveCookingTarget, this);
+					const FString RunningPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(RunningPlatform, this);
+					if (CookPlatformDerivedDataKey != RunningPlatformDerivedDataKey)
+					{
+						FSkeletalMeshRenderData RunningPlatformSkeletalMeshRenderData;
+						CachePlatform(this, RunningPlatform, &RunningPlatformSkeletalMeshRenderData);
+					}
+				}
+#endif
 			}
 		}
 	}
@@ -2093,15 +2071,6 @@ uint32 USkeletalMesh::GetVertexBufferFlags() const
 
 #if WITH_EDITOR
 
-void FFinishBuildInternalData::ApplyEditorData(USkeletalMesh* SkeletalMesh) const
-{
-	check(IsInGameThread());
-	if (MorphTargetData)
-	{
-		MorphTargetData->ApplyEditorData(SkeletalMesh);
-	}
-}
-
 thread_local const USkeletalMesh* FSkeletalMeshAsyncBuildScope::SkeletalMeshBeingAsyncCompiled = nullptr;
 
 FSkeletalMeshAsyncBuildScope::FSkeletalMeshAsyncBuildScope(const USkeletalMesh* SkeletalMesh)
@@ -2300,7 +2269,6 @@ void USkeletalMesh::ApplyFinishBuildInternalData(FSkeletalMeshCompilationContext
 	//We cannot execute this code outside of the game thread
 	checkf(IsInGameThread(), TEXT("Cannot execute function USkeletalMesh::ApplyFinishBuildInternalData asynchronously. Asset: %s"), *this->GetFullName());
 	check(ContextPtr);
-	ContextPtr->FinishBuildInternalData.ApplyEditorData(this);
 }
 
 void USkeletalMesh::FinishBuildInternal(FSkeletalMeshBuildContext& Context)
@@ -3671,11 +3639,6 @@ void USkeletalMesh::FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context
 
 #if WITH_EDITOR
 	ApplyFinishBuildInternalData(&Context);
-	//If we do not have a valid LOD import data for base LOD, init the morph target. Asset imported in 4.23 or before will not have available build data for the base LOD
-	if (!IsLODImportedDataBuildAvailable(0))
-	{
-		InitMorphTargets();
-	}
 #endif
 	// should do this before InitResources.
 	InitMorphTargets();

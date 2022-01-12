@@ -50,15 +50,15 @@ FSmartName FSmartNameMapping::AddName(FName Name)
 
 FCurveMetaData* FSmartNameMapping::GetCurveMetaData(FName CurveName)
 {
-	checkSlow(Exists(CurveName));
 	FWriteScopeLock Lock(SmartNameRWLock);
+	checkSlow(Exists_NoLock(CurveName));
 	return &CurveMetaDataMap.FindOrAdd(CurveName);
 }
 
 const FCurveMetaData* FSmartNameMapping::GetCurveMetaData(FName CurveName) const
 {
-	checkSlow(Exists(CurveName));
 	FReadScopeLock Lock(SmartNameRWLock);
+	checkSlow(Exists_NoLock(CurveName));
 	return CurveMetaDataMap.Find(CurveName);
 }
 
@@ -70,10 +70,8 @@ const FCurveMetaData& FSmartNameMapping::GetCurveMetaData(SmartName::UID_Type Cu
 }
 #endif
 
-bool FSmartNameMapping::GetName(const SmartName::UID_Type& Uid, FName& OutName) const
+bool FSmartNameMapping::GetName_NoLock(const SmartName::UID_Type& Uid, FName& OutName) const
 {
-	FReadScopeLock Lock(SmartNameRWLock);
-	
 	if (CurveNameList.IsValidIndex(Uid))
 	{
 		OutName = CurveNameList[Uid];
@@ -82,13 +80,19 @@ bool FSmartNameMapping::GetName(const SmartName::UID_Type& Uid, FName& OutName) 
 	return false;
 }
 
+bool FSmartNameMapping::GetName(const SmartName::UID_Type& Uid, FName& OutName) const
+{
+	FReadScopeLock Lock(SmartNameRWLock);
+	return GetName_NoLock(Uid, OutName);
+}
+
 #if WITH_EDITOR
 bool FSmartNameMapping::Rename(const SmartName::UID_Type& Uid, FName NewName)
 {
 	FWriteScopeLock Lock(SmartNameRWLock);
 	
 	FName ExistingName;
-	if(GetName(Uid, ExistingName))
+	if(GetName_NoLock(Uid, ExistingName))
 	{
 		// fix up meta data
 		FCurveMetaData* MetaDataToCopy = CurveMetaDataMap.Find(ExistingName);
@@ -112,7 +116,7 @@ bool FSmartNameMapping::Remove(const SmartName::UID_Type& Uid)
 	FWriteScopeLock Lock(SmartNameRWLock);
 	
 	FName ExistingName;
-	if (GetName(Uid, ExistingName))
+	if (GetName_NoLock(Uid, ExistingName))
 	{
 		CurveMetaDataMap.Remove(ExistingName);
 		CurveNameList[Uid] = NAME_None;
@@ -126,7 +130,7 @@ bool FSmartNameMapping::Remove(const FName& Name)
 {
 	FWriteScopeLock Lock(SmartNameRWLock);
 	
-	const SmartName::UID_Type Uid = FindUID(Name);
+	const SmartName::UID_Type Uid = FindUID_NoLock(Name);
 	if (Uid != SmartName::MaxUID)
 	{
 		CurveMetaDataMap.Remove(Name);
@@ -265,23 +269,37 @@ void FSmartNameMapping::FillUIDToCurveTypeArray(TArray<FAnimCurveType>& Array) c
 	}
 }
 
+bool FSmartNameMapping::Exists_NoLock(const SmartName::UID_Type& Uid) const
+{
+	return CurveNameList.IsValidIndex(Uid) && CurveNameList[Uid] != NAME_None;
+}
 
 bool FSmartNameMapping::Exists(const SmartName::UID_Type& Uid) const
 {
 	FReadScopeLock Lock(SmartNameRWLock);
-	return CurveNameList.IsValidIndex(Uid) && CurveNameList[Uid] != NAME_None;
+	return Exists_NoLock(Uid);
+}
+
+bool FSmartNameMapping::Exists_NoLock(const FName& Name) const
+{
+	return CurveNameList.Contains(Name);
 }
 
 bool FSmartNameMapping::Exists(const FName& Name) const
 {
 	FReadScopeLock Lock(SmartNameRWLock);
-	return CurveNameList.Contains(Name);
+	return Exists_NoLock(Name);
+}
+
+SmartName::UID_Type FSmartNameMapping::FindUID_NoLock(const FName& Name) const
+{
+	return CurveNameList.IndexOfByKey(Name);
 }
 
 SmartName::UID_Type FSmartNameMapping::FindUID(const FName& Name) const
 {
 	FReadScopeLock Lock(SmartNameRWLock);
-	return CurveNameList.IndexOfByKey(Name);
+	return FindUID_NoLock(Name);
 }
 
 FArchive& operator<<(FArchive& Ar, FSmartNameMapping& Elem)
@@ -294,7 +312,7 @@ FArchive& operator<<(FArchive& Ar, FSmartNameMapping& Elem)
 bool FSmartNameMapping::FindSmartName(FName Name, FSmartName& OutName) const
 {
 	FReadScopeLock Lock(SmartNameRWLock);
-	SmartName::UID_Type ExistingUID = FindUID(Name);
+	SmartName::UID_Type ExistingUID = FindUID_NoLock(Name);
 	if (ExistingUID != SmartName::MaxUID)
 	{
 		OutName = FSmartName(Name, ExistingUID);
@@ -308,7 +326,7 @@ bool FSmartNameMapping::FindSmartNameByUID(SmartName::UID_Type UID, FSmartName& 
 {
 	FReadScopeLock Lock(SmartNameRWLock);
 	FName ExistingName;
-	if (GetName(UID, ExistingName))
+	if (GetName_NoLock(UID, ExistingName))
 	{
 		OutName.DisplayName = ExistingName;
 		OutName.UID = UID;

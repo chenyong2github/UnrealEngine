@@ -153,6 +153,18 @@ struct ENGINE_API FSmartNameMapping
 	void Iterate(TFunction<void(const FSmartNameMapping* Mapping, SmartName::UID_Type ID)> Callback) const;
 
 private:
+	/*Internal no lock function to prevent re-entrant locking, see API function GetName for documentation.*/
+	bool GetName_NoLock(const SmartName::UID_Type& Uid, FName& OutName) const;
+
+	/*Internal no lock function to prevent re-entrant locking, see API function Exists for documentation.*/
+	bool Exists_NoLock(const SmartName::UID_Type& Uid) const;
+	
+	/*Internal no lock function to prevent re-entrant locking, see API function Exists for documentation.*/
+	bool Exists_NoLock(const FName& Name) const;
+
+	/*Internal no lock function to prevent re-entrant locking, see API function FindUID for documentation.*/
+	SmartName::UID_Type FindUID_NoLock(const FName& Name) const;
+
 	// List of curve names, indexed by UID
 	TArray<FName> CurveNameList;
 
