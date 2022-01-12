@@ -475,25 +475,6 @@ void UGameplayStatics::SetGlobalTimeDilation(const UObject* WorldContextObject, 
 	}
 }
 
-float UGameplayStatics::GetGlobalTimeDilationMultiplier(const UObject* WorldContextObject)
-{
-	UWorld* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	return World ? World->GetWorldSettings()->TimeDilationMultiplier : 1.f;
-}
-
-void UGameplayStatics::SetGlobalTimeDilationMultiplier(const UObject* WorldContextObject, float TimeDilationMultiplier)
-{
-	UWorld* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (World != nullptr)
-	{
-		AWorldSettings* const WorldSettings = World->GetWorldSettings();
-		if (WorldSettings != nullptr)
-		{
-			WorldSettings->TimeDilationMultiplier = TimeDilationMultiplier;
-		}
-	}
-}
-
 bool UGameplayStatics::SetGamePaused(const UObject* WorldContextObject, bool bPaused)
 {
 	UGameInstance* const GameInstance = GetGameInstance( WorldContextObject );

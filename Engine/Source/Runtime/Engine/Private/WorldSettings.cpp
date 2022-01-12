@@ -104,7 +104,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bReplicates = true;
 	bAlwaysRelevant = true;
 	TimeDilation = 1.0f;
-	TimeDilationMultiplier = 1.0f;
 	MatineeTimeDilation = 1.0f;
 	DemoPlayTimeDilation = 1.0f;
 	PackedLightAndShadowMapTextureSize = 1024;

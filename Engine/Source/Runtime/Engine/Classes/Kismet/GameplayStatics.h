@@ -349,20 +349,6 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	static void SetGlobalTimeDilation(const UObject* WorldContextObject, float TimeDilation);
 
 	/**
-	 * Gets the current global time dilation multiplier.
-	 * @return Current time dilation multiplier.
-	 */
-	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject") )
-	static float GetGlobalTimeDilationMultiplier(const UObject* WorldContextObject);
-
-	/**
-	 * Sets the global time dilation multiplier
-	 * @param	TimeDilationMultiplier	value to set the global time dilation to
-	 */
-	UFUNCTION(BlueprintCallable, Category="Utilities|Time", meta=(WorldContext="WorldContextObject") )
-	static void SetGlobalTimeDilationMultiplier(const UObject* WorldContextObject, float TimeDilationMultiplier);
-
-	/**
 	 * Sets the game's paused state
 	 * @param	bPaused		Whether the game should be paused or not
 	 * @return	Whether the game was successfully paused/unpaused
