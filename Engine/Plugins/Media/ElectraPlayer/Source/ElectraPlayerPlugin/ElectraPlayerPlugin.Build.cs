@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-using EpicGames.Core;
-using System.IO;
+using UnrealBuildTool;
 
 namespace UnrealBuildTool.Rules
 {
@@ -8,11 +7,10 @@ namespace UnrealBuildTool.Rules
 	{
 		public ElectraPlayerPlugin(ReadOnlyTargetRules Target) : base(Target)
 		{
+			bLegalToDistributeObjectCode = true;
+			PCHUsage = PCHUsageMode.NoPCHs;
 
-            bLegalToDistributeObjectCode = true;
-            PCHUsage = PCHUsageMode.NoPCHs;
-
-            DynamicallyLoadedModuleNames.AddRange(
+			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {
 					"Media",
 				});
@@ -33,7 +31,7 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Media",
-            });
+			});
 
 			if (Target.bCompileAgainstEngine)
 			{
@@ -41,14 +39,14 @@ namespace UnrealBuildTool.Rules
 			}
 
 			if (Target.Platform == UnrealTargetPlatform.Mac)
-            {
-                PrivateDependencyModuleNames.Add("MetalRHI");
-            }
+			{
+				PrivateDependencyModuleNames.Add("MetalRHI");
+			}
 
 			if (Target.Platform == UnrealTargetPlatform.IOS )
-            {
-                PrivateDependencyModuleNames.Add("MetalRHI");
-            }
+			{
+				PrivateDependencyModuleNames.Add("MetalRHI");
+			}
 
 			if (Target.Type == TargetType.Editor)
 			{
