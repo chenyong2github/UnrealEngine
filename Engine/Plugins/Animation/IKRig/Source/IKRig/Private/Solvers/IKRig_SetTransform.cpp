@@ -18,6 +18,12 @@ void UIKRig_SetTransform::Initialize(const FIKRigSkeleton& IKRigSkeleton)
 
 void UIKRig_SetTransform::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals)
 {
+	// BoneIndex is irrelevant
+	if (BoneIndex == INDEX_NONE)
+	{
+		return;
+	}
+	
 	const FIKRigGoal* InGoal = Goals.FindGoalByName(Goal);
 	if (!InGoal)
 	{
