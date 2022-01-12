@@ -58,6 +58,52 @@ static void RequestInertialBlend(const FAnimationUpdateContext& Context, float B
 	}
 }
 
+void ComputeCurrentVelocityMagnitudes(
+	const FMotionMatchingState& InOutMotionMatchingState, 
+	const FTrajectorySampleRange& Trajectory, 
+	const float DeltaTime, 
+	float& SimLinearVelocity, float& SimAngularVelocity, 
+	float& AnimLinearVelocity, float& AnimAngularVelocity)
+{
+	if (DeltaTime > SMALL_NUMBER)
+	{
+		// simulation
+
+		int32 FirstIdx = 0;
+		const FTrajectorySample PrevSample = FTrajectorySampleRange::IterSampleTrajectory(
+			Trajectory.Samples,
+			ETrajectorySampleDomain::Time,
+			-DeltaTime, FirstIdx);
+
+		const FTrajectorySample CurrSample = FTrajectorySampleRange::IterSampleTrajectory(
+			Trajectory.Samples,
+			ETrajectorySampleDomain::Time,
+			0.0f, FirstIdx);
+
+		const FTransform RelativeMotion = CurrSample.Transform.GetRelativeTransform(PrevSample.Transform);
+
+		SimLinearVelocity = RelativeMotion.GetTranslation().Size() / DeltaTime;
+		SimAngularVelocity = FMath::RadiansToDegrees(RelativeMotion.GetRotation().GetAngle()) / DeltaTime;
+
+		// animation
+		if (const FPoseSearchIndexAsset* IndexAsset = InOutMotionMatchingState.GetCurrentSearchIndexAsset())
+		{
+			const FPoseSearchDatabaseSequence& DbSequence =
+				InOutMotionMatchingState.CurrentDatabase->GetSourceAsset(IndexAsset);
+			const UAnimSequence* SourceSequence = DbSequence.Sequence;
+
+			const FTransform AnimRootMotion = SourceSequence->ExtractRootMotion(
+				InOutMotionMatchingState.AssetPlayerTime,
+				-DeltaTime,
+				DbSequence.bLoopAnimation);
+
+			AnimLinearVelocity = AnimRootMotion.GetTranslation().Size() / DeltaTime;
+			AnimAngularVelocity = FMath::RadiansToDegrees(AnimRootMotion.GetRotation().GetAngle()) / DeltaTime;
+		}
+
+	}
+}
+
 void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 	, const UPoseSearchDatabase* Database
 	, const FTrajectorySampleRange& Trajectory
@@ -199,6 +245,18 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	if (InOutMotionMatchingState.DbPoseIdx != INDEX_NONE)
 	{
+
+		float SimLinearVelocity = -1.0f;
+		float SimAngularVelocity = -1.0f;
+		float AnimLinearVelocity = -1.0f;
+		float AnimAngularVelocity = -1.0f;
+		ComputeCurrentVelocityMagnitudes(
+			InOutMotionMatchingState, 
+			Trajectory, 
+			DeltaTime, 
+			SimLinearVelocity, SimAngularVelocity, 
+			AnimLinearVelocity, AnimAngularVelocity);
+
 		UE::PoseSearch::FTraceMotionMatchingState TraceState;
 		if ((InOutMotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
 		{
@@ -212,6 +270,13 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 		TraceState.Weights = Settings.Weights;
 		TraceState.DbPoseIdx = InOutMotionMatchingState.DbPoseIdx;
 		TraceState.DatabaseId = FObjectTrace::GetObjectId(Database);
+
+		TraceState.AssetPlayerTime = InOutMotionMatchingState.AssetPlayerTime;
+		TraceState.DeltaTime = DeltaTime;
+		TraceState.SimLinearVelocity = SimLinearVelocity;
+		TraceState.SimAngularVelocity = SimAngularVelocity;
+		TraceState.AnimLinearVelocity = AnimLinearVelocity;
+		TraceState.AnimAngularVelocity = AnimAngularVelocity;
 		UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, TraceState)
 	}
 #endif

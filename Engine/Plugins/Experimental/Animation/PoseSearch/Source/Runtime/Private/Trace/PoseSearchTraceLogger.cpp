@@ -24,6 +24,12 @@ UE_TRACE_EVENT_BEGIN(PoseSearch, MotionMatchingState)
 	UE_TRACE_EVENT_FIELD(float[], HistoryWeightScales)
 	UE_TRACE_EVENT_FIELD(float[], PredictionWeightScales)
 	UE_TRACE_EVENT_FIELD(bool, DebugDisableWeights)
+	UE_TRACE_EVENT_FIELD(float, AssetPlayerTime)
+	UE_TRACE_EVENT_FIELD(float, DeltaTime)
+	UE_TRACE_EVENT_FIELD(float, SimLinearVelocity)
+	UE_TRACE_EVENT_FIELD(float, SimAngularVelocity)
+	UE_TRACE_EVENT_FIELD(float, AnimLinearVelocity)
+	UE_TRACE_EVENT_FIELD(float, AnimAngularVelocity)
 UE_TRACE_EVENT_END()
 
 namespace UE { namespace PoseSearch {
@@ -91,7 +97,13 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext, c
 		<< MotionMatchingState.ChannelWeightScales(ChannelWeightScales, UE_ARRAY_COUNT(ChannelWeightScales))
 		<< MotionMatchingState.HistoryWeightScales(HistoryWeightScales, UE_ARRAY_COUNT(HistoryWeightScales))
 		<< MotionMatchingState.PredictionWeightScales(PredictionWeightScales, UE_ARRAY_COUNT(PredictionWeightScales))
-		<< MotionMatchingState.DebugDisableWeights(State.Weights.bDebugDisableWeights);
+		<< MotionMatchingState.DebugDisableWeights(State.Weights.bDebugDisableWeights)
+		<< MotionMatchingState.AssetPlayerTime(State.AssetPlayerTime)
+		<< MotionMatchingState.DeltaTime(State.DeltaTime)
+		<< MotionMatchingState.SimLinearVelocity(State.SimLinearVelocity)
+		<< MotionMatchingState.SimAngularVelocity(State.SimAngularVelocity)
+		<< MotionMatchingState.AnimLinearVelocity(State.AnimLinearVelocity)
+		<< MotionMatchingState.AnimAngularVelocity(State.AnimAngularVelocity);
 }
 
 }}

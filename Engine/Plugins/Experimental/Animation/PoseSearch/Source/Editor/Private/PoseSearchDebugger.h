@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/PoseableMeshComponent.h"
+#include "CustomBoneIndexArray.h"
 #include "RewindDebuggerInterface/Public/IRewindDebuggerExtension.h"
 #include "RewindDebuggerInterface/Public/IRewindDebuggerView.h"
 #include "RewindDebuggerInterface/Public/IRewindDebuggerViewCreator.h"
@@ -170,6 +171,27 @@ public:
 	/** Whether it is playing the loop following the expended animation runway */
 	UPROPERTY(VisibleAnywhere, Category="Motion Matching State")
 	bool bFollowUpAnimation = false;
+	
+	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State", Meta = (DisplayName = "Asset Player Sequence"))
+	FString AssetPlayerSequenceName = "";
+
+	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
+	float AssetPlayerTime = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
+	float LastDeltaTime = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
+	float SimLinearVelocity;
+
+	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
+	float SimAngularVelocity;
+
+	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
+	float AnimLinearVelocity;
+
+	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
+	float AnimAngularVelocity;
 
 	UPROPERTY(EditAnywhere, Category="Draw Options", Meta=(DisplayName="Query"))
 	FPoseSearchDebuggerFeatureDrawOptions QueryDrawOptions;

@@ -1068,7 +1068,20 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 	Reflection->CurrentDatabaseName = Database.GetName();
 	Reflection->ElapsedPoseJumpTime = State.ElapsedPoseJumpTime;
 	Reflection->bFollowUpAnimation = EnumHasAnyFlags(State.Flags, FTraceMotionMatchingState::EFlags::FollowupAnimation);
-	
+
+	Reflection->AssetPlayerSequenceName = FString();
+	if (const FPoseSearchIndexAsset* IndexAsset = Database.SearchIndex.FindAssetForPose(State.DbPoseIdx))
+	{
+		Reflection->AssetPlayerSequenceName = Database.GetSourceAsset(IndexAsset).Sequence->GetName();
+	}
+
+	Reflection->AssetPlayerTime = State.AssetPlayerTime;
+	Reflection->LastDeltaTime = State.DeltaTime;
+	Reflection->SimLinearVelocity = State.SimLinearVelocity;
+	Reflection->SimAngularVelocity = State.SimAngularVelocity;
+	Reflection->AnimLinearVelocity = State.AnimLinearVelocity;
+	Reflection->AnimAngularVelocity = State.AnimAngularVelocity;
+
 	FFeatureVectorReader Reader;
 	Reader.Init(&Schema->Layout);
 

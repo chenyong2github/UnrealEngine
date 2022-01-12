@@ -61,6 +61,14 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	 */
 	uint64 SkeletalMeshComponentId = 0;
 
+	float AssetPlayerTime = 0.0f;
+	float DeltaTime = 0.0f;
+	float SimLinearVelocity = 0.0f;
+	float SimAngularVelocity = 0.0f;
+	float AnimLinearVelocity = 0.0f;
+	float AnimAngularVelocity = 0.0f;
+
+
 	/** Output the current state info to the logger */
 	static void Output(const FAnimationBaseContext& InContext, const FTraceMotionMatchingState& State);
 	
