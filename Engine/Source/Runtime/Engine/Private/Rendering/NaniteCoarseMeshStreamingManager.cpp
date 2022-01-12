@@ -192,7 +192,7 @@ namespace Nanite
 
 		FRegisteredRenderAsset& RenderAssetInfo = RegisteredRenderAssets[RenderAsset->StreamingIndex];
 
-		TArray<const UPrimitiveComponent*>* RegisteredComponents = RegisteredComponentsMap.Find(RenderAsset);
+		TSet<const UPrimitiveComponent*>* RegisteredComponents = RegisteredComponentsMap.Find(RenderAsset);
 
 		// If there are still components registered then mark them as unattached and remove from map
 		// (this can happen because of different order of destruction during garbage collection)
@@ -274,14 +274,24 @@ namespace Nanite
 
 		FScopeLock ScopeLock(&UpdateCS);
 
-		TArray<const UPrimitiveComponent*>* Components = RegisteredComponentsMap.Find(StaticMesh);
-		if (Components == nullptr)
+		// Make sure it's not requested for release anymore
+		bool bNeedToAdd = true;
+		TSet<const UPrimitiveComponent*>* ComponentsToRelease = RequestReleaseComponentsMap.Find(StaticMesh);
+		if (ComponentsToRelease && ComponentsToRelease->Contains(Primitive))
 		{
-			RegisteredComponentsMap.Add(StaticMesh);
-			Components = RegisteredComponentsMap.Find(StaticMesh);
+			ComponentsToRelease->Remove(Primitive);
+			bNeedToAdd = false;
 		}
-		check(!Components->Contains(Primitive));
-		Components->Add(Primitive);
+		TSet<const UPrimitiveComponent*>& RegisteredComponents = RegisteredComponentsMap.FindOrAdd(StaticMesh);
+		if (bNeedToAdd)
+		{
+			check(!RegisteredComponents.Contains(Primitive));
+			RegisteredComponents.Add(Primitive);
+		}
+		else
+		{
+			check(RegisteredComponents.Contains(Primitive));
+		}
 
 		// Store link to current static mesh so it can be checked if it has changed
 		ComponentToRenderAssetLookUpMap.Add(Primitive, StaticMesh);
@@ -308,17 +318,9 @@ namespace Nanite
 
 	void FCoarseMeshStreamingManager::UnregisterComponentInternal(const UPrimitiveComponent* Primitive, UStreamableRenderAsset* RenderAsset)
 	{
-		TArray<const UPrimitiveComponent*>* Components = RegisteredComponentsMap.Find(RenderAsset);
-		if (Components)
-		{
-			Components->Remove(Primitive);
-
-			// remove if empty
-			if (Components->Num() == 0)
-			{
-				RegisteredComponentsMap.Remove(RenderAsset);
-			}
-		}
+		TSet<const UPrimitiveComponent*>& Components = RequestReleaseComponentsMap.FindOrAdd(RenderAsset);
+		check(!Components.Contains(Primitive));
+		Components.Add(Primitive);
 
 		verify(ComponentToRenderAssetLookUpMap.Remove(Primitive) == 1);
 
@@ -335,7 +337,7 @@ namespace Nanite
 		// For safety - perhaps only required because another component could be added/removed here?
 		FScopeLock ScopeLock(&UpdateCS);
 
-		TArray<const UPrimitiveComponent*>* Components = RegisteredComponentsMap.Find(RenderAsset);
+		TSet<const UPrimitiveComponent*>* Components = RegisteredComponentsMap.Find(RenderAsset);
 		if (Components)
 		{
 			for (const UPrimitiveComponent* Component : *Components)
@@ -355,6 +357,28 @@ namespace Nanite
 		TRACE_CPUPROFILER_EVENT_SCOPE(FCoarseMeshStreamingManager::UpdateResourceStreaming);
 
 		FScopeLock ScopeLock(&UpdateCS);
+
+		// Process the request release of the components on RenderThread now
+		for (auto Iter = RequestReleaseComponentsMap.CreateIterator(); Iter ; ++Iter)
+		{
+			UStreamableRenderAsset* RenderAsset = Iter.Key();			
+			TSet<const UPrimitiveComponent*>* RegisteredComponents = RegisteredComponentsMap.Find(RenderAsset);
+			if (RegisteredComponents)
+			{
+				TSet<const UPrimitiveComponent*>& ComponentsToRelease = Iter.Value();
+				for (const UPrimitiveComponent* Component : ComponentsToRelease)
+				{
+					RegisteredComponents->Remove(Component);
+				}
+
+				// remove if empty
+				if (RegisteredComponents->Num() == 0)
+				{
+					RegisteredComponentsMap.Remove(RenderAsset);
+				}
+			}
+		}
+		RequestReleaseComponentsMap.Empty();
 
 		// Iterate over all active handles and check if they have stream in/out requests
 		// can be optimized to only iterate over handles which are actively streaming in & out if this would be a problem

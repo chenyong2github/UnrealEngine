@@ -117,7 +117,8 @@ private:
 	TArray<CoarseMeshStreamingHandle> TmpHandleArray;
 
 	TArray<ULevel*> RegisteredLevels;
-	TMap<UStreamableRenderAsset*, TArray<const UPrimitiveComponent*>> RegisteredComponentsMap;
+	TMap<UStreamableRenderAsset*, TSet<const UPrimitiveComponent*>> RequestReleaseComponentsMap;
+	TMap<UStreamableRenderAsset*, TSet<const UPrimitiveComponent*>> RegisteredComponentsMap;
 	TMap<const UPrimitiveComponent*, UStreamableRenderAsset*> ComponentToRenderAssetLookUpMap;
 
 	uint64 TotalRequestedRenderAssetSize = 0;
