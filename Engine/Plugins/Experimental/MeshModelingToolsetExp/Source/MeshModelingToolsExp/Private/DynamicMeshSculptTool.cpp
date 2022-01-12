@@ -145,16 +145,13 @@ void UDynamicMeshSculptTool::Setup()
 	// initialize brush radius range interval, brush properties
 	double MaxDimension = DynamicMeshComponent->GetMesh()->GetBounds(true).MaxDim();
 	BrushRelativeSizeRange = FInterval1d(MaxDimension*0.01, MaxDimension);
-	BrushProperties = NewObject<USculptBrushProperties>(this);
-	BrushProperties->bShowFlowRate = false;
-	BrushProperties->bShowSpacing = false;
-	BrushProperties->bShowLazyness = false;
+	BrushProperties = NewObject<UDynamicMeshBrushProperties>(this);
 	BrushProperties->BrushSize.InitializeWorldSizeRange(
 		TInterval<float>((float)BrushRelativeSizeRange.Min, (float)BrushRelativeSizeRange.Max));
 	CalculateBrushRadius();
 
 	// initialize other properties
-	SculptProperties = NewObject<UBrushSculptProperties>(this);
+	SculptProperties = NewObject<UDynamicMeshBrushSculptProperties>(this);
 	KelvinBrushProperties = NewObject<UKelvinBrushProperties>(this);
 
 	RemeshProperties = NewObject<UBrushRemeshProperties>(this);

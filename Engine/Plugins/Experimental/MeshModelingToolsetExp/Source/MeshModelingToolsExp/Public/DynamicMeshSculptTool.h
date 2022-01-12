@@ -113,8 +113,34 @@ public:
 
 
 
+
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBrushSculptProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API UDynamicMeshBrushProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayPriority = 1))
+	FBrushToolRadius BrushSize;
+
+	/** Amount of falloff to apply (0.0 - 1.0) */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Falloff", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", DisplayPriority = 3))
+	float BrushFalloffAmount = 0.5f;
+
+	/** Depth of Brush into surface along view ray or surface normal, depending on the Active Brush Type */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (UIMin = "-0.5", UIMax = "0.5", ClampMin = "-1.0", ClampMax = "1.0", DisplayPriority = 5))
+	float Depth = 0;
+
+	/** Allow the Brush to hit the back-side of the mesh */
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayPriority = 6))
+	bool bHitBackFaces = true;
+};
+
+
+
+
+
+UCLASS()
+class MESHMODELINGTOOLSEXP_API UDynamicMeshBrushSculptProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -257,11 +283,11 @@ public:
 public:
 	/** Properties that control brush size/etc*/
 	UPROPERTY()
-	TObjectPtr<USculptBrushProperties> BrushProperties;
+	TObjectPtr<UDynamicMeshBrushProperties> BrushProperties;
 
 	/** Properties that control sculpting*/
 	UPROPERTY()
-	TObjectPtr<UBrushSculptProperties> SculptProperties;
+	TObjectPtr<UDynamicMeshBrushSculptProperties> SculptProperties;
 
 	UPROPERTY()
 	TObjectPtr<USculptMaxBrushProperties> SculptMaxBrushProperties;
