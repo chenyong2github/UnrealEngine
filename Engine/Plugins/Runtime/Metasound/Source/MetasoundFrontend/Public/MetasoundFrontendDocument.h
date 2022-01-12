@@ -919,6 +919,10 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata
 		UPROPERTY(EditAnywhere, Category = Metasound)
 		TArray<FText> CategoryHierarchy;
 
+		// If true, this node is deprecated and should not be used in new MetaSounds.
+		UPROPERTY(VisibleAnywhere, Category = Metasound)
+		bool bIsDeprecated = false;
+
 		// If true, auto-update will manage (add and remove)
 		// inputs/outputs associated with internally connected
 		// nodes when the interface of the given node is auto-updated.
@@ -1072,6 +1076,20 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassMetadata
 		const FGuid& GetChangeID() const
 		{
 			return ChangeID;
+		}
+
+		bool GetIsDeprecated() const
+		{
+			return bIsDeprecated;
+		}
+
+		void SetIsDeprecated(bool bInIsDeprecated)
+		{
+			if (bInIsDeprecated != bIsDeprecated)
+			{
+				bIsDeprecated = bInIsDeprecated;
+				ChangeID = FGuid::NewGuid();
+			}
 		}
 };
 

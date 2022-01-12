@@ -115,6 +115,9 @@ namespace Metasound
 		/** Display style for node when visualized. */
 		FNodeDisplayStyle DisplayStyle;
 
+		/** If true, the node is deprecated and should not be used in new MetaSounds. */
+		bool bDeprecated = false;
+
 		/** Returns an empty FNodeClassMetadata object. */
 		static const FNodeClassMetadata& GetEmpty()
 		{

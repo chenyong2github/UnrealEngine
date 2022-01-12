@@ -210,6 +210,19 @@ namespace Metasound
 				}
 			};
 
+			class FRemoveDeprecatedClasses : public IFrontendQueryFilterStep
+			{
+			public:
+				virtual bool Filter(const FFrontendQueryEntry& InEntry) const override
+				{
+					if (InEntry.Value.IsType<FMetasoundFrontendClass>())
+					{
+						return !InEntry.Value.Get<FMetasoundFrontendClass>().Metadata.GetIsDeprecated();
+					}
+					return false;
+				}
+			};
+
 			class FRemoveInterfacesWhichAreNotDefault : public IFrontendQueryFilterStep
 			{
 				virtual bool Filter(const FFrontendQueryEntry& InEntry) const override
@@ -444,6 +457,7 @@ namespace Metasound
 					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
 					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
 					.AddStep<FTransformRegistrationEventsToClasses>()
+					.AddStep<FRemoveDeprecatedClasses>()
 					.AddStep<FMapToNull>();
 				return Query;
 			}
@@ -538,6 +552,7 @@ namespace Metasound
 					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
 					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
 					.AddStep<FTransformRegistrationEventsToClasses>()
+					.AddStep<FRemoveDeprecatedClasses>()
 					.AddStep<FMapToFullClassName>()
 					.AddStep<FReduceClassesToHighestVersion>();
 				return Query;
@@ -562,7 +577,9 @@ namespace Metasound
 					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
 					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
 					.AddStep<FTransformRegistrationEventsToClasses>()
-					.AddStep<FMapClassToFullClassNameAndMajorVersion>();
+					.AddStep<FRemoveDeprecatedClasses>()
+					.AddStep<FMapClassToFullClassNameAndMajorVersion>()
+					.AddStep<FReduceClassesToHighestVersion>();
 				return Query;
 			}
 

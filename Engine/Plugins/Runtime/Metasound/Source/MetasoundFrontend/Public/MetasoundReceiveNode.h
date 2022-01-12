@@ -60,6 +60,11 @@ namespace Metasound
 				Info.CategoryHierarchy = { LOCTEXT("Metasound_TransmissionNodeCategory", "Transmission") };
 				Info.Keywords = { };
 
+				// Then send & receive nodes do not work as expected, particularly 
+				// around multiple-consumer scenarios. Deprecate them to avoid
+				// metasound assets from relying on send & receive nodes. 
+				Info.bDeprecated = true; 
+
 				return Info;
 			};
 

@@ -133,6 +133,7 @@ FMetasoundFrontendClassMetadata::FMetasoundFrontendClassMetadata(const Metasound
 , Author(InNodeClassMetadata.Author)
 , Keywords(InNodeClassMetadata.Keywords)
 , CategoryHierarchy(InNodeClassMetadata.CategoryHierarchy)
+, bIsDeprecated(InNodeClassMetadata.bDeprecated)
 {
 }
 
