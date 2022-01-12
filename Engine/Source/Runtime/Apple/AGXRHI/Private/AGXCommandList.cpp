@@ -10,7 +10,6 @@
 #include "AGXCommandList.h"
 #include "AGXCommandQueue.h"
 #include "AGXProfiler.h"
-#include "AGXCommandBuffer.h"
 #include "AGXCommandEncoder.h"
 #include "ns.hpp"
 
@@ -60,115 +59,6 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
     if (bDoCheck && !GIsSuspended && !GIsRenderingThreadSuspended)
 #endif
     {
-		FAGXCommandBufferMarkers Markers = FAGXCommandBufferMarkers::Get(CompletedBuffer);
-		if (Markers)
-		{
-			uint32 CommandBufferIndex = Markers.GetIndex();
-			FAGXDebugInfo BrokenDraw;
-			BrokenDraw.EncoderIndex = UINT32_MAX;
-			BrokenDraw.CommandIndex = UINT32_MAX;
-			BrokenDraw.CmdBuffIndex = UINT32_MAX;
-			BrokenDraw.ContextIndex = UINT32_MAX;
-            BrokenDraw.CommandBuffer = 0;
-			uint32 BrokenContext = 0;
-			bool bFoundBrokenDraw = false;
-			for (uint32 i = 0; (CommandBufferIndex != ~0u) && !bFoundBrokenDraw && i < Markers.NumContexts(); i++)
-			{
-				ns::AutoReleased<FAGXBuffer> DebugBuffer = Markers.GetDebugBuffer(i);
-				TArray<FAGXCommandDebug>* Commands = Markers.GetCommands(i);
-				if (DebugBuffer && Commands && Commands->Num())
-				{
-					uint32 DebugLength = DebugBuffer.GetLength();
-					uint32 DebugCount = DebugLength / sizeof(FAGXDebugInfo);
-					check(DebugCount >= 1);
-					
-					FAGXDebugInfo* DebugArray = (FAGXDebugInfo*)DebugBuffer.GetContents();
-					FAGXDebugInfo CurrentDraw = DebugArray[0];
-					
-					// On TBDR we find the disjoint where one tile has progressed further than another
-					// We find the earliest failure in the probably vain hope that this is the tile that actually failed
-					// There's actually no guarantee of that, it might be one of the later tiles that exploded
-					for (uint32 j = 0; j < DebugCount; j++)
-					{
-						if (CommandBufferIndex == DebugArray[j].CmdBuffIndex && DebugArray[j].EncoderIndex < CurrentDraw.EncoderIndex && DebugArray[j].CommandIndex < CurrentDraw.CommandIndex)
-						{
-							CurrentDraw = DebugArray[j];
-							break;
-						}
-					}
-
-					// Find the first command to fail - which depends on the order of encoders - parallel contexts make this more complicated
-					if (CurrentDraw.CmdBuffIndex == BrokenDraw.CmdBuffIndex && CurrentDraw.CommandIndex < Commands->Num() && CurrentDraw.EncoderIndex < BrokenDraw.EncoderIndex)
-					{
-						BrokenDraw = CurrentDraw;
-                        BrokenContext = i;
-                        bFoundBrokenDraw = true;
-					}
-                    else if(Commands->Num() > 1)
-                    {
-						BrokenDraw.EncoderIndex = 0;
-						BrokenDraw.CommandIndex = 0;
-						BrokenDraw.CmdBuffIndex = CommandBufferIndex;
-						BrokenDraw.ContextIndex = 0;
-                        BrokenContext = i;
-						BrokenDraw.CommandBuffer = (uintptr_t)CompletedBuffer.GetPtr();
-                        BrokenDraw = DebugArray[1];
-                        bFoundBrokenDraw = true;
-                    }
-				}
-			}
-			if (bFoundBrokenDraw)
-			{
-				id<MTLCommandBuffer> Ptr = reinterpret_cast<id<MTLCommandBuffer>>(BrokenDraw.CommandBuffer);
-				UE_LOG(LogAGX, Error, TEXT("GPU last wrote Command Buffer: %u (%llx) Encoder Index: %d Context Index: %d Draw Index: %d PSO: VS: %u_%u, PS: %u_%u."), BrokenDraw.CmdBuffIndex, BrokenDraw.CommandBuffer, BrokenDraw.EncoderIndex, BrokenDraw.ContextIndex, BrokenDraw.CommandIndex, BrokenDraw.PSOSignature[0], BrokenDraw.PSOSignature[1], BrokenDraw.PSOSignature[2], BrokenDraw.PSOSignature[3]);
-			
-				ns::AutoReleased<FAGXBuffer> DebugBuffer = Markers.GetDebugBuffer(BrokenContext);
-				TArray<FAGXCommandDebug>* Commands = Markers.GetCommands(BrokenContext);
-				if (Commands->Num())
-				{
-					UE_LOG(LogAGX, Error, TEXT("Failed executing following commands:"));
-					uint32 StartIdx = BrokenDraw.CommandIndex;
-					for (uint32 CmdIdx = StartIdx; CmdIdx < Commands->Num(); CmdIdx++)
-					{
-						FAGXCommandDebug& Command = (*Commands)[CmdIdx];
-						FString VSHash = Command.PSO->VertexShader->GetHash().ToString();
-						uint32 VSSig[2] = { Command.PSO->VertexShader->SourceLen, Command.PSO->VertexShader->SourceCRC };
-						
-						FString PSHash;
-						uint32 PSSig[2] = { 0, 0 };
-						if (Command.PSO->PixelShader.IsValid())
-						{
-							PSHash = Command.PSO->PixelShader->GetHash().ToString();
-							PSSig[0] = Command.PSO->PixelShader->SourceLen;
-							PSSig[1] = Command.PSO->PixelShader->SourceCRC;
-						}
-						
-						UE_LOG(LogAGX, Error, TEXT("Command Buffer: %d (%p) Encoder: %d Command: %d: %s PSO: VS: %s (%u_%u), PS: %s (%u_%u)"), Command.CmdBufIndex, CompletedBuffer.GetPtr(), Command.Encoder, Command.Index, *Command.Data.ToString(), *VSHash, VSSig[0], VSSig[1], *PSHash, PSSig[0], PSSig[1]);
-					}
-				}
-                if (DebugBuffer)
-                {
-                    uint32 DebugLength = DebugBuffer.GetLength();
-                    uint32 DebugCount = DebugLength / sizeof(FAGXDebugInfo);
-                    check(DebugCount >= 1);
-                    
-                    FAGXDebugInfo* DebugArray = (FAGXDebugInfo*)DebugBuffer.GetContents();
-                    for (uint32 i = 0; i < DebugCount; i++)
-                    {
-                        FAGXDebugInfo& Command = DebugArray[i];
-						
-						// Stop when nothing has been written into the buffer
-						if (Command.CmdBuffIndex == 0 && Command.CommandBuffer == 0 && Command.EncoderIndex == 0 && Command.CommandIndex == 0 && Command.PSOSignature[0] == 0 && Command.PSOSignature[1] == 0 && Command.PSOSignature[2] == 0 && Command.PSOSignature[3] == 0)
-						{
-							break;
-						}
-						
-                        UE_LOG(LogAGX, Error, TEXT("Command Buffer: %d (%p) Debug Buffer: %p Tile: %u Context: %d Encoder: %d Command: %d PSO: VS: %u_%u, PS: %u_%u"), Command.CmdBuffIndex, Command.CommandBuffer, DebugBuffer.GetPtr(), i, Command.ContextIndex, Command.EncoderIndex, Command.CommandIndex, Command.PSOSignature[0], Command.PSOSignature[1], Command.PSOSignature[2], Command.PSOSignature[3]);
-                    }
-                }
-			}
-		}
-		
 #if PLATFORM_IOS
         UE_LOG(LogAGX, Warning, TEXT("Command Buffer %s Failed with %s Error! Error Domain: %s Code: %d Description %s %s %s"), *LabelString, ErrorType, *DomainString, Code, *ErrorString, *FailureString, *RecoveryString);
         FIOSPlatformMisc::GPUAssert();

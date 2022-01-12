@@ -6,7 +6,6 @@
 
 #include "AGXRHIPrivate.h"
 #include "AGXProfiler.h" // for STAT_AGXTexturePageOffTime
-#include "AGXCommandBuffer.h"
 #include "RenderUtils.h"
 #include "Containers/ResourceArray.h"
 #include "Misc/ScopeRWLock.h"
@@ -399,71 +398,12 @@ void FAGXSurface::ReplaceTexture(FAGXContext& Context, FAGXTexture CurrentTextur
 
 void FAGXSurface::MakeAliasable(void)
 {
-	check(!bTextureView);
-	check(ImageSurfaceRef == nullptr);
-	
-	static bool bSupportsHeaps = GetAGXDeviceContext().SupportsFeature(EAGXFeaturesHeaps);
-	if (bSupportsHeaps && Texture.GetStorageMode() == mtlpp::StorageMode::Private && Texture.GetHeap())
-	{
-		if (MSAATexture && (MSAATexture != Texture) && !MSAATexture.IsAliasable())
-		{
-			MSAATexture.MakeAliasable();
-#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-			AGXLLM::LogAliasTexture(MSAATexture);
-#endif
-		}
-		if (!Texture.IsAliasable())
-		{
-			Texture.MakeAliasable();
-#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-			AGXLLM::LogAliasTexture(Texture);
-#endif
-		}
-	}
+	// TODO
 }
 
 void FAGXSurface::MakeUnAliasable(void)
 {
-	check(!bTextureView);
-	check(ImageSurfaceRef == nullptr);
-	
-	static bool bSupportsHeaps = GetAGXDeviceContext().SupportsFeature(EAGXFeaturesHeaps);
-	if (bSupportsHeaps && Texture.GetStorageMode() == mtlpp::StorageMode::Private && Texture.GetHeap() && Texture.IsAliasable())
-	{
-		FAGXTexture OldTexture = Texture;
-		Texture = Reallocate(Texture, mtlpp::TextureUsage::Unknown);
-		AGXSafeReleaseMetalTexture(this, OldTexture);
-		if (MSAATexture && (MSAATexture != OldTexture))
-		{
-			FAGXTexture OldMSAATexture = MSAATexture;
-			MSAATexture = Reallocate(MSAATexture, mtlpp::TextureUsage::Unknown);
-			AGXSafeReleaseMetalTexture(this, OldMSAATexture);
-		}
-		else if(MSAATexture)
-		{
-			MSAATexture = Texture;
-		}
-		
-		for (FAGXShaderResourceView* SRV : SRVs)
-		{
-			if(OldTexture != SRV->TextureView->Texture)
-			{
-				AGXSafeReleaseMetalTexture(this, SRV->TextureView->Texture, true, false);
-			}
-			SRV->TextureView->Texture = nil;
-			
-			SRV->TextureView->MSAATexture = nil;
-			
-			if (SRV->Format == PF_Unknown)
-			{
-				SRV->TextureView->Init(*this, NSMakeRange(SRV->MipLevel, SRV->NumMips));
-			}
-			else
-			{
-				SRV->TextureView->Init(*this, NSMakeRange(SRV->MipLevel, SRV->NumMips), (EPixelFormat)SRV->Format, SRV->bSRGBForceDisable);
-			}
-		}
-	}
+	// TODO
 }
 
 void FAGXSurface::Init(FAGXSurface& Source, NSRange MipRange)

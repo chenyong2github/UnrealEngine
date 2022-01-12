@@ -53,19 +53,6 @@ void AGXSafeReleaseMetalBuffer(FAGXBuffer& Buffer)
 	}
 }
 
-void AGXSafeReleaseMetalFence(FAGXFence* Object)
-{
-	if(GIsAGXInitialized && GDynamicRHI && Object)
-	{
-		FAGXRHICommandContext* Context = static_cast<FAGXRHICommandContext*>(RHIGetDefaultContext());
-		if(Context)
-		{
-			((FAGXDeviceContext&)Context->GetInternalContext()).ReleaseFence(Object);
-			return;
-		}
-	}
-}
-
 FAGXRHICommandContext::FAGXRHICommandContext(class FAGXProfiler* InProfiler, FAGXContext* WrapContext)
 : Context(WrapContext)
 , Profiler(InProfiler)
@@ -86,10 +73,6 @@ FAGXRHICommandContext::~FAGXRHICommandContext()
 FAGXRHIComputeContext::FAGXRHIComputeContext(class FAGXProfiler* InProfiler, FAGXContext* WrapContext)
 : FAGXRHICommandContext(InProfiler, WrapContext)
 {
-	if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesFences) && FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){10, 14, 0}, (uint32[]){12, 0, 0}, (uint32[]){12, 0, 0}))
-	{
-		WrapContext->GetCurrentRenderPass().SetDispatchType(mtlpp::DispatchType::Concurrent);
-	}
 }
 
 FAGXRHIComputeContext::~FAGXRHIComputeContext()

@@ -15,7 +15,6 @@
 
 #include "AGXContext.h"
 #include "AGXProfiler.h"
-#include "AGXCommandBuffer.h"
 
 #include "AGXFrameAllocator.h"
 
@@ -162,6 +161,11 @@ mtlpp::Device GMtlppDevice;
 
 #pragma mark - AGX Device Context Support Routines
 
+
+uint32 AGXSafeGetRuntimeDebuggingLevel()
+{
+	return GIsRHIInitialized ? GetAGXDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() : GAGXRuntimeDebugLevel;
+}
 
 #if PLATFORM_MAC
 static id<NSObject> GAGXDeviceObserver = nil;
@@ -379,11 +383,6 @@ FAGXDeviceContext* FAGXDeviceContext::CreateDeviceContext()
 	FAGXCommandQueue* Queue = new FAGXCommandQueue(GAGXCommandQueueSize);
 	check(Queue);
 	
-	if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesFences))
-	{
-		FAGXFencePool::Get().Init();
-	}
-	
 	return new FAGXDeviceContext(DeviceIndex, Queue);
 }
 
@@ -518,7 +517,7 @@ void FAGXDeviceContext::ClearFreeList()
 				{
 					ScribbleBuffer(Buffer);
 				}
-				if (GAGXResourcePurgeOnDelete && !Buffer.GetHeap() && !Buffer.GetParentBuffer())
+				if (GAGXResourcePurgeOnDelete && !Buffer.GetParentBuffer())
 				{
 					Buffer.SetPurgeableState(mtlpp::PurgeableState::Empty);
 				}
@@ -530,17 +529,13 @@ void FAGXDeviceContext::ClearFreeList()
                 if (!Texture.GetBuffer() && !Texture.GetParentTexture())
 				{
 #if METAL_DEBUG_OPTIONS
-					if (GAGXResourcePurgeOnDelete && !Texture.GetHeap())
+					if (GAGXResourcePurgeOnDelete)
 					{
 						Texture.SetPurgeableState(mtlpp::PurgeableState::Empty);
 					}
 #endif
 					Heap.ReleaseTexture(nullptr, Texture);
 				}
-			}
-			for ( FAGXFence* Fence : Pair->FenceFreeList )
-			{
-				FAGXFencePool::Get().ReleaseFence(Fence);
 			}
 			delete Pair;
 			DelayedFreeLists.RemoveAt(Index, 1, false);
@@ -648,7 +643,7 @@ bool FAGXDeviceContext::FAGXDelayedFreeList::IsComplete() const
 	return bFinished;
 }
 
-void FAGXDeviceContext::FlushFreeList(bool const bFlushFences)
+void FAGXDeviceContext::FlushFreeList()
 {
 	FAGXDelayedFreeList* NewList = new FAGXDelayedFreeList;
 	
@@ -660,25 +655,6 @@ void FAGXDeviceContext::FlushFreeList(bool const bFlushFences)
 	NewList->UsedBuffers = MoveTemp(UsedBuffers);
 	NewList->UsedTextures = MoveTemp(UsedTextures);
 	NewList->ObjectFreeList = ObjectFreeList;
-	if (bFlushFences)
-	{
-		TArray<FAGXFence*> Fences;
-		FenceFreeList.PopAll(Fences);
-		for (FAGXFence* Fence : Fences)
-		{
-			if(!UsedFences.Contains(Fence))
-			{
-				UsedFences.Add(Fence);
-			}
-		}
-		NewList->FenceFreeList = MoveTemp(UsedFences);
-	}
-#if METAL_DEBUG_OPTIONS
-	if (FrameFences.Num())
-	{
-		FrameFences.Empty();
-	}
-#endif
 	ObjectFreeList.Empty(ObjectFreeList.Num());
 	FreeListMutex.Unlock();
 	
@@ -783,28 +759,11 @@ void FAGXDeviceContext::ReleaseTexture(FAGXTexture& Texture)
 	}
 }
 
-void FAGXDeviceContext::ReleaseFence(FAGXFence* Fence)
-{
-#if METAL_DEBUG_OPTIONS
-	if(GetCommandList().GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation)
-	{
-		FScopeLock Lock(&FreeListMutex);
-		FrameFences.Add(Fence);
-	}
-#endif
-	
-	if (GIsAGXInitialized) // @todo zebra: there seems to be some race condition at exit when the framerate is very low
-	{
-		check(Fence);
-		FenceFreeList.Push(Fence);
-	}
-}
-
 FAGXTexture FAGXDeviceContext::CreateTexture(FAGXSurface* Surface, mtlpp::TextureDescriptor Descriptor)
 {
 	FAGXTexture Tex = Heap.CreateTexture(Descriptor, Surface);
 #if METAL_DEBUG_OPTIONS
-	if (GAGXResourcePurgeOnDelete && !Tex.GetHeap())
+	if (GAGXResourcePurgeOnDelete)
 	{
 		Tex.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
 	}
@@ -829,7 +788,7 @@ FAGXBuffer FAGXDeviceContext::CreatePooledBuffer(FAGXPooledBufferArgs const& Arg
     FAGXBuffer Buffer = Heap.CreateBuffer(Args.Size, RequestedBufferOffsetAlignment, Args.Flags, FAGXCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(CpuResourceOption | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
 	check(Buffer && Buffer.GetPtr());
 #if METAL_DEBUG_OPTIONS
-	if (GAGXResourcePurgeOnDelete && !Buffer.GetHeap())
+	if (GAGXResourcePurgeOnDelete)
 	{
 		Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
 	}
@@ -854,18 +813,15 @@ void FAGXDeviceContext::ReleaseBuffer(FAGXBuffer& Buffer)
 
 struct FAGXRHICommandUpdateFence final : public FRHICommand<FAGXRHICommandUpdateFence>
 {
-	TRefCountPtr<FAGXFence> Fence;
 	uint32 Num;
 	
-	FORCEINLINE_DEBUGGABLE FAGXRHICommandUpdateFence(TRefCountPtr<FAGXFence>& InFence, uint32 InNum)
-	: Fence(InFence)
-	, Num(InNum)
+	FORCEINLINE_DEBUGGABLE FAGXRHICommandUpdateFence(uint32 InNum)
+	: Num(InNum)
 	{
 	}
 	
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		GetAGXDeviceContext().SetParallelPassFences(nil, Fence);
 		GetAGXDeviceContext().FinishFrame(true);
 		GetAGXDeviceContext().BeginParallelRenderCommandEncoding(Num);
 	}
@@ -886,11 +842,6 @@ FAGXRHICommandContext* FAGXDeviceContext::AcquireContext(int32 NewIndex, int32 N
 	}
 	check(Context);
 	
-	if(ParallelFences.Num() < NewNum)
-	{
-		ParallelFences.AddDefaulted(NewNum - ParallelFences.Num());
-	}
-	
 	NSString* StartLabel = nil;
 	NSString* EndLabel = nil;
 #if METAL_DEBUG_OPTIONS
@@ -898,23 +849,16 @@ FAGXRHICommandContext* FAGXDeviceContext::AcquireContext(int32 NewIndex, int32 N
 	EndLabel = [NSString stringWithFormat:@"End Parallel Context Index %d Num %d", NewIndex, NewNum];
 #endif
 	
-	TRefCountPtr<FAGXFence> StartFence = (NewIndex == 0 ? CommandList.GetCommandQueue().CreateFence(StartLabel) : ParallelFences[NewIndex - 1].GetReference());
-	TRefCountPtr<FAGXFence> EndFence = CommandList.GetCommandQueue().CreateFence(EndLabel);
-	ParallelFences[NewIndex] = EndFence;
-	
-	// Give the context the fences so that we can properly order the parallel contexts.
-	Context->GetInternalContext().SetParallelPassFences(StartFence, EndFence);
-	
 	if (NewIndex == 0)
 	{
 		if (FRHICommandListExecutor::GetImmediateCommandList().Bypass() || !IsRunningRHIInSeparateThread())
 		{
-			FAGXRHICommandUpdateFence UpdateCommand(StartFence, NewNum);
+			FAGXRHICommandUpdateFence UpdateCommand(NewNum);
 			UpdateCommand.Execute(FRHICommandListExecutor::GetImmediateCommandList());
 		}
 		else
 		{
-			new (FRHICommandListExecutor::GetImmediateCommandList().AllocCommand<FAGXRHICommandUpdateFence>()) FAGXRHICommandUpdateFence(StartFence, NewNum);
+			new (FRHICommandListExecutor::GetImmediateCommandList().AllocCommand<FAGXRHICommandUpdateFence>()) FAGXRHICommandUpdateFence(NewNum);
 			FRHICommandListExecutor::GetImmediateCommandList().RHIThreadFence(true);
 			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 		}
@@ -1018,14 +962,12 @@ bool FAGXDeviceContext::ValidateIsInactiveBuffer(FAGXBuffer const& Buffer)
 uint32 FAGXContext::CurrentContextTLSSlot = FPlatformTLS::AllocTlsSlot();
 #endif
 
-FAGXContext::FAGXContext(FAGXCommandQueue& Queue, bool const bIsImmediate)
+FAGXContext::FAGXContext(FAGXCommandQueue& Queue, bool bIsImmediate)
 : CommandQueue(Queue)
 , CommandList(Queue, bIsImmediate)
 , StateCache(bIsImmediate)
 , RenderPass(CommandList, StateCache)
 , QueryBuffer(new FAGXQueryBufferPool(this))
-, StartFence(nil)
-, EndFence(nil)
 , NumParallelContextsInPass(0)
 {
 	// create a semaphore for multi-buffering the command buffer
@@ -1089,24 +1031,7 @@ void FAGXContext::MakeCurrent(FAGXContext* Context)
 }
 #endif
 
-void FAGXContext::SetParallelPassFences(FAGXFence* Start, FAGXFence* End)
-{
-	check(!StartFence && !EndFence);
-	StartFence = Start;
-	EndFence = End;
-}
-
-TRefCountPtr<FAGXFence> const& FAGXContext::GetParallelPassStartFence(void) const
-{
-	return StartFence;
-}
-
-TRefCountPtr<FAGXFence> const& FAGXContext::GetParallelPassEndFence(void) const
-{
-	return EndFence;
-}
-
-void FAGXContext::InitFrame(bool const bImmediateContext, uint32 Index, uint32 Num)
+void FAGXContext::InitFrame(bool bImmediateContext, uint32 Index, uint32 Num)
 {
 #if ENABLE_METAL_GPUPROFILE
 	FPlatformTLS::SetTlsValue(CurrentContextTLSSlot, this);
@@ -1129,23 +1054,14 @@ void FAGXContext::InitFrame(bool const bImmediateContext, uint32 Index, uint32 N
 	RenderPass.ShrinkRingBuffers();
 	
 	// Begin the render pass frame.
-	RenderPass.Begin(StartFence);
-	
-	// Unset the start fence, the render-pass owns it and we can consider it encoded now!
-	StartFence = nullptr;
+	RenderPass.Begin();
 	
 	// make sure first SetRenderTarget goes through
 	StateCache.InvalidateRenderTargets();
 }
 
-void FAGXContext::FinishFrame(bool const bImmediateContext)
+void FAGXContext::FinishFrame(bool bImmediateContext)
 {
-	// Ensure that we update the end fence for parallel contexts.
-	RenderPass.Update(EndFence);
-	
-	// Unset the end fence, the render-pass owns it and we can consider it encoded now!
-	EndFence = nullptr;
-	
 	// End the render pass
 	RenderPass.End();
 	
@@ -1402,7 +1318,7 @@ bool FAGXContext::PrepareToDraw(uint32 PrimitiveType)
 	return true;
 }
 
-void FAGXContext::SetRenderPassInfo(const FRHIRenderPassInfo& RenderTargetsInfo, bool const bRestart)
+void FAGXContext::SetRenderPassInfo(const FRHIRenderPassInfo& RenderTargetsInfo, bool bRestart)
 {
 	if (CommandList.IsParallel())
 	{
@@ -1611,7 +1527,7 @@ void FAGXContext::AsyncGenerateMipmapsForTexture(FAGXTexture const& Texture)
 	RenderPass.AsyncGenerateMipmapsForTexture(Texture);
 }
 
-void FAGXContext::SubmitAsyncCommands(mtlpp::CommandBufferHandler ScheduledHandler, mtlpp::CommandBufferHandler CompletionHandler, bool const bWait)
+void FAGXContext::SubmitAsyncCommands(mtlpp::CommandBufferHandler ScheduledHandler, mtlpp::CommandBufferHandler CompletionHandler, bool bWait)
 {
 	RenderPass.AddAsyncCommandBufferHandlers(ScheduledHandler, CompletionHandler);
 	if (bWait)
@@ -1701,8 +1617,7 @@ void FAGXDeviceContext::SetParallelRenderPassDescriptor(FRHIRenderPassInfo const
 
 	if (!RenderPass.IsWithinParallelPass())
 	{
-		RenderPass.Begin(EndFence);
-		EndFence = nullptr;
+		RenderPass.Begin();
 		StateCache.InvalidateRenderTargets();
 		SetRenderPassInfo(TargetInfo, false);
 	}
@@ -1724,8 +1639,7 @@ void FAGXDeviceContext::EndParallelRenderCommandEncoding(void)
 	if (FPlatformAtomics::InterlockedDecrement(&ActiveParallelContexts) == 0)
 	{
 		RenderPass.EndRenderPass();
-		RenderPass.Begin(StartFence, true);
-		StartFence = nullptr;
+		RenderPass.Begin(true);
 		FPlatformAtomics::AtomicStore(&NumParallelContextsInPass, 0);
 	}
 }
@@ -1775,12 +1689,6 @@ public:
 		{
 			check(Index == NewIndex && Num == NewNum);
 			
-			if (Index == (Num - 1))
-			{
-				TRefCountPtr<FAGXFence> Fence = CmdContext->GetInternalContext().GetParallelPassEndFence();
-				GetAGXDeviceContext().SetParallelPassFences(Fence, nil);
-			}
-
 			CmdContext->GetInternalContext().FinishFrame(false);
 			GetAGXDeviceContext().EndParallelRenderCommandEncoding();
 

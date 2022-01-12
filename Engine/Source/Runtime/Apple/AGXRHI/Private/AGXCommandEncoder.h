@@ -4,11 +4,6 @@
 
 #include <Metal/Metal.h>
 #include "AGXBuffer.h"
-#include "AGXDebugCommandEncoder.h"
-#include "AGXBlitCommandEncoder.h"
-#include "AGXComputeCommandEncoder.h"
-#include "AGXRenderCommandEncoder.h"
-#include "AGXFence.h"
 #include "AGXProfiler.h"
 #include "command_buffer.hpp"
 
@@ -38,67 +33,6 @@ enum EAGXSubmitFlags
 	EAGXSubmitFlagsForce = 1 << 5,
 	/** Indicates this is the final command buffer in a frame. */
 	EAGXSubmitFlagsLastCommandBuffer = 1 << 6,
-};
-
-@class FAGXCommandBufferDebug;
-
-struct FAGXCommandData
-{
-	enum class Type
-	{
-		DrawPrimitive,
-		DrawPrimitiveIndexed,
-		DrawPrimitivePatch,
-		DrawPrimitiveIndirect,
-		DrawPrimitiveIndexedIndirect,
-		Dispatch,
-		DispatchIndirect,
-		Num,
-	};
-	struct DispatchIndirectArgs
-	{
-		id ArgumentBuffer;
-		NSUInteger ArgumentOffset;
-	};
-	Type CommandType;
-	union
-	{
-		mtlpp::DrawPrimitivesIndirectArguments Draw;
-		mtlpp::DrawIndexedPrimitivesIndirectArguments DrawIndexed;
-		mtlpp::DrawPatchIndirectArguments DrawPatch;
-		MTLDispatchThreadgroupsIndirectArguments Dispatch;
-		DispatchIndirectArgs DispatchIndirect;
-	};
-	FString ToString() const;
-};
-
-struct FAGXCommandDebug
-{
-    uint32 CmdBufIndex;
-	uint32 Encoder;
-	uint32 Index;
-	FAGXGraphicsPipelineState* PSO;
-	FAGXComputeShader* ComputeShader;
-	FAGXCommandData Data;
-};
-
-class FAGXCommandBufferMarkers : public ns::Object<FAGXCommandBufferDebug*, ns::CallingConvention::ObjectiveC>
-{
-public:
-	FAGXCommandBufferMarkers(void);
-	FAGXCommandBufferMarkers(mtlpp::CommandBuffer& CmdBuf);
-	FAGXCommandBufferMarkers(FAGXCommandBufferDebug* CmdBuf);
-	
-	void AllocateContexts(uint32 NumContexts);
-	uint32 AddCommand(uint32 CmdBufIndex, uint32 Encoder, uint32 ContextIndex, FAGXBuffer& DebugBuffer, FAGXGraphicsPipelineState* PSO, FAGXComputeShader* ComputeShader, FAGXCommandData& Data);
-	TArray<FAGXCommandDebug>* GetCommands(uint32 Context);
-	ns::AutoReleased<FAGXBuffer> GetDebugBuffer(uint32 ContextIndex);
-	uint32 NumContexts() const;
-	uint32 GetIndex() const;
-	
-	static FAGXCommandBufferMarkers Get(mtlpp::CommandBuffer const& CmdBuf);
-	
-	static char const* kTableAssociationKey;
 };
 
 /**
@@ -208,9 +142,6 @@ public:
 	/** @returns The active blit command encoder or nil if there isn't one. */
 	mtlpp::BlitCommandEncoder& GetBlitCommandEncoder(void);
 	
-	/** @returns The MTLFence for the current encoder or nil if there isn't one. */
-	TRefCountPtr<FAGXFence> const& GetEncoderFence(void) const;
-	
 	/** @returns The number of encoded passes in the command buffer. */
 	uint32 NumEncodedPasses(void) const { return EncoderNum; }
 	
@@ -234,7 +165,7 @@ public:
 	void BeginBlitCommandEncoding(void);
 	
 	/** Declare that all command generation from this encoder is complete, and detach from the MTLCommandBuffer if there is an encoder active or does nothing if there isn't. */
-	TRefCountPtr<FAGXFence> EndEncoding(void);
+	void EndEncoding(void);
 	
 	/** Initialises a fence for the current command-buffer optionally adding a command-buffer completion handler to the command-buffer */
 	void InsertCommandBufferFence(FAGXCommandBufferFence& Fence, mtlpp::CommandBufferHandler Handler);
@@ -242,18 +173,6 @@ public:
 	/** Adds a command-buffer completion handler to the command-buffer */
 	void AddCompletionHandler(mtlpp::CommandBufferHandler Handler);
 	
-	/** Update the event to capture all GPU work so far enqueued by this encoder. */
-	void UpdateFence(FAGXFence* Fence);
-	
-	/** Prevent further GPU work until the event is reached. */
-	void WaitForFence(FAGXFence* Fence);
-	
-	/**
-	 * Prevent further GPU work until the event is reached and then kick the fence again so future encoders may wait on it.
-	 * Unlike the functions above this is not guarded and the caller must ensure proper matching waits & updates.
-	 */
-	void WaitAndUpdateFence(FAGXFence* Fence);
-
 #pragma mark - Public Debug Support -
 	
 	/*
@@ -271,31 +190,11 @@ public:
 	/* Pop the latest named string off of the stack. */
 	void PopDebugGroup(void);
 	
-	/** Returns the object that records debug command markers into the command-buffer. */
-	FAGXCommandBufferMarkers& GetMarkers(void);
-	
 #if ENABLE_METAL_GPUPROFILE
 	/* Get the command-buffer stats object. */
 	FAGXCommandBufferStats* GetCommandBufferStats(void);
 #endif
 
-#if MTLPP_CONFIG_VALIDATE && METAL_DEBUG_OPTIONS
-	/** @returns The active render command encoder or nil if there isn't one. */
-	FAGXCommandBufferDebugging& GetCommandBufferDebugging(void) { return CommandBufferDebug; } 
-	
-	/** @returns The active render command encoder or nil if there isn't one. */
-	FAGXRenderCommandEncoderDebugging& GetRenderCommandEncoderDebugging(void) { return RenderEncoderDebug; } 
-	
-	/** @returns The active compute command encoder or nil if there isn't one. */
-	FAGXComputeCommandEncoderDebugging& GetComputeCommandEncoderDebugging(void) { return ComputeEncoderDebug; }
-	
-	/** @returns The active blit command encoder or nil if there isn't one. */
-	FAGXBlitCommandEncoderDebugging& GetBlitCommandEncoderDebugging(void) { return BlitEncoderDebug; }
-	
-	/** @returns The active blit command encoder or nil if there isn't one. */
-	FAGXParallelRenderCommandEncoderDebugging& GetParallelRenderCommandEncoderDebugging(void) { return ParallelEncoderDebug; }
-#endif
-	
 #pragma mark - Public Render State Mutators -
 
 	/**
@@ -443,20 +342,6 @@ public:
 	 */
 	void SetShaderSideTable(mtlpp::FunctionType const FunctionType, NSUInteger const Index);
 	
-    /*
-     * Inform the driver that an indirect argument resource will be used and what the usage mode will be.
-     * @param Texture The texture that will be used as an indirect argument.
-     * @param Usage The usage mode for the texture.
-     */
-	void UseIndirectArgumentResource(FAGXTexture const& Texture, mtlpp::ResourceUsage const Usage);
-    
-    /*
-     * Inform the driver that an indirect argument resource will be used and what the usage mode will be.
-     * @param Buffer The buffer that will be used as an indirect argument.
-     * @param Usage The usage mode for the texture.
-     */
-	void UseIndirectArgumentResource(FAGXBuffer const& Buffer, mtlpp::ResourceUsage const Usage);
-
 	/*
 	 * Transition resource so that we can barrier fragment->vertex stages.
 	 * @param Resource The resource we are going to make readable having been written.
@@ -503,8 +388,6 @@ private:
 	
 	void FenceResource(mtlpp::Texture const& Resource);
 	void FenceResource(mtlpp::Buffer const& Resource);
-
-	void UseResource(mtlpp::Resource const& Resource, mtlpp::ResourceUsage const Usage);
 	
 #pragma mark - Private Type Declarations -
 private:
@@ -573,21 +456,9 @@ public:
 	mtlpp::ComputeCommandEncoder ComputeCommandEncoder;
 	mtlpp::BlitCommandEncoder BlitCommandEncoder;
 	TArray<mtlpp::RenderCommandEncoder> ChildRenderCommandEncoders;
-	FAGXCommandBufferMarkers CommandBufferMarkers;
 	
-	METAL_DEBUG_ONLY(FAGXCommandBufferDebugging CommandBufferDebug);
-	METAL_DEBUG_ONLY(FAGXRenderCommandEncoderDebugging RenderEncoderDebug);
-	METAL_DEBUG_ONLY(FAGXComputeCommandEncoderDebugging ComputeEncoderDebug);
-	METAL_DEBUG_ONLY(FAGXBlitCommandEncoderDebugging BlitEncoderDebug);
-	METAL_DEBUG_ONLY(FAGXParallelRenderCommandEncoderDebugging ParallelEncoderDebug);
-	
-	TRefCountPtr<FAGXFence> EncoderFence;
 #if ENABLE_METAL_GPUPROFILE
 	FAGXCommandBufferStats* CommandBufferStats;
-#endif
-#if METAL_DEBUG_OPTIONS
-	uint8 WaitCount;
-	uint8 UpdateCount;
 #endif
 
 	TArray<ns::Object<mtlpp::CommandBufferHandler>> CompletionHandlers;
@@ -600,12 +471,6 @@ public:
 	
 	TMap<mtlpp::Resource::Type, mtlpp::ResourceUsage> ResourceUsage;
 	
-	TSet<mtlpp::Resource::Type> TransitionedResources;
-	TSet<mtlpp::Resource::Type> FenceResources;
-	
-	TSet<TRefCountPtr<FAGXFence>> FragmentFences;
-	
-	mtlpp::RenderStages FenceStage;
 	uint32 EncoderNum;
 	uint32 CmdBufIndex;
 	EAGXCommandEncoderType Type;

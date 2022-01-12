@@ -9,9 +9,6 @@
 #include "AGXGraphicsPipelineState.h"
 #include "AGXCommandBufferFence.h"
 #include "AGXCommandEncoder.h"
-#include "AGXCommandBuffer.h"
-#include "AGXComputeCommandEncoder.h"
-#include "AGXRenderCommandEncoder.h"
 #include "AGXProfiler.h"
 #include "MetalShaderResources.h"
 
@@ -21,194 +18,6 @@ const uint32 EncoderRingBufferSize = 1024 * 1024;
 extern int32 GAGXBufferScribble;
 #endif
 
-static TCHAR const* const GAGXCommandDataTypeName[] = {
-	TEXT("DrawPrimitive"),
-	TEXT("DrawPrimitiveIndexed"),
-	TEXT("DrawPrimitivePatch"),
-	TEXT("DrawPrimitiveIndirect"),
-	TEXT("DrawPrimitiveIndexedIndirect"),
-	TEXT("Dispatch"),
-	TEXT("DispatchIndirect"),
-};
-
-
-FString FAGXCommandData::ToString() const
-{
-	FString Result;
-	if ((uint32)CommandType < (uint32)FAGXCommandData::Type::Num)
-	{
-		Result = GAGXCommandDataTypeName[(uint32)CommandType];
-		switch(CommandType)
-		{
-			case FAGXCommandData::Type::DrawPrimitive:
-				Result += FString::Printf(TEXT(" BaseInstance: %u InstanceCount: %u VertexCount: %u VertexStart: %u"), Draw.BaseInstance, Draw.InstanceCount, Draw.VertexCount, Draw.VertexStart);
-				break;
-			case FAGXCommandData::Type::DrawPrimitiveIndexed:
-				Result += FString::Printf(TEXT(" BaseInstance: %u BaseVertex: %u IndexCount: %u IndexStart: %u InstanceCount: %u"), DrawIndexed.BaseInstance, DrawIndexed.BaseVertex, DrawIndexed.IndexCount, DrawIndexed.IndexStart, DrawIndexed.InstanceCount);
-				break;
-			case FAGXCommandData::Type::DrawPrimitivePatch:
-				Result += FString::Printf(TEXT(" BaseInstance: %u InstanceCount: %u PatchCount: %u PatchStart: %u"), DrawPatch.BaseInstance, DrawPatch.InstanceCount, DrawPatch.PatchCount, DrawPatch.PatchStart);
-				break;
-			case FAGXCommandData::Type::Dispatch:
-				Result += FString::Printf(TEXT(" X: %u Y: %u Z: %u"), (uint32)Dispatch.threadgroupsPerGrid[0], (uint32)Dispatch.threadgroupsPerGrid[1], (uint32)Dispatch.threadgroupsPerGrid[2]);
-				break;
-			case FAGXCommandData::Type::DispatchIndirect:
-				Result += FString::Printf(TEXT(" Buffer: %p Offset: %u"), (void*)DispatchIndirect.ArgumentBuffer, (uint32)DispatchIndirect.ArgumentOffset);
-				break;
-			case FAGXCommandData::Type::DrawPrimitiveIndirect:
-			case FAGXCommandData::Type::DrawPrimitiveIndexedIndirect:
-			case FAGXCommandData::Type::Num:
-			default:
-				break;
-		}
-	}
-	return Result;
-};
-
-struct FAGXCommandContextDebug
-{
-	TArray<FAGXCommandDebug> Commands;
-	TSet<TRefCountPtr<FAGXGraphicsPipelineState>> PSOs;
-	TSet<TRefCountPtr<FAGXComputeShader>> ComputeShaders;
-	FAGXBuffer DebugBuffer;
-};
-
-@interface FAGXCommandBufferDebug : FApplePlatformObject
-{
-	@public
-	TArray<FAGXCommandContextDebug> Contexts;
-	uint32 Index;
-}
-@end
-@implementation FAGXCommandBufferDebug
-APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FAGXCommandBufferDebug)
-- (instancetype)init
-{
-	id Self = [super init];
-	if (Self)
-	{
-		Index = ~0u;
-	}
-	return Self;
-}
-- (void)dealloc
-{
-	Contexts.Empty();
-	[super dealloc];
-}
-@end
-
-char const* FAGXCommandBufferMarkers::kTableAssociationKey = "FAGXCommandBufferMarkers::kTableAssociationKey";
-
-FAGXCommandBufferMarkers::FAGXCommandBufferMarkers(void)
-: ns::Object<FAGXCommandBufferDebug*, ns::CallingConvention::ObjectiveC>(nil)
-{
-	
-}
-
-FAGXCommandBufferMarkers::FAGXCommandBufferMarkers(mtlpp::CommandBuffer& CmdBuf)
-: ns::Object<FAGXCommandBufferDebug*, ns::CallingConvention::ObjectiveC>([FAGXCommandBufferDebug new], ns::Ownership::Assign)
-{
-	CmdBuf.SetAssociatedObject<FAGXCommandBufferMarkers>(FAGXCommandBufferMarkers::kTableAssociationKey, *this);
-	m_ptr->Contexts.SetNum(1);
-}
-
-
-FAGXCommandBufferMarkers::FAGXCommandBufferMarkers(FAGXCommandBufferDebug* CmdBuf)
-: ns::Object<FAGXCommandBufferDebug*, ns::CallingConvention::ObjectiveC>(CmdBuf)
-{
-	
-}
-
-void FAGXCommandBufferMarkers::AllocateContexts(uint32 NumContexts)
-{
-	if (m_ptr && m_ptr->Contexts.Num() < NumContexts)
-	{
-		m_ptr->Contexts.SetNum(NumContexts);
-	}
-}
-
-uint32 FAGXCommandBufferMarkers::AddCommand(uint32 CmdBufIndex, uint32 Encoder, uint32 ContextIndex, FAGXBuffer& DebugBuffer, FAGXGraphicsPipelineState* PSO, FAGXComputeShader* ComputeShader, FAGXCommandData& Data)
-{
-	uint32 Num = 0;
-	if (m_ptr)
-	{
-		if (m_ptr->Index == ~0u)
-		{
-			m_ptr->Index = CmdBufIndex;
-		}
-		
-		FAGXCommandContextDebug& Context = m_ptr->Contexts[ContextIndex];
-		if (Context.DebugBuffer != DebugBuffer)
-		{
-			Context.DebugBuffer = DebugBuffer;
-		}
-		
-		if (PSO)
-			Context.PSOs.Add(PSO);
-		if (ComputeShader)
-			Context.ComputeShaders.Add(ComputeShader);
-		
-		Num = Context.Commands.Num();
-		FAGXCommandDebug Command;
-        Command.CmdBufIndex = CmdBufIndex;
-		Command.Encoder = Encoder;
-		Command.Index = Num;
-		Command.PSO = PSO;
-		Command.ComputeShader = ComputeShader;
-		Command.Data = Data;
-		Context.Commands.Add(Command);
-	}
-	return Num;
-}
-
-TArray<FAGXCommandDebug>* FAGXCommandBufferMarkers::GetCommands(uint32 ContextIndex)
-{
-	TArray<FAGXCommandDebug>* Result = nullptr;
-	if (m_ptr)
-	{
-		FAGXCommandContextDebug& Context = m_ptr->Contexts[ContextIndex];
-		Result = &Context.Commands;
-	}
-	return Result;
-}
-
-ns::AutoReleased<FAGXBuffer> FAGXCommandBufferMarkers::GetDebugBuffer(uint32 ContextIndex)
-{
-	ns::AutoReleased<FAGXBuffer> Buffer;
-	if (m_ptr)
-	{
-		FAGXCommandContextDebug& Context = m_ptr->Contexts[ContextIndex];
-		Buffer = Context.DebugBuffer;
-	}
-	return Buffer;
-}
-
-uint32 FAGXCommandBufferMarkers::NumContexts() const
-{
-	uint32 Num = 0;
-	if (m_ptr)
-	{
-		Num = m_ptr->Contexts.Num();
-	}
-	return Num;
-}
-
-uint32 FAGXCommandBufferMarkers::GetIndex() const
-{
-	uint32 Num = 0;
-	if (m_ptr)
-	{
-		Num = m_ptr->Index;
-	}
-	return Num;
-}
-
-FAGXCommandBufferMarkers FAGXCommandBufferMarkers::Get(mtlpp::CommandBuffer const& CmdBuf)
-{
-	return CmdBuf.GetAssociatedObject<FAGXCommandBufferMarkers>(FAGXCommandBufferMarkers::kTableAssociationKey);
-}
-
 #pragma mark - Public C++ Boilerplate -
 
 FAGXCommandEncoder::FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEncoderType InType)
@@ -216,16 +25,10 @@ FAGXCommandEncoder::FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEnco
 , bSupportsMetalFeaturesSetBytes(CmdList.GetCommandQueue().SupportsFeature(EAGXFeaturesSetBytes))
 , RingBuffer(EncoderRingBufferSize, BufferOffsetAlignment, FAGXCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::HazardTrackingModeUntracked | BUFFER_RESOURCE_STORAGE_MANAGED)))
 , RenderPassDesc(nil)
-, EncoderFence(nil)
 #if ENABLE_METAL_GPUPROFILE
 , CommandBufferStats(nullptr)
 #endif
-#if METAL_DEBUG_OPTIONS
-, WaitCount(0)
-, UpdateCount(0)
-#endif
 , DebugGroups([NSMutableArray new])
-, FenceStage(mtlpp::RenderStages::Fragment)
 , EncoderNum(0)
 , CmdBufIndex(0)
 , Type(InType)
@@ -379,12 +182,6 @@ void FAGXCommandEncoder::StartCommandBuffer(void)
 	{
 		CmdBufIndex++;
 		CommandBuffer = CommandList.GetCommandQueue().CreateCommandBuffer();
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, CommandBufferDebug = FAGXCommandBufferDebugging::Get(CommandBuffer));
-		
-		if (GAGXCommandBufferDebuggingEnabled)
-		{
-			CommandBufferMarkers = FAGXCommandBufferMarkers(CommandBuffer);
-		}
 		
 		if ([DebugGroups count] > 0)
 		{
@@ -539,11 +336,6 @@ mtlpp::BlitCommandEncoder& FAGXCommandEncoder::GetBlitCommandEncoder(void)
 	return BlitCommandEncoder;
 }
 
-TRefCountPtr<FAGXFence> const& FAGXCommandEncoder::GetEncoderFence(void) const
-{
-	return EncoderFence;
-}
-	
 #pragma mark - Public Command Encoder Mutators -
 
 void FAGXCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren)
@@ -553,14 +345,10 @@ void FAGXCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren)
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
 	
-	FenceResources.Append(TransitionedResources);
-	
 	ParallelRenderCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, ParallelRenderCommandEncoder(RenderPassDesc));
-	METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ParallelEncoderDebug = FAGXParallelRenderCommandEncoderDebugging(ParallelRenderCommandEncoder, RenderPassDesc, CommandBufferDebug));
 	
 	EncoderNum++;
 	
-	check(!EncoderFence);
 	NSString* Label = nil;
 	
 	if(GetEmitDrawEvents())
@@ -573,7 +361,6 @@ void FAGXCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren)
 			for (NSString* Group in DebugGroups)
 			{
 				ParallelRenderCommandEncoder.PushDebugGroup(Group);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.PushDebugGroup(Group));
 			}
 		}
 	}
@@ -582,7 +369,6 @@ void FAGXCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren)
 	{
 		mtlpp::RenderCommandEncoder CommandEncoder = MTLPP_VALIDATE(mtlpp::ParallelRenderCommandEncoder, ParallelRenderCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, GetRenderCommandEncoder());
 		ChildRenderCommandEncoders.Add(CommandEncoder);
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ParallelEncoderDebug.GetRenderCommandEncoderDebugger(CommandEncoder));
 	}
 }
 
@@ -592,21 +378,16 @@ void FAGXCommandEncoder::BeginRenderCommandEncoding(void)
 	check(CommandList.IsParallel() || CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
 	
-	FenceResources.Append(TransitionedResources);
-	
 	if (!CommandList.IsParallel() || Type == EAGXCommandEncoderPrologue)
 	{
 		RenderCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, RenderCommandEncoder(RenderPassDesc));
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug = FAGXRenderCommandEncoderDebugging(RenderCommandEncoder, RenderPassDesc, CommandBufferDebug));
 		EncoderNum++;	
 	}
 	else
 	{
 		RenderCommandEncoder = GetAGXDeviceContext().GetParallelRenderCommandEncoder(CommandList.GetParallelIndex(), ParallelRenderCommandEncoder, CommandBuffer);
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug = FAGXRenderCommandEncoderDebugging::Get(RenderCommandEncoder));
 	}
 	
-	check(!EncoderFence);
 	NSString* Label = nil;
 	
 	if(GetEmitDrawEvents())
@@ -619,14 +400,8 @@ void FAGXCommandEncoder::BeginRenderCommandEncoding(void)
 			for (NSString* Group in DebugGroups)
 			{
 				RenderCommandEncoder.PushDebugGroup(Group);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.PushDebugGroup(Group));
 			}
 		}
-	}
-	
-	if (CommandList.IsImmediate())
-	{
-		EncoderFence = CommandList.GetCommandQueue().CreateFence(Label);
 	}
 }
 
@@ -634,9 +409,6 @@ void FAGXCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Dispatc
 {
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
-	
-	FenceResources.Append(TransitionedResources);
-	TransitionedResources.Empty();
 	
 	if (DispatchType == mtlpp::DispatchType::Serial)
 	{
@@ -646,11 +418,9 @@ void FAGXCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Dispatc
 	{
 		ComputeCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, ComputeCommandEncoder(DispatchType));
 	}
-	METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug = FAGXComputeCommandEncoderDebugging(ComputeCommandEncoder, CommandBufferDebug));
 
 	EncoderNum++;
 	
-	check(!EncoderFence);
 	NSString* Label = nil;
 	
 	if(GetEmitDrawEvents())
@@ -663,12 +433,9 @@ void FAGXCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Dispatc
 			for (NSString* Group in DebugGroups)
 			{
 				ComputeCommandEncoder.PushDebugGroup(Group);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.PushDebugGroup(Group));
 			}
 		}
 	}
-	
-	EncoderFence = CommandList.GetCommandQueue().CreateFence(Label);
 }
 
 void FAGXCommandEncoder::BeginBlitCommandEncoding(void)
@@ -676,15 +443,10 @@ void FAGXCommandEncoder::BeginBlitCommandEncoding(void)
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
 	
-	FenceResources.Append(TransitionedResources);
-	TransitionedResources.Empty();
-	
 	BlitCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, BlitCommandEncoder());
-	METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug = FAGXBlitCommandEncoderDebugging(BlitCommandEncoder, CommandBufferDebug));
 	
 	EncoderNum++;
 	
-	check(!EncoderFence);
 	NSString* Label = nil;
 	
 	if(GetEmitDrawEvents())
@@ -697,25 +459,19 @@ void FAGXCommandEncoder::BeginBlitCommandEncoding(void)
 			for (NSString* Group in DebugGroups)
 			{
 				BlitCommandEncoder.PushDebugGroup(Group);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.PushDebugGroup(Group));
 			}
 		}
 	}
-	
-	EncoderFence = CommandList.GetCommandQueue().CreateFence(Label);
 }
 
-TRefCountPtr<FAGXFence> FAGXCommandEncoder::EndEncoding(void)
+void FAGXCommandEncoder::EndEncoding(void)
 {
-	static bool bSupportsFences = CommandList.GetCommandQueue().SupportsFeature(EAGXFeaturesFences);
-	TRefCountPtr<FAGXFence> Fence = nullptr;
 	@autoreleasepool
 	{
 		if(IsRenderCommandEncoderActive())
 		{
 			if (RenderCommandEncoder)
 			{
-				check(!bSupportsFences || EncoderFence || !CommandList.IsImmediate());
 				if (ParallelRenderCommandEncoder.GetPtr() == nil)
 				{
 					check(RenderPassDesc);
@@ -744,52 +500,15 @@ TRefCountPtr<FAGXFence> FAGXCommandEncoder::EndEncoding(void)
 					}
 				}
 				
-				for (FAGXFence* FragFence : FragmentFences)
-				{
-					if (FragFence->NeedsWait(mtlpp::RenderStages::Fragment))
-					{
-						mtlpp::Fence FragmentFence = FragFence->Get(mtlpp::RenderStages::Fragment);
-						mtlpp::Fence FragInnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)FragmentFence.GetPtr()).Inner) :) FragmentFence;
-						
-						RenderCommandEncoder.WaitForFence(FragInnerFence, FenceStage);
-						METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddWaitFence(FragmentFence));
-						FragFence->Wait(mtlpp::RenderStages::Fragment);
-					}
-				}
-				FragmentFences.Empty();
-				
-				if (FenceStage == mtlpp::RenderStages::Vertex)
-				{
-					FenceResources.Empty();
-					FenceStage = mtlpp::RenderStages::Fragment;
-				}
-				
-				if (EncoderFence && EncoderFence->NeedsWrite(mtlpp::RenderStages::Fragment))
-				{
-					Fence = EncoderFence;
-				}
-				UpdateFence(EncoderFence);
-				
-#if METAL_DEBUG_OPTIONS
-				if (bSupportsFences && AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelFastValidation && (!WaitCount || !UpdateCount))
-				{
-					UE_LOG(LogAGX, Error, TEXT("%s has incorrect fence waits (%u) vs. updates (%u)."), *FString(RenderCommandEncoder.GetLabel()), WaitCount, UpdateCount);
-					
-				}
-				WaitCount = 0;
-				UpdateCount = 0;
-#endif
 				RenderCommandEncoder.EndEncoding();
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.EndEncoder());
 				RenderCommandEncoder = nil;
-				EncoderFence = nullptr;
 			}
 			
 			if (ParallelRenderCommandEncoder && IsParallel())
 			{
 				RingBuffer.Commit(CommandBuffer);
 				
-			#if METAL_DEBUG_OPTIONS
+#if METAL_DEBUG_OPTIONS
 				if(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation)
 				{
 					for (FAGXBuffer const& Buffer : ActiveBuffers)
@@ -806,7 +525,7 @@ TRefCountPtr<FAGXFence> FAGXCommandEncoder::EndEncoding(void)
 											}
 										});
 				}
-			#endif
+#endif // METAL_DEBUG_OPTIONS
 
 				BufferBindingHistory.Empty();
 				TextureBindingHistory.Empty();
@@ -848,7 +567,6 @@ TRefCountPtr<FAGXFence> FAGXCommandEncoder::EndEncoding(void)
 				}
 
 				ParallelRenderCommandEncoder.EndEncoding();
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ParallelEncoderDebug.EndEncoder());
 				ParallelRenderCommandEncoder = nil;
 
 				ChildRenderCommandEncoders.Empty();
@@ -856,83 +574,13 @@ TRefCountPtr<FAGXFence> FAGXCommandEncoder::EndEncoding(void)
 		}
 		else if(IsComputeCommandEncoderActive())
 		{
-			check(!bSupportsFences || EncoderFence);
-			
-			for (FAGXFence* FragFence : FragmentFences)
-			{
-				if (FragFence->NeedsWait(mtlpp::RenderStages::Fragment))
-				{
-					mtlpp::Fence FragmentFence = FragFence->Get(mtlpp::RenderStages::Fragment);
-					mtlpp::Fence FragInnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)FragmentFence.GetPtr()).Inner) :) FragmentFence;
-					
-					ComputeCommandEncoder.WaitForFence(FragInnerFence);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.AddWaitFence(FragmentFence));
-					FragFence->Wait(mtlpp::RenderStages::Fragment);
-				}
-			}
-			FragmentFences.Empty();
-			FenceResources.Empty();
-			FenceStage = mtlpp::RenderStages::Fragment;
-			
-			if (EncoderFence && EncoderFence->NeedsWrite(mtlpp::RenderStages::Fragment))
-			{
-				Fence = EncoderFence;
-			}
-			UpdateFence(EncoderFence);
-			
-#if METAL_DEBUG_OPTIONS
-			if (bSupportsFences && AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelFastValidation && (!WaitCount || !UpdateCount))
-			{
-				UE_LOG(LogAGX, Error, TEXT("%s has incorrect fence waits (%u) vs. updates (%u)."), *FString(ComputeCommandEncoder.GetLabel()), WaitCount, UpdateCount);
-				
-			}
-			WaitCount = 0;
-			UpdateCount = 0;
-#endif
 			ComputeCommandEncoder.EndEncoding();
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.EndEncoder());
 			ComputeCommandEncoder = nil;
-			EncoderFence = nullptr;
 		}
 		else if(IsBlitCommandEncoderActive())
 		{
-			// check(!bSupportsFences || EncoderFence);
-			
-			for (FAGXFence* FragFence : FragmentFences)
-			{
-				if (FragFence->NeedsWait(mtlpp::RenderStages::Fragment))
-				{
-					mtlpp::Fence FragmentFence = FragFence->Get(mtlpp::RenderStages::Fragment);
-					mtlpp::Fence FragInnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)FragmentFence.GetPtr()).Inner) :) FragmentFence;
-					
-					BlitCommandEncoder.WaitForFence(FragInnerFence);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.AddWaitFence(FragmentFence));
-					FragFence->Wait(mtlpp::RenderStages::Fragment);
-				}
-			}
-			FragmentFences.Empty();
-			FenceResources.Empty();
-			FenceStage = mtlpp::RenderStages::Fragment;
-			
-			if (EncoderFence && EncoderFence->NeedsWrite(mtlpp::RenderStages::Fragment))
-			{
-				Fence = EncoderFence;
-			}
-			UpdateFence(EncoderFence);
-			
-#if METAL_DEBUG_OPTIONS
-			if (bSupportsFences && AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelFastValidation && (!WaitCount || !UpdateCount))
-			{
-				UE_LOG(LogAGX, Error, TEXT("%s has incorrect fence waits (%u) vs. updates (%u)."), *FString(BlitCommandEncoder.GetLabel()), WaitCount, UpdateCount);
-				
-			}
-			WaitCount = 0;
-			UpdateCount = 0;
-#endif
 			BlitCommandEncoder.EndEncoding();
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.EndEncoder());
 			BlitCommandEncoder = nil;
-			EncoderFence = nullptr;
 		}
 	}
 	
@@ -948,7 +596,6 @@ TRefCountPtr<FAGXFence> FAGXCommandEncoder::EndEncoding(void)
 		FMemory::Memzero(ShaderBuffers[Frequency].Usage);
 		ShaderBuffers[Frequency].Bound = 0;
 	}
-    return Fence;
 }
 
 void FAGXCommandEncoder::InsertCommandBufferFence(FAGXCommandBufferFence& Fence, mtlpp::CommandBufferHandler Handler)
@@ -972,176 +619,6 @@ void FAGXCommandEncoder::AddCompletionHandler(mtlpp::CommandBufferHandler Handle
 	Block_release(HeapHandler);
 }
 
-void FAGXCommandEncoder::UpdateFence(FAGXFence* Fence)
-{
-	check(IsRenderCommandEncoderActive() || IsComputeCommandEncoderActive() || IsBlitCommandEncoderActive());
-	static bool bSupportsFences = CommandList.GetCommandQueue().SupportsFeature(EAGXFeaturesFences);
-	if ((bSupportsFences METAL_DEBUG_OPTION(|| CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation)) && Fence)
-	{
-		mtlpp::Fence VertexFence = Fence->Get(mtlpp::RenderStages::Vertex);
-		mtlpp::Fence InnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)VertexFence.GetPtr()).Inner) :) VertexFence;
-		if (RenderCommandEncoder)
-		{
-			mtlpp::Fence FragmentFence = Fence->Get(mtlpp::RenderStages::Fragment);
-			mtlpp::Fence FragInnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)FragmentFence.GetPtr()).Inner) :) FragmentFence;
-			
-			if (Fence->NeedsWrite(mtlpp::RenderStages::Vertex))
-			{
-				RenderCommandEncoder.UpdateFence(InnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Vertex));
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddUpdateFence(VertexFence));
-				Fence->Write(mtlpp::RenderStages::Vertex);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, UpdateCount++);
-			}
-
-			if (Fence->NeedsWrite(mtlpp::RenderStages::Fragment))
-			{
-				RenderCommandEncoder.UpdateFence(FragInnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Fragment));
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddUpdateFence(FragmentFence));
-				Fence->Write(mtlpp::RenderStages::Fragment);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, UpdateCount++);
-			}
-		}
-		else if (ComputeCommandEncoder && Fence->NeedsWrite(mtlpp::RenderStages::Vertex))
-		{
-			ComputeCommandEncoder.UpdateFence(InnerFence);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.AddUpdateFence(VertexFence));
-			Fence->Write(mtlpp::RenderStages::Vertex);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, UpdateCount++);
-		}
-		else if (BlitCommandEncoder && Fence->NeedsWrite(mtlpp::RenderStages::Vertex))
-		{
-			BlitCommandEncoder.UpdateFence(InnerFence);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.AddUpdateFence(VertexFence));
-			Fence->Write(mtlpp::RenderStages::Vertex);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, UpdateCount++);
-		}
-	}
-}
-
-void FAGXCommandEncoder::WaitForFence(FAGXFence* Fence)
-{
-	check(IsRenderCommandEncoderActive() || IsComputeCommandEncoderActive() || IsBlitCommandEncoderActive());
-	static bool bSupportsFences = CommandList.GetCommandQueue().SupportsFeature(EAGXFeaturesFences);
-	if ((bSupportsFences METAL_DEBUG_OPTION(|| CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation)) && Fence)
-	{
-		if (Fence->NeedsWait(mtlpp::RenderStages::Vertex))
-		{
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, WaitCount++);
-			
-			mtlpp::Fence VertexFence = Fence->Get(mtlpp::RenderStages::Vertex);
-			mtlpp::Fence InnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)VertexFence.GetPtr()).Inner) :) VertexFence;
-			if (RenderCommandEncoder)
-			{
-				RenderCommandEncoder.WaitForFence(InnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Vertex));
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddWaitFence(VertexFence));
-				Fence->Wait(mtlpp::RenderStages::Vertex);
-			}
-			else if (ComputeCommandEncoder)
-			{
-				ComputeCommandEncoder.WaitForFence(InnerFence);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.AddWaitFence(VertexFence));
-				Fence->Wait(mtlpp::RenderStages::Vertex);
-			}
-			else if (BlitCommandEncoder)
-			{
-				BlitCommandEncoder.WaitForFence(InnerFence);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.AddWaitFence(VertexFence));
-				Fence->Wait(mtlpp::RenderStages::Vertex);
-			}
-		}
-		if (Fence->NeedsWait(mtlpp::RenderStages::Fragment))
-		{
-			if (FenceStage == mtlpp::RenderStages::Vertex || BlitCommandEncoder)
-			{
-				mtlpp::Fence FragmentFence = Fence->Get(mtlpp::RenderStages::Fragment);
-				mtlpp::Fence FragInnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)FragmentFence.GetPtr()).Inner) :) FragmentFence;
-				if (RenderCommandEncoder)
-				{
-					RenderCommandEncoder.WaitForFence(FragInnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Vertex));
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddWaitFence(FragmentFence));
-					Fence->Wait(mtlpp::RenderStages::Fragment);
-				}
-				else if (ComputeCommandEncoder)
-				{
-					ComputeCommandEncoder.WaitForFence(FragInnerFence);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.AddWaitFence(FragmentFence));
-					Fence->Wait(mtlpp::RenderStages::Fragment);
-				}
-				else if (BlitCommandEncoder)
-				{
-					BlitCommandEncoder.WaitForFence(FragInnerFence);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.AddWaitFence(FragmentFence));
-					Fence->Wait(mtlpp::RenderStages::Fragment);
-				}
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, WaitCount++);
-			}
-			else
-			{
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, WaitCount++);
-				FragmentFences.Add(Fence);
-			}
-		}
-	}
-}
-
-void FAGXCommandEncoder::WaitAndUpdateFence(FAGXFence* Fence)
-{
-	check(IsRenderCommandEncoderActive() || IsComputeCommandEncoderActive() || IsBlitCommandEncoderActive());
-	static bool bSupportsFences = CommandList.GetCommandQueue().SupportsFeature(EAGXFeaturesFences);
-	if ((bSupportsFences METAL_DEBUG_OPTION(|| CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation)) && Fence)
-	{
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, WaitCount++);
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, UpdateCount++);
-		
-		mtlpp::Fence VertexFence = Fence->Get(mtlpp::RenderStages::Vertex);
-		mtlpp::Fence InnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)VertexFence.GetPtr()).Inner) :) VertexFence;
-		if (RenderCommandEncoder)
-		{
-			mtlpp::Fence FragmentFence = Fence->Get(mtlpp::RenderStages::Fragment);
-			mtlpp::Fence FragInnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)FragmentFence.GetPtr()).Inner) :) FragmentFence;
-			
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, WaitCount++);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, UpdateCount++);
-			
-			RenderCommandEncoder.WaitForFence(InnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Vertex));
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddWaitFence(VertexFence));
-			Fence->Wait(mtlpp::RenderStages::Vertex);
-			
-			RenderCommandEncoder.WaitForFence(FragInnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Fragment));
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddWaitFence(FragmentFence));
-			Fence->Wait(mtlpp::RenderStages::Fragment);
-			
-			RenderCommandEncoder.UpdateFence(InnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Fragment));
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddUpdateFence(VertexFence));
-			Fence->Write(mtlpp::RenderStages::Vertex);
-			
-			RenderCommandEncoder.UpdateFence(FragInnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Vertex));
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddUpdateFence(FragmentFence));
-			Fence->Write(mtlpp::RenderStages::Fragment);
-		}
-		else if (ComputeCommandEncoder)
-		{
-			ComputeCommandEncoder.WaitForFence(InnerFence);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.AddWaitFence(VertexFence));
-			Fence->Wait(mtlpp::RenderStages::Vertex);
-			
-			ComputeCommandEncoder.UpdateFence(InnerFence);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.AddUpdateFence(VertexFence));
-			Fence->Write(mtlpp::RenderStages::Vertex);
-		}
-		else if (BlitCommandEncoder)
-		{
-			BlitCommandEncoder.WaitForFence(InnerFence);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.AddWaitFence(VertexFence));
-			Fence->Wait(mtlpp::RenderStages::Vertex);
-			
-			BlitCommandEncoder.UpdateFence(InnerFence);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.AddUpdateFence(VertexFence));
-			Fence->Write(mtlpp::RenderStages::Vertex);
-		}
-	}
-}
-
 #pragma mark - Public Debug Support -
 
 void FAGXCommandEncoder::InsertDebugSignpost(ns::String const& String)
@@ -1151,7 +628,6 @@ void FAGXCommandEncoder::InsertDebugSignpost(ns::String const& String)
 		if (RenderCommandEncoder)
 		{
 			RenderCommandEncoder.InsertDebugSignpost(String);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.InsertDebugSignpost(String));
 		}
 		else if (ParallelRenderCommandEncoder && !IsParallel())
 		{
@@ -1161,12 +637,10 @@ void FAGXCommandEncoder::InsertDebugSignpost(ns::String const& String)
 		else if (ComputeCommandEncoder)
 		{
 			ComputeCommandEncoder.InsertDebugSignpost(String);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.InsertDebugSignpost(String));
 		}
 		else if (BlitCommandEncoder)
 		{
 			BlitCommandEncoder.InsertDebugSignpost(String);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.InsertDebugSignpost(String));
 		}
 	}
 }
@@ -1179,7 +653,6 @@ void FAGXCommandEncoder::PushDebugGroup(ns::String const& String)
 		if (RenderCommandEncoder)
 		{
 			RenderCommandEncoder.PushDebugGroup(String);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.PushDebugGroup(String));
 		}
 		else if (ParallelRenderCommandEncoder && !IsParallel())
 		{
@@ -1189,12 +662,10 @@ void FAGXCommandEncoder::PushDebugGroup(ns::String const& String)
 		else if (ComputeCommandEncoder)
 		{
 			ComputeCommandEncoder.PushDebugGroup(String);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.PushDebugGroup(String));
 		}
 		else if (BlitCommandEncoder)
 		{
 			BlitCommandEncoder.PushDebugGroup(String);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.PushDebugGroup(String));
 		}
 	}
 }
@@ -1207,7 +678,6 @@ void FAGXCommandEncoder::PopDebugGroup(void)
 		if (RenderCommandEncoder)
 		{
 			RenderCommandEncoder.PopDebugGroup();
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.PopDebugGroup());
 		}
 		else if (ParallelRenderCommandEncoder && !IsParallel())
 		{
@@ -1217,19 +687,12 @@ void FAGXCommandEncoder::PopDebugGroup(void)
 		else if (ComputeCommandEncoder)
 		{
 			ComputeCommandEncoder.PopDebugGroup();
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.PopDebugGroup());
 		}
 		else if (BlitCommandEncoder)
 		{
 			BlitCommandEncoder.PopDebugGroup();
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.PopDebugGroup());
 		}
 	}
-}
-
-FAGXCommandBufferMarkers& FAGXCommandEncoder::GetMarkers(void)
-{
-	return CommandBufferMarkers;
 }
 
 #if ENABLE_METAL_GPUPROFILE
@@ -1292,7 +755,6 @@ void FAGXCommandEncoder::SetRenderPipelineState(FAGXShaderPipeline* PipelineStat
 {
 	check (RenderCommandEncoder);
 	{
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetPipeline(PipelineState));
 		RenderCommandEncoder.SetRenderPipelineState(PipelineState->RenderPipelineState);
 	}
 }
@@ -1376,7 +838,6 @@ void FAGXCommandEncoder::SetDepthStencilState(mtlpp::DepthStencilState const& In
     check (RenderCommandEncoder);
 	{
 		RenderCommandEncoder.SetDepthStencilState(InDepthStencilState);
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetDepthStencilState(InDepthStencilState));
 	}
 }
 
@@ -1473,17 +934,14 @@ void FAGXCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType, 
 			{
 				case mtlpp::FunctionType::Vertex:
 					check(RenderCommandEncoder);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetBytes(EAGXShaderVertex, Bytes, Length, Index));
 					RenderCommandEncoder.SetVertexData(Bytes, Length, Index);
 					break;
 				case mtlpp::FunctionType::Fragment:
 					check(RenderCommandEncoder);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetBytes(EAGXShaderFragment, Bytes, Length, Index));
 					RenderCommandEncoder.SetFragmentData(Bytes, Length, Index);
 					break;
 				case mtlpp::FunctionType::Kernel:
 					check(ComputeCommandEncoder);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.SetBytes(Bytes, Length, Index));
 					ComputeCommandEncoder.SetBytes(Bytes, Length, Index);
 					break;
 				default:
@@ -1530,17 +988,14 @@ void FAGXCommandEncoder::SetShaderBufferOffset(mtlpp::FunctionType FunctionType,
 		case mtlpp::FunctionType::Vertex:
 			check (RenderCommandEncoder);
 			RenderCommandEncoder.SetVertexBufferOffset(Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset(), index);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetBufferOffset(EAGXShaderVertex, Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset(), index));
 			break;
 		case mtlpp::FunctionType::Fragment:
 			check(RenderCommandEncoder);
 			RenderCommandEncoder.SetFragmentBufferOffset(Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset(), index);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetBufferOffset(EAGXShaderFragment, Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset(), index));
 			break;
 		case mtlpp::FunctionType::Kernel:
 			check (ComputeCommandEncoder);
 			ComputeCommandEncoder.SetBufferOffset(Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset(), index);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.SetBufferOffset(Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset(), index));
 			break;
 		default:
 			check(false);
@@ -1556,21 +1011,15 @@ void FAGXCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FAGX
 		case mtlpp::FunctionType::Vertex:
 			check (RenderCommandEncoder);
 			FenceResource(Texture);
-			// MTLPP_VALIDATE(mtlpp::RenderCommandEncoder, RenderCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, UseResource(Texture, mtlpp::ResourceUsage::Read));
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetTexture(EAGXShaderVertex, Texture, index));
 			RenderCommandEncoder.SetVertexTexture(Texture, index);
 			break;
 		case mtlpp::FunctionType::Fragment:
 			check(RenderCommandEncoder);
-			// MTLPP_VALIDATE(mtlpp::RenderCommandEncoder, RenderCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, UseResource(Texture, mtlpp::ResourceUsage::Read));
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetTexture(EAGXShaderFragment, Texture, index));
 			RenderCommandEncoder.SetFragmentTexture(Texture, index);
 			break;
 		case mtlpp::FunctionType::Kernel:
 			check (ComputeCommandEncoder);
 			FenceResource(Texture);
-			// MTLPP_VALIDATE(mtlpp::ComputeCommandEncoder, ComputeCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, UseResource(Texture, mtlpp::ResourceUsage::Read));
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.SetTexture(Texture, index));
 			ComputeCommandEncoder.SetTexture(Texture, index);
 			break;
 		default:
@@ -1602,17 +1051,14 @@ void FAGXCommandEncoder::SetShaderSamplerState(mtlpp::FunctionType FunctionType,
 	{
 		case mtlpp::FunctionType::Vertex:
        		check (RenderCommandEncoder);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetSamplerState(EAGXShaderVertex, Sampler, index));
 			RenderCommandEncoder.SetVertexSamplerState(Sampler, index);
 			break;
 		case mtlpp::FunctionType::Fragment:
 			check (RenderCommandEncoder);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetSamplerState(EAGXShaderFragment, Sampler, index));
 			RenderCommandEncoder.SetFragmentSamplerState(Sampler, index);
 			break;
 		case mtlpp::FunctionType::Kernel:
 			check (ComputeCommandEncoder);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.SetSamplerState(Sampler, index));
 			ComputeCommandEncoder.SetSamplerState(Sampler, index);
 			break;
 		default:
@@ -1629,23 +1075,8 @@ void FAGXCommandEncoder::SetShaderSideTable(mtlpp::FunctionType const FunctionTy
 	}
 }
 
-void FAGXCommandEncoder::UseIndirectArgumentResource(FAGXTexture const& Texture, mtlpp::ResourceUsage const Usage)
-{
-	FenceResource(Texture);
-	UseResource(Texture, Usage);
-	TextureBindingHistory.Add(ns::AutoReleased<FAGXTexture>(Texture));
-}
-
-void FAGXCommandEncoder::UseIndirectArgumentResource(FAGXBuffer const& Buffer, mtlpp::ResourceUsage const Usage)
-{
-	FenceResource(Buffer);
-	UseResource(Buffer, Usage);
-	BufferBindingHistory.Add(ns::AutoReleased<FAGXBuffer>(Buffer));
-}
-
 void FAGXCommandEncoder::TransitionResources(mtlpp::Resource const& Resource)
 {
-	TransitionedResources.Add(Resource.GetPtr());
 }
 
 #pragma mark - Public Compute State Mutators -
@@ -1654,7 +1085,6 @@ void FAGXCommandEncoder::SetComputePipelineState(FAGXShaderPipeline* State)
 {
 	check (ComputeCommandEncoder);
 	{
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.SetPipeline(State));
 		ComputeCommandEncoder.SetComputePipelineState(State->ComputePipelineState);
 	}
 }
@@ -1682,110 +1112,10 @@ bool FAGXCommandEncoder::HasBufferBindingHistory(FAGXBuffer const& Buffer) const
 
 void FAGXCommandEncoder::FenceResource(mtlpp::Texture const& Resource)
 {
-	mtlpp::Resource::Type Res = Resource.GetPtr();
-	ns::AutoReleased<mtlpp::Texture> Parent = Resource.GetParentTexture();
-	ns::AutoReleased<mtlpp::Buffer> Buffer = Resource.GetBuffer();
-	if (Parent)
-	{
-		Res = Parent.GetPtr();
-	}
-	else if (Buffer)
-	{
-		Res = Buffer.GetPtr();
-	}
-	if (FenceStage == mtlpp::RenderStages::Vertex || FenceResources.Contains(Res))
-	{
-		FenceStage = mtlpp::RenderStages::Vertex;
-		
-		for (FAGXFence* FragFence : FragmentFences)
-		{
-			if (FragFence->NeedsWait(mtlpp::RenderStages::Fragment))
-			{
-				mtlpp::Fence FragmentFence = FragFence->Get(mtlpp::RenderStages::Fragment);
-				mtlpp::Fence FragInnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)FragmentFence.GetPtr()).Inner) :) FragmentFence;
-				
-				if (RenderCommandEncoder)
-				{
-					RenderCommandEncoder.WaitForFence(FragInnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Vertex));
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddWaitFence(FragmentFence));
-					FragFence->Wait(mtlpp::RenderStages::Fragment);
-				}
-				else if (ComputeCommandEncoder)
-				{
-					ComputeCommandEncoder.WaitForFence(FragInnerFence);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.AddWaitFence(FragmentFence));
-					FragFence->Wait(mtlpp::RenderStages::Fragment);
-				}
-				else if (BlitCommandEncoder)
-				{
-					BlitCommandEncoder.WaitForFence(FragInnerFence);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.AddWaitFence(FragmentFence));
-					FragFence->Wait(mtlpp::RenderStages::Fragment);
-				}
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, WaitCount++);
-			}
-		}
-		FragmentFences.Empty();
-	}
 }
 
 void FAGXCommandEncoder::FenceResource(mtlpp::Buffer const& Resource)
 {
-	mtlpp::Resource::Type Res = Resource.GetPtr();
-	if (FenceStage == mtlpp::RenderStages::Vertex || FenceResources.Contains(Res))
-	{
-		FenceStage = mtlpp::RenderStages::Vertex;
-		
-		for (FAGXFence* FragFence : FragmentFences)
-		{
-			if (FragFence->NeedsWait(mtlpp::RenderStages::Fragment))
-			{
-				mtlpp::Fence FragmentFence = FragFence->Get(mtlpp::RenderStages::Fragment);
-				mtlpp::Fence FragInnerFence = METAL_DEBUG_OPTION(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation ? mtlpp::Fence(((FAGXDebugFence*)FragmentFence.GetPtr()).Inner) :) FragmentFence;
-				
-				if (RenderCommandEncoder)
-				{
-					RenderCommandEncoder.WaitForFence(FragInnerFence, (mtlpp::RenderStages)(mtlpp::RenderStages::Vertex));
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.AddWaitFence(FragmentFence));
-					FragFence->Wait(mtlpp::RenderStages::Fragment);
-				}
-				else if (ComputeCommandEncoder)
-				{
-					ComputeCommandEncoder.WaitForFence(FragInnerFence);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.AddWaitFence(FragmentFence));
-					FragFence->Wait(mtlpp::RenderStages::Fragment);
-				}
-				else if (BlitCommandEncoder)
-				{
-					BlitCommandEncoder.WaitForFence(FragInnerFence);
-					METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, BlitEncoderDebug.AddWaitFence(FragmentFence));
-					FragFence->Wait(mtlpp::RenderStages::Fragment);
-				}
-			}
-		}
-		FragmentFences.Empty();
-	}
-}
-
-void FAGXCommandEncoder::UseResource(mtlpp::Resource const& Resource, mtlpp::ResourceUsage const Usage)
-{
-	static bool UseResourceAvailable = FAGXCommandQueue::SupportsFeature(EAGXFeaturesIABs);
-	if (UseResourceAvailable || AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation)
-	{
-		mtlpp::ResourceUsage Current = ResourceUsage.FindRef(Resource.GetPtr());
-		if (Current != Usage)
-		{
-			ResourceUsage.Add(Resource.GetPtr(), Usage);
-			if (RenderCommandEncoder)
-			{
-				MTLPP_VALIDATE(mtlpp::RenderCommandEncoder, RenderCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, UseResource(Resource, Usage));
-			}
-			else if (ComputeCommandEncoder)
-			{
-				MTLPP_VALIDATE(mtlpp::ComputeCommandEncoder, ComputeCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, UseResource(Resource, Usage));
-			}
-		}
-	}
 }
 
 void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, uint32 Index)
@@ -1820,23 +1150,17 @@ void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, u
 				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
 				check(RenderCommandEncoder);
 				FenceResource(Buffer);
-				// MTLPP_VALIDATE(mtlpp::RenderCommandEncoder, RenderCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, UseResource(Buffer, mtlpp::ResourceUsage::Read));
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetBuffer(EAGXShaderVertex, Buffer, Offset, Index));
 				RenderCommandEncoder.SetVertexBuffer(Buffer, Offset, Index);
 				break;
 			case mtlpp::FunctionType::Fragment:
 				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
 				check(RenderCommandEncoder);
-				// MTLPP_VALIDATE(mtlpp::RenderCommandEncoder, RenderCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, UseResource(Buffer, mtlpp::ResourceUsage::Read));
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetBuffer(EAGXShaderFragment, Buffer, Offset, Index));
 				RenderCommandEncoder.SetFragmentBuffer(Buffer, Offset, Index);
 				break;
 			case mtlpp::FunctionType::Kernel:
 				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
 				check(ComputeCommandEncoder);
 				FenceResource(Buffer);
-				// MTLPP_VALIDATE(mtlpp::ComputeCommandEncoder, ComputeCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, UseResource(Buffer, mtlpp::ResourceUsage::Read));
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.SetBuffer(Buffer, Offset, Index));
 				ComputeCommandEncoder.SetBuffer(Buffer, Offset, Index);
 				break;
 			default:
@@ -1862,19 +1186,16 @@ void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, u
 			case mtlpp::FunctionType::Vertex:
 				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
 				check(RenderCommandEncoder);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetBytes(EAGXShaderVertex, Bytes, Len, Index));
 				RenderCommandEncoder.SetVertexData(Bytes, Len, Index);
 				break;
 			case mtlpp::FunctionType::Fragment:
 				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
 				check(RenderCommandEncoder);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, RenderEncoderDebug.SetBytes(EAGXShaderFragment, Bytes, Len, Index));
 				RenderCommandEncoder.SetFragmentData(Bytes, Len, Index);
 				break;
 			case mtlpp::FunctionType::Kernel:
 				ShaderBuffers[uint32(Function)].Bound |= (1 << Index);
 				check(ComputeCommandEncoder);
-				METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ComputeEncoderDebug.SetBytes(Bytes, Len, Index));
 				ComputeCommandEncoder.SetBytes(Bytes, Len, Index);
 				break;
 			default:

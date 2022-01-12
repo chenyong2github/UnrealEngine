@@ -55,7 +55,7 @@ FAGXShaderPipeline* FAGXComputeShader::GetPipeline()
 		{
 			ns::AutoReleased<ns::Array<mtlpp::PipelineBufferDescriptor>> PipelineBuffers = Descriptor.GetBuffers();
 
-			uint32 ImmutableBuffers = Bindings.ConstantBuffers | Bindings.ArgumentBuffers;
+			uint32 ImmutableBuffers = Bindings.ConstantBuffers;
 			while(ImmutableBuffers)
 			{
 				uint32 Index = __builtin_ctz(ImmutableBuffers);

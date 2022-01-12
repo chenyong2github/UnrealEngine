@@ -479,29 +479,22 @@ void FAGXViewport::Present(FAGXCommandQueue& CommandQueue, bool bLockToVsync)
 							NSUInteger Width = FMath::Min(Src.GetWidth(), Dst.GetWidth());
 							NSUInteger Height = FMath::Min(Src.GetHeight(), Dst.GetHeight());
 							
-							mtlpp::BlitCommandEncoder Encoder = CurrentCommandBuffer.BlitCommandEncoder();
-							check(Encoder.GetPtr());
-#if MTLPP_CONFIG_VALIDATE && METAL_DEBUG_OPTIONS
-							FAGXBlitCommandEncoderDebugging Debugging;
-							if (AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelFastValidation)
-							{
-								FAGXCommandBufferDebugging CmdDebug = FAGXCommandBufferDebugging::Get(CurrentCommandBuffer);
-								Debugging = FAGXBlitCommandEncoderDebugging(Encoder, CmdDebug);
-							}
-#endif
+							id<MTLBlitCommandEncoder> Encoder = [CurrentCommandBuffer.GetPtr() blitCommandEncoder];
+							check(Encoder);
+
 							METAL_GPUPROFILE(Profiler->EncodeBlit(Stats, __FUNCTION__));
 
-							Encoder.Copy(Src, 0, 0, mtlpp::Origin(0, 0, 0), mtlpp::Size(Width, Height, 1), Dst, 0, 0, mtlpp::Origin(0, 0, 0));
-							METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, Debugging.Copy(Src, 0, 0, mtlpp::Origin(0, 0, 0), mtlpp::Size(Width, Height, 1), Dst, 0, 0, mtlpp::Origin(0, 0, 0)));
+							[Encoder	copyFromTexture:Src.GetPtr()
+											sourceSlice:0
+											sourceLevel:0
+										   sourceOrigin:MTLOriginMake(0, 0, 0)
+											 sourceSize:MTLSizeMake(Width, Height, 1)
+											  toTexture:Dst.GetPtr()
+									   destinationSlice:0
+									   destinationLevel:0
+									  destinationOrigin:MTLOriginMake(0, 0, 0)];
 
-							Encoder.EndEncoding();
-							METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, Debugging.EndEncoder());
-
-							mtlpp::CommandBufferHandler H = [Src, Dst](const mtlpp::CommandBuffer &) {
-								// void
-							};
-
-							CurrentCommandBuffer.AddCompletedHandler(H);
+							[Encoder endEncoding];
 
 							[Drawable release];
 							Drawable = nil;
