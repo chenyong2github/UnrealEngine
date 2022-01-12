@@ -181,7 +181,11 @@ struct FParameterVectorChannelEditorData
 				{
 					const FRigControlValue::FTransform_Float Storage = ControlRig->GetHierarchy()
 						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>();
+#if ENABLE_VECTORIZED_TRANSFORM
 					return FVector4(Storage.TranslationX, Storage.TranslationY, Storage.TranslationZ, Storage.TranslationW);
+#else
+					return FVector4(Storage.TranslationX, Storage.TranslationY, Storage.TranslationZ, 0.f);
+#endif
 				}
 			}
 		}
