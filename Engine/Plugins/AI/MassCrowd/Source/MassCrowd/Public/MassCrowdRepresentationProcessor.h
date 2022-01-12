@@ -36,7 +36,7 @@ protected:
 	 * @param EntityIdx is the entity index currently processing
 	 * @param Context is the current Mass execution context
 	 */
-	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassExecutionContext& Context) override;
+	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) override;
 
 	/** 
 	 * Returns an actor of the template type and setup fragments values from it
@@ -58,7 +58,7 @@ protected:
 	 * @param Actor is the actual actor to teleport
 	 * @param Context is the current Mass execution context
 	 */
-	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FMassExecutionContext& Context) override;
+	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FMassCommandBuffer& CommandBuffer) override;
 
 	/**
 	 * Initializes velocity for each entity when just switch to use movement component, must be called within a ForEachEntityChunk

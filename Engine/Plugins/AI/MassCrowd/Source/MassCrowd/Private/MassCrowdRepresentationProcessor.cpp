@@ -69,9 +69,9 @@ void UMassCrowdRepresentationProcessor::InitializeVelocity(UMassEntitySubsystem&
 		});
 }
 
-void UMassCrowdRepresentationProcessor::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassExecutionContext& Context)
+void UMassCrowdRepresentationProcessor::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer)
 {
-	Super::SetActorEnabled(EnabledType, Actor, EntityIdx, Context);
+	Super::SetActorEnabled(EnabledType, Actor, EntityIdx, CommandBuffer);
 
 	const bool bEnabled = EnabledType != EActorEnabledType::Disabled;
 
@@ -140,7 +140,7 @@ AActor* UMassCrowdRepresentationProcessor::GetOrSpawnActor(const FMassEntityHand
 	return Super::GetOrSpawnActor(MassAgent, ActorInfo, RootTransform, TemplateActorIndex, SpawnRequestHandle, Priority);
 }
 
-void UMassCrowdRepresentationProcessor::TeleportActor(const FTransform& Transform, AActor& Actor, FMassExecutionContext& Context)
+void UMassCrowdRepresentationProcessor::TeleportActor(const FTransform& Transform, AActor& Actor, FMassCommandBuffer& CommandBuffer)
 {
 	FTransform RootTransform = Transform;
 
@@ -160,5 +160,5 @@ void UMassCrowdRepresentationProcessor::TeleportActor(const FTransform& Transfor
 			RootTransform.SetLocation(OutHit.Location);
 		}
 	}
-	Super::TeleportActor(RootTransform, Actor, Context);
+	Super::TeleportActor(RootTransform, Actor, CommandBuffer);
 }

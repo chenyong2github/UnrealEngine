@@ -62,29 +62,29 @@ protected:
 	 * @param ActorInfo is the fragment where we are going to store the actor pointer
 	 * @param TemplateActorIndex is the index of the type to release
 	 * @param SpawnRequestHandle (in/out) In: previously requested spawn to cancel if any
-	 * @param Context of the execution from the entity sub system
+	 * @param CommandBuffer to queue up anything that is thread sensitive
 	 * @param bCancelSpawningOnly tell to only cancel the existing spawning request and to not release the associated actor it any.
 	 * @return if the actor was release or the spawning was canceled.
 	 */
-	virtual bool ReleaseActorOrCancelSpawning(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, FMassExecutionContext& Context, const bool bCancelSpawningOnly = false);
+	virtual bool ReleaseActorOrCancelSpawning(const FMassEntityHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, FMassCommandBuffer& CommandBuffer, const bool bCancelSpawningOnly = false);
 
 	/** 
 	 * Enable/disable a spawned actor
 	 * @param EnabledType is the type of enabling to do on this actor
 	 * @param Actor is the actual actor to perform enabling type on
 	 * @param EntityIdx is the entity index currently processing
-	 * @param Context is the current Mass execution context 
+	 * @param CommandBuffer to queue up anything that is thread sensitive
 	 */
-	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassExecutionContext& Context);
+	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer);
 
 	/**
 	 * Teleports the actor at the specified transform by preserving its velocity and without collision.
 	 * The destination will be adjusted to fit an existing capsule.
 	 * @param Transform is the new actor's transform 
 	 * @param Actor is the actual actor to teleport
-	 * @param Context is the current Mass execution context
+	 * @param CommandBuffer to queue up anything that is thread sensitive
 	 */
-	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FMassExecutionContext& Context);
+	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FMassCommandBuffer& CommandBuffer);
 
 	/**
 	 * Method that will be bound to a delegate called before the spawning of an actor to let the requester prepare it
@@ -121,9 +121,9 @@ protected:
 	 * @param Representation fragment containing the current and previous visual state
 	 * @param RepresentationLOD fragment containing the visibility information
 	 * @param ChunkData is the visualization chunk fragment
-     * @param Context of the execution from the entity sub system
+	 * @param CommandBuffer to queue up anything that is thread sensitive
 	 */
-	static void UpdateEntityVisibility(const FMassEntityHandle Entity, const FMassRepresentationFragment& Representation, const FMassRepresentationLODFragment& RepresentationLOD, FMassVisualizationChunkFragment& ChunkData, FMassExecutionContext& Context);
+	static void UpdateEntityVisibility(const FMassEntityHandle Entity, const FMassRepresentationFragment& Representation, const FMassRepresentationLODFragment& RepresentationLOD, FMassVisualizationChunkFragment& ChunkData, FMassCommandBuffer& CommandBuffer);
 
 public:
 	/**
