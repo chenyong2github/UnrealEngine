@@ -2651,6 +2651,28 @@ extern ENGINE_API void GetCapsuleMesh(const FVector& Origin, const FVector& XAxi
 
 
 /**
+ * Draws a torus using triangles.
+ *
+ * @param	PDI						Draw interface.
+ * @param	Transform				Generic transform to apply (ex. a local-to-world transform).
+ * @param	XAxis					Normalized X alignment axis.
+ * @param	YAxis					Normalized Y alignment axis.
+ * @param	Color					Color of the circle.
+ * @param	OuterRadius				Radius of the torus center-line. Viewed from above, the outside of the torus has a radius 
+ *                                  of OuterRadius + InnerRadius and the hole of the torus has a radius of OuterRadius - InnerRadius.
+ * @param	InnerRadius				Radius of the torus's cylinder.
+ * @param	OuterSegments			Numbers of segment divisions for outer circle.
+ * @param	InnerSegments			Numbers of segment divisions for inner circle.
+ * @param	MaterialRenderProxy		Material to use for render
+ * @param	DepthPriority			Depth priority for the circle.
+ * @param	bPartial				Whether full or partial torus should be rendered.
+ * @param	Angle					If partial, angle in radians of the arc clockwise beginning at the XAxis.
+ * @param	bEndCaps				If partial, whether the ends should be capped with triangles.
+ */
+extern ENGINE_API void DrawTorus(FPrimitiveDrawInterface* PDI, const FMatrix& Transform, const FVector& XAxis, const FVector& YAxis, 
+								 float OuterRadius, float InnerRadius, int32 OuterSegments, int32 InnerSegments, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriority, bool bPartial, float Angle, bool bEndCaps);
+
+/**
  * Draws a circle using triangles.
  *
  * @param	PDI						Draw interface.
@@ -2665,6 +2687,21 @@ extern ENGINE_API void GetCapsuleMesh(const FVector& Origin, const FVector& XAxi
  */
 extern ENGINE_API void DrawDisc(class FPrimitiveDrawInterface* PDI,const FVector& Base,const FVector& XAxis,const FVector& YAxis,FColor Color,float Radius,int32 NumSides, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriority);
 
+/**
+ * Draws a rectangle using triangles.
+ *
+ * @param	PDI						Draw interface.
+ * @param	Center					Center of the rectangle.
+ * @param	XAxis					Normalized X alignment axis.
+ * @param	YAxis					Normalized Y alignment axis.
+ * @param	Color					Color of the circle.
+ * @param	Width					Width of rectangle along the X dimension.
+ * @param	Height					Height of rectangle along the Y dimension.
+ * @param	MaterialRenderProxy		Material to use for render
+ * @param	DepthPriority			Depth priority for the rectangle.
+ */
+extern ENGINE_API void DrawRectangleMesh(FPrimitiveDrawInterface* PDI, const FVector& Center, const FVector& XAxis, const FVector& YAxis, 
+										 FColor Color, float Width, float Height, const FMaterialRenderProxy* MaterialRenderProxy, uint8 DepthPriority);
 
 /**
  * Draws a flat arrow with an outline.
@@ -2740,6 +2777,23 @@ extern ENGINE_API void DrawCircle(class FPrimitiveDrawInterface* PDI, const FVec
  * @param	DepthPriority	Depth priority for the circle.
  */
 extern ENGINE_API void DrawArc(FPrimitiveDrawInterface* PDI, const FVector Base, const FVector X, const FVector Y, const float MinAngle, const float MaxAngle, const float Radius, const int32 Sections, const FLinearColor& Color, uint8 DepthPriority);
+
+/**
+ * Draws a rectangle using lines.
+ *
+ * @param	PDI						Draw interface.
+ * @param	Center					Center of the rectangle.
+ * @param	XAxis					Normalized X alignment axis.
+ * @param	YAxis					Normalized Y alignment axis.
+ * @param	Color					Color of the circle.
+ * @param	Width					Width of rectangle along the X dimension.
+ * @param	Height					Height of rectangle along the Y dimension.
+ * @param	MaterialRenderProxy		Material to use for render
+ * @param	DepthPriority			Depth priority for the rectangle.
+ * @param	Thickness				Thickness of the lines comprising the rectangle.
+ */
+extern ENGINE_API void DrawRectangle(FPrimitiveDrawInterface* PDI, const FVector& Center, const FVector& XAxis, const FVector& YAxis, 
+									 FColor Color, float Width, float Height, uint8 DepthPriority, float Thickness = 0.0f, float DepthBias = 0.0f, bool bScreenSpace = false);
 
 /**
  * Draws a sphere using circles.
