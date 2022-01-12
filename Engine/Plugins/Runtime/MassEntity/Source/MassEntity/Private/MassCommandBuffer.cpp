@@ -8,9 +8,6 @@
 #include "VisualLogger/VisualLogger.h"
 
 
-//////////////////////////////////////////////////////////////////////
-// FMassCommandBuffer
-
 CSV_DEFINE_CATEGORY(MassEntities, true);
 CSV_DEFINE_CATEGORY(MassEntitiesCounters, true);
 
@@ -70,6 +67,19 @@ void GetCommandStatNames(FStructView Entry, FString& OutName, ANSIName*& OutANSI
 #endif
 } // UE::FLWCCommand
 
+//////////////////////////////////////////////////////////////////////
+// FMassCommandsObservedTypes
+
+void FMassCommandsObservedTypes::Reset()
+{
+	FragmentsToAdd.Reset();
+	FragmentsToRemove.Reset();
+}
+
+
+//////////////////////////////////////////////////////////////////////
+// FMassCommandBuffer
+
 void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntitySystem)
 {
 	check(EntitySystem);
@@ -87,7 +97,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 
 	if (ObservedRemoveFragments.IsEmpty() == false)
 	{
-		for (auto It : FragmentsToRemove)
+		for (auto It : ObservedTypes.GetFragmentsToRemove())
 		{
 			check(It.Key);
 			if (ObservedRemoveFragments.Contains(*It.Key))
@@ -108,7 +118,6 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, EntitiesToDestroy, FArchetypeChunkCollection::FoldDuplicates, EntityChunksToDestroy);
 			for (FArchetypeChunkCollection& Collection : EntityChunksToDestroy)
 			{
-				ObserverManager.OnPreEntitiesDestroyed(Collection);
 				EntitySystem->BatchDestroyEntityChunks(Collection);
 			}
 		}
@@ -146,7 +155,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 	// Using Clear() instead of Reset(), as otherwise the chunks moved into the PendingCommands in MoveAppend() can accumulate.
 	PendingCommands.Clear();
 
-	for (auto It : FragmentsToAdd)
+	for (auto It : ObservedTypes.GetFragmentsToAdd())
 	{
 		check(It.Key);
 		if (ObservedAddFragments.Contains(*It.Key))
@@ -161,8 +170,7 @@ void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* EntityS
 		}
 	}
 
-	FragmentsToAdd.Reset();
-	FragmentsToRemove.Reset();
+	ObservedTypes.Reset();
 }
 
 void FMassCommandBuffer::MoveAppend(FMassCommandBuffer& Other)
