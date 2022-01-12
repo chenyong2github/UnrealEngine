@@ -1373,6 +1373,7 @@ void CullDirectLightingTiles(
 
 	CullContext.LightTiles = LightTiles;
 	CullContext.LightTileAllocator = LightTileAllocator;
+	CullContext.DispatchLightTilesIndirectArgs = DispatchLightTilesIndirectArgs;
 	CullContext.MaxCulledCardTiles = MaxCulledCardTiles;
 }
 
