@@ -47,9 +47,9 @@ namespace UnrealBuildTool
 			// @todo HoloLens: Disable "not defined as a preprocessor macro, replacing with '0'"
 			Arguments.Add("/wd4668");
 
+			Arguments.RemoveAll(Argument => Argument.StartsWith("/RTC"));
 			if (CompileEnvironment.Configuration == CppConfiguration.Debug && CompileEnvironment.bUseDebugCRT)
 			{
-				// @todo HoloLens: Reconcile with "/RTCs" in VCToolChain
 				Arguments.Add("/RTC1");
 			}
 

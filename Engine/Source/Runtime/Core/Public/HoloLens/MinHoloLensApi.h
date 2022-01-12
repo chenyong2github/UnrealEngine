@@ -88,9 +88,21 @@
 #define InterlockedDecrement _InterlockedDecrement
 #endif // !InterlockedDecrement
 
-#define InterlockedDecrement _InterlockedDecrement
+#ifndef InterlockedCompareExchangePointer
+#define InterlockedCompareExchangePointer_MinHoloLensApi_h_hidden
+#if PLATFORM_64BITS
+#define InterlockedCompareExchangePointer _InterlockedCompareExchangePointer
+#else
+#define InterlockedCompareExchangePointer __InlineInterlockedCompareExchangePointer
+#endif
+#endif // !InterlockedCompareExchangePointer
 
 #include <wrl.h>
+
+#ifdef InterlockedCompareExchangePointer_MinHoloLensApi_h_hidden
+#undef InterlockedCompareExchangePointer
+#undef InterlockedCompareExchangePointer_MinHoloLensApi_h_hidden
+#endif // InterlockedCompareExchangePointer_MinHoloLensApi_h_hidden
 
 #ifdef InterlockedIncrement_MinHoloLensApi_h_hidden
 #undef InterlockedIncrement
