@@ -212,6 +212,14 @@ const FMeshDescription* UStaticMeshToolTarget::GetMeshDescription(const FGetMesh
 	return nullptr;
 }
 
+FMeshDescription UStaticMeshToolTarget::GetEmptyMeshDescription()
+{
+	FMeshDescription EmptyMeshDescription;
+	FStaticMeshAttributes Attributes(EmptyMeshDescription);
+	Attributes.Register();
+	return EmptyMeshDescription;
+}
+
 void UStaticMeshToolTarget::CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitParams)
 {
 	if (ensure(IsValid()) == false) return;

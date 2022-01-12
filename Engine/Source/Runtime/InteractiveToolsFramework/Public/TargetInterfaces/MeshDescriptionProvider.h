@@ -27,6 +27,16 @@ public:
 	 */
 	virtual const FMeshDescription* GetMeshDescription(const FGetMeshParameters& GetMeshParams = FGetMeshParameters()) = 0;
 
+	/**
+	 * Returns an empty mesh description appropriate for the provider, i.e. configured with appropriate mesh
+	   attributes but otherwise devoid of topology or element data.
+
+	   Note: Some of our code expects at least FStaticMeshAttributes to be registered with the provided
+	   mesh description, and will break if some of the attributes that FStaticMeshAttributes uses are not present.
+	   The only reason we don't provide a default implementation here that is identical to the one used in
+	   StaticMeshToolTarget.cpp is to avoid a dependency on the static mesh description module in ITF.
+	 */
+	virtual FMeshDescription GetEmptyMeshDescription() = 0;
 
 	/**
 	 * Get a copy of the MeshDescription available through this Provider. 

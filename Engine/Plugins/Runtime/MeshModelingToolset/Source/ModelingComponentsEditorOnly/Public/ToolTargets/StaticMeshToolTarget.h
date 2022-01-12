@@ -51,6 +51,7 @@ public:
 
 	// IMeshDescriptionProvider implementation
 	virtual const FMeshDescription* GetMeshDescription(const FGetMeshParameters& GetMeshParams = FGetMeshParameters()) override;
+	virtual FMeshDescription GetEmptyMeshDescription() override;
 
 	// IMeshDescritpionCommitter implementation
 	virtual void CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitParams = FCommitMeshParameters()) override;

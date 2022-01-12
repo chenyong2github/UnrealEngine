@@ -8,6 +8,7 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "ToolTargets/SkeletalMeshToolTarget.h"
+#include "SkeletalMeshAttributes.h"
 
 using namespace UE::Geometry;
 
@@ -121,6 +122,14 @@ const FMeshDescription* USkeletalMeshComponentReadOnlyToolTarget::GetMeshDescrip
 	return CachedMeshDescription.Get();
 }
 
+FMeshDescription USkeletalMeshComponentReadOnlyToolTarget::GetEmptyMeshDescription()
+{
+	FMeshDescription EmptyMeshDescription;
+	FSkeletalMeshAttributes MeshAttributes(EmptyMeshDescription);
+	MeshAttributes.Register();
+
+	return EmptyMeshDescription;
+}
 
 FDynamicMesh3 USkeletalMeshComponentReadOnlyToolTarget::GetDynamicMesh()
 {

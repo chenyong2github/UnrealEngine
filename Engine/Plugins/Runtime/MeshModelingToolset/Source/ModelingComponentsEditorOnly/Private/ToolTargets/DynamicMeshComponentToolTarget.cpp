@@ -119,6 +119,16 @@ const FMeshDescription* UDynamicMeshComponentToolTarget::GetMeshDescription(cons
 	return nullptr;
 }
 
+FMeshDescription UDynamicMeshComponentToolTarget::GetEmptyMeshDescription()
+{
+	// We use StaticMeshAttributes here because they are the standard used across the engine
+	// with regard to setting up FMeshDescriptions in the majority of cases.
+
+	FMeshDescription EmptyMeshDescription;
+	FStaticMeshAttributes Attributes(EmptyMeshDescription);
+	Attributes.Register();
+	return EmptyMeshDescription;
+}
 
 void UDynamicMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitMeshParams)
 {

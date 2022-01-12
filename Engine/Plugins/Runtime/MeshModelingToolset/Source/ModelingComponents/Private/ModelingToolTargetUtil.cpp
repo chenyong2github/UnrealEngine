@@ -157,6 +157,18 @@ const FMeshDescription* UE::ToolTarget::GetMeshDescription(UToolTarget* Target, 
 	return &EmptyMeshDescription;
 }
 
+FMeshDescription UE::ToolTarget::GetEmptyMeshDescription(UToolTarget* Target)
+{
+	static FMeshDescription EmptyMeshDescription;
+
+	IMeshDescriptionProvider* MeshDescriptionProvider = Cast<IMeshDescriptionProvider>(Target);
+	if (MeshDescriptionProvider)
+	{
+		return MeshDescriptionProvider->GetEmptyMeshDescription();
+	}
+	ensure(false);
+	return EmptyMeshDescription;
+}
 
 FMeshDescription UE::ToolTarget::GetMeshDescriptionCopy(UToolTarget* Target, const FGetMeshParameters& GetMeshParams)
 {
@@ -259,23 +271,24 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitMeshDescriptionUp
 		return EDynamicMeshUpdateResult::Failed;
 	}
 
+	FDynamicMeshToMeshDescription Converter;
 	FMeshDescription ConvertedMesh;
 	if (bHaveModifiedTopology)
 	{
-		FStaticMeshAttributes Attributes(ConvertedMesh);
-		Attributes.Register();
-		FDynamicMeshToMeshDescription Converter;
+		ConvertedMesh = UE::ToolTarget::GetEmptyMeshDescription(Target);		
 		Converter.Convert(&UpdatedMesh, ConvertedMesh);
 	}
 	else
 	{
-		// This should never need to be true because we are either (1) ignoring the tangents, in which
-		// case, we don't want to update them anyway (2) replacing them, in which case, we don't need
-		// to compute them
+		// FGetMeshParameters should never need to be initialized to anything other than the 
+		// default because we are either (1) ignoring the tangents, in which case, we don't
+		// want to update them anyway (2) replacing them, in which case, we don't need to
+		// compute them
+
 		ConvertedMesh = UE::ToolTarget::GetMeshDescriptionCopy(Target, FGetMeshParameters());
-		FDynamicMeshToMeshDescription Converter;
 		Converter.Update(&UpdatedMesh, ConvertedMesh);
 	}
+	
 
 	bool bOK = MeshDescriptionCommitter->CommitMeshDescription(MoveTemp(ConvertedMesh));
 	return (bOK) ? EDynamicMeshUpdateResult::Ok : EDynamicMeshUpdateResult::Failed;

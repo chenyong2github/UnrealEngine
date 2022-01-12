@@ -96,6 +96,12 @@ MODELINGCOMPONENTS_API const FMeshDescription* GetMeshDescription(
 	const FGetMeshParameters& GetMeshParams = FGetMeshParameters());
 
 /**
+ * @return an empty MeshDescription with attributes already registered appropriate to the target.
+ */
+MODELINGCOMPONENTS_API FMeshDescription GetEmptyMeshDescription(
+	UToolTarget* Target);
+
+/**
  * Return a copy of the MeshDescription underlying a ToolTarget
  * @return a new MeshDescription, which may be empty if the Target doesn't have a mesh  
  */

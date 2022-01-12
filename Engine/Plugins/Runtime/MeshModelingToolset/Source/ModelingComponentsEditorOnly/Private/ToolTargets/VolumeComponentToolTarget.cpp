@@ -124,6 +124,17 @@ const FMeshDescription* UVolumeComponentToolTarget::GetMeshDescription(const FGe
 	return ConvertedMeshDescription.Get();
 }
 
+FMeshDescription UVolumeComponentToolTarget::GetEmptyMeshDescription()
+{
+	// We use StaticMeshAttributes here because they are the standard used across the engine
+	// with regard to setting up FMeshDescriptions in the majority of cases.
+
+	FMeshDescription EmptyMeshDescription;
+	FStaticMeshAttributes Attributes(EmptyMeshDescription);
+	Attributes.Register();
+	return EmptyMeshDescription;
+}
+
 void UVolumeComponentToolTarget::CommitMeshDescription(const FCommitter& Committer, const FCommitMeshParameters& CommitMeshParams)
 {
 	// no LODs so LODIdentifier is ignored

@@ -7,6 +7,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "SkeletalMeshAttributes.h"
 
 using namespace UE::Geometry;
 
@@ -132,6 +133,16 @@ const FMeshDescription* USkeletalMeshReadOnlyToolTarget::GetMeshDescription(cons
 	}
 
 	return CachedMeshDescription.Get();
+}
+
+
+FMeshDescription USkeletalMeshReadOnlyToolTarget::GetEmptyMeshDescription()
+{
+	FMeshDescription EmptyMeshDescription;
+	FSkeletalMeshAttributes MeshAttributes(EmptyMeshDescription);
+	MeshAttributes.Register();
+
+	return EmptyMeshDescription;
 }
 
 void USkeletalMeshReadOnlyToolTarget::GetMeshDescription(const USkeletalMesh* SkeletalMeshIn, FMeshDescription& MeshDescription)

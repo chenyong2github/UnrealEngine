@@ -39,6 +39,7 @@ public:
 
 	// IMeshDescriptionProvider implementation
 	virtual const FMeshDescription* GetMeshDescription(const FGetMeshParameters& GetMeshParams = FGetMeshParameters()) override;
+	virtual FMeshDescription GetEmptyMeshDescription() override;
 
 	// IMaterialProvider implementation
 	virtual int32 GetNumMaterials() const override;

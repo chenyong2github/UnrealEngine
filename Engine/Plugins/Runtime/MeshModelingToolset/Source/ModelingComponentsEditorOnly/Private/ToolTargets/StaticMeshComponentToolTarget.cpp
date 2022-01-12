@@ -160,6 +160,13 @@ const FMeshDescription* UStaticMeshComponentToolTarget::GetMeshDescription(const
 	return nullptr;
 }
 
+FMeshDescription UStaticMeshComponentToolTarget::GetEmptyMeshDescription()
+{
+	FMeshDescription EmptyMeshDescription;
+	FStaticMeshAttributes Attributes(EmptyMeshDescription);
+	Attributes.Register();
+	return EmptyMeshDescription;
+}
 
 FMeshDescription UStaticMeshComponentToolTarget::GetMeshDescriptionCopy(const FGetMeshParameters& GetMeshParams)
 {

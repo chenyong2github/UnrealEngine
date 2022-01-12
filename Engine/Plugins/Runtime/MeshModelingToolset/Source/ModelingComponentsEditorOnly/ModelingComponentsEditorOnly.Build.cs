@@ -29,6 +29,7 @@ public class ModelingComponentsEditorOnly : ModuleRules
                 "InteractiveToolsFramework",
                 "MeshDescription",
 				"StaticMeshDescription",
+				"SkeletalMeshDescription",
 				"GeometryCore",
 				"GeometryFramework",
 				"GeometryAlgorithms",
