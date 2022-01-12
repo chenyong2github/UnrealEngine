@@ -56,7 +56,7 @@ private:
 	
 private:
 	/** Mesh vertices in the anchor's local space */
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 	
 	/** Mesh tangents in the anchor's local space */
 	TArray<FPackedNormal> TangentData;

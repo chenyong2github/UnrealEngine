@@ -141,7 +141,7 @@ private:
 	{
 		IMRMesh::FBrickId BrickId;
 		FIntVector BrickCoords;
-		TArray<FVector> PositionData;
+		TArray<FVector3f> PositionData;
 		TArray<FVector2D> UVData;
 		TArray<FPackedNormal> Tangents;
 		TArray<FColor> ColorData;

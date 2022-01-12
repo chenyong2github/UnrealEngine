@@ -140,7 +140,7 @@ struct FMRMeshProxySection
 	/** Which brick this section represents */
 	IMRMesh::FBrickId BrickId;
 	/** Position buffer */
-	FMRMeshVertexBuffer<FVector> PositionBuffer;
+	FMRMeshVertexBuffer<FVector3f> PositionBuffer;
 	/** Texture coordinates buffer */
 	FMRMeshVertexBuffer<FVector2D> UVBuffer;
 	/** Tangent space buffer */
@@ -1013,7 +1013,7 @@ void UMRMeshComponent::Clear()
 struct FMeshArrayHolder :
 	public IMRMesh::FBrickDataReceipt
 {
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 	TArray<MRMESH_INDEX_TYPE> Indices;
 	// Super wasteful of memory and perf, but the vertex factory requires these to be filled
 	// @todo Write a vertex factory that doesn't need all this overhead

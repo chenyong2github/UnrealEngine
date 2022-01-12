@@ -127,7 +127,7 @@ public:
 		
 		IMRMesh::FBrickId BrickId = 0;
 		TArray<FVector> OffsetVertices;
-		TArray<FVector> WorldVertices;
+		TArray<FVector3f> WorldVertices;
 		TArray<FVector> Normals;
 		TArray<FVector2D> UV0;
 		TArray<FColor> VertexColors;
@@ -392,7 +392,7 @@ void UMockDataMeshTrackerComponent::RemoveBlock(int32 BlockIndex)
 	// Delete the brick and its cache entry
 	if (Impl->MeshBrickCache.Contains(BlockIndex))
 	{
-		const static TArray<FVector> EmptyVertices;
+		const static TArray<FVector3f> EmptyVertices;
 		const static TArray<FVector2D> EmptyUVs;
 		const static TArray<FPackedNormal> EmptyTangents;
 		const static TArray<FColor> EmptyVertexColors;

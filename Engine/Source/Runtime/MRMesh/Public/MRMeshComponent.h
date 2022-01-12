@@ -38,7 +38,7 @@ public:
 	{
 		TSharedPtr<FBrickDataReceipt, ESPMode::ThreadSafe> BrickDataReceipt;
 		const FBrickId BrickId;
-		const TArray<FVector>& PositionData;
+		const TArray<FVector3f>& PositionData;
 		const TArray<FVector2D>& UVData;
 		const TArray<FPackedNormal>& TangentXZData;
 		const TArray<FColor>& ColorData;
