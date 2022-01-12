@@ -382,7 +382,7 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheClipmapDistributionBase(
 	ECVF_RenderThreadSafe
 );
 
-int32 GRadianceCacheNumProbesToTraceBudget = 200;
+int32 GRadianceCacheNumProbesToTraceBudget = 300;
 FAutoConsoleVariableRef CVarRadianceCacheNumProbesToTraceBudget(
 	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget"),
 	GRadianceCacheNumProbesToTraceBudget,
