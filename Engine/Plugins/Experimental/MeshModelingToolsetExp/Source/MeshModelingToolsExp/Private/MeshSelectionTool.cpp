@@ -1471,6 +1471,7 @@ void UMeshSelectionTool::SeparateSelectedTriangles(bool bDeleteSelected)
 
 	// extract copy of triangles
 	FDynamicMesh3 SeparatedMesh;
+	SeparatedMesh.EnableTriangleGroups();
 	SeparatedMesh.EnableAttributes();
 	SeparatedMesh.Attributes()->EnableMatchingAttributes(*SourceMesh->Attributes());
 	FDynamicMeshEditor Editor(&SeparatedMesh);

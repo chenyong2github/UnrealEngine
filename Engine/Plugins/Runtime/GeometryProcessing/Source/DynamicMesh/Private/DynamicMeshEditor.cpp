@@ -1929,11 +1929,7 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 	ResultOut.Reset();
 	IndexMaps.Initialize(Mesh);
 
-	if (SourceMesh->HasTriangleGroups())
-	{
-		Mesh->EnableTriangleGroups();
-	}
-
+	int DefaultGroupID = FDynamicMesh3::InvalidID;
 	for (int SourceTriangleID : SourceTriangles)
 	{
 		check(SourceMesh->IsTriangle(SourceTriangleID));
@@ -1946,18 +1942,32 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 
 		// FindOrCreateDuplicateGroup
 		int NewGroupID = FDynamicMesh3::InvalidID;
-		if (SourceMesh->HasTriangleGroups())
+		if (Mesh->HasTriangleGroups())
 		{
-			int SourceGroupID = SourceMesh->GetTriangleGroup(SourceTriangleID);
-			if (SourceGroupID >= 0)
+			if (SourceMesh->HasTriangleGroups())
 			{
-				NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
-				if (NewGroupID == IndexMaps.InvalidID())
+				int SourceGroupID = SourceMesh->GetTriangleGroup(SourceTriangleID);
+				if (SourceGroupID >= 0)
 				{
-					NewGroupID = Mesh->AllocateTriangleGroup();
-					IndexMaps.SetGroup(SourceGroupID, NewGroupID);
-					ResultOut.NewGroups.Add(NewGroupID);
+					NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
+					if (NewGroupID == IndexMaps.InvalidID())
+					{
+						NewGroupID = Mesh->AllocateTriangleGroup();
+						IndexMaps.SetGroup(SourceGroupID, NewGroupID);
+						ResultOut.NewGroups.Add(NewGroupID);
+					}
 				}
+			}
+			else
+			{
+				// If the source mesh does not have triangle groups, but the destination
+				// mesh does, create a default group for all triangles.
+				if (DefaultGroupID == FDynamicMesh3::InvalidID)
+				{
+					DefaultGroupID = Mesh->AllocateTriangleGroup();
+					ResultOut.NewGroups.Add(DefaultGroupID);
+				}
+				NewGroupID = DefaultGroupID;
 			}
 		}
 
