@@ -2380,9 +2380,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteRaster);
 		const FIntPoint RasterTextureSize = SceneTextures.Depth.Target->Desc.Extent;
-
-		const FViewInfo& PrimaryViewRef = Views[0];
-		const FIntRect PrimaryViewRect = PrimaryViewRef.ViewRect;
 		
 		// Primary raster view
 		{
@@ -2486,6 +2483,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					FRDGTextureRef SceneDepth = SystemTextures.Black;
 					FRDGTextureRef GraphHZB = nullptr;
 
+					const FIntRect PrimaryViewRect = View.GetPrimaryView()->ViewRect;
+
 					BuildHZBFurthest(
 						GraphBuilder,
 						SceneDepth,
@@ -2500,12 +2499,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				}
 
 				Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, RasterResults);
-			}
-		}
 
-		if (GNaniteShowStats != 0)
-		{
-			Nanite::PrintStats(GraphBuilder, PrimaryViewRef);
+				if (GNaniteShowStats != 0 && IStereoRendering::IsAPrimaryView(View))
+				{
+					Nanite::PrintStats(GraphBuilder, View);
+				}
+			}
 		}
 	}
 

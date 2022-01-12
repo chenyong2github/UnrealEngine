@@ -273,6 +273,9 @@ namespace OculusHMD
 		case EStereoscopicEye::eSSE_RIGHT_EYE:
 			Node = ovrpNode_EyeRight;
 			break;
+		case EStereoscopicEye::eSSE_MONOSCOPIC:
+			Node = ovrpNode_EyeCenter;
+			break;
 		default:
 			return false;
 		}
@@ -1345,7 +1348,8 @@ namespace OculusHMD
 
 		check(IsStereoEnabled());
 
-		FMatrix proj = ToFMatrix(Settings->EyeProjectionMatrices[ViewIndex]);
+		FMatrix proj = (ViewIndex == EStereoscopicEye::eSSE_MONOSCOPIC) ?
+			ToFMatrix(Settings->MonoProjectionMatrix) : ToFMatrix(Settings->EyeProjectionMatrices[ViewIndex]);
 
 		// correct far and near planes for reversed-Z projection matrix
 		const float WorldScale = GetWorldToMetersScale() * (1.0 / 100.0f); // physical scale is 100 UUs/meter
@@ -2623,9 +2627,11 @@ namespace OculusHMD
 			// Update projection matrices
 			ovrpFrustum2f frustumLeft = { 0.001f, 1000.0f, EyeLayerDesc.Fov[0] };
 			ovrpFrustum2f frustumRight = { 0.001f, 1000.0f, EyeLayerDesc.Fov[1] };
+			ovrpFrustum2f frustumCenter = { 0.001f, 1000.0f,{ EyeLayerDesc.Fov[0].UpTan, EyeLayerDesc.Fov[0].DownTan, EyeLayerDesc.Fov[0].LeftTan, EyeLayerDesc.Fov[1].RightTan } };
 
 			Settings->EyeProjectionMatrices[0] = ovrpMatrix4f_Projection(frustumLeft, true);
 			Settings->EyeProjectionMatrices[1] = ovrpMatrix4f_Projection(frustumRight, true);
+			Settings->MonoProjectionMatrix = ovrpMatrix4f_Projection(frustumCenter, true);
 
 			if (Frame.IsValid())
 			{

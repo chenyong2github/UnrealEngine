@@ -628,8 +628,16 @@ bool FSteamVRHMD::GetHMDMonitorInfo(MonitorInfo& MonitorDesc)
 
 void FSteamVRHMD::GetFieldOfView(float& OutHFOVInDegrees, float& OutVFOVInDegrees) const
 {
-	OutHFOVInDegrees = 0.0f;
-	OutVFOVInDegrees = 0.0f;
+	float HFOV, VFOV, Left, Right, Top, Bottom;
+	VRSystem->GetProjectionRaw(vr::Eye_Left, &Right, &Left, &Top, &Bottom);
+	HFOV = FMath::Atan(-Left);
+	VFOV = FMath::Atan(Top - Bottom);
+	VRSystem->GetProjectionRaw(vr::Eye_Right, &Right, &Left, &Top, &Bottom);
+	HFOV += FMath::Atan(Right);
+	VFOV = FMath::Max(VFOV, FMath::Atan(Top - Bottom));
+
+	OutHFOVInDegrees = FMath::RadiansToDegrees(HFOV);
+	OutVFOVInDegrees = FMath::RadiansToDegrees(VFOV);
 }
 
 bool FSteamVRHMD::DoesSupportPositionalTracking() const
@@ -1470,7 +1478,7 @@ FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const int32 StereoViewIndex) cons
 {
 	check(IsStereoEnabled() || IsHeadTrackingEnforced());
 
-	vr::Hmd_Eye HmdEye = (StereoViewIndex == EStereoscopicEye::eSSE_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
+	vr::Hmd_Eye HmdEye = (StereoViewIndex == EStereoscopicEye::eSSE_RIGHT_EYE) ? vr::Eye_Right : vr::Eye_Left;
 	float Left, Right, Top, Bottom;
 
 	VRSystem->GetProjectionRaw(HmdEye, &Right, &Left, &Top, &Bottom);
@@ -1478,6 +1486,13 @@ FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const int32 StereoViewIndex) cons
 	Top *= -1.0f;
 	Right *= -1.0f;
 	Left *= -1.0f;
+
+	if (StereoViewIndex == EStereoscopicEye::eSSE_MONOSCOPIC)
+	{
+		float Dummy;
+		VRSystem->GetProjectionRaw(vr::Eye_Right, &Right, &Dummy, &Dummy, &Dummy);
+		Right *= -1.0f;
+	}
 
 	float ZNear = GNearClippingPlane;
 

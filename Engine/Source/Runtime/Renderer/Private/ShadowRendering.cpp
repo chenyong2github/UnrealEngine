@@ -906,14 +906,14 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		//       loop is over each view, the stencil mask is not retained when the right view comes around.
 		// TODO: Support instanced stereo properly in the projection stenciling pass.
 		const bool bIsInstancedStereoEmulated = View->bIsInstancedStereoEnabled && !View->bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(*View);
-		if (bIsInstancedStereoEmulated)
+		if (bIsInstancedStereoEmulated && ProjectionStencilingPasses.IsValidIndex(View->PrimaryViewIndex))
 		{
-			ensure(ProjectionStencilingPasses[0]->GetInstanceCullingMode() == EInstanceCullingMode::Stereo);
+			ensure(ProjectionStencilingPasses[View->PrimaryViewIndex]->GetInstanceCullingMode() == EInstanceCullingMode::Stereo);
 
-			RHICmdList.SetViewport(0, 0, 0, SceneRender->InstancedStereoWidth, View->ViewRect.Max.Y, 1);
+			RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, SceneRender->InstancedStereoWidth, View->ViewRect.Max.Y, 1.0f);
 			RHICmdList.SetScissorRect(true, View->ViewRect.Min.X, View->ViewRect.Min.Y, View->ViewRect.Max.X, View->ViewRect.Max.Y);
 			// Submit the first (and only pass - we share that at least) as the pass is set up for stereo.
-			ProjectionStencilingPasses[0]->SubmitDraw(RHICmdList, InstanceCullingDrawParams);
+			ProjectionStencilingPasses[View->PrimaryViewIndex]->SubmitDraw(RHICmdList, InstanceCullingDrawParams);
 
 			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 			RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, View->ViewRect.Max.X, View->ViewRect.Max.Y, 1.0f);
@@ -1183,7 +1183,7 @@ void FProjectedShadowInfo::RenderProjection(
 	}
 
 	const bool bIsInstancedStereoEmulated = View->bIsInstancedStereoEnabled && !View->bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(*View);
-	if (ViewIndex < ProjectionStencilingPasses.Num())
+	if (ViewIndex < ProjectionStencilingPasses.Num() && ProjectionStencilingPasses[ViewIndex] != nullptr)
 	{
 		// GPUCULL_TODO: get rid of const cast
 		FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *const_cast<FSimpleMeshDrawCommandPass*>(ProjectionStencilingPasses[ViewIndex]);
@@ -1198,14 +1198,7 @@ void FProjectedShadowInfo::RenderProjection(
 		// GPUCULL_TODO: get rid of const cast
 		FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *const_cast<FSimpleMeshDrawCommandPass*>(ProjectionStencilingPasses[0]);
 		ensure(ProjectionStencilingPass.GetInstanceCullingMode() == EInstanceCullingMode::Stereo);
-		for (int32 StereoViewIndex = View->StereoViewIndex; StereoViewIndex >= 0; StereoViewIndex--)
-		{
-			const FSceneView* PrimaryView = View->Family->Views[StereoViewIndex];
-			if (PrimaryView->StereoPass == EStereoscopicPass::eSSP_PRIMARY)
-			{
-				ProjectionStencilingPass.BuildRenderingCommands(GraphBuilder, *PrimaryView, *SceneRender->Scene, PassParameters->InstanceCullingDrawParams);
-			}
-		}
+		ProjectionStencilingPass.BuildRenderingCommands(GraphBuilder, *View->GetPrimaryView(), *SceneRender->Scene, PassParameters->InstanceCullingDrawParams);
 	}
 
 	const FInstanceCullingDrawParams& InstanceCullingDrawParams = PassParameters->InstanceCullingDrawParams;

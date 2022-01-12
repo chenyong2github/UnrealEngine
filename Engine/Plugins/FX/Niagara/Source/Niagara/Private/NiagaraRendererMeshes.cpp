@@ -19,10 +19,6 @@
 #include "NiagaraCullProxyComponent.h"
 #include "IXRTrackingSystem.h"
 
-#ifdef HMD_MODULE_INCLUDED
-	#include "IXRTrackingSystem.h"
-#endif
-
 DECLARE_CYCLE_STAT(TEXT("Generate Mesh Vertex Data [GT]"), STAT_NiagaraGenMeshVertexData, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Meshes [RT]"), STAT_NiagaraRenderMeshes, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Meshes - Allocate GPU Data [RT]"), STAT_NiagaraRenderMeshes_AllocateGPUData, STATGROUP_Niagara);
@@ -497,23 +493,10 @@ void FNiagaraRendererMeshes::InitializeSortInfo(const FParticleMeshRenderData& P
 	const FViewMatrices& ViewMatrices = GetViewMatrices(View, OutSortInfo.ViewOrigin);
 	OutSortInfo.ViewDirection = ViewMatrices.GetViewMatrix().GetColumn(2);
 
-#ifdef HMD_MODULE_INCLUDED
-	if (View.StereoPass != EStereoscopicPass::eSSP_FULL && GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetHMDDevice() != nullptr))
-#else
-	if (View.StereoPass != EStereoscopicPass::eSSP_FULL && AllViewsInFamily.Num() > 1)
-#endif	
+	if (bIsInstancedStereo)
 	{
 		// For VR, do distance culling and sorting from a central eye position to prevent differences between views
-		const uint32 PairedViewIdx = (ViewIndex & 1) ? (ViewIndex - 1) : (ViewIndex + 1);
-		if (AllViewsInFamily.IsValidIndex(PairedViewIdx))
-		{
-			const FSceneView* PairedView = AllViewsInFamily[PairedViewIdx];
-			check(PairedView);
-
-			FVector PairedViewOrigin;
-			GetViewMatrices(*PairedView, PairedViewOrigin);
-			OutSortInfo.ViewOrigin = 0.5f * (OutSortInfo.ViewOrigin + PairedViewOrigin);
-		}
+		OutSortInfo.ViewOrigin = View.CullingOrigin;
 	}
 
 	if (bEnableFrustumCulling)
@@ -534,31 +517,14 @@ void FNiagaraRendererMeshes::InitializeSortInfo(const FParticleMeshRenderData& P
 		}
 		else
 		{
-			OutSortInfo.CullPlanes.SetNumZeroed(6);
-
-			// Gather the culling planes from the view projection matrix
-			const FMatrix& ViewProj = ViewMatrices.GetViewProjectionMatrix();
-			ViewProj.GetFrustumNearPlane(OutSortInfo.CullPlanes[0]);
-			ViewProj.GetFrustumFarPlane(OutSortInfo.CullPlanes[1]);
-			ViewProj.GetFrustumTopPlane(OutSortInfo.CullPlanes[2]);
-			ViewProj.GetFrustumBottomPlane(OutSortInfo.CullPlanes[3]);
-
-			ViewProj.GetFrustumLeftPlane(OutSortInfo.CullPlanes[4]);
-			if (bIsInstancedStereo && AllViewsInFamily.IsValidIndex(ViewIndex + 1))
+			if (bIsInstancedStereo)
 			{
 				// For Instanced Stereo, cull using an extended frustum that encompasses both eyes
-				ensure(View.StereoPass == EStereoscopicPass::eSSP_PRIMARY); // Sanity check that this is a primary view
-				const FSceneView* RightEyeView = AllViewsInFamily[ViewIndex + 1];
-				check(RightEyeView);
-				ensure(RightEyeView->StereoPass == EStereoscopicPass::eSSP_SECONDARY);
-				FVector RightEyePos;
-				FPlane CullPlane;
-				GetViewMatrices(*RightEyeView, RightEyePos).GetViewProjectionMatrix().GetFrustumRightPlane(CullPlane);
-				OutSortInfo.CullPlanes[5] = CullPlane;	// LWC_TODO: Perf pessimization
+				OutSortInfo.CullPlanes = View.CullingFrustum.Planes;
 			}
 			else
 			{
-				ViewProj.GetFrustumRightPlane(OutSortInfo.CullPlanes[5]);
+				OutSortInfo.CullPlanes = View.ViewFrustum.Planes;
 			}
 		}
 	}

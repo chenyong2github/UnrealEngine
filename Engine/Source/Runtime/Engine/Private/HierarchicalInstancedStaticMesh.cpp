@@ -1613,34 +1613,28 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 
 					// Instanced stereo needs to use the right plane from the right eye when constructing the frustum bounds to cull against.
 					// Otherwise we'll cull objects visible in the right eye, but not the left.
-					if ((Views[0]->IsInstancedStereoPass() || Views[0]->bIsMobileMultiViewEnabled) && IStereoRendering::IsStereoEyeView(*Views[0]) && ViewIndex == 0)
+					if ((View->IsInstancedStereoPass() || View->bIsMobileMultiViewEnabled) && IStereoRendering::IsStereoEyeView(*View) && GEngine->StereoRenderingDevice.IsValid())
 					{
-						check(Views.Num() == 2);
-
-						const FMatrix LeftEyeLocalViewProjForCulling  = GetLocalToWorld() * Views[0]->ViewMatrices.GetViewProjectionMatrix();
-						const FMatrix RightEyeLocalViewProjForCulling = GetLocalToWorld() * Views[1]->ViewMatrices.GetViewProjectionMatrix();
-
-						FConvexVolume LeftEyeBounds, RightEyeBounds;
-						GetViewFrustumBounds(LeftEyeBounds, LeftEyeLocalViewProjForCulling, bViewFrustumUsesNearPlane, bViewFrustumUsesFarPlane);
-						GetViewFrustumBounds(RightEyeBounds, RightEyeLocalViewProjForCulling, bViewFrustumUsesNearPlane, bViewFrustumUsesFarPlane);
+						// TODO: Stereo culling frustum needs to use the culling origin instead of the view origin.
+						InstanceParams.ViewFrustumLocal = View->CullingFrustum;
+						for (FPlane& Plane : InstanceParams.ViewFrustumLocal.Planes)
+						{
+							Plane = Plane.TransformBy(WorldToLocal);
+						}
+						InstanceParams.ViewFrustumLocal.Init();
 
 						// Invalid bounds retrieved, so skip render of this frame :
-						if (LeftEyeBounds.Planes.Num() != 4 || RightEyeBounds.Planes.Num() != 4)
+						if (bIsPerspectiveProjection && (InstanceParams.ViewFrustumLocal.Planes.Num() != 4))
 						{
-							ensureMsgf(false, TEXT("Invalid frustum, skipping render of HISM : culling view projection matrix:\n- Left eye: %s\n-Right eye: %s"), *LeftEyeLocalViewProjForCulling.ToString(), *RightEyeLocalViewProjForCulling.ToString());
+							// Report the error as a warning (instead of an ensure or a check) as the problem can come from improper user data (invalid transform or view-proj matrix) : 
+							ensureMsgf(false, TEXT("Invalid frustum, skipping render of HISM"));
 							continue;
 						}
-						
-						InstanceParams.ViewFrustumLocal.Planes.Empty(4);
-						InstanceParams.ViewFrustumLocal.Planes.Add(LeftEyeBounds.Planes[0]);
-						InstanceParams.ViewFrustumLocal.Planes.Add(RightEyeBounds.Planes[1]);
-						InstanceParams.ViewFrustumLocal.Planes.Add(LeftEyeBounds.Planes[2]);
-						InstanceParams.ViewFrustumLocal.Planes.Add(LeftEyeBounds.Planes[3]);
-						InstanceParams.ViewFrustumLocal.Init();
 					}
 					else
 					{
-						const FMatrix LocalViewProjForCulling = GetLocalToWorld() * View->ViewMatrices.GetViewProjectionMatrix();
+						FMatrix LocalViewProjForCulling = GetLocalToWorld() * View->ViewMatrices.GetViewProjectionMatrix();
+
 						GetViewFrustumBounds(InstanceParams.ViewFrustumLocal, LocalViewProjForCulling, bViewFrustumUsesNearPlane, bViewFrustumUsesFarPlane);
 
 						// Invalid bounds retrieved, so skip render of this frame :

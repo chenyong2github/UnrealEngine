@@ -660,6 +660,40 @@ static void SetupViewFrustum(FSceneView& View)
 		GetViewFrustumBounds(View.ViewFrustum, View.ViewMatrices.GetViewProjectionMatrix(), false);
 	}
 
+	// Use a unified frustum for culling an instanced stereo pass.
+	if (IStereoRendering::IsStereoEyeView(View) && GEngine->StereoRenderingDevice.IsValid())
+	{
+		FVector MonoLocation = View.ViewLocation;
+		FRotator MonoRotation = View.ViewRotation;
+		GEngine->StereoRenderingDevice->CalculateStereoViewOffset(eSSE_MONOSCOPIC, MonoRotation, View.WorldToMetersScale, MonoLocation);
+		const FMatrix ViewRotationMatrix = FInverseRotationMatrix(MonoRotation) * FMatrix(
+			FPlane(0, 0, 1, 0),
+			FPlane(1, 0, 0, 0),
+			FPlane(0, 1, 0, 0),
+			FPlane(0, 0, 0, 1));
+		const FMatrix ViewMatrixForCulling = FTranslationMatrix(-MonoLocation) * ViewRotationMatrix;
+		const FMatrix ViewProjForCulling = ViewMatrixForCulling * GEngine->StereoRenderingDevice->GetStereoProjectionMatrix(eSSE_MONOSCOPIC);
+
+		if (View.SceneViewInitOptions.OverrideFarClippingPlaneDistance > 0.0f)
+		{
+			const FPlane FarPlane(View.ViewMatrices.GetViewOrigin() + View.GetViewDirection() * View.SceneViewInitOptions.OverrideFarClippingPlaneDistance, View.GetViewDirection());
+			// Derive the frustum from the view projection matrix, overriding the far plane
+			GetViewFrustumBounds(View.CullingFrustum, ViewProjForCulling, FarPlane, true, false);
+		}
+		else
+		{
+			// Derive the frustum from the view projection matrix.
+			GetViewFrustumBounds(View.CullingFrustum, ViewProjForCulling, false);
+		}
+
+		View.CullingOrigin = MonoLocation;
+	}
+	else
+	{
+		View.CullingFrustum = View.ViewFrustum;
+		View.CullingOrigin = View.ViewMatrices.GetViewOrigin();
+	}
+
 	// Derive the view's near clipping distance and plane.
 	static_assert((int32)ERHIZBuffer::IsInverted != 0, "Fix Near Clip distance!");
 	FPlane NearClippingPlane;
@@ -689,8 +723,8 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, UnconstrainedViewRect(InitOptions.GetViewRect())
 	, MaxShadowCascades(10)
 	, ViewMatrices(InitOptions)
-	, ViewLocation(ForceInitToZero)
-	, ViewRotation(ForceInitToZero)
+	, ViewLocation(InitOptions.ViewLocation)
+	, ViewRotation(InitOptions.ViewRotation)
 	, BaseHmdOrientation(EForceInit::ForceInit)
 	, BaseHmdLocation(ForceInitToZero)
 	, WorldToMetersScale(InitOptions.WorldToMetersScale)
@@ -701,6 +735,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, ColorScale(InitOptions.ColorScale)
 	, StereoPass(InitOptions.StereoPass)
 	, StereoViewIndex(InitOptions.StereoViewIndex)
+	, PrimaryViewIndex(INDEX_NONE)
 	, StereoIPD(InitOptions.StereoIPD)
 	, bAllowCrossGPUTransfer(true)
 	, bOverrideGPUMask(false)
@@ -862,18 +897,36 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 		PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
 	}
 
-	if (Family && Family->bResolveScene && Family->EngineShowFlags.PostProcessing)
+	if (Family)
 	{
-		EyeAdaptationViewState = State;
-
-		// When rendering in stereo we want to use the same exposure for both eyes.
+		// Find the primary view in the view family, if this is the primary view itself assume it'll be added at the back of the family.
+		PrimaryViewIndex = Family->Views.Num();
 		if (IStereoRendering::IsASecondaryView(*this))
 		{
 			check(Family->Views.Num() >= 1);
-			const FSceneView* PrimaryView = Family->Views[0];
-			if (IStereoRendering::IsAPrimaryView(*PrimaryView))
+			while (--PrimaryViewIndex >= 0)
 			{
-				EyeAdaptationViewState = PrimaryView->State;
+				const FSceneView* PrimaryView = Family->Views[PrimaryViewIndex];
+				if (IStereoRendering::IsAPrimaryView(*PrimaryView))
+				{
+					break;
+				}
+			}
+		}
+
+		if (Family->bResolveScene && Family->EngineShowFlags.PostProcessing)
+		{
+			EyeAdaptationViewState = State;
+
+			// When rendering in stereo we want to use the same exposure for both eyes.
+			if (IStereoRendering::IsASecondaryView(*this))
+			{
+				check(Family->Views.Num() >= 1);
+				const FSceneView* PrimaryView = Family->Views[PrimaryViewIndex];
+				if (IStereoRendering::IsAPrimaryView(*PrimaryView))
+				{
+					EyeAdaptationViewState = PrimaryView->State;
+				}
 			}
 		}
 	}
@@ -2583,6 +2636,36 @@ FRDGPooledBuffer* FSceneView::GetEyeAdaptationBuffer() const
 		return EyeAdaptationViewState->GetCurrentEyeAdaptationBuffer();
 	}
 	return nullptr;
+}
+
+const FSceneView* FSceneView::GetPrimarySceneView() const
+{
+	// It is valid for this function to return itself if it's already the primary view.
+	return Family->Views[PrimaryViewIndex];
+}
+
+const FSceneView* FSceneView::GetInstancedSceneView() const
+{
+	// If called on the first secondary view it'll return itself.
+	if (Family->Views.IsValidIndex(PrimaryViewIndex + 1))
+	{
+		const FSceneView* SecondaryView = Family->Views[PrimaryViewIndex + 1];
+		return IStereoRendering::IsASecondaryView(*SecondaryView) ? SecondaryView : nullptr;
+	}
+	return nullptr;
+}
+
+TArray<const FSceneView*> FSceneView::GetSecondaryViews() const
+{
+	// If called on a secondary view we'll return all other secondary views, including this view.
+	TArray<const FSceneView*> Views;
+	Views.Reserve(Family->Views.Num());
+	for (int32 ViewIndex = PrimaryViewIndex + 1; ViewIndex < Family->Views.Num() &&
+		IStereoRendering::IsASecondaryView(*Family->Views[ViewIndex]); ViewIndex++)
+	{
+		Views.Add(Family->Views[ViewIndex]);
+	}
+	return Views;
 }
 
 FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)

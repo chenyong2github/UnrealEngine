@@ -1390,7 +1390,8 @@ namespace WindowsMixedReality
 			}
 			else
 			{
-				return FMatrix::Identity;
+				// FIXME: This will result in the left eye matrix being used for monoscopic projections
+				return Frame_RenderThread.ProjectionMatrixL;
 			}
 		}
 		else
@@ -1407,11 +1408,12 @@ namespace WindowsMixedReality
 			}
 			else if (ViewIndex == eSSE_THIRD_CAMERA_EYE)
 			{
-				return Frame_RenderThread.ProjectionMatrixThirdCamera;
+				return Frame_GameThread.ProjectionMatrixThirdCamera;
 			}
 			else
 			{
-				return FMatrix::Identity;
+				// FIXME: This will result in the left eye matrix being used for monoscopic projections
+				return Frame_GameThread.ProjectionMatrixL;
 			}
 		}
 	}

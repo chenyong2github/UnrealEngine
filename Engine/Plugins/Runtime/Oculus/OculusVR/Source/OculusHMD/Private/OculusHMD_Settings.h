@@ -81,7 +81,8 @@ public:
 	/** Viewports for each eye, without DynamicResolution scaling applied */
 	FIntRect EyeUnscaledRenderViewport[2];
 
-	ovrpMatrix4f EyeProjectionMatrices[2]; // 0 - left, 1 - right, same as Views
+	ovrpMatrix4f EyeProjectionMatrices[2]; // 0 - left, 1 - right same as Views
+	ovrpMatrix4f MonoProjectionMatrix;
 
 	FIntPoint RenderTargetSize;
 	float PixelDensity;

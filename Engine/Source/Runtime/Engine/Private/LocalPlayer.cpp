@@ -826,8 +826,8 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 	// but it makes GetProjectionData better
 	FMinimalViewInfo ViewInfo;
 	GetViewPoint(ViewInfo);
-	OutViewLocation = ViewInfo.Location;
-	OutViewRotation = ViewInfo.Rotation;
+	ViewInitOptions.ViewLocation = ViewInfo.Location;
+	ViewInitOptions.ViewRotation = ViewInfo.Rotation;
 	ViewInitOptions.bUseFieldOfViewForLOD = ViewInfo.bUseFieldOfViewForLOD;
 	ViewInitOptions.FOV = ViewInfo.FOV;
 	ViewInitOptions.DesiredFOV = ViewInfo.DesiredFOV;
@@ -843,7 +843,7 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 	else
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_BuildHiddenComponentList);
-		PlayerController->BuildHiddenComponentList(OutViewLocation, /*out*/ ViewInitOptions.HiddenPrimitives);
+		PlayerController->BuildHiddenComponentList(ViewInfo.Location, /*out*/ ViewInitOptions.HiddenPrimitives);
 	}
 
 	//@TODO: SPLITSCREEN: This call will have an issue with splitscreen, as the show flags are shared across the view family
@@ -851,15 +851,15 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 
 	FSceneView* const View = new FSceneView(ViewInitOptions);
 
-	View->ViewLocation = OutViewLocation;
-	View->ViewRotation = OutViewRotation;
+	OutViewLocation = View->ViewLocation;
+	OutViewRotation = View->ViewRotation;
 	// Pass on the previous view transform from the view info (probably provided by the camera if set)
 	View->PreviousViewTransform = ViewInfo.PreviousViewTransform;
 
 	ViewFamily->Views.Add(View);
 
 	{
-		View->StartFinalPostprocessSettings(OutViewLocation);
+		View->StartFinalPostprocessSettings(ViewInfo.Location);
 
 		// CameraAnim override
 		if (PlayerController->PlayerCameraManager)

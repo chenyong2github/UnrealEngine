@@ -1653,6 +1653,9 @@ public:
 	/** Returns the set of view uniform buffers representing this view. */
 	FViewShaderParameters GetShaderParameters() const;
 
+	/** Returns the primary view associated with the input view, or null if none exists. */
+	const FViewInfo* GetPrimaryView() const;
+
 	/** Returns the instanced view associated with the input view, or null if none exists. */
 	const FViewInfo* GetInstancedView() const;
 

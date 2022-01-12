@@ -2207,7 +2207,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 			{
 				// Note: not using FMemstack as the data is not cleared in the right order.
 				ProjectionStencilingPasses.Add(new FSimpleMeshDrawCommandPass(View, &InstanceCullingManager, true));
-				FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *ProjectionStencilingPasses[ViewIndex];
+				FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *ProjectionStencilingPasses.Last();
 
 				FMeshPassProcessorRenderState DrawRenderState;
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
@@ -2300,6 +2300,10 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 						DepthPassMeshProcessor.AddMeshBatch(StaticMesh, DefaultBatchElementMask, StaticMesh.PrimitiveSceneInfo->Proxy);
 					}
 				}
+			}
+			else
+			{
+				ProjectionStencilingPasses.Add(nullptr);
 			}
 		}
 	}

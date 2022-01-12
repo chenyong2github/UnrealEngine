@@ -72,24 +72,34 @@ void FDefaultXRCamera::SetupLateUpdate(const FTransform& ParentToWorld, USceneCo
 
 void FDefaultXRCamera::CalculateStereoCameraOffset(const int32 ViewIndex, FRotator& ViewRotation, FVector& ViewLocation)
 {
-	if (ViewIndex != INDEX_NONE)
+	FQuat EyeOrientation;
+	FVector EyeOffset;
+	if (TrackingSystem->GetRelativeEyePose(DeviceId, ViewIndex, EyeOrientation, EyeOffset))
 	{
-		FQuat EyeOrientation;
-		FVector EyeOffset;
-		if (TrackingSystem->GetRelativeEyePose(DeviceId, ViewIndex, EyeOrientation, EyeOffset))
+		ViewLocation += ViewRotation.Quaternion().RotateVector(EyeOffset);
+		ViewRotation = FRotator(ViewRotation.Quaternion() * EyeOrientation);
+	}
+	else if (ViewIndex == EStereoscopicEye::eSSE_MONOSCOPIC && TrackingSystem->GetHMDDevice())
+	{
+		float HFov, VFov;
+		TrackingSystem->GetHMDDevice()->GetFieldOfView(HFov, VFov);
+		if (HFov > 0.0f)
 		{
-			ViewLocation += ViewRotation.Quaternion().RotateVector(EyeOffset);
-			ViewRotation = FRotator(ViewRotation.Quaternion() * EyeOrientation);
-
-			if (!bUseImplicitHMDPosition)
-			{
-				FQuat DeviceOrientation; // Unused
-				FVector DevicePosition;
-				TrackingSystem->GetCurrentPose(DeviceId, DeviceOrientation, DevicePosition);
-				ViewLocation += DeltaControlOrientation.RotateVector(DevicePosition);
-			}
+			const float CenterOffset = GNearClippingPlane + (TrackingSystem->GetHMDDevice()->GetInterpupillaryDistance() / 2.0f) * (1.0f / FMath::Tan(FMath::DegreesToRadians(HFov)));
+			ViewLocation += ViewRotation.Quaternion().RotateVector(FVector(CenterOffset, 0, 0));
 		}
-		
+	}
+	else
+	{
+		return;
+	}
+
+	if (!bUseImplicitHMDPosition)
+	{
+		FQuat DeviceOrientation; // Unused
+		FVector DevicePosition;
+		TrackingSystem->GetCurrentPose(DeviceId, DeviceOrientation, DevicePosition);
+		ViewLocation += DeltaControlOrientation.RotateVector(DevicePosition);
 	}
 }
 

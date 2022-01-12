@@ -86,7 +86,6 @@ void SetupDistortionParams(FVector4f& DistortionParams, const FViewInfo& View)
 	// When ISR is enabled we store two FOVs in the distortion parameters and compute the aspect ratio in the shader instead.
 	if (View.IsInstancedStereoPass() || View.bIsMobileMultiViewEnabled)
 	{
-		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
 		const FSceneView* InstancedView = View.GetInstancedView();
 		if (InstancedView)
 		{

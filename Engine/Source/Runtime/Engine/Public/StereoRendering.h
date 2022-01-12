@@ -141,11 +141,13 @@ public:
 
 	/**
 	 * Calculates the offset for the camera position, given the specified position, rotation, and world scale
+	 * Specifying eSSE_MONOSCOPIC for the view index returns a center offset behind the stereo views
 	 */
 	virtual void CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) = 0;
 
 	/**
-	 * Gets a projection matrix for the device, given the specified eye setup
+	 * Gets a projection matrix for the device, given the specified view index
+	 * Specifying eSSE_MONOSCOPIC for the view index returns a center projection matrix encompassing all views
 	 */
 	virtual FMatrix GetStereoProjectionMatrix(const int32 ViewIndex) const = 0;
 

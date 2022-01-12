@@ -1592,18 +1592,7 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	{
 		// If rendering in stereo, the other stereo passes uses the left eye's translucency lighting volume.
-		const FViewInfo* PrimaryView = this;
-		if (IStereoRendering::IsASecondaryView(*this))
-		{
-			if (Family->Views.IsValidIndex(0))
-			{
-				const FSceneView* LeftEyeView = Family->Views[0];
-				if (LeftEyeView->bIsViewInfo && IStereoRendering::IsAPrimaryView(*LeftEyeView))
-				{
-					PrimaryView = static_cast<const FViewInfo*>(LeftEyeView);
-				}
-			}
-		}
+		const FViewInfo* PrimaryView = GetPrimaryView();
 		PrimaryView->CalcTranslucencyLightingVolumeBounds(OutTranslucentCascadeBoundsArray, NumTranslucentCascades);
 	}
 
@@ -2033,17 +2022,19 @@ FViewShaderParameters FViewInfo::GetShaderParameters() const
 	return Parameters;
 }
 
+const FViewInfo* FViewInfo::GetPrimaryView() const
+{
+	// It is valid for this function to return itself if it's already the primary view.
+	const FSceneView* PrimaryView = Family->Views[PrimaryViewIndex];
+	check(PrimaryView->bIsViewInfo);
+	return static_cast<const FViewInfo*>(PrimaryView);
+}
+
 const FViewInfo* FViewInfo::GetInstancedView() const
 {
 	if ((IsInstancedStereoPass() || bIsMobileMultiViewEnabled) && Family->Views.Num() > 0)
 	{
-		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-		const int32 ViewIndex = IStereoRendering::IsStereoEyeView(*this) ? EStereoscopicEye::eSSE_RIGHT_EYE : 0;
-
-		if (Family->Views.IsValidIndex(ViewIndex))
-		{
-			return static_cast<const FViewInfo*>(Family->Views[ViewIndex]);
-		}
+		return static_cast<const FViewInfo*>(GetInstancedSceneView());
 	}
 	return nullptr;
 }
@@ -3042,8 +3033,8 @@ void FSceneRenderer::ComputeFamilySize()
 		MaxFamilyX = FMath::Max(MaxFamilyX, FinalViewMaxX);
 		MaxFamilyY = FMath::Max(MaxFamilyY, FinalViewMaxY);
 
-			InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
-		}
+		InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
+	}
 
 	for (FViewInfo& View : Views)
 	{
@@ -4838,14 +4829,12 @@ void FSceneRenderer::SetStereoViewport(FRHICommandList& RHICmdList, const FViewI
 	{
 		if (View.bIsMultiViewEnabled)
 		{
-			check(&View == &Views[0]);
-
-			const FViewInfo& LeftView = Views[0];
+			const FViewInfo& LeftView = View;
 			const uint32 LeftMinX = LeftView.ViewRect.Min.X * ViewportScale;
 			const uint32 LeftMaxX = LeftView.ViewRect.Max.X * ViewportScale;
 			const uint32 LeftMaxY = LeftView.ViewRect.Max.Y * ViewportScale;
 
-			const FViewInfo& RightView = Views[1];
+			const FViewInfo& RightView = static_cast<const FViewInfo&>(*View.GetInstancedView());
 			const uint32 RightMinX = RightView.ViewRect.Min.X * ViewportScale;
 			const uint32 RightMaxX = RightView.ViewRect.Max.X * ViewportScale;
 			const uint32 RightMaxY = RightView.ViewRect.Max.Y * ViewportScale;
@@ -4854,7 +4843,7 @@ void FSceneRenderer::SetStereoViewport(FRHICommandList& RHICmdList, const FViewI
 		}
 		else
 		{
-			RHICmdList.SetViewport(0, 0, 0, InstancedStereoWidth * ViewportScale, View.ViewRect.Max.Y * ViewportScale, 1.0f);
+			RHICmdList.SetViewport(View.ViewRect.Min.X * ViewportScale, View.ViewRect.Min.Y * ViewportScale, 0.0f, InstancedStereoWidth * ViewportScale, View.ViewRect.Max.Y * ViewportScale, 1.0f);
 		}
 	}
 	else

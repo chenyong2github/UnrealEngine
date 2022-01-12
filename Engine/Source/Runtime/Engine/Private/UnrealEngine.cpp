@@ -3429,10 +3429,12 @@ public:
 		: FOVInDegrees(100)
 		, Width(640)
 		, Height(480)
+		, NumViews(2)
 	{
 		static TAutoConsoleVariable<float> CVarEmulateStereoFOV(TEXT("r.StereoEmulationFOV"), 0, TEXT("FOV in degrees, of the imaginable HMD for stereo emulation"));
 		static TAutoConsoleVariable<int32> CVarEmulateStereoWidth(TEXT("r.StereoEmulationWidth"), 0, TEXT("Width of the imaginable HMD for stereo emulation"));
 		static TAutoConsoleVariable<int32> CVarEmulateStereoHeight(TEXT("r.StereoEmulationHeight"), 0, TEXT("Height of the imaginable HMD for stereo emulation"));
+		static TAutoConsoleVariable<int32> CVarEmulateStereoViews(TEXT("r.StereoEmulationViews"), 0, TEXT("Number of views in the imaginable HMD for stereo emulation"));
 		float FOV = CVarEmulateStereoFOV.GetValueOnAnyThread();
 		if (FOV != 0)
 		{
@@ -3440,6 +3442,7 @@ public:
 		}
 		int32 W = CVarEmulateStereoWidth.GetValueOnAnyThread();
 		int32 H = CVarEmulateStereoHeight.GetValueOnAnyThread();
+		int32 V = CVarEmulateStereoViews.GetValueOnAnyThread();
 		if (W != 0)
 		{
 			Width = FMath::Clamp(W, 100, 10000);
@@ -3448,6 +3451,10 @@ public:
 		{
 			Height = FMath::Clamp(H, 100, 10000);
 		}
+		if (V != 0)
+		{
+			NumViews = FMath::Clamp(V, 1, 32);
+		}
 	}
 
 	virtual ~FFakeStereoRenderingDevice() {}
@@ -3455,6 +3462,8 @@ public:
 	virtual bool IsStereoEnabled() const override { return true; }
 
 	virtual bool EnableStereo(bool stereo = true) override { return true; }
+
+	virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const { return (bStereoRequested) ? NumViews : 1; }
 
 	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, int32 ViewIndex) const override
 	{
@@ -3467,22 +3476,31 @@ public:
 			return EStereoscopicPass::eSSP_PRIMARY;
 		}
 #endif
-		return IStereoRendering::GetViewPassForIndex(bStereoRequested, ViewIndex);
+		return ViewIndex % 2 == 0 ? EStereoscopicPass::eSSP_PRIMARY : EStereoscopicPass::eSSP_SECONDARY;
 	}
 
 	virtual void AdjustViewRect(int32 ViewIndex, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override
 	{
 		SizeX = SizeX / 2;
-		X += SizeX * ViewIndex;
+		SizeY = SizeY / (NumViews / 2);
+		X += SizeX * (ViewIndex % 2);
+		Y += SizeY * (ViewIndex / 2);
 	}
 
 	virtual void CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override
 	{
-		if (ViewIndex != INDEX_NONE)
+		// 32mm, 1/2 average interpupillary distance
+		float EyeOffset = .0320000005f * WorldToMeters;
+
+		if (ViewIndex == eSSE_MONOSCOPIC)
 		{
-			// 32mm, 1/2 average interpupillary distance
-			float EyeOffset = .0320000005f * WorldToMeters;
-			const float PassOffset = (ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE) ? -EyeOffset : EyeOffset;
+			const float HalfFov = FMath::DegreesToRadians(FOVInDegrees) / 2.f;
+			const float CenterOffset = GNearClippingPlane + EyeOffset / FMath::Tan(HalfFov);
+			ViewLocation += ViewRotation.Quaternion().RotateVector(FVector(CenterOffset, 0, 0));
+		}
+		else
+		{
+			const float PassOffset = (ViewIndex % 2 == 0) ? -EyeOffset : EyeOffset;
 			ViewLocation += ViewRotation.Quaternion().RotateVector(FVector(0,PassOffset,0));
 		}
 	}
@@ -3522,6 +3540,7 @@ public:
 
 	float FOVInDegrees;		// max(HFOV, VFOV) in degrees of imaginable HMD
 	int32 Width, Height;	// resolution of imaginable HMD
+	int32 NumViews;			// views of imaginable HMD
 };
 
 bool UEngine::InitializeHMDDevice()

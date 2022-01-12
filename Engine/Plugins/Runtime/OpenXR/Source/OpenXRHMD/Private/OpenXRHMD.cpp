@@ -691,6 +691,11 @@ EStereoscopicPass FOpenXRHMD::GetViewPassForIndex(bool bStereoRequested, int32 V
 		// Views provided by a plugin should be considered a new primary pass
 		return EStereoscopicPass::eSSP_PRIMARY;
 	}
+
+	if (SelectedViewConfigurationType == XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO)
+	{
+		return ViewIndex % 2 == 0 ? EStereoscopicPass::eSSP_PRIMARY : EStereoscopicPass::eSSP_SECONDARY;
+	}
 	return ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE ? EStereoscopicPass::eSSP_PRIMARY : EStereoscopicPass::eSSP_SECONDARY;
 }
 
@@ -735,15 +740,32 @@ bool FOpenXRHMD::GetRelativeEyePose(int32 InDeviceId, int32 InViewIndex, FQuat& 
 FMatrix FOpenXRHMD::GetStereoProjectionMatrix(const int32 ViewIndex) const
 {
 	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
-	XrFovf Fov = (ViewIndex < FrameState.Views.Num()) ? FrameState.Views[ViewIndex].fov 
-		: XrFovf{ -PI / 4.0f, PI / 4.0f, PI / 4.0f, -PI / 4.0f };
-	float ZNear = GNearClippingPlane;
+
+	XrFovf Fov = {};
+	if (ViewIndex == eSSE_MONOSCOPIC)
+	{
+		// The monoscopic projection matrix uses the combined field-of-view of both eyes
+		for (int32 Index = 0; Index < FrameState.Views.Num(); Index++)
+		{
+			const XrFovf& ViewFov = FrameState.Views[Index].fov;
+			Fov.angleUp = FMath::Max(Fov.angleUp, ViewFov.angleUp);
+			Fov.angleDown = FMath::Min(Fov.angleDown, ViewFov.angleDown);
+			Fov.angleLeft = FMath::Min(Fov.angleLeft, ViewFov.angleLeft);
+			Fov.angleRight = FMath::Max(Fov.angleRight, ViewFov.angleRight);
+		}
+	}
+	else
+	{
+		Fov = (ViewIndex < FrameState.Views.Num()) ? FrameState.Views[ViewIndex].fov
+			: XrFovf{ -PI / 4.0f, PI / 4.0f, PI / 4.0f, -PI / 4.0f };
+	}
 
 	Fov.angleUp = tan(Fov.angleUp);
 	Fov.angleDown = tan(Fov.angleDown);
 	Fov.angleLeft = tan(Fov.angleLeft);
 	Fov.angleRight = tan(Fov.angleRight);
 
+	float ZNear = GNearClippingPlane;
 	float SumRL = (Fov.angleRight + Fov.angleLeft);
 	float SumTB = (Fov.angleUp + Fov.angleDown);
 	float InvRL = (1.0f / (Fov.angleRight - Fov.angleLeft));

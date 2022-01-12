@@ -3348,7 +3348,6 @@ void FSceneRenderer::GatherDynamicMeshElements(
 				&DynamicReadBuffer);
 		}
 
-		const bool bIsInstancedStereo = (ViewCount > 0) ? (InViews[0].IsInstancedStereoPass() || InViews[0].bIsMobileMultiViewEnabled) : false;
 		const EShadingPath ShadingPath = Scene->GetShadingPath();
 
 		for (int32 PrimitiveIndex = 0; PrimitiveIndex < NumPrimitives; ++PrimitiveIndex)
@@ -3357,8 +3356,16 @@ void FSceneRenderer::GatherDynamicMeshElements(
 
 			if (ViewMask != 0)
 			{
-				// Don't cull a single eye when drawing a stereo pair
-				const uint8 ViewMaskFinal = (bIsInstancedStereo) ? ViewMask | 0x3 : ViewMask;
+				// If a mesh is visible in a secondary view, mark it as visible in the primary view
+				uint8 ViewMaskFinal = ViewMask;
+				for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
+				{
+					FViewInfo& View = InViews[ViewIndex];
+					if (ViewMask & (1 << ViewIndex) && IStereoRendering::IsASecondaryView(View))
+					{
+						ViewMaskFinal |= 1 << InViews[ViewIndex].PrimaryViewIndex;
+					}
+				}
 
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = InScene->Primitives[PrimitiveIndex];
 				const FPrimitiveBounds& Bounds = InScene->PrimitiveBounds[PrimitiveIndex];
@@ -4308,7 +4315,6 @@ void FSceneRenderer::ComputeViewVisibility(
 		HasDynamicEditorMeshElementsMasks.AddZeroed(NumPrimitives);
 	}
 
-	const bool bIsInstancedStereo = (Views.Num() > 0) ? (Views[0].IsInstancedStereoPass() || Views[0].bIsMobileMultiViewEnabled) : false;
 	UpdateReflectionSceneData(Scene);
 
 	{
@@ -4344,6 +4350,8 @@ void FSceneRenderer::ComputeViewVisibility(
 			FViewInfo& View = Views[ViewIndex];
 			FViewCommands& ViewCommands = ViewCommandsPerView[ViewIndex];
 			FSceneViewState* ViewState = (FSceneViewState*)View.State;
+
+			const bool bIsSinglePassStereo = View.bIsInstancedStereoEnabled || View.bIsMobileMultiViewEnabled;
 
 			// Allocate the view's visibility maps.
 			View.PrimitiveVisibilityMap.Init(false, Scene->Primitives.Num());
@@ -4528,8 +4536,8 @@ void FSceneRenderer::ComputeViewVisibility(
 				}
 			}
 
-			// ISR views can't compute relevance until all views are frustum culled
-			if (!bIsInstancedStereo)
+			// Single-pass stereo views can't compute relevance until all views are visibility culled
+			if (!bIsSinglePassStereo)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_ViewRelevance);
 				ComputeAndMarkRelevanceForViewParallel(RHICmdList, Scene, View, ViewCommands, ViewBit, HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks);
@@ -4560,39 +4568,38 @@ void FSceneRenderer::ComputeViewVisibility(
 			// TODO: right now decals visibility computed right before rendering them, ideally it should be done in InitViews and this flag should be replaced with list of visible decals  
 			// Currently used to disable stencil operations in forward base pass when scene has no any decals
 			View.bSceneHasDecals = (Scene->Decals.Num() > 0) || (GForceSceneHasDecals != 0);
-		}
-	}
 
-	if ((Views.Num() > 1) && bIsInstancedStereo)
-	{
-		// Ensure primitives from the right-eye view are visible in the left-eye (instanced) view
-		FSceneBitArray& LeftView = Views[0].PrimitiveVisibilityMap;
-		const FSceneBitArray& RightView = Views[1].PrimitiveVisibilityMap;
+			if (bIsSinglePassStereo && IStereoRendering::IsASecondaryView(View) && Views.IsValidIndex(View.PrimaryViewIndex))
+			{
+				// Ensure primitives from the secondary view are visible in the primary view
+				FSceneBitArray& PrimaryVis = Views[View.PrimaryViewIndex].PrimitiveVisibilityMap;
+				const FSceneBitArray& SecondaryVis = View.PrimitiveVisibilityMap;
 
-		check(LeftView.Num() == RightView.Num())
+				check(PrimaryVis.Num() == SecondaryVis.Num());
 
-		const uint32 NumWords = FMath::DivideAndRoundUp(LeftView.Num(), NumBitsPerDWORD);
-		uint32* const LeftData = LeftView.GetData();
-		const uint32* const RightData = RightView.GetData();
+				const uint32 NumWords = FMath::DivideAndRoundUp(PrimaryVis.Num(), NumBitsPerDWORD);
+				uint32* const PrimaryData = PrimaryVis.GetData();
+				const uint32* const SecondaryData = SecondaryVis.GetData();
 
-		for (uint32 Index = 0; Index < NumWords; ++Index)
-		{
-			LeftData[Index] |= RightData[Index];
+				for (uint32 Index = 0; Index < NumWords; ++Index)
+				{
+					PrimaryData[Index] |= SecondaryData[Index];
+				}
+			}
 		}
 	}
 	
 	ViewBit = 0x1;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex, ViewBit <<= 1)
 	{
 		FViewInfo& View = Views[ViewIndex];
 		FViewCommands& ViewCommands = ViewCommandsPerView[ViewIndex];
 		
-		if (bIsInstancedStereo)
+		if (View.bIsInstancedStereoEnabled || View.bIsMobileMultiViewEnabled)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ViewRelevance);
 			ComputeAndMarkRelevanceForViewParallel(RHICmdList, Scene, View, ViewCommands, ViewBit, HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks);
 		}
-		ViewBit <<= 1;
 	}
 
 	{

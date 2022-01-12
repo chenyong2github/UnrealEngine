@@ -137,6 +137,10 @@ struct FSceneViewInitOptions : public FSceneViewProjectionData
 	/** Conversion from world units (uu) to meters, so we can scale motion to the world appropriately */
 	float WorldToMetersScale;
 
+	/** The view origin and rotation without any stereo offsets applied to it */
+	FVector ViewLocation;
+	FRotator ViewRotation;
+
 	TSet<FPrimitiveComponentId> HiddenPrimitives;
 
 	/** The primitives which are visible for this view. If the array is not empty, all other primitives will be hidden. */
@@ -190,6 +194,8 @@ struct FSceneViewInitOptions : public FSceneViewProjectionData
 		, StereoViewIndex(INDEX_NONE)
 		, StereoIPD(0.0f)
 		, WorldToMetersScale(100.f)
+		, ViewLocation(ForceInitToZero)
+		, ViewRotation(ForceInitToZero)
 		, CursorPos(-1, -1)
 		, LODDistanceFactor(1.0f)
 		, OverrideFarClippingPlaneDistance(-1.0f)
@@ -990,6 +996,9 @@ public:
 	/** For stereoscopic rendering, unique index identifying the view across view families */
 	int32 StereoViewIndex;
 
+	/** For stereoscopic rendering, view family index of the primary view associated with this view */
+	int32 PrimaryViewIndex;
+
 	/** Half of the view's stereo IPD (- for lhs, + for rhs) */
 	float StereoIPD;
 
@@ -1063,6 +1072,12 @@ public:
 	FPlane NearClippingPlane;
 
 	float NearClippingDistance;
+
+	/** Monoscopic culling frustum, same as ViewFrustum in case of non-stereo */
+	FConvexVolume CullingFrustum;
+
+	/** Monoscopic culling origin, same as the view matrix origin in case of non-stereo */
+	FVector CullingOrigin;
 
 	/** true if ViewMatrix.Determinant() is negative. */
 	bool bReverseCulling;
@@ -1422,6 +1437,14 @@ public:
 	/** Returns the eye adaptation buffer (mobile) or null if it doesn't exist. */
 	FRDGPooledBuffer* GetEyeAdaptationBuffer() const;
 
+	/** Get the primary view associated with the secondary view. */
+	const FSceneView* GetPrimarySceneView() const;
+
+	/** Get the first secondary view associated with the primary view. */
+	const FSceneView* GetInstancedSceneView() const;
+
+	/** Get all secondary views associated with the primary view. */
+	TArray<const FSceneView*> GetSecondaryViews() const;
 
 protected:
 	FSceneViewStateInterface* EyeAdaptationViewState = nullptr;
