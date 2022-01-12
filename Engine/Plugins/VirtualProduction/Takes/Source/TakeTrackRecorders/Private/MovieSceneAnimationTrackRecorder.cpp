@@ -9,6 +9,7 @@
 #include "MovieScene.h"
 #include "AssetRegistryModule.h"
 #include "SequenceRecorderSettings.h"
+#include "SequenceRecorderUtils.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Engine/TimecodeProvider.h"
@@ -244,7 +245,7 @@ void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTi
 		//Reset the start times based upon when the animation really starts.
 		if (MovieSceneSection.IsValid())
 		{
-			MovieSceneSection->TimecodeSource = FMovieSceneTimecodeSource(FApp::GetTimecode());
+			MovieSceneSection->TimecodeSource = SequenceRecorderUtils::GetTimecodeSource();
 			FFrameRate   TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 			FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
 

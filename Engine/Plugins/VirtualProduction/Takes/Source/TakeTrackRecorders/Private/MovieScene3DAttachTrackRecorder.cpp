@@ -55,7 +55,7 @@ void UMovieScene3DAttachTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 				MovieSceneSection->AttachSocketName = SocketName;
 				MovieSceneSection->AttachComponentName = ComponentName;
 
-				MovieSceneSection->TimecodeSource = MovieScene->TimecodeSource;
+				MovieSceneSection->TimecodeSource = MovieScene->GetEarliestTimecodeSource();
 				MovieSceneSection->SetRange(TRange<FFrameNumber>(CurrentFrame, CurrentFrame));
 
 				FMovieSceneSequenceID TargetSequenceID = OwningTakeRecorderSource->GetLevelSequenceID(AttachedToActor);

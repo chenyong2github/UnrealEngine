@@ -458,7 +458,7 @@ void ULevelSequencePlayer::TakeFrameSnapshot(FLevelSequencePlayerSnapshot& OutSn
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
 #if WITH_EDITORONLY_DATA
-	OutSnapshot.SourceTimecode = MovieScene->TimecodeSource.Timecode.ToString();
+	OutSnapshot.SourceTimecode = MovieScene->GetEarliestTimecodeSource().Timecode.ToString();
 #endif
 
 	UMovieSceneCinematicShotTrack* ShotTrack = MovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();

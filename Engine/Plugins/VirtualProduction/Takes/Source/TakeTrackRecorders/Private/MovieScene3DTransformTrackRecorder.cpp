@@ -624,7 +624,6 @@ bool UMovieScene3DTransformTrackRecorder::LoadRecordedFile(const FString& FileNa
 
 							MovieSceneTrack->AddSection(*MovieSceneSection);
 							TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = MovieSceneSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
-							//MovieSceneSection->TimecodeSource = SequenceRecorderUtils::GetTimecodeSource();
 
 							bool InFirst = true;
 							// @todo: sequencer-timecode: this was previously never actually used - should it be??

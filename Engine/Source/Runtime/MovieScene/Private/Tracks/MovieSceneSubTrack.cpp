@@ -64,9 +64,9 @@ UMovieSceneSubSection* UMovieSceneSubTrack::AddSequenceOnRow(UMovieSceneSequence
 	Sections.Add(NewSection);
 
 #if WITH_EDITORONLY_DATA
-	if (Sequence && Sequence->GetMovieScene())
+	if (Sequence)
 	{
-		NewSection->TimecodeSource = Sequence->GetMovieScene()->TimecodeSource;
+		NewSection->TimecodeSource = Sequence->GetEarliestTimecodeSource();
 	}
 #endif
 
