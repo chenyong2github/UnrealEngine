@@ -73,7 +73,6 @@ struct FCachedRayTracingSceneData
 
 	FBufferRHIRef InstancePayloadDataBufferRHI;
 	FShaderResourceViewRHIRef InstancePayloadDataBufferSRV;
-	//uint32 InstancePayloadDataSOAStride;
 
 	FBufferRHIRef InstanceIdsIdentityBufferRHI;
 	FShaderResourceViewRHIRef InstanceIdsIdentityBufferSRV;

@@ -15,9 +15,6 @@ public:
 	UInstancedStaticMeshComponent* ComponentUObject;
 	FStaticMeshRenderData* RenderData;
 	TUniquePtr<FInstancedStaticMeshRenderData> InstancedRenderData;
-	FBufferRHIRef InstanceOriginBuffer;
-	FBufferRHIRef InstanceTransformBuffer;
-	FBufferRHIRef InstanceLightmapBuffer;
 
 	TArray<FIntPoint> LODPerInstanceLightmapSize;
 

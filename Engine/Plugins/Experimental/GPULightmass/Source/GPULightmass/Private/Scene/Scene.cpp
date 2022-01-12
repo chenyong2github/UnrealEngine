@@ -1050,10 +1050,6 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 		](FRHICommandListImmediate&) mutable
 	{
 
-		InstanceRenderState.InstanceOriginBuffer = InstanceRenderState.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceOriginBuffer();
-		InstanceRenderState.InstanceTransformBuffer = InstanceRenderState.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceTransformBuffer();
-		InstanceRenderState.InstanceLightmapBuffer = InstanceRenderState.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceLightmapBuffer();
-
 		FInstanceGroupRenderStateRef InstanceRenderStateRef = RenderState.InstanceGroupRenderStates.Emplace(MoveTemp(InstanceRenderState));
 
 		for (int32 LODIndex = 0; LODIndex < InstanceLightmapRenderStateInitializers.Num(); LODIndex++)
