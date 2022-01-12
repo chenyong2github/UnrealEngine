@@ -68,7 +68,10 @@ public:
 		X(EPBIKLimitType::Free),
 		Y(EPBIKLimitType::Free),
 		Z(EPBIKLimitType::Free),
-		PreferredAngles(FVector::ZeroVector){}
+		PreferredAngles(FVector::ZeroVector)
+	{
+		SetFlags(RF_Transactional);
+	}
 
 	/** The bone these settings are applied to. */
 	UPROPERTY(VisibleAnywhere, Category = Bone, meta = (Constant, CustomWidget = "BoneName"))
