@@ -635,7 +635,10 @@ TPair<const FSlateBrush*, FSlateColor> SRigHierarchyItem::GetBrushForElementType
 			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Control");
 			if(const FRigControlElement* Control = InHierarchy->Find<FRigControlElement>(InKey))
 			{
-				Color = FSlateColor(Control->Settings.ShapeColor);
+				FLinearColor ShapeColor = Control->Settings.ShapeColor;
+				// ensure the alpha is always visible
+				ShapeColor.A = 1.f;
+				Color = FSlateColor(ShapeColor);
 			}
 			break;
 		}

@@ -170,7 +170,9 @@ FString FControlRigVisualGraphUtils::DumpRigHierarchyToDotGraph(URigHierarchy* I
 				}
 				case ERigElementType::Control:
 				{
-					Color = Cast<FRigControlElement>(InElement)->Settings.ShapeColor;
+					FLinearColor ShapeColor = Cast<FRigControlElement>(InElement)->Settings.ShapeColor; 
+					ShapeColor.A = 1.f;
+					Color = ShapeColor;
 					break;
 				}
 				default:
