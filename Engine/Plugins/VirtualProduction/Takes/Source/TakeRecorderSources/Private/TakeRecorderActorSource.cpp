@@ -645,6 +645,11 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 		return;
 	}
 
+	// In case we need it later, get the earliest timecode source *before* we
+	// add the take section, since its timecode source will be default
+	// constructed as all zeros and might accidentally compare as earliest.
+	const FMovieSceneTimecodeSource EarliestTimecodeSource = MovieScene->GetEarliestTimecodeSource();
+
 	for (UMovieSceneTrack* Track : Binding->GetTracks())
 	{
 		for (UMovieSceneSection* Section : Track->GetAllSections())
@@ -728,6 +733,29 @@ void UTakeRecorderActorSource::ProcessRecordedTimes(ULevelSequence* InSequence)
 		TakeSection->SecondsCurve.Set(Times, Seconds);
 		TakeSection->FramesCurve.Set(Times, Frames);
 		TakeSection->SubFramesCurve.Set(Times, SubFrames);
+	}
+
+	// Since the take section was created post recording here in this
+	// function, it wasn't available at the start of recording to have
+	// its timecode source set with the other sections, so we set it here.
+	if (TakeSection->HoursCurve.GetNumKeys() > 0)
+	{
+		// We populated the take section's timecode curves with data, so
+		// use the first values as the timecode source.
+		const int32 Hours = TakeSection->HoursCurve.GetValues()[0];
+		const int32 Minutes = TakeSection->MinutesCurve.GetValues()[0];
+		const int32 Seconds = TakeSection->SecondsCurve.GetValues()[0];
+		const int32 Frames = TakeSection->FramesCurve.GetValues()[0];
+		const bool bIsDropFrame = false;
+		const FTimecode Timecode(Hours, Minutes, Seconds, Frames, bIsDropFrame);
+		TakeSection->TimecodeSource = FMovieSceneTimecodeSource(Timecode);
+	}
+	else
+	{
+		// Otherwise, adopt the earliest timecode source from one of the movie
+		// scene's other sections as the timecode source for the take section.
+		// This case is unlikely.
+		TakeSection->TimecodeSource = EarliestTimecodeSource;
 	}
 
 	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
