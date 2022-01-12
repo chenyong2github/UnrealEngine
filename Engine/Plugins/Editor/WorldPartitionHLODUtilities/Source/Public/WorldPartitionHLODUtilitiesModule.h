@@ -2,16 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
-
-class IWorldPartitionHLODUtilities;
-
-class IWorldPartitionHLODUtilitiesModule : public IModuleInterface
-{
-public:
-	virtual IWorldPartitionHLODUtilities* GetUtilities() = 0;
-};
+#include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
 
 /**
 * IWorldPartitionHLODUtilities module interface

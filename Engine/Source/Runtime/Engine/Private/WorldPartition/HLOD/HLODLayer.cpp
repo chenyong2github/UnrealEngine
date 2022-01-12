@@ -15,10 +15,9 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
+#include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
 
 #include "Modules/ModuleManager.h"
-#include "IWorldPartitionHLODUtilities.h"
-#include "WorldPartitionHLODUtilitiesModule.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODLayer, Log, All);

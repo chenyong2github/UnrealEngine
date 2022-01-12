@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IWorldPartitionHLODUtilities.h"
+#include "WorldPartition/HLOD/IWorldPartitionHLODUtilities.h"
 
 /**
 * FWorldPartitionHLODUtilities implementation

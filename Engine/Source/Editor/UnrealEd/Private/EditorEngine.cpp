@@ -1054,7 +1054,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("StaticMeshEditor"),
 			TEXT("EditorFramework"),
 			TEXT("WorldPartitionEditor"),
-			TEXT("WorldPartitionHLODUtilities"),
 			TEXT("EditorConfig"),
 			TEXT("DerivedDataEditor"),
 			TEXT("CSVtoSVG"),

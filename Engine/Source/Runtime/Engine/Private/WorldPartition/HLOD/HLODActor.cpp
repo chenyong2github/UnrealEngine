@@ -12,10 +12,9 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
 
 #include "Modules/ModuleManager.h"
-#include "IWorldPartitionHLODUtilities.h"
-#include "WorldPartitionHLODUtilitiesModule.h"
 #include "Engine/TextureStreamingTypes.h"
 #endif
 

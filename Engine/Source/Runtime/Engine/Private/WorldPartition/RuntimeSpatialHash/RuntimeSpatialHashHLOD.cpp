@@ -9,6 +9,8 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
+
 #include "WorldPartition/WorldPartitionHelpers.h"
 
 #include "UObject/GCObjectScopeGuard.h"
@@ -25,8 +27,6 @@
 #include "StaticMeshCompiler.h"
 
 #include "UObject/SavePackage.h"
-#include "IWorldPartitionHLODUtilities.h"
-#include "WorldPartitionHLODUtilitiesModule.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionRuntimeSpatialHashHLOD, Log, All);
