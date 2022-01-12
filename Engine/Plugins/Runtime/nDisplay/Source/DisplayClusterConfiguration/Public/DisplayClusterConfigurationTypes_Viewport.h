@@ -166,16 +166,12 @@ public:
 	FDisplayClusterConfigurationTextureShare_Viewport TextureShare;
 
 #if WITH_EDITORONLY_DATA
-	/** Locks the Viewport aspect ratio for easier resizing */
-	UPROPERTY(EditAnywhere, Category = "Configuration")
-	bool bFixedAspectRatio;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Preview", meta = (DisplayName = "Preview Frustum"))
 	bool bAllowPreviewFrustumRendering = false;
 #endif
 	
 	/** Define the Viewport 2D coordinates */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayMode = "Compound", FixedAspectRatioProperty = "bFixedAspectRatio"))
 	FDisplayClusterConfigurationRectangle Region;
 
 	/** Define the Viewport Remap settings */
@@ -199,6 +195,10 @@ public:
 	FDisplayClusterConfigurationViewport_ICVFX ICVFX;
 
 #if WITH_EDITORONLY_DATA
+	/** Locks the Viewport aspect ratio for easier resizing */
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (HideProperty))
+	bool bFixedAspectRatio;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (HideProperty))
 	bool bIsUnlocked = true;
 

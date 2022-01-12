@@ -316,7 +316,7 @@ public:
 	bool bIsFullscreen;
 
 	/** Defines the application window size in pixels */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Window"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Window", DisplayMode = "Compound", FixedAspectRatioProperty = "bFixedAspectRatio"))
 	FDisplayClusterConfigurationRectangle WindowRect;
 
 	/** Output remapping settings for the selected cluster node */
@@ -325,7 +325,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Locks the application window aspect ratio for easier resizing */
-	UPROPERTY(EditAnywhere, Category = "Configuration")
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (HideProperty))
 	bool bFixedAspectRatio;
 #endif
 
@@ -385,7 +385,7 @@ public:
 	bool bAllowManualPlacement;
 
 	/** Resolution of Host PC in pixels */
-	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (EditCondition = "bAllowManualSizing"))
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (EditCondition = "bAllowManualSizing", AllowPreserveRatio))
 	FVector2D HostResolution;
 
 	/** Allows to manually resize the Host PC resolution */
