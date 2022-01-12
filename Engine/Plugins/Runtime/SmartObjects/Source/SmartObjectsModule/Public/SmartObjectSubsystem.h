@@ -121,6 +121,18 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestResult
 };
 
 /**
+ * Result code indicating if the Collection was successfully registered or why it was not.
+ */
+UENUM()
+enum class ESmartObjectCollectionRegistrationResult
+{
+	Failed_InvalidCollection,
+	Failed_AlreadyRegistered,
+	Failed_NotFromPersistentLevel,
+	Succeeded,
+};
+
+/**
  * Subsystem that holds all registered smart object instances and offers the API for spatial queries and reservations.
  */
 UCLASS(config = Game)
@@ -132,7 +144,7 @@ public:
 
 	static USmartObjectSubsystem* GetCurrent(const UWorld* World);
 
-	void RegisterCollection(ASmartObjectCollection& InCollection);
+	ESmartObjectCollectionRegistrationResult RegisterCollection(ASmartObjectCollection& InCollection);
 	void UnregisterCollection(ASmartObjectCollection& InCollection);
 	ASmartObjectCollection* GetMainCollection() const { return MainCollection; }
 

@@ -193,6 +193,10 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 			}
 		}
 	}
+	else
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since Main Collection is not set."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+	}
 
 #if WITH_EDITOR
 	if (RegisteredSOComponents.Find(&SmartObjectComponent) != INDEX_NONE)
@@ -671,28 +675,30 @@ void USmartObjectSubsystem::RegisterCollectionInstances()
 		ASmartObjectCollection* Collection = (*It);
 		if (IsValid(Collection) && Collection->IsRegistered() == false)
 		{
-			UE_VLOG_UELOG(Collection, LogSmartObject, Log, TEXT("Collection '%s' registers from USmartObjectSubsystem initialization - Succeeded"), *Collection->GetName());
-			RegisterCollection(*Collection);
+			const ESmartObjectCollectionRegistrationResult Result = RegisterCollection(*Collection);
+			UE_VLOG_UELOG(Collection, LogSmartObject, Log, TEXT("Collection '%s' registration from USmartObjectSubsystem initialization - %s"), *Collection->GetName(), *UEnum::GetValueAsString(Result));
 		}
 	}
 }
 
-void USmartObjectSubsystem::RegisterCollection(ASmartObjectCollection& InCollection)
+ESmartObjectCollectionRegistrationResult USmartObjectSubsystem::RegisterCollection(ASmartObjectCollection& InCollection)
 {
 	if (!IsValid(&InCollection))
 	{
-		return;
+		return ESmartObjectCollectionRegistrationResult::Failed_InvalidCollection;
 	}
 
 	if (InCollection.IsRegistered())
 	{
 		UE_VLOG_UELOG(&InCollection, LogSmartObject, Error, TEXT("Trying to register collection '%s' more than once"), *InCollection.GetName());
-		return;
+		return ESmartObjectCollectionRegistrationResult::Failed_AlreadyRegistered;
 	}
 
+	ESmartObjectCollectionRegistrationResult Result = ESmartObjectCollectionRegistrationResult::Succeeded;
 	if (InCollection.GetLevel()->IsPersistentLevel())
 	{
 		ensureMsgf(!IsValid(MainCollection), TEXT("Not expecting to set the main collection more than once"));
+		UE_VLOG_UELOG(&InCollection, LogSmartObject, Log, TEXT("Main collection '%s' registered with %d entries"), *InCollection.GetName(), InCollection.GetEntries().Num());
 		MainCollection = &InCollection;
 
 #if WITH_EDITOR
@@ -709,11 +715,15 @@ void USmartObjectSubsystem::RegisterCollection(ASmartObjectCollection& InCollect
 #endif // WITH_EDITOR
 
 		InCollection.OnRegistered();
+		Result = ESmartObjectCollectionRegistrationResult::Succeeded;
 	}
 	else
 	{
 		InCollection.MarkAsGarbage();
+		Result = ESmartObjectCollectionRegistrationResult::Failed_NotFromPersistentLevel;
 	}
+
+	return Result;
 }
 
 void USmartObjectSubsystem::UnregisterCollection(ASmartObjectCollection& InCollection)
@@ -724,6 +734,7 @@ void USmartObjectSubsystem::UnregisterCollection(ASmartObjectCollection& InColle
 		return;
 	}
 
+	MainCollection = nullptr;
 	InCollection.OnUnregistered();
 }
 
