@@ -370,6 +370,7 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(TD3D12Texture& Texture, const D
 
 	INC_MEMORY_STAT_BY_FName(GetD3D12StatEnum(Desc.Flags).GetName(), TextureSize);
 	INC_MEMORY_STAT_BY_FName(GetRHIStatEnum(Desc.Flags, bCubeMap, b3D).GetName(), TextureSize);
+	INC_MEMORY_STAT_BY(STAT_D3D12MemoryCurrentTotal, TextureSize);
 
 	if (TextureSize > 0)
 	{
@@ -1029,11 +1030,13 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 			Flags,
 			CreateInfo.ClearValueBinding);		
 
+#if NAME_OBJECTS
 		if (CreateInfo.DebugName)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::SetDebugName);
 			NewTexture->SetName(CreateInfo.DebugName);
 		}
+#endif // NAME_OBJECTS
 
 		FD3D12ResourceLocation& Location = NewTexture->ResourceLocation;
 

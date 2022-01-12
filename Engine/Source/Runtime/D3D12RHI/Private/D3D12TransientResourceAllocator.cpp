@@ -89,6 +89,7 @@ FD3D12TransientHeap::FD3D12TransientHeap(const FInitializer& Initializer, FD3D12
 	SetGPUVirtualAddress(Heap->GetGPUVirtualAddress());
 
 	INC_MEMORY_STAT_BY(STAT_D3D12TransientHeaps, Desc.SizeInBytes);
+	INC_MEMORY_STAT_BY(STAT_D3D12MemoryCurrentTotal, Desc.SizeInBytes);
 }
 
 FD3D12TransientHeap::~FD3D12TransientHeap()
@@ -97,6 +98,7 @@ FD3D12TransientHeap::~FD3D12TransientHeap()
 	{
 		D3D12_HEAP_DESC Desc = Heap->GetHeapDesc();
 		DEC_MEMORY_STAT_BY(STAT_D3D12TransientHeaps, Desc.SizeInBytes);
+		DEC_MEMORY_STAT_BY(STAT_D3D12MemoryCurrentTotal, Desc.SizeInBytes);
 	}
 }
 

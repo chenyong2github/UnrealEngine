@@ -321,6 +321,7 @@ void UpdateBufferStats(EBufferUsageFlags InUsageFlags, int64 RequestedSize)
 {
 	INC_MEMORY_STAT_BY_FName(GetRHIBufferStats(InUsageFlags), RequestedSize);
 	INC_MEMORY_STAT_BY_FName(GetD3D12BufferStat(InUsageFlags), RequestedSize);
+	INC_MEMORY_STAT_BY(STAT_D3D12MemoryCurrentTotal, RequestedSize);
 }
 
 #if NV_AFTERMATH
