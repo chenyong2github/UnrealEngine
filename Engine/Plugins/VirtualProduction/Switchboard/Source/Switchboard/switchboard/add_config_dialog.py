@@ -295,7 +295,7 @@ class AddConfigDialog(QtWidgets.QDialog):
             ]
 
         except Exception as e:
-            LOGGER.warning(f'Could not query p4: {e}')
+            LOGGER.warning(f'Could not query p4: {repr(e)}')
             return
 
         client = diagState.p4Workspace
@@ -309,7 +309,7 @@ class AddConfigDialog(QtWidgets.QDialog):
                 diagState.p4Workspace = client
                 diagState.p4Engine = p4path
             except Exception as e:
-                LOGGER.warning(f"Could not auto-fill Engine p4 settings: {e}")
+                LOGGER.warning(f"Could not auto-fill Engine p4 settings: {repr(e)}")
 
         # Infer project p4 path
         if bUpdateProject:
@@ -321,7 +321,7 @@ class AddConfigDialog(QtWidgets.QDialog):
                 diagState.p4Workspace = client
                 diagState.p4Project = p4path
             except Exception as e:
-                LOGGER.warning(f"Could not auto-fill project p4 settings: {e}")
+                LOGGER.warning(f"Could not auto-fill project p4 settings: {repr(e)}")
 
 
     def on_p4_toggled(self, checked):

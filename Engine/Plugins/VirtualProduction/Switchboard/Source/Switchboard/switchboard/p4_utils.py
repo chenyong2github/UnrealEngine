@@ -15,7 +15,7 @@ def p4_login(f):
         try:
             return f(*args, **kwargs)
         except Exception as e:
-            LOGGER.error(f'{e}')
+            LOGGER.error(f'{repr(e)}')
             LOGGER.error('Error running P4 command. Please make sure you are logged into Perforce and environment variables are set')
             return None
 
