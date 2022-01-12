@@ -200,6 +200,10 @@ class UParticleModuleRequired : public UParticleModule
 	UPROPERTY(EditAnywhere, Category=Emitter, meta=(DisplayName = "Remove HMD Roll"))
 	uint8 bRemoveHMDRoll:1;
 
+	/** If true, gpu simulation positions are offset to support double precision vectors. Cpu sims always support large world coordinates. */
+	UPROPERTY(EditAnywhere, Category=Emitter)
+	uint8 bSupportLargeWorldCoordinates:1;
+
 	/**
 	 *	If true, select the emitter duration from the range
 	 *		[EmitterDurationLow..EmitterDuration]

@@ -245,7 +245,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates( FVertexFactoryInput I
 	// For clarity, store some information in local variables.
 	const float RelativeTime = PositionSample.w;
 	const float IsAlive = step( RelativeTime, 1.0f );
-	float3 ParticlePosition = PositionSample.xyz;
+	float3 ParticlePosition = LWCHackToFloat(MakeLWCVector3(EmitterDynamicUniforms.LWCTile, PositionSample.xyz));
 
 	// Put velocity in to world space.
 	float3 ParticleWorldVelocity = mul(VelocitySample.xyz, GetLocalToWorld3x3()).xyz;

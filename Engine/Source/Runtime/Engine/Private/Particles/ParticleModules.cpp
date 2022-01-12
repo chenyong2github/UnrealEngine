@@ -1074,6 +1074,7 @@ UParticleModuleRequired::UParticleModuleRequired(const FObjectInitializer& Objec
 	NormalsSphereCenter = FVector(0.0f, 0.0f, 100.0f);
 	NormalsCylinderDirection = FVector(0.0f, 0.0f, 1.0f);
 	bUseLegacyEmitterTime = true;
+	bSupportLargeWorldCoordinates = true;
 	UVFlippingMode = EParticleUVFlipMode::None;
 	BoundingMode = BVC_EightVertices;
 	AlphaThreshold = 0.1f;

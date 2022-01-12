@@ -824,7 +824,8 @@ private:
 	FBoxSphereBounds AsyncBounds;
 	/** Cached copy of PartSysVelocity */
 	FVector AsyncPartSysVelocity;
-
+	/** LWC tile offset for gpu simulations */
+	FVector3f LWCTile = FVector3f::ZeroVector;
 public:
 
 	/** Called from game code when the significance required for a component changes. */
@@ -841,6 +842,8 @@ public:
 		bIsManagingSignificance = bManageSignificance;
 	}
 
+	FORCEINLINE const FVector3f& GetLWCTile() const { return LWCTile;  }
+	
 	/** Returns the approximate distance squared from this component to the passed location. */
 	float GetApproxDistanceSquared(FVector Point)const;
 	

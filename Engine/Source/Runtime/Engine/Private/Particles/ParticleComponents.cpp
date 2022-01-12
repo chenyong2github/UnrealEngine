@@ -1718,7 +1718,7 @@ void UParticleEmitter::CacheEmitterModuleInfo()
 	// Added FBaseColor...
 	// Linear color change
 	// Added Flags field	
-	static_assert(sizeof(FBaseParticle) == 128, "FBaseParticle size");
+	static_assert(sizeof(FBaseParticle) == 160, "FBaseParticle size");
 
 
 	bRequiresLoopNotification = false;
@@ -5965,6 +5965,9 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 	bOldPositionValid = false;
 	OldPosition = FVector::ZeroVector;
 	PartSysVelocity = FVector::ZeroVector;
+	
+	// Set tile for LWC offset
+	LWCTile = FLargeWorldRenderScalar::GetTileFor(GetComponentLocation());
 
 	UWorld* World = GetWorld();
 	check(World);

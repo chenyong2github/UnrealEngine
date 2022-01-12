@@ -182,15 +182,9 @@ struct FStaticMeshLODResources;
 // Only used when required.
 struct FBaseParticle
 {
-	// LWC_TODO: Particle location/velocity kept single precision to maintain size, as there's size counting going on in the comments here (128 bytes, 2 L1 cache lines, vector/float pairs for SSE alignment?). Potential for double precision?
-
-	// 16 bytes
-	FVector3f		OldLocation;			// Last frame's location, used for collision
-	float			RelativeTime;			// Relative time, range is 0 (==spawn) to 1 (==death)
-
-	// 16 bytes
-	FVector3f		Location;				// Current location
-	float			OneOverMaxLifetime;		// Reciprocal of lifetime
+	// 48 bytes
+	FVector		OldLocation;			// Last frame's location, used for collision
+	FVector		Location;				// Current location
 
 	// 16 bytes
 	FVector3f		BaseVelocity;			// Velocity = BaseVelocity at the start of each frame.
@@ -213,6 +207,12 @@ struct FBaseParticle
 
 	// 16 bytes
 	FLinearColor	BaseColor;				// Base color of the particle
+
+	// 16 bytes
+	float			RelativeTime;			// Relative time, range is 0 (==spawn) to 1 (==death)
+	float			OneOverMaxLifetime;		// Reciprocal of lifetime
+	float			Placeholder0;
+	float			Placeholder1;
 };
 
 /*-----------------------------------------------------------------------------
@@ -1776,15 +1776,15 @@ struct FDynamicMeshEmitterData : public FDynamicSpriteEmitterDataBase
 
 	void CalculateParticleTransform(
 		const FMatrix& ProxyLocalToWorld,
-		const FVector3f& ParticleLocation,
+		const FVector& ParticleLocation,
 			  float    ParticleRotation,
 		const FVector3f& ParticleVelocity,
 		const FVector3f& ParticleSize,
 		const FVector3f& ParticlePayloadInitialOrientation,
 		const FVector3f& ParticlePayloadRotation,
-		const FVector3f& ParticlePayloadCameraOffset,
+		const FVector& ParticlePayloadCameraOffset,
 		const FVector3f& ParticlePayloadOrbitOffset,
-		const FVector3f& ViewOrigin,
+		const FVector& ViewOrigin,
 		const FVector3f& ViewDirection,
 		FMatrix& OutTransformMat
 		) const;

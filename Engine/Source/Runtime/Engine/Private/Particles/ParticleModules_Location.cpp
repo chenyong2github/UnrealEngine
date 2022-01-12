@@ -219,7 +219,7 @@ void UParticleModuleLocationWorldOffset::SpawnEx(FParticleEmitterInstance* Owner
 		// We need to inverse transform the location so that the bUseLocalSpace transform uses the proper value
 		FMatrix InvMat = Owner->Component->GetComponentTransform().ToMatrixWithScale().InverseFast();
 		FVector StartLoc = StartLocation.GetValue(Owner->EmitterTime, Owner->Component, 0, InRandomStream);
-		Particle.Location += (FVector4f)InvMat.TransformVector(StartLoc);
+		Particle.Location += InvMat.TransformVector(StartLoc);
 	}
 	ensureMsgf(!Particle.Location.ContainsNaN(), TEXT("NaN in Particle Location. Template: %s, Component: %s"), Owner->Component ? *GetNameSafe(Owner->Component->Template) : TEXT("UNKNOWN"), *GetPathNameSafe(Owner->Component));
 }
@@ -1061,7 +1061,7 @@ void UParticleModuleLocationPrimitiveCylinder::SpawnEx(FParticleEmitterInstance*
 	vOffset[RadialIndex1]	+= vStartLoc[RadialIndex1];
 	vOffset[HeightIndex]	+= vStartLoc[HeightIndex];
 
-	Particle.Location += (FVector4f)Owner->EmitterToSimulation.TransformVector(vOffset);
+	Particle.Location += Owner->EmitterToSimulation.TransformVector(vOffset);
 
 	if (Velocity)
 	{
@@ -1297,7 +1297,7 @@ void UParticleModuleLocationPrimitiveSphere::SpawnEx(FParticleEmitterInstance* O
 	}
 
 	vOffset += vStartLoc;
-	Particle.Location += (FVector4f)Owner->EmitterToSimulation.TransformVector(vOffset);
+	Particle.Location += Owner->EmitterToSimulation.TransformVector(vOffset);
 
 	if (Velocity)
 	{

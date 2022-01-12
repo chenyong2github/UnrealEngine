@@ -2959,7 +2959,7 @@ void FParticleAnimTrailEmitterInstance::RecalculateTangentAndInterpolationParam(
 {
 	check(CurrParticle);
 	check(PrevParticle || NextParticle);
-	FVector3f Tangent;
+	FVector Tangent;
 	float SegmentDistance;
 	
 	if( PrevParticle )

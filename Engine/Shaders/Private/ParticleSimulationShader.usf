@@ -103,6 +103,8 @@ float2 LocalToWorldScale;
 float DeltaSeconds;
 /** Number of iterations, each applying DeltaSeconds. */ 
 int	NumIterations;
+/** LWC tile offset, will be 0,0,0 for localspace emitters. */
+float3 LWCTile;
 
 /** Texture from which to read particle position. */
 Texture2D PositionTexture;
@@ -552,7 +554,7 @@ void PixelMain(
 	const float TimeScale = VelocitySample.w;
 
 	// Position.w holds the relative time of the particle.
-	float3 Position = PositionSample.xyz;
+	float3 Position = LWCHackToFloat(MakeLWCVector3(LWCTile, PositionSample.xyz));
 	float RelativeTime = PositionSample.w;
 
 	for (int IterationIndex = 0; IterationIndex < NumIterations; ++IterationIndex)
@@ -657,7 +659,7 @@ void PixelMain(
 	}
 
 	// Store the new position, time, and velocity for the particle.
-	OutPosition.xyz = Position + PositionOffsetAndAttractorStrength.xyz;
+	OutPosition.xyz = (Position + PositionOffsetAndAttractorStrength.xyz) - LWCTile * UE_LWC_RENDER_TILE_SIZE;
 	OutPosition.w = RelativeTime;
 	OutVelocity.xyz = Velocity;
 	OutVelocity.w = TimeScale;

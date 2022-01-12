@@ -385,6 +385,8 @@ public:
 
 	/** Frame index used to track double buffered resources on the GPU. */
 	int32 FrameIndex = 0;
+	/** LWC tile offset, will be 0,0,0 for localspace emitters. */
+	FVector3f LWCTile = FVector3f::ZeroVector;
 
 	/**
 	 * Initialize resources.
@@ -533,6 +535,7 @@ typedef TUniformBufferRef<FGPUSpriteEmitterUniformParameters> FGPUSpriteEmitterU
  * Uniform buffer to hold dynamic parameters for GPU particle sprite emitters.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FGPUSpriteEmitterDynamicUniformParameters, )
+	SHADER_PARAMETER( FVector3f, LWCTile )
 	SHADER_PARAMETER( FVector2f, LocalToWorldScale )
 	SHADER_PARAMETER( float, EmitterInstRandom)
 	SHADER_PARAMETER( FVector4f, AxisLockRight )
@@ -687,7 +690,8 @@ public:
 	FRHITexture2D* VelocityTextureRHI;
 	/** Texture containint attributes for all particles. */
 	FRHITexture2D* AttributesTextureRHI;
-
+	/** LWC tile offset, will be 0,0,0 for localspace emitters. */
+	FVector3f LWCTile;
 
 	FGPUSpriteVertexFactory()
 		: FParticleVertexFactoryBase(PVFT_MAX, ERHIFeatureLevel::Num)
@@ -695,6 +699,7 @@ public:
 		, PositionTextureRHI(nullptr)
 		, VelocityTextureRHI(nullptr)
 		, AttributesTextureRHI(nullptr)
+		, LWCTile(FVector3f::ZeroVector)
 	{}
 
 	/**
@@ -865,6 +870,9 @@ struct FParticlePerFrameSimulationParameters
 	/** Amount of time by which to simulate particles. */
 	float DeltaSeconds;
 
+	/** LWC tile offset, will be 0,0,0 for localspace emitters. */
+	FVector3f LWCTile;
+
 	FParticlePerFrameSimulationParameters()
 		: PointAttractor(FVector::ZeroVector,0.0f)
 		, PositionOffsetAndAttractorStrength(FVector::ZeroVector,0.0f)
@@ -874,6 +882,7 @@ struct FParticlePerFrameSimulationParameters
 		, DeltaSecondsInVar(0.0f)
 		, NumIterationsInVar(0)
 		, DeltaSeconds(0.0f)
+		, LWCTile(FVector3f::ZeroVector)
 
 	{
 	}
@@ -903,6 +912,7 @@ public:
 		LocalToWorldScale.Bind(ParameterMap,TEXT("LocalToWorldScale"));
 		DeltaSeconds.Bind(ParameterMap,TEXT("DeltaSeconds"));
 		NumIterations.Bind(ParameterMap,TEXT("NumIterations"));
+		LWCTile.Bind(ParameterMap,TEXT("LWCTile"));
 	}
 
 	template <typename ShaderRHIParamRef>
@@ -918,6 +928,7 @@ public:
 		SetShaderValue(RHICmdList,ShaderRHI,LocalToWorldScale,Parameters.LocalToWorldScale);
 		SetShaderValue(RHICmdList,ShaderRHI,DeltaSeconds, bUseFixDT ? Parameters.DeltaSecondsInFix : Parameters.DeltaSecondsInVar);
 		SetShaderValue(RHICmdList,ShaderRHI,NumIterations, bUseFixDT ? Parameters.NumIterationsInFix : Parameters.NumIterationsInVar);
+		SetShaderValue(RHICmdList,ShaderRHI,LWCTile, Parameters.LWCTile);
 	}
 
 	LAYOUT_FIELD(FShaderParameter, PointAttractor);
@@ -925,6 +936,7 @@ public:
 	LAYOUT_FIELD(FShaderParameter, LocalToWorldScale);
 	LAYOUT_FIELD(FShaderParameter, DeltaSeconds);
 	LAYOUT_FIELD(FShaderParameter, NumIterations);
+	LAYOUT_FIELD(FShaderParameter, LWCTile);
 	
 };
 
@@ -935,6 +947,7 @@ FArchive& operator<<(FArchive& Ar, FParticlePerFrameSimulationShaderParameters& 
 	Ar << PerFrameParameters.LocalToWorldScale;
 	Ar << PerFrameParameters.DeltaSeconds;
 	Ar << PerFrameParameters.NumIterations;
+	Ar << PerFrameParameters.LWCTile;
 	return Ar;
 }
 
@@ -2935,7 +2948,7 @@ public:
 				FVector2D ObjectNDCPosition;
 				FVector2D ObjectMacroUVScales;
 				Proxy->GetObjectPositionAndScale(*View,ObjectNDCPosition, ObjectMacroUVScales);
-				PerViewDynamicParameters.MacroUVParameters = FVector4f(ObjectNDCPosition.X, ObjectNDCPosition.Y, ObjectMacroUVScales.X, ObjectMacroUVScales.Y); 
+				PerViewDynamicParameters.MacroUVParameters = FVector4f(ObjectNDCPosition.X, ObjectNDCPosition.Y, ObjectMacroUVScales.X, ObjectMacroUVScales.Y);
 
 				if (bUseLocalSpace == false)
 				{
@@ -2988,6 +3001,7 @@ public:
 					VertexFactory.PositionTextureRHI = StateTextures.PositionTextureRHI;
 					VertexFactory.VelocityTextureRHI = StateTextures.VelocityTextureRHI;
 					VertexFactory.AttributesTextureRHI = ParticleSimulationResources->RenderAttributesTexture.TextureRHI;
+					VertexFactory.LWCTile = ParticleSimulationResources->LWCTile;
 
 					FMeshBatch& Mesh = Collector.AllocateMesh();
 					FMeshBatchElement& BatchElement = Mesh.Elements[0];
@@ -3229,7 +3243,13 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 		UParticleSystem *Template = Component->Template;
 
 		const bool bLocalSpace = EmitterInfo.RequiredModule->bUseLocalSpace;
-		const FMatrix ComponentToWorldMatrix = Component->GetComponentTransform().ToMatrixWithScale();
+		const bool bUseTileOffset = bLocalSpace == false && EmitterInfo.RequiredModule->bSupportLargeWorldCoordinates;
+		FTransform ComponentTransform = Component->GetComponentTransform();
+		if (bUseTileOffset)
+		{
+			ComponentTransform.AddToTranslation(FVector(Component->GetLWCTile()) * -FLargeWorldRenderScalar::GetTileSize());	
+		}
+		const FMatrix ComponentToWorldMatrix = ComponentTransform.ToMatrixWithScale();
 		const FMatrix ComponentToWorld = (bLocalSpace || EmitterInfo.LocalVectorField.bIgnoreComponentTransform) ? FMatrix::Identity : ComponentToWorldMatrix;
 
 		const FRotationMatrix VectorFieldTransform(LocalVectorFieldRotation);
@@ -3252,8 +3272,11 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 		DynamicData->bSelected = bSelected;
 		DynamicData->bUseLocalSpace = EmitterInfo.RequiredModule->bUseLocalSpace;
 
+		// Get LWC tile
+		DynamicData->EmitterDynamicParameters.LWCTile = bUseTileOffset ? Component->GetLWCTile() : FVector3f::ZeroVector;
+
 		// Account for LocalToWorld scaling
-		FVector ComponentScale = Component->GetComponentTransform().GetScale3D();
+		FVector ComponentScale = ComponentTransform.GetScale3D();
 		// Figure out if we need to replicate the X channel of size to Y.
 		const bool bSquare = (EmitterInfo.ScreenAlignment == PSA_Square)
 			|| (EmitterInfo.ScreenAlignment == PSA_FacingCameraPosition)
@@ -3399,12 +3422,13 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 			#endif
 
 			}
-
+			
 			FVector PointAttractorPosition = ComponentToWorld.TransformPosition(EmitterInfo.PointAttractorPosition);
 			DynamicData->PerFrameSimulationParameters.PointAttractor = FVector4f(PointAttractorPosition, EmitterInfo.PointAttractorRadiusSq);
 			DynamicData->PerFrameSimulationParameters.PositionOffsetAndAttractorStrength = FVector4f(PositionOffsetThisTick, PointAttractorStrength);
 			DynamicData->PerFrameSimulationParameters.LocalToWorldScale = DynamicData->EmitterDynamicParameters.LocalToWorldScale;
 			DynamicData->PerFrameSimulationParameters.DeltaSeconds = PendingDeltaSeconds; // This value is used when updating vector fields.
+			DynamicData->PerFrameSimulationParameters.LWCTile = bUseTileOffset ? Component->GetLWCTile() : FVector3f::ZeroVector;
 			Exchange(DynamicData->TilesToClear, TilesToClear);
 			Exchange(DynamicData->NewParticles, NewParticles);
 		}
@@ -3451,6 +3475,8 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 		EmitterInstRandom = RandomStream.GetFraction();
 
 		FParticleSimulationResources* ParticleSimulationResources = FXSystem->GetParticleSimulationResources();
+		const bool bUseTileOffset = EmitterInfo.RequiredModule->bUseLocalSpace == false && EmitterInfo.RequiredModule->bSupportLargeWorldCoordinates;
+		ParticleSimulationResources->LWCTile = bUseTileOffset ? Component->GetLWCTile() : FVector3f::ZeroVector;
 		const int32 MinTileCount = GetMinTileCount();
 		int32 NumAllocated = 0;
 		{
@@ -4155,7 +4181,15 @@ private:
 			float InterpFraction = (float)i / (float)SpawnInfo.Count;
 
 			NewParticle->Velocity = TempParticle->BaseVelocity;
-			NewParticle->Position = TempParticle->Location + InterpFraction * EmitterDelta + SpawnInfo.StartTime * NewParticle->Velocity + EmitterInfo.OrbitOffsetBase + EmitterInfo.OrbitOffsetRange * RandomOrbit;
+			FVector WSPosition = TempParticle->Location + InterpFraction * EmitterDelta + SpawnInfo.StartTime * NewParticle->Velocity + EmitterInfo.OrbitOffsetBase + EmitterInfo.OrbitOffsetRange * RandomOrbit;
+			if (RequiredModule->bUseLocalSpace == false && RequiredModule->bSupportLargeWorldCoordinates)
+			{
+				NewParticle->Position = WSPosition - FLargeWorldRenderScalar::GetTileSize() * FVector(Component->GetLWCTile());
+			}
+			else
+			{
+				NewParticle->Position = WSPosition;
+			}
 			NewParticle->RelativeTime = TempParticle->RelativeTime;
 			NewParticle->TimeScale = FMath::Max<float>(TempParticle->OneOverMaxLifetime, 0.001f);
 
@@ -4643,7 +4677,8 @@ void FFXSystem::PrepareGPUSimulation(FRHICommandListImmediate& RHICmdList)
 		// Setup render states.
 		RHICmdList.Transition({
 			FRHITransitionInfo(CurrentStateTextures.PositionTextureTargetRHI, ERHIAccess::SRVGraphics, ERHIAccess::RTV),
-			FRHITransitionInfo(CurrentStateTextures.VelocityTextureTargetRHI, ERHIAccess::SRVGraphics, ERHIAccess::RTV)});
+			FRHITransitionInfo(CurrentStateTextures.VelocityTextureTargetRHI, ERHIAccess::SRVGraphics, ERHIAccess::RTV)
+		});
 	}
 }
 

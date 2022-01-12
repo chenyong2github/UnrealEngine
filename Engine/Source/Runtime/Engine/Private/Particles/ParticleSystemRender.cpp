@@ -9,7 +9,6 @@
 #include "Misc/MemStack.h"
 #include "HAL/IConsoleManager.h"
 #include "EngineDefines.h"
-#include "EngineGlobals.h"
 #include "GameFramework/Actor.h"
 #include "RenderingThread.h"
 #include "RenderResource.h"
@@ -38,7 +37,6 @@
 #include "Particles/ParticleLODLevel.h"
 #include "Engine/StaticMesh.h"
 #include "UnrealEngine.h"
-#include "Engine/StaticMesh.h"
 
 DECLARE_CYCLE_STAT(TEXT("ParticleSystemSceneProxy Create GT"), STAT_FParticleSystemSceneProxy_Create, STATGROUP_Particles);
 DECLARE_CYCLE_STAT(TEXT("ParticleSystemSceneProxy GetMeshElements RT"), STAT_FParticleSystemSceneProxy_GetMeshElements, STATGROUP_Particles);
@@ -1698,15 +1696,15 @@ void FDynamicMeshEmitterData::GetParticlePrevTransform(
 
 void FDynamicMeshEmitterData::CalculateParticleTransform(
 	const FMatrix& ProxyLocalToWorld,
-	const FVector3f& ParticleLocation,
+	const FVector& ParticleLocation,
 		  float    ParticleRotation,
 	const FVector3f& ParticleVelocity,
 	const FVector3f& ParticleSize,
 	const FVector3f& ParticlePayloadInitialOrientation,
 	const FVector3f& ParticlePayloadRotation,
-	const FVector3f& ParticlePayloadCameraOffset,
+	const FVector& ParticlePayloadCameraOffset,
 	const FVector3f& ParticlePayloadOrbitOffset,
-	const FVector3f& ViewOrigin,
+	const FVector& ViewOrigin,
 	const FVector3f& ViewDirection,
 	FMatrix& OutTransformMat
 	) const
@@ -6025,7 +6023,7 @@ struct FAnimTrailParticleRenderData
 			check( InterpFactor >= 0.0f && InterpFactor <= 1.0f );
 			check( Particle && PrevParticle && Payload && PrevPayload );
 				
-			FVector3f PrevPrevLocation;
+			FVector PrevPrevLocation;
 			FVector3f PrevPrevDirection;		
 			float PrevPrevLength;
 			float PrevPrevTiledU;
@@ -6053,7 +6051,7 @@ struct FAnimTrailParticleRenderData
 				PrevPrevDynParamParticle = PrevParticle;
 			}
 
-			FVector3f NextLocation;
+			FVector NextLocation;
 			FVector3f NextDirection;
 			float NextLength;
 			float NextTiledU;
