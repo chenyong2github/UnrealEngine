@@ -2641,13 +2641,17 @@ FRDGPooledBuffer* FSceneView::GetEyeAdaptationBuffer() const
 const FSceneView* FSceneView::GetPrimarySceneView() const
 {
 	// It is valid for this function to return itself if it's already the primary view.
-	return Family->Views[PrimaryViewIndex];
+	if (Family && Family->Views.IsValidIndex(PrimaryViewIndex))
+	{
+		return Family->Views[PrimaryViewIndex];
+	}
+	return this;
 }
 
 const FSceneView* FSceneView::GetInstancedSceneView() const
 {
 	// If called on the first secondary view it'll return itself.
-	if (Family->Views.IsValidIndex(PrimaryViewIndex + 1))
+	if (Family && Family->Views.IsValidIndex(PrimaryViewIndex + 1))
 	{
 		const FSceneView* SecondaryView = Family->Views[PrimaryViewIndex + 1];
 		return IStereoRendering::IsASecondaryView(*SecondaryView) ? SecondaryView : nullptr;

@@ -2025,14 +2025,18 @@ FViewShaderParameters FViewInfo::GetShaderParameters() const
 const FViewInfo* FViewInfo::GetPrimaryView() const
 {
 	// It is valid for this function to return itself if it's already the primary view.
-	const FSceneView* PrimaryView = Family->Views[PrimaryViewIndex];
-	check(PrimaryView->bIsViewInfo);
-	return static_cast<const FViewInfo*>(PrimaryView);
+	if (Family && Family->Views.IsValidIndex(PrimaryViewIndex))
+	{
+		const FSceneView* PrimaryView = Family->Views[PrimaryViewIndex];
+		check(PrimaryView->bIsViewInfo);
+		return static_cast<const FViewInfo*>(PrimaryView);
+	}
+	return this;
 }
 
 const FViewInfo* FViewInfo::GetInstancedView() const
 {
-	if ((IsInstancedStereoPass() || bIsMobileMultiViewEnabled) && Family->Views.Num() > 0)
+	if ((IsInstancedStereoPass() || bIsMobileMultiViewEnabled))
 	{
 		return static_cast<const FViewInfo*>(GetInstancedSceneView());
 	}
