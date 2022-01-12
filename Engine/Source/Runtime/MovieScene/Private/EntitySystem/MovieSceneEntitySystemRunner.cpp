@@ -185,6 +185,7 @@ void FMovieSceneEntitySystemRunner::DoFlushUpdateQueueOnce()
 	using namespace UE::MovieScene;
 
 	TRACE_COUNTER_INCREMENT(MovieSceneEntitySystemEvaluations);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMovieSceneEntitySystemRunner::DoFlushUpdateQueueOnce);
 
 	// Setup the completion task that we can wait on.
 	CompletionTask = TGraphTask<FNullGraphTask>::CreateTask(nullptr, ENamedThreads::GameThread)

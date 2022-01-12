@@ -763,6 +763,8 @@ void FGPUSkinCache::Cleanup()
 
 void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGPUSkinCache::TransitionAllToReadable);
+
 	if (BuffersToTransitionToRead.Num() > 0)
 	{
 		FMemMark Mark(FMemStack::Get());
@@ -1600,6 +1602,8 @@ void FGPUSkinCache::BeginBatchDispatch(FRHICommandListImmediate& RHICmdList)
 
 void FGPUSkinCache::EndBatchDispatch(FRHICommandListImmediate& RHICmdList)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGPUSkinCache::EndBatchDispatch);
+
 	DoDispatch(RHICmdList);
 
 #if RHI_RAYTRACING
