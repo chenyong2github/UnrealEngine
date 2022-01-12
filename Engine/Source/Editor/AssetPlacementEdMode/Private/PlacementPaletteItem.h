@@ -3,26 +3,32 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ISMPartition/ISMPartitionInstanceManager.h"
 
 #include "PlacementPaletteItem.generated.h"
 
-class IAssetFactoryInterface;
-class UEditorFactorySettingsObject;
+class UAssetFactoryInterface;
+class UInstancedPlacemenClientSettings;
 
-USTRUCT()
-struct FPaletteItem
+UCLASS(NotPlaceable)
+class UPlacementPaletteClient : public UObject
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FSoftObjectPath AssetPath;
 
-	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay)
-	TScriptInterface<IAssetFactoryInterface> AssetFactoryInterface;
+	UPROPERTY()
+	FGuid ClientGuid;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	TObjectPtr<UInstancedPlacemenClientSettings> SettingsObject = nullptr;
 
 	UPROPERTY()
-	FGuid ItemGuid;
+	TSubclassOf<UAssetFactoryInterface> FactoryInterfaceClass;
 
-	UPROPERTY(EditAnywhere, Instanced, Category = Settings)
-	TObjectPtr<UEditorFactorySettingsObject> SettingsObject = nullptr;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
 };

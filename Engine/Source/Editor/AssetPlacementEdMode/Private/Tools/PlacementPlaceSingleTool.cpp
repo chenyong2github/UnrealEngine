@@ -237,21 +237,23 @@ void UPlacementModePlaceSingleTool::GeneratePlacementData(const FInputDeviceRay&
 	const UAssetPlacementSettings* PlacementSettings = PlacementSubsystem ? PlacementSubsystem->GetModeSettingsObject() : nullptr;
 	if (PlacementSettings)
 	{
-		TArrayView<const FPaletteItem> CurrentPaletteItems = PlacementSettings->GetActivePaletteItems();
+		TArrayView<const TObjectPtr<UPlacementPaletteClient>> CurrentPaletteItems = PlacementSettings->GetActivePaletteItems();
 		if (CurrentPaletteItems.Num())
 		{
 			int32 ItemIndex = FMath::RandHelper(CurrentPaletteItems.Num());
-			const FPaletteItem& ItemToPlace = CurrentPaletteItems[ItemIndex];
-			
-			FTransform TransformToUpdate(GenerateRandomRotation(PlacementSettings), LastBrushStamp.WorldPosition, GenerateRandomScale(PlacementSettings));
+			const UPlacementPaletteClient* ItemToPlace = CurrentPaletteItems[ItemIndex];
+			if (ItemToPlace)
+			{
+				FTransform TransformToUpdate(GenerateRandomRotation(PlacementSettings), LastBrushStamp.WorldPosition, GenerateRandomScale(PlacementSettings));
 
-			PlacementInfo = MakeUnique<FAssetPlacementInfo>();
-			PlacementInfo->AssetToPlace = ItemToPlace.AssetPath.TryLoad();
-			PlacementInfo->FactoryOverride = ItemToPlace.AssetFactoryInterface;
-			PlacementInfo->ItemGuid = ItemToPlace.ItemGuid;
-			PlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
-			PlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
-			PlacementInfo->SettingsObject = ItemToPlace.SettingsObject;
+				PlacementInfo = MakeUnique<FAssetPlacementInfo>();
+				PlacementInfo->AssetToPlace = ItemToPlace->AssetPath.TryLoad();
+				PlacementInfo->FactoryOverride = ItemToPlace->FactoryInterfaceClass;
+				PlacementInfo->ItemGuid = ItemToPlace->ClientGuid;
+				PlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
+				PlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
+				PlacementInfo->SettingsObject = ItemToPlace->SettingsObject;
+			}
 		}
 	}
 }

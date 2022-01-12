@@ -39,6 +39,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "PlacementPaletteItem.h"
 #include "Factories/AssetFactoryInterface.h"
+#include "Instances/EditorPlacementSettings.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementMode"
 
@@ -254,8 +255,8 @@ void SAssetPlacementPalette::AddPlacementType(const FAssetData& AssetData)
 	// Try to add the item to the mode's palette
 	if (UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
 	{
-		FPaletteItem PlacementInfo = PlacementModeSubsystem->GetMutableModeSettingsObject()->AddItemToActivePalette(AssetData);
-		if (!PlacementInfo.AssetPath.IsValid())
+		UPlacementPaletteClient* PlacementInfo = PlacementModeSubsystem->GetMutableModeSettingsObject()->AddClientToActivePalette(AssetData);
+		if (!PlacementInfo || !PlacementInfo->AssetPath.IsValid())
 		{
 			return;
 		}
@@ -477,7 +478,7 @@ void SAssetPlacementPalette::OnSetPaletteAsset(const FAssetData& InAssetData)
 	}
 }
 
-void SAssetPlacementPalette::SetPaletteItems(TArrayView<const FPaletteItem> InPaletteItems)
+void SAssetPlacementPalette::SetPaletteItems(TArrayView<const TObjectPtr<UPlacementPaletteClient>> InPaletteItems)
 {
 	PaletteItems.Empty();
 	FilteredItems.Empty();
@@ -488,13 +489,16 @@ void SAssetPlacementPalette::SetPaletteItems(TArrayView<const FPaletteItem> InPa
 
 	FAssetRegistryModule& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FSoftObjectPath> AssetsToLoad;
-	for (const FPaletteItem& PaletteItem : InPaletteItems)
+	for (const UPlacementPaletteClient* PaletteItem : InPaletteItems)
 	{
-		FAssetData AssetData = AssetRegistry.Get().GetAssetByObjectPath(PaletteItem.AssetPath.GetAssetPathName());
-		if (AssetData.IsValid())
+		if (PaletteItem)
 		{
-			PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(AssetData, PaletteItem, SharedThis(this), ThumbnailPool));
-			AssetsToLoad.Emplace(PaletteItem.AssetPath);
+			FAssetData AssetData = AssetRegistry.Get().GetAssetByObjectPath(PaletteItem->AssetPath.GetAssetPathName());
+			if (AssetData.IsValid())
+			{
+				PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(AssetData, PaletteItem, SharedThis(this), ThumbnailPool));
+				AssetsToLoad.Emplace(PaletteItem->AssetPath);
+			}
 		}
 	}
 
@@ -725,7 +729,7 @@ void SAssetPlacementPalette::OnPaletteSelectionChanged(FPlacementPaletteItemMode
 		TArray<UObject*> DetailsObjects;
 		for (const FPlacementPaletteItemModelPtr& SelectedItem : GetActiveViewWidget()->GetSelectedItems())
 		{
-			if (UEditorFactorySettingsObject* SelectedItemSettingsObject = SelectedItem->GetTypeUIInfo()->SettingsObject.Get())
+			if (UInstancedPlacemenClientSettings* SelectedItemSettingsObject = SelectedItem->GetTypeUIInfo()->SettingsObject.Get())
 			{
 				DetailsObjects.Add(SelectedItemSettingsObject);
 			}

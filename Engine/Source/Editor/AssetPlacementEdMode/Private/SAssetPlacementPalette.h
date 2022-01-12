@@ -27,6 +27,7 @@ struct FAssetData;
 class UAssetPlacementSettings;
 class IPropertyHandle;
 class SSearchBox;
+class UPlacementPaletteClient;
 
 typedef TSharedPtr<FAssetPlacementPaletteItemModel> FPlacementPaletteItemModelPtr;
 typedef STreeView<FPlacementPaletteItemModelPtr> SPlacementTypeTreeView;
@@ -100,7 +101,7 @@ private:
 	void OnContentBrowserSelectionChanged(const TArray<FAssetData>& NewSelectedAssets, bool bIsPrimaryBrowser);
 	void SetupContentBrowserMirroring(bool bInMirrorContentBrowser);
 	void OnSetPaletteAsset(const FAssetData& InAssetData);
-	void SetPaletteItems(TArrayView<const FPaletteItem> InPaletteItems);
+	void SetPaletteItems(TArrayView<const TObjectPtr<UPlacementPaletteClient>> InPaletteItems);
 	FString GetPalettePath() const;
 
 	/** Sets the view mode of the palette */

@@ -55,7 +55,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	TSubclassOf<UInstancedStaticMeshComponent> ComponentClass;
 	
-	UPROPERTY(VisibleAnywhere, Category = "Component Settings")
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	TObjectPtr<UStaticMesh> StaticMesh = nullptr;
 	
 	UPROPERTY(EditAnywhere, Category = "Component Settings")

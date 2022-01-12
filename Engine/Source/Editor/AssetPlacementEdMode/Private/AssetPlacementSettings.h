@@ -9,7 +9,7 @@
 #include "AssetPlacementSettings.generated.h"
 
 class UPlacementPaletteAsset;
-struct FPaletteItem;
+class UPlacementPaletteClient;
 
 UCLASS(config = EditorPerProjectUserSettings)
 class UAssetPlacementSettings : public UObject
@@ -123,8 +123,8 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 
 	void SetPaletteAsset(UPlacementPaletteAsset* InPaletteAsset);
-	FPaletteItem AddItemToActivePalette(const FAssetData& InAssetData);
-	TArrayView<const FPaletteItem> GetActivePaletteItems() const;
+	UPlacementPaletteClient* AddClientToActivePalette(const FAssetData& InAssetData);
+	TArrayView<const TObjectPtr<UPlacementPaletteClient>> GetActivePaletteItems() const;
 	const FGuid GetActivePaletteGuid() const;
 	void ClearActivePaletteItems();
 	void SaveActivePalette();

@@ -7,9 +7,9 @@ InstancedFoliage.h: Instanced foliage type definitions.
 
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
-#include "Misc/HashBuilder.h"
 #include "Containers/ArrayView.h"
 #include "FoliageInstanceBase.h"
+#include "Instances/InstancedPlacementHash.h"
 
 class AInstancedFoliageActor;
 class UActorComponent;
@@ -20,7 +20,10 @@ class UFoliageType_InstancedStaticMesh;
 class UPrimitiveComponent;
 class UStaticMesh;
 struct FSMInstanceId;
-struct FFoliageInstanceHash;
+
+#if WITH_EDITORONLY_DATA
+using FFoliageInstanceHash = FInstancedPlacementHash;
+#endif
 
 DECLARE_LOG_CATEGORY_EXTERN(LogInstancedFoliage, Log, All);
 
@@ -441,151 +444,6 @@ struct FFoliageInstanceId
 	FFoliageInfo* Info = nullptr;
 	int32 Index = INDEX_NONE;
 };
-
-#if WITH_EDITORONLY_DATA
-//
-// FFoliageInstanceHash
-//
-
-#define FOLIAGE_HASH_CELL_BITS 9	// 512x512x512 grid
-
-struct FFoliageInstanceHash
-{
-private:
-	struct FKey
-	{
-		int64 X;
-		int64 Y;
-		int64 Z;
-
-		FKey() = default;
-
-		FKey(int64 InX, int64 InY, int64 InZ)
-			: X(InX), Y(InY), Z(InZ) {}
-
-		bool operator==(const FKey& Other) const
-		{
-			return (X == Other.X) && (Y == Other.Y) && (Z == Other.Z);
-		}
-
-		friend uint32 GetTypeHash(const FKey& Key)
-		{
-			FHashBuilder HashBuilder;
-			HashBuilder << Key.X << Key.Y << Key.Z;
-			return HashBuilder.GetHash();
-		}
-				
-		friend FArchive& operator<<(FArchive& Ar, FKey& Key)
-		{
-			Ar << Key.X;
-			Ar << Key.Y;
-			Ar << Key.Z;
-			return Ar;
-		}
-	};
-
-	const int32 HashCellBits;
-	TMap<FKey, TSet<int32>> CellMap;
-		
-	FKey MakeKey(const FVector& Location) const
-	{
-		return FKey(FMath::FloorToInt64(Location.X) >> HashCellBits, FMath::FloorToInt64(Location.Y) >> HashCellBits, FMath::FloorToInt64(Location.Z) >> HashCellBits);
-	}
-
-	FVector MakeLocation(FKey CellKey) const
-	{
-		return FVector(CellKey.X << HashCellBits, CellKey.Y << HashCellBits, CellKey.Z << HashCellBits);
-	}
-
-public:
-	FFoliageInstanceHash(int32 InHashCellBits = FOLIAGE_HASH_CELL_BITS)
-		: HashCellBits(InHashCellBits)
-	{}
-
-	void InsertInstance(const FVector& InstanceLocation, int32 InstanceIndex)
-	{
-		FKey Key = MakeKey(InstanceLocation);
-
-		CellMap.FindOrAdd(Key).Add(InstanceIndex);
-	}
-
-	void RemoveInstance(const FVector& InstanceLocation, int32 InstanceIndex, bool bChecked = true)
-	{
-		FKey Key = MakeKey(InstanceLocation);
-
-		if (bChecked)
-		{
-			int32 RemoveCount = CellMap.FindChecked(Key).Remove(InstanceIndex);
-			check(RemoveCount == 1);
-		}
-		else if(TSet<int32>* Value = CellMap.Find(Key))
-		{
-			Value->Remove(InstanceIndex);
-		}
-	}
-
-	void GetInstancesOverlappingBox(const FBox& InBox, TArray<int32>& OutInstanceIndices) const
-	{
-		FKey MinKey = MakeKey(InBox.Min);
-		FKey MaxKey = MakeKey(InBox.Max);
-
-		for (int32 z = MinKey.Z; z <= MaxKey.Z; ++z)
-		{
-			for (int32 y = MinKey.Y; y <= MaxKey.Y; y++)
-			{
-				for (int32 x = MinKey.X; x <= MaxKey.X; x++)
-				{
-					auto* SetPtr = CellMap.Find(FKey(x, y, z));
-					if (SetPtr)
-					{
-						OutInstanceIndices.Append(SetPtr->Array());
-					}
-				}
-			}
-		}
-	}
-
-	TArray<int32> GetInstancesOverlappingBox(const FBox& InBox) const
-	{
-		TArray<int32> Result;
-		GetInstancesOverlappingBox(InBox, Result);
-		return Result;
-	}
-
-	void CheckInstanceCount(int32 InCount) const
-	{
-		int32 HashCount = 0;
-		for (const auto& Pair : CellMap)
-		{
-			HashCount += Pair.Value.Num();
-		}
-
-		check(HashCount == InCount);
-	}
-
-	FBox GetBounds() const
-	{
-		FBox HashBounds(ForceInit);
-		for (const auto& Pair : CellMap)
-		{
-			HashBounds += MakeLocation(Pair.Key);
-		}
-
-		return HashBounds;
-	}
-
-	void Empty()
-	{
-		CellMap.Empty();
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FFoliageInstanceHash& Hash)
-	{
-		Ar << Hash.CellMap;
-		return Ar;
-	}
-};
-#endif
 
 /** This is kind of a hack, but is needed right now for backwards compat of code. We use it to describe the placement mode (procedural vs manual)*/
 namespace EFoliagePlacementMode

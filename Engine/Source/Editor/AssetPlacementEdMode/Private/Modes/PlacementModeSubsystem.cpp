@@ -3,20 +3,21 @@
 #include "Modes/PlacementModeSubsystem.h"
 
 #include "AssetPlacementSettings.h"
-
+#include "Subsystems/PlacementSubsystem.h"
 
 #include "Editor.h"
 
 void UPlacementModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	ModeSettings = NewObject<UAssetPlacementSettings>(this);
-	ModeSettings->LoadSettings();
+	Collection.InitializeDependency<UPlacementSubsystem>();
 
+	GEditor->GetEditorSubsystem<UPlacementSubsystem>()->OnPlacementFactoriesRegistered().AddUObject(this, &UPlacementModeSubsystem::LoadSettings);
 	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UPlacementModeSubsystem::SaveSettings);
 }
 
 void UPlacementModeSubsystem::Deinitialize()
 {
+	GEditor->GetEditorSubsystem<UPlacementSubsystem>()->OnPlacementFactoriesRegistered().RemoveAll(this);
 	ModeSettings = nullptr;
 }
 
@@ -36,4 +37,12 @@ void UPlacementModeSubsystem::SaveSettings() const
 	{
 		ModeSettings->SaveSettings();
 	}
+}
+
+void UPlacementModeSubsystem::LoadSettings()
+{
+	ModeSettings = NewObject<UAssetPlacementSettings>(this);
+	ModeSettings->LoadSettings();
+
+	GEditor->GetEditorSubsystem<UPlacementSubsystem>()->OnPlacementFactoriesRegistered().RemoveAll(this);
 }

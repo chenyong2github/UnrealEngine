@@ -2,7 +2,6 @@
 
 #include "Instances/InstancedPlacementPartitionActor.h"
 
-#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 
@@ -11,6 +10,58 @@ AInstancedPlacementPartitionActor::AInstancedPlacementPartitionActor(const FObje
 {
 	PrimaryActorTick.bCanEverTick = false;
 	SetActorEnableCollision(true);
+}
+
+void AInstancedPlacementPartitionActor::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	for (auto& Pair : PlacedClientInfo)
+	{
+		FClientPlacementInfo& ClientInfo = *Pair.Value;
+		ClientInfo.PostLoad(this);
+	}
+#endif	// WITH_EDITORONLY_DATA
+}
+
+#if WITH_EDITOR
+void AInstancedPlacementPartitionActor::PreEditUndo()
+{
+	Super::PreEditUndo();
+
+	for (auto& Pair : PlacedClientInfo)
+	{
+		FClientPlacementInfo& ClientInfo = *Pair.Value;
+		ClientInfo.PreEditUndo();
+	}
+}
+
+void AInstancedPlacementPartitionActor::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	for (auto& Pair : PlacedClientInfo)
+	{
+		FClientPlacementInfo& ClientInfo = *Pair.Value;
+		ClientInfo.PostEditUndo();
+	}
+}
+#endif
+
+void AInstancedPlacementPartitionActor::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+#if WITH_EDITORONLY_DATA
+	Ar << PlacedClientInfo;
+
+	for (auto& Pair : PlacedClientInfo)
+	{
+		FClientPlacementInfo& ClientInfo = *Pair.Value;
+		ClientInfo.PostSerialize(Ar, this);
+	}
+#endif	// WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITOR	
@@ -28,23 +79,36 @@ void AInstancedPlacementPartitionActor::SetGridGuid(const FGuid& InGuid)
 {
 	PlacementGridGuid = InGuid;
 }
-#endif
 
-ISMInstanceManager* AInstancedPlacementPartitionActor::GetSMInstanceManager(const FSMInstanceId& InstanceId)
+FClientPlacementInfo* AInstancedPlacementPartitionActor::PreAddClientInstances(const FGuid& ClientGuid, const FString& InClientDisplayString, FClientDescriptorFunc RegisterDefinitionFunc)
 {
-	if (ISMInstanceManager* ParentSMInstanceManager = Super::GetSMInstanceManager(InstanceId))
+	BeginUpdate();
+
+	if (TUniqueObj<FClientPlacementInfo>* FoundClientInfo = PlacedClientInfo.Find(ClientGuid))
 	{
-		return ParentSMInstanceManager;
+		if (!(*FoundClientInfo)->IsInitialized())
+		{
+			if (!(*FoundClientInfo)->Initialize(ClientGuid, InClientDisplayString, this, RegisterDefinitionFunc))
+			{
+				return nullptr;
+			}
+		}
+
+		return &FoundClientInfo->Get();
 	}
 
-#if WITH_EDITOR
-	// For now, assume that if we didn't have some manager registered, it is safe to edit the ISM directly.
-	// This should be removed after palette items are set up properly in the placement API
-	if (IsISMComponent(InstanceId.ISMComponent))
+	TUniqueObj<FClientPlacementInfo>& CreatedInfo = PlacedClientInfo.Add(ClientGuid);
+	if (CreatedInfo->Initialize(ClientGuid, InClientDisplayString, this, RegisterDefinitionFunc))
 	{
-		return InstanceId.ISMComponent;
+		return &(*CreatedInfo);
 	}
-#endif
 
+	PlacedClientInfo.Remove(ClientGuid);
 	return nullptr;
 }
+
+void AInstancedPlacementPartitionActor::PostAddClientInstances()
+{
+	EndUpdate();
+}
+#endif	// WITH_EDITOR

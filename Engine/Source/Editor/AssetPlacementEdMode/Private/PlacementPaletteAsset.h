@@ -17,7 +17,7 @@ class UPlacementPaletteAsset : public UObject
 
 public:
 	UPROPERTY(EditAnywhere, Category=Items)
-	TArray<FPaletteItem> PaletteItems;
+	TArray<TObjectPtr<UPlacementPaletteClient>> PaletteItems;
 
 	UPROPERTY()
 	FGuid GridGuid;

@@ -6,7 +6,11 @@
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Interfaces/TypedElementAssetDataInterface.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "Instances/InstancedPlacementPartitionActor.h"
+#include "Instances/EditorPlacementSettings.h"
+
+#include "LevelEditorSubsystem.h"
 
 #include "ActorPartition/ActorPartitionSubsystem.h"
 
@@ -14,14 +18,34 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "UObject/Class.h"
+#include "Editor.h"
 
 #include "Subsystems/PlacementSubsystem.h"
 
-void UEditorStaticMeshFactoryPlacementSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+bool UEditorStaticMeshFactory::PrePlaceAsset(FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	if (!Super::PrePlaceAsset(InPlacementInfo, InPlacementOptions))
+	{
+		return false;
+	}
 
-	StaticMeshComponentDescriptor.ComputeHash();
+	if (!InPlacementInfo.PreferredLevel.IsValid())
+	{
+		return false;
+	}
+
+	if (!InPlacementInfo.SettingsObject)
+	{
+		return false;
+	}
+
+	// Make a good known client GUID out of the placed asset's package if one was not given to us.
+	if (!InPlacementInfo.ItemGuid.IsValid())
+	{
+		InPlacementInfo.ItemGuid = InPlacementInfo.AssetToPlace.GetAsset()->GetPackage()->GetPersistentGuid();
+	}
+
+	return true;
 }
 
 TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions)
@@ -32,71 +56,72 @@ TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPla
 		return Super::PlaceAsset(InPlacementInfo, InPlacementOptions);
 	}
 
-	TArray<FTypedElementHandle> PlacedInstanceHandles;
-	if (InPlacementInfo.PreferredLevel.IsValid())
+	if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(InPlacementInfo.PreferredLevel->GetWorld()))
 	{
-		if (!InPlacementInfo.SettingsObject)
+		// Create or find the placement partition actor
+		auto OnActorCreated = [InPlacementOptions](APartitionActor* CreatedPartitionActor)
+		{
+			if (AInstancedPlacementPartitionActor* ElementPartitionActor = Cast<AInstancedPlacementPartitionActor>(CreatedPartitionActor))
+			{
+				ElementPartitionActor->SetGridGuid(InPlacementOptions.InstancedPlacementGridGuid);
+			}
+		};
+
+		constexpr bool bCreatePartitionActorIfMissing = true;
+		FActorPartitionGetParams PartitionActorFindParams(
+			AInstancedPlacementPartitionActor::StaticClass(),
+			bCreatePartitionActorIfMissing,
+			InPlacementInfo.PreferredLevel.Get(),
+			InPlacementInfo.FinalizedTransform.GetLocation(),
+			0,
+			InPlacementOptions.InstancedPlacementGridGuid,
+			true,
+			OnActorCreated
+		);
+		AInstancedPlacementPartitionActor* PlacedElementsActor = Cast<AInstancedPlacementPartitionActor>(PartitionSubsystem->GetActor(PartitionActorFindParams));
+
+		auto RegisterISMDefinitionFunc = [&InPlacementInfo](AInstancedPlacementPartitionActor* PartitionActor, TSortedMap<int32, TArray<FTransform>>& ISMDefinition)
+		{
+			FISMComponentDescriptor ComponentDescriptor = InPlacementInfo.SettingsObject->InstancedComponentSettings;
+			ComponentDescriptor.StaticMesh = Cast<UStaticMesh>(InPlacementInfo.AssetToPlace.GetAsset());
+			ComponentDescriptor.ComputeHash();
+
+			int32 DescriptorIndex = PartitionActor->RegisterISMComponentDescriptor(ComponentDescriptor);
+			ISMDefinition.Emplace(DescriptorIndex, TArray<FTransform>({ FTransform() }));
+		};
+
+		FString ClientDisplayName = InPlacementInfo.NameOverride.ToString();
+		if (ClientDisplayName.IsEmpty())
+		{
+			ClientDisplayName = InPlacementInfo.AssetToPlace.GetFullName();
+		}
+
+		// Create an info or find it based on the given client guid
+		FClientPlacementInfo* PlacementInfo = PlacedElementsActor->PreAddClientInstances(InPlacementInfo.ItemGuid, ClientDisplayName, RegisterISMDefinitionFunc);
+		if (!PlacementInfo || !PlacementInfo->IsInitialized())
 		{
 			return TArray<FTypedElementHandle>();
 		}
 
-		FISMComponentDescriptor ComponentDescriptor = CastChecked<UEditorStaticMeshFactoryPlacementSettings>(InPlacementInfo.SettingsObject)->StaticMeshComponentDescriptor;
-		if (!ComponentDescriptor.StaticMesh)
+		ModifiedPartitionActors.Add(PlacedElementsActor);
+
+		FPlacementInstance InstanceToPlace;
+		InstanceToPlace.SetInstanceWorldTransform(InPlacementInfo.FinalizedTransform);
+		// todo: z offset and align to normal
+		TArray<FTypedElementHandle> PlacedInstanceHandles;
+		TArray<FSMInstanceId> PlacedInstances = PlacementInfo->AddInstances(MakeArrayView({ InstanceToPlace }));
+		for (const FSMInstanceId PlacedInstanceID : PlacedInstances)
 		{
-			return TArray<FTypedElementHandle>();
-		}
-
-		// Make sure the component descriptor's hash matches its current settings before we place.
-		ComponentDescriptor.ComputeHash();
-
-		if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(InPlacementInfo.PreferredLevel->GetWorld()))
-		{
-			// Create or find the placement partition actor
-			auto OnActorCreated = [InPlacementOptions](APartitionActor* CreatedPartitionActor)
+			if (FTypedElementHandle PlacedHandle = UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(PlacedInstanceID))
 			{
-				if (AInstancedPlacementPartitionActor* ElementPartitionActor = Cast<AInstancedPlacementPartitionActor>(CreatedPartitionActor))
-				{
-					ElementPartitionActor->SetGridGuid(InPlacementOptions.InstancedPlacementGridGuid);
-				}
-			};
-
-			// Make a good known client GUID out of the placed asset's package if one was not given to us.
-			FGuid ItemGuidToUse = InPlacementInfo.ItemGuid;
-			if (!ItemGuidToUse.IsValid())
-			{
-				ItemGuidToUse = InPlacementInfo.AssetToPlace.GetAsset()->GetPackage()->GetPersistentGuid();
-			}
-
-			constexpr bool bCreatePartitionActorIfMissing = true;
-			FActorPartitionGetParams PartitionActorFindParams(
-				AInstancedPlacementPartitionActor::StaticClass(),
-				bCreatePartitionActorIfMissing, InPlacementInfo.PreferredLevel.Get(),
-				InPlacementInfo.FinalizedTransform.GetLocation(),
-				0,
-				InPlacementOptions.InstancedPlacementGridGuid,
-				true,
-				OnActorCreated
-			);
-			AInstancedPlacementPartitionActor* PlacedElementsActor = Cast<AInstancedPlacementPartitionActor>(PartitionSubsystem->GetActor(PartitionActorFindParams));
-
-			FISMClientHandle ClientHandle = PlacedElementsActor->RegisterClient(ItemGuidToUse);
-			TSortedMap<int32, TArray<FTransform>> InstanceMap;
-			InstanceMap.Emplace(PlacedElementsActor->RegisterISMComponentDescriptor(ComponentDescriptor), TArray({ FTransform() }));
-			ModifiedPartitionActors.Add(PlacedElementsActor);
-			PlacedElementsActor->BeginUpdate();
-
-			TArray<FSMInstanceId> PlacedInstances = PlacedElementsActor->AddISMInstance(ClientHandle, InPlacementInfo.FinalizedTransform, InstanceMap);
-			for (const FSMInstanceId PlacedInstanceID : PlacedInstances)
-			{
-				if (FTypedElementHandle PlacedHandle = UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(PlacedInstanceID))
-				{
-					PlacedInstanceHandles.Emplace(PlacedHandle);
-				}
+				PlacedInstanceHandles.Emplace(PlacedHandle);
 			}
 		}
+
+		return PlacedInstanceHandles;
 	}
 
-	return PlacedInstanceHandles;
+	return TArray<FTypedElementHandle>();
 }
 
 FAssetData UEditorStaticMeshFactory::GetAssetDataFromElementHandle(const FTypedElementHandle& InHandle)
@@ -137,18 +162,18 @@ FAssetData UEditorStaticMeshFactory::GetAssetDataFromElementHandle(const FTypedE
 	return Super::GetAssetDataFromElementHandle(InHandle);
 }
 
-UEditorFactorySettingsObject* UEditorStaticMeshFactory::FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions)
+UInstancedPlacemenClientSettings* UEditorStaticMeshFactory::FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions)
 {
 	if (!ShouldPlaceInstancedStaticMeshes(InPlacementOptions))
 	{
 		return Super::FactorySettingsObjectForPlacement(InAssetData, InPlacementOptions);
 	}
 
-	UEditorStaticMeshFactoryPlacementSettings* PlacementSettingsObject = NewObject<UEditorStaticMeshFactoryPlacementSettings>(this);
+	UEditorInstancedPlacementSettings* PlacementSettingsObject = NewObject<UEditorInstancedPlacementSettings>(this);
 	if (PlacementSettingsObject)
 	{
 		UObject* AssetToPlaceAsObject = InAssetData.GetAsset();
-		FISMComponentDescriptor& ComponentDescriptor = PlacementSettingsObject->StaticMeshComponentDescriptor;
+		FISMComponentDescriptor& ComponentDescriptor = PlacementSettingsObject->InstancedComponentSettings;
 		if (UStaticMesh* StaticMeshObject = Cast<UStaticMesh>(AssetToPlaceAsObject))
 		{
 			// If this is a Nanite mesh, prefer to use ISM over HISM, as HISM duplicates many features/bookkeeping that Nanite already handles for us.
@@ -180,11 +205,11 @@ bool UEditorStaticMeshFactory::ShouldPlaceInstancedStaticMeshes(const FPlacement
 
 void UEditorStaticMeshFactory::EndPlacement(TArrayView<const FTypedElementHandle> InPlacedElements, const FPlacementOptions& InPlacementOptions)
 {
-	for (TWeakObjectPtr<AISMPartitionActor> ISMPartitionActor : ModifiedPartitionActors)
+	for (TWeakObjectPtr<AInstancedPlacementPartitionActor> ISMPartitionActor : ModifiedPartitionActors)
 	{
 		if (ISMPartitionActor.IsValid())
 		{
-			ISMPartitionActor->EndUpdate();
+			ISMPartitionActor->PostAddClientInstances();
 		}
 	}
 

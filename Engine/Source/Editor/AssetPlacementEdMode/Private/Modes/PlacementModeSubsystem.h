@@ -29,4 +29,5 @@ protected:
 	TObjectPtr<UAssetPlacementSettings> ModeSettings;
 
 	void SaveSettings() const;
+	void LoadSettings();
 };

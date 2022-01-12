@@ -6,17 +6,14 @@
 #include "Elements/Framework/TypedElementHandle.h"
 #include "UObject/Interface.h"
 
+#include "Instances/InstancedPlacementClientInfo.h"
+
 #include "AssetFactoryInterface.generated.h"
 
 class IAssetFactoryInterface;
 struct FPlacementOptions;
 struct FAssetPlacementInfo;
-
-UCLASS(Abstract, hideCategories=Object, editinlinenew, collapsecategories, MinimalAPI)
-class UEditorFactorySettingsObject : public UObject
-{
-	GENERATED_BODY()
-};
+class UInstancedPlacemenClientSettings;
 
 UINTERFACE(MinimalAPI)
 class UAssetFactoryInterface : public UInterface
@@ -84,5 +81,5 @@ public:
 	 /**
 	  * Returns the settings object which this factory will use to customize placement settings, based on the given placement information.
 	  */
-	 virtual UEditorFactorySettingsObject* FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions) = 0;
+	 virtual UInstancedPlacemenClientSettings* FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions) = 0;
 };

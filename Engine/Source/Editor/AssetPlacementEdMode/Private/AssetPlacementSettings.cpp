@@ -11,6 +11,7 @@
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Interfaces/TypedElementAssetDataInterface.h"
+#include "Instances/InstancedPlacementClientInfo.h"
 
 bool UAssetPlacementSettings::CanEditChange(const FProperty* InProperty) const
 {
@@ -54,10 +55,10 @@ void UAssetPlacementSettings::SetPaletteAsset(UPlacementPaletteAsset* InPaletteA
 	LastActivePalettePath = FSoftObjectPath(InPaletteAsset);
 }
 
-FPaletteItem UAssetPlacementSettings::AddItemToActivePalette(const FAssetData& InAssetData)
+UPlacementPaletteClient* UAssetPlacementSettings::AddClientToActivePalette(const FAssetData& InAssetData)
 {
-	FPaletteItem NewPaletteItem;
-	if (!InAssetData.IsValid())
+	UPlacementPaletteClient* NewPaletteItem = nullptr;
+	if (!InAssetData.IsValid() || !GetActivePalette())
 	{
 		return NewPaletteItem;
 	}
@@ -67,23 +68,22 @@ FPaletteItem UAssetPlacementSettings::AddItemToActivePalette(const FAssetData& I
 		return NewPaletteItem;
 	}
 
-	if (!GetActivePaletteItems().FindByPredicate([InAssetData](const FPaletteItem& ItemIter) { return (ItemIter.AssetPath == InAssetData.ToSoftObjectPath()); }))
+	if (!GetActivePaletteItems().FindByPredicate([InAssetData](const UPlacementPaletteClient* ItemIter) { return ItemIter ? (ItemIter->AssetPath == InAssetData.ToSoftObjectPath()) : false; }))
 	{
 		if (UPlacementSubsystem* PlacementSubystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>())
 		{
 			if (TScriptInterface<IAssetFactoryInterface> AssetFactory = PlacementSubystem->FindAssetFactoryFromAssetData(InAssetData))
 			{
-				NewPaletteItem.ItemGuid = FGuid::NewGuid();
-				NewPaletteItem.AssetPath = InAssetData.ToSoftObjectPath();
-				NewPaletteItem.AssetFactoryInterface = AssetFactory;
+				NewPaletteItem = NewObject<UPlacementPaletteClient>(GetMutableActivePalette());
+				NewPaletteItem->AssetPath = InAssetData.ToSoftObjectPath();
 				FPlacementOptions PlacementOptions;
 				PlacementOptions.InstancedPlacementGridGuid = GetActivePaletteGuid();
-				NewPaletteItem.SettingsObject = AssetFactory->FactorySettingsObjectForPlacement(InAssetData, PlacementOptions);
+				NewPaletteItem->SettingsObject = AssetFactory->FactorySettingsObjectForPlacement(InAssetData, PlacementOptions);
 				GetMutableActivePalette()->Modify();
-				if (NewPaletteItem.SettingsObject)
+				if (NewPaletteItem->SettingsObject)
 				{
 					// Set the outer of the new object to the current palette
-					NewPaletteItem.SettingsObject->Rename(nullptr, GetMutableActivePalette());
+					NewPaletteItem->SettingsObject->Rename(nullptr, GetMutableActivePalette());
 				}
 				GetMutableActivePalette()->PaletteItems.Add(NewPaletteItem);
 			}
@@ -93,7 +93,7 @@ FPaletteItem UAssetPlacementSettings::AddItemToActivePalette(const FAssetData& I
 	return NewPaletteItem;
 }
 
-TArrayView<const FPaletteItem> UAssetPlacementSettings::GetActivePaletteItems() const
+TArrayView<const TObjectPtr<UPlacementPaletteClient>> UAssetPlacementSettings::GetActivePaletteItems() const
 {
 	return MakeArrayView(GetActivePalette()->PaletteItems);
 }
@@ -151,22 +151,28 @@ bool UAssetPlacementSettings::DoesActivePaletteSupportElement(const FTypedElemen
 	if (TTypedElement<ITypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementAssetDataInterface>(InElementToCheck))
 	{
 		TArray<FAssetData> ReferencedAssetDatas = AssetDataInterface.GetAllReferencedAssetDatas();
-		for (const FPaletteItem& Item : GetActivePaletteItems())
+		for (const UPlacementPaletteClient* Item : GetActivePaletteItems())
 		{
-			if (ReferencedAssetDatas.FindByPredicate([&Item](const FAssetData& ReferencedAssetData) { return (ReferencedAssetData.ToSoftObjectPath() == Item.AssetPath); }))
+			if (!Item)
+			{
+				continue;
+			}
+
+			if (ReferencedAssetDatas.FindByPredicate([Item](const FAssetData& ReferencedAssetData) { return (ReferencedAssetData.ToSoftObjectPath() == Item->AssetPath); }))
 			{
 				return true;
 			}
 
 			// The current implementation of the asset data interface for actors requires that individual actors report on assets contained within their components.
-			// Not all actors do this reliably, so additionally check the supplied factory for a match. 
-			if (!Item.AssetFactoryInterface)
+			// Not all elements (legacy via actors) do this reliably, so additionally check the supplied factory for a match. 
+			if (!Item->FactoryInterfaceClass.Get())
 			{
 				continue;
 			}
 
-			FAssetData FoundAssetDataFromFactory = Item.AssetFactoryInterface->GetAssetDataFromElementHandle(InElementToCheck);
-			if (FoundAssetDataFromFactory.ToSoftObjectPath() == Item.AssetPath)
+			TScriptInterface<IAssetFactoryInterface> FactoryInterface = GEditor->GetEditorSubsystem<UPlacementSubsystem>()->GetAssetFactoryFromFactoryClass(Item->FactoryInterfaceClass);
+			FAssetData FoundAssetDataFromFactory = FactoryInterface->GetAssetDataFromElementHandle(InElementToCheck);
+			if (FoundAssetDataFromFactory.ToSoftObjectPath() == Item->AssetPath)
 			{
 				return true;
 			}

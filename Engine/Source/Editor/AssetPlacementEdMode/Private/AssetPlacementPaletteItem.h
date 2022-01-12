@@ -14,8 +14,9 @@
 #include "AssetRegistry/AssetData.h"
 
 class FAssetThumbnailPool;
-struct FPaletteItem;
+class UPlacementPaletteClient;
 class IAssetTypeActions;
+class UInstancedPlacemenClientSettings;
 
 namespace PlacementPaletteConstants
 {
@@ -24,10 +25,10 @@ namespace PlacementPaletteConstants
 
 struct FPaletteItemUIInfo
 {
-	FPaletteItemUIInfo(const FAssetData& InAssetData, const FPaletteItem& InPaletteItem);
+	FPaletteItemUIInfo(const FAssetData& InAssetData, const UPlacementPaletteClient* InPaletteItem);
 
 	const FAssetData AssetData;
-	TWeakObjectPtr<UEditorFactorySettingsObject> SettingsObject;
+	TWeakObjectPtr<UInstancedPlacemenClientSettings> SettingsObject;
 };
 
 typedef TSharedPtr<FPaletteItemUIInfo> FAssetPlacementUIInfoPtr;
@@ -40,7 +41,7 @@ namespace AssetPlacementPaletteTreeColumns
 class FAssetPlacementPaletteItemModel : public TSharedFromThis<FAssetPlacementPaletteItemModel>
 {
 public:
-	FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, const FPaletteItem& InPaletteItem, TSharedRef<class SAssetPlacementPalette> InParentPalette, TSharedPtr<class FAssetThumbnailPool> InThumbnailPool);
+	FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, const UPlacementPaletteClient* InPaletteItem, TSharedRef<class SAssetPlacementPalette> InParentPalette, TSharedPtr<class FAssetThumbnailPool> InThumbnailPool);
 
 	FAssetPlacementUIInfoPtr GetTypeUIInfo() const;
 

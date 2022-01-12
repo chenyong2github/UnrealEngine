@@ -37,7 +37,7 @@ TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAssets(TArrayView<const FA
 	for (const FAssetPlacementInfo& PlacementInfo : InPlacementInfos)
 	{
 		const FAssetData& AssetData = PlacementInfo.AssetToPlace;
-		TScriptInterface<IAssetFactoryInterface> FactoryInterface = PlacementInfo.FactoryOverride;
+		TScriptInterface<IAssetFactoryInterface> FactoryInterface = GetAssetFactoryFromFactoryClass(PlacementInfo.FactoryOverride);
 		if (!FactoryInterface)
 		{
 			FactoryInterface = FindAssetFactoryFromAssetData(AssetData);
@@ -96,6 +96,11 @@ bool UPlacementSubsystem::IsCreatingPreviewElements() const
 	return bIsCreatingPreviewElements;
 }
 
+FSimpleMulticastDelegate& UPlacementSubsystem::OnPlacementFactoriesRegistered()
+{
+	return PlacementFactoriesRegistered;
+}
+
 void UPlacementSubsystem::RegisterPlacementFactories()
 {
 	for (TObjectIterator<UClass> ObjectIt; ObjectIt; ++ObjectIt)
@@ -110,6 +115,24 @@ void UPlacementSubsystem::RegisterPlacementFactories()
 			}
 		}
 	}
+
+	PlacementFactoriesRegistered.Broadcast();
+}
+
+TScriptInterface<IAssetFactoryInterface> UPlacementSubsystem::GetAssetFactoryFromFactoryClass(TSubclassOf<UAssetFactoryInterface> InFactoryInterfaceClass) const
+{
+	if (InFactoryInterfaceClass)
+	{
+		for (const TScriptInterface<IAssetFactoryInterface>& AssetFactory : AssetFactories)
+		{
+			if (AssetFactory.GetObject()->IsA(InFactoryInterfaceClass))
+			{
+				return AssetFactory;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 void UPlacementSubsystem::UnregisterPlacementFactories()

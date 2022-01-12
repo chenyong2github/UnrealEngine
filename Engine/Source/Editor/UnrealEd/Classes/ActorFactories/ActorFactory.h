@@ -19,24 +19,7 @@ struct FActorSpawnParameters;
 struct FAssetData;
 class UBlueprint;
 class ULevel;
-
-UENUM()
-enum class EActorPlacementType
-{
-	FullActor,	// Places a full actor, one per instance
-	//InstancedStaticMesh,	// Places the actor as a set of instanced static meshes. All other components will be ignored.
-	//LightweightInstance,	// Places the actor as a lightweight instanced static mesh, which can be hydrated at runtime.
-};
-
-UCLASS()
-class UActorFactoryPlacementSettings : public UEditorFactorySettingsObject
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(VisibleAnywhere, Category="Factory Settings")
-	EActorPlacementType ActorPlacementType = EActorPlacementType::FullActor;
-};
+class UInstancedPlacemenClientSettings;
 
 UCLASS(collapsecategories, hidecategories=Object, editinlinenew, config=Editor, abstract, transient)
 class UNREALED_API UActorFactory : public UObject, public IAssetFactoryInterface
@@ -108,7 +91,7 @@ class UNREALED_API UActorFactory : public UObject, public IAssetFactoryInterface
 	virtual FAssetData GetAssetDataFromElementHandle(const FTypedElementHandle& InHandle) override;
 	virtual void BeginPlacement(const FPlacementOptions& InPlacementOptions) override;
 	virtual void EndPlacement(TArrayView<const FTypedElementHandle> InPlacedElements, const FPlacementOptions& InPlacementOptions) override;
-	virtual UEditorFactorySettingsObject* FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions) override;
+	virtual UInstancedPlacemenClientSettings* FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions) override;
 	// End IAssetFactoryInterface Interface
 
 protected:

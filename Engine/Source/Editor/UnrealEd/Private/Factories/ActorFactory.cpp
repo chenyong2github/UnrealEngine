@@ -383,10 +383,9 @@ void UActorFactory::EndPlacement(TArrayView<const FTypedElementHandle> InPlacedE
 {
 }
 
-UEditorFactorySettingsObject* UActorFactory::FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions)
+UInstancedPlacemenClientSettings* UActorFactory::FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions)
 {
-	UActorFactoryPlacementSettings* FactorySettingsObject = NewObject<UActorFactoryPlacementSettings>(this);
-	return FactorySettingsObject;
+	return nullptr;
 }
 
 AActor* UActorFactory::CreateActor( UObject* Asset, ULevel* InLevel, const FTransform& SpawnTransform, EObjectFlags InObjectFlags, const FName Name)
@@ -1163,7 +1162,7 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 		SkeletalMeshData = AssetData;
 	}
 
-	if ( !SkeletalMeshData.IsValid() && (AssetData.GetClass()->IsChildOf(UAnimBlueprint::StaticClass()) || AssetData.GetClass()->IsChildOf(UAnimBlueprintGeneratedClass::StaticClass())))
+	if ( !SkeletalMeshData.IsValid() && AssetData.GetClass()->IsChildOf( UAnimBlueprint::StaticClass() ) )
 	{
 		const FString TargetSkeletonPath = AssetData.GetTagValueRef<FString>( "TargetSkeleton" );
 		if ( TargetSkeletonPath.IsEmpty() )
@@ -1250,26 +1249,14 @@ bool UActorFactorySkeletalMesh::CanCreateActorFrom( const FAssetData& AssetData,
 
 USkeletalMesh* UActorFactorySkeletalMesh::GetSkeletalMeshFromAsset( UObject* Asset )
 {
-	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>( Asset );
+	USkeletalMesh*SkeletalMesh = Cast<USkeletalMesh>( Asset );
+	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>( Asset );
 	USkeleton* Skeleton = Cast<USkeleton>( Asset );
 
-	if(SkeletalMesh == nullptr)
+	if( SkeletalMesh == nullptr && AnimBlueprint != nullptr && AnimBlueprint->TargetSkeleton )
 	{
 		// base it on preview skeletal mesh, just to have something
-		if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Asset))
-		{
-			if(AnimBlueprint->TargetSkeleton)
-			{
-				SkeletalMesh = AnimBlueprint->TargetSkeleton->GetPreviewMesh(true);
-			}
-		}
-		if(UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(Asset))
-		{
-			if(AnimBlueprintGeneratedClass->TargetSkeleton)
-			{
-				SkeletalMesh = AnimBlueprintGeneratedClass->TargetSkeleton->GetPreviewMesh(true);
-			}
-		}
+		SkeletalMesh = AnimBlueprint->TargetSkeleton->GetPreviewMesh(true);
 	}
 
 	if( SkeletalMesh == nullptr && Skeleton != nullptr )

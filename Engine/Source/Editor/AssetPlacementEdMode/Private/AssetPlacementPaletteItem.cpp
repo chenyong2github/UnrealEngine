@@ -17,17 +17,18 @@
 #include "Engine/Blueprint.h"
 #include "Factories/AssetFactoryInterface.h"
 #include "AssetPlacementSettings.h"
+#include "Instances/InstancedPlacementClientInfo.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementMode"
 
-FPaletteItemUIInfo::FPaletteItemUIInfo(const FAssetData& InAssetData, const FPaletteItem& InPaletteItem)
+FPaletteItemUIInfo::FPaletteItemUIInfo(const FAssetData& InAssetData, const UPlacementPaletteClient* InPaletteItem)
 	: AssetData(InAssetData)
-	, SettingsObject(InPaletteItem.SettingsObject.Get())
+	, SettingsObject(InPaletteItem ? InPaletteItem->SettingsObject.Get() : nullptr)
 {
 	check(AssetData.IsValid());
 }
 
-FAssetPlacementPaletteItemModel::FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, const FPaletteItem& InPaletteItem, TSharedRef<SAssetPlacementPalette> InParentPalette, TSharedPtr<FAssetThumbnailPool> InThumbnailPool)
+FAssetPlacementPaletteItemModel::FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, const UPlacementPaletteClient* InPaletteItem, TSharedRef<SAssetPlacementPalette> InParentPalette, TSharedPtr<FAssetThumbnailPool> InThumbnailPool)
 	: TypeInfo(MakeShared<FPaletteItemUIInfo>(InAssetData, InPaletteItem))
 	, AssetPalette(InParentPalette)
 {

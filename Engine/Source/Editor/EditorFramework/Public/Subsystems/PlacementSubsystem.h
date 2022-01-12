@@ -9,8 +9,9 @@
 
 #include "PlacementSubsystem.generated.h"
 
+class UAssetFactoryInterface;
+class UInstancedPlacemenClientSettings;
 class IAssetFactoryInterface;
-class UEditorFactorySettingsObject;
 
 USTRUCT()
 struct EDITORFRAMEWORK_API FAssetPlacementInfo
@@ -35,7 +36,7 @@ struct EDITORFRAMEWORK_API FAssetPlacementInfo
 
 	// If set, will use the given factory to place the asset, instead of allowing the placement subsystem to determine which factory to use.
 	UPROPERTY()
-	TScriptInterface<IAssetFactoryInterface> FactoryOverride;
+	TSubclassOf<UAssetFactoryInterface> FactoryOverride;
 
 	/**
 	 * The Guid which corresponds to the item that should be placed.
@@ -46,7 +47,7 @@ struct EDITORFRAMEWORK_API FAssetPlacementInfo
 	FGuid ItemGuid;
 
 	UPROPERTY()
-	TObjectPtr<UEditorFactorySettingsObject> SettingsObject = nullptr;
+	TObjectPtr<UInstancedPlacemenClientSettings> SettingsObject = nullptr;
 };
 
 USTRUCT()
@@ -105,12 +106,18 @@ public:
 	 */
 	bool IsCreatingPreviewElements() const;
 
+	FSimpleMulticastDelegate& OnPlacementFactoriesRegistered();
+
+	TScriptInterface<IAssetFactoryInterface> GetAssetFactoryFromFactoryClass(TSubclassOf<UAssetFactoryInterface> InFactoryInterfaceClass) const;
+
 private:
 	void RegisterPlacementFactories();
 	void UnregisterPlacementFactories();
 
 	UPROPERTY()
 	TArray<TScriptInterface<IAssetFactoryInterface>> AssetFactories;
+
+	FSimpleMulticastDelegate PlacementFactoriesRegistered;
 
 	bool bIsCreatingPreviewElements = false;
 };

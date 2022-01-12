@@ -11,6 +11,8 @@
 #include "Modes/PlacementModeSubsystem.h"
 #include "PlacementPaletteItem.h"
 
+#include "Instances/InstancedPlacementClientInfo.h"
+
 constexpr TCHAR UPlacementModePlacementTool::ToolName[];
 
 UPlacementBrushToolBase* UPlacementModePlacementToolBuilder::FactoryToolInstance(UObject* Outer) const
@@ -43,7 +45,7 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 	const UAssetPlacementSettings* PlacementSettings = PlacementModeSubsystem ? PlacementModeSubsystem->GetModeSettingsObject() : nullptr;
 	if (BrushProperties && PlacementSettings)
 	{
-		TArrayView<const FPaletteItem> PaletteItems = MakeArrayView(PlacementSettings->GetActivePaletteItems());
+		TArrayView<const TObjectPtr<UPlacementPaletteClient>> PaletteItems = PlacementSettings->GetActivePaletteItems();
 		if (PaletteItems.Num())
 		{
 			FVector BrushLocation = LastBrushStamp.WorldPosition;
@@ -92,17 +94,18 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 					PotentialInstanceHash.InsertInstance(SpawnLocation, PotentialIdx);
 
 					int32 ItemIndex = FMath::RandHelper(PaletteItems.Num());
-					const FPaletteItem& ItemToPlace = PaletteItems[ItemIndex];
+					if (const UPlacementPaletteClient* ItemToPlace = PaletteItems[ItemIndex])
+					{
+						FAssetPlacementInfo NewInfo;
+						NewInfo.AssetToPlace = ItemToPlace->AssetPath.TryLoad();
+						NewInfo.FactoryOverride = ItemToPlace->FactoryInterfaceClass;
+						NewInfo.ItemGuid = ItemToPlace->ClientGuid;
+						NewInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
+						NewInfo.FinalizedTransform = GenerateTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);
+						NewInfo.SettingsObject = ItemToPlace->SettingsObject;
 
-					FAssetPlacementInfo NewInfo;
-					NewInfo.AssetToPlace = ItemToPlace.AssetPath.TryLoad();
-					NewInfo.FactoryOverride = ItemToPlace.AssetFactoryInterface;
-					NewInfo.ItemGuid = ItemToPlace.ItemGuid;
-					NewInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
-					NewInfo.FinalizedTransform = GenerateTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);
-					NewInfo.SettingsObject = ItemToPlace.SettingsObject;
-
-					DesiredInfoSpawnLocations.Emplace(NewInfo);
+						DesiredInfoSpawnLocations.Emplace(NewInfo);
+					}
 				}
 			}
 
