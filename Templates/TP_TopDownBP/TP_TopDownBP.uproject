@@ -2,5 +2,14 @@
 	"FileVersion": 3,
 	"EngineAssociation": "",
 	"Category": "",
-	"Description": ""
+	"Description": "",
+	"Plugins": [
+		{
+			"Name": "ModelingToolsEditorMode",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		}
+	]	
 }
