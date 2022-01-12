@@ -146,7 +146,7 @@ namespace HordeServer.Collections.Impl
 
 			FilterDefinition<LogEventDocument> Filter = Builder.Eq(x => x.Id.LogId, LogId);
 
-			IFindFluent<LogEventDocument, LogEventDocument> Results = LogEvents.Find(Filter);
+			IFindFluent<LogEventDocument, LogEventDocument> Results = LogEvents.Find(Filter).SortBy(x => x.Id);
 			if (Index != null)
 			{
 				Results = Results.Skip(Index.Value);
