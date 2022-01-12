@@ -288,7 +288,10 @@ public:
 		UNiagaraNodeFunctionCall* NewModuleNode = nullptr;
 		if (ScriptGroupAddAction->GetModuleAssetData().IsValid())
 		{
-			NewModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(ScriptGroupAddAction->GetModuleAssetData(), *OutputNode, TargetIndex);
+			FNiagaraStackGraphUtilities::FAddScriptModuleToStackArgs AddScriptModuleToStackArgs(ScriptGroupAddAction->GetModuleAssetData(), *OutputNode);
+			AddScriptModuleToStackArgs.TargetIndex = TargetIndex;
+			AddScriptModuleToStackArgs.bFixupTargetIndex = true;
+			NewModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(AddScriptModuleToStackArgs);
 		}
 		else if (ScriptGroupAddAction->GetModuleParameterVariable().IsValid())
 		{
@@ -323,7 +326,10 @@ public:
 private:
 	UNiagaraNodeFunctionCall* AddScriptAssetModule(const FAssetData& AssetData, int32 TargetIndex)
 	{
-		return FNiagaraStackGraphUtilities::AddScriptModuleToStack(AssetData, *OutputNode, TargetIndex);
+		FNiagaraStackGraphUtilities::FAddScriptModuleToStackArgs AddScriptModuleToStackArgs(AssetData, *OutputNode);
+		AddScriptModuleToStackArgs.TargetIndex = TargetIndex;
+		AddScriptModuleToStackArgs.bFixupTargetIndex = true;
+		return FNiagaraStackGraphUtilities::AddScriptModuleToStack(AddScriptModuleToStackArgs);
 	}
 
 	UNiagaraNodeFunctionCall* AddParameterModule(const FNiagaraVariable& ParameterVariable, bool bRenameParameterOnAdd, int32 TargetIndex)
@@ -1302,7 +1308,12 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 						// Otherwise it's a scratch pad script from another asset so we need to add a duplicate scratch pad script to this asset.
 						NewFunctionScript = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionScript)->GetOriginalScript();
 					}
-					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(NewFunctionScript, *OutputNode, CurrentPasteIndex, ClipboardFunction->FunctionName, ClipboardFunction->ScriptVersion);
+					FNiagaraStackGraphUtilities::FAddScriptModuleToStackArgs AddScriptModuleToStackArgs(NewFunctionScript, *OutputNode);
+					AddScriptModuleToStackArgs.TargetIndex = CurrentPasteIndex;
+					AddScriptModuleToStackArgs.bFixupTargetIndex = true;
+					AddScriptModuleToStackArgs.SuggestedName = ClipboardFunction->FunctionName;
+					AddScriptModuleToStackArgs.VersionGuid = ClipboardFunction->ScriptVersion;
+					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(AddScriptModuleToStackArgs);
 				}
 				else
 				{

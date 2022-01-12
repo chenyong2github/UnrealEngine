@@ -426,7 +426,7 @@ void GenerateFixesForAddingDependencyProviders(
 		? DependentUsage
 		: TOptional<ENiagaraScriptUsage>();
 	TArray<FAssetData> ModuleAssetsForDependency;
-	FNiagaraStackGraphUtilities::GetModuleScriptAssetsByDependencyProvided(RequiredDependency.Id, RequiredUsage, ModuleAssetsForDependency);
+	FNiagaraStackGraphUtilities::DependencyUtilities::GetModuleScriptAssetsByDependencyProvided(RequiredDependency.Id, RequiredUsage, ModuleAssetsForDependency);
 
 	// Gather duplicate module names so their fixes can be disambiguated.
 	TSet<FName> ModuleNames;

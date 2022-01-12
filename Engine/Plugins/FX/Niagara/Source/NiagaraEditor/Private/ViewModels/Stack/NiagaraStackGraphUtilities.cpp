@@ -13,8 +13,10 @@
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraNodeEmitter.h"
+#include "NiagaraScript.h"
 #include "NiagaraScriptSource.h"
 #include "EdGraphSchema_Niagara.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraScriptViewModel.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
@@ -1547,6 +1549,93 @@ bool FNiagaraStackGraphUtilities::FindScriptModulesInStack(FAssetData ModuleScri
 	return OutFunctionCalls.Num() > 0;
 }
 
+UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(const FAddScriptModuleToStackArgs& Args)
+{
+	// Unpack args struct
+	const FAssetData& ModuleScriptAsset = Args.ModuleScriptAsset;
+	UNiagaraScript* const ModuleScript = Args.ModuleScript;
+	UNiagaraNodeOutput* const TargetOutputNode = Args.TargetOutputNode;
+	const int32 TargetIndex = Args.TargetIndex;
+	FString SuggestedName = Args.SuggestedName;
+	const bool bFixupTargetIndex = Args.bFixupTargetIndex;
+	const FGuid& VersionGuid = Args.VersionGuid;
+
+	// Get the stack graph via the TargetOutputNode.
+	UEdGraph* Graph = TargetOutputNode->GetGraph();
+	Graph->Modify();
+
+	// Create the UNiagaraNodeFunctionCall to represent the script in the stack.
+	FGraphNodeCreator<UNiagaraNodeFunctionCall> ModuleNodeCreator(*Graph);
+	UNiagaraNodeFunctionCall* NewModuleNode = ModuleNodeCreator.CreateNode();
+
+	// Set the script on the UNiagaraNodeFunctionCall, and set the script version if specified.
+	if (ModuleScript != nullptr)
+	{
+		NewModuleNode->FunctionScript = ModuleScript;
+	}
+	else if(ModuleScriptAsset.IsValid())
+	{
+		NewModuleNode->FunctionScript = CastChecked<UNiagaraScript>(ModuleScriptAsset.GetAsset());
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("Encountered invalid FAddScriptModuleToStackArgs! ModuleScript or ModuleScriptAsset must be valid!"));
+		return nullptr;
+	}
+
+	if (NewModuleNode->FunctionScript->IsVersioningEnabled())
+	{
+		NewModuleNode->SelectedScriptVersion = VersionGuid.IsValid() ? VersionGuid : NewModuleNode->FunctionScript->GetExposedVersion().VersionGuid;
+	}
+	else
+	{
+		NewModuleNode->SelectedScriptVersion = FGuid();
+	}
+	ModuleNodeCreator.Finalize();
+
+	// Ensure there are input and output pins on the UNiagaraNodeFunctionCall to wire into the stack graph.
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+	if (NewModuleNode->FunctionScript == nullptr)
+	{
+		// If the module script is null, add parameter map inputs and outputs so that the node can be wired into the graph correctly.
+		NewModuleNode->CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
+		NewModuleNode->CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));
+		if (SuggestedName.IsEmpty())
+		{
+			SuggestedName = TEXT("InvalidScript");
+		}
+	}
+	else
+	{
+		// Make sure that the input and output pins are available to prevent failures in the connect module node.  Once the node is
+		// connected these missing pins will generate compile errors which the user can find and fix.
+		if (FNiagaraStackGraphUtilities::GetParameterMapInputPin(*NewModuleNode) == nullptr)
+		{
+			NewModuleNode->CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
+		}
+		if (FNiagaraStackGraphUtilities::GetParameterMapOutputPin(*NewModuleNode) == nullptr)
+		{
+			NewModuleNode->CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));
+		}
+	}
+
+	// If specified, suggest the name for the script.
+	if (SuggestedName.IsEmpty() == false)
+	{
+		NewModuleNode->SuggestName(SuggestedName);
+	}
+
+	// If specified, find the nearest index to TargetIndex that satisfies the new module script's order dependencies.
+	int32 FinalTargetIndex = TargetIndex;
+	if (bFixupTargetIndex)
+	{
+		FinalTargetIndex = DependencyUtilities::FindBestIndexForModuleInStack(*NewModuleNode, *Graph);
+	}
+
+	ConnectModuleNode(*NewModuleNode, *TargetOutputNode, FinalTargetIndex);
+	return NewModuleNode;
+}
+
 UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(FAssetData ModuleScriptAsset, UNiagaraNodeOutput& TargetOutputNode, int32 TargetIndex, FString SuggestedName)
 {
 	UEdGraph* Graph = TargetOutputNode.GetGraph();
@@ -1907,35 +1996,6 @@ void FNiagaraStackGraphUtilities::GetNewParameterAvailableTypes(TArray<FNiagaraT
 		if (RegisteredParameterType != FNiagaraTypeDefinition::GetGenericNumericDef() && RegisteredParameterType != FNiagaraTypeDefinition::GetParameterMapDef())
 		{
 			OutAvailableTypes.Add(RegisteredParameterType);
-		}
-	}
-}
-
-void FNiagaraStackGraphUtilities::GetModuleScriptAssetsByDependencyProvided(FName DependencyName, TOptional<ENiagaraScriptUsage> RequiredUsage, TArray<FAssetData>& OutAssets)
-{
-	FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions ScriptFilterOptions;
-	ScriptFilterOptions.bIncludeDeprecatedScripts = false;
-	ScriptFilterOptions.bIncludeNonLibraryScripts = true;
-	ScriptFilterOptions.ScriptUsageToInclude = ENiagaraScriptUsage::Module;
-	ScriptFilterOptions.TargetUsageToMatch = RequiredUsage;
-	TArray<FAssetData> ModuleAssets;
-	FNiagaraEditorUtilities::GetFilteredScriptAssets(ScriptFilterOptions, ModuleAssets);
-
-	for (const FAssetData& ModuleAsset : ModuleAssets)
-	{
-		FString ProvidedDependenciesString;
-		if (ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, ProvidedDependencies), ProvidedDependenciesString) && ProvidedDependenciesString.IsEmpty() == false)
-		{
-			TArray<FString> DependencyStrings;
-			ProvidedDependenciesString.ParseIntoArray(DependencyStrings, TEXT(","));
-			for (FString DependencyString : DependencyStrings)
-			{
-				if (FName(*DependencyString) == DependencyName)
-				{
-					OutAssets.Add(ModuleAsset);
-					break;
-				}
-			}
 		}
 	}
 }
@@ -3152,6 +3212,217 @@ void FNiagaraStackGraphUtilities::SynchronizeVariableToLibraryAndApplyToGraph(UN
 #if WITH_EDITOR
 	Graph->NotifyGraphNeedsRecompile();
 #endif
+}
+
+bool FNiagaraStackGraphUtilities::DependencyUtilities::DoesStackModuleProvideDependency(const FNiagaraStackModuleData& StackModuleData, const FNiagaraModuleDependency& SourceModuleRequiredDependency, const UNiagaraNodeOutput& SourceOutputNode)
+{
+	if (StackModuleData.ModuleNode != nullptr && StackModuleData.ModuleNode->FunctionScript != nullptr)
+	{
+		FVersionedNiagaraScriptData* ScriptData = StackModuleData.ModuleNode->FunctionScript->GetScriptData(StackModuleData.ModuleNode->SelectedScriptVersion);
+		if (ScriptData && ScriptData->ProvidedDependencies.Contains(SourceModuleRequiredDependency.Id))
+		{
+			if (SourceModuleRequiredDependency.ScriptConstraint == ENiagaraModuleDependencyScriptConstraint::AllScripts)
+			{
+				return true;
+			}
+
+			if (SourceModuleRequiredDependency.ScriptConstraint == ENiagaraModuleDependencyScriptConstraint::SameScript)
+			{
+				UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*StackModuleData.ModuleNode);
+				return OutputNode != nullptr && UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), SourceOutputNode.GetUsage()) && OutputNode->GetUsageId() == SourceOutputNode.GetUsageId();
+			}
+		}
+	}
+	return false;
+}
+
+void FNiagaraStackGraphUtilities::DependencyUtilities::GetModuleScriptAssetsByDependencyProvided(FName DependencyName, TOptional<ENiagaraScriptUsage> RequiredUsage, TArray<FAssetData>& OutAssets)
+{
+	FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions ScriptFilterOptions;
+	ScriptFilterOptions.bIncludeDeprecatedScripts = false;
+	ScriptFilterOptions.bIncludeNonLibraryScripts = true;
+	ScriptFilterOptions.ScriptUsageToInclude = ENiagaraScriptUsage::Module;
+	ScriptFilterOptions.TargetUsageToMatch = RequiredUsage;
+	TArray<FAssetData> ModuleAssets;
+	FNiagaraEditorUtilities::GetFilteredScriptAssets(ScriptFilterOptions, ModuleAssets);
+
+	for (const FAssetData& ModuleAsset : ModuleAssets)
+	{
+		FString ProvidedDependenciesString;
+		if (ModuleAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, ProvidedDependencies), ProvidedDependenciesString) && ProvidedDependenciesString.IsEmpty() == false)
+		{
+			TArray<FString> DependencyStrings;
+			ProvidedDependenciesString.ParseIntoArray(DependencyStrings, TEXT(","));
+			for (FString DependencyString : DependencyStrings)
+			{
+				if (FName(*DependencyString) == DependencyName)
+				{
+					OutAssets.Add(ModuleAsset);
+					break;
+				}
+			}
+		}
+	}
+}
+
+int32 FNiagaraStackGraphUtilities::DependencyUtilities::FindBestIndexForModuleInStack(UNiagaraNodeFunctionCall& ModuleNode, UEdGraph& EmitterScriptGraph)
+{
+	// Check if the new module node has any dependencies to begin with. If not, early exit.
+	FVersionedNiagaraScriptData* ScriptData = ModuleNode.GetScriptData();
+	if (ScriptData == nullptr || (ScriptData->RequiredDependencies.Num() == 0 && ScriptData->ProvidedDependencies.Num() == 0))
+	{
+		return INDEX_NONE;
+	}
+
+	// Get the Emitter and System the emitter script script graph is outered to.
+	UNiagaraSystem* System = EmitterScriptGraph.GetTypedOuter<UNiagaraSystem>();
+	UNiagaraEmitter* Emitter = EmitterScriptGraph.GetTypedOuter<UNiagaraEmitter>();
+	if (System == nullptr || Emitter == nullptr)
+	{
+		return INDEX_NONE;
+	}
+
+	// Get the stack module data for the emitter stack to find dependencies.
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(System);
+	if (SystemViewModel->IsValid() == false)
+	{
+		ensureMsgf(false, TEXT("Failed to get systemviewmodel for valid system when getting best index in stack for module!"));
+		return INDEX_NONE;
+	}
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = SystemViewModel->GetEmitterHandleViewModelForEmitter(Emitter);
+	if (EmitterHandleViewModel->IsValid() == false)
+	{
+		ensureMsgf(false, TEXT("Failed to get emitterhandleviewmodel for valid emitter when getting best index in stack for module!"));
+		return INDEX_NONE;
+	}
+	const TArray<FNiagaraStackModuleData>& StackModuleData = SystemViewModel->GetStackModuleDataByEmitterHandleId(EmitterHandleViewModel->GetId());
+
+
+	// Find the greatest and least indices for the stack first.
+	int32 LeastIndex = INT_MAX;
+	int32 GreatestIndex = INDEX_NONE;
+	for (const FNiagaraStackModuleData& CurrentStackModuleData : StackModuleData)
+	{
+		int32 Index = CurrentStackModuleData.Index;
+		LeastIndex = LeastIndex > Index ? Index : LeastIndex;
+		GreatestIndex = GreatestIndex < Index ? Index : GreatestIndex;
+	}
+
+	// Find the greatest and least indices to satisfy the pre and post dependencies of the new module script being added, respectively.
+	int32 LeastDependencyIndex = LeastIndex;
+	int32 GreatestDependencyIndex = GreatestIndex;
+	bool bDependencyLowerBoundFound = false;
+	bool bDependencyUpperBoundFound = false;
+
+	const TArray<FNiagaraModuleDependency>& NewModuleScriptRequiredDependencies = ScriptData->RequiredDependencies;
+
+	TMap<ENiagaraScriptUsage, UNiagaraNodeOutput*> ScriptUsageToOutputNode;
+	auto GetOutputNodeForStackModuleData = [&ScriptUsageToOutputNode](const FNiagaraStackModuleData& StackModuleData)->UNiagaraNodeOutput* {
+		if (UNiagaraNodeOutput** OutputNodePtr = ScriptUsageToOutputNode.Find(StackModuleData.Usage))
+		{
+			return *OutputNodePtr;
+		}
+		UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*StackModuleData.ModuleNode);
+		ScriptUsageToOutputNode.Add(StackModuleData.Usage, OutputNode);
+		return OutputNode;
+	};
+
+	for (const FNiagaraStackModuleData& CurrentStackModuleData : StackModuleData)
+	{
+		for (const FNiagaraModuleDependency& RequiredDependency : NewModuleScriptRequiredDependencies)
+		{
+			if (DoesStackModuleProvideDependency(CurrentStackModuleData, RequiredDependency, *GetOutputNodeForStackModuleData(CurrentStackModuleData)))
+			{
+				if (RequiredDependency.Type == ENiagaraModuleDependencyType::PreDependency)
+				{
+					int32 SuggestedIndex = CurrentStackModuleData.Index + 1;
+					LeastDependencyIndex = LeastDependencyIndex < SuggestedIndex ? SuggestedIndex : LeastDependencyIndex;
+					bDependencyLowerBoundFound = true;
+				}
+				else if (RequiredDependency.Type == ENiagaraModuleDependencyType::PostDependency)
+				{
+					int32 SuggestedIndex = CurrentStackModuleData.Index;
+					GreatestDependencyIndex = GreatestDependencyIndex > SuggestedIndex ? SuggestedIndex : GreatestDependencyIndex;
+					bDependencyUpperBoundFound = true;
+				}
+			}
+		}
+	}
+
+	// Check that there is valid index which satisfies all dependencies for the new module script.
+	int32 TargetIndex = INDEX_NONE;
+	if (bDependencyLowerBoundFound)
+	{
+		if (bDependencyUpperBoundFound && GreatestDependencyIndex < LeastDependencyIndex)
+		{
+			// It is impossible to satisfy both target indices: do nothing.
+			return INDEX_NONE;
+		}
+		TargetIndex = LeastDependencyIndex;
+	}
+	else if (bDependencyUpperBoundFound)
+	{
+		TargetIndex = GreatestDependencyIndex;
+	}
+
+	// Do another pass to find a target index that satisfies dependencies for other modules in the stack by providing as many dependencies as possible.
+	int32 LeastRequirementIndex = LeastIndex;
+	int32 GreatestRequirementIndex = GreatestIndex;
+	bool bRequirementLowerBoundFound = false;
+	bool bRequirementUpperBoundFound = false;
+
+	const TArray<FName>& NewModuleScriptProvidedDependencies = ScriptData->ProvidedDependencies;
+
+	auto GetStackModuleDataRequiredDependenciesBeingProvided = [&NewModuleScriptProvidedDependencies](const FNiagaraStackModuleData& StackModuleData)->const TArray<FNiagaraModuleDependency> /*OutDependencies*/ {
+		TArray<FNiagaraModuleDependency> OutDependencies;
+		for (FNiagaraModuleDependency& RequiredDependency : StackModuleData.ModuleNode->GetScriptData()->RequiredDependencies)
+		{
+			if (NewModuleScriptProvidedDependencies.Contains(RequiredDependency.Id))
+			{
+				OutDependencies.Add(RequiredDependency);
+			}
+		}
+		return OutDependencies;
+	};
+
+	for (const FNiagaraStackModuleData& CurrentStackModuleData : StackModuleData)
+	{
+		for (const FNiagaraModuleDependency& ProvidedDependency : GetStackModuleDataRequiredDependenciesBeingProvided(CurrentStackModuleData))
+		{
+			if (ProvidedDependency.Type == ENiagaraModuleDependencyType::PreDependency)
+			{
+				int32 SuggestedIndex = CurrentStackModuleData.Index;
+				LeastRequirementIndex = LeastRequirementIndex < SuggestedIndex ? SuggestedIndex : LeastRequirementIndex;
+				bRequirementLowerBoundFound = true;
+			}
+			else if (ProvidedDependency.Type == ENiagaraModuleDependencyType::PostDependency)
+			{
+				int32 SuggestedIndex = CurrentStackModuleData.Index + 1;
+				GreatestRequirementIndex = GreatestRequirementIndex > SuggestedIndex ? SuggestedIndex : GreatestRequirementIndex;
+				bRequirementUpperBoundFound = true;
+			}
+		}
+	}
+
+	LeastRequirementIndex = LeastDependencyIndex < LeastRequirementIndex ? LeastRequirementIndex : LeastDependencyIndex;
+	GreatestRequirementIndex = GreatestDependencyIndex > GreatestRequirementIndex ? GreatestRequirementIndex : GreatestDependencyIndex;
+
+	// Do another validity test for requirement indices.
+	if (bRequirementLowerBoundFound)
+	{
+		if (bRequirementUpperBoundFound && GreatestRequirementIndex < LeastRequirementIndex)
+		{
+			// It is impossible to satisfy both target indices: do nothing.
+			return TargetIndex;
+		}
+		TargetIndex = LeastRequirementIndex;
+	}
+	else if (bRequirementUpperBoundFound)
+	{
+		TargetIndex = GreatestRequirementIndex;
+	}
+
+	return TargetIndex;
 }
 
 #undef LOCTEXT_NAMESPACE
