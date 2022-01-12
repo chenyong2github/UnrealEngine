@@ -8,6 +8,8 @@
 #include "Chaos/Defines.h"
 #include "Chaos/Evolution/SolverBody.h"
 
+CHAOS_API DECLARE_LOG_CATEGORY_EXTERN(LogChaosCollision, Log, All);
+
 // Set to 0 to use a linearized error calculation, and set to 1 to use a non-linear error calculation in collision detection. 
 // In principle nonlinear is more accurate when large rotation corrections occur, but this is not too important for collisions because 
 // when the bodies settle the corrections are small. The linearized version is significantly faster than the non-linear version because 
@@ -28,10 +30,6 @@ namespace Chaos
 	namespace CVars
 	{
 		extern float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness;
-		extern float Chaos_PBDCollisionSolver_Position_StaticFrictionLerpRate;
-		
-		extern bool bChaos_PBDCollisionSolver_Velocity_NegativeImpulseEnabled;
-		extern bool bChaos_PBDCollisionSolver_Velocity_ImpulseClampEnabled;
 	}
 
 
@@ -45,11 +43,13 @@ namespace Chaos
 		 * @brief Initialize the geometric data for the contact
 		*/
 		void InitContact(
+			const FSolverReal Dt,
 			const FConstraintSolverBody& Body0,
 			const FConstraintSolverBody& Body1,
 			const FVec3& InWorldAnchorPoint0,
 			const FVec3& InWorldAnchorPoint1,
-			const FSolverVec3& InWorldContactNormal);
+			const FSolverVec3& InWorldContactNormal,
+			const bool bAddVelocityToFriction);
 
 		/**
 		 * @brief Initialize the material related properties of the contact
@@ -58,19 +58,19 @@ namespace Chaos
 			const FConstraintSolverBody& Body0,
 			const FConstraintSolverBody& Body1,
 			const FSolverReal InRestitution,
-			const FSolverReal InRestitutionVelocityThreshold,
-			const bool bInEnableStaticFriction,
-			const FSolverReal InFrictionNetPushOutNormal);
+			const FSolverReal InRestitutionVelocityThreshold);
 
 		/**
 		 * @brief Update the world-space relative contact points based on current body transforms and body-space contact positions
 		*/
 		void UpdateContact(
+			const FSolverReal Dt,
 			const FConstraintSolverBody& Body0,
 			const FConstraintSolverBody& Body1,
 			const FVec3& InWorldAnchorPoint0,
 			const FVec3& InWorldAnchorPoint1,
-			const FSolverVec3& InWorldContactNormal);
+			const FSolverVec3& InWorldContactNormal,
+			const bool bAddVelocityToFriction);
 
 		/**
 		 * @brief Update the cached mass properties based on the current body transforms
@@ -100,6 +100,8 @@ namespace Chaos
 		*/
 		FSolverVec3 CalculateContactVelocity(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1) const;
 
+		bool ShouldSolveVelocity() const;
+
 		// World-space body-relative contact points
 		FSolverVec3 RelativeContactPosition0;
 		FSolverVec3 RelativeContactPosition1;
@@ -124,8 +126,8 @@ namespace Chaos
 
 		// Initial world-space contact separation that we are trying to correct
 		FSolverReal WorldContactDeltaNormal;
-		FSolverReal WorldContactDeltaTangent0;
-		FSolverReal WorldContactDeltaTangent1;
+		FSolverReal WorldContactDeltaTangentU;
+		FSolverReal WorldContactDeltaTangentV;
 
 		// Desired final normal velocity, taking Restitution into account
 		FSolverReal WorldContactVelocityTargetNormal;
@@ -138,11 +140,10 @@ namespace Chaos
 		FSolverReal NetImpulseTangentU;
 		FSolverReal NetImpulseTangentV;
 
-		// A smoothed NetPushOutNormal along the normal, used for clipping to the static friction cone
-		FSolverReal FrictionNetPushOutNormal;
-
-		// Whether we are still in the static friction cone
-		bool bInsideStaticFrictionCone;
+		// A measure of how much we exceeded the static friction threshold.
+		// Equal to (NormalPushOut / TangentialPushOut) before clamping to the friction cone.
+		// Used to move the static friction anchors to the edge of the cone in Scatter.
+		FSolverReal StaticFrictionRatio;
 	};
 
 	/**
@@ -167,11 +168,13 @@ namespace Chaos
 
 		FSolverReal StaticFriction() const { return State.StaticFriction; }
 		FSolverReal DynamicFriction() const { return State.DynamicFriction; }
+		FSolverReal VelocityFriction() const { return State.VelocityFriction; }
 
-		void SetFriction(const FReal InStaticFriction, const FReal InDynamicFriction)
+		void SetFriction(const FReal InStaticFriction, const FReal InDynamicFriction, const FReal InVelocityFriction)
 		{
 			State.StaticFriction = FSolverReal(InStaticFriction);
 			State.DynamicFriction = FSolverReal(InDynamicFriction);
+			State.VelocityFriction = FSolverReal(InVelocityFriction);
 		}
 
 		void SetStiffness(const FReal InStiffness)
@@ -210,22 +213,16 @@ namespace Chaos
 
 		void InitContact(
 			const int32 ManifoldPoiontIndex,
+			const FReal Dt,
 			const FVec3& InWorldAnchorPoint0,
 			const FVec3& InWorldAnchorPoint1,
-			const FVec3& InWorldContactNormal);
+			const FVec3& InWorldContactNormal,
+			const bool bAddVelocityToFriction);
 
 		void InitMaterial(
 			const int32 ManifoldPoiontIndex,
 			const FReal InRestitution,
-			const FReal InRestitutionVelocityThreshold,
-			const bool bInEnableStaticFriction,
-			const FReal InFrictionNetPushOutNormal);
-
-		void UpdateContact(
-			const int32 ManifoldPoiontIndex,
-			const FVec3& InWorldAnchorPoint0,
-			const FVec3& InWorldAnchorPoint1,
-			const FVec3& InWorldContactNormal);
+			const FReal InRestitutionVelocityThreshold);
 
 		/**
 		 * @brief Get the first (decaorated) solver body
@@ -289,9 +286,9 @@ namespace Chaos
 			FState()
 				: StaticFriction(0)
 				, DynamicFriction(0)
+				, VelocityFriction(0)
 				, Stiffness(1)
 				, NumManifoldPoints(0)
-				, bHaveRestitution(false)
 				, SolverBodies()
 				, ManifoldPoints()
 			{
@@ -302,16 +299,25 @@ namespace Chaos
 			{
 				StaticFriction = 0;
 				DynamicFriction = 0;
+				VelocityFriction = 0;
 				Stiffness = 1;
-				bHaveRestitution = false;
 				NumManifoldPoints = 0;
 			}
 
+			// Static Friction in the position-solve phase
 			FSolverReal StaticFriction;
+
+			// Dynamic Friction in the position-solve phase
 			FSolverReal DynamicFriction;
+			
+			// Dynamic Friction in the velocity-solve phase
+			FSolverReal VelocityFriction;
+
+			// Solver stiffness (scales all pushout and impulses)
 			FSolverReal Stiffness;
+
+			// Bodies and contacts
 			int32 NumManifoldPoints;
-			bool bHaveRestitution;
 			FConstraintSolverBody SolverBodies[MaxConstrainedBodies];
 			FPBDCollisionSolverManifoldPoint ManifoldPoints[MaxPointsPerConstraint];
 		};
@@ -369,16 +375,10 @@ namespace Chaos
 		FSolverReal& InOutPushOutTangentV,
 		FSolverReal& InOutNetPushOutTangentU,
 		FSolverReal& InOutNetPushOutTangentV,
-		FSolverReal& InOutFrictionNetPushOutNormal,
-		bool& bInOutInsideStaticFrictionCone)
+		FSolverReal& OutStaticFrictionRatio)
 	{
-		bInOutInsideStaticFrictionCone = true;
-		// Static friction limit: immediately increase maximum lateral correction, but smoothly decay maximum static friction limit. 
-		// This is so that small variations in position (jitter) and therefore NetPushOutNormal don't cause static friction to slip
-		// @todo(chaos): StaticFriction smoothing is iteration count depenendent - try to make it not so
-		const FSolverReal StaticFrictionLerpRate = CVars::Chaos_PBDCollisionSolver_Position_StaticFrictionLerpRate;
-		const FSolverReal StaticFrictionTarget = FMath::Max(NetPushOutNormal, FSolverReal(0));
-		InOutFrictionNetPushOutNormal = FMath::Lerp(FMath::Max(InOutFrictionNetPushOutNormal, StaticFrictionTarget), StaticFrictionTarget, StaticFrictionLerpRate);
+		// Assume we stay in the friction cone...
+		OutStaticFrictionRatio = FSolverReal(1);
 
 		if (NetPushOutNormal < FSolverReal(SMALL_NUMBER))
 		{
@@ -386,29 +386,26 @@ namespace Chaos
 			// so we must subtract it again to calculate the actual pushout we want to undo (i.e., the net pushout that has been applied to the body so far)
 			InOutPushOutTangentU = -(InOutNetPushOutTangentU - InOutPushOutTangentU);
 			InOutPushOutTangentV = -(InOutNetPushOutTangentV - InOutPushOutTangentV);
-			InOutNetPushOutTangentU = FReal(0);
-			InOutNetPushOutTangentV = FReal(0);
-			bInOutInsideStaticFrictionCone = false;
+			InOutNetPushOutTangentU = FSolverReal(0);
+			InOutNetPushOutTangentV = FSolverReal(0);
+			OutStaticFrictionRatio = FSolverReal(0);
 		}
-
-		// If we exceed the friction cone, clip to cone and stop adding frictional corrections
-		if (bInOutInsideStaticFrictionCone)
+		else
 		{
-			const FSolverReal MaxPushOutTangent = StaticFriction * InOutFrictionNetPushOutNormal;
-			const FSolverReal MaxPushOutTangentSq = FMath::Square(MaxPushOutTangent);
+			// If we exceed the static friction cone, clip to the dynamic friction cone
+			const FSolverReal MaxStaticPushOutTangentSq = FMath::Square(StaticFriction * NetPushOutNormal);
 			const FSolverReal NetPushOutTangentSq = FMath::Square(InOutNetPushOutTangentU) + FMath::Square(InOutNetPushOutTangentV);
-			if (NetPushOutTangentSq > MaxPushOutTangentSq)
+			if (NetPushOutTangentSq > MaxStaticPushOutTangentSq)
 			{
-				// @todo(chaos): clamp to dynamic friction rather than static
-				const FSolverReal ClippedMaxPushOutTangent = MaxPushOutTangent;
-				const FSolverReal InvNetPushOutTangent = FMath::InvSqrt(NetPushOutTangentSq);
-				const FSolverReal NetPushOutTangentU = ClippedMaxPushOutTangent * InOutNetPushOutTangentU * InvNetPushOutTangent;
-				const FSolverReal NetPushOutTangentV = ClippedMaxPushOutTangent * InOutNetPushOutTangentV * InvNetPushOutTangent;
+				const FSolverReal MaxDynamicPushOutTangent = DynamicFriction * NetPushOutNormal;
+				const FSolverReal FrictionMultiplier = MaxDynamicPushOutTangent * FMath::InvSqrt(NetPushOutTangentSq);
+				const FSolverReal NetPushOutTangentU = FrictionMultiplier * InOutNetPushOutTangentU;
+				const FSolverReal NetPushOutTangentV = FrictionMultiplier * InOutNetPushOutTangentV;
 				InOutPushOutTangentU = NetPushOutTangentU - (InOutNetPushOutTangentU - InOutPushOutTangentU);
 				InOutPushOutTangentV = NetPushOutTangentV - (InOutNetPushOutTangentV - InOutPushOutTangentV);
 				InOutNetPushOutTangentU = NetPushOutTangentU;
 				InOutNetPushOutTangentV = NetPushOutTangentV;
-				bInOutInsideStaticFrictionCone = false;
+				OutStaticFrictionRatio = FrictionMultiplier;
 			}
 		}
 	}
@@ -460,12 +457,10 @@ namespace Chaos
 			PushOutTangentV,									// Out
 			ManifoldPoint.NetPushOutTangentU,					// Out
 			ManifoldPoint.NetPushOutTangentV,					// Out
-			ManifoldPoint.FrictionNetPushOutNormal,				// Out
-			ManifoldPoint.bInsideStaticFrictionCone);			// Out
-
-		const FSolverVec3 PushOut = PushOutNormal * ManifoldPoint.WorldContactNormal + PushOutTangentU * ManifoldPoint.WorldContactTangentU + PushOutTangentV * ManifoldPoint.WorldContactTangentV;
+			ManifoldPoint.StaticFrictionRatio);					// Out
 
 		// Update the particle state based on the pushout
+		const FSolverVec3 PushOut = PushOutNormal * ManifoldPoint.WorldContactNormal + PushOutTangentU * ManifoldPoint.WorldContactTangentU + PushOutTangentV * ManifoldPoint.WorldContactTangentV;
 		if (Body0.IsDynamic())
 		{
 			const FSolverVec3 DX0 = Body0.InvM() * PushOut;
@@ -525,40 +520,45 @@ namespace Chaos
 		const FSolverReal ContactVelocityDeltaNormal,
 		const FSolverReal ContactVelocityDeltaTangent0,
 		const FSolverReal ContactVelocityDeltaTangent1,
+		const FSolverReal MinImpulseNormal,
 		FPBDCollisionSolverManifoldPoint& ManifoldPoint,
 		FConstraintSolverBody& Body0,
 		FConstraintSolverBody& Body1)
 	{
-		FSolverReal ImpulseNormal = -(Stiffness * ManifoldPoint.ContactMassNormal) * ContactVelocityDeltaNormal;
-		
+		FSolverReal ImpulseNormal = -Stiffness * ManifoldPoint.ContactMassNormal * ContactVelocityDeltaNormal;
+		FSolverReal ImpulseTangentU = -Stiffness * ManifoldPoint.ContactMassTangentU * ContactVelocityDeltaTangent0;
+		FSolverReal ImpulseTangentV = -Stiffness * ManifoldPoint.ContactMassTangentV * ContactVelocityDeltaTangent1;
+
 		// Clamp the total impulse to be positive along the normal. We can apply a net negative impulse, 
-		// but only to correct the velocity that was added by pushout.
+		// but only to correct the velocity that was added by pushout (in which case MinImpulseNormal will be negative).
 		const FSolverReal NetImpulseNormal = ManifoldPoint.NetImpulseNormal + ImpulseNormal;
-		const FSolverReal PushOutImpulseNormal = FMath::Max(0.0f, ManifoldPoint.NetPushOutNormal / Dt);
-		if (NetImpulseNormal < -PushOutImpulseNormal)
+		if ((ManifoldPoint.NetImpulseNormal + ImpulseNormal) < MinImpulseNormal)
 		{
 			// We are trying to apply a net negative impulse larger than one to counteract the effective pushout impulse
 			// so clamp the net impulse to be equal to minus the pushout impulse along the normal.
-			// NOTE: NetImpulseNormal is negative here
-			ImpulseNormal = ImpulseNormal - (NetImpulseNormal + PushOutImpulseNormal);
+			ImpulseNormal = MinImpulseNormal - ManifoldPoint.NetImpulseNormal;
 		}
 
-		FSolverReal ImpulseTangentU = FSolverReal(0);
-		FSolverReal ImpulseTangentV = FSolverReal(0);
-		const bool bApplyFriction = (DynamicFriction > 0) && !FMath::IsNearlyZero(ImpulseNormal) && (Dt > 0);
-		if (bApplyFriction)
+		// Clamp the tangential impulses to the friction cone
+		if ((DynamicFriction > 0) && (Dt > 0))
 		{
-			ImpulseTangentU = -(Stiffness * ManifoldPoint.ContactMassTangentU) * ContactVelocityDeltaTangent0;
-			ImpulseTangentV = -(Stiffness * ManifoldPoint.ContactMassTangentV) * ContactVelocityDeltaTangent1;
+			const FSolverReal MaxImpulseTangent = FMath::Max(FSolverReal(0), DynamicFriction * (ManifoldPoint.NetImpulseNormal + ImpulseNormal + ManifoldPoint.NetPushOutNormal / Dt));
+			const FSolverReal MaxImpulseTangentSq = FMath::Square(MaxImpulseTangent);
+			const FSolverReal ImpulseTangentSq = FMath::Square(ImpulseTangentU) + FMath::Square(ImpulseTangentV);
+			if (ImpulseTangentSq > MaxImpulseTangentSq)
+			{
+				const FSolverReal ImpulseTangentScale = MaxImpulseTangent * FMath::InvSqrt(ImpulseTangentSq);
+				ImpulseTangentU *= ImpulseTangentScale;
+				ImpulseTangentV *= ImpulseTangentScale;
+			}
 		}
 
 		ManifoldPoint.NetImpulseNormal += ImpulseNormal;
 		ManifoldPoint.NetImpulseTangentU += ImpulseTangentU;
 		ManifoldPoint.NetImpulseTangentV += ImpulseTangentV;
 
-		FSolverVec3 Impulse = ImpulseNormal * ManifoldPoint.WorldContactNormal + ImpulseTangentU * ManifoldPoint.WorldContactTangentU + ImpulseTangentV * ManifoldPoint.WorldContactTangentV;
-
-		// Calculate the velocity deltas from the impulse
+		// Apply the velocity deltas from the impulse
+		const FSolverVec3 Impulse = ImpulseNormal * ManifoldPoint.WorldContactNormal + ImpulseTangentU * ManifoldPoint.WorldContactTangentU + ImpulseTangentV * ManifoldPoint.WorldContactTangentV;
 		if (Body0.IsDynamic())
 		{
 			const FSolverVec3 DV0 = Body0.InvM() * Impulse;
@@ -575,8 +575,8 @@ namespace Chaos
 
 	FORCEINLINE_DEBUGGABLE void ApplyVelocityCorrectionNormal(
 		const FSolverReal Stiffness,
-		const FSolverReal Dt,
 		const FSolverReal ContactVelocityDeltaNormal,
+		const FSolverReal MinImpulseNormal,
 		FPBDCollisionSolverManifoldPoint& ManifoldPoint,
 		FConstraintSolverBody& Body0,
 		FConstraintSolverBody& Body1)
@@ -585,17 +585,15 @@ namespace Chaos
 
 		// See comments in ApplyVelocityCorrection
 		const FSolverReal NetImpulseNormal = ManifoldPoint.NetImpulseNormal + ImpulseNormal;
-		const FSolverReal PushOutImpulseNormal = FMath::Max(0.0f, ManifoldPoint.NetPushOutNormal / Dt);
-		if (NetImpulseNormal < -PushOutImpulseNormal)
+		if (NetImpulseNormal < MinImpulseNormal)
 		{
-			ImpulseNormal = ImpulseNormal - (NetImpulseNormal + PushOutImpulseNormal);
+			ImpulseNormal = ImpulseNormal - NetImpulseNormal + MinImpulseNormal;
 		}
 
 		ManifoldPoint.NetImpulseNormal += ImpulseNormal;
 
-		FSolverVec3 Impulse = ImpulseNormal * ManifoldPoint.WorldContactNormal;
-
 		// Calculate the velocity deltas from the impulse
+		FSolverVec3 Impulse = ImpulseNormal * ManifoldPoint.WorldContactNormal;
 		if (Body0.IsDynamic())
 		{
 			const FSolverVec3 DV0 = Body0.InvM() * Impulse;
@@ -619,8 +617,8 @@ namespace Chaos
 	FORCEINLINE_DEBUGGABLE void FPBDCollisionSolverManifoldPoint::CalculateContactPositionErrorNormal(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FSolverReal MaxPushOut, FSolverReal& OutContactDeltaNormal) const
 	{
 		// Linear version: calculate the contact delta assuming linear motion after applying a positional impulse at the contact point. There will be an error that depends on the size of the rotation.
-		const FSolverVec3 ContactDelta0 = FSolverVec3(Body0.DP()) + FSolverVec3::CrossProduct(Body0.DQ(), RelativeContactPosition0);
-		const FSolverVec3 ContactDelta1 = FSolverVec3(Body1.DP()) + FSolverVec3::CrossProduct(Body1.DQ(), RelativeContactPosition1);
+		const FSolverVec3 ContactDelta0 = Body0.DP() + FSolverVec3::CrossProduct(Body0.DQ(), RelativeContactPosition0);
+		const FSolverVec3 ContactDelta1 = Body1.DP() + FSolverVec3::CrossProduct(Body1.DQ(), RelativeContactPosition1);
 		const FSolverVec3 ContactDelta = ContactDelta0 - ContactDelta1;
 		OutContactDeltaNormal = WorldContactDeltaNormal + FSolverVec3::DotProduct(ContactDelta, WorldContactNormal);
 
@@ -633,23 +631,26 @@ namespace Chaos
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void FPBDCollisionSolverManifoldPoint::CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FSolverReal MaxPushOut, FSolverReal& OutContactDeltaNormal, FSolverReal& OutContactDeltaTangent0, FSolverReal& OutContactDeltaTangent1) const
+	FORCEINLINE_DEBUGGABLE void FPBDCollisionSolverManifoldPoint::CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FSolverReal MaxPushOut, FSolverReal& OutContactDeltaNormal, FSolverReal& OutContactDeltaTangentU, FSolverReal& OutContactDeltaTangentV) const
 	{
 #if CHAOS_NONLINEAR_COLLISIONS_ENABLED
-#error "Non-linear collision solver no longer functional - fix it"
+#error "Non-linear collision solver probably no longer functional - fix it!"
 		// Non-linear version: calculate the contact delta after we have converted the current positional impulses into position and rotation corrections.
 		// We could precalculate and store the LocalContactPositions if we really want to use this nonlinear version
-		const FSolverVec3 LocalContactPosition0 = Body0.Q().Inverse() * WorldRelativeContactPosition0;
-		const FSolverVec3 LocalContactPosition1 = Body1.Q().Inverse() * WorldRelativeContactPosition1;
+		const FSolverVec3 LocalContactPosition0 = Body0.Q().Inverse() * RelativeContactPosition0;
+		const FSolverVec3 LocalContactPosition1 = Body1.Q().Inverse() * RelativeContactPosition1;
 		const FSolverVec3 ContactDelta = (Body0.CorrectedP() + Body0.CorrectedQ() * LocalContactPosition0) - (Body1.CorrectedP() + Body1.CorrectedQ() * LocalContactPosition1);
+		OutContactDeltaNormal = FSolverVec3::DotProduct(ContactDelta, WorldContactNormal);
+		OutContactDeltaTangentU = FSolverVec3::DotProduct(ContactDelta, WorldContactTangentU);
+		OutContactDeltaTangentV = FSolverVec3::DotProduct(ContactDelta, WorldContactTangentV);
 #else
 		// Linear version: calculate the contact delta assuming linear motion after applying a positional impulse at the contact point. There will be an error that depends on the size of the rotation.
-		const FSolverVec3 ContactDelta0 = FSolverVec3(Body0.DP()) + FSolverVec3::CrossProduct(Body0.DQ(), RelativeContactPosition0);
-		const FSolverVec3 ContactDelta1 = FSolverVec3(Body1.DP()) + FSolverVec3::CrossProduct(Body1.DQ(), RelativeContactPosition1);
+		const FSolverVec3 ContactDelta0 = Body0.DP() + FSolverVec3::CrossProduct(Body0.DQ(), RelativeContactPosition0);
+		const FSolverVec3 ContactDelta1 = Body1.DP() + FSolverVec3::CrossProduct(Body1.DQ(), RelativeContactPosition1);
 		const FSolverVec3 ContactDelta = ContactDelta0 - ContactDelta1;
 		OutContactDeltaNormal = WorldContactDeltaNormal + FSolverVec3::DotProduct(ContactDelta, WorldContactNormal);
-		OutContactDeltaTangent0 = WorldContactDeltaTangent0 + FSolverVec3::DotProduct(ContactDelta, WorldContactTangentU);
-		OutContactDeltaTangent1 = WorldContactDeltaTangent1 + FSolverVec3::DotProduct(ContactDelta, WorldContactTangentV);
+		OutContactDeltaTangentU = WorldContactDeltaTangentU + FSolverVec3::DotProduct(ContactDelta, WorldContactTangentU);
+		OutContactDeltaTangentV = WorldContactDeltaTangentV + FSolverVec3::DotProduct(ContactDelta, WorldContactTangentV);
 #endif
 
 		// NOTE: OutContactDeltaNormal is negative for penetration
@@ -666,35 +667,12 @@ namespace Chaos
 		const FSolverVec3 ContactVelocity1 = Body1.V() + FSolverVec3::CrossProduct(Body1.W(), RelativeContactPosition1);
 		const FSolverVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;
 		const FSolverReal ContactVelocityNormal = FSolverVec3::DotProduct(ContactVelocity, WorldContactNormal);
+		const FSolverReal ContactVelocityTangent0 = FSolverVec3::DotProduct(ContactVelocity, WorldContactTangentU);
+		const FSolverReal ContactVelocityTangent1 = FSolverVec3::DotProduct(ContactVelocity, WorldContactTangentV);
 
-		// Add up the errors in the velocity (current velocity - desired velocity)
 		OutContactVelocityDeltaNormal = (ContactVelocityNormal - WorldContactVelocityTargetNormal);
-		OutContactVelocityDeltaTangent0 = FSolverReal(0);
-		OutContactVelocityDeltaTangent1 = FSolverReal(0);
-
-		const bool bApplyFriction = (DynamicFriction > 0) && (Dt > 0);
-		if (bApplyFriction)
-		{
-			const FSolverReal ContactVelocityTangent0 = FSolverVec3::DotProduct(ContactVelocity, WorldContactTangentU);
-			const FSolverReal ContactVelocityTangent1 = FSolverVec3::DotProduct(ContactVelocity, WorldContactTangentV);
-			OutContactVelocityDeltaTangent0 = ContactVelocityTangent0;
-			OutContactVelocityDeltaTangent1 = ContactVelocityTangent1;
-
-			const FSolverReal ContactVelocityTangentialSq = FMath::Square(ContactVelocityTangent0) + FMath::Square(ContactVelocityTangent1);
-			if (ContactVelocityTangentialSq > FSolverReal(SMALL_NUMBER))
-			{
-				// PushOut = ContactMass * DP, where DP is the contact positional correction
-				// Friction force is proportional to the normal force, so friction velocity correction
-				// is proprtional to normal velocity correction, or DVn = DPn/dt = PushOut.N / (ContactMass * dt);
-				const FSolverReal MaxContactVelocityTangential = DynamicFriction * NetPushOutNormal / (ContactMassNormal * Dt);
-				if (ContactVelocityTangentialSq > FMath::Square(MaxContactVelocityTangential))
-				{
-					const FSolverReal ContactVelocityTangentialScale = MaxContactVelocityTangential * FMath::InvSqrt(ContactVelocityTangentialSq);
-					OutContactVelocityDeltaTangent0 *= ContactVelocityTangentialScale;
-					OutContactVelocityDeltaTangent1 *= ContactVelocityTangentialScale;
-				}
-			}
-		}
+		OutContactVelocityDeltaTangent0 = ContactVelocityTangent0;
+		OutContactVelocityDeltaTangent1 = ContactVelocityTangent1;
 	}
 
 	FORCEINLINE_DEBUGGABLE void FPBDCollisionSolverManifoldPoint::CalculateContactVelocityErrorNormal(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, FSolverReal& OutContactVelocityDeltaNormal) const
@@ -706,6 +684,12 @@ namespace Chaos
 
 		// Add up the errors in the velocity (current velocity - desired velocity)
 		OutContactVelocityDeltaNormal = (ContactVelocityNormal - WorldContactVelocityTargetNormal);
+	}
+
+	FORCEINLINE_DEBUGGABLE bool FPBDCollisionSolverManifoldPoint::ShouldSolveVelocity() const
+	{
+		// We ensure positive separating velocity for close contacts even if they didn't receive a pushout
+		return (NetImpulseNormal > FSolverReal(0)) || (WorldContactDeltaNormal < FSolverReal(0));
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
@@ -728,34 +712,19 @@ namespace Chaos
 			FSolverReal ContactDeltaNormal, ContactDeltaTangent0, ContactDeltaTangent1;
 			SolverManifoldPoint.CalculateContactPositionError(Body0.SolverBody(), Body1.SolverBody(), MaxPushOut, ContactDeltaNormal, ContactDeltaTangent0, ContactDeltaTangent1);
 
-			const bool bProcessManifoldPoint = (ContactDeltaNormal < FSolverReal(0)) || !FMath::IsNearlyZero(SolverManifoldPoint.NetPushOutNormal);
+			const bool bProcessManifoldPoint = (ContactDeltaNormal < FSolverReal(0)) || (SolverManifoldPoint.NetPushOutNormal > FSolverReal(SMALL_NUMBER));
 			if (bProcessManifoldPoint)
 			{
-				// If we want to add static friction...
-				// (note: we run a few iterations without friction by temporarily setting StaticFriction to 0)
-				const bool bApplyFriction = (State.StaticFriction > 0) && SolverManifoldPoint.bInsideStaticFrictionCone;
-				if (bApplyFriction)
-				{
-					ApplyPositionCorrectionWithFriction(
-						State.Stiffness,
-						State.StaticFriction,
-						State.DynamicFriction,
-						ContactDeltaNormal,
-						ContactDeltaTangent0,
-						ContactDeltaTangent1,
-						SolverManifoldPoint,
-						Body0,
-						Body1);
-				}
-				else
-				{
-					ApplyPositionCorrectionNoFriction(
-						State.Stiffness, 
-						ContactDeltaNormal, 
-						SolverManifoldPoint, 
-						Body0, 
-						Body1);
-				}
+				ApplyPositionCorrectionWithFriction(
+					State.Stiffness,
+					State.StaticFriction,
+					State.DynamicFriction,
+					ContactDeltaNormal,
+					ContactDeltaTangent0,
+					ContactDeltaTangent1,
+					SolverManifoldPoint,
+					Body0,
+					Body1);
 			}
 		}
 
@@ -776,7 +745,7 @@ namespace Chaos
 			FSolverReal ContactDeltaNormal;
 			SolverManifoldPoint.CalculateContactPositionErrorNormal(Body0.SolverBody(), Body1.SolverBody(), MaxPushOut, ContactDeltaNormal);
 
-			const bool bProcessManifoldPoint = (ContactDeltaNormal < FSolverReal(0)) || !FMath::IsNearlyZero(SolverManifoldPoint.NetPushOutNormal);
+			const bool bProcessManifoldPoint = (ContactDeltaNormal < FSolverReal(0)) || (SolverManifoldPoint.NetPushOutNormal > FSolverReal(SMALL_NUMBER));
 			if (bProcessManifoldPoint)
 			{
 				ApplyPositionCorrectionNoFriction(
@@ -793,4 +762,3 @@ namespace Chaos
 
 }
 
-CHAOS_API DECLARE_LOG_CATEGORY_EXTERN(LogChaosCollision, Log, All);

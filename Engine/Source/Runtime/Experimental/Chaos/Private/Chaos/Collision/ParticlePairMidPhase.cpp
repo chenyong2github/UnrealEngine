@@ -24,12 +24,14 @@ namespace Chaos
 		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_NoContact_Rotation = 0.1f;		// About 10deg
 		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_Contact_Position = 0.02f;		// About 2cm for a meter cube
 		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_Contact_Rotation = 0.1f;		// About 10deg
+		Chaos::FRealSingle Chaos_Collision_RestoreTolerance_ReprojectFactor = 0.0f;
 		FAutoConsoleVariableRef CVarChaos_Collision_RestoreTolerance_NoContact_Position(TEXT("p.Chaos.Collision.RestoreTolerance.NoContact.Position"), Chaos_Collision_RestoreTolerance_NoContact_Position, TEXT("Fraction of Size. Particle pairs that move less than this may have their contacts reinstated"));
 		FAutoConsoleVariableRef CVarChaos_Collision_RestoreTolerance_NoContact_Rotation(TEXT("p.Chaos.Collision.RestoreTolerance.NoContact.Rotation"), Chaos_Collision_RestoreTolerance_NoContact_Rotation, TEXT("Quaternion Dot Product Limit. Particle pairs that move less than this may have their contacts reinstated"));
 		FAutoConsoleVariableRef CVarChaos_Collision_RestoreTolerance_Contact_Position(TEXT("p.Chaos.Collision.RestoreTolerance.WithContact.Position"), Chaos_Collision_RestoreTolerance_Contact_Position, TEXT("Fraction of Size. Particle pairs that move less than this may have their contacts reinstated"));
 		FAutoConsoleVariableRef CVarChaos_Collision_RestoreTolerance_Contact_Rotation(TEXT("p.Chaos.Collision.RestoreTolerance.WithContact.Rotation"), Chaos_Collision_RestoreTolerance_Contact_Rotation, TEXT("Quaternion Dot Product Limit. Particle pairs that move less than this may have their contacts reinstated"));
+		FAutoConsoleVariableRef CVarChaos_Collision_RestoreTolerance_ReprojectFactor(TEXT("p.Chaos.Collision.RestoreTolerance.ReprojectFactor"), Chaos_Collision_RestoreTolerance_ReprojectFactor, TEXT("Quaternion Dot Product Limit. Particle pairs that move less than this may have their contacts reinstated"));
 
-		bool bChaos_Collision_EnableManifoldRestore = true;
+		bool bChaos_Collision_EnableManifoldRestore = false;	// This causes subtle problems with friction unless points are reprojected, but then it's basically the same as EnableManifoldUpdate
 		bool bChaos_Collision_EnableManifoldUpdate = true;
 		FAutoConsoleVariableRef CVarChaos_Collision_EnableManifoldRestore(TEXT("p.Chaos.Collision.EnableManifoldRestore"), bChaos_Collision_EnableManifoldRestore, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Collision_EnableManifoldUpdate(TEXT("p.Chaos.Collision.EnableManifoldUpdate"), bChaos_Collision_EnableManifoldUpdate, TEXT(""));
@@ -347,7 +349,7 @@ namespace Chaos
 		return 0;
 	}
 
-	int32 FSingleShapePairCollisionDetector::RestoreCollision(const FReal CullDistance)
+	int32 FSingleShapePairCollisionDetector::RestoreCollision(const FReal CullDistance, const bool bReproject)
 	{
 		// Only restore constraints if active last tick. Any older than that and the shapes were separated for a bit
 		const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
@@ -358,7 +360,8 @@ namespace Chaos
 			const FRigidTransform3& ShapeWorldTransform1 = Shape1->GetLeafWorldTransform();
 			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
-			Constraint->RestoreManifold();
+			Constraint->RestoreManifold(bReproject);
+
 			if (Constraint->GetPhi() <= CullDistance)
 			{
 				if (MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint.Get()))
@@ -601,7 +604,7 @@ namespace Chaos
 		return Constraints.Add(Key.GetKey(), MoveTemp(Constraint)).Get();
 	}
 
-	int32 FMultiShapePairCollisionDetector::RestoreCollisions(const FReal CullDistance)
+	int32 FMultiShapePairCollisionDetector::RestoreCollisions(const FReal CullDistance, const bool bReproject)
 	{
 		if (Constraints.Num() == 0)
 		{
@@ -622,7 +625,8 @@ namespace Chaos
 				const FRigidTransform3 ShapeWorldTransform1 = Constraint->ImplicitTransform[1] * ParticleTransform1;
 				Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
-				Constraint->RestoreManifold();
+				Constraint->RestoreManifold(bReproject);
+
 				if (Constraint->GetPhi() < CullDistance)
 				{
 					if (MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint.Get()))
@@ -903,7 +907,7 @@ namespace Chaos
 		CullDistanceScale = FMath::Max3(CullDistanceScale0, CullDistanceScale1, MinCullDistanceScale);
 	}
 
-	bool FParticlePairMidPhase::ShouldRestoreConstraints(const FReal Dt)
+	ECollisionRestoreType FParticlePairMidPhase::ShouldRestoreConstraints(const FReal Dt)
 	{
 		const FVec3& ParticleP0 = FConstGenericParticleHandle(Particle0)->P();
 		const FRotation3& ParticleQ0 = FConstGenericParticleHandle(Particle0)->Q();
@@ -911,28 +915,53 @@ namespace Chaos
 		const FRotation3& ParticleQ1 = FConstGenericParticleHandle(Particle1)->Q();
 
 		// We can only restore collisions if they were created or updated last tick
+		ECollisionRestoreType RestoreType = ECollisionRestoreType::None;
 		if (IsUsedSince(CollisionAllocator->GetCurrentEpoch() - 1))
 		{
-			const FReal PositionThreshold = (NumActiveConstraints == 0) ? RestoreThresholdZeroContacts.PositionThreshold : RestoreThreshold.PositionThreshold;
-			const FReal RotationThreshold = (NumActiveConstraints == 0) ? RestoreThresholdZeroContacts.RotationThreshold : RestoreThreshold.RotationThreshold;
+			const FReal PositionReprojectThreshold = (NumActiveConstraints == 0) ? RestoreThresholdZeroContacts.PositionThreshold : RestoreThreshold.PositionThreshold;
+			const FReal PositionReuseThreshold = (NumActiveConstraints == 0) ? PositionReprojectThreshold : Chaos_Collision_RestoreTolerance_ReprojectFactor * PositionReprojectThreshold;
 
-			// If either particle has moved or rotated in world space we cannot reuse the constraint
-			if ((ParticleP0 - RestoreParticleP0).IsNearlyZero(PositionThreshold) && (ParticleP1 - RestoreParticleP1).IsNearlyZero(PositionThreshold))
+			const FReal MaxDP0 = FVec3(ParticleP0 - RestoreParticleP0).GetAbsMax();
+			const FReal MaxDP1 = FVec3(ParticleP1 - RestoreParticleP1).GetAbsMax();
+			const FReal MaxDP = FMath::Max(MaxDP0, MaxDP1);
+
+			// Check position delta and calculate the best-case reuse option (ignoring rotation for now)
+			if (MaxDP < PositionReuseThreshold)
 			{
-				if (FRotation3::IsNearlyEqual(ParticleQ0, RestoreParticleQ0, RotationThreshold) && FRotation3::IsNearlyEqual(ParticleQ1, RestoreParticleQ1, RotationThreshold))
+				// We moved a tiny amount - reuse the manifold exactly as-is
+				RestoreType = ECollisionRestoreType::Reuse;
+			}
+			else if (MaxDP < PositionReprojectThreshold)
+			{
+				// We moved a bit but within threshold - reuse the manifold but reproject the vertex contacts onto the planes
+				RestoreType = ECollisionRestoreType::Reproject;
+			}
+
+			// If we passed the position test, check the rotation threshold and maybe veto the restore decision
+			if (RestoreType != ECollisionRestoreType::None)
+			{
+				const FReal RotationThreshold = (NumActiveConstraints == 0) ? RestoreThresholdZeroContacts.RotationThreshold : RestoreThreshold.RotationThreshold;
+				const FReal MaxDQ0 = FRotation3(ParticleQ0 - RestoreParticleQ0).GetAbsMax();
+				const FReal MaxDQ1 = FRotation3(ParticleQ1 - RestoreParticleQ1).GetAbsMax();
+				const FReal MaxDQ = FMath::Max(MaxDQ0, MaxDQ1);
+				if (MaxDQ > RotationThreshold)
 				{
-					// We passed the gauntlet - reuse the constraint
-					return true;
+					RestoreType = ECollisionRestoreType::None;
 				}
 			}
 		}
 
-		// We have moved and should rebuild the manifold. Update the current manifold transforms for future restore checks
-		RestoreParticleP0 = ParticleP0;
-		RestoreParticleP1 = ParticleP1;
-		RestoreParticleQ0 = ParticleQ0;
-		RestoreParticleQ1 = ParticleQ1;
-		return false;
+		if (RestoreType != ECollisionRestoreType::None)
+		{
+			// We have moved and will rebuild the manifold so
+			// update the current manifold transforms for future restore checks
+			RestoreParticleP0 = ParticleP0;
+			RestoreParticleP1 = ParticleP1;
+			RestoreParticleQ0 = ParticleQ0;
+			RestoreParticleQ1 = ParticleQ1;
+		}
+
+		return RestoreType;
 	}
 
 	bool FParticlePairMidPhase::TryRestoreConstraints(const FReal Dt, const FReal CullDistance)
@@ -941,16 +970,19 @@ namespace Chaos
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, DetectCollisions_RestoreCollision);
 
 		// If the particles haven't moved relative to each other, we can just reuse the constraint as-is
-		if (ShouldRestoreConstraints(Dt))
+		const ECollisionRestoreType CollisionRestoreType = ShouldRestoreConstraints(Dt);
+		if (CollisionRestoreType != ECollisionRestoreType::None)
 		{
+			const bool bReproject = (CollisionRestoreType == ECollisionRestoreType::Reproject);
+
 			int32 NumRestored = 0;
 			for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
 			{
-				NumRestored += ShapePair.RestoreCollision(CullDistance);
+				NumRestored += ShapePair.RestoreCollision(CullDistance, bReproject);
 			}
 			for (FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
 			{
-				NumRestored += MultiShapePair.RestoreCollisions(CullDistance);
+				NumRestored += MultiShapePair.RestoreCollisions(CullDistance, bReproject);
 			}
 
 			NumActiveConstraints = NumRestored;

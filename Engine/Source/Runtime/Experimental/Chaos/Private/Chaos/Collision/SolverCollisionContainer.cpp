@@ -76,9 +76,20 @@ namespace Chaos
 			Body0->SetLevel(Particle0Level);
 			Body1->SetLevel(Particle1Level);
 
-			Solver.SetFriction(
-				FMath::Max(Constraint->Manifold.AngularFriction, Constraint->Manifold.Friction),
-				Constraint->Manifold.Friction);
+			// Friction values. Static and Dynamic friction are applied in the position solve for most shapes.
+			// For quadratic shapes, we run dynamic friction in the velocity solve for better rolling behaviour.
+			// @todo(chaos): fix static/dynamic friction for quadratic shapes
+			const FReal StaticFriction = FMath::Max(Constraint->Manifold.AngularFriction, Constraint->Manifold.Friction);
+			const FReal DynamicFriction = Constraint->Manifold.Friction;
+			const bool bIsQuadratic = Constraint->HasQuadraticShape();
+			if (!bIsQuadratic)
+			{
+				Solver.SetFriction(StaticFriction, DynamicFriction, FReal(0));
+			}
+			else
+			{
+				Solver.SetFriction(StaticFriction, FReal(0), DynamicFriction);
+			}
 
 			Solver.SetStiffness(Constraint->GetStiffness());
 
@@ -104,20 +115,23 @@ namespace Chaos
 				TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
 				const FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
 
+				// If we didn't have friction data restored, we estimate the static friction target by adding velocity to the contact error				
+				const bool bAddVelocityToFriction = !ManifoldPoint.Flags.bWasFrictionRestored;
+
 				// Initialize the structural data in the contact (relative contact points, contact mass etc)
 				Solver.InitContact(
 					ManifoldPointIndex,
+					Dt,
 					ManifoldPoint.WorldContactPoints[0],
 					ManifoldPoint.WorldContactPoints[1],
-					ManifoldPoint.ContactPoint.Normal);
+					ManifoldPoint.ContactPoint.Normal,
+					bAddVelocityToFriction);
 
 				// Initialize the material properties (restitution and friction related)
 				Solver.InitMaterial(
 					ManifoldPointIndex,
 					Restitution,
-					RestitutionVelocityThreshold,
-					(Solver.StaticFriction() > 0),
-					ManifoldPoint.StaticFrictionMax);
+					RestitutionVelocityThreshold);
 			}
 		}
 
@@ -147,8 +161,7 @@ namespace Chaos
 				Constraint->SetSolverResults(PointIndex, 
 					NetPushOut, 
 					NetImpulse, 
-					SolverManifoldPoint.bInsideStaticFrictionCone,
-					SolverManifoldPoint.FrictionNetPushOutNormal,
+					SolverManifoldPoint.StaticFrictionRatio,
 					Dt);
 			}
 

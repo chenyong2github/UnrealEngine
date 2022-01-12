@@ -330,16 +330,9 @@ namespace ChaosTest {
 		Collisions.ComputeConstraints(Dt);
 		EXPECT_EQ(Collisions.NumConstraints(), 1);
 
-		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
-		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
-		{
-			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
-		}
-
 		Collisions.GatherInput(Dt);
 
-		Collisions.UpdateLevelsetConstraint(Constraint);
-
+		FPBDCollisionConstraint& Constraint = Collisions.GetConstraint(0);
 		EXPECT_EQ(Constraint.Particle[0], Box);
 		EXPECT_EQ(Constraint.Particle[1], Floor);
 		EXPECT_TRUE(Constraint.GetNormal().operator==(FVec3(0, 0, 1)));

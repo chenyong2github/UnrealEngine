@@ -874,7 +874,7 @@ namespace Chaos
 						FColor ImpulseColor = FColor(0, 0, 200);
 						FColor PushOutColor = FColor(200, 200, 0);
 						FColor PushOutImpusleColor = FColor(0, 200, 200);
-						if (ManifoldPoint.bInsideStaticFrictionCone)
+						if (ManifoldPoint.Flags.bInsideStaticFrictionCone)
 						{
 							DiscColor = FColor(150, 200, 0);
 						}
@@ -920,7 +920,7 @@ namespace Chaos
 							const FReal BoxScale = Settings.DrawScale * Settings.ContactWidth;
 							FDebugDrawQueue::GetInstance().DrawDebugBox(WorldPlaneLocation, FVec3(BoxScale, BoxScale, FReal(0.01)), FRotation3(FRotationMatrix::MakeFromZ(WorldPlaneNormal)), FColor::Blue, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, 0.5f * Settings.LineThickness);
 						}
-						else if (ManifoldPoint.bWasRestored)
+						else if (ManifoldPoint.Flags.bWasRestored)
 						{
 							const FReal BoxScale = Settings.DrawScale * Settings.ContactWidth;
 							FDebugDrawQueue::GetInstance().DrawDebugBox(WorldPlaneLocation, FVec3(BoxScale, BoxScale, FReal(0.01)), FRotation3(FRotationMatrix::MakeFromZ(WorldPlaneNormal)), FColor::Purple, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, 0.5f * Settings.LineThickness);

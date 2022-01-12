@@ -22,6 +22,21 @@ namespace Chaos
 	class FSingleShapePairCollisionDetector;
 
 	/**
+	 * @brief The result of the test to see whether we can reuse a manifold (when the bodies have not moved much)
+	*/
+	enum class ECollisionRestoreType
+	{
+		// Do not retore the manifold - bodies have moved beyond the threshold
+		None,
+
+		// Restore the manifold exactly as-is - the bodies have barely moved
+		Reuse,
+
+		// Restore the manifold, but the bodies have moved a bit so reproject the contacts
+		Reproject,
+	};
+
+	/**
 	 * @brief Handles collision detection for a pair of simple shapes (i.e., not compound shapes)
 	 * 
 	 * @note this is not used for collisions involving Unions that require a recursive collision test.
@@ -71,7 +86,7 @@ namespace Chaos
 		 * @brief Reactivate the collision exactly as it was last frame
 		 * @return The number of collisions constraints that were restored
 		*/
-		int32 RestoreCollision(const FReal CullDistance);
+		int32 RestoreCollision(const FReal CullDistance, const bool bReproject);
 
 		/**
 		 * @brief Reactivate the constraint (essentially the same as Restore but slightly optimized)
@@ -199,7 +214,7 @@ namespace Chaos
 		 * @brief Reactivate the collision exactly as it was last frame
 		 * @return The number of collisions constraints that were restored
 		*/
-		int32 RestoreCollisions(const FReal CullDistance);
+		int32 RestoreCollisions(const FReal CullDistance, const bool bReproject);
 
 		/**
 		 * @brief Reactivate the constraint (essentially the same as Restore but slightly optimized)
@@ -417,7 +432,7 @@ namespace Chaos
 		 * This will be true if neither particle has moved much. 
 		 * This is non-const because it updates some position tracking data.
 		*/
-		bool ShouldRestoreConstraints(const FReal Dt);
+		ECollisionRestoreType ShouldRestoreConstraints(const FReal Dt);
 
 		/**
 		 * @brief If the particles have not moved muc, reactivate all the colisions and skip the narrow phase.

@@ -115,6 +115,14 @@ namespace Chaos
 		}
 
 		/**
+		 * @brief Return the large absolute element value
+		*/
+		FORCEINLINE FReal GetAbsMax() const
+		{
+			return FMath::Max(FMath::Max(FMath::Abs(X), FMath::Abs(Y)), FMath::Max(FMath::Abs(Z), FMath::Abs(W)));
+		}
+
+		/**
 		 * @brief Return the dot product of two quaternions
 		*/
 		static inline FReal DotProduct(const TRotation<FReal, 3>& L, const TRotation<FReal, 3>& R)

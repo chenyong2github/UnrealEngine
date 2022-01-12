@@ -1446,7 +1446,7 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 				for (const FManifoldPoint& ManifoldPoint : Collision->GetContact().GetManifoldPoints())
 				{
 					++NumManifoldPoints;
-					if (ManifoldPoint.bWasRestored || Collision->GetContact().WasManifoldRestored())
+					if (ManifoldPoint.Flags.bWasRestored || Collision->GetContact().WasManifoldRestored())
 					{
 						++NumRestoredManifoldPoints;
 					}

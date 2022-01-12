@@ -128,6 +128,9 @@ namespace Chaos
 
 		ManifoldPoint.ContactPoint.ShapeContactPoints[0] = Constraint->GetShapeWorldTransform0().InverseTransformPositionNoScale(Location0);
 		ManifoldPoint.ContactPoint.ShapeContactPoints[1] = Constraint->GetShapeWorldTransform1().InverseTransformPositionNoScale(Location1);
+		// @todo(chaos): Overwriting ShapeAnchorPoints disables static friction for this tick - we might want to do something better here
+		ManifoldPoint.ShapeAnchorPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
+		ManifoldPoint.ShapeAnchorPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
 		ManifoldPoint.WorldContactPoints[0] = Location0;
 		ManifoldPoint.WorldContactPoints[1] = Location1;
 		ManifoldPoint.ContactPoint.Location = 0.5 * (Location0 + Location1);

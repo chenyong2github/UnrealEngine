@@ -43,88 +43,52 @@ namespace Chaos
 	public:
 		FManifoldPoint() 
 			: ContactPoint()
+			, ShapeAnchorPoints{ FVec3(0), FVec3(0) }
 			, InitialShapeContactPoints{ FVec3(0), FVec3(0) }
 			, WorldContactPoints{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
 			, NetImpulse(0)
-			, StaticFrictionMax(0)
-			, bInsideStaticFrictionCone(false)
-			, bWasRestored(false)
+			, Flags()
 		{}
 
 		FManifoldPoint(const FContactPoint& InContactPoint) 
 			: ContactPoint(InContactPoint)
+			, ShapeAnchorPoints{ FVec3(0), FVec3(0) }
 			, InitialShapeContactPoints{ FVec3(0), FVec3(0) }
 			, WorldContactPoints{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
 			, NetImpulse(0)
-			, StaticFrictionMax(0)
-			, bInsideStaticFrictionCone(false)
-			, bWasRestored(false)
+			, Flags()
 		{}
 
 		FContactPoint ContactPoint;			// Contact point results of low-level collision detection
+		FVec3 ShapeAnchorPoints[2];
 		FVec3 InitialShapeContactPoints[2];	// ShapeContactPoints when the constraint was first initialized. Used to track reusablility
 		FVec3 WorldContactPoints[2];		// World-space contact points on the two bodies
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
-		FReal StaticFrictionMax;			// A proxy for the normal impulse used to limit static friction correction. Used for smoothing static friction limits
-		bool bInsideStaticFrictionCone;		// Whether we are inside the static friction cone (used in PushOut)
-		bool bWasRestored;
+
+		union FFlags
+		{
+			FFlags() : Bits(0) {}
+			struct
+			{
+				uint32 bInsideStaticFrictionCone : 1;		// Whether we are inside the static friction cone (used in PushOut)
+				uint32 bWasRestored : 1;
+				uint32 bWasFrictionRestored : 1;
+			};
+			uint32 Bits;
+		} Flags;
 	};
 
 	/**
 	 * @brief The friction data for a manifold point
 	 * This is the information that needs to be stored between ticks to implement static friction.
 	*/
-	class CHAOS_API FManifoldPointSavedData
+	class CHAOS_API FSavedManifoldPoint
 	{
 	public:
-		FManifoldPointSavedData()
-		{
-		}
-
-		FManifoldPointSavedData(const FManifoldPoint& ManifoldPoint)
-		{
-			Save(ManifoldPoint);
-		}
-
-		/**
-		 * @brief Copy the ManifoldPoint data needed for static friction next tick
-		*/
-		inline void Save(const FManifoldPoint& ManifoldPoint)
-		{
-			ShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
-			ShapeContactPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
-			StaticFrictionMax = ManifoldPoint.StaticFrictionMax;
-		}
-
-		/**
-		 * @brief Replace the ManifoldPoint's data with the saved data from the previous tick
-		*/
-		inline void Restore(FManifoldPoint& ManifoldPoint) const
-		{
-			ManifoldPoint.ContactPoint.ShapeContactPoints[0] = ShapeContactPoints[0];
-			ManifoldPoint.ContactPoint.ShapeContactPoints[1] = ShapeContactPoints[1];
-			ManifoldPoint.StaticFrictionMax = StaticFrictionMax;
-		}
-
-		/**
-		 * @brief Is the data for the specified manifold point?
-		*/
-		inline bool IsMatch(const FManifoldPoint& ManifoldPoint, const FReal DistanceToleranceSq) const
-		{
-			// If the contact point is in the same spot on one of the bodies, assume it is the same contact
-			// @todo(chaos): more robust same-point test. E.g., this won't work for very small or very large objects,
-			// so at least make the tolerance size-dependent
-			const FVec3 DP0 = ManifoldPoint.ContactPoint.ShapeContactPoints[0] - ShapeContactPoints[0];
-			const FVec3 DP1 = ManifoldPoint.ContactPoint.ShapeContactPoints[1] - ShapeContactPoints[1];
-			return ((DP0.SizeSquared() < DistanceToleranceSq) || (DP1.SizeSquared() < DistanceToleranceSq));
-		}
-
 		FVec3 ShapeContactPoints[2];
-		FVec3 NetPushOut;
-		FReal StaticFrictionMax;
 	};
 
 	/*
@@ -340,6 +304,12 @@ namespace Chaos
 		const FReal GetCollisionMargin1() const { return CollisionMargins[1]; }
 		const FReal GetCollisionTolerance() const { return CollisionTolerance; }
 
+		const bool IsQuadratic0() const { return Flags.bIsQuadratic0; }
+		const bool IsQuadratic1() const { return Flags.bIsQuadratic1; }
+		const bool HasQuadraticShape() const { return (Flags.bIsQuadratic0 || Flags.bIsQuadratic1); }
+		const FReal GetCollisionRadius0() const { return (Flags.bIsQuadratic0) ? CollisionMargins[0] : FReal(0); }
+		const FReal GetCollisionRadius1() const { return (Flags.bIsQuadratic1) ? CollisionMargins[1] : FReal(0); }
+
 		// @todo(chaos): half of this API is wrong for the new multi-point manifold constraints. Remove it
 
 		const FCollisionContact& GetManifold() const { return Manifold; }
@@ -452,16 +422,13 @@ namespace Chaos
 		 * @brief Restore the contact manifold (assumes relative motion of the two bodies is small)
 		 * @see IsWithinManifoldRestorationThreshold
 		*/
-		void RestoreManifold();
+		void RestoreManifold(const bool bReproject);
 
 		/**
 		 * Determine the constraint direction based on Normal and Phi.
 		 * This function assumes that the constraint is update-to-date.
 		 */
 		ECollisionConstraintDirection GetConstraintDirection(const FReal Dt) const;
-
-
-		const FManifoldPointSavedData* FindManifoldPointSavedData(const FManifoldPoint& ManifoldPoint) const;
 
 		/**
 		 * @brief Called before SetSolverResults() to reset accumulators
@@ -473,24 +440,52 @@ namespace Chaos
 		}
 
 		/**
-		 * @brief Store the data (from the solver) that is retained between ticks for the specified manifold point
+		 * @brief Store the data from the solver that is retained between ticks for the specified manifold point or used by dependent systems (plasticity, breaking, etc.)
 		*/
-		void SetSolverResults(const int32 ManifoldPointIndex, const FVec3& NetPushOut, const FVec3& NetImpulse, const bool bInsideStaticFrictionCone, const FReal StaticFrictionMax, const FReal Dt)
+		void SetSolverResults(
+			const int32 ManifoldPointIndex, 
+			const FVec3& NetPushOut, 
+			const FVec3& NetImpulse, 
+			const FReal StaticFrictionRatio,
+			const FReal Dt)
 		{
 			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
 
 			ManifoldPoint.NetPushOut = NetPushOut;
 			ManifoldPoint.NetImpulse = NetImpulse;
-			ManifoldPoint.bInsideStaticFrictionCone = bInsideStaticFrictionCone;
-			ManifoldPoint.StaticFrictionMax = StaticFrictionMax;
+			ManifoldPoint.Flags.bInsideStaticFrictionCone = FMath::IsNearlyEqual(StaticFrictionRatio, FReal(1));
 
 			AccumulatedImpulse += NetImpulse + (NetPushOut / Dt);
 
-			// If are still satisfying the static friction condition, save off the state required for next tick
-			if (bInsideStaticFrictionCone && !NetPushOut.IsNearlyZero() && !SavedManifoldPoints.IsFull())
+			// Save contact data for friction
+			// NOTE: we do this even for points that did not apply PushOut or Impulse so that
+			// we get previous contact data for initial contacts (sometimes). Otherwise we
+			// end up having to estimate the previous contact from velocities
+			if (!SavedManifoldPoints.IsFull())
 			{
 				const int32 SavedIndex = SavedManifoldPoints.Add();
-				SavedManifoldPoints[SavedIndex].Save(ManifoldPoint);
+				FSavedManifoldPoint& SavedManifoldPoint = SavedManifoldPoints[SavedIndex];
+
+				if (FMath::IsNearlyEqual(StaticFrictionRatio, FReal(1)))
+				{
+					// Static friction held - we keep the same contacts points as-is for use next frame
+					SavedManifoldPoint.ShapeContactPoints[0] = ManifoldPoint.ShapeAnchorPoints[0];
+					SavedManifoldPoint.ShapeContactPoints[1] = ManifoldPoint.ShapeAnchorPoints[1];
+				}
+				else if (FMath::IsNearlyEqual(StaticFrictionRatio, FReal(0)))
+				{
+					// No friction - discard the friction anchors
+					SavedManifoldPoint.ShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
+					SavedManifoldPoint.ShapeContactPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
+				}
+				else
+				{
+					// We exceeded the friction cone. Slide the friction anchor toward the last-detected contact position
+					// so that it sits at the edge of the friction cone.
+					const FReal Alpha = FMath::Clamp(StaticFrictionRatio, FReal(0), FReal(1));
+					SavedManifoldPoint.ShapeContactPoints[0] = FVec3::Lerp(ManifoldPoint.ContactPoint.ShapeContactPoints[0], ManifoldPoint.ShapeAnchorPoints[0], Alpha);
+					SavedManifoldPoint.ShapeContactPoints[1] = FVec3::Lerp(ManifoldPoint.ContactPoint.ShapeContactPoints[1], ManifoldPoint.ShapeAnchorPoints[1], Alpha);
+				}
 			}
 		}
 
@@ -536,7 +531,13 @@ namespace Chaos
 		*/
 		void TryRestoreFrictionData(const int32 ManifoldPointIndex);
 
-		void InitMargins(const EImplicitObjectType ImplicitType0, const EImplicitObjectType ImplicitType1, const FReal Margin0, const FReal Margin1);
+		void ReprojectManifoldContacts();
+		void ReprojectManifoldPoint(const int32 ManifoldPointIndex);
+
+		void InitMarginsAndTolerances(const EImplicitObjectType ImplicitType0, const EImplicitObjectType ImplicitType1, const FReal Margin0, const FReal Margin1);
+
+		const FSavedManifoldPoint* FindSavedManifoldPoint(const FManifoldPoint& ManifoldPoint) const;
+		FReal CalculateSavedManifoldPointScore(const FSavedManifoldPoint& SavedManifoldPoint, const FManifoldPoint& ManifoldPoint, const FReal DistanceToleranceSq) const;
 
 	public:
 		//@todo(chaos): make this stuff private
@@ -556,16 +557,18 @@ namespace Chaos
 		TCArray<FManifoldPoint, MaxManifoldPoints> ManifoldPoints;
 
 		// The manifold points from the previous tick when we don't reuse the manifold. Used by static friction.
-		TCArray<FManifoldPointSavedData, MaxManifoldPoints> SavedManifoldPoints;
+		TCArray<FSavedManifoldPoint, MaxManifoldPoints> SavedManifoldPoints;
 		FReal CullDistance;
 
 		// The margins to use during collision detection. We don't always use the margins on the shapes directly.
-		// E.g., we use the smallest non-zero margin for 2 convex shapes. See InitMargins
+		// E.g., we use the smallest non-zero margin for 2 convex shapes. See InitMarginsAndTolerances
 		FReal CollisionMargins[2];
 
 		// The collision tolerance is used to determine whether a new contact matches an old on. It is derived from the
 		// margins of the two shapes, as well as their types
 		FReal CollisionTolerance;
+
+		FReal FrictionPositionTolerance;
 
 		union FFlags
 		{
@@ -575,6 +578,8 @@ namespace Chaos
 				bool bUseManifold;
 				bool bUseIncrementalManifold;
 				bool bWasManifoldRestored;
+				bool bIsQuadratic0;
+				bool bIsQuadratic1;
 			};
 			uint32 Bits;
 		} Flags;

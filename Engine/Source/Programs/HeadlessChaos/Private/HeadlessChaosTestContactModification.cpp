@@ -188,7 +188,7 @@ namespace ChaosTest
 					int32 NumContacts = PairModifier.GetNumContacts();
 					for (int32 PointIdx = 0; PointIdx < NumContacts; ++PointIdx)
 					{
-						// Tell solver contacts are SeparationPadding units closer than they are, so object will float 5 over floor.
+						// Tell solver contacts are SeparationPadding units closer than they are, so object will float SeparationPadding units over floor.
 						FReal Separation = PairModifier.GetSeparation(PointIdx);
 						PairModifier.ModifySeparation(Separation - SeparationPadding, PointIdx);
 					}
@@ -596,7 +596,8 @@ namespace ChaosTest
 		SlidingCubeParticle.SetGeometry(SlidingCubeGeom);
 		Solver->RegisterObject(SlidingCubeProxy);
 		SlidingCubeParticle.SetGravityEnabled(true);
-		SlidingCubeParticle.SetX(FVec3(200, -200, 100));
+		SlidingCubeParticle.SetX(FVec3(200, -200, 50));
+		SlidingCubeParticle.SetR(FQuat::MakeFromEuler(FVec3(0, 20, 0)));
 		SetCubeInertiaTensor(SlidingCubeParticle, /*Dimension=*/200, /*Mass=*/1);
 		ChaosTest::SetParticleSimDataToCollide({ SlidingCubeProxy->GetParticle_LowLevel() });
 
@@ -606,7 +607,8 @@ namespace ChaosTest
 		ModifiedCubeParticle.SetGeometry(ModifiedCubeGeom);
 		Solver->RegisterObject(ModifiedCubeProxy);
 		ModifiedCubeParticle.SetGravityEnabled(true);
-		ModifiedCubeParticle.SetX(FVec3(200, 200, 100));
+		ModifiedCubeParticle.SetX(FVec3(200, 200, 50));
+		ModifiedCubeParticle.SetR(FQuat::MakeFromEuler(FVec3(0, 20, 0)));
 		SetCubeInertiaTensor(ModifiedCubeParticle, /*Dimension=*/200, /*Mass=*/1);
 		ChaosTest::SetParticleSimDataToCollide({ ModifiedCubeProxy->GetParticle_LowLevel() });
 
@@ -646,7 +648,7 @@ namespace ChaosTest
 
 
 		const float Dt = 0.1f;
-		const int32 Steps = 30;
+		const int32 Steps = 50;
 		for (int Step = 0; Step < Steps; ++Step)
 		{
 			Solver->AdvanceAndDispatch_External(Dt);
