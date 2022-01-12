@@ -1511,6 +1511,7 @@ static bool CompileToGlslWithShaderConductor(
 	CrossCompiler::FShaderConductorOptions Options;
 	Options.bDisableScalarBlockLayout = true;
 	Options.bRemapAttributeLocations = true;
+	Options.bPreserveStorageInput = true;
 	
 	// Convert input strings from FString to ANSI strings
 	std::string SourceData(TCHAR_TO_UTF8(*PreprocessedShader));

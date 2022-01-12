@@ -420,6 +420,11 @@ namespace CrossCompiler
 			DxcArgRefs.Add("-fspv-no-scalar-block-layout");
 		}
 
+		if (InOptions.bPreserveStorageInput)
+		{
+			DxcArgRefs.Add("-fspv-preserve-storage-input");
+		}
+
 		using ETargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment;
 		switch (InOptions.TargetEnvironment)
 		{

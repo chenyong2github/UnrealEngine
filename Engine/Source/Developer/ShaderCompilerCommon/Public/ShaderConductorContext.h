@@ -84,6 +84,9 @@ namespace CrossCompiler
 		/** Enables re-mapping of input/output attribute locations to include padding for arrays. */
 		bool bRemapAttributeLocations = false;
 
+		/** Preserve storage inputs used for open gl */
+		bool bPreserveStorageInput = false;
+
 		enum class ETargetEnvironment
 		{
 			Vulkan_1_0,

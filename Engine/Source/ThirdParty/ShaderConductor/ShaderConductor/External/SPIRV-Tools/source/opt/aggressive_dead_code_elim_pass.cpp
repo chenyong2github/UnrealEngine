@@ -580,8 +580,7 @@ void AggressiveDCEPass::InitializeModuleScopeLiveInstructions() {
         // Vulkan support outputs without an associated input, but not inputs
         // without an associated output.
         // UE Change Begin: Fix to override the stripping of input variables, this should be allowed in the spec, but we rely on this data for some platforms to match inputs/outputs
-        if (storage_class == SpvStorageClassInput ||
-            storage_class == SpvStorageClassOutput) {
+        if ((context()->preserve_storage_input() && storage_class == SpvStorageClassInput) || storage_class == SpvStorageClassOutput) {
           AddToWorklist(var);
         }
         // UE Change End: Fix to override the stripping of input variables, this should be allowed in the spec, but we rely on this data for some platforms to match inputs/outputs
