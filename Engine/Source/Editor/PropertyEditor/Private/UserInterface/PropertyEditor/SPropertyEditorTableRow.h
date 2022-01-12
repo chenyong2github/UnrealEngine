@@ -47,12 +47,11 @@ public:
 
 private:
 
+	EVisibility OnGetRowVisibility() const;
+
 	EVisibility OnGetFavoritesVisibility() const;
 	const FSlateBrush* OnGetFavoriteImage() const;
 	FReply OnToggleFavoriteClicked();
-
-	void OnEditConditionCheckChanged( ECheckBoxState CheckState );
-	ECheckBoxState OnGetEditConditionCheckState() const;
 
 	FReply OnNameDoubleClicked();
 
