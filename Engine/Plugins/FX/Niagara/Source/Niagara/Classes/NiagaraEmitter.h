@@ -596,8 +596,6 @@ public:
 
 	TConstArrayView<TUniquePtr<FNiagaraBoundsCalculator>> GetBoundsCalculators() const { return MakeArrayView(BoundsCalculators); }
 
-	void SetFixedBounds(const FBox& NewBounds);
-
 	UPROPERTY()
 	FNiagaraParameterStore RendererBindings;
 

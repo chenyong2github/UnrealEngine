@@ -1309,20 +1309,6 @@ if (AllocationMode == EParticleAllocationMode::FixedCount)
 	RebuildRendererBindings();
 }
 
-void UNiagaraEmitter::SetFixedBounds(const FBox& NewBounds)
-{
-	if (!bFixedBounds || FixedBounds != NewBounds)
-	{
-		bFixedBounds = true;
-		FixedBounds = NewBounds;
-
-#if WITH_EDITOR		
-		FPropertyChangedEvent FixedBoundsPropertyChangedEvent(FindFProperty<FProperty>(StaticClass(), "FixedBounds"), EPropertyChangeType::ValueSet);
-		PostEditChangeProperty(FixedBoundsPropertyChangedEvent);
-#endif
-	}
-}
-
 void UNiagaraEmitter::RebuildRendererBindings()
 {
 #if WITH_EDITORONLY_DATA

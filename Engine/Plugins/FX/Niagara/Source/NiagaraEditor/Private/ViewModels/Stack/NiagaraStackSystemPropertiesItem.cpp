@@ -12,8 +12,6 @@ void UNiagaraStackSystemPropertiesItem::Initialize(FRequiredEntryData InRequired
 {
 	Super::Initialize(InRequiredEntryData, TEXT("SystemProperties"));
 	System = &GetSystemViewModel()->GetSystem();
-	
-	System->OnPropertiesChanged().AddUObject(this, &UNiagaraStackSystemPropertiesItem::SystemPropertiesChanged);
 }
 
 FText UNiagaraStackSystemPropertiesItem::GetDisplayName() const
@@ -77,18 +75,7 @@ void UNiagaraStackSystemPropertiesItem::RefreshChildrenInternal(const TArray<UNi
 
 void UNiagaraStackSystemPropertiesItem::SystemPropertiesChanged()
 {
-	if (IsFinalized() == false)
-	{
-		// Undo/redo can cause objects to disappear and reappear which can prevent safe removal of delegates
-		// so guard against receiving an event when finalized here.
-		bCanResetToBase.Reset();
-		RefreshChildren();
-
-		if (SystemObject)
-		{
-			SystemObject->InvalidateDetailRows();
-		}
-	}
+	bCanResetToBase.Reset();
 }
 
 #undef LOCTEXT_NAMESPACE

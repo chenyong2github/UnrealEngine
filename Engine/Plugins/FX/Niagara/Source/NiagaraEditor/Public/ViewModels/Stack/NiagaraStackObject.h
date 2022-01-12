@@ -39,8 +39,6 @@ public:
 	virtual bool GetShouldShowInStack() const override;
 	virtual UObject* GetDisplayedObject() const override;
 
-	void InvalidateDetailRows();
-
 protected:
 	virtual void FinalizeInternal() override;
 

@@ -21,12 +21,6 @@ void UNiagaraStackEmitterPropertiesItem::Initialize(FRequiredEntryData InRequire
 	Super::Initialize(InRequiredEntryData, TEXT("EmitterProperties"));
 	Emitter = GetEmitterViewModel()->GetEmitter();
 	Emitter->OnPropertiesChanged().AddUObject(this, &UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged);
-
-	// We tie into the system properties changed event to know when the fixed bounds changes so we update our state accordingly
-	if (UNiagaraSystem* NiagaraSystem = Emitter->GetTypedOuter<UNiagaraSystem>())
-	{
-		NiagaraSystem->OnPropertiesChanged().AddUObject(this, &UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged);
-	}
 }
 
 void UNiagaraStackEmitterPropertiesItem::FinalizeInternal()
@@ -34,10 +28,6 @@ void UNiagaraStackEmitterPropertiesItem::FinalizeInternal()
 	if (Emitter.IsValid())
 	{
 		Emitter->OnPropertiesChanged().RemoveAll(this);
-		if ( UNiagaraSystem* NiagaraSystem = Emitter->GetTypedOuter<UNiagaraSystem>() )
-		{
-			NiagaraSystem->OnPropertiesChanged().RemoveAll(this);
-		}
 	}
 	Super::FinalizeInternal();
 }
@@ -115,7 +105,7 @@ void UNiagaraStackEmitterPropertiesItem::RefreshChildrenInternal(const TArray<UN
 		EmitterObject = NewObject<UNiagaraStackObject>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), FExecutionCategoryNames::Emitter, NAME_None, GetStackEditorData());
 		EmitterObject->Initialize(RequiredEntryData, Emitter.Get(), GetStackEditorDataKey());
-		EmitterObject->RegisterInstancedCustomPropertyLayout(UNiagaraEmitter::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraEmitterDetails::MakeInstance, &GetSystemViewModel()->GetSystem()));
+		EmitterObject->RegisterInstancedCustomPropertyLayout(UNiagaraEmitter::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraEmitterDetails::MakeInstance));
 	}
 
 	NewChildren.Add(EmitterObject);
@@ -161,11 +151,6 @@ void UNiagaraStackEmitterPropertiesItem::EmitterPropertiesChanged()
 		// so guard against receiving an event when finalized here.
 		bCanResetToBaseCache.Reset();
 		RefreshChildren();
-
-		if (EmitterObject)
-		{
-			EmitterObject->InvalidateDetailRows();
-		}
 	}
 }
 
