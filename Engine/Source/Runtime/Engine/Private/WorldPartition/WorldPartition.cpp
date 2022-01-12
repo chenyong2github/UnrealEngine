@@ -261,13 +261,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, Replay(nullptr)
 #endif
 {
-	static bool bRegisteredDelegate = false;
-	if (!bRegisteredDelegate)
-	{
-		FWorldDelegates::LevelRemovedFromWorld.AddStatic(&UWorldPartition::WorldPartitionOnLevelRemovedFromWorld);
-		bRegisteredDelegate = true;
-	}
-
 #if WITH_EDITOR
 	WorldPartitionStreamingPolicyClass = UWorldPartitionLevelStreamingPolicy::StaticClass();
 #endif
@@ -502,6 +495,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
 	}
 #endif
+
+	OnWorldPartitionInitialized.Broadcast(this);
 }
 
 void UWorldPartition::RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
@@ -512,15 +507,6 @@ void UWorldPartition::RegisterStreamingSourceProvider(IWorldPartitionStreamingSo
 bool UWorldPartition::UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
 {
 	return !!StreamingSourceProviders.Remove(StreamingSource);
-}
-
-// This will trap all broadcast of LevelRemovedFromWorld and Uninitialize world partition if existing
-void UWorldPartition::WorldPartitionOnLevelRemovedFromWorld(ULevel* Level, UWorld* InWorld)
-{
-	if (UWorldPartition* WorldPartition = Level ? Level->GetWorldPartition() : nullptr)
-	{
-		WorldPartition->Uninitialize();
-	}
 }
 
 void UWorldPartition::Uninitialize()
@@ -573,6 +559,8 @@ void UWorldPartition::Uninitialize()
 #endif		
 
 		InitState = EWorldPartitionInitState::Uninitialized;
+
+		OnWorldPartitionUninitialized.Broadcast(this);
 	}
 
 	Super::Uninitialize();

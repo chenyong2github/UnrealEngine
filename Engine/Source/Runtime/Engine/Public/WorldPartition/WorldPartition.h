@@ -75,13 +75,19 @@ class ENGINE_API UWorldPartition final : public UActorDescContainer
 	friend class FWorldPartitionEditorModule;
 	friend class FUnrealEdMisc;
 
-#if WITH_EDITOR
 public:
+#if WITH_EDITOR
 	static UWorldPartition* CreateOrRepairWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass = nullptr, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass = nullptr);
 	
 	DECLARE_MULTICAST_DELEGATE_OneParam(FCancelWorldPartitionUpdateEditorCellsDelegate, UWorldPartition*);
 	FCancelWorldPartitionUpdateEditorCellsDelegate OnCancelWorldPartitionUpdateEditorCells;
+#endif
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionInitializeDelegate, UWorldPartition*);
+	FWorldPartitionInitializeDelegate OnWorldPartitionInitialized;
+	FWorldPartitionInitializeDelegate OnWorldPartitionUninitialized;
+
+#if WITH_EDITOR
 	TArray<FName> GetUserLoadedEditorGridCells() const;
 private:
 
@@ -110,8 +116,6 @@ private:
 	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const override;
 	//~ End UActorDescContainer Interface
 #endif
-
-	static void WorldPartitionOnLevelRemovedFromWorld(class ULevel* Level, UWorld* InWorld);
 
 public:
 	//~ Begin UObject Interface

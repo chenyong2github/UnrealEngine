@@ -74,8 +74,8 @@ private:
 	TMap<FName, FCellData> CellsData;
 	TSet<FCellData*> CellsToWarmup;
 
-	void OnWorldPartitionRegistered(UWorldPartition* InWorldPartition);
-	void OnWorldPartitionUnregistered(UWorldPartition* InWorldPartition);
+	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
+	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
 	void OnBeginRenderViews(const FSceneViewFamily& InViewFamily);
 
 	void MakeRenderResourcesResident(const FCellData& CellHLODs, const FSceneViewFamily& InViewFamily);

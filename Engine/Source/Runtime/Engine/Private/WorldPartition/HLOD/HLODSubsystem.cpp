@@ -123,14 +123,17 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	if (World->IsGameWorld())
 	{
-		World->GetSubsystem<UWorldPartitionSubsystem>()->OnWorldPartitionRegistered.AddUObject(this, &UHLODSubsystem::OnWorldPartitionRegistered);
-		World->GetSubsystem<UWorldPartitionSubsystem>()->OnWorldPartitionUnregistered.AddUObject(this, &UHLODSubsystem::OnWorldPartitionUnregistered);
+		UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition();
+		check(WorldPartition);
+
+		WorldPartition->OnWorldPartitionInitialized.AddUObject(this, &UHLODSubsystem::OnWorldPartitionInitialized);
+		WorldPartition->OnWorldPartitionUninitialized.AddUObject(this, &UHLODSubsystem::OnWorldPartitionUninitialized);
 
 		SceneViewExtension = FSceneViewExtensions::NewExtension<FHLODResourcesResidencySceneViewExtension>(World);
 	}
 }
 
-void UHLODSubsystem::OnWorldPartitionRegistered(UWorldPartition* InWorldPartition)
+void UHLODSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWorldPartition)
 {
 	check(InWorldPartition == GetWorld()->GetWorldPartition());
 	check(CellsData.IsEmpty());
@@ -145,7 +148,7 @@ void UHLODSubsystem::OnWorldPartitionRegistered(UWorldPartition* InWorldPartitio
 	}
 }
 
-void UHLODSubsystem::OnWorldPartitionUnregistered(UWorldPartition* InWorldPartition)
+void UHLODSubsystem::OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition)
 {
 	check(InWorldPartition == GetWorld()->GetWorldPartition());
 	CellsData.Reset();

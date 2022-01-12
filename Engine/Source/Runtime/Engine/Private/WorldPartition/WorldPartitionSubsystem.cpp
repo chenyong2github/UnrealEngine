@@ -143,8 +143,6 @@ void UWorldPartitionSubsystem::PostInitialize()
 	{
 		WorldPartition->Initialize(GetWorld(), FTransform::Identity);
 
-		OnWorldPartitionRegistered.Broadcast(WorldPartition);
-
 		if (WorldPartition->CanDrawRuntimeHash() && (GetWorld()->GetNetMode() != NM_DedicatedServer))
 		{
 			DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::Draw));
@@ -172,11 +170,6 @@ void UWorldPartitionSubsystem::Deinitialize()
 	}
 #endif 
 
-	UWorldPartition* WorldPartition = GetWorldPartition();
-	
-	check(WorldPartition);
-	check(WorldPartition->IsInitialized());
-
 	if (GetWorld()->IsGameWorld())
 	{
 		GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
@@ -189,10 +182,12 @@ void UWorldPartitionSubsystem::Deinitialize()
 		DrawHandle.Reset();
 	}
 
-	// Uninitialize registered world partitions
-	WorldPartition->Uninitialize();
-
-	OnWorldPartitionUnregistered.Broadcast(WorldPartition);
+	// During garbage collection, the world partition object can be uninitialized before the subsystem due to unordered calls to BeginDestroy
+	if (UWorldPartition* WorldPartition = GetWorldPartition(); WorldPartition && WorldPartition->IsInitialized())
+	{
+		// Uninitialize registered world partitions
+		WorldPartition->Uninitialize();
+	}
 
 	Super::Deinitialize();
 }

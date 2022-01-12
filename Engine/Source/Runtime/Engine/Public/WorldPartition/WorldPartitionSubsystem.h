@@ -39,10 +39,6 @@ public:
 	virtual TStatId GetStatId() const override;
 	//~End FTickableGameObject
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionRegisterDelegate, UWorldPartition*);
-	FWorldPartitionRegisterDelegate OnWorldPartitionRegistered;
-	FWorldPartitionRegisterDelegate OnWorldPartitionUnregistered;
-
 	UFUNCTION(BlueprintCallable, Category = Streaming)
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 
