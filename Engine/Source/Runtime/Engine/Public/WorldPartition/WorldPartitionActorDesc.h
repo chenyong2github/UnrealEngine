@@ -125,11 +125,6 @@ protected:
 		return HardRefCount;
 	}
 
-	UActorDescContainer* GetContainer() const
-	{
-		return Container;
-	}
-
 	void SetContainer(UActorDescContainer* InContainer)
 	{
 		check(!Container || !InContainer);
@@ -140,6 +135,11 @@ public:
 	const TArray<FGuid>& GetReferences() const
 	{
 		return References;
+	}
+
+	UActorDescContainer* GetContainer() const
+	{
+		return Container;
 	}
 
 	FString ToString() const;

@@ -749,7 +749,7 @@ void FActorBrowsingMode::OnItemPassesFilters(const ISceneOutlinerTreeItem& Item)
 	}
 	else if (const FActorDescTreeItem* const ActorDescItem = Item.CastTo<FActorDescTreeItem>(); ActorDescItem && ActorDescItem->IsValid())
 	{
-		ApplicableUnloadedActors.Add(ActorDescItem->ActorDescHandle.GetActorDesc());
+		ApplicableUnloadedActors.Add(ActorDescItem->ActorDescHandle.Get());
 	}
 }
 

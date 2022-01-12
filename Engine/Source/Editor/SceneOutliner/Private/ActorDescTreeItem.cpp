@@ -113,7 +113,7 @@ private:
 	{
 		if (TSharedPtr<FActorDescTreeItem> TreeItem = TreeItemPtr.Pin())
 		{
-			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.GetActorDesc())
+			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.Get())
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("ActorLabel"), FText::FromName(ActorDesc->GetActorLabel()));
@@ -133,7 +133,7 @@ private:
 	{
 		if (TSharedPtr<FActorDescTreeItem> TreeItem = TreeItemPtr.Pin())
 		{
-			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.GetActorDesc())
+			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.Get())
 			{
 				return FText::FromName(ActorDesc->GetActorClass()->GetFName());
 			}
@@ -153,7 +153,7 @@ private:
 
 		if (TreeItem.IsValid() && WeakSceneOutliner.IsValid())
 		{
-			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.GetActorDesc())
+			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.Get())
 			{
 				const FName IconName = ActorDesc->GetActorClass()->GetFName();
 
@@ -212,12 +212,12 @@ private:
 
 FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* Container)
 	: ISceneOutlinerTreeItem(Type)
-	, ActorDescHandle(InActorGuid, Container)
+	, ActorDescHandle(Container, InActorGuid)
 	, ActorGuid(InActorGuid)
 {
 	ID = FSceneOutlinerTreeItemID(InActorGuid);
 
-	if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescHandle.GetActorDesc())
+	if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescHandle.Get())
 	{
 		DisplayString = ActorDesc->GetActorLabel().ToString();
 	}
@@ -249,7 +249,7 @@ TSharedRef<SWidget> FActorDescTreeItem::GenerateLabelWidget(ISceneOutliner& Outl
 
 void FActorDescTreeItem::FocusActorBounds() const
 {
-	if (FWorldPartitionActorDesc const* ActorDesc = ActorDescHandle.GetActorDesc())
+	if (FWorldPartitionActorDesc const* ActorDesc = ActorDescHandle.Get())
 	{
 		if (FLevelEditorViewportClient* LevelViewportClient = GCurrentLevelEditingViewportClient)
 		{
@@ -264,11 +264,6 @@ void FActorDescTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner&)
 	Section.AddMenuEntry("FocusActorBounds", LOCTEXT("FocusActorBounds", "Focus Actor Bounds"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateSP(this, &FActorDescTreeItem::FocusActorBounds)));
 }
 
-void FActorDescTreeItem::OnVisibilityChanged(const bool bNewVisibility)
-{
-
-}
-
 bool FActorDescTreeItem::GetVisibility() const
 {
 	return true;
@@ -278,7 +273,7 @@ bool FActorDescTreeItem::GetPinnedState() const
 {
 	if (ActorDescHandle.IsValid())
 	{
-		return ActorDescHandle.GetActorDescContainer()->IsActorPinned(GetGuid());
+		return ActorDescHandle->GetContainer()->IsActorPinned(GetGuid());
 	}
 	return false;
 }

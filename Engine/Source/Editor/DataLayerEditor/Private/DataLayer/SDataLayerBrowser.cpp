@@ -64,7 +64,7 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 		}
 		else if (const FDataLayerActorDescTreeItem* ActorDescItem = Item.CastTo<FDataLayerActorDescTreeItem>())
 		{
-			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.GetActorDesc())
+			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
 			{
 				return ActorDesc->GetActorName().ToString();
 			}

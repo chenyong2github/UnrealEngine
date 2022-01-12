@@ -50,12 +50,12 @@ public:
 
 	bool Filter(FFilterPredicate Pred) const
 	{
-		return Pred.Execute(ActorDescHandle.GetActorDesc(), DataLayer.Get());
+		return Pred.Execute(ActorDescHandle.Get(), DataLayer.Get());
 	}
 
 	bool GetInteractiveState(FInteractivePredicate Pred) const
 	{
-		return Pred.Execute(ActorDescHandle.GetActorDesc(), DataLayer.Get());
+		return Pred.Execute(ActorDescHandle.Get(), DataLayer.Get());
 	}
 
 	/* Begin ISceneOutlinerTreeItem Implementation */
