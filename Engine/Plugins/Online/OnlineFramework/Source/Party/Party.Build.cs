@@ -16,6 +16,7 @@ public class Party : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
+				"CoreOnline",
 				"OnlineSubsystem",
 				"OnlineSubsystemUtils",
 			}

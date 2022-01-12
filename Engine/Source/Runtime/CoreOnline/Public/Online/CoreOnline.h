@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 #include "Hash/CityHash.h"
 #include "Online/CoreOnlineFwd.h"
+#include "Misc/TVariant.h"
 #include "UObject/ObjectMacros.h"
+
+class FLazySingleton;
 
 UE_DEPRECATED(5.0, "Use NAME_GameSession.")
 inline constexpr EName GameSessionName = NAME_GameSession;
@@ -172,10 +175,187 @@ public:
 	}
 };
 
+namespace UE::Online {
+
+/** Tags used as template argument to TOnlineIdHandle to make it a compile error to assign between id's of different types */
+namespace OnlineIdHandleTags
+{
+	struct FAccount {};
+	struct FSession {};
+	struct FParty {};
+}
+
+enum class EOnlineServices : uint8
+{
+	// Null, Providing minimal functionality when no backend services are required
+	Null,
+	// Epic Online Services
+	Epic,
+	// Xbox services
+	Xbox,
+	// PlayStation Network
+	PSN,
+	// Nintendo
+	Nintendo,
+	// Stadia,
+	Stadia,
+	// Steam
+	Steam,
+	// Google
+	Google,
+	// GooglePlay
+	GooglePlay,
+	// Apple
+	Apple,
+	// GameKit
+	AppleGameKit,
+	// Samsung
+	Samsung,
+	// Oculus
+	Oculus,
+	// Tencent
+	Tencent,
+	// Reserved for future use/platform extensions
+	Reserved_14,
+	Reserved_15,
+	Reserved_16,
+	Reserved_17,
+	Reserved_18,
+	Reserved_19,
+	Reserved_20,
+	Reserved_21,
+	Reserved_22,
+	Reserved_23,
+	Reserved_24,
+	Reserved_25,
+	Reserved_26,
+	Reserved_27,
+	// For game specific Online Services
+	GameDefined_0 = 28,
+	GameDefined_1,
+	GameDefined_2,
+	GameDefined_3,
+	// Platform native, may not exist for all platforms
+	Platform = 254,
+	// Default, configured via ini, TODO: List specific ini section/key
+	Default = 255
+};
+
+/**
+ * A handle to an id which uniquely identifies a persistent or transient online resource, i.e. account/session/party etc, within a given Online Services provider.
+ * At most one id, and therefore one handle, exists for any given resource. The id and handle persist until the OnlineServices module is unloaded.
+ * Passed to and returned from OnlineServices APIs.
+ */
+template<typename IdType>
+class TOnlineIdHandle
+{
+public:
+	TOnlineIdHandle() = default;
+	TOnlineIdHandle(EOnlineServices Type, uint32 Handle)
+	{
+		check(Handle < 0xFF000000);
+		Value = (Handle & 0x00FFFFFF) | (uint32(Type) << 24);
+	}
+
+	inline bool IsValid() const { return GetHandle() != 0; }
+
+	EOnlineServices GetOnlineServicesType() const { return EOnlineServices(Value >> 24); }
+	uint32 GetHandle() const { return Value & 0x00FFFFFF; }
+
+	bool operator==(const TOnlineIdHandle& Other) const { return Value == Other.Value; }
+	bool operator!=(const TOnlineIdHandle& Other) const { return Value != Other.Value; }
+
+private:
+	uint32 Value = uint32(EOnlineServices::Null) << 24;
+};
+
+using FOnlineAccountIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FAccount>;
+
+COREONLINE_API FString ToLogString(const FOnlineAccountIdHandle& Id);
+
+template<typename IdType>
+inline uint32 GetTypeHash(const TOnlineIdHandle<IdType>& Handle)
+{
+	using ::GetTypeHash;
+	return HashCombine(GetTypeHash(Handle.GetOnlineServicesType()), GetTypeHash(Handle.GetHandle()));
+}
+
+template<typename IdType>
+class IOnlineIdRegistry
+{
+public:
+	virtual FString ToLogString(const TOnlineIdHandle<IdType>& Handle) const = 0;
+	virtual TArray<uint8> ToReplicationData(const TOnlineIdHandle<IdType>& Handle) const = 0;
+	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArrayView<uint8> Handle) = 0;
+};
+
+using IOnlineAccountIdRegistry = IOnlineIdRegistry<OnlineIdHandleTags::FAccount>;
+
+class FOnlineIdRegistryRegistry
+{
+public:
+	/**
+	 * Get the FOnlineIdRegistryRegistry singleton
+	 *
+	 * @return The FOnlineIdRegistryRegistry singleton instance
+	 */
+	COREONLINE_API static FOnlineIdRegistryRegistry& Get();
+
+	/**
+	 * Tear down the singleton instance
+	 */
+	COREONLINE_API static void TearDown();
+	/**
+	 * Register a registry for a given OnlineServices implementation and TOnlineIdHandle type
+	 *
+	 * @param OnlineServices Services that the registry is for
+	 * @param Registry the registry of online ids
+	 * @param Priority Integer priority, allows an existing registry to be extended and registered with a higher priority so it is used instead
+	 */
+	COREONLINE_API void RegisterAccountIdRegistry(EOnlineServices OnlineServices, IOnlineAccountIdRegistry* Registry, int32 Priority = 0);
+
+	/**
+	 * Unregister a previously registered Id registry
+	 *
+	 * @param OnlineServices Services that the registry is for
+	 * @param Priority Integer priority, will be unregistered only if the priority matches the one that is registered
+	 */
+	COREONLINE_API void UnregisterAccountIdRegistry(EOnlineServices OnlineServices, int32 Priority = 0);
+
+	/**
+	 * Get the account id registry
+	 *
+	 * @param OnlineServices Type of online services for the IOnlineServices instance
+	 *
+	 * @return The account id registry, or an invalid pointer if it is not registered
+	 */
+	COREONLINE_API IOnlineAccountIdRegistry* GetAccountIdRegistry(EOnlineServices OnlineServices);
+
+private:
+	struct FAccountIdRegistryAndPriority
+	{
+		FAccountIdRegistryAndPriority(IOnlineAccountIdRegistry* InRegistry, int32 InPriority)
+			: Registry(InRegistry), Priority(InPriority) {}
+
+		IOnlineAccountIdRegistry* Registry;
+		int32 Priority;
+	};
+
+	TMap<EOnlineServices, FAccountIdRegistryAndPriority> AccountIdRegistries;
+
+	FOnlineIdRegistryRegistry() = default;
+	~FOnlineIdRegistryRegistry() = default;
+	friend FLazySingleton;
+};
+
+}	/* UE::Online */
+
 USTRUCT(noexport)
 struct FUniqueNetIdWrapper
 {
 	//GENERATED_BODY()
+	
+	using FVariantType = TVariant<FUniqueNetIdPtr, UE::Online::FOnlineAccountIdHandle>;
 
 	FUniqueNetIdWrapper() = default;
 	virtual ~FUniqueNetIdWrapper() = default;
@@ -183,58 +363,114 @@ struct FUniqueNetIdWrapper
 	// copy operators generated by compiler
 
 	FUniqueNetIdWrapper(const FUniqueNetIdRef& InUniqueNetId)
-		: UniqueNetId(InUniqueNetId)
 	{
+		Variant.Emplace<FUniqueNetIdPtr>(InUniqueNetId);
 	}
 
 	FUniqueNetIdWrapper(const FUniqueNetIdPtr& InUniqueNetId)
-		: UniqueNetId(InUniqueNetId)
+	{
+		Variant.Emplace<FUniqueNetIdPtr>(InUniqueNetId);
+	}
+
+	FUniqueNetIdWrapper(const FVariantType& InVariant)
+		: Variant(InVariant)
 	{
 	}
 
 	// temporarily restored implicit conversion from FUniqueNetId
 	FUniqueNetIdWrapper(const FUniqueNetId& InUniqueNetId)
-		: UniqueNetId(InUniqueNetId.AsShared())
 	{
+		Variant.Emplace<FUniqueNetIdPtr>(InUniqueNetId.AsShared());
+	}
+
+	bool IsV1() const
+	{
+		return Variant.IsType<FUniqueNetIdPtr>();
+	}
+
+	FUniqueNetIdPtr GetV1() const
+	{
+		FUniqueNetIdPtr Result;
+		if (ensure(IsV1()))
+		{
+			Result = Variant.Get<FUniqueNetIdPtr>();
+		}
+		return Result;
+	}
+
+	bool IsV2() const
+	{
+		return Variant.IsType<UE::Online::FOnlineAccountIdHandle>();
+	}
+
+	UE::Online::FOnlineAccountIdHandle GetV2() const
+	{
+		UE::Online::FOnlineAccountIdHandle Result;
+		if (ensure(IsV2()))
+		{
+			Result = Variant.Get<UE::Online::FOnlineAccountIdHandle>();
+		}
+		return Result;
 	}
 
 	FName GetType() const
 	{
-		return IsValid() ? UniqueNetId->GetType() : NAME_None;
+		FName Result = NAME_None;
+		if (IsValid() && ensure(IsV1()))
+		{
+			Result = GetV1()->GetType();
+		}
+		return Result;
 	}
-	
+
 	/** Convert this value to a string */
 	FString ToString() const
 	{
-		return IsValid() ? UniqueNetId->ToString() : TEXT("INVALID");
+		FString Result;
+		if(IsValid() && ensure(IsV1()))
+		{
+			Result = GetV1()->ToString();
+		}
+		return Result;
 	}
 
 	/** Convert this value to a string with additional information */
-	FString ToDebugString() const
-	{
-		return IsValid() ? FString::Printf(TEXT("%s:%s"), *UniqueNetId->GetType().ToString(), *UniqueNetId->ToDebugString()) : TEXT("INVALID");
-	}
+	COREONLINE_API FString ToDebugString() const;
 
-	/** Is the FUniqueNetId wrapped in this object valid */
+	/** Is the Variant wrapped in this object valid */
 	bool IsValid() const
 	{
-		return UniqueNetId.IsValid() && UniqueNetId->IsValid();
+		if (IsV1())
+		{
+			const FUniqueNetIdPtr& Ptr = GetV1();
+			return Ptr.IsValid() && Ptr->IsValid();
+		}
+		else
+		{
+			const UE::Online::FOnlineAccountIdHandle& Handle = GetV2();
+			return Handle.IsValid();
+		}
 	}
-	
-	/** 
+
+	/**
 	 * Assign a unique id to this wrapper object
 	 *
 	 * @param InUniqueNetId id to associate
 	 */
 	virtual void SetUniqueNetId(const FUniqueNetIdPtr& InUniqueNetId)
 	{
-		UniqueNetId = InUniqueNetId;
+		Variant.Emplace<FUniqueNetIdPtr>(InUniqueNetId);
+	}
+
+	virtual void SetAccountId(const UE::Online::FOnlineAccountIdHandle& Handle)
+	{
+		Variant.Emplace<UE::Online::FOnlineAccountIdHandle>(Handle);
 	}
 
 	/** @return unique id associated with this wrapper object */
-	const FUniqueNetIdPtr& GetUniqueNetId() const
+	FUniqueNetIdPtr GetUniqueNetId() const
 	{
-		return UniqueNetId;
+		return GetV1();
 	}
 
 	/**
@@ -242,7 +478,7 @@ struct FUniqueNetIdWrapper
 	 */
 	const FUniqueNetId& operator*() const
 	{
-		return *UniqueNetId;
+		return *GetV1();
 	}
 
 	/**
@@ -250,23 +486,26 @@ struct FUniqueNetIdWrapper
 	 */
 	const FUniqueNetId* operator->() const
 	{
-		return UniqueNetId.Get();
+		return GetV1().Get();
 	}
 
 	/**
 	* Friend function for using FUniqueNetIdWrapper as a hashable key
 	*/
-	friend inline uint32 GetTypeHash(FUniqueNetIdWrapper const& Value)
+	friend inline uint32 GetTypeHash(const FUniqueNetIdWrapper& Value)
 	{
 		if (Value.IsValid())
 		{
-			return GetTypeHash(*Value);
+			if (Value.IsV1())
+			{
+				return GetTypeHash(*Value.GetV1());
+			}
+			else
+			{
+				return GetTypeHash(Value.GetV2());
+			}
 		}
-		else
-		{
-			// If we hit this, something went wrong and we have received an unhashable wrapper.
-			return INDEX_NONE;
-		}
+		return INDEX_NONE;
 	}
 
 	static FUniqueNetIdWrapper Invalid()
@@ -277,8 +516,32 @@ struct FUniqueNetIdWrapper
 
 	friend bool operator==(const FUniqueNetIdWrapper& Lhs, const FUniqueNetIdWrapper& Rhs)
 	{
-		bool bLhsValid = Lhs.IsValid();
-		return bLhsValid == Rhs.IsValid() && (!bLhsValid || *Lhs == *Rhs);
+		const bool bLhsValid = Lhs.IsValid();
+		if (bLhsValid != Rhs.IsValid())
+		{
+			// Different validity
+			return false;
+		}
+		if (!bLhsValid)
+		{
+			// Both invalid
+			return true;
+		}
+		if (Lhs.Variant.GetIndex() != Rhs.Variant.GetIndex())
+		{
+			// Different variant
+			return false;
+		}
+
+		if (Lhs.IsV1())
+		{
+			// Pointers can point to equivalent objects
+			return *Lhs.GetV1() == *Rhs.GetV1();
+		}
+		else
+		{
+			return Lhs.GetV2() == Rhs.GetV2();
+		}
 	}
 
 	friend bool operator!=(const FUniqueNetIdWrapper& Lhs, const FUniqueNetIdWrapper& Rhs)
@@ -288,8 +551,23 @@ struct FUniqueNetIdWrapper
 
 	friend bool operator==(const FUniqueNetIdWrapper& Lhs, const FUniqueNetId& Rhs)
 	{
-		bool bLhsValid = Lhs.IsValid();
-		return bLhsValid == Rhs.IsValid() && (!bLhsValid || *Lhs == Rhs);
+		const bool bLhsValid = Lhs.IsValid();
+		if (bLhsValid != Rhs.IsValid())
+		{
+			// Different validity
+			return false;
+		}
+		if (!bLhsValid)
+		{
+			// Both invalid
+			return true;
+		}
+		if (!Lhs.IsV1())
+		{
+			// Different variant
+			return false;
+		}
+		return *Lhs.GetV1() == Rhs;
 	}
 
 	friend bool operator!=(const FUniqueNetIdWrapper& Lhs, const FUniqueNetId& Rhs)
@@ -331,7 +609,7 @@ struct FUniqueNetIdWrapper
 protected:
 
 	// Actual unique id
-	FUniqueNetIdPtr UniqueNetId;
+	FVariantType Variant;
 };
 
 template <typename ValueType>
