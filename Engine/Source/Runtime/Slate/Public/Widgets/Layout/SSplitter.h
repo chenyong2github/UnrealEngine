@@ -385,6 +385,15 @@ protected:
 	const FSplitterStyle* Style;
 };
 
+enum class EResizingAxis : uint8
+{
+	None = 0x00,
+	LeftRightMask = 0x01,
+	UpDownMask = 0x10,
+	CrossMask = UpDownMask | LeftRightMask
+};
+ENUM_CLASS_FLAGS(EResizingAxis);
+
 /**
  * SSplitter2x2													
  * A splitter which has exactly 4 children and allows simultaneous		
@@ -425,7 +434,12 @@ private:
 		TAttribute<FVector2D> PercentageAttribute;
 	};
 
-	SLATE_BEGIN_ARGS( SSplitter2x2 ){}
+	SLATE_BEGIN_ARGS( SSplitter2x2 )
+		: _Style(&FCoreStyle::Get().GetWidgetStyle<FSplitterStyle>("Splitter"))
+		{
+		}
+		/** Style used to draw this splitter */
+		SLATE_STYLE_ARGUMENT(FSplitterStyle, Style)
 		SLATE_NAMED_SLOT( FArguments, TopLeft )
 		SLATE_NAMED_SLOT( FArguments, BottomLeft )
 		SLATE_NAMED_SLOT( FArguments, TopRight )
@@ -505,6 +519,8 @@ private:
 
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 
+	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+
 	/**
 	 * A Panel's desired size in the space required to arrange of its children on the screen while respecting all of
 	 * the children's desired sizes and any layout-related options specified by the user. See StackPanel for an example.
@@ -561,7 +577,7 @@ private:
 	 * @param MyGeometry	The geometry of this widget
 	 * @param LocalMousePos	The local space current mouse position
 	 */
-	int32 CalculateResizingAxis( const FGeometry& MyGeometry, const FVector2D& LocalMousePos ) const;
+	EResizingAxis CalculateResizingAxis( const FGeometry& MyGeometry, const FVector2D& LocalMousePos ) const;
 
 	/**
 	 * Resizes all children based on a user moving the splitter handles
@@ -577,8 +593,10 @@ private:
 	/** The children of the splitter. There can only be four */
 	TPanelChildren<FSlot> Children;
 
+	const FSplitterStyle* Style = nullptr;
+
 	/** The axis currently being resized or INDEX_NONE if no resizing */
-	int32 ResizingAxis;
+	EResizingAxis ResizingAxisMask;
 
 	/** true if a splitter axis is currently being resized. */
 	bool bIsResizing;
