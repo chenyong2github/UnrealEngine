@@ -429,9 +429,6 @@ private:
 
 	void Unregister();
 
-	/** Utility to return an apt error message if a payload loaded from this object is considered corrupt. Handles the formatting depending on the various payload flags etc. */
-	FString GetCorruptedPayloadErrorMsgForLoad() const;
-
 	/** 
 	 * Utility to return an apt error message if the payload is invalid when trying to save the bulkdata. It will try to provide the best info from the given options.
 	 * 
