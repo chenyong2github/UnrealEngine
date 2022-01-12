@@ -487,27 +487,29 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 	// Wait for any async operations
 	WaitForConcurrentTickDoNotFinalize();
 
-	UNiagaraSystem* System = GetSystem();
-	if (bInSolo)
+	// We only need to transfer the instance into a new simulation if this one is within a simulation
+	if ( SystemSimulation.IsValid() )
 	{
-		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSoloSim = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
-		NewSoloSim->Init(System, World, true, TG_MAX);
+		UNiagaraSystem* System = GetSystem();
+		if (bInSolo)
+		{
+			TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSoloSim = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
+			NewSoloSim->Init(System, World, true, TG_MAX);
 
-		NewSoloSim->TransferInstance(this);
+			NewSoloSim->TransferInstance(this);
+		}
+		else
+		{
+			ensureMsgf(DoSystemDataInterfacesRequireSolo(*GetSystem(), OverrideParameters) == false, TEXT("Disabling solo mode but data interfaces require it"));
 
-		bSolo = true;
+			const ETickingGroup TickGroup = CalculateTickGroup();
+			TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = GetWorldManager()->GetSystemSimulation(TickGroup, System);
+
+			NewSim->TransferInstance(this);
+		}
 	}
-	else
-	{
-		ensureMsgf(DoSystemDataInterfacesRequireSolo(*GetSystem(), OverrideParameters) == false, TEXT("Disabling solo mode but data interfaces require it"));
 
-		const ETickingGroup TickGroup = CalculateTickGroup();
-		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = GetWorldManager()->GetSystemSimulation(TickGroup, System);
-
-		NewSim->TransferInstance(this);
-
-		bSolo = false;
-	}
+	bSolo = bInSolo;
 
 	// Execute any pending finalize
 	if (FinalizeRef.IsPending())

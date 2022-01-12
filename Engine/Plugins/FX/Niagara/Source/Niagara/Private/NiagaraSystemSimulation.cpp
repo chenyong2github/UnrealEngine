@@ -832,6 +832,10 @@ void FNiagaraSystemSimulation::TransferInstance(FNiagaraSystemInstance* Instance
 	{
 		// Nothing to do as nothing to transfer
 		case ENiagaraSystemInstanceState::None:
+			if (Instance->SystemSimulation.IsValid())
+			{
+				Instance->SystemSimulation = this->AsShared();
+			}
 			break;
 
 		case ENiagaraSystemInstanceState::PendingSpawn:
