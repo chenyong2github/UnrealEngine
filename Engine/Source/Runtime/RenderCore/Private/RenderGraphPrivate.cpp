@@ -324,7 +324,8 @@ FAutoConsoleVariableRef CVarRDGTransientExtractedResource(
 	TEXT("r.RDG.TransientExtractedResources"), GRDGTransientExtractedResources,
 	TEXT("RDG will allocate extracted resources as transient, unless explicitly marked non-transient by the user.")
 	TEXT(" 0: disables external transient resources;")
-	TEXT(" 1: enables external transient resources (default);"),
+	TEXT(" 1: enables external transient resources (default);")
+	TEXT(" 2: force enables all external transient resources (not recommended);"),
 	ECVF_RenderThreadSafe);
 
 int32 GRDGParallelExecute = 1;

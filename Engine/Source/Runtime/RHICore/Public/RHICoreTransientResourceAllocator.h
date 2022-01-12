@@ -1013,6 +1013,9 @@ public:
 	// Called by the transient allocator to acquire a page pool from the cache.
 	FRHITransientPagePool* Acquire();
 
+	// Called by the transient allocator to return the fast page pool if it exists.
+	FRHITransientPagePool* GetFastPagePool();
+
 	// Called by the transient allocator to forfeit all acquired heaps back to the cache.
 	void Forfeit(TConstArrayView<FRHITransientPagePool*> PagePools);
 
@@ -1025,7 +1028,7 @@ private:
 	//! Platform API
 
 	// Called to access the dedicated fast VRAM page pool, if it exists on the platform.
-	virtual FRHITransientPagePool* GetFastPagePool() = 0;
+	virtual FRHITransientPagePool* CreateFastPagePool() { return nullptr; }
 
 	// Called when a new heap is being created and added to the pool.
 	virtual FRHITransientPagePool* CreatePagePool(const FRHITransientPagePool::FInitializer& Initializer) = 0;
@@ -1035,6 +1038,7 @@ private:
 	FRHITransientMemoryStats Stats;
 
 	FCriticalSection CriticalSection;
+	FRHITransientPagePool* FastPagePool = nullptr;
 	TArray<FRHITransientPagePool*> LiveList;
 	TArray<FRHITransientPagePool*> FreeList;
 	uint64 GarbageCollectCycle = 0;
@@ -1053,7 +1057,9 @@ public:
 		, Textures(InPagePoolCache.Initializer.TextureCacheSize, ResourceCacheGarbageCollectionLatency)
 		, Buffers(InPagePoolCache.Initializer.BufferCacheSize, ResourceCacheGarbageCollectionLatency)
 		, PageSize(PagePoolCache.Initializer.PageSize)
-	{}
+	{
+		FastPagePool = PagePoolCache.GetFastPagePool();
+	}
 
 	~FRHITransientResourcePageAllocator();
 
@@ -1114,7 +1120,9 @@ private:
 	TRHITransientResourceCache<FRHITransientBuffer> Buffers;
 
 	TArray<FRHITransientPagePool*> PagePools;
+	FRHITransientPagePool* FastPagePool = nullptr;
 	uint64 CurrentCycle = 0;
+	uint32 FirstNormalPagePoolIndex = 0;
 	uint32 DeallocationCount = 0;
 	uint32 PageSize = 0;
 	uint32 PageMapCount = 0;

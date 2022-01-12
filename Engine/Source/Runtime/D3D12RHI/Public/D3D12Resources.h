@@ -813,12 +813,6 @@ protected:
 
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-class FD3D12TransientResource
-{
-	// Nothing special for fast ram
-public:
-	void Swap(FD3D12TransientResource&) {}
-};
 class FD3D12FastClearResource
 {
 public:
@@ -832,7 +826,7 @@ public:
 
 
 /** The base class of resources that may be bound as shader resources (texture or buffer). */
-class FD3D12BaseShaderResource : public FD3D12DeviceChild, public FD3D12TransientResource, public IRefCountedObject
+class FD3D12BaseShaderResource : public FD3D12DeviceChild, public IRefCountedObject
 {
 protected:
 	FCriticalSection RenameListenersCS;

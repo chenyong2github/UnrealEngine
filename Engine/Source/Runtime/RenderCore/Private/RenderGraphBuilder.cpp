@@ -458,7 +458,7 @@ ERDGPassFlags FRDGBuilder::OverridePassFlags(const TCHAR* PassName, ERDGPassFlag
 
 bool FRDGBuilder::IsTransient(FRDGBufferRef Buffer) const
 {
-	if (!IsTransientInternal(Buffer))
+	if (!IsTransientInternal(Buffer, EnumHasAnyFlags(Buffer->Desc.Usage, BUF_FastVRAM)))
 	{
 		return false;
 	}
@@ -468,20 +468,15 @@ bool FRDGBuilder::IsTransient(FRDGBufferRef Buffer) const
 		return false;
 	}
 
-	if (GRDGTransientAllocator == 2 && !EnumHasAnyFlags(Buffer->Desc.Usage, BUF_FastVRAM))
-	{
-		return false;
-	}
-
 	return EnumHasAnyFlags(Buffer->Desc.Usage, BUF_UnorderedAccess);
 }
 
 bool FRDGBuilder::IsTransient(FRDGTextureRef Texture) const
 {
-	return IsTransientInternal(Texture) && (GRDGTransientAllocator != 2 || EnumHasAnyFlags(Texture->Desc.Flags, TexCreate_FastVRAM));
+	return IsTransientInternal(Texture, EnumHasAnyFlags(Texture->Desc.Flags, ETextureCreateFlags::FastVRAM));
 }
 
-bool FRDGBuilder::IsTransientInternal(FRDGParentResourceRef Resource) const
+bool FRDGBuilder::IsTransientInternal(FRDGParentResourceRef Resource, bool bFastVRAM) const
 {
 	// Immediate mode can't use the transient allocator because we don't know if the user will extract the resource.
 	if (!GRDGTransientAllocator || IsImmediateMode())
@@ -489,21 +484,30 @@ bool FRDGBuilder::IsTransientInternal(FRDGParentResourceRef Resource) const
 		return false;
 	}
 
-	if (Resource->bForceNonTransient)
+	// FastVRAM resources are always transient regardless of extraction or other hints, since they are performance critical.
+	if (!bFastVRAM)
 	{
-		return false;
-	}
-
-	if (Resource->bExtracted)
-	{
-		if (GRDGTransientExtractedResources == 0)
+		if (GRDGTransientAllocator == 2)
+		{
+			return false;
+		}
+	
+		if (Resource->bForceNonTransient)
 		{
 			return false;
 		}
 
-		if (!Resource->bAllowTransientExtracted)
+		if (Resource->bExtracted)
 		{
-			return false;
+			if (GRDGTransientExtractedResources == 0)
+			{
+				return false;
+			}
+
+			if (GRDGTransientExtractedResources == 1 && Resource->TransientExtractionHint == FRDGParentResource::ETransientExtractionHint::Disable)
+			{
+				return false;
+			}
 		}
 	}
 

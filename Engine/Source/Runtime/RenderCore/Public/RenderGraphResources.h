@@ -282,6 +282,13 @@ public:
 protected:
 	FRDGParentResource(const TCHAR* InName, ERDGParentResourceType InType);
 
+	enum class ETransientExtractionHint
+	{
+		None,
+		Disable,
+		Enable
+	};
+
 	/** Whether this is an externally registered resource. */
 	uint8 bExternal : 1;
 
@@ -298,7 +305,7 @@ protected:
 	uint8 bForceNonTransient : 1;
 
 	/** Whether this resource is allowed to be both transient and extracted. */
-	uint8 bAllowTransientExtracted : 1;
+	ETransientExtractionHint TransientExtractionHint : 2;
 
 	/** (External | Extracted only) If true, the resource is locked in its current state and will not be transitioned any more. */
 	uint8 bFinalizedAccess : 1;

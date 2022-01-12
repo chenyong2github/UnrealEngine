@@ -911,7 +911,7 @@ void FRenderGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 			const uint64 MiB = 1024 * 1024;
 
-			const auto DrawMibText = [&](float Depth, uint64 Offset, uint32 MemoryRangeIndex, uint32 MemoryRangeSizeInMB)
+			const auto DrawMibText = [&](float Depth, uint64 Offset, uint32 MemoryRangeIndex, uint32 MemoryRangeSizeInMB, FRHITransientAllocationStats::EMemoryRangeFlags MemoryRangeFlags)
 			{
 				FString Text;
 				FLinearColor TextColor = MBTextColor;
@@ -923,6 +923,12 @@ void FRenderGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 				else
 				{
 					Text = FString::Printf(TEXT("Memory Range [%d] %uMiB"), MemoryRangeIndex, MemoryRangeSizeInMB);
+
+					if (EnumHasAnyFlags(MemoryRangeFlags, FRHITransientAllocationStats::EMemoryRangeFlags::FastVRAM))
+					{
+						Text += TEXT("(FastVRAM)");
+					}
+
 					TextColor.A = 1.0f;
 				}
 
@@ -968,7 +974,7 @@ void FRenderGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 					if (bDrawText && bMajorTick)
 					{
-						LineStartX = DrawMibText(Depth, Offset, MemoryRangeIndex, TransientMemoryRange.Capacity / MiB);
+						LineStartX = DrawMibText(Depth, Offset, MemoryRangeIndex, TransientMemoryRange.Capacity / MiB, TransientMemoryRange.Flags);
 						LineWidth -= LineStartX - VisibleGraph.SlateX;
 					}
 

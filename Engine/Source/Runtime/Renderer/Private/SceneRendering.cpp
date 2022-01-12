@@ -322,12 +322,6 @@ static TAutoConsoleVariable<int32> CVarWideCustomResolve(
 	ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
-TAutoConsoleVariable<int32> CVarTransientResourceAliasing_Buffers(
-	TEXT("r.TransientResourceAliasing.Buffers"),
-	1,
-	TEXT("Enables transient resource aliasing for specified buffers. Used only if GSupportsTransientResourceAliasing is true.\n"),
-	ECVF_ReadOnly);
-
 static TAutoConsoleVariable<int32> CVarBasePassForceOutputsVelocity(
 	TEXT("r.BasePassForceOutputsVelocity"), 0,
 	TEXT("Force the base pass to compute motion vector, regardless of FPrimitiveUniformShaderParameters.")

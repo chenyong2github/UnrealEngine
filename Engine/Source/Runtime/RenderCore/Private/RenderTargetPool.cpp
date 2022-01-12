@@ -160,7 +160,7 @@ static TAutoConsoleVariable<int32> CVarAllowMultipleAliasingDiscardsPerFrame(
 static TAutoConsoleVariable<int32> CVarRtPoolTransientMode(
 	TEXT("r.RenderTargetPool.TransientAliasingMode"),
 	2,
-	TEXT("Enables transient resource aliasing for rendertargets. Used only if GSupportsTransientResourceAliasing is true.\n")
+	TEXT("Enables transient resource aliasing for rendertargets.\n")
 	TEXT("0 : Disabled\n")
 	TEXT("1 : enable transient resource aliasing for fastVRam rendertargets\n")
 	TEXT("2 : enable transient resource aliasing for fastVRam rendertargets and those with a Transient hint. Best for memory usage - has some GPU cost (~0.2ms)\n")
@@ -228,10 +228,6 @@ FRenderTargetPool::FRenderTargetPool()
 // Logic for determining whether to make a rendertarget transient
 bool FRenderTargetPool::DoesTargetNeedTransienceOverride(ETextureCreateFlags Flags, ERenderTargetTransience TransienceHint)
 {
-	if (!GSupportsTransientResourceAliasing)
-	{
-		return false;
-	}
 	int32 AliasingMode = CVarRtPoolTransientMode.GetValueOnRenderThread();
 
 	// We only override transience if aliasing is supported and enabled, the format is suitable, and the target is not already transient
@@ -1177,7 +1173,7 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 			}
 
 			OutputDevice.Logf(
-				TEXT("  %6.3fMB %4dx%4d%s%s %2dmip(s) %s (%s) %s %s Unused frames: %d"),
+				TEXT("  %6.3fMB %4dx%4d%s%s %2dmip(s) %s (%s) %s Unused frames: %d"),
 				ElementAllocationInKB / 1024.0f,
 				Element->Desc.Extent.X,
 				Element->Desc.Extent.Y,
@@ -1187,7 +1183,6 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 				Element->Desc.DebugName,
 				GPixelFormats[Element->Desc.Format].Name,
 				Element->IsTransient() ? TEXT("(transient)") : TEXT(""),
-				GSupportsTransientResourceAliasing ? *FString::Printf(TEXT("Frames since last discard: %d"), GFrameNumberRenderThread - Element->FrameNumberLastDiscard) : TEXT(""),
 				Element->UnusedForNFrames
 			);
 		}
@@ -1207,7 +1202,7 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 		if (Element)
 		{
 			OutputDevice.Logf(
-				TEXT("  %6.3fMB %4dx%4d%s%s %2dmip(s) %s (%s) %s %s"),
+				TEXT("  %6.3fMB %4dx%4d%s%s %2dmip(s) %s (%s) %s"),
 				ComputeSizeInKB(*Element) / 1024.0f,
 				Element->Desc.Extent.X,
 				Element->Desc.Extent.Y,
@@ -1216,8 +1211,7 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 				Element->Desc.NumMips,
 				Element->Desc.DebugName,
 				GPixelFormats[Element->Desc.Format].Name,
-				Element->IsTransient() ? TEXT("(transient)") : TEXT(""),
-				GSupportsTransientResourceAliasing ? *FString::Printf(TEXT("Frames since last discard: %d"), GFrameNumberRenderThread - Element->FrameNumberLastDiscard) : TEXT("")
+				Element->IsTransient() ? TEXT("(transient)") : TEXT("")
 			);
 			uint32 SizeInKB = ComputeSizeInKB(*Element);
 			DeferredTotal += SizeInKB;

@@ -559,7 +559,6 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GSupportsRenderTargetFormat_PF_G8 = false;
 	GRHISupportsTextureStreaming = true;
 	GSupportsWideMRT = true;
-	// GSupportsTransientResourceAliasing = FAGXCommandQueue::SupportsFeature(EAGXFeaturesHeaps) && FAGXCommandQueue::SupportsFeature(EAGXFeaturesFences);
 	GSupportsSeparateRenderTargetBlendState = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
 
 	GRHISupportsPipelineFileCache = true;

@@ -155,7 +155,8 @@ FGraphPacket::FGraphPacket(TraceServices::ILinearAllocator& Allocator, const UE:
 
 	const auto CommitSizes = Context.EventData.GetArrayView<uint64>("TransientMemoryCommitSizes");
 	const auto Capacities  = Context.EventData.GetArrayView<uint64>("TransientMemoryCapacities");
-	check(CommitSizes.Num() == Capacities.Num());
+	const auto Flags       = Context.EventData.GetArrayView<uint8>("TransientMemoryFlags");
+	check(CommitSizes.Num() == Capacities.Num() && Capacities.Num() == Flags.Num());
 
 	uint64 CurrentOffset = 0;
 	TransientMemoryRangeByteOffsets.Reserve(CommitSizes.Num());
@@ -165,6 +166,7 @@ FGraphPacket::FGraphPacket(TraceServices::ILinearAllocator& Allocator, const UE:
 		auto& MemoryRange = TransientAllocationStats.MemoryRanges.AddDefaulted_GetRef();
 		MemoryRange.CommitSize = CommitSizes[Index];
 		MemoryRange.Capacity = Capacities[Index];
+		MemoryRange.Flags = (FRHITransientAllocationStats::EMemoryRangeFlags)Flags[Index];
 
 		TransientMemoryRangeByteOffsets.Emplace(CurrentOffset);
 		CurrentOffset += MemoryRange.CommitSize;

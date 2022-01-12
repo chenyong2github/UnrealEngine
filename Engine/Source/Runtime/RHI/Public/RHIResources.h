@@ -129,19 +129,6 @@ public:
 
 	static bool Bypass();
 
-	// Transient resource tracking
-	// We do this at a high level so we can catch errors even when transient resources are not supported
-	void SetCommitted(bool bInCommitted) 
-	{ 
-		check(IsInRenderingThread()); 
-		bCommitted = bInCommitted;
-	}
-	bool IsCommitted() const 
-	{ 
-		check(IsInRenderingThread());
-		return bCommitted;
-	}
-
 	bool IsValid() const
 	{
 		return AtomicFlags.IsValid(std::memory_order_relaxed);

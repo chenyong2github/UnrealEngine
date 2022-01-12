@@ -1293,7 +1293,6 @@ void FRHITransientPagePool::Allocate(FAllocationContext& Context)
 
 		bool bMapPages = true;
 
-#if 0
 		if (AllocationIndex < Context.AllocationsBefore.Num())
 		{
 			const FRHITransientPagePoolAllocation& AllocationBefore = Context.AllocationsBefore[AllocationIndex];
@@ -1304,7 +1303,6 @@ void FRHITransientPagePool::Allocate(FAllocationContext& Context)
 				bMapPages = false;
 			}
 		}
-#endif
 
 		if (bMapPages)
 		{
@@ -1322,13 +1320,16 @@ void FRHITransientPagePool::Allocate(FAllocationContext& Context)
 
 void FRHITransientPagePool::Flush(FRHICommandListImmediate& RHICmdList)
 {
-	PageMapRequestCountMax = FMath::Max<uint32>(PageMapRequests.Num(), PageMapRequestCountMax);
-	PageSpanCountMax       = FMath::Max<uint32>(PageSpans.Num(),       PageSpanCountMax);
+	if (!PageMapRequests.IsEmpty())
+	{
+		PageMapRequestCountMax = FMath::Max<uint32>(PageMapRequests.Num(), PageMapRequestCountMax);
+		PageSpanCountMax       = FMath::Max<uint32>(PageSpans.Num(),       PageSpanCountMax);
 
-	Flush(RHICmdList, MoveTemp(PageMapRequests), MoveTemp(PageSpans));
+		Flush(RHICmdList, MoveTemp(PageMapRequests), MoveTemp(PageSpans));
 
-	PageMapRequests.Reserve(PageMapRequestCountMax);
-	PageSpans.Reserve(PageSpanCountMax);
+		PageMapRequests.Reserve(PageMapRequestCountMax);
+		PageSpans.Reserve(PageSpanCountMax);
+	}
 
 	OverlapTracker.Reset();
 }
@@ -1348,6 +1349,14 @@ FRHITransientPagePoolCache::~FRHITransientPagePoolCache()
 {
 	checkf(FreeList.Num() == LiveList.Num(), TEXT("PagePools are still being held by transient allocators."));
 	FreeList.Empty();
+
+	delete FastPagePool;
+	FastPagePool = nullptr;
+
+	for (FRHITransientPagePool* PagePool : LiveList)
+	{
+		delete PagePool;
+	}
 	LiveList.Empty();
 }
 
@@ -1381,6 +1390,23 @@ FRHITransientPagePool* FRHITransientPagePoolCache::Acquire()
 	LiveList.Emplace(PagePool);
 
 	return PagePool;
+}
+
+FRHITransientPagePool* FRHITransientPagePoolCache::GetFastPagePool()
+{
+	if (!FastPagePool)
+	{
+		LLM_SCOPE_BYTAG(RHITransientResources);
+		FastPagePool = CreateFastPagePool();
+
+		if (FastPagePool)
+		{
+			TotalMemoryCapacity += FastPagePool->GetCapacity();
+			return FastPagePool;
+		}
+	}
+
+	return nullptr;
 }
 
 void FRHITransientPagePoolCache::Forfeit(TConstArrayView<FRHITransientPagePool*> InForfeitedPagePools)
@@ -1486,12 +1512,9 @@ void FRHITransientResourcePageAllocator::AllocateMemoryInternal(FRHITransientRes
 {
 	FRHITransientPagePool::FAllocationContext AllocationContext(*Resource, PageSize);
 
-	if (bFastPoolRequested)
+	if (bFastPoolRequested && FastPagePool)
 	{
-		if (FRHITransientPagePool* FastPagePool = PagePoolCache.GetFastPagePool())
-		{
-			FastPagePool->Allocate(AllocationContext);
-		}
+		FastPagePool->Allocate(AllocationContext);
 	}
 
 	if (!AllocationContext.IsComplete())
@@ -1545,19 +1568,28 @@ void FRHITransientResourcePageAllocator::Flush(FRHICommandListImmediate& RHICmdL
 {
 	if (OutAllocationStats)
 	{
-		TMap<FRHITransientPagePool*, int32> PagePoolToIndex;
-		PagePoolToIndex.Reserve(PagePools.Num());
+		TMap<FRHITransientPagePool*, int32> PagePoolToMemoryRangeIndex;
+		PagePoolToMemoryRangeIndex.Reserve(PagePools.Num() + !!FastPagePool);
 
-		for (int32 Index = 0; Index < PagePools.Num(); ++Index)
+		const auto AddMemoryRange = [&](FRHITransientPagePool* PagePool, FRHITransientAllocationStats::EMemoryRangeFlags Flags)
 		{
-			FRHITransientPagePool* PagePool = PagePools[Index];
+			PagePoolToMemoryRangeIndex.Emplace(PagePool, OutAllocationStats->MemoryRanges.Num());
 
 			FRHITransientAllocationStats::FMemoryRange MemoryRange;
 			MemoryRange.Capacity = PagePool->GetCapacity();
 			MemoryRange.CommitSize = PagePool->GetCapacity();
+			MemoryRange.Flags = Flags;
 			OutAllocationStats->MemoryRanges.Emplace(MemoryRange);
+		};
 
-			PagePoolToIndex.Emplace(PagePool, Index);
+		if (FastPagePool)
+		{
+			AddMemoryRange(FastPagePool, FRHITransientAllocationStats::EMemoryRangeFlags::FastVRAM);
+		}
+
+		for (FRHITransientPagePool* PagePool : PagePools)
+		{
+			AddMemoryRange(PagePool, FRHITransientAllocationStats::EMemoryRangeFlags::None);
 		}
 
 		for (const FRHITransientTexture* Texture : Textures.GetAllocated())
@@ -1569,7 +1601,7 @@ void FRHITransientResourcePageAllocator::Flush(FRHICommandListImmediate& RHICmdL
 				FRHITransientAllocationStats::FAllocation Allocation;
 				Allocation.OffsetMin = PageSize *  PageSpan.Offset;
 				Allocation.OffsetMax = PageSize * (PageSpan.Offset + PageSpan.Count);
-				Allocation.MemoryRangeIndex = PagePoolToIndex[PagePool];
+				Allocation.MemoryRangeIndex = PagePoolToMemoryRangeIndex[PagePool];
 				Allocations.Emplace(Allocation);
 			});
 		}
@@ -1583,7 +1615,7 @@ void FRHITransientResourcePageAllocator::Flush(FRHICommandListImmediate& RHICmdL
 				FRHITransientAllocationStats::FAllocation Allocation;
 				Allocation.OffsetMin = PageSize *  PageSpan.Offset;
 				Allocation.OffsetMax = PageSize * (PageSpan.Offset + PageSpan.Count);
-				Allocation.MemoryRangeIndex = PagePoolToIndex[PagePool];
+				Allocation.MemoryRangeIndex = PagePoolToMemoryRangeIndex[PagePool];
 				Allocations.Emplace(Allocation);
 			});
 		}
@@ -1616,6 +1648,11 @@ void FRHITransientResourcePageAllocator::Flush(FRHICommandListImmediate& RHICmdL
 
 		LogLongLivedResources(Buffers.GetAllocated(), CurrentCycle);
 		TRACE_COUNTER_SET(TransientBufferCacheSize, Buffers.GetSize());
+	}
+
+	if (FastPagePool)
+	{
+		FastPagePool->Flush(RHICmdList);
 	}
 
 	for (FRHITransientPagePool* PagePool : PagePools)

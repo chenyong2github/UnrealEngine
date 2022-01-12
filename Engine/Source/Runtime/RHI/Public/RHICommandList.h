@@ -4628,50 +4628,18 @@ public:
 
 	FORCEINLINE void AcquireTransientResource_RenderThread(FRHITexture* Texture)
 	{
-		if (!Texture->IsCommitted() )
-		{
-			if (GSupportsTransientResourceAliasing)
-			{
-				GDynamicRHI->RHIAcquireTransientResource_RenderThread(Texture);
-			}
-			Texture->SetCommitted(true);
-		}
 	}
 
 	FORCEINLINE void DiscardTransientResource_RenderThread(FRHITexture* Texture)
 	{
-		if (Texture->IsCommitted())
-		{
-			if (GSupportsTransientResourceAliasing)
-			{
-				GDynamicRHI->RHIDiscardTransientResource_RenderThread(Texture);
-			}
-			Texture->SetCommitted(false);
-		}
 	}
 
 	FORCEINLINE void AcquireTransientResource_RenderThread(FRHIBuffer* Buffer)
 	{
-		if (!Buffer->IsCommitted())
-		{
-			if (GSupportsTransientResourceAliasing)
-			{
-				GDynamicRHI->RHIAcquireTransientResource_RenderThread(Buffer);
-			}
-			Buffer->SetCommitted(true);
-		}
 	}
 
 	FORCEINLINE void DiscardTransientResource_RenderThread(FRHIBuffer* Buffer)
 	{
-		if (Buffer->IsCommitted())
-		{
-			if (GSupportsTransientResourceAliasing)
-			{
-				GDynamicRHI->RHIDiscardTransientResource_RenderThread(Buffer);
-			}
-			Buffer->SetCommitted(false);
-		}
 	}
 
 	FORCEINLINE bool GetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait, uint32 GPUIndex = INDEX_NONE)

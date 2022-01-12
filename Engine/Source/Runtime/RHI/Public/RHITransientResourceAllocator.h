@@ -323,6 +323,14 @@ public:
 
 	using FAllocationArray = TArray<FAllocation, TInlineAllocator<2>>;
 
+	enum class EMemoryRangeFlags
+	{
+		None = 0,
+
+		// The memory range references platform specific fast RAM.
+		FastVRAM = 1 << 0
+	};
+
 	struct FMemoryRange
 	{
 		// Number of bytes available for use in the memory range.
@@ -330,11 +338,16 @@ public:
 
 		// Number of bytes allocated for use in the memory range.
 		uint64 CommitSize = 0;
+
+		// Flags specified for this memory range.
+		EMemoryRangeFlags Flags = EMemoryRangeFlags::None;
 	};
 
 	TArray<FMemoryRange> MemoryRanges;
 	TMap<const FRHITransientResource*, FAllocationArray> Resources;
 };
+
+ENUM_CLASS_FLAGS(FRHITransientAllocationStats::EMemoryRangeFlags);
 
 class IRHITransientResourceAllocator
 {

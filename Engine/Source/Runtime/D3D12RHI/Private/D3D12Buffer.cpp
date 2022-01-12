@@ -468,7 +468,6 @@ void FD3D12Buffer::Swap(FD3D12Buffer& Other)
 	check(!LockedData.bLocked && !Other.LockedData.bLocked);
 	FRHIBuffer::Swap(Other);
 	FD3D12BaseShaderResource::Swap(Other);
-	FD3D12TransientResource::Swap(Other);
 	FD3D12LinkedAdapterObject<FD3D12Buffer>::Swap(Other);
 }
 

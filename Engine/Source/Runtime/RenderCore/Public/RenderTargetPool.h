@@ -354,9 +354,6 @@ private:
 	// sorted by size
 	SMemoryStats ComputeView();
 
-	// can be optimized to not be generated each time
-	void GenerateVRamAllocationUsage(TArray<FVRamAllocation>& Out);
-
 	friend struct FPooledRenderTarget;
 	friend class FVisualizeTexture;
 	friend class FVisualizeTexturePresent;

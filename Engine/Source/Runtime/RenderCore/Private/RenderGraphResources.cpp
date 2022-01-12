@@ -29,7 +29,7 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 	, bProduced(0)
 	, bTransient(0)
 	, bForceNonTransient(0)
-	, bAllowTransientExtracted(0)
+	, TransientExtractionHint(ETransientExtractionHint::None)
 	, bFinalizedAccess(0)
 	, bLastOwner(1)
 	, bCulled(1)

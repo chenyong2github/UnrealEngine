@@ -286,11 +286,14 @@ inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCoun
 
 	if (EnumHasAnyFlags(Flags, ERDGResourceExtractionFlags::AllowTransient))
 	{
-		Texture->bAllowTransientExtracted = 1;
+		if (Texture->TransientExtractionHint != FRDGTexture::ETransientExtractionHint::Disable)
+		{
+			Texture->TransientExtractionHint = FRDGTexture::ETransientExtractionHint::Enable;
+		}
 	}
 	else
 	{
-		Texture->bForceNonTransient = 1;
+		Texture->TransientExtractionHint = FRDGTexture::ETransientExtractionHint::Disable;
 	}
 
 	ExtractedTextures.Emplace(Texture, OutTexturePtr);

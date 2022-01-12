@@ -16,6 +16,7 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, GraphMessage)
 	UE_TRACE_EVENT_FIELD(uint16, PassCount)
 	UE_TRACE_EVENT_FIELD(uint64[], TransientMemoryCommitSizes)
 	UE_TRACE_EVENT_FIELD(uint64[], TransientMemoryCapacities)
+	UE_TRACE_EVENT_FIELD(uint8[],  TransientMemoryFlags)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(RDGTrace, GraphEndMessage)
@@ -142,14 +143,17 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 
 		TArray<uint64> TransientMemoryCommitSizes;
 		TArray<uint64> TransientMemoryCapacities;
+		TArray<uint8>  TransientMemoryFlags;
 
 		TransientMemoryCommitSizes.Reserve(TransientAllocationStats.MemoryRanges.Num());
 		TransientMemoryCapacities.Reserve(TransientAllocationStats.MemoryRanges.Num());
+		TransientMemoryFlags.Reserve(TransientAllocationStats.MemoryRanges.Num());
 
 		for (const auto& MemoryRange : TransientAllocationStats.MemoryRanges)
 		{
 			TransientMemoryCommitSizes.Emplace(MemoryRange.CommitSize);
 			TransientMemoryCapacities.Emplace(MemoryRange.Capacity);
+			TransientMemoryFlags.Emplace((uint8)MemoryRange.Flags);
 		}
 
 		UE_TRACE_LOG(RDGTrace, GraphMessage, RDGChannel)
@@ -158,7 +162,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< GraphMessage.EndCycles(FPlatformTime::Cycles64())
 			<< GraphMessage.PassCount(uint16(Passes.Num()))
 			<< GraphMessage.TransientMemoryCommitSizes(TransientMemoryCommitSizes.GetData(), (uint16)TransientMemoryCommitSizes.Num())
-			<< GraphMessage.TransientMemoryCapacities(TransientMemoryCapacities.GetData(), (uint16)TransientMemoryCapacities.Num());
+			<< GraphMessage.TransientMemoryCapacities(TransientMemoryCapacities.GetData(), (uint16)TransientMemoryCapacities.Num())
+			<< GraphMessage.TransientMemoryFlags(TransientMemoryFlags.GetData(), (uint16)TransientMemoryFlags.Num());
 	}
 
 	for (FRDGPassHandle Handle = Passes.Begin(); Handle != Passes.End(); ++Handle)

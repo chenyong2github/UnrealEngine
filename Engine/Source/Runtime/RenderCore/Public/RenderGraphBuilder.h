@@ -706,7 +706,7 @@ private:
 
 	bool IsTransient(FRDGTextureRef Texture) const;
 	bool IsTransient(FRDGBufferRef Buffer) const;
-	bool IsTransientInternal(FRDGParentResourceRef Resource) const;
+	bool IsTransientInternal(FRDGParentResourceRef Resource, bool bFastVRAM) const;
 
 	FRHIRenderPassInfo GetRenderPassInfo(const FRDGPass* Pass) const;
 
