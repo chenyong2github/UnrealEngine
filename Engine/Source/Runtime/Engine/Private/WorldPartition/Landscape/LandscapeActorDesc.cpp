@@ -41,4 +41,30 @@ void FLandscapeActorDesc::Unload()
 
 	FPartitionActorDesc::Unload();
 }
+
+void FLandscapeActorDesc::OnRegister(UWorld* InWorld)
+{
+	FPartitionActorDesc::OnRegister(InWorld);
+
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(Container->GetWorld(), GridGuid))
+	{
+		FWorldPartitionHandle Handle(Container, GetGuid());
+		check(Handle.IsValid());
+		LandscapeInfo->ProxyHandles.Add(MoveTemp(Handle));
+	}
+}
+
+void FLandscapeActorDesc::OnUnregister()
+{
+	FPartitionActorDesc::OnUnregister();
+
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), GridGuid))
+	{
+		FWorldPartitionHandle Handle(Container, GetGuid());
+		if (Handle.IsValid())
+		{
+			LandscapeInfo->ProxyHandles.Remove(Handle);
+		}
+	}
+}
 #endif

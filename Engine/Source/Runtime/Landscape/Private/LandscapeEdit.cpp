@@ -60,11 +60,8 @@ LandscapeEdit.cpp: Landscape editing
 #include "ScopedTransaction.h"
 #include "Editor.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
-#include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
-#include "WorldPartition/Landscape/LandscapeSplineActorDesc.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "LandscapeSplineActor.h"
 #endif
@@ -2387,46 +2384,36 @@ bool ULandscapeInfo::AreAllComponentsRegistered() const
 
 bool ULandscapeInfo::HasUnloadedComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2) const
 {
-	bool bResult = false;
-
-	if (LandscapeActor)
+	if (!LandscapeActor)
 	{
-		UWorld* World = LandscapeActor->GetWorld();
+		return false;
+	}
 
-		int32 ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2;
-		ALandscape::CalcComponentIndicesOverlap(X1, Y1, X2, Y2, ComponentSizeQuads, ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2);
+	UWorld* World = LandscapeActor->GetWorld();
 
-		const UActorPartitionSubsystem::FCellCoord MinCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(FIntPoint(ComponentIndexX1 * ComponentSizeQuads, ComponentIndexY1 * ComponentSizeQuads), World->PersistentLevel, LandscapeActor->GridSize);
-		const UActorPartitionSubsystem::FCellCoord MaxCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(FIntPoint(ComponentIndexX2 * ComponentSizeQuads, ComponentIndexY2 * ComponentSizeQuads), World->PersistentLevel, LandscapeActor->GridSize);
+	int32 ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2;
+	ALandscape::CalcComponentIndicesOverlap(X1, Y1, X2, Y2, ComponentSizeQuads, ComponentIndexX1, ComponentIndexY1, ComponentIndexX2, ComponentIndexY2);
 
-		if (World)
+	UActorPartitionSubsystem::FCellCoord MinCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(FIntPoint(ComponentIndexX1 * ComponentSizeQuads, ComponentIndexY1 * ComponentSizeQuads), World->PersistentLevel, LandscapeActor->GridSize);
+	UActorPartitionSubsystem::FCellCoord MaxCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(FIntPoint(ComponentIndexX2 * ComponentSizeQuads, ComponentIndexY2 * ComponentSizeQuads), World->PersistentLevel, LandscapeActor->GridSize);
+
+	for (const FWorldPartitionHandle& Handle : ProxyHandles)
+	{
+		if (FLandscapeActorDesc* LandscapeActorDesc = (FLandscapeActorDesc*)Handle.Get())
 		{
-			if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+			check(LandscapeActorDesc->GridGuid == LandscapeGuid);
+			UActorPartitionSubsystem::FCellCoord ActorCoord(LandscapeActorDesc->GridIndexX, LandscapeActorDesc->GridIndexY, LandscapeActorDesc->GridIndexZ, World->PersistentLevel);
+			if (ActorCoord.X >= MinCoord.X && ActorCoord.Y >= MinCoord.Y && ActorCoord.X <= MaxCoord.X && ActorCoord.Y <= MaxCoord.Y)
 			{
-				FWorldPartitionHelpers::ForEachActorDesc<ALandscapeProxy>(WorldPartition, [this, World, &MinCoord, &MaxCoord, &bResult](const FWorldPartitionActorDesc* ActorDesc)
+				if (!Handle.IsLoaded())
 				{
-					FLandscapeActorDesc* LandscapeActorDesc = (FLandscapeActorDesc*)ActorDesc;
-
-					if (LandscapeActorDesc->GridGuid == LandscapeGuid)
-					{
-						const UActorPartitionSubsystem::FCellCoord ActorCoord(LandscapeActorDesc->GridIndexX, LandscapeActorDesc->GridIndexY, LandscapeActorDesc->GridIndexZ, World->PersistentLevel);
-						if (ActorCoord.X >= MinCoord.X && ActorCoord.Y >= MinCoord.Y && ActorCoord.X <= MaxCoord.X && ActorCoord.Y <= MaxCoord.Y)
-						{
-							if (!LandscapeActorDesc->IsLoaded())
-							{
-								bResult = true;
-								return false;
-							}
-						}
-					}
-
 					return true;
-				});
+				}
 			}
 		}
 	}
 
-	return bResult;
+	return false;
 }
 
 void ULandscapeInfo::GetComponentsInRegion(int32 X1, int32 Y1, int32 X2, int32 Y2, TSet<ULandscapeComponent*>& OutComponents, bool bOverlap) const
@@ -5116,24 +5103,19 @@ void ALandscapeStreamingProxy::PostRegisterAllComponents()
 		check(LandscapeInfo);
 		if (GEditor && !GetWorld()->IsGameWorld())
 		{
-			if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+			const TSet<FWorldPartitionHandle>& SplineHandles = LandscapeInfo->GetSplineHandles();
+			if (SplineHandles.Num())
 			{
-				const FVector ActorLocation = GetActorLocation();
-				const FBox Bounds(ActorLocation, ActorLocation + (GridSize * LandscapeInfo->DrawScale));
-
-				FWorldPartitionHelpers::ForEachActorDesc<ALandscapeSplineActor>(WorldPartition, [this, WorldPartition, &Bounds](const FWorldPartitionActorDesc* ActorDesc) mutable
+				FVector ActorLocation = GetActorLocation();
+				FBox Bounds(ActorLocation, ActorLocation + (GridSize * LandscapeInfo->DrawScale));
+				// Get a reference to Spline Actors that have intersecting bounds with us
+				for (const FWorldPartitionHandle& SplineHandle : LandscapeInfo->GetSplineHandles())
 				{
-					FLandscapeSplineActorDesc* LandscapeSplineActorDesc = (FLandscapeSplineActorDesc*)ActorDesc;
-
-					if (LandscapeSplineActorDesc->LandscapeGuid == LandscapeGuid)
+					if (SplineHandle.IsValid() && Bounds.IntersectXY(SplineHandle->GetBounds()))
 					{
-						if (Bounds.IntersectXY(ActorDesc->GetBounds()))
-						{
-							ActorDescReferences.Add(FWorldPartitionReference(WorldPartition, ActorDesc->GetGuid()));
-						}
+						ActorDescReferences.Add(SplineHandle);
 					}
-					return true;
-				});
+				}
 			}
 		}
 	}
@@ -5186,35 +5168,23 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 	}
 
 	// Then check for Unloaded Proxies
-	if (AActor* Actor = LandscapeActor.Get())
+	for (const FWorldPartitionHandle& Handle : ProxyHandles)
 	{
-		UWorld* World = Actor->GetWorld();
-		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+		ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(Handle->GetActor());
+		if (LandscapeProxy == LandscapeActor)
 		{
-			FWorldPartitionHelpers::ForEachActorDesc<ALandscapeProxy>(WorldPartition, [this, &UndeletedProxyCount](const FWorldPartitionActorDesc* ActorDesc)
-			{
-				FLandscapeActorDesc* LandscapeActorDesc = (FLandscapeActorDesc*)ActorDesc;
-
-				if (LandscapeActorDesc->GridGuid == LandscapeGuid)
-				{
-					ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(ActorDesc->GetActor());
-					if (LandscapeProxy != LandscapeActor)
-					{
-						// If LandscapeProxy is null then it is not loaded so not deleted.
-						if (!LandscapeProxy)
-						{
-							++UndeletedProxyCount;
-						}
-						else
-						{
-							// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
-							check(Proxies.Contains(LandscapeProxy) == IsValidChecked(LandscapeProxy));
-						}
-					}
-				}
-
-				return true;
-			});
+			continue;
+		}
+		
+		// If LandscapeProxy is null then it is not loaded so not deleted.
+		if (!LandscapeProxy)
+		{
+			++UndeletedProxyCount;
+		}
+		else
+		{
+			// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
+			check(Proxies.Contains(LandscapeProxy) == IsValidChecked(LandscapeProxy));
 		}
 	}
 
@@ -5230,33 +5200,19 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 	}
 
 	// Then check for Unloaded Splines
-	if (AActor* Actor = LandscapeActor.Get())
+	for (const FWorldPartitionHandle& Handle : SplineHandles)
 	{
-		UWorld* World = Actor->GetWorld();
-		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
-		{
-			FWorldPartitionHelpers::ForEachActorDesc<ALandscapeSplineActor>(WorldPartition, [this, &UndeletedSplineCount](const FWorldPartitionActorDesc* ActorDesc)
-			{
-				FLandscapeSplineActorDesc* LandscapeSplineActorDesc = (FLandscapeSplineActorDesc*)ActorDesc;
-
-				if (LandscapeSplineActorDesc->LandscapeGuid == LandscapeGuid)
-				{
-					ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(LandscapeSplineActorDesc->GetActor());
+		ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(Handle->GetActor());
 		
-					// If SplineActor is null then it is not loaded/deleted. If it's loaded then it needs to be pending kill.
-					if (!SplineActor)
-					{
-						++UndeletedSplineCount;
-					}
-					else
-					{
-						// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
-						check(SplineActors.Contains(SplineActor) == IsValidChecked(SplineActor));
-					}
-				}
-
-				return true;
-			});
+		// If SplineActor is null then it is not loaded/deleted. If it's loaded then it needs to be pending kill.
+		if (!SplineActor)
+		{
+			++UndeletedSplineCount;
+		}
+		else
+		{
+			// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
+			check(SplineActors.Contains(SplineActor) == IsValidChecked(SplineActor));
 		}
 	}
 
