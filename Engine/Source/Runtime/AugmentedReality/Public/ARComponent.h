@@ -210,7 +210,8 @@ struct AUGMENTEDREALITY_API FAccumulatedNormal
 	FVector Normal = FVector::ZeroVector;
 	uint32 NumFaces = 0;
 	
-	static void CalculateVertexNormals(TArray<FAccumulatedNormal>& AccumulatedNormals, const TArray<FVector>& Vertices, const TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FPackedNormal>& OutTangentData, FVector MeshCenter = FVector::ZeroVector, float PositionScale = 1.f);
+	template<typename VertexType>
+	static void CalculateVertexNormals(TArray<FAccumulatedNormal>& AccumulatedNormals, const TArray<VertexType>& Vertices, const TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FPackedNormal>& OutTangentData, FVector MeshCenter = FVector::ZeroVector, float PositionScale = 1.f);
 };
 
 /**

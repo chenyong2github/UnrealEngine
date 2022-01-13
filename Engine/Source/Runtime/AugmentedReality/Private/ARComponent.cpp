@@ -574,7 +574,8 @@ void UARMeshComponent::UpdateVisualization_Implementation()
 	}
 }
 
-void FAccumulatedNormal::CalculateVertexNormals(TArray<FAccumulatedNormal>& AccumulatedNormals, const TArray<FVector>& Vertices, const TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FPackedNormal>& OutTangentData, FVector MeshCenter, float PositionScale)
+template<typename VertexType>
+void FAccumulatedNormal::CalculateVertexNormals(TArray<FAccumulatedNormal>& AccumulatedNormals, const TArray<VertexType>& Vertices, const TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FPackedNormal>& OutTangentData, FVector MeshCenter, float PositionScale)
 {
 	SCOPE_CYCLE_COUNTER(STAT_CalculateVertexNormals);
 	
@@ -632,6 +633,9 @@ void FAccumulatedNormal::CalculateVertexNormals(TArray<FAccumulatedNormal>& Accu
 		OutTangentData[2 * Index + 1] = FPackedNormal(AccumulatedNormal.Normal);
 	}
 }
+// instantiate for FVector3d and FVector3f
+template void FAccumulatedNormal::CalculateVertexNormals<FVector3d>(TArray<FAccumulatedNormal>& AccumulatedNormals, const TArray<FVector>& Vertices, const TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FPackedNormal>& OutTangentData, FVector MeshCenter, float PositionScale);
+template void FAccumulatedNormal::CalculateVertexNormals<FVector3f>(TArray<FAccumulatedNormal>& AccumulatedNormals, const TArray<FVector3f>& Vertices, const TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FPackedNormal>& OutTangentData, FVector MeshCenter, float PositionScale);
 
 void UARFaceComponent::UpdateVisualization_Implementation()
 {
