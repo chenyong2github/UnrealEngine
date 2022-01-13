@@ -724,6 +724,11 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, cons
 	return bIsValid;
 }
 
+bool UMetaSoundSource::IsLooping()
+{
+	return !IsOneShot();
+}
+
 bool UMetaSoundSource::IsOneShot()
 {
 	using namespace Metasound::Frontend;

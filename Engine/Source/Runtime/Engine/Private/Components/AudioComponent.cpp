@@ -603,7 +603,7 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 	USoundBase* SoundToPlay = InSoundOverride ? InSoundOverride : Sound.Get();
 	if (SoundToPlay)
 	{
-		UE_LOG(LogAudio, Verbose, TEXT("%g: Playing AudioComponent : '%s' with Sound: '%s'"), AudioTimeSeconds, *GetFullName(), *SoundToPlay->GetName());
+		UE_LOG(LogAudio, Verbose, TEXT("%g: Playing AudioComponent : '%s' with Sound: '%s'. OneShot?: '%s'"), AudioTimeSeconds, *GetFullName(), *SoundToPlay->GetName(), !SoundToPlay->IsLooping() ? TEXT("YES") : TEXT("NO"));
 	}
 
 	// Reset our fading out flag in case this is a reused audio component and we are replaying after previously fading out
