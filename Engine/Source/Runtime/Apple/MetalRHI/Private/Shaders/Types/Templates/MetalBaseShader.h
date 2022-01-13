@@ -20,7 +20,7 @@
 #pragma mark - Metal RHI Base Shader Class Support Routines
 
 
-extern mtlpp::LanguageVersion ValidateVersion(uint8 Version);
+extern mtlpp::LanguageVersion ValidateVersion(uint32 Version);
 
 
 //------------------------------------------------------------------------------
@@ -300,38 +300,22 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 #endif
 
 			mtlpp::LanguageVersion MetalVersion;
-			switch(Header.Version)
+			switch (Header.Version)
 			{
+				case 7:
+					MetalVersion = mtlpp::LanguageVersion::Version2_4;
+					break;
 				case 6:
+					MetalVersion = mtlpp::LanguageVersion::Version2_3;
+					break;
 				case 5:
-				case 4:
-					MetalVersion = mtlpp::LanguageVersion::Version2_1;
-					break;
-				case 3:
-					MetalVersion = mtlpp::LanguageVersion::Version2_0;
-					break;
-				case 2:
-					MetalVersion = mtlpp::LanguageVersion::Version1_2;
-					break;
-				case 1:
-					MetalVersion = mtlpp::LanguageVersion::Version1_1;
-					break;
-				case 0:
-#if PLATFORM_MAC
-					MetalVersion = mtlpp::LanguageVersion::Version1_1;
-#else
-					MetalVersion = mtlpp::LanguageVersion::Version1_0;
-#endif
+					MetalVersion = mtlpp::LanguageVersion::Version2_2;
 					break;
 				default:
 					UE_LOG(LogRHI, Fatal, TEXT("Failed to create shader with unknown version %d: %s"), Header.Version, *FString(NewShaderString));
-#if PLATFORM_MAC
-					MetalVersion = mtlpp::LanguageVersion::Version1_1;
-#else
-					MetalVersion = mtlpp::LanguageVersion::Version1_0;
-#endif
+					MetalVersion = mtlpp::LanguageVersion::Version2_2;
 					break;
-				}
+			}
 			CompileOptions.SetLanguageVersion(MetalVersion);
 
 			ns::AutoReleasedError Error;

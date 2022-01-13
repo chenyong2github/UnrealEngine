@@ -172,7 +172,7 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboards(const TArray< FUniqueNetIdRef >& P
 		}
 
 		// Kick off a game center read request for the list of users
-		if ([GKLeaderboard instancesRespondToSelector:@selector(initWithPlayers:)] == YES)
+		if ([GKLeaderboard instancesRespondToSelector:@selector(loadEntriesForPlayerScope:timeScope:range:completionHandler:)] == YES)
 		{
             [GKPlayer loadPlayersForIdentifiers:FriendIds withCompletionHandler:^(NSArray *players, NSError *Error)
              {

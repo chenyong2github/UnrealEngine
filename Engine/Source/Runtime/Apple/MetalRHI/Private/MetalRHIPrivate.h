@@ -229,7 +229,7 @@ uint32 SafeGetRuntimeDebuggingLevel();
 
 extern int32 GMetalBufferZeroFill;
 
-mtlpp::LanguageVersion ValidateVersion(uint8 Version);
+mtlpp::LanguageVersion ValidateVersion(uint32 Version);
 
 // Needs to be the same as EShaderFrequency when all stages are supported, but unlike EShaderFrequency you can compile out stages.
 enum EMetalShaderStages

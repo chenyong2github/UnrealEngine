@@ -243,7 +243,7 @@ struct FMetalCodeHeader
 	uint32 NumThreadsZ;
 	uint32 CompileFlags;
 	uint8 Frequency;
-	uint8 Version;
+	uint32 Version;
 	int8 SideTable;
 	bool bDeviceFunctionConstants;
 	

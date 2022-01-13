@@ -48,7 +48,7 @@ public:
 		
 		int32 Value = 1;
         GConfig->GetInt(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("MaxShaderLanguageVersion"), Value, GEngineIni);
-        TargetSettings->MaxShaderLanguageVersion = FMath::Max(Value, 4);
+        TargetSettings->MaxShaderLanguageVersion = FMath::Max(Value, 7);
 		
 		if (!GConfig->GetBool(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("UseFastIntrinsics"), TargetSettings->UseFastIntrinsics, GEngineIni))
 		{
