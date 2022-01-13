@@ -142,12 +142,7 @@ class RHICORE_API FRHITransientResourceOverlapTracker
 {
 public:
 	void Track(FRHITransientResource* InResource, uint32 PageOffsetMin, uint32 PageOffsetMax);
-
-	void Reset()
-	{
-		ResourceRanges.Reset();
-		Resources.Reset();
-	}
+	void Reset();
 
 private:
 	struct FResourceRange

@@ -200,6 +200,31 @@ void FRHITransientResourceOverlapTracker::Track(FRHITransientResource* Transient
 
 //////////////////////////////////////////////////////////////////////////
 
+void FRHITransientResourceOverlapTracker::Reset()
+{
+	TArray<FResourceRange> AcquiredRanges;
+	TArray<FRHITransientResource*> AcquiredResources;
+	AcquiredRanges.Reserve(ResourceRanges.Num());
+	AcquiredResources.Reserve(Resources.Num());
+
+	for (FResourceRange Range : ResourceRanges)
+	{
+		FRHITransientResource* Resource = Resources[Range.ResourceIndex];
+
+		if (Resource->IsAcquired())
+		{
+			Range.ResourceIndex = AcquiredResources.Num();
+			AcquiredRanges.Emplace(Range);
+			AcquiredResources.Emplace(Resource);
+		}
+	}
+
+	Swap(ResourceRanges, AcquiredRanges);
+	Swap(Resources, AcquiredResources);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 template <typename ResourceContainerType>
 void LogActiveResources(const ResourceContainerType& Resources, uint64 CurrentCycle)
 {

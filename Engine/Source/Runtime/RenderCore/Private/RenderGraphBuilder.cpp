@@ -485,7 +485,7 @@ bool FRDGBuilder::IsTransientInternal(FRDGParentResourceRef Resource, bool bFast
 	}
 
 	// FastVRAM resources are always transient regardless of extraction or other hints, since they are performance critical.
-	if (!bFastVRAM)
+	if (!bFastVRAM || !FPlatformMemory::SupportsFastVRAMMemory())
 	{
 		if (GRDGTransientAllocator == 2)
 		{
