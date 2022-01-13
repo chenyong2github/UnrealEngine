@@ -195,15 +195,23 @@ struct FBlendFilter
 {
 	GENERATED_USTRUCT_BODY()
 
-	FFIRFilterTimeBased FilterPerAxis[3];
+	TArray<FFIRFilterTimeBased> FilterPerAxis;
 
 	FBlendFilter()
 	{
 	}
-
+	
+	bool IsValid() const
+	{
+		return FilterPerAxis.Num() > 0;
+	}
+	
 	FVector GetFilterLastOutput() const
 	{
-		return FVector (FilterPerAxis[0].LastOutput, FilterPerAxis[1].LastOutput, FilterPerAxis[2].LastOutput);
+		return FVector(
+			FilterPerAxis.Num() > 0 ? FilterPerAxis[0].LastOutput : 0.0f,
+			FilterPerAxis.Num() > 1 ? FilterPerAxis[1].LastOutput : 0.0f,
+			FilterPerAxis.Num() > 2 ? FilterPerAxis[2].LastOutput : 0.0f);
 	}
 };
 
