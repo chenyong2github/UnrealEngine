@@ -827,8 +827,19 @@ public:
 	*/
 	virtual bool AlwaysCompileOnLoad() const { return false; }
 
-	/** Some Blueprints (and classes) can recompile while we are debugging a live session. This function controls whether this can occur. */
-	virtual bool CanRecompileWhilePlayingInEditor() const;
+	/**
+	 * Some Blueprints (and classes) can recompile while we are debugging a live session (play in editor).
+	 * This function controls whether this can always occur.
+	 * There are also editor preferences and project settings that can be used to opt-in other classes even
+	 * when this returns false
+	 */
+	virtual bool CanAlwaysRecompileWhilePlayingInEditor() const;
+
+	UE_DEPRECATED(5.0, "CanRecompileWhilePlayingInEditor was renamed to CanAlwaysRecompileWhilePlayingInEditor to better explain usage.")
+	bool CanRecompileWhilePlayingInEditor() const
+	{
+		return CanAlwaysRecompileWhilePlayingInEditor();
+	}
 
 	/**
 	 * Check whether this blueprint can be nativized or not

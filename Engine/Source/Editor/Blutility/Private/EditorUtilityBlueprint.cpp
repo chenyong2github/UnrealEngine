@@ -20,8 +20,3 @@ bool UEditorUtilityBlueprint::AlwaysCompileOnLoad() const
 {
 	return true;
 }
-
-bool UEditorUtilityBlueprint::CanRecompileWhilePlayingInEditor() const
-{
-	return false;
-}

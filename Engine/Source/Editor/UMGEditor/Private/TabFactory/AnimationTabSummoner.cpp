@@ -741,7 +741,7 @@ private:
 
 	bool CanExecuteContextMenuAction() const
 	{
-		return AnimationListView->GetNumItemsSelected() == 1 && !BlueprintEditor.Pin()->InDebuggingMode();
+		return AnimationListView->GetNumItemsSelected() == 1 && !BlueprintEditor.Pin()->IsPlayInEditorActive();
 	}
 
 	void OnDuplicateAnimation()

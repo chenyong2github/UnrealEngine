@@ -199,7 +199,7 @@ void UAnimBlueprint::PostLoad()
 #endif
 }
 
-bool UAnimBlueprint::CanRecompileWhilePlayingInEditor() const
+bool UAnimBlueprint::CanAlwaysRecompileWhilePlayingInEditor() const
 {
 	return true;
 }

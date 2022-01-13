@@ -126,6 +126,4 @@ void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	OnSettingsChange.Broadcast(this, PropertyChangedEvent.ChangeType);
 }

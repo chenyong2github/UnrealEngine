@@ -34,6 +34,7 @@
 #include "EdGraphNode_Comment.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "Settings/BlueprintEditorProjectSettings.h"
 #include "GeneralProjectSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/TimelineComponent.h"
@@ -801,7 +802,60 @@ void FBlueprintEditor::OnClose()
 bool FBlueprintEditor::InEditingMode() const
 {
 	UBlueprint* Blueprint = GetBlueprintObj();
-	return !FSlateApplication::Get().InKismetDebuggingMode() && (!InDebuggingMode() || (Blueprint && Blueprint->CanRecompileWhilePlayingInEditor()));
+	if (!FSlateApplication::Get().InKismetDebuggingMode())
+	{
+		if (!IsPlayInEditorActive())
+		{
+			return true;
+		}
+		else
+		{
+			if (Blueprint)
+			{
+				if (Blueprint->CanAlwaysRecompileWhilePlayingInEditor())
+				{
+					return true;
+				}
+				else
+				{
+					if (ModifyDuringPIEStatus == ESafeToModifyDuringPIEStatus::Unknown)
+					{
+						// Check for project settings or editor preferences that allow this anyways
+						ModifyDuringPIEStatus = ESafeToModifyDuringPIEStatus::NotSafe;
+
+						auto CheckClassList = [](UClass* TestClass, const TArray<TSoftClassPtr<UObject>>& ClassList)
+						{
+							for (const TSoftClassPtr<UObject>& SoftBaseClass : ClassList)
+							{
+								// Safe to call Get() instead of doing a load, as we can't possibly be derived from an unloaded class
+								if (UClass* BaseClass = SoftBaseClass.Get())
+								{
+									if (TestClass->IsChildOf(BaseClass))
+									{
+										return true;
+									}
+								}
+							}
+							return false;
+						};
+
+						if (UClass* TestClass = Blueprint->GeneratedClass)
+						{
+							if (CheckClassList(TestClass, GetDefault<UBlueprintEditorSettings>()->BaseClassesToAllowRecompilingDuringPlayInEditor) ||
+								CheckClassList(TestClass, GetDefault<UBlueprintEditorProjectSettings>()->BaseClassesToAllowRecompilingDuringPlayInEditor))
+							{
+								ModifyDuringPIEStatus = ESafeToModifyDuringPIEStatus::Safe;
+							}
+						}
+					}
+
+					return ModifyDuringPIEStatus == ESafeToModifyDuringPIEStatus::Safe;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 bool FBlueprintEditor::IsCompilingEnabled() const
@@ -810,14 +864,14 @@ bool FBlueprintEditor::IsCompilingEnabled() const
 	return Blueprint && Blueprint->BlueprintType != BPTYPE_MacroLibrary && InEditingMode();
 }
 
-bool FBlueprintEditor::InDebuggingMode() const
+bool FBlueprintEditor::IsPlayInEditorActive() const
 {
 	return GEditor->PlayWorld != nullptr;
 }
 
 EVisibility FBlueprintEditor::IsDebuggerVisible() const
 {
-	return InDebuggingMode() ? EVisibility::Visible : EVisibility::Collapsed;
+	return IsPlayInEditorActive() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 int32 FBlueprintEditor::GetNumberOfSelectedNodes() const
@@ -2167,6 +2221,12 @@ void FBlueprintEditor::InitBlueprintEditor(
 			DumpMessagesToCompilerLog(Blueprint->UpgradeNotesLog->Messages, true);
 		}
 	}
+
+	// Register for notifications when settings change
+	BlueprintEditorSettingsChangedHandle = GetMutableDefault<UBlueprintEditorSettings>()->OnSettingChanged()
+		.AddRaw(this, &FBlueprintEditor::OnBlueprintEditorPreferencesChanged);
+	BlueprintProjectSettingsChangedHandle = GetMutableDefault<UBlueprintEditorProjectSettings>()->OnSettingChanged()
+		.AddRaw(this, &FBlueprintEditor::OnBlueprintProjectSettingsChanged);
 }
 
 void FBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
@@ -2562,6 +2622,10 @@ void FBlueprintEditor::SetupViewForBlueprintEditingMode()
 
 FBlueprintEditor::~FBlueprintEditor()
 {
+	// Stop watching the settings
+	GetMutableDefault<UBlueprintEditorSettings>()->OnSettingChanged().Remove(BlueprintEditorSettingsChangedHandle);
+	GetMutableDefault<UBlueprintEditorProjectSettings>()->OnSettingChanged().Remove(BlueprintProjectSettingsChangedHandle);
+
 	// Clean up the preview
 	DestroyPreview();
 
@@ -3219,6 +3283,9 @@ void FBlueprintEditor::ReparentBlueprint_NewParentChosen(UClass* ChosenClass)
 		}
 	}
 
+	//@TODO: This is probably insufficient as you could reparent the parent instead and we wouldn't get notified
+	ModifyDuringPIEStatus = ESafeToModifyDuringPIEStatus::Unknown;
+
 	FSlateApplication::Get().DismissAllMenus();
 }
 
@@ -3496,7 +3563,8 @@ void FBlueprintEditor::UndoGraphAction()
 
 bool FBlueprintEditor::CanUndoGraphAction() const
 {
-	return !InDebuggingMode();
+	//@TODO: Should probably allow this for BPs that can be edited during PIE (basically returning InEditingMode instead)
+	return !IsPlayInEditorActive();
 }
 
 void FBlueprintEditor::RedoGraphAction()
@@ -3506,7 +3574,8 @@ void FBlueprintEditor::RedoGraphAction()
 
 bool FBlueprintEditor::CanRedoGraphAction() const
 {
-	return !InDebuggingMode();
+	//@TODO: Should probably allow this for BPs that can be edited during PIE (basically returning InEditingMode instead)
+	return !IsPlayInEditorActive();
 }
 
 void FBlueprintEditor::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
@@ -10229,6 +10298,16 @@ bool FBlueprintEditor::IsNonImportedObject(const UObject* InObject) const
 	}
 
 	return bNotImported;
+}
+
+void FBlueprintEditor::OnBlueprintProjectSettingsChanged(UObject*, struct FPropertyChangedEvent&)
+{
+	ModifyDuringPIEStatus = ESafeToModifyDuringPIEStatus::Unknown;
+}
+
+void FBlueprintEditor::OnBlueprintEditorPreferencesChanged(UObject*, struct FPropertyChangedEvent&)
+{
+	ModifyDuringPIEStatus = ESafeToModifyDuringPIEStatus::Unknown;
 }
 
 /////////////////////////////////////////////////////

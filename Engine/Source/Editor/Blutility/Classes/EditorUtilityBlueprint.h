@@ -19,6 +19,5 @@ class BLUTILITY_API UEditorUtilityBlueprint : public UBlueprint
 	// UBlueprint interface
 	virtual bool SupportedByDefaultBlueprintFactory() const override;
 	virtual bool AlwaysCompileOnLoad() const override;
-	virtual bool CanRecompileWhilePlayingInEditor() const override;
 	// End of UBlueprint interface
 };

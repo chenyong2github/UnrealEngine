@@ -53,6 +53,8 @@ class UToolMenu;
 class FBlueprintNamespaceHelper;
 class SSubobjectEditor;
 class FSubobjectEditorTreeNode;
+class UBlueprintEditorSettings;
+class UBlueprintEditorProjectSettings;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID
@@ -333,8 +335,8 @@ public:
 	/** Dumps messages to the compiler log, with an option to force it to display/come to front */
 	void DumpMessagesToCompilerLog(const TArray<TSharedRef<class FTokenizedMessage>>& Messages, bool bForceMessageDisplay);
 
-	/** Returns true if in debugging mode */
-	bool InDebuggingMode() const;
+	/** Returns true if PIE is active */
+	bool IsPlayInEditorActive() const;
 
 	/** Get the currently selected set of nodes */
 	FGraphPanelSelectionSet GetSelectedNodes() const;
@@ -1508,8 +1510,24 @@ private:
 	/** Handle to the registered OnActiveTabChanged delegate */
 	FDelegateHandle OnActiveTabChangedDelegateHandle;
 
+	/** Delegate handle registered for when settings change */
+	FDelegateHandle BlueprintEditorSettingsChangedHandle;
+	FDelegateHandle BlueprintProjectSettingsChangedHandle;
+
+	enum class ESafeToModifyDuringPIEStatus
+	{
+		Unknown,
+		Safe,
+		NotSafe
+	};
+
+	mutable ESafeToModifyDuringPIEStatus ModifyDuringPIEStatus = ESafeToModifyDuringPIEStatus::Unknown;
+
 	// Allow derived editors to add command mappings 
 	virtual void OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList) {}
+
+	virtual void OnBlueprintProjectSettingsChanged(UObject*, struct FPropertyChangedEvent&);
+	virtual void OnBlueprintEditorPreferencesChanged(UObject*, struct FPropertyChangedEvent&);
 };
 
 #undef LOCTEXT_NAMESPACE

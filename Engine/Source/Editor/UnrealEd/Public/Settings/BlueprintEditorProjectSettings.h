@@ -60,6 +60,14 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Experimental, meta=(EditCondition="bEnableChildActorExpansionInTreeView"))
 	EChildActorComponentTreeViewVisualizationMode DefaultChildActorTreeViewMode;
 
+	/**
+	 * Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor
+	 * (This setting exists both as an editor preference and project setting, and will be allowed if listed in either place) 
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Play, meta=(AllowAbstract))
+	TArray<TSoftClassPtr<UObject>> BaseClassesToAllowRecompilingDuringPlayInEditor;
+
+public:
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface

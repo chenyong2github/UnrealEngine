@@ -68,17 +68,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Blueprints, meta=(DisplayName="Blueprint Break on Exceptions"))
 	bool bBreakOnExceptions;
 
-protected:
-	/** Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor */
-	UPROPERTY(EditAnywhere, config, Category = Blueprints, meta=(AllowAbstract))
-	TArray<TSoftClassPtr<UObject>> BaseClassesToAllowRecompilingDuringPlayInEditor;
-
-	UPROPERTY(Transient)
-	mutable TArray<TObjectPtr<UClass>> ResolvedBaseClassesToAllowRecompilingDuringPlayInEditor;
-
-public:
-	bool IsClassAllowedToRecompileDuringPIE(UClass* TestClass) const;
-
 	/** Should arrows indicating data/execution flow be drawn halfway along wires? */
 	UPROPERTY(/*EditAnywhere - deprecated (moved into UBlueprintEditorSettings), */config/*, Category=Blueprints, meta=(DisplayName="Draw midpoint arrows in Blueprints")*/)
 	bool bDrawMidpointArrowsInBlueprints;

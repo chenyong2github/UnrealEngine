@@ -50,8 +50,7 @@ template<> struct TStructOpsTypeTraits<FPerBlueprintSettings> : public TStructOp
 };
 
 UCLASS(config=EditorPerProjectUserSettings)
-class BLUEPRINTGRAPH_API UBlueprintEditorSettings
-	:	public UObject
+class BLUEPRINTGRAPH_API UBlueprintEditorSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -247,20 +246,12 @@ public:
 	UPROPERTY(config)
 	TMap<int32, FEditedDocumentInfo> GraphEditorQuickJumps;
 
-public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUpdateSettingsMulticaster, const UBlueprintEditorSettings*, EPropertyChangeType::Type);
-	FOnUpdateSettingsMulticaster OnSettingsChange;
-
-	FDelegateHandle RegisterOnUpdateSettings(const FOnUpdateSettingsMulticaster::FDelegate& Delegate)
-	{
-		return OnSettingsChange.Add(Delegate);
-	}
-
-	void UnregisterOnUpdateSettings(FDelegateHandle Object)
-	{
-		OnSettingsChange.Remove(Object);
-	}
-	
+	/**
+	 * Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor
+	 * (This setting exists both as an editor preference and project setting, and will be allowed if listed in either place) 
+	 */
+	UPROPERTY(EditAnywhere, config, Category=Play, meta=(AllowAbstract))
+	TArray<TSoftClassPtr<UObject>> BaseClassesToAllowRecompilingDuringPlayInEditor;
 
 protected:
 	//~ Begin UObject Interface
