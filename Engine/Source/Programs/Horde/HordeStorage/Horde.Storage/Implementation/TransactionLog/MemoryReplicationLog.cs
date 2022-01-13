@@ -182,7 +182,7 @@ namespace Horde.Storage.Implementation
 
         public static string ToReplicationBucketIdentifier(this DateTime timestamp)
         {
-            return $"rep-{timestamp.ToFileTime()}";
+            return $"rep-{timestamp.ToFileTimeUtc()}";
         }
     }
 }
