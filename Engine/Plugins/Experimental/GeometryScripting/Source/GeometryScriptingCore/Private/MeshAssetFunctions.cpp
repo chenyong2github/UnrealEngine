@@ -231,11 +231,7 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 		ToStaticMeshAsset->SetStaticMaterials(NewMaterials);
 
 		// Reset the section info map
-		int32 NumSections = ToStaticMeshAsset->GetSectionInfoMap().GetSectionNumber(UseLODIndex);
-		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
-		{
-			ToStaticMeshAsset->GetSectionInfoMap().Remove(UseLODIndex, SectionIndex);
-		}
+		ToStaticMeshAsset->GetSectionInfoMap().Clear();
 	}
 
 	ToStaticMeshAsset->CommitMeshDescription(UseLODIndex);

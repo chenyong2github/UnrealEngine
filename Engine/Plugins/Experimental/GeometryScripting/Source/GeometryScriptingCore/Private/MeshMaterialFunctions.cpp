@@ -415,58 +415,6 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::CompactMaterialIDs(
 					SourceMaterialList[OldIndex] : nullptr;
 			}
 
-			//TArray<int32> KnownMaterialIDs;
-			//int32 MaxMaterialID = -1, MinMaterialID = TNumericLimits<int32>::Max();
-			//for (int32 TriangleID : EditMesh.TriangleIndicesItr())
-			//{
-			//	int32 MaterialID = MaterialIDs->GetValue(TriangleID);
-			//	MaxMaterialID = FMath::Max(MaterialID, MaxMaterialID);
-			//	MinMaterialID = FMath::Min(MaterialID, MinMaterialID);
-			//	KnownMaterialIDs.AddUnique(MaterialID);
-			//}
-			//if (MinMaterialID < 0)
-			//{
-			//	UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CompactMaterialIDs_InvalidMaterialID", "CompactMaterialIDs: Negative MaterialID found, unsafe to Compact"));
-			//	return;
-			//}
-			//if ( MaxMaterialID == (KnownMaterialIDs.Num()-1) )
-			//{
-			//	// set is already compact, nothing to do
-			//	return;
-			//}
-
-			//TArray<int32> MaterialIDMap;
-			//MaterialIDMap.Init(-1, MaxMaterialID+1);
-
-			//int32 NewMaterialIDCounter = 0;
-			//int32 NewMaxID = 0;
-			//for (int32 TriangleID : EditMesh.TriangleIndicesItr())
-			//{
-			//	int32 MaterialID = MaterialIDs->GetValue(TriangleID);
-			//	if (MaterialIDMap[MaterialID] == -1)
-			//	{
-			//		MaterialIDMap[MaterialID] = NewMaterialIDCounter;
-			//		NewMaxID = FMath::Max(NewMaxID, NewMaterialIDCounter);
-			//		NewMaterialIDCounter++;
-			//	}
-			//	int32 NewMaterialID = MaterialIDMap[MaterialID];
-			//	MaterialIDs->SetValue(TriangleID, NewMaterialID);
-			//}
-
-			//CompactedMaterialList.Reset();
-			//if ( SourceMaterialList.Num() == (MaxMaterialID+1) )
-			//{
-			//	CompactedMaterialList.SetNum(NewMaterialIDCounter);
-			//	for (int32 k = 0; k <= MaxMaterialID; ++k)
-			//	{
-			//		if (MaterialIDMap[k] >= 0)
-			//		{
-			//			CompactedMaterialList[MaterialIDMap[k]] = SourceMaterialList[k];
-			//		}
-			//		
-			//	}
-			//}
-
 		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 	}
 	return TargetMesh;
