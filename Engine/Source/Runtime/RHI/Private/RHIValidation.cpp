@@ -582,7 +582,8 @@ namespace RHIValidation
 				ERHIAccess::DSVRead |
 				ERHIAccess::DSVWrite |
 				ERHIAccess::SRVGraphics |
-				ERHIAccess::SRVCompute;
+				ERHIAccess::SRVCompute |
+				ERHIAccess::CopySrc;
 
 			return AccessMask & CompatibleStates;
 		}
