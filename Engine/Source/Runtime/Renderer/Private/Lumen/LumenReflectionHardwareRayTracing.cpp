@@ -108,7 +108,7 @@ namespace Lumen
 #if RHI_RAYTRACING
 		return IsRayTracingEnabled() 
 			&& Lumen::UseHardwareRayTracing() 
-			&& (CVarLumenReflectionsHardwareRayTracing.GetValueOnRenderThread() != 0);
+			&& (CVarLumenReflectionsHardwareRayTracing.GetValueOnAnyThread() != 0);
 #else
 		return false;
 #endif
