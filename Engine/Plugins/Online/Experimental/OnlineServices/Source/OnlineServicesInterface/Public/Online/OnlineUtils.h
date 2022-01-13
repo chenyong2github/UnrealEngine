@@ -8,6 +8,19 @@ namespace UE::Online {
 
 template <typename T> FString ToLogString(const TArray<T>& Array);
 template <typename K, typename V> FString ToLogString(const TMap<K, V>& Map);
+template <typename T, ESPMode Mode> FString ToLogString(const TSharedPtr<T, Mode>& Ptr);
+template <typename T> FString ToLogString(const TOptional<T> Optional);
+template <typename... Ts> FString ToLogString(const TVariant<Ts...>& Variant);
+template <typename T, ESPMode Mode> FString ToLogString(const TSharedRef<T, Mode>& Ref);
+inline FString ToLogString(const FString& String);
+inline FString ToLogString(uint8 Value);
+inline FString ToLogString(int8 Value);
+inline FString ToLogString(uint16 Value);
+inline FString ToLogString(int16 Value);
+inline FString ToLogString(uint32 Value);
+inline FString ToLogString(int32 Value);
+inline FString ToLogString(uint64 Value);
+inline FString ToLogString(int64 Value);
 template <typename T> std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value);
 template <typename T> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value);
 

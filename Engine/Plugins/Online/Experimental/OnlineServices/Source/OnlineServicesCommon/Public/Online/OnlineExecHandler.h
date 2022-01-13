@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Online/CoreOnline.h"
 #include "Online/OnlineUtils.h"
 #include "Online/OnlineServicesLog.h"
 
@@ -57,6 +58,21 @@ struct TOnlineInterfaceOperationMemberFunctionPtrTraits<TOnlineAsyncOpHandle<TOp
 	static constexpr bool bAsync = true;
 };
 
+// Forward declarations for dependent type resolution
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, FString& Value);
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, FName& Value);
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint8& Value);
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, int32& Value);
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint32& Value);
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, int64& Value);
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint64& Value);
+template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TArray<T>& Array);
+template <typename T, typename U> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TMap<T, U>& Map);
+template <typename... Ts> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TVariant<Ts...>& Variant);
+template <typename IdType> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineIdHandle<IdType>& Value);
+template <typename T> std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value);
+template <typename T> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value);
+
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, FString& Value)
 {
 	if (!FParse::Token(Cmd, Value, true))
@@ -67,12 +83,24 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, FString& Value)
 	return true;
 }
 
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, FName& Value)
+{
+	FString StringValue;
+	if (!ParseOnlineExecParams(Cmd, StringValue))
+	{
+		return false;
+	}
+
+	Value = FName(StringValue);
+	return true;
+}
+
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint8& Value)
 {
 	FString Token;
 	if (FParse::Token(Cmd, Token, true))
 	{
-		Value = static_cast<uint8>(FCString::Strtoui64(Cmd, nullptr, 10));
+		Value = static_cast<uint8>(FCString::Strtoui64(*Token, nullptr, 10));
 	}
 	else
 	{
@@ -87,7 +115,7 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, int32& Value)
 	FString Token;
 	if (FParse::Token(Cmd, Token, true))
 	{
-		Value = FCString::Strtoi(Cmd, nullptr, 10);
+		Value = FCString::Strtoi(*Token, nullptr, 10);
 	}
 	else
 	{
@@ -102,7 +130,7 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint32& Value)
 	FString Token;
 	if (FParse::Token(Cmd, Token, true))
 	{
-		Value = static_cast<uint32>(FCString::Strtoui64(Cmd, nullptr, 10));
+		Value = static_cast<uint32>(FCString::Strtoui64(*Token, nullptr, 10));
 	}
 	else
 	{
@@ -117,7 +145,7 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, int64& Value)
 	FString Token;
 	if (FParse::Token(Cmd, Token, true))
 	{
-		Value = FCString::Strtoi64(Cmd, nullptr, 10);
+		Value = FCString::Strtoi64(*Token, nullptr, 10);
 	}
 	else
 	{
@@ -132,7 +160,7 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint64& Value)
 	FString Token;
 	if (FParse::Token(Cmd, Token, true))
 	{
-		Value = FCString::Strtoui64(Cmd, nullptr, 10);
+		Value = FCString::Strtoui64(*Token, nullptr, 10);
 	}
 	else
 	{
@@ -183,6 +211,46 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TArray<T>& Array)
 	return true;
 }
 
+template <typename T, typename U>
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TMap<T, U>& Map)
+{
+	FString Token;
+	if (FParse::Token(Cmd, Token, true))
+	{
+		TArray<FString> TokenArray;
+		Token.ParseIntoArray(TokenArray, TEXT(","));
+		Map.Reserve(TokenArray.Num());
+		for (const FString& ArrayToken : TokenArray)
+		{
+			TArray<FString> TokenValuePair;
+			Token.ParseIntoArray(TokenValuePair, TEXT("="));
+
+			if (TokenValuePair.Num() > 1)
+			{
+				T Key;
+				U Value;
+
+				const TCHAR* ArrayTokenKeyTCHAR = *TokenValuePair[0];
+				if (ParseOnlineExecParams(ArrayTokenKeyTCHAR, Key))
+				{
+					if (TokenValuePair.Num() > 2)
+					{
+						const TCHAR* ArrayTokenValueTCHAR = *TokenValuePair[1];
+						ParseOnlineExecParams(ArrayTokenValueTCHAR, Value);
+
+						Map.Emplace(MoveTempIfPossible(Key), MoveTempIfPossible(Value));
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		return false;
+	}
+	return true;
+}
+
 template <typename... Ts>
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TVariant<Ts...>& Variant)
 {
@@ -191,10 +259,17 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TVariant<Ts...>& Variant)
 }
 
 template<typename IdType>
-inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineIdHandle<IdType>& Id)
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineIdHandle<IdType>& Value)
 {
-	// TODO
-	return true;
+	EOnlineServices Type;
+	uint32 Handle;
+	if (ParseOnlineExecParams(Cmd, Type) && ParseOnlineExecParams(Cmd, Handle))
+	{
+		Value = TOnlineIdHandle<IdType>(Type, Handle);
+		return true;
+	}
+
+	return false;
 }
 
 template <typename T>

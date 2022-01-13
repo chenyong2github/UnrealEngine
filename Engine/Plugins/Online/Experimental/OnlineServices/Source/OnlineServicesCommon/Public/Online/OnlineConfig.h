@@ -194,6 +194,32 @@ public:
 	}
 
 	/**
+	 * Get a value consisting of a TArray of FText
+	 *
+	 * @param Section Section to read the value from
+	 * @param Key Key in the section for the value
+	 * @param Value Array of FText read from the config. Will be empty if not present
+	 *
+	 * @return number of values in the array
+	 */
+	virtual int32 GetValue(const TCHAR* Section, const TCHAR* Key, TArray<FText>& Value)
+	{
+		Value.Empty();
+		TArray<FString> StringArray;
+		if (GetValue(Section, Key, StringArray) > 0)
+		{
+			Value.Reserve(StringArray.Num());
+			for (const FString& StringValue : StringArray)
+			{
+				FText TextValue;
+				FTextStringHelper::ReadFromBuffer(*StringValue, TextValue, Section);
+				Value.Emplace(TextValue);
+			}
+		}
+		return Value.Num();
+	}
+
+	/**
 	 * Get a value consisting of a TArray of bool
 	 *
 	 * @param Section Section to read the value from

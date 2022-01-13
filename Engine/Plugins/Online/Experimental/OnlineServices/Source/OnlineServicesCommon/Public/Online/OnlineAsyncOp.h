@@ -47,6 +47,43 @@ private:
 	EOnlineAsyncExecutionPolicy ExecutionPolicy;
 };
 
+/* For use when we need to put a TOnlineResult in an object that needs to be default constructed such as a TPromise */
+template <typename Result>
+class TDefaultErrorResultInternal : public TResult<Result, FOnlineError>
+{
+public:
+	using TResult<Result, FOnlineError>::TResult;
+
+	TDefaultErrorResultInternal()
+		: TResult<Result, FOnlineError>(Errors::Unknown())
+	{
+	}
+};
+
+template <typename OpType>
+class TDefaultErrorResult : public TOnlineResult<OpType>
+{
+public:
+	using TOnlineResult<OpType>::TOnlineResult;
+
+	TDefaultErrorResult()
+		: TOnlineResult<OpType>(Errors::Unknown())
+	{
+	}
+};
+
+template <typename T>
+FString ToLogString(const TDefaultErrorResultInternal<T>& Result)
+{
+	if (Result.IsOk())
+	{
+		return ToLogString(Result.GetOkValue());
+	}
+	else
+	{
+		return ToLogString(Result.GetErrorValue());
+	}
+}
 
 namespace Private
 {

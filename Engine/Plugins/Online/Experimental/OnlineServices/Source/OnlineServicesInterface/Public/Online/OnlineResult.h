@@ -189,9 +189,10 @@ public:
 	}
 
 
-private:
-	TResult() = delete;
+protected:
+	TResult() = default;
 
+private:
 	/** Location that the result's value is stored */
 	TVariant<SuccessType, ErrorType> Storage;
 };

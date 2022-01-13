@@ -197,7 +197,7 @@ namespace OnlineIdHandleTags
 {
 	struct FAccount {};
 	struct FSession {};
-	struct FParty {};
+	struct FLobby {};
 }
 
 enum class EOnlineServices : uint8
@@ -256,6 +256,9 @@ enum class EOnlineServices : uint8
 	Default = 255
 };
 
+COREONLINE_API const TCHAR* LexToString(EOnlineServices Value);
+COREONLINE_API void LexFromString(EOnlineServices& OutValue, const TCHAR* InStr);
+
 /**
  * A handle to an id which uniquely identifies a persistent or transient online resource, i.e. account/session/party etc, within a given Online Services provider.
  * At most one id, and therefore one handle, exists for any given resource. The id and handle persist until the OnlineServices module is unloaded.
@@ -285,8 +288,10 @@ private:
 };
 
 using FOnlineAccountIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FAccount>;
+using FOnlineLobbyIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FLobby>;
 
 COREONLINE_API FString ToLogString(const FOnlineAccountIdHandle& Id);
+COREONLINE_API FString ToLogString(const FOnlineLobbyIdHandle& Id);
 
 template<typename IdType>
 inline uint32 GetTypeHash(const TOnlineIdHandle<IdType>& Handle)

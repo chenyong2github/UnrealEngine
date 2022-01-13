@@ -7,6 +7,193 @@
 
 namespace UE::Online {
 
+const TCHAR* LexToString(EOnlineServices Value)
+{
+	switch (Value)
+	{
+	case EOnlineServices::Null:				return TEXT("Null");
+	case EOnlineServices::Epic:				return TEXT("Epic");
+	case EOnlineServices::Xbox:				return TEXT("Xbox");
+	case EOnlineServices::PSN:				return TEXT("PSN");
+	case EOnlineServices::Nintendo:			return TEXT("Nintendo");
+	case EOnlineServices::Stadia:			return TEXT("Stadia");
+	case EOnlineServices::Steam:			return TEXT("Steam");
+	case EOnlineServices::Google:			return TEXT("Google");
+	case EOnlineServices::GooglePlay:		return TEXT("GooglePlay");
+	case EOnlineServices::Apple:			return TEXT("Apple");
+	case EOnlineServices::AppleGameKit:		return TEXT("AppleGameKit");
+	case EOnlineServices::Samsung:			return TEXT("Samsung");
+	case EOnlineServices::Oculus:			return TEXT("Oculus");
+	case EOnlineServices::Tencent:			return TEXT("Tencent");
+	case EOnlineServices::Reserved_14:		return TEXT("Reserved_14");
+	case EOnlineServices::Reserved_15:		return TEXT("Reserved_15");
+	case EOnlineServices::Reserved_16:		return TEXT("Reserved_16");
+	case EOnlineServices::Reserved_17:		return TEXT("Reserved_17");
+	case EOnlineServices::Reserved_18:		return TEXT("Reserved_18");
+	case EOnlineServices::Reserved_19:		return TEXT("Reserved_19");
+	case EOnlineServices::Reserved_20:		return TEXT("Reserved_20");
+	case EOnlineServices::Reserved_21:		return TEXT("Reserved_21");
+	case EOnlineServices::Reserved_22:		return TEXT("Reserved_22");
+	case EOnlineServices::Reserved_23:		return TEXT("Reserved_23");
+	case EOnlineServices::Reserved_24:		return TEXT("Reserved_24");
+	case EOnlineServices::Reserved_25:		return TEXT("Reserved_25");
+	case EOnlineServices::Reserved_26:		return TEXT("Reserved_26");
+	case EOnlineServices::Reserved_27:		return TEXT("Reserved_27");
+	case EOnlineServices::GameDefined_0:	return TEXT("GameDefined_0");
+	case EOnlineServices::GameDefined_1:	return TEXT("GameDefined_1");
+	case EOnlineServices::GameDefined_2:	return TEXT("GameDefined_2");
+	case EOnlineServices::GameDefined_3:	return TEXT("GameDefined_3");
+	case EOnlineServices::Platform:			return TEXT("Platform");
+	default:								checkNoEntry(); // Intentional fallthrough
+	case EOnlineServices::Default:			return TEXT("Default");
+	}
+}
+
+void LexFromString(EOnlineServices& OutValue, const TCHAR* InStr)
+{
+	if (FCString::Stricmp(InStr, TEXT("Null")) == 0)
+	{
+		OutValue = EOnlineServices::Null;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Epic")) == 0)
+	{
+		OutValue = EOnlineServices::Epic;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Xbox")) == 0)
+	{
+		OutValue = EOnlineServices::Xbox;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("PSN")) == 0)
+	{
+		OutValue = EOnlineServices::PSN;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Nintendo")) == 0)
+	{
+		OutValue = EOnlineServices::Nintendo;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Stadia")) == 0)
+	{
+		OutValue = EOnlineServices::Stadia;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Steam")) == 0)
+	{
+		OutValue = EOnlineServices::Steam;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Google")) == 0)
+	{
+		OutValue = EOnlineServices::Google;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("GooglePlay")) == 0)
+	{
+		OutValue = EOnlineServices::GooglePlay;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Apple")) == 0)
+	{
+		OutValue = EOnlineServices::Apple;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("AppleGameKit")) == 0)
+	{
+		OutValue = EOnlineServices::AppleGameKit;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Samsung")) == 0)
+	{
+		OutValue = EOnlineServices::Samsung;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Oculus")) == 0)
+	{
+		OutValue = EOnlineServices::Oculus;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Tencent")) == 0)
+	{
+		OutValue = EOnlineServices::Tencent;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_14")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_14;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_15")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_15;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_16")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_16;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_17")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_17;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_18")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_18;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_19")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_19;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_20")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_20;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_21")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_21;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_22")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_22;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_23")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_23;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_24")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_24;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_25")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_25;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_26")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_26;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Reserved_27")) == 0)
+	{
+		OutValue = EOnlineServices::Reserved_27;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("GameDefined_0")) == 0)
+	{
+		OutValue = EOnlineServices::GameDefined_0;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("GameDefined_1")) == 0)
+	{
+		OutValue = EOnlineServices::GameDefined_1;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("GameDefined_2")) == 0)
+	{
+		OutValue = EOnlineServices::GameDefined_2;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("GameDefined_3")) == 0)
+	{
+		OutValue = EOnlineServices::GameDefined_3;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Platform")) == 0)
+	{
+		OutValue = EOnlineServices::Platform;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Default")) == 0)
+	{
+		OutValue = EOnlineServices::Default;
+	}
+	else
+	{
+		checkNoEntry();
+		OutValue = EOnlineServices::Default;
+	}
+}
+
 FOnlineIdRegistryRegistry& FOnlineIdRegistryRegistry::Get()
 {
 	return TLazySingleton<FOnlineIdRegistryRegistry>::Get();
@@ -99,6 +286,12 @@ IOnlineAccountIdRegistry* FOnlineIdRegistryRegistry::GetAccountIdRegistry(EOnlin
 FString ToLogString(const FOnlineAccountIdHandle& Id)
 {
 	return FOnlineIdRegistryRegistry::Get().ToLogString(Id);
+}
+
+FString ToLogString(const FOnlineLobbyIdHandle& Id)
+{
+	// todo: use registry.
+	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
 }
 
 }	/* UE::Online */

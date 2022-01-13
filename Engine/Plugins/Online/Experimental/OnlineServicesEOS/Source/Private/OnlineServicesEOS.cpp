@@ -8,6 +8,7 @@
 
 #include "AuthEOS.h"
 #include "FriendsEOS.h"
+#include "LobbiesEOS.h"
 #include "OnlineIdEOS.h"
 #include "PresenceEOS.h"
 #include "ExternalUIEOS.h"
@@ -44,6 +45,7 @@ void FOnlineServicesEOS::RegisterComponents()
 {
 	Components.Register<FAuthEOS>(*this);
 	Components.Register<FFriendsEOS>(*this);
+	Components.Register<FLobbiesEOS>(*this);
 	Components.Register<FPresenceEOS>(*this);
 	Components.Register<FExternalUIEOS>(*this);
 	FOnlineServicesCommon::RegisterComponents();
@@ -61,7 +63,14 @@ void FOnlineServicesEOS::Initialize()
 	FTCHARToUTF8 ClientSecret(*EOSPlatformConfig.ClientSecret);
 
 	// Init EOS SDK
+	static struct FReservedOptions
+	{
+		int32_t ApiVersion;
+		const char* BackendEnvironment;
+	} ReservedOptions = { 1, "GameDev" };
+
 	EOS_Platform_Options PlatformOptions = {};
+	PlatformOptions.Reserved = &ReservedOptions;
 	PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
 	PlatformOptions.bIsServer = EOS_FALSE;
 	PlatformOptions.OverrideCountryCode = nullptr;
@@ -80,10 +89,18 @@ void FOnlineServicesEOS::Initialize()
 	PlatformOptions.ClientCredentials.ClientSecret = ClientSecret.Get();
 
 	IEOSSDKManager* SDKManager = IEOSSDKManager::Get();
-	if (ensure(SDKManager))
+	if (!SDKManager)
 	{
-		EOSPlatformHandle = SDKManager->CreatePlatform(PlatformOptions);
+		return;
 	}
+
+	EOS_EResult InitResult = SDKManager->Initialize();
+	if (InitResult != EOS_EResult::EOS_Success)
+	{
+		return;
+	}
+
+	EOSPlatformHandle = SDKManager->CreatePlatform(PlatformOptions);
 
 	FOnlineServicesCommon::Initialize();
 }
