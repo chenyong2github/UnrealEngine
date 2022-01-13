@@ -468,6 +468,7 @@ static IOSAppDelegate* CachedDelegate = nil;
         if ([self.Window viewWithTag:200] != nil)
         {
             [[self.Window viewWithTag:200] removeFromSuperview];
+            [self.viewController release];
         }
         [timer invalidate];
     }
@@ -960,9 +961,9 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
     UIStoryboard *storyboard = [UIStoryboard storyboardWithName:@"LaunchScreen" bundle:nil];
     if (storyboard != nil)
     {
-        UIViewController *viewController = [storyboard instantiateViewControllerWithIdentifier:@"LaunchScreen"];
-        viewController.view.tag = 200;
-        [self.Window addSubview: viewController.view];
+        self.viewController = [storyboard instantiateViewControllerWithIdentifier:@"LaunchScreen"];
+        self.viewController.view.tag = 200;
+        [self.Window addSubview: self.viewController.view];
         GShowSplashScreen = true;
     }
 

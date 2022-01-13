@@ -137,6 +137,8 @@ APPLICATIONCORE_API
 
 @property bool bDeviceInPortraitMode;
 
+@property (retain) UIViewController* viewController;
+
 @property (retain) NSTimer* timer;
 
 @property (retain) NSTimer* PeakMemoryTimer;
