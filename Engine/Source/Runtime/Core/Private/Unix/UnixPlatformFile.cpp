@@ -1148,6 +1148,21 @@ bool FUnixPlatformFile::IterateDirectoryCommon(const TCHAR* Directory, const TFu
 	return Result;
 }
 
+bool FUnixPlatformFile::CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags, EPlatformFileWrite WriteFlags)
+{
+	bool Result = IPlatformFile::CopyFile(To, From, ReadFlags, WriteFlags);
+	if (Result)
+	{
+		struct stat FileInfo;
+		if (stat(TCHAR_TO_UTF8(*NormalizeFilename(From, false)), &FileInfo) == 0)
+		{
+			FileInfo.st_mode |= S_IWUSR;
+			chmod(TCHAR_TO_UTF8(*NormalizeFilename(To, true)), FileInfo.st_mode);
+		}
+	}
+	return Result;
+}
+
 bool FUnixPlatformFile::CreateDirectoriesFromPath(const TCHAR* Path)
 {
 	// if the file already exists, then directories exist.
