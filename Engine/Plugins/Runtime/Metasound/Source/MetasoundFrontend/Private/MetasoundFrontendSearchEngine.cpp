@@ -2,6 +2,7 @@
 
 #include "MetasoundFrontendSearchEngine.h"
 
+#include "Algo/MaxElement.h"
 #include "Algo/Transform.h"
 #include "HAL/IConsoleManager.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
@@ -100,33 +101,11 @@ namespace Metasound
 			public:
 				virtual void Reduce(const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries) const override
 				{
-					int32 State = 0;
-					FFrontendQueryEntry* FinalEntry = nullptr;
+					// Get most recent transaction
+					const FFrontendQueryEntry* FinalEntry = Algo::MaxElementBy(InOutEntries, GetTransactionTimestamp);
 
-					for (FFrontendQueryEntry& Entry : InOutEntries)
-					{
-						if (ensure(Entry.Value.IsType<FInterfaceRegistryTransaction>()))
-						{
-							const FInterfaceRegistryTransaction& Transaction = Entry.Value.Get<FInterfaceRegistryTransaction>();
-							
-							switch (Transaction.GetTransactionType())
-							{
-								case FInterfaceRegistryTransaction::ETransactionType::InterfaceRegistration:
-									State++;
-									FinalEntry = &Entry;
-									break;
-
-								case FInterfaceRegistryTransaction::ETransactionType::InterfaceUnregistration:
-									State--;
-									break;
-
-								default:
-									break;
-							}
-						}
-					}
-
-					if ((nullptr != FinalEntry) && (State > 0))
+					// Check if most recent transaction is valid and not an unregister transaction.
+					if (IsValidTransactionOfType(FInterfaceRegistryTransaction::ETransactionType::InterfaceRegistration, FinalEntry))
 					{
 						FFrontendQueryEntry Entry = *FinalEntry;
 						InOutEntries.Reset();
@@ -137,6 +116,28 @@ namespace Metasound
 						InOutEntries.Reset();
 					}
 				}
+			private:
+				static FInterfaceRegistryTransaction::FTimeType GetTransactionTimestamp(const FFrontendQueryEntry& InEntry)
+				{
+					if (ensure(InEntry.Value.IsType<FInterfaceRegistryTransaction>()))
+					{
+						return InEntry.Value.Get<FInterfaceRegistryTransaction>().GetTimestamp();
+					}
+					return 0;
+				}
+
+				static bool IsValidTransactionOfType(FInterfaceRegistryTransaction::ETransactionType InType, const FFrontendQueryEntry* InEntry)
+				{
+					if (nullptr != InEntry)
+					{
+						if (InEntry->Value.IsType<FInterfaceRegistryTransaction>())
+						{
+							return InEntry->Value.Get<FInterfaceRegistryTransaction>().GetTransactionType() == InType;
+						}
+					}
+					return false;
+				}
+
 			};
 
 

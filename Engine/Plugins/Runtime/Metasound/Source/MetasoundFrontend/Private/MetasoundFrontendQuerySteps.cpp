@@ -2,9 +2,11 @@
 
 #include "MetasoundFrontendQuerySteps.h"
 
-#include "CoreMinimal.h"
+#include "Algo/MaxElement.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendQuery.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendRegistryTransaction.h"
 
 namespace Metasound
@@ -47,33 +49,11 @@ namespace Metasound
 	{
 		using namespace Frontend;
 
-		int32 State = 0;
-		FFrontendQueryEntry* FinalEntry = nullptr;
+		// Get most recent transaction
+		const FFrontendQueryEntry* FinalEntry = Algo::MaxElementBy(InOutEntries, GetTransactionTimestamp);
 
-		for (FFrontendQueryEntry& Entry : InOutEntries)
-		{
-			if (ensure(Entry.Value.IsType<FNodeRegistryTransaction>()))
-			{
-				const FNodeRegistryTransaction& Transaction = Entry.Value.Get<FNodeRegistryTransaction>();
-				
-				switch (Transaction.GetTransactionType())
-				{
-					case FNodeRegistryTransaction::ETransactionType::NodeRegistration:
-						State++;
-						FinalEntry = &Entry;
-						break;
-
-					case FNodeRegistryTransaction::ETransactionType::NodeUnregistration:
-						State--;
-						break;
-
-					default:
-						break;
-				}
-			}
-		}
-
-		if ((nullptr != FinalEntry) && (State > 0))
+		// Check if most recent transaction is valid and not an unregister transaction.
+		if (IsValidTransactionOfType(FNodeRegistryTransaction::ETransactionType::NodeRegistration, FinalEntry))
 		{
 			FFrontendQueryEntry Entry = *FinalEntry;
 			InOutEntries.Reset();
@@ -83,6 +63,31 @@ namespace Metasound
 		{
 			InOutEntries.Reset();
 		}
+	}
+
+	FReduceRegistrationEventsToCurrentStatus::FTimeType FReduceRegistrationEventsToCurrentStatus::GetTransactionTimestamp(const FFrontendQueryEntry& InEntry)
+	{
+		using namespace Frontend;
+
+		if (ensure(InEntry.Value.IsType<FNodeRegistryTransaction>()))
+		{
+			return InEntry.Value.Get<FNodeRegistryTransaction>().GetTimestamp();
+		}
+		return 0;
+	}
+
+	bool FReduceRegistrationEventsToCurrentStatus::IsValidTransactionOfType(Frontend::FNodeRegistryTransaction::ETransactionType InType, const FFrontendQueryEntry* InEntry)
+	{
+		using namespace Frontend;
+
+		if (nullptr != InEntry)
+		{
+			if (InEntry->Value.IsType<FNodeRegistryTransaction>())
+			{
+				return InEntry->Value.Get<FNodeRegistryTransaction>().GetTransactionType() == InType;
+			}
+		}
+		return false;
 	}
 
 	void FTransformRegistrationEventsToClasses::Transform(FFrontendQueryEntry::FValue& InValue) const

@@ -209,6 +209,8 @@ namespace Metasound
 		class METASOUNDFRONTEND_API FNodeRegistryTransaction 
 		{
 		public:
+			using FTimeType = uint64;
+
 			/** Describes the type of transaction. */
 			enum class ETransactionType : uint8
 			{
@@ -217,17 +219,19 @@ namespace Metasound
 				Invalid
 			};
 
-			FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo);
+			FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo, FTimeType InTimestamp);
 
 			ETransactionType GetTransactionType() const;
 			const FNodeClassInfo& GetNodeClassInfo() const;
 			const FNodeRegistryKey& GetNodeRegistryKey() const;
+			FTimeType GetTimestamp() const;
 
 		private:
 
 			ETransactionType Type;
 			FNodeRegistryKey Key;
 			FNodeClassInfo NodeClassInfo;
+			FTimeType Timestamp;
 		};
 
 		namespace NodeRegistryKey

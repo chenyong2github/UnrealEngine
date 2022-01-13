@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundFrontendArchetypeRegistry.h"
+
+#include "HAL/PlatformTime.h"
 #include "MetasoundFrontendRegistryTransaction.h"
 
 namespace Metasound
@@ -16,6 +18,7 @@ namespace Metasound
 
 				virtual void RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry) override
 				{
+					FInterfaceRegistryTransaction::FTimeType TransactionTime = FPlatformTime::Cycles64();
 					if (InEntry.IsValid())
 					{
 						FInterfaceRegistryKey Key = GetInterfaceRegistryKey(InEntry->GetInterface());
@@ -25,11 +28,11 @@ namespace Metasound
 							{
 								UE_LOG(LogMetaSound, Warning, TEXT("Registration of interface overwriting previously registered interface [RegistryKey: %s]"), *Key);
 								
-								FInterfaceRegistryTransaction Transaction{FInterfaceRegistryTransaction::ETransactionType::InterfaceUnregistration, Key, Entry->GetInterface().Version};
+								FInterfaceRegistryTransaction Transaction{FInterfaceRegistryTransaction::ETransactionType::InterfaceUnregistration, Key, Entry->GetInterface().Version, TransactionTime};
 								Transactions.Add(MoveTemp(Transaction));
 							}
 							
-							FInterfaceRegistryTransaction Transaction{FInterfaceRegistryTransaction::ETransactionType::InterfaceRegistration, Key, InEntry->GetInterface().Version};
+							FInterfaceRegistryTransaction Transaction{FInterfaceRegistryTransaction::ETransactionType::InterfaceRegistration, Key, InEntry->GetInterface().Version, TransactionTime};
 							Transactions.Add(MoveTemp(Transaction));
 
 							Entries.Add(Key, MoveTemp(InEntry)).Get();
@@ -85,10 +88,11 @@ namespace Metasound
 			return GetInterfaceRegistryKey(InInterface.Version);
 		}
 
-		FInterfaceRegistryTransaction::FInterfaceRegistryTransaction(ETransactionType InType, const FInterfaceRegistryKey& InKey, const FMetasoundFrontendVersion& InInterfaceVersion)
+		FInterfaceRegistryTransaction::FInterfaceRegistryTransaction(ETransactionType InType, const FInterfaceRegistryKey& InKey, const FMetasoundFrontendVersion& InInterfaceVersion, FInterfaceRegistryTransaction::FTimeType InTimestamp)
 		: Type(InType)
 		, Key(InKey)
 		, InterfaceVersion(InInterfaceVersion)
+		, Timestamp(InTimestamp)
 		{
 		}
 
@@ -105,6 +109,11 @@ namespace Metasound
 		const FInterfaceRegistryKey& FInterfaceRegistryTransaction::GetInterfaceRegistryKey() const
 		{
 			return Key;
+		}
+
+		FInterfaceRegistryTransaction::FTimeType FInterfaceRegistryTransaction::GetTimestamp() const
+		{
+			return Timestamp;
 		}
 
 		IInterfaceRegistry& IInterfaceRegistry::Get()

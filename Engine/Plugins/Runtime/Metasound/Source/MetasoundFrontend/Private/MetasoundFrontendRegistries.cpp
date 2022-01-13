@@ -4,6 +4,7 @@
 
 #include "Algo/ForEach.h"
 #include "CoreMinimal.h"
+#include "HAL/PlatformTime.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistryTransaction.h"
 #include "MetasoundFrontendSearchEngine.h"
@@ -262,6 +263,8 @@ namespace Metasound
 
 				if (InEntry.IsValid())
 				{
+					FNodeRegistryTransaction::FTimeType Timestamp = FPlatformTime::Cycles64();
+
 					Key = NodeRegistryKey::CreateKey(InEntry->GetClassInfo());
 
 					// check to see if an identical node was already registered, and log
@@ -274,7 +277,7 @@ namespace Metasound
 
 					// Store update to newly registered node in history so nodes
 					// can be queried by transaction ID
-					RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeRegistration, Key, InEntry->GetClassInfo()));
+					RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeRegistration, Key, InEntry->GetClassInfo(), Timestamp));
 
 					// Store registry elements in map so nodes can be queried using registry key.
 					RegisteredNodes.Add(Key, MoveTemp(InEntry));
@@ -289,7 +292,9 @@ namespace Metasound
 				{
 					if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
 					{
-						RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeUnregistration, InKey, Entry->GetClassInfo()));
+						FNodeRegistryTransaction::FTimeType Timestamp = FPlatformTime::Cycles64();
+
+						RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeUnregistration, InKey, Entry->GetClassInfo(), Timestamp));
 
 						RegisteredNodes.Remove(InKey);
 						return true;
@@ -428,10 +433,11 @@ namespace Metasound
 			}
 		} // namespace MetasoundFrontendRegistriesPrivate
 
-		FNodeRegistryTransaction::FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo)
+		FNodeRegistryTransaction::FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo, FNodeRegistryTransaction::FTimeType InTimestamp)
 		: Type(InType)
 		, Key(InKey)
 		, NodeClassInfo(InNodeClassInfo)
+		, Timestamp(InTimestamp)
 		{
 		}
 
@@ -448,6 +454,11 @@ namespace Metasound
 		const FNodeRegistryKey& FNodeRegistryTransaction::GetNodeRegistryKey() const
 		{
 			return Key;
+		}
+
+		FNodeRegistryTransaction::FTimeType FNodeRegistryTransaction::GetTimestamp() const
+		{
+			return Timestamp;
 		}
 
 		namespace NodeRegistryKey

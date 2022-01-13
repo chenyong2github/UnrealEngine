@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendQuery.h"
+#include "MetasoundFrontendRegistries.h"
+#include "Misc/Guid.h"
 
 namespace Metasound
 {
@@ -25,7 +26,6 @@ namespace Metasound
 	public:
 		FNodeClassRegistrationEvents();
 		virtual void Stream(TArray<FFrontendQueryValue>& OutValues) override;
-		//void Reset() override;
 
 	private:
 		Frontend::FRegistryTransactionID CurrentTransactionID;
@@ -45,6 +45,10 @@ namespace Metasound
 	{
 	public:
 		virtual void Reduce(const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries) const override;
+	private:
+		using FTimeType = Frontend::FNodeRegistryTransaction::FTimeType;
+		static FTimeType GetTransactionTimestamp(const FFrontendQueryEntry& InEntry);
+		static bool IsValidTransactionOfType(Frontend::FNodeRegistryTransaction::ETransactionType InType, const FFrontendQueryEntry* InEntry);
 	};
 
 	/** Transforms a registration event into a FMetasoundFrontendClass. */
