@@ -324,9 +324,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 	SHADER_PARAMETER(uint32,		MaterialRemapCount)
 	SHADER_PARAMETER(FIntPoint,		GridSize)
 
-	SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageData )
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, HierarchyBuffer)
 
-	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,	VisibleClustersSWHW)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
@@ -488,7 +489,8 @@ void DrawBasePass(
 		PassParameters->RenderFlags			= RasterResults.RenderFlags;
 		PassParameters->MaterialRemapCount	= TileRemaps;
 			
-		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV(); 
+		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV();
+		PassParameters->HierarchyBuffer		= Nanite::GStreamingManager.GetHierarchySRV();
 
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 
@@ -560,6 +562,8 @@ void DrawBasePass(
 			);
 
 			UniformParams.ClusterPageData = PassParameters->ClusterPageData;
+			UniformParams.HierarchyBuffer = PassParameters->HierarchyBuffer;
+
 			UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
 
 			UniformParams.MaterialTileRemap = PassParameters->MaterialTileRemap->GetRHI();
@@ -1151,6 +1155,7 @@ void DrawLumenMeshCapturePass(
 		PassParameters->RenderFlags = CullingContext.RenderFlags;
 
 		PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
+		PassParameters->HierarchyBuffer = Nanite::GStreamingManager.GetHierarchySRV();
 
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 
@@ -1199,6 +1204,7 @@ void DrawLumenMeshCapturePass(
 				UniformParams.RectScaleOffset = FVector4f(1.0f, 1.0f, 0.0f, 0.0f); // This will be overridden in vertex shader
 
 				UniformParams.ClusterPageData = PassParameters->ClusterPageData;
+				UniformParams.HierarchyBuffer = PassParameters->HierarchyBuffer;
 
 				UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
 

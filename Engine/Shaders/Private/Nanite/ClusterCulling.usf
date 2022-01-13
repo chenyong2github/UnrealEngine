@@ -61,7 +61,6 @@ struct FStreamingRequest
 	uint Priority_Magic;
 };
 
-ByteAddressBuffer			HierarchyBuffer;
 Buffer< uint >				OffsetClustersArgsSWHW;
 StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
 
@@ -103,36 +102,6 @@ uint GetInclusiveRectArea(uint4 Rect)
 		return (Size.x  + 1) * (Size.y + 1);
 	}
 	return 0;
-}
-
-FHierarchyNodeSlice GetHierarchyNodeSlice( uint NodeIndex, uint ChildIndex )
-{
-	const uint NodeSize = ( 4 + 4 + 4 + 1 ) * 4 * MAX_BVH_NODE_FANOUT;
-
-	uint BaseAddress = NodeIndex * NodeSize;
-
-	FHierarchyNodeSlice Node;
-	Node.LODBounds			=	asfloat(	HierarchyBuffer.Load4( BaseAddress + 16 * ChildIndex) );
-	
-	uint4 Misc0				=	HierarchyBuffer.Load4( BaseAddress + (MAX_BVH_NODE_FANOUT * 16) + 16 * ChildIndex);
-	uint4 Misc1				=	HierarchyBuffer.Load4( BaseAddress + (MAX_BVH_NODE_FANOUT * 32) + 16 * ChildIndex);
-	uint  Misc2				=	HierarchyBuffer.Load ( BaseAddress + (MAX_BVH_NODE_FANOUT * 48) +  4 * ChildIndex);
-	Node.BoxBoundsCenter	=	asfloat( Misc0.xyz );
-	Node.BoxBoundsExtent	=	asfloat( Misc1.xyz );
-
-	Node.MinLODError		=	f16tof32( Misc0.w );
-	Node.MaxParentLODError	=	f16tof32( Misc0.w >> 16 );
-	Node.ChildStartReference=	Misc1.w;
-	Node.bLoaded			=	Misc1.w != 0xFFFFFFFFu;
-
-	uint ResourcePageIndex_NumPages_GroupPartSize = Misc2;
-	Node.NumChildren		=	BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, MAX_CLUSTERS_PER_GROUP_BITS, 0);
-	Node.NumPages			=	BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, MAX_GROUP_PARTS_BITS, MAX_CLUSTERS_PER_GROUP_BITS);
-	Node.StartPageIndex		=	BitFieldExtractU32(ResourcePageIndex_NumPages_GroupPartSize, MAX_RESOURCE_PAGES_BITS, MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS);
-	Node.bEnabled			=	ResourcePageIndex_NumPages_GroupPartSize != 0u;
-	Node.bLeaf				=	ResourcePageIndex_NumPages_GroupPartSize != 0xFFFFFFFFu;
-
-	return Node;
 }
 
 float2 GetProjectedEdgeScales(FNaniteView NaniteView, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, float4 Bounds)	// float2(min, max)

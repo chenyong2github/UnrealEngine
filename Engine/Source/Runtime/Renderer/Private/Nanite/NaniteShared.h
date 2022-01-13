@@ -135,6 +135,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER(FVector4f,						RectScaleOffset) // xy: scale, zw: offset
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,			ClusterPageData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,			VisibleClustersSWHW)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer,			HierarchyBuffer)
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint>,	MaterialTileRemap)
 	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	VisBuffer64)
 	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	DbgBuffer64)
