@@ -97,6 +97,15 @@ protected:
 	virtual FReply OnButtonClicked();
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
+	/**
+	 * Called to query the tool tip text for this widget, but will return an empty text when the menu is already open
+	 *
+	 * @param	ToolTipText	Tool tip text to display, if possible
+	 *
+	 * @return	Tool tip text, or an empty text if filtered out
+	 */
+	FText GetFilteredToolTipText(TAttribute<FText> ToolTipText) const;
+
 protected:
 	/** Area where the button's content resides */
 	SHorizontalBox::FSlot* ButtonContentSlot;

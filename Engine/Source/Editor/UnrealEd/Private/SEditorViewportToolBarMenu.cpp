@@ -15,6 +15,8 @@ void SEditorViewportToolbarMenu::Construct( const FArguments& Declaration )
 {
 	const TAttribute<FText>& Label = Declaration._Label;
 
+	SetToolTipText(FText::GetEmpty());
+
 	const FName ImageName = Declaration._Image;
 	const FSlateBrush* ImageBrush = FEditorStyle::GetBrush( ImageName );
 
@@ -91,12 +93,26 @@ void SEditorViewportToolbarMenu::Construct( const FArguments& Declaration )
 		.ContentPadding( FMargin(0.0f, 0.0f) )
 		.VAlign(VAlign_Center)
 		.ButtonStyle(Declaration._MenuStyle)
+		.ToolTipText(this, &SEditorViewportToolbarMenu::GetFilteredToolTipText, Declaration._ToolTipText)
 		.OnClicked( this, &SEditorViewportToolbarMenu::OnMenuClicked )
 		.ForegroundColor(Declaration._ForegroundColor)
 		[
 			ButtonContent.ToSharedRef()
 		]
 	);
+}
+
+FText SEditorViewportToolbarMenu::GetFilteredToolTipText(TAttribute<FText> ToolTipText) const
+{
+	// If we're part of a toolbar that has a currently open menu, then we suppress our tool-tip
+	// as it will just get in the way
+	TWeakPtr<SMenuAnchor> OpenedMenu = ParentToolBar.Pin()->GetOpenMenu();
+	if (OpenedMenu.IsValid() && OpenedMenu.Pin()->IsOpen())
+	{
+		return FText::GetEmpty();
+	}
+
+	return ToolTipText.Get();
 }
 
 FReply SEditorViewportToolbarMenu::OnMenuClicked()

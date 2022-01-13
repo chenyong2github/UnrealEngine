@@ -66,7 +66,18 @@ public:
 	 * @param	InArgs	The declaration data for this widget
 	 */
 	void Construct( const FArguments& InArgs );
-	
+
+protected:
+	/**
+	 * Called to query the tool tip text for this widget, but will return an empty text for toolbar items
+	 * when a menu for that toolbar is already open
+	 *
+	 * @param	ToolTipText	Tool tip text to display, if possible
+	 *
+	 * @return	Tool tip text, or an empty text if filtered out
+	 */
+	FText GetFilteredToolTipText(TAttribute<FText> ToolTipText) const;
+
 private:
 	/**
 	 * Called when the menu button is clicked.  Will toggle the visibility of the menu content                   

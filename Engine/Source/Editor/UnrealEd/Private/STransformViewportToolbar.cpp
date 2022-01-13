@@ -60,6 +60,7 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeSurfaceSnappingButton()
 		SNew(SEditorViewportToolbarMenu)
 		.ParentToolBar(SharedThis(this))
 		.Image("EditorViewport.ToggleSurfaceSnapping")
+		.ToolTipText(LOCTEXT("SnapToSurfaceMenu_ToolTip", "Control how objects snap to surfaces"))
 		.OnGetMenuContent(this, &STransformViewportToolBar::GenerateSurfaceSnappingMenu)
 		.ForegroundColor(this, &STransformViewportToolBar::GetSurfaceSnappingForegroundColor);
 

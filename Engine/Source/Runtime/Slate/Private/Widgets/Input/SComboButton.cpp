@@ -36,6 +36,7 @@ void SComboButton::Construct( const FArguments& InArgs )
 			.ButtonStyle( OurButtonStyle )
 			.ClickMethod( EButtonClickMethod::MouseDown )
 			.OnClicked( this, &SComboButton::OnButtonClicked )
+			.ToolTipText( this, &SComboButton::GetFilteredToolTipText, InArgs._ToolTipText)
 			.ContentPadding( InArgs._ContentPadding.IsSet() ? InArgs._ContentPadding : InArgs._ComboButtonStyle->ContentPadding )
 			.ForegroundColor( InArgs._ForegroundColor )
 			.ButtonColorAndOpacity( InArgs._ButtonColorAndOpacity )
@@ -93,6 +94,16 @@ void SComboButton::Construct( const FArguments& InArgs )
 	// We keep this content around, and then put it into a new window when we need to pop
 	// it up.
 	SetMenuContent( InArgs._MenuContent.Widget );
+}
+
+FText SComboButton::GetFilteredToolTipText(TAttribute<FText> ToolTipText) const
+{
+	if (IsOpen())
+	{
+		return FText::GetEmpty();
+	}
+
+	return ToolTipText.Get();
 }
 
 FReply SComboButton::OnButtonClicked()

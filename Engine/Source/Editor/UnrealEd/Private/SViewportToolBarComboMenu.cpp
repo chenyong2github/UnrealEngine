@@ -49,7 +49,7 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 			[
 				SNew(SEditorViewportToolBarMenuButton, MenuAnchor.ToSharedRef())
 				.ButtonStyle(&ButtonStyle)
-				.ToolTipText(InArgs._MenuButtonToolTip)
+				.ToolTipText(this, &SViewportToolBarComboMenu::GetFilteredToolTipText, InArgs._MenuButtonToolTip)
 				.OnClicked(this, &SViewportToolBarComboMenu::OnMenuClicked)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Center)
@@ -78,6 +78,19 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 			MenuAnchor.ToSharedRef()
 		]
 	];
+}
+
+FText SViewportToolBarComboMenu::GetFilteredToolTipText(TAttribute<FText> ToolTipText) const
+{
+	// If we're part of a toolbar that has a currently open menu, then we suppress our tool-tip
+	// as it will just get in the way
+	TWeakPtr<SMenuAnchor> OpenedMenu = ParentToolBar.Pin()->GetOpenMenu();
+	if (OpenedMenu.IsValid() && OpenedMenu.Pin()->IsOpen())
+	{
+		return FText::GetEmpty();
+	}
+
+	return ToolTipText.Get();
 }
 
 FReply SViewportToolBarComboMenu::OnMenuClicked()

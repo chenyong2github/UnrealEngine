@@ -91,6 +91,16 @@ protected:
 	/** Name of tool menu */
 	FName MenuName;
 
+	/**
+	 * Called to query the tool tip text for this widget, but will return an empty text for menu bar items
+	 * when a menu for that menu bar is already open
+	 *
+	 * @param	ToolTipText	Tool tip text to display, if possible
+	 *
+	 * @return	Tool tip text, or an empty text if filtered out
+	 */
+	FText GetFilteredToolTipText(TAttribute<FText> ToolTipText) const;
+
 private:
 	/** Our menus anchor */
 	TSharedPtr<SMenuAnchor> MenuAnchor;
