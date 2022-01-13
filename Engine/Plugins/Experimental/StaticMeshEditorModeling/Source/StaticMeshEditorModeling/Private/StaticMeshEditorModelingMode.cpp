@@ -9,6 +9,7 @@
 #include "Tools/GenerateStaticMeshLODAssetTool.h"
 #include "Tools/LODManagerTool.h"
 #include "MeshInspectorTool.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditorModelingMode"
 
@@ -32,6 +33,47 @@ void UStaticMeshEditorModelingMode::Enter()
 	RegisterTool(ToolManagerCommands.BeginGenerateStaticMeshLODAssetTool, TEXT("BeginGenerateStaticMeshLODAssetTool"), GenerateStaticMeshLODAssetToolBuilder);
 	RegisterTool(ToolManagerCommands.BeginLODManagerTool, TEXT("BeginLODManagerTool"), NewObject<ULODManagerToolBuilder>());
 	RegisterTool(ToolManagerCommands.BeginMeshInspectorTool, TEXT("BeginMeshInspectorTool"), NewObject<UMeshInspectorToolBuilder>());
+}
+
+bool UStaticMeshEditorModelingMode::OnRequestClose()
+{
+	bool bAllowClose = true;
+
+	if (GetInteractiveToolsContext()->HasActiveTool())
+	{
+		UInteractiveToolsContext* ITC = GetInteractiveToolsContext();
+
+		if (GetInteractiveToolsContext()->CanAcceptActiveTool())
+		{
+			EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(
+				EAppMsgType::YesNoCancel,
+				LOCTEXT("ShouldApplyModelingTool", "Would you like to Accept the current modeling tool changes?")
+			);
+
+			switch (YesNoCancelReply)
+			{
+			case EAppReturnType::Yes:
+				ITC->DeactivateAllActiveTools(EToolShutdownType::Accept);
+				bAllowClose = true;
+				break;
+			case EAppReturnType::No:
+				ITC->DeactivateAllActiveTools(EToolShutdownType::Cancel);
+				bAllowClose = true;
+				break;
+			case EAppReturnType::Cancel:
+				bAllowClose = false;
+				break;
+			}
+		}
+		else
+		{
+			// No Accept option, so cancel and close
+			ITC->DeactivateAllActiveTools(EToolShutdownType::Cancel);
+			bAllowClose = true;
+		}
+	}
+
+	return bAllowClose;
 }
 
 bool UStaticMeshEditorModelingMode::UsesToolkits() const

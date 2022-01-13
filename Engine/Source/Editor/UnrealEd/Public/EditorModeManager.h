@@ -405,6 +405,9 @@ public:
 	/** Is the viewport UI hidden? */
 	bool IsViewportUIHidden() const { return bHideViewportUI; }
 
+	/** Called by Editors when they are about to close */
+	bool OnRequestClose();
+
 	bool PivotShown;
 	bool Snapping;
 	bool SnappedActor;

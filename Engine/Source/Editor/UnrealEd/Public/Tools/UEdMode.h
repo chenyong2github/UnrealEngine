@@ -183,6 +183,11 @@ public:
 	*/
 	virtual FEdMode* AsLegacyMode() { return nullptr; }
 	
+	virtual bool OnRequestClose() 
+	{
+		return true;
+	}
+
 protected:
 
 	/** Information pertaining to this mode. Should be assigned in the constructor. */

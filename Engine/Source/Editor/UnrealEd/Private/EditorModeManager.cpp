@@ -1838,6 +1838,25 @@ bool FEditorModeTools::CanAutoSave() const
 	return bCanAutoSave;
 }
 
+
+bool FEditorModeTools::OnRequestClose()
+{
+	bool bCanClose = true;
+
+	ForEachEdMode([&bCanClose](UEdMode* Mode)
+	{
+		if (!Mode->OnRequestClose())
+		{
+			bCanClose = false;
+		}
+
+		return true;
+	});
+
+	return bCanClose;
+
+}
+
 UModeManagerInteractiveToolsContext* FEditorModeTools::GetInteractiveToolsContext() const
 {
 	return InteractiveToolsContext;

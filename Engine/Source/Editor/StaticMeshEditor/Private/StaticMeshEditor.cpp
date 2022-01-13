@@ -2398,6 +2398,8 @@ bool FStaticMeshEditor::OnRequestClose()
 		}
 	}
 
+	bAllowClose &= GetEditorModeManager().OnRequestClose();
+
 	// Give any active modes a chance to shutdown while the toolkit host is still alive
 	if (bAllowClose)
 	{

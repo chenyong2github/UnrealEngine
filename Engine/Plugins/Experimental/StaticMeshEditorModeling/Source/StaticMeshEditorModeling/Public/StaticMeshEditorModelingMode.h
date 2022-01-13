@@ -21,10 +21,11 @@ protected:
 
 	UStaticMeshEditorModelingMode();
 
-	void Enter() override;
+	virtual void Enter() override;
+	virtual bool OnRequestClose() override;
 
-	bool UsesToolkits() const override; 
-	void CreateToolkit() override;
+	virtual bool UsesToolkits() const override;
+	virtual void CreateToolkit() override;
 	
 
 };
