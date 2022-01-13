@@ -270,8 +270,6 @@ protected:
 	/** The skeleton notify filter */
 	TSharedPtr<FFrontendFilter_SkeletonNotify> SkeletonNotifyFilter;
 
-	void RetargetAnimationHandler(USkeleton* OldSkeleton, USkeleton* NewSkeleton, bool bRemapReferencedAssets, bool bAllowRemapToExisting, bool bConvertSpaces, const EditorAnimUtils::FNameDuplicationRule* NameRule, TArray<TWeakObjectPtr<UObject>> InAnimAssets);
-
 private:
 	/** Updates the animation preview in the tooltip */
 	EActiveTimerReturnType UpdateTootipPreview( double InCurrentTime, float InDeltaTime );

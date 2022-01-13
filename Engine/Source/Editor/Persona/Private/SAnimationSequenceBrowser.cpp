@@ -645,23 +645,6 @@ TSharedPtr<SWidget> SAnimationSequenceBrowser::OnGetAssetContextMenu(const TArra
 	}
 	MenuBuilder.EndSection();
 
-	if (bHasSelectedAnimAsset)
-	{
-		MenuBuilder.BeginSection("AnimationSequenceAdvancedOptions", LOCTEXT("AdvancedOptionsHeading", "Advanced") );
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ChangeSkeleton", "Create a copy for another Skeleton..."),
-			LOCTEXT("ChangeSkeleton_ToolTip", "Create a copy for different skeleton"),
-			FSlateIcon(),
-			FUIAction(
-			FExecuteAction::CreateSP( this, &SAnimationSequenceBrowser::OnCreateCopy, SelectedAssets ),
-			FCanExecuteAction()
-			)
-			);
-	}
-		MenuBuilder.EndSection();
-	}
-
 	return MenuBuilder.MakeWidget();
 }
 
@@ -816,49 +799,6 @@ void SAnimationSequenceBrowser::OnReimportAnimation(TArray<FAssetData> SelectedA
 			}
 		}
 		FReimportManager::Instance()->ValidateAllSourceFileAndReimport(CopyOfSelectedAssets);
-	}
-}
-
-void SAnimationSequenceBrowser::RetargetAnimationHandler(USkeleton* OldSkeleton, USkeleton* NewSkeleton, bool bRemapReferencedAssets, bool bAllowRemapToExisting, bool bConvertSpaces, const EditorAnimUtils::FNameDuplicationRule* NameRule, TArray<TWeakObjectPtr<UObject>> InAnimAssets)
-{
-	UObject* AssetToOpen = EditorAnimUtils::RetargetAnimations(OldSkeleton, NewSkeleton, InAnimAssets, bRemapReferencedAssets, NameRule, bConvertSpaces);
-
-	if(UAnimationAsset* AnimAsset = Cast<UAnimationAsset>(AssetToOpen))
-	{
-		FAssetRegistryModule::AssetCreated(AssetToOpen);
-
-		// once all success, attempt to open new editor with new skeleton
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetToOpen);
-	}
-}
-
-void SAnimationSequenceBrowser::OnCreateCopy(TArray<FAssetData> Selected)
-{
-	if ( Selected.Num() > 0 )
-	{
-		// ask which skeleton users would like to choose
-		USkeleton* OldSkeleton = PersonaToolkitPtr.Pin()->GetSkeleton();
-		USkeleton* NewSkeleton = NULL;
-		bool		bDuplicateAssets = true;
-
-		const FText Message = LOCTEXT("RemapSkeleton_Warning", "This will duplicate the asset and convert to new skeleton.");
-
-		TArray<UObject *> AnimAssets;
-		for ( auto SelectedAsset : Selected )
-		{
-			UAnimationAsset* Asset = Cast<UAnimationAsset>(SelectedAsset.GetAsset());
-			if (Asset)
-			{
-				AnimAssets.Add(Asset);
-			}
-		}
-
-		if (AnimAssets.Num() > 0)
-		{
-			auto AnimAssetsToConvert = FObjectEditorUtils::GetTypedWeakObjectPtrs<UObject>(AnimAssets);
-			// ask user what they'd like to change to 
-			SAnimationRemapSkeleton::ShowWindow(OldSkeleton, Message, true, FOnRetargetAnimation::CreateSP(this, &SAnimationSequenceBrowser::RetargetAnimationHandler, AnimAssetsToConvert));
-		}
 	}
 }
 
