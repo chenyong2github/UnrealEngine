@@ -1,17 +1,17 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "0.1.0-alpha",
+	"VersionName": "0.1",
 	"FriendlyName": "Python Foundation Packages",
 	"Description": "Common Python packages such as NumPy and PyTorch used by engine plugins",
-	"Category": "Experimental",
+	"Category": "Scripting",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "https://forums.unrealengine.com/",
 	"CanContainContent": true,
-	"IsBetaVersion": true,
+	"IsBetaVersion": false,
 	"IsExperimentalVersion": true,
 	"Installed": false
 }
