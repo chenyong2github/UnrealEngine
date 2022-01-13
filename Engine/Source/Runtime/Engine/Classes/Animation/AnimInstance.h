@@ -729,6 +729,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Montage")
 	float Montage_GetPlayRate(const UAnimMontage* Montage) const;
 
+	/*********************************************************************************************
+	* AnimMontage sync. See notes in AnimMontage.h
+	********************************************************************************************* */
+
+	/** Synchronize a montage to another anim instance's montage. Both montages must be playing already
+	* @param MontageFollower : The montage that will follow the leader in OtherAnimInstance
+	* @param OtherAnimInstance	: The other anim instance we want to synchronize to. Can be set to self
+	* @param MontageLeader	: The montage we want to follow in the other anim instance */
+	UFUNCTION(BlueprintCallable, Category = "Montage")
+	void MontageSync_Follow(const UAnimMontage* MontageFollower, const UAnimInstance* OtherAnimInstance, const UAnimMontage* MontageLeader);
+
+	/** Stop following the montage's leader in this anim instance
+	* @param MontageFollower : The montage we want to stop synchronizing */
+	UFUNCTION(BlueprintCallable, Category = "Montage")
+	void MontageSync_StopFollowing(const UAnimMontage* MontageFollower);
+
 	/** Returns true if any montage is playing currently. Doesn't mean it's active though, it could be blending out. */
 	UFUNCTION(BlueprintPure, Category = "Montage")
 	bool IsAnyMontagePlaying() const;

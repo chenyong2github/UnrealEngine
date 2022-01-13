@@ -2589,6 +2589,39 @@ float UAnimInstance::Montage_GetPlayRate(const UAnimMontage* Montage) const
 	return 0.f;
 }
 
+void UAnimInstance::MontageSync_Follow(const UAnimMontage* MontageFollower, const UAnimInstance* OtherAnimInstance, const UAnimMontage* MontageLeader)
+{
+	if (!MontageFollower || !OtherAnimInstance || !MontageLeader)
+	{
+		return;
+	}
+
+	FAnimMontageInstance* FollowerMontageInstance = GetActiveInstanceForMontage(MontageFollower);
+	FAnimMontageInstance* LeaderMontageInstance = OtherAnimInstance->GetActiveInstanceForMontage(MontageLeader);
+	if (!FollowerMontageInstance || !LeaderMontageInstance)
+	{
+		return;
+	}
+
+	FollowerMontageInstance->MontageSync_Follow(LeaderMontageInstance);
+}
+
+void UAnimInstance::MontageSync_StopFollowing(const UAnimMontage* MontageFollower)
+{
+	if (!MontageFollower)
+	{
+		return;
+	}
+
+	FAnimMontageInstance* FollowerMontageInstance = GetActiveInstanceForMontage(MontageFollower);
+	if (!FollowerMontageInstance)
+	{
+		return;
+	}
+
+	FollowerMontageInstance->MontageSync_StopFollowing();
+}
+
 int32 UAnimInstance::Montage_GetNextSectionID(UAnimMontage const* const Montage, int32 const& CurrentSectionID) const
 {
 	if (Montage)
