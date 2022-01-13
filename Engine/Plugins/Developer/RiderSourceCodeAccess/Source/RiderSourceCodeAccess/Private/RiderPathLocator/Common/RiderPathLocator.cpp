@@ -47,7 +47,9 @@ TArray<FInstallInfo> FRiderPathLocator::GetInstallInfos(const FString& ToolboxRi
 	{
 		TOptional<FInstallInfo> InstallInfo = GetInstallInfoFromRiderPath(RiderPath, InstallType);
 		if(InstallInfo.IsSet())
+		{
 			RiderInstallInfos.Add(InstallInfo.GetValue());
+		}
 	}
 	return RiderInstallInfos;
 }
@@ -63,6 +65,12 @@ void FRiderPathLocator::ParseProductInfoJson(FInstallInfo& Info, const FString& 
 		FString VersionString;
 		JsonObject->TryGetStringField(TEXT("buildNumber"), VersionString);
 		Info.Version = VersionString;
+		if(Info.Version.Major() >= 221)
+		{
+			Info.SupportUprojectState = FInstallInfo::ESupportUproject::Release;
+			return;
+		}
+
 		const TArray< TSharedPtr<FJsonValue> >* CustomProperties;
 		if(!JsonObject->TryGetArrayField(TEXT("customProperties"), CustomProperties)) return;
 
@@ -74,7 +82,8 @@ void FRiderPathLocator::ParseProductInfoJson(FInstallInfo& Info, const FString& 
 			FString SupportUprojectStateKey;
 			const bool bIsValidKey = Item->TryGetStringField(TEXT("key"), SupportUprojectStateKey);
 			if(!bIsValidKey) continue;
-			if(!SupportUprojectStateKey.Equals(TEXT("SupportUproject"))) continue;
+			if(	!SupportUprojectStateKey.Equals(TEXT("SupportUproject")) &&
+				!SupportUprojectStateKey.Equals(TEXT("SupportUprojectState"))) continue;
 
 			FString SupportUprojectStateValue;
 			const bool bIsValidValue  = Item->TryGetStringField(TEXT("value"), SupportUprojectStateValue);
@@ -103,7 +112,9 @@ TArray<FInstallInfo> FRiderPathLocator::GetInstallInfosFromResourceFile()
 		
 		TOptional<FInstallInfo> InstallInfo = GetInstallInfoFromRiderPath(Location, FInstallInfo::EInstallType::Custom);
 		if(InstallInfo.IsSet())
+		{
 			RiderInstallInfos.Add(InstallInfo.GetValue());
+		}
 	}
 	return RiderInstallInfos;
 }

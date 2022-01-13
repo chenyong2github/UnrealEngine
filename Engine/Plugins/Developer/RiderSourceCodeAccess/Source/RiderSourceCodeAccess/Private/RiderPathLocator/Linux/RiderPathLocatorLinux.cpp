@@ -44,6 +44,10 @@ TOptional<FInstallInfo> FRiderPathLocator::GetInstallInfoFromRiderPath(const FSt
 	if(!Info.Version.IsInitialized())
 	{
 		Info.Version = FPaths::GetBaseFilename(RiderDir);
+		if(Info.Version.Major() >= 221)
+		{
+			Info.SupportUprojectState = FInstallInfo::ESupportUproject::Release;
+		}
 	}
 	return Info;
 }
@@ -65,15 +69,30 @@ static TArray<FInstallInfo> GetManuallyInstalledRiders()
 {
 	TArray<FInstallInfo> Result;
 	TArray<FString> RiderPaths;
+
 	const FString FHomePath = GetHomePath();
-
-	const FString LocalPathMask = FPaths::Combine(FHomePath, TEXT("Rider*"));
-
-	IFileManager::Get().FindFiles(RiderPaths, *LocalPathMask, false, true);
+	const FString HomePathMask = FPaths::Combine(FHomePath, TEXT("Rider*"));
+	
+	IFileManager::Get().FindFiles(RiderPaths, *HomePathMask, false, true);
 
 	for(const FString& RiderPath: RiderPaths)
 	{
 		FString FullPath = FPaths::Combine(FHomePath, RiderPath);
+		TOptional<FInstallInfo> InstallInfo = FRiderPathLocator::GetInstallInfoFromRiderPath(FullPath, FInstallInfo::EInstallType::Installed);
+		if(InstallInfo.IsSet())
+		{
+			Result.Add(InstallInfo.GetValue());
+		}
+	}
+
+	const FString FOptPath = TEXT("/opt");
+	const FString OptPathMask = FPaths::Combine(FOptPath, TEXT("Rider*"));
+	
+	IFileManager::Get().FindFiles(RiderPaths, *OptPathMask, false, true);
+
+	for(const FString& RiderPath: RiderPaths)
+	{
+		FString FullPath = FPaths::Combine(FOptPath, RiderPath);
 		TOptional<FInstallInfo> InstallInfo = FRiderPathLocator::GetInstallInfoFromRiderPath(FullPath, FInstallInfo::EInstallType::Installed);
 		if(InstallInfo.IsSet())
 		{
