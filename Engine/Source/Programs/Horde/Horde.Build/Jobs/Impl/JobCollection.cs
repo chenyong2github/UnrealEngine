@@ -516,7 +516,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IJob>> FindAsync(JobId[]? JobIds, StreamId? StreamId, string? Name, TemplateRefId[]? Templates, int? MinChange, int? MaxChange, int? PreflightChange, bool? PreflightOnly, UserId ? PreflightStartedByUser, UserId? StartedByUser, DateTimeOffset? MinCreateTime, DateTimeOffset? MaxCreateTime, DateTimeOffset? ModifiedBefore, DateTimeOffset? ModifiedAfter, int? Index, int? Count, bool ConsistentRead, string? IndexHint)
+		public async Task<List<IJob>> FindAsync(JobId[]? JobIds, StreamId? StreamId, string? Name, TemplateRefId[]? Templates, int? MinChange, int? MaxChange, int? PreflightChange, bool? PreflightOnly, UserId ? PreflightStartedByUser, UserId? StartedByUser, DateTimeOffset? MinCreateTime, DateTimeOffset? MaxCreateTime, DateTimeOffset? ModifiedBefore, DateTimeOffset? ModifiedAfter, int? Index, int? Count, bool ConsistentRead, string? IndexHint, bool? ExcludeUserJobs)
 		{
 			FilterDefinitionBuilder<JobDocument> FilterBuilder = Builders<JobDocument>.Filter;
 
@@ -553,13 +553,20 @@ namespace HordeServer.Collections.Impl
 			{
 				Filter &= FilterBuilder.Ne(x => x.PreflightChange, 0);
 			}
-			if (PreflightStartedByUser != null)
+			if (ExcludeUserJobs != null && ExcludeUserJobs.Value)
 			{
-				Filter &= FilterBuilder.Or(FilterBuilder.Eq(x => x.PreflightChange, 0), FilterBuilder.Eq(x => x.StartedByUserId, PreflightStartedByUser));
+				Filter &= FilterBuilder.Eq(x => x.StartedByUserId, null);
 			}
-			if (StartedByUser != null)
+			else
 			{
-				Filter &= FilterBuilder.Eq(x => x.StartedByUserId, StartedByUser);
+				if (PreflightStartedByUser != null)
+				{
+					Filter &= FilterBuilder.Or(FilterBuilder.Eq(x => x.PreflightChange, 0), FilterBuilder.Eq(x => x.StartedByUserId, PreflightStartedByUser));
+				}
+				if (StartedByUser != null)
+				{
+					Filter &= FilterBuilder.Eq(x => x.StartedByUserId, StartedByUser);
+				}
 			}
 			if (MinCreateTime != null)
 			{
