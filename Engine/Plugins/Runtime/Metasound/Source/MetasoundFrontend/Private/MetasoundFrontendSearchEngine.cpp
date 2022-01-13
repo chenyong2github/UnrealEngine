@@ -470,7 +470,7 @@ namespace Metasound
 		};
 
 		// Policy for finding all registered metasound classes, including deprecated classes. 
-		struct FFindAllClassesIncludingDeprecatedQueryPolicy
+		struct FFindAllClassesIncludingAllVersionsQueryPolicy
 		{
 			using ResultType = TArray<FMetasoundFrontendClass>;
 
@@ -642,7 +642,7 @@ namespace Metasound
 		};
 
 		// Policy for finding all registered interfaces (including deprecated). 
-		struct FFindAllInterfacesIncludingDeprecatedQueryPolicy
+		struct FFindAllInterfacesIncludingAllVersionsQueryPolicy
 		{
 			using ResultType = TArray<FMetasoundFrontendInterface>;
 
@@ -724,12 +724,12 @@ namespace Metasound
 			virtual ~FSearchEngine() = default;
 
 			virtual void Prime() override;
-			virtual TArray<FMetasoundFrontendClass> FindAllClasses(bool bInIncludeDeprecated) override;
+			virtual TArray<FMetasoundFrontendClass> FindAllClasses(bool bInIncludeAllVersions) override;
 			virtual TArray<FMetasoundFrontendClass> FindClassesWithName(const FMetasoundFrontendClassName& InName, bool bInSortByVersion) override;
 			virtual bool FindClassWithHighestVersion(const FMetasoundFrontendClassName& InName, FMetasoundFrontendClass& OutClass) override;
 			virtual bool FindClassWithMajorVersion(const FMetasoundFrontendClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass) override;
 
-			virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeDeprecated) override;
+			virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeAllVersions) override;
 			virtual TArray<FMetasoundFrontendInterface> FindUClassDefaultInterfaces(FName InUClassName) override;
 			virtual TArray<FMetasoundFrontendVersion> FindAllRegisteredInterfacesWithName(FName InInterfaceName) override;
 			virtual bool FindInterfaceWithHighestVersion(FName InInterfaceName, FMetasoundFrontendInterface& OutInterface) override;
@@ -737,14 +737,14 @@ namespace Metasound
 		private:
 
 			TSearchEngineQuery<FFindAllClassesQueryPolicy> FindAllClassesQuery;
-			TSearchEngineQuery<FFindAllClassesIncludingDeprecatedQueryPolicy> FindAllClassesIncludingDeprecatedQuery;
+			TSearchEngineQuery<FFindAllClassesIncludingAllVersionsQueryPolicy> FindAllClassesIncludingAllVersionsQuery;
 			TSearchEngineQuery<FFindClassesWithNameUnsortedQueryPolicy> FindClassesWithNameUnsortedQuery;
 			TSearchEngineQuery<FFindClassesWithNameSortedQueryPolicy> FindClassesWithNameSortedQuery;
 			TSearchEngineQuery<FFindClassWithHighestVersionQueryPolicy> FindClassWithHighestVersionQuery;
 			TSearchEngineQuery<FFindClassWithMajorVersionQueryPolicy> FindClassWithMajorVersionQuery;
 			TSearchEngineQuery<FFindAllInterfacesQueryPolicy> FindAllInterfacesQuery;
 			TSearchEngineQuery<FFindAllDefaultInterfacesQueryPolicy> FFindAllDefaultInterfacesQuery;
-			TSearchEngineQuery<FFindAllInterfacesIncludingDeprecatedQueryPolicy> FindAllInterfacesIncludingDeprecatedQuery;
+			TSearchEngineQuery<FFindAllInterfacesIncludingAllVersionsQueryPolicy> FindAllInterfacesIncludingAllVersionsQuery;
 			TSearchEngineQuery<FFindAllRegisteredInterfacesWithNameQueryPolicy> FindAllRegisteredInterfacesWithNameQuery;
 			TSearchEngineQuery<FFindInterfaceWithHighestVersionQueryPolicy> FindInterfaceWithHighestVersionQuery;
 		};
@@ -760,25 +760,25 @@ namespace Metasound
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::Prime);
 
 			FindAllClassesQuery.Prime();
-			FindAllClassesIncludingDeprecatedQuery.Prime();
+			FindAllClassesIncludingAllVersionsQuery.Prime();
 			FindClassesWithNameUnsortedQuery.Prime();
 			FindClassesWithNameSortedQuery.Prime();
 			FindClassWithHighestVersionQuery.Prime();
 			FindClassWithMajorVersionQuery.Prime();
-			FindAllInterfacesIncludingDeprecatedQuery.Prime();
+			FindAllInterfacesIncludingAllVersionsQuery.Prime();
 			FindAllInterfacesQuery.Prime();
 			FindAllRegisteredInterfacesWithNameQuery.Prime();
 			FindInterfaceWithHighestVersionQuery.Prime();
 		}
 
-		TArray<FMetasoundFrontendClass> FSearchEngine::FindAllClasses(bool bInIncludeDeprecated)
+		TArray<FMetasoundFrontendClass> FSearchEngine::FindAllClasses(bool bInIncludeAllVersions)
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindAllClasses);
 
 			FFrontendQueryKey NullKey;
-			if (bInIncludeDeprecated)
+			if (bInIncludeAllVersions)
 			{
-				return FindAllClassesIncludingDeprecatedQuery.UpdateAndFindResult(NullKey);
+				return FindAllClassesIncludingAllVersionsQuery.UpdateAndFindResult(NullKey);
 			}
 			else
 			{
@@ -818,14 +818,14 @@ namespace Metasound
 			return FindClassWithMajorVersionQuery.UpdateAndFindResult(Key, OutClass);
 		}
 
-		TArray<FMetasoundFrontendInterface> FSearchEngine::FindAllInterfaces(bool bInIncludeDeprecated)
+		TArray<FMetasoundFrontendInterface> FSearchEngine::FindAllInterfaces(bool bInIncludeAllVersions)
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindAllInterfaces);
 
 			const FFrontendQueryKey NullKey;
-			if (bInIncludeDeprecated)
+			if (bInIncludeAllVersions)
 			{
-				return FindAllInterfacesIncludingDeprecatedQuery.UpdateAndFindResult(NullKey);
+				return FindAllInterfacesIncludingAllVersionsQuery.UpdateAndFindResult(NullKey);
 			}
 			else
 			{

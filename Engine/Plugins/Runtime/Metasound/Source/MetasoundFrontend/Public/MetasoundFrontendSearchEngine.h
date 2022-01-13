@@ -24,9 +24,9 @@ namespace Metasound
 				virtual void Prime() = 0;
 
 				/** Find all FMetasoundFrontendClasses.
-				  * (Optional) Include deprecated classes (i.e. versions of classes that are not the highest major version).
+				  * (Optional) Include all versions (i.e. deprecated classes and versions of classes that are not the highest major version).
 				  */
-				virtual TArray<FMetasoundFrontendClass> FindAllClasses(bool bInIncludeDeprecated) = 0;
+				virtual TArray<FMetasoundFrontendClass> FindAllClasses(bool bInIncludeAllVersions) = 0;
 
 				/** Find all classes with the given ClassName.
 				  * (Optional) Sort matches based on version.
@@ -39,7 +39,7 @@ namespace Metasound
 				/** Find the class with the given ClassName & Major Version. Returns false if not found, true if found. */
 				virtual bool FindClassWithMajorVersion(const FMetasoundFrontendClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass) = 0;
 
-				virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeDeprecated = false) = 0;
+				virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeAllVersions = false) = 0;
 
 				virtual TArray<FMetasoundFrontendInterface> FindUClassDefaultInterfaces(FName InUClassName) = 0;
 

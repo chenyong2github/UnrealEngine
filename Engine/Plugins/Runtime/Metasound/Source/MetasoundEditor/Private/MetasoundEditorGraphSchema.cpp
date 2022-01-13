@@ -45,10 +45,10 @@
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
-static int32 EnableDeprecatedMetaSoundNodeClassCreationCVar = 0;
-FAutoConsoleVariableRef CVarEnableDeprecatedMetaSoundNodeClassCreation(
-	TEXT("au.Debug.Editor.MetaSounds.EnableDeprecatedNodeClassCreation"),
-	EnableDeprecatedMetaSoundNodeClassCreationCVar,
+static int32 EnableAllVersionsMetaSoundNodeClassCreationCVar = 0;
+FAutoConsoleVariableRef CVarEnableAllVersionsMetaSoundNodeClassCreation(
+	TEXT("au.Debug.Editor.MetaSounds.EnableAllVersionsNodeClassCreation"),
+	EnableAllVersionsMetaSoundNodeClassCreationCVar,
 	TEXT("Enable creating nodes major versions of deprecated MetaSound classes in the Editor.\n")
 	TEXT("0: Disabled (default), !0: Enabled"),
 	ECVF_Default);
@@ -1446,8 +1446,8 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 	using namespace Metasound;
 	using namespace Metasound::Editor;
 
-	const bool bIncludeDeprecated = static_cast<bool>(EnableDeprecatedMetaSoundNodeClassCreationCVar);
-	const TArray<FMetasoundFrontendClass> FrontendClasses = Frontend::ISearchEngine::Get().FindAllClasses(bIncludeDeprecated);
+	const bool bIncludeAllVersions = static_cast<bool>(EnableAllVersionsMetaSoundNodeClassCreationCVar);
+	const TArray<FMetasoundFrontendClass> FrontendClasses = Frontend::ISearchEngine::Get().FindAllClasses(bIncludeAllVersions);
 	for (const FMetasoundFrontendClass& FrontendClass : FrontendClasses)
 	{
 		if (InFilters.InputFilterFunction && !FrontendClass.Interface.Inputs.ContainsByPredicate(InFilters.InputFilterFunction))
@@ -1558,8 +1558,8 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 		ParentAsset = AssetManager.TryLoadAssetFromKey(RegistryKey);
 	}
 
-	const bool bIncludeDeprecated = static_cast<bool>(EnableDeprecatedMetaSoundNodeClassCreationCVar);
-	const TArray<FMetasoundFrontendClass> FrontendClasses = ISearchEngine::Get().FindAllClasses(bIncludeDeprecated);
+	const bool bIncludeAllVersions = static_cast<bool>(EnableAllVersionsMetaSoundNodeClassCreationCVar);
+	const TArray<FMetasoundFrontendClass> FrontendClasses = ISearchEngine::Get().FindAllClasses(bIncludeAllVersions);
 	for (const FMetasoundFrontendClass& FrontendClass : FrontendClasses)
 	{
 		if (InFilters.InputFilterFunction && !FrontendClass.Interface.Inputs.ContainsByPredicate(InFilters.InputFilterFunction))

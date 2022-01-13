@@ -840,7 +840,23 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 		}
 	}
 
-	// 6. Find all available versions & report if upgrade available
+	// Report of node class is deprecated
+	FMetasoundFrontendClass RegisteredClass;
+	if (FMetasoundFrontendRegistryContainer::Get()->GetFrontendClassFromRegistered(RegistryKey, RegisteredClass))
+	{
+		if (RegisteredClass.Metadata.GetIsDeprecated())
+		{
+			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Warning,
+				FString::Format(TEXT("Class '{0} {1}' is deprecated."),
+				{
+					*RegisteredClass.Metadata.GetClassName().ToString(),
+					*RegisteredClass.Metadata.GetVersion().ToString()
+				}));
+		}
+	}
+
+
+	// Find all available versions & report if upgrade available
 	const Metasound::FNodeClassName NodeClassName = Metadata.GetClassName().ToNodeClassName();
 	const TArray<FMetasoundFrontendClass> SortedClasses = ISearchEngine::Get().FindClassesWithName(NodeClassName, true /* bSortByVersion */);
 	if (SortedClasses.IsEmpty())

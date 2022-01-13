@@ -922,8 +922,8 @@ namespace Metasound
 				// with an "Invalid" interface version.
 				if (ensure(Interfaces.IsEmpty()))
 				{
-					constexpr bool bIncludeDeprecatedInterfaces = true;
-					TArray<FMetasoundFrontendInterface> AllInterfaces = ISearchEngine::Get().FindAllInterfaces(bIncludeDeprecatedInterfaces);
+					constexpr bool bIncludeAllVersions = true;
+					TArray<FMetasoundFrontendInterface> AllInterfaces = ISearchEngine::Get().FindAllInterfaces(bIncludeAllVersions);
 
 					const FMetasoundFrontendGraphClass& RootGraph = InDocument->GetRootGraphClass();
 					const TArray<FMetasoundFrontendClass>& Dependencies = InDocument->GetDependencies();
