@@ -185,7 +185,9 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 						// Init the frame cache.
 						FMLDeformerFrameCache::FInitSettings FrameCacheInitSettings;
 						FrameCacheInitSettings.DeformerAsset = DeformerAsset;
-						FrameCacheInitSettings.CacheSizeInBytes = 1024ull * 1024 * DeformerAsset->GetCacheSizeInMegabytes();
+						
+						// Disable cache as it is now implemented in pytorch dataloader
+						FrameCacheInitSettings.CacheSizeInBytes = 0; 
 						FrameCacheInitSettings.World = EditorData->GetWorld();
 						FrameCacheInitSettings.DeltaMode = EDeltaMode::PreSkinning;
 						TSharedPtr<FMLDeformerFrameCache> FrameCache = MakeShared<FMLDeformerFrameCache>();
