@@ -46,6 +46,11 @@ public:
 			return bAllowBaseStruct;
 		}
 
+		if (InStruct->HasMetaData(TEXT("Hidden")))
+		{
+			return false;
+		}
+
 		// Query the native struct to see if it has the correct parent type (if any)
 		return !BaseStruct || InStruct->IsChildOf(BaseStruct);
 	}
