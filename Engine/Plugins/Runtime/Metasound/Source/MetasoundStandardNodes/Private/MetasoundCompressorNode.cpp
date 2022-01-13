@@ -211,20 +211,20 @@ namespace Metasound
 			// For a compressor, ratio values should be 1 or greater
 			Compressor.SetRatio(FMath::Max(*RatioInput, 1.0f));
 
-			if (FMath::IsNearlyEqual(*ThresholdDbInput, PrevThresholdDb))
+			if (FMath::IsNearlyEqual(*ThresholdDbInput, PrevThresholdDb) == false)
 			{
 				Compressor.SetThreshold(*ThresholdDbInput);
 			}
 
 			// Attack time cannot be negative
 			double CurrAttack = FMath::Max(FTime::ToMilliseconds(*AttackTimeInput), 0.0f);
-			if (FMath::IsNearlyEqual(CurrAttack, PrevAttackTime))
+			if (FMath::IsNearlyEqual(CurrAttack, PrevAttackTime) == false)
 			{
 				Compressor.SetAttackTime(CurrAttack);
 			}
 			// Release time cannot be negative
 			double CurrRelease = FMath::Max(FTime::ToMilliseconds(*ReleaseTimeInput), 0.0f);
-			if (FMath::IsNearlyEqual(CurrRelease, PrevReleaseTime))
+			if (FMath::IsNearlyEqual(CurrRelease, PrevReleaseTime) == false)
 			{
 				Compressor.SetReleaseTime(CurrRelease);
 			}
