@@ -425,6 +425,8 @@ void FSkeletalMeshThumbnailScene::SetSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 {
 	PreviewActor->GetSkeletalMeshComponent()->OverrideMaterials.Empty();
 	PreviewActor->GetSkeletalMeshComponent()->SetSkeletalMesh(InSkeletalMesh, false);
+	PreviewActor->GetSkeletalMeshComponent()->SetDrawDebugSkeleton(bDrawDebugSkeleton);
+	PreviewActor->GetSkeletalMeshComponent()->SetDebugDrawColor(DrawDebugColor);
 
 	if ( InSkeletalMesh )
 	{
@@ -438,6 +440,15 @@ void FSkeletalMeshThumbnailScene::SetSkeletalMesh(USkeletalMesh* InSkeletalMesh)
 		PreviewActor->SetActorLocation( -PreviewActor->GetSkeletalMeshComponent()->Bounds.Origin + FVector(0, 0, BoundsZOffset), false );
 		PreviewActor->GetSkeletalMeshComponent()->RecreateRenderState_Concurrent();
 	}
+}
+
+void FSkeletalMeshThumbnailScene::SetDrawDebugSkeleton(bool bInDrawDebugSkeleton, const FLinearColor& InSkeletonColor)
+{
+ 	bDrawDebugSkeleton = bInDrawDebugSkeleton;
+	DrawDebugColor = InSkeletonColor;
+	PreviewActor->GetSkeletalMeshComponent()->SetDrawDebugSkeleton(bDrawDebugSkeleton);
+	PreviewActor->GetSkeletalMeshComponent()->SetDebugDrawColor(DrawDebugColor);
+	PreviewActor->GetSkeletalMeshComponent()->RecreateRenderState_Concurrent();
 }
 
 void FSkeletalMeshThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees, FVector& OutOrigin, float& OutOrbitPitch, float& OutOrbitYaw, float& OutOrbitZoom) const

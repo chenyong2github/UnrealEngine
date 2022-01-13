@@ -36,6 +36,7 @@
 #include "ClassViewerFilter.h"
 #include "Animation/AnimLayerInterface.h"
 #include "Widgets/Input/SSegmentedControl.h"
+#include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 
 #define LOCTEXT_NAMESPACE "AnimBlueprintFactory"
@@ -71,35 +72,27 @@ public:
 		bOkClicked = false;
 		ParentClass = UAnimInstance::StaticClass();
 
+		const FText TemplateDesc = LOCTEXT("TemplateDesc", "A Template Animation Blueprint has no target skeleton.\nTemplates cannot have direct references to animation assets placed inside of their animation graphs."); 
+		
 		ChildSlot
 		[
 			SNew(SBorder)
 			.Visibility(EVisibility::Visible)
 			.BorderImage(FEditorStyle::GetBrush("ChildWindow.Background"))
 			[
-				SNew(SBox)
-				.Visibility(EVisibility::Visible)
-				.WidthOverride(800.0f)
-				.HeightOverride(500.0f)
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.FillHeight(1.0f)
 				[
 					SNew(SVerticalBox)
 					+SVerticalBox::Slot()
-					.FillHeight(1.0f)
+					.AutoHeight()
+					.Padding(10.0f)
 					[
-						SNew(SHorizontalBox)
-						+SHorizontalBox::Slot()
-						.FillWidth(0.5f)
-						.Padding(10.0f)
-						[
-							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NewAnimBlueprintDialog.AreaBorder"))
-							[
-								MakeParentClassPicker()
-							]
-						]
-						+SHorizontalBox::Slot()
-						.FillWidth(0.5f)
-						.Padding(10.0f)
+						SNew(SBox)
+						.Visibility(EVisibility::Visible)
+						.WidthOverride(400.0f)
+						.HeightOverride(400.0f)
 						[
 							SNew(SBorder)
 							.BorderImage(FEditorStyle::GetBrush("NewAnimBlueprintDialog.AreaBorder"))
@@ -124,14 +117,16 @@ public:
 									+SSegmentedControl<bool>::Slot(false)
 									[
 										SNew(STextBlock)
-										.Text(LOCTEXT("SpecificSkeleton", "SPECIFIC SKELETON"))
+										.Text(LOCTEXT("SpecificSkeleton", "Specific Skeleton"))
 										.TextStyle( FEditorStyle::Get(), "NormalText" )
+										.ToolTipText(LOCTEXT("SpecoficSkeletonTooltip", "Choose a specific skeleton to bind your new Animation Blueprint to. The Blueprint will be able to use assets that are compatible with this skeleton."))
 									]
 									+SSegmentedControl<bool>::Slot(true)
 									[
 										SNew(STextBlock)
-										.Text(LOCTEXT("Template", "TEMPLATE"))
+										.Text(LOCTEXT("Template", "Template"))
 										.TextStyle(FEditorStyle::Get(), "NormalText")
+										.ToolTipText(TemplateDesc)
 									]
 								]
 								+SVerticalBox::Slot()
@@ -150,45 +145,56 @@ public:
 										SNew(STextBlock)
 										.Justification(ETextJustify::Center)
 										.AutoWrapText(true)
-										.Text(LOCTEXT("TemplateDesc", "A Template Animation Blueprint has no target skeleton.\nTemplates cannot have direct references to animation assets placed inside of their animation graphs."))
+										.Text(TemplateDesc)
 										.TextStyle(FEditorStyle::Get(), "NormalText")
 									]
 								]
 							]
 						]
 					]
-					
-					// Ok/Cancel buttons
 					+SVerticalBox::Slot()
 					.AutoHeight()
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Bottom)
-					.Padding(8)
+					.Padding(10.0f, 0.0f, 10.0f, 0.0f)
 					[
-						SNew(SUniformGridPanel)
-						.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-						.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-						.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
-						+SUniformGridPanel::Slot(0,0)
+						SNew(SBorder)
+						.BorderImage(FEditorStyle::GetBrush("NewAnimBlueprintDialog.AreaBorder"))
 						[
-							SNew(SButton)
-							.IsEnabled_Lambda([this]()
-							{
-								return ParentClass.Get() != nullptr && (bTemplate || TargetSkeleton.IsValid());
-							})
-							.HAlign(HAlign_Center)
-							.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
-							.OnClicked(this, &SAnimBlueprintCreateDialog::OkClicked)
-							.Text(LOCTEXT("CreateAnimBlueprintCreate", "Create"))
+							MakeParentClassPicker()
 						]
-						+SUniformGridPanel::Slot(1,0)
-						[
-							SNew(SButton)
-							.HAlign(HAlign_Center)
-							.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
-							.OnClicked(this, &SAnimBlueprintCreateDialog::CancelClicked)
-							.Text(LOCTEXT("CreateAnimBlueprintCancel", "Cancel"))
-						]
+					]
+				]
+
+				// Ok/Cancel buttons
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Bottom)
+				.Padding(10.0f)
+				[
+					SNew(SUniformGridPanel)
+					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
+					.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
+					.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+					+SUniformGridPanel::Slot(0,0)
+					[
+						SNew(SButton)
+						.ToolTipText(LOCTEXT("CreateAnimBlueprintCreate_Tooltip", "Create a new animation Blueprint.\nSelect a target skeleton or whether the animation Blueprint should be a template.\nOptionally select a parent class."))
+						.IsEnabled_Lambda([this]()
+						{
+							return ParentClass.Get() != nullptr && (bTemplate || TargetSkeleton.IsValid());
+						})
+						.HAlign(HAlign_Center)
+						.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+						.OnClicked(this, &SAnimBlueprintCreateDialog::OkClicked)
+						.Text(LOCTEXT("CreateAnimBlueprintCreate", "Create"))
+					]
+					+SUniformGridPanel::Slot(1,0)
+					[
+						SNew(SButton)
+						.HAlign(HAlign_Center)
+						.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
+						.OnClicked(this, &SAnimBlueprintCreateDialog::CancelClicked)
+						.Text(LOCTEXT("CreateAnimBlueprintCancel", "Cancel"))
 					]
 				]
 			]
@@ -204,8 +210,10 @@ public:
 
 		TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title( LOCTEXT("CreateAnimBlueprintOptions", "Create Animation Blueprint") )
-		.ClientSize(FVector2D(800, 500))
-		.SupportsMinimize(false) .SupportsMaximize(false)
+		.ClientSize(FVector2D(500, 500))
+		.SizingRule(ESizingRule::Autosized)
+		.SupportsMinimize(false)
+		.SupportsMaximize(false)
 		[
 			AsShared()
 		];
@@ -259,19 +267,25 @@ private:
 		// All child child classes of UAnimInstance are valid.
 		Filter->AllowedChildrenOfClasses.Add(UAnimInstance::StaticClass());
 
-		return SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(5.0f)
-			.HAlign(HAlign_Center)
+		return
+			SNew(SExpandableArea)
+			.ToolTipText(LOCTEXT("ParentClass_Tooltip", "Optionally choose a parent class for your Animation Blueprint"))
+			.Padding(10.0f)
+			.InitiallyCollapsed(true)
+			.HeaderContent()
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ParentClass", "PARENT CLASS"))
-				.TextStyle( FEditorStyle::Get(), "NormalText" )
+				SNew(SBox)
+				.Padding(5.0f)
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]()
+					{
+						return FText::Format(LOCTEXT("ParentClassFormat", "Parent Class: {0}"), FText::FromString(ParentClass->GetName()));
+					})
+					.TextStyle( FEditorStyle::Get(), "NormalText" )
+				]
 			]
-			+SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			.Padding(5.0f)
+			.BodyContent()
 			[
 				ClassViewerModule.CreateClassViewer(Options, FOnClassPicked::CreateSP(this, &SAnimBlueprintCreateDialog::OnClassPicked))
 			];
@@ -294,7 +308,7 @@ private:
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SAnimBlueprintCreateDialog::OnSkeletonSelected);
 		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &SAnimBlueprintCreateDialog::FilterSkeletonBasedOnParentClass);
 		AssetPickerConfig.bAllowNullSelection = false;
-		AssetPickerConfig.InitialAssetViewType = EAssetViewType::Column;
+		AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 		AssetPickerConfig.InitialAssetSelection = TargetSkeleton;
 		AssetPickerConfig.HiddenColumnNames =
 		{

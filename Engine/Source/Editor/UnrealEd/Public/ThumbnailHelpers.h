@@ -98,6 +98,9 @@ public:
 	/** Sets the skeletal mesh to use in the next GetView() */
 	void SetSkeletalMesh(class USkeletalMesh* InSkeletalMesh);
 
+	/** Set whether to draw debug skeleton */
+	void SetDrawDebugSkeleton(bool bInDrawDebugSkeleton, const FLinearColor& InSkeletonColor);
+	
 	/** Returns the preview actor within the scene */
 	class ASkeletalMeshActor* GetPreviewActor() { return PreviewActor; }
 
@@ -108,6 +111,12 @@ protected:
 private:
 	/** The skeletal mesh actor used to display all skeletal mesh thumbnails */
 	class ASkeletalMeshActor* PreviewActor;
+
+	/** The color used to draw the debug skeleton */
+	FLinearColor DrawDebugColor = FLinearColor::White;
+	
+	/** Whether to draw debug skeleton */
+	bool bDrawDebugSkeleton = false;
 };
 
 class UNREALED_API FStaticMeshThumbnailScene : public FThumbnailPreviewScene
