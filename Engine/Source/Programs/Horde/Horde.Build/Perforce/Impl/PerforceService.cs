@@ -913,7 +913,7 @@ namespace HordeServer.Services
 				{
 					return CheckShelfResult.NoChange;
 				}
-				if (Change.ShelvedFiles.Count == 0)
+				if (Change.ShelvedFiles == null || Change.ShelvedFiles.Count == 0)
 				{
 					return CheckShelfResult.NoShelvedFiles;
 				}
