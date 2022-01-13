@@ -110,9 +110,14 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	FName PropertyName;
+	FName MemberPropertyName;
 	if (PropertyChangedEvent.Property)
 	{
 		PropertyName = PropertyChangedEvent.Property->GetFName();
+	}
+	if (PropertyChangedEvent.MemberProperty)
+	{
+		MemberPropertyName = PropertyChangedEvent.MemberProperty->GetFName();
 	}
 
 	bool bNeedsRecompile = false;
@@ -156,7 +161,7 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 	{
 		bNeedsRecompile = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ParticleIterationStateRange))
+	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ParticleIterationStateRange))
 	{
 		bNeedsRecompile = true;
 	}
