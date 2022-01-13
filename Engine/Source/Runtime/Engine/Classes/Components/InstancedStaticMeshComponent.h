@@ -389,6 +389,11 @@ public:
 	*/
 	TMap<int32, int32> InstanceIdToInstanceIndexMap;
 
+	// This is here because in void FScene::UpdatePrimitiveInstance(UPrimitiveComponent* Primitive) we want access
+	// to the instances updates through the primitive component in a generic way.
+	/** Recorded modifications to per-instance data */
+	FInstanceUpdateCmdBuffer InstanceUpdateCmdBuffer;
+
 private:
 
 	/** Sets up new instance data to sensible defaults, creates physics counterparts if possible. */

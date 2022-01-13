@@ -31,6 +31,7 @@
 #include "Components/DecalComponent.h"
 #include "Components/ReflectionCaptureComponent.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "ScenePrivateBase.h"
 #include "SceneCore.h"
 #include "Rendering/MotionVectorSimulation.h"
@@ -1471,7 +1472,7 @@ void FScene::UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive,
 	}
 }
 
-void FScene::UpdatePrimitiveInstances(UPrimitiveComponent* Primitive)
+void FScene::UpdatePrimitiveInstances(UInstancedStaticMeshComponent* Primitive)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveInstanceGT);
 	SCOPED_NAMED_EVENT(FScene_UpdatePrimitiveInstance, FColor::Yellow);
@@ -1481,7 +1482,7 @@ void FScene::UpdatePrimitiveInstances(UPrimitiveComponent* Primitive)
 		FUpdateInstanceCommand UpdateParams;
 		UpdateParams.PrimitiveSceneProxy = Primitive->SceneProxy;
 		UpdateParams.WorldBounds = Primitive->Bounds;
-		UpdateParams.LocalBounds = Primitive->GetLocalBounds();
+		UpdateParams.LocalBounds = Cast<UPrimitiveComponent>(Primitive)->GetLocalBounds();
 
 		// #todo (jnadro) This code should not be dependent on static mesh bounds.
 		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Primitive);
@@ -5078,7 +5079,7 @@ public:
 
 	/** Updates the transform of a primitive which has already been added to the scene. */
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override {}
-	virtual void UpdatePrimitiveInstances(UPrimitiveComponent* Primitive) override {}
+	virtual void UpdatePrimitiveInstances(UInstancedStaticMeshComponent* Primitive) override {}
 	virtual void UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive, float NewSlack) override {}
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) override {}
 	virtual void UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive) override {}

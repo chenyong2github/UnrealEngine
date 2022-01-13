@@ -26,6 +26,7 @@ class UDecalComponent;
 class ULightComponent;
 class UPlanarReflectionComponent;
 class UPrimitiveComponent;
+class UInstancedStaticMeshComponent;
 class UReflectionCaptureComponent;
 class USkyLightComponent;
 class UStaticMeshComponent;
@@ -90,7 +91,7 @@ public:
 	 *
 	 * @param Primitive - primitive component to update
 	 */
-	virtual void UpdatePrimitiveInstances(UPrimitiveComponent* Primitive) = 0;
+	virtual void UpdatePrimitiveInstances(UInstancedStaticMeshComponent* Primitive) = 0;
 
 	/** 
 	 * Updates the custom primitive data of a primitive component which has already been added to the scene. 
