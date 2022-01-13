@@ -1146,7 +1146,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		ResetMode = FNiagaraSystemInstance::EResetMode::None;//Already done a reinit sete
 	}
 
-	if (!SystemInstanceController || SystemInstanceController->IsComplete())
+	if (!SystemInstanceController)
 	{
 		OnSystemComplete(true);
 		return;
