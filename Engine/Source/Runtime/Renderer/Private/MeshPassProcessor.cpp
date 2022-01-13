@@ -45,6 +45,22 @@ static TAutoConsoleVariable<int32> CVarSafeStateLookup(
 	TEXT("Forces new-style safe state lookup for easy runtime perf comparison\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+#if WITH_EDITORONLY_DATA
+
+int32 GNaniteIsolateInvalidCoarseMesh = 0;
+static FAutoConsoleVariableRef CVarNaniteIsolateInvalidCoarseMesh(
+	TEXT("r.Nanite.IsolateInvalidCoarseMesh"),
+	GNaniteIsolateInvalidCoarseMesh,
+	TEXT("Debug mode to render only non-Nanite proxies that incorrectly reference coarse static mesh assets."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		// Needed to force a recache of all the static mesh draw commands
+		FGlobalComponentRecreateRenderStateContext Context;
+	})
+);
+
+#endif
+
 class FReadOnlyMeshDrawSingleShaderBindings : public FMeshDrawShaderBindingsLayout
 {
 public:
@@ -1512,6 +1528,33 @@ FMeshDrawCommandPrimitiveIdInfo FMeshPassProcessor::GetDrawCommandPrimitiveId(
 	PrimitiveIdInfo.ScenePrimitiveId = PrimitiveSceneInfo ? PrimitiveSceneInfo->GetIndex() : -1;
 
 	return PrimitiveIdInfo;
+}
+
+bool FMeshPassProcessor::ShouldSkipMeshDrawCommand(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy) const
+{
+	bool bSkipMeshDrawCommand = false;
+
+#if WITH_EDITORONLY_DATA
+	// Support debug mode to render only non-Nanite proxies that incorrectly reference coarse mesh static mesh assets.
+	if (GNaniteIsolateInvalidCoarseMesh != 0)
+	{
+		// Skip everything by default
+		bSkipMeshDrawCommand = true;
+
+		const bool bNaniteProxy = PrimitiveSceneProxy != nullptr && PrimitiveSceneProxy->IsNaniteMesh();
+		if (!bNaniteProxy && MeshBatch.VertexFactory != nullptr)
+		{
+			// Only skip if the referenced static mesh is not a generated Nanite coarse mesh
+			const bool bIsCoarseProxy = MeshBatch.VertexFactory->IsCoarseProxyMesh();
+			if (bIsCoarseProxy)
+			{
+				bSkipMeshDrawCommand = false;
+			}
+		}
+	}
+#endif
+
+	return bSkipMeshDrawCommand;
 }
 
 FCachedPassMeshDrawListContext::FCachedPassMeshDrawListContext(FScene& InScene)

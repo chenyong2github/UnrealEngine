@@ -592,7 +592,7 @@ public:
 		}
 	}
 
-	virtual FVertexFactoryType* GetType() const { return NULL; }
+	virtual FVertexFactoryType* GetType() const { return nullptr; }
 
 	void GetStreams(ERHIFeatureLevel::Type InFeatureLevel, EVertexInputStreamType VertexStreamType, FVertexInputStreamArray& OutVertexStreams) const;
 
@@ -619,10 +619,11 @@ public:
 	{
 		switch (InputStreamType)
 		{
-		case EVertexInputStreamType::Default:				return Declaration;
-		case EVertexInputStreamType::PositionOnly:			return PositionDeclaration;
-		case EVertexInputStreamType::PositionAndNormalOnly:	return PositionAndNormalDeclaration;
+			case EVertexInputStreamType::Default:				return Declaration;
+			case EVertexInputStreamType::PositionOnly:			return PositionDeclaration;
+			case EVertexInputStreamType::PositionAndNormalOnly:	return PositionAndNormalDeclaration;
 		}
+
 		return Declaration;
 	}
 
@@ -635,9 +636,14 @@ public:
 	/** Indicates whether the vertex factory supports a null pixel shader. */
 	virtual bool SupportsNullPixelShader() const { return true; }
 
+#if WITH_EDITORONLY_DATA
+	virtual bool IsCoarseProxyMesh() const { return false; }
+#endif
+
 	virtual bool RendersPrimitivesAsCameraFacingSprites() const { return false; }
 
 	bool NeedsDeclaration() const { return bNeedsDeclaration; }
+
 	inline bool SupportsManualVertexFetch(const FStaticFeatureLevel InFeatureLevel) const
 	{ 
 		check(InFeatureLevel != ERHIFeatureLevel::Num);
@@ -649,8 +655,6 @@ public:
 		return PrimitiveIdStreamIndex[TranslatePrimitiveIdStreamIndex(InFeatureLevel, InputStreamType)];
 	}
 
-	/** 
-	 */
 	inline bool SupportsGPUScene(const FStaticFeatureLevel InFeatureLevel) const
 	{
 		return GetType()->SupportsPrimitiveIdStream() &&  GetPrimitiveIdStreamIndex(InFeatureLevel, EVertexInputStreamType::Default) != INDEX_NONE;

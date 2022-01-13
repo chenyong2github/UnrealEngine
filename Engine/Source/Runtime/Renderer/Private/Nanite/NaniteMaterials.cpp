@@ -36,6 +36,10 @@ static TAutoConsoleVariable<int32> CVarParallelBasePassBuild(
 	ECVF_RenderThreadSafe
 );
 
+#if WITH_EDITORONLY_DATA
+extern int32 GNaniteIsolateInvalidCoarseMesh;
+#endif
+
 class FNaniteMarkStencilPS : public FNaniteShader
 {
 	DECLARE_GLOBAL_SHADER(FNaniteMarkStencilPS);
@@ -595,6 +599,15 @@ void EmitDepthTargets(
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::EmitDepthTargets");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDepth);
+
+#if WITH_EDITORONLY_DATA
+	// Hide all Nanite meshes when the isolate invalid coarse mesh batch debug mode is active.
+	if (GNaniteIsolateInvalidCoarseMesh != 0)
+	{
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+		VisBuffer64 = SystemTextures.Black;
+	}
+#endif
 
 	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
 	const FIntPoint SceneTexturesExtent = GetSceneTextureExtent();	

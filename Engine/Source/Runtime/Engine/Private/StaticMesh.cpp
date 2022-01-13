@@ -907,19 +907,29 @@ void FStaticMeshVertexFactories::InitVertexFactory(
 	{
 		FLocalVertexFactory* VertexFactory;
 		const FStaticMeshLODResources* LODResources;
-		bool bOverrideColorVertexBuffer;
+	#if WITH_EDITORONLY_DATA
+		const UStaticMesh* StaticMesh;
+	#endif
 		uint32 LightMapCoordinateIndex;
 		uint32 LODIndex;
+		uint8 bOverrideColorVertexBuffer : 1;
+	#if WITH_EDITORONLY_DATA
+		uint8 bIsCoarseProxy : 1;
+	#endif
 	} Params;
 
 	uint32 LightMapCoordinateIndex = (uint32)InParentMesh->GetLightMapCoordinateIndex();
 	LightMapCoordinateIndex = LightMapCoordinateIndex < LodResources.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() ? LightMapCoordinateIndex : LodResources.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() - 1;
 
-	Params.VertexFactory = &InOutVertexFactory;
-	Params.LODResources = &LodResources;
-	Params.bOverrideColorVertexBuffer = bInOverrideColorVertexBuffer;
-	Params.LightMapCoordinateIndex = LightMapCoordinateIndex;
-	Params.LODIndex = LODIndex;
+	Params.VertexFactory				= &InOutVertexFactory;
+	Params.LODResources					= &LodResources;
+	Params.bOverrideColorVertexBuffer	= bInOverrideColorVertexBuffer;
+	Params.LightMapCoordinateIndex		= LightMapCoordinateIndex;
+	Params.LODIndex						= LODIndex;
+#if WITH_EDITORONLY_DATA
+	Params.StaticMesh					= InParentMesh;
+	Params.bIsCoarseProxy				= InParentMesh->NaniteSettings.bEnabled && InParentMesh->NaniteSettings.PercentTriangles < 1.0f;
+#endif
 
 	// Initialize the static mesh's vertex factory.
 	ENQUEUE_RENDER_COMMAND(InitStaticMeshVertexFactory)(
@@ -944,7 +954,11 @@ void FStaticMeshVertexFactories::InitVertexFactory(
 				Params.LODResources->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(Params.VertexFactory, Data);
 			}
 
-			Data.LODLightmapDataIndex = Params.LODIndex;
+			Data.LODLightmapDataIndex	= Params.LODIndex;
+		#if WITH_EDITORONLY_DATA
+			Data.bIsCoarseProxy			= Params.bIsCoarseProxy;
+			Data.StaticMesh				= Params.StaticMesh;
+		#endif
 			Params.VertexFactory->SetData(Data);
 			Params.VertexFactory->InitResource();
 		});

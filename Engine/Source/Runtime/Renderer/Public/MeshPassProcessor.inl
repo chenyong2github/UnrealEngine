@@ -113,7 +113,7 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 
 	SharedMeshDrawCommand.SetDebugData(PrimitiveSceneProxy, &MaterialResource, &MaterialRenderProxy, PassShaders.GetUntypedShaders(), VertexFactory);
 
-	const int32 NumElements = MeshBatch.Elements.Num();
+	const int32 NumElements = ShouldSkipMeshDrawCommand(MeshBatch, PrimitiveSceneProxy) ? 0 : MeshBatch.Elements.Num();
 
 	for (int32 BatchElementIndex = 0; BatchElementIndex < NumElements; BatchElementIndex++)
 	{
