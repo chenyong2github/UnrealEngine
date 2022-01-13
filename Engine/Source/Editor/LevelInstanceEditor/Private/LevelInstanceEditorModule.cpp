@@ -657,6 +657,11 @@ void FLevelInstanceEditorModule::OnEditorModeIDChanged(const FEditorModeID& InMo
 	}
 }
 
+void FLevelInstanceEditorModule::BroadcastTryExitEditorMode() 
+{
+	TryExitEditorModeEvent.Broadcast();
+}
+
 void FLevelInstanceEditorModule::ActivateEditorMode()
 {
 	if (!GLevelEditorModeTools().IsModeActive(ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId))

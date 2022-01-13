@@ -54,7 +54,8 @@ DEFINE_LOG_CATEGORY(LogLevelInstance);
 ULevelInstanceSubsystem::ULevelInstanceSubsystem()
 	: UWorldSubsystem()
 #if WITH_EDITOR
-	, bIsCreatingNewLevelStreamingLevelInstanceEditor(false)
+	, bIsCreatingLevelInstance(false)
+	, bIsCommittingLevelInstance(false)
 #endif
 {
 
@@ -73,19 +74,6 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (GEditor)
 	{
 		ILevelInstanceEditorModule& EditorModule = FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
-		EditorModule.OnExitEditorMode().AddUObject(this, &ULevelInstanceSubsystem::OnExitEditorMode);
-	}
-#endif
-}
-
-void ULevelInstanceSubsystem::Deinitialize()
-{
-	Super::Deinitialize();
-
-#if WITH_EDITOR
-	if (ILevelInstanceEditorModule* EditorModule = FModuleManager::GetModulePtr<ILevelInstanceEditorModule>("LevelInstanceEditor"))
-	{
-		EditorModule->OnExitEditorMode().RemoveAll(this);
 	}
 #endif
 }
@@ -265,11 +253,39 @@ void ULevelInstanceSubsystem::RegisterLoadedLevelStreamingLevelInstance(ULevelSt
 #if WITH_EDITOR
 void ULevelInstanceSubsystem::RegisterLoadedLevelStreamingLevelInstanceEditor(ULevelStreamingLevelInstanceEditor* LevelStreaming)
 {
-	if (!bIsCreatingNewLevelStreamingLevelInstanceEditor)
+	if (!bIsCreatingLevelInstance)
 	{
 		check(!LevelInstanceEdit.IsValid());
 		ALevelInstance* LevelInstanceActor = LevelStreaming->GetLevelInstanceActor();
 		LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, LevelInstanceActor->GetLevelInstanceID());
+
+		if (ILevelInstanceEditorModule* EditorModule = FModuleManager::GetModulePtr<ILevelInstanceEditorModule>("LevelInstanceEditor"))
+		{
+			EditorModule->OnExitEditorMode().AddUObject(this, &ULevelInstanceSubsystem::OnExitEditorMode);
+			EditorModule->OnTryExitEditorMode().AddUObject(this, &ULevelInstanceSubsystem::OnTryExitEditorMode);
+		}
+	}
+}
+
+void ULevelInstanceSubsystem::ResetEdit(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit)
+{
+	if (InLevelInstanceEdit)
+	{
+		if (InLevelInstanceEdit == LevelInstanceEdit)
+		{
+			if (ILevelInstanceEditorModule* EditorModule = FModuleManager::GetModulePtr<ILevelInstanceEditorModule>("LevelInstanceEditor"))
+			{
+				EditorModule->OnExitEditorMode().RemoveAll(this);
+				EditorModule->OnTryExitEditorMode().RemoveAll(this);
+			}
+		}
+		else
+		{
+			// Only case supported where we are using a tmp FLevelInstanceEdit
+			check(bIsCreatingLevelInstance);
+		}
+
+		InLevelInstanceEdit.Reset();
 	}
 }
 #endif
@@ -409,8 +425,28 @@ void ULevelInstanceSubsystem::Tick()
 
 void ULevelInstanceSubsystem::OnExitEditorMode()
 {
-	if (LevelInstanceEdit && !bCreatingLevelInstance)
+	OnExitEditorModeInternal(/*bForceExit=*/true);
+}
+
+void ULevelInstanceSubsystem::OnTryExitEditorMode()
+{	
+	if (OnExitEditorModeInternal(/*bForceExit=*/false))
 	{
+		ILevelInstanceEditorModule& EditorModule = FModuleManager::GetModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+		EditorModule.DeactivateEditorMode();
+	}
+}
+
+bool ULevelInstanceSubsystem::OnExitEditorModeInternal(bool bForceExit)
+{
+	if (bIsCommittingLevelInstance || bIsCreatingLevelInstance)
+	{
+		return false;
+	}
+
+	if (LevelInstanceEdit)
+	{
+		TGuardValue<bool> CommitScope(bIsCommittingLevelInstance, true);
 		ALevelInstance* LevelInstance = GetEditingLevelInstance();
 
 		bool bDiscard = false;
@@ -418,11 +454,20 @@ void ULevelInstanceSubsystem::OnExitEditorMode()
 		if (bIsDirty && CanDiscardLevelInstance(LevelInstance))
 		{
 			FText Title = LOCTEXT("CommitOrDiscardChangesTitle", "Save changes?");
-			bDiscard = (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("CommitOrDiscardChangesMsg", "Unsaved Level changes will get discarded. Do you want to save them now?"), &Title) == EAppReturnType::No);
+			// if bForceExit we can't cancel the exiting of the mode so the user needs to decide between saving or discarding
+			EAppReturnType::Type Ret = FMessageDialog::Open(bForceExit ? EAppMsgType::YesNo : EAppMsgType::YesNoCancel, LOCTEXT("CommitOrDiscardChangesMsg", "Unsaved Level changes will get discarded. Do you want to save them now?"), &Title);
+			if (Ret == EAppReturnType::Cancel)
+			{
+				return false;
+			}
+
+			bDiscard = (Ret == EAppReturnType::No);
 		}
 
-		CommitLevelInstanceInternal(LevelInstanceEdit, bDiscard);
+		return CommitLevelInstanceInternal(LevelInstanceEdit, bDiscard, /*bDiscardOnFailure=*/bForceExit);
 	}
+
+	return false;
 }
 
 bool ULevelInstanceSubsystem::CanPackAllLoadedActors() const
@@ -743,7 +788,8 @@ bool ULevelInstanceSubsystem::MoveActorsTo(ALevelInstance* LevelInstanceActor, c
 
 ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, const FNewLevelInstanceParams& CreationParams)
 {
-	TGuardValue<bool> CreateLevelInstanceGuard(bCreatingLevelInstance, true);
+	check(!bIsCreatingLevelInstance);
+	TGuardValue<bool> CreateLevelInstanceGuard(bIsCreatingLevelInstance, true);
 	ULevel* CurrentLevel = GetWorld()->GetCurrentLevel();
 		
 	if (ActorsToMove.Num() == 0)
@@ -819,8 +865,6 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 
 	ULevelStreamingLevelInstanceEditor* LevelStreaming = nullptr;
 	{
-		check(!bIsCreatingNewLevelStreamingLevelInstanceEditor);
-		TGuardValue<bool> IsCreatingNewLevelStreamingLevelInstanceEditor(bIsCreatingNewLevelStreamingLevelInstanceEditor, true);
 		LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(
 		*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), CreationParams.UseExternalActors(), LevelFilename, &ActorsToMove, CreationParams.TemplateWorld));
 	}
@@ -917,6 +961,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	}
 	
 	// New level instance
+	const FLevelInstanceID NewLevelInstanceID = NewLevelInstanceActor->GetLevelInstanceID();
 	TUniquePtr<FLevelInstanceEdit> TempLevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, NewLevelInstanceActor->GetLevelInstanceID());
 	// Force mark it as changed
 	TempLevelInstanceEdit->MarkCommittedChanges();
@@ -929,7 +974,8 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		DirtyPackages.Add(NewLevelInstanceActor->GetPackage()->GetFName());
 	}
 			
-	ALevelInstance* CommittedLevelInstance = CommitLevelInstanceInternal(TempLevelInstanceEdit, /*bDiscardEdits*/false, &DirtyPackages);
+	bool bCommitted = CommitLevelInstanceInternal(TempLevelInstanceEdit, /*bDiscardEdits=*/false, /*bDiscardOnFailure=*/true, &DirtyPackages);
+	check(bCommitted);
 	check(!TempLevelInstanceEdit);
 
 	// EditorLevelUtils::CreateNewStreamingLevelForWorld deactivates all modes. Re-activate if needed
@@ -939,7 +985,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 		EditorModule.ActivateEditorMode();
 	}
 
-	return CommittedLevelInstance;
+	return GetLevelInstance(NewLevelInstanceID);
 }
 
 bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels /* = 1 */, TArray<AActor*>* OutMovedActors /* = nullptr */)
@@ -1230,11 +1276,6 @@ bool ULevelInstanceSubsystem::CanMoveActorToLevel(const AActor* Actor, FText* Ou
 	return true;
 }
 
-void ULevelInstanceSubsystem::DiscardEdits()
-{
-	LevelInstanceEdit.Reset();
-}
-
 void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 {
 	if (ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
@@ -1281,7 +1322,7 @@ void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 				if (const FLevelInstanceEdit* ChildLevelInstanceEdit = GetLevelInstanceEdit(ChildLevelInstanceActor))
 				{
 					check(!IsLevelInstanceEditDirty(ChildLevelInstanceEdit));
-					LevelInstanceEdit.Reset();
+					ResetEdit(LevelInstanceEdit);
 					return false;
 				}
 				return true;
@@ -1393,16 +1434,6 @@ void ULevelInstanceSubsystem::FLevelInstanceEdit::GetPackagesToSave(TArray<UPack
 FLevelInstanceID ULevelInstanceSubsystem::FLevelInstanceEdit::GetLevelInstanceID() const
 {
 	return LevelStreaming ? LevelStreaming->GetLevelInstanceID() : FLevelInstanceID();
-}
-
-ULevel* ULevelInstanceSubsystem::GetLevelInstanceEditLevel(const ALevelInstance* LevelInstanceActor) const
-{
-	const FLevelInstanceEdit* CurrentEdit = GetLevelInstanceEdit(LevelInstanceActor);
-	if (UWorld* EditingWorld = CurrentEdit ? CurrentEdit->GetEditWorld() : nullptr)
-	{
-		return EditingWorld->PersistentLevel;
-	}
-	return nullptr;
 }
 
 const ULevelInstanceSubsystem::FLevelInstanceEdit* ULevelInstanceSubsystem::GetLevelInstanceEdit(const ALevelInstance* LevelInstanceActor) const
@@ -1662,20 +1693,24 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	return true;
 }
 
-ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits, TSet<FName>* DirtyPackages)
+bool ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits, TSet<FName>* DirtyPackages)
 {
 	check(LevelInstanceEdit.Get() == GetLevelInstanceEdit(LevelInstanceActor));
 	check(CanCommitLevelInstance(LevelInstanceActor));
-	ALevelInstance* CommittedLevelInstance = CommitLevelInstanceInternal(LevelInstanceEdit, bDiscardEdits, DirtyPackages);
+	if (CommitLevelInstanceInternal(LevelInstanceEdit, bDiscardEdits, /*bDiscardOnFailure=*/false, DirtyPackages))
+	{
+		ILevelInstanceEditorModule& EditorModule = FModuleManager::GetModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+		EditorModule.DeactivateEditorMode();
 
-	ILevelInstanceEditorModule& EditorModule = FModuleManager::GetModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
-	EditorModule.DeactivateEditorMode();
+		return true;
+	}
 
-	return CommittedLevelInstance;
+	return false;
 }
 
-ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits, TSet<FName>* DirtyPackages)
+bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits, bool bDiscardOnFailure, TSet<FName>* DirtyPackages)
 {
+	TGuardValue<bool> CommitScope(bIsCommittingLevelInstance, true);
 	ALevelInstance* LevelInstanceActor = GetLevelInstance(InLevelInstanceEdit->GetLevelInstanceID());
 	check(InLevelInstanceEdit);
 	UWorld* EditingWorld = InLevelInstanceEdit->GetEditWorld();
@@ -1704,6 +1739,7 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<
 		PackagesToSave.Append(*DirtyPackages);
 	}
 		
+	// Did some change get saved outside of the commit (regular saving in editor while editing)
 	bool bChangesCommitted = InLevelInstanceEdit->HasCommittedChanges();
 	if (PackagesToSave.Num() > 0 && !bDiscardEdits)
 	{
@@ -1714,19 +1750,23 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<
 		const bool bNotifyNoPackagesSaved = false;
 		const bool bCanBeDeclined = true;
 
-		if (!FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, nullptr,
-			[&PackagesToSave,EditingWorld](UPackage* DirtyPackage)
+		bool bSaveSucceeded = FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, nullptr,
+			[&PackagesToSave, EditingWorld](UPackage* DirtyPackage)
 			{
 				if (PackagesToSave.Contains(DirtyPackage->GetFName()))
 				{
 					return false;
 				}
 				return ShouldIgnoreDirtyPackage(DirtyPackage, EditingWorld);
-			}))
+			});
+				
+		if (!bSaveSucceeded && !bDiscardOnFailure)
 		{
-			return LevelInstanceActor;
+			return false;
 		}
-		bChangesCommitted = true;
+
+		// Consider changes committed is was already set to true because of outside saves or if the save succeeded.
+		bChangesCommitted |= bSaveSucceeded;
 	}
 
 	FScopedSlowTask SlowTask(0, LOCTEXT("EndEditLevelInstance", "Unloading Level..."), !GetWorld()->IsGameWorld());
@@ -1737,7 +1777,7 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<
 	const FString EditPackage = LevelInstanceActor->GetWorldAssetPackage();
 
 	// Remove from streaming level...
-	InLevelInstanceEdit.Reset();
+	ResetEdit(InLevelInstanceEdit);
 
 	if (bChangesCommitted)
 	{
@@ -1807,7 +1847,7 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<
 
 	GEngine->BroadcastLevelActorListChanged();
 
-	return GetLevelInstance(LevelInstanceID);
+	return true;
 }
 
 void ULevelInstanceSubsystem::SaveLevelInstanceAs(ALevelInstance* LevelInstanceActor)
@@ -1833,7 +1873,7 @@ void ULevelInstanceSubsystem::SaveLevelInstanceAs(ALevelInstance* LevelInstanceA
 
 	UWorld* SavedWorld = StaticCast<UWorld*>(OutObjects[0]);
 	// Discard edits and unload streaming level
-	DiscardEdits();
+	ResetEdit(LevelInstanceEdit);
 	
 	LevelInstanceActor->SetWorldAsset(SavedWorld);
 

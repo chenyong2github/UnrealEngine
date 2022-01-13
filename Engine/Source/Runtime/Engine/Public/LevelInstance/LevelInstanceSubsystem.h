@@ -32,7 +32,6 @@ public:
 		
 	//~ Begin USubsystem Interface.
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
 	//~ End USubsystem Interface.
 	
@@ -51,6 +50,8 @@ public:
 #if WITH_EDITOR
 	void Tick();
 	void OnExitEditorMode();
+	void OnTryExitEditorMode();
+	bool OnExitEditorModeInternal(bool bForceExit);
 	void PackAllLoadedActors();
 	bool CanPackAllLoadedActors() const;
 
@@ -59,11 +60,10 @@ public:
 	bool CanCommitLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	bool CanDiscardLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	void EditLevelInstance(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr = nullptr);
-	ALevelInstance* CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits = false, TSet<FName>* DirtyPackages = nullptr);
+	bool CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits = false, TSet<FName>* DirtyPackages = nullptr);
 	void SaveLevelInstanceAs(ALevelInstance* LevelInstanceActor);
 	bool IsEditingLevelInstanceDirty(const ALevelInstance* LevelInstanceActor) const;
 	bool IsEditingLevelInstance(const ALevelInstance* LevelInstanceActor) const { return GetLevelInstanceEdit(LevelInstanceActor) != nullptr; }
-	ULevel* GetLevelInstanceEditLevel(const ALevelInstance* LevelInstanceActor) const;
 	
 	bool GetLevelInstanceBounds(const ALevelInstance* LevelInstanceActor, FBox& OutBounds) const;
 	static bool GetLevelInstanceBoundsFromPackage(const FTransform& InstanceTransform, FName LevelPackage, FBox& OutBounds);
@@ -86,7 +86,6 @@ public:
 	bool BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels = 1, TArray<AActor*>* OutMovedActors = nullptr);
 
 	bool CanMoveActorToLevel(const AActor* Actor, FText* OutReason = nullptr) const;
-	void DiscardEdits();
 	void OnActorDeleted(AActor* Actor);
 	ULevel* GetLevelInstanceLevel(const ALevelInstance* LevelInstanceActor) const;
 
@@ -143,8 +142,9 @@ private:
 		void MarkCommittedChanges();
 	};
 
+	void ResetEdit(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit);
 	bool EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, bool bRecursive);
-	ALevelInstance* CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits = false, TSet<FName>* DirtyPackages = nullptr);
+	bool CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits = false, bool bDiscardOnFailure = false, TSet<FName>* DirtyPackages = nullptr);
 	
 	const FLevelInstanceEdit* GetLevelInstanceEdit(const ALevelInstance* LevelInstanceActor) const;
 	bool IsLevelInstanceEditDirty(const FLevelInstanceEdit* LevelInstanceEdit) const;
@@ -167,7 +167,8 @@ private:
 	friend ULevelStreamingLevelInstanceEditor;
 
 #if WITH_EDITOR
-	bool bIsCreatingNewLevelStreamingLevelInstanceEditor;
+	bool bIsCreatingLevelInstance;
+	bool bIsCommittingLevelInstance;
 #endif
 
 	struct FLevelInstance
@@ -185,7 +186,6 @@ private:
 	TUniquePtr<FLevelsToRemoveScope> LevelsToRemoveScope;
 
 	TUniquePtr<FLevelInstanceEdit> LevelInstanceEdit;
-	bool bCreatingLevelInstance = false;
 
 	TMap<FLevelInstanceID, int32> ChildEdits;
 #endif

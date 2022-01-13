@@ -7,9 +7,12 @@
 #include "Engine/World.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/ILevelInstanceEditorModule.h"
 #include "LevelEditorViewport.h"
 #include "LevelEditorActions.h"
 #include "EditorModeManager.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "LevelInstanceEditorMode"
 
@@ -32,10 +35,7 @@ ULevelInstanceEditorMode::~ULevelInstanceEditorMode()
 
 void ULevelInstanceEditorMode::OnPreBeginPIE(bool bSimulate)
 {
-	if (GLevelEditorModeTools().IsModeActive(ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId))
-	{
-		GLevelEditorModeTools().DeactivateMode(ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId);
-	}
+	ExitModeCommand();
 }
 
 void ULevelInstanceEditorMode::UpdateEngineShowFlags()
@@ -125,9 +125,15 @@ bool ULevelInstanceEditorMode::IsSelectionDisallowed(AActor* InActor, bool bInSe
 
 void ULevelInstanceEditorMode::ExitModeCommand()
 {	
-	if (FEditorModeTools* Manager = GetModeManager())
+	// Ignore command when any modal window is open
+	if (FSlateApplication::IsInitialized() && FSlateApplication::Get().GetActiveModalWindow().IsValid())
 	{
-		Manager->DeactivateMode(EM_LevelInstanceEditorModeId);
+		return;
+	}
+
+	if (ILevelInstanceEditorModule* EditorModule = FModuleManager::GetModulePtr<ILevelInstanceEditorModule>("LevelInstanceEditor"))
+	{
+		EditorModule->BroadcastTryExitEditorMode();
 	}
 }
 

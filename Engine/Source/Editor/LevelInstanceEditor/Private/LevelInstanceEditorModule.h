@@ -30,8 +30,13 @@ public:
 	virtual void ActivateEditorMode() override;
 	virtual void DeactivateEditorMode() override;
 		
+	virtual void BroadcastTryExitEditorMode() override;
+
 	DECLARE_DERIVED_EVENT(FLevelInstanceEditorModule, ILevelInstanceEditorModule::FExitEditorModeEvent, FExitEditorModeEvent);
 	virtual FExitEditorModeEvent& OnExitEditorMode() override { return ExitEditorModeEvent; }
+
+	DECLARE_DERIVED_EVENT(FLevelInstanceEditorModule, ILevelInstanceEditorModule::FTryExitEditorModeEvent, FTryExitEditorModeEvent);
+	virtual FTryExitEditorModeEvent& OnTryExitEditorMode() override { return TryExitEditorModeEvent; }
 
 private:
 	void OnEditorModeIDChanged(const FEditorModeID& InModeID, bool bIsEnteringMode);
@@ -41,4 +46,5 @@ private:
 	void ExtendContextMenu();
 
 	FExitEditorModeEvent ExitEditorModeEvent;
+	FTryExitEditorModeEvent TryExitEditorModeEvent;
 };
