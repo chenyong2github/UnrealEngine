@@ -20178,6 +20178,20 @@ static int32 StrataBlendNormal(class FMaterialCompiler* Compiler, int32 NormalCo
 
 #if WITH_EDITOR
 
+// Optionnaly cast CodeChunk type to non-LWC type. 
+// Input can be built of WorldPosition data, which would force the derived data to have LWC type 
+// creating issues, as Strata functions' inputs don't support LWC
+static int32 CastToNonLWCType(class FMaterialCompiler* Compiler, int32 CodeChunk)
+{
+	EMaterialValueType Type = Compiler->GetType(CodeChunk);
+	if (IsLWCType(Type))
+	{
+		Type = MakeNonLWCType(Type);
+		CodeChunk = Compiler->ValidCast(CodeChunk, Type);
+	}
+	return CodeChunk;
+}
+
 // The compilation of an expression can sometimes lead to a INDEX_NONE code chunk when editing material graphs 
 // or when the node is inside a material function, linked to an input pin of the material function and that input is not plugged in to anything.
 // But for normals or tangents, Strata absolutely need a valid code chunk to de-duplicate when stored in memory. 
@@ -20193,6 +20207,10 @@ static int32 CompileWithDefaultCodeChunk(class FMaterialCompiler* Compiler, FExp
 	{
 		*bDefaultIsUsed |= CodeChunk == INDEX_NONE;
 	}
+	else
+	{
+		CodeChunk = CastToNonLWCType(Compiler, CodeChunk);
+	}
 	return CodeChunk == INDEX_NONE ? DefaultCodeChunk : CodeChunk;
 }
 static int32 CompileWithDefaultFloat1(class FMaterialCompiler* Compiler, FExpressionInput& Input, float X, bool* bDefaultIsUsed = nullptr)
@@ -20206,6 +20224,10 @@ static int32 CompileWithDefaultFloat1(class FMaterialCompiler* Compiler, FExpres
 	{
 		*bDefaultIsUsed |= CodeChunk == INDEX_NONE;
 	}
+	else
+	{
+		CodeChunk = CastToNonLWCType(Compiler, CodeChunk);
+	}
 	return CodeChunk == INDEX_NONE ? Compiler->Constant(X) : CodeChunk;
 }
 static int32 CompileWithDefaultFloat3(class FMaterialCompiler* Compiler, FExpressionInput& Input, float X, float Y, float Z, bool* bDefaultIsUsed = nullptr)
@@ -20218,6 +20240,10 @@ static int32 CompileWithDefaultFloat3(class FMaterialCompiler* Compiler, FExpres
 	if (bDefaultIsUsed)
 	{
 		*bDefaultIsUsed |= CodeChunk == INDEX_NONE;
+	}
+	else
+	{
+		CodeChunk = CastToNonLWCType(Compiler, CodeChunk);
 	}
 	return CodeChunk == INDEX_NONE ? Compiler->Constant3(X, Y, Z) : CodeChunk;
 }

@@ -202,13 +202,24 @@ void MainPS(
 	// fill out other related material parameters
 	CalcMaterialParametersPost(Parameters, PixelMaterialInputs, SvPosition, true);
 
+	float Alpha = 1.0f;
+#if STRATA_ENABLED  
+	// Unlit forces a single BSDF
+	const FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
+
 	// Grab emissive colour as output
-#if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
-	const float Alpha = GetMaterialOpacity(PixelMaterialInputs);
+  #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
+	Alpha = UnlitBSDF.Coverage;
+  #endif
+	const float3 Emissive = BSDF_GETEMISSIVE(UnlitBSDF);
 #else
-	const float Alpha = 1.0f;
+	// Grab emissive colour as output
+  #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
+	Alpha = GetMaterialOpacity(PixelMaterialInputs);
+  #endif
+	const float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
 #endif
-	OutColor = float4(GetMaterialEmissive(PixelMaterialInputs), Alpha );
+	OutColor = float4(Emissive, Alpha );
 
 #if !MATERIALBLENDING_MODULATE && POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 	OutColor.xyz *= View.PreExposure;

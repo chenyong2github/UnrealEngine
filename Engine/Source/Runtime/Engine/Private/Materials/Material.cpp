@@ -2940,6 +2940,30 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			FrontMaterial.Connect(0, VolBSDF);
 			bInvalidateShader = true;
 		}
+		else if (MaterialDomain == MD_PostProcess)
+		{
+			// Some post-process material don't have their shading mode set correctly to Unlit. Since only Unlit is supported, forcing it here.
+			ShadingModel = MSM_Unlit;
+			ShadingModels.ClearShadingModels();
+			ShadingModels.AddShadingModel(MSM_Unlit);
+
+			// Only Emissive & Opacity are valid input for PostProcess material
+			UMaterialExpressionStrataLegacyConversion* ConvertNode = NewObject<UMaterialExpressionStrataLegacyConversion>(this);
+			MoveConnectionTo(EmissiveColor, ConvertNode, 5);
+			MoveConnectionTo(Opacity, ConvertNode, 11);
+
+			// Add constant for the Unlit shading model
+			UMaterialExpressionConstant* ShadingModelNode = NewObject<UMaterialExpressionConstant>(this);
+			ShadingModelNode->SetParameterName(FName(TEXT("ConstantShadingModel")));
+			ShadingModelNode->R = ShadingModel;
+			ConvertNode->ShadingModel.Connect(0, ShadingModelNode);
+
+			AddStrataShadingModelFromMaterialShadingModel(ConvertNode->ConvertedStrataMaterialInfo, ShadingModels);
+			check(ConvertNode->ConvertedStrataMaterialInfo.CountShadingModels() == 1);
+
+			FrontMaterial.Connect(0, ConvertNode);
+			bInvalidateShader = true;
+		}
 	}
 
 	if (bInvalidateShader)
@@ -3943,7 +3967,10 @@ void UMaterial::RebuildShadingModelField()
 			// Now derive some properties from the material
 			if (StrataMaterialInfo.HasOnlyShadingModel(SSM_Unlit))
 			{
-				MaterialDomain = EMaterialDomain::MD_Surface;
+				if (MaterialDomain != EMaterialDomain::MD_Surface && MaterialDomain != EMaterialDomain::MD_PostProcess)
+				{
+					MaterialDomain = EMaterialDomain::MD_Surface;
+				}
 				ShadingModel = MSM_Unlit;
 				if (BlendMode != EBlendMode::BLEND_Opaque && BlendMode != EBlendMode::BLEND_Masked)
 				{
@@ -5261,9 +5288,19 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bUsesShadingModelFromMaterialExpression,
 	bool bIsTranslucencyWritingVelocity)
 {
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
+
 	if (Domain == MD_PostProcess)
 	{
-		return InProperty == MP_EmissiveColor || (bBlendableOutputAlpha && InProperty == MP_Opacity);
+		if (bStrataEnabled)
+		{
+			return InProperty == MP_FrontMaterial;
+		}
+		else
+		{
+			return InProperty == MP_EmissiveColor || (bBlendableOutputAlpha && InProperty == MP_Opacity);
+		}
 	}
 	else if (Domain == MD_LightFunction)
 	{
@@ -5417,8 +5454,6 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		break;
 	case MP_FrontMaterial:
 		{
-			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-			const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
 			Active = bStrataEnabled;
 			break;
 		}
