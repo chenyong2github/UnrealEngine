@@ -61,6 +61,10 @@ FRWStrataMaterialContainer InitialiseRWStrataMaterialContainer(RWTexture2DArray<
 #define STRATA_INLINE_SHADING 1
 #endif
 
+#ifndef STRATA_DEFERRED_SHADING
+#define STRATA_DEFERRED_SHADING (STRATA_INLINE_SHADING == 0)
+#endif 
+
 // During the unpacking of the Strata material data, if a slab has some sub-surface scattering, its BaseColor/Specular value will be 
 // patched/overriden with white albedo (and optionally no specular) for computing the incoming irradiance without any albedo information. 
 // This is required by the post-process/screen-space sub-surface methods. This overriden can be opt-out. This is used during the classification 
@@ -98,15 +102,12 @@ struct FStrataBSDF
 {
 	uint				State;		// Extra informations and other enabled BSDF features
 
+	float3				FinalWeight;// Contains the throughput towards the view accounting for BSDF visible above. It also contains coverage if it has not been baked into the BSDF parameters when using operation with parameter blending.
 #if STRATA_INLINE_SHADING
 	float				Coverage;	// When creating a material, each BSDF/slab can have its coverage updated. 
 									// When this happens, we also update its parameters to account for that, similary to premultiplied alpha blending.
 									// Coverage is kept around because it is needed to evalauted the contribution to throughput.
 	bool				bPremultipliedCoverage;// True when coverage is already weighting all parameters. This is true when parameter blending is used. This allows to use parameter blending or not in the same graph.
-#endif
-	float3				FinalWeight;// Contains the throughput towards the view accounting for BSDF visible above. It also contains coverage if it has not been baked into the BSDF parameters when using operation with parameter blending.
-
-#if STRATA_INLINE_SHADING
 	float3				Emissive;	// All bsdf can potientially have emissive. This is never written out to the strata gbuffer but instead accumulated in the emissive buffer during the base pass.
 	float				ThicknessCm;// This must be kept in order to be able to normalize the mean free path to comply with our volumetric material math all done in a normalised slab of medium.
 	float3				TmpDMFP;
@@ -901,7 +902,8 @@ struct FStrataPixelHeader
 #if STRATA_INLINE_SHADING
 	// All the shared local bases in VGPRS. This is only used in basepass and during forward rendering.
 	FSharedLocalBases SharedLocalBases;
-#else
+#endif
+#if STRATA_DEFERRED_SHADING
 	FStrataMaterialContainer StrataBuffer;
 	uint SharedLocalBasesIndexOffset;
 	uint SharedLocalBasesTypes_PackedHeader; // Stores SharedLocalBasesTypes for non-simple material, and PackedHeader data for simple material
@@ -945,7 +947,8 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	Out.BSDFCount = 0;
 #if STRATA_INLINE_SHADING
 	Out.SharedLocalBases = (FSharedLocalBases)0;
-#else
+#endif
+#if STRATA_DEFERRED_SHADING
 	Out.SharedLocalBasesIndexOffset = 0;
 	Out.SharedLocalBasesTypes_PackedHeader = 0;
 	Out.PackedTopLayerData = 0;
@@ -955,7 +958,7 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	return Out;
 }
 
-float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FStrataBSDF BSDF, in FStrataAddressing StrataAddressing)
+float3x3 StrataGetBSDFSharedBasis_InlineShading(in FStrataPixelHeader StrataPixelHeader, in FStrataBSDF BSDF, in FStrataAddressing StrataAddressing)
 {
 #if STRATA_INLINE_SHADING
 	// Assume Normal & Tangent are already been normalized
@@ -963,7 +966,12 @@ float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FS
 	float3 Tangent = StrataPixelHeader.SharedLocalBases.Tangents[BSDF_GETSHAREDLOCALBASISID(BSDF)];
 	float3 Bitangent = cross(Normal, Tangent);
 	return float3x3(Tangent, Bitangent, Normal);
-#else
+#endif
+}
+
+float3x3 StrataGetBSDFSharedBasis_DeferredShading(in FStrataPixelHeader StrataPixelHeader, in FStrataBSDF BSDF, in FStrataAddressing StrataAddressing)
+{
+#if STRATA_DEFERRED_SHADING
 	if (IsSimpleMaterial(StrataPixelHeader) || IsSingleMaterial(StrataPixelHeader))
 	{		
 		return GetTangentBasis(StrataUnpackTopLayerData(StrataPixelHeader.PackedTopLayerData).WorldNormal);
@@ -992,7 +1000,10 @@ float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FS
 #endif
 }
 
-
+float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FStrataBSDF BSDF, in FStrataAddressing StrataAddressing)
+{
+	return StrataGetBSDFSharedBasis_DeferredShading(StrataPixelHeader, BSDF, StrataAddressing);
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Operator nodes
@@ -1568,6 +1579,130 @@ void EnableSlabBSDFIsThin(inout FStrataBSDF BSDF)
 	EnableSlabMFPComputationSpace(BSDF);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Generic BSDF accessors
+
+float3 StrataGetBSDFBaseColor(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			return lerp(SLAB_DIFFUSEALBEDO(BSDF), SLAB_F0(BSDF), F0RGBToMetallic(SLAB_F0(BSDF)));  // This BaseColor recovery based on Metallic recovers is not accurate, and only used for legacy conversion purpose (e.g., PostProcessMaterial texture access)
+	case STRATA_BSDF_TYPE_HAIR: 			return HAIR_BASECOLOR(BSDF);
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return SLW_BASECOLOR(BSDF);
+	}
+	return 0.f;
+}
+
+float3 StrataGetBSDFDiffuseColor(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_DIFFUSEALBEDO(BSDF);
+	case STRATA_BSDF_TYPE_HAIR: 			return HAIR_BASECOLOR(BSDF);
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return SLW_BASECOLOR(BSDF);
+	}
+	return 0.f;
+}
+
+float3 StrataGetBSDFSpecularColor(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_F0(BSDF);
+	case STRATA_BSDF_TYPE_HAIR: 			return DielectricSpecularToF0(HAIR_SPECULAR(BSDF));
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return DielectricSpecularToF0(SLW_SPECULAR(BSDF));
+	}
+	return 0.f;
+}
+
+float3 StrataGetBSDFSubSurfaceColor(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			return BSDF_GETHASSSS(BSDF) ? SLAB_DIFFUSEALBEDO(BSDF) : 0; // A more accurate version would be IsotropicMediumSlabPunctualDirectionalAlbedo(StrataSlabCreateParticipatingMedia(SLAB_DIFFUSEALBEDO(BSDF), SLAB_SSSDMFP(BSDFContext.BSDF)));
+	case STRATA_BSDF_TYPE_HAIR: 			return 0;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 0;
+	}
+	return 0.f;
+}
+
+float StrataGetBSDFSpecular(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			return F0ToDielectricSpecular(SLAB_F0(BSDF).x);
+	case STRATA_BSDF_TYPE_HAIR: 			return HAIR_SPECULAR(BSDF);
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return SLW_SPECULAR(BSDF);
+	}
+	return 0.f;
+}
+
+float StrataGetBSDFMetallic(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			return F0RGBToMetallic(SLAB_F0(BSDF)); // Metallic recovers is not accurate, and only used for legacy conversion purpose (e.g., PostProcessMaterial texture access)
+	case STRATA_BSDF_TYPE_HAIR: 			return 0;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 0;
+	}
+	return 0.f;
+}
+
+float StrataGetBSDFRoughness(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_ROUGHNESS(BSDF);
+	case STRATA_BSDF_TYPE_HAIR: 			return HAIR_ROUGHNESS(BSDF);
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return SLW_ROUGHNESS(BSDF);
+	}
+	return 0.f;
+}
+
+float StrataGetBSDFAnisotropy(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_ANISOTROPY(BSDF);
+	case STRATA_BSDF_TYPE_HAIR: 			return 0;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 0;
+	}
+	return 0.f;
+}
+
+float3 StrataGetWorldNormal(in FStrataPixelHeader Header, in FStrataBSDF BSDF, in const FStrataAddressing Addressing)
+{
+	return StrataGetBSDFSharedBasis_DeferredShading(Header, BSDF, Addressing)[2];
+}
+
+float3 StrataGetWorldTangent(in FStrataPixelHeader Header, in FStrataBSDF BSDF, in const FStrataAddressing Addressing)
+{
+	return StrataGetBSDFSharedBasis_DeferredShading(Header, BSDF, Addressing)[0];
+}
+
+float StrataGetAO(in FStrataPixelHeader Header)
+{
+	return HEADER_GETAO(Header.State);
+}
+
+float StrataGetLegacyShadingModels(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB:
+	{
+		// Base on features, we can only partially recovers the original shading models. Shading models like foliage, eye, clear coat are impossible/harder to infer.
+		if (BSDF_GETHASSSSPROFILE(BSDF))	{ return SHADINGMODELID_SUBSURFACE_PROFILE; }
+		else if (BSDF_GETHASSSS(BSDF))		{ return SHADINGMODELID_SUBSURFACE; }
+		else if (BSDF_GETHASFUZZ(BSDF))		{ return SHADINGMODELID_CLOTH; }
+		else if (BSDF_GETHASFUZZ(BSDF))		{ return SHADINGMODELID_TWOSIDED_FOLIAGE; }
+		else								{ return SHADINGMODELID_DEFAULT_LIT; }
+	}
+	case STRATA_BSDF_TYPE_HAIR: 			{ return SHADINGMODELID_HAIR; }
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: { return SHADINGMODELID_SINGLELAYERWATER; }
+	}
+	return 0.f;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // BSDFs packing/unpacking
@@ -1953,7 +2088,7 @@ void PackStrataOut(
 				BSDFCount++;
 
 				// STRATA_TODO apply the same normal transform as for the material
-				float3x3 TangentBasis = StrataGetBSDFSharedBasis(StrataPixelHeader, BSDF, StrataAddressing);
+				float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, BSDF, StrataAddressing);
 				float3 N = TangentBasis[2];
 				//N = normalize(N);
 
@@ -2402,7 +2537,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 			HEADER_SETSHADINGMODELS(Out.State, ShadingModels);
 		}
 
-	#if STRATA_INLINE_SHADING==0
+	#if STRATA_DEFERRED_SHADING
 		Out.StrataBuffer = StrataBuffer;
 		Out.SharedLocalBasesTypes_PackedHeader = PackedHeader;
 		Out.PackedTopLayerData = InStrataTopLayerTexture.Load(uint3(StrataAddressing.PixelCoords, 0));
@@ -2414,7 +2549,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 		uint SharedLocalBasesCount = HEADER_GETSHAREDLOCALBASESCOUNT(PackedHeader);
 		uint SharedLocalBasesTypes = HEADER_GETSHAREDLOCALBASESTYPE(PackedHeader);
 
-	#if STRATA_INLINE_SHADING==0
+	#if STRATA_DEFERRED_SHADING
 		Out.StrataBuffer = StrataBuffer;
 		Out.SharedLocalBasesTypes_PackedHeader = SharedLocalBasesTypes;
 		Out.PackedTopLayerData = 0;
@@ -2457,7 +2592,7 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, in
 {
 	FStrataBSDF OutBSDF = (FStrataBSDF)0;
 
-#if STRATA_INLINE_SHADING==0
+#if STRATA_DEFERRED_SHADING
 	uint Data0 = StrataPixelHeader.SharedLocalBasesTypes_PackedHeader;
 	uint Data1 = StrataLoadUint1(StrataBuffer, StrataAddressing);
 	OutBSDF.State = 0;
@@ -2514,7 +2649,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 	if (IsSingleMaterial(StrataHeader))
 	{
 		uint Data = 0;
-	#if STRATA_INLINE_SHADING==0
+	#if STRATA_DEFERRED_SHADING
 		Data = StrataHeader.SharedLocalBasesTypes_PackedHeader;
 	#endif
 		OutBSDF.State = (Data>>HEADER_SINGLEENCODING_BIT_COUNT) & STATE_SINGLEENCODING_MASK;

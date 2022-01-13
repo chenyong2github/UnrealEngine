@@ -102,6 +102,34 @@ float4 GatherSceneDepth(float2 UV, float2 InvBufferSize)
 #endif
 }
 
+/** Fetches custom device depth and converts to linear. */
+float CalcSceneCustomDepth(float2 ScreenUV)
+{
+#if SCENE_TEXTURES_DISABLED
+	return SCENE_TEXTURES_DISABLED_SCENE_DEPTH_VALUE;
+#else
+	return ConvertFromDeviceZ(Texture2DSampleLevel(SceneTexturesStruct.CustomDepthTexture, SceneTexturesStruct_CustomDepthTextureSampler, ScreenUV, 0).r);
+#endif
+}
+
+uint CalcSceneCustomStencil(uint2 PixelPos)
+{
+#if SCENE_TEXTURES_DISABLED
+	return 0;
+#else
+	return SceneTexturesStruct.CustomStencilTexture.Load(uint3(PixelPos, 0)).r;
+#endif
+}
+
+float CalcSceneAO(float2 ScreenUV)
+{
+#if SCENE_TEXTURES_DISABLED
+	return 1.0f;
+#else
+	return Texture2DSampleLevel(SceneTexturesStruct.ScreenSpaceAOTexture, SceneTexturesStruct_ScreenSpaceAOTextureSampler, ScreenUV, 0).r;
+#endif
+}
+
 #endif // SHADING_PATH_DEFERRED
 
 // Only reference MobileSceneTextures uniform buffer if SHADING_PATH_MOBILE

@@ -553,6 +553,8 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	}
 
 	PostProcessMaterialParameters->bFlipYAxis = Inputs.bFlipYAxis && !bForceIntermediateTarget;
+	PostProcessMaterialParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+
 
 	ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
 

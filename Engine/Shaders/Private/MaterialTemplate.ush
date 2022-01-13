@@ -2188,7 +2188,65 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 	}
 
 #else // !SCENE_TEXTURES_DISABLED
+#if STRATA_ENABLED
 
+	const uint2 PixelPos = uint2(UV * View.BufferSizeAndInvSize.xy);
+
+	// 1. Post-process inputs which are independent on material data
+	switch (SceneTextureIndex)
+	{
+	case PPI_SceneColor:			return float4(CalcSceneColor(UV), 0);
+	case PPI_SceneDepth:			return CalcSceneDepth(UV);
+	case PPI_SeparateTranslucency:	return float4(1, 1, 1, 1);	// todo
+	case PPI_Opacity:				return 1.f; // Opacity has different meaning depending on the legacy shading model.
+	case PPI_CustomDepth:			return CalcSceneCustomDepth(UV);
+#if POST_PROCESS_MATERIAL
+	case PPI_PostProcessInput0:		return Texture2DSample(PostProcessInput_0_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_0_SharedSampler, UV);
+	case PPI_PostProcessInput1:		return Texture2DSample(PostProcessInput_1_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_1_SharedSampler, UV);
+	case PPI_PostProcessInput2:		return Texture2DSample(PostProcessInput_2_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_2_SharedSampler, UV);
+	case PPI_PostProcessInput3:		return Texture2DSample(PostProcessInput_3_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_3_SharedSampler, UV);
+	case PPI_PostProcessInput4:		return Texture2DSample(PostProcessInput_4_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_4_SharedSampler, UV);
+#endif // __POST_PROCESS_COMMON__
+	case PPI_DecalMask:				return 0;  // material compiler will return an error
+	case PPI_AmbientOcclusion:		return CalcSceneAO(UV);
+	case PPI_CustomStencil:			return CalcSceneCustomStencil(PixelPos);
+#if POST_PROCESS_MATERIAL
+	case PPI_Velocity:				return float4(PostProcessVelocityLookup(ConvertToDeviceZ(CalcSceneDepth(UV)), UV), 0, 0);
+#endif
+	}
+
+	// 2. Post-process inputs which are dependent on material data
+	//    Note: For PostProcess material we always return the first layer dataCalcSceneCustomStencil
+	FStrataAddressing StrataAddressing   = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+	BRANCH
+	if (StrataPixelHeader.BSDFCount > 0)
+	{
+		const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
+		switch (SceneTextureIndex)
+		{
+			// order needs to match to ESceneTextureId
+			case PPI_DiffuseColor:			return float4(StrataGetBSDFDiffuseColor(BSDF), 0);
+			case PPI_SpecularColor:			return float4(StrataGetBSDFSpecularColor(BSDF), 0);
+			case PPI_SubsurfaceColor:		return float4(StrataGetBSDFSubSurfaceColor(BSDF), 0);
+			case PPI_BaseColor:				return float4(StrataGetBSDFBaseColor(BSDF), 0);
+			case PPI_Specular:				return StrataGetBSDFSpecular(BSDF);
+			case PPI_Metallic:				return StrataGetBSDFMetallic(BSDF);
+			case PPI_WorldNormal:			return float4(StrataGetWorldNormal(StrataPixelHeader, BSDF, StrataAddressing), 0);
+			case PPI_Roughness:				return StrataGetBSDFRoughness(BSDF);
+			case PPI_MaterialAO:			return StrataGetAO(StrataPixelHeader);
+			case PPI_ShadingModelColor:		return float4(GetShadingModelColor(StrataGetLegacyShadingModels(BSDF)), 1);
+			case PPI_ShadingModelID:		return float4(StrataGetLegacyShadingModels(BSDF), 0, 0, 0);
+			case PPI_StoredBaseColor:		return float4(StrataGetBSDFBaseColor(BSDF), 0);
+			case PPI_StoredSpecular:		return float4(StrataGetBSDFSpecular(BSDF).rrr, 0);
+			case PPI_WorldTangent:			return float4(StrataGetWorldTangent(StrataPixelHeader, BSDF, StrataAddressing), 0);
+			case PPI_Anisotropy:			return StrataGetBSDFAnisotropy(BSDF);
+		}
+	}
+
+	return float4(0, 0, 0, 0);
+
+#else // STRATA_ENABLED
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV, false);
 	switch(SceneTextureIndex)
 	{
@@ -2259,6 +2317,7 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 		default:
 			return float4(0, 0, 0, 0);
 	}
+#endif // STRATA_ENABLED
 #endif // SCENE_TEXTURES_DISABLED
 }
 

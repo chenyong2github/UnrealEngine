@@ -4,6 +4,9 @@
 	PostProcessMaterialShaders.usf: Shaders for rendering post process materials
 =============================================================================*/
 
+#define STRATA_INLINE_SHADING 1
+#define STRATA_DEFERRED_SHADING 1
+
 #include "Common.ush"
 #include "ScreenPass.ush"
 
@@ -203,7 +206,7 @@ void MainPS(
 	CalcMaterialParametersPost(Parameters, PixelMaterialInputs, SvPosition, true);
 
 	float Alpha = 1.0f;
-#if STRATA_ENABLED  
+#if STRATA_ENABLED   
 	// Unlit forces a single BSDF
 	const FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
 

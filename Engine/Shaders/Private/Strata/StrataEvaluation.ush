@@ -77,31 +77,6 @@ struct FStrataBSDFContext
 	float3 TangentH;
 };
 
-float StrataGetBSDFRoughness(in FStrataBSDF BSDF)
-{
-	float R = 0;
-	const uint BSDFType = BSDF_GETTYPE(BSDF);
-	switch (BSDFType)
-	{
-	case STRATA_BSDF_TYPE_SLAB:
-	{
-		R = SLAB_ROUGHNESS(BSDF);
-		break;
-	}
-	case STRATA_BSDF_TYPE_HAIR:
-	{
-		R = HAIR_ROUGHNESS(BSDF);
-		break;
-	}
-	case STRATA_BSDF_TYPE_SINGLELAYERWATER:
-	{
-		R = SLW_ROUGHNESS(BSDF);
-		break;
-	}
-	}
-	return R;
-}
-
 FStrataBSDFContext StrataCreateBSDFContext(float3x3 TangentBasis, FStrataBSDF BSDF, float3 V, float3 L, bool bHasValidL=true)
 {
 	FStrataBSDFContext BSDFContext = (FStrataBSDFContext)0;
