@@ -25,7 +25,7 @@ struct FNDIVelocityGridBuffer : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIVelocityGridBuffer"); }
 
 	/** Grid data texture */
-	FTextureRWBuffer3D GridDataBuffer;
+	FRWBuffer GridDataBuffer;
 
 	/** Grid size that will be used for the collision*/
 	FIntVector GridSize;

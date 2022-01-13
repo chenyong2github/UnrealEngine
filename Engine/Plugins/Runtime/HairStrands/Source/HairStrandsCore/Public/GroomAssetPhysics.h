@@ -356,11 +356,11 @@ struct HAIRSTRANDSCORE_API FHairSimulationSetup
 
 	/** Strands simulation is done in local space */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Strands simulation is done in local space"))
-	bool bLocalSimulation = false;
+	bool bLocalSimulation = true;
 
 	/** Bone used for the simulation local space */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Bone used for the simulation local space", EditCondition = "bLocalSimulation"))
-	FString LocalBone;
+	FString LocalBone = "root";
 
 	/** Teleport distance threshold to reset the simulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Teleport distance threshold to reset the simulation"))

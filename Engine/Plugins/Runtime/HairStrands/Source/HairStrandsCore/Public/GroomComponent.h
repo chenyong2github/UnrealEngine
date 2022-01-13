@@ -118,6 +118,7 @@ public:
 	virtual void DetachFromComponent(const FDetachmentTransformRules& DetachmentRules) override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void SendRenderTransform_Concurrent() override;
+	virtual void SendRenderDynamicData_Concurrent() override;
 	//~ End UActorComponent Interface.
 
 	//~ Begin USceneComponent Interface.
@@ -163,6 +164,10 @@ public:
 	/* Accessor function for changing Groom binding asset from blueprint/sequencer */
 	UFUNCTION(BlueprintCallable, Category = "Groom")
 	void SetBindingAsset(UGroomBindingAsset* InBinding);
+
+	/* Accessor function for changing Groom physics asset from blueprint/sequencer */
+	UFUNCTION(BlueprintCallable, Category = "Simulation")
+	void SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset);
 
 	/* Accessor function for changing the enable simulation flag from blueprint/sequencer */
 	UFUNCTION(BlueprintCallable, Category = "Simulation")

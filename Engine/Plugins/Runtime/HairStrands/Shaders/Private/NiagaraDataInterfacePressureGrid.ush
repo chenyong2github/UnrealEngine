@@ -23,7 +23,7 @@ static const int FLUID_DENSITY_OFFSET = 15;
  * -----------------------------------------------------------------
  */
 
-void DIVelocityGrid_ScaleCellDistance(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in float GridLength )
+void DIVelocityGrid_ScaleCellDistance(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in float GridLength )
 {
 	float FluidDistance = DIVelocityGrid_ConvertGridScalar(DIContext,GridIndex,FLUID_DISTANCE_OFFSET);
 
@@ -45,7 +45,7 @@ void DIVelocityGrid_ScaleCellDistance(in FDIVelocityGridContext DIContext, in RW
 	DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,FLUID_DISTANCE_OFFSET,FluidDistance);
 }
 
-void DIVelocityGrid_ScaleFaceVelocity(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int ComponentIndex)
+void DIVelocityGrid_ScaleFaceVelocity(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int ComponentIndex)
 {
 	const float GridMomentum = DIVelocityGrid_ConvertGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+ComponentIndex);
 	const float GridMass = DIVelocityGrid_ConvertGridScalar(DIContext,GridIndex,FLUID_MASS_OFFSET+ComponentIndex);
@@ -56,7 +56,7 @@ void DIVelocityGrid_ScaleFaceVelocity(in FDIVelocityGridContext DIContext, in RW
 	DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,FLUID_MASS_OFFSET+ComponentIndex,GridMass);
 }
 
-void DIVelocityGrid_ScaleCellFields(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int GridHash, in float GridLength, in float DeltaTime, out bool OutTransferStatus)
+void DIVelocityGrid_ScaleCellFields(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer, in int GridHash, in float GridLength, in float DeltaTime, out bool OutTransferStatus)
 {
 	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
 
@@ -95,7 +95,7 @@ void DIVelocityGrid_ScaleCellFields(in FDIVelocityGridContext DIContext, in RWTe
  */
  
 // Compute the distance from the particle to the grid
-void DIVelocityGrid_BuildDistanceField(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, out bool OutFunctionStatus )
+void DIVelocityGrid_BuildDistanceField(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer, in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, out bool OutFunctionStatus )
 {
 	OutFunctionStatus = true;
 	const float3 GridPosition = DIVelocityGrid_GetGridPosition(DIContext,ParticlePosition,GridOrigin);
@@ -122,7 +122,7 @@ void DIVelocityGrid_BuildDistanceField(in FDIVelocityGridContext DIContext, in R
 }
 
 // Transfer the density from the particle to the grid
-void DIVelocityGrid_BuildDensityField(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in float3 GridOrigin, in float GridLength,
+void DIVelocityGrid_BuildDensityField(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer, in float3 GridOrigin, in float GridLength,
 				in float3 ParticlePosition, in float ParticleMass, in float ParticleDensity, out bool OutFunctionStatus )
 {
 	OutFunctionStatus = true;
@@ -377,7 +377,7 @@ void DIVelocityGrid_UpdateDeformationGradient(in FDIVelocityGridContext DIContex
  }
 
 // Update the solid weights and velocities
-void DIVelocityGrid_SetSolidBoundary(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer,
+void DIVelocityGrid_SetSolidBoundary(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer,
 									in int GridHash, in float SolidDistance,
 									in float3 SolidVelocity, out bool OutBoundaryStatus)
 {
@@ -393,13 +393,13 @@ void DIVelocityGrid_SetSolidBoundary(in FDIVelocityGridContext DIContext, in RWT
 	}
 }
 
-void DIVelocityGrid_ComputeFaceWeights(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridLocation, in int ComponentIndex, out float SignedDistance, inout float ParticleVelocity )
+void DIVelocityGrid_ComputeFaceWeights(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer, in int3 GridLocation, in int ComponentIndex, out float SignedDistance, inout float ParticleVelocity )
 {
 	SignedDistance = DIVelocityGrid_GetGridScalar(DIContext,GridLocation,SOLID_DISTANCE_OFFSET);
 	ParticleVelocity += DIVelocityGrid_GetGridScalar(DIContext,GridLocation,SOLID_VELOCITY_OFFSET+ComponentIndex);
 }
 
-void DIVelocityGrid_ComputeComponentWeights(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int ComponentIndex)
+void DIVelocityGrid_ComputeComponentWeights(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int ComponentIndex)
 {
 	[branch]
 	if( DIVelocityGrid_IsFaceInside(DIContext,GridIndex,ComponentIndex))
@@ -439,7 +439,7 @@ void DIVelocityGrid_ComputeComponentWeights(in FDIVelocityGridContext DIContext,
 }
 
  // Update the solid weights and velocities
-void DIVelocityGrid_ComputeBoundaryWeights(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int GridHash, out bool OutWeightsStatus)
+void DIVelocityGrid_ComputeBoundaryWeights(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer, in int GridHash, out bool OutWeightsStatus)
 {
 	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
 	OutWeightsStatus = false;
@@ -500,7 +500,7 @@ float DIVelocityGrid_ComputeGridPressure(in FDIVelocityGridContext DIContext, in
 }
 
 // Project the pressure grid to be divergence free
-void DIVelocityGrid_SolveGridPressure(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int GridHash, in int InitStage, out bool OutProjectStatus)
+void DIVelocityGrid_SolveGridPressure(in FDIVelocityGridContext DIContext, in RWBuffer<int> DIContext_GridDestinationBuffer, in int GridHash, in int InitStage, out bool OutProjectStatus)
 {	
 	OutProjectStatus = false;
 

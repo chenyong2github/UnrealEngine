@@ -52,7 +52,8 @@ enum EHairBufferSwapType
 {
 	BeginOfFrame,
 	EndOfFrame,
-	Tick
+	Tick,
+	RenderFrame
 };
 
 EHairBufferSwapType GetHairSwapBufferType();

@@ -61,8 +61,8 @@ void FNDIVelocityGridBuffer::InitRHI()
 	if (GridSize.X != 0 && GridSize.Y != 0 && GridSize.Z != 0)
 	{
 		static const uint32 NumComponents = NumAttributes;
-		GridDataBuffer.Initialize(TEXT("FNDIVelocityGridBuffer"), sizeof(int32), (GridSize.X + 1)*NumComponents, (GridSize.Y + 1),
-			(GridSize.Z + 1), EPixelFormat::PF_R32_SINT);
+		GridDataBuffer.Initialize(TEXT("FNDIVelocityGridBuffer"), sizeof(int32),
+			(GridSize.X + 1)*NumComponents * (GridSize.Y + 1) * (GridSize.Z + 1), EPixelFormat::PF_R32_SINT);
 	}
 }
 

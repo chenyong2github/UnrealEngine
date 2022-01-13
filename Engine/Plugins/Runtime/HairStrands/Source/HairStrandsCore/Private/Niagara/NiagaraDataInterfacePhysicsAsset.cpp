@@ -781,7 +781,7 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 	}
 	else if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
 	{
-		// Try to find the component by walking the attachment hierarchy
+		// Try to find the first component by walking the attachment hierarchy
 		for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 		{
 			USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(Curr);
@@ -801,7 +801,10 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 			}
 		}
 	}
-
+	
+	SourceComponents.Empty();
+	PhysicsAssets.Empty();
+	
 	// Try to find the groom physics asset by walking the attachment hierarchy
 	UPhysicsAsset* GroomPhysicsAsset = DefaultSource;
 	for (USceneComponent* Curr = SystemInstance->GetAttachComponent(); Curr; Curr = Curr->GetAttachParent())
@@ -814,13 +817,22 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 			if (GroomComponent->PhysicsAsset)
 			{
 				GroomPhysicsAsset = GroomComponent->PhysicsAsset;
-				break;
 			}
+			TArray<UPrimitiveComponent*> OverlappingComponents;
+			GroomComponent->GetOverlappingComponents(OverlappingComponents);
+
+			for(auto& OverlappingComponent : OverlappingComponents)
+			{
+				if (USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(OverlappingComponent))
+				{
+					SourceComponents.Add(SkelMeshComp);
+					PhysicsAssets.Add(SkelMeshComp->GetPhysicsAsset());
+				}
+			}
+			break;
 		}
 	}
-
-	SourceComponents.Empty();
-	PhysicsAssets.Empty();
+	
 	if (SourceComponent != nullptr)
 	{
 		SourceComponents.Add(SourceComponent);
@@ -831,25 +843,6 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 		else
 		{
 			PhysicsAssets.Add(SourceComponent->GetPhysicsAsset());
-
-			if (USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(SourceComponent->GetAttachParent()))
-			{
-				SourceComponents.Add(ParentComp);
-				PhysicsAssets.Add(ParentComp->GetPhysicsAsset());
-
-				TArray<USceneComponent*> SceneComponents;
-				ParentComp->GetChildrenComponents(true, SceneComponents);
-
-				for (USceneComponent* ActorComp : SceneComponents)
-				{
-					USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
-					if (SourceComp && SourceComp->SkeletalMesh && SourceComp->GetPhysicsAsset() && SourceComp != SourceComponent)
-					{
-						SourceComponents.Add(SourceComp);
-						PhysicsAssets.Add(SourceComp->GetPhysicsAsset());
-					}
-				}
-			}
 		}
 	}
 	else if (GroomPhysicsAsset != nullptr)

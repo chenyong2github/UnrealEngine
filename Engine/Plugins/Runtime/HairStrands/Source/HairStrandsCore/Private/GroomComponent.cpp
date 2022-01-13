@@ -1410,7 +1410,6 @@ void UGroomComponent::CreateHairSimulation(const int32 GroupIndex, const int32 L
 					(GroomAsset->HairGroupsPhysics[GroupIndex].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings) ? ToRawPtr(AngularSpringsSystem) :
 					(GroomAsset->HairGroupsPhysics[GroupIndex].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods) ? ToRawPtr(CosseratRodsSystem) :
 					GroomAsset->HairGroupsPhysics[GroupIndex].SolverSettings.CustomSystem.LoadSynchronous();
-
 				NiagaraComponent->SetVisibleFlag(SimulationSettings.SimulationSetup.bDebugSimulation);
 				NiagaraComponent->SetAsset(NiagaraAsset);
 				NiagaraComponent->ReinitializeSystem();
@@ -1730,6 +1729,19 @@ void UGroomComponent::SetBindingAsset(UGroomBindingAsset* InBinding)
 			BindingAsset = InBinding;
 			InitResources();
 		}
+	}
+}
+
+void UGroomComponent::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset)
+{
+	if (InPhysicsAsset && PhysicsAsset != InPhysicsAsset)
+	{
+		PhysicsAsset = InPhysicsAsset;
+			
+		ReleaseResources();
+		UpdateHairGroupsDesc();
+		UpdateHairSimulation();
+		InitResources();
 	}
 }
 
@@ -3182,6 +3194,10 @@ void UGroomComponent::BuildSimulationTransform(FTransform& SimulationTransform) 
 
 			SimulationTransform = SkeletelMeshComponent->GetBoneTransform(BoneIndex);
 		}
+		else
+		{
+			SimulationTransform = GetComponentTransform();
+		}
 	}
 }
 
@@ -3325,6 +3341,11 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 			}
 		}
 	});
+	
+	if(GetHairSwapBufferType() == EHairBufferSwapType::RenderFrame)
+	{
+		MarkRenderDynamicDataDirty();
+	}
 }
 
 void UGroomComponent::SendRenderTransform_Concurrent()
@@ -3338,6 +3359,25 @@ void UGroomComponent::SendRenderTransform_Concurrent()
 	}
 
 	Super::SendRenderTransform_Concurrent();
+}
+
+void UGroomComponent::SendRenderDynamicData_Concurrent()
+{
+	Super::SendRenderDynamicData_Concurrent();
+
+	if(GetHairSwapBufferType() == EHairBufferSwapType::RenderFrame)
+	{
+		TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
+		ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
+			[LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
+		{
+			for (FHairGroupInstance* Instance : LocalHairGroupInstances)
+			{
+				if (Instance->Guides.DeformedResource)  { Instance->Guides.DeformedResource->SwapBuffer(); }
+				if (Instance->Strands.DeformedResource) { Instance->Strands.DeformedResource->SwapBuffer(); }
+			}
+		});
+	}
 }
 
 void UGroomComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
@@ -3483,7 +3523,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		{
 			// Set the callback on the new GroomAsset being assigned
 			GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
-			GroomAsset->GetOnGroomAssetResourcesChanged().AddUObject(this, &UGroomComponent::Invalidate);
+			GroomAsset->GetOnGroomAssetResourcesChanged().AddUObject(this, &UGroomComponent::InvalidateAndRecreate);
 			bIsGroomAssetCallbackRegistered = true;
 		}
 	}

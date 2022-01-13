@@ -25,7 +25,7 @@ static FAutoConsoleVariableRef CVarGHairStrandsMinLOD(TEXT("r.HairStrands.MinLOD
 static int32 GHairStrands_UseCards = 0;
 static FAutoConsoleVariableRef CVarHairStrands_UseCards(TEXT("r.HairStrands.UseCardsInsteadOfStrands"), GHairStrands_UseCards, TEXT("Force cards geometry on all groom elements. If no cards data is available, nothing will be displayed"), ECVF_Scalability);
 
-static int32 GHairStrands_SwapBufferType = 1;
+static int32 GHairStrands_SwapBufferType = 3;
 static FAutoConsoleVariableRef CVarGHairStrands_SwapBufferType(TEXT("r.HairStrands.SwapType"), GHairStrands_SwapBufferType, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
 
 static int32 GHairStrands_ManualSkinCache = 0;
@@ -41,6 +41,7 @@ EHairBufferSwapType GetHairSwapBufferType()
 	case 0: return EHairBufferSwapType::BeginOfFrame;
 	case 1: return EHairBufferSwapType::EndOfFrame;
 	case 2: return EHairBufferSwapType::Tick;
+	case 3: return EHairBufferSwapType::RenderFrame;
 	}
 	return EHairBufferSwapType::EndOfFrame;
 }

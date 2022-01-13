@@ -440,7 +440,7 @@ void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(const FNiagar
 
 //------------------------------------------------------------------------------------------------------------
 
-#define NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE 64
+#define NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE 4
 
 class FClearPressureGridCS : public FGlobalShader
 {
@@ -519,11 +519,13 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type Feat
 
 		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE;
 		const uint32 NumElements = (GridSize.X + 1) * (GridSize.Y + 1) * (GridSize.Z + 1);
-
-		const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
+		
+		const uint32 DispatchCountX = FMath::DivideAndRoundUp((uint32)(GridSize.X+1), GroupSize);
+		const uint32 DispatchCountY = FMath::DivideAndRoundUp((uint32)(GridSize.Y+1), GroupSize);
+		const uint32 DispatchCountZ = FMath::DivideAndRoundUp((uint32)(GridSize.Z+1), GroupSize);
 
 		ComputeShader->SetParameters(RHICmdList, CurrentGridBufferSRV, DestinationGridBufferUAV, GridSize, CopyPressure);
-		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), DispatchCount, 1, 1);
+		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), DispatchCountX, DispatchCountY, DispatchCountZ);
 		ComputeShader->UnsetParameters(RHICmdList);
 	}
 }

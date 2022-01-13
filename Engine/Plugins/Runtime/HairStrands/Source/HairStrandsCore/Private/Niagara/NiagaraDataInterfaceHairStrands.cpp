@@ -323,6 +323,7 @@ void FNDIHairStrandsBuffer::Initialize(
 	SourceDeformedRootResources = HairStrandsDeformedRootResource;
 	ParamsScale = InParamsScale;
 	BoundingBoxOffsets = FIntVector4(0,1,2,3);
+
 	bValidGeometryType = false;
 }
 
@@ -511,6 +512,13 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 				LocalSimulation = SimulationSettings.SimulationSetup.bLocalSimulation;
 				Interface->SourceComponent->BuildSimulationTransform(BoneTransform);
 
+				// Convert to double for LWC
+				FTransform3d BoneTransformDouble = BoneTransform;
+				const FTransform3d WorldTransformDouble = WorldTransform;
+				
+				BoneTransformDouble = BoneTransformDouble * WorldTransformDouble.Inverse();
+				BoneTransform = BoneTransformDouble;
+
 				if (SimulationSettings.bOverrideSettings)
 				{
 					GravityVector = SimulationSettings.ExternalForces.GravityVector;
@@ -648,7 +656,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			// TEMP: These check are only temporary for avoiding crashes while we find the bottom of the issue.
 			ProxyData->HairStrandsBuffer->CurvesOffsetsBuffer.SRV && ProxyData->HairStrandsBuffer->ParamsScaleBuffer.SRV && ProxyData->HairStrandsBuffer->BoundingBoxBuffer.UAV;
 
-		const bool bIsGeometryValid = bIsHairValid&& ProxyData->HairGroupInstance && (ProxyData->HairGroupInstance->GeometryType != EHairGeometryType::NoneGeometry);
+		const bool bIsGeometryValid = bIsHairValid && (!ProxyData->HairGroupInstance || (ProxyData->HairGroupInstance && (ProxyData->HairGroupInstance->GeometryType != EHairGeometryType::NoneGeometry)));
 		const bool bIsDeformedValid = bIsHairValid && ProxyData->HairStrandsBuffer->SourceDeformedResources && ProxyData->HairStrandsBuffer->SourceDeformedResources->IsInitialized();
 
 		if (bIsHairValid && bIsRestValid && bIsGeometryValid)
@@ -707,19 +715,21 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			// Offsets / Transforms
 			FVector3f RestPositionOffsetValue = ProxyData->HairStrandsBuffer->SourceRestResources->GetPositionOffset();
 
+			FMatrix44f RigidTransformFloat = ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->Debug.RigidCurrentLocalToWorld.ToMatrixWithScale():
+																			ProxyData->WorldTransform.ToMatrixWithScale();
 			FMatrix44f WorldTransformFloat = ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->GetCurrentLocalToWorld().ToMatrixWithScale() :
 																			ProxyData->WorldTransform.ToMatrixWithScale();
-			FMatrix44f BoneTransformFloat = ProxyData->BoneTransform.ToMatrixWithScale();
-
+			FMatrix44f BoneTransformFloat = ProxyData->BoneTransform.ToMatrixWithScale() * RigidTransformFloat;
+			
 			if (ProxyData->LocalSimulation)
 			{
-				FMatrix44d WorldTransformDouble = WorldTransformFloat;
-				FMatrix44d BoneTransformDouble = BoneTransformFloat;
+				const FMatrix44d WorldTransformDouble = WorldTransformFloat;
+				const FMatrix44d BoneTransformDouble = BoneTransformFloat;
 
 				// Due to large world coordinate we store the relative world transform in double precision
 				WorldTransformFloat = WorldTransformDouble * BoneTransformDouble.Inverse();
 			}
-
+			
 			if (!bIsRootValid && bHasSkinningBinding)
 			{
 				UE_LOG(LogHairStrands, Log, TEXT("FNDIHairStrandsParametersCS() Groom Asset %s from component %s is set to use skinning interpolation but the skin resources are not valid"),
@@ -778,7 +788,6 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			{
 				ProxyData->HairStrandsBuffer->bValidGeometryType = false;
 			}
-
 			// Set shader constants
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundingBoxOffsets, FIntVector4(0,1,2,3));
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, FMatrix44f::Identity);

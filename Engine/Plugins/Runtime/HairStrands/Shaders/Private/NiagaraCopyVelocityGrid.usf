@@ -3,14 +3,15 @@
 #include "/Engine/Private/Common.ush"
 
 uint3 GridSize;
-Texture3D<int>		GridCurrentBuffer;
-RWTexture3D<int>	GridDestinationBuffer;
+Buffer<int>		GridCurrentBuffer;
+RWBuffer<int>	GridDestinationBuffer;
 
 [numthreads(THREAD_COUNT, THREAD_COUNT, THREAD_COUNT)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	if ((DispatchThreadId.x < GridSize.x) && (DispatchThreadId.y < GridSize.y) && (DispatchThreadId.z < GridSize.z))
+	if (all(DispatchThreadId < GridSize))
 	{
-		GridDestinationBuffer[DispatchThreadId] = GridCurrentBuffer[DispatchThreadId];
+		const int GridIndex = DispatchThreadId.x * (GridSize.y+1) * (GridSize.z+1) + DispatchThreadId.y * (GridSize.z+1) + DispatchThreadId.z;
+		GridDestinationBuffer[GridIndex] = GridCurrentBuffer[GridIndex];
 	}
 }
