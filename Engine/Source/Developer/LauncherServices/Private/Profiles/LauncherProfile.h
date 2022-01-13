@@ -196,7 +196,7 @@ public:
 		// profiles created for your persistent devices to be in debug. The user might not see this if they don't expand the Advanced options.
 		BuildConfiguration = EBuildConfiguration::Development;
 		
-		CookMode = ELauncherProfileCookModes::OnTheFly;		
+		CookMode = ELauncherProfileCookModes::OnTheFly;
 	}
 
 private:
@@ -1873,6 +1873,19 @@ public:
 		else
 		{
 			FullProjectPath = FString();
+		}
+
+		FString RelativeProjectPath = FullProjectPath;
+		bool bRelative = FPaths::MakePathRelativeTo(RelativeProjectPath, *FPaths::RootDir());
+
+		bool bIsUnderUERoot = bRelative && !(RelativeProjectPath.StartsWith(FString("../"), ESearchCase::CaseSensitive));
+		if (bIsUnderUERoot)
+		{
+			ShareableProjectPath = RelativeProjectPath;
+		}
+		else
+		{
+			ShareableProjectPath = FullProjectPath;
 		}
 
 		// Use the locally specified project path is resolving through the root isn't working
