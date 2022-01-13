@@ -132,7 +132,8 @@ private:
 		One transform key is generated for each individual key to be added to the section. */
 	void GetTransformKeys( const TOptional<FTransformData>& LastTransform, const FTransformData& CurrentTransform, EMovieSceneTransformChannel ChannelsToKey, UObject* Object, UMovieSceneSection* Section, FGeneratedTrackKeys& OutGeneratedKeys );
 
-
+	/** Transform origin which may be set for the current level sequence */
+	FTransform GetTransformOrigin() const;
 
 	/** 
 	 * Adds transform keys to an object represented by a handle.
