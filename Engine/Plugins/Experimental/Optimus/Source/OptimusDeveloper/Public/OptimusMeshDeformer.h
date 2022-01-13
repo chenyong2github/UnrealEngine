@@ -18,7 +18,7 @@ class OPTIMUSDEVELOPER_API UOptimusMeshDeformer : public UMeshDeformer
 
 public:
 	/** The Compute Graph asset. */
-	UPROPERTY(EditAnywhere, Category = "Compute")
+	UPROPERTY(EditAnywhere, Category = "Compute", meta = (DisplayName = "Deformer Graph"))
 	TObjectPtr<UComputeGraph> ComputeGraph = nullptr;
 
 protected:
