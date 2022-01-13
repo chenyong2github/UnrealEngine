@@ -509,23 +509,17 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 		*InProfile->GetAdditionalCommandLineParameters());
 
 	// map list
-	FString MapList = TEXT("");
+	FString MapList = TEXT(" -map=");
 	const TArray<FString>& CookedMaps = InProfile->GetCookedMaps();
 	if (CookedMaps.Num() > 0 && (InProfile->GetCookMode() == ELauncherProfileCookModes::ByTheBook || InProfile->GetCookMode() == ELauncherProfileCookModes::ByTheBookInEditor))
 	{
-		MapList += TEXT(" -map=");
-		for (int32 MapIndex = 0; MapIndex < CookedMaps.Num(); ++MapIndex)
-		{
-			MapList += CookedMaps[MapIndex];
-			if (MapIndex+1 < CookedMaps.Num())
-			{
-				MapList += "+";
-			}
-		}
+		MapList += InitialMap;
+		MapList += TEXT("+");
+		MapList += FString::Join(CookedMaps, TEXT("+"));
 	}
 	else
 	{
-		MapList = TEXT(" -map=") + InitialMap;
+		MapList += InitialMap;
 	}
 
 	// culture list

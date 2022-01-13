@@ -831,7 +831,6 @@ namespace AutomationTool
 			this.SeparateDebugInfo = GetParamValueIfNotSpecified(Command, SeparateDebugInfo, this.SeparateDebugInfo, "separatedebuginfo");
 			this.MapFile = GetParamValueIfNotSpecified(Command, MapFile, this.MapFile, "mapfile");
 			this.NoCleanStage = GetParamValueIfNotSpecified(Command, NoCleanStage, this.NoCleanStage, "nocleanstage");
-			this.MapToRun = ParseParamValueIfNotSpecified(Command, MapToRun, "map", String.Empty);
 			this.AdditionalServerMapParams = ParseParamValueIfNotSpecified(Command, AdditionalServerMapParams, "AdditionalServerMapParams", String.Empty);
 			this.Foreign = GetParamValueIfNotSpecified(Command, Foreign, this.Foreign, "foreign");
 			this.ForeignCode = GetParamValueIfNotSpecified(Command, ForeignCode, this.ForeignCode, "foreigncode");
@@ -849,6 +848,17 @@ namespace AutomationTool
 
 			this.Deploy = GetParamValueIfNotSpecified(Command, Deploy, this.Deploy, "deploy");
 			this.DeployFolder = ParseParamValueIfNotSpecified(Command, DeployFolder, "deploy", null);
+
+			// if the user specified multiple -map arguments, just use the first one
+			this.MapToRun = ParseParamValueIfNotSpecified(Command, MapToRun, "map", String.Empty);
+			if (!String.IsNullOrEmpty(this.MapToRun))
+			{
+				int DelimiterIndex = this.MapToRun.IndexOf('+');
+				if (DelimiterIndex != -1)
+				{
+					this.MapToRun = this.MapToRun.Remove(DelimiterIndex);
+				}
+			}
 
 			// if the user specified -deploy but no folder, set the default
 			if (this.Deploy && string.IsNullOrEmpty(this.DeployFolder))
