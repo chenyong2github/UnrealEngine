@@ -382,6 +382,11 @@ struct FUniqueNetIdWrapper
 	{
 	}
 
+	FUniqueNetIdWrapper(const UE::Online::FOnlineAccountIdHandle& Handle)
+	{
+		Variant.Emplace<UE::Online::FOnlineAccountIdHandle>(Handle);
+	}
+
 	// temporarily restored implicit conversion from FUniqueNetId
 	FUniqueNetIdWrapper(const FUniqueNetId& InUniqueNetId)
 	{

@@ -1581,10 +1581,10 @@ FString ULocalPlayer::GetNickname() const
 			return PlatformNickname;
 		}
 
-		auto UniqueId = GetPreferredUniqueNetId();
+		FUniqueNetIdRepl UniqueId = GetPreferredUniqueNetId();
 		if (UniqueId.IsValid())
 		{
-			return UOnlineEngineInterface::Get()->GetPlayerNickname(World, *UniqueId);
+			return UOnlineEngineInterface::Get()->GetPlayerNickname(World, UniqueId);
 		}
 	}
 
@@ -1596,7 +1596,7 @@ FUniqueNetIdRepl ULocalPlayer::GetUniqueNetIdFromCachedControllerId() const
 	UWorld* World = GetWorld();
 	if (World != nullptr)
 	{
-		return FUniqueNetIdRepl(UOnlineEngineInterface::Get()->GetUniquePlayerId(World, ControllerId));
+		return FUniqueNetIdRepl(UOnlineEngineInterface::Get()->GetUniquePlayerIdWrapper(World, ControllerId));
 	}
 
 	return FUniqueNetIdRepl();
@@ -1607,7 +1607,7 @@ FUniqueNetIdRepl ULocalPlayer::GetUniqueNetIdForPlatformUser() const
 	UWorld* World = GetWorld();
 	if (World != nullptr)
 	{
-		return FUniqueNetIdRepl(UOnlineEngineInterface::Get()->GetUniquePlayerId(World, PlatformUserId));
+		return FUniqueNetIdRepl(UOnlineEngineInterface::Get()->GetUniquePlayerIdWrapper(World, PlatformUserId));
 	}
 
 	return FUniqueNetIdRepl();

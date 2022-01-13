@@ -3581,7 +3581,7 @@ void APlayerController::ClientMutePlayer_Implementation(FUniqueNetIdRepl PlayerI
 	if (LP != NULL && World)
 	{
 		// Have the voice subsystem mute this player
-		UOnlineEngineInterface::Get()->MuteRemoteTalker(World, LP->GetControllerId(), *PlayerId, false);
+		UOnlineEngineInterface::Get()->MuteRemoteTalker(World, LP->GetControllerId(), PlayerId, false);
 	}
 }
 
@@ -3594,7 +3594,7 @@ void APlayerController::ClientUnmutePlayer_Implementation(FUniqueNetIdRepl Playe
 	if (LP != NULL && World)
 	{
 		// Have the voice subsystem unmute this player
-		UOnlineEngineInterface::Get()->UnmuteRemoteTalker(World, LP->GetControllerId(), *PlayerId, false);
+		UOnlineEngineInterface::Get()->UnmuteRemoteTalker(World, LP->GetControllerId(), PlayerId, false);
 	}
 }
 
@@ -3611,7 +3611,7 @@ void APlayerController::ClientUnmutePlayers_Implementation(const TArray<FUniqueN
 			if (UnmuteId.IsValid())
 			{
 				// Have the voice subsystem mute this player
-				UOnlineEngineInterface::Get()->UnmuteRemoteTalker(World, LP->GetControllerId(), *UnmuteId, false);
+				UOnlineEngineInterface::Get()->UnmuteRemoteTalker(World, LP->GetControllerId(), UnmuteId, false);
 			}
 		}
 	}

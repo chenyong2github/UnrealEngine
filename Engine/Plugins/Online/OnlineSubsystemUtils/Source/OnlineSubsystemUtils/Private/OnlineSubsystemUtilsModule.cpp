@@ -5,6 +5,7 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
+#include "OnlineServicesEngineUtilsImpl.h"
 #include "OnlineDelegates.h"
 #include "OnlinePIESettings.h"
 
@@ -248,14 +249,27 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	friend FOnlineSubsystemUtilsModule;
 };
 
+FOnlineSubsystemUtilsModule::FOnlineSubsystemUtilsModule()
+{
+}
+
+FOnlineSubsystemUtilsModule::~FOnlineSubsystemUtilsModule()
+{
+}
+
 void FOnlineSubsystemUtilsModule::StartupModule()
 {
 	TUniquePtr<FOnlineSubsystemUtils> TempUtils = MakeUnique<FOnlineSubsystemUtils>();
 	TempUtils->Init();
 	SubsystemUtils = MoveTemp(TempUtils);
+
+	TUniquePtr<UE::Online::FOnlineServicesEngineUtils> TempServicesUtils = MakeUnique<UE::Online::FOnlineServicesEngineUtils>();
+	TempServicesUtils->Init();
+	OnlineServicesUtils = MoveTemp(TempServicesUtils);
 }
 
 void FOnlineSubsystemUtilsModule::ShutdownModule()
 {
 	SubsystemUtils.Reset();
+	OnlineServicesUtils.Reset();
 }

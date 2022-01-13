@@ -247,18 +247,23 @@ void AGameSession::UnregisterPlayer(FName InSessionName, const FUniqueNetIdRepl&
 		UniqueId->IsValid())
 	{
 		// Remove the player from the session
-		UOnlineEngineInterface::Get()->UnregisterPlayer(World, InSessionName, *UniqueId);
+		UOnlineEngineInterface::Get()->UnregisterPlayer(World, InSessionName, UniqueId);
 	}
 }
 
-void AGameSession::UnregisterPlayers(FName InSessionName, const TArray< FUniqueNetIdRef >& Players)
+void AGameSession::UnregisterPlayers(FName InSessionName, const TArray<FUniqueNetIdRef>& Players)
 {
 	UWorld* World = GetWorld();
 	if (GetNetMode() != NM_Standalone &&
 		Players.Num() > 0)
 	{
 		// Remove the player from the session
-		UOnlineEngineInterface::Get()->UnregisterPlayers(World, InSessionName, Players);
+		TArray<FUniqueNetIdWrapper> PlayerIdsAsWrappers;
+		for (const FUniqueNetIdRef& PlayerId : Players)
+		{
+			PlayerIdsAsWrappers.Emplace(PlayerId);
+		}
+		UOnlineEngineInterface::Get()->UnregisterPlayers(World, InSessionName, PlayerIdsAsWrappers);
 	}
 }
 

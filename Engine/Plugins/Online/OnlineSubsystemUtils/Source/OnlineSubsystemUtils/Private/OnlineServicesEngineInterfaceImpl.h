@@ -6,14 +6,17 @@
 #include "UObject/ObjectMacros.h"
 #include "Online/CoreOnline.h"
 #include "Net/OnlineEngineInterface.h"
-#include "OnlineEngineInterfaceImpl.generated.h"
+#include "OnlineServicesEngineInterfaceImpl.generated.h"
 
 class Error;
 class FVoicePacket;
 struct FWorldContext;
 
+/**
+ * Implementation of UOnlineEngineInterface that uses Online Services (also known as Online Subsystem v2)
+ */
 UCLASS(config = Engine)
-class ONLINESUBSYSTEMUTILS_API UOnlineEngineInterfaceImpl : public UOnlineEngineInterface
+class ONLINESUBSYSTEMUTILS_API UOnlineServicesEngineInterfaceImpl : public UOnlineEngineInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -37,23 +40,8 @@ public:
 	virtual FName GetSubsystemFromReplicationHash(uint8 InHash) const override;
 
 private:
-	/** Mapping of unique net ids that should not be treated as foreign ids to the local subsystem. */
-	UPROPERTY(config)
-	TMap<FName, FName> MappedUniqueNetIdTypes;
-
-	/** Array of unique net ids that are deemed valid when tested against gameplay login checks. */
-	UPROPERTY(config)
-	TArray<FName> CompatibleUniqueNetIdTypes;
-	
-	/** Allow the subsystem used for voice functions to be overridden, in case it needs to be different than the default subsystem. May be useful on console platforms. */
-	UPROPERTY(config)
-	FName VoiceSubsystemNameOverride;
-
 	/** @return the identifier/context handle associated with a UWorld */
-	FName GetOnlineIdentifier(UWorld* World);
-
-	/** Returns the name of a corresponding dedicated server subsystem for the given subsystem, or NAME_None if such a system doesn't exist. */
-	FName GetDedicatedServerSubsystemNameForSubsystem(const FName Subsystem) const;
+	FName GetOnlineIdentifier(UWorld* World) const;
 
 	/**
 	 * Identity
@@ -68,11 +56,6 @@ public:
 
 	virtual bool AutoLogin(UWorld* World, int32 LocalUserNum, const FOnlineAutoLoginComplete& InCompletionDelegate) override;
 	virtual bool IsLoggedIn(UWorld* World, int32 LocalUserNum) override;
-
-private:
-
-	FDelegateHandle OnLoginCompleteDelegateHandle;
-	void OnAutoLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error, FName OnlineIdentifier, FOnlineAutoLoginComplete InCompletionDelegate);
 
 	/**
 	 * Session
@@ -91,16 +74,6 @@ public:
 	virtual void UnregisterPlayers(UWorld* World, FName SessionName, const TArray<FUniqueNetIdWrapper>& Players) override;
 
 	virtual bool GetResolvedConnectString(UWorld* World, FName SessionName, FString& URL) override;
-
-private:
-
-	/** Mapping of delegate handles for each online StartSession() call while in flight */
-	TMap<FName, FDelegateHandle> OnStartSessionCompleteDelegateHandles;
-	void OnStartSessionComplete(FName SessionName, bool bWasSuccessful, FName OnlineIdentifier, FOnlineSessionStartComplete CompletionDelegate);
-
-	/** Mapping of delegate handles for each online EndSession() call while in flight */
-	TMap<FName, FDelegateHandle> OnEndSessionCompleteDelegateHandles;
-	void OnEndSessionComplete(FName SessionName, bool bWasSuccessful, FName OnlineIdentifier, FOnlineSessionEndComplete CompletionDelegate);
 
 	/**
 	 * Voice
@@ -130,10 +103,6 @@ public:
 	virtual void ShowWebURL(const FString& CurrentURL, const UOnlineEngineInterface::FShowWebUrlParams& ShowParams, const FOnlineShowWebUrlClosed& CompletionDelegate) override;
 	virtual bool CloseWebURL() override;
 
-private:
-
-	void OnExternalUIChange(bool bInIsOpening, FOnlineExternalUIChanged Delegate);
-
 	/**
 	 * Debug
 	 */
@@ -156,11 +125,5 @@ public:
 	virtual void SetForceDedicated(FName OnlineIdentifier, bool bForce) override;
 	virtual void LoginPIEInstance(FName OnlineIdentifier, int32 LocalUserNum, int32 PIELoginNum, FOnPIELoginComplete& CompletionDelegate) override;
 #endif
-
-private:
-
-	/** Mapping of delegate handles for each online Login() call while in flight */
-	TMap<FName, FDelegateHandle> OnLoginPIECompleteDelegateHandlesForPIEInstances;
-	void OnPIELoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error, FName OnlineIdentifier, FOnlineAutoLoginComplete InCompletionDelegate);
 };
 

@@ -68,9 +68,9 @@ FName UOnlineEngineInterfaceImpl::GetDefaultOnlineSubsystemName() const
 	return OnlineSub ? OnlineSub->GetSubsystemName() : NAME_None;
 }
 
-bool UOnlineEngineInterfaceImpl::IsCompatibleUniqueNetId(const FUniqueNetId& InUniqueNetId) const
+bool UOnlineEngineInterfaceImpl::IsCompatibleUniqueNetId(const FUniqueNetIdWrapper& InUniqueNetId) const
 {
-	return InUniqueNetId.GetType() == GetDefaultOnlineSubsystemName() || CompatibleUniqueNetIdTypes.Contains(InUniqueNetId.GetType());
+	return InUniqueNetId.IsV1() && (InUniqueNetId.GetType() == GetDefaultOnlineSubsystemName() || CompatibleUniqueNetIdTypes.Contains(InUniqueNetId.GetType()));
 }
 
 uint8 UOnlineEngineInterfaceImpl::GetReplicationHashForSubsystem(FName InSubsystemName) const
@@ -109,7 +109,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return NAME_None;
 }
 
-FUniqueNetIdPtr UOnlineEngineInterfaceImpl::CreateUniquePlayerId(const FString& Str, FName Type)
+FUniqueNetIdWrapper UOnlineEngineInterfaceImpl::CreateUniquePlayerIdWrapper(const FString& Str, FName Type)
 {
 	// Foreign types may be passed into this function, do not load OSS modules explicitly here
 	FUniqueNetIdPtr UniqueId = nullptr;
@@ -143,7 +143,7 @@ FUniqueNetIdPtr UOnlineEngineInterfaceImpl::CreateUniquePlayerId(const FString& 
 	return UniqueId;
 }
 
-FUniqueNetIdPtr UOnlineEngineInterfaceImpl::GetUniquePlayerId(UWorld* World, int32 LocalUserNum, FName Type)
+FUniqueNetIdWrapper UOnlineEngineInterfaceImpl::GetUniquePlayerIdWrapper(UWorld* World, int32 LocalUserNum, FName Type)
 {
 	IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World, Type);
 	if (IdentityInt.IsValid())
@@ -153,15 +153,16 @@ FUniqueNetIdPtr UOnlineEngineInterfaceImpl::GetUniquePlayerId(UWorld* World, int
 	}
 
 	UE_LOG_ONLINE(Verbose, TEXT("GetUniquePlayerId() returning null, can't find OSS of type %s"), *Type.ToString());
-	return nullptr;
+	return FUniqueNetIdWrapper();
 }
 
-FString UOnlineEngineInterfaceImpl::GetPlayerNickname(UWorld* World, const FUniqueNetId& UniqueId)
+FString UOnlineEngineInterfaceImpl::GetPlayerNickname(UWorld* World, const FUniqueNetIdWrapper& UniqueId)
 {
+	check(UniqueId.IsValid() && UniqueId.IsV1());
 	IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World, UniqueId.GetType());
 	if (IdentityInt.IsValid())
 	{	
-		return IdentityInt->GetPlayerNickname(UniqueId);
+		return IdentityInt->GetPlayerNickname(*UniqueId);
 	}
 
 	static FString InvalidName(TEXT("InvalidOSSUser"));
@@ -353,30 +354,38 @@ void UOnlineEngineInterfaceImpl::UpdateSessionJoinability(UWorld* World, FName S
 	}
 }
 
-void UOnlineEngineInterfaceImpl::RegisterPlayer(UWorld* World, FName SessionName, const FUniqueNetId& UniqueId, bool bWasInvited)
+void UOnlineEngineInterfaceImpl::RegisterPlayer(UWorld* World, FName SessionName, const FUniqueNetIdWrapper& UniqueId, bool bWasInvited)
 {
+	check(UniqueId.IsValid() && UniqueId.IsV1());
 	IOnlineSessionPtr SessionInt = Online::GetSessionInterface(World);
 	if (SessionInt.IsValid() && UniqueId.IsValid())
 	{
-		SessionInt->RegisterPlayer(SessionName, UniqueId, bWasInvited);
+		SessionInt->RegisterPlayer(SessionName, *UniqueId, bWasInvited);
 	}
 }
 
-void UOnlineEngineInterfaceImpl::UnregisterPlayer(UWorld* World, FName SessionName, const FUniqueNetId& UniqueId)
+void UOnlineEngineInterfaceImpl::UnregisterPlayer(UWorld* World, FName SessionName, const FUniqueNetIdWrapper& UniqueId)
+{
+	check(UniqueId.IsValid() && UniqueId.IsV1());
+	IOnlineSessionPtr SessionInt = Online::GetSessionInterface(World);
+	if (SessionInt.IsValid())
+	{
+		SessionInt->UnregisterPlayer(SessionName, *UniqueId);
+	}
+}
+
+void UOnlineEngineInterfaceImpl::UnregisterPlayers(UWorld* World, FName SessionName, const TArray<FUniqueNetIdWrapper>& Players)
 {
 	IOnlineSessionPtr SessionInt = Online::GetSessionInterface(World);
 	if (SessionInt.IsValid())
 	{
-		SessionInt->UnregisterPlayer(SessionName, UniqueId);
-	}
-}
-
-void UOnlineEngineInterfaceImpl::UnregisterPlayers(UWorld* World, FName SessionName, const TArray< FUniqueNetIdRef >& Players)
-{
-	IOnlineSessionPtr SessionInt = Online::GetSessionInterface(World);
-	if (SessionInt.IsValid())
-	{
-		SessionInt->UnregisterPlayers(SessionName, Players);
+		TArray<FUniqueNetIdRef> PlayerIdsAsRefs;
+		for (const FUniqueNetIdWrapper& PlayerId : Players)
+		{
+			check(PlayerId.IsValid() && PlayerId.IsV1());
+			PlayerIdsAsRefs.Emplace(PlayerId.GetV1().ToSharedRef());
+		}
+		SessionInt->UnregisterPlayers(SessionName, PlayerIdsAsRefs);
 	}
 }
 
@@ -451,22 +460,24 @@ void UOnlineEngineInterfaceImpl::ClearVoicePackets(UWorld* World)
 	}
 }
 
-bool UOnlineEngineInterfaceImpl::MuteRemoteTalker(UWorld* World, uint8 LocalUserNum, const FUniqueNetId& PlayerId, bool bIsSystemWide)
+bool UOnlineEngineInterfaceImpl::MuteRemoteTalker(UWorld* World, uint8 LocalUserNum, const FUniqueNetIdWrapper& PlayerId, bool bIsSystemWide)
 {
+	check(PlayerId.IsValid() && PlayerId.IsV1());
 	IOnlineVoicePtr VoiceInt = Online::GetVoiceInterface(World, VoiceSubsystemNameOverride);
 	if (VoiceInt.IsValid())
 	{
-		return VoiceInt->MuteRemoteTalker(LocalUserNum, PlayerId, bIsSystemWide);
+		return VoiceInt->MuteRemoteTalker(LocalUserNum, *PlayerId, bIsSystemWide);
 	}
 	return false;
 }
 
-bool UOnlineEngineInterfaceImpl::UnmuteRemoteTalker(UWorld* World, uint8 LocalUserNum, const FUniqueNetId& PlayerId, bool bIsSystemWide)
+bool UOnlineEngineInterfaceImpl::UnmuteRemoteTalker(UWorld* World, uint8 LocalUserNum, const FUniqueNetIdWrapper& PlayerId, bool bIsSystemWide)
 {
+	check(PlayerId.IsValid() && PlayerId.IsV1());
 	IOnlineVoicePtr VoiceInt = Online::GetVoiceInterface(World, VoiceSubsystemNameOverride);
 	if (VoiceInt.IsValid())
 	{
-		return VoiceInt->UnmuteRemoteTalker(LocalUserNum, PlayerId, bIsSystemWide);
+		return VoiceInt->UnmuteRemoteTalker(LocalUserNum, *PlayerId, bIsSystemWide);
 	}
 	return false;
 }

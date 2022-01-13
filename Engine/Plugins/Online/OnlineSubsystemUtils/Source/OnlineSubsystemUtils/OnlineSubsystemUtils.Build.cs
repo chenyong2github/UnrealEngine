@@ -46,7 +46,8 @@ public class OnlineSubsystemUtils : ModuleRules
 				"Json",
 				"SignalProcessing",
 				"AudioMixerCore",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"OnlineServicesInterface"
 			}
 		);
 

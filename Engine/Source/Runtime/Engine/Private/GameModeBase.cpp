@@ -633,7 +633,7 @@ void AGameModeBase::GameWelcomePlayer(UNetConnection* Connection, FString& Redir
 void AGameModeBase::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
 {
 	// Login unique id must match server expected unique id type OR No unique id could mean game doesn't use them
-	const bool bUniqueIdCheckOk = (!UniqueId.IsValid() || UOnlineEngineInterface::Get()->IsCompatibleUniqueNetId(*UniqueId));
+	const bool bUniqueIdCheckOk = (!UniqueId.IsValid() || UOnlineEngineInterface::Get()->IsCompatibleUniqueNetId(UniqueId));
 	if (bUniqueIdCheckOk)
 	{
 		ErrorMessage = GameSession->ApproveLogin(Options);

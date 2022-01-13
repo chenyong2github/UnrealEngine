@@ -242,8 +242,8 @@ void FUniqueNetIdRepl::MakeReplicationDataV2()
 void FUniqueNetIdRepl::UniqueIdFromString(FName Type, const FString& Contents)
 {
 	// Don't need to distinguish OSS interfaces here with world because we just want the create function below
-	FUniqueNetIdPtr UniqueNetIdPtr = UOnlineEngineInterface::Get()->CreateUniquePlayerId(Contents, Type);
-	SetUniqueNetId(UniqueNetIdPtr);
+	FUniqueNetIdWrapper UniqueNetIdWrapper = UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(Contents, Type);
+	SetUniqueNetId(UniqueNetIdWrapper.GetUniqueNetId());
 }
 
 bool FUniqueNetIdRepl::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
@@ -602,7 +602,7 @@ void TestUniqueIdRepl(UWorld* InWorld)
 
 	bool bSetupSuccess = true;
 
-	FUniqueNetIdPtr UserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0);
+	FUniqueNetIdPtr UserId = UOnlineEngineInterface::Get()->GetUniquePlayerIdWrapper(InWorld, 0).GetUniqueNetId();
 
 	FUniqueNetIdRepl EmptyIdIn;
 	if (EmptyIdIn.IsValid())
@@ -618,9 +618,9 @@ void TestUniqueIdRepl(UWorld* InWorld)
 		bSetupSuccess = false;
 	}
 
-	FUniqueNetIdRepl OddStringIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("abcde")));
-	FUniqueNetIdRepl NonHexStringIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("thisisnothex")));
-	FUniqueNetIdRepl UpperCaseStringIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("abcDEF")));
+	FUniqueNetIdRepl OddStringIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(TEXT("abcde")));
+	FUniqueNetIdRepl NonHexStringIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(TEXT("thisisnothex")));
+	FUniqueNetIdRepl UpperCaseStringIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(TEXT("abcDEF")));
 
 #if 1
 #define WAYTOOLONG TEXT(\
@@ -634,7 +634,7 @@ void TestUniqueIdRepl(UWorld* InWorld)
 #define WAYTOOLONG TEXT("deadbeef")
 #endif
 
-	FUniqueNetIdRepl WayTooLongForHexEncodingIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(WAYTOOLONG));
+	FUniqueNetIdRepl WayTooLongForHexEncodingIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(WAYTOOLONG));
 
 	CHECK_REPL_VALIDITY(OddStringIdIn, bSetupSuccess);
 	CHECK_REPL_VALIDITY(NonHexStringIdIn, bSetupSuccess);
@@ -642,11 +642,11 @@ void TestUniqueIdRepl(UWorld* InWorld)
 	CHECK_REPL_VALIDITY(WayTooLongForHexEncodingIdIn, bSetupSuccess);
 
 	static FName NAME_CustomOSS(TEXT("MyCustomOSS"));
-	FUniqueNetIdRepl CustomOSSIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("a8d245fc-4b97-4150-a3cd-c2c91d8fc4b3"), NAME_CustomOSS));
-	FUniqueNetIdRepl CustomOSSEncodedIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("0123456789abcdef"), NAME_CustomOSS));
-	FUniqueNetIdRepl CustomOSSPlusPrefixIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("+123456"), NAME_CustomOSS));
-	FUniqueNetIdRepl CustomOSSOddIntegerStringIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("123456789"), NAME_CustomOSS));
-	FUniqueNetIdRepl CustomOSSEvenIntegerStringIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("1234567890"), NAME_CustomOSS));
+	FUniqueNetIdRepl CustomOSSIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(TEXT("a8d245fc-4b97-4150-a3cd-c2c91d8fc4b3"), NAME_CustomOSS));
+	FUniqueNetIdRepl CustomOSSEncodedIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(TEXT("0123456789abcdef"), NAME_CustomOSS));
+	FUniqueNetIdRepl CustomOSSPlusPrefixIn(UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(TEXT("+123456"), NAME_CustomOSS));
+	FUniqueNetIdRepl CustomOSSOddIntegerStringIn(UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(TEXT("123456789"), NAME_CustomOSS));
+	FUniqueNetIdRepl CustomOSSEvenIntegerStringIn(UOnlineEngineInterface::Get()->CreateUniquePlayerIdWrapper(TEXT("1234567890"), NAME_CustomOSS));
 
 	CHECK_REPL_VALIDITY(CustomOSSIdIn, bSetupSuccess);
 	CHECK_REPL_VALIDITY(CustomOSSEncodedIdIn, bSetupSuccess);
@@ -851,7 +851,7 @@ void TestUniqueIdRepl(UWorld* InWorld)
 		GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("NativePlatformService"), NativePlatformService, GEngineIni) && 
 		!NativePlatformService.IsEmpty())
 	{
-		FUniqueNetIdPtr PlatformUserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0, FName(*NativePlatformService));
+		FUniqueNetIdPtr PlatformUserId = UOnlineEngineInterface::Get()->GetUniquePlayerIdWrapper(InWorld, 0, FName(*NativePlatformService)).GetUniqueNetId();
 
 		FUniqueNetIdRepl ValidPlatformIdIn(PlatformUserId);
 		if (!ValidPlatformIdIn.IsValid() || PlatformUserId != ValidPlatformIdIn.GetUniqueNetId() || *PlatformUserId != *ValidPlatformIdIn)
