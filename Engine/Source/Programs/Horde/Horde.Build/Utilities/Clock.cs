@@ -30,6 +30,21 @@ namespace HordeCommon
 	}
 
 	/// <summary>
+	/// Placeholder interface for ITicker
+	/// </summary>
+	public sealed class NullTicker : ITicker
+	{
+		/// <inheritdoc/>
+		public void Dispose() { }
+
+		/// <inheritdoc/>
+		public Task StartAsync() => Task.CompletedTask;
+
+		/// <inheritdoc/>
+		public Task StopAsync() => Task.CompletedTask;
+	}
+
+	/// <summary>
 	/// Interface representing time and scheduling events which is pluggable during testing. In normal use, the Clock implementation below is used. 
 	/// </summary>
 	public interface IClock

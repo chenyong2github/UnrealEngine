@@ -81,7 +81,14 @@ namespace HordeServer.Services
 			this.PoolService = PoolService;
 			this.AgentService = AgentService;
 			this.Settings = Settings;
-			this.Ticker = Clock.AddSharedTicker<ConfigService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, Logger);
+			if (DatabaseService.ReadOnlyMode)
+			{
+				this.Ticker = new NullTicker();
+			}
+			else
+			{
+				this.Ticker = Clock.AddSharedTicker<ConfigService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, Logger);
+			}
 			this.Logger = Logger;
 
 			// This will trigger if the local Horde.json user configuration is changed

@@ -152,7 +152,14 @@ namespace HordeServer.Services
 			this.LeaseCollection = LeaseCollection;
 			this.ServerListSingleton = new SingletonDocument<PerforceServerList>(DatabaseService);
 			this.Logger = Logger;
-			this.Ticker = Clock.AddSharedTicker<PerforceLoadBalancer>(TimeSpan.FromMinutes(1.0), TickInternalAsync, Logger);
+			if (DatabaseService.ReadOnlyMode)
+			{
+				this.Ticker = new NullTicker();
+			}
+			else
+			{
+				this.Ticker = Clock.AddSharedTicker<PerforceLoadBalancer>(TimeSpan.FromMinutes(1.0), TickInternalAsync, Logger);
+			}
 		}
 
 		/// <inheritdoc/>

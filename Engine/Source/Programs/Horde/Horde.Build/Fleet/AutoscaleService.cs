@@ -105,7 +105,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AutoscaleService(IAgentCollection AgentCollection, IPoolCollection PoolCollection, ILeaseCollection LeaseCollection, IFleetManager FleetManager, IDogStatsd DogStatsd, IClock Clock, ILogger<AutoscaleService> Logger)
+		public AutoscaleService(IAgentCollection AgentCollection, IPoolCollection PoolCollection, ILeaseCollection LeaseCollection, IFleetManager FleetManager, IDogStatsd DogStatsd, DatabaseService DatabaseService, IClock Clock, ILogger<AutoscaleService> Logger)
 		{
 			this.AgentCollection = AgentCollection;
 			this.PoolCollection = PoolCollection;
@@ -113,7 +113,14 @@ namespace HordeServer.Services
 			this.FleetManager = FleetManager;
 			this.DogStatsd = DogStatsd;
 			this.Clock = Clock;
-			this.Ticker = Clock.AddSharedTicker<AutoscaleService>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, Logger);
+			if (DatabaseService.ReadOnlyMode)
+			{
+				this.Ticker = new NullTicker();
+			}
+			else
+			{
+				this.Ticker = Clock.AddSharedTicker<AutoscaleService>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, Logger);
+			}
 			this.Logger = Logger;
 		}
 
