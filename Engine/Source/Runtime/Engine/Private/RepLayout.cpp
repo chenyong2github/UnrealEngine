@@ -1820,6 +1820,32 @@ static FORCEINLINE void WritePropertyHandle(
 	NETWORK_PROFILER(GNetworkProfiler.TrackWritePropertyHandle(Writer.GetNumBits() - NumStartingBits, nullptr));
 }
 
+static void WritePropertyName(
+	FNetBitWriter& Writer,
+	const FName& PropertyName,
+	bool bDoChecksum)
+{
+	const int NumStartingBits = Writer.GetNumBits();
+
+	UE_NET_TRACE_SCOPE(PropertyName, Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
+
+	FName LocalPropertyName = PropertyName;
+	Writer << LocalPropertyName;
+
+	UE_LOG(LogRepProperties, VeryVerbose, TEXT("WritePropertyName: Name=%s"), *PropertyName.ToString());
+
+#ifdef ENABLE_PROPERTY_CHECKSUMS
+	if (bDoChecksum)
+	{
+		SerializeGenericChecksum(Writer);
+	}
+#endif
+
+	// TODO: Write a separate network profiler function for tracking that the name is being written instead
+	// of the handle.
+	NETWORK_PROFILER(GNetworkProfiler.TrackWritePropertyHandle(Writer.GetNumBits() - NumStartingBits, nullptr));
+}
+
 bool FRepLayout::ReplicateProperties(
 	FSendingRepState* RESTRICT RepState,
 	FRepChangelistState* RESTRICT RepChangelistState,
@@ -2034,7 +2060,7 @@ bool FRepLayout::ReplicateProperties(
 	}
 	else if (Changed.Num() > 0)
 	{
-		SendProperties(RepState, ChangeTracker, Data, ObjectClass, Writer, Changed, RepChangelistState->SharedSerialization);
+		SendProperties(RepState, ChangeTracker, Data, ObjectClass, Writer, Changed, RepChangelistState->SharedSerialization, RepFlags.bSerializePropertyNames ? ESerializePropertyType::Name : ESerializePropertyType::Handle);
 	}
 
 	// See if something actually sent (this may be false due to conditional checks inside the send properties function
@@ -2629,7 +2655,8 @@ void FRepLayout::SendProperties_r(
 	FRepHandleIterator& HandleIterator,
 	const FConstRepObjectDataBuffer SourceData,
 	const int32 ArrayDepth,
-	const FRepSerializationSharedInfo* const RESTRICT SharedInfo) const
+	const FRepSerializationSharedInfo* const RESTRICT SharedInfo,
+	const ESerializePropertyType SerializePropertyType) const
 {
 	const bool bDoSharedSerialization = SharedInfo && !!GNetSharedSerializedData;
 
@@ -2671,7 +2698,7 @@ void FRepLayout::SendProperties_r(
 			check(ArrayHandleIterator.ArrayElementSize> 0);
 			check(ArrayHandleIterator.NumHandlesPerElement> 0);
 
-			SendProperties_r(RepState, Writer, bDoChecksum, ArrayHandleIterator, ArrayData, ArrayDepth + 1, SharedInfo);
+			SendProperties_r(RepState, Writer, bDoChecksum, ArrayHandleIterator, ArrayData, ArrayDepth + 1, SharedInfo, SerializePropertyType);
 
 			check(HandleIterator.ChangelistIterator.ChangedIndex - OldChangedIndex == ArrayChangedCount);				// Make sure we read correct amount
 			check(HandleIterator.ChangelistIterator.Changed[HandleIterator.ChangelistIterator.ChangedIndex] == 0);	// Make sure we are at the end
@@ -2750,7 +2777,19 @@ void FRepLayout::SendProperties_r(
 		else
 		{
 			GNumSharedSerializationMiss++;
-			WritePropertyHandle(Writer, HandleIterator.Handle, bDoChecksum);
+
+			if (SerializePropertyType == ESerializePropertyType::Handle)
+			{
+				WritePropertyHandle(Writer, HandleIterator.Handle, bDoChecksum);
+			}
+			else if (SerializePropertyType == ESerializePropertyType::Name)
+			{
+				WritePropertyName(Writer, Cmd.Property->GetFName(), bDoChecksum);
+			}
+			else
+			{
+				UE_LOG(LogRep, Error, TEXT("Unsupported ESerializePropertyType encountered"));
+			}
 
 			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 
@@ -2788,7 +2827,8 @@ void FRepLayout::SendProperties(
 	UClass* ObjectClass,
 	FNetBitWriter& Writer,
 	TArray<uint16>& Changed,
-	const FRepSerializationSharedInfo& SharedInfo) const
+	const FRepSerializationSharedInfo& SharedInfo,
+	const ESerializePropertyType SerializePropertyType) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropSendTime);
 
@@ -2818,7 +2858,7 @@ void FRepLayout::SendProperties(
 	FChangelistIterator ChangelistIterator(Changed, 0);
 	FRepHandleIterator HandleIterator(Owner, ChangelistIterator, Cmds, BaseHandleToCmdIndex, 0, 1, 0, Cmds.Num() - 1);
 
-	SendProperties_r(RepState, Writer, bDoChecksum, HandleIterator, Data, 0, &SharedInfo);
+	SendProperties_r(RepState, Writer, bDoChecksum, HandleIterator, Data, 0, &SharedInfo, SerializePropertyType);
 
 	if (NumBits != Writer.GetNumBits())
 	{
@@ -7783,7 +7823,8 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 						HandleIterator,
 						ElementData,
 						/*ArrayDepth=*/ 1,
-						/*SharedInfo=*/ nullptr);
+						/*SharedInfo=*/ nullptr,
+						ESerializePropertyType::Handle);
 
 					WritePropertyHandle(Writer, 0, false);
 				}

@@ -3896,6 +3896,11 @@ struct FReplicationFlags
 			uint32 bRolesOnly:1;
 			/** True if we should force all properties dirty on initial replication. */
 			uint32 bForceInitialDirty:1;
+			/** True if we should serialize property names instead of handles. */
+			uint32 bSerializePropertyNames : 1;
+			/** True if a subclass of UActorChannel needs custom subobject replication */
+			uint32 bUseCustomSubobjectReplication : 1;
+
 		};
 
 		uint32	Value;

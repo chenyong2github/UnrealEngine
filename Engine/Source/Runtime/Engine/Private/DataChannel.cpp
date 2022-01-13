@@ -4361,6 +4361,11 @@ bool UActorChannel::ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FRe
 		return false;
 	}
 
+	if (RepFlags.bUseCustomSubobjectReplication)
+	{
+		return ReplicateSubobjectCustom(Obj, Bunch, RepFlags);
+	}
+
 	bool bFoundInvalidReplicator = false;
 	TSharedRef<FObjectReplicator>* FoundReplicator = FindReplicator(Obj, &bFoundInvalidReplicator);
 	const bool bFoundReplicator = (FoundReplicator != nullptr);

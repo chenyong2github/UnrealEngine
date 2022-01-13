@@ -156,6 +156,9 @@ public:
 	/** Writes dirty properties to bunch */
 	void ReplicateCustomDeltaProperties(FNetBitWriter& Bunch, FReplicationFlags RepFlags);
 	bool ReplicateProperties(FOutBunch& Bunch, FReplicationFlags RepFlags);
+	bool ReplicateProperties(FOutBunch& Bunch, FReplicationFlags RepFlags, FNetBitWriter& Writer);
+	bool ReplicateProperties_r(FOutBunch& Bunch, FReplicationFlags RepFlags, FNetBitWriter& Writer);
+
 	void PostSendBunch(FPacketIdRange& PacketRange, uint8 bReliable);
 
 	/** Updates the custom delta state for a replay delta checkpoint */

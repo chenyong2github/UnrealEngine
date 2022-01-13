@@ -1716,8 +1716,19 @@ bool FObjectReplicator::CanSkipUpdate(FReplicationFlags RepFlags)
 	return false;
 }
 
+bool FObjectReplicator::ReplicateProperties(FOutBunch& Bunch, FReplicationFlags RepFlags, FNetBitWriter& Writer)
+{
+	return ReplicateProperties_r(Bunch, RepFlags, Writer);
+}
+
+bool FObjectReplicator::ReplicateProperties(FOutBunch& Bunch, FReplicationFlags RepFlags)
+{
+	FNetBitWriter Writer(Bunch.PackageMap, 8192);
+	return ReplicateProperties_r(Bunch, RepFlags, Writer);
+}
+
 /** Replicates properties to the Bunch. Returns true if it wrote anything */
-bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlags RepFlags )
+bool FObjectReplicator::ReplicateProperties_r( FOutBunch & Bunch, FReplicationFlags RepFlags, FNetBitWriter& Writer)
 {
 	UObject* Object = GetObject();
 
@@ -1740,8 +1751,6 @@ bool FObjectReplicator::ReplicateProperties( FOutBunch & Bunch, FReplicationFlag
 	}
 
 	UNetConnection* OwningChannelConnection = OwningChannel->Connection;
-
-	FNetBitWriter Writer( Bunch.PackageMap, 8192 );
 
 #if UE_NET_TRACE_ENABLED
 	// Create trace collector if tracing is enabled for the target bunch

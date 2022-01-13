@@ -267,6 +267,9 @@ public:
 
 	/** Replicates given subobject on this actor channel */
 	bool ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FReplicationFlags &RepFlags);
+	
+	/** Custom implementation for ReplicateSubobject when RepFlags.bUseCustomSubobjectReplication is true */
+	virtual bool ReplicateSubobjectCustom(UObject* Obj, FOutBunch& Bunch, const FReplicationFlags& RepFlags) { return true;  }
 
 	/** utility template for replicating list of replicated subobjects */
 	template<typename Type>

@@ -1399,45 +1399,12 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 			SortingArray->Sort();
 		}
 	}
-
-	// --------------------------------------------------------------------------------------------------------------
-	// REPLICATE Actors For Connection
-	// --------------------------------------------------------------------------------------------------------------
+	
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_ReplicateActorsForConnection);
-
-		for (int32 ActorIdx = 0; ActorIdx < PrioritizedReplicationList.Items.Num(); ++ActorIdx)
-		{
-			const FPrioritizedRepList::FItem& RepItem = PrioritizedReplicationList.Items[ActorIdx];
-
-			AActor* Actor = RepItem.Actor;
-			FConnectionReplicationActorInfo& ActorInfo = *RepItem.ConnectionData;
-
-			// Always skip if we've already replicated this frame. This happens if an actor is in more than one replication list
-			if (ActorInfo.LastRepFrameNum == FrameNum)
-			{
-				INC_DWORD_STAT_BY(STAT_NetRepActorListDupes, 1);
-				continue;
-			}
-
-			FGlobalActorReplicationInfo& GlobalActorInfo = *RepItem.GlobalData;
-
-			int64 BitsWritten = ReplicateSingleActor(Actor, ActorInfo, GlobalActorInfo, ConnectionActorInfoMap, *ConnectionManager, FrameNum);
-
-			// --------------------------------------------------
-			//	Update Packet Budget Tracking
-			// --------------------------------------------------
-
-			if (IsConnectionReady(NetConnection) == false)
-			{
-				// We've exceeded the budget for this category of replication list.
-				RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_PartialStarvedActorList);
-				HandleStarvedActorList(PrioritizedReplicationList, ActorIdx + 1, ConnectionActorInfoMap, FrameNum);
-				NotifyConnectionSaturated(*ConnectionManager);
-				break;
-			}
-		}
+		ReplicateActorsForConnection(NetConnection, ConnectionActorInfoMap, ConnectionManager, FrameNum);
 	}
+
 
 	// Broadcast the list we just handled. This is intended to be for debugging/logging features.
 	ConnectionManager->OnPostReplicatePrioritizeLists.Broadcast(ConnectionManager, &PrioritizedReplicationList);
@@ -1451,6 +1418,43 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 
 		UE_LOG(LogReplicationGraph, Display, TEXT("Gathered Lists: %d Gathered Actors: %d  PrioritizedActors: %d"), NumGatheredListsOnConnection, NumGatheredActorsOnConnection, NumPrioritizedActorsOnConnection);
 		UE_LOG(LogReplicationGraph, Display, TEXT("Connection Loaded Streaming Levels: %d"), NetConnection->ClientVisibleLevelNames.Num());
+	}
+}
+
+void UReplicationGraph::ReplicateActorsForConnection(UNetConnection* NetConnection, FPerConnectionActorInfoMap& ConnectionActorInfoMap, UNetReplicationGraphConnection* ConnectionManager, const uint32 FrameNum)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_ReplicateActorsForConnection);
+
+	for (int32 ActorIdx = 0; ActorIdx < PrioritizedReplicationList.Items.Num(); ++ActorIdx)
+	{
+		const FPrioritizedRepList::FItem& RepItem = PrioritizedReplicationList.Items[ActorIdx];
+
+		AActor* Actor = RepItem.Actor;
+		FConnectionReplicationActorInfo& ActorInfo = *RepItem.ConnectionData;
+
+		// Always skip if we've already replicated this frame. This happens if an actor is in more than one replication list
+		if (ActorInfo.LastRepFrameNum == FrameNum)
+		{
+			INC_DWORD_STAT_BY(STAT_NetRepActorListDupes, 1);
+			continue;
+		}
+
+		FGlobalActorReplicationInfo& GlobalActorInfo = *RepItem.GlobalData;
+
+		int64 BitsWritten = ReplicateSingleActor(Actor, ActorInfo, GlobalActorInfo, ConnectionActorInfoMap, *ConnectionManager, FrameNum);
+
+		// --------------------------------------------------
+		//	Update Packet Budget Tracking
+		// --------------------------------------------------
+
+		if (IsConnectionReady(NetConnection) == false)
+		{
+			// We've exceeded the budget for this category of replication list.
+			RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_PartialStarvedActorList);
+			HandleStarvedActorList(PrioritizedReplicationList, ActorIdx + 1, ConnectionActorInfoMap, FrameNum);
+			NotifyConnectionSaturated(*ConnectionManager);
+			break;
+		}
 	}
 }
 

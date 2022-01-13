@@ -48,6 +48,12 @@ enum class EReceivePropertiesFlags : uint32
 
 ENUM_CLASS_FLAGS(EReceivePropertiesFlags);
 
+enum class ESerializePropertyType : uint8
+{
+	Handle,	// Properties are seralized using handles in SendProperties_r
+	Name	// Properties are seralized using their names in SendProperties_r
+};
+
 enum class ERepDataBufferType
 {
 	ObjectBuffer,	//! Indicates this buffer is a full object's memory.
@@ -1619,7 +1625,8 @@ private:
 		UClass* ObjectClass,
 		FNetBitWriter& Writer,
 		TArray<uint16>& Changed,
-		const FRepSerializationSharedInfo& SharedInfo) const;
+		const FRepSerializationSharedInfo& SharedInfo,
+		const ESerializePropertyType SerializePropertyType) const;
 
 	/**
 	 * Clamps a changelist so that it conforms to the current size of either an array, or arrays within structs/arrays.
@@ -1677,7 +1684,8 @@ private:
 		FRepHandleIterator& HandleIterator,
 		const FConstRepObjectDataBuffer SourceData,
 		const int32	 ArrayDepth,
-		const FRepSerializationSharedInfo* const RESTRICT SharedInfo) const;
+		const FRepSerializationSharedInfo* const RESTRICT SharedInfo,
+		const ESerializePropertyType SerializePropertyType) const;
 
 	void BuildSharedSerialization(
 		const FConstRepObjectDataBuffer Data,
