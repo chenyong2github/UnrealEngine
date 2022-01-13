@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Hash/CityHash.h"
-#include "Online/CoreOnlineFwd.h"
 #include "Misc/TVariant.h"
+#include "Online/CoreOnlineFwd.h"
 #include "UObject/ObjectMacros.h"
+
+#include "Online/CoreOnlinePackage.h"
 
 class FLazySingleton;
 
@@ -177,6 +179,8 @@ public:
 
 namespace UE::Online {
 
+class FOnlineForeignAccountIdRegistry;
+
 /** Tags used as template argument to TOnlineIdHandle to make it a compile error to assign between id's of different types */
 namespace OnlineIdHandleTags
 {
@@ -286,7 +290,7 @@ class IOnlineIdRegistry
 public:
 	virtual FString ToLogString(const TOnlineIdHandle<IdType>& Handle) const = 0;
 	virtual TArray<uint8> ToReplicationData(const TOnlineIdHandle<IdType>& Handle) const = 0;
-	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArrayView<uint8> Handle) = 0;
+	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArray<uint8> Handle) = 0;
 };
 
 using IOnlineAccountIdRegistry = IOnlineIdRegistry<OnlineIdHandleTags::FAccount>;
@@ -305,6 +309,7 @@ public:
 	 * Tear down the singleton instance
 	 */
 	COREONLINE_API static void TearDown();
+
 	/**
 	 * Register a registry for a given OnlineServices implementation and TOnlineIdHandle type
 	 *
@@ -322,16 +327,13 @@ public:
 	 */
 	COREONLINE_API void UnregisterAccountIdRegistry(EOnlineServices OnlineServices, int32 Priority = 0);
 
-	/**
-	 * Get the account id registry
-	 *
-	 * @param OnlineServices Type of online services for the IOnlineServices instance
-	 *
-	 * @return The account id registry, or an invalid pointer if it is not registered
-	 */
-	COREONLINE_API IOnlineAccountIdRegistry* GetAccountIdRegistry(EOnlineServices OnlineServices);
+	COREONLINE_API FString ToLogString(const FOnlineAccountIdHandle& Handle) const;
+	COREONLINE_API TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const;
+	COREONLINE_API FOnlineAccountIdHandle ToAccountId(EOnlineServices Services, const TArray<uint8>& RepData) const;
 
 private:
+	IOnlineAccountIdRegistry* GetAccountIdRegistry(EOnlineServices OnlineServices) const;
+
 	struct FAccountIdRegistryAndPriority
 	{
 		FAccountIdRegistryAndPriority(IOnlineAccountIdRegistry* InRegistry, int32 InPriority)
@@ -342,10 +344,13 @@ private:
 	};
 
 	TMap<EOnlineServices, FAccountIdRegistryAndPriority> AccountIdRegistries;
+	TUniquePtr<FOnlineForeignAccountIdRegistry> ForeignAccountIdRegistry;
 
-	FOnlineIdRegistryRegistry() = default;
-	~FOnlineIdRegistryRegistry() = default;
 	friend FLazySingleton;
+
+PACKAGE_SCOPE:
+	FOnlineIdRegistryRegistry();
+	~FOnlineIdRegistryRegistry();
 };
 
 }	/* UE::Online */

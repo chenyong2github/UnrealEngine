@@ -40,7 +40,7 @@ public:
 	// Begin IOnlineAccountIdRegistry
 	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) const override;
 	virtual TArray<uint8> ToReplicationData(const FOnlineAccountIdHandle& Handle) const override;
-	virtual FOnlineAccountIdHandle FromReplicationData(const TArrayView<uint8> ReplicationString) override;
+	virtual FOnlineAccountIdHandle FromReplicationData(const TArray<uint8> ReplicationString) override;
 	// End IOnlineAccountIdRegistry
 
 	virtual ~FOnlineAccountIdRegistryEOS() = default;

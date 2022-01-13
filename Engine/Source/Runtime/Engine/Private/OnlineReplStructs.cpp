@@ -229,14 +229,8 @@ void FUniqueNetIdRepl::MakeReplicationDataV2()
 
 	UE::Online::FOnlineAccountIdHandle Handle = GetV2();
 	UE::Online::EOnlineServices OnlineServicesType = Handle.GetOnlineServicesType();
-
-	TArray<uint8> ReplicationData;
-	const UE::Online::IOnlineAccountIdRegistry* Registry = UE::Online::FOnlineIdRegistryRegistry::Get().GetAccountIdRegistry(OnlineServicesType);
-	if (ensure(Registry))
-	{
-		ReplicationData = Registry->ToReplicationData(Handle);
-		check(!ReplicationData.IsEmpty());
-	}
+	TArray<uint8> ReplicationData = UE::Online::FOnlineIdRegistryRegistry::Get().ToReplicationData(Handle);
+	check(!ReplicationData.IsEmpty());
 
 	ReplicationBytes.Empty();
 	FMemoryWriter Writer(ReplicationBytes);
@@ -451,13 +445,9 @@ void FUniqueNetIdRepl::NetSerializeLoadV2(FArchive& Ar, const EUniqueIdEncodingF
 	TArray<uint8> ReplicationData;
 	Ar << ReplicationData;
 
-	UE::Online::IOnlineAccountIdRegistry* Registry = UE::Online::FOnlineIdRegistryRegistry::Get().GetAccountIdRegistry(OnlineServicesType);
-	if (ensure(Registry))
-	{
-		const UE::Online::FOnlineAccountIdHandle Handle = Registry->FromReplicationData(ReplicationData);
-		check(Handle.IsValid());
-		SetAccountId(Handle);
-	}
+	const UE::Online::FOnlineAccountIdHandle Handle = UE::Online::FOnlineIdRegistryRegistry::Get().ToAccountId(OnlineServicesType, ReplicationData);
+	check(Handle.IsValid());
+	SetAccountId(Handle);
 }
 
 bool FUniqueNetIdRepl::Serialize(FArchive& Ar)

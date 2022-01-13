@@ -3,12 +3,22 @@
 #include "Online/CoreOnline.h"
 
 #include "Misc/LazySingleton.h"
+#include "Online/CoreOnlinePrivate.h"
 
 namespace UE::Online {
 
 FOnlineIdRegistryRegistry& FOnlineIdRegistryRegistry::Get()
 {
 	return TLazySingleton<FOnlineIdRegistryRegistry>::Get();
+}
+
+FOnlineIdRegistryRegistry::FOnlineIdRegistryRegistry()
+	: ForeignAccountIdRegistry(MakeUnique<FOnlineForeignAccountIdRegistry>())
+{
+}
+
+FOnlineIdRegistryRegistry::~FOnlineIdRegistryRegistry()
+{
 }
 
 void FOnlineIdRegistryRegistry::TearDown()
@@ -34,10 +44,52 @@ void FOnlineIdRegistryRegistry::UnregisterAccountIdRegistry(EOnlineServices Onli
 	}
 }
 
-IOnlineAccountIdRegistry* FOnlineIdRegistryRegistry::GetAccountIdRegistry(EOnlineServices OnlineServices)
+FString FOnlineIdRegistryRegistry::ToLogString(const FOnlineAccountIdHandle& Handle) const
+{
+	FString Result;
+	if (IOnlineAccountIdRegistry* Registry = GetAccountIdRegistry(Handle.GetOnlineServicesType()))
+	{
+		Result = Registry->ToLogString(Handle);
+	}
+	else
+	{
+		Result = ForeignAccountIdRegistry->ToLogString(Handle);
+	}
+	return Result;
+}
+
+TArray<uint8> FOnlineIdRegistryRegistry::ToReplicationData(const FOnlineAccountIdHandle& Handle) const
+{
+	TArray<uint8> RepData;
+	if (IOnlineAccountIdRegistry* Registry = GetAccountIdRegistry(Handle.GetOnlineServicesType()))
+	{
+		RepData = Registry->ToReplicationData(Handle);
+	}
+	else
+	{
+		RepData = ForeignAccountIdRegistry->ToReplicationData(Handle);
+	}
+	return RepData;
+}
+
+FOnlineAccountIdHandle FOnlineIdRegistryRegistry::ToAccountId(EOnlineServices Services, const TArray<uint8>& RepData) const
+{
+	FOnlineAccountIdHandle Handle;
+	if (IOnlineAccountIdRegistry* Registry = GetAccountIdRegistry(Handle.GetOnlineServicesType()))
+	{
+		Handle = Registry->FromReplicationData(RepData);
+	}
+	else
+	{
+		Handle = ForeignAccountIdRegistry->FromReplicationData(Services, RepData);
+	}
+	return Handle;
+}
+
+IOnlineAccountIdRegistry* FOnlineIdRegistryRegistry::GetAccountIdRegistry(EOnlineServices OnlineServices) const
 {
 	IOnlineAccountIdRegistry* Registry = nullptr;
-	if (FAccountIdRegistryAndPriority* Found = AccountIdRegistries.Find(OnlineServices))
+	if (const FAccountIdRegistryAndPriority* Found = AccountIdRegistries.Find(OnlineServices))
 	{
 		Registry = Found->Registry;
 	}
@@ -46,12 +98,7 @@ IOnlineAccountIdRegistry* FOnlineIdRegistryRegistry::GetAccountIdRegistry(EOnlin
 
 FString ToLogString(const FOnlineAccountIdHandle& Id)
 {
-	FString Result;
-	if (IOnlineAccountIdRegistry* Registry = FOnlineIdRegistryRegistry::Get().GetAccountIdRegistry(Id.GetOnlineServicesType()))
-	{
-		Result = Registry->ToLogString(Id);
-	}
-	return Result;
+	return FOnlineIdRegistryRegistry::Get().ToLogString(Id);
 }
 
 }	/* UE::Online */
@@ -61,19 +108,14 @@ FString FUniqueNetIdWrapper::ToDebugString() const
 	FString Result;
 	if (IsValid())
 	{
-		if (Variant.IsType<FUniqueNetIdPtr>())
+		if (IsV1())
 		{
-			const FUniqueNetIdPtr& Ptr = Variant.Get<FUniqueNetIdPtr>();
+			const FUniqueNetIdPtr& Ptr = GetV1();
 			Result = FString::Printf(TEXT("%s:%s"), *Ptr->GetType().ToString(), *Ptr->ToDebugString());
-		}
-		else if (Variant.IsType<UE::Online::FOnlineAccountIdHandle>())
-		{
-			const UE::Online::FOnlineAccountIdHandle& Handle = Variant.Get<UE::Online::FOnlineAccountIdHandle>();
-			Result = ToLogString(Handle);
 		}
 		else
 		{
-			checkNoEntry();
+			Result = ToLogString(GetV2());
 		}
 	}
 	else

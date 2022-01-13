@@ -13,5 +13,7 @@ public class CoreOnline : ModuleRules
 				"CoreUObject"
 			}
 		);
+
+		PrivateDefinitions.Add("COREONLINE_PACKAGE=1");
 	}
 }
