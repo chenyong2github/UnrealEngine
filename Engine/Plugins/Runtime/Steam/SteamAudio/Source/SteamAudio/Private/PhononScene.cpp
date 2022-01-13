@@ -597,7 +597,7 @@ namespace SteamAudio
 	//==============================================================================================================================================
 
 	/**
-	 * Populates VertexArray with the given mesh's vertices. Converts from UE4 coords to Phonon coords. Returns the number of vertices added.
+	 * Populates VertexArray with the given mesh's vertices. Converts from UE coords to Phonon coords. Returns the number of vertices added.
 	 */
 	static uint32 GetMeshVerts(UStaticMeshComponent* StaticMeshComponent, TArray<IPLVector3>& VertexArray, bool bGetRelativeVertexPos /*= true*/)
 	{
