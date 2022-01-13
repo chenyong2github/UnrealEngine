@@ -1442,11 +1442,17 @@ public:
 	virtual void* RHILockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail);
 	virtual void RHIUnlockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, bool bLockWithinMiptail);
 
-	virtual void RHIAcquireTransientResource_RenderThread(FRHITexture* Texture) { }
-	virtual void RHIDiscardTransientResource_RenderThread(FRHITexture* Texture) { }
-	virtual void RHIAcquireTransientResource_RenderThread(FRHIBuffer* Buffer) { }
-	virtual void RHIDiscardTransientResource_RenderThread(FRHIBuffer* Buffer) { }
+	UE_DEPRECATED(5.0, "AcquireTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
+	virtual void RHIAcquireTransientResource_RenderThread(FRHITexture*) {}
 
+	UE_DEPRECATED(5.0, "DiscardTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
+	virtual void RHIDiscardTransientResource_RenderThread(FRHITexture*) {}
+
+	UE_DEPRECATED(5.0, "AcquireTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
+	virtual void RHIAcquireTransientResource_RenderThread(FRHIBuffer*)  {}
+
+	UE_DEPRECATED(5.0, "DiscardTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
+	virtual void RHIDiscardTransientResource_RenderThread(FRHIBuffer*)  {}
 
 	virtual void RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 GPUIndex, FRHIGPUFence* Fence, void*& OutData, int32& OutWidth, int32& OutHeight);
 	virtual void RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 GPUIndex);

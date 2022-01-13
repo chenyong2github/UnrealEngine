@@ -390,7 +390,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	{
 		FRDGTextureDesc Desc = SceneColorTexture->Desc;
 		Desc.Format = PF_FloatRGBA;
-		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
+		Desc.Flags &= ~(TexCreate_FastVRAM);
 		Desc.Extent /= UpscaleFactor;
 		OutSkyLightTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingSkylight"));
 
@@ -720,7 +720,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 {
 	// Allocate render target
 	FPooledRenderTargetDesc Desc = SceneColor->GetDesc();
-	Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
+	Desc.Flags &= ~(TexCreate_FastVRAM);
 	TRefCountPtr<IPooledRenderTarget> SkyLightMipTreeRT;
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SkyLightMipTreeRT, TEXT("SkyLightMipTreeRT"));
 

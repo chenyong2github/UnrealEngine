@@ -28,7 +28,7 @@ static TAutoConsoleVariable<int32> CVarDeferTextureCreation(
 
 static TAutoConsoleVariable<int32> CVarDeferTextureCreationExcludeMask(
 	TEXT("r.OpenGL.DeferTextureCreationExcludeFlags"),
-	static_cast<int32>(~(TexCreate_ShaderResource | TexCreate_SRGB | TexCreate_Transient | TexCreate_Streamable | TexCreate_OfflineProcessed)),
+	static_cast<int32>(~(TexCreate_ShaderResource | TexCreate_SRGB | TexCreate_Streamable | TexCreate_OfflineProcessed)),
 	TEXT("Deferred texture creation exclusion mask, any texture requested with flags in this mask will be excluded from deferred creation."),
 	ECVF_RenderThreadSafe);
 

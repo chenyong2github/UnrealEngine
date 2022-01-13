@@ -308,11 +308,6 @@ public:
 		return this->RHICreateRenderQuery(QueryType);
 	}
 
-	//virtual void RHIAcquireTransientResource_RenderThread(FRHITexture* Texture) { }
-	//virtual void RHIDiscardTransientResource_RenderThread(FRHITexture* Texture) { }
-	//virtual void RHIAcquireTransientResource_RenderThread(FRHIBuffer* Buffer) { }
-	//virtual void RHIDiscardTransientResource_RenderThread(FRHIBuffer* Buffer) { }
-
 	// FVulkanDynamicRHI interface
 	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags);
 	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, FSamplerYcbcrConversionInitializer& ConversionInitializer, ETextureCreateFlags Flags);

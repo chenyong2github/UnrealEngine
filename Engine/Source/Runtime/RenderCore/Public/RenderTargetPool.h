@@ -22,12 +22,6 @@ struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
 		, Desc(InDesc)
 	{}
 
-	~FPooledRenderTarget()
-	{
-		check(!NumRefs);
-		RenderTargetItem.SafeRelease();
-	}
-
 	uint32 GetUnusedForNFrames() const 
 	{ 
 		return UnusedForNFrames; 
@@ -51,29 +45,15 @@ struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
 	void InitRDG();
 
 	// interface IPooledRenderTarget --------------
+	uint32 AddRef() const override;
+	uint32 Release() override;
+	uint32 GetRefCount() const override;
+	bool IsFree() const override;
+	bool IsTracked() const override { return RenderTargetPool != nullptr; }
 
-	virtual uint32 AddRef() const override final;
-	virtual uint32 Release() override final;
-	virtual uint32 GetRefCount() const override final;
-	virtual bool IsFree() const override final;
-	uint32 HasBeenDiscardedThisFrame() const
-	{
-		return GFrameNumberRenderThread == FrameNumberLastDiscard;
-	}
-	bool IsTransient() const
-	{
-		return !!(Desc.Flags & TexCreate_Transient);
-	}
-	bool IsTracked() const override
-	{
-		return RenderTargetPool != nullptr;
-	}
-
-	virtual void SetDebugName(const TCHAR *InName);
-	virtual const FPooledRenderTargetDesc& GetDesc() const;
-	virtual uint32 ComputeMemorySize() const;
-
-	FVRamAllocation VRamAllocation;
+	void SetDebugName(const TCHAR *InName) override;
+	const FPooledRenderTargetDesc& GetDesc() const override;
+	uint32 ComputeMemorySize() const override;
 
 private:
 
@@ -88,9 +68,6 @@ private:
 
 	/** Allows to defer the release to save performance on some hardware (DirectX) */
 	uint32 UnusedForNFrames = 0;
-
-	/** Keeps track of the last frame we unmapped physical memory for this resource. We can't map again in the same frame if we did that */
-	uint32 FrameNumberLastDiscard = -1;
 
 	/** Pooled textures for use with RDG. */
 	TRefCountPtr<FRDGPooledTexture> TargetableTexture;
@@ -125,7 +102,6 @@ struct RENDERCORE_API FRenderTargetPoolEvent
 	{
 		Desc = Pointer->GetDesc();
 		SizeInBytes = Pointer->ComputeMemorySize();
-		VRamAllocation = Pointer->VRamAllocation;
 	}
 
 	// constructor for ERTPE_Alloc
@@ -184,8 +160,6 @@ private:
 	uint32 TimeStep;
 	// valid EventType==ERTPE_Alloc, 0 if not set
 	FPooledRenderTarget* Pointer;
-	//
-	FVRamAllocation VRamAllocation;
 	// valid if EventType==ERTPE_Phase TEXT("") if not set
 	FString PhaseName;
 	// valid if EventType==ERTPE_Alloc || EventType==ERTPE_Dealloc
@@ -203,13 +177,6 @@ private:
 	uint32 ColumnX;
 	//
 	uint32 ColumnSize;
-};
-
-
-enum class ERenderTargetTransience : uint8
-{
-	NonTransient,
-	Transient,
 };
 
 /**
@@ -230,8 +197,7 @@ public:
 		FRHICommandList& RHICmdList,
 		const FPooledRenderTargetDesc& Desc,
 		TRefCountPtr<IPooledRenderTarget>& Out,
-		const TCHAR* InDebugName,
-		ERenderTargetTransience TransienceHint = ERenderTargetTransience::Transient);
+		const TCHAR* InDebugName);
 
 	void CreateUntrackedElement(const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const FSceneRenderTargetItem& Item);
 
@@ -282,8 +248,6 @@ private:
 		FRHICommandList& RHICmdList,
 		const FPooledRenderTargetDesc& InputDesc,
 		const TCHAR* InDebugName);
-
-	static bool DoesTargetNeedTransienceOverride(ETextureCreateFlags Flags, ERenderTargetTransience TransienceHint);
 
 	friend void RenderTargetPoolEvents(const TArray<FString>& Args);
 

@@ -701,8 +701,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					RHICmdList,
 					VolumeDesc,
 					ViewState.GlobalDistanceFieldPageAtlasTexture,
-					TEXT("GlobalDistanceFieldPageAtlas"),
-					ERenderTargetTransience::NonTransient
+					TEXT("GlobalDistanceFieldPageAtlas")
 				);
 
 				bSharedDataReallocated = true;
@@ -737,8 +736,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						RHICmdList,
 						VolumeDesc,
 						PageTableTexture,
-						TEXT("DistanceFieldPageTableCombined"),
-						ERenderTargetTransience::NonTransient
+						TEXT("DistanceFieldPageTableCombined")
 					);
 
 					bSharedDataReallocated = true;
@@ -772,8 +770,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					RHICmdList,
 					VolumeDesc,
 					MipTexture,
-					TEXT("GlobalSDFMipTexture"),
-					ERenderTargetTransience::NonTransient
+					TEXT("GlobalSDFMipTexture")
 				);
 
 				bSharedDataReallocated = true;
@@ -809,8 +806,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						RHICmdList,
 						VolumeDesc,
 						PageTableTexture,
-						CacheType == GDF_MostlyStatic ? TEXT("GlobalDistanceFieldPageTableStationaryLayer") : TEXT("GlobalDistanceFieldPageTableMovableLayer"),
-						ERenderTargetTransience::NonTransient
+						CacheType == GDF_MostlyStatic ? TEXT("GlobalDistanceFieldPageTableStationaryLayer") : TEXT("GlobalDistanceFieldPageTableMovableLayer")
 					);
 
 					bSharedDataReallocated = true;

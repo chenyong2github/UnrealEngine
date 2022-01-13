@@ -1565,7 +1565,7 @@ enum class EBufferUsageFlags : uint32
 	FastVRAM                = 1 << 10,
 
 	/** Buffer should be allocated from transient memory. */
-	Transient               = 1 << 11,
+	Transient UE_DEPRECATED(5.0, "EBufferUsageFlags::Transient flag is no longer used.") = None,
 
 	/** Create a buffer that can be shared with an external RHI or process. */
 	Shared                  = 1 << 12,
@@ -1771,7 +1771,7 @@ enum class ETextureCreateFlags : uint64
     // Workaround for 128^3 volume textures getting bloated 4x due to tiling mode on some platforms.
     ReduceMemoryWithTilingMode        = 1ull << 31,
     /** Texture should be allocated from transient memory. */
-    Transient                         = 1ull << 32,
+    Transient UE_DEPRECATED(5.0, "ETextureCreateFlags::Transient flag is no longer used.") = None,
     /** Texture needs to support atomic operations */
     AtomicCompatible                  = 1ull << 33,
 	/** Texture should be allocated for external access. Vulkan only */
@@ -2363,8 +2363,6 @@ inline const TCHAR* GetTextureCreateFlagString(ETextureCreateFlags TextureCreate
 		return TEXT("AFRManual");
 	case ETextureCreateFlags::ReduceMemoryWithTilingMode:
 		return TEXT("ReduceMemoryWithTilingMode");
-	case ETextureCreateFlags::Transient:
-		return TEXT("Transient");
 	}
 	return TEXT("");
 }
@@ -2397,8 +2395,6 @@ inline const TCHAR* GetBufferUsageFlagString(EBufferUsageFlags BufferUsage)
 		return TEXT("KeepCPUAccessible");
 	case EBufferUsageFlags::FastVRAM:
 		return TEXT("FastVRAM");
-	case EBufferUsageFlags::Transient:
-		return TEXT("Transient");
 	case EBufferUsageFlags::Shared:
 		return TEXT("Shared");
 	case EBufferUsageFlags::AccelerationStructure:

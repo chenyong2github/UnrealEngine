@@ -110,7 +110,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	{
 		FRDGTextureDesc Desc = SceneTextures.Color.Target->Desc;
 		Desc.Format = PF_FloatRGBA;
-		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
+		Desc.Flags &= ~(TexCreate_FastVRAM);
 		Desc.Flags |= TexCreate_UAV;
 		Desc.Extent /= UpscaleFactor;
 

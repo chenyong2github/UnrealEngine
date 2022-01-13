@@ -1637,26 +1637,6 @@ public:
 		RHI->RHIUnlockTextureCubeFace_RenderThread(RHICmdList, Texture, FaceIndex, ArrayIndex, MipIndex, bLockWithinMiptail);
 	}
 
-	virtual void RHIAcquireTransientResource_RenderThread(FRHITexture* Texture) override final
-	{
-		RHI->RHIAcquireTransientResource_RenderThread(Texture);
-	}
-
-	virtual void RHIDiscardTransientResource_RenderThread(FRHITexture* Texture) override final
-	{
-		RHI->RHIDiscardTransientResource_RenderThread(Texture);
-	}
-
-	virtual void RHIAcquireTransientResource_RenderThread(FRHIBuffer* Buffer) override final
-	{
-		RHI->RHIAcquireTransientResource_RenderThread(Buffer);
-	}
-
-	virtual void RHIDiscardTransientResource_RenderThread(FRHIBuffer* Buffer) override final
-	{
-		RHI->RHIDiscardTransientResource_RenderThread(Buffer);
-	}
-
 	virtual void RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FIntRect Rect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace, int32 ArrayIndex, int32 MipIndex) override final
 	{
 		RHI->RHIReadSurfaceFloatData_RenderThread(RHICmdList, Texture, Rect, OutData, CubeFace, ArrayIndex, MipIndex);

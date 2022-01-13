@@ -707,7 +707,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 	}
 
 	FRDGTextureDesc DistortedSceneColorDesc = SceneColorTexture->Desc;
-	EnumRemoveFlags(DistortedSceneColorDesc.Flags, TexCreate_FastVRAM | TexCreate_Transient);
+	EnumRemoveFlags(DistortedSceneColorDesc.Flags, TexCreate_FastVRAM);
 
 	FRDGTextureRef DistortionSceneColorTexture = GraphBuilder.CreateTexture(DistortedSceneColorDesc, TEXT("DistortedSceneColor"));
 

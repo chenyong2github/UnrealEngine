@@ -101,7 +101,6 @@ void FLidarPointCloudRenderBuffer::ReleaseRHI()
 
 	if (Buffer)
 	{
-		RHIDiscardTransientResource(Buffer);
 		Buffer.SafeRelease();
 	}
 

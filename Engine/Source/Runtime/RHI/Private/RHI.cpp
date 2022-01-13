@@ -191,7 +191,6 @@ FString GetBufferUsageFlagsName(EBufferUsageFlags BufferUsage)
 		case BUF_ShaderResource:		return TEXT("BUF_ShaderResource");
 		case BUF_KeepCPUAccessible:		return TEXT("BUF_KeepCPUAccessible");
 		case BUF_FastVRAM:				return TEXT("BUF_FastVRAM");
-		case BUF_Transient:				return TEXT("BUF_Transient");
 		case BUF_Shared:				return TEXT("BUF_Shared");
 		case BUF_AccelerationStructure:	return TEXT("BUF_AccelerationStructure");
 		case BUF_VertexBuffer:			return TEXT("BUF_VertexBuffer");
@@ -241,7 +240,6 @@ FString GetTextureCreateFlagsName(ETextureCreateFlags TextureCreateFlags)
 		case TexCreate_NoFastClearFinalize:				return TEXT("TexCreate_NoFastClearFinalize");
 		case TexCreate_AFRManual:						return TEXT("TexCreate_AFRManual");
 		case TexCreate_ReduceMemoryWithTilingMode:		return TEXT("TexCreate_ReduceMemoryWithTilingMode");
-		case TexCreate_Transient:						return TEXT("TexCreate_Transient");
 		case TexCreate_AtomicCompatible:				return TEXT("TexCreate_AtomicCompatible");
 		case TexCreate_External:						return TEXT("TexCreate_External");
 		}

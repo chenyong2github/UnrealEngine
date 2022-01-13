@@ -57,7 +57,7 @@ inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc)
 {
 	check(InDesc.IsValid());
 
-	const ETextureCreateFlags ShaderResourceOnlyFlags = TexCreate_Transient | TexCreate_FastVRAM | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget;
+	const ETextureCreateFlags ShaderResourceOnlyFlags = TexCreate_FastVRAM | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget;
 	const ETextureCreateFlags ShaderResourceFlags = TexCreate_ShaderResource;
 
 	FPooledRenderTargetDesc OutDesc;

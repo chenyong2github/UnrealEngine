@@ -27,7 +27,6 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 {
 	// RDG no longer supports the legacy transient resource API.
 	FRDGTextureDesc OverrideDesc = Desc;
-	EnumRemoveFlags(OverrideDesc.Flags, TexCreate_Transient);
 
 #if !UE_BUILD_SHIPPING
 	ensureMsgf(OverrideDesc.Extent.X >= 1, TEXT("CreateTexture %s X size too small: %i, Min: %i, clamping"), Name ? Name : TEXT(""), OverrideDesc.Extent.X, 1);
@@ -53,7 +52,6 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 {
 	// RDG no longer supports the legacy transient resource API.
 	FRDGBufferDesc OverrideDesc = Desc;
-	EnumRemoveFlags(OverrideDesc.Usage, BUF_Transient);
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateBuffer(Desc, Name, Flags));
 	FRDGBufferRef Buffer = Buffers.Allocate(Allocator, Name, OverrideDesc, Flags);
@@ -70,7 +68,6 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 {
 	// RDG no longer supports the legacy transient resource API.
 	FRDGBufferDesc OverrideDesc = Desc;
-	EnumRemoveFlags(OverrideDesc.Usage, BUF_Transient);
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateBuffer(Desc, Name, Flags));
 	FRDGBufferRef Buffer = Buffers.Allocate(Allocator, Name, OverrideDesc, Flags, MoveTemp(NumElementsCallback));

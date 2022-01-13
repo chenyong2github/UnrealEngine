@@ -527,7 +527,6 @@ void FNeuralTensor::CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder)
 	// Idea:
 	// - EBufferUsageFlags::Volatile: Updated multiple times in a frame, but does not imply a lifetime of 1 frame. E.g. a vertex buffer you update
 	//   every frame with new vertices.
-	// - EBufferUsageFlags::Transient: Used during 1 frame. Volatile and transient are not mutually exclusive.
 	// - EBufferUsageFlags::KeepCPUAccessible: Not needed, I can just copy the final GPU memory back to RAM at the very end
 	// - Input and Intermediate(Not)Initialized currently share the same attributes because input might become intermediate (e.g., if input tensor
 	//   fed into a ReLU, which simply modifies the input FNeuralTensor). However, Intermediate(Not)Initialized and Output do not copy the memory
@@ -546,7 +545,7 @@ void FNeuralTensor::CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder)
 	else if (TensorType == ENeuralTensorType::IntermediateNotInitialized)
 	{
 		return CPUToRDGBuilder_RenderThread(InOutGraphBuilder,
-			EBufferUsageFlags::ShaderResource | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::Transient, false);
+			EBufferUsageFlags::ShaderResource | EBufferUsageFlags::UnorderedAccess, false);
 	}
 	else if (TensorType == ENeuralTensorType::IntermediateInitialized)
 	{

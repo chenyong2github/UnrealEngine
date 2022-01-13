@@ -4635,21 +4635,17 @@ public:
 		return GDynamicRHI->RHICreateRenderQuery_RenderThread(*this, QueryType);
 	}
 
-	FORCEINLINE void AcquireTransientResource_RenderThread(FRHITexture* Texture)
-	{
-	}
+	UE_DEPRECATED(5.0, "AcquireTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
+	FORCEINLINE void AcquireTransientResource_RenderThread(FRHITexture* Texture) {}
 
-	FORCEINLINE void DiscardTransientResource_RenderThread(FRHITexture* Texture)
-	{
-	}
+	UE_DEPRECATED(5.0, "DiscardTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
+	FORCEINLINE void DiscardTransientResource_RenderThread(FRHITexture* Texture) {}
 
-	FORCEINLINE void AcquireTransientResource_RenderThread(FRHIBuffer* Buffer)
-	{
-	}
+	UE_DEPRECATED(5.0, "AcquireTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
+	FORCEINLINE void AcquireTransientResource_RenderThread(FRHIBuffer* Buffer) {}
 
-	FORCEINLINE void DiscardTransientResource_RenderThread(FRHIBuffer* Buffer)
-	{
-	}
+	UE_DEPRECATED(5.0, "DiscardTransientResource_RenderThread API is deprecated; use IRHITransientResourceAllocator instead.")
+	FORCEINLINE void DiscardTransientResource_RenderThread(FRHIBuffer* Buffer) {}
 
 	FORCEINLINE bool GetRenderQueryResult(FRHIRenderQuery* RenderQuery, uint64& OutResult, bool bWait, uint32 GPUIndex = INDEX_NONE)
 	{
@@ -5602,25 +5598,17 @@ FORCEINLINE FRenderQueryRHIRef RHICreateRenderQuery(ERenderQueryType QueryType)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-FORCEINLINE void RHIAcquireTransientResource(FRHITexture* Resource)
-{
-	FRHICommandListExecutor::GetImmediateCommandList().AcquireTransientResource_RenderThread(Resource);
-}
+UE_DEPRECATED(5.0, "RHIAcquireTransientResource API is deprecated; use IRHITransientResourceAllocator instead.")
+FORCEINLINE void RHIAcquireTransientResource(FRHITexture*) {}
 
-FORCEINLINE void RHIDiscardTransientResource(FRHITexture* Resource)
-{
-	FRHICommandListExecutor::GetImmediateCommandList().DiscardTransientResource_RenderThread(Resource);
-}
+UE_DEPRECATED(5.0, "RHIDiscardTransientResource API is deprecated; use IRHITransientResourceAllocator instead.")
+FORCEINLINE void RHIDiscardTransientResource(FRHITexture*) {}
 
-FORCEINLINE void RHIAcquireTransientResource(FRHIBuffer* Resource)
-{
-	FRHICommandListExecutor::GetImmediateCommandList().AcquireTransientResource_RenderThread(Resource);
-}
+UE_DEPRECATED(5.0, "RHIAcquireTransientResource API is deprecated; use IRHITransientResourceAllocator instead.")
+FORCEINLINE void RHIAcquireTransientResource(FRHIBuffer*)  {}
 
-FORCEINLINE void RHIDiscardTransientResource(FRHIBuffer* Resource)
-{
-	FRHICommandListExecutor::GetImmediateCommandList().DiscardTransientResource_RenderThread(Resource);
-}
+UE_DEPRECATED(5.0, "RHIDiscardTransientResource API is deprecated; use IRHITransientResourceAllocator instead.")
+FORCEINLINE void RHIDiscardTransientResource(FRHIBuffer*)  {}
 
 FORCEINLINE void RHIAcquireThreadOwnership()
 {

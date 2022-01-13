@@ -152,21 +152,21 @@ void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, const FView
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
 		Desc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, DirectLightingAtlas, TEXT("Lumen.SceneDirectLighting"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, DirectLightingAtlas, TEXT("Lumen.SceneDirectLighting"));
 	}
 
 	// Indirect Lighting
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
 		Desc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, IndirectLightingAtlas, TEXT("Lumen.SceneIndirectLighting"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, IndirectLightingAtlas, TEXT("Lumen.SceneIndirectLighting"));
 	}
 
 	// Final Lighting
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
 		Desc.AutoWritable = false;
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, FinalLightingAtlas, TEXT("Lumen.SceneFinalLighting"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, FinalLightingAtlas, TEXT("Lumen.SceneFinalLighting"));
 	}
 }
 

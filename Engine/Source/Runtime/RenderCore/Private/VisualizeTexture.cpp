@@ -411,35 +411,6 @@ void FVisualizeTexture::DisplayPoolResourceListToLog(FVisualizeTexture::ESortBy 
 			checkNoEntry();
 		}
 
-		if (EnumHasAnyFlags(Desc.Flags, TexCreate_FastVRAM))
-		{
-			FRHIResourceInfo Info;
-
-			FTextureRHIRef Texture = RenderTarget->GetRenderTargetItem().ShaderResourceTexture;
-
-			if (!IsValidRef(Texture))
-			{
-				Texture = RenderTarget->GetRenderTargetItem().TargetableTexture;
-			}
-
-			if (IsValidRef(Texture))
-			{
-				RHIGetResourceInfo(Texture, Info);
-			}
-
-			if (Info.VRamAllocation.AllocationSize)
-			{
-				// Note we do KB for more readable numbers but this can cause quantization loss
-				Element.Line += FString::Printf(TEXT(" VRamInKB(Start/Size):%d/%d"),
-					Info.VRamAllocation.AllocationStart / 1024,
-					(Info.VRamAllocation.AllocationSize + 1023) / 1024);
-			}
-			else
-			{
-				Element.Line += TEXT(" VRamInKB(Start/Size):<NONE>");
-			}
-		}
-
 		SortedLines.Add(Element);
 	}
 

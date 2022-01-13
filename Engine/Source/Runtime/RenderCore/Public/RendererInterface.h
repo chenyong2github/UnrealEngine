@@ -374,11 +374,6 @@ public:
 			FlagsString += TEXT(" VRam");
 		}
 
-		if (EnumHasAnyFlags(LocalFlags, TexCreate_Transient))
-		{
-			FlagsString += TEXT(" Transient");
-		}
-
 		FString ArrayString;
 
 		if(IsArray())

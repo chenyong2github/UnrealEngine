@@ -178,7 +178,7 @@ void FPersistentSkyAtmosphereData::InitialiseOrNextFrame(ERHIFeatureLevel::Type 
 		for (int i = 0; i < CameraAerialPerspectiveVolumeCount; ++i)
 		{
 			GRenderTargetPool.FindFreeElement(RHICmdList, AerialPerspectiveDesc, CameraAerialPerspectiveVolumes[i], 
-				i==0 ? TEXT("SkyAtmosphere.CameraAPVolume0") : TEXT("SkyAtmosphere.CameraAPVolume1"), ERenderTargetTransience::NonTransient);
+				i==0 ? TEXT("SkyAtmosphere.CameraAPVolume0") : TEXT("SkyAtmosphere.CameraAPVolume1"));
 		}
 		bInitialised = true;
 	}

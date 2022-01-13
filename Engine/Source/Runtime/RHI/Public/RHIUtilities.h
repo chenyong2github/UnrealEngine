@@ -213,24 +213,14 @@ struct FTextureRWBuffer2D
 		SRV = RHICreateShaderResourceView(Buffer, 0);
 	}
 
-	void AcquireTransientResource()
-	{
-		RHIAcquireTransientResource(Buffer);
-	}
-	void DiscardTransientResource()
-	{
-		RHIDiscardTransientResource(Buffer);
-	}
+	UE_DEPRECATED(5.0, "AcquireTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void AcquireTransientResource() {}
+
+	UE_DEPRECATED(5.0, "DiscardTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void DiscardTransientResource() {}
 
 	void Release()
 	{
-		int32 BufferRefCount = Buffer ? Buffer->GetRefCount() : -1;
-
-		if (BufferRefCount == 1)
-		{
-			DiscardTransientResource();
-		}
-
 		NumBytes = 0;
 		Buffer.SafeRelease();
 		UAV.SafeRelease();
@@ -269,26 +259,15 @@ struct FTextureRWBuffer3D
 		UAV = RHICreateUnorderedAccessView(Buffer, 0);
 		SRV = RHICreateShaderResourceView(Buffer, 0);
 	}
+	
+	UE_DEPRECATED(5.0, "AcquireTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void AcquireTransientResource() {}
 
-	void AcquireTransientResource()
-	{
-		RHIAcquireTransientResource(Buffer);
-	}
-
-	void DiscardTransientResource()
-	{
-		RHIDiscardTransientResource(Buffer);
-	}
+	UE_DEPRECATED(5.0, "DiscardTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void DiscardTransientResource() {}
 
 	void Release()
 	{
-		int32 BufferRefCount = Buffer ? Buffer->GetRefCount() : -1;
-
-		if (BufferRefCount == 1)
-		{
-			DiscardTransientResource();
-		}
-
 		NumBytes = 0;
 		Buffer.SafeRelease();
 		UAV.SafeRelease();
@@ -369,24 +348,14 @@ struct FRWBuffer
 		Initialize(InDebugName, BytesPerElement, NumElements, Format, ERHIAccess::UAVCompute, AdditionalUsage, InResourceArray);
 	}
 
-	void AcquireTransientResource()
-	{
-		RHIAcquireTransientResource(Buffer);
-	}
-	void DiscardTransientResource()
-	{
-		RHIDiscardTransientResource(Buffer);
-	}
+	UE_DEPRECATED(5.0, "AcquireTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void AcquireTransientResource() {}
+
+	UE_DEPRECATED(5.0, "DiscardTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void DiscardTransientResource() {}
 
 	void Release()
 	{
-		int32 BufferRefCount = Buffer ? Buffer->GetRefCount() : -1;
-
-		if (BufferRefCount == 1)
-		{
-			DiscardTransientResource();
-		}
-
 		NumBytes = 0;
 		Buffer.SafeRelease();
 		UAV.SafeRelease();
@@ -428,24 +397,14 @@ struct FTextureReadBuffer2D
 		SRV = RHICreateShaderResourceView(Buffer, 0);
 	}
 
-	void AcquireTransientResource()
-	{
-		RHIAcquireTransientResource(Buffer);
-	}
-	void DiscardTransientResource()
-	{
-		RHIDiscardTransientResource(Buffer);
-	}
+	UE_DEPRECATED(5.0, "AcquireTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void AcquireTransientResource() {}
+
+	UE_DEPRECATED(5.0, "DiscardTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void DiscardTransientResource() {}
 
 	void Release()
 	{
-		int32 BufferRefCount = Buffer ? Buffer->GetRefCount() : -1;
-
-		if (BufferRefCount == 1)
-		{
-			DiscardTransientResource();
-		}
-
 		NumBytes = 0;
 		Buffer.SafeRelease();		
 		SRV.SafeRelease();
@@ -508,27 +467,17 @@ struct FRWBufferStructured
 
 	void Release()
 	{
-		int32 BufferRefCount = Buffer ? Buffer->GetRefCount() : -1;
-
-		if (BufferRefCount == 1)
-		{
-			DiscardTransientResource();
-		}
-
 		NumBytes = 0;
 		Buffer.SafeRelease();
 		UAV.SafeRelease();
 		SRV.SafeRelease();
 	}
 
-	void AcquireTransientResource()
-	{
-		RHIAcquireTransientResource(Buffer);
-	}
-	void DiscardTransientResource()
-	{
-		RHIDiscardTransientResource(Buffer);
-	}
+	UE_DEPRECATED(5.0, "AcquireTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void AcquireTransientResource() {}
+
+	UE_DEPRECATED(5.0, "DiscardTransientResource is deprecated. Transient resources are allocated through IRHITransientResourceAllocator instead.")
+	void DiscardTransientResource() {}
 };
 
 struct FByteAddressBuffer
