@@ -641,36 +641,36 @@ void URigVMMemoryStorageGeneratorClass::RefreshPropertyPaths()
 const TArray<const FProperty*> URigVMMemoryStorage::EmptyProperties;
 const TArray<FRigVMPropertyPath> URigVMMemoryStorage::EmptyPropertyPaths;
 
-FString URigVMMemoryStorage::GetDataAsString(int32 InPropertyIndex)
+FString URigVMMemoryStorage::GetDataAsString(int32 InPropertyIndex, int32 PortFlags)
 {
 	check(IsValidIndex(InPropertyIndex));
 	const uint8* Data = GetData<uint8>(InPropertyIndex);
 
 	FString Value;
-	GetProperties()[InPropertyIndex]->ExportTextItem(Value, Data, nullptr, nullptr, PPF_None);
+	GetProperties()[InPropertyIndex]->ExportTextItem(Value, Data, nullptr, nullptr, PortFlags);
 	return Value;
 }
 
-FString URigVMMemoryStorage::GetDataAsString(const FRigVMOperand& InOperand)
+FString URigVMMemoryStorage::GetDataAsString(const FRigVMOperand& InOperand, int32 PortFlags)
 {
 	const int32 PropertyIndex = InOperand.GetRegisterIndex();
 	check(IsValidIndex(PropertyIndex));
-	return GetDataAsString(PropertyIndex);
+	return GetDataAsString(PropertyIndex, PortFlags);
 }
 
-FString URigVMMemoryStorage::GetDataAsStringSafe(int32 InPropertyIndex)
+FString URigVMMemoryStorage::GetDataAsStringSafe(int32 InPropertyIndex, int32 PortFlags)
 {
 	if(!IsValidIndex(InPropertyIndex))
 	{
 		return FString();
 	}
-	return GetDataAsString(InPropertyIndex);
+	return GetDataAsString(InPropertyIndex, PortFlags);
 }
 
-FString URigVMMemoryStorage::GetDataAsStringSafe(const FRigVMOperand& InOperand)
+FString URigVMMemoryStorage::GetDataAsStringSafe(const FRigVMOperand& InOperand, int32 PortFlags)
 {
 	const int32 PropertyIndex = InOperand.GetRegisterIndex();
-	return GetDataAsStringSafe(PropertyIndex);
+	return GetDataAsStringSafe(PropertyIndex, PortFlags);
 }
 
 class FRigVMMemoryStorageImportErrorContext : public FOutputDevice

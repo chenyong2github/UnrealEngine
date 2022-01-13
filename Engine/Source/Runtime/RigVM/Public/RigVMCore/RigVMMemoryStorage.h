@@ -483,30 +483,30 @@ public:
 	}
 
 	// Returns the exported text for a given property index
-	FString GetDataAsString(int32 InPropertyIndex);
+	FString GetDataAsString(int32 InPropertyIndex, int32 PortFlags = PPF_None);
 
 	// Returns the exported text for given property name 
-	FORCEINLINE FString GetDataAsStringByName(const FName& InName)
+	FORCEINLINE FString GetDataAsStringByName(const FName& InName, int32 PortFlags = PPF_None)
 	{
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
-		return GetDataAsString(PropertyIndex);
+		return GetDataAsString(PropertyIndex, PortFlags);
 	}
 
 	// Returns the exported text for a given operand
-	FString GetDataAsString(const FRigVMOperand& InOperand);
+	FString GetDataAsString(const FRigVMOperand& InOperand, int32 PortFlags = PPF_None);
 
 	// Returns the exported text for a given property index
-	FString GetDataAsStringSafe(int32 InPropertyIndex);
+	FString GetDataAsStringSafe(int32 InPropertyIndex, int32 PortFlags = PPF_None);
 
 	// Returns the exported text for given property name 
-	FORCEINLINE FString GetDataAsStringByNameSafe(const FName& InName)
+	FORCEINLINE FString GetDataAsStringByNameSafe(const FName& InName, int32 PortFlags = PPF_None)
 	{
 		const int32 PropertyIndex = GetPropertyIndexByName(InName);
-		return GetDataAsStringSafe(PropertyIndex);
+		return GetDataAsStringSafe(PropertyIndex, PortFlags);
 	}
 
 	// Returns the exported text for a given operand
-	FString GetDataAsStringSafe(const FRigVMOperand& InOperand);
+	FString GetDataAsStringSafe(const FRigVMOperand& InOperand, int32 PortFlags = PPF_None);
 
 	// Sets the content of a property by index given an exported string. Returns true if succeeded
 	bool SetDataFromString(int32 InPropertyIndex, const FString& InValue);
