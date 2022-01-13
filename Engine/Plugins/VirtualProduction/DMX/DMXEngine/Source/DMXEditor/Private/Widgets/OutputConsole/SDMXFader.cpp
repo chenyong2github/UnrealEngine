@@ -266,7 +266,7 @@ FReply SDMXFader::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerE
 
 TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 {
-	FMargin LabelPadding = FMargin(4.0f, 0.0f, 20.0f, 1.0f);
+	FMargin LabelPadding = FMargin(4.0f, 0.0f, 8.0f, 1.0f);
 	FMargin ValuePadding = FMargin(0.0f, 0.0f, 4.0f, 1.0f);
 
 	return 

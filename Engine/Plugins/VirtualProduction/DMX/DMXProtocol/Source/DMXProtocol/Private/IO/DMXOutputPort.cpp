@@ -617,21 +617,18 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 			const TSharedPtr<FDMXSignalFragment> Fragment = MakeShared<FDMXSignalFragment>(ExternUniverseID, ChannelToValueMap, SendTime);
 			SignalFragments.Enqueue(Fragment);
 
-			if (bNeedsLoopbackToEngine)
+			// Write the fragment to the game thread's buffer
+			const FDMXSignalSharedPtr& Signal = ExternUniverseToLatestSignalMap_GameThread.FindOrAdd(ExternUniverseID, MakeShared<FDMXSignal, ESPMode::ThreadSafe>());
+
+			for (const TTuple<int32, uint8>& ChannelValueKvp : ChannelToValueMap)
 			{
-				// Write the fragment to the game thread's buffer
-				const FDMXSignalSharedPtr& Signal = ExternUniverseToLatestSignalMap_GameThread.FindOrAdd(ExternUniverseID, MakeShared<FDMXSignal, ESPMode::ThreadSafe>());
+				int32 ChannelIndex = ChannelValueKvp.Key - 1;
 
-				for (const TTuple<int32, uint8>& ChannelValueKvp : ChannelToValueMap)
+				// Filter invalid indicies so we can send bp calls here without testing them first.
+				if (Signal->ChannelData.IsValidIndex(ChannelIndex))
 				{
-					int32 ChannelIndex = ChannelValueKvp.Key - 1;
-
-					// Filter invalid indicies so we can send bp calls here without testing them first.
-					if (Signal->ChannelData.IsValidIndex(ChannelIndex))
-					{
-						Signal->Timestamp = SendTime;
-						Signal->ChannelData[ChannelIndex] = ChannelValueKvp.Value;
-					}
+					Signal->Timestamp = SendTime;
+					Signal->ChannelData[ChannelIndex] = ChannelValueKvp.Value;
 				}
 			}
 		}

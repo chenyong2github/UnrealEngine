@@ -139,24 +139,26 @@ void SDMXChannelsMonitor::Tick(const FGeometry& AllottedGeometry, const double I
 {
 	FDMXSignalSharedPtr Signal;
 
-	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
-	const bool bSendOrReceiveDisabled = !ProtocolSettings->IsSendDMXEnabled() || !ProtocolSettings->IsReceiveDMXEnabled();
-
-	// The widget returns the right arrays, also output ports that loopback when input ports are selected.
-	for (const FDMXInputPortSharedRef& InputPort : SourceSelector->GetSelectedInputPorts())
+	if (SourceSelector->IsMonitorInputPorts())
 	{
-		if (InputPort->GameThreadGetDMXSignal(UniverseID, Signal))
+		// The widget returns the right arrays, also output ports that loopback when input ports are selected.
+		for (const FDMXInputPortSharedRef& InputPort : SourceSelector->GetSelectedInputPorts())
 		{
-			break;
+			if (InputPort->GameThreadGetDMXSignal(UniverseID, Signal))
+			{
+				break;
+			}
 		}
 	}
-
-	for (const FDMXOutputPortSharedRef& OutputPort : SourceSelector->GetSelectedOutputPorts())
+	else
 	{
-		constexpr bool bEvenIfNotLoopbackToEngine = true;
-		if (OutputPort->GameThreadGetDMXSignal(UniverseID, Signal, bEvenIfNotLoopbackToEngine))
+		for (const FDMXOutputPortSharedRef& OutputPort : SourceSelector->GetSelectedOutputPorts())
 		{
-			break;
+			constexpr bool bEvenIfNotLoopbackToEngine = true;
+			if (OutputPort->GameThreadGetDMXSignal(UniverseID, Signal, bEvenIfNotLoopbackToEngine))
+			{
+				break;
+			}
 		}
 	}
 

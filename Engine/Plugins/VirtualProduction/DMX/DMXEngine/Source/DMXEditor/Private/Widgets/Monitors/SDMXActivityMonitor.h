@@ -93,7 +93,7 @@ private:
 	TSharedRef<ITableRow> OnGenerateUniverseRow(TSharedPtr<SDMXActivityInUniverse> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** The DMX inputs of the activity monitor */
-	TSet<TSharedRef<FDMXRawListener>> DMXInputs;
+	TSet<TSharedRef<FDMXRawListener>> DMXListeners;
 
 	/** ListView for universe counts */
 	TSharedPtr<SListView<TSharedPtr<SDMXActivityInUniverse>>> UniverseList;

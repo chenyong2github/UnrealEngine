@@ -160,10 +160,17 @@ bool SDMXMonitorSourceSelector::IsMonitorInputPorts() const
 	check(IODirectionNames.Num() == 2);
 	check(MonitoredIODirectionComboBox.IsValid());
 
-	TSharedPtr<FText> SelectedDirectionItem = MonitoredIODirectionComboBox->GetSelectedItem();
-	check(SelectedDirectionItem.IsValid());
+	if (IsMonitorAllPorts())
+	{
+		TSharedPtr<FText> SelectedDirectionItem = MonitoredIODirectionComboBox->GetSelectedItem();
+		return SelectedDirectionItem == IODirectionNames[0];
+	}
+	else if(PortSelector->GetSelectedInputPort().IsValid())
+	{
+		return true;
+	}
 
-	return SelectedDirectionItem == IODirectionNames[0];
+	return false;
 }
 
 void SDMXMonitorSourceSelector::SetMonitorInputPorts(bool bMonitorInputPorts)
@@ -226,16 +233,13 @@ void SDMXMonitorSourceSelector::UpdateMonitoredPorts()
 		MonitoredIODirectionWrapper->SetVisibility(EVisibility::Visible);
 		PortSelectorWrapper->SetVisibility(EVisibility::Collapsed);
 
-		const bool bInputSelected = MonitoredIODirectionComboBox->GetSelectedItem() == IODirectionNames[0];
-		if (bInputSelected)
+		if (IsMonitorInputPorts())
 		{
 			SelectedInputPorts = FDMXPortManager::Get().GetInputPorts();
 		}
-		
-		// Show output ports as inputs while they loopback to engine
-		for (FDMXOutputPortSharedPtr OutputPort : FDMXPortManager::Get().GetOutputPorts())
+		else
 		{
-			SelectedOutputPorts.Add(OutputPort.ToSharedRef());
+			SelectedOutputPorts = FDMXPortManager::Get().GetOutputPorts();
 		}
 	}
 	else
@@ -243,18 +247,38 @@ void SDMXMonitorSourceSelector::UpdateMonitoredPorts()
 		MonitoredIODirectionWrapper->SetVisibility(EVisibility::Collapsed);
 		PortSelectorWrapper->SetVisibility(EVisibility::Visible);
 
-		if (FDMXInputPortSharedPtr SharedInputPort = PortSelector->GetSelectedInputPort())
+		if (IsMonitorInputPorts())
 		{
-			if (SharedInputPort.IsValid())
+			if (FDMXInputPortSharedPtr InputPort = PortSelector->GetSelectedInputPort())
 			{
-				SelectedInputPorts.Add(SharedInputPort.ToSharedRef());
+				if (InputPort.IsValid())
+				{
+					SelectedInputPorts.Add(InputPort.ToSharedRef());
+				}
+			}
+
+			// Make a selection if nothing was already selected
+			if (SelectedInputPorts.IsEmpty() && FDMXPortManager::Get().GetInputPorts().Num() > 0)
+			{
+				const FDMXInputPortSharedRef& NewSelection = FDMXPortManager::Get().GetInputPorts()[0];
+				PortSelector->SelectPort(NewSelection->GetPortGuid());
 			}
 		}
-		else if (FDMXOutputPortSharedPtr SharedOutputPort = PortSelector->GetSelectedOutputPort())
+		else
 		{
-			if (SharedOutputPort.IsValid())
+			if (FDMXOutputPortSharedPtr OutputPort = PortSelector->GetSelectedOutputPort())
 			{
-				SelectedOutputPorts.Add(SharedOutputPort.ToSharedRef());
+				if (OutputPort.IsValid())
+				{
+					SelectedOutputPorts.Add(OutputPort.ToSharedRef());
+				}
+			}
+
+			// Make a selection if nothing was already selected
+			if (SelectedOutputPorts.IsEmpty() && FDMXPortManager::Get().GetInputPorts().Num() > 0)
+			{
+				const FDMXOutputPortSharedRef& NewSelection = FDMXPortManager::Get().GetOutputPorts()[0];
+				PortSelector->SelectPort(NewSelection->GetPortGuid());
 			}
 		}
 	}

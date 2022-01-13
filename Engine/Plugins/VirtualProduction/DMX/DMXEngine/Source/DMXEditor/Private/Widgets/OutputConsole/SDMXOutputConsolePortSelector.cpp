@@ -130,6 +130,11 @@ void SDMXOutputConsolePortSelector::UpdateSelectedPorts()
 				SelectedOutputPorts.Add(SharedOutputPort.ToSharedRef());
 			}
 		}
+
+		if (SelectedOutputPorts.Num() == 0 && FDMXPortManager::Get().GetOutputPorts().Num() > 0)
+		{
+			PortSelector->SelectPort(FDMXPortManager::Get().GetOutputPorts()[0]->GetPortGuid());
+		}
 	}
 }
 

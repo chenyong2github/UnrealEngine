@@ -35,7 +35,7 @@ SDMXActivityMonitor::~SDMXActivityMonitor()
 {
 	check(SourceSelector.IsValid());
 
-	for (const TSharedRef<FDMXRawListener>& Input : DMXInputs)
+	for (const TSharedRef<FDMXRawListener>& Input : DMXListeners)
 	{
 		Input->Stop();
 	}
@@ -203,7 +203,7 @@ void SDMXActivityMonitor::ClearAllDMXBuffers()
 	FDMXEditorUtils::ClearAllDMXPortBuffers();
 	UniverseToDataMap.Reset();
 
-	for (const TSharedRef<FDMXRawListener>& Input : DMXInputs)
+	for (const TSharedRef<FDMXRawListener>& Input : DMXListeners)
 	{
 		Input->ClearBuffer();
 	}
@@ -228,7 +228,7 @@ void SDMXActivityMonitor::Tick(const FGeometry& AllottedGeometry, const double I
 	// Tick universe listeners with latest signals on tick
 
 	FDMXSignalSharedPtr DMXSignal;
-	for (const TSharedRef<FDMXRawListener>& Input : DMXInputs)
+	for (const TSharedRef<FDMXRawListener>& Input : DMXListeners)
 	{
 		int32 LocalUniverseID;
 		while (Input->DequeueSignal(this, DMXSignal, LocalUniverseID))
@@ -439,28 +439,33 @@ void SDMXActivityMonitor::UpdateListenerRegistration()
 	check(SourceSelector.IsValid());
 
 	// Stop listening to previous ports
-	for (const TSharedRef<FDMXRawListener>& Input : DMXInputs)
+	for (const TSharedRef<FDMXRawListener>& Input : DMXListeners)
 	{
 		Input->Stop();
 	}
-	DMXInputs.Reset();
+	DMXListeners.Reset();
 
-	// Listen to selected ports
-	for (const FDMXInputPortSharedRef& InputPort : SourceSelector->GetSelectedInputPorts())
+	if (SourceSelector->IsMonitorInputPorts())
 	{
-		TSharedRef<FDMXRawListener> NewInput = MakeShared<FDMXRawListener>(InputPort);
-		DMXInputs.Add(NewInput);
+		// Listen to selected ports
+		for (const FDMXInputPortSharedRef& InputPort : SourceSelector->GetSelectedInputPorts())
+		{
+			TSharedRef<FDMXRawListener> NewListener = MakeShared<FDMXRawListener>(InputPort);
+			DMXListeners.Add(NewListener);
 
-		NewInput->Start();
+			NewListener->Start();
+		}
 	}
-
-	for (const FDMXOutputPortSharedRef& OutputPort : SourceSelector->GetSelectedOutputPorts())
+	else
 	{
-		// Monitor outputs 
-		TSharedRef<FDMXRawListener> NewInput = MakeShared<FDMXRawListener>(OutputPort);
-		DMXInputs.Add(NewInput);
+		for (const FDMXOutputPortSharedRef& OutputPort : SourceSelector->GetSelectedOutputPorts())
+		{
+			// Monitor outputs 
+			TSharedRef<FDMXRawListener> NewListener = MakeShared<FDMXRawListener>(OutputPort);
+			DMXListeners.Add(NewListener);
 
-		NewInput->Start();
+			NewListener->Start();
+		}
 	}
 }
 
