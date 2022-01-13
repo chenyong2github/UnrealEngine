@@ -10,6 +10,11 @@ using namespace UE::GeometryFlow;
 
 void FMeshRepackUVsNode::RepackUVsForMesh(FDynamicMesh3& EditMesh, const FMeshRepackUVsSettings& Settings)
 {
+	if ( !(EditMesh.HasAttributes() && EditMesh.Attributes()->GetUVLayer(Settings.UVLayer)) )
+	{
+		return;
+	}
+
 	FDynamicMeshUVOverlay* UVLayer = EditMesh.Attributes()->GetUVLayer(Settings.UVLayer);
 
 	UVLayer->SplitBowties();
