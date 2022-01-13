@@ -496,16 +496,17 @@ SamplerState VelocityTextureSampler;
 
 float PrevInvPreExposure;
 
+// Note: corners need to be first for GetNeighborStatistics
 static const int2 kOffsets3x3[8] =
 {
 	int2(-1, -1),
-	int2( 0, -1),
 	int2( 1, -1),
+	int2(-1,  1),
+	int2( 1,  1),
+	int2( 0, -1),
 	int2(-1,  0),
 	int2( 1,  0),
-	int2(-1,  1),
 	int2( 0,  1),
-	int2( 1,  1),
 };
 
 struct FNeighborStatistics
@@ -532,10 +533,34 @@ FNeighborStatistics GetNeighborStatistics(
 	Result.Min = NewLighting;
 	Result.Max = NewLighting;
 
+#define CLAMP_NEIGHBORHOOD_TO_VALID_RESOLVE_TILES 1
+#if CLAMP_NEIGHBORHOOD_TO_VALID_RESOLVE_TILES
+	int2 ResolveTileValidMin = 0;
+	int2 ResolveTileValidMax = 0;
+
+	for (uint NeighborId = 0; NeighborId < 4; NeighborId++)
+	{
+		int2 SampleOffset = kOffsets3x3[NeighborId];
+
+		uint2 NeighborScreenCoord = ScreenCoord + SampleOffset;
+		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);
+
+		if (ResolveTileUsed[NeighborScreenCoord / RESOLVE_TILE_SIZE] > 0)
+		{
+			ResolveTileValidMin = min(ResolveTileValidMin, SampleOffset);
+			ResolveTileValidMax = max(ResolveTileValidMax, SampleOffset);
+		}
+	}
+
+#else
+	int2 ResolveTileValidMin = -1;
+	int2 ResolveTileValidMax = 1;
+#endif
+
 	UNROLL
 	for(uint NeighborId = 0; NeighborId < 8; NeighborId++)
 	{
-		int2 SampleOffset = kOffsets3x3[NeighborId];
+		int2 SampleOffset = clamp(kOffsets3x3[NeighborId], ResolveTileValidMin, ResolveTileValidMax);
 
 		uint2 NeighborScreenCoord = ScreenCoord + SampleOffset;
 		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);

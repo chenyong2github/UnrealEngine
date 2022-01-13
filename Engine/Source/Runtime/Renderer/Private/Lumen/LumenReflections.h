@@ -44,6 +44,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTileParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ReflectionTracingTileData)
 	RDG_BUFFER_ACCESS(ResolveIndirectArgs, ERHIAccess::IndirectArgs)
 	RDG_BUFFER_ACCESS(TracingIndirectArgs, ERHIAccess::IndirectArgs)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ResolveTileUsed)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCompactedReflectionTraceParameters, )

@@ -671,6 +671,7 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 	ReflectionTileParameters.TracingIndirectArgs = ReflectionTracingTileIndirectArgs;
 	ReflectionTileParameters.ReflectionResolveTileData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ReflectionResolveTileData, PF_R32_UINT));
 	ReflectionTileParameters.ReflectionTracingTileData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ReflectionTracingTileData, PF_R32_UINT));
+	ReflectionTileParameters.ResolveTileUsed = ResolveTileUsed;
 	return ReflectionTileParameters;
 }
 
