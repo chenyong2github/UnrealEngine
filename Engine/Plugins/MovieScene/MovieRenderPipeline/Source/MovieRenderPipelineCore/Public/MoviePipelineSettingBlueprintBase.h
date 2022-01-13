@@ -47,8 +47,10 @@ public:
 	
 	// Format Arguments & EXR Metadata
 	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override { InOutFormatArgs = ReceiveGetFormatArguments(InOutFormatArgs); }
-	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="GetFormatArgumentsAndMetadata"))
+	UFUNCTION(BlueprintNativeEvent, meta=(DisplayName="GetFormatArgumentsAndMetadata"))
 	FMoviePipelineFormatArgs ReceiveGetFormatArguments(UPARAM(ref) FMoviePipelineFormatArgs& InOutFormatArgs) const;
+	// Native Implementation so that if a blueprint class doesn't override this function we still pass on the previous arguments to the rest of the chain.
+	FMoviePipelineFormatArgs ReceiveGetFormatArguments_Implementation(FMoviePipelineFormatArgs& InOutFormatArgs) const { return InOutFormatArgs; }
 	
 	// Tick
 	UFUNCTION(BlueprintImplementableEvent)
