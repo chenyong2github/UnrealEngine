@@ -211,7 +211,7 @@ void SWorldPartitionEditorGrid2D::UnloadSelectedCells()
 
 void SWorldPartitionEditorGrid2D::UnloadAllCells()
 {
-	const FBox AllCellsBox(FVector(-WORLD_MAX, -WORLD_MAX, -WORLD_MAX), FVector(WORLD_MAX, WORLD_MAX, WORLD_MAX));
+	const FBox AllCellsBox(FVector(-WORLDPARTITION_MAX, -WORLDPARTITION_MAX, -WORLDPARTITION_MAX), FVector(WORLDPARTITION_MAX, WORLDPARTITION_MAX, WORLDPARTITION_MAX));
 	WorldPartition->UnloadEditorCells(AllCellsBox, true);
 	GEditor->RedrawLevelEditingViewports();
 	Refresh();
@@ -413,7 +413,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 {
 	const FBox2D ViewRect(FVector2D(ForceInitToZero), AllottedGeometry.GetLocalSize());
 	const FBox2D WorldViewRect(ScreenToWorld.TransformPoint(ViewRect.Min), ScreenToWorld.TransformPoint(ViewRect.Max));
-	const FBox ViewRectWorld(FVector(WorldViewRect.Min.X, WorldViewRect.Min.Y, -WORLD_MAX), FVector(WorldViewRect.Max.X, WorldViewRect.Max.Y, WORLD_MAX));
+	const FBox ViewRectWorld(FVector(WorldViewRect.Min.X, WorldViewRect.Min.Y, -WORLDPARTITION_MAX), FVector(WorldViewRect.Max.X, WorldViewRect.Max.Y, WORLDPARTITION_MAX));
 
 	TSet<FWorldPartitionActorDescViewBoundsProxy> ActorDescList;
 
@@ -785,8 +785,8 @@ void SWorldPartitionEditorGrid2D::UpdateSelection()
 	SelectBox.Init();
 
 	const FBox SelectionBox(
-		FVector(FMath::Min(SelectionStart.X, SelectionEnd.X), FMath::Min(SelectionStart.Y, SelectionEnd.Y), -WORLD_MAX),
-		FVector(FMath::Max(SelectionStart.X, SelectionEnd.X), FMath::Max(SelectionStart.Y, SelectionEnd.Y), WORLD_MAX)
+		FVector(FMath::Min(SelectionStart.X, SelectionEnd.X), FMath::Min(SelectionStart.Y, SelectionEnd.Y), -WORLDPARTITION_MAX),
+		FVector(FMath::Max(SelectionStart.X, SelectionEnd.X), FMath::Max(SelectionStart.Y, SelectionEnd.Y), WORLDPARTITION_MAX)
 	);
 
 	SelectBox = SelectionBox;

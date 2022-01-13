@@ -160,7 +160,7 @@ UWorldPartitionConvertCommandlet::UWorldPartitionConvertCommandlet(const FObject
 	, ConversionSuffix(TEXT("_WP"))
 	, bConvertActorsNotReferencedByLevelScript(true)
 	, WorldOrigin(FVector::ZeroVector)
-	, WorldExtent(HALF_WORLD_MAX)
+	, WorldExtent(WORLDPARTITION_MAX * 0.5)
 	, LandscapeGridSize(4)
 {}
 

@@ -307,7 +307,7 @@ bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartitio
 				return false;
 			}
 
-			constexpr float HalfHeight = HALF_WORLD_MAX;
+			constexpr float HalfHeight = WORLDPARTITION_MAX * 0.5;
 			const FBox QueryBounds(FVector(CellBounds.Min.X, CellBounds.Min.Y, -HalfHeight), FVector(CellBounds.Max.X, CellBounds.Max.Y, HalfHeight));
 
 			if (!NavDataBounds.IsValid || !NavDataBounds.Intersect(QueryBounds))
