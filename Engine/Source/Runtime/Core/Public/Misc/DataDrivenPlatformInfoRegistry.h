@@ -308,6 +308,10 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	*/
 	static const TArray<struct FPreviewPlatformMenuItem>& GetAllPreviewPlatformMenuItems();
 
+	/** Option to hide a platform from the user interface at runtime */
+	static bool IsPlatformHiddenFromUI(FName PlatformName);
+	static void SetPlatformHiddenFromUI(FName PlatformName);
+
 private:
 	/**
 	 * Get a modifiable DDPI object, for Turnkey to update it's info

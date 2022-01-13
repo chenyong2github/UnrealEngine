@@ -1433,6 +1433,10 @@ void FTurnkeySupportModule::MakeQuickLaunchItems(class UToolMenu* Menu, FOnQuick
 
 			FName PlatformName = Pair.Key;
 			const FDataDrivenPlatformInfo& Info = Pair.Value;
+			if (FDataDrivenPlatformInfoRegistry::IsPlatformHiddenFromUI(PlatformName))
+			{
+				continue;
+			}
 
 			// look for devices for all platforms, even if the platform isn't installed - Turnkey can install Sdk after selecting LaunchOn
 			TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
@@ -1575,6 +1579,10 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenuWidget() const
 
 				FName PlatformName = Pair.Key;
 				const FDataDrivenPlatformInfo& Info = Pair.Value;
+				if (FDataDrivenPlatformInfoRegistry::IsPlatformHiddenFromUI(PlatformName))
+				{
+					continue;
+				}
 
 				if (!FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(PlatformName, FDataDrivenPlatformInfoRegistry::EPlatformNameType::Ini))
 				{	

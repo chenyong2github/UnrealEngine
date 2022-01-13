@@ -7,6 +7,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/CommandLine.h"
+#include "Containers/Set.h"
 
 
 namespace 
@@ -17,6 +18,7 @@ namespace
 	TArray<const FDataDrivenPlatformInfo*> SortedPlatformInfos;
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 	TArray<struct FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
+	TSet<FName> PlatformsHiddenFromUI;
 #endif
 }
 
@@ -586,5 +588,16 @@ const TArray<struct FPreviewPlatformMenuItem>& FDataDrivenPlatformInfoRegistry::
 {
 	return PreviewPlatformMenuItems;
 }
+
+bool FDataDrivenPlatformInfoRegistry::IsPlatformHiddenFromUI(FName PlatformName)
+{
+	return PlatformsHiddenFromUI.Contains(PlatformName);
+}
+
+void FDataDrivenPlatformInfoRegistry::SetPlatformHiddenFromUI(FName PlatformName)
+{
+	PlatformsHiddenFromUI.Add(PlatformName);
+}
+
 
 #endif
