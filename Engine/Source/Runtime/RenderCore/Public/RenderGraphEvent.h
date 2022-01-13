@@ -34,6 +34,7 @@
 	#endif
 #else
 	#define RDG_GPU_STAT_SCOPE(GraphBuilder, StatName)
+	#define RDG_GPU_STAT_SCOPE_VERBOSE(GraphBuilder, StatName, Description)
 #endif
 
 #if CSV_PROFILER
