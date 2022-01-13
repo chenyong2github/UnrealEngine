@@ -513,11 +513,12 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 				Interface->SourceComponent->BuildSimulationTransform(BoneTransform);
 
 				// Convert to double for LWC
-				FTransform3d BoneTransformDouble = BoneTransform;
-				const FTransform3d WorldTransformDouble = WorldTransform;
+				FMatrix44d BoneTransformDouble = BoneTransform.ToMatrixWithScale();
+				const FMatrix44d WorldTransformDouble = WorldTransform.ToMatrixWithScale();
 				
 				BoneTransformDouble = BoneTransformDouble * WorldTransformDouble.Inverse();
-				BoneTransform = BoneTransformDouble;
+				const FMatrix44d WorldTransformFloat = BoneTransformDouble;
+				BoneTransform = FTransform(WorldTransformFloat);
 
 				if (SimulationSettings.bOverrideSettings)
 				{
