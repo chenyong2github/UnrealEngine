@@ -474,6 +474,8 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshOperatorFactory::MakeNewOperat
 		Op->Method = EParamOpBackend::UVAtlas;		
 		Op->Stretch = UVAtlasProperties->IslandStretch;
 		Op->NumCharts = UVAtlasProperties->NumIslands;
+		Op->Width = UVAtlasProperties->TextureResolution;
+		Op->Height = UVAtlasProperties->TextureResolution;
 		break;
 	case EParameterizeMeshUVMethod::XAtlas:
 		Op->Method = EParamOpBackend::XAtlas;

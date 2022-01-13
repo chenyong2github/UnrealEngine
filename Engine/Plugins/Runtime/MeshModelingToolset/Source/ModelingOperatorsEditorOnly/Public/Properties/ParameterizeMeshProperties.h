@@ -47,6 +47,10 @@ public:
 	/** Hint at number of UV islands. The default of 0 means it is determined automatically. */
 	UPROPERTY(EditAnywhere, Category = UVAtlas, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "10000"))
 	int NumIslands = 0;
+
+	/** Expected resolution of the output textures; this controls spacing left between UV islands to avoid interpolation artifacts. */
+	UPROPERTY(EditAnywhere, Category = UVAtlas, meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096"))
+	int TextureResolution = 1024;
 };
 
 

@@ -217,6 +217,10 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 	// uvatlas options
 	ParameterizeMeshOp->Stretch   = UVAtlasProperties->IslandStretch;
 	ParameterizeMeshOp->NumCharts = UVAtlasProperties->NumIslands;
+	if (Settings->Method == EParameterizeMeshUVMethod::UVAtlas)
+	{
+		ParameterizeMeshOp->Width = ParameterizeMeshOp->Height = UVAtlasProperties->TextureResolution;
+	}
 	
 	// xatlas options
 	ParameterizeMeshOp->XAtlasMaxIterations = XAtlasProperties->MaxIterations;
@@ -234,8 +238,10 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 	ParameterizeMeshOp->ExpMapNormalSmoothingSteps = PatchBuilderProperties->SmoothingSteps;
 	ParameterizeMeshOp->ExpMapNormalSmoothingAlpha = PatchBuilderProperties->SmoothingAlpha;
 	ParameterizeMeshOp->bEnablePacking = PatchBuilderProperties->bRepack;
-	ParameterizeMeshOp->Width = ParameterizeMeshOp->Height = PatchBuilderProperties->TextureResolution;
-
+	if (Settings->Method == EParameterizeMeshUVMethod::PatchBuilder)
+	{
+		ParameterizeMeshOp->Width = ParameterizeMeshOp->Height = PatchBuilderProperties->TextureResolution;
+	}
 
 	ParameterizeMeshOp->SetTransform(UE::ToolTarget::GetLocalToWorldTransform(Target));
 
