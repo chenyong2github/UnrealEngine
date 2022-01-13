@@ -411,7 +411,10 @@ void AddModuleToFixDependencyIssue(
 	}
 
 	FScopedTransaction ScopedTransaction(LOCTEXT("AddDependencyFixTransaction", "Add a module to fix a dependency"));
-	FNiagaraStackGraphUtilities::AddScriptModuleToStack(DependencyProviderScript, *TargetOutputNode, TargetIndex.GetValue());
+	FNiagaraStackGraphUtilities::FAddScriptModuleToStackArgs AddScriptModuleToStackArgs(DependencyProviderScript, *TargetOutputNode);
+	AddScriptModuleToStackArgs.TargetIndex = TargetIndex.GetValue();
+	AddScriptModuleToStackArgs.bFixupTargetIndex = true;
+	FNiagaraStackGraphUtilities::AddScriptModuleToStack(AddScriptModuleToStackArgs);
 }
 
 void GenerateFixesForAddingDependencyProviders(
@@ -554,28 +557,6 @@ void GenerateFixesForEnablingModules(
 	}
 }
 
-bool DoesStackModuleProvideDependency(const FNiagaraStackModuleData& StackModuleData, const FNiagaraModuleDependency& SourceModuleRequiredDependency, const UNiagaraNodeOutput& SourceOutputNode)
-{
-	if (StackModuleData.ModuleNode != nullptr && StackModuleData.ModuleNode->FunctionScript != nullptr)
-	{
-		FVersionedNiagaraScriptData* ScriptData = StackModuleData.ModuleNode->FunctionScript->GetScriptData(StackModuleData.ModuleNode->SelectedScriptVersion);
-		if (ScriptData && ScriptData->ProvidedDependencies.Contains(SourceModuleRequiredDependency.Id))
-		{
-			if (SourceModuleRequiredDependency.ScriptConstraint == ENiagaraModuleDependencyScriptConstraint::AllScripts)
-			{
-				return true;
-			}
-
-			if (SourceModuleRequiredDependency.ScriptConstraint == ENiagaraModuleDependencyScriptConstraint::SameScript)
-			{
-				UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*StackModuleData.ModuleNode);
-				return OutputNode != nullptr && UNiagaraScript::IsEquivalentUsage(OutputNode->GetUsage(), SourceOutputNode.GetUsage()) && OutputNode->GetUsageId() == SourceOutputNode.GetUsageId();
-			}
-		}
-	}
-	return false;
-}
-
 void GenerateDependencyIssues(
 	TSharedRef<FNiagaraSystemViewModel> SourceSystemViewModel,
 	FGuid SourceEmitterHandleId,
@@ -601,7 +582,7 @@ void GenerateDependencyIssues(
 			TArray<int32> DependencyProviderIndices;
 			for (int32 StackModuleDataIndex = 0; StackModuleDataIndex < SourceStackModuleData.Num(); StackModuleDataIndex++)
 			{
-				if (DoesStackModuleProvideDependency(SourceStackModuleData[StackModuleDataIndex], SourceRequiredDependency, SourceOutputNode))
+				if (FNiagaraStackGraphUtilities::DependencyUtilities::DoesStackModuleProvideDependency(SourceStackModuleData[StackModuleDataIndex], SourceRequiredDependency, SourceOutputNode))
 				{
 					DependencyProviderIndices.Add(StackModuleDataIndex);
 				}

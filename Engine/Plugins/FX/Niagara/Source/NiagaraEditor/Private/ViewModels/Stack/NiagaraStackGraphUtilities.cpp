@@ -3309,10 +3309,10 @@ int32 FNiagaraStackGraphUtilities::DependencyUtilities::FindBestIndexForModuleIn
 	}
 
 	// Find the greatest and least indices to satisfy the pre and post dependencies of the new module script being added, respectively.
-	int32 LeastDependencyIndex = LeastIndex;
-	int32 GreatestDependencyIndex = GreatestIndex;
-	bool bDependencyLowerBoundFound = false;
-	bool bDependencyUpperBoundFound = false;
+	int32 GreatestRequiredDependencyLowerBoundIdx = LeastIndex;
+	int32 LeastRequiredDependencyUpperBoundIdx = GreatestIndex;
+	bool bRequiredDependencyLowerBoundFound = false;
+	bool bRequiredDependencyUpperBoundFound = false;
 
 	const TArray<FNiagaraModuleDependency>& NewModuleScriptRequiredDependencies = ScriptData->RequiredDependencies;
 
@@ -3336,14 +3336,14 @@ int32 FNiagaraStackGraphUtilities::DependencyUtilities::FindBestIndexForModuleIn
 				if (RequiredDependency.Type == ENiagaraModuleDependencyType::PreDependency)
 				{
 					int32 SuggestedIndex = CurrentStackModuleData.Index + 1;
-					LeastDependencyIndex = LeastDependencyIndex < SuggestedIndex ? SuggestedIndex : LeastDependencyIndex;
-					bDependencyLowerBoundFound = true;
+					GreatestRequiredDependencyLowerBoundIdx = GreatestRequiredDependencyLowerBoundIdx < SuggestedIndex ? SuggestedIndex : GreatestRequiredDependencyLowerBoundIdx;
+					bRequiredDependencyLowerBoundFound = true;
 				}
 				else if (RequiredDependency.Type == ENiagaraModuleDependencyType::PostDependency)
 				{
 					int32 SuggestedIndex = CurrentStackModuleData.Index;
-					GreatestDependencyIndex = GreatestDependencyIndex > SuggestedIndex ? SuggestedIndex : GreatestDependencyIndex;
-					bDependencyUpperBoundFound = true;
+					LeastRequiredDependencyUpperBoundIdx = LeastRequiredDependencyUpperBoundIdx > SuggestedIndex ? SuggestedIndex : LeastRequiredDependencyUpperBoundIdx;
+					bRequiredDependencyUpperBoundFound = true;
 				}
 			}
 		}
@@ -3351,28 +3351,27 @@ int32 FNiagaraStackGraphUtilities::DependencyUtilities::FindBestIndexForModuleIn
 
 	// Check that there is valid index which satisfies all dependencies for the new module script.
 	int32 TargetIndex = INDEX_NONE;
-	if (bDependencyLowerBoundFound)
+	if (bRequiredDependencyLowerBoundFound)
 	{
-		if (bDependencyUpperBoundFound && GreatestDependencyIndex < LeastDependencyIndex)
+		if (bRequiredDependencyUpperBoundFound && LeastRequiredDependencyUpperBoundIdx < GreatestRequiredDependencyLowerBoundIdx)
 		{
-			// It is impossible to satisfy both target indices: do nothing.
+			// It is impossible to satisfy both target indices as the upper bound is less than the lower bound: do nothing.
 			return INDEX_NONE;
 		}
-		TargetIndex = LeastDependencyIndex;
+		TargetIndex = GreatestRequiredDependencyLowerBoundIdx;
 	}
-	else if (bDependencyUpperBoundFound)
+	else if (bRequiredDependencyUpperBoundFound)
 	{
-		TargetIndex = GreatestDependencyIndex;
+		TargetIndex = LeastRequiredDependencyUpperBoundIdx;
 	}
 
 	// Do another pass to find a target index that satisfies dependencies for other modules in the stack by providing as many dependencies as possible.
-	int32 LeastRequirementIndex = LeastIndex;
-	int32 GreatestRequirementIndex = GreatestIndex;
-	bool bRequirementLowerBoundFound = false;
-	bool bRequirementUpperBoundFound = false;
+	int32 GreatestProvidedDependencyLowerBoundIdx = GreatestIndex;
+	int32 LeastProvidedDependencyUpperBoundIdx = LeastIndex;
+	bool bProvidedDependencyLowerBoundFound = false;
+	bool bProvidedDependencyUpperBoundFound = false;
 
 	const TArray<FName>& NewModuleScriptProvidedDependencies = ScriptData->ProvidedDependencies;
-
 	auto GetStackModuleDataRequiredDependenciesBeingProvided = [&NewModuleScriptProvidedDependencies](const FNiagaraStackModuleData& StackModuleData)->const TArray<FNiagaraModuleDependency> /*OutDependencies*/ {
 		TArray<FNiagaraModuleDependency> OutDependencies;
 		for (FNiagaraModuleDependency& RequiredDependency : StackModuleData.ModuleNode->GetScriptData()->RequiredDependencies)
@@ -3389,37 +3388,44 @@ int32 FNiagaraStackGraphUtilities::DependencyUtilities::FindBestIndexForModuleIn
 	{
 		for (const FNiagaraModuleDependency& ProvidedDependency : GetStackModuleDataRequiredDependenciesBeingProvided(CurrentStackModuleData))
 		{
-			if (ProvidedDependency.Type == ENiagaraModuleDependencyType::PreDependency)
-			{
-				int32 SuggestedIndex = CurrentStackModuleData.Index;
-				LeastRequirementIndex = LeastRequirementIndex < SuggestedIndex ? SuggestedIndex : LeastRequirementIndex;
-				bRequirementLowerBoundFound = true;
-			}
-			else if (ProvidedDependency.Type == ENiagaraModuleDependencyType::PostDependency)
+			if (ProvidedDependency.Type == ENiagaraModuleDependencyType::PostDependency)
 			{
 				int32 SuggestedIndex = CurrentStackModuleData.Index + 1;
-				GreatestRequirementIndex = GreatestRequirementIndex > SuggestedIndex ? SuggestedIndex : GreatestRequirementIndex;
-				bRequirementUpperBoundFound = true;
+				GreatestProvidedDependencyLowerBoundIdx = GreatestProvidedDependencyLowerBoundIdx < SuggestedIndex ? SuggestedIndex : GreatestProvidedDependencyLowerBoundIdx;
+				bProvidedDependencyLowerBoundFound = true;
+			}
+			else if (ProvidedDependency.Type == ENiagaraModuleDependencyType::PreDependency)
+			{
+				int32 SuggestedIndex = CurrentStackModuleData.Index;
+				LeastProvidedDependencyUpperBoundIdx = LeastProvidedDependencyUpperBoundIdx > SuggestedIndex ? SuggestedIndex : LeastProvidedDependencyUpperBoundIdx;
+				bProvidedDependencyUpperBoundFound = true;
 			}
 		}
 	}
 
-	LeastRequirementIndex = LeastDependencyIndex < LeastRequirementIndex ? LeastRequirementIndex : LeastDependencyIndex;
-	GreatestRequirementIndex = GreatestDependencyIndex > GreatestRequirementIndex ? GreatestRequirementIndex : GreatestDependencyIndex;
+	// Alias bounds without least and greatest prefixes for legibility.
+	int32& RequiredDependencyLowerBoundIdx = GreatestRequiredDependencyLowerBoundIdx;
+	int32& RequiredDependencyUpperBoundIdx = LeastRequiredDependencyUpperBoundIdx;
+	int32& ProvidedDependencyLowerBoundIdx = GreatestProvidedDependencyLowerBoundIdx;
+	int32& ProvidedDependencyUpperBoundIdx = LeastProvidedDependencyUpperBoundIdx;
 
-	// Do another validity test for requirement indices.
-	if (bRequirementLowerBoundFound)
+	// Provided dependency lower and upper bound must be inside required dependency lower and upper bound respectively.
+	ProvidedDependencyLowerBoundIdx = (bRequiredDependencyLowerBoundFound && ProvidedDependencyLowerBoundIdx < RequiredDependencyLowerBoundIdx) ? RequiredDependencyLowerBoundIdx : ProvidedDependencyLowerBoundIdx;
+	ProvidedDependencyUpperBoundIdx = (bRequiredDependencyUpperBoundFound && ProvidedDependencyUpperBoundIdx > RequiredDependencyUpperBoundIdx) ? RequiredDependencyUpperBoundIdx : ProvidedDependencyUpperBoundIdx;
+
+	// Do another validity test for provided dependency lower and upper bound indices.
+	if (bProvidedDependencyLowerBoundFound)
 	{
-		if (bRequirementUpperBoundFound && GreatestRequirementIndex < LeastRequirementIndex)
+		if (bProvidedDependencyUpperBoundFound && ProvidedDependencyUpperBoundIdx < ProvidedDependencyLowerBoundIdx)
 		{
-			// It is impossible to satisfy both target indices: do nothing.
+			// It is impossible to satisfy both target indices as the upper bound is less than the lower bound: do nothing.
 			return TargetIndex;
 		}
-		TargetIndex = LeastRequirementIndex;
+		TargetIndex = ProvidedDependencyLowerBoundIdx;
 	}
-	else if (bRequirementUpperBoundFound)
+	else if (bProvidedDependencyUpperBoundFound)
 	{
-		TargetIndex = GreatestRequirementIndex;
+		TargetIndex = ProvidedDependencyUpperBoundIdx;
 	}
 
 	return TargetIndex;

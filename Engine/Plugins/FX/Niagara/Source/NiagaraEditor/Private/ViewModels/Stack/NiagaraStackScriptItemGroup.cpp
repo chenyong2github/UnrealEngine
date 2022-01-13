@@ -290,7 +290,13 @@ public:
 		{
 			FNiagaraStackGraphUtilities::FAddScriptModuleToStackArgs AddScriptModuleToStackArgs(ScriptGroupAddAction->GetModuleAssetData(), *OutputNode);
 			AddScriptModuleToStackArgs.TargetIndex = TargetIndex;
-			AddScriptModuleToStackArgs.bFixupTargetIndex = true;
+
+			// If the user has specified a target index, do not try to fixup the target index.
+			if (TargetIndex == INDEX_NONE)
+			{
+				AddScriptModuleToStackArgs.bFixupTargetIndex = true;
+			}
+
 			NewModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(AddScriptModuleToStackArgs);
 		}
 		else if (ScriptGroupAddAction->GetModuleParameterVariable().IsValid())
