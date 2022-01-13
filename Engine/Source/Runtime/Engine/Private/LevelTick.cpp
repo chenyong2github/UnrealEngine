@@ -1710,6 +1710,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		TRACE_CPUPROFILER_EVENT_SCOPE(NetBroadcastTickTime);
 		SCOPE_CYCLE_COUNTER(STAT_NetBroadcastTickTime);
 		LLM_SCOPE(ELLMTag::Networking);
+		BroadcastPreTickFlush(RealDeltaSeconds);
 		BroadcastTickFlush(RealDeltaSeconds); // note: undilated time is being used here
 	}
 	
