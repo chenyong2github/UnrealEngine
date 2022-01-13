@@ -531,7 +531,7 @@ struct FCacheChunkResponse
 	uint64 RawSize = 0;
 
 	/** The hash of the entire value, even if only a subset was fetched. */
-	const FIoHash& RawHash;
+	FIoHash RawHash;
 
 	/** Data for the subset of the value that was fetched when Status is Ok, otherwise null. */
 	FSharedBuffer RawData;

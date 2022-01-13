@@ -421,8 +421,8 @@ struct FDerivedDataUsageStats
 };
 
 /** any expression inside this block will be compiled out if ENABLE_COOK_STATS is not true. Shorthand for the multi-line #if ENABLE_COOK_STATS guard. */
-#define COOK_STAT(expr) expr
+#define COOK_STAT(...) __VA_ARGS__
 
 #else
-#define COOK_STAT(expr)
+#define COOK_STAT(...)
 #endif
