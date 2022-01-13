@@ -104,7 +104,8 @@ void UIKRetargeterController::CleanChainMapping()
 {
 	if (!IsValid(Asset->TargetIKRigAsset))
 	{
-		// don't clean chain mappings, in case user is replacing with IK Rig asset that has some valid mappings
+		// empty the chain mapping
+		Asset->ChainMapping.Empty();
 		return;
 	}
 	
