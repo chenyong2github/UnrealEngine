@@ -5,7 +5,7 @@
 #include "AppleARKitModule.h"
 #include "AppleARKitConversion.h"
 	
-// UE4
+// UE
 #include "CoreGlobals.h"
 #include "Engine/EngineTypes.h"
 #include "Kismet/GameplayStatics.h"

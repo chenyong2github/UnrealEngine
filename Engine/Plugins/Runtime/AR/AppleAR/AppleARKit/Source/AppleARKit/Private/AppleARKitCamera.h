@@ -2,7 +2,7 @@
 
 #pragma once
 
-// UE4
+// UE
 #include "Math/Transform.h"
 #include "Math/UnrealMathUtility.h"
 #include "UnrealEngine.h"
@@ -54,7 +54,7 @@ struct APPLEARKIT_API FAppleARKitCamera
 
 	/** 
 	 * This is a conversion copy-constructor that takes a raw ARCamera and fills this structs members
-	 * with the UE4-ified versions of ARCamera's properties.
+	 * with the UE-ified versions of ARCamera's properties.
 	 */ 
 	FAppleARKitCamera( ARCamera* InARCamera );
 

@@ -23,10 +23,10 @@ NSDictionary<ARBlendShapeLocation,NSNumber *>* ToBlendShapeDictionary(const FARB
 {
 	NSMutableDictionary<ARBlendShapeLocation,NSNumber *>* BlendShapeDict = [[[NSMutableDictionary<ARBlendShapeLocation,NSNumber *> alloc] init] autorelease];
 
-#define SET_BLEND_SHAPE(AppleShape, UE4Shape) \
-	if (BlendShapeMap.Contains(UE4Shape)) \
+#define SET_BLEND_SHAPE(AppleShape, UEShape) \
+	if (BlendShapeMap.Contains(UEShape)) \
 	{ \
-		NSNumber* Num = [NSNumber numberWithFloat: BlendShapeMap[UE4Shape]]; \
+		NSNumber* Num = [NSNumber numberWithFloat: BlendShapeMap[UEShape]]; \
 		BlendShapeDict[AppleShape] = Num; \
 	}
 

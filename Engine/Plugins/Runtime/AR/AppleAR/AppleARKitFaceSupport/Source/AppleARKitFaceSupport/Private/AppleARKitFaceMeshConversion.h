@@ -77,14 +77,14 @@ static FORCEINLINE FARBlendShapeMap ToBlendShapeMap(bool bFaceMirrored, NSDictio
 	BlendShapeMap.Add(EARFaceBlendShape::RightEyeRoll, RightEyeRoll);
 
 
-#define SET_BLEND_SHAPE(AppleShape, UE4Shape) \
+#define SET_BLEND_SHAPE(AppleShape, UEShape) \
 	if (BlendShapes[AppleShape]) \
 	{ \
-		BlendShapeMap.Add(UE4Shape, FMath::Max([BlendShapes[AppleShape] floatValue], 0.f)); \
+		BlendShapeMap.Add(UEShape, FMath::Max([BlendShapes[AppleShape] floatValue], 0.f)); \
 	} \
 	else \
 	{ \
-		BlendShapeMap.Add(UE4Shape, 0.f); \
+		BlendShapeMap.Add(UEShape, 0.f); \
 	}
 
 	if (bFaceMirrored)

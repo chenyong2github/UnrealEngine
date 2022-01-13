@@ -89,7 +89,7 @@ FAppleARKitFrame::FAppleARKitFrame(ARFrame* InARFrame, const FVector2D MinCamera
 		{
 			Tracked2DPose = FAppleARKitConversion::ToARPose2D(InARFrame.detectedBody);
 			
-			// Convert the joint location from the normalized arkit camera space to UE4's normalized screen space
+			// Convert the joint location from the normalized arkit camera space to UE's normalized screen space
 			const FVector2D UVSize = MaxCameraUV - MinCameraUV;
 			for (int Index = 0; Index < Tracked2DPose.JointLocations.Num(); ++Index)
 			{
