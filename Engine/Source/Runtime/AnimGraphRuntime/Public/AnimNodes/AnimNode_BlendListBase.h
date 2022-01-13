@@ -52,20 +52,21 @@ private:
 	UPROPERTY(EditAnywhere, Category=BlendType, meta=(UseAsBlendProfile=true, FoldProperty))
 	TObjectPtr<UBlendProfile> BlendProfile = nullptr;
 #endif // #if WITH_EDITORONLY_DATA
-	
-	TArray<struct FAlphaBlend> Blends;
 
 protected:
-	TArray<float> BlendWeights;
+	// Struct for tracking blends for each pose
+	struct FBlendData
+	{
+		FAlphaBlend Blend;
+		float Weight;
+		float RemainingTime;
+		float StartAlpha;
+	};
 
-	TArray<float> RemainingBlendTimes;
+	TArray<FBlendData> PerBlendData;
 
-	TArray<float> BlendStartAlphas;
-
+	// Per-bone blending data, allocated when using blend profiles
 	TArray<FBlendSampleData> PerBoneSampleData;
-
-	//Store which poses we need to evaluate
-	TArray<int32> PosesToEvaluate;
 
 	int32 LastActiveChildIndex = 0;
 	
