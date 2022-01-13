@@ -674,7 +674,6 @@ void FDynamicMeshToMeshDescription::Convert_SharedInstances(const FDynamicMesh3*
 
 
 
-
 void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, bool bCopyTangents)
 {
 	
@@ -709,6 +708,20 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 	{
 		Builder.EnablePolyGroups();
 		bCopyGroupToPolyGroup = true;
+	}
+
+	TMap<FName, FSkinWeightsVertexAttributesRef> VertexBoneWeightsMap; 
+	if (!MeshIn->Attributes()->GetSkinWeightsAttributes().IsEmpty())
+	{
+		FSkeletalMeshAttributes MeshOutAttributes(MeshOut);
+		MeshOutAttributes.Register();
+		for (const TTuple<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttributeInfo: MeshIn->Attributes()->GetSkinWeightsAttributes())
+		{
+			FName ProfileName = AttributeInfo.Key;
+
+			MeshOutAttributes.RegisterSkinWeightAttribute(ProfileName);
+			VertexBoneWeightsMap.Add(ProfileName, MeshOutAttributes.GetVertexSkinWeights(ProfileName));
+		}
 	}
 
 	// always copy when we are baking new mesh? should this be a config option?
@@ -746,7 +759,6 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 			MapUV[ElementID] = Builder.AppendUV(UVvalue, k);
 		}
 	}
-	
 
 
 	FPolygonGroupID ZeroPolygonGroupID = Builder.AppendPolygonGroup();
@@ -939,17 +951,13 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 
 	// Convert all attached skin weights, if we're converting a mesh description that originated from
 	// a USkeletalMesh.
-	FSkeletalMeshAttributes MeshOutAttributes(MeshOut);
 	for (const TTuple<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttributeInfo: MeshIn->Attributes()->GetSkinWeightsAttributes())
 	{
 		FName ProfileName = AttributeInfo.Key;
-
-		MeshOutAttributes.RegisterSkinWeightAttribute(ProfileName);
+		
+		FSkinWeightsVertexAttributesRef& VertexBoneWeights = VertexBoneWeightsMap[ProfileName];
 
 		const FDynamicMeshVertexSkinWeightsAttribute *MeshSkinWeights = AttributeInfo.Value.Get();
-		
-		FSkinWeightsVertexAttributesRef VertexBoneWeights = MeshOutAttributes.GetVertexSkinWeights(ProfileName);
-
 		for (int32 VertexIndex = 0; VertexIndex < MapV.Num(); VertexIndex++)
 		{
 			if (const FVertexID VertexID = MapV[VertexIndex]; VertexID != INDEX_NONE)
@@ -963,7 +971,6 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 	
 	Builder.ResumeMeshDescriptionIndexing();
 }
-
 
 
 void FDynamicMeshToMeshDescription::ConvertPolygroupLayers(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const TArray<FTriangleID>& IndexToTriangleIDMap)

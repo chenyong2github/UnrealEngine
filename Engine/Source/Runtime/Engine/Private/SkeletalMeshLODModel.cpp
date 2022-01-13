@@ -1435,12 +1435,12 @@ void FSkeletalMeshLODModel::GetMeshDescription(FMeshDescription& MeshDescription
 
 		if (!MeshDescription.IsPolygonGroupValid(PolygonGroupID))
 		{
-			MeshDescription.CreatePolygonGroupWithID(FPolygonGroupID(Section.MaterialIndex));
+			MeshDescription.CreatePolygonGroupWithID(PolygonGroupID);
 		}
 
 		if (ensure(Materials.IsValidIndex(Section.MaterialIndex)))
 		{
-			PolygonGroupMaterialSlotNames.Set(PolygonGroupID, Materials[Section.MaterialIndex].MaterialSlotName);
+			PolygonGroupMaterialSlotNames.Set(PolygonGroupID, Materials[Section.MaterialIndex].ImportedMaterialSlotName);
 		}
 
 		for (int32 TriangleID = 0; TriangleID < int32(Section.NumTriangles); TriangleID++)

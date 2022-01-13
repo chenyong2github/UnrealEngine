@@ -3573,6 +3573,14 @@ void USkeletalMesh::ExecutePostLoadInternal(FSkeletalMeshPostLoadContext& Contex
 
 		PostLoadVerifyAndFixBadTangent();
 
+		// Fixup missing material slot names and import slot names, so that mesh editing 
+		// preserves material assignments.
+		IMeshUtilities* MeshUtilities = FModuleManager::Get().LoadModulePtr<IMeshUtilities>("MeshUtilities");
+		if (MeshUtilities)
+		{
+			MeshUtilities->FixupMaterialSlotNames(this);
+		}
+
 		if (GetResourceForRendering() == nullptr)
 		{
 			CacheDerivedData(&Context);
