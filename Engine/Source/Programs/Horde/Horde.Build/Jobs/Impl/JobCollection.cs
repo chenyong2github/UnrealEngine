@@ -1207,6 +1207,8 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<IJob?> TryCancelLeaseAsync(IJob Job, int BatchIdx)
 		{
+			Logger.LogDebug("Cancelling lease {LeaseId} for agent {AgentId}", Job.Batches[BatchIdx].LeaseId, Job.Batches[BatchIdx].AgentId);
+
 			JobDocument JobDocument = Clone((JobDocument)Job);
 
 			UpdateDefinition<JobDocument> Update = Builders<JobDocument>.Update.Unset(x => x.Batches[BatchIdx].AgentId).Unset(x => x.Batches[BatchIdx].SessionId).Unset(x => x.Batches[BatchIdx].LeaseId);
@@ -1228,6 +1230,7 @@ namespace HordeServer.Collections.Impl
 		{
 			JobDocument JobDocument = Clone((JobDocument)Job);
 			JobStepBatchDocument Batch = JobDocument.Batches[BatchIdx];
+			Logger.LogDebug("Failing batch {JobId}:{BatchId} with error {Error}", Job.Id, Batch.Id, Error);
 
 			UpdateDefinitionBuilder<JobDocument> UpdateBuilder = new UpdateDefinitionBuilder<JobDocument>();
 			List<UpdateDefinition<JobDocument>> Updates = new List<UpdateDefinition<JobDocument>>();
