@@ -12,7 +12,7 @@
 #include "Memory/SharedBuffer.h"
 #include <atomic>
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::Throttle
 {
 
 /** 
@@ -302,4 +302,4 @@ private:
 	ESpeedClass SpeedClass;
 };
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore::Throttle

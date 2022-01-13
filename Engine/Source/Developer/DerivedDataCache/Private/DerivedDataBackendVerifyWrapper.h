@@ -12,7 +12,7 @@
 
 class Error;
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::Verify
 {
 
 /**
@@ -195,4 +195,4 @@ private:
 	FDerivedDataBackendInterface*					InnerBackend;
 };
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore::Verify

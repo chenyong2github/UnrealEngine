@@ -25,13 +25,14 @@ DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Sync Put Time"),STAT_DDC_PutTime,STA
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Sync Build Time"),STAT_DDC_SyncBuildTime,STATGROUP_DDC, );
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Exists Time"),STAT_DDC_ExistTime,STATGROUP_DDC, );
 
-
+namespace UE::DerivedData
+{
 
 /**
  * Interface for cache server backends.
  * The entire API should be callable from any thread (except the singleton can be assumed to be called at least once before concurrent access).
  */
-class FDerivedDataBackendInterface : public UE::DerivedData::ICacheStore
+class FDerivedDataBackendInterface : public ICacheStore
 {
 public:
 
@@ -284,3 +285,5 @@ inline void LexFromString(FDerivedDataBackendInterface::ESpeedClass& OutValue, c
 		OutValue = FDerivedDataBackendInterface::ESpeedClass::Local;
 	}
 }
+
+} // UE::DerivedData

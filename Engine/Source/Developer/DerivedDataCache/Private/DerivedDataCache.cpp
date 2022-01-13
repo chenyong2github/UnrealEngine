@@ -42,7 +42,7 @@ DEFINE_STAT(STAT_DDC_ExistTime);
 
 #if ENABLE_COOK_STATS
 #include "DerivedDataCacheUsageStats.h"
-namespace DerivedDataCacheCookStats
+namespace UE::DerivedData::CookStats
 {
 	// Use to prevent potential divide by zero issues
 	inline double SafeDivide(const int64 Numerator, const int64 Denominator)

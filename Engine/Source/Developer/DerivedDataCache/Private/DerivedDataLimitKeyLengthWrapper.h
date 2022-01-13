@@ -8,7 +8,7 @@
 #include "DerivedDataCacheUsageStats.h"
 #include "Misc/SecureHash.h"
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData::CacheStore::LimitKeyLength
 {
 
 /** 
@@ -401,4 +401,4 @@ private:
 	int32 MaxKeyLength;
 };
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore::LimitKeyLength

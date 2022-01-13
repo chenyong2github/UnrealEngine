@@ -50,7 +50,7 @@ namespace UE::DerivedData::CacheStore::ZenCache
 FDerivedDataBackendInterface* CreateZenDerivedDataBackend(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace);
 } // UE::DerivedData::CacheStore::ZenCache
 
-namespace HttpDerivedDataBackendTest
+namespace UE::DerivedData::CacheStore::Http
 {
 
 class FHttpDerivedDataTestBase : public FAutomationTestBase
@@ -541,5 +541,6 @@ bool CacheStore::RunTest(const FString& Parameters)
 	return true;
 }
 
-}
+} // UE::DerivedData::CacheStore::Http
+
 #endif // #if WITH_DEV_AUTOMATION_TESTS && WITH_HTTP_DDC_BACKEND

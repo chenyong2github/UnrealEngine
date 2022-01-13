@@ -4,6 +4,9 @@
 
 #include "DerivedDataBackendInterface.h"
 
+namespace UE::DerivedData
+{
+
 /**
  * A file backed backend. This is used for local caching of data where more flexibility is needed than loose files.
  */
@@ -29,3 +32,5 @@ public:
 	 */
 	virtual void Disable() = 0;
 };
+
+} // UE::DerivedData
