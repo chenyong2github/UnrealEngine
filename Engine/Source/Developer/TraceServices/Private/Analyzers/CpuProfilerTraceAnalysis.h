@@ -46,7 +46,7 @@ private:
 	void OnCpuScopeLeave(const FOnEventContext& Context);
 	uint32 DefineTimer(uint32 SpecId, const TCHAR* ScopeName, const TCHAR* File, uint32 Line, bool bMergeByName); // returns the TimerId
 	FThreadState& GetThreadState(uint32 ThreadId);
-	uint64 ProcessBuffer(const FEventTime& EventTime, uint32 ThreadId, const uint8* BufferPtr, uint32 BufferSize);
+	uint64 ProcessBuffer(const FEventTime& EventTime, FThreadState& ThreadState, const uint8* BufferPtr, uint32 BufferSize);
 
 	enum : uint16
 	{
