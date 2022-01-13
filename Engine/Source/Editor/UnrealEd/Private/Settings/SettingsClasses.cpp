@@ -532,7 +532,7 @@ void FPlayScreenResolution::PostInitProperties()
 
 void ULevelEditorPlaySettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (BuildGameBeforeLaunch != EPlayOnBuildMode::PlayOnBuild_Always && !FSourceCodeNavigation::IsCompilerAvailable())
+	if (BuildGameBeforeLaunch != EPlayOnBuildMode::PlayOnBuild_Always && !FSourceCodeNavigation::IsCompilerAvailable() && !PLATFORM_LINUX)
 	{
 		BuildGameBeforeLaunch = EPlayOnBuildMode::PlayOnBuild_Never;
 	}
