@@ -91,7 +91,7 @@
 #include "SupportedRangeTypes.h"	// StructsSupportingRangeVisibility
 #include "IPropertyAccessEditor.h"
 #include "AssetRegistryModule.h"
-#include "Settings/EditorProjectSettings.h"
+#include "Settings/BlueprintEditorProjectSettings.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintDetailsCustomization"
 

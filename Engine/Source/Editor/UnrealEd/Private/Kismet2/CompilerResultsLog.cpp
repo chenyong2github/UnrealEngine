@@ -13,7 +13,7 @@
 #include "EngineLogs.h"
 #include "Engine/Blueprint.h"
 #include "IMessageLogListing.h"
-#include "Settings/EditorProjectSettings.h"
+#include "Settings/BlueprintEditorProjectSettings.h"
 
 #if WITH_EDITOR
 

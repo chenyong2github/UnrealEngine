@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/ChildActorComponentEditorUtils.h"
-#include "Settings/EditorProjectSettings.h"
+#include "Settings/BlueprintEditorProjectSettings.h"
 #include "ToolMenus.h"
 #include "SSCSEditor.h"
 #include "SSCSEditorMenuContext.h"

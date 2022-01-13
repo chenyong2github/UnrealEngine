@@ -55,7 +55,7 @@
 #include "K2Node_Variable.h"		// Nodes for FSubobjectRowDragDropOp
 #include "K2Node_VariableGet.h"
 #include "AssetSelection.h"
-#include "Settings/EditorProjectSettings.h"
+#include "Settings/BlueprintEditorProjectSettings.h"
 #include "Misc/FeedbackContext.h"
 
 extern UNREALED_API UEditorEngine* GEditor;

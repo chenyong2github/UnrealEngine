@@ -4,7 +4,7 @@
 #include "Engine/Blueprint.h"
 #include "BlueprintEditor.h"
 #include "BlueprintEditorSettings.h"
-#include "Settings/EditorProjectSettings.h"
+#include "Settings/BlueprintEditorProjectSettings.h"
 #include "Toolkits/ToolkitManager.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
