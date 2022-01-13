@@ -67,7 +67,13 @@ private:
 	static const FString VariableName;
 	static const FString ValueName;
 
+	URigVMPin* GetVariableNamePin() const;
+	URigVMPin* GetValuePin() const;
+	
+
 	friend class URigVMController;
+	friend struct FRigVMRemoveNodeAction;
+	friend class URigVMPin;
 	friend class URigVMCompiler;
 	friend class FRigVMVarExprAST;
 	friend class FRigVMParserAST;

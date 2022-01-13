@@ -648,7 +648,7 @@ bool FRigVMInjectNodeIntoPinAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	return InController->EjectNodeFromPin(*PinPath, false, true) != nullptr;
+	return InController->EjectNodeFromPin(*PinPath, false) != nullptr;
 }
 
 bool FRigVMInjectNodeIntoPinAction::Redo(URigVMController* InController)
@@ -666,11 +666,7 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 {
 	FRigVMInverseAction InverseAction;
 
-	if (URigVMInjectionInfo* InjectionInfo = InNode->GetInjectionInfo())
-	{
-		ensure(false);
-	}
-	else if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMAddUnitNodeAction(UnitNode));
 		for (URigVMPin* Pin : UnitNode->GetPins())
@@ -754,6 +750,19 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 			FRigVMSetPinExpansionAction ExpansionAction(Pin, true);
 			ExpansionAction.OldIsExpanded = false;
 			InverseAction.AddAction(ExpansionAction);
+		}
+
+		if (Pin->HasInjectedNodes())
+		{
+			if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Pin->GetInjectedNodes()[0]->Node))
+			{
+				FRigVMAddVariableNodeAction AddVariableNodeAction(VariableNode);
+				FRigVMAddLinkAction AddLinkAction(VariableNode->GetValuePin(), Pin);
+				FRigVMInjectNodeIntoPinAction InjectAction(Pin->GetInjectedNodes()[0]);
+				InverseAction.AddAction(AddVariableNodeAction);
+				InverseAction.AddAction(AddLinkAction);
+				InverseAction.AddAction(InjectAction);
+			}
 		}
 	}
 

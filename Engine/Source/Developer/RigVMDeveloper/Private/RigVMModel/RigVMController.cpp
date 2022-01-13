@@ -554,31 +554,34 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 	}
 	else if (const URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
 	{
-		const FString VariableName = GetSanitizedVariableName(VariableNode->GetVariableName().ToString());
+		if (!VariableNode->IsInjected())
+		{
+			const FString VariableName = GetSanitizedVariableName(VariableNode->GetVariableName().ToString());
 
-		// add_variable_node(variable_name, cpp_type, cpp_type_object, is_getter, default_value, position=[0.0, 0.0], node_name='', undo=True)
-		if (VariableNode->GetVariableDescription().CPPTypeObject)
-		{
-			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_variable_node_from_object_path('%s', '%s', '%s', %s, '%s', %s, '%s')"),
-					*GraphName,
-					*VariableName,
-					*VariableNode->GetVariableDescription().CPPType,
-					*VariableNode->GetVariableDescription().CPPTypeObject->GetPathName(),
-					VariableNode->IsGetter() ? TEXT("True") : TEXT("False"),
-					*VariableNode->GetVariableDescription().DefaultValue,
-					*RigVMPythonUtils::Vector2DToPythonString(VariableNode->GetPosition()),
-					*NodeName));	
-		}
-		else
-		{
-			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_variable_node('%s', '%s', None, %s, '%s', %s, '%s')"),
-					*GraphName,
-					*VariableName,
-					*VariableNode->GetVariableDescription().CPPType,
-					VariableNode->IsGetter() ? TEXT("True") : TEXT("False"),
-					*VariableNode->GetVariableDescription().DefaultValue,
-					*RigVMPythonUtils::Vector2DToPythonString(VariableNode->GetPosition()),
-					*NodeName));	
+			// add_variable_node(variable_name, cpp_type, cpp_type_object, is_getter, default_value, position=[0.0, 0.0], node_name='', undo=True)
+			if (VariableNode->GetVariableDescription().CPPTypeObject)
+			{
+				Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_variable_node_from_object_path('%s', '%s', '%s', %s, '%s', %s, '%s')"),
+						*GraphName,
+						*VariableName,
+						*VariableNode->GetVariableDescription().CPPType,
+						*VariableNode->GetVariableDescription().CPPTypeObject->GetPathName(),
+						VariableNode->IsGetter() ? TEXT("True") : TEXT("False"),
+						*VariableNode->GetVariableDescription().DefaultValue,
+						*RigVMPythonUtils::Vector2DToPythonString(VariableNode->GetPosition()),
+						*NodeName));	
+			}
+			else
+			{
+				Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_variable_node('%s', '%s', None, %s, '%s', %s, '%s')"),
+						*GraphName,
+						*VariableName,
+						*VariableNode->GetVariableDescription().CPPType,
+						VariableNode->IsGetter() ? TEXT("True") : TEXT("False"),
+						*VariableNode->GetVariableDescription().DefaultValue,
+						*RigVMPythonUtils::Vector2DToPythonString(VariableNode->GetPosition()),
+						*NodeName));	
+			}
 		}
 	}
 	else if (const URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
@@ -2820,7 +2823,10 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 
 		if (bSetupUndoRedo)
 		{
-			ActionStack->AddAction(FRigVMRemoveNodeAction(CreatedNode, this));
+			if (!CreatedNode->IsInjected() || !CreatedNode->IsA<URigVMVariableNode>())
+			{
+				ActionStack->AddAction(FRigVMRemoveNodeAction(CreatedNode, this));
+			}
 		}
 
 		// find all nodes affected by this
@@ -2934,7 +2940,18 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 						if (bWasBinded)
 						{
 							VariableNodeName = TargetPin->GetBoundVariableNode()->GetName();
-							BindingPath = TargetPin->GetBoundVariablePath();	
+							BindingPath = TargetPin->GetBoundVariablePath();
+
+							// The current situation is that the outter pin has an injection info, and the injected node exists
+							// but the injected node is not linked to the outter pin. BreakAllLinks will try to unbind the outter pin,
+							// for that to be successful, the binding needs to be complete
+							// Connect it so that the unbound is successful
+							if (!SourcePin->IsLinkedTo(TargetPin))
+							{
+								Graph->Links.Add(CreatedLink);
+								SourcePin->Links.Add(CreatedLink);
+								TargetPin->Links.Add(CreatedLink);
+							}
 						}
 						
 						BreakAllLinksRecursive(TargetPin, true, true, bSetupUndoRedo);
@@ -2951,11 +2968,19 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 							Graph->Links.Add(CreatedLink);
 							SourcePin->Links.Add(CreatedLink);
 							TargetPin->Links.Add(CreatedLink);
-						}
 
-						if (bSetupUndoRedo)
-						{
-							ActionStack->AddAction(FRigVMAddLinkAction(SourcePin, TargetPin));
+							if (bSetupUndoRedo)
+							{
+								ActionStack->AddAction(FRigVMAddLinkAction(SourcePin, TargetPin));
+								if (SourcePin->GetNode()->IsInjected())
+								{
+									ActionStack->AddAction(FRigVMInjectNodeIntoPinAction(SourcePin->GetTypedOuter<URigVMInjectionInfo>()));	
+								}
+								if (TargetPin->GetNode()->IsInjected())
+								{
+									ActionStack->AddAction(FRigVMInjectNodeIntoPinAction(TargetPin->GetTypedOuter<URigVMInjectionInfo>()));	
+								}
+							}
 						}
 						Notify(ERigVMGraphNotifType::LinkAdded, CreatedLink);
 						continue;
@@ -7174,7 +7199,8 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 			ValuePin = ValuePin->FindSubPin(SegmentPath);
 		}
 
-		{		
+		{
+			GetGraph()->ClearAST(true, false);
 			if (!AddLink(ValuePin, InPin, bSetupUndoRedo))
 			{
 				if (bSetupUndoRedo)

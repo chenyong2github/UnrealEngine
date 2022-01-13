@@ -118,3 +118,13 @@ FRigVMGraphVariableDescription URigVMVariableNode::GetVariableDescription() cons
 	Variable.DefaultValue = GetDefaultValue();
 	return Variable;
 }
+
+URigVMPin* URigVMVariableNode::GetVariableNamePin() const
+{
+	return FindPin(VariableName);
+}
+
+URigVMPin* URigVMVariableNode::GetValuePin() const
+{
+	return FindPin(ValueName);
+}

@@ -2349,10 +2349,17 @@ void FControlRigEditor::PasteNodes()
 		FBox2D Bounds;
 		Bounds.bIsValid = false;
 
+		TArray<FName> NodesToSelect;
 		for (const FName& NodeName : NodeNames)
 		{
 			const URigVMNode* Node = GetFocusedModel()->FindNodeByName(NodeName);
 			check(Node);
+
+			if (Node->IsInjected())
+			{
+				continue;
+			}
+			NodesToSelect.Add(NodeName);
 
 			FVector2D Position = Node->GetPosition();
 			FVector2D Size = Node->GetSize();
@@ -2366,7 +2373,7 @@ void FControlRigEditor::PasteNodes()
 			Bounds += Position + Size;
 		}
 
-		for (const FName& NodeName : NodeNames)
+		for (const FName& NodeName : NodesToSelect)
 		{
 			const URigVMNode* Node = GetFocusedModel()->FindNodeByName(NodeName);
 			check(Node);
@@ -2375,7 +2382,7 @@ void FControlRigEditor::PasteNodes()
 			GetFocusedController()->SetNodePositionByName(NodeName, PasteLocation + Position - Bounds.GetCenter(), true, false, true);
 		}
 
-		GetFocusedController()->SetNodeSelection(NodeNames);
+		GetFocusedController()->SetNodeSelection(NodesToSelect);
 		GetFocusedController()->CloseUndoBracket();
 	}
 	else
