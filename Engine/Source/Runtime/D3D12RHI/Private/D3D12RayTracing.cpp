@@ -2848,12 +2848,14 @@ struct FD3D12RHICommandInitializeRayTracingGeometryString
 };
 struct FD3D12RHICommandInitializeRayTracingGeometry final : public FRHICommand<FD3D12RHICommandInitializeRayTracingGeometry, FD3D12RHICommandInitializeRayTracingGeometryString>
 {
-	FD3D12RayTracingGeometry* Geometry;
+	TRefCountPtr<FD3D12RayTracingGeometry> Geometry;
 	FD3D12ResourceLocation SrcResourceLoc;
+	bool bForRendering;
 
-	FORCEINLINE_DEBUGGABLE FD3D12RHICommandInitializeRayTracingGeometry(FD3D12RayTracingGeometry* InGeometry, FD3D12ResourceLocation& InSrcResourceLoc)
-		: Geometry(InGeometry)
+	FORCEINLINE_DEBUGGABLE FD3D12RHICommandInitializeRayTracingGeometry(TRefCountPtr<FD3D12RayTracingGeometry>&& InGeometry, FD3D12ResourceLocation& InSrcResourceLoc, bool bForRendering)
+		: Geometry(MoveTemp(InGeometry))
 		, SrcResourceLoc(InSrcResourceLoc.GetParentDevice())
+		, bForRendering(bForRendering)
 	{
 		FD3D12ResourceLocation::TransferOwnership(SrcResourceLoc, InSrcResourceLoc);
 	}
@@ -2878,10 +2880,15 @@ struct FD3D12RHICommandInitializeRayTracingGeometry final : public FRHICommand<F
 
 			CmdList->CopyRaytracingAccelerationStructure(AccelerationStructure->ResourceLocation.GetGPUVirtualAddress(), SrcResourceLoc.GetGPUVirtualAddress(), D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_DESERIALIZE);
 
+			hCommandList.UpdateResidency(SrcResourceLoc.GetResource());
 			Device->GetDefaultCommandContext().ConditionalFlushCommandList();
+			
+			if (bForRendering)
+			{
+				Geometry->RegisterAsRenameListener(GPUIndex);
+				Geometry->SetupHitGroupSystemParameters(GPUIndex);
+			}
 
-			Geometry->RegisterAsRenameListener(GPUIndex);
-			Geometry->SetupHitGroupSystemParameters(GPUIndex);
 			Geometry->SetDirty(FRHIGPUMask::FromIndex(GPUIndex), false);
 		}
 	}
@@ -3198,6 +3205,21 @@ FRayTracingGeometryRHIRef FD3D12DynamicRHI::RHICreateRayTracingGeometry(const FR
 	return new FD3D12RayTracingGeometry(&Adapter, Initializer);
 }
 
+void FD3D12DynamicRHI::RHITransferRayTracingGeometryUnderlyingResource(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry)
+{
+	check(DestGeometry);
+	FD3D12RayTracingGeometry* Dest = ResourceCast(DestGeometry);
+	if (!SrcGeometry)
+	{
+		Dest->ReleaseUnderlyingResource();
+	}
+	else
+	{		
+		FD3D12RayTracingGeometry* Src = ResourceCast(SrcGeometry);
+		Dest->Swap(*Src);
+	}
+}
+
 // This code path is deprecated and will be removed in the next release. Please use FRayTracingSceneInitializer2 instead.
 FRayTracingSceneRHIRef FD3D12DynamicRHI::RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer)
 {
@@ -3416,6 +3438,8 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 	INC_DWORD_STAT(STAT_D3D12RayTracingAllocatedBLAS);
 
 	DebugName = Initializer.DebugName.IsValid() ? Initializer.DebugName : FName(TEXT("BLAS"));
+	InitializerType = Initializer.Type;
+
 	FMemory::Memzero(bHasPendingCompactionRequests);
 	FMemory::Memzero(bRegisteredAsRenameListener);
 
@@ -3428,6 +3452,13 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 		CreateInfo.ResourceArray = &NullTransformData;
 
 		FD3D12RayTracingGeometry::NullTransformBuffer = RHICreateVertexBuffer(NullTransformData.GetResourceDataSize(), BUF_Static, CreateInfo);
+	}
+
+	RegisterD3D12RayTracingGeometry(this);
+
+	if (Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination)
+	{
+		return;
 	}
 
 	IndexOffsetInBytes = Initializer.IndexBufferOffset;
@@ -3500,8 +3531,7 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 
 	INC_DWORD_STAT_BY(STAT_D3D12RayTracingTrianglesBLAS, Initializer.TotalPrimitiveCount);
 
-	RegisterD3D12RayTracingGeometry(this);
-
+	const bool bForRendering = Initializer.Type == ERayTracingGeometryInitializerType::Rendering;
 	if (Initializer.OfflineData)
 	{
 		FD3D12Device* Device = Adapter->GetDevice(0);
@@ -3510,18 +3540,53 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 		uint32 Size = Initializer.OfflineData->GetResourceDataSize() - sizeof(FOfflineBVHHeader);
 
 		FD3D12ResourceLocation SrcResourceLoc(Device);
-		uint8* DstDataBase = (uint8*)Device->GetDefaultFastAllocator().Allocate(Size, 256, &SrcResourceLoc);
+
+		const bool bOnAsyncThread = !IsInRHIThread() && !IsInRenderingThread();
+		uint8* DstDataBase;
+		if (bOnAsyncThread)
+		{
+			DstDataBase = (uint8*)Adapter->GetUploadHeapAllocator(0).AllocUploadResource(Size, 256, SrcResourceLoc);
+		}
+		else
+		{
+			DstDataBase = (uint8*)Device->GetDefaultFastAllocator().Allocate(Size, 256, &SrcResourceLoc);
+		}
+
 		FMemory::Memcpy(DstDataBase, Data, Size);
 
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-		if (!RHICmdList.Bypass() && IsRunningRHIInSeparateThread())
+		if (bOnAsyncThread)
 		{
-			ALLOC_COMMAND_CL(RHICmdList, FD3D12RHICommandInitializeRayTracingGeometry)(this, SrcResourceLoc);
+			check(InitializerType == ERayTracingGeometryInitializerType::StreamingSource);
+
+			FD3D12ResourceLocation* SrcResourceLoc_Heap = new FD3D12ResourceLocation(SrcResourceLoc.GetParentDevice());
+			FD3D12ResourceLocation::TransferOwnership(*SrcResourceLoc_Heap, SrcResourceLoc);
+
+			TRefCountPtr<FD3D12RayTracingGeometry> ThisRef = this;
+			ENQUEUE_RENDER_COMMAND(CmdD3D12InitializeRayTracingGeometry)(
+				[DestinationGeometry = MoveTemp(ThisRef), SrcResourceLoc_Heap](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				const bool bForRendering = false;
+				if (RHICmdList.Bypass())
+				{
+					FD3D12RHICommandInitializeRayTracingGeometry Command(MoveTemp(DestinationGeometry), *SrcResourceLoc_Heap, bForRendering);
+					Command.ExecuteNoCmdList();
+				}
+				else
+				{
+					ALLOC_COMMAND_CL(RHICmdList, FD3D12RHICommandInitializeRayTracingGeometry)(MoveTemp(DestinationGeometry), *SrcResourceLoc_Heap, bForRendering);
+				}
+				delete SrcResourceLoc_Heap;
+			});
+		}
+		else if (!RHICmdList.Bypass() && IsRunningRHIInSeparateThread())
+		{
+			ALLOC_COMMAND_CL(RHICmdList, FD3D12RHICommandInitializeRayTracingGeometry)(this, SrcResourceLoc, bForRendering);
 		}
 		else
 		{
-			FD3D12RHICommandInitializeRayTracingGeometry Command(this, SrcResourceLoc);
+			FD3D12RHICommandInitializeRayTracingGeometry Command(this, SrcResourceLoc, bForRendering);
 			Command.ExecuteNoCmdList();
 		}
 		
@@ -3529,7 +3594,20 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 	}
 }
 
-FD3D12RayTracingGeometry::~FD3D12RayTracingGeometry()
+void FD3D12RayTracingGeometry::Swap(FD3D12RayTracingGeometry& Other)
+{
+	for (uint32 i = 0; i < MAX_NUM_GPUS; i++)
+	{
+		AccelerationStructureBuffers[i] = Other.AccelerationStructureBuffers[i];
+		bIsAccelerationStructureDirty[i] = Other.bIsAccelerationStructureDirty[i];
+	}
+	::Swap(AccelerationStructureCompactedSize, Other.AccelerationStructureCompactedSize);
+	::Swap(SizeInfo, Other.SizeInfo);
+
+	// The rest of the members should be updated using SetInitializer()
+}
+
+void FD3D12RayTracingGeometry::ReleaseUnderlyingResource()
 {
 	UnregisterD3D12RayTracingGeometry(this);
 
@@ -3552,25 +3630,53 @@ FD3D12RayTracingGeometry::~FD3D12RayTracingGeometry()
 		UnregisterAsRenameListener(GPUIndex);
 	}
 
-	for (TRefCountPtr<FD3D12Buffer>& Buffer : AccelerationStructureBuffers)
+	if (InitializerType != ERayTracingGeometryInitializerType::StreamingSource)
 	{
-		if (Buffer)
+		for (TRefCountPtr<FD3D12Buffer>& Buffer : AccelerationStructureBuffers)
 		{
-			DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, Buffer->GetSize());
-			DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingBLASMemory, Buffer->GetSize());
-			if (EnumHasAllFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate))
+			if (Buffer)
 			{
-				DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicBLASMemory, Buffer->GetSize());
-			}
-			else
-			{
-				DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingStaticBLASMemory, Buffer->GetSize());
+				DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingUsedVideoMemory, Buffer->GetSize());
+				DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingBLASMemory, Buffer->GetSize());
+				if (EnumHasAllFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate))
+				{
+					DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingDynamicBLASMemory, Buffer->GetSize());
+				}
+				else
+				{
+					DEC_MEMORY_STAT_BY(STAT_D3D12RayTracingStaticBLASMemory, Buffer->GetSize());
+				}
 			}
 		}
+
+		DEC_DWORD_STAT_BY(STAT_D3D12RayTracingTrianglesBLAS, TotalPrimitiveCount);
+		DEC_DWORD_STAT(STAT_D3D12RayTracingAllocatedBLAS);
 	}
 
-	DEC_DWORD_STAT_BY(STAT_D3D12RayTracingTrianglesBLAS, TotalPrimitiveCount);
-	DEC_DWORD_STAT(STAT_D3D12RayTracingAllocatedBLAS);
+	// Reset members
+	for (TRefCountPtr<FD3D12Buffer>& Buffer : AccelerationStructureBuffers)
+	{
+		Buffer.SafeRelease();
+	}	
+
+	IndexOffsetInBytes = 0;
+	TotalPrimitiveCount = 0;
+	BuildFlags = ERayTracingAccelerationStructureFlags::None;
+	GeometryType = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+	RHIIndexBuffer = nullptr;
+	AccelerationStructureCompactedSize = 0;
+	GeometryDescs = {};
+	SizeInfo = {};
+	Segments.Empty();
+	for (TArray<FHitGroupSystemParameters>& HitGroupParametersForGPU : HitGroupSystemParameters)
+	{
+		HitGroupParametersForGPU.Empty();
+	}
+}
+
+FD3D12RayTracingGeometry::~FD3D12RayTracingGeometry()
+{
+	ReleaseUnderlyingResource();
 }
 
 void FD3D12RayTracingGeometry::RegisterAsRenameListener(uint32 InGPUIndex)
@@ -3697,6 +3803,45 @@ void FD3D12RayTracingGeometry::UpdateResidency(FD3D12CommandContext& CommandCont
 
 	const uint32 GPUIndex = CommandContext.GetGPUIndex();
 	AccelerationStructureBuffers[GPUIndex]->GetResource()->UpdateResidency(CommandContext.CommandListHandle);
+}
+
+void FD3D12RayTracingGeometry::SetInitializer(const FRayTracingGeometryInitializer& Initializer)
+{
+	checkf(InitializerType == ERayTracingGeometryInitializerType::StreamingDestination, TEXT("Only FD3D12RayTracingGeometry that was created as StreamingDestination can update their initializer."));
+
+	for (uint32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS && GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
+	{
+		UnregisterAsRenameListener(GPUIndex);
+	}	
+
+	DebugName = Initializer.DebugName.IsValid() ? Initializer.DebugName : FName(TEXT("BLAS"));
+
+	IndexOffsetInBytes = Initializer.IndexBufferOffset;
+	TotalPrimitiveCount = Initializer.TotalPrimitiveCount;
+
+	GeometryType = TranslateRayTracingGeometryType(Initializer.GeometryType);
+
+	BuildFlags = GetRayTracingAccelerationStructureBuildFlags(Initializer);
+
+	checkf(Initializer.Segments.Num() > 0, TEXT("Ray tracing geometry must be initialized with at least one segment."));
+	Segments = TArray<FRayTracingGeometrySegment>(Initializer.Segments.GetData(), Initializer.Segments.Num());
+
+	RHIIndexBuffer = Initializer.IndexBuffer;
+	
+	GeometryDescs.SetNumUninitialized(Segments.Num());
+	TranslateRayTracingGeometryDescs(Initializer, GeometryDescs);
+	
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	RHICmdList.EnqueueLambda(
+		[this](FRHICommandListImmediate& RHICmdList)
+		{
+			for (uint32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS && GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
+			{				
+				RegisterAsRenameListener(GPUIndex);
+				SetupHitGroupSystemParameters(GPUIndex);		
+			}
+		}
+	);
 }
 
 void FD3D12RayTracingGeometry::SetupHitGroupSystemParameters(uint32 InGPUIndex)

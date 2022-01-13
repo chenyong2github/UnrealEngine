@@ -110,6 +110,10 @@ protected:
 
 	/** The intermediate buffers created in the update process. */
 	FIntermediateBuffers IntermediateBuffersArray[MAX_MESH_LOD_COUNT];
+	
+#if RHI_RAYTRACING
+	FRayTracingGeometry IntermediateRayTracingGeometry[MAX_MESH_LOD_COUNT];
+#endif
 
 private:
 	template <bool bRenderThread>

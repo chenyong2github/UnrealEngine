@@ -1444,6 +1444,10 @@ void FStaticMeshLODResources::DiscardCPUData()
 		AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.Discard();
 		AdditionalIndexBuffers->WireframeIndexBuffer.Discard();
 	}
+	
+#if RHI_RAYTRACING
+	RayTracingGeometry.RawData.Discard();
+#endif
 }
 
 /*------------------------------------------------------------------------------
@@ -1788,11 +1792,16 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 		ENQUEUE_RENDER_COMMAND(InitRayTracingGeometryForInlinedLODs)(
 			[this](FRHICommandListImmediate&)
 			{
-				for (int32 LODIndex = CurrentFirstLODIdx; LODIndex < LODResources.Num(); ++LODIndex)
+				for (int32 LODIndex = 0; LODIndex < LODResources.Num(); ++LODIndex)
 				{
 					// Skip LODs that have their render data stripped
 					if (LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 					{
+						if (LODIndex < CurrentFirstLODIdx)
+						{
+							LODResources[LODIndex].RayTracingGeometry.Initializer.Type = ERayTracingGeometryInitializerType::StreamingDestination;
+						}
+
 						LODResources[LODIndex].RayTracingGeometry.InitResource();
 					}
 				}

@@ -86,13 +86,15 @@ public:
 	virtual FRayTracingAccelerationStructureAddress GetAccelerationStructureAddress(uint64 GPUIndex) const final override { return Address; }
 	virtual uint32 GetNumSegments() const final override { return Initializer.Segments.Num(); }
 	virtual FRayTracingAccelerationStructureSize GetSizeInfo() const final override { return SizeInfo; }
+	virtual void SetInitializer(const FRayTracingGeometryInitializer& Initializer) final override;
 
+	void Swap(FVulkanRayTracingGeometry& Other);
 	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
 
 private:
 	FVulkanDevice* const Device = nullptr;
 
-	const FRayTracingGeometryInitializer Initializer;
+	FRayTracingGeometryInitializer Initializer;
 
 	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
 	VkDeviceAddress Address = 0;

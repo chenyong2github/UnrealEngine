@@ -272,9 +272,13 @@ FRHIRayTracingGeometry* FPrimitiveSceneInfo::GetStaticRayTracingGeometryInstance
 			RayTracingGeometries[LodLevel]->BoostBuildPriority();
 			return nullptr;
 		}
-		else
+		else if (RayTracingGeometries[LodLevel]->IsValid())
 		{
 			return RayTracingGeometries[LodLevel]->RayTracingGeometryRHI;
+		}
+		else
+		{
+			return nullptr;
 		}
 	}
 	else

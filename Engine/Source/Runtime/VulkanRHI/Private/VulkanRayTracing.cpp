@@ -342,6 +342,24 @@ FVulkanRayTracingGeometry::~FVulkanRayTracingGeometry()
 	}
 }
 
+void FVulkanRayTracingGeometry::SetInitializer(const FRayTracingGeometryInitializer& InInitializer)
+{
+	checkf(Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination, TEXT("Only FVulkanRayTracingGeometry that was created as StreamingDestination can update their initializer."));
+	Initializer = InInitializer;
+
+	// TODO: Update HitGroup Parameters
+}
+
+void FVulkanRayTracingGeometry::Swap(FVulkanRayTracingGeometry& Other)
+{
+	::Swap(Handle, Other.Handle);
+	::Swap(Address, Other.Address);
+
+	Initializer = Other.Initializer;
+	AccelerationStructureBuffer = Other.AccelerationStructureBuffer;
+	ScratchBuffer = Other.ScratchBuffer;
+}
+
 void FVulkanRayTracingGeometry::BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode)
 {
 	FVkRtBLASBuildData BuildData;
@@ -515,6 +533,25 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(
 	CommandBufferManager.PrepareForNewActiveCommandBuffer();
 
 	InstanceBuffer = nullptr;
+}
+
+void FVulkanDynamicRHI::RHITransferRayTracingGeometryUnderlyingResource(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry)
+{
+	check(DestGeometry);
+	FVulkanRayTracingGeometry* Dest = ResourceCast(DestGeometry);
+	if (!SrcGeometry)
+	{
+		FRayTracingGeometryInitializer DummyInitializer = {};
+		DummyInitializer.Type = ERayTracingGeometryInitializerType::StreamingDestination;
+		DummyInitializer.DebugName = FName(TEXT("RHITransferRayTracingGeometryUnderlyingResource"));
+		TRefCountPtr<FVulkanRayTracingGeometry> DeletionProxy = new FVulkanRayTracingGeometry(DummyInitializer, GetDevice());
+		Dest->Swap(*DeletionProxy);
+	}
+	else
+	{
+		FVulkanRayTracingGeometry* Src = ResourceCast(SrcGeometry);
+		Dest->Swap(*Src);
+	}
 }
 
 FRayTracingAccelerationStructureSize FVulkanDynamicRHI::RHICalcRayTracingSceneSize(uint32 MaxInstances, ERayTracingAccelerationStructureFlags Flags)

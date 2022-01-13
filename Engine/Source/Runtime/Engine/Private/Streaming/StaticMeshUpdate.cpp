@@ -169,6 +169,18 @@ void FStaticMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 			{
 				IntermediateBuffersArray[LODIdx].CreateFromCPUData_Async(LODResource);
 			}
+
+#if RHI_RAYTRACING
+			if (IsRayTracingEnabled() && Context.Mesh->bSupportRayTracing &&
+				LODResource.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
+			{
+				FRayTracingGeometryInitializer Initializer;
+				Context.LODResourcesView[LODIdx]->SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
+				Initializer.Type = ERayTracingGeometryInitializerType::StreamingSource;
+				IntermediateRayTracingGeometry[LODIdx].SetInitializer(Initializer);
+				IntermediateRayTracingGeometry[LODIdx].CreateRayTracingGeometryFromCPUData(LODResource.RayTracingGeometry.RawData);
+			}
+#endif
 		}
 	}
 }
@@ -213,6 +225,21 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 				FStaticMeshLODResources& LODResource = *Context.LODResourcesView[LODIdx];
 				LODResource.IncrementMemoryStats();
 				IntermediateBuffersArray[LODIdx].TransferBuffers(LODResource, Batcher);
+
+#if RHI_RAYTRACING
+				if (IsRayTracingEnabled() && Context.Mesh->bSupportRayTracing &&
+					LODResource.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
+				{
+					check(LODResource.RayTracingGeometry.RayTracingGeometryRHI != nullptr);
+					check(IntermediateRayTracingGeometry[LODIdx].RayTracingGeometryRHI != nullptr);
+					LODResource.RayTracingGeometry.InitRHIForStreaming(IntermediateRayTracingGeometry[LODIdx].RayTracingGeometryRHI, Batcher);
+
+					LODResource.RayTracingGeometry.bRequiresBuild = IntermediateRayTracingGeometry[LODIdx].bRequiresBuild;
+
+					IntermediateRayTracingGeometry[LODIdx].Initializer = {};
+					IntermediateRayTracingGeometry[LODIdx].RayTracingGeometryRHI.SafeRelease();				
+				}
+#endif
 			}
 		}
 
@@ -222,15 +249,17 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 		{
 			for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 			{
+				FStaticMeshLODResources& LODResource = *Context.LODResourcesView[LODIndex];
+
 				// Skip LODs that have their render data stripped
-				if (Context.LODResourcesView[LODIndex]->VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
+				if (LODResource.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 				{
 					// Rebuild the initializer because it could have been reset during a previous release
 					FRayTracingGeometryInitializer Initializer;
-					Context.LODResourcesView[LODIndex]->SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
-					Context.LODResourcesView[LODIndex]->RayTracingGeometry.SetInitializer(Initializer);
+					LODResource.SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
+					LODResource.RayTracingGeometry.SetInitializer(Initializer);
 
-					Context.LODResourcesView[LODIndex]->RayTracingGeometry.InitResource();
+					LODResource.RayTracingGeometry.RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority::Normal);
 				}
 			}
 
@@ -246,6 +275,11 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 		for (int32 LODIdx = PendingFirstLODIdx; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 		{
 			IntermediateBuffersArray[LODIdx].SafeRelease();
+
+#if RHI_RAYTRACING
+			IntermediateRayTracingGeometry[LODIdx].Initializer = {};
+			IntermediateRayTracingGeometry[LODIdx].RayTracingGeometryRHI.SafeRelease();
+#endif
 		}
 	}
 }
@@ -352,7 +386,7 @@ void FStaticMeshStreamOut::ReleaseRHIBuffers(const FContext& Context)
 #if RHI_RAYTRACING
 			if (IsRayTracingEnabled())
 			{
-				LODResource.RayTracingGeometry.ReleaseResource();
+				LODResource.RayTracingGeometry.ReleaseRHIForStreaming(Batcher);
 			}
 #endif
 		}

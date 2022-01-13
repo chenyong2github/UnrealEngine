@@ -33,6 +33,7 @@ public:
 	}
 	virtual uint32 GetNumSegments() const final override { return Segments.Num(); }
 	virtual FRayTracingAccelerationStructureSize GetSizeInfo() const final override { return SizeInfo; }
+	virtual void SetInitializer(const FRayTracingGeometryInitializer& Initializer) final override;
 
 	void SetupHitGroupSystemParameters(uint32 InGPUIndex);
 	void TransitionBuffers(FD3D12CommandContext& CommandContext);
@@ -46,6 +47,10 @@ public:
 
 	void RegisterAsRenameListener(uint32 InGPUIndex);
 	void UnregisterAsRenameListener(uint32 InGPUIndex);
+
+	void Swap(FD3D12RayTracingGeometry& Other);
+
+	void ReleaseUnderlyingResource();
 
 	bool bIsAccelerationStructureDirty[MAX_NUM_GPUS] = {};
 	void SetDirty(FRHIGPUMask GPUMask, bool bState)
@@ -88,6 +93,8 @@ public:
 
 	uint64 AccelerationStructureCompactedSize = 0;
 	FRayTracingAccelerationStructureSize SizeInfo = {};
+
+	ERayTracingGeometryInitializerType InitializerType;
 };
 
 class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12AdapterChild, public FNoncopyable

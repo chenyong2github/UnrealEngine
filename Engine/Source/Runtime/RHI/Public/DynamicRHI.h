@@ -147,6 +147,19 @@ enum ERayTracingGeometryType
 };
 DECLARE_INTRINSIC_TYPE_LAYOUT(ERayTracingGeometryType);
 
+enum class ERayTracingGeometryInitializerType
+{
+	// Fully initializes the RayTracingGeometry object: creates underlying buffer and initializes shader parameters.
+	Rendering,
+
+	// Does not create underlying buffer or shader parameters. Used by the streaming system as an object that is streamed into. 
+	StreamingDestination,
+
+	// Creates buffers but does not create shader parameters. Used for intermediate objects in the streaming system.
+	StreamingSource, 
+};
+DECLARE_INTRINSIC_TYPE_LAYOUT(ERayTracingGeometryInitializerType);
+
 struct FRayTracingGeometrySegment
 {
 	DECLARE_TYPE_LAYOUT(FRayTracingGeometrySegment, NonVirtual);
@@ -208,6 +221,7 @@ public:
 	LAYOUT_FIELD_INITIALIZED(bool, bFastBuild, false);
 	LAYOUT_FIELD_INITIALIZED(bool, bAllowUpdate, false);
 	LAYOUT_FIELD_INITIALIZED(bool, bAllowCompaction, true);
+	LAYOUT_FIELD_INITIALIZED(ERayTracingGeometryInitializerType, Type, ERayTracingGeometryInitializerType::Rendering);
 
 	LAYOUT_FIELD(FName, DebugName);
 };
@@ -1533,6 +1547,11 @@ public:
 	{
 		checkNoEntry();
 		return nullptr;
+	}
+
+	virtual void RHITransferRayTracingGeometryUnderlyingResource(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry)
+	{
+		checkNoEntry();
 	}
 #endif // RHI_RAYTRACING
 

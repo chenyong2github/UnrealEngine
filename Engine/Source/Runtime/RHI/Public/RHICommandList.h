@@ -2047,6 +2047,12 @@ struct FRHIBufferUpdateInfo
 	FRHIBuffer* SrcBuffer;
 };
 
+struct FRHIRayTracingGeometryUpdateInfo
+{
+	FRHIRayTracingGeometry* DestGeometry;
+	FRHIRayTracingGeometry* SrcGeometry;
+};
+
 struct FRHIResourceUpdateInfo
 {
 	enum EUpdateType
@@ -2057,6 +2063,8 @@ struct FRHIResourceUpdateInfo
 		UT_BufferSRV,
 		/** Update an SRV to view on a different buffer with a given format */
 		UT_BufferFormatSRV,
+		/** Take over underlying resource from an intermediate geometry */
+		UT_RayTracingGeometry,
 		/** Number of update types */
 		UT_Num
 	};
@@ -2066,6 +2074,7 @@ struct FRHIResourceUpdateInfo
 	{
 		FRHIBufferUpdateInfo Buffer;
 		FRHIShaderResourceViewUpdateInfo BufferSRV;
+		FRHIRayTracingGeometryUpdateInfo RayTracingGeometry;
 	};
 
 	void ReleaseRefs();
@@ -5726,6 +5735,18 @@ struct TRHIResourceUpdateBatcher
 		if (SrcBuffer)
 		{
 			SrcBuffer->AddRef();
+		}
+	}
+
+	void QueueUpdateRequest(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry)
+	{
+		FRHIResourceUpdateInfo& UpdateInfo = GetNextUpdateInfo();
+		UpdateInfo.Type = FRHIResourceUpdateInfo::UT_RayTracingGeometry;
+		UpdateInfo.RayTracingGeometry = { DestGeometry, SrcGeometry };
+		DestGeometry->AddRef();
+		if (SrcGeometry)
+		{
+			SrcGeometry->AddRef();
 		}
 	}
 

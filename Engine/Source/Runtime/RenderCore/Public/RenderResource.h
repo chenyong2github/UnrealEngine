@@ -699,6 +699,34 @@ public:
 		Initializer = InInitializer;
 	}
 
+	bool IsValid() const;
+
+	template <uint32 MaxNumUpdates>
+	void InitRHIForStreaming(FRHIRayTracingGeometry* IntermediateGeometry, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		if (RayTracingGeometryRHI && IntermediateGeometry)
+		{
+			Batcher.QueueUpdateRequest(RayTracingGeometryRHI, IntermediateGeometry);
+			bValid = true;
+		}
+	}
+
+	template <uint32 MaxNumUpdates>
+	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	{
+		Initializer = {};
+
+		RemoveBuildRequest();
+
+		if (RayTracingGeometryRHI)
+		{
+			Batcher.QueueUpdateRequest(RayTracingGeometryRHI, nullptr);
+			bValid = false;
+		}		
+	}
+	void CreateRayTracingGeometryFromCPUData(TResourceArray<uint8>& OfflineData);
+	void RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority InBuildPriority);
+
 	void CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority);
 
 	bool HasPendingBuildRequest() const
@@ -715,12 +743,12 @@ public:
 	virtual void ReleaseRHI() override;
 
 	virtual void ReleaseResource() override;
-
 protected:
+	void RemoveBuildRequest();
 
 	friend class FRayTracingGeometryManager;
 	int32 RayTracingBuildRequestIndex = INDEX_NONE;
-
+	bool bValid = false;
 #endif
 };
 

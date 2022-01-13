@@ -1777,6 +1777,11 @@ public:
 	{
 		return RHI->RHICalcRayTracingGeometrySize(Initializer);
 	}
+
+	void RHITransferRayTracingGeometryUnderlyingResource(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry) override final
+	{
+		RHI->RHITransferRayTracingGeometryUnderlyingResource(DestGeometry, SrcGeometry);
+	}
 #endif // RHI_RAYTRACING
 
 

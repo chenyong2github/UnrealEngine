@@ -635,6 +635,12 @@ void FRHIResourceUpdateInfo::ReleaseRefs()
 			BufferSRV.Buffer->Release();
 		}
 		break;
+	case UT_RayTracingGeometry:
+		RayTracingGeometry.DestGeometry->Release();
+		if (RayTracingGeometry.SrcGeometry)
+		{
+			RayTracingGeometry.SrcGeometry->Release();
+		}
 	default:
 		// Unrecognized type, do nothing
 		break;
@@ -677,6 +683,13 @@ void FRHICommandUpdateRHIResources::Execute(FRHICommandListBase& CmdList)
 				Info.BufferSRV.SRV,
 				Info.BufferSRV.Buffer);
 			break;
+#if RHI_RAYTRACING
+		case FRHIResourceUpdateInfo::UT_RayTracingGeometry:
+			GDynamicRHI->RHITransferRayTracingGeometryUnderlyingResource(
+				Info.RayTracingGeometry.DestGeometry,
+				Info.RayTracingGeometry.SrcGeometry);
+			break;
+#endif // RHI_RAYTRACING
 		default:
 			// Unrecognized type, do nothing
 			break;

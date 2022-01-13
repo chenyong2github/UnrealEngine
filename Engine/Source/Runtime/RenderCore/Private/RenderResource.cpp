@@ -380,6 +380,35 @@ TGlobalResource<FNullVertexBuffer> GNullVertexBuffer;
 
 #if RHI_RAYTRACING
 
+void FRayTracingGeometry::CreateRayTracingGeometryFromCPUData(TResourceArray<uint8>& OfflineData)
+{
+	check(OfflineData.Num() == 0 || Initializer.OfflineData == nullptr);
+	if (OfflineData.Num())
+	{
+		Initializer.OfflineData = &OfflineData;
+	}
+
+	if (GVarDebugForceRuntimeBLAS && Initializer.OfflineData != nullptr)
+	{
+		Initializer.OfflineData->Discard();
+		Initializer.OfflineData = nullptr;
+	}
+
+	bRequiresBuild = Initializer.OfflineData == nullptr;		
+	RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
+}
+
+void FRayTracingGeometry::RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority InBuildPriority)
+{
+	RayTracingGeometryRHI->SetInitializer(Initializer);
+
+	if (bRequiresBuild)
+	{
+		RayTracingBuildRequestIndex = GRayTracingGeometryManager.RequestBuildAccelerationStructure(this, InBuildPriority);
+		bRequiresBuild = false;
+	}	
+}
+
 void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority)
 {
 	// Release previous RHI object if any
@@ -407,8 +436,10 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 		}
 	}
 
-	if (bAllSegmentsAreValid)
+	const bool bWithoutNativeResource = Initializer.Type == ERayTracingGeometryInitializerType::StreamingDestination;
+	if (bAllSegmentsAreValid || bWithoutNativeResource)
 	{
+		bValid = !bWithoutNativeResource;
 		RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
 		if (Initializer.OfflineData == nullptr)
 		{
@@ -434,22 +465,35 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 	}
 }
 
+bool FRayTracingGeometry::IsValid() const
+{
+	return RayTracingGeometryRHI != nullptr && Initializer.TotalPrimitiveCount > 0 && bValid;
+}
+
 void FRayTracingGeometry::InitRHI()
 {
 	if (!IsRayTracingEnabled())
 		return;
 
-	CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Normal);
+	ERTAccelerationStructureBuildPriority BuildPriority = Initializer.Type != ERayTracingGeometryInitializerType::Rendering
+		? ERTAccelerationStructureBuildPriority::Skip
+		: ERTAccelerationStructureBuildPriority::Normal;
+	CreateRayTracingGeometry(BuildPriority);
 }
 
 void FRayTracingGeometry::ReleaseRHI()
+{
+	RemoveBuildRequest();
+	RayTracingGeometryRHI.SafeRelease();
+}
+
+void FRayTracingGeometry::RemoveBuildRequest()
 {
 	if (HasPendingBuildRequest())
 	{
 		GRayTracingGeometryManager.RemoveBuildRequest(RayTracingBuildRequestIndex);
 		RayTracingBuildRequestIndex = INDEX_NONE;
 	}
-	RayTracingGeometryRHI.SafeRelease();
 }
 
 void FRayTracingGeometry::ReleaseResource()
