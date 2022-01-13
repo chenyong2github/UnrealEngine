@@ -40,30 +40,4 @@ void FLandscapeSplineActorDesc::Serialize(FArchive& Ar)
 		Ar << LandscapeGuid;
 	}
 }
-
-void FLandscapeSplineActorDesc::OnRegister(UWorld* InWorld)
-{
-	FWorldPartitionActorDesc::OnRegister(InWorld);
-
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::FindOrCreate(Container->GetWorld(), LandscapeGuid))
-	{
-		FWorldPartitionHandle Handle(Container, GetGuid());
-		check(Handle.IsValid());
-		LandscapeInfo->SplineHandles.Add(MoveTemp(Handle));
-	}
-}
-
-void FLandscapeSplineActorDesc::OnUnregister()
-{
-	FWorldPartitionActorDesc::OnUnregister();
-
-	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(Container->GetWorld(), LandscapeGuid))
-	{
-		FWorldPartitionHandle Handle(Container, GetGuid());
-		if (Handle.IsValid())
-		{
-			LandscapeInfo->SplineHandles.Remove(Handle);
-		}
-	}
-}
 #endif
