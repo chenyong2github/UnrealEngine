@@ -70,19 +70,64 @@ namespace Chaos
 	};
 
 	/**
-	 * Task responsible for processing the command buffer of a single solver and advancing it by
-	 * a specified delta before completing.
+	 * Task responsible for processing the command buffer of a single solver and preparing data before solver task and callbacks are run
+	 */
+	class CHAOS_API FPhysicsSolverProcessPushDataTask
+	{
+	public:
+
+		FPhysicsSolverProcessPushDataTask(FPhysicsSolverBase& InSolver, FPushPhysicsData* InPushData)
+			: Solver(InSolver)
+			, PushData(InPushData){}
+
+		TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FPhysicsSolverProcessPushDataTask, STATGROUP_TaskGraphTasks); }
+		static ENamedThreads::Type GetDesiredThread();
+		static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) { ProcessPushData(); }
+		void ProcessPushData();
+
+	private:
+
+		FPhysicsSolverBase& Solver;
+		FPushPhysicsData* PushData;
+	};
+
+	/**
+	 * Task responsible for triggering any game thread callbacks before solver can advance (not scheduled if none are registered)
+	 */
+	class CHAOS_API FPhysicsSolverFrozenGTPreSimCallbacks
+	{
+	public:
+
+		FPhysicsSolverFrozenGTPreSimCallbacks(FPhysicsSolverBase& InSolver) : Solver(InSolver) {}
+
+		TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FPhysicsSolverFrozenGTPreSimCallbacks, STATGROUP_TaskGraphTasks); }
+		static ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
+		static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) { GTPreSimCallbacks(); }
+		void GTPreSimCallbacks();
+
+	private:
+
+		FPhysicsSolverBase& Solver;
+	};
+
+	/**
+	 * Task responsible for advancing the solver once data has been prepared and GT callbacks have fired
 	 */
 	class CHAOS_API FPhysicsSolverAdvanceTask
 	{
 	public:
 
-		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData& PushData);
+		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData* InPushData)
+			: Solver(InSolver)
+			, PushData(InPushData)
+		{}
 
-		TStatId GetStatId() const;
+		TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FPhysicsSolverAdvanceTask, STATGROUP_TaskGraphTasks); }
 		static ENamedThreads::Type GetDesiredThread();
-		static ESubsequentsMode::Type GetSubsequentsMode();
-		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+		static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) { AdvanceSolver(); }
 		void AdvanceSolver();
 
 	private:
@@ -91,6 +136,26 @@ namespace Chaos
 		FPushPhysicsData* PushData;
 	};
 
+	struct FAllSolverTasks
+	{
+		FAllSolverTasks(FPhysicsSolverBase& Solver, FPushPhysicsData* PushData)
+			: ProcessPushData(Solver, PushData)
+			, GTPreSimCallbacks(Solver)
+			, AdvanceTask(Solver, PushData)
+		{
+		}
+
+		FPhysicsSolverProcessPushDataTask ProcessPushData;
+		FPhysicsSolverFrozenGTPreSimCallbacks GTPreSimCallbacks;
+		FPhysicsSolverAdvanceTask AdvanceTask;
+
+		void AdvanceSolver()
+		{
+			ProcessPushData.ProcessPushData();
+			GTPreSimCallbacks.GTPreSimCallbacks();
+			AdvanceTask.AdvanceSolver();
+		}
+	};
 
 	class FPersistentPhysicsTask;
 
@@ -157,6 +222,15 @@ namespace Chaos
 		inline TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External(bool bContactModification = false, bool bRegisterRewindCallback = false)
 		{
 			auto NewCallbackObject = new TSimCallbackObjectType();
+			//If at least one callback is on frozen GT we mark it as such
+			//Note this is never cleaned up (to avoid race conditions of register/unregister).
+			//Expectation is that there's typically just one of these on frozen gt that triggers all the fixed tick on gt (maybe two if another system wants direct control)
+			//This means we don't expect to optimize for the case where a gt callback goes away half way through sim
+			if (NewCallbackObject->RunOnFrozenGameThread())
+			{
+				bSolverHasFrozenGameThreadCallbacks = true;
+			}
+
 			RegisterSimCallbackObject_External(NewCallbackObject, bContactModification);
 			if (bRegisterRewindCallback)
 			{
@@ -301,13 +375,28 @@ namespace Chaos
 		}
 #endif
 
-		void ApplyCallbacks_Internal(const FReal SimTime, const FReal Dt)
+		bool OnFrozenGameThread() const { return bOnFrozenGameThread; }
+		void SetOnFrozenGameThread(bool InOnFrozenGameThread)
+		{
+			bOnFrozenGameThread = InOnFrozenGameThread;
+		}
+
+		void ApplyCallbacks_Internal()
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(ApplySimCallbacks);
-			for (ISimCallbackObject* Callback : SimCallbackObjects)
+
+			//if delta time is 0 we are flushing data, user callbacks should not be triggered because there is no sim
+			if(MLastDt > 0)
 			{
-				Callback->SetSimAndDeltaTime_Internal(SimTime, Dt);
-				Callback->PreSimulate_Internal();
+				const FReal SimTime = GetSolverTime();
+				for (ISimCallbackObject* Callback : SimCallbackObjects)
+				{
+					if (Callback->RunOnFrozenGameThread() == bOnFrozenGameThread)
+					{
+						Callback->SetSimAndDeltaTime_Internal(SimTime, MLastDt);
+						Callback->PreSimulate_Internal();
+					}
+				}
 			}
 		}
 
@@ -402,6 +491,14 @@ namespace Chaos
 			}
 		}
 
+		/**/
+		void SetSolverTime(const FReal InTime) { MTime = InTime; }
+		const FReal GetSolverTime() const { return MTime; }
+
+
+		/**/
+		FReal GetLastDt() const { return MLastDt; }
+
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
 		EMultiBufferMode BufferMode;
@@ -422,7 +519,8 @@ namespace Chaos
 		FPhysicsSolverBase& operator =(const FPhysicsSolverBase& InCopy) = delete;
 		FPhysicsSolverBase& operator =(FPhysicsSolverBase&& InSteal) = delete;
 
-		virtual void AdvanceSolverBy(const FReal Dt, const FSubStepInfo& SubStepInfo = FSubStepInfo()) = 0;
+		virtual void PrepareAdvanceBy(const FReal Dt) = 0;
+		virtual void AdvanceSolverBy(const FSubStepInfo& SubStepInfo = FSubStepInfo()) = 0;
 		virtual void PushPhysicsState(const FReal Dt, const int32 NumSteps, const int32 NumExternalSteps) = 0;
 		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushDataArray) = 0;
 		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) = 0;
@@ -446,6 +544,11 @@ namespace Chaos
 	bool bUseCollisionResimCache;
 
 	FGraphEventRef PendingTasks;
+
+	bool bSolverHasFrozenGameThreadCallbacks = false;
+	bool bOnFrozenGameThread = false;
+	FReal MLastDt = FReal(0);
+	FReal MTime = FReal(0);
 
 	private:
 
@@ -480,6 +583,7 @@ namespace Chaos
 		TUniquePtr<FPhysSceneLock> ExternalDataLock_External;
 
 		friend FChaosSolversModule;
+		friend FPhysicsSolverProcessPushDataTask;
 		friend FPhysicsSolverAdvanceTask;
 
 		template<ELockType>
@@ -533,7 +637,7 @@ namespace Chaos
 	private:
 		// instead of running advance task in single threaded, put in array for manual execution control for unit tests.
 		bool bStealAdvanceTasksForTesting;
-		TArray<FPhysicsSolverAdvanceTask> StolenSolverAdvanceTasks;
+		TArray<FAllSolverTasks> StolenSolverAdvanceTasks;
 	public:
 		void SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting);
 		void PopAndExecuteStolenAdvanceTask_ForTesting();

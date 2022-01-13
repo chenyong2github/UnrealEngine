@@ -264,12 +264,8 @@ namespace Chaos
 		{
 			LLM_SCOPE(ELLMTag::ChaosUpdate);
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
-			MSolver->StartingSceneSimulation();
 
-			if(MDeltaTime > 0)	//if delta time is 0 we are flushing data, user callbacks should not be triggered because there is no sim
-			{
-				MSolver->ApplyCallbacks_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
-			}
+			MSolver->ApplyCallbacks_Internal();
 			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
 			
 			{
@@ -391,7 +387,7 @@ namespace Chaos
 
 			MSolver->FinalizeCallbackData_Internal();
 
-			MSolver->GetSolverTime() += MDeltaTime;
+			MSolver->SetSolverTime(MSolver->GetSolverTime() + MDeltaTime );
 			MSolver->GetCurrentFrame()++;
 			MSolver->PostTickDebugDraw(MDeltaTime);
 
@@ -427,8 +423,6 @@ namespace Chaos
 	FPBDRigidsSolver::FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner, FReal InAsyncDt)
 		: Super(BufferingModeIn, BufferingModeIn == EMultiBufferMode::Single ? EThreadingModeTemp::SingleThread : EThreadingModeTemp::TaskGraph, InOwner, InAsyncDt)
 		, CurrentFrame(0)
-		, MTime(0.0)
-		, MLastDt(0.0)
 		, bHasFloor(true)
 		, bIsFloorAnalytic(false)
 		, FloorHeight(0.f)
@@ -791,9 +785,8 @@ namespace Chaos
 			GetEvolution()->GetCollisionConstraints();
 	}
 
-	void FPBDRigidsSolver::AdvanceSolverBy(const FReal DeltaTime, const FSubStepInfo& SubStepInfo)
+	void FPBDRigidsSolver::PrepareAdvanceBy(const FReal DeltaTime)
 	{
-		const FReal StartSimTime = GetSolverTime();
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = (ChaosSolverCollisionDeferNarrowPhase != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);
 		
@@ -853,13 +846,21 @@ namespace Chaos
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::Tick(%3.5f)"), DeltaTime);
 		MLastDt = DeltaTime;
 		EventPreSolve.Broadcast(DeltaTime);
-		AdvanceOneTimeStepTask(this, DeltaTime, SubStepInfo).DoWork();
 
-		if(DeltaTime > 0)
+		StartingSceneSimulation();
+	}
+
+	void FPBDRigidsSolver::AdvanceSolverBy(const FSubStepInfo& SubStepInfo)
+	{
+		const FReal StartSimTime = GetSolverTime();
+
+		AdvanceOneTimeStepTask(this, MLastDt, SubStepInfo).DoWork();
+
+		if (MLastDt > 0)
 		{
 			//pass information back to external thread
 			//we skip dt=0 case because sync data should be identical if dt = 0
-			MarshallingManager.FinalizePullData_Internal(MEvolution->LatestExternalTimestampConsumed_Internal, StartSimTime, DeltaTime);
+			MarshallingManager.FinalizePullData_Internal(MEvolution->LatestExternalTimestampConsumed_Internal, StartSimTime, MLastDt);
 		}
 
 		if(SubStepInfo.Step == SubStepInfo.NumSteps - 1)
@@ -1236,7 +1237,8 @@ namespace Chaos
 						}
 
 						MRewindCallback->PreResimStep_Internal(Step, bFirst);
-						FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
+						FAllSolverTasks ImmediateTask(*this, PushData);
+						ensure(bSolverHasFrozenGameThreadCallbacks == false);	//We don't support this for resim as it's very expensive and difficult to schedule
 						ImmediateTask.AdvanceSolver();
 						MRewindCallback->PostResimStep_Internal(Step);
 

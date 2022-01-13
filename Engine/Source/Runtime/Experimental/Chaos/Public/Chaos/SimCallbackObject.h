@@ -80,10 +80,12 @@ public:
 	virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) { ensure(false); return INDEX_NONE; }
 	virtual void ApplyCorrections_Internal(int32 PhysicsStep, FSimCallbackInput* Input) { ensure(false); }
 	virtual void FirstPreResimStep_Internal(int32 PhysicsStep) { }
+
+	bool RunOnFrozenGameThread() const { return bRunOnFrozenGameThread; }
 	
 protected:
 
-	ISimCallbackObject()
+	ISimCallbackObject(bool InRunOnFrozenGameThread = false)
 	: bPendingDelete(false)
 	, bPendingDelete_External(false)
 	, bContactModification(false)
@@ -91,6 +93,7 @@ protected:
 	, Solver(nullptr)
 	, CurrentOutput_Internal(nullptr)
 	, CurrentInput_Internal(nullptr)
+	, bRunOnFrozenGameThread(InRunOnFrozenGameThread)
 	{
 	}
 
@@ -170,6 +173,7 @@ private:
 
 	FReal SimTime_Internal;
 	FReal DeltaTime_Internal;
+	bool bRunOnFrozenGameThread;
 };
 
 /** Simple callback command object. Commands are typically passed in as lambdas and there's no need for data management. Should not be used directly, see FPhysicsSolverBase::EnqueueCommand */
@@ -217,8 +221,9 @@ class TSimCallbackObject : public ISimCallbackObject
 {
 public:
 
-	TSimCallbackObject()
-	: CurrentOutput_External(nullptr)
+	TSimCallbackObject(bool InRunOnFrozenGameThread = false)
+	: ISimCallbackObject(InRunOnFrozenGameThread)
+	, CurrentOutput_External(nullptr)
 	{
 	}
 
