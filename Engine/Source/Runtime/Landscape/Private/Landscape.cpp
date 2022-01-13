@@ -73,6 +73,7 @@ Landscape.cpp: Terrain rendering
 #include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
 #include "WorldPartition/Landscape/LandscapeSplineActorDesc.h"
@@ -3641,23 +3642,33 @@ FBox ULandscapeInfo::GetCompleteBounds() const
 
 	FBox Bounds(EForceInit::ForceInit);
 
-	for (const FWorldPartitionHandle& ProxyHandle : ProxyHandles)
+	if (UWorldPartition* WorldPartition = Landscape->GetWorld()->GetWorldPartition())
 	{
-		// Skip owning landscape actor
-		ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(ProxyHandle->GetActor());
-		if (LandscapeProxy == Landscape)
+		FWorldPartitionHelpers::ForEachActorDesc<ALandscapeProxy>(WorldPartition, [this, &Bounds, Landscape](const FWorldPartitionActorDesc* ActorDesc)
 		{
-			continue;
-		}
-		else if (LandscapeProxy)
-		{
-			// Prioritize loaded bounds, as the bounds in the actor desc might not be up-to-date
-			LandscapeInfoBoundsHelper::AccumulateBounds(LandscapeProxy, Bounds);
-		}
-		else
-		{
-			Bounds += ProxyHandle->GetBounds();
-		}
+			FLandscapeActorDesc* LandscapeActorDesc = (FLandscapeActorDesc*)ActorDesc;
+
+			if (LandscapeActorDesc->GridGuid == LandscapeGuid)
+			{
+				ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(ActorDesc->GetActor());
+
+				// Skip owning landscape actor
+				if (LandscapeProxy != Landscape)
+				{
+					if (LandscapeProxy)
+					{
+						// Prioritize loaded bounds, as the bounds in the actor desc might not be up-to-date
+						LandscapeInfoBoundsHelper::AccumulateBounds(LandscapeProxy, Bounds);
+					}
+					else
+					{
+						Bounds += ActorDesc->GetBounds();
+					}
+				}
+			}
+
+			return true;
+		});
 	}
 
 	return Bounds;

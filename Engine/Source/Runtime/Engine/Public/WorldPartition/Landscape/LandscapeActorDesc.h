@@ -17,8 +17,6 @@ public:
 	virtual void Unload() override;
 
 protected:
-	virtual void OnRegister(UWorld* InWorld) override;
-	virtual void OnUnregister() override;
 	virtual void Serialize(FArchive& Ar) override;
 #endif
 };
