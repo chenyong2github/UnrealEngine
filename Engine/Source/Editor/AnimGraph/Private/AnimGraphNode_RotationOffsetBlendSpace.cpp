@@ -329,5 +329,16 @@ void UAnimGraphNode_RotationOffsetBlendSpace::CustomizeDetails(IDetailLayoutBuil
 	}
 }
 
+UAnimationAsset* UAnimGraphNode_RotationOffsetBlendSpace::GetAnimationAsset() const 
+{
+	UBlendSpace* BlendSpace = Node.GetBlendSpace();
+	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RotationOffsetBlendSpace, BlendSpace));
+	if (BlendSpacePin != nullptr && BlendSpace == nullptr)
+	{
+		BlendSpace = Cast<UBlendSpace>(BlendSpacePin->DefaultObject);
+	}
+
+	return BlendSpace;
+}
 
 #undef LOCTEXT_NAMESPACE
