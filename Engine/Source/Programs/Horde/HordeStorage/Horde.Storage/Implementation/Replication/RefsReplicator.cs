@@ -539,8 +539,5 @@ namespace Horde.Storage.Implementation
             LastEvent = null;
             LastBucket = null;
         }
-
-        public Guid? LastEvent { get; set; }
-        public string? LastBucket { get; set; }
     }
 }

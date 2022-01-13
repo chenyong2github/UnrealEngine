@@ -12,6 +12,8 @@ namespace Horde.Storage.Implementation
         {
             public long? ReplicatorOffset { get; set; }
             public Guid? ReplicatingGeneration { get; set; }
+            public string? LastBucket { get; set; }
+            public Guid? LastEvent { get; set; }
         }
 
         public class ReplicatorInfo

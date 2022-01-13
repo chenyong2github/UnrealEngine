@@ -61,6 +61,9 @@ namespace Horde.Storage.Controllers
                     Offset = replicator.Info.State.ReplicatorOffset ?? 0,
                     Generation = replicator.Info.State.ReplicatingGeneration ?? Guid.Empty,
 
+                    LastEvent = replicator.Info.State.LastEvent ?? Guid.Empty,
+                    LastBucket = replicator.Info.State.LastBucket ?? "",
+
                     LastReplicationRun = replicator.Info.LastRun,
                     CountOfRunningReplications = replicator.Info.CountOfRunningReplications,
                 })
@@ -203,5 +206,7 @@ namespace Horde.Storage.Controllers
         public Guid? Generation { get; set; }
         public DateTime LastReplicationRun { get; set; }
         public int CountOfRunningReplications { get; set; }
+        public string? LastBucket { get; set; }
+        public Guid LastEvent { get; set; }
     }
 }
