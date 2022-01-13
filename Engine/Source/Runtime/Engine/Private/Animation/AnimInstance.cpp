@@ -3173,7 +3173,11 @@ UAnimInstance* UAnimInstance::GetLinkedAnimLayerInstanceByGroup(FName InGroup) c
 			const FAnimNode_LinkedAnimLayer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(this);
 
 			UClass* ClassForGroups;
-			if(UClass* InterfaceClass = Layer->Interface.Get())
+			if (UClass* InstanceClass = Layer->InstanceClass.Get())
+			{
+				ClassForGroups = InstanceClass;
+			}
+			else if(UClass* InterfaceClass = Layer->Interface.Get())
 			{
 				ClassForGroups = InterfaceClass;
 			}
