@@ -15,5 +15,12 @@ public class CoreOnline : ModuleRules
 		);
 
 		PrivateDefinitions.Add("COREONLINE_PACKAGE=1");
+		PublicDefinitions.Add("PLATFORM_MAX_LOCAL_PLAYERS=" + GetPlatformMaxLocalPlayers(Target));
+	}
+
+	protected virtual int GetPlatformMaxLocalPlayers(ReadOnlyTargetRules Target)
+	{
+		// 0 indicates no platform override
+		return 0;
 	}
 }

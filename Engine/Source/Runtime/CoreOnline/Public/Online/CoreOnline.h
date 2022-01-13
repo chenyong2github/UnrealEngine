@@ -12,6 +12,17 @@
 
 class FLazySingleton;
 
+/** Maximum players supported on a given platform */
+#if !defined(MAX_LOCAL_PLAYERS)
+	#if PLATFORM_MAX_LOCAL_PLAYERS
+		#define MAX_LOCAL_PLAYERS PLATFORM_MAX_LOCAL_PLAYERS
+	#elif PLATFORM_DESKTOP
+		#define MAX_LOCAL_PLAYERS 4
+	#else
+		#define MAX_LOCAL_PLAYERS 1
+	#endif
+#endif //MAX_LOCAL_PLAYERS
+
 UE_DEPRECATED(5.0, "Use NAME_GameSession.")
 inline constexpr EName GameSessionName = NAME_GameSession;
 UE_DEPRECATED(5.0, "Use NAME_PartySession.")
