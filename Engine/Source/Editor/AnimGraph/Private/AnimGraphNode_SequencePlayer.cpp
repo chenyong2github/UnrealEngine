@@ -90,7 +90,7 @@ void UAnimGraphNode_SequencePlayer::GetMenuActions(FBlueprintActionDatabaseRegis
 	GetMenuActionsHelper(
 		InActionRegistrar,
 		GetClass(),
-		{ UAnimSequence::StaticClass() },
+		{ UAnimSequence::StaticClass(), UAnimComposite::StaticClass() },
 		{ },
 		[](const FAssetData& InAssetData, UClass* InClass)
 		{
