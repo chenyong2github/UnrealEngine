@@ -4,6 +4,7 @@
 
 #include "IConcertClientTransactionBridge.h"
 #include "Misc/ITransaction.h"
+#include "ConcertSyncArchives.h"
 
 class CONCERTSYNCCLIENT_API FConcertClientTransactionBridge : public IConcertClientTransactionBridge
 {
@@ -19,6 +20,7 @@ public:
 	virtual FOnApplyTransaction& OnApplyTransaction() override;
 
 	virtual void ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot) override;
+	virtual void ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const FConcertSyncWorldRemapper& ConcertSyncWorldRemapper) override;
 	virtual bool& GetIgnoreLocalTransactionsRef() override;
 
 	virtual void RegisterTransactionFilter(FName FilterName, FTransactionFilterDelegate FilterHandle) override;
@@ -79,4 +81,6 @@ private:
 
 	/** Include non-cooked properties in object serialization */
 	bool bIncludeEditorOnlyProperties;
+
+	FConcertSyncWorldRemapper WorldRemapper = FConcertSyncWorldRemapper();
 };

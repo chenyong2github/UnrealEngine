@@ -3,7 +3,6 @@
 #include "ConcertClientTransactionBridge.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertSyncSettings.h"
-#include "ConcertSyncArchives.h"
 #include "ConcertSyncClientUtil.h"
 
 #include "ConcertTransactionEvents.h"
@@ -178,7 +177,7 @@ struct FEditorTransactionNotification
 };
 #endif
 
-void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot)
+void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const FConcertSyncWorldRemapper& WorldRemapper)
 {
 	// Transactions are applied in multiple-phases...
 	//	1) Find or create all objects in the transaction (to handle object-interdependencies in the serialized data)
@@ -263,7 +262,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		TSharedPtr<ITransactionObjectAnnotation>& TransactionAnnotation = TransactionAnnotations[ObjectIndex];
 		if (ObjectUpdate.SerializedAnnotationData.Num() > 0)
 		{
-			FConcertSyncObjectReader AnnotationReader(InLocalIdentifierTablePtr, FConcertSyncWorldRemapper(), InVersionInfo, TransactionObject, ObjectUpdate.SerializedAnnotationData);
+			FConcertSyncObjectReader AnnotationReader(InLocalIdentifierTablePtr, WorldRemapper, InVersionInfo, TransactionObject, ObjectUpdate.SerializedAnnotationData);
 			TransactionAnnotation = TransactionObject->CreateAndRestoreTransactionAnnotation(AnnotationReader);
 			UE_CLOG(!TransactionAnnotation.IsValid(), LogConcert, Warning, TEXT("Object '%s' had transaction annotation data that failed to restore!"), *TransactionObject->GetPathName());
 		}
@@ -315,7 +314,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 		// Apply the new data
 		if (ObjectUpdate.ObjectData.SerializedData.Num() > 0)
 		{
-			FConcertSyncObjectReader ObjectReader(InLocalIdentifierTablePtr, FConcertSyncWorldRemapper(), InVersionInfo, TransactionObject, ObjectUpdate.ObjectData.SerializedData);
+			FConcertSyncObjectReader ObjectReader(InLocalIdentifierTablePtr, WorldRemapper, InVersionInfo, TransactionObject, ObjectUpdate.ObjectData.SerializedData);
 			ObjectReader.SerializeObject(TransactionObject);
 		}
 		else
@@ -325,7 +324,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 				FProperty* TransactionProp = FindFProperty<FProperty>(TransactionObject->GetClass(), PropertyData.PropertyName);
 				if (TransactionProp)
 				{
-					FConcertSyncObjectReader ObjectReader(InLocalIdentifierTablePtr, FConcertSyncWorldRemapper(), InVersionInfo, TransactionObject, PropertyData.SerializedData);
+					FConcertSyncObjectReader ObjectReader(InLocalIdentifierTablePtr, WorldRemapper, InVersionInfo, TransactionObject, PropertyData.SerializedData);
 					ObjectReader.SerializeProperty(TransactionProp, TransactionObject);
 				}
 			}
@@ -472,7 +471,12 @@ FOnApplyTransaction& FConcertClientTransactionBridge::OnApplyTransaction()
 
 void FConcertClientTransactionBridge::ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot)
 {
-	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot);
+	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot, FConcertSyncWorldRemapper());
+}
+
+void FConcertClientTransactionBridge::ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const FConcertSyncWorldRemapper& ConcertSyncWorldRemapper)
+{
+	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot, ConcertSyncWorldRemapper);
 }
 
 bool& FConcertClientTransactionBridge::GetIgnoreLocalTransactionsRef()
