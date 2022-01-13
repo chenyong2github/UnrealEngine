@@ -212,7 +212,7 @@ void FD3D12CommandListHandle::FD3D12CommandListData::FlushResourceBarriers()
 
 void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocator& CommandAllocator, bool bTrackExecTime)
 {
-	LLM_SCOPE_BYNAME(TEXT("D3D12/Commandlist"));
+	LLM_SCOPE_BYNAME(TEXT("D3D12Commandlist"));
 	VERIFYD3D12RESULT(CommandList->Reset(CommandAllocator, nullptr));
 
 	CurrentCommandAllocator = &CommandAllocator;
