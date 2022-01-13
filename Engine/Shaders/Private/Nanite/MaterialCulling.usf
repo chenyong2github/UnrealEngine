@@ -13,6 +13,7 @@
 Texture2D<UlongType> VisBuffer64;
 ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
+Texture2D<uint> MaterialResolve;
 
 RWBuffer<uint> MaterialIndirectArgs;
 RWStructuredBuffer<uint> MaterialTileRemap;
@@ -63,6 +64,20 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 			uint2 FetchPos = GroupPixelStart + uint2(BlockX, BlockY);
 			FetchPos = min(FetchPos, FetchClamp);
 
+	#if MATERIAL_RESOLVE
+			bool IsNanitePixel = false;
+			bool IsDecalReceiver = false;
+			uint MaterialSlot = 0;
+			UnpackMaterialResolve(MaterialResolve[FetchPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
+
+			if (IsNanitePixel)
+			{
+				const uint TileBinIndex = MaterialSlot >> 5u;
+				const uint TileBinOffset = MaterialSlot & 31u;
+				const uint TileBinUsage = 1u << TileBinOffset;
+				InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
+			}
+	#else
 			UlongType VisPixel = VisBuffer64[FetchPos];
 
 			uint DepthInt = 0;
@@ -111,6 +126,7 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 					//const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 				}
 			}
+	#endif // MATERIAL_RESOLVE
 		}
 	}
 

@@ -36,6 +36,13 @@ static TAutoConsoleVariable<int32> CVarParallelBasePassBuild(
 	ECVF_RenderThreadSafe
 );
 
+int32 GNaniteClassifyWithResolve = 1;
+static FAutoConsoleVariableRef CVarNaniteClassifyWithResolve(
+	TEXT("r.Nanite.ClassifyWithResolve"),
+	GNaniteClassifyWithResolve,
+	TEXT("")
+);
+
 #if WITH_EDITORONLY_DATA
 extern int32 GNaniteIsolateInvalidCoarseMesh;
 #endif
@@ -252,6 +259,9 @@ public:
 	DECLARE_GLOBAL_SHADER(FClassifyMaterialsCS);
 	SHADER_USE_PARAMETER_STRUCT(FClassifyMaterialsCS, FNaniteShader);
 
+	class FMaterialResolveDim : SHADER_PERMUTATION_BOOL("MATERIAL_RESOLVE");
+	using FPermutationDomain = TShaderPermutationDomain<FMaterialResolveDim>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
@@ -269,6 +279,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, MaterialTileRemap)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -435,6 +446,7 @@ void DrawBasePass(
 			PassParameters->VisBuffer64				= VisBuffer64;
 			PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 			PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
+			PassParameters->MaterialResolve			= RasterResults.MaterialResolve;
 			PassParameters->MaterialIndirectArgs	= GraphBuilder.CreateUAV(FRDGBufferUAVDesc(MaterialIndirectArgs, PF_R32_UINT));
 			PassParameters->MaterialTileRemap		= GraphBuilder.CreateUAV(MaterialTileRemap);
 			PassParameters->MaterialSlotCount		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHighestMaterialSlot();
@@ -452,7 +464,9 @@ void DrawBasePass(
 
 			PassParameters->RowTileCount = DispatchDim.X;
 
-			auto ComputeShader = View.ShaderMap->GetShader<FClassifyMaterialsCS>();
+			FClassifyMaterialsCS::FPermutationDomain PermutationMaterialResolveCS;
+			PermutationMaterialResolveCS.Set<FClassifyMaterialsCS::FMaterialResolveDim>(GNaniteClassifyWithResolve != 0);
+			auto ComputeShader = View.ShaderMap->GetShader<FClassifyMaterialsCS>(PermutationMaterialResolveCS);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
