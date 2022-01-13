@@ -16,6 +16,7 @@
 #include "Insights/Table/ViewModels/TableCellValueGetter.h"
 #include "Insights/Table/ViewModels/TableCellValueSorter.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
+#include "Insights/ViewModels/TimeFilterValueConverter.h"
 
 #define LOCTEXT_NAMESPACE "Insights::FMemAllocTable"
 
@@ -311,6 +312,9 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
+		TSharedRef<IFilterValueConverter> Converter = MakeShared<FTimeFilterValueConverter>();
+		Column.SetValueConverter(Converter);
+
 		Column.SetAggregation(ETableColumnAggregation::Min);
 
 		AddColumn(ColumnRef);
@@ -369,6 +373,9 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
+		TSharedRef<IFilterValueConverter> Converter = MakeShared<FTimeFilterValueConverter>();
+		Column.SetValueConverter(Converter);
+
 		Column.SetAggregation(ETableColumnAggregation::Max);
 
 		AddColumn(ColumnRef);
@@ -426,6 +433,9 @@ void FMemAllocTable::AddDefaultColumns()
 
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
+
+		TSharedRef<IFilterValueConverter> Converter = MakeShared<FTimeFilterValueConverter>();
+		Column.SetValueConverter(Converter);
 
 		AddColumn(ColumnRef);
 	}

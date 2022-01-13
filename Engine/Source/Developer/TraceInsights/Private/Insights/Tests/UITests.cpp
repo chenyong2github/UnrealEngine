@@ -8,6 +8,7 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocFilterValueConverter.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/TimeFilterValueConverter.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -76,6 +77,55 @@ bool FMemoryFilterValueConverterTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Fail1"), Converter.Convert(TEXT("23test"), Value, Error));
 	TestFalse(TEXT("Fail2"), Converter.Convert(TEXT("43 kOb"), Value, Error));
 	TestFalse(TEXT("FailInvalidChar"), Converter.Convert(TEXT("45,"), Value, Error));
+
+	return !HasAnyErrors();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTimeFilterValueConverterTest::RunTest(const FString& Parameters)
+{
+	Insights::FTimeFilterValueConverter Converter;
+
+	FText Error;
+	double Value;
+
+	Converter.Convert(TEXT("15.3"), Value, Error);
+	TestEqual(TEXT("ValueInSeconds"), 15.3, Value);
+
+	Converter.Convert(TEXT("0.2"), Value, Error);
+	TestEqual(TEXT("ValueInSeconds2"), 0.2, Value);
+
+	Converter.Convert(TEXT("0.4s"), Value, Error);
+	TestEqual(TEXT("ValueInSeconds3"), 0.4, Value);
+
+	Converter.Convert(TEXT("125.56ms"), Value, Error);
+	TestEqual(TEXT("ValueInMiliseconds"), 0.12556, Value);
+
+	Converter.Convert(TEXT("14.2 µs"), Value, Error);
+	TestEqual(TEXT("ValueInMicroseconds"), 14.2 * 1.e-6, Value);
+
+	Converter.Convert(TEXT("0.72us"), Value, Error);
+	TestEqual(TEXT("ValueInMicroseconds2"), 0.72 * 1.e-6, Value); 
+
+	Converter.Convert(TEXT("3ns"), Value, Error);
+	TestEqual(TEXT("ValueInNanoseconds"), 3 * 1.e-9, Value);
+
+	Converter.Convert(TEXT("17ns"), Value, Error);
+	TestEqual(TEXT("ValueInPicoseconds"), 17 * 1.e-12, Value);
+
+	Converter.Convert(TEXT("0.5m"), Value, Error);
+	TestEqual(TEXT("ValueInMinutes"), 30.0, Value);
+
+	Converter.Convert(TEXT("1.1h"), Value, Error);
+	TestEqual(TEXT("ValueInHours"), 3960.0, Value);
+
+	Converter.Convert(TEXT("2d"), Value, Error);
+	TestEqual(TEXT("ValueInHours"), 2 * 60 * 60 * 24.0, Value);
+
+	TestFalse(TEXT("Fail1"), Converter.Convert(TEXT("1.23ss"), Value, Error));
+	TestFalse(TEXT("Fail2"), Converter.Convert(TEXT("abc"), Value, Error));
+	TestFalse(TEXT("FailInvalidChar"), Converter.Convert(TEXT("0,2"), Value, Error));
 
 	return !HasAnyErrors();
 }

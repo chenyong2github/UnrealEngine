@@ -506,8 +506,16 @@ bool SFilterConfiguratorRow::TextBox_OnVerifyTextChanged(const FText& InText, FT
 	TSharedPtr<IFilterValueConverter> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Converter;
 	if (Converter.IsValid())
 	{
-		int64 Value;
-		return Converter->Convert(InText.ToString(), Value, OutErrorMessage);
+		if (FilterConfiguratorNodePtr->GetSelectedFilter()->DataType == EFilterDataType::Int64)
+		{
+			int64 Value;
+			return Converter->Convert(InText.ToString(), Value, OutErrorMessage);
+		}		
+		else if (FilterConfiguratorNodePtr->GetSelectedFilter()->DataType == EFilterDataType::Double)
+		{
+			double Value;
+			return Converter->Convert(InText.ToString(), Value, OutErrorMessage);
+		}
 	}
 
 	return true;
