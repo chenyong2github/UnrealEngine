@@ -906,8 +906,9 @@ public:
 		}
 		if (!Shader)
 		{
-			FRWScopeLock Locker(ShaderLocks[BucketIndex], SLT_Write);
 			Shader = Library->CreateShader(ShaderIndex);
+
+			FRWScopeLock Locker(ShaderLocks[BucketIndex], SLT_Write);
 			RHIShaders[BucketIndex].Add(ShaderIndex, Shader);
 		}
 		return Shader;
