@@ -105,7 +105,7 @@ FEditorModeTools::~FEditorModeTools()
 
 	RemoveAllDelegateHandlers();
 
-	DeactivateAllModesPendingDeletion();
+	ExitAllModesPendingDeactivate();
 	RecycledScriptableModes.Empty();
 
 	// We may be destroyed after the UObject system has already shutdown, 
@@ -613,7 +613,7 @@ void FEditorModeTools::ForEachEdMode(TFunctionRef<bool(UEdMode*)> InCalllback) c
 	}
 }
 
-void FEditorModeTools::DeactivateAllModesPendingDeletion()
+void FEditorModeTools::ExitAllModesPendingDeactivate()
 {
 	// Make a copy so we can modify the pending deactivate modes map
 	TMap<FEditorModeID, UEdMode*> PendingDeactivateModesCopy(PendingDeactivateModes);
@@ -699,7 +699,7 @@ void FEditorModeTools::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool 
 	UWorld* World = GetWorld();
 	if (InWorld == World)
 	{
-		DeactivateAllModesPendingDeletion();
+		ExitAllModesPendingDeactivate();
 	}
 }
 
@@ -1195,7 +1195,7 @@ bool FEditorModeTools::ShouldDrawBrushVertices() const
 void FEditorModeTools::Tick( FEditorViewportClient* ViewportClient, float DeltaTime )
 {	
 	// Remove anything pending destruction
-	DeactivateAllModesPendingDeletion();
+	ExitAllModesPendingDeactivate();
 
 	if (ActiveScriptableModes.Num() == 0)
 	{
