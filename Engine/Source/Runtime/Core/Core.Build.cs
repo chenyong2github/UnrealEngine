@@ -87,6 +87,11 @@ public class Core : ModuleRules
 			{
 				PrivateDependencyModuleNames.Add("WinPixEventRuntime");
 			}
+
+			if (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Type != TargetType.Program)
+			{
+				PublicDefinitions.Add("UE_MEMORY_TAGS_TRACE_ENABLED=1");
+			}
 		}
 		else if ((Target.Platform == UnrealTargetPlatform.HoloLens))
 		{

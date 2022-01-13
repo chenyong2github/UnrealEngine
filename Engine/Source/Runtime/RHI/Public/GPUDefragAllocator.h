@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Containers/List.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 
 #define LOG_EVERY_ALLOCATION			0
 #define DUMP_ALLOC_FREQUENCY			0 // 100

@@ -11,6 +11,7 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/ThreadManager.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 #include "Windows/WindowsHWrapper.h"
 
 class FRunnable;

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreTypes.h"
-#include "ProfilingDebugging/MemoryTrace.h"
+#include "Trace/Config.h"
 #include "Trace/Detail/LogScope.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -20,18 +20,11 @@ CORE_API int32	MemoryTrace_AnnounceFNameTag(const class FName& TagName);
 CORE_API int32	MemoryTrace_GetActiveTag();
 
 ////////////////////////////////////////////////////////////////////////////////
-
-#if !defined(UE_MEMORY_TAGS_TRACE_ENABLED) && UE_TRACE_ENABLED && UE_MEMORY_TRACE_ENABLED
-	#if PLATFORM_WINDOWS 
-		#define UE_MEMORY_TAGS_TRACE_ENABLED !UE_BUILD_SHIPPING
-	#endif
-#endif
-
 #if !defined(UE_MEMORY_TAGS_TRACE_ENABLED)
 	#define UE_MEMORY_TAGS_TRACE_ENABLED 0
 #endif
 
-#if UE_MEMORY_TAGS_TRACE_ENABLED
+#if UE_MEMORY_TAGS_TRACE_ENABLED && UE_TRACE_ENABLED
 
 ////////////////////////////////////////////////////////////////////////////////
 
