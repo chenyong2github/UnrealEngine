@@ -658,7 +658,6 @@ bool UDatasmithSceneElement::TranslateScene()
 	const bool bSilent = true; // don't pop options window
 	ImportContextPtr->InitOptions(nullptr, TOptional<FString>(), bSilent);
 
-	bTranslated = true;
 	if (TSharedPtr<IDatasmithScene> LoadedScene = ExternalSourcePtr->TryLoad())
 	{
 		SetDatasmithSceneElement(LoadedScene);
@@ -670,6 +669,7 @@ bool UDatasmithSceneElement::TranslateScene()
 		return false;
 	}
 
+	bTranslated = true;
 	return true;
 }
 
