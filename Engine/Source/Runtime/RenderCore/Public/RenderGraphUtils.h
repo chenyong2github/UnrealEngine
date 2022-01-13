@@ -769,7 +769,7 @@ RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
 	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
 
 /** A variant where NumElements, InitialData, and InitialDataSize are supplied through callbacks. This allows creating a buffer with
- *  with information unknown at creation time. Though, data must be ready before the most recent RDG pass that references the buffer
+ *  information unknown at creation time. Though, data must be ready before the most recent RDG pass that references the buffer
  *  is executed.
  */
 RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
@@ -814,6 +814,35 @@ FORCEINLINE FRDGBufferRef CreateStructuredBuffer(
 		return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), 1, &DummyElement, InitialData.GetTypeSize(), ERDGInitialDataFlags::NoCopy);
 	}
 	return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), InitialData.Num(), InitialData.GetData(), InitialData.Num() * InitialData.GetTypeSize(), InitialDataFlags);
+}
+
+/** A variant where the TArray is supplied through callbacks. This allows creating a buffer with
+ *  information unknown at creation time. Though, data must be ready before the most recent RDG pass that references the buffer
+ *  is executed.
+ */
+template <typename ArrayType>
+FORCEINLINE FRDGBufferRef CreateStructuredBuffer_Impl(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	TRDGBufferArrayCallback<ArrayType>&& ArrayCallback)
+{
+	return CreateStructuredBuffer(GraphBuilder, Name, sizeof(std::remove_reference_t<ArrayType>::ElementType),
+		/*NumElementsCallback = */[ArrayCallback]() { return ArrayCallback().Num(); },
+		/*InitialDataCallback = */[ArrayCallback]() { return ArrayCallback().GetData(); },
+		/*InitialDataSizeCallback = */[ArrayCallback]() { return ArrayCallback().Num() * ArrayCallback().GetTypeSize(); });
+}
+
+/** Same as the previous function but where the type of the array is automatically inferred, so we can do : 
+ *  TArray<FSomeType> Array;
+ *  CreateStructuredBuffer(..., [&]() -> auto&{ return Array; });
+ */
+template <typename GetArrayRefCallback, typename Type = TInvokeResult_T<GetArrayRefCallback>>
+FORCEINLINE FRDGBufferRef CreateStructuredBuffer(
+	FRDGBuilder& GraphBuilder,
+	const TCHAR* Name,
+	GetArrayRefCallback&& ArrayCallback)
+{
+	return CreateStructuredBuffer_Impl<Type>(GraphBuilder, Name, MoveTemp(ArrayCallback));
 }
 
 template <typename ElementType>

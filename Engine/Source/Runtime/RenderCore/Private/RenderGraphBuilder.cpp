@@ -686,7 +686,8 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	const FRDGTextureDesc Desc = Translate(ExternalPooledTexture->GetDesc(), RenderTargetTexture);
 	bool bFinalizedAccess = false;
 
-	if (!EnumHasAnyFlags(Desc.Flags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV | TexCreate_DepthStencilResolveTarget))
+	if (!EnumHasAnyFlags(Flags, ERDGTextureFlags::ForceTracking)
+		&& !EnumHasAnyFlags(Desc.Flags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV | TexCreate_DepthStencilResolveTarget))
 	{
 		bFinalizedAccess = true;
 	}
@@ -760,7 +761,8 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 	const FRDGBufferDesc& Desc = ExternalPooledBuffer->Desc;
 	bool bFinalizedAccess = false;
 
-	if (!EnumHasAnyFlags(Desc.Usage, BUF_UnorderedAccess))
+	if (!EnumHasAnyFlags(Flags, ERDGBufferFlags::ForceTracking)
+		&& !EnumHasAnyFlags(Desc.Usage, BUF_UnorderedAccess))
 	{
 		Flags |= ERDGBufferFlags::ReadOnly;
 		bFinalizedAccess = true;

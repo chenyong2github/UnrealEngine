@@ -958,6 +958,21 @@ struct TShaderParameterTypeInfo<FIntPoint>
 };
 
 template<>
+struct TShaderParameterTypeInfo<FUintVector2>
+{
+	static constexpr EUniformBufferBaseType BaseType = UBMT_UINT32;
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 2;
+	static constexpr int32 NumElements = 0;
+	static constexpr int32 Alignment = 8;
+	static constexpr bool bIsStoredInConstantBuffer = true;
+
+	using TAlignedType = TAlignedTypedef<FUintVector2, Alignment>::Type;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
+};
+
+template<>
 struct TShaderParameterTypeInfo<FIntVector>
 {
 	static constexpr EUniformBufferBaseType BaseType = UBMT_INT32;

@@ -129,7 +129,11 @@ enum class ERDGBufferFlags : uint8
 	MultiFrame = 1 << 0,
 
 	/** The buffer may only be used for read-only access within the graph. This flag is only allowed for registered buffers. */
-	ReadOnly = 1 << 1
+	ReadOnly = 1 << 1, 
+
+	/** Force the graph to track this resource even if it can be considered as readonly (no UAV, no RTV, etc.) This allows the graph copying from and to textures, and handling the corresponding transitions, for example.
+	 This flag is only allowed for registered buffers. Mutually exclusive with ReadOnly. */
+	ForceTracking = 1 << 2,
 };
 ENUM_CLASS_FLAGS(ERDGBufferFlags);
 
@@ -146,6 +150,10 @@ enum class ERDGTextureFlags : uint8
 
 	/** Prevents metadata decompression on this texture. */
 	MaintainCompression = 1 << 2,
+
+	/** Force the graph to track this resource even if it can be considered as readonly (no UAV, no RTV, etc.) This allows the graph copying from and to textures, and handling the corresponding transitions, for example.
+	 This flag is only allowed for registered buffers. Mutually exclusive with ReadOnly. */
+	ForceTracking = 1 << 3,
 };
 ENUM_CLASS_FLAGS(ERDGTextureFlags);
 
@@ -608,5 +616,8 @@ class FRDGTrace;
 using FRDGBufferNumElementsCallback = TFunction<uint32()>;
 using FRDGBufferInitialDataCallback = TFunction<const void*()>;
 using FRDGBufferInitialDataSizeCallback = TFunction<uint64()>;
+template <typename ArrayType, 
+	typename ArrayTypeNoRef = std::remove_reference_t<ArrayType>,
+	typename = typename TEnableIf<TIsTArray<ArrayTypeNoRef>::Value>::Type> using TRDGBufferArrayCallback = TFunction<const ArrayType&()>;
 using FRDGBufferInitialDataFreeCallback = TFunction<void(const void* InData)>;
 using FRDGDispatchGroupCountCallback = TFunction<FIntVector()>;
