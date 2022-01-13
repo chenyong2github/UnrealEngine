@@ -275,6 +275,7 @@ export type JobStreamQuery = {
 };
 
 export type JobQuery = {
+	id?: string[],
 	filter?: string;
 	streamId?: string;
 	name?: string;
