@@ -133,6 +133,8 @@ protected:
 
 	void OnTangentsUpdated(const TUniquePtr<UE::Geometry::FMeshTangentsd>& NewResult);
 	void UpdateVisualization(bool bThicknessChanged, bool bLengthChanged);
+	TSet<int32> ComputeDegenerateTris() const;
+	void ComputeMikkTDeviations(const TSet<int32>* DegenerateTris);
 
 	struct FMikktDeviation
 	{
