@@ -186,7 +186,7 @@ void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type 
 	{
 		return; 
 	}
-
+	
 	const FText OldText = WeakRigTreeElement.Pin()->Key;
 	const FName OldName = WeakRigTreeElement.Pin()->GoalName;
 	const FName PotentialNewName = FName(InText.ToString());
@@ -197,8 +197,8 @@ void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type 
 		WeakRigTreeElement.Pin()->GoalName = NewName;
 	}
 	
-	Controller->SkeletonView->ReplaceItemInSelection(OldText, WeakRigTreeElement.Pin()->Key);
 	Controller->RefreshAllViews();
+	Controller->SkeletonView->ReplaceItemInSelection(OldText, WeakRigTreeElement.Pin()->Key);
 }
 
 FText SIKRigSkeletonItem::GetName() const
@@ -354,12 +354,12 @@ void SIKRigSkeleton::ReplaceItemInSelection(const FText& OldName, const FText& N
 	for (const TSharedPtr<FIKRigTreeElement>& Item : AllElements)
 	{
 		// remove old selection
-		if (Item->Key.CompareTo(OldName))
+		if (Item->Key.EqualTo(OldName))
 		{
 			TreeView->SetItemSelection(Item, false, ESelectInfo::Direct);
 		}
 		// add new selection
-		if (Item->Key.CompareTo(NewName))
+		if (Item->Key.EqualTo(NewName))
 		{
 			TreeView->SetItemSelection(Item, true, ESelectInfo::Direct);
 		}
@@ -1226,9 +1226,9 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 		return;
 	}
 	
-	// save expansion state
-	TreeView->SaveAndClearSparseItemInfos();
-
+	// save expansion and selection state
+	TreeView->SaveAndClearState();
+	
 	// reset all tree items
 	RootElements.Reset();
 	AllElements.Reset();
@@ -1243,7 +1243,8 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 	}
 
 	// get all goals
-	TArray<UIKRigEffectorGoal*> Goals = AssetController->GetAllGoals();
+	const TArray<UIKRigEffectorGoal*>& Goals = AssetController->GetAllGoals();
+	
 	// get all solvers
 	const TArray<UIKRigSolver*>& Solvers = AssetController->GetSolverArray();
 	// record bone element indices
@@ -1336,18 +1337,20 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 		BoneTreeElement->Parent = ParentBoneTreeElement;
 	}
 
-	// restore expansion state
-	for (const TSharedPtr<FIKRigTreeElement>& Element : AllElements)
-	{
-		TreeView->RestoreSparseItemInfos(Element);
-	}
-
 	// expand all elements upon the initial construction of the tree
 	if (IsInitialSetup)
 	{
 		for (TSharedPtr<FIKRigTreeElement> RootElement : RootElements)
 		{
 			SetExpansionRecursive(RootElement, false, true);
+		}
+	}
+	else
+	{
+		// restore expansion and selection state
+		for (const TSharedPtr<FIKRigTreeElement>& Element : AllElements)
+		{
+			TreeView->RestoreState(Element);
 		}
 	}
 	
