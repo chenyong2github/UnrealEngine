@@ -36,13 +36,13 @@ static const unsigned short DT_TILECACHE_NULL_IDX = 0xffff;
 
 struct dtTileCacheLayerHeader
 {
-	int magic;								///< Data magic
-	int version;							///< Data version
+	short version;							///< Data version
 	int tx,ty,tlayer;
-	dtReal bmin[3], bmax[3];
 	unsigned short hmin, hmax;				///< Height min/max range
 	unsigned short width, height;			///< Dimension of the layer.
 	unsigned short minx, maxx, miny, maxy;	///< Usable sub-region.
+	// These should be at the bottom, as they are less often used than the rest of the data.
+	dtReal bmin[3], bmax[3];
 };
 
 struct dtTileCacheLayer

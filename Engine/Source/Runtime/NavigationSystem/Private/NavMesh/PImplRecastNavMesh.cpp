@@ -859,25 +859,23 @@ void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& ArWrapped, int32 Nav
 		// now serialize the data in the blob!
 
 		// header
-		Ar << Header->magic << Header->version << Header->x << Header->y;
-		Ar << Header->layer << Header->userId << Header->polyCount << Header->vertCount;
+		Ar << Header->version << Header->x << Header->y;
+		Ar << Header->layer << Header->polyCount << Header->vertCount;
 		Ar << Header->maxLinkCount << Header->detailMeshCount << Header->detailVertCount << Header->detailTriCount;
 		Ar << Header->bvNodeCount << Header->offMeshConCount<< Header->offMeshBase;
-		Ar << Header->walkableHeight << Header->walkableRadius << Header->walkableClimb;
 		Ar << Header->bmin[0] << Header->bmin[1] << Header->bmin[2];
 		Ar << Header->bmax[0] << Header->bmax[1] << Header->bmax[2];
-		Ar << Header->bvQuantFactor;
 #if WITH_NAVMESH_CLUSTER_LINKS
 		Ar << Header->clusterCount;
 #else
-		int DummyClusterCount = 0;
+		unsigned short DummyClusterCount = 0;
 		Ar << DummyClusterCount;
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 
 #if WITH_NAVMESH_SEGMENT_LINKS
 		Ar << Header->offMeshSegConCount << Header->offMeshSegPolyBase << Header->offMeshSegVertBase;
 #else
-		int DummySegmentInt = 0;
+		unsigned short DummySegmentInt = 0;
 		Ar << DummySegmentInt << DummySegmentInt << DummySegmentInt;
 #endif // WITH_NAVMESH_SEGMENT_LINKS
 
@@ -1077,7 +1075,6 @@ void FPImplRecastNavMesh::SerializeCompressedTileCacheData(FArchive& ArWrapped, 
 
 	// Serialize dtTileCacheLayerHeader by hand so we can account for the FReals always being serialized as doubles
 	dtTileCacheLayerHeader* Header = (dtTileCacheLayerHeader*)CompressedData;
-	Ar << Header->magic;
 	Ar << Header->version;
 	Ar << Header->tx;
 	Ar << Header->ty;

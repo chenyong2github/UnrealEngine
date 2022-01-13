@@ -65,17 +65,17 @@ namespace ERecastPartitioning
 
 struct FDetourTileSizeInfo
 {
-	int32 VertCount = 0;
-	int32 PolyCount = 0;
-	int32 MaxLinkCount = 0;
-	int32 DetailMeshCount = 0;
-	int32 DetailVertCount = 0;
-	int32 DetailTriCount = 0;
-	int32 BvNodeCount = 0;
-	int32 OffMeshConCount = 0;
-	int32 OffMeshSegConCount = 0;
-	int32 ClusterCount = 0;
-	int32 OffMeshBase = 0;
+	unsigned short VertCount = 0;
+	unsigned short PolyCount = 0;
+	unsigned short MaxLinkCount = 0;
+	unsigned short DetailMeshCount = 0;
+	unsigned short DetailVertCount = 0;
+	unsigned short DetailTriCount = 0;
+	unsigned short BvNodeCount = 0;
+	unsigned short OffMeshConCount = 0;
+	unsigned short OffMeshSegConCount = 0;
+	unsigned short ClusterCount = 0;
+	unsigned short OffMeshBase = 0;
 };
 
 struct NAVIGATIONSYSTEM_API FDetourTileLayout
@@ -892,6 +892,8 @@ protected:
 
 	TArray<FIntPoint>& GetActiveTiles(); 
 	virtual void RestrictBuildingToActiveTiles(bool InRestrictBuildingToActiveTiles) override;
+
+	virtual void OnRegistered() override;
 
 public:
 	/** Whether NavMesh should adjust his tile pool size when NavBounds are changed */

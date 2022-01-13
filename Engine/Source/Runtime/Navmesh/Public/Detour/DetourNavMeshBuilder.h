@@ -177,7 +177,7 @@ NAVMESH_API bool dtNavMeshDataSwapEndian(unsigned char* data, const int dataSize
 ///  @param[in]		tileWidth		Tile width.
 ///  @param[in]		tileHeight		Tile height.
 ///  @param[in]		rotationDeg		Rotation in degrees.
-NAVMESH_API bool dtTransformTileData(unsigned char* data, const int dataSize, const int offsetX, const int offsetY, const dtReal tileWidth, const dtReal tileHeight, const dtReal rotationDeg);
+NAVMESH_API bool dtTransformTileData(unsigned char* data, const int dataSize, const int offsetX, const int offsetY, const dtReal tileWidth, const dtReal tileHeight, const dtReal rotationDeg, const dtReal bvQuantFactor);
 
 /// Compute XY offset caused by the given rotation
 ///  @param[in]		position		Position to rotate. [(x, y, z)]

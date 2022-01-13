@@ -41,12 +41,11 @@ class NAVMESH_API dtLocalBoundary
 		dtReal d;	///< Distance for pruning.
 		int flags;
 	};
-	
+
+	dtPolyRef m_polys[MAX_LOCAL_POLYS];
 	dtReal m_center[3];
 	Segment m_segs[MAX_LOCAL_SEGS];
 	int m_nsegs;
-	
-	dtPolyRef m_polys[MAX_LOCAL_POLYS];
 	int m_npolys;
 
 	void addSegment(const dtReal dist, const dtReal* seg, int flags = 0);

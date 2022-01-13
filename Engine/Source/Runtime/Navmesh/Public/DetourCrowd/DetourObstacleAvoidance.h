@@ -177,15 +177,16 @@ private:
 	dtReal m_vmax;
 	dtReal m_invVmax;
 
-	int m_maxPatterns;
 	dtObstacleAvoidancePattern* m_customPatterns;
+	dtObstacleCircle* m_circles;
+	dtObstacleSegment* m_segments;
+
+	int m_maxPatterns;
 
 	int m_maxCircles;
-	dtObstacleCircle* m_circles;
 	int m_ncircles;
 
 	int m_maxSegments;
-	dtObstacleSegment* m_segments;
 	int m_nsegments;
 };
 

@@ -146,9 +146,6 @@ struct NAVMESH_API dtCrowdAgent
 	/// The known neighbors of the agent.
 	dtCrowdNeighbour neis[DT_CROWDAGENT_MAX_NEIGHBOURS];
 
-	/// The number of neighbors.
-	int nneis;
-	
 	/// The desired speed.
 	dtReal desiredSpeed;
 
@@ -167,16 +164,20 @@ struct NAVMESH_API dtCrowdAgent
 	/// The reference id of the polygon being entered at the corner. [(polyRef) * #ncorners]
 	dtPolyRef cornerPolys[DT_CROWDAGENT_MAX_CORNERS];
 
+	dtReal targetReplanTime;				/// <Time since the agent's target was replanned.
+	dtReal targetPos[3];					///< Target position of the movement request (or velocity in case of DT_CROWDAGENT_TARGET_VELOCITY).
+	dtPolyRef targetRef;				///< Target polyref of the movement request.
+	dtPathQueueRef targetPathqRef;		///< Path finder ref.
+
+	/// The number of neighbors.
+	int nneis;
+
 	/// The local path corridor corner flags. (See: #dtStraightPathFlags) [(flags) * #ncorners]
 	unsigned char cornerFlags[DT_CROWDAGENT_MAX_CORNERS];
 
 	/// The number of corners.
 	int ncorners;
 	
-	dtReal targetReplanTime;				/// <Time since the agent's target was replanned.
-	dtReal targetPos[3];					///< Target position of the movement request (or velocity in case of DT_CROWDAGENT_TARGET_VELOCITY).
-	dtPolyRef targetRef;				///< Target polyref of the movement request.
-	dtPathQueueRef targetPathqRef;		///< Path finder ref.
 	unsigned char targetReplan;			///< Flag indicating that the current path is being replanned.
 	unsigned char targetState;			///< State of the movement request.
 
@@ -243,7 +244,6 @@ class NAVMESH_API dtCrowd
 	dtProximityGrid* m_grid;
 	
 	dtPolyRef* m_pathResult;
-	int m_maxPathResult;
 	
 	dtReal m_ext[3];
 	dtQueryFilter m_filters[DT_CROWD_MAX_FILTERS];
@@ -259,6 +259,8 @@ class NAVMESH_API dtCrowd
 
 	// [UE] separation filter
 	dtReal m_separationDirFilter;
+
+	int m_maxPathResult;
 
 	int m_velocitySampleCount;
 

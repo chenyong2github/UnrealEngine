@@ -295,8 +295,6 @@ dtStatus dtTileCache::addTile(unsigned char* data, const int dataSize, unsigned 
 {
 	// Make sure the data is in right format.
 	dtTileCacheLayerHeader* header = (dtTileCacheLayerHeader*)data;
-	if (header->magic != DT_TILECACHE_MAGIC)
-		return DT_FAILURE | DT_WRONG_MAGIC;
 	if (header->version != DT_TILECACHE_VERSION)
 		return DT_FAILURE | DT_WRONG_VERSION;
 	

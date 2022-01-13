@@ -22,6 +22,7 @@
 #include "Detour/DetourNavMeshBuilder.h"
 #include "Detour/DetourNavMesh.h"
 #include "Detour/DetourCommon.h"
+#include <limits>
 
 static unsigned short MESH_NULL_IDX = 0xffff;
 
@@ -522,41 +523,67 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	unsigned short* polyClusters = (unsigned short*)d; d += polyClustersSize;
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 	//@UE END
-	
-	// Store header
-	header->magic = DT_NAVMESH_MAGIC;
+
+	//@UE BEGIN Memory optimization
+	auto setHeaderShort = [](const int value, unsigned short& headerVal, const TCHAR* text, bool& bAllValuesSet)
+	{
+		dtAssert(value >= 0);
+
+		//check value will fit in to an unsigned short
+		if (value > std::numeric_limits<unsigned short>::max())
+		{
+			UE_LOG(LogDetour, Error, TEXT("dtCreateNavMeshData: %s is too large to fit in an unsigned short!"), *text);
+
+			bAllValuesSet = false;
+			headerVal = 0;
+		}
+		else
+		{
+			headerVal = (unsigned short)value;
+		}
+	};
+
+	bool bAllValuesSet = true;
+
 	header->version = DT_NAVMESH_VERSION;
 	header->x = params->tileX;
 	header->y = params->tileY;
-	header->layer = params->tileLayer;
-	header->userId = params->userId;
-	header->polyCount = totPolyCount;
-	header->vertCount = totVertCount;
-	header->maxLinkCount = maxLinkCount;
+	setHeaderShort(params->tileLayer, header->layer, TEXT("tile layer"), bAllValuesSet);
+	setHeaderShort(totPolyCount, header->polyCount, TEXT("poly count"), bAllValuesSet);
+	setHeaderShort(totVertCount, header->vertCount, TEXT("vert count"), bAllValuesSet);
+	setHeaderShort(maxLinkCount, header->maxLinkCount, TEXT("max link count"), bAllValuesSet);
 	dtVcopy(header->bmin, params->bmin);
 	dtVcopy(header->bmax, params->bmax);
-	header->detailMeshCount = params->polyCount;
-	header->detailVertCount = uniqueDetailVertCount;
-	header->detailTriCount = detailTriCount;
-	header->bvQuantFactor = 1.0f / params->cs;
-	header->offMeshBase = params->polyCount;
-	header->walkableHeight = params->walkableHeight;
-	header->walkableRadius = params->walkableRadius;
-	header->walkableClimb = params->walkableClimb;
-	header->offMeshConCount = storedOffMeshConCount;
-	header->bvNodeCount = params->buildBvTree ? params->polyCount*2 : 0;
+	setHeaderShort(params->polyCount, header->detailMeshCount, TEXT("detail mesh count"), bAllValuesSet);
+	setHeaderShort(uniqueDetailVertCount, header->detailVertCount, TEXT("detail vert count"), bAllValuesSet);
+	setHeaderShort(detailTriCount, header->detailTriCount, TEXT("detail tri count"), bAllValuesSet);
+	setHeaderShort(params->polyCount, header->offMeshBase, TEXT("off mesh base"), bAllValuesSet);
+	setHeaderShort(storedOffMeshConCount, header->offMeshConCount, TEXT("off mesh connection count"), bAllValuesSet);
+	setHeaderShort(params->buildBvTree ? params->polyCount * 2 : 0, header->bvNodeCount, TEXT("bv node count"), bAllValuesSet);
 
 	//@UE BEGIN
 #if WITH_NAVMESH_SEGMENT_LINKS
-	header->offMeshSegPolyBase = firstSegPoly;
-	header->offMeshSegVertBase = firstSegVert;
-	header->offMeshSegConCount = storedOffMeshSegCount;
+	setHeaderShort(firstSegPoly, header->offMeshSegPolyBase, TEXT("off mesh seg poly base"), bAllValuesSet);
+	setHeaderShort(firstSegVert, header->offMeshSegVertBase, TEXT("off mesh seg vert base"), bAllValuesSet);
+	setHeaderShort(storedOffMeshSegCount, header->offMeshSegConCount, TEXT("off mesh seg con count"), bAllValuesSet);
 #endif // WITH_NAVMESH_SEGMENT_LINKS
 
 #if WITH_NAVMESH_CLUSTER_LINKS
-	header->clusterCount = params->clusterCount; 
+	setHeaderShort(params->clusterCount, header->clusterCount, TEXT("cluster count"), bAllValuesSet);
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 	//@UE END
+
+	if (!bAllValuesSet)
+	{
+		UE_LOG(LogDetour, Error, TEXT("dtCreateNavMeshData: Tile %d, %d: Layer %d: Some dtMeshHeader values are too large to fit in an unsigned short, tile not Generated! Please decrease the size of your nav mesh tiles."), params->tileX, params->tileY, params->tileLayer);
+
+		dtFree(offMeshConClass, DT_ALLOC_TEMP);
+		dtFree(data, DT_ALLOC_PERM_TILE_DATA);
+
+		return false;
+	}
+	//@UE END Memory optimization
+
 
 	const int offMeshVertsBase = params->vertCount;
 	const int offMeshPolyBase = params->polyCount;
@@ -826,23 +853,19 @@ bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int /*dataSize*/)
 {
 	dtMeshHeader* header = (dtMeshHeader*)data;
 	
-	int swappedMagic = DT_NAVMESH_MAGIC;
 	int swappedVersion = DT_NAVMESH_VERSION;
-	dtSwapEndian(&swappedMagic);
 	dtSwapEndian(&swappedVersion);
 	
-	if ((header->magic != DT_NAVMESH_MAGIC || header->version != DT_NAVMESH_VERSION) &&
-		(header->magic != swappedMagic || header->version != swappedVersion))
+	if ((header->version != DT_NAVMESH_VERSION) &&
+		(header->version != swappedVersion))
 	{
 		return false;
 	}
 		
-	dtSwapEndian(&header->magic);
 	dtSwapEndian(&header->version);
 	dtSwapEndian(&header->x);
 	dtSwapEndian(&header->y);
 	dtSwapEndian(&header->layer);
-	dtSwapEndian(&header->userId);
 	dtSwapEndian(&header->polyCount);
 	dtSwapEndian(&header->vertCount);
 	dtSwapEndian(&header->maxLinkCount);
@@ -852,16 +875,12 @@ bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int /*dataSize*/)
 	dtSwapEndian(&header->bvNodeCount);
 	dtSwapEndian(&header->offMeshConCount);
 	dtSwapEndian(&header->offMeshBase);
-	dtSwapEndian(&header->walkableHeight);
-	dtSwapEndian(&header->walkableRadius);
-	dtSwapEndian(&header->walkableClimb);
 	dtSwapEndian(&header->bmin[0]);
 	dtSwapEndian(&header->bmin[1]);
 	dtSwapEndian(&header->bmin[2]);
 	dtSwapEndian(&header->bmax[0]);
 	dtSwapEndian(&header->bmax[1]);
 	dtSwapEndian(&header->bmax[2]);
-	dtSwapEndian(&header->bvQuantFactor);
 
 	//@UE BEGIN
 #if WITH_NAVMESH_SEGMENT_LINKS
@@ -890,8 +909,6 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 {
 	// Make sure the data is in right format.
 	dtMeshHeader* header = (dtMeshHeader*)data;
-	if (header->magic != DT_NAVMESH_MAGIC)
-		return false;
 	if (header->version != DT_NAVMESH_VERSION)
 		return false;
 	
@@ -1028,12 +1045,10 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 
 // @UE BEGIN
 // Experimental tile transform
-bool dtTransformTileData(unsigned char* data, const int dataSize, const int offsetX, const int offsetY, const dtReal tileWidth, const dtReal tileHeight, const dtReal rotationDeg)
+bool dtTransformTileData(unsigned char* data, const int dataSize, const int offsetX, const int offsetY, const dtReal tileWidth, const dtReal tileHeight, const dtReal rotationDeg, const dtReal bvQuantFactor)
 {
 	// Make sure the data is in right format.
 	dtMeshHeader* header = (dtMeshHeader*)data;
-	if (header->magic != DT_NAVMESH_MAGIC)
-		return false;
 	if (header->version != DT_NAVMESH_VERSION)
 		return false;
 
@@ -1095,15 +1110,14 @@ bool dtTransformTileData(unsigned char* data, const int dataSize, const int offs
 	offset[2] = tileHeight * offsetY;
 
 	// Compute center for bvtree
-	const dtReal qfac = tile.header->bvQuantFactor;
 	unsigned short qMin[3];
 	unsigned short qMax[3];
-	qMin[0] = (unsigned short)(qfac * tile.header->bmin[0]);
-	qMin[1] = (unsigned short)(qfac * tile.header->bmin[1]);
-	qMin[2] = (unsigned short)(qfac * tile.header->bmin[2]);
-	qMax[0] = (unsigned short)(qfac * tile.header->bmax[0]);
-	qMax[1] = (unsigned short)(qfac * tile.header->bmax[1]);
-	qMax[2] = (unsigned short)(qfac * tile.header->bmax[2]);
+	qMin[0] = (unsigned short)(bvQuantFactor * tile.header->bmin[0]);
+	qMin[1] = (unsigned short)(bvQuantFactor * tile.header->bmin[1]);
+	qMin[2] = (unsigned short)(bvQuantFactor * tile.header->bmin[2]);
+	qMax[0] = (unsigned short)(bvQuantFactor * tile.header->bmax[0]);
+	qMax[1] = (unsigned short)(bvQuantFactor * tile.header->bmax[1]);
+	qMax[2] = (unsigned short)(bvQuantFactor * tile.header->bmax[2]);
 	unsigned short qLocalCenter[3];
 	qLocalCenter[0] = (qMax[0] - qMin[0])/2;
 	qLocalCenter[1] = (qMax[1] - qMin[1])/2;

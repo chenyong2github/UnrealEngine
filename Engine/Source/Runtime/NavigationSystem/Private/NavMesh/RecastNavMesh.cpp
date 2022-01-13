@@ -68,7 +68,7 @@ FDetourTileLayout::FDetourTileLayout(const dtMeshTile& tile)
 {
 	const dtMeshHeader* header = tile.header;
 
-	if (header && (header->magic == DT_NAVMESH_MAGIC) && (header->version == DT_NAVMESH_VERSION))
+	if (header && (header->version == DT_NAVMESH_VERSION))
 	{
 		FDetourTileSizeInfo SizeInfo;
 
@@ -751,6 +751,23 @@ void ARecastNavMesh::RestrictBuildingToActiveTiles(bool InRestrictBuildingToActi
 	if (MyGenerator)
 	{
 		MyGenerator->RestrictBuildingToActiveTiles(InRestrictBuildingToActiveTiles);
+	}
+}
+
+void ARecastNavMesh::OnRegistered()
+{
+	Super::OnRegistered();
+
+	check(RecastNavMeshImpl);
+
+	// This check can fail when the NavMeshVersion indicates the map needs the nav mesh rebuilt
+	if (RecastNavMeshImpl->GetRecastMesh())
+	{
+		// Set walkable climb / radius / height in recast remembering to convert to recast cell units
+		RecastNavMeshImpl->GetRecastMesh()->setWalkableClimb(AgentMaxStepHeight);
+		RecastNavMeshImpl->GetRecastMesh()->setWalkableHeight(AgentHeight);
+		RecastNavMeshImpl->GetRecastMesh()->setWalkableRadius(AgentRadius);
+		RecastNavMeshImpl->GetRecastMesh()->setBVQuantFactor(1.f / CellSize);
 	}
 }
 
