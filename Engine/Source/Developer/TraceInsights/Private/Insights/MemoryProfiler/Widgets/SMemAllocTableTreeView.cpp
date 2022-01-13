@@ -165,6 +165,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 					TableTreeNodes.Add(NodePtr);
 				}
 				ensure(TableTreeNodes.Num() == TotalAllocCount - HeapAllocCount);
+				UpdateQueryInfo();
 			}
 		}
 	}
@@ -1107,7 +1108,7 @@ void SMemAllocTableTreeView::UpdateQueryInfo()
 			check(false);
 		}
 
-		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "{0} ({1})"), Rule->GetVerboseName(), TimeMarkersText);
+		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "{0} ({1}) : {2} allocs"), Rule->GetVerboseName(), TimeMarkersText, FText::AsNumber(TableTreeNodes.Num()));
 		QueryInfoTooltip = Rule->GetDescription();
 	}
 }
