@@ -68,4 +68,9 @@ public:
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
 	void BuildSlot(TSharedRef<SVerticalBox> InVerticalBox);
+
+#if WITH_EDITOR
+	virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
+	virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
+#endif //WITH_EDITOR
 };

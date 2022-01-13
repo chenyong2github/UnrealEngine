@@ -75,3 +75,33 @@ void UUniformGridSlot::SynchronizeProperties()
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
 }
+
+#if WITH_EDITOR
+
+bool UUniformGridSlot::NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize)
+{
+	const FVector2D ClampedDirection = NudgeDirection.ClampAxes(-1.0f, 1.0f);
+	const int32 NewColumn = Column + ClampedDirection.X;
+	const int32 NewRow = Row + ClampedDirection.Y;
+
+	if (NewColumn < 0 || NewRow < 0 || (NewColumn == Column && NewRow == Row))
+	{
+		return false;
+	}
+
+	Modify();
+
+	SetRow(NewRow);
+	SetColumn(NewColumn);
+
+	return true;
+}
+
+void UUniformGridSlot::SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot)
+{
+	const ThisClass* const TemplateUniformGridSlot = CastChecked<ThisClass>(TemplateSlot);
+	SetRow(TemplateUniformGridSlot->Row);
+	SetColumn(TemplateUniformGridSlot->Column);
+}
+
+#endif

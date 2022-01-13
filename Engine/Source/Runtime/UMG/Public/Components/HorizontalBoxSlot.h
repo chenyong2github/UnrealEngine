@@ -56,4 +56,8 @@ public:
 
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
+#if WITH_EDITOR
+	virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
+	virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
+#endif //WITH_EDITOR
 };

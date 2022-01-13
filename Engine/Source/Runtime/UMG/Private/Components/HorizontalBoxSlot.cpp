@@ -2,6 +2,7 @@
 
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Widget.h"
+#include "Components/HorizontalBox.h"
 
 /////////////////////////////////////////////////////
 // UHorizontalBoxSlot
@@ -78,3 +79,40 @@ void UHorizontalBoxSlot::SynchronizeProperties()
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
 }
+
+#if WITH_EDITOR
+
+bool UHorizontalBoxSlot::NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize)
+{
+	if (NudgeDirection.X == 0.0f)
+	{
+		return false;
+	}
+	
+	const FVector2D ClampedDirection = NudgeDirection.ClampAxes(-1, 1);
+	UHorizontalBox* ParentHorizontalBox = CastChecked<UHorizontalBox>(Parent);
+
+	const int32 CurrentIndex = ParentHorizontalBox->GetChildIndex(Content);
+
+	if ((CurrentIndex == 0 && ClampedDirection.X < 0.0f) ||
+		(CurrentIndex + 1 >= ParentHorizontalBox->GetChildrenCount() && ClampedDirection.X > 0.0f))
+	{
+		return false;
+	}
+
+	ParentHorizontalBox->Modify();
+	ParentHorizontalBox->ShiftChild(CurrentIndex + ClampedDirection.X, Content);
+
+	return true;
+}
+
+void UHorizontalBoxSlot::SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot)
+{
+	const ThisClass* const TemplateHorizontalBoxSlot = CastChecked<ThisClass>(TemplateSlot);
+	const int32 CurrentIndex = TemplateHorizontalBoxSlot->Parent->GetChildIndex(TemplateHorizontalBoxSlot->Content);
+
+	UHorizontalBox* ParentHorizontalBox = CastChecked<UHorizontalBox>(Parent);
+	ParentHorizontalBox->ShiftChild(CurrentIndex, Content);
+}
+
+#endif

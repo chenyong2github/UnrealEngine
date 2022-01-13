@@ -2012,6 +2012,9 @@ FReply SDesignerView::NudgeSelectedWidget(FVector2D Nudge)
 					if (TemplateSlot->NudgeByDesigner(Nudge, WidgetDesignerSettings->GridSnapEnabled ? TOptional<int32>(WidgetDesignerSettings->GridSnapSize) : TOptional<int32>()))
 					{
 						PreviewSlot->SynchronizeFromTemplate(TemplateSlot);
+						
+						UWidgetBlueprint* Blueprint = GetBlueprint();
+						FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 					}
 					// Nudge failed, cancel transaction.
 					else

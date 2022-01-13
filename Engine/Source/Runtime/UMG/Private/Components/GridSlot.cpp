@@ -134,3 +134,33 @@ void UGridSlot::SynchronizeProperties()
 
 	SetLayer(Layer);
 }
+
+#if WITH_EDITOR
+
+bool UGridSlot::NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize)
+{
+	const FVector2D ClampedDirection = NudgeDirection.ClampAxes(-1.0f, 1.0f);
+	const int32 NewColumn = Column + ClampedDirection.X;
+	const int32 NewRow = Row + ClampedDirection.Y;
+
+	if (NewColumn < 0 || NewRow < 0 || (NewColumn == Column && NewRow == Row))
+	{
+		return false;
+	}
+	
+	Modify();
+
+	SetRow(NewRow);
+	SetColumn(NewColumn);
+
+	return true;
+}
+
+void UGridSlot::SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot)
+{
+	const ThisClass* const TemplateGridSlot = CastChecked<ThisClass>(TemplateSlot);
+	SetRow(TemplateGridSlot->Row);
+	SetColumn(TemplateGridSlot->Column);
+}
+
+#endif
