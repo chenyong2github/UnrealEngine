@@ -353,50 +353,6 @@ namespace LevelInstanceMenuUtils
 		}
 	}
 		
-	void CreateSaveAsMenu(UToolMenu* Menu, AActor* ContextActor)
-	{
-		ALevelInstance* ContextLevelInstance = nullptr;
-		if (ContextActor)
-		{
-			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = ContextActor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
-			{
-				LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(ContextActor, [&ContextLevelInstance](ALevelInstance* LevelInstanceActor)
-					{
-						if (LevelInstanceActor->IsEditing())
-						{
-							ContextLevelInstance = LevelInstanceActor;
-							return false;
-						}
-						return true;
-					});
-			}
-		}
-
-		if (ContextLevelInstance && IsExperimentalSettingEnabled(ContextLevelInstance))
-		{
-			FToolMenuSection& Section = CreateLevelSection(Menu);
-			FText EntryDesc = LOCTEXT("LevelInstanceEditSubMenuEntry", "");
-			const bool bCanCommit = ContextLevelInstance->CanCommit(&EntryDesc);
-
-			FToolUIAction SaveAction;
-			SaveAction.ExecuteAction.BindLambda([ContextLevelInstance](const FToolMenuContext& MenuContext)
-				{
-					ContextLevelInstance->SaveAs();
-				});
-			SaveAction.CanExecuteAction.BindLambda([bCanCommit](const FToolMenuContext& MenuContext)
-				{
-					return bCanCommit;
-				});
-
-			Section.AddMenuEntry(
-				"SaveLevelInstanceAs",
-				LOCTEXT("SaveLevelInstanceAs", "Save Level as..."),
-				TAttribute<FText>(),
-				TAttribute<FSlateIcon>(),
-				SaveAction);
-		}
-	}
-
 	void CreateBreakSubMenu(UToolMenu* Menu, ALevelInstance* ContextLevelInstance)
 	{
 		static int32 BreakLevels = 1;
@@ -749,7 +705,6 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 			{
 				LevelInstanceMenuUtils::CreateEditMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreateCommitDiscardMenu(ToolMenu, ContextActor);
-				LevelInstanceMenuUtils::CreateSaveAsMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreateBreakMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreatePackedBlueprintMenu(ToolMenu, ContextActor);
 			}

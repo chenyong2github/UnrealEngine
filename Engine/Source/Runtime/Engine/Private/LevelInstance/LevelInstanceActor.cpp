@@ -787,13 +787,6 @@ void ALevelInstance::Discard()
 	LevelInstanceSubsystem->CommitLevelInstance(this, bDiscardEdits);
 }
 
-void ALevelInstance::SaveAs()
-{
-	ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem();
-	check(LevelInstanceSubsystem);
-	LevelInstanceSubsystem->SaveLevelInstanceAs(this);
-}
-
 bool ALevelInstance::HasDirtyChildren() const
 {
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())

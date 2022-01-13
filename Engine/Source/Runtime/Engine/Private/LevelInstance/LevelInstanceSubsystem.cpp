@@ -1850,37 +1850,6 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 	return true;
 }
 
-void ULevelInstanceSubsystem::SaveLevelInstanceAs(ALevelInstance* LevelInstanceActor)
-{
-	check(CanCommitLevelInstance(LevelInstanceActor));
-
-	const FLevelInstanceEdit* OldLevelInstanceEdit = GetLevelInstanceEdit(LevelInstanceActor);
-	check(OldLevelInstanceEdit);
-	UWorld* EditingWorld = OldLevelInstanceEdit->GetEditWorld();
-	check(EditingWorld);
-
-	// Reset the level transform before saving
-	OldLevelInstanceEdit->LevelStreaming->GetLoadedLevel()->ApplyWorldOffset(-LevelInstanceActor->GetTransform().GetLocation(), false);
-
-	TArray<UObject*> OutObjects;
-	FEditorFileUtils::SaveAssetsAs({ EditingWorld }, OutObjects);
-
-	if (OutObjects.Num() == 0 || OutObjects[0] == EditingWorld)
-	{
-		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to save Level as new asset"));
-		return;
-	}
-
-	UWorld* SavedWorld = StaticCast<UWorld*>(OutObjects[0]);
-	// Discard edits and unload streaming level
-	ResetEdit(LevelInstanceEdit);
-	
-	LevelInstanceActor->SetWorldAsset(SavedWorld);
-
-	LoadLevelInstance(LevelInstanceActor);
-	GEditor->SelectActor(LevelInstanceActor, true, true);
-}
-
 ALevelInstance* ULevelInstanceSubsystem::GetParentLevelInstance(const AActor* Actor) const
 {
 	check(Actor);

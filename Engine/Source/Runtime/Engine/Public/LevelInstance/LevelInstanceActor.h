@@ -95,7 +95,6 @@ public:
 	void Edit(AActor* ContextActor = nullptr);
 	void Commit();
 	void Discard();
-	void SaveAs();
 	bool HasDirtyChildren() const;
 	bool IsDirty() const;
 	bool SetCurrent();
