@@ -28,9 +28,23 @@
 /*-----------------------------------------------------------------------------
 	Size of the world.
 -----------------------------------------------------------------------------*/
+#define UE_OLD_WORLD_MAX			2097152.0				/* UE4 world size */
 
-#define WORLD_MAX					2097152.0				/* Maximum size of the world */
+#ifndef UE_USE_UE4_WORLD_MAX
+#define UE_USE_UE4_WORLD_MAX		(UE_LARGE_WORLD_COORDINATES_DISABLED)			// Force UE4 WORLD_MAX for converted UE4 titles that explicitly rely on it.
+#endif
+
+#if UE_USE_UE4_WORLD_MAX
+#define WORLD_MAX					(UE_OLD_WORLD_MAX)		/* Maximum size of the world */
+#else
+// Note: Modifying WORLD_MAX affects UE_LWC_RENDER_TILE_SIZE in Engine\Source\Runtime\Core\Private\Misc\LargeWorldRenderPosition.cpp and may introduce precision issues in shaders using world coordinates.
+#define WORLD_MAX					8796093022208.0			/* Maximum size of the world  - Approx 87,960,930.2 km across, or 43,980,465.1 km from the origin */
+#endif
+
 #define HALF_WORLD_MAX				(WORLD_MAX * 0.5)		/* Half the maximum size of the world */
 #define HALF_WORLD_MAX1				(HALF_WORLD_MAX - 1.0)	/* Half the maximum size of the world minus one */
+
+
+
 
 #define DEFAULT_ORTHOZOOM			10000.0					/* Default 2D viewport zoom */

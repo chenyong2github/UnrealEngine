@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/LargeWorldRenderPosition.h"
+#include "EngineDefines.h"
 
 #if !UE_LARGE_WORLD_COORDINATES_DISABLED
 
-#define UE_LWC_RENDER_TILE_SIZE (262144.0)
+#define UE_LWC_RENDER_TILE_SIZE_MIN (262144.0)	// LWC_TODO: Make this smaller?
+#define UE_LWC_RENDER_TILE_SIZE (FMath::Max(UE_LWC_RENDER_TILE_SIZE_MIN,  HALF_WORLD_MAX / 16777216.0))	// LWC_TODO: Tweak render tile divisor to maximise range.
+static_assert(UE_LWC_RENDER_TILE_SIZE <= 1048576.0, "Current WORLD_MAX is too large and is likely to adversely affect world space coordinate precision within shaders!");	// LWC_TODO: Set this to something reasonable.
+
+//#define UE_LWC_RENDER_TILE_SIZE (262144.0)
 //#define UE_LWC_RENDER_TILE_SIZE (1048576.0)
 //#define UE_LWC_RENDER_TILE_SIZE (2097152.0)
 

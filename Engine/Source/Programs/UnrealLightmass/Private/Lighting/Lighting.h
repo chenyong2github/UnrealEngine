@@ -49,6 +49,7 @@ namespace Lightmass
 	extern double GStartupTime;
 }
 
+// LWC_TODO: Lightmass definition of WORLD_MAX is no longer in sync with EngineDefines.h. Is this acceptable?
 #define WORLD_MAX			2097152.0			/* Maximum size of the world */
 #define HALF_WORLD_MAX		( WORLD_MAX*0.5f )	/* Half the maximum size of the world */
 
