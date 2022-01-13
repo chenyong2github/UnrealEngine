@@ -93,13 +93,11 @@ public:
 	LAYOUT_FIELD(FShaderParameter, EmitterTickCounterParam);
 	LAYOUT_FIELD(FShaderParameter, EmitterSpawnInfoOffsetsParam);
 	LAYOUT_FIELD(FShaderParameter, EmitterSpawnInfoParamsParam);
-	LAYOUT_FIELD(FShaderParameter, NumEventsPerParticleParam);
-	LAYOUT_FIELD(FShaderParameter, NumParticlesPerEventParam);
-	LAYOUT_FIELD(FShaderParameter, CopyInstancesBeforeStartParam);
 	LAYOUT_FIELD(FShaderParameter, NumSpawnedInstancesParam);
 
 	LAYOUT_FIELD(FShaderParameter, SimulationStageIterationInfoParam);
 	LAYOUT_FIELD(FShaderParameter, SimulationStageNormalizedIterationIndexParam);
+	LAYOUT_FIELD(FShaderParameter, ParticleIterationStateInfoParam);
 	LAYOUT_FIELD(FShaderParameter, DispatchThreadIdBoundsParam);
 	LAYOUT_FIELD(FShaderParameter, DispatchThreadIdToLinearParam);
 

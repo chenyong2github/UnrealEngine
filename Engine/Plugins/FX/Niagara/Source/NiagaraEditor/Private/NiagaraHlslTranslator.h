@@ -97,6 +97,9 @@ public:
 		FName							IterationSource;
 		ENiagaraSimStageExecuteBehavior	ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
 		mutable bool					PartialParticleUpdate = false;
+		bool							bParticleIterationStateEnabled = false;
+		FName							ParticleIterationStateBinding;
+		FIntPoint						ParticleIterationStateRange = FIntPoint::ZeroValue;
 	};
 	TArray<FCompileSimStageData> CompileSimStageData;
 
@@ -369,6 +372,9 @@ public:
 	int32 NumIterations = 1;
 	FName NumIterationsBinding;
 	ENiagaraSimStageExecuteBehavior ExecuteBehavior = ENiagaraSimStageExecuteBehavior::Always;
+	bool bParticleIterationStateEnabled = false;
+	FName ParticleIterationStateBinding;
+	FIntPoint ParticleIterationStateRange = FIntPoint::ZeroValue;
 	bool bUsesAlive = false;
 	bool bWritesAlive = false;
 	bool bWritesParticles = false;

@@ -1221,6 +1221,9 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].bPartialParticleUpdate = CompileSimStageData.PartialParticleUpdate;
 					TranslationStages[Index].IterationSource = CompileSimStageData.IterationSource;
 					TranslationStages[Index].NumIterationsBinding = CompileSimStageData.NumIterationsBinding;
+					TranslationStages[Index].bParticleIterationStateEnabled = CompileSimStageData.bParticleIterationStateEnabled;
+					TranslationStages[Index].ParticleIterationStateBinding = CompileSimStageData.ParticleIterationStateBinding;
+					TranslationStages[Index].ParticleIterationStateRange = CompileSimStageData.ParticleIterationStateRange;
 
 					ParamMapHistories.AddDefaulted(1);
 					ParamMapHistoriesSourceInOtherHistories.AddDefaulted(1);
@@ -1285,6 +1288,9 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					SimulationStageMetaData.NumIterations = TranslationStages[Index].NumIterations;
 					SimulationStageMetaData.bWritesParticles = TranslationStages[Index].bWritesParticles;
 					SimulationStageMetaData.bPartialParticleUpdate = TranslationStages[Index].bPartialParticleUpdate;
+					SimulationStageMetaData.bParticleIterationStateEnabled = TranslationStages[Index].bParticleIterationStateEnabled;
+					SimulationStageMetaData.ParticleIterationStateBinding = TranslationStages[Index].ParticleIterationStateBinding;
+					SimulationStageMetaData.ParticleIterationStateRange = TranslationStages[Index].ParticleIterationStateRange;
 
 					// Determine dispatch information from iteration source (if we have one)
 					if ( !SimulationStageMetaData.IterationSource.IsNone() )
@@ -1907,6 +1913,11 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			Preamble.Appendf(TEXT("//\tExecuteBehavior = %s\n"), *ExecuteBehaviorEnum->GetNameStringByValue((int64)SimStageMetaData.ExecuteBehavior));
 			Preamble.Appendf(TEXT("//\tWritesParticles = %s\n"), SimStageMetaData.bWritesParticles ? TEXT("True") : TEXT("False"));
 			Preamble.Appendf(TEXT("//\tPartialParticleUpdate = %s\n"), SimStageMetaData.bPartialParticleUpdate ? TEXT("True") : TEXT("False"));
+
+			if ( SimStageMetaData.bParticleIterationStateEnabled )
+			{
+				Preamble.Appendf(TEXT("//\tParticleIterationStage = Attribute(%s) Range(%d ... %d)\n"), *SimStageMetaData.ParticleIterationStateBinding.ToString(), SimStageMetaData.ParticleIterationStateRange.X, SimStageMetaData.ParticleIterationStateRange.Y);
+			}
 
 			for (const FName& Dest : SimStageMetaData.OutputDestinations)
 			{
@@ -3177,6 +3188,29 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		// Particle iteration stage
 		if ( TranslationStage.IterationSource.IsNone() )
 		{
+			// Do we have particle state iteration enable
+			SimRunSpawnUpdateLogicString += TEXT("	bool bRunSpawnUpdateLogic = true;\n");
+			if ( TranslationStage.bParticleIterationStateEnabled )
+			{
+				if ( TranslationStage.bPartialParticleUpdate == false )
+				{
+					FName StageName;
+					if (CompilationOutput.ScriptData.SimulationStageMetaData.IsValidIndex(TranslationStage.SimulationStageIndex))
+					{
+						StageName = CompilationOutput.ScriptData.SimulationStageMetaData[TranslationStage.SimulationStageIndex].SimulationStageName;
+					}
+
+					Error(FText::Format(LOCTEXT("ParticleIterationState_Invalid", "Simulation stage '{0}' is incompatible with particle state iteration due to killing particles or disabling particle updates."), FText::FromName(StageName)), nullptr, nullptr);
+				}
+				SimRunSpawnUpdateLogicString += TEXT(
+					"	if ( ParticleIterationStateInfo.x != -1 )\n"
+					"	{\n"
+					"		int ParticleStateValue = InputDataInt(0, uint(ParticleIterationStateInfo.x), GLinearThreadId);\n"
+					"		bRunSpawnUpdateLogic = (ParticleStateValue >= ParticleIterationStateInfo.y) && (ParticleStateValue <= ParticleIterationStateInfo.z);\n"
+					"	}\n"
+				);
+			}
+
 			// We combine the update & spawn scripts together on GPU so we only need to check for spawning on the first translation stage
 			// Note: Depending on how spawning inside stages works we may need to enable the spawn logic for those stages *only*			
 			const bool bParticleSpawnStage = i == 1;
@@ -3192,15 +3226,15 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					"		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
 					"	}\n"
 					"	const int MaxInstances = GSpawnStartInstance + SpawnedInstances;\n"
-					"	const bool bRunUpdateLogic = GLinearThreadId < GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
-					"	const bool bRunSpawnLogic = GLinearThreadId >= GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
+					"	const bool bRunUpdateLogic = bRunSpawnUpdateLogic && GLinearThreadId < GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
+					"	const bool bRunSpawnLogic = bRunSpawnUpdateLogic && GLinearThreadId >= GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
 				);
 			}
 			else
 			{
 				SimRunSpawnUpdateLogicString += TEXT(
 					"	GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
-					"	const bool bRunUpdateLogic = GLinearThreadId < GSpawnStartInstance;\n"
+					"	const bool bRunUpdateLogic = bRunSpawnUpdateLogic && GLinearThreadId < GSpawnStartInstance;\n"
 					"	const bool bRunSpawnLogic = false;\n"
 				);
 			}

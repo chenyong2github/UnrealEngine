@@ -299,6 +299,7 @@ struct NIAGARA_API FNiagaraDataSetCompiledData
 	ENiagaraSimTarget SimTarget;
 
 	FNiagaraDataSetCompiledData();
+	const FNiagaraVariableLayoutInfo* FindVariableLayoutInfo(const FNiagaraVariableBase& VariableDef) const;
 	void BuildLayout();
 	void Empty();
 

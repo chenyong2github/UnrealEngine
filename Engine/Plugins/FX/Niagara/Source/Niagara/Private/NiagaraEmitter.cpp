@@ -1246,36 +1246,36 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 		}
 
 		// See how many particles we can fit in a GPU buffer. This number can be quite small on some platforms.
-const uint64 MaxBufferElements = (GNiagaraEmitterMaxGPUBufferElements > 0) ? uint64(GNiagaraEmitterMaxGPUBufferElements) : GetMaxBufferDimension();
+		const uint64 MaxBufferElements = (GNiagaraEmitterMaxGPUBufferElements > 0) ? uint64(GNiagaraEmitterMaxGPUBufferElements) : GetMaxBufferDimension();
 
-// Don't just cast the result of the division to 32-bit, since that will produce garbage if MaxNumInstances is larger than UINT_MAX. Saturate instead.
-MaxAllocationCount = (uint32)FMath::Min(MaxBufferElements / MaxGPUBufferComponents, (uint64)UINT_MAX);
-MaxInstanceCount = MaxAllocationCount;
+		// Don't just cast the result of the division to 32-bit, since that will produce garbage if MaxNumInstances is larger than UINT_MAX. Saturate instead.
+		MaxAllocationCount = (uint32)FMath::Min(MaxBufferElements / MaxGPUBufferComponents, (uint64)UINT_MAX);
+		MaxInstanceCount = MaxAllocationCount;
 
-if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
-{
-	// Round down to nearest thread group size
-	MaxAllocationCount = FMath::DivideAndRoundDown(MaxAllocationCount, NiagaraComputeMaxThreadGroupSize) * NiagaraComputeMaxThreadGroupSize;
+		if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			// Round down to nearest thread group size
+			MaxAllocationCount = FMath::DivideAndRoundDown(MaxAllocationCount, NiagaraComputeMaxThreadGroupSize) * NiagaraComputeMaxThreadGroupSize;
 
-	// We can't go below a thread group size, the rest of the code does not handle this and we should only hit this when buffer size forcing is enabled
-	if (MaxAllocationCount < NiagaraComputeMaxThreadGroupSize)
-	{
-		MaxAllocationCount = NiagaraComputeMaxThreadGroupSize;
-		check(MaxAllocationCount * MaxGPUBufferComponents <= GetMaxBufferDimension());
-	}
+			// We can't go below a thread group size, the rest of the code does not handle this and we should only hit this when buffer size forcing is enabled
+			if (MaxAllocationCount < NiagaraComputeMaxThreadGroupSize)
+			{
+				MaxAllocationCount = NiagaraComputeMaxThreadGroupSize;
+				check(MaxAllocationCount * MaxGPUBufferComponents <= GetMaxBufferDimension());
+			}
 
-	// -1 because we need a scratch instance on the GPU
-	MaxInstanceCount = MaxAllocationCount - 1;
-}
+			// -1 because we need a scratch instance on the GPU
+			MaxInstanceCount = MaxAllocationCount - 1;
+		}
 
-if (AllocationMode == EParticleAllocationMode::FixedCount)
-{
-	MaxInstanceCount = FMath::Min(MaxInstanceCount, uint32(FMath::Max(PreAllocationCount, 0)));
-}
+		if (AllocationMode == EParticleAllocationMode::FixedCount)
+		{
+			MaxInstanceCount = FMath::Min(MaxInstanceCount, uint32(FMath::Max(PreAllocationCount, 0)));
+		}
 	}
 	else
 	{
-	MaxInstanceCount = 0;
+		MaxInstanceCount = 0;
 	}
 
 	// Cache shaders for all GPU scripts
@@ -1307,6 +1307,20 @@ if (AllocationMode == EParticleAllocationMode::FixedCount)
 #endif
 
 	RebuildRendererBindings();
+
+	if ( GPUComputeScript )
+	{
+		for (FSimulationStageMetaData& SimStageMetaData : GPUComputeScript->GetVMExecutableData().SimulationStageMetaData)
+		{
+			if (SimStageMetaData.bParticleIterationStateEnabled)
+			{
+				if (const FNiagaraVariableLayoutInfo* VariableInfo = CompiledData->FindVariableLayoutInfo(FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ParticleIterationStateBinding)))
+				{
+					SimStageMetaData.ParticleIterationStateComponentIndex = VariableInfo->Int32ComponentStart;
+				}
+			}
+		}
+	}
 }
 
 void UNiagaraEmitter::RebuildRendererBindings()

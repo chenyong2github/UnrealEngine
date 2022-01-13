@@ -44,6 +44,8 @@ void UNiagaraSimulationStageBase::RequestRecompile()
 
 void UNiagaraSimulationStageBase::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	FName PropertyName;
 	if (PropertyChangedEvent.Property)
 	{
@@ -69,6 +71,9 @@ bool UNiagaraSimulationStageGeneric::AppendCompileHash(FNiagaraCompileHashVisito
 	InVisitor->UpdatePOD(TEXT("bDisablePartialParticleUpdate"), bDisablePartialParticleUpdate ? 1 : 0);
 	InVisitor->UpdateString(TEXT("DataInterface"), DataInterface.BoundVariable.GetName().ToString());
 	InVisitor->UpdateString(TEXT("SimulationStageName"), SimulationStageName.ToString());
+	InVisitor->UpdatePOD(TEXT("bParticleIterationStateEnabled"), bParticleIterationStateEnabled ? 1 : 0);
+	InVisitor->UpdateString(TEXT("ParticleIterationStateBinding"), ParticleIterationStateBinding.GetDataSetBindableVariable().GetName().ToString());
+	InVisitor->UpdateString(TEXT("ParticleIterationStateRange"), FString::Printf(TEXT("%d,%d"), ParticleIterationStateRange.X, ParticleIterationStateRange.Y));
 	return true;
 }
 
@@ -88,6 +93,13 @@ void UNiagaraSimulationStageGeneric::PostInitProperties()
 			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
 			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), NAME_None),
 			ENiagaraRendererSourceDataMode::Emitter
+		);
+
+		static const FName ParticleStateIndex("Particles.StateIndex");
+		ParticleIterationStateBinding.Setup(
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), ParticleStateIndex),
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), ParticleStateIndex),
+			ENiagaraRendererSourceDataMode::Particles
 		);
 	}
 }
@@ -133,6 +145,18 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 		bNeedsRecompile = true;
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, SimulationStageName))
+	{
+		bNeedsRecompile = true;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bParticleIterationStateEnabled))
+	{
+		bNeedsRecompile = true;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ParticleIterationStateBinding))
+	{
+		bNeedsRecompile = true;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, ParticleIterationStateRange))
 	{
 		bNeedsRecompile = true;
 	}

@@ -61,6 +61,20 @@ public:
 	UPROPERTY()
 	uint32 bPartialParticleUpdate : 1;
 
+	UPROPERTY()
+	uint32 bParticleIterationStateEnabled : 1;
+
+	/** When the value is not none this is the binding used for particle state iteration stages. */
+	UPROPERTY()
+	FName ParticleIterationStateBinding;
+
+	/** Cached component index for particle iteration stage. */
+	int32 ParticleIterationStateComponentIndex = INDEX_NONE;
+
+	/** Inclusive range to compare the particle state value with. */
+	UPROPERTY()
+	FIntPoint ParticleIterationStateRange;
+
 	/** DataInterfaces that we write to in this stage.*/
 	UPROPERTY()
 	TArray<FName> OutputDestinations;

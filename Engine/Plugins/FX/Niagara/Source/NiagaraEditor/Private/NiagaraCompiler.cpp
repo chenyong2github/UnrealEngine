@@ -693,6 +693,17 @@ void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>
 					SimStageData.IterationSource		= GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
 					SimStageData.ExecuteBehavior		= GenericStage->ExecuteBehavior;
 					SimStageData.PartialParticleUpdate	= GenericStage->bDisablePartialParticleUpdate == false;
+					SimStageData.bParticleIterationStateEnabled	= GenericStage->bParticleIterationStateEnabled;
+					SimStageData.ParticleIterationStateRange	= GenericStage->ParticleIterationStateRange;
+
+					if (SimStageData.bParticleIterationStateEnabled)
+					{
+						FString AttributeName = GenericStage->ParticleIterationStateBinding.GetName().ToString();
+						if ( ensureMsgf(AttributeName.RemoveFromStart(TEXT("Particles.")), TEXT("Attribute '%s' is not in particles namespace"), *AttributeName) )
+						{
+							SimStageData.ParticleIterationStateBinding = FName(AttributeName);
+						}
+					}
 
 					++ActiveStageCount;
 				}

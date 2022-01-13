@@ -497,10 +497,6 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 #if GPU_SIMULATION
 	uint ComponentBufferSizeRead;
 	uint ComponentBufferSizeWrite;
-	int	NumEventsPerParticle;
-	int NumParticlesPerEvent;
-	uint CopyInstancesBeforeStart;
-
 	uint SimStart;
 
 	/* Buffers for particle data and DrawIndirect calls
@@ -535,6 +531,9 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	int SimulationStage_GetIterationIndex() { return SimulationStageIterationInfo.z; }
 	int SimulationStage_GetNumIterations() { return SimulationStageIterationInfo.w; }
 	float SimulationStage_GetNormalizedIterationIndex() { return SimulationStageNormalizedIterationIndex; }
+
+	// Where X = Parameter Binding, YZ = Inclusive Range
+	uint3 ParticleIterationStateInfo;
 
 	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag)
 	{

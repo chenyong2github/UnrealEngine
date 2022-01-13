@@ -264,12 +264,13 @@ TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(UNiagaraEm
 		return Names;
 	}
 
-	bool bSystem = true;
-	bool bEmitter = true;
-	bool bParticles = true;
-	bool bUser = true;
-	bool bAllowStatic = true;
+	const bool bSystem = true;
+	const bool bEmitter = true;
+	const bool bParticles = true;
+	const bool bUser = true;
+	const bool bAllowStatic = true;
 	TArray<FNiagaraVariableBase> Vars = FNiagaraStackAssetAction_VarBind::FindVariables(InEmitter, bSystem, bEmitter, bParticles, bUser, bAllowStatic);
+
 	for (const FNiagaraVariableBase& Var : Vars)
 	{
 		if (!bAllowStatic && Var.GetType() != TargetVariableBinding->GetType() )
@@ -285,9 +286,14 @@ TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(UNiagaraEm
 		{
 			Names.AddUnique(Var.GetName());
 		}
-		else if ( SimulationStage && !Var.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace) )
+		else if ( SimulationStage )
 		{
-			Names.AddUnique(Var.GetName());
+			// Unless we have an explicit "particles." binding we are not in the particle namespace
+			const bool IsParticleNamespace = !TargetVariableBinding->GetName().IsNone() && TargetVariableBinding->IsParticleBinding();
+			if ( IsParticleNamespace == Var.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace) )
+			{
+				Names.AddUnique(Var.GetName());
+			}
 		}
 	}
 

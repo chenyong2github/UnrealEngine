@@ -628,9 +628,6 @@ bool FNiagaraDataBuffer::CheckForNaNs()const
 
 void FNiagaraDataBuffer::Allocate(uint32 InNumInstances, bool bMaintainExisting)
 {
-	//CheckUsage(false);
-	checkSlow(Owner->GetSimTarget() == ENiagaraSimTarget::CPUSim);
-
 	NumInstances = 0;
 	if (!bMaintainExisting)
 	{
@@ -1452,6 +1449,18 @@ void FNiagaraDataBuffer::BuildRegisterTable()
 //////////////////////////////////////////////////////////////////////////
 
 FNiagaraDataSetCompiledData FNiagaraDataSetCompiledData::DummyCompiledData;
+
+const FNiagaraVariableLayoutInfo* FNiagaraDataSetCompiledData::FindVariableLayoutInfo(const FNiagaraVariableBase& VariableDef) const
+{
+	for ( int i=0; i < Variables.Num(); ++i )
+	{
+		if ( Variables[i].GetName() == VariableDef.GetName() && Variables[i].GetType() == VariableDef.GetType() )
+		{
+			return &VariableLayouts[i];
+		}
+	}
+	return nullptr;
+}
 
 // note, this method is also implemented in FNiagaraDataSet::BuildLayout()
 void FNiagaraDataSetCompiledData::BuildLayout()

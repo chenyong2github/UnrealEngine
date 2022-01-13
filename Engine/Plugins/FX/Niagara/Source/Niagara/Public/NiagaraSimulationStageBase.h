@@ -52,11 +52,6 @@ class NIAGARA_API UNiagaraSimulationStageGeneric : public UNiagaraSimulationStag
 	GENERATED_BODY()
 
 public:
-	UNiagaraSimulationStageGeneric()
-		: Iterations(1)
-	{
-	}
-
 	/** Binding to a bool parameter which dynamically controls if the simulation stage is enabled or not. */
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FNiagaraVariableAttributeBinding EnabledBinding;
@@ -65,8 +60,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	ENiagaraIterationSource IterationSource;
 
-	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (NoSpinbox = "true", ClampMin = 1, Tooltip = "The number of times we run this simulation stage before moving to the next stage."))
-	int32 Iterations;
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (NoSpinbox = "true", ClampMin = 1, DisplayName = "Num Iterations", Tooltip = "The number of times we run this simulation stage before moving to the next stage."))
+	int32 Iterations = 1;
 
 	/** Binding to an int parameter which dynamically controls the number of times the simulation stage runs. */
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
@@ -84,6 +79,17 @@ public:
 	/** Source data interface to use for the simulation stage. The data interface needs to be a subclass of UNiagaraDataInterfaceRWBase, for example the Grid2D and Grid3D data interfaces. */
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
 	FNiagaraVariableDataInterfaceBinding DataInterface;
+
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	uint32 bParticleIterationStateEnabled : 1;
+
+	/** Particle state attribute binding, when enabled we will only allow particles who pass the state range check to be processed. */
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	FNiagaraVariableAttributeBinding ParticleIterationStateBinding;
+
+	/** The inclusive range used to check particle state binding against when enabled. */
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	FIntPoint ParticleIterationStateRange = FIntPoint(0, 0);
 
 	virtual void PostInitProperties() override;
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
