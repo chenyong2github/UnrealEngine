@@ -6,6 +6,7 @@
 #include "CoreTypes.h"
 #include "Containers/BitArray.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataLegacyCacheStore.h"
 #include "Stats/Stats.h"
 
 class FDerivedDataCacheUsageStats;
@@ -32,7 +33,7 @@ namespace UE::DerivedData
  * Interface for cache server backends.
  * The entire API should be callable from any thread (except the singleton can be assumed to be called at least once before concurrent access).
  */
-class FDerivedDataBackendInterface : public ICacheStore
+class FDerivedDataBackendInterface : public ILegacyCacheStore
 {
 public:
 
@@ -190,6 +191,21 @@ public:
 	 * false which will result in a warning if an attempt is made to apply these options.
 	 */
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) = 0;
+
+	virtual void LegacyPut(
+		TConstArrayView<FLegacyCachePutRequest> Requests,
+		IRequestOwner& Owner,
+		FOnLegacyCachePutComplete&& OnComplete) override;
+
+	virtual void LegacyGet(
+		TConstArrayView<FLegacyCacheGetRequest> Requests,
+		IRequestOwner& Owner,
+		FOnLegacyCacheGetComplete&& OnComplete) override;
+
+	virtual void LegacyDelete(
+		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
+		IRequestOwner& Owner,
+		FOnLegacyCacheDeleteComplete&& OnComplete) override;
 };
 
 class FDerivedDataBackend
@@ -206,7 +222,9 @@ public:
 	 * Singleton to retrieve the root cache
 	 * @return Reference to the global cache root
 	 */
-	virtual FDerivedDataBackendInterface& GetRoot() = 0;
+	virtual ILegacyCacheStore& GetRoot() = 0;
+
+	virtual int32 GetMaxKeyLength() const = 0;
 
 	//--------------------
 	// System Interface, copied from FDerivedDataCacheInterface

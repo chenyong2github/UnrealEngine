@@ -6,7 +6,6 @@
 #include "DerivedDataBackendThrottleWrapper.h"
 #include "DerivedDataBackendVerifyWrapper.h"
 #include "DerivedDataCacheUsageStats.h"
-#include "DerivedDataLimitKeyLengthWrapper.h"
 #include "FileBackedDerivedDataBackend.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
@@ -96,7 +95,6 @@ public:
 		, BootCache(NULL)
 		, WritePakCache(NULL)
 		, AsyncPutWrapper(NULL)
-		, KeyLengthWrapper(NULL)
 		, HierarchicalWrapper(NULL)
 		, bUsingSharedDDC(false)
 		, bIsShuttingDown(false)
@@ -154,7 +152,7 @@ public:
 			}
 		}
 
-		// Make sure AsyncPutWrapper and KeyLengthWrapper are created
+		// Make sure AsyncPutWrapper is created
 		if( !AsyncPutWrapper )
 		{
 			AsyncPutWrapper = AsyncPut::CreateAsyncPutDerivedDataBackend( RootCache, /*bCacheInFlightPuts*/ true );
@@ -162,12 +160,10 @@ public:
 			CreatedBackends.Add( AsyncPutWrapper );
 			RootCache = AsyncPutWrapper;
 		}
-		if ( !KeyLengthWrapper )
+
+		if (MaxKeyLength == 0)
 		{
-			KeyLengthWrapper = new LimitKeyLength::FDerivedDataLimitKeyLengthWrapper( RootCache, MAX_BACKEND_KEY_LENGTH );
-			check(KeyLengthWrapper);
-			CreatedBackends.Add( KeyLengthWrapper );
-			RootCache = KeyLengthWrapper;
+			MaxKeyLength = MAX_BACKEND_KEY_LENGTH;
 		}
 	}
 
@@ -231,14 +227,13 @@ public:
 				}
 				else if( NodeType == TEXT("KeyLength") )
 				{
-					if( KeyLengthWrapper == NULL )
+					if( MaxKeyLength == 0 )
 					{
-						KeyLengthWrapper = ParseKeyLength( NodeName, *Entry, IniFilename, IniSection, InParsedNodes );
-						ParsedNode = KeyLengthWrapper;
+						ParsedNode = ParseKeyLength( NodeName, *Entry, IniFilename, IniSection, InParsedNodes );
 					}
 					else
 					{
-						UE_LOG( LogDerivedDataCache, Warning, TEXT("FDerivedDataBackendGraph:  Unable to create %s KeyLengthWrapper because only one KeyLength node is supported."), NodeName );
+						UE_LOG( LogDerivedDataCache, Warning, TEXT("FDerivedDataBackendGraph:  Unable to create %s KeyLength because only one KeyLength node is supported."), NodeName );
 					}
 				}
 				else if( NodeType == TEXT("AsyncPut") )
@@ -463,7 +458,7 @@ public:
 	 */
 	FDerivedDataBackendInterface* ParseKeyLength( const TCHAR* NodeName, const TCHAR* Entry, const FString& IniFilename, const TCHAR* IniSection, TMap<FString, FDerivedDataBackendInterface*>& InParsedNodes )
 	{
-		FDerivedDataBackendInterface* InnerNode = NULL;
+		FDerivedDataBackendInterface* InnerNode = nullptr;
 		FString InnerName;
 		if( FParse::Value( Entry, TEXT("Inner="), InnerName ) )
 		{
@@ -479,21 +474,18 @@ public:
 			}
 		}
 
-		FDerivedDataBackendInterface* KeyLengthNode = NULL;
 		if( InnerNode )
 		{
 			int32 KeyLength = MAX_BACKEND_KEY_LENGTH;
 			FParse::Value( Entry, TEXT("Length="), KeyLength );
-			KeyLength = FMath::Clamp( KeyLength, 0, MAX_BACKEND_KEY_LENGTH );
-
-			KeyLengthNode = new LimitKeyLength::FDerivedDataLimitKeyLengthWrapper( InnerNode, KeyLength );
+			MaxKeyLength = FMath::Clamp( KeyLength, 0, MAX_BACKEND_KEY_LENGTH );
 		}
 		else
 		{
 			UE_LOG( LogDerivedDataCache, Warning, TEXT("Unable to find inner node %s for KeyLength node %s. KeyLength node will not be created."), *InnerName, NodeName );
 		}
 
-		return KeyLengthNode;
+		return InnerNode;
 	}
 
 	/**
@@ -1044,10 +1036,15 @@ public:
 		DestroyCreatedBackends();
 	}
 
-	FDerivedDataBackendInterface& GetRoot() override
+	ILegacyCacheStore& GetRoot() override
 	{
 		check(RootCache);
 		return *RootCache;
+	}
+
+	virtual int32 GetMaxKeyLength() const override
+	{
+		return MaxKeyLength;
 	}
 
 	virtual void NotifyBootComplete() override
@@ -1283,13 +1280,14 @@ private:
 	FFileBackedDerivedDataBackend*	BootCache;
 	PakFile::IPakFileDerivedDataBackend* WritePakCache;
 	FDerivedDataBackendInterface*	AsyncPutWrapper;
-	FDerivedDataBackendInterface*	KeyLengthWrapper;
 	Hierarchical::FHierarchicalDerivedDataBackend* HierarchicalWrapper;
 	/** Support for multiple read only pak files. */
 	TArray<PakFile::IPakFileDerivedDataBackend*> ReadPakCache;
 
 	/** List of directories used by the DDC */
 	TArray<FString> Directories;
+
+	int32 MaxKeyLength = 0;
 
 	/** Whether a shared cache is in use */
 	bool bUsingSharedDDC;
@@ -1307,6 +1305,96 @@ private:
 
 namespace UE::DerivedData
 {
+
+void FDerivedDataBackendInterface::LegacyPut(
+	const TConstArrayView<FLegacyCachePutRequest> Requests,
+	IRequestOwner& Owner,
+	FOnLegacyCachePutComplete&& OnComplete)
+{
+	for (const FLegacyCachePutRequest& Request : Requests)
+	{
+		FCompositeBuffer CompositeValue = Request.Value;
+		Request.Key.WriteValueTrailer(CompositeValue);
+
+		checkf(CompositeValue.GetSize() < MAX_int32,
+			TEXT("Value is 2 GiB or greater, which is not supported for put of '%s' from '%s'"),
+			*Request.Key.GetFullKey(), *Request.Name);
+	
+		UE_CLOG(Request.Key.HasShortKey(), LogDerivedDataCache, VeryVerbose,
+			TEXT("ShortenKey %s -> %s"), *Request.Key.GetFullKey(), *Request.Key.GetShortKey());
+
+		FSharedBuffer Value = MoveTemp(CompositeValue).ToShared();
+		const TArrayView<const uint8> Data(MakeArrayView(static_cast<const uint8*>(Value.GetData()), int32(Value.GetSize())));
+		const EPutStatus Status = PutCachedData(*Request.Key.GetShortKey(), Data, /*bPutEvenIfExists*/ false);
+		OnComplete({Request.Name, Request.Key, Request.UserData, Status == EPutStatus::Cached ? EStatus::Ok : EStatus::Error});
+	}
+}
+
+void FDerivedDataBackendInterface::LegacyGet(
+	const TConstArrayView<FLegacyCacheGetRequest> Requests,
+	IRequestOwner& Owner,
+	FOnLegacyCacheGetComplete&& OnComplete)
+{
+	TArray<FString, TInlineAllocator<8>> ExistsKeys;
+	TArray<const FLegacyCacheGetRequest*, TInlineAllocator<8>> ExistsRequests;
+
+	TArray<FString, TInlineAllocator<8>> PrefetchKeys;
+	TArray<const FLegacyCacheGetRequest*, TInlineAllocator<8>> PrefetchRequests;
+
+	for (const FLegacyCacheGetRequest& Request : Requests)
+	{
+		if (!EnumHasAnyFlags(Request.Policy, ECachePolicy::Query))
+		{
+			OnComplete({Request.Name, Request.Key, {}, Request.UserData, EStatus::Error});
+		}
+		else if (EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData))
+		{
+			const bool bExists = !EnumHasAnyFlags(Request.Policy, ECachePolicy::Store);
+			(bExists ? ExistsKeys : PrefetchKeys).Emplace(Request.Key.GetShortKey());
+			(bExists ? ExistsRequests : PrefetchRequests).Add(&Request);
+		}
+		else
+		{
+			TArray<uint8> Data;
+			const bool bGetOk = GetCachedData(*Request.Key.GetShortKey(), Data);
+			FCompositeBuffer Value(MakeSharedBufferFromArray(MoveTemp(Data)));
+			const bool bKeyOk = bGetOk && Request.Key.ReadValueTrailer(Value);
+			OnComplete({Request.Name, Request.Key, MoveTemp(Value).ToShared(), Request.UserData, bKeyOk ? EStatus::Ok : EStatus::Error});
+		}
+	}
+
+	if (!PrefetchKeys.IsEmpty())
+	{
+		const bool bOk = TryToPrefetch(PrefetchKeys);
+		for (const FLegacyCacheGetRequest* const Request : PrefetchRequests)
+		{
+			OnComplete({Request->Name, Request->Key, {}, Request->UserData, bOk ? EStatus::Ok : EStatus::Error});
+		}
+	}
+
+	if (!ExistsKeys.IsEmpty())
+	{
+		int32 Index = 0;
+		const TBitArray<> Exists = CachedDataProbablyExistsBatch(ExistsKeys);
+		for (const FLegacyCacheGetRequest* const Request : ExistsRequests)
+		{
+			OnComplete({Request->Name, Request->Key, {}, Request->UserData, Exists[Index] ? EStatus::Ok : EStatus::Error});
+			++Index;
+		}
+	}
+}
+
+void FDerivedDataBackendInterface::LegacyDelete(
+	const TConstArrayView<FLegacyCacheDeleteRequest> Requests,
+	IRequestOwner& Owner,
+	FOnLegacyCacheDeleteComplete&& OnComplete)
+{
+	for (const FLegacyCacheDeleteRequest& Request : Requests)
+	{
+		RemoveCachedData(*Request.Key.GetShortKey(), Request.bTransient);
+		OnComplete({Request.Name, Request.Key, Request.UserData, EStatus::Ok});
+	}
+}
 
 FDerivedDataBackend& FDerivedDataBackend::Get()
 {

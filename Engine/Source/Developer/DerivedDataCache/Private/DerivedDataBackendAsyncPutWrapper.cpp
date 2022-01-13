@@ -183,6 +183,30 @@ public:
 		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimeGet,) Requests, Owner, MoveTemp(OnComplete), &ICacheStore::GetChunks);
 	}
 
+	virtual void LegacyPut(
+		TConstArrayView<FLegacyCachePutRequest> Requests,
+		IRequestOwner& Owner,
+		FOnLegacyCachePutComplete&& OnComplete) override
+	{
+		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ILegacyCacheStore::LegacyPut);
+	}
+
+	virtual void LegacyGet(
+		TConstArrayView<FLegacyCacheGetRequest> Requests,
+		IRequestOwner& Owner,
+		FOnLegacyCacheGetComplete&& OnComplete) override
+	{
+		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimeGet,) Requests, Owner, MoveTemp(OnComplete), &ILegacyCacheStore::LegacyGet);
+	}
+
+	virtual void LegacyDelete(
+		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
+		IRequestOwner& Owner,
+		FOnLegacyCacheDeleteComplete&& OnComplete) override
+	{
+		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ILegacyCacheStore::LegacyDelete);
+	}
+
 private:
 	COOK_STAT(using CookStatsFunction = FCookStats::FScopedStatsCounter (FDerivedDataCacheUsageStats::*)());
 
@@ -670,6 +694,21 @@ static FCacheGetValueResponse MakeCanceledResponse(const FCacheGetValueRequest& 
 static FCacheChunkResponse MakeCanceledResponse(const FCacheChunkRequest& Request)
 {
 	return {Request.Name, Request.Key, Request.Id, Request.RawOffset, 0, {}, {}, Request.UserData, EStatus::Canceled};
+}
+
+static FLegacyCachePutResponse MakeCanceledResponse(const FLegacyCachePutRequest& Request)
+{
+	return {Request.Name, Request.Key, Request.UserData, EStatus::Canceled};
+}
+
+static FLegacyCacheGetResponse MakeCanceledResponse(const FLegacyCacheGetRequest& Request)
+{
+	return {Request.Name, Request.Key, {}, Request.UserData, EStatus::Canceled};
+}
+
+static FLegacyCacheDeleteResponse MakeCanceledResponse(const FLegacyCacheDeleteRequest& Request)
+{
+	return {Request.Name, Request.Key, Request.UserData, EStatus::Canceled};
 }
 
 template <typename RequestType, typename OnCompleteType, typename OnExecuteType>

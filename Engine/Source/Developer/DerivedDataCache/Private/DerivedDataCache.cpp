@@ -16,6 +16,7 @@
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataPluginInterface.h"
+#include "DerivedDataRequestOwner.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CommandLine.h"
@@ -301,12 +302,13 @@ class FDerivedDataCache final
 		 * @param	InDataDeriver	plugin to produce cache key and in the event of a miss, return the data.
 		 * @param	InCacheKey		Complete cache key for this data.
 		**/
-		FBuildAsyncWorker(FDerivedDataPluginInterface* InDataDeriver, const TCHAR* InCacheKey, bool bInSynchronousForStats)
+		FBuildAsyncWorker(FDerivedDataPluginInterface* InDataDeriver, const TCHAR* InCacheKey, FStringView InDebugContext, bool bInSynchronousForStats)
 		: bSuccess(false)
 		, bSynchronousForStats(bInSynchronousForStats)
 		, bDataWasBuilt(false)
 		, DataDeriver(InDataDeriver)
 		, CacheKey(InCacheKey)
+		, DebugContext(InDebugContext)
 		{
 		}
 
@@ -342,7 +344,20 @@ class FDerivedDataCache final
 				STAT(double ThisTime = 0);
 				{
 					SCOPE_SECONDS_COUNTER(ThisTime);
-					bGetResult = FDerivedDataBackend::Get().GetRoot().GetCachedData(*CacheKey, Data);
+					FLegacyCacheGetRequest LegacyRequest;
+					LegacyRequest.Name = DebugContext;
+					LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
+					FRequestOwner BlockingOwner(EPriority::Blocking);
+					FDerivedDataBackend::Get().GetRoot().LegacyGet({LegacyRequest}, BlockingOwner,
+						[this, &bGetResult](FLegacyCacheGetResponse&& Response)
+						{
+							bGetResult = Response.Status == EStatus::Ok && Response.Value.GetSize() < MAX_int32;
+							if (bGetResult)
+							{
+								Data = MakeArrayView(static_cast<const uint8*>(Response.Value.GetData()), int32(Response.Value.GetSize()));
+							}
+						});
+					BlockingOwner.Wait();
 				}
 				INC_FLOAT_STAT_BY(STAT_DDC_SyncGetTime, bSynchronousForStats ? (float)ThisTime : 0.0f);
 			}
@@ -413,7 +428,13 @@ class FDerivedDataCache final
 					STAT(double ThisTime = 0);
 					{
 						SCOPE_SECONDS_COUNTER(ThisTime);
-						FDerivedDataBackend::Get().GetRoot().PutCachedData(*CacheKey, Data, true);
+						FLegacyCachePutRequest LegacyRequest;
+						LegacyRequest.Name = DebugContext;
+						LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
+						LegacyRequest.Value = FCompositeBuffer(MakeSharedBufferFromArray(MoveTemp(Data)));
+						FRequestOwner BlockingOwner(EPriority::Blocking);
+						FDerivedDataBackend::Get().GetRoot().LegacyPut({LegacyRequest}, BlockingOwner, [](auto&&){});
+						BlockingOwner.Wait();
 					}
 					INC_FLOAT_STAT_BY(STAT_DDC_PutTime, bSynchronousForStats ? (float)ThisTime : 0.0f);
 				}
@@ -449,6 +470,8 @@ class FDerivedDataCache final
 		FDerivedDataPluginInterface*	DataDeriver;
 		/** Cache key associated with this build **/
 		FString							CacheKey;
+		/** Context from the caller */
+		FSharedString					DebugContext;
 		/** Data to return to caller, later **/
 		TArray<uint8>					Data;
 	};
@@ -487,7 +510,7 @@ public:
 		check(DataDeriver);
 		FString CacheKey = FDerivedDataCache::BuildCacheKey(DataDeriver);
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetSynchronous %s from '%s'"), *CacheKey, *DataDeriver->GetDebugContextString());
-		FAsyncTask<FBuildAsyncWorker> PendingTask(DataDeriver, *CacheKey, true);
+		FAsyncTask<FBuildAsyncWorker> PendingTask(DataDeriver, *CacheKey, DataDeriver->GetDebugContextString(), true);
 		AddToAsyncCompletionCounter(1);
 		PendingTask.StartSynchronousTask();
 		OutData = PendingTask.GetTask().Data;
@@ -506,7 +529,7 @@ public:
 		FString CacheKey = FDerivedDataCache::BuildCacheKey(DataDeriver);
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetAsynchronous %s from '%s', Handle %d"), *CacheKey, *DataDeriver->GetDebugContextString(), Handle);
 		const bool bSync = !DataDeriver->IsBuildThreadsafe();
-		FAsyncTask<FBuildAsyncWorker>* AsyncTask = new FAsyncTask<FBuildAsyncWorker>(DataDeriver, *CacheKey, bSync);
+		FAsyncTask<FBuildAsyncWorker>* AsyncTask = new FAsyncTask<FBuildAsyncWorker>(DataDeriver, *CacheKey, DataDeriver->GetDebugContextString(), bSync);
 		check(!PendingTasks.Contains(Handle));
 		PendingTasks.Add(Handle,AsyncTask);
 		AddToAsyncCompletionCounter(1);
@@ -581,26 +604,26 @@ public:
 		return true;
 	}
 
-	virtual bool GetSynchronous(const TCHAR* CacheKey, TArray<uint8>& OutData, FStringView DataContext) override
+	virtual bool GetSynchronous(const TCHAR* CacheKey, TArray<uint8>& OutData, FStringView DebugContext) override
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_GetSynchronous_Data);
-		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetSynchronous %s from '%.*s'"), CacheKey, DataContext.Len(), DataContext.GetData());
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetSynchronous %s from '%.*s'"), CacheKey, DebugContext.Len(), DebugContext.GetData());
 		ValidateCacheKey(CacheKey);
-		FAsyncTask<FBuildAsyncWorker> PendingTask((FDerivedDataPluginInterface*)NULL, CacheKey, true);
+		FAsyncTask<FBuildAsyncWorker> PendingTask((FDerivedDataPluginInterface*)NULL, CacheKey, DebugContext, true);
 		AddToAsyncCompletionCounter(1);
 		PendingTask.StartSynchronousTask();
 		OutData = PendingTask.GetTask().Data;
 		return PendingTask.GetTask().bSuccess;
 	}
 
-	virtual uint32 GetAsynchronous(const TCHAR* CacheKey, FStringView DataContext) override
+	virtual uint32 GetAsynchronous(const TCHAR* CacheKey, FStringView DebugContext) override
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_GetAsynchronous_Handle);
 		FScopeLock ScopeLock(&SynchronizationObject);
 		const uint32 Handle = NextHandle();
-		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetAsynchronous %s from '%.*s', Handle %d"), CacheKey, DataContext.Len(), DataContext.GetData(), Handle);
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("GetAsynchronous %s from '%.*s', Handle %d"), CacheKey, DebugContext.Len(), DebugContext.GetData(), Handle);
 		ValidateCacheKey(CacheKey);
-		FAsyncTask<FBuildAsyncWorker>* AsyncTask = new FAsyncTask<FBuildAsyncWorker>((FDerivedDataPluginInterface*)NULL, CacheKey, false);
+		FAsyncTask<FBuildAsyncWorker>* AsyncTask = new FAsyncTask<FBuildAsyncWorker>((FDerivedDataPluginInterface*)NULL, CacheKey, DebugContext, false);
 		check(!PendingTasks.Contains(Handle));
 		PendingTasks.Add(Handle, AsyncTask);
 		AddToAsyncCompletionCounter(1);
@@ -609,15 +632,21 @@ public:
 		return Handle;
 	}
 
-	virtual void Put(const TCHAR* CacheKey, TArrayView<const uint8> Data, FStringView DataContext, bool bPutEvenIfExists = false) override
+	virtual void Put(const TCHAR* CacheKey, TArrayView<const uint8> Data, FStringView DebugContext, bool bPutEvenIfExists = false) override
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_Put);
-		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Put %s from '%.*s'"), CacheKey, DataContext.Len(), DataContext.GetData());
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Put %s from '%.*s'"), CacheKey, DebugContext.Len(), DebugContext.GetData());
 		ValidateCacheKey(CacheKey);
 		STAT(double ThisTime = 0);
 		{
 			SCOPE_SECONDS_COUNTER(ThisTime);
-			FDerivedDataBackend::Get().GetRoot().PutCachedData(CacheKey, Data, bPutEvenIfExists);
+			FLegacyCachePutRequest LegacyRequest;
+			LegacyRequest.Name = DebugContext;
+			LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
+			LegacyRequest.Value = FCompositeBuffer(FSharedBuffer::MakeView(MakeMemoryView(Data)));
+			FRequestOwner BlockingOwner(EPriority::Blocking);
+			FDerivedDataBackend::Get().GetRoot().LegacyPut({LegacyRequest}, BlockingOwner, [](auto&&){});
+			BlockingOwner.Wait();
 		}
 		INC_FLOAT_STAT_BY(STAT_DDC_PutTime,(float)ThisTime);
 		INC_DWORD_STAT(STAT_DDC_NumPuts);
@@ -626,7 +655,13 @@ public:
 	virtual void MarkTransient(const TCHAR* CacheKey) override
 	{
 		ValidateCacheKey(CacheKey);
-		FDerivedDataBackend::Get().GetRoot().RemoveCachedData(CacheKey, /*bTransient=*/ true);
+		FLegacyCacheDeleteRequest LegacyRequest;
+		LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
+		LegacyRequest.Name = LegacyRequest.Key.GetFullKey();
+		LegacyRequest.bTransient = true;
+		FRequestOwner BlockingOwner(EPriority::Blocking);
+		FDerivedDataBackend::Get().GetRoot().LegacyDelete({LegacyRequest}, BlockingOwner, [](auto&&){});
+		BlockingOwner.Wait();
 	}
 
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override
@@ -638,7 +673,14 @@ public:
 		STAT(double ThisTime = 0);
 		{
 			SCOPE_SECONDS_COUNTER(ThisTime);
-			bResult = FDerivedDataBackend::Get().GetRoot().CachedDataProbablyExists(CacheKey);
+			FLegacyCacheGetRequest LegacyRequest;
+			LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
+			LegacyRequest.Name = LegacyRequest.Key.GetFullKey();
+			LegacyRequest.Policy = ECachePolicy::Query | ECachePolicy::SkipData;
+			FRequestOwner BlockingOwner(EPriority::Blocking);
+			FDerivedDataBackend::Get().GetRoot().LegacyGet({LegacyRequest}, BlockingOwner,
+				[&bResult](FLegacyCacheGetResponse&& Response) { bResult = Response.Status == EStatus::Ok; });
+			BlockingOwner.Wait();
 		}
 		INC_FLOAT_STAT_BY(STAT_DDC_ExistTime, (float)ThisTime);
 		return bResult;
@@ -646,22 +688,34 @@ public:
 
 	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override
 	{
-		TBitArray<> Result;
-		if (CacheKeys.Num() > 1)
+		TBitArray<> Result(false, CacheKeys.Num());
+		if (!CacheKeys.IsEmpty())
 		{
 			DDC_SCOPE_CYCLE_COUNTER(DDC_CachedDataProbablyExistsBatch);
 			INC_DWORD_STAT(STAT_DDC_NumExist);
 			STAT(double ThisTime = 0);
 			{
 				SCOPE_SECONDS_COUNTER(ThisTime);
-				Result = FDerivedDataBackend::Get().GetRoot().CachedDataProbablyExistsBatch(CacheKeys);
-				check(Result.Num() == CacheKeys.Num());
+				TArray<FLegacyCacheGetRequest, TInlineAllocator<8>> LegacyRequests;
+				int32 Index = 0;
+				for (const FString& CacheKey : CacheKeys)
+				{
+					FLegacyCacheGetRequest& LegacyRequest = LegacyRequests.AddDefaulted_GetRef();
+					LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
+					LegacyRequest.Name = LegacyRequest.Key.GetFullKey();
+					LegacyRequest.Policy = ECachePolicy::Query | ECachePolicy::SkipData;
+					LegacyRequest.UserData = uint64(Index);
+					++Index;
+				}
+				FRequestOwner BlockingOwner(EPriority::Blocking);
+				FDerivedDataBackend::Get().GetRoot().LegacyGet(LegacyRequests, BlockingOwner,
+					[&Result](FLegacyCacheGetResponse&& Response)
+					{
+						Result[int32(Response.UserData)] = Response.Status == EStatus::Ok;
+					});
+				BlockingOwner.Wait();
 			}
 			INC_FLOAT_STAT_BY(STAT_DDC_ExistTime, (float)ThisTime);
-		}
-		else if (CacheKeys.Num() == 1)
-		{
-			Result.Add(CachedDataProbablyExists(*CacheKeys[0]));
 		}
 		return Result;
 	}
@@ -677,8 +731,28 @@ public:
 		{
 			DDC_SCOPE_CYCLE_COUNTER(DDC_TryToPrefetch);
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("TryToPrefetch %d keys including %s from '%.*s'"),
-				CacheKeys.Num(), *CacheKeys[0], DebugContext.Len(), DebugContext.GetData());
-			return FDerivedDataBackend::Get().GetRoot().TryToPrefetch(CacheKeys);
+			CacheKeys.Num(), *CacheKeys[0], DebugContext.Len(), DebugContext.GetData());
+			TArray<FLegacyCacheGetRequest, TInlineAllocator<8>> LegacyRequests;
+			int32 Index = 0;
+			const FSharedString Name = DebugContext;
+			for (const FString& CacheKey : CacheKeys)
+			{
+				FLegacyCacheGetRequest& LegacyRequest = LegacyRequests.AddDefaulted_GetRef();
+				LegacyRequest.Name = Name;
+				LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
+				LegacyRequest.Policy = ECachePolicy::Default | ECachePolicy::SkipData;
+				LegacyRequest.UserData = uint64(Index);
+				++Index;
+			}
+			bool bOk = true;
+			FRequestOwner BlockingOwner(EPriority::Blocking);
+			FDerivedDataBackend::Get().GetRoot().LegacyGet(LegacyRequests, BlockingOwner,
+				[&bOk](FLegacyCacheGetResponse&& Response)
+				{
+					bOk &= Response.Status == EStatus::Ok;
+				});
+			BlockingOwner.Wait();
+			return bOk;
 		}
 		return true;
 	}
