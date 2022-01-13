@@ -5,6 +5,7 @@
 #include "Templates/AlignmentTemplates.h"
 #include "AGXLLM.h"
 #include <objc/runtime.h>
+#include "AGXCommandBuffer.h"
 #include "AGXProfiler.h"
 #include "AGXRenderPass.h"
 
@@ -171,6 +172,7 @@ FAGXSubBufferHeap::FAGXSubBufferHeap(NSUInteger Size, NSUInteger Alignment, mtlp
 , UsedSize(0)
 {
 	Options = (mtlpp::ResourceOptions)FAGXCommandQueue::GetCompatibleResourceOptions(Options);
+	static bool bSupportsHeaps = GetAGXDeviceContext().SupportsFeature(EAGXFeaturesHeaps);
 	NSUInteger FullSize = Align(Size, Alignment);
 	METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), FullSize, Options)));
 	
@@ -179,22 +181,43 @@ FAGXSubBufferHeap::FAGXSubBufferHeap(NSUInteger Size, NSUInteger Alignment, mtlp
 	check(Storage != mtlpp::StorageMode::Managed /* Managed memory cannot be safely suballocated! When you overwrite existing data the GPU buffer is immediately disposed of! */);
 #endif
 
-	ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, Options));
-	check(ParentBuffer.GetPtr());
-	check(ParentBuffer.GetLength() >= FullSize);
+	if (bSupportsHeaps && Storage == mtlpp::StorageMode::Private)
+	{
+		mtlpp::HeapDescriptor Desc;
+		Desc.SetSize(FullSize);
+		Desc.SetStorageMode(Storage);
+		ParentHeap = GMtlppDevice.NewHeap(Desc);
+		check(ParentHeap.GetPtr());
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-	AGXLLM::LogAllocBuffer(ParentBuffer);
+		AGXLLM::LogAllocHeap(ParentHeap);
 #endif
-	FreeRanges.Add(ns::Range(0, FullSize));
-
+	}
+	else
+	{
+		ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, Options));
+		check(ParentBuffer.GetPtr());
+		check(ParentBuffer.GetLength() >= FullSize);
+#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
+		AGXLLM::LogAllocBuffer(ParentBuffer);
+#endif
+		FreeRanges.Add(ns::Range(0, FullSize));
+	}
 	INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, FullSize);
 	INC_MEMORY_STAT_BY(STAT_AGXHeapBufferUnusedMemory, FullSize);
 }
 
 FAGXSubBufferHeap::~FAGXSubBufferHeap()
 {
-	DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, ParentBuffer.GetLength());
-	DEC_MEMORY_STAT_BY(STAT_AGXHeapBufferUnusedMemory, ParentBuffer.GetLength());
+	if (ParentHeap)
+	{
+		DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, ParentHeap.GetSize());
+		DEC_MEMORY_STAT_BY(STAT_AGXHeapBufferUnusedMemory, ParentHeap.GetSize());
+	}
+	else
+	{
+		DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, ParentBuffer.GetLength());
+		DEC_MEMORY_STAT_BY(STAT_AGXHeapBufferUnusedMemory, ParentBuffer.GetLength());
+	}
 }
 
 void FAGXSubBufferHeap::SetOwner(ns::Range const& Range, FAGXRHIBuffer* Owner, bool bIsSwap)
@@ -228,6 +251,13 @@ void FAGXSubBufferHeap::FreeRange(ns::Range const& Range)
 			}
 		}
 	}
+	if (ParentHeap)
+	{
+		INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Range.Length);
+		INC_MEMORY_STAT_BY(STAT_AGXHeapBufferUnusedMemory, Range.Length);
+		DEC_MEMORY_STAT_BY(STAT_AGXHeapBufferMemory, Range.Length);
+	}
+	else
 	{
 #if METAL_DEBUG_OPTIONS
 		if (GIsRHIInitialized)
@@ -294,27 +324,62 @@ void FAGXSubBufferHeap::FreeRange(ns::Range const& Range)
 
 ns::String FAGXSubBufferHeap::GetLabel() const
 {
-	return ParentBuffer.GetLabel();
+	if (ParentHeap)
+	{
+		return ParentHeap.GetLabel();
+	}
+	else
+	{
+		return ParentBuffer.GetLabel();
+	}
 }
 
 mtlpp::StorageMode FAGXSubBufferHeap::GetStorageMode() const
 {
-	return ParentBuffer.GetStorageMode();
+	if (ParentHeap)
+	{
+		return ParentHeap.GetStorageMode();
+	}
+	else
+	{
+		return ParentBuffer.GetStorageMode();
+	}
 }
 
 mtlpp::CpuCacheMode FAGXSubBufferHeap::GetCpuCacheMode() const
 {
-	return ParentBuffer.GetCpuCacheMode();
+	if (ParentHeap)
+	{
+		return ParentHeap.GetCpuCacheMode();
+	}
+	else
+	{
+		return ParentBuffer.GetCpuCacheMode();
+	}
 }
 
 NSUInteger FAGXSubBufferHeap::GetSize() const
 {
-	return ParentBuffer.GetLength();
+	if (ParentHeap)
+	{
+		return ParentHeap.GetSize();
+	}
+	else
+	{
+		return ParentBuffer.GetLength();
+	}
 }
 
 NSUInteger FAGXSubBufferHeap::GetUsedSize() const
 {
-	return UsedSize;
+	if (ParentHeap)
+	{
+		return ParentHeap.GetUsedSize();
+	}
+	else
+	{
+		return UsedSize;
+	}
 }
 
 int64 FAGXSubBufferHeap::NumCurrentAllocations() const
@@ -324,24 +389,50 @@ int64 FAGXSubBufferHeap::NumCurrentAllocations() const
 
 void FAGXSubBufferHeap::SetLabel(const ns::String& label)
 {
-	ParentBuffer.SetLabel(label);
+	if (ParentHeap)
+	{
+		ParentHeap.SetLabel(label);
+	}
+	else
+	{
+		ParentBuffer.SetLabel(label);
+	}
 }
 
 NSUInteger FAGXSubBufferHeap::MaxAvailableSize() const
 {
-	if (UsedSize < GetSize())
+	if (ParentHeap)
 	{
-		return FreeRanges.Last().Length;
+		return ParentHeap.MaxAvailableSizeWithAlignment(MinAlign);
 	}
 	else
 	{
-		return 0;
+		if (UsedSize < GetSize())
+		{
+			return FreeRanges.Last().Length;
+		}
+		else
+		{
+			return 0;
+		}
 	}
 }
 
 bool FAGXSubBufferHeap::CanAllocateSize(NSUInteger Size) const
 {
-	return Size <= MaxAvailableSize();
+	if (ParentHeap)
+	{
+		NSUInteger Storage = (NSUInteger(GetStorageMode()) << mtlpp::ResourceStorageModeShift);
+		NSUInteger Cache = (NSUInteger(GetCpuCacheMode()) << mtlpp::ResourceCpuCacheModeShift);
+		mtlpp::ResourceOptions Opt = mtlpp::ResourceOptions(Storage | Cache);
+		
+		NSUInteger Align = GMtlppDevice.HeapBufferSizeAndAlign(Size, Opt).Align;
+		return Size <= ParentHeap.MaxAvailableSizeWithAlignment(Align);
+	}
+	else
+	{
+		return Size <= MaxAvailableSize();
+	}
 }
 
 FAGXBuffer FAGXSubBufferHeap::NewBuffer(NSUInteger length)
@@ -349,6 +440,21 @@ FAGXBuffer FAGXSubBufferHeap::NewBuffer(NSUInteger length)
 	NSUInteger Size = Align(length, MinAlign);
 	FAGXBuffer Result;
 	
+	if (ParentHeap)
+	{
+		NSUInteger Storage = (NSUInteger(GetStorageMode()) << mtlpp::ResourceStorageModeShift);
+		NSUInteger Cache = (NSUInteger(GetCpuCacheMode()) << mtlpp::ResourceCpuCacheModeShift);
+		mtlpp::ResourceOptions Opt = mtlpp::ResourceOptions(Storage | Cache);
+		
+		Result = FAGXBuffer(ParentHeap.NewBuffer(Size, Opt), this);
+#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
+		AGXLLM::LogAllocBuffer(Result);
+#endif
+		DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Result.GetLength());
+		DEC_MEMORY_STAT_BY(STAT_AGXHeapBufferUnusedMemory, Result.GetLength());
+		INC_MEMORY_STAT_BY(STAT_AGXHeapBufferMemory, Result.GetLength());
+	}
+	else
 	{
 		check(ParentBuffer && ParentBuffer.GetPtr());
 	
@@ -406,7 +512,14 @@ FAGXBuffer FAGXSubBufferHeap::NewBuffer(NSUInteger length)
 
 mtlpp::PurgeableState FAGXSubBufferHeap::SetPurgeableState(mtlpp::PurgeableState state)
 {
-	return ParentBuffer.SetPurgeableState(state);
+	if (ParentHeap)
+	{
+		return ParentHeap.SetPurgeableState(state);
+	}
+	else
+	{
+		return ParentBuffer.SetPurgeableState(state);
+	}
 }
 
 #pragma mark --
@@ -545,84 +658,163 @@ FAGXSubBufferMagazine::FAGXSubBufferMagazine(NSUInteger Size, NSUInteger ChunkSi
 , UsedSize(0)
 {
 	Options = (mtlpp::ResourceOptions)FAGXCommandQueue::GetCompatibleResourceOptions(Options);
-	mtlpp::StorageMode Storage = (mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
-	NSUInteger FullSize = Align(Size, MinAlign);
+    static bool bSupportsHeaps = GetAGXDeviceContext().SupportsFeature(EAGXFeaturesHeaps);
+    mtlpp::StorageMode Storage = (mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
+    if (PLATFORM_IOS && bSupportsHeaps && Storage == mtlpp::StorageMode::Private)
+    {
+        MinAlign = GMtlppDevice.HeapBufferSizeAndAlign(BlockSize, Options).Align;
+    }
+    
+    NSUInteger FullSize = Align(Size, MinAlign);
 	METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), FullSize, Options)));
 	
 #if PLATFORM_MAC
 	check(Storage != mtlpp::StorageMode::Managed /* Managed memory cannot be safely suballocated! When you overwrite existing data the GPU buffer is immediately disposed of! */);
 #endif
 
-	ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, Options));
-	check(ParentBuffer.GetPtr());
-	check(ParentBuffer.GetLength() >= FullSize);
-	METAL_FATAL_ASSERT(ParentBuffer, TEXT("Failed to create heap of size %u and resource options %u"), Size, (uint32)Options);
+	if (bSupportsHeaps && Storage == mtlpp::StorageMode::Private)
+	{
+		mtlpp::HeapDescriptor Desc;
+		Desc.SetSize(FullSize);
+		Desc.SetStorageMode(Storage);
+		ParentHeap = GMtlppDevice.NewHeap(Desc);
+		check(ParentHeap.GetPtr());
+		METAL_FATAL_ASSERT(ParentHeap, TEXT("Failed to create heap of size %u and resource options %u"), Size, (uint32)Options);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
-	AGXLLM::LogAllocBuffer(ParentBuffer);
+		AGXLLM::LogAllocHeap(ParentHeap);
 #endif
-	
-	INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, FullSize);
-	INC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, FullSize);
-	uint32 BlockCount = FullSize / ChunkSize;
-	Blocks.AddZeroed(BlockCount);
+	}
+	else
+	{
+		ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, Options));
+		check(ParentBuffer.GetPtr());
+		check(ParentBuffer.GetLength() >= FullSize);
+		METAL_FATAL_ASSERT(ParentBuffer, TEXT("Failed to create heap of size %u and resource options %u"), Size, (uint32)Options);
+#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
+		AGXLLM::LogAllocBuffer(ParentBuffer);
+#endif
+		
+		INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, FullSize);
+		INC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, FullSize);
+        uint32 BlockCount = FullSize / ChunkSize;
+        Blocks.AddZeroed(BlockCount);
+	}
 }
 
 FAGXSubBufferMagazine::~FAGXSubBufferMagazine()
 {
-	DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, ParentBuffer.GetLength());
-	DEC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, ParentBuffer.GetLength());
+	if (ParentHeap)
+	{
+		DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, ParentHeap.GetSize());
+		DEC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, ParentHeap.GetSize());
+	}
+	else
+	{
+		DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, ParentBuffer.GetLength());
+		DEC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, ParentBuffer.GetLength());
+	}
 }
 
 void FAGXSubBufferMagazine::FreeRange(ns::Range const& Range)
 {
 	FPlatformAtomics::InterlockedDecrement(&OutstandingAllocs);
-
-#if METAL_DEBUG_OPTIONS
-	if (GIsRHIInitialized)
+	if (ParentHeap)
 	{
-		MTLPP_VALIDATE_ONLY(mtlpp::Buffer, ParentBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, ReleaseRange(Range));
-		FAGXBuffer Buf(ParentBuffer.NewBuffer(Range), false);
-		GetAGXDeviceContext().ValidateIsInactiveBuffer(Buf);
+		INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Range.Length);
+		INC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, Range.Length);
+		DEC_MEMORY_STAT_BY(STAT_AGXMagazineBufferMemory, Range.Length);
 	}
+	else
+	{
+#if METAL_DEBUG_OPTIONS
+		if (GIsRHIInitialized)
+		{
+			MTLPP_VALIDATE_ONLY(mtlpp::Buffer, ParentBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, ReleaseRange(Range));
+			FAGXBuffer Buf(ParentBuffer.NewBuffer(Range), false);
+			GetAGXDeviceContext().ValidateIsInactiveBuffer(Buf);
+		}
 #endif
-
-	uint32 BlockIndex = Range.Location / Range.Length;
-	FPlatformAtomics::AtomicStore(&Blocks[BlockIndex], 0);
-	FPlatformAtomics::InterlockedAdd(&UsedSize, -((int64)Range.Length));
 	
-	INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Range.Length);
-	INC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, Range.Length);
-	DEC_MEMORY_STAT_BY(STAT_AGXMagazineBufferMemory, Range.Length);
+		uint32 BlockIndex = Range.Location / Range.Length;
+		FPlatformAtomics::AtomicStore(&Blocks[BlockIndex], 0);
+		FPlatformAtomics::InterlockedAdd(&UsedSize, -((int64)Range.Length));
+		
+		INC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Range.Length);
+		INC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, Range.Length);
+		DEC_MEMORY_STAT_BY(STAT_AGXMagazineBufferMemory, Range.Length);
+	}
 }
 
 ns::String FAGXSubBufferMagazine::GetLabel() const
 {
-	return ParentBuffer.GetLabel();
+	if (ParentHeap)
+	{
+		return ParentHeap.GetLabel();
+	}
+	else
+	{
+		return ParentBuffer.GetLabel();
+	}
 }
 
 mtlpp::StorageMode FAGXSubBufferMagazine::GetStorageMode() const
 {
-	return ParentBuffer.GetStorageMode();
+	if (ParentHeap)
+	{
+		return ParentHeap.GetStorageMode();
+	}
+	else
+	{
+		return ParentBuffer.GetStorageMode();
+	}
 }
 
 mtlpp::CpuCacheMode FAGXSubBufferMagazine::GetCpuCacheMode() const
 {
-	return ParentBuffer.GetCpuCacheMode();
+	if (ParentHeap)
+	{
+		return ParentHeap.GetCpuCacheMode();
+	}
+	else
+	{
+		return ParentBuffer.GetCpuCacheMode();
+	}
 }
 
 NSUInteger FAGXSubBufferMagazine::GetSize() const
 {
-	return ParentBuffer.GetLength();
+	if (ParentHeap)
+	{
+		return ParentHeap.GetSize();
+	}
+	else
+	{
+		return ParentBuffer.GetLength();
+	}
 }
 
 NSUInteger FAGXSubBufferMagazine::GetUsedSize() const
 {
-	return (NSUInteger)FPlatformAtomics::AtomicRead(&UsedSize);
+	if (ParentHeap)
+	{
+		return ParentHeap.GetUsedSize();
+	}
+	else
+	{
+		return (NSUInteger)FPlatformAtomics::AtomicRead(&UsedSize);
+	}
 }
 
 NSUInteger FAGXSubBufferMagazine::GetFreeSize() const
 {
-	return GetSize() - GetUsedSize();
+	if (ParentHeap)
+	{
+		return ParentHeap.MaxAvailableSizeWithAlignment(MinAlign);
+	}
+	else
+	{
+		return GetSize() - GetUsedSize();
+	}
 }
 
 int64 FAGXSubBufferMagazine::NumCurrentAllocations() const
@@ -637,7 +829,14 @@ bool FAGXSubBufferMagazine::CanAllocateSize(NSUInteger Size) const
 
 void FAGXSubBufferMagazine::SetLabel(const ns::String& label)
 {
-	ParentBuffer.SetLabel(label);
+	if (ParentHeap)
+	{
+		ParentHeap.SetLabel(label);
+	}
+	else
+	{
+		ParentBuffer.SetLabel(label);
+	}
 }
 
 FAGXBuffer FAGXSubBufferMagazine::NewBuffer()
@@ -645,19 +844,36 @@ FAGXBuffer FAGXSubBufferMagazine::NewBuffer()
 	NSUInteger Size = BlockSize;
 	FAGXBuffer Result;
 
-	check(ParentBuffer && ParentBuffer.GetPtr());
-	
-	for (uint32 i = 0; i < Blocks.Num(); i++)
+	if (ParentHeap)
 	{
-		if (FPlatformAtomics::InterlockedCompareExchange(&Blocks[i], 1, 0) == 0)
+		NSUInteger Storage = (NSUInteger(GetStorageMode()) << mtlpp::ResourceStorageModeShift);
+		NSUInteger Cache = (NSUInteger(GetCpuCacheMode()) << mtlpp::ResourceCpuCacheModeShift);
+		mtlpp::ResourceOptions Opt = mtlpp::ResourceOptions(Storage | Cache);
+		
+		Result = FAGXBuffer(ParentHeap.NewBuffer(Size, Opt), this);
+#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
+		AGXLLM::LogAllocBuffer(Result);
+#endif
+		DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Result.GetLength());
+		DEC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, Result.GetLength());
+		INC_MEMORY_STAT_BY(STAT_AGXMagazineBufferMemory, Result.GetLength());
+	}
+	else
+	{
+		check(ParentBuffer && ParentBuffer.GetPtr());
+		
+		for (uint32 i = 0; i < Blocks.Num(); i++)
 		{
-			ns::Range Range(i * BlockSize, BlockSize);
-			FPlatformAtomics::InterlockedAdd(&UsedSize, ((int64)Range.Length));
-			DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Range.Length);
-			DEC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, Range.Length);
-			INC_MEMORY_STAT_BY(STAT_AGXMagazineBufferMemory, Range.Length);
-			Result = FAGXBuffer(MTLPP_VALIDATE(mtlpp::Buffer, ParentBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(Range)), this);
-			break;
+			if (FPlatformAtomics::InterlockedCompareExchange(&Blocks[i], 1, 0) == 0)
+			{
+				ns::Range Range(i * BlockSize, BlockSize);
+				FPlatformAtomics::InterlockedAdd(&UsedSize, ((int64)Range.Length));
+				DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Range.Length);
+				DEC_MEMORY_STAT_BY(STAT_AGXMagazineBufferUnusedMemory, Range.Length);
+				INC_MEMORY_STAT_BY(STAT_AGXMagazineBufferMemory, Range.Length);
+				Result = FAGXBuffer(MTLPP_VALIDATE(mtlpp::Buffer, ParentBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(Range)), this);
+				break;
+			}
 		}
 	}
 
@@ -668,7 +884,14 @@ FAGXBuffer FAGXSubBufferMagazine::NewBuffer()
 
 mtlpp::PurgeableState FAGXSubBufferMagazine::SetPurgeableState(mtlpp::PurgeableState state)
 {
-	return ParentBuffer.SetPurgeableState(state);
+	if (ParentHeap)
+	{
+		return ParentHeap.SetPurgeableState(state);
+	}
+	else
+	{
+		return ParentBuffer.SetPurgeableState(state);
+	}
 }
 
 FAGXRingBufferRef::FAGXRingBufferRef(FAGXBuffer Buf)
@@ -1165,13 +1388,63 @@ FAGXResourceHeap::TextureHeapSize FAGXResourceHeap::TextureSizeToIndex(uint32 Si
 	return (TextureHeapSize)Lower;
 }
 
+mtlpp::Heap FAGXResourceHeap::GetTextureHeap(mtlpp::TextureDescriptor Desc, mtlpp::SizeAndAlign Size)
+{
+	mtlpp::Heap Result;
+	static bool bTextureHeaps = FParse::Param(FCommandLine::Get(),TEXT("agxtextureheaps"));
+	if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesHeaps) && bTextureHeaps && Size.Size <= HeapTextureHeapSizes[MaxTextureSize])
+	{
+		FAGXResourceHeap::TextureHeapSize HeapIndex = TextureSizeToIndex(Size.Size);
+
+		EAGXHeapTextureUsage UsageIndex = EAGXHeapTextureUsageNum;
+		mtlpp::StorageMode StorageMode = Desc.GetStorageMode();
+		mtlpp::CpuCacheMode CPUMode = Desc.GetCpuCacheMode();
+		if ((Desc.GetUsage() & mtlpp::TextureUsage::RenderTarget) && StorageMode == mtlpp::StorageMode::Private && CPUMode == mtlpp::CpuCacheMode::DefaultCache)
+		{
+			UsageIndex = PLATFORM_MAC ? EAGXHeapTextureUsageNum : EAGXHeapTextureUsageRenderTarget;
+		}
+		else if (StorageMode == mtlpp::StorageMode::Private && CPUMode == mtlpp::CpuCacheMode::WriteCombined)
+		{
+			UsageIndex = EAGXHeapTextureUsageResource;
+		}
+		
+		if (UsageIndex < EAGXHeapTextureUsageNum)
+		{
+			for (mtlpp::Heap& Heap : TextureHeaps[UsageIndex][HeapIndex])
+			{
+				if (Heap.MaxAvailableSizeWithAlignment(Size.Align) >= Size.Size)
+				{
+					Result = Heap;
+					break;
+				}
+			}
+			if (!Result)
+			{
+				MTLHeapDescriptor* HeapDesc = [[MTLHeapDescriptor alloc] init];
+				[HeapDesc setSize:HeapTextureHeapSizes[HeapIndex]];
+				[HeapDesc setStorageMode:(MTLStorageMode)Desc.GetStorageMode()];
+				[HeapDesc setCpuCacheMode:(MTLCPUCacheMode)Desc.GetCpuCacheMode()];
+				Result = mtlpp::Heap([GMtlDevice newHeapWithDescriptor:HeapDesc], nullptr, ns::Ownership::Assign);
+				[HeapDesc release];
+#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
+				AGXLLM::LogAllocHeap(Result);
+#endif
+				TextureHeaps[UsageIndex][HeapIndex].Add(Result);
+			}
+			check(Result);
+		}
+	}
+	return Result;
+}
+
 FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBufferUsageFlags Flags, mtlpp::ResourceOptions Options, bool bForceUnique)
 {
 	LLM_SCOPE_METAL(ELLMTagAGX::Buffers);
 	LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::Buffers);
 	
+	static bool bSupportsHeaps = GetAGXDeviceContext().SupportsFeature(EAGXFeaturesHeaps);
 	static bool bSupportsBufferSubAllocation = FAGXCommandQueue::SupportsFeature(EAGXFeaturesBufferSubAllocation);
-	bForceUnique |= (!bSupportsBufferSubAllocation);
+	bForceUnique |= (!bSupportsBufferSubAllocation && !bSupportsHeaps);
 	
 	uint32 Usage = EnumHasAnyFlags(Flags, BUF_Static) ? UsageStatic : UsageDynamic;
 	
@@ -1383,7 +1656,18 @@ FAGXTexture FAGXResourceHeap::CreateTexture(mtlpp::TextureDescriptor Desc, FAGXS
 	LLM_SCOPE_METAL(ELLMTagAGX::Textures);
 	LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::Textures);
 	
-	if (Desc.GetUsage() & mtlpp::TextureUsage::RenderTarget)
+	mtlpp::SizeAndAlign Res = GMtlppDevice.HeapTextureSizeAndAlign(Desc);
+	mtlpp::Heap Heap = GetTextureHeap(Desc, Res);
+	if (Heap)
+	{
+		METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocTexture: %s"), TEXT("")/**FString([Desc.GetPtr() description])*/)));
+		FAGXTexture Texture = Heap.NewTexture(Desc);
+#if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
+		AGXLLM::LogAllocTexture(Desc, Texture);
+#endif
+		return Texture;
+	}
+	else if (Desc.GetUsage() & mtlpp::TextureUsage::RenderTarget)
 	{
 		LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::RenderTargets);
 		return TargetPool.CreateTexture(Desc);
@@ -1396,7 +1680,7 @@ FAGXTexture FAGXResourceHeap::CreateTexture(mtlpp::TextureDescriptor Desc, FAGXS
 
 void FAGXResourceHeap::ReleaseTexture(FAGXSurface* Surface, FAGXTexture& Texture)
 {
-	if (Texture && !Texture.GetBuffer() && !Texture.GetParentTexture())
+	if (Texture && !Texture.GetBuffer() && !Texture.GetParentTexture() && !Texture.GetHeap())
 	{
         if (Texture.GetUsage() & mtlpp::TextureUsage::RenderTarget)
         {

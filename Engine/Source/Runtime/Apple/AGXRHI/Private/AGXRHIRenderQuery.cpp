@@ -9,6 +9,7 @@
 #include "AGXCommandBufferFence.h"
 #include "AGXProfiler.h"
 #include "AGXLLM.h"
+#include "AGXCommandBuffer.h"
 #include "HAL/PThreadEvent.h"
 
 

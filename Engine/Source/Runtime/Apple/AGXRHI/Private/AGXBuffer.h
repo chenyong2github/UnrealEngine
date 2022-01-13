@@ -65,6 +65,7 @@ private:
 	NSUInteger MinAlign;
 	NSUInteger UsedSize;
 	mtlpp::Buffer ParentBuffer;
+	mutable mtlpp::Heap ParentHeap;
 	TArray<ns::Range> FreeRanges;
     TArray<Allocation> AllocRanges;
 };
@@ -124,6 +125,7 @@ private:
 	int64 volatile OutstandingAllocs;
 	int64 volatile UsedSize;
 	mtlpp::Buffer ParentBuffer;
+	mutable mtlpp::Heap ParentHeap;
 	TArray<int8> Blocks;
 };
 
@@ -426,6 +428,8 @@ private:
 	uint32 GetHeapIndex(uint32 Size);
 	TextureHeapSize TextureSizeToIndex(uint32 Size);
 	
+	mtlpp::Heap GetTextureHeap(mtlpp::TextureDescriptor Desc, mtlpp::SizeAndAlign Size);
+	
 private:
 	static uint32 MagazineSizes[NumMagazineSizes];
 	static uint32 HeapSizes[NumHeapSizes];
@@ -454,4 +458,6 @@ private:
 	/** We can reuse texture allocations as well, to minimize their performance impact */
 	FAGXTexturePool TexturePool;
 	FAGXTexturePool TargetPool;
+	
+	TArray<mtlpp::Heap> TextureHeaps[EAGXHeapTextureUsageNum][NumTextureHeapSizes];
 };

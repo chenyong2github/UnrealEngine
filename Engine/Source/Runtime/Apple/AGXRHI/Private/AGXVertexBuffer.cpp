@@ -6,6 +6,7 @@
 
 #include "AGXRHIPrivate.h"
 #include "AGXProfiler.h"
+#include "AGXCommandBuffer.h"
 #include "AGXCommandQueue.h"
 #include "Containers/ResourceArray.h"
 #include "RenderUtils.h"
@@ -107,12 +108,13 @@ void FAGXRHIBuffer::Swap(FAGXRHIBuffer& Other)
 
 static bool CanUsePrivateMemory()
 {
-	return (FAGXCommandQueue::SupportsFeature(EAGXFeaturesEfficientBufferBlits));
+	return (FAGXCommandQueue::SupportsFeature(EAGXFeaturesEfficientBufferBlits) || FAGXCommandQueue::SupportsFeature(EAGXFeaturesIABs));
 }
 
 bool FAGXRHIBuffer::UsePrivateMemory() const
 {
-	return (FAGXCommandQueue::SupportsFeature(EAGXFeaturesEfficientBufferBlits) && EnumHasAnyFlags(Usage, BUF_Dynamic|BUF_Static));
+	return (FAGXCommandQueue::SupportsFeature(EAGXFeaturesEfficientBufferBlits) && EnumHasAnyFlags(Usage, BUF_Dynamic|BUF_Static))
+	|| (FAGXCommandQueue::SupportsFeature(EAGXFeaturesIABs) && EnumHasAnyFlags(Usage, BUF_ShaderResource|BUF_UnorderedAccess));
 }
 
 FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBufferUsage InAgxUsage, ERHIResourceType InType)
@@ -762,7 +764,7 @@ FBufferRHIRef FAGXDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usa
 	{
 		check (!Buffer->TransferBuffer);
 
-		if (GAGXBufferZeroFill)
+		if (GAGXBufferZeroFill && !FAGXCommandQueue::SupportsFeature(EAGXFeaturesFences))
 		{
 			for(FAGXRHIBuffer::FAGXBufferAndViews& Backing : Buffer->BufferPool)
 			{

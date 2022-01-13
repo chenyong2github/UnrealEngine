@@ -48,6 +48,7 @@ namespace AGXLLM
 {
 	void LogAllocTexture(mtlpp::TextureDescriptor const& Desc, mtlpp::Texture const& Texture);
 	void LogAllocBuffer(mtlpp::Buffer const& Buffer);
+	void LogAllocHeap(mtlpp::Heap const& Heap);
 	
 	void LogAliasTexture(mtlpp::Texture const& Texture);
 	void LogAliasBuffer(mtlpp::Buffer const& Buffer);

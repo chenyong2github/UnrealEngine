@@ -15,6 +15,7 @@
 #include "ShaderParameterUtils.h"
 #include "SceneUtils.h"
 #include "AGXProfiler.h"
+#include "AGXCommandBuffer.h"
 #include "StaticBoundShaderState.h"
 #include "EngineGlobals.h"
 #include "PipelineStateCache.h"

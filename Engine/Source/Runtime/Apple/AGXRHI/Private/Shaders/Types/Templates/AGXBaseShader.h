@@ -20,7 +20,7 @@
 #pragma mark - AGX RHI Base Shader Class Support Routines
 
 
-extern mtlpp::LanguageVersion AGXValidateVersion(uint32 Version);
+extern mtlpp::LanguageVersion AGXValidateVersion(uint8 Version);
 
 
 //------------------------------------------------------------------------------
@@ -75,6 +75,12 @@ public:
 
 	// List of memory copies from RHIUniformBuffer to packed uniforms
 	TArray<CrossCompiler::FUniformBufferCopyInfo> UniformBuffersCopyInfo;
+
+	/* Argument encoders for shader IABs */
+	TMap<uint32, mtlpp::ArgumentEncoder> ArgumentEncoders;
+
+	/* Tier1 Argument buffer bitmasks */
+	TMap<uint32, TBitArray<>> ArgumentBitmasks;
 
 	/* Uniform buffer static slots */
 	TArray<FUniformBufferStaticSlot> StaticSlots;
@@ -296,18 +302,34 @@ void TAGXBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8> 
 			mtlpp::LanguageVersion MetalVersion;
 			switch(Header.Version)
 			{
-				case 7:
-					MetalVersion = mtlpp::LanguageVersion::Version2_4;
-					break;
 				case 6:
-					MetalVersion = mtlpp::LanguageVersion::Version2_3;
-					break;
 				case 5:
-					MetalVersion = mtlpp::LanguageVersion::Version2_2;
+				case 4:
+					MetalVersion = mtlpp::LanguageVersion::Version2_1;
+					break;
+				case 3:
+					MetalVersion = mtlpp::LanguageVersion::Version2_0;
+					break;
+				case 2:
+					MetalVersion = mtlpp::LanguageVersion::Version1_2;
+					break;
+				case 1:
+					MetalVersion = mtlpp::LanguageVersion::Version1_1;
+					break;
+				case 0:
+#if PLATFORM_MAC
+					MetalVersion = mtlpp::LanguageVersion::Version1_1;
+#else
+					MetalVersion = mtlpp::LanguageVersion::Version1_0;
+#endif
 					break;
 				default:
 					UE_LOG(LogRHI, Fatal, TEXT("Failed to create shader with unknown version %d: %s"), Header.Version, *FString(NewShaderString));
-					MetalVersion = mtlpp::LanguageVersion::Version2_2;
+#if PLATFORM_MAC
+					MetalVersion = mtlpp::LanguageVersion::Version1_1;
+#else
+					MetalVersion = mtlpp::LanguageVersion::Version1_0;
+#endif
 					break;
 				}
 			CompileOptions.SetLanguageVersion(MetalVersion);
@@ -463,6 +485,30 @@ mtlpp::Function TAGXBaseShader<BaseResourceType, ShaderType>::GetCompiledFunctio
 
 				return nil;
 			}
+		}
+	}
+
+	if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesIABs) && Bindings.ArgumentBuffers && ArgumentEncoders.Num() == 0)
+	{
+		uint32 ArgumentBuffers = Bindings.ArgumentBuffers;
+		while(ArgumentBuffers)
+		{
+			uint32 Index = __builtin_ctz(ArgumentBuffers);
+			ArgumentBuffers &= ~(1 << Index);
+
+			mtlpp::ArgumentEncoder ArgumentEncoder = Function.NewArgumentEncoderWithBufferIndex(Index);
+			ArgumentEncoders.Add(Index, ArgumentEncoder);
+
+			TBitArray<> Resources;
+			for (uint8 Id : Bindings.ArgumentBufferMasks[Index])
+			{
+				if (Id >= Resources.Num())
+				{
+					Resources.Add(false, (Id + 1) - Resources.Num());
+				}
+				Resources[Id] = true;
+			}
+			ArgumentBitmasks.Add(Index, Resources);
 		}
 	}
 

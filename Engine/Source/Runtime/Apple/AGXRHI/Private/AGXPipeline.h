@@ -3,6 +3,10 @@
 #pragma once
 
 #include "AGXRHIPrivate.h"
+#if METAL_DEBUG_OPTIONS
+#include "AGXDebugCommandEncoder.h"
+#endif
+
 #include "ShaderPipelineCache.h"
 
 enum EAGXPipelineHashBits
@@ -67,20 +71,24 @@ private:
 @public
 	mtlpp::RenderPipelineState RenderPipelineState;
 	mtlpp::ComputePipelineState ComputePipelineState;
-	TArray<uint32> BufferDataSizes[SF_NumStandardFrequencies];
-	TMap<uint8, uint8> TextureTypes[SF_NumStandardFrequencies];
-	FAGXDebugShaderResourceMask ResourceMask[SF_NumStandardFrequencies];
+	mtlpp::RenderPipelineState StreamPipelineState;
+	mtlpp::RenderPipelineState DebugPipelineState;
+	TArray<uint32> BufferDataSizes[EAGXShaderStagesNum];
+	TMap<uint8, uint8> TextureTypes[EAGXShaderStagesNum];
+	FAGXDebugShaderResourceMask ResourceMask[EAGXShaderStagesNum];
 	mtlpp::RenderPipelineReflection RenderPipelineReflection;
+	mtlpp::RenderPipelineReflection StreamPipelineReflection;
 	mtlpp::ComputePipelineReflection ComputePipelineReflection;
 #if METAL_DEBUG_OPTIONS
 	ns::String VertexSource;
 	ns::String FragmentSource;
 	ns::String ComputeSource;
 	mtlpp::RenderPipelineDescriptor RenderDesc;
+	mtlpp::RenderPipelineDescriptor StreamDesc;
 	mtlpp::ComputePipelineDescriptor ComputeDesc;
 #endif
 }
 - (instancetype)init;
 - (void)initResourceMask;
-- (void)initResourceMask:(EShaderFrequency)Frequency;
+- (void)initResourceMask:(EAGXShaderFrequency)Frequency;
 @end

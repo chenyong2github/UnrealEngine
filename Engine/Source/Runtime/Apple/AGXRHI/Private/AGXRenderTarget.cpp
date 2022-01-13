@@ -7,6 +7,7 @@
 #include "AGXRHIPrivate.h"
 #include "ScreenRendering.h"
 #include "AGXProfiler.h"
+#include "AGXCommandBuffer.h"
 #include "ResolveShader.h"
 #include "PipelineStateCache.h"
 #include "Math/PackedVector.h"

@@ -5,6 +5,7 @@
 #include "AGXRHIPrivate.h"
 #include "AGXCommandEncoder.h"
 #include "AGXState.h"
+#include "AGXFence.h"
 
 class FAGXCommandList;
 class FAGXCommandQueue;
@@ -23,7 +24,11 @@ public:
 #pragma mark -
 	void SetDispatchType(mtlpp::DispatchType Type);
 	
-    void Begin(bool const bParallelBegin = false);
+    void Begin(FAGXFence* Fence, bool const bParallelBegin = false);
+	
+	void Wait(FAGXFence* Fence);
+
+	void Update(FAGXFence* Fence);
 	
     void BeginParallelRenderPass(mtlpp::RenderPassDescriptor RenderPass, uint32 NumParallelContextsInPass);
 
@@ -46,7 +51,7 @@ public:
     
     void DispatchIndirect(FAGXVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset);
     
-    void EndRenderPass(void);
+    TRefCountPtr<FAGXFence> const& EndRenderPass(void);
     
     void CopyFromTextureToBuffer(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FAGXBuffer const& toBuffer, uint32 destinationOffset, uint32 destinationBytesPerRow, uint32 destinationBytesPerImage, mtlpp::BlitOption options);
     
@@ -76,9 +81,9 @@ public:
 	
 	void AsyncGenerateMipmapsForTexture(FAGXTexture const& Texture);
 	
-    void Submit(EAGXSubmitFlags SubmissionFlags);
+    TRefCountPtr<FAGXFence> const& Submit(EAGXSubmitFlags SubmissionFlags);
     
-    void End(void);
+    TRefCountPtr<FAGXFence> const& End(void);
 	
 	void InsertCommandBufferFence(FAGXCommandBufferFence& Fence, mtlpp::CommandBufferHandler Handler);
 	
@@ -170,6 +175,9 @@ private:
 	uint32 GetEncoderIndex(void) const;
 	uint32 GetCommandBufferIndex(void) const;
 	
+	void InsertDebugDraw(FAGXCommandData& Data);
+	void InsertDebugDispatch(FAGXCommandData& Data);
+
 private:
 	FAGXCommandList& CmdList;
     FAGXStateCache& State;
@@ -187,6 +195,15 @@ private:
 	// Disjoint ranges *are* permitted!
 	TMap<id<MTLBuffer>, TArray<NSRange>> OutstandingBufferUploads;
 
+	// Fences for the current command encoder chain
+	TRefCountPtr<FAGXFence> PassStartFence;
+	TRefCountPtr<FAGXFence> CurrentEncoderFence;
+	TRefCountPtr<FAGXFence> ParallelPassEndFence;
+
+	// Fences for the prologue command encoder chain
+	TRefCountPtr<FAGXFence> PrologueStartEncoderFence;
+	TRefCountPtr<FAGXFence> PrologueEncoderFence;
+    
     mtlpp::RenderPassDescriptor RenderPassDesc;
     
 	mtlpp::DispatchType ComputeDispatchType;

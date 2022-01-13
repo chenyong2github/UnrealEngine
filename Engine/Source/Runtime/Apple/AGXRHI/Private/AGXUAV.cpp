@@ -3,6 +3,7 @@
 
 #include "AGXRHIPrivate.h"
 #include "AGXRHIStagingBuffer.h"
+#include "AGXCommandBuffer.h"
 #include "RenderUtils.h"
 #include "ClearReplacementShaders.h"
 #include "AGXTransitionData.h"
