@@ -2022,6 +2022,10 @@ protected:
 
 	/** Issues occlusion queries */
 	void RenderOcclusion(FRHICommandListImmediate& RHICmdList);
+
+	bool RenderHzb(
+		FRDGBuilder& GraphBuilder,
+		TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBuffer);
 	
 	/** Computes how many queries will be issued this frame */
 	int32 ComputeNumOcclusionQueriesToBatch() const;

@@ -2618,6 +2618,18 @@ TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadin
 	return nullptr;
 }
 
+FMobileSceneTextureUniformParameters GetMobileSceneTextureParameters(
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTextureUniformBuffer)
+{
+	FMobileSceneTextureUniformParameters Parameters;
+	Parameters.SceneColorTexture = (*SceneTextureUniformBuffer)->SceneColorTexture;
+	Parameters.SceneDepthTexture = (*SceneTextureUniformBuffer)->SceneDepthTexture;
+	// ... to be added
+
+	return Parameters;
+}
+
 /** Deprecated APIs */
 
 bool IsSceneTexturesValid(FRHICommandListImmediate& RHICmdList)

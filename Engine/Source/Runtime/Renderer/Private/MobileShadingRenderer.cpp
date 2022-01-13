@@ -755,9 +755,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			// Finish rendering for each view, or the full stereo buffer if enabled
 			{
-				RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
-				SCOPE_CYCLE_COUNTER(STAT_FinishRenderViewTargetTime);
-
 				// Note that we should move this uniform buffer set up process right after the InitView to avoid any uniform buffer creation during the rendering after we porting all the passes to the RDG.
 				// We couldn't do it right now because the ResolveSceneDepth has another GraphicBuilder and it will re-register SceneDepthZ and that will cause crash.
 				TArray<TRDGUniformBufferRef<FMobileSceneTextureUniformParameters>, TInlineAllocator<1, SceneRenderingAllocator>> MobileSceneTexturesPerView;
@@ -778,6 +775,14 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				};
 
 				SetupMobileSceneTexturesPerView();
+
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+				{
+					RenderHzb(GraphBuilder, MobileSceneTexturesPerView[ViewIndex]);
+				}
+
+				RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
+				SCOPE_CYCLE_COUNTER(STAT_FinishRenderViewTargetTime);
 
 				FMobilePostProcessingInputs PostProcessingInputs;
 				PostProcessingInputs.ViewFamilyTexture = ViewFamilyTexture;
@@ -1564,4 +1569,40 @@ void FMobileSceneRenderer::UpdateMovablePointLightUniformBufferAndShadowInfo()
 			}
 		}
 	}
+}
+
+void BuildHZB(FRDGBuilder& GraphBuilder, const FMobileSceneTextureUniformParameters& SceneTextures, FViewInfo& View);
+
+bool FMobileSceneRenderer::RenderHzb(
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBuffer)
+{
+	static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
+	bool bHZBOcclusion = ICVarHZBOcc->GetInt() != 0;
+
+	const FMobileSceneTextureUniformParameters SceneTextures = GetMobileSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		FSceneViewState* ViewState = (FSceneViewState*)View.State;
+
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+
+		bool bShouldBuildHZB = bHZBOcclusion; // Not only HZB occlusion needs HZB, such as SSR, etc.
+		if (bShouldBuildHZB)
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB(ViewId=%d)", ViewIndex);
+			BuildHZB(GraphBuilder, SceneTextures, Views[ViewIndex]);
+		}
+
+		if (bHZBOcclusion)
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "SubmitHZB");
+			//check(ViewState->HZBOcclusionTests.IsValidFrame(ViewState->OcclusionFrameCounter));
+			ViewState->HZBOcclusionTests.Submit(GraphBuilder, View);
+		}
+	}
+
+	return bHZBOcclusion;
 }
