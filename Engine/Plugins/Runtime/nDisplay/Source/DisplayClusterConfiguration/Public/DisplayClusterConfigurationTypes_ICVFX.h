@@ -407,20 +407,29 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraC
 {
 	GENERATED_BODY()
 
-	/** Multiply the field of view for the ICVFX camera by this value.  This can increase the overall size of the inner frustum to help provide a buffer against latency when moving the camera. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "5.0", UIMax = "5.0"))
-	float FieldOfViewMultiplier = 1.0f;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = NDisplay)
+	FIntPoint EstimatedOverscanResolution;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = NDisplay)
+	FIntPoint InnerFrustumResolution;
+
+	UPROPERTY(BlueprintReadOnly, Category = NDisplay, meta = (HideInDetailPanel))
+	float OverscanPixelsIncrease;
 
 	/** Enable Custom Frustum Frustum. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Custom Frustum"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum Overscan"))
 	bool bEnable = false;
 
 	/** Enable Custom Frustum Frustum. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Adapt resolution", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Adapt Resolution", EditCondition = "bEnable"))
 	bool bAdaptResolution = false;
 
+	/** Multiply the field of view for the ICVFX camera by this value.  This can increase the overall size of the inner frustum to help provide a buffer against latency when moving the camera. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (DisplayName = "Overscan Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "5.0", UIMax = "5.0", EditCondition = "bEnable"))
+	float FieldOfViewMultiplier = 1.0f;
+
 	/** Enable/disable inner camera custom frustum and specify units as percent or pixel values. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mode", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Overscan Units", EditCondition = "bEnable"))
 	EDisplayClusterConfigurationViewportCustomFrustumMode Mode = EDisplayClusterConfigurationViewportCustomFrustumMode::Percent;
 
 	/** Pixel/Percent value to alter the frustum to the left side */
@@ -461,7 +470,7 @@ public:
 	float BufferRatio = 1;
 
 	/** Render a larger or smaller inner frame */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (DisplayName = "Inner Frustum Overscan", EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_CameraCustomFrustum CustomFrustum;
 
 	/** Soften the edges of the inner frustum to help avoid hard lines in reflections seen by the live-action camera. */

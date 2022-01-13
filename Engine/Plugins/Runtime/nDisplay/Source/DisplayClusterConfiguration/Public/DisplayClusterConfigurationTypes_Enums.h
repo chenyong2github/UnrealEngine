@@ -171,8 +171,8 @@ enum class EDisplayClusterConfigurationRenderMGPUMode : uint8
 UENUM()
 enum class EDisplayClusterConfigurationViewportOverscanMode : uint8
 {
-	Pixels   UMETA(DisplayName = "Pixels values"),
-	Percent  UMETA(DisplayName = "Percent values")
+	Pixels   UMETA(DisplayName = "Pixels"),
+	Percent  UMETA(DisplayName = "Percent")
 };
 
 UENUM()
@@ -186,6 +186,6 @@ enum class EDisplayClusterConfigurationRenderMode : uint8
 UENUM()
 enum class EDisplayClusterConfigurationViewportCustomFrustumMode : uint8
 {
-	Percent  UMETA(DisplayName = "Percent values"),
-	Pixels   UMETA(DisplayName = "Pixels values")
+	Percent  UMETA(DisplayName = "Percentage"),
+	Pixels   UMETA(DisplayName = "Pixels")
 };

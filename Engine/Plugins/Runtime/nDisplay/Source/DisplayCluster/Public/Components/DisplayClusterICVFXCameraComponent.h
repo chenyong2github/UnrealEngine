@@ -40,6 +40,8 @@ public:
 	virtual TSharedPtr<SWidget> GetCustomEditorPreviewWidget() override;
 #endif
 
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
 public:
 	FDisplayClusterViewport_CameraMotionBlur GetMotionBlurParameters();
 
@@ -62,7 +64,10 @@ public:
 
 	// UActorComponent interface
 	virtual void OnRegister() override;
-	
+
+private:
+	void UpdateOverscanEstimatedFrameSize();
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Details Panel Property Referencers
 //////////////////////////////////////////////////////////////////////////////////////////////
