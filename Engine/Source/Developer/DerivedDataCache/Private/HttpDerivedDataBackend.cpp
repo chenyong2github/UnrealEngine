@@ -3259,7 +3259,7 @@ FDerivedDataBackendInterface* CreateHttpDerivedDataBackend(
 	{
 		return Backend;
 	}
-	UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s could not contact the service (%s), will not use it"), NodeName, *ServiceUrl);
+	UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s could not contact the service (%s), will not use it"), NodeName, ServiceUrl);
 	delete Backend;
 	return nullptr;
 #else
