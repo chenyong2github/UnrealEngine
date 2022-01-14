@@ -274,10 +274,12 @@ protected:
 	// Adds a single property to a class.
 	static FProperty* AddProperty(URigVMMemoryStorageGeneratorClass* InClass, const FRigVMPropertyDescription& InProperty, FField** LinkToProperty = nullptr);
 
-private:
+public:
 
 	void RefreshLinkedProperties();
 	void RefreshPropertyPaths();
+
+private:
 
 	// The type of memory of this class
 	ERigVMMemoryType MemoryType;

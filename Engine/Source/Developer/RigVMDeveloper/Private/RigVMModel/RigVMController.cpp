@@ -17,6 +17,7 @@
 #include "Algo/Sort.h"
 #include "RigVMPythonUtils.h"
 #include "RigVMTypeUtils.h"
+#include "Engine/UserDefinedStruct.h"
 
 #if WITH_EDITOR
 #include "Exporters/Exporter.h"
@@ -1035,6 +1036,10 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 	{
 		ValuePin->CPPType = ExternalVariable.TypeName.ToString();
 		ValuePin->CPPTypeObject = ExternalVariable.TypeObject;
+		if (ValuePin->CPPTypeObject)
+		{
+			ValuePin->CPPTypeObjectPath = *ValuePin->CPPTypeObject->GetPathName();
+		}
 		ValuePin->bIsDynamicArray = ExternalVariable.bIsArray;
 
 		if(ValuePin->bIsDynamicArray && !RigVMTypeUtils::IsArrayType(ValuePin->CPPType))
@@ -8483,21 +8488,19 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 
 	if (URigVMFunctionEntryNode* EntryNode = Graph->GetEntryNode())
 	{
-		TArray<URigVMLink*> Links = EntryNode->GetLinks();
+		const TArray<URigVMLink*> Links = EntryNode->GetLinks();
 		DetachLinksFromPinObjects(&Links, true);
-		RepopulatePinsOnNode(EntryNode, true, true);
-		ReattachLinksToPinObjects(false, &Links, true);
-		
+		RepopulatePinsOnNode(EntryNode, true, true, bSetupOrphanPins);
+		ReattachLinksToPinObjects(true, &Links, true, bSetupOrphanPins);
 		RemoveUnusedOrphanedPins(EntryNode, true);
 	}
 	
 	if (URigVMFunctionReturnNode* ReturnNode = Graph->GetReturnNode())
 	{
-		TArray<URigVMLink*> Links = ReturnNode->GetLinks();
+		const TArray<URigVMLink*> Links = ReturnNode->GetLinks();
 		DetachLinksFromPinObjects(&Links, true);
-		RepopulatePinsOnNode(ReturnNode, true, true);
-		ReattachLinksToPinObjects(false, &Links, true);
-		
+		RepopulatePinsOnNode(ReturnNode, true, true, bSetupOrphanPins);
+		ReattachLinksToPinObjects(true, &Links, true, bSetupOrphanPins);
 		RemoveUnusedOrphanedPins(ReturnNode, true);
 	}
 
@@ -10077,6 +10080,11 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 	ResultPin->Direction = ERigVMPinDirection::Output;
 	AddNodePin(Node, ResultPin);
 
+	if (ResultPin->IsStruct())
+	{
+		AddPinsForStruct(ResultPin->GetScriptStruct(), Node, ResultPin, ResultPin->Direction, FString(), false);
+	}
+
 	Graph->Nodes.Add(Node);
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
@@ -11555,7 +11563,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
 			{
 				FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
-				ReattachLinksToPinObjects(bFollowCoreRedirectors, nullptr);
+				ReattachLinksToPinObjects(bFollowCoreRedirectors, nullptr, bNotify, bSetupOrphanedPins);
 			}
 		}
 	}
@@ -11767,6 +11775,9 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode);
 	URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(InNode);
 	URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode);
+	URigVMIfNode* IfNode = Cast<URigVMIfNode>(InNode);
+	URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(InNode);
+	URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(InNode);
 
 	TGuardValue<bool> EventuallySuspendNotifs(bSuspendNotifications, !bNotify);
 	FScopeLock Lock(&PinPathCoreRedirectorsLock);
@@ -11937,6 +11948,43 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	}
 	else if (CollapseNode)
 	{
+		// PinStates were already saved earlier, and will be applied later, no need to do it here 
+
+		// since we are replacing existing pins, their names have to be saved
+		// and assigned to the new pins only after we removed the old ones
+		TArray<TTuple<URigVMPin*, FName>> NewRootPinInfos;
+		for (URigVMPin* RootPin : InNode->Pins)
+		{
+			URigVMPin* NewRootPin = NewObject<URigVMPin>(InNode);
+			ConfigurePinFromPin(NewRootPin, RootPin);
+			EnsurePinValidity(NewRootPin, false);
+		
+			NewRootPinInfos.Add(TTuple<URigVMPin*, FName>(NewRootPin, RootPin->GetFName()));
+		}
+		
+		RemovePinsDuringRepopulate(InNode, InNode->Pins, bNotify, bSetupOrphanedPins);
+		
+		for (TTuple<URigVMPin*, FName> NewRootPinInfo : NewRootPinInfos)
+		{
+			RenameObject(NewRootPinInfo.Key, *NewRootPinInfo.Value.ToString(), InNode);
+			AddNodePin(InNode, NewRootPinInfo.Key);
+		}
+		
+		for (URigVMPin* Pin : InNode->Pins)
+		{
+			if (Pin->IsStruct())
+			{
+				AddPinsForStruct(Pin->GetScriptStruct(), InNode, Pin, Pin->GetDirection(), FString(), false);
+			}
+			Notify(ERigVMGraphNotifType::PinAdded, Pin);
+		}
+
+		if (CollapseNode->GetOuter()->IsA<URigVMFunctionLibrary>())
+		{
+			// no need to notify since the function library graph is invisible anyway
+			RemoveUnusedOrphanedPins(CollapseNode, false);
+		}
+
 		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
 		// need to get a copy of the node array since the following function could remove nodes from the graph
 		// we don't want to remove elements from the array we are iterating over.
@@ -11961,7 +12009,8 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 			{
 				URigVMPin* NewPin = NewObject<URigVMPin>(InNode, ReferencedPin->GetFName());
 				ConfigurePinFromPin(NewPin, ReferencedPin);
-
+				EnsurePinValidity(NewPin, false);
+				
 				AddNodePin(InNode, NewPin);
 
 				if (NewPin->IsStruct())
@@ -11975,7 +12024,39 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 			ApplyPinStates(InNode, ReferencedPinStates);
 		}
 	}
-
+	else if (IfNode || SelectNode || ArrayNode)
+	{
+		// PinStates were already saved earlier, and will be applied later, no need to do it here
+	 
+		// since we are replacing existing pins, their names have to be saved
+		// and assigned to the new pins only after we removed old ones	
+		TArray<TTuple<URigVMPin*, FName>> NewRootPinInfos;
+		for (URigVMPin* RootPin : InNode->Pins)
+		{
+			URigVMPin* NewRootPin = NewObject<URigVMPin>(InNode);
+			ConfigurePinFromPin(NewRootPin, RootPin);
+			EnsurePinValidity(NewRootPin, false);
+		
+			NewRootPinInfos.Add(TTuple<URigVMPin*, FName>(NewRootPin, RootPin->GetFName()));
+		}
+		
+		RemovePinsDuringRepopulate(InNode, InNode->Pins, bNotify, bSetupOrphanedPins);
+		
+		for (TTuple<URigVMPin*, FName> NewRootPinInfo : NewRootPinInfos)
+		{
+			RenameObject(NewRootPinInfo.Key, *NewRootPinInfo.Value.ToString(), InNode);
+			AddNodePin(InNode, NewRootPinInfo.Key);
+		}
+		
+		for (URigVMPin* Pin : InNode->Pins)
+		{
+			if (Pin->IsStruct())
+			{
+				AddPinsForStruct(Pin->GetScriptStruct(), InNode, Pin, Pin->GetDirection(), FString(), false);
+			}
+			Notify(ERigVMGraphNotifType::PinAdded, Pin);
+		}	
+	}
 	else
 	{
 		return;
@@ -12664,9 +12745,20 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 	}
 
 	UObject* CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(InCPPTypeObjectPath.ToString());
-	if (InPin->CPPType == InCPPType && InPin->CPPTypeObject == CPPTypeObject)
+
+	// always refresh pin type if it is a user defined struct, whose internal layout can change at anytime
+	bool bForceRefresh = false;
+	if (CPPTypeObject && CPPTypeObject->IsA<UUserDefinedStruct>())
 	{
-		return true;
+		bForceRefresh = true;
+	}
+
+	if (!bForceRefresh)
+	{
+		if (InPin->CPPType == InCPPType && InPin->CPPTypeObject == CPPTypeObject)
+		{
+			return true;
+		}
 	}
 
 	return ChangePinType(InPin, InCPPType, CPPTypeObject, bSetupUndoRedo, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
@@ -12909,6 +13001,8 @@ bool URigVMController::EnsurePinValidity(URigVMPin* InPin, bool bRecursive)
 	// check if the CPPTypeObject is set up correctly.
 	if(FRigVMPropertyDescription::RequiresCPPTypeObject(InPin->GetCPPType()))
 	{
+		// GetCPPTypeObject attempts to update pin type information to the latest
+		// without testing for redirector
 		if(InPin->GetCPPTypeObject() == nullptr)
 		{
 			// try to find the CPPTypeObject by name
@@ -12964,6 +13058,19 @@ void URigVMController::ValidatePin(URigVMPin* InPin)
 	// create a property description from the pin here as a test,
 	// since the compiler needs this
 	FRigVMPropertyDescription(InPin->GetFName(), InPin->GetCPPType(), InPin->GetCPPTypeObject(), InPin->GetDefaultValue());
+}
+
+void URigVMController::EnsureLocalVariableValidity()
+{
+	if (URigVMGraph* Graph = GetGraph())
+	{
+		for (FRigVMGraphVariableDescription& Variable : Graph->LocalVariables)
+		{
+			// CPPType can become invalid when the type object is defined by
+			// an asset that have changed name or asset path, user defined struct is one possibility
+			Variable.CPPType = PostProcessCPPType(Variable.CPPType, Variable.CPPTypeObject);
+		}
+	}
 }
 
 FRigVMExternalVariable URigVMController::GetVariableByName(const FName& InExternalVariableName, const bool bIncludeInputArguments)

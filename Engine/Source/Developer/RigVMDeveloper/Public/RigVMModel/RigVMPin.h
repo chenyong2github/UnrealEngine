@@ -396,7 +396,7 @@ public:
 
 private:
 
-	void UpdateCPPTypeObjectIfRequired() const;
+	void UpdateTypeInformationIfRequired() const;
 	void SetNameFromIndex();
 
 	void GetExposedPinChainImpl(TArray<const URigVMPin*>& OutExposedPins, TArray<const URigVMPin*>& VisitedPins) const;
@@ -432,7 +432,11 @@ private:
 	UPROPERTY()
 	FString CPPType;
 
-	UPROPERTY(transient)
+	// serialize object ptr here to keep track of the latest version of the type object,
+	// type object can reference assets like user defined struct, which can be renamed
+	// or moved to new locations, serializing the type object with the pin
+	// ensure automatic update whenever those things happen
+	UPROPERTY()
 	TObjectPtr<UObject> CPPTypeObject;
 
 	UPROPERTY()

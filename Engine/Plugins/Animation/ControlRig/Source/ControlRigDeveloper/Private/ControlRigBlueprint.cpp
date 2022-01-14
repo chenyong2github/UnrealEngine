@@ -451,32 +451,12 @@ void UControlRigBlueprint::PostLoad()
 
 #if WITH_EDITOR
 
-		TArray<URigVMGraph*> GraphsToDetach;
-		GraphsToDetach.Add(GetModel());
-		GraphsToDetach.Add(GetLocalFunctionLibrary());
-
-		if (ensure(IsInGameThread()))
-		{
-			for (URigVMGraph* GraphToDetach : GraphsToDetach)
-			{
-				URigVMController* Controller = GetOrCreateController(GraphToDetach);
-				// temporarily disable default value validation during load time, serialized values should always be accepted
-				TGuardValue<bool> PerGraphDisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
-				Controller->DetachLinksFromPinObjects();
-				TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
-				for (URigVMNode* Node : Nodes)
-				{
-					Controller->RepopulatePinsOnNode(Node, true, false, true);
-				}
-			}
-			SetupPinRedirectorsForBackwardsCompatibility();
-		}
-
-		for (URigVMGraph* GraphToDetach : GraphsToDetach)
-		{
-			URigVMController* Controller = GetOrCreateController(GraphToDetach);
-			Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true);
-		}
+		// refresh the graph such that the pin hierarchies matches their CPPTypeObject
+		// this step is needed everytime we open a BP in the editor, b/c even after load
+		// model data can change while the Control Rig BP is not opened
+		// for example, if a user defined struct changed after BP load,
+		// any pin that references the struct needs to be regenerated
+		RefreshAllModels();
 
 		// perform backwards compat value upgrades
 		TArray<URigVMGraph*> GraphsToValidate = GetAllModels();
@@ -783,6 +763,38 @@ void UControlRigBlueprint::DecrementVMRecompileBracket()
 	else if (VMRecompilationBracket > 0)
 	{
 		VMRecompilationBracket--;
+	}
+}
+
+void UControlRigBlueprint::RefreshAllModels()
+{
+	TGuardValue<bool> IsCompilingGuard(bIsCompiling, true);
+	
+	TArray<URigVMGraph*> GraphsToDetach;
+	GraphsToDetach.Add(GetModel());
+	GraphsToDetach.Add(GetLocalFunctionLibrary());
+
+	if (ensure(IsInGameThread()))
+	{
+		for (URigVMGraph* GraphToDetach : GraphsToDetach)
+		{
+			URigVMController* Controller = GetOrCreateController(GraphToDetach);
+			// temporarily disable default value validation during load time, serialized values should always be accepted
+			TGuardValue<bool> PerGraphDisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
+			Controller->DetachLinksFromPinObjects();
+			TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
+			for (URigVMNode* Node : Nodes)
+			{
+				Controller->RepopulatePinsOnNode(Node, true, false, true);
+			}
+		}
+		SetupPinRedirectorsForBackwardsCompatibility();
+	}
+
+	for (URigVMGraph* GraphToDetach : GraphsToDetach)
+	{
+		URigVMController* Controller = GetOrCreateController(GraphToDetach);
+		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true);
 	}
 }
 

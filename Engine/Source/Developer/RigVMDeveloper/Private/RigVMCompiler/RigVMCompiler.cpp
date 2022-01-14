@@ -172,9 +172,28 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
 	{
 		URigVMGraph* VisitedGraph = VisitedGraphs[GraphIndex];
+		
+		{
+			FRigVMControllerGraphGuard Guard(InController, VisitedGraph, false);
+			// make sure variables are up to date before validating other things.
+			// that is, make sure their cpp type and type object agree with each other
+			InController->EnsureLocalVariableValidity();
+		}
+		
 		for(URigVMNode* ModelNode : VisitedGraph->GetNodes())
 		{
 			FRigVMControllerGraphGuard Guard(InController, VisitedGraph, false);
+
+			// make sure pins are up to date before validating other things.
+			// that is, make sure their cpp type and type object agree with each other
+			for(URigVMPin* Pin : ModelNode->Pins)
+			{
+				if(!URigVMController::EnsurePinValidity(Pin, true))
+				{
+					return false;
+				}
+			}
+			
 			if(!InController->RemoveUnusedOrphanedPins(ModelNode, true))
 			{
 				static const FString LinkedMessage = TEXT("Node @@ uses pins that no longer exist. Please rewire the links and re-compile.");
@@ -335,6 +354,13 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	{
 		for (URigVMLibraryNode* LibraryNode : FunctionLibrary->GetFunctions())
 		{
+			{
+				FRigVMControllerGraphGuard Guard(InController, LibraryNode->GetContainedGraph(), false);
+				// make sure variables are up to date before validating other things.
+				// that is, make sure their cpp type and type object agree with each other
+				InController->EnsureLocalVariableValidity();
+			}
+
 			for (FRigVMGraphVariableDescription& Variable : LibraryNode->GetContainedGraph()->LocalVariables)
 			{
 				FString Path = FString::Printf(TEXT("LocalVariableDefault::%s|%s::Const"), *LibraryNode->GetFName().ToString(), *Variable.Name.ToString());

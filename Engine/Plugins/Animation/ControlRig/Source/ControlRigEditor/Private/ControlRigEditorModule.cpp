@@ -122,6 +122,8 @@
 #include "Channels/SCurveEditorKeyBarView.h"
 #include "ControlRigSpaceChannelCurveModel.h"
 #include "ControlRigSpaceChannelEditors.h"
+#include "UserDefinedStructure/UserDefinedStructEditorData.h"
+#include "UObject/FieldIterator.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -2175,6 +2177,175 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
 						}
 					}));
+				}
+			}
+		}
+	}
+}
+
+void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
+	FStructureEditorUtils::EStructureEditorChangeInfo ChangedType)
+{
+	// the following is similar to
+	// FUserDefinedStructureCompilerInner::ReplaceStructWithTempDuplicate()
+	// it is necessary since existing rigs need to be kept valid until after PreBPCompile
+	// there are other systems, such as sequencer, that might need to evaluate the rig
+	// for one last time during PreBPCompile
+	// Overrall sequence of events
+	// PreStructChange --1--> PostStructChange
+	//                              --2--> PreBPCompile --3--> PostBPCompile
+	
+	UUserDefinedStruct* StructureToReinstance = (UUserDefinedStruct*)Changed;
+	if (StructureToReinstance)
+	{
+		UUserDefinedStruct* DuplicatedStruct = NULL;
+		{
+			const FString ReinstancedName = FString::Printf(TEXT("STRUCT_REINST_%s"), *StructureToReinstance->GetName());
+			const FName UniqueName = MakeUniqueObjectName(GetTransientPackage(), UUserDefinedStruct::StaticClass(), FName(*ReinstancedName));
+
+			TGuardValue<bool> IsDuplicatingClassForReinstancing(GIsDuplicatingClassForReinstancing, true);
+			DuplicatedStruct = (UUserDefinedStruct*)StaticDuplicateObject(StructureToReinstance, GetTransientPackage(), UniqueName, ~RF_Transactional); 
+		}
+
+		DuplicatedStruct->Guid = StructureToReinstance->Guid;
+		DuplicatedStruct->Bind();
+		DuplicatedStruct->StaticLink(true);
+		DuplicatedStruct->PrimaryStruct = StructureToReinstance;
+		DuplicatedStruct->Status = EUserDefinedStructureStatus::UDSS_Duplicate;
+		DuplicatedStruct->SetFlags(RF_Transient);
+		DuplicatedStruct->AddToRoot();
+
+		CastChecked<UUserDefinedStructEditorData>(DuplicatedStruct->EditorData)->RecreateDefaultInstance();
+
+		// List of unique classes and structs to regenerate bytecode and property referenced objects list
+		TSet<UStruct*> StructsToRegenerateReferencesFor;
+
+		for (TAllFieldsIterator<FStructProperty> FieldIt(RF_NoFlags, EInternalObjectFlags::PendingKill); FieldIt; ++FieldIt)
+		{
+			FStructProperty* StructProperty = *FieldIt;
+			if (StructProperty && (StructureToReinstance == StructProperty->Struct))
+			{
+				// make sure variable properties on the BP is patched
+				// since active rig instance still references it
+				if (UControlRigBlueprintGeneratedClass* OwnerClass = Cast<UControlRigBlueprintGeneratedClass>(StructProperty->GetOwnerClass()))
+				{
+					if (UControlRigBlueprint* FoundBlueprint = Cast<UControlRigBlueprint>(OwnerClass->ClassGeneratedBy))
+					{
+						StructProperty->Struct = DuplicatedStruct;
+						StructsToRegenerateReferencesFor.Add(OwnerClass);
+					}
+				}
+				// similar story, VM instructions reference properties on the GeneratorClass
+				if (URigVMMemoryStorageGeneratorClass* OwnerClass = Cast<URigVMMemoryStorageGeneratorClass>(StructProperty->GetOwnerStruct()))
+				{
+					StructProperty->Struct = DuplicatedStruct;
+					StructsToRegenerateReferencesFor.Add(OwnerClass);
+				}
+			}
+		}
+
+		// Make sure we update the list of objects referenced by structs after we replaced the struct in FStructProperties
+		for (UStruct* Struct : StructsToRegenerateReferencesFor)
+		{
+			Struct->CollectBytecodeAndPropertyReferencedObjects();
+			
+			// refresh these since VM caching references them
+			if (URigVMMemoryStorageGeneratorClass* GeneratorClass = Cast<URigVMMemoryStorageGeneratorClass>(Struct))
+			{
+				GeneratorClass->RefreshLinkedProperties();
+				GeneratorClass->RefreshPropertyPaths();	
+			}
+		}
+
+		// as rigs are re-instanced, the duplicated struct will be GCed
+		DuplicatedStruct->RemoveFromRoot();
+	}
+	
+	// in the future we could only invalidate caches on affected rig instances, it shouldn't make too much of a difference though
+	for (TObjectIterator<UControlRig> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
+	{
+		UControlRig* Rig = *It;
+		// rebuild property list and property path list
+		Rig->GetVM()->InvalidateCachedMemory();
+	}
+}
+
+void FControlRigEditorModule::PostChange(const UUserDefinedStruct* Changed,
+                                   FStructureEditorUtils::EStructureEditorChangeInfo ChangedType)
+{
+	TArray<UControlRigBlueprint*> BlueprintsToRefresh;
+	for (TObjectIterator<URigVMPin> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
+	{
+		URigVMPin* Pin = *It;
+		// GetCPPTypeObject also makes sure the pin's type information is update to date
+		if (Pin && Pin->GetCPPTypeObject() == Changed)
+		{
+			if (UControlRigBlueprint* RigBlueprint = Pin->GetTypedOuter<UControlRigBlueprint>())
+			{
+				BlueprintsToRefresh.AddUnique(RigBlueprint);
+				
+				// this pin is part of a function definition
+				// update all BP that uses this function
+				if (Pin->GetGraph() == RigBlueprint->GetLocalFunctionLibrary())
+				{
+					TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > References;
+					References = RigBlueprint->FunctionLibrary->GetReferencesForFunction(Pin->GetNode()->GetFName());
+					
+					for (const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference : References)
+					{
+						URigVMFunctionReferenceNode* RefNode = Reference.LoadSynchronous();
+						if (!RefNode)
+						{
+							continue;
+						}
+						
+						if (UControlRigBlueprint* FunctionUserBlueprint = RefNode->GetTypedOuter<UControlRigBlueprint>())
+						{
+							BlueprintsToRefresh.AddUnique(FunctionUserBlueprint);
+						}
+					}	
+				}
+			}
+		}
+	}
+
+	for (UControlRigBlueprint* RigBlueprint : BlueprintsToRefresh)
+	{
+		// refresh all pins
+		RigBlueprint->RefreshAllModels();
+		// reflect changes in the editor
+		RigBlueprint->RebuildGraphFromModel();
+		RigBlueprint->MarkPackageDirty();
+	}
+	
+	for (UControlRigBlueprint* RigBlueprint : BlueprintsToRefresh)
+	{
+		// this should make sure variables in BP are updated with the latest struct object
+		// otherwise RigVMCompiler validation would complain about variable type - pin type mismatch
+		FCompilerResultsLog	ResultsLog;
+		FKismetEditorUtilities::CompileBlueprint(RigBlueprint, EBlueprintCompileOptions::None, &ResultsLog);
+		
+		// BP compiler always initialize the new CDO by copying from the old CDO,
+		// however, in case that a BP variable type has changed, the data old CDO would be invalid because
+		// while the old memory container still references the temp duplicated struct we created during PreChange()
+		// registers that reference the BP variable would be referencing the new struct as a result of
+		// FKismetCompilerContext::CompileClassLayout, so type mismatch would invalidate relevant copy operations
+		// so to simplify things, here we just reset all rigs upon error
+		if (ResultsLog.NumErrors > 0)
+		{
+			UControlRigBlueprintGeneratedClass* RigClass = RigBlueprint->GetControlRigBlueprintGeneratedClass();
+			UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
+			if (CDO->GetVM() != nullptr)
+			{
+				CDO->GetVM()->Reset();
+			}
+			TArray<UObject*> ArchetypeInstances;
+			CDO->GetArchetypeInstances(ArchetypeInstances);
+			for (UObject* Instance : ArchetypeInstances)
+			{
+				if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
+				{
+					InstanceRig->GetVM()->Reset();
 				}
 			}
 		}

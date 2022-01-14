@@ -267,6 +267,12 @@ public:
 	void IncrementVMRecompileBracket();
 	void DecrementVMRecompileBracket();
 
+	// this is needed since even after load
+	// model data can change while the Control Rig BP is not opened
+	// for example, if a user defined struct changed after BP load,
+	// any pin that references the struct needs to be regenerated
+	void RefreshAllModels();
+
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	void RequestControlRigInit();
 

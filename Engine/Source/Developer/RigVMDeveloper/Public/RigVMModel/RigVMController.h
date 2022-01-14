@@ -888,6 +888,10 @@ private:
 	static bool EnsurePinValidity(URigVMPin* InPin, bool bRecursive);
 	static void ValidatePin(URigVMPin* InPin);
 
+	// recreate the CPP type strings for variables that reference a type object
+	// they can get out of sync when the variable references a user defined struct
+	void EnsureLocalVariableValidity();
+	
 	FRigVMExternalVariable GetVariableByName(const FName& InExternalVariableName, const bool bIncludeInputArguments = false);
 	TArray<FRigVMExternalVariable> GetAllVariables(const bool bIncludeInputArguments = false);
 

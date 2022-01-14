@@ -337,6 +337,11 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 	CommonInitialization(ControlRigBlueprints, false);
 
+	// user-defined-struct can change even after load
+	// refresh the models such that pins are updated to match
+	// the latest struct member layout
+	InControlRigBlueprint->RefreshAllModels();
+
 	{
 		TArray<UEdGraph*> EdGraphs;
 		InControlRigBlueprint->GetAllGraphs(EdGraphs);

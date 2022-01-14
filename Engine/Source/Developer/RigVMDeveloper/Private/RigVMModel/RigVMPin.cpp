@@ -1167,7 +1167,7 @@ bool URigVMPin::IsOrphanPin() const
 	return false;
 }
 
-void URigVMPin::UpdateCPPTypeObjectIfRequired() const
+void URigVMPin::UpdateTypeInformationIfRequired() const
 {
 	if (CPPTypeObject == nullptr)
 	{
@@ -1177,11 +1177,18 @@ void URigVMPin::UpdateCPPTypeObjectIfRequired() const
 			MutableThis->CPPTypeObject = FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
 		}
 	}
+
+	if (CPPTypeObject)
+	{
+		// refresh the type string 
+		URigVMPin* MutableThis = (URigVMPin*)this;
+		MutableThis->CPPType = URigVMController::PostProcessCPPType(CPPType, CPPTypeObject);
+	}
 }
 
 UObject* URigVMPin::GetCPPTypeObject() const
 {
-	UpdateCPPTypeObjectIfRequired();
+	UpdateTypeInformationIfRequired();
 	return CPPTypeObject;
 }
 

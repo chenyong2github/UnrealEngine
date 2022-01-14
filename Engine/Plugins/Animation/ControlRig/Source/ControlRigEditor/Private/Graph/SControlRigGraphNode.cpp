@@ -96,6 +96,8 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	}
 
 	TArray<URigVMPin*> RootModelPins = ModelNode->GetPins();
+	// orphaned pins are appended to the end of pin list on each side of the node
+	RootModelPins.Append(ModelNode->GetOrphanedPins());
 	TArray<URigVMPin*> ModelPins;
 
 	// sort model pins
