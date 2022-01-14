@@ -31,10 +31,10 @@ public:
 UENUM()
 enum class EBspConversionMode : uint8
 {
-	/** First converts the brushes to static meshes, then performs static mesh boolean operations. */
+	/** First converts the brushes to static meshes, then performs mesh boolean operations. */
 	ConvertFirst = 0 UMETA(DisplayName = "Convert, then Combine"),
 
-	/** First combines brushes, then converts result to static mesh. */
+	/** First combines brushes using brush CSG operations, then converts result to static mesh (legacy path). */
 	CombineFirst = 1 UMETA(DisplayName = "Combine, then Convert"),
 };
 
@@ -71,12 +71,12 @@ public:
 
 	/** Caches individual brush conversions in "convert then combine" mode during a single invocation of 
 	 the tool. Only useful if changing selections or properties after starting the tool. Cleared on tool shutdown. */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Options, meta = (EditCondition = "ConversionMode == EBspConversionMode::ConvertFirst"))
-		bool bCacheBrushes = true;
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Options, AdvancedDisplay, meta = (EditCondition = "ConversionMode == EBspConversionMode::ConvertFirst"))
+	bool bCacheBrushes = true;
 
 	/** Determines whether a dynamic preview is shown. Note that this introduces non-background computations 
 	at each event that changes the result, rather than only performing a computation on Accept. */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = PreviewOptions)
+	UPROPERTY(EditAnywhere, NonTransactional, Category = PreviewOptions, AdvancedDisplay)
 	bool bShowPreview = true;
 };
 
@@ -109,7 +109,7 @@ public:
 	UFUNCTION(CallInEditor, Category = SelectionOperations, Meta = (DisplayName = "Deselect Volumes", DisplayPriority = 2))
 	void DeselectVolumes() { PostAction(EBspConversionToolAction::DeselectVolumes); }
 
-	/** Deselect any currently selected brushes that would not be converted given current settings. */
+	/** Deselect any currently selected brushes that are not valid targets given current settings. */
 	UFUNCTION(CallInEditor, Category = SelectionOperations, Meta = (DisplayName = "Deselect Non-Valid", DisplayPriority = 3))
 	void DeselectNonValid() { PostAction(EBspConversionToolAction::DeselectNonValid); }
 };
