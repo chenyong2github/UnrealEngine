@@ -1141,6 +1141,7 @@ bool UModeManagerInteractiveToolsContext::OnChildEdModeDeactivated(UEdModeIntera
 	{
 		if (EdModeToolsContexts[k] == ChildToolsContext)
 		{
+			ChildToolsContext->DeactivateAllActiveTools(EToolShutdownType::Cancel);
 			EdModeToolsContexts.RemoveAt(k);
 			return true;
 		}
