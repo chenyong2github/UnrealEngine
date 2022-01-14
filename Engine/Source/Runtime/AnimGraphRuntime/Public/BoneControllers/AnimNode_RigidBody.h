@@ -342,23 +342,7 @@ private:
 	FSolverIterations SolverIterations;
 
 	friend class FRigidBodyNodeSimulationTask;
-	struct FSimulationTaskState
-	{
-		FSimulationTaskState()
-			: SimulationCompletionEvent(nullptr)
-		{
-		}
-
-		// We must explicitly declare the assignment operator due to the atomic, but we must never assign to or from a state with a live simulation
-		FORCEINLINE FSimulationTaskState& operator=(const FSimulationTaskState& Other)
-		{
-			check((SimulationCompletionEvent == nullptr) && (Other.SimulationCompletionEvent == nullptr));
-			return(*this);
-		}
-
-		FGraphEventRef SimulationCompletionEvent;
-	};
-	FSimulationTaskState SimulationTaskState;
+	UE::Tasks::FTask SimulationTask;
 
 	struct FOutputBoneData
 	{
