@@ -38,37 +38,6 @@ void UMassCrowdRepresentationProcessor::ConfigureQueries()
 	CharacterMovementEntitiesQuery_Conditional.SetChunkFilter(&FMassVisualizationChunkFragment::AreAnyEntitiesVisibleInChunk);
 }
 
-void UMassCrowdRepresentationProcessor::InitializeVelocity(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
-{
-	CharacterMovementEntitiesQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
-		{
-			const TConstArrayView<FMassRepresentationFragment> VisualizationList = Context.GetFragmentView<FMassRepresentationFragment>();
-			const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetFragmentView<FMassVelocityFragment>();
-			const TArrayView<FDataFragment_CharacterMovementComponentWrapper> CharMoveWrapperList = Context.GetMutableFragmentView<FDataFragment_CharacterMovementComponentWrapper>();
-
-			const int32 NumEntities = Context.GetNumEntities();
-			for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
-			{
-				const FMassRepresentationFragment& Visualization = VisualizationList[EntityIdx];
-
-				// @todo: Add syncing skeletal mesh <-> static mesh here.
-				if (Visualization.PrevRepresentation != Visualization.CurrentRepresentation)
-				{
-					const FMassVelocityFragment& Velocity = VelocityList[EntityIdx];
-					FDataFragment_CharacterMovementComponentWrapper& CharMoveWrapper = CharMoveWrapperList[EntityIdx];
-					UCharacterMovementComponent* MovementComp = CharMoveWrapper.Component.Get();
-
-					const bool bWasUsingMovementComponent = (Visualization.PrevRepresentation == ERepresentationType::LowResSpawnedActor || Visualization.PrevRepresentation == ERepresentationType::HighResSpawnedActor);
-					const bool bIsUsingMovementComponent = (Visualization.CurrentRepresentation == ERepresentationType::LowResSpawnedActor || Visualization.CurrentRepresentation == ERepresentationType::HighResSpawnedActor);
-					if (MovementComp && !bWasUsingMovementComponent && bIsUsingMovementComponent)
-					{
-						MovementComp->Velocity = Velocity.Value;
-					}
-				}
-			}
-		});
-}
-
 void UMassCrowdRepresentationProcessor::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer)
 {
 	Super::SetActorEnabled(EnabledType, Actor, EntityIdx, CommandBuffer);

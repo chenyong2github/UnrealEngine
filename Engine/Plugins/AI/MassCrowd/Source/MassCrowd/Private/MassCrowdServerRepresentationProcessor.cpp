@@ -15,14 +15,3 @@ UMassCrowdServerRepresentationProcessor::UMassCrowdServerRepresentationProcessor
 	LODRepresentation[EMassLOD::Low] = ERepresentationType::None;
 	LODRepresentation[EMassLOD::Off] = ERepresentationType::None;
 }
-
-void UMassCrowdServerRepresentationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
-{
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
-	{
-		UpdateRepresentation(Context);
-	});
-
-	// @todo, we should use the new translators to do that initialization
-	InitializeVelocity(EntitySubsystem, Context);
-}

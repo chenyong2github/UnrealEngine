@@ -46,9 +46,6 @@ void UMassCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsy
 		UpdateVisualization(Context);
 	});
 
-	// @todo, we should use the new translators to do that initialization
-	InitializeVelocity(EntitySubsystem, Context);
-
 	if (UE::MassCrowd::bDebugCrowdVisualType)
 	{
 		check(World);
