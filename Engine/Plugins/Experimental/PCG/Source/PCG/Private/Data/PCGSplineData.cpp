@@ -81,7 +81,7 @@ float UPCGSplineData::GetDensityAtPosition(const FVector& InPosition) const
 	return FMath::Max(0, 1.0f - Distance);
 }
 
-UPCGSpatialData* UPCGSplineData::ProjectOn(const UPCGSpatialData* InOther) const
+UPCGProjectionData* UPCGSplineData::ProjectOn(const UPCGSpatialData* InOther) const
 {
 	if(InOther->GetDimension() == 2)
 	{

@@ -31,7 +31,7 @@ public:
 	//~Begin UPCGSpatialData interface
 	virtual FBox GetBounds() const override;
 	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
-	virtual UPCGSpatialData* ProjectOn(const UPCGSpatialData* InOther) const override;
+	virtual UPCGProjectionData* ProjectOn(const UPCGSpatialData* InOther) const override;
 	//~End 
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)

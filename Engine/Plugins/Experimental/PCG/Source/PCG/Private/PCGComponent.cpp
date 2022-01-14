@@ -5,6 +5,7 @@
 #include "PCGHelpers.h"
 #include "PCGSubsystem.h"
 #include "PCGVolume.h"
+#include "Data/PCGIntersectionData.h"
 #include "Data/PCGLandscapeData.h"
 #include "Data/PCGLandscapeSplineData.h"
 #include "Data/PCGPointData.h"

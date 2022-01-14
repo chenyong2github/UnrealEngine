@@ -8,6 +8,10 @@
 #include "PCGSpatialData.generated.h"
 
 class UPCGPointData;
+class UPCGIntersectionData;
+class UPCGUnionData;
+class UPCGDifferenceData;
+class UPCGProjectionData;
 class AActor;
 
 /**
@@ -58,10 +62,19 @@ public:
 	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const { return InPoint; }
 
 	/** Returns a specialized data to intersect with another data */
-	virtual UPCGSpatialData* IntersectWith(const UPCGSpatialData* InOther) const;
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	virtual UPCGIntersectionData* IntersectWith(const UPCGSpatialData* InOther) const;
 
 	/** Returns a specialized data to project this on another data of equal or higher dimension */
-	virtual UPCGSpatialData* ProjectOn(const UPCGSpatialData* InOther) const;
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	virtual UPCGProjectionData* ProjectOn(const UPCGSpatialData* InOther) const;
+
+	/** Returns a specialized data to union this with another data */
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	virtual UPCGUnionData* UnionWith(const UPCGSpatialData* InOther) const;
+
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	virtual UPCGDifferenceData* Subtract(const UPCGSpatialData* InOther) const;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	AActor* TargetActor = nullptr;
