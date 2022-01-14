@@ -36,9 +36,9 @@ typedef NS_OPTIONS(uint64, EAGXFeatures)
 	/** Supports detailed statistics */
 	EAGXFeaturesStatistics = 1 << 8,
 	/** Supports the explicit MTLHeap APIs */
-	EAGXFeaturesHeaps = 1 << 9,
+	EAGXFeaturesHeaps_REMOVED = 1 << 9,
 	/** Supports the explicit MTLFence APIs */
-	EAGXFeaturesFences = 1 << 10,
+	EAGXFeaturesFences_REMOVED = 1 << 10,
 	/** Supports MSAA Depth Resolves */
 	EAGXFeaturesMSAADepthResolve = 1 << 11,
 	/** Supports Store & Resolve in a single store action */
@@ -66,7 +66,7 @@ typedef NS_OPTIONS(uint64, EAGXFeatures)
 	/** Supports parallel render encoders */
 	EAGXFeaturesParallelRenderEncoders = 1llu << 23llu,
 	/** Supports indirect argument buffers */
-	EAGXFeaturesIABs = 1llu << 24llu,
+	EAGXFeaturesIABs_REMOVED = 1llu << 24llu,
 	/** Supports specifying the mutability of buffers bound to PSOs */
     EAGXFeaturesPipelineBufferMutability = 1llu << 25llu,
     /** Supports tile shaders */
@@ -74,7 +74,7 @@ typedef NS_OPTIONS(uint64, EAGXFeatures)
 	/** Unused Reserved Bit */
 	EAGXFeaturesUnusedReservedBit27 = 1llu << 27llu, // was EAGXFeaturesSeparateTessellation
 	/** Supports indirect argument buffers Tier 2 */
-	EAGXFeaturesTier2IABs = 1llu << 28llu,
+	EAGXFeaturesTier2IABs_REMOVED = 1llu << 28llu,
 };
 
 /**
@@ -118,9 +118,6 @@ public:
 	 */
 	void SubmitCommandBuffers(TArray<mtlpp::CommandBuffer> BufferList, uint32 Index, uint32 Count);
 
-	/** @returns Creates a new MTLFence or nil if this is unsupported */
-	FAGXFence* CreateFence(ns::String const& Label) const;
-	
 	/** @params Fences An array of command-buffer fences for the committed command-buffers */
 	void GetCommittedCommandBufferFences(TArray<mtlpp::CommandBufferFence>& Fences);
 	

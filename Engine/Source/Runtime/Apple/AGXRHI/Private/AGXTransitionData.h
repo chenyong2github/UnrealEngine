@@ -24,15 +24,15 @@ class FAGXTransitionData
 {
 public:
 	explicit FAGXTransitionData(ERHIPipeline                         InSrcPipelines,
-								  ERHIPipeline                         InDstPipelines,
-								  ERHITransitionCreateFlags            InCreateFlags,
-								  TArrayView<const FRHITransitionInfo> InInfos);
+								ERHIPipeline                         InDstPipelines,
+								ERHITransitionCreateFlags            InCreateFlags,
+								TArrayView<const FRHITransitionInfo> InInfos);
 
 	// The default destructor is sufficient.
 	~FAGXTransitionData() = default;
 
 	// Disallow default, copy and move constructors.
-	FAGXTransitionData()                             = delete;
+	FAGXTransitionData()                           = delete;
 	FAGXTransitionData(const FAGXTransitionData&)  = delete;
 	FAGXTransitionData(const FAGXTransitionData&&) = delete;
 
@@ -47,6 +47,5 @@ private:
 	ERHIPipeline              DstPipelines   = ERHIPipeline::Num;
 	ERHITransitionCreateFlags CreateFlags    = ERHITransitionCreateFlags::None;
 	bool                      bCrossPipeline = false;
-	FAGXTransitionInfoArray Infos          = {};
-	TRefCountPtr<FAGXFence> Fence          = nullptr;
+	FAGXTransitionInfoArray   Infos          = {};
 };

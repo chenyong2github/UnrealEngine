@@ -13,7 +13,6 @@
 #include "MetalShaderResources.h"
 #include "AGXProfiler.h"
 #include "AGXCommandQueue.h"
-#include "AGXCommandBuffer.h"
 #include "RenderUtils.h"
 #include "Misc/ScopeRWLock.h"
 #include "HAL/PThreadEvent.h"
@@ -35,122 +34,6 @@ static FAutoConsoleVariableRef CVarAGXCacheMinSize(
 static uint32 BlendBitOffsets[] = { Offset_BlendState0, Offset_BlendState1, Offset_BlendState2, Offset_BlendState3, Offset_BlendState4, Offset_BlendState5, Offset_BlendState6, Offset_BlendState7 };
 static uint32 RTBitOffsets[] = { Offset_RenderTargetFormat0, Offset_RenderTargetFormat1, Offset_RenderTargetFormat2, Offset_RenderTargetFormat3, Offset_RenderTargetFormat4, Offset_RenderTargetFormat5, Offset_RenderTargetFormat6, Offset_RenderTargetFormat7 };
 static_assert(Offset_RasterEnd < 64 && Offset_End < 128, "Offset_RasterEnd must be < 64 && Offset_End < 128");
-
-static float RoundUpNearestEven(const float f)
-{
-	const float ret = FMath::CeilToFloat(f);
-	const float isOdd = (float)(((int)ret) & 1);
-	return ret + isOdd;
-}
-
-// A tile-based or vertex-based debug shader for trying to emulate Aftermath style failure reporting
-static NSString* GAGXDebugShader = @"#include <metal_stdlib>\n"
-"#include <metal_compute>\n"
-"\n"
-"using namespace metal;\n"
-"\n"
-"struct DebugInfo\n"
-"{\n"
-"   uint CmdBuffIndex;\n"
-"	uint EncoderIndex;\n"
-"   uint ContextIndex;\n"
-"   uint CommandIndex;\n"
-"   uint CommandBuffer[2];\n"
-"	uint PSOSignature[4];\n"
-"};\n"
-"\n"
-#if !PLATFORM_MAC
-"// Executes once per-tile\n"
-"kernel void Main_Debug(constant DebugInfo *debugTable [[ buffer(0) ]], device DebugInfo* debugBuffer [[ buffer(1) ]], uint2 threadgroup_position_in_grid [[ threadgroup_position_in_grid ]], uint2 threadgroups_per_grid [[ threadgroups_per_grid ]])\n"
-"{\n"
-"	// Write Pass, Draw indices\n"
-"	// Write Vertex+Fragment PSO sig (in form VertexLen, VertexCRC, FragLen, FragCRC)\n"
-"   uint tile_index = threadgroup_position_in_grid.x + (threadgroup_position_in_grid.y * threadgroups_per_grid.x);"
-"	debugBuffer[tile_index] = debugTable[0];\n"
-"}";
-#else
-"// Executes once as a point draw call\n"
-"vertex void Main_Debug(constant DebugInfo *debugTable [[ buffer(0) ]], device DebugInfo* debugBuffer [[ buffer(1) ]])\n"
-"{\n"
-"	// Write Pass, Draw indices\n"
-"	// Write Vertex+Fragment PSO sig (in form VertexLen, VertexCRC, FragLen, FragCRC)\n"
-"	debugBuffer[0] = debugTable[0];\n"
-"}";
-#endif
-
-// A compute debug shader for trying to emulate Aftermath style failure reporting
-static NSString* GAGXDebugMarkerComputeShader = @"#include <metal_stdlib>\n"
-"#include <metal_compute>\n"
-"\n"
-"using namespace metal;\n"
-"\n"
-"struct DebugInfo\n"
-"{\n"
-"   uint CmdBuffIndex;\n"
-"	uint EncoderIndex;\n"
-"   uint ContextIndex;\n"
-"   uint CommandIndex;\n"
-"   uint CommandBuffer[2];\n"
-"	uint PSOSignature[4];\n"
-"};\n"
-"\n"
-"// Executes once\n"
-"kernel void Main_Debug(constant DebugInfo *debugTable [[ buffer(0) ]], device DebugInfo* debugBuffer [[ buffer(1) ]])\n"
-"{\n"
-"	// Write Pass, Draw indices\n"
-"	// Write Vertex+Fragment PSO sig (in form VertexLen, VertexCRC, FragLen, FragCRC)\n"
-"	debugBuffer[0] = debugTable[0];\n"
-"}";
-
-struct FAGXHelperFunctions
-{
-    mtlpp::Library DebugShadersLib;
-    mtlpp::Function DebugFunc;
-	
-	mtlpp::Library DebugComputeShadersLib;
-	mtlpp::Function DebugComputeFunc;
-	mtlpp::ComputePipelineState DebugComputeState;
-	
-    FAGXHelperFunctions()
-    {
-#if !PLATFORM_TVOS
-        if (GAGXCommandBufferDebuggingEnabled)
-        {
-            mtlpp::CompileOptions CompileOptions;
-            ns::AutoReleasedError Error;
-
-			DebugShadersLib = GMtlppDevice.NewLibrary(GAGXDebugShader, CompileOptions, &Error);
-            DebugFunc = DebugShadersLib.NewFunction(@"Main_Debug");
-			
-			DebugComputeShadersLib = GMtlppDevice.NewLibrary(GAGXDebugMarkerComputeShader, CompileOptions, &Error);
-			DebugComputeFunc = DebugComputeShadersLib.NewFunction(@"Main_Debug");
-			
-			DebugComputeState = GMtlppDevice.NewComputePipelineState(DebugComputeFunc, &Error);
-        }
-#endif
-    }
-    
-    static FAGXHelperFunctions& Get()
-    {
-        static FAGXHelperFunctions sSelf;
-        return sSelf;
-    }
-    
-    mtlpp::Function GetDebugFunction()
-    {
-        return DebugFunc;
-    }
-	
-	mtlpp::ComputePipelineState GetDebugComputeState()
-	{
-		return DebugComputeState;
-	}
-};
-
-mtlpp::ComputePipelineState AGXGetMetalDebugComputeState()
-{
-	return FAGXHelperFunctions::Get().GetDebugComputeState();
-}
 
 struct FAGXGraphicsPipelineKey
 {
@@ -443,10 +326,8 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FAGXShaderPipeline)
 	{
 		RenderPipelineReflection = mtlpp::RenderPipelineReflection(nil);
 		ComputePipelineReflection = mtlpp::ComputePipelineReflection(nil);
-		StreamPipelineReflection = mtlpp::RenderPipelineReflection(nil);
 #if METAL_DEBUG_OPTIONS
 		RenderDesc = mtlpp::RenderPipelineDescriptor(nil);
-		StreamDesc = mtlpp::RenderPipelineDescriptor(nil);
 		ComputeDesc = mtlpp::ComputePipelineDescriptor(nil);
 #endif
 	}
@@ -457,8 +338,8 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FAGXShaderPipeline)
 {
 	if (RenderPipelineReflection)
 	{
-		[self initResourceMask:EAGXShaderVertex];
-		[self initResourceMask:EAGXShaderFragment];
+		[self initResourceMask:SF_Vertex];
+		[self initResourceMask:SF_Pixel];
 		
 		if (AGXSafeGetRuntimeDebuggingLevel() < EAGXDebugLevelValidation)
 		{
@@ -467,29 +348,20 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FAGXShaderPipeline)
 	}
 	if (ComputePipelineReflection)
 	{
-		[self initResourceMask:EAGXShaderCompute];
+		[self initResourceMask:SF_Compute];
 		
 		if (AGXSafeGetRuntimeDebuggingLevel() < EAGXDebugLevelValidation)
 		{
 			ComputePipelineReflection = mtlpp::ComputePipelineReflection(nil);
 		}
 	}
-	if (StreamPipelineReflection)
-	{
-		[self initResourceMask:EAGXShaderStream];
-		
-		if (AGXSafeGetRuntimeDebuggingLevel() < EAGXDebugLevelValidation)
-		{
-			StreamPipelineReflection = mtlpp::RenderPipelineReflection(nil);
-		}
-	}
 }
-- (void)initResourceMask:(EAGXShaderFrequency)Frequency
+- (void)initResourceMask:(EShaderFrequency)Frequency
 {
 	NSArray<MTLArgument*>* Arguments = nil;
 	switch(Frequency)
 	{
-		case EAGXShaderVertex:
+		case SF_Vertex:
 		{
 			MTLRenderPipelineReflection* Reflection = RenderPipelineReflection;
 			check(Reflection);
@@ -497,7 +369,7 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FAGXShaderPipeline)
 			Arguments = Reflection.vertexArguments;
 			break;
 		}
-		case EAGXShaderFragment:
+		case SF_Pixel:
 		{
 			MTLRenderPipelineReflection* Reflection = RenderPipelineReflection;
 			check(Reflection);
@@ -505,20 +377,12 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FAGXShaderPipeline)
 			Arguments = Reflection.fragmentArguments;
 			break;
 		}
-		case EAGXShaderCompute:
+		case SF_Compute:
 		{
 			MTLComputePipelineReflection* Reflection = ComputePipelineReflection;
 			check(Reflection);
 			
 			Arguments = Reflection.arguments;
-			break;
-		}
-		case EAGXShaderStream:
-		{
-			MTLRenderPipelineReflection* Reflection = StreamPipelineReflection;
-			check(Reflection);
-			
-			Arguments = Reflection.vertexArguments;
 			break;
 		}
 		default:
@@ -795,7 +659,7 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 		FMetalShaderBindings& VertexBindings = VertexShader->Bindings;
 		int8 VertexSideTable = VertexShader->SideTableBinding;
 		{
-			uint32 ImmutableBuffers = VertexBindings.ConstantBuffers | VertexBindings.ArgumentBuffers;
+			uint32 ImmutableBuffers = VertexBindings.ConstantBuffers;
 			while(ImmutableBuffers)
 			{
 				uint32 Index = __builtin_ctz(ImmutableBuffers);
@@ -817,7 +681,7 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 		if (PixelShader)
 		{
 			ns::AutoReleased<ns::Array<mtlpp::PipelineBufferDescriptor>> FragmentPipelineBuffers = RenderPipelineDesc.GetFragmentBuffers();
-			uint32 ImmutableBuffers = PixelShader->Bindings.ConstantBuffers | PixelShader->Bindings.ArgumentBuffers;
+			uint32 ImmutableBuffers = PixelShader->Bindings.ConstantBuffers;
 			while(ImmutableBuffers)
 			{
 				uint32 Index = __builtin_ctz(ImmutableBuffers);
@@ -928,27 +792,6 @@ static FAGXShaderPipeline* CreateMTLRenderPipeline(bool const bSync, FAGXGraphic
         Pipeline->FragmentSource = PixelShader ? PixelShader->GetSourceCode() : nil;
 #endif
 		
-#if !PLATFORM_TVOS
-		if (GAGXCommandBufferDebuggingEnabled)
-		{
-#if PLATFORM_MAC
-			DebugPipelineDesc.SetVertexFunction(FAGXHelperFunctions::Get().GetDebugFunction());
-			DebugPipelineDesc.SetRasterizationEnabled(false);
-#else
-			DebugPipelineDesc.SetTileFunction(FAGXHelperFunctions::Get().GetDebugFunction());
-			DebugPipelineDesc.SetRasterSampleCount(RenderPipelineDesc.GetSampleCount());
-			DebugPipelineDesc.SetThreadgroupSizeMatchesTileSize(false);
-#endif
-#if ENABLE_METAL_GPUPROFILE
-			DebugPipelineDesc.SetLabel(@"Main_Debug");
-#endif
-
-			ns::AutoReleasedError RenderError;
-			METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewDebugPipeline: %s"), TEXT("")/**FString([RenderPipelineDesc.GetPtr() description])*/)));
-			Pipeline->DebugPipelineState = GMtlppDevice.NewRenderPipelineState(DebugPipelineDesc, mtlpp::PipelineOption::NoPipelineOption, Reflection, nullptr);
-		}
-#endif
-        
 #if METAL_DEBUG_OPTIONS
         if (GFrameCounter > 3)
         {

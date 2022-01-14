@@ -7,7 +7,6 @@
 #include "AGXGraphicsPipelineState.h"
 #include "AGXStateCache.h"
 #include "AGXProfiler.h"
-#include "AGXCommandBuffer.h"
 
 #if PLATFORM_MAC
 	#ifndef UINT128_MAX
@@ -1712,7 +1711,7 @@ void FAGXStateCache::SetResourcesFromTables(ShaderType Shader, uint32 ShaderStag
 		const int32 BufferIndex = FMath::FloorLog2(LowestBitMask); // todo: This has a branch on zero, we know it could never be zero...
 		DirtyBits ^= LowestBitMask;
 		FAGXUniformBuffer* Buffer = (FAGXUniformBuffer*)GetBoundUniformBuffers(Frequency)[BufferIndex];
-		if (Buffer && !FAGXCommandQueue::SupportsFeature(EAGXFeaturesIABs))
+		if (Buffer)
 		{
 			check(BufferIndex < Shader->Bindings.ShaderResourceTable.ResourceTableLayoutHashes.Num());
 			check(Buffer->GetLayout().GetHash() == Shader->Bindings.ShaderResourceTable.ResourceTableLayoutHashes[BufferIndex]);
@@ -1871,16 +1870,14 @@ void FAGXStateCache::FlushVisibilityResults(FAGXCommandEncoder& CommandEncoder)
 #if PLATFORM_MAC
 	if(VisibilityResults && VisibilityResults->Buffer && VisibilityResults->Buffer.GetStorageMode() == mtlpp::StorageMode::Managed && VisibilityWritten && CommandEncoder.IsRenderCommandEncoderActive())
 	{
-		TRefCountPtr<FAGXFence> Fence = CommandEncoder.EndEncoding();
+		CommandEncoder.EndEncoding();
 		
         CommandEncoder.BeginBlitCommandEncoding();
-		CommandEncoder.WaitForFence(Fence);
 		
 		mtlpp::BlitCommandEncoder& Encoder = CommandEncoder.GetBlitCommandEncoder();
 
 		// METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CommandEncoder.GetCommandBufferStats(), __FUNCTION__));
 		MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Synchronize(VisibilityResults->Buffer));
-		METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, CommandEncoder.GetBlitCommandEncoderDebugging().Synchronize(VisibilityResults->Buffer));
 		
 		VisibilityWritten = 0;
 	}
@@ -1995,9 +1992,9 @@ void FAGXStateCache::SetRenderPipelineState(FAGXCommandEncoder& CommandEncoder, 
 		FAGXShaderPipeline* Pipeline = GetPipelineState();
 		EAGXShaderStages VertexStage = EAGXShaderStages::Vertex;
 		
-		FAGXDebugShaderResourceMask VertexMask = Pipeline->ResourceMask[EAGXShaderVertex];
-		TArray<uint32>& MinVertexBufferSizes = Pipeline->BufferDataSizes[EAGXShaderVertex];
-		const TMap<uint8, uint8>& VertexTexTypes = Pipeline->TextureTypes[EAGXShaderVertex];
+		FAGXDebugShaderResourceMask VertexMask = Pipeline->ResourceMask[SF_Vertex];
+		TArray<uint32>& MinVertexBufferSizes = Pipeline->BufferDataSizes[SF_Vertex];
+		const TMap<uint8, uint8>& VertexTexTypes = Pipeline->TextureTypes[SF_Vertex];
 		while(VertexMask.BufferMask)
 		{
 			uint32 Index = __builtin_ctz(VertexMask.BufferMask);
@@ -2045,9 +2042,9 @@ void FAGXStateCache::SetRenderPipelineState(FAGXCommandEncoder& CommandEncoder, 
 			ensure(ShaderSamplers[VertexStage].Samplers[Index]);
 		}
 		
-		FAGXDebugShaderResourceMask FragmentMask = Pipeline->ResourceMask[EAGXShaderFragment];
-		TArray<uint32>& MinFragmentBufferSizes = Pipeline->BufferDataSizes[EAGXShaderFragment];
-		const TMap<uint8, uint8>& FragmentTexTypes = Pipeline->TextureTypes[EAGXShaderFragment];
+		FAGXDebugShaderResourceMask FragmentMask = Pipeline->ResourceMask[SF_Pixel];
+		TArray<uint32>& MinFragmentBufferSizes = Pipeline->BufferDataSizes[SF_Pixel];
+		const TMap<uint8, uint8>& FragmentTexTypes = Pipeline->TextureTypes[SF_Pixel];
 		while(FragmentMask.BufferMask)
 		{
 			uint32 Index = __builtin_ctz(FragmentMask.BufferMask);
@@ -2111,9 +2108,9 @@ void FAGXStateCache::SetComputePipelineState(FAGXCommandEncoder& CommandEncoder)
 		FAGXShaderPipeline* Pipeline = ComputeShader->GetPipeline();
 		check(Pipeline);
 		
-		FAGXDebugShaderResourceMask ComputeMask = Pipeline->ResourceMask[EAGXShaderCompute];
-		TArray<uint32>& MinComputeBufferSizes = Pipeline->BufferDataSizes[EAGXShaderCompute];
-		const TMap<uint8, uint8>& ComputeTexTypes = Pipeline->TextureTypes[EAGXShaderCompute];
+		FAGXDebugShaderResourceMask ComputeMask = Pipeline->ResourceMask[SF_Compute];
+		TArray<uint32>& MinComputeBufferSizes = Pipeline->BufferDataSizes[SF_Compute];
+		const TMap<uint8, uint8>& ComputeTexTypes = Pipeline->TextureTypes[SF_Compute];
 		while(ComputeMask.BufferMask)
 		{
 			uint32 Index = __builtin_ctz(ComputeMask.BufferMask);
@@ -2240,17 +2237,6 @@ void FAGXStateCache::CommitResourceTable(EAGXShaderStages const Frequency, mtlpp
 			CommandEncoder.SetShaderSamplerState(Type, SamplerBindings.Samplers[Index], Index);
 		}
 	}
-}
-
-FAGXBuffer& FAGXStateCache::GetDebugBuffer()
-{
-    if (!DebugBuffer)
-    {
-        // Assume worst case tiling (16x16) and render-target size (4096x4096) on iOS for now
-        uint32 NumTiles = PLATFORM_MAC ? 1 : 65536;
-        DebugBuffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(NumTiles * sizeof(FAGXDebugInfo), BUF_Dynamic, mtlpp::StorageMode::Shared));
-    }
-    return DebugBuffer;
 }
 
 FTexture2DRHIRef FAGXStateCache::CreateFallbackDepthStencilSurface(uint32 Width, uint32 Height)

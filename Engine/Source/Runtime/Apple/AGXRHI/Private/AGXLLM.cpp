@@ -274,33 +274,6 @@ void AGXLLM::LogAllocBuffer(mtlpp::Buffer const& Buffer)
 	}
 }
 
-void AGXLLM::LogAllocHeap(mtlpp::Heap const& Heap)
-{
-	void* Ptr = (void*)Heap.GetPtr();
-	uint64 Size = Heap.GetSize();
-	
-	INC_MEMORY_STAT_BY(STAT_AGXHeapMemory, Size);
-	INC_DWORD_STAT(STAT_AGXHeapCount);
-	
-	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Ptr, Size, ELLMTag::Untagged, ELLMAllocType::System));
-	// Assign a dealloc handler to untrack the memory - but don't track the dispatch block!
-	{
-		LLM_SCOPED_PAUSE_TRACKING(ELLMAllocType::System);
-		
-		objc_setAssociatedObject(Heap.GetPtr(), (void*)&AGXLLM::LogAllocHeap,
-								 [[[FAGXDeallocHandler alloc] initWithBlock:^{
-			LLM_SCOPE_METAL(ELLMTagAGX::Heaps);
-			LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::Heaps);
-			
-			LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Ptr, ELLMAllocType::System));
-			
-			DEC_MEMORY_STAT_BY(STAT_AGXHeapMemory, Size);
-			DEC_DWORD_STAT(STAT_AGXHeapCount);
-		}] autorelease],
-		OBJC_ASSOCIATION_RETAIN);
-	}
-}
-
 void AGXLLM::LogAliasTexture(mtlpp::Texture const& Texture)
 {
 	objc_setAssociatedObject(Texture.GetPtr(), (void*)&AGXLLM::LogAllocTexture, nil, OBJC_ASSOCIATION_RETAIN);

@@ -266,11 +266,6 @@ static FAGXSampler FindOrCreateSamplerState(const FSamplerStateInitializerRHI& I
 #if PLATFORM_MAC
 		[Desc setBorderColor:Initializer.BorderColor == 0 ? MTLSamplerBorderColorTransparentBlack : MTLSamplerBorderColorOpaqueWhite];
 #endif
-		if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesIABs))
-		{
-			[Desc setSupportArgumentBuffers:YES];
-		}
-		
 		State = FAGXSampler([GMtlDevice newSamplerStateWithDescriptor:Desc], ns::Ownership::Assign);
 		
 		[Desc release];

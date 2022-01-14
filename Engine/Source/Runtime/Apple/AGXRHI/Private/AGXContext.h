@@ -29,7 +29,7 @@ class FAGXContext
 {
 	friend class FAGXCommandContextContainer;
 public:
-	FAGXContext(FAGXCommandQueue& Queue, bool const bIsImmediate);
+	FAGXContext(FAGXCommandQueue& Queue, bool bIsImmediate);
 	virtual ~FAGXContext();
 	
 	FAGXCommandQueue& GetCommandQueue();
@@ -51,7 +51,7 @@ public:
 	/**
 	 * Set the color, depth and stencil render targets, and then make the new command buffer/encoder
 	 */
-	void SetRenderPassInfo(const FRHIRenderPassInfo& RenderTargetsInfo, bool const bRestart = false);
+	void SetRenderPassInfo(const FRHIRenderPassInfo& RenderTargetsInfo, bool bRestart = false);
 	
 	/**
 	 * Allocate from a dynamic ring buffer - by default align to the allowed alignment for offset field when setting buffers
@@ -99,7 +99,7 @@ public:
 	
     void AsyncGenerateMipmapsForTexture(FAGXTexture const& Texture);
     
-	void SubmitAsyncCommands(mtlpp::CommandBufferHandler ScheduledHandler, mtlpp::CommandBufferHandler CompletionHandler, bool const bWait);
+	void SubmitAsyncCommands(mtlpp::CommandBufferHandler ScheduledHandler, mtlpp::CommandBufferHandler CompletionHandler, bool bWait);
 	
 	void SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice, uint32 Level);
 	
@@ -118,12 +118,8 @@ public:
 	static FAGXContext* GetCurrentContext();
 #endif
 	
-	void SetParallelPassFences(FAGXFence* Start, FAGXFence* End);
-	TRefCountPtr<FAGXFence> const& GetParallelPassStartFence(void) const;
-	TRefCountPtr<FAGXFence> const& GetParallelPassEndFence(void) const;
-	
-	void InitFrame(bool const bImmediateContext, uint32 Index, uint32 Num);
-	void FinishFrame(bool const bImmediateContext);
+	void InitFrame(bool bImmediateContext, uint32 Index, uint32 Num);
+	void FinishFrame(bool bImmediateContext);
 
 	// Track Write->Read transitions for TBDR Fragment->Verex fencing
 	void TransitionResource(FRHIUnorderedAccessView* InResource);
@@ -150,12 +146,6 @@ protected:
 	
 	/** A pool of buffers for writing visibility query results. */
 	TSharedPtr<FAGXQueryBufferPool, ESPMode::ThreadSafe> QueryBuffer;
-	
-	/** Initial fence to wait on for parallel contexts */
-	TRefCountPtr<FAGXFence> StartFence;
-	
-	/** Fence to update at the end for parallel contexts */
-	TRefCountPtr<FAGXFence> EndFence;
 	
 #if ENABLE_METAL_GPUPROFILE
 	/** the slot to store a per-thread context ref */
@@ -197,10 +187,9 @@ public:
 	void ReleaseObject(id Object);
 	void ReleaseTexture(FAGXSurface* Surface, FAGXTexture& Texture);
 	void ReleaseTexture(FAGXTexture& Texture);
-	void ReleaseFence(FAGXFence* Fence);
 	
 	void BeginFrame();
-	void FlushFreeList(bool const bFlushFences = true);
+	void FlushFreeList();
 	void ClearFreeList();
 	void DrainHeap();
 	void EndFrame();
@@ -271,8 +260,6 @@ private:
 	/** Free lists for releasing objects only once it is safe to do so */
 	TSet<FAGXBuffer> UsedBuffers;
 	TSet<FAGXTexture> UsedTextures;
-	TSet<FAGXFence*> UsedFences;
-	TLockFreePointerListLIFO<FAGXFence> FenceFreeList;
 	TSet<id> ObjectFreeList;
 	struct FAGXDelayedFreeList
 	{
@@ -280,7 +267,6 @@ private:
 		TArray<mtlpp::CommandBufferFence> Fences;
 		TSet<FAGXBuffer> UsedBuffers;
 		TSet<FAGXTexture> UsedTextures;
-		TSet<FAGXFence*> FenceFreeList;
 		TSet<id> ObjectFreeList;
 #if METAL_DEBUG_OPTIONS
 		int32 DeferCount;
@@ -295,9 +281,6 @@ private:
 	TMap<FAGXRHIBuffer*, FAGXFrameAllocator::AllocationEntry> OutstandingLocks;
 	
 #if METAL_DEBUG_OPTIONS
-	/** The list of fences for the current frame */
-	TArray<FAGXFence*> FrameFences;
-    
     FCriticalSection ActiveBuffersMutex;
     
     /** These are the active buffers that cannot be CPU modified */
@@ -306,9 +289,6 @@ private:
 	
 	/** Free-list of contexts for parallel encoding */
 	TLockFreePointerListLIFO<FAGXRHICommandContext> ParallelContexts;
-	
-	/** Fences for parallel execution */
-	TArray<TRefCountPtr<FAGXFence>> ParallelFences;
 	
 	/** Critical section for FreeList */
 	FCriticalSection FreeListMutex;

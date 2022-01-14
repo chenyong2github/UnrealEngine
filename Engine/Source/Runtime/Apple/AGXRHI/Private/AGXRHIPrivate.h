@@ -15,10 +15,15 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
+#define AGXRHI_TRUE  1
+#define AGXRHI_FALSE 0
+
 // Metal C++ wrapper
 THIRD_PARTY_INCLUDES_START
 #include "mtlpp.hpp"
 THIRD_PARTY_INCLUDES_END
+
+extern id<MTLDevice> AGXUtilGetDevice();
 
 // The Metal device object.
 extern id<MTLDevice> GMtlDevice;
@@ -51,6 +56,54 @@ const uint32 AGXBufferBytesSize = BufferOffsetAlignment * 32;
 #include "AGXRHI.h"
 #include "AGXDynamicRHI.h"
 #include "RHI.h"
+
+/**
+ * EAGXDebugLevel: Level of AGX RHI debug features to be enabled.
+ */
+enum EAGXDebugLevel
+{
+	EAGXDebugLevelOff,
+	EAGXDebugLevelFastValidation,
+	EAGXDebugLevelResetOnBind,
+	EAGXDebugLevelConditionalSubmit,
+	EAGXDebugLevelValidation,
+	EAGXDebugLevelLogOperations,
+	EAGXDebugLevelWaitForComplete,
+};
+
+/**
+ * The sampler, buffer and texture resource limits as defined here:
+ * https://developer.apple.com/library/ios/documentation/Miscellaneous/Conceptual/MetalProgrammingGuide/Render-Ctx/Render-Ctx.html
+ */
+#if PLATFORM_IOS
+#define METAL_MAX_BUFFERS 31
+#define METAL_MAX_TEXTURES 31
+typedef uint32 FAGXTextureMask;
+#elif PLATFORM_MAC
+#define METAL_MAX_BUFFERS 31
+#define METAL_MAX_TEXTURES 128
+typedef __uint128_t FAGXTextureMask;
+#else
+#error "Unsupported Platform!"
+#endif
+typedef uint32 FAGXBufferMask;
+typedef uint16 FAGXSamplerMask;
+
+enum EAGXLimits
+{
+	ML_MaxSamplers = 16, /** Maximum number of samplers */
+	ML_MaxBuffers = METAL_MAX_BUFFERS, /** Maximum number of buffers */
+	ML_MaxTextures = METAL_MAX_TEXTURES, /** Maximum number of textures - there are more textures available on Mac than iOS */
+	ML_MaxViewports = 16 /** Technically this may be different at runtime, but this is the likely absolute upper-bound */
+};
+
+/** A structure for quick mask-testing of shader-stage resource bindings */
+struct FAGXDebugShaderResourceMask
+{
+	FAGXTextureMask TextureMask;
+	FAGXBufferMask BufferMask;
+	FAGXSamplerMask SamplerMask;
+};
 
 #define BUFFER_CACHE_MODE mtlpp::ResourceOptions::CpuCacheModeDefaultCache
 
@@ -108,8 +161,6 @@ extern FAGXBufferFormat GAGXBufferFormats[PF_MAX];
 #define METAL_DEBUG_LAYER(Level, Code)
 #endif
 
-extern bool GAGXCommandBufferDebuggingEnabled;
-
 /** Set to 1 to enable GPU events in Xcode frame debugger */
 #ifndef ENABLE_METAL_GPUEVENTS_IN_TEST
 	#define ENABLE_METAL_GPUEVENTS_IN_TEST 0
@@ -139,19 +190,6 @@ extern bool GAGXCommandBufferDebuggingEnabled;
 	#define METAL_IGNORED(Func)
 #endif
 
-struct FAGXDebugInfo
-{
-	uint32 CmdBuffIndex;
-	uint32 EncoderIndex;
-	uint32 ContextIndex;
-	uint32 CommandIndex;
-	uint64 CommandBuffer;
-	uint32 PSOSignature[4];
-};
-
-// Get a compute pipeline state used to implement some debug features.
-mtlpp::ComputePipelineState AGXGetMetalDebugComputeState();
-
 // Access the internal context for the device-owning DynamicRHI object
 FAGXDeviceContext& GetAGXDeviceContext();
 
@@ -163,9 +201,6 @@ void AGXSafeReleaseMetalTexture(FAGXTexture& Object);
 
 // Safely release a metal buffer, correctly handling the case where the RHI has been destructed first
 void AGXSafeReleaseMetalBuffer(FAGXBuffer& Buffer);
-
-// Safely release a fence, correctly handling cases where fences aren't supported or the debug implementation is used.
-void AGXSafeReleaseMetalFence(class FAGXFence* Object);
 
 // Safely release a render pass descriptor so that it may be reused.
 void AGXSafeReleaseMetalRenderPassDescriptor(mtlpp::RenderPassDescriptor& Desc);
@@ -235,7 +270,7 @@ extern uint32 AGXSafeGetRuntimeDebuggingLevel();
 
 extern int32 GAGXBufferZeroFill;
 
-mtlpp::LanguageVersion AGXValidateVersion(uint8 Version);
+mtlpp::LanguageVersion AGXValidateVersion(uint32 Version);
 
 // Needs to be the same as EShaderFrequency when all stages are supported, but unlike EShaderFrequency you can compile out stages.
 enum EAGXShaderStages

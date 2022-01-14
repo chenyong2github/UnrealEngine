@@ -4,7 +4,6 @@
 #include "AGXProfiler.h"
 #include "EngineGlobals.h"
 #include "StaticBoundShaderState.h"
-#include "AGXCommandBuffer.h"
 #include "HAL/FileManager.h"
 
 DEFINE_STAT(STAT_AGXUniformMemAlloc);
