@@ -16,6 +16,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/ScopeRWLock.h"
 
@@ -1317,6 +1318,11 @@ void FMaterialShaderMap::GetAllOutdatedTypes(TArray<const FShaderType*>& Outdate
 #endif
 }
 
+TRACE_DECLARE_INT_COUNTER(Shaders_FMaterialShaderMapDDCRequests, TEXT("Shaders/FMaterialShaderMap/DDCRequests"));
+TRACE_DECLARE_INT_COUNTER(Shaders_FMaterialShaderMapDDCHits, TEXT("Shaders/FMaterialShaderMap/DDCHits"));
+TRACE_DECLARE_MEMORY_COUNTER(Shaders_FMaterialShaderMapDDCBytesReceived, TEXT("Shaders/FMaterialShaderMap/DDCBytesRecieved"));
+TRACE_DECLARE_MEMORY_COUNTER(Shaders_FMaterialShaderMapDDCBytesSent, TEXT("Shaders/FMaterialShaderMap/DDCBytesSent"));
+
 void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, const FMaterialShaderMapId& ShaderMapId, EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, TRefCountPtr<FMaterialShaderMap>& InOutShaderMap, FString& OutDDCKeyDesc)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialShaderMap::LoadFromDerivedDataCache);
@@ -1376,6 +1382,8 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 			//   - since the get call is synchronous, this can cause a hitch if there's network latency
 			if (CheckCache && Material->IsPersistent() && GetDerivedDataCacheRef().GetSynchronous(*DataKey, CachedData, Material->GetFriendlyName()))
 			{
+				TRACE_COUNTER_INCREMENT(Shaders_FMaterialShaderMapDDCHits);
+				TRACE_COUNTER_ADD(Shaders_FMaterialShaderMapDDCBytesReceived, CachedData.Num());
 				COOK_STAT(Timer.AddHit(CachedData.Num()));
 				InOutShaderMap = new FMaterialShaderMap();
 				FMemoryReader Ar(CachedData, true);
@@ -1393,6 +1401,7 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 			}
 			else
 			{
+				TRACE_COUNTER_INCREMENT(Shaders_FMaterialShaderMapDDCRequests);
 				// We should be build the data later, and we can track that the resource was built there when we push it to the DDC.
 				COOK_STAT(Timer.TrackCyclesOnly());
 				InOutShaderMap = nullptr;
@@ -1414,6 +1423,8 @@ void FMaterialShaderMap::SaveToDerivedDataCache()
 	TArray<uint8> SaveData;
 	FMemoryWriter Ar(SaveData, true);
 	Serialize(Ar);
+
+	TRACE_COUNTER_ADD(Shaders_FMaterialShaderMapDDCBytesSent, SaveData.Num());
 
 	FString DataKey = GetMaterialShaderMapKeyString(ShaderMapId, GetShaderPlatform());
 	UE_LOG(LogMaterial, Verbose, TEXT("Saved shaders for %s from DDC (key hash: %s)"), GetMaterialPath(), *FSHA1_HashString(DataKey));

@@ -51,6 +51,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "ShaderCompilerCore.h"
+#include "ShaderCompiler.h"
 
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyMatInstParams"), STAT_MaterialInstance_CopyMatInstParams, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance Serialize"), STAT_MaterialInstance_Serialize, STATGROUP_Shaders);
@@ -2581,8 +2582,18 @@ void UMaterialInstance::PostLoad()
 	{
 		SCOPE_SECONDS_COUNTER(MaterialLoadTime);
 
+		const bool bSkipCompilationOnPostLoad = IsShaderJobCacheDDCEnabled();
+
 		// Make sure static parameters are up to date and shaders are cached for the current platform
-		InitStaticPermutation();
+		if (bSkipCompilationOnPostLoad)
+		{
+			InitStaticPermutation(EMaterialShaderPrecompileMode::None);
+		}
+		else
+		{
+			InitStaticPermutation();
+		}
+
 #if WITH_EDITOR && 0 // the cooker will kick BeginCacheForCookedPlatformData on its own. If a commandlet is going to do rendering (e.g. rebuilding HLOD), InitStaticPermutation should have already created the necessary resources
 		// enable caching in postload for derived data cache commandlet and cook by the book
 		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();

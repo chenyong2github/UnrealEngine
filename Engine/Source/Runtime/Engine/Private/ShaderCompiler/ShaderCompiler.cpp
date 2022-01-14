@@ -66,6 +66,12 @@
 #include "Misc/LargeWorldRenderPosition.h"
 
 #if WITH_EDITOR
+#include "Compression/OodleDataCompression.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataCacheRecord.h"
+#include "DerivedDataRequestOwner.h"
+#include "Virtualization/PayloadId.h"
+
 #include "TextureCompiler.h"
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -107,6 +113,23 @@ static FAutoConsoleVariableRef CVarShaderCompilerMaxJobCacheMemoryPercent(
 	TEXT("if != 0, shader compiler cache will be limited to this percentage of available physical RAM (5% by default). If 0, the usage will be unlimited. Minimum of this or r.ShaderCompiler.MaxJobCacheMemoryMB applies."),
 	ECVF_Default
 );
+
+static TAutoConsoleVariable<bool> CVarJobCacheDDC(
+	TEXT("r.ShaderCompiler.JobCacheDDC"),
+	false,
+	TEXT("Skips compilation of all shaders on Material and Material Instance PostLoad and relies on on-demand shader compilation to compile what is needed."),
+	ECVF_ReadOnly);
+
+bool IsShaderJobCacheDDCEnabled()
+{
+	// For now we only support the editor and not commandlets like the cooker.
+	if (GIsEditor && !IsRunningCommandlet())
+	{
+		return CVarJobCacheDDC.GetValueOnAnyThread();
+	}
+
+	return false;
+}
 
 int32 GShaderCompilerDumpCompileJobInputs = 0;
 static FAutoConsoleVariableRef CVarShaderCompilerDumpCompileJobInputs(
@@ -7608,12 +7631,28 @@ void FShaderPipelineCompileJob::SerializeOutput(FArchive& Ar)
 	}
 }
 
-TRACE_DECLARE_INT_COUNTER(Shaders_JobCacheSearchAttempts, TEXT("Shaders/JobCacheSearchAttempts"));
-TRACE_DECLARE_INT_COUNTER(Shaders_JobCacheHits, TEXT("Shaders/JobCacheHits"));
+TRACE_DECLARE_INT_COUNTER(Shaders_JobCacheSearchAttempts, TEXT("Shaders/JobCache/SearchAttempts"));
+TRACE_DECLARE_INT_COUNTER(Shaders_JobCacheHits, TEXT("Shaders/JobCache/Hits"));
+
+TRACE_DECLARE_INT_COUNTER(Shaders_JobCacheDDCRequests, TEXT("Shaders/JobCache/DDCRequests"));
+TRACE_DECLARE_INT_COUNTER(Shaders_JobCacheDDCHits, TEXT("Shaders/JobCache/DDCHits"));
+TRACE_DECLARE_MEMORY_COUNTER(Shaders_JobCacheDDCBytesReceived, TEXT("Shaders/JobCache/DDCBytesRecieved"));
+TRACE_DECLARE_MEMORY_COUNTER(Shaders_JobCacheDDCBytesSent, TEXT("Shaders/JobCache/DDCBytesSent"));
+
+#if WITH_EDITOR
+namespace
+{
+	/** The FCacheBucket used with the DDC, cached to avoid recreating it for each request */
+	UE::DerivedData::FCacheBucket ShaderJobCacheDDCBucket = UE::DerivedData::FCacheBucket(TEXT("FShaderJobCacheShaders"));
+	UE::DerivedData::FValueId ShaderJobCacheId = UE::DerivedData::FValueId::FromName("FShaderJobCacheShaderID");
+}
+#endif
+
 FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Hash)
 {
 	++TotalSearchAttempts;
 	TRACE_COUNTER_INCREMENT(Shaders_JobCacheSearchAttempts);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderJobCache::Find);
 
 	if (ShaderCompiler::IsJobCacheEnabled())
 	{
@@ -7630,6 +7669,83 @@ FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Ha
 			(*CannedOutput)->NumHits++;
 			return &(*CannedOutput)->JobOutput;
 		}
+#if WITH_EDITOR
+		else
+		{
+			// If we didn't find it in memory search the DDC if it's enabled.
+			const bool bCachePerShaderDDC = IsShaderJobCacheDDCEnabled();
+			if (bCachePerShaderDDC)
+			{
+				FSharedBuffer Results;
+
+				TRACE_COUNTER_INCREMENT(Shaders_JobCacheDDCRequests);
+
+				UE::DerivedData::FRequestOwner RequestOwner(UE::DerivedData::EPriority::Blocking);
+				RequestOwner.KeepAlive();
+
+				UE::DerivedData::FCacheGetRequest Request;
+				Request.Name = TEXT("FShaderJobCache");
+				// Create key.
+				Request.Key.Bucket = ShaderJobCacheDDCBucket;
+				Request.Key.Hash = Hash;
+				Request.Policy = UE::DerivedData::ECachePolicy::QueryLocal;
+
+				UE::DerivedData::GetCache().Get(
+					{ Request },
+					RequestOwner,
+					[&Results](UE::DerivedData::FCacheGetResponse&& Response)
+					{
+						switch (Response.Status)
+						{
+							case UE::DerivedData::EStatus::Ok:
+							{
+								Results = Response.Record.GetValue(ShaderJobCacheId).GetData().Decompress();
+
+								TRACE_COUNTER_INCREMENT(Shaders_JobCacheDDCHits);
+
+								break;
+							}
+							case UE::DerivedData::EStatus::Error:
+							{
+								break;
+							}
+							case UE::DerivedData::EStatus::Canceled:
+							{
+								break;
+							}
+						}
+					});
+
+				RequestOwner.Wait();
+				if (!Results.IsNull())
+				{
+					const uint64 OutputsOriginalSize = Outputs.GetAllocatedSize();
+
+					// Create a new entry to store in the FShaderJobCache
+					FStoredOutput* NewStoredOutput = new FStoredOutput();
+					NewStoredOutput->NumHits = 0;
+					NewStoredOutput->NumReferences = 1;
+					NewStoredOutput->JobOutput.Reserve(Results.GetSize());
+					NewStoredOutput->JobOutput.SetNum(Results.GetSize());
+
+					TRACE_COUNTER_ADD(Shaders_JobCacheDDCBytesReceived, Results.GetSize());
+
+					check(NewStoredOutput->JobOutput.GetAllocatedSize() == Results.GetSize());
+					FMemory::Memcpy(NewStoredOutput->JobOutput.GetData(),  Results.GetData(), Results.GetSize());
+
+					// Generate an output hash and cache the result in the FShaderJobCache
+					FJobOutputHash NewOutputHash = FBlake3::HashBuffer(NewStoredOutput->JobOutput.GetData(), NewStoredOutput->JobOutput.Num());
+					Outputs.Add(NewOutputHash, NewStoredOutput);
+					InputHashToOutput.Add(Hash, NewOutputHash);
+
+					CurrentlyAllocatedMemory += NewStoredOutput->JobOutput.GetAllocatedSize() + sizeof(FStoredOutput);
+
+					// return the results.
+					return &NewStoredOutput->JobOutput;
+				}
+			}
+		}
+#endif
 	}
 
 	return nullptr;
@@ -7649,6 +7765,8 @@ FShaderJobCache::FShaderJobCache()
 
 void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Contents, int32 InitialHitCount)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderJobCache::Add);
+
 	if (!ShaderCompiler::IsJobCacheEnabled())
 	{
 		return;
@@ -7657,7 +7775,6 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 	FJobOutputHash* ExistingOutputHash = InputHashToOutput.Find(Hash);
 	if (ExistingOutputHash)
 	{
-		// we can arrive here due to cloned jobs ignoring our normal caching rules
 		return;
 	}
 
@@ -7667,8 +7784,10 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 	const uint64 InputHashToOutputOriginalSize = InputHashToOutput.GetAllocatedSize();
 	InputHashToOutput.Add(Hash, OutputHash);
 
+	const bool bCachePerShaderDDC = IsShaderJobCacheDDCEnabled();
+
 	FStoredOutput** CannedOutput = Outputs.Find(OutputHash);
-	if (CannedOutput)
+	if (CannedOutput && (bCachePerShaderDDC == false))
 	{
 		// update the output hit count
 		(*CannedOutput)->NumReferences++;
@@ -7684,6 +7803,28 @@ void FShaderJobCache::Add(const FJobInputHash& Hash, const FJobCachedOutput& Con
 		Outputs.Add(OutputHash, NewStoredOutput);
 
 		CurrentlyAllocatedMemory += NewStoredOutput->JobOutput.GetAllocatedSize() + sizeof(FStoredOutput);
+
+#if WITH_EDITOR
+		if (bCachePerShaderDDC)
+		{
+			// Create key.
+			UE::DerivedData::FCacheKey Key;
+			Key.Bucket = ShaderJobCacheDDCBucket;
+			Key.Hash = Hash;
+			UE::DerivedData::FCacheRecordBuilder RecordBuilder(Key);
+
+			RecordBuilder.AddValue(ShaderJobCacheId, FSharedBuffer::MakeView(MakeMemoryView(Contents)));
+
+			TRACE_COUNTER_ADD(Shaders_JobCacheDDCBytesSent, Contents.GetAllocatedSize());
+
+			UE::DerivedData::FRequestOwner RequestOwner(UE::DerivedData::EPriority::Normal);
+			RequestOwner.KeepAlive();
+			UE::DerivedData::GetCache().Put(
+				{ {{TEXT("FShaderJobCache")}, RecordBuilder.Build(), UE::DerivedData::ECachePolicy::StoreLocal} },
+				RequestOwner
+			);
+		}
+#endif
 
 		// delete the previous cache entries if we have a budget
 		const uint64 MemoryBudgetBytes = GetCurrentMemoryBudget();

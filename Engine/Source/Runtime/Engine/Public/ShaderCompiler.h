@@ -80,6 +80,8 @@ inline const TCHAR* ShaderCompileJobPriorityToString(EShaderCompileJobPriority v
 	}
 }
 
+extern ENGINE_API bool IsShaderJobCacheDDCEnabled();
+
 /** Results for a single compiled shader map. */
 struct FShaderMapCompileResults
 {

@@ -3224,7 +3224,15 @@ void UMaterial::PostLoad()
 				}
 			}
 
-			CacheResourceShadersForRendering(false);
+			const bool bSkipCompilationOnPostLoad = IsShaderJobCacheDDCEnabled();
+			if (bSkipCompilationOnPostLoad)
+			{
+				CacheResourceShadersForRendering(false, EMaterialShaderPrecompileMode::None);
+			}
+			else
+			{
+				CacheResourceShadersForRendering(false);
+			}
 		}
 	}
 	INC_FLOAT_STAT_BY(STAT_ShaderCompiling_MaterialLoading,(float)MaterialLoadTime);
