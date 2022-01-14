@@ -637,14 +637,14 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 
 void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_RemoveCachedNaniteDrawCommands);
-
 	checkSlow(IsInRenderingThread());
 
 	if (!Proxy->IsNaniteMesh())
 	{
 		return;
 	}
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_RemoveCachedNaniteDrawCommands);
 
 	for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 	{
