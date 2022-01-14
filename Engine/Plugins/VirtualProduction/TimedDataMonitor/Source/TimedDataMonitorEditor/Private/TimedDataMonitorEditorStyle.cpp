@@ -4,8 +4,9 @@
 
 #include "EditorStyleSet.h"
 #include "Interfaces/IPluginManager.h"
-#include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateStyleMacros.h"
+#include "Styling/SlateTypes.h"
 
 const FName FTimedDataMonitorEditorStyle::NAME_TimecodeBrush = "Img.Timecode.Small";
 const FName FTimedDataMonitorEditorStyle::NAME_PlatformTimeBrush = "Img.PlatformTime.Small";
@@ -50,6 +51,9 @@ FTimedDataMonitorEditorStyle::FTimedDataMonitorEditorStyle()
 
 	// images
 	{
+		const FVector2D Icon20x20(20.0f, 20.0f);
+		Set("Img.TimedDataMonitor.Icon", new IMAGE_BRUSH_SVG("Common/TimedDataMonitor", Icon20x20));
+
 		Set(NAME_TimecodeBrush, new FSlateImageBrush(RootToContentDir(TEXT("Widgets/Timecode_16x.png")), Icon16x16));
 		Set(NAME_PlatformTimeBrush, new FSlateImageBrush(RootToContentDir(TEXT("Widgets/Time_16x.png")), Icon16x16));
 		Set(NAME_NoEvaluationBrush, new FSlateImageBrush(RootToContentDir(TEXT("Widgets/NoEvaluation_16x.png")), Icon16x16));

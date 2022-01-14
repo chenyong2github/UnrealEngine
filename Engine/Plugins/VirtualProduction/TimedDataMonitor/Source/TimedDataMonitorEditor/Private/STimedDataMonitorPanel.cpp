@@ -82,7 +82,7 @@ void STimedDataMonitorPanel::RegisterNomadTabSpawner(TSharedRef<FWorkspaceItem> 
 			.SetDisplayName(LOCTEXT("TabTitle", "Timed Data Monitor"))
 			.SetTooltipText(LOCTEXT("TooltipText", "Monitor inputs that can be time synchronized"))
 			.SetGroup(InWorkspaceItem)
-			.SetIcon(FSlateIcon(FTimedDataMonitorEditorStyle::Get().GetStyleSetName(), "Img.TimedDataMonitor.Small"));
+			.SetIcon(FSlateIcon(FTimedDataMonitorEditorStyle::Get().GetStyleSetName(), "Img.TimedDataMonitor.Icon"));
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(Utilities::NAME_TimedDataMonitorBuffers, FOnSpawnTab::CreateStatic(&Utilities::CreateBuffersVisualizer))
 			.SetDisplayName(LOCTEXT("BufferVisualizerTitle", "Buffer Visualizer"))

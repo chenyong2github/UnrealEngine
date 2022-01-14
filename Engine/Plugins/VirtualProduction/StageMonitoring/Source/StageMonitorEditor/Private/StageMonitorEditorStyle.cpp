@@ -4,8 +4,9 @@
 
 #include "EditorStyleSet.h"
 #include "Interfaces/IPluginManager.h"
-#include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/SlateStyleMacros.h"
+#include "Styling/SlateTypes.h"
 
 
 
@@ -15,6 +16,12 @@ FStageMonitorEditorStyle::FStageMonitorEditorStyle()
 	const FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("StageMonitoring"))->GetContentDir();
 	SetContentRoot(ContentDir);
 	SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
+
+	// Icons
+	{
+		const FVector2D Icon20x20(20.0f, 20.0f);
+		Set("StageMonitor.TabIcon", new IMAGE_BRUSH_SVG("StageMonitor", Icon20x20));
+	}
 
 	// ListView
 	{
@@ -58,5 +65,4 @@ FStageMonitorEditorStyle& FStageMonitorEditorStyle::Get()
 	static FStageMonitorEditorStyle Inst;
 	return Inst;
 }
-
 
