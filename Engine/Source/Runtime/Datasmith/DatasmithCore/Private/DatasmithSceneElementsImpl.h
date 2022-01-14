@@ -629,13 +629,12 @@ FDatasmithLightActorElementImpl<InterfaceType>::FDatasmithLightActorElementImpl(
 
 	Store.RegisterParameter(Intensity,          "Intensity"           );
 	Store.RegisterParameter(Color,              "Color"               );
-	Store.RegisterParameter(LightFLags,         "LightFLags"          );
 	Store.RegisterParameter(Temperature,        "Temperature"         );
 	Store.RegisterParameter(IesFile,            "IesFile"             );
 	Store.RegisterParameter(IesTexturePathName, "IesTexturePathName"  );
 	Store.RegisterParameter(IesBrightnessScale, "IesBrightnessScale"  );
 	Store.RegisterParameter(IesRotation,        "IesRotation"         );
-	Store.RegisterParameter(IesTexturePathName,  "IesTexturePathName" );
+	Store.RegisterParameter(LightFLags,         "LightFLags"          );
 }
 
 template< typename InterfaceType = IDatasmithPointLightElement >
