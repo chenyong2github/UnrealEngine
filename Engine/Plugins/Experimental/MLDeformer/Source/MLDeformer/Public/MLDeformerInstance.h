@@ -44,20 +44,30 @@ public:
 	bool IsCompatible() const { return bIsCompatible; }
 
 	/**
+	 * Get the compatibility error text. This will be a non-empty string in case IsCompatible() return false. 
+	 * @return Returns the string containing more information about the reasons for compatibility issues.
+	 */
+	const FString& GetCompatibilityErrorText() const { return ErrorText; }
+
+	/**
 	 * Get the skeletal mesh component we're working with.
 	 * @return A pointer to the skeletal mesh component.
 	 */
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const { return SkeletalMeshComponent; }
 
+	/** Update the compatibility status, as returned by IsCompatible() and GetCompatibilityErrorText(). */
+	void UpdateCompatibilityStatus();
+
 private:
 	/**
 	 * Check whether the deformer is compatible with a given skeletal mesh component.
+	 * This internally also edits the value returned by GetCompatibilityErrorText().
 	 * @param InSkelMeshComponent The skeletal mesh component to check compatibility with.
 	 * @param LogIssues Set to true to automatically log any compatibility errors.
 	 * @return Returns the error string. When the returned string is empty, there were no errors and thus
 	 *         the specified skeletal mesh component is compatible.
 	 */
-	FString CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues=false) const;
+	FString CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues=false);
 
 	/**
 	 * Update the neural network input values directly inside its input tensor.
@@ -97,6 +107,9 @@ private:
 
 	/** Maps the ML deformer asset bone index to a skeletal mesh component bone index. */
 	TArray<int32> AssetBonesToSkelMeshMappings;
+
+	/** The compatibility error text, in case bIsCompatible is false. */
+	FString ErrorText;
 
 	/** Are the deformer asset and the used skeletal mesh component compatible? */
 	bool bIsCompatible = false;

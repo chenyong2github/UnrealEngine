@@ -39,16 +39,24 @@ void FMLDeformerInstance::Init(UMLDeformerAsset* Asset, USkeletalMeshComponent* 
 	}
 
 	// Perform a compatibility check.
-	bIsCompatible = SkelMesh && CheckCompatibility(SkelMeshComponent, true).IsEmpty();
+	UpdateCompatibilityStatus();
 }
 
-FString FMLDeformerInstance::CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues) const
+void FMLDeformerInstance::UpdateCompatibilityStatus()
 {
+	bIsCompatible = SkeletalMeshComponent->SkeletalMesh && CheckCompatibility(SkeletalMeshComponent, true).IsEmpty();
+}
+
+FString FMLDeformerInstance::CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool LogIssues)
+{
+	ErrorText = FString();
+
 	// If we're not compatible, generate a compatibility string.
 	USkeletalMesh* SkelMesh = InSkelMeshComponent ? InSkelMeshComponent->SkeletalMesh.Get() : nullptr;
 	if (SkelMesh && !DeformerAsset->GetInputInfo().IsCompatible(SkelMesh))
 	{
-		const FString ErrorText = DeformerAsset->GetInputInfo().GenerateCompatibilityErrorString(SkelMesh);
+		ErrorText += DeformerAsset->GetInputInfo().GenerateCompatibilityErrorString(SkelMesh);
+		ErrorText += "\n";
 		check(!ErrorText.IsEmpty());
 		if (LogIssues)
 		{
@@ -57,11 +65,34 @@ FString FMLDeformerInstance::CheckCompatibility(USkeletalMeshComponent* InSkelMe
 				*SkelMesh->GetName(), 
 				*ErrorText);
 		}
-		return ErrorText;
 	}
 
-	// No errors.
-	return FString();
+	UNeuralNetwork* NeuralNetwork = DeformerAsset->GetInferenceNeuralNetwork();
+	if (NeuralNetwork == nullptr || !NeuralNetwork->IsLoaded())
+	{
+		const FString NetworkErrorString = "The neural network needs to be trained.";
+		ErrorText += NetworkErrorString + "\n";
+		if (LogIssues)
+		{
+			UE_LOG(LogMLDeformer, Error, TEXT("Deformer '%s': %s"), *DeformerAsset->GetName(), *NetworkErrorString);
+		}
+	}
+	else
+	{
+		const int64 NumNeuralNetInputs = NeuralNetwork->GetInputTensor().Num();
+		const int64 NumDeformerAssetInputs = static_cast<int64>(DeformerAsset->GetInputInfo().CalcNumNeuralNetInputs());
+		if (NumNeuralNetInputs != NumDeformerAssetInputs)
+		{
+			const FString InputErrorString = "The number of network inputs doesn't match the asset. Please retrain the asset."; 
+			ErrorText += InputErrorString + "\n";
+			if (LogIssues)
+			{
+				UE_LOG(LogMLDeformer, Error, TEXT("Deformer '%s': %s"), *DeformerAsset->GetName(), *InputErrorString);
+			}
+		}
+	}
+
+	return ErrorText;
 }
 
 int64 FMLDeformerInstance::SetBoneTransforms(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex)
@@ -167,12 +198,6 @@ void FMLDeformerInstance::Update()
 	// If the neural network expects a different number of inputs, do nothing.
 	const int64 NumNeuralNetInputs = NeuralNetwork->GetInputTensor().Num();
 	const int64 NumDeformerAssetInputs = static_cast<int64>(DeformerAsset->GetInputInfo().CalcNumNeuralNetInputs());
-	ensureMsgf(
-		NumNeuralNetInputs == NumDeformerAssetInputs, 
-		TEXT("Neural network %s expects %d inputs, while the deformer asset expects to feed %d inputs."), 
-		*DeformerAsset->GetName(), 
-		NumNeuralNetInputs, 
-		NumDeformerAssetInputs);
 	if (NumNeuralNetInputs != NumDeformerAssetInputs)
 	{
 		return;

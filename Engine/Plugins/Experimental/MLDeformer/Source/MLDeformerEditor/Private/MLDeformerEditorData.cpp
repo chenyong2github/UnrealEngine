@@ -291,6 +291,12 @@ void FMLDeformerEditorData::InitAssets()
 
 	ClampFrameIndex();
 
+	UMLDeformerComponent* DeformerComponent = GetEditorActor(EMLDeformerEditorActorIndex::DeformedTest).MLDeformerComponent;
+	if (DeformerComponent)
+	{
+		DeformerComponent->GetDeformerInstance().UpdateCompatibilityStatus();
+	}
+
 	// Reinit the single frame cache.
 	FMLDeformerFrameCache::FInitSettings InitSettings;
 	InitSettings.CacheSizeInBytes = 0;	// This makes it just just use one frame, which is the minimum.
@@ -514,7 +520,7 @@ FText FMLDeformerEditorData::GetOverlayText()
 			DeformerInstance.GetSkeletalMeshComponent()->SkeletalMesh &&
 			!DeformerComponent->GetDeformerInstance().IsCompatible() )
 		{
-			return FText::FromString(TEXT("Trained deformer asset is not compatible with skeletal mesh!"));
+			return FText::FromString( DeformerComponent->GetDeformerInstance().GetCompatibilityErrorText() );
 		}
 	}
 

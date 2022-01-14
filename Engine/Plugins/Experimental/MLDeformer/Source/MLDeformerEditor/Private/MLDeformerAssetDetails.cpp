@@ -239,11 +239,9 @@ void FMLDeformerAssetDetails::CustomizeDetails(class IDetailLayoutBuilder& Detai
 	InputOutputCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, DeltaCutoffLength));
 
 	// Bone include list group.
-	IDetailGroup& BoneIncludeGroup = InputOutputCategoryBuilder.AddGroup("BoneIncludeGroup", LOCTEXT("BoneIncludeGroup", "Bones"), false, true);
+	IDetailGroup& BoneIncludeGroup = InputOutputCategoryBuilder.AddGroup("BoneIncludeGroup", LOCTEXT("BoneIncludeGroup", "Bones"), false, false);
 	BoneIncludeGroup.AddWidgetRow()
-		//.WholeRowContent()
 		.ValueContent()
-		//.NameContent()
 		[
 			SNew(SButton)
 			.HAlign(HAlign_Center)
@@ -253,6 +251,21 @@ void FMLDeformerAssetDetails::CustomizeDetails(class IDetailLayoutBuilder& Detai
 			.IsEnabled_Lambda([DeformerAsset](){ return (DeformerAsset->GetTrainingInputs() == ETrainingInputs::BonesAndCurves) || (DeformerAsset->GetTrainingInputs() == ETrainingInputs::BonesOnly); })
 		];
 	BoneIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, BoneIncludeList)));
+
+	// Curve include list group.
+	IDetailGroup& CurveIncludeGroup = InputOutputCategoryBuilder.AddGroup("CurveIncludeGroup", LOCTEXT("CurveIncludeGroup", "Curves"), false, false);
+	CurveIncludeGroup.AddWidgetRow()
+		.ValueContent()
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.Text(LOCTEXT("AnimatedCurvesButton", "Animated Curves Only"))
+			.OnClicked(FOnClicked::CreateSP(this, &FMLDeformerAssetDetails::OnFilterAnimatedCurvesOnly, DeformerAsset))
+			.IsEnabled_Lambda([DeformerAsset](){ return (DeformerAsset->GetTrainingInputs() == ETrainingInputs::BonesAndCurves) || (DeformerAsset->GetTrainingInputs() == ETrainingInputs::CurvesOnly); })
+		];
+	CurveIncludeGroup.AddPropertyRow(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, CurveIncludeList)));
+
 
 	// Training settings.
 	IDetailCategoryBuilder& SettingsCategoryBuilder = DetailBuilder.EditCategory("Training Settings", FText::GetEmpty(), ECategoryPriority::Important);
@@ -323,6 +336,13 @@ bool FMLDeformerAssetDetails::FilterAnimSequences(const FAssetData& AssetData, U
 FReply FMLDeformerAssetDetails::OnFilterAnimatedBonesOnly(UMLDeformerAsset* DeformerAsset) const
 {
 	DeformerAsset->InitBoneIncludeListToAnimatedBonesOnly();
+	DetailLayoutBuilder->ForceRefreshDetails();
+	return FReply::Handled();
+}
+
+FReply FMLDeformerAssetDetails::OnFilterAnimatedCurvesOnly(UMLDeformerAsset* DeformerAsset) const
+{
+	DeformerAsset->InitCurveIncludeListToAnimatedCurvesOnly();
 	DetailLayoutBuilder->ForceRefreshDetails();
 	return FReply::Handled();
 }

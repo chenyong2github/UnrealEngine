@@ -8,6 +8,8 @@
 #include "MLDeformerEditorMode.h"
 #include "MLDeformer.h"
 
+#include "CurveReferenceCustomization.h"
+
 #include "Modules/ModuleManager.h"
 #include "EditorModeRegistry.h"
 #include "PropertyEditorDelegates.h"
@@ -50,6 +52,7 @@ void FMLDeformerEditor::StartupModule()
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("MLDeformerAsset", FOnGetDetailCustomizationInstance::CreateStatic(&FMLDeformerAssetDetails::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout("MLDeformerVizSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FMLDeformerVizSettingsDetails::MakeInstance));
+	PropertyModule.RegisterCustomPropertyTypeLayout("CurveReference", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FCurveReferenceCustomization::MakeInstance) );
 	PropertyModule.NotifyCustomizationModuleChanged();
 }
 

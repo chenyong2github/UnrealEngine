@@ -13,6 +13,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimData/AnimDataModel.h"
+#include "CurveReference.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerAsset"
 
@@ -405,7 +406,90 @@ void UMLDeformerAsset::InitBoneIncludeListToAnimatedBonesOnly()
 	}
 	else
 	{
+		BoneIncludeList.Empty();
 		UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated bone rotations in Anim Sequence '%s'."), *AnimSequence->GetName());
+	}
+}
+
+void UMLDeformerAsset::InitCurveIncludeListToAnimatedCurvesOnly()
+{
+	if (!AnimSequence)
+	{
+		UE_LOG(LogMLDeformer, Warning, TEXT("Cannot initialize curve list as no Anim Sequence has been picked."));
+		return;
+	}
+
+	const UAnimDataModel* DataModel = AnimSequence->GetDataModel();
+	if (!DataModel)
+	{
+		UE_LOG(LogMLDeformer, Warning, TEXT("Anim sequence has no data model."));
+		return;
+	}
+
+	if (!SkeletalMesh)
+	{
+		UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has not been set."));
+		return;
+	}
+
+	USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
+	if (!Skeleton)
+	{
+		UE_LOG(LogMLDeformer, Warning, TEXT("Skeletal Mesh has no skeleton."));
+		return;
+	}
+
+	// Iterate over all curves that are both in the skeleton and the animation.
+	TArray<FName> AnimatedCurveList;
+	const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+	if (Mapping)
+	{
+		TArray<FName> SkeletonCurveNames;
+		Mapping->FillNameArray(SkeletonCurveNames);
+		for (const FName& SkeletonCurveName : SkeletonCurveNames)
+		{
+			const TArray<FFloatCurve>& AnimCurves = DataModel->GetFloatCurves();
+			for (const FFloatCurve& AnimCurve : AnimCurves)
+			{
+				if (AnimCurve.Name.IsValid() && AnimCurve.Name.DisplayName == SkeletonCurveName)
+				{
+					TArray<float> TimeValues;
+					TArray<float> KeyValues;
+					AnimCurve.GetKeys(TimeValues, KeyValues);
+					if (KeyValues.Num() > 0)
+					{
+						const float FirstKeyValue = KeyValues[0];					
+						for (float CurKeyValue : KeyValues)
+						{
+							if (CurKeyValue != FirstKeyValue)
+							{
+								AnimatedCurveList.Add(SkeletonCurveName);
+								break;
+							}
+						}
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	// Init the bone include list using the animated bones.
+	if (!AnimatedCurveList.IsEmpty())
+	{
+		CurveIncludeList.Empty();
+		CurveIncludeList.Reserve(AnimatedCurveList.Num());
+		for (FName CurveName : AnimatedCurveList)
+		{
+			CurveIncludeList.AddDefaulted();
+			FCurveReference& CurveRef = CurveIncludeList.Last();
+			CurveRef.CurveName = CurveName;
+		}
+	}
+	else
+	{
+		CurveIncludeList.Empty();
+		UE_LOG(LogMLDeformer, Warning, TEXT("There are no animated curves in Anim Sequence '%s'."), *AnimSequence->GetName());
 	}
 }
 
@@ -594,20 +678,53 @@ FMLDeformerInputInfo UMLDeformerAsset::CreateInputInfo() const
 	Settings.bIncludeBones = (TrainingInputs == ETrainingInputs::BonesAndCurves || TrainingInputs == ETrainingInputs::BonesOnly);
 	Settings.bIncludeCurves = (TrainingInputs == ETrainingInputs::BonesAndCurves || TrainingInputs == ETrainingInputs::CurvesOnly);
 
+	const USkeleton* Skeleton = SkeletalMesh.Get() ? SkeletalMesh->GetSkeleton() : nullptr;
+
 	// Set the list of bones to use, from the bone references.
-	if (!BoneIncludeList.IsEmpty())
+	if (!BoneIncludeList.IsEmpty() && Skeleton)
 	{
 		FString BoneName;
 		for (const FBoneReference& BoneReference : BoneIncludeList)
 		{
-			if (SkeletalMesh && SkeletalMesh->GetSkeleton() && BoneReference.BoneName.IsValid())
+			if (BoneReference.BoneName.IsValid())
 			{
 				BoneName = BoneReference.BoneName.ToString();
-				const int32 BoneId = SkeletalMesh->GetRefSkeleton().FindRawBoneIndex(BoneReference.BoneName);
+				const int32 BoneId = Skeleton->GetReferenceSkeleton().FindRawBoneIndex(BoneReference.BoneName);
 				if (BoneId != INDEX_NONE && !Settings.BoneNamesToInclude.Contains(BoneName))
 				{
 					Settings.BoneNamesToInclude.Add(BoneName);
 					UE_LOG(LogMLDeformer, Display, TEXT("Including bone '%s' in training."), *BoneName);
+				}
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogMLDeformer, Display, TEXT("Including ALL bones of skeleton in training."));
+	}
+
+	// Set the list of curves to use, from the curve references.
+	if (!CurveIncludeList.IsEmpty() && Skeleton)
+	{
+		const FSmartNameMapping* Mapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+		if (Mapping)
+		{
+			// Get the list of curve names in the skeleton.
+			TArray<FName> SkeletonCurveNames;
+			Mapping->FillNameArray(SkeletonCurveNames);
+
+			// Add only curves that are also in the skeleton.
+			FString CurveName;
+			for (const FCurveReference& CurveReference : CurveIncludeList)
+			{
+				if (CurveReference.CurveName.IsValid())
+				{
+					CurveName = CurveReference.CurveName.ToString();
+					if (SkeletonCurveNames.Contains(CurveReference.CurveName))
+					{
+						UE_LOG(LogMLDeformer, Display, TEXT("Including curve '%s' in training."), *CurveName);
+						Settings.CurveNamesToInclude.Add(CurveName);
+					}
 				}
 			}
 		}

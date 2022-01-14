@@ -43,6 +43,7 @@ public:
 	void SetVertexDeltaMultiplier(float ScaleFactor) { VertexDeltaMultiplier = ScaleFactor;  }
 
 	const FMLDeformerInstance& GetDeformerInstance() const { return DeformerInstance; }
+	FMLDeformerInstance& GetDeformerInstance() { return DeformerInstance; }
 
 private:
 	/** The deformer asset to use. */

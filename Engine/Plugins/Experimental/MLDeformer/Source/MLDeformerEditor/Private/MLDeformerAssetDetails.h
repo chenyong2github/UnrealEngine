@@ -25,6 +25,7 @@ public:
 private:
 	bool FilterAnimSequences(const FAssetData& AssetData, USkeleton* Skeleton);
 	FReply OnFilterAnimatedBonesOnly(UMLDeformerAsset* DeformerAsset) const;
+	FReply OnFilterAnimatedCurvesOnly(UMLDeformerAsset* DeformerAsset) const;
 
 private:
 	/** Associated detail layout builder. */
