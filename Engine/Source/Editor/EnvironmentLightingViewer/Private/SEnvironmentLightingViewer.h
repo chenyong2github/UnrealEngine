@@ -13,7 +13,7 @@ class STextBlock;
 class SButton;
 struct FPropertyAndParent;
 
-#define ENVLIGHT_MAX_DETAILSVIEWS 5
+#define ENVLIGHT_MAX_DETAILSVIEWS 6
 
 class SEnvironmentLightingViewer : public SCompoundWidget
 {

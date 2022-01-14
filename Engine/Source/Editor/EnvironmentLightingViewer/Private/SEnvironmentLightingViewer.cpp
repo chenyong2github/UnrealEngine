@@ -358,7 +358,7 @@ void SEnvironmentLightingViewer::Tick(const FGeometry& AllottedGeometry, const d
 			break;
 		}
 	}
-	AddComponentDetailView(HeightFogComp, "Volumetric Cloud", VolCloudColor);
+	AddComponentDetailView(HeightFogComp, "Height Fog", VolCloudColor);
 	ButtonCreateHeightFog->SetVisibility(HeightFogComp ? EVisibility::Collapsed : EVisibility::Visible);
 
 	for (int i = NumDetailsView; i < ENVLIGHT_MAX_DETAILSVIEWS; ++i)
