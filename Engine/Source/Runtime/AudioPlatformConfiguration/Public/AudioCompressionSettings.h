@@ -149,23 +149,24 @@ struct AUDIOPLATFORMCONFIGURATION_API FPlatformRuntimeAudioCompressionOverrides
 {
 	GENERATED_USTRUCT_BODY()
 
-	// Set this to true to override Sound Groups and use the Duration Threshold value to determine whether a sound should be fully decompressed during initial loading.
+	// When true, overrides the Sound Group on each Sound Wave, and instead uses the Duration Threshold value to determine whether a sound should be fully decompressed during initial loading.
 	UPROPERTY(EditAnywhere, Category = "DecompressOnLoad")
 	bool bOverrideCompressionTimes;
 	
 	// When Override Compression Times is set to true, any sound under this threshold (in seconds) will be fully decompressed on load.
 	// Otherwise the first chunk of this sound is cached at load and the rest is decompressed in real time.
+	// If set to zero, will default to the Sound Group on the relevant Sound Wave
 	UPROPERTY(EditAnywhere, Category = "DecompressOnLoad")
 	float DurationThreshold;
 
 	// On this platform, any random nodes on Sound Cues will automatically only preload this number of branches and dispose of any others
-	// on load. This can drastically cut down on memory usage.
-	UPROPERTY(EditAnywhere, Category = "SoundCueLoading", meta = (DisplayName = "Maximum Branches on Random SoundCue nodes", ClampMin = "1"))
+	// on load. This can drastically cut down on memory usage. If set to 0, no branches are culled.
+	UPROPERTY(EditAnywhere, Category = "SoundCueLoading", meta = (DisplayName = "Maximum Branches on Random SoundCue nodes", ClampMin = "0"))
 	int32 MaxNumRandomBranches;
 
 	// On this platform, use the specified quality at this index to override the quality used for SoundCues on this platform
-	UPROPERTY(EditAnywhere, Category = "SoundCueLoading", meta = (DisplayName = "Quality Index for Sound Cues", ClampMin = "-1", ClampMax = "50"))
-	int32 SoundCueQualityIndex;
+	UPROPERTY(EditAnywhere, Category = "SoundCueLoading", meta = (DisplayName = "Quality Index for Sound Cues", ClampMin = "0", ClampMax = "50"))
+	int32 SoundCueQualityIndex = 1;
 
 	FPlatformRuntimeAudioCompressionOverrides();
 

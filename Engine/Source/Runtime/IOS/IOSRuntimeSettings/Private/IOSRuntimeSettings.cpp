@@ -9,6 +9,13 @@
 
 UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, CacheSizeKB(65536)
+	, MaxSampleRate(48000)
+	, HighSampleRate(32000)
+	, MedSampleRate(24000)
+	, LowSampleRate(12000)
+	, MinSampleRate(8000)
+	, CompressionQualityModifier(1)
 {
 	bEnableGameCenterSupport = true;
 	bEnableCloudKitSupport = false;
