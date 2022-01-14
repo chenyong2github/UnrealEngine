@@ -1044,8 +1044,8 @@ private:
 	/** The total time spent amortizing the delegate filter */
 	double TotalAmortizeTime;
 
-	/** Whether the asset view is currently working on something and should display a cue to the user */
-	bool bIsWorking;
+	/** The initial number of tasks when we started performing amortized work (used to display a progress cue to the user) */
+	int32 InitialNumAmortizedTasks;
 
 	/** The text to highlight on the assets */
 	TAttribute< FText > HighlightedText;
