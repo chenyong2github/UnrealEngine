@@ -32,7 +32,9 @@ struct ENGINE_API FAnimationRecordingSettings
 		, TangentMode(ERichCurveTangentMode::RCTM_Auto)
 		, bCheckDeltaTimeAtBeginning(true)
 		, bRecordTransforms(true)
-		, bRecordCurves(true)
+		, bRecordMorphTargets(true)
+		, bRecordAttributeCurves(true)
+		, bRecordMaterialCurves(true)
 	{}
 	
 	/** Whether to record animation in world space, defaults to true */
@@ -66,11 +68,19 @@ struct ENGINE_API FAnimationRecordingSettings
 	/** Whether to check DeltaTime at recording for pauses, turned off for TakeRecorder*/
 	bool bCheckDeltaTimeAtBeginning;
 
-	/** Whether or not to record transforms*/
+	/** Whether or not to record transforms */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bRecordTransforms;
 
-	/** Whether or not to record curves*/
+	/** Whether or not to record morph targets */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bRecordCurves;
+	bool bRecordMorphTargets;
+
+	/** Whether or not to record parameter curves */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bRecordAttributeCurves;
+
+	/** Whether or not to record material curves */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bRecordMaterialCurves;
 };

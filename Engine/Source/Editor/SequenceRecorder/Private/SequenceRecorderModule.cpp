@@ -785,10 +785,12 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 	{
 		FAnimationRecorder Recorder;
 		Recorder.bRecordTransforms = true;
-		Recorder.bRecordCurves = true;
+		Recorder.bRecordMorphTargets = true;
+		Recorder.bRecordAttributeCurves = true;
+		Recorder.bRecordMaterialCurves = true;
 		if (Recorder.TriggerRecordAnimation(Component))
 		{
-			class UAnimSequence * Sequence = Recorder.GetAnimationObject();
+			class UAnimSequence* Sequence = Recorder.GetAnimationObject();
 			if (Sequence)
 			{
 				Recorder.StopRecord(false);

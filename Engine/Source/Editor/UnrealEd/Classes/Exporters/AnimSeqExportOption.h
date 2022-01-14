@@ -19,9 +19,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export)
 	bool bExportTransforms = true;
 
-	/** If enabled, export the curves from the animation */
+	/** If enabled, export the morph targets from the animation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export)
-	bool bExportCurves = true;
+	bool bExportMorphTargets = true;
+
+	/** If enabled, export the attribute curves from the animation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export)
+	bool bExportAttributeCurves = true;
+
+	/** If enabled, export the material curves from the animation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export)
+	bool bExportMaterialCurves = true;
 
 	/** If enabled we record in World Space otherwise we record from 0,0,0 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export)
@@ -43,7 +51,9 @@ public:
 	void ResetToDefault()
 	{
 		bExportTransforms = true;
-		bExportCurves = true;
+		bExportMorphTargets = true;
+		bExportAttributeCurves = true;
+		bExportMaterialCurves = true;
 		bRecordInWorldSpace = false;
 		bEvaluateAllSkeletalMeshComponents = false;
 		WarmUpFrames = 0;

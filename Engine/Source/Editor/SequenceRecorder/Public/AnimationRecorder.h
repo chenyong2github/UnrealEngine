@@ -108,8 +108,12 @@ public:
 	FAnimationSerializer* AnimationSerializer;
 	/** Whether or not to record transforms*/
 	uint8 bRecordTransforms : 1;
-	/** Whether or not to record curves*/
-	uint8 bRecordCurves : 1;
+	/** Whether or not to record morph targets*/
+	uint8 bRecordMorphTargets : 1;
+	/** Whether or not to record attribute curves*/
+	uint8 bRecordAttributeCurves : 1;
+	/** Whether or not to record material curves*/
+	uint8 bRecordMaterialCurves : 1;
 public:
 	/** Helper function to get space bases depending on master pose component */
 	static void GetBoneTransforms(USkeletalMeshComponent* Component, TArray<FTransform>& BoneTransforms);

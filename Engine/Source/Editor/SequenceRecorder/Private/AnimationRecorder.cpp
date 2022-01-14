@@ -230,7 +230,6 @@ void FAnimationRecorder::GetBoneTransforms(USkeletalMeshComponent* Component, TA
 	}
 }
 
-
 void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSequence* InAnimationObject)
 {
 	TimePassed = 0.f;
@@ -345,10 +344,26 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 			USkeleton* SkeletonObj = AnimationObject->GetSkeleton();
 			for (int32 CurveUID = 0; CurveUID < UIDToArrayIndexLUT->Num(); ++CurveUID)
 			{
-				int32 CurveIndex = (*UIDToArrayIndexLUT)[CurveUID];
+				const int32 CurveIndex = (*UIDToArrayIndexLUT)[CurveUID];
 
 				if (CurveIndex != MAX_uint16)
 				{
+					// Skip curves which type is disabled in the recorder settings
+					if (const FCurveMetaData* CurveMetaData = SkeletonObj->GetCurveMetaData(CurveUID))
+					{
+						const bool bMorphTarget = CurveMetaData->Type.bMorphtarget;
+						const bool bMaterialCurve = CurveMetaData->Type.bMaterial;
+						const bool bAttributeCurve = !bMorphTarget && !bMaterialCurve;
+						
+						const bool bSkipCurve = (bMorphTarget && !bRecordMorphTargets) ||
+												(bAttributeCurve && !bRecordAttributeCurves) ||
+												(bMaterialCurve && !bRecordMaterialCurves);
+						if (bSkipCurve)
+						{
+							continue;
+						}
+					}
+
 					const FFloatCurve* FloatCurveData = nullptr;
 
 					TArray<float> TimesToRecord;
@@ -360,8 +375,8 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 					int32 WriteIndex = 0;
 					for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 					{
-						const float TimeToRecord = KeyIndex*IntervalTime;
-						if(RecordedCurves[KeyIndex].ValidCurveWeights[CurveIndex])
+						const float TimeToRecord = KeyIndex * IntervalTime;
+						if (RecordedCurves[KeyIndex].ValidCurveWeights[CurveIndex])
 						{
 							float CurCurveValue = RecordedCurves[KeyIndex].CurveWeights[CurveIndex];
 							if (!bSeenThisCurve)
@@ -376,7 +391,6 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 									const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
 									Controller.AddCurve(CurveId, AACF_DefaultCurve);
 									FloatCurveData = AnimationObject->GetDataModel()->FindFloatCurve(CurveId);
-
 								}
 							}
 
@@ -417,7 +431,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 		for (int32 TrackIndex = 0; TrackIndex < BoneAnimationTracks.Num(); ++TrackIndex)
 		{
 			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
-			FRawAnimSequenceTrack& RawTrack = RawTracks[TrackIndex];
+			const FRawAnimSequenceTrack& RawTrack = RawTracks[TrackIndex];
 
 			Controller.SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
 		}
@@ -648,7 +662,7 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 		{
 			// find what frames we need to record
 			// convert to time
-			float CurrentTime = (FramesRecorded + 1) * IntervalTime;
+			const float CurrentTime = (FramesRecorded + 1) * IntervalTime;
 			float BlendAlpha = (CurrentTime - PreviousTimePassed) / DeltaTime;
 
 			UE_LOG(LogAnimation, Log, TEXT("Current Frame Count : %d, BlendAlpha : %0.2f"), FramesRecorded + 1, BlendAlpha);
@@ -761,22 +775,23 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 			{
 				const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkeletalMesh, BoneTreeIndex);
 				const int32 ParentIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
-				FTransform LocalTransform = SpacesBases[BoneIndex];
-				if ( ParentIndex != INDEX_NONE )
-				{
-					LocalTransform.SetToRelativeTransform(SpacesBases[ParentIndex]);
-				}
-				// if record local to world, we'd like to consider component to world to be in root
-				else
-				{
-					if (bRecordLocalToWorld)
-					{
-						LocalTransform *= ComponentToWorld;
-					}
-				}
 
 				if (bRecordTransforms)
 				{
+					FTransform LocalTransform = SpacesBases[BoneIndex];
+					if (ParentIndex != INDEX_NONE)
+					{
+						LocalTransform.SetToRelativeTransform(SpacesBases[ParentIndex]);
+					}
+					// if record local to world, we'd like to consider component to world to be in root
+					else
+					{
+						if (bRecordLocalToWorld)
+						{
+							LocalTransform *= ComponentToWorld;
+						}
+					}
+				
 					RawTrack.PosKeys.Add(FVector3f(LocalTransform.GetTranslation()));
 					RawTrack.RotKeys.Add(FQuat4f(LocalTransform.GetRotation()));
 					RawTrack.ScaleKeys.Add(FVector3f(LocalTransform.GetScale3D()));  
@@ -784,7 +799,6 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 					{
 						SerializedAnimation.AddTransform(TrackIndex, LocalTransform);
 					}
-
 					// verification
 					if (FrameToAdd != RawTrack.PosKeys.Num() - 1)
 					{
@@ -792,12 +806,15 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 						return false;
 					}
 				}
-				else if (FrameToAdd == 0)
+				else
 				{
-					// Populate with identity keys
-					RawTrack.PosKeys.Add(FVector3f::ZeroVector);
-					RawTrack.RotKeys.Add(FQuat4f::Identity);
-					RawTrack.ScaleKeys.Add(FVector3f::OneVector);
+					if (FrameToAdd == 0)
+					{
+						const FTransform RefPose = Component->SkeletalMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
+						RawTrack.PosKeys.Add(RefPose.GetTranslation());
+						RawTrack.RotKeys.Add(FQuat4f(RefPose.GetRotation()));
+						RawTrack.ScaleKeys.Add(RefPose.GetScale3D());
+					}
 				}
 			}
 		}
@@ -810,6 +827,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 			AnimationSerializer->WriteFrameData(AnimationSerializer->FramesWritten, SerializedAnimation);
 		}
 		// each RecordedCurves contains all elements
+		const bool bRecordCurves = bRecordMorphTargets || bRecordAttributeCurves || bRecordMaterialCurves; 
 		if (bRecordCurves && AnimationCurves.CurveWeights.Num() > 0)
 		{
 			RecordedCurves.Emplace(AnimationCurves.CurveWeights, AnimationCurves.ValidCurveWeights);
@@ -994,7 +1012,9 @@ void FAnimRecorderInstance::InitInternal(USkeletalMeshComponent* InComponent, co
 	Recorder->bCheckDeltaTimeAtBeginning = Settings.bCheckDeltaTimeAtBeginning;
 	Recorder->AnimationSerializer = InAnimationSerializer;
 	Recorder->bRecordTransforms = Settings.bRecordTransforms;
-	Recorder->bRecordCurves = Settings.bRecordCurves;
+	Recorder->bRecordMorphTargets = Settings.bRecordMorphTargets;
+	Recorder->bRecordAttributeCurves = Settings.bRecordAttributeCurves;
+	Recorder->bRecordMaterialCurves = Settings.bRecordMaterialCurves;
 
 	if (InComponent)
 	{

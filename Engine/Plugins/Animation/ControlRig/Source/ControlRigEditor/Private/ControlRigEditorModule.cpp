@@ -769,7 +769,9 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 						FLevelSequenceAnimSequenceLinkItem LevelAnimLinkItem;
 						LevelAnimLinkItem.SkelTrackGuid = ActorTrackGuid;
 						LevelAnimLinkItem.PathToAnimSequence = FSoftObjectPath(AnimSequence);
-						LevelAnimLinkItem.bExportCurves = true; //mz todo to fix
+						LevelAnimLinkItem.bExportMorphTargets = true; //mz todo to fix
+						LevelAnimLinkItem.bExportAttributeCurves = true;
+						LevelAnimLinkItem.bExportMaterialCurves = true;
 						LevelAnimLinkItem.bExportTransforms = true;
 						LevelAnimLinkItem.bRecordInWorldSpace = false;
 						LevelAnimLink->AnimSequenceLinks.Add(LevelAnimLinkItem);

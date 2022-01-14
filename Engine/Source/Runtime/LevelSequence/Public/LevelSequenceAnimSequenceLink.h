@@ -24,7 +24,11 @@ public:
 	UPROPERTY()
 	bool bExportTransforms = true;
 	UPROPERTY()
-	bool bExportCurves = true;
+	bool bExportMorphTargets = true;
+	UPROPERTY()
+	bool bExportAttributeCurves = true;
+	UPROPERTY()
+	bool bExportMaterialCurves = true;
 	UPROPERTY()
 	bool bRecordInWorldSpace = false;
 

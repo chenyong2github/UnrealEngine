@@ -1198,16 +1198,22 @@ void FSkeletalAnimationTrackEditor::OnSequencerSaved(ISequencer& )
 					USkeletalMeshComponent* SkelMeshComp = AcquireSkeletalMeshFromObjectGuid(Item.SkelTrackGuid, GetSequencer());
 					if (AnimSequence && SkelMeshComp)
 					{
-						bool bSavedExportCurves = AnimSeqExportOption->bExportCurves;
-						bool bSavedExportTransforms = AnimSeqExportOption->bExportTransforms;
-						bool bSavedIncludeComponentTransform = AnimSeqExportOption->bRecordInWorldSpace;
-						AnimSeqExportOption->bExportCurves = Item.bExportCurves;
+						const bool bSavedExportMorphTargets = AnimSeqExportOption->bExportMorphTargets;
+						const bool bSavedExportAttributeCurves = AnimSeqExportOption->bExportAttributeCurves;
+						const bool bSavedExportMaterialCurves = AnimSeqExportOption->bExportMaterialCurves;
+						const bool bSavedExportTransforms = AnimSeqExportOption->bExportTransforms;
+						const bool bSavedIncludeComponentTransform = AnimSeqExportOption->bRecordInWorldSpace;
+						AnimSeqExportOption->bExportMorphTargets = Item.bExportMorphTargets;
+						AnimSeqExportOption->bExportAttributeCurves = Item.bExportAttributeCurves;
+						AnimSeqExportOption->bExportMaterialCurves = Item.bExportMaterialCurves;
 						AnimSeqExportOption->bExportTransforms = Item.bExportTransforms;
 						AnimSeqExportOption->bRecordInWorldSpace = Item.bRecordInWorldSpace;
 
 						bool bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence, AnimSeqExportOption, MovieScene, SequencerPtr.Get(), SkelMeshComp, Template, RootToLocalTransform);
 
-						AnimSeqExportOption->bExportCurves = bSavedExportCurves;
+						AnimSeqExportOption->bExportMorphTargets = bSavedExportMorphTargets;
+						AnimSeqExportOption->bExportAttributeCurves = bSavedExportAttributeCurves;
+						AnimSeqExportOption->bExportMaterialCurves = bSavedExportMaterialCurves;
 						AnimSeqExportOption->bExportTransforms = bSavedExportTransforms;
 						AnimSeqExportOption->bRecordInWorldSpace = bSavedIncludeComponentTransform;
 					}
@@ -1356,7 +1362,9 @@ bool FSkeletalAnimationTrackEditor::CreateAnimationSequence(const TArray<UObject
 									}
 								}
 								LevelAnimLinkItem.PathToAnimSequence = FSoftObjectPath(AnimSequence);
-								LevelAnimLinkItem.bExportCurves = AnimSeqExportOption->bExportCurves;
+								LevelAnimLinkItem.bExportMorphTargets = AnimSeqExportOption->bExportMorphTargets;
+								LevelAnimLinkItem.bExportAttributeCurves = AnimSeqExportOption->bExportAttributeCurves;
+								LevelAnimLinkItem.bExportMaterialCurves = AnimSeqExportOption->bExportMaterialCurves;
 								LevelAnimLinkItem.bExportTransforms = AnimSeqExportOption->bExportTransforms;
 								LevelAnimLinkItem.bRecordInWorldSpace = AnimSeqExportOption->bRecordInWorldSpace;
 
@@ -1374,7 +1382,9 @@ bool FSkeletalAnimationTrackEditor::CreateAnimationSequence(const TArray<UObject
 						FLevelSequenceAnimSequenceLinkItem LevelAnimLinkItem;
 						LevelAnimLinkItem.SkelTrackGuid = Binding;
 						LevelAnimLinkItem.PathToAnimSequence = FSoftObjectPath(AnimSequence);
-						LevelAnimLinkItem.bExportCurves = AnimSeqExportOption->bExportCurves;
+						LevelAnimLinkItem.bExportMorphTargets = AnimSeqExportOption->bExportMorphTargets;
+						LevelAnimLinkItem.bExportAttributeCurves = AnimSeqExportOption->bExportAttributeCurves;
+						LevelAnimLinkItem.bExportMaterialCurves = AnimSeqExportOption->bExportMaterialCurves;
 						LevelAnimLinkItem.bExportTransforms = AnimSeqExportOption->bExportTransforms;
 						LevelAnimLinkItem.bRecordInWorldSpace = AnimSeqExportOption->bRecordInWorldSpace;
 

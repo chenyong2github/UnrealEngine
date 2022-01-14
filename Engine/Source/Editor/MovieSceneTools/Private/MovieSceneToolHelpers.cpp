@@ -3986,7 +3986,9 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UA
 		RecordingSettings.bRemoveRootAnimation = false;
 		RecordingSettings.bCheckDeltaTimeAtBeginning = false;
 		RecordingSettings.bRecordTransforms = ExportOptions->bExportTransforms;
-		RecordingSettings.bRecordCurves = ExportOptions->bExportCurves;
+		RecordingSettings.bRecordMorphTargets = ExportOptions->bExportMorphTargets;
+		RecordingSettings.bRecordAttributeCurves = ExportOptions->bExportAttributeCurves;
+		RecordingSettings.bRecordMaterialCurves = ExportOptions->bExportMaterialCurves;
 		RecordingSettings.bRecordInWorldSpace = ExportOptions->bRecordInWorldSpace;
 		AnimationRecorder.Init(SkelMeshComp, AnimSequence, nullptr, RecordingSettings);	
 		});
