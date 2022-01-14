@@ -100,6 +100,8 @@ public:
 
 	void ReleasePendingDeallocations();
 
+	bool IsValid() const { return Allocator != nullptr; }
+
 private:
 	void InitDynamicRHI() override;
 	void ReleaseDynamicRHI() override;

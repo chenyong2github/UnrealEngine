@@ -170,7 +170,7 @@ public:
 
 private:
 	void Release();
-	void ReleaseDynamicRHI() override;
+	void ReleaseDynamicRHI() override { Release(); }
 
 	// Contains the resolved scene depth target.
 	TRefCountPtr<IPooledRenderTarget> Depth;

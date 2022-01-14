@@ -41,15 +41,6 @@ static FAutoConsoleVariableRef CVarRHITransientAllocatorGarbageCollectLatency(
 	TEXT("Amount of update cycles before memory is reclaimed."),
 	ECVF_ReadOnly);
 
-#if RHICORE_TRANSIENT_ALLOCATOR_DEBUG
-static int32 GRHITransientAllocatorLogCycles = 0;
-static FAutoConsoleVariableRef CVarRHITransientAllocatorLogCycles(
-	TEXT("RHI.TransientAllocator.LogCycles"),
-	GRHITransientAllocatorLogCycles,
-	TEXT("Logs resources if they have been allocated for more than X allocator Flush() cycles; use to identify and log persistent allocations."),
-	ECVF_RenderThreadSafe);
-#endif
-
 TRACE_DECLARE_INT_COUNTER(TransientResourceCreateCount, TEXT("TransientAllocator/ResourceCreateCount"));
 
 TRACE_DECLARE_INT_COUNTER(TransientTextureCreateCount, TEXT("TransientAllocator/TextureCreateCount"));
@@ -224,71 +215,6 @@ void FRHITransientResourceOverlapTracker::Reset()
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-template <typename ResourceContainerType>
-void LogActiveResources(const ResourceContainerType& Resources, uint64 CurrentCycle)
-{
-#if RHICORE_TRANSIENT_ALLOCATOR_DEBUG
-	if (!Resources.IsEmpty())
-	{
-		FString ErrorMsg = FString::Printf(
-			TEXT("---------------------------------------------------------------------------------------------------------\n")
-			TEXT("-- %d Transient resources are still being held outside the allocator. Memory has been leaked."),
-			Resources.Num());
-
-		for (FRHITransientResource* Resource : Resources)
-		{
-			ErrorMsg += FString::Printf(TEXT("\tName: %s, Age: %llu cycles."), Resource->GetName(), CurrentCycle - Resource->GetAcquireCycle());
-		}
-
-		UE_LOG(LogRHICore, Fatal,
-			TEXT("%s\n")
-			TEXT("---------------------------------------------------------------------------------------------------------\n"),
-			*ErrorMsg);
-	}
-#endif
-}
-
-template <typename ResourceContainerType>
-void LogLongLivedResources(const ResourceContainerType& Resources, uint64 CurrentCycle)
-{
-#if RHICORE_TRANSIENT_ALLOCATOR_DEBUG
-	if (GRHITransientAllocatorLogCycles <= 0 || Resources.IsEmpty())
-	{
-		return;
-	}
-
-	TArray<FRHITransientResource*> LongLivedResources;
-
-	for (FRHITransientResource* Resource : Resources)
-	{
-		if (CurrentCycle - Resource->GetAcquireCycle() > GRHITransientAllocatorLogCycles)
-		{
-			LongLivedResources.Emplace(Resource);
-		}
-	}
-
-	if (!LongLivedResources.IsEmpty())
-	{
-		UE_LOG(LogRHICore, Warning,
-			TEXT("---------------------------------------------------------------------------------------------------------\n")
-			TEXT("-- %d transient %ss have been allocated for more than %d cycles. Please mark them non-transient to reduce fragmentation."),
-			LongLivedResources.Num(),
-			LongLivedResources[0]->GetResourceType() == ERHITransientResourceType::Texture ? TEXT("texture") : TEXT("buffer"),
-			GRHITransientAllocatorLogCycles);
-
-		for (FRHITransientResource* Resource : LongLivedResources)
-		{
-			UE_LOG(LogRHICore, Warning, TEXT("\tName: %s, Age: %llu cycles."), Resource->GetName(), CurrentCycle - Resource->GetAcquireCycle());
-		}
-
-		UE_LOG(LogRHICore, Warning,
-			TEXT("---------------------------------------------------------------------------------------------------------\n"));
-	}
-#endif
-};
-
-//////////////////////////////////////////////////////////////////////////
 // Transient Resource Heap Allocator
 //////////////////////////////////////////////////////////////////////////
 
@@ -298,22 +224,6 @@ FRHITransientHeapAllocator::FRHITransientHeapAllocator(uint64 InCapacity, uint32
 {
 	HeadHandle = CreateRange();
 	InsertRange(HeadHandle, 0, Capacity);
-}
-
-FRHITransientHeapAllocator::~FRHITransientHeapAllocator()
-{
-#if RHICORE_TRANSIENT_ALLOCATOR_DEBUG
-	checkf(AllocationCount == 0, TEXT("%d allocations remain on heap."), AllocationCount);
-	check(HeadHandle != InvalidRangeHandle);
-
-	FRangeHandle FirstFreeHandle = GetFirstFreeRangeHandle();
-	check(FirstFreeHandle != InvalidRangeHandle);
-
-	const FRange& FirstFreeRange = Ranges[FirstFreeHandle];
-	check(FirstFreeRange.NextFreeHandle == InvalidRangeHandle);
-	check(FirstFreeRange.Offset == 0);
-	check(FirstFreeRange.Size == GetCapacity());
-#endif
 }
 
 FRHITransientHeapAllocation FRHITransientHeapAllocator::Allocate(uint64 Size, uint32 Alignment)
@@ -648,7 +558,6 @@ void FRHITransientHeap::Flush(uint64 AllocatorCycle, FRHITransientMemoryStats& O
 
 		{
 			Textures.Forfeit(GFrameCounterRenderThread);
-			LogLongLivedResources(Textures.GetAllocated(), AllocatorCycle);
 
 			for (FRHITransientTexture* Texture : Textures.GetAllocated())
 			{
@@ -661,7 +570,6 @@ void FRHITransientHeap::Flush(uint64 AllocatorCycle, FRHITransientMemoryStats& O
 
 		{
 			Buffers.Forfeit(GFrameCounterRenderThread);
-			LogLongLivedResources(Buffers.GetAllocated(), AllocatorCycle);
 
 			for (FRHITransientBuffer* Buffer : Buffers.GetAllocated())
 			{
@@ -692,9 +600,12 @@ FRHITransientHeapCache::FInitializer FRHITransientHeapCache::FInitializer::Creat
 
 FRHITransientHeapCache::~FRHITransientHeapCache()
 {
-	checkf(FreeList.Num() == LiveList.Num(), TEXT("Heaps are still being held by transient allocators."));
-	FreeList.Empty();
+	for (FRHITransientHeap* Heap : LiveList)
+	{
+		delete Heap;
+	}
 	LiveList.Empty();
+	FreeList.Empty();
 }
 
 FRHITransientHeap* FRHITransientHeapCache::Acquire(uint64 FirstAllocationSize, ERHITransientHeapFlags FirstAllocationHeapFlags)
@@ -780,11 +691,6 @@ void FRHITransientHeapCache::GarbageCollect()
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-FRHITransientResourceHeapAllocator::~FRHITransientResourceHeapAllocator()
-{
-	IF_RHICORE_TRANSIENT_ALLOCATOR_DEBUG(LogActiveResources(ActiveResources, CurrentCycle));
-}
 
 FRHITransientTexture* FRHITransientResourceHeapAllocator::CreateTextureInternal(
 	const FRHITextureCreateInfo& CreateInfo,
@@ -1372,9 +1278,6 @@ FRHITransientPagePoolCache::FInitializer FRHITransientPagePoolCache::FInitialize
 
 FRHITransientPagePoolCache::~FRHITransientPagePoolCache()
 {
-	checkf(FreeList.Num() == LiveList.Num(), TEXT("PagePools are still being held by transient allocators."));
-	FreeList.Empty();
-
 	delete FastPagePool;
 	FastPagePool = nullptr;
 
@@ -1383,6 +1286,7 @@ FRHITransientPagePoolCache::~FRHITransientPagePoolCache()
 		delete PagePool;
 	}
 	LiveList.Empty();
+	FreeList.Empty();
 }
 
 FRHITransientPagePool* FRHITransientPagePoolCache::Acquire()
@@ -1489,11 +1393,6 @@ void FRHITransientPagePoolCache::GarbageCollect()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
-FRHITransientResourcePageAllocator::~FRHITransientResourcePageAllocator()
-{
-	IF_RHICORE_TRANSIENT_ALLOCATOR_DEBUG(LogActiveResources(ActiveResources, CurrentCycle));
-}
 
 FRHITransientTexture* FRHITransientResourcePageAllocator::CreateTexture(
 	const FRHITextureCreateInfo& CreateInfo,
@@ -1661,7 +1560,6 @@ void FRHITransientResourcePageAllocator::Flush(FRHICommandListImmediate& RHICmdL
 
 		Textures.Forfeit(GFrameCounterRenderThread, [this](FRHITransientTexture* Texture) { ReleaseTextureInternal(Texture); });
 
-		LogLongLivedResources(Textures.GetAllocated(), CurrentCycle);
 		TRACE_COUNTER_SET(TransientTextureCacheSize, Textures.GetSize());
 	}
 
@@ -1671,7 +1569,6 @@ void FRHITransientResourcePageAllocator::Flush(FRHICommandListImmediate& RHICmdL
 
 		Buffers.Forfeit(GFrameCounterRenderThread, [this](FRHITransientBuffer* Buffer) { ReleaseBufferInternal(Buffer); });
 
-		LogLongLivedResources(Buffers.GetAllocated(), CurrentCycle);
 		TRACE_COUNTER_SET(TransientBufferCacheSize, Buffers.GetSize());
 	}
 

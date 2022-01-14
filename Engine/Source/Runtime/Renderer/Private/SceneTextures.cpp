@@ -903,7 +903,7 @@ uint32 FSceneTextures::GetGBufferRenderTargets(ERenderTargetLoadAction LoadActio
 void FSceneTextureExtracts::QueueExtractions(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures)
 {
 	// Free up the memory for reuse during the RDG execution phase.
-	ReleaseDynamicRHI();
+	Release();
 
 	ESceneTextureSetupMode SetupMode = ESceneTextureSetupMode::None;
 
@@ -952,7 +952,7 @@ void FSceneTextureExtracts::QueueExtractions(FRDGBuilder& GraphBuilder, const FS
 	});
 }
 
-void FSceneTextureExtracts::ReleaseDynamicRHI()
+void FSceneTextureExtracts::Release()
 {
 	Depth = {};
 	CustomDepth = {};

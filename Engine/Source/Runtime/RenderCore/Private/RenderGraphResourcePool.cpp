@@ -155,7 +155,14 @@ uint32 FRDGTransientRenderTarget::Release()
 	const uint32 Refs = --RefCount;
 	if (Refs == 0)
 	{
-		GRDGTransientResourceAllocator.AddPendingDeallocation(this);
+		if (GRDGTransientResourceAllocator.IsValid())
+		{
+			GRDGTransientResourceAllocator.AddPendingDeallocation(this);
+		}
+		else
+		{
+			delete this;
+		}
 	}
 	return Refs;
 }

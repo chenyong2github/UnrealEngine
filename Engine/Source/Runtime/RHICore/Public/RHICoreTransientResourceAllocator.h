@@ -327,7 +327,6 @@ class RHICORE_API FRHITransientHeapAllocator
 {
 public:
 	FRHITransientHeapAllocator(uint64 Capacity, uint32 Alignment);
-	~FRHITransientHeapAllocator();
 
 	FRHITransientHeapAllocation Allocate(uint64 Size, uint32 Alignment);
 
@@ -660,8 +659,6 @@ public:
 	FRHITransientResourceHeapAllocator(FRHITransientHeapCache& InHeapCache)
 		: HeapCache(InHeapCache)
 	{}
-
-	~FRHITransientResourceHeapAllocator();
 
 	// Deallocates a texture from its parent heap. Provide the current platform fence value used to update the heap.
 	void DeallocateMemory(FRHITransientTexture* Texture, uint32 PassIndex) override;
@@ -1055,8 +1052,6 @@ public:
 	{
 		FastPagePool = PagePoolCache.GetFastPagePool();
 	}
-
-	~FRHITransientResourcePageAllocator();
 
 	FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& CreateInfo, const TCHAR* DebugName, uint32 PassIndex) override;
 	FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& CreateInfo, const TCHAR* DebugName, uint32 PassIndex) override;
