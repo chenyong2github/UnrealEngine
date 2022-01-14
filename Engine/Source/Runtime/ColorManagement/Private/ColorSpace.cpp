@@ -17,6 +17,14 @@ void FColorSpace::SetWorking(FColorSpace ColorSpace)
 	WorkingColorSpace = ColorSpace;
 }
 
+static bool IsSRGBChromaticities(const TStaticArray<FCoordinate2d, 4>& Chromaticities, double Tolerance = 1.e-7)
+{
+	return	Chromaticities[0].Equals(FCoordinate2d(0.64, 0.33), Tolerance) &&
+		Chromaticities[1].Equals(FCoordinate2d(0.30, 0.60), Tolerance) &&
+		Chromaticities[2].Equals(FCoordinate2d(0.15, 0.06), Tolerance) &&
+		Chromaticities[3].Equals(FCoordinate2d(0.3127, 0.3290), Tolerance);
+}
+
 FColorSpace::FColorSpace(const FVector2D& InRed, const FVector2D& InGreen, const FVector2D& InBlue, const FVector2D& InWhite)
 {
 	Chromaticities[0] = FCoordinate2d(InRed);
@@ -24,12 +32,15 @@ FColorSpace::FColorSpace(const FVector2D& InRed, const FVector2D& InGreen, const
 	Chromaticities[2] = FCoordinate2d(InBlue);
 	Chromaticities[3] = FCoordinate2d(InWhite);
 
+	bIsSRGB = IsSRGBChromaticities(Chromaticities);
+
 	RgbToXYZ = CalcRgbToXYZ();
 	XYZToRgb = RgbToXYZ.Inverse();
 }
 
 FColorSpace::FColorSpace(EColorSpace ColorSpaceType)
 	: Chromaticities(InPlace, FCoordinate2d(0, 0))
+	, bIsSRGB(ColorSpaceType == EColorSpace::sRGB)
 {
 	const FCoordinate2d D65(0.3127, 0.3290);
 	const FCoordinate2d D60(0.32168, 0.33767);
@@ -128,9 +139,9 @@ FColorSpace::FColorSpace(EColorSpace ColorSpaceType)
 FMatrix44d FColorSpace::CalcRgbToXYZ() const
 {
 	FMatrix44d Mat = FMatrix44d(
-		Chromaticities[0].ToXyY(),
-		Chromaticities[1].ToXyY(),
-		Chromaticities[2].ToXyY(),
+		FVector3d(Chromaticities[0].x, Chromaticities[0].y, 1.0 - Chromaticities[0].x - Chromaticities[0].y),
+		FVector3d(Chromaticities[1].x, Chromaticities[1].y, 1.0 - Chromaticities[1].x - Chromaticities[1].y),
+		FVector3d(Chromaticities[2].x, Chromaticities[2].y, 1.0 - Chromaticities[2].x - Chromaticities[2].y),
 		FVector3d{0,0,0}
 	);
 
@@ -156,7 +167,12 @@ bool FColorSpace::Equals(const FColorSpace& CS, double Tolerance) const
 		Chromaticities[3].Equals(CS.Chromaticities[3], Tolerance);
 }
 
-static FMatrix44d CalcChromaticAdaptionMatrix(FVector4d SourceXYZ, FVector4d TargetXYZ, EChromaticAdaptationMethod Method)
+bool FColorSpace::IsSRGB() const
+{
+	return bIsSRGB;
+}
+
+FMatrix44d FColorSpaceTransform::CalcChromaticAdaptionMatrix(FVector3d SourceXYZ, FVector3d TargetXYZ, EChromaticAdaptationMethod Method)
 {
 	FMatrix44d XyzToRgb;
 
@@ -213,12 +229,12 @@ static FMatrix44d CalcColorSpaceTransformMatrix(const FColorSpace& Src, const FC
 	const FVector3d SrcWhite = Src.GetRgbToXYZ().TransformVector(FVector3d::One());
 	const FVector3d DstWhite = Dst.GetRgbToXYZ().TransformVector(FVector3d::One());
 
-	if (SrcWhite.Equals(DstWhite))
+	if (SrcWhite.Equals(DstWhite, 1.e-7))
 	{
 		return Src.GetRgbToXYZ() * Dst.GetXYZToRgb();
 	}
 
-	FMatrix44d ChromaticAdaptationMat = CalcChromaticAdaptionMatrix(SrcWhite, DstWhite, Method);
+	FMatrix44d ChromaticAdaptationMat = FColorSpaceTransform::CalcChromaticAdaptionMatrix(SrcWhite, DstWhite, Method);
 	return Src.GetRgbToXYZ() * ChromaticAdaptationMat * Dst.GetXYZToRgb();
 }
 

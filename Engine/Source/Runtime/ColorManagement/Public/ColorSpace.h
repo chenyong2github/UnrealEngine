@@ -13,11 +13,11 @@ namespace UE { namespace Color {
 //! At the time of writing, there is no double-precision 2D vector available hence this custom type.
 struct FCoordinate2d
 {
-	/** Coordinate's X component. */
-	double X;
+	/** Coordinate's x component (lowercase to follow the CIE xy-XYZ convention). */
+	double x;
 
-	/** Coordinate's Y component. */
-	double Y;
+	/** Coordinate's y component (lowercase to follow the CIE xy-XYZ convention). */
+	double y;
 
 public:
 
@@ -27,12 +27,12 @@ public:
 	/**
 	* Constructor
 	*
-	* @param InX x coordinate.
-	* @param InY y coordinate.
+	* @param Inx x coordinate.
+	* @param Iny y coordinate.
 	*/
-	explicit FORCEINLINE FCoordinate2d(double InX, double InY)
-		: X(InX)
-		, Y(InY)
+	explicit FORCEINLINE FCoordinate2d(double Inx, double Iny)
+		: x(Inx)
+		, y(Iny)
 	{ }
 
 	/**
@@ -41,8 +41,8 @@ public:
 	* @param Coordinates xy coordinates.
 	*/
 	explicit FORCEINLINE FCoordinate2d(FVector2D Coordinates)
-		: X(Coordinates.X)
-		, Y(Coordinates.Y)
+		: x(Coordinates.X)
+		, y(Coordinates.Y)
 	{ }
 
 	/**
@@ -53,7 +53,7 @@ public:
 	 */
 	FORCEINLINE bool operator==(const FCoordinate2d& V) const
 	{
-		return X == V.X && Y == V.Y;
+		return x == V.x && y == V.x;
 	}
 
 	/**
@@ -63,7 +63,7 @@ public:
 	 */
 	FORCEINLINE bool Equals(const FCoordinate2d& V, float Tolerance) const
 	{
-		return FMath::Abs(X - V.X) <= Tolerance && FMath::Abs(Y - V.Y) <= Tolerance;
+		return FMath::Abs(x - V.x) <= Tolerance && FMath::Abs(y - V.y) <= Tolerance;
 	}
 
 	/**
@@ -75,7 +75,7 @@ public:
 	FORCEINLINE double& operator[](int32 Index)
 	{
 		check(Index >= 0 && Index < 2);
-		return (Index == 0) ? X : Y;
+		return (Index == 0) ? x : y;
 	}
 
 	/**
@@ -87,7 +87,7 @@ public:
 	FORCEINLINE const double& operator[](int32 Index) const
 	{
 		check(Index >= 0 && Index < 2);
-		return (Index == 0) ? X : Y;
+		return (Index == 0) ? x : y;
 	}
 
 	/**
@@ -97,17 +97,32 @@ public:
 	 */
 	FORCEINLINE FVector2D ToVector2D() const
 	{
-		return FVector2D(X, Y);
+		return FVector2D(x, y);
 	}
 
 	/**
-	 * Convert to the CIE xyY colorspace coordinates as an FVector3d.
+	 * Convert to CIE Yxy with a luminance value (default to 1.0).
 	 * 
 	 * @return FVector3d
 	 */
-	FORCEINLINE FVector3d ToXyY() const
+	FORCEINLINE FVector3d ToYxy(double LuminanceY=1.0) const
 	{
-		return FVector3d(X, Y, 1.0 - X - Y);
+		return FVector3d(LuminanceY, x, y);
+	}
+
+	/**
+	 * Convert to CIE XYZ tristimulus values with a luminance value (default to 1.0).
+	 * 
+	 * @return FVector3d
+	 */
+	FORCEINLINE FVector3d ToXYZ(double LuminanceY = 1.0) const
+	{
+		const FVector3d Yxy = ToYxy(LuminanceY);
+		return FVector3d(
+			Yxy[1] * Yxy[0] / FMath::Max(Yxy[2], 1e-10),
+			Yxy[0],
+			(1.0 - Yxy[1] - Yxy[2]) * Yxy[0] / FMath::Max(Yxy[2], 1e-10)
+		);
 	}
 
 	/**
@@ -119,7 +134,7 @@ public:
 	 */
 	friend FArchive& operator<<(FArchive& Ar, FCoordinate2d& C)
 	{
-		return Ar << C.X << C.Y;
+		return Ar << C.x << C.y;
 	}
 
 	bool Serialize(FArchive& Ar)
@@ -201,6 +216,16 @@ public:
 	}
 
 	/**
+	* Gets the color space's red chromaticity coordinates.
+	*
+	* @return FCoordinate2d xy coordinates.
+	*/
+	FORCEINLINE FCoordinate2d GetRedChromaticityCoordinate() const
+	{
+		return Chromaticities[0];
+	}
+
+	/**
 	* Gets the color space's green chromaticity coordinates.
 	*
 	* @return FVector2D xy coordinates.
@@ -208,6 +233,16 @@ public:
 	FORCEINLINE FVector2D GetGreenChromaticity() const
 	{
 		return Chromaticities[1].ToVector2D();
+	}
+
+	/**
+	* Gets the color space's green chromaticity coordinates.
+	*
+	* @return FCoordinate2d xy coordinates.
+	*/
+	FORCEINLINE FCoordinate2d GetGreenChromaticityCoordinate() const
+	{
+		return Chromaticities[1];
 	}
 
 	/**
@@ -221,6 +256,16 @@ public:
 	}
 
 	/**
+	* Gets the color space's blue chromaticity coordinates.
+	*
+	* @return FCoordinate2d xy coordinates.
+	*/
+	FORCEINLINE FCoordinate2d GetBlueChromaticityCoordinate() const
+	{
+		return Chromaticities[2];
+	}
+
+	/**
 	* Gets the color space's white point chromaticity coordinates.
 	*
 	* @return FVector2D xy coordinates.
@@ -228,6 +273,16 @@ public:
 	FORCEINLINE FVector2D GetWhiteChromaticity() const
 	{
 		return Chromaticities[3].ToVector2D();
+	}
+
+	/**
+	* Gets the color space's white point chromaticity coordinates.
+	*
+	* @return FCoordinate2d xy coordinates.
+	*/
+	FORCEINLINE FCoordinate2d GetWhiteChromaticityCoordinate() const
+	{
+		return Chromaticities[3];
 	}
 
 	/**
@@ -279,7 +334,14 @@ public:
 	 * @param Tolerance Error tolerance.
 	 * @return true if the vectors are equal within tolerance limits, false otherwise.
 	 */
-	bool Equals(const FColorSpace& CS, double Tolerance = SMALL_NUMBER) const;
+	bool Equals(const FColorSpace& CS, double Tolerance = 1.e-7) const;
+
+	/**
+	 * Convenience function to verify if the color space matches the engine's default sRGB chromaticities.
+	 *
+	 * @return true if sRGB.
+	 */
+	bool IsSRGB() const;
 
 private:
 
@@ -290,6 +352,8 @@ private:
 
 	FMatrix44d RgbToXYZ;
 	FMatrix44d XYZToRgb;
+
+	bool bIsSRGB;
 
 public:
 
@@ -337,6 +401,15 @@ struct FColorSpaceTransform : FMatrix44d
 	* @param Color Color to transform.
 	*/
 	COLORMANAGEMENT_API FLinearColor Apply(const FLinearColor& Color) const;
+
+	/**
+	* Calculate the chromatic adaptation matrix using the specific method.
+	*
+	* @param SourceXYZ Source color in XYZ space.
+	* @param TargetXYZ Target color in XYZ space.
+	* @param Method Adaptation method (None, Bradford, CAT02).
+	*/
+	COLORMANAGEMENT_API static FMatrix44d CalcChromaticAdaptionMatrix(FVector3d SourceXYZ, FVector3d TargetXYZ, EChromaticAdaptationMethod Method);
 };
 
 } }  // end namespace UE::Color

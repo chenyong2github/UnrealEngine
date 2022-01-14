@@ -11,6 +11,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+static bool GPassing;
 static double GdiffDouble = 0.0;
 static int32 GRow = 0;
 static int32 GColumn = 0;
@@ -22,6 +23,7 @@ bool FTransferFunctionsTest::RunTest(const FString& Parameters)
 {
 	using namespace UE::Color;
 
+	GPassing = true;
 	const float TestIncrement = 0.05f;
 
 	// Verify that all transfer functions correctly inverse each other.
@@ -34,10 +36,10 @@ bool FTransferFunctionsTest::RunTest(const FString& Parameters)
 		{
 			float Encoded = UE::Color::Encode(EncodingType, TestValue);
 			float Decoded = UE::Color::Decode(EncodingType, Encoded);
-			TestEqual(TEXT("Transfer function encode followed by decode must match identity"), Decoded, TestValue, KINDA_SMALL_NUMBER);
+			GPassing &= TestEqual(TEXT("Transfer function encode followed by decode must match identity"), Decoded, TestValue, KINDA_SMALL_NUMBER);
 		}
 	}
-	return true;
+	return GPassing;
 }
 
 /**
@@ -72,6 +74,7 @@ FORCENOINLINE void LogTest(const TCHAR* TestName, bool bHasPassed)
 	{
 		UE_LOG(LogUnrealColorManagementTest, Log, TEXT("%s <double>: %s"), bHasPassed ? TEXT("PASSED") : TEXT("FAILED"), TestName);
 		UE_LOG(LogUnrealColorManagementTest, Log, TEXT("Bad(%.8f) at [%i, %i]"), GdiffDouble, GRow, GColumn);
+		GPassing = false;
 	}
 }
 
@@ -219,7 +222,7 @@ static void TestColorSpaceTransforms(UE::Color::EChromaticAdaptationMethod Metho
 			{ -0.00501335146809, -0.0252900718108, 1.03030342328, 0.0 },
 			{ 0,0,0,1 }
 		).GetTransposed();
-		LogTest(TEXT("AP1->Rec709 without chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
+		LogTest(TEXT("AP1->Rec709 with Bradford chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
 
 		Mat0 = FColorSpaceTransform(Src, FColorSpace(EColorSpace::ACESAP0), Method);
 		Mat1 = FMatrix44d(
@@ -228,11 +231,11 @@ static void TestColorSpaceTransforms(UE::Color::EChromaticAdaptationMethod Metho
 			{ -0.00552588255811, 0.00402521030598, 1.00150067225, 0.0 },
 			{ 0,0,0,1 }
 		).GetTransposed();
-		LogTest(TEXT("AP1->Rec709 without chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
+		LogTest(TEXT("AP1->Rec709 with Bradford chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
 
 		Mat0 = FColorSpaceTransform(Src, FColorSpace(EColorSpace::ACESAP1), Method);
 		Mat1 = FMatrix44d::Identity;
-		LogTest(TEXT("AP1->Rec709 without chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
+		LogTest(TEXT("AP1->Rec709 with Bradford chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
 
 		Mat0 = FColorSpaceTransform(Src, FColorSpace(EColorSpace::P3DCI), Method);
 		Mat1 = FMatrix44d(
@@ -241,7 +244,7 @@ static void TestColorSpaceTransforms(UE::Color::EChromaticAdaptationMethod Metho
 			{ -0.00255286167095, -0.0470296027287, 1.0495824644, 0.0 },
 			{ 0,0,0,1 }
 		).GetTransposed();
-		LogTest(TEXT("AP1->Rec709 without chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
+		LogTest(TEXT("AP1->Rec709 with Bradford chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
 
 		Mat0 = FColorSpaceTransform(Src, FColorSpace(EColorSpace::P3D65), Method);
 		Mat1 = FMatrix44d(
@@ -250,7 +253,7 @@ static void TestColorSpaceTransforms(UE::Color::EChromaticAdaptationMethod Metho
 			{ -0.00215900951357, -0.0454593248373, 1.04761833435, 0.0 },
 			{ 0,0,0,1 }
 		).GetTransposed();
-		LogTest(TEXT("AP1->Rec709 without chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
+		LogTest(TEXT("AP1->Rec709 with Bradford chromatic adaptation"), TestMatricesDoubleEqual(Mat0, Mat1, Tolerance));
 	}
 
 }
@@ -259,6 +262,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FColorSpaceTest, "System.ColorManagement.ColorS
 bool FColorSpaceTest::RunTest(const FString& Parameters)
 {
 	using namespace UE::Color;
+
+	GPassing = true;
 
 	FColorSpace CS = FColorSpace(EColorSpace::sRGB);
 	FMatrix44d Mat0 = FColorSpaceTransform(CS, CS, EChromaticAdaptationMethod::None);
@@ -271,7 +276,7 @@ bool FColorSpaceTest::RunTest(const FString& Parameters)
 
 	TestColorSpaceTransforms(EChromaticAdaptationMethod::Bradford);
 
-	return true;
+	return GPassing;
 }
 
 
