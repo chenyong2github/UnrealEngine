@@ -136,8 +136,10 @@ public:
 	{
 		if (SListView<ItemType>* MyListView = GetMyListView())
 		{
-			TSharedPtr<ITableRow> RowWidget = MyListView->WidgetFromItem(Item);
-			return RowWidget->GetIndexInList();
+			if (TSharedPtr<ITableRow> RowWidget = MyListView->WidgetFromItem(Item))
+			{
+				return RowWidget->GetIndexInList();
+			}
 		}
 		return INDEX_NONE;
 	}
