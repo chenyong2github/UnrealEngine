@@ -222,12 +222,12 @@ void FCommandSwapTags::Execute(UMassEntitySubsystem& System) const
 
 void FBuildEntityFromFragmentInstance::Execute(UMassEntitySubsystem& System) const
 {
-	System.BuildEntity(TargetEntity, MakeArrayView(&Struct, 1));
+	System.BuildEntity(TargetEntity, MakeArrayView(&Struct, 1), SharedFragmentValues);
 }
 
 void FBuildEntityFromFragmentInstances::Execute(UMassEntitySubsystem& System) const
 {
-	System.BuildEntity(TargetEntity, Instances);
+	System.BuildEntity(TargetEntity, Instances, SharedFragmentValues);
 }
 
 void FCommandAddFragment::Execute(UMassEntitySubsystem& System) const

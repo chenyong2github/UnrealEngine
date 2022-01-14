@@ -143,9 +143,10 @@ struct MASSENTITY_API FBuildEntityFromFragmentInstance : public FCommandBufferEn
 	};
 
 	FBuildEntityFromFragmentInstance() = default;
-	FBuildEntityFromFragmentInstance(const FMassEntityHandle Entity, FStructView InStruct)
+	FBuildEntityFromFragmentInstance(const FMassEntityHandle Entity, FStructView InStruct, FMassArchetypeSharedFragmentValues InSharedFragmentValues)
 		: FCommandBufferEntryBase(Entity)
 		, Struct(InStruct)
+		, SharedFragmentValues(InSharedFragmentValues)
 	{}
 
 	void AppendAffectedEntitesPerType(FMassCommandsObservedTypes& ObservedTypes)
@@ -157,6 +158,7 @@ protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	FInstancedStruct Struct;
+	FMassArchetypeSharedFragmentValues SharedFragmentValues;
 };
 
 /**
@@ -173,9 +175,10 @@ struct MASSENTITY_API FBuildEntityFromFragmentInstances : public FCommandBufferE
 	};
 
 	FBuildEntityFromFragmentInstances() = default;
-	FBuildEntityFromFragmentInstances(const FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> InInstances)
+	FBuildEntityFromFragmentInstances(const FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> InInstances, FMassArchetypeSharedFragmentValues InSharedFragmentValues = {})
 		: FCommandBufferEntryBase(Entity)
 		, Instances(InInstances)
+		, SharedFragmentValues(InSharedFragmentValues)
 	{}
 
 	void AppendAffectedEntitesPerType(FMassCommandsObservedTypes& ObservedTypes)
@@ -190,6 +193,7 @@ protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	TArray<FInstancedStruct> Instances;
+	FMassArchetypeSharedFragmentValues SharedFragmentValues;
 };
 
 /**

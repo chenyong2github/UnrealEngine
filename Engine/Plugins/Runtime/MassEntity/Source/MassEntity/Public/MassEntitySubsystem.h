@@ -83,7 +83,7 @@ public:
 	 * A special, relaxed but slower version of CreateArchetype functions that allows FragmentAngTagsList to contain 
 	 * both fragments and tags. 
 	 */
-	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentsAngTagsList);
+	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> FragmentsAndTagsList);
 
 	/**
 	 * CreateArchetype from a composition descriptor and initial values
@@ -173,7 +173,7 @@ public:
 	 * Builds an entity for it to be ready to be used by the subsystem
 	 * @param Entity to build which was retrieved with ReserveEntity() method
 	 * @param FragmentInstanceList is the fragments to create the entity from and initialize values*/
-	void BuildEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> FragmentInstanceList);
+	void BuildEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> FragmentInstanceList, FMassArchetypeSharedFragmentValues SharedFragmentValues = {});
 
 	/*
 	 * Releases a previously reserved entity that was not yet built, otherwise call DestroyEntity

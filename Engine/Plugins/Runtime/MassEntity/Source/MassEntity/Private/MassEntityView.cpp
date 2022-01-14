@@ -42,6 +42,32 @@ void* FMassEntityView::GetFragmentPtrChecked(const UScriptStruct& FragmentType) 
 	return Archetype->GetFragmentData(FragmentIndex, EntityHandle);
 }
 
+const void* FMassEntityView::GetConstSharedFragmentPtr(const UScriptStruct& FragmentType) const
+{
+	const FConstSharedStruct* SharedFragment = Archetype->GetSharedFragmentValues().GetConstSharedFragments().FindByPredicate(FStructTypeEqualOperator(&FragmentType));
+	return (SharedFragment != nullptr) ? SharedFragment->GetMemory() : nullptr;
+}
+
+const void* FMassEntityView::GetConstSharedFragmentPtrChecked(const UScriptStruct& FragmentType) const
+{
+	const FConstSharedStruct* SharedFragment = Archetype->GetSharedFragmentValues().GetConstSharedFragments().FindByPredicate(FStructTypeEqualOperator(&FragmentType));
+	check(SharedFragment != nullptr);
+	return SharedFragment->GetMemory();
+}
+
+void* FMassEntityView::GetSharedFragmentPtr(const UScriptStruct& FragmentType) const
+{
+	const FSharedStruct* SharedFragment = Archetype->GetSharedFragmentValues().GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(&FragmentType));
+	return (SharedFragment != nullptr) ? SharedFragment->GetMutableMemory() : nullptr;
+}
+
+void* FMassEntityView::GetSharedFragmentPtrChecked(const UScriptStruct& FragmentType) const
+{
+	const FSharedStruct* SharedFragment = Archetype->GetSharedFragmentValues().GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(&FragmentType));
+	check(SharedFragment != nullptr);
+	return SharedFragment->GetMutableMemory();
+}
+
 bool FMassEntityView::HasTag(const UScriptStruct& TagType) const
 {
 	checkSlow(Archetype && EntityHandle.IsValid());

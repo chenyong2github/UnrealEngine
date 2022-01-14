@@ -69,6 +69,46 @@ struct MASSENTITY_API FMassEntityView
 		return FStructView(FragmentType, static_cast<uint8*>(GetFragmentPtr(*FragmentType)));
 	}
 
+	/** if the viewed entity doesn't have the given const shared fragment the function will return null */
+	template<typename T>
+	const T* GetConstSharedFragmentDataPtr() const
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived,
+			"Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+
+		return (const T*)GetConstSharedFragmentPtr(*T::StaticStruct());
+	}
+
+	/** will fail a check if the viewed entity doesn't have the given const shared fragment */
+	template<typename T>
+	const T& GetConstSharedFragmentData() const
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived,
+			"Given struct doesn't represent a valid const shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+
+		return *((const T*)GetConstSharedFragmentPtrChecked(*T::StaticStruct()));
+	}
+
+	/** will fail a check if the viewed entity doesn't have the given shared fragment */
+	template<typename T>
+	T& GetSharedFragmentData() const
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived,
+			"Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+
+		return *((T*)GetSharedFragmentPtrChecked(*T::StaticStruct()));
+	}
+
+	/** if the viewed entity doesn't have the given shared fragment the function will return null */
+	template<typename T>
+	T* GetSharedFragmentDataPtr() const
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived,
+			"Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+
+		return (T*)GetSharedFragmentPtr(*T::StaticStruct());
+	}
+
 	template<typename T>
 	bool HasTag() const
 	{
@@ -82,6 +122,10 @@ struct MASSENTITY_API FMassEntityView
 protected:
 	void* GetFragmentPtr(const UScriptStruct& FragmentType) const;
 	void* GetFragmentPtrChecked(const UScriptStruct& FragmentType) const;
+	const void* GetConstSharedFragmentPtr(const UScriptStruct& FragmentType) const;
+	const void* GetConstSharedFragmentPtrChecked(const UScriptStruct& FragmentType) const;
+	void* GetSharedFragmentPtr(const UScriptStruct& FragmentType) const;
+	void* GetSharedFragmentPtrChecked(const UScriptStruct& FragmentType) const;
 	bool HasTag(const UScriptStruct& TagType) const;
 
 private:
