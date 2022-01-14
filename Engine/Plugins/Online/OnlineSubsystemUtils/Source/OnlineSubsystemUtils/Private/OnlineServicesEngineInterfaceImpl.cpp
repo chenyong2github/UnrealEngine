@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineServicesEngineInterfaceImpl.h"
-#include "OnlineServicesEngineUtils.h"
+#include "Online/OnlineServicesEngineUtils.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Engine/NetConnection.h"
 

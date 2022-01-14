@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "OnlineServicesEngineUtils.h"
+#include "Online/OnlineServicesEngineUtils.h"
 #include "OnlineDelegates.h"
 #include "OnlinePIESettings.h"
 #include "Modules/ModuleManager.h"
