@@ -48,7 +48,7 @@ static FAutoConsoleVariableRef CVarNiagaraQualityLevel(
 	GNiagaraQualityLevel,
 	TEXT("The quality level for Niagara Effects. \n"),
 	FConsoleVariableDelegate::CreateStatic(&FNiagaraPlatformSet::OnQualityLevelChanged),
-	ECVF_Scalability
+	ECVF_Scalability | ECVF_Preview
 );
 
 // Override platform device profile
@@ -116,6 +116,12 @@ static FAutoConsoleCommand GCmdSetNiagaraPlatformOverride(
 
 static UDeviceProfile* NiagaraGetActiveDeviceProfile()
 {
+	UDeviceProfileManager& DPMan = UDeviceProfileManager::Get();
+	if (UDeviceProfile* DPPreview = DPMan.GetPreviewDeviceProfile())
+	{
+		return DPPreview;
+	}
+
 	UDeviceProfile* ActiveProfile = GNiagaraPlatformOverride.Get(); 
 	if (ActiveProfile == nullptr)
 	{

@@ -137,6 +137,13 @@ public:
 	UDeviceProfile* GetActiveProfile() const;
 
 	/**
+	 * Get the currently previewing device profile. Can be null.
+	 *
+	 * @return The preview profile.
+	 */
+	UDeviceProfile* GetPreviewDeviceProfile() const;
+
+	/**
 	* Get a list of all possible parent profiles for a given device profile
 	*
 	* @param ChildProfile				- The profile we are looking for potential parents
@@ -273,6 +280,9 @@ private:
 #endif
 	// Holds the device profile that has been overridden, null no override active.
 	UDeviceProfile* BaseDeviceProfile = nullptr;
+
+	// Holds the device profile that we are previewing.
+	UDeviceProfile* PreviewDeviceProfile = nullptr;
 
 	// Stores any scalability group settings set by the active device profile.
 	static TMap<FString, FString> DeviceProfileScalabilityCVars;

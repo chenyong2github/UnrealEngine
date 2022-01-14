@@ -90,6 +90,9 @@ enum EConsoleVariableFlags
 	/* those cvars control other cvars with the flag ECVF_Scalability, names should start with "sg." */
 	ECVF_ScalabilityGroup = 0x80,
 
+	/* CVars with this flag will be included in the device profile previews. */
+	ECVF_Preview = 0x100,
+
 	// ------------------------------------------------
 
 	/* Set flags */

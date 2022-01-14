@@ -166,7 +166,7 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 	check(ConfigSystem);
 
 	TArray< FString > AvailableProfiles;
-	GConfig->GetSectionNames( GDeviceProfilesIni, AvailableProfiles );
+	ConfigSystem->GetSectionNames( GDeviceProfilesIni, AvailableProfiles );
 
 	// Look up the ini for this tree as we are far too early to use the UObject system
 	AvailableProfiles.Remove( TEXT( "DeviceProfiles" ) );
@@ -400,8 +400,13 @@ void UDeviceProfileManager::ProcessDeviceProfileIniSettings(const FString& Devic
 									UE_LOG(LogInit, Log, TEXT("Skipping Device Profile CVar due to PreviewDenylistCVars: [[%s]]"), *CVarKey);
 									continue;
 								}
-
-								if (PreviewAllowlistCVars.Num() > 0 && !PreviewAllowlistCVars.ContainsByPredicate([&CVarKey](const FString& Entry) { return CVarKey.StartsWith(Entry); }))
+								
+								bool bIsPreviewCVar = false;
+								if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarKey))
+								{
+									bIsPreviewCVar = CVar->TestFlags(ECVF_Preview);
+								}
+								if (bIsPreviewCVar == false && (PreviewAllowlistCVars.Num() > 0 && !PreviewAllowlistCVars.ContainsByPredicate([&CVarKey](const FString& Entry) { return CVarKey.StartsWith(Entry); })))
 								{
 									UE_LOG(LogInit, Log, TEXT("Skipping Device Profile CVar due to PreviewAllowlistCVars: [[%s]]"), *CVarKey);
 									continue;
@@ -949,6 +954,8 @@ void UDeviceProfileManager::SetPreviewDeviceProfile(UDeviceProfile* DeviceProfil
 
 	RestorePreviewDeviceProfile();
 
+	PreviewDeviceProfile = DeviceProfile;
+
 	UE_LOG(LogDeviceProfileManager, Log, TEXT("SetPreviewDeviceProfile preview to %s"), *DeviceProfile->GetName());
 	// apply the preview DP cvars.
 	for (const auto& Pair : DeviceProfile->GetAllExpandedCVars())
@@ -960,6 +967,7 @@ void UDeviceProfileManager::SetPreviewDeviceProfile(UDeviceProfile* DeviceProfil
 			// remember the previous value so we can restore
 			FString OldValue = CVar->GetString();
 			PreviewPushedSettings.Add(Pair.Key, OldValue);
+			//UE_LOG(LogDeviceProfileManager, Log, TEXT("Pushing Device Profile CVar: [[%s:%s]]"), *Pair.Key, *Pair.Value);
 			// cheat CVar can only be set in ConsoleVariables.ini
 			if (!CVar->TestFlags(EConsoleVariableFlags::ECVF_Cheat))
 			{
@@ -981,6 +989,7 @@ void UDeviceProfileManager::RestorePreviewDeviceProfile()
 		// this sets us back to non-preview state.
 		RestorePushedState(PreviewPushedSettings);
 	}
+	PreviewDeviceProfile = nullptr;
 }
 #endif
 
@@ -1262,6 +1271,10 @@ UDeviceProfile* UDeviceProfileManager::GetActiveProfile() const
 	return ActiveDeviceProfile;
 }
 
+UDeviceProfile* UDeviceProfileManager::GetPreviewDeviceProfile() const
+{
+	return PreviewDeviceProfile;
+}
 
 void UDeviceProfileManager::GetAllPossibleParentProfiles(const UDeviceProfile* ChildProfile, OUT TArray<UDeviceProfile*>& PossibleParentProfiles) const
 {
