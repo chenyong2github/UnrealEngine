@@ -89,17 +89,17 @@ void UMLDeformerAsset::PostLoad()
 }
 
 // Used for the FBoenReference, so it knows what skeleton to pick bones from.
-#if WITH_EDITOR
 USkeleton* UMLDeformerAsset::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
 {
+#if WITH_EDITOR
 	bInvalidSkeletonIsError = false;
 	if (SkeletalMesh)
 	{
 		return SkeletalMesh->GetSkeleton();
 	}
+#endif
 	return nullptr;
 }
-#endif
 
 #if WITH_EDITOR
 // A fuzzy name match.

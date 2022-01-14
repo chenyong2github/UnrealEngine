@@ -128,11 +128,9 @@ public:
 #endif
 	//~End of UObject interface
 
-#if WITH_EDITOR
 	//~IBoneReferenceSkeletonProvider interface
 	USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 	//~End of IBoneReferenceSkeletonProvider interface
-#endif
 
 #if WITH_EDITOR
 	FText GetGeomCacheErrorText(UGeometryCache* InGeomCache) const;
