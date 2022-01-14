@@ -223,8 +223,6 @@ namespace Audio
 		return FColor::White;
 	}
 
-	static bool bAllowUsingDeprecatedDebugStats = true;
-
 	// Whether or not respective stat data is active for any audio device (set on game thread)
 	static bool bDebugWavesForAllViewsEnabled = false;
 	static bool bDebugCuesForAllViewsEnabled = false;
@@ -602,8 +600,6 @@ namespace Audio
 
 	void DebugSoundObject(const TArray<FString>& Args, UWorld* InWorld, const uint32 InStatToEnable, bool& bAllEnabled)
 	{
-		bAllowUsingDeprecatedDebugStats = false;
-
 		if (Args.Num() > 0)
 		{
 			bool bAllViews = false;
@@ -633,7 +629,7 @@ namespace Audio
 			return false;
 		}
 
-		if (bEnablementBool || bAllowUsingDeprecatedDebugStats)
+		if (bEnablementBool)
 		{
 			return true;
 		}
@@ -775,11 +771,6 @@ namespace Audio
 	{
 		WorldRegisteredWithDeviceHandle = FAudioDeviceWorldDelegates::OnWorldRegisteredToAudioDevice.AddLambda([this](const UWorld* InWorld, FDeviceId InDeviceId)
 		{
-			if (bAllowUsingDeprecatedDebugStats)
-			{
-				return;
-			}
-
 			uint32 StatsToSet = 0;
 			uint32 StatsToClear = 0;
 			if (bDebugSoundsForAllViewsEnabled)
@@ -1317,10 +1308,9 @@ namespace Audio
 						{
 							ViewportClient->AddRealtimeOverride(true, SystemDisplayName);
 						}
-						else if (!bAllowUsingDeprecatedDebugStats)
-						{
-							ViewportClient->RemoveRealtimeOverride(SystemDisplayName);
-						}
+
+						ViewportClient->RemoveRealtimeOverride(SystemDisplayName);
+
 						return DrawDebugStatsInternal(World, *ViewportClient->Viewport, InCanvas, InY);
 					}
 				}
@@ -1344,7 +1334,7 @@ namespace Audio
 	int32 FAudioDebugger::DrawDebugStatsInternal(UWorld& World, FViewport& Viewport, FCanvas* InCanvas, int32 InY)
 	{
 		FCanvas* Canvas = InCanvas ? InCanvas : Viewport.GetDebugCanvas();
-		if (!Canvas || bAllowUsingDeprecatedDebugStats)
+		if (!Canvas)
 		{
 			return InY;
 		}
@@ -2165,27 +2155,6 @@ namespace Audio
 		AudioDeviceStats_AudioThread.Remove(AudioDevice.DeviceID);
 	}
 
-	bool FAudioDebugger::ToggleStats(UWorld* World, const uint32 StatToToggle)
-	{
-		if (!GEngine)
-		{
-			return false;
-		}
-
-		FAudioDevice* AudioDevice = GetWorldAudio(World);
-		if (!AudioDevice)
-		{
-			return false;
-		}
-
-		if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
-		{
-			DeviceManager->GetDebugger().ToggleStats(AudioDevice->DeviceID, StatToToggle);
-		}
-
-		return true;
-	}
-
 	void FAudioDebugger::ClearStats(const uint32 StatsToClear, UWorld* InWorld)
 	{
 		if (!GEngine)
@@ -2276,60 +2245,6 @@ namespace Audio
 		Stats.RequestedStats |= StatsToSet;
 	}
 
-	void FAudioDebugger::ToggleStats(FDeviceId DeviceId, const uint32 StatsToToggle)
-	{
-		if (!IsInAudioThread())
-		{
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ToggleStats"), STAT_AudioToggleStats, STATGROUP_TaskGraphTasks);
-
-			FAudioThread::RunCommandOnAudioThread([this, DeviceId, StatsToToggle]()
-			{
-				ToggleStats(DeviceId, StatsToToggle);
-			}, GET_STATID(STAT_AudioToggleStats));
-			return;
-		}
-
-		FAudioStats_AudioThread& Stats = AudioDeviceStats_AudioThread.FindOrAdd(DeviceId);
-		Stats.RequestedStats ^= StatsToToggle;
-	}
-
-	bool FAudioDebugger::ToggleStatCues(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
-	{
-		return ToggleStats(World, FAudioStats::SoundCues);
-	}
-
-		bool FAudioDebugger::ToggleStatMixes(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
-	{
-		return ToggleStats(World, FAudioStats::SoundMixes);
-	}
-
-	bool FAudioDebugger::ToggleStatModulators(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
-	{
-		if (!GEngine)
-		{
-			return false;
-		}
-
-		FAudioDevice* AudioDevice = GetWorldAudio(World);
-		if (!AudioDevice)
-		{
-			return false;
-		}
-
-		if (AudioDevice->IsModulationPluginEnabled())
-		{
-			if (IAudioModulationManager* Modulation = AudioDevice->ModulationInterface.Get())
-			{
-				if (!Modulation->OnToggleStat(ViewportClient, Stream))
-				{
-					return false;
-				}
-			}
-		}
-
-		return true;
-	}
-
 	bool FAudioDebugger::PostStatModulatorHelp(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
 		// Ignore if all Viewports are closed.
@@ -2353,80 +2268,6 @@ namespace Audio
 		}
 
 		return true;
-	}
-
-	bool FAudioDebugger::ToggleStatSounds(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
-	{
-		// Ignore if all Viewports are closed.
-		if (!ViewportClient)
-		{
-			return false;
-		}
-
-		if (!ToggleStats(World, FAudioStats::Sounds))
-		{
-			return false;
-		}
-
-		const bool bHelp = Stream ? FCString::Stristr(Stream, TEXT("?")) != nullptr : false;
-		if (bHelp)
-		{
-			GLog->Logf(TEXT("Shows all active sounds. Displays value sorted by when sort is set"));
-			GLog->Logf(TEXT("  stat sounds sort=class|distance|name|priority|time|volume|waves"));
-			GLog->Logf(TEXT("      distance - sort list by distance to player"));
-			GLog->Logf(TEXT("      class - sort by sound class name"));
-			GLog->Logf(TEXT("      name - sort by cue pathname (default)"));
-			GLog->Logf(TEXT("      time - sort by time played back"));
-			GLog->Logf(TEXT("      waves - sort by waves' num"));
-			GLog->Logf(TEXT("      priority - sort by playback priority"));
-			GLog->Logf(TEXT("      volume - sort by volume"));
-			GLog->Logf(TEXT("  stat sounds -debug - enables debugging mode like showing sound radius sphere and names, but only for sounds with enabled 'Debug' property"));
-			GLog->Logf(TEXT(""));
-			GLog->Logf(TEXT("Ex. stat sounds sort=class -debug"));
-			GLog->Logf(TEXT(" This will show only sounds that have 'Debug' property set to true and will sort them by and display their sound class"));
-		}
-
-		uint8 ShowSounds = 0;
-		FAudioStats::EDisplaySort DisplaySort = FAudioStats::EDisplaySort::Name;
-		if (Stream)
-		{
-			const bool bHide = FParse::Command(&Stream, TEXT("off"));
-			if (!bHide)
-			{
-				const bool bDebug = FParse::Param(Stream, TEXT("debug"));
-				if (bDebug)
-				{
-					ShowSounds |= static_cast<uint8>(FAudioStats::EDisplayFlags::Debug);
-				}
-
-				const bool bLongNames = FParse::Param(Stream, TEXT("longnames"));
-				if (bLongNames)
-				{
-					ShowSounds |= static_cast<uint8>(FAudioStats::EDisplayFlags::Long_Names);
-				}
-
-				FString SortStr;
-				if (FParse::Value(Stream, TEXT("sort="), SortStr))
-				{
-					AudioDebugSoundSortCVarCVar = SortStr;
-				}
-			}
-		}
-
-		FAudioDevice* AudioDevice = GetWorldAudio(World);
-		check(AudioDevice);
-		FAudioStats& Stats = AudioDeviceStats.FindOrAdd(AudioDevice->DeviceID);
-		Stats.DisplayFlags = ShowSounds;
-		Stats.DisplaySort = DisplaySort;
-
-		ResolveDesiredStats(ViewportClient);
-
-		return true;
-	}
-
-	bool FAudioDebugger::ToggleStatWaves(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
-	{
-		return ToggleStats(World, FAudioStats::SoundWaves);
 	}
 
 	void FAudioDebugger::SendUpdateResultsToGameThread(const FAudioDevice& AudioDevice, const int32 FirstActiveIndex)
