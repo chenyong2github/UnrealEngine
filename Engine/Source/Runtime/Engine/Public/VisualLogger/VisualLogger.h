@@ -16,8 +16,8 @@
 
 #if ENABLE_VISUAL_LOG
 
-#define REDIRECT_TO_VLOG(Dest) FVisualLogger::Get().Redirect(this, Dest)
-#define REDIRECT_OBJECT_TO_VLOG(Src, Dest) FVisualLogger::Get().Redirect(Src, Dest)
+#define REDIRECT_TO_VLOG(Dest) FVisualLogger::Redirect(this, Dest)
+#define REDIRECT_OBJECT_TO_VLOG(Src, Dest) FVisualLogger::Redirect(Src, Dest)
 
 #define CONNECT_WITH_VLOG(Dest)
 #define CONNECT_OBJECT_WITH_VLOG(Src, Dest)
@@ -450,10 +450,24 @@ public:
 	void Cleanup(UWorld* OldWorld, bool bReleaseMemory = false);
 
 	/** Set log owner redirection from one object to another, to combine logs */
-	static void Redirect(const UObject* FromObject, const UObject* ToObject);
+	static void Redirect(const UObject* FromObject, const UObject* ToObject)
+	{ 
+		FVisualLogger& Logger = FVisualLogger::Get();
+		UObject* NewRedirection = nullptr;
+		{
+			FWriteScopeLock Lock(Logger.RedirectRWLock);
+			NewRedirection = Logger.RedirectInternal(FromObject, ToObject);
+		}
+		UE_CVLOG(FromObject != nullptr && NewRedirection != nullptr, FromObject, LogVisual, Log, TEXT("Redirected '%s' to '%s'"), *FromObject->GetName(), *NewRedirection->GetName());
+	}
 
 	/** find and return redirection object for given object*/
-	static UObject* FindRedirection(const UObject* Object);
+	static UObject* FindRedirection(const UObject* Object)
+	{ 
+		FVisualLogger& Logger = FVisualLogger::Get();
+		FReadScopeLock Lock(Logger.RedirectRWLock);
+		return Logger.FindRedirectionInternal(Object);
+	}
 
 	/** blocks all categories from logging. It can be bypassed with the category allow list */
 	void BlockAllCategories(const bool bInBlock) { bBlockedAllCategories = bInBlock; }
@@ -561,9 +575,25 @@ public:
 	UE_DEPRECATED(5.0, "Use AddObjectToAllowList instead")
 	void AddWhitelistedObject(const UObject& InObject) { AddObjectToAllowList(InObject); }
 
+	typedef TMap<FObjectKey, FVisualLogEntry> FVisualLoggerObjectEntryMap;
+
 private:
 	FVisualLogger();
 	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override { ensureMsgf(0, TEXT("Regular serialize is forbiden for visual logs")); }
+
+	FVisualLoggerObjectEntryMap& GetThreadCurrentEntryMap();
+
+	/** Get global entry to write where all logs are combined together, not thread safe */
+	FVisualLogEntry* GetEntryToWriteInternal(const UObject* Object, float TimeStamp, ECreateIfNeeded ShouldCreate);
+
+	/** Redirect internal implementation, not thread safe */
+	UObject* RedirectInternal(const UObject* FromObject, const UObject* ToObject);
+	/** Find redirects internal implementation, not thread safe */
+	UObject* FindRedirectionInternal(const UObject* Object) const;
+	/** Cleanup invalid redirects */
+	void CleanupRedirects();
+	/** Figure out all conditions if this entry is allowed to log */
+	void CalculateEntryAllowLogging(FVisualLogEntry* CurrentEntry, const UObject* LogOwner, const UObject* Object);
 
 protected:
 	/** Flushes entries recorded in the frame */
@@ -600,7 +630,11 @@ protected:
 	// last generated unique id for given times tamp
 	TMap<float, int32> LastUniqueIds;
 	// Current entry with all data
-	TMap<FObjectKey, FVisualLogEntry>	CurrentEntryPerObject;
+	FVisualLoggerObjectEntryMap CurrentEntryPerObject;
+	// Threads current entry maps
+	TArray<FVisualLoggerObjectEntryMap*> ThreadCurrentEntryMaps;
+	// Read Write lock protecting object entries
+	mutable FRWLock EntryRWLock;
 	// Map to contain names for Objects (they can be destroyed after while)
 	TMap<FObjectKey, FName> ObjectToNameMap;
 	// Map to contain class names for Objects (they can be destroyed after while)
@@ -610,6 +644,8 @@ protected:
 	// for any object that has requested redirection this map holds where we should
 	// redirect the traffic to
 	FChildToOwnerRedirectionMap ChildToOwnerMap;
+	// Read Write lock protecting redirection maps (ChildToOwnerMap and ObjectToWorldMap)
+	mutable FRWLock RedirectRWLock;
 	// if set all categories are blocked from logging
 	bool bBlockedAllCategories : 1;
 	// if set we are recording to file
@@ -623,6 +659,8 @@ protected:
 	bool bForceUniqueLogNames : 1;
 	/** Indicates that entries were added/updated and that a flush is required */
 	bool bIsFlushRequired : 1;
+	/** Indicates there are entries in the redirection map that are invalid */
+	mutable bool bContainsInvalidRedirects : 1;
 	// start recording time
 	float StartRecordingToFileTime;
 	/** Delegate to set project specific file name for vlogs */

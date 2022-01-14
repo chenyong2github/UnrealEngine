@@ -130,6 +130,13 @@ FVisualLogEntry::FVisualLogEntry(float InTimeStamp, FVector InLocation, const UO
 	}
 }
 
+void FVisualLogEntry::InitializeEntry(const float InTimeStamp)
+{
+	Reset();
+	TimeStamp = InTimeStamp;
+	bIsInitialized = true;
+}
+
 void FVisualLogEntry::Reset()
 {
 	TimeStamp = -1;
@@ -144,6 +151,12 @@ void FVisualLogEntry::Reset()
 	bIsInitialized = false;
 }
 
+void FVisualLogEntry::SetPassedObjectAllowList(const bool bPassed)
+{
+	bPassedObjectAllowList = bPassed;
+	UpdateAllowedToLog();
+}
+
 void FVisualLogEntry::UpdateAllowedToLog()
 {
 	bIsAllowedToLog = bPassedClassAllowList || bPassedObjectAllowList;
@@ -152,6 +165,22 @@ void FVisualLogEntry::UpdateAllowedToLog()
 int32 FVisualLogEntry::AddEvent(const FVisualLogEventBase& Event)
 {
 	return Events.Add(Event);
+}
+
+void FVisualLogEntry::MoveTo(FVisualLogEntry& Other)
+{
+	ensureMsgf(bIsInitialized && Other.bIsInitialized, TEXT("Both entries need to be initialized to move to the other"));
+	ensureMsgf(TimeStamp == Other.TimeStamp, TEXT("Can only move similar entries"));
+	ensureMsgf(bPassedClassAllowList == Other.bPassedClassAllowList, TEXT("Can only move similar entries"));
+	ensureMsgf(bPassedObjectAllowList == Other.bPassedObjectAllowList, TEXT("Can only move similar entries"));
+	ensureMsgf(bIsAllowedToLog == Other.bIsAllowedToLog, TEXT("Can only move similar entries"));
+	Other.Events.Append(Events);
+	Other.LogLines.Append(LogLines);
+	Other.Status.Append(Status);
+	Other.ElementsToDraw.Append(ElementsToDraw);
+	Other.HistogramSamples.Append(HistogramSamples);
+	Other.DataBlocks.Append(DataBlocks);
+	Reset();
 }
 
 void FVisualLogEntry::AddText(const FString& TextLine, const FName& CategoryName, ELogVerbosity::Type Verbosity)

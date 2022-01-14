@@ -181,7 +181,22 @@ struct ENGINE_API FVisualLogEntry
 	FVisualLogEntry(const AActor* InActor, TArray<TWeakObjectPtr<UObject> >* Children);
 	FVisualLogEntry(float InTimeStamp, FVector InLocation, const UObject* Object, TArray<TWeakObjectPtr<UObject> >* Children);
 
+	bool ShouldLog(const ECreateIfNeeded ShouldCreate) const
+	{
+		// We serialize and reinitialize entries only when allowed to log and parameter
+		// indicates that new entry can be created.
+		return bIsAllowedToLog && ShouldCreate == ECreateIfNeeded::Create;
+	}
+
+	bool ShouldFlush(float InTimeStamp) const
+	{
+		//Same LogOwner can be used for logs at different time in the frame so need to flush entry right away
+		return bIsInitialized && InTimeStamp > TimeStamp;
+	}
+
+	void InitializeEntry( const float InTimeStamp );
 	void Reset();
+	void SetPassedObjectAllowList(const bool bPassed);
 	void UpdateAllowedToLog();
 
 	void AddText(const FString& TextLine, const FName& CategoryName, ELogVerbosity::Type Verbosity);
@@ -223,6 +238,8 @@ struct ENGINE_API FVisualLogEntry
 	// find index of status category
 	int32 FindStatusIndex(const FString& CategoryName);
 
+	// Moves all content to provided entry and reseting our content.
+	void MoveTo(FVisualLogEntry& Other);
 
 #endif // ENABLE_VISUAL_LOG
 };

@@ -119,30 +119,53 @@ bool FVisualLogger::IsClassAllowed(const UClass& InClass) const
 
 void FVisualLogger::AddObjectToAllowList(const UObject& InObject)
 {
-	const int32 PrevNum = ObjectAllowList.Num();
-	ObjectAllowList.Add(&InObject);
+	FWriteScopeLock Lock(EntryRWLock);
+	bool bIsAlreadyInSet = false;
+	ObjectAllowList.Add(&InObject, &bIsAlreadyInSet);
 
-	const bool bChanged = (PrevNum != ObjectAllowList.Num());
-	if (bChanged)
+	if (!bIsAlreadyInSet)
 	{
 		FVisualLogEntry* CurrentEntry = CurrentEntryPerObject.Find(&InObject);
 		if (CurrentEntry)
 		{
-			CurrentEntry->bPassedObjectAllowList = true;
-			CurrentEntry->UpdateAllowedToLog();
+			CurrentEntry->SetPassedObjectAllowList(true);
+		}
+
+	    // We are not locking the thread entry map, we do not expect other threads adding new entries while editing allow list
+	    // @todo we should add a thread access detector
+		for (FVisualLoggerObjectEntryMap* ThreadCurrentEntryMap : ThreadCurrentEntryMaps)
+		{
+			checkf(ThreadCurrentEntryMap, TEXT("Unexpected null map entry pointer"));
+			FVisualLogEntry* ThreadCurrentEntry = ThreadCurrentEntryMap->Find(&InObject);
+			if (ThreadCurrentEntry)
+			{
+				ThreadCurrentEntry->SetPassedObjectAllowList(true);
+			}
 		}
 	}
 }
 
 void FVisualLogger::ClearObjectAllowList()
 {
+	FWriteScopeLock Lock(EntryRWLock);
 	for (FObjectKey It : ObjectAllowList)
 	{
 		FVisualLogEntry* CurrentEntry = CurrentEntryPerObject.Find(It);
 		if (CurrentEntry)
 		{
-			CurrentEntry->bPassedObjectAllowList = false;
-			CurrentEntry->UpdateAllowedToLog();
+			CurrentEntry->SetPassedObjectAllowList(false);
+		}
+
+	    // We are not locking the thread entry map, we do not expect other threads adding new entries while editing allow list
+	    // @todo we should add a thread access detector
+		for (FVisualLoggerObjectEntryMap* ThreadCurrentEntryMap : ThreadCurrentEntryMaps)
+		{
+			checkf(ThreadCurrentEntryMap, TEXT("Unexpected null map entry pointer"));
+			FVisualLogEntry* ThreadCurrentEntry = ThreadCurrentEntryMap->Find(It);
+			if (ThreadCurrentEntry)
+			{
+				ThreadCurrentEntry->SetPassedObjectAllowList(false);
+			}
 		}
 	}
 
@@ -156,13 +179,96 @@ bool FVisualLogger::IsObjectAllowed(const UObject* InObject) const
 
 FVisualLogEntry* FVisualLogger::GetLastEntryForObject(const UObject* Object)
 {
-	const UObject* LogOwner = FVisualLogger::FindRedirection(Object);
-	return CurrentEntryPerObject.Contains(LogOwner) ? &CurrentEntryPerObject[LogOwner] : nullptr;
+	const UObject* LogOwner = nullptr;
+	{
+		FReadScopeLock Lock(RedirectRWLock);
+		LogOwner = FindRedirectionInternal(Object);
+	}
+	if (LogOwner == nullptr)
+	{
+		return nullptr;
+	}
+
+	FVisualLoggerObjectEntryMap& ThreadCurrentEntryPerObject = GetThreadCurrentEntryMap();
+	return ThreadCurrentEntryPerObject.Find(LogOwner);
 }
 
-FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const float TimeStamp, const ECreateIfNeeded ShouldCreate)
+FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const float TimeStamp, ECreateIfNeeded ShouldCreate)
 {
-	const UObject* const LogOwner = FindRedirection(Object);
+	const UObject* LogOwner = nullptr;
+	{
+		FReadScopeLock Lock(RedirectRWLock);
+		LogOwner = FindRedirectionInternal(Object);
+	}
+	if (LogOwner == nullptr)
+	{
+		return nullptr;
+	}
+
+	FVisualLoggerObjectEntryMap& ThreadCurrentEntryPerObject = GetThreadCurrentEntryMap();
+	FVisualLogEntry* ThreadCurrentEntry = ThreadCurrentEntryPerObject.Find(LogOwner);
+	bool bInitializeEntry = false;
+	if (ThreadCurrentEntry)
+	{
+		if (ThreadCurrentEntry->ShouldLog(ShouldCreate))
+		{
+			if (ThreadCurrentEntry->ShouldFlush(TimeStamp))
+			{
+				FWriteScopeLock Lock(EntryRWLock);
+				if (FVisualLogEntry* GlobalCurrentEntry = GetEntryToWriteInternal(LogOwner, ThreadCurrentEntry->TimeStamp, ShouldCreate))
+				{
+					ThreadCurrentEntry->MoveTo(*GlobalCurrentEntry);
+				}
+			}
+
+			bInitializeEntry = !ThreadCurrentEntry->bIsInitialized;
+		}
+	}
+	else
+	{
+		// Check to see if it exists in the global map, 
+		// if so then force creation for the current thread
+		if (ShouldCreate != ECreateIfNeeded::Create)
+		{
+			FReadScopeLock Lock(EntryRWLock);
+			if (CurrentEntryPerObject.Find(LogOwner))
+			{
+				ShouldCreate = ECreateIfNeeded::Create;
+			}
+		}
+
+		if (ShouldCreate == ECreateIfNeeded::Create)
+		{
+			ThreadCurrentEntry = &ThreadCurrentEntryPerObject.Add(LogOwner);
+
+			CalculateEntryAllowLogging(ThreadCurrentEntry, LogOwner, Object);
+		}
+
+		bInitializeEntry = ThreadCurrentEntry->bIsAllowedToLog;
+	}
+
+	if (bInitializeEntry)
+	{
+		checkf(ThreadCurrentEntry != nullptr, TEXT("bInitializeEntry can only be true when CurrentEntry is valid."));
+		ThreadCurrentEntry->InitializeEntry(TimeStamp);
+	}
+
+	if (ThreadCurrentEntry != nullptr && ThreadCurrentEntry->bIsAllowedToLog)
+	{
+		bIsFlushRequired = true;
+	}
+	else
+	{
+		ThreadCurrentEntry = nullptr;
+	}
+
+	return ThreadCurrentEntry;
+}
+
+
+FVisualLogEntry* FVisualLogger::GetEntryToWriteInternal(const UObject* Object, const float TimeStamp, const ECreateIfNeeded ShouldCreate)
+{
+	const UObject* LogOwner = FindRedirectionInternal(Object);
 	if (LogOwner == nullptr)
 	{
 		return nullptr;
@@ -170,19 +276,13 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const flo
 
 	// Entry can be created or reused (after being flushed) and will need to be initialized
 	bool bInitializeEntry = false;
-	FVisualLogEntry* CurrentEntry = nullptr;
+	FVisualLogEntry* CurrentEntry = CurrentEntryPerObject.Find(LogOwner);
 
-	if (CurrentEntryPerObject.Contains(LogOwner))
+	if (CurrentEntry)
 	{
-		CurrentEntry = &CurrentEntryPerObject[LogOwner];
-
-		// We serialize and reinitialize entries only when allowed to log and parameter
-		// indicates that new entry can be created. Otherwise we simply return current entry.  
-		if (CurrentEntry->bIsAllowedToLog && ShouldCreate == ECreateIfNeeded::Create)
+		if (CurrentEntry->ShouldLog(ShouldCreate))
 		{
-			// Same LogOwner can be used for logs at different time in the frame so need to flush entry right away
-			// Other entries will be flushed in batch using FlushEntries
-			if (CurrentEntry->bIsInitialized && TimeStamp > CurrentEntry->TimeStamp)
+			if (CurrentEntry->ShouldFlush(TimeStamp))
 			{
 				FlushEntry(*CurrentEntry, LogOwner);
 			}
@@ -206,11 +306,7 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const flo
 		ObjectToClassNameMap.Add(LogOwner, *(LogOwner->GetClass()->GetName()));
 		ObjectToWorldMap.Add(LogOwner, World);
 
-		// IsClassAllowed isn't super fast, but this gets calculated only once for every 
-		// object trying to log something
-		CurrentEntry->bPassedClassAllowList = (ClassAllowList.Num() == 0) || IsClassAllowed(*LogOwner->GetClass()) || IsClassAllowed(*Object->GetClass());
-		CurrentEntry->bPassedObjectAllowList = IsObjectAllowed(LogOwner);
-		CurrentEntry->UpdateAllowedToLog();
+		CalculateEntryAllowLogging(CurrentEntry, LogOwner, Object);
 
 		bInitializeEntry = CurrentEntry->bIsAllowedToLog;
 	}
@@ -218,9 +314,8 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const flo
 	if (bInitializeEntry)
 	{
 		checkf(CurrentEntry != nullptr, TEXT("bInitializeEntry can only be true when CurrentEntry is valid."));
-		CurrentEntry->Reset();
-		CurrentEntry->TimeStamp = TimeStamp;
-		CurrentEntry->bIsInitialized = true;
+		CurrentEntry->InitializeEntry(TimeStamp);
+
 
 		if (const AActor* ObjectAsActor = Cast<AActor>(LogOwner))
 		{
@@ -228,6 +323,7 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const flo
 			CurrentEntry->bIsLocationValid = true;
 		}
 
+		FReadScopeLock RedirectScopeLock(RedirectRWLock);
 		FOwnerToChildrenRedirectionMap& RedirectionMap = GetRedirectionMap(LogOwner);
 		if (RedirectionMap.Contains(LogOwner))
 		{
@@ -264,6 +360,15 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const flo
 	return CurrentEntry;
 }
 
+void FVisualLogger::CalculateEntryAllowLogging(FVisualLogEntry* CurrentEntry, const UObject* LogOwner, const UObject* Object)
+{
+	// IsClassAllowed isn't super fast, but this gets calculated only once for every 
+	// object trying to log something
+	CurrentEntry->bPassedClassAllowList = (ClassAllowList.Num() == 0) || IsClassAllowed(*LogOwner->GetClass()) || IsClassAllowed(*Object->GetClass());
+	CurrentEntry->bPassedObjectAllowList = IsObjectAllowed(LogOwner);
+	CurrentEntry->UpdateAllowedToLog();
+}
+
 void FVisualLogger::Tick(float DeltaTime)
 {
 	if (bIsFlushRequired)
@@ -271,10 +376,35 @@ void FVisualLogger::Tick(float DeltaTime)
 		Flush();
 		bIsFlushRequired = false;
 	}
+
+	if (bContainsInvalidRedirects)
+	{
+		CleanupRedirects();
+		bContainsInvalidRedirects = false;
+	}
 }
 
 void FVisualLogger::Flush()
 {
+	FWriteScopeLock Lock(EntryRWLock);
+
+	// We are not locking the thread entry map, we do not expect other threads adding new entries while flushing
+	// @todo we should add a thread access detector
+	for (FVisualLoggerObjectEntryMap* ThreadCurrentEntryMap : ThreadCurrentEntryMaps)
+	{
+		checkf(ThreadCurrentEntryMap, TEXT("Unexpected null map entry pointer"));
+		for (auto& ThreadCurrentEntry : *ThreadCurrentEntryMap)
+		{
+			if (ThreadCurrentEntry.Value.bIsInitialized)
+			{
+				const UObject* OwnerObject = ThreadCurrentEntry.Key.ResolveObjectPtrEvenIfPendingKill();
+				if (FVisualLogEntry* GlobalCurrentEntry = GetEntryToWriteInternal(OwnerObject, ThreadCurrentEntry.Value.TimeStamp, ECreateIfNeeded::Create))
+				{
+					ThreadCurrentEntry.Value.MoveTo(*GlobalCurrentEntry);
+				}
+			}
+		}
+	}
 	for (auto &CurrentEntry : CurrentEntryPerObject)
 	{
 		if (CurrentEntry.Value.bIsInitialized)
@@ -294,6 +424,19 @@ void FVisualLogger::FlushEntry(FVisualLogEntry& Entry, const FObjectKey& ObjectK
 		Device->Serialize(OwnerObject, ObjectToNameMap[ObjectKey], ObjectToClassNameMap[ObjectKey], Entry);
 	}
 	Entry.Reset();
+}
+
+thread_local FVisualLogger::FVisualLoggerObjectEntryMap* GThreadCurrentEntryPerObject = nullptr;
+FVisualLogger::FVisualLoggerObjectEntryMap& FVisualLogger::GetThreadCurrentEntryMap()
+{
+	if (GThreadCurrentEntryPerObject == nullptr)
+	{
+		GThreadCurrentEntryPerObject = new FVisualLoggerObjectEntryMap();
+		FWriteScopeLock Lock(EntryRWLock);
+		ThreadCurrentEntryMaps.Add(GThreadCurrentEntryPerObject);
+	}
+	checkf(GThreadCurrentEntryPerObject, TEXT("Unexpected null map entry pointer"));
+	return *GThreadCurrentEntryPerObject;
 }
 
 void FVisualLogger::EventLog(const UObject* Object, const FName EventTag1, const FVisualLogEventBase& Event1, const FVisualLogEventBase& Event2, const FVisualLogEventBase& Event3, const FVisualLogEventBase& Event4, const FVisualLogEventBase& Event5, const FVisualLogEventBase& Event6)
@@ -453,6 +596,11 @@ void FVisualLogger::Cleanup(UWorld* OldWorld, const bool bReleaseMemory)
                 ObjectToWorldMap.Reset();
                 ChildToOwnerMap.Reset();
                 CurrentEntryPerObject.Reset();
+				for (FVisualLoggerObjectEntryMap* ThreadCurrentEntryMap : ThreadCurrentEntryMaps)
+				{
+					checkf(ThreadCurrentEntryMap, TEXT("Unexpected null map entry pointer"));
+					ThreadCurrentEntryMap->Reset();
+				}
                 ObjectToNameMap.Reset();
                 ObjectToClassNameMap.Reset();
             }
@@ -465,6 +613,11 @@ void FVisualLogger::Cleanup(UWorld* OldWorld, const bool bReleaseMemory)
 						FObjectKey Obj = It.Key();
                         ObjectToWorldMap.Remove(Obj);
                         CurrentEntryPerObject.Remove(Obj);
+						for (FVisualLoggerObjectEntryMap* ThreadCurrentEntryMap : ThreadCurrentEntryMaps)
+						{
+							checkf(ThreadCurrentEntryMap, TEXT("Unexpected null map entry pointer"));
+							ThreadCurrentEntryMap->Remove(Obj);
+						}
                         ObjectToNameMap.Remove(Obj);
                         ObjectToClassNameMap.Remove(Obj);
                     }
@@ -487,6 +640,11 @@ void FVisualLogger::Cleanup(UWorld* OldWorld, const bool bReleaseMemory)
 		ObjectToWorldMap.Reset();
 		ChildToOwnerMap.Reset();
 		CurrentEntryPerObject.Reset();
+		for (FVisualLoggerObjectEntryMap* ThreadCurrentEntryMap : ThreadCurrentEntryMaps)
+		{
+			checkf(ThreadCurrentEntryMap, TEXT("Unexpected null map entry pointer"));
+			ThreadCurrentEntryMap->Reset();
+		}
 		ObjectToNameMap.Reset();
 		ObjectToClassNameMap.Reset();
 	}
@@ -520,16 +678,16 @@ FVisualLogger::FOwnerToChildrenRedirectionMap& FVisualLogger::GetRedirectionMap(
 	return WorldToRedirectionMap.FindOrAdd(World);
 }
 
-void FVisualLogger::Redirect(const UObject* FromObject, const UObject* ToObject)
+UObject* FVisualLogger::RedirectInternal(const UObject* FromObject, const UObject* ToObject)
 {
 	if (FromObject == ToObject || FromObject == nullptr || ToObject == nullptr)
 	{
-		return;
+		return nullptr;
 	}
 
 	const TWeakObjectPtr<const UObject> FromWeakPtr(FromObject);
-	UObject* OldRedirection = FindRedirection(FromObject);
-	UObject* NewRedirection = FindRedirection(ToObject);
+	UObject* OldRedirection = FindRedirectionInternal(FromObject);
+	UObject* NewRedirection = FindRedirectionInternal(ToObject);
 
 	if (OldRedirection != NewRedirection)
 	{
@@ -544,22 +702,19 @@ void FVisualLogger::Redirect(const UObject* FromObject, const UObject* ToObject)
 		OwnerToChildrenMap.FindOrAdd(NewRedirection).AddUnique(FromWeakPtr);
 	}
 
-	FChildToOwnerRedirectionMap& ChildToOwnerMap = FVisualLogger::Get().GetChildToOwnerRedirectionMap();
 	ChildToOwnerMap.FindOrAdd(FromWeakPtr.Get(true/*bEvenIfPendingKill*/)) = ToObject;
 
-	UE_CVLOG(FromObject != nullptr, FromObject, LogVisual, Log, TEXT("Redirected '%s' to '%s'"), *FromObject->GetName(), *NewRedirection->GetName());
+	return NewRedirection;
 }
 
-UObject* FVisualLogger::FindRedirection(const UObject* Object)
+UObject* FVisualLogger::FindRedirectionInternal(const UObject* Object) const
 {
-	FChildToOwnerRedirectionMap& Map = FVisualLogger::Get().GetChildToOwnerRedirectionMap();
-
 	TWeakObjectPtr<const UObject> TargetWeakPtr(Object);
-	TWeakObjectPtr<const UObject>* Parent = &TargetWeakPtr;
+	const TWeakObjectPtr<const UObject>* Parent = &TargetWeakPtr;
 
 	while (Parent)
 	{
-		Parent = Map.Find(TargetWeakPtr.Get(/*bEvenIfPendingKill*/true));
+		Parent = ChildToOwnerMap.Find(TargetWeakPtr.Get(/*bEvenIfPendingKill*/true));
 		if (Parent)
 		{
 			if (Parent->IsValid())
@@ -569,13 +724,26 @@ UObject* FVisualLogger::FindRedirection(const UObject* Object)
 			else
 			{
 				Parent = nullptr;
-				Map.Remove(TargetWeakPtr.Get(/*bEvenIfPendingKill*/true));
+				bContainsInvalidRedirects = true;
 			}
 		}
 	}
 
 	const UObject* const Target = TargetWeakPtr.Get(/*bEvenIfPendingKill*/true);
 	return const_cast<UObject*>(Target);
+}
+
+void FVisualLogger::CleanupRedirects()
+{
+	FWriteScopeLock Lock(RedirectRWLock);
+	for (auto It = ChildToOwnerMap.CreateIterator(); It; ++It)
+	{
+		if(!It.Value().IsValid())
+		{
+			FObjectKey Obj = It.Key();
+			ChildToOwnerMap.Remove(Obj);
+		}
+	}
 }
 
 void FVisualLogger::SetIsRecording(const bool InIsRecording)
