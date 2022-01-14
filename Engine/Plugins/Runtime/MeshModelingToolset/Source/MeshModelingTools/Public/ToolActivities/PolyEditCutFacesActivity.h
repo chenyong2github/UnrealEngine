@@ -6,6 +6,7 @@
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "InteractiveToolActivity.h"
+#include "InteractiveToolChange.h" //FToolCommandChange
 #include "ToolContextInterfaces.h" // FViewCameraState
 
 #include "PolyEditCutFacesActivity.generated.h"
@@ -84,6 +85,35 @@ protected:
 	TObjectPtr<UPolyEditActivityContext> ActivityContext;
 
 	bool bIsRunning = false;
+	int32 ActivityStamp = 1;
 
 	FViewCameraState CameraState;
+
+	friend class FPolyEditCutFacesActivityFirstPointChange;
+};
+
+/**
+ * This should get emitted when setting the first point so that we can undo it.
+ */
+class MESHMODELINGTOOLS_API FPolyEditCutFacesActivityFirstPointChange : public FToolCommandChange
+{
+public:
+	FPolyEditCutFacesActivityFirstPointChange(int32 CurrentActivityStamp)
+		: ActivityStamp(CurrentActivityStamp)
+	{};
+
+	virtual void Apply(UObject* Object) override {};
+	virtual void Revert(UObject* Object) override;
+	virtual bool HasExpired(UObject* Object) const override
+	{
+		return bHaveDoneUndo || Cast<UPolyEditCutFacesActivity>(Object)->ActivityStamp != ActivityStamp;
+	}
+	virtual FString ToString() const override
+	{
+		return TEXT("FPolyEditCutFacesActivityFirstPointChange");
+	}
+
+protected:
+	int32 ActivityStamp;
+	bool bHaveDoneUndo = false;
 };

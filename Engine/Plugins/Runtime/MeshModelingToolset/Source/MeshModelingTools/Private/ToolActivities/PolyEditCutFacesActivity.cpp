@@ -233,7 +233,13 @@ void UPolyEditCutFacesActivity::OnClicked(const FInputDeviceRay& ClickPos)
 	{
 		if (SurfacePathMechanic->IsDone())
 		{
+			++ActivityStamp;
 			ApplyCutFaces();
+		}
+		else
+		{
+			ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FPolyEditCutFacesActivityFirstPointChange>(ActivityStamp),
+				LOCTEXT("CutLineStart", "Cut Line Start"));
 		}
 	}
 }
@@ -249,6 +255,16 @@ bool UPolyEditCutFacesActivity::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	SurfacePathMechanic->UpdatePreviewPoint((FRay3d)DevicePos.WorldRay);
 	return bIsRunning;
+}
+
+void FPolyEditCutFacesActivityFirstPointChange::Revert(UObject* Object)
+{
+	UPolyEditCutFacesActivity* Activity = Cast<UPolyEditCutFacesActivity>(Object);
+	if (ensure(Activity->SurfacePathMechanic))
+	{
+		Activity->SurfacePathMechanic->PopLastPoint();
+	}
+	bHaveDoneUndo = true;
 }
 
 #undef LOCTEXT_NAMESPACE
