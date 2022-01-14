@@ -28,7 +28,7 @@ public:
 	 */
 	FBitWriter( int64 InMaxBits, bool AllowResize = false );
 
-	FBitWriter(FBitWriter&) = default;
+	FBitWriter(const FBitWriter&) = default;
     FBitWriter& operator=(const FBitWriter&) = default;
     FBitWriter(FBitWriter&&) = default;
     FBitWriter& operator=(FBitWriter&&) = default;
