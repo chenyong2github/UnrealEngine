@@ -43,6 +43,7 @@ namespace UnrealGameSync
 		IncludeAllProjectsInSolution = 0x2000,
 		RemoveFilteredFiles = 0x4000,
 		Clobber = 0x8000,
+		Refilter = 0x10000,
 	}
 
 	public enum WorkspaceUpdateResult
@@ -624,7 +625,7 @@ namespace UnrealGameSync
 					}
 
 					// If the hash differs, enumerate everything in the workspace to find what needs to be removed
-					if (NextSyncFilterHash != State.CurrentSyncFilterHash)
+					if (NextSyncFilterHash != State.CurrentSyncFilterHash || (Context.Options & WorkspaceUpdateOptions.Refilter) != 0)
 					{
 						using (TelemetryStopwatch FilterStopwatch = new TelemetryStopwatch("Workspace_Sync_FilterChanged", Project.TelemetryProjectIdentifier))
 						{

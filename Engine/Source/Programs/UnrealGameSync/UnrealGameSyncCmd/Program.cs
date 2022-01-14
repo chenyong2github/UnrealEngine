@@ -568,6 +568,9 @@ namespace UnrealGameSyncCmd
 
 				[CommandLine("-Clobber")]
 				public bool Clobber { get; set; }
+
+				[CommandLine("-Refilter")]
+				public bool Refilter { get; set; }
 			}
 
 			public override async Task ExecuteAsync(CommandContext Context)
@@ -612,6 +615,10 @@ namespace UnrealGameSyncCmd
 				if (SyncOptions.Clobber)
 				{
 					Options |= WorkspaceUpdateOptions.Clobber;
+				}
+				if (SyncOptions.Refilter)
+				{
+					Options |= WorkspaceUpdateOptions.Refilter;
 				}
 				Options |= WorkspaceUpdateOptions.RemoveFilteredFiles;
 
