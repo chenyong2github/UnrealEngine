@@ -702,6 +702,12 @@ public:
 	
 	UFUNCTION(BlueprintGetter)
 	bool GetAllowScalability()const;
+	
+	UFUNCTION(BlueprintSetter, Category = Scalability, meta = (Keywords = "LOD scalability"))
+	void SetForceLocalPlayerEffect(bool bIsPlayerEffect);
+	
+	UFUNCTION(BlueprintGetter)
+	bool GetForceLocalPlayerEffect()const;
 
 	FORCEINLINE bool IsRegisteredWithScalabilityManager()const { return ScalabilityManagerHandle != INDEX_NONE; }
 	FORCEINLINE int32 GetScalabilityManagerHandle()const { return ScalabilityManagerHandle; }
@@ -730,6 +736,10 @@ private:
 	/** Controls whether we allow scalability culling for this component. If enabled, this component's FX may be culled due to things such as distance, visibility, instance counts and performance. */
 	UPROPERTY(EditAnywhere, Category=Niagara, BlueprintGetter=GetAllowScalability, BlueprintSetter=SetAllowScalability)
 	uint32 bAllowScalability : 1;
+
+	/** Flag allowing us to force this Effect to be considered a LocalPlayer Effect. This can prevent it being scalabiltiy culled in some situations etc. */
+	//UPROPERTY(EditAnywhere, Category = Niagara, BlueprintGetter = GetForceLocalPlayerEffect, BlueprintSetter = SetForceLocalPlayerEffect)
+	uint32 bForceLocalPlayerEffect : 1;
 
 	/** Whether the owner of this component allows it to be scalability culled. We optionally do not allow scalability culling for components on or attached to the local player. */
 	uint32 bOwnerAllowsScalabiltiy : 1;

@@ -1573,3 +1573,30 @@ FSynchronizeWithParameterDefinitionsArgs::FSynchronizeWithParameterDefinitionsAr
 	, AdditionalOldToNewNames()
 {
 }
+
+
+ENCPoolMethod ToNiagaraPooling(EPSCPoolMethod PoolingMethod)
+{
+	if (PoolingMethod == EPSCPoolMethod::AutoRelease)
+	{
+		return ENCPoolMethod::AutoRelease;
+	}
+	if (PoolingMethod == EPSCPoolMethod::ManualRelease)
+	{
+		return ENCPoolMethod::ManualRelease;
+	}
+	return ENCPoolMethod::None;
+}
+
+EPSCPoolMethod ToPSCPoolMethod(ENCPoolMethod PoolingMethod)
+{
+	if (PoolingMethod == ENCPoolMethod::AutoRelease)
+	{
+		return EPSCPoolMethod::AutoRelease;
+	}
+	if (PoolingMethod == ENCPoolMethod::ManualRelease)
+	{
+		return EPSCPoolMethod::ManualRelease;
+	}
+	return EPSCPoolMethod::None;
+}

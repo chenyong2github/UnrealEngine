@@ -55,6 +55,16 @@ struct TStructOpsTypeTraits<FNiagaraWorldManagerTickFunction> : public TStructOp
 
 using FNiagaraSystemSimulationRef = TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>;
 
+enum class NIAGARA_API ENiagaraScalabilityCullingMode : uint8
+{
+	/* Scalability culling is enabled as normal. */
+	Enabled,
+	/* No scalability culling is done but FX stay registered with the managers etc for when it is resumed. */
+	Paused,
+	/* Scalability is disabled entirely and all tracking is dropped. */
+	Disabled,
+};
+
 /**
 * Manager class for any data relating to a particular world.
 */
@@ -192,6 +202,9 @@ public:
 
 	static void OnRefreshOwnerAllowsScalability();
 
+	NIAGARA_API static void SetScalabilityCullingMode(ENiagaraScalabilityCullingMode NewMode);
+	NIAGARA_API static ENiagaraScalabilityCullingMode GetScalabilityCullingMode() { return ScalabilityCullingMode; }
+
 private:
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
 	static void OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS);
@@ -296,6 +309,9 @@ private:
 	TUniquePtr<class FNiagaraDebugHud> NiagaraDebugHud;
 
 	TMap<UNiagaraSystem*, UNiagaraCullProxyComponent*> CullProxyMap;
+
+	/** A global flag for all scalability culling */
+	static ENiagaraScalabilityCullingMode ScalabilityCullingMode;
 };
 
 

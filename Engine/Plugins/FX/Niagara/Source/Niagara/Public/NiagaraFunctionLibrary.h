@@ -9,10 +9,11 @@
 #include "NiagaraComponentPool.h"
 #include "NiagaraCommon.h"
 #include "VectorVM.h"
+#include "NiagaraSystem.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "NiagaraFunctionLibrary.generated.h"
 
 class UNiagaraComponent;
-class UNiagaraSystem;
 class USceneComponent;
 class UVolumeTexture;
 
@@ -26,6 +27,13 @@ class NIAGARA_API UNiagaraFunctionLibrary : public UBlueprintFunctionLibrary
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (Keywords = "niagara System", WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
+	static UNiagaraComponent* SpawnSystemAtLocationWithParams(FFXSystemSpawnParameters& SpawnParams);
+
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (Keywords = "niagara System", UnsafeDuringActorConstruction = "true"))
+	static UNiagaraComponent* SpawnSystemAttachedWithParams(FFXSystemSpawnParameters& SpawnParams);
+
 	/**
 	* Spawns a Niagara System at the specified world location/rotation
 	* @return			The spawned UNiagaraComponent

@@ -41,6 +41,8 @@ public:
 	FORCEINLINE static float GetWorstAdjustedUsage() { return WorstAdjustedUsage; }
 	FORCEINLINE static void SetWorstAdjustedUsage(float NewAdjustedUsage){ WorstAdjustedUsage = NewAdjustedUsage; }
 
+	static void Reset();
+
 	static TSharedPtr<FParticlePerfStatsListener_FXBudget, ESPMode::ThreadSafe> StatsListener;
 
 	static void OnEnabledCVarChanged(IConsoleVariable* CVar);
@@ -66,5 +68,7 @@ public:
 	FORCEINLINE static float GetWorstAdjustedUsage() { return 0.0f; }
 	FORCEINLINE static bool Enabled() { return false; }
 	FORCEINLINE static void SetEnabled(bool bInEnabled) { }
+
+	FORCEINLINE static void Reset(){}
 };
 #endif

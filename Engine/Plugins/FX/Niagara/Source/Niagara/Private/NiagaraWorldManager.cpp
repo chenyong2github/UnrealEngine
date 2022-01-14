@@ -240,6 +240,25 @@ FName FNiagaraWorldManagerTickFunction::DiagnosticContext(bool bDetailed)
 
 //////////////////////////////////////////////////////////////////////////
 
+ENiagaraScalabilityCullingMode FNiagaraWorldManager::ScalabilityCullingMode = ENiagaraScalabilityCullingMode::Enabled;
+
+void FNiagaraWorldManager::SetScalabilityCullingMode(ENiagaraScalabilityCullingMode NewMode) 
+{
+	//also reset fx budgets on state change.
+	if (ScalabilityCullingMode != NewMode)
+	{
+		FFXBudget::Reset();
+		ScalabilityCullingMode = NewMode;
+
+		auto UpdateScalability = [](FNiagaraWorldManager& WorldMan)
+		{
+			WorldMan.UpdateScalabilityManagers(0.01f, false);
+		};
+		ForAllWorldManagers(UpdateScalability);
+	}
+}
+
+
 FNiagaraWorldManager::FNiagaraWorldManager()
 	: World(nullptr)
 	, ActiveNiagaraTickGroup(-1)
@@ -1153,6 +1172,11 @@ void FNiagaraWorldManager::UpdateScalabilityManagers(float DeltaSeconds, bool bN
 
 void FNiagaraWorldManager::RegisterWithScalabilityManager(UNiagaraComponent* Component)
 {
+	if (GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Disabled)
+	{
+		return;
+	}
+
 	check(Component);
 	if (UNiagaraEffectType* EffectType = Component->GetAsset()->GetEffectType())
 	{
@@ -1188,7 +1212,7 @@ void FNiagaraWorldManager::UnregisterWithScalabilityManager(UNiagaraComponent* C
 
 bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, UNiagaraComponent* Component)
 {
-	if (System)
+	if (GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Enabled && System)
 	{
 		if (UNiagaraEffectType* EffectType = System->GetEffectType())
 		{
@@ -1206,7 +1230,7 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, UNiagaraCompone
 
 bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Location)
 {
-	if (System)
+	if (GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Enabled && System)
 	{
 		if (UNiagaraEffectType* EffectType = System->GetEffectType())
 		{
@@ -1225,6 +1249,11 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Locatio
 
 void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState)
 {
+	if (GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Disabled)
+	{
+		return;
+	}
+
 	OutState.bCulled = false;
 
 	DistanceCull(EffectType, ScalabilitySettings, Location, OutState);
@@ -1247,6 +1276,11 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 
 void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState)
 {
+	if (GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Disabled)
+	{
+		return;
+	}
+
 	OutState.bCulled = false;
 
 	DistanceCull(EffectType, ScalabilitySettings, Component, OutState);
@@ -1282,7 +1316,7 @@ void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType
 	//Cull all but the N most significance FX.
 	bool bCull = false;
 	
-	if(GEnableNiagaraInstanceCountCulling)
+	if(GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Enabled && GEnableNiagaraInstanceCountCulling)
 	{
 		int32 SystemInstanceMax = ScalabilitySettings.MaxSystemInstances;
 		int32 EffectTypeInstanceMax = ScalabilitySettings.MaxInstances;
@@ -1337,6 +1371,11 @@ void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType
 
 void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraComponent* Component, FNiagaraScalabilityState& OutState)
 {
+	if (GetScalabilityCullingMode() != ENiagaraScalabilityCullingMode::Enabled)
+	{
+		return;
+	}
+
 	float TimeSinceRendered = Component->GetSafeTimeSinceRendered(World->TimeSeconds);
 	bool bCull = Component->GetLastRenderTime() >= 0.0f && ScalabilitySettings.bCullByMaxTimeWithoutRender && TimeSinceRendered > ScalabilitySettings.MaxTimeWithoutRender;
 
@@ -1348,6 +1387,11 @@ void FNiagaraWorldManager::VisibilityCull(UNiagaraEffectType* EffectType, const 
 
 void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FNiagaraScalabilityState& OutState)
 {
+	if (GetScalabilityCullingMode() != ENiagaraScalabilityCullingMode::Enabled)
+	{
+		return;
+	}
+
 	int32 SystemInstanceMax = ScalabilitySettings.MaxSystemInstances;
 	int32 EffectTypeInstanceMax = ScalabilitySettings.MaxInstances;
 
@@ -1415,7 +1459,7 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 	float MaxDist = ScalabilitySettings.MaxDistance;
 	Component->SetLODDistance(LODDistance, FMath::Max(MaxDist, 1.0f));
 
-	if (GEnableNiagaraDistanceCulling && ScalabilitySettings.bCullByDistance)
+	if (GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Enabled && GEnableNiagaraDistanceCulling && ScalabilitySettings.bCullByDistance)
 	{
 		bool bCull = LODDistance > MaxDist;
 		OutState.bCulled |= bCull;
@@ -1451,7 +1495,7 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 
 void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location, FNiagaraScalabilityState& OutState)
 {
-	if (bCachedPlayerViewLocationsValid)
+	if (GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Enabled && bCachedPlayerViewLocationsValid)
 	{
 		float ClosestDistSq = FLT_MAX;
 		for (FVector ViewLocation : CachedPlayerViewLocations)
@@ -1497,7 +1541,7 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 
 void FNiagaraWorldManager::GlobalBudgetCull(const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState)
 {
- 	bool bCull = WorstGlobalBudgetUse >= ScalabilitySettings.BudgetScaling.MaxGlobalBudgetUsage;
+ 	bool bCull = GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Enabled && WorstGlobalBudgetUse >= ScalabilitySettings.BudgetScaling.MaxGlobalBudgetUsage;
  	OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
 	OutState.bCulledByGlobalBudget |= bCull;
@@ -1591,7 +1635,7 @@ bool FNiagaraWorldManager::IsComponentLocalPlayerLinked(const USceneComponent* I
 	//Is our owner or instigator a locally viewed pawn?
 	if (const AActor* Owner = InComponent->GetOwner())
 	{
-		if (const APawn* OwnerPawn = Cast<const APawn>(InComponent))
+		if (const APawn* OwnerPawn = Cast<const APawn>(Owner))
 		{
 			if (OwnerPawn->IsLocallyViewed())
 			{

@@ -328,6 +328,29 @@ struct FParticleEventKismetData : public FParticleEventData
 {
 };
 
+/** Parameters controlling the spawning behavior of FX systems via the SpawnSystemAtLocation and SpawnSystemAttached. */
+USTRUCT(BlueprintType)
+struct FFXSystemSpawnParameters
+{
+	GENERATED_BODY()
+
+	const UObject* WorldContextObject = nullptr;
+	UFXSystemAsset* SystemTemplate = nullptr;
+	FVector Location = FVector::ZeroVector;
+	FRotator Rotation = FRotator::ZeroRotator;
+	FVector Scale = FVector(1.f);
+
+	USceneComponent* AttachToComponent = nullptr;
+	FName AttachPointName = NAME_None;
+	EAttachLocation::Type LocationType = EAttachLocation::KeepWorldPosition;
+
+	bool bAutoDestroy = true;
+	bool bAutoActivate = true;
+	EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None;
+	bool bPreCullCheck = true;
+	bool bIsPlayerEffect = false;
+};
+
 UCLASS(Abstract)
 class ENGINE_API UFXSystemComponent : public UPrimitiveComponent
 {

@@ -448,6 +448,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bActivateShouldResetWhenReady(false)
 	, bDidAutoAttach(false)
 	, bAllowScalability(true)
+	, bForceLocalPlayerEffect(false)
 	, bIsCulledByScalability(false)
 	, bDuringUpdateContextReset(false)
 	//, bIsChangingAutoAttachment(false)
@@ -2749,7 +2750,7 @@ void UNiagaraComponent::SetUserParametersToDefaultValues()
 
 bool UNiagaraComponent::IsLocalPlayerEffect()const
 {
-	return FNiagaraWorldManager::IsComponentLocalPlayerLinked(this);
+	return GetForceLocalPlayerEffect() || FNiagaraWorldManager::IsComponentLocalPlayerLinked(this);
 }
 
 #if WITH_EDITOR
@@ -3405,6 +3406,18 @@ void UNiagaraComponent::SetAllowScalability(bool bAllow)
 bool UNiagaraComponent::GetAllowScalability()const
 {
 	return bAllowScalability;
+}
+
+
+void UNiagaraComponent::SetForceLocalPlayerEffect(bool bIsPlayerEffect)
+{
+	bForceLocalPlayerEffect = bIsPlayerEffect;
+	ResolveOwnerAllowsScalability();
+}
+
+bool UNiagaraComponent::GetForceLocalPlayerEffect()const
+{
+	return bForceLocalPlayerEffect;
 }
 
 #if WITH_EDITOR

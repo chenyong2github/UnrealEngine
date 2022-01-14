@@ -463,11 +463,16 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float De
 		}
 	}
 
-	//Paranoia code in case the EffectType is GCd from under us.
-	if (EffectType == nullptr)
+	bool bShutdown = EffectType == nullptr || FNiagaraWorldManager::GetScalabilityCullingMode() == ENiagaraScalabilityCullingMode::Disabled;
+	if (bShutdown)
 	{
-		ManagedComponents.Empty();
-		State.Empty();
+		while (ManagedComponents.Num())
+		{
+			ManagedComponents.Last()->UnregisterWithScalabilityManager();
+		}
+
+		check(ManagedComponents.Num() == 0);
+		check(State.Num() == 0);
 		LastUpdateTime = 0.0f;
 		return;
 	}
