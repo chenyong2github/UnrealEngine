@@ -661,6 +661,7 @@ namespace Metasound
 								SAssignNew(InputWidget, SAudioVolumeSlider)
 									.OnValueChanged_Lambda(OnValueChangedLambda)
 									.OnValueCommitted_Lambda(OnValueCommittedLambda);
+								StaticCastSharedPtr<SAudioVolumeSlider>(InputWidget)->SetUseLinearOutput(DefaultFloat->VolumeWidgetUseLinearOutput);
 							}
 							else
 							{
@@ -739,6 +740,7 @@ namespace Metasound
 							{
 								SAssignNew(InputWidget, SAudioVolumeRadialSlider)
 									.OnValueChanged_Lambda(OnValueChangedLambda);
+								StaticCastSharedPtr<SAudioVolumeRadialSlider>(InputWidget)->SetUseLinearOutput(DefaultFloat->VolumeWidgetUseLinearOutput);
 							}
 							else
 							{

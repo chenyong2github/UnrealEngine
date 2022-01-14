@@ -93,6 +93,8 @@ public:
 	virtual void Construct(const SAudioSliderBase::FArguments& InDeclaration);
 	virtual const float GetOutputValue(const float LinValue);
 	virtual const float GetLinValue(const float OutputValue);
+	virtual const float GetOutputValueForText(const float LinValue);
+	virtual const float GetLinValueForText(const float OutputValue);
 	
 	/**
 	 * Set the slider's linear (0-1 normalized) value. 
@@ -106,7 +108,7 @@ public:
 	void SetSliderBarColor(FSlateColor InSliderBarColor);
 	void SetSliderThumbColor(FSlateColor InSliderThumbColor);
 	void SetWidgetBackgroundColor(FSlateColor InWidgetBackgroundColor);
-	void SetOutputRange(const FVector2D Range);
+	virtual void SetOutputRange(const FVector2D Range);
 
 	// Text label functions 
 	void SetLabelBackgroundColor(FSlateColor InColor);
@@ -183,8 +185,24 @@ class AUDIOWIDGETS_API SAudioVolumeSlider
 public:
 	SAudioVolumeSlider();
 	void Construct(const SAudioSlider::FArguments& InDeclaration);
+
 	const float GetOutputValue(const float LinValue);
 	const float GetLinValue(const float OutputValue);
+	const float GetOutputValueForText(const float LinValue) override;
+	const float GetLinValueForText(const float OutputValue) override;
+	void SetUseLinearOutput(bool InUseLinearOutput);
+	void SetOutputRange(const FVector2D Range) override;
+
+private:
+	// Min/max possible values for output range, derived to avoid Audio::ConvertToLinear/dB functions returning NaN
+	static const float MinDbValue;
+	static const float MaxDbValue; 
+	
+	// Use linear (0 - 1) output value. Only applies to the output value reported by GetOutputValue(); the text displayed will still be in decibels. 
+	bool bUseLinearOutput = true;
+
+	const float GetDbValueFromLin(const float LinValue);
+	const float GetLinValueFromDb(const float DbValue);
 };
 
 /*

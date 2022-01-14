@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AudioDefines.h"
 #include "AudioWidgetsSlateTypes.h"
 #include "Curves/CurveFloat.h"
 #include "Framework/SlateDelegates.h"
@@ -107,7 +108,9 @@ public:
 	void SetValue(float LinValue);
 	virtual const float GetOutputValue(const float LinValue);
 	virtual const float GetLinValue(const float OutputValue);
-	void SetOutputRange(const FVector2D Range);
+	virtual const float GetOutputValueForText(const float LinValue);
+	virtual const float GetLinValueForText(const float OutputValue);
+	virtual void SetOutputRange(const FVector2D Range);
 
 	// Text label functions 
 	void SetLabelBackgroundColor(FSlateColor InColor);
@@ -155,6 +158,21 @@ public:
 	void Construct(const SAudioRadialSlider::FArguments& InArgs);
 	const float GetOutputValue(const float LinValue);
 	const float GetLinValue(const float OutputValue);
+	const float GetOutputValueForText(const float LinValue) override;
+	const float GetLinValueForText(const float OutputValue) override;
+	void SetUseLinearOutput(bool InUseLinearOutput);
+	void SetOutputRange(const FVector2D Range) override;
+
+private:
+	// Min/max possible values for output range, derived to avoid Audio::ConvertToLinear/dB functions returning NaN
+	static const float MinDbValue; 
+	static const float MaxDbValue; 
+
+	// Use linear (0 - 1) output value. Only applies to the output value reported by GetOutputValue(); the text displayed will still be in decibels. 
+	bool bUseLinearOutput = true;
+
+	const float GetDbValueFromLin(const float LinValue);
+	const float GetLinValueFromDb(const float DbValue);
 };
 
 /*

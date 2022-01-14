@@ -25,7 +25,7 @@ namespace Metasound
 
 			UI_COMMAND(UpdateNodes, "Update Nodes", "Update selected node(s) that have an available update.", EUserInterfaceActionType::Button, FInputChord());
 
-			UI_COMMAND(ConvertFromPreset, "Convert From Preset", "Convert's this preset to a fully accessible MetaSound.", EUserInterfaceActionType::Button, FInputChord());
+			UI_COMMAND(ConvertFromPreset, "Convert From Preset", "Converts this preset to a fully accessible MetaSound.", EUserInterfaceActionType::Button, FInputChord());
 		}
 	} // namespace Editor
 } // namespace Metasound

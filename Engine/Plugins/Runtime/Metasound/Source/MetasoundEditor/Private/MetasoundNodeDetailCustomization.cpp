@@ -122,11 +122,21 @@ namespace Metasound
 				DefaultValueHandle = Row->GetPropertyHandle();
 			}
 
+			// Apply the clamp range to the default value if 
+			// 1. not using a widget and ClampDefault is true or 
+			// 2. using a widget but not using a volume widget where VolumeWidgetUseLinearOutput is true 
+			const bool bVolumeWidgetWithLinearOutput = DefaultFloat->WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume && DefaultFloat->VolumeWidgetUseLinearOutput;
+			const bool bUsingWidget = DefaultFloat->WidgetType != EMetasoundMemberDefaultWidget::None;
+			const bool bShouldClampDefaultValue = (!bUsingWidget && DefaultFloat->ClampDefault) || (bUsingWidget && !bVolumeWidgetWithLinearOutput);
+
 			Row = DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault));
 			if (ensure(Row))
 			{
-				// If clamping or using slider, clamp default value to given range 
-				if (DefaultFloat->ClampDefault || DefaultFloat->WidgetType != EMetasoundMemberDefaultWidget::None)
+				if (bVolumeWidgetWithLinearOutput)
+				{
+					DefaultFloat->SetRange(FVector2D(0.0f, 1.0f));
+				}
+				if (bShouldClampDefaultValue)
 				{
 					FVector2D Range = DefaultFloat->GetRange();
 					DefaultValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), Range.X));
@@ -150,14 +160,35 @@ namespace Metasound
 						}
 					}
 				});
+
+				if (bShouldClampDefaultValue)
+				{
+					DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, Range));
+				}
 			}
-			DefaultCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, Range));
+
+			bool bIsGraphEditable = false;
+			if (const UMetasoundEditorGraphMember* ParentMember = InLiteral.GetParentMember())
+			{
+				if (const UMetasoundEditorGraph* OwningGraph = ParentMember->GetOwningGraph())
+				{
+					bIsGraphEditable = OwningGraph->IsEditable();
+				}
+			}
 
 			// add input widget properties
-			IDetailCategoryBuilder& WidgetCategoryBuilder = InDetailLayout.EditCategory("EditorOptions");
-			WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType));
-			WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetOrientation));
-			WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetValueType));
+			if (bIsGraphEditable)
+			{
+				IDetailCategoryBuilder& WidgetCategoryBuilder = InDetailLayout.EditCategory("EditorOptions");
+				WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetType));
+				WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetOrientation));
+				WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, WidgetValueType));
+				if (DefaultFloat->WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume)
+				{
+					WidgetCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ DefaultFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, VolumeWidgetUseLinearOutput));
+
+				}
+			}
 		}
 
 		void FMetasoundObjectArrayLiteralCustomization::CustomizeLiteral(UMetasoundEditorGraphMemberDefaultLiteral& InLiteral, IDetailLayoutBuilder& InDetailLayout)

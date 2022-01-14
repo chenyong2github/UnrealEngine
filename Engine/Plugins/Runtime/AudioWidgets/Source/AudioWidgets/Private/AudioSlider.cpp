@@ -253,7 +253,7 @@ TSharedRef<SWidget> UAudioVolumeSlider::RebuildWidget()
 // UAudioFrequencySlider
 UAudioFrequencySlider::UAudioFrequencySlider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, OutputRange(FVector2D(20.0f, 20000.0f))
+	, OutputRange(FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY))
 {
 	Super::SetUnitsText(FText::FromString("Hz"));
 }

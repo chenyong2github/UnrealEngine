@@ -245,7 +245,7 @@ UAudioFrequencyRadialSlider::UAudioFrequencyRadialSlider(const FObjectInitialize
 	: Super(ObjectInitializer)
 {
 	Super::SetUnitsText(FText::FromString("Hz"));
-	OutputRange = FVector2D(20.0f, 20000.0f);
+	OutputRange = FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
 }
 
 TSharedRef<SWidget> UAudioFrequencyRadialSlider::RebuildWidget()

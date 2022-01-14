@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AudioDefines.h"
 #include "AudioWidgetsSlateTypes.h"
 #include "Components/Widget.h"
 #include "Curves/CurveFloat.h"
@@ -222,7 +223,7 @@ class AUDIOWIDGETS_API UAudioFrequencySlider : public UAudioSliderBase
 	
 	/** Frequency output range */
 	UPROPERTY(EditAnywhere, Category = Behavior)
-	FVector2D OutputRange = FVector2D(20.0f, 20000.0f);
+	FVector2D OutputRange = FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY);
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 };

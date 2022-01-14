@@ -150,8 +150,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = DefaultValue, meta=(EditCondition = "WidgetType == EMetasoundMemberDefaultWidget::None", EditConditionHides))
 	bool ClampDefault = false;
 
-	UPROPERTY(EditAnywhere, Category = DefaultValue, meta = (EditCondition = "ClampDefault || WidgetType != EMetasoundMemberDefaultWidget::None", EditConditionHides))
-	FVector2D Range = FVector2D(FMath::Min(0.0f, Default), FMath::Max(0.0f, Default));
+	UPROPERTY(EditAnywhere, Category = DefaultValue)
+	FVector2D Range = FVector2D(0.0f, 1.0f);
 
 	UPROPERTY(EditAnywhere, Category = Widget, meta=(DisplayName = "Widget"))
 	EMetasoundMemberDefaultWidget WidgetType = EMetasoundMemberDefaultWidget::None;
@@ -161,6 +161,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Widget, meta=(DisplayName = "Value Type", EditCondition = "WidgetType != EMetasoundMemberDefaultWidget::None", EditConditionHides))
 	EMetasoundMemberDefaultWidgetValueType WidgetValueType = EMetasoundMemberDefaultWidgetValueType::Linear;
+
+	/** If true, output linear (0 - 1) value. Otherwise, output dB value. The volume widget itself will always display the value in dB. */
+	UPROPERTY(EditAnywhere, Category = Widget, meta = (DisplayName = "Output Linear"))
+	bool VolumeWidgetUseLinearOutput = true;
 
 	static FName GetDefaultPropertyName()
 	{
@@ -175,11 +179,12 @@ public:
 	virtual EMetasoundFrontendLiteralType GetLiteralType() const override;
 	virtual void SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral) override;
 	virtual void UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent) override;
 
 	void SetDefault(const float InDefault);
 	float GetDefault();
 	FVector2D GetRange();
+	void SetRange(const FVector2D InRange);
 };
 
 UCLASS(MinimalAPI)

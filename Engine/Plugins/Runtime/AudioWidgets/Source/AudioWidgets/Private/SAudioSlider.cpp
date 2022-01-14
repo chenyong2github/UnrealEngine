@@ -58,7 +58,7 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 		{
 			ValueAttribute.Set(Value);
 			OnValueChanged.ExecuteIfBound(Value);
-			const float OutputValue = GetOutputValue(Value);
+			const float OutputValue = GetOutputValueForText(Value);
 			Label->SetValueText(OutputValue);
 		})
 		.OnMouseCaptureEnd_Lambda([this]()
@@ -72,7 +72,7 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 		.OnValueTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
 		{
 			const float OutputValue = FCString::Atof(*Text.ToString());
-			const float LinValue = GetLinValue(OutputValue);
+			const float LinValue = GetLinValueForText(OutputValue);
 			ValueAttribute.Set(LinValue);
 			Slider->SetValue(LinValue);
 			OnValueChanged.ExecuteIfBound(LinValue);
@@ -88,8 +88,8 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InArgs)
 void SAudioSliderBase::SetValue(float LinValue)
 {
 	ValueAttribute.Set(LinValue);
-	const float OutputValue = GetOutputValue(LinValue);
-	Label->SetValueText(OutputValue);
+	const float OutputValueForText = GetOutputValueForText(LinValue);
+	Label->SetValueText(OutputValueForText);
 	Slider->SetValue(LinValue);
 }
 
@@ -140,6 +140,16 @@ const float SAudioSliderBase::GetOutputValue(const float LinValue)
 	return FMath::Clamp(LinValue, OutputRange.X, OutputRange.Y);
 }
 
+const float SAudioSliderBase::GetOutputValueForText(const float LinValue)
+{
+	return GetOutputValue(LinValue);
+}
+
+const float SAudioSliderBase::GetLinValueForText(const float OutputValue)
+{
+	return GetLinValue(OutputValue);
+}
+
 const float SAudioSliderBase::GetLinValue(const float OutputValue)
 {
 	return OutputValue;
@@ -173,12 +183,16 @@ void SAudioSliderBase::SetWidgetBackgroundColor(FSlateColor InWidgetBackgroundCo
 
 void SAudioSliderBase::SetOutputRange(const FVector2D Range)
 {
-	if (Range.Y > Range.X)
-	{
-		OutputRange = Range;
-		SetValue(FMath::Clamp(ValueAttribute.Get(), Range.X, Range.Y));
-		Label->UpdateValueTextWidth(Range);
-	}
+	OutputRange = Range;
+	// if Range.Y < Range.X, set Range.X to Range.Y
+	OutputRange.X = FMath::Min(Range.X, Range.Y);
+
+	const float OutputValue = GetOutputValue(ValueAttribute.Get());
+	const float ClampedOutputValue = FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
+	const float LinValue = GetLinValue(ClampedOutputValue);
+	SetValue(LinValue);
+
+	Label->UpdateValueTextWidth(OutputRange);
 }
 
 void SAudioSliderBase::SetLabelBackgroundColor(FSlateColor InColor)
@@ -332,7 +346,7 @@ void SAudioSlider::Construct(const SAudioSliderBase::FArguments& InArgs)
 void SAudioSlider::SetLinToOutputCurve(const TWeakObjectPtr<const UCurveFloat> InLinToOutputCurve)
 {
 	LinToOutputCurve = InLinToOutputCurve;
-	Label->SetValueText(GetOutputValue(ValueAttribute.Get()));
+	Label->SetValueText(GetOutputValueForText(ValueAttribute.Get()));
 }
 
 void SAudioSlider::SetOutputToLinCurve(const TWeakObjectPtr<const UCurveFloat> InOutputToLinCurve)
@@ -371,6 +385,8 @@ const float SAudioSlider::GetLinValue(const float OutputValue)
 }
 
 // SAudioVolumeSlider
+const float SAudioVolumeSlider::MinDbValue = -160.0f;
+const float SAudioVolumeSlider::MaxDbValue = 770.0f;
 SAudioVolumeSlider::SAudioVolumeSlider()
 {
 }
@@ -378,11 +394,11 @@ SAudioVolumeSlider::SAudioVolumeSlider()
 void SAudioVolumeSlider::Construct(const SAudioSlider::FArguments& InArgs)
 {
 	SAudioSliderBase::Construct(InArgs);
-	SetOutputRange(FVector2D(-100.0f, 0.0f));
+	SAudioSliderBase::SetOutputRange(FVector2D(-100.0f, 0.0f));
 	Label->SetUnitsText(FText::FromString("dB"));
 }
 
-const float SAudioVolumeSlider::GetOutputValue(const float LinValue)
+const float SAudioVolumeSlider::GetDbValueFromLin(const float LinValue)
 {
 	// convert from linear 0-1 space to decibel OutputRange that has been converted to linear 
 	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
@@ -392,14 +408,62 @@ const float SAudioVolumeSlider::GetOutputValue(const float LinValue)
 	return FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
 }
 
-const float SAudioVolumeSlider::GetLinValue(const float OutputValue)
+const float SAudioVolumeSlider::GetLinValueFromDb(const float DbValue)
 {
-	float ClampedValue = FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
+	float ClampedValue = FMath::Clamp(DbValue, OutputRange.X, OutputRange.Y);
 	// convert from decibels to linear
 	float LinearSliderValue = Audio::ConvertToLinear(ClampedValue);
 	// convert from decibel OutputRange that has been converted to linear to linear 0-1 space 
 	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
 	return FMath::GetMappedRangeValueClamped(LinearSliderRange, LinearRange, LinearSliderValue);
+}
+
+const float SAudioVolumeSlider::GetOutputValue(const float LinValue)
+{
+	if (bUseLinearOutput)
+	{
+		return FMath::Clamp(LinValue, LinearRange.X, LinearRange.Y);
+	}
+	else
+	{
+		return GetDbValueFromLin(LinValue);
+	}
+}
+
+const float SAudioVolumeSlider::GetLinValue(const float OutputValue)
+{
+	if (bUseLinearOutput)
+	{
+		return FMath::Clamp(OutputValue, LinearRange.X, LinearRange.Y);
+	}
+	else
+	{
+		return GetLinValueFromDb(OutputValue);
+	}
+}
+
+const float SAudioVolumeSlider::GetOutputValueForText(const float LinValue)
+{
+	return GetDbValueFromLin(LinValue);
+}
+
+const float SAudioVolumeSlider::GetLinValueForText(const float OutputValue)
+{
+	return GetLinValueFromDb(OutputValue);
+}
+
+void SAudioVolumeSlider::SetUseLinearOutput(bool InUseLinearOutput)
+{
+	bUseLinearOutput = InUseLinearOutput;
+}
+
+void SAudioVolumeSlider::SetOutputRange(const FVector2D Range)
+{
+	// if using linear output, output range cannot be changed 
+	if (!bUseLinearOutput)
+	{
+		SAudioSliderBase::SetOutputRange(FVector2D(FMath::Max(MinDbValue, Range.X), FMath::Min(MaxDbValue, Range.Y)));
+	}
 }
 
 // SAudioFrequencySlider
@@ -410,7 +474,7 @@ SAudioFrequencySlider::SAudioFrequencySlider()
 void SAudioFrequencySlider::Construct(const SAudioSlider::FArguments& InArgs)
 {
 	SAudioSliderBase::Construct(InArgs);
-	SetOutputRange(FVector2D(20.0f, 20000.0f));
+	SetOutputRange(FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY));
 	Label->SetUnitsText(FText::FromString("Hz"));
 }
 
@@ -421,5 +485,14 @@ const float SAudioFrequencySlider::GetOutputValue(const float LinValue)
 
 const float SAudioFrequencySlider::GetLinValue(const float OutputValue)
 {
+	// edge case to avoid audio function returning negative value
+	if (FMath::IsNearlyEqual(OutputValue, OutputRange.X))
+	{
+		return LinearRange.X;
+	}
+	if (FMath::IsNearlyEqual(OutputValue, OutputRange.Y))
+	{
+		return LinearRange.Y;
+	}
 	return Audio::GetLinearFrequencyClamped(OutputValue, LinearRange, OutputRange);
 }
