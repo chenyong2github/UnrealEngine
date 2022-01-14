@@ -70,8 +70,7 @@ FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
 bool FPCGExecuteBlueprintElement::Execute(FPCGContextPtr Context) const
 {
 	const UPCGBlueprintSettings* Settings = Context->GetInputSettings<UPCGBlueprintSettings>();
-	check(Settings);
-	check(Settings->BlueprintElementInstance);
+	check(Settings && Settings->BlueprintElementInstance);
 
 	if (Settings && Settings->BlueprintElementInstance)
 	{
