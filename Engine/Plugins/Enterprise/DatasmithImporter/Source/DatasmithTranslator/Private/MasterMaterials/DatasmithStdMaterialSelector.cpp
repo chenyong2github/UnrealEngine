@@ -14,18 +14,26 @@ FDatasmithStdMaterialSelector::FDatasmithStdMaterialSelector()
 	// Master
 	MasterMaterialOpaque.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/StdOpaque/M_StdOpaque.M_StdOpaque") );
 	MasterMaterialTranslucent.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/StdTranslucent/M_StdTranslucent.M_StdTranslucent") );
+	MasterMaterialEmissive.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/StdEmissive/M_StdEmissive.M_StdEmissive") );
 }
 
 bool FDatasmithStdMaterialSelector::IsValid() const
 {
-	return MasterMaterialOpaque.IsValid() && MasterMaterialTranslucent.IsValid();
+	return MasterMaterialOpaque.IsValid() && MasterMaterialTranslucent.IsValid() && MasterMaterialEmissive.IsValid();
 }
 
 const FDatasmithMasterMaterial& FDatasmithStdMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const
 {
-	if (InDatasmithMaterial->GetMaterialType() == EDatasmithMasterMaterialType::Transparent)
+	switch (InDatasmithMaterial->GetMaterialType())
 	{
-		return MasterMaterialTranslucent;
+		case EDatasmithMasterMaterialType::Transparent:
+			return MasterMaterialTranslucent;
+			break;
+		case EDatasmithMasterMaterialType::Emissive:
+			return MasterMaterialEmissive;
+			break;
+		default:
+			return MasterMaterialOpaque;
+			break;
 	}
-	return MasterMaterialOpaque;
 }

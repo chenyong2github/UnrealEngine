@@ -22,4 +22,5 @@ public:
 private:
 	FDatasmithMasterMaterial MasterMaterialOpaque;
 	FDatasmithMasterMaterial MasterMaterialTranslucent;
+	FDatasmithMasterMaterial MasterMaterialEmissive;
 };

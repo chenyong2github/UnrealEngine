@@ -230,6 +230,7 @@ enum class EDatasmithMasterMaterialType : uint8
 	Opaque,
 	Transparent,
 	ClearCoat,
+	Emissive,
 	/** Instantiate a master material from a specified one */
 	Custom,
 	/** Material has a transparent cutout map */

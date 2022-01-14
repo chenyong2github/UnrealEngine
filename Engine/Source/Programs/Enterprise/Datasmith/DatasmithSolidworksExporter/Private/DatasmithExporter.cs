@@ -458,6 +458,7 @@ namespace DatasmithSolidworks
 
 				if (InMaterial.Emission > 0.0)
 				{
+					MasterMaterial.SetMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Emissive);
 					MasterMaterial.AddFloat("LuminanceAmount", (float)InMaterial.Emission);
 					MasterMaterial.AddColor("LuminanceFilter", R, G, B, 1.0f);
 				}
