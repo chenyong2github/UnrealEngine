@@ -396,6 +396,11 @@ FDisplayClusterConfigurationOCIOProfile::FDisplayClusterConfigurationOCIOProfile
 	OCIOConfiguration.bIsEnabled = true;
 }
 
+FDisplayClusterConfigurationICVFX_CameraCustomFrustum::FDisplayClusterConfigurationICVFX_CameraCustomFrustum():
+	EstimatedOverscanResolution(ForceInitToZero), InnerFrustumResolution(ForceInitToZero), OverscanPixelsIncrease(0.f)
+{
+}
+
 FDisplayClusterConfigurationICVFX_CameraSettings::FDisplayClusterConfigurationICVFX_CameraSettings()
 {
 	AllNodesColorGrading.bEnableEntireClusterColorGrading = true;

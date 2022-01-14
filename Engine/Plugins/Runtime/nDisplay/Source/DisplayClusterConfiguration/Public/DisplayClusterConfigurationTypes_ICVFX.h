@@ -407,6 +407,8 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraC
 {
 	GENERATED_BODY()
 
+	FDisplayClusterConfigurationICVFX_CameraCustomFrustum();
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = NDisplay)
 	FIntPoint EstimatedOverscanResolution;
 	
