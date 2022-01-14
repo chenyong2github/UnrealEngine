@@ -251,7 +251,7 @@ protected:
 	void UpdateAggregatedValues(FTableTreeNode& GroupNode);
 	
 	template<typename T>
-	static void UpdateAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode, T InitialAggregatedValue, bool bSetInitialValue, TFunctionRef<T(T, TOptional<FTableCellValue>)> ValueGetterFunc)
+	static void UpdateAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode, T InitialAggregatedValue, bool bSetInitialValue, TFunctionRef<T(T, const FTableCellValue&)> ValueGetterFunc)
 	{
 		T AggregatedValue = InitialAggregatedValue;
 
@@ -261,22 +261,23 @@ protected:
 			{
 				continue;
 			}
-			FTableTreeNode& TableNode = *StaticCastSharedPtr<FTableTreeNode>(NodePtr);
-			if (TableNode.IsGroup())
+			
+			if (!NodePtr->IsGroup())
 			{
+				const TOptional<FTableCellValue> NodeValue = Column.GetValue(*NodePtr);
+				if (NodeValue.IsSet())
+				{
+					AggregatedValue = ValueGetterFunc(AggregatedValue, NodeValue.GetValue());
+				}
+			}
+			else
+			{
+				FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
 				TableNode.ResetAggregatedValues(Column.GetId());
 				UpdateAggregationRec(Column, TableNode, InitialAggregatedValue, bSetInitialValue, ValueGetterFunc);
 				if (TableNode.HasAggregatedValue(Column.GetId()))
 				{
 					AggregatedValue = ValueGetterFunc(AggregatedValue, TableNode.GetAggregatedValue(Column.GetId()));
-				}
-			}
-			else
-			{
-				const TOptional<FTableCellValue> OptionalValue = Column.GetValue(TableNode);
-				if (OptionalValue.IsSet())
-				{
-					AggregatedValue = ValueGetterFunc(AggregatedValue, OptionalValue);
 				}
 			}
 		}

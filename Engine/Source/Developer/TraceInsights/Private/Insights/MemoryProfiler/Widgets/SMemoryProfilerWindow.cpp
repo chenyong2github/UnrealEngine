@@ -289,6 +289,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView(const
 
 	TSharedRef<Insights::FMemAllocTable> MemAllocTable = MakeShared<Insights::FMemAllocTable>();
 	MemAllocTable->Reset();
+	MemAllocTable->SetDisplayName(FText::FromString(TEXT("MemAllocs")));
 
 	TSharedPtr<Insights::SMemAllocTableTreeView> MemAllocTableTreeView;
 

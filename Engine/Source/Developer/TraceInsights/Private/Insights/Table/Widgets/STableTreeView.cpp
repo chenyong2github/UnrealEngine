@@ -1001,7 +1001,13 @@ void STableTreeView::ApplyFiltering()
 		}
 	}
 
+	Stopwatch.Update();
+	const double Time1 = Stopwatch.GetAccumulatedTime();
+
 	UpdateAggregatedValues(*Root);
+
+	Stopwatch.Update();
+	const double Time2 = Stopwatch.GetAccumulatedTime();
 
 	// Cannot call TreeView functions from other threads than MainThread and SlateThread.
 	if (!bRunInAsyncMode)
@@ -1045,7 +1051,7 @@ void STableTreeView::ApplyFiltering()
 	const double TotalTime = Stopwatch.GetAccumulatedTime();
 	if (TotalTime > 0.1)
 	{
-		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Filtering completed in %.3fs."), *Table->GetDisplayName().ToString(), TotalTime);
+		UE_LOG(TraceInsights, Log, TEXT("[Tree - %s] Filtering completed in %.3fs (aggregation done in %.3fs)."), *Table->GetDisplayName().ToString(), TotalTime, Time2 - Time1);
 	}
 }
 
@@ -1450,16 +1456,16 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 			case ETableColumnAggregation::Sum:
 				if (Column.GetDataType() == ETableCellDataType::Float || Column.GetDataType() == ETableCellDataType::Double)
 				{
-					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, 0, true, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, 0, true, [](double InValue, const FTableCellValue& InTableCellValue)
 					{
-						return InValue + InTableCellValue->AsDouble();
+						return InValue + InTableCellValue.AsDouble();
 					});
 				}
 				else
 				{
-					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, 0, true, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
+					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, 0, true, [](int64 InValue, const FTableCellValue& InTableCellValue)
 					{
-						return InValue + InTableCellValue->AsInt64();
+						return InValue + InTableCellValue.AsInt64();
 					});
 				}
 				break;
@@ -1467,16 +1473,16 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 			case ETableColumnAggregation::Min:
 				if (Column.GetDataType() == ETableCellDataType::Float || Column.GetDataType() == ETableCellDataType::Double)
 				{
-					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::max(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::max(), false, [](double InValue, const FTableCellValue& InTableCellValue)
 					{
-						return FMath::Min(InValue, InTableCellValue->AsDouble());
+						return FMath::Min(InValue, InTableCellValue.AsDouble());
 					});
 				}
 				else
 				{
-					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, std::numeric_limits<int64>::max(), false, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
+					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, std::numeric_limits<int64>::max(), false, [](int64 InValue, const FTableCellValue& InTableCellValue)
 					{
-						return FMath::Min(InValue, InTableCellValue->AsInt64());
+						return FMath::Min(InValue, InTableCellValue.AsInt64());
 					});
 				}
 				break;
@@ -1484,16 +1490,16 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 			case ETableColumnAggregation::Max:
 				if (Column.GetDataType() == ETableCellDataType::Float || Column.GetDataType() == ETableCellDataType::Double)
 				{
-					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::lowest(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::lowest(), false, [](double InValue, const FTableCellValue& InTableCellValue)
 					{
-						return FMath::Max(InValue, InTableCellValue->AsDouble());
+						return FMath::Max(InValue, InTableCellValue.AsDouble());
 					});
 				}
 				else
 				{
-					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, std::numeric_limits<int64>::min(), false, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
+					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, std::numeric_limits<int64>::min(), false, [](int64 InValue, const FTableCellValue& InTableCellValue)
 					{
-						return FMath::Max(InValue, InTableCellValue->AsInt64());
+						return FMath::Max(InValue, InTableCellValue.AsInt64());
 					});
 				}
 				break;

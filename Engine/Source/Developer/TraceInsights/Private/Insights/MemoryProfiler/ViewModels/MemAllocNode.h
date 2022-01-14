@@ -16,18 +16,6 @@
 namespace Insights
 {
 
-enum class EMemAllocNodeType
-{
-	/** The MemAllocNode is an allocation node. */
-	MemAlloc,
-
-	/** The MemAllocNode is a group node. */
-	Group,
-
-	/** Invalid enum type, may be used as a number of enumerations. */
-	InvalidOrMax,
-};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FMemAllocNode;
@@ -57,30 +45,20 @@ public:
 	/** Initialization constructor for the MemAlloc node. */
 	explicit FMemAllocNode(const FName InName, TWeakPtr<FMemAllocTable> InParentTable, int32 InRowIndex)
 		: FTableTreeNode(InName, InParentTable, InRowIndex)
-		, Type(EMemAllocNodeType::MemAlloc)
+		, MemAllocTable(InParentTable.Pin().Get())
 	{
 	}
 
 	/** Initialization constructor for the group node. */
 	explicit FMemAllocNode(const FName InGroupName, TWeakPtr<FMemAllocTable> InParentTable)
 		: FTableTreeNode(InGroupName, InParentTable)
-		, Type(EMemAllocNodeType::Group)
+		, MemAllocTable(InParentTable.Pin().Get())
 	{
 	}
 
 	virtual const FName& GetTypeName() const override { return TypeName; }
 
-	/**
-	 * @return a type of this MemAlloc node or EMemAllocNodeType::Group for group nodes.
-	 */
-	EMemAllocNodeType GetType() const { return Type; }
-
-	FMemAllocTable& GetMemTableChecked() const
-	{
-		const TSharedPtr<FTable>& TablePin = GetParentTable().Pin();
-		check(TablePin.IsValid());
-		return *StaticCastSharedPtr<FMemAllocTable>(TablePin);
-	}
+	FMemAllocTable& GetMemTableChecked() const { return *MemAllocTable; }
 
 	bool IsValidMemAlloc() const { return GetMemTableChecked().IsValidRowIndex(GetRowIndex()); }
 	const FMemoryAlloc* GetMemAlloc() const { return GetMemTableChecked().GetMemAlloc(GetRowIndex()); }
@@ -88,7 +66,7 @@ public:
 	FText GetFullCallstack() const;
 
 private:
-	const EMemAllocNodeType Type;
+	FMemAllocTable* MemAllocTable;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
