@@ -54,9 +54,12 @@ void UCollectSurfacePathMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 
 			if (!bGeometricCloseOccurred)
 			{
-				// This draws the line to the current hover point as a preview
-				const FLinearColor& DrawPreviewColor = (bCurrentPreviewWillComplete || bGeometricCloseOccurred) ? PathCompleteColor : PreviewColor;
-				PathDrawer.DrawLine(HitPath[NumPoints].Origin, PreviewPathPoint.Origin, DrawPreviewColor);
+				if (bPreviewPathPointValid)
+				{
+					// This draws the line to the current hover point as a preview
+					const FLinearColor& DrawPreviewColor = (bCurrentPreviewWillComplete || bGeometricCloseOccurred) ? PathCompleteColor : PreviewColor;
+					PathDrawer.DrawLine(HitPath[NumPoints].Origin, PreviewPathPoint.Origin, DrawPreviewColor);
+				}
 			}
 			else if (LoopWasClosed())
 			{
@@ -65,7 +68,7 @@ void UCollectSurfacePathMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 			}
 		}
 
-		if (!bGeometricCloseOccurred)
+		if (!bGeometricCloseOccurred && bPreviewPathPointValid)
 		{
 			PathDrawer.DrawPoint(PreviewPathPoint.Origin, PreviewColor, PathDrawer.PointSize, PathDrawer.bDepthTested);
 		}
@@ -121,7 +124,8 @@ bool UCollectSurfacePathMechanic::IsHitByRay(const FRay3d& Ray, FFrame3d& HitPoi
 bool UCollectSurfacePathMechanic::UpdatePreviewPoint(const FRay3d& Ray)
 {
 	FFrame3d PreviewPoint;
-	if ( RayToPathPoint(Ray, PreviewPoint, true ) == false)
+	bPreviewPathPointValid = RayToPathPoint(Ray, PreviewPoint, true);
+	if (!bPreviewPathPointValid)
 	{
 		return false;
 	}

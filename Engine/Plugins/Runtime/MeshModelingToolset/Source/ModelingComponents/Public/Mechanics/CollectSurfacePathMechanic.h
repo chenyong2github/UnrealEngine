@@ -44,7 +44,7 @@ public:
 	TArray<FFrame3d> HitPath;
 
 	FFrame3d PreviewPathPoint;
-
+	bool bPreviewPathPointValid = false;
 
 	FToolDataVisualizer PathDrawer;
 	FLinearColor PathColor;
