@@ -3821,6 +3821,12 @@ export type FindIssueResponse = {
 	spans: FindIssueSpanResponse[];
 }
 
+export type GetAgentSoftwareChannelResponse = {
+	name?: string;
+	modifiedBy?: string;
+	modifiedTime: string;
+	version?: string;
+}
 
 /// Jira issue information
 export type GetJiraIssueResponse = {
