@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HitProxies.h"
 #include "Stats/Stats.h"
 #include "Containers/ResourceArray.h"
 #include "RenderResource.h"
@@ -289,6 +290,9 @@ public:
 	virtual ~FGeometryCacheSceneProxy();
 
 	// Begin FPrimitiveSceneProxy interface.
+#if WITH_EDITOR
+	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
+#endif
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
@@ -331,6 +335,10 @@ private:
 private:
 	/** Array of Track Proxies */
 	TArray<FGeomCacheTrackProxy*> Tracks;
+
+#if WITH_EDITOR
+	TArray<FHitProxyId> HitProxyIds;
+#endif
 
 	/** Scratch memory for frame update - do not use directly. */
 	struct FScratchMemory

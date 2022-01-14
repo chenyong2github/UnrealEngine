@@ -2,19 +2,21 @@
 
 #include "GeometryCacheSceneProxy.h"
 #include "Async/ParallelFor.h"
-#include "MaterialShared.h"
-#include "SceneManagement.h"
-#include "EngineGlobals.h"
-#include "Materials/Material.h"
+#include "Components/BrushComponent.h"
 #include "Engine/Engine.h"
+#include "EngineGlobals.h"
+#include "EngineUtils.h"
 #include "GeometryCacheComponent.h"
 #include "GeometryCacheMeshData.h"
 #include "GeometryCache.h"
 #include "GeometryCacheTrackStreamable.h"
 #include "GeometryCacheModule.h"
 #include "GeometryCacheHelpers.h"
+#include "Materials/Material.h"
+#include "MaterialShared.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
+#include "SceneManagement.h"
 
 DECLARE_CYCLE_STAT(TEXT("Gather Mesh Elements"), STAT_GeometryCacheSceneProxy_GetMeshElements, STATGROUP_GeometryCache);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Triangle Count"), STAT_GeometryCacheSceneProxy_TriangleCount, STATGROUP_GeometryCache);
@@ -404,6 +406,51 @@ void FGeometryCacheSceneProxy::CreateMeshBatch(
 	Mesh.bCanApplyViewModeOverrides = false;
 }
 
+#if WITH_EDITOR
+HHitProxy* FGeometryCacheSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies)
+{
+	// Add a default hit proxy to handle cases where the number of batches changes during the animation,
+	// including when the initial frame has no mesh data
+	HHitProxy* DefaultHitProxy = FPrimitiveSceneProxy::CreateHitProxies(Component, OutHitProxies);
+
+	if (Component->GetOwner() && Tracks.Num() > 0)
+	{
+		int32 SectionIndex = 0;
+		for (const FGeomCacheTrackProxy* Track : Tracks)
+		{
+			if (Track->MeshData)
+			{
+				for (const FGeometryCacheMeshBatchInfo& BatchInfo : Track->MeshData->BatchesInfo)
+				{
+					HHitProxy* ActorHitProxy;
+
+					int32 MaterialIndex = BatchInfo.MaterialIndex;
+					if (Component->GetOwner()->IsA(ABrush::StaticClass()) && Component->IsA(UBrushComponent::StaticClass()))
+					{
+						ActorHitProxy = new HActor(Component->GetOwner(), Component, HPP_Wireframe, SectionIndex, MaterialIndex);
+					}
+					else
+					{
+						ActorHitProxy = new HActor(Component->GetOwner(), Component, Component->HitProxyPriority, SectionIndex, MaterialIndex);
+					}
+
+					OutHitProxies.Add(ActorHitProxy);
+					++SectionIndex;
+				}
+			}
+		}
+	}
+
+	HitProxyIds.SetNumUninitialized(OutHitProxies.Num());
+	for (int32 Index = 0; Index < HitProxyIds.Num(); ++Index)
+	{
+		HitProxyIds[Index] = OutHitProxies[Index]->Id;
+	}
+
+	return DefaultHitProxy;
+}
+#endif
+
 void FGeometryCacheSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_GeometryCacheSceneProxy_GetMeshElements);
@@ -479,6 +526,14 @@ void FGeometryCacheSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 						FGeometryCacheVertexFactoryUserDataWrapper& UserDataWrapper = Collector.AllocateOneFrameResource<FGeometryCacheVertexFactoryUserDataWrapper>();
 						FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
 						CreateMeshBatch(TrackProxy, BatchInfo, UserDataWrapper, DynamicPrimitiveUniformBuffer, MeshBatch);
+
+#if WITH_EDITOR
+						// It's possible the number of batches has changed since the initial frame so validate the BatchIndex
+						if (HitProxyIds.IsValidIndex(BatchIndex))
+						{
+							MeshBatch.BatchHitProxyId = HitProxyIds[BatchIndex];
+						}
+#endif
 
 						// Apply view mode material overrides
 						FMaterialRenderProxy* MaterialProxy = bWireframe ? WireframeMaterialInstance : TrackProxy->Materials[BatchIndex]->GetRenderProxy();
