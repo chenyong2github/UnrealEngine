@@ -425,6 +425,10 @@ void UCombineMeshesTool::UpdateExistingAsset()
 		NewMaterialSet.Materials = AllMaterials;
 		UE::ToolTarget::CommitDynamicMeshUpdate(Targets[SkipIndex], AccumulateDMesh, true, FConversionToMeshDescriptionOptions(), &NewMaterialSet);
 
+		// CommitDynamicMeshUpdate updates the materials for the underlying asset. However,
+		// it does not update the component itself, so address that now.
+		UE::ToolTarget::CommitMaterialSetUpdate(Targets[SkipIndex], NewMaterialSet, false);
+
 		if (bOutputComponentSupportsCollision)
 		{
 			UE::Geometry::SetSimpleCollision(UpdateComponent, &SimpleCollision, CollisionSettings);
