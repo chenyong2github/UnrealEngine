@@ -117,7 +117,7 @@ void FMemAllocGroupingBySize::GroupNodes(const TArray<FTableTreeNodePtr>& Nodes,
 			if (!GroupPtr)
 			{
 				const FThreshold& Threshold = Thresholds[ThresholdIndex];
-				GroupPtr = MakeShared<FTableTreeNode>(FName(*Threshold.Name.ToString()), InParentTable);
+				GroupPtr = MakeShared<FTableTreeNode>(FName(Threshold.Name.ToString(), 0), InParentTable);
 				GroupPtr->SetExpansion(false);
 				ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
 				GroupMap[ThresholdIndex] = GroupPtr;

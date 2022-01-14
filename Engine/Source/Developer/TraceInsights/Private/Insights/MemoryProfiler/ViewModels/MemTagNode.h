@@ -66,7 +66,7 @@ public:
 public:
 	/** Initialization constructor for the MemTag node. */
 	explicit FMemTagNode(Insights::FMemoryTag* InMemTag)
-		: FBaseTreeNode(FName(*InMemTag->GetStatFullName()), false)
+		: FBaseTreeNode(FName(InMemTag->GetStatFullName(), 0), false)
 		, Type(EMemTagNodeType::MemTag)
 		, MemTag(InMemTag)
 	{

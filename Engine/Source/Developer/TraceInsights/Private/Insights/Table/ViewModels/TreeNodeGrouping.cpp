@@ -126,7 +126,13 @@ FTreeNodeGroupingByUniqueValue::FTreeNodeGroupingByUniqueValue(TSharedRef<FTable
 FTreeNodeGroupInfo FTreeNodeGroupingByUniqueValue::GetGroupForNode(const FBaseTreeNodePtr InNode) const
 {
 	FTableTreeNodePtr TableTreeNodePtr = StaticCastSharedPtr<FTableTreeNode>(InNode);
-	return { FName(*ColumnRef->GetValueAsText(*TableTreeNodePtr).ToString()), false };
+	FText ValueAsText = ColumnRef->GetValueAsText(*TableTreeNodePtr);
+	FStringView GroupName(ValueAsText.ToString());
+	if (GroupName.Len() >= NAME_SIZE)
+	{
+		GroupName = FStringView(GroupName.GetData(), NAME_SIZE - 1);
+	}
+	return { FName(GroupName, 0), false };
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

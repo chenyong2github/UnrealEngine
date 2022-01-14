@@ -161,15 +161,20 @@ FName FMemAllocGroupingByCallstack::GetGroupName(const TraceServices::FStackFram
 	const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
 	if (Result == TraceServices::ESymbolQueryResult::OK)
 	{
-		return FName(Frame->Symbol->Name);
+		FStringView GroupName(Frame->Symbol->Name);
+		if (GroupName.Len() >= NAME_SIZE)
+		{
+			GroupName = FStringView(Frame->Symbol->Name, NAME_SIZE - 1);
+		}
+		return FName(GroupName, 0);
 	}
 	else if (Result == TraceServices::ESymbolQueryResult::Pending)
 	{
-		return FName(*FString::Printf(TEXT("0x%X [...]"), Frame->Addr));
+		return FName(FString::Printf(TEXT("0x%X [...]"), Frame->Addr), 0);
 	}
 	else
 	{
-		return FName(*FString::Printf(TEXT("0x%X"), Frame->Addr));
+		return FName(FString::Printf(TEXT("0x%X"), Frame->Addr), 0);
 	}
 }
 
