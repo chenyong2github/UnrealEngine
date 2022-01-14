@@ -691,6 +691,7 @@ public:
 	static bool CanSaveUnpartitionedWorld();
 
 	/** Save the current level as... */
+	static bool CanSaveCurrentAs();
 	static void SaveCurrentAs();
 
 	/** Saves the current map */

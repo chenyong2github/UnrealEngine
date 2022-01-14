@@ -427,20 +427,21 @@ void FLevelEditorActionCallbacks::Save()
 	FEditorFileUtils::SaveCurrentLevel();
 }
 
+bool FLevelEditorActionCallbacks::CanSaveCurrentAs()
+{
+	return CanSaveWorld() && GLevelEditorModeTools().IsOperationSupportedForCurrentAsset(EAssetOperation::Duplicate);
+}
+
 void FLevelEditorActionCallbacks::SaveCurrentAs()
 {
+	check(CanSaveCurrentAs());
 	UWorld* World = GetWorld();
 	ULevel* CurrentLevel = World->GetCurrentLevel();
 
 	UClass* CurrentStreamingLevelClass = ULevelStreamingDynamic::StaticClass();
-
-	for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
+	if (ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(CurrentLevel))
 	{
-		if (StreamingLevel->GetLoadedLevel() == CurrentLevel)
-		{
-			CurrentStreamingLevelClass = StreamingLevel->GetClass();
-			break;
-		}
+		CurrentStreamingLevelClass = StreamingLevel->GetClass();
 	}
 
 	
@@ -453,11 +454,8 @@ void FLevelEditorActionCallbacks::SaveCurrentAs()
 		{
 			FEditorFileUtils::LoadMap(SavedFilename);
 		}
-		else
+		else if(EditorLevelUtils::RemoveLevelFromWorld(CurrentLevel))
 		{
-			// Remove the level we just saved over
-			EditorLevelUtils::RemoveLevelFromWorld(CurrentLevel);
-
 			// Add the new level we just saved as to the plevel
 			FString PackageName;
 			if (FPackageName::TryConvertFilenameToLongPackageName(SavedFilename, PackageName))

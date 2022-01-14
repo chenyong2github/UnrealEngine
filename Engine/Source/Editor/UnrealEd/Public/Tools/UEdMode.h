@@ -36,6 +36,19 @@ namespace EEditAction
 	};
 };
 
+/** Generic Asset operations that can be disallowed by edit modes */
+enum class EAssetOperation
+{
+	/** Can Asset be deleted */
+	Delete,
+	/** Can Asset be duplicated / saved as */
+	Duplicate,
+	/** Can Asset be saved */
+	Save,
+	/** Can Asset be renamed */
+	Rename
+};
+
 /** 
  * EToolsContextScope is used to determine the visibility/lifetime of Tools for a ToolsContext.
  * For example Tools at the EdMode scope level will only be available when that Mode is active,
@@ -136,6 +149,12 @@ public:
 	 * @return true if AutoSave can be applied right now
 	 */
 	virtual bool CanAutoSave() const { return true; }
+
+	/**
+	 * Check to see if this UEdMode wants to disallow operation on current asset
+	 * @return true if operation is supported right now
+	 */
+	virtual bool IsOperationSupportedForCurrentAsset(EAssetOperation InOperation) const { return true; }
 
 	virtual void SelectNone();
 	virtual void SelectionChanged() {}

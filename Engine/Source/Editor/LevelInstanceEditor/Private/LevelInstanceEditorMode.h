@@ -28,7 +28,8 @@ public:
 
 	/** Check to see if an actor can be selected in this mode - no side effects */
 	virtual bool IsSelectionDisallowed(AActor* InActor, bool bInSelection) const override;
-	
+	/** Only accept saving on current asset */
+	virtual bool IsOperationSupportedForCurrentAsset(EAssetOperation InOperation) const { return InOperation == EAssetOperation::Save; }
 	// End UEdMode
 
 private:

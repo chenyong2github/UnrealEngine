@@ -519,6 +519,9 @@ public:
 
 	/** returns true if all active EdModes are OK with an AutoSave happening now  */
 	bool CanAutoSave() const;
+	
+	/** returns true if all active EdModes are OK support operation on current asset */
+	bool IsOperationSupportedForCurrentAsset(EAssetOperation InOperation) const;
 
 	void RemoveAllDelegateHandlers();
 
@@ -540,7 +543,8 @@ protected:
 	virtual void DrawBrackets(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas);
 
 	void ForEachEdMode(TFunctionRef<bool(UEdMode*)> InCalllback) const;
-
+	bool TestAllModes(TFunctionRef<bool(UEdMode*)> InCalllback, bool bExpected) const;
+	
 	template <class InterfaceToCastTo>
 	void ForEachEdMode(TFunctionRef<bool(InterfaceToCastTo*)> InCallback) const
 	{

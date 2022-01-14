@@ -613,6 +613,22 @@ void FEditorModeTools::ForEachEdMode(TFunctionRef<bool(UEdMode*)> InCalllback) c
 	}
 }
 
+bool FEditorModeTools::TestAllModes(TFunctionRef<bool(UEdMode*)> InCalllback, bool bExpected) const
+{
+	for (UEdMode* Mode : ActiveScriptableModes)
+	{
+		if (Mode)
+		{
+			if (InCalllback(Mode) != bExpected)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 void FEditorModeTools::ExitAllModesPendingDeactivate()
 {
 	// Make a copy so we can modify the pending deactivate modes map
@@ -1823,38 +1839,18 @@ bool FEditorModeTools::CanCycleWidgetMode() const
 
 bool FEditorModeTools::CanAutoSave() const
 {
-	bool bCanAutoSave = true;
-	ForEachEdMode([&bCanAutoSave](const UEdMode* Mode)
-		{
-			if (!Mode->CanAutoSave())
-			{
-				bCanAutoSave = false;
-				return false;
-			}
-
-			return true;
-		});
-
-	return bCanAutoSave;
+	return FEditorModeTools::TestAllModes([](UEdMode* Mode) { return Mode->CanAutoSave(); }, true);
 }
 
 
 bool FEditorModeTools::OnRequestClose()
 {
-	bool bCanClose = true;
+	return FEditorModeTools::TestAllModes([](UEdMode* Mode) { return Mode->OnRequestClose(); }, true);
+}
 
-	ForEachEdMode([&bCanClose](UEdMode* Mode)
-	{
-		if (!Mode->OnRequestClose())
-		{
-			bCanClose = false;
-		}
-
-		return true;
-	});
-
-	return bCanClose;
-
+bool FEditorModeTools::IsOperationSupportedForCurrentAsset(EAssetOperation InOperation) const
+{
+	return FEditorModeTools::TestAllModes([InOperation](UEdMode* Mode) { return Mode->IsOperationSupportedForCurrentAsset(InOperation); }, true);
 }
 
 UModeManagerInteractiveToolsContext* FEditorModeTools::GetInteractiveToolsContext() const
