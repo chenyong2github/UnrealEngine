@@ -39,9 +39,9 @@ namespace ErrorCode
 // These three functions are responsible for reading the parts of the uint64 error representation
 // The uint64 error is formatted as follows (big endian):
 // ssss cccc cccc cccc cccc cccc cccc cccc cccc vvvv vvvv vvvv vvvv vvvv vvvv vvvv vvvv 
-uint64 ErrorCodeSystem(ErrorCodeType ErrorCode);
-uint64 ErrorCodeCategory(ErrorCodeType ErrorCode);
-uint64 ErrorCodeValue(ErrorCodeType ErrorCode); 
+ONLINESERVICESINTERFACE_API uint64 ErrorCodeSystem(ErrorCodeType ErrorCode);
+ONLINESERVICESINTERFACE_API uint64 ErrorCodeCategory(ErrorCodeType ErrorCode);
+ONLINESERVICESINTERFACE_API uint64 ErrorCodeValue(ErrorCodeType ErrorCode); 
 
 // needs to be inside Online::V2::Errors namespace
 // define an error category

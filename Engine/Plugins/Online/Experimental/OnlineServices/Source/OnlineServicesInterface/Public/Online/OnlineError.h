@@ -149,7 +149,11 @@ private:
 
 // the comparison with ErrorCodeType is the one I would expect to see in almost every case
 ONLINESERVICESINTERFACE_API bool operator==(const FOnlineError& Lhs, const FOnlineError& Rhs);
-ONLINESERVICESINTERFACE_API bool operator==(const FOnlineError& Lhs, ErrorCodeType OtherErrorCode);
+inline bool operator!=(const FOnlineError& Lhs, const FOnlineError& Rhs) { return !(Lhs == Rhs); }
+ONLINESERVICESINTERFACE_API bool operator==(const FOnlineError& OnlineError, ErrorCodeType OtherErrorCode);
+inline bool operator==(ErrorCodeType OtherErrorCode, const FOnlineError& OnlineError) { return OnlineError == OtherErrorCode; }
+inline bool operator!=(const FOnlineError& OnlineError, ErrorCodeType OtherErrorCode) { return !(OnlineError == OtherErrorCode); }
+inline bool operator!=(ErrorCodeType OtherErrorCode, const FOnlineError& OnlineError) { return !(OnlineError == OtherErrorCode); }
 
 inline FString ToLogString(const FOnlineError& Error)
 {
