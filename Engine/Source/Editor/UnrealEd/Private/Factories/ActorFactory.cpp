@@ -215,6 +215,7 @@ UActorFactory::UActorFactory(const FObjectInitializer& ObjectInitializer)
 {
 	DisplayName = LOCTEXT("DefaultName","Actor");
 	bShowInEditorQuickMenu = false;
+	bUsePlacementExtent = true;
 }
 
 bool UActorFactory::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )

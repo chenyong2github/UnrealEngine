@@ -49,6 +49,9 @@ class UNREALED_API UActorFactory : public UObject, public IAssetFactoryInterface
 	UPROPERTY()
 	uint32 bUseSurfaceOrientation:1;
 
+	UPROPERTY()
+	uint32 bUsePlacementExtent:1;
+
 	/** Translation applied to the spawn position. */
 	UPROPERTY()
 	FVector SpawnPositionOffset;

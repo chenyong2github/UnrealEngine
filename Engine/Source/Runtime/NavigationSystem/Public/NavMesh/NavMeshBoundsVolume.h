@@ -31,6 +31,8 @@ class NAVIGATIONSYSTEM_API ANavMeshBoundsVolume : public AVolume
 	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
 	//~ End UObject Interface
+
+	static void OnPostEngineInit();
 #endif // WITH_EDITOR
 };
 

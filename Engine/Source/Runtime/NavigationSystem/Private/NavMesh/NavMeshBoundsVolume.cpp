@@ -4,6 +4,9 @@
 #include "NavigationSystem.h"
 #include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
+#if WITH_EDITOR
+#include "ActorFactories/ActorFactory.h"
+#endif // WITH_EDITOR
 
 ANavMeshBoundsVolume::ANavMeshBoundsVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -47,6 +50,23 @@ void ANavMeshBoundsVolume::PostEditUndo()
 	if (GIsEditor && NavSys)
 	{
 		NavSys->OnNavigationBoundsUpdated(this);
+	}
+}
+
+void ANavMeshBoundsVolume::OnPostEngineInit()
+{
+	if (GEditor)
+	{
+		const TArray<UActorFactory*>& ActorFactories = GEditor->ActorFactories;
+		for (UActorFactory* Factory : ActorFactories)
+		{
+			// For ANavMeshBoundsVolume, do not use placement extent so that the volume embeds into the surface.
+			// When flush with the surface, the collision might not be in the volume and the navmesh might not generate.
+			if (Factory->NewActorClass->IsChildOf(ANavMeshBoundsVolume::StaticClass()))
+			{
+				Factory->bUsePlacementExtent = false;
+			}
+		}
 	}
 }
 
