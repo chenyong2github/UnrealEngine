@@ -506,6 +506,7 @@ public:
 
 	void SetConstantByStaticVariable(int32& OutValue, const UEdGraphPin* InDefaultPin);
 	void SetConstantByStaticVariable(int32& OutValue, const FNiagaraVariable& Var);
+	int32 FindStaticVariable(const FNiagaraVariable& Var) const;
 
 
 	TArray<FNiagaraVariable> StaticVariables;
