@@ -192,7 +192,6 @@ namespace HordeServer.Services
 		/// <inheritdoc/>
 		public async Task StartAsync(CancellationToken CancellationToken)
 		{
-			await UpdateQueueAsync(Clock.UtcNow);
 			await Ticker.StartAsync();
 		}
 
