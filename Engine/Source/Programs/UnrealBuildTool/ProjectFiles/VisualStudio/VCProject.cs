@@ -343,6 +343,12 @@ namespace UnrealBuildTool
 				// UnrealBuildTool calls it (e.g. "Win64" -> "x64".) GetVisualStudioPlatformName() will figure this out.
 				ProjectConfigurationName = Configuration.ToString();
 				ProjectPlatformName = PlatformProjectGenerator!.GetVisualStudioPlatformName(Platform, Configuration, BaseDir);
+
+				// The project generator may require a distinct configuration name - typically when two UnrealTargetPlatforms need the same ProjectPlatformName - otherwise the properties overwrite each oter.
+				if (PlatformProjectGenerator!.RequiresDistinctVisualStudioConfigurationName(Platform, Configuration, BaseDir))
+				{
+					ProjectConfigurationName = Platform.ToString() + "_" + Configuration.ToString();
+				}
 			}
 			else
 			{

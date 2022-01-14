@@ -86,6 +86,18 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Return whether we need a distinct platform name - for cases where there are two targets of the same VS solution platform
+		/// </summary>
+		/// <param name="InPlatform">  The UnrealTargetPlatform being built</param>
+		/// <param name="InConfiguration"> The UnrealTargetConfiguration being built</param>
+		/// <param name="InProjectDir">  The root directory for the current project</param>
+		/// <returns>bool</returns>
+		public virtual bool RequiresDistinctVisualStudioConfigurationName(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, DirectoryReference InProjectDir)
+		{
+			return false;
+		}
+
+		/// <summary>
 		/// Return project configuration settings that must be included before the default props file
 		/// </summary>
 		/// <param name="Platform">The UnrealTargetPlatform being built</param>
