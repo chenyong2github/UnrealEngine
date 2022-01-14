@@ -597,15 +597,18 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 	Generator->SetSourceMesh(this->SourceMesh);
 
 
-	// read back default settings
+	// read parameter settings from the graph
 
 	CurrentSettings_Preprocess.FilterGroupLayer = Generator->GetCurrentPreFilterSettings().FilterGroupLayerName;
+	CurrentSettings_Preprocess.ThickenAmount = Generator->GetCurrentThickenSettings().ThickenAmount;
+	CurrentSettings_Preprocess.ThickenWeightMapName = "";
+	CurrentSettings.MeshGenerator = static_cast<EGenerateStaticMeshLODProcess_MeshGeneratorModes>(Generator->GetCurrentCoreMeshGeneratorMode());
 
 	CurrentSettings.SolidifyVoxelResolution = Generator->GetCurrentSolidifySettings().VoxelResolution;
 	CurrentSettings.WindingThreshold = Generator->GetCurrentSolidifySettings().WindingThreshold;
-
-	//CurrentSettings.MorphologyVoxelResolution = Generator->GetCurrentMorphologySettings().VoxelResolution;
 	CurrentSettings.ClosureDistance = Generator->GetCurrentMorphologySettings().Distance;
+	CurrentSettings.bPrefilterVertices = Generator->GetCurrentGenerateConvexHullMeshSettings().bPrefilterVertices;
+	CurrentSettings.PrefilterGridResolution = Generator->GetCurrentGenerateConvexHullMeshSettings().PrefilterGridResolution;
 
 	CurrentSettings_Simplify.Method = static_cast<EGenerateStaticMeshLODProcess_SimplifyMethod>(Generator->GetCurrentSimplifySettings().TargetType);
 	CurrentSettings_Simplify.TargetCount = Generator->GetCurrentSimplifySettings().TargetCount;

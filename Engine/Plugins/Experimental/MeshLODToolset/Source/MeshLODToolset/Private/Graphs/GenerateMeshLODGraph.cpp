@@ -493,6 +493,10 @@ void FGenerateMeshLODGraph::BuildGraph(const FDynamicMesh3* SourceMeshHint)
 	PreFilterSettings.FilterGroupLayerName = FName(TEXT("PreFilterGroups"));
 	UpdatePreFilterSettings(PreFilterSettings);
 
+	UE::GeometryFlow::FMeshThickenSettings MeshThickenSettings;
+	MeshThickenSettings.ThickenAmount = 10.0f;
+	UpdateThickenSettings(MeshThickenSettings);
+
 	FMeshSolidifySettings SolidifySettings;
 	SolidifySettings.VoxelResolution = 128;
 	UpdateSolidifySettings(SolidifySettings);
