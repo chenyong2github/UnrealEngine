@@ -258,7 +258,7 @@ FString UDMXProtocolSettings::GetUniqueInputPortName() const
 	const FString AutoNamePrefix = "InputPort";
 	int32 HighestPortNumber = 0;
 
-	for (const FDMXInputPortConfig InputPortConfig : InputPortConfigs)
+	for (const FDMXInputPortConfig& InputPortConfig : InputPortConfigs)
 	{
 		const FString& PortName = InputPortConfig.GetPortName();
 		if (PortName.StartsWith(AutoNamePrefix))
