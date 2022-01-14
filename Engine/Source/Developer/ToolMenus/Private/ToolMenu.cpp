@@ -514,7 +514,7 @@ void UToolMenu::OnMenuDestroyed()
 		Context.CleanupObjects();
 	}
 
-	Empty();
+	//Empty();
 }
 
 TArray<const UToolMenu*> UToolMenu::GetSubMenuChain() const
