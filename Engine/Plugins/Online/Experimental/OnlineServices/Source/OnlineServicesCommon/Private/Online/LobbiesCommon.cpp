@@ -5,8 +5,6 @@
 #include "Online/Auth.h"
 #include "Online/OnlineServicesCommon.h"
 
-DEFINE_LOG_CATEGORY(LogLobbies);
-
 namespace UE::Online {
 
 template <typename DataType, typename OpType>
@@ -884,12 +882,12 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFun
 
 TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLoginUser>> FLobbiesCommon::FunctionalTestLoginUser(FFunctionalTestLoginUser::Params&& Params)
 {
-	UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::FunctionalTestLoginUser] Logging in user. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
+	UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::FunctionalTestLoginUser] Logging in user. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
 
 	IAuth* AuthInterface = Services.Get<IAuth>();
 	if (!AuthInterface)
 	{
-		UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesCommon::FunctionalTestLoginUser] Login failed. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesCommon::FunctionalTestLoginUser] Login failed. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
 		return MakeFulfilledPromise<TOnlineResult<FFunctionalTestLoginUser>>(Errors::MissingInterface()).GetFuture();
 	}
 
@@ -907,12 +905,12 @@ TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLoginUser>> FLobbiesCommon:
 	{
 		if (LoginResult.IsError())
 		{
-			UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesCommon::FunctionalTestLoginUser] Login failed. PlatformUserId: %d, Result: %s"), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId), *LoginResult.GetErrorValue().GetLogString());
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbiesCommon::FunctionalTestLoginUser] Login failed. PlatformUserId: %d, Result: %s"), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId), *LoginResult.GetErrorValue().GetLogString());
 			Promise->EmplaceValue(Errors::RequestFailure());
 		}
 		else
 		{
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::FunctionalTestLoginUser] Login Succeeded. PlatformUserId: %d, User: %s"), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId), *ToLogString(LoginResult.GetOkValue().AccountInfo->UserId));
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::FunctionalTestLoginUser] Login Succeeded. PlatformUserId: %d, User: %s"), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId), *ToLogString(LoginResult.GetOkValue().AccountInfo->UserId));
 			Promise->EmplaceValue(FFunctionalTestLoginUser::Result{LoginResult.GetOkValue().AccountInfo});
 		}
 	});
@@ -922,12 +920,12 @@ TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLoginUser>> FLobbiesCommon:
 
 TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLogoutUser>> FLobbiesCommon::FunctionalTestLogoutUser(FFunctionalTestLogoutUser::Params&& Params)
 {
-	UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logging out user. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
+	UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logging out user. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
 
 	IAuth* AuthInterface = Services.Get<IAuth>();
 	if (!AuthInterface)
 	{
-		UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout failed. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout failed. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
 		return MakeFulfilledPromise<TOnlineResult<FFunctionalTestLogoutUser>>(Errors::MissingInterface()).GetFuture();
 	}
 
@@ -939,12 +937,12 @@ TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLogoutUser>> FLobbiesCommon
 		// Ignore errors for now. This function should ignore logged out users.
 		if (Result.GetErrorValue() == Errors::Unknown())
 		{
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout Succeeded - already logged out. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout Succeeded - already logged out. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId));
 			return MakeFulfilledPromise<TOnlineResult<FFunctionalTestLogoutUser>>(FFunctionalTestLogoutUser::Result{}).GetFuture();
 		}
 		else
 		{
-			UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout failed. PlatformUserId: %d, Result: %s"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId), *Result.GetErrorValue().GetLogString());
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout failed. PlatformUserId: %d, Result: %s"), FPlatformMisc::GetUserIndexForPlatformUser(Params.PlatformUserId), *Result.GetErrorValue().GetLogString());
 			return MakeFulfilledPromise<TOnlineResult<FFunctionalTestLogoutUser>>(Errors::Unknown(MoveTemp(Result.GetErrorValue()))).GetFuture();
 		}
 	}
@@ -966,12 +964,12 @@ TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLogoutUser>> FLobbiesCommon
 	{
 		if (LogoutResult.IsError())
 		{
-			UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout failed. PlatformUserId: %d, Result: %s"), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId), *LogoutResult.GetErrorValue().GetLogString());
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout failed. PlatformUserId: %d, Result: %s"), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId), *LogoutResult.GetErrorValue().GetLogString());
 			Promise->EmplaceValue(Errors::RequestFailure());
 		}
 		else
 		{
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout Succeeded. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId));
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout Succeeded. PlatformUserId: %d"), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId));
 			Promise->EmplaceValue(FFunctionalTestLogoutUser::Result{});
 		}
 	});
@@ -981,7 +979,7 @@ TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLogoutUser>> FLobbiesCommon
 
 TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLogoutAllUsers>> FLobbiesCommon::FunctionalTestLogoutAllUsers(FFunctionalTestLogoutAllUsers::Params&& Params)
 {
-	UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::FFunctionalTestLogoutAllUsers] Logging out all users."));
+	UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::FFunctionalTestLogoutAllUsers] Logging out all users."));
 
 	TArray<TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLogoutUser>>> LogoutFutures;
 	for (int32 index = 0; index < MAX_LOCAL_PLAYERS; ++index)
@@ -1003,12 +1001,12 @@ TFuture<TOnlineResult<FLobbiesCommon::FFunctionalTestLogoutAllUsers>> FLobbiesCo
 
 		if (HasAnyError)
 		{
-			UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout all users Failed."));
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbiesCommon::FunctionalTestLogoutUser] Logout all users Failed."));
 			Promise->EmplaceValue(Errors::RequestFailure());
 		}
 		else
 		{
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::FFunctionalTestLogoutAllUsers] Logout all users Succeeded."));
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::FFunctionalTestLogoutAllUsers] Logout all users Succeeded."));
 			Promise->EmplaceValue(FFunctionalTestLogoutAllUsers::Result{});
 		}
 	});

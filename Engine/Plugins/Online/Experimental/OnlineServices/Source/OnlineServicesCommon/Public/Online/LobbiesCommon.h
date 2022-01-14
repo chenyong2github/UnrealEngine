@@ -7,8 +7,6 @@
 
 #define LOBBIES_FUNCTIONAL_TEST_ENABLED !UE_BUILD_SHIPPING
 
-DECLARE_LOG_CATEGORY_EXTERN(LogLobbies, Log, All);
-
 namespace UE::Online {
 
 class FOnlineServicesCommon;
@@ -279,19 +277,19 @@ protected:
 			TPromise<void> Promise;
 			auto Future = Promise.GetFuture();
 
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 			(this->*Func)(MoveTempIfPossible(InParams))
 			.Then([Promise = MoveTemp(Promise), Op = InAsyncOp.AsShared()](TFuture<TOnlineResult<SecondaryOpType>>&& Future) mutable
 			{
 				if (Future.Get().IsError())
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
 					Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Future.Get().GetErrorValue())));
 				}
 				else
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
 				}
 				Promise.EmplaceValue();
 			});
@@ -308,19 +306,19 @@ protected:
 			TPromise<void> Promise;
 			auto Future = Promise.GetFuture();
 
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 			(this->*Func)(MoveTempIfPossible(InParams))
 			.Then([Promise = MoveTemp(Promise), Op = InAsyncOp.AsShared()](TFuture<TOnlineResult<SecondaryOpType>>&& Future) mutable
 			{
 				if (Future.Get().IsError())
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
 					Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Future.Get().GetErrorValue())));
 				}
 				else
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
 				}
 				Promise.EmplaceValue();
 			});
@@ -337,19 +335,19 @@ protected:
 			TPromise<void> Promise;
 			auto Future = Promise.GetFuture();
 
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 			(this->*Func)(MoveTempIfPossible(InParams))
 			.Then([Promise = MoveTemp(Promise), Op = InAsyncOp.AsShared(), ResultKey](TFuture<TOnlineResult<SecondaryOpType>>&& Future) mutable
 			{
 				if (Future.Get().IsError())
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
 					Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Future.Get().GetErrorValue())));
 				}
 				else
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
 					Op->Data.Set(ResultKey, MoveTempIfPossible(Future.Get().GetOkValue()));
 				}
 				Promise.EmplaceValue();
@@ -367,19 +365,19 @@ protected:
 			TPromise<void> Promise;
 			auto Future = Promise.GetFuture();
 
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 			(this->*Func)(MoveTempIfPossible(InParams))
 			.Then([Promise = MoveTemp(Promise), Op = InAsyncOp.AsShared(), ResultKey](TFuture<TOnlineResult<SecondaryOpType>>&& Future) mutable
 			{
 				if (Future.Get().IsError())
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Future.Get().GetErrorValue().GetLogString());
 					Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Future.Get().GetErrorValue())));
 				}
 				else
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
 					Op->Data.Set(ResultKey, MoveTempIfPossible(Future.Get().GetOkValue()));
 				}
 				Promise.EmplaceValue();
@@ -397,19 +395,19 @@ protected:
 			auto Promise = MakeShared<TPromise<void>>();
 			auto Future = Promise->GetFuture();
 
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 			(this->*Func)(MoveTempIfPossible(InParams))
 			.OnComplete([Promise, Op = InAsyncOp.AsShared()](const TOnlineResult<SecondaryOpType>& Result) mutable -> void
 			{
 				if (Result.IsError())
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
 					Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Result.GetErrorValue())));
 				}
 				else
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
 				}
 				Promise->EmplaceValue();
 			});
@@ -426,19 +424,19 @@ protected:
 			auto Promise = MakeShared<TPromise<void>>();
 			auto Future = Promise->GetFuture();
 
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 			(this->*Func)(MoveTempIfPossible(InParams))
 			.OnComplete([Promise, Op = InAsyncOp.AsShared()](const TOnlineResult<SecondaryOpType>& Result) mutable
 			{
 				if (Result.IsError())
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
 					Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Result.GetErrorValue())));
 				}
 				else
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::ConsumeOperationStepResult] Completed secondary operation %s."), SecondaryOpType::Name);
 				}
 				Promise->EmplaceValue();
 			});
@@ -455,19 +453,19 @@ protected:
 			auto Promise = MakeShared<TPromise<void>>();
 			auto Future = Promise->GetFuture();
 
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 			(this->*Func)(MoveTempIfPossible(InParams))
 			.OnComplete([Promise, Op = InAsyncOp.AsShared(), ResultKey](const TOnlineResult<SecondaryOpType>& Result) mutable -> void
 			{
 				if (Result.IsError())
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
 					Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Result.GetErrorValue())));
 				}
 				else
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
 					Op->Data.Set(ResultKey, Result.GetOkValue());
 				}
 				Promise->EmplaceValue();
@@ -485,19 +483,19 @@ protected:
 			auto Promise = MakeShared<TPromise<void>>();
 			auto Future = Promise->GetFuture();
 
-			UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
+			UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Starting secondary operation %s."), SecondaryOpType::Name);
 
 			(this->*Func)(MoveTempIfPossible(InParams))
 			.OnComplete([Promise, Op = InAsyncOp.AsShared(), ResultKey](const TOnlineResult<SecondaryOpType>& Result) mutable
 			{
 				if (Result.IsError())
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Failed secondary operation %s. Error: %s"), SecondaryOpType::Name, *Result.GetErrorValue().GetLogString());
 					Op->SetError(Errors::RequestFailure(MoveTempIfPossible(Result.GetErrorValue())));
 				}
 				else
 				{
-					UE_LOG(LogLobbies, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
+					UE_LOG(LogTemp, Log, TEXT("[FLobbiesCommon::CaptureOperationStepResult] Captured secondary operation %s as %s"), SecondaryOpType::Name, *ResultKey);
 					Op->Data.Set(ResultKey, Result.GetOkValue());
 				}
 				Promise->EmplaceValue();

@@ -11,8 +11,6 @@
 
 #include "eos_lobby.h"
 
-DEFINE_LOG_CATEGORY(LogLobbies);
-
 namespace UE::Online {
 
 static const FString LobbyDataKeyName = TEXT("LobbyData");
@@ -123,13 +121,13 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOS::CreateLobby(FCreateLobby::Params
 		CreateLobbyOptions.bDisableHostMigration = false; // todo: handle
 		CreateLobbyOptions.bEnableRTCRoom = false; // todo: handle
 
-		UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_CreateLobby] Start. Member: %s"), *ToLogString(Params.LocalUserId));
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_CreateLobby] Start. Member: %s"), *ToLogString(Params.LocalUserId));
 
 		return EOS_Async<EOS_Lobby_CreateLobbyCallbackInfo>(EOS_Lobby_CreateLobby, LobbyPrerequisites->LobbyInterfaceHandle, CreateLobbyOptions); 
 	})
 	.Then([this](TOnlineAsyncOp<FCreateLobby>& InAsyncOp, const EOS_Lobby_CreateLobbyCallbackInfo* Data)
 	{
-		UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_CreateLobby] Complete. Result: %d"), Data->ResultCode);
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_CreateLobby] Complete. Result: %d"), Data->ResultCode);
 
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
@@ -688,7 +686,7 @@ void FLobbiesEOS::HandleLobbyUpdated(const EOS_Lobby_LobbyUpdateReceivedCallback
 
 	if (TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Data->LobbyId))
 	{
-		UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::HandleLobbyUpdated] Received update. Lobby: %s"), *LobbyData->GetLobbyId());
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyUpdated] Received update. Lobby: %s"), *LobbyData->GetLobbyId());
 	}
 }
 
@@ -710,7 +708,7 @@ void FLobbiesEOS::HandleLobbyMemberUpdated(const EOS_Lobby_LobbyMemberUpdateRece
 	{
 		if (TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Data->LobbyId))
 		{
-			UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::HandleLobbyMemberUpdated] Received update. Lobby: %s, Member: %s"),
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyMemberUpdated] Received update. Lobby: %s, Member: %s"),
 				*LobbyData->GetLobbyId(), *ToLogString(LocalUserId));
 		}
 	}
@@ -736,7 +734,7 @@ void FLobbiesEOS::HandleLobbyMemberStatusReceived(const EOS_Lobby_LobbyMemberSta
 	{
 		if (TSharedPtr<FLobbyDataEOS> LobbyData = LobbyDataRegistry->Find(Data->LobbyId))
 		{
-			UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::HandleLobbyMemberStatusReceived] Received update. Lobby: %s, Member: %s, Statsu: %d"),
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyMemberStatusReceived] Received update. Lobby: %s, Member: %s, Statsu: %d"),
 				*LobbyData->GetLobbyId(), *ToLogString(LocalUserId), Data->CurrentStatus);
 		}
 	}
@@ -767,12 +765,12 @@ void FLobbiesEOS::HandleLobbyInviteReceived(const EOS_Lobby_LobbyInviteReceivedC
 			if (Future.Get().IsError())
 			{
 				// Todo: Log / queue a manual fetch of invitations.
-				UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::HandleLobbyInviteReceived] Failed to receive invite. Error: %s"),
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyInviteReceived] Failed to receive invite. Error: %s"),
 					*Future.Get().GetErrorValue().GetLogString());
 			}
 			else
 			{
-				UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::HandleLobbyInviteReceived] Received invite. Id: %s, Lobby: %s, Receiver: %s, Sender: %s"),
+				UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::HandleLobbyInviteReceived] Received invite. Id: %s, Lobby: %s, Receiver: %s, Sender: %s"),
 					*Future.Get().GetOkValue()->GetInviteId(),
 					*Future.Get().GetOkValue()->GetLobbyData()->GetLobbyId(),
 					*ToLogString(Future.Get().GetOkValue()->GetReceiver()),
@@ -1106,14 +1104,14 @@ TOnlineAsyncOpHandle<FLobbiesEOS::FJoinLobbyMemberImpl> FLobbiesEOS::JoinLobbyMe
 		JoinLobbyOptions.bPresenceEnabled = false;
 		JoinLobbyOptions.LocalRTCOptions = nullptr;
 
-		UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_JoinLobby] Start. Lobby: %s, Member: %s"),
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_JoinLobby] Start. Lobby: %s, Member: %s"),
 			*LobbyData->GetLobbyId(), *ToLogString(Params.LocalUserId));
 
 		return EOS_Async<EOS_Lobby_JoinLobbyCallbackInfo>(EOS_Lobby_JoinLobby, LobbyPrerequisites->LobbyInterfaceHandle, JoinLobbyOptions);
 	})
 	.Then([this](TOnlineAsyncOp<FJoinLobbyMemberImpl>& InAsyncOp, const EOS_Lobby_JoinLobbyCallbackInfo* Data)
 	{
-		UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_JoinLobby] Complete. Result: %d"), Data->ResultCode);
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::EOS_Lobby_JoinLobby] Complete. Result: %d"), Data->ResultCode);
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// TODO: Error codes
@@ -1437,7 +1435,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyDataImpl>> FLobbiesEOS::Mod
 
 	// todo: check local user is lobby owner
 
-	UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::ModifyLobbyDataImpl] Start. Lobby: %s, Member: %s"),
+	UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyDataImpl] Start. Lobby: %s, Member: %s"),
 		*Params.LobbyData->GetLobbyId(), *ToLogString(Params.LocalUserId));
 
 	TPromise<TDefaultErrorResult<FModifyLobbyDataImpl>> Promise;
@@ -1446,7 +1444,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyDataImpl>> FLobbiesEOS::Mod
 	DetailsResult.GetOkValue()->ApplyLobbyDataUpdates(Params.LocalUserId, MoveTemp(*Params.Changes))
 	.Then([Promise = MoveTemp(Promise)](TFuture<EOS_EResult>&& Future) mutable
 	{
-		UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::ModifyLobbyDataImpl] Complete. Result: %d"), Future.Get());
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyDataImpl] Complete. Result: %d"), Future.Get());
 
 		// Todo: Handle "no change" better.
 		if (Future.Get() != EOS_EResult::EOS_Success && Future.Get() != EOS_EResult::EOS_NoChange)
@@ -1483,7 +1481,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyMemberDataImpl>> FLobbiesEO
 		return MakeFulfilledPromise<TDefaultErrorResult<FModifyLobbyMemberDataImpl>>(Errors::Unknown(MoveTemp(DetailsResult.GetErrorValue()))).GetFuture();
 	}
 
-	UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::ModifyLobbyMemberDataImpl] Start. Lobby: %s, Member: %s"),
+	UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyMemberDataImpl] Start. Lobby: %s, Member: %s"),
 		*Params.LobbyData->GetLobbyId(), *ToLogString(Params.LocalUserId));
 
 	TPromise<TDefaultErrorResult<FModifyLobbyMemberDataImpl>> Promise;
@@ -1492,7 +1490,7 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FModifyLobbyMemberDataImpl>> FLobbiesEO
 	DetailsResult.GetOkValue()->ApplyLobbyMemberDataUpdates(Params.LocalUserId, MoveTemp(*Params.Changes))
 	.Then([Promise = MoveTemp(Promise)](TFuture<EOS_EResult>&& Future) mutable
 	{
-		UE_LOG(LogLobbies, Warning, TEXT("[FLobbiesEOS::ModifyLobbyMemberDataImpl] Complete. Result: %d"), Future.Get());
+		UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOS::ModifyLobbyMemberDataImpl] Complete. Result: %d"), Future.Get());
 
 		// Todo: Handle "no change" better.
 		if (Future.Get() != EOS_EResult::EOS_Success && Future.Get() != EOS_EResult::EOS_NoChange)
