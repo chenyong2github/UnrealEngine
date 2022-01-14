@@ -54,6 +54,13 @@ static FAutoConsoleVariableRef CVarAndroidOldXBoxWirelessFirmware(
 	TEXT("Determines how XBox Wireless controller mapping is handled. 0 assumes new firmware, 1 will use old firmware mapping (Default: 0)"),
 	ECVF_Default);
 
+bool AndroidUnifyMotionSpace = false;
+static FAutoConsoleVariableRef CVarAndroidUnifyMotionSpace(
+	TEXT("Android.UnifyMotionSpace"),
+	UnifyMotionSpace,
+	TEXT("Motion inputs will be processed to keep rotation rate right-handed and keep other motion inputs in the same space as rotation rate. This also forces rotation rate units to be radians/s and acceleration units to be g. Default: false"),
+	ECVF_Default);
+
 TSharedRef< FAndroidInputInterface > FAndroidInputInterface::Create(const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler, const TSharedPtr< ICursor >& InCursor)
 {
 	return MakeShareable(new FAndroidInputInterface(InMessageHandler, InCursor));
@@ -1650,20 +1657,60 @@ void FAndroidInputInterface::QueueMotionData(const FVector& Tilt, const FVector&
 	EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
 	FVector TempRotationRate = RotationRate;
 
-	switch (ScreenOrientation)
+	if (AndroidUnifyMotionSpace)
 	{
-		// the x tilt is inverted in LandscapeLeft.
-	case EDeviceScreenOrientation::LandscapeLeft:
-		TempRotationRate.X *= -1.0f;
-		break;
-		// the y tilt is inverted in LandscapeRight.
-	case EDeviceScreenOrientation::LandscapeRight:
-		TempRotationRate.Y *= -1.0f;
-		break;
-	}
+		FVector TempTilt = Tilt;
+		FVector TempGravity = Gravity;
+		FVector TempAcceleration = Acceleration;
 
-	FAndroidInputInterface::MotionDataStack.Push(
-		MotionData { Tilt, TempRotationRate, Gravity, Acceleration });
+		auto ReorientLandscapeLeft = [](FVector InValue)
+		{
+			return FVector(-InValue.X, InValue.Y, -InValue.Z);
+		};
+
+		auto ReorientLandscapeRight = [](FVector InValue)
+		{
+			return FVector(InValue.X, -InValue.Y, -InValue.Z);
+		};
+
+		switch (ScreenOrientation)
+		{
+			// the x tilt is inverted in LandscapeLeft.
+		case EDeviceScreenOrientation::LandscapeLeft:
+			TempTilt = ReorientLandscapeLeft(TempTilt);
+			TempRotationRate = ReorientLandscapeLeft(TempRotationRate);
+			TempGravity = ReorientLandscapeLeft(TempGravity);
+			TempAcceleration = ReorientLandscapeLeft(TempAcceleration) * (1.f / 9.8f);
+			break;
+			// the y tilt is inverted in LandscapeRight.
+		case EDeviceScreenOrientation::LandscapeRight:
+			TempTilt = ReorientLandscapeRight(TempTilt);
+			TempRotationRate = ReorientLandscapeRight(TempRotationRate);
+			TempGravity = ReorientLandscapeRight(TempGravity);
+			TempAcceleration = ReorientLandscapeRight(TempAcceleration) * (1.f / 9.8f);
+			break;
+		}
+
+		FAndroidInputInterface::MotionDataStack.Push(
+			MotionData{ TempTilt, TempRotationRate, TempGravity, TempAcceleration });
+	}
+	else
+	{
+		switch (ScreenOrientation)
+		{
+			// the x tilt is inverted in LandscapeLeft.
+		case EDeviceScreenOrientation::LandscapeLeft:
+			TempRotationRate.X *= -1.0f;
+			break;
+			// the y tilt is inverted in LandscapeRight.
+		case EDeviceScreenOrientation::LandscapeRight:
+			TempRotationRate.Y *= -1.0f;
+			break;
+		}
+
+		FAndroidInputInterface::MotionDataStack.Push(
+			MotionData{ Tilt, TempRotationRate, Gravity, Acceleration });
+	}
 }
 
 #endif
