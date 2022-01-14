@@ -450,43 +450,27 @@ public:
 	 *
 	 * @return	file extension for asset packages ( dot included )
 	 */
-	static FORCEINLINE const FString& GetAssetPackageExtension()
-	{
-		static FString AssetPackageExtension(LexToString(EPackageExtension::Asset));
-		return AssetPackageExtension;
-	}
+	static const FString& GetAssetPackageExtension();
 	/** 
 	 * Returns the file extension for packages containing assets.
 	 *
 	 * @return	file extension for asset packages ( dot included )
 	 */
-	static FORCEINLINE const FString& GetMapPackageExtension()
-	{
-		static FString MapPackageExtension(LexToString(EPackageExtension::Map));
-		return MapPackageExtension;
-	}
+	static const FString& GetMapPackageExtension();
 
 	/**
 	* Returns the file extension for packages containing text assets.
 	*
 	* @return	file extension for text asset packages ( dot included )
 	*/
-	static FORCEINLINE const FString& GetTextAssetPackageExtension()
-	{
-		static FString TextAssetPackageExtension(LexToString(EPackageExtension::TextAsset));
-		return TextAssetPackageExtension;
-	}
+	static const FString& GetTextAssetPackageExtension();
 
 	/**
 	* Returns the file extension for packages containing text maps.
 	*
 	* @return	file extension for text map packages ( dot included )
 	*/
-	static FORCEINLINE const FString& GetTextMapPackageExtension()
-	{
-		static FString TextMapPackageExtension(LexToString(EPackageExtension::TextMap));
-		return TextMapPackageExtension;
-	}
+	static const FString& GetTextMapPackageExtension();
 
 	/**
 	 * Returns whether the passed in extension is a valid text package

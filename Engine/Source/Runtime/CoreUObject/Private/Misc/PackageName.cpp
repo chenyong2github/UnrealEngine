@@ -1831,6 +1831,30 @@ FString FPackageName::GetLocalizedPackagePath(const FString& InSourcePackagePath
 	return (LocalizedPackageName.IsNone()) ? InSourcePackagePath : LocalizedPackageName.ToString();
 }
 
+const FString& FPackageName::GetAssetPackageExtension()
+{
+	static FString AssetPackageExtension(LexToString(EPackageExtension::Asset));
+	return AssetPackageExtension;
+}
+
+const FString& FPackageName::GetMapPackageExtension()
+{
+	static FString MapPackageExtension(LexToString(EPackageExtension::Map));
+	return MapPackageExtension;
+}
+
+const FString& FPackageName::GetTextAssetPackageExtension()
+{
+	static FString TextAssetPackageExtension(LexToString(EPackageExtension::TextAsset));
+	return TextAssetPackageExtension;
+}
+
+const FString& FPackageName::GetTextMapPackageExtension()
+{
+	static FString TextMapPackageExtension(LexToString(EPackageExtension::TextMap));
+	return TextMapPackageExtension;
+}
+
 FString FPackageName::PackageFromPath(const TCHAR* InPathName)
 {
 	FString PackageName;

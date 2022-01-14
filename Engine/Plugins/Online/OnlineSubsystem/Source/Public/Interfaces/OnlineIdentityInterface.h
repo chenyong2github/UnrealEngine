@@ -207,7 +207,7 @@ class IOnlineIdentity
 {
 
 protected:
-	IOnlineIdentity() {};	
+	ONLINESUBSYSTEM_API IOnlineIdentity() {};
 
 public:
 
@@ -239,7 +239,7 @@ public:
 		NetworkConnectionUnavailable =	1 << 10,
 	};
 
-	virtual ~IOnlineIdentity() {};
+	ONLINESUBSYSTEM_API virtual ~IOnlineIdentity() {};
 
 	/**
 	 * Delegate called when a player logs in/out
