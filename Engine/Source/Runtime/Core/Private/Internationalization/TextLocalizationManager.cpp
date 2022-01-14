@@ -449,6 +449,7 @@ void EndInitGameTextLocalization()
 	if (InitGameTextLocalizationTask)
 	{
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(InitGameTextLocalizationTask);
+		InitGameTextLocalizationTask.SafeRelease();
 	}
 }
 
