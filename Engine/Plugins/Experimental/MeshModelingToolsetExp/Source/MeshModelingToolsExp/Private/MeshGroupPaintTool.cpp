@@ -163,6 +163,7 @@ void UMeshGroupPaintTool::Setup()
 	FilterProperties->RestoreProperties(this);
 	FilterProperties->BrushSize = UMeshSculptToolBase::BrushProperties->BrushSize.AdaptiveSize;
 	FilterProperties->bHitBackFaces = UMeshSculptToolBase::BrushProperties->bHitBackFaces;
+	FilterProperties->SetGroup = ActiveGroupSet->MaxGroupID;
 	AddToolPropertySource(FilterProperties);
 
 	InitializeIndicator();
@@ -1124,6 +1125,7 @@ void UMeshGroupPaintTool::OnTick(float DeltaTime)
 				if (bPendingPickGroup)
 				{
 					FilterProperties->SetGroup = HitGroupID;
+					NotifyOfPropertyChangeByTool(FilterProperties);
 				}
 				else if (bPendingToggleFreezeGroup)
 				{
@@ -1186,7 +1188,8 @@ void UMeshGroupPaintTool::OnTick(float DeltaTime)
 
 void UMeshGroupPaintTool::AllocateNewGroupAndSetAsCurrentAction()
 {
-	FilterProperties->SetGroup = ActiveGroupSet->AllocateNewGroupID();
+	FilterProperties->SetGroup = ActiveGroupSet->MaxGroupID;
+	NotifyOfPropertyChangeByTool(FilterProperties);
 }
 
 
