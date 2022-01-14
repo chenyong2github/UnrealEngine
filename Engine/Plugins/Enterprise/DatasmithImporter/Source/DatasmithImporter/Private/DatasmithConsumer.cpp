@@ -1069,7 +1069,7 @@ ULevel* UDatasmithConsumer::FindOrAddLevel(const FString& InLevelName)
 	// If it does not exist, create a new one and add it to the working world
 	else
 	{
-		StreamingLevel = EditorLevelUtils::CreateNewStreamingLevelForWorld( *WorkingWorld, ULevelStreamingAlwaysLoaded::StaticClass(), *PackageFilename );
+		StreamingLevel = EditorLevelUtils::CreateNewStreamingLevelForWorld( *WorkingWorld, ULevelStreamingAlwaysLoaded::StaticClass(), *PackageFilename, false, nullptr, false );
 
 		if( StreamingLevel )
 		{
