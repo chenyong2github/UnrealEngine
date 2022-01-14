@@ -669,6 +669,10 @@ struct FRCAssetFilter
 	UPROPERTY()
 	TSet<FName> RecursiveClassesExclusionSet;
 
+	/** Only if EnableBlueprintNativeClassFiltering is true, resulting asset will be filtered for dependants of classes in this list. */
+	UPROPERTY()
+	TArray<FName> NativeParentClasses;
+
 	/** If true, subclasses of ClassNames will also be included and RecursiveClassesExclusionSet will be excluded. */
 	UPROPERTY()
 	bool RecursiveClasses = false;
@@ -676,5 +680,8 @@ struct FRCAssetFilter
 	/** If true, PackagePath components will be recursive */
 	UPROPERTY()
 	bool RecursivePaths = false;
+
+	/** When dealing with blueprint classes, you might want to filter for a base class which can't be picked by asset registry if you derive from a blueprint class */
+	bool EnableBlueprintNativeClassFiltering = false;
 };
 

@@ -148,7 +148,7 @@ namespace RemotePayloadSerializer
 				Reader.Seek(ParametersDelimiters.BlockStart);
 				Reader.SetLimitSize(ParametersDelimiters.BlockEnd);
 
-				FJsonStructDeserializerBackend Backend(Reader);
+				FRCJsonStructDeserializerBackend Backend(Reader);
 				if (!FStructDeserializer::Deserialize((void*)OutCall.ParamStruct.GetStructMemory(), *const_cast<UStruct*>(OutCall.ParamStruct.GetStruct()), Backend, FStructDeserializerPolicies()))
 				{
 					ErrorText = TEXT("Parameters object improperly formatted.");

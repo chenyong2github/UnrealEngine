@@ -115,22 +115,66 @@ namespace
 		}
 		return false;
 	}
+
+	template<typename PropertyType>
+	static bool HandleObjectProperty(PropertyType* ObjectProperty, FProperty* Outer, void* Data, int32 ArrayIndex, const FString& StringValue)
+	{
+		constexpr UObject* ObjectOuter = nullptr;
+		constexpr TCHAR* Filename = nullptr;
+		UObject* LoadedObject = StaticLoadObject(ObjectProperty->PropertyClass, ObjectOuter, *StringValue, Filename, LOAD_NoWarn);
+		if (LoadedObject == nullptr)
+		{
+			UE_LOG(LogRemoteControl, Warning, TEXT("Deserialization error: Could not load object %s for property %s."), *StringValue, *ObjectProperty->GetName());
+		}
+
+		if (void* Ptr = GetPropertyValuePtr(ObjectProperty, Outer, Data, ArrayIndex))
+		{
+			ObjectProperty->SetPropertyValue(Ptr, typename PropertyType::TCppType(LoadedObject));
+			return true;
+		}
+
+		return false;
+	}
 }
 
 bool FRCJsonStructDeserializerBackend::ReadProperty(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex)
 {
+	//Whether we handled the property read or we need to user parent class version
+	TOptional<bool> HandledResult;
+
 	if (GetLastNotation() == EJsonNotation::String)
 	{
 		const FString& StringValue = GetReader()->GetValueAsString();
 
 		if (Property->IsA<FByteProperty>() || Property->IsA<FEnumProperty>())
 		{
-			const bool bReadResult = ReadEnum(Property, Outer, Data, ArrayIndex, StringValue);
-			if (!bReadResult)
+			HandledResult = ReadEnum(Property, Outer, Data, ArrayIndex, StringValue);
+			if (HandledResult.GetValue() == false)
 			{
 				UE_LOG(LogRemoteControl, Error, TEXT("Deserialization error: %s does not contain value %s"), *Property->GetName(), *StringValue);
 			}
-			return bReadResult;
+		}
+		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+		{
+			if (IsInGameThread())
+			{
+				HandledResult = HandleObjectProperty(ObjectProperty, Outer, Data, ArrayIndex, StringValue);
+			}
+			else
+			{
+				UE_LOG(LogRemoteControl, Verbose, TEXT("ObjectProperty: Deserializing RemoteControl payload from another thread. Can't preload object %s in property %s."), *StringValue, *Property->GetName());
+			}
+		}
+		else if (FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(Property))
+		{
+			if (IsInGameThread())
+			{
+				HandledResult = HandleObjectProperty(WeakObjectProperty, Outer, Data, ArrayIndex, StringValue);
+			}
+			else
+			{
+				UE_LOG(LogRemoteControl, Verbose, TEXT("WeakObjectProperty: Deserializing RemoteControl payload from another thread. Can't preload object %s in property %s."), *StringValue, *Property->GetName());
+			}
 		}
 	}
 	else if (GetLastNotation() == EJsonNotation::Number)
@@ -143,16 +187,22 @@ bool FRCJsonStructDeserializerBackend::ReadProperty(FProperty* Property, FProper
 				if (DoubleValue > std::numeric_limits<float>::max())
 				{
 					FloatProperty->SetPropertyValue(Ptr, std::numeric_limits<float>::max());
-					return true;
+					HandledResult = true;
 				}
 			}
 			else
 			{
-				return false;
+				HandledResult = false;
 			}
 		}
 	}
 
-
-	return FJsonStructDeserializerBackend::ReadProperty(Property, Outer, Data, ArrayIndex);
+	if (HandledResult.IsSet() == false)
+	{
+		return FJsonStructDeserializerBackend::ReadProperty(Property, Outer, Data, ArrayIndex);
+	}
+	else
+	{
+		return HandledResult.GetValue();
+	}
 }

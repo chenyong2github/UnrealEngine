@@ -51,6 +51,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 
 // Miscelleanous
+#include "Blueprint/BlueprintSupport.h"
 #include "Misc/App.h"
 #include "UObject/UnrealType.h"
 #include "Templates/UnrealTemplate.h"
@@ -201,6 +202,40 @@ namespace WebRemoteControl
 
 		// By default, web remote control is disabled in -game and packaged game.
 		return bIsEditor || FParse::Param(FCommandLine::Get(), TEXT("RCWebControlEnable"));
+	}
+
+	void DoNativeClassBlueprintFilter(const FSearchAssetRequest& SearchAssetRequest, TArray<FAssetData>& OutFilteredAssets)
+	{
+		if (SearchAssetRequest.Filter.EnableBlueprintNativeClassFiltering && SearchAssetRequest.Filter.NativeParentClasses.Num() > 0)
+		{
+			TSet<UClass*> NativeClasses;
+			NativeClasses.Reserve(SearchAssetRequest.Filter.NativeParentClasses.Num());
+			for (FName NativeClass : SearchAssetRequest.Filter.NativeParentClasses)
+			{
+				if (UClass* Class = FindObject<UClass>(ANY_PACKAGE, *NativeClass.ToString()))
+				{
+					NativeClasses.Add(Class);
+				}
+			}
+
+			for (auto It = OutFilteredAssets.CreateIterator(); It; ++It)
+			{
+				const FAssetData& AssetData = *It;
+				const FString NativeParentClassPath = AssetData.GetTagValueRef<FString>(FBlueprintTags::NativeParentClassPath);
+				const FSoftClassPath ClassPath(NativeParentClassPath);
+				UClass* NativeParentClass = ClassPath.ResolveClass();
+				if (NativeParentClass)
+				{
+					for (UClass* ClassFilter : NativeClasses)
+					{
+						if (!NativeParentClass->IsChildOf(ClassFilter))
+						{
+							It.RemoveCurrent();
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -1396,10 +1431,15 @@ bool FWebRemoteControlModule::HandleSearchAssetRoute(const FHttpServerRequest& R
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
 	FARFilter Filter = SearchAssetRequest.Filter.ToARFilter();
 
 	TArray<FAssetData> Assets;
 	AssetRegistryModule.Get().GetAssets(Filter, Assets);
+
+	//Do advanced blueprint filtering if required
+	WebRemoteControl::DoNativeClassBlueprintFilter(SearchAssetRequest, Assets);
+
 	TArrayView<FAssetData> AssetsView{Assets};
 	int32 ArrayEnd = FMath::Min(SearchAssetRequest.Limit, Assets.Num());
 
