@@ -6,6 +6,8 @@
 
 #include "ElectraTextureSample.h"
 
+#if !UE_SERVER
+
 /**
 * Init code for realloacting an image from the the pool
 */
@@ -19,14 +21,9 @@ void FElectraTextureSampleUnix::InitializePoolable()
 */
 void FElectraTextureSampleUnix::ShutdownPoolable()
 {
-	TSharedPtr<MEDIArendererVideoUE, ESPMode::ThreadSafe> lockedVideoRenderer = OwningRenderer.Pin();
-	if (lockedVideoRenderer.IsValid())
-	{
-		lockedVideoRenderer->TextureReleasedToPool(GetDuration());
-	}
-
-	// This is coming from the original code: Drop reference to the texture. It should be released by the outside system.
 	Texture = nullptr;
 }
+
+#endif
 
 #endif
