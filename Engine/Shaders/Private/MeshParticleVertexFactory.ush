@@ -355,6 +355,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.InstanceLocalToWorld = LWCPromote(ParticleTransform);
 	Result.InstanceWorldToLocal = LWCPromoteInverse(PseudoInverseTransform(ParticleTransform));
 
+	Result.Particle.Color = Intermediates.ParticleColor;
 	Result.Particle.ParticleToWorld = Result.InstanceLocalToWorld;
 	Result.Particle.WorldToParticle = Result.InstanceWorldToLocal;
 

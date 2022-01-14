@@ -650,6 +650,8 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 		#endif
 #endif  //MANUAL_VERTEX_FETCH && NUM_MATERIAL_TEXCOORDS_VERTEX
 
+	Result.Particle.Color = half4(1,1,1,1);
+
 #if NEEDS_PARTICLE_LOCAL_TO_WORLD
 	Result.Particle.ParticleToWorld = GetPrimitiveData(Intermediates).LocalToWorld;
 #endif
