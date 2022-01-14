@@ -3,6 +3,21 @@
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGPointData.h"
 
+namespace PCGIntersectionDataMaths
+{
+	float ComputeDensity(float InDensityA, float InDensityB, EPCGIntersectionDensityFunction InDensityFunction)
+	{
+		if (InDensityFunction == EPCGIntersectionDensityFunction::Minimum)
+		{
+			return FMath::Min(InDensityA, InDensityB);
+		}
+		else // default: Multiply
+		{
+			return InDensityA * InDensityB;
+		}
+	}
+}
+
 void UPCGIntersectionData::Initialize(const UPCGSpatialData* InA, const UPCGSpatialData* InB)
 {
 	check(InA && InB);
@@ -45,7 +60,13 @@ float UPCGIntersectionData::GetDensityAtPosition(const FVector& InPosition) cons
 	}
 	else
 	{
-		return A->GetDensityAtPosition(InPosition) * B->GetDensityAtPosition(InPosition);
+		float Density = A->GetDensityAtPosition(InPosition);
+		if (Density > 0)
+		{
+			Density = PCGIntersectionDataMaths::ComputeDensity(Density, B->GetDensityAtPosition(InPosition), DensityFunction);
+		}
+
+		return Density;
 	}
 }
 
@@ -92,7 +113,7 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(const UPCGSpatialD
 		if (YDensity > 0)
 		{
 			FPCGPoint& NewPoint = TargetPoints.Add_GetRef(Point);
-			NewPoint.Density *= YDensity;
+			NewPoint.Density = PCGIntersectionDataMaths::ComputeDensity(Point.Density, YDensity, DensityFunction);
 		}
 	}
 

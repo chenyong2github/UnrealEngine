@@ -12,8 +12,14 @@ enum class EPCGUnionType : uint8
 {
 	LeftToRightPriority,
 	RightToLeftPriority,
-	KeepAB,
-	ABMinusIntersection
+	KeepAll,
+};
+
+UENUM()
+enum class EPCGUnionDensityFunction : uint8
+{
+	Maximum,
+	ClampedAddition
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
@@ -25,7 +31,10 @@ public:
 	void Initialize(const UPCGSpatialData* InA, const UPCGSpatialData* InB);
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	void AddData(const UPCGSpatialData* InC);
+	void AddData(const UPCGSpatialData* InData);
+
+	void SetType(EPCGUnionType InUnionType) { UnionType = InUnionType; }
+	void SetDensityFunction(EPCGUnionDensityFunction InDensityFunction) { DensityFunction = InDensityFunction; }
 
 	//~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override;
@@ -40,17 +49,23 @@ public:
 
 protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
-	TObjectPtr<const UPCGSpatialData> A = nullptr;
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
-	TObjectPtr<const UPCGSpatialData> B = nullptr;
+	TArray<TObjectPtr<const UPCGSpatialData>> Data;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGUnionType UnionType = EPCGUnionType::LeftToRightPriority;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	EPCGUnionDensityFunction DensityFunction = EPCGUnionDensityFunction::Maximum;
 
 	UPROPERTY()
 	FBox CachedBounds = FBox(EForceInit::ForceInit);
 
 	UPROPERTY()
 	FBox CachedStrictBounds = FBox(EForceInit::ForceInit);
+
+	UPROPERTY()
+	int CachedDimension = 0;
+
+private:
+	void CreateSequentialPointData(UPCGPointData* PointData, bool bLeftToRight) const;
 };

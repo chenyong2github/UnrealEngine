@@ -9,6 +9,13 @@
 
 class UPCGUnionData;
 
+UENUM()
+enum class EPCGDifferenceDensityFunction : uint8
+{
+	Minimum,
+	ClampedSubstraction
+};
+
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class UPCGDifferenceData : public UPCGSpatialDataWithPointCache
 {
@@ -19,6 +26,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	void AddDifference(const UPCGSpatialData* InDifference);
+
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	void SetDensityFunction(EPCGDifferenceDensityFunction InDensityFunction);
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 	//~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override;
@@ -39,4 +53,7 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UPCGUnionData> DifferencesUnion = nullptr;
+
+	UPROPERTY(BlueprintSetter = SetDensityFunction, EditAnywhere, Category = Settings)
+	EPCGDifferenceDensityFunction DensityFunction = EPCGDifferenceDensityFunction::Minimum;
 };

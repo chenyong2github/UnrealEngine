@@ -4,6 +4,14 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGUnionData.h"
 
+namespace PCGDifferenceDataUtils
+{
+	EPCGUnionDensityFunction ToUnionDensityFunction(EPCGDifferenceDensityFunction InDensityFunction)
+	{
+		return (InDensityFunction == EPCGDifferenceDensityFunction::ClampedSubstraction ? EPCGUnionDensityFunction::ClampedAddition : EPCGUnionDensityFunction::Maximum);
+	}
+}
+
 void UPCGDifferenceData::Initialize(const UPCGSpatialData* InData)
 {
 	check(InData);
@@ -25,6 +33,7 @@ void UPCGDifferenceData::AddDifference(const UPCGSpatialData* InDifference)
 		{
 			DifferencesUnion = NewObject<UPCGUnionData>(this);
 			DifferencesUnion->AddData(Difference);
+			DifferencesUnion->SetDensityFunction(PCGDifferenceDataUtils::ToUnionDensityFunction(DensityFunction));
 			Difference = DifferencesUnion;
 		}
 
@@ -32,6 +41,28 @@ void UPCGDifferenceData::AddDifference(const UPCGSpatialData* InDifference)
 		DifferencesUnion->AddData(InDifference);
 	}
 }
+
+void UPCGDifferenceData::SetDensityFunction(EPCGDifferenceDensityFunction InDensityFunction)
+{
+	DensityFunction = InDensityFunction;
+
+	if (DifferencesUnion)
+	{
+		DifferencesUnion->SetDensityFunction(PCGDifferenceDataUtils::ToUnionDensityFunction(DensityFunction));
+	}
+}
+
+#if WITH_EDITOR
+void UPCGDifferenceData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGDifferenceData, DensityFunction))
+	{
+		SetDensityFunction(DensityFunction);
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
 
 int UPCGDifferenceData::GetDimension() const
 {
@@ -58,7 +89,7 @@ float UPCGDifferenceData::GetDensityAtPosition(const FVector& InPosition) const
 	else if(Difference)
 	{
 		const float DensityInSource = Source->GetDensityAtPosition(InPosition);
-		if (DensityInSource <= 0)
+		if (DensityInSource == 0)
 		{
 			return 0;
 		}
@@ -91,9 +122,11 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData() const
 
 	for (const FPCGPoint& Point : SourcePointData->GetPoints())
 	{
-		if (Difference->GetDensityAtPosition(Point.Transform.GetLocation()) == 0)
+		const float DensityInDifference = Difference->GetDensityAtPosition(Point.Transform.GetLocation());
+		if (DensityInDifference < Point.Density)
 		{
-			TargetPoints.Add(Point);
+			FPCGPoint& TargetPoint = TargetPoints.Add_GetRef(Point);
+			TargetPoint.Density -= DensityInDifference;
 		}
 	}
 

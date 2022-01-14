@@ -3,183 +3,193 @@
 #include "Data/PCGUnionData.h"
 #include "Data/PCGPointData.h"
 
+namespace PCGUnionDataMaths
+{
+	float ComputeDensity(float InDensityToUpdate, float InOtherDensity, EPCGUnionDensityFunction DensityFunction)
+	{
+		if (DensityFunction == EPCGUnionDensityFunction::ClampedAddition)
+		{
+			return FMath::Min(InDensityToUpdate + InOtherDensity, 1.0f);
+		}
+		else
+		{
+			return FMath::Max(InDensityToUpdate, InOtherDensity);
+		}
+	}
+
+	float UpdateDensity(float& InDensityToUpdate, float InOtherDensity, EPCGUnionDensityFunction DensityFunction)
+	{
+		InDensityToUpdate = ComputeDensity(InDensityToUpdate, InOtherDensity, DensityFunction);
+		return InDensityToUpdate;
+	}
+}
+
 void UPCGUnionData::Initialize(const UPCGSpatialData* InA, const UPCGSpatialData* InB)
 {
 	check(InA && InB);
-	check(InA->GetDimension() == InB->GetDimension());
 	AddData(InA);
 	AddData(InB);
 }
 
-void UPCGUnionData::AddData(const UPCGSpatialData* InC)
+void UPCGUnionData::AddData(const UPCGSpatialData* InData)
 {
-	check(InC);
-	check(!A || InC->GetDimension() == A->GetDimension());
+	check(InData);
 
-	// Early tests: if we don't have a full union yet, just push in the data.
-	if (!A)
+	Data.Add(InData);
+
+	if (Data.Num() == 1)
 	{
-		check(!B);
-		A = InC;
-		TargetActor = InC->TargetActor;
-		CachedBounds = InC->GetBounds();
-		CachedStrictBounds = InC->GetStrictBounds();
-	}
-	else if (!B)
-	{
-		check(A);
-		B = InC;
-		CachedBounds += InC->GetBounds();
-		CachedStrictBounds = A->GetStrictBounds().Overlap(InC->GetStrictBounds());
+		TargetActor = InData->TargetActor;
+		CachedBounds = InData->GetBounds();
+		CachedStrictBounds = InData->GetStrictBounds();
+		CachedDimension = InData->GetDimension();
 	}
 	else
 	{
-		// TODO: Bad usage of this call could lead to sub-unions having inefficient bounds
-		// We can revisit and keep the list of members and bundle them appropriately on demand 
-		const bool bAIsUnion = Cast<UPCGUnionData>(A) != nullptr;
-		const bool bBIsUnion = Cast<UPCGUnionData>(B) != nullptr;
-
-		UPCGUnionData* Union = NewObject<UPCGUnionData>(this);
-		Union->UnionType = UnionType;
-
-		if (!bAIsUnion || bBIsUnion)
-		{
-			Union->Initialize(A, B);
-			A = Union;
-			B = InC;
-		}
-		else
-		{
-			Union->Initialize(B, InC);
-			B = Union;
-		}
-
-		// Update bounds
-		CachedBounds += InC->GetBounds();
-		CachedStrictBounds = CachedStrictBounds.Overlap(InC->GetStrictBounds());
+		CachedBounds += InData->GetBounds();
+		CachedStrictBounds = CachedStrictBounds.Overlap(InData->GetStrictBounds());
+		CachedDimension = FMath::Max(CachedDimension, InData->GetDimension());
 	}
 }
 
 int UPCGUnionData::GetDimension() const
 {
-	check(A && B && A->GetDimension() == B->GetDimension());
-	return A->GetDimension();
+	return CachedDimension;
 }
 
 FBox UPCGUnionData::GetBounds() const
 {
-	check(A && B);
 	return CachedBounds;
 }
 
 FBox UPCGUnionData::GetStrictBounds() const
 {
-	check(A && B);
 	return CachedStrictBounds;
 }
 
 float UPCGUnionData::GetDensityAtPosition(const FVector& InPosition) const
 {
-	check(A && B);
+	// Early exits
 	if (!CachedBounds.IsInside(InPosition))
 	{
 		return 0;
 	}
-	else if (CachedStrictBounds.IsInside(InPosition) ||
-		A->GetStrictBounds().IsInside(InPosition) ||
-		B->GetStrictBounds().IsInside(InPosition))
+	else if (CachedStrictBounds.IsInside(InPosition))
 	{
 		return 1.0f;
 	}
-	else
+
+	// Check for presence in any strict bounds of the data.
+	// Note that it can be superfluous in some instances as we will might end up testing
+	// the strict bounds twice per data, but it will perform better in the worst case.
+	for (int32 DataIndex = 0; DataIndex < Data.Num(); ++DataIndex)
 	{
-		return FMath::Max(A->GetDensityAtPosition(InPosition), B->GetDensityAtPosition(InPosition));
+		if (Data[DataIndex]->GetStrictBounds().IsInside(InPosition))
+		{
+			return 1.0f;
+		}
 	}
+
+	float Density = 0.0f;
+
+	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+	{
+		if (PCGUnionDataMaths::UpdateDensity(Density, Datum->GetDensityAtPosition(InPosition), DensityFunction) == 1.0f)
+		{
+			break;
+		}
+	}
+
+	return Density;
 }
 
 const UPCGPointData* UPCGUnionData::CreatePointData() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGUnionData::CreatePointData);
-	check(A && B);
 
-	const UPCGPointData* APointData = A->ToPointData();
-	const UPCGPointData* BPointData = B->ToPointData();
-
-	if (!APointData || !BPointData)
+	// Trivial results
+	if (Data.Num() == 0)
 	{
-		return APointData ? APointData : BPointData;
+		return nullptr;
+	}
+	else if (Data.Num() == 1)
+	{
+		return Data[0]->ToPointData();
 	}
 
-	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGUnionData*>(this));
-	Data->TargetActor = TargetActor;
-
-	TArray<FPCGPoint>& TargetPoints = Data->GetMutablePoints();
-
-	auto AddNonExcludedPoints = [&TargetPoints](const UPCGPointData* PointsToAdd, const UPCGSpatialData* Exclusion) {
-		check(PointsToAdd && Exclusion);
-		for (const FPCGPoint& Point : PointsToAdd->GetPoints())
-		{
-			if (Exclusion->GetDensityAtPosition(Point.Transform.GetLocation()) == 0)
-			{
-				TargetPoints.Add(Point);
-			}
-		}
-	};
+	UPCGPointData* PointData = NewObject<UPCGPointData>(const_cast<UPCGUnionData*>(this));
+	PointData->TargetActor = TargetActor;
 
 	switch (UnionType)
 	{
 	case EPCGUnionType::LeftToRightPriority:
-	case EPCGUnionType::RightToLeftPriority:
 	default:
-		{
-			const UPCGSpatialData* PrioritizedData = (UnionType != EPCGUnionType::RightToLeftPriority ? A : B);
-			const UPCGPointData* PrioritizedPointData = (UnionType != EPCGUnionType::RightToLeftPriority ? APointData : BPointData);
-			const UPCGSpatialData* SecondaryData = (UnionType != EPCGUnionType::RightToLeftPriority ? B : A);
-			const UPCGPointData* SecondaryPointData = (UnionType != EPCGUnionType::RightToLeftPriority ? BPointData : APointData);
-
-			// First: add all points from the prioritized data and update its density
-			TargetPoints.Append(PrioritizedPointData->GetPoints());
-
-			for (FPCGPoint& Point : TargetPoints)
-			{
-				Point.Density = FMath::Max(Point.Density, SecondaryData->GetDensityAtPosition(Point.Transform.GetLocation()));
-			}
-
-			// Second: all points from the secondary data set only if they have a null density in the prioritized data set
-			AddNonExcludedPoints(SecondaryPointData, PrioritizedData);
-		}
-
+		CreateSequentialPointData(PointData, /*bLeftToRight=*/true);
 		break;
 
-	case EPCGUnionType::KeepAB:
-		{
-			TargetPoints.Append(APointData->GetPoints());
-			TargetPoints.Append(BPointData->GetPoints());
-		}
-
+	case EPCGUnionType::RightToLeftPriority:
+		CreateSequentialPointData(PointData, /*bLeftToRight=*/false);
 		break;
 
-	case EPCGUnionType::ABMinusIntersection:
+	case EPCGUnionType::KeepAll:
 		{
-			// First, build the intersection of A & B
-			if (CachedStrictBounds.IsValid)
+			TArray<FPCGPoint>& TargetPoints = PointData->GetMutablePoints();
+			for (TObjectPtr<const UPCGSpatialData> Datum : Data)
 			{
-				UPCGSpatialData* IntersectionData = A->IntersectWith(B);
-				const UPCGPointData* IntersectionPointData = IntersectionData ? IntersectionData->ToPointData() : nullptr;
-
-				if (IntersectionPointData)
-				{
-					TargetPoints.Append(IntersectionPointData->GetPoints());
-				}
+				TargetPoints.Append(Datum->ToPointData()->GetPoints());
 			}
-
-			// Second: all all points from A & B that have no match in their counterpart.
-			AddNonExcludedPoints(APointData, B);
-			AddNonExcludedPoints(BPointData, A);
 		}
-
 		break;
 	}
 
-	return Data;
+	return PointData;
+}
+
+void UPCGUnionData::CreateSequentialPointData(UPCGPointData* PointData, bool bLeftToRight) const
+{
+	check(PointData);
+
+	TArray<FPCGPoint>& TargetPoints = PointData->GetMutablePoints();
+
+	int32 FirstDataIndex = (bLeftToRight ? 0 : Data.Num() - 1);
+	int32 LastDataIndex = (bLeftToRight ? Data.Num() : -1);
+	int32 DataIndexIncrement = (bLeftToRight ? 1 : -1);
+
+	// Note: this is a O(N^2) implementation. 
+	// TODO: It is easy to implement a kind of divide & conquer algorithm here, but it will require some temporary storage.
+	for (int32 DataIndex = FirstDataIndex; DataIndex != LastDataIndex; DataIndex += DataIndexIncrement)
+	{
+		// For each point, if it is not already "processed" by previous data,
+		// add it & compute its final density
+		const TArray<FPCGPoint>& Points = Data[DataIndex]->ToPointData()->GetPoints();
+		for (const FPCGPoint& Point : Points)
+		{
+			// Discard point if it is already covered by a previous data
+			bool bPointToExclude = false;
+			for (int32 PreviousDataIndex = FirstDataIndex; PreviousDataIndex != DataIndex; PreviousDataIndex += DataIndexIncrement)
+			{
+				if (Data[PreviousDataIndex]->GetDensityAtPosition(Point.Transform.GetLocation()) != 0)
+				{
+					bPointToExclude = true;
+					break;
+				}
+			}
+
+			if (bPointToExclude)
+			{
+				continue;
+			}
+
+			FPCGPoint& TargetPoint = TargetPoints.Add_GetRef(Point);
+
+			// Compute final density based on current & following data
+			for (int32 FollowingDataIndex = DataIndex + DataIndexIncrement; FollowingDataIndex != LastDataIndex; FollowingDataIndex += DataIndexIncrement)
+			{
+				if (PCGUnionDataMaths::UpdateDensity(TargetPoint.Density, Data[FollowingDataIndex]->GetDensityAtPosition(TargetPoint.Transform.GetLocation()), DensityFunction) == 1.0f)
+				{
+					break;
+				}
+			}
+		}
+	}
 }

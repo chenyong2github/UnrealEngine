@@ -6,6 +6,13 @@
 
 #include "PCGIntersectionData.generated.h"
 
+UENUM()
+enum class EPCGIntersectionDensityFunction : uint8
+{
+	Multiply,
+	Minimum
+};
+
 /**
 * Generic intersection class that delays operations as long as possible.
 */
@@ -37,6 +44,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
 	TObjectPtr<const UPCGSpatialData> B = nullptr;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	EPCGIntersectionDensityFunction DensityFunction = EPCGIntersectionDensityFunction::Multiply;
+
+	UPROPERTY()
 	FBox CachedBounds = FBox(EForceInit::ForceInit);
+
+	UPROPERTY()
 	FBox CachedStrictBounds = FBox(EForceInit::ForceInit);
 };

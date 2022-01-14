@@ -38,6 +38,8 @@ void UPCGBlueprintSettings::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	{
 		RefreshBlueprintElement();
 	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
 
