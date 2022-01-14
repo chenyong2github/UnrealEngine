@@ -63,7 +63,7 @@ namespace UE::DatasmithImporter
 			FPlatformProcess::Sleep(ReconnectionDelayInSeconds - TimeSinceLastTry);
 		}
 
-		int32 NumberOfSources;
+		bool bHasSourceToReconnect = false;
 		{
 			FWriteScopeLock ReconnectionScopeLock(Manager.ReconnectionListLock);
 			for (int32 Index = Manager.ExternalSourcesToReconnect.Num() - 1; Index >= 0; --Index)
@@ -73,11 +73,32 @@ namespace UE::DatasmithImporter
 					Manager.ExternalSourcesToReconnect.RemoveAtSwap(Index);
 				}
 			}
-			NumberOfSources = Manager.ExternalSourcesToReconnect.Num();
-			LastTryTime = FPlatformTime::Seconds();
+			bHasSourceToReconnect = Manager.ExternalSourcesToReconnect.Num() > 0;
 		}
 
-		if (bShouldRun && NumberOfSources > 0)
+		TArray<TSoftObjectPtr<UObject>> AutoReimportObjectListCopy;
+		{
+			FRWScopeLock ScopeLock(Manager.AutoReimportLock, FRWScopeLockType::SLT_ReadOnly);
+			AutoReimportObjectListCopy = Manager.PendingAutoReimportObjects.Array();
+		}
+
+		for (const TSoftObjectPtr<UObject>& Object : AutoReimportObjectListCopy)
+		{
+			if (Object.IsValid())
+			{
+				Manager.EnableAssetAutoReimport(Object.Get());
+			}
+		}
+
+		if (AutoReimportObjectListCopy.Num() > 0 && !bHasSourceToReconnect)
+		{
+			FRWScopeLock ScopeLock(Manager.AutoReimportLock, FRWScopeLockType::SLT_ReadOnly);
+			bHasSourceToReconnect = Manager.PendingAutoReimportObjects.Num() > 0;
+		}
+
+		LastTryTime = FPlatformTime::Seconds();
+
+		if (bShouldRun && bHasSourceToReconnect)
 		{
 			// Could not reconnect, go back to the ThreadPool and try again later.
 			CompletedFuture = Async(EAsyncExecution::ThreadPool, [this]() {	Run(); });
@@ -119,7 +140,7 @@ namespace UE::DatasmithImporter
 		Endpoint->RemoveEndpointObserver(this);
 
 		// Make sure all DirectLink external source become stales and their delegates stripped.
-		for (const TPair<FSourceUri, TSharedRef<FDirectLinkExternalSource>>& UriExternalSourcePair : UriToExternalSourceMap)
+		for (const TPair<DirectLink::FSourceHandle, TSharedRef<FDirectLinkExternalSource>>& UriExternalSourcePair : DirectLinkSourceToExternalSourceMap)
 		{
 			UriExternalSourcePair.Value->Invalidate();
 		}
@@ -131,12 +152,10 @@ namespace UE::DatasmithImporter
 
 	TSharedPtr<FDirectLinkExternalSource> FDirectLinkManager::GetOrCreateExternalSource(const DirectLink::FSourceHandle& SourceHandle)
 	{
-		TSharedPtr<FDirectLinkExternalSource> DirectLinkExternalSource = nullptr;
-
 		if (TSharedRef<FDirectLinkExternalSource>* ExternalSourceEntry = DirectLinkSourceToExternalSourceMap.Find(SourceHandle))
 		{
 			// A DirectLinkExternalSource already exists for this SourceHandle.
-			DirectLinkExternalSource = *ExternalSourceEntry;
+			return *ExternalSourceEntry;
 		}
 		else if (RegisteredExternalSourcesInfo.Num() > 0)
 		{
@@ -152,23 +171,22 @@ namespace UE::DatasmithImporter
 
 				for (const FDirectLinkExternalSourceRegisterInformation& RegisteredInfo : RegisteredExternalSourcesInfo)
 				{
-					TSharedPtr<FDirectLinkExternalSource> UninitializedExternalSource = RegisteredInfo.SpawnFunction(ExternalSourceUri);
+					TSharedRef<FDirectLinkExternalSource> SpawnedExternalSource = RegisteredInfo.SpawnFunction(ExternalSourceUri);
 
-					if (UninitializedExternalSource->CanOpenNewConnection(SourceInfo))
+					if (SpawnedExternalSource->CanOpenNewConnection(SourceInfo))
 					{
-						DirectLinkExternalSource = UninitializedExternalSource;
-						const FGuid DestinationHandle = Endpoint->AddDestination(ExternalSourceName, DirectLink::EVisibility::Private, DirectLinkExternalSource);
-						DirectLinkExternalSource->Initialize(SourceName, SourceHandle, DestinationHandle);
+						const FGuid DestinationHandle = Endpoint->AddDestination(ExternalSourceName, DirectLink::EVisibility::Private, SpawnedExternalSource);
+						SpawnedExternalSource->Initialize(SourceName, SourceHandle, DestinationHandle);
 
-						DirectLinkSourceToExternalSourceMap.Add(SourceHandle, DirectLinkExternalSource.ToSharedRef());
-						UriToExternalSourceMap.Add(ExternalSourceUri, DirectLinkExternalSource.ToSharedRef());
-						break;
+						DirectLinkSourceToExternalSourceMap.Add(SourceHandle, SpawnedExternalSource);
+						
+						return SpawnedExternalSource;
 					}
 				}
 			}
 		}
 
-		return DirectLinkExternalSource;
+		return nullptr;
 	}
 
 	TSharedPtr<FDirectLinkExternalSource> FDirectLinkManager::GetOrCreateExternalSource(const FSourceUri& Uri)
@@ -375,15 +393,28 @@ namespace UE::DatasmithImporter
 	void FDirectLinkManager::InvalidateSource(const DirectLink::FSourceHandle& InvalidSourceHandle)
 	{
 		TSharedRef<FDirectLinkExternalSource> DirectLinkExternalSource = DirectLinkSourceToExternalSourceMap.FindAndRemoveChecked(InvalidSourceHandle);
-		UriToExternalSourceMap.Remove(DirectLinkExternalSource->GetSourceUri());
 
 		// Clear the auto-reimport cache for this external source.
-		TArray<TSharedRef<FAutoReimportInfo>> AutoReimportInfoList;
-		RegisteredAutoReimportExternalSourceMap.MultiFind(DirectLinkExternalSource, AutoReimportInfoList);
-		RegisteredAutoReimportExternalSourceMap.Remove(DirectLinkExternalSource);
-		for (const TSharedRef<FAutoReimportInfo>& AutoReimportInfo : AutoReimportInfoList)
 		{
-			RegisteredAutoReimportObjectMap.Remove(AutoReimportInfo->TargetObject.Get());
+			FRWScopeLock ScopeLock(AutoReimportLock, FRWScopeLockType::SLT_Write);
+			TArray<TSharedRef<FAutoReimportInfo>> AutoReimportInfoList;
+			AutoReimportExternalSourcesMap.MultiFind(DirectLinkExternalSource, AutoReimportInfoList);
+			AutoReimportExternalSourcesMap.Remove(DirectLinkExternalSource);
+
+			for (const TSharedRef<FAutoReimportInfo>& AutoReimportInfo : AutoReimportInfoList)
+			{
+				UObject* Asset = AutoReimportInfo->TargetObject.Get();
+
+				// Assets that were registered for auto-reimport are unregistered from the source
+				// and put back in the "PendingRegistration" list. That way if a compatible source appear they will register to it.
+				AutoReimportObjectsMap.Remove(Asset);
+				PendingAutoReimportObjects.Add(Asset);
+			}
+
+			if (PendingAutoReimportObjects.Num() > 0)
+			{
+				ReconnectionManager->Start();
+			}
 		}
 
 		DirectLinkExternalSource->Invalidate();
@@ -391,7 +422,9 @@ namespace UE::DatasmithImporter
 
 	bool FDirectLinkManager::IsAssetAutoReimportEnabled(UObject* InAsset) const
 	{
-		return RegisteredAutoReimportObjectMap.Find(InAsset) != nullptr;
+		FRWScopeLock ScopeLock(AutoReimportLock, FRWScopeLockType::SLT_ReadOnly);
+
+		return AutoReimportObjectsMap.Contains(InAsset)	|| PendingAutoReimportObjects.Contains(InAsset);
 	}
 
 	bool FDirectLinkManager::SetAssetAutoReimport(UObject* InAsset, bool bEnabled)
@@ -406,7 +439,8 @@ namespace UE::DatasmithImporter
 		const FSourceUri Uri = FSourceUri::FromAssetData(AssetData);
 		const bool bIsValidDirectLinkUri = Uri.IsValid() && Uri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme());
 
-		if (bIsValidDirectLinkUri && !RegisteredAutoReimportObjectMap.Contains(InAsset))
+		FRWScopeLock ScopeLock(AutoReimportLock, FRWScopeLockType::SLT_Write);
+		if (bIsValidDirectLinkUri && !AutoReimportObjectsMap.Contains(InAsset))
 		{
 			if (TSharedPtr<FDirectLinkExternalSource> ExternalSource = GetOrCreateExternalSource(Uri))
 			{
@@ -417,11 +451,21 @@ namespace UE::DatasmithImporter
 				TSharedRef<FDirectLinkExternalSource> ExternalSourceRef = ExternalSource.ToSharedRef();
 				TSharedRef<FAutoReimportInfo> AutoReimportInfo = MakeShared<FAutoReimportInfo>(InAsset, ExternalSourceRef, DelegateHandle);
 
-				RegisteredAutoReimportObjectMap.Add(InAsset, AutoReimportInfo);
-				RegisteredAutoReimportExternalSourceMap.Add(ExternalSourceRef, AutoReimportInfo);
+				AutoReimportObjectsMap.Add(InAsset, AutoReimportInfo);
+				AutoReimportExternalSourcesMap.Add(ExternalSourceRef, AutoReimportInfo);
 				ExternalSource->OpenStream();
-
+				PendingAutoReimportObjects.Remove(InAsset);
 				return true;
+			}
+			else
+			{
+				bool bIsAlreadySet = false;
+				PendingAutoReimportObjects.Add(InAsset, &bIsAlreadySet);
+				if (!bIsAlreadySet)
+				{
+					ReconnectionManager->Start();
+					return true;
+				}
 			}
 		}
 
@@ -431,14 +475,20 @@ namespace UE::DatasmithImporter
 	bool FDirectLinkManager::DisableAssetAutoReimport(UObject* InAsset)
 	{
 		// Disable auto-reimport for InAsset.
-		if (const TSharedRef<FAutoReimportInfo>* AutoReimportInfoPtr = RegisteredAutoReimportObjectMap.Find(InAsset))
+		FRWScopeLock ScopeLock(AutoReimportLock, FRWScopeLockType::SLT_Write);
+		if (const TSharedRef<FAutoReimportInfo>* AutoReimportInfoPtr = AutoReimportObjectsMap.Find(InAsset))
 		{
 			// Holding a local reference to the FAutoReimportInfo to ensure its lifetime while we are cleaning up.
 			const TSharedRef<FAutoReimportInfo> AutoReimportInfo(*AutoReimportInfoPtr);
 
 			AutoReimportInfo->ExternalSource->OnExternalSourceChanged.Remove(AutoReimportInfo->ImportDelegateHandle);
-			RegisteredAutoReimportObjectMap.Remove(InAsset);
-			RegisteredAutoReimportExternalSourceMap.RemoveSingle(AutoReimportInfo->ExternalSource, AutoReimportInfo);
+			AutoReimportObjectsMap.Remove(InAsset);
+			AutoReimportExternalSourcesMap.RemoveSingle(AutoReimportInfo->ExternalSource, AutoReimportInfo);
+			return true;
+		}
+		else
+		{
+			PendingAutoReimportObjects.Remove(InAsset);
 			return true;
 		}
 
@@ -464,7 +514,7 @@ namespace UE::DatasmithImporter
 			return;
 		}
 
-		const bool bHasDirectLinkSourceChanged = RegisteredAutoReimportObjectMap.FindChecked(InAsset)->ExternalSource != UpdatedExternalSource;
+		const bool bHasDirectLinkSourceChanged = AutoReimportObjectsMap.FindChecked(InAsset)->ExternalSource != UpdatedExternalSource;
 		if (bHasDirectLinkSourceChanged)
 		{
 			// The source changed but is still a DirectLink source.
@@ -477,7 +527,7 @@ namespace UE::DatasmithImporter
 	TArray<TSharedRef<FDirectLinkExternalSource>> FDirectLinkManager::GetExternalSourceList() const
 	{
 		TArray<TSharedRef<FDirectLinkExternalSource>> ExternalSources;
-		UriToExternalSourceMap.GenerateValueArray(ExternalSources);
+		DirectLinkSourceToExternalSourceMap.GenerateValueArray(ExternalSources);
 		return ExternalSources;
 	}
 
@@ -527,7 +577,7 @@ namespace UE::DatasmithImporter
 	void FDirectLinkManager::TriggerAutoReimportOnExternalSource(const TSharedRef<FExternalSource>& ExternalSource)
 	{
 		TArray<TSharedRef<FAutoReimportInfo>> AutoReimportInfos;
-		RegisteredAutoReimportExternalSourceMap.MultiFind(ExternalSource, AutoReimportInfos);
+		AutoReimportExternalSourcesMap.MultiFind(ExternalSource, AutoReimportInfos);
 		if (AutoReimportInfos.Num() == 0)
 		{
 			return;
@@ -576,7 +626,7 @@ namespace UE::DatasmithImporter
 		TArray<UObject*> InvalidAssets;
 
 		// We can't call TriggerOnExternalSourceChanged() directly as it may remove items in RegisteredAutoReimportObjectMap while we iterate.
-		for (TPair<UObject*, TSharedRef<FAutoReimportInfo>>& AutoReimportEntry : RegisteredAutoReimportObjectMap)
+		for (TPair<UObject*, TSharedRef<FAutoReimportInfo>>& AutoReimportEntry : AutoReimportObjectsMap)
 		{
 			if (AutoReimportEntry.Value->TargetObject.IsValid())
 			{

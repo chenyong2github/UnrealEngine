@@ -38,6 +38,7 @@ namespace UE::DatasmithImporter
 		static const FSlateBrush* NotAvailableBrush;
 		static const FSlateBrush* OutOfSyncBrush;
 		static const FSlateBrush* UpToDateBrush;
+		static const FSlateBrush* AutoReimportBrush;
 
 		/** Asset path for this indicator widget.*/
 		FAssetData AssetData;

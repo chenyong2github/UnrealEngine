@@ -144,18 +144,20 @@ namespace UE::DatasmithImporter
 
 		TArray<FDirectLinkExternalSourceRegisterInformation> RegisteredExternalSourcesInfo;
 		
-		TMap<FSourceUri, TSharedRef<FDirectLinkExternalSource>> UriToExternalSourceMap;
-		
 		TMap<DirectLink::FSourceHandle, TSharedRef<FDirectLinkExternalSource>> DirectLinkSourceToExternalSourceMap;
 
 		FRWLock ReconnectionListLock;
 		TArray<TSharedRef<FDirectLinkExternalSource>> ExternalSourcesToReconnect;
 
 		TUniquePtr<FDirectLinkAutoReconnectManager> ReconnectionManager;
-
-		TMap<UObject*, TSharedRef<FAutoReimportInfo>> RegisteredAutoReimportObjectMap;
 		
-		TMultiMap<TSharedRef<FExternalSource>, TSharedRef<FAutoReimportInfo>> RegisteredAutoReimportExternalSourceMap;
+		mutable FRWLock AutoReimportLock;
+
+		TSet<TSoftObjectPtr<UObject>> PendingAutoReimportObjects;
+
+		TMap<UObject*, TSharedRef<FAutoReimportInfo>> AutoReimportObjectsMap;
+		
+		TMultiMap<TSharedRef<FExternalSource>, TSharedRef<FAutoReimportInfo>> AutoReimportExternalSourcesMap;
 
 		TQueue<TSharedPtr<FExternalSource>> PendingReimportQueue;
 

@@ -553,13 +553,24 @@ bool UDatasmithImportFactory::Import( FDatasmithImportContext& ImportContext )
 	}
 
 	bool bOutOperationCanceled = false;
-	bool bImportSuccess = DatasmithImportFactoryImpl::ImportDatasmithScene( ImportContext, bOutOperationCanceled );
+	const bool bImportSuccess = DatasmithImportFactoryImpl::ImportDatasmithScene( ImportContext, bOutOperationCanceled );
 
 	GEditor->RedrawAllViewports();
 
 	if ( !IsAutomatedImport() )
 	{
 		ImportContext.DisplayMessages();
+
+		if ( bImportSuccess && !bOutOperationCanceled )
+		{
+			IDatasmithContentEditorModule& ContentEditorModule = IDatasmithContentEditorModule::Get();
+			const bool bIsAutoReimportAvailable = ContentEditorModule.IsAssetAutoReimportAvailable( ImportContext.SceneAsset ).Get( false );
+
+			if ( bIsAutoReimportAvailable )
+			{
+				ContentEditorModule.SetAssetAutoReimport( ImportContext.SceneAsset, true );
+			}
+		}
 	}
 
 	if ( bOutOperationCanceled )

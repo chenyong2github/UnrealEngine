@@ -48,6 +48,7 @@ namespace UE::DatasmithImporter
 		StyleSet->Set("DirectLinkExtension.NotAvailable", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/SourceNotAvailable16"), Icon16x16));
 		StyleSet->Set("DirectLinkExtension.OutOfSync", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/SourceOutOfSync16"), Icon16x16));
 		StyleSet->Set("DirectLinkExtension.UpToDate", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/SourceUpToDate16"), Icon16x16));
+		StyleSet->Set("DirectLinkExtension.AutoReimport", new IMAGE_PLUGIN_BRUSH(TEXT("Icons/SourceAutoReimport16"), Icon16x16));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 	};

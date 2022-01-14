@@ -44,8 +44,6 @@ public:
 		FDatasmithContentEditorStyle::Initialize();
 
 		RegisterDetailCustomization();
-
-		OnMapChangeHandle = FEditorDelegates::MapChange.AddRaw(this, &FDatasmithContentEditorModule::OnMapChange);
 	}
 
 	virtual void ShutdownModule() override
@@ -73,9 +71,6 @@ public:
 		FDatasmithContentEditorStyle::Shutdown();
 
 		UnregisterDetailCustomization();
-
-		ClearAutoReimportAssets();
-		FEditorDelegates::MapChange.Remove(OnMapChangeHandle);
 	}
 
 	virtual void RegisterSpawnDatasmithSceneActorsHandler( FOnSpawnDatasmithSceneActors InSpawnActorsDelegate ) override
@@ -146,17 +141,8 @@ public:
 		}
 	}
 		
-	virtual TOptional<bool> SetAssetAutoReimport(UObject* Asset, bool bEnabled) override
+	virtual TOptional<bool> SetAssetAutoReimport(UObject* Asset, bool bEnabled) const override
 	{
-		if (bEnabled)
-		{
-			AutoReimportingAssets.Add(Asset);
-		}
-		else
-		{
-			AutoReimportingAssets.Remove(Asset);
-		}
-
 		if (SetAssetAutoReimportHandler.IsBound())
 		{
 			return SetAssetAutoReimportHandler.Execute(Asset, bEnabled);
@@ -263,28 +249,6 @@ private:
 		return TSharedPtr<IDataprepImporterInterface>();
 	}
 
-	void OnMapChange(uint32 MapEventFlags)
-	{
-		// We must clear all auto-reimport registered assets before changing map.
-		ClearAutoReimportAssets();
-	}
-
-	void ClearAutoReimportAssets()
-	{
-		if (SetAssetAutoReimportHandler.IsBound())
-		{
-			for (const TSoftObjectPtr<UObject>& Asset : AutoReimportingAssets)
-			{
-				if (Asset.IsValid())
-				{
-					SetAssetAutoReimportHandler.Execute(Asset.Get(), false);
-				}
-			}
-		}
-
-		AutoReimportingAssets.Empty();
-	}
-
 	void RegisterDetailCustomization()
 	{
 		const FName PropertyEditor("PropertyEditor");
@@ -315,9 +279,6 @@ private:
 	FOnIsAssetAutoReimportEnabled IsAssetAutoReimportEnabledHandler;
 	FOnBrowseExternalSourceUri BrowseExternalSourceUriHandler;
 	FOnGetSupportedUriSchemes GetSupportedUriSchemeHandler;
-
-	FDelegateHandle OnMapChangeHandle;
-	TSet<TSoftObjectPtr<UObject>> AutoReimportingAssets;
 };
 
 #undef LOCTEXT_NAMESPACE

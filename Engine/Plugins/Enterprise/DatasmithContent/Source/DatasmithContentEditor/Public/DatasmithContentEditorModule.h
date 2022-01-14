@@ -113,7 +113,7 @@ public:
 	 */
 	virtual void RegisterSetAssetAutoReimportHandler(FOnSetAssetAutoReimport&& SetAssetAutoReimportDelegate) = 0;
 	virtual void UnregisterSetAssetAutoReimportHandler(FDelegateHandle InHandle) = 0;
-	virtual TOptional<bool> SetAssetAutoReimport(UObject* Asset, bool bEnabled) = 0;
+	virtual TOptional<bool> SetAssetAutoReimport(UObject* Asset, bool bEnabled) const = 0;
 
 	/**
 	 * Delegate returning if the AutoReimport feature is available for a given asset.

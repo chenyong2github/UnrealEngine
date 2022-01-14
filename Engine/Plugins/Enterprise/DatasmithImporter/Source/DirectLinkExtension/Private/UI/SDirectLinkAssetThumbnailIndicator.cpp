@@ -2,6 +2,8 @@
 
 #include "UI/SDirectLinkAssetThumbnailIndicator.h"
 
+#include "DirectLinkExtensionModule.h"
+#include "IDirectLinkManager.h"
 #include "UI/DirectLinkExtensionStyle.h"
 
 #include "ExternalSource.h"
@@ -23,6 +25,7 @@ namespace UE::DatasmithImporter
 			NotAvailable,
 			OutOfSync,
 			UpToDate,
+			AutoReimport,
 		};
 
 		FSourceUri TryGetSourceUri(const FAssetData& AssetData) 
@@ -71,6 +74,16 @@ namespace UE::DatasmithImporter
 				return EDirectLinkSourceStatus::None;
 			}
 
+			// Only loaded asset can possibly be registered for auto-reimport.
+			const bool bLoadAsset = false;
+			if (UObject* Asset = AssetData.FastGetAsset(bLoadAsset))
+			{
+				if (IDirectLinkExtensionModule::Get().GetManager().IsAssetAutoReimportEnabled(Asset))
+				{
+					return EDirectLinkSourceStatus::AutoReimport;
+				}
+			}
+
 			const TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::GetOrCreateExternalSource(SourceUri);
 			if (!ExternalSource.IsValid() || !ExternalSource->IsAvailable())
 			{
@@ -97,6 +110,7 @@ namespace UE::DatasmithImporter
 	const FSlateBrush* SDirectLinkAssetThumbnailIndicator::NotAvailableBrush = nullptr;
 	const FSlateBrush* SDirectLinkAssetThumbnailIndicator::OutOfSyncBrush = nullptr;
 	const FSlateBrush* SDirectLinkAssetThumbnailIndicator::UpToDateBrush = nullptr;
+	const FSlateBrush* SDirectLinkAssetThumbnailIndicator::AutoReimportBrush = nullptr;
 
 	void SDirectLinkAssetThumbnailIndicator::Construct(const FArguments& InArgs)
 	{
@@ -129,6 +143,7 @@ namespace UE::DatasmithImporter
 			NotAvailableBrush = FDirectLinkExtensionStyle::Get().GetBrush(TEXT("DirectLinkExtension.NotAvailable"));
 			OutOfSyncBrush = FDirectLinkExtensionStyle::Get().GetBrush(TEXT("DirectLinkExtension.OutOfSync"));
 			UpToDateBrush = FDirectLinkExtensionStyle::Get().GetBrush(TEXT("DirectLinkExtension.UpToDate"));
+			AutoReimportBrush = FDirectLinkExtensionStyle::Get().GetBrush(TEXT("DirectLinkExtension.AutoReimport"));
 		}
 	}
 
@@ -147,6 +162,8 @@ namespace UE::DatasmithImporter
 			return OutOfSyncBrush;
 		case ThumbnailIndicatorImpl::EDirectLinkSourceStatus::UpToDate:
 			return UpToDateBrush;
+		case ThumbnailIndicatorImpl::EDirectLinkSourceStatus::AutoReimport:
+			return AutoReimportBrush;
 		case ThumbnailIndicatorImpl::EDirectLinkSourceStatus::None:
 		default:
 			return nullptr;
@@ -195,6 +212,8 @@ namespace UE::DatasmithImporter
 			return LOCTEXT("OutOfSyncTooltip", "Asset is not synced to Direct Link source.");
 		case ThumbnailIndicatorImpl::EDirectLinkSourceStatus::UpToDate:
 			return LOCTEXT("NotAvailableTooltip", "Asset is up-to-date with Direct Link source.");
+		case ThumbnailIndicatorImpl::EDirectLinkSourceStatus::AutoReimport:
+			return LOCTEXT("AutoReimportTooltip", "Asset will auto-reimport on Direct Link source change.");
 		case ThumbnailIndicatorImpl::EDirectLinkSourceStatus::None:
 		default:
 			return FText();

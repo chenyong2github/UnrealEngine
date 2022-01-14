@@ -90,23 +90,6 @@ void FDatasmithSceneActorDetailsPanel::CustomizeDetails(IDetailLayoutBuilder& De
 		[
 			WrapBox
 		];
-
-	ActionsCategory.AddCustomRow(AutoReimportCaption)
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			.Text(AutoReimportCaption)
-			.ToolTipText(AutoReimportTooltip)
-			.IsEnabled(this, &FDatasmithSceneActorDetailsPanel::GetAutoReimportIsEnabled)
-		]
-		.ValueContent()
-		[
-			SNew(SCheckBox)
-			.IsChecked(this, &FDatasmithSceneActorDetailsPanel::GetAutoReimportIsChecked)
-			.IsEnabled(this, &FDatasmithSceneActorDetailsPanel::GetAutoReimportIsEnabled)
-			.OnCheckStateChanged(FOnCheckStateChanged::CreateSP(this, &FDatasmithSceneActorDetailsPanel::OnAutoReimportStateChanged))
-		];
 }
 
 FReply FDatasmithSceneActorDetailsPanel::OnExecuteAction()
@@ -121,67 +104,5 @@ FReply FDatasmithSceneActorDetailsPanel::OnExecuteAction()
 
 	return FReply::Handled();
 }
-
-void FDatasmithSceneActorDetailsPanel::OnAutoReimportStateChanged(ECheckBoxState NewState)
-{
-	IDatasmithContentEditorModule& DatasmithContentEditorModule = IDatasmithContentEditorModule::Get();
-
-	const bool bEnabled = NewState == ECheckBoxState::Checked;
-	for (const TWeakObjectPtr< UObject >& SelectedObject : SelectedObjectsList)
-	{
-		if (ADatasmithSceneActor* SceneActor = Cast< ADatasmithSceneActor >(SelectedObject.Get()))
-		{
-			DatasmithContentEditorModule.SetAssetAutoReimport(SceneActor->Scene.Get(), bEnabled);
-		}
-	}
-}
-
-ECheckBoxState FDatasmithSceneActorDetailsPanel::GetAutoReimportIsChecked() const
-{
-	IDatasmithContentEditorModule& DatasmithContentEditorModule = IDatasmithContentEditorModule::Get();
-	ECheckBoxState State = ECheckBoxState::Unchecked;
-	bool bHasCheckedAssets = false;
-
-	for (const TWeakObjectPtr< UObject >& SelectedObject : SelectedObjectsList)
-	{
-		if (ADatasmithSceneActor* SceneActor = Cast< ADatasmithSceneActor >(SelectedObject.Get()))
-		{
-			const TOptional<bool> bIsAutoReimportEnabled = DatasmithContentEditorModule.IsAssetAutoReimportEnabled(SceneActor->Scene.Get());
-			const bool bDefaultValue = false;
-
-			if (bIsAutoReimportEnabled.Get(bDefaultValue))
-			{
-				bHasCheckedAssets = true;
-			}
-			else if (bHasCheckedAssets)
-			{
-				return ECheckBoxState::Undetermined;
-			}
-		}
-	}
-
-	return bHasCheckedAssets ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-bool FDatasmithSceneActorDetailsPanel::GetAutoReimportIsEnabled() const
-{
-	IDatasmithContentEditorModule& DatasmithContentEditorModule = IDatasmithContentEditorModule::Get();
-
-	for (const TWeakObjectPtr< UObject >& SelectedObject : SelectedObjectsList)
-	{
-		if (ADatasmithSceneActor* SceneActor = Cast< ADatasmithSceneActor >(SelectedObject.Get()))
-		{
-			const TOptional<bool> bIsAutoReimportAvailable = DatasmithContentEditorModule.IsAssetAutoReimportAvailable(SceneActor->Scene.Get());
-			const bool bDefaultValue = false;
-
-			if (!bIsAutoReimportAvailable.Get(bDefaultValue))
-			{
-				return false;
-			}
-		}
-	}
-
-	return true;
-};
 
 #undef LOCTEXT_NAMESPACE
