@@ -575,6 +575,8 @@ struct FVulkanTextureBase : public FVulkanEvictable, public IRefCountedObject
 	void AttachView(VulkanRHI::FVulkanViewBase* View);
 	void DetachView(VulkanRHI::FVulkanViewBase* View);
 
+	bool GetTextureResourceInfo(FRHIResourceInfo& OutResourceInfo) const;
+
 	virtual FRHITexture* GetRHITexture() = 0;
 private:
 	void InvalidateViews(FVulkanDevice& Device);
@@ -628,6 +630,13 @@ public:
 	{
 		return (void*)Surface.Image;
 	}
+
+#if RHI_ENABLE_RESOURCE_INFO
+	virtual bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override final
+	{
+		return GetTextureResourceInfo(OutResourceInfo);
+	}
+#endif
 };
 
 class FVulkanTexture2DArray : public FRHITexture2DArray, public FVulkanTextureBase
@@ -671,6 +680,13 @@ public:
 	{
 		return (void*)Surface.Image;
 	}
+
+#if RHI_ENABLE_RESOURCE_INFO
+	virtual bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override final
+	{
+		return GetTextureResourceInfo(OutResourceInfo);
+	}
+#endif
 };
 
 class FVulkanTexture3D : public FRHITexture3D, public FVulkanTextureBase
@@ -712,6 +728,13 @@ public:
 	{
 		return (void*)Surface.Image;
 	}
+
+#if RHI_ENABLE_RESOURCE_INFO
+	virtual bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override final
+	{
+		return GetTextureResourceInfo(OutResourceInfo);
+	}
+#endif
 };
 
 class FVulkanTextureCube : public FRHITextureCube, public FVulkanTextureBase
@@ -755,6 +778,13 @@ public:
 	{
 		return (void*)Surface.Image;
 	}
+
+#if RHI_ENABLE_RESOURCE_INFO
+	virtual bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override final
+	{
+		return GetTextureResourceInfo(OutResourceInfo);
+	}
+#endif
 };
 
 class FVulkanQueryPool : public VulkanRHI::FDeviceChild

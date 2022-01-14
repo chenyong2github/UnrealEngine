@@ -1748,10 +1748,6 @@ FTexture3DRHIRef FD3D12DynamicRHI::RHICreateTexture3D(uint32 SizeX, uint32 SizeY
 #endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 }
 
-void FD3D12DynamicRHI::RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
-{
-}
-
 /**
  * Computes the size in memory required by a given texture.
  *

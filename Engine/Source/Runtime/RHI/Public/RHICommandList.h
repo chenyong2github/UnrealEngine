@@ -4406,9 +4406,12 @@ public:
 		});
 	}
 
+	UE_DEPRECATED(5.0, "RHIGetResourceInfo is no longer implemented in favor of FRHIResource::GetResourceInfo.")
 	FORCEINLINE void GetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return RHIGetResourceInfo(Ref, OutInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	
 	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)

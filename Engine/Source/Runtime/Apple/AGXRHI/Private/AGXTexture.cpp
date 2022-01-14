@@ -1671,12 +1671,6 @@ FTexture3DRHIRef FAGXDynamicRHI::RHICreateTexture3D(uint32 SizeX, uint32 SizeY, 
 	}
 }
 
-void FAGXDynamicRHI::RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
-{
-	// @todo Needed for visualisation!!
-	// NOT_SUPPORTED("RHIGetResourceInfo");
-}
-
 void FAGXDynamicRHI::RHIGenerateMips(FRHITexture* SourceSurfaceRHI)
 {
 	@autoreleasepool {

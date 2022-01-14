@@ -876,7 +876,16 @@ public:
 	* @param Ref may be 0
 	*/
 	// FlushType: Thread safe
-	virtual void RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo) = 0;
+	UE_DEPRECATED(5.0, "RHIGetResourceInfo is no longer implemented in favor of FRHIResource::GetResourceInfo.")
+	virtual void RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
+	{
+#if RHI_ENABLE_RESOURCE_INFO
+		if (Ref)
+		{
+			Ref->GetResourceInfo(OutInfo);
+		}
+#endif
+	}
 
 	/**
 	* Creates a shader resource view for a texture
@@ -1675,9 +1684,12 @@ FORCEINLINE void RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 	GDynamicRHI->RHIGetTextureMemoryStats(OutStats);
 }
 
+UE_DEPRECATED(5.0, "RHIGetResourceInfo is no longer implemented in favor of FRHIResource::GetResourceInfo.")
 FORCEINLINE void RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
 {
-	return GDynamicRHI->RHIGetResourceInfo(Ref, OutInfo);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	GDynamicRHI->RHIGetResourceInfo(Ref, OutInfo);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FORCEINLINE uint32 RHIComputeMemorySize(FRHITexture* TextureRHI)

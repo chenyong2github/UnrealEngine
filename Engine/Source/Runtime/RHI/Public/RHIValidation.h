@@ -679,15 +679,6 @@ public:
 	}
 
 	/**
-	* @param Ref may be 0
-	*/
-	// FlushType: Thread safe
-	virtual void RHIGetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo) override final
-	{
-		return RHI->RHIGetResourceInfo(Ref, OutInfo);
-	}
-
-	/**
 	* Creates a shader resource view for a texture
 	*/
 	// FlushType: Wait RHI Thread
