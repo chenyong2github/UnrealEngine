@@ -443,6 +443,9 @@ struct QOS_API FRegionQosInstance
 	 * @see FDatacenterQosInstance::IsLessWhenBiasedTowardsNonSubspace(const FDatacenterQosInstance&, const FDatacenterQosInstance&, const FQosSubspaceComparisonParams&, const TCHAR*);
 	 */
 	void SortDatacenterSubspacesByRecommended(const FQosSubspaceComparisonParams& ComparisonParams, const TCHAR* const SubspaceDelimiter);
+
+	/** Print list of datacenters results for this region to QoS log. */
+	void LogDatacenterResults() const;
 };
 
 /**
