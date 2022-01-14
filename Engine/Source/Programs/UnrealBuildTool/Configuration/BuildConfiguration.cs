@@ -60,6 +60,7 @@ namespace UnrealBuildTool
 		/// Whether SN-DBS may be used.
 		/// </summary>
 		[XmlConfigFile]
+		[CommandLine("-NoSNDBS", Value = "false")]
 		public bool bAllowSNDBS = true;
 
 		/// <summary>
