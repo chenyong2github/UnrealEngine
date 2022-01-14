@@ -221,6 +221,55 @@ protected:
 
 		return true;
 	}
+
+	bool GetRecordChunks(TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy, uint64 Offset, uint64 Size, TArray<FSharedBuffer>& OutChunks)
+	{
+		using namespace UE::DerivedData;
+		UE::DerivedData::ICacheStore* TestBackend = GetTestBackend();
+
+		TArray<FCacheChunkRequest> Requests;
+
+		int32 OverallIndex = 0;
+		for (int32 RecordIndex = 0; RecordIndex < Records.Num(); ++RecordIndex)
+		{
+			const FCacheRecord& Record = Records[RecordIndex];
+			TConstArrayView<FValueWithId> Values = Record.GetValues();
+			for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
+			{
+				const FValueWithId& Value = Values[ValueIndex];
+				Requests.Add({ {TEXT("FHttpDerivedDataTestBase")}, Record.GetKey(),  Value.GetId(), Offset, Size, Value.GetRawHash(), Policy.GetValuePolicy(Value.GetId()), static_cast<uint64>(OverallIndex) });
+				++OverallIndex;
+			}
+		}
+
+		struct FGetChunksOutput
+		{
+			FSharedBuffer Chunk;
+			EStatus Status = EStatus::Error;
+		};
+
+		TArray<TOptional<FGetChunksOutput>> GetOutputs;
+		GetOutputs.SetNum(Requests.Num());
+		FRequestOwner RequestOwner(EPriority::Blocking);
+		TestBackend->GetChunks(Requests, RequestOwner, [&GetOutputs](FCacheChunkResponse&& Response)
+			{
+				GetOutputs[Response.UserData].Emplace(FGetChunksOutput { Response.RawData, Response.Status });
+			});
+		RequestOwner.Wait();
+
+		for (int32 RequestIndex = 0; RequestIndex < Requests.Num(); ++RequestIndex)
+		{
+			FGetChunksOutput& ReceivedOutput = GetOutputs[RequestIndex].GetValue();
+			if (ReceivedOutput.Status != EStatus::Ok)
+			{
+				return false;
+			}
+			OutChunks.Add(MoveTemp(ReceivedOutput.Chunk));
+		}
+
+		return true;
+
+	}
 	
 	void ValidateRecords(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> RecordsToTest, TConstArrayView<UE::DerivedData::FCacheRecord> ReferenceRecords, UE::DerivedData::FCacheRecordPolicy Policy)
 	{
@@ -265,6 +314,51 @@ protected:
 		}
 	}
 
+	void ValidateRecordChunks(const TCHAR* Name, TConstArrayView<FSharedBuffer> RecordChunksToTest, TConstArrayView<UE::DerivedData::FCacheRecord> ReferenceRecords, UE::DerivedData::FCacheRecordPolicy Policy, uint64 Offset, uint64 Size)
+	{
+		using namespace UE::DerivedData;
+
+		int32 TotalChunks = 0;
+		for (int32 RecordIndex = 0; RecordIndex < ReferenceRecords.Num(); ++RecordIndex)
+		{
+			const FCacheRecord& Record = ReferenceRecords[RecordIndex];
+			TConstArrayView<FValueWithId> Values = Record.GetValues();
+			for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
+			{
+				++TotalChunks;
+			}
+		}
+
+		if (!TestEqual(FString::Printf(TEXT("%s::Chunk quantity"), Name), RecordChunksToTest.Num(), TotalChunks))
+		{
+			return;
+		}
+
+		int32 ChunkIndex = 0;
+		for (int32 RecordIndex = 0; RecordIndex < ReferenceRecords.Num(); ++RecordIndex)
+		{
+			const FCacheRecord& ExpectedRecord = ReferenceRecords[RecordIndex];
+
+			const TConstArrayView<FValueWithId> ExpectedValues = ExpectedRecord.GetValues();
+			for (int32 ValueIndex = 0; ValueIndex < ExpectedValues.Num(); ++ValueIndex)
+			{
+				const FSharedBuffer& ChunkToTest = RecordChunksToTest[ChunkIndex];
+
+				if (EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipData))
+				{
+					TestTrue(FString::Printf(TEXT("%s::Get chunk[%d] IsNull"), Name, ChunkIndex), ChunkToTest.IsNull());
+				}
+				else
+				{
+					FSharedBuffer ReferenceBuffer = ExpectedValues[ValueIndex].GetData().Decompress();
+					FMemoryView ReferenceView = ReferenceBuffer.GetView().Mid(Offset, Size);
+					TestTrue(FString::Printf(TEXT("%s::Get chunk[%d] data equality"), Name, ChunkIndex), ReferenceView.EqualBytes(ChunkToTest.GetView()));
+				}
+				++ChunkIndex;
+			}
+		}
+	}
+
 	TArray<UE::DerivedData::FCacheRecord> GetAndValidateRecords(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy)
 	{
 		using namespace UE::DerivedData;
@@ -279,6 +373,28 @@ protected:
 
 		ValidateRecords(Name, ReceivedRecords, Records, Policy);
 		return ReceivedRecords;
+	}
+
+	TArray<FSharedBuffer> GetAndValidateRecordChunks(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy, uint64 Offset, uint64 Size)
+	{
+		using namespace UE::DerivedData;
+		TArray<FSharedBuffer> ReceivedChunks;
+		bool bGetSuccessful = GetRecordChunks(Records, Policy, Offset, Size, ReceivedChunks);
+		TestTrue(FString::Printf(TEXT("%s::GetChunks status"), Name), bGetSuccessful);
+
+		if (!bGetSuccessful)
+		{
+			return TArray<FSharedBuffer>();
+		}
+
+		ValidateRecordChunks(Name, ReceivedChunks, Records, Policy, Offset, Size);
+		return ReceivedChunks;
+	}
+
+	TArray<UE::DerivedData::FCacheRecord> GetAndValidateRecordsAndChunks(const TCHAR* Name, TConstArrayView<UE::DerivedData::FCacheRecord> Records, UE::DerivedData::FCacheRecordPolicy Policy)
+	{
+		GetAndValidateRecordChunks(Name, Records, Policy, 5, 5);
+		return GetAndValidateRecords(Name, Records, Policy);
 	}
 
 protected:
@@ -330,11 +446,12 @@ TArray<UE::DerivedData::FCacheRecord> CreateTestCacheRecords(UE::DerivedData::IC
 		for (uint32 ValueIndex = 0; ValueIndex < InNumValues; ++ValueIndex)
 		{
 			TArray<uint8> ValueContents;
-			// Add N zeroed bytes where N corresponds to the value index.
-			ValueContents.AddUninitialized(ValueIndex+1);
-			for (uint32 ContentIndex = 0; ContentIndex < (ValueIndex+1); ++ContentIndex)
+			// Add N zeroed bytes where N corresponds to the value index times 10.
+			const int32 NumBytes = (ValueIndex+1)*10;
+			ValueContents.AddUninitialized(NumBytes);
+			for (int32 ContentIndex = 0; ContentIndex < NumBytes; ++ContentIndex)
 			{
-				ValueContents[ContentIndex] = (uint8)KeyIndex;
+				ValueContents[ContentIndex] = (uint8)(KeyIndex + ContentIndex);
 			}
 			Values.Emplace(MakeSharedBufferFromArray(MoveTemp(ValueContents)));
 			HashBuilder.Update(Values.Last().GetView());
@@ -480,9 +597,9 @@ bool CacheStore::RunTest(const FString& Parameters)
 
 	{
 		TArray<FCacheRecord> PutRecords = CreateTestCacheRecords(TestBackend, RecordsInBatch, 1);
-		TArray<FCacheRecord> RecievedRecords = GetAndValidateRecords(TEXT("SimpleValue"), PutRecords, ECachePolicy::Default);
-		TArray<FCacheRecord> RecievedRecordsSkipMeta = GetAndValidateRecords(TEXT("SimpleValueSkipMeta"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipMeta);
-		TArray<FCacheRecord> RecievedRecordsSkipData = GetAndValidateRecords(TEXT("SimpleValueSkipData"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipData);
+		TArray<FCacheRecord> RecievedRecords = GetAndValidateRecordsAndChunks(TEXT("SimpleValue"), PutRecords, ECachePolicy::Default);
+		TArray<FCacheRecord> RecievedRecordsSkipMeta = GetAndValidateRecordsAndChunks(TEXT("SimpleValueSkipMeta"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipMeta);
+		TArray<FCacheRecord> RecievedRecordsSkipData = GetAndValidateRecordsAndChunks(TEXT("SimpleValueSkipData"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipData);
 
 #if UE_WITH_ZEN
 		if (ZenIntermediaryBackend)
@@ -504,9 +621,9 @@ bool CacheStore::RunTest(const FString& Parameters)
 		FCbObject MetaObject = MetaWriter.Save().AsObject();
 
 		TArray<FCacheRecord> PutRecords = CreateTestCacheRecords(TestBackend, RecordsInBatch, 1, MetaObject);
-		TArray<FCacheRecord> RecievedRecords = GetAndValidateRecords(TEXT("SimpleValueWithMeta"), PutRecords, ECachePolicy::Default);
-		TArray<FCacheRecord> RecievedRecordsSkipMeta = GetAndValidateRecords(TEXT("SimpleValueWithMetaSkipMeta"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipMeta);
-		TArray<FCacheRecord> RecievedRecordsSkipData = GetAndValidateRecords(TEXT("SimpleValueWithMetaSkipData"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipData);
+		TArray<FCacheRecord> RecievedRecords = GetAndValidateRecordsAndChunks(TEXT("SimpleValueWithMeta"), PutRecords, ECachePolicy::Default);
+		TArray<FCacheRecord> RecievedRecordsSkipMeta = GetAndValidateRecordsAndChunks(TEXT("SimpleValueWithMetaSkipMeta"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipMeta);
+		TArray<FCacheRecord> RecievedRecordsSkipData = GetAndValidateRecordsAndChunks(TEXT("SimpleValueWithMetaSkipData"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipData);
 
 #if UE_WITH_ZEN
 		if (ZenIntermediaryBackend)
@@ -522,9 +639,9 @@ bool CacheStore::RunTest(const FString& Parameters)
 
 	{
 		TArray<FCacheRecord> PutRecords = CreateTestCacheRecords(TestBackend, RecordsInBatch, 5);
-		TArray<FCacheRecord> RecievedRecords = GetAndValidateRecords(TEXT("MultiValue"), PutRecords, ECachePolicy::Default);
-		TArray<FCacheRecord> RecievedRecordsSkipMeta = GetAndValidateRecords(TEXT("MultiValueSkipMeta"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipMeta);
-		TArray<FCacheRecord> RecievedRecordsSkipData = GetAndValidateRecords(TEXT("MultiValueSkipData"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipData);
+		TArray<FCacheRecord> RecievedRecords = GetAndValidateRecordsAndChunks(TEXT("MultiValue"), PutRecords, ECachePolicy::Default);
+		TArray<FCacheRecord> RecievedRecordsSkipMeta = GetAndValidateRecordsAndChunks(TEXT("MultiValueSkipMeta"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipMeta);
+		TArray<FCacheRecord> RecievedRecordsSkipData = GetAndValidateRecordsAndChunks(TEXT("MultiValueSkipData"), PutRecords, ECachePolicy::Default | ECachePolicy::SkipData);
 
 #if UE_WITH_ZEN
 		if (ZenIntermediaryBackend)
