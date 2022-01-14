@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
 
 namespace DatasmithRevitExporter
@@ -87,53 +86,59 @@ namespace DatasmithRevitExporter
 
 	public class DatasmithRevitSettingsDialog : Form
 	{
-		private CheckedListBox GroupsList;
-		private TextBox ParamNameTextBox;
-		private FMetadataSettings MetadataSettings;
+		private ListBox GroupsList;
+		private NumericUpDown LevelOfTessellation;
+		private FSettings Settings;
 		private Autodesk.Revit.DB.Document Document;
 		private SortedList<string, int> AddedBuiltinParamGroups = new SortedList<string, int>();
 		private List<string> AddedParamNames = new List<string>();
 
 		public DatasmithRevitSettingsDialog(Autodesk.Revit.DB.Document InDocument)
 		{
+			string FormatTooltip(string InText)
+			{
+				string Tooltip = InText;
+				return Tooltip.Replace("\\n", Environment.NewLine);
+			}
+
 			Document = InDocument;
 			FormClosing += OnClosing;
 
-			MetadataSettings = FMetadataManager.CurrentSettings;
+			Settings = FSettingsManager.CurrentSettings;
 
 			ToolTip OptionToolTip = new ToolTip();
 			OptionToolTip.AutoPopDelay = 10000; // milliseconds
 
-			Label DescriptionLabel = new Label();
-			DescriptionLabel.Name = "MatchParameterName";
-			DescriptionLabel.Text = DatasmithRevitResources.Strings.SettingsDialog_LabelMetadataDescription;
-			DescriptionLabel.Anchor = AnchorStyles.Left;
-			DescriptionLabel.AutoSize = false;
-			DescriptionLabel.TabIndex = 0;
-			DescriptionLabel.Font = new Font(FontFamily.GenericSansSerif, 8f);
-			DescriptionLabel.BorderStyle = BorderStyle.FixedSingle;
-			DescriptionLabel.BackColor = Color.Wheat;
-			DescriptionLabel.TextAlign = ContentAlignment.MiddleLeft;
-			DescriptionLabel.Margin = new Padding(0, 10, 0, 20);
-			DescriptionLabel.Width = 385;
-			DescriptionLabel.Height = 55;
+			FlowLayoutPanel LevelOfTesselationPanel = new FlowLayoutPanel();
+			LevelOfTesselationPanel.FlowDirection = FlowDirection.LeftToRight;
+			LevelOfTesselationPanel.WrapContents = false;
+			LevelOfTesselationPanel.AutoSize = true;
+			LevelOfTesselationPanel.Margin = new Padding(0, 0, 0, 30);
+			{
+				Label LevelOfTessellationLabel = new Label();
+				LevelOfTessellationLabel.Name = "LevelOfTessellationLabel";
+				LevelOfTessellationLabel.Text = DatasmithRevitResources.Strings.SettingsDialog_LevelOfTesselation;
+				LevelOfTessellationLabel.Anchor = AnchorStyles.Left;
+				LevelOfTessellationLabel.AutoSize = true;
+				LevelOfTessellationLabel.Margin = new Padding(0, 0, 3, 0);
+				LevelOfTessellationLabel.TabIndex = 2;
+				LevelOfTessellationLabel.TextAlign = ContentAlignment.MiddleLeft;
 
-			Label ParamNameLabel = new Label();
-			ParamNameLabel.Name = "MatchParameterNames";
-			ParamNameLabel.Text = DatasmithRevitResources.Strings.SettingsDialog_LabelMatchParamNames;
-			ParamNameLabel.Anchor = AnchorStyles.Left;
-			ParamNameLabel.AutoSize = true;
-			ParamNameLabel.TabIndex = 0;
-			ParamNameLabel.TextAlign = ContentAlignment.MiddleLeft;
-			ParamNameLabel.Margin = new Padding(0, 0, 0, 10);
-			OptionToolTip.SetToolTip(ParamNameLabel, "Paramter names to match, separated by new lines (can be partial names).\nCase insensitive.");
+				LevelOfTessellation = new NumericUpDown();
+				LevelOfTessellation.Name = "LevelOfTessellation";
+				LevelOfTessellation.Minimum = 1;
+				LevelOfTessellation.Maximum = 15;
+				LevelOfTessellation.Value = 8;
+				LevelOfTessellation.Anchor = AnchorStyles.Left;
+				LevelOfTessellation.AutoSize = true;
+				LevelOfTessellation.TabIndex = 3;
+				LevelOfTessellation.TextAlign = HorizontalAlignment.Right;
 
-			ParamNameTextBox = new TextBox();
-			ParamNameTextBox.Width = 385;
-			ParamNameTextBox.Height = 150;
-			ParamNameTextBox.TabStop = false;
-			ParamNameTextBox.Multiline = true;
-			ParamNameTextBox.Margin = new Padding(0, 0, 0, 20);
+				OptionToolTip.SetToolTip(LevelOfTessellationLabel, FormatTooltip(DatasmithRevitResources.Strings.SettingsDialog_LevelOfTesselationTooltip));
+
+				LevelOfTesselationPanel.Controls.Add(LevelOfTessellationLabel);
+				LevelOfTesselationPanel.Controls.Add(LevelOfTessellation);
+			}
 
 			Label GroupsLabel = new Label();
 			GroupsLabel.Name = "GroupsLabel";
@@ -141,62 +146,91 @@ namespace DatasmithRevitExporter
 			GroupsLabel.Anchor = AnchorStyles.Left;
 			GroupsLabel.AutoSize = true;
 
-			GroupsList = new CheckedListBox();
-			GroupsList.Size = new Size(380, 200);
+			GroupsList = new ListBox();
+			GroupsList.Size = new Size(450, 250);
+			GroupsList.SelectionMode = SelectionMode.MultiExtended;
 
-			Button AddGroupButton = new Button();
-			AddGroupButton.Name = "Add";
-			AddGroupButton.Text = DatasmithRevitResources.Strings.SettingsDialog_ButtonAddGroups;
-			AddGroupButton.AutoSize = true;
-			AddGroupButton.Anchor = AnchorStyles.Left;
-			AddGroupButton.UseVisualStyleBackColor = true;
-			AddGroupButton.Click += (s, e) =>
+			OptionToolTip.SetToolTip(GroupsLabel, FormatTooltip(DatasmithRevitResources.Strings.SettingsDialog_MetadataFilterTooltip));
+	
+			FlowLayoutPanel ButtonsPanel = new FlowLayoutPanel();
+			ButtonsPanel.FlowDirection = FlowDirection.TopDown;
+			ButtonsPanel.WrapContents = false;
+			ButtonsPanel.AutoSize = true;
+			ButtonsPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+			ButtonsPanel.Padding = new Padding(0);
 			{
-				DatasmithRevitParamGroupsDialog Dlg = new DatasmithRevitParamGroupsDialog();
-				if (DialogResult.OK == Dlg.ShowDialog())
+				Button AddGroupButton = new Button();
+				AddGroupButton.Name = "Add";
+				AddGroupButton.Text = DatasmithRevitResources.Strings.SettingsDialog_ButtonAddGroups;
+				AddGroupButton.Margin = new Padding(0);
+				AddGroupButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+				AddGroupButton.AutoSize = true;
+				AddGroupButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+				AddGroupButton.UseVisualStyleBackColor = true;
+				AddGroupButton.Click += (s, e) =>
 				{
-					bool bAddedNewGroups = false;
-					foreach (int Index in Dlg.GroupsList.CheckedIndices)
+					DatasmithRevitParamGroupsDialog Dlg = new DatasmithRevitParamGroupsDialog();
+					if (DialogResult.OK == Dlg.ShowDialog())
 					{
-						string GroupLabel = DatasmithRevitParamGroupsDialog.AllBuiltinParamGroups.Keys[Index];
-						if (!AddedBuiltinParamGroups.ContainsKey(GroupLabel))
+						bool bAddedNewGroups = false;
+						foreach (int Index in Dlg.GroupsList.CheckedIndices)
 						{
-							int GroupId;
-							if (DatasmithRevitParamGroupsDialog.AllBuiltinParamGroups.TryGetValue(GroupLabel, out GroupId))
+							string GroupLabel = DatasmithRevitParamGroupsDialog.AllBuiltinParamGroups.Keys[Index];
+							if (!AddedBuiltinParamGroups.ContainsKey(GroupLabel))
 							{
-								AddedBuiltinParamGroups.Add(GroupLabel, GroupId);
-								bAddedNewGroups = true;
+								int GroupId;
+								if (DatasmithRevitParamGroupsDialog.AllBuiltinParamGroups.TryGetValue(GroupLabel, out GroupId))
+								{
+									AddedBuiltinParamGroups.Add(GroupLabel, GroupId);
+									bAddedNewGroups = true;
+								}
 							}
 						}
-					}
 
-					if (bAddedNewGroups)
-					{
-						ReloadAddedGroupsList();
+						if (bAddedNewGroups)
+						{
+							ReloadAddedGroupsList();
+						}
 					}
-				}
-			};
+				};
 
-			Button RemoveGroupButton = new Button();
-			RemoveGroupButton.Name = "Remove";
-			RemoveGroupButton.Text = DatasmithRevitResources.Strings.SettingsDialog_ButtonRemoveGroups;
-			RemoveGroupButton.AutoSize = true;
-			RemoveGroupButton.Anchor = AnchorStyles.Right;
-			RemoveGroupButton.UseVisualStyleBackColor = true;
-			RemoveGroupButton.Click += (s, e) =>
-			{
-				if (GroupsList.CheckedIndices.Count > 0)
+				Button RemoveGroupButton = new Button();
+				RemoveGroupButton.Name = "Remove";
+				RemoveGroupButton.Text = DatasmithRevitResources.Strings.SettingsDialog_ButtonRemoveGroups;
+				RemoveGroupButton.Margin = new Padding(0, 10, 0, 0);
+				RemoveGroupButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+				RemoveGroupButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+				RemoveGroupButton.AutoSize = true;
+				RemoveGroupButton.UseVisualStyleBackColor = true;
+				RemoveGroupButton.Click += (s, e) =>
 				{
-					int[] IndicesToRemove = new int[GroupsList.CheckedIndices.Count];
-					GroupsList.CheckedIndices.CopyTo(IndicesToRemove, 0);
-					Array.Sort(IndicesToRemove, (A, B) => B.CompareTo(A));
-
-					foreach (int Index in IndicesToRemove)
+					if (GroupsList.SelectedIndices.Count > 0)
 					{
-						GroupsList.Items.RemoveAt(Index);
-						AddedBuiltinParamGroups.RemoveAt(Index);
+						int[] IndicesToRemove = new int[GroupsList.SelectedIndices.Count];
+						GroupsList.SelectedIndices.CopyTo(IndicesToRemove, 0);
+						Array.Sort(IndicesToRemove, (A, B) => B.CompareTo(A));
+
+						foreach (int Index in IndicesToRemove)
+						{
+							GroupsList.Items.RemoveAt(Index);
+							AddedBuiltinParamGroups.RemoveAt(Index);
+						}
 					}
-				}
+				};
+
+				ButtonsPanel.Controls.Add(AddGroupButton);
+				ButtonsPanel.Controls.Add(RemoveGroupButton);
+			}
+
+			Button CloseButton = new Button();
+			CloseButton.Name = "Close";
+			CloseButton.Text = DatasmithRevitResources.Strings.SettingsDialog_ButtonClose;
+			CloseButton.Anchor = AnchorStyles.Right;
+			CloseButton.UseVisualStyleBackColor = true;
+			CloseButton.Margin = new Padding(0, 7, 0, 0);
+			CloseButton.Click += (s, e) =>
+			{
+				Close();
 			};
 
 			TableLayoutPanel DialogLayout = new TableLayoutPanel();
@@ -204,63 +238,62 @@ namespace DatasmithRevitExporter
 			DialogLayout.ColumnCount = 2;
 			DialogLayout.ColumnStyles.Add(new ColumnStyle());
 			DialogLayout.ColumnStyles.Add(new ColumnStyle());
-			DialogLayout.RowCount = 6;
-			DialogLayout.RowStyles.Add(new RowStyle());
-			DialogLayout.RowStyles.Add(new RowStyle());
-			DialogLayout.RowStyles.Add(new RowStyle());
-			DialogLayout.RowStyles.Add(new RowStyle());
-			DialogLayout.RowStyles.Add(new RowStyle());
+			DialogLayout.RowCount = 3;
+			DialogLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			DialogLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+			DialogLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 			DialogLayout.AutoSize = true;
 			DialogLayout.AutoSizeMode = AutoSizeMode.GrowAndShrink;
 			DialogLayout.Dock = DockStyle.Fill;
-			DialogLayout.Location = new Point(10, 10);
 			DialogLayout.TabIndex = 0;
+		
+			DialogLayout.Controls.Add(LevelOfTesselationPanel, 0, 0);
+			DialogLayout.Controls.Add(GroupsLabel, 0, 1);
+			DialogLayout.Controls.Add(GroupsList, 0, 2);
+			DialogLayout.Controls.Add(ButtonsPanel, 1, 2);
 
-			DialogLayout.Controls.Add(DescriptionLabel, 0,0);
-			DialogLayout.Controls.Add(ParamNameLabel, 0, 1);
-			DialogLayout.Controls.Add(ParamNameTextBox, 0, 2);
-			DialogLayout.Controls.Add(GroupsLabel, 0, 3);
-			DialogLayout.Controls.Add(GroupsList, 0, 4);
-			DialogLayout.Controls.Add(AddGroupButton, 0, 5);
-			DialogLayout.Controls.Add(RemoveGroupButton, 1, 5);
-
-			DialogLayout.SetColumnSpan(ParamNameTextBox, 2);
-			DialogLayout.SetColumnSpan(GroupsList, 2);
-			DialogLayout.SetColumnSpan(DescriptionLabel, 2);
+			DialogLayout.SetColumnSpan(LevelOfTesselationPanel, 2);
+			DialogLayout.SetColumnSpan(GroupsLabel, 2);
 
 			Name = "MetadataExportFilter";
 			Text = DatasmithRevitResources.Strings.SettingsDialog_DialogTitle;
-			AutoScaleDimensions = new SizeF(6F, 13F);
 			AutoScaleMode = AutoScaleMode.Font;
 			AutoSize = true;
-			AutoSizeMode = AutoSizeMode.GrowAndShrink;
-			ClientSize = new Size(309, 114);
 			FormBorderStyle = FormBorderStyle.FixedDialog;
 			MaximizeBox = false;
 			MinimizeBox = false;
-			Padding = new Padding(10);
+			//Padding = new Padding(7);
 			SizeGripStyle = SizeGripStyle.Hide;
 			StartPosition = FormStartPosition.CenterParent;
 
-			Controls.Add(DialogLayout);
+			Panel ParentPanel = new Panel();
+			ParentPanel.BorderStyle = BorderStyle.FixedSingle;
+			ParentPanel.AutoSize = true;
+			ParentPanel.Margin = new Padding(0);
+			ParentPanel.Padding = new Padding(7);
+			ParentPanel.Controls.Add(DialogLayout);
+			//ParentPanel.Location = new Point(7, 7);
 
-			if (MetadataSettings == null)
+			FlowLayoutPanel TopLayout = new FlowLayoutPanel();
+			TopLayout.FlowDirection = FlowDirection.TopDown;
+			TopLayout.Padding = new Padding(7);
+			TopLayout.AutoSize = true;
+			TopLayout.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+
+			TopLayout.Controls.Add(ParentPanel);
+			TopLayout.Controls.Add(CloseButton);
+
+			Controls.Add(TopLayout);
+
+			if (Settings == null)
 			{
-				MetadataSettings = new FMetadataSettings();
+				Settings = new FSettings();
 			}
 			else
 			{
-				StringBuilder SB = new StringBuilder();
-				foreach (string ParamNameFilter in MetadataSettings.ParamNamesFilter)
-				{
-					if (ParamNameFilter.Length > 0)
-					{
-						SB.AppendLine(ParamNameFilter);
-					}
-				}
-				ParamNameTextBox.Text = SB.ToString();
+				LevelOfTessellation.Value = Settings.LevelOfTesselation;
 
-				foreach (int Group in MetadataSettings.ParamGroupsFilter)
+				foreach (int Group in Settings.MetadataParamGroupsFilter)
 				{
 					string GroupLabel = Autodesk.Revit.DB.LabelUtils.GetLabelFor((Autodesk.Revit.DB.BuiltInParameterGroup)Group);
 					AddedBuiltinParamGroups.Add(GroupLabel, Group);
@@ -282,9 +315,9 @@ namespace DatasmithRevitExporter
 
 		private void OnClosing(object InSender, FormClosingEventArgs InArgs)
 		{
-			MetadataSettings.ParamNamesFilter = ParamNameTextBox.Text.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-			MetadataSettings.ParamGroupsFilter = AddedBuiltinParamGroups.Values;
-			FMetadataManager.WriteSettings(Document, MetadataSettings);
+			Settings.LevelOfTesselation = Decimal.ToInt32(LevelOfTessellation.Value);
+			Settings.MetadataParamGroupsFilter = AddedBuiltinParamGroups.Values;
+			FSettingsManager.WriteSettings(Document, Settings);
 		}
 	}
 }

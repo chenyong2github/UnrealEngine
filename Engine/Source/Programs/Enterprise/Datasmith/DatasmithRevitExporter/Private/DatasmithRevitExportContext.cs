@@ -97,7 +97,7 @@ namespace DatasmithRevitExporter
 
 			// Get the Unreal Datasmith export options.
 			DebugLog = InExportOptions.GetWriteLogFile() ? new FDatasmithFacadeLog() : null;
-			LevelOfTessellation = InExportOptions.GetLevelOfTessellation();
+			LevelOfTessellation = FSettingsManager.CurrentSettings?.LevelOfTesselation ?? 8;
 		}
 
 		//========================================================================================================================

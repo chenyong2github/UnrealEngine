@@ -1040,12 +1040,12 @@ namespace DatasmithRevitExporter
 				}
 
 				// Add Revit element metadata to the Datasmith actor.
-				FMetadataManager.AddActorMetadata(CurrentElement, "Element*", ElementMetaData, false);
+				FUtils.AddActorMetadata(CurrentElement, "Element*", ElementMetaData);
 
 				if (BaseElementType != null)
 				{
 					// Add Revit element type metadata to the Datasmith actor.
-					FMetadataManager.AddActorMetadata(BaseElementType, "Type*", ElementMetaData, false);
+					FUtils.AddActorMetadata(BaseElementType, "Type*", ElementMetaData);
 				}
 
 				return ElementMetaData;
@@ -1874,7 +1874,7 @@ namespace DatasmithRevitExporter
 
 					if (!bSkipMetadataExport)
 					{
-						FMetadataManager.AddActorMetadata(BasePointLocation, MetadataPrefix, BasePointMetaData, false);
+						FUtils.AddActorMetadata(BasePointLocation, MetadataPrefix, BasePointMetaData);
 					}
 
 					if (BasePointElement == null)

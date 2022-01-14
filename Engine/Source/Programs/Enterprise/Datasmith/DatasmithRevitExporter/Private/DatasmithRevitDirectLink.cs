@@ -724,14 +724,9 @@ namespace DatasmithRevitExporter
 			bHasChanges = false;
 			bSyncInProgress = false;
 
-			// Control metadata export via env var REVIT_DIRECTLINK_WITH_METADATA.
-			// We are not interested of its value, just if it was set.
-			if (null != Environment.GetEnvironmentVariable("REVIT_DIRECTLINK_WITH_METADATA"))
-			{
-				Debug.Assert(MetadataTask == null); // We cannot have metadata export running at this point (must be stopped in OnBeginExport)
-				MetadataCancelToken = new CancellationTokenSource();
-				MetadataTask = Task.Run(() => ExportMetadata());
-			}
+			Debug.Assert(MetadataTask == null); // We cannot have metadata export running at this point (must be stopped in OnBeginExport)
+			MetadataCancelToken = new CancellationTokenSource();
+			MetadataTask = Task.Run(() => ExportMetadata());
 		}
 
 		void ExportMetadata()
@@ -783,7 +778,7 @@ namespace DatasmithRevitExporter
 					ElementData.ElementMetaData.SetLabel(Actor.GetLabel());
 					ElementData.ElementMetaData.SetAssociatedElement(Actor);
 
-					FMetadataManager.AddActorMetadata(RevitElement, ElementData.ElementMetaData, true);
+					FUtils.AddActorMetadata(RevitElement, ElementData.ElementMetaData);
 
 					++CurrentBatchSize;
 

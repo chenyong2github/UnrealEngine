@@ -77,9 +77,9 @@ namespace DatasmithRevitExporter
 			SyncPushButton = DirectLinkRibbonPanel.AddItem(SyncButtonData) as PushButton;
 			AutoSyncPushButton = DirectLinkRibbonPanel.AddItem(AutoSyncButtonData) as PushButton;
 			PushButton ManageConnectionsButton = DirectLinkRibbonPanel.AddItem(ManageConnectionsButtonData) as PushButton;
-			PushButton SettingsButton = DirectLinkRibbonPanel.AddItem(SettingsButtonData) as PushButton;
 			PushButton ExportPushButton = FileExportRibbonPanel.AddItem(ExportButtonData) as PushButton;
 			PushButton ShowLogButton = DatasmithRibbonPanel.AddItem(LogButtonData) as PushButton;
+			PushButton SettingsButton = DatasmithRibbonPanel.AddItem(SettingsButtonData) as PushButton;
 
 			string DatasmithIconBase = Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithIcon");
 			ExportPushButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
@@ -147,7 +147,7 @@ namespace DatasmithRevitExporter
 
 			Debug.Assert(bDirectLinkInitOk);
 
-			FMetadataManager.Init(InApplication);
+			FSettingsManager.Init(InApplication);
 
 			return Result.Succeeded;
 		}
@@ -183,7 +183,7 @@ namespace DatasmithRevitExporter
 			{
 				ExportMessagesDialog.Close();
 			}
-			FMetadataManager.Destroy(InApplication);
+			FSettingsManager.Destroy(InApplication);
 			FDatasmithFacadeDirectLink.Shutdown();
 			return Result.Succeeded;
 		}

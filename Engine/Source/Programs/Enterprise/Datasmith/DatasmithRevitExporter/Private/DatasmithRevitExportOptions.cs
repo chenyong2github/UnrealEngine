@@ -11,7 +11,6 @@ namespace DatasmithRevitExporter
 	public class DatasmithRevitExportOptions : Form
 	{
 		private CheckBox		WriteLogFile;
-		private NumericUpDown	LevelOfTessellation;
 		private CheckedListBox	ViewsList;
 
 		public List<Autodesk.Revit.DB.View3D> Selected3DViews { get; private set; } = new List<Autodesk.Revit.DB.View3D>();
@@ -45,27 +44,13 @@ namespace DatasmithRevitExporter
 
 			Label LevelOfTessellationLabel = new Label();
 			LevelOfTessellationLabel.Name = "LevelOfTessellationLabel";
-			LevelOfTessellationLabel.Text = DatasmithRevitResources.Strings.ExportOptionsDialog_LevelOfTesselation;
+			LevelOfTessellationLabel.Text = DatasmithRevitResources.Strings.SettingsDialog_LevelOfTesselation;
 			LevelOfTessellationLabel.Anchor = AnchorStyles.Left;
 			LevelOfTessellationLabel.AutoSize = true;
 			LevelOfTessellationLabel.Location = new Point(3, 26);
 			LevelOfTessellationLabel.Size = new Size(104, 13);
 			LevelOfTessellationLabel.TabIndex = 2;
 			LevelOfTessellationLabel.TextAlign = ContentAlignment.MiddleLeft;
-
-			LevelOfTessellation = new NumericUpDown();
-			LevelOfTessellation.Name = "LevelOfTessellation";
-			LevelOfTessellation.Minimum = -1;
-			LevelOfTessellation.Maximum = 15;
-			LevelOfTessellation.Value = 8;
-			LevelOfTessellation.Anchor = AnchorStyles.Left;
-			LevelOfTessellation.AutoSize = true;
-			LevelOfTessellation.Location = new Point(113, 23);
-			LevelOfTessellation.Size = new Size(35, 20);
-			LevelOfTessellation.TabIndex = 3;
-			LevelOfTessellation.TextAlign = HorizontalAlignment.Right;
-
-			OptionToolTip.SetToolTip(LevelOfTessellation, DatasmithRevitResources.Strings.ExportOptionsDialog_LevelOfTesselationTooltip);
 
 			Button OKButton = new Button();
 			OKButton.Name = "OKButton";
@@ -126,7 +111,6 @@ namespace DatasmithRevitExporter
 			DialogLayout.Controls.Add(WriteLogFileLabel,		0, 2);
 			DialogLayout.Controls.Add(WriteLogFile,				1, 2);
 			DialogLayout.Controls.Add(LevelOfTessellationLabel, 0, 3);
-			DialogLayout.Controls.Add(LevelOfTessellation,		1, 3);
 			DialogLayout.Controls.Add(OKButton,					1, 4);
 
 			DialogLayout.SetColumnSpan(ViewsList, 2);
@@ -161,11 +145,6 @@ namespace DatasmithRevitExporter
 		public bool GetWriteLogFile()
 		{
 			return WriteLogFile.Checked;
-		}
-
-		public int GetLevelOfTessellation()
-		{
-			return Decimal.ToInt32(LevelOfTessellation.Value);
 		}
 	}
 }

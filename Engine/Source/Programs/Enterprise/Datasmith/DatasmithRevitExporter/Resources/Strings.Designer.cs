@@ -61,7 +61,7 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Toggle Direct Link Auto Sync.
+        ///   Looks up a localized string similar to Toggle Auto Sync.
         /// </summary>
         public static string ButtonAutoSync {
             get {
@@ -115,7 +115,7 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Datasmith Messages.
+        ///   Looks up a localized string similar to Messages.
         /// </summary>
         public static string ButtonMessages {
             get {
@@ -131,7 +131,7 @@ namespace DatasmithRevitResources {
                 return ResourceManager.GetString("ButtonMessagesHint", resourceCulture);
             }
         }
-
+        
         /// <summary>
         ///   Looks up a localized string similar to Settings.
         /// </summary>
@@ -183,24 +183,6 @@ namespace DatasmithRevitResources {
         public static string ExportOptionsDialog_ButtonOK {
             get {
                 return ResourceManager.GetString("ExportOptionsDialog_ButtonOK", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Level of Tessellation.
-        /// </summary>
-        public static string ExportOptionsDialog_LevelOfTesselation {
-            get {
-                return ResourceManager.GetString("ExportOptionsDialog_LevelOfTesselation", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to -1 :\tRevit will use its default algorithm, which is based on output resolution.\n0 to 15 :\tRevit will use the suggested level of detail when tessellating faces.\n\tUsing a value close to the middle of the range yields a very reasonable tessellation.\n\tRevit uses level 8 as its &apos;normal&apos; level of detail..
-        /// </summary>
-        public static string ExportOptionsDialog_LevelOfTesselationTooltip {
-            get {
-                return ResourceManager.GetString("ExportOptionsDialog_LevelOfTesselationTooltip", resourceCulture);
             }
         }
         
@@ -322,6 +304,15 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Close.
+        /// </summary>
+        public static string SettingsDialog_ButtonClose {
+            get {
+                return ResourceManager.GetString("SettingsDialog_ButtonClose", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Remove Selected.
         /// </summary>
         public static string SettingsDialog_ButtonRemoveGroups {
@@ -331,7 +322,7 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Metadata Export Filter.
+        ///   Looks up a localized string similar to Datasmith Export Settings.
         /// </summary>
         public static string SettingsDialog_DialogTitle {
             get {
@@ -340,7 +331,7 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Match Built-in Paramter Group.
+        ///   Looks up a localized string similar to Metadata Export Filter.
         /// </summary>
         public static string SettingsDialog_LabelMatchGroups {
             get {
@@ -363,6 +354,33 @@ namespace DatasmithRevitResources {
         public static string SettingsDialog_LabelMetadataDescription {
             get {
                 return ResourceManager.GetString("SettingsDialog_LabelMetadataDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Level of Tessellation.
+        /// </summary>
+        public static string SettingsDialog_LevelOfTesselation {
+            get {
+                return ResourceManager.GetString("SettingsDialog_LevelOfTesselation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 1 to 15 : Revit will use the suggested level of detail when tessellating faces.\nUsing a value close to the middle of the range yields a very reasonable tessellation.\nRevit uses level 8 as its &apos;normal&apos; level of detail..
+        /// </summary>
+        public static string SettingsDialog_LevelOfTesselationTooltip {
+            get {
+                return ResourceManager.GetString("SettingsDialog_LevelOfTesselationTooltip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Filter what metadata to export by adding allowed paramter groups..
+        /// </summary>
+        public static string SettingsDialog_MetadataFilterTooltip {
+            get {
+                return ResourceManager.GetString("SettingsDialog_MetadataFilterTooltip", resourceCulture);
             }
         }
     }

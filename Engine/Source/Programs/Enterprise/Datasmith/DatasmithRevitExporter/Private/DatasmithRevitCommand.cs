@@ -178,14 +178,6 @@ namespace DatasmithRevitExporter
 
 			// Retrieve the Unreal Datasmith export options.
 			DatasmithRevitExportOptions ExportOptions = new DatasmithRevitExportOptions(Doc);
-			if ((System.Windows.Forms.Control.ModifierKeys & Keys.Control) == Keys.Control)
-			{
-				if (ExportOptions.ShowDialog() != DialogResult.OK)
-				{
-					return Result.Cancelled;
-				}
-				ExportActiveViewOnly = false;
-			}
 
 			// Generate file path for each view.
 			Dictionary<ElementId, string> FilePaths = new Dictionary<ElementId, string>();

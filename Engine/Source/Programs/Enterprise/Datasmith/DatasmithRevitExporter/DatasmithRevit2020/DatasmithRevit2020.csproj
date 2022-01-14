@@ -87,8 +87,11 @@
     <Compile Include="..\Private\DatasmithRevitMaterial.cs">
       <Link>DatasmithRevitExporter\DatasmithRevitMaterial.cs</Link>
     </Compile>
-    <Compile Include="..\Private\DatasmithRevitMetadataManager.cs">
-      <Link>DatasmithRevitExporter\DatasmithRevitMetdataManager.cs</Link>
+    <Compile Include="..\Private\DatasmithRevitSettingsManager.cs">
+      <Link>DatasmithRevitExporter\DatasmithRevitSettingsManager.cs</Link>
+    </Compile>
+    <Compile Include="..\Private\DatasmithRevitUtils.cs">
+      <Link>DatasmithRevitExporter\DatasmithRevitUtils.cs</Link>
     </Compile>
     <Compile Include="..\Private\DatasmithRevitSettingsDialog.cs">
       <Link>DatasmithRevitExporter\DatasmithRevitSettingsDialog.cs</Link>

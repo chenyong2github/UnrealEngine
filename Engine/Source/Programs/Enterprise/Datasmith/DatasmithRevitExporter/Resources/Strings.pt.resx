@@ -118,7 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="ButtonAutoSync" xml:space="preserve">
-    <value>Toggle Direct Link Auto Sync</value>
+    <value>Toggle Auto Sync</value>
   </data>
   <data name="ButtonAutoSyncHint" xml:space="preserve">
     <value>Toggle Direct Link Auto Sync</value>
@@ -159,12 +159,6 @@
   <data name="ExportOptionsDialog_ButtonOK" xml:space="preserve">
     <value>OK</value>
   </data>
-  <data name="ExportOptionsDialog_LevelOfTesselation" xml:space="preserve">
-    <value>Level of Tessellation</value>
-  </data>
-  <data name="ExportOptionsDialog_LevelOfTesselationTooltip" xml:space="preserve">
-    <value>-1 :\tRevit will use its default algorithm, which is based on output resolution.\n0 to 15 :\tRevit will use the suggested level of detail when tessellating faces.\n\tUsing a value close to the middle of the range yields a very reasonable tessellation.\n\tRevit uses level 8 as its 'normal' level of detail.</value>
-  </data>
   <data name="ExportOptionsDialog_MessageNoViewsSelected" xml:space="preserve">
     <value>No views selected for export! Please select at least one 3D view.</value>
   </data>
@@ -204,19 +198,31 @@
   <data name="SettingsDialog_ButtonAddGroups" xml:space="preserve">
     <value>Add Group...</value>
   </data>
+  <data name="SettingsDialog_ButtonClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
   <data name="SettingsDialog_ButtonRemoveGroups" xml:space="preserve">
     <value>Remove Selected</value>
   </data>
   <data name="SettingsDialog_DialogTitle" xml:space="preserve">
-    <value>Metadata Export Filter</value>
+    <value>Datasmith Export Settings</value>
   </data>
   <data name="SettingsDialog_LabelMatchGroups" xml:space="preserve">
-    <value>Match Built-in Paramter Group</value>
+    <value>Metadata Export Filter</value>
   </data>
   <data name="SettingsDialog_LabelMatchParamNames" xml:space="preserve">
     <value>Match Parameter Names</value>
   </data>
   <data name="SettingsDialog_LabelMetadataDescription" xml:space="preserve">
     <value>Specify parameters (medata) export filter that will be used during DirectLink synchronization. Only parameters that match the filter will be exported as metadata.</value>
+  </data>
+  <data name="SettingsDialog_LevelOfTesselation" xml:space="preserve">
+    <value>Level of Tessellation</value>
+  </data>
+  <data name="SettingsDialog_LevelOfTesselationTooltip" xml:space="preserve">
+    <value>1 to 15 : Revit will use the suggested level of detail when tessellating faces.\nUsing a value close to the middle of the range yields a very reasonable tessellation.\nRevit uses level 8 as its 'normal' level of detail.</value>
+  </data>
+  <data name="SettingsDialog_MetadataFilterTooltip" xml:space="preserve">
+    <value>Filter what metadata to export by adding allowed paramter groups.</value>
   </data>
 </root>

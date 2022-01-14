@@ -75,7 +75,7 @@ namespace DSNode
 				null);
 
 			// Clamp tesselation parameter to a valid range.
-			ExportContext.LevelOfTessellation = Math.Min(Math.Max(InTesselation, -1), 15);
+			ExportContext.LevelOfTessellation = Math.Min(Math.Max(InTesselation, 1), 15);
 
 			using (CustomExporter Exporter = new CustomExporter(InDocument, ExportContext))
 			{
