@@ -186,19 +186,19 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	}
 	AssetClassPermissionList->OnFilterChanged().AddUObject(this, &UAssetToolsImpl::AssetClassPermissionListChanged);
 
-	TArray<FString> BlacklistedViewPath;
-	GConfig->GetArray(TEXT("AssetTools"), TEXT("BlacklistAssetPaths"), BlacklistedViewPath, GEditorIni);
-	for (const FString& Path : BlacklistedViewPath)
+	TArray<FString> DenyListedViewPath;
+	GConfig->GetArray(TEXT("AssetTools"), TEXT("DenyListAssetPaths"), DenyListedViewPath, GEditorIni);
+	for (const FString& Path : DenyListedViewPath)
 	{
 		FolderPermissionList->AddDenyListItem("AssetToolsConfigFile", Path);
 	}
 
-	GConfig->GetArray(TEXT("AssetTools"), TEXT("BlacklistContentSubPaths"), SubContentBlacklistPaths, GEditorIni);
+	GConfig->GetArray(TEXT("AssetTools"), TEXT("DenyListContentSubPaths"), SubContentDenyListPaths, GEditorIni);
 	TArray<FString> ContentRoots;
 	FPackageName::QueryRootContentPaths(ContentRoots);
 	for (const FString& ContentRoot : ContentRoots)
 	{
-		AddSubContentBlacklist(ContentRoot);
+		AddSubContentDenyList(ContentRoot);
 	}
 	FPackageName::OnContentPathMounted().AddUObject(this, &UAssetToolsImpl::OnContentPathMounted);
 
@@ -3122,7 +3122,7 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 					if (!ExternalObjectsPath.IsEmpty() && !OutExternalObjectsPaths.Contains(ExternalObjectsPath))
 					{
 						OutExternalObjectsPaths.Add(ExternalObjectsPath);
-						AssetRegistryModule.Get().ScanPathsSynchronous({ ExternalObjectsPath }, /*bForceRescan*/true, /*bIgnoreBlackListScanFilters*/true);
+						AssetRegistryModule.Get().ScanPathsSynchronous({ ExternalObjectsPath }, /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/true);
 
 						TArray<FAssetData> ExternalObjectAssets;
 						AssetRegistryModule.Get().GetAssetsByPath(FName(*ExternalObjectsPath), ExternalObjectAssets, /*bRecursive*/true);
@@ -3491,9 +3491,9 @@ void UAssetToolsImpl::AssetClassPermissionListChanged()
 	}
 }
 
-void UAssetToolsImpl::AddSubContentBlacklist(const FString& InMount)
+void UAssetToolsImpl::AddSubContentDenyList(const FString& InMount)
 {
-	for (const FString& SubContentPath : SubContentBlacklistPaths)
+	for (const FString& SubContentPath : SubContentDenyListPaths)
 	{
 		FolderPermissionList->AddDenyListItem("AssetToolsConfigFile", InMount / SubContentPath);
 	}
@@ -3501,7 +3501,7 @@ void UAssetToolsImpl::AddSubContentBlacklist(const FString& InMount)
 
 void UAssetToolsImpl::OnContentPathMounted(const FString& InAssetPath, const FString& FileSystemPath)
 {
-	AddSubContentBlacklist(InAssetPath);
+	AddSubContentDenyList(InAssetPath);
 }
 
 TArray<UObject*> UAssetToolsImpl::ImportAssetsWithDialogImplementation(const FString& DestinationPath, bool bAllowAsyncImport)

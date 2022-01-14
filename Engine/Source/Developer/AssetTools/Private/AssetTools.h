@@ -180,16 +180,16 @@ private:
 
 	UObject* PerformDuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, bool bWithDialog);
 
-	/** Internal method that performs actions when asset class blacklist filter changes */
+	/** Internal method that performs actions when asset class deny list filter changes */
 	void AssetClassPermissionListChanged();
 
 	/**
-	 * Add sub content blacklist filter for a new mount point
+	 * Add sub content deny list filter for a new mount point
 	 * @param InMount The mount point
 	 */
-	void AddSubContentBlacklist(const FString& InMount);
+	void AddSubContentDenyList(const FString& InMount);
 
-	/** Called when a new mount is added to add the proper sub content blacklist to it. */
+	/** Called when a new mount is added to add the proper sub content deny list to it. */
 	void OnContentPathMounted(const FString& InAssetPath, const FString& FileSystemPath);
 
 	/** Implementation for the import with dialog functions */
@@ -218,7 +218,7 @@ private:
 	TSharedRef<FPathPermissionList> WritableFolderPermissionList;
 
 	/** List of sub content paths denied for every mount. */
-	TArray<FString> SubContentBlacklistPaths;
+	TArray<FString> SubContentDenyListPaths;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
