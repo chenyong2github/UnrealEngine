@@ -113,6 +113,12 @@ protected:
 	    update the blueprint's CDO properties with state from the asset for this factory.
 		IMPORTANT: If you override this, you should usually also override PostSpawnActor()! */
 	virtual void PostCreateBlueprint( UObject* Asset, AActor* CDO );
+
+	/**
+	 * Get the default label that should be used for the actor spawned by the given asset (does not include any numeric suffix).
+	 * For classes or BPs that inherit from AActor this will defer to AActor::GetDefaultActorLabel, and for everything else it will use the asset name.
+	 */
+	virtual FString GetDefaultActorLabel(UObject* Asset) const;
 };
 
 extern UNREALED_API FQuat FindActorAlignmentRotation(const FQuat& InActorRotation, const FVector& InModelAxis, const FVector& InWorldNormal, FQuat* OutDeltaRotation = nullptr);

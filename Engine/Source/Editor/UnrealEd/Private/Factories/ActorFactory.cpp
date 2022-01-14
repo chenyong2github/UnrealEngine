@@ -325,12 +325,13 @@ void UActorFactory::PostPlaceAsset(TArrayView<const FTypedElementHandle> InEleme
 		{
 			if (AActor* CreatedActor = ObjectInterface.GetObjectAs<AActor>())
 			{
-				PostSpawnActor(InPlacementInfo.AssetToPlace.GetAsset(), CreatedActor);
+				UObject* Asset = InPlacementInfo.AssetToPlace.GetAsset();
+				PostSpawnActor(Asset, CreatedActor);
 
 				// Only do this if the actor wasn't already given a name
 				if (InPlacementInfo.NameOverride.IsNone())
 				{
-					FActorLabelUtilities::SetActorLabelUnique(CreatedActor, InPlacementInfo.AssetToPlace.AssetName.ToString());
+					FActorLabelUtilities::SetActorLabelUnique(CreatedActor, GetDefaultActorLabel(Asset));
 				}
 
 				CreatedActor->PostEditChange();
@@ -410,7 +411,7 @@ AActor* UActorFactory::CreateActor(UObject* InAsset, ULevel* InLevel, const FTra
 			// Only do this if the actor wasn't already given a name
 			if ((InAsset != nullptr) && (InSpawnParams.Name == NAME_None))
 			{
-				FActorLabelUtilities::SetActorLabelUnique(NewActor, InAsset->GetName());
+				FActorLabelUtilities::SetActorLabelUnique(NewActor, GetDefaultActorLabel(InAsset));
 			}
 
 			PostSpawnActor(InAsset, NewActor);
@@ -500,6 +501,26 @@ void UActorFactory::PostSpawnActor( UObject* Asset, AActor* NewActor)
 void UActorFactory::PostCreateBlueprint( UObject* Asset, AActor* CDO )
 {
 	// Override this in derived actor factories to initialize the blueprint's CDO based on the asset assigned to the factory!
+}
+
+FString UActorFactory::GetDefaultActorLabel(UObject* Asset) const
+{
+	UClass* PotentialActorClass = nullptr;
+	if (UBlueprint* Blueprint = Cast<UBlueprint>(Asset))
+	{
+		PotentialActorClass = Blueprint->GeneratedClass;
+	}
+	else
+	{
+		PotentialActorClass = Cast<UClass>(Asset);
+	}
+
+	if (PotentialActorClass && PotentialActorClass->IsChildOf<AActor>())
+	{
+		return GetDefault<AActor>(PotentialActorClass)->GetDefaultActorLabel();
+	}
+
+	return Asset->GetName();
 }
 
 
