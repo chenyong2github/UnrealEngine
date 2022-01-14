@@ -173,7 +173,7 @@ void FVariableRateShadingImageManager::ReleaseDynamicRHI()
 FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const TArray<TRefCountPtr<IPooledRenderTarget>>* ExternalVRSSources, EVRSType VRSTypesToExclude)
 {
 	// If the RHI doesn't support VRS, we should always bail immediately.
-	if (!GRHISupportsAttachmentVariableRateShading || !GRHIVariableRateShadingEnabled || !GRHIAttachmentVariableRateShadingEnabled)
+	if (!GRHISupportsAttachmentVariableRateShading || !GRHIVariableRateShadingEnabled || !GRHIAttachmentVariableRateShadingEnabled || !FDataDrivenShaderPlatformInfo::GetSupportsVariableRateShading(GMaxRHIShaderPlatform))
 	{
 		return nullptr;
 	}
