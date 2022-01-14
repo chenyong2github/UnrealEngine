@@ -59,6 +59,11 @@ IExternalUIPtr FOnlineServicesCommon::GetExternalUIInterface()
 	return IExternalUIPtr(AsShared(), Get<IExternalUI>());
 }
 
+ILobbiesPtr FOnlineServicesCommon::GetLobbiesInterface()
+{
+	return ILobbiesPtr(AsShared(), Get<ILobbies>());
+}
+
 void FOnlineServicesCommon::RegisterComponents()
 {
 }

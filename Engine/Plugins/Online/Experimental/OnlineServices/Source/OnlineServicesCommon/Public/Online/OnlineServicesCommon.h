@@ -39,6 +39,7 @@ public:
 	virtual IFriendsPtr GetFriendsInterface() override;
 	virtual IPresencePtr GetPresenceInterface() override;
 	virtual IExternalUIPtr GetExternalUIInterface() override;
+	virtual ILobbiesPtr GetLobbiesInterface() override;
 
 	// FOnlineServicesCommon
 

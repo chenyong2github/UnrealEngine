@@ -15,6 +15,7 @@ using IAuthPtr = TSharedPtr<class IAuth>;
 using IFriendsPtr = TSharedPtr<class IFriends>;
 using IPresencePtr = TSharedPtr<class IPresence>;
 using IExternalUIPtr = TSharedPtr<class IExternalUI>;
+using ILobbiesPtr = TSharedPtr<class ILobbies>;
 
 class ONLINESERVICESINTERFACE_API IOnlineServices
 {
@@ -48,6 +49,12 @@ public:
 	 *
 	 */
 	virtual IExternalUIPtr GetExternalUIInterface() = 0;
+
+	/**
+	 * Get the lobbies implementation
+	 * @return lobbies implementation, may be null if not implemented for this service
+	 */
+	virtual ILobbiesPtr GetLobbiesInterface() = 0;
 };
 
 /**
