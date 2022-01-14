@@ -14,15 +14,8 @@ class UIKRetargeter;
 class SSelectExportPathDialog: public SWindow
 {
 public:
-	SLATE_BEGIN_ARGS(SSelectExportPathDialog)
-	{
-	}
-
+	SLATE_BEGIN_ARGS(SSelectExportPathDialog){}
 	SLATE_ARGUMENT(FText, DefaultAssetPath)
-
-	/** A reference to the parent window */
-	SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
-	
 	SLATE_END_ARGS()
 
 	SSelectExportPathDialog() : UserResponse(EAppReturnType::Cancel)

@@ -21,7 +21,6 @@
 
 void SSelectExportPathDialog::Construct(const FArguments& InArgs)
 {
-	ParentWindowPtr = InArgs._ParentWindow;
 	AssetPath = FText::FromString(FPackageName::GetLongPackagePath(InArgs._DefaultAssetPath.ToString()));
 
 	if(AssetPath.IsEmpty())
@@ -40,7 +39,7 @@ void SSelectExportPathDialog::Construct(const FArguments& InArgs)
 		.Title(LOCTEXT("SSelectExportPathDialog_Title", "Select Export Path"))
 		.SupportsMinimize(false)
 		.SupportsMaximize(false)
-		//.SizingRule( ESizingRule::Autosized )
+		.IsTopmostWindow(true)
 		.ClientSize(FVector2D(450, 450))
 		[
 			SNew(SVerticalBox)
@@ -792,8 +791,7 @@ FText SRetargetAnimAssetsWindow::GetFolderPath() const
 FReply SRetargetAnimAssetsWindow::GetExportFolder()
 {
 	TSharedRef<SSelectExportPathDialog> Dialog = SNew(SSelectExportPathDialog)
-	.DefaultAssetPath(FText::FromString(BatchContext.FolderPath))
-	.ParentWindow(DialogWindow);
+	.DefaultAssetPath(FText::FromString(BatchContext.FolderPath));
 	
 	if(Dialog->ShowModal() != EAppReturnType::Cancel)
 	{
