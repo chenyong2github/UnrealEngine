@@ -392,6 +392,12 @@ private:
 	/** Function to check whether socket hit points are displayed or not*/
 	bool IsShowingSockets() const;
 
+	/** Function to show/hide extracted transform attributes */
+	void OnShowAttributes();
+
+	/** Function to check whether extracted transform attributes are displayed or not */
+	bool IsShowingAttributes() const;
+
 	/** Function to show/hide mesh info*/
 	void OnShowDisplayInfo(int32 DisplayInfoMode);
 

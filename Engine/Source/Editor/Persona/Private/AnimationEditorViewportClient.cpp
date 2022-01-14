@@ -13,6 +13,7 @@
 #include "Preferences/PersonaOptions.h"
 #include "Engine/CollisionProfile.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/BuiltInAttributeTypes.h"
 #include "Animation/MirrorDataTable.h"
 #include "GameFramework/WorldSettings.h"
 #include "PersonaModule.h"
@@ -498,6 +499,11 @@ void FAnimationViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterf
 				DrawSockets(PreviewMeshComponent, PreviewMeshComponent->SkeletalMesh->GetMeshOnlySocketList(), GetAnimPreviewScene()->GetSelectedSocket(), PDI, false);
 			}
 		}
+
+		if (PreviewMeshComponent->bDrawAttributes)
+		{
+			DrawAttributes(PreviewMeshComponent, PDI);
+		}
 	}
 
 	if (bFocusOnDraw)
@@ -525,6 +531,12 @@ void FAnimationViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& Vi
 		if (PreviewMeshComponent->bShowBoneNames)
 		{
 			ShowBoneNames(&Canvas, &View);
+		}
+
+		// Display attribute names
+		if (PreviewMeshComponent->bDrawAttributes)
+		{
+			ShowAttributeNames(&Canvas, &View);
 		}
 
 		if (bDrawUVs)
@@ -716,6 +728,49 @@ void FAnimationViewportClient::ShowBoneNames( FCanvas* Canvas, FSceneView* View 
 				FCanvasTextItem TextItem( FVector2D( XPos, YPos), FText::FromString( BoneString ), GEngine->GetSmallFont(), BoneColor );
 				TextItem.EnableShadow(FLinearColor::Black);
 				Canvas->DrawItem( TextItem );
+			}
+		}
+	}
+}
+
+void FAnimationViewportClient::ShowAttributeNames(FCanvas* Canvas, FSceneView* View)
+{
+	UDebugSkelMeshComponent* MeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
+
+	if (MeshComponent && MeshComponent->SkeletalMesh)
+	{
+		const int32 HalfX = Viewport->GetSizeXY().X / 2 / GetDPIScale();
+		const int32 HalfY = Viewport->GetSizeXY().Y / 2 / GetDPIScale();
+
+		const UE::Anim::FHeapAttributeContainer& Attributes = MeshComponent->GetCustomAttributes();
+
+		const int32 TransformAnimationAttributeTypeIndex = Attributes.FindTypeIndex(FTransformAnimationAttribute::StaticStruct());
+		if (TransformAnimationAttributeTypeIndex != INDEX_NONE)
+		{
+			const TArray<UE::Anim::FAttributeId, FDefaultAllocator>& AttributeIdentifiers = Attributes.GetKeys(TransformAnimationAttributeTypeIndex);
+			const TArray<UE::Anim::TWrappedAttribute<FDefaultAllocator>>& AttributeValues = Attributes.GetValues(TransformAnimationAttributeTypeIndex);
+			check(AttributeIdentifiers.Num() == AttributeValues.Num());
+
+			for (int32 AttributeIndex = 0; AttributeIndex < AttributeValues.Num(); ++AttributeIndex)
+			{
+				if (const FTransformAnimationAttribute* AttributeValue = AttributeValues[AttributeIndex].GetPtr<FTransformAnimationAttribute>())
+				{
+					const UE::Anim::FAttributeId& AttributeIdentifier = AttributeIdentifiers[AttributeIndex];
+
+					const FTransform AttributeParentTransform = MeshComponent->GetDrawTransform(AttributeIdentifier.GetIndex()) * MeshComponent->GetComponentTransform();
+					const FTransform AttributeTransform = AttributeValue->Value * AttributeParentTransform;
+
+					const FPlane proj = View->Project(AttributeTransform.GetLocation());
+					if (proj.W > 0.f)
+					{
+						const int32 XPos = HalfX + (HalfX * proj.X);
+						const int32 YPos = HalfY + (HalfY * (proj.Y * -1));
+
+						FCanvasTextItem TextItem(FVector2D(XPos, YPos), FText::FromName(AttributeIdentifier.GetName()), GEngine->GetSmallFont(), FLinearColor(0.0f, 1.0f, 1.0f));
+						TextItem.EnableShadow(FLinearColor::Black);
+						Canvas->DrawItem(TextItem);
+					}
+				}
 			}
 		}
 	}
@@ -1547,6 +1602,37 @@ void FAnimationViewportClient::DrawMeshSubsetBones(const UDebugSkelMeshComponent
 		}
 
 		DrawBones(RequiredBones, MeshComponent->GetReferenceSkeleton(), WorldTransforms, MeshComponent->BonesOfInterest, PDI, BoneColours, MeshComponent->Bounds.SphereRadius, 0.3f);
+	}
+}
+
+void FAnimationViewportClient::DrawAttributes(UDebugSkelMeshComponent* MeshComponent, FPrimitiveDrawInterface* PDI) const
+{
+	if (MeshComponent && MeshComponent->SkeletalMesh)
+	{
+		const UE::Anim::FHeapAttributeContainer& Attributes = MeshComponent->GetCustomAttributes();
+
+		const int32 TransformAnimationAttributeTypeIndex = Attributes.FindTypeIndex(FTransformAnimationAttribute::StaticStruct());
+		if (TransformAnimationAttributeTypeIndex != INDEX_NONE)
+		{
+			const TArray<UE::Anim::FAttributeId, FDefaultAllocator>& AttributeIdentifiers = Attributes.GetKeys(TransformAnimationAttributeTypeIndex);
+			const TArray<UE::Anim::TWrappedAttribute<FDefaultAllocator>>& AttributeValues = Attributes.GetValues(TransformAnimationAttributeTypeIndex);
+			check(AttributeIdentifiers.Num() == AttributeValues.Num());
+
+			for (int32 AttributeIndex = 0; AttributeIndex < AttributeValues.Num(); ++AttributeIndex)
+			{
+				if (const FTransformAnimationAttribute* AttributeValue = AttributeValues[AttributeIndex].GetPtr<FTransformAnimationAttribute>())
+				{
+					const UE::Anim::FAttributeId& AttributeIdentifier = AttributeIdentifiers[AttributeIndex];
+
+					const FTransform AttributeParentTransform = MeshComponent->GetDrawTransform(AttributeIdentifier.GetIndex()) * MeshComponent->GetComponentTransform();
+					const FTransform AttributeTransform = AttributeValue->Value * AttributeParentTransform;
+
+					DrawWireDiamond(PDI, AttributeTransform.ToMatrixNoScale(), 2.0f, FLinearColor(0.0f, 1.0f, 1.0f), SDPG_Foreground);
+					SkeletalDebugRendering::DrawAxes(PDI, AttributeTransform, SDPG_Foreground, 0.0f, 10.0f);
+					//DrawDashedLine(PDI, AttributeTransform.GetLocation(), AttributeParentTransform.GetLocation(), FLinearColor(0.0f, 1.0f, 1.0f), 2.0f, SDPG_World);
+				}
+			}
+		}
 	}
 }
 

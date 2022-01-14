@@ -42,6 +42,7 @@ void FAnimViewportShowCommands::RegisterCommands()
 	UI_COMMAND( ShowSourceRawAnimation, "Source Animation", "Display skeleton in source raw animation if you have track curves modified", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( ShowBakedAnimation, "Baked Animation", "Display skeleton in baked raw animation if you have track curves modified", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( ShowSockets, "Sockets", "Display socket hitpoints", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND( ShowAttributes, "Attributes", "Display transform attributes in the viewport", EUserInterfaceActionType::ToggleButton, FInputChord() );
 
 	UI_COMMAND( ShowBoneDrawNone, "None", "Hide bone selection", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND( ShowBoneDrawSelected, "Selected Only", "Show only the selected bone", EUserInterfaceActionType::RadioButton, FInputChord());

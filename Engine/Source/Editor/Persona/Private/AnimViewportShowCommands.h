@@ -116,6 +116,9 @@ public:
 	/** Show socket hit point diamonds */
 	TSharedPtr< FUICommandInfo > ShowSockets;
 
+	/** Show transform attributes */
+	TSharedPtr< FUICommandInfo > ShowAttributes;
+
 	/** Hide all local axes */
 	TSharedPtr< FUICommandInfo > ShowLocalAxesNone;
 	

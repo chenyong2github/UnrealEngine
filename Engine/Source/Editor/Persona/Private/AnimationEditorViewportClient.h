@@ -91,7 +91,10 @@ class FAnimationViewportClient : public FEditorViewportClient
 protected:
 
 	/** Function to display bone names*/
-	void ShowBoneNames( FCanvas* Canvas, FSceneView* View );
+	void ShowBoneNames(FCanvas* Canvas, FSceneView* View);
+
+	/** Function to display transform attribute names*/
+	void ShowAttributeNames(FCanvas* Canvas, FSceneView* View);
 
 	/** Function to display debug lines generated from skeletal controls in animBP mode */
 	void DrawNodeDebugLines(TArray<FText>& Lines, FCanvas* Canvas, FSceneView* View);
@@ -392,6 +395,9 @@ private:
 	void DrawBones(const TArray<FBoneIndexType> & RequiredBones, const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> & WorldTransforms, const TArray<int32>& InSelectedBones, FPrimitiveDrawInterface* PDI, const TArray<FLinearColor>& BoneColours, float BoundRadius, float LineThickness = 0.f, bool bForceDraw = false, float InBoneRadius = 1.f) const;
 	/** Draw Sub set of Bones **/
 	void DrawMeshSubsetBones(const UDebugSkelMeshComponent* MeshComponent, const TArray<int32>& BonesOfInterest, FPrimitiveDrawInterface* PDI) const;
+
+	/** Draws active transform attributes */
+	void DrawAttributes(UDebugSkelMeshComponent* MeshComponent, FPrimitiveDrawInterface* PDI) const;
 
 	/** Draws bones from watched poses*/
 	void DrawWatchedPoses(UDebugSkelMeshComponent * MeshComponent, FPrimitiveDrawInterface* PDI);

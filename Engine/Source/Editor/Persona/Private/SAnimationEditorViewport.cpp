@@ -842,6 +842,13 @@ void SAnimationEditorViewportTabBody::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsShowingSockets));
 
+	// Show transform attributes
+	CommandList.MapAction(
+		ViewportShowMenuCommands.ShowAttributes,
+		FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::OnShowAttributes),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SAnimationEditorViewportTabBody::IsShowingAttributes));
+
 	// Set bone drawing mode
 	CommandList.BeginGroup(TEXT("BoneDrawingMode"));
 
@@ -1388,6 +1395,23 @@ bool SAnimationEditorViewportTabBody::IsShowingSockets() const
 {
 	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
 	return PreviewComponent != NULL && PreviewComponent->bDrawSockets;
+}
+
+void SAnimationEditorViewportTabBody::OnShowAttributes()
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	if (PreviewComponent)
+	{
+		PreviewComponent->bDrawAttributes = !PreviewComponent->bDrawAttributes;
+		PreviewComponent->MarkRenderStateDirty();
+		RefreshViewport();
+	}
+}
+
+bool SAnimationEditorViewportTabBody::IsShowingAttributes() const
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	return PreviewComponent != NULL && PreviewComponent->bDrawAttributes;
 }
 
 void SAnimationEditorViewportTabBody::OnToggleAutoAlignFloor()

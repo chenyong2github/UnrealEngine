@@ -189,6 +189,10 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	UPROPERTY(transient)
 	uint32 bDrawSockets:1;
 
+	/** Attribute visualization */
+	UPROPERTY(transient)
+	uint32 bDrawAttributes : 1;
+
 	/** Skeleton sockets visible? */
 	UPROPERTY(transient)
 	uint32 bSkeletonSocketsVisible:1;
