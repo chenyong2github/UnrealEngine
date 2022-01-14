@@ -393,8 +393,10 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::CompactMaterialIDs(
 			}
 
 			bool bWasCompact = false;
+			FInterval1i OldValueRange;
+			int32 NewMaxValue;
 			TArray<int32> OldToNewMap, NewToOldMap;
-			bool bOK = UE::Geometry::CompactAttributeValues(EditMesh, *MaterialIDs, OldToNewMap, NewToOldMap, bWasCompact);
+			bool bOK = UE::Geometry::CompactAttributeValues(EditMesh, *MaterialIDs, OldValueRange, NewMaxValue, OldToNewMap, NewToOldMap, bWasCompact);
 			if (bOK == false)
 			{
 				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CompactMaterialIDs_InvalidMaterialID", "CompactMaterialIDs: Invalid MaterialIDs found, unsafe to Compact"));
@@ -402,17 +404,26 @@ UDynamicMesh* UGeometryScriptLibrary_MeshMaterialFunctions::CompactMaterialIDs(
 			}
 			if (bWasCompact)
 			{
-				return;
+				// this case occurs if MaterialIDs were removed such that the attribute values are still sequential/compact  (eg removed "at the end")
+				int32 NewMaterialIDCount = NewMaxValue+1;
+				CompactedMaterialList.Reset();
+				CompactedMaterialList.SetNum(NewMaterialIDCount);
+				for (int32 k = 0; k < NewMaterialIDCount; ++k)
+				{
+					CompactedMaterialList[k] = SourceMaterialList.IsValidIndex(k) ? SourceMaterialList[k] : nullptr;
+				}		
+				
 			}
-
-			int32 NewMaterialIDCount = NewToOldMap.Num();
-			CompactedMaterialList.Reset();
-			CompactedMaterialList.SetNum(NewMaterialIDCount);
-			for (int32 k = 0; k < NewMaterialIDCount; ++k)
+			else
 			{
-				int32 OldIndex = NewToOldMap[k];
-				CompactedMaterialList[k] = (OldIndex < SourceMaterialList.Num()) ?
-					SourceMaterialList[OldIndex] : nullptr;
+				int32 NewMaterialIDCount = NewToOldMap.Num();
+				CompactedMaterialList.Reset();
+				CompactedMaterialList.SetNum(NewMaterialIDCount);
+				for (int32 k = 0; k < NewMaterialIDCount; ++k)
+				{
+					int32 OldIndex = NewToOldMap[k];
+					CompactedMaterialList[k] = SourceMaterialList.IsValidIndex(OldIndex) ? SourceMaterialList[OldIndex] : nullptr;
+				}
 			}
 
 		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);

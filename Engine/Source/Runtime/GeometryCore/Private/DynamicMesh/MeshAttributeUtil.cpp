@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicMesh/MeshAttributeUtil.h"
-#include "IntBoxTypes.h"
 
 using namespace UE::Geometry;
 
@@ -9,6 +8,8 @@ using namespace UE::Geometry;
 bool UE::Geometry::CompactAttributeValues(
 	const FDynamicMesh3& Mesh,
 	TDynamicMeshScalarTriangleAttribute<int32>& TriangleAttrib,
+	FInterval1i& OldMaxAttributeRangeOut,
+	int& NewMaxAttributeValueOut,
 	TArray<int32>& OldToNewMap,
 	TArray<int32>& NewToOldMap,
 	bool& bWasCompact)
@@ -21,6 +22,7 @@ bool UE::Geometry::CompactAttributeValues(
 	{
 		IndexRange.Contain(TriangleAttrib.GetValue(TriangleID));
 	}
+	OldMaxAttributeRangeOut = IndexRange;
 	if (IndexRange.Min < 0)
 	{
 		return false;
@@ -45,6 +47,7 @@ bool UE::Geometry::CompactAttributeValues(
 			TriangleAttrib.SetValue(TriangleID, NewValue);
 		}
 	}
+	NewMaxAttributeValueOut = NewValueCount - 1;
 
 	// construct inverse mapping
 	NewToOldMap.Init(IndexConstants::InvalidID, NewValueCount);
