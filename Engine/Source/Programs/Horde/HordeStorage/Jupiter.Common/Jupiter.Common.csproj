@@ -18,7 +18,7 @@
     <PackageReference Include="AWSSDK.SecretsManager" Version="3.7.1.39" />
     <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.1.4" />
     <PackageReference Include="Blake3" Version="0.2.1" />
-    <PackageReference Include="Datadog.Trace" Version="1.23.0" />
+    <PackageReference Include="Datadog.Trace" Version="2.1.0" />
     <PackageReference Include="IdentityServer4.AccessTokenValidation" Version="3.0.1" />
     <PackageReference Include="JsonSubTypes" Version="1.8.0" />
     <PackageReference Include="Log4net.Appender.Serilog" Version="1.0.11" />

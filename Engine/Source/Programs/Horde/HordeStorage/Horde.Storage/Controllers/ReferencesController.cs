@@ -97,7 +97,7 @@ namespace Horde.Storage.Controllers
         {
             if (ShouldDoAuth())
             {
-                using (Scope _ = Tracer.Instance.StartActive("authorize"))
+                using (IScope _ = Tracer.Instance.StartActive("authorize"))
                 {
                     AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -126,7 +126,7 @@ namespace Horde.Storage.Controllers
 
                 async Task WriteBody(BlobContents blobContents, string contentType)
                 {
-                    using Scope scope = Tracer.Instance.StartActive("body.write");
+                    using IScope scope = Tracer.Instance.StartActive("body.write");
                     long contentLength = blobContents.Length;
                     scope.Span.SetTag("content-length", contentLength.ToString());
                     const int BufferSize = 64 * 1024;
@@ -175,7 +175,7 @@ namespace Horde.Storage.Controllers
                     {
                         byte[] blobMemory;
                         {
-                            using Scope scope = Tracer.Instance.StartActive("json.readblob");
+                            using IScope scope = Tracer.Instance.StartActive("json.readblob");
                             blobMemory = await blob.Stream.ToByteArray();
                         }
                         ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(blobMemory);
@@ -226,7 +226,7 @@ namespace Horde.Storage.Controllers
         {
             if (ShouldDoAuth())
             {
-                using (Scope _ = Tracer.Instance.StartActive("authorize"))
+                using (IScope _ = Tracer.Instance.StartActive("authorize"))
                 {
                     AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -302,7 +302,7 @@ namespace Horde.Storage.Controllers
         {
             if (ShouldDoAuth())
             {
-                using (Scope _ = Tracer.Instance.StartActive("authorize"))
+                using (IScope _ = Tracer.Instance.StartActive("authorize"))
                 {
                     AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -402,7 +402,7 @@ namespace Horde.Storage.Controllers
         {
             if (ShouldDoAuth())
             {
-                using (Scope _ = Tracer.Instance.StartActive("authorize"))
+                using (IScope _ = Tracer.Instance.StartActive("authorize"))
                 {
                     AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 

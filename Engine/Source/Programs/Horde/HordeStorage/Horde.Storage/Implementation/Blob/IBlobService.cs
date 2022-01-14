@@ -89,7 +89,7 @@ public class BlobService : IBlobService
     {
         BlobIdentifier blobHash;
         {
-            using Scope _ = Tracer.Instance.StartActive("web.hash");
+            using IScope _ = Tracer.Instance.StartActive("web.hash");
             blobHash = await BlobIdentifier.FromStream(content);
         }
 
@@ -103,7 +103,7 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObject(NamespaceId ns, IBufferedPayload payload, BlobIdentifier identifier)
     {
-        using Scope _ = Tracer.Instance.StartActive("put_blob");
+        using IScope _ = Tracer.Instance.StartActive("put_blob");
 
         await using Stream hashStream = payload.GetStream();
         BlobIdentifier id = await VerifyContentMatchesHash(hashStream, identifier);
@@ -119,7 +119,7 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier> PutObject(NamespaceId ns, byte[] payload, BlobIdentifier identifier)
     {
-        using Scope _ = Tracer.Instance.StartActive("put_blob");
+        using IScope _ = Tracer.Instance.StartActive("put_blob");
 
         await using Stream hashStream = new MemoryStream(payload);
         BlobIdentifier id = await VerifyContentMatchesHash(hashStream, identifier);
@@ -135,7 +135,7 @@ public class BlobService : IBlobService
     public async Task<BlobIdentifier> PutObjectKnownHash(NamespaceId ns, IBufferedPayload content,
         BlobIdentifier identifier)
     {
-        using Scope _ = Tracer.Instance.StartActive("put_blob");
+        using IScope _ = Tracer.Instance.StartActive("put_blob");
         Task<BlobIdentifier> putObjectTask = PutObjectToStores(ns, content, identifier);
         Task addToBlobIndexTask = _blobIndex.AddBlobToIndex(ns, identifier);
 
@@ -150,7 +150,7 @@ public class BlobService : IBlobService
         {
             await Parallel.ForEachAsync(_blobStores, async (store, cancellationToken) =>
             {
-                using Scope scope = Tracer.Instance.StartActive("put_blob_to_store");
+                using IScope scope = Tracer.Instance.StartActive("put_blob_to_store");
                 scope.Span.ResourceName = identifier.ToString();
                 scope.Span.SetTag("store", store.ToString());
 
@@ -162,7 +162,7 @@ public class BlobService : IBlobService
         {
             foreach (IBlobStore store in _blobStores)
             {
-                using Scope scope = Tracer.Instance.StartActive("put_blob_to_store");
+                using IScope scope = Tracer.Instance.StartActive("put_blob_to_store");
                 scope.Span.ResourceName = identifier.ToString();
                 scope.Span.SetTag("store", store.ToString());
 
@@ -213,7 +213,7 @@ public class BlobService : IBlobService
         BlobContents? blobContents = null;
         foreach (IBlobStore store in _blobStores)
         {
-            using Scope scope = Tracer.Instance.StartActive("HierarchicalStore.GetObject");
+            using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.GetObject");
             scope.Span.SetTag("BlobStore", store.GetType().Name);
             scope.Span.SetTag("ObjectFound", false.ToString());
             try
@@ -251,7 +251,7 @@ public class BlobService : IBlobService
 
         if (numStoreMisses >= 1)
         {
-            using Scope _ = Tracer.Instance.StartActive("HierarchicalStore.Populate");
+            using IScope _ = Tracer.Instance.StartActive("HierarchicalStore.Populate");
             await using MemoryStream tempStream = new MemoryStream();
             await blobContents.Stream.CopyToAsync(tempStream);
             byte[] data = tempStream.ToArray();
@@ -260,7 +260,7 @@ public class BlobService : IBlobService
             for (int i = 0; i < numStoreMisses; i++)
             {
                 var blobStore = _blobStores[i];
-                using Scope scope = Tracer.Instance.StartActive("HierarchicalStore.PopulateStore");
+                using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.PopulateStore");
                 scope.Span.SetTag("BlobStore", blobStore.GetType().Name);
                 // Populate each store traversed that did not have the content found lower in the hierarchy
                 await blobStore.PutObject(ns, data, blob);
@@ -284,7 +284,7 @@ public class BlobService : IBlobService
         {
             getTasks.Add(Task.Run( async () =>
             {
-                using Scope scope = Tracer.Instance.StartActive("HierarchicalStore.GetObject");
+                using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.GetObject");
                 scope.Span.SetTag("BlobStore", store.GetType().Name);
                 scope.Span.SetTag("ObjectFound", false.ToString());
                 try
@@ -350,7 +350,7 @@ public class BlobService : IBlobService
         // if it wasn't the first store we need to populate the stores before it with the blob
         if (indexOfStoreWithBlob != 0)
         {
-            using Scope _ = Tracer.Instance.StartActive("HierarchicalStore.Populate");
+            using IScope _ = Tracer.Instance.StartActive("HierarchicalStore.Populate");
             // buffer the blob contents as it could be to large for us to buffer into memory before forwarding to the blob stores
             using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(blobContents.Stream);
 
@@ -358,7 +358,7 @@ public class BlobService : IBlobService
             // Populate each store traversed that did not have the content found lower in the hierarchy
             await Parallel.ForEachAsync(_blobStores.GetRange(0, indexOfStoreWithBlob), async (store, token) =>
             {
-                using Scope scope = Tracer.Instance.StartActive("HierarchicalStore.PopulateStore");
+                using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.PopulateStore");
                 scope.Span.SetTag("BlobStore", store.GetType().Name);
 
                 await using Stream s = payload.GetStream();
@@ -388,7 +388,7 @@ public class BlobService : IBlobService
     {
         foreach (IBlobStore store in _blobStores)
         {
-            using Scope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
+            using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
             scope.Span.SetTag("BlobStore", store.GetType().Name);
             if (await store.Exists(ns, blob))
             {
@@ -410,7 +410,7 @@ public class BlobService : IBlobService
         {
             existsTasks.Add(Task.Run( async () =>
             {
-                using Scope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
+                using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
                 scope.Span.SetTag("BlobStore", store.GetType().Name);
                 if (await store.Exists(ns, blob))
                 {
@@ -450,7 +450,7 @@ public class BlobService : IBlobService
         {
             try
             {
-                using Scope scope = Tracer.Instance.StartActive("HierarchicalStore.DeleteObject");
+                using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.DeleteObject");
                 scope.Span.SetTag("BlobStore", store.GetType().Name);
                 await store.DeleteObject(ns, blob);
                 deletedAtLeastOnce = true;
@@ -481,7 +481,7 @@ public class BlobService : IBlobService
         bool deletedAtLeastOnce = false;
         foreach (IBlobStore store in _blobStores)
         {
-            using Scope scope = Tracer.Instance.StartActive("HierarchicalStore.DeleteNamespace");
+            using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.DeleteNamespace");
             scope.Span.SetTag("BlobStore", store.GetType().Name);
             try
             {
@@ -543,7 +543,7 @@ public class BlobService : IBlobService
 
     public async Task<BlobContents> GetObjects(NamespaceId ns, BlobIdentifier[] blobs)
     {
-        using Scope _ = Tracer.Instance.StartActive("blob.combine");
+        using IScope _ = Tracer.Instance.StartActive("blob.combine");
         Task<BlobContents>[] tasks = new Task<BlobContents>[blobs.Length];
         for (int i = 0; i < blobs.Length; i++)
         {

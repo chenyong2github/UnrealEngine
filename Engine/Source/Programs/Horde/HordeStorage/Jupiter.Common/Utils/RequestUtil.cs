@@ -19,7 +19,7 @@ namespace Jupiter
                 throw new Exception("Expected content-length on all raw body requests");
             }
 
-            using Scope scope = Tracer.Instance.StartActive("readbody");
+            using IScope scope = Tracer.Instance.StartActive("readbody");
             scope.Span.SetTag("Content-Length", contentLength.ToString());
             await using MemoryStream ms = new MemoryStream((int)contentLength);
             DateTime readStart = DateTime.Now;

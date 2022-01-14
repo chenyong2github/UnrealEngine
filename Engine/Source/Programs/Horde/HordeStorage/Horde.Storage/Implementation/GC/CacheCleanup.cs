@@ -36,7 +36,7 @@ namespace Horde.Storage.Implementation
 
         public Task<List<OldRecord>> Cleanup(NamespaceId ns, CancellationToken cancellationToken)
         {
-            using Scope scope = Tracer.Instance.StartActive("gc.refs.namespace");
+            using IScope scope = Tracer.Instance.StartActive("gc.refs.namespace");
             scope.Span.ResourceName = ns.ToString();
             if (_settings.CurrentValue.CleanNamespacesV1.Contains(ns.ToString()))
             {
@@ -66,7 +66,7 @@ namespace Horde.Storage.Implementation
                     continue;
 
                 _logger.Information("Attempting to delete object {Namespace} {Bucket} {Name} as it was last updated {LastAccessTime} which is older then {CutoffTime}", ns, bucket, name, lastAccessTime, cutoffTime);
-                using Scope scope = Tracer.Instance.StartActive("refCleanup.delete_record");
+                using IScope scope = Tracer.Instance.StartActive("refCleanup.delete_record");
                 scope.Span.ResourceName = $"{ns}:{bucket}.{name}";
                 // delete the old record from the ref refs
                 Task storeDelete = _referencesStore.Delete(ns, bucket, name);

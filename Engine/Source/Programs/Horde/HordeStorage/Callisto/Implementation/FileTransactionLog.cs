@@ -85,8 +85,8 @@ namespace Callisto.Implementation
         private async Task<long> CommitNewEvent(OpRecord eventRecord)
         {
             // datadog instrumentation of this method
-            using Scope scope = Tracer.Instance.StartActive("log.write");
-            Span span = scope.Span;
+            using IScope scope = Tracer.Instance.StartActive("log.write");
+            ISpan span = scope.Span;
             span.ResourceName = $"write {_namespace}";
             span.OperationName = "WRITE";
 
@@ -175,8 +175,8 @@ namespace Callisto.Implementation
         public async Task<TransactionEvents> Get(long index, int count, string? notSeenAtSite = null)
         {
             // datadog instrumentation of this method
-            using Scope scope = Tracer.Instance.StartActive("log.get");
-            Span span = scope.Span;
+            using IScope scope = Tracer.Instance.StartActive("log.get");
+            ISpan span = scope.Span;
             span.ResourceName = $"get {_namespace}";
             span.OperationName = "GET";
 

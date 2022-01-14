@@ -178,7 +178,7 @@ namespace Horde.Storage.Implementation
                 throw new Exception("Did not decompress the full payload");
 
             {
-                using Scope _ = Tracer.Instance.StartActive("cb.hash");
+                using IScope _ = Tracer.Instance.StartActive("cb.hash");
                 using Hasher hasher = Hasher.New();
                 hasher.UpdateWithJoin(decompressedPayload);
                 Hash blake3Hash = hasher.Finalize();

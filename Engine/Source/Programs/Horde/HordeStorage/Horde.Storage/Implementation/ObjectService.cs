@@ -104,7 +104,7 @@ namespace Horde.Storage.Implementation
             BlobIdentifier[] missingReferences = Array.Empty<BlobIdentifier>();
             if (hasReferences)
             {
-                using Scope _ = Tracer.Instance.StartActive("ObjectService.ResolveReferences");
+                using IScope _ = Tracer.Instance.StartActive("ObjectService.ResolveReferences");
                 try
                 {
                     IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, payload);
@@ -148,7 +148,7 @@ namespace Horde.Storage.Implementation
             BlobIdentifier[] missingReferences = Array.Empty<BlobIdentifier>();
             if (hasReferences)
             {
-                using Scope _ = Tracer.Instance.StartActive("ObjectService.ResolveReferences");
+                using IScope _ = Tracer.Instance.StartActive("ObjectService.ResolveReferences");
                 try
                 {
                     IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, payload);

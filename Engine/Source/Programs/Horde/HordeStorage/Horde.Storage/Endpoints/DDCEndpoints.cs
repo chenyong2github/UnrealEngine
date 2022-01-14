@@ -36,7 +36,7 @@ namespace Horde.Storage
                 return;
             }
             
-            using (Scope _ = Tracer.Instance.StartActive("authorize"))
+            using (IScope _ = Tracer.Instance.StartActive("authorize"))
             {
                 {
                     AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(httpContext.User, ns, NamespaceAccessRequirement.Name);
@@ -74,7 +74,7 @@ namespace Horde.Storage
                 httpContext.Response.Headers["Content-Length"] = Convert.ToString(blob.Length);
                 httpContext.Response.Headers[CommonHeaders.HashHeaderName] = refRes.ContentHash.ToString();
 
-                using (Scope _ = Tracer.Instance.StartActive("body.write"))
+                using (IScope _ = Tracer.Instance.StartActive("body.write"))
                 {
                     await blob.Stream.CopyToAsync(httpContext.Response.Body);
                 }

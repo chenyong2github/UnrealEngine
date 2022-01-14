@@ -65,7 +65,7 @@ namespace Horde.Storage.Implementation
 
         public async Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timestamp)
         {
-            using Scope _ = Tracer.Instance.StartActive("scylla.insert_add_event");
+            using IScope _ = Tracer.Instance.StartActive("scylla.insert_add_event");
             Task addNamespaceTask = PotentiallyAddNamespace(ns);
             DateTime timeBucket = timestamp.GetValueOrDefault(DateTime.UtcNow);
             ScyllaReplicationLogEvent log = new ScyllaReplicationLogEvent(ns.ToString(), bucket.ToString(), key.ToString(), timeBucket, ScyllaReplicationLogEvent.OpType.Added, objectBlob);
@@ -77,7 +77,7 @@ namespace Horde.Storage.Implementation
 
         public async Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime? timestamp)
         {
-            using Scope _ = Tracer.Instance.StartActive("scylla.insert_delete_event");
+            using IScope _ = Tracer.Instance.StartActive("scylla.insert_delete_event");
             Task addNamespaceTask = PotentiallyAddNamespace(ns);
             DateTime timeBucket = timestamp.GetValueOrDefault(DateTime.UtcNow);
             ScyllaReplicationLogEvent log = new ScyllaReplicationLogEvent(ns.ToString(), bucket.ToString(), key.ToString(), timeBucket, ScyllaReplicationLogEvent.OpType.Deleted, null);
@@ -94,7 +94,7 @@ namespace Horde.Storage.Implementation
 
         public async IAsyncEnumerable<ReplicationLogEvent> Get(NamespaceId ns, string? lastBucket, Guid? lastEvent)
         {
-            using Scope getReplicationLogScope = Tracer.Instance.StartActive("scylla.get_replication_log");
+            using IScope getReplicationLogScope = Tracer.Instance.StartActive("scylla.get_replication_log");
 
             if (lastBucket == "now")
             {
@@ -108,7 +108,7 @@ namespace Horde.Storage.Implementation
             bool bucketFound = false;
             await foreach (long bucketField in buckets)
             {
-                using Scope readReplicationScope = Tracer.Instance.StartActive("scylla.read_replication_bucket");
+                using IScope readReplicationScope = Tracer.Instance.StartActive("scylla.read_replication_bucket");
                 DateTime t = DateTime.FromFileTimeUtc(bucketField);
                 string bucket = t.ToReplicationBucketIdentifier();
                 readReplicationScope.Span.ResourceName = bucket;
@@ -165,7 +165,7 @@ namespace Horde.Storage.Implementation
 
         private async IAsyncEnumerable<long> FindReplicationBuckets(NamespaceId ns, string? lastBucket)
         {
-            using Scope findReplicationBucketScope = Tracer.Instance.StartActive("scylla.find_replication_buckets");
+            using IScope findReplicationBucketScope = Tracer.Instance.StartActive("scylla.find_replication_buckets");
 
 
             DateTime startBucketTime;
@@ -178,7 +178,7 @@ namespace Horde.Storage.Implementation
             }
             else
             {
-                using Scope _ = Tracer.Instance.StartActive("scylla.determine_first_replication_bucket");
+                using IScope _ = Tracer.Instance.StartActive("scylla.determine_first_replication_bucket");
 
                 // we should have no data older then the ttl to lets just assume that the bucket to start searching from is now - time to live
                 DateTime oldestTimestamp = DateTime.UtcNow.AddSeconds(-1 * _settings.CurrentValue.ReplicationLogTimeToLive.TotalSeconds);
@@ -191,7 +191,7 @@ namespace Horde.Storage.Implementation
             DateTime bucketTime = startBucketTime.AddHours(1.0).ToHourlyBucket();
             while(bucketTime < DateTime.UtcNow && bucketTime > oldCutoff)
             {
-                using Scope _ = Tracer.Instance.StartActive("scylla.determine_replication_bucket_exists");
+                using IScope _ = Tracer.Instance.StartActive("scylla.determine_replication_bucket_exists");
                 // fetch all the buckets that exists and sort them based on time
                 IEnumerable<ScyllaReplicationLogEvent> logEvent = await _mapper.FetchAsync<ScyllaReplicationLogEvent>("WHERE namespace = ? AND replication_bucket = ? LIMIT 1", ns.ToString(), bucketTime.ToFileTimeUtc());
                 ScyllaReplicationLogEvent? e = logEvent.FirstOrDefault();

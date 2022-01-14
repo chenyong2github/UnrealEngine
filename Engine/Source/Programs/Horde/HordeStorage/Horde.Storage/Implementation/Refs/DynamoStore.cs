@@ -69,8 +69,8 @@ namespace Horde.Storage.Implementation
 
             if (shouldCreateTable)
             {
-                using Scope scope = Tracer.Instance.StartActive("dynamo.create_tables");
-                Span span = scope.Span;
+                using IScope scope = Tracer.Instance.StartActive("dynamo.create_tables");
+                ISpan span = scope.Span;
                 span.ResourceName = $"CREATE {tableName}";
 
                 CreateTableRequest createTableRequest = new CreateTableRequest(tableName, keySchemaElements.ToList(), attributeDefinitions.ToList(), _settings.CurrentValue.UseOndemandCapacityProvisioning ? null : provisionedThroughput)

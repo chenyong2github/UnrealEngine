@@ -490,7 +490,7 @@ namespace Jupiter
 
         public async Task InvokeAsync(HttpContext httpContext)
         {
-            using Scope _ = Tracer.Instance.StartActive(_scopeName);
+            using IScope _ = Tracer.Instance.StartActive(_scopeName);
 
             //Move to next delegate/middleware in the pipleline
             await _next.Invoke(httpContext);

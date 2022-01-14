@@ -141,7 +141,7 @@ namespace Horde.Storage.Implementation
 
         private async Task<(BlobIdentifier, BlobIdentifier[]?)> ResolveContentId(NamespaceId ns, BlobIdentifier blobIdentifier)
         {
-            using Scope scope = Tracer.Instance.StartActive("ReferenceResolver.ResolveContentId");
+            using IScope scope = Tracer.Instance.StartActive("ReferenceResolver.ResolveContentId");
             scope.Span.ResourceName = blobIdentifier.ToString();
             BlobIdentifier[]? resolvedBlobs = await _contentIdStore.Resolve(ns, blobIdentifier);
             return (blobIdentifier, resolvedBlobs);

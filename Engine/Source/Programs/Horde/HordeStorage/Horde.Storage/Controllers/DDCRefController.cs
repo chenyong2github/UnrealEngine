@@ -113,7 +113,7 @@ namespace Horde.Storage.Controllers
         {
             if (!ShouldDoAuth())
             {
-                using (Scope _ = Tracer.Instance.StartActive("authorize"))
+                using (IScope _ = Tracer.Instance.StartActive("authorize"))
                 {
                     AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -142,7 +142,7 @@ namespace Horde.Storage.Controllers
    
                     if (isRaw)
                     {
-                        using (Scope _ = Tracer.Instance.StartActive("body.write"))
+                        using (IScope _ = Tracer.Instance.StartActive("body.write"))
                         {
                             const int BufferSize = 64 * 1024;
                             var outputStream = Response.Body;
@@ -250,7 +250,7 @@ namespace Horde.Storage.Controllers
                             httpContext.Response.Headers["Content-Length"] = Convert.ToString(blob.Length);
                             httpContext.Response.Headers[CommonHeaders.HashHeaderName] = refRes.ContentHash.ToString();
 
-                            using (Scope _ = Tracer.Instance.StartActive("body.write"))
+                            using (IScope _ = Tracer.Instance.StartActive("body.write"))
                             {
                                 await blob.Stream.CopyToAsync(httpContext.Response.Body);
                             }
@@ -317,12 +317,12 @@ namespace Horde.Storage.Controllers
 
                 using (StreamReader sr = new StreamReader(httpContext.Request.Body))
                 {
-                    using Scope _ = Tracer.Instance.StartActive("body.read");
+                    using IScope _ = Tracer.Instance.StartActive("body.read");
                     requestBody = await sr.ReadToEndAsync();
                 }
 
                 BatchGetOp batch;
-                using (Scope _ = Tracer.Instance.StartActive("json.deserialize"))
+                using (IScope _ = Tracer.Instance.StartActive("json.deserialize"))
                 {
                     batch = JsonConvert.DeserializeObject<BatchGetOp>(requestBody)!;
                 }

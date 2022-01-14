@@ -36,7 +36,7 @@ public class ScyllaBlobIndex : IBlobIndex
 
     public async Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id)
     {
-        using Scope _ = Tracer.Instance.StartActive("scylla.insert_blob_index");
+        using IScope _ = Tracer.Instance.StartActive("scylla.insert_blob_index");
 
         await _mapper.UpdateAsync<ScyllaBlobIndexTable>("SET regions = regions + ? WHERE namespace = ? AND blob_id = ?",
             new string[] { _jupiterSettings.CurrentValue.CurrentSite }, ns.ToString(), new ScyllaBlobIdentifier(id));
@@ -44,7 +44,7 @@ public class ScyllaBlobIndex : IBlobIndex
 
     public async Task<IBlobIndex.BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
     {
-        using Scope _ = Tracer.Instance.StartActive("scylla.fetch_blob_index");
+        using IScope _ = Tracer.Instance.StartActive("scylla.fetch_blob_index");
 
         ScyllaBlobIndexTable? blobIndex =
             await _mapper.FirstOrDefaultAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?",
@@ -64,7 +64,7 @@ public class ScyllaBlobIndex : IBlobIndex
     public async Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id)
     {
         // TODO: Should this only remove the current region, and the actual row isnt removed until all regions have been removed? Seems overly complicated
-        using Scope _ = Tracer.Instance.StartActive("scylla.remove_from_blob_index");
+        using IScope _ = Tracer.Instance.StartActive("scylla.remove_from_blob_index");
         await _mapper.DeleteAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?", ns.ToString(),
             new ScyllaBlobIdentifier(id));
 
@@ -79,7 +79,7 @@ public class ScyllaBlobIndex : IBlobIndex
 
     public Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs)
     {
-        using Scope _ = Tracer.Instance.StartActive("scylla.add_ref_blobs");
+        using IScope _ = Tracer.Instance.StartActive("scylla.add_ref_blobs");
 
         string nsAsString = ns.ToString();
         ScyllaObjectReference r = new ScyllaObjectReference(bucket, key);

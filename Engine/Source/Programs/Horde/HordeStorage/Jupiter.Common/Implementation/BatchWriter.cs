@@ -35,7 +35,7 @@ namespace Jupiter.Implementation
             foreach ((OpVerb opVerb, BucketId bucket, KeyId key) in ops)
             {
                 string opTypeName = opVerb.ToString();
-                using Scope scope = Tracer.Instance.StartActive($"batch.{opTypeName}");
+                using IScope scope = Tracer.Instance.StartActive($"batch.{opTypeName}");
                 scope.Span.ResourceName = $"{ns}.{bucket}.{key}";
 
                 (ContentHash? contentHash, BlobContents? blob, OpState opState) = await fetchAction(opVerb, ns, bucket, key, new [] {"blob", "contentHash"});

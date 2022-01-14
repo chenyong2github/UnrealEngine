@@ -44,7 +44,7 @@ namespace Horde.Storage.Implementation
 
         protected override async Task ReplicateOp(IRestClient remoteClient, TransactionEvent op, CancellationToken replicationToken)
         {
-            using Scope scope = Tracer.Instance.StartActive("replicator.replicate_blobs");
+            using IScope scope = Tracer.Instance.StartActive("replicator.replicate_blobs");
             NamespaceId ns = _replicatorSettings.NamespaceToReplicate;
 
             // now we replicate the blobs
@@ -65,7 +65,7 @@ namespace Horde.Storage.Implementation
 
         protected override async Task<long?> ReplicateOpInline(IRestClient remoteClient, TransactionEvent op, CancellationToken replicationToken)
         {
-            using Scope scope = Tracer.Instance.StartActive("replicator.replicate_inline");
+            using IScope scope = Tracer.Instance.StartActive("replicator.replicate_inline");
             //scope.Span.ResourceName = op.transactionId;
 
             NamespaceId ns = _replicatorSettings.NamespaceToReplicate;
@@ -161,7 +161,7 @@ namespace Horde.Storage.Implementation
             long countOfReplicatedEvents = 0L;
             try
             {
-                using Scope scope = Tracer.Instance.StartActive("replicator.run");
+                using IScope scope = Tracer.Instance.StartActive("replicator.run");
                 scope.Span.ResourceName =_name;
 
                 _replicationRunning = true;

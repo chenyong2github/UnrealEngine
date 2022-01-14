@@ -116,7 +116,7 @@ namespace Horde.Storage.Implementation
 
             try
             {
-                using Scope scope = Tracer.Instance.StartActive("replicator.run");
+                using IScope scope = Tracer.Instance.StartActive("replicator.run");
                 scope.Span.ResourceName =_name;
 
                 _replicationRunning = true;
@@ -262,7 +262,7 @@ namespace Horde.Storage.Implementation
             int maxParallelism = _replicatorSettings.MaxParallelReplications != -1 ? _replicatorSettings.MaxParallelReplications : 0;
             await snapshot.LiveObjects.ParallelForEachAsync(async snapshotLiveObject =>
             {
-                using Scope scope = Tracer.Instance.StartActive("replicator.replicate_op_snapshot");
+                using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_snapshot");
                 scope.Span.ResourceName = $"{ns}.{snapshotLiveObject.Blob}";
                 Interlocked.Increment(ref countOfObjectsCurrentlyReplicating);
                 LogReplicationHeartbeat(countOfObjectsCurrentlyReplicating);
@@ -307,7 +307,7 @@ namespace Horde.Storage.Implementation
 
             await GetRefEvents(ns, lastBucket, lastEvent, replicationToken).ParallelForEachAsync(async (ReplicationLogEvent @event) =>
             {
-                using Scope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental");
+                using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental");
                 scope.Span.ResourceName = $"{ns}.{@event.Bucket}.{@event.EventId}";
 
                 _logger.Information("{Name} New transaction to replicate found. New op: {@Op} . Count of running replications: {CurrentReplications}", _name, @event, replicationTasks.Count);

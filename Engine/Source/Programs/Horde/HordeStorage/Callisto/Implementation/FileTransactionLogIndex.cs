@@ -80,7 +80,7 @@ namespace Callisto.Implementation
                     return index;
                 }
 
-                using Scope _ = Tracer.Instance.StartActive("update.index");
+                using IScope _ = Tracer.Instance.StartActive("update.index");
                 int newIndex = _nextLocation++;
                 _locationToIdentifier.Add(location, newIndex);
                 Save();

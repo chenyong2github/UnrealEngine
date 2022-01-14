@@ -94,7 +94,7 @@ namespace Horde.Storage.Implementation
 
             string resource = $"{ns}.{bucket}.{key}";
             RefRecord? record;
-            using (Scope scope = Tracer.Instance.StartActive("ref.get"))
+            using (IScope scope = Tracer.Instance.StartActive("ref.get"))
             {
                 scope.Span.ResourceName = resource;
                 record = await _refsStore.Get(ns, bucket, key, flags);
@@ -119,7 +119,7 @@ namespace Horde.Storage.Implementation
 
             if (needsBlob)
             {
-                using Scope scope = Tracer.Instance.StartActive("blob.get");
+                using IScope scope = Tracer.Instance.StartActive("blob.get");
                 scope.Span.ResourceName = resource;
                 scope.Span.SetTag("BlobCount", record.Blobs.Length.ToString());
 

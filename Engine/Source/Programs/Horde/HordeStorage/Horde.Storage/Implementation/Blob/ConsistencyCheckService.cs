@@ -55,7 +55,7 @@ namespace Horde.Storage.Implementation
                 return false;
             }
 
-            using Scope scope = Tracer.Instance.StartActive("consistency_check.run");
+            using IScope scope = Tracer.Instance.StartActive("consistency_check.run");
 
             await RunConsistencyCheck();
 

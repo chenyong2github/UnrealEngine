@@ -172,7 +172,7 @@ namespace Horde.Storage.Controllers
             }
 
             // chunked content, combine the chunks into a single stream
-            using Scope _ = Tracer.Instance.StartActive("blob.combine");
+            using IScope _ = Tracer.Instance.StartActive("blob.combine");
             Task<BlobContents>[] tasks = new Task<BlobContents>[chunks.Length];
             for (int i = 0; i < chunks.Length; i++)
             {
@@ -241,7 +241,7 @@ namespace Horde.Storage.Controllers
 
             BlobIdentifier identifierCompressedPayload;
             {
-                using Scope _ = Tracer.Instance.StartActive("web.hash");
+                using IScope _ = Tracer.Instance.StartActive("web.hash");
                 await using Stream hashStream = payload.GetStream();
                 identifierCompressedPayload = await BlobIdentifier.FromStream(hashStream);
             }

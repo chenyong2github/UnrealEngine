@@ -58,7 +58,7 @@ namespace Horde.Storage.Implementation
         {
             return Task.Run(() =>
             {
-                using Scope _ = Tracer.Instance.StartActive("lastAccessTracker.track");
+                using IScope _ = Tracer.Instance.StartActive("lastAccessTracker.track");
                 try
                 {
                     _rwLock.AcquireReaderLock(-1);

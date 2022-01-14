@@ -36,7 +36,7 @@ namespace Horde.Storage.Implementation
 
         public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, BlobIdentifier contentId)
         {
-            using Scope scope = Tracer.Instance.StartActive("ScyllaContentIdStore.ResolveContentId");
+            using IScope scope = Tracer.Instance.StartActive("ScyllaContentIdStore.ResolveContentId");
             scope.Span.ResourceName = contentId.ToString();
 
             Task<bool> blobStoreExistsTask = _blobStore.Exists(ns, contentId);
@@ -51,7 +51,7 @@ namespace Horde.Storage.Implementation
                 BlobIdentifier[] blobs = resolvedContentId.Chunks.Select(b => b.AsBlobIdentifier()).ToArray();
 
                 {
-                    using Scope _ = Tracer.Instance.StartActive("ScyllaContentIdStore.FindMissingBlobs");
+                    using IScope _ = Tracer.Instance.StartActive("ScyllaContentIdStore.FindMissingBlobs");
 
                     BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, blobs);
                     if (missingBlobs.Length == 0)
