@@ -9,6 +9,7 @@
 #include "EngineDefines.h"
 #include "Misc/MessageDialog.h"
 #include "Containers/IndirectArray.h"
+#include "Containers/UnrealString.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
 #include "Misc/ConfigCacheIni.h"
@@ -25,6 +26,7 @@
 #include "AnimEncoding.h"
 #include "Factories/Factory.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+#include "Animation/AnimationSettings.h"
 #include "Animation/MorphTarget.h"
 #include "PhysicsAssetUtils.h"
 #include "Rendering/SkeletalMeshModel.h"
@@ -761,13 +763,35 @@ bool UnFbx::FFbxImporter::IsUnrealBone(FbxNode* Link)
 			AttrType == FbxNodeAttribute::eMesh ||
 			AttrType == FbxNodeAttribute::eNull )
 		{
-			return true;
+			return !IsUnrealTransformAttribute(Link);
 		}
 	}
 	
 	return false;
 }
 
+bool UnFbx::FFbxImporter::IsUnrealTransformAttribute(FbxNode* Link)
+{
+	FbxNodeAttribute* Attr = Link->GetNodeAttribute();
+	if (Attr)
+	{
+		FbxNodeAttribute::EType AttrType = Attr->GetAttributeType();
+		if (AttrType == FbxNodeAttribute::eNull)
+		{
+			FString AttributeName = FSkeletalMeshImportData::FixupBoneName(MakeName(Link->GetName()));
+
+			for (const FString& TransformAttributeName : UAnimationSettings::Get()->TransformAttributeNames)
+			{
+				if (AttributeName.MatchesWildcard(TransformAttributeName, ESearchCase::IgnoreCase))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
 
 void UnFbx::FFbxImporter::RecursiveBuildSkeleton(FbxNode* Link, TArray<FbxNode*>& OutSortedLinks)
 {
@@ -779,6 +803,10 @@ void UnFbx::FFbxImporter::RecursiveBuildSkeleton(FbxNode* Link, TArray<FbxNode*>
 		{
 			RecursiveBuildSkeleton(Link->GetChild(ChildIndex),OutSortedLinks);
 		}
+	}
+	else if (IsUnrealTransformAttribute(Link))
+	{
+		OutSortedLinks.Add(Link);
 	}
 }
 

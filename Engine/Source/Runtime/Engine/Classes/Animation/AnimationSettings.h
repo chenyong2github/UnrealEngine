@@ -87,6 +87,10 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
 	ECustomAttributeBlendType DefaultAttributeBlendMode;
 
+	/** Names to match against when importing FBX node transform curves as attributes (can use ? and * wildcards) */
+	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
+	TArray<FString> TransformAttributeNames;
+
 	/** Find and Replace Expressions used for mirroring  */
 	UPROPERTY(config, EditAnywhere, Category = Mirroring)
 	TArray<FMirrorFindReplaceExpression> MirrorFindReplaceExpressions;

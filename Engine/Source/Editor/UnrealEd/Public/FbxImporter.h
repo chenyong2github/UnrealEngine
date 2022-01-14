@@ -1030,6 +1030,13 @@ public:
 	bool IsUnrealBone(FbxNode* Link);
 
 	/**
+	 * Returns if the passed FbxNode can be used as a transform attribute in Unreal.
+	 * 
+	 * @return bool
+	 */
+	bool IsUnrealTransformAttribute(FbxNode* Link);
+
+	/**
 	* Fill FBX skeletons to OutSortedLinks recursively
 	*
 	* @param Link Fbx node of skeleton root

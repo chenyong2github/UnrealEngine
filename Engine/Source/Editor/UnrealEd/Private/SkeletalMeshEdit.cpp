@@ -466,7 +466,7 @@ void UnFbx::FFbxImporter::FillAndVerifyBoneNames(USkeleton* Skeleton, TArray<Fbx
 	for (int32 I = 0; I < TrackNum; ++I)
 	{
 		FName RawBoneName = OutRawBoneNames[I];
-		if ( RefSkeleton.FindBoneIndex(RawBoneName) == INDEX_NONE)
+		if (RefSkeleton.FindBoneIndex(RawBoneName) == INDEX_NONE && !IsUnrealTransformAttribute(SortedLinks[I]))
 		{
 			BoneNames += RawBoneName.ToString();
 			BoneNames += TEXT("  \n");
@@ -1916,7 +1916,7 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 		const FText StatusUpate = FText::Format(LOCTEXT("ImportingAnimTrackDetail", "Importing Animation Track [{TrackName}] ({TrackIndex}/{TotalTracks}) - TotalKey {TotalKey}"), Args);
 		SlowTask.EnterProgressFrame(1, StatusUpate);
 
-		if (BoneTreeIndex != INDEX_NONE)
+		if (BoneTreeIndex != INDEX_NONE || IsUnrealTransformAttribute(AnimImportSettings.SortedLinks[SourceTrackIdx]))
 		{
 			bool bSuccess = true;
 
@@ -1924,6 +1924,8 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 			RawTrack.PosKeys.Empty();
 			RawTrack.RotKeys.Empty();
 			RawTrack.ScaleKeys.Empty();
+
+			TArray<float> TimeKeys;
 
 			AnimationTransformDebug::FAnimationTransformDebugData NewDebugData;
 
@@ -2009,21 +2011,89 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 				RawTrack.PosKeys.Add(FVector3f(LocalTransform.GetTranslation()));
 				RawTrack.RotKeys.Add(FQuat4f(LocalTransform.GetRotation()));
 
+				TimeKeys.Add((CurTime - AnimTimeSpan.GetStart()).GetSecondDouble());
+
 				NewDebugData.RecalculatedLocalTransform.Add(LocalTransform);
 				++NumKeysForTrack;
 			}
 
 			if (bSuccess)
 			{
-				//add new track
-				Controller.AddBoneTrack(BoneName);
-				Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
-				const int32 TrackIndex = DestSeq->GetDataModel()->GetBoneTrackIndexByName(BoneName);
+				check(RawTrack.ScaleKeys.Num() == NumKeysForTrack);
+				check(RawTrack.PosKeys.Num() == NumKeysForTrack);
+				check(RawTrack.RotKeys.Num() == NumKeysForTrack);
+				check(TimeKeys.Num() == NumKeysForTrack);
 
-				NewDebugData.SetTrackData(TrackIndex, BoneTreeIndex, BoneName);
+				if (BoneTreeIndex != INDEX_NONE)
+				{
+					//add new track
+					Controller.AddBoneTrack(BoneName);
+					Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
+					const int32 TrackIndex = DestSeq->GetDataModel()->GetBoneTrackIndexByName(BoneName);
 
-				// add mapping to skeleton bone track
-				TransformDebugData.Add(NewDebugData);
+					NewDebugData.SetTrackData(TrackIndex, BoneTreeIndex, BoneName);
+
+					// add mapping to skeleton bone track
+					TransformDebugData.Add(NewDebugData);
+				}
+				else if (NumKeysForTrack > 0) // add transform attribute
+				{
+					FbxNode* TargetBoneLink = LinkParent;
+					while (TargetBoneLink != nullptr && !IsUnrealBone(TargetBoneLink))
+					{
+						TargetBoneLink = TargetBoneLink->GetParent();
+					}
+
+					if (TargetBoneLink)
+					{
+						int32 TargetBoneTrackIndex = AnimImportSettings.SortedLinks.Find(TargetBoneLink);
+						if (TargetBoneTrackIndex != INDEX_NONE)
+						{
+							FName TargetBoneName = AnimImportSettings.FbxRawBoneNames[TargetBoneTrackIndex];
+							if (RefSkeleton.FindBoneIndex(TargetBoneName) != INDEX_NONE)
+							{
+								FAnimationAttributeIdentifier AttributeIdentifier = UAnimationAttributeIdentifierExtensions::CreateAttributeIdentifier(DestSeq, FName(BoneName), TargetBoneName, FTransformAnimationAttribute::StaticStruct());
+								if (AttributeIdentifier.IsValid())
+								{
+									// remove any existing attribute with the same identifier
+									if (const UAnimDataModel* Model = Controller.GetModel())
+									{
+										if (Model->FindAttribute(AttributeIdentifier))
+										{
+											Controller.RemoveAttribute(AttributeIdentifier);
+										}
+									}
+
+									// pack the separate rot/pos/scale key arrays into a single array
+									TArray<FTransform> TransformValues;
+									TransformValues.Reserve(NumKeysForTrack);
+									for (int32 KeyIndex = 0; KeyIndex < NumKeysForTrack; ++KeyIndex)
+									{
+										const FQuat Q(RawTrack.RotKeys[KeyIndex]);
+										const FVector T(RawTrack.PosKeys[KeyIndex]);
+										const FVector S(RawTrack.ScaleKeys[KeyIndex]);
+										TransformValues.Add(FTransform(Q, T, S));
+									}
+
+									// reduce keys for the common case where all of the keys have the same values
+									bool bReduceKeys = true;
+									for (int32 KeyIndex = 1; KeyIndex < NumKeysForTrack; ++KeyIndex)
+									{
+										if (!TransformValues[KeyIndex].Equals(TransformValues[0]))
+										{
+											bReduceKeys = false;
+											break;
+										}
+									}
+
+									// create the attribute and add the transform keys
+									const int32 NumAttributeKeys = (bReduceKeys) ? 1 : NumKeysForTrack;
+									UE::Anim::AddTypedCustomAttribute<FTransformAnimationAttribute, FTransform>(FName(BoneName), TargetBoneName, DestSeq, MakeArrayView(TimeKeys.GetData(), NumAttributeKeys), MakeArrayView(TransformValues.GetData(), NumAttributeKeys));
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 
