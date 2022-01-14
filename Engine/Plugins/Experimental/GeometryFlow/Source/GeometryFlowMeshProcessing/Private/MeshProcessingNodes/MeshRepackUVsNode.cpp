@@ -15,6 +15,11 @@ void FMeshRepackUVsNode::RepackUVsForMesh(FDynamicMesh3& EditMesh, const FMeshRe
 		return;
 	}
 
+	if (EditMesh.TriangleCount() == 0)
+	{
+		return;
+	}
+
 	FDynamicMeshUVOverlay* UVLayer = EditMesh.Attributes()->GetUVLayer(Settings.UVLayer);
 
 	UVLayer->SplitBowties();
