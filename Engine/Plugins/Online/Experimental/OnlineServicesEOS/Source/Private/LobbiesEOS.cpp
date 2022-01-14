@@ -1039,7 +1039,6 @@ TFuture<TDefaultErrorResult<FLobbiesEOS::FJoinLobbyImpl>> FLobbiesEOS::JoinLobby
 			TArray<TFuture<TDefaultErrorResult<FLeaveLobbyImpl>>> PendingMemberExits;
 			for (int32 MemberIndex = 0; MemberIndex < Params.LocalUsers.Num(); ++MemberIndex)
 			{
-				const TDefaultErrorResult<FJoinLobbyMemberImpl>& MemberResult = Results.Get()[MemberIndex];
 				const FOnlineAccountIdHandle MemberId = Params.LocalUsers[MemberIndex].LocalUserId;
 
 				if (Results.Get()[MemberIndex].IsError())
