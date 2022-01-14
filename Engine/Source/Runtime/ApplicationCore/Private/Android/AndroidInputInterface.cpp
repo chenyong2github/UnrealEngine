@@ -57,7 +57,7 @@ static FAutoConsoleVariableRef CVarAndroidOldXBoxWirelessFirmware(
 bool AndroidUnifyMotionSpace = false;
 static FAutoConsoleVariableRef CVarAndroidUnifyMotionSpace(
 	TEXT("Android.UnifyMotionSpace"),
-	UnifyMotionSpace,
+	AndroidUnifyMotionSpace,
 	TEXT("Motion inputs will be processed to keep rotation rate right-handed and keep other motion inputs in the same space as rotation rate. This also forces rotation rate units to be radians/s and acceleration units to be g. Default: false"),
 	ECVF_Default);
 
