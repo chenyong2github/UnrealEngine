@@ -3844,6 +3844,29 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 		}
 	}
 
+	// Find the packages that are waiting on async jobs to finish cooking data
+	// and make sure that they are not garbage collected until the jobs have
+	// completed.
+	{
+		TSet<UPackage*> UniquePendingPackages;
+		for (FPendingCookedPlatformData& PendingData : PackageDatas->GetPendingCookedPlatformDatas())
+		{
+			if (UObject* Object = PendingData.Object.Get())
+			{	
+				if (UPackage* Package = Object->GetPackage())
+				{
+					UniquePendingPackages.Add(Package);
+				}	
+			}
+		}
+
+		GCKeepPackages.Reserve(GCKeepPackages.Num() + UniquePendingPackages.Num());
+		for (UPackage* Package : UniquePendingPackages)
+		{
+			GCKeepPackages.Add(Package);
+		}	
+	}
+
 	const bool bPartialGC = IsCookFlagSet(ECookInitializationFlags::EnablePartialGC);
 	if (bPartialGC)
 	{
