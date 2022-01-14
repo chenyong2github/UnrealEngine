@@ -48,6 +48,9 @@
 #include "LandscapeSubsystem.h"
 #include "ShaderCompilerCore.h"
 #include "AssetRegistryModule.h"
+#include "Interfaces/IMainFrameModule.h"
+#include "WorldPartition/SWorldPartitionBuildNavigationDialog.h"
+#include "WorldPartition/WorldPartitionBuildNavigationOptions.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorBuildUtils, Log, All);
 
@@ -880,87 +883,118 @@ void FEditorBuildUtils::TriggerNavigationBuilder(UWorld*& InOutWorld, FName Id)
 
 bool FEditorBuildUtils::WorldPartitionBuildNavigation(const FString& InLongPackageName)
 {
-	// Ask user to save dirty packages
-	if (!FEditorFileUtils::SaveDirtyPackages(/*bPromptUserToSave=*/true, /*bSaveMapPackages=*/true, /*bSaveContentPackages=*/false))
-	{
-		return false;
-	}
+	UWorldPartitionBuildNavigationOptions* DefaultBuildNavigationOptions = GetMutableDefault<UWorldPartitionBuildNavigationOptions>();
+	DefaultBuildNavigationOptions->bVerbose = false;
+	DefaultBuildNavigationOptions->bCleanPackages = false;
 
-	// Unload any loaded map
-	if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
+	TSharedPtr<SWindow> DlgWindow =
+		SNew(SWindow)
+		.Title(LOCTEXT("BuildNavigationWindowTitle", "Build Navigation Settings"))
+		.ClientSize(SWorldPartitionBuildNavigationDialog::DEFAULT_WINDOW_SIZE)
+		.SupportsMinimize(false)
+		.SupportsMaximize(false)
+		.SizingRule(ESizingRule::FixedSize);
+
+	TSharedRef<SWorldPartitionBuildNavigationDialog> Dialog =
+		SNew(SWorldPartitionBuildNavigationDialog)
+		.ParentWindow(DlgWindow)
+		.BuildNavigationOptions(DefaultBuildNavigationOptions);
+
+	DlgWindow->SetContent(Dialog);
+
+	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+	FSlateApplication::Get().AddModalWindow(DlgWindow.ToSharedRef(), MainFrameModule.GetParentWindow());
+
+	if (Dialog->ClickedOk())
 	{
-		return false;
-	}
+		// Ask user to save dirty packages
+		if (!FEditorFileUtils::SaveDirtyPackages(/*bPromptUserToSave=*/true, /*bSaveMapPackages=*/true, /*bSaveContentPackages=*/false))
+		{
+			return false;
+		}
+
+		// Unload any loaded map
+		if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
+		{
+			return false;
+		}
 	
-	FProcHandle ProcessHandle;
-	bool bCancelled = false;
+		FProcHandle ProcessHandle;
+		bool bCancelled = false;
 
-	// Task scope
-	{
-		FScopedSlowTask SlowTask(0, LOCTEXT("WorldPartitionBuildNavigationProgress", "Building navigation..."));
-		SlowTask.MakeDialog(true);
+		// Task scope
+		{
+			FScopedSlowTask SlowTask(0, LOCTEXT("WorldPartitionBuildNavigationProgress", "Building navigation..."));
+			SlowTask.MakeDialog(true);
 
-		const FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
+			const FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
 
-		// Try to provide complete Path, if we can't try with project name
-		const FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
+			// Try to provide complete Path, if we can't try with project name
+			const FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
 
-		uint32 ProcessID;
+			uint32 ProcessID;
 
-		const FString Arguments = FString::Printf(TEXT("\"%s\" -run=WorldPartitionBuilderCommandlet %s  %s"), *ProjectPath, *InLongPackageName, TEXT(" -AllowCommandletRendering -Builder=WorldPartitionNavigationDataBuilder -SCCProvider=None -log=WPNavigationBuilderLog.txt"));
-		ProcessHandle = FPlatformProcess::CreateProc(*CurrentExecutableName, *Arguments, true, false, false, &ProcessID, 0, nullptr, nullptr);
+			const FString Arguments = FString::Printf(TEXT("\"%s\" -run=WorldPartitionBuilderCommandlet %s %s %s %s"),
+				*ProjectPath,
+				*InLongPackageName,
+				TEXT(" -AllowCommandletRendering -Builder=WorldPartitionNavigationDataBuilder -SCCProvider=None -log=WPNavigationBuilderLog.txt"), 
+				DefaultBuildNavigationOptions->bVerbose ? TEXT("-Verbose") : TEXT(""),
+				DefaultBuildNavigationOptions->bCleanPackages ? TEXT("-CleanPackages") : TEXT(""));
+				
+			ProcessHandle = FPlatformProcess::CreateProc(*CurrentExecutableName, *Arguments, true, false, false, &ProcessID, 0, nullptr, nullptr);
 		
-		while (FPlatformProcess::IsProcRunning(ProcessHandle))
-		{
-			if (SlowTask.ShouldCancel())
+			while (FPlatformProcess::IsProcRunning(ProcessHandle))
 			{
-				bCancelled = true;
-				FPlatformProcess::TerminateProc(ProcessHandle);
-				break;
-			}
+				if (SlowTask.ShouldCancel())
+				{
+					bCancelled = true;
+					FPlatformProcess::TerminateProc(ProcessHandle);
+					break;
+				}
 
-			SlowTask.EnterProgressFrame(0);
-			FPlatformProcess::Sleep(0.1);
+				SlowTask.EnterProgressFrame(0);
+				FPlatformProcess::Sleep(0.1);
+			}
 		}
-	}
 
-	int32 Result = 0;
-	if (!bCancelled && FPlatformProcess::GetProcReturnCode(ProcessHandle, &Result))
-	{	
-		if (Result == 0)
-		{
-			// Unload any loaded map
-			if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
+		int32 Result = 0;
+		if (!bCancelled && FPlatformProcess::GetProcReturnCode(ProcessHandle, &Result))
+		{	
+			if (Result == 0)
 			{
-				return false;
-			}
+				// Unload any loaded map
+				if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
+				{
+					return false;
+				}
 			
-			// Force registry update before loading converted map
-			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+				// Force registry update before loading converted map
+				const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+				IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 											
-			FString MapToLoad = InLongPackageName;
+				FString MapToLoad = InLongPackageName;
 			
-			AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
-			AssetRegistry.ScanPathsSynchronous(ULevel::GetExternalObjectsPaths(MapToLoad), true);
+				AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
+				AssetRegistry.ScanPathsSynchronous(ULevel::GetExternalObjectsPaths(MapToLoad), true);
 
-			// Force a directory watcher tick for the asset registry to get notified of the changes
-			FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
-			DirectoryWatcherModule.Get()->Tick(-1.0f);
+				// Force a directory watcher tick for the asset registry to get notified of the changes
+				FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
+				DirectoryWatcherModule.Get()->Tick(-1.0f);
 			
-			FEditorFileUtils::LoadMap(MapToLoad);
+				FEditorFileUtils::LoadMap(MapToLoad);
+			}
 		}
-	}
-	else if (bCancelled)
-	{
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionBuildNavigationCancelled", "Building navigation cancelled!"));
+		else if (bCancelled)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionBuildNavigationCancelled", "Building navigation cancelled!"));
+		}
+	
+		if (Result != 0)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionBuildNavigationFailed", "Building navigation failed!"));
+		}
 	}
 	
-	if (Result != 0)
-	{
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionBuildNavigationFailed", "Building navigation failed!"));
-	}
-
 	return false;
 }
 

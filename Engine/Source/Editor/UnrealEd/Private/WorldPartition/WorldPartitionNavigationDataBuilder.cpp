@@ -26,11 +26,12 @@ UWorldPartitionNavigationDataBuilder::UWorldPartitionNavigationDataBuilder(const
 bool UWorldPartitionNavigationDataBuilder::PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	const TSubclassOf<APartitionActor>& NavigationDataActorClass = ANavigationDataChunkActor::StaticClass();
-	const uint32 GridSize = NavigationDataActorClass->GetDefaultObject<APartitionActor>()->GetDefaultGridSize(World);
-	
+	uint32 GridSize = NavigationDataActorClass->GetDefaultObject<APartitionActor>()->GetDefaultGridSize(World);
+	GridSize = FMath::Max(GridSize, 1u);
+
 	// Size of loaded cell. Set as big as your hardware can afford.
-	// @todo: move to a config file.
-	IterativeCellSize = 2*GridSize;
+	const uint32 LoadingCellSizeSetting = World->GetWorldSettings()->NavigationDataBuilderLoadingCellSize;
+	IterativeCellSize = (LoadingCellSizeSetting / GridSize) * GridSize;
 	
 	// Extra padding around loaded cell.
 	// @todo: set value programatically.
@@ -41,6 +42,11 @@ bool UWorldPartitionNavigationDataBuilder::PreRun(UWorld* World, FPackageSourceC
 
 	bCleanBuilderPackages = Switches.Contains(TEXT("CleanPackages"));
 
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Starting NavigationDataBuilder"));
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("   ANavigationDataChunkActor GridSize: %8i"), GridSize);
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("   IterativeCellSize:                  %8i (%ix%i navigation datachunk partition actor per loaded cell)"), IterativeCellSize, IterativeCellSize/GridSize, IterativeCellSize/GridSize);
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("   IterativeCellOverlapSize:           %8i"), IterativeCellOverlapSize);
+	
 	return true;
 }
 

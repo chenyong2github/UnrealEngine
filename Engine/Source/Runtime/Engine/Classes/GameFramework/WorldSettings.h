@@ -559,13 +559,20 @@ protected:
 
 public:
 #if WITH_EDITORONLY_DATA
-	/** Size of the grid for instanced foliage actors*/
+	/** Size of the grid for instanced foliage actors */
 	UPROPERTY(EditAnywhere, Category = Foliage)
 	uint32 InstancedFoliageGridSize;
 
-	/** Size of the grid for navigation data chunk actors*/
+	/** Size of the grid for navigation data chunk actors */
 	UPROPERTY(EditAnywhere, Category = Navigation)
 	uint32 NavigationDataChunkGridSize;
+
+	/**
+	 * Loading cell size used when building navigation data iteratively.
+	 * The actual cell size used will be rounded using the NavigationDataChunkGridSize.
+	 */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	uint32 NavigationDataBuilderLoadingCellSize;
 	
 	/** Default size of the grid for placed elements from the editor */
 	UPROPERTY(EditAnywhere, Category=Editor)
