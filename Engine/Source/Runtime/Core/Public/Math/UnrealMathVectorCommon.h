@@ -853,7 +853,6 @@ FORCEINLINE VectorRegister4Double VectorFractional(const VectorRegister4Double& 
 
 FORCEINLINE void VectorQuaternionMultiply(FQuat4f* RESTRICT Result, const FQuat4f* RESTRICT Quat1, const FQuat4f* RESTRICT Quat2)
 {
-	//*((VectorRegister4Float*)Result) = VectorQuaternionMultiply2(*((const VectorRegister4Float*)Quat1), *((const VectorRegister4Float*)Quat2));
 	const VectorRegister4Float Q1 = VectorLoadAligned(Quat1);
 	const VectorRegister4Float Q2 = VectorLoadAligned(Quat2);
 	const VectorRegister4Float QResult = VectorQuaternionMultiply2(Q1, Q2);

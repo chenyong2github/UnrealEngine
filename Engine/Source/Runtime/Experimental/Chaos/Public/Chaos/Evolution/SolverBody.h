@@ -4,6 +4,14 @@
 #include "Chaos/Core.h"
 #include "Math/Quat.h"
 
+
+#if DO_CHECK && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define ChaosSolverEnsure( condition )		ensure( condition )
+#else
+#define ChaosSolverEnsure(...)
+#endif
+
+
 // Set to 1 to force single precision in the constraint solver, even if the default numeric type is double
 #define CHAOS_CONSTRAINTSOLVER_LOWPRECISION 1
 
@@ -50,59 +58,9 @@ namespace Chaos
 	 * does not seem to cost much.
 	 * 
 	*/
-	FORCEINLINE void SolverQuaternionNormalizeApprox(FRotation3& InOutQ)
-	{
-		//constexpr FReal Tolerance = FReal(2.107342e-08);	// For full double-precision accuracy
-		constexpr FReal ToleranceF = FReal(0.001);
+	CHAOS_API void SolverQuaternionNormalizeApprox(FRotation3& InOutQ);
 
-#if PLATFORM_ENABLE_VECTORINTRINSICS
-		using QuatVectorRegister = FRotation3::QuatVectorRegister;
-
-		constexpr VectorRegister Tolerance = MakeVectorRegisterConstant(ToleranceF, ToleranceF, ToleranceF, ToleranceF);
-		constexpr VectorRegister One = MakeVectorRegisterConstant(FReal(1), FReal(1), FReal(1), FReal(1));
-		constexpr VectorRegister Two = MakeVectorRegisterConstant(FReal(2), FReal(2), FReal(2), FReal(2));
-
-		//const FReal QSq = SizeSquared();
-		const QuatVectorRegister Q = VectorLoadAligned(&InOutQ);
-		const QuatVectorRegister QSq = VectorDot4(Q, Q);
-
-		// if (FMath::Abs(FReal(1) - QSq) < Tolerance)
-		const QuatVectorRegister ToleranceCheck = VectorAbs(VectorSubtract(One, QSq));
-		if (VectorMaskBits(VectorCompareLE(ToleranceCheck, Tolerance)) != 0)
-		{
-			// Q * (FReal(2) / (FReal(1) + QSq))
-			const QuatVectorRegister Denom = VectorAdd(One, QSq);
-			const QuatVectorRegister Mult = VectorDivide(Two, Denom);
-			const QuatVectorRegister Result = VectorMultiply(Q, Mult);
-			VectorStoreAligned(Result, &InOutQ);
-		}
-		else
-		{
-			// Q / QLen
-			// @todo(chaos): with doubles VectorReciprocalSqrt does twice as many sqrts as we need and also has a divide
-			const QuatVectorRegister Result = VectorNormalize(Q);
-			VectorStoreAligned(Result, &InOutQ);
-		}
-
-#else
-		const FReal QSq = InOutQ.SizeSquared();
-		if (FMath::Abs(FReal(1) - QSq) < ToleranceF)
-		{
-			InOutQ *= (FReal(2) / (FReal(1) + QSq));
-		}
-		else
-		{
-			InOutQ *= FMath::InvSqrt(QSq);
-		}
-#endif
-	}
-
-	FORCEINLINE FRotation3 SolverQuaternionApplyAngularDeltaApprox(const FRotation3& InQ0, const FVec3& InDR)
-	{
-		FRotation3 Q1 = InQ0 + (FRotation3::FromElements(InDR, FReal(0)) * InQ0) * FReal(0.5);
-		SolverQuaternionNormalizeApprox(Q1);
-		return Q1;
-	}
+	CHAOS_API FRotation3 SolverQuaternionApplyAngularDeltaApprox(const FRotation3& InQ0, const FVec3& InDR);
 
 
 	/**
@@ -141,7 +99,7 @@ namespace Chaos
 			{
 				const FSolverReal InvDt = FSolverReal(1) / FSolverReal(Dt);
 				State.V += State.DP * InvDt;
-				State.W += State.DQ * InvDt;
+				SetW(State.W + State.DQ * InvDt);
 			}
 		}
 
@@ -195,7 +153,11 @@ namespace Chaos
 		 * @brief Pre-integration world-space center of mass rotation
 		*/
 		inline const FRotation3& R() const { return State.R; }
-		inline void SetR(const FRotation3& InR) { State.R = InR; }
+		inline void SetR(const FRotation3& InR)
+		{
+			ChaosSolverEnsure(!InR.ContainsNaN());
+			State.R = InR;
+		}
 
 		/**
 		 * @brief Predicted (post-integrate) world-space center of mass position
@@ -211,7 +173,11 @@ namespace Chaos
 		 * @see DQ(), CorrectedQ()
 		*/
 		inline const FRotation3& Q() const { return State.Q; }
-		inline void SetQ(const FRotation3& InQ) { State.Q = InQ; }
+		inline void SetQ(const FRotation3& InQ)
+		{
+			ChaosSolverEnsure(!InQ.ContainsNaN());
+			State.Q = InQ;
+		}
 
 		/**
 		 * @brief World-space center of mass velocity
@@ -223,7 +189,11 @@ namespace Chaos
 		 * @brief World-space center of mass angular velocity
 		*/
 		inline const FVec3& W() const { return State.W; }
-		inline void SetW(const FVec3& InW) { State.W = InW; }
+		inline void SetW(const FVec3& InW)
+		{
+			ChaosSolverEnsure(!InW.ContainsNaN());
+			State.W = InW;
+		}
 
 		inline const FVec3& CoM() const { return State.CoM; }
 		inline void SetCoM(const FVec3& InCoM) { State.CoM = InCoM; }
@@ -337,7 +307,7 @@ namespace Chaos
 		*/
 		inline void ApplyAngularVelocityDelta(const FSolverVec3& DW)
 		{
-			State.W += DW;
+			SetW(State.W + DW);
 		}
 
 		/**

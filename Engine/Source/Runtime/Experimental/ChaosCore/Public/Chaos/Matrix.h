@@ -307,12 +307,12 @@ namespace Chaos
 			M[1][3] = 0;
 			M[2][3] = 0;
 		}
-#if COMPILE_WITHOUT_UNREAL_SUPPORT
-		PMatrix<FReal, 3, 3> GetTransposed()
+
+		PMatrix<FRealDouble, 3, 3> GetTransposed() const
 		{
 			return PMatrix<FRealDouble, 3, 3>(M[0][0], M[0][1], M[0][2], M[1][0], M[1][1], M[1][2], M[2][0], M[2][1], M[2][2]);
 		}
-		FReal Determinant()
+		FRealDouble Determinant() const
 		{
 			return M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) - M[0][1] * (M[1][0] * M[2][2] - M[1][2] * M[2][0]) + M[0][2] * (M[1][0] * M[2][1] - M[1][1] * M[2][0]);
 		}
@@ -329,7 +329,7 @@ namespace Chaos
 			M[2][2] += Other.M[2][2];
 			return *this;
 		}
-#endif
+
 		// TDOD(mlentine): This should really be a vector multiply and sum for each entry using sse
 		TVector<FRealDouble, 3> operator*(const TVector<FRealDouble, 3>& Other) const
 		{
@@ -385,6 +385,7 @@ namespace Chaos
 		{
 			return static_cast<const UE::Math::TMatrix<FRealDouble>*>(this)->operator*(static_cast<const UE::Math::TMatrix<FRealDouble>&>(Other));
 		}
+		// Needs to be overridden because base version multiplies M[3][3]
 		PMatrix<FRealDouble, 3, 3> operator*(const FRealDouble Other) const
 		{
 			return PMatrix<FRealDouble, 3, 3>(
@@ -397,6 +398,20 @@ namespace Chaos
 			    M[0][2] * Other,
 			    M[1][2] * Other,
 			    M[2][2] * Other);
+		}
+		// Needs to be overridden because base version multiplies M[3][3]
+		PMatrix<FRealDouble, 3, 3> operator*=(const FRealDouble Other)
+		{
+			M[0][0] *= Other;
+			M[0][1] *= Other;
+			M[0][2] *= Other;
+			M[1][0] *= Other;
+			M[1][1] *= Other;
+			M[1][2] *= Other;
+			M[2][0] *= Other;
+			M[2][1] *= Other;
+			M[2][2] *= Other;
+			return *this;
 		}
 		friend PMatrix<FRealDouble, 3, 3> operator*(const FRealDouble OtherF, const PMatrix<FRealDouble, 3, 3>& OtherM)
 		{
@@ -563,19 +578,6 @@ namespace Chaos
 			    M[1][0] * Other.M[0][2] + M[1][1] * Other.M[1][2] + M[1][2] * Other.M[2][2],
 			    M[2][0] * Other.M[0][2] + M[2][1] * Other.M[1][2] + M[2][2] * Other.M[2][2]);
 		}
-		PMatrix<FRealDouble, 3, 3> operator*(const FRealDouble Scalar)
-		{
-			return PMatrix<FRealDouble, 3, 3>(
-			    M[0][0] * Scalar + M[0][1] * Scalar + M[0][2] * Scalar,
-			    M[1][0] * Scalar + M[1][1] * Scalar + M[1][2] * Scalar,
-			    M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar,
-			    M[0][0] * Scalar + M[0][1] * Scalar + M[0][2] * Scalar,
-			    M[1][0] * Scalar + M[1][1] * Scalar + M[1][2] * Scalar,
-			    M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar,
-			    M[0][0] * Scalar + M[0][1] * Scalar + M[0][2] * Scalar,
-			    M[1][0] * Scalar + M[1][1] * Scalar + M[1][2] * Scalar,
-			    M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar);
-		}
 #endif
 		inline bool Equals(const PMatrix<FRealDouble, 3, 3>& Other, FRealDouble Tolerance = KINDA_SMALL_NUMBER) const
 		{
@@ -712,12 +714,12 @@ namespace Chaos
 			M[1][3] = 0;
 			M[2][3] = 0;
 		}
-#if COMPILE_WITHOUT_UNREAL_SUPPORT
-		PMatrix<FRealSingle, 3, 3> GetTransposed()
+
+		PMatrix<FRealSingle, 3, 3> GetTransposed() const
 		{
 			return PMatrix<FRealSingle, 3, 3>(M[0][0], M[0][1], M[0][2], M[1][0], M[1][1], M[1][2], M[2][0], M[2][1], M[2][2]);
 		}
-		FRealSingle Determinant()
+		FRealSingle Determinant() const
 		{
 			return M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) - M[0][1] * (M[1][0] * M[2][2] - M[1][2] * M[2][0]) + M[0][2] * (M[1][0] * M[2][1] - M[1][1] * M[2][0]);
 		}
@@ -734,7 +736,7 @@ namespace Chaos
 			M[2][2] += Other.M[2][2];
 			return *this;
 		}
-#endif
+
 		// TDOD(mlentine): This should really be a vector multiply and sum for each entry using sse
 		TVector<FRealSingle, 3> operator*(const TVector<FRealSingle, 3>& Other) const
 		{
@@ -790,6 +792,7 @@ namespace Chaos
 		{
 			return static_cast<const UE::Math::TMatrix<FRealSingle>*>(this)->operator*(static_cast<const UE::Math::TMatrix<FRealSingle>&>(Other));
 		}
+		// Needs to be overridden because base version multiplies M[3][3]
 		PMatrix<FRealSingle, 3, 3> operator*(const FRealSingle Other) const
 		{
 			return PMatrix<FRealSingle, 3, 3>(
@@ -802,6 +805,20 @@ namespace Chaos
 				M[0][2] * Other,
 				M[1][2] * Other,
 				M[2][2] * Other);
+		}
+		// Needs to be overridden because base version multiplies M[3][3]
+		PMatrix<FRealSingle, 3, 3> operator*=(const FRealSingle Other)
+		{
+			M[0][0] *= Other;
+			M[0][1] *= Other;
+			M[0][2] *= Other;
+			M[1][0] *= Other;
+			M[1][1] *= Other;
+			M[1][2] *= Other;
+			M[2][0] *= Other;
+			M[2][1] *= Other;
+			M[2][2] *= Other;
+			return *this;
 		}
 		friend PMatrix<FRealSingle, 3, 3> operator*(const FRealSingle OtherF, const PMatrix<FRealSingle, 3, 3>& OtherM)
 		{
@@ -967,19 +984,6 @@ namespace Chaos
 				M[0][0] * Other.M[0][2] + M[0][1] * Other.M[1][2] + M[0][2] * Other.M[2][2],
 				M[1][0] * Other.M[0][2] + M[1][1] * Other.M[1][2] + M[1][2] * Other.M[2][2],
 				M[2][0] * Other.M[0][2] + M[2][1] * Other.M[1][2] + M[2][2] * Other.M[2][2]);
-		}
-		PMatrix<FRealSingle, 3, 3> operator*(const FRealSingle Scalar)
-		{
-			return PMatrix<FRealSingle, 3, 3>(
-				M[0][0] * Scalar + M[0][1] * Scalar + M[0][2] * Scalar,
-				M[1][0] * Scalar + M[1][1] * Scalar + M[1][2] * Scalar,
-				M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar,
-				M[0][0] * Scalar + M[0][1] * Scalar + M[0][2] * Scalar,
-				M[1][0] * Scalar + M[1][1] * Scalar + M[1][2] * Scalar,
-				M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar,
-				M[0][0] * Scalar + M[0][1] * Scalar + M[0][2] * Scalar,
-				M[1][0] * Scalar + M[1][1] * Scalar + M[1][2] * Scalar,
-				M[2][0] * Scalar + M[2][1] * Scalar + M[2][2] * Scalar);
 		}
 #endif
 		inline bool Equals(const PMatrix<FRealSingle, 3, 3>& Other, FRealSingle Tolerance = KINDA_SMALL_NUMBER) const

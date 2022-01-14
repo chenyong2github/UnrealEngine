@@ -240,7 +240,7 @@ public:
 	 * @param M Matrix to multiply by.
 	 * @return Matrix result after multiplication.
 	 */	
-	TMatrix<T> operator*(const TMatrix<T>& M) const;
+	CORE_API TMatrix<T> operator*(const TMatrix<T>& M) const;
 	
 	/**
 	 * Multiply this quaternion by a scaling factor.
@@ -502,6 +502,12 @@ public:
 
 	/** Get the TRotator<T> representation of this Quaternion. */
 	CORE_API TRotator<T> Rotator() const;
+
+	/** Get the TMatrix<T> representation of this Quaternion. */
+	FORCEINLINE TMatrix<T> ToMatrix() const;
+
+	/** Get the TMatrix<T> representation of this Quaternion and store it in Mat */
+	CORE_API void ToMatrix(TMatrix<T>& Mat) const;
 
 	/**
 	 * Get the axis of rotation of the Quaternion.
@@ -805,27 +811,6 @@ FORCEINLINE TVector<T> TQuat<T>::operator*(const TVector<T>& V) const
 	return RotateVector(V);
 }
 
-template<typename T>
-inline UE::Math::TMatrix<T> TQuat<T>::operator*(const UE::Math::TMatrix<T>& M) const
-{
-	UE::Math::TMatrix<T> Result;
-	TQuat<T> VT, VR;
-	TQuat<T> Inv = Inverse();
-	for (int32 I=0; I<4; ++I)
-	{
-		TQuat<T> VQ(M.M[I][0], M.M[I][1], M.M[I][2], M.M[I][3]);
-		VectorQuaternionMultiply(&VT, this, &VQ);
-		VectorQuaternionMultiply(&VR, &VT, &Inv);
-		Result.M[I][0] = VR.X;
-		Result.M[I][1] = VR.Y;
-		Result.M[I][2] = VR.Z;
-		Result.M[I][3] = VR.W;
-	}
-
-	return Result;
-}
-
-
 /* TQuat inline functions
  *****************************************************************************/
 
@@ -951,7 +936,11 @@ FORCEINLINE TQuat<T> TQuat<T>::operator-(const TQuat<T>& Q) const
 template<typename T>
 FORCEINLINE TQuat<T> TQuat<T>::operator-() const
 {
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+	return TQuat(VectorNegate(VectorLoadAligned(this)));
+#else
 	return TQuat(-X, -Y, -Z, -W);
+#endif
 }
 
 template<typename T>
@@ -1289,6 +1278,13 @@ FORCEINLINE TVector<T> TQuat<T>::Vector() const
 	return GetAxisX();
 }
 
+template<typename T>
+FORCEINLINE TMatrix<T> TQuat<T>::ToMatrix() const
+{
+	TMatrix<T> R;
+	ToMatrix(R);
+	return R;
+}
 
 template<typename T>
 FORCEINLINE T TQuat<T>::Error(const TQuat<T>& Q1, const TQuat<T>& Q2)

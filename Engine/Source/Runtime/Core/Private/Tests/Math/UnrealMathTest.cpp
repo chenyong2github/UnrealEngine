@@ -55,7 +55,7 @@ FORCENOINLINE void ResetPassing()
  *
  * @return true if equal
  */
-bool TestVectorsEqualBitwise( VectorRegister4Float Vec0, VectorRegister4Float Vec1)
+FORCENOINLINE bool TestVectorsEqualBitwise( const VectorRegister4Float& Vec0, const VectorRegister4Float& Vec1)
 {
 	VectorStoreAligned( Vec0, GScratch + 0 );
 	VectorStoreAligned( Vec1, GScratch + 4 );
@@ -67,7 +67,7 @@ bool TestVectorsEqualBitwise( VectorRegister4Float Vec0, VectorRegister4Float Ve
 	return Passed;
 }
 
-bool TestVectorsEqualBitwise(VectorRegister4Double Vec0, VectorRegister4Double Vec1)
+FORCENOINLINE bool TestVectorsEqualBitwise(const VectorRegister4Double& Vec0, const VectorRegister4Double& Vec1)
 {
 	VectorStoreAligned(Vec0, GScratchDouble + 0);
 	VectorStoreAligned(Vec1, GScratchDouble + 4);
@@ -89,7 +89,7 @@ bool TestVectorsEqualBitwise(VectorRegister4Double Vec0, VectorRegister4Double V
  *
  * @return true if equal(ish)
  */
-bool TestVectorsEqual( VectorRegister4Float Vec0, VectorRegister4Float Vec1, float Tolerance = 0.0f)
+FORCENOINLINE bool TestVectorsEqual(const VectorRegister4Float& Vec0, const VectorRegister4Float& Vec1, float Tolerance = 0.0f)
 {
 	VectorStoreAligned( Vec0, GScratch + 0 );
 	VectorStoreAligned( Vec1, GScratch + 4 );
@@ -103,7 +103,7 @@ bool TestVectorsEqual( VectorRegister4Float Vec0, VectorRegister4Float Vec1, flo
 	return GSum <= Tolerance;
 }
 
-bool TestVectorsEqual(VectorRegister4Double Vec0, VectorRegister4Double Vec1, double Tolerance = 0.0)
+FORCENOINLINE bool TestVectorsEqual(const VectorRegister4Double& Vec0, const VectorRegister4Double& Vec1, double Tolerance = 0.0)
 {
 	VectorStoreAligned(Vec0, GScratchDouble + 0);
 	VectorStoreAligned(Vec1, GScratchDouble + 4);
@@ -120,7 +120,7 @@ bool TestVectorsEqual(VectorRegister4Double Vec0, VectorRegister4Double Vec1, do
 /**
  * Enforce tolerance per-component, not summed error
  */
-bool TestVectorsEqual_ComponentWiseError(VectorRegister4Float Vec0, VectorRegister4Float Vec1, float Tolerance = 0.0f)
+FORCENOINLINE bool TestVectorsEqual_ComponentWiseError(const VectorRegister4Float& Vec0, const VectorRegister4Float& Vec1, float Tolerance = 0.0f)
 {
 	VectorStoreAligned(Vec0, GScratch + 0);
 	VectorStoreAligned(Vec1, GScratch + 4);
@@ -137,7 +137,7 @@ bool TestVectorsEqual_ComponentWiseError(VectorRegister4Float Vec0, VectorRegist
 	return bPassing;
 }
 
-bool TestVectorsEqual_ComponentWiseError(VectorRegister4Double Vec0, VectorRegister4Double Vec1, double Tolerance = 0.0f)
+FORCENOINLINE bool TestVectorsEqual_ComponentWiseError(const VectorRegister4Double& Vec0, const VectorRegister4Double& Vec1, double Tolerance = 0.0f)
 {
 	VectorStoreAligned(Vec0, GScratchDouble + 0);
 	VectorStoreAligned(Vec1, GScratchDouble + 4);
@@ -164,7 +164,7 @@ bool TestVectorsEqual_ComponentWiseError(VectorRegister4Double Vec0, VectorRegis
  *
  * @return true if equal(ish)
  */
-bool TestVectorsEqual3( VectorRegister4Float Vec0, VectorRegister4Float Vec1, float Tolerance = 0.0f)
+FORCENOINLINE bool TestVectorsEqual3(const VectorRegister4Float& Vec0, const VectorRegister4Float& Vec1, float Tolerance = 0.0f)
 {
 	VectorStoreAligned( Vec0, GScratch + 0 );
 	VectorStoreAligned( Vec1, GScratch + 4 );
@@ -177,7 +177,7 @@ bool TestVectorsEqual3( VectorRegister4Float Vec0, VectorRegister4Float Vec1, fl
 	return GSum <= Tolerance;
 }
 
-bool TestVectorsEqual3(VectorRegister4Double Vec0, VectorRegister4Double Vec1, double Tolerance = 0.0)
+FORCENOINLINE bool TestVectorsEqual3(const VectorRegister4Double& Vec0, const VectorRegister4Double& Vec1, double Tolerance = 0.0)
 {
 	VectorStoreAligned(Vec0, GScratchDouble + 0);
 	VectorStoreAligned(Vec1, GScratchDouble + 4);
@@ -199,7 +199,7 @@ bool TestVectorsEqual3(VectorRegister4Double Vec0, VectorRegister4Double Vec1, d
  *
  * @return true if equal(ish)
  */
-bool TestFVector3Equal( const FVector3f& Vec0, const FVector3f& Vec1, float Tolerance = 0.0f)
+FORCENOINLINE bool TestFVector3Equal( const FVector3f& Vec0, const FVector3f& Vec1, float Tolerance = 0.0f)
 {
 	GScratch[0] = Vec0.X;
 	GScratch[1] = Vec0.Y;
@@ -219,7 +219,7 @@ bool TestFVector3Equal( const FVector3f& Vec0, const FVector3f& Vec1, float Tole
 	return GSum <= Tolerance;
 }
 
-bool TestQuatsEqual(const FQuat4f& Q0, const FQuat4f& Q1, float Tolerance)
+FORCENOINLINE bool TestQuatsEqual(const FQuat4f& Q0, const FQuat4f& Q1, float Tolerance)
 {
 	GScratch[0] = Q0.X;
 	GScratch[1] = Q0.Y;
@@ -236,7 +236,7 @@ bool TestQuatsEqual(const FQuat4f& Q0, const FQuat4f& Q1, float Tolerance)
 	return bEqual;
 }
 
-bool TestQuatsEqual(const FQuat4d& Q0, const FQuat4d& Q1, double Tolerance)
+FORCENOINLINE bool TestQuatsEqual(const FQuat4d& Q0, const FQuat4d& Q1, double Tolerance)
 {
 	GScratchDouble[0] = Q0.X;
 	GScratchDouble[1] = Q0.Y;
@@ -261,7 +261,7 @@ bool TestQuatsEqual(const FQuat4d& Q0, const FQuat4d& Q1, double Tolerance)
  *
  * @return true if normalized(ish)
  */
-bool TestFVector3Normalized(const FVector3f& Vec0, float Tolerance)
+FORCENOINLINE bool TestFVector3Normalized(const FVector3f& Vec0, float Tolerance)
 {
 	GScratch[0] = Vec0.X;
 	GScratch[1] = Vec0.Y;
@@ -286,7 +286,7 @@ bool TestFVector3Normalized(const FVector3f& Vec0, float Tolerance)
  *
  * @return true if normalized(ish)
  */
-bool TestQuatNormalized(const FQuat4f& Q0, float Tolerance)
+FORCENOINLINE bool TestQuatNormalized(const FQuat4f& Q0, float Tolerance)
 {
 	GScratch[0] = Q0.X;
 	GScratch[1] = Q0.Y;
@@ -312,7 +312,7 @@ bool TestQuatNormalized(const FQuat4f& Q0, float Tolerance)
  *
  * @return true if equal(ish)
  */
-bool TestMatricesEqual( FMatrix44f &Mat0, FMatrix44f &Mat1, float Tolerance = 0.0f)
+FORCENOINLINE bool TestMatricesEqual( const FMatrix44f &Mat0, const FMatrix44f &Mat1, float Tolerance = 0.0f)
 {
 	for (int32 Row = 0; Row < 4; ++Row ) 
 	{
@@ -331,7 +331,7 @@ bool TestMatricesEqual( FMatrix44f &Mat0, FMatrix44f &Mat1, float Tolerance = 0.
 	return true;
 }
 
-bool TestMatricesEqual(FMatrix44d& Mat0, FMatrix44d& Mat1, double Tolerance = 0.0f)
+FORCENOINLINE bool TestMatricesEqual(const FMatrix44d& Mat0, const FMatrix44d& Mat1, double Tolerance = 0.0)
 {
 	for (int32 Row = 0; Row < 4; ++Row)
 	{
@@ -612,20 +612,21 @@ MATHTEST_INLINE FVector3f TestQuaternionRotateVectorRegister(const FQuat4f& Quat
 * @param Quat1	Pointer to the first quaternion (must not be the destination)
 * @param Quat2	Pointer to the second quaternion (must not be the destination)
 */
-void TestVectorQuaternionMultiply( FQuat4f* Result, const FQuat4f* Quat1, const FQuat4f* Quat2)
+template<typename FloatType>
+void TestVectorQuaternionMultiply( UE::Math::TQuat<FloatType>* Result, const UE::Math::TQuat<FloatType>* Quat1, const UE::Math::TQuat<FloatType>* Quat2)
 {
-	typedef float Float4[4];
+	typedef FloatType Float4[4];
 	const Float4& A = *((const Float4*) Quat1);
 	const Float4& B = *((const Float4*) Quat2);
 	Float4 & R = *((Float4*) Result);
 
 	// store intermediate results in temporaries
-	const float TX = A[3]*B[0] + A[0]*B[3] + A[1]*B[2] - A[2]*B[1];
-	const float TY = A[3]*B[1] - A[0]*B[2] + A[1]*B[3] + A[2]*B[0];
-	const float TZ = A[3]*B[2] + A[0]*B[1] - A[1]*B[0] + A[2]*B[3];
-	const float TW = A[3]*B[3] - A[0]*B[0] - A[1]*B[1] - A[2]*B[2];
+	const FloatType TX = A[3]*B[0] + A[0]*B[3] + A[1]*B[2] - A[2]*B[1];
+	const FloatType TY = A[3]*B[1] - A[0]*B[2] + A[1]*B[3] + A[2]*B[0];
+	const FloatType TZ = A[3]*B[2] + A[0]*B[1] - A[1]*B[0] + A[2]*B[3];
+	const FloatType TW = A[3]*B[3] - A[0]*B[0] - A[1]*B[1] - A[2]*B[2];
 
-	// copy intermediate result to *this
+	// copy intermediate result to R
 	R[0] = TX;
 	R[1] = TY;
 	R[2] = TZ;
@@ -1951,53 +1952,55 @@ bool RunDoubleVectorTest()
 	MaskBits = VectorMaskBits(V0);
 	LogTest<double>(TEXT("VectorMaskBits"), MaskBits == 5);
 
+	// Matrix multiplications and transformations
+	{
+		FMatrix44d	M0, M1, M2, M3;
+		FVector3d Eye, LookAt, Up;
+		// Create Look at Matrix
+		Eye = FVector3d(1024.0f, -512.0f, -2048.0f);
+		LookAt = FVector3d(0.0f, 0.0f, 0.0f);
+		Up = FVector3d(0.0f, 1.0f, 0.0f);
+		M0 = FLookAtMatrix(Eye, LookAt, Up);
 
-	FMatrix44d	M0, M1, M2, M3;
-	FVector3d Eye, LookAt, Up;
-	// Create Look at Matrix
-	Eye = FVector3d(1024.0f, -512.0f, -2048.0f);
-	LookAt = FVector3d(0.0f, 0.0f, 0.0f);
-	Up = FVector3d(0.0f, 1.0f, 0.0f);
-	M0 = FLookAtMatrix(Eye, LookAt, Up);
+		// Create GL ortho projection matrix
+		const double Width = 1920.0f;
+		const double Height = 1080.0f;
+		const double Left = 0.0f;
+		const double Right = Left + Width;
+		const double Top = 0.0f;
+		const double Bottom = Top + Height;
+		const double ZNear = -100.0f;
+		const double ZFar = 100.0f;
 
-	// Create GL ortho projection matrix
-	const double Width = 1920.0f;
-	const double Height = 1080.0f;
-	const double Left = 0.0f;
-	const double Right = Left + Width;
-	const double Top = 0.0f;
-	const double Bottom = Top + Height;
-	const double ZNear = -100.0f;
-	const double ZFar = 100.0f;
+		M1 = FMatrix44d(FPlane4d(2.0f / (Right - Left), 0, 0, 0),
+			FPlane4d(0, 2.0f / (Top - Bottom), 0, 0),
+			FPlane4d(0, 0, 1 / (ZNear - ZFar), 0),
+			FPlane4d((Left + Right) / (Left - Right), (Top + Bottom) / (Bottom - Top), ZNear / (ZNear - ZFar), 1));
 
-	M1 = FMatrix44d(FPlane4d(2.0f / (Right - Left), 0, 0, 0),
-		FPlane4d(0, 2.0f / (Top - Bottom), 0, 0),
-		FPlane4d(0, 0, 1 / (ZNear - ZFar), 0),
-		FPlane4d((Left + Right) / (Left - Right), (Top + Bottom) / (Bottom - Top), ZNear / (ZNear - ZFar), 1));
+		VectorMatrixMultiply(&M2, &M0, &M1);
+		TestVectorMatrixMultiply(&M3, &M0, &M1);
+		LogTest<double>(TEXT("VectorMatrixMultiply"), TestMatricesEqual(M2, M3, 0.000001));
 
-	VectorMatrixMultiply(&M2, &M0, &M1);
-	TestVectorMatrixMultiply(&M3, &M0, &M1);
-	LogTest<double>(TEXT("VectorMatrixMultiply"), TestMatricesEqual(M2, M3, 0.000001f));
+		VectorMatrixInverse(&M2, &M1);
+		TestVectorMatrixInverse(&M3, &M1);
+		LogTest<double>(TEXT("VectorMatrixInverse"), TestMatricesEqual(M2, M3, 0.000001));
 
-	VectorMatrixInverse(&M2, &M1);
-	TestVectorMatrixInverse(&M3, &M1);
-	LogTest<double>(TEXT("VectorMatrixInverse"), TestMatricesEqual(M2, M3, 0.000001f));
-	
-	// 	FTransform Transform;
-	// 	Transform.SetFromMatrix(M1);
-	// 	FTransform InvTransform = Transform.Inverse();
-	// 	FTransform InvTransform2 = FTransform(Transform.ToMatrixWithScale().Inverse());
-	// 	LogTest<double>( TEXT("FTransform Inverse"), InvTransform.Equals(InvTransform2, 1e-3f ) );
+		// 	FTransform Transform;
+		// 	Transform.SetFromMatrix(M1);
+		// 	FTransform InvTransform = Transform.Inverse();
+		// 	FTransform InvTransform2 = FTransform(Transform.ToMatrixWithScale().Inverse());
+		// 	LogTest<double>( TEXT("FTransform Inverse"), InvTransform.Equals(InvTransform2, 1e-3f ) );
 
-	V0 = MakeVectorRegister(100.0f, -100.0f, 200.0f, 1.0f);
-	V1 = VectorTransformVector(V0, &M0);
-	V2 = TestVectorTransformVector(V0, &M0);
-	LogTest<double>(TEXT("VectorTransformVector"), TestVectorsEqual(V1, V2, 1e-8f));
+		V0 = MakeVectorRegister(100.0f, -100.0f, 200.0f, 1.0f);
+		V1 = VectorTransformVector(V0, &M0);
+		V2 = TestVectorTransformVector(V0, &M0);
+		LogTest<double>(TEXT("VectorTransformVector"), TestVectorsEqual(V1, V2, 1e-8));
 
-	V0 = MakeVectorRegister(32768.0f, 131072.0f, -8096.0f, 1.0f);
-	V1 = VectorTransformVector(V0, &M1);
-	V2 = TestVectorTransformVector(V0, &M1);
-	LogTest<double>(TEXT("VectorTransformVector"), TestVectorsEqual(V1, V2, 1e-8f));
+		V0 = MakeVectorRegister(32768.0f, 131072.0f, -8096.0f, 1.0f);
+		V1 = VectorTransformVector(V0, &M1);
+		V2 = TestVectorTransformVector(V0, &M1);
+		LogTest<double>(TEXT("VectorTransformVector"), TestVectorsEqual(V1, V2, 1e-8));
+	}
 
 
 	// Quat / Rotator conversion to vectors, matrices
@@ -2062,6 +2065,49 @@ bool RunDoubleVectorTest()
 
 	// Exp, Log tests
 	TestVectorExpLogFunctions<double, VectorRegister4Double>();
+
+	// Quat multiplication, Matrix conversion
+	{
+		FQuat4d Q0, Q1, Q2, Q3;
+		FMatrix44d M0, M1;
+		FMatrix44d IdentityInverse = FMatrix44d::Identity.Inverse();
+
+		Q0 = FQuat4d(FRotator3d(30.0f, -45.0f, 90.0f));
+		Q1 = FQuat4d(FRotator3d(45.0f, 60.0f, 120.0f));
+		VectorQuaternionMultiply(&Q2, &Q0, &Q1);
+		TestVectorQuaternionMultiply(&Q3, &Q0, &Q1);
+		LogTest<double>(TEXT("VectorQuaternionMultiply"), TestQuatsEqual(Q2, Q3, 1e-6));
+		V0 = VectorLoadAligned(&Q0);
+		V1 = VectorLoadAligned(&Q1);
+		V2 = VectorQuaternionMultiply2(V0, V1);
+		V3 = VectorLoadAligned(&Q3);
+		LogTest<double>(TEXT("VectorQuaternionMultiply2"), TestVectorsEqual(V2, V3, 1e-6));
+
+		M0 = Q0 * FMatrix44d::Identity;
+		M1 = UE::Math::TQuatRotationMatrix<double>(Q0);
+		LogTest<double>(TEXT("QuaterionMatrixConversion Q0"), TestMatricesEqual(M0, M1, 0.000001));
+		M0 = Q1.ToMatrix();
+		M1 = UE::Math::TQuatRotationMatrix<double>(Q1);
+		LogTest<double>(TEXT("QuaterionMatrixConversion Q1"), TestMatricesEqual(M0, M1, 0.000001));
+
+		Q0 = FQuat4d(FRotator3d(0.0f, 180.0f, 45.0f));
+		Q1 = FQuat4d(FRotator3d(-120.0f, -90.0f, 0.0f));
+		VectorQuaternionMultiply(&Q2, &Q0, &Q1);
+		TestVectorQuaternionMultiply(&Q3, &Q0, &Q1);
+		LogTest<double>(TEXT("VectorQuaternionMultiply"), TestQuatsEqual(Q2, Q3, 1e-6));
+		V0 = VectorLoadAligned(&Q0);
+		V1 = VectorLoadAligned(&Q1);
+		V2 = VectorQuaternionMultiply2(V0, V1);
+		V3 = VectorLoadAligned(&Q3);
+		LogTest<double>(TEXT("VectorQuaternionMultiply2"), TestVectorsEqual(V2, V3, 1e-6));
+
+		M0 = (-Q0) * FMatrix44d::Identity;
+		M1 = (-Q0).ToMatrix();
+		LogTest<double>(TEXT("QuaterionMatrixConversion Q0"), TestMatricesEqual(M0, M1, 0.000001));
+		M0 = (Q1.Inverse().Inverse()) * IdentityInverse;
+		M1 = Q1.ToMatrix();
+		LogTest<double>(TEXT("QuaterionMatrixConversion Q1"), TestMatricesEqual(M0, M1, 0.000001));
+	}
 
 	return GPassing;
 }
@@ -2641,53 +2687,55 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	MaskBits = VectorMaskBits(V0);
 	LogTest<float>(TEXT("VectorMaskBits"), MaskBits == 5);
 
+	// Matrix multiplications and transformations
+	{
+		FMatrix44f	M0, M1, M2, M3;
+		FVector3f Eye, LookAt, Up;	
+		// Create Look at Matrix
+		Eye    = FVector3f(1024.0f, -512.0f, -2048.0f);
+		LookAt = FVector3f(0.0f,		  0.0f,     0.0f);
+		Up     = FVector3f(0.0f,       1.0f,    0.0f);
+		M0	= FLookAtMatrix(Eye, LookAt, Up);		
 
-	FMatrix44f	M0, M1, M2, M3;
-	FVector3f Eye, LookAt, Up;	
-	// Create Look at Matrix
-	Eye    = FVector3f(1024.0f, -512.0f, -2048.0f);
-	LookAt = FVector3f(0.0f,		  0.0f,     0.0f);
-	Up     = FVector3f(0.0f,       1.0f,    0.0f);
-	M0	= FLookAtMatrix(Eye, LookAt, Up);		
+		// Create GL ortho projection matrix
+		const float Width = 1920.0f;
+		const float Height = 1080.0f;
+		const float Left = 0.0f;
+		const float Right = Left+Width;
+		const float Top = 0.0f;
+		const float Bottom = Top+Height;
+		const float ZNear = -100.0f;
+		const float ZFar = 100.0f;
 
-	// Create GL ortho projection matrix
-	const float Width = 1920.0f;
-	const float Height = 1080.0f;
-	const float Left = 0.0f;
-	const float Right = Left+Width;
-	const float Top = 0.0f;
-	const float Bottom = Top+Height;
-	const float ZNear = -100.0f;
-	const float ZFar = 100.0f;
+		M1 = FMatrix44f(FPlane4f(2.0f/(Right-Left),	0,							0,					0 ),
+			FPlane4f(0,							2.0f/(Top-Bottom),			0,					0 ),
+			FPlane4f(0,							0,							1/(ZNear-ZFar),		0 ),
+			FPlane4f((Left+Right)/(Left-Right),	(Top+Bottom)/(Bottom-Top),	ZNear/(ZNear-ZFar), 1 ) );
 
-	M1 = FMatrix44f(FPlane4f(2.0f/(Right-Left),	0,							0,					0 ),
-		FPlane4f(0,							2.0f/(Top-Bottom),			0,					0 ),
-		FPlane4f(0,							0,							1/(ZNear-ZFar),		0 ),
-		FPlane4f((Left+Right)/(Left-Right),	(Top+Bottom)/(Bottom-Top),	ZNear/(ZNear-ZFar), 1 ) );
+		VectorMatrixMultiply( &M2, &M0, &M1 );
+		TestVectorMatrixMultiply( &M3, &M0, &M1 );
+		LogTest<float>( TEXT("VectorMatrixMultiply"), TestMatricesEqual( M2, M3, 0.000001f ) );
 
-	VectorMatrixMultiply( &M2, &M0, &M1 );
-	TestVectorMatrixMultiply( &M3, &M0, &M1 );
-	LogTest<float>( TEXT("VectorMatrixMultiply"), TestMatricesEqual( M2, M3, 0.000001f ) );
+		VectorMatrixInverse( &M2, &M1 );
+		TestVectorMatrixInverse( &M3, &M1 );
+		LogTest<float>( TEXT("VectorMatrixInverse"), TestMatricesEqual( M2, M3, 0.000001f) );
 
-	VectorMatrixInverse( &M2, &M1 );
-	TestVectorMatrixInverse( &M3, &M1 );
-	LogTest<float>( TEXT("VectorMatrixInverse"), TestMatricesEqual( M2, M3, 0.000001f) );
+	// 	FTransform Transform;
+	// 	Transform.SetFromMatrix(M1);
+	// 	FTransform InvTransform = Transform.Inverse();
+	// 	FTransform InvTransform2 = FTransform(Transform.ToMatrixWithScale().Inverse());
+	// 	LogTest<float>( TEXT("FTransform Inverse"), InvTransform.Equals(InvTransform2, 1e-3f ) );
 
-// 	FTransform Transform;
-// 	Transform.SetFromMatrix(M1);
-// 	FTransform InvTransform = Transform.Inverse();
-// 	FTransform InvTransform2 = FTransform(Transform.ToMatrixWithScale().Inverse());
-// 	LogTest<float>( TEXT("FTransform Inverse"), InvTransform.Equals(InvTransform2, 1e-3f ) );
+		V0 = MakeVectorRegister( 100.0f, -100.0f, 200.0f, 1.0f );
+		V1 = VectorTransformVector(V0, &M0);
+		V2 = TestVectorTransformVector(V0, &M0);
+		LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2, 1e-8f ) );
 
-	V0 = MakeVectorRegister( 100.0f, -100.0f, 200.0f, 1.0f );
-	V1 = VectorTransformVector(V0, &M0);
-	V2 = TestVectorTransformVector(V0, &M0);
-	LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2, 1e-8f ) );
-
-	V0 = MakeVectorRegister( 32768.0f,131072.0f, -8096.0f, 1.0f );
-	V1 = VectorTransformVector(V0, &M1);
-	V2 = TestVectorTransformVector(V0, &M1);
-	LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2, 1e-8f ) );
+		V0 = MakeVectorRegister( 32768.0f,131072.0f, -8096.0f, 1.0f );
+		V1 = VectorTransformVector(V0, &M1);
+		V2 = TestVectorTransformVector(V0, &M1);
+		LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2, 1e-8f ) );
+	}
 
 	// NaN / Inf tests
 	SetScratch(0.0f, 0.0f, 0.0f, 0.0f);
@@ -3315,8 +3363,11 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		}
 	}
 
-	// Quat multiplication
+	// Quat multiplication, Matrix conversion
 	{
+		FMatrix44f M0, M1;
+		FMatrix44f IdentityInverse = FMatrix44f::Identity.Inverse();
+
 		Q0 = FQuat4f(FRotator3f(30.0f, -45.0f, 90.0f));
 		Q1 = FQuat4f(FRotator3f(45.0f, 60.0f, 120.0f));
 		VectorQuaternionMultiply(&Q2, &Q0, &Q1);
@@ -3328,16 +3379,30 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		V3 = VectorLoadAligned(&Q3);
 		LogTest<float>(TEXT("VectorQuaternionMultiply2"), TestVectorsEqual(V2, V3, 1e-6f));
 
+		M0 = Q0 * FMatrix44f::Identity;
+		M1 = UE::Math::TQuatRotationMatrix<float>(Q0);
+		LogTest<float>(TEXT("QuaterionMatrixConversion Q0"), TestMatricesEqual(M0, M1, 0.000001f));
+		M0 = Q1.ToMatrix();
+		M1 = UE::Math::TQuatRotationMatrix<float>(Q1);
+		LogTest<float>(TEXT("QuaterionMatrixConversion Q1"), TestMatricesEqual(M0, M1, 0.000001f));
+
 		Q0 = FQuat4f(FRotator3f(0.0f, 180.0f, 45.0f));
 		Q1 = FQuat4f(FRotator3f(-120.0f, -90.0f, 0.0f));
 		VectorQuaternionMultiply(&Q2, &Q0, &Q1);
 		TestVectorQuaternionMultiply(&Q3, &Q0, &Q1);
-		LogTest<float>(TEXT("VectorMatrixInverse"), TestQuatsEqual(Q2, Q3, 1e-6f));
+		LogTest<float>(TEXT("VectorQuaternionMultiply"), TestQuatsEqual(Q2, Q3, 1e-6f));
 		V0 = VectorLoadAligned(&Q0);
 		V1 = VectorLoadAligned(&Q1);
 		V2 = VectorQuaternionMultiply2(V0, V1);
 		V3 = VectorLoadAligned(&Q3);
 		LogTest<float>(TEXT("VectorQuaternionMultiply2"), TestVectorsEqual(V2, V3, 1e-6f));
+
+		M0 = (-Q0) * FMatrix44f::Identity;
+		M1 = (-Q0).ToMatrix();
+		LogTest<float>(TEXT("QuaterionMatrixConversion Q0"), TestMatricesEqual(M0, M1, 0.000001f));
+		M0 = (Q1.Inverse().Inverse()) * IdentityInverse;
+		M1 = Q1.ToMatrix();
+		LogTest<float>(TEXT("QuaterionMatrixConversion Q1"), TestMatricesEqual(M0, M1, 0.000001f));
 	}
 
 	if (!GPassing)

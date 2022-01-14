@@ -101,7 +101,7 @@ namespace Chaos
 			: bDisabled(false)
 			, Normal(0)
 			, Location(0)
-			, Phi(FLT_MAX)
+			, Phi(TNumericLimits<FReal>::Max())
 			, Friction(0)
 			, AngularFriction(0)
 			, Restitution(0)
@@ -139,7 +139,7 @@ namespace Chaos
 		void Reset()
 		{
 			bDisabled = false;
-			Phi = FLT_MAX;
+			Phi = TNumericLimits<FReal>::Max();
 			RestitutionPadding = 0;
 		}
 

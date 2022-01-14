@@ -35,7 +35,7 @@ namespace Math
 {
 
 template<typename T>
-struct TMatrix
+struct alignas(16) TMatrix
 {
 	static_assert(std::is_floating_point_v<T>, "T must be floating point");
 

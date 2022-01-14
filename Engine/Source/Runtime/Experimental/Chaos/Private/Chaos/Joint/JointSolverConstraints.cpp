@@ -160,7 +160,7 @@ namespace Chaos
 		const FJointSolverJointState& JointState,
 		const FPBDJointSettings& JointSettings)
 	{
-		const FRotation3& R0 = JointState.Rs[0];
+		const FRotation3 R0 = JointState.Rs[0];
 		const FVec3& X0 = JointState.Xs[0];
 		const FVec3& X1 = JointState.Xs[1];
 
@@ -331,8 +331,8 @@ namespace Chaos
 		const FJointSolverJointState& JointState,
 		const FPBDJointSettings& JointSettings)
 	{
-		const FRotation3& R0 = JointState.Rs[0];
-		const FRotation3& R1 = JointState.Rs[1];
+		const FRotation3 R0 = JointState.Rs[0];
+		const FRotation3 R1 = JointState.Rs[1];
 		const FRotation3 R01 = R0.Inverse() * R1;
 		FRotation3 R01Twist = FRotation3::FromIdentity();
 		FRotation3 R01Swing = FRotation3::FromIdentity();

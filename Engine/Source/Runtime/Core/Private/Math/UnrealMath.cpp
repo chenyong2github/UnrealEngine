@@ -699,6 +699,58 @@ namespace Math
 	}
 
 	template<typename T>
+	TMatrix<T> TQuat<T>::operator*(const TMatrix<T>& M) const
+	{
+		TMatrix<T> Result;
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+		const TQuat<T>::QuatVectorRegister This = VectorLoadAligned(this);
+		const TQuat<T>::QuatVectorRegister Inv = VectorQuaternionInverse(This);
+		for (int32 I = 0; I < 4; ++I)
+		{
+			TQuat<T>::QuatVectorRegister VT, VR;
+			const TQuat<T>::QuatVectorRegister VQ = VectorLoad(M.M[I]);
+			VT = VectorQuaternionMultiply2(This, VQ);
+			VR = VectorQuaternionMultiply2(VT, Inv);
+			VectorStore(VR, Result.M[I]);
+		}
+#else
+		const TQuat<T> Inv = Inverse();
+		for (int32 I = 0; I < 4; ++I)
+		{
+			TQuat<T> VT, VR;
+			const TQuat<T> VQ(M.M[I][0], M.M[I][1], M.M[I][2], M.M[I][3]);
+			VectorQuaternionMultiply(&VT, this, &VQ);
+			VectorQuaternionMultiply(&VR, &VT, &Inv);
+			Result.M[I][0] = VR.X;
+			Result.M[I][1] = VR.Y;
+			Result.M[I][2] = VR.Z;
+			Result.M[I][3] = VR.W;
+		}
+#endif
+
+		return Result;
+	}
+
+	template<typename T>
+	void TQuat<T>::ToMatrix(TMatrix<T>& R) const
+	{
+		// Note: copied and modified from TQuatRotationTranslationMatrix<> mainly to avoid circular dependency.
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_EDITORONLY_DATA
+		// Make sure Quaternion is normalized
+		ensure(IsNormalized());
+#endif
+		const T x2 = X + X;    const T y2 = Y + Y;    const T z2 = Z + Z;
+		const T xx = X * x2;   const T xy = X * y2;   const T xz = X * z2;
+		const T yy = Y * y2;   const T yz = Y * z2;   const T zz = Z * z2;
+		const T wx = W * x2;   const T wy = W * y2;   const T wz = W * z2;
+
+		R.M[0][0] = 1.0f - (yy + zz);	R.M[1][0] = xy - wz;				R.M[2][0] = xz + wy;			R.M[3][0] = 0.0f;
+		R.M[0][1] = xy + wz;			R.M[1][1] = 1.0f - (xx + zz);		R.M[2][1] = yz - wx;			R.M[3][1] = 0.0f;
+		R.M[0][2] = xz - wy;			R.M[1][2] = yz + wx;				R.M[2][2] = 1.0f - (xx + yy);	R.M[3][2] = 0.0f;
+		R.M[0][3] = 0.0f;				R.M[1][3] = 0.0f;					R.M[2][3] = 0.0f;				R.M[3][3] = 1.0f;
+	}
+
+	template<typename T>
 	TQuat<T> TQuat<T>::MakeFromEuler(const TVector<T>& Euler)
 	{
 		return TQuat<T>(TRotator<T>::MakeFromEuler(Euler));

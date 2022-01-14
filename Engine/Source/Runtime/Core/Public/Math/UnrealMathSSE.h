@@ -2,6 +2,9 @@
 
 #pragma once
 
+// Define to pull in UnrealMathSSE.cpp, since conditions for this file are complex in VectorRegister.h
+#define UE_USING_UNREALMATH_SSE 1
+
 // We require SSE2
 #include <emmintrin.h>
 
@@ -699,6 +702,27 @@ FORCEINLINE VectorRegister4Double VectorSetFloat1(double D)
 }
 
 /**
+ * Stores a vector to memory (aligned or unaligned).
+ *
+ * @param Vec	Vector to store
+ * @param Ptr	Memory pointer
+ */
+FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, float* Ptr)
+{
+	_mm_storeu_ps(Ptr, Vec);
+}
+
+FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, double* Dst)
+{
+#if !UE_PLATFORM_MATH_USE_AVX
+	_mm_storeu_pd(Dst, Vec.XY);
+	_mm_storeu_pd(Dst + 2, Vec.ZW);
+#else
+	_mm256_storeu_pd(Dst, Vec);
+#endif
+}
+
+/**
  * Stores a vector to aligned memory.
  *
  * @param Vec	Vector to store
@@ -741,27 +765,6 @@ FORCEINLINE void VectorStoreAlignedStreamed(const VectorRegister4Double& Vec, do
 	// AVX using two 128-bit stores since we don't require 32-byte alignment requirement for our data (so don't use _mm256_stream_pd)
 	_mm_stream_pd(Dst, Vec.XY);
 	_mm_stream_pd(Dst + 2, Vec.ZW);
-#endif
-}
-
-/**
- * Stores a vector to memory (aligned or unaligned).
- *
- * @param Vec	Vector to store
- * @param Ptr	Memory pointer
- */
-FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, float* Ptr)
-{
-	_mm_storeu_ps(Ptr, Vec);
-}
-
-FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, double* Dst)
-{
-#if !UE_PLATFORM_MATH_USE_AVX
-	_mm_storeu_pd(Dst, Vec.XY);
-	_mm_storeu_pd(Dst + 2, Vec.ZW);
-#else
-	_mm256_storeu_pd(Dst, Vec);
 #endif
 }
 
@@ -879,7 +882,7 @@ namespace SSEPermuteHelpers
 	// On AVX1, permute2f128 can be quite slow, so look for alternatives (extract + insert). On AVX2, permute2f128 is more efficient and should equal or beat (extract + insert).
 	// Sources: https://www.agner.org/optimize/instruction_tables.pdf, https://uops.info/table.html
 	template<> FORCEINLINE VectorRegister4Double PermuteLanes<0, 0>(const VectorRegister4Double& Vec) { return _mm256_insertf128_pd(Vec, Vec.GetXY(), 1); } // copy XY to lane 1
-	template<> FORCEINLINE VectorRegister4Double PermuteLanes<1, 0>(const VectorRegister4Double& Vec) { return _mm256_insertf128_pd(_mm256_castpd128_pd256(Vec.GetZW()), Vec.GetXY(), 1); } // copy XY to lane 1
+	template<> FORCEINLINE VectorRegister4Double PermuteLanes<1, 0>(const VectorRegister4Double& Vec) { return _mm256_setr_m128d(Vec.GetZW(), Vec.GetXY()); } // swap XY and ZW
 	template<> FORCEINLINE VectorRegister4Double PermuteLanes<1, 1>(const VectorRegister4Double& Vec) { return _mm256_insertf128_pd(Vec, Vec.GetZW(), 0); } // copy ZW to lane 0
 #endif // !AVX2
 
@@ -1027,7 +1030,7 @@ namespace SSEPermuteHelpers
 	// On AVX1, permute2f128 can be quite slow, so look for alternatives (extract + insert). On AVX2, permute2f128 is more efficient and should equal or beat (extract + insert).
 	// Sources: https://www.agner.org/optimize/instruction_tables.pdf, https://uops.info/table.html
 	template<> FORCEINLINE VectorRegister4Double ShuffleLanes<0, 0>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_insertf128_pd(Vec1, Vec2.GetXY(), 1); } // copy XY to lane 1
-	template<> FORCEINLINE VectorRegister4Double ShuffleLanes<1, 0>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_insertf128_pd(_mm256_castpd128_pd256(Vec1.GetZW()), Vec2.GetXY(), 1); } // copy XY to lane 1
+	template<> FORCEINLINE VectorRegister4Double ShuffleLanes<1, 0>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_setr_m128d(Vec1.GetZW(), Vec2.GetXY()); } // swap XY and ZW
 	template<> FORCEINLINE VectorRegister4Double ShuffleLanes<1, 1>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_insertf128_pd(Vec2, Vec1.GetZW(), 0); } // copy ZW to lane 0
 #endif // !AVX2
 
@@ -2114,101 +2117,8 @@ FORCEINLINE VectorRegister4Double VectorSet_W1(const VectorRegister4Double& Vec)
  * @param Matrix1	Pointer to the first matrix
  * @param Matrix2	Pointer to the second matrix
  */
-FORCEINLINE void VectorMatrixMultiply(FMatrix44f* Result, const FMatrix44f* Matrix1, const FMatrix44f* Matrix2)
-{
-	const VectorRegister4Float* A	= (const VectorRegister4Float*) Matrix1;
-	const VectorRegister4Float* B	= (const VectorRegister4Float*) Matrix2;
-	VectorRegister4Float* R		= (VectorRegister4Float*) Result;
-	VectorRegister4Float Temp, R0, R1, R2;
-
-	// First row of result (Matrix1[0] * Matrix2).
-	Temp	= VectorMultiply( VectorReplicate( A[0], 0 ), B[0] );
-	Temp	= VectorMultiplyAdd( VectorReplicate( A[0], 1 ), B[1], Temp );
-	Temp	= VectorMultiplyAdd( VectorReplicate( A[0], 2 ), B[2], Temp );
-	R0		= VectorMultiplyAdd( VectorReplicate( A[0], 3 ), B[3], Temp );
-
-	// Second row of result (Matrix1[1] * Matrix2).
-	Temp	= VectorMultiply( VectorReplicate( A[1], 0 ), B[0] );
-	Temp	= VectorMultiplyAdd( VectorReplicate( A[1], 1 ), B[1], Temp );
-	Temp	= VectorMultiplyAdd( VectorReplicate( A[1], 2 ), B[2], Temp );
-	R1		= VectorMultiplyAdd( VectorReplicate( A[1], 3 ), B[3], Temp );
-
-	// Third row of result (Matrix1[2] * Matrix2).
-	Temp	= VectorMultiply( VectorReplicate( A[2], 0 ), B[0] );
-	Temp	= VectorMultiplyAdd( VectorReplicate( A[2], 1 ), B[1], Temp );
-	Temp	= VectorMultiplyAdd( VectorReplicate( A[2], 2 ), B[2], Temp );
-	R2		= VectorMultiplyAdd( VectorReplicate( A[2], 3 ), B[3], Temp );
-
-	// Fourth row of result (Matrix1[3] * Matrix2).
-	Temp	= VectorMultiply( VectorReplicate( A[3], 0 ), B[0] );
-	Temp	= VectorMultiplyAdd( VectorReplicate( A[3], 1 ), B[1], Temp );
-	Temp	= VectorMultiplyAdd( VectorReplicate( A[3], 2 ), B[2], Temp );
-	Temp	= VectorMultiplyAdd( VectorReplicate( A[3], 3 ), B[3], Temp );
-
-	// Store result
-	R[0] = R0;
-	R[1] = R1;
-	R[2] = R2;
-	R[3] = Temp;
-}
-
-
-FORCEINLINE void VectorMatrixMultiply(FMatrix44d* Result, const FMatrix44d* Matrix1, const FMatrix44d* Matrix2)
-{
-	// Warning: FMatrix44d alignment may not match VectorRegister4Double, so you can't just cast to VectorRegister4Double*.
-	typedef double Double4x4[4][4];
-	const Double4x4& AMRows = *((const Double4x4*)Matrix1);
-	const Double4x4& BMRows = *((const Double4x4*)Matrix2);
-	Double4x4& ResultDst = *((Double4x4*)Result);
-	VectorRegister4Double Temp;
-
-	VectorRegister4Double B[4];
-	B[0] = VectorLoad(BMRows[0]);
-	B[1] = VectorLoad(BMRows[1]);
-	B[2] = VectorLoad(BMRows[2]);
-	B[3] = VectorLoad(BMRows[3]);
-
-	// First row of result (Matrix1[0] * Matrix2).
-	{
-		VectorRegister4Double ARow = VectorLoad(AMRows[0]);
-		Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
-		VectorStore(Temp, ResultDst[0]);
-	}
-
-	// Second row of result (Matrix1[1] * Matrix2).
-	{
-		VectorRegister4Double ARow = VectorLoad(AMRows[1]);
-		Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
-		VectorStore(Temp, ResultDst[1]);
-	}
-
-	// Third row of result (Matrix1[2] * Matrix2).
-	{
-		VectorRegister4Double ARow = VectorLoad(AMRows[2]);
-		Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
-		VectorStore(Temp, ResultDst[2]);
-	}
-
-	// Fourth row of result (Matrix1[3] * Matrix2).
-	{
-		VectorRegister4Double ARow = VectorLoad(AMRows[3]);
-		Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
-		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
-		VectorStore(Temp, ResultDst[3]);
-	}
-}
-
+CORE_API void VectorMatrixMultiply(FMatrix44f* Result, const FMatrix44f* Matrix1, const FMatrix44f* Matrix2);
+CORE_API void VectorMatrixMultiply(FMatrix44d* Result, const FMatrix44d* Matrix1, const FMatrix44d* Matrix2);
 
 /**
  * Calculate the inverse of an FMatrix.
@@ -2216,173 +2126,8 @@ FORCEINLINE void VectorMatrixMultiply(FMatrix44d* Result, const FMatrix44d* Matr
  * @param DstMatrix		FMatrix pointer to where the result should be stored
  * @param SrcMatrix		FMatrix pointer to the Matrix to be inversed
  */
-FORCEINLINE void VectorMatrixInverse(FMatrix44d* DstMatrix, const FMatrix44d* SrcMatrix)
-{
-	typedef double Double4x4[4][4];
-	const Double4x4& M = *((const Double4x4*)SrcMatrix);
-	Double4x4 Result;
-	double Det[4];
-	Double4x4 Tmp;
-
-	Tmp[0][0]	= M[2][2] * M[3][3] - M[2][3] * M[3][2];
-	Tmp[0][1]	= M[1][2] * M[3][3] - M[1][3] * M[3][2];
-	Tmp[0][2]	= M[1][2] * M[2][3] - M[1][3] * M[2][2];
-
-	Tmp[1][0]	= M[2][2] * M[3][3] - M[2][3] * M[3][2];
-	Tmp[1][1]	= M[0][2] * M[3][3] - M[0][3] * M[3][2];
-	Tmp[1][2]	= M[0][2] * M[2][3] - M[0][3] * M[2][2];
-
-	Tmp[2][0]	= M[1][2] * M[3][3] - M[1][3] * M[3][2];
-	Tmp[2][1]	= M[0][2] * M[3][3] - M[0][3] * M[3][2];
-	Tmp[2][2]	= M[0][2] * M[1][3] - M[0][3] * M[1][2];
-
-	Tmp[3][0]	= M[1][2] * M[2][3] - M[1][3] * M[2][2];
-	Tmp[3][1]	= M[0][2] * M[2][3] - M[0][3] * M[2][2];
-	Tmp[3][2]	= M[0][2] * M[1][3] - M[0][3] * M[1][2];
-
-	Det[0]		= M[1][1]*Tmp[0][0] - M[2][1]*Tmp[0][1] + M[3][1]*Tmp[0][2];
-	Det[1]		= M[0][1]*Tmp[1][0] - M[2][1]*Tmp[1][1] + M[3][1]*Tmp[1][2];
-	Det[2]		= M[0][1]*Tmp[2][0] - M[1][1]*Tmp[2][1] + M[3][1]*Tmp[2][2];
-	Det[3]		= M[0][1]*Tmp[3][0] - M[1][1]*Tmp[3][1] + M[2][1]*Tmp[3][2];
-
-	const double Determinant = M[0][0]*Det[0] - M[1][0]*Det[1] + M[2][0]*Det[2] - M[3][0]*Det[3];
-	const double	RDet = 1.0 / Determinant;
-
-	Result[0][0] =  RDet * Det[0];
-	Result[0][1] = -RDet * Det[1];
-	Result[0][2] =  RDet * Det[2];
-	Result[0][3] = -RDet * Det[3];
-	Result[1][0] = -RDet * (M[1][0]*Tmp[0][0] - M[2][0]*Tmp[0][1] + M[3][0]*Tmp[0][2]);
-	Result[1][1] =  RDet * (M[0][0]*Tmp[1][0] - M[2][0]*Tmp[1][1] + M[3][0]*Tmp[1][2]);
-	Result[1][2] = -RDet * (M[0][0]*Tmp[2][0] - M[1][0]*Tmp[2][1] + M[3][0]*Tmp[2][2]);
-	Result[1][3] =  RDet * (M[0][0]*Tmp[3][0] - M[1][0]*Tmp[3][1] + M[2][0]*Tmp[3][2]);
-	Result[2][0] =  RDet * (
-		M[1][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
-		M[2][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) +
-		M[3][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1])
-		);
-	Result[2][1] = -RDet * (
-		M[0][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
-		M[2][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
-		M[3][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1])
-		);
-	Result[2][2] =  RDet * (
-		M[0][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) -
-		M[1][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
-		M[3][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
-		);
-	Result[2][3] = -RDet * (
-		M[0][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1]) -
-		M[1][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1]) +
-		M[2][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
-		);
-	Result[3][0] = -RDet * (
-		M[1][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
-		M[2][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) +
-		M[3][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1])
-		);
-	Result[3][1] =  RDet * (
-		M[0][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
-		M[2][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
-		M[3][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1])
-		);
-	Result[3][2] = -RDet * (
-		M[0][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) -
-		M[1][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
-		M[3][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
-		);
-	Result[3][3] =  RDet * (
-		M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) -
-		M[1][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1]) +
-		M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
-		);
-
-	memcpy( DstMatrix, &Result, sizeof(Result) );
-}
-
-FORCEINLINE void VectorMatrixInverse(FMatrix44f* DstMatrix, const FMatrix44f* SrcMatrix)
-{
-	typedef float Float4x4[4][4];
-	const Float4x4& M = *((const Float4x4*)SrcMatrix);
-	Float4x4 Result;
-	float Det[4];
-	Float4x4 Tmp;
-
-	Tmp[0][0] = M[2][2] * M[3][3] - M[2][3] * M[3][2];
-	Tmp[0][1] = M[1][2] * M[3][3] - M[1][3] * M[3][2];
-	Tmp[0][2] = M[1][2] * M[2][3] - M[1][3] * M[2][2];
-
-	Tmp[1][0] = M[2][2] * M[3][3] - M[2][3] * M[3][2];
-	Tmp[1][1] = M[0][2] * M[3][3] - M[0][3] * M[3][2];
-	Tmp[1][2] = M[0][2] * M[2][3] - M[0][3] * M[2][2];
-
-	Tmp[2][0] = M[1][2] * M[3][3] - M[1][3] * M[3][2];
-	Tmp[2][1] = M[0][2] * M[3][3] - M[0][3] * M[3][2];
-	Tmp[2][2] = M[0][2] * M[1][3] - M[0][3] * M[1][2];
-
-	Tmp[3][0] = M[1][2] * M[2][3] - M[1][3] * M[2][2];
-	Tmp[3][1] = M[0][2] * M[2][3] - M[0][3] * M[2][2];
-	Tmp[3][2] = M[0][2] * M[1][3] - M[0][3] * M[1][2];
-
-	Det[0] = M[1][1] * Tmp[0][0] - M[2][1] * Tmp[0][1] + M[3][1] * Tmp[0][2];
-	Det[1] = M[0][1] * Tmp[1][0] - M[2][1] * Tmp[1][1] + M[3][1] * Tmp[1][2];
-	Det[2] = M[0][1] * Tmp[2][0] - M[1][1] * Tmp[2][1] + M[3][1] * Tmp[2][2];
-	Det[3] = M[0][1] * Tmp[3][0] - M[1][1] * Tmp[3][1] + M[2][1] * Tmp[3][2];
-
-	float Determinant = M[0][0] * Det[0] - M[1][0] * Det[1] + M[2][0] * Det[2] - M[3][0] * Det[3];
-	const float	RDet = 1.0f / Determinant;
-
-	Result[0][0] = RDet * Det[0];
-	Result[0][1] = -RDet * Det[1];
-	Result[0][2] = RDet * Det[2];
-	Result[0][3] = -RDet * Det[3];
-	Result[1][0] = -RDet * (M[1][0] * Tmp[0][0] - M[2][0] * Tmp[0][1] + M[3][0] * Tmp[0][2]);
-	Result[1][1] = RDet * (M[0][0] * Tmp[1][0] - M[2][0] * Tmp[1][1] + M[3][0] * Tmp[1][2]);
-	Result[1][2] = -RDet * (M[0][0] * Tmp[2][0] - M[1][0] * Tmp[2][1] + M[3][0] * Tmp[2][2]);
-	Result[1][3] = RDet * (M[0][0] * Tmp[3][0] - M[1][0] * Tmp[3][1] + M[2][0] * Tmp[3][2]);
-	Result[2][0] = RDet * (
-		M[1][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
-		M[2][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) +
-		M[3][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1])
-		);
-	Result[2][1] = -RDet * (
-		M[0][0] * (M[2][1] * M[3][3] - M[2][3] * M[3][1]) -
-		M[2][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
-		M[3][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1])
-		);
-	Result[2][2] = RDet * (
-		M[0][0] * (M[1][1] * M[3][3] - M[1][3] * M[3][1]) -
-		M[1][0] * (M[0][1] * M[3][3] - M[0][3] * M[3][1]) +
-		M[3][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
-		);
-	Result[2][3] = -RDet * (
-		M[0][0] * (M[1][1] * M[2][3] - M[1][3] * M[2][1]) -
-		M[1][0] * (M[0][1] * M[2][3] - M[0][3] * M[2][1]) +
-		M[2][0] * (M[0][1] * M[1][3] - M[0][3] * M[1][1])
-		);
-	Result[3][0] = -RDet * (
-		M[1][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
-		M[2][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) +
-		M[3][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1])
-		);
-	Result[3][1] = RDet * (
-		M[0][0] * (M[2][1] * M[3][2] - M[2][2] * M[3][1]) -
-		M[2][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
-		M[3][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1])
-		);
-	Result[3][2] = -RDet * (
-		M[0][0] * (M[1][1] * M[3][2] - M[1][2] * M[3][1]) -
-		M[1][0] * (M[0][1] * M[3][2] - M[0][2] * M[3][1]) +
-		M[3][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
-		);
-	Result[3][3] = RDet * (
-		M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) -
-		M[1][0] * (M[0][1] * M[2][2] - M[0][2] * M[2][1]) +
-		M[2][0] * (M[0][1] * M[1][2] - M[0][2] * M[1][1])
-		);
-
-	memcpy(DstMatrix, &Result, sizeof(Result));
-}
+CORE_API void VectorMatrixInverse(FMatrix44f* DstMatrix, const FMatrix44f* SrcMatrix);
+CORE_API void VectorMatrixInverse(FMatrix44d* DstMatrix, const FMatrix44d* SrcMatrix);
 
 
 

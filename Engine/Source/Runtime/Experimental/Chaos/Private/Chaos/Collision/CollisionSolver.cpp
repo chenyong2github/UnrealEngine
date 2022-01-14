@@ -311,7 +311,7 @@ namespace Chaos
 			}
 			else
 			{
-				const FRotation3& PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Body0.Q() : Body1.Q();
+				const FRotation3 PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Body0.Q() : Body1.Q();
 				ContactNormal = PlaneQ * ManifoldPoint.ManifoldContactNormal;
 			}
 

@@ -84,10 +84,10 @@ FORCEINLINE TMatrix<T>	TMatrix<T>::operator+(const TMatrix<T>& Other) const
 
 	for (int32 X = 0; X < 4; X++)
 	{
-		for (int32 Y = 0; Y < 4; Y++)
-		{
-			ResultMat.M[X][Y] = M[X][Y] + Other.M[X][Y];
-		}
+		ResultMat.M[X][0] = M[X][0] + Other.M[X][0];
+		ResultMat.M[X][1] = M[X][1] + Other.M[X][1];
+		ResultMat.M[X][2] = M[X][2] + Other.M[X][2];
+		ResultMat.M[X][3] = M[X][3] + Other.M[X][3];
 	}
 
 	ResultMat.DiagnosticCheckNaN();
@@ -108,10 +108,10 @@ FORCEINLINE TMatrix<T> TMatrix<T>::operator*(T Other) const
 
 	for (int32 X = 0; X < 4; X++)
 	{
-		for (int32 Y = 0; Y < 4; Y++)
-		{
-			ResultMat.M[X][Y] = M[X][Y] * Other;
-		}
+		ResultMat.M[X][0] = M[X][0] * Other;
+		ResultMat.M[X][1] = M[X][1] * Other;
+		ResultMat.M[X][2] = M[X][2] * Other;
+		ResultMat.M[X][3] = M[X][3] * Other;
 	}
 
 	ResultMat.DiagnosticCheckNaN();

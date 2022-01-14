@@ -7,6 +7,9 @@
 #include "Chaos/TriangleMesh.h"
 #include "ChaosCheck.h"
 
+
+//PRAGMA_DISABLE_OPTIMIZATION
+
 namespace Chaos
 {
 	FRotation3 TransformToLocalSpace(FMatrix33& Inertia)
@@ -200,7 +203,7 @@ namespace Chaos
 		for (const FMassProperties& Child : MPArray)
 		{
 			NewMP.Volume += Child.Volume;
-			const FMatrix33 ChildRI = Child.RotationOfMass * FMatrix::Identity;
+			const FMatrix33 ChildRI = Child.RotationOfMass.ToMatrix();
 			const FMatrix33 ChildWorldSpaceI = ChildRI.GetTransposed() * Child.InertiaTensor * ChildRI;
 			NewMP.InertiaTensor += ChildWorldSpaceI;
 			NewMP.CenterOfMass += Child.CenterOfMass * Child.Mass;
