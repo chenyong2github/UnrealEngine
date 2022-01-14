@@ -182,6 +182,9 @@ public:
 		return Shared ? Shared->GetValuePolicies() : TConstArrayView<FCacheValuePolicy>();
 	}
 
+	/** Returns a copy of this policy transformed by an operation. */
+	UE_API FCacheRecordPolicy Transform(TFunctionRef<ECachePolicy (ECachePolicy)> Op) const;
+
 private:
 	friend class FCacheRecordPolicyBuilder;
 

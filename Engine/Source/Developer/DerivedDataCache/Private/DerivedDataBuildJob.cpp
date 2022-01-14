@@ -818,12 +818,7 @@ void FBuildJob::BeginExecuteRemote()
 	}
 	else
 	{
-		FBuildPolicyBuilder PolicyBuilder(BuildPolicy.GetDefaultValuePolicy() & Mask);
-		for (const FBuildValuePolicy& Value : BuildPolicy.GetValuePolicies())
-		{
-			PolicyBuilder.AddValuePolicy({Value.Id, Value.Policy & Mask});
-		}
-		RemoteBuildPolicy = PolicyBuilder.Build();
+		RemoteBuildPolicy = BuildPolicy.Transform([Mask](EBuildPolicy Policy) { return Policy & Mask; });
 	}
 
 	WorkerExecutor->Build(Action.Get(), Inputs, RemoteBuildPolicy, *Worker, BuildSystem, Owner,

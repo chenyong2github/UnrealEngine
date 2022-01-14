@@ -187,6 +187,20 @@ EBuildPolicy FBuildPolicy::GetValuePolicy(const FValueId& Id) const
 	return DefaultValuePolicy;
 }
 
+FBuildPolicy FBuildPolicy::Transform(TFunctionRef<EBuildPolicy (EBuildPolicy)> Op) const
+{
+	if (IsUniform())
+	{
+		return Op(CombinedPolicy);
+	}
+	FBuildPolicyBuilder Builder(Op(DefaultValuePolicy));
+	for (const FBuildValuePolicy& Value : GetValuePolicies())
+	{
+		Builder.AddValuePolicy({Value.Id, Op(Value.Policy)});
+	}
+	return Builder.Build();
+}
+
 void FBuildPolicyBuilder::AddValuePolicy(const FBuildValuePolicy& Policy)
 {
 	if (!Shared)

@@ -119,6 +119,9 @@ public:
 		return Shared ? Shared->GetValuePolicies() : TConstArrayView<FBuildValuePolicy>();
 	}
 
+	/** Returns a copy of this policy transformed by an operation. */
+	UE_API FBuildPolicy Transform(TFunctionRef<EBuildPolicy (EBuildPolicy)> Op) const;
+
 private:
 	friend class FBuildPolicyBuilder;
 

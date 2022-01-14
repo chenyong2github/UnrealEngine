@@ -215,6 +215,20 @@ ECachePolicy FCacheRecordPolicy::GetValuePolicy(const FValueId& Id) const
 	return DefaultValuePolicy;
 }
 
+FCacheRecordPolicy FCacheRecordPolicy::Transform(TFunctionRef<ECachePolicy (ECachePolicy)> Op) const
+{
+	if (IsUniform())
+	{
+		return Op(RecordPolicy);
+	}
+	FCacheRecordPolicyBuilder Builder(Op(DefaultValuePolicy));
+	for (const FCacheValuePolicy& Value : GetValuePolicies())
+	{
+		Builder.AddValuePolicy({Value.Id, Op(Value.Policy)});
+	}
+	return Builder.Build();
+}
+
 void FCacheRecordPolicyBuilder::AddValuePolicy(const FCacheValuePolicy& Policy)
 {
 	if (!Shared)
